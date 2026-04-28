@@ -1,11 +1,12 @@
 export type Direction = 'up' | 'down' | 'left' | 'right';
 
+export type DefinitionRegistry<TDefinition> = Record<string, TDefinition>;
+
 export interface PlayerDefinition {
 	id: string;
 	baseHp: number;
 	baseAttack: number;
 	moveSpeed: number;
-	facing: Direction;
 }
 
 export interface EnemyDefinition {
