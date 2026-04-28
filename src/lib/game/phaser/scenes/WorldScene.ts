@@ -38,6 +38,7 @@ export class WorldScene extends Phaser.Scene {
 	private wasdKeys?: Partial<Record<'left' | 'right' | 'up' | 'down', DirectionKey>>;
 	private attackKey?: DirectionKey;
 	private enemy?: EnemyInstance;
+	private enemyMarker?: { setVisible: (visible: boolean) => unknown };
 	private attackWindowUntil = 0;
 	private playerProgress: ProgressionState = {
 		level: 1,
@@ -64,6 +65,7 @@ export class WorldScene extends Phaser.Scene {
 			attack: startingPlayer.baseAttack
 		};
 		this.enemy = undefined;
+		this.enemyMarker = undefined;
 
 		this.add.rectangle(width / 2, height / 2, width, height, 0x5d7a3a);
 		this.player = this.add.circle(
@@ -86,7 +88,7 @@ export class WorldScene extends Phaser.Scene {
 				invulnerableUntil: 0,
 				defeated: false
 			};
-			this.add.rectangle(
+			this.enemyMarker = this.add.rectangle(
 				hostileTransition.x,
 				hostileTransition.y,
 				WorldScene.enemyRadius * 2,
@@ -162,6 +164,7 @@ export class WorldScene extends Phaser.Scene {
 
 		if (this.enemy.hp === 0) {
 			this.enemy.defeated = true;
+			this.enemyMarker?.setVisible(false);
 			this.playerProgress = applyExperienceGain(
 				this.playerProgress,
 				this.enemy.definition.xpReward

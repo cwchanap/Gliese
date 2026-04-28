@@ -13,12 +13,22 @@ const phaserState = vi.hoisted(() => {
 		up: { isDown: false },
 		down: { isDown: false }
 	};
+	const attackKey = { isDown: false };
 	const playerMarker = { x: 0, y: 0 };
+	const enemyMarker = { setVisible: vi.fn() };
+	let rectangleCallCount = 0;
 
 	class SceneMock {
 		scene = { start: vi.fn() };
 		add = {
-			rectangle: vi.fn(),
+			rectangle: vi.fn(() => {
+				rectangleCallCount += 1;
+				if (rectangleCallCount === 3) {
+					return enemyMarker;
+				}
+
+				return {};
+			}),
 			circle: vi.fn((x: number, y: number) => {
 				playerMarker.x = x;
 				playerMarker.y = y;
@@ -35,26 +45,35 @@ const phaserState = vi.hoisted(() => {
 		input = {
 			keyboard: {
 				createCursorKeys: vi.fn(() => cursorKeys),
-				addKeys: vi.fn(() => wasdKeys)
+				addKeys: vi.fn(() => wasdKeys),
+				addKey: vi.fn(() => attackKey)
 			}
 		};
 
 		constructor(_key?: string) {}
 	}
 
-	return { SceneMock, cursorKeys, wasdKeys, playerMarker };
+	return { SceneMock, cursorKeys, wasdKeys, attackKey, playerMarker, enemyMarker, reset() {
+		rectangleCallCount = 0;
+	} };
 });
 
 vi.mock('phaser', () => ({
 	default: {
 		Scene: phaserState.SceneMock,
+		Math: {
+			Distance: {
+				Between: (x1: number, y1: number, x2: number, y2: number) => Math.hypot(x2 - x1, y2 - y1)
+			}
+		},
 		Input: {
 			Keyboard: {
 				KeyCodes: {
 					A: 'A',
 					D: 'D',
 					W: 'W',
-					S: 'S'
+					S: 'S',
+					SPACE: 'SPACE'
 				}
 			}
 		}
@@ -81,6 +100,7 @@ describe('BootScene', () => {
 describe('WorldScene', () => {
 	beforeEach(() => {
 		vi.clearAllMocks();
+		phaserState.reset();
 		Object.assign(phaserState.cursorKeys.left, { isDown: false });
 		Object.assign(phaserState.cursorKeys.right, { isDown: false });
 		Object.assign(phaserState.cursorKeys.up, { isDown: false });
@@ -89,6 +109,7 @@ describe('WorldScene', () => {
 		Object.assign(phaserState.wasdKeys.right, { isDown: false });
 		Object.assign(phaserState.wasdKeys.up, { isDown: false });
 		Object.assign(phaserState.wasdKeys.down, { isDown: false });
+		Object.assign(phaserState.attackKey, { isDown: false });
 		Object.assign(phaserState.playerMarker, { x: 0, y: 0 });
 	});
 
@@ -196,5 +217,25 @@ describe('WorldScene', () => {
 
 		expect(phaserState.playerMarker.x).toBe(meadowEntryMap.spawn.x + 30);
 		expect(phaserState.playerMarker.y).toBe(meadowEntryMap.spawn.y);
+	});
+
+	it('defeats an enemy within the melee attack window and applies the xp reward', async () => {
+		const progression = await import('$lib/game/core/progression');
+		const applyExperienceGainSpy = vi.spyOn(progression, 'applyExperienceGain');
+		const { WorldScene } = await import('./WorldScene');
+		const scene = new WorldScene() as WorldScene & { playerProgress: { level: number; xp: number } };
+
+		scene.create({ mapId: 'meadow-entry' });
+		Object.assign(phaserState.playerMarker, { x: 304, y: 96 });
+		phaserState.attackKey.isDown = true;
+
+		scene.update(0, 16);
+
+		expect(applyExperienceGainSpy).toHaveBeenCalledWith(
+			{ level: 1, xp: 0, hp: 20, attack: 3 },
+			5
+		);
+		expect(scene.playerProgress).toMatchObject({ level: 2, xp: 5 });
+		expect(phaserState.enemyMarker.setVisible).toHaveBeenCalledWith(false);
 	});
 });
