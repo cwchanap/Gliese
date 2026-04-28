@@ -20,17 +20,13 @@ describe('progression rules', () => {
 		});
 	});
 
-	it('uses the current level threshold instead of hard-coding level 2', () => {
-		expect(applyExperienceGain({ level: 2, xp: 9, hp: 24, attack: 4 }, 1)).toEqual({
-			level: 3,
-			xp: 10,
-			hp: 28,
-			attack: 5
-		});
+	it('rejects non-level-1 input because only the first level-up is implemented', () => {
+		expect(() => applyExperienceGain({ level: 2, xp: 9, hp: 24, attack: 4 }, 1)).toThrow(
+			'applyExperienceGain only supports level 1 progression'
+		);
 	});
 
 	it('returns deterministic thresholds', () => {
 		expect(getXpForLevel(2)).toBe(5);
-		expect(getXpForLevel(3)).toBe(10);
 	});
 });

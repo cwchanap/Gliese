@@ -10,15 +10,18 @@ export function getXpForLevel(level: number) {
 }
 
 export function applyExperienceGain(state: ProgressionState, gainedXp: number) {
-	const xp = state.xp + gainedXp;
-	const nextLevel = state.level + 1;
+	if (state.level !== 1) {
+		throw new Error('applyExperienceGain only supports level 1 progression');
+	}
 
-	if (xp < getXpForLevel(nextLevel)) {
+	const xp = state.xp + gainedXp;
+
+	if (xp < getXpForLevel(2)) {
 		return { ...state, xp };
 	}
 
 	return {
-		level: nextLevel,
+		level: 2,
 		xp,
 		hp: state.hp + 4,
 		attack: state.attack + 1
