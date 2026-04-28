@@ -1,12 +1,17 @@
 import type { DefinitionRegistry, EnemyDefinition } from '$lib/game/core/types';
 
-export const slimeScout: EnemyDefinition = {
+export interface EnemyCombatDefinition extends EnemyDefinition {
+	xpReward: number;
+}
+
+export const slimeScout: EnemyCombatDefinition = {
 	id: 'slime-scout',
-	baseHp: 8,
+	baseHp: 3,
 	baseAttack: 2,
-	moveSpeed: 90
+	moveSpeed: 90,
+	xpReward: 5
 };
 
-export const enemies: DefinitionRegistry<EnemyDefinition> = {
+export const enemies: DefinitionRegistry<EnemyCombatDefinition> = {
 	[slimeScout.id]: slimeScout
 };

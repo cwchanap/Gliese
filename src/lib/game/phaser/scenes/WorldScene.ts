@@ -1,7 +1,10 @@
 import Phaser from 'phaser';
 import { maps, openingMapId, type WorldMapDefinition } from '$lib/game/content/maps';
+import { enemies, type EnemyCombatDefinition } from '$lib/game/content/enemies';
 import { startingPlayer } from '$lib/game/content/player';
+import { canReceiveHit, resolveHit } from '$lib/game/core/combat';
 import { resolveMovementVector } from '$lib/game/core/input';
+import { applyExperienceGain, type ProgressionState } from '$lib/game/core/progression';
 
 interface WorldSceneData {
 	mapId?: string;
@@ -11,15 +14,37 @@ type DirectionKey = {
 	isDown: boolean;
 };
 
+type EnemyInstance = {
+	definition: EnemyCombatDefinition;
+	x: number;
+	y: number;
+	hp: number;
+	invulnerableUntil: number;
+	defeated: boolean;
+};
+
 export class WorldScene extends Phaser.Scene {
 	static readonly key = 'world';
 	private static readonly tileSize = 32;
 	private static readonly playerRadius = 12;
+	private static readonly enemyRadius = 10;
 	private static readonly maxMovementDeltaMs = 250;
+	private static readonly attackWindowMs = 150;
+	private static readonly enemyInvulnerabilityMs = 250;
+	private static readonly attackReach = 24;
 
 	private player?: Phaser.GameObjects.Arc;
 	private cursorKeys?: Partial<Record<'left' | 'right' | 'up' | 'down', DirectionKey>>;
 	private wasdKeys?: Partial<Record<'left' | 'right' | 'up' | 'down', DirectionKey>>;
+	private attackKey?: DirectionKey;
+	private enemy?: EnemyInstance;
+	private attackWindowUntil = 0;
+	private playerProgress: ProgressionState = {
+		level: 1,
+		xp: 0,
+		hp: startingPlayer.baseHp,
+		attack: startingPlayer.baseAttack
+	};
 	private worldSize = { width: 0, height: 0 };
 
 	constructor() {
@@ -31,6 +56,14 @@ export class WorldScene extends Phaser.Scene {
 		const width = map.width * WorldScene.tileSize;
 		const height = map.height * WorldScene.tileSize;
 		this.worldSize = { width, height };
+		this.attackWindowUntil = 0;
+		this.playerProgress = {
+			level: 1,
+			xp: 0,
+			hp: startingPlayer.baseHp,
+			attack: startingPlayer.baseAttack
+		};
+		this.enemy = undefined;
 
 		this.add.rectangle(width / 2, height / 2, width, height, 0x5d7a3a);
 		this.player = this.add.circle(
@@ -44,6 +77,22 @@ export class WorldScene extends Phaser.Scene {
 
 		if (hostileTransition) {
 			this.add.rectangle(hostileTransition.x, hostileTransition.y, 20, 20, 0x8b2f2f);
+			const encounter = enemies['slime-scout'];
+			this.enemy = {
+				definition: encounter,
+				x: hostileTransition.x,
+				y: hostileTransition.y,
+				hp: encounter.baseHp,
+				invulnerableUntil: 0,
+				defeated: false
+			};
+			this.add.rectangle(
+				hostileTransition.x,
+				hostileTransition.y,
+				WorldScene.enemyRadius * 2,
+				WorldScene.enemyRadius * 2,
+				0x7cff6b
+			);
 		}
 
 		this.cameras.main.setBackgroundColor('#1a1f2b');
@@ -57,9 +106,10 @@ export class WorldScene extends Phaser.Scene {
 			up: Phaser.Input.Keyboard.KeyCodes.W,
 			down: Phaser.Input.Keyboard.KeyCodes.S
 		}) as Partial<Record<'left' | 'right' | 'up' | 'down', DirectionKey>> | undefined;
+		this.attackKey = this.input?.keyboard?.addKey?.(Phaser.Input.Keyboard.KeyCodes.SPACE);
 	}
 
-	update(_time: number, delta: number) {
+	update(time: number, delta: number) {
 		if (!this.player) {
 			return;
 		}
@@ -80,6 +130,43 @@ export class WorldScene extends Phaser.Scene {
 
 		this.player.x = Math.min(Math.max(this.player.x + direction.x * step, min), maxX);
 		this.player.y = Math.min(Math.max(this.player.y + direction.y * step, min), maxY);
+
+		if (this.attackKey?.isDown && time >= this.attackWindowUntil) {
+			this.attackWindowUntil = time + WorldScene.attackWindowMs;
+		}
+
+		if (!this.enemy || this.enemy.defeated || time >= this.attackWindowUntil) {
+			return;
+		}
+
+		const distanceToEnemy = Phaser.Math.Distance.Between(
+			this.player.x,
+			this.player.y,
+			this.enemy.x,
+			this.enemy.y
+		);
+
+		if (
+			distanceToEnemy >
+				WorldScene.playerRadius + WorldScene.enemyRadius + WorldScene.attackReach ||
+			!canReceiveHit(this.enemy, time)
+		) {
+			return;
+		}
+
+		this.enemy.hp = resolveHit(
+			{ hp: this.enemy.hp, defense: 0 },
+			{ power: this.playerProgress.attack }
+		).hp;
+		this.enemy.invulnerableUntil = time + WorldScene.enemyInvulnerabilityMs;
+
+		if (this.enemy.hp === 0) {
+			this.enemy.defeated = true;
+			this.playerProgress = applyExperienceGain(
+				this.playerProgress,
+				this.enemy.definition.xpReward
+			);
+		}
 	}
 
 	private resolveMap(mapId?: string): WorldMapDefinition {

@@ -1,4 +1,4 @@
-type ProgressionState = {
+export type ProgressionState = {
 	level: number;
 	xp: number;
 	hp: number;
