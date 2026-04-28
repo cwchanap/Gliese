@@ -1,5 +1,8 @@
 import { describe, expect, it } from 'vitest';
 
+import { meadowEntryMap } from '$lib/game/content/maps';
+import { startingPlayer } from '$lib/game/content/player';
+import { getXpForLevel } from '$lib/game/core/progression';
 import {
 	createNewSaveState,
 	parseSaveState,
@@ -42,7 +45,20 @@ class MemoryStorage implements Storage {
 
 describe('save state', () => {
 	it('creates a level 1 starting save', () => {
-		expect(createNewSaveState().player.level).toBe(1);
+		expect(createNewSaveState()).toEqual({
+			version: 1,
+			mapId: meadowEntryMap.id,
+			player: {
+				level: 1,
+				xp: getXpForLevel(1),
+				hp: startingPlayer.baseHp,
+				attack: startingPlayer.baseAttack,
+				x: 64,
+				y: 64,
+				facing: meadowEntryMap.spawnDirection
+			},
+			flags: { clearedEncounters: [] }
+		});
 	});
 
 	it('round-trips a valid save payload', () => {
@@ -52,6 +68,44 @@ describe('save state', () => {
 
 	it('rejects invalid payloads', () => {
 		expect(parseSaveState('{"bad":true}')).toBeNull();
+	});
+
+	it('rejects a payload with the wrong version', () => {
+		expect(
+			parseSaveState(
+				JSON.stringify({
+					...createNewSaveState(),
+					version: 2
+				})
+			)
+		).toBeNull();
+	});
+
+	it('rejects a payload with wrong player field types', () => {
+		expect(
+			parseSaveState(
+				JSON.stringify({
+					...createNewSaveState(),
+					player: {
+						...createNewSaveState().player,
+						level: '1'
+					}
+				})
+			)
+		).toBeNull();
+	});
+
+	it('rejects a payload with invalid flags entries', () => {
+		expect(
+			parseSaveState(
+				JSON.stringify({
+					...createNewSaveState(),
+					flags: {
+						clearedEncounters: ['slime-scout-1', 7]
+					}
+				})
+			)
+		).toBeNull();
 	});
 });
 

@@ -1,4 +1,7 @@
-export type FacingDirection = 'up' | 'down' | 'left' | 'right';
+import { meadowEntryMap } from '$lib/game/content/maps';
+import { startingPlayer } from '$lib/game/content/player';
+import { getXpForLevel } from '$lib/game/core/progression';
+import type { Direction } from '$lib/game/core/types';
 
 export type SaveState = {
 	version: 1;
@@ -10,20 +13,29 @@ export type SaveState = {
 		attack: number;
 		x: number;
 		y: number;
-		facing: FacingDirection;
+		facing: Direction;
 	};
 	flags: {
 		clearedEncounters: string[];
 	};
 };
 
-const FACING_DIRECTIONS: FacingDirection[] = ['up', 'down', 'left', 'right'];
+const DIRECTIONS: Direction[] = ['up', 'down', 'left', 'right'];
+const STARTING_POSITION = { x: 64, y: 64 };
 
 export function createNewSaveState(): SaveState {
 	return {
 		version: 1,
-		mapId: 'meadow-entry',
-		player: { level: 1, xp: 0, hp: 20, attack: 3, x: 64, y: 64, facing: 'down' },
+		mapId: meadowEntryMap.id,
+		player: {
+			level: 1,
+			xp: getXpForLevel(1),
+			hp: startingPlayer.baseHp,
+			attack: startingPlayer.baseAttack,
+			x: STARTING_POSITION.x,
+			y: STARTING_POSITION.y,
+			facing: meadowEntryMap.spawnDirection
+		},
 		flags: { clearedEncounters: [] }
 	};
 }
@@ -73,6 +85,6 @@ function isNumber(value: unknown): value is number {
 	return typeof value === 'number' && Number.isFinite(value);
 }
 
-function isFacingDirection(value: unknown): value is FacingDirection {
-	return typeof value === 'string' && FACING_DIRECTIONS.includes(value as FacingDirection);
+function isFacingDirection(value: unknown): value is Direction {
+	return typeof value === 'string' && DIRECTIONS.includes(value as Direction);
 }
