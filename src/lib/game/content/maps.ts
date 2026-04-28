@@ -1,12 +1,38 @@
 import type { DefinitionRegistry, MapDefinition } from '$lib/game/core/types';
 
-export const meadowEntryMap: MapDefinition = {
+export interface MapTransition {
+	x: number;
+	y: number;
+	toMapId: string;
+}
+
+export interface WorldMapDefinition extends MapDefinition {
+	spawn: {
+		x: number;
+		y: number;
+	};
+	transitions: MapTransition[];
+}
+
+export const meadowEntryMap: WorldMapDefinition = {
 	id: 'meadow-entry',
 	width: 20,
 	height: 12,
-	spawnDirection: 'down'
+	spawnDirection: 'down',
+	spawn: { x: 64, y: 64 },
+	transitions: [{ x: 304, y: 96, toMapId: 'ruins-threshold' }]
 };
 
-export const maps: DefinitionRegistry<MapDefinition> = {
-	[meadowEntryMap.id]: meadowEntryMap
+export const ruinsThresholdMap: WorldMapDefinition = {
+	id: 'ruins-threshold',
+	width: 16,
+	height: 10,
+	spawnDirection: 'left',
+	spawn: { x: 48, y: 96 },
+	transitions: [{ x: 16, y: 96, toMapId: 'meadow-entry' }]
+};
+
+export const maps: DefinitionRegistry<WorldMapDefinition> = {
+	[meadowEntryMap.id]: meadowEntryMap,
+	[ruinsThresholdMap.id]: ruinsThresholdMap
 };

@@ -1,4 +1,6 @@
 import { browser } from '$app/environment';
+import { BootScene } from '$lib/game/phaser/scenes/BootScene';
+import { WorldScene } from '$lib/game/phaser/scenes/WorldScene';
 
 export async function createGame(target: HTMLElement) {
 	if (!browser) {
@@ -12,7 +14,7 @@ export async function createGame(target: HTMLElement) {
 		width: 640,
 		height: 360,
 		backgroundColor: '#1a1f2b',
-		scene: []
+		scene: [BootScene, WorldScene]
 	});
 
 	return {
