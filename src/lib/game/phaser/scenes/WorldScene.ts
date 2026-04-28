@@ -37,6 +37,7 @@ export class WorldScene extends Phaser.Scene {
 	private cursorKeys?: Partial<Record<'left' | 'right' | 'up' | 'down', DirectionKey>>;
 	private wasdKeys?: Partial<Record<'left' | 'right' | 'up' | 'down', DirectionKey>>;
 	private attackKey?: DirectionKey;
+	private wasAttackKeyDown = false;
 	private enemy?: EnemyInstance;
 	private enemyMarker?: { setVisible: (visible: boolean) => unknown };
 	private attackWindowUntil = 0;
@@ -66,6 +67,7 @@ export class WorldScene extends Phaser.Scene {
 		};
 		this.enemy = undefined;
 		this.enemyMarker = undefined;
+		this.wasAttackKeyDown = false;
 
 		this.add.rectangle(width / 2, height / 2, width, height, 0x5d7a3a);
 		this.player = this.add.circle(
@@ -133,9 +135,12 @@ export class WorldScene extends Phaser.Scene {
 		this.player.x = Math.min(Math.max(this.player.x + direction.x * step, min), maxX);
 		this.player.y = Math.min(Math.max(this.player.y + direction.y * step, min), maxY);
 
-		if (this.attackKey?.isDown && time >= this.attackWindowUntil) {
+		const isAttackPressed = Boolean(this.attackKey?.isDown);
+
+		if (isAttackPressed && !this.wasAttackKeyDown && time >= this.attackWindowUntil) {
 			this.attackWindowUntil = time + WorldScene.attackWindowMs;
 		}
+		this.wasAttackKeyDown = isAttackPressed;
 
 		if (!this.enemy || this.enemy.defeated || time >= this.attackWindowUntil) {
 			return;
@@ -165,14 +170,22 @@ export class WorldScene extends Phaser.Scene {
 		if (this.enemy.hp === 0) {
 			this.enemy.defeated = true;
 			this.enemyMarker?.setVisible(false);
-			this.playerProgress = applyExperienceGain(
-				this.playerProgress,
-				this.enemy.definition.xpReward
-			);
+			this.playerProgress = this.applyReward(this.enemy.definition.xpReward);
 		}
 	}
 
 	private resolveMap(mapId?: string): WorldMapDefinition {
 		return maps[mapId ?? openingMapId] ?? maps[openingMapId];
+	}
+
+	private applyReward(xpReward: number): ProgressionState {
+		if (this.playerProgress.level === 1) {
+			return applyExperienceGain(this.playerProgress, xpReward);
+		}
+
+		return {
+			...this.playerProgress,
+			xp: this.playerProgress.xp + xpReward
+		};
 	}
 }

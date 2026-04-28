@@ -16,19 +16,19 @@ const phaserState = vi.hoisted(() => {
 	const attackKey = { isDown: false };
 	const playerMarker = { x: 0, y: 0 };
 	const enemyMarker = { setVisible: vi.fn() };
-	let rectangleCallCount = 0;
 
 	class SceneMock {
 		scene = { start: vi.fn() };
 		add = {
-			rectangle: vi.fn(() => {
-				rectangleCallCount += 1;
-				if (rectangleCallCount === 3) {
-					return enemyMarker;
-				}
+			rectangle: vi.fn(
+				(_x: number, _y: number, _width: number, _height: number, color: number) => {
+					if (color === 0x7cff6b) {
+						return enemyMarker;
+					}
 
-				return {};
-			}),
+					return {};
+				}
+			),
 			circle: vi.fn((x: number, y: number) => {
 				playerMarker.x = x;
 				playerMarker.y = y;
@@ -53,9 +53,17 @@ const phaserState = vi.hoisted(() => {
 		constructor(_key?: string) {}
 	}
 
-	return { SceneMock, cursorKeys, wasdKeys, attackKey, playerMarker, enemyMarker, reset() {
-		rectangleCallCount = 0;
-	} };
+	return {
+		SceneMock,
+		cursorKeys,
+		wasdKeys,
+		attackKey,
+		playerMarker,
+		enemyMarker,
+		reset() {
+			enemyMarker.setVisible.mockReset();
+		}
+	};
 });
 
 vi.mock('phaser', () => ({
@@ -237,5 +245,38 @@ describe('WorldScene', () => {
 		);
 		expect(scene.playerProgress).toMatchObject({ level: 2, xp: 5 });
 		expect(phaserState.enemyMarker.setVisible).toHaveBeenCalledWith(false);
+	});
+
+	it('does not reopen melee attack windows while space is held', async () => {
+		const { WorldScene } = await import('./WorldScene');
+		const scene = new WorldScene() as WorldScene & {
+			enemy: { hp: number; invulnerableUntil: number; defeated: boolean };
+		};
+
+		scene.create({ mapId: 'meadow-entry' });
+		Object.assign(phaserState.playerMarker, { x: 304, y: 96 });
+		Object.assign(scene.enemy, { hp: 9, invulnerableUntil: 0, defeated: false });
+		phaserState.attackKey.isDown = true;
+
+		scene.update(0, 16);
+		scene.update(200, 16);
+		scene.update(400, 16);
+
+		expect(scene.enemy.hp).toBe(6);
+	});
+
+	it('keeps awarding xp after level 2 without throwing', async () => {
+		const { WorldScene } = await import('./WorldScene');
+		const scene = new WorldScene() as WorldScene & {
+			playerProgress: { level: number; xp: number; hp: number; attack: number };
+		};
+
+		scene.create({ mapId: 'meadow-entry' });
+		Object.assign(phaserState.playerMarker, { x: 304, y: 96 });
+		scene.playerProgress = { level: 2, xp: 5, hp: 24, attack: 4 };
+		phaserState.attackKey.isDown = true;
+
+		expect(() => scene.update(0, 16)).not.toThrow();
+		expect(scene.playerProgress).toEqual({ level: 2, xp: 10, hp: 24, attack: 4 });
 	});
 });
