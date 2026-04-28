@@ -1,27 +1,63 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const phaserState = vi.hoisted(() => {
+	const cursorKeys = {
+		left: { isDown: false },
+		right: { isDown: false },
+		up: { isDown: false },
+		down: { isDown: false }
+	};
+	const wasdKeys = {
+		left: { isDown: false },
+		right: { isDown: false },
+		up: { isDown: false },
+		down: { isDown: false }
+	};
+	const playerMarker = { x: 0, y: 0 };
+
 	class SceneMock {
 		scene = { start: vi.fn() };
 		add = {
 			rectangle: vi.fn(),
-			circle: vi.fn()
+			circle: vi.fn((x: number, y: number) => {
+				playerMarker.x = x;
+				playerMarker.y = y;
+				return playerMarker;
+			})
 		};
 		cameras = {
 			main: {
-				setBackgroundColor: vi.fn()
+				setBackgroundColor: vi.fn(),
+				setBounds: vi.fn(),
+				startFollow: vi.fn()
+			}
+		};
+		input = {
+			keyboard: {
+				createCursorKeys: vi.fn(() => cursorKeys),
+				addKeys: vi.fn(() => wasdKeys)
 			}
 		};
 
 		constructor(_key?: string) {}
 	}
 
-	return { SceneMock };
+	return { SceneMock, cursorKeys, wasdKeys, playerMarker };
 });
 
 vi.mock('phaser', () => ({
 	default: {
-		Scene: phaserState.SceneMock
+		Scene: phaserState.SceneMock,
+		Input: {
+			Keyboard: {
+				KeyCodes: {
+					A: 'A',
+					D: 'D',
+					W: 'W',
+					S: 'S'
+				}
+			}
+		}
 	}
 }));
 
@@ -45,6 +81,15 @@ describe('BootScene', () => {
 describe('WorldScene', () => {
 	beforeEach(() => {
 		vi.clearAllMocks();
+		Object.assign(phaserState.cursorKeys.left, { isDown: false });
+		Object.assign(phaserState.cursorKeys.right, { isDown: false });
+		Object.assign(phaserState.cursorKeys.up, { isDown: false });
+		Object.assign(phaserState.cursorKeys.down, { isDown: false });
+		Object.assign(phaserState.wasdKeys.left, { isDown: false });
+		Object.assign(phaserState.wasdKeys.right, { isDown: false });
+		Object.assign(phaserState.wasdKeys.up, { isDown: false });
+		Object.assign(phaserState.wasdKeys.down, { isDown: false });
+		Object.assign(phaserState.playerMarker, { x: 0, y: 0 });
 	});
 
 	it('renders placeholder ground, spawn marker, and hostile transition marker for the resolved map', async () => {
@@ -70,5 +115,57 @@ describe('WorldScene', () => {
 		);
 		expect(scene.add.rectangle).toHaveBeenNthCalledWith(2, 304, 96, 20, 20, 0x8b2f2f);
 		expect(scene.cameras.main.setBackgroundColor).toHaveBeenCalledWith('#1a1f2b');
+	});
+
+	it('sets up camera follow and keyboard controls for the player marker', async () => {
+		const { WorldScene } = await import('./WorldScene');
+		const { meadowEntryMap } = await import('$lib/game/content/maps');
+		const scene = new WorldScene();
+
+		scene.create({ mapId: meadowEntryMap.id });
+
+		expect(scene.cameras.main.setBounds).toHaveBeenCalledWith(
+			0,
+			0,
+			meadowEntryMap.width * 32,
+			meadowEntryMap.height * 32
+		);
+		expect(scene.cameras.main.startFollow).toHaveBeenCalledWith(phaserState.playerMarker, true);
+		expect(scene.input.keyboard.createCursorKeys).toHaveBeenCalledOnce();
+		expect(scene.input.keyboard.addKeys).toHaveBeenCalledWith({
+			left: 'A',
+			right: 'D',
+			up: 'W',
+			down: 'S'
+		});
+	});
+
+	it('moves the player marker using the current input state', async () => {
+		const { WorldScene } = await import('./WorldScene');
+		const { meadowEntryMap } = await import('$lib/game/content/maps');
+		const scene = new WorldScene();
+
+		scene.create({ mapId: meadowEntryMap.id });
+		phaserState.cursorKeys.right.isDown = true;
+
+		scene.update(0, 1000);
+
+		expect(phaserState.playerMarker.x).toBe(meadowEntryMap.spawn.x + 120);
+		expect(phaserState.playerMarker.y).toBe(meadowEntryMap.spawn.y);
+	});
+
+	it('clamps the player marker within the world bounds during movement', async () => {
+		const { WorldScene } = await import('./WorldScene');
+		const { meadowEntryMap } = await import('$lib/game/content/maps');
+		const scene = new WorldScene();
+
+		scene.create({ mapId: meadowEntryMap.id });
+		phaserState.cursorKeys.left.isDown = true;
+		phaserState.cursorKeys.up.isDown = true;
+
+		scene.update(0, 1000);
+
+		expect(phaserState.playerMarker.x).toBe(12);
+		expect(phaserState.playerMarker.y).toBe(12);
 	});
 });
