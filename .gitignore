@@ -26,3 +26,6 @@ test-results
 
 # Local brainstorming companion artifacts
 .superpowers/
+
+# Local git worktrees
+.worktrees/
