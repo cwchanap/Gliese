@@ -1,30 +1,37 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const environmentState = vi.hoisted(() => ({ browser: true }));
-const destroyMock = vi.fn();
-const gameMock = vi.fn();
+const phaserState = vi.hoisted(() => {
+	const destroyMock = vi.fn();
+	const gameMock = vi.fn();
+	class SceneMock {
+		constructor(_key?: string) {}
+	}
+	class GameMock {
+		constructor(config: unknown) {
+			gameMock(config);
+		}
 
-class GameMock {
-	constructor(config: unknown) {
-		gameMock(config);
+		destroy = destroyMock;
 	}
 
-	destroy = destroyMock;
-}
+	return { destroyMock, gameMock, SceneMock, GameMock };
+});
 
 vi.mock('$app/environment', () => environmentState);
 vi.mock('phaser', () => ({
 	default: {
 		AUTO: 'AUTO',
-		Game: GameMock
+		Game: phaserState.GameMock,
+		Scene: phaserState.SceneMock
 	}
 }));
 
 describe('createGame', () => {
 	beforeEach(() => {
 		environmentState.browser = true;
-		destroyMock.mockClear();
-		gameMock.mockClear();
+		phaserState.destroyMock.mockClear();
+		phaserState.gameMock.mockClear();
 		vi.resetModules();
 	});
 
@@ -36,8 +43,8 @@ describe('createGame', () => {
 
 		const instance = await createGame(mountNode);
 
-		expect(gameMock).toHaveBeenCalledOnce();
-		expect(gameMock).toHaveBeenCalledWith(
+		expect(phaserState.gameMock).toHaveBeenCalledOnce();
+		expect(phaserState.gameMock).toHaveBeenCalledWith(
 			expect.objectContaining({
 				parent: mountNode,
 				scene: [BootScene, WorldScene]
@@ -47,7 +54,7 @@ describe('createGame', () => {
 
 		instance.destroy();
 
-		expect(destroyMock).toHaveBeenCalledWith(true);
+		expect(phaserState.destroyMock).toHaveBeenCalledWith(true);
 	});
 
 	it('throws when called outside the browser', async () => {
@@ -56,6 +63,6 @@ describe('createGame', () => {
 		const mountNode = { id: 'mount-node' } as HTMLElement;
 
 		await expect(createGame(mountNode)).rejects.toThrow('createGame must run in the browser');
-		expect(gameMock).not.toHaveBeenCalled();
+		expect(phaserState.gameMock).not.toHaveBeenCalled();
 	});
 });

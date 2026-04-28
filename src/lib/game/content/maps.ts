@@ -15,8 +15,10 @@ export interface WorldMapDefinition extends MapDefinition {
 	transitions: MapTransition[];
 }
 
+export const openingMapId = 'meadow-entry';
+
 export const meadowEntryMap: WorldMapDefinition = {
-	id: 'meadow-entry',
+	id: openingMapId,
 	width: 20,
 	height: 12,
 	spawnDirection: 'down',
@@ -30,7 +32,7 @@ export const ruinsThresholdMap: WorldMapDefinition = {
 	height: 10,
 	spawnDirection: 'left',
 	spawn: { x: 48, y: 96 },
-	transitions: [{ x: 16, y: 96, toMapId: 'meadow-entry' }]
+	transitions: [{ x: 16, y: 96, toMapId: openingMapId }]
 };
 
 export const maps: DefinitionRegistry<WorldMapDefinition> = {

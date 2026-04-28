@@ -1,10 +1,8 @@
 import Phaser from 'phaser';
-import { meadowEntryMap } from '$lib/game/content/maps';
+import { openingMapId } from '$lib/game/content/maps';
 import { WorldScene } from './WorldScene';
 
-const BaseScene = Phaser.Scene ?? class {};
-
-export class BootScene extends BaseScene {
+export class BootScene extends Phaser.Scene {
 	static readonly key = 'boot';
 
 	constructor() {
@@ -12,6 +10,6 @@ export class BootScene extends BaseScene {
 	}
 
 	create() {
-		this.scene.start(WorldScene.key, { mapId: meadowEntryMap.id });
+		this.scene.start(WorldScene.key, { mapId: openingMapId });
 	}
 }

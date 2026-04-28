@@ -1,13 +1,11 @@
 import Phaser from 'phaser';
-import { maps, type WorldMapDefinition } from '$lib/game/content/maps';
+import { maps, openingMapId, type WorldMapDefinition } from '$lib/game/content/maps';
 
 interface WorldSceneData {
 	mapId?: string;
 }
 
-const BaseScene = Phaser.Scene ?? class {};
-
-export class WorldScene extends BaseScene {
+export class WorldScene extends Phaser.Scene {
 	static readonly key = 'world';
 
 	constructor() {
@@ -33,6 +31,6 @@ export class WorldScene extends BaseScene {
 	}
 
 	private resolveMap(mapId?: string): WorldMapDefinition {
-		return maps[mapId ?? 'meadow-entry'] ?? maps['meadow-entry'];
+		return maps[mapId ?? openingMapId] ?? maps[openingMapId];
 	}
 }
