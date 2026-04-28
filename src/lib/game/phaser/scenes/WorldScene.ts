@@ -23,7 +23,7 @@ export class WorldScene extends BaseScene {
 		this.add.rectangle(width / 2, height / 2, width, height, 0x5d7a3a);
 		this.add.circle(map.spawn.x, map.spawn.y, 12, 0x4da6ff);
 
-		const hostileTransition = map.transitions[0];
+		const hostileTransition = map.transitions.find((transition) => transition.hostile);
 
 		if (hostileTransition) {
 			this.add.rectangle(hostileTransition.x, hostileTransition.y, 20, 20, 0x8b2f2f);

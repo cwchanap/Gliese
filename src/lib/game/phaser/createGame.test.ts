@@ -30,6 +30,8 @@ describe('createGame', () => {
 
 	it('returns a destroyable browser game wrapper', async () => {
 		const { createGame } = await import('./createGame');
+		const { BootScene } = await import('$lib/game/phaser/scenes/BootScene');
+		const { WorldScene } = await import('$lib/game/phaser/scenes/WorldScene');
 		const mountNode = { id: 'mount-node' } as HTMLElement;
 
 		const instance = await createGame(mountNode);
@@ -37,7 +39,8 @@ describe('createGame', () => {
 		expect(gameMock).toHaveBeenCalledOnce();
 		expect(gameMock).toHaveBeenCalledWith(
 			expect.objectContaining({
-				parent: mountNode
+				parent: mountNode,
+				scene: [BootScene, WorldScene]
 			})
 		);
 		expect(instance.destroy).toBeTypeOf('function');

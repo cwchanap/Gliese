@@ -4,6 +4,7 @@ export interface MapTransition {
 	x: number;
 	y: number;
 	toMapId: string;
+	hostile?: boolean;
 }
 
 export interface WorldMapDefinition extends MapDefinition {
@@ -20,7 +21,7 @@ export const meadowEntryMap: WorldMapDefinition = {
 	height: 12,
 	spawnDirection: 'down',
 	spawn: { x: 64, y: 64 },
-	transitions: [{ x: 304, y: 96, toMapId: 'ruins-threshold' }]
+	transitions: [{ x: 304, y: 96, toMapId: 'ruins-threshold', hostile: true }]
 };
 
 export const ruinsThresholdMap: WorldMapDefinition = {
