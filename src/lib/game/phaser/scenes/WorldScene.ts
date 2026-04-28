@@ -15,6 +15,7 @@ export class WorldScene extends Phaser.Scene {
 	static readonly key = 'world';
 	private static readonly tileSize = 32;
 	private static readonly playerRadius = 12;
+	private static readonly maxMovementDeltaMs = 250;
 
 	private player?: Phaser.GameObjects.Arc;
 	private cursorKeys?: Partial<Record<'left' | 'right' | 'up' | 'down', DirectionKey>>;
@@ -46,8 +47,8 @@ export class WorldScene extends Phaser.Scene {
 		}
 
 		this.cameras.main.setBackgroundColor('#1a1f2b');
-		this.cameras.main.setBounds?.(0, 0, width, height);
-		this.cameras.main.startFollow?.(this.player, true);
+		this.cameras.main.setBounds(0, 0, width, height);
+		this.cameras.main.startFollow(this.player, true);
 
 		this.cursorKeys = this.input?.keyboard?.createCursorKeys?.();
 		this.wasdKeys = this.input?.keyboard?.addKeys?.({
@@ -70,7 +71,9 @@ export class WorldScene extends Phaser.Scene {
 			down: Boolean(this.cursorKeys?.down?.isDown || this.wasdKeys?.down?.isDown)
 		});
 
-		const step = startingPlayer.moveSpeed * (delta / 1000);
+		const step =
+			startingPlayer.moveSpeed *
+			(Math.min(delta, WorldScene.maxMovementDeltaMs) / 1000);
 		const min = WorldScene.playerRadius;
 		const maxX = this.worldSize.width - WorldScene.playerRadius;
 		const maxY = this.worldSize.height - WorldScene.playerRadius;

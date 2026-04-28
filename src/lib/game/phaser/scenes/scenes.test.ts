@@ -150,8 +150,22 @@ describe('WorldScene', () => {
 
 		scene.update(0, 1000);
 
-		expect(phaserState.playerMarker.x).toBe(meadowEntryMap.spawn.x + 120);
+		expect(phaserState.playerMarker.x).toBe(meadowEntryMap.spawn.x + 30);
 		expect(phaserState.playerMarker.y).toBe(meadowEntryMap.spawn.y);
+	});
+
+	it('moves the player marker using WASD input state', async () => {
+		const { WorldScene } = await import('./WorldScene');
+		const { meadowEntryMap } = await import('$lib/game/content/maps');
+		const scene = new WorldScene();
+
+		scene.create({ mapId: meadowEntryMap.id });
+		phaserState.wasdKeys.down.isDown = true;
+
+		scene.update(0, 1000);
+
+		expect(phaserState.playerMarker.x).toBe(meadowEntryMap.spawn.x);
+		expect(phaserState.playerMarker.y).toBe(meadowEntryMap.spawn.y + 30);
 	});
 
 	it('clamps the player marker within the world bounds during movement', async () => {
@@ -160,6 +174,7 @@ describe('WorldScene', () => {
 		const scene = new WorldScene();
 
 		scene.create({ mapId: meadowEntryMap.id });
+		Object.assign(phaserState.playerMarker, { x: 13, y: 13 });
 		phaserState.cursorKeys.left.isDown = true;
 		phaserState.cursorKeys.up.isDown = true;
 
@@ -167,5 +182,19 @@ describe('WorldScene', () => {
 
 		expect(phaserState.playerMarker.x).toBe(12);
 		expect(phaserState.playerMarker.y).toBe(12);
+	});
+
+	it('limits large frame deltas before applying movement distance', async () => {
+		const { WorldScene } = await import('./WorldScene');
+		const { meadowEntryMap } = await import('$lib/game/content/maps');
+		const scene = new WorldScene();
+
+		scene.create({ mapId: meadowEntryMap.id });
+		phaserState.cursorKeys.right.isDown = true;
+
+		scene.update(0, 10_000);
+
+		expect(phaserState.playerMarker.x).toBe(meadowEntryMap.spawn.x + 30);
+		expect(phaserState.playerMarker.y).toBe(meadowEntryMap.spawn.y);
 	});
 });
