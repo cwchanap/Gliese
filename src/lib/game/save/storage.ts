@@ -4,9 +4,36 @@ export const SAVE_STORAGE_KEY = 'gliese.save.v1';
 
 type SaveStorage = Pick<Storage, 'getItem' | 'removeItem' | 'setItem'>;
 
+export type StoredSaveResult =
+	| { status: 'missing'; saveState: null }
+	| { status: 'invalid'; saveState: null }
+	| { status: 'loaded'; saveState: SaveState };
+
 export function loadStoredSaveState(storage: SaveStorage | undefined = globalThis.localStorage): SaveState | null {
+	const result = loadStoredSaveResult(storage);
+	return result.status === 'loaded' ? result.saveState : null;
+}
+
+export function loadStoredSaveResult(
+	storage: SaveStorage | undefined = globalThis.localStorage
+): StoredSaveResult {
 	const encoded = resolveStorage(storage)?.getItem(SAVE_STORAGE_KEY);
-	return encoded ? parseSaveState(encoded) : null;
+
+	if (!encoded) {
+		return { status: 'missing', saveState: null };
+	}
+
+	const saveState = parseSaveState(encoded);
+
+	if (saveState) {
+		return { status: 'loaded', saveState };
+	}
+
+	if (import.meta.env?.DEV) {
+		console.warn(`Invalid save data found in ${SAVE_STORAGE_KEY}; starting a new run instead.`);
+	}
+
+	return { status: 'invalid', saveState: null };
 }
 
 export function storeSaveState(

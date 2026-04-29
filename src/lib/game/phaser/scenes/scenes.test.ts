@@ -15,10 +15,11 @@ const phaserState = vi.hoisted(() => {
 	};
 	const attackKey = { isDown: false };
 	const playerMarker = { x: 0, y: 0 };
-	const enemyMarker = { setVisible: vi.fn() };
+	const enemyMarker = { setVisible: vi.fn(), setFillStyle: vi.fn() };
+	const victoryText = { setOrigin: vi.fn() };
 
 	class SceneMock {
-		scene = { start: vi.fn() };
+		scene = { start: vi.fn(), restart: vi.fn() };
 		add = {
 			rectangle: vi.fn(
 				(_x: number, _y: number, _width: number, _height: number, color: number) => {
@@ -33,7 +34,8 @@ const phaserState = vi.hoisted(() => {
 				playerMarker.x = x;
 				playerMarker.y = y;
 				return playerMarker;
-			})
+			}),
+			text: vi.fn(() => victoryText)
 		};
 		cameras = {
 			main: {
@@ -62,8 +64,11 @@ const phaserState = vi.hoisted(() => {
 		attackKey,
 		playerMarker,
 		enemyMarker,
+		victoryText,
 		reset() {
 			enemyMarker.setVisible.mockReset();
+			enemyMarker.setFillStyle.mockReset();
+			victoryText.setOrigin.mockReset();
 		}
 	};
 });
@@ -283,5 +288,51 @@ describe('WorldScene', () => {
 
 		expect(() => scene.update(0, 16)).not.toThrow();
 		expect(sceneState.playerProgress).toEqual({ level: 2, xp: 10, hp: 24, attack: 4 });
+	});
+
+	it('moves into the ruins after the opening encounter is cleared and the exit is reached', async () => {
+		const { WorldScene } = await import('./WorldScene');
+		const scene = new WorldScene();
+
+		scene.create({ mapId: 'meadow-entry' });
+		Object.assign(phaserState.playerMarker, { x: 304, y: 96 });
+		phaserState.attackKey.isDown = true;
+		scene.update(0, 16);
+
+		phaserState.attackKey.isDown = false;
+		Object.assign(phaserState.playerMarker, { x: 352, y: 96 });
+		scene.update(200, 16);
+
+		expect(scene.scene.restart).toHaveBeenCalledWith({
+			saveState: expect.objectContaining({
+				mapId: 'ruins-threshold'
+			})
+		});
+	});
+
+	it('shows a victory state after defeating the boss encounter', async () => {
+		const { WorldScene } = await import('./WorldScene');
+		const scene = new WorldScene();
+
+		scene.create({ mapId: 'ruins-core' });
+		Object.assign(phaserState.playerMarker, { x: 304, y: 96 });
+
+		phaserState.attackKey.isDown = true;
+		scene.update(0, 16);
+		phaserState.attackKey.isDown = false;
+		scene.update(200, 16);
+		phaserState.attackKey.isDown = true;
+		scene.update(400, 16);
+		phaserState.attackKey.isDown = false;
+		scene.update(600, 16);
+		phaserState.attackKey.isDown = true;
+		scene.update(800, 16);
+
+		expect(scene.add.text).toHaveBeenCalledWith(
+			expect.any(Number),
+			expect.any(Number),
+			expect.stringMatching(/victory/i),
+			expect.anything()
+		);
 	});
 });

@@ -1,13 +1,15 @@
 import Phaser from 'phaser';
-import { maps, openingMapId, type WorldMapDefinition } from '$lib/game/content/maps';
+
 import { enemies, type EnemyCombatDefinition } from '$lib/game/content/enemies';
+import { maps, openingMapId, type WorldMapDefinition } from '$lib/game/content/maps';
 import { startingPlayer } from '$lib/game/content/player';
+import { advanceBossPhase } from '$lib/game/core/boss';
 import { canReceiveHit, resolveHit } from '$lib/game/core/combat';
 import { resolveMovementVector } from '$lib/game/core/input';
 import { applyExperienceGain, type ProgressionState } from '$lib/game/core/progression';
 import type { Direction } from '$lib/game/core/types';
 import type { SaveState } from '$lib/game/save/save-state';
-import { loadStoredSaveState, saveGameState } from '$lib/game/save/storage';
+import { loadStoredSaveResult, saveGameState } from '$lib/game/save/storage';
 import { emitHudState, onHudCommand, type HudCommand } from '$lib/game/ui-bridge/events';
 
 interface WorldSceneData {
@@ -19,44 +21,55 @@ type DirectionKey = {
 	isDown: boolean;
 };
 
+type EnemyMarker = {
+	setFillStyle: (color: number) => unknown;
+	setVisible: (visible: boolean) => unknown;
+};
+
 type EnemyInstance = {
+	completion?: 'victory';
+	defeated: boolean;
 	definition: EnemyCombatDefinition;
-	x: number;
-	y: number;
 	hp: number;
 	invulnerableUntil: number;
-	defeated: boolean;
+	maxHp: number;
+	phase: 1 | 2;
+	x: number;
+	y: number;
 };
 
 export class WorldScene extends Phaser.Scene {
 	static readonly key = 'world';
-	private static readonly tileSize = 32;
-	private static readonly playerRadius = 12;
-	private static readonly enemyRadius = 10;
-	private static readonly maxMovementDeltaMs = 250;
+	private static readonly attackReach = 24;
 	private static readonly attackWindowMs = 150;
 	private static readonly enemyInvulnerabilityMs = 250;
-	private static readonly attackReach = 24;
+	private static readonly enemyRadius = 10;
+	private static readonly maxMovementDeltaMs = 250;
+	private static readonly playerRadius = 12;
+	private static readonly tileSize = 32;
+	private static readonly transitionRadius = 18;
 
-	private player?: Phaser.GameObjects.Arc;
-	private cursorKeys?: Partial<Record<'left' | 'right' | 'up' | 'down', DirectionKey>>;
-	private wasdKeys?: Partial<Record<'left' | 'right' | 'up' | 'down', DirectionKey>>;
 	private attackKey?: DirectionKey;
-	private wasAttackKeyDown = false;
-	private enemy?: EnemyInstance;
-	private enemyMarker?: { setVisible: (visible: boolean) => unknown };
 	private attackWindowUntil = 0;
+	private clearedEncounterIds = new Set<string>();
+	private cursorKeys?: Partial<Record<'left' | 'right' | 'up' | 'down', DirectionKey>>;
+	private enemy?: EnemyInstance;
+	private enemyMarker?: EnemyMarker;
+	private facing: Direction = 'down';
+	private healCharges = 1;
+	private mapId = openingMapId;
+	private player?: Phaser.GameObjects.Arc;
 	private playerProgress: ProgressionState = {
 		level: 1,
 		xp: 0,
 		hp: startingPlayer.baseHp,
 		attack: startingPlayer.baseAttack
 	};
-	private mapId = openingMapId;
-	private facing: Direction = 'down';
-	private healCharges = 1;
-	private worldSize = { width: 0, height: 0 };
 	private removeHudCommandListener = () => {};
+	private victoryAchieved = false;
+	private wasAttackKeyDown = false;
+	private wasdKeys?: Partial<Record<'left' | 'right' | 'up' | 'down', DirectionKey>>;
+	private worldSize = { width: 0, height: 0 };
 
 	constructor() {
 		super(WorldScene.key);
@@ -67,20 +80,23 @@ export class WorldScene extends Phaser.Scene {
 		const map = this.resolveMap(activeSave?.mapId ?? data.mapId);
 		const width = map.width * WorldScene.tileSize;
 		const height = map.height * WorldScene.tileSize;
-		this.worldSize = { width, height };
+
 		this.attackWindowUntil = 0;
+		this.clearedEncounterIds = new Set(activeSave?.flags.clearedEncounters ?? []);
+		this.enemy = undefined;
+		this.enemyMarker = undefined;
+		this.facing = activeSave?.player.facing ?? map.spawnDirection;
+		this.healCharges = activeSave?.consumables.heals ?? 1;
+		this.mapId = map.id;
 		this.playerProgress = {
 			level: activeSave?.player.level ?? 1,
 			xp: activeSave?.player.xp ?? 0,
 			hp: activeSave?.player.hp ?? startingPlayer.baseHp,
 			attack: activeSave?.player.attack ?? startingPlayer.baseAttack
 		};
-		this.mapId = map.id;
-		this.facing = activeSave?.player.facing ?? map.spawnDirection;
-		this.healCharges = activeSave?.consumables.heals ?? 1;
-		this.enemy = undefined;
-		this.enemyMarker = undefined;
+		this.victoryAchieved = false;
 		this.wasAttackKeyDown = false;
+		this.worldSize = { width, height };
 
 		this.add.rectangle(width / 2, height / 2, width, height, 0x5d7a3a);
 		this.player = this.add.circle(
@@ -90,31 +106,8 @@ export class WorldScene extends Phaser.Scene {
 			0x4da6ff
 		) as Phaser.GameObjects.Arc;
 
-		const hostileTransition = map.transitions.find((transition) => transition.hostile);
-
-		if (hostileTransition) {
-			this.add.rectangle(hostileTransition.x, hostileTransition.y, 20, 20, 0x8b2f2f);
-			const encounter = enemies['slime-scout'];
-			const isCleared = activeSave?.flags.clearedEncounters.includes(encounter.id) ?? false;
-			this.enemy = {
-				definition: encounter,
-				x: hostileTransition.x,
-				y: hostileTransition.y,
-				hp: isCleared ? 0 : encounter.baseHp,
-				invulnerableUntil: 0,
-				defeated: isCleared
-			};
-			this.enemyMarker = this.add.rectangle(
-				hostileTransition.x,
-				hostileTransition.y,
-				WorldScene.enemyRadius * 2,
-				WorldScene.enemyRadius * 2,
-				0x7cff6b
-			);
-			if (isCleared) {
-				this.enemyMarker.setVisible(false);
-			}
-		}
+		this.setupEncounter(map);
+		this.renderTransitions(map);
 
 		this.cameras.main.setBackgroundColor('#1a1f2b');
 		this.cameras.main.setBounds(0, 0, width, height);
@@ -131,7 +124,10 @@ export class WorldScene extends Phaser.Scene {
 		this.removeHudCommandListener();
 		this.removeHudCommandListener = onHudCommand((command) => this.handleHudCommand(command));
 		this.events?.once?.('shutdown', () => this.removeHudCommandListener());
-		this.publishHudState(activeSave ? 'Save resumed' : 'New run');
+
+		this.publishHudState(
+			this.victoryAchieved ? 'Victory: ruins cleared' : activeSave ? 'Save resumed' : 'New run'
+		);
 	}
 
 	update(time: number, delta: number) {
@@ -146,9 +142,7 @@ export class WorldScene extends Phaser.Scene {
 			down: Boolean(this.cursorKeys?.down?.isDown || this.wasdKeys?.down?.isDown)
 		});
 
-		const step =
-			startingPlayer.moveSpeed *
-			(Math.min(delta, WorldScene.maxMovementDeltaMs) / 1000);
+		const step = startingPlayer.moveSpeed * (Math.min(delta, WorldScene.maxMovementDeltaMs) / 1000);
 		const min = WorldScene.playerRadius;
 		const maxX = this.worldSize.width - WorldScene.playerRadius;
 		const maxY = this.worldSize.height - WorldScene.playerRadius;
@@ -156,6 +150,10 @@ export class WorldScene extends Phaser.Scene {
 		this.player.x = Math.min(Math.max(this.player.x + direction.x * step, min), maxX);
 		this.player.y = Math.min(Math.max(this.player.y + direction.y * step, min), maxY);
 		this.facing = this.resolveFacing(direction, this.facing);
+
+		if (this.tryTransition()) {
+			return;
+		}
 
 		const isAttackPressed = Boolean(this.attackKey?.isDown);
 
@@ -188,17 +186,11 @@ export class WorldScene extends Phaser.Scene {
 			{ power: this.playerProgress.attack }
 		).hp;
 		this.enemy.invulnerableUntil = time + WorldScene.enemyInvulnerabilityMs;
+		this.updateBossPhase();
 
 		if (this.enemy.hp === 0) {
-			this.enemy.defeated = true;
-			this.enemyMarker?.setVisible(false);
-			this.playerProgress = this.applyReward(this.enemy.definition.xpReward);
-			this.publishHudState('Enemy defeated');
+			this.finishEncounter();
 		}
-	}
-
-	private resolveMap(mapId?: string): WorldMapDefinition {
-		return maps[mapId ?? openingMapId] ?? maps[openingMapId];
 	}
 
 	private applyReward(xpReward: number): ProgressionState {
@@ -212,18 +204,42 @@ export class WorldScene extends Phaser.Scene {
 		};
 	}
 
-	private handleHudCommand(command: HudCommand) {
-		if (command === 'heal') {
-			this.consumeHeal();
-			return;
-		}
+	private buildSaveState(): SaveState {
+		return {
+			version: 1,
+			mapId: this.mapId,
+			player: {
+				level: this.playerProgress.level,
+				xp: this.playerProgress.xp,
+				hp: this.playerProgress.hp,
+				attack: this.playerProgress.attack,
+				x: this.player?.x ?? 64,
+				y: this.player?.y ?? 64,
+				facing: this.facing
+			},
+			flags: {
+				clearedEncounters: [...this.clearedEncounterIds].sort()
+			},
+			consumables: {
+				heals: this.healCharges
+			}
+		};
+	}
 
-		if (command === 'resume') {
-			this.resumeStoredSave();
-			return;
-		}
+	private buildTransitionSaveState(toMapId: string): SaveState {
+		const nextMap = this.resolveMap(toMapId);
+		const saveState = this.buildSaveState();
 
-		this.saveCurrentState();
+		return {
+			...saveState,
+			mapId: nextMap.id,
+			player: {
+				...saveState.player,
+				x: nextMap.spawn.x,
+				y: nextMap.spawn.y,
+				facing: nextMap.spawnDirection
+			}
+		};
 	}
 
 	private consumeHeal() {
@@ -247,45 +263,46 @@ export class WorldScene extends Phaser.Scene {
 		this.publishHudState('Recovered HP');
 	}
 
-	private resumeStoredSave() {
-		const storedSave = loadStoredSaveState();
-
-		if (!storedSave) {
-			this.publishHudState('No save found');
+	private finishEncounter() {
+		if (!this.enemy) {
 			return;
 		}
 
-		this.scene.restart({ saveState: storedSave });
+		this.enemy.defeated = true;
+		this.enemyMarker?.setVisible(false);
+		this.clearedEncounterIds.add(this.enemy.definition.id);
+		this.playerProgress = this.applyReward(this.enemy.definition.xpReward);
+
+		if (this.enemy.completion === 'victory') {
+			this.showVictoryState();
+			this.publishHudState('Victory: ruins cleared');
+			return;
+		}
+
+		this.publishHudState('Enemy defeated');
 	}
 
-	private saveCurrentState() {
-		saveGameState(this.buildSaveState());
-		this.publishHudState('Saved');
+	private getMaxHp() {
+		return this.playerProgress.level > 1 ? startingPlayer.baseHp + 4 : startingPlayer.baseHp;
 	}
 
-	private buildSaveState(): SaveState {
-		return {
-			version: 1,
-			mapId: this.mapId,
-			player: {
-				level: this.playerProgress.level,
-				xp: this.playerProgress.xp,
-				hp: this.playerProgress.hp,
-				attack: this.playerProgress.attack,
-				x: this.player?.x ?? 64,
-				y: this.player?.y ?? 64,
-				facing: this.facing
-			},
-			flags: {
-				clearedEncounters: this.enemy?.defeated ? [this.enemy.definition.id] : []
-			},
-			consumables: {
-				heals: this.healCharges
-			}
-		};
+	private handleHudCommand(command: HudCommand) {
+		if (command === 'heal') {
+			this.consumeHeal();
+			return;
+		}
+
+		if (command === 'resume') {
+			this.resumeStoredSave();
+			return;
+		}
+
+		this.saveCurrentState();
 	}
 
 	private publishHudState(status: string) {
+		const saveResult = loadStoredSaveResult();
+
 		emitHudState({
 			ready: true,
 			mapId: this.mapId,
@@ -295,23 +312,152 @@ export class WorldScene extends Phaser.Scene {
 			xp: this.playerProgress.xp,
 			attack: this.playerProgress.attack,
 			heals: this.healCharges,
-			canResume: Boolean(loadStoredSaveState()),
+			canResume: saveResult.status === 'loaded',
 			status
 		});
 	}
 
-	private getMaxHp() {
-		return this.playerProgress.level > 1 ? startingPlayer.baseHp + 4 : startingPlayer.baseHp;
+	private renderTransitions(map: WorldMapDefinition) {
+		for (const transition of map.transitions) {
+			this.add.rectangle(transition.x, transition.y, 16, 16, 0x2f4f73);
+		}
 	}
 
-	private resolveFacing(
-		direction: { x: number; y: number },
-		fallback: Direction
-	): Direction {
+	private resolveFacing(direction: { x: number; y: number }, fallback: Direction): Direction {
 		if (direction.x > 0) return 'right';
 		if (direction.x < 0) return 'left';
 		if (direction.y > 0) return 'down';
 		if (direction.y < 0) return 'up';
 		return fallback;
+	}
+
+	private resolveMap(mapId?: string): WorldMapDefinition {
+		return maps[mapId ?? openingMapId] ?? maps[openingMapId];
+	}
+
+	private resumeStoredSave() {
+		const storedSave = loadStoredSaveResult();
+
+		if (storedSave.status === 'missing') {
+			this.publishHudState('No save found');
+			return;
+		}
+
+		if (storedSave.status === 'invalid') {
+			this.scene.restart({ mapId: openingMapId });
+			return;
+		}
+
+		this.scene.restart({ saveState: storedSave.saveState });
+	}
+
+	private saveCurrentState() {
+		saveGameState(this.buildSaveState());
+		this.publishHudState('Saved');
+	}
+
+	private setupEncounter(map: WorldMapDefinition) {
+		const encounter = map.encounters[0];
+
+		if (!encounter) {
+			return;
+		}
+
+		const definition = enemies[encounter.enemyId];
+		const isCleared = this.clearedEncounterIds.has(definition.id);
+
+		this.add.rectangle(encounter.x, encounter.y, 20, 20, 0x8b2f2f);
+		this.enemy = {
+			completion: encounter.completion,
+			defeated: isCleared,
+			definition,
+			hp: isCleared ? 0 : definition.baseHp,
+			invulnerableUntil: 0,
+			maxHp: definition.baseHp,
+			phase: 1,
+			x: encounter.x,
+			y: encounter.y
+		};
+		this.enemyMarker = this.add.rectangle(
+			encounter.x,
+			encounter.y,
+			WorldScene.enemyRadius * 2,
+			WorldScene.enemyRadius * 2,
+			0x7cff6b
+		) as EnemyMarker;
+
+		if (isCleared) {
+			this.enemyMarker.setVisible(false);
+
+			if (encounter.completion === 'victory') {
+				this.showVictoryState();
+			}
+		}
+	}
+
+	private showVictoryState() {
+		if (this.victoryAchieved) {
+			return;
+		}
+
+		this.victoryAchieved = true;
+		this.add.rectangle(
+			this.worldSize.width / 2,
+			this.worldSize.height / 2,
+			this.worldSize.width,
+			this.worldSize.height,
+			0x0f172a,
+			0.78
+		);
+		this.add
+			.text(this.worldSize.width / 2, this.worldSize.height / 2, 'Victory: ruins cleared', {
+				color: '#f8fafc',
+				fontSize: '28px'
+			})
+			.setOrigin(0.5);
+	}
+
+	private tryTransition() {
+		if (!this.player || (this.enemy && !this.enemy.defeated)) {
+			return false;
+		}
+
+		const map = this.resolveMap(this.mapId);
+
+		for (const transition of map.transitions) {
+			const distance = Phaser.Math.Distance.Between(
+				this.player.x,
+				this.player.y,
+				transition.x,
+				transition.y
+			);
+
+			if (distance <= WorldScene.playerRadius + WorldScene.transitionRadius) {
+				this.scene.restart({ saveState: this.buildTransitionSaveState(transition.toMapId) });
+				return true;
+			}
+		}
+
+		return false;
+	}
+
+	private updateBossPhase() {
+		if (!this.enemy?.definition.boss) {
+			return;
+		}
+
+		const nextState = advanceBossPhase({
+			phase: this.enemy.phase,
+			hp: this.enemy.hp,
+			maxHp: this.enemy.maxHp
+		});
+
+		if (nextState.phase === this.enemy.phase) {
+			return;
+		}
+
+		this.enemy.phase = nextState.phase;
+		this.enemyMarker?.setFillStyle(this.enemy.definition.boss.phaseTwoColor);
+		this.publishHudState('Boss enraged');
 	}
 }

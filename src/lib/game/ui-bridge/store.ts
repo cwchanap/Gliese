@@ -1,12 +1,14 @@
 import { readable } from 'svelte/store';
 
 import { startingPlayer } from '$lib/game/content/player';
-import { loadStoredSaveState } from '$lib/game/save/storage';
+import { loadStoredSaveResult } from '$lib/game/save/storage';
 import {
 	emitHudCommand,
 	onHudState,
 	type HudState
 } from '$lib/game/ui-bridge/events';
+
+const initialSaveResult = loadStoredSaveResult();
 
 const initialHudState: HudState = {
 	ready: false,
@@ -17,7 +19,7 @@ const initialHudState: HudState = {
 	xp: 0,
 	attack: startingPlayer.baseAttack,
 	heals: 1,
-	canResume: Boolean(loadStoredSaveState()),
+	canResume: initialSaveResult.status === 'loaded',
 	status: 'Loading game'
 };
 
