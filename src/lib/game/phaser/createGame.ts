@@ -7,9 +7,10 @@ export async function createGame(target: HTMLElement) {
 		throw new Error('createGame must run in the browser');
 	}
 
-	const Phaser = await import('phaser');
-	const game = new Phaser.default.Game({
-		type: Phaser.default.AUTO,
+	const PhaserModule = await import('phaser');
+	const Phaser = resolvePhaserRuntime(PhaserModule);
+	const game = new Phaser.Game({
+		type: Phaser.AUTO,
 		parent: target,
 		width: 640,
 		height: 360,
@@ -20,4 +21,8 @@ export async function createGame(target: HTMLElement) {
 	return {
 		destroy: () => game.destroy(true)
 	};
+}
+
+function resolvePhaserRuntime(module: Awaited<ReturnType<typeof import('phaser')>>) {
+	return 'Game' in module ? module : module.default;
 }

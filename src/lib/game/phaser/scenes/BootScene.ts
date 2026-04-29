@@ -1,4 +1,4 @@
-import Phaser from 'phaser';
+import * as Phaser from 'phaser';
 import { openingMapId } from '$lib/game/content/maps';
 import { WorldScene } from './WorldScene';
 

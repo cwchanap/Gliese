@@ -5,7 +5,9 @@ const phaserState = vi.hoisted(() => {
 	const destroyMock = vi.fn();
 	const gameMock = vi.fn();
 	class SceneMock {
-		constructor(_key?: string) {}
+		constructor(...args: unknown[]) {
+			void args;
+		}
 	}
 	class GameMock {
 		constructor(config: unknown) {
@@ -19,13 +21,18 @@ const phaserState = vi.hoisted(() => {
 });
 
 vi.mock('$app/environment', () => environmentState);
-vi.mock('phaser', () => ({
-	default: {
+vi.mock('phaser', () => {
+	const runtime = {
 		AUTO: 'AUTO',
 		Game: phaserState.GameMock,
 		Scene: phaserState.SceneMock
-	}
-}));
+	};
+
+	return {
+		...runtime,
+		default: runtime
+	};
+});
 
 describe('createGame', () => {
 	beforeEach(() => {

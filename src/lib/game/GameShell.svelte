@@ -22,7 +22,8 @@
 				}
 
 				cleanup = () => instance.destroy();
-			} catch {
+			} catch (error) {
+				console.error(error);
 				if (!destroyed) {
 					loadError = 'Unable to start the game shell.';
 				}

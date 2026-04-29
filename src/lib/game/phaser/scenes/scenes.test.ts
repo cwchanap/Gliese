@@ -76,8 +76,8 @@ const phaserState = vi.hoisted(() => {
 	};
 });
 
-vi.mock('phaser', () => ({
-	default: {
+vi.mock('phaser', () => {
+	const runtime = {
 		Scene: phaserState.SceneMock,
 		Math: {
 			Distance: {
@@ -95,8 +95,13 @@ vi.mock('phaser', () => ({
 				}
 			}
 		}
-	}
-}));
+	};
+
+	return {
+		...runtime,
+		default: runtime
+	};
+});
 
 describe('BootScene', () => {
 	beforeEach(() => {

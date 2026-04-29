@@ -1,4 +1,4 @@
-import Phaser from 'phaser';
+import * as Phaser from 'phaser';
 
 import { enemies, type EnemyCombatDefinition } from '$lib/game/content/enemies';
 import { maps, openingMapId, type WorldMapDefinition } from '$lib/game/content/maps';
