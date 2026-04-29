@@ -61,7 +61,7 @@
 				type="button"
 				class="rounded-md border border-slate-300 px-3 py-2 text-sm font-medium text-slate-900 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
 				onclick={requestResume}
-				disabled={!$hudState.canResume}
+				disabled={!$hudState.ready || !$hudState.canResume}
 			>
 				Resume
 			</button>
@@ -69,6 +69,7 @@
 				type="button"
 				class="rounded-md border border-slate-300 px-3 py-2 text-sm font-medium text-slate-900 transition hover:bg-slate-50"
 				onclick={requestSave}
+				disabled={!$hudState.ready}
 			>
 				Save
 			</button>
@@ -76,7 +77,7 @@
 				type="button"
 				class="rounded-md bg-emerald-600 px-3 py-2 text-sm font-medium text-white transition hover:bg-emerald-500 disabled:cursor-not-allowed disabled:bg-emerald-300"
 				onclick={requestHeal}
-				disabled={$hudState.heals < 1 || $hudState.hp >= $hudState.maxHp}
+				disabled={!$hudState.ready || $hudState.heals < 1 || $hudState.hp >= $hudState.maxHp}
 			>
 				Use Heal
 			</button>

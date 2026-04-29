@@ -28,12 +28,6 @@ type EnemyInstance = {
 	defeated: boolean;
 };
 
-type RuntimeSaveState = SaveState & {
-	consumables?: {
-		heals?: number;
-	};
-};
-
 export class WorldScene extends Phaser.Scene {
 	static readonly key = 'world';
 	private static readonly tileSize = 32;
@@ -69,7 +63,7 @@ export class WorldScene extends Phaser.Scene {
 	}
 
 	create(data: WorldSceneData = {}) {
-		const activeSave = data.saveState as RuntimeSaveState | null | undefined;
+		const activeSave = data.saveState;
 		const map = this.resolveMap(activeSave?.mapId ?? data.mapId);
 		const width = map.width * WorldScene.tileSize;
 		const height = map.height * WorldScene.tileSize;
@@ -83,7 +77,7 @@ export class WorldScene extends Phaser.Scene {
 		};
 		this.mapId = map.id;
 		this.facing = activeSave?.player.facing ?? map.spawnDirection;
-		this.healCharges = activeSave?.consumables?.heals ?? 1;
+		this.healCharges = activeSave?.consumables.heals ?? 1;
 		this.enemy = undefined;
 		this.enemyMarker = undefined;
 		this.wasAttackKeyDown = false;
@@ -254,7 +248,7 @@ export class WorldScene extends Phaser.Scene {
 	}
 
 	private resumeStoredSave() {
-		const storedSave = loadStoredSaveState() as RuntimeSaveState | null;
+		const storedSave = loadStoredSaveState();
 
 		if (!storedSave) {
 			this.publishHudState('No save found');
@@ -288,11 +282,12 @@ export class WorldScene extends Phaser.Scene {
 			consumables: {
 				heals: this.healCharges
 			}
-		} as SaveState;
+		};
 	}
 
 	private publishHudState(status: string) {
 		emitHudState({
+			ready: true,
 			mapId: this.mapId,
 			hp: this.playerProgress.hp,
 			maxHp: this.getMaxHp(),

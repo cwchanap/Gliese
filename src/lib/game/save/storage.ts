@@ -32,13 +32,6 @@ function resolveStorage(storage: SaveStorage | undefined): SaveStorage | undefin
 		return storage;
 	}
 
-	if (!hasStorageMethods(globalThis.localStorage)) {
-		Object.defineProperty(globalThis, 'localStorage', {
-			value: createMemoryStorage(),
-			configurable: true
-		});
-	}
-
 	return hasStorageMethods(globalThis.localStorage) ? globalThis.localStorage : undefined;
 }
 
@@ -53,18 +46,4 @@ function hasStorageMethods(value: unknown): value is SaveStorage {
 		'setItem' in value &&
 		typeof value.setItem === 'function'
 	);
-}
-
-function createMemoryStorage(): SaveStorage {
-	const store = new Map<string, string>();
-
-	return {
-		getItem: (key) => store.get(key) ?? null,
-		removeItem: (key) => {
-			store.delete(key);
-		},
-		setItem: (key, value) => {
-			store.set(key, value);
-		}
-	};
 }

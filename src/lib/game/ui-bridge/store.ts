@@ -9,6 +9,7 @@ import {
 } from '$lib/game/ui-bridge/events';
 
 const initialHudState: HudState = {
+	ready: false,
 	mapId: 'meadow-entry',
 	hp: startingPlayer.baseHp,
 	maxHp: startingPlayer.baseHp,
@@ -17,7 +18,7 @@ const initialHudState: HudState = {
 	attack: startingPlayer.baseAttack,
 	heals: 1,
 	canResume: Boolean(loadStoredSaveState()),
-	status: 'New run'
+	status: 'Loading game'
 };
 
 export const hudState = readable(initialHudState, (set) => onHudState(set));

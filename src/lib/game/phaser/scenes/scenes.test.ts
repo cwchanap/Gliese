@@ -50,7 +50,9 @@ const phaserState = vi.hoisted(() => {
 			}
 		};
 
-		constructor(_key?: string) {}
+		constructor(...args: unknown[]) {
+			void args;
+		}
 	}
 
 	return {
@@ -160,8 +162,8 @@ describe('WorldScene', () => {
 			meadowEntryMap.height * 32
 		);
 		expect(scene.cameras.main.startFollow).toHaveBeenCalledWith(phaserState.playerMarker, true);
-		expect(scene.input.keyboard.createCursorKeys).toHaveBeenCalledOnce();
-		expect(scene.input.keyboard.addKeys).toHaveBeenCalledWith({
+		expect(scene.input.keyboard?.createCursorKeys).toHaveBeenCalledOnce();
+		expect(scene.input.keyboard?.addKeys).toHaveBeenCalledWith({
 			left: 'A',
 			right: 'D',
 			up: 'W',
@@ -231,7 +233,8 @@ describe('WorldScene', () => {
 		const progression = await import('$lib/game/core/progression');
 		const applyExperienceGainSpy = vi.spyOn(progression, 'applyExperienceGain');
 		const { WorldScene } = await import('./WorldScene');
-		const scene = new WorldScene() as WorldScene & { playerProgress: { level: number; xp: number } };
+		const scene = new WorldScene();
+		const sceneState = scene as unknown as { playerProgress: { level: number; xp: number } };
 
 		scene.create({ mapId: 'meadow-entry' });
 		Object.assign(phaserState.playerMarker, { x: 304, y: 96 });
@@ -243,40 +246,42 @@ describe('WorldScene', () => {
 			{ level: 1, xp: 0, hp: 20, attack: 3 },
 			5
 		);
-		expect(scene.playerProgress).toMatchObject({ level: 2, xp: 5 });
+		expect(sceneState.playerProgress).toMatchObject({ level: 2, xp: 5 });
 		expect(phaserState.enemyMarker.setVisible).toHaveBeenCalledWith(false);
 	});
 
 	it('does not reopen melee attack windows while space is held', async () => {
 		const { WorldScene } = await import('./WorldScene');
-		const scene = new WorldScene() as WorldScene & {
+		const scene = new WorldScene();
+		const sceneState = scene as unknown as {
 			enemy: { hp: number; invulnerableUntil: number; defeated: boolean };
 		};
 
 		scene.create({ mapId: 'meadow-entry' });
 		Object.assign(phaserState.playerMarker, { x: 304, y: 96 });
-		Object.assign(scene.enemy, { hp: 9, invulnerableUntil: 0, defeated: false });
+		Object.assign(sceneState.enemy, { hp: 9, invulnerableUntil: 0, defeated: false });
 		phaserState.attackKey.isDown = true;
 
 		scene.update(0, 16);
 		scene.update(200, 16);
 		scene.update(400, 16);
 
-		expect(scene.enemy.hp).toBe(6);
+		expect(sceneState.enemy.hp).toBe(6);
 	});
 
 	it('keeps awarding xp after level 2 without throwing', async () => {
 		const { WorldScene } = await import('./WorldScene');
-		const scene = new WorldScene() as WorldScene & {
+		const scene = new WorldScene();
+		const sceneState = scene as unknown as {
 			playerProgress: { level: number; xp: number; hp: number; attack: number };
 		};
 
 		scene.create({ mapId: 'meadow-entry' });
 		Object.assign(phaserState.playerMarker, { x: 304, y: 96 });
-		scene.playerProgress = { level: 2, xp: 5, hp: 24, attack: 4 };
+		sceneState.playerProgress = { level: 2, xp: 5, hp: 24, attack: 4 };
 		phaserState.attackKey.isDown = true;
 
 		expect(() => scene.update(0, 16)).not.toThrow();
-		expect(scene.playerProgress).toEqual({ level: 2, xp: 10, hp: 24, attack: 4 });
+		expect(sceneState.playerProgress).toEqual({ level: 2, xp: 10, hp: 24, attack: 4 });
 	});
 });

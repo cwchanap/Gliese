@@ -57,13 +57,22 @@ describe('save state', () => {
 				y: 64,
 				facing: meadowEntryMap.spawnDirection
 			},
-			flags: { clearedEncounters: [] }
+			flags: { clearedEncounters: [] },
+			consumables: { heals: 1 }
 		});
 	});
 
 	it('round-trips a valid save payload', () => {
 		const encoded = serializeSaveState(createNewSaveState());
 		expect(parseSaveState(encoded)?.mapId).toBe('meadow-entry');
+	});
+
+	it('upgrades legacy v1 save payloads without consumables', () => {
+		const legacySave = createNewSaveState();
+		const { consumables: _consumables, ...legacyPayload } = legacySave;
+		void _consumables;
+
+		expect(parseSaveState(JSON.stringify(legacyPayload))?.consumables.heals).toBe(1);
 	});
 
 	it('rejects invalid payloads', () => {
@@ -107,17 +116,34 @@ describe('save state', () => {
 			)
 		).toBeNull();
 	});
+
+	it('rejects a payload with invalid consumable counts', () => {
+		expect(
+			parseSaveState(
+				JSON.stringify({
+					...createNewSaveState(),
+					consumables: {
+						heals: '1'
+					}
+				})
+			)
+		).toBeNull();
+	});
 });
 
 describe('save storage', () => {
 	it('persists and loads saves from the versioned key', () => {
 		const storage = new MemoryStorage();
-		const save = createNewSaveState();
+		const save = {
+			...createNewSaveState(),
+			consumables: { heals: 0 }
+		};
 
 		storeSaveState(save, storage);
 
 		expect(storage.getItem(SAVE_STORAGE_KEY)).toBe(serializeSaveState(save));
 		expect(loadStoredSaveState(storage)?.mapId).toBe('meadow-entry');
+		expect(loadStoredSaveState(storage)?.consumables.heals).toBe(0);
 	});
 
 	it('clears stored saves', () => {

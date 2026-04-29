@@ -1,4 +1,5 @@
 export type HudState = {
+	ready: boolean;
 	mapId: string;
 	hp: number;
 	maxHp: number;

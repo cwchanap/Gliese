@@ -18,10 +18,14 @@ export type SaveState = {
 	flags: {
 		clearedEncounters: string[];
 	};
+	consumables: {
+		heals: number;
+	};
 };
 
 const DIRECTIONS: Direction[] = ['up', 'down', 'left', 'right'];
 const STARTING_POSITION = { x: 64, y: 64 };
+const DEFAULT_HEAL_CHARGES = 1;
 
 export function createNewSaveState(): SaveState {
 	return {
@@ -36,7 +40,8 @@ export function createNewSaveState(): SaveState {
 			y: STARTING_POSITION.y,
 			facing: meadowEntryMap.spawnDirection
 		},
-		flags: { clearedEncounters: [] }
+		flags: { clearedEncounters: [] },
+		consumables: { heals: DEFAULT_HEAL_CHARGES }
 	};
 }
 
@@ -47,7 +52,8 @@ export function serializeSaveState(saveState: SaveState): string {
 export function parseSaveState(value: string): SaveState | null {
 	try {
 		const parsed: unknown = JSON.parse(value);
-		return isSaveState(parsed) ? parsed : null;
+		const normalized = normalizeSaveState(parsed);
+		return normalized && isSaveState(normalized) ? normalized : null;
 	} catch {
 		return null;
 	}
@@ -58,9 +64,15 @@ function isSaveState(value: unknown): value is SaveState {
 		return false;
 	}
 
-	const { version, mapId, player, flags } = value;
+	const { version, mapId, player, flags, consumables } = value;
 
-	if (version !== 1 || typeof mapId !== 'string' || !isRecord(player) || !isRecord(flags)) {
+	if (
+		version !== 1 ||
+		typeof mapId !== 'string' ||
+		!isRecord(player) ||
+		!isRecord(flags) ||
+		!isRecord(consumables)
+	) {
 		return false;
 	}
 
@@ -73,8 +85,20 @@ function isSaveState(value: unknown): value is SaveState {
 		isNumber(player.y) &&
 		isFacingDirection(player.facing) &&
 		Array.isArray(flags.clearedEncounters) &&
-		flags.clearedEncounters.every((entry) => typeof entry === 'string')
+		flags.clearedEncounters.every((entry) => typeof entry === 'string') &&
+		isNumber(consumables.heals)
 	);
+}
+
+function normalizeSaveState(value: unknown): unknown {
+	if (!isRecord(value) || 'consumables' in value) {
+		return value;
+	}
+
+	return {
+		...value,
+		consumables: { heals: DEFAULT_HEAL_CHARGES }
+	};
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
