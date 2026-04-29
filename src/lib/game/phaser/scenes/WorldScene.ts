@@ -14,6 +14,7 @@ import { emitHudState, onHudCommand, type HudCommand } from '$lib/game/ui-bridge
 
 interface WorldSceneData {
 	mapId?: string;
+	reason?: 'invalid-save' | 'new' | 'resume' | 'transition';
 	saveState?: SaveState | null;
 }
 
@@ -22,6 +23,8 @@ type DirectionKey = {
 };
 
 type EnemyMarker = {
+	x?: number;
+	y?: number;
 	setFillStyle: (color: number) => unknown;
 	setVisible: (visible: boolean) => unknown;
 };
@@ -30,6 +33,7 @@ type EnemyInstance = {
 	completion?: 'victory';
 	defeated: boolean;
 	definition: EnemyCombatDefinition;
+	attackCooldownUntil: number;
 	hp: number;
 	invulnerableUntil: number;
 	maxHp: number;
@@ -59,6 +63,7 @@ export class WorldScene extends Phaser.Scene {
 	private healCharges = 1;
 	private mapId = openingMapId;
 	private player?: Phaser.GameObjects.Arc;
+	private playerInvulnerableUntil = 0;
 	private playerProgress: ProgressionState = {
 		level: 1,
 		xp: 0,
@@ -80,6 +85,7 @@ export class WorldScene extends Phaser.Scene {
 		const map = this.resolveMap(activeSave?.mapId ?? data.mapId);
 		const width = map.width * WorldScene.tileSize;
 		const height = map.height * WorldScene.tileSize;
+		const reason = data.reason ?? (activeSave ? 'resume' : 'new');
 
 		this.attackWindowUntil = 0;
 		this.clearedEncounterIds = new Set(activeSave?.flags.clearedEncounters ?? []);
@@ -94,6 +100,7 @@ export class WorldScene extends Phaser.Scene {
 			hp: activeSave?.player.hp ?? startingPlayer.baseHp,
 			attack: activeSave?.player.attack ?? startingPlayer.baseAttack
 		};
+		this.playerInvulnerableUntil = 0;
 		this.victoryAchieved = false;
 		this.wasAttackKeyDown = false;
 		this.worldSize = { width, height };
@@ -126,7 +133,7 @@ export class WorldScene extends Phaser.Scene {
 		this.events?.once?.('shutdown', () => this.removeHudCommandListener());
 
 		this.publishHudState(
-			this.victoryAchieved ? 'Victory: ruins cleared' : activeSave ? 'Save resumed' : 'New run'
+			this.victoryAchieved ? 'Victory: ruins cleared' : this.resolveInitialStatus(reason)
 		);
 	}
 
@@ -162,35 +169,37 @@ export class WorldScene extends Phaser.Scene {
 		}
 		this.wasAttackKeyDown = isAttackPressed;
 
-		if (!this.enemy || this.enemy.defeated || time >= this.attackWindowUntil) {
+		if (this.enemy && !this.enemy.defeated && time < this.attackWindowUntil) {
+			const distanceToEnemy = Phaser.Math.Distance.Between(
+				this.player.x,
+				this.player.y,
+				this.enemy.x,
+				this.enemy.y
+			);
+
+			if (
+				distanceToEnemy <=
+					WorldScene.playerRadius + WorldScene.enemyRadius + WorldScene.attackReach &&
+				canReceiveHit(this.enemy, time)
+			) {
+				this.enemy.hp = resolveHit(
+					{ hp: this.enemy.hp, defense: 0 },
+					{ power: this.playerProgress.attack }
+				).hp;
+				this.enemy.invulnerableUntil = time + WorldScene.enemyInvulnerabilityMs;
+				this.updateBossPhase();
+
+				if (this.enemy.hp === 0) {
+					this.finishEncounter();
+				}
+			}
+		}
+
+		if (!this.enemy || this.enemy.defeated) {
 			return;
 		}
 
-		const distanceToEnemy = Phaser.Math.Distance.Between(
-			this.player.x,
-			this.player.y,
-			this.enemy.x,
-			this.enemy.y
-		);
-
-		if (
-			distanceToEnemy >
-				WorldScene.playerRadius + WorldScene.enemyRadius + WorldScene.attackReach ||
-			!canReceiveHit(this.enemy, time)
-		) {
-			return;
-		}
-
-		this.enemy.hp = resolveHit(
-			{ hp: this.enemy.hp, defense: 0 },
-			{ power: this.playerProgress.attack }
-		).hp;
-		this.enemy.invulnerableUntil = time + WorldScene.enemyInvulnerabilityMs;
-		this.updateBossPhase();
-
-		if (this.enemy.hp === 0) {
-			this.finishEncounter();
-		}
+		this.updateEnemyBehavior(time, delta);
 	}
 
 	private applyReward(xpReward: number): ProgressionState {
@@ -317,6 +326,18 @@ export class WorldScene extends Phaser.Scene {
 		});
 	}
 
+	private getEnemyMoveSpeed() {
+		if (!this.enemy) {
+			return 0;
+		}
+
+		if (this.enemy.definition.boss && this.enemy.phase === 2) {
+			return this.enemy.definition.moveSpeed * 1.5;
+		}
+
+		return this.enemy.definition.moveSpeed;
+	}
+
 	private renderTransitions(map: WorldMapDefinition) {
 		for (const transition of map.transitions) {
 			this.add.rectangle(transition.x, transition.y, 16, 16, 0x2f4f73);
@@ -344,11 +365,11 @@ export class WorldScene extends Phaser.Scene {
 		}
 
 		if (storedSave.status === 'invalid') {
-			this.scene.restart({ mapId: openingMapId });
+			this.scene.restart({ mapId: openingMapId, reason: 'invalid-save' });
 			return;
 		}
 
-		this.scene.restart({ saveState: storedSave.saveState });
+		this.scene.restart({ saveState: storedSave.saveState, reason: 'resume' });
 	}
 
 	private saveCurrentState() {
@@ -357,7 +378,7 @@ export class WorldScene extends Phaser.Scene {
 	}
 
 	private setupEncounter(map: WorldMapDefinition) {
-		const encounter = map.encounters[0];
+		const encounter = map.encounter;
 
 		if (!encounter) {
 			return;
@@ -371,6 +392,7 @@ export class WorldScene extends Phaser.Scene {
 			completion: encounter.completion,
 			defeated: isCleared,
 			definition,
+			attackCooldownUntil: 0,
 			hp: isCleared ? 0 : definition.baseHp,
 			invulnerableUntil: 0,
 			maxHp: definition.baseHp,
@@ -385,6 +407,8 @@ export class WorldScene extends Phaser.Scene {
 			WorldScene.enemyRadius * 2,
 			0x7cff6b
 		) as EnemyMarker;
+		this.enemyMarker.x = encounter.x;
+		this.enemyMarker.y = encounter.y;
 
 		if (isCleared) {
 			this.enemyMarker.setVisible(false);
@@ -393,6 +417,13 @@ export class WorldScene extends Phaser.Scene {
 				this.showVictoryState();
 			}
 		}
+	}
+
+	private resolveInitialStatus(reason: NonNullable<WorldSceneData['reason']>) {
+		if (reason === 'resume') return 'Save resumed';
+		if (reason === 'transition') return 'Entered area';
+		if (reason === 'invalid-save') return 'Invalid save reset';
+		return 'New run';
 	}
 
 	private showVictoryState() {
@@ -433,7 +464,10 @@ export class WorldScene extends Phaser.Scene {
 			);
 
 			if (distance <= WorldScene.playerRadius + WorldScene.transitionRadius) {
-				this.scene.restart({ saveState: this.buildTransitionSaveState(transition.toMapId) });
+				this.scene.restart({
+					saveState: this.buildTransitionSaveState(transition.toMapId),
+					reason: 'transition'
+				});
 				return true;
 			}
 		}
@@ -459,5 +493,58 @@ export class WorldScene extends Phaser.Scene {
 		this.enemy.phase = nextState.phase;
 		this.enemyMarker?.setFillStyle(this.enemy.definition.boss.phaseTwoColor);
 		this.publishHudState('Boss enraged');
+	}
+
+	private updateEnemyBehavior(time: number, delta: number) {
+		if (!this.player || !this.enemy || this.enemy.defeated) {
+			return;
+		}
+
+		const distanceToPlayer = Phaser.Math.Distance.Between(
+			this.player.x,
+			this.player.y,
+			this.enemy.x,
+			this.enemy.y
+		);
+
+		if (distanceToPlayer > 0) {
+			const chaseStep = this.getEnemyMoveSpeed() * (Math.min(delta, WorldScene.maxMovementDeltaMs) / 1000);
+			const chaseDistance = Math.min(chaseStep, Math.max(0, distanceToPlayer - WorldScene.enemyRadius));
+			const directionX = (this.player.x - this.enemy.x) / distanceToPlayer;
+			const directionY = (this.player.y - this.enemy.y) / distanceToPlayer;
+
+			this.enemy.x += directionX * chaseDistance;
+			this.enemy.y += directionY * chaseDistance;
+			if (this.enemyMarker) {
+				this.enemyMarker.x = this.enemy.x;
+				this.enemyMarker.y = this.enemy.y;
+			}
+		}
+
+		const contactDistance = Phaser.Math.Distance.Between(
+			this.player.x,
+			this.player.y,
+			this.enemy.x,
+			this.enemy.y
+		);
+
+		if (
+			contactDistance > WorldScene.playerRadius + WorldScene.enemyRadius ||
+			time < this.enemy.attackCooldownUntil ||
+			time < this.playerInvulnerableUntil
+		) {
+			return;
+		}
+
+		this.playerProgress = {
+			...this.playerProgress,
+			hp: resolveHit(
+				{ hp: this.playerProgress.hp, defense: 0 },
+				{ power: this.enemy.definition.baseAttack }
+			).hp
+		};
+		this.enemy.attackCooldownUntil = time + (this.enemy.definition.boss ? 450 : 700);
+		this.playerInvulnerableUntil = time + 500;
+		this.publishHudState(this.playerProgress.hp === 0 ? 'Hero down' : 'Enemy struck first');
 	}
 }

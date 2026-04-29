@@ -15,15 +15,17 @@ const phaserState = vi.hoisted(() => {
 	};
 	const attackKey = { isDown: false };
 	const playerMarker = { x: 0, y: 0 };
-	const enemyMarker = { setVisible: vi.fn(), setFillStyle: vi.fn() };
+	const enemyMarker = { x: 0, y: 0, setVisible: vi.fn(), setFillStyle: vi.fn() };
 	const victoryText = { setOrigin: vi.fn() };
 
 	class SceneMock {
 		scene = { start: vi.fn(), restart: vi.fn() };
 		add = {
 			rectangle: vi.fn(
-				(_x: number, _y: number, _width: number, _height: number, color: number) => {
+				(x: number, y: number, _width: number, _height: number, color: number) => {
 					if (color === 0x7cff6b) {
+						enemyMarker.x = x;
+						enemyMarker.y = y;
 						return enemyMarker;
 					}
 
@@ -66,6 +68,7 @@ const phaserState = vi.hoisted(() => {
 		enemyMarker,
 		victoryText,
 		reset() {
+			Object.assign(enemyMarker, { x: 0, y: 0 });
 			enemyMarker.setVisible.mockReset();
 			enemyMarker.setFillStyle.mockReset();
 			victoryText.setOrigin.mockReset();
@@ -304,10 +307,61 @@ describe('WorldScene', () => {
 		scene.update(200, 16);
 
 		expect(scene.scene.restart).toHaveBeenCalledWith({
+			reason: 'transition',
 			saveState: expect.objectContaining({
 				mapId: 'ruins-threshold'
 			})
 		});
+	});
+
+	it('boots transitions with an area-entry status instead of save resumed', async () => {
+		const events = await import('$lib/game/ui-bridge/events');
+		const { createNewSaveState } = await import('$lib/game/save/save-state');
+		const emitHudStateSpy = vi.spyOn(events, 'emitHudState');
+		const { WorldScene } = await import('./WorldScene');
+		const scene = new WorldScene();
+
+		scene.create({
+			reason: 'transition',
+			saveState: {
+				...createNewSaveState(),
+				mapId: 'ruins-threshold'
+			}
+		});
+
+		expect(emitHudStateSpy).toHaveBeenLastCalledWith(
+			expect.objectContaining({ status: 'Entered area' })
+		);
+	});
+
+	it('bosses chase, strike back, and enrage in phase 2', async () => {
+		const { WorldScene } = await import('./WorldScene');
+		const scene = new WorldScene();
+		const sceneState = scene as unknown as {
+			enemy: { x: number; hp: number };
+			playerProgress: { hp: number };
+		};
+
+		scene.create({ mapId: 'ruins-core' });
+		Object.assign(phaserState.playerMarker, { x: 120, y: 96 });
+
+		scene.update(0, 1000);
+
+		expect(sceneState.enemy.x).toBeLessThan(304);
+
+		Object.assign(phaserState.playerMarker, { x: sceneState.enemy.x, y: 96 });
+		scene.update(500, 16);
+
+		expect(sceneState.playerProgress.hp).toBe(16);
+
+		phaserState.attackKey.isDown = true;
+		scene.update(1000, 16);
+		phaserState.attackKey.isDown = false;
+		scene.update(1200, 16);
+		phaserState.attackKey.isDown = true;
+		scene.update(1400, 16);
+
+		expect(phaserState.enemyMarker.setFillStyle).toHaveBeenCalledWith(0xff8a3d);
 	});
 
 	it('shows a victory state after defeating the boss encounter', async () => {

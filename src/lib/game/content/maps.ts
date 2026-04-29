@@ -19,7 +19,7 @@ export interface WorldMapDefinition extends MapDefinition {
 		y: number;
 	};
 	transitions: MapTransition[];
-	encounters: MapEncounter[];
+	encounter?: MapEncounter;
 }
 
 export const openingMapId = 'meadow-entry';
@@ -31,7 +31,7 @@ export const meadowEntryMap: WorldMapDefinition = {
 	spawnDirection: 'down',
 	spawn: { x: 64, y: 64 },
 	transitions: [{ x: 352, y: 96, toMapId: 'ruins-threshold' }],
-	encounters: [{ x: 304, y: 96, enemyId: 'slime-scout' }]
+	encounter: { x: 304, y: 96, enemyId: 'slime-scout' }
 };
 
 export const ruinsThresholdMap: WorldMapDefinition = {
@@ -43,8 +43,7 @@ export const ruinsThresholdMap: WorldMapDefinition = {
 	transitions: [
 		{ x: 16, y: 96, toMapId: openingMapId },
 		{ x: 464, y: 96, toMapId: 'ruins-core' }
-	],
-	encounters: []
+	]
 };
 
 export const ruinsCoreMap: WorldMapDefinition = {
@@ -54,7 +53,7 @@ export const ruinsCoreMap: WorldMapDefinition = {
 	spawnDirection: 'right',
 	spawn: { x: 48, y: 96 },
 	transitions: [{ x: 16, y: 96, toMapId: 'ruins-threshold' }],
-	encounters: [{ x: 304, y: 96, enemyId: 'ruins-warden', completion: 'victory' }]
+	encounter: { x: 304, y: 96, enemyId: 'ruins-warden', completion: 'victory' }
 };
 
 export const maps: DefinitionRegistry<WorldMapDefinition> = {
