@@ -5,9 +5,14 @@ import { startingPlayer } from '$lib/game/content/player';
 import { canReceiveHit, resolveHit } from '$lib/game/core/combat';
 import { resolveMovementVector } from '$lib/game/core/input';
 import { applyExperienceGain, type ProgressionState } from '$lib/game/core/progression';
+import type { Direction } from '$lib/game/core/types';
+import type { SaveState } from '$lib/game/save/save-state';
+import { loadStoredSaveState, saveGameState } from '$lib/game/save/storage';
+import { emitHudState, onHudCommand, type HudCommand } from '$lib/game/ui-bridge/events';
 
 interface WorldSceneData {
 	mapId?: string;
+	saveState?: SaveState | null;
 }
 
 type DirectionKey = {
@@ -21,6 +26,12 @@ type EnemyInstance = {
 	hp: number;
 	invulnerableUntil: number;
 	defeated: boolean;
+};
+
+type RuntimeSaveState = SaveState & {
+	consumables?: {
+		heals?: number;
+	};
 };
 
 export class WorldScene extends Phaser.Scene {
@@ -47,32 +58,40 @@ export class WorldScene extends Phaser.Scene {
 		hp: startingPlayer.baseHp,
 		attack: startingPlayer.baseAttack
 	};
+	private mapId = openingMapId;
+	private facing: Direction = 'down';
+	private healCharges = 1;
 	private worldSize = { width: 0, height: 0 };
+	private removeHudCommandListener = () => {};
 
 	constructor() {
 		super(WorldScene.key);
 	}
 
 	create(data: WorldSceneData = {}) {
-		const map = this.resolveMap(data.mapId);
+		const activeSave = data.saveState as RuntimeSaveState | null | undefined;
+		const map = this.resolveMap(activeSave?.mapId ?? data.mapId);
 		const width = map.width * WorldScene.tileSize;
 		const height = map.height * WorldScene.tileSize;
 		this.worldSize = { width, height };
 		this.attackWindowUntil = 0;
 		this.playerProgress = {
-			level: 1,
-			xp: 0,
-			hp: startingPlayer.baseHp,
-			attack: startingPlayer.baseAttack
+			level: activeSave?.player.level ?? 1,
+			xp: activeSave?.player.xp ?? 0,
+			hp: activeSave?.player.hp ?? startingPlayer.baseHp,
+			attack: activeSave?.player.attack ?? startingPlayer.baseAttack
 		};
+		this.mapId = map.id;
+		this.facing = activeSave?.player.facing ?? map.spawnDirection;
+		this.healCharges = activeSave?.consumables?.heals ?? 1;
 		this.enemy = undefined;
 		this.enemyMarker = undefined;
 		this.wasAttackKeyDown = false;
 
 		this.add.rectangle(width / 2, height / 2, width, height, 0x5d7a3a);
 		this.player = this.add.circle(
-			map.spawn.x,
-			map.spawn.y,
+			activeSave?.player.x ?? map.spawn.x,
+			activeSave?.player.y ?? map.spawn.y,
 			WorldScene.playerRadius,
 			0x4da6ff
 		) as Phaser.GameObjects.Arc;
@@ -82,13 +101,14 @@ export class WorldScene extends Phaser.Scene {
 		if (hostileTransition) {
 			this.add.rectangle(hostileTransition.x, hostileTransition.y, 20, 20, 0x8b2f2f);
 			const encounter = enemies['slime-scout'];
+			const isCleared = activeSave?.flags.clearedEncounters.includes(encounter.id) ?? false;
 			this.enemy = {
 				definition: encounter,
 				x: hostileTransition.x,
 				y: hostileTransition.y,
-				hp: encounter.baseHp,
+				hp: isCleared ? 0 : encounter.baseHp,
 				invulnerableUntil: 0,
-				defeated: false
+				defeated: isCleared
 			};
 			this.enemyMarker = this.add.rectangle(
 				hostileTransition.x,
@@ -97,6 +117,9 @@ export class WorldScene extends Phaser.Scene {
 				WorldScene.enemyRadius * 2,
 				0x7cff6b
 			);
+			if (isCleared) {
+				this.enemyMarker.setVisible(false);
+			}
 		}
 
 		this.cameras.main.setBackgroundColor('#1a1f2b');
@@ -111,6 +134,10 @@ export class WorldScene extends Phaser.Scene {
 			down: Phaser.Input.Keyboard.KeyCodes.S
 		}) as Partial<Record<'left' | 'right' | 'up' | 'down', DirectionKey>> | undefined;
 		this.attackKey = this.input?.keyboard?.addKey?.(Phaser.Input.Keyboard.KeyCodes.SPACE);
+		this.removeHudCommandListener();
+		this.removeHudCommandListener = onHudCommand((command) => this.handleHudCommand(command));
+		this.events?.once?.('shutdown', () => this.removeHudCommandListener());
+		this.publishHudState(activeSave ? 'Save resumed' : 'New run');
 	}
 
 	update(time: number, delta: number) {
@@ -134,6 +161,7 @@ export class WorldScene extends Phaser.Scene {
 
 		this.player.x = Math.min(Math.max(this.player.x + direction.x * step, min), maxX);
 		this.player.y = Math.min(Math.max(this.player.y + direction.y * step, min), maxY);
+		this.facing = this.resolveFacing(direction, this.facing);
 
 		const isAttackPressed = Boolean(this.attackKey?.isDown);
 
@@ -171,6 +199,7 @@ export class WorldScene extends Phaser.Scene {
 			this.enemy.defeated = true;
 			this.enemyMarker?.setVisible(false);
 			this.playerProgress = this.applyReward(this.enemy.definition.xpReward);
+			this.publishHudState('Enemy defeated');
 		}
 	}
 
@@ -187,5 +216,107 @@ export class WorldScene extends Phaser.Scene {
 			...this.playerProgress,
 			xp: this.playerProgress.xp + xpReward
 		};
+	}
+
+	private handleHudCommand(command: HudCommand) {
+		if (command === 'heal') {
+			this.consumeHeal();
+			return;
+		}
+
+		if (command === 'resume') {
+			this.resumeStoredSave();
+			return;
+		}
+
+		this.saveCurrentState();
+	}
+
+	private consumeHeal() {
+		const maxHp = this.getMaxHp();
+
+		if (this.healCharges < 1) {
+			this.publishHudState('No heal charges left');
+			return;
+		}
+
+		if (this.playerProgress.hp >= maxHp) {
+			this.publishHudState('HP already full');
+			return;
+		}
+
+		this.healCharges -= 1;
+		this.playerProgress = {
+			...this.playerProgress,
+			hp: Math.min(maxHp, this.playerProgress.hp + 8)
+		};
+		this.publishHudState('Recovered HP');
+	}
+
+	private resumeStoredSave() {
+		const storedSave = loadStoredSaveState() as RuntimeSaveState | null;
+
+		if (!storedSave) {
+			this.publishHudState('No save found');
+			return;
+		}
+
+		this.scene.restart({ saveState: storedSave });
+	}
+
+	private saveCurrentState() {
+		saveGameState(this.buildSaveState());
+		this.publishHudState('Saved');
+	}
+
+	private buildSaveState(): SaveState {
+		return {
+			version: 1,
+			mapId: this.mapId,
+			player: {
+				level: this.playerProgress.level,
+				xp: this.playerProgress.xp,
+				hp: this.playerProgress.hp,
+				attack: this.playerProgress.attack,
+				x: this.player?.x ?? 64,
+				y: this.player?.y ?? 64,
+				facing: this.facing
+			},
+			flags: {
+				clearedEncounters: this.enemy?.defeated ? [this.enemy.definition.id] : []
+			},
+			consumables: {
+				heals: this.healCharges
+			}
+		} as SaveState;
+	}
+
+	private publishHudState(status: string) {
+		emitHudState({
+			mapId: this.mapId,
+			hp: this.playerProgress.hp,
+			maxHp: this.getMaxHp(),
+			level: this.playerProgress.level,
+			xp: this.playerProgress.xp,
+			attack: this.playerProgress.attack,
+			heals: this.healCharges,
+			canResume: Boolean(loadStoredSaveState()),
+			status
+		});
+	}
+
+	private getMaxHp() {
+		return this.playerProgress.level > 1 ? startingPlayer.baseHp + 4 : startingPlayer.baseHp;
+	}
+
+	private resolveFacing(
+		direction: { x: number; y: number },
+		fallback: Direction
+	): Direction {
+		if (direction.x > 0) return 'right';
+		if (direction.x < 0) return 'left';
+		if (direction.y > 0) return 'down';
+		if (direction.y < 0) return 'up';
+		return fallback;
 	}
 }
