@@ -1,4 +1,5 @@
 import * as Phaser from 'phaser';
+import { starterPackAsset } from '$lib/game/content/assets';
 import { openingMapId } from '$lib/game/content/maps';
 import { WorldScene } from './WorldScene';
 
@@ -7,6 +8,10 @@ export class BootScene extends Phaser.Scene {
 
 	constructor() {
 		super(BootScene.key);
+	}
+
+	preload() {
+		this.load.image(starterPackAsset.key, starterPackAsset.path);
 	}
 
 	create() {

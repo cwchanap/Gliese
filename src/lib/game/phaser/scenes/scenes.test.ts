@@ -14,29 +14,57 @@ const phaserState = vi.hoisted(() => {
 		down: { isDown: false }
 	};
 	const attackKey = { isDown: false };
-	const playerMarker = { x: 0, y: 0 };
-	const enemyMarker = { x: 0, y: 0, setVisible: vi.fn(), setFillStyle: vi.fn() };
+	const playerMarker = {
+		x: 0,
+		y: 0,
+		setDisplaySize: vi.fn(function (...args: unknown[]) {
+			void args;
+			return this;
+		})
+	};
+	const enemyMarker = {
+		x: 0,
+		y: 0,
+		setDisplaySize: vi.fn(function (...args: unknown[]) {
+			void args;
+			return this;
+		}),
+		setTint: vi.fn(),
+		setVisible: vi.fn()
+	};
 	const victoryText = { setOrigin: vi.fn() };
+	const textureMock = {
+		has: vi.fn(() => false),
+		add: vi.fn()
+	};
+
+	function createImage(x: number, y: number, _texture: string, frame?: string) {
+		if (frame === 'hero') {
+			playerMarker.x = x;
+			playerMarker.y = y;
+			return playerMarker;
+		}
+
+		if (frame === 'slimeScout' || frame === 'ruinsWarden') {
+			enemyMarker.x = x;
+			enemyMarker.y = y;
+			return enemyMarker;
+		}
+
+		return {
+			x,
+			y,
+			setDisplaySize() {
+				return this;
+			}
+		};
+	}
 
 	class SceneMock {
 		scene = { start: vi.fn(), restart: vi.fn() };
 		add = {
-			rectangle: vi.fn(
-				(x: number, y: number, _width: number, _height: number, color: number) => {
-					if (color === 0x7cff6b) {
-						enemyMarker.x = x;
-						enemyMarker.y = y;
-						return enemyMarker;
-					}
-
-					return {};
-				}
-			),
-			circle: vi.fn((x: number, y: number) => {
-				playerMarker.x = x;
-				playerMarker.y = y;
-				return playerMarker;
-			}),
+			image: vi.fn(createImage),
+			rectangle: vi.fn(() => ({})),
 			text: vi.fn(() => victoryText)
 		};
 		cameras = {
@@ -53,6 +81,9 @@ const phaserState = vi.hoisted(() => {
 				addKey: vi.fn(() => attackKey)
 			}
 		};
+		textures = {
+			get: vi.fn(() => textureMock)
+		};
 
 		constructor(...args: unknown[]) {
 			void args;
@@ -67,10 +98,15 @@ const phaserState = vi.hoisted(() => {
 		playerMarker,
 		enemyMarker,
 		victoryText,
+		textureMock,
 		reset() {
 			Object.assign(enemyMarker, { x: 0, y: 0 });
+			playerMarker.setDisplaySize.mockClear();
+			enemyMarker.setDisplaySize.mockClear();
 			enemyMarker.setVisible.mockReset();
-			enemyMarker.setFillStyle.mockReset();
+			enemyMarker.setTint.mockReset();
+			textureMock.has.mockClear();
+			textureMock.add.mockClear();
 			victoryText.setOrigin.mockReset();
 		}
 	};
@@ -136,28 +172,22 @@ describe('WorldScene', () => {
 		Object.assign(phaserState.playerMarker, { x: 0, y: 0 });
 	});
 
-	it('renders placeholder ground, spawn marker, and hostile transition marker for the resolved map', async () => {
+	it('renders textured ground, a hero sprite, and encounter art for the resolved map', async () => {
 		const { WorldScene } = await import('./WorldScene');
 		const { meadowEntryMap } = await import('$lib/game/content/maps');
 		const scene = new WorldScene();
 
 		scene.create({ mapId: meadowEntryMap.id });
 
-		expect(scene.add.rectangle).toHaveBeenNthCalledWith(
-			1,
-			320,
-			192,
-			meadowEntryMap.width * 32,
-			meadowEntryMap.height * 32,
-			0x5d7a3a
-		);
-		expect(scene.add.circle).toHaveBeenCalledWith(
+		expect(scene.add.image).toHaveBeenCalledWith(
 			meadowEntryMap.spawn.x,
 			meadowEntryMap.spawn.y,
-			12,
-			0x4da6ff
+			'starter-pack',
+			'hero'
 		);
-		expect(scene.add.rectangle).toHaveBeenNthCalledWith(2, 304, 96, 20, 20, 0x8b2f2f);
+		expect(scene.add.image).toHaveBeenCalledWith(304, 96, 'starter-pack', 'slimeScout');
+		expect(scene.add.image).toHaveBeenCalledWith(352, 96, 'starter-pack', 'doorwayTile');
+		expect(phaserState.textureMock.add).toHaveBeenCalled();
 		expect(scene.cameras.main.setBackgroundColor).toHaveBeenCalledWith('#1a1f2b');
 	});
 
@@ -366,7 +396,7 @@ describe('WorldScene', () => {
 		phaserState.attackKey.isDown = true;
 		scene.update(1400, 16);
 
-		expect(phaserState.enemyMarker.setFillStyle).toHaveBeenCalledWith(0xff8a3d);
+		expect(phaserState.enemyMarker.setTint).toHaveBeenCalledWith(0xff8a3d);
 	});
 
 	it('shows a victory state after defeating the boss encounter', async () => {

@@ -1,5 +1,10 @@
 import * as Phaser from 'phaser';
 
+import {
+	getEnemyFrameName,
+	getGroundFrameName,
+	starterPackAsset
+} from '$lib/game/content/assets';
 import { enemies, type EnemyCombatDefinition } from '$lib/game/content/enemies';
 import { maps, openingMapId, type WorldMapDefinition } from '$lib/game/content/maps';
 import { startingPlayer } from '$lib/game/content/player';
@@ -25,7 +30,8 @@ type DirectionKey = {
 type EnemyMarker = {
 	x?: number;
 	y?: number;
-	setFillStyle: (color: number) => unknown;
+	setDisplaySize: (width: number, height: number) => unknown;
+	setTint: (color: number) => unknown;
 	setVisible: (visible: boolean) => unknown;
 };
 
@@ -62,7 +68,7 @@ export class WorldScene extends Phaser.Scene {
 	private facing: Direction = 'down';
 	private healCharges = 1;
 	private mapId = openingMapId;
-	private player?: Phaser.GameObjects.Arc;
+	private player?: Phaser.GameObjects.Image;
 	private playerInvulnerableUntil = 0;
 	private playerProgress: ProgressionState = {
 		level: 1,
@@ -105,13 +111,15 @@ export class WorldScene extends Phaser.Scene {
 		this.wasAttackKeyDown = false;
 		this.worldSize = { width, height };
 
-		this.add.rectangle(width / 2, height / 2, width, height, 0x5d7a3a);
-		this.player = this.add.circle(
+		this.registerStarterPackFrames();
+		this.renderGround(map);
+		this.player = this.add.image(
 			activeSave?.player.x ?? map.spawn.x,
 			activeSave?.player.y ?? map.spawn.y,
-			WorldScene.playerRadius,
-			0x4da6ff
-		) as Phaser.GameObjects.Arc;
+			starterPackAsset.key,
+			'hero'
+		) as Phaser.GameObjects.Image;
+		this.player.setDisplaySize(44, 60);
 
 		this.setupEncounter(map);
 		this.renderTransitions(map);
@@ -326,6 +334,39 @@ export class WorldScene extends Phaser.Scene {
 		});
 	}
 
+	private registerStarterPackFrames() {
+		const texture = this.textures.get(starterPackAsset.key);
+
+		for (const [frameName, frame] of Object.entries(starterPackAsset.frames)) {
+			if (!texture.has(frameName)) {
+				texture.add(frameName, 0, frame.x, frame.y, frame.w, frame.h);
+			}
+		}
+	}
+
+	private renderGround(map: WorldMapDefinition) {
+		const baseFrame = getGroundFrameName(map.id);
+
+		for (let row = 0; row < map.height; row += 1) {
+			for (let column = 0; column < map.width; column += 1) {
+				let frame = baseFrame;
+
+				if (map.id === openingMapId && row === 2 && column >= 2 && column <= 11) {
+					frame = 'pathTile';
+				}
+
+				this.add
+					.image(
+						column * WorldScene.tileSize + WorldScene.tileSize / 2,
+						row * WorldScene.tileSize + WorldScene.tileSize / 2,
+						starterPackAsset.key,
+						frame
+					)
+					.setDisplaySize(WorldScene.tileSize, WorldScene.tileSize);
+			}
+		}
+	}
+
 	private getEnemyMoveSpeed() {
 		if (!this.enemy) {
 			return 0;
@@ -340,7 +381,9 @@ export class WorldScene extends Phaser.Scene {
 
 	private renderTransitions(map: WorldMapDefinition) {
 		for (const transition of map.transitions) {
-			this.add.rectangle(transition.x, transition.y, 16, 16, 0x2f4f73);
+			this.add
+				.image(transition.x, transition.y, starterPackAsset.key, 'doorwayTile')
+				.setDisplaySize(40, 40);
 		}
 	}
 
@@ -386,8 +429,6 @@ export class WorldScene extends Phaser.Scene {
 
 		const definition = enemies[encounter.enemyId];
 		const isCleared = this.clearedEncounterIds.has(definition.id);
-
-		this.add.rectangle(encounter.x, encounter.y, 20, 20, 0x8b2f2f);
 		this.enemy = {
 			completion: encounter.completion,
 			defeated: isCleared,
@@ -400,13 +441,16 @@ export class WorldScene extends Phaser.Scene {
 			x: encounter.x,
 			y: encounter.y
 		};
-		this.enemyMarker = this.add.rectangle(
+		this.enemyMarker = this.add.image(
 			encounter.x,
 			encounter.y,
-			WorldScene.enemyRadius * 2,
-			WorldScene.enemyRadius * 2,
-			0x7cff6b
+			starterPackAsset.key,
+			getEnemyFrameName(encounter.enemyId)
 		) as EnemyMarker;
+		this.enemyMarker.setDisplaySize(
+			encounter.enemyId === 'ruins-warden' ? 80 : 44,
+			encounter.enemyId === 'ruins-warden' ? 96 : 44
+		);
 		this.enemyMarker.x = encounter.x;
 		this.enemyMarker.y = encounter.y;
 
@@ -491,7 +535,7 @@ export class WorldScene extends Phaser.Scene {
 		}
 
 		this.enemy.phase = nextState.phase;
-		this.enemyMarker?.setFillStyle(this.enemy.definition.boss.phaseTwoColor);
+		this.enemyMarker?.setTint(this.enemy.definition.boss.phaseTwoColor);
 		this.publishHudState('Boss enraged');
 	}
 
