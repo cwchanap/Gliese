@@ -11,7 +11,7 @@ export type HudState = {
 	status: string;
 };
 
-export type HudCommand = 'heal' | 'resume' | 'save';
+export type HudCommand = 'heal' | 'resume' | 'save' | 'pause-game' | 'resume-game';
 
 export const HUD_STATE_EVENT = 'gliese:hud-state';
 export const HUD_COMMAND_EVENT = 'gliese:hud-command';

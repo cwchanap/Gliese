@@ -77,6 +77,7 @@ export class WorldScene extends Phaser.Scene {
 		attack: startingPlayer.baseAttack
 	};
 	private removeHudCommandListener = () => {};
+	private simulationPaused = false;
 	private victoryAchieved = false;
 	private wasAttackKeyDown = false;
 	private wasdKeys?: Partial<Record<'left' | 'right' | 'up' | 'down', DirectionKey>>;
@@ -107,6 +108,7 @@ export class WorldScene extends Phaser.Scene {
 			attack: activeSave?.player.attack ?? startingPlayer.baseAttack
 		};
 		this.playerInvulnerableUntil = 0;
+		this.simulationPaused = false;
 		this.victoryAchieved = false;
 		this.wasAttackKeyDown = false;
 		this.worldSize = { width, height };
@@ -147,6 +149,11 @@ export class WorldScene extends Phaser.Scene {
 
 	update(time: number, delta: number) {
 		if (!this.player) {
+			return;
+		}
+
+		if (this.simulationPaused) {
+			this.wasAttackKeyDown = Boolean(this.attackKey?.isDown);
 			return;
 		}
 
@@ -304,6 +311,16 @@ export class WorldScene extends Phaser.Scene {
 	}
 
 	private handleHudCommand(command: HudCommand) {
+		if (command === 'pause-game') {
+			this.simulationPaused = true;
+			return;
+		}
+
+		if (command === 'resume-game') {
+			this.simulationPaused = false;
+			return;
+		}
+
 		if (command === 'heal') {
 			this.consumeHeal();
 			return;

@@ -24,6 +24,10 @@ vi.mock('$app/environment', () => environmentState);
 vi.mock('phaser', () => {
 	const runtime = {
 		AUTO: 'AUTO',
+		Scale: {
+			RESIZE: 'RESIZE',
+			CENTER_BOTH: 'CENTER_BOTH'
+		},
 		Game: phaserState.GameMock,
 		Scene: phaserState.SceneMock
 	};
@@ -54,6 +58,10 @@ describe('createGame', () => {
 		expect(phaserState.gameMock).toHaveBeenCalledWith(
 			expect.objectContaining({
 				parent: mountNode,
+				scale: {
+					mode: 'RESIZE',
+					autoCenter: 'CENTER_BOTH'
+				},
 				scene: [BootScene, WorldScene]
 			})
 		);

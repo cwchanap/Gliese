@@ -2,6 +2,8 @@ import { browser } from '$app/environment';
 import { BootScene } from '$lib/game/phaser/scenes/BootScene';
 import { WorldScene } from '$lib/game/phaser/scenes/WorldScene';
 
+type PhaserModule = typeof import('phaser');
+
 export async function createGame(target: HTMLElement) {
 	if (!browser) {
 		throw new Error('createGame must run in the browser');
@@ -15,6 +17,10 @@ export async function createGame(target: HTMLElement) {
 		width: 640,
 		height: 360,
 		backgroundColor: '#1a1f2b',
+		scale: {
+			mode: Phaser.Scale.RESIZE,
+			autoCenter: Phaser.Scale.CENTER_BOTH
+		},
 		scene: [BootScene, WorldScene]
 	});
 
@@ -23,6 +29,6 @@ export async function createGame(target: HTMLElement) {
 	};
 }
 
-function resolvePhaserRuntime(module: Awaited<ReturnType<typeof import('phaser')>>) {
-	return 'Game' in module ? module : module.default;
+function resolvePhaserRuntime(module: PhaserModule) {
+	return (module as PhaserModule & { default?: PhaserModule }).default ?? module;
 }

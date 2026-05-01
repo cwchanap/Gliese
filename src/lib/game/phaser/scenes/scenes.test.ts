@@ -17,17 +17,17 @@ const phaserState = vi.hoisted(() => {
 	const playerMarker = {
 		x: 0,
 		y: 0,
-		setDisplaySize: vi.fn(function (...args: unknown[]) {
+		setDisplaySize: vi.fn((...args: unknown[]) => {
 			void args;
-			return this;
+			return playerMarker;
 		})
 	};
 	const enemyMarker = {
 		x: 0,
 		y: 0,
-		setDisplaySize: vi.fn(function (...args: unknown[]) {
+		setDisplaySize: vi.fn((...args: unknown[]) => {
 			void args;
-			return this;
+			return enemyMarker;
 		}),
 		setTint: vi.fn(),
 		setVisible: vi.fn()
@@ -270,6 +270,29 @@ describe('WorldScene', () => {
 
 		expect(phaserState.playerMarker.x).toBe(meadowEntryMap.spawn.x + 30);
 		expect(phaserState.playerMarker.y).toBe(meadowEntryMap.spawn.y);
+	});
+
+	it('stops world movement while the gameplay menu is open', async () => {
+		const { WorldScene } = await import('./WorldScene');
+		const { meadowEntryMap } = await import('$lib/game/content/maps');
+		const scene = new WorldScene();
+		const sceneState = scene as unknown as {
+			handleHudCommand: (command: 'pause-game' | 'resume-game') => void;
+		};
+
+		scene.create({ mapId: meadowEntryMap.id });
+		phaserState.cursorKeys.right.isDown = true;
+		sceneState.handleHudCommand('pause-game');
+
+		scene.update(0, 1000);
+
+		expect(phaserState.playerMarker.x).toBe(meadowEntryMap.spawn.x);
+		expect(phaserState.playerMarker.y).toBe(meadowEntryMap.spawn.y);
+
+		sceneState.handleHudCommand('resume-game');
+		scene.update(1000, 1000);
+
+		expect(phaserState.playerMarker.x).toBe(meadowEntryMap.spawn.x + 30);
 	});
 
 	it('defeats an enemy within the melee attack window and applies the xp reward', async () => {

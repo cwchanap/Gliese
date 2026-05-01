@@ -36,3 +36,11 @@ export function requestResume() {
 export function requestHeal() {
 	emitHudCommand('heal');
 }
+
+export function requestPauseGame() {
+	emitHudCommand('pause-game');
+}
+
+export function requestResumeGame() {
+	emitHudCommand('resume-game');
+}
