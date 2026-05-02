@@ -7,7 +7,12 @@ import {
 	type StarterPackFrameName
 } from '$lib/game/content/assets';
 import { enemies, type EnemyCombatDefinition } from '$lib/game/content/enemies';
-import { maps, openingMapId, type MapTransition, type WorldMapDefinition } from '$lib/game/content/maps';
+import {
+	maps,
+	openingMapId,
+	type MapTransition,
+	type WorldMapDefinition
+} from '$lib/game/content/maps';
 import { startingPlayer } from '$lib/game/content/player';
 import { advanceBossPhase } from '$lib/game/core/boss';
 import { canReceiveHit, resolveHit } from '$lib/game/core/combat';
@@ -718,8 +723,12 @@ export class WorldScene extends Phaser.Scene {
 		);
 
 		if (distanceToPlayer > 0) {
-			const chaseStep = this.getEnemyMoveSpeed() * (Math.min(delta, WorldScene.maxMovementDeltaMs) / 1000);
-			const chaseDistance = Math.min(chaseStep, Math.max(0, distanceToPlayer - WorldScene.enemyRadius));
+			const chaseStep =
+				this.getEnemyMoveSpeed() * (Math.min(delta, WorldScene.maxMovementDeltaMs) / 1000);
+			const chaseDistance = Math.min(
+				chaseStep,
+				Math.max(0, distanceToPlayer - WorldScene.enemyRadius)
+			);
 			const directionX = (this.player.x - this.enemy.x) / distanceToPlayer;
 			const directionY = (this.player.y - this.enemy.y) / distanceToPlayer;
 
@@ -785,7 +794,14 @@ export class WorldScene extends Phaser.Scene {
 		}
 
 		if (!this.attackFlash) {
-			this.attackFlash = this.add.rectangle(this.player.x, this.player.y, 18, 18, 0xfff0a8, 0.82) as OverlayMarker;
+			this.attackFlash = this.add.rectangle(
+				this.player.x,
+				this.player.y,
+				18,
+				18,
+				0xfff0a8,
+				0.82
+			) as OverlayMarker;
 		}
 
 		const { x, y } = this.getAttackFlashPosition();

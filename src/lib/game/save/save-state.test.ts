@@ -3,11 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { meadowEntryMap } from '$lib/game/content/maps';
 import { startingPlayer } from '$lib/game/content/player';
 import { getXpForLevel } from '$lib/game/core/progression';
-import {
-	createNewSaveState,
-	parseSaveState,
-	serializeSaveState
-} from '$lib/game/save/save-state';
+import { createNewSaveState, parseSaveState, serializeSaveState } from '$lib/game/save/save-state';
 import {
 	SAVE_STORAGE_KEY,
 	clearStoredSaveState,
@@ -53,8 +49,8 @@ describe('save state', () => {
 				xp: getXpForLevel(1),
 				hp: startingPlayer.baseHp,
 				attack: startingPlayer.baseAttack,
-				x: 64,
-				y: 64,
+				x: meadowEntryMap.spawn.x,
+				y: meadowEntryMap.spawn.y,
 				facing: meadowEntryMap.spawnDirection
 			},
 			flags: { clearedEncounters: [] },
@@ -73,6 +69,38 @@ describe('save state', () => {
 		void _consumables;
 
 		expect(parseSaveState(JSON.stringify(legacyPayload))?.consumables.heals).toBe(1);
+	});
+
+	it('migrates old tiny-room meadow coordinates to the nearest large-room anchor', () => {
+		const oldSave = {
+			...createNewSaveState(),
+			player: {
+				...createNewSaveState().player,
+				x: 64,
+				y: 64
+			}
+		};
+
+		expect(parseSaveState(JSON.stringify(oldSave))?.player).toMatchObject({
+			x: meadowEntryMap.spawn.x,
+			y: meadowEntryMap.spawn.y
+		});
+	});
+
+	it('clamps saved coordinates to the current map bounds', () => {
+		const outOfBoundsSave = {
+			...createNewSaveState(),
+			player: {
+				...createNewSaveState().player,
+				x: 99_999,
+				y: -50
+			}
+		};
+
+		expect(parseSaveState(JSON.stringify(outOfBoundsSave))?.player).toMatchObject({
+			x: meadowEntryMap.width * 32,
+			y: 0
+		});
 	});
 
 	it('rejects invalid payloads', () => {

@@ -26,11 +26,11 @@ The initial implementation should use Phaser tilemaps for room rendering, becaus
 
 Room dimensions are expressed in tiles. Pixel dimensions are derived from the global `32px` tile size.
 
-| Room | Tile Size | Tile Dimensions | Pixel Dimensions |
-| --- | --- | --- | --- |
-| `meadow-entry` | `32px` | `320 x 320` | `10240 x 10240` |
-| `ruins-threshold` | `32px` | `320 x 320` | `10240 x 10240` |
-| `ruins-core` | `32px` | `80 x 80` | `2560 x 2560` |
+| Room              | Tile Size | Tile Dimensions | Pixel Dimensions |
+| ----------------- | --------- | --------------- | ---------------- |
+| `meadow-entry`    | `32px`    | `320 x 320`     | `10240 x 10240`  |
+| `ruins-threshold` | `32px`    | `320 x 320`     | `10240 x 10240`  |
+| `ruins-core`      | `32px`    | `80 x 80`       | `2560 x 2560`    |
 
 The map definition model should continue to own `width` and `height` as tile counts. `WorldScene` should derive pixel bounds with:
 

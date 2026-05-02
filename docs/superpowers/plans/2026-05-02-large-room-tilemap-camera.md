@@ -33,6 +33,7 @@
 ### Task 1: Enlarge Room Content Coordinates
 
 **Files:**
+
 - Modify: `src/lib/game/content/maps.ts`
 - Test: `src/lib/game/phaser/scenes/scenes.test.ts`
 
@@ -202,6 +203,7 @@ git commit -m "Expand room dimensions and smooth camera follow"
 ### Task 2: Replace Ground Images With Phaser Tilemap Rendering
 
 **Files:**
+
 - Modify: `src/lib/game/phaser/scenes/WorldScene.ts`
 - Test: `src/lib/game/phaser/scenes/scenes.test.ts`
 
@@ -261,12 +263,7 @@ it('renders tilemap ground, a hero sprite, and encounter art for the resolved ma
 		32,
 		32
 	);
-	expect(phaserState.tilemap.createLayer).toHaveBeenCalledWith(
-		'ground',
-		expect.anything(),
-		0,
-		0
-	);
+	expect(phaserState.tilemap.createLayer).toHaveBeenCalledWith('ground', expect.anything(), 0, 0);
 	expect(scene.add.image).toHaveBeenCalledWith(
 		meadowEntryMap.spawn.x,
 		meadowEntryMap.spawn.y,
@@ -473,6 +470,7 @@ git commit -m "Render large rooms with Phaser tilemaps"
 ### Task 3: Update Gameplay Tests For Large-Room Coordinates
 
 **Files:**
+
 - Modify: `src/lib/game/phaser/scenes/scenes.test.ts`
 
 - [ ] **Step 1: Update combat coordinate tests**
@@ -540,7 +538,7 @@ player: expect.objectContaining({
 	x: 256,
 	y: 5_120,
 	facing: 'right'
-})
+});
 ```
 
 In the threshold-to-meadow test, replace the player coordinate:
@@ -556,7 +554,7 @@ player: expect.objectContaining({
 	x: 9_856,
 	y: 5_120,
 	facing: 'left'
-})
+});
 ```
 
 Add a new transition test for threshold-to-core:
@@ -609,6 +607,7 @@ git commit -m "Update scene tests for large room coordinates"
 ### Task 4: Verify Typecheck, Unit Tests, And Build
 
 **Files:**
+
 - No planned source changes.
 
 - [ ] **Step 1: Run full unit tests**
@@ -657,7 +656,7 @@ Then call `textureManager.exists?.(...)`, `textureManager.get(...)`, and `textur
 If tests fail because `textureMock.getSourceImage` is missing, add this to the mock:
 
 ```ts
-getSourceImage: vi.fn(() => undefined)
+getSourceImage: vi.fn(() => undefined);
 ```
 
 This keeps tests in Node from depending on browser canvas behavior.
@@ -678,6 +677,7 @@ If no files changed, do not create an empty commit.
 ### Task 5: Manual Runtime Check
 
 **Files:**
+
 - No planned source changes.
 
 - [ ] **Step 1: Start the dev server**

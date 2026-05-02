@@ -168,7 +168,14 @@ const phaserState = vi.hoisted(() => {
 			tilemap.createLayer.mockClear();
 			tilemapLayer.setDepth.mockClear();
 			victoryText.setOrigin.mockReset();
-			rectangleQueue.splice(0, rectangleQueue.length, enemyHealthBarBg, enemyHealthBarFill, attackFlash, victoryOverlay);
+			rectangleQueue.splice(
+				0,
+				rectangleQueue.length,
+				enemyHealthBarBg,
+				enemyHealthBarFill,
+				attackFlash,
+				victoryOverlay
+			);
 		}
 	};
 });
@@ -254,12 +261,7 @@ describe('WorldScene', () => {
 			32,
 			32
 		);
-		expect(phaserState.tilemap.createLayer).toHaveBeenCalledWith(
-			0,
-			expect.anything(),
-			0,
-			0
-		);
+		expect(phaserState.tilemap.createLayer).toHaveBeenCalledWith(0, expect.anything(), 0, 0);
 		expect(phaserState.tilemapLayer.setDepth).toHaveBeenCalledWith(-10);
 		expect(tilemapData[0][0]).toBe(0);
 		expect(tilemapData[160][0]).toBe(1);
@@ -287,12 +289,7 @@ describe('WorldScene', () => {
 		expect(tilemapData[0][1]).toBe(3);
 		expect(tilemapData[1][0]).toBe(3);
 		expect(tilemapData[1][1]).toBe(2);
-		expect(phaserState.tilemap.createLayer).toHaveBeenCalledWith(
-			0,
-			expect.anything(),
-			0,
-			0
-		);
+		expect(phaserState.tilemap.createLayer).toHaveBeenCalledWith(0, expect.anything(), 0, 0);
 		expect(phaserState.tilemapLayer.setDepth).toHaveBeenCalledWith(-10);
 	});
 
@@ -426,10 +423,7 @@ describe('WorldScene', () => {
 
 		scene.update(0, 16);
 
-		expect(applyExperienceGainSpy).toHaveBeenCalledWith(
-			{ level: 1, xp: 0, hp: 20, attack: 3 },
-			5
-		);
+		expect(applyExperienceGainSpy).toHaveBeenCalledWith({ level: 1, xp: 0, hp: 20, attack: 3 }, 5);
 		expect(phaserState.attackFlash.setVisible).toHaveBeenCalledWith(true);
 		expect(phaserState.enemyHealthBarFill.setScale).toHaveBeenCalledWith(0, 1);
 		expect(sceneState.playerProgress).toMatchObject({ level: 2, xp: 5 });
