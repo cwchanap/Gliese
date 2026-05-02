@@ -5,8 +5,10 @@ import { addItem, consumeStackItem, createEmptyInventory, ownsEquipment } from '
 describe('inventory core', () => {
 	it('stacks consumables and key items', () => {
 		const inventory = addItem(addItem(createEmptyInventory(), 'field-potion', 2), 'field-potion', 1);
+		const keyItemInventory = addItem(addItem(createEmptyInventory(), 'meadow-token'), 'meadow-token');
 
 		expect(inventory.stacks).toEqual([{ itemId: 'field-potion', quantity: 3 }]);
+		expect(keyItemInventory.stacks).toEqual([{ itemId: 'meadow-token', quantity: 2 }]);
 	});
 
 	it('stores equipment ownership by id once', () => {
