@@ -243,13 +243,15 @@ describe('WorldScene', () => {
 
 		scene.create({ mapId: meadowEntryMap.id });
 
-		expect(scene.cameras.main.setBounds).toHaveBeenCalledWith(
-			0,
-			0,
-			meadowEntryMap.width * 32,
-			meadowEntryMap.height * 32
+		expect(meadowEntryMap.width).toBe(320);
+		expect(meadowEntryMap.height).toBe(320);
+		expect(scene.cameras.main.setBounds).toHaveBeenCalledWith(0, 0, 10_240, 10_240);
+		expect(scene.cameras.main.startFollow).toHaveBeenCalledWith(
+			phaserState.playerMarker,
+			true,
+			0.14,
+			0.14
 		);
-		expect(scene.cameras.main.startFollow).toHaveBeenCalledWith(phaserState.playerMarker, true);
 		expect(scene.input.keyboard?.createCursorKeys).toHaveBeenCalledOnce();
 		expect(scene.input.keyboard?.addKeys).toHaveBeenCalledWith({
 			left: 'A',
@@ -257,6 +259,18 @@ describe('WorldScene', () => {
 			up: 'W',
 			down: 'S'
 		});
+	});
+
+	it('sets camera bounds for the ruins core map dimensions', async () => {
+		const { WorldScene } = await import('./WorldScene');
+		const { ruinsCoreMap } = await import('$lib/game/content/maps');
+		const scene = new WorldScene();
+
+		scene.create({ mapId: ruinsCoreMap.id });
+
+		expect(ruinsCoreMap.width).toBe(80);
+		expect(ruinsCoreMap.height).toBe(80);
+		expect(scene.cameras.main.setBounds).toHaveBeenCalledWith(0, 0, 2_560, 2_560);
 	});
 
 	it('moves the player marker using the current input state', async () => {

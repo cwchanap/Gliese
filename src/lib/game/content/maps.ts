@@ -31,58 +31,58 @@ export const openingMapId = 'meadow-entry';
 
 export const meadowEntryMap: WorldMapDefinition = {
 	id: openingMapId,
-	width: 20,
-	height: 12,
-	spawnDirection: 'down',
-	spawn: { x: 64, y: 64 },
+	width: 320,
+	height: 320,
+	spawnDirection: 'right',
+	spawn: { x: 256, y: 5_120 },
 	transitions: [
 		{
-			x: 352,
-			y: 96,
+			x: 9_984,
+			y: 5_120,
 			toMapId: 'ruins-threshold',
-			arrival: { x: 48, y: 96, facing: 'left' }
+			arrival: { x: 256, y: 5_120, facing: 'right' }
 		}
 	],
-	encounter: { x: 304, y: 96, enemyId: 'slime-scout' }
+	encounter: { x: 5_120, y: 5_120, enemyId: 'slime-scout' }
 };
 
 export const ruinsThresholdMap: WorldMapDefinition = {
 	id: 'ruins-threshold',
-	width: 16,
-	height: 10,
-	spawnDirection: 'left',
-	spawn: { x: 48, y: 96 },
+	width: 320,
+	height: 320,
+	spawnDirection: 'right',
+	spawn: { x: 256, y: 5_120 },
 	transitions: [
 		{
-			x: 16,
-			y: 96,
+			x: 128,
+			y: 5_120,
 			toMapId: openingMapId,
-			arrival: { x: 320, y: 96, facing: 'left' }
+			arrival: { x: 9_856, y: 5_120, facing: 'left' }
 		},
 		{
-			x: 464,
-			y: 96,
+			x: 9_984,
+			y: 5_120,
 			toMapId: 'ruins-core',
-			arrival: { x: 48, y: 96, facing: 'right' }
+			arrival: { x: 256, y: 1_280, facing: 'right' }
 		}
 	]
 };
 
 export const ruinsCoreMap: WorldMapDefinition = {
 	id: 'ruins-core',
-	width: 18,
-	height: 10,
+	width: 80,
+	height: 80,
 	spawnDirection: 'right',
-	spawn: { x: 48, y: 96 },
+	spawn: { x: 256, y: 1_280 },
 	transitions: [
 		{
-			x: 16,
-			y: 96,
+			x: 128,
+			y: 1_280,
 			toMapId: 'ruins-threshold',
-			arrival: { x: 432, y: 96, facing: 'left' }
+			arrival: { x: 9_856, y: 5_120, facing: 'left' }
 		}
 	],
-	encounter: { x: 304, y: 96, enemyId: 'ruins-warden', completion: 'victory' }
+	encounter: { x: 1_600, y: 1_280, enemyId: 'ruins-warden', completion: 'victory' }
 };
 
 export const maps: DefinitionRegistry<WorldMapDefinition> = {

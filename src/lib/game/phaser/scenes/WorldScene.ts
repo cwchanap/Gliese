@@ -66,6 +66,7 @@ export class WorldScene extends Phaser.Scene {
 	private static readonly maxMovementDeltaMs = 250;
 	private static readonly playerRadius = 12;
 	private static readonly tileSize = 32;
+	private static readonly cameraFollowLerp = 0.14;
 	private static readonly transitionRadius = 18;
 	private static readonly enemyHealthBarOffsetY = 34;
 
@@ -143,7 +144,12 @@ export class WorldScene extends Phaser.Scene {
 
 		this.cameras.main.setBackgroundColor('#1a1f2b');
 		this.cameras.main.setBounds(0, 0, width, height);
-		this.cameras.main.startFollow(this.player, true);
+		this.cameras.main.startFollow(
+			this.player,
+			true,
+			WorldScene.cameraFollowLerp,
+			WorldScene.cameraFollowLerp
+		);
 
 		this.cursorKeys = this.input?.keyboard?.createCursorKeys?.();
 		this.wasdKeys = this.input?.keyboard?.addKeys?.({
