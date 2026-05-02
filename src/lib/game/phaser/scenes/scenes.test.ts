@@ -45,6 +45,14 @@ const phaserState = vi.hoisted(() => {
 		addTilesetImage: vi.fn(() => ({ name: 'starter-ground-tiles' })),
 		createLayer: vi.fn((layerId: number | string) => (layerId === 0 ? tilemapLayer : null))
 	};
+	const imageMarkers: Array<{
+		x: number;
+		y: number;
+		frame?: string;
+		visible: boolean;
+		setDisplaySize: ReturnType<typeof vi.fn>;
+		setVisible: ReturnType<typeof vi.fn>;
+	}> = [];
 
 	function createOverlayMarker() {
 		const marker = {
@@ -91,13 +99,19 @@ const phaserState = vi.hoisted(() => {
 			return enemyMarker;
 		}
 
-		return {
+		const marker = {
 			x,
 			y,
-			setDisplaySize() {
-				return this;
-			}
+			frame,
+			visible: true,
+			setDisplaySize: vi.fn(() => marker),
+			setVisible: vi.fn((visible: boolean) => {
+				marker.visible = visible;
+				return marker;
+			})
 		};
+		imageMarkers.push(marker);
+		return marker;
 	}
 
 	class SceneMock {
@@ -146,8 +160,10 @@ const phaserState = vi.hoisted(() => {
 		textureMock,
 		tilemap,
 		tilemapLayer,
+		imageMarkers,
 		reset() {
 			Object.assign(enemyMarker, { x: 0, y: 0 });
+			imageMarkers.splice(0, imageMarkers.length);
 			playerMarker.setDisplaySize.mockClear();
 			enemyMarker.setDisplaySize.mockClear();
 			enemyMarker.setVisible.mockReset();
@@ -453,6 +469,65 @@ describe('WorldScene', () => {
 		);
 	});
 
+	it('renders uncollected pickups using flask art and skips pickups collected in a save', async () => {
+		const { createNewSaveState } = await import('$lib/game/save/save-state');
+		const { meadowEntryMap } = await import('$lib/game/content/maps');
+		const { WorldScene } = await import('./WorldScene');
+		const scene = new WorldScene();
+
+		scene.create({
+			saveState: {
+				...createNewSaveState(),
+				mapId: meadowEntryMap.id,
+				flags: {
+					clearedEncounters: [],
+					collectedPickups: ['meadow-entry-potion'],
+					resolvedEncounterDrops: {}
+				}
+			}
+		});
+
+		expect(scene.add.image).not.toHaveBeenCalledWith(512, 1_184, 'starter-pack', 'healFlask');
+		expect(scene.add.image).toHaveBeenCalledWith(896, 1_408, 'starter-pack', 'healFlask');
+		expect(scene.add.image).toHaveBeenCalledWith(1_024, 1_152, 'starter-pack', 'healFlask');
+		const pickupMarkers = phaserState.imageMarkers.filter((marker) => marker.frame === 'healFlask');
+		expect(pickupMarkers).toHaveLength(meadowEntryMap.pickups!.length - 1);
+		expect(pickupMarkers.every((marker) => marker.setDisplaySize.mock.calls[0]![0] === 28)).toBe(
+			true
+		);
+	});
+
+	it('collects a nearby pickup, updates inventory and flags, hides the marker, and publishes status', async () => {
+		const events = await import('$lib/game/ui-bridge/events');
+		const emitHudStateSpy = vi.spyOn(events, 'emitHudState');
+		const { WorldScene } = await import('./WorldScene');
+		const scene = new WorldScene();
+		const sceneState = scene as unknown as {
+			buildSaveState: () => {
+				inventory: { stacks: Array<{ itemId: string; quantity: number }> };
+				flags: { collectedPickups: string[] };
+			};
+			collectedPickupIds: Set<string>;
+		};
+
+		scene.create({ mapId: 'meadow-entry' });
+		const marker = phaserState.imageMarkers.find(
+			(imageMarker) => imageMarker.x === 512 && imageMarker.y === 1_184
+		)!;
+		Object.assign(phaserState.playerMarker, { x: 512, y: 1_184 });
+
+		scene.update(0, 16);
+
+		const saveState = sceneState.buildSaveState();
+		expect(saveState.inventory.stacks).toContainEqual({ itemId: 'field-potion', quantity: 3 });
+		expect(saveState.flags.collectedPickups).toContain('meadow-entry-potion');
+		expect(sceneState.collectedPickupIds.has('meadow-entry-potion')).toBe(true);
+		expect(marker.setVisible).toHaveBeenCalledWith(false);
+		expect(emitHudStateSpy).toHaveBeenLastCalledWith(
+			expect.objectContaining({ status: 'Found Field Potion' })
+		);
+	});
+
 	it('equips owned equipment and publishes effective combat stats', async () => {
 		const events = await import('$lib/game/ui-bridge/events');
 		const emitHudStateSpy = vi.spyOn(events, 'emitHudState');
@@ -558,6 +633,86 @@ describe('WorldScene', () => {
 		expect(phaserState.enemyHealthBarFill.setScale).toHaveBeenCalledWith(0, 1);
 		expect(sceneState.playerProgress).toMatchObject({ level: 2, xp: 5 });
 		expect(phaserState.enemyMarker.setVisible).toHaveBeenCalledWith(false);
+	});
+
+	it('awards deterministic encounter drops on defeat and saves resolved drops', async () => {
+		const randomSpy = vi.spyOn(Math, 'random').mockReturnValue(0);
+		const { WorldScene } = await import('./WorldScene');
+		const scene = new WorldScene();
+		const sceneState = scene as unknown as {
+			buildSaveState: () => {
+				inventory: { stacks: Array<{ itemId: string; quantity: number }> };
+				flags: {
+					resolvedEncounterDrops: Record<string, Array<{ itemId: string; quantity: number }>>;
+				};
+			};
+		};
+
+		try {
+			scene.create({ mapId: 'meadow-entry' });
+			Object.assign(phaserState.playerMarker, { x: 1_280, y: 1_280 });
+
+			scene.update(0, 16);
+
+			expect(sceneState.buildSaveState()).toMatchObject({
+				inventory: { stacks: [{ itemId: 'field-potion', quantity: 2 }] },
+				flags: {
+					resolvedEncounterDrops: { 'slime-scout': [{ itemId: 'field-potion', quantity: 1 }] }
+				}
+			});
+		} finally {
+			randomSpy.mockRestore();
+		}
+	});
+
+	it('reuses loaded encounter drops without rerolling them', async () => {
+		const randomSpy = vi.spyOn(Math, 'random').mockReturnValue(0);
+		const { createNewSaveState } = await import('$lib/game/save/save-state');
+		const { WorldScene } = await import('./WorldScene');
+		const scene = new WorldScene();
+		const sceneState = scene as unknown as {
+			buildSaveState: () => {
+				inventory: { stacks: Array<{ itemId: string; quantity: number }> };
+				flags: {
+					resolvedEncounterDrops: Record<string, Array<{ itemId: string; quantity: number }>>;
+				};
+			};
+		};
+
+		try {
+			scene.create({
+				saveState: {
+					...createNewSaveState(),
+					mapId: 'meadow-entry',
+					flags: {
+						clearedEncounters: [],
+						collectedPickups: [],
+						resolvedEncounterDrops: {
+							'slime-scout': [{ itemId: 'greater-field-potion', quantity: 1 }]
+						}
+					},
+					inventory: {
+						stacks: [],
+						equipment: ['training-sword']
+					}
+				}
+			});
+			Object.assign(phaserState.playerMarker, { x: 1_280, y: 1_280 });
+
+			scene.update(0, 16);
+
+			expect(randomSpy).not.toHaveBeenCalled();
+			expect(sceneState.buildSaveState()).toMatchObject({
+				inventory: { stacks: [{ itemId: 'greater-field-potion', quantity: 1 }] },
+				flags: {
+					resolvedEncounterDrops: {
+						'slime-scout': [{ itemId: 'greater-field-potion', quantity: 1 }]
+					}
+				}
+			});
+		} finally {
+			randomSpy.mockRestore();
+		}
 	});
 
 	it('auto attacks enemies in range without manual input', async () => {

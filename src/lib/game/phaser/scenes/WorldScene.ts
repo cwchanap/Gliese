@@ -19,7 +19,8 @@ import { advanceBossPhase } from '$lib/game/core/boss';
 import { canReceiveHit, resolveHit } from '$lib/game/core/combat';
 import { equipItem, unequipSlot } from '$lib/game/core/equipment';
 import { resolveMovementVector } from '$lib/game/core/input';
-import { consumeStackItem } from '$lib/game/core/inventory';
+import { addItem, consumeStackItem } from '$lib/game/core/inventory';
+import { resolveLootDrops } from '$lib/game/core/loot';
 import { applyExperienceGain, type ProgressionState } from '$lib/game/core/progression';
 import { clampHpToMax, deriveEffectiveStats, type EffectiveStats } from '$lib/game/core/stats';
 import type { Direction } from '$lib/game/core/types';
@@ -55,6 +56,11 @@ type OverlayMarker = {
 	y?: number;
 	setPosition: (x: number, y: number) => unknown;
 	setScale: (x: number, y?: number) => unknown;
+	setVisible: (visible: boolean) => unknown;
+};
+
+type PickupMarker = {
+	setDisplaySize: (width: number, height: number) => unknown;
 	setVisible: (visible: boolean) => unknown;
 };
 
@@ -142,6 +148,7 @@ export class WorldScene extends Phaser.Scene {
 	private facing: Direction = 'down';
 	private inventory: SaveState['inventory'] = cloneInventory(createNewSaveState().inventory);
 	private mapId = openingMapId;
+	private pickupMarkers = new Map<string, PickupMarker>();
 	private player?: Phaser.GameObjects.Image;
 	private playerAttackCooldownUntil = 0;
 	private playerInvulnerableUntil = 0;
@@ -185,6 +192,7 @@ export class WorldScene extends Phaser.Scene {
 			activeSave?.flags.resolvedEncounterDrops ?? {}
 		);
 		this.mapId = map.id;
+		this.pickupMarkers.clear();
 		this.playerProgress = {
 			level: activeSave?.player.level ?? 1,
 			xp: activeSave?.player.xp ?? 0,
@@ -210,6 +218,7 @@ export class WorldScene extends Phaser.Scene {
 
 		this.setupEncounter(map);
 		this.renderTransitions(map);
+		this.renderPickups(map);
 
 		this.cameras.main.setBackgroundColor('#1a1f2b');
 		this.cameras.main.setBounds(0, 0, width, height);
@@ -264,6 +273,8 @@ export class WorldScene extends Phaser.Scene {
 		if (this.tryTransition()) {
 			return;
 		}
+
+		this.tryCollectPickup();
 
 		if (time >= this.attackFlashUntil) {
 			this.attackFlash?.setVisible(false);
@@ -430,6 +441,7 @@ export class WorldScene extends Phaser.Scene {
 		this.enemyHealthBarBg?.setVisible(false);
 		this.enemyHealthBarFill?.setVisible(false);
 		this.clearedEncounterIds.add(this.enemy.definition.id);
+		this.awardEncounterDrops(this.enemy.definition.id);
 		this.playerProgress = this.applyReward(this.enemy.definition.xpReward);
 
 		if (this.enemy.completion === 'victory') {
@@ -698,6 +710,25 @@ export class WorldScene extends Phaser.Scene {
 		return this.enemy.definition.moveSpeed;
 	}
 
+	private renderPickups(map: WorldMapDefinition) {
+		this.pickupMarkers.clear();
+
+		for (const pickup of map.pickups ?? []) {
+			if (this.collectedPickupIds.has(pickup.id)) {
+				continue;
+			}
+
+			const marker = this.add.image(
+				pickup.x,
+				pickup.y,
+				starterPackAsset.key,
+				'healFlask'
+			) as PickupMarker;
+			marker.setDisplaySize(28, 32);
+			this.pickupMarkers.set(pickup.id, marker);
+		}
+	}
+
 	private renderTransitions(map: WorldMapDefinition) {
 		for (const transition of map.transitions) {
 			this.add
@@ -830,6 +861,20 @@ export class WorldScene extends Phaser.Scene {
 			.setOrigin(0.5);
 	}
 
+	private awardEncounterDrops(encounterId: string) {
+		if (!this.enemy) {
+			return;
+		}
+
+		const drops =
+			this.resolvedEncounterDrops[encounterId] ?? resolveLootDrops(this.enemy.definition.loot);
+		this.resolvedEncounterDrops = { ...this.resolvedEncounterDrops, [encounterId]: drops };
+
+		for (const drop of drops) {
+			this.inventory = addItem(this.inventory, drop.itemId, drop.quantity);
+		}
+	}
+
 	private tryTransition() {
 		if (!this.player || (this.enemy && !this.enemy.defeated)) {
 			return false;
@@ -855,6 +900,37 @@ export class WorldScene extends Phaser.Scene {
 		}
 
 		return false;
+	}
+
+	private tryCollectPickup() {
+		if (!this.player) {
+			return;
+		}
+
+		const map = this.resolveMap(this.mapId);
+
+		for (const pickup of map.pickups ?? []) {
+			if (this.collectedPickupIds.has(pickup.id)) {
+				continue;
+			}
+
+			const distance = Phaser.Math.Distance.Between(
+				this.player.x,
+				this.player.y,
+				pickup.x,
+				pickup.y
+			);
+
+			if (distance > WorldScene.playerRadius + 18) {
+				continue;
+			}
+
+			this.inventory = addItem(this.inventory, pickup.itemId, pickup.quantity);
+			this.collectedPickupIds.add(pickup.id);
+			this.pickupMarkers.get(pickup.id)?.setVisible(false);
+			this.publishHudState(`Found ${getItem(pickup.itemId)?.name ?? 'item'}`);
+			return;
+		}
 	}
 
 	private updateBossPhase() {
