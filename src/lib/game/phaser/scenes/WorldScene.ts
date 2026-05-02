@@ -19,7 +19,7 @@ import { canReceiveHit, resolveHit } from '$lib/game/core/combat';
 import { resolveMovementVector } from '$lib/game/core/input';
 import { applyExperienceGain, type ProgressionState } from '$lib/game/core/progression';
 import type { Direction } from '$lib/game/core/types';
-import type { SaveState } from '$lib/game/save/save-state';
+import { createNewSaveState, type SaveState } from '$lib/game/save/save-state';
 import { loadStoredSaveResult, saveGameState } from '$lib/game/save/storage';
 import { emitHudState, onHudCommand, type HudCommand } from '$lib/game/ui-bridge/events';
 
@@ -65,6 +65,43 @@ type EnemyInstance = {
 	x: number;
 	y: number;
 };
+
+const fieldPotionItemId = 'field-potion';
+
+function cloneInventory(inventory: SaveState['inventory']): SaveState['inventory'] {
+	return {
+		stacks: inventory.stacks.map((stack) => ({ ...stack })),
+		equipment: [...inventory.equipment]
+	};
+}
+
+function getHealChargesFromInventory(inventory: SaveState['inventory']): number {
+	return inventory.stacks.find((stack) => stack.itemId === fieldPotionItemId)?.quantity ?? 0;
+}
+
+function syncHealChargesToInventory(
+	inventory: SaveState['inventory'],
+	healCharges: number
+): SaveState['inventory'] {
+	const existing = inventory.stacks.some((stack) => stack.itemId === fieldPotionItemId);
+	const otherStacks = inventory.stacks.filter((stack) => stack.itemId !== fieldPotionItemId);
+
+	if (healCharges < 1) {
+		return { ...inventory, stacks: otherStacks, equipment: [...inventory.equipment] };
+	}
+
+	const fieldPotionStack = { itemId: fieldPotionItemId, quantity: healCharges };
+
+	return {
+		...inventory,
+		equipment: [...inventory.equipment],
+		stacks: existing
+			? inventory.stacks.map((stack) =>
+					stack.itemId === fieldPotionItemId ? fieldPotionStack : { ...stack }
+				)
+			: [...otherStacks, fieldPotionStack]
+	};
+}
 
 export class WorldScene extends Phaser.Scene {
 	static readonly key = 'world';
@@ -113,6 +150,7 @@ export class WorldScene extends Phaser.Scene {
 	private enemyMarker?: EnemyMarker;
 	private facing: Direction = 'down';
 	private healCharges = 1;
+	private inventory: SaveState['inventory'] = cloneInventory(createNewSaveState().inventory);
 	private mapId = openingMapId;
 	private player?: Phaser.GameObjects.Image;
 	private playerAttackCooldownUntil = 0;
@@ -123,6 +161,7 @@ export class WorldScene extends Phaser.Scene {
 		hp: startingPlayer.baseHp,
 		attack: startingPlayer.baseAttack
 	};
+	private equipment: SaveState['equipment'] = { ...createNewSaveState().equipment };
 	private removeHudCommandListener = () => {};
 	private simulationPaused = false;
 	private victoryAchieved = false;
@@ -148,7 +187,9 @@ export class WorldScene extends Phaser.Scene {
 		this.enemyHealthBarFill = undefined;
 		this.enemyMarker = undefined;
 		this.facing = activeSave?.player.facing ?? map.spawnDirection;
-		this.healCharges = activeSave?.consumables.heals ?? 1;
+		this.inventory = cloneInventory(activeSave?.inventory ?? createNewSaveState().inventory);
+		this.equipment = { ...(activeSave?.equipment ?? createNewSaveState().equipment) };
+		this.healCharges = activeSave ? getHealChargesFromInventory(this.inventory) : 1;
 		this.mapId = map.id;
 		this.playerProgress = {
 			level: activeSave?.player.level ?? 1,
@@ -297,7 +338,7 @@ export class WorldScene extends Phaser.Scene {
 
 	private buildSaveState(): SaveState {
 		return {
-			version: 1,
+			version: 2,
 			mapId: this.mapId,
 			player: {
 				level: this.playerProgress.level,
@@ -309,11 +350,12 @@ export class WorldScene extends Phaser.Scene {
 				facing: this.facing
 			},
 			flags: {
-				clearedEncounters: [...this.clearedEncounterIds].sort()
+				clearedEncounters: [...this.clearedEncounterIds].sort(),
+				collectedPickups: [],
+				resolvedEncounterDrops: {}
 			},
-			consumables: {
-				heals: this.healCharges
-			}
+			inventory: syncHealChargesToInventory(this.inventory, this.healCharges),
+			equipment: { ...this.equipment }
 		};
 	}
 
@@ -348,6 +390,7 @@ export class WorldScene extends Phaser.Scene {
 		}
 
 		this.healCharges -= 1;
+		this.inventory = syncHealChargesToInventory(this.inventory, this.healCharges);
 		this.playerProgress = {
 			...this.playerProgress,
 			hp: Math.min(maxHp, this.playerProgress.hp + 8)
