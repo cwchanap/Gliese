@@ -4,7 +4,7 @@ export const startingPlayer: PlayerDefinition = {
 	id: 'hero',
 	baseHp: 20,
 	baseAttack: 3,
-	moveSpeed: 120
+	moveSpeed: 240
 };
 
 export const players: DefinitionRegistry<PlayerDefinition> = {

@@ -2,10 +2,10 @@ export const starterPackAsset = {
 	key: 'starter-pack',
 	path: '/game/assets/starter-pack.png',
 	frames: {
-		hero: { x: 90, y: 80, w: 190, h: 280 },
+		hero: { x: 90, y: 80, w: 235, h: 280 },
 		slimeScout: { x: 355, y: 115, w: 250, h: 190 },
 		ruinsWarden: { x: 675, y: 30, w: 430, h: 360 },
-		healFlask: { x: 1210, y: 145, w: 150, h: 170 },
+		healFlask: { x: 1210, y: 145, w: 150, h: 215 },
 		grassTile: { x: 25, y: 470, w: 230, h: 220 },
 		pathTile: { x: 280, y: 470, w: 225, h: 220 },
 		ruinsFloorTile: { x: 535, y: 470, w: 225, h: 220 },

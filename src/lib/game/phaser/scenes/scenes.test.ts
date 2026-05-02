@@ -358,7 +358,7 @@ describe('WorldScene', () => {
 
 		scene.update(0, 1000);
 
-		expect(phaserState.playerMarker.x).toBe(meadowEntryMap.spawn.x + 30);
+		expect(phaserState.playerMarker.x).toBe(meadowEntryMap.spawn.x + 60);
 		expect(phaserState.playerMarker.y).toBe(meadowEntryMap.spawn.y);
 	});
 
@@ -373,7 +373,7 @@ describe('WorldScene', () => {
 		scene.update(0, 1000);
 
 		expect(phaserState.playerMarker.x).toBe(meadowEntryMap.spawn.x);
-		expect(phaserState.playerMarker.y).toBe(meadowEntryMap.spawn.y + 30);
+		expect(phaserState.playerMarker.y).toBe(meadowEntryMap.spawn.y + 60);
 	});
 
 	it('clamps the player marker within the world bounds during movement', async () => {
@@ -402,7 +402,7 @@ describe('WorldScene', () => {
 
 		scene.update(0, 10_000);
 
-		expect(phaserState.playerMarker.x).toBe(meadowEntryMap.spawn.x + 30);
+		expect(phaserState.playerMarker.x).toBe(meadowEntryMap.spawn.x + 60);
 		expect(phaserState.playerMarker.y).toBe(meadowEntryMap.spawn.y);
 	});
 
@@ -426,7 +426,7 @@ describe('WorldScene', () => {
 		sceneState.handleHudCommand({ type: 'resume-game' });
 		scene.update(1000, 1000);
 
-		expect(phaserState.playerMarker.x).toBe(meadowEntryMap.spawn.x + 30);
+		expect(phaserState.playerMarker.x).toBe(meadowEntryMap.spawn.x + 60);
 	});
 
 	it('uses a field potion command to heal and publish the updated inventory', async () => {
