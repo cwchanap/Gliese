@@ -22,10 +22,16 @@ describe('save storage', () => {
 
 	it('writes the serialized save to the provided storage adapter', () => {
 		const storage = createStorage();
+		const save = createNewSaveState();
 
-		saveGameState(createNewSaveState(), storage);
+		saveGameState(save, storage);
 
 		expect(storage.getItem('gliese.save.v1')).toContain('"mapId":"meadow-entry"');
+		expect(storage.getItem('gliese.save.v1')).toContain('"version":2');
+		expect(loadStoredSaveResult(storage)).toEqual({ status: 'loaded', saveState: save });
+		expect(loadStoredSaveResult(storage).saveState?.inventory.stacks).toEqual([
+			{ itemId: 'field-potion', quantity: 1 }
+		]);
 	});
 
 	it('reports invalid saved payloads separately from missing saves', () => {

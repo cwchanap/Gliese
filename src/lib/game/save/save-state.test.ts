@@ -42,7 +42,7 @@ class MemoryStorage implements Storage {
 describe('save state', () => {
 	it('creates a level 1 starting save', () => {
 		expect(createNewSaveState()).toEqual({
-			version: 1,
+			version: 2,
 			mapId: meadowEntryMap.id,
 			player: {
 				level: 1,
@@ -53,8 +53,18 @@ describe('save state', () => {
 				y: meadowEntryMap.spawn.y,
 				facing: meadowEntryMap.spawnDirection
 			},
-			flags: { clearedEncounters: [] },
-			consumables: { heals: 1 }
+			flags: { clearedEncounters: [], collectedPickups: [], resolvedEncounterDrops: {} },
+			inventory: {
+				stacks: [{ itemId: 'field-potion', quantity: 1 }],
+				equipment: ['training-sword']
+			},
+			equipment: {
+				weapon: 'training-sword',
+				head: null,
+				body: null,
+				hands: null,
+				accessory: null
+			}
 		});
 	});
 
@@ -63,28 +73,15 @@ describe('save state', () => {
 		expect(parseSaveState(encoded)?.mapId).toBe('meadow-entry');
 	});
 
-	it('upgrades legacy v1 save payloads without consumables', () => {
-		const legacySave = createNewSaveState();
-		const { consumables: _consumables, ...legacyPayload } = legacySave;
-		void _consumables;
-
-		expect(parseSaveState(JSON.stringify(legacyPayload))?.consumables.heals).toBe(1);
-	});
-
-	it('migrates old tiny-room meadow coordinates to the nearest large-room anchor', () => {
-		const oldSave = {
+	it('rejects legacy v1 save payloads instead of migrating them', () => {
+		const legacySave = {
 			...createNewSaveState(),
-			player: {
-				...createNewSaveState().player,
-				x: 64,
-				y: 64
-			}
+			version: 1,
+			flags: { clearedEncounters: [] },
+			consumables: { heals: 1 }
 		};
 
-		expect(parseSaveState(JSON.stringify(oldSave))?.player).toMatchObject({
-			x: meadowEntryMap.spawn.x,
-			y: meadowEntryMap.spawn.y
-		});
+		expect(parseSaveState(JSON.stringify(legacySave))).toBeNull();
 	});
 
 	it('clamps saved coordinates to the current map bounds', () => {
@@ -103,35 +100,21 @@ describe('save state', () => {
 		});
 	});
 
-	it('does not migrate negative coordinates as legacy room positions', () => {
-		const negativeCoordinateSave = {
-			...createNewSaveState(),
-			player: {
-				...createNewSaveState().player,
-				x: 300,
-				y: -50
-			}
-		};
-
-		expect(parseSaveState(JSON.stringify(negativeCoordinateSave))?.player).toMatchObject({
-			x: 300,
-			y: 0
-		});
-	});
-
 	it('rejects invalid payloads', () => {
 		expect(parseSaveState('{"bad":true}')).toBeNull();
 	});
 
-	it('rejects a payload with the wrong version', () => {
+	it('rejects version 1 and accepts version 2', () => {
 		expect(
 			parseSaveState(
 				JSON.stringify({
 					...createNewSaveState(),
-					version: 2
+					version: 1
 				})
 			)
 		).toBeNull();
+
+		expect(parseSaveState(JSON.stringify(createNewSaveState()))?.version).toBe(2);
 	});
 
 	it('rejects a payload with wrong player field types', () => {
@@ -154,24 +137,94 @@ describe('save state', () => {
 				JSON.stringify({
 					...createNewSaveState(),
 					flags: {
-						clearedEncounters: ['slime-scout-1', 7]
+						clearedEncounters: ['slime-scout-1', 7],
+						collectedPickups: [],
+						resolvedEncounterDrops: {}
 					}
 				})
 			)
 		).toBeNull();
 	});
 
-	it('rejects a payload with invalid consumable counts', () => {
-		expect(
-			parseSaveState(
-				JSON.stringify({
-					...createNewSaveState(),
-					consumables: {
-						heals: '1'
+	it('rejects missing required item state fields', () => {
+		const save = createNewSaveState();
+
+		for (const invalidPayload of [
+			{ ...save, inventory: undefined },
+			{ ...save, equipment: undefined },
+			{
+				...save,
+				flags: {
+					clearedEncounters: [],
+					resolvedEncounterDrops: {}
+				}
+			},
+			{
+				...save,
+				flags: {
+					clearedEncounters: [],
+					collectedPickups: [],
+					resolvedEncounterDrops: { 'slime-scout-1': { itemId: 'field-potion', quantity: 1 } }
+				}
+			}
+		]) {
+			expect(parseSaveState(JSON.stringify(invalidPayload))).toBeNull();
+		}
+	});
+
+	it('rejects invalid item state entries', () => {
+		const save = createNewSaveState();
+
+		for (const invalidPayload of [
+			{
+				...save,
+				inventory: {
+					stacks: [{ itemId: 'field-potion', quantity: 1.5 }],
+					equipment: ['training-sword']
+				}
+			},
+			{
+				...save,
+				inventory: {
+					stacks: [{ itemId: 'field-potion', quantity: 1 }],
+					equipment: ['training-sword', 7]
+				}
+			},
+			{
+				...save,
+				equipment: {
+					...save.equipment,
+					head: 7
+				}
+			},
+			{
+				...save,
+				equipment: {
+					weapon: 'training-sword',
+					head: null,
+					body: null,
+					hands: null
+				}
+			},
+			{
+				...save,
+				flags: {
+					...save.flags,
+					collectedPickups: ['meadow-cache', 7]
+				}
+			},
+			{
+				...save,
+				flags: {
+					...save.flags,
+					resolvedEncounterDrops: {
+						'slime-scout-1': [{ itemId: 'field-potion', quantity: 0 }]
 					}
-				})
-			)
-		).toBeNull();
+				}
+			}
+		]) {
+			expect(parseSaveState(JSON.stringify(invalidPayload))).toBeNull();
+		}
 	});
 });
 
@@ -180,14 +233,19 @@ describe('save storage', () => {
 		const storage = new MemoryStorage();
 		const save = {
 			...createNewSaveState(),
-			consumables: { heals: 0 }
+			inventory: {
+				stacks: [{ itemId: 'field-potion', quantity: 3 }],
+				equipment: ['training-sword']
+			}
 		};
 
 		storeSaveState(save, storage);
 
 		expect(storage.getItem(SAVE_STORAGE_KEY)).toBe(serializeSaveState(save));
 		expect(loadStoredSaveState(storage)?.mapId).toBe('meadow-entry');
-		expect(loadStoredSaveState(storage)?.consumables.heals).toBe(0);
+		expect(loadStoredSaveState(storage)?.inventory.stacks).toEqual([
+			{ itemId: 'field-potion', quantity: 3 }
+		]);
 	});
 
 	it('clears stored saves', () => {
