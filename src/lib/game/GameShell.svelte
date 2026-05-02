@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
+	import { onMount, tick } from 'svelte';
 	import {
 		hudState,
 		requestEquipItem,
@@ -13,11 +13,19 @@
 	} from '$lib/game/ui-bridge/store';
 	import type { EquipmentSlot } from '$lib/game/content/items';
 
+	type InventoryTab = 'consumables' | 'equipment' | 'keyItems';
+	type OverlayPauseOwner = 'settings' | 'inventory';
+
 	let mountNode: HTMLDivElement | undefined;
+	let menuButton = $state<HTMLButtonElement>();
+	let inventoryDialog = $state<HTMLDivElement>();
+	let inventoryCloseButton = $state<HTMLButtonElement>();
+	let inventoryFocusRestoreTarget: HTMLElement | null = null;
 	let loadError = $state('');
 	let settingsOpen = $state(false);
 	let inventoryOpen = $state(false);
-	let activeInventoryTab = $state<'consumables' | 'equipment' | 'keyItems'>('consumables');
+	let activeInventoryTab = $state<InventoryTab>('consumables');
+	let pauseOwner = $state<OverlayPauseOwner | null>(null);
 
 	const equipmentSlots: { slot: EquipmentSlot; label: string }[] = [
 		{ slot: 'weapon', label: 'Weapon' },
@@ -26,37 +34,140 @@
 		{ slot: 'hands', label: 'Hands' },
 		{ slot: 'accessory', label: 'Accessory' }
 	];
+	const inventoryTabs: InventoryTab[] = ['consumables', 'equipment', 'keyItems'];
 
 	const hpPercent = $derived(($hudState.hp / Math.max($hudState.maxHp, 1)) * 100);
 	const xpTarget = $derived($hudState.level > 1 ? 24 : 12);
 	const xpPercent = $derived((Math.min($hudState.xp, xpTarget) / xpTarget) * 100);
 
+	function pauseForOverlay(owner: OverlayPauseOwner) {
+		if (pauseOwner === null) requestPauseGame();
+		pauseOwner = owner;
+	}
+
+	function resumeForOverlay(owner: OverlayPauseOwner) {
+		if (pauseOwner !== owner) return;
+		pauseOwner = null;
+		requestResumeGame();
+	}
+
 	function openSettings() {
 		if (settingsOpen) return;
 		settingsOpen = true;
-		requestPauseGame();
+		pauseForOverlay('settings');
 	}
 
 	function closeSettings() {
 		if (!settingsOpen) return;
 		settingsOpen = false;
-		requestResumeGame();
+		resumeForOverlay('settings');
 	}
 
 	function openInventory() {
 		if (inventoryOpen) return;
-		const wasSettingsOpen = settingsOpen;
-		inventoryOpen = true;
+		rememberInventoryFocus();
 		settingsOpen = false;
-		if (!wasSettingsOpen) {
-			requestPauseGame();
-		}
+		inventoryOpen = true;
+		pauseForOverlay('inventory');
+		void focusInventoryDialog();
 	}
 
 	function closeInventory() {
 		if (!inventoryOpen) return;
 		inventoryOpen = false;
-		requestResumeGame();
+		resumeForOverlay('inventory');
+		void restoreInventoryFocus();
+	}
+
+	function rememberInventoryFocus() {
+		inventoryFocusRestoreTarget =
+			document.activeElement instanceof HTMLElement ? document.activeElement : null;
+	}
+
+	async function focusInventoryDialog() {
+		await tick();
+		(inventoryCloseButton ?? inventoryDialog)?.focus();
+	}
+
+	async function restoreInventoryFocus() {
+		const restoreTarget = inventoryFocusRestoreTarget;
+		inventoryFocusRestoreTarget = null;
+		await tick();
+
+		if (
+			restoreTarget &&
+			document.contains(restoreTarget) &&
+			!restoreTarget.matches('[disabled], [aria-disabled="true"]') &&
+			!restoreTarget.closest('#game-settings-panel')
+		) {
+			restoreTarget.focus();
+			return;
+		}
+
+		menuButton?.focus();
+	}
+
+	function getInventoryFocusableElements() {
+		if (!inventoryDialog) return [];
+
+		return Array.from(
+			inventoryDialog.querySelectorAll<HTMLElement>(
+				'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+			)
+		).filter((element) => element.offsetParent !== null);
+	}
+
+	function handleInventoryDialogKeydown(event: KeyboardEvent) {
+		if (event.key === 'Escape') {
+			event.preventDefault();
+			closeInventory();
+			return;
+		}
+
+		if (event.key !== 'Tab') return;
+
+		const focusableElements = getInventoryFocusableElements();
+		if (focusableElements.length === 0) {
+			event.preventDefault();
+			inventoryDialog?.focus();
+			return;
+		}
+
+		const firstElement = focusableElements[0];
+		const lastElement = focusableElements.at(-1);
+
+		if (event.shiftKey && document.activeElement === firstElement) {
+			event.preventDefault();
+			lastElement?.focus();
+		} else if (!event.shiftKey && document.activeElement === lastElement) {
+			event.preventDefault();
+			firstElement.focus();
+		}
+	}
+
+	async function focusInventoryTab(tab: InventoryTab) {
+		activeInventoryTab = tab;
+		await tick();
+		document.getElementById(`inventory-${tab}-tab`)?.focus();
+	}
+
+	function handleInventoryTabKeydown(event: KeyboardEvent, tab: InventoryTab) {
+		const currentIndex = inventoryTabs.indexOf(tab);
+		const lastIndex = inventoryTabs.length - 1;
+
+		if (event.key === 'ArrowRight' || event.key === 'ArrowDown') {
+			event.preventDefault();
+			void focusInventoryTab(inventoryTabs[currentIndex === lastIndex ? 0 : currentIndex + 1]);
+		} else if (event.key === 'ArrowLeft' || event.key === 'ArrowUp') {
+			event.preventDefault();
+			void focusInventoryTab(inventoryTabs[currentIndex === 0 ? lastIndex : currentIndex - 1]);
+		} else if (event.key === 'Home') {
+			event.preventDefault();
+			void focusInventoryTab(inventoryTabs[0]);
+		} else if (event.key === 'End') {
+			event.preventDefault();
+			void focusInventoryTab(inventoryTabs[lastIndex]);
+		}
 	}
 
 	onMount(() => {
@@ -109,6 +220,7 @@
 
 	<div class="pointer-events-auto absolute right-4 top-4 z-20 sm:right-6 sm:top-6">
 		<button
+			bind:this={menuButton}
 			type="button"
 			class="hud-menu-button rounded-full border border-white/14 bg-[linear-gradient(135deg,rgba(24,32,68,0.92),rgba(12,18,38,0.92))] px-4 py-3 text-[0.7rem] font-black uppercase tracking-[0.28em] text-cyan-50 shadow-[0_18px_40px_rgba(0,0,0,0.34)] transition hover:-translate-y-0.5 hover:border-cyan-200/40"
 			onclick={() => (settingsOpen ? closeSettings() : openSettings())}
@@ -248,9 +360,13 @@
 				onclick={closeInventory}
 			></button>
 			<div
+				bind:this={inventoryDialog}
 				class="relative z-10 grid max-h-[calc(100vh-1.5rem)] w-[min(70rem,calc(100vw-1.5rem))] grid-rows-[auto_minmax(0,1fr)] overflow-hidden rounded-[1.8rem] border border-white/12 bg-[linear-gradient(145deg,rgba(8,13,34,0.98),rgba(16,14,42,0.96)_54%,rgba(13,32,52,0.94))] text-slate-50 shadow-[0_34px_100px_rgba(0,0,0,0.58)] backdrop-blur-md sm:max-h-[calc(100vh-3rem)] sm:rounded-[2rem]"
 				aria-labelledby="inventory-heading"
+				aria-modal="true"
 				role="dialog"
+				tabindex="-1"
+				onkeydown={handleInventoryDialogKeydown}
 			>
 				<div class="border-b border-white/10 px-4 py-4 sm:px-6">
 					<div class="flex items-start justify-between gap-4">
@@ -266,6 +382,7 @@
 							</h2>
 						</div>
 						<button
+							bind:this={inventoryCloseButton}
 							type="button"
 							class="rounded-full border border-white/12 bg-white/6 px-3 py-2 text-[0.65rem] font-black uppercase tracking-[0.24em] text-slate-100 transition hover:border-white/30"
 							onclick={closeInventory}
@@ -274,37 +391,55 @@
 						</button>
 					</div>
 
-					<div class="mt-4 grid grid-cols-3 gap-2">
+					<div class="mt-4 grid grid-cols-3 gap-2" role="tablist" aria-label="Inventory sections">
 						<button
+							id="inventory-consumables-tab"
 							type="button"
+							role="tab"
 							class={`rounded-full border px-3 py-2 text-[0.62rem] font-black uppercase tracking-[0.2em] transition sm:text-[0.68rem] ${
 								activeInventoryTab === 'consumables'
 									? 'border-emerald-200/45 bg-emerald-200/16 text-emerald-50 shadow-[0_10px_24px_rgba(62,205,155,0.16)]'
 									: 'border-white/10 bg-white/6 text-slate-200/72 hover:border-white/24 hover:text-white'
 							}`}
+							aria-selected={activeInventoryTab === 'consumables'}
+							aria-controls="inventory-tab-panel"
+							tabindex={activeInventoryTab === 'consumables' ? 0 : -1}
 							onclick={() => (activeInventoryTab = 'consumables')}
+							onkeydown={(event) => handleInventoryTabKeydown(event, 'consumables')}
 						>
 							Consumables
 						</button>
 						<button
+							id="inventory-equipment-tab"
 							type="button"
+							role="tab"
 							class={`rounded-full border px-3 py-2 text-[0.62rem] font-black uppercase tracking-[0.2em] transition sm:text-[0.68rem] ${
 								activeInventoryTab === 'equipment'
 									? 'border-cyan-200/45 bg-cyan-200/16 text-cyan-50 shadow-[0_10px_24px_rgba(84,180,255,0.16)]'
 									: 'border-white/10 bg-white/6 text-slate-200/72 hover:border-white/24 hover:text-white'
 							}`}
+							aria-selected={activeInventoryTab === 'equipment'}
+							aria-controls="inventory-tab-panel"
+							tabindex={activeInventoryTab === 'equipment' ? 0 : -1}
 							onclick={() => (activeInventoryTab = 'equipment')}
+							onkeydown={(event) => handleInventoryTabKeydown(event, 'equipment')}
 						>
 							Equipment
 						</button>
 						<button
+							id="inventory-keyItems-tab"
 							type="button"
+							role="tab"
 							class={`rounded-full border px-3 py-2 text-[0.62rem] font-black uppercase tracking-[0.2em] transition sm:text-[0.68rem] ${
 								activeInventoryTab === 'keyItems'
 									? 'border-amber-200/45 bg-amber-200/16 text-amber-50 shadow-[0_10px_24px_rgba(255,190,90,0.16)]'
 									: 'border-white/10 bg-white/6 text-slate-200/72 hover:border-white/24 hover:text-white'
 							}`}
+							aria-selected={activeInventoryTab === 'keyItems'}
+							aria-controls="inventory-tab-panel"
+							tabindex={activeInventoryTab === 'keyItems' ? 0 : -1}
 							onclick={() => (activeInventoryTab = 'keyItems')}
+							onkeydown={(event) => handleInventoryTabKeydown(event, 'keyItems')}
 						>
 							Key Items
 						</button>
@@ -313,7 +448,12 @@
 
 				<div class="grid min-h-0 gap-4 overflow-y-auto p-4 lg:grid-cols-[minmax(0,1fr)_20rem] lg:overflow-hidden lg:p-6">
 					<div class="min-h-0 overflow-hidden rounded-[1.45rem] border border-white/10 bg-white/6">
-						<div class="max-h-[48vh] overflow-y-auto p-3 sm:max-h-[54vh] sm:p-4 lg:max-h-none lg:h-full">
+						<div
+							id="inventory-tab-panel"
+							class="max-h-[48vh] overflow-y-auto p-3 sm:max-h-[54vh] sm:p-4 lg:max-h-none lg:h-full"
+							role="tabpanel"
+							aria-labelledby={`inventory-${activeInventoryTab}-tab`}
+						>
 							{#if activeInventoryTab === 'consumables'}
 								{#if $hudState.inventory.consumables.length}
 									<div class="grid gap-3">
