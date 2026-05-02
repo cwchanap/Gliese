@@ -244,9 +244,10 @@ describe('WorldScene', () => {
 			tileWidth: 32,
 			tileHeight: 32
 		});
-		const tilemapCall = scene.make.tilemap.mock.calls[0]?.[0];
-		expect(tilemapCall.data).toHaveLength(320);
-		expect(tilemapCall.data[0]).toHaveLength(320);
+		const tilemapCall = vi.mocked(scene.make.tilemap).mock.calls[0]![0]!;
+		const tilemapData = tilemapCall.data as number[][];
+		expect(tilemapData).toHaveLength(320);
+		expect(tilemapData[0]).toHaveLength(320);
 		expect(phaserState.tilemap.addTilesetImage).toHaveBeenCalledWith(
 			'starter-ground-tiles',
 			'starter-ground-tiles',
@@ -260,8 +261,8 @@ describe('WorldScene', () => {
 			0
 		);
 		expect(phaserState.tilemapLayer.setDepth).toHaveBeenCalledWith(-10);
-		expect(tilemapCall.data[0][0]).toBe(0);
-		expect(tilemapCall.data[160][0]).toBe(1);
+		expect(tilemapData[0][0]).toBe(0);
+		expect(tilemapData[160][0]).toBe(1);
 		expect(scene.add.image).toHaveBeenCalledWith(
 			meadowEntryMap.spawn.x,
 			meadowEntryMap.spawn.y,
@@ -280,11 +281,12 @@ describe('WorldScene', () => {
 
 		scene.create({ mapId: ruinsThresholdMap.id });
 
-		const tilemapCall = scene.make.tilemap.mock.calls[0]?.[0];
-		expect(tilemapCall.data[0][0]).toBe(3);
-		expect(tilemapCall.data[0][1]).toBe(3);
-		expect(tilemapCall.data[1][0]).toBe(3);
-		expect(tilemapCall.data[1][1]).toBe(2);
+		const tilemapCall = vi.mocked(scene.make.tilemap).mock.calls[0]![0]!;
+		const tilemapData = tilemapCall.data as number[][];
+		expect(tilemapData[0][0]).toBe(3);
+		expect(tilemapData[0][1]).toBe(3);
+		expect(tilemapData[1][0]).toBe(3);
+		expect(tilemapData[1][1]).toBe(2);
 		expect(phaserState.tilemap.createLayer).toHaveBeenCalledWith(
 			0,
 			expect.anything(),
