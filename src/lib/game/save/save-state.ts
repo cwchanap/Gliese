@@ -1,3 +1,4 @@
+import { equipmentSlots, getItem } from '$lib/game/content/items';
 import { maps, meadowEntryMap } from '$lib/game/content/maps';
 import { startingPlayer } from '$lib/game/content/player';
 import { createEmptyEquipment, type EquipmentState } from '$lib/game/core/equipment';
@@ -88,7 +89,7 @@ function isSaveState(value: unknown): value is SaveState {
 		!isRecord(player) ||
 		!isRecord(flags) ||
 		!isInventoryState(inventory) ||
-		!isEquipmentState(equipment)
+		!isEquipmentState(equipment, inventory)
 	) {
 		return false;
 	}
@@ -136,19 +137,42 @@ function isInventoryState(value: unknown): value is InventoryState {
 			(stack) =>
 				isRecord(stack) &&
 				typeof stack.itemId === 'string' &&
+				isStackableItemId(stack.itemId) &&
 				isPositiveIntegerQuantity(stack.quantity)
-		) && value.equipment.every((itemId) => typeof itemId === 'string')
+		) &&
+		value.equipment.every((itemId) => typeof itemId === 'string' && isEquipmentItemId(itemId))
 	);
 }
 
-function isEquipmentState(value: unknown): value is EquipmentState {
+function isEquipmentState(value: unknown, inventory: InventoryState): value is EquipmentState {
 	if (!isRecord(value)) {
 		return false;
 	}
 
-	return ['weapon', 'head', 'body', 'hands', 'accessory'].every(
-		(slot) => value[slot] === null || typeof value[slot] === 'string'
-	);
+	const keys = Object.keys(value);
+
+	if (
+		keys.length !== equipmentSlots.length ||
+		!keys.every((slot) => equipmentSlots.includes(slot as (typeof equipmentSlots)[number]))
+	) {
+		return false;
+	}
+
+	return equipmentSlots.every((slot) => {
+		const itemId = value[slot];
+
+		if (itemId === null) {
+			return true;
+		}
+
+		const item = typeof itemId === 'string' ? getItem(itemId) : undefined;
+
+		return (
+			item?.type === 'equipment' &&
+			item.slot === slot &&
+			inventory.equipment.includes(itemId as string)
+		);
+	});
 }
 
 function isResolvedDrops(value: unknown): value is Record<string, ItemDrop[]> {
@@ -182,4 +206,12 @@ function isPositiveIntegerQuantity(value: unknown): value is number {
 
 function isFacingDirection(value: unknown): value is Direction {
 	return typeof value === 'string' && DIRECTIONS.includes(value as Direction);
+}
+
+function isStackableItemId(itemId: string): boolean {
+	return getItem(itemId)?.stackable === true;
+}
+
+function isEquipmentItemId(itemId: string): boolean {
+	return getItem(itemId)?.type === 'equipment';
 }

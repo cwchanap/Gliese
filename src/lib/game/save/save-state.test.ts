@@ -222,6 +222,45 @@ describe('save state', () => {
 			},
 			{
 				...save,
+				equipment: {
+					...save.equipment,
+					trinket: null
+				}
+			},
+			{
+				...save,
+				equipment: {
+					...save.equipment,
+					head: 'iron-cap'
+				}
+			},
+			{
+				...save,
+				inventory: {
+					...save.inventory,
+					equipment: ['training-sword', 'iron-cap']
+				},
+				equipment: {
+					...save.equipment,
+					body: 'iron-cap'
+				}
+			},
+			{
+				...save,
+				inventory: {
+					...save.inventory,
+					stacks: [{ itemId: 'training-sword', quantity: 1 }]
+				}
+			},
+			{
+				...save,
+				inventory: {
+					...save.inventory,
+					equipment: ['training-sword', 'field-potion']
+				}
+			},
+			{
+				...save,
 				flags: {
 					...save.flags,
 					collectedPickups: ['meadow-cache', 7]

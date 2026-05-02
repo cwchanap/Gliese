@@ -75,6 +75,17 @@ function cloneInventory(inventory: SaveState['inventory']): SaveState['inventory
 	};
 }
 
+function cloneResolvedEncounterDrops(
+	resolvedEncounterDrops: SaveState['flags']['resolvedEncounterDrops']
+): SaveState['flags']['resolvedEncounterDrops'] {
+	return Object.fromEntries(
+		Object.entries(resolvedEncounterDrops).map(([encounterId, drops]) => [
+			encounterId,
+			drops.map((drop) => ({ ...drop }))
+		])
+	);
+}
+
 function getHealChargesFromInventory(inventory: SaveState['inventory']): number {
 	return inventory.stacks.find((stack) => stack.itemId === fieldPotionItemId)?.quantity ?? 0;
 }
@@ -143,6 +154,7 @@ export class WorldScene extends Phaser.Scene {
 	private attackFlash?: OverlayMarker;
 	private attackFlashUntil = 0;
 	private clearedEncounterIds = new Set<string>();
+	private collectedPickupIds = new Set<string>();
 	private cursorKeys?: Partial<Record<'left' | 'right' | 'up' | 'down', DirectionKey>>;
 	private enemy?: EnemyInstance;
 	private enemyHealthBarBg?: OverlayMarker;
@@ -162,6 +174,7 @@ export class WorldScene extends Phaser.Scene {
 		attack: startingPlayer.baseAttack
 	};
 	private equipment: SaveState['equipment'] = { ...createNewSaveState().equipment };
+	private resolvedEncounterDrops: SaveState['flags']['resolvedEncounterDrops'] = {};
 	private removeHudCommandListener = () => {};
 	private simulationPaused = false;
 	private victoryAchieved = false;
@@ -182,6 +195,7 @@ export class WorldScene extends Phaser.Scene {
 		this.attackFlashUntil = 0;
 		this.attackFlash = undefined;
 		this.clearedEncounterIds = new Set(activeSave?.flags.clearedEncounters ?? []);
+		this.collectedPickupIds = new Set(activeSave?.flags.collectedPickups ?? []);
 		this.enemy = undefined;
 		this.enemyHealthBarBg = undefined;
 		this.enemyHealthBarFill = undefined;
@@ -189,6 +203,9 @@ export class WorldScene extends Phaser.Scene {
 		this.facing = activeSave?.player.facing ?? map.spawnDirection;
 		this.inventory = cloneInventory(activeSave?.inventory ?? createNewSaveState().inventory);
 		this.equipment = { ...(activeSave?.equipment ?? createNewSaveState().equipment) };
+		this.resolvedEncounterDrops = cloneResolvedEncounterDrops(
+			activeSave?.flags.resolvedEncounterDrops ?? {}
+		);
 		this.healCharges = activeSave ? getHealChargesFromInventory(this.inventory) : 1;
 		this.mapId = map.id;
 		this.playerProgress = {
@@ -351,8 +368,8 @@ export class WorldScene extends Phaser.Scene {
 			},
 			flags: {
 				clearedEncounters: [...this.clearedEncounterIds].sort(),
-				collectedPickups: [],
-				resolvedEncounterDrops: {}
+				collectedPickups: [...this.collectedPickupIds].sort(),
+				resolvedEncounterDrops: cloneResolvedEncounterDrops(this.resolvedEncounterDrops)
 			},
 			inventory: syncHealChargesToInventory(this.inventory, this.healCharges),
 			equipment: { ...this.equipment }

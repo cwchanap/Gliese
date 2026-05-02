@@ -559,7 +559,11 @@ describe('WorldScene', () => {
 			saveState: {
 				...createNewSaveState(),
 				mapId: 'ruins-core',
-				flags: { clearedEncounters: ['ruins-warden'] }
+				flags: {
+					clearedEncounters: ['ruins-warden'],
+					collectedPickups: [],
+					resolvedEncounterDrops: {}
+				}
 			}
 		});
 		Object.assign(phaserState.playerMarker, { x: 128, y: 480 });
@@ -597,6 +601,42 @@ describe('WorldScene', () => {
 		expect(emitHudStateSpy).toHaveBeenLastCalledWith(
 			expect.objectContaining({ status: 'Entered area' })
 		);
+	});
+
+	it('preserves loaded item flags when building transition saves', async () => {
+		const { createNewSaveState } = await import('$lib/game/save/save-state');
+		const { WorldScene } = await import('./WorldScene');
+		const scene = new WorldScene();
+
+		scene.create({
+			saveState: {
+				...createNewSaveState(),
+				mapId: 'ruins-threshold',
+				flags: {
+					clearedEncounters: ['slime-scout'],
+					collectedPickups: ['meadow-cache'],
+					resolvedEncounterDrops: {
+						'slime-scout': [{ itemId: 'field-potion', quantity: 1 }]
+					}
+				}
+			}
+		});
+		Object.assign(phaserState.playerMarker, { x: 704, y: 480 });
+
+		scene.update(0, 16);
+
+		expect(scene.scene.restart).toHaveBeenCalledWith({
+			reason: 'transition',
+			saveState: expect.objectContaining({
+				flags: {
+					clearedEncounters: ['slime-scout'],
+					collectedPickups: ['meadow-cache'],
+					resolvedEncounterDrops: {
+						'slime-scout': [{ itemId: 'field-potion', quantity: 1 }]
+					}
+				}
+			})
+		});
 	});
 
 	it('bosses chase, strike back, and enrage in phase 2', async () => {
