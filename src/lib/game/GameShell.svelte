@@ -2,16 +2,30 @@
 	import { onMount } from 'svelte';
 	import {
 		hudState,
+		requestEquipItem,
 		requestHeal,
 		requestPauseGame,
 		requestResume,
 		requestResumeGame,
-		requestSave
+		requestSave,
+		requestUnequipSlot,
+		requestUseItem
 	} from '$lib/game/ui-bridge/store';
+	import type { EquipmentSlot } from '$lib/game/content/items';
 
 	let mountNode: HTMLDivElement | undefined;
 	let loadError = $state('');
 	let settingsOpen = $state(false);
+	let inventoryOpen = $state(false);
+	let activeInventoryTab = $state<'consumables' | 'equipment' | 'keyItems'>('consumables');
+
+	const equipmentSlots: { slot: EquipmentSlot; label: string }[] = [
+		{ slot: 'weapon', label: 'Weapon' },
+		{ slot: 'head', label: 'Head' },
+		{ slot: 'body', label: 'Body' },
+		{ slot: 'hands', label: 'Hands' },
+		{ slot: 'accessory', label: 'Accessory' }
+	];
 
 	const hpPercent = $derived(($hudState.hp / Math.max($hudState.maxHp, 1)) * 100);
 	const xpTarget = $derived($hudState.level > 1 ? 24 : 12);
@@ -26,6 +40,19 @@
 	function closeSettings() {
 		if (!settingsOpen) return;
 		settingsOpen = false;
+		requestResumeGame();
+	}
+
+	function openInventory() {
+		if (inventoryOpen) return;
+		inventoryOpen = true;
+		settingsOpen = false;
+		requestPauseGame();
+	}
+
+	function closeInventory() {
+		if (!inventoryOpen) return;
+		inventoryOpen = false;
 		requestResumeGame();
 	}
 
@@ -169,6 +196,14 @@
 		<div class="mt-4 grid gap-3">
 			<button
 				type="button"
+				class="hud-action rounded-[1.1rem] border border-emerald-200/20 bg-[linear-gradient(135deg,rgba(20,91,76,0.95),rgba(12,42,48,0.92))] px-4 py-3 text-sm font-black uppercase tracking-[0.24em] text-emerald-50 transition hover:-translate-y-0.5 hover:border-emerald-200/45 hover:shadow-[0_15px_30px_rgba(62,205,155,0.22)] disabled:translate-y-0 disabled:cursor-not-allowed disabled:opacity-45"
+				onclick={openInventory}
+				disabled={!$hudState.ready}
+			>
+				Inventory
+			</button>
+			<button
+				type="button"
 				class="hud-action rounded-[1.1rem] border border-cyan-200/20 bg-[linear-gradient(135deg,rgba(26,49,92,0.95),rgba(14,21,44,0.92))] px-4 py-3 text-sm font-black uppercase tracking-[0.24em] text-cyan-50 transition hover:-translate-y-0.5 hover:border-cyan-200/45 hover:shadow-[0_15px_30px_rgba(74,144,255,0.24)] disabled:translate-y-0 disabled:cursor-not-allowed disabled:opacity-45"
 				onclick={requestResume}
 				disabled={!$hudState.ready || !$hudState.canResume}
@@ -197,6 +232,262 @@
 			<p>{$hudState.status}</p>
 		</div>
 	</aside>
+
+	{#if inventoryOpen}
+		<div
+			class="absolute inset-0 z-50 flex items-center justify-center bg-black/52 p-3 backdrop-blur-[3px] sm:p-6"
+			role="presentation"
+		>
+			<button
+				type="button"
+				class="absolute inset-0 cursor-default"
+				aria-label="Close inventory"
+				onclick={closeInventory}
+			></button>
+			<div
+				class="relative z-10 grid max-h-[calc(100vh-1.5rem)] w-[min(70rem,calc(100vw-1.5rem))] grid-rows-[auto_minmax(0,1fr)] overflow-hidden rounded-[1.8rem] border border-white/12 bg-[linear-gradient(145deg,rgba(8,13,34,0.98),rgba(16,14,42,0.96)_54%,rgba(13,32,52,0.94))] text-slate-50 shadow-[0_34px_100px_rgba(0,0,0,0.58)] backdrop-blur-md sm:max-h-[calc(100vh-3rem)] sm:rounded-[2rem]"
+				aria-labelledby="inventory-heading"
+				role="dialog"
+			>
+				<div class="border-b border-white/10 px-4 py-4 sm:px-6">
+					<div class="flex items-start justify-between gap-4">
+						<div>
+							<p class="text-[0.62rem] font-black uppercase tracking-[0.34em] text-emerald-100/68">
+								Field Pack
+							</p>
+							<h2
+								id="inventory-heading"
+								class="mt-1 text-2xl font-black uppercase tracking-[0.12em] text-white sm:text-3xl"
+							>
+								Inventory
+							</h2>
+						</div>
+						<button
+							type="button"
+							class="rounded-full border border-white/12 bg-white/6 px-3 py-2 text-[0.65rem] font-black uppercase tracking-[0.24em] text-slate-100 transition hover:border-white/30"
+							onclick={closeInventory}
+						>
+							Close
+						</button>
+					</div>
+
+					<div class="mt-4 grid grid-cols-3 gap-2">
+						<button
+							type="button"
+							class={`rounded-full border px-3 py-2 text-[0.62rem] font-black uppercase tracking-[0.2em] transition sm:text-[0.68rem] ${
+								activeInventoryTab === 'consumables'
+									? 'border-emerald-200/45 bg-emerald-200/16 text-emerald-50 shadow-[0_10px_24px_rgba(62,205,155,0.16)]'
+									: 'border-white/10 bg-white/6 text-slate-200/72 hover:border-white/24 hover:text-white'
+							}`}
+							onclick={() => (activeInventoryTab = 'consumables')}
+						>
+							Consumables
+						</button>
+						<button
+							type="button"
+							class={`rounded-full border px-3 py-2 text-[0.62rem] font-black uppercase tracking-[0.2em] transition sm:text-[0.68rem] ${
+								activeInventoryTab === 'equipment'
+									? 'border-cyan-200/45 bg-cyan-200/16 text-cyan-50 shadow-[0_10px_24px_rgba(84,180,255,0.16)]'
+									: 'border-white/10 bg-white/6 text-slate-200/72 hover:border-white/24 hover:text-white'
+							}`}
+							onclick={() => (activeInventoryTab = 'equipment')}
+						>
+							Equipment
+						</button>
+						<button
+							type="button"
+							class={`rounded-full border px-3 py-2 text-[0.62rem] font-black uppercase tracking-[0.2em] transition sm:text-[0.68rem] ${
+								activeInventoryTab === 'keyItems'
+									? 'border-amber-200/45 bg-amber-200/16 text-amber-50 shadow-[0_10px_24px_rgba(255,190,90,0.16)]'
+									: 'border-white/10 bg-white/6 text-slate-200/72 hover:border-white/24 hover:text-white'
+							}`}
+							onclick={() => (activeInventoryTab = 'keyItems')}
+						>
+							Key Items
+						</button>
+					</div>
+				</div>
+
+				<div class="grid min-h-0 gap-4 overflow-y-auto p-4 lg:grid-cols-[minmax(0,1fr)_20rem] lg:overflow-hidden lg:p-6">
+					<div class="min-h-0 overflow-hidden rounded-[1.45rem] border border-white/10 bg-white/6">
+						<div class="max-h-[48vh] overflow-y-auto p-3 sm:max-h-[54vh] sm:p-4 lg:max-h-none lg:h-full">
+							{#if activeInventoryTab === 'consumables'}
+								{#if $hudState.inventory.consumables.length}
+									<div class="grid gap-3">
+										{#each $hudState.inventory.consumables as item (item.itemId)}
+											<article
+												class="grid gap-3 rounded-[1.1rem] border border-white/10 bg-[linear-gradient(135deg,rgba(255,255,255,0.08),rgba(255,255,255,0.035))] p-4 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center"
+											>
+												<div>
+													<div class="flex flex-wrap items-center gap-2">
+														<h3 class="text-lg font-black uppercase tracking-[0.08em] text-white">
+															{item.name}
+														</h3>
+														<span
+															class="rounded-full border border-emerald-100/18 bg-emerald-100/10 px-2 py-1 text-[0.58rem] font-black uppercase tracking-[0.2em] text-emerald-50/84"
+														>
+															x{item.quantity}
+														</span>
+													</div>
+													<p class="mt-2 text-sm leading-5 text-slate-200/76">{item.description}</p>
+												</div>
+												<button
+													type="button"
+													class="rounded-full border border-emerald-200/24 bg-emerald-200/12 px-4 py-2 text-[0.68rem] font-black uppercase tracking-[0.24em] text-emerald-50 transition hover:-translate-y-0.5 hover:border-emerald-200/50 disabled:translate-y-0 disabled:cursor-not-allowed disabled:opacity-40"
+													onclick={() => requestUseItem(item.itemId)}
+													disabled={!$hudState.ready || $hudState.hp >= $hudState.maxHp}
+												>
+													Use
+												</button>
+											</article>
+										{/each}
+									</div>
+								{:else}
+									<div
+										class="flex min-h-48 items-center justify-center rounded-[1.1rem] border border-dashed border-white/14 bg-white/5 px-6 py-10 text-center text-sm font-bold uppercase tracking-[0.2em] text-slate-300/62"
+									>
+										No consumables carried.
+									</div>
+								{/if}
+							{:else if activeInventoryTab === 'equipment'}
+								{#if $hudState.inventory.equipment.length}
+									<div class="grid gap-3">
+										{#each $hudState.inventory.equipment as item (item.itemId)}
+											<article
+												class="grid gap-3 rounded-[1.1rem] border border-white/10 bg-[linear-gradient(135deg,rgba(255,255,255,0.08),rgba(255,255,255,0.035))] p-4 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center"
+											>
+												<div>
+													<div class="flex flex-wrap items-center gap-2">
+														<h3 class="text-lg font-black uppercase tracking-[0.08em] text-white">
+															{item.name}
+														</h3>
+														<span
+															class="rounded-full border border-cyan-100/18 bg-cyan-100/10 px-2 py-1 text-[0.58rem] font-black uppercase tracking-[0.2em] text-cyan-50/84"
+														>
+															{item.slot}
+														</span>
+													</div>
+													<p class="mt-2 text-sm leading-5 text-slate-200/76">{item.description}</p>
+												</div>
+												<button
+													type="button"
+													class="rounded-full border border-cyan-200/24 bg-cyan-200/12 px-4 py-2 text-[0.68rem] font-black uppercase tracking-[0.24em] text-cyan-50 transition hover:-translate-y-0.5 hover:border-cyan-200/50 disabled:translate-y-0 disabled:cursor-not-allowed disabled:opacity-40"
+													onclick={() => requestEquipItem(item.itemId)}
+													disabled={!$hudState.ready || item.equipped}
+												>
+													{item.equipped ? 'Equipped' : 'Equip'}
+												</button>
+											</article>
+										{/each}
+									</div>
+								{:else}
+									<div
+										class="flex min-h-48 items-center justify-center rounded-[1.1rem] border border-dashed border-white/14 bg-white/5 px-6 py-10 text-center text-sm font-bold uppercase tracking-[0.2em] text-slate-300/62"
+									>
+										No equipment found.
+									</div>
+								{/if}
+							{:else}
+								{#if $hudState.inventory.keyItems.length}
+									<div class="grid gap-3">
+										{#each $hudState.inventory.keyItems as item (item.itemId)}
+											<article
+												class="rounded-[1.1rem] border border-white/10 bg-[linear-gradient(135deg,rgba(255,255,255,0.08),rgba(255,255,255,0.035))] p-4"
+											>
+												<div class="flex flex-wrap items-center gap-2">
+													<h3 class="text-lg font-black uppercase tracking-[0.08em] text-white">
+														{item.name}
+													</h3>
+													{#if item.quantity > 1}
+														<span
+															class="rounded-full border border-amber-100/18 bg-amber-100/10 px-2 py-1 text-[0.58rem] font-black uppercase tracking-[0.2em] text-amber-50/84"
+														>
+															x{item.quantity}
+														</span>
+													{/if}
+												</div>
+												<p class="mt-2 text-sm leading-5 text-slate-200/76">{item.description}</p>
+											</article>
+										{/each}
+									</div>
+								{:else}
+									<div
+										class="flex min-h-48 items-center justify-center rounded-[1.1rem] border border-dashed border-white/14 bg-white/5 px-6 py-10 text-center text-sm font-bold uppercase tracking-[0.2em] text-slate-300/62"
+									>
+										No key items acquired.
+									</div>
+								{/if}
+							{/if}
+						</div>
+					</div>
+
+					<aside class="grid gap-4 lg:min-h-0 lg:grid-rows-[auto_minmax(0,1fr)]">
+						<div class="rounded-[1.35rem] border border-white/10 bg-white/6 p-4">
+							<p class="text-[0.62rem] font-black uppercase tracking-[0.28em] text-cyan-100/64">
+								Stats
+							</p>
+							<div class="mt-3 grid grid-cols-3 gap-2">
+								<div class="rounded-2xl border border-rose-100/12 bg-rose-100/8 px-3 py-3 text-center">
+									<p class="text-[0.58rem] font-black uppercase tracking-[0.22em] text-rose-50/64">
+										HP
+									</p>
+									<p class="mt-1 text-lg font-black text-white">{$hudState.hp}/{$hudState.maxHp}</p>
+								</div>
+								<div class="rounded-2xl border border-cyan-100/12 bg-cyan-100/8 px-3 py-3 text-center">
+									<p class="text-[0.58rem] font-black uppercase tracking-[0.22em] text-cyan-50/64">
+										ATK
+									</p>
+									<p class="mt-1 text-lg font-black text-white">{$hudState.attack}</p>
+								</div>
+								<div class="rounded-2xl border border-emerald-100/12 bg-emerald-100/8 px-3 py-3 text-center">
+									<p class="text-[0.58rem] font-black uppercase tracking-[0.22em] text-emerald-50/64">
+										DEF
+									</p>
+									<p class="mt-1 text-lg font-black text-white">{$hudState.defense}</p>
+								</div>
+							</div>
+						</div>
+
+						<div class="min-h-0 rounded-[1.35rem] border border-white/10 bg-white/6 p-4">
+							<p class="text-[0.62rem] font-black uppercase tracking-[0.28em] text-cyan-100/64">
+								Equipped
+							</p>
+							<div class="mt-3 grid gap-2 lg:max-h-full lg:overflow-y-auto">
+								{#each equipmentSlots as entry}
+									{@const equippedItemId = $hudState.inventory.equipped[entry.slot]}
+									{@const equippedItem = $hudState.inventory.equipment.find(
+										(item) => item.itemId === equippedItemId
+									)}
+									<div
+										class="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 rounded-2xl border border-white/10 bg-black/12 px-3 py-3"
+									>
+										<div class="min-w-0">
+											<p class="text-[0.58rem] font-black uppercase tracking-[0.24em] text-slate-300/62">
+												{entry.label}
+											</p>
+											<p class="mt-1 truncate text-sm font-black uppercase tracking-[0.08em] text-white">
+												{equippedItem?.name ?? 'Empty'}
+											</p>
+										</div>
+										{#if equippedItemId}
+											<button
+												type="button"
+												class="rounded-full border border-rose-200/20 bg-rose-200/10 px-3 py-2 text-[0.58rem] font-black uppercase tracking-[0.2em] text-rose-50 transition hover:border-rose-200/45 disabled:cursor-not-allowed disabled:opacity-40"
+												onclick={() => requestUnequipSlot(entry.slot)}
+												disabled={!$hudState.ready}
+											>
+												Remove
+											</button>
+										{/if}
+									</div>
+								{/each}
+							</div>
+						</div>
+					</aside>
+				</div>
+			</div>
+		</div>
+	{/if}
 </section>
 
 <style>
