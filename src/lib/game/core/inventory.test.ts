@@ -18,6 +18,13 @@ describe('inventory core', () => {
 		expect(ownsEquipment(inventory, 'training-sword')).toBe(true);
 	});
 
+	it('ignores unknown item ids and invalid quantities', () => {
+		const inventory = createEmptyInventory();
+
+		expect(addItem(inventory, 'missing-item', 1)).toBe(inventory);
+		expect(addItem(inventory, 'field-potion', 0)).toBe(inventory);
+	});
+
 	it('consumes stack quantities and removes empty stacks', () => {
 		const inventory = addItem(createEmptyInventory(), 'field-potion', 2);
 
