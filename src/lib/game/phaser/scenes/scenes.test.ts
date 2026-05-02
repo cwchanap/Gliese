@@ -420,7 +420,7 @@ describe('WorldScene', () => {
 		const sceneState = scene as unknown as { playerProgress: { level: number; xp: number } };
 
 		scene.create({ mapId: 'meadow-entry' });
-		Object.assign(phaserState.playerMarker, { x: 304, y: 96 });
+		Object.assign(phaserState.playerMarker, { x: 5_120, y: 5_120 });
 
 		scene.update(0, 16);
 
@@ -442,7 +442,7 @@ describe('WorldScene', () => {
 		};
 
 		scene.create({ mapId: 'meadow-entry' });
-		Object.assign(phaserState.playerMarker, { x: 304, y: 96 });
+		Object.assign(phaserState.playerMarker, { x: 5_120, y: 5_120 });
 
 		scene.update(0, 16);
 
@@ -457,7 +457,7 @@ describe('WorldScene', () => {
 		};
 
 		scene.create({ mapId: 'meadow-entry' });
-		Object.assign(phaserState.playerMarker, { x: 304, y: 96 });
+		Object.assign(phaserState.playerMarker, { x: 5_120, y: 5_120 });
 		Object.assign(sceneState.enemy, { hp: 9, maxHp: 9, invulnerableUntil: 0, defeated: false });
 
 		scene.update(0, 16);
@@ -479,7 +479,7 @@ describe('WorldScene', () => {
 		};
 
 		scene.create({ mapId: 'meadow-entry' });
-		Object.assign(phaserState.playerMarker, { x: 304, y: 96 });
+		Object.assign(phaserState.playerMarker, { x: 5_120, y: 5_120 });
 		sceneState.playerProgress = { level: 2, xp: 5, hp: 24, attack: 4 };
 
 		expect(() => scene.update(0, 16)).not.toThrow();
@@ -491,10 +491,10 @@ describe('WorldScene', () => {
 		const scene = new WorldScene();
 
 		scene.create({ mapId: 'meadow-entry' });
-		Object.assign(phaserState.playerMarker, { x: 304, y: 96 });
+		Object.assign(phaserState.playerMarker, { x: 5_120, y: 5_120 });
 		scene.update(0, 16);
 
-		Object.assign(phaserState.playerMarker, { x: 352, y: 96 });
+		Object.assign(phaserState.playerMarker, { x: 9_984, y: 5_120 });
 		scene.update(200, 16);
 
 		expect(scene.scene.restart).toHaveBeenCalledWith({
@@ -502,9 +502,9 @@ describe('WorldScene', () => {
 			saveState: expect.objectContaining({
 				mapId: 'ruins-threshold',
 				player: expect.objectContaining({
-					x: 48,
-					y: 96,
-					facing: 'left'
+					x: 256,
+					y: 5_120,
+					facing: 'right'
 				})
 			})
 		});
@@ -515,7 +515,7 @@ describe('WorldScene', () => {
 		const scene = new WorldScene();
 
 		scene.create({ mapId: 'ruins-threshold' });
-		Object.assign(phaserState.playerMarker, { x: 16, y: 96 });
+		Object.assign(phaserState.playerMarker, { x: 128, y: 5_120 });
 
 		scene.update(0, 16);
 
@@ -524,9 +524,31 @@ describe('WorldScene', () => {
 			saveState: expect.objectContaining({
 				mapId: 'meadow-entry',
 				player: expect.objectContaining({
-					x: 320,
-					y: 96,
+					x: 9_856,
+					y: 5_120,
 					facing: 'left'
+				})
+			})
+		});
+	});
+
+	it('moves from the ruins threshold into the core when the far exit is reached', async () => {
+		const { WorldScene } = await import('./WorldScene');
+		const scene = new WorldScene();
+
+		scene.create({ mapId: 'ruins-threshold' });
+		Object.assign(phaserState.playerMarker, { x: 9_984, y: 5_120 });
+
+		scene.update(0, 16);
+
+		expect(scene.scene.restart).toHaveBeenCalledWith({
+			reason: 'transition',
+			saveState: expect.objectContaining({
+				mapId: 'ruins-core',
+				player: expect.objectContaining({
+					x: 256,
+					y: 1_280,
+					facing: 'right'
 				})
 			})
 		});
@@ -561,13 +583,13 @@ describe('WorldScene', () => {
 		};
 
 		scene.create({ mapId: 'ruins-core' });
-		Object.assign(phaserState.playerMarker, { x: 120, y: 96 });
+		Object.assign(phaserState.playerMarker, { x: 1_416, y: 1_280 });
 
 		scene.update(0, 1000);
 
-		expect(sceneState.enemy.x).toBeLessThan(304);
+		expect(sceneState.enemy.x).toBeLessThan(1_600);
 
-		Object.assign(phaserState.playerMarker, { x: sceneState.enemy.x, y: 96 });
+		Object.assign(phaserState.playerMarker, { x: sceneState.enemy.x, y: 1_280 });
 		scene.update(500, 16);
 
 		expect(sceneState.playerProgress.hp).toBe(16);
@@ -583,7 +605,7 @@ describe('WorldScene', () => {
 		const scene = new WorldScene();
 
 		scene.create({ mapId: 'ruins-core' });
-		Object.assign(phaserState.playerMarker, { x: 304, y: 96 });
+		Object.assign(phaserState.playerMarker, { x: 1_600, y: 1_280 });
 
 		scene.update(0, 16);
 		scene.update(500, 16);
