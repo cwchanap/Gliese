@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { items } from '$lib/game/content/items';
+import { getItem } from '$lib/game/content/items';
 import { maps, meadowEntryMap, ruinsThresholdMap } from '$lib/game/content/maps';
 
 describe('opening map content', () => {
@@ -56,7 +56,7 @@ describe('opening map content', () => {
 
 		for (const map of Object.values(maps)) {
 			for (const pickup of map.pickups ?? []) {
-				expect(items[pickup.itemId]).toBeDefined();
+				expect(getItem(pickup.itemId)).toBeDefined();
 				expect(pickup.quantity).toBeGreaterThan(0);
 				expect(pickup.x).toBeGreaterThanOrEqual(0);
 				expect(pickup.y).toBeGreaterThanOrEqual(0);
