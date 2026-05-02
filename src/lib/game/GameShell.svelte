@@ -359,7 +359,7 @@
 					type="button"
 					class="hud-action rounded-[1.1rem] border border-amber-200/20 bg-[linear-gradient(135deg,rgba(127,68,32,0.96),rgba(78,33,17,0.92))] px-4 py-3 text-sm font-black tracking-[0.24em] text-amber-50 uppercase transition hover:-translate-y-0.5 hover:border-amber-200/45 hover:shadow-[0_15px_30px_rgba(255,152,72,0.24)] disabled:translate-y-0 disabled:cursor-not-allowed disabled:opacity-45"
 					onclick={requestHeal}
-					disabled={!$hudState.ready || $hudState.heals < 1 || $hudState.hp >= $hudState.maxHp}
+					disabled={!$hudState.ready || $hudState.heals < 1}
 				>
 					Use Heal
 				</button>
@@ -504,7 +504,7 @@
 													type="button"
 													class="rounded-full border border-emerald-200/24 bg-emerald-200/12 px-4 py-2 text-[0.68rem] font-black tracking-[0.24em] text-emerald-50 uppercase transition hover:-translate-y-0.5 hover:border-emerald-200/50 disabled:translate-y-0 disabled:cursor-not-allowed disabled:opacity-40"
 													onclick={() => requestUseItem(item.itemId)}
-													disabled={!$hudState.ready || $hudState.hp >= $hudState.maxHp}
+													disabled={!$hudState.ready}
 												>
 													Use
 												</button>
