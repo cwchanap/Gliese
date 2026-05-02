@@ -175,7 +175,14 @@ function migrateLegacyPosition(
 	const bounds = LEGACY_ROOM_BOUNDS[map.id];
 	const anchors = LEGACY_POSITION_ANCHORS[map.id];
 
-	if (!bounds || !anchors || player.x > bounds.width || player.y > bounds.height) {
+	if (
+		!bounds ||
+		!anchors ||
+		player.x < 0 ||
+		player.y < 0 ||
+		player.x > bounds.width ||
+		player.y > bounds.height
+	) {
 		return player;
 	}
 

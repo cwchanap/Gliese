@@ -103,6 +103,22 @@ describe('save state', () => {
 		});
 	});
 
+	it('does not migrate negative coordinates as legacy room positions', () => {
+		const negativeCoordinateSave = {
+			...createNewSaveState(),
+			player: {
+				...createNewSaveState().player,
+				x: 300,
+				y: -50
+			}
+		};
+
+		expect(parseSaveState(JSON.stringify(negativeCoordinateSave))?.player).toMatchObject({
+			x: 300,
+			y: 0
+		});
+	});
+
 	it('rejects invalid payloads', () => {
 		expect(parseSaveState('{"bad":true}')).toBeNull();
 	});
