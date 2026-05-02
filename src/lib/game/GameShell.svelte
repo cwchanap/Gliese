@@ -353,12 +353,11 @@
 			class="absolute inset-0 z-50 flex items-center justify-center bg-black/52 p-3 backdrop-blur-[3px] sm:p-6"
 			role="presentation"
 		>
-			<button
-				type="button"
+			<div
 				class="absolute inset-0 cursor-default"
-				aria-label="Close inventory"
+				role="presentation"
 				onclick={closeInventory}
-			></button>
+			></div>
 			<div
 				bind:this={inventoryDialog}
 				class="relative z-10 grid max-h-[calc(100vh-1.5rem)] w-[min(70rem,calc(100vw-1.5rem))] grid-rows-[auto_minmax(0,1fr)] overflow-hidden rounded-[1.8rem] border border-white/12 bg-[linear-gradient(145deg,rgba(8,13,34,0.98),rgba(16,14,42,0.96)_54%,rgba(13,32,52,0.94))] text-slate-50 shadow-[0_34px_100px_rgba(0,0,0,0.58)] backdrop-blur-md sm:max-h-[calc(100vh-3rem)] sm:rounded-[2rem]"
