@@ -37,7 +37,21 @@ describe('opening map content', () => {
 	it('defines valid placed pickups with stable ids and item ids', () => {
 		const pickups = Object.values(maps).flatMap((map) => map.pickups ?? []);
 
-		expect(pickups.length).toBeGreaterThan(0);
+		expect(maps['meadow-entry'].pickups).toEqual([
+			{ id: 'meadow-entry-potion', x: 512, y: 1_184, itemId: 'field-potion', quantity: 2 },
+			{ id: 'meadow-entry-charm', x: 896, y: 1_408, itemId: 'meadow-charm', quantity: 1 },
+			{ id: 'meadow-entry-token', x: 1_024, y: 1_152, itemId: 'meadow-token', quantity: 1 }
+		]);
+		expect(maps['ruins-threshold'].pickups).toEqual([
+			{ id: 'ruins-threshold-cap', x: 416, y: 352, itemId: 'iron-cap', quantity: 1 },
+			{ id: 'ruins-threshold-rune', x: 576, y: 608, itemId: 'threshold-rune', quantity: 1 },
+			{ id: 'ruins-threshold-salve', x: 320, y: 640, itemId: 'sunleaf-salve', quantity: 2 }
+		]);
+		expect(maps['ruins-core'].pickups).toEqual([
+			{ id: 'ruins-core-mail', x: 448, y: 608, itemId: 'stone-mail', quantity: 1 },
+			{ id: 'ruins-core-draught', x: 544, y: 352, itemId: 'ruin-draught', quantity: 1 }
+		]);
+
 		expect(new Set(pickups.map((pickup) => pickup.id)).size).toBe(pickups.length);
 
 		for (const map of Object.values(maps)) {
@@ -46,8 +60,8 @@ describe('opening map content', () => {
 				expect(pickup.quantity).toBeGreaterThan(0);
 				expect(pickup.x).toBeGreaterThanOrEqual(0);
 				expect(pickup.y).toBeGreaterThanOrEqual(0);
-				expect(pickup.x).toBeLessThanOrEqual(map.width * 32);
-				expect(pickup.y).toBeLessThanOrEqual(map.height * 32);
+				expect(pickup.x).toBeLessThan(map.width * 32);
+				expect(pickup.y).toBeLessThan(map.height * 32);
 			}
 		}
 	});
