@@ -146,6 +146,20 @@ describe('save state', () => {
 		).toBeNull();
 	});
 
+	it('rejects resolved encounter drops when the field is an array', () => {
+		expect(
+			parseSaveState(
+				JSON.stringify({
+					...createNewSaveState(),
+					flags: {
+						...createNewSaveState().flags,
+						resolvedEncounterDrops: []
+					}
+				})
+			)
+		).toBeNull();
+	});
+
 	it('rejects missing required item state fields', () => {
 		const save = createNewSaveState();
 

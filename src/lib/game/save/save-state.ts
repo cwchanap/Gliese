@@ -152,7 +152,7 @@ function isEquipmentState(value: unknown): value is EquipmentState {
 }
 
 function isResolvedDrops(value: unknown): value is Record<string, ItemDrop[]> {
-	if (!isRecord(value)) {
+	if (!isRecord(value) || Array.isArray(value)) {
 		return false;
 	}
 
