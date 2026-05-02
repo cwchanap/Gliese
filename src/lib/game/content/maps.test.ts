@@ -3,8 +3,10 @@ import { meadowEntryMap, ruinsThresholdMap } from '$lib/game/content/maps';
 
 describe('opening map content', () => {
 	it('declares a spawn point, opening encounter, and connected exit', () => {
-		expect(meadowEntryMap.spawn).toEqual({ x: 64, y: 64 });
+		expect(meadowEntryMap.spawn).toEqual({ x: 256, y: 5_120 });
 		expect(meadowEntryMap.encounter).toMatchObject({
+			x: 5_120,
+			y: 5_120,
 			enemyId: 'slime-scout'
 		});
 		expect(meadowEntryMap.transitions[0]).toMatchObject({
@@ -16,16 +18,16 @@ describe('opening map content', () => {
 		expect(meadowEntryMap.transitions[0]).toMatchObject({
 			toMapId: 'ruins-threshold',
 			arrival: {
-				x: 48,
-				y: 96,
-				facing: 'left'
+				x: 256,
+				y: 5_120,
+				facing: 'right'
 			}
 		});
 		expect(ruinsThresholdMap.transitions[0]).toMatchObject({
 			toMapId: 'meadow-entry',
 			arrival: {
-				x: 320,
-				y: 96,
+				x: 9_856,
+				y: 5_120,
 				facing: 'left'
 			}
 		});
