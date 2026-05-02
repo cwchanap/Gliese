@@ -187,6 +187,7 @@ function isResolvedDrops(value: unknown): value is Record<string, ItemDrop[]> {
 				(drop) =>
 					isRecord(drop) &&
 					typeof drop.itemId === 'string' &&
+					getItem(drop.itemId) !== undefined &&
 					isPositiveIntegerQuantity(drop.quantity)
 			)
 	);

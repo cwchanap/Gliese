@@ -160,6 +160,22 @@ describe('save state', () => {
 		).toBeNull();
 	});
 
+	it('rejects resolved encounter drops with unknown item ids', () => {
+		expect(
+			parseSaveState(
+				JSON.stringify({
+					...createNewSaveState(),
+					flags: {
+						...createNewSaveState().flags,
+						resolvedEncounterDrops: {
+							'slime-scout-1': [{ itemId: 'not-real', quantity: 1 }]
+						}
+					}
+				})
+			)
+		).toBeNull();
+	});
+
 	it('rejects missing required item state fields', () => {
 		const save = createNewSaveState();
 
