@@ -13,15 +13,24 @@ import {
 	type MapTransition,
 	type WorldMapDefinition
 } from '$lib/game/content/maps';
+import { getItem, type EquipmentSlot } from '$lib/game/content/items';
 import { startingPlayer } from '$lib/game/content/player';
 import { advanceBossPhase } from '$lib/game/core/boss';
 import { canReceiveHit, resolveHit } from '$lib/game/core/combat';
+import { equipItem, unequipSlot } from '$lib/game/core/equipment';
 import { resolveMovementVector } from '$lib/game/core/input';
+import { consumeStackItem } from '$lib/game/core/inventory';
 import { applyExperienceGain, type ProgressionState } from '$lib/game/core/progression';
+import { clampHpToMax, deriveEffectiveStats, type EffectiveStats } from '$lib/game/core/stats';
 import type { Direction } from '$lib/game/core/types';
 import { createNewSaveState, type SaveState } from '$lib/game/save/save-state';
 import { loadStoredSaveResult, saveGameState } from '$lib/game/save/storage';
-import { emitHudState, onHudCommand, type HudCommand } from '$lib/game/ui-bridge/events';
+import {
+	emitHudState,
+	onHudCommand,
+	type HudCommand,
+	type HudState
+} from '$lib/game/ui-bridge/events';
 
 interface WorldSceneData {
 	mapId?: string;
@@ -66,8 +75,6 @@ type EnemyInstance = {
 	y: number;
 };
 
-const fieldPotionItemId = 'field-potion';
-
 function cloneInventory(inventory: SaveState['inventory']): SaveState['inventory'] {
 	return {
 		stacks: inventory.stacks.map((stack) => ({ ...stack })),
@@ -84,34 +91,6 @@ function cloneResolvedEncounterDrops(
 			drops.map((drop) => ({ ...drop }))
 		])
 	);
-}
-
-function getHealChargesFromInventory(inventory: SaveState['inventory']): number {
-	return inventory.stacks.find((stack) => stack.itemId === fieldPotionItemId)?.quantity ?? 0;
-}
-
-function syncHealChargesToInventory(
-	inventory: SaveState['inventory'],
-	healCharges: number
-): SaveState['inventory'] {
-	const existing = inventory.stacks.some((stack) => stack.itemId === fieldPotionItemId);
-	const otherStacks = inventory.stacks.filter((stack) => stack.itemId !== fieldPotionItemId);
-
-	if (healCharges < 1) {
-		return { ...inventory, stacks: otherStacks, equipment: [...inventory.equipment] };
-	}
-
-	const fieldPotionStack = { itemId: fieldPotionItemId, quantity: healCharges };
-
-	return {
-		...inventory,
-		equipment: [...inventory.equipment],
-		stacks: existing
-			? inventory.stacks.map((stack) =>
-					stack.itemId === fieldPotionItemId ? fieldPotionStack : { ...stack }
-				)
-			: [...otherStacks, fieldPotionStack]
-	};
 }
 
 export class WorldScene extends Phaser.Scene {
@@ -161,7 +140,6 @@ export class WorldScene extends Phaser.Scene {
 	private enemyHealthBarFill?: OverlayMarker;
 	private enemyMarker?: EnemyMarker;
 	private facing: Direction = 'down';
-	private healCharges = 1;
 	private inventory: SaveState['inventory'] = cloneInventory(createNewSaveState().inventory);
 	private mapId = openingMapId;
 	private player?: Phaser.GameObjects.Image;
@@ -206,7 +184,6 @@ export class WorldScene extends Phaser.Scene {
 		this.resolvedEncounterDrops = cloneResolvedEncounterDrops(
 			activeSave?.flags.resolvedEncounterDrops ?? {}
 		);
-		this.healCharges = activeSave ? getHealChargesFromInventory(this.inventory) : 1;
 		this.mapId = map.id;
 		this.playerProgress = {
 			level: activeSave?.player.level ?? 1,
@@ -301,9 +278,10 @@ export class WorldScene extends Phaser.Scene {
 			this.playerAttackCooldownUntil = time + WorldScene.autoAttackCooldownMs;
 			this.attackFlashUntil = time + WorldScene.attackFlashDurationMs;
 			this.showAttackFlash();
+			const effectiveStats = this.getEffectiveStats();
 			this.enemy.hp = resolveHit(
 				{ hp: this.enemy.hp, defense: 0 },
-				{ power: this.playerProgress.attack }
+				{ power: effectiveStats.attack }
 			).hp;
 			this.enemy.invulnerableUntil = time + WorldScene.enemyInvulnerabilityMs;
 			this.updateEnemyHealthBar();
@@ -371,7 +349,7 @@ export class WorldScene extends Phaser.Scene {
 				collectedPickups: [...this.collectedPickupIds].sort(),
 				resolvedEncounterDrops: cloneResolvedEncounterDrops(this.resolvedEncounterDrops)
 			},
-			inventory: syncHealChargesToInventory(this.inventory, this.healCharges),
+			inventory: cloneInventory(this.inventory),
 			equipment: { ...this.equipment }
 		};
 	}
@@ -394,23 +372,50 @@ export class WorldScene extends Phaser.Scene {
 	}
 
 	private consumeHeal() {
-		const maxHp = this.getMaxHp();
+		const healingItem = this.consumeFirstHealingItem();
 
-		if (this.healCharges < 1) {
+		if (!healingItem) {
 			this.publishHudState('No heal charges left');
 			return;
 		}
+
+		this.useItem(healingItem.itemId);
+	}
+
+	private consumeFirstHealingItem() {
+		return this.inventory.stacks.find((stack) => {
+			const item = getItem(stack.itemId);
+
+			return item?.type === 'consumable' && item.effect.type === 'heal';
+		});
+	}
+
+	private useItem(itemId: string) {
+		const item = getItem(itemId);
+
+		if (item?.type !== 'consumable' || item.effect.type !== 'heal') {
+			this.publishHudState('Item cannot be used');
+			return;
+		}
+
+		const maxHp = this.getEffectiveStats().maxHp;
 
 		if (this.playerProgress.hp >= maxHp) {
 			this.publishHudState('HP already full');
 			return;
 		}
 
-		this.healCharges -= 1;
-		this.inventory = syncHealChargesToInventory(this.inventory, this.healCharges);
+		const result = consumeStackItem(this.inventory, itemId);
+
+		if (!result.consumed) {
+			this.publishHudState('Item cannot be used');
+			return;
+		}
+
+		this.inventory = result.inventory;
 		this.playerProgress = {
 			...this.playerProgress,
-			hp: Math.min(maxHp, this.playerProgress.hp + 8)
+			hp: Math.min(maxHp, this.playerProgress.hp + item.effect.amount)
 		};
 		this.publishHudState('Recovered HP');
 	}
@@ -436,49 +441,151 @@ export class WorldScene extends Phaser.Scene {
 		this.publishHudState('Enemy defeated');
 	}
 
-	private getMaxHp() {
+	private equipInventoryItem(itemId: string) {
+		const result = equipItem(this.equipment, this.inventory.equipment, itemId);
+
+		if (!result.equipped) {
+			this.publishHudState('Item cannot be equipped');
+			return;
+		}
+
+		this.equipment = result.equipment;
+		this.playerProgress = {
+			...this.playerProgress,
+			hp: clampHpToMax(this.playerProgress.hp, this.getEffectiveStats())
+		};
+		this.publishHudState('Equipped item');
+	}
+
+	private unequipInventorySlot(slot: EquipmentSlot) {
+		this.equipment = unequipSlot(this.equipment, slot);
+		this.playerProgress = {
+			...this.playerProgress,
+			hp: clampHpToMax(this.playerProgress.hp, this.getEffectiveStats())
+		};
+		this.publishHudState('Unequipped item');
+	}
+
+	private getBaseMaxHp() {
 		return this.playerProgress.level > 1 ? startingPlayer.baseHp + 4 : startingPlayer.baseHp;
 	}
 
+	private getEffectiveStats(): EffectiveStats {
+		return deriveEffectiveStats(
+			{
+				hp: this.getBaseMaxHp(),
+				attack: this.playerProgress.attack,
+				defense: 0
+			},
+			this.equipment
+		);
+	}
+
 	private handleHudCommand(command: HudCommand) {
-		if (command === 'pause-game') {
-			this.simulationPaused = true;
-			return;
+		switch (command.type) {
+			case 'pause-game':
+				this.simulationPaused = true;
+				return;
+			case 'resume-game':
+				this.simulationPaused = false;
+				return;
+			case 'heal':
+				this.consumeHeal();
+				return;
+			case 'resume-save':
+				this.resumeStoredSave();
+				return;
+			case 'save':
+				this.saveCurrentState();
+				return;
+			case 'use-item':
+				this.useItem(command.itemId);
+				return;
+			case 'equip-item':
+				this.equipInventoryItem(command.itemId);
+				return;
+			case 'unequip-slot':
+				this.unequipInventorySlot(command.slot);
+				return;
 		}
-
-		if (command === 'resume-game') {
-			this.simulationPaused = false;
-			return;
-		}
-
-		if (command === 'heal') {
-			this.consumeHeal();
-			return;
-		}
-
-		if (command === 'resume') {
-			this.resumeStoredSave();
-			return;
-		}
-
-		this.saveCurrentState();
 	}
 
 	private publishHudState(status: string) {
 		const saveResult = loadStoredSaveResult();
+		const effectiveStats = this.getEffectiveStats();
 
 		emitHudState({
 			ready: true,
 			mapId: this.mapId,
 			hp: this.playerProgress.hp,
-			maxHp: this.getMaxHp(),
+			maxHp: effectiveStats.maxHp,
 			level: this.playerProgress.level,
 			xp: this.playerProgress.xp,
-			attack: this.playerProgress.attack,
-			heals: this.healCharges,
+			attack: effectiveStats.attack,
+			defense: effectiveStats.defense,
+			heals: this.getConsumableCount(),
 			canResume: saveResult.status === 'loaded',
-			status
+			status,
+			inventory: this.buildHudInventory()
 		});
+	}
+
+	private buildHudInventory(): HudState['inventory'] {
+		return {
+			consumables: this.inventory.stacks.flatMap((stack) => {
+				const item = getItem(stack.itemId);
+
+				return item?.type === 'consumable'
+					? [
+							{
+								itemId: item.id,
+								name: item.name,
+								description: item.description,
+								quantity: stack.quantity
+							}
+						]
+					: [];
+			}),
+			equipment: this.inventory.equipment.flatMap((itemId) => {
+				const item = getItem(itemId);
+
+				return item?.type === 'equipment'
+					? [
+							{
+								itemId: item.id,
+								name: item.name,
+								description: item.description,
+								slot: item.slot,
+								equipped: this.equipment[item.slot] === item.id,
+								modifiers: { ...item.modifiers }
+							}
+						]
+					: [];
+			}),
+			keyItems: this.inventory.stacks.flatMap((stack) => {
+				const item = getItem(stack.itemId);
+
+				return item?.type === 'key'
+					? [
+							{
+								itemId: item.id,
+								name: item.name,
+								description: item.description,
+								quantity: stack.quantity
+							}
+						]
+					: [];
+			}),
+			equipped: { ...this.equipment }
+		};
+	}
+
+	private getConsumableCount() {
+		return this.inventory.stacks.reduce((total, stack) => {
+			const item = getItem(stack.itemId);
+
+			return item?.type === 'consumable' ? total + stack.quantity : total;
+		}, 0);
 	}
 
 	private registerStarterPackFrames() {
@@ -819,7 +926,7 @@ export class WorldScene extends Phaser.Scene {
 		this.playerProgress = {
 			...this.playerProgress,
 			hp: resolveHit(
-				{ hp: this.playerProgress.hp, defense: 0 },
+				{ hp: this.playerProgress.hp, defense: this.getEffectiveStats().defense },
 				{ power: this.enemy.definition.baseAttack }
 			).hp
 		};

@@ -1,3 +1,28 @@
+import type { EquipmentSlot, StatModifiers } from '$lib/game/content/items';
+
+export type HudInventoryStack = {
+	itemId: string;
+	name: string;
+	description: string;
+	quantity: number;
+};
+
+export type HudEquipmentItem = {
+	itemId: string;
+	name: string;
+	description: string;
+	slot: EquipmentSlot;
+	equipped: boolean;
+	modifiers: StatModifiers;
+};
+
+export type HudKeyItem = {
+	itemId: string;
+	name: string;
+	description: string;
+	quantity: number;
+};
+
 export type HudState = {
 	ready: boolean;
 	mapId: string;
@@ -6,12 +31,27 @@ export type HudState = {
 	level: number;
 	xp: number;
 	attack: number;
+	defense: number;
 	heals: number;
 	canResume: boolean;
 	status: string;
+	inventory: {
+		consumables: HudInventoryStack[];
+		equipment: HudEquipmentItem[];
+		keyItems: HudKeyItem[];
+		equipped: Record<EquipmentSlot, string | null>;
+	};
 };
 
-export type HudCommand = 'heal' | 'resume' | 'save' | 'pause-game' | 'resume-game';
+export type HudCommand =
+	| { type: 'heal' }
+	| { type: 'resume-save' }
+	| { type: 'save' }
+	| { type: 'pause-game' }
+	| { type: 'resume-game' }
+	| { type: 'use-item'; itemId: string }
+	| { type: 'equip-item'; itemId: string }
+	| { type: 'unequip-slot'; slot: EquipmentSlot };
 
 export const HUD_STATE_EVENT = 'gliese:hud-state';
 export const HUD_COMMAND_EVENT = 'gliese:hud-command';

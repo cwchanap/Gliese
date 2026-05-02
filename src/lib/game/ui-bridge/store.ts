@@ -1,14 +1,15 @@
 import { readable } from 'svelte/store';
 
+import { equipmentSlots, type EquipmentSlot } from '$lib/game/content/items';
 import { startingPlayer } from '$lib/game/content/player';
 import { loadStoredSaveResult } from '$lib/game/save/storage';
-import {
-	emitHudCommand,
-	onHudState,
-	type HudState
-} from '$lib/game/ui-bridge/events';
+import { emitHudCommand, onHudState, type HudState } from '$lib/game/ui-bridge/events';
 
 const initialSaveResult = loadStoredSaveResult();
+const emptyEquipped = Object.fromEntries(equipmentSlots.map((slot) => [slot, null])) as Record<
+	EquipmentSlot,
+	string | null
+>;
 
 const initialHudState: HudState = {
 	ready: false,
@@ -18,29 +19,48 @@ const initialHudState: HudState = {
 	level: 1,
 	xp: 0,
 	attack: startingPlayer.baseAttack,
+	defense: 0,
 	heals: 1,
 	canResume: initialSaveResult.status === 'loaded',
-	status: 'Loading game'
+	status: 'Loading game',
+	inventory: {
+		consumables: [],
+		equipment: [],
+		keyItems: [],
+		equipped: emptyEquipped
+	}
 };
 
 export const hudState = readable(initialHudState, (set) => onHudState(set));
 
 export function requestSave() {
-	emitHudCommand('save');
+	emitHudCommand({ type: 'save' });
 }
 
 export function requestResume() {
-	emitHudCommand('resume');
+	emitHudCommand({ type: 'resume-save' });
 }
 
 export function requestHeal() {
-	emitHudCommand('heal');
+	emitHudCommand({ type: 'heal' });
 }
 
 export function requestPauseGame() {
-	emitHudCommand('pause-game');
+	emitHudCommand({ type: 'pause-game' });
 }
 
 export function requestResumeGame() {
-	emitHudCommand('resume-game');
+	emitHudCommand({ type: 'resume-game' });
+}
+
+export function requestUseItem(itemId: string) {
+	emitHudCommand({ type: 'use-item', itemId });
+}
+
+export function requestEquipItem(itemId: string) {
+	emitHudCommand({ type: 'equip-item', itemId });
+}
+
+export function requestUnequipSlot(slot: EquipmentSlot) {
+	emitHudCommand({ type: 'unequip-slot', slot });
 }

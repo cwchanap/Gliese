@@ -1,5 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+import type { HudCommand } from '$lib/game/ui-bridge/events';
+
 const phaserState = vi.hoisted(() => {
 	const cursorKeys = {
 		left: { isDown: false },
@@ -393,22 +395,150 @@ describe('WorldScene', () => {
 		const { meadowEntryMap } = await import('$lib/game/content/maps');
 		const scene = new WorldScene();
 		const sceneState = scene as unknown as {
-			handleHudCommand: (command: 'pause-game' | 'resume-game') => void;
+			handleHudCommand: (command: HudCommand) => void;
 		};
 
 		scene.create({ mapId: meadowEntryMap.id });
 		phaserState.cursorKeys.right.isDown = true;
-		sceneState.handleHudCommand('pause-game');
+		sceneState.handleHudCommand({ type: 'pause-game' });
 
 		scene.update(0, 1000);
 
 		expect(phaserState.playerMarker.x).toBe(meadowEntryMap.spawn.x);
 		expect(phaserState.playerMarker.y).toBe(meadowEntryMap.spawn.y);
 
-		sceneState.handleHudCommand('resume-game');
+		sceneState.handleHudCommand({ type: 'resume-game' });
 		scene.update(1000, 1000);
 
 		expect(phaserState.playerMarker.x).toBe(meadowEntryMap.spawn.x + 30);
+	});
+
+	it('uses a field potion command to heal and publish the updated inventory', async () => {
+		const events = await import('$lib/game/ui-bridge/events');
+		const emitHudStateSpy = vi.spyOn(events, 'emitHudState');
+		const { createNewSaveState } = await import('$lib/game/save/save-state');
+		const { WorldScene } = await import('./WorldScene');
+		const scene = new WorldScene();
+		const sceneState = scene as unknown as {
+			handleHudCommand: (command: HudCommand) => void;
+		};
+
+		scene.create({
+			saveState: {
+				...createNewSaveState(),
+				player: {
+					...createNewSaveState().player,
+					hp: 10
+				},
+				inventory: {
+					stacks: [{ itemId: 'field-potion', quantity: 1 }],
+					equipment: ['training-sword']
+				}
+			}
+		});
+		sceneState.handleHudCommand({ type: 'use-item', itemId: 'field-potion' });
+
+		expect(emitHudStateSpy).toHaveBeenLastCalledWith(
+			expect.objectContaining({
+				hp: 18,
+				heals: 0,
+				status: 'Recovered HP',
+				inventory: expect.objectContaining({
+					consumables: [],
+					equipment: expect.arrayContaining([
+						expect.objectContaining({ itemId: 'training-sword', equipped: true })
+					])
+				})
+			})
+		);
+	});
+
+	it('equips owned equipment and publishes effective combat stats', async () => {
+		const events = await import('$lib/game/ui-bridge/events');
+		const emitHudStateSpy = vi.spyOn(events, 'emitHudState');
+		const { createNewSaveState } = await import('$lib/game/save/save-state');
+		const { WorldScene } = await import('./WorldScene');
+		const scene = new WorldScene();
+		const sceneState = scene as unknown as {
+			handleHudCommand: (command: HudCommand) => void;
+		};
+
+		scene.create({
+			saveState: {
+				...createNewSaveState(),
+				inventory: {
+					stacks: [],
+					equipment: ['ruin-blade', 'stone-mail']
+				},
+				equipment: {
+					weapon: null,
+					head: null,
+					body: null,
+					hands: null,
+					accessory: null
+				}
+			}
+		});
+		sceneState.handleHudCommand({ type: 'equip-item', itemId: 'ruin-blade' });
+		sceneState.handleHudCommand({ type: 'equip-item', itemId: 'stone-mail' });
+
+		expect(emitHudStateSpy).toHaveBeenLastCalledWith(
+			expect.objectContaining({
+				attack: 5,
+				defense: 1,
+				maxHp: 26,
+				inventory: expect.objectContaining({
+					equipped: expect.objectContaining({
+						weapon: 'ruin-blade',
+						body: 'stone-mail'
+					})
+				})
+			})
+		);
+	});
+
+	it('unequips a max HP item and clamps current HP to the lower max', async () => {
+		const events = await import('$lib/game/ui-bridge/events');
+		const emitHudStateSpy = vi.spyOn(events, 'emitHudState');
+		const { createNewSaveState } = await import('$lib/game/save/save-state');
+		const { WorldScene } = await import('./WorldScene');
+		const scene = new WorldScene();
+		const sceneState = scene as unknown as {
+			handleHudCommand: (command: HudCommand) => void;
+		};
+
+		scene.create({
+			saveState: {
+				...createNewSaveState(),
+				player: {
+					...createNewSaveState().player,
+					hp: 26
+				},
+				inventory: {
+					stacks: [],
+					equipment: ['stone-mail']
+				},
+				equipment: {
+					weapon: null,
+					head: null,
+					body: 'stone-mail',
+					hands: null,
+					accessory: null
+				}
+			}
+		});
+		sceneState.handleHudCommand({ type: 'unequip-slot', slot: 'body' });
+
+		expect(emitHudStateSpy).toHaveBeenLastCalledWith(
+			expect.objectContaining({
+				hp: 20,
+				maxHp: 20,
+				defense: 0,
+				inventory: expect.objectContaining({
+					equipped: expect.objectContaining({ body: null })
+				})
+			})
+		);
 	});
 
 	it('defeats an enemy within the melee attack window and applies the xp reward', async () => {
@@ -460,9 +590,9 @@ describe('WorldScene', () => {
 		scene.update(200, 16);
 		scene.update(400, 16);
 
-		expect(sceneState.enemy.hp).toBe(6);
+		expect(sceneState.enemy.hp).toBe(5);
 		expect(phaserState.enemyHealthBarFill.setScale).toHaveBeenLastCalledWith(
-			expect.closeTo(6 / 9, 5),
+			expect.closeTo(5 / 9, 5),
 			1
 		);
 	});
