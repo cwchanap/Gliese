@@ -41,7 +41,7 @@ const phaserState = vi.hoisted(() => {
 	};
 	const tilemap = {
 		addTilesetImage: vi.fn(() => ({ name: 'starter-ground-tiles' })),
-		createLayer: vi.fn(() => tilemapLayer)
+		createLayer: vi.fn((layerId: number | string) => (layerId === 0 ? tilemapLayer : null))
 	};
 
 	function createOverlayMarker() {
@@ -254,12 +254,14 @@ describe('WorldScene', () => {
 			32
 		);
 		expect(phaserState.tilemap.createLayer).toHaveBeenCalledWith(
-			'ground',
+			0,
 			expect.anything(),
 			0,
 			0
 		);
 		expect(phaserState.tilemapLayer.setDepth).toHaveBeenCalledWith(-10);
+		expect(tilemapCall.data[0][0]).toBe(0);
+		expect(tilemapCall.data[160][0]).toBe(1);
 		expect(scene.add.image).toHaveBeenCalledWith(
 			meadowEntryMap.spawn.x,
 			meadowEntryMap.spawn.y,
@@ -269,6 +271,27 @@ describe('WorldScene', () => {
 		expect(scene.add.image).toHaveBeenCalledWith(5_120, 5_120, 'starter-pack', 'slimeScout');
 		expect(scene.add.image).toHaveBeenCalledWith(9_984, 5_120, 'starter-pack', 'doorwayTile');
 		expect(scene.cameras.main.setBackgroundColor).toHaveBeenCalledWith('#1a1f2b');
+	});
+
+	it('renders ruins tilemap data with stone borders and floor interior', async () => {
+		const { WorldScene } = await import('./WorldScene');
+		const { ruinsThresholdMap } = await import('$lib/game/content/maps');
+		const scene = new WorldScene();
+
+		scene.create({ mapId: ruinsThresholdMap.id });
+
+		const tilemapCall = scene.make.tilemap.mock.calls[0]?.[0];
+		expect(tilemapCall.data[0][0]).toBe(3);
+		expect(tilemapCall.data[0][1]).toBe(3);
+		expect(tilemapCall.data[1][0]).toBe(3);
+		expect(tilemapCall.data[1][1]).toBe(2);
+		expect(phaserState.tilemap.createLayer).toHaveBeenCalledWith(
+			0,
+			expect.anything(),
+			0,
+			0
+		);
+		expect(phaserState.tilemapLayer.setDepth).toHaveBeenCalledWith(-10);
 	});
 
 	it('sets up camera follow and keyboard controls for the player marker', async () => {

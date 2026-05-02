@@ -77,10 +77,10 @@ export class WorldScene extends Phaser.Scene {
 		slimeScout: 0,
 		ruinsWarden: 0,
 		healFlask: 0,
-		grassTile: 1,
-		pathTile: 2,
-		ruinsFloorTile: 3,
-		stoneWallTile: 4,
+		grassTile: 0,
+		pathTile: 1,
+		ruinsFloorTile: 2,
+		stoneWallTile: 3,
 		doorwayTile: 0,
 		encounterTile: 0,
 		hudFrame: 0,
@@ -481,7 +481,7 @@ export class WorldScene extends Phaser.Scene {
 			WorldScene.tileSize,
 			WorldScene.tileSize
 		);
-		const layer = tilemap.createLayer('ground', tileset, 0, 0) as TilemapLayer | null;
+		const layer = tilemap.createLayer(0, tileset, 0, 0) as TilemapLayer | null;
 		layer?.setDepth?.(-10);
 	}
 
