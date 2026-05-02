@@ -3,7 +3,8 @@ import * as Phaser from 'phaser';
 import {
 	getEnemyFrameName,
 	getGroundFrameName,
-	starterPackAsset
+	starterPackAsset,
+	type StarterPackFrameName
 } from '$lib/game/content/assets';
 import { enemies, type EnemyCombatDefinition } from '$lib/game/content/enemies';
 import { maps, openingMapId, type MapTransition, type WorldMapDefinition } from '$lib/game/content/maps';
@@ -43,6 +44,10 @@ type OverlayMarker = {
 	setVisible: (visible: boolean) => unknown;
 };
 
+type TilemapLayer = {
+	setDepth?: (depth: number) => unknown;
+};
+
 type EnemyInstance = {
 	completion?: 'victory';
 	defeated: boolean;
@@ -66,6 +71,29 @@ export class WorldScene extends Phaser.Scene {
 	private static readonly maxMovementDeltaMs = 250;
 	private static readonly playerRadius = 12;
 	private static readonly tileSize = 32;
+	private static readonly terrainTilesetKey = 'starter-ground-tiles';
+	private static readonly terrainTileIndexes: Record<StarterPackFrameName, number> = {
+		hero: 0,
+		slimeScout: 0,
+		ruinsWarden: 0,
+		healFlask: 0,
+		grassTile: 1,
+		pathTile: 2,
+		ruinsFloorTile: 3,
+		stoneWallTile: 4,
+		doorwayTile: 0,
+		encounterTile: 0,
+		hudFrame: 0,
+		hpIcon: 0,
+		xpIcon: 0,
+		titleBadge: 0
+	};
+	private static readonly terrainFrames: StarterPackFrameName[] = [
+		'grassTile',
+		'pathTile',
+		'ruinsFloorTile',
+		'stoneWallTile'
+	];
 	private static readonly cameraFollowLerp = 0.14;
 	private static readonly transitionRadius = 18;
 	private static readonly enemyHealthBarOffsetY = 34;
@@ -130,6 +158,7 @@ export class WorldScene extends Phaser.Scene {
 		this.worldSize = { width, height };
 
 		this.registerStarterPackFrames();
+		this.ensureTerrainTilesetTexture();
 		this.renderGround(map);
 		this.player = this.add.image(
 			activeSave?.player.x ?? map.spawn.x,
@@ -397,27 +426,87 @@ export class WorldScene extends Phaser.Scene {
 		}
 	}
 
+	private ensureTerrainTilesetTexture() {
+		const textureManager = this.textures as typeof this.textures & {
+			exists?: (key: string) => boolean;
+			addCanvas?: (key: string, source: HTMLCanvasElement) => unknown;
+		};
+
+		if (textureManager.exists?.(WorldScene.terrainTilesetKey)) {
+			return;
+		}
+
+		const sourceImage = this.textures.get(starterPackAsset.key)?.source?.[0]?.image;
+
+		if (typeof document === 'undefined' || !sourceImage || !textureManager.addCanvas) {
+			return;
+		}
+
+		const canvas = document.createElement('canvas');
+		canvas.width = WorldScene.terrainFrames.length * WorldScene.tileSize;
+		canvas.height = WorldScene.tileSize;
+		const context = canvas.getContext('2d');
+
+		if (!context) {
+			return;
+		}
+
+		for (const [index, frameName] of WorldScene.terrainFrames.entries()) {
+			const frame = starterPackAsset.frames[frameName];
+			context.drawImage(
+				sourceImage,
+				frame.x,
+				frame.y,
+				frame.w,
+				frame.h,
+				index * WorldScene.tileSize,
+				0,
+				WorldScene.tileSize,
+				WorldScene.tileSize
+			);
+		}
+
+		textureManager.addCanvas(WorldScene.terrainTilesetKey, canvas);
+	}
+
 	private renderGround(map: WorldMapDefinition) {
-		const baseFrame = getGroundFrameName(map.id);
+		const tilemap = this.make.tilemap({
+			data: this.buildGroundTileData(map),
+			tileWidth: WorldScene.tileSize,
+			tileHeight: WorldScene.tileSize
+		});
+		const tileset = tilemap.addTilesetImage(
+			WorldScene.terrainTilesetKey,
+			WorldScene.terrainTilesetKey,
+			WorldScene.tileSize,
+			WorldScene.tileSize
+		);
+		const layer = tilemap.createLayer('ground', tileset, 0, 0) as TilemapLayer | null;
+		layer?.setDepth?.(0);
+	}
 
-		for (let row = 0; row < map.height; row += 1) {
-			for (let column = 0; column < map.width; column += 1) {
-				let frame = baseFrame;
+	private buildGroundTileData(map: WorldMapDefinition) {
+		const baseTile = WorldScene.terrainTileIndexes[getGroundFrameName(map.id)];
+		const pathTile = WorldScene.terrainTileIndexes.pathTile;
+		const stoneTile = WorldScene.terrainTileIndexes.stoneWallTile;
+		const centerRow = Math.floor(map.height / 2);
 
-				if (map.id === openingMapId && row === 2 && column >= 2 && column <= 11) {
-					frame = 'pathTile';
+		return Array.from({ length: map.height }, (_, row) =>
+			Array.from({ length: map.width }, (_, column) => {
+				if (map.id === openingMapId && Math.abs(row - centerRow) <= 1) {
+					return pathTile;
 				}
 
-				this.add
-					.image(
-						column * WorldScene.tileSize + WorldScene.tileSize / 2,
-						row * WorldScene.tileSize + WorldScene.tileSize / 2,
-						starterPackAsset.key,
-						frame
-					)
-					.setDisplaySize(WorldScene.tileSize, WorldScene.tileSize);
-			}
-		}
+				if (
+					map.id !== openingMapId &&
+					(row === 0 || column === 0 || row === map.height - 1 || column === map.width - 1)
+				) {
+					return stoneTile;
+				}
+
+				return baseTile;
+			})
+		);
 	}
 
 	private getEnemyMoveSpeed() {

@@ -36,6 +36,13 @@ const phaserState = vi.hoisted(() => {
 		has: vi.fn(() => false),
 		add: vi.fn()
 	};
+	const tilemapLayer = {
+		setDepth: vi.fn(() => tilemapLayer)
+	};
+	const tilemap = {
+		addTilesetImage: vi.fn(() => ({ name: 'starter-ground-tiles' })),
+		createLayer: vi.fn(() => tilemapLayer)
+	};
 
 	function createOverlayMarker() {
 		const marker = {
@@ -105,6 +112,9 @@ const phaserState = vi.hoisted(() => {
 				startFollow: vi.fn()
 			}
 		};
+		make = {
+			tilemap: vi.fn(() => tilemap)
+		};
 		input = {
 			keyboard: {
 				createCursorKeys: vi.fn(() => cursorKeys),
@@ -132,6 +142,8 @@ const phaserState = vi.hoisted(() => {
 		attackFlash,
 		victoryText,
 		textureMock,
+		tilemap,
+		tilemapLayer,
 		reset() {
 			Object.assign(enemyMarker, { x: 0, y: 0 });
 			playerMarker.setDisplaySize.mockClear();
@@ -152,6 +164,9 @@ const phaserState = vi.hoisted(() => {
 			attackFlash.setVisible.mockReset();
 			textureMock.has.mockClear();
 			textureMock.add.mockClear();
+			tilemap.addTilesetImage.mockClear();
+			tilemap.createLayer.mockClear();
+			tilemapLayer.setDepth.mockClear();
 			victoryText.setOrigin.mockReset();
 			rectangleQueue.splice(0, rectangleQueue.length, enemyHealthBarBg, enemyHealthBarFill, attackFlash, victoryOverlay);
 		}
@@ -217,22 +232,41 @@ describe('WorldScene', () => {
 		Object.assign(phaserState.playerMarker, { x: 0, y: 0 });
 	});
 
-	it('renders textured ground, a hero sprite, and encounter art for the resolved map', async () => {
+	it('renders tilemap ground, a hero sprite, and encounter art for the resolved map', async () => {
 		const { WorldScene } = await import('./WorldScene');
 		const { meadowEntryMap } = await import('$lib/game/content/maps');
 		const scene = new WorldScene();
 
 		scene.create({ mapId: meadowEntryMap.id });
 
+		expect(scene.make.tilemap).toHaveBeenCalledWith({
+			data: expect.any(Array),
+			tileWidth: 32,
+			tileHeight: 32
+		});
+		const tilemapCall = scene.make.tilemap.mock.calls[0]?.[0];
+		expect(tilemapCall.data).toHaveLength(320);
+		expect(tilemapCall.data[0]).toHaveLength(320);
+		expect(phaserState.tilemap.addTilesetImage).toHaveBeenCalledWith(
+			'starter-ground-tiles',
+			'starter-ground-tiles',
+			32,
+			32
+		);
+		expect(phaserState.tilemap.createLayer).toHaveBeenCalledWith(
+			'ground',
+			expect.anything(),
+			0,
+			0
+		);
 		expect(scene.add.image).toHaveBeenCalledWith(
 			meadowEntryMap.spawn.x,
 			meadowEntryMap.spawn.y,
 			'starter-pack',
 			'hero'
 		);
-		expect(scene.add.image).toHaveBeenCalledWith(304, 96, 'starter-pack', 'slimeScout');
-		expect(scene.add.image).toHaveBeenCalledWith(352, 96, 'starter-pack', 'doorwayTile');
-		expect(phaserState.textureMock.add).toHaveBeenCalled();
+		expect(scene.add.image).toHaveBeenCalledWith(5_120, 5_120, 'starter-pack', 'slimeScout');
+		expect(scene.add.image).toHaveBeenCalledWith(9_984, 5_120, 'starter-pack', 'doorwayTile');
 		expect(scene.cameras.main.setBackgroundColor).toHaveBeenCalledWith('#1a1f2b');
 	});
 
