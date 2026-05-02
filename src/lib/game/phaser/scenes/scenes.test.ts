@@ -554,6 +554,35 @@ describe('WorldScene', () => {
 		});
 	});
 
+	it('returns from the ruins core to the threshold after the boss encounter is cleared', async () => {
+		const { createNewSaveState } = await import('$lib/game/save/save-state');
+		const { WorldScene } = await import('./WorldScene');
+		const scene = new WorldScene();
+
+		scene.create({
+			saveState: {
+				...createNewSaveState(),
+				mapId: 'ruins-core',
+				flags: { clearedEncounters: ['ruins-warden'] }
+			}
+		});
+		Object.assign(phaserState.playerMarker, { x: 128, y: 1_280 });
+
+		scene.update(0, 16);
+
+		expect(scene.scene.restart).toHaveBeenCalledWith({
+			reason: 'transition',
+			saveState: expect.objectContaining({
+				mapId: 'ruins-threshold',
+				player: expect.objectContaining({
+					x: 9_856,
+					y: 5_120,
+					facing: 'left'
+				})
+			})
+		});
+	});
+
 	it('boots transitions with an area-entry status instead of save resumed', async () => {
 		const events = await import('$lib/game/ui-bridge/events');
 		const { createNewSaveState } = await import('$lib/game/save/save-state');
