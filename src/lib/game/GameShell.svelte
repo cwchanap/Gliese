@@ -45,9 +45,12 @@
 
 	function openInventory() {
 		if (inventoryOpen) return;
+		const wasSettingsOpen = settingsOpen;
 		inventoryOpen = true;
 		settingsOpen = false;
-		requestPauseGame();
+		if (!wasSettingsOpen) {
+			requestPauseGame();
+		}
 	}
 
 	function closeInventory() {
