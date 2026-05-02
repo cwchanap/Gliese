@@ -259,6 +259,7 @@ describe('WorldScene', () => {
 			0,
 			0
 		);
+		expect(phaserState.tilemapLayer.setDepth).toHaveBeenCalledWith(-10);
 		expect(scene.add.image).toHaveBeenCalledWith(
 			meadowEntryMap.spawn.x,
 			meadowEntryMap.spawn.y,

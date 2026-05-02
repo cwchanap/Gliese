@@ -482,7 +482,7 @@ export class WorldScene extends Phaser.Scene {
 			WorldScene.tileSize
 		);
 		const layer = tilemap.createLayer('ground', tileset, 0, 0) as TilemapLayer | null;
-		layer?.setDepth?.(0);
+		layer?.setDepth?.(-10);
 	}
 
 	private buildGroundTileData(map: WorldMapDefinition) {
