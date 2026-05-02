@@ -28,9 +28,9 @@ Room dimensions are expressed in tiles. Pixel dimensions are derived from the gl
 
 | Room              | Tile Size | Tile Dimensions | Pixel Dimensions |
 | ----------------- | --------- | --------------- | ---------------- |
-| `meadow-entry`    | `32px`    | `320 x 320`     | `10240 x 10240`  |
-| `ruins-threshold` | `32px`    | `320 x 320`     | `10240 x 10240`  |
-| `ruins-core`      | `32px`    | `80 x 80`       | `2560 x 2560`    |
+| `meadow-entry`    | `32px`    | `80 x 80`       | `2560 x 2560`    |
+| `ruins-threshold` | `32px`    | `30 x 30`       | `960 x 960`      |
+| `ruins-core`      | `32px`    | `30 x 30`       | `960 x 960`      |
 
 The map definition model should continue to own `width` and `height` as tile counts. `WorldScene` should derive pixel bounds with:
 
@@ -113,4 +113,4 @@ Svelte changes are not expected for the initial implementation. If Svelte files 
 - Rooms may have different dimensions.
 - Tile size remains global and identical for all rooms.
 - Initial implementation uses Phaser tilemaps rather than image-per-tile rendering.
-- `ruins-core` starts smaller than the first two rooms.
+- The entry room starts larger than the ruin rooms.
