@@ -21,7 +21,7 @@ export function resolveLootDrops(
 	}
 
 	return [
-		...loot.guaranteed,
+		...loot.guaranteed.map((drop) => ({ ...drop })),
 		...loot.chance
 			.filter((drop) => random() < drop.chance)
 			.map(({ chance: _chance, ...drop }) => drop)
