@@ -23,6 +23,9 @@ describe('inventory core', () => {
 
 		expect(addItem(inventory, 'missing-item', 1)).toBe(inventory);
 		expect(addItem(inventory, 'field-potion', 0)).toBe(inventory);
+		expect(addItem(inventory, 'field-potion', Number.NaN)).toBe(inventory);
+		expect(addItem(inventory, 'field-potion', Number.POSITIVE_INFINITY)).toBe(inventory);
+		expect(addItem(inventory, 'field-potion', 1.5)).toBe(inventory);
 	});
 
 	it('consumes stack quantities and removes empty stacks', () => {
@@ -45,5 +48,22 @@ describe('inventory core', () => {
 			consumed: false,
 			inventory: createEmptyInventory()
 		});
+	});
+
+	it('rejects consuming unknown, equipment, and invalid stack quantities', () => {
+		const unknownItemInventory = { stacks: [{ itemId: 'missing-item', quantity: 1 }], equipment: [] };
+		const equipmentInventory = { stacks: [{ itemId: 'training-sword', quantity: 1 }], equipment: [] };
+		const invalidQuantityInventory = { stacks: [{ itemId: 'field-potion', quantity: 0 }], equipment: [] };
+
+		const unknownItemResult = consumeStackItem(unknownItemInventory, 'missing-item');
+		const equipmentResult = consumeStackItem(equipmentInventory, 'training-sword');
+		const invalidQuantityResult = consumeStackItem(invalidQuantityInventory, 'field-potion');
+
+		expect(unknownItemResult.consumed).toBe(false);
+		expect(unknownItemResult.inventory).toBe(unknownItemInventory);
+		expect(equipmentResult.consumed).toBe(false);
+		expect(equipmentResult.inventory).toBe(equipmentInventory);
+		expect(invalidQuantityResult.consumed).toBe(false);
+		expect(invalidQuantityResult.inventory).toBe(invalidQuantityInventory);
 	});
 });

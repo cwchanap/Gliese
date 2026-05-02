@@ -14,10 +14,14 @@ export function createEmptyInventory(): InventoryState {
 	return { stacks: [], equipment: [] };
 }
 
+function isPositiveIntegerQuantity(value: number): boolean {
+	return Number.isFinite(value) && Number.isInteger(value) && value >= 1;
+}
+
 export function addItem(inventory: InventoryState, itemId: string, quantity = 1): InventoryState {
 	const item = getItem(itemId);
 
-	if (!item || quantity < 1) {
+	if (!item || !isPositiveIntegerQuantity(quantity)) {
 		return inventory;
 	}
 
@@ -42,8 +46,9 @@ export function consumeStackItem(
 	itemId: string
 ): { consumed: boolean; inventory: InventoryState } {
 	const existing = inventory.stacks.find((stack) => stack.itemId === itemId);
+	const item = getItem(itemId);
 
-	if (!existing) {
+	if (!existing || !item?.stackable || !isPositiveIntegerQuantity(existing.quantity)) {
 		return { consumed: false, inventory };
 	}
 
