@@ -1,6 +1,6 @@
 import { parseSaveState, serializeSaveState, type SaveState } from '$lib/game/save/save-state';
 
-export const SAVE_STORAGE_KEY = 'gliese.save.v1';
+export const SAVE_STORAGE_KEY = 'gliese.save.v2';
 
 type SaveStorage = Pick<Storage, 'getItem' | 'removeItem' | 'setItem'>;
 
@@ -9,7 +9,9 @@ export type StoredSaveResult =
 	| { status: 'invalid'; saveState: null }
 	| { status: 'loaded'; saveState: SaveState };
 
-export function loadStoredSaveState(storage: SaveStorage | undefined = globalThis.localStorage): SaveState | null {
+export function loadStoredSaveState(
+	storage: SaveStorage | undefined = globalThis.localStorage
+): SaveState | null {
 	const result = loadStoredSaveResult(storage);
 	return result.status === 'loaded' ? result.saveState : null;
 }
@@ -50,7 +52,9 @@ export function saveGameState(
 	storeSaveState(saveState, storage);
 }
 
-export function clearStoredSaveState(storage: SaveStorage | undefined = globalThis.localStorage): void {
+export function clearStoredSaveState(
+	storage: SaveStorage | undefined = globalThis.localStorage
+): void {
 	resolveStorage(storage)?.removeItem(SAVE_STORAGE_KEY);
 }
 

@@ -26,8 +26,8 @@ describe('save storage', () => {
 
 		saveGameState(save, storage);
 
-		expect(storage.getItem('gliese.save.v1')).toContain('"mapId":"meadow-entry"');
-		expect(storage.getItem('gliese.save.v1')).toContain('"version":2');
+		expect(storage.getItem('gliese.save.v2')).toContain('"mapId":"meadow-entry"');
+		expect(storage.getItem('gliese.save.v2')).toContain('"version":2');
 		expect(loadStoredSaveResult(storage)).toEqual({ status: 'loaded', saveState: save });
 		expect(loadStoredSaveResult(storage).saveState?.inventory.stacks).toEqual([
 			{ itemId: 'field-potion', quantity: 1 }
@@ -37,9 +37,16 @@ describe('save storage', () => {
 	it('reports invalid saved payloads separately from missing saves', () => {
 		const storage = createStorage();
 		const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
-		storage.setItem('gliese.save.v1', '{"version":1,"bad":true}');
+		storage.setItem('gliese.save.v2', '{"version":1,"bad":true}');
 
 		expect(loadStoredSaveResult(storage)).toEqual({ status: 'invalid', saveState: null });
 		expect(warnSpy).toHaveBeenCalled();
+	});
+
+	it('does not read obsolete v1 save slots', () => {
+		const storage = createStorage();
+		storage.setItem('gliese.save.v1', '{"version":1,"mapId":"meadow-entry"}');
+
+		expect(loadStoredSaveResult(storage)).toEqual({ status: 'missing', saveState: null });
 	});
 });
