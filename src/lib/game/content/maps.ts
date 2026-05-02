@@ -18,12 +18,22 @@ export interface MapEncounter {
 	completion?: 'victory';
 }
 
+export interface MapPickup {
+	id: string;
+	x: number;
+	y: number;
+	itemId: string;
+	quantity: number;
+	label?: string;
+}
+
 export interface WorldMapDefinition extends MapDefinition {
 	spawn: {
 		x: number;
 		y: number;
 	};
 	transitions: MapTransition[];
+	pickups?: MapPickup[];
 	encounter?: MapEncounter;
 }
 
@@ -42,6 +52,11 @@ export const meadowEntryMap: WorldMapDefinition = {
 			toMapId: 'ruins-threshold',
 			arrival: { x: 256, y: 480, facing: 'right' }
 		}
+	],
+	pickups: [
+		{ id: 'meadow-entry-potion', x: 512, y: 1_184, itemId: 'field-potion', quantity: 2 },
+		{ id: 'meadow-entry-charm', x: 896, y: 1_408, itemId: 'meadow-charm', quantity: 1 },
+		{ id: 'meadow-entry-token', x: 1_024, y: 1_152, itemId: 'meadow-token', quantity: 1 }
 	],
 	encounter: { x: 1_280, y: 1_280, enemyId: 'slime-scout' }
 };
@@ -65,6 +80,11 @@ export const ruinsThresholdMap: WorldMapDefinition = {
 			toMapId: 'ruins-core',
 			arrival: { x: 256, y: 480, facing: 'right' }
 		}
+	],
+	pickups: [
+		{ id: 'ruins-threshold-cap', x: 416, y: 352, itemId: 'iron-cap', quantity: 1 },
+		{ id: 'ruins-threshold-rune', x: 576, y: 608, itemId: 'threshold-rune', quantity: 1 },
+		{ id: 'ruins-threshold-salve', x: 320, y: 640, itemId: 'sunleaf-salve', quantity: 2 }
 	]
 };
 
@@ -81,6 +101,10 @@ export const ruinsCoreMap: WorldMapDefinition = {
 			toMapId: 'ruins-threshold',
 			arrival: { x: 576, y: 480, facing: 'left' }
 		}
+	],
+	pickups: [
+		{ id: 'ruins-core-mail', x: 448, y: 608, itemId: 'stone-mail', quantity: 1 },
+		{ id: 'ruins-core-draught', x: 544, y: 352, itemId: 'ruin-draught', quantity: 1 }
 	],
 	encounter: { x: 640, y: 480, enemyId: 'ruins-warden', completion: 'victory' }
 };

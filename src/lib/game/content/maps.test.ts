@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { meadowEntryMap, ruinsThresholdMap } from '$lib/game/content/maps';
+import { items } from '$lib/game/content/items';
+import { maps, meadowEntryMap, ruinsThresholdMap } from '$lib/game/content/maps';
 
 describe('opening map content', () => {
 	it('declares a spawn point, opening encounter, and connected exit', () => {
@@ -31,5 +32,23 @@ describe('opening map content', () => {
 				facing: 'left'
 			}
 		});
+	});
+
+	it('defines valid placed pickups with stable ids and item ids', () => {
+		const pickups = Object.values(maps).flatMap((map) => map.pickups ?? []);
+
+		expect(pickups.length).toBeGreaterThan(0);
+		expect(new Set(pickups.map((pickup) => pickup.id)).size).toBe(pickups.length);
+
+		for (const map of Object.values(maps)) {
+			for (const pickup of map.pickups ?? []) {
+				expect(items[pickup.itemId]).toBeDefined();
+				expect(pickup.quantity).toBeGreaterThan(0);
+				expect(pickup.x).toBeGreaterThanOrEqual(0);
+				expect(pickup.y).toBeGreaterThanOrEqual(0);
+				expect(pickup.x).toBeLessThanOrEqual(map.width * 32);
+				expect(pickup.y).toBeLessThanOrEqual(map.height * 32);
+			}
+		}
 	});
 });
