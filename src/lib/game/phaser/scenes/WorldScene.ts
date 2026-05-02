@@ -6,7 +6,7 @@ import {
 	starterPackAsset
 } from '$lib/game/content/assets';
 import { enemies, type EnemyCombatDefinition } from '$lib/game/content/enemies';
-import { maps, openingMapId, type WorldMapDefinition } from '$lib/game/content/maps';
+import { maps, openingMapId, type MapTransition, type WorldMapDefinition } from '$lib/game/content/maps';
 import { startingPlayer } from '$lib/game/content/player';
 import { advanceBossPhase } from '$lib/game/core/boss';
 import { canReceiveHit, resolveHit } from '$lib/game/core/combat';
@@ -35,6 +35,14 @@ type EnemyMarker = {
 	setVisible: (visible: boolean) => unknown;
 };
 
+type OverlayMarker = {
+	x?: number;
+	y?: number;
+	setPosition: (x: number, y: number) => unknown;
+	setScale: (x: number, y?: number) => unknown;
+	setVisible: (visible: boolean) => unknown;
+};
+
 type EnemyInstance = {
 	completion?: 'victory';
 	defeated: boolean;
@@ -50,25 +58,30 @@ type EnemyInstance = {
 
 export class WorldScene extends Phaser.Scene {
 	static readonly key = 'world';
-	private static readonly attackReach = 24;
-	private static readonly attackWindowMs = 150;
+	private static readonly attackReach = 40;
+	private static readonly attackFlashDurationMs = 150;
+	private static readonly autoAttackCooldownMs = 450;
 	private static readonly enemyInvulnerabilityMs = 250;
 	private static readonly enemyRadius = 10;
 	private static readonly maxMovementDeltaMs = 250;
 	private static readonly playerRadius = 12;
 	private static readonly tileSize = 32;
 	private static readonly transitionRadius = 18;
+	private static readonly enemyHealthBarOffsetY = 34;
 
-	private attackKey?: DirectionKey;
-	private attackWindowUntil = 0;
+	private attackFlash?: OverlayMarker;
+	private attackFlashUntil = 0;
 	private clearedEncounterIds = new Set<string>();
 	private cursorKeys?: Partial<Record<'left' | 'right' | 'up' | 'down', DirectionKey>>;
 	private enemy?: EnemyInstance;
+	private enemyHealthBarBg?: OverlayMarker;
+	private enemyHealthBarFill?: OverlayMarker;
 	private enemyMarker?: EnemyMarker;
 	private facing: Direction = 'down';
 	private healCharges = 1;
 	private mapId = openingMapId;
 	private player?: Phaser.GameObjects.Image;
+	private playerAttackCooldownUntil = 0;
 	private playerInvulnerableUntil = 0;
 	private playerProgress: ProgressionState = {
 		level: 1,
@@ -79,7 +92,6 @@ export class WorldScene extends Phaser.Scene {
 	private removeHudCommandListener = () => {};
 	private simulationPaused = false;
 	private victoryAchieved = false;
-	private wasAttackKeyDown = false;
 	private wasdKeys?: Partial<Record<'left' | 'right' | 'up' | 'down', DirectionKey>>;
 	private worldSize = { width: 0, height: 0 };
 
@@ -94,9 +106,12 @@ export class WorldScene extends Phaser.Scene {
 		const height = map.height * WorldScene.tileSize;
 		const reason = data.reason ?? (activeSave ? 'resume' : 'new');
 
-		this.attackWindowUntil = 0;
+		this.attackFlashUntil = 0;
+		this.attackFlash = undefined;
 		this.clearedEncounterIds = new Set(activeSave?.flags.clearedEncounters ?? []);
 		this.enemy = undefined;
+		this.enemyHealthBarBg = undefined;
+		this.enemyHealthBarFill = undefined;
 		this.enemyMarker = undefined;
 		this.facing = activeSave?.player.facing ?? map.spawnDirection;
 		this.healCharges = activeSave?.consumables.heals ?? 1;
@@ -108,9 +123,9 @@ export class WorldScene extends Phaser.Scene {
 			attack: activeSave?.player.attack ?? startingPlayer.baseAttack
 		};
 		this.playerInvulnerableUntil = 0;
+		this.playerAttackCooldownUntil = 0;
 		this.simulationPaused = false;
 		this.victoryAchieved = false;
-		this.wasAttackKeyDown = false;
 		this.worldSize = { width, height };
 
 		this.registerStarterPackFrames();
@@ -137,7 +152,6 @@ export class WorldScene extends Phaser.Scene {
 			up: Phaser.Input.Keyboard.KeyCodes.W,
 			down: Phaser.Input.Keyboard.KeyCodes.S
 		}) as Partial<Record<'left' | 'right' | 'up' | 'down', DirectionKey>> | undefined;
-		this.attackKey = this.input?.keyboard?.addKey?.(Phaser.Input.Keyboard.KeyCodes.SPACE);
 		this.removeHudCommandListener();
 		this.removeHudCommandListener = onHudCommand((command) => this.handleHudCommand(command));
 		this.events?.once?.('shutdown', () => this.removeHudCommandListener());
@@ -153,7 +167,6 @@ export class WorldScene extends Phaser.Scene {
 		}
 
 		if (this.simulationPaused) {
-			this.wasAttackKeyDown = Boolean(this.attackKey?.isDown);
 			return;
 		}
 
@@ -177,36 +190,31 @@ export class WorldScene extends Phaser.Scene {
 			return;
 		}
 
-		const isAttackPressed = Boolean(this.attackKey?.isDown);
-
-		if (isAttackPressed && !this.wasAttackKeyDown && time >= this.attackWindowUntil) {
-			this.attackWindowUntil = time + WorldScene.attackWindowMs;
+		if (time >= this.attackFlashUntil) {
+			this.attackFlash?.setVisible(false);
 		}
-		this.wasAttackKeyDown = isAttackPressed;
 
-		if (this.enemy && !this.enemy.defeated && time < this.attackWindowUntil) {
-			const distanceToEnemy = Phaser.Math.Distance.Between(
-				this.player.x,
-				this.player.y,
-				this.enemy.x,
-				this.enemy.y
-			);
+		if (
+			this.enemy &&
+			!this.enemy.defeated &&
+			time >= this.playerAttackCooldownUntil &&
+			this.canHeroAttackEnemy(time)
+		) {
+			this.playerAttackCooldownUntil = time + WorldScene.autoAttackCooldownMs;
+			this.attackFlashUntil = time + WorldScene.attackFlashDurationMs;
+			this.showAttackFlash();
+			this.enemy.hp = resolveHit(
+				{ hp: this.enemy.hp, defense: 0 },
+				{ power: this.playerProgress.attack }
+			).hp;
+			this.enemy.invulnerableUntil = time + WorldScene.enemyInvulnerabilityMs;
+			this.updateEnemyHealthBar();
+			this.updateBossPhase();
 
-			if (
-				distanceToEnemy <=
-					WorldScene.playerRadius + WorldScene.enemyRadius + WorldScene.attackReach &&
-				canReceiveHit(this.enemy, time)
-			) {
-				this.enemy.hp = resolveHit(
-					{ hp: this.enemy.hp, defense: 0 },
-					{ power: this.playerProgress.attack }
-				).hp;
-				this.enemy.invulnerableUntil = time + WorldScene.enemyInvulnerabilityMs;
-				this.updateBossPhase();
-
-				if (this.enemy.hp === 0) {
-					this.finishEncounter();
-				}
+			if (this.enemy.hp === 0) {
+				this.finishEncounter();
+			} else {
+				this.publishHudState('Strike landed');
 			}
 		}
 
@@ -226,6 +234,25 @@ export class WorldScene extends Phaser.Scene {
 			...this.playerProgress,
 			xp: this.playerProgress.xp + xpReward
 		};
+	}
+
+	private canHeroAttackEnemy(time: number) {
+		if (!this.player || !this.enemy || this.enemy.defeated) {
+			return false;
+		}
+
+		const distanceToEnemy = Phaser.Math.Distance.Between(
+			this.player.x,
+			this.player.y,
+			this.enemy.x,
+			this.enemy.y
+		);
+
+		return (
+			distanceToEnemy <=
+				WorldScene.playerRadius + WorldScene.enemyRadius + WorldScene.attackReach &&
+			canReceiveHit(this.enemy, time)
+		);
 	}
 
 	private buildSaveState(): SaveState {
@@ -250,8 +277,9 @@ export class WorldScene extends Phaser.Scene {
 		};
 	}
 
-	private buildTransitionSaveState(toMapId: string): SaveState {
-		const nextMap = this.resolveMap(toMapId);
+	private buildTransitionSaveState(transition: MapTransition): SaveState {
+		const nextMap = this.resolveMap(transition.toMapId);
+		const arrival = transition.arrival;
 		const saveState = this.buildSaveState();
 
 		return {
@@ -259,9 +287,9 @@ export class WorldScene extends Phaser.Scene {
 			mapId: nextMap.id,
 			player: {
 				...saveState.player,
-				x: nextMap.spawn.x,
-				y: nextMap.spawn.y,
-				facing: nextMap.spawnDirection
+				x: arrival?.x ?? nextMap.spawn.x,
+				y: arrival?.y ?? nextMap.spawn.y,
+				facing: arrival?.facing ?? nextMap.spawnDirection
 			}
 		};
 	}
@@ -294,6 +322,8 @@ export class WorldScene extends Phaser.Scene {
 
 		this.enemy.defeated = true;
 		this.enemyMarker?.setVisible(false);
+		this.enemyHealthBarBg?.setVisible(false);
+		this.enemyHealthBarFill?.setVisible(false);
 		this.clearedEncounterIds.add(this.enemy.definition.id);
 		this.playerProgress = this.applyReward(this.enemy.definition.xpReward);
 
@@ -470,9 +500,28 @@ export class WorldScene extends Phaser.Scene {
 		);
 		this.enemyMarker.x = encounter.x;
 		this.enemyMarker.y = encounter.y;
+		this.enemyHealthBarBg = this.add.rectangle(
+			encounter.x,
+			encounter.y - WorldScene.enemyHealthBarOffsetY,
+			34,
+			4,
+			0x0f172a,
+			0.92
+		) as OverlayMarker;
+		this.enemyHealthBarFill = this.add.rectangle(
+			encounter.x,
+			encounter.y - WorldScene.enemyHealthBarOffsetY,
+			30,
+			2,
+			0xff5d8f,
+			1
+		) as OverlayMarker;
+		this.updateEnemyHealthBar();
 
 		if (isCleared) {
 			this.enemyMarker.setVisible(false);
+			this.enemyHealthBarBg?.setVisible(false);
+			this.enemyHealthBarFill?.setVisible(false);
 
 			if (encounter.completion === 'victory') {
 				this.showVictoryState();
@@ -526,7 +575,7 @@ export class WorldScene extends Phaser.Scene {
 
 			if (distance <= WorldScene.playerRadius + WorldScene.transitionRadius) {
 				this.scene.restart({
-					saveState: this.buildTransitionSaveState(transition.toMapId),
+					saveState: this.buildTransitionSaveState(transition),
 					reason: 'transition'
 				});
 				return true;
@@ -580,6 +629,7 @@ export class WorldScene extends Phaser.Scene {
 				this.enemyMarker.x = this.enemy.x;
 				this.enemyMarker.y = this.enemy.y;
 			}
+			this.updateEnemyHealthBar();
 		}
 
 		const contactDistance = Phaser.Math.Distance.Between(
@@ -607,5 +657,61 @@ export class WorldScene extends Phaser.Scene {
 		this.enemy.attackCooldownUntil = time + (this.enemy.definition.boss ? 450 : 700);
 		this.playerInvulnerableUntil = time + 500;
 		this.publishHudState(this.playerProgress.hp === 0 ? 'Hero down' : 'Enemy struck first');
+	}
+
+	private getAttackFlashPosition() {
+		if (!this.player) {
+			return { x: 0, y: 0 };
+		}
+
+		if (this.facing === 'left') {
+			return { x: this.player.x - 20, y: this.player.y };
+		}
+
+		if (this.facing === 'right') {
+			return { x: this.player.x + 20, y: this.player.y };
+		}
+
+		if (this.facing === 'up') {
+			return { x: this.player.x, y: this.player.y - 20 };
+		}
+
+		return { x: this.player.x, y: this.player.y + 20 };
+	}
+
+	private showAttackFlash() {
+		if (!this.player) {
+			return;
+		}
+
+		if (!this.attackFlash) {
+			this.attackFlash = this.add.rectangle(this.player.x, this.player.y, 18, 18, 0xfff0a8, 0.82) as OverlayMarker;
+		}
+
+		const { x, y } = this.getAttackFlashPosition();
+		this.attackFlash.setPosition(x, y);
+		this.attackFlash.setVisible(true);
+	}
+
+	private updateEnemyHealthBar() {
+		if (!this.enemy || !this.enemyHealthBarBg || !this.enemyHealthBarFill) {
+			return;
+		}
+
+		if (this.enemy.defeated) {
+			this.enemyHealthBarBg.setVisible(false);
+			this.enemyHealthBarFill.setVisible(false);
+			return;
+		}
+
+		const hpRatio = Math.max(0, this.enemy.hp / Math.max(this.enemy.maxHp, 1));
+		const x = this.enemy.x;
+		const y = this.enemy.y - WorldScene.enemyHealthBarOffsetY;
+
+		this.enemyHealthBarBg.setPosition(x, y);
+		this.enemyHealthBarFill.setPosition(x, y);
+		this.enemyHealthBarBg.setVisible(true);
+		this.enemyHealthBarFill.setVisible(true);
+		this.enemyHealthBarFill.setScale(hpRatio, 1);
 	}
 }

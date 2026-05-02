@@ -77,72 +77,57 @@
 
 	<div class="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(130,180,255,0.18),transparent_38%),linear-gradient(180deg,rgba(7,10,26,0.1),rgba(4,6,18,0.58)_85%,rgba(3,4,10,0.82))]"></div>
 
-	<section class="absolute right-4 top-4 z-20 flex items-start gap-3 sm:right-6 sm:top-6">
-		<div class="pointer-events-auto">
-			<button
-				type="button"
-				class="hud-menu-button rounded-full border border-white/14 bg-[linear-gradient(135deg,rgba(24,32,68,0.92),rgba(12,18,38,0.92))] px-4 py-3 text-[0.7rem] font-black uppercase tracking-[0.28em] text-cyan-50 shadow-[0_18px_40px_rgba(0,0,0,0.34)] transition hover:-translate-y-0.5 hover:border-cyan-200/40"
-				onclick={() => (settingsOpen ? closeSettings() : openSettings())}
-				aria-expanded={settingsOpen}
-				aria-controls="game-settings-panel"
-			>
-				Menu
-			</button>
-		</div>
-
-		<div
-			class="pointer-events-none w-[min(22rem,calc(100vw-6.5rem))] rounded-[1.8rem] border border-white/12 bg-[linear-gradient(145deg,rgba(11,18,44,0.84),rgba(13,10,35,0.7)_55%,rgba(16,46,94,0.68))] px-4 py-4 shadow-[0_24px_70px_rgba(0,0,0,0.38)] backdrop-blur-md"
+	<div class="pointer-events-auto absolute right-4 top-4 z-20 sm:right-6 sm:top-6">
+		<button
+			type="button"
+			class="hud-menu-button rounded-full border border-white/14 bg-[linear-gradient(135deg,rgba(24,32,68,0.92),rgba(12,18,38,0.92))] px-4 py-3 text-[0.7rem] font-black uppercase tracking-[0.28em] text-cyan-50 shadow-[0_18px_40px_rgba(0,0,0,0.34)] transition hover:-translate-y-0.5 hover:border-cyan-200/40"
+			onclick={() => (settingsOpen ? closeSettings() : openSettings())}
+			aria-expanded={settingsOpen}
+			aria-controls="game-settings-panel"
 		>
-			<div class="flex items-start justify-between gap-3">
-				<div>
-					<p class="text-[0.62rem] font-black uppercase tracking-[0.34em] text-sky-100/68">
-						Field Status
-					</p>
-					<h1 class="mt-1 text-xl font-black uppercase tracking-[0.11em] text-white">
-						Lv. {$hudState.level}
-					</h1>
-				</div>
-				<div class="text-right">
-					<p class="text-[0.62rem] font-black uppercase tracking-[0.28em] text-fuchsia-100/60">
-						{$hudState.mapId}
-					</p>
-					<p class="mt-1 text-lg font-black text-amber-200">ATK {$hudState.attack}</p>
-				</div>
-			</div>
+			Menu
+		</button>
+	</div>
 
-			<div class="mt-4 grid gap-3">
-				<div class="grid gap-1.5">
-					<div class="flex items-center justify-between text-[0.68rem] font-black uppercase tracking-[0.28em] text-rose-50/85">
-						<span>HP</span>
-						<span>{$hudState.hp} / {$hudState.maxHp}</span>
-					</div>
-					<div
-						class="h-3 overflow-hidden rounded-full bg-white/10 ring-1 ring-white/10"
-					>
-						<div
-							class="h-full rounded-full bg-[linear-gradient(90deg,#ff5d8f_0%,#ff7f7a_40%,#ffd26a_100%)] shadow-[0_0_24px_rgba(255,112,145,0.65)] transition-[width] duration-300"
-							style={`width: ${hpPercent}%`}
-						></div>
-					</div>
+	<section class="pointer-events-none absolute bottom-4 left-4 z-20 sm:bottom-6 sm:left-6">
+		<div
+			class="w-[min(25rem,calc(100vw-2rem))] rounded-[1.5rem] border border-white/12 bg-[linear-gradient(145deg,rgba(10,16,40,0.92),rgba(14,12,36,0.84)_55%,rgba(20,32,72,0.8))] px-4 py-3 shadow-[0_24px_60px_rgba(0,0,0,0.34)] backdrop-blur-md"
+		>
+			<div class="grid grid-cols-[auto_minmax(0,1fr)] items-center gap-x-4 gap-y-2">
+				<div
+					class="flex h-14 w-14 flex-col items-center justify-center rounded-2xl border border-fuchsia-300/20 bg-fuchsia-300/10 text-center shadow-[inset_0_1px_0_rgba(255,255,255,0.1)]"
+				>
+					<span class="text-[0.58rem] font-black uppercase tracking-[0.28em] text-fuchsia-100/70">
+						LV
+					</span>
+					<span class="mt-1 text-xl font-black text-white">{$hudState.level}</span>
 				</div>
 
-				<div class="grid gap-1.5">
-					<div class="flex items-center justify-between text-[0.68rem] font-black uppercase tracking-[0.28em] text-cyan-50/80">
-						<span>XP</span>
-						<span>{$hudState.xp} / {xpTarget}</span>
+				<div class="grid gap-2">
+					<div class="grid gap-1">
+						<div class="flex items-center justify-between text-[0.66rem] font-black uppercase tracking-[0.26em] text-rose-50/80">
+							<span>HP</span>
+							<span>{$hudState.hp} / {$hudState.maxHp}</span>
+						</div>
+						<div class="h-3 overflow-hidden rounded-full bg-white/10 ring-1 ring-white/10">
+							<div
+								class="h-full rounded-full bg-[linear-gradient(90deg,#ff5d8f_0%,#ff7f7a_40%,#ffd26a_100%)] shadow-[0_0_20px_rgba(255,112,145,0.55)] transition-[width] duration-300"
+								style={`width: ${hpPercent}%`}
+							></div>
+						</div>
 					</div>
-					<div class="h-2.5 overflow-hidden rounded-full bg-white/10 ring-1 ring-white/10">
-						<div
-							class="h-full rounded-full bg-[linear-gradient(90deg,#5de0ff_0%,#7f8bff_55%,#d98bff_100%)] shadow-[0_0_24px_rgba(110,164,255,0.55)] transition-[width] duration-300"
-							style={`width: ${xpPercent}%`}
-						></div>
-					</div>
-				</div>
 
-				<div class="flex items-center justify-between gap-3 text-[0.74rem] font-semibold tracking-[0.03em] text-slate-100/88">
-					<p class="line-clamp-1 flex-1">{$hudState.status}</p>
-					<div class="rounded-full border border-emerald-300/18 bg-emerald-300/8 px-3 py-1 font-black uppercase tracking-[0.24em] text-emerald-100">
-						Heal {$hudState.heals}
+					<div class="grid gap-1">
+						<div class="flex items-center justify-between text-[0.66rem] font-black uppercase tracking-[0.26em] text-cyan-50/76">
+							<span>XP</span>
+							<span>{$hudState.xp} / {xpTarget}</span>
+						</div>
+						<div class="h-2.5 overflow-hidden rounded-full bg-white/10 ring-1 ring-white/10">
+							<div
+								class="h-full rounded-full bg-[linear-gradient(90deg,#5de0ff_0%,#7f8bff_55%,#d98bff_100%)] shadow-[0_0_20px_rgba(110,164,255,0.45)] transition-[width] duration-300"
+								style={`width: ${xpPercent}%`}
+							></div>
+						</div>
 					</div>
 				</div>
 			</div>

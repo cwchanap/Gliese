@@ -13,7 +13,6 @@ const phaserState = vi.hoisted(() => {
 		up: { isDown: false },
 		down: { isDown: false }
 	};
-	const attackKey = { isDown: false };
 	const playerMarker = {
 		x: 0,
 		y: 0,
@@ -37,6 +36,38 @@ const phaserState = vi.hoisted(() => {
 		has: vi.fn(() => false),
 		add: vi.fn()
 	};
+
+	function createOverlayMarker() {
+		const marker = {
+			x: 0,
+			y: 0,
+			scaleX: 1,
+			scaleY: 1,
+			visible: true,
+			setPosition: vi.fn((x: number, y: number) => {
+				marker.x = x;
+				marker.y = y;
+				return marker;
+			}),
+			setScale: vi.fn((x: number, y?: number) => {
+				marker.scaleX = x;
+				marker.scaleY = y ?? x;
+				return marker;
+			}),
+			setVisible: vi.fn((visible: boolean) => {
+				marker.visible = visible;
+				return marker;
+			})
+		};
+
+		return marker;
+	}
+
+	const enemyHealthBarBg = createOverlayMarker();
+	const enemyHealthBarFill = createOverlayMarker();
+	const attackFlash = createOverlayMarker();
+	const victoryOverlay = createOverlayMarker();
+	const rectangleQueue = [enemyHealthBarBg, enemyHealthBarFill, attackFlash, victoryOverlay];
 
 	function createImage(x: number, y: number, _texture: string, frame?: string) {
 		if (frame === 'hero') {
@@ -64,7 +95,7 @@ const phaserState = vi.hoisted(() => {
 		scene = { start: vi.fn(), restart: vi.fn() };
 		add = {
 			image: vi.fn(createImage),
-			rectangle: vi.fn(() => ({})),
+			rectangle: vi.fn(() => rectangleQueue.shift() ?? createOverlayMarker()),
 			text: vi.fn(() => victoryText)
 		};
 		cameras = {
@@ -78,7 +109,7 @@ const phaserState = vi.hoisted(() => {
 			keyboard: {
 				createCursorKeys: vi.fn(() => cursorKeys),
 				addKeys: vi.fn(() => wasdKeys),
-				addKey: vi.fn(() => attackKey)
+				addKey: vi.fn()
 			}
 		};
 		textures = {
@@ -94,9 +125,11 @@ const phaserState = vi.hoisted(() => {
 		SceneMock,
 		cursorKeys,
 		wasdKeys,
-		attackKey,
 		playerMarker,
 		enemyMarker,
+		enemyHealthBarBg,
+		enemyHealthBarFill,
+		attackFlash,
 		victoryText,
 		textureMock,
 		reset() {
@@ -105,9 +138,22 @@ const phaserState = vi.hoisted(() => {
 			enemyMarker.setDisplaySize.mockClear();
 			enemyMarker.setVisible.mockReset();
 			enemyMarker.setTint.mockReset();
+			Object.assign(enemyHealthBarBg, { x: 0, y: 0, scaleX: 1, scaleY: 1, visible: true });
+			Object.assign(enemyHealthBarFill, { x: 0, y: 0, scaleX: 1, scaleY: 1, visible: true });
+			Object.assign(attackFlash, { x: 0, y: 0, scaleX: 1, scaleY: 1, visible: true });
+			enemyHealthBarBg.setPosition.mockReset();
+			enemyHealthBarBg.setScale.mockReset();
+			enemyHealthBarBg.setVisible.mockReset();
+			enemyHealthBarFill.setPosition.mockReset();
+			enemyHealthBarFill.setScale.mockReset();
+			enemyHealthBarFill.setVisible.mockReset();
+			attackFlash.setPosition.mockReset();
+			attackFlash.setScale.mockReset();
+			attackFlash.setVisible.mockReset();
 			textureMock.has.mockClear();
 			textureMock.add.mockClear();
 			victoryText.setOrigin.mockReset();
+			rectangleQueue.splice(0, rectangleQueue.length, enemyHealthBarBg, enemyHealthBarFill, attackFlash, victoryOverlay);
 		}
 	};
 });
@@ -168,7 +214,6 @@ describe('WorldScene', () => {
 		Object.assign(phaserState.wasdKeys.right, { isDown: false });
 		Object.assign(phaserState.wasdKeys.up, { isDown: false });
 		Object.assign(phaserState.wasdKeys.down, { isDown: false });
-		Object.assign(phaserState.attackKey, { isDown: false });
 		Object.assign(phaserState.playerMarker, { x: 0, y: 0 });
 	});
 
@@ -304,7 +349,6 @@ describe('WorldScene', () => {
 
 		scene.create({ mapId: 'meadow-entry' });
 		Object.assign(phaserState.playerMarker, { x: 304, y: 96 });
-		phaserState.attackKey.isDown = true;
 
 		scene.update(0, 16);
 
@@ -312,27 +356,47 @@ describe('WorldScene', () => {
 			{ level: 1, xp: 0, hp: 20, attack: 3 },
 			5
 		);
+		expect(phaserState.attackFlash.setVisible).toHaveBeenCalledWith(true);
+		expect(phaserState.enemyHealthBarFill.setScale).toHaveBeenCalledWith(0, 1);
 		expect(sceneState.playerProgress).toMatchObject({ level: 2, xp: 5 });
 		expect(phaserState.enemyMarker.setVisible).toHaveBeenCalledWith(false);
 	});
 
-	it('does not reopen melee attack windows while space is held', async () => {
+	it('auto attacks enemies in range without manual input', async () => {
 		const { WorldScene } = await import('./WorldScene');
 		const scene = new WorldScene();
 		const sceneState = scene as unknown as {
-			enemy: { hp: number; invulnerableUntil: number; defeated: boolean };
+			enemy: { hp: number };
 		};
 
 		scene.create({ mapId: 'meadow-entry' });
 		Object.assign(phaserState.playerMarker, { x: 304, y: 96 });
-		Object.assign(sceneState.enemy, { hp: 9, invulnerableUntil: 0, defeated: false });
-		phaserState.attackKey.isDown = true;
+
+		scene.update(0, 16);
+
+		expect(sceneState.enemy.hp).toBe(0);
+	});
+
+	it('does not auto attack again before the cooldown elapses', async () => {
+		const { WorldScene } = await import('./WorldScene');
+		const scene = new WorldScene();
+		const sceneState = scene as unknown as {
+			enemy: { hp: number; maxHp: number; invulnerableUntil: number; defeated: boolean };
+		};
+
+		scene.create({ mapId: 'meadow-entry' });
+		Object.assign(phaserState.playerMarker, { x: 304, y: 96 });
+		Object.assign(sceneState.enemy, { hp: 9, maxHp: 9, invulnerableUntil: 0, defeated: false });
 
 		scene.update(0, 16);
 		scene.update(200, 16);
 		scene.update(400, 16);
 
 		expect(sceneState.enemy.hp).toBe(6);
+		expect(phaserState.enemyHealthBarFill.setScale).toHaveBeenLastCalledWith(
+			expect.closeTo(6 / 9, 5),
+			1
+		);
 	});
 
 	it('keeps awarding xp after level 2 without throwing', async () => {
@@ -345,7 +409,6 @@ describe('WorldScene', () => {
 		scene.create({ mapId: 'meadow-entry' });
 		Object.assign(phaserState.playerMarker, { x: 304, y: 96 });
 		sceneState.playerProgress = { level: 2, xp: 5, hp: 24, attack: 4 };
-		phaserState.attackKey.isDown = true;
 
 		expect(() => scene.update(0, 16)).not.toThrow();
 		expect(sceneState.playerProgress).toEqual({ level: 2, xp: 10, hp: 24, attack: 4 });
@@ -357,17 +420,42 @@ describe('WorldScene', () => {
 
 		scene.create({ mapId: 'meadow-entry' });
 		Object.assign(phaserState.playerMarker, { x: 304, y: 96 });
-		phaserState.attackKey.isDown = true;
 		scene.update(0, 16);
 
-		phaserState.attackKey.isDown = false;
 		Object.assign(phaserState.playerMarker, { x: 352, y: 96 });
 		scene.update(200, 16);
 
 		expect(scene.scene.restart).toHaveBeenCalledWith({
 			reason: 'transition',
 			saveState: expect.objectContaining({
-				mapId: 'ruins-threshold'
+				mapId: 'ruins-threshold',
+				player: expect.objectContaining({
+					x: 48,
+					y: 96,
+					facing: 'left'
+				})
+			})
+		});
+	});
+
+	it('returns from the ruins to a spawn point near the meadow entrance', async () => {
+		const { WorldScene } = await import('./WorldScene');
+		const scene = new WorldScene();
+
+		scene.create({ mapId: 'ruins-threshold' });
+		Object.assign(phaserState.playerMarker, { x: 16, y: 96 });
+
+		scene.update(0, 16);
+
+		expect(scene.scene.restart).toHaveBeenCalledWith({
+			reason: 'transition',
+			saveState: expect.objectContaining({
+				mapId: 'meadow-entry',
+				player: expect.objectContaining({
+					x: 320,
+					y: 96,
+					facing: 'left'
+				})
 			})
 		});
 	});
@@ -412,12 +500,8 @@ describe('WorldScene', () => {
 
 		expect(sceneState.playerProgress.hp).toBe(16);
 
-		phaserState.attackKey.isDown = true;
 		scene.update(1000, 16);
-		phaserState.attackKey.isDown = false;
-		scene.update(1200, 16);
-		phaserState.attackKey.isDown = true;
-		scene.update(1400, 16);
+		scene.update(1500, 16);
 
 		expect(phaserState.enemyMarker.setTint).toHaveBeenCalledWith(0xff8a3d);
 	});
@@ -429,16 +513,9 @@ describe('WorldScene', () => {
 		scene.create({ mapId: 'ruins-core' });
 		Object.assign(phaserState.playerMarker, { x: 304, y: 96 });
 
-		phaserState.attackKey.isDown = true;
 		scene.update(0, 16);
-		phaserState.attackKey.isDown = false;
-		scene.update(200, 16);
-		phaserState.attackKey.isDown = true;
-		scene.update(400, 16);
-		phaserState.attackKey.isDown = false;
-		scene.update(600, 16);
-		phaserState.attackKey.isDown = true;
-		scene.update(800, 16);
+		scene.update(500, 16);
+		scene.update(1000, 16);
 
 		expect(scene.add.text).toHaveBeenCalledWith(
 			expect.any(Number),

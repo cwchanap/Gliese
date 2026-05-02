@@ -4,6 +4,11 @@ export interface MapTransition {
 	x: number;
 	y: number;
 	toMapId: string;
+	arrival?: {
+		x: number;
+		y: number;
+		facing: WorldMapDefinition['spawnDirection'];
+	};
 }
 
 export interface MapEncounter {
@@ -30,7 +35,14 @@ export const meadowEntryMap: WorldMapDefinition = {
 	height: 12,
 	spawnDirection: 'down',
 	spawn: { x: 64, y: 64 },
-	transitions: [{ x: 352, y: 96, toMapId: 'ruins-threshold' }],
+	transitions: [
+		{
+			x: 352,
+			y: 96,
+			toMapId: 'ruins-threshold',
+			arrival: { x: 48, y: 96, facing: 'left' }
+		}
+	],
 	encounter: { x: 304, y: 96, enemyId: 'slime-scout' }
 };
 
@@ -41,8 +53,18 @@ export const ruinsThresholdMap: WorldMapDefinition = {
 	spawnDirection: 'left',
 	spawn: { x: 48, y: 96 },
 	transitions: [
-		{ x: 16, y: 96, toMapId: openingMapId },
-		{ x: 464, y: 96, toMapId: 'ruins-core' }
+		{
+			x: 16,
+			y: 96,
+			toMapId: openingMapId,
+			arrival: { x: 320, y: 96, facing: 'left' }
+		},
+		{
+			x: 464,
+			y: 96,
+			toMapId: 'ruins-core',
+			arrival: { x: 48, y: 96, facing: 'right' }
+		}
 	]
 };
 
@@ -52,7 +74,14 @@ export const ruinsCoreMap: WorldMapDefinition = {
 	height: 10,
 	spawnDirection: 'right',
 	spawn: { x: 48, y: 96 },
-	transitions: [{ x: 16, y: 96, toMapId: 'ruins-threshold' }],
+	transitions: [
+		{
+			x: 16,
+			y: 96,
+			toMapId: 'ruins-threshold',
+			arrival: { x: 432, y: 96, facing: 'left' }
+		}
+	],
 	encounter: { x: 304, y: 96, enemyId: 'ruins-warden', completion: 'victory' }
 };
 
