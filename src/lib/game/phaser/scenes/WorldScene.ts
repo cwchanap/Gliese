@@ -149,9 +149,11 @@ export class WorldScene extends Phaser.Scene {
 	private collectedPickupIds = new Set<string>();
 	private cursorKeys?: Partial<Record<'left' | 'right' | 'up' | 'down', DirectionKey>>;
 	private enemy?: EnemyInstance;
+	private enemyDeathAnimationPending = false;
 	private enemyHealthBarBg?: OverlayMarker;
 	private enemyHealthBarFill?: OverlayMarker;
 	private enemyMarker?: ActorMarker;
+	private enemyVisualState: ActorAnimationKey = 'idle';
 	private facing: Direction = 'down';
 	private heroAnimationLockedUntil = 0;
 	private heroDefeated = false;
@@ -192,9 +194,11 @@ export class WorldScene extends Phaser.Scene {
 		this.clearedEncounterIds = new Set(activeSave?.flags.clearedEncounters ?? []);
 		this.collectedPickupIds = new Set(activeSave?.flags.collectedPickups ?? []);
 		this.enemy = undefined;
+		this.enemyDeathAnimationPending = false;
 		this.enemyHealthBarBg = undefined;
 		this.enemyHealthBarFill = undefined;
 		this.enemyMarker = undefined;
+		this.enemyVisualState = 'idle';
 		this.facing = activeSave?.player.facing ?? map.spawnDirection;
 		this.heroAnimationLockedUntil = 0;
 		this.heroDefeated = false;
@@ -460,9 +464,7 @@ export class WorldScene extends Phaser.Scene {
 		}
 
 		this.enemy.defeated = true;
-		this.enemyMarker?.setVisible(false);
-		this.enemyHealthBarBg?.setVisible(false);
-		this.enemyHealthBarFill?.setVisible(false);
+		this.playEnemyDeathAnimation();
 		this.clearedEncounterIds.add(this.enemy.definition.id);
 		this.awardEncounterDrops(this.enemy.definition.id);
 		this.playerProgress = this.applyReward(this.enemy.definition.xpReward);
@@ -706,6 +708,46 @@ export class WorldScene extends Phaser.Scene {
 			getActorAnimationAsset(getEnemyActorId(this.enemy.definition.id)).clips[clipName].key,
 			ignoreIfPlaying
 		);
+	}
+
+	private setEnemyAnimation(clipName: ActorAnimationKey, ignoreIfPlaying = true) {
+		if (!this.enemy || this.enemy.defeated || this.enemyDeathAnimationPending) {
+			return;
+		}
+
+		if (this.enemyVisualState === clipName && ignoreIfPlaying) {
+			return;
+		}
+
+		this.enemyVisualState = clipName;
+		this.playEnemyAnimation(clipName, ignoreIfPlaying);
+	}
+
+	private playEnemyDeathAnimation() {
+		if (!this.enemy || this.enemyDeathAnimationPending) {
+			return;
+		}
+
+		this.enemyDeathAnimationPending = true;
+		this.enemyVisualState = 'dead';
+		this.playEnemyAnimation('dead', false);
+
+		const hideDefeatedEnemy = () => {
+			this.enemyMarker?.setVisible(false);
+			this.enemyHealthBarBg?.setVisible(false);
+			this.enemyHealthBarFill?.setVisible(false);
+		};
+
+		const completionEvent = `animationcomplete-${
+			getActorAnimationAsset(getEnemyActorId(this.enemy.definition.id)).clips.dead.key
+		}`;
+
+		if (this.enemyMarker?.once) {
+			this.enemyMarker.once(completionEvent, hideDefeatedEnemy);
+			return;
+		}
+
+		hideDefeatedEnemy();
 	}
 
 	private ensureTerrainTilesetTexture() {
@@ -1060,6 +1102,7 @@ export class WorldScene extends Phaser.Scene {
 			return;
 		}
 
+		let chaseDistance = 0;
 		const distanceToPlayer = Phaser.Math.Distance.Between(
 			this.player.x,
 			this.player.y,
@@ -1070,7 +1113,7 @@ export class WorldScene extends Phaser.Scene {
 		if (distanceToPlayer > 0) {
 			const chaseStep =
 				this.getEnemyMoveSpeed() * (Math.min(delta, WorldScene.maxMovementDeltaMs) / 1000);
-			const chaseDistance = Math.min(
+			chaseDistance = Math.min(
 				chaseStep,
 				Math.max(0, distanceToPlayer - WorldScene.enemyRadius)
 			);
@@ -1085,6 +1128,7 @@ export class WorldScene extends Phaser.Scene {
 			}
 			this.updateEnemyHealthBar();
 		}
+		this.setEnemyAnimation(chaseDistance > 0 ? 'walk' : 'idle');
 
 		const contactDistance = Phaser.Math.Distance.Between(
 			this.player.x,
@@ -1110,6 +1154,7 @@ export class WorldScene extends Phaser.Scene {
 		};
 		this.enemy.attackCooldownUntil = time + (this.enemy.definition.boss ? 450 : 700);
 		this.playerInvulnerableUntil = time + 500;
+		this.setEnemyAnimation('attack', false);
 		if (this.playerProgress.hp === 0) {
 			this.defeatHero();
 		}

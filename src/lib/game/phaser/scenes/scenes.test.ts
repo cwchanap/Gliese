@@ -758,7 +758,54 @@ describe('WorldScene', () => {
 		expect(phaserState.attackFlash.setVisible).toHaveBeenCalledWith(true);
 		expect(phaserState.enemyHealthBarFill.setScale).toHaveBeenCalledWith(0, 1);
 		expect(sceneState.playerProgress).toMatchObject({ level: 2, xp: 5 });
+		expect(phaserState.enemyMarker.play).toHaveBeenCalledWith('slimeScout-dead', false);
+	});
+
+	it('plays enemy walk while chasing and attack when contact damage lands', async () => {
+		const { WorldScene } = await import('./WorldScene');
+		const scene = new WorldScene();
+		const sceneState = scene as unknown as {
+			enemy: { x: number; y: number; attackCooldownUntil: number };
+		};
+
+		scene.create({ mapId: 'ruins-core' });
+		phaserState.enemyMarker.play.mockClear();
+		Object.assign(phaserState.playerMarker, { x: 456, y: 480 });
+
+		scene.update(0, 1000);
+
+		expect(phaserState.enemyMarker.play).toHaveBeenCalledWith('ruinsWarden-walk', true);
+
+		phaserState.enemyMarker.play.mockClear();
+		Object.assign(phaserState.playerMarker, { x: sceneState.enemy.x, y: sceneState.enemy.y });
+		sceneState.enemy.attackCooldownUntil = 0;
+		scene.update(500, 16);
+
+		expect(phaserState.enemyMarker.play).toHaveBeenCalledWith('ruinsWarden-attack', false);
+	});
+
+	it('plays enemy dead animation before hiding encounter art and health bars', async () => {
+		const { WorldScene } = await import('./WorldScene');
+		const scene = new WorldScene();
+		let deathCallback: (() => void) | undefined;
+		phaserState.enemyMarker.once.mockImplementation((_event: string, callback: () => void) => {
+			deathCallback = callback;
+			return phaserState.enemyMarker;
+		});
+
+		scene.create({ mapId: 'meadow-entry' });
+		Object.assign(phaserState.playerMarker, { x: 1_280, y: 1_280 });
+
+		scene.update(0, 16);
+
+		expect(phaserState.enemyMarker.play).toHaveBeenCalledWith('slimeScout-dead', false);
+		expect(phaserState.enemyMarker.setVisible).not.toHaveBeenCalledWith(false);
+
+		deathCallback?.();
+
 		expect(phaserState.enemyMarker.setVisible).toHaveBeenCalledWith(false);
+		expect(phaserState.enemyHealthBarBg.setVisible).toHaveBeenCalledWith(false);
+		expect(phaserState.enemyHealthBarFill.setVisible).toHaveBeenCalledWith(false);
 	});
 
 	it('awards deterministic encounter drops on defeat and saves resolved drops', async () => {
