@@ -116,6 +116,9 @@ const phaserState = vi.hoisted(() => {
 
 	class SceneMock {
 		scene = { start: vi.fn(), restart: vi.fn() };
+		load = {
+			image: vi.fn()
+		};
 		add = {
 			image: vi.fn(createImage),
 			rectangle: vi.fn(() => rectangleQueue.shift() ?? createOverlayMarker()),
@@ -239,6 +242,17 @@ describe('BootScene', () => {
 		scene.create();
 
 		expect(scene.scene.start).toHaveBeenCalledWith(WorldScene.key, { mapId: openingMapId });
+	});
+
+	it('preloads the static and animation sheets', async () => {
+		const { animationPackAsset, starterPackAsset } = await import('$lib/game/content/assets');
+		const { BootScene } = await import('./BootScene');
+		const scene = new BootScene();
+
+		scene.preload();
+
+		expect(scene.load.image).toHaveBeenCalledWith(starterPackAsset.key, starterPackAsset.path);
+		expect(scene.load.image).toHaveBeenCalledWith(animationPackAsset.key, animationPackAsset.path);
 	});
 });
 
