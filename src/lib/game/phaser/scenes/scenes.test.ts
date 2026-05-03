@@ -834,6 +834,68 @@ describe('WorldScene', () => {
 		);
 	});
 
+	it('renders NPC markers for maps with NPC definitions', async () => {
+		const { WorldScene } = await import('./WorldScene');
+		const scene = new WorldScene();
+
+		scene.create({ mapId: 'guild-hall' });
+
+		expect(scene.add.image).toHaveBeenCalledWith(256, 144, 'starter-pack', 'titleBadge');
+		const npcMarkers = phaserState.imageMarkers.filter(
+			(marker) => marker.x === 256 && marker.y === 144 && marker.frame === 'titleBadge'
+		);
+		expect(npcMarkers).toHaveLength(1);
+		expect(npcMarkers[0]!.setDisplaySize).toHaveBeenCalledWith(30, 36);
+	});
+
+	it('publishes NPC dialogue once when the hero enters proximity', async () => {
+		const events = await import('$lib/game/ui-bridge/events');
+		const emitHudStateSpy = vi.spyOn(events, 'emitHudState');
+		const { WorldScene } = await import('./WorldScene');
+		const scene = new WorldScene();
+
+		scene.create({ mapId: 'guild-hall' });
+		emitHudStateSpy.mockClear();
+		Object.assign(phaserState.playerMarker, { x: 256, y: 144 });
+
+		scene.update(0, 16);
+		scene.update(16, 16);
+
+		expect(emitHudStateSpy).toHaveBeenCalledOnce();
+		expect(emitHudStateSpy).toHaveBeenLastCalledWith(
+			expect.objectContaining({
+				mapId: 'guild-hall',
+				status:
+					'Guild Clerk: Morning. The ruins survey is posted; take the east road when you are ready.'
+			})
+		);
+	});
+
+	it('allows NPC dialogue to publish again after leaving and re-entering proximity', async () => {
+		const events = await import('$lib/game/ui-bridge/events');
+		const emitHudStateSpy = vi.spyOn(events, 'emitHudState');
+		const { WorldScene } = await import('./WorldScene');
+		const scene = new WorldScene();
+
+		scene.create({ mapId: 'item-shop' });
+		emitHudStateSpy.mockClear();
+
+		Object.assign(phaserState.playerMarker, { x: 256, y: 144 });
+		scene.update(0, 16);
+		Object.assign(phaserState.playerMarker, { x: 64, y: 64 });
+		scene.update(16, 16);
+		Object.assign(phaserState.playerMarker, { x: 256, y: 144 });
+		scene.update(32, 16);
+
+		expect(emitHudStateSpy).toHaveBeenCalledTimes(2);
+		expect(emitHudStateSpy).toHaveBeenLastCalledWith(
+			expect.objectContaining({
+				status:
+					'Mira: Fresh tonics are on the shelf. The guild already stocked your field kit today.'
+			})
+		);
+	});
+
 	it('collects a nearby pickup, updates inventory and flags, hides the marker, and publishes status', async () => {
 		const events = await import('$lib/game/ui-bridge/events');
 		const emitHudStateSpy = vi.spyOn(events, 'emitHudState');

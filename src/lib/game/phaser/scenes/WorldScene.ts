@@ -81,6 +81,10 @@ type PickupMarker = {
 	setVisible: (visible: boolean) => unknown;
 };
 
+type NpcMarker = {
+	setDisplaySize: (width: number, height: number) => unknown;
+};
+
 type TilemapLayer = {
 	setDepth?: (depth: number) => unknown;
 };
@@ -139,6 +143,7 @@ export class WorldScene extends Phaser.Scene {
 	private static readonly hitImpactRingTint = 0xfff0a8;
 	private static readonly hitImpactSparkTint = 0xfff7d6;
 	private static readonly maxMovementDeltaMs = 250;
+	private static readonly npcInteractionRadius = 36;
 	private static readonly playerRadius = 12;
 	private static readonly tileSize = 32;
 	private static readonly terrainTilesetKey = 'starter-ground-tiles';
@@ -182,6 +187,8 @@ export class WorldScene extends Phaser.Scene {
 	private hitImpactUntil = 0;
 	private inventory: SaveState['inventory'] = cloneInventory(createNewSaveState().inventory);
 	private mapId = openingMapId;
+	private currentNearbyNpcId: string | null = null;
+	private npcMarkers = new Map<string, NpcMarker>();
 	private pickupMarkers = new Map<string, PickupMarker>();
 	private player?: ActorMarker;
 	private playerAttackCooldownUntil = 0;
@@ -228,6 +235,8 @@ export class WorldScene extends Phaser.Scene {
 			activeSave?.flags.resolvedEncounterDrops ?? {}
 		);
 		this.mapId = map.id;
+		this.currentNearbyNpcId = null;
+		this.npcMarkers.clear();
 		this.pickupMarkers.clear();
 		this.playerProgress = {
 			level: activeSave?.player.level ?? 1,
@@ -264,6 +273,7 @@ export class WorldScene extends Phaser.Scene {
 		this.setupEncounters(map);
 		this.renderTransitions(map);
 		this.renderPickups(map);
+		this.renderNpcs(map);
 
 		this.cameras.main.setBackgroundColor('#1a1f2b');
 		this.cameras.main.setBounds(0, 0, width, height);
@@ -326,6 +336,7 @@ export class WorldScene extends Phaser.Scene {
 			return;
 		}
 
+		this.updateNpcDialogue();
 		this.tryCollectPickup();
 
 		const attackTarget =
@@ -924,6 +935,16 @@ export class WorldScene extends Phaser.Scene {
 		}
 	}
 
+	private renderNpcs(map: WorldMapDefinition) {
+		this.npcMarkers.clear();
+
+		for (const npc of map.npcs ?? []) {
+			const marker = this.add.image(npc.x, npc.y, starterPackAsset.key, npc.frameName) as NpcMarker;
+			marker.setDisplaySize(30, 36);
+			this.npcMarkers.set(npc.id, marker);
+		}
+	}
+
 	private renderTransitions(map: WorldMapDefinition) {
 		for (const transition of map.transitions) {
 			this.add
@@ -1109,6 +1130,35 @@ export class WorldScene extends Phaser.Scene {
 
 	private hasLivingEnemies() {
 		return this.enemies.some((enemy) => !enemy.defeated);
+	}
+
+	private updateNpcDialogue() {
+		if (!this.player) {
+			return;
+		}
+
+		const map = this.resolveMap(this.mapId);
+		const nearbyNpc = (map.npcs ?? [])
+			.map((npc) => ({
+				npc,
+				distance: Phaser.Math.Distance.Between(this.player!.x, this.player!.y, npc.x, npc.y)
+			}))
+			.filter(
+				({ distance }) => distance <= WorldScene.playerRadius + WorldScene.npcInteractionRadius
+			)
+			.sort((left, right) => left.distance - right.distance)[0]?.npc;
+
+		if (!nearbyNpc) {
+			this.currentNearbyNpcId = null;
+			return;
+		}
+
+		if (this.currentNearbyNpcId === nearbyNpc.id) {
+			return;
+		}
+
+		this.currentNearbyNpcId = nearbyNpc.id;
+		this.publishHudState(`${nearbyNpc.name}: ${nearbyNpc.dialogue}`);
 	}
 
 	private tryCollectPickup() {
