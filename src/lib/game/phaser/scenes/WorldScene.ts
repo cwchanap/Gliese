@@ -1123,10 +1123,7 @@ export class WorldScene extends Phaser.Scene {
 		if (distanceToPlayer > 0) {
 			const chaseStep =
 				this.getEnemyMoveSpeed() * (Math.min(delta, WorldScene.maxMovementDeltaMs) / 1000);
-			chaseDistance = Math.min(
-				chaseStep,
-				Math.max(0, distanceToPlayer - WorldScene.enemyRadius)
-			);
+			chaseDistance = Math.min(chaseStep, Math.max(0, distanceToPlayer - WorldScene.enemyRadius));
 			const directionX = (this.player.x - this.enemy.x) / distanceToPlayer;
 			const directionY = (this.player.y - this.enemy.y) / distanceToPlayer;
 

@@ -38,7 +38,11 @@ const phaserState = vi.hoisted(() => {
 				return marker;
 			}),
 			play: vi.fn(() => marker),
-			once: vi.fn((_event: string, _callback: () => void) => marker)
+			once: vi.fn((_event: string, _callback: () => void) => {
+				void _event;
+				void _callback;
+				return marker;
+			})
 		};
 
 		return marker;
