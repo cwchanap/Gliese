@@ -45,7 +45,12 @@ describe('animation pack metadata', () => {
 
 				for (const frameName of clip.frames) {
 					expect(animationPackAsset.frames[frameName]).toEqual(
-						expect.objectContaining({ x: expect.any(Number), y: expect.any(Number), w: 192, h: 192 })
+						expect.objectContaining({
+							x: expect.any(Number),
+							y: expect.any(Number),
+							w: 192,
+							h: 192
+						})
 					);
 				}
 			}
