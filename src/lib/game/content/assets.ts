@@ -102,7 +102,11 @@ function buildAnimationFrames(): Record<AnimationFrameName, AnimationFrame> {
 	) as Record<AnimationFrameName, AnimationFrame>;
 }
 
-function buildClip(actorId: ActorAnimationId, clip: ActorAnimationKey): ActorAnimationClip {
+function buildClip(
+	actorId: ActorAnimationId,
+	clip: ActorAnimationKey,
+	sourceClip: ActorAnimationKey = clip
+): ActorAnimationClip {
 	const frameRateByClip: Record<ActorAnimationKey, number> = {
 		idle: 3,
 		walk: 6,
@@ -120,7 +124,7 @@ function buildClip(actorId: ActorAnimationId, clip: ActorAnimationKey): ActorAni
 		key: `${actorId}-${clip}`,
 		frames: Array.from(
 			{ length: animationFrameCount },
-			(_, index) => `${actorId}${capitalizeAnimationKey(clip)}${index}` as AnimationFrameName
+			(_, index) => `${actorId}${capitalizeAnimationKey(sourceClip)}${index}` as AnimationFrameName
 		),
 		frameRate: frameRateByClip[clip],
 		repeat: repeatByClip[clip]
@@ -137,7 +141,7 @@ function buildActorAnimationAsset(
 		clips: {
 			idle: buildClip(id, 'idle'),
 			walk: buildClip(id, 'walk'),
-			attack: buildClip(id, 'attack'),
+			attack: id === 'hero' ? buildClip(id, 'attack', 'walk') : buildClip(id, 'attack'),
 			dead: buildClip(id, 'dead')
 		}
 	};

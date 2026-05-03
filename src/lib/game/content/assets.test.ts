@@ -62,4 +62,10 @@ describe('animation pack metadata', () => {
 		expect(getEnemyActorId('ruins-warden')).toBe('ruinsWarden');
 		expect(getActorAnimationAsset('hero')).toBe(actorAnimationAssets.hero);
 	});
+
+	it('keeps the hero attack clip free of baked hit arcs', () => {
+		expect(actorAnimationAssets.hero.clips.attack.frames).toEqual(
+			actorAnimationAssets.hero.clips.walk.frames
+		);
+	});
 });

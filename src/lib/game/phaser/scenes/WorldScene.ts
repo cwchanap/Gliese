@@ -51,6 +51,7 @@ type DirectionKey = {
 type ActorMarker = {
 	x: number;
 	y: number;
+	clearTint: () => unknown;
 	setDisplaySize: (width: number, height: number) => unknown;
 	setTint: (color: number) => unknown;
 	setVisible: (visible: boolean) => unknown;
@@ -61,9 +62,17 @@ type ActorMarker = {
 type OverlayMarker = {
 	x?: number;
 	y?: number;
+	setAlpha: (alpha: number) => unknown;
 	setPosition: (x: number, y: number) => unknown;
 	setScale: (x: number, y?: number) => unknown;
 	setVisible: (visible: boolean) => unknown;
+};
+
+type HitImpactLayers = {
+	arc: OverlayMarker;
+	core: OverlayMarker;
+	ring: OverlayMarker;
+	spark: OverlayMarker;
 };
 
 type PickupMarker = {
@@ -80,10 +89,18 @@ type EnemyInstance = {
 	defeated: boolean;
 	definition: EnemyCombatDefinition;
 	attackCooldownUntil: number;
+	animationLockedUntil: number;
+	deathAnimationPending: boolean;
+	healthBarBg: OverlayMarker;
+	healthBarFill: OverlayMarker;
+	hitReactionUntil: number;
 	hp: number;
+	id: string;
 	invulnerableUntil: number;
+	marker: ActorMarker;
 	maxHp: number;
 	phase: 1 | 2;
+	visualState: ActorAnimationKey;
 	x: number;
 	y: number;
 };
@@ -109,10 +126,17 @@ function cloneResolvedEncounterDrops(
 export class WorldScene extends Phaser.Scene {
 	static readonly key = 'world';
 	private static readonly attackReach = 40;
-	private static readonly attackFlashDurationMs = 150;
 	private static readonly autoAttackCooldownMs = 450;
+	private static readonly enemyAttackReach = 40;
 	private static readonly enemyInvulnerabilityMs = 250;
 	private static readonly enemyRadius = 10;
+	private static readonly hitReactionDurationMs = 450;
+	private static readonly hitReactionTint = 0xfff0a8;
+	private static readonly hitImpactDurationMs = 450;
+	private static readonly hitImpactTint = 0xff8a1f;
+	private static readonly hitImpactCoreTint = 0xffffff;
+	private static readonly hitImpactRingTint = 0xfff0a8;
+	private static readonly hitImpactSparkTint = 0xfff7d6;
 	private static readonly maxMovementDeltaMs = 250;
 	private static readonly playerRadius = 12;
 	private static readonly tileSize = 32;
@@ -143,22 +167,18 @@ export class WorldScene extends Phaser.Scene {
 	private static readonly transitionRadius = 18;
 	private static readonly enemyHealthBarOffsetY = 34;
 
-	private attackFlash?: OverlayMarker;
-	private attackFlashUntil = 0;
 	private clearedEncounterIds = new Set<string>();
 	private collectedPickupIds = new Set<string>();
 	private cursorKeys?: Partial<Record<'left' | 'right' | 'up' | 'down', DirectionKey>>;
-	private enemy?: EnemyInstance;
-	private enemyAnimationLockedUntil = 0;
-	private enemyDeathAnimationPending = false;
-	private enemyHealthBarBg?: OverlayMarker;
-	private enemyHealthBarFill?: OverlayMarker;
-	private enemyMarker?: ActorMarker;
-	private enemyVisualState: ActorAnimationKey = 'idle';
+	private enemies: EnemyInstance[] = [];
 	private facing: Direction = 'down';
 	private heroAnimationLockedUntil = 0;
 	private heroDefeated = false;
+	private heroHitReactionUntil = 0;
 	private heroVisualState: ActorAnimationKey = 'idle';
+	private hitImpactLayers?: HitImpactLayers;
+	private hitImpactStartedAt = 0;
+	private hitImpactUntil = 0;
 	private inventory: SaveState['inventory'] = cloneInventory(createNewSaveState().inventory);
 	private mapId = openingMapId;
 	private pickupMarkers = new Map<string, PickupMarker>();
@@ -190,21 +210,17 @@ export class WorldScene extends Phaser.Scene {
 		const height = map.height * WorldScene.tileSize;
 		const reason = data.reason ?? (activeSave ? 'resume' : 'new');
 
-		this.attackFlashUntil = 0;
-		this.attackFlash = undefined;
 		this.clearedEncounterIds = new Set(activeSave?.flags.clearedEncounters ?? []);
 		this.collectedPickupIds = new Set(activeSave?.flags.collectedPickups ?? []);
-		this.enemy = undefined;
-		this.enemyAnimationLockedUntil = 0;
-		this.enemyDeathAnimationPending = false;
-		this.enemyHealthBarBg = undefined;
-		this.enemyHealthBarFill = undefined;
-		this.enemyMarker = undefined;
-		this.enemyVisualState = 'idle';
+		this.enemies = [];
 		this.facing = activeSave?.player.facing ?? map.spawnDirection;
 		this.heroAnimationLockedUntil = 0;
 		this.heroDefeated = false;
+		this.heroHitReactionUntil = 0;
 		this.heroVisualState = 'idle';
+		this.hitImpactLayers = undefined;
+		this.hitImpactStartedAt = 0;
+		this.hitImpactUntil = 0;
 		this.inventory = cloneInventory(activeSave?.inventory ?? createNewSaveState().inventory);
 		this.equipment = { ...(activeSave?.equipment ?? createNewSaveState().equipment) };
 		this.resolvedEncounterDrops = cloneResolvedEncounterDrops(
@@ -243,7 +259,7 @@ export class WorldScene extends Phaser.Scene {
 			this.playHeroAnimation('idle');
 		}
 
-		this.setupEncounter(map);
+		this.setupEncounters(map);
 		this.renderTransitions(map);
 		this.renderPickups(map);
 
@@ -281,13 +297,11 @@ export class WorldScene extends Phaser.Scene {
 			return;
 		}
 
-		if (time >= this.attackFlashUntil) {
-			this.attackFlash?.setVisible(false);
-		}
-
 		if (this.heroDefeated) {
 			return;
 		}
+
+		this.updateHitReactions(time);
 
 		const direction = resolveMovementVector({
 			left: Boolean(this.cursorKeys?.left?.isDown || this.wasdKeys?.left?.isDown),
@@ -312,33 +326,31 @@ export class WorldScene extends Phaser.Scene {
 
 		this.tryCollectPickup();
 
-		if (
-			this.enemy &&
-			!this.enemy.defeated &&
-			time >= this.playerAttackCooldownUntil &&
-			this.canHeroAttackEnemy(time)
-		) {
+		const attackTarget =
+			time >= this.playerAttackCooldownUntil ? this.findHeroAttackTarget(time) : undefined;
+
+		if (attackTarget) {
 			this.playerAttackCooldownUntil = time + WorldScene.autoAttackCooldownMs;
-			this.attackFlashUntil = time + WorldScene.attackFlashDurationMs;
 			this.playHeroAttackAnimation(time);
-			this.showAttackFlash();
 			const effectiveStats = this.getEffectiveStats();
-			this.enemy.hp = resolveHit(
-				{ hp: this.enemy.hp, defense: 0 },
+			attackTarget.hp = resolveHit(
+				{ hp: attackTarget.hp, defense: 0 },
 				{ power: effectiveStats.attack }
 			).hp;
-			this.enemy.invulnerableUntil = time + WorldScene.enemyInvulnerabilityMs;
-			this.updateEnemyHealthBar();
-			this.updateBossPhase();
+			attackTarget.invulnerableUntil = time + WorldScene.enemyInvulnerabilityMs;
+			this.updateEnemyHealthBar(attackTarget);
+			this.updateBossPhase(attackTarget);
 
-			if (this.enemy.hp === 0) {
-				this.finishEncounter();
+			if (attackTarget.hp === 0) {
+				this.finishEncounter(attackTarget);
 			} else {
+				this.playEnemyHitReaction(attackTarget, time);
+				this.showHitImpact(attackTarget.x, attackTarget.y, time);
 				this.publishHudState('Strike landed');
 			}
 		}
 
-		if (!this.enemy || this.enemy.defeated) {
+		if (!this.hasLivingEnemies()) {
 			return;
 		}
 
@@ -356,23 +368,22 @@ export class WorldScene extends Phaser.Scene {
 		};
 	}
 
-	private canHeroAttackEnemy(time: number) {
-		if (!this.player || !this.enemy || this.enemy.defeated) {
-			return false;
+	private findHeroAttackTarget(time: number) {
+		if (!this.player) {
+			return undefined;
 		}
 
-		const distanceToEnemy = Phaser.Math.Distance.Between(
-			this.player.x,
-			this.player.y,
-			this.enemy.x,
-			this.enemy.y
-		);
-
-		return (
-			distanceToEnemy <=
-				WorldScene.playerRadius + WorldScene.enemyRadius + WorldScene.attackReach &&
-			canReceiveHit(this.enemy, time)
-		);
+		return this.enemies
+			.filter((enemy) => !enemy.defeated && canReceiveHit(enemy, time))
+			.map((enemy) => ({
+				enemy,
+				distance: Phaser.Math.Distance.Between(this.player!.x, this.player!.y, enemy.x, enemy.y)
+			}))
+			.filter(
+				({ distance }) =>
+					distance <= WorldScene.playerRadius + WorldScene.enemyRadius + WorldScene.attackReach
+			)
+			.sort((left, right) => left.distance - right.distance)[0]?.enemy;
 	}
 
 	private buildSaveState(): SaveState {
@@ -464,18 +475,18 @@ export class WorldScene extends Phaser.Scene {
 		this.publishHudState('Recovered HP');
 	}
 
-	private finishEncounter() {
-		if (!this.enemy) {
+	private finishEncounter(enemy: EnemyInstance) {
+		if (enemy.defeated) {
 			return;
 		}
 
-		this.enemy.defeated = true;
-		this.playEnemyDeathAnimation();
-		this.clearedEncounterIds.add(this.enemy.definition.id);
-		this.awardEncounterDrops(this.enemy.definition.id);
-		this.playerProgress = this.applyReward(this.enemy.definition.xpReward);
+		enemy.defeated = true;
+		this.playEnemyDeathAnimation(enemy);
+		this.clearedEncounterIds.add(enemy.id);
+		this.awardEncounterDrops(enemy);
+		this.playerProgress = this.applyReward(enemy.definition.xpReward);
 
-		if (this.enemy.completion === 'victory') {
+		if (enemy.completion === 'victory') {
 			this.showVictoryState();
 			this.publishHudState('Victory: ruins cleared');
 			return;
@@ -705,59 +716,67 @@ export class WorldScene extends Phaser.Scene {
 		this.setHeroAnimation('dead', false);
 	}
 
-	private playEnemyAnimation(clipName: ActorAnimationKey, ignoreIfPlaying = true) {
-		if (!this.enemy) {
-			return;
-		}
-
-		this.enemyMarker?.play(
-			getActorAnimationAsset(getEnemyActorId(this.enemy.definition.id)).clips[clipName].key,
+	private playEnemyAnimation(
+		enemy: EnemyInstance,
+		clipName: ActorAnimationKey,
+		ignoreIfPlaying = true
+	) {
+		enemy.marker.play(
+			getActorAnimationAsset(getEnemyActorId(enemy.definition.id)).clips[clipName].key,
 			ignoreIfPlaying
 		);
 	}
 
-	private setEnemyAnimation(clipName: ActorAnimationKey, ignoreIfPlaying = true) {
-		if (!this.enemy || this.enemy.defeated || this.enemyDeathAnimationPending) {
+	private setEnemyAnimation(
+		enemy: EnemyInstance,
+		clipName: ActorAnimationKey,
+		ignoreIfPlaying = true
+	) {
+		if (enemy.defeated || enemy.deathAnimationPending) {
 			return;
 		}
 
-		if (this.enemyVisualState === clipName && ignoreIfPlaying) {
+		if (enemy.visualState === clipName && ignoreIfPlaying) {
 			return;
 		}
 
-		this.enemyVisualState = clipName;
-		this.playEnemyAnimation(clipName, ignoreIfPlaying);
+		enemy.visualState = clipName;
+		this.playEnemyAnimation(enemy, clipName, ignoreIfPlaying);
 	}
 
-	private updateEnemyMovementAnimation(clipName: ActorAnimationKey, time: number) {
-		if (time < this.enemyAnimationLockedUntil) {
+	private updateEnemyMovementAnimation(
+		enemy: EnemyInstance,
+		clipName: ActorAnimationKey,
+		time: number
+	) {
+		if (time < enemy.animationLockedUntil) {
 			return;
 		}
 
-		this.setEnemyAnimation(clipName);
+		this.setEnemyAnimation(enemy, clipName);
 	}
 
-	private playEnemyDeathAnimation() {
-		if (!this.enemy || this.enemyDeathAnimationPending) {
+	private playEnemyDeathAnimation(enemy: EnemyInstance) {
+		if (enemy.deathAnimationPending) {
 			return;
 		}
 
-		this.enemyDeathAnimationPending = true;
-		this.enemyVisualState = 'dead';
-		this.playEnemyAnimation('dead', false);
+		enemy.deathAnimationPending = true;
+		enemy.visualState = 'dead';
+		this.playEnemyAnimation(enemy, 'dead', false);
 
 		const hideDefeatedEnemy = () => {
-			this.enemyMarker?.setVisible(false);
-			this.enemyHealthBarBg?.setVisible(false);
-			this.enemyHealthBarFill?.setVisible(false);
+			enemy.marker.setVisible(false);
+			enemy.healthBarBg.setVisible(false);
+			enemy.healthBarFill.setVisible(false);
 		};
 
 		const completionEvent = `animationcomplete-${
-			getActorAnimationAsset(getEnemyActorId(this.enemy.definition.id)).clips.dead.key
+			getActorAnimationAsset(getEnemyActorId(enemy.definition.id)).clips.dead.key
 		}`;
 
-		if (this.enemyMarker?.once) {
-			this.enemyMarker.once(completionEvent, hideDefeatedEnemy);
+		if (enemy.marker.once) {
+			enemy.marker.once(completionEvent, hideDefeatedEnemy);
 			return;
 		}
 
@@ -852,16 +871,12 @@ export class WorldScene extends Phaser.Scene {
 		);
 	}
 
-	private getEnemyMoveSpeed() {
-		if (!this.enemy) {
-			return 0;
+	private getEnemyMoveSpeed(enemy: EnemyInstance) {
+		if (enemy.definition.boss && enemy.phase === 2) {
+			return enemy.definition.moveSpeed * 1.5;
 		}
 
-		if (this.enemy.definition.boss && this.enemy.phase === 2) {
-			return this.enemy.definition.moveSpeed * 1.5;
-		}
-
-		return this.enemy.definition.moveSpeed;
+		return enemy.definition.moveSpeed;
 	}
 
 	private renderPickups(map: WorldMapDefinition) {
@@ -924,69 +939,73 @@ export class WorldScene extends Phaser.Scene {
 		this.publishHudState('Saved');
 	}
 
-	private setupEncounter(map: WorldMapDefinition) {
-		const encounter = map.encounter;
+	private setupEncounters(map: WorldMapDefinition) {
+		for (const encounter of map.encounters ?? []) {
+			const definition = enemies[encounter.enemyId];
+			const isCleared =
+				this.clearedEncounterIds.has(encounter.id) || this.clearedEncounterIds.has(definition.id);
+			const actorId = getEnemyActorId(encounter.enemyId);
+			const actorAnimation = getActorAnimationAsset(actorId);
+			const marker = this.add.sprite(
+				encounter.x,
+				encounter.y,
+				animationPackAsset.key,
+				actorAnimation.clips.idle.frames[0]
+			) as ActorMarker;
+			const healthBarBg = this.add.rectangle(
+				encounter.x,
+				encounter.y - WorldScene.enemyHealthBarOffsetY,
+				34,
+				4,
+				0x0f172a,
+				0.92
+			) as OverlayMarker;
+			const healthBarFill = this.add.rectangle(
+				encounter.x,
+				encounter.y - WorldScene.enemyHealthBarOffsetY,
+				30,
+				2,
+				0xff5d8f,
+				1
+			) as OverlayMarker;
+			const enemy: EnemyInstance = {
+				completion: encounter.completion,
+				defeated: isCleared,
+				definition,
+				attackCooldownUntil: 0,
+				animationLockedUntil: 0,
+				deathAnimationPending: false,
+				healthBarBg,
+				healthBarFill,
+				hitReactionUntil: 0,
+				hp: isCleared ? 0 : definition.baseHp,
+				id: encounter.id,
+				invulnerableUntil: 0,
+				marker,
+				maxHp: definition.baseHp,
+				phase: 1,
+				visualState: 'idle',
+				x: encounter.x,
+				y: encounter.y
+			};
 
-		if (!encounter) {
-			return;
-		}
+			marker.setDisplaySize(actorAnimation.displaySize.width, actorAnimation.displaySize.height);
+			marker.x = encounter.x;
+			marker.y = encounter.y;
+			this.enemies.push(enemy);
+			this.updateEnemyHealthBar(enemy);
 
-		const definition = enemies[encounter.enemyId];
-		const isCleared = this.clearedEncounterIds.has(definition.id);
-		this.enemy = {
-			completion: encounter.completion,
-			defeated: isCleared,
-			definition,
-			attackCooldownUntil: 0,
-			hp: isCleared ? 0 : definition.baseHp,
-			invulnerableUntil: 0,
-			maxHp: definition.baseHp,
-			phase: 1,
-			x: encounter.x,
-			y: encounter.y
-		};
-		const actorId = getEnemyActorId(encounter.enemyId);
-		const actorAnimation = getActorAnimationAsset(actorId);
-		this.enemyMarker = this.add.sprite(
-			encounter.x,
-			encounter.y,
-			animationPackAsset.key,
-			actorAnimation.clips.idle.frames[0]
-		) as ActorMarker;
-		this.enemyMarker.setDisplaySize(
-			actorAnimation.displaySize.width,
-			actorAnimation.displaySize.height
-		);
-		this.enemyMarker.x = encounter.x;
-		this.enemyMarker.y = encounter.y;
-		this.enemyHealthBarBg = this.add.rectangle(
-			encounter.x,
-			encounter.y - WorldScene.enemyHealthBarOffsetY,
-			34,
-			4,
-			0x0f172a,
-			0.92
-		) as OverlayMarker;
-		this.enemyHealthBarFill = this.add.rectangle(
-			encounter.x,
-			encounter.y - WorldScene.enemyHealthBarOffsetY,
-			30,
-			2,
-			0xff5d8f,
-			1
-		) as OverlayMarker;
-		this.updateEnemyHealthBar();
+			if (isCleared) {
+				marker.setVisible(false);
+				healthBarBg.setVisible(false);
+				healthBarFill.setVisible(false);
 
-		if (isCleared) {
-			this.enemyMarker.setVisible(false);
-			this.enemyHealthBarBg?.setVisible(false);
-			this.enemyHealthBarFill?.setVisible(false);
-
-			if (encounter.completion === 'victory') {
-				this.showVictoryState();
+				if (encounter.completion === 'victory') {
+					this.showVictoryState();
+				}
+			} else {
+				this.playEnemyAnimation(enemy, 'idle');
 			}
-		} else {
-			this.playEnemyAnimation('idle');
 		}
 	}
 
@@ -1019,13 +1038,10 @@ export class WorldScene extends Phaser.Scene {
 			.setOrigin(0.5);
 	}
 
-	private awardEncounterDrops(encounterId: string) {
-		if (!this.enemy) {
-			return;
-		}
-
+	private awardEncounterDrops(enemy: EnemyInstance) {
+		const encounterId = enemy.id;
 		const drops =
-			this.resolvedEncounterDrops[encounterId] ?? resolveLootDrops(this.enemy.definition.loot);
+			this.resolvedEncounterDrops[encounterId] ?? resolveLootDrops(enemy.definition.loot);
 		this.resolvedEncounterDrops = { ...this.resolvedEncounterDrops, [encounterId]: drops };
 
 		for (const drop of drops) {
@@ -1034,7 +1050,7 @@ export class WorldScene extends Phaser.Scene {
 	}
 
 	private tryTransition() {
-		if (!this.player || (this.enemy && !this.enemy.defeated)) {
+		if (!this.player || this.hasLivingEnemies()) {
 			return false;
 		}
 
@@ -1058,6 +1074,10 @@ export class WorldScene extends Phaser.Scene {
 		}
 
 		return false;
+	}
+
+	private hasLivingEnemies() {
+		return this.enemies.some((enemy) => !enemy.defeated);
 	}
 
 	private tryCollectPickup() {
@@ -1091,148 +1111,235 @@ export class WorldScene extends Phaser.Scene {
 		}
 	}
 
-	private updateBossPhase() {
-		if (!this.enemy?.definition.boss) {
+	private updateBossPhase(enemy: EnemyInstance) {
+		if (!enemy.definition.boss) {
 			return;
 		}
 
 		const nextState = advanceBossPhase({
-			phase: this.enemy.phase,
-			hp: this.enemy.hp,
-			maxHp: this.enemy.maxHp
+			phase: enemy.phase,
+			hp: enemy.hp,
+			maxHp: enemy.maxHp
 		});
 
-		if (nextState.phase === this.enemy.phase) {
+		if (nextState.phase === enemy.phase) {
 			return;
 		}
 
-		this.enemy.phase = nextState.phase;
-		this.enemyMarker?.setTint(this.enemy.definition.boss.phaseTwoColor);
+		enemy.phase = nextState.phase;
+		enemy.marker.setTint(enemy.definition.boss.phaseTwoColor);
 		this.publishHudState('Boss enraged');
 	}
 
 	private updateEnemyBehavior(time: number, delta: number) {
-		if (!this.player || !this.enemy || this.enemy.defeated) {
+		if (!this.player) {
 			return;
 		}
 
-		let chaseDistance = 0;
-		const distanceToPlayer = Phaser.Math.Distance.Between(
-			this.player.x,
-			this.player.y,
-			this.enemy.x,
-			this.enemy.y
-		);
-
-		if (distanceToPlayer > 0) {
-			const chaseStep =
-				this.getEnemyMoveSpeed() * (Math.min(delta, WorldScene.maxMovementDeltaMs) / 1000);
-			chaseDistance = Math.min(chaseStep, Math.max(0, distanceToPlayer - WorldScene.enemyRadius));
-			const directionX = (this.player.x - this.enemy.x) / distanceToPlayer;
-			const directionY = (this.player.y - this.enemy.y) / distanceToPlayer;
-
-			this.enemy.x += directionX * chaseDistance;
-			this.enemy.y += directionY * chaseDistance;
-			if (this.enemyMarker) {
-				this.enemyMarker.x = this.enemy.x;
-				this.enemyMarker.y = this.enemy.y;
+		for (const enemy of this.enemies) {
+			if (enemy.defeated) {
+				continue;
 			}
-			this.updateEnemyHealthBar();
-		}
-		this.updateEnemyMovementAnimation(chaseDistance > 0 ? 'walk' : 'idle', time);
 
-		const contactDistance = Phaser.Math.Distance.Between(
-			this.player.x,
-			this.player.y,
-			this.enemy.x,
-			this.enemy.y
-		);
-
-		if (
-			contactDistance > WorldScene.playerRadius + WorldScene.enemyRadius ||
-			time < this.enemy.attackCooldownUntil ||
-			time < this.playerInvulnerableUntil
-		) {
-			return;
-		}
-
-		this.playerProgress = {
-			...this.playerProgress,
-			hp: resolveHit(
-				{ hp: this.playerProgress.hp, defense: this.getEffectiveStats().defense },
-				{ power: this.enemy.definition.baseAttack }
-			).hp
-		};
-		this.enemy.attackCooldownUntil = time + (this.enemy.definition.boss ? 450 : 700);
-		this.playerInvulnerableUntil = time + 500;
-		this.enemyAnimationLockedUntil = time + 400;
-		this.setEnemyAnimation('attack', false);
-		if (this.playerProgress.hp === 0) {
-			this.defeatHero();
-		}
-		this.publishHudState(this.playerProgress.hp === 0 ? 'Hero down' : 'Enemy struck first');
-	}
-
-	private getAttackFlashPosition() {
-		if (!this.player) {
-			return { x: 0, y: 0 };
-		}
-
-		if (this.facing === 'left') {
-			return { x: this.player.x - 20, y: this.player.y };
-		}
-
-		if (this.facing === 'right') {
-			return { x: this.player.x + 20, y: this.player.y };
-		}
-
-		if (this.facing === 'up') {
-			return { x: this.player.x, y: this.player.y - 20 };
-		}
-
-		return { x: this.player.x, y: this.player.y + 20 };
-	}
-
-	private showAttackFlash() {
-		if (!this.player) {
-			return;
-		}
-
-		if (!this.attackFlash) {
-			this.attackFlash = this.add.rectangle(
+			let chaseDistance = 0;
+			const distanceToPlayer = Phaser.Math.Distance.Between(
 				this.player.x,
 				this.player.y,
-				18,
-				18,
-				0xfff0a8,
-				0.82
-			) as OverlayMarker;
-		}
+				enemy.x,
+				enemy.y
+			);
 
-		const { x, y } = this.getAttackFlashPosition();
-		this.attackFlash.setPosition(x, y);
-		this.attackFlash.setVisible(true);
+			if (distanceToPlayer > 0) {
+				const chaseStep =
+					this.getEnemyMoveSpeed(enemy) * (Math.min(delta, WorldScene.maxMovementDeltaMs) / 1000);
+				chaseDistance = Math.min(
+					chaseStep,
+					Math.max(0, distanceToPlayer - WorldScene.enemyAttackReach)
+				);
+				const directionX = (this.player.x - enemy.x) / distanceToPlayer;
+				const directionY = (this.player.y - enemy.y) / distanceToPlayer;
+
+				enemy.x += directionX * chaseDistance;
+				enemy.y += directionY * chaseDistance;
+				enemy.marker.x = enemy.x;
+				enemy.marker.y = enemy.y;
+				this.updateEnemyHealthBar(enemy);
+			}
+			this.updateEnemyMovementAnimation(enemy, chaseDistance > 0 ? 'walk' : 'idle', time);
+
+			const contactDistance = Phaser.Math.Distance.Between(
+				this.player.x,
+				this.player.y,
+				enemy.x,
+				enemy.y
+			);
+
+			if (
+				contactDistance > WorldScene.enemyAttackReach ||
+				time < enemy.attackCooldownUntil ||
+				time < this.playerInvulnerableUntil
+			) {
+				continue;
+			}
+
+			this.playerProgress = {
+				...this.playerProgress,
+				hp: resolveHit(
+					{ hp: this.playerProgress.hp, defense: this.getEffectiveStats().defense },
+					{ power: enemy.definition.baseAttack }
+				).hp
+			};
+			enemy.attackCooldownUntil = time + (enemy.definition.boss ? 450 : 700);
+			this.playerInvulnerableUntil = time + 500;
+			enemy.animationLockedUntil = time + 400;
+			this.setEnemyAnimation(enemy, 'attack', false);
+			if (this.playerProgress.hp === 0) {
+				this.defeatHero();
+			} else {
+				this.playHeroHitReaction(time);
+			}
+			this.publishHudState(this.playerProgress.hp === 0 ? 'Hero down' : 'Enemy struck first');
+		}
 	}
 
-	private updateEnemyHealthBar() {
-		if (!this.enemy || !this.enemyHealthBarBg || !this.enemyHealthBarFill) {
+	private playEnemyHitReaction(enemy: EnemyInstance, time: number) {
+		enemy.hitReactionUntil = time + WorldScene.hitReactionDurationMs;
+		enemy.marker.setTint(WorldScene.hitReactionTint);
+	}
+
+	private playHeroHitReaction(time: number) {
+		this.heroHitReactionUntil = time + WorldScene.hitReactionDurationMs;
+		this.player?.setTint(WorldScene.hitReactionTint);
+	}
+
+	private showHitImpact(x: number, y: number, time: number) {
+		if (!this.hitImpactLayers) {
+			this.hitImpactLayers = {
+				arc: this.add.arc(
+					x,
+					y,
+					32,
+					210,
+					330,
+					false,
+					WorldScene.hitImpactTint,
+					0.98
+				) as OverlayMarker,
+				spark: this.add.arc(
+					x,
+					y,
+					16,
+					20,
+					160,
+					false,
+					WorldScene.hitImpactSparkTint,
+					1
+				) as OverlayMarker,
+				ring: this.add.arc(
+					x,
+					y,
+					26,
+					0,
+					360,
+					false,
+					WorldScene.hitImpactRingTint,
+					0.72
+				) as OverlayMarker,
+				core: this.add.arc(
+					x,
+					y,
+					10,
+					0,
+					360,
+					false,
+					WorldScene.hitImpactCoreTint,
+					0.92
+				) as OverlayMarker
+			};
+		}
+
+		this.hitImpactStartedAt = time;
+		this.hitImpactUntil = time + WorldScene.hitImpactDurationMs;
+
+		for (const layer of Object.values(this.hitImpactLayers)) {
+			layer.setPosition(x, y);
+			layer.setVisible(true);
+		}
+
+		this.hitImpactLayers.arc.setScale(1.08, 0.74);
+		this.hitImpactLayers.arc.setAlpha(0.98);
+		this.hitImpactLayers.spark.setScale(0.95, 0.48);
+		this.hitImpactLayers.spark.setAlpha(1);
+		this.hitImpactLayers.ring.setScale(0.55, 0.55);
+		this.hitImpactLayers.ring.setAlpha(0.72);
+		this.hitImpactLayers.core.setScale(0.85, 0.85);
+		this.hitImpactLayers.core.setAlpha(0.92);
+	}
+
+	private updateHitImpactAnimation(time: number) {
+		if (!this.hitImpactLayers || this.hitImpactUntil === 0) {
 			return;
 		}
 
-		if (this.enemy.defeated) {
-			this.enemyHealthBarBg.setVisible(false);
-			this.enemyHealthBarFill.setVisible(false);
+		if (time >= this.hitImpactUntil) {
+			this.hitImpactUntil = 0;
+			for (const layer of Object.values(this.hitImpactLayers)) {
+				layer.setVisible(false);
+			}
 			return;
 		}
 
-		const hpRatio = Math.max(0, this.enemy.hp / Math.max(this.enemy.maxHp, 1));
-		const x = this.enemy.x;
-		const y = this.enemy.y - WorldScene.enemyHealthBarOffsetY;
+		const progress = Math.max(
+			0,
+			Math.min(1, (time - this.hitImpactStartedAt) / Math.max(WorldScene.hitImpactDurationMs, 1))
+		);
 
-		this.enemyHealthBarBg.setPosition(x, y);
-		this.enemyHealthBarFill.setPosition(x, y);
-		this.enemyHealthBarBg.setVisible(true);
-		this.enemyHealthBarFill.setVisible(true);
-		this.enemyHealthBarFill.setScale(hpRatio, 1);
+		this.hitImpactLayers.arc.setScale(1.08 + progress * 0.42, 0.74 + progress * 0.22);
+		this.hitImpactLayers.arc.setAlpha(0.98 * (1 - progress * 0.62));
+		this.hitImpactLayers.spark.setScale(0.95 + progress * 0.75, 0.48 + progress * 0.26);
+		this.hitImpactLayers.spark.setAlpha(1 * (1 - progress * 0.95));
+		this.hitImpactLayers.ring.setScale(0.55 + progress * 1.95, 0.55 + progress * 1.95);
+		this.hitImpactLayers.ring.setAlpha(0.72 * (1 - progress * 0.85));
+		this.hitImpactLayers.core.setScale(0.85 + progress * 0.95, 0.85 + progress * 0.95);
+		this.hitImpactLayers.core.setAlpha(0.92 * (1 - progress * 0.72));
+	}
+
+	private updateHitReactions(time: number) {
+		this.updateHitImpactAnimation(time);
+
+		if (this.player && this.heroHitReactionUntil > 0 && time >= this.heroHitReactionUntil) {
+			this.heroHitReactionUntil = 0;
+			this.player.clearTint();
+		}
+
+		for (const enemy of this.enemies) {
+			if (enemy.hitReactionUntil === 0 || time < enemy.hitReactionUntil || enemy.defeated) {
+				continue;
+			}
+
+			enemy.hitReactionUntil = 0;
+			if (enemy.definition.boss && enemy.phase === 2) {
+				enemy.marker.setTint(enemy.definition.boss.phaseTwoColor);
+			} else {
+				enemy.marker.clearTint();
+			}
+		}
+	}
+
+	private updateEnemyHealthBar(enemy: EnemyInstance) {
+		if (enemy.defeated) {
+			enemy.healthBarBg.setVisible(false);
+			enemy.healthBarFill.setVisible(false);
+			return;
+		}
+
+		const hpRatio = Math.max(0, enemy.hp / Math.max(enemy.maxHp, 1));
+		const x = enemy.x;
+		const y = enemy.y - WorldScene.enemyHealthBarOffsetY;
+		enemy.healthBarBg.setPosition(x, y);
+		enemy.healthBarFill.setPosition(x - 15 + (30 * hpRatio) / 2, y);
+		enemy.healthBarFill.setScale(hpRatio, 1);
+		enemy.healthBarBg.setVisible(true);
+		enemy.healthBarFill.setVisible(true);
 	}
 }

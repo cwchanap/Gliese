@@ -1,15 +1,16 @@
 import { describe, expect, it } from 'vitest';
+import { enemies } from '$lib/game/content/enemies';
 import { getItem } from '$lib/game/content/items';
 import { maps, meadowEntryMap, ruinsThresholdMap } from '$lib/game/content/maps';
 
 describe('opening map content', () => {
-	it('declares a spawn point, opening encounter, and connected exit', () => {
+	it('declares a spawn point, multiple opening encounters, and connected exit', () => {
 		expect(meadowEntryMap.spawn).toEqual({ x: 256, y: 1_280 });
-		expect(meadowEntryMap.encounter).toMatchObject({
-			x: 1_280,
-			y: 1_280,
-			enemyId: 'slime-scout'
-		});
+		expect(meadowEntryMap.encounters).toEqual([
+			{ id: 'meadow-slime-west', x: 1_024, y: 1_280, enemyId: 'slime-scout' },
+			{ id: 'meadow-slime-center', x: 1_280, y: 1_280, enemyId: 'slime-scout' },
+			{ id: 'meadow-slime-east', x: 1_536, y: 1_280, enemyId: 'slime-scout' }
+		]);
 		expect(meadowEntryMap.transitions[0]).toMatchObject({
 			toMapId: 'ruins-threshold'
 		});
@@ -62,6 +63,29 @@ describe('opening map content', () => {
 				expect(pickup.y).toBeGreaterThanOrEqual(0);
 				expect(pickup.x).toBeLessThan(map.width * 32);
 				expect(pickup.y).toBeLessThan(map.height * 32);
+			}
+		}
+	});
+
+	it('defines valid multi-encounters with stable ids and enemy definitions', () => {
+		const encounters = Object.values(maps).flatMap((map) => map.encounters ?? []);
+
+		expect(maps['ruins-threshold'].encounters).toEqual([
+			{ id: 'threshold-slime-west', x: 416, y: 480, enemyId: 'slime-scout' },
+			{ id: 'threshold-slime-east', x: 576, y: 480, enemyId: 'slime-scout' }
+		]);
+		expect(maps['ruins-core'].encounters).toEqual([
+			{ id: 'ruins-warden', x: 640, y: 480, enemyId: 'ruins-warden', completion: 'victory' }
+		]);
+		expect(new Set(encounters.map((encounter) => encounter.id)).size).toBe(encounters.length);
+
+		for (const map of Object.values(maps)) {
+			for (const encounter of map.encounters ?? []) {
+				expect(enemies[encounter.enemyId]).toBeDefined();
+				expect(encounter.x).toBeGreaterThanOrEqual(0);
+				expect(encounter.y).toBeGreaterThanOrEqual(0);
+				expect(encounter.x).toBeLessThan(map.width * 32);
+				expect(encounter.y).toBeLessThan(map.height * 32);
 			}
 		}
 	});

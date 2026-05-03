@@ -12,6 +12,7 @@ export interface MapTransition {
 }
 
 export interface MapEncounter {
+	id: string;
 	x: number;
 	y: number;
 	enemyId: string;
@@ -34,7 +35,7 @@ export interface WorldMapDefinition extends MapDefinition {
 	};
 	transitions: MapTransition[];
 	pickups?: MapPickup[];
-	encounter?: MapEncounter;
+	encounters?: MapEncounter[];
 }
 
 export const openingMapId = 'meadow-entry';
@@ -58,7 +59,11 @@ export const meadowEntryMap: WorldMapDefinition = {
 		{ id: 'meadow-entry-charm', x: 896, y: 1_408, itemId: 'meadow-charm', quantity: 1 },
 		{ id: 'meadow-entry-token', x: 1_024, y: 1_152, itemId: 'meadow-token', quantity: 1 }
 	],
-	encounter: { x: 1_280, y: 1_280, enemyId: 'slime-scout' }
+	encounters: [
+		{ id: 'meadow-slime-west', x: 1_024, y: 1_280, enemyId: 'slime-scout' },
+		{ id: 'meadow-slime-center', x: 1_280, y: 1_280, enemyId: 'slime-scout' },
+		{ id: 'meadow-slime-east', x: 1_536, y: 1_280, enemyId: 'slime-scout' }
+	]
 };
 
 export const ruinsThresholdMap: WorldMapDefinition = {
@@ -85,6 +90,10 @@ export const ruinsThresholdMap: WorldMapDefinition = {
 		{ id: 'ruins-threshold-cap', x: 416, y: 352, itemId: 'iron-cap', quantity: 1 },
 		{ id: 'ruins-threshold-rune', x: 576, y: 608, itemId: 'threshold-rune', quantity: 1 },
 		{ id: 'ruins-threshold-salve', x: 320, y: 640, itemId: 'sunleaf-salve', quantity: 2 }
+	],
+	encounters: [
+		{ id: 'threshold-slime-west', x: 416, y: 480, enemyId: 'slime-scout' },
+		{ id: 'threshold-slime-east', x: 576, y: 480, enemyId: 'slime-scout' }
 	]
 };
 
@@ -106,7 +115,9 @@ export const ruinsCoreMap: WorldMapDefinition = {
 		{ id: 'ruins-core-mail', x: 448, y: 608, itemId: 'stone-mail', quantity: 1 },
 		{ id: 'ruins-core-draught', x: 544, y: 352, itemId: 'ruin-draught', quantity: 1 }
 	],
-	encounter: { x: 640, y: 480, enemyId: 'ruins-warden', completion: 'victory' }
+	encounters: [
+		{ id: 'ruins-warden', x: 640, y: 480, enemyId: 'ruins-warden', completion: 'victory' }
+	]
 };
 
 export const maps: DefinitionRegistry<WorldMapDefinition> = {

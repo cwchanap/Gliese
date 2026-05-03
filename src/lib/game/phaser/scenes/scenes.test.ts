@@ -21,6 +21,7 @@ const phaserState = vi.hoisted(() => {
 			y: number;
 			frame: string | undefined;
 			visible: boolean;
+			clearTint: ReturnType<typeof vi.fn>;
 			setDisplaySize: ReturnType<typeof vi.fn>;
 			setTint: ReturnType<typeof vi.fn>;
 			setVisible: ReturnType<typeof vi.fn>;
@@ -31,6 +32,7 @@ const phaserState = vi.hoisted(() => {
 			y: 0,
 			frame: undefined as string | undefined,
 			visible: true,
+			clearTint: vi.fn(() => marker),
 			setDisplaySize: vi.fn(() => marker),
 			setTint: vi.fn(() => marker),
 			setVisible: vi.fn((visible: boolean) => {
@@ -50,6 +52,7 @@ const phaserState = vi.hoisted(() => {
 
 	const playerMarker = createAnimatedMarker();
 	const enemyMarker = createAnimatedMarker();
+	const enemyMarkers: ReturnType<typeof createAnimatedMarker>[] = [];
 	const victoryText = { setOrigin: vi.fn() };
 	const textureMock = {
 		has: vi.fn(() => false),
@@ -75,6 +78,7 @@ const phaserState = vi.hoisted(() => {
 		const marker = {
 			x: 0,
 			y: 0,
+			alpha: 1,
 			scaleX: 1,
 			scaleY: 1,
 			visible: true,
@@ -88,6 +92,10 @@ const phaserState = vi.hoisted(() => {
 				marker.scaleY = y ?? x;
 				return marker;
 			}),
+			setAlpha: vi.fn((alpha: number) => {
+				marker.alpha = alpha;
+				return marker;
+			}),
 			setVisible: vi.fn((visible: boolean) => {
 				marker.visible = visible;
 				return marker;
@@ -97,11 +105,19 @@ const phaserState = vi.hoisted(() => {
 		return marker;
 	}
 
+	const hitImpactMarkers = [
+		createOverlayMarker(),
+		createOverlayMarker(),
+		createOverlayMarker(),
+		createOverlayMarker()
+	];
+	let nextHitImpactMarkerIndex = 0;
 	const enemyHealthBarBg = createOverlayMarker();
 	const enemyHealthBarFill = createOverlayMarker();
+	const enemyHealthBarBgs: ReturnType<typeof createOverlayMarker>[] = [];
+	const enemyHealthBarFills: ReturnType<typeof createOverlayMarker>[] = [];
 	const attackFlash = createOverlayMarker();
 	const victoryOverlay = createOverlayMarker();
-	const rectangleQueue = [enemyHealthBarBg, enemyHealthBarFill, attackFlash, victoryOverlay];
 
 	function createImage(x: number, y: number, _texture: string, frame?: string) {
 		if (frame === 'hero' || frame?.startsWith('hero')) {
@@ -117,10 +133,13 @@ const phaserState = vi.hoisted(() => {
 			frame?.startsWith('slimeScout') ||
 			frame?.startsWith('ruinsWarden')
 		) {
-			enemyMarker.x = x;
-			enemyMarker.y = y;
-			enemyMarker.frame = frame;
-			return enemyMarker;
+			const marker = enemyMarkers.length === 0 ? enemyMarker : createAnimatedMarker();
+			marker.x = x;
+			marker.y = y;
+			marker.frame = frame;
+			marker.visible = true;
+			enemyMarkers.push(marker);
+			return marker;
 		}
 
 		const marker = {
@@ -138,6 +157,37 @@ const phaserState = vi.hoisted(() => {
 		return marker;
 	}
 
+	function createRectangle(
+		x: number,
+		y: number,
+		width: number,
+		height: number,
+		color?: number,
+		_alpha?: number
+	) {
+		if (width === 34 && height === 4) {
+			const marker = enemyHealthBarBgs.length === 0 ? enemyHealthBarBg : createOverlayMarker();
+			Object.assign(marker, { x, y, scaleX: 1, scaleY: 1, visible: true });
+			enemyHealthBarBgs.push(marker);
+			return marker;
+		}
+
+		if (width === 30 && height === 2) {
+			const marker = enemyHealthBarFills.length === 0 ? enemyHealthBarFill : createOverlayMarker();
+			Object.assign(marker, { x, y, scaleX: 1, scaleY: 1, visible: true });
+			enemyHealthBarFills.push(marker);
+			return marker;
+		}
+
+		if (width === 18 && height === 18 && color === 0xfff0a8) {
+			Object.assign(attackFlash, { x, y, scaleX: 1, scaleY: 1, visible: true });
+			return attackFlash;
+		}
+
+		Object.assign(victoryOverlay, { x, y, scaleX: 1, scaleY: 1, visible: true });
+		return victoryOverlay;
+	}
+
 	class SceneMock {
 		scene = { start: vi.fn(), restart: vi.fn() };
 		load = {
@@ -149,9 +199,18 @@ const phaserState = vi.hoisted(() => {
 			generateFrameNames: vi.fn((_key: string, config: { frames: string[] }) => config.frames)
 		};
 		add = {
+			arc: vi.fn((x: number, y: number) => {
+				const marker = hitImpactMarkers[nextHitImpactMarkerIndex] ?? createOverlayMarker();
+				if (!hitImpactMarkers[nextHitImpactMarkerIndex]) {
+					hitImpactMarkers.push(marker);
+				}
+				nextHitImpactMarkerIndex += 1;
+				Object.assign(marker, { x, y, alpha: 1, scaleX: 1, scaleY: 1, visible: true });
+				return marker;
+			}),
 			image: vi.fn(createImage),
 			sprite: vi.fn(createImage),
-			rectangle: vi.fn(() => rectangleQueue.shift() ?? createOverlayMarker()),
+			rectangle: vi.fn(createRectangle),
 			text: vi.fn(() => victoryText)
 		};
 		cameras = {
@@ -186,8 +245,16 @@ const phaserState = vi.hoisted(() => {
 		wasdKeys,
 		playerMarker,
 		enemyMarker,
+		enemyMarkers,
 		enemyHealthBarBg,
 		enemyHealthBarFill,
+		hitImpactArc: hitImpactMarkers[0],
+		hitImpactSpark: hitImpactMarkers[1],
+		hitImpactRing: hitImpactMarkers[2],
+		hitImpactCore: hitImpactMarkers[3],
+		hitImpactMarkers,
+		enemyHealthBarBgs,
+		enemyHealthBarFills,
 		attackFlash,
 		victoryText,
 		textureMock,
@@ -197,13 +264,19 @@ const phaserState = vi.hoisted(() => {
 		reset() {
 			Object.assign(playerMarker, { x: 0, y: 0, frame: undefined, visible: true });
 			Object.assign(enemyMarker, { x: 0, y: 0, frame: undefined, visible: true });
+			enemyMarkers.splice(0, enemyMarkers.length);
+			enemyHealthBarBgs.splice(0, enemyHealthBarBgs.length);
+			enemyHealthBarFills.splice(0, enemyHealthBarFills.length);
 			imageMarkers.splice(0, imageMarkers.length);
+			nextHitImpactMarkerIndex = 0;
 			playerMarker.setDisplaySize.mockClear();
+			playerMarker.clearTint.mockClear();
 			playerMarker.setTint.mockClear();
 			playerMarker.setVisible.mockReset();
 			playerMarker.play.mockReset();
 			playerMarker.once.mockReset();
 			enemyMarker.setDisplaySize.mockClear();
+			enemyMarker.clearTint.mockClear();
 			enemyMarker.setVisible.mockReset();
 			enemyMarker.setTint.mockReset();
 			enemyMarker.play.mockReset();
@@ -211,6 +284,13 @@ const phaserState = vi.hoisted(() => {
 			Object.assign(enemyHealthBarBg, { x: 0, y: 0, scaleX: 1, scaleY: 1, visible: true });
 			Object.assign(enemyHealthBarFill, { x: 0, y: 0, scaleX: 1, scaleY: 1, visible: true });
 			Object.assign(attackFlash, { x: 0, y: 0, scaleX: 1, scaleY: 1, visible: true });
+			for (const marker of hitImpactMarkers) {
+				Object.assign(marker, { x: 0, y: 0, alpha: 1, scaleX: 1, scaleY: 1, visible: true });
+				marker.setPosition.mockReset();
+				marker.setScale.mockReset();
+				marker.setAlpha.mockReset();
+				marker.setVisible.mockReset();
+			}
 			enemyHealthBarBg.setPosition.mockReset();
 			enemyHealthBarBg.setScale.mockReset();
 			enemyHealthBarBg.setVisible.mockReset();
@@ -226,14 +306,6 @@ const phaserState = vi.hoisted(() => {
 			tilemap.createLayer.mockClear();
 			tilemapLayer.setDepth.mockClear();
 			victoryText.setOrigin.mockReset();
-			rectangleQueue.splice(
-				0,
-				rectangleQueue.length,
-				enemyHealthBarBg,
-				enemyHealthBarFill,
-				attackFlash,
-				victoryOverlay
-			);
 		}
 	};
 });
@@ -346,6 +418,7 @@ describe('WorldScene', () => {
 			'animation-pack',
 			'slimeScoutIdle0'
 		);
+		expect(phaserState.enemyMarkers).toHaveLength(3);
 		expect(scene.add.image).toHaveBeenCalledWith(2_304, 1_280, 'starter-pack', 'doorwayTile');
 		expect(scene.cameras.main.setBackgroundColor).toHaveBeenCalledWith('#1a1f2b');
 	});
@@ -364,6 +437,7 @@ describe('WorldScene', () => {
 			'animation-pack',
 			'slimeScoutIdle0'
 		);
+		expect(phaserState.enemyMarkers).toHaveLength(3);
 		expect(phaserState.textureMock.add).toHaveBeenCalledWith(
 			'heroIdle0',
 			0,
@@ -530,6 +604,7 @@ describe('WorldScene', () => {
 		const { WorldScene } = await import('./WorldScene');
 		const scene = new WorldScene();
 		const sceneState = scene as unknown as {
+			enemies: Array<{ hp: number }>;
 			playerProgress: { level: number; xp: number; hp: number; attack: number };
 		};
 
@@ -569,22 +644,66 @@ describe('WorldScene', () => {
 		expect(phaserState.playerMarker.x).toBe(xAfterCreate);
 	});
 
-	it('hides the attack flash after hero death stops normal updates', async () => {
+	it('does not draw a square placeholder for the hero attack', async () => {
 		const { WorldScene } = await import('./WorldScene');
 		const scene = new WorldScene();
-		const sceneState = scene as unknown as {
-			playerProgress: { level: number; xp: number; hp: number; attack: number };
-		};
 
-		scene.create({ mapId: 'ruins-core' });
-		sceneState.playerProgress = { level: 1, xp: 0, hp: 1, attack: 3 };
-		Object.assign(phaserState.playerMarker, { x: 640, y: 480 });
+		scene.create({ mapId: 'meadow-entry' });
+		Object.assign(phaserState.playerMarker, { x: 1_024, y: 1_280 });
 
 		scene.update(0, 16);
+
+		expect(scene.add.rectangle).not.toHaveBeenCalledWith(
+			expect.any(Number),
+			expect.any(Number),
+			18,
+			18,
+			0xfff0a8,
+			0.82
+		);
+	});
+
+	it('shows the hero hit impact on the enemy target and clears the hurt reaction', async () => {
+		const { WorldScene } = await import('./WorldScene');
+		const scene = new WorldScene();
+
+		scene.create({ mapId: 'meadow-entry' });
+		Object.assign(phaserState.playerMarker, { x: 1_024, y: 1_280 });
+		phaserState.enemyMarker.setTint.mockClear();
+		phaserState.enemyMarker.clearTint.mockClear();
+
+		scene.update(0, 16);
+
+		expect(scene.add.arc).toHaveBeenCalledWith(1_024, 1_280, 32, 210, 330, false, 0xff8a1f, 0.98);
+		expect(scene.add.arc).toHaveBeenCalledWith(1_024, 1_280, 16, 20, 160, false, 0xfff7d6, 1);
+		expect(scene.add.arc).toHaveBeenCalledWith(1_024, 1_280, 26, 0, 360, false, 0xfff0a8, 0.72);
+		expect(scene.add.arc).toHaveBeenCalledWith(1_024, 1_280, 10, 0, 360, false, 0xffffff, 0.92);
+		expect(phaserState.hitImpactArc.setAlpha).toHaveBeenCalledWith(0.98);
+		expect(phaserState.hitImpactSpark.setAlpha).toHaveBeenCalledWith(1);
+		expect(phaserState.hitImpactRing.setScale).toHaveBeenCalledWith(0.55, 0.55);
+		expect(phaserState.hitImpactCore.setScale).toHaveBeenCalledWith(0.85, 0.85);
+		expect(phaserState.hitImpactCore.setAlpha).toHaveBeenCalledWith(0.92);
+		expect(phaserState.enemyMarker.setTint).toHaveBeenCalledWith(0xfff0a8);
+
 		scene.update(200, 16);
 
-		expect(phaserState.playerMarker.play).toHaveBeenCalledWith('hero-dead', false);
-		expect(phaserState.attackFlash.setVisible).toHaveBeenCalledWith(false);
+		expect(phaserState.hitImpactArc.setVisible).not.toHaveBeenCalledWith(false);
+		expect(phaserState.hitImpactSpark.setVisible).not.toHaveBeenCalledWith(false);
+		expect(phaserState.hitImpactRing.setVisible).not.toHaveBeenCalledWith(false);
+		expect(phaserState.hitImpactCore.setVisible).not.toHaveBeenCalledWith(false);
+		expect(phaserState.hitImpactArc.scaleX).toBeGreaterThan(1);
+		expect(phaserState.hitImpactSpark.alpha).toBeLessThan(0.95);
+		expect(phaserState.hitImpactRing.scaleX).toBeGreaterThan(0.45);
+		expect(phaserState.hitImpactCore.alpha).toBeGreaterThan(0.25);
+		expect(phaserState.enemyMarker.clearTint).not.toHaveBeenCalled();
+
+		scene.update(470, 16);
+
+		expect(phaserState.hitImpactArc.setVisible).toHaveBeenCalledWith(false);
+		expect(phaserState.hitImpactSpark.setVisible).toHaveBeenCalledWith(false);
+		expect(phaserState.hitImpactRing.setVisible).toHaveBeenCalledWith(false);
+		expect(phaserState.hitImpactCore.setVisible).toHaveBeenCalledWith(false);
+		expect(phaserState.enemyMarker.clearTint).toHaveBeenCalled();
 	});
 
 	it('stops world movement while the gameplay menu is open', async () => {
@@ -802,17 +921,20 @@ describe('WorldScene', () => {
 		const applyExperienceGainSpy = vi.spyOn(progression, 'applyExperienceGain');
 		const { WorldScene } = await import('./WorldScene');
 		const scene = new WorldScene();
-		const sceneState = scene as unknown as { playerProgress: { level: number; xp: number } };
+		const sceneState = scene as unknown as {
+			enemies: Array<{ hp: number; x: number }>;
+			playerProgress: { level: number; xp: number };
+		};
 
 		scene.create({ mapId: 'meadow-entry' });
-		Object.assign(phaserState.playerMarker, { x: 1_280, y: 1_280 });
+		Object.assign(phaserState.playerMarker, { x: 1_024, y: 1_280 });
+		sceneState.enemies[0]!.hp = 3;
 
 		scene.update(0, 16);
 
-		expect(applyExperienceGainSpy).toHaveBeenCalledWith({ level: 1, xp: 0, hp: 20, attack: 3 }, 5);
-		expect(phaserState.attackFlash.setVisible).toHaveBeenCalledWith(true);
+		expect(applyExperienceGainSpy).toHaveBeenCalledWith({ level: 1, xp: 0, hp: 20, attack: 3 }, 4);
 		expect(phaserState.enemyHealthBarFill.setScale).toHaveBeenCalledWith(0, 1);
-		expect(sceneState.playerProgress).toMatchObject({ level: 2, xp: 5 });
+		expect(sceneState.playerProgress).toMatchObject({ level: 1, xp: 4 });
 		expect(phaserState.enemyMarker.play).toHaveBeenCalledWith('slimeScout-dead', false);
 	});
 
@@ -820,7 +942,7 @@ describe('WorldScene', () => {
 		const { WorldScene } = await import('./WorldScene');
 		const scene = new WorldScene();
 		const sceneState = scene as unknown as {
-			enemy: { x: number; y: number; attackCooldownUntil: number };
+			enemies: Array<{ x: number; y: number; attackCooldownUntil: number }>;
 		};
 
 		scene.create({ mapId: 'ruins-core' });
@@ -832,8 +954,11 @@ describe('WorldScene', () => {
 		expect(phaserState.enemyMarker.play).toHaveBeenCalledWith('ruinsWarden-walk', true);
 
 		phaserState.enemyMarker.play.mockClear();
-		Object.assign(phaserState.playerMarker, { x: sceneState.enemy.x, y: sceneState.enemy.y });
-		sceneState.enemy.attackCooldownUntil = 0;
+		Object.assign(phaserState.playerMarker, {
+			x: sceneState.enemies[0]!.x,
+			y: sceneState.enemies[0]!.y
+		});
+		sceneState.enemies[0]!.attackCooldownUntil = 0;
 		scene.update(500, 16);
 
 		expect(phaserState.enemyMarker.play).toHaveBeenCalledWith('ruinsWarden-attack', false);
@@ -843,6 +968,52 @@ describe('WorldScene', () => {
 
 		expect(phaserState.enemyMarker.play).not.toHaveBeenCalledWith('ruinsWarden-idle', true);
 		expect(phaserState.enemyMarker.play).not.toHaveBeenCalledWith('ruinsWarden-walk', true);
+	});
+
+	it('shows enemy hit impact on the hero and clears the hurt reaction', async () => {
+		const { WorldScene } = await import('./WorldScene');
+		const scene = new WorldScene();
+		const sceneState = scene as unknown as {
+			enemies: Array<{ attackCooldownUntil: number }>;
+		};
+
+		scene.create({ mapId: 'ruins-core' });
+		Object.assign(phaserState.playerMarker, { x: 600, y: 480 });
+		sceneState.enemies[0]!.attackCooldownUntil = 0;
+		phaserState.playerMarker.setTint.mockClear();
+		phaserState.playerMarker.clearTint.mockClear();
+
+		scene.update(500, 16);
+
+		expect(phaserState.playerMarker.setTint).toHaveBeenCalledWith(0xfff0a8);
+
+		scene.update(700, 16);
+
+		expect(phaserState.playerMarker.clearTint).not.toHaveBeenCalled();
+
+		scene.update(980, 16);
+
+		expect(phaserState.playerMarker.clearTint).toHaveBeenCalled();
+	});
+
+	it('keeps enemies at a readable melee distance while chasing', async () => {
+		const { WorldScene } = await import('./WorldScene');
+		const scene = new WorldScene();
+		const sceneState = scene as unknown as {
+			enemies: Array<{ x: number; y: number }>;
+			playerProgress: { hp: number };
+		};
+
+		scene.create({ mapId: 'ruins-core' });
+		Object.assign(phaserState.playerMarker, { x: 560, y: 480 });
+
+		scene.update(0, 10_000);
+		scene.update(500, 10_000);
+		scene.update(1000, 10_000);
+
+		expect(sceneState.enemies[0]!.x).toBe(600);
+		expect(sceneState.enemies[0]!.y).toBe(480);
+		expect(sceneState.playerProgress.hp).toBe(15);
 	});
 
 	it('plays enemy dead animation before hiding encounter art and health bars', async () => {
@@ -855,7 +1026,8 @@ describe('WorldScene', () => {
 		});
 
 		scene.create({ mapId: 'meadow-entry' });
-		Object.assign(phaserState.playerMarker, { x: 1_280, y: 1_280 });
+		Object.assign(phaserState.playerMarker, { x: 1_024, y: 1_280 });
+		(scene as unknown as { enemies: Array<{ hp: number }> }).enemies[0]!.hp = 3;
 
 		scene.update(0, 16);
 
@@ -884,14 +1056,15 @@ describe('WorldScene', () => {
 
 		try {
 			scene.create({ mapId: 'meadow-entry' });
-			Object.assign(phaserState.playerMarker, { x: 1_280, y: 1_280 });
+			Object.assign(phaserState.playerMarker, { x: 1_024, y: 1_280 });
+			(scene as unknown as { enemies: Array<{ hp: number }> }).enemies[0]!.hp = 3;
 
 			scene.update(0, 16);
 
 			expect(sceneState.buildSaveState()).toMatchObject({
 				inventory: { stacks: [{ itemId: 'field-potion', quantity: 2 }] },
 				flags: {
-					resolvedEncounterDrops: { 'slime-scout': [{ itemId: 'field-potion', quantity: 1 }] }
+					resolvedEncounterDrops: { 'meadow-slime-west': [{ itemId: 'field-potion', quantity: 1 }] }
 				}
 			});
 		} finally {
@@ -922,7 +1095,7 @@ describe('WorldScene', () => {
 						clearedEncounters: [],
 						collectedPickups: [],
 						resolvedEncounterDrops: {
-							'slime-scout': [{ itemId: 'greater-field-potion', quantity: 1 }]
+							'meadow-slime-west': [{ itemId: 'greater-field-potion', quantity: 1 }]
 						}
 					},
 					inventory: {
@@ -931,7 +1104,8 @@ describe('WorldScene', () => {
 					}
 				}
 			});
-			Object.assign(phaserState.playerMarker, { x: 1_280, y: 1_280 });
+			Object.assign(phaserState.playerMarker, { x: 1_024, y: 1_280 });
+			(scene as unknown as { enemies: Array<{ hp: number }> }).enemies[0]!.hp = 3;
 
 			scene.update(0, 16);
 
@@ -940,7 +1114,7 @@ describe('WorldScene', () => {
 				inventory: { stacks: [{ itemId: 'greater-field-potion', quantity: 1 }] },
 				flags: {
 					resolvedEncounterDrops: {
-						'slime-scout': [{ itemId: 'greater-field-potion', quantity: 1 }]
+						'meadow-slime-west': [{ itemId: 'greater-field-potion', quantity: 1 }]
 					}
 				}
 			});
@@ -953,33 +1127,38 @@ describe('WorldScene', () => {
 		const { WorldScene } = await import('./WorldScene');
 		const scene = new WorldScene();
 		const sceneState = scene as unknown as {
-			enemy: { hp: number };
+			enemies: Array<{ hp: number }>;
 		};
 
 		scene.create({ mapId: 'meadow-entry' });
-		Object.assign(phaserState.playerMarker, { x: 1_280, y: 1_280 });
+		Object.assign(phaserState.playerMarker, { x: 1_024, y: 1_280 });
 
 		scene.update(0, 16);
 
-		expect(sceneState.enemy.hp).toBe(0);
+		expect(sceneState.enemies[0]!.hp).toBe(4);
 	});
 
 	it('does not auto attack again before the cooldown elapses', async () => {
 		const { WorldScene } = await import('./WorldScene');
 		const scene = new WorldScene();
 		const sceneState = scene as unknown as {
-			enemy: { hp: number; maxHp: number; invulnerableUntil: number; defeated: boolean };
+			enemies: Array<{ hp: number; maxHp: number; invulnerableUntil: number; defeated: boolean }>;
 		};
 
 		scene.create({ mapId: 'meadow-entry' });
-		Object.assign(phaserState.playerMarker, { x: 1_280, y: 1_280 });
-		Object.assign(sceneState.enemy, { hp: 9, maxHp: 9, invulnerableUntil: 0, defeated: false });
+		Object.assign(phaserState.playerMarker, { x: 1_024, y: 1_280 });
+		Object.assign(sceneState.enemies[0]!, {
+			hp: 9,
+			maxHp: 9,
+			invulnerableUntil: 0,
+			defeated: false
+		});
 
 		scene.update(0, 16);
 		scene.update(200, 16);
 		scene.update(400, 16);
 
-		expect(sceneState.enemy.hp).toBe(5);
+		expect(sceneState.enemies[0]!.hp).toBe(5);
 		expect(phaserState.enemyHealthBarFill.setScale).toHaveBeenLastCalledWith(
 			expect.closeTo(5 / 9, 5),
 			1
@@ -990,27 +1169,38 @@ describe('WorldScene', () => {
 		const { WorldScene } = await import('./WorldScene');
 		const scene = new WorldScene();
 		const sceneState = scene as unknown as {
+			enemies: Array<{ hp: number }>;
 			playerProgress: { level: number; xp: number; hp: number; attack: number };
 		};
 
 		scene.create({ mapId: 'meadow-entry' });
-		Object.assign(phaserState.playerMarker, { x: 1_280, y: 1_280 });
+		Object.assign(phaserState.playerMarker, { x: 1_024, y: 1_280 });
 		sceneState.playerProgress = { level: 2, xp: 5, hp: 24, attack: 4 };
+		sceneState.enemies[0]!.hp = 4;
 
 		expect(() => scene.update(0, 16)).not.toThrow();
-		expect(sceneState.playerProgress).toEqual({ level: 2, xp: 10, hp: 24, attack: 4 });
+		expect(sceneState.playerProgress).toEqual({ level: 2, xp: 9, hp: 24, attack: 4 });
 	});
 
 	it('moves into the ruins after the opening encounter is cleared and the exit is reached', async () => {
+		const { createNewSaveState } = await import('$lib/game/save/save-state');
 		const { WorldScene } = await import('./WorldScene');
 		const scene = new WorldScene();
 
-		scene.create({ mapId: 'meadow-entry' });
-		Object.assign(phaserState.playerMarker, { x: 1_280, y: 1_280 });
-		scene.update(0, 16);
+		scene.create({
+			saveState: {
+				...createNewSaveState(),
+				mapId: 'meadow-entry',
+				flags: {
+					clearedEncounters: ['meadow-slime-center', 'meadow-slime-east', 'meadow-slime-west'],
+					collectedPickups: [],
+					resolvedEncounterDrops: {}
+				}
+			}
+		});
 
 		Object.assign(phaserState.playerMarker, { x: 2_304, y: 1_280 });
-		scene.update(200, 16);
+		scene.update(0, 16);
 
 		expect(scene.scene.restart).toHaveBeenCalledWith({
 			reason: 'transition',
@@ -1026,10 +1216,21 @@ describe('WorldScene', () => {
 	});
 
 	it('returns from the ruins to a spawn point near the meadow entrance', async () => {
+		const { createNewSaveState } = await import('$lib/game/save/save-state');
 		const { WorldScene } = await import('./WorldScene');
 		const scene = new WorldScene();
 
-		scene.create({ mapId: 'ruins-threshold' });
+		scene.create({
+			saveState: {
+				...createNewSaveState(),
+				mapId: 'ruins-threshold',
+				flags: {
+					clearedEncounters: ['threshold-slime-east', 'threshold-slime-west'],
+					collectedPickups: [],
+					resolvedEncounterDrops: {}
+				}
+			}
+		});
 		Object.assign(phaserState.playerMarker, { x: 128, y: 480 });
 
 		scene.update(0, 16);
@@ -1048,10 +1249,21 @@ describe('WorldScene', () => {
 	});
 
 	it('moves from the ruins threshold into the core when the far exit is reached', async () => {
+		const { createNewSaveState } = await import('$lib/game/save/save-state');
 		const { WorldScene } = await import('./WorldScene');
 		const scene = new WorldScene();
 
-		scene.create({ mapId: 'ruins-threshold' });
+		scene.create({
+			saveState: {
+				...createNewSaveState(),
+				mapId: 'ruins-threshold',
+				flags: {
+					clearedEncounters: ['threshold-slime-east', 'threshold-slime-west'],
+					collectedPickups: [],
+					resolvedEncounterDrops: {}
+				}
+			}
+		});
 		Object.assign(phaserState.playerMarker, { x: 704, y: 480 });
 
 		scene.update(0, 16);
@@ -1067,6 +1279,29 @@ describe('WorldScene', () => {
 				})
 			})
 		});
+	});
+
+	it('blocks transitions while any map enemy is still alive', async () => {
+		const { createNewSaveState } = await import('$lib/game/save/save-state');
+		const { WorldScene } = await import('./WorldScene');
+		const scene = new WorldScene();
+
+		scene.create({
+			saveState: {
+				...createNewSaveState(),
+				mapId: 'meadow-entry',
+				flags: {
+					clearedEncounters: ['meadow-slime-west', 'meadow-slime-center'],
+					collectedPickups: [],
+					resolvedEncounterDrops: {}
+				}
+			}
+		});
+		Object.assign(phaserState.playerMarker, { x: 2_304, y: 1_280 });
+
+		scene.update(0, 16);
+
+		expect(scene.scene.restart).not.toHaveBeenCalled();
 	});
 
 	it('returns from the ruins core to the threshold after the boss encounter is cleared', async () => {
@@ -1132,10 +1367,10 @@ describe('WorldScene', () => {
 				...createNewSaveState(),
 				mapId: 'ruins-threshold',
 				flags: {
-					clearedEncounters: ['slime-scout'],
+					clearedEncounters: ['threshold-slime-east', 'threshold-slime-west'],
 					collectedPickups: ['meadow-cache'],
 					resolvedEncounterDrops: {
-						'slime-scout': [{ itemId: 'field-potion', quantity: 1 }]
+						'threshold-slime-east': [{ itemId: 'field-potion', quantity: 1 }]
 					}
 				}
 			}
@@ -1148,10 +1383,10 @@ describe('WorldScene', () => {
 			reason: 'transition',
 			saveState: expect.objectContaining({
 				flags: {
-					clearedEncounters: ['slime-scout'],
+					clearedEncounters: ['threshold-slime-east', 'threshold-slime-west'],
 					collectedPickups: ['meadow-cache'],
 					resolvedEncounterDrops: {
-						'slime-scout': [{ itemId: 'field-potion', quantity: 1 }]
+						'threshold-slime-east': [{ itemId: 'field-potion', quantity: 1 }]
 					}
 				}
 			})
@@ -1162,7 +1397,7 @@ describe('WorldScene', () => {
 		const { WorldScene } = await import('./WorldScene');
 		const scene = new WorldScene();
 		const sceneState = scene as unknown as {
-			enemy: { x: number; hp: number };
+			enemies: Array<{ x: number; hp: number }>;
 			playerProgress: { hp: number };
 		};
 
@@ -1171,17 +1406,33 @@ describe('WorldScene', () => {
 
 		scene.update(0, 1000);
 
-		expect(sceneState.enemy.x).toBeLessThan(640);
+		expect(sceneState.enemies[0]!.x).toBeLessThan(640);
 
-		Object.assign(phaserState.playerMarker, { x: sceneState.enemy.x, y: 480 });
+		Object.assign(phaserState.playerMarker, { x: sceneState.enemies[0]!.x, y: 480 });
 		scene.update(500, 16);
 
-		expect(sceneState.playerProgress.hp).toBe(16);
+		expect(sceneState.playerProgress.hp).toBe(15);
 
+		sceneState.enemies[0]!.hp = 22;
 		scene.update(1000, 16);
-		scene.update(1500, 16);
 
 		expect(phaserState.enemyMarker.setTint).toHaveBeenCalledWith(0xff8a3d);
+	});
+
+	it('does not defeat the boss with one opening hit', async () => {
+		const { WorldScene } = await import('./WorldScene');
+		const scene = new WorldScene();
+		const sceneState = scene as unknown as {
+			enemies: Array<{ hp: number; defeated: boolean }>;
+		};
+
+		scene.create({ mapId: 'ruins-core' });
+		Object.assign(phaserState.playerMarker, { x: 640, y: 480 });
+
+		scene.update(0, 16);
+
+		expect(sceneState.enemies[0]).toMatchObject({ hp: 41, defeated: false });
+		expect(scene.add.text).not.toHaveBeenCalled();
 	});
 
 	it('shows a victory state after defeating the boss encounter', async () => {
@@ -1190,10 +1441,9 @@ describe('WorldScene', () => {
 
 		scene.create({ mapId: 'ruins-core' });
 		Object.assign(phaserState.playerMarker, { x: 640, y: 480 });
+		(scene as unknown as { enemies: Array<{ hp: number }> }).enemies[0]!.hp = 3;
 
 		scene.update(0, 16);
-		scene.update(500, 16);
-		scene.update(1000, 16);
 
 		expect(scene.add.text).toHaveBeenCalledWith(
 			expect.any(Number),

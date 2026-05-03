@@ -11,10 +11,10 @@ export interface EnemyCombatDefinition extends EnemyDefinition {
 
 export const slimeScout: EnemyCombatDefinition = {
 	id: 'slime-scout',
-	baseHp: 3,
+	baseHp: 8,
 	baseAttack: 2,
 	moveSpeed: 90,
-	xpReward: 5,
+	xpReward: 4,
 	loot: {
 		guaranteed: [],
 		chance: [{ itemId: 'field-potion', quantity: 1, chance: 0.6 }]
@@ -23,10 +23,10 @@ export const slimeScout: EnemyCombatDefinition = {
 
 export const ruinsWarden: EnemyCombatDefinition = {
 	id: 'ruins-warden',
-	baseHp: 9,
-	baseAttack: 4,
+	baseHp: 45,
+	baseAttack: 5,
 	moveSpeed: 75,
-	xpReward: 12,
+	xpReward: 18,
 	loot: {
 		guaranteed: [
 			{ itemId: 'warden-sigil', quantity: 1 },
