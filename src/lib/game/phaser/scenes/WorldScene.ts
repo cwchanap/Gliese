@@ -63,6 +63,7 @@ type OverlayMarker = {
 	x?: number;
 	y?: number;
 	setAlpha: (alpha: number) => unknown;
+	setOrigin?: (x: number, y?: number) => unknown;
 	setPosition: (x: number, y: number) => unknown;
 	setScale: (x: number, y?: number) => unknown;
 	setVisible: (visible: boolean) => unknown;
@@ -245,6 +246,7 @@ export class WorldScene extends Phaser.Scene {
 		this.ensureActorAnimations();
 		this.ensureTerrainTilesetTexture();
 		this.renderGround(map);
+		this.renderLandmarks(map);
 		const heroAnimation = getActorAnimationAsset('hero');
 		this.player = this.add.sprite(
 			activeSave?.player.x ?? map.spawn.x,
@@ -879,6 +881,30 @@ export class WorldScene extends Phaser.Scene {
 		return enemy.definition.moveSpeed;
 	}
 
+	private renderLandmarks(map: WorldMapDefinition) {
+		for (const landmark of map.landmarks ?? []) {
+			this.add.rectangle(landmark.x, landmark.y, landmark.width, landmark.height, 0x5b4636, 0.9);
+			this.add.rectangle(
+				landmark.x,
+				landmark.y + landmark.height / 2,
+				landmark.width,
+				24,
+				0x2f241c,
+				0.95
+			);
+			const label = this.add.text(
+				landmark.x,
+				landmark.y - landmark.height / 2 + 4,
+				landmark.label,
+				{
+					color: '#f8fafc',
+					fontSize: '12px'
+				}
+			) as OverlayMarker;
+			label.setOrigin?.(0.5, 0);
+		}
+	}
+
 	private renderPickups(map: WorldMapDefinition) {
 		this.pickupMarkers.clear();
 
@@ -1050,13 +1076,18 @@ export class WorldScene extends Phaser.Scene {
 	}
 
 	private tryTransition() {
-		if (!this.player || this.hasLivingEnemies()) {
+		if (!this.player) {
 			return false;
 		}
 
 		const map = this.resolveMap(this.mapId);
+		const hasLivingEnemies = this.hasLivingEnemies();
 
 		for (const transition of map.transitions) {
+			if (transition.requiresClear === true && hasLivingEnemies) {
+				continue;
+			}
+
 			const distance = Phaser.Math.Distance.Between(
 				this.player.x,
 				this.player.y,
