@@ -191,7 +191,7 @@ export const heroHouseMap: WorldMapDefinition = {
 			id: 'hero-house-to-meadow',
 			...interiorDoor,
 			toMapId: openingMapId,
-			arrival: { x: 384, y: 1_408, facing: 'down' }
+			arrival: { x: 384, y: 1_456, facing: 'down' }
 		}
 	]
 };
@@ -207,7 +207,7 @@ export const guildHallMap: WorldMapDefinition = {
 			id: 'guild-hall-to-meadow',
 			...interiorDoor,
 			toMapId: openingMapId,
-			arrival: { x: 800, y: 1_168, facing: 'down' }
+			arrival: { x: 800, y: 1_216, facing: 'down' }
 		}
 	],
 	npcs: [
@@ -234,7 +234,7 @@ export const itemShopMap: WorldMapDefinition = {
 			id: 'item-shop-to-meadow',
 			...interiorDoor,
 			toMapId: openingMapId,
-			arrival: { x: 832, y: 1_536, facing: 'down' }
+			arrival: { x: 832, y: 1_584, facing: 'down' }
 		}
 	],
 	npcs: [
@@ -261,7 +261,7 @@ export const villagerHouse1Map: WorldMapDefinition = {
 			id: 'villager-house-1-to-meadow',
 			...interiorDoor,
 			toMapId: openingMapId,
-			arrival: { x: 352, y: 1_080, facing: 'down' }
+			arrival: { x: 352, y: 1_128, facing: 'down' }
 		}
 	],
 	npcs: [
@@ -288,7 +288,7 @@ export const villagerHouse2Map: WorldMapDefinition = {
 			id: 'villager-house-2-to-meadow',
 			...interiorDoor,
 			toMapId: openingMapId,
-			arrival: { x: 576, y: 1_624, facing: 'down' }
+			arrival: { x: 576, y: 1_672, facing: 'down' }
 		}
 	],
 	npcs: [
@@ -316,7 +316,7 @@ export const villagerHouse3Map: WorldMapDefinition = {
 			id: 'villager-house-3-to-meadow',
 			...interiorDoor,
 			toMapId: openingMapId,
-			arrival: { x: 1_056, y: 1_400, facing: 'down' }
+			arrival: { x: 1_056, y: 1_448, facing: 'down' }
 		}
 	],
 	npcs: [

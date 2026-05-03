@@ -103,7 +103,7 @@ describe('opening map content', () => {
 				x: 256,
 				y: 336,
 				toMapId: 'meadow-entry',
-				arrival: { x: 384, y: 1_408, facing: 'down' }
+				arrival: { x: 384, y: 1_456, facing: 'down' }
 			}
 		]);
 		expect(
@@ -170,6 +170,34 @@ describe('opening map content', () => {
 			expect(map.height).toBe(12);
 			expect(map.transitions).toHaveLength(1);
 			expect(map.transitions[0].toMapId).toBe('meadow-entry');
+		}
+	});
+
+	it('places interior return arrivals outside the exterior doorway trigger radius', () => {
+		const triggerRadius = 30;
+		const exteriorTransitions = new Map(
+			meadowEntryMap.transitions.map((transition) => [transition.toMapId, transition])
+		);
+
+		for (const interiorMap of [
+			heroHouseMap,
+			guildHallMap,
+			itemShopMap,
+			villagerHouse1Map,
+			villagerHouse2Map,
+			villagerHouse3Map
+		]) {
+			const returnTransition = interiorMap.transitions[0];
+			const exteriorTransition = exteriorTransitions.get(interiorMap.id);
+			expect(exteriorTransition).toBeDefined();
+			expect(returnTransition.arrival).toBeDefined();
+
+			const distance = Math.hypot(
+				returnTransition.arrival!.x - exteriorTransition!.x,
+				returnTransition.arrival!.y - exteriorTransition!.y
+			);
+
+			expect(distance).toBeGreaterThan(triggerRadius);
 		}
 	});
 

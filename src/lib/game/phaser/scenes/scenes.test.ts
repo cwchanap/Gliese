@@ -1347,6 +1347,34 @@ describe('WorldScene', () => {
 		});
 	});
 
+	it('returns from the hero house to a safe point below the exterior doorway', async () => {
+		const { createNewSaveState } = await import('$lib/game/save/save-state');
+		const { WorldScene } = await import('./WorldScene');
+		const scene = new WorldScene();
+
+		scene.create({
+			saveState: {
+				...createNewSaveState(),
+				mapId: 'hero-house'
+			}
+		});
+		Object.assign(phaserState.playerMarker, { x: 256, y: 336 });
+
+		scene.update(0, 16);
+
+		expect(scene.scene.restart).toHaveBeenCalledWith({
+			reason: 'transition',
+			saveState: expect.objectContaining({
+				mapId: 'meadow-entry',
+				player: expect.objectContaining({
+					x: 384,
+					y: 1_456,
+					facing: 'down'
+				})
+			})
+		});
+	});
+
 	it('returns from the ruins to a spawn point near the meadow entrance', async () => {
 		const { createNewSaveState } = await import('$lib/game/save/save-state');
 		const { WorldScene } = await import('./WorldScene');
