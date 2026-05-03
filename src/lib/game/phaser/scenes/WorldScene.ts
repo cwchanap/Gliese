@@ -1,9 +1,14 @@
 import * as Phaser from 'phaser';
 
 import {
-	getEnemyFrameName,
+	actorAnimationAssets,
+	actorAnimationKeys,
+	animationPackAsset,
+	getActorAnimationAsset,
+	getEnemyActorId,
 	getGroundFrameName,
 	starterPackAsset,
+	type ActorAnimationKey,
 	type StarterPackFrameName
 } from '$lib/game/content/assets';
 import { enemies, type EnemyCombatDefinition } from '$lib/game/content/enemies';
@@ -43,12 +48,14 @@ type DirectionKey = {
 	isDown: boolean;
 };
 
-type EnemyMarker = {
-	x?: number;
-	y?: number;
+type ActorMarker = {
+	x: number;
+	y: number;
 	setDisplaySize: (width: number, height: number) => unknown;
 	setTint: (color: number) => unknown;
 	setVisible: (visible: boolean) => unknown;
+	play: (key: string, ignoreIfPlaying?: boolean) => unknown;
+	once: (event: string, callback: () => void) => unknown;
 };
 
 type OverlayMarker = {
@@ -144,12 +151,12 @@ export class WorldScene extends Phaser.Scene {
 	private enemy?: EnemyInstance;
 	private enemyHealthBarBg?: OverlayMarker;
 	private enemyHealthBarFill?: OverlayMarker;
-	private enemyMarker?: EnemyMarker;
+	private enemyMarker?: ActorMarker;
 	private facing: Direction = 'down';
 	private inventory: SaveState['inventory'] = cloneInventory(createNewSaveState().inventory);
 	private mapId = openingMapId;
 	private pickupMarkers = new Map<string, PickupMarker>();
-	private player?: Phaser.GameObjects.Image;
+	private player?: ActorMarker;
 	private playerAttackCooldownUntil = 0;
 	private playerInvulnerableUntil = 0;
 	private playerProgress: ProgressionState = {
@@ -206,15 +213,19 @@ export class WorldScene extends Phaser.Scene {
 		this.worldSize = { width, height };
 
 		this.registerStarterPackFrames();
+		this.registerAnimationPackFrames();
+		this.ensureActorAnimations();
 		this.ensureTerrainTilesetTexture();
 		this.renderGround(map);
-		this.player = this.add.image(
+		const heroAnimation = getActorAnimationAsset('hero');
+		this.player = this.add.sprite(
 			activeSave?.player.x ?? map.spawn.x,
 			activeSave?.player.y ?? map.spawn.y,
-			starterPackAsset.key,
-			'hero'
-		) as Phaser.GameObjects.Image;
-		this.player.setDisplaySize(44, 60);
+			animationPackAsset.key,
+			heroAnimation.clips.idle.frames[0]
+		) as ActorMarker;
+		this.player.setDisplaySize(heroAnimation.displaySize.width, heroAnimation.displaySize.height);
+		this.playHeroAnimation('idle');
 
 		this.setupEncounter(map);
 		this.renderTransitions(map);
@@ -610,6 +621,50 @@ export class WorldScene extends Phaser.Scene {
 		}
 	}
 
+	private registerAnimationPackFrames() {
+		const texture = this.textures.get(animationPackAsset.key);
+
+		for (const [frameName, frame] of Object.entries(animationPackAsset.frames)) {
+			if (!texture.has(frameName)) {
+				texture.add(frameName, 0, frame.x, frame.y, frame.w, frame.h);
+			}
+		}
+	}
+
+	private ensureActorAnimations() {
+		for (const actor of Object.values(actorAnimationAssets)) {
+			for (const clipName of actorAnimationKeys) {
+				const clip = actor.clips[clipName];
+
+				if (this.anims.exists(clip.key)) {
+					continue;
+				}
+
+				this.anims.create({
+					key: clip.key,
+					frames: clip.frames.map((frame) => ({ key: animationPackAsset.key, frame })),
+					frameRate: clip.frameRate,
+					repeat: clip.repeat
+				});
+			}
+		}
+	}
+
+	private playHeroAnimation(clipName: ActorAnimationKey, ignoreIfPlaying = true) {
+		this.player?.play(getActorAnimationAsset('hero').clips[clipName].key, ignoreIfPlaying);
+	}
+
+	private playEnemyAnimation(clipName: ActorAnimationKey, ignoreIfPlaying = true) {
+		if (!this.enemy) {
+			return;
+		}
+
+		this.enemyMarker?.play(
+			getActorAnimationAsset(getEnemyActorId(this.enemy.definition.id)).clips[clipName].key,
+			ignoreIfPlaying
+		);
+	}
+
 	private ensureTerrainTilesetTexture() {
 		const textureManager = this.textures as typeof this.textures & {
 			exists?: (key: string) => boolean;
@@ -791,15 +846,17 @@ export class WorldScene extends Phaser.Scene {
 			x: encounter.x,
 			y: encounter.y
 		};
-		this.enemyMarker = this.add.image(
+		const actorId = getEnemyActorId(encounter.enemyId);
+		const actorAnimation = getActorAnimationAsset(actorId);
+		this.enemyMarker = this.add.sprite(
 			encounter.x,
 			encounter.y,
-			starterPackAsset.key,
-			getEnemyFrameName(encounter.enemyId)
-		) as EnemyMarker;
+			animationPackAsset.key,
+			actorAnimation.clips.idle.frames[0]
+		) as ActorMarker;
 		this.enemyMarker.setDisplaySize(
-			encounter.enemyId === 'ruins-warden' ? 80 : 44,
-			encounter.enemyId === 'ruins-warden' ? 96 : 44
+			actorAnimation.displaySize.width,
+			actorAnimation.displaySize.height
 		);
 		this.enemyMarker.x = encounter.x;
 		this.enemyMarker.y = encounter.y;
@@ -829,6 +886,8 @@ export class WorldScene extends Phaser.Scene {
 			if (encounter.completion === 'victory') {
 				this.showVictoryState();
 			}
+		} else {
+			this.playEnemyAnimation('idle');
 		}
 	}
 

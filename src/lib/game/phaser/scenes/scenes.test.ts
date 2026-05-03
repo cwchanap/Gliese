@@ -15,24 +15,27 @@ const phaserState = vi.hoisted(() => {
 		up: { isDown: false },
 		down: { isDown: false }
 	};
-	const playerMarker = {
-		x: 0,
-		y: 0,
-		setDisplaySize: vi.fn((...args: unknown[]) => {
-			void args;
-			return playerMarker;
-		})
-	};
-	const enemyMarker = {
-		x: 0,
-		y: 0,
-		setDisplaySize: vi.fn((...args: unknown[]) => {
-			void args;
-			return enemyMarker;
-		}),
-		setTint: vi.fn(),
-		setVisible: vi.fn()
-	};
+	function createAnimatedMarker() {
+		const marker = {
+			x: 0,
+			y: 0,
+			frame: undefined as string | undefined,
+			visible: true,
+			setDisplaySize: vi.fn(() => marker),
+			setTint: vi.fn(() => marker),
+			setVisible: vi.fn((visible: boolean) => {
+				marker.visible = visible;
+				return marker;
+			}),
+			play: vi.fn(() => marker),
+			once: vi.fn(() => marker)
+		};
+
+		return marker;
+	}
+
+	const playerMarker = createAnimatedMarker();
+	const enemyMarker = createAnimatedMarker();
 	const victoryText = { setOrigin: vi.fn() };
 	const textureMock = {
 		has: vi.fn(() => false),
@@ -87,15 +90,22 @@ const phaserState = vi.hoisted(() => {
 	const rectangleQueue = [enemyHealthBarBg, enemyHealthBarFill, attackFlash, victoryOverlay];
 
 	function createImage(x: number, y: number, _texture: string, frame?: string) {
-		if (frame === 'hero') {
+		if (frame === 'hero' || frame?.startsWith('hero')) {
 			playerMarker.x = x;
 			playerMarker.y = y;
+			playerMarker.frame = frame;
 			return playerMarker;
 		}
 
-		if (frame === 'slimeScout' || frame === 'ruinsWarden') {
+		if (
+			frame === 'slimeScout' ||
+			frame === 'ruinsWarden' ||
+			frame?.startsWith('slimeScout') ||
+			frame?.startsWith('ruinsWarden')
+		) {
 			enemyMarker.x = x;
 			enemyMarker.y = y;
+			enemyMarker.frame = frame;
 			return enemyMarker;
 		}
 
@@ -119,8 +129,14 @@ const phaserState = vi.hoisted(() => {
 		load = {
 			image: vi.fn()
 		};
+		anims = {
+			exists: vi.fn(() => false),
+			create: vi.fn(),
+			generateFrameNames: vi.fn((_key: string, config: { frames: string[] }) => config.frames)
+		};
 		add = {
 			image: vi.fn(createImage),
+			sprite: vi.fn(createImage),
 			rectangle: vi.fn(() => rectangleQueue.shift() ?? createOverlayMarker()),
 			text: vi.fn(() => victoryText)
 		};
@@ -165,12 +181,19 @@ const phaserState = vi.hoisted(() => {
 		tilemapLayer,
 		imageMarkers,
 		reset() {
-			Object.assign(enemyMarker, { x: 0, y: 0 });
+			Object.assign(playerMarker, { x: 0, y: 0, frame: undefined, visible: true });
+			Object.assign(enemyMarker, { x: 0, y: 0, frame: undefined, visible: true });
 			imageMarkers.splice(0, imageMarkers.length);
 			playerMarker.setDisplaySize.mockClear();
+			playerMarker.setTint.mockClear();
+			playerMarker.setVisible.mockReset();
+			playerMarker.play.mockReset();
+			playerMarker.once.mockReset();
 			enemyMarker.setDisplaySize.mockClear();
 			enemyMarker.setVisible.mockReset();
 			enemyMarker.setTint.mockReset();
+			enemyMarker.play.mockReset();
+			enemyMarker.once.mockReset();
 			Object.assign(enemyHealthBarBg, { x: 0, y: 0, scaleX: 1, scaleY: 1, visible: true });
 			Object.assign(enemyHealthBarFill, { x: 0, y: 0, scaleX: 1, scaleY: 1, visible: true });
 			Object.assign(attackFlash, { x: 0, y: 0, scaleX: 1, scaleY: 1, visible: true });
@@ -297,15 +320,52 @@ describe('WorldScene', () => {
 		expect(phaserState.tilemapLayer.setDepth).toHaveBeenCalledWith(-10);
 		expect(tilemapData[0][0]).toBe(0);
 		expect(tilemapData[40][0]).toBe(1);
-		expect(scene.add.image).toHaveBeenCalledWith(
+		expect(scene.add.sprite).toHaveBeenCalledWith(
 			meadowEntryMap.spawn.x,
 			meadowEntryMap.spawn.y,
-			'starter-pack',
-			'hero'
+			'animation-pack',
+			'heroIdle0'
 		);
-		expect(scene.add.image).toHaveBeenCalledWith(1_280, 1_280, 'starter-pack', 'slimeScout');
+		expect(scene.add.sprite).toHaveBeenCalledWith(
+			1_280,
+			1_280,
+			'animation-pack',
+			'slimeScoutIdle0'
+		);
 		expect(scene.add.image).toHaveBeenCalledWith(2_304, 1_280, 'starter-pack', 'doorwayTile');
 		expect(scene.cameras.main.setBackgroundColor).toHaveBeenCalledWith('#1a1f2b');
+	});
+
+	it('registers animation pack frames and creates animated hero and enemy sprites', async () => {
+		const { animationPackAsset } = await import('$lib/game/content/assets');
+		const { WorldScene } = await import('./WorldScene');
+		const scene = new WorldScene();
+
+		scene.create({ mapId: 'meadow-entry' });
+
+		expect(scene.add.sprite).toHaveBeenCalledWith(256, 1_280, 'animation-pack', 'heroIdle0');
+		expect(scene.add.sprite).toHaveBeenCalledWith(
+			1_280,
+			1_280,
+			'animation-pack',
+			'slimeScoutIdle0'
+		);
+		expect(phaserState.textureMock.add).toHaveBeenCalledWith(
+			'heroIdle0',
+			0,
+			animationPackAsset.frames.heroIdle0.x,
+			animationPackAsset.frames.heroIdle0.y,
+			192,
+			192
+		);
+		expect(scene.anims.create).toHaveBeenCalledWith(
+			expect.objectContaining({ key: 'hero-idle', frameRate: 3, repeat: -1 })
+		);
+		expect(scene.anims.create).toHaveBeenCalledWith(
+			expect.objectContaining({ key: 'slimeScout-idle', frameRate: 3, repeat: -1 })
+		);
+		expect(phaserState.playerMarker.play).toHaveBeenCalledWith('hero-idle', true);
+		expect(phaserState.enemyMarker.play).toHaveBeenCalledWith('slimeScout-idle', true);
 	});
 
 	it('renders ruins tilemap data with stone borders and floor interior', async () => {
