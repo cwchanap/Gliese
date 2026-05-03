@@ -217,7 +217,8 @@ describe('opening map content', () => {
 				x: 256,
 				y: 144,
 				name: 'Bran',
-				dialogue: 'The ruins bells were quiet last night. That usually means trouble waited politely.',
+				dialogue:
+					'The ruins bells were quiet last night. That usually means trouble waited politely.',
 				role: 'villager',
 				frameName: 'titleBadge'
 			}
