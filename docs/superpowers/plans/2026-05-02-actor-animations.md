@@ -34,20 +34,20 @@ Use this exact grid so code and art stay aligned:
 
 Rows:
 
-| Row | Actor | Clip | Frames |
-| --- | --- | --- | --- |
-| 0 | hero | idle | 4 |
-| 1 | hero | walk | 4 |
-| 2 | hero | attack | 4 |
-| 3 | hero | dead | 4 |
-| 4 | slimeScout | idle | 4 |
-| 5 | slimeScout | walk | 4 |
-| 6 | slimeScout | attack | 4 |
-| 7 | slimeScout | dead | 4 |
-| 8 | ruinsWarden | idle | 4 |
-| 9 | ruinsWarden | walk | 4 |
-| 10 | ruinsWarden | attack | 4 |
-| 11 | ruinsWarden | dead | 4 |
+| Row | Actor       | Clip   | Frames |
+| --- | ----------- | ------ | ------ |
+| 0   | hero        | idle   | 4      |
+| 1   | hero        | walk   | 4      |
+| 2   | hero        | attack | 4      |
+| 3   | hero        | dead   | 4      |
+| 4   | slimeScout  | idle   | 4      |
+| 5   | slimeScout  | walk   | 4      |
+| 6   | slimeScout  | attack | 4      |
+| 7   | slimeScout  | dead   | 4      |
+| 8   | ruinsWarden | idle   | 4      |
+| 9   | ruinsWarden | walk   | 4      |
+| 10  | ruinsWarden | attack | 4      |
+| 11  | ruinsWarden | dead   | 4      |
 
 Clip settings:
 
@@ -65,6 +65,7 @@ Display sizes:
 ## Task 1: Animation Metadata
 
 **Files:**
+
 - Modify: `src/lib/game/content/assets.ts`
 - Modify: `src/lib/game/content/assets.test.ts`
 
@@ -120,7 +121,12 @@ describe('animation pack metadata', () => {
 
 				for (const frameName of clip.frames) {
 					expect(animationPackAsset.frames[frameName]).toEqual(
-						expect.objectContaining({ x: expect.any(Number), y: expect.any(Number), w: 192, h: 192 })
+						expect.objectContaining({
+							x: expect.any(Number),
+							y: expect.any(Number),
+							w: 192,
+							h: 192
+						})
 					);
 				}
 			}
@@ -296,6 +302,7 @@ git commit -m "Add actor animation metadata"
 ## Task 2: Generated Animation Sheet
 
 **Files:**
+
 - Create: `static/game/assets/animation-pack.png`
 
 - [ ] **Step 1: Generate the animation sheet**
@@ -332,6 +339,7 @@ git commit -m "Add actor animation sprite sheet"
 ## Task 3: BootScene Asset Loading
 
 **Files:**
+
 - Modify: `src/lib/game/phaser/scenes/BootScene.ts`
 - Modify: `src/lib/game/phaser/scenes/scenes.test.ts`
 
@@ -410,6 +418,7 @@ git commit -m "Load actor animation sheet"
 ## Task 4: Sprite Creation And Animation Registration
 
 **Files:**
+
 - Modify: `src/lib/game/phaser/scenes/WorldScene.ts`
 - Modify: `src/lib/game/phaser/scenes/scenes.test.ts`
 
@@ -683,6 +692,7 @@ git commit -m "Render actors as animated sprites"
 ## Task 5: Hero Animation State
 
 **Files:**
+
 - Modify: `src/lib/game/phaser/scenes/WorldScene.ts`
 - Modify: `src/lib/game/phaser/scenes/scenes.test.ts`
 
@@ -851,6 +861,7 @@ git commit -m "Drive hero animation state"
 ## Task 6: Enemy Animation State And Death Completion
 
 **Files:**
+
 - Modify: `src/lib/game/phaser/scenes/WorldScene.ts`
 - Modify: `src/lib/game/phaser/scenes/scenes.test.ts`
 
@@ -1035,6 +1046,7 @@ git commit -m "Drive enemy animation state"
 ## Task 7: Full Verification
 
 **Files:**
+
 - Review: `src/lib/game/content/assets.ts`
 - Review: `src/lib/game/content/assets.test.ts`
 - Review: `src/lib/game/phaser/scenes/BootScene.ts`
