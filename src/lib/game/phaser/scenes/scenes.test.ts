@@ -480,6 +480,58 @@ describe('WorldScene', () => {
 		expect(phaserState.playerMarker.y).toBe(meadowEntryMap.spawn.y);
 	});
 
+	it('plays hero walk while moving and idle after stopping', async () => {
+		const { WorldScene } = await import('./WorldScene');
+		const scene = new WorldScene();
+
+		scene.create({ mapId: 'meadow-entry' });
+		phaserState.playerMarker.play.mockClear();
+		phaserState.cursorKeys.right.isDown = true;
+
+		scene.update(0, 100);
+
+		expect(phaserState.playerMarker.play).toHaveBeenLastCalledWith('hero-walk', true);
+
+		phaserState.playerMarker.play.mockClear();
+		phaserState.cursorKeys.right.isDown = false;
+		scene.update(100, 100);
+
+		expect(phaserState.playerMarker.play).toHaveBeenLastCalledWith('hero-idle', true);
+	});
+
+	it('plays hero attack when auto attacking an enemy', async () => {
+		const { WorldScene } = await import('./WorldScene');
+		const scene = new WorldScene();
+
+		scene.create({ mapId: 'meadow-entry' });
+		phaserState.playerMarker.play.mockClear();
+		Object.assign(phaserState.playerMarker, { x: 1_280, y: 1_280 });
+
+		scene.update(0, 16);
+
+		expect(phaserState.playerMarker.play).toHaveBeenCalledWith('hero-attack', false);
+	});
+
+	it('plays hero dead and stops movement when HP reaches zero', async () => {
+		const { WorldScene } = await import('./WorldScene');
+		const scene = new WorldScene();
+		const sceneState = scene as unknown as {
+			playerProgress: { level: number; xp: number; hp: number; attack: number };
+		};
+
+		scene.create({ mapId: 'ruins-core' });
+		sceneState.playerProgress = { level: 1, xp: 0, hp: 1, attack: 3 };
+		Object.assign(phaserState.playerMarker, { x: 640, y: 480 });
+		phaserState.cursorKeys.right.isDown = true;
+
+		scene.update(500, 16);
+		const xAfterDeath = phaserState.playerMarker.x;
+		scene.update(600, 1000);
+
+		expect(phaserState.playerMarker.play).toHaveBeenCalledWith('hero-dead', false);
+		expect(phaserState.playerMarker.x).toBe(xAfterDeath);
+	});
+
 	it('stops world movement while the gameplay menu is open', async () => {
 		const { WorldScene } = await import('./WorldScene');
 		const { meadowEntryMap } = await import('$lib/game/content/maps');

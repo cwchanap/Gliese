@@ -153,6 +153,9 @@ export class WorldScene extends Phaser.Scene {
 	private enemyHealthBarFill?: OverlayMarker;
 	private enemyMarker?: ActorMarker;
 	private facing: Direction = 'down';
+	private heroAnimationLockedUntil = 0;
+	private heroDefeated = false;
+	private heroVisualState: ActorAnimationKey = 'idle';
 	private inventory: SaveState['inventory'] = cloneInventory(createNewSaveState().inventory);
 	private mapId = openingMapId;
 	private pickupMarkers = new Map<string, PickupMarker>();
@@ -193,6 +196,9 @@ export class WorldScene extends Phaser.Scene {
 		this.enemyHealthBarFill = undefined;
 		this.enemyMarker = undefined;
 		this.facing = activeSave?.player.facing ?? map.spawnDirection;
+		this.heroAnimationLockedUntil = 0;
+		this.heroDefeated = false;
+		this.heroVisualState = 'idle';
 		this.inventory = cloneInventory(activeSave?.inventory ?? createNewSaveState().inventory);
 		this.equipment = { ...(activeSave?.equipment ?? createNewSaveState().equipment) };
 		this.resolvedEncounterDrops = cloneResolvedEncounterDrops(
@@ -265,12 +271,17 @@ export class WorldScene extends Phaser.Scene {
 			return;
 		}
 
+		if (this.heroDefeated) {
+			return;
+		}
+
 		const direction = resolveMovementVector({
 			left: Boolean(this.cursorKeys?.left?.isDown || this.wasdKeys?.left?.isDown),
 			right: Boolean(this.cursorKeys?.right?.isDown || this.wasdKeys?.right?.isDown),
 			up: Boolean(this.cursorKeys?.up?.isDown || this.wasdKeys?.up?.isDown),
 			down: Boolean(this.cursorKeys?.down?.isDown || this.wasdKeys?.down?.isDown)
 		});
+		this.updateHeroMovementAnimation(direction, time);
 
 		const step = startingPlayer.moveSpeed * (Math.min(delta, WorldScene.maxMovementDeltaMs) / 1000);
 		const min = WorldScene.playerRadius;
@@ -299,6 +310,7 @@ export class WorldScene extends Phaser.Scene {
 		) {
 			this.playerAttackCooldownUntil = time + WorldScene.autoAttackCooldownMs;
 			this.attackFlashUntil = time + WorldScene.attackFlashDurationMs;
+			this.playHeroAttackAnimation(time);
 			this.showAttackFlash();
 			const effectiveStats = this.getEffectiveStats();
 			this.enemy.hp = resolveHit(
@@ -652,6 +664,37 @@ export class WorldScene extends Phaser.Scene {
 
 	private playHeroAnimation(clipName: ActorAnimationKey, ignoreIfPlaying = true) {
 		this.player?.play(getActorAnimationAsset('hero').clips[clipName].key, ignoreIfPlaying);
+	}
+
+	private setHeroAnimation(clipName: ActorAnimationKey, ignoreIfPlaying = true) {
+		if (this.heroVisualState === clipName && ignoreIfPlaying) {
+			return;
+		}
+
+		this.heroVisualState = clipName;
+		this.playHeroAnimation(clipName, ignoreIfPlaying);
+	}
+
+	private updateHeroMovementAnimation(direction: { x: number; y: number }, time: number) {
+		if (this.heroDefeated || time < this.heroAnimationLockedUntil) {
+			return;
+		}
+
+		this.setHeroAnimation(direction.x !== 0 || direction.y !== 0 ? 'walk' : 'idle');
+	}
+
+	private playHeroAttackAnimation(time: number) {
+		this.heroAnimationLockedUntil = time + 400;
+		this.setHeroAnimation('attack', false);
+	}
+
+	private defeatHero() {
+		if (this.heroDefeated) {
+			return;
+		}
+
+		this.heroDefeated = true;
+		this.setHeroAnimation('dead', false);
 	}
 
 	private playEnemyAnimation(clipName: ActorAnimationKey, ignoreIfPlaying = true) {
@@ -1067,6 +1110,9 @@ export class WorldScene extends Phaser.Scene {
 		};
 		this.enemy.attackCooldownUntil = time + (this.enemy.definition.boss ? 450 : 700);
 		this.playerInvulnerableUntil = time + 500;
+		if (this.playerProgress.hp === 0) {
+			this.defeatHero();
+		}
 		this.publishHudState(this.playerProgress.hp === 0 ? 'Hero down' : 'Enemy struck first');
 	}
 
