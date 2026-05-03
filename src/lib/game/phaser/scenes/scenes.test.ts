@@ -546,6 +546,47 @@ describe('WorldScene', () => {
 		expect(phaserState.playerMarker.x).toBe(xAfterDeath);
 	});
 
+	it('resumes a zero HP save as dead and keeps movement stopped', async () => {
+		const { createNewSaveState } = await import('$lib/game/save/save-state');
+		const { WorldScene } = await import('./WorldScene');
+		const scene = new WorldScene();
+
+		scene.create({
+			saveState: {
+				...createNewSaveState(),
+				player: {
+					...createNewSaveState().player,
+					hp: 0
+				}
+			}
+		});
+		const xAfterCreate = phaserState.playerMarker.x;
+		phaserState.cursorKeys.right.isDown = true;
+
+		scene.update(1_000, 1_000);
+
+		expect(phaserState.playerMarker.play).toHaveBeenCalledWith('hero-dead', false);
+		expect(phaserState.playerMarker.x).toBe(xAfterCreate);
+	});
+
+	it('hides the attack flash after hero death stops normal updates', async () => {
+		const { WorldScene } = await import('./WorldScene');
+		const scene = new WorldScene();
+		const sceneState = scene as unknown as {
+			playerProgress: { level: number; xp: number; hp: number; attack: number };
+		};
+
+		scene.create({ mapId: 'ruins-core' });
+		sceneState.playerProgress = { level: 1, xp: 0, hp: 1, attack: 3 };
+		Object.assign(phaserState.playerMarker, { x: 640, y: 480 });
+
+		scene.update(0, 16);
+		scene.update(200, 16);
+
+		expect(phaserState.playerMarker.play).toHaveBeenCalledWith('hero-dead', false);
+		expect(phaserState.attackFlash.setVisible).toHaveBeenCalledWith(false);
+	});
+
 	it('stops world movement while the gameplay menu is open', async () => {
 		const { WorldScene } = await import('./WorldScene');
 		const { meadowEntryMap } = await import('$lib/game/content/maps');

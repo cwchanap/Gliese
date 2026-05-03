@@ -237,7 +237,11 @@ export class WorldScene extends Phaser.Scene {
 			heroAnimation.clips.idle.frames[0]
 		) as ActorMarker;
 		this.player.setDisplaySize(heroAnimation.displaySize.width, heroAnimation.displaySize.height);
-		this.playHeroAnimation('idle');
+		if (this.playerProgress.hp === 0) {
+			this.defeatHero();
+		} else {
+			this.playHeroAnimation('idle');
+		}
 
 		this.setupEncounter(map);
 		this.renderTransitions(map);
@@ -277,6 +281,10 @@ export class WorldScene extends Phaser.Scene {
 			return;
 		}
 
+		if (time >= this.attackFlashUntil) {
+			this.attackFlash?.setVisible(false);
+		}
+
 		if (this.heroDefeated) {
 			return;
 		}
@@ -303,10 +311,6 @@ export class WorldScene extends Phaser.Scene {
 		}
 
 		this.tryCollectPickup();
-
-		if (time >= this.attackFlashUntil) {
-			this.attackFlash?.setVisible(false);
-		}
 
 		if (
 			this.enemy &&
