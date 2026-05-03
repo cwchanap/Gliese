@@ -7,6 +7,7 @@ import {
 	itemShopMap,
 	maps,
 	meadowEntryMap,
+	ruinsCoreMap,
 	ruinsThresholdMap,
 	villagerHouse1Map,
 	villagerHouse2Map,
@@ -15,15 +16,61 @@ import {
 
 describe('opening map content', () => {
 	it('declares a village spawn, peaceful building doors, road encounters, and ruins exit', () => {
+		expect(meadowEntryMap.width).toBe(80);
+		expect(meadowEntryMap.height).toBe(80);
+		expect(meadowEntryMap.spawnDirection).toBe('down');
 		expect(meadowEntryMap.spawn).toEqual({ x: 384, y: 1_344 });
-		expect(meadowEntryMap.transitions.map((transition) => transition.id)).toEqual([
-			'meadow-to-hero-house',
-			'meadow-to-guild-hall',
-			'meadow-to-item-shop',
-			'meadow-to-villager-house-1',
-			'meadow-to-villager-house-2',
-			'meadow-to-villager-house-3',
-			'meadow-to-ruins-threshold'
+		expect(meadowEntryMap.transitions).toEqual([
+			{
+				id: 'meadow-to-hero-house',
+				x: 384,
+				y: 1_408,
+				toMapId: 'hero-house',
+				arrival: { x: 256, y: 224, facing: 'up' }
+			},
+			{
+				id: 'meadow-to-guild-hall',
+				x: 800,
+				y: 1_168,
+				toMapId: 'guild-hall',
+				arrival: { x: 256, y: 288, facing: 'up' }
+			},
+			{
+				id: 'meadow-to-item-shop',
+				x: 832,
+				y: 1_536,
+				toMapId: 'item-shop',
+				arrival: { x: 256, y: 288, facing: 'up' }
+			},
+			{
+				id: 'meadow-to-villager-house-1',
+				x: 352,
+				y: 1_080,
+				toMapId: 'villager-house-1',
+				arrival: { x: 256, y: 288, facing: 'up' }
+			},
+			{
+				id: 'meadow-to-villager-house-2',
+				x: 576,
+				y: 1_624,
+				toMapId: 'villager-house-2',
+				arrival: { x: 256, y: 288, facing: 'up' }
+			},
+			{
+				id: 'meadow-to-villager-house-3',
+				x: 1_056,
+				y: 1_400,
+				toMapId: 'villager-house-3',
+				arrival: { x: 256, y: 288, facing: 'up' }
+			},
+			{
+				id: 'meadow-to-ruins-threshold',
+				x: 2_304,
+				y: 1_280,
+				toMapId: 'ruins-threshold',
+				requiresClear: true,
+				arrival: { x: 256, y: 480, facing: 'right' }
+			}
 		]);
 		expect(meadowEntryMap.encounters).toEqual([
 			{ id: 'meadow-slime-west', x: 1_568, y: 1_280, enemyId: 'slime-scout' },
@@ -71,6 +118,34 @@ describe('opening map content', () => {
 			toMapId: 'meadow-entry',
 			arrival: { x: 2_176, y: 1_280, facing: 'left' }
 		});
+		expect(ruinsThresholdMap.transitions).toEqual([
+			{
+				id: 'threshold-to-meadow',
+				x: 128,
+				y: 480,
+				toMapId: 'meadow-entry',
+				requiresClear: true,
+				arrival: { x: 2_176, y: 1_280, facing: 'left' }
+			},
+			{
+				id: 'threshold-to-core',
+				x: 704,
+				y: 480,
+				toMapId: 'ruins-core',
+				requiresClear: true,
+				arrival: { x: 256, y: 480, facing: 'right' }
+			}
+		]);
+		expect(ruinsCoreMap.transitions).toEqual([
+			{
+				id: 'core-to-threshold',
+				x: 128,
+				y: 480,
+				toMapId: 'ruins-threshold',
+				requiresClear: true,
+				arrival: { x: 576, y: 480, facing: 'left' }
+			}
+		]);
 	});
 
 	it('registers all compact village interiors', () => {
@@ -102,6 +177,7 @@ describe('opening map content', () => {
 		const npcs = Object.values(maps).flatMap((map) => map.npcs ?? []);
 		const roles = ['guild', 'shopkeeper', 'villager', 'home'];
 
+		expect(heroHouseMap.npcs ?? []).toEqual([]);
 		expect(guildHallMap.npcs).toEqual([
 			{
 				id: 'guild-clerk',
@@ -113,11 +189,50 @@ describe('opening map content', () => {
 				frameName: 'titleBadge'
 			}
 		]);
-		expect(itemShopMap.npcs?.[0]).toMatchObject({
-			id: 'shopkeeper-mira',
-			name: 'Mira',
-			role: 'shopkeeper'
-		});
+		expect(itemShopMap.npcs).toEqual([
+			{
+				id: 'shopkeeper-mira',
+				x: 256,
+				y: 144,
+				name: 'Mira',
+				dialogue: 'Fresh tonics are on the shelf. The guild already stocked your field kit today.',
+				role: 'shopkeeper',
+				frameName: 'titleBadge'
+			}
+		]);
+		expect(villagerHouse1Map.npcs).toEqual([
+			{
+				id: 'villager-ina',
+				x: 256,
+				y: 144,
+				name: 'Ina',
+				dialogue: 'A peaceful morning is best spent before the road dust rises.',
+				role: 'villager',
+				frameName: 'titleBadge'
+			}
+		]);
+		expect(villagerHouse2Map.npcs).toEqual([
+			{
+				id: 'villager-bran',
+				x: 256,
+				y: 144,
+				name: 'Bran',
+				dialogue: 'The ruins bells were quiet last night. That usually means trouble waited politely.',
+				role: 'villager',
+				frameName: 'titleBadge'
+			}
+		]);
+		expect(villagerHouse3Map.npcs).toEqual([
+			{
+				id: 'villager-sena',
+				x: 256,
+				y: 144,
+				name: 'Sena',
+				dialogue: 'When the guild sends you east, keep your blade hand loose.',
+				role: 'villager',
+				frameName: 'titleBadge'
+			}
+		]);
 		expect(new Set(npcs.map((npc) => npc.id)).size).toBe(npcs.length);
 
 		for (const map of Object.values(maps)) {
@@ -134,13 +249,48 @@ describe('opening map content', () => {
 	});
 
 	it('defines exterior building landmarks for each village door', () => {
-		expect(meadowEntryMap.landmarks?.map((landmark) => landmark.id)).toEqual([
-			'hero-house-exterior',
-			'guild-hall-exterior',
-			'item-shop-exterior',
-			'villager-house-1-exterior',
-			'villager-house-2-exterior',
-			'villager-house-3-exterior'
+		expect(meadowEntryMap.landmarks).toEqual([
+			{
+				id: 'hero-house-exterior',
+				x: 384,
+				y: 1_312,
+				width: 192,
+				height: 128,
+				label: "Hero's House"
+			},
+			{ id: 'guild-hall-exterior', x: 800, y: 1_088, width: 256, height: 160, label: 'Guild' },
+			{
+				id: 'item-shop-exterior',
+				x: 832,
+				y: 1_472,
+				width: 192,
+				height: 128,
+				label: 'Item Shop'
+			},
+			{
+				id: 'villager-house-1-exterior',
+				x: 352,
+				y: 1_024,
+				width: 160,
+				height: 112,
+				label: 'Villager Home'
+			},
+			{
+				id: 'villager-house-2-exterior',
+				x: 576,
+				y: 1_568,
+				width: 160,
+				height: 112,
+				label: 'Villager Home'
+			},
+			{
+				id: 'villager-house-3-exterior',
+				x: 1_056,
+				y: 1_344,
+				width: 160,
+				height: 112,
+				label: 'Villager Home'
+			}
 		]);
 
 		for (const landmark of meadowEntryMap.landmarks ?? []) {
