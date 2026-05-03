@@ -16,7 +16,17 @@ const phaserState = vi.hoisted(() => {
 		down: { isDown: false }
 	};
 	function createAnimatedMarker() {
-		const marker = {
+		const marker: {
+			x: number;
+			y: number;
+			frame: string | undefined;
+			visible: boolean;
+			setDisplaySize: ReturnType<typeof vi.fn>;
+			setTint: ReturnType<typeof vi.fn>;
+			setVisible: ReturnType<typeof vi.fn>;
+			play: ReturnType<typeof vi.fn>;
+			once: ReturnType<typeof vi.fn>;
+		} = {
 			x: 0,
 			y: 0,
 			frame: undefined as string | undefined,
@@ -28,7 +38,7 @@ const phaserState = vi.hoisted(() => {
 				return marker;
 			}),
 			play: vi.fn(() => marker),
-			once: vi.fn(() => marker)
+			once: vi.fn((_event: string, _callback: () => void) => marker)
 		};
 
 		return marker;
@@ -782,6 +792,12 @@ describe('WorldScene', () => {
 		scene.update(500, 16);
 
 		expect(phaserState.enemyMarker.play).toHaveBeenCalledWith('ruinsWarden-attack', false);
+
+		phaserState.enemyMarker.play.mockClear();
+		scene.update(600, 16);
+
+		expect(phaserState.enemyMarker.play).not.toHaveBeenCalledWith('ruinsWarden-idle', true);
+		expect(phaserState.enemyMarker.play).not.toHaveBeenCalledWith('ruinsWarden-walk', true);
 	});
 
 	it('plays enemy dead animation before hiding encounter art and health bars', async () => {

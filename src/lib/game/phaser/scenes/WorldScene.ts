@@ -149,6 +149,7 @@ export class WorldScene extends Phaser.Scene {
 	private collectedPickupIds = new Set<string>();
 	private cursorKeys?: Partial<Record<'left' | 'right' | 'up' | 'down', DirectionKey>>;
 	private enemy?: EnemyInstance;
+	private enemyAnimationLockedUntil = 0;
 	private enemyDeathAnimationPending = false;
 	private enemyHealthBarBg?: OverlayMarker;
 	private enemyHealthBarFill?: OverlayMarker;
@@ -194,6 +195,7 @@ export class WorldScene extends Phaser.Scene {
 		this.clearedEncounterIds = new Set(activeSave?.flags.clearedEncounters ?? []);
 		this.collectedPickupIds = new Set(activeSave?.flags.collectedPickups ?? []);
 		this.enemy = undefined;
+		this.enemyAnimationLockedUntil = 0;
 		this.enemyDeathAnimationPending = false;
 		this.enemyHealthBarBg = undefined;
 		this.enemyHealthBarFill = undefined;
@@ -723,6 +725,14 @@ export class WorldScene extends Phaser.Scene {
 		this.playEnemyAnimation(clipName, ignoreIfPlaying);
 	}
 
+	private updateEnemyMovementAnimation(clipName: ActorAnimationKey, time: number) {
+		if (time < this.enemyAnimationLockedUntil) {
+			return;
+		}
+
+		this.setEnemyAnimation(clipName);
+	}
+
 	private playEnemyDeathAnimation() {
 		if (!this.enemy || this.enemyDeathAnimationPending) {
 			return;
@@ -1128,7 +1138,7 @@ export class WorldScene extends Phaser.Scene {
 			}
 			this.updateEnemyHealthBar();
 		}
-		this.setEnemyAnimation(chaseDistance > 0 ? 'walk' : 'idle');
+		this.updateEnemyMovementAnimation(chaseDistance > 0 ? 'walk' : 'idle', time);
 
 		const contactDistance = Phaser.Math.Distance.Between(
 			this.player.x,
@@ -1154,6 +1164,7 @@ export class WorldScene extends Phaser.Scene {
 		};
 		this.enemy.attackCooldownUntil = time + (this.enemy.definition.boss ? 450 : 700);
 		this.playerInvulnerableUntil = time + 500;
+		this.enemyAnimationLockedUntil = time + 400;
 		this.setEnemyAnimation('attack', false);
 		if (this.playerProgress.hp === 0) {
 			this.defeatHero();
