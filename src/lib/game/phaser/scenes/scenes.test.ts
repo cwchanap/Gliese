@@ -887,13 +887,185 @@ describe('WorldScene', () => {
 		Object.assign(phaserState.playerMarker, { x: 256, y: 144 });
 		scene.update(32, 16);
 
-		expect(emitHudStateSpy).toHaveBeenCalledTimes(2);
+		expect(emitHudStateSpy).toHaveBeenCalledTimes(3);
 		expect(emitHudStateSpy).toHaveBeenLastCalledWith(
 			expect.objectContaining({
 				status:
 					'Mira: Fresh tonics are on the shelf. The guild already stocked your field kit today.'
 			})
 		);
+	});
+
+	it.each([
+		{
+			mapId: 'item-shop',
+			x: 256,
+			y: 144,
+			nearbyShop: {
+				shopId: 'miras-item-shop',
+				name: "Mira's Item Shop",
+				merchantName: 'Mira'
+			}
+		},
+		{
+			mapId: 'guild-hall',
+			x: 352,
+			y: 144,
+			nearbyShop: {
+				shopId: 'guild-quartermaster',
+				name: 'Guild Quartermaster',
+				merchantName: 'Quartermaster Vale'
+			}
+		}
+	])('publishes nearby shop metadata for $nearbyShop.shopId', async ({ mapId, x, y, nearbyShop }) => {
+		const events = await import('$lib/game/ui-bridge/events');
+		const emitHudStateSpy = vi.spyOn(events, 'emitHudState');
+		const { WorldScene } = await import('./WorldScene');
+		const scene = new WorldScene();
+
+		scene.create({ mapId });
+		emitHudStateSpy.mockClear();
+		Object.assign(phaserState.playerMarker, { x, y });
+
+		scene.update(0, 16);
+
+		expect(emitHudStateSpy).toHaveBeenLastCalledWith(
+			expect.objectContaining({
+				nearbyShop
+			})
+		);
+	});
+
+	it('opens a nearby shop and publishes buy and sell views', async () => {
+		const events = await import('$lib/game/ui-bridge/events');
+		const emitHudStateSpy = vi.spyOn(events, 'emitHudState');
+		const { WorldScene } = await import('./WorldScene');
+		const scene = new WorldScene();
+		const sceneState = scene as unknown as {
+			handleHudCommand: (command: HudCommand) => void;
+		};
+
+		scene.create({ mapId: 'item-shop' });
+		Object.assign(phaserState.playerMarker, { x: 256, y: 144 });
+		scene.update(0, 16);
+		emitHudStateSpy.mockClear();
+
+		sceneState.handleHudCommand({ type: 'open-shop', shopId: 'miras-item-shop' });
+
+		expect(emitHudStateSpy).toHaveBeenLastCalledWith(
+			expect.objectContaining({
+				status: 'Shop opened',
+				shop: expect.objectContaining({
+					shopId: 'miras-item-shop',
+					buy: expect.arrayContaining([
+						expect.objectContaining({ stockId: 'field-potion', price: 10 })
+					]),
+					sell: expect.arrayContaining([
+						expect.objectContaining({ itemId: 'field-potion', price: 5 })
+					])
+				})
+			})
+		);
+	});
+
+	it('buys shop items, updates wallet, and persists finite stock', async () => {
+		const events = await import('$lib/game/ui-bridge/events');
+		const emitHudStateSpy = vi.spyOn(events, 'emitHudState');
+		const { createNewSaveState } = await import('$lib/game/save/save-state');
+		const { WorldScene } = await import('./WorldScene');
+		const scene = new WorldScene();
+		const sceneState = scene as unknown as {
+			handleHudCommand: (command: HudCommand) => void;
+			buildSaveState: () => ReturnType<typeof createNewSaveState>;
+		};
+		const save = createNewSaveState();
+
+		scene.create({
+			saveState: {
+				...save,
+				mapId: 'guild-hall',
+				player: { ...save.player, x: 352, y: 144 },
+				wallet: { coins: 40 }
+			}
+		});
+		Object.assign(phaserState.playerMarker, { x: 352, y: 144 });
+		scene.update(0, 16);
+		emitHudStateSpy.mockClear();
+
+		sceneState.handleHudCommand({ type: 'open-shop', shopId: 'guild-quartermaster' });
+		sceneState.handleHudCommand({
+			type: 'buy-shop-item',
+			shopId: 'guild-quartermaster',
+			stockId: 'iron-cap'
+		});
+
+		const saveState = sceneState.buildSaveState();
+		expect(saveState.wallet.coins).toBe(5);
+		expect(saveState.inventory.equipment).toContain('iron-cap');
+		expect(saveState.shops.stock['guild-quartermaster']?.['iron-cap']).toBe(0);
+		expect(emitHudStateSpy).toHaveBeenLastCalledWith(
+			expect.objectContaining({ status: 'Bought Iron Cap' })
+		);
+	});
+
+	it('sells unequipped items through the active shop', async () => {
+		const events = await import('$lib/game/ui-bridge/events');
+		const emitHudStateSpy = vi.spyOn(events, 'emitHudState');
+		const { createNewSaveState } = await import('$lib/game/save/save-state');
+		const { WorldScene } = await import('./WorldScene');
+		const scene = new WorldScene();
+		const sceneState = scene as unknown as {
+			handleHudCommand: (command: HudCommand) => void;
+			buildSaveState: () => ReturnType<typeof createNewSaveState>;
+		};
+		const save = createNewSaveState();
+
+		scene.create({
+			saveState: {
+				...save,
+				mapId: 'item-shop',
+				player: { ...save.player, x: 256, y: 144 },
+				inventory: {
+					stacks: [{ itemId: 'field-potion', quantity: 2 }],
+					equipment: ['training-sword', 'iron-cap']
+				},
+				equipment: { ...save.equipment, weapon: 'training-sword' },
+				wallet: { coins: 0 }
+			}
+		});
+		Object.assign(phaserState.playerMarker, { x: 256, y: 144 });
+		scene.update(0, 16);
+		emitHudStateSpy.mockClear();
+
+		sceneState.handleHudCommand({ type: 'open-shop', shopId: 'miras-item-shop' });
+		sceneState.handleHudCommand({ type: 'sell-inventory-item', itemId: 'iron-cap' });
+
+		const saveState = sceneState.buildSaveState();
+		expect(saveState.wallet.coins).toBe(17);
+		expect(saveState.inventory.equipment).toEqual(['training-sword']);
+		expect(emitHudStateSpy).toHaveBeenLastCalledWith(
+			expect.objectContaining({ status: 'Sold Iron Cap' })
+		);
+	});
+
+	it('awards coins when an enemy is defeated once', async () => {
+		const { createNewSaveState } = await import('$lib/game/save/save-state');
+		const { WorldScene } = await import('./WorldScene');
+		const scene = new WorldScene();
+		const sceneState = scene as unknown as {
+			enemies: Array<{ hp: number }>;
+			buildSaveState: () => ReturnType<typeof createNewSaveState>;
+		};
+		const save = createNewSaveState();
+
+		scene.create({ saveState: { ...save, wallet: { coins: 0 } } });
+		Object.assign(phaserState.playerMarker, { x: 1_568, y: 1_280 });
+		sceneState.enemies[0]!.hp = 3;
+
+		scene.update(500, 16);
+		scene.update(1000, 16);
+
+		expect(sceneState.buildSaveState().wallet.coins).toBe(4);
 	});
 
 	it('collects a nearby pickup, updates inventory and flags, hides the marker, and publishes status', async () => {

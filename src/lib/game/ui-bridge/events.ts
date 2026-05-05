@@ -1,4 +1,5 @@
 import type { EquipmentSlot, StatModifiers } from '$lib/game/content/items';
+import type { HudShopBuyEntry, HudShopSellEntry } from '$lib/game/core/shop';
 
 export type HudInventoryStack = {
 	itemId: string;
@@ -23,6 +24,17 @@ export type HudKeyItem = {
 	quantity: number;
 };
 
+export type HudNearbyShop = {
+	shopId: string;
+	name: string;
+	merchantName: string;
+};
+
+export type HudOpenShop = HudNearbyShop & {
+	buy: HudShopBuyEntry[];
+	sell: HudShopSellEntry[];
+};
+
 export type HudState = {
 	ready: boolean;
 	mapId: string;
@@ -35,6 +47,9 @@ export type HudState = {
 	heals: number;
 	canResume: boolean;
 	status: string;
+	wallet: { coins: number };
+	nearbyShop: HudNearbyShop | null;
+	shop: HudOpenShop | null;
 	inventory: {
 		consumables: HudInventoryStack[];
 		equipment: HudEquipmentItem[];
@@ -51,7 +66,11 @@ export type HudCommand =
 	| { type: 'resume-game' }
 	| { type: 'use-item'; itemId: string }
 	| { type: 'equip-item'; itemId: string }
-	| { type: 'unequip-slot'; slot: EquipmentSlot };
+	| { type: 'unequip-slot'; slot: EquipmentSlot }
+	| { type: 'open-shop'; shopId: string }
+	| { type: 'close-shop' }
+	| { type: 'buy-shop-item'; shopId: string; stockId: string }
+	| { type: 'sell-inventory-item'; itemId: string };
 
 export const HUD_STATE_EVENT = 'gliese:hud-state';
 export const HUD_COMMAND_EVENT = 'gliese:hud-command';

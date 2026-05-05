@@ -20,6 +20,7 @@ import {
 } from '$lib/game/content/maps';
 import { getItem, type EquipmentSlot } from '$lib/game/content/items';
 import { startingPlayer } from '$lib/game/content/player';
+import { getShop } from '$lib/game/content/shops';
 import { advanceBossPhase } from '$lib/game/core/boss';
 import { canReceiveHit, resolveHit } from '$lib/game/core/combat';
 import { equipItem, unequipSlot } from '$lib/game/core/equipment';
@@ -28,7 +29,13 @@ import { addItem, consumeStackItem } from '$lib/game/core/inventory';
 import { resolveLootDrops } from '$lib/game/core/loot';
 import { applyExperienceGain, type ProgressionState } from '$lib/game/core/progression';
 import {
+	buildShopBuyEntries,
+	buildShopSellEntries,
+	buyShopItem,
 	createInitialShopStockState,
+	sellInventoryItem,
+	type ShopBuyFailureReason,
+	type ShopSellFailureReason,
 	type ShopStockState,
 	type WalletState
 } from '$lib/game/core/shop';
@@ -213,6 +220,8 @@ export class WorldScene extends Phaser.Scene {
 	private equipment: SaveState['equipment'] = { ...createNewSaveState().equipment };
 	private wallet: WalletState = { ...createNewSaveState().wallet };
 	private shopStockState: ShopStockState = cloneShopStockState(createInitialShopStockState());
+	private nearbyShopId: string | null = null;
+	private openShopId: string | null = null;
 	private resolvedEncounterDrops: SaveState['flags']['resolvedEncounterDrops'] = {};
 	private removeHudCommandListener = () => {};
 	private simulationPaused = false;
@@ -253,6 +262,8 @@ export class WorldScene extends Phaser.Scene {
 		);
 		this.mapId = map.id;
 		this.currentNearbyNpcId = null;
+		this.nearbyShopId = null;
+		this.openShopId = null;
 		this.npcMarkers.clear();
 		this.pickupMarkers.clear();
 		this.playerProgress = {
@@ -518,6 +529,7 @@ export class WorldScene extends Phaser.Scene {
 		this.playEnemyDeathAnimation(enemy);
 		this.clearedEncounterIds.add(enemy.id);
 		this.awardEncounterDrops(enemy);
+		this.wallet = { coins: this.wallet.coins + enemy.definition.coinReward };
 		this.playerProgress = this.applyReward(enemy.definition.xpReward);
 
 		if (enemy.completion === 'victory') {
@@ -552,6 +564,84 @@ export class WorldScene extends Phaser.Scene {
 			hp: clampHpToMax(this.playerProgress.hp, this.getEffectiveStats())
 		};
 		this.publishHudState('Unequipped item');
+	}
+
+	private openNearbyShop(shopId: string) {
+		if (this.nearbyShopId !== shopId || !getShop(shopId)) {
+			this.publishHudState('No shop nearby');
+			return;
+		}
+
+		this.openShopId = shopId;
+		this.publishHudState('Shop opened');
+	}
+
+	private closeOpenShop() {
+		this.openShopId = null;
+		this.publishHudState('Shop closed');
+	}
+
+	private buyOpenShopItem(shopId: string, stockId: string) {
+		if (this.openShopId !== shopId || this.nearbyShopId !== shopId) {
+			this.publishHudState('No shop nearby');
+			return;
+		}
+
+		const result = buyShopItem({
+			shopId,
+			stockId,
+			wallet: this.wallet,
+			inventory: this.inventory,
+			stockState: this.shopStockState
+		});
+
+		if (!result.purchased) {
+			this.publishHudState(this.formatBuyFailure(result.reason));
+			return;
+		}
+
+		const itemId = getShop(shopId)?.stock.find((entry) => entry.id === stockId)?.itemId;
+		this.wallet = result.wallet;
+		this.inventory = result.inventory;
+		this.shopStockState = result.stockState;
+		this.publishHudState(`Bought ${getItem(itemId ?? '')?.name ?? 'item'}`);
+	}
+
+	private sellOpenShopItem(itemId: string) {
+		if (!this.openShopId || this.nearbyShopId !== this.openShopId) {
+			this.publishHudState('No shop nearby');
+			return;
+		}
+
+		const result = sellInventoryItem({
+			itemId,
+			wallet: this.wallet,
+			inventory: this.inventory,
+			equipment: this.equipment
+		});
+
+		if (!result.sold) {
+			this.publishHudState(this.formatSellFailure(result.reason));
+			return;
+		}
+
+		this.wallet = result.wallet;
+		this.inventory = result.inventory;
+		this.publishHudState(`Sold ${getItem(itemId)?.name ?? 'item'}`);
+	}
+
+	private formatBuyFailure(reason: ShopBuyFailureReason): string {
+		if (reason === 'not-enough-coins') return 'Not enough coins';
+		if (reason === 'out-of-stock') return 'Item out of stock';
+
+		return 'Item cannot be bought';
+	}
+
+	private formatSellFailure(reason: ShopSellFailureReason): string {
+		if (reason === 'equipped-item') return 'Equipped item cannot be sold';
+		if (reason === 'item-not-owned') return 'Item not owned';
+
+		return 'Item cannot be sold';
 	}
 
 	private getBaseMaxHp() {
@@ -595,6 +685,18 @@ export class WorldScene extends Phaser.Scene {
 			case 'unequip-slot':
 				this.unequipInventorySlot(command.slot);
 				return;
+			case 'open-shop':
+				this.openNearbyShop(command.shopId);
+				return;
+			case 'close-shop':
+				this.closeOpenShop();
+				return;
+			case 'buy-shop-item':
+				this.buyOpenShopItem(command.shopId, command.stockId);
+				return;
+			case 'sell-inventory-item':
+				this.sellOpenShopItem(command.itemId);
+				return;
 		}
 	}
 
@@ -614,8 +716,49 @@ export class WorldScene extends Phaser.Scene {
 			heals: this.getConsumableCount(),
 			canResume: saveResult.status === 'loaded',
 			status,
+			wallet: { ...this.wallet },
+			nearbyShop: this.buildNearbyShop(),
+			shop: this.buildOpenShop(),
 			inventory: this.buildHudInventory()
 		});
+	}
+
+	private buildNearbyShop(): HudState['nearbyShop'] {
+		if (!this.nearbyShopId) {
+			return null;
+		}
+
+		const shop = getShop(this.nearbyShopId);
+
+		if (!shop) {
+			return null;
+		}
+
+		return {
+			shopId: shop.id,
+			name: shop.name,
+			merchantName: shop.merchantName
+		};
+	}
+
+	private buildOpenShop(): HudState['shop'] {
+		if (!this.openShopId || this.openShopId !== this.nearbyShopId) {
+			return null;
+		}
+
+		const shop = getShop(this.openShopId);
+
+		if (!shop) {
+			return null;
+		}
+
+		return {
+			shopId: shop.id,
+			name: shop.name,
+			merchantName: shop.merchantName,
+			buy: buildShopBuyEntries(shop.id, this.shopStockState),
+			sell: buildShopSellEntries({ inventory: this.inventory, equipment: this.equipment })
+		};
 	}
 
 	private buildHudInventory(): HudState['inventory'] {
@@ -1170,8 +1313,22 @@ export class WorldScene extends Phaser.Scene {
 			.sort((left, right) => left.distance - right.distance)[0]?.npc;
 
 		if (!nearbyNpc) {
+			const hadShop = this.nearbyShopId !== null;
 			this.currentNearbyNpcId = null;
+			this.nearbyShopId = null;
+			this.openShopId = null;
+
+			if (hadShop) {
+				this.publishHudState('Shop out of reach');
+			}
+
 			return;
+		}
+
+		this.nearbyShopId = nearbyNpc.shopId ?? null;
+
+		if (this.openShopId && this.openShopId !== this.nearbyShopId) {
+			this.openShopId = null;
 		}
 
 		if (this.currentNearbyNpcId === nearbyNpc.id) {

@@ -23,6 +23,11 @@ const initialHudState: HudState = {
 	heals: 1,
 	canResume: initialSaveResult.status === 'loaded',
 	status: 'Loading game',
+	wallet: {
+		coins: initialSaveResult.status === 'loaded' ? initialSaveResult.saveState.wallet.coins : 30
+	},
+	nearbyShop: null,
+	shop: null,
 	inventory: {
 		consumables: [],
 		equipment: [],
@@ -63,4 +68,20 @@ export function requestEquipItem(itemId: string) {
 
 export function requestUnequipSlot(slot: EquipmentSlot) {
 	emitHudCommand({ type: 'unequip-slot', slot });
+}
+
+export function requestOpenShop(shopId: string) {
+	emitHudCommand({ type: 'open-shop', shopId });
+}
+
+export function requestCloseShop() {
+	emitHudCommand({ type: 'close-shop' });
+}
+
+export function requestBuyShopItem(shopId: string, stockId: string) {
+	emitHudCommand({ type: 'buy-shop-item', shopId, stockId });
+}
+
+export function requestSellInventoryItem(itemId: string) {
+	emitHudCommand({ type: 'sell-inventory-item', itemId });
 }
