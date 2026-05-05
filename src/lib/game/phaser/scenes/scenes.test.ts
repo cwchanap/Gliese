@@ -927,6 +927,47 @@ describe('WorldScene', () => {
 		);
 	});
 
+	it('preserves loaded wallet and finite shop stock when building saves', async () => {
+		const { createNewSaveState } = await import('$lib/game/save/save-state');
+		const { WorldScene } = await import('./WorldScene');
+		const scene = new WorldScene();
+		const sceneState = scene as unknown as {
+			buildSaveState: () => {
+				wallet: { coins: number };
+				shops: { stock: Record<string, Record<string, number>> };
+			};
+		};
+
+		scene.create({
+			saveState: {
+				...createNewSaveState(),
+				wallet: { coins: 12 },
+				shops: {
+					stock: {
+						'guild-quartermaster': {
+							'iron-cap': 0,
+							'grip-wraps': 1,
+							'traveler-vest': 0
+						}
+					}
+				}
+			}
+		});
+
+		expect(sceneState.buildSaveState()).toMatchObject({
+			wallet: { coins: 12 },
+			shops: {
+				stock: {
+					'guild-quartermaster': {
+						'iron-cap': 0,
+						'grip-wraps': 1,
+						'traveler-vest': 0
+					}
+				}
+			}
+		});
+	});
+
 	it('equips owned equipment and publishes effective combat stats', async () => {
 		const events = await import('$lib/game/ui-bridge/events');
 		const emitHudStateSpy = vi.spyOn(events, 'emitHudState');

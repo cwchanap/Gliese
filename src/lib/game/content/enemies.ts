@@ -3,6 +3,7 @@ import type { LootTable } from '$lib/game/core/loot';
 
 export interface EnemyCombatDefinition extends EnemyDefinition {
 	xpReward: number;
+	coinReward: number;
 	loot?: LootTable;
 	boss?: {
 		phaseTwoColor: number;
@@ -15,6 +16,7 @@ export const slimeScout: EnemyCombatDefinition = {
 	baseAttack: 2,
 	moveSpeed: 90,
 	xpReward: 4,
+	coinReward: 4,
 	loot: {
 		guaranteed: [],
 		chance: [{ itemId: 'field-potion', quantity: 1, chance: 0.6 }]
@@ -27,6 +29,7 @@ export const ruinsWarden: EnemyCombatDefinition = {
 	baseAttack: 5,
 	moveSpeed: 75,
 	xpReward: 18,
+	coinReward: 25,
 	loot: {
 		guaranteed: [
 			{ itemId: 'warden-sigil', quantity: 1 },

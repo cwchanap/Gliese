@@ -27,6 +27,11 @@ import { resolveMovementVector } from '$lib/game/core/input';
 import { addItem, consumeStackItem } from '$lib/game/core/inventory';
 import { resolveLootDrops } from '$lib/game/core/loot';
 import { applyExperienceGain, type ProgressionState } from '$lib/game/core/progression';
+import {
+	createInitialShopStockState,
+	type ShopStockState,
+	type WalletState
+} from '$lib/game/core/shop';
 import { clampHpToMax, deriveEffectiveStats, type EffectiveStats } from '$lib/game/core/stats';
 import type { Direction } from '$lib/game/core/types';
 import { createNewSaveState, type SaveState } from '$lib/game/save/save-state';
@@ -128,6 +133,12 @@ function cloneResolvedEncounterDrops(
 	);
 }
 
+function cloneShopStockState(shopStockState: ShopStockState): ShopStockState {
+	return Object.fromEntries(
+		Object.entries(shopStockState).map(([shopId, stockById]) => [shopId, { ...stockById }])
+	);
+}
+
 export class WorldScene extends Phaser.Scene {
 	static readonly key = 'world';
 	private static readonly attackReach = 40;
@@ -200,6 +211,8 @@ export class WorldScene extends Phaser.Scene {
 		attack: startingPlayer.baseAttack
 	};
 	private equipment: SaveState['equipment'] = { ...createNewSaveState().equipment };
+	private wallet: WalletState = { ...createNewSaveState().wallet };
+	private shopStockState: ShopStockState = cloneShopStockState(createInitialShopStockState());
 	private resolvedEncounterDrops: SaveState['flags']['resolvedEncounterDrops'] = {};
 	private removeHudCommandListener = () => {};
 	private simulationPaused = false;
@@ -231,6 +244,10 @@ export class WorldScene extends Phaser.Scene {
 		this.hitImpactUntil = 0;
 		this.inventory = cloneInventory(activeSave?.inventory ?? createNewSaveState().inventory);
 		this.equipment = { ...(activeSave?.equipment ?? createNewSaveState().equipment) };
+		this.wallet = { ...(activeSave?.wallet ?? createNewSaveState().wallet) };
+		this.shopStockState = cloneShopStockState(
+			activeSave?.shops.stock ?? createInitialShopStockState()
+		);
 		this.resolvedEncounterDrops = cloneResolvedEncounterDrops(
 			activeSave?.flags.resolvedEncounterDrops ?? {}
 		);
@@ -401,7 +418,7 @@ export class WorldScene extends Phaser.Scene {
 
 	private buildSaveState(): SaveState {
 		return {
-			version: 2,
+			version: 3,
 			mapId: this.mapId,
 			player: {
 				level: this.playerProgress.level,
@@ -418,7 +435,11 @@ export class WorldScene extends Phaser.Scene {
 				resolvedEncounterDrops: cloneResolvedEncounterDrops(this.resolvedEncounterDrops)
 			},
 			inventory: cloneInventory(this.inventory),
-			equipment: { ...this.equipment }
+			equipment: { ...this.equipment },
+			wallet: { ...this.wallet },
+			shops: {
+				stock: cloneShopStockState(this.shopStockState)
+			}
 		};
 	}
 

@@ -42,7 +42,7 @@ class MemoryStorage implements Storage {
 describe('save state', () => {
 	it('creates a level 1 starting save', () => {
 		expect(createNewSaveState()).toEqual({
-			version: 2,
+			version: 3,
 			mapId: meadowEntryMap.id,
 			player: {
 				level: 1,
@@ -64,6 +64,16 @@ describe('save state', () => {
 				body: null,
 				hands: null,
 				accessory: null
+			},
+			wallet: { coins: 30 },
+			shops: {
+				stock: {
+					'guild-quartermaster': {
+						'iron-cap': 1,
+						'grip-wraps': 1,
+						'traveler-vest': 1
+					}
+				}
 			}
 		});
 	});
@@ -104,17 +114,9 @@ describe('save state', () => {
 		expect(parseSaveState('{"bad":true}')).toBeNull();
 	});
 
-	it('rejects version 1 and accepts version 2', () => {
-		expect(
-			parseSaveState(
-				JSON.stringify({
-					...createNewSaveState(),
-					version: 1
-				})
-			)
-		).toBeNull();
-
-		expect(parseSaveState(JSON.stringify(createNewSaveState()))?.version).toBe(2);
+	it('rejects version 2 and accepts version 3', () => {
+		expect(parseSaveState(JSON.stringify({ ...createNewSaveState(), version: 2 }))).toBeNull();
+		expect(parseSaveState(JSON.stringify(createNewSaveState()))?.version).toBe(3);
 	});
 
 	it('rejects a payload with wrong player field types', () => {
@@ -291,6 +293,40 @@ describe('save state', () => {
 					}
 				}
 			}
+		]) {
+			expect(parseSaveState(JSON.stringify(invalidPayload))).toBeNull();
+		}
+	});
+
+	it('rejects invalid wallet and shop stock state', () => {
+		const save = createNewSaveState();
+
+		for (const invalidPayload of [
+			{ ...save, wallet: undefined },
+			{ ...save, wallet: { coins: -1 } },
+			{ ...save, wallet: { coins: 1.5 } },
+			{ ...save, shops: undefined },
+			{ ...save, shops: { stock: [] } },
+			{ ...save, shops: { stock: {} } },
+			{ ...save, shops: { stock: { 'not-real': { 'iron-cap': 1 } } } },
+			{ ...save, shops: { stock: { 'guild-quartermaster': { 'iron-cap': 1 } } } },
+			{ ...save, shops: { stock: { 'guild-quartermaster': { 'not-real': 1 } } } },
+			{
+				...save,
+				shops: {
+					stock: {
+						'guild-quartermaster': {
+							'iron-cap': 1,
+							'grip-wraps': 1,
+							'traveler-vest': 1,
+							'extra-stock': 1
+						}
+					}
+				}
+			},
+			{ ...save, shops: { stock: { 'guild-quartermaster': { 'iron-cap': -1 } } } },
+			{ ...save, shops: { stock: { 'guild-quartermaster': { 'iron-cap': 1.5 } } } },
+			{ ...save, shops: { stock: { 'guild-quartermaster': { 'iron-cap': 2 } } } }
 		]) {
 			expect(parseSaveState(JSON.stringify(invalidPayload))).toBeNull();
 		}
