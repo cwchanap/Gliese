@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { enemies } from '$lib/game/content/enemies';
 import { getItem } from '$lib/game/content/items';
+import { getShop } from '$lib/game/content/shops';
 import {
 	guildHallMap,
 	heroHouseMap,
@@ -215,6 +216,16 @@ describe('opening map content', () => {
 				dialogue: 'Morning. The ruins survey is posted; take the east road when you are ready.',
 				role: 'guild',
 				frameName: 'titleBadge'
+			},
+			{
+				id: 'guild-quartermaster',
+				x: 352,
+				y: 144,
+				name: 'Quartermaster Vale',
+				dialogue: 'Need field gear before the ruins? Guild stock is limited, but sturdy.',
+				role: 'shopkeeper',
+				frameName: 'titleBadge',
+				shopId: 'guild-quartermaster'
 			}
 		]);
 		expect(itemShopMap.npcs).toEqual([
@@ -225,7 +236,8 @@ describe('opening map content', () => {
 				name: 'Mira',
 				dialogue: 'Fresh tonics are on the shelf. The guild already stocked your field kit today.',
 				role: 'shopkeeper',
-				frameName: 'titleBadge'
+				frameName: 'titleBadge',
+				shopId: 'miras-item-shop'
 			}
 		]);
 		expect(villagerHouse1Map.npcs).toEqual([
@@ -273,6 +285,10 @@ describe('opening map content', () => {
 				expect(npc.y).toBeGreaterThanOrEqual(0);
 				expect(npc.x).toBeLessThan(map.width * 32);
 				expect(npc.y).toBeLessThan(map.height * 32);
+				if (npc.shopId) {
+					expect(getShop(npc.shopId)).toBeDefined();
+					expect(npc.role).toBe('shopkeeper');
+				}
 			}
 		}
 	});

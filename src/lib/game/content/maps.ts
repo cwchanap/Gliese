@@ -40,6 +40,7 @@ export interface MapNpc {
 	dialogue: string;
 	role: MapNpcRole;
 	frameName: 'titleBadge';
+	shopId?: string;
 }
 
 export interface MapLandmark {
@@ -219,6 +220,16 @@ export const guildHallMap: WorldMapDefinition = {
 			dialogue: 'Morning. The ruins survey is posted; take the east road when you are ready.',
 			role: 'guild',
 			frameName: 'titleBadge'
+		},
+		{
+			id: 'guild-quartermaster',
+			x: 352,
+			y: 144,
+			name: 'Quartermaster Vale',
+			dialogue: 'Need field gear before the ruins? Guild stock is limited, but sturdy.',
+			role: 'shopkeeper',
+			frameName: 'titleBadge',
+			shopId: 'guild-quartermaster'
 		}
 	]
 };
@@ -245,7 +256,8 @@ export const itemShopMap: WorldMapDefinition = {
 			name: 'Mira',
 			dialogue: 'Fresh tonics are on the shelf. The guild already stocked your field kit today.',
 			role: 'shopkeeper',
-			frameName: 'titleBadge'
+			frameName: 'titleBadge',
+			shopId: 'miras-item-shop'
 		}
 	]
 };

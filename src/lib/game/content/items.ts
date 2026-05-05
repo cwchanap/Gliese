@@ -17,15 +17,19 @@ type BaseItemDefinition = {
 	stackable: boolean;
 };
 
+type PricedItemDefinition = BaseItemDefinition & {
+	basePrice: number;
+};
+
 export type ConsumableEffect = { type: 'heal'; amount: number };
 
-export type ConsumableDefinition = BaseItemDefinition & {
+export type ConsumableDefinition = PricedItemDefinition & {
 	type: 'consumable';
 	stackable: true;
 	effect: ConsumableEffect;
 };
 
-export type EquipmentDefinition = BaseItemDefinition & {
+export type EquipmentDefinition = PricedItemDefinition & {
 	type: 'equipment';
 	stackable: false;
 	slot: EquipmentSlot;
@@ -37,6 +41,8 @@ export type KeyItemDefinition = BaseItemDefinition & {
 	stackable: true;
 };
 
+export type SellableItemDefinition = ConsumableDefinition | EquipmentDefinition;
+
 export type ItemDefinition = ConsumableDefinition | EquipmentDefinition | KeyItemDefinition;
 
 export const items = {
@@ -46,6 +52,7 @@ export const items = {
 		description: 'Restores 8 HP.',
 		type: 'consumable',
 		stackable: true,
+		basePrice: 10,
 		effect: { type: 'heal', amount: 8 }
 	},
 	'greater-field-potion': {
@@ -54,6 +61,7 @@ export const items = {
 		description: 'Restores 14 HP.',
 		type: 'consumable',
 		stackable: true,
+		basePrice: 18,
 		effect: { type: 'heal', amount: 14 }
 	},
 	'ember-tonic': {
@@ -62,6 +70,7 @@ export const items = {
 		description: 'Restores 5 HP.',
 		type: 'consumable',
 		stackable: true,
+		basePrice: 8,
 		effect: { type: 'heal', amount: 5 }
 	},
 	'ruin-draught': {
@@ -70,6 +79,7 @@ export const items = {
 		description: 'Restores 10 HP.',
 		type: 'consumable',
 		stackable: true,
+		basePrice: 14,
 		effect: { type: 'heal', amount: 10 }
 	},
 	'sunleaf-salve': {
@@ -78,6 +88,7 @@ export const items = {
 		description: 'Restores 6 HP.',
 		type: 'consumable',
 		stackable: true,
+		basePrice: 12,
 		effect: { type: 'heal', amount: 6 }
 	},
 	'training-sword': {
@@ -86,6 +97,7 @@ export const items = {
 		description: 'A reliable starter blade.',
 		type: 'equipment',
 		stackable: false,
+		basePrice: 40,
 		slot: 'weapon',
 		modifiers: { attack: 1 }
 	},
@@ -95,6 +107,7 @@ export const items = {
 		description: 'A chipped sword humming with old heat.',
 		type: 'equipment',
 		stackable: false,
+		basePrice: 80,
 		slot: 'weapon',
 		modifiers: { attack: 2 }
 	},
@@ -104,6 +117,7 @@ export const items = {
 		description: 'Simple protection for dangerous ruins.',
 		type: 'equipment',
 		stackable: false,
+		basePrice: 35,
 		slot: 'head',
 		modifiers: { defense: 1 }
 	},
@@ -113,6 +127,7 @@ export const items = {
 		description: 'A cracked helm from the ruins core.',
 		type: 'equipment',
 		stackable: false,
+		basePrice: 100,
 		slot: 'head',
 		modifiers: { maxHp: 3, defense: 1 }
 	},
@@ -122,6 +137,7 @@ export const items = {
 		description: 'Light armor for long walks.',
 		type: 'equipment',
 		stackable: false,
+		basePrice: 45,
 		slot: 'body',
 		modifiers: { maxHp: 4 }
 	},
@@ -131,6 +147,7 @@ export const items = {
 		description: 'Heavy plates carved from ruin stone.',
 		type: 'equipment',
 		stackable: false,
+		basePrice: 90,
 		slot: 'body',
 		modifiers: { maxHp: 6, defense: 1 }
 	},
@@ -140,6 +157,7 @@ export const items = {
 		description: 'Cloth wraps that steady each strike.',
 		type: 'equipment',
 		stackable: false,
+		basePrice: 35,
 		slot: 'hands',
 		modifiers: { attack: 1 }
 	},
@@ -149,6 +167,7 @@ export const items = {
 		description: 'A small charm from the meadow path.',
 		type: 'equipment',
 		stackable: false,
+		basePrice: 30,
 		slot: 'accessory',
 		modifiers: { maxHp: 2 }
 	},
@@ -179,4 +198,20 @@ export const itemList: ItemDefinition[] = Object.values(items);
 
 export function getItem(itemId: string): ItemDefinition | undefined {
 	return (items as DefinitionRegistry<ItemDefinition>)[itemId];
+}
+
+export function isSellableItem(itemId: string): boolean {
+	const item = getItem(itemId);
+
+	return item?.type === 'consumable' || item?.type === 'equipment';
+}
+
+export function getSellValue(itemId: string): number | undefined {
+	const item = getItem(itemId);
+
+	if (item?.type !== 'consumable' && item?.type !== 'equipment') {
+		return undefined;
+	}
+
+	return Math.max(1, Math.floor(item.basePrice * 0.5));
 }
