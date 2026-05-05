@@ -21,6 +21,24 @@ export const starterPackAsset = {
 
 export type StarterPackFrameName = keyof typeof starterPackAsset.frames;
 
+export const npcPackAsset = {
+	key: 'npc-pack',
+	path: '/game/assets/npc-pack.png',
+	cellWidth: 96,
+	cellHeight: 96,
+	frames: {
+		miraItemShopNpc: { x: 0, y: 0, w: 96, h: 96 },
+		quartermasterNpc: { x: 96, y: 0, w: 96, h: 96 }
+	}
+} as const;
+
+export type NpcPackFrameName = keyof typeof npcPackAsset.frames;
+export type NpcFrameName = StarterPackFrameName | NpcPackFrameName;
+
+export function isNpcPackFrameName(frameName: NpcFrameName): frameName is NpcPackFrameName {
+	return frameName in npcPackAsset.frames;
+}
+
 export function getEnemyFrameName(enemyId: string): StarterPackFrameName {
 	if (enemyId === 'ruins-warden') {
 		return 'ruinsWarden';

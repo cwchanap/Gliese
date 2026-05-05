@@ -7,6 +7,8 @@ import {
 	getActorAnimationAsset,
 	getEnemyActorId,
 	getGroundFrameName,
+	isNpcPackFrameName,
+	npcPackAsset,
 	starterPackAsset,
 	type ActorAnimationKey,
 	type StarterPackFrameName
@@ -162,7 +164,9 @@ export class WorldScene extends Phaser.Scene {
 	private static readonly hitImpactSparkTint = 0xfff7d6;
 	private static readonly maxMovementDeltaMs = 250;
 	private static readonly npcInteractionRadius = 36;
+	private static readonly npcPackDisplaySize = { width: 48, height: 58 };
 	private static readonly playerRadius = 12;
+	private static readonly starterNpcDisplaySize = { width: 30, height: 36 };
 	private static readonly tileSize = 32;
 	private static readonly terrainTilesetKey = 'starter-ground-tiles';
 	private static readonly terrainTileIndexes: Record<StarterPackFrameName, number> = {
@@ -279,6 +283,7 @@ export class WorldScene extends Phaser.Scene {
 		this.worldSize = { width, height };
 
 		this.registerStarterPackFrames();
+		this.registerNpcPackFrames();
 		this.registerAnimationPackFrames();
 		this.ensureActorAnimations();
 		this.ensureTerrainTilesetTexture();
@@ -839,6 +844,16 @@ export class WorldScene extends Phaser.Scene {
 		}
 	}
 
+	private registerNpcPackFrames() {
+		const texture = this.textures.get(npcPackAsset.key);
+
+		for (const [frameName, frame] of Object.entries(npcPackAsset.frames)) {
+			if (!texture.has(frameName)) {
+				texture.add(frameName, 0, frame.x, frame.y, frame.w, frame.h);
+			}
+		}
+	}
+
 	private ensureActorAnimations() {
 		for (const actor of Object.values(actorAnimationAssets)) {
 			for (const clipName of actorAnimationKeys) {
@@ -1103,8 +1118,17 @@ export class WorldScene extends Phaser.Scene {
 		this.npcMarkers.clear();
 
 		for (const npc of map.npcs ?? []) {
-			const marker = this.add.image(npc.x, npc.y, starterPackAsset.key, npc.frameName) as NpcMarker;
-			marker.setDisplaySize(30, 36);
+			const usesNpcPack = isNpcPackFrameName(npc.frameName);
+			const marker = this.add.image(
+				npc.x,
+				npc.y,
+				usesNpcPack ? npcPackAsset.key : starterPackAsset.key,
+				npc.frameName
+			) as NpcMarker;
+			const displaySize = usesNpcPack
+				? WorldScene.npcPackDisplaySize
+				: WorldScene.starterNpcDisplaySize;
+			marker.setDisplaySize(displaySize.width, displaySize.height);
 			this.npcMarkers.set(npc.id, marker);
 		}
 	}

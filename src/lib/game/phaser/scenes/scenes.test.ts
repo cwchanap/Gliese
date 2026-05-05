@@ -363,7 +363,8 @@ describe('BootScene', () => {
 	});
 
 	it('preloads the static and animation sheets', async () => {
-		const { animationPackAsset, starterPackAsset } = await import('$lib/game/content/assets');
+		const { animationPackAsset, npcPackAsset, starterPackAsset } =
+			await import('$lib/game/content/assets');
 		const { BootScene } = await import('./BootScene');
 		const scene = new BootScene();
 
@@ -371,6 +372,7 @@ describe('BootScene', () => {
 
 		expect(scene.load.image).toHaveBeenCalledWith(starterPackAsset.key, starterPackAsset.path);
 		expect(scene.load.image).toHaveBeenCalledWith(animationPackAsset.key, animationPackAsset.path);
+		expect(scene.load.image).toHaveBeenCalledWith(npcPackAsset.key, npcPackAsset.path);
 	});
 });
 
@@ -841,11 +843,31 @@ describe('WorldScene', () => {
 		scene.create({ mapId: 'guild-hall' });
 
 		expect(scene.add.image).toHaveBeenCalledWith(256, 144, 'starter-pack', 'titleBadge');
+		expect(scene.add.image).toHaveBeenCalledWith(352, 144, 'npc-pack', 'quartermasterNpc');
 		const npcMarkers = phaserState.imageMarkers.filter(
 			(marker) => marker.x === 256 && marker.y === 144 && marker.frame === 'titleBadge'
 		);
 		expect(npcMarkers).toHaveLength(1);
 		expect(npcMarkers[0]!.setDisplaySize).toHaveBeenCalledWith(30, 36);
+		const quartermasterMarkers = phaserState.imageMarkers.filter(
+			(marker) => marker.x === 352 && marker.y === 144 && marker.frame === 'quartermasterNpc'
+		);
+		expect(quartermasterMarkers).toHaveLength(1);
+		expect(quartermasterMarkers[0]!.setDisplaySize).toHaveBeenCalledWith(48, 58);
+	});
+
+	it('renders Mira with item shop NPC art', async () => {
+		const { WorldScene } = await import('./WorldScene');
+		const scene = new WorldScene();
+
+		scene.create({ mapId: 'item-shop' });
+
+		expect(scene.add.image).toHaveBeenCalledWith(256, 144, 'npc-pack', 'miraItemShopNpc');
+		const miraMarkers = phaserState.imageMarkers.filter(
+			(marker) => marker.x === 256 && marker.y === 144 && marker.frame === 'miraItemShopNpc'
+		);
+		expect(miraMarkers).toHaveLength(1);
+		expect(miraMarkers[0]!.setDisplaySize).toHaveBeenCalledWith(48, 58);
 	});
 
 	it('publishes NPC dialogue once when the hero enters proximity', async () => {
@@ -917,24 +939,27 @@ describe('WorldScene', () => {
 				merchantName: 'Quartermaster Vale'
 			}
 		}
-	])('publishes nearby shop metadata for $nearbyShop.shopId', async ({ mapId, x, y, nearbyShop }) => {
-		const events = await import('$lib/game/ui-bridge/events');
-		const emitHudStateSpy = vi.spyOn(events, 'emitHudState');
-		const { WorldScene } = await import('./WorldScene');
-		const scene = new WorldScene();
+	])(
+		'publishes nearby shop metadata for $nearbyShop.shopId',
+		async ({ mapId, x, y, nearbyShop }) => {
+			const events = await import('$lib/game/ui-bridge/events');
+			const emitHudStateSpy = vi.spyOn(events, 'emitHudState');
+			const { WorldScene } = await import('./WorldScene');
+			const scene = new WorldScene();
 
-		scene.create({ mapId });
-		emitHudStateSpy.mockClear();
-		Object.assign(phaserState.playerMarker, { x, y });
+			scene.create({ mapId });
+			emitHudStateSpy.mockClear();
+			Object.assign(phaserState.playerMarker, { x, y });
 
-		scene.update(0, 16);
+			scene.update(0, 16);
 
-		expect(emitHudStateSpy).toHaveBeenLastCalledWith(
-			expect.objectContaining({
-				nearbyShop
-			})
-		);
-	});
+			expect(emitHudStateSpy).toHaveBeenLastCalledWith(
+				expect.objectContaining({
+					nearbyShop
+				})
+			);
+		}
+	);
 
 	it('opens a nearby shop and publishes buy and sell views', async () => {
 		const events = await import('$lib/game/ui-bridge/events');

@@ -224,7 +224,7 @@ describe('opening map content', () => {
 				name: 'Quartermaster Vale',
 				dialogue: 'Need field gear before the ruins? Guild stock is limited, but sturdy.',
 				role: 'shopkeeper',
-				frameName: 'titleBadge',
+				frameName: 'quartermasterNpc',
 				shopId: 'guild-quartermaster'
 			}
 		]);
@@ -236,7 +236,7 @@ describe('opening map content', () => {
 				name: 'Mira',
 				dialogue: 'Fresh tonics are on the shelf. The guild already stocked your field kit today.',
 				role: 'shopkeeper',
-				frameName: 'titleBadge',
+				frameName: 'miraItemShopNpc',
 				shopId: 'miras-item-shop'
 			}
 		]);

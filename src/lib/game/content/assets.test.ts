@@ -5,6 +5,8 @@ import {
 	animationPackAsset,
 	getActorAnimationAsset,
 	getEnemyActorId,
+	isNpcPackFrameName,
+	npcPackAsset,
 	starterPackAsset,
 	type ActorAnimationId,
 	type ActorAnimationKey
@@ -17,6 +19,24 @@ describe('starter pack asset frames', () => {
 	it('keeps hero and potion frames large enough to avoid visible cropping', () => {
 		expect(starterPackAsset.frames.hero).toEqual({ x: 90, y: 80, w: 235, h: 280 });
 		expect(starterPackAsset.frames.healFlask).toEqual({ x: 1210, y: 145, w: 150, h: 215 });
+	});
+});
+
+describe('npc pack metadata', () => {
+	it('defines fixed-cell shopkeeper sprites separate from the starter sheet', () => {
+		expect(npcPackAsset).toMatchObject({
+			key: 'npc-pack',
+			path: '/game/assets/npc-pack.png',
+			cellWidth: 96,
+			cellHeight: 96
+		});
+		expect(npcPackAsset.frames).toEqual({
+			miraItemShopNpc: { x: 0, y: 0, w: 96, h: 96 },
+			quartermasterNpc: { x: 96, y: 0, w: 96, h: 96 }
+		});
+		expect(isNpcPackFrameName('miraItemShopNpc')).toBe(true);
+		expect(isNpcPackFrameName('quartermasterNpc')).toBe(true);
+		expect(isNpcPackFrameName('titleBadge')).toBe(false);
 	});
 });
 

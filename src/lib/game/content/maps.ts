@@ -1,3 +1,4 @@
+import type { NpcFrameName } from '$lib/game/content/assets';
 import type { DefinitionRegistry, MapDefinition } from '$lib/game/core/types';
 
 export interface MapTransition {
@@ -39,7 +40,7 @@ export interface MapNpc {
 	name: string;
 	dialogue: string;
 	role: MapNpcRole;
-	frameName: 'titleBadge';
+	frameName: NpcFrameName;
 	shopId?: string;
 }
 
@@ -228,7 +229,7 @@ export const guildHallMap: WorldMapDefinition = {
 			name: 'Quartermaster Vale',
 			dialogue: 'Need field gear before the ruins? Guild stock is limited, but sturdy.',
 			role: 'shopkeeper',
-			frameName: 'titleBadge',
+			frameName: 'quartermasterNpc',
 			shopId: 'guild-quartermaster'
 		}
 	]
@@ -256,7 +257,7 @@ export const itemShopMap: WorldMapDefinition = {
 			name: 'Mira',
 			dialogue: 'Fresh tonics are on the shelf. The guild already stocked your field kit today.',
 			role: 'shopkeeper',
-			frameName: 'titleBadge',
+			frameName: 'miraItemShopNpc',
 			shopId: 'miras-item-shop'
 		}
 	]
