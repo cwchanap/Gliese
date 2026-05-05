@@ -62,6 +62,25 @@ export function consumeStackItem(
 	return { consumed: true, inventory: { ...inventory, stacks } };
 }
 
+export function removeEquipmentItem(
+	inventory: InventoryState,
+	itemId: string
+): { removed: boolean; inventory: InventoryState } {
+	const equipmentIndex = inventory.equipment.indexOf(itemId);
+
+	if (equipmentIndex === -1) {
+		return { removed: false, inventory };
+	}
+
+	return {
+		removed: true,
+		inventory: {
+			...inventory,
+			equipment: inventory.equipment.filter((_, index) => index !== equipmentIndex)
+		}
+	};
+}
+
 export function ownsEquipment(inventory: InventoryState, itemId: string): boolean {
 	return inventory.equipment.includes(itemId);
 }
