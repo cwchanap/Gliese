@@ -1,5 +1,14 @@
 import { expect, test } from '@playwright/test';
 
+type HudStateSnapshot = {
+	status?: string;
+	nearbyShop?: { shopId?: string; merchantName?: string } | null;
+};
+
+type GlieseProbeWindow = Window & {
+	__glieseLastHudState?: HudStateSnapshot;
+};
+
 test('game route boots', async ({ page }) => {
 	await page.goto('/game');
 	await expect(page.locator('canvas')).toBeVisible();
@@ -38,4 +47,76 @@ test('full hp potions explain why they cannot be consumed', async ({ page }) => 
 
 	await expect(page.getByRole('heading', { name: 'Field Potion' })).toBeVisible();
 	await expect(page.getByRole('button', { name: 'Use' })).toBeEnabled();
+});
+
+test('shop overlay opens near a merchant and supports buying and selling', async ({ page }) => {
+	const save = {
+		version: 3,
+		mapId: 'item-shop',
+		player: {
+			level: 1,
+			xp: 0,
+			hp: 20,
+			attack: 3,
+			x: 256,
+			y: 144,
+			facing: 'up'
+		},
+		flags: { clearedEncounters: [], collectedPickups: [], resolvedEncounterDrops: {} },
+		inventory: {
+			stacks: [{ itemId: 'field-potion', quantity: 1 }],
+			equipment: ['training-sword']
+		},
+		equipment: {
+			weapon: 'training-sword',
+			head: null,
+			body: null,
+			hands: null,
+			accessory: null
+		},
+		wallet: { coins: 30 },
+		shops: {
+			stock: {
+				'guild-quartermaster': {
+					'iron-cap': 1,
+					'grip-wraps': 1,
+					'traveler-vest': 1
+				}
+			}
+		}
+	};
+
+	await page.addInitScript((encoded) => {
+		const probeWindow = window as GlieseProbeWindow;
+		probeWindow.__glieseLastHudState = undefined;
+		window.addEventListener('gliese:hud-state', (event) => {
+			probeWindow.__glieseLastHudState = (event as CustomEvent<HudStateSnapshot>).detail;
+		});
+		window.localStorage.setItem('gliese.save.v3', encoded);
+	}, JSON.stringify(save));
+	await page.goto('/game');
+	await expect(page.locator('canvas')).toBeVisible();
+
+	await page.getByRole('button', { name: 'Menu' }).click();
+	await page.getByRole('button', { name: 'Resume Save' }).click();
+	await page.waitForFunction(() => {
+		const state = (window as GlieseProbeWindow).__glieseLastHudState;
+
+		return state?.nearbyShop?.shopId === 'miras-item-shop' || state?.status?.startsWith('Mira:');
+	});
+	await page.getByRole('button', { name: 'Menu' }).click();
+	const shopButton = page.getByRole('button', { name: 'Shop' });
+	await expect(shopButton).toBeEnabled();
+	await shopButton.click();
+
+	await expect(page.getByRole('heading', { name: "Mira's Item Shop" })).toBeVisible();
+	await expect(page.getByText('Coins: 30')).toBeVisible();
+	await expect(page.getByRole('heading', { name: 'Field Potion', exact: true })).toBeVisible();
+
+	await page.getByRole('button', { name: 'Buy Field Potion', exact: true }).click();
+	await expect(page.getByText('Coins: 20')).toBeVisible();
+
+	await page.getByRole('tab', { name: 'Sell' }).click();
+	await page.getByRole('button', { name: 'Sell Field Potion', exact: true }).click();
+	await expect(page.getByText('Coins: 25')).toBeVisible();
 });

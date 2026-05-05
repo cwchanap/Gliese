@@ -2,29 +2,39 @@
 	import { onMount, tick } from 'svelte';
 	import {
 		hudState,
+		requestBuyShopItem,
+		requestCloseShop,
 		requestEquipItem,
 		requestHeal,
+		requestOpenShop,
 		requestPauseGame,
 		requestResume,
 		requestResumeGame,
 		requestSave,
+		requestSellInventoryItem,
 		requestUnequipSlot,
 		requestUseItem
 	} from '$lib/game/ui-bridge/store';
 	import type { EquipmentSlot } from '$lib/game/content/items';
 
 	type InventoryTab = 'consumables' | 'equipment' | 'keyItems';
-	type OverlayPauseOwner = 'settings' | 'inventory';
+	type ShopTab = 'buy' | 'sell';
+	type OverlayPauseOwner = 'settings' | 'inventory' | 'shop';
 
 	let mountNode: HTMLDivElement | undefined;
 	let menuButton = $state<HTMLButtonElement>();
 	let inventoryDialog = $state<HTMLDivElement>();
 	let inventoryCloseButton = $state<HTMLButtonElement>();
+	let shopDialog = $state<HTMLDivElement>();
+	let shopCloseButton = $state<HTMLButtonElement>();
 	let inventoryFocusRestoreTarget: HTMLElement | null = null;
+	let shopFocusRestoreTarget: HTMLElement | null = null;
 	let loadError = $state('');
 	let settingsOpen = $state(false);
 	let inventoryOpen = $state(false);
+	let shopOpen = $state(false);
 	let activeInventoryTab = $state<InventoryTab>('consumables');
+	let activeShopTab = $state<ShopTab>('buy');
 	let pauseOwner = $state<OverlayPauseOwner | null>(null);
 
 	const equipmentSlots: { slot: EquipmentSlot; label: string }[] = [
@@ -35,6 +45,7 @@
 		{ slot: 'accessory', label: 'Accessory' }
 	];
 	const inventoryTabs: InventoryTab[] = ['consumables', 'equipment', 'keyItems'];
+	const shopTabs: ShopTab[] = ['buy', 'sell'];
 
 	const hpPercent = $derived(($hudState.hp / Math.max($hudState.maxHp, 1)) * 100);
 	const xpTarget = $derived($hudState.level > 1 ? 24 : 12);
@@ -79,11 +90,40 @@
 		void restoreInventoryFocus();
 	}
 
-	function releaseOverlayPause() {
-		const owner = pauseOwner;
+	function rememberShopFocus() {
+		shopFocusRestoreTarget =
+			document.activeElement instanceof HTMLElement ? document.activeElement : null;
+	}
+
+	function openShop() {
+		if (shopOpen || !$hudState.nearbyShop) return;
+		rememberShopFocus();
 		settingsOpen = false;
 		inventoryOpen = false;
+		shopOpen = true;
+		activeShopTab = 'buy';
+		pauseForOverlay('shop');
+		requestOpenShop($hudState.nearbyShop.shopId);
+		void focusShopDialog();
+	}
+
+	function closeShop() {
+		if (!shopOpen) return;
+		shopOpen = false;
+		requestCloseShop();
+		resumeForOverlay('shop');
+		void restoreShopFocus();
+	}
+
+	function releaseOverlayPause() {
+		const owner = pauseOwner;
+		const wasShopOpen = shopOpen;
+		settingsOpen = false;
+		inventoryOpen = false;
+		shopOpen = false;
 		pauseOwner = null;
+
+		if (wasShopOpen) requestCloseShop();
 
 		if (owner !== null) requestResumeGame();
 	}
@@ -111,6 +151,29 @@
 	async function restoreInventoryFocus() {
 		const restoreTarget = inventoryFocusRestoreTarget;
 		inventoryFocusRestoreTarget = null;
+		await tick();
+
+		if (
+			restoreTarget &&
+			document.contains(restoreTarget) &&
+			!restoreTarget.matches('[disabled], [aria-disabled="true"]') &&
+			!restoreTarget.closest('#game-settings-panel')
+		) {
+			restoreTarget.focus();
+			return;
+		}
+
+		menuButton?.focus();
+	}
+
+	async function focusShopDialog() {
+		await tick();
+		(shopCloseButton ?? shopDialog)?.focus();
+	}
+
+	async function restoreShopFocus() {
+		const restoreTarget = shopFocusRestoreTarget;
+		shopFocusRestoreTarget = null;
 		await tick();
 
 		if (
@@ -164,6 +227,44 @@
 		}
 	}
 
+	function getShopFocusableElements() {
+		if (!shopDialog) return [];
+
+		return Array.from(
+			shopDialog.querySelectorAll<HTMLElement>(
+				'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+			)
+		).filter((element) => element.offsetParent !== null && element.tabIndex >= 0);
+	}
+
+	function handleShopDialogKeydown(event: KeyboardEvent) {
+		if (event.key === 'Escape') {
+			event.preventDefault();
+			closeShop();
+			return;
+		}
+
+		if (event.key !== 'Tab') return;
+
+		const focusableElements = getShopFocusableElements();
+		if (focusableElements.length === 0) {
+			event.preventDefault();
+			shopDialog?.focus();
+			return;
+		}
+
+		const firstElement = focusableElements[0];
+		const lastElement = focusableElements.at(-1);
+
+		if (event.shiftKey && document.activeElement === firstElement) {
+			event.preventDefault();
+			lastElement?.focus();
+		} else if (!event.shiftKey && document.activeElement === lastElement) {
+			event.preventDefault();
+			firstElement.focus();
+		}
+	}
+
 	async function focusInventoryTab(tab: InventoryTab) {
 		activeInventoryTab = tab;
 		await tick();
@@ -186,6 +287,31 @@
 		} else if (event.key === 'End') {
 			event.preventDefault();
 			void focusInventoryTab(inventoryTabs[lastIndex]);
+		}
+	}
+
+	async function focusShopTab(tab: ShopTab) {
+		activeShopTab = tab;
+		await tick();
+		document.getElementById(`shop-${tab}-tab`)?.focus();
+	}
+
+	function handleShopTabKeydown(event: KeyboardEvent, tab: ShopTab) {
+		const currentIndex = shopTabs.indexOf(tab);
+		const lastIndex = shopTabs.length - 1;
+
+		if (event.key === 'ArrowRight' || event.key === 'ArrowDown') {
+			event.preventDefault();
+			void focusShopTab(shopTabs[currentIndex === lastIndex ? 0 : currentIndex + 1]);
+		} else if (event.key === 'ArrowLeft' || event.key === 'ArrowUp') {
+			event.preventDefault();
+			void focusShopTab(shopTabs[currentIndex === 0 ? lastIndex : currentIndex - 1]);
+		} else if (event.key === 'Home') {
+			event.preventDefault();
+			void focusShopTab(shopTabs[0]);
+		} else if (event.key === 'End') {
+			event.preventDefault();
+			void focusShopTab(shopTabs[lastIndex]);
 		}
 	}
 
@@ -331,6 +457,14 @@
 			</div>
 
 			<div class="mt-4 grid gap-3">
+				<button
+					type="button"
+					class="hud-action rounded-[1.1rem] border border-amber-200/20 bg-[linear-gradient(135deg,rgba(115,75,25,0.96),rgba(63,41,18,0.92))] px-4 py-3 text-sm font-black tracking-[0.24em] text-amber-50 uppercase transition hover:-translate-y-0.5 hover:border-amber-200/45 hover:shadow-[0_15px_30px_rgba(255,190,90,0.22)] disabled:translate-y-0 disabled:cursor-not-allowed disabled:opacity-45"
+					onclick={openShop}
+					disabled={!$hudState.ready || !$hudState.nearbyShop}
+				>
+					Shop
+				</button>
 				<button
 					type="button"
 					class="hud-action rounded-[1.1rem] border border-emerald-200/20 bg-[linear-gradient(135deg,rgba(20,91,76,0.95),rgba(12,42,48,0.92))] px-4 py-3 text-sm font-black tracking-[0.24em] text-emerald-50 uppercase transition hover:-translate-y-0.5 hover:border-emerald-200/45 hover:shadow-[0_15px_30px_rgba(62,205,155,0.22)] disabled:translate-y-0 disabled:cursor-not-allowed disabled:opacity-45"
@@ -663,6 +797,186 @@
 							</div>
 						</div>
 					</aside>
+				</div>
+			</div>
+		</div>
+	{/if}
+
+	{#if shopOpen}
+		<div
+			class="absolute inset-0 z-50 flex items-center justify-center bg-black/52 p-3 backdrop-blur-[3px] sm:p-6"
+			role="presentation"
+		>
+			<div class="absolute inset-0 cursor-default" role="presentation" onclick={closeShop}></div>
+			<div
+				bind:this={shopDialog}
+				class="relative z-10 grid max-h-[calc(100vh-1.5rem)] w-[min(64rem,calc(100vw-1.5rem))] grid-rows-[auto_minmax(0,1fr)] overflow-hidden rounded-[1.8rem] border border-white/12 bg-[linear-gradient(145deg,rgba(8,13,34,0.98),rgba(28,22,44,0.96)_54%,rgba(40,28,20,0.94))] text-slate-50 shadow-[0_34px_100px_rgba(0,0,0,0.58)] backdrop-blur-md sm:max-h-[calc(100vh-3rem)] sm:rounded-[2rem]"
+				aria-labelledby="shop-heading"
+				aria-modal="true"
+				role="dialog"
+				tabindex="-1"
+				onkeydown={handleShopDialogKeydown}
+			>
+				<div class="border-b border-white/10 px-4 py-4 sm:px-6">
+					<div class="flex items-start justify-between gap-4">
+						<div>
+							<p class="text-[0.62rem] font-black tracking-[0.34em] text-amber-100/68 uppercase">
+								{$hudState.shop?.merchantName ?? $hudState.nearbyShop?.merchantName ?? 'Merchant'}
+							</p>
+							<h2
+								id="shop-heading"
+								class="mt-1 text-2xl font-black tracking-[0.12em] text-white uppercase sm:text-3xl"
+							>
+								{$hudState.shop?.name ?? $hudState.nearbyShop?.name ?? 'Shop'}
+							</h2>
+							<p class="mt-2 text-sm font-bold tracking-[0.12em] text-amber-100/80 uppercase">
+								Coins: {$hudState.wallet.coins}
+							</p>
+						</div>
+						<button
+							bind:this={shopCloseButton}
+							type="button"
+							class="rounded-full border border-white/12 bg-white/6 px-3 py-2 text-[0.65rem] font-black tracking-[0.24em] text-slate-100 uppercase transition hover:border-white/30"
+							onclick={closeShop}
+						>
+							Close
+						</button>
+					</div>
+
+					<div class="mt-4 grid grid-cols-2 gap-2" role="tablist" aria-label="Shop sections">
+						<button
+							id="shop-buy-tab"
+							type="button"
+							role="tab"
+							class={`rounded-full border px-3 py-2 text-[0.68rem] font-black tracking-[0.2em] uppercase transition ${
+								activeShopTab === 'buy'
+									? 'border-amber-200/45 bg-amber-200/16 text-amber-50'
+									: 'border-white/10 bg-white/6 text-slate-200/72 hover:border-white/24 hover:text-white'
+							}`}
+							aria-selected={activeShopTab === 'buy'}
+							aria-controls="shop-tab-panel"
+							tabindex={activeShopTab === 'buy' ? 0 : -1}
+							onclick={() => (activeShopTab = 'buy')}
+							onkeydown={(event) => handleShopTabKeydown(event, 'buy')}
+						>
+							Buy
+						</button>
+						<button
+							id="shop-sell-tab"
+							type="button"
+							role="tab"
+							class={`rounded-full border px-3 py-2 text-[0.68rem] font-black tracking-[0.2em] uppercase transition ${
+								activeShopTab === 'sell'
+									? 'border-emerald-200/45 bg-emerald-200/16 text-emerald-50'
+									: 'border-white/10 bg-white/6 text-slate-200/72 hover:border-white/24 hover:text-white'
+							}`}
+							aria-selected={activeShopTab === 'sell'}
+							aria-controls="shop-tab-panel"
+							tabindex={activeShopTab === 'sell' ? 0 : -1}
+							onclick={() => (activeShopTab = 'sell')}
+							onkeydown={(event) => handleShopTabKeydown(event, 'sell')}
+						>
+							Sell
+						</button>
+					</div>
+
+					<div
+						class="mt-4 rounded-[1.1rem] border border-white/8 bg-white/6 px-4 py-3 text-sm text-slate-200/82"
+					>
+						<p>{$hudState.status}</p>
+					</div>
+				</div>
+
+				<div
+					id="shop-tab-panel"
+					class="min-h-0 overflow-y-auto p-4 sm:p-6"
+					role="tabpanel"
+					aria-labelledby={`shop-${activeShopTab}-tab`}
+				>
+					{#if activeShopTab === 'buy'}
+						{#if $hudState.shop?.buy.length}
+							<div class="grid gap-3">
+								{#each $hudState.shop.buy as item (item.stockId)}
+									{@const finiteRemaining =
+										item.availability.mode === 'finite' ? item.availability.remaining : null}
+									<article
+										class="grid gap-3 rounded-[1.1rem] border border-white/10 bg-[linear-gradient(135deg,rgba(255,255,255,0.08),rgba(255,255,255,0.035))] p-4 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center"
+									>
+										<div>
+											<h3 class="text-lg font-black tracking-[0.08em] text-white uppercase">
+												{item.name}
+											</h3>
+											<p class="mt-2 text-sm leading-5 text-slate-200/76">
+												{item.description}
+											</p>
+											<p
+												class="mt-2 text-[0.62rem] font-black tracking-[0.2em] text-amber-100/80 uppercase"
+											>
+												{item.price} coins / {item.availability.mode === 'unlimited'
+													? 'Unlimited'
+													: `${finiteRemaining} left`}
+											</p>
+										</div>
+										<button
+											type="button"
+											class="rounded-full border border-amber-200/24 bg-amber-200/12 px-4 py-2 text-[0.68rem] font-black tracking-[0.24em] text-amber-50 uppercase transition hover:-translate-y-0.5 hover:border-amber-200/50 disabled:translate-y-0 disabled:cursor-not-allowed disabled:opacity-40"
+											onclick={() => requestBuyShopItem($hudState.shop?.shopId ?? '', item.stockId)}
+											disabled={!$hudState.ready ||
+												!$hudState.shop ||
+												$hudState.wallet.coins < item.price ||
+												finiteRemaining === 0}
+											aria-label={`Buy ${item.name}`}
+										>
+											Buy
+										</button>
+									</article>
+								{/each}
+							</div>
+						{:else}
+							<div
+								class="flex min-h-48 items-center justify-center rounded-[1.1rem] border border-dashed border-white/14 bg-white/5 px-6 py-10 text-center text-sm font-bold tracking-[0.2em] text-slate-300/62 uppercase"
+							>
+								No stock available.
+							</div>
+						{/if}
+					{:else if $hudState.shop?.sell.length}
+						<div class="grid gap-3">
+							{#each $hudState.shop.sell as item (item.itemId)}
+								<article
+									class="grid gap-3 rounded-[1.1rem] border border-white/10 bg-[linear-gradient(135deg,rgba(255,255,255,0.08),rgba(255,255,255,0.035))] p-4 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center"
+								>
+									<div>
+										<h3 class="text-lg font-black tracking-[0.08em] text-white uppercase">
+											{item.name}
+										</h3>
+										<p class="mt-2 text-sm leading-5 text-slate-200/76">
+											{item.description}
+										</p>
+										<p
+											class="mt-2 text-[0.62rem] font-black tracking-[0.2em] text-emerald-100/80 uppercase"
+										>
+											Sell for {item.price} coins{item.quantity > 1 ? ` / x${item.quantity}` : ''}
+										</p>
+									</div>
+									<button
+										type="button"
+										class="rounded-full border border-emerald-200/24 bg-emerald-200/12 px-4 py-2 text-[0.68rem] font-black tracking-[0.24em] text-emerald-50 uppercase transition hover:-translate-y-0.5 hover:border-emerald-200/50 disabled:translate-y-0 disabled:cursor-not-allowed disabled:opacity-40"
+										onclick={() => requestSellInventoryItem(item.itemId)}
+										disabled={!$hudState.ready}
+										aria-label={`Sell ${item.name}`}
+									>
+										Sell
+									</button>
+								</article>
+							{/each}
+						</div>
+					{:else}
+						<div
+							class="flex min-h-48 items-center justify-center rounded-[1.1rem] border border-dashed border-white/14 bg-white/5 px-6 py-10 text-center text-sm font-bold tracking-[0.2em] text-slate-300/62 uppercase"
+						>
+							No sellable items.
+						</div>
+					{/if}
 				</div>
 			</div>
 		</div>
