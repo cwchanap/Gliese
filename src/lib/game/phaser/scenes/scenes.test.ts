@@ -726,6 +726,20 @@ describe('WorldScene', () => {
 		expect(phaserState.playerMarker.y).toBe(180);
 	});
 
+	it('allows player movement away from an existing NPC collision overlap', async () => {
+		const { WorldScene } = await import('./WorldScene');
+		const scene = new WorldScene();
+
+		scene.create({ mapId: 'guild-hall' });
+		Object.assign(phaserState.playerMarker, { x: 256, y: 150 });
+		phaserState.cursorKeys.down.isDown = true;
+
+		scene.update(0, 50);
+
+		expect(phaserState.playerMarker.x).toBe(256);
+		expect(phaserState.playerMarker.y).toBeGreaterThan(150);
+	});
+
 	it('limits large frame deltas before applying movement distance', async () => {
 		const { WorldScene } = await import('./WorldScene');
 		const { meadowEntryMap } = await import('$lib/game/content/maps');

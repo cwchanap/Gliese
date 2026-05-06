@@ -1205,24 +1205,31 @@ export class WorldScene extends Phaser.Scene {
 		let x = targetX;
 		let y = targetY;
 
-		if (this.isPlayerPositionBlockedByNpc(x, currentY)) {
+		if (this.isPlayerMovementBlockedByNpc(currentX, currentY, x, currentY)) {
 			x = currentX;
 		}
 
-		if (this.isPlayerPositionBlockedByNpc(x, y)) {
+		if (this.isPlayerMovementBlockedByNpc(x, currentY, x, y)) {
 			y = currentY;
 		}
 
 		return { x, y };
 	}
 
-	private isPlayerPositionBlockedByNpc(x: number, y: number): boolean {
+	private isPlayerMovementBlockedByNpc(
+		currentX: number,
+		currentY: number,
+		targetX: number,
+		targetY: number
+	): boolean {
 		const map = this.resolveMap(this.mapId);
 
 		return (map.npcs ?? []).some((npc) => {
-			const distance = Phaser.Math.Distance.Between(x, y, npc.x, npc.y);
+			const currentDistance = Phaser.Math.Distance.Between(currentX, currentY, npc.x, npc.y);
+			const targetDistance = Phaser.Math.Distance.Between(targetX, targetY, npc.x, npc.y);
+			const collisionRadius = WorldScene.playerRadius + this.getNpcCollisionRadius(npc);
 
-			return distance < WorldScene.playerRadius + this.getNpcCollisionRadius(npc);
+			return targetDistance < collisionRadius && targetDistance <= currentDistance;
 		});
 	}
 
