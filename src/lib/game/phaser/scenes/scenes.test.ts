@@ -1285,7 +1285,20 @@ describe('WorldScene', () => {
 		expect(saveState.inventory.equipment).toContain('iron-cap');
 		expect(saveState.shops.stock['guild-quartermaster']?.['iron-cap']).toBe(0);
 		expect(emitHudStateSpy).toHaveBeenLastCalledWith(
-			expect.objectContaining({ status: 'Bought Iron Cap' })
+			expect.objectContaining({
+				status: 'Bought Iron Cap',
+				wallet: { coins: 5 },
+				inventory: expect.objectContaining({
+					equipment: expect.arrayContaining([
+						expect.objectContaining({ itemId: 'iron-cap', equipped: false })
+					])
+				}),
+				shop: expect.objectContaining({
+					sell: expect.arrayContaining([
+						expect.objectContaining({ itemId: 'iron-cap', quantity: 1, price: 17 })
+					])
+				})
+			})
 		);
 	});
 

@@ -120,3 +120,76 @@ test('shop overlay opens near a merchant and supports buying and selling', async
 	await page.getByRole('button', { name: 'Sell Field Potion', exact: true }).click();
 	await expect(page.getByText('Coins: 25')).toBeVisible();
 });
+
+test('interact key shop purchase appears in inventory', async ({ page }) => {
+	const save = {
+		version: 3,
+		mapId: 'item-shop',
+		player: {
+			level: 1,
+			xp: 0,
+			hp: 20,
+			attack: 3,
+			x: 256,
+			y: 144,
+			facing: 'up'
+		},
+		flags: { clearedEncounters: [], collectedPickups: [], resolvedEncounterDrops: {} },
+		inventory: {
+			stacks: [{ itemId: 'field-potion', quantity: 1 }],
+			equipment: ['training-sword']
+		},
+		equipment: {
+			weapon: 'training-sword',
+			head: null,
+			body: null,
+			hands: null,
+			accessory: null
+		},
+		wallet: { coins: 30 },
+		shops: {
+			stock: {
+				'guild-quartermaster': {
+					'iron-cap': 1,
+					'grip-wraps': 1,
+					'traveler-vest': 1
+				}
+			}
+		}
+	};
+
+	await page.addInitScript((encoded) => {
+		const probeWindow = window as GlieseProbeWindow;
+		probeWindow.__glieseLastHudState = undefined;
+		window.addEventListener('gliese:hud-state', (event) => {
+			probeWindow.__glieseLastHudState = (event as CustomEvent<HudStateSnapshot>).detail;
+		});
+		window.localStorage.setItem('gliese.save.v3', encoded);
+	}, JSON.stringify(save));
+	await page.goto('/game');
+	await expect(page.locator('canvas')).toBeVisible();
+
+	await page.getByRole('button', { name: 'Menu' }).click();
+	await page.getByRole('button', { name: 'Resume Save' }).click();
+	await page.waitForFunction(() => {
+		const state = (window as GlieseProbeWindow).__glieseLastHudState;
+
+		return state?.nearbyShop?.shopId === 'miras-item-shop' || state?.status?.startsWith('Mira:');
+	});
+
+	await page.locator('canvas').click();
+	await page.keyboard.press('KeyE');
+
+	const shopDialog = page.getByRole('dialog', { name: "Mira's Item Shop" });
+	await expect(shopDialog).toBeVisible();
+	await shopDialog.getByRole('button', { name: 'Buy Field Potion', exact: true }).click();
+	await expect(shopDialog.getByText('Coins: 20')).toBeVisible();
+	await shopDialog.getByRole('button', { name: 'Close' }).click();
+
+	await page.getByRole('button', { name: 'Menu' }).click();
+	await page.getByRole('button', { name: 'Inventory' }).click();
+
+	const inventoryDialog = page.getByRole('dialog', { name: 'Inventory' });
+	await expect(inventoryDialog.getByRole('heading', { name: 'Field Potion' })).toBeVisible();
+	await expect(inventoryDialog.getByText('x2')).toBeVisible();
+});
