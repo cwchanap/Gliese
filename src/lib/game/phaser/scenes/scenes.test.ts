@@ -697,6 +697,35 @@ describe('WorldScene', () => {
 		expect(phaserState.playerMarker.y).toBe(12);
 	});
 
+	it('blocks player movement through NPC bodies', async () => {
+		const { WorldScene } = await import('./WorldScene');
+		const scene = new WorldScene();
+
+		scene.create({ mapId: 'guild-hall' });
+		Object.assign(phaserState.playerMarker, { x: 256, y: 185 });
+		phaserState.cursorKeys.up.isDown = true;
+
+		scene.update(0, 250);
+
+		expect(phaserState.playerMarker.x).toBe(256);
+		expect(phaserState.playerMarker.y).toBe(185);
+	});
+
+	it('slides along an NPC when only one movement axis is blocked', async () => {
+		const { WorldScene } = await import('./WorldScene');
+		const scene = new WorldScene();
+
+		scene.create({ mapId: 'guild-hall' });
+		Object.assign(phaserState.playerMarker, { x: 220, y: 180 });
+		phaserState.cursorKeys.right.isDown = true;
+		phaserState.cursorKeys.up.isDown = true;
+
+		scene.update(0, 250);
+
+		expect(phaserState.playerMarker.x).toBeGreaterThan(220);
+		expect(phaserState.playerMarker.y).toBe(180);
+	});
+
 	it('limits large frame deltas before applying movement distance', async () => {
 		const { WorldScene } = await import('./WorldScene');
 		const { meadowEntryMap } = await import('$lib/game/content/maps');

@@ -166,6 +166,7 @@ export class WorldScene extends Phaser.Scene {
 	private static readonly hitImpactRingTint = 0xfff0a8;
 	private static readonly hitImpactSparkTint = 0xfff7d6;
 	private static readonly maxMovementDeltaMs = 250;
+	private static readonly npcCollisionScale = 0.7;
 	private static readonly npcInteractionRadius = 36;
 	private static readonly npcPackDisplaySize = { width: 48, height: 58 };
 	private static readonly playerRadius = 12;
@@ -374,8 +375,17 @@ export class WorldScene extends Phaser.Scene {
 		const maxX = this.worldSize.width - WorldScene.playerRadius;
 		const maxY = this.worldSize.height - WorldScene.playerRadius;
 
-		this.player.x = Math.min(Math.max(this.player.x + direction.x * step, min), maxX);
-		this.player.y = Math.min(Math.max(this.player.y + direction.y * step, min), maxY);
+		const targetX = Math.min(Math.max(this.player.x + direction.x * step, min), maxX);
+		const targetY = Math.min(Math.max(this.player.y + direction.y * step, min), maxY);
+		const resolvedPosition = this.resolvePlayerNpcCollision(
+			this.player.x,
+			this.player.y,
+			targetX,
+			targetY
+		);
+
+		this.player.x = resolvedPosition.x;
+		this.player.y = resolvedPosition.y;
 		this.facing = this.resolveFacing(direction, this.facing);
 
 		if (this.tryTransition()) {
@@ -1184,6 +1194,44 @@ export class WorldScene extends Phaser.Scene {
 		if (direction.y > 0) return 'down';
 		if (direction.y < 0) return 'up';
 		return fallback;
+	}
+
+	private resolvePlayerNpcCollision(
+		currentX: number,
+		currentY: number,
+		targetX: number,
+		targetY: number
+	) {
+		let x = targetX;
+		let y = targetY;
+
+		if (this.isPlayerPositionBlockedByNpc(x, currentY)) {
+			x = currentX;
+		}
+
+		if (this.isPlayerPositionBlockedByNpc(x, y)) {
+			y = currentY;
+		}
+
+		return { x, y };
+	}
+
+	private isPlayerPositionBlockedByNpc(x: number, y: number): boolean {
+		const map = this.resolveMap(this.mapId);
+
+		return (map.npcs ?? []).some((npc) => {
+			const distance = Phaser.Math.Distance.Between(x, y, npc.x, npc.y);
+
+			return distance < WorldScene.playerRadius + this.getNpcCollisionRadius(npc);
+		});
+	}
+
+	private getNpcCollisionRadius(npc: MapNpc): number {
+		const displaySize = isNpcPackFrameName(npc.frameName)
+			? WorldScene.npcPackDisplaySize
+			: WorldScene.starterNpcDisplaySize;
+
+		return (Math.min(displaySize.width, displaySize.height) / 2) * WorldScene.npcCollisionScale;
 	}
 
 	private resolveMap(mapId?: string): WorldMapDefinition {
