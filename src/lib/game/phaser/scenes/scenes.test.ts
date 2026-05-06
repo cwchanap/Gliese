@@ -1003,13 +1003,14 @@ describe('WorldScene', () => {
 
 		scene.create({ mapId: 'guild-hall' });
 
-		expect(scene.add.image).toHaveBeenCalledWith(256, 144, 'starter-pack', 'titleBadge');
+		expect(scene.add.image).not.toHaveBeenCalledWith(256, 144, 'starter-pack', 'titleBadge');
+		expect(scene.add.image).toHaveBeenCalledWith(256, 144, 'npc-pack', 'miraItemShopNpc');
 		expect(scene.add.image).toHaveBeenCalledWith(352, 144, 'npc-pack', 'quartermasterNpc');
 		const npcMarkers = phaserState.imageMarkers.filter(
-			(marker) => marker.x === 256 && marker.y === 144 && marker.frame === 'titleBadge'
+			(marker) => marker.x === 256 && marker.y === 144 && marker.frame === 'miraItemShopNpc'
 		);
 		expect(npcMarkers).toHaveLength(1);
-		expect(npcMarkers[0]!.setDisplaySize).toHaveBeenCalledWith(30, 36);
+		expect(npcMarkers[0]!.setDisplaySize).toHaveBeenCalledWith(48, 58);
 		const quartermasterMarkers = phaserState.imageMarkers.filter(
 			(marker) => marker.x === 352 && marker.y === 144 && marker.frame === 'quartermasterNpc'
 		);
@@ -1029,6 +1030,24 @@ describe('WorldScene', () => {
 		);
 		expect(miraMarkers).toHaveLength(1);
 		expect(miraMarkers[0]!.setDisplaySize).toHaveBeenCalledWith(48, 58);
+	});
+
+	it('does not render placeholder NPCs in villager houses', async () => {
+		const { WorldScene } = await import('./WorldScene');
+		const scene = new WorldScene();
+
+		scene.create({ mapId: 'villager-house-1' });
+
+		expect(scene.add.image).not.toHaveBeenCalledWith(256, 144, 'starter-pack', 'titleBadge');
+		expect(scene.add.image).not.toHaveBeenCalledWith(256, 144, 'npc-pack', 'miraItemShopNpc');
+		expect(
+			phaserState.imageMarkers.some(
+				(marker) =>
+					marker.x === 256 &&
+					marker.y === 144 &&
+					(marker.frame === 'titleBadge' || marker.frame === 'miraItemShopNpc')
+			)
+		).toBe(false);
 	});
 
 	it('publishes NPC dialogue once when the hero enters proximity', async () => {

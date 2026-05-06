@@ -9,18 +9,21 @@ SvelteKit app deployed to Cloudflare Workers, with a Phaser 4 JRPG vertical slic
 - **Language**: TypeScript (Svelte 5 runes mode enforced project-wide via `svelte.config.js`)
 - **Package Manager**: bun
 - **Deployment**: Cloudflare Workers via `@sveltejs/adapter-cloudflare` + `wrangler`
+- **`AGENTS.md` is a symlink to this file** — both Claude and other agents read the same instructions; edit `CLAUDE.md` only.
 
 ## Commands
 
 ```sh
 bun run dev          # start dev server (http://localhost:5173)
-bun run build        # wrangler types check then vite build
+bun run build        # wrangler types --check && vite build
 bun run preview      # preview production build via wrangler on port 4173
-bun run check        # svelte-check type checking
+bun run check        # wrangler types --check && svelte-kit sync && svelte-check
 bun run lint         # prettier + eslint check
 bun run format       # auto-format all files
-bun run gen          # regenerate Cloudflare env types from wrangler.jsonc
+bun run gen          # regenerate worker-configuration.d.ts from wrangler.jsonc
 ```
+
+Re-run `bun run gen` after editing `wrangler.jsonc` so `worker-configuration.d.ts` reflects the new bindings.
 
 ### Tests
 
@@ -40,22 +43,25 @@ bun run test:e2e -- --grep "game route boots"
 - `*.{test,spec}.ts` (non-svelte) → `server` project, runs in node
 - `*.e2e.ts` → Playwright, needs dev server on port 4173 (`playwright.config.ts` spins one up automatically)
 
+`vite.config.ts` sets `expect: { requireAssertions: true }` — any test that runs without calling `expect()` will fail.
+
 ## Architecture
 
 ### Game Layer (`src/lib/game/`)
 
 ```
-content/     Static game definitions (assets, enemies, maps, player)
-core/        Pure TS game logic — no Phaser, no DOM (combat, boss, progression, input, types)
+content/     Static game definitions (assets, enemies, items, maps, player, shops)
+core/        Pure TS game logic — no Phaser, no DOM
+             (combat, boss, progression, input, types, inventory, equipment, shop, stats, loot)
 phaser/      Phaser integration
   scenes/
     BootScene.ts    Loads the sprite sheet asset, then hands off to WorldScene
-    WorldScene.ts   Main game loop: movement, combat, transitions, save/load
+    WorldScene.ts   Main game loop: movement, combat, transitions, save/load, NPC + shop interaction
   createGame.ts     Dynamic-imports Phaser, instantiates the Game object
 save/        SaveState type, serialize/parse/validate, localStorage wrapper
 ui-bridge/   Phaser ↔ SvelteKit communication
   events.ts   Custom DOM events: gliese:hud-state (Phaser → UI) and gliese:hud-command (UI → Phaser)
-  store.ts    Svelte readable store wrapping onHudState; exposes requestSave/Heal/Resume helpers
+  store.ts    Svelte readable store wrapping onHudState; exposes request helpers
 GameShell.svelte   Mounts the Phaser canvas via onMount, renders the HUD overlay
 ```
 
@@ -65,14 +71,15 @@ Phaser and SvelteKit communicate exclusively through custom `window` events (def
 
 - `WorldScene` calls `emitHudState(...)` after every meaningful state change
 - The Svelte HUD reads `$hudState` (a readable store backed by `onHudState`)
-- The Svelte HUD dispatches `emitHudCommand('heal' | 'resume' | 'save')`, which `WorldScene` receives via `onHudCommand`
+- The Svelte HUD dispatches commands via `emitHudCommand(...)`, which `WorldScene` receives via `onHudCommand`. The `HudCommand` union currently covers: `heal`, `save`, `resume-save`, `pause-game`, `resume-game`, `use-item`, `equip-item`, `unequip-slot`, `open-shop`, `close-shop`, `buy-shop-item`, `sell-inventory-item`. When adding a new command, update the union in `ui-bridge/events.ts` and handle it in both `WorldScene` and the HUD.
 
 ### Content / Data Model
 
-- **Maps**: `meadow-entry` → `ruins-threshold` → `ruins-core` (linear). Each `WorldMapDefinition` carries spawn point, tile dimensions, transitions, and an optional single encounter.
+- **Maps**: `meadow-entry` is the hub, with interior maps (`hero-house`, `guild-hall`, `item-shop`, `villager-house-1/2/3`) and the dungeon chain `ruins-threshold` → `ruins-core`. A `WorldMapDefinition` may carry transitions, encounters, pickups, NPCs (with optional `shopId`), and landmark rectangles.
 - **Enemies**: `slime-scout` (normal), `ruins-warden` (boss with a phase-2 enrage at ≤50% HP)
+- **Items / shops**: Items are defined in `content/items.ts` (consumables, equipment with `StatModifiers`, key items). Shops in `content/shops.ts` reference item IDs with per-shop stock and pricing. Wallet/coin state lives in `core/shop.ts`.
 - **Sprites**: Single sprite sheet at `static/game/assets/starter-pack.png`; frame coordinates are declared in `content/assets.ts` and registered at runtime in `WorldScene.registerStarterPackFrames()`
-- **Save**: JSON serialized to `localStorage` under key `gliese.save.v1`; version-gated via `isSaveState` validator
+- **Save**: JSON serialized to `localStorage` under key `gliese.save.v1` (the storage key is fixed). The payload's `version` field tracks the schema and is currently `3`; bump it and update `isSaveState` whenever `SaveState` changes shape.
 
 ### Routing
 

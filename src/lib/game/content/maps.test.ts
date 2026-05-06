@@ -221,7 +221,7 @@ describe('opening map content', () => {
 				name: 'Guild Clerk',
 				dialogue: 'Morning. The ruins survey is posted; take the east road when you are ready.',
 				role: 'guild',
-				frameName: 'titleBadge'
+				frameName: 'miraItemShopNpc'
 			},
 			{
 				id: 'guild-quartermaster',
@@ -246,40 +246,9 @@ describe('opening map content', () => {
 				shopId: 'miras-item-shop'
 			}
 		]);
-		expect(villagerHouse1Map.npcs).toEqual([
-			{
-				id: 'villager-ina',
-				x: 256,
-				y: 144,
-				name: 'Ina',
-				dialogue: 'A peaceful morning is best spent before the road dust rises.',
-				role: 'villager',
-				frameName: 'titleBadge'
-			}
-		]);
-		expect(villagerHouse2Map.npcs).toEqual([
-			{
-				id: 'villager-bran',
-				x: 256,
-				y: 144,
-				name: 'Bran',
-				dialogue:
-					'The ruins bells were quiet last night. That usually means trouble waited politely.',
-				role: 'villager',
-				frameName: 'titleBadge'
-			}
-		]);
-		expect(villagerHouse3Map.npcs).toEqual([
-			{
-				id: 'villager-sena',
-				x: 256,
-				y: 144,
-				name: 'Sena',
-				dialogue: 'When the guild sends you east, keep your blade hand loose.',
-				role: 'villager',
-				frameName: 'titleBadge'
-			}
-		]);
+		expect(villagerHouse1Map.npcs ?? []).toEqual([]);
+		expect(villagerHouse2Map.npcs ?? []).toEqual([]);
+		expect(villagerHouse3Map.npcs ?? []).toEqual([]);
 		expect(new Set(npcs.map((npc) => npc.id)).size).toBe(npcs.length);
 
 		for (const map of Object.values(maps)) {
@@ -291,6 +260,7 @@ describe('opening map content', () => {
 				expect(npc.y).toBeGreaterThanOrEqual(0);
 				expect(npc.x).toBeLessThan(map.width * 32);
 				expect(npc.y).toBeLessThan(map.height * 32);
+				expect(npc.frameName).not.toBe('titleBadge');
 				if (npc.shopId) {
 					expect(getShop(npc.shopId)).toBeDefined();
 					expect(npc.role).toBe('shopkeeper');

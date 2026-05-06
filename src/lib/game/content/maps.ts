@@ -227,7 +227,7 @@ export const guildHallMap: WorldMapDefinition = {
 			name: 'Guild Clerk',
 			dialogue: 'Morning. The ruins survey is posted; take the east road when you are ready.',
 			role: 'guild',
-			frameName: 'titleBadge'
+			frameName: 'miraItemShopNpc'
 		},
 		{
 			id: 'guild-quartermaster',
@@ -283,17 +283,6 @@ export const villagerHouse1Map: WorldMapDefinition = {
 			toMapId: openingMapId,
 			arrival: { x: 352, y: 1_128, facing: 'down' }
 		}
-	],
-	npcs: [
-		{
-			id: 'villager-ina',
-			x: 256,
-			y: 144,
-			name: 'Ina',
-			dialogue: 'A peaceful morning is best spent before the road dust rises.',
-			role: 'villager',
-			frameName: 'titleBadge'
-		}
 	]
 };
 
@@ -310,18 +299,6 @@ export const villagerHouse2Map: WorldMapDefinition = {
 			toMapId: openingMapId,
 			arrival: { x: 576, y: 1_672, facing: 'down' }
 		}
-	],
-	npcs: [
-		{
-			id: 'villager-bran',
-			x: 256,
-			y: 144,
-			name: 'Bran',
-			dialogue:
-				'The ruins bells were quiet last night. That usually means trouble waited politely.',
-			role: 'villager',
-			frameName: 'titleBadge'
-		}
 	]
 };
 
@@ -337,17 +314,6 @@ export const villagerHouse3Map: WorldMapDefinition = {
 			...interiorDoor,
 			toMapId: openingMapId,
 			arrival: { x: 1_056, y: 1_448, facing: 'down' }
-		}
-	],
-	npcs: [
-		{
-			id: 'villager-sena',
-			x: 256,
-			y: 144,
-			name: 'Sena',
-			dialogue: 'When the guild sends you east, keep your blade hand loose.',
-			role: 'villager',
-			frameName: 'titleBadge'
 		}
 	]
 };

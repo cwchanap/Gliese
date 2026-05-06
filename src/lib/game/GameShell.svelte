@@ -16,10 +16,19 @@
 		requestUseItem
 	} from '$lib/game/ui-bridge/store';
 	import type { EquipmentSlot } from '$lib/game/content/items';
+	import type {
+		HudEquipmentItem,
+		HudInventoryStack,
+		HudKeyItem
+	} from '$lib/game/ui-bridge/events';
 
 	type InventoryTab = 'consumables' | 'equipment' | 'keyItems';
 	type ShopTab = 'buy' | 'sell';
 	type OverlayPauseOwner = 'settings' | 'inventory' | 'shop';
+	type InventorySlotItem =
+		| { kind: 'consumable'; item: HudInventoryStack }
+		| { kind: 'equipment'; item: HudEquipmentItem }
+		| { kind: 'keyItem'; item: HudKeyItem };
 
 	let mountNode: HTMLDivElement | undefined;
 	let menuButton = $state<HTMLButtonElement>();
@@ -46,6 +55,8 @@
 	];
 	const inventoryTabs: InventoryTab[] = ['consumables', 'equipment', 'keyItems'];
 	const shopTabs: ShopTab[] = ['buy', 'sell'];
+	const inventorySlotCount = 24;
+	const inventoryGridColumns = 6;
 
 	const hpPercent = $derived(($hudState.hp / Math.max($hudState.maxHp, 1)) * 100);
 	const xpTarget = $derived($hudState.level > 1 ? 24 : 12);
@@ -302,6 +313,27 @@
 		}
 	}
 
+	function getInventoryGridItems(tab: InventoryTab): InventorySlotItem[] {
+		if (tab === 'consumables') {
+			return $hudState.inventory.consumables.map((item) => ({ kind: 'consumable', item }));
+		}
+
+		if (tab === 'equipment') {
+			return $hudState.inventory.equipment.map((item) => ({ kind: 'equipment', item }));
+		}
+
+		return $hudState.inventory.keyItems.map((item) => ({ kind: 'keyItem', item }));
+	}
+
+	function getInventoryGridSlots(tab: InventoryTab): Array<InventorySlotItem | null> {
+		const items = getInventoryGridItems(tab);
+		const overflowSlotCount =
+			Math.ceil(items.length / inventoryGridColumns) * inventoryGridColumns;
+		const slotCount = Math.max(inventorySlotCount, overflowSlotCount);
+
+		return Array.from({ length: slotCount }, (_, index) => items[index] ?? null);
+	}
+
 	async function focusShopTab(tab: ShopTab) {
 		activeShopTab = tab;
 		await tick();
@@ -531,7 +563,7 @@
 			></div>
 			<div
 				bind:this={inventoryDialog}
-				class="relative z-10 grid max-h-[calc(100vh-1.5rem)] w-[min(70rem,calc(100vw-1.5rem))] grid-rows-[auto_minmax(0,1fr)] overflow-hidden rounded-[1.8rem] border border-white/12 bg-[linear-gradient(145deg,rgba(8,13,34,0.98),rgba(16,14,42,0.96)_54%,rgba(13,32,52,0.94))] text-slate-50 shadow-[0_34px_100px_rgba(0,0,0,0.58)] backdrop-blur-md sm:max-h-[calc(100vh-3rem)] sm:rounded-[2rem]"
+				class="relative z-10 grid max-h-[calc(100vh-1.5rem)] w-[min(76rem,calc(100vw-1.5rem))] grid-rows-[auto_minmax(0,1fr)] overflow-hidden rounded-[1.8rem] border border-white/12 bg-[linear-gradient(145deg,rgba(8,13,34,0.98),rgba(16,14,42,0.96)_54%,rgba(13,32,52,0.94))] text-slate-50 shadow-[0_34px_100px_rgba(0,0,0,0.58)] backdrop-blur-md sm:max-h-[calc(100vh-3rem)] sm:rounded-[2rem]"
 				aria-labelledby="inventory-heading"
 				aria-modal="true"
 				role="dialog"
@@ -617,179 +649,184 @@
 				</div>
 
 				<div
-					class="grid min-h-0 gap-4 overflow-y-auto p-4 lg:grid-cols-[minmax(0,1fr)_20rem] lg:overflow-hidden lg:p-6"
+					class="grid min-h-0 grid-rows-[minmax(21rem,1fr)_auto] gap-3 overflow-y-auto p-4 lg:grid-cols-[minmax(0,1fr)_13rem] lg:grid-rows-none lg:overflow-hidden lg:p-5"
 				>
 					<div class="min-h-0 overflow-hidden rounded-[1.45rem] border border-white/10 bg-white/6">
 						<div
 							id="inventory-tab-panel"
-							class="max-h-[48vh] overflow-y-auto p-3 sm:max-h-[54vh] sm:p-4 lg:h-full lg:max-h-none"
+							class="h-full min-h-[21rem] overflow-y-auto p-3 pr-2 sm:p-4 sm:pr-3 lg:min-h-0"
 							role="tabpanel"
 							aria-labelledby={`inventory-${activeInventoryTab}-tab`}
 						>
-							{#if activeInventoryTab === 'consumables'}
-								{#if $hudState.inventory.consumables.length}
-									<div class="grid gap-3">
-										{#each $hudState.inventory.consumables as item (item.itemId)}
-											<article
-												class="grid gap-3 rounded-[1.1rem] border border-white/10 bg-[linear-gradient(135deg,rgba(255,255,255,0.08),rgba(255,255,255,0.035))] p-4 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center"
-											>
-												<div>
-													<div class="flex flex-wrap items-center gap-2">
-														<h3 class="text-lg font-black tracking-[0.08em] text-white uppercase">
-															{item.name}
-														</h3>
-														<span
-															class="rounded-full border border-emerald-100/18 bg-emerald-100/10 px-2 py-1 text-[0.58rem] font-black tracking-[0.2em] text-emerald-50/84 uppercase"
-														>
-															x{item.quantity}
-														</span>
-													</div>
-													<p class="mt-2 text-sm leading-5 text-slate-200/76">{item.description}</p>
-												</div>
-												<button
-													type="button"
-													class="rounded-full border border-emerald-200/24 bg-emerald-200/12 px-4 py-2 text-[0.68rem] font-black tracking-[0.24em] text-emerald-50 uppercase transition hover:-translate-y-0.5 hover:border-emerald-200/50 disabled:translate-y-0 disabled:cursor-not-allowed disabled:opacity-40"
-													onclick={() => requestUseItem(item.itemId)}
-													disabled={!$hudState.ready}
-												>
-													Use
-												</button>
-											</article>
-										{/each}
-									</div>
-								{:else}
-									<div
-										class="flex min-h-48 items-center justify-center rounded-[1.1rem] border border-dashed border-white/14 bg-white/5 px-6 py-10 text-center text-sm font-bold tracking-[0.2em] text-slate-300/62 uppercase"
-									>
-										No consumables carried.
-									</div>
-								{/if}
-							{:else if activeInventoryTab === 'equipment'}
-								{#if $hudState.inventory.equipment.length}
-									<div class="grid gap-3">
-										{#each $hudState.inventory.equipment as item (item.itemId)}
-											<article
-												class="grid gap-3 rounded-[1.1rem] border border-white/10 bg-[linear-gradient(135deg,rgba(255,255,255,0.08),rgba(255,255,255,0.035))] p-4 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center"
-											>
-												<div>
-													<div class="flex flex-wrap items-center gap-2">
-														<h3 class="text-lg font-black tracking-[0.08em] text-white uppercase">
-															{item.name}
-														</h3>
-														<span
-															class="rounded-full border border-cyan-100/18 bg-cyan-100/10 px-2 py-1 text-[0.58rem] font-black tracking-[0.2em] text-cyan-50/84 uppercase"
-														>
-															{item.slot}
-														</span>
-													</div>
-													<p class="mt-2 text-sm leading-5 text-slate-200/76">{item.description}</p>
-												</div>
-												<button
-													type="button"
-													class="rounded-full border border-cyan-200/24 bg-cyan-200/12 px-4 py-2 text-[0.68rem] font-black tracking-[0.24em] text-cyan-50 uppercase transition hover:-translate-y-0.5 hover:border-cyan-200/50 disabled:translate-y-0 disabled:cursor-not-allowed disabled:opacity-40"
-													onclick={() => requestEquipItem(item.itemId)}
-													disabled={!$hudState.ready || item.equipped}
-												>
-													{item.equipped ? 'Equipped' : 'Equip'}
-												</button>
-											</article>
-										{/each}
-									</div>
-								{:else}
-									<div
-										class="flex min-h-48 items-center justify-center rounded-[1.1rem] border border-dashed border-white/14 bg-white/5 px-6 py-10 text-center text-sm font-bold tracking-[0.2em] text-slate-300/62 uppercase"
-									>
-										No equipment found.
-									</div>
-								{/if}
-							{:else if $hudState.inventory.keyItems.length}
-								<div class="grid gap-3">
-									{#each $hudState.inventory.keyItems as item (item.itemId)}
+							<div
+								data-testid="inventory-slot-grid"
+								class="grid grid-cols-6 gap-2.5 sm:gap-3"
+								aria-label={`${activeInventoryTab} inventory slots`}
+							>
+								{#each getInventoryGridSlots(activeInventoryTab) as slot, index (`${activeInventoryTab}-${slot?.item.itemId ?? 'empty'}-${index}`)}
+									{#if slot?.kind === 'consumable'}
 										<article
-											class="rounded-[1.1rem] border border-white/10 bg-[linear-gradient(135deg,rgba(255,255,255,0.08),rgba(255,255,255,0.035))] p-4"
+											data-testid="inventory-slot"
+											class="inventory-slot group relative flex aspect-square min-h-0 flex-col justify-between overflow-hidden rounded-[0.95rem] border border-emerald-100/16 bg-[linear-gradient(145deg,rgba(28,69,62,0.54),rgba(12,20,38,0.86))] p-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)] sm:p-3"
+											aria-label={slot.item.name}
 										>
-											<div class="flex flex-wrap items-center gap-2">
-												<h3 class="text-lg font-black tracking-[0.08em] text-white uppercase">
-													{item.name}
-												</h3>
-												{#if item.quantity > 1}
-													<span
-														class="rounded-full border border-amber-100/18 bg-amber-100/10 px-2 py-1 text-[0.58rem] font-black tracking-[0.2em] text-amber-50/84 uppercase"
+											<div class="min-w-0">
+												<div class="flex items-start justify-between gap-1.5">
+													<h3
+														class="inventory-slot-name text-[0.72rem] font-black leading-[1.05] tracking-[0.08em] text-white uppercase sm:text-[0.82rem]"
 													>
-														x{item.quantity}
+														{slot.item.name}
+													</h3>
+													<span
+														class="shrink-0 rounded-full border border-emerald-100/18 bg-emerald-100/12 px-1.5 py-0.5 text-[0.54rem] font-black tracking-[0.12em] text-emerald-50 uppercase"
+													>
+														x{slot.item.quantity}
 													</span>
-												{/if}
+												</div>
+												<p class="inventory-slot-description mt-1 text-[0.62rem] leading-[1.15] text-slate-200/70">
+													{slot.item.description}
+												</p>
 											</div>
-											<p class="mt-2 text-sm leading-5 text-slate-200/76">{item.description}</p>
+											<button
+												type="button"
+												class="mt-1 rounded-full border border-emerald-200/24 bg-emerald-200/12 px-2 py-1 text-[0.58rem] font-black tracking-[0.18em] text-emerald-50 uppercase transition hover:border-emerald-200/50 disabled:cursor-not-allowed disabled:opacity-40"
+												onclick={() => requestUseItem(slot.item.itemId)}
+												disabled={!$hudState.ready}
+											>
+												Use
+											</button>
 										</article>
-									{/each}
-								</div>
-							{:else}
-								<div
-									class="flex min-h-48 items-center justify-center rounded-[1.1rem] border border-dashed border-white/14 bg-white/5 px-6 py-10 text-center text-sm font-bold tracking-[0.2em] text-slate-300/62 uppercase"
-								>
-									No key items acquired.
-								</div>
-							{/if}
+									{:else if slot?.kind === 'equipment'}
+										<article
+											data-testid="inventory-slot"
+											class="inventory-slot group relative flex aspect-square min-h-0 flex-col justify-between overflow-hidden rounded-[0.95rem] border border-cyan-100/16 bg-[linear-gradient(145deg,rgba(25,59,88,0.56),rgba(12,20,38,0.86))] p-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)] sm:p-3"
+											aria-label={slot.item.name}
+										>
+											<div class="min-w-0">
+												<div class="flex items-start justify-between gap-1.5">
+													<h3
+														class="inventory-slot-name text-[0.72rem] font-black leading-[1.05] tracking-[0.08em] text-white uppercase sm:text-[0.82rem]"
+													>
+														{slot.item.name}
+													</h3>
+													<span
+														class="shrink-0 rounded-full border border-cyan-100/18 bg-cyan-100/12 px-1.5 py-0.5 text-[0.5rem] font-black tracking-[0.1em] text-cyan-50 uppercase"
+													>
+														{slot.item.slot}
+													</span>
+												</div>
+												<p class="inventory-slot-description mt-1 text-[0.62rem] leading-[1.15] text-slate-200/70">
+													{slot.item.description}
+												</p>
+											</div>
+											<button
+												type="button"
+												class="mt-1 rounded-full border border-cyan-200/24 bg-cyan-200/12 px-2 py-1 text-[0.58rem] font-black tracking-[0.18em] text-cyan-50 uppercase transition hover:border-cyan-200/50 disabled:cursor-not-allowed disabled:opacity-40"
+												onclick={() => requestEquipItem(slot.item.itemId)}
+												disabled={!$hudState.ready || slot.item.equipped}
+											>
+												{slot.item.equipped ? 'Equipped' : 'Equip'}
+											</button>
+										</article>
+									{:else if slot?.kind === 'keyItem'}
+										<article
+											data-testid="inventory-slot"
+											class="inventory-slot group relative flex aspect-square min-h-0 flex-col justify-between overflow-hidden rounded-[0.95rem] border border-amber-100/16 bg-[linear-gradient(145deg,rgba(82,60,25,0.52),rgba(12,20,38,0.86))] p-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)] sm:p-3"
+											aria-label={slot.item.name}
+										>
+											<div class="min-w-0">
+												<div class="flex items-start justify-between gap-1.5">
+													<h3
+														class="inventory-slot-name text-[0.72rem] font-black leading-[1.05] tracking-[0.08em] text-white uppercase sm:text-[0.82rem]"
+													>
+														{slot.item.name}
+													</h3>
+													{#if slot.item.quantity > 1}
+														<span
+															class="shrink-0 rounded-full border border-amber-100/18 bg-amber-100/12 px-1.5 py-0.5 text-[0.54rem] font-black tracking-[0.12em] text-amber-50 uppercase"
+														>
+															x{slot.item.quantity}
+														</span>
+													{/if}
+												</div>
+												<p class="inventory-slot-description mt-1 text-[0.62rem] leading-[1.15] text-slate-200/70">
+													{slot.item.description}
+												</p>
+											</div>
+											<p class="text-[0.52rem] font-black tracking-[0.18em] text-amber-50/62 uppercase">
+												Key
+											</p>
+										</article>
+									{:else}
+										<div
+											data-testid="inventory-slot"
+											class="inventory-slot-empty flex aspect-square items-center justify-center rounded-[0.95rem] border border-dashed border-white/10 bg-white/[0.035] text-[0.54rem] font-black tracking-[0.18em] text-slate-400/38 uppercase"
+											aria-label={`Empty inventory slot ${index + 1}`}
+										>
+											Empty
+										</div>
+									{/if}
+								{/each}
+							</div>
 						</div>
 					</div>
 
-					<aside class="grid gap-4 lg:min-h-0 lg:grid-rows-[auto_minmax(0,1fr)]">
-						<div class="rounded-[1.35rem] border border-white/10 bg-white/6 p-4">
+					<aside class="grid gap-3 lg:min-h-0 lg:grid-rows-[auto_minmax(0,1fr)]">
+						<div class="rounded-[1.15rem] border border-white/10 bg-white/6 p-3">
 							<p class="text-[0.62rem] font-black tracking-[0.28em] text-cyan-100/64 uppercase">
 								Stats
 							</p>
-							<div class="mt-3 grid grid-cols-3 gap-2">
+							<div class="mt-2 grid grid-cols-3 gap-2 lg:grid-cols-1">
 								<div
-									class="rounded-2xl border border-rose-100/12 bg-rose-100/8 px-3 py-3 text-center"
+									class="rounded-[0.95rem] border border-rose-100/12 bg-rose-100/8 px-2 py-2 text-center"
 								>
 									<p class="text-[0.58rem] font-black tracking-[0.22em] text-rose-50/64 uppercase">
 										HP
 									</p>
-									<p class="mt-1 text-lg font-black text-white">{$hudState.hp}/{$hudState.maxHp}</p>
+									<p class="mt-0.5 text-base font-black text-white">{$hudState.hp}/{$hudState.maxHp}</p>
 								</div>
 								<div
-									class="rounded-2xl border border-cyan-100/12 bg-cyan-100/8 px-3 py-3 text-center"
+									class="rounded-[0.95rem] border border-cyan-100/12 bg-cyan-100/8 px-2 py-2 text-center"
 								>
 									<p class="text-[0.58rem] font-black tracking-[0.22em] text-cyan-50/64 uppercase">
 										ATK
 									</p>
-									<p class="mt-1 text-lg font-black text-white">{$hudState.attack}</p>
+									<p class="mt-0.5 text-base font-black text-white">{$hudState.attack}</p>
 								</div>
 								<div
-									class="rounded-2xl border border-emerald-100/12 bg-emerald-100/8 px-3 py-3 text-center"
+									class="rounded-[0.95rem] border border-emerald-100/12 bg-emerald-100/8 px-2 py-2 text-center"
 								>
 									<p
 										class="text-[0.58rem] font-black tracking-[0.22em] text-emerald-50/64 uppercase"
 									>
 										DEF
 									</p>
-									<p class="mt-1 text-lg font-black text-white">{$hudState.defense}</p>
+									<p class="mt-0.5 text-base font-black text-white">{$hudState.defense}</p>
 								</div>
 							</div>
 						</div>
 
-						<div class="min-h-0 rounded-[1.35rem] border border-white/10 bg-white/6 p-4">
+						<div class="min-h-0 rounded-[1.15rem] border border-white/10 bg-white/6 p-3">
 							<p class="text-[0.62rem] font-black tracking-[0.28em] text-cyan-100/64 uppercase">
 								Equipped
 							</p>
-							<div class="mt-3 grid gap-2 lg:max-h-full lg:overflow-y-auto">
+							<div class="mt-2 grid grid-cols-2 gap-2 lg:max-h-full lg:grid-cols-1 lg:overflow-y-auto">
 								{#each equipmentSlots as entry}
 									{@const equippedItemId = $hudState.inventory.equipped[entry.slot]}
 									{@const equippedItem = $hudState.inventory.equipment.find(
 										(item) => item.itemId === equippedItemId
 									)}
 									<div
-										class="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 rounded-2xl border border-white/10 bg-black/12 px-3 py-3"
+										class="grid min-h-[3.65rem] grid-cols-[minmax(0,1fr)_auto] items-center gap-2 rounded-[0.95rem] border border-white/10 bg-black/12 px-2.5 py-2"
 									>
 										<div class="min-w-0">
 											<p
-												class="text-[0.58rem] font-black tracking-[0.24em] text-slate-300/62 uppercase"
+												class="text-[0.54rem] font-black tracking-[0.2em] text-slate-300/62 uppercase"
 											>
 												{entry.label}
 											</p>
 											<p
-												class="mt-1 truncate text-sm font-black tracking-[0.08em] text-white uppercase"
+												class="mt-0.5 truncate text-[0.8rem] font-black tracking-[0.08em] text-white uppercase"
 											>
 												{equippedItem?.name ?? 'Empty'}
 											</p>
@@ -797,7 +834,7 @@
 										{#if equippedItemId}
 											<button
 												type="button"
-												class="rounded-full border border-rose-200/20 bg-rose-200/10 px-3 py-2 text-[0.58rem] font-black tracking-[0.2em] text-rose-50 uppercase transition hover:border-rose-200/45 disabled:cursor-not-allowed disabled:opacity-40"
+												class="rounded-full border border-rose-200/20 bg-rose-200/10 px-2.5 py-1.5 text-[0.54rem] font-black tracking-[0.16em] text-rose-50 uppercase transition hover:border-rose-200/45 disabled:cursor-not-allowed disabled:opacity-40"
 												onclick={() => requestUnequipSlot(entry.slot)}
 												disabled={!$hudState.ready}
 											>
@@ -1009,5 +1046,23 @@
 
 	.hud-action {
 		backdrop-filter: blur(14px);
+	}
+
+	.inventory-slot-name,
+	.inventory-slot-description {
+		display: -webkit-box;
+		-webkit-box-orient: vertical;
+		overflow: hidden;
+		overflow-wrap: anywhere;
+	}
+
+	.inventory-slot-name {
+		-webkit-line-clamp: 2;
+		line-clamp: 2;
+	}
+
+	.inventory-slot-description {
+		-webkit-line-clamp: 2;
+		line-clamp: 2;
 	}
 </style>

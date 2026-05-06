@@ -23,12 +23,30 @@ test('inventory overlay opens from the menu', async ({ page }) => {
 	await page.getByRole('button', { name: 'Menu' }).click();
 	await page.getByRole('button', { name: 'Inventory' }).click();
 
+	const inventoryDialog = page.getByRole('dialog', { name: 'Inventory' });
+	const inventorySlotGrid = inventoryDialog.getByTestId('inventory-slot-grid');
 	await expect(page.getByRole('heading', { name: 'Inventory' })).toBeVisible();
-	await expect(page.getByText(/Field Potion/i)).toBeVisible();
+	await expect(inventoryDialog.getByTestId('inventory-slot')).toHaveCount(24);
+	await expect
+		.soft(
+			await inventorySlotGrid.evaluate(
+				(element) => getComputedStyle(element).gridTemplateColumns.split(' ').length
+			)
+		)
+		.toBe(6);
+	await expect
+		.soft(
+			await inventorySlotGrid.evaluate(
+				(element) => getComputedStyle(element).gridTemplateRows.split(' ').length
+			)
+		)
+		.toBe(4);
+	await expect(inventoryDialog.getByLabel('Field Potion')).toBeVisible();
 
 	await page.getByRole('tab', { name: 'Equipment' }).click();
-	await expect(page.getByRole('heading', { name: 'Training Sword' })).toBeVisible();
-	await expect(page.getByRole('button', { name: 'Equipped' })).toBeVisible();
+	await expect(inventoryDialog.getByTestId('inventory-slot')).toHaveCount(24);
+	await expect(inventoryDialog.getByLabel('Training Sword')).toBeVisible();
+	await expect(inventoryDialog.getByRole('button', { name: 'Equipped' })).toBeVisible();
 });
 
 test('full hp potions explain why they cannot be consumed', async ({ page }) => {
@@ -45,8 +63,10 @@ test('full hp potions explain why they cannot be consumed', async ({ page }) => 
 
 	await page.getByRole('button', { name: 'Inventory' }).click();
 
-	await expect(page.getByRole('heading', { name: 'Field Potion' })).toBeVisible();
-	await expect(page.getByRole('button', { name: 'Use' })).toBeEnabled();
+	const inventoryDialog = page.getByRole('dialog', { name: 'Inventory' });
+	const fieldPotionSlot = inventoryDialog.getByLabel('Field Potion');
+	await expect(fieldPotionSlot).toBeVisible();
+	await expect(fieldPotionSlot.getByRole('button', { name: 'Use' })).toBeEnabled();
 });
 
 test('shop overlay opens near a merchant and supports buying and selling', async ({ page }) => {
@@ -190,6 +210,8 @@ test('interact key shop purchase appears in inventory', async ({ page }) => {
 	await page.getByRole('button', { name: 'Inventory' }).click();
 
 	const inventoryDialog = page.getByRole('dialog', { name: 'Inventory' });
-	await expect(inventoryDialog.getByRole('heading', { name: 'Field Potion' })).toBeVisible();
-	await expect(inventoryDialog.getByText('x2')).toBeVisible();
+	const fieldPotionSlot = inventoryDialog.getByLabel('Field Potion');
+	await expect(inventoryDialog.getByTestId('inventory-slot')).toHaveCount(24);
+	await expect(fieldPotionSlot).toBeVisible();
+	await expect(fieldPotionSlot.getByText('x2')).toBeVisible();
 });
