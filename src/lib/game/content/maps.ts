@@ -7,6 +7,7 @@ export interface MapTransition {
 	y: number;
 	toMapId: string;
 	requiresClear?: boolean;
+	showMarker?: boolean;
 	arrival?: {
 		x: number;
 		y: number;
@@ -74,47 +75,47 @@ export const meadowEntryMap: WorldMapDefinition = {
 	width: 80,
 	height: 80,
 	spawnDirection: 'down',
-	spawn: { x: 384, y: 1_344 },
+	spawn: { x: 384, y: 1_376 },
 	landmarks: [
 		{
 			id: 'hero-house-exterior',
 			x: 384,
-			y: 1_312,
+			y: 1_289,
 			width: 192,
-			height: 128,
+			height: 174,
 			label: "Hero's House"
 		},
-		{ id: 'guild-hall-exterior', x: 800, y: 1_088, width: 256, height: 160, label: 'Guild' },
+		{ id: 'guild-hall-exterior', x: 800, y: 1_054, width: 256, height: 228, label: 'Guild' },
 		{
 			id: 'item-shop-exterior',
 			x: 832,
-			y: 1_472,
+			y: 1_436,
 			width: 192,
-			height: 128,
+			height: 200,
 			label: 'Item Shop'
 		},
 		{
 			id: 'villager-house-1-exterior',
 			x: 352,
-			y: 1_024,
+			y: 991,
 			width: 160,
-			height: 112,
+			height: 178,
 			label: 'Villager Home'
 		},
 		{
 			id: 'villager-house-2-exterior',
 			x: 576,
-			y: 1_568,
+			y: 1_535,
 			width: 160,
-			height: 112,
+			height: 178,
 			label: 'Villager Home'
 		},
 		{
 			id: 'villager-house-3-exterior',
 			x: 1_056,
-			y: 1_344,
+			y: 1_311,
 			width: 160,
-			height: 112,
+			height: 178,
 			label: 'Villager Home'
 		}
 	],
@@ -122,43 +123,49 @@ export const meadowEntryMap: WorldMapDefinition = {
 		{
 			id: 'meadow-to-hero-house',
 			x: 384,
-			y: 1_408,
+			y: 1_344,
 			toMapId: 'hero-house',
+			showMarker: false,
 			arrival: { x: 256, y: 224, facing: 'up' }
 		},
 		{
 			id: 'meadow-to-guild-hall',
 			x: 800,
-			y: 1_168,
+			y: 1_136,
 			toMapId: 'guild-hall',
+			showMarker: false,
 			arrival: { x: 256, y: 288, facing: 'up' }
 		},
 		{
 			id: 'meadow-to-item-shop',
 			x: 832,
-			y: 1_536,
+			y: 1_504,
 			toMapId: 'item-shop',
+			showMarker: false,
 			arrival: { x: 256, y: 288, facing: 'up' }
 		},
 		{
 			id: 'meadow-to-villager-house-1',
 			x: 352,
-			y: 1_080,
+			y: 1_048,
 			toMapId: 'villager-house-1',
+			showMarker: false,
 			arrival: { x: 256, y: 288, facing: 'up' }
 		},
 		{
 			id: 'meadow-to-villager-house-2',
 			x: 576,
-			y: 1_624,
+			y: 1_592,
 			toMapId: 'villager-house-2',
+			showMarker: false,
 			arrival: { x: 256, y: 288, facing: 'up' }
 		},
 		{
 			id: 'meadow-to-villager-house-3',
 			x: 1_056,
-			y: 1_400,
+			y: 1_368,
 			toMapId: 'villager-house-3',
+			showMarker: false,
 			arrival: { x: 256, y: 288, facing: 'up' }
 		},
 		{

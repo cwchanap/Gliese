@@ -1,5 +1,10 @@
 import * as Phaser from 'phaser';
-import { animationPackAsset, npcPackAsset, starterPackAsset } from '$lib/game/content/assets';
+import {
+	animationPackAsset,
+	npcPackAsset,
+	starterPackAsset,
+	villageBuildingAsset
+} from '$lib/game/content/assets';
 import { openingMapId } from '$lib/game/content/maps';
 import { WorldScene } from './WorldScene';
 
@@ -14,6 +19,7 @@ export class BootScene extends Phaser.Scene {
 		this.load.image(starterPackAsset.key, starterPackAsset.path);
 		this.load.image(animationPackAsset.key, animationPackAsset.path);
 		this.load.image(npcPackAsset.key, npcPackAsset.path);
+		this.load.image(villageBuildingAsset.key, villageBuildingAsset.path);
 	}
 
 	create() {

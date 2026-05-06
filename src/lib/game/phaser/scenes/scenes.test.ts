@@ -125,7 +125,13 @@ const phaserState = vi.hoisted(() => {
 	const victoryOverlay = createOverlayMarker();
 
 	function createImage(x: number, y: number, _texture: string, frame?: string) {
-		if (frame === 'hero' || frame?.startsWith('hero')) {
+		if (
+			frame === 'hero' ||
+			frame?.startsWith('heroIdle') ||
+			frame?.startsWith('heroWalk') ||
+			frame?.startsWith('heroAttack') ||
+			frame?.startsWith('heroDead')
+		) {
 			playerMarker.x = x;
 			playerMarker.y = y;
 			playerMarker.frame = frame;
@@ -363,7 +369,7 @@ describe('BootScene', () => {
 	});
 
 	it('preloads the static and animation sheets', async () => {
-		const { animationPackAsset, npcPackAsset, starterPackAsset } =
+		const { animationPackAsset, npcPackAsset, starterPackAsset, villageBuildingAsset } =
 			await import('$lib/game/content/assets');
 		const { BootScene } = await import('./BootScene');
 		const scene = new BootScene();
@@ -373,6 +379,10 @@ describe('BootScene', () => {
 		expect(scene.load.image).toHaveBeenCalledWith(starterPackAsset.key, starterPackAsset.path);
 		expect(scene.load.image).toHaveBeenCalledWith(animationPackAsset.key, animationPackAsset.path);
 		expect(scene.load.image).toHaveBeenCalledWith(npcPackAsset.key, npcPackAsset.path);
+		expect(scene.load.image).toHaveBeenCalledWith(
+			villageBuildingAsset.key,
+			villageBuildingAsset.path
+		);
 	});
 });
 
@@ -435,24 +445,90 @@ describe('WorldScene', () => {
 	});
 
 	it('renders village building landmarks before doorway markers', async () => {
+		const { villageBuildingAsset } = await import('$lib/game/content/assets');
 		const { WorldScene } = await import('./WorldScene');
 		const { meadowEntryMap } = await import('$lib/game/content/maps');
 		const scene = new WorldScene();
 
 		scene.create({ mapId: meadowEntryMap.id });
 
-		expect(scene.add.rectangle).toHaveBeenCalledWith(384, 1_312, 192, 128, 0x5b4636, 0.9);
-		expect(scene.add.rectangle).toHaveBeenCalledWith(384, 1_376, 192, 24, 0x2f241c, 0.95);
-		expect(scene.add.text).toHaveBeenCalledWith(384, 1_252, "Hero's House", {
+		expect(scene.textures.get).toHaveBeenCalledWith(villageBuildingAsset.key);
+		for (const [frameName, frame] of Object.entries(villageBuildingAsset.frames)) {
+			expect(phaserState.textureMock.add).toHaveBeenCalledWith(
+				frameName,
+				0,
+				frame.x,
+				frame.y,
+				frame.w,
+				frame.h
+			);
+		}
+
+		expect(scene.add.image).toHaveBeenCalledWith(384, 1_289, 'village-buildings', 'heroHouse');
+		expect(scene.add.image).toHaveBeenCalledWith(800, 1_054, 'village-buildings', 'guildHall');
+		expect(scene.add.image).toHaveBeenCalledWith(832, 1_436, 'village-buildings', 'itemShop');
+		expect(scene.add.image).toHaveBeenCalledWith(352, 991, 'village-buildings', 'villagerHouse');
+		expect(scene.add.image).toHaveBeenCalledWith(576, 1_535, 'village-buildings', 'villagerHouse');
+		expect(scene.add.image).toHaveBeenCalledWith(
+			1_056,
+			1_311,
+			'village-buildings',
+			'villagerHouse'
+		);
+		expect(scene.add.rectangle).not.toHaveBeenCalledWith(384, 1_289, 192, 174, 0x5b4636, 0.9);
+		expect(scene.add.text).toHaveBeenCalledWith(384, 1_206, "Hero's House", {
 			color: '#f8fafc',
 			fontSize: '12px'
 		});
-		expect(scene.add.image).toHaveBeenCalledWith(384, 1_408, 'starter-pack', 'doorwayTile');
-		expect(scene.add.image).toHaveBeenCalledWith(800, 1_168, 'starter-pack', 'doorwayTile');
+		expect(scene.add.image).not.toHaveBeenCalledWith(384, 1_344, 'starter-pack', 'doorwayTile');
+		expect(scene.add.image).not.toHaveBeenCalledWith(800, 1_136, 'starter-pack', 'doorwayTile');
+		expect(scene.add.image).not.toHaveBeenCalledWith(832, 1_504, 'starter-pack', 'doorwayTile');
+		expect(scene.add.image).not.toHaveBeenCalledWith(352, 1_048, 'starter-pack', 'doorwayTile');
+		expect(scene.add.image).not.toHaveBeenCalledWith(576, 1_592, 'starter-pack', 'doorwayTile');
+		expect(scene.add.image).not.toHaveBeenCalledWith(1_056, 1_368, 'starter-pack', 'doorwayTile');
 		expect(scene.add.image).toHaveBeenCalledWith(2_304, 1_280, 'starter-pack', 'doorwayTile');
+		expect(
+			phaserState.imageMarkers.filter((marker) => marker.frame === 'doorwayTile')
+		).toHaveLength(1);
 
-		const firstLandmarkCallOrder = vi.mocked(scene.add.rectangle).mock.invocationCallOrder[0];
-		const firstDoorwayCallOrder = vi.mocked(scene.add.image).mock.invocationCallOrder[0];
+		const heroHouseMarker = phaserState.imageMarkers.find(
+			(marker) => marker.x === 384 && marker.y === 1_289 && marker.frame === 'heroHouse'
+		);
+		const guildHallMarker = phaserState.imageMarkers.find(
+			(marker) => marker.x === 800 && marker.y === 1_054 && marker.frame === 'guildHall'
+		);
+		const itemShopMarker = phaserState.imageMarkers.find(
+			(marker) => marker.x === 832 && marker.y === 1_436 && marker.frame === 'itemShop'
+		);
+		const villagerHouseMarkers = phaserState.imageMarkers.filter(
+			(marker) => marker.frame === 'villagerHouse'
+		);
+		expect(heroHouseMarker?.setDisplaySize).toHaveBeenCalledWith(192, 174);
+		expect(guildHallMarker?.setDisplaySize).toHaveBeenCalledWith(256, 228);
+		expect(itemShopMarker?.setDisplaySize).toHaveBeenCalledWith(192, 200);
+		expect(villagerHouseMarkers).toHaveLength(3);
+		expect(
+			villagerHouseMarkers.every((marker) => marker.setDisplaySize.mock.calls[0]![0] === 160)
+		).toBe(true);
+		expect(
+			villagerHouseMarkers.every((marker) => marker.setDisplaySize.mock.calls[0]![1] === 178)
+		).toBe(true);
+
+		const imageCalls = vi.mocked(scene.add.image).mock.calls;
+		const firstLandmarkCallIndex = imageCalls.findIndex(
+			([x, y, texture, frame]) =>
+				x === 384 && y === 1_289 && texture === 'village-buildings' && frame === 'heroHouse'
+		);
+		const firstDoorwayCallIndex = imageCalls.findIndex(
+			([x, y, texture, frame]) =>
+				x === 2_304 && y === 1_280 && texture === 'starter-pack' && frame === 'doorwayTile'
+		);
+		const firstLandmarkCallOrder = vi.mocked(scene.add.image).mock.invocationCallOrder[
+			firstLandmarkCallIndex
+		];
+		const firstDoorwayCallOrder = vi.mocked(scene.add.image).mock.invocationCallOrder[
+			firstDoorwayCallIndex
+		];
 		expect(firstLandmarkCallOrder).toBeLessThan(firstDoorwayCallOrder);
 	});
 
@@ -1568,7 +1644,7 @@ describe('WorldScene', () => {
 				}
 			}
 		});
-		Object.assign(phaserState.playerMarker, { x: 384, y: 1_408 });
+		Object.assign(phaserState.playerMarker, { x: 384, y: 1_344 });
 
 		scene.update(0, 16);
 

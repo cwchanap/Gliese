@@ -21,6 +21,37 @@ export const starterPackAsset = {
 
 export type StarterPackFrameName = keyof typeof starterPackAsset.frames;
 
+export const villageBuildingAsset = {
+	key: 'village-buildings',
+	path: '/game/assets/village-buildings.png',
+	cellWidth: 627,
+	cellHeight: 627,
+	columns: 2,
+	frames: {
+		heroHouse: { x: 118, y: 116, w: 407, h: 437 },
+		guildHall: { x: 627, y: 96, w: 563, h: 499 },
+		itemShop: { x: 114, y: 668, w: 430, h: 445 },
+		villagerHouse: { x: 688, y: 675, w: 403, h: 449 }
+	}
+} as const;
+
+export type VillageBuildingFrameName = keyof typeof villageBuildingAsset.frames;
+
+const villageLandmarkFrames: Record<string, VillageBuildingFrameName> = {
+	'hero-house-exterior': 'heroHouse',
+	'guild-hall-exterior': 'guildHall',
+	'item-shop-exterior': 'itemShop',
+	'villager-house-1-exterior': 'villagerHouse',
+	'villager-house-2-exterior': 'villagerHouse',
+	'villager-house-3-exterior': 'villagerHouse'
+};
+
+export function getVillageBuildingFrameName(
+	landmarkId: string
+): VillageBuildingFrameName | undefined {
+	return villageLandmarkFrames[landmarkId];
+}
+
 export const npcPackAsset = {
 	key: 'npc-pack',
 	path: '/game/assets/npc-pack.png',

@@ -7,9 +7,11 @@ import {
 	getActorAnimationAsset,
 	getEnemyActorId,
 	getGroundFrameName,
+	getVillageBuildingFrameName,
 	isNpcPackFrameName,
 	npcPackAsset,
 	starterPackAsset,
+	villageBuildingAsset,
 	type ActorAnimationKey,
 	type StarterPackFrameName
 } from '$lib/game/content/assets';
@@ -284,6 +286,7 @@ export class WorldScene extends Phaser.Scene {
 
 		this.registerStarterPackFrames();
 		this.registerNpcPackFrames();
+		this.registerVillageBuildingFrames();
 		this.registerAnimationPackFrames();
 		this.ensureActorAnimations();
 		this.ensureTerrainTilesetTexture();
@@ -854,6 +857,16 @@ export class WorldScene extends Phaser.Scene {
 		}
 	}
 
+	private registerVillageBuildingFrames() {
+		const texture = this.textures.get(villageBuildingAsset.key);
+
+		for (const [frameName, frame] of Object.entries(villageBuildingAsset.frames)) {
+			if (!texture.has(frameName)) {
+				texture.add(frameName, 0, frame.x, frame.y, frame.w, frame.h);
+			}
+		}
+	}
+
 	private ensureActorAnimations() {
 		for (const actor of Object.values(actorAnimationAssets)) {
 			for (const clipName of actorAnimationKeys) {
@@ -1073,15 +1086,24 @@ export class WorldScene extends Phaser.Scene {
 
 	private renderLandmarks(map: WorldMapDefinition) {
 		for (const landmark of map.landmarks ?? []) {
-			this.add.rectangle(landmark.x, landmark.y, landmark.width, landmark.height, 0x5b4636, 0.9);
-			this.add.rectangle(
-				landmark.x,
-				landmark.y + landmark.height / 2,
-				landmark.width,
-				24,
-				0x2f241c,
-				0.95
-			);
+			const frameName = getVillageBuildingFrameName(landmark.id);
+
+			if (frameName) {
+				this.add
+					.image(landmark.x, landmark.y, villageBuildingAsset.key, frameName)
+					.setDisplaySize(landmark.width, landmark.height);
+			} else {
+				this.add.rectangle(landmark.x, landmark.y, landmark.width, landmark.height, 0x5b4636, 0.9);
+				this.add.rectangle(
+					landmark.x,
+					landmark.y + landmark.height / 2,
+					landmark.width,
+					24,
+					0x2f241c,
+					0.95
+				);
+			}
+
 			const label = this.add.text(
 				landmark.x,
 				landmark.y - landmark.height / 2 + 4,
@@ -1135,6 +1157,10 @@ export class WorldScene extends Phaser.Scene {
 
 	private renderTransitions(map: WorldMapDefinition) {
 		for (const transition of map.transitions) {
+			if (transition.showMarker === false) {
+				continue;
+			}
+
 			this.add
 				.image(transition.x, transition.y, starterPackAsset.key, 'doorwayTile')
 				.setDisplaySize(40, 40);
