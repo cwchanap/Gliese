@@ -221,15 +221,6 @@ export const guildHallMap: WorldMapDefinition = {
 	],
 	npcs: [
 		{
-			id: 'guild-clerk',
-			x: 256,
-			y: 144,
-			name: 'Guild Clerk',
-			dialogue: 'Morning. The ruins survey is posted; take the east road when you are ready.',
-			role: 'guild',
-			frameName: 'miraItemShopNpc'
-		},
-		{
 			id: 'guild-quartermaster',
 			x: 352,
 			y: 144,

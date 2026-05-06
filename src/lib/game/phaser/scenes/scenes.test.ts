@@ -702,12 +702,12 @@ describe('WorldScene', () => {
 		const scene = new WorldScene();
 
 		scene.create({ mapId: 'guild-hall' });
-		Object.assign(phaserState.playerMarker, { x: 256, y: 185 });
+		Object.assign(phaserState.playerMarker, { x: 352, y: 185 });
 		phaserState.cursorKeys.up.isDown = true;
 
 		scene.update(0, 250);
 
-		expect(phaserState.playerMarker.x).toBe(256);
+		expect(phaserState.playerMarker.x).toBe(352);
 		expect(phaserState.playerMarker.y).toBe(185);
 	});
 
@@ -716,13 +716,13 @@ describe('WorldScene', () => {
 		const scene = new WorldScene();
 
 		scene.create({ mapId: 'guild-hall' });
-		Object.assign(phaserState.playerMarker, { x: 220, y: 180 });
+		Object.assign(phaserState.playerMarker, { x: 316, y: 180 });
 		phaserState.cursorKeys.right.isDown = true;
 		phaserState.cursorKeys.up.isDown = true;
 
 		scene.update(0, 250);
 
-		expect(phaserState.playerMarker.x).toBeGreaterThan(220);
+		expect(phaserState.playerMarker.x).toBeGreaterThan(316);
 		expect(phaserState.playerMarker.y).toBe(180);
 	});
 
@@ -731,12 +731,12 @@ describe('WorldScene', () => {
 		const scene = new WorldScene();
 
 		scene.create({ mapId: 'guild-hall' });
-		Object.assign(phaserState.playerMarker, { x: 256, y: 150 });
+		Object.assign(phaserState.playerMarker, { x: 352, y: 150 });
 		phaserState.cursorKeys.down.isDown = true;
 
 		scene.update(0, 50);
 
-		expect(phaserState.playerMarker.x).toBe(256);
+		expect(phaserState.playerMarker.x).toBe(352);
 		expect(phaserState.playerMarker.y).toBeGreaterThan(150);
 	});
 
@@ -745,12 +745,12 @@ describe('WorldScene', () => {
 		const scene = new WorldScene();
 
 		scene.create({ mapId: 'guild-hall' });
-		Object.assign(phaserState.playerMarker, { x: 256, y: 174 });
+		Object.assign(phaserState.playerMarker, { x: 352, y: 174 });
 		phaserState.cursorKeys.up.isDown = true;
 
 		scene.update(0, 250);
 
-		expect(phaserState.playerMarker.x).toBe(256);
+		expect(phaserState.playerMarker.x).toBe(352);
 		expect(phaserState.playerMarker.y).toBe(174);
 	});
 
@@ -1004,13 +1004,12 @@ describe('WorldScene', () => {
 		scene.create({ mapId: 'guild-hall' });
 
 		expect(scene.add.image).not.toHaveBeenCalledWith(256, 144, 'starter-pack', 'titleBadge');
-		expect(scene.add.image).toHaveBeenCalledWith(256, 144, 'npc-pack', 'miraItemShopNpc');
+		expect(scene.add.image).not.toHaveBeenCalledWith(256, 144, 'npc-pack', 'miraItemShopNpc');
 		expect(scene.add.image).toHaveBeenCalledWith(352, 144, 'npc-pack', 'quartermasterNpc');
 		const npcMarkers = phaserState.imageMarkers.filter(
 			(marker) => marker.x === 256 && marker.y === 144 && marker.frame === 'miraItemShopNpc'
 		);
-		expect(npcMarkers).toHaveLength(1);
-		expect(npcMarkers[0]!.setDisplaySize).toHaveBeenCalledWith(48, 58);
+		expect(npcMarkers).toHaveLength(0);
 		const quartermasterMarkers = phaserState.imageMarkers.filter(
 			(marker) => marker.x === 352 && marker.y === 144 && marker.frame === 'quartermasterNpc'
 		);
@@ -1058,7 +1057,7 @@ describe('WorldScene', () => {
 
 		scene.create({ mapId: 'guild-hall' });
 		emitHudStateSpy.mockClear();
-		Object.assign(phaserState.playerMarker, { x: 256, y: 144 });
+		Object.assign(phaserState.playerMarker, { x: 352, y: 144 });
 
 		scene.update(0, 16);
 		scene.update(16, 16);
@@ -1068,7 +1067,7 @@ describe('WorldScene', () => {
 			expect.objectContaining({
 				mapId: 'guild-hall',
 				status:
-					'Guild Clerk: Morning. The ruins survey is posted; take the east road when you are ready.'
+					'Quartermaster Vale: Need field gear before the ruins? Guild stock is limited, but sturdy.'
 			})
 		);
 	});
@@ -1098,14 +1097,14 @@ describe('WorldScene', () => {
 		);
 	});
 
-	it('repeats nearby NPC dialogue when an interact key is pressed', async () => {
+	it('opens the nearby guild shop when an interact key is pressed', async () => {
 		const events = await import('$lib/game/ui-bridge/events');
 		const emitHudStateSpy = vi.spyOn(events, 'emitHudState');
 		const { WorldScene } = await import('./WorldScene');
 		const scene = new WorldScene();
 
 		scene.create({ mapId: 'guild-hall' });
-		Object.assign(phaserState.playerMarker, { x: 256, y: 144 });
+		Object.assign(phaserState.playerMarker, { x: 352, y: 144 });
 		scene.update(0, 16);
 		emitHudStateSpy.mockClear();
 
@@ -1115,8 +1114,11 @@ describe('WorldScene', () => {
 		expect(emitHudStateSpy).toHaveBeenCalledOnce();
 		expect(emitHudStateSpy).toHaveBeenLastCalledWith(
 			expect.objectContaining({
-				status:
-					'Guild Clerk: Morning. The ruins survey is posted; take the east road when you are ready.'
+				status: 'Shop opened',
+				shop: expect.objectContaining({
+					shopId: 'guild-quartermaster',
+					merchantName: 'Quartermaster Vale'
+				})
 			})
 		);
 	});
@@ -1153,7 +1155,7 @@ describe('WorldScene', () => {
 		const scene = new WorldScene();
 
 		scene.create({ mapId: 'guild-hall' });
-		Object.assign(phaserState.playerMarker, { x: 256, y: 144 });
+		Object.assign(phaserState.playerMarker, { x: 352, y: 144 });
 		scene.update(0, 16);
 		emitHudStateSpy.mockClear();
 
@@ -1166,8 +1168,11 @@ describe('WorldScene', () => {
 		expect(emitHudStateSpy).toHaveBeenCalledOnce();
 		expect(emitHudStateSpy).toHaveBeenLastCalledWith(
 			expect.objectContaining({
-				status:
-					'Guild Clerk: Morning. The ruins survey is posted; take the east road when you are ready.'
+				status: 'Shop opened',
+				shop: expect.objectContaining({
+					shopId: 'guild-quartermaster',
+					merchantName: 'Quartermaster Vale'
+				})
 			})
 		);
 	});
