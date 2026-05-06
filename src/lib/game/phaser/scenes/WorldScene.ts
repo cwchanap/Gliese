@@ -1229,8 +1229,47 @@ export class WorldScene extends Phaser.Scene {
 			const targetDistance = Phaser.Math.Distance.Between(targetX, targetY, npc.x, npc.y);
 			const collisionRadius = WorldScene.playerRadius + this.getNpcCollisionRadius(npc);
 
-			return targetDistance < collisionRadius && targetDistance <= currentDistance;
+			if (currentDistance < collisionRadius) {
+				return targetDistance <= currentDistance;
+			}
+
+			return this.doesMovementSegmentIntersectNpc(
+				currentX,
+				currentY,
+				targetX,
+				targetY,
+				npc,
+				collisionRadius
+			);
 		});
+	}
+
+	private doesMovementSegmentIntersectNpc(
+		currentX: number,
+		currentY: number,
+		targetX: number,
+		targetY: number,
+		npc: MapNpc,
+		collisionRadius: number
+	): boolean {
+		const segmentX = targetX - currentX;
+		const segmentY = targetY - currentY;
+		const segmentLengthSquared = segmentX * segmentX + segmentY * segmentY;
+
+		if (segmentLengthSquared === 0) {
+			return Phaser.Math.Distance.Between(currentX, currentY, npc.x, npc.y) < collisionRadius;
+		}
+
+		const npcOffsetX = npc.x - currentX;
+		const npcOffsetY = npc.y - currentY;
+		const closestPointRatio = Math.min(
+			Math.max((npcOffsetX * segmentX + npcOffsetY * segmentY) / segmentLengthSquared, 0),
+			1
+		);
+		const closestX = currentX + segmentX * closestPointRatio;
+		const closestY = currentY + segmentY * closestPointRatio;
+
+		return Phaser.Math.Distance.Between(closestX, closestY, npc.x, npc.y) < collisionRadius;
 	}
 
 	private getNpcCollisionRadius(npc: MapNpc): number {

@@ -740,6 +740,20 @@ describe('WorldScene', () => {
 		expect(phaserState.playerMarker.y).toBeGreaterThan(150);
 	});
 
+	it('blocks fast movement from tunneling through an NPC collision body', async () => {
+		const { WorldScene } = await import('./WorldScene');
+		const scene = new WorldScene();
+
+		scene.create({ mapId: 'guild-hall' });
+		Object.assign(phaserState.playerMarker, { x: 256, y: 174 });
+		phaserState.cursorKeys.up.isDown = true;
+
+		scene.update(0, 250);
+
+		expect(phaserState.playerMarker.x).toBe(256);
+		expect(phaserState.playerMarker.y).toBe(174);
+	});
+
 	it('limits large frame deltas before applying movement distance', async () => {
 		const { WorldScene } = await import('./WorldScene');
 		const { meadowEntryMap } = await import('$lib/game/content/maps');
