@@ -115,6 +115,18 @@
 		void restoreShopFocus();
 	}
 
+	$effect(() => {
+		if (!$hudState.shop || shopOpen) return;
+
+		rememberShopFocus();
+		settingsOpen = false;
+		inventoryOpen = false;
+		shopOpen = true;
+		activeShopTab = 'buy';
+		pauseForOverlay('shop');
+		void focusShopDialog();
+	});
+
 	function releaseOverlayPause() {
 		const owner = pauseOwner;
 		const wasShopOpen = shopOpen;

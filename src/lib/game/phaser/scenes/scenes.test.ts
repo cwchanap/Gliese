@@ -15,6 +15,20 @@ const phaserState = vi.hoisted(() => {
 		up: { isDown: false },
 		down: { isDown: false }
 	};
+	const interactKeys = {
+		e: { isDown: false, justDown: false },
+		space: { isDown: false, justDown: false },
+		enter: { isDown: false, justDown: false }
+	};
+
+	function getInteractKey(code: string) {
+		if (code === 'E') return interactKeys.e;
+		if (code === 'SPACE') return interactKeys.space;
+		if (code === 'ENTER') return interactKeys.enter;
+
+		throw new Error(`Unexpected key code ${code}`);
+	}
+
 	function createAnimatedMarker() {
 		const marker: {
 			x: number;
@@ -238,7 +252,7 @@ const phaserState = vi.hoisted(() => {
 			keyboard: {
 				createCursorKeys: vi.fn(() => cursorKeys),
 				addKeys: vi.fn(() => wasdKeys),
-				addKey: vi.fn()
+				addKey: vi.fn((code: string) => getInteractKey(code))
 			}
 		};
 		textures = {
@@ -254,6 +268,7 @@ const phaserState = vi.hoisted(() => {
 		SceneMock,
 		cursorKeys,
 		wasdKeys,
+		interactKeys,
 		playerMarker,
 		enemyMarker,
 		enemyMarkers,
@@ -340,8 +355,15 @@ vi.mock('phaser', () => {
 					D: 'D',
 					W: 'W',
 					S: 'S',
-					SPACE: 'SPACE'
-				}
+					E: 'E',
+					SPACE: 'SPACE',
+					ENTER: 'ENTER'
+				},
+				JustDown: vi.fn((key: { justDown?: boolean }) => {
+					const result = Boolean(key.justDown);
+					key.justDown = false;
+					return result;
+				})
 			}
 		}
 	};
@@ -398,6 +420,9 @@ describe('WorldScene', () => {
 		Object.assign(phaserState.wasdKeys.right, { isDown: false });
 		Object.assign(phaserState.wasdKeys.up, { isDown: false });
 		Object.assign(phaserState.wasdKeys.down, { isDown: false });
+		Object.assign(phaserState.interactKeys.e, { isDown: false, justDown: false });
+		Object.assign(phaserState.interactKeys.space, { isDown: false, justDown: false });
+		Object.assign(phaserState.interactKeys.enter, { isDown: false, justDown: false });
 		Object.assign(phaserState.playerMarker, { x: 0, y: 0 });
 	});
 
@@ -611,6 +636,9 @@ describe('WorldScene', () => {
 			up: 'W',
 			down: 'S'
 		});
+		expect(scene.input.keyboard?.addKey).toHaveBeenCalledWith('E');
+		expect(scene.input.keyboard?.addKey).toHaveBeenCalledWith('SPACE');
+		expect(scene.input.keyboard?.addKey).toHaveBeenCalledWith('ENTER');
 	});
 
 	it('sets camera bounds for the ruins core map dimensions', async () => {
@@ -990,6 +1018,54 @@ describe('WorldScene', () => {
 			expect.objectContaining({
 				status:
 					'Mira: Fresh tonics are on the shelf. The guild already stocked your field kit today.'
+			})
+		);
+	});
+
+	it('repeats nearby NPC dialogue when an interact key is pressed', async () => {
+		const events = await import('$lib/game/ui-bridge/events');
+		const emitHudStateSpy = vi.spyOn(events, 'emitHudState');
+		const { WorldScene } = await import('./WorldScene');
+		const scene = new WorldScene();
+
+		scene.create({ mapId: 'guild-hall' });
+		Object.assign(phaserState.playerMarker, { x: 256, y: 144 });
+		scene.update(0, 16);
+		emitHudStateSpy.mockClear();
+
+		phaserState.interactKeys.e.justDown = true;
+		scene.update(16, 16);
+
+		expect(emitHudStateSpy).toHaveBeenCalledOnce();
+		expect(emitHudStateSpy).toHaveBeenLastCalledWith(
+			expect.objectContaining({
+				status:
+					'Guild Clerk: Morning. The ruins survey is posted; take the east road when you are ready.'
+			})
+		);
+	});
+
+	it('opens a nearby shop when an interact key is pressed', async () => {
+		const events = await import('$lib/game/ui-bridge/events');
+		const emitHudStateSpy = vi.spyOn(events, 'emitHudState');
+		const { WorldScene } = await import('./WorldScene');
+		const scene = new WorldScene();
+
+		scene.create({ mapId: 'item-shop' });
+		Object.assign(phaserState.playerMarker, { x: 256, y: 144 });
+		scene.update(0, 16);
+		emitHudStateSpy.mockClear();
+
+		phaserState.interactKeys.space.justDown = true;
+		scene.update(16, 16);
+
+		expect(emitHudStateSpy).toHaveBeenLastCalledWith(
+			expect.objectContaining({
+				status: 'Shop opened',
+				shop: expect.objectContaining({
+					shopId: 'miras-item-shop',
+					merchantName: 'Mira'
+				})
 			})
 		);
 	});

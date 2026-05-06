@@ -19,6 +19,7 @@ import { enemies, type EnemyCombatDefinition } from '$lib/game/content/enemies';
 import {
 	maps,
 	openingMapId,
+	type MapNpc,
 	type MapTransition,
 	type WorldMapDefinition
 } from '$lib/game/content/maps';
@@ -209,6 +210,7 @@ export class WorldScene extends Phaser.Scene {
 	private hitImpactLayers?: HitImpactLayers;
 	private hitImpactStartedAt = 0;
 	private hitImpactUntil = 0;
+	private interactKeys: Phaser.Input.Keyboard.Key[] = [];
 	private inventory: SaveState['inventory'] = cloneInventory(createNewSaveState().inventory);
 	private mapId = openingMapId;
 	private currentNearbyNpcId: string | null = null;
@@ -327,6 +329,14 @@ export class WorldScene extends Phaser.Scene {
 			up: Phaser.Input.Keyboard.KeyCodes.W,
 			down: Phaser.Input.Keyboard.KeyCodes.S
 		}) as Partial<Record<'left' | 'right' | 'up' | 'down', DirectionKey>> | undefined;
+		const keyboard = this.input?.keyboard;
+		this.interactKeys = keyboard
+			? [
+					keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.E),
+					keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.SPACE),
+					keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.ENTER)
+				]
+			: [];
 		this.removeHudCommandListener();
 		this.removeHudCommandListener = onHudCommand((command) => this.handleHudCommand(command));
 		this.events?.once?.('shutdown', () => this.removeHudCommandListener());
@@ -373,6 +383,7 @@ export class WorldScene extends Phaser.Scene {
 		}
 
 		this.updateNpcDialogue();
+		this.handleInteractInput();
 		this.tryCollectPickup();
 
 		const attackTarget =
@@ -1351,16 +1362,7 @@ export class WorldScene extends Phaser.Scene {
 			return;
 		}
 
-		const map = this.resolveMap(this.mapId);
-		const nearbyNpc = (map.npcs ?? [])
-			.map((npc) => ({
-				npc,
-				distance: Phaser.Math.Distance.Between(this.player!.x, this.player!.y, npc.x, npc.y)
-			}))
-			.filter(
-				({ distance }) => distance <= WorldScene.playerRadius + WorldScene.npcInteractionRadius
-			)
-			.sort((left, right) => left.distance - right.distance)[0]?.npc;
+		const nearbyNpc = this.findNearbyNpc();
 
 		if (!nearbyNpc) {
 			const hadShop = this.nearbyShopId !== null;
@@ -1387,6 +1389,51 @@ export class WorldScene extends Phaser.Scene {
 
 		this.currentNearbyNpcId = nearbyNpc.id;
 		this.publishHudState(`${nearbyNpc.name}: ${nearbyNpc.dialogue}`);
+	}
+
+	private handleInteractInput() {
+		if (!this.interactKeys.some((key) => Phaser.Input.Keyboard.JustDown(key))) {
+			return;
+		}
+
+		this.interactWithNearbyNpc();
+	}
+
+	private interactWithNearbyNpc() {
+		const nearbyNpc = this.findNearbyNpc();
+
+		if (!nearbyNpc) {
+			this.publishHudState('No one nearby');
+			return;
+		}
+
+		this.currentNearbyNpcId = nearbyNpc.id;
+		this.nearbyShopId = nearbyNpc.shopId ?? null;
+
+		if (nearbyNpc.shopId) {
+			this.openNearbyShop(nearbyNpc.shopId);
+			return;
+		}
+
+		this.publishHudState(`${nearbyNpc.name}: ${nearbyNpc.dialogue}`);
+	}
+
+	private findNearbyNpc(): MapNpc | undefined {
+		if (!this.player) {
+			return undefined;
+		}
+
+		const map = this.resolveMap(this.mapId);
+
+		return (map.npcs ?? [])
+			.map((npc) => ({
+				npc,
+				distance: Phaser.Math.Distance.Between(this.player!.x, this.player!.y, npc.x, npc.y)
+			}))
+			.filter(
+				({ distance }) => distance <= WorldScene.playerRadius + WorldScene.npcInteractionRadius
+			)
+			.sort((left, right) => left.distance - right.distance)[0]?.npc;
 	}
 
 	private tryCollectPickup() {
