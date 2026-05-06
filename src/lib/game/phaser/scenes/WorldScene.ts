@@ -1392,11 +1392,18 @@ export class WorldScene extends Phaser.Scene {
 	}
 
 	private handleInteractInput() {
-		if (!this.interactKeys.some((key) => Phaser.Input.Keyboard.JustDown(key))) {
+		if (!this.hasInteractJustDown()) {
 			return;
 		}
 
 		this.interactWithNearbyNpc();
+	}
+
+	private hasInteractJustDown() {
+		return this.interactKeys.reduce(
+			(pressed, key) => Phaser.Input.Keyboard.JustDown(key) || pressed,
+			false
+		);
 	}
 
 	private interactWithNearbyNpc() {

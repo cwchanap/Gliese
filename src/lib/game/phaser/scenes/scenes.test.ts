@@ -1070,6 +1070,53 @@ describe('WorldScene', () => {
 		);
 	});
 
+	it('consumes multiple interact key edges in the same frame as one interaction', async () => {
+		const events = await import('$lib/game/ui-bridge/events');
+		const emitHudStateSpy = vi.spyOn(events, 'emitHudState');
+		const { WorldScene } = await import('./WorldScene');
+		const scene = new WorldScene();
+
+		scene.create({ mapId: 'guild-hall' });
+		Object.assign(phaserState.playerMarker, { x: 256, y: 144 });
+		scene.update(0, 16);
+		emitHudStateSpy.mockClear();
+
+		phaserState.interactKeys.e.justDown = true;
+		phaserState.interactKeys.space.justDown = true;
+		phaserState.interactKeys.enter.justDown = true;
+		scene.update(16, 16);
+		scene.update(32, 16);
+
+		expect(emitHudStateSpy).toHaveBeenCalledOnce();
+		expect(emitHudStateSpy).toHaveBeenLastCalledWith(
+			expect.objectContaining({
+				status:
+					'Guild Clerk: Morning. The ruins survey is posted; take the east road when you are ready.'
+			})
+		);
+	});
+
+	it('publishes no one nearby when Enter is pressed away from NPCs', async () => {
+		const events = await import('$lib/game/ui-bridge/events');
+		const emitHudStateSpy = vi.spyOn(events, 'emitHudState');
+		const { WorldScene } = await import('./WorldScene');
+		const scene = new WorldScene();
+
+		scene.create({ mapId: 'guild-hall' });
+		Object.assign(phaserState.playerMarker, { x: 64, y: 64 });
+		emitHudStateSpy.mockClear();
+
+		phaserState.interactKeys.enter.justDown = true;
+		scene.update(16, 16);
+
+		expect(emitHudStateSpy).toHaveBeenCalledOnce();
+		expect(emitHudStateSpy).toHaveBeenLastCalledWith(
+			expect.objectContaining({
+				status: 'No one nearby'
+			})
+		);
+	});
+
 	it.each([
 		{
 			mapId: 'item-shop',
