@@ -42,11 +42,18 @@ test('inventory overlay opens from the menu', async ({ page }) => {
 		)
 		.toBe(4);
 	await expect(inventoryDialog.getByLabel('Field Potion')).toBeVisible();
+	const fieldPotionSlot = inventoryDialog.getByLabel('Field Potion');
+	await expect(fieldPotionSlot.getByRole('img', { name: 'Field Potion' })).toBeVisible();
+	await expect(fieldPotionSlot.getByText('Restores 8 HP.')).toHaveCount(0);
+	await expect(fieldPotionSlot.getByRole('button', { name: 'Use' })).toHaveCount(0);
 
 	await page.getByRole('tab', { name: 'Equipment' }).click();
 	await expect(inventoryDialog.getByTestId('inventory-slot')).toHaveCount(24);
-	await expect(inventoryDialog.getByLabel('Training Sword')).toBeVisible();
-	await expect(inventoryDialog.getByRole('button', { name: 'Equipped' })).toBeVisible();
+	const trainingSwordSlot = inventoryDialog.getByLabel('Training Sword');
+	await expect(trainingSwordSlot).toBeVisible();
+	await expect(trainingSwordSlot.getByRole('img', { name: 'Training Sword' })).toBeVisible();
+	await expect(trainingSwordSlot.getByRole('button', { name: /Equip|Equipped/ })).toHaveCount(0);
+	await expect(trainingSwordSlot.getByText('Equipped')).toBeVisible();
 });
 
 test('full hp potions explain why they cannot be consumed', async ({ page }) => {
@@ -55,18 +62,75 @@ test('full hp potions explain why they cannot be consumed', async ({ page }) => 
 	await expect(page.getByRole('button', { name: 'Menu' })).toBeVisible();
 
 	await page.getByRole('button', { name: 'Menu' }).click();
-	const healButton = page.getByRole('button', { name: 'Use Heal' });
-
-	await expect(healButton).toBeEnabled();
-	await healButton.click();
-	await expect(page.getByText('HP already full')).toBeVisible();
-
 	await page.getByRole('button', { name: 'Inventory' }).click();
 
 	const inventoryDialog = page.getByRole('dialog', { name: 'Inventory' });
 	const fieldPotionSlot = inventoryDialog.getByLabel('Field Potion');
 	await expect(fieldPotionSlot).toBeVisible();
-	await expect(fieldPotionSlot.getByRole('button', { name: 'Use' })).toBeEnabled();
+	await expect(fieldPotionSlot.getByRole('button', { name: 'Use' })).toHaveCount(0);
+	await fieldPotionSlot.hover();
+	await expect(page.getByRole('tooltip')).toContainText('Restores 8 HP.');
+	await fieldPotionSlot.dblclick();
+	await inventoryDialog.getByRole('button', { name: 'Close' }).click();
+	await page.getByRole('button', { name: 'Menu' }).click();
+	await expect(page.getByText('HP already full')).toBeVisible();
+});
+
+test('double-clicking unequipped equipment equips it from inventory', async ({ page }) => {
+	const save = {
+		version: 3,
+		mapId: 'meadow-entry',
+		player: {
+			level: 1,
+			xp: 0,
+			hp: 20,
+			attack: 3,
+			x: 256,
+			y: 144,
+			facing: 'down'
+		},
+		flags: { clearedEncounters: [], collectedPickups: [], resolvedEncounterDrops: {} },
+		inventory: {
+			stacks: [{ itemId: 'field-potion', quantity: 1 }],
+			equipment: ['training-sword', 'iron-cap']
+		},
+		equipment: {
+			weapon: 'training-sword',
+			head: null,
+			body: null,
+			hands: null,
+			accessory: null
+		},
+		wallet: { coins: 30 },
+		shops: {
+			stock: {
+				'guild-quartermaster': {
+					'iron-cap': 1,
+					'grip-wraps': 1,
+					'traveler-vest': 1
+				}
+			}
+		}
+	};
+
+	await page.addInitScript((encoded) => {
+		window.localStorage.setItem('gliese.save.v3', encoded);
+	}, JSON.stringify(save));
+	await page.goto('/game');
+	await expect(page.locator('canvas')).toBeVisible();
+
+	await page.getByRole('button', { name: 'Menu' }).click();
+	await page.getByRole('button', { name: 'Resume Save' }).click();
+	await page.getByRole('button', { name: 'Menu' }).click();
+	await page.getByRole('button', { name: 'Inventory' }).click();
+
+	const inventoryDialog = page.getByRole('dialog', { name: 'Inventory' });
+	await page.getByRole('tab', { name: 'Equipment' }).click();
+	const ironCapSlot = inventoryDialog.getByLabel('Iron Cap');
+	await expect(ironCapSlot.getByRole('img', { name: 'Iron Cap' })).toBeVisible();
+	await expect(ironCapSlot.getByText('head')).toBeVisible();
+	await ironCapSlot.dblclick();
+	await expect(ironCapSlot.getByText('Equipped')).toBeVisible();
 });
 
 test('shop overlay opens near a merchant and supports buying and selling', async ({ page }) => {

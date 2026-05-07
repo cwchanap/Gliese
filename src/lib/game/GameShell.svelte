@@ -45,6 +45,7 @@
 	let activeInventoryTab = $state<InventoryTab>('consumables');
 	let activeShopTab = $state<ShopTab>('buy');
 	let pauseOwner = $state<OverlayPauseOwner | null>(null);
+	let hoveredInventoryItem = $state<InventorySlotItem | null>(null);
 
 	const equipmentSlots: { slot: EquipmentSlot; label: string }[] = [
 		{ slot: 'weapon', label: 'Weapon' },
@@ -97,6 +98,7 @@
 	function closeInventory() {
 		if (!inventoryOpen) return;
 		inventoryOpen = false;
+		hoveredInventoryItem = null;
 		resumeForOverlay('inventory');
 		void restoreInventoryFocus();
 	}
@@ -290,8 +292,14 @@
 
 	async function focusInventoryTab(tab: InventoryTab) {
 		activeInventoryTab = tab;
+		hoveredInventoryItem = null;
 		await tick();
 		document.getElementById(`inventory-${tab}-tab`)?.focus();
+	}
+
+	function setInventoryTab(tab: InventoryTab) {
+		activeInventoryTab = tab;
+		hoveredInventoryItem = null;
 	}
 
 	function handleInventoryTabKeydown(event: KeyboardEvent, tab: InventoryTab) {
@@ -332,6 +340,84 @@
 		const slotCount = Math.max(inventorySlotCount, overflowSlotCount);
 
 		return Array.from({ length: slotCount }, (_, index) => items[index] ?? null);
+	}
+
+	function getInventorySlotClass(slot: InventorySlotItem) {
+		const baseClass =
+			'inventory-slot group relative flex aspect-square min-h-0 flex-col justify-center overflow-hidden rounded-[0.95rem] border p-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)] transition sm:p-3';
+		const actionClass =
+			slot.kind === 'consumable' || (slot.kind === 'equipment' && !slot.item.equipped)
+				? 'cursor-pointer hover:-translate-y-0.5 hover:border-white/32 hover:shadow-[0_12px_28px_rgba(0,0,0,0.28)]'
+				: '';
+
+		if (slot.kind === 'consumable') {
+			return `${baseClass} ${actionClass} border-emerald-100/16 bg-[linear-gradient(145deg,rgba(28,69,62,0.54),rgba(12,20,38,0.86))]`;
+		}
+
+		if (slot.kind === 'equipment') {
+			return `${baseClass} ${actionClass} border-cyan-100/16 bg-[linear-gradient(145deg,rgba(25,59,88,0.56),rgba(12,20,38,0.86))]`;
+		}
+
+		return `${baseClass} border-amber-100/16 bg-[linear-gradient(145deg,rgba(82,60,25,0.52),rgba(12,20,38,0.86))]`;
+	}
+
+	function getInventoryBadge(slot: InventorySlotItem): string | null {
+		if (slot.kind === 'consumable') return `x${slot.item.quantity}`;
+		if (slot.kind === 'equipment') return slot.item.slot;
+		if (slot.item.quantity > 1) return `x${slot.item.quantity}`;
+		return null;
+	}
+
+	function getInventoryBadgeClass(slot: InventorySlotItem) {
+		if (slot.kind === 'consumable') {
+			return 'border-emerald-100/18 bg-emerald-100/12 text-emerald-50';
+		}
+
+		if (slot.kind === 'equipment') {
+			return 'border-cyan-100/18 bg-cyan-100/12 text-cyan-50';
+		}
+
+		return 'border-amber-100/18 bg-amber-100/12 text-amber-50';
+	}
+
+	function formatModifierStat(stat: string) {
+		if (stat === 'attack') return 'ATK';
+		if (stat === 'defense') return 'DEF';
+		if (stat === 'maxHp') return 'HP';
+		return stat.toUpperCase();
+	}
+
+	function getInventoryTooltipMeta(slot: InventorySlotItem): string {
+		if (slot.kind === 'consumable') return `x${slot.item.quantity}`;
+		if (slot.kind === 'keyItem') return slot.item.quantity > 1 ? `Key x${slot.item.quantity}` : 'Key item';
+
+		const modifiers = Object.entries(slot.item.modifiers)
+			.filter(([, value]) => value !== undefined && value !== 0)
+			.map(([stat, value]) => `${formatModifierStat(stat)} +${value}`)
+			.join(' / ');
+
+		return modifiers ? `${slot.item.slot} / ${modifiers}` : slot.item.slot;
+	}
+
+	function showInventoryTooltip(slot: InventorySlotItem) {
+		hoveredInventoryItem = slot;
+	}
+
+	function hideInventoryTooltip() {
+		hoveredInventoryItem = null;
+	}
+
+	function activateInventorySlot(slot: InventorySlotItem) {
+		if (!$hudState.ready) return;
+
+		if (slot.kind === 'consumable') {
+			requestUseItem(slot.item.itemId);
+			return;
+		}
+
+		if (slot.kind === 'equipment' && !slot.item.equipped) {
+			requestEquipItem(slot.item.itemId);
+		}
 	}
 
 	async function focusShopTab(tab: ShopTab) {
@@ -606,7 +692,7 @@
 							aria-selected={activeInventoryTab === 'consumables'}
 							aria-controls="inventory-tab-panel"
 							tabindex={activeInventoryTab === 'consumables' ? 0 : -1}
-							onclick={() => (activeInventoryTab = 'consumables')}
+							onclick={() => setInventoryTab('consumables')}
 							onkeydown={(event) => handleInventoryTabKeydown(event, 'consumables')}
 						>
 							Consumables
@@ -623,7 +709,7 @@
 							aria-selected={activeInventoryTab === 'equipment'}
 							aria-controls="inventory-tab-panel"
 							tabindex={activeInventoryTab === 'equipment' ? 0 : -1}
-							onclick={() => (activeInventoryTab = 'equipment')}
+							onclick={() => setInventoryTab('equipment')}
 							onkeydown={(event) => handleInventoryTabKeydown(event, 'equipment')}
 						>
 							Equipment
@@ -640,7 +726,7 @@
 							aria-selected={activeInventoryTab === 'keyItems'}
 							aria-controls="inventory-tab-panel"
 							tabindex={activeInventoryTab === 'keyItems' ? 0 : -1}
-							onclick={() => (activeInventoryTab = 'keyItems')}
+							onclick={() => setInventoryTab('keyItems')}
 							onkeydown={(event) => handleInventoryTabKeydown(event, 'keyItems')}
 						>
 							Key Items
@@ -664,98 +750,45 @@
 								aria-label={`${activeInventoryTab} inventory slots`}
 							>
 								{#each getInventoryGridSlots(activeInventoryTab) as slot, index (`${activeInventoryTab}-${slot?.item.itemId ?? 'empty'}-${index}`)}
-									{#if slot?.kind === 'consumable'}
+									{#if slot}
 										<article
 											data-testid="inventory-slot"
-											class="inventory-slot group relative flex aspect-square min-h-0 flex-col justify-between overflow-hidden rounded-[0.95rem] border border-emerald-100/16 bg-[linear-gradient(145deg,rgba(28,69,62,0.54),rgba(12,20,38,0.86))] p-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)] sm:p-3"
+											class={getInventorySlotClass(slot)}
 											aria-label={slot.item.name}
+											ondblclick={() => activateInventorySlot(slot)}
+											onmouseenter={() => showInventoryTooltip(slot)}
+											onmouseleave={hideInventoryTooltip}
 										>
-											<div class="min-w-0">
-												<div class="flex items-start justify-between gap-1.5">
-													<h3
-														class="inventory-slot-name text-[0.72rem] font-black leading-[1.05] tracking-[0.08em] text-white uppercase sm:text-[0.82rem]"
-													>
-														{slot.item.name}
-													</h3>
-													<span
-														class="shrink-0 rounded-full border border-emerald-100/18 bg-emerald-100/12 px-1.5 py-0.5 text-[0.54rem] font-black tracking-[0.12em] text-emerald-50 uppercase"
-													>
-														x{slot.item.quantity}
-													</span>
-												</div>
-												<p class="inventory-slot-description mt-1 text-[0.62rem] leading-[1.15] text-slate-200/70">
-													{slot.item.description}
-												</p>
+											{#if getInventoryBadge(slot)}
+												<span
+													class={`absolute top-2 right-2 z-10 shrink-0 rounded-full border px-1.5 py-0.5 text-[0.54rem] font-black tracking-[0.12em] uppercase ${getInventoryBadgeClass(slot)}`}
+												>
+													{getInventoryBadge(slot)}
+												</span>
+											{/if}
+
+											<div class="flex h-full min-h-0 items-center justify-center">
+												<img
+													src={slot.item.iconPath}
+													alt={slot.item.name}
+													class="h-[min(4.8rem,74%)] w-[min(4.8rem,74%)] object-contain drop-shadow-[0_10px_16px_rgba(0,0,0,0.34)] [image-rendering:pixelated]"
+													loading="lazy"
+												/>
 											</div>
-											<button
-												type="button"
-												class="mt-1 rounded-full border border-emerald-200/24 bg-emerald-200/12 px-2 py-1 text-[0.58rem] font-black tracking-[0.18em] text-emerald-50 uppercase transition hover:border-emerald-200/50 disabled:cursor-not-allowed disabled:opacity-40"
-												onclick={() => requestUseItem(slot.item.itemId)}
-												disabled={!$hudState.ready}
-											>
-												Use
-											</button>
-										</article>
-									{:else if slot?.kind === 'equipment'}
-										<article
-											data-testid="inventory-slot"
-											class="inventory-slot group relative flex aspect-square min-h-0 flex-col justify-between overflow-hidden rounded-[0.95rem] border border-cyan-100/16 bg-[linear-gradient(145deg,rgba(25,59,88,0.56),rgba(12,20,38,0.86))] p-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)] sm:p-3"
-											aria-label={slot.item.name}
-										>
-											<div class="min-w-0">
-												<div class="flex items-start justify-between gap-1.5">
-													<h3
-														class="inventory-slot-name text-[0.72rem] font-black leading-[1.05] tracking-[0.08em] text-white uppercase sm:text-[0.82rem]"
-													>
-														{slot.item.name}
-													</h3>
-													<span
-														class="shrink-0 rounded-full border border-cyan-100/18 bg-cyan-100/12 px-1.5 py-0.5 text-[0.5rem] font-black tracking-[0.1em] text-cyan-50 uppercase"
-													>
-														{slot.item.slot}
-													</span>
-												</div>
-												<p class="inventory-slot-description mt-1 text-[0.62rem] leading-[1.15] text-slate-200/70">
-													{slot.item.description}
-												</p>
-											</div>
-											<button
-												type="button"
-												class="mt-1 rounded-full border border-cyan-200/24 bg-cyan-200/12 px-2 py-1 text-[0.58rem] font-black tracking-[0.18em] text-cyan-50 uppercase transition hover:border-cyan-200/50 disabled:cursor-not-allowed disabled:opacity-40"
-												onclick={() => requestEquipItem(slot.item.itemId)}
-												disabled={!$hudState.ready || slot.item.equipped}
-											>
-												{slot.item.equipped ? 'Equipped' : 'Equip'}
-											</button>
-										</article>
-									{:else if slot?.kind === 'keyItem'}
-										<article
-											data-testid="inventory-slot"
-											class="inventory-slot group relative flex aspect-square min-h-0 flex-col justify-between overflow-hidden rounded-[0.95rem] border border-amber-100/16 bg-[linear-gradient(145deg,rgba(82,60,25,0.52),rgba(12,20,38,0.86))] p-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)] sm:p-3"
-											aria-label={slot.item.name}
-										>
-											<div class="min-w-0">
-												<div class="flex items-start justify-between gap-1.5">
-													<h3
-														class="inventory-slot-name text-[0.72rem] font-black leading-[1.05] tracking-[0.08em] text-white uppercase sm:text-[0.82rem]"
-													>
-														{slot.item.name}
-													</h3>
-													{#if slot.item.quantity > 1}
-														<span
-															class="shrink-0 rounded-full border border-amber-100/18 bg-amber-100/12 px-1.5 py-0.5 text-[0.54rem] font-black tracking-[0.12em] text-amber-50 uppercase"
-														>
-															x{slot.item.quantity}
-														</span>
-													{/if}
-												</div>
-												<p class="inventory-slot-description mt-1 text-[0.62rem] leading-[1.15] text-slate-200/70">
-													{slot.item.description}
-												</p>
-											</div>
-											<p class="text-[0.52rem] font-black tracking-[0.18em] text-amber-50/62 uppercase">
-												Key
-											</p>
+
+											{#if slot.kind === 'equipment' && slot.item.equipped}
+												<span
+													class="absolute right-2 bottom-2 left-2 rounded-full border border-cyan-100/20 bg-cyan-100/12 px-2 py-1 text-center text-[0.52rem] font-black tracking-[0.16em] text-cyan-50 uppercase"
+												>
+													Equipped
+												</span>
+											{:else if slot.kind === 'keyItem'}
+												<span
+													class="absolute right-2 bottom-2 left-2 rounded-full border border-amber-100/16 bg-amber-100/10 px-2 py-1 text-center text-[0.52rem] font-black tracking-[0.18em] text-amber-50/70 uppercase"
+												>
+													Key
+												</span>
+											{/if}
 										</article>
 									{:else}
 										<div
@@ -769,6 +802,7 @@
 								{/each}
 							</div>
 						</div>
+
 					</div>
 
 					<aside class="grid gap-3 lg:min-h-0 lg:grid-rows-[auto_minmax(0,1fr)]">
@@ -846,6 +880,21 @@
 							</div>
 						</div>
 					</aside>
+
+					{#if hoveredInventoryItem}
+						<div
+							role="tooltip"
+							class="pointer-events-none absolute right-4 bottom-4 z-20 max-w-[18rem] rounded-[0.95rem] border border-white/12 bg-slate-950/95 px-3 py-2 text-sm text-slate-100 shadow-[0_18px_50px_rgba(0,0,0,0.45)]"
+						>
+							<p class="text-[0.68rem] font-black tracking-[0.2em] text-cyan-100/72 uppercase">
+								{hoveredInventoryItem.item.name}
+							</p>
+							<p class="mt-1 text-slate-100/88">{hoveredInventoryItem.item.description}</p>
+							<p class="mt-1 text-[0.62rem] font-black tracking-[0.18em] text-slate-300/70 uppercase">
+								{getInventoryTooltipMeta(hoveredInventoryItem)}
+							</p>
+						</div>
+					{/if}
 				</div>
 			</div>
 		</div>
