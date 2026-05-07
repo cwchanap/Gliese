@@ -19,6 +19,7 @@ import { enemies, type EnemyCombatDefinition } from '$lib/game/content/enemies';
 import {
 	maps,
 	openingMapId,
+	type MapLandmark,
 	type MapNpc,
 	type MapTransition,
 	type WorldMapDefinition
@@ -102,6 +103,22 @@ type NpcMarker = {
 	setDisplaySize: (width: number, height: number) => unknown;
 };
 
+type LandmarkCollisionBounds = {
+	left: number;
+	right: number;
+	top: number;
+	bottom: number;
+	centerX: number;
+	centerY: number;
+};
+
+type CollisionRect = {
+	left: number;
+	right: number;
+	top: number;
+	bottom: number;
+};
+
 type TilemapLayer = {
 	setDepth?: (depth: number) => unknown;
 };
@@ -166,6 +183,7 @@ export class WorldScene extends Phaser.Scene {
 	private static readonly hitImpactRingTint = 0xfff0a8;
 	private static readonly hitImpactSparkTint = 0xfff7d6;
 	private static readonly maxMovementDeltaMs = 250;
+	private static readonly landmarkDoorwayClearanceWidth = 56;
 	private static readonly npcCollisionScale = 0.7;
 	private static readonly npcInteractionRadius = 36;
 	private static readonly npcPackDisplaySize = { width: 48, height: 58 };
@@ -377,7 +395,7 @@ export class WorldScene extends Phaser.Scene {
 
 		const targetX = Math.min(Math.max(this.player.x + direction.x * step, min), maxX);
 		const targetY = Math.min(Math.max(this.player.y + direction.y * step, min), maxY);
-		const resolvedPosition = this.resolvePlayerNpcCollision(
+		const resolvedPosition = this.resolvePlayerCollision(
 			this.player.x,
 			this.player.y,
 			targetX,
@@ -1196,7 +1214,7 @@ export class WorldScene extends Phaser.Scene {
 		return fallback;
 	}
 
-	private resolvePlayerNpcCollision(
+	private resolvePlayerCollision(
 		currentX: number,
 		currentY: number,
 		targetX: number,
@@ -1205,15 +1223,27 @@ export class WorldScene extends Phaser.Scene {
 		let x = targetX;
 		let y = targetY;
 
-		if (this.isPlayerMovementBlockedByNpc(currentX, currentY, x, currentY)) {
+		if (this.isPlayerMovementBlocked(currentX, currentY, x, currentY)) {
 			x = currentX;
 		}
 
-		if (this.isPlayerMovementBlockedByNpc(x, currentY, x, y)) {
+		if (this.isPlayerMovementBlocked(x, currentY, x, y)) {
 			y = currentY;
 		}
 
 		return { x, y };
+	}
+
+	private isPlayerMovementBlocked(
+		currentX: number,
+		currentY: number,
+		targetX: number,
+		targetY: number
+	): boolean {
+		return (
+			this.isPlayerMovementBlockedByNpc(currentX, currentY, targetX, targetY) ||
+			this.isPlayerMovementBlockedByLandmark(currentX, currentY, targetX, targetY)
+		);
 	}
 
 	private isPlayerMovementBlockedByNpc(
@@ -1278,6 +1308,177 @@ export class WorldScene extends Phaser.Scene {
 			: WorldScene.starterNpcDisplaySize;
 
 		return (Math.min(displaySize.width, displaySize.height) / 2) * WorldScene.npcCollisionScale;
+	}
+
+	private isPlayerMovementBlockedByLandmark(
+		currentX: number,
+		currentY: number,
+		targetX: number,
+		targetY: number
+	): boolean {
+		const map = this.resolveMap(this.mapId);
+
+		return (map.landmarks ?? []).some((landmark) => {
+			const bounds = this.getLandmarkCollisionBounds(landmark);
+
+			return this.getLandmarkCollisionRects(landmark, bounds).some((rect) =>
+				this.isPlayerMovementBlockedByRect(currentX, currentY, targetX, targetY, rect, bounds)
+			);
+		});
+	}
+
+	private getLandmarkCollisionBounds(landmark: MapLandmark): LandmarkCollisionBounds {
+		const left = landmark.x - landmark.width / 2;
+		const right = landmark.x + landmark.width / 2;
+		const top = landmark.y - landmark.height / 2;
+		const bottom = landmark.y + landmark.height / 2;
+
+		return {
+			left,
+			right,
+			top,
+			bottom,
+			centerX: landmark.x,
+			centerY: landmark.y
+		};
+	}
+
+	private getLandmarkCollisionRects(
+		landmark: MapLandmark,
+		bounds: LandmarkCollisionBounds
+	): CollisionRect[] {
+		const doorway = this.findLandmarkDoorway(landmark, bounds);
+
+		if (!doorway) {
+			return [bounds];
+		}
+
+		const doorLeft = Math.max(bounds.left, doorway.x - WorldScene.landmarkDoorwayClearanceWidth / 2);
+		const doorRight = Math.min(
+			bounds.right,
+			doorway.x + WorldScene.landmarkDoorwayClearanceWidth / 2
+		);
+		const doorTop = Math.max(bounds.top, doorway.y - WorldScene.transitionRadius);
+
+		return [
+			{ left: bounds.left, right: bounds.right, top: bounds.top, bottom: doorTop },
+			{ left: bounds.left, right: doorLeft, top: doorTop, bottom: bounds.bottom },
+			{ left: doorRight, right: bounds.right, top: doorTop, bottom: bounds.bottom }
+		].filter((rect) => rect.right > rect.left && rect.bottom > rect.top);
+	}
+
+	private findLandmarkDoorway(landmark: MapLandmark, bounds: LandmarkCollisionBounds) {
+		const map = this.resolveMap(this.mapId);
+
+		return map.transitions.find(
+			(transition) =>
+				transition.showMarker === false &&
+				transition.x >= bounds.left &&
+				transition.x <= bounds.right &&
+				transition.y >= bounds.top &&
+				transition.y <= bounds.bottom &&
+				transition.id.includes(landmark.id.replace('-exterior', ''))
+		);
+	}
+
+	private isPlayerMovementBlockedByRect(
+		currentX: number,
+		currentY: number,
+		targetX: number,
+		targetY: number,
+		rect: CollisionRect,
+		bounds: LandmarkCollisionBounds
+	) {
+		if (currentY >= bounds.bottom && targetY >= bounds.bottom) {
+			return false;
+		}
+
+		const currentInside = this.isPointInsideRect(currentX, currentY, rect, WorldScene.playerRadius);
+		const targetInside = this.isPointInsideRect(targetX, targetY, rect, WorldScene.playerRadius);
+
+		if (currentInside) {
+			return (
+				targetInside &&
+				this.getPointDistanceFromBoundsCenter(targetX, targetY, bounds) <=
+					this.getPointDistanceFromBoundsCenter(currentX, currentY, bounds)
+			);
+		}
+
+		return this.doesMovementSegmentIntersectRect(
+			currentX,
+			currentY,
+			targetX,
+			targetY,
+			rect,
+			WorldScene.playerRadius
+		);
+	}
+
+	private isPointInsideRect(
+		x: number,
+		y: number,
+		rect: CollisionRect,
+		padding: number
+	) {
+		return (
+			x >= rect.left - padding &&
+			x <= rect.right + padding &&
+			y >= rect.top - padding &&
+			y <= rect.bottom + padding
+		);
+	}
+
+	private getPointDistanceFromBoundsCenter(
+		x: number,
+		y: number,
+		bounds: LandmarkCollisionBounds
+	) {
+		const offsetX = x - bounds.centerX;
+		const offsetY = y - bounds.centerY;
+
+		return offsetX * offsetX + offsetY * offsetY;
+	}
+
+	private doesMovementSegmentIntersectRect(
+		currentX: number,
+		currentY: number,
+		targetX: number,
+		targetY: number,
+		rect: CollisionRect,
+		padding: number
+	): boolean {
+		const left = rect.left - padding;
+		const right = rect.right + padding;
+		const top = rect.top - padding;
+		const bottom = rect.bottom + padding;
+		const deltaX = targetX - currentX;
+		const deltaY = targetY - currentY;
+		let entry = 0;
+		let exit = 1;
+
+		if (deltaX === 0) {
+			if (currentX < left || currentX > right) {
+				return false;
+			}
+		} else {
+			const axisEntry = Math.min((left - currentX) / deltaX, (right - currentX) / deltaX);
+			const axisExit = Math.max((left - currentX) / deltaX, (right - currentX) / deltaX);
+			entry = Math.max(entry, axisEntry);
+			exit = Math.min(exit, axisExit);
+		}
+
+		if (deltaY === 0) {
+			if (currentY < top || currentY > bottom) {
+				return false;
+			}
+		} else {
+			const axisEntry = Math.min((top - currentY) / deltaY, (bottom - currentY) / deltaY);
+			const axisExit = Math.max((top - currentY) / deltaY, (bottom - currentY) / deltaY);
+			entry = Math.max(entry, axisEntry);
+			exit = Math.min(exit, axisExit);
+		}
+
+		return entry <= exit && exit >= 0 && entry <= 1;
 	}
 
 	private resolveMap(mapId?: string): WorldMapDefinition {

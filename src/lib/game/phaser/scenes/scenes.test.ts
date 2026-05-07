@@ -754,6 +754,57 @@ describe('WorldScene', () => {
 		expect(phaserState.playerMarker.y).toBe(174);
 	});
 
+	it('blocks player movement through village building bodies', async () => {
+		const { WorldScene } = await import('./WorldScene');
+		const scene = new WorldScene();
+
+		scene.create({ mapId: 'meadow-entry' });
+		Object.assign(phaserState.playerMarker, { x: 660, y: 1_054 });
+		phaserState.cursorKeys.right.isDown = true;
+
+		scene.update(0, 250);
+
+		expect(phaserState.playerMarker.x).toBe(660);
+		expect(phaserState.playerMarker.y).toBe(1_054);
+	});
+
+	it('blocks player movement through village building side windows', async () => {
+		const { WorldScene } = await import('./WorldScene');
+		const scene = new WorldScene();
+
+		scene.create({ mapId: 'meadow-entry' });
+		Object.assign(phaserState.playerMarker, { x: 320, y: 1_376 });
+		phaserState.cursorKeys.up.isDown = true;
+
+		scene.update(0, 50);
+
+		expect(phaserState.playerMarker.x).toBe(320);
+		expect(phaserState.playerMarker.y).toBe(1_376);
+	});
+
+	it('keeps building doorway transitions reachable from the exterior approach', async () => {
+		const { WorldScene } = await import('./WorldScene');
+		const scene = new WorldScene();
+
+		scene.create({ mapId: 'meadow-entry' });
+		Object.assign(phaserState.playerMarker, { x: 384, y: 1_376 });
+		phaserState.cursorKeys.up.isDown = true;
+
+		scene.update(0, 50);
+
+		expect(scene.scene.restart).toHaveBeenCalledWith({
+			reason: 'transition',
+			saveState: expect.objectContaining({
+				mapId: 'hero-house',
+				player: expect.objectContaining({
+					x: 256,
+					y: 224,
+					facing: 'up'
+				})
+			})
+		});
+	});
+
 	it('limits large frame deltas before applying movement distance', async () => {
 		const { WorldScene } = await import('./WorldScene');
 		const { meadowEntryMap } = await import('$lib/game/content/maps');
