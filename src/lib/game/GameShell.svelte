@@ -21,7 +21,7 @@
 		HudInventoryStack,
 		HudKeyItem
 	} from '$lib/game/ui-bridge/events';
-	import type { HudShopSellEntry } from '$lib/game/core/shop';
+	import type { HudShopBuyEntry, HudShopSellEntry } from '$lib/game/core/shop';
 
 	type InventoryTab = 'consumables' | 'equipment' | 'keyItems';
 	type ShopTab = 'buy' | 'sell';
@@ -47,6 +47,7 @@
 	let activeShopTab = $state<ShopTab>('buy');
 	let pauseOwner = $state<OverlayPauseOwner | null>(null);
 	let hoveredInventoryItem = $state<InventorySlotItem | null>(null);
+	let hoveredShopBuyItem = $state<HudShopBuyEntry | null>(null);
 	let hoveredShopSellItem = $state<HudShopSellEntry | null>(null);
 
 	const equipmentSlots: { slot: EquipmentSlot; label: string }[] = [
@@ -125,6 +126,7 @@
 	function closeShop() {
 		if (!shopOpen) return;
 		shopOpen = false;
+		hoveredShopBuyItem = null;
 		hoveredShopSellItem = null;
 		requestCloseShop();
 		resumeForOverlay('shop');
@@ -425,6 +427,7 @@
 
 	async function focusShopTab(tab: ShopTab) {
 		activeShopTab = tab;
+		hoveredShopBuyItem = null;
 		hoveredShopSellItem = null;
 		await tick();
 		document.getElementById(`shop-${tab}-tab`)?.focus();
@@ -432,6 +435,7 @@
 
 	function setShopTab(tab: ShopTab) {
 		activeShopTab = tab;
+		hoveredShopBuyItem = null;
 		hoveredShopSellItem = null;
 	}
 
@@ -452,6 +456,36 @@
 			event.preventDefault();
 			void focusShopTab(shopTabs[lastIndex]);
 		}
+	}
+
+	function getShopBuyStockText(item: HudShopBuyEntry): string {
+		return item.availability.mode === 'unlimited' ? 'Unlimited' : `${item.availability.remaining} left`;
+	}
+
+	function getShopBuyMeta(item: HudShopBuyEntry): string {
+		return `${item.price} coins / ${getShopBuyStockText(item)}`;
+	}
+
+	function canBuyShopItem(item: HudShopBuyEntry): boolean {
+		return (
+			$hudState.ready &&
+			$hudState.shop !== null &&
+			$hudState.wallet.coins >= item.price &&
+			(item.availability.mode === 'unlimited' || item.availability.remaining > 0)
+		);
+	}
+
+	function showShopBuyTooltip(item: HudShopBuyEntry) {
+		hoveredShopBuyItem = item;
+	}
+
+	function hideShopBuyTooltip() {
+		hoveredShopBuyItem = null;
+	}
+
+	function activateShopBuyItem(item: HudShopBuyEntry) {
+		if (!canBuyShopItem(item) || !$hudState.shop) return;
+		requestBuyShopItem($hudState.shop.shopId, item.stockId);
 	}
 
 	function getShopSellBadge(item: HudShopSellEntry): string {
@@ -1023,40 +1057,37 @@
 				>
 					{#if activeShopTab === 'buy'}
 						{#if $hudState.shop?.buy.length}
-							<div class="grid gap-3">
+							<div data-testid="shop-buy-grid" class="grid grid-cols-6 gap-2.5 sm:gap-3">
 								{#each $hudState.shop.buy as item (item.stockId)}
-									{@const finiteRemaining =
-										item.availability.mode === 'finite' ? item.availability.remaining : null}
 									<article
-										class="grid gap-3 rounded-[1.1rem] border border-white/10 bg-[linear-gradient(135deg,rgba(255,255,255,0.08),rgba(255,255,255,0.035))] p-4 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center"
+										class={`group relative flex aspect-square min-h-0 flex-col justify-center overflow-hidden rounded-[0.95rem] border border-amber-100/16 bg-[linear-gradient(145deg,rgba(86,60,22,0.56),rgba(12,20,38,0.86))] p-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)] transition sm:p-3 ${
+											canBuyShopItem(item)
+												? 'cursor-pointer hover:-translate-y-0.5 hover:border-amber-100/32 hover:shadow-[0_12px_28px_rgba(0,0,0,0.28)]'
+												: 'cursor-not-allowed opacity-48'
+										}`}
+										aria-label={item.name}
+										ondblclick={() => activateShopBuyItem(item)}
+										onmouseenter={() => showShopBuyTooltip(item)}
+										onmouseleave={hideShopBuyTooltip}
 									>
-										<div>
-											<h3 class="text-lg font-black tracking-[0.08em] text-white uppercase">
-												{item.name}
-											</h3>
-											<p class="mt-2 text-sm leading-5 text-slate-200/76">
-												{item.description}
-											</p>
-											<p
-												class="mt-2 text-[0.62rem] font-black tracking-[0.2em] text-amber-100/80 uppercase"
-											>
-												{item.price} coins / {item.availability.mode === 'unlimited'
-													? 'Unlimited'
-													: `${finiteRemaining} left`}
-											</p>
-										</div>
-										<button
-											type="button"
-											class="rounded-full border border-amber-200/24 bg-amber-200/12 px-4 py-2 text-[0.68rem] font-black tracking-[0.24em] text-amber-50 uppercase transition hover:-translate-y-0.5 hover:border-amber-200/50 disabled:translate-y-0 disabled:cursor-not-allowed disabled:opacity-40"
-											onclick={() => requestBuyShopItem($hudState.shop?.shopId ?? '', item.stockId)}
-											disabled={!$hudState.ready ||
-												!$hudState.shop ||
-												$hudState.wallet.coins < item.price ||
-												finiteRemaining === 0}
-											aria-label={`Buy ${item.name}`}
+										<span
+											class="absolute top-2 right-2 z-10 shrink-0 rounded-full border border-amber-100/18 bg-amber-100/12 px-1.5 py-0.5 text-[0.54rem] font-black tracking-[0.12em] text-amber-50 uppercase"
 										>
-											Buy
-										</button>
+											{item.kind}
+										</span>
+										<div class="flex h-full min-h-0 items-center justify-center">
+											<img
+												src={item.iconPath}
+												alt={item.name}
+												class="h-[min(4.8rem,74%)] w-[min(4.8rem,74%)] object-contain drop-shadow-[0_10px_16px_rgba(0,0,0,0.34)] [image-rendering:pixelated]"
+												loading="lazy"
+											/>
+										</div>
+										<span
+											class="absolute right-2 bottom-2 left-2 rounded-full border border-amber-100/16 bg-amber-100/10 px-2 py-1 text-center text-[0.52rem] font-black tracking-[0.16em] text-amber-50/78 uppercase"
+										>
+											{item.price}c
+										</span>
 									</article>
 								{/each}
 							</div>
@@ -1103,6 +1134,21 @@
 							class="flex min-h-48 items-center justify-center rounded-[1.1rem] border border-dashed border-white/14 bg-white/5 px-6 py-10 text-center text-sm font-bold tracking-[0.2em] text-slate-300/62 uppercase"
 						>
 							No sellable items.
+						</div>
+					{/if}
+
+					{#if hoveredShopBuyItem}
+						<div
+							role="tooltip"
+							class="pointer-events-none absolute right-4 bottom-4 z-20 max-w-[18rem] rounded-[0.95rem] border border-white/12 bg-slate-950/95 px-3 py-2 text-sm text-slate-100 shadow-[0_18px_50px_rgba(0,0,0,0.45)]"
+						>
+							<p class="text-[0.68rem] font-black tracking-[0.2em] text-amber-100/72 uppercase">
+								{hoveredShopBuyItem.name}
+							</p>
+							<p class="mt-1 text-slate-100/88">{hoveredShopBuyItem.description}</p>
+							<p class="mt-1 text-[0.62rem] font-black tracking-[0.18em] text-slate-300/70 uppercase">
+								Buy for {getShopBuyMeta(hoveredShopBuyItem)}
+							</p>
 						</div>
 					{/if}
 

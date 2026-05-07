@@ -257,6 +257,7 @@ describe('shop core', () => {
 			expect.objectContaining({
 				stockId: 'iron-cap',
 				itemId: 'iron-cap',
+				iconPath: '/game/assets/items/iron-cap.png',
 				price: 35,
 				availability: { mode: 'finite', remaining: 1 }
 			})

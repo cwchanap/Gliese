@@ -195,9 +195,22 @@ test('shop overlay opens near a merchant and supports buying and selling', async
 
 	await expect(page.getByRole('heading', { name: "Mira's Item Shop" })).toBeVisible();
 	await expect(page.getByText('Coins: 30')).toBeVisible();
-	await expect(page.getByRole('heading', { name: 'Field Potion', exact: true })).toBeVisible();
+	const buyGrid = page.getByTestId('shop-buy-grid');
+	await expect
+		.soft(
+			await buyGrid.evaluate(
+				(element) => getComputedStyle(element).gridTemplateColumns.split(' ').length
+			)
+		)
+		.toBe(6);
+	const fieldPotionBuyTile = buyGrid.getByLabel('Field Potion', { exact: true });
+	await expect(fieldPotionBuyTile.getByRole('img', { name: 'Field Potion' })).toBeVisible();
+	await expect(fieldPotionBuyTile.getByText('Restores 8 HP.')).toHaveCount(0);
+	await expect(fieldPotionBuyTile.getByRole('button', { name: 'Buy' })).toHaveCount(0);
+	await fieldPotionBuyTile.hover();
+	await expect(page.getByRole('tooltip')).toContainText('Restores 8 HP.');
 
-	await page.getByRole('button', { name: 'Buy Field Potion', exact: true }).click();
+	await fieldPotionBuyTile.dblclick();
 	await expect(page.getByText('Coins: 20')).toBeVisible();
 
 	await page.getByRole('tab', { name: 'Sell' }).click();
@@ -209,7 +222,7 @@ test('shop overlay opens near a merchant and supports buying and selling', async
 			)
 		)
 		.toBe(6);
-	const fieldPotionSellTile = page.getByLabel('Field Potion');
+	const fieldPotionSellTile = sellGrid.getByLabel('Field Potion', { exact: true });
 	await expect(fieldPotionSellTile.getByRole('img', { name: 'Field Potion' })).toBeVisible();
 	await expect(fieldPotionSellTile.getByText('Restores 8 HP.')).toHaveCount(0);
 	await expect(fieldPotionSellTile.getByRole('button', { name: 'Sell' })).toHaveCount(0);
@@ -280,7 +293,10 @@ test('interact key shop purchase appears in inventory', async ({ page }) => {
 
 	const shopDialog = page.getByRole('dialog', { name: "Mira's Item Shop" });
 	await expect(shopDialog).toBeVisible();
-	await shopDialog.getByRole('button', { name: 'Buy Field Potion', exact: true }).click();
+	await shopDialog
+		.getByTestId('shop-buy-grid')
+		.getByLabel('Field Potion', { exact: true })
+		.dblclick();
 	await expect(shopDialog.getByText('Coins: 20')).toBeVisible();
 	await shopDialog.getByRole('button', { name: 'Close' }).click();
 

@@ -63,6 +63,7 @@ export type HudShopBuyEntry = {
 	itemId: string;
 	name: string;
 	description: string;
+	iconPath: string;
 	kind: ConsumableDefinition['type'] | EquipmentDefinition['type'];
 	price: number;
 	availability: { mode: 'unlimited' } | { mode: 'finite'; remaining: number };
@@ -264,6 +265,7 @@ export function buildShopBuyEntries(shopId: string, stockState: ShopStockState):
 				itemId: item.id,
 				name: item.name,
 				description: item.description,
+				iconPath: item.iconPath,
 				kind: item.type,
 				price,
 				availability:
