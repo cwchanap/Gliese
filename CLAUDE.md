@@ -15,7 +15,7 @@ SvelteKit app deployed to Cloudflare Workers, with a Phaser 4 JRPG vertical slic
 
 ```sh
 bun run dev          # start dev server (http://localhost:5173)
-bun run build        # wrangler types --check && vite build
+bun run build        # wrangler types --check && vite build (fails if worker-configuration.d.ts is stale — run `bun run gen` after wrangler.jsonc changes)
 bun run preview      # preview production build via wrangler on port 4173
 bun run check        # wrangler types --check && svelte-kit sync && svelte-check
 bun run lint         # prettier + eslint check
@@ -28,12 +28,13 @@ Re-run `bun run gen` after editing `wrangler.jsonc` so `worker-configuration.d.t
 ### Tests
 
 ```sh
-bun run test:unit              # vitest (all unit + browser-component tests)
+bun run test:unit              # vitest in WATCH mode (all unit + browser-component tests)
+bun run test:unit -- --run     # one-shot run, exits when complete
 bun run test:e2e               # playwright e2e (requires running dev server or uses one)
 bun run test                   # test:unit --run then test:e2e
 
-# Single test file
-bun run test:unit -- src/lib/game/core/combat.test.ts
+# Single test file (one-shot)
+bun run test:unit -- --run src/lib/game/core/combat.test.ts
 # Single e2e test by name
 bun run test:e2e -- --grep "game route boots"
 ```
@@ -88,6 +89,11 @@ Phaser and SvelteKit communicate exclusively through custom `window` events (def
 | `/` | SvelteKit home page |
 | `/game` | Game route — renders `GameShell.svelte` |
 | `/demo/playwright` | Playwright smoke test fixture |
+
+### Repo-level docs
+
+- `docs/plans/` — implementation plans (e.g. `2026-04-27-phaser-jrpg-vertical-slice.md`). Read the relevant plan before working on a feature it covers.
+- `docs/superpowers/{plans,specs}/` — superpowers workflow artifacts.
 
 ---
 
