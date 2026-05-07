@@ -819,6 +819,7 @@ export class WorldScene extends Phaser.Scene {
 								itemId: item.id,
 								name: item.name,
 								description: item.description,
+								iconPath: item.iconPath,
 								quantity: stack.quantity
 							}
 						]
@@ -833,6 +834,7 @@ export class WorldScene extends Phaser.Scene {
 								itemId: item.id,
 								name: item.name,
 								description: item.description,
+								iconPath: item.iconPath,
 								slot: item.slot,
 								equipped: this.equipment[item.slot] === item.id,
 								modifiers: { ...item.modifiers }
@@ -849,6 +851,7 @@ export class WorldScene extends Phaser.Scene {
 								itemId: item.id,
 								name: item.name,
 								description: item.description,
+								iconPath: item.iconPath,
 								quantity: stack.quantity
 							}
 						]

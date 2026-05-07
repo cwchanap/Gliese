@@ -1020,6 +1020,52 @@ describe('WorldScene', () => {
 		);
 	});
 
+	it('publishes item icon paths in HUD inventory entries', async () => {
+		const events = await import('$lib/game/ui-bridge/events');
+		const emitHudStateSpy = vi.spyOn(events, 'emitHudState');
+		const { createNewSaveState } = await import('$lib/game/save/save-state');
+		const { WorldScene } = await import('./WorldScene');
+		const scene = new WorldScene();
+
+		scene.create({
+			saveState: {
+				...createNewSaveState(),
+				inventory: {
+					stacks: [
+						{ itemId: 'field-potion', quantity: 1 },
+						{ itemId: 'meadow-token', quantity: 1 }
+					],
+					equipment: ['training-sword']
+				}
+			}
+		});
+
+		expect(emitHudStateSpy).toHaveBeenLastCalledWith(
+			expect.objectContaining({
+				inventory: expect.objectContaining({
+					consumables: expect.arrayContaining([
+						expect.objectContaining({
+							itemId: 'field-potion',
+							iconPath: '/game/assets/items/field-potion.png'
+						})
+					]),
+					equipment: expect.arrayContaining([
+						expect.objectContaining({
+							itemId: 'training-sword',
+							iconPath: '/game/assets/items/training-sword.png'
+						})
+					]),
+					keyItems: expect.arrayContaining([
+						expect.objectContaining({
+							itemId: 'meadow-token',
+							iconPath: '/game/assets/items/meadow-token.png'
+						})
+					])
+				})
+			})
+		);
+	});
+
 	it('renders uncollected pickups using flask art and skips pickups collected in a save', async () => {
 		const { createNewSaveState } = await import('$lib/game/save/save-state');
 		const { meadowEntryMap } = await import('$lib/game/content/maps');

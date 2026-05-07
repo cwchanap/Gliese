@@ -5,6 +5,7 @@ export type HudInventoryStack = {
 	itemId: string;
 	name: string;
 	description: string;
+	iconPath: string;
 	quantity: number;
 };
 
@@ -12,6 +13,7 @@ export type HudEquipmentItem = {
 	itemId: string;
 	name: string;
 	description: string;
+	iconPath: string;
 	slot: EquipmentSlot;
 	equipped: boolean;
 	modifiers: StatModifiers;
@@ -21,6 +23,7 @@ export type HudKeyItem = {
 	itemId: string;
 	name: string;
 	description: string;
+	iconPath: string;
 	quantity: number;
 };
 
