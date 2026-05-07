@@ -2,22 +2,31 @@ import { parseSaveState, serializeSaveState, type SaveState } from '$lib/game/sa
 
 export const SAVE_STORAGE_KEY = 'gliese.save.v3';
 
-type SaveStorage = Pick<Storage, 'getItem' | 'removeItem' | 'setItem'>;
+export type SaveStorage = Pick<Storage, 'getItem' | 'removeItem' | 'setItem'>;
 
 export type StoredSaveResult =
 	| { status: 'missing'; saveState: null }
 	| { status: 'invalid'; saveState: null }
 	| { status: 'loaded'; saveState: SaveState };
 
+let currentStorage: SaveStorage | undefined =
+	typeof globalThis !== 'undefined' && hasStorageMethods(globalThis.localStorage)
+		? globalThis.localStorage
+		: undefined;
+
+export function setSaveStorage(storage: SaveStorage | undefined): void {
+	currentStorage = storage;
+}
+
 export function loadStoredSaveState(
-	storage: SaveStorage | undefined = globalThis.localStorage
+	storage: SaveStorage | undefined = currentStorage
 ): SaveState | null {
 	const result = loadStoredSaveResult(storage);
 	return result.status === 'loaded' ? result.saveState : null;
 }
 
 export function loadStoredSaveResult(
-	storage: SaveStorage | undefined = globalThis.localStorage
+	storage: SaveStorage | undefined = currentStorage
 ): StoredSaveResult {
 	const encoded = resolveStorage(storage)?.getItem(SAVE_STORAGE_KEY);
 
@@ -40,20 +49,20 @@ export function loadStoredSaveResult(
 
 export function storeSaveState(
 	saveState: SaveState,
-	storage: SaveStorage | undefined = globalThis.localStorage
+	storage: SaveStorage | undefined = currentStorage
 ): void {
 	resolveStorage(storage)?.setItem(SAVE_STORAGE_KEY, serializeSaveState(saveState));
 }
 
 export function saveGameState(
 	saveState: SaveState,
-	storage: SaveStorage | undefined = globalThis.localStorage
+	storage: SaveStorage | undefined = currentStorage
 ): void {
 	storeSaveState(saveState, storage);
 }
 
 export function clearStoredSaveState(
-	storage: SaveStorage | undefined = globalThis.localStorage
+	storage: SaveStorage | undefined = currentStorage
 ): void {
 	resolveStorage(storage)?.removeItem(SAVE_STORAGE_KEY);
 }
@@ -63,7 +72,7 @@ function resolveStorage(storage: SaveStorage | undefined): SaveStorage | undefin
 		return storage;
 	}
 
-	return hasStorageMethods(globalThis.localStorage) ? globalThis.localStorage : undefined;
+	return hasStorageMethods(currentStorage) ? currentStorage : undefined;
 }
 
 function hasStorageMethods(value: unknown): value is SaveStorage {
@@ -71,10 +80,10 @@ function hasStorageMethods(value: unknown): value is SaveStorage {
 		typeof value === 'object' &&
 		value !== null &&
 		'getItem' in value &&
-		typeof value.getItem === 'function' &&
+		typeof (value as SaveStorage).getItem === 'function' &&
 		'removeItem' in value &&
-		typeof value.removeItem === 'function' &&
+		typeof (value as SaveStorage).removeItem === 'function' &&
 		'setItem' in value &&
-		typeof value.setItem === 'function'
+		typeof (value as SaveStorage).setItem === 'function'
 	);
 }

@@ -50,4 +50,18 @@ describe('save storage', () => {
 
 		expect(loadStoredSaveResult(storage)).toEqual({ status: 'missing', saveState: null });
 	});
+
+	it('uses the storage adapter set via setSaveStorage when no explicit storage is passed', async () => {
+		const { setSaveStorage } = await import('$lib/game/save/storage');
+		const storage = createStorage();
+		setSaveStorage(storage);
+
+		const save = createNewSaveState();
+		saveGameState(save);
+
+		expect(storage.getItem('gliese.save.v3')).toContain('"version":3');
+		expect(loadStoredSaveResult()).toEqual({ status: 'loaded', saveState: save });
+
+		setSaveStorage(globalThis.localStorage);
+	});
 });
