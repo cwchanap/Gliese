@@ -1,3 +1,6 @@
+import { existsSync, readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
+
 import { describe, expect, it } from 'vitest';
 
 import {
@@ -79,5 +82,22 @@ describe('item content', () => {
 		expect(isSellableItem('training-sword')).toBe(true);
 		expect(isSellableItem('warden-sigil')).toBe(false);
 		expect(isSellableItem('not-real')).toBe(false);
+	});
+
+	it('defines a 96x96 transparent PNG icon for every item', () => {
+		for (const item of itemList) {
+			expect(item.iconPath).toBe(`/game/assets/items/${item.id}.png`);
+
+			const iconPath = resolve('static', item.iconPath.replace('/game/', 'game/'));
+			expect(existsSync(iconPath), `${item.id} icon should exist`).toBe(true);
+
+			const bytes = readFileSync(iconPath);
+			expect(Array.from(bytes.subarray(0, 8))).toEqual([
+				0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a
+			]);
+			expect(bytes.readUInt32BE(16), `${item.id} icon width`).toBe(96);
+			expect(bytes.readUInt32BE(20), `${item.id} icon height`).toBe(96);
+			expect(bytes[25], `${item.id} icon color type`).toBe(6);
+		}
 	});
 });

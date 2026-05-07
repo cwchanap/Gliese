@@ -14,6 +14,7 @@ type BaseItemDefinition = {
 	id: string;
 	name: string;
 	description: string;
+	iconPath: string;
 	stackable: boolean;
 };
 
@@ -50,6 +51,7 @@ export const items = {
 		id: 'field-potion',
 		name: 'Field Potion',
 		description: 'Restores 8 HP.',
+		iconPath: '/game/assets/items/field-potion.png',
 		type: 'consumable',
 		stackable: true,
 		basePrice: 10,
@@ -59,6 +61,7 @@ export const items = {
 		id: 'greater-field-potion',
 		name: 'Greater Field Potion',
 		description: 'Restores 14 HP.',
+		iconPath: '/game/assets/items/greater-field-potion.png',
 		type: 'consumable',
 		stackable: true,
 		basePrice: 18,
@@ -68,6 +71,7 @@ export const items = {
 		id: 'ember-tonic',
 		name: 'Ember Tonic',
 		description: 'Restores 5 HP.',
+		iconPath: '/game/assets/items/ember-tonic.png',
 		type: 'consumable',
 		stackable: true,
 		basePrice: 8,
@@ -77,6 +81,7 @@ export const items = {
 		id: 'ruin-draught',
 		name: 'Ruin Draught',
 		description: 'Restores 10 HP.',
+		iconPath: '/game/assets/items/ruin-draught.png',
 		type: 'consumable',
 		stackable: true,
 		basePrice: 14,
@@ -86,6 +91,7 @@ export const items = {
 		id: 'sunleaf-salve',
 		name: 'Sunleaf Salve',
 		description: 'Restores 6 HP.',
+		iconPath: '/game/assets/items/sunleaf-salve.png',
 		type: 'consumable',
 		stackable: true,
 		basePrice: 12,
@@ -95,6 +101,7 @@ export const items = {
 		id: 'training-sword',
 		name: 'Training Sword',
 		description: 'A reliable starter blade.',
+		iconPath: '/game/assets/items/training-sword.png',
 		type: 'equipment',
 		stackable: false,
 		basePrice: 40,
@@ -105,6 +112,7 @@ export const items = {
 		id: 'ruin-blade',
 		name: 'Ruin Blade',
 		description: 'A chipped sword humming with old heat.',
+		iconPath: '/game/assets/items/ruin-blade.png',
 		type: 'equipment',
 		stackable: false,
 		basePrice: 80,
@@ -115,6 +123,7 @@ export const items = {
 		id: 'iron-cap',
 		name: 'Iron Cap',
 		description: 'Simple protection for dangerous ruins.',
+		iconPath: '/game/assets/items/iron-cap.png',
 		type: 'equipment',
 		stackable: false,
 		basePrice: 35,
@@ -125,6 +134,7 @@ export const items = {
 		id: 'warden-crown',
 		name: 'Warden Crown',
 		description: 'A cracked helm from the ruins core.',
+		iconPath: '/game/assets/items/warden-crown.png',
 		type: 'equipment',
 		stackable: false,
 		basePrice: 100,
@@ -135,6 +145,7 @@ export const items = {
 		id: 'traveler-vest',
 		name: 'Traveler Vest',
 		description: 'Light armor for long walks.',
+		iconPath: '/game/assets/items/traveler-vest.png',
 		type: 'equipment',
 		stackable: false,
 		basePrice: 45,
@@ -145,6 +156,7 @@ export const items = {
 		id: 'stone-mail',
 		name: 'Stone Mail',
 		description: 'Heavy plates carved from ruin stone.',
+		iconPath: '/game/assets/items/stone-mail.png',
 		type: 'equipment',
 		stackable: false,
 		basePrice: 90,
@@ -155,6 +167,7 @@ export const items = {
 		id: 'grip-wraps',
 		name: 'Grip Wraps',
 		description: 'Cloth wraps that steady each strike.',
+		iconPath: '/game/assets/items/grip-wraps.png',
 		type: 'equipment',
 		stackable: false,
 		basePrice: 35,
@@ -165,6 +178,7 @@ export const items = {
 		id: 'meadow-charm',
 		name: 'Meadow Charm',
 		description: 'A small charm from the meadow path.',
+		iconPath: '/game/assets/items/meadow-charm.png',
 		type: 'equipment',
 		stackable: false,
 		basePrice: 30,
@@ -175,6 +189,7 @@ export const items = {
 		id: 'meadow-token',
 		name: 'Meadow Token',
 		description: 'A keepsake from the entry meadow.',
+		iconPath: '/game/assets/items/meadow-token.png',
 		type: 'key',
 		stackable: true
 	},
@@ -182,6 +197,7 @@ export const items = {
 		id: 'threshold-rune',
 		name: 'Threshold Rune',
 		description: 'A carved marker from the ruin threshold.',
+		iconPath: '/game/assets/items/threshold-rune.png',
 		type: 'key',
 		stackable: true
 	},
@@ -189,6 +205,7 @@ export const items = {
 		id: 'warden-sigil',
 		name: 'Warden Sigil',
 		description: 'Proof that the ruins warden fell.',
+		iconPath: '/game/assets/items/warden-sigil.png',
 		type: 'key',
 		stackable: true
 	}
