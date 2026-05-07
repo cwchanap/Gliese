@@ -201,7 +201,21 @@ test('shop overlay opens near a merchant and supports buying and selling', async
 	await expect(page.getByText('Coins: 20')).toBeVisible();
 
 	await page.getByRole('tab', { name: 'Sell' }).click();
-	await page.getByRole('button', { name: 'Sell Field Potion', exact: true }).click();
+	const sellGrid = page.getByTestId('shop-sell-grid');
+	await expect
+		.soft(
+			await sellGrid.evaluate(
+				(element) => getComputedStyle(element).gridTemplateColumns.split(' ').length
+			)
+		)
+		.toBe(6);
+	const fieldPotionSellTile = page.getByLabel('Field Potion');
+	await expect(fieldPotionSellTile.getByRole('img', { name: 'Field Potion' })).toBeVisible();
+	await expect(fieldPotionSellTile.getByText('Restores 8 HP.')).toHaveCount(0);
+	await expect(fieldPotionSellTile.getByRole('button', { name: 'Sell' })).toHaveCount(0);
+	await fieldPotionSellTile.hover();
+	await expect(page.getByRole('tooltip')).toContainText('Restores 8 HP.');
+	await fieldPotionSellTile.dblclick();
 	await expect(page.getByText('Coins: 25')).toBeVisible();
 });
 

@@ -271,9 +271,16 @@ describe('shop core', () => {
 				itemId: 'field-potion',
 				quantity: 2,
 				kind: 'consumable',
+				iconPath: '/game/assets/items/field-potion.png',
 				price: 5
 			}),
-			expect.objectContaining({ itemId: 'iron-cap', quantity: 1, kind: 'equipment', price: 17 })
+			expect.objectContaining({
+				itemId: 'iron-cap',
+				quantity: 1,
+				kind: 'equipment',
+				iconPath: '/game/assets/items/iron-cap.png',
+				price: 17
+			})
 		]);
 	});
 });

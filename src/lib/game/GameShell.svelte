@@ -21,6 +21,7 @@
 		HudInventoryStack,
 		HudKeyItem
 	} from '$lib/game/ui-bridge/events';
+	import type { HudShopSellEntry } from '$lib/game/core/shop';
 
 	type InventoryTab = 'consumables' | 'equipment' | 'keyItems';
 	type ShopTab = 'buy' | 'sell';
@@ -46,6 +47,7 @@
 	let activeShopTab = $state<ShopTab>('buy');
 	let pauseOwner = $state<OverlayPauseOwner | null>(null);
 	let hoveredInventoryItem = $state<InventorySlotItem | null>(null);
+	let hoveredShopSellItem = $state<HudShopSellEntry | null>(null);
 
 	const equipmentSlots: { slot: EquipmentSlot; label: string }[] = [
 		{ slot: 'weapon', label: 'Weapon' },
@@ -123,6 +125,7 @@
 	function closeShop() {
 		if (!shopOpen) return;
 		shopOpen = false;
+		hoveredShopSellItem = null;
 		requestCloseShop();
 		resumeForOverlay('shop');
 		void restoreShopFocus();
@@ -422,8 +425,14 @@
 
 	async function focusShopTab(tab: ShopTab) {
 		activeShopTab = tab;
+		hoveredShopSellItem = null;
 		await tick();
 		document.getElementById(`shop-${tab}-tab`)?.focus();
+	}
+
+	function setShopTab(tab: ShopTab) {
+		activeShopTab = tab;
+		hoveredShopSellItem = null;
 	}
 
 	function handleShopTabKeydown(event: KeyboardEvent, tab: ShopTab) {
@@ -443,6 +452,27 @@
 			event.preventDefault();
 			void focusShopTab(shopTabs[lastIndex]);
 		}
+	}
+
+	function getShopSellBadge(item: HudShopSellEntry): string {
+		return item.quantity > 1 ? `x${item.quantity}` : item.kind;
+	}
+
+	function getShopSellMeta(item: HudShopSellEntry): string {
+		return `${item.price} coins${item.quantity > 1 ? ` / x${item.quantity}` : ''}`;
+	}
+
+	function showShopSellTooltip(item: HudShopSellEntry) {
+		hoveredShopSellItem = item;
+	}
+
+	function hideShopSellTooltip() {
+		hoveredShopSellItem = null;
+	}
+
+	function activateShopSellItem(item: HudShopSellEntry) {
+		if (!$hudState.ready) return;
+		requestSellInventoryItem(item.itemId);
 	}
 
 	onMount(() => {
@@ -954,7 +984,7 @@
 							aria-selected={activeShopTab === 'buy'}
 							aria-controls="shop-tab-panel"
 							tabindex={activeShopTab === 'buy' ? 0 : -1}
-							onclick={() => (activeShopTab = 'buy')}
+							onclick={() => setShopTab('buy')}
 							onkeydown={(event) => handleShopTabKeydown(event, 'buy')}
 						>
 							Buy
@@ -971,7 +1001,7 @@
 							aria-selected={activeShopTab === 'sell'}
 							aria-controls="shop-tab-panel"
 							tabindex={activeShopTab === 'sell' ? 0 : -1}
-							onclick={() => (activeShopTab = 'sell')}
+							onclick={() => setShopTab('sell')}
 							onkeydown={(event) => handleShopTabKeydown(event, 'sell')}
 						>
 							Sell
@@ -1038,33 +1068,33 @@
 							</div>
 						{/if}
 					{:else if $hudState.shop?.sell.length}
-						<div class="grid gap-3">
+						<div data-testid="shop-sell-grid" class="grid grid-cols-6 gap-2.5 sm:gap-3">
 							{#each $hudState.shop.sell as item (item.itemId)}
 								<article
-									class="grid gap-3 rounded-[1.1rem] border border-white/10 bg-[linear-gradient(135deg,rgba(255,255,255,0.08),rgba(255,255,255,0.035))] p-4 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center"
+									class="group relative flex aspect-square min-h-0 cursor-pointer flex-col justify-center overflow-hidden rounded-[0.95rem] border border-emerald-100/16 bg-[linear-gradient(145deg,rgba(28,69,62,0.54),rgba(12,20,38,0.86))] p-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)] transition hover:-translate-y-0.5 hover:border-emerald-100/32 hover:shadow-[0_12px_28px_rgba(0,0,0,0.28)] sm:p-3"
+									aria-label={item.name}
+									ondblclick={() => activateShopSellItem(item)}
+									onmouseenter={() => showShopSellTooltip(item)}
+									onmouseleave={hideShopSellTooltip}
 								>
-									<div>
-										<h3 class="text-lg font-black tracking-[0.08em] text-white uppercase">
-											{item.name}
-										</h3>
-										<p class="mt-2 text-sm leading-5 text-slate-200/76">
-											{item.description}
-										</p>
-										<p
-											class="mt-2 text-[0.62rem] font-black tracking-[0.2em] text-emerald-100/80 uppercase"
-										>
-											Sell for {item.price} coins{item.quantity > 1 ? ` / x${item.quantity}` : ''}
-										</p>
-									</div>
-									<button
-										type="button"
-										class="rounded-full border border-emerald-200/24 bg-emerald-200/12 px-4 py-2 text-[0.68rem] font-black tracking-[0.24em] text-emerald-50 uppercase transition hover:-translate-y-0.5 hover:border-emerald-200/50 disabled:translate-y-0 disabled:cursor-not-allowed disabled:opacity-40"
-										onclick={() => requestSellInventoryItem(item.itemId)}
-										disabled={!$hudState.ready}
-										aria-label={`Sell ${item.name}`}
+									<span
+										class="absolute top-2 right-2 z-10 shrink-0 rounded-full border border-emerald-100/18 bg-emerald-100/12 px-1.5 py-0.5 text-[0.54rem] font-black tracking-[0.12em] text-emerald-50 uppercase"
 									>
-										Sell
-									</button>
+										{getShopSellBadge(item)}
+									</span>
+									<div class="flex h-full min-h-0 items-center justify-center">
+										<img
+											src={item.iconPath}
+											alt={item.name}
+											class="h-[min(4.8rem,74%)] w-[min(4.8rem,74%)] object-contain drop-shadow-[0_10px_16px_rgba(0,0,0,0.34)] [image-rendering:pixelated]"
+											loading="lazy"
+										/>
+									</div>
+									<span
+										class="absolute right-2 bottom-2 left-2 rounded-full border border-emerald-100/16 bg-emerald-100/10 px-2 py-1 text-center text-[0.52rem] font-black tracking-[0.16em] text-emerald-50/78 uppercase"
+									>
+										{item.price}c
+									</span>
 								</article>
 							{/each}
 						</div>
@@ -1073,6 +1103,21 @@
 							class="flex min-h-48 items-center justify-center rounded-[1.1rem] border border-dashed border-white/14 bg-white/5 px-6 py-10 text-center text-sm font-bold tracking-[0.2em] text-slate-300/62 uppercase"
 						>
 							No sellable items.
+						</div>
+					{/if}
+
+					{#if hoveredShopSellItem}
+						<div
+							role="tooltip"
+							class="pointer-events-none absolute right-4 bottom-4 z-20 max-w-[18rem] rounded-[0.95rem] border border-white/12 bg-slate-950/95 px-3 py-2 text-sm text-slate-100 shadow-[0_18px_50px_rgba(0,0,0,0.45)]"
+						>
+							<p class="text-[0.68rem] font-black tracking-[0.2em] text-emerald-100/72 uppercase">
+								{hoveredShopSellItem.name}
+							</p>
+							<p class="mt-1 text-slate-100/88">{hoveredShopSellItem.description}</p>
+							<p class="mt-1 text-[0.62rem] font-black tracking-[0.18em] text-slate-300/70 uppercase">
+								Sell for {getShopSellMeta(hoveredShopSellItem)}
+							</p>
 						</div>
 					{/if}
 				</div>

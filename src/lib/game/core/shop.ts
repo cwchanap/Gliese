@@ -73,6 +73,7 @@ export type HudShopSellEntry = {
 	itemId: string;
 	name: string;
 	description: string;
+	iconPath: string;
 	kind: ConsumableDefinition['type'] | EquipmentDefinition['type'];
 	quantity: number;
 	price: number;
@@ -298,6 +299,7 @@ export function buildShopSellEntries({
 				itemId: item.id,
 				name: item.name,
 				description: item.description,
+				iconPath: item.iconPath,
 				kind: item.type,
 				quantity: stack.quantity,
 				price,
@@ -319,6 +321,7 @@ export function buildShopSellEntries({
 				itemId: item.id,
 				name: item.name,
 				description: item.description,
+				iconPath: item.iconPath,
 				kind: item.type,
 				quantity: 1,
 				price,
