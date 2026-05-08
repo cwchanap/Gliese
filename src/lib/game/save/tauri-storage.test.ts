@@ -11,6 +11,7 @@ vi.mock('@tauri-apps/plugin-fs', () => ({
 
 import * as fs from '@tauri-apps/plugin-fs';
 import {
+	__resetTauriStorageForTests,
 	flushPendingWrites,
 	hydrateTauriStorage,
 	SAVE_FILE_DIR,
@@ -34,6 +35,7 @@ function setTauriPresent(present: boolean) {
 describe('tauri storage adapter', () => {
 	beforeEach(() => {
 		vi.clearAllMocks();
+		__resetTauriStorageForTests();
 		mockedFs.exists.mockResolvedValue(false);
 		mockedFs.mkdir.mockResolvedValue(undefined);
 		mockedFs.readTextFile.mockResolvedValue('');
@@ -61,12 +63,14 @@ describe('tauri storage adapter', () => {
 			value: localStorageMock
 		});
 
-		const adapter = await hydrateTauriStorage();
-		expect(adapter.getItem('any-key')).toBe('seed');
-		adapter.setItem('k', 'v');
-		expect(localStorageMock.setItem).toHaveBeenCalledWith('k', 'v');
-
-		Object.defineProperty(globalThis, 'localStorage', { configurable: true, value: original });
+		try {
+			const adapter = await hydrateTauriStorage();
+			expect(adapter.getItem('any-key')).toBe('seed');
+			adapter.setItem('k', 'v');
+			expect(localStorageMock.setItem).toHaveBeenCalledWith('k', 'v');
+		} finally {
+			Object.defineProperty(globalThis, 'localStorage', { configurable: true, value: original });
+		}
 	});
 
 	it('hydrates from disk when the save file exists', async () => {

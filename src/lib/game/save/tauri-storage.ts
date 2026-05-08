@@ -20,15 +20,11 @@ const APP_DATA_RENAME = {
 } as const;
 
 let pendingWrite: Promise<void> = Promise.resolve();
-let queuedValue: string | null | undefined;
+let queuedValue: string | undefined;
 
 function isTauriRuntime(): boolean {
-	return (
-		typeof globalThis !== 'undefined' &&
-		typeof (globalThis as { window?: { __TAURI_INTERNALS__?: unknown } }).window !== 'undefined' &&
-		typeof (globalThis as { window: { __TAURI_INTERNALS__?: unknown } }).window
-			.__TAURI_INTERNALS__ !== 'undefined'
-	);
+	const win = (globalThis as { window?: { __TAURI_INTERNALS__?: unknown } }).window;
+	return typeof win !== 'undefined' && typeof win.__TAURI_INTERNALS__ !== 'undefined';
 }
 
 export async function hydrateTauriStorage(): Promise<SaveStorage> {
@@ -76,7 +72,7 @@ function scheduleWrite(value: string): void {
 		while (queuedValue !== undefined) {
 			const next = queuedValue;
 			queuedValue = undefined;
-			await performAtomicWrite(next ?? '');
+			await performAtomicWrite(next);
 		}
 	});
 }
@@ -100,4 +96,12 @@ export async function flushPendingWrites(timeoutMs = 3000): Promise<void> {
 		pendingWrite,
 		new Promise<void>((resolve) => setTimeout(resolve, timeoutMs))
 	]);
+}
+
+/**
+ * Reset module-level write state. For tests only.
+ */
+export function __resetTauriStorageForTests(): void {
+	pendingWrite = Promise.resolve();
+	queuedValue = undefined;
 }
