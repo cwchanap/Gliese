@@ -116,7 +116,7 @@ Phaser and Svelte communicate exclusively through custom `window` events (define
 - **Enemies**: `slime-scout` (normal), `ruins-warden` (boss with a phase-2 enrage at ≤50% HP)
 - **Items / shops**: Items are defined in `content/items.ts` (consumables, equipment with `StatModifiers`, key items). Shops in `content/shops.ts` reference item IDs with per-shop stock and pricing. Wallet/coin state lives in `core/shop.ts`.
 - **Sprites**: Single sprite sheet at `public/game/assets/starter-pack.png`; frame coordinates are declared in `content/assets.ts` and registered at runtime in `WorldScene.registerStarterPackFrames()`
-- **Save**: JSON serialized via the active `SaveStorage` adapter under key `gliese.save.v1` (the storage key is fixed). In Tauri the adapter persists to `gliese-save.json` in the app-data directory; in a plain browser it falls back to `localStorage`. The payload's `version` field tracks the schema and is currently `3`; bump it and update `isSaveState` whenever `SaveState` changes shape.
+- **Save**: JSON serialized via the active `SaveStorage` adapter under key `gliese.save.v3` (`SAVE_STORAGE_KEY` in `src/lib/game/save/storage.ts`). In Tauri the adapter persists to `gliese-save.json` in the app-data directory; in a plain browser it falls back to `localStorage`. The payload's `version` field tracks the schema and is currently `3`; bump it and update `isSaveState` whenever `SaveState` changes shape.
 
 ### Repo-level docs
 
