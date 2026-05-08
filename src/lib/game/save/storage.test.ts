@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 
 import { createNewSaveState } from '$lib/game/save/save-state';
-import { loadStoredSaveResult, saveGameState } from '$lib/game/save/storage';
+import { loadStoredSaveResult, saveGameState, setSaveStorage } from '$lib/game/save/storage';
 
 describe('save storage', () => {
 	function createStorage() {
@@ -49,5 +49,19 @@ describe('save storage', () => {
 		storage.setItem('gliese.save.v2', JSON.stringify(createNewSaveState()));
 
 		expect(loadStoredSaveResult(storage)).toEqual({ status: 'missing', saveState: null });
+	});
+
+	it('uses the storage adapter set via setSaveStorage when no explicit storage is passed', () => {
+		const storage = createStorage();
+		setSaveStorage(storage);
+		try {
+			const save = createNewSaveState();
+			saveGameState(save);
+
+			expect(storage.getItem('gliese.save.v3')).toContain('"version":3');
+			expect(loadStoredSaveResult()).toEqual({ status: 'loaded', saveState: save });
+		} finally {
+			setSaveStorage(globalThis.localStorage);
+		}
 	});
 });

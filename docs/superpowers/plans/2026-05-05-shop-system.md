@@ -36,6 +36,7 @@
 ## Task 1: Shop Content And NPC Attachments
 
 **Files:**
+
 - Modify: `src/lib/game/content/items.ts`
 - Modify: `src/lib/game/content/items.test.ts`
 - Create: `src/lib/game/content/shops.ts`
@@ -48,27 +49,27 @@
 Append these tests to `src/lib/game/content/items.test.ts`:
 
 ```ts
-	it('defines base prices for every sellable item', () => {
-		for (const item of itemList) {
-			if (item.type === 'key') {
-				expect('basePrice' in item).toBe(false);
-				continue;
-			}
-
-			expect(item.basePrice).toBeGreaterThan(0);
+it('defines base prices for every sellable item', () => {
+	for (const item of itemList) {
+		if (item.type === 'key') {
+			expect('basePrice' in item).toBe(false);
+			continue;
 		}
 
-		expect(items['field-potion']).toMatchObject({ basePrice: 10 });
-		expect(items['traveler-vest']).toMatchObject({ basePrice: 45 });
-		expect(items['warden-crown']).toMatchObject({ basePrice: 100 });
-	});
+		expect(item.basePrice).toBeGreaterThan(0);
+	}
 
-	it('returns sell values only for consumables and equipment', () => {
-		expect(getSellValue('field-potion')).toBe(5);
-		expect(getSellValue('traveler-vest')).toBe(22);
-		expect(getSellValue('warden-sigil')).toBeUndefined();
-		expect(getSellValue('not-real')).toBeUndefined();
-	});
+	expect(items['field-potion']).toMatchObject({ basePrice: 10 });
+	expect(items['traveler-vest']).toMatchObject({ basePrice: 45 });
+	expect(items['warden-crown']).toMatchObject({ basePrice: 100 });
+});
+
+it('returns sell values only for consumables and equipment', () => {
+	expect(getSellValue('field-potion')).toBe(5);
+	expect(getSellValue('traveler-vest')).toBe(22);
+	expect(getSellValue('warden-sigil')).toBeUndefined();
+	expect(getSellValue('not-real')).toBeUndefined();
+});
 ```
 
 Update the import in the same file:
@@ -129,21 +130,21 @@ export type SellableItemDefinition = ConsumableDefinition | EquipmentDefinition;
 
 Add `basePrice` properties to the existing item objects with these exact values:
 
-| Item id | `basePrice` |
-| --- | ---: |
-| `field-potion` | 10 |
-| `greater-field-potion` | 18 |
-| `ember-tonic` | 8 |
-| `ruin-draught` | 14 |
-| `sunleaf-salve` | 12 |
-| `training-sword` | 40 |
-| `ruin-blade` | 80 |
-| `iron-cap` | 35 |
-| `warden-crown` | 100 |
-| `traveler-vest` | 45 |
-| `stone-mail` | 90 |
-| `grip-wraps` | 35 |
-| `meadow-charm` | 30 |
+| Item id                | `basePrice` |
+| ---------------------- | ----------: |
+| `field-potion`         |          10 |
+| `greater-field-potion` |          18 |
+| `ember-tonic`          |           8 |
+| `ruin-draught`         |          14 |
+| `sunleaf-salve`        |          12 |
+| `training-sword`       |          40 |
+| `ruin-blade`           |          80 |
+| `iron-cap`             |          35 |
+| `warden-crown`         |         100 |
+| `traveler-vest`        |          45 |
+| `stone-mail`           |          90 |
+| `grip-wraps`           |          35 |
+| `meadow-charm`         |          30 |
 
 Add helpers near `getItem`:
 
@@ -251,9 +252,7 @@ Create `src/lib/game/content/shops.ts`:
 ```ts
 import type { DefinitionRegistry } from '$lib/game/core/types';
 
-export type ShopStockAvailability =
-	| { mode: 'unlimited' }
-	| { mode: 'finite'; quantity: number };
+export type ShopStockAvailability = { mode: 'unlimited' } | { mode: 'finite'; quantity: number };
 
 export type ShopStockEntry = {
 	id: string;
@@ -445,6 +444,7 @@ git commit -m "Add shop content definitions"
 ## Task 2: Pure Shop Rules
 
 **Files:**
+
 - Create: `src/lib/game/core/shop.ts`
 - Create: `src/lib/game/core/shop.test.ts`
 - Modify: `src/lib/game/core/inventory.ts`
@@ -467,29 +467,29 @@ import {
 Add tests:
 
 ```ts
-	it('removes owned equipment by item id', () => {
-		const inventory = {
-			stacks: [],
-			equipment: ['training-sword', 'iron-cap']
-		};
+it('removes owned equipment by item id', () => {
+	const inventory = {
+		stacks: [],
+		equipment: ['training-sword', 'iron-cap']
+	};
 
-		expect(removeEquipmentItem(inventory, 'iron-cap')).toEqual({
-			removed: true,
-			inventory: { stacks: [], equipment: ['training-sword'] }
-		});
+	expect(removeEquipmentItem(inventory, 'iron-cap')).toEqual({
+		removed: true,
+		inventory: { stacks: [], equipment: ['training-sword'] }
 	});
+});
 
-	it('leaves inventory unchanged when removing unowned equipment', () => {
-		const inventory = {
-			stacks: [],
-			equipment: ['training-sword']
-		};
+it('leaves inventory unchanged when removing unowned equipment', () => {
+	const inventory = {
+		stacks: [],
+		equipment: ['training-sword']
+	};
 
-		const result = removeEquipmentItem(inventory, 'iron-cap');
+	const result = removeEquipmentItem(inventory, 'iron-cap');
 
-		expect(result.removed).toBe(false);
-		expect(result.inventory).toBe(inventory);
-	});
+	expect(result.removed).toBe(false);
+	expect(result.inventory).toBe(inventory);
+});
 ```
 
 - [ ] **Step 2: Run inventory tests to verify failure**
@@ -683,7 +683,12 @@ describe('shop core', () => {
 				equipment: createEmptyEquipment()
 			})
 		).toEqual([
-			expect.objectContaining({ itemId: 'field-potion', quantity: 2, kind: 'consumable', price: 5 }),
+			expect.objectContaining({
+				itemId: 'field-potion',
+				quantity: 2,
+				kind: 'consumable',
+				price: 5
+			}),
 			expect.objectContaining({ itemId: 'iron-cap', quantity: 1, kind: 'equipment', price: 17 })
 		]);
 	});
@@ -775,9 +780,7 @@ export type HudShopSellEntry = {
 export function createInitialShopStockState(): ShopStockState {
 	return Object.fromEntries(
 		shopList.flatMap((shop) => {
-			const finiteEntries = shop.stock.filter(
-				(entry) => entry.availability.mode === 'finite'
-			);
+			const finiteEntries = shop.stock.filter((entry) => entry.availability.mode === 'finite');
 
 			return finiteEntries.length
 				? [
@@ -862,7 +865,12 @@ export function sellInventoryItem(input: {
 	const sellValue = getSellValue(input.itemId);
 
 	if (!item || sellValue === undefined) {
-		return { sold: false, reason: 'not-sellable', wallet: input.wallet, inventory: input.inventory };
+		return {
+			sold: false,
+			reason: 'not-sellable',
+			wallet: input.wallet,
+			inventory: input.inventory
+		};
 	}
 
 	if (item.type === 'equipment') {
@@ -907,10 +915,7 @@ export function sellInventoryItem(input: {
 			};
 }
 
-export function buildShopBuyEntries(
-	shopId: string,
-	stockState: ShopStockState
-): HudShopBuyEntry[] {
+export function buildShopBuyEntries(shopId: string, stockState: ShopStockState): HudShopBuyEntry[] {
 	const shop = getShop(shopId);
 	if (!shop) return [];
 
@@ -1000,6 +1005,7 @@ git commit -m "Add pure shop rules"
 ## Task 3: Save Schema And Coin Rewards
 
 **Files:**
+
 - Modify: `src/lib/game/content/enemies.ts`
 - Modify: `src/lib/game/content/enemies.test.ts`
 - Modify: `src/lib/game/save/save-state.ts`
@@ -1012,15 +1018,15 @@ git commit -m "Add pure shop rules"
 Append to `src/lib/game/content/enemies.test.ts`:
 
 ```ts
-	it('defines non-negative coin rewards for every enemy', () => {
-		expect(enemies['slime-scout'].coinReward).toBe(4);
-		expect(enemies['ruins-warden'].coinReward).toBe(25);
+it('defines non-negative coin rewards for every enemy', () => {
+	expect(enemies['slime-scout'].coinReward).toBe(4);
+	expect(enemies['ruins-warden'].coinReward).toBe(25);
 
-		for (const enemy of Object.values(enemies)) {
-			expect(Number.isInteger(enemy.coinReward)).toBe(true);
-			expect(enemy.coinReward).toBeGreaterThanOrEqual(0);
-		}
-	});
+	for (const enemy of Object.values(enemies)) {
+		expect(Number.isInteger(enemy.coinReward)).toBe(true);
+		expect(enemy.coinReward).toBeGreaterThanOrEqual(0);
+	}
+});
 ```
 
 - [ ] **Step 2: Run enemy tests to verify failure**
@@ -1106,23 +1112,23 @@ it('rejects version 2 and accepts version 3', () => {
 Add validation tests:
 
 ```ts
-	it('rejects invalid wallet and shop stock state', () => {
-		const save = createNewSaveState();
+it('rejects invalid wallet and shop stock state', () => {
+	const save = createNewSaveState();
 
-		for (const invalidPayload of [
-			{ ...save, wallet: undefined },
-			{ ...save, wallet: { coins: -1 } },
-			{ ...save, wallet: { coins: 1.5 } },
-			{ ...save, shops: undefined },
-			{ ...save, shops: { stock: [] } },
-			{ ...save, shops: { stock: { 'not-real': { 'iron-cap': 1 } } } },
-			{ ...save, shops: { stock: { 'guild-quartermaster': { 'not-real': 1 } } } },
-			{ ...save, shops: { stock: { 'guild-quartermaster': { 'iron-cap': -1 } } } },
-			{ ...save, shops: { stock: { 'guild-quartermaster': { 'iron-cap': 1.5 } } } }
-		]) {
-			expect(parseSaveState(JSON.stringify(invalidPayload))).toBeNull();
-		}
-	});
+	for (const invalidPayload of [
+		{ ...save, wallet: undefined },
+		{ ...save, wallet: { coins: -1 } },
+		{ ...save, wallet: { coins: 1.5 } },
+		{ ...save, shops: undefined },
+		{ ...save, shops: { stock: [] } },
+		{ ...save, shops: { stock: { 'not-real': { 'iron-cap': 1 } } } },
+		{ ...save, shops: { stock: { 'guild-quartermaster': { 'not-real': 1 } } } },
+		{ ...save, shops: { stock: { 'guild-quartermaster': { 'iron-cap': -1 } } } },
+		{ ...save, shops: { stock: { 'guild-quartermaster': { 'iron-cap': 1.5 } } } }
+	]) {
+		expect(parseSaveState(JSON.stringify(invalidPayload))).toBeNull();
+	}
+});
 ```
 
 Update `src/lib/game/save/storage.test.ts`:
@@ -1166,7 +1172,7 @@ Update `SaveState` by changing `version: 2` to `version: 3` and adding these fie
 wallet: WalletState;
 shops: {
 	stock: ShopStockState;
-};
+}
 ```
 
 Update `createNewSaveState()`:
@@ -1203,10 +1209,7 @@ Add validators:
 ```ts
 function isWalletState(value: unknown): value is WalletState {
 	return (
-		isRecord(value) &&
-		isNumber(value.coins) &&
-		Number.isInteger(value.coins) &&
-		value.coins >= 0
+		isRecord(value) && isNumber(value.coins) && Number.isInteger(value.coins) && value.coins >= 0
 	);
 }
 
@@ -1264,6 +1267,7 @@ git commit -m "Persist shop economy state"
 ## Task 4: HUD Bridge And WorldScene Runtime
 
 **Files:**
+
 - Modify: `src/lib/game/ui-bridge/events.ts`
 - Modify: `src/lib/game/ui-bridge/store.ts`
 - Modify: `src/lib/game/phaser/scenes/WorldScene.ts`
@@ -1274,165 +1278,165 @@ git commit -m "Persist shop economy state"
 Append to `src/lib/game/phaser/scenes/scenes.test.ts`:
 
 ```ts
-	it('publishes nearby shop metadata for shopkeeper NPCs', async () => {
-		const events = await import('$lib/game/ui-bridge/events');
-		const emitHudStateSpy = vi.spyOn(events, 'emitHudState');
-		const { WorldScene } = await import('./WorldScene');
-		const scene = new WorldScene();
+it('publishes nearby shop metadata for shopkeeper NPCs', async () => {
+	const events = await import('$lib/game/ui-bridge/events');
+	const emitHudStateSpy = vi.spyOn(events, 'emitHudState');
+	const { WorldScene } = await import('./WorldScene');
+	const scene = new WorldScene();
 
-		scene.create({ mapId: 'item-shop' });
-		emitHudStateSpy.mockClear();
-		Object.assign(phaserState.playerMarker, { x: 256, y: 144 });
+	scene.create({ mapId: 'item-shop' });
+	emitHudStateSpy.mockClear();
+	Object.assign(phaserState.playerMarker, { x: 256, y: 144 });
 
-		scene.update(0, 16);
+	scene.update(0, 16);
 
-		expect(emitHudStateSpy).toHaveBeenLastCalledWith(
-			expect.objectContaining({
-				nearbyShop: {
-					shopId: 'miras-item-shop',
-					name: "Mira's Item Shop",
-					merchantName: 'Mira'
-				}
-			})
-		);
-	});
-
-	it('opens a nearby shop and publishes buy and sell views', async () => {
-		const events = await import('$lib/game/ui-bridge/events');
-		const emitHudStateSpy = vi.spyOn(events, 'emitHudState');
-		const { WorldScene } = await import('./WorldScene');
-		const scene = new WorldScene();
-		const sceneState = scene as unknown as {
-			handleHudCommand: (command: HudCommand) => void;
-		};
-
-		scene.create({ mapId: 'item-shop' });
-		Object.assign(phaserState.playerMarker, { x: 256, y: 144 });
-		scene.update(0, 16);
-		emitHudStateSpy.mockClear();
-
-		sceneState.handleHudCommand({ type: 'open-shop', shopId: 'miras-item-shop' });
-
-		expect(emitHudStateSpy).toHaveBeenLastCalledWith(
-			expect.objectContaining({
-				status: 'Shop opened',
-				shop: expect.objectContaining({
-					shopId: 'miras-item-shop',
-					buy: expect.arrayContaining([
-						expect.objectContaining({ stockId: 'field-potion', price: 10 })
-					]),
-					sell: expect.arrayContaining([
-						expect.objectContaining({ itemId: 'field-potion', price: 5 })
-					])
-				})
-			})
-		);
-	});
-
-	it('buys shop items, updates wallet, and persists finite stock', async () => {
-		const events = await import('$lib/game/ui-bridge/events');
-		const emitHudStateSpy = vi.spyOn(events, 'emitHudState');
-		const { createNewSaveState } = await import('$lib/game/save/save-state');
-		const { WorldScene } = await import('./WorldScene');
-		const scene = new WorldScene();
-		const sceneState = scene as unknown as {
-			handleHudCommand: (command: HudCommand) => void;
-			buildSaveState: () => ReturnType<typeof createNewSaveState>;
-		};
-
-		const save = createNewSaveState();
-
-		scene.create({
-			saveState: {
-				...save,
-				mapId: 'guild-hall',
-				player: { ...save.player, x: 352, y: 144 },
-				wallet: { coins: 40 }
+	expect(emitHudStateSpy).toHaveBeenLastCalledWith(
+		expect.objectContaining({
+			nearbyShop: {
+				shopId: 'miras-item-shop',
+				name: "Mira's Item Shop",
+				merchantName: 'Mira'
 			}
-		});
-		Object.assign(phaserState.playerMarker, { x: 352, y: 144 });
-		scene.update(0, 16);
-		emitHudStateSpy.mockClear();
+		})
+	);
+});
 
-		sceneState.handleHudCommand({ type: 'open-shop', shopId: 'guild-quartermaster' });
-		sceneState.handleHudCommand({
-			type: 'buy-shop-item',
-			shopId: 'guild-quartermaster',
-			stockId: 'iron-cap'
-		});
+it('opens a nearby shop and publishes buy and sell views', async () => {
+	const events = await import('$lib/game/ui-bridge/events');
+	const emitHudStateSpy = vi.spyOn(events, 'emitHudState');
+	const { WorldScene } = await import('./WorldScene');
+	const scene = new WorldScene();
+	const sceneState = scene as unknown as {
+		handleHudCommand: (command: HudCommand) => void;
+	};
 
-		const saveState = sceneState.buildSaveState();
-		expect(saveState.wallet.coins).toBe(5);
-		expect(saveState.inventory.equipment).toContain('iron-cap');
-		expect(saveState.shops.stock['guild-quartermaster']?.['iron-cap']).toBe(0);
-		expect(emitHudStateSpy).toHaveBeenLastCalledWith(
-			expect.objectContaining({ status: 'Bought Iron Cap' })
-		);
+	scene.create({ mapId: 'item-shop' });
+	Object.assign(phaserState.playerMarker, { x: 256, y: 144 });
+	scene.update(0, 16);
+	emitHudStateSpy.mockClear();
+
+	sceneState.handleHudCommand({ type: 'open-shop', shopId: 'miras-item-shop' });
+
+	expect(emitHudStateSpy).toHaveBeenLastCalledWith(
+		expect.objectContaining({
+			status: 'Shop opened',
+			shop: expect.objectContaining({
+				shopId: 'miras-item-shop',
+				buy: expect.arrayContaining([
+					expect.objectContaining({ stockId: 'field-potion', price: 10 })
+				]),
+				sell: expect.arrayContaining([
+					expect.objectContaining({ itemId: 'field-potion', price: 5 })
+				])
+			})
+		})
+	);
+});
+
+it('buys shop items, updates wallet, and persists finite stock', async () => {
+	const events = await import('$lib/game/ui-bridge/events');
+	const emitHudStateSpy = vi.spyOn(events, 'emitHudState');
+	const { createNewSaveState } = await import('$lib/game/save/save-state');
+	const { WorldScene } = await import('./WorldScene');
+	const scene = new WorldScene();
+	const sceneState = scene as unknown as {
+		handleHudCommand: (command: HudCommand) => void;
+		buildSaveState: () => ReturnType<typeof createNewSaveState>;
+	};
+
+	const save = createNewSaveState();
+
+	scene.create({
+		saveState: {
+			...save,
+			mapId: 'guild-hall',
+			player: { ...save.player, x: 352, y: 144 },
+			wallet: { coins: 40 }
+		}
 	});
+	Object.assign(phaserState.playerMarker, { x: 352, y: 144 });
+	scene.update(0, 16);
+	emitHudStateSpy.mockClear();
+
+	sceneState.handleHudCommand({ type: 'open-shop', shopId: 'guild-quartermaster' });
+	sceneState.handleHudCommand({
+		type: 'buy-shop-item',
+		shopId: 'guild-quartermaster',
+		stockId: 'iron-cap'
+	});
+
+	const saveState = sceneState.buildSaveState();
+	expect(saveState.wallet.coins).toBe(5);
+	expect(saveState.inventory.equipment).toContain('iron-cap');
+	expect(saveState.shops.stock['guild-quartermaster']?.['iron-cap']).toBe(0);
+	expect(emitHudStateSpy).toHaveBeenLastCalledWith(
+		expect.objectContaining({ status: 'Bought Iron Cap' })
+	);
+});
 ```
 
 Add sell and coin reward tests:
 
 ```ts
-	it('sells unequipped items through the active shop', async () => {
-		const events = await import('$lib/game/ui-bridge/events');
-		const emitHudStateSpy = vi.spyOn(events, 'emitHudState');
-		const { createNewSaveState } = await import('$lib/game/save/save-state');
-		const { WorldScene } = await import('./WorldScene');
-		const scene = new WorldScene();
-		const sceneState = scene as unknown as {
-			handleHudCommand: (command: HudCommand) => void;
-			buildSaveState: () => ReturnType<typeof createNewSaveState>;
-		};
-		const save = createNewSaveState();
+it('sells unequipped items through the active shop', async () => {
+	const events = await import('$lib/game/ui-bridge/events');
+	const emitHudStateSpy = vi.spyOn(events, 'emitHudState');
+	const { createNewSaveState } = await import('$lib/game/save/save-state');
+	const { WorldScene } = await import('./WorldScene');
+	const scene = new WorldScene();
+	const sceneState = scene as unknown as {
+		handleHudCommand: (command: HudCommand) => void;
+		buildSaveState: () => ReturnType<typeof createNewSaveState>;
+	};
+	const save = createNewSaveState();
 
-		scene.create({
-			saveState: {
-				...save,
-				mapId: 'item-shop',
-				player: { ...save.player, x: 256, y: 144 },
-				inventory: {
-					stacks: [{ itemId: 'field-potion', quantity: 2 }],
-					equipment: ['training-sword', 'iron-cap']
-				},
-				equipment: { ...save.equipment, weapon: 'training-sword' },
-				wallet: { coins: 0 }
-			}
-		});
-		Object.assign(phaserState.playerMarker, { x: 256, y: 144 });
-		scene.update(0, 16);
-		emitHudStateSpy.mockClear();
-
-		sceneState.handleHudCommand({ type: 'open-shop', shopId: 'miras-item-shop' });
-		sceneState.handleHudCommand({ type: 'sell-inventory-item', itemId: 'iron-cap' });
-
-		const saveState = sceneState.buildSaveState();
-		expect(saveState.wallet.coins).toBe(17);
-		expect(saveState.inventory.equipment).toEqual(['training-sword']);
-		expect(emitHudStateSpy).toHaveBeenLastCalledWith(
-			expect.objectContaining({ status: 'Sold Iron Cap' })
-		);
+	scene.create({
+		saveState: {
+			...save,
+			mapId: 'item-shop',
+			player: { ...save.player, x: 256, y: 144 },
+			inventory: {
+				stacks: [{ itemId: 'field-potion', quantity: 2 }],
+				equipment: ['training-sword', 'iron-cap']
+			},
+			equipment: { ...save.equipment, weapon: 'training-sword' },
+			wallet: { coins: 0 }
+		}
 	});
+	Object.assign(phaserState.playerMarker, { x: 256, y: 144 });
+	scene.update(0, 16);
+	emitHudStateSpy.mockClear();
 
-	it('awards coins when an enemy is defeated once', async () => {
-		const { createNewSaveState } = await import('$lib/game/save/save-state');
-		const { WorldScene } = await import('./WorldScene');
-		const scene = new WorldScene();
-		const sceneState = scene as unknown as {
-			enemies: Array<{ hp: number }>;
-			buildSaveState: () => ReturnType<typeof createNewSaveState>;
-		};
-		const save = createNewSaveState();
+	sceneState.handleHudCommand({ type: 'open-shop', shopId: 'miras-item-shop' });
+	sceneState.handleHudCommand({ type: 'sell-inventory-item', itemId: 'iron-cap' });
 
-		scene.create({ saveState: { ...save, wallet: { coins: 0 } } });
-		Object.assign(phaserState.playerMarker, { x: 1_568, y: 1_280 });
-		sceneState.enemies[0]!.hp = 3;
+	const saveState = sceneState.buildSaveState();
+	expect(saveState.wallet.coins).toBe(17);
+	expect(saveState.inventory.equipment).toEqual(['training-sword']);
+	expect(emitHudStateSpy).toHaveBeenLastCalledWith(
+		expect.objectContaining({ status: 'Sold Iron Cap' })
+	);
+});
 
-		scene.update(500, 16);
-		scene.update(1000, 16);
+it('awards coins when an enemy is defeated once', async () => {
+	const { createNewSaveState } = await import('$lib/game/save/save-state');
+	const { WorldScene } = await import('./WorldScene');
+	const scene = new WorldScene();
+	const sceneState = scene as unknown as {
+		enemies: Array<{ hp: number }>;
+		buildSaveState: () => ReturnType<typeof createNewSaveState>;
+	};
+	const save = createNewSaveState();
 
-		expect(sceneState.buildSaveState().wallet.coins).toBe(4);
-	});
+	scene.create({ saveState: { ...save, wallet: { coins: 0 } } });
+	Object.assign(phaserState.playerMarker, { x: 1_568, y: 1_280 });
+	sceneState.enemies[0]!.hp = 3;
+
+	scene.update(500, 16);
+	scene.update(1000, 16);
+
+	expect(sceneState.buildSaveState().wallet.coins).toBe(4);
+});
 ```
 
 - [ ] **Step 2: Run scene tests to verify failure**
@@ -1463,7 +1467,9 @@ export type HudOpenShop = HudNearbyShop & {
 Add fields to `HudState`:
 
 ```ts
-wallet: { coins: number };
+wallet: {
+	coins: number;
+}
 nearbyShop: HudNearbyShop | null;
 shop: HudOpenShop | null;
 ```
@@ -1758,6 +1764,7 @@ git commit -m "Wire shop runtime state"
 ## Task 5: Svelte Shop Overlay
 
 **Files:**
+
 - Modify: `src/lib/game/GameShell.svelte`
 - Modify: `src/routes/game/page.svelte.e2e.ts`
 
@@ -1879,7 +1886,8 @@ Add functions beside the existing inventory helpers:
 
 ```ts
 function rememberShopFocus() {
-	shopFocusRestoreTarget = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+	shopFocusRestoreTarget =
+		document.activeElement instanceof HTMLElement ? document.activeElement : null;
 }
 
 function openShop() {
@@ -2027,7 +2035,10 @@ The required structure:
 
 ```svelte
 {#if shopOpen}
-	<div class="absolute inset-0 z-50 flex items-center justify-center bg-black/52 p-3 backdrop-blur-[3px] sm:p-6" role="presentation">
+	<div
+		class="absolute inset-0 z-50 flex items-center justify-center bg-black/52 p-3 backdrop-blur-[3px] sm:p-6"
+		role="presentation"
+	>
 		<div class="absolute inset-0 cursor-default" role="presentation" onclick={closeShop}></div>
 		<div
 			bind:this={shopDialog}
@@ -2044,70 +2055,141 @@ The required structure:
 						<p class="text-[0.62rem] font-black tracking-[0.34em] text-amber-100/68 uppercase">
 							{$hudState.shop?.merchantName ?? $hudState.nearbyShop?.merchantName ?? 'Merchant'}
 						</p>
-						<h2 id="shop-heading" class="mt-1 text-2xl font-black tracking-[0.12em] text-white uppercase sm:text-3xl">
+						<h2
+							id="shop-heading"
+							class="mt-1 text-2xl font-black tracking-[0.12em] text-white uppercase sm:text-3xl"
+						>
 							{$hudState.shop?.name ?? $hudState.nearbyShop?.name ?? 'Shop'}
 						</h2>
 						<p class="mt-2 text-sm font-bold tracking-[0.12em] text-amber-100/80 uppercase">
 							Coins: {$hudState.wallet.coins}
 						</p>
 					</div>
-					<button bind:this={shopCloseButton} type="button" class="rounded-full border border-white/12 bg-white/6 px-3 py-2 text-[0.65rem] font-black tracking-[0.24em] text-slate-100 uppercase transition hover:border-white/30" onclick={closeShop}>
+					<button
+						bind:this={shopCloseButton}
+						type="button"
+						class="rounded-full border border-white/12 bg-white/6 px-3 py-2 text-[0.65rem] font-black tracking-[0.24em] text-slate-100 uppercase transition hover:border-white/30"
+						onclick={closeShop}
+					>
 						Close
 					</button>
 				</div>
 
 				<div class="mt-4 grid grid-cols-2 gap-2" role="tablist" aria-label="Shop sections">
-					<button id="shop-buy-tab" type="button" role="tab" aria-selected={activeShopTab === 'buy'} aria-controls="shop-tab-panel" tabindex={activeShopTab === 'buy' ? 0 : -1} class={`rounded-full border px-3 py-2 text-[0.68rem] font-black tracking-[0.2em] uppercase transition ${activeShopTab === 'buy' ? 'border-amber-200/45 bg-amber-200/16 text-amber-50' : 'border-white/10 bg-white/6 text-slate-200/72 hover:border-white/24 hover:text-white'}`} onclick={() => (activeShopTab = 'buy')} onkeydown={(event) => handleShopTabKeydown(event, 'buy')}>
+					<button
+						id="shop-buy-tab"
+						type="button"
+						role="tab"
+						aria-selected={activeShopTab === 'buy'}
+						aria-controls="shop-tab-panel"
+						tabindex={activeShopTab === 'buy' ? 0 : -1}
+						class={`rounded-full border px-3 py-2 text-[0.68rem] font-black tracking-[0.2em] uppercase transition ${activeShopTab === 'buy' ? 'border-amber-200/45 bg-amber-200/16 text-amber-50' : 'border-white/10 bg-white/6 text-slate-200/72 hover:border-white/24 hover:text-white'}`}
+						onclick={() => (activeShopTab = 'buy')}
+						onkeydown={(event) => handleShopTabKeydown(event, 'buy')}
+					>
 						Buy
 					</button>
-					<button id="shop-sell-tab" type="button" role="tab" aria-selected={activeShopTab === 'sell'} aria-controls="shop-tab-panel" tabindex={activeShopTab === 'sell' ? 0 : -1} class={`rounded-full border px-3 py-2 text-[0.68rem] font-black tracking-[0.2em] uppercase transition ${activeShopTab === 'sell' ? 'border-emerald-200/45 bg-emerald-200/16 text-emerald-50' : 'border-white/10 bg-white/6 text-slate-200/72 hover:border-white/24 hover:text-white'}`} onclick={() => (activeShopTab = 'sell')} onkeydown={(event) => handleShopTabKeydown(event, 'sell')}>
+					<button
+						id="shop-sell-tab"
+						type="button"
+						role="tab"
+						aria-selected={activeShopTab === 'sell'}
+						aria-controls="shop-tab-panel"
+						tabindex={activeShopTab === 'sell' ? 0 : -1}
+						class={`rounded-full border px-3 py-2 text-[0.68rem] font-black tracking-[0.2em] uppercase transition ${activeShopTab === 'sell' ? 'border-emerald-200/45 bg-emerald-200/16 text-emerald-50' : 'border-white/10 bg-white/6 text-slate-200/72 hover:border-white/24 hover:text-white'}`}
+						onclick={() => (activeShopTab = 'sell')}
+						onkeydown={(event) => handleShopTabKeydown(event, 'sell')}
+					>
 						Sell
 					</button>
 				</div>
 			</div>
 
-			<div id="shop-tab-panel" class="min-h-0 overflow-y-auto p-4 sm:p-6" role="tabpanel" aria-labelledby={`shop-${activeShopTab}-tab`}>
+			<div
+				id="shop-tab-panel"
+				class="min-h-0 overflow-y-auto p-4 sm:p-6"
+				role="tabpanel"
+				aria-labelledby={`shop-${activeShopTab}-tab`}
+			>
 				{#if activeShopTab === 'buy'}
 					{#if $hudState.shop?.buy.length}
 						<div class="grid gap-3">
 							{#each $hudState.shop.buy as item (item.stockId)}
-								{@const finiteRemaining = item.availability.mode === 'finite' ? item.availability.remaining : null}
-								<article class="grid gap-3 rounded-[1.1rem] border border-white/10 bg-[linear-gradient(135deg,rgba(255,255,255,0.08),rgba(255,255,255,0.035))] p-4 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center">
+								{@const finiteRemaining =
+									item.availability.mode === 'finite' ? item.availability.remaining : null}
+								<article
+									class="grid gap-3 rounded-[1.1rem] border border-white/10 bg-[linear-gradient(135deg,rgba(255,255,255,0.08),rgba(255,255,255,0.035))] p-4 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center"
+								>
 									<div>
-										<h3 class="text-lg font-black tracking-[0.08em] text-white uppercase">{item.name}</h3>
+										<h3 class="text-lg font-black tracking-[0.08em] text-white uppercase">
+											{item.name}
+										</h3>
 										<p class="mt-2 text-sm leading-5 text-slate-200/76">{item.description}</p>
-										<p class="mt-2 text-[0.62rem] font-black tracking-[0.2em] text-amber-100/80 uppercase">
-											{item.price} coins · {item.availability.mode === 'unlimited' ? 'Unlimited' : `${finiteRemaining} left`}
+										<p
+											class="mt-2 text-[0.62rem] font-black tracking-[0.2em] text-amber-100/80 uppercase"
+										>
+											{item.price} coins · {item.availability.mode === 'unlimited'
+												? 'Unlimited'
+												: `${finiteRemaining} left`}
 										</p>
 									</div>
-									<button type="button" class="rounded-full border border-amber-200/24 bg-amber-200/12 px-4 py-2 text-[0.68rem] font-black tracking-[0.24em] text-amber-50 uppercase transition hover:-translate-y-0.5 hover:border-amber-200/50 disabled:translate-y-0 disabled:cursor-not-allowed disabled:opacity-40" onclick={() => requestBuyShopItem($hudState.shop?.shopId ?? '', item.stockId)} disabled={!$hudState.ready || !$hudState.shop || $hudState.wallet.coins < item.price || finiteRemaining === 0} aria-label={`Buy ${item.name}`}>
+									<button
+										type="button"
+										class="rounded-full border border-amber-200/24 bg-amber-200/12 px-4 py-2 text-[0.68rem] font-black tracking-[0.24em] text-amber-50 uppercase transition hover:-translate-y-0.5 hover:border-amber-200/50 disabled:translate-y-0 disabled:cursor-not-allowed disabled:opacity-40"
+										onclick={() => requestBuyShopItem($hudState.shop?.shopId ?? '', item.stockId)}
+										disabled={!$hudState.ready ||
+											!$hudState.shop ||
+											$hudState.wallet.coins < item.price ||
+											finiteRemaining === 0}
+										aria-label={`Buy ${item.name}`}
+									>
 										Buy
 									</button>
 								</article>
 							{/each}
 						</div>
 					{:else}
-						<div class="flex min-h-48 items-center justify-center rounded-[1.1rem] border border-dashed border-white/14 bg-white/5 px-6 py-10 text-center text-sm font-bold tracking-[0.2em] text-slate-300/62 uppercase">No stock available.</div>
+						<div
+							class="flex min-h-48 items-center justify-center rounded-[1.1rem] border border-dashed border-white/14 bg-white/5 px-6 py-10 text-center text-sm font-bold tracking-[0.2em] text-slate-300/62 uppercase"
+						>
+							No stock available.
+						</div>
 					{/if}
 				{:else if $hudState.shop?.sell.length}
 					<div class="grid gap-3">
 						{#each $hudState.shop.sell as item (item.itemId)}
-							<article class="grid gap-3 rounded-[1.1rem] border border-white/10 bg-[linear-gradient(135deg,rgba(255,255,255,0.08),rgba(255,255,255,0.035))] p-4 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center">
+							<article
+								class="grid gap-3 rounded-[1.1rem] border border-white/10 bg-[linear-gradient(135deg,rgba(255,255,255,0.08),rgba(255,255,255,0.035))] p-4 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center"
+							>
 								<div>
-									<h3 class="text-lg font-black tracking-[0.08em] text-white uppercase">{item.name}</h3>
+									<h3 class="text-lg font-black tracking-[0.08em] text-white uppercase">
+										{item.name}
+									</h3>
 									<p class="mt-2 text-sm leading-5 text-slate-200/76">{item.description}</p>
-									<p class="mt-2 text-[0.62rem] font-black tracking-[0.2em] text-emerald-100/80 uppercase">
+									<p
+										class="mt-2 text-[0.62rem] font-black tracking-[0.2em] text-emerald-100/80 uppercase"
+									>
 										Sell for {item.price} coins{item.quantity > 1 ? ` · x${item.quantity}` : ''}
 									</p>
 								</div>
-								<button type="button" class="rounded-full border border-emerald-200/24 bg-emerald-200/12 px-4 py-2 text-[0.68rem] font-black tracking-[0.24em] text-emerald-50 uppercase transition hover:-translate-y-0.5 hover:border-emerald-200/50 disabled:translate-y-0 disabled:cursor-not-allowed disabled:opacity-40" onclick={() => requestSellInventoryItem(item.itemId)} disabled={!$hudState.ready} aria-label={`Sell ${item.name}`}>
+								<button
+									type="button"
+									class="rounded-full border border-emerald-200/24 bg-emerald-200/12 px-4 py-2 text-[0.68rem] font-black tracking-[0.24em] text-emerald-50 uppercase transition hover:-translate-y-0.5 hover:border-emerald-200/50 disabled:translate-y-0 disabled:cursor-not-allowed disabled:opacity-40"
+									onclick={() => requestSellInventoryItem(item.itemId)}
+									disabled={!$hudState.ready}
+									aria-label={`Sell ${item.name}`}
+								>
 									Sell
 								</button>
 							</article>
 						{/each}
 					</div>
 				{:else}
-					<div class="flex min-h-48 items-center justify-center rounded-[1.1rem] border border-dashed border-white/14 bg-white/5 px-6 py-10 text-center text-sm font-bold tracking-[0.2em] text-slate-300/62 uppercase">No sellable items.</div>
+					<div
+						class="flex min-h-48 items-center justify-center rounded-[1.1rem] border border-dashed border-white/14 bg-white/5 px-6 py-10 text-center text-sm font-bold tracking-[0.2em] text-slate-300/62 uppercase"
+					>
+						No sellable items.
+					</div>
 				{/if}
 			</div>
 		</div>
@@ -2143,6 +2225,7 @@ git commit -m "Add shop overlay"
 ## Task 6: Final Verification And Stabilization
 
 **Files:**
+
 - Review all files touched in Tasks 1-5.
 
 - [ ] **Step 1: Run focused unit tests**

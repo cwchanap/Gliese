@@ -15,6 +15,7 @@
 ## File Inventory
 
 **New files:**
+
 - `index.html` — Vite entry HTML
 - `src/main.ts` — async bootstrap
 - `src/App.svelte` — single component rendering `<GameShell />`
@@ -31,6 +32,7 @@
 - `tests/e2e/game.e2e.ts` — moved from `src/routes/game/page.svelte.e2e.ts`, URL updated
 
 **Modified files:**
+
 - `package.json` — scripts, deps
 - `vite.config.ts` — drop SvelteKit plugin, add `$lib` alias
 - `playwright.config.ts` — `testMatch` updated
@@ -42,6 +44,7 @@
 - `.gitignore` — add `src-tauri/target/`, `dist/`, drop `.svelte-kit/`
 
 **Deleted files:**
+
 - `src/routes/` (entire directory)
 - `src/app.d.ts`, `src/app.html`
 - `wrangler.jsonc`, `worker-configuration.d.ts`
@@ -52,9 +55,10 @@
 
 ## Task 1: Add Tauri scaffold (Rust shell, no frontend changes yet)
 
-**Why first?** Get the Rust side compiling and the Tauri CLI working with the *current* SvelteKit dev server. We can verify a Tauri window opens and renders the existing app before we touch any frontend code. Bisects risk: if a later task breaks something, we know the scaffold itself is fine.
+**Why first?** Get the Rust side compiling and the Tauri CLI working with the _current_ SvelteKit dev server. We can verify a Tauri window opens and renders the existing app before we touch any frontend code. Bisects risk: if a later task breaks something, we know the scaffold itself is fine.
 
 **Files:**
+
 - Create: `src-tauri/Cargo.toml`
 - Create: `src-tauri/tauri.conf.json`
 - Create: `src-tauri/build.rs`
@@ -68,10 +72,12 @@
 - [ ] **Step 1.1: Verify prerequisites**
 
 Run:
+
 ```sh
 rustc --version
 cargo --version
 ```
+
 Expected: Rust toolchain present. If missing, install via `rustup` (https://rustup.rs/) — required for Tauri.
 
 ```sh
@@ -79,11 +85,13 @@ cd /Users/chanwaichan/workspace/Gliese
 bun --version
 node --version
 ```
+
 Expected: bun present.
 
 - [ ] **Step 1.2: Add Tauri JS dependencies**
 
 Run:
+
 ```sh
 bun add -D @tauri-apps/cli@^2
 bun add @tauri-apps/api@^2 @tauri-apps/plugin-fs@^2
@@ -94,6 +102,7 @@ Expected: `package.json` shows new dependencies; `bun.lock` updated. No code cha
 - [ ] **Step 1.3: Initialize Tauri scaffold via CLI**
 
 Run:
+
 ```sh
 bunx tauri init \
   --app-name "Gliese" \
@@ -112,12 +121,14 @@ If the CLI runs interactively despite `--ci`, accept defaults at every prompt (R
 - [ ] **Step 1.4: Verify default Tauri scaffold contents**
 
 Run:
+
 ```sh
 ls src-tauri
 cat src-tauri/tauri.conf.json
 ```
 
 Expected to see:
+
 - `src-tauri/Cargo.toml` with a `[package]` and `[dependencies]` block referencing `tauri` v2.
 - `src-tauri/tauri.conf.json` with `productName`, `identifier`, `build`, `app`, `bundle` keys.
 - `src-tauri/src/main.rs` and `src-tauri/src/lib.rs` containing default `tauri::Builder::default().run(...)` code.
@@ -152,24 +163,24 @@ Edit `src-tauri/capabilities/default.json`. Replace its contents with:
 
 ```json
 {
-  "$schema": "../gen/schemas/desktop-schema.json",
-  "identifier": "default",
-  "description": "Capabilities for the desktop window",
-  "windows": ["main"],
-  "permissions": [
-    "core:default",
-    {
-      "identifier": "fs:scope",
-      "allow": [{ "path": "$APPDATA/com.gliese.app/*" }]
-    },
-    "fs:allow-read-text-file",
-    "fs:allow-write-text-file",
-    "fs:allow-exists",
-    "fs:allow-rename",
-    "fs:allow-mkdir",
-    "fs:allow-app-data-read-recursive",
-    "fs:allow-app-data-write-recursive"
-  ]
+	"$schema": "../gen/schemas/desktop-schema.json",
+	"identifier": "default",
+	"description": "Capabilities for the desktop window",
+	"windows": ["main"],
+	"permissions": [
+		"core:default",
+		{
+			"identifier": "fs:scope",
+			"allow": [{ "path": "$APPDATA/com.gliese.app/*" }]
+		},
+		"fs:allow-read-text-file",
+		"fs:allow-write-text-file",
+		"fs:allow-exists",
+		"fs:allow-rename",
+		"fs:allow-mkdir",
+		"fs:allow-app-data-read-recursive",
+		"fs:allow-app-data-write-recursive"
+	]
 }
 ```
 
@@ -181,46 +192,46 @@ Edit `src-tauri/tauri.conf.json`. Set or update the following keys (leave unrela
 
 ```json
 {
-  "$schema": "https://schema.tauri.app/config/2",
-  "productName": "Gliese",
-  "version": "0.0.1",
-  "identifier": "com.gliese.app",
-  "build": {
-    "beforeDevCommand": "bun run dev",
-    "beforeBuildCommand": "bun run build",
-    "devUrl": "http://localhost:5173",
-    "frontendDist": "../dist"
-  },
-  "app": {
-    "windows": [
-      {
-        "title": "Gliese",
-        "width": 1280,
-        "height": 720,
-        "resizable": true,
-        "fullscreen": false
-      }
-    ],
-    "security": {
-      "csp": null
-    }
-  },
-  "bundle": {
-    "active": true,
-    "targets": ["app", "dmg", "msi", "nsis"],
-    "icon": [
-      "icons/32x32.png",
-      "icons/128x128.png",
-      "icons/128x128@2x.png",
-      "icons/icon.icns",
-      "icons/icon.ico"
-    ],
-    "windows": {
-      "webviewInstallMode": {
-        "type": "downloadBootstrapper"
-      }
-    }
-  }
+	"$schema": "https://schema.tauri.app/config/2",
+	"productName": "Gliese",
+	"version": "0.0.1",
+	"identifier": "com.gliese.app",
+	"build": {
+		"beforeDevCommand": "bun run dev",
+		"beforeBuildCommand": "bun run build",
+		"devUrl": "http://localhost:5173",
+		"frontendDist": "../dist"
+	},
+	"app": {
+		"windows": [
+			{
+				"title": "Gliese",
+				"width": 1280,
+				"height": 720,
+				"resizable": true,
+				"fullscreen": false
+			}
+		],
+		"security": {
+			"csp": null
+		}
+	},
+	"bundle": {
+		"active": true,
+		"targets": ["app", "dmg", "msi", "nsis"],
+		"icon": [
+			"icons/32x32.png",
+			"icons/128x128.png",
+			"icons/128x128@2x.png",
+			"icons/icon.icns",
+			"icons/icon.ico"
+		],
+		"windows": {
+			"webviewInstallMode": {
+				"type": "downloadBootstrapper"
+			}
+		}
+	}
 }
 ```
 
@@ -247,6 +258,7 @@ dist/
 - [ ] **Step 1.10: Verify Cargo build compiles**
 
 Run:
+
 ```sh
 cd src-tauri
 cargo check
@@ -258,11 +270,12 @@ Expected: Cargo downloads dependencies and reports `Finished` with no errors. Wa
 - [ ] **Step 1.11: Verify Tauri dev launches with the existing SvelteKit app**
 
 Run:
+
 ```sh
 bun run tauri dev
 ```
 
-Expected: a Tauri window opens displaying the *current* SvelteKit home page (the "Gliese — Open game" launcher). Click the "Open game" link; the Phaser canvas should render in the Tauri webview.
+Expected: a Tauri window opens displaying the _current_ SvelteKit home page (the "Gliese — Open game" launcher). Click the "Open game" link; the Phaser canvas should render in the Tauri webview.
 
 If the canvas does not render, this is the WKWebView/Phaser smoke test risk identified in the spec — stop and triage before continuing. Likely culprits: WebGL fallback, missing canvas styles, or asset path issues.
 
@@ -284,9 +297,10 @@ add the on-disk save storage adapter."
 
 ## Task 2: Refactor `storage.ts` to support a swappable storage adapter
 
-**Why now?** Before introducing the Tauri-backed storage we need a setter that the bootstrap can call. Doing this against the current SvelteKit-based tests gives confidence the refactor is correct *before* we tear out the framework.
+**Why now?** Before introducing the Tauri-backed storage we need a setter that the bootstrap can call. Doing this against the current SvelteKit-based tests gives confidence the refactor is correct _before_ we tear out the framework.
 
 **Files:**
+
 - Modify: `src/lib/game/save/storage.ts`
 - Modify: `src/lib/game/save/storage.test.ts`
 
@@ -296,23 +310,24 @@ Edit `src/lib/game/save/storage.test.ts`. Append the following inside the existi
 
 ```ts
 it('uses the storage adapter set via setSaveStorage when no explicit storage is passed', async () => {
-    const { setSaveStorage } = await import('$lib/game/save/storage');
-    const storage = createStorage();
-    setSaveStorage(storage);
+	const { setSaveStorage } = await import('$lib/game/save/storage');
+	const storage = createStorage();
+	setSaveStorage(storage);
 
-    const save = createNewSaveState();
-    saveGameState(save);
+	const save = createNewSaveState();
+	saveGameState(save);
 
-    expect(storage.getItem('gliese.save.v3')).toContain('"version":3');
-    expect(loadStoredSaveResult()).toEqual({ status: 'loaded', saveState: save });
+	expect(storage.getItem('gliese.save.v3')).toContain('"version":3');
+	expect(loadStoredSaveResult()).toEqual({ status: 'loaded', saveState: save });
 
-    setSaveStorage(globalThis.localStorage);
+	setSaveStorage(globalThis.localStorage);
 });
 ```
 
 - [ ] **Step 2.2: Run the test and confirm it fails**
 
 Run:
+
 ```sh
 bun run test:unit -- --run src/lib/game/save/storage.test.ts
 ```
@@ -331,95 +346,97 @@ export const SAVE_STORAGE_KEY = 'gliese.save.v3';
 export type SaveStorage = Pick<Storage, 'getItem' | 'removeItem' | 'setItem'>;
 
 export type StoredSaveResult =
-    | { status: 'missing'; saveState: null }
-    | { status: 'invalid'; saveState: null }
-    | { status: 'loaded'; saveState: SaveState };
+	| { status: 'missing'; saveState: null }
+	| { status: 'invalid'; saveState: null }
+	| { status: 'loaded'; saveState: SaveState };
 
 let currentStorage: SaveStorage | undefined =
-    typeof globalThis !== 'undefined' && hasStorageMethods(globalThis.localStorage)
-        ? globalThis.localStorage
-        : undefined;
+	typeof globalThis !== 'undefined' && hasStorageMethods(globalThis.localStorage)
+		? globalThis.localStorage
+		: undefined;
 
 export function setSaveStorage(storage: SaveStorage | undefined): void {
-    currentStorage = storage;
+	currentStorage = storage;
 }
 
-export function loadStoredSaveState(storage: SaveStorage | undefined = currentStorage): SaveState | null {
-    const result = loadStoredSaveResult(storage);
-    return result.status === 'loaded' ? result.saveState : null;
+export function loadStoredSaveState(
+	storage: SaveStorage | undefined = currentStorage
+): SaveState | null {
+	const result = loadStoredSaveResult(storage);
+	return result.status === 'loaded' ? result.saveState : null;
 }
 
 export function loadStoredSaveResult(
-    storage: SaveStorage | undefined = currentStorage
+	storage: SaveStorage | undefined = currentStorage
 ): StoredSaveResult {
-    const encoded = resolveStorage(storage)?.getItem(SAVE_STORAGE_KEY);
+	const encoded = resolveStorage(storage)?.getItem(SAVE_STORAGE_KEY);
 
-    if (!encoded) {
-        return { status: 'missing', saveState: null };
-    }
+	if (!encoded) {
+		return { status: 'missing', saveState: null };
+	}
 
-    const saveState = parseSaveState(encoded);
+	const saveState = parseSaveState(encoded);
 
-    if (saveState) {
-        return { status: 'loaded', saveState };
-    }
+	if (saveState) {
+		return { status: 'loaded', saveState };
+	}
 
-    if (import.meta.env?.DEV) {
-        console.warn(`Invalid save data found in ${SAVE_STORAGE_KEY}; starting a new run instead.`);
-    }
+	if (import.meta.env?.DEV) {
+		console.warn(`Invalid save data found in ${SAVE_STORAGE_KEY}; starting a new run instead.`);
+	}
 
-    return { status: 'invalid', saveState: null };
+	return { status: 'invalid', saveState: null };
 }
 
 export function storeSaveState(
-    saveState: SaveState,
-    storage: SaveStorage | undefined = currentStorage
+	saveState: SaveState,
+	storage: SaveStorage | undefined = currentStorage
 ): void {
-    resolveStorage(storage)?.setItem(SAVE_STORAGE_KEY, serializeSaveState(saveState));
+	resolveStorage(storage)?.setItem(SAVE_STORAGE_KEY, serializeSaveState(saveState));
 }
 
 export function saveGameState(
-    saveState: SaveState,
-    storage: SaveStorage | undefined = currentStorage
+	saveState: SaveState,
+	storage: SaveStorage | undefined = currentStorage
 ): void {
-    storeSaveState(saveState, storage);
+	storeSaveState(saveState, storage);
 }
 
-export function clearStoredSaveState(
-    storage: SaveStorage | undefined = currentStorage
-): void {
-    resolveStorage(storage)?.removeItem(SAVE_STORAGE_KEY);
+export function clearStoredSaveState(storage: SaveStorage | undefined = currentStorage): void {
+	resolveStorage(storage)?.removeItem(SAVE_STORAGE_KEY);
 }
 
 function resolveStorage(storage: SaveStorage | undefined): SaveStorage | undefined {
-    if (hasStorageMethods(storage)) {
-        return storage;
-    }
+	if (hasStorageMethods(storage)) {
+		return storage;
+	}
 
-    return hasStorageMethods(currentStorage) ? currentStorage : undefined;
+	return hasStorageMethods(currentStorage) ? currentStorage : undefined;
 }
 
 function hasStorageMethods(value: unknown): value is SaveStorage {
-    return (
-        typeof value === 'object' &&
-        value !== null &&
-        'getItem' in value &&
-        typeof (value as SaveStorage).getItem === 'function' &&
-        'removeItem' in value &&
-        typeof (value as SaveStorage).removeItem === 'function' &&
-        'setItem' in value &&
-        typeof (value as SaveStorage).setItem === 'function'
-    );
+	return (
+		typeof value === 'object' &&
+		value !== null &&
+		'getItem' in value &&
+		typeof (value as SaveStorage).getItem === 'function' &&
+		'removeItem' in value &&
+		typeof (value as SaveStorage).removeItem === 'function' &&
+		'setItem' in value &&
+		typeof (value as SaveStorage).setItem === 'function'
+	);
 }
 ```
 
 Notes:
+
 - The default fallback is now `currentStorage` (initially `globalThis.localStorage`) instead of reading `globalThis.localStorage` at every call. Behavior is identical for existing call sites that pass an explicit `storage` argument; behavior is also identical for call sites that pass nothing (they now go through `currentStorage`, which defaults to `localStorage`).
 - The `SaveStorage` type is now exported (the new `tauri-storage.ts` module will need it).
 
 - [ ] **Step 2.4: Run the full storage test file and confirm all tests pass**
 
 Run:
+
 ```sh
 bun run test:unit -- --run src/lib/game/save/storage.test.ts
 ```
@@ -429,6 +446,7 @@ Expected: all 4 tests pass (3 existing + the new `setSaveStorage` test).
 - [ ] **Step 2.5: Run the full unit suite to confirm no regressions**
 
 Run:
+
 ```sh
 bun run test:unit -- --run
 ```
@@ -454,6 +472,7 @@ default behave identically."
 ## Task 3: Implement `tauri-storage.ts` adapter (with full unit tests)
 
 **Files:**
+
 - Create: `src/lib/game/save/tauri-storage.ts`
 - Create: `src/lib/game/save/tauri-storage.test.ts`
 
@@ -473,177 +492,181 @@ Create `src/lib/game/save/tauri-storage.test.ts`:
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('@tauri-apps/plugin-fs', () => ({
-    BaseDirectory: { AppData: 'AppData' },
-    exists: vi.fn(),
-    mkdir: vi.fn(),
-    readTextFile: vi.fn(),
-    writeTextFile: vi.fn(),
-    rename: vi.fn()
+	BaseDirectory: { AppData: 'AppData' },
+	exists: vi.fn(),
+	mkdir: vi.fn(),
+	readTextFile: vi.fn(),
+	writeTextFile: vi.fn(),
+	rename: vi.fn()
 }));
 
 import * as fs from '@tauri-apps/plugin-fs';
 import {
-    flushPendingWrites,
-    hydrateTauriStorage,
-    SAVE_FILE_DIR,
-    SAVE_FILE_NAME,
-    SAVE_FILE_TMP_NAME
+	flushPendingWrites,
+	hydrateTauriStorage,
+	SAVE_FILE_DIR,
+	SAVE_FILE_NAME,
+	SAVE_FILE_TMP_NAME
 } from '$lib/game/save/tauri-storage';
 import { SAVE_STORAGE_KEY } from '$lib/game/save/storage';
 
 const mockedFs = vi.mocked(fs);
 
 function setTauriPresent(present: boolean) {
-    if (present) {
-        (globalThis as unknown as { window: { __TAURI_INTERNALS__: object } }).window = {
-            __TAURI_INTERNALS__: {}
-        };
-    } else {
-        delete (globalThis as unknown as { window?: object }).window;
-    }
+	if (present) {
+		(globalThis as unknown as { window: { __TAURI_INTERNALS__: object } }).window = {
+			__TAURI_INTERNALS__: {}
+		};
+	} else {
+		delete (globalThis as unknown as { window?: object }).window;
+	}
 }
 
 describe('tauri storage adapter', () => {
-    beforeEach(() => {
-        vi.clearAllMocks();
-        mockedFs.exists.mockResolvedValue(false);
-        mockedFs.mkdir.mockResolvedValue(undefined);
-        mockedFs.readTextFile.mockResolvedValue('');
-        mockedFs.writeTextFile.mockResolvedValue(undefined);
-        mockedFs.rename.mockResolvedValue(undefined);
-    });
+	beforeEach(() => {
+		vi.clearAllMocks();
+		mockedFs.exists.mockResolvedValue(false);
+		mockedFs.mkdir.mockResolvedValue(undefined);
+		mockedFs.readTextFile.mockResolvedValue('');
+		mockedFs.writeTextFile.mockResolvedValue(undefined);
+		mockedFs.rename.mockResolvedValue(undefined);
+	});
 
-    afterEach(() => {
-        setTauriPresent(false);
-    });
+	afterEach(() => {
+		setTauriPresent(false);
+	});
 
-    it('falls back to localStorage when Tauri is not present', async () => {
-        setTauriPresent(false);
-        const localStorageMock: Storage = {
-            length: 0,
-            clear: vi.fn(),
-            getItem: vi.fn().mockReturnValue('seed'),
-            key: vi.fn(),
-            removeItem: vi.fn(),
-            setItem: vi.fn()
-        };
-        const original = globalThis.localStorage;
-        Object.defineProperty(globalThis, 'localStorage', { configurable: true, value: localStorageMock });
+	it('falls back to localStorage when Tauri is not present', async () => {
+		setTauriPresent(false);
+		const localStorageMock: Storage = {
+			length: 0,
+			clear: vi.fn(),
+			getItem: vi.fn().mockReturnValue('seed'),
+			key: vi.fn(),
+			removeItem: vi.fn(),
+			setItem: vi.fn()
+		};
+		const original = globalThis.localStorage;
+		Object.defineProperty(globalThis, 'localStorage', {
+			configurable: true,
+			value: localStorageMock
+		});
 
-        const adapter = await hydrateTauriStorage();
-        expect(adapter.getItem('any-key')).toBe('seed');
-        adapter.setItem('k', 'v');
-        expect(localStorageMock.setItem).toHaveBeenCalledWith('k', 'v');
+		const adapter = await hydrateTauriStorage();
+		expect(adapter.getItem('any-key')).toBe('seed');
+		adapter.setItem('k', 'v');
+		expect(localStorageMock.setItem).toHaveBeenCalledWith('k', 'v');
 
-        Object.defineProperty(globalThis, 'localStorage', { configurable: true, value: original });
-    });
+		Object.defineProperty(globalThis, 'localStorage', { configurable: true, value: original });
+	});
 
-    it('hydrates from disk when the save file exists', async () => {
-        setTauriPresent(true);
-        mockedFs.exists.mockResolvedValueOnce(true);
-        mockedFs.readTextFile.mockResolvedValueOnce('{"version":3,"foo":"bar"}');
+	it('hydrates from disk when the save file exists', async () => {
+		setTauriPresent(true);
+		mockedFs.exists.mockResolvedValueOnce(true);
+		mockedFs.readTextFile.mockResolvedValueOnce('{"version":3,"foo":"bar"}');
 
-        const adapter = await hydrateTauriStorage();
+		const adapter = await hydrateTauriStorage();
 
-        expect(mockedFs.readTextFile).toHaveBeenCalledWith(`${SAVE_FILE_DIR}/${SAVE_FILE_NAME}`, {
-            baseDir: fs.BaseDirectory.AppData
-        });
-        expect(adapter.getItem(SAVE_STORAGE_KEY)).toBe('{"version":3,"foo":"bar"}');
-    });
+		expect(mockedFs.readTextFile).toHaveBeenCalledWith(`${SAVE_FILE_DIR}/${SAVE_FILE_NAME}`, {
+			baseDir: fs.BaseDirectory.AppData
+		});
+		expect(adapter.getItem(SAVE_STORAGE_KEY)).toBe('{"version":3,"foo":"bar"}');
+	});
 
-    it('returns an empty adapter when no save file exists', async () => {
-        setTauriPresent(true);
-        mockedFs.exists.mockResolvedValueOnce(false);
+	it('returns an empty adapter when no save file exists', async () => {
+		setTauriPresent(true);
+		mockedFs.exists.mockResolvedValueOnce(false);
 
-        const adapter = await hydrateTauriStorage();
+		const adapter = await hydrateTauriStorage();
 
-        expect(adapter.getItem(SAVE_STORAGE_KEY)).toBeNull();
-        expect(mockedFs.readTextFile).not.toHaveBeenCalled();
-    });
+		expect(adapter.getItem(SAVE_STORAGE_KEY)).toBeNull();
+		expect(mockedFs.readTextFile).not.toHaveBeenCalled();
+	});
 
-    it('treats unreadable / corrupted file content as empty (does not overwrite eagerly)', async () => {
-        setTauriPresent(true);
-        mockedFs.exists.mockResolvedValueOnce(true);
-        mockedFs.readTextFile.mockRejectedValueOnce(new Error('eof'));
-        const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+	it('treats unreadable / corrupted file content as empty (does not overwrite eagerly)', async () => {
+		setTauriPresent(true);
+		mockedFs.exists.mockResolvedValueOnce(true);
+		mockedFs.readTextFile.mockRejectedValueOnce(new Error('eof'));
+		const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
 
-        const adapter = await hydrateTauriStorage();
+		const adapter = await hydrateTauriStorage();
 
-        expect(adapter.getItem(SAVE_STORAGE_KEY)).toBeNull();
-        expect(mockedFs.writeTextFile).not.toHaveBeenCalled();
-        expect(warn).toHaveBeenCalled();
-    });
+		expect(adapter.getItem(SAVE_STORAGE_KEY)).toBeNull();
+		expect(mockedFs.writeTextFile).not.toHaveBeenCalled();
+		expect(warn).toHaveBeenCalled();
+	});
 
-    it('writes atomically: tmp then rename', async () => {
-        setTauriPresent(true);
-        const adapter = await hydrateTauriStorage();
+	it('writes atomically: tmp then rename', async () => {
+		setTauriPresent(true);
+		const adapter = await hydrateTauriStorage();
 
-        adapter.setItem(SAVE_STORAGE_KEY, '{"version":3}');
-        await flushPendingWrites();
+		adapter.setItem(SAVE_STORAGE_KEY, '{"version":3}');
+		await flushPendingWrites();
 
-        expect(mockedFs.writeTextFile).toHaveBeenCalledWith(
-            `${SAVE_FILE_DIR}/${SAVE_FILE_TMP_NAME}`,
-            '{"version":3}',
-            { baseDir: fs.BaseDirectory.AppData }
-        );
-        expect(mockedFs.rename).toHaveBeenCalledWith(
-            `${SAVE_FILE_DIR}/${SAVE_FILE_TMP_NAME}`,
-            `${SAVE_FILE_DIR}/${SAVE_FILE_NAME}`,
-            { oldPathBaseDir: fs.BaseDirectory.AppData, newPathBaseDir: fs.BaseDirectory.AppData }
-        );
-    });
+		expect(mockedFs.writeTextFile).toHaveBeenCalledWith(
+			`${SAVE_FILE_DIR}/${SAVE_FILE_TMP_NAME}`,
+			'{"version":3}',
+			{ baseDir: fs.BaseDirectory.AppData }
+		);
+		expect(mockedFs.rename).toHaveBeenCalledWith(
+			`${SAVE_FILE_DIR}/${SAVE_FILE_TMP_NAME}`,
+			`${SAVE_FILE_DIR}/${SAVE_FILE_NAME}`,
+			{ oldPathBaseDir: fs.BaseDirectory.AppData, newPathBaseDir: fs.BaseDirectory.AppData }
+		);
+	});
 
-    it('coalesces consecutive writes to a single flushed value', async () => {
-        setTauriPresent(true);
-        const adapter = await hydrateTauriStorage();
+	it('coalesces consecutive writes to a single flushed value', async () => {
+		setTauriPresent(true);
+		const adapter = await hydrateTauriStorage();
 
-        adapter.setItem(SAVE_STORAGE_KEY, 'v1');
-        adapter.setItem(SAVE_STORAGE_KEY, 'v2');
-        adapter.setItem(SAVE_STORAGE_KEY, 'v3');
-        await flushPendingWrites();
+		adapter.setItem(SAVE_STORAGE_KEY, 'v1');
+		adapter.setItem(SAVE_STORAGE_KEY, 'v2');
+		adapter.setItem(SAVE_STORAGE_KEY, 'v3');
+		await flushPendingWrites();
 
-        const calls = mockedFs.writeTextFile.mock.calls.filter(
-            ([path]) => path === `${SAVE_FILE_DIR}/${SAVE_FILE_TMP_NAME}`
-        );
-        expect(calls.length).toBeGreaterThanOrEqual(1);
-        expect(calls.length).toBeLessThanOrEqual(2);
-        expect(calls[calls.length - 1][1]).toBe('v3');
-    });
+		const calls = mockedFs.writeTextFile.mock.calls.filter(
+			([path]) => path === `${SAVE_FILE_DIR}/${SAVE_FILE_TMP_NAME}`
+		);
+		expect(calls.length).toBeGreaterThanOrEqual(1);
+		expect(calls.length).toBeLessThanOrEqual(2);
+		expect(calls[calls.length - 1][1]).toBe('v3');
+	});
 
-    it('removeItem deletes the save file via writing an empty marker then rename, leaving rename as the final atomic step', async () => {
-        setTauriPresent(true);
-        mockedFs.exists.mockResolvedValueOnce(true);
-        mockedFs.readTextFile.mockResolvedValueOnce('seed');
-        const adapter = await hydrateTauriStorage();
+	it('removeItem deletes the save file via writing an empty marker then rename, leaving rename as the final atomic step', async () => {
+		setTauriPresent(true);
+		mockedFs.exists.mockResolvedValueOnce(true);
+		mockedFs.readTextFile.mockResolvedValueOnce('seed');
+		const adapter = await hydrateTauriStorage();
 
-        adapter.removeItem(SAVE_STORAGE_KEY);
-        await flushPendingWrites();
+		adapter.removeItem(SAVE_STORAGE_KEY);
+		await flushPendingWrites();
 
-        expect(adapter.getItem(SAVE_STORAGE_KEY)).toBeNull();
-        // We expect a write of "" then a rename — a "best-effort delete" approach.
-        const writes = mockedFs.writeTextFile.mock.calls;
-        expect(writes[writes.length - 1][1]).toBe('');
-    });
+		expect(adapter.getItem(SAVE_STORAGE_KEY)).toBeNull();
+		// We expect a write of "" then a rename — a "best-effort delete" approach.
+		const writes = mockedFs.writeTextFile.mock.calls;
+		expect(writes[writes.length - 1][1]).toBe('');
+	});
 
-    it('creates the app data directory before writing if missing', async () => {
-        setTauriPresent(true);
-        mockedFs.exists.mockResolvedValueOnce(false); // initial existence check (no save file)
+	it('creates the app data directory before writing if missing', async () => {
+		setTauriPresent(true);
+		mockedFs.exists.mockResolvedValueOnce(false); // initial existence check (no save file)
 
-        const adapter = await hydrateTauriStorage();
-        adapter.setItem(SAVE_STORAGE_KEY, 'value');
-        await flushPendingWrites();
+		const adapter = await hydrateTauriStorage();
+		adapter.setItem(SAVE_STORAGE_KEY, 'value');
+		await flushPendingWrites();
 
-        expect(mockedFs.mkdir).toHaveBeenCalledWith(SAVE_FILE_DIR, {
-            baseDir: fs.BaseDirectory.AppData,
-            recursive: true
-        });
-    });
+		expect(mockedFs.mkdir).toHaveBeenCalledWith(SAVE_FILE_DIR, {
+			baseDir: fs.BaseDirectory.AppData,
+			recursive: true
+		});
+	});
 });
 ```
 
 - [ ] **Step 3.2: Run the tests and confirm they fail**
 
 Run:
+
 ```sh
 bun run test:unit -- --run src/lib/game/save/tauri-storage.test.ts
 ```
@@ -656,12 +679,12 @@ Create `src/lib/game/save/tauri-storage.ts`:
 
 ```ts
 import {
-    BaseDirectory,
-    exists,
-    mkdir,
-    readTextFile,
-    writeTextFile,
-    rename
+	BaseDirectory,
+	exists,
+	mkdir,
+	readTextFile,
+	writeTextFile,
+	rename
 } from '@tauri-apps/plugin-fs';
 
 import { SAVE_STORAGE_KEY, type SaveStorage } from '$lib/game/save/storage';
@@ -672,97 +695,98 @@ export const SAVE_FILE_TMP_NAME = 'gliese-save.json.tmp';
 
 const APP_DATA = { baseDir: BaseDirectory.AppData } as const;
 const APP_DATA_RENAME = {
-    oldPathBaseDir: BaseDirectory.AppData,
-    newPathBaseDir: BaseDirectory.AppData
+	oldPathBaseDir: BaseDirectory.AppData,
+	newPathBaseDir: BaseDirectory.AppData
 } as const;
 
 let pendingWrite: Promise<void> = Promise.resolve();
 let queuedValue: string | null | undefined;
 
 function isTauriRuntime(): boolean {
-    return (
-        typeof globalThis !== 'undefined' &&
-        typeof (globalThis as { window?: { __TAURI_INTERNALS__?: unknown } }).window !== 'undefined' &&
-        typeof (globalThis as { window: { __TAURI_INTERNALS__?: unknown } }).window
-            .__TAURI_INTERNALS__ !== 'undefined'
-    );
+	return (
+		typeof globalThis !== 'undefined' &&
+		typeof (globalThis as { window?: { __TAURI_INTERNALS__?: unknown } }).window !== 'undefined' &&
+		typeof (globalThis as { window: { __TAURI_INTERNALS__?: unknown } }).window
+			.__TAURI_INTERNALS__ !== 'undefined'
+	);
 }
 
 export async function hydrateTauriStorage(): Promise<SaveStorage> {
-    if (!isTauriRuntime()) {
-        return globalThis.localStorage;
-    }
+	if (!isTauriRuntime()) {
+		return globalThis.localStorage;
+	}
 
-    const cache = new Map<string, string>();
+	const cache = new Map<string, string>();
 
-    try {
-        if (await exists(`${SAVE_FILE_DIR}/${SAVE_FILE_NAME}`, APP_DATA)) {
-            const text = await readTextFile(`${SAVE_FILE_DIR}/${SAVE_FILE_NAME}`, APP_DATA);
-            cache.set(SAVE_STORAGE_KEY, text);
-        }
-    } catch (error) {
-        console.warn(
-            'Failed to read existing save file; starting with an empty cache. The corrupt file is preserved.',
-            error
-        );
-    }
+	try {
+		if (await exists(`${SAVE_FILE_DIR}/${SAVE_FILE_NAME}`, APP_DATA)) {
+			const text = await readTextFile(`${SAVE_FILE_DIR}/${SAVE_FILE_NAME}`, APP_DATA);
+			cache.set(SAVE_STORAGE_KEY, text);
+		}
+	} catch (error) {
+		console.warn(
+			'Failed to read existing save file; starting with an empty cache. The corrupt file is preserved.',
+			error
+		);
+	}
 
-    return {
-        getItem(key) {
-            return cache.get(key) ?? null;
-        },
-        setItem(key, value) {
-            cache.set(key, value);
-            if (key === SAVE_STORAGE_KEY) {
-                scheduleWrite(value);
-            }
-        },
-        removeItem(key) {
-            cache.delete(key);
-            if (key === SAVE_STORAGE_KEY) {
-                scheduleWrite('');
-            }
-        }
-    };
+	return {
+		getItem(key) {
+			return cache.get(key) ?? null;
+		},
+		setItem(key, value) {
+			cache.set(key, value);
+			if (key === SAVE_STORAGE_KEY) {
+				scheduleWrite(value);
+			}
+		},
+		removeItem(key) {
+			cache.delete(key);
+			if (key === SAVE_STORAGE_KEY) {
+				scheduleWrite('');
+			}
+		}
+	};
 }
 
 function scheduleWrite(value: string): void {
-    queuedValue = value;
-    pendingWrite = pendingWrite.then(async () => {
-        // Drain coalesced writes: keep flushing while a newer queued value arrived during the prior await.
-        while (queuedValue !== undefined) {
-            const next = queuedValue;
-            queuedValue = undefined;
-            await performAtomicWrite(next);
-        }
-    });
+	queuedValue = value;
+	pendingWrite = pendingWrite.then(async () => {
+		// Drain coalesced writes: keep flushing while a newer queued value arrived during the prior await.
+		while (queuedValue !== undefined) {
+			const next = queuedValue;
+			queuedValue = undefined;
+			await performAtomicWrite(next);
+		}
+	});
 }
 
 async function performAtomicWrite(value: string): Promise<void> {
-    try {
-        await mkdir(SAVE_FILE_DIR, { baseDir: BaseDirectory.AppData, recursive: true });
-        await writeTextFile(`${SAVE_FILE_DIR}/${SAVE_FILE_TMP_NAME}`, value, APP_DATA);
-        await rename(
-            `${SAVE_FILE_DIR}/${SAVE_FILE_TMP_NAME}`,
-            `${SAVE_FILE_DIR}/${SAVE_FILE_NAME}`,
-            APP_DATA_RENAME
-        );
-    } catch (error) {
-        console.error('Failed to persist save file; previous on-disk value preserved.', error);
-    }
+	try {
+		await mkdir(SAVE_FILE_DIR, { baseDir: BaseDirectory.AppData, recursive: true });
+		await writeTextFile(`${SAVE_FILE_DIR}/${SAVE_FILE_TMP_NAME}`, value, APP_DATA);
+		await rename(
+			`${SAVE_FILE_DIR}/${SAVE_FILE_TMP_NAME}`,
+			`${SAVE_FILE_DIR}/${SAVE_FILE_NAME}`,
+			APP_DATA_RENAME
+		);
+	} catch (error) {
+		console.error('Failed to persist save file; previous on-disk value preserved.', error);
+	}
 }
 
 export async function flushPendingWrites(timeoutMs = 3000): Promise<void> {
-    await Promise.race([
-        pendingWrite,
-        new Promise<void>((resolve) => setTimeout(resolve, timeoutMs))
-    ]);
+	await Promise.race([
+		pendingWrite,
+		new Promise<void>((resolve) => setTimeout(resolve, timeoutMs))
+	]);
 }
 ```
 
 - [ ] **Step 3.4: Run the tests and verify all pass**
 
 Run:
+
 ```sh
 bun run test:unit -- --run src/lib/game/save/tauri-storage.test.ts
 ```
@@ -772,6 +796,7 @@ Expected: all 7 tests pass.
 - [ ] **Step 3.5: Run the whole unit suite**
 
 Run:
+
 ```sh
 bun run test:unit -- --run
 ```
@@ -799,6 +824,7 @@ falls back to localStorage so existing tests keep working unchanged."
 **This is the largest task.** It removes SvelteKit and Cloudflare entirely. Verification relies on the existing test suite continuing to pass against the new setup.
 
 **Files:**
+
 - Create: `index.html`
 - Create: `src/main.ts`
 - Create: `src/App.svelte`
@@ -816,6 +842,7 @@ falls back to localStorage so existing tests keep working unchanged."
 - [ ] **Step 4.1: Move static assets to `public/`**
 
 Run:
+
 ```sh
 mkdir -p public
 git mv static/game public/game
@@ -832,16 +859,16 @@ Create `index.html` at the repo root:
 ```html
 <!doctype html>
 <html lang="en">
-    <head>
-        <meta charset="utf-8" />
-        <meta name="viewport" content="width=device-width, initial-scale=1" />
-        <meta name="text-scale" content="scale" />
-        <title>Gliese</title>
-    </head>
-    <body>
-        <div id="app"></div>
-        <script type="module" src="/src/main.ts"></script>
-    </body>
+	<head>
+		<meta charset="utf-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1" />
+		<meta name="text-scale" content="scale" />
+		<title>Gliese</title>
+	</head>
+	<body>
+		<div id="app"></div>
+		<script type="module" src="/src/main.ts"></script>
+	</body>
 </html>
 ```
 
@@ -861,12 +888,12 @@ Create `src/App.svelte`:
 
 ```svelte
 <script lang="ts">
-    import GameShell from '$lib/game/GameShell.svelte';
-    import favicon from '$lib/assets/favicon.svg';
+	import GameShell from '$lib/game/GameShell.svelte';
+	import favicon from '$lib/assets/favicon.svg';
 </script>
 
 <svelte:head>
-    <link rel="icon" href={favicon} />
+	<link rel="icon" href={favicon} />
 </svelte:head>
 
 <GameShell />
@@ -885,29 +912,30 @@ import { hydrateTauriStorage, flushPendingWrites } from '$lib/game/save/tauri-st
 import { setSaveStorage } from '$lib/game/save/storage';
 
 async function bootstrap() {
-    const storage = await hydrateTauriStorage();
-    setSaveStorage(storage);
+	const storage = await hydrateTauriStorage();
+	setSaveStorage(storage);
 
-    if (typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window) {
-        const { getCurrentWindow } = await import('@tauri-apps/api/window');
-        const win = getCurrentWindow();
-        await win.onCloseRequested(async (event) => {
-            event.preventDefault();
-            await flushPendingWrites();
-            await win.destroy();
-        });
-    }
+	if (typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window) {
+		const { getCurrentWindow } = await import('@tauri-apps/api/window');
+		const win = getCurrentWindow();
+		await win.onCloseRequested(async (event) => {
+			event.preventDefault();
+			await flushPendingWrites();
+			await win.destroy();
+		});
+	}
 
-    mount(App, { target: document.getElementById('app')! });
+	mount(App, { target: document.getElementById('app')! });
 }
 
 bootstrap().catch((error) => {
-    document.body.innerHTML = `<pre style="padding:2rem;font-family:monospace;color:#b00;">Couldn't start Gliese:\n\n${(error as Error).message}</pre>`;
-    console.error(error);
+	document.body.innerHTML = `<pre style="padding:2rem;font-family:monospace;color:#b00;">Couldn't start Gliese:\n\n${(error as Error).message}</pre>`;
+	console.error(error);
 });
 ```
 
 Notes:
+
 - `mount` from Svelte 5 (runes) is the standard mount function (not the old `new App({...})`).
 - Tauri's `onCloseRequested` is registered only when running inside Tauri. In browser dev / Playwright, this code path is skipped.
 
@@ -923,47 +951,47 @@ import { playwright } from '@vitest/browser-playwright';
 import path from 'node:path';
 
 export default defineConfig({
-    plugins: [tailwindcss(), svelte()],
-    resolve: {
-        alias: {
-            $lib: path.resolve(__dirname, 'src/lib')
-        }
-    },
-    server: {
-        port: 5173,
-        strictPort: true
-    },
-    preview: {
-        port: 4173,
-        strictPort: true
-    },
-    test: {
-        expect: { requireAssertions: true },
-        projects: [
-            {
-                extends: './vite.config.ts',
-                test: {
-                    name: 'client',
-                    browser: {
-                        enabled: true,
-                        provider: playwright(),
-                        instances: [{ browser: 'chromium', headless: true }]
-                    },
-                    include: ['src/**/*.svelte.{test,spec}.{js,ts}'],
-                    exclude: ['src/lib/server/**']
-                }
-            },
-            {
-                extends: './vite.config.ts',
-                test: {
-                    name: 'server',
-                    environment: 'node',
-                    include: ['src/**/*.{test,spec}.{js,ts}'],
-                    exclude: ['src/**/*.svelte.{test,spec}.{js,ts}']
-                }
-            }
-        ]
-    }
+	plugins: [tailwindcss(), svelte()],
+	resolve: {
+		alias: {
+			$lib: path.resolve(__dirname, 'src/lib')
+		}
+	},
+	server: {
+		port: 5173,
+		strictPort: true
+	},
+	preview: {
+		port: 4173,
+		strictPort: true
+	},
+	test: {
+		expect: { requireAssertions: true },
+		projects: [
+			{
+				extends: './vite.config.ts',
+				test: {
+					name: 'client',
+					browser: {
+						enabled: true,
+						provider: playwright(),
+						instances: [{ browser: 'chromium', headless: true }]
+					},
+					include: ['src/**/*.svelte.{test,spec}.{js,ts}'],
+					exclude: ['src/lib/server/**']
+				}
+			},
+			{
+				extends: './vite.config.ts',
+				test: {
+					name: 'server',
+					environment: 'node',
+					include: ['src/**/*.{test,spec}.{js,ts}'],
+					exclude: ['src/**/*.svelte.{test,spec}.{js,ts}']
+				}
+			}
+		]
+	}
 });
 ```
 
@@ -976,11 +1004,10 @@ import { vitePreprocess } from '@sveltejs/vite-plugin-svelte';
 
 /** @type {import('@sveltejs/vite-plugin-svelte').SvelteConfig} */
 const config = {
-    preprocess: vitePreprocess(),
-    compilerOptions: {
-        runes: ({ filename }) =>
-            filename.split(/[/\\]/).includes('node_modules') ? undefined : true
-    }
+	preprocess: vitePreprocess(),
+	compilerOptions: {
+		runes: ({ filename }) => (filename.split(/[/\\]/).includes('node_modules') ? undefined : true)
+	}
 };
 
 export default config;
@@ -992,34 +1019,35 @@ Replace the entire contents of `tsconfig.json` with:
 
 ```json
 {
-    "compilerOptions": {
-        "target": "ES2022",
-        "module": "ESNext",
-        "moduleResolution": "bundler",
-        "lib": ["ES2022", "DOM", "DOM.Iterable"],
-        "strict": true,
-        "esModuleInterop": true,
-        "forceConsistentCasingInFileNames": true,
-        "resolveJsonModule": true,
-        "skipLibCheck": true,
-        "sourceMap": true,
-        "allowJs": true,
-        "checkJs": false,
-        "verbatimModuleSyntax": true,
-        "isolatedModules": true,
-        "paths": {
-            "$lib": ["./src/lib"],
-            "$lib/*": ["./src/lib/*"]
-        },
-        "types": ["vite/client", "node", "@tauri-apps/api"]
-    },
-    "include": ["src/**/*", "tests/**/*", "vite.config.ts", "playwright.config.ts"]
+	"compilerOptions": {
+		"target": "ES2022",
+		"module": "ESNext",
+		"moduleResolution": "bundler",
+		"lib": ["ES2022", "DOM", "DOM.Iterable"],
+		"strict": true,
+		"esModuleInterop": true,
+		"forceConsistentCasingInFileNames": true,
+		"resolveJsonModule": true,
+		"skipLibCheck": true,
+		"sourceMap": true,
+		"allowJs": true,
+		"checkJs": false,
+		"verbatimModuleSyntax": true,
+		"isolatedModules": true,
+		"paths": {
+			"$lib": ["./src/lib"],
+			"$lib/*": ["./src/lib/*"]
+		},
+		"types": ["vite/client", "node", "@tauri-apps/api"]
+	},
+	"include": ["src/**/*", "tests/**/*", "vite.config.ts", "playwright.config.ts"]
 }
 ```
 
 - [ ] **Step 4.9: Move and update the e2e test file**
 
 Run:
+
 ```sh
 mkdir -p tests/e2e
 git mv src/routes/game/page.svelte.e2e.ts tests/e2e/game.e2e.ts
@@ -1029,9 +1057,9 @@ Edit `tests/e2e/game.e2e.ts`. Replace every `await page.goto('/game');` with `aw
 
 ```ts
 test('game route boots', async ({ page }) => {
-    await page.goto('/');
-    await expect(page.locator('canvas')).toBeVisible();
-    await expect(page.getByRole('button', { name: 'Menu' })).toBeVisible();
+	await page.goto('/');
+	await expect(page.locator('canvas')).toBeVisible();
+	await expect(page.getByRole('button', { name: 'Menu' })).toBeVisible();
 });
 ```
 
@@ -1043,17 +1071,17 @@ Replace `playwright.config.ts` with:
 import { defineConfig } from '@playwright/test';
 
 export default defineConfig({
-    workers: 1,
-    use: {
-        baseURL: 'http://127.0.0.1:4173'
-    },
-    webServer: {
-        command: 'bun run preview -- --host 127.0.0.1 --port 4173',
-        port: 4173,
-        reuseExistingServer: true
-    },
-    testDir: 'tests/e2e',
-    testMatch: '**/*.e2e.{ts,js}'
+	workers: 1,
+	use: {
+		baseURL: 'http://127.0.0.1:4173'
+	},
+	webServer: {
+		command: 'bun run preview -- --host 127.0.0.1 --port 4173',
+		port: 4173,
+		reuseExistingServer: true
+	},
+	testDir: 'tests/e2e',
+	testMatch: '**/*.e2e.{ts,js}'
 });
 ```
 
@@ -1062,6 +1090,7 @@ export default defineConfig({
 - [ ] **Step 4.11: Delete legacy SvelteKit / Cloudflare files**
 
 Run:
+
 ```sh
 rm -rf src/routes
 rm -f src/app.d.ts src/app.html
@@ -1091,11 +1120,13 @@ Edit `package.json`. Replace the `scripts` block with:
 ```
 
 Then remove these from `devDependencies`:
+
 - `@sveltejs/adapter-cloudflare`
 - `@sveltejs/kit`
 - `wrangler`
 
 Run:
+
 ```sh
 bun remove @sveltejs/adapter-cloudflare @sveltejs/kit wrangler
 ```
@@ -1109,6 +1140,7 @@ Edit `.gitignore`. Remove the line `.svelte-kit/` if present (it's no longer rel
 - [ ] **Step 4.14: Verify dev server boots cleanly (no Tauri)**
 
 Run:
+
 ```sh
 bun run dev
 ```
@@ -1120,6 +1152,7 @@ Quit with `Ctrl+C`.
 - [ ] **Step 4.15: Run unit tests**
 
 Run:
+
 ```sh
 bun run test:unit -- --run
 ```
@@ -1129,6 +1162,7 @@ Expected: all unit tests pass, including the new `tauri-storage.test.ts` and ref
 - [ ] **Step 4.16: Run a production build and Playwright e2e against it**
 
 Run:
+
 ```sh
 bun run build
 bun run test:e2e
@@ -1139,6 +1173,7 @@ Expected: `vite build` produces `dist/`. Playwright spins up `vite preview` on :
 - [ ] **Step 4.17: Run `svelte-check`**
 
 Run:
+
 ```sh
 bun run check
 ```
@@ -1148,6 +1183,7 @@ Expected: 0 errors, 0 warnings.
 - [ ] **Step 4.18: Run lint**
 
 Run:
+
 ```sh
 bun run lint
 ```
@@ -1182,6 +1218,7 @@ This is a manual smoke test on macOS — the platform the dev machine runs. Wind
 - [ ] **Step 5.1: Launch in Tauri dev mode**
 
 Run:
+
 ```sh
 bun run tauri dev
 ```
@@ -1191,6 +1228,7 @@ Expected: Vite starts on :5173, Cargo compiles `src-tauri`, a Tauri window opens
 - [ ] **Step 5.2: Verify save round-trip**
 
 In the running app:
+
 1. Click "Menu" → "Save" (or whichever action triggers a save in the current HUD).
 2. Quit the Tauri app (Cmd+Q).
 3. Verify the save file exists:
@@ -1206,11 +1244,13 @@ In the running app:
 - [ ] **Step 5.3: Verify error handling — corrupted file**
 
 With the dev session quit:
+
 ```sh
 echo "{not valid json" > "$HOME/Library/Application Support/com.gliese.app/gliese-save.json"
 ```
 
 Run `bun run tauri dev` again. Expected:
+
 - The app boots as a fresh game (no resume option, or resume disabled).
 - The webview console shows a `console.warn` from `loadStoredSaveResult` about invalid save data (or from `tauri-storage.ts` if the file unreadable for I/O reasons, depending on which path triggered).
 - The corrupt file on disk is **unchanged** (verify with `cat`) — it should NOT have been overwritten until an explicit save happens.
@@ -1220,6 +1260,7 @@ Save once in the app, quit, and verify the corrupt file is now replaced with a v
 - [ ] **Step 5.4: Verify production bundle builds**
 
 Run:
+
 ```sh
 bun run tauri build
 ```
@@ -1236,11 +1277,13 @@ Open the `.app` (Right-click → Open to bypass Gatekeeper warning on first laun
 - [ ] **Step 5.5: Manual checklist outcome**
 
 Update or remove the corrupt-file test artifact:
+
 ```sh
 rm -f "$HOME/Library/Application Support/com.gliese.app/gliese-save.json.tmp"
 ```
 
 Document the build output sizes (for future bundle-size regression checks):
+
 ```sh
 du -sh dist
 du -sh src-tauri/target/release/bundle/macos/Gliese.app
@@ -1255,6 +1298,7 @@ Record the numbers in the PR description. No code commit for this task — it's 
 `CLAUDE.md` is load-bearing for future sessions; the Architecture section now describes a stack that no longer exists.
 
 **Files:**
+
 - Modify: `CLAUDE.md` (and via symlink, `AGENTS.md`)
 
 - [ ] **Step 6.1: Rewrite the Project Overview section**
@@ -1281,7 +1325,7 @@ via Tauri's `fs` plugin.
 
 Replace the "## Commands" section with:
 
-```markdown
+````markdown
 ## Commands
 
 ```sh
@@ -1294,6 +1338,7 @@ bun run check        # svelte-check
 bun run lint         # prettier + eslint check
 bun run format       # auto-format
 ```
+````
 
 ### Tests
 
@@ -1310,12 +1355,14 @@ bun run test:e2e -- --grep "game route boots"
 ```
 
 **Test split in `vite.config.ts`:**
+
 - `*.svelte.{test,spec}.ts` → `client` project, runs in Chromium via vitest-browser-svelte
 - `*.{test,spec}.ts` (non-svelte) → `server` project, runs in node
 - `tests/e2e/*.e2e.ts` → Playwright, runs against `vite preview` on :4173 (auto-spun by `playwright.config.ts`)
 
 `vite.config.ts` sets `expect: { requireAssertions: true }` — any test that runs without calling `expect()` will fail.
-```
+
+````
 
 - [ ] **Step 6.3: Rewrite the Architecture section**
 
@@ -1326,16 +1373,18 @@ Replace the "## Architecture" section's first two paragraphs (everything before 
 
 ### Top-level layout
 
-```
-index.html             Vite entry HTML, hosts <div id="app">
+````
+
+index.html Vite entry HTML, hosts <div id="app">
 src/
-  main.ts              Async bootstrap: hydrate save storage → mount(App)
-  App.svelte           Renders <GameShell />
-  app.css              Global styles (Tailwind import)
-  lib/                 Game code — see below
-src-tauri/             Rust shell: fs plugin, window config, packaging
-public/                Static assets served at root (sprite sheets, etc.)
-tests/e2e/             Playwright e2e suite
+main.ts Async bootstrap: hydrate save storage → mount(App)
+App.svelte Renders <GameShell />
+app.css Global styles (Tailwind import)
+lib/ Game code — see below
+src-tauri/ Rust shell: fs plugin, window config, packaging
+public/ Static assets served at root (sprite sheets, etc.)
+tests/e2e/ Playwright e2e suite
+
 ```
 
 ### Save storage
@@ -1361,6 +1410,7 @@ The "### Game Layer" subsection and below stay as-is. The "### Routing" section 
 - [ ] **Step 6.4: Verify CLAUDE.md is internally consistent**
 
 Read through the updated `CLAUDE.md` end-to-end. Check that:
+
 - No mentions of SvelteKit remain (except possibly in `docs/plans/` historical notes — ignore).
 - No mentions of Cloudflare or Workers remain.
 - No references to the deleted `wrangler` script (`bun run gen`).

@@ -55,21 +55,21 @@ Sellable items receive a `basePrice` field. Consumables and equipment should hav
 
 Initial price tuning:
 
-| Item | Base price |
-| --- | ---: |
-| `ember-tonic` | 8 |
-| `field-potion` | 10 |
-| `sunleaf-salve` | 12 |
-| `ruin-draught` | 14 |
-| `greater-field-potion` | 18 |
-| `meadow-charm` | 30 |
-| `iron-cap` | 35 |
-| `grip-wraps` | 35 |
-| `training-sword` | 40 |
-| `traveler-vest` | 45 |
-| `ruin-blade` | 80 |
-| `stone-mail` | 90 |
-| `warden-crown` | 100 |
+| Item                   | Base price |
+| ---------------------- | ---------: |
+| `ember-tonic`          |          8 |
+| `field-potion`         |         10 |
+| `sunleaf-salve`        |         12 |
+| `ruin-draught`         |         14 |
+| `greater-field-potion` |         18 |
+| `meadow-charm`         |         30 |
+| `iron-cap`             |         35 |
+| `grip-wraps`           |         35 |
+| `training-sword`       |         40 |
+| `traveler-vest`        |         45 |
+| `ruin-blade`           |         80 |
+| `stone-mail`           |         90 |
+| `warden-crown`         |        100 |
 
 The sell value is 50% of the item base price, rounded down to an integer with a minimum of 1 coin for sellable items.
 

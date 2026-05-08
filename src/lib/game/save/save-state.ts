@@ -128,10 +128,7 @@ function isSaveState(value: unknown): value is SaveState {
 
 function isWalletState(value: unknown): value is WalletState {
 	return (
-		isRecord(value) &&
-		isNumber(value.coins) &&
-		Number.isInteger(value.coins) &&
-		value.coins >= 0
+		isRecord(value) && isNumber(value.coins) && Number.isInteger(value.coins) && value.coins >= 0
 	);
 }
 
@@ -209,8 +206,7 @@ function isInventoryState(value: unknown): value is InventoryState {
 				typeof stack.itemId === 'string' &&
 				isStackableItemId(stack.itemId) &&
 				isPositiveIntegerQuantity(stack.quantity)
-		) &&
-		value.equipment.every((itemId) => typeof itemId === 'string' && isEquipmentItemId(itemId))
+		) && value.equipment.every((itemId) => typeof itemId === 'string' && isEquipmentItemId(itemId))
 	);
 }
 

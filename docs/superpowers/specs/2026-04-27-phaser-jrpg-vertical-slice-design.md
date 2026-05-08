@@ -329,4 +329,3 @@ The first playable build is successful if:
 - gain XP and level up at least once
 - save from the field and reload correctly
 - defeat a boss or elite that clearly ends the slice
-

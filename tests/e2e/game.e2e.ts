@@ -10,13 +10,13 @@ type GlieseProbeWindow = Window & {
 };
 
 test('game route boots', async ({ page }) => {
-	await page.goto('/game');
+	await page.goto('/');
 	await expect(page.locator('canvas')).toBeVisible();
 	await expect(page.getByRole('button', { name: 'Menu' })).toBeVisible();
 });
 
 test('inventory overlay opens from the menu', async ({ page }) => {
-	await page.goto('/game');
+	await page.goto('/');
 	await expect(page.locator('canvas')).toBeVisible();
 	await expect(page.getByRole('button', { name: 'Menu' })).toBeVisible();
 
@@ -57,7 +57,7 @@ test('inventory overlay opens from the menu', async ({ page }) => {
 });
 
 test('full hp potions explain why they cannot be consumed', async ({ page }) => {
-	await page.goto('/game');
+	await page.goto('/');
 	await expect(page.locator('canvas')).toBeVisible();
 	await expect(page.getByRole('button', { name: 'Menu' })).toBeVisible();
 
@@ -116,7 +116,7 @@ test('double-clicking unequipped equipment equips it from inventory', async ({ p
 	await page.addInitScript((encoded) => {
 		window.localStorage.setItem('gliese.save.v3', encoded);
 	}, JSON.stringify(save));
-	await page.goto('/game');
+	await page.goto('/');
 	await expect(page.locator('canvas')).toBeVisible();
 
 	await page.getByRole('button', { name: 'Menu' }).click();
@@ -178,7 +178,7 @@ test('shop overlay opens near a merchant and supports buying and selling', async
 		});
 		window.localStorage.setItem('gliese.save.v3', encoded);
 	}, JSON.stringify(save));
-	await page.goto('/game');
+	await page.goto('/');
 	await expect(page.locator('canvas')).toBeVisible();
 
 	await page.getByRole('button', { name: 'Menu' }).click();
@@ -277,7 +277,7 @@ test('interact key shop purchase appears in inventory', async ({ page }) => {
 		});
 		window.localStorage.setItem('gliese.save.v3', encoded);
 	}, JSON.stringify(save));
-	await page.goto('/game');
+	await page.goto('/');
 	await expect(page.locator('canvas')).toBeVisible();
 
 	await page.getByRole('button', { name: 'Menu' }).click();

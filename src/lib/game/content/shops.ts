@@ -1,8 +1,6 @@
 import type { DefinitionRegistry } from '$lib/game/core/types';
 
-export type ShopStockAvailability =
-	| { mode: 'unlimited' }
-	| { mode: 'finite'; quantity: number };
+export type ShopStockAvailability = { mode: 'unlimited' } | { mode: 'finite'; quantity: number };
 
 export type ShopStockEntry = {
 	id: string;

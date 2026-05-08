@@ -30,6 +30,7 @@
 ### Task 1: Generate And Verify Building Sheet
 
 **Files:**
+
 - Create: `static/game/assets/village-buildings.png`
 
 - [ ] **Step 1: Generate the building sheet**
@@ -89,6 +90,7 @@ git commit -m "Add village building sprite sheet"
 ### Task 2: Add Building Asset Metadata
 
 **Files:**
+
 - Modify: `src/lib/game/content/assets.ts`
 - Modify: `src/lib/game/content/assets.test.ts`
 
@@ -220,6 +222,7 @@ git commit -m "Add village building asset metadata"
 ### Task 3: Preload Building Sheet
 
 **Files:**
+
 - Modify: `src/lib/game/phaser/scenes/BootScene.ts`
 - Modify: `src/lib/game/phaser/scenes/scenes.test.ts`
 
@@ -228,9 +231,8 @@ git commit -m "Add village building asset metadata"
 In the `BootScene` test named `preloads the static and animation sheets`, update the asset import:
 
 ```ts
-const { animationPackAsset, starterPackAsset, villageBuildingAsset } = await import(
-	'$lib/game/content/assets'
-);
+const { animationPackAsset, starterPackAsset, villageBuildingAsset } =
+	await import('$lib/game/content/assets');
 ```
 
 Add this assertion after the existing preload assertions:
@@ -293,6 +295,7 @@ git commit -m "Preload village building sheet"
 ### Task 4: Render Building Images For Landmarks
 
 **Files:**
+
 - Modify: `src/lib/game/phaser/scenes/WorldScene.ts`
 - Modify: `src/lib/game/phaser/scenes/scenes.test.ts`
 
@@ -334,12 +337,22 @@ Add display-size assertions:
 
 ```ts
 const buildingMarkers = phaserState.imageMarkers.filter(
-	(marker) => marker.frame === 'heroHouse' || marker.frame === 'guildHall' || marker.frame === 'itemShop' || marker.frame === 'villagerHouse'
+	(marker) =>
+		marker.frame === 'heroHouse' ||
+		marker.frame === 'guildHall' ||
+		marker.frame === 'itemShop' ||
+		marker.frame === 'villagerHouse'
 );
 expect(buildingMarkers).toHaveLength(6);
-expect(buildingMarkers.find((marker) => marker.frame === 'heroHouse')?.setDisplaySize).toHaveBeenCalledWith(192, 128);
-expect(buildingMarkers.find((marker) => marker.frame === 'guildHall')?.setDisplaySize).toHaveBeenCalledWith(256, 160);
-expect(buildingMarkers.find((marker) => marker.frame === 'itemShop')?.setDisplaySize).toHaveBeenCalledWith(192, 128);
+expect(
+	buildingMarkers.find((marker) => marker.frame === 'heroHouse')?.setDisplaySize
+).toHaveBeenCalledWith(192, 128);
+expect(
+	buildingMarkers.find((marker) => marker.frame === 'guildHall')?.setDisplaySize
+).toHaveBeenCalledWith(256, 160);
+expect(
+	buildingMarkers.find((marker) => marker.frame === 'itemShop')?.setDisplaySize
+).toHaveBeenCalledWith(192, 128);
 ```
 
 - [ ] **Step 2: Run scene tests and verify landmark test fails**
@@ -427,6 +440,7 @@ git commit -m "Render village building landmark art"
 ### Task 5: Full Verification
 
 **Files:**
+
 - Modify only to fix verification failures in the files already touched by this plan.
 
 - [ ] **Step 1: Verify asset alpha**

@@ -5,7 +5,6 @@ node_modules
 .vercel
 .netlify
 .wrangler
-/.svelte-kit
 /build
 
 # OS
@@ -32,3 +31,7 @@ test-results
 
 # Claude Code local settings
 .claude/settings.local.json
+
+src-tauri/target/
+src-tauri/gen/
+dist/
