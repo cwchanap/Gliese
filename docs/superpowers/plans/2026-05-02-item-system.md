@@ -37,6 +37,7 @@
 ## Task 1: Item Content
 
 **Files:**
+
 - Create: `src/lib/game/content/items.ts`
 - Create: `src/lib/game/content/items.test.ts`
 
@@ -75,7 +76,9 @@ describe('item content', () => {
 
 	it('assigns equipment to valid slots', () => {
 		const slots = new Set(equipmentSlots);
-		for (const item of itemList.filter((entry): entry is EquipmentDefinition => entry.type === 'equipment')) {
+		for (const item of itemList.filter(
+			(entry): entry is EquipmentDefinition => entry.type === 'equipment'
+		)) {
 			expect(slots.has(item.slot)).toBe(true);
 		}
 	});
@@ -293,6 +296,7 @@ git commit -m "Add item content definitions"
 ## Task 2: Inventory Core
 
 **Files:**
+
 - Create: `src/lib/game/core/inventory.ts`
 - Create: `src/lib/game/core/inventory.test.ts`
 
@@ -307,13 +311,21 @@ import { addItem, consumeStackItem, createEmptyInventory, ownsEquipment } from '
 
 describe('inventory core', () => {
 	it('stacks consumables and key items', () => {
-		const inventory = addItem(addItem(createEmptyInventory(), 'field-potion', 2), 'field-potion', 1);
+		const inventory = addItem(
+			addItem(createEmptyInventory(), 'field-potion', 2),
+			'field-potion',
+			1
+		);
 
 		expect(inventory.stacks).toEqual([{ itemId: 'field-potion', quantity: 3 }]);
 	});
 
 	it('stores equipment ownership by id once', () => {
-		const inventory = addItem(addItem(createEmptyInventory(), 'training-sword', 1), 'training-sword', 1);
+		const inventory = addItem(
+			addItem(createEmptyInventory(), 'training-sword', 1),
+			'training-sword',
+			1
+		);
 
 		expect(inventory.equipment).toEqual(['training-sword']);
 		expect(ownsEquipment(inventory, 'training-sword')).toBe(true);
@@ -326,7 +338,12 @@ describe('inventory core', () => {
 			consumed: true,
 			inventory: { stacks: [{ itemId: 'field-potion', quantity: 1 }], equipment: [] }
 		});
-		expect(consumeStackItem({ stacks: [{ itemId: 'field-potion', quantity: 1 }], equipment: [] }, 'field-potion')).toEqual({
+		expect(
+			consumeStackItem(
+				{ stacks: [{ itemId: 'field-potion', quantity: 1 }], equipment: [] },
+				'field-potion'
+			)
+		).toEqual({
 			consumed: true,
 			inventory: { stacks: [], equipment: [] }
 		});
@@ -368,11 +385,7 @@ export function createEmptyInventory(): InventoryState {
 	return { stacks: [], equipment: [] };
 }
 
-export function addItem(
-	inventory: InventoryState,
-	itemId: string,
-	quantity = 1
-): InventoryState {
+export function addItem(inventory: InventoryState, itemId: string, quantity = 1): InventoryState {
 	const item = getItem(itemId);
 
 	if (!item || quantity < 1) {
@@ -436,6 +449,7 @@ git commit -m "Add inventory core"
 ## Task 3: Equipment And Effective Stats
 
 **Files:**
+
 - Create: `src/lib/game/core/equipment.ts`
 - Create: `src/lib/game/core/equipment.test.ts`
 - Create: `src/lib/game/core/stats.ts`
@@ -468,11 +482,17 @@ describe('equipment core', () => {
 
 	it('rejects unowned or non-equipment items', () => {
 		expect(equipItem(createEmptyEquipment(), [], 'training-sword').equipped).toBe(false);
-		expect(equipItem(createEmptyEquipment(), ['field-potion'], 'field-potion').equipped).toBe(false);
+		expect(equipItem(createEmptyEquipment(), ['field-potion'], 'field-potion').equipped).toBe(
+			false
+		);
 	});
 
 	it('replaces equipment in the same slot and unequips slots', () => {
-		const first = equipItem(createEmptyEquipment(), ['training-sword', 'ruin-blade'], 'training-sword');
+		const first = equipItem(
+			createEmptyEquipment(),
+			['training-sword', 'ruin-blade'],
+			'training-sword'
+		);
 		const second = equipItem(first.equipment, ['training-sword', 'ruin-blade'], 'ruin-blade');
 
 		expect(second.equipment.weapon).toBe('ruin-blade');
@@ -615,6 +635,7 @@ git commit -m "Add equipment stat rules"
 ## Task 4: Loot Tables
 
 **Files:**
+
 - Create: `src/lib/game/core/loot.ts`
 - Create: `src/lib/game/core/loot.test.ts`
 - Modify: `src/lib/game/content/enemies.ts`
@@ -752,6 +773,7 @@ git commit -m "Add item loot tables"
 ## Task 5: Save Schema V2
 
 **Files:**
+
 - Modify: `src/lib/game/save/save-state.ts`
 - Modify: `src/lib/game/save/save-state.test.ts`
 - Modify: `src/lib/game/save/storage.test.ts`
@@ -970,6 +992,7 @@ git commit -m "Upgrade saves for item state"
 ## Task 6: Map Pickups
 
 **Files:**
+
 - Modify: `src/lib/game/content/maps.ts`
 - Modify: `src/lib/game/content/maps.test.ts`
 
@@ -987,7 +1010,9 @@ it('defines valid placed pickups with stable ids and item ids', () => {
 	expect(new Set(pickups.map((pickup) => pickup.id)).size).toBe(pickups.length);
 
 	for (const pickup of pickups) {
-		const map = Object.values(maps).find((entry) => entry.pickups?.some((candidate) => candidate.id === pickup.id));
+		const map = Object.values(maps).find((entry) =>
+			entry.pickups?.some((candidate) => candidate.id === pickup.id)
+		);
 		expect(items[pickup.itemId]).toBeDefined();
 		expect(pickup.quantity).toBeGreaterThan(0);
 		expect(pickup.x).toBeGreaterThanOrEqual(0);
@@ -1036,7 +1061,7 @@ pickups: [
 	{ id: 'meadow-entry-potion', x: 512, y: 1_184, itemId: 'field-potion', quantity: 2 },
 	{ id: 'meadow-entry-charm', x: 896, y: 1_408, itemId: 'meadow-charm', quantity: 1 },
 	{ id: 'meadow-entry-token', x: 1_024, y: 1_152, itemId: 'meadow-token', quantity: 1 }
-]
+];
 ```
 
 ```ts
@@ -1044,14 +1069,14 @@ pickups: [
 	{ id: 'ruins-threshold-cap', x: 416, y: 352, itemId: 'iron-cap', quantity: 1 },
 	{ id: 'ruins-threshold-rune', x: 576, y: 608, itemId: 'threshold-rune', quantity: 1 },
 	{ id: 'ruins-threshold-salve', x: 320, y: 640, itemId: 'sunleaf-salve', quantity: 2 }
-]
+];
 ```
 
 ```ts
 pickups: [
 	{ id: 'ruins-core-mail', x: 448, y: 608, itemId: 'stone-mail', quantity: 1 },
 	{ id: 'ruins-core-draught', x: 544, y: 352, itemId: 'ruin-draught', quantity: 1 }
-]
+];
 ```
 
 - [ ] **Step 4: Run test to verify it passes**
@@ -1070,6 +1095,7 @@ git commit -m "Add placed item pickups"
 ## Task 7: Typed HUD Bridge
 
 **Files:**
+
 - Modify: `src/lib/game/ui-bridge/events.ts`
 - Modify: `src/lib/game/ui-bridge/store.ts`
 
@@ -1197,6 +1223,7 @@ Do not commit this task until Task 8 passes `bun run check`; the bridge and scen
 ## Task 8: WorldScene Item State And Commands
 
 **Files:**
+
 - Modify: `src/lib/game/phaser/scenes/WorldScene.ts`
 - Modify: `src/lib/game/phaser/scenes/scenes.test.ts`
 - Continue: `src/lib/game/ui-bridge/events.ts`
@@ -1256,7 +1283,12 @@ Modify imports in `WorldScene.ts`:
 
 ```ts
 import { getItem, itemList, type EquipmentSlot } from '$lib/game/content/items';
-import { createEmptyEquipment, equipItem, unequipSlot, type EquipmentState } from '$lib/game/core/equipment';
+import {
+	createEmptyEquipment,
+	equipItem,
+	unequipSlot,
+	type EquipmentState
+} from '$lib/game/core/equipment';
 import { addItem, consumeStackItem, type InventoryState } from '$lib/game/core/inventory';
 import { resolveLootDrops, type ItemDrop } from '$lib/game/core/loot';
 import { clampHpToMax, deriveEffectiveStats } from '$lib/game/core/stats';
@@ -1424,7 +1456,9 @@ private getMaxHp() {
 Use `this.getEffectiveStats().attack` for player damage and `this.getEffectiveStats().defense` when resolving enemy hits:
 
 ```ts
-{ power: this.getEffectiveStats().attack }
+{
+	power: this.getEffectiveStats().attack;
+}
 ```
 
 ```ts
@@ -1527,6 +1561,7 @@ git commit -m "Wire item state into game scene"
 ## Task 9: Pickup Collection And Encounter Drops
 
 **Files:**
+
 - Modify: `src/lib/game/phaser/scenes/WorldScene.ts`
 - Modify: `src/lib/game/phaser/scenes/scenes.test.ts`
 
@@ -1549,7 +1584,9 @@ it('renders and collects uncollected map pickups', async () => {
 	scene.update(0, 16);
 
 	expect(sceneState.inventory.stacks).toContainEqual({ itemId: 'field-potion', quantity: 3 });
-	expect(emitHudStateSpy).toHaveBeenLastCalledWith(expect.objectContaining({ status: 'Found Field Potion' }));
+	expect(emitHudStateSpy).toHaveBeenLastCalledWith(
+		expect.objectContaining({ status: 'Found Field Potion' })
+	);
 });
 
 it('awards encounter drops once when an enemy is defeated', async () => {
@@ -1710,6 +1747,7 @@ git commit -m "Add pickup collection and encounter drops"
 ## Task 10: Inventory Overlay UI
 
 **Files:**
+
 - Modify: `src/lib/game/GameShell.svelte`
 
 - [ ] **Step 1: Discover Svelte docs for overlay work**
@@ -1721,18 +1759,15 @@ Use the Svelte MCP `list-sections` first, then fetch relevant Svelte 5 documenta
 Modify `src/lib/game/GameShell.svelte` imports:
 
 ```svelte
-import {
-	hudState,
-	requestEquipItem,
-	requestHeal,
-	requestPauseGame,
-	requestResume,
-	requestResumeGame,
-	requestSave,
-	requestUnequipSlot,
-	requestUseItem
-} from '$lib/game/ui-bridge/store';
-import type { EquipmentSlot } from '$lib/game/content/items';
+import {(hudState,
+requestEquipItem,
+requestHeal,
+requestPauseGame,
+requestResume,
+requestResumeGame,
+requestSave,
+requestUnequipSlot,
+requestUseItem)} from '$lib/game/ui-bridge/store'; import type {EquipmentSlot} from '$lib/game/content/items';
 ```
 
 Add state:
@@ -1777,7 +1812,7 @@ Inside the settings menu action grid, add:
 ```svelte
 <button
 	type="button"
-	class="hud-action rounded-[1.1rem] border border-emerald-200/20 bg-[linear-gradient(135deg,rgba(24,92,68,0.95),rgba(12,42,36,0.92))] px-4 py-3 text-sm font-black uppercase tracking-[0.24em] text-emerald-50 transition hover:-translate-y-0.5 hover:border-emerald-200/45 hover:shadow-[0_15px_30px_rgba(74,255,172,0.2)] disabled:translate-y-0 disabled:cursor-not-allowed disabled:opacity-45"
+	class="hud-action rounded-[1.1rem] border border-emerald-200/20 bg-[linear-gradient(135deg,rgba(24,92,68,0.95),rgba(12,42,36,0.92))] px-4 py-3 text-sm font-black tracking-[0.24em] text-emerald-50 uppercase transition hover:-translate-y-0.5 hover:border-emerald-200/45 hover:shadow-[0_15px_30px_rgba(74,255,172,0.2)] disabled:translate-y-0 disabled:cursor-not-allowed disabled:opacity-45"
 	onclick={openInventory}
 	disabled={!$hudState.ready}
 >
@@ -1959,6 +1994,7 @@ git commit -m "Add inventory equipment overlay"
 ## Task 11: End-To-End Verification
 
 **Files:**
+
 - Modify: `src/routes/game/page.svelte.e2e.ts`
 
 - [ ] **Step 1: Add e2e coverage**

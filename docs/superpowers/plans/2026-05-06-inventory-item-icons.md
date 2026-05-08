@@ -24,6 +24,7 @@
 ## Task 1: Icon Metadata And Asset Contract
 
 **Files:**
+
 - Modify: `src/lib/game/content/items.ts`
 - Modify: `src/lib/game/content/items.test.ts`
 - Create: `static/game/assets/items/*.png`
@@ -40,22 +41,22 @@ import { resolve } from 'node:path';
 Add this test inside `describe('item content', () => { ... })`:
 
 ```ts
-	it('defines a 96x96 transparent PNG icon for every item', () => {
-		for (const item of itemList) {
-			expect(item.iconPath).toBe(`/game/assets/items/${item.id}.png`);
+it('defines a 96x96 transparent PNG icon for every item', () => {
+	for (const item of itemList) {
+		expect(item.iconPath).toBe(`/game/assets/items/${item.id}.png`);
 
-			const iconPath = resolve('static', item.iconPath.replace('/game/', 'game/'));
-			expect(existsSync(iconPath), `${item.id} icon should exist`).toBe(true);
+		const iconPath = resolve('static', item.iconPath.replace('/game/', 'game/'));
+		expect(existsSync(iconPath), `${item.id} icon should exist`).toBe(true);
 
-			const bytes = readFileSync(iconPath);
-			expect(bytes.subarray(0, 8)).toEqual(
-				Uint8Array.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a])
-			);
-			expect(bytes.readUInt32BE(16), `${item.id} icon width`).toBe(96);
-			expect(bytes.readUInt32BE(20), `${item.id} icon height`).toBe(96);
-			expect(bytes[25], `${item.id} icon color type`).toBe(6);
-		}
-	});
+		const bytes = readFileSync(iconPath);
+		expect(bytes.subarray(0, 8)).toEqual(
+			Uint8Array.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a])
+		);
+		expect(bytes.readUInt32BE(16), `${item.id} icon width`).toBe(96);
+		expect(bytes.readUInt32BE(20), `${item.id} icon height`).toBe(96);
+		expect(bytes[25], `${item.id} icon color type`).toBe(6);
+	}
+});
 ```
 
 - [ ] **Step 2: Run the focused test and verify RED**
@@ -122,6 +123,7 @@ Expected: PASS.
 ## Task 2: HUD Bridge Icon Paths
 
 **Files:**
+
 - Modify: `src/lib/game/ui-bridge/events.ts`
 - Modify: `src/lib/game/phaser/scenes/WorldScene.ts`
 - Modify: `src/lib/game/phaser/scenes/scenes.test.ts`
@@ -221,6 +223,7 @@ Expected: PASS.
 ## Task 3: Inventory UI Images, Double-Click, And Tooltip
 
 **Files:**
+
 - Modify: `src/lib/game/GameShell.svelte`
 - Modify: `src/routes/game/page.svelte.e2e.ts`
 
@@ -279,33 +282,34 @@ Expected: FAIL because current slots have inline descriptions and `Use`/`Equip` 
 In `src/lib/game/GameShell.svelte`, add tooltip state and helpers:
 
 ```ts
-	let hoveredInventoryItem = $state<InventorySlotItem | null>(null);
+let hoveredInventoryItem = $state<InventorySlotItem | null>(null);
 
-	function showInventoryTooltip(slot: InventorySlotItem) {
-		hoveredInventoryItem = slot;
-	}
+function showInventoryTooltip(slot: InventorySlotItem) {
+	hoveredInventoryItem = slot;
+}
 
-	function hideInventoryTooltip() {
-		hoveredInventoryItem = null;
-	}
+function hideInventoryTooltip() {
+	hoveredInventoryItem = null;
+}
 
-	function getInventoryTooltipMeta(slot: InventorySlotItem): string {
-		if (slot.kind === 'consumable') return `x${slot.item.quantity}`;
-		if (slot.kind === 'keyItem') return slot.item.quantity > 1 ? `Key x${slot.item.quantity}` : 'Key item';
+function getInventoryTooltipMeta(slot: InventorySlotItem): string {
+	if (slot.kind === 'consumable') return `x${slot.item.quantity}`;
+	if (slot.kind === 'keyItem')
+		return slot.item.quantity > 1 ? `Key x${slot.item.quantity}` : 'Key item';
 
-		const modifiers = Object.entries(slot.item.modifiers)
-			.filter(([, value]) => value !== undefined && value !== 0)
-			.map(([stat, value]) => `${stat.toUpperCase()} +${value}`)
-			.join(' / ');
+	const modifiers = Object.entries(slot.item.modifiers)
+		.filter(([, value]) => value !== undefined && value !== 0)
+		.map(([stat, value]) => `${stat.toUpperCase()} +${value}`)
+		.join(' / ');
 
-		return modifiers ? `${slot.item.slot} / ${modifiers}` : slot.item.slot;
-	}
+	return modifiers ? `${slot.item.slot} / ${modifiers}` : slot.item.slot;
+}
 
-	function activateInventorySlot(slot: InventorySlotItem) {
-		if (!$hudState.ready) return;
-		if (slot.kind === 'consumable') requestUseItem(slot.item.itemId);
-		if (slot.kind === 'equipment' && !slot.item.equipped) requestEquipItem(slot.item.itemId);
-	}
+function activateInventorySlot(slot: InventorySlotItem) {
+	if (!$hudState.ready) return;
+	if (slot.kind === 'consumable') requestUseItem(slot.item.itemId);
+	if (slot.kind === 'equipment' && !slot.item.equipped) requestEquipItem(slot.item.itemId);
+}
 ```
 
 - [ ] **Step 5: Replace occupied slot markup**
@@ -324,7 +328,10 @@ Add a floating tooltip near the inventory grid:
 
 ```svelte
 {#if hoveredInventoryItem}
-	<div role="tooltip" class="pointer-events-none absolute right-4 bottom-4 z-20 max-w-[18rem] rounded-[0.95rem] border border-white/12 bg-slate-950/95 px-3 py-2 text-sm text-slate-100 shadow-[0_18px_50px_rgba(0,0,0,0.45)]">
+	<div
+		role="tooltip"
+		class="pointer-events-none absolute right-4 bottom-4 z-20 max-w-[18rem] rounded-[0.95rem] border border-white/12 bg-slate-950/95 px-3 py-2 text-sm text-slate-100 shadow-[0_18px_50px_rgba(0,0,0,0.45)]"
+	>
 		<p class="text-[0.68rem] font-black tracking-[0.2em] text-cyan-100/72 uppercase">
 			{hoveredInventoryItem.item.name}
 		</p>
@@ -353,6 +360,7 @@ Expected: PASS.
 ## Task 4: Final Verification
 
 **Files:**
+
 - Verify all touched files.
 
 - [ ] **Step 1: Run focused unit tests**

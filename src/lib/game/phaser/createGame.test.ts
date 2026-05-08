@@ -1,6 +1,5 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-const environmentState = vi.hoisted(() => ({ browser: true }));
 const phaserState = vi.hoisted(() => {
 	const destroyMock = vi.fn();
 	const gameMock = vi.fn();
@@ -20,7 +19,6 @@ const phaserState = vi.hoisted(() => {
 	return { destroyMock, gameMock, SceneMock, GameMock };
 });
 
-vi.mock('$app/environment', () => environmentState);
 vi.mock('phaser', () => {
 	const runtime = {
 		AUTO: 'AUTO',
@@ -38,15 +36,28 @@ vi.mock('phaser', () => {
 	};
 });
 
+const ORIGINAL_WINDOW_DESCRIPTOR = Object.getOwnPropertyDescriptor(globalThis, 'window');
+
 describe('createGame', () => {
 	beforeEach(() => {
-		environmentState.browser = true;
 		phaserState.destroyMock.mockClear();
 		phaserState.gameMock.mockClear();
 		vi.resetModules();
 	});
 
+	afterEach(() => {
+		if (ORIGINAL_WINDOW_DESCRIPTOR) {
+			Object.defineProperty(globalThis, 'window', ORIGINAL_WINDOW_DESCRIPTOR);
+		} else {
+			delete (globalThis as { window?: unknown }).window;
+		}
+	});
+
 	it('returns a destroyable browser game wrapper', async () => {
+		Object.defineProperty(globalThis, 'window', {
+			configurable: true,
+			value: {}
+		});
 		const { createGame } = await import('./createGame');
 		const { BootScene } = await import('$lib/game/phaser/scenes/BootScene');
 		const { WorldScene } = await import('$lib/game/phaser/scenes/WorldScene');
@@ -73,7 +84,7 @@ describe('createGame', () => {
 	});
 
 	it('throws when called outside the browser', async () => {
-		environmentState.browser = false;
+		delete (globalThis as { window?: unknown }).window;
 		const { createGame } = await import('./createGame');
 		const mountNode = { id: 'mount-node' } as HTMLElement;
 

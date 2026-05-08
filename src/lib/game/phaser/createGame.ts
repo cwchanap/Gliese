@@ -1,11 +1,10 @@
-import { browser } from '$app/environment';
 import { BootScene } from '$lib/game/phaser/scenes/BootScene';
 import { WorldScene } from '$lib/game/phaser/scenes/WorldScene';
 
 type PhaserModule = typeof import('phaser');
 
 export async function createGame(target: HTMLElement) {
-	if (!browser) {
+	if (typeof window === 'undefined') {
 		throw new Error('createGame must run in the browser');
 	}
 

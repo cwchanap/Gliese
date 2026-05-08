@@ -16,11 +16,7 @@
 		requestUseItem
 	} from '$lib/game/ui-bridge/store';
 	import type { EquipmentSlot } from '$lib/game/content/items';
-	import type {
-		HudEquipmentItem,
-		HudInventoryStack,
-		HudKeyItem
-	} from '$lib/game/ui-bridge/events';
+	import type { HudEquipmentItem, HudInventoryStack, HudKeyItem } from '$lib/game/ui-bridge/events';
 	import type { HudShopBuyEntry, HudShopSellEntry } from '$lib/game/core/shop';
 
 	type InventoryTab = 'consumables' | 'equipment' | 'keyItems';
@@ -340,8 +336,7 @@
 
 	function getInventoryGridSlots(tab: InventoryTab): Array<InventorySlotItem | null> {
 		const items = getInventoryGridItems(tab);
-		const overflowSlotCount =
-			Math.ceil(items.length / inventoryGridColumns) * inventoryGridColumns;
+		const overflowSlotCount = Math.ceil(items.length / inventoryGridColumns) * inventoryGridColumns;
 		const slotCount = Math.max(inventorySlotCount, overflowSlotCount);
 
 		return Array.from({ length: slotCount }, (_, index) => items[index] ?? null);
@@ -394,7 +389,8 @@
 
 	function getInventoryTooltipMeta(slot: InventorySlotItem): string {
 		if (slot.kind === 'consumable') return `x${slot.item.quantity}`;
-		if (slot.kind === 'keyItem') return slot.item.quantity > 1 ? `Key x${slot.item.quantity}` : 'Key item';
+		if (slot.kind === 'keyItem')
+			return slot.item.quantity > 1 ? `Key x${slot.item.quantity}` : 'Key item';
 
 		const modifiers = Object.entries(slot.item.modifiers)
 			.filter(([, value]) => value !== undefined && value !== 0)
@@ -459,7 +455,9 @@
 	}
 
 	function getShopBuyStockText(item: HudShopBuyEntry): string {
-		return item.availability.mode === 'unlimited' ? 'Unlimited' : `${item.availability.remaining} left`;
+		return item.availability.mode === 'unlimited'
+			? 'Unlimited'
+			: `${item.availability.remaining} left`;
 	}
 
 	function getShopBuyMeta(item: HudShopBuyEntry): string {
@@ -866,7 +864,6 @@
 								{/each}
 							</div>
 						</div>
-
 					</div>
 
 					<aside class="grid gap-3 lg:min-h-0 lg:grid-rows-[auto_minmax(0,1fr)]">
@@ -881,7 +878,9 @@
 									<p class="text-[0.58rem] font-black tracking-[0.22em] text-rose-50/64 uppercase">
 										HP
 									</p>
-									<p class="mt-0.5 text-base font-black text-white">{$hudState.hp}/{$hudState.maxHp}</p>
+									<p class="mt-0.5 text-base font-black text-white">
+										{$hudState.hp}/{$hudState.maxHp}
+									</p>
 								</div>
 								<div
 									class="rounded-[0.95rem] border border-cyan-100/12 bg-cyan-100/8 px-2 py-2 text-center"
@@ -908,7 +907,9 @@
 							<p class="text-[0.62rem] font-black tracking-[0.28em] text-cyan-100/64 uppercase">
 								Equipped
 							</p>
-							<div class="mt-2 grid grid-cols-2 gap-2 lg:max-h-full lg:grid-cols-1 lg:overflow-y-auto">
+							<div
+								class="mt-2 grid grid-cols-2 gap-2 lg:max-h-full lg:grid-cols-1 lg:overflow-y-auto"
+							>
 								{#each equipmentSlots as entry}
 									{@const equippedItemId = $hudState.inventory.equipped[entry.slot]}
 									{@const equippedItem = $hudState.inventory.equipment.find(
@@ -954,7 +955,9 @@
 								{hoveredInventoryItem.item.name}
 							</p>
 							<p class="mt-1 text-slate-100/88">{hoveredInventoryItem.item.description}</p>
-							<p class="mt-1 text-[0.62rem] font-black tracking-[0.18em] text-slate-300/70 uppercase">
+							<p
+								class="mt-1 text-[0.62rem] font-black tracking-[0.18em] text-slate-300/70 uppercase"
+							>
 								{getInventoryTooltipMeta(hoveredInventoryItem)}
 							</p>
 						</div>
@@ -1146,7 +1149,9 @@
 								{hoveredShopBuyItem.name}
 							</p>
 							<p class="mt-1 text-slate-100/88">{hoveredShopBuyItem.description}</p>
-							<p class="mt-1 text-[0.62rem] font-black tracking-[0.18em] text-slate-300/70 uppercase">
+							<p
+								class="mt-1 text-[0.62rem] font-black tracking-[0.18em] text-slate-300/70 uppercase"
+							>
 								Buy for {getShopBuyMeta(hoveredShopBuyItem)}
 							</p>
 						</div>
@@ -1161,7 +1166,9 @@
 								{hoveredShopSellItem.name}
 							</p>
 							<p class="mt-1 text-slate-100/88">{hoveredShopSellItem.description}</p>
-							<p class="mt-1 text-[0.62rem] font-black tracking-[0.18em] text-slate-300/70 uppercase">
+							<p
+								class="mt-1 text-[0.62rem] font-black tracking-[0.18em] text-slate-300/70 uppercase"
+							>
 								Sell for {getShopSellMeta(hoveredShopSellItem)}
 							</p>
 						</div>

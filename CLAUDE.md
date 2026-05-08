@@ -40,6 +40,7 @@ bun run test:e2e -- --grep "game route boots"
 ```
 
 **Test split in `vite.config.ts`:**
+
 - `*.svelte.{test,spec}.ts` → `client` project, runs in Chromium via vitest-browser-svelte
 - `*.{test,spec}.ts` (non-svelte) → `server` project, runs in node
 - `*.e2e.ts` → Playwright, needs dev server on port 4173 (`playwright.config.ts` spins one up automatically)
@@ -84,11 +85,11 @@ Phaser and SvelteKit communicate exclusively through custom `window` events (def
 
 ### Routing
 
-| Path | Description |
-|---|---|
-| `/` | SvelteKit home page |
-| `/game` | Game route — renders `GameShell.svelte` |
-| `/demo/playwright` | Playwright smoke test fixture |
+| Path               | Description                             |
+| ------------------ | --------------------------------------- |
+| `/`                | SvelteKit home page                     |
+| `/game`            | Game route — renders `GameShell.svelte` |
+| `/demo/playwright` | Playwright smoke test fixture           |
 
 ### Repo-level docs
 
@@ -102,13 +103,17 @@ Phaser and SvelteKit communicate exclusively through custom `window` events (def
 You have access to comprehensive Svelte 5 and SvelteKit documentation via the Svelte MCP server.
 
 ### 1. `list-sections`
+
 Use this **first** to discover all available documentation sections. When asked about Svelte or SvelteKit topics, always call this at the start to find relevant sections.
 
 ### 2. `get-documentation`
+
 After calling `list-sections`, analyze the `use_cases` field and fetch **all** relevant sections.
 
 ### 3. `svelte-autofixer`
+
 Analyzes Svelte code for issues. **Must** be called whenever you write Svelte code before sending it to the user. Keep calling until no issues are returned.
 
 ### 4. `playground-link`
+
 Generates a Svelte Playground link. Only call after user confirmation, and **never** when code was written to project files.

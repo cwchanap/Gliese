@@ -1356,7 +1356,10 @@ export class WorldScene extends Phaser.Scene {
 			return [bounds];
 		}
 
-		const doorLeft = Math.max(bounds.left, doorway.x - WorldScene.landmarkDoorwayClearanceWidth / 2);
+		const doorLeft = Math.max(
+			bounds.left,
+			doorway.x - WorldScene.landmarkDoorwayClearanceWidth / 2
+		);
 		const doorRight = Math.min(
 			bounds.right,
 			doorway.x + WorldScene.landmarkDoorwayClearanceWidth / 2
@@ -1417,12 +1420,7 @@ export class WorldScene extends Phaser.Scene {
 		);
 	}
 
-	private isPointInsideRect(
-		x: number,
-		y: number,
-		rect: CollisionRect,
-		padding: number
-	) {
+	private isPointInsideRect(x: number, y: number, rect: CollisionRect, padding: number) {
 		return (
 			x >= rect.left - padding &&
 			x <= rect.right + padding &&
@@ -1431,11 +1429,7 @@ export class WorldScene extends Phaser.Scene {
 		);
 	}
 
-	private getPointDistanceFromBoundsCenter(
-		x: number,
-		y: number,
-		bounds: LandmarkCollisionBounds
-	) {
+	private getPointDistanceFromBoundsCenter(x: number, y: number, bounds: LandmarkCollisionBounds) {
 		const offsetX = x - bounds.centerX;
 		const offsetY = y - bounds.centerY;
 

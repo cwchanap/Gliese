@@ -20,6 +20,7 @@
 ## Task 1: Interact Key Opens Dialogue And Shops
 
 **Files:**
+
 - Modify: `src/lib/game/phaser/scenes/scenes.test.ts`
 - Modify: `src/lib/game/phaser/scenes/WorldScene.ts`
 - Modify: `src/lib/game/GameShell.svelte`
@@ -29,31 +30,31 @@
 In `src/lib/game/phaser/scenes/scenes.test.ts`, add interact key state beside `cursorKeys` and `wasdKeys`:
 
 ```ts
-	const interactKeys = {
-		e: { isDown: false, justDown: false },
-		space: { isDown: false, justDown: false },
-		enter: { isDown: false, justDown: false }
-	};
+const interactKeys = {
+	e: { isDown: false, justDown: false },
+	space: { isDown: false, justDown: false },
+	enter: { isDown: false, justDown: false }
+};
 
-	function getInteractKey(code: string) {
-		if (code === 'E') return interactKeys.e;
-		if (code === 'SPACE') return interactKeys.space;
-		if (code === 'ENTER') return interactKeys.enter;
+function getInteractKey(code: string) {
+	if (code === 'E') return interactKeys.e;
+	if (code === 'SPACE') return interactKeys.space;
+	if (code === 'ENTER') return interactKeys.enter;
 
-		throw new Error(`Unexpected key code ${code}`);
-	}
+	throw new Error(`Unexpected key code ${code}`);
+}
 ```
 
 Change the keyboard mock in `SceneMock` to return those keys:
 
 ```ts
-		input = {
-			keyboard: {
-				createCursorKeys: vi.fn(() => cursorKeys),
-				addKeys: vi.fn(() => wasdKeys),
-				addKey: vi.fn((code: string) => getInteractKey(code))
-			}
-		};
+input = {
+	keyboard: {
+		createCursorKeys: vi.fn(() => cursorKeys),
+		addKeys: vi.fn(() => wasdKeys),
+		addKey: vi.fn((code: string) => getInteractKey(code))
+	}
+};
 ```
 
 Expose `interactKeys` from `phaserState`:
@@ -84,9 +85,9 @@ Extend the mocked Phaser keyboard API:
 Reset interact key state in the `WorldScene` `beforeEach` block:
 
 ```ts
-		Object.assign(phaserState.interactKeys.e, { isDown: false, justDown: false });
-		Object.assign(phaserState.interactKeys.space, { isDown: false, justDown: false });
-		Object.assign(phaserState.interactKeys.enter, { isDown: false, justDown: false });
+Object.assign(phaserState.interactKeys.e, { isDown: false, justDown: false });
+Object.assign(phaserState.interactKeys.space, { isDown: false, justDown: false });
+Object.assign(phaserState.interactKeys.enter, { isDown: false, justDown: false });
 ```
 
 - [ ] **Step 2: Add failing tests for key registration and key-triggered interaction**
@@ -94,61 +95,61 @@ Reset interact key state in the `WorldScene` `beforeEach` block:
 In `src/lib/game/phaser/scenes/scenes.test.ts`, update `sets up camera follow and keyboard controls for the player marker` with these assertions:
 
 ```ts
-		expect(scene.input.keyboard?.addKey).toHaveBeenCalledWith('E');
-		expect(scene.input.keyboard?.addKey).toHaveBeenCalledWith('SPACE');
-		expect(scene.input.keyboard?.addKey).toHaveBeenCalledWith('ENTER');
+expect(scene.input.keyboard?.addKey).toHaveBeenCalledWith('E');
+expect(scene.input.keyboard?.addKey).toHaveBeenCalledWith('SPACE');
+expect(scene.input.keyboard?.addKey).toHaveBeenCalledWith('ENTER');
 ```
 
 Add these tests near the existing NPC/shop tests:
 
 ```ts
-	it('repeats nearby NPC dialogue when an interact key is pressed', async () => {
-		const events = await import('$lib/game/ui-bridge/events');
-		const emitHudStateSpy = vi.spyOn(events, 'emitHudState');
-		const { WorldScene } = await import('./WorldScene');
-		const scene = new WorldScene();
+it('repeats nearby NPC dialogue when an interact key is pressed', async () => {
+	const events = await import('$lib/game/ui-bridge/events');
+	const emitHudStateSpy = vi.spyOn(events, 'emitHudState');
+	const { WorldScene } = await import('./WorldScene');
+	const scene = new WorldScene();
 
-		scene.create({ mapId: 'guild-hall' });
-		Object.assign(phaserState.playerMarker, { x: 256, y: 144 });
-		scene.update(0, 16);
-		emitHudStateSpy.mockClear();
+	scene.create({ mapId: 'guild-hall' });
+	Object.assign(phaserState.playerMarker, { x: 256, y: 144 });
+	scene.update(0, 16);
+	emitHudStateSpy.mockClear();
 
-		phaserState.interactKeys.e.justDown = true;
-		scene.update(16, 16);
+	phaserState.interactKeys.e.justDown = true;
+	scene.update(16, 16);
 
-		expect(emitHudStateSpy).toHaveBeenCalledOnce();
-		expect(emitHudStateSpy).toHaveBeenLastCalledWith(
-			expect.objectContaining({
-				status:
-					'Guild Clerk: Morning. The ruins survey is posted; take the east road when you are ready.'
+	expect(emitHudStateSpy).toHaveBeenCalledOnce();
+	expect(emitHudStateSpy).toHaveBeenLastCalledWith(
+		expect.objectContaining({
+			status:
+				'Guild Clerk: Morning. The ruins survey is posted; take the east road when you are ready.'
+		})
+	);
+});
+
+it('opens a nearby shop when an interact key is pressed', async () => {
+	const events = await import('$lib/game/ui-bridge/events');
+	const emitHudStateSpy = vi.spyOn(events, 'emitHudState');
+	const { WorldScene } = await import('./WorldScene');
+	const scene = new WorldScene();
+
+	scene.create({ mapId: 'item-shop' });
+	Object.assign(phaserState.playerMarker, { x: 256, y: 144 });
+	scene.update(0, 16);
+	emitHudStateSpy.mockClear();
+
+	phaserState.interactKeys.space.justDown = true;
+	scene.update(16, 16);
+
+	expect(emitHudStateSpy).toHaveBeenLastCalledWith(
+		expect.objectContaining({
+			status: 'Shop opened',
+			shop: expect.objectContaining({
+				shopId: 'miras-item-shop',
+				merchantName: 'Mira'
 			})
-		);
-	});
-
-	it('opens a nearby shop when an interact key is pressed', async () => {
-		const events = await import('$lib/game/ui-bridge/events');
-		const emitHudStateSpy = vi.spyOn(events, 'emitHudState');
-		const { WorldScene } = await import('./WorldScene');
-		const scene = new WorldScene();
-
-		scene.create({ mapId: 'item-shop' });
-		Object.assign(phaserState.playerMarker, { x: 256, y: 144 });
-		scene.update(0, 16);
-		emitHudStateSpy.mockClear();
-
-		phaserState.interactKeys.space.justDown = true;
-		scene.update(16, 16);
-
-		expect(emitHudStateSpy).toHaveBeenLastCalledWith(
-			expect.objectContaining({
-				status: 'Shop opened',
-				shop: expect.objectContaining({
-					shopId: 'miras-item-shop',
-					merchantName: 'Mira'
-				})
-			})
-		);
-	});
+		})
+	);
+});
 ```
 
 - [ ] **Step 3: Run the scene tests to verify the interaction tests fail**
@@ -180,20 +181,20 @@ Add the interact key field near the movement key fields:
 In `create`, after `this.wasdKeys = ...`, add:
 
 ```ts
-		const keyboard = this.input?.keyboard;
-		this.interactKeys = keyboard
-			? [
-					keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.E),
-					keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.SPACE),
-					keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.ENTER)
-				]
-			: [];
+const keyboard = this.input?.keyboard;
+this.interactKeys = keyboard
+	? [
+			keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.E),
+			keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.SPACE),
+			keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.ENTER)
+		]
+	: [];
 ```
 
 In `update`, after `this.updateNpcDialogue();`, add:
 
 ```ts
-		this.handleInteractInput();
+this.handleInteractInput();
 ```
 
 Add these methods near `updateNpcDialogue`:
@@ -248,22 +249,20 @@ Add these methods near `updateNpcDialogue`:
 Replace the duplicated nearby NPC search in `updateNpcDialogue`:
 
 ```ts
-		const map = this.resolveMap(this.mapId);
-		const nearbyNpc = (map.npcs ?? [])
-			.map((npc) => ({
-				npc,
-				distance: Phaser.Math.Distance.Between(this.player!.x, this.player!.y, npc.x, npc.y)
-			}))
-			.filter(
-				({ distance }) => distance <= WorldScene.playerRadius + WorldScene.npcInteractionRadius
-			)
-			.sort((left, right) => left.distance - right.distance)[0]?.npc;
+const map = this.resolveMap(this.mapId);
+const nearbyNpc = (map.npcs ?? [])
+	.map((npc) => ({
+		npc,
+		distance: Phaser.Math.Distance.Between(this.player!.x, this.player!.y, npc.x, npc.y)
+	}))
+	.filter(({ distance }) => distance <= WorldScene.playerRadius + WorldScene.npcInteractionRadius)
+	.sort((left, right) => left.distance - right.distance)[0]?.npc;
 ```
 
 with:
 
 ```ts
-		const nearbyNpc = this.findNearbyNpc();
+const nearbyNpc = this.findNearbyNpc();
 ```
 
 - [ ] **Step 5: Let Svelte open the existing Shop overlay when Phaser opens a shop**
@@ -308,6 +307,7 @@ git commit -m "Add keyboard NPC interaction"
 ## Task 2: NPC Collision
 
 **Files:**
+
 - Modify: `src/lib/game/phaser/scenes/scenes.test.ts`
 - Modify: `src/lib/game/phaser/scenes/WorldScene.ts`
 
@@ -316,34 +316,34 @@ git commit -m "Add keyboard NPC interaction"
 In `src/lib/game/phaser/scenes/scenes.test.ts`, add these tests near the movement tests:
 
 ```ts
-	it('blocks player movement through NPC bodies', async () => {
-		const { WorldScene } = await import('./WorldScene');
-		const scene = new WorldScene();
+it('blocks player movement through NPC bodies', async () => {
+	const { WorldScene } = await import('./WorldScene');
+	const scene = new WorldScene();
 
-		scene.create({ mapId: 'guild-hall' });
-		Object.assign(phaserState.playerMarker, { x: 256, y: 185 });
-		phaserState.cursorKeys.up.isDown = true;
+	scene.create({ mapId: 'guild-hall' });
+	Object.assign(phaserState.playerMarker, { x: 256, y: 185 });
+	phaserState.cursorKeys.up.isDown = true;
 
-		scene.update(0, 250);
+	scene.update(0, 250);
 
-		expect(phaserState.playerMarker.x).toBe(256);
-		expect(phaserState.playerMarker.y).toBe(185);
-	});
+	expect(phaserState.playerMarker.x).toBe(256);
+	expect(phaserState.playerMarker.y).toBe(185);
+});
 
-	it('slides along an NPC when only one movement axis is blocked', async () => {
-		const { WorldScene } = await import('./WorldScene');
-		const scene = new WorldScene();
+it('slides along an NPC when only one movement axis is blocked', async () => {
+	const { WorldScene } = await import('./WorldScene');
+	const scene = new WorldScene();
 
-		scene.create({ mapId: 'guild-hall' });
-		Object.assign(phaserState.playerMarker, { x: 220, y: 180 });
-		phaserState.cursorKeys.right.isDown = true;
-		phaserState.cursorKeys.up.isDown = true;
+	scene.create({ mapId: 'guild-hall' });
+	Object.assign(phaserState.playerMarker, { x: 220, y: 180 });
+	phaserState.cursorKeys.right.isDown = true;
+	phaserState.cursorKeys.up.isDown = true;
 
-		scene.update(0, 250);
+	scene.update(0, 250);
 
-		expect(phaserState.playerMarker.x).toBeGreaterThan(220);
-		expect(phaserState.playerMarker.y).toBe(180);
-	});
+	expect(phaserState.playerMarker.x).toBeGreaterThan(220);
+	expect(phaserState.playerMarker.y).toBe(180);
+});
 ```
 
 - [ ] **Step 2: Run the scene tests to verify collision tests fail**
@@ -367,24 +367,24 @@ In `src/lib/game/phaser/scenes/WorldScene.ts`, add a collision scale constant ne
 Replace direct player assignment in `update`:
 
 ```ts
-		this.player.x = Math.min(Math.max(this.player.x + direction.x * step, min), maxX);
-		this.player.y = Math.min(Math.max(this.player.y + direction.y * step, min), maxY);
+this.player.x = Math.min(Math.max(this.player.x + direction.x * step, min), maxX);
+this.player.y = Math.min(Math.max(this.player.y + direction.y * step, min), maxY);
 ```
 
 with:
 
 ```ts
-		const targetX = Math.min(Math.max(this.player.x + direction.x * step, min), maxX);
-		const targetY = Math.min(Math.max(this.player.y + direction.y * step, min), maxY);
-		const resolvedPosition = this.resolvePlayerNpcCollision(
-			this.player.x,
-			this.player.y,
-			targetX,
-			targetY
-		);
+const targetX = Math.min(Math.max(this.player.x + direction.x * step, min), maxX);
+const targetY = Math.min(Math.max(this.player.y + direction.y * step, min), maxY);
+const resolvedPosition = this.resolvePlayerNpcCollision(
+	this.player.x,
+	this.player.y,
+	targetX,
+	targetY
+);
 
-		this.player.x = resolvedPosition.x;
-		this.player.y = resolvedPosition.y;
+this.player.x = resolvedPosition.x;
+this.player.y = resolvedPosition.y;
 ```
 
 Add these methods near `resolveFacing`:
@@ -446,6 +446,7 @@ git commit -m "Add NPC collision blocking"
 ## Task 3: Buy-To-Inventory Regression
 
 **Files:**
+
 - Modify: `src/lib/game/phaser/scenes/scenes.test.ts`
 - Modify: `src/routes/game/page.svelte.e2e.ts`
 
@@ -454,30 +455,30 @@ git commit -m "Add NPC collision blocking"
 In `src/lib/game/phaser/scenes/scenes.test.ts`, update `buys shop items, updates wallet, and persists finite stock` by adding these expectations after `const saveState = sceneState.buildSaveState();`:
 
 ```ts
-		expect(emitHudStateSpy).toHaveBeenLastCalledWith(
-			expect.objectContaining({
-				status: 'Bought Iron Cap',
-				wallet: { coins: 5 },
-				inventory: expect.objectContaining({
-					equipment: expect.arrayContaining([
-						expect.objectContaining({ itemId: 'iron-cap', equipped: false })
-					])
-				}),
-				shop: expect.objectContaining({
-					sell: expect.arrayContaining([
-						expect.objectContaining({ itemId: 'iron-cap', quantity: 1, price: 17 })
-					])
-				})
-			})
-		);
+expect(emitHudStateSpy).toHaveBeenLastCalledWith(
+	expect.objectContaining({
+		status: 'Bought Iron Cap',
+		wallet: { coins: 5 },
+		inventory: expect.objectContaining({
+			equipment: expect.arrayContaining([
+				expect.objectContaining({ itemId: 'iron-cap', equipped: false })
+			])
+		}),
+		shop: expect.objectContaining({
+			sell: expect.arrayContaining([
+				expect.objectContaining({ itemId: 'iron-cap', quantity: 1, price: 17 })
+			])
+		})
+	})
+);
 ```
 
 Remove the older final assertion in the same test:
 
 ```ts
-		expect(emitHudStateSpy).toHaveBeenLastCalledWith(
-			expect.objectContaining({ status: 'Bought Iron Cap' })
-		);
+expect(emitHudStateSpy).toHaveBeenLastCalledWith(
+	expect.objectContaining({ status: 'Bought Iron Cap' })
+);
 ```
 
 - [ ] **Step 2: Run the focused scene tests**
@@ -591,6 +592,7 @@ git commit -m "Cover shop purchases in inventory"
 ## Task 4: Final Verification
 
 **Files:**
+
 - Verify: full working tree
 
 - [ ] **Step 1: Run Svelte and TypeScript checks**
@@ -630,4 +632,3 @@ git diff --stat
 ```
 
 Expected: only the approved implementation files are modified after the task commits, and there are no unrelated generated files unless `bun run gen` was required for `bun run check`.
-

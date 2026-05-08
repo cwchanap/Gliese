@@ -33,7 +33,9 @@ describe('item content', () => {
 
 	it('assigns equipment to valid slots', () => {
 		const slots = new Set(equipmentSlots);
-		for (const item of itemList.filter((entry): entry is EquipmentDefinition => entry.type === 'equipment')) {
+		for (const item of itemList.filter(
+			(entry): entry is EquipmentDefinition => entry.type === 'equipment'
+		)) {
 			expect(slots.has(item.slot)).toBe(true);
 		}
 	});
@@ -88,7 +90,7 @@ describe('item content', () => {
 		for (const item of itemList) {
 			expect(item.iconPath).toBe(`/game/assets/items/${item.id}.png`);
 
-			const iconPath = resolve('static', item.iconPath.replace('/game/', 'game/'));
+			const iconPath = resolve('public', item.iconPath.replace('/game/', 'game/'));
 			expect(existsSync(iconPath), `${item.id} icon should exist`).toBe(true);
 
 			const bytes = readFileSync(iconPath);

@@ -13,6 +13,7 @@
 ### Task 1: Install Phaser And Lay Down Domain Types
 
 **Files:**
+
 - Modify: `package.json`
 - Create: `src/lib/game/core/types.ts`
 - Create: `src/lib/game/content/player.ts`
@@ -89,6 +90,7 @@ git commit -m "feat: add initial phaser game domain types"
 ### Task 2: Add Progression Formulas
 
 **Files:**
+
 - Create: `src/lib/game/core/progression.ts`
 - Test: `src/lib/game/core/progression.test.ts`
 
@@ -152,6 +154,7 @@ git commit -m "feat: add jrpg progression rules"
 ### Task 3: Add Save State Model And Local Storage Adapter
 
 **Files:**
+
 - Create: `src/lib/game/save/save-state.ts`
 - Create: `src/lib/game/save/storage.ts`
 - Test: `src/lib/game/save/save-state.test.ts`
@@ -213,6 +216,7 @@ git commit -m "feat: add browser save state model"
 ### Task 4: Add The Svelte Game Route And Phaser Mount Shell
 
 **Files:**
+
 - Modify: `src/routes/+page.svelte`
 - Create: `src/routes/game/+page.svelte`
 - Create: `src/lib/game/GameShell.svelte`
@@ -280,6 +284,7 @@ git commit -m "feat: add phaser game route shell"
 ### Task 5: Bootstrap BootScene And WorldScene
 
 **Files:**
+
 - Create: `src/lib/game/phaser/scenes/BootScene.ts`
 - Create: `src/lib/game/phaser/scenes/WorldScene.ts`
 - Modify: `src/lib/game/phaser/createGame.ts`
@@ -336,6 +341,7 @@ git commit -m "feat: add boot and world scenes"
 ### Task 6: Add Player Movement, Camera, And Collision
 
 **Files:**
+
 - Create: `src/lib/game/core/input.ts`
 - Create: `src/lib/game/core/input.test.ts`
 - Modify: `src/lib/game/phaser/scenes/WorldScene.ts`
@@ -399,6 +405,7 @@ git commit -m "feat: add player movement and camera"
 ### Task 7: Add Enemy Combat And XP Rewards
 
 **Files:**
+
 - Create: `src/lib/game/core/combat.ts`
 - Create: `src/lib/game/core/combat.test.ts`
 - Modify: `src/lib/game/content/enemies.ts`
@@ -461,6 +468,7 @@ git commit -m "feat: add field combat and xp rewards"
 ### Task 8: Add HUD Bridge, Consumable, And Anywhere Save
 
 **Files:**
+
 - Create: `src/lib/game/ui-bridge/events.ts`
 - Create: `src/lib/game/ui-bridge/store.ts`
 - Create: `src/lib/game/save/storage.test.ts`
@@ -517,6 +525,7 @@ git commit -m "feat: add hud bridge and anywhere save"
 ### Task 9: Add Boss Encounter And End-Of-Slice State
 
 **Files:**
+
 - Modify: `src/lib/game/content/enemies.ts`
 - Modify: `src/lib/game/content/maps.ts`
 - Modify: `src/lib/game/phaser/scenes/WorldScene.ts`
@@ -580,6 +589,7 @@ git commit -m "feat: add boss encounter finale"
 ### Task 10: Add Playwright Smoke Coverage And Final Cleanup
 
 **Files:**
+
 - Create: `src/routes/game/+page.svelte.e2e.ts`
 - Modify: `README.md`
 

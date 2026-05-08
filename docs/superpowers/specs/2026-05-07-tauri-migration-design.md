@@ -72,7 +72,7 @@ The current `SaveStorage` interface in `src/lib/game/save/storage.ts` is synchro
 **Approach: in-memory cache, async-hydrated once at boot.**
 
 1. **New module** `src/lib/game/save/tauri-storage.ts` exposes:
-   - `hydrateTauriStorage(): Promise<SaveStorage>` — reads `gliese-save.json` from `app_data_dir` via `@tauri-apps/plugin-fs`. If the file doesn't exist, returns an empty cache. If JSON parse fails, returns an empty cache and logs a warning (the corrupt file is left in place for manual recovery — it is *not* overwritten until the next explicit save).
+   - `hydrateTauriStorage(): Promise<SaveStorage>` — reads `gliese-save.json` from `app_data_dir` via `@tauri-apps/plugin-fs`. If the file doesn't exist, returns an empty cache. If JSON parse fails, returns an empty cache and logs a warning (the corrupt file is left in place for manual recovery — it is _not_ overwritten until the next explicit save).
    - The returned object implements the existing `SaveStorage` shape (sync `getItem`/`setItem`/`removeItem`) backed by an in-memory `Map<string, string>`.
    - On `setItem` / `removeItem`: update the map immediately, then enqueue an async write of the full JSON file. Writes are serialized internally (latest-wins, no torn writes); the queue collapses pending writes so only the most recent value is flushed.
    - Writes are atomic: write to `gliese-save.json.tmp`, then rename to `gliese-save.json`. If a write fails, the previous on-disk value is preserved.
@@ -81,6 +81,7 @@ The current `SaveStorage` interface in `src/lib/game/save/storage.ts` is synchro
 2. **`storage.ts` minimal change.** Replace the `globalThis.localStorage` default in each function signature with a module-level `currentStorage` variable, initialized to `globalThis.localStorage` for backward compatibility, and add `setSaveStorage(storage: SaveStorage): void`. Existing callers that pass an explicit `storage` argument keep working unchanged. Tests that rely on the localStorage default keep working.
 
 3. **`main.ts` bootstrap:**
+
    ```ts
    import { mount } from 'svelte';
    import App from './App.svelte';
@@ -92,6 +93,7 @@ The current `SaveStorage` interface in `src/lib/game/save/storage.ts` is synchro
    setSaveStorage(storage);
    mount(App, { target: document.getElementById('app')! });
    ```
+
    The order is load-bearing: `setSaveStorage` runs before `mount`, so when `ui-bridge/store.ts` evaluates its module-level `loadStoredSaveResult()` call during component import, it sees the hydrated storage.
 
 **File location and shape:**
@@ -99,7 +101,7 @@ The current `SaveStorage` interface in `src/lib/game/save/storage.ts` is synchro
 - macOS: `~/Library/Application Support/com.gliese.app/gliese-save.json`
 - Windows: `%APPDATA%\com.gliese.app\gliese-save.json`
 - The file's content is the same string the existing code stores under `localStorage` key `gliese.save.v3` — the JSON-encoded `SaveState`. Schema versioning continues to use the existing `version: 3` field inside the JSON; bumping the schema follows the same path as today.
-- The on-disk filename does *not* embed the schema version. The schema version lives inside the JSON.
+- The on-disk filename does _not_ embed the schema version. The schema version lives inside the JSON.
 
 **Flush on quit:** `main.ts` registers a `tauri://close-requested` listener that:
 
@@ -140,7 +142,7 @@ Output artifacts in `src-tauri/target/release/bundle/`:
 - macOS: `.app` and `.dmg`
 - Windows: `.msi` (WiX) and `.exe`
 
-Code signing, notarization, and Authenticode are *not* in scope. Builds are unsigned. macOS Gatekeeper will show a warning on first launch; this is documented for the user, not worked around.
+Code signing, notarization, and Authenticode are _not_ in scope. Builds are unsigned. macOS Gatekeeper will show a warning on first launch; this is documented for the user, not worked around.
 
 **Updated `package.json` scripts:**
 
@@ -195,7 +197,7 @@ format       → prettier --write .                     (unchanged)
 
 **Things kept verbatim:**
 
-- All of `src/lib/game/` *except* the modifications to `save/storage.ts` and the new `save/tauri-storage.ts`
+- All of `src/lib/game/` _except_ the modifications to `save/storage.ts` and the new `save/tauri-storage.ts`
 - `src/lib/game/GameShell.svelte`
 - `src/lib/game/save/save-state.ts` and its tests
 - `src/lib/assets/favicon.svg`
@@ -218,7 +220,7 @@ format       → prettier --write .                     (unchanged)
 The error surface is small and explicit:
 
 - **Boot — missing save file:** treat as fresh game. Existing "missing" path in `loadStoredSaveResult` is reused.
-- **Boot — corrupted JSON:** log to console, return empty cache, surface a one-shot HUD warning via `emitHudState`. The corrupt file is *not* overwritten until the user explicitly saves, preserving manual recovery.
+- **Boot — corrupted JSON:** log to console, return empty cache, surface a one-shot HUD warning via `emitHudState`. The corrupt file is _not_ overwritten until the user explicitly saves, preserving manual recovery.
 - **Boot — fs permission denied or other thrown error:** fatal. Render a static error screen (`<div>Couldn't access save directory: <path></div>`) instead of mounting the game. The game does not boot in a degraded state.
 - **Runtime — async write failure (disk full, permission lost mid-session):** logged, surfaced via the existing HUD save-state machinery. The save command effectively becomes a no-op + warning rather than silently succeeding. The in-memory cache stays consistent; gameplay continues.
 - **Close — flush timeout:** 3s cap. If the final write hangs, the window closes anyway. Worst case is loss of the most recent save; the previous save on disk is intact.
@@ -239,7 +241,7 @@ The error surface is small and explicit:
 
 ## Out of scope
 
-These are explicitly *not* part of this migration. Each is a candidate follow-up:
+These are explicitly _not_ part of this migration. Each is a candidate follow-up:
 
 - Code signing and notarization (macOS) and Authenticode (Windows).
 - Tauri auto-updater plugin.

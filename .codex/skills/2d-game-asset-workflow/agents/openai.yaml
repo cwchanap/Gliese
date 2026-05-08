@@ -1,4 +1,4 @@
 interface:
-  display_name: "2D Game Asset Workflow"
-  short_description: "Generate, verify, and wire 2D game assets"
-  default_prompt: "Use $2d-game-asset-workflow to generate, validate, and integrate a new 2D game asset into this project."
+  display_name: '2D Game Asset Workflow'
+  short_description: 'Generate, verify, and wire 2D game assets'
+  default_prompt: 'Use $2d-game-asset-workflow to generate, validate, and integrate a new 2D game asset into this project.'

@@ -30,11 +30,11 @@ Create `static/game/assets/village-buildings.png`.
 
 The sheet uses a fixed 2x2 grid with transparent background:
 
-| Frame | Purpose |
-| --- | --- |
-| `heroHouse` | Cozy small home for the hero's house |
-| `guildHall` | Larger civic guild building |
-| `itemShop` | Readable storefront/shop silhouette |
+| Frame           | Purpose                                       |
+| --------------- | --------------------------------------------- |
+| `heroHouse`     | Cozy small home for the hero's house          |
+| `guildHall`     | Larger civic guild building                   |
+| `itemShop`      | Readable storefront/shop silhouette           |
 | `villagerHouse` | Reusable home variant for all villager houses |
 
 The sheet uses SNES-inspired top-down JRPG pixel art with a warm peaceful village palette. Buildings must have readable roof, wall, and door silhouettes at the current runtime display sizes.
