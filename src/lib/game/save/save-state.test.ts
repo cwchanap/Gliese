@@ -2,7 +2,9 @@ import { describe, expect, it } from 'vitest';
 
 import { meadowEntryMap } from '$lib/game/content/maps';
 import { startingPlayer } from '$lib/game/content/player';
+import { mainQuestId } from '$lib/game/content/quests';
 import { getXpForLevel } from '$lib/game/core/progression';
+import { createInitialQuestState } from '$lib/game/core/quests';
 import { createNewSaveState, parseSaveState, serializeSaveState } from '$lib/game/save/save-state';
 import {
 	SAVE_STORAGE_KEY,
@@ -42,7 +44,7 @@ class MemoryStorage implements Storage {
 describe('save state', () => {
 	it('creates a level 1 starting save', () => {
 		expect(createNewSaveState()).toEqual({
-			version: 3,
+			version: 4,
 			mapId: meadowEntryMap.id,
 			player: {
 				level: 1,
@@ -74,7 +76,8 @@ describe('save state', () => {
 						'traveler-vest': 1
 					}
 				}
-			}
+			},
+			quests: createInitialQuestState()
 		});
 	});
 
@@ -114,9 +117,9 @@ describe('save state', () => {
 		expect(parseSaveState('{"bad":true}')).toBeNull();
 	});
 
-	it('rejects version 2 and accepts version 3', () => {
-		expect(parseSaveState(JSON.stringify({ ...createNewSaveState(), version: 2 }))).toBeNull();
-		expect(parseSaveState(JSON.stringify(createNewSaveState()))?.version).toBe(3);
+	it('rejects version 3 and accepts version 4', () => {
+		expect(parseSaveState(JSON.stringify({ ...createNewSaveState(), version: 3 }))).toBeNull();
+		expect(parseSaveState(JSON.stringify(createNewSaveState()))?.version).toBe(4);
 	});
 
 	it('rejects a payload with wrong player field types', () => {
@@ -291,6 +294,128 @@ describe('save state', () => {
 					resolvedEncounterDrops: {
 						'slime-scout-1': [{ itemId: 'field-potion', quantity: 0 }]
 					}
+				}
+			}
+		]) {
+			expect(parseSaveState(JSON.stringify(invalidPayload))).toBeNull();
+		}
+	});
+
+	it('rejects invalid quest state entries', () => {
+		const save = createNewSaveState();
+		const mainEntry = save.quests.entries[mainQuestId]!;
+
+		for (const invalidPayload of [
+			{ ...save, quests: undefined },
+			{ ...save, quests: [] },
+			{ ...save, quests: { entries: [], completedObjectives: {} } },
+			{ ...save, quests: { entries: {}, completedObjectives: {} } },
+			{
+				...save,
+				quests: {
+					...save.quests,
+					entries: { ...save.quests.entries, 'not-a-quest': mainEntry }
+				}
+			},
+			{
+				...save,
+				quests: {
+					...save.quests,
+					entries: {
+						...save.quests.entries,
+						[mainQuestId]: { ...mainEntry, status: 'pending' }
+					}
+				}
+			},
+			{
+				...save,
+				quests: {
+					...save.quests,
+					entries: {
+						...save.quests.entries,
+						[mainQuestId]: { ...mainEntry, currentObjectiveId: 'not-an-objective' }
+					}
+				}
+			},
+			{
+				...save,
+				quests: {
+					...save.quests,
+					entries: {
+						...save.quests.entries,
+						[mainQuestId]: { ...mainEntry, progress: 1.5 }
+					}
+				}
+			},
+			{
+				...save,
+				quests: {
+					...save.quests,
+					entries: {
+						...save.quests.entries,
+						[mainQuestId]: { ...mainEntry, progress: -1 }
+					}
+				}
+			},
+			{
+				...save,
+				quests: {
+					...save.quests,
+					entries: {
+						...save.quests.entries,
+						[mainQuestId]: { ...mainEntry, progress: 2 }
+					}
+				}
+			},
+			{
+				...save,
+				quests: {
+					...save.quests,
+					entries: {
+						...save.quests.entries,
+						[mainQuestId]: { ...mainEntry, rewardApplied: 'yes' }
+					}
+				}
+			},
+			{
+				...save,
+				quests: {
+					...save.quests,
+					entries: {
+						...save.quests.entries,
+						[mainQuestId]: { ...mainEntry, countedSourceIds: undefined }
+					}
+				}
+			},
+			{
+				...save,
+				quests: {
+					...save.quests,
+					entries: {
+						...save.quests.entries,
+						[mainQuestId]: { ...mainEntry, countedSourceIds: ['npc:guild-master', 7] }
+					}
+				}
+			},
+			{
+				...save,
+				quests: {
+					...save.quests,
+					completedObjectives: []
+				}
+			},
+			{
+				...save,
+				quests: {
+					...save.quests,
+					completedObjectives: { 'not-a-quest': ['talk-to-guild-master'] }
+				}
+			},
+			{
+				...save,
+				quests: {
+					...save.quests,
+					completedObjectives: { [mainQuestId]: ['not-an-objective'] }
 				}
 			}
 		]) {

@@ -7,14 +7,20 @@ import type { InventoryState } from '$lib/game/core/inventory';
 import type { ItemDrop } from '$lib/game/core/loot';
 import { getXpForLevel } from '$lib/game/core/progression';
 import {
+	createInitialQuestState,
+	type QuestEntryState,
+	type QuestState
+} from '$lib/game/core/quests';
+import {
 	createInitialShopStockState,
 	type ShopStockState,
 	type WalletState
 } from '$lib/game/core/shop';
 import type { Direction } from '$lib/game/core/types';
+import { getQuest, isQuestId, mainQuestId, type QuestDefinition } from '$lib/game/content/quests';
 
 export type SaveState = {
-	version: 3;
+	version: 4;
 	mapId: string;
 	player: {
 		level: number;
@@ -36,13 +42,14 @@ export type SaveState = {
 	shops: {
 		stock: ShopStockState;
 	};
+	quests: QuestState;
 };
 
 const DIRECTIONS: Direction[] = ['up', 'down', 'left', 'right'];
 
 export function createNewSaveState(): SaveState {
 	return {
-		version: 3,
+		version: 4,
 		mapId: meadowEntryMap.id,
 		player: {
 			level: 1,
@@ -65,7 +72,8 @@ export function createNewSaveState(): SaveState {
 		wallet: { coins: 30 },
 		shops: {
 			stock: createInitialShopStockState()
-		}
+		},
+		quests: createInitialQuestState()
 	};
 }
 
@@ -95,17 +103,18 @@ function isSaveState(value: unknown): value is SaveState {
 		return false;
 	}
 
-	const { version, mapId, player, flags, inventory, equipment, wallet, shops } = value;
+	const { version, mapId, player, flags, inventory, equipment, wallet, shops, quests } = value;
 
 	if (
-		version !== 3 ||
+		version !== 4 ||
 		typeof mapId !== 'string' ||
 		!isRecord(player) ||
 		!isRecord(flags) ||
 		!isInventoryState(inventory) ||
 		!isEquipmentState(equipment, inventory) ||
 		!isWalletState(wallet) ||
-		!isShopsState(shops)
+		!isShopsState(shops) ||
+		!isQuestState(quests)
 	) {
 		return false;
 	}
@@ -175,6 +184,62 @@ function isShopStockState(value: unknown): value is ShopStockState {
 			);
 		});
 	});
+}
+
+function isQuestState(value: unknown): value is QuestState {
+	if (
+		!isRecord(value) ||
+		Array.isArray(value) ||
+		!isRecord(value.entries) ||
+		Array.isArray(value.entries) ||
+		!isRecord(value.completedObjectives) ||
+		Array.isArray(value.completedObjectives) ||
+		!Object.prototype.hasOwnProperty.call(value.entries, mainQuestId)
+	) {
+		return false;
+	}
+
+	return (
+		Object.entries(value.entries).every(([questId, entry]) => {
+			const quest = getQuest(questId);
+			return quest !== undefined && isQuestEntryState(entry, quest);
+		}) &&
+		Object.entries(value.completedObjectives).every(([questId, objectiveIds]) => {
+			const quest = isQuestId(questId) ? getQuest(questId) : undefined;
+			return (
+				quest !== undefined &&
+				Array.isArray(objectiveIds) &&
+				objectiveIds.every(
+					(objectiveId) =>
+						typeof objectiveId === 'string' &&
+						quest.objectives.some((objective) => objective.id === objectiveId)
+				)
+			);
+		})
+	);
+}
+
+function isQuestEntryState(value: unknown, quest: QuestDefinition): value is QuestEntryState {
+	if (!isRecord(value) || Array.isArray(value)) {
+		return false;
+	}
+
+	const objective =
+		typeof value.currentObjectiveId === 'string'
+			? quest.objectives.find((candidate) => candidate.id === value.currentObjectiveId)
+			: undefined;
+
+	return (
+		(value.status === 'active' || value.status === 'completed') &&
+		objective !== undefined &&
+		isNumber(value.progress) &&
+		Number.isInteger(value.progress) &&
+		value.progress >= 0 &&
+		value.progress <= objective.target &&
+		typeof value.rewardApplied === 'boolean' &&
+		Array.isArray(value.countedSourceIds) &&
+		value.countedSourceIds.every((sourceId) => typeof sourceId === 'string')
+	);
 }
 
 function normalizePlayerPosition(mapId: string, player: SaveState['player']): SaveState['player'] {

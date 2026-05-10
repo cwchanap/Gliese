@@ -76,14 +76,14 @@ describe('tauri storage adapter', () => {
 	it('hydrates from disk when the save file exists', async () => {
 		setTauriPresent(true);
 		mockedFs.exists.mockResolvedValueOnce(true);
-		mockedFs.readTextFile.mockResolvedValueOnce('{"version":3,"foo":"bar"}');
+		mockedFs.readTextFile.mockResolvedValueOnce('{"version":4,"foo":"bar"}');
 
 		const adapter = await hydrateTauriStorage();
 
 		expect(mockedFs.readTextFile).toHaveBeenCalledWith(`${SAVE_FILE_DIR}/${SAVE_FILE_NAME}`, {
 			baseDir: fs.BaseDirectory.AppData
 		});
-		expect(adapter.getItem(SAVE_STORAGE_KEY)).toBe('{"version":3,"foo":"bar"}');
+		expect(adapter.getItem(SAVE_STORAGE_KEY)).toBe('{"version":4,"foo":"bar"}');
 	});
 
 	it('returns an empty adapter when no save file exists', async () => {
@@ -113,12 +113,12 @@ describe('tauri storage adapter', () => {
 		setTauriPresent(true);
 		const adapter = await hydrateTauriStorage();
 
-		adapter.setItem(SAVE_STORAGE_KEY, '{"version":3}');
+		adapter.setItem(SAVE_STORAGE_KEY, '{"version":4}');
 		await flushPendingWrites();
 
 		expect(mockedFs.writeTextFile).toHaveBeenCalledWith(
 			`${SAVE_FILE_DIR}/${SAVE_FILE_TMP_NAME}`,
-			'{"version":3}',
+			'{"version":4}',
 			{ baseDir: fs.BaseDirectory.AppData }
 		);
 		expect(mockedFs.rename).toHaveBeenCalledWith(

@@ -35,6 +35,12 @@ import { addItem, consumeStackItem } from '$lib/game/core/inventory';
 import { resolveLootDrops } from '$lib/game/core/loot';
 import { applyExperienceGain, type ProgressionState } from '$lib/game/core/progression';
 import {
+	buildHudQuestState,
+	cloneQuestState,
+	createInitialQuestState,
+	type QuestState
+} from '$lib/game/core/quests';
+import {
 	buildShopBuyEntries,
 	buildShopSellEntries,
 	buyShopItem,
@@ -231,6 +237,7 @@ export class WorldScene extends Phaser.Scene {
 	private hitImpactUntil = 0;
 	private interactKeys: Phaser.Input.Keyboard.Key[] = [];
 	private inventory: SaveState['inventory'] = cloneInventory(createNewSaveState().inventory);
+	private quests: QuestState = createInitialQuestState();
 	private mapId = openingMapId;
 	private currentNearbyNpcId: string | null = null;
 	private npcMarkers = new Map<string, NpcMarker>();
@@ -279,6 +286,7 @@ export class WorldScene extends Phaser.Scene {
 		this.hitImpactStartedAt = 0;
 		this.hitImpactUntil = 0;
 		this.inventory = cloneInventory(activeSave?.inventory ?? createNewSaveState().inventory);
+		this.quests = cloneQuestState(activeSave?.quests ?? createInitialQuestState());
 		this.equipment = { ...(activeSave?.equipment ?? createNewSaveState().equipment) };
 		this.wallet = { ...(activeSave?.wallet ?? createNewSaveState().wallet) };
 		this.shopStockState = cloneShopStockState(
@@ -476,7 +484,7 @@ export class WorldScene extends Phaser.Scene {
 
 	private buildSaveState(): SaveState {
 		return {
-			version: 3,
+			version: 4,
 			mapId: this.mapId,
 			player: {
 				level: this.playerProgress.level,
@@ -497,7 +505,8 @@ export class WorldScene extends Phaser.Scene {
 			wallet: { ...this.wallet },
 			shops: {
 				stock: cloneShopStockState(this.shopStockState)
-			}
+			},
+			quests: cloneQuestState(this.quests)
 		};
 	}
 
@@ -766,6 +775,10 @@ export class WorldScene extends Phaser.Scene {
 			wallet: { ...this.wallet },
 			nearbyShop: this.buildNearbyShop(),
 			shop: this.buildOpenShop(),
+			quests: buildHudQuestState({
+				state: this.quests,
+				nearbyQuestGiverId: this.currentNearbyNpcId
+			}),
 			inventory: this.buildHudInventory()
 		});
 	}

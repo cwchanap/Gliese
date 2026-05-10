@@ -2,10 +2,15 @@ import { readable } from 'svelte/store';
 
 import { equipmentSlots, type EquipmentSlot } from '$lib/game/content/items';
 import { startingPlayer } from '$lib/game/content/player';
+import { buildHudQuestState, createInitialQuestState } from '$lib/game/core/quests';
 import { loadStoredSaveResult } from '$lib/game/save/storage';
 import { emitHudCommand, onHudState, type HudState } from '$lib/game/ui-bridge/events';
 
 const initialSaveResult = loadStoredSaveResult();
+const initialQuestState =
+	initialSaveResult.status === 'loaded'
+		? initialSaveResult.saveState.quests
+		: createInitialQuestState();
 const emptyEquipped = Object.fromEntries(equipmentSlots.map((slot) => [slot, null])) as Record<
 	EquipmentSlot,
 	string | null
@@ -28,6 +33,7 @@ const initialHudState: HudState = {
 	},
 	nearbyShop: null,
 	shop: null,
+	quests: buildHudQuestState({ state: initialQuestState, nearbyQuestGiverId: null }),
 	inventory: {
 		consumables: [],
 		equipment: [],
@@ -84,4 +90,8 @@ export function requestBuyShopItem(shopId: string, stockId: string) {
 
 export function requestSellInventoryItem(itemId: string) {
 	emitHudCommand({ type: 'sell-inventory-item', itemId });
+}
+
+export function requestAcceptQuest(questId: string) {
+	emitHudCommand({ type: 'accept-quest', questId });
 }

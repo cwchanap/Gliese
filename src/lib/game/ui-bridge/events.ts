@@ -1,4 +1,5 @@
 import type { EquipmentSlot, StatModifiers } from '$lib/game/content/items';
+import type { HudQuestState } from '$lib/game/core/quests';
 import type { HudShopBuyEntry, HudShopSellEntry } from '$lib/game/core/shop';
 
 export type HudInventoryStack = {
@@ -53,6 +54,7 @@ export type HudState = {
 	wallet: { coins: number };
 	nearbyShop: HudNearbyShop | null;
 	shop: HudOpenShop | null;
+	quests: HudQuestState;
 	inventory: {
 		consumables: HudInventoryStack[];
 		equipment: HudEquipmentItem[];
@@ -73,7 +75,8 @@ export type HudCommand =
 	| { type: 'open-shop'; shopId: string }
 	| { type: 'close-shop' }
 	| { type: 'buy-shop-item'; shopId: string; stockId: string }
-	| { type: 'sell-inventory-item'; itemId: string };
+	| { type: 'sell-inventory-item'; itemId: string }
+	| { type: 'accept-quest'; questId: string };
 
 export const HUD_STATE_EVENT = 'gliese:hud-state';
 export const HUD_COMMAND_EVENT = 'gliese:hud-command';

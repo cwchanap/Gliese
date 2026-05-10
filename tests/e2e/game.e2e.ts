@@ -9,6 +9,21 @@ type GlieseProbeWindow = Window & {
 	__glieseLastHudState?: HudStateSnapshot;
 };
 
+function createQuestFixture() {
+	return {
+		entries: {
+			'investigate-the-ruins': {
+				status: 'active',
+				currentObjectiveId: 'talk-to-guild-master',
+				progress: 0,
+				rewardApplied: false,
+				countedSourceIds: []
+			}
+		},
+		completedObjectives: {}
+	};
+}
+
 test('game route boots', async ({ page }) => {
 	await page.goto('/');
 	await expect(page.locator('canvas')).toBeVisible();
@@ -78,7 +93,7 @@ test('full hp potions explain why they cannot be consumed', async ({ page }) => 
 
 test('double-clicking unequipped equipment equips it from inventory', async ({ page }) => {
 	const save = {
-		version: 3,
+		version: 4,
 		mapId: 'meadow-entry',
 		player: {
 			level: 1,
@@ -110,11 +125,12 @@ test('double-clicking unequipped equipment equips it from inventory', async ({ p
 					'traveler-vest': 1
 				}
 			}
-		}
+		},
+		quests: createQuestFixture()
 	};
 
 	await page.addInitScript((encoded) => {
-		window.localStorage.setItem('gliese.save.v3', encoded);
+		window.localStorage.setItem('gliese.save.v4', encoded);
 	}, JSON.stringify(save));
 	await page.goto('/');
 	await expect(page.locator('canvas')).toBeVisible();
@@ -135,7 +151,7 @@ test('double-clicking unequipped equipment equips it from inventory', async ({ p
 
 test('shop overlay opens near a merchant and supports buying and selling', async ({ page }) => {
 	const save = {
-		version: 3,
+		version: 4,
 		mapId: 'item-shop',
 		player: {
 			level: 1,
@@ -167,7 +183,8 @@ test('shop overlay opens near a merchant and supports buying and selling', async
 					'traveler-vest': 1
 				}
 			}
-		}
+		},
+		quests: createQuestFixture()
 	};
 
 	await page.addInitScript((encoded) => {
@@ -176,7 +193,7 @@ test('shop overlay opens near a merchant and supports buying and selling', async
 		window.addEventListener('gliese:hud-state', (event) => {
 			probeWindow.__glieseLastHudState = (event as CustomEvent<HudStateSnapshot>).detail;
 		});
-		window.localStorage.setItem('gliese.save.v3', encoded);
+		window.localStorage.setItem('gliese.save.v4', encoded);
 	}, JSON.stringify(save));
 	await page.goto('/');
 	await expect(page.locator('canvas')).toBeVisible();
@@ -234,7 +251,7 @@ test('shop overlay opens near a merchant and supports buying and selling', async
 
 test('interact key shop purchase appears in inventory', async ({ page }) => {
 	const save = {
-		version: 3,
+		version: 4,
 		mapId: 'item-shop',
 		player: {
 			level: 1,
@@ -266,7 +283,8 @@ test('interact key shop purchase appears in inventory', async ({ page }) => {
 					'traveler-vest': 1
 				}
 			}
-		}
+		},
+		quests: createQuestFixture()
 	};
 
 	await page.addInitScript((encoded) => {
@@ -275,7 +293,7 @@ test('interact key shop purchase appears in inventory', async ({ page }) => {
 		window.addEventListener('gliese:hud-state', (event) => {
 			probeWindow.__glieseLastHudState = (event as CustomEvent<HudStateSnapshot>).detail;
 		});
-		window.localStorage.setItem('gliese.save.v3', encoded);
+		window.localStorage.setItem('gliese.save.v4', encoded);
 	}, JSON.stringify(save));
 	await page.goto('/');
 	await expect(page.locator('canvas')).toBeVisible();
