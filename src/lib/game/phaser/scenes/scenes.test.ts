@@ -2538,6 +2538,24 @@ describe('WorldScene', () => {
 		expect(sceneState.enemies[0]!.movementMode).toBe('chase');
 	});
 
+	it('keeps an engaged meadow slime chasing inside the forest leash beyond aggro range', async () => {
+		const { WorldScene } = await import('./WorldScene');
+		const scene = new WorldScene();
+		const sceneState = scene as unknown as {
+			enemies: Array<{ x: number; y: number; movementMode: string }>;
+		};
+
+		scene.create({ mapId: 'meadow-entry' });
+		Object.assign(sceneState.enemies[0]!, { x: 1_320, y: 1_280, movementMode: 'chase' });
+		Object.assign(phaserState.playerMarker, { x: 1_660, y: 1_280 });
+		const startX = sceneState.enemies[0]!.x;
+
+		scene.update(0, 1_000);
+
+		expect(sceneState.enemies[0]!.movementMode).toBe('chase');
+		expect(sceneState.enemies[0]!.x).toBeGreaterThan(startX);
+	});
+
 	it('returns meadow slimes home after the hero escapes the forest', async () => {
 		const { meadowEntryMap } = await import('$lib/game/content/maps');
 		const { WorldScene } = await import('./WorldScene');

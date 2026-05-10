@@ -1280,12 +1280,12 @@ export class WorldScene extends Phaser.Scene {
 			forestZone,
 			WorldScene.playerRadius
 		);
-		const canChase =
-			playerInsideForest &&
-			distanceToPlayer <= forestZone.aggroRadius &&
-			playerDistanceFromHome <= forestZone.leashRadius;
+		const playerWithinLeash =
+			playerInsideForest && playerDistanceFromHome <= forestZone.leashRadius;
+		const canAcquire = distanceToPlayer <= forestZone.aggroRadius;
+		const canContinueChase = enemy.movementMode === 'chase' && playerWithinLeash;
 
-		if (canChase) {
+		if (playerWithinLeash && (canAcquire || canContinueChase)) {
 			enemy.movementMode = 'chase';
 			return { x: this.player.x, y: this.player.y };
 		}
