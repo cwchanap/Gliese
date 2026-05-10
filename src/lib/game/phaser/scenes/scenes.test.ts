@@ -871,6 +871,20 @@ describe('WorldScene', () => {
 		expect(phaserState.playerMarker.y).toBe(1_024);
 	});
 
+	it('blocks movement across the lower padded edge of village fence segments', async () => {
+		const { WorldScene } = await import('./WorldScene');
+		const scene = new WorldScene();
+
+		scene.create({ mapId: 'meadow-entry' });
+		Object.assign(phaserState.playerMarker, { x: 579, y: 1_764 });
+		phaserState.cursorKeys.right.isDown = true;
+
+		scene.update(0, 250);
+
+		expect(phaserState.playerMarker.x).toBe(579);
+		expect(phaserState.playerMarker.y).toBe(1_764);
+	});
+
 	it('keeps the central east fence gate open toward the forest', async () => {
 		const { WorldScene } = await import('./WorldScene');
 		const scene = new WorldScene();
