@@ -4,6 +4,7 @@ import {
 	actorAnimationAssets,
 	actorAnimationKeys,
 	animationPackAsset,
+	forestDressingAsset,
 	getActorAnimationAsset,
 	getEnemyActorId,
 	getGroundFrameName,
@@ -19,6 +20,9 @@ import { enemies, type EnemyCombatDefinition } from '$lib/game/content/enemies';
 import {
 	maps,
 	openingMapId,
+	type MapFenceSegment,
+	type MapForestDecor,
+	type MapForestZone,
 	type MapLandmark,
 	type MapNpc,
 	type MapTransition,
@@ -322,10 +326,13 @@ export class WorldScene extends Phaser.Scene {
 		this.registerStarterPackFrames();
 		this.registerNpcPackFrames();
 		this.registerVillageBuildingFrames();
+		this.registerForestDressingFrames();
 		this.registerAnimationPackFrames();
 		this.ensureActorAnimations();
 		this.ensureTerrainTilesetTexture();
 		this.renderGround(map);
+		this.renderForestDressing(map);
+		this.renderFences(map);
 		this.renderLandmarks(map);
 		const heroAnimation = getActorAnimationAsset('hero');
 		this.player = this.add.sprite(
@@ -1010,6 +1017,16 @@ export class WorldScene extends Phaser.Scene {
 		}
 	}
 
+	private registerForestDressingFrames() {
+		const texture = this.textures.get(forestDressingAsset.key);
+
+		for (const [frameName, frame] of Object.entries(forestDressingAsset.frames)) {
+			if (!texture.has(frameName)) {
+				texture.add(frameName, 0, frame.x, frame.y, frame.w, frame.h);
+			}
+		}
+	}
+
 	private ensureActorAnimations() {
 		for (const actor of Object.values(actorAnimationAssets)) {
 			for (const clipName of actorAnimationKeys) {
@@ -1257,6 +1274,29 @@ export class WorldScene extends Phaser.Scene {
 				}
 			) as OverlayMarker;
 			label.setOrigin?.(0.5, 0);
+		}
+	}
+
+	private renderForestDressing(map: WorldMapDefinition) {
+		const forestZone: MapForestZone | undefined = map.forestZone;
+		const forestDecor: MapForestDecor[] = map.forestDecor ?? [];
+
+		if (!forestZone && forestDecor.length === 0) {
+			return;
+		}
+
+		for (const decor of forestDecor) {
+			this.add
+				.image(decor.x, decor.y, forestDressingAsset.key, decor.frameName)
+				.setDisplaySize(decor.width, decor.height);
+		}
+	}
+
+	private renderFences(map: WorldMapDefinition) {
+		const fences: MapFenceSegment[] = map.fences ?? [];
+
+		for (const fence of fences) {
+			this.add.rectangle(fence.x, fence.y, fence.width, fence.height, 0x6f5132, 0.95);
 		}
 	}
 
