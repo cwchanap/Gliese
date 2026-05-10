@@ -35,6 +35,7 @@ The village slime side quest must seed progress from already-cleared `meadow-ent
 ### Task 1: Quest Content And Pure Rules
 
 **Files:**
+
 - Create: `src/lib/game/content/quests.ts`
 - Create: `src/lib/game/content/quests.test.ts`
 - Create: `src/lib/game/core/quests.ts`
@@ -118,8 +119,9 @@ describe('quest content', () => {
 					for (const source of objective.sources) {
 						expect(maps[source.mapId]).toBeDefined();
 						expect(getItem(source.itemId)).toBeDefined();
-						expect((maps[source.mapId].pickups ?? []).some((pickup) => pickup.id === source.pickupId))
-							.toBe(true);
+						expect(
+							(maps[source.mapId].pickups ?? []).some((pickup) => pickup.id === source.pickupId)
+						).toBe(true);
 					}
 					expect(objective.target).toBeGreaterThan(0);
 				}
@@ -500,8 +502,9 @@ describe('quest core', () => {
 
 		expect(accepted.accepted).toBe(true);
 		expect(accepted.accepted ? accepted.rewards : []).toEqual([]);
-		expect(accepted.accepted ? accepted.state.entries['thin-village-slimes']?.progress : undefined)
-			.toBe(2);
+		expect(
+			accepted.accepted ? accepted.state.entries['thin-village-slimes']?.progress : undefined
+		).toBe(2);
 	});
 
 	it('completes and rewards a side quest on accept when all sources are already cleared', () => {
@@ -524,12 +527,13 @@ describe('quest core', () => {
 		});
 
 		expect(accepted.accepted).toBe(true);
-		expect(accepted.accepted ? accepted.state.entries['thin-village-slimes'] : undefined)
-			.toMatchObject({
-				status: 'completed',
-				progress: 3,
-				rewardApplied: true
-			});
+		expect(
+			accepted.accepted ? accepted.state.entries['thin-village-slimes'] : undefined
+		).toMatchObject({
+			status: 'completed',
+			progress: 3,
+			rewardApplied: true
+		});
 		expect(accepted.accepted ? accepted.rewards : []).toEqual([
 			{
 				questId: 'thin-village-slimes',
@@ -667,7 +671,6 @@ describe('quest core', () => {
 		]);
 	});
 });
-
 ```
 
 - [ ] **Step 1.6: Run pure quest tests to verify they fail**
@@ -847,7 +850,8 @@ export function acceptQuest({
 
 	const existing = state.entries[quest.id];
 	if (existing?.status === 'active') return { accepted: false, reason: 'already-active', state };
-	if (existing?.status === 'completed') return { accepted: false, reason: 'already-completed', state };
+	if (existing?.status === 'completed')
+		return { accepted: false, reason: 'already-completed', state };
 	if (!getAvailableGuildQuestIds(state).includes(quest.id)) {
 		return { accepted: false, reason: 'not-available', state };
 	}
@@ -871,7 +875,13 @@ export function acceptQuest({
 	};
 }
 
-export function applyQuestEvent({ state, event }: { state: QuestState; event: QuestEvent }): QuestEventResult {
+export function applyQuestEvent({
+	state,
+	event
+}: {
+	state: QuestState;
+	event: QuestEvent;
+}): QuestEventResult {
 	let nextState = cloneQuestState(state);
 	const rewards: QuestRewardGrant[] = [];
 	const completedQuestIds: QuestId[] = [];
@@ -880,11 +890,22 @@ export function applyQuestEvent({ state, event }: { state: QuestState; event: Qu
 		const entry = nextState.entries[quest.id];
 		if (!entry || entry.status === 'completed') continue;
 
-		const objective = quest.objectives.find((candidate) => candidate.id === entry.currentObjectiveId);
+		const objective = quest.objectives.find(
+			(candidate) => candidate.id === entry.currentObjectiveId
+		);
 		if (!objective || !eventMatchesObjective(event, objective)) continue;
 
-		const nextProgress = Math.min(objective.target, entry.progress + getEventProgress(event, objective));
-		nextState = setQuestEntry(nextState, quest, objective, nextProgress, nextProgress >= objective.target);
+		const nextProgress = Math.min(
+			objective.target,
+			entry.progress + getEventProgress(event, objective)
+		);
+		nextState = setQuestEntry(
+			nextState,
+			quest,
+			objective,
+			nextProgress,
+			nextProgress >= objective.target
+		);
 
 		const updatedEntry = nextState.entries[quest.id]!;
 		if (updatedEntry.status === 'completed' && updatedEntry.rewardApplied) {
@@ -907,7 +928,7 @@ function setQuestEntry(
 	const nextObjective = quest.objectives[objectiveIndex + 1];
 	const completedObjectives = objectiveComplete
 		? Array.from(new Set([...(state.completedObjectives[quest.id] ?? []), objective.id]))
-		: state.completedObjectives[quest.id] ?? [];
+		: (state.completedObjectives[quest.id] ?? []);
 
 	if (objectiveComplete && nextObjective) {
 		return {
@@ -950,7 +971,8 @@ function eventMatchesObjective(event: QuestEvent, objective: QuestObjective): bo
 			event.type === 'defeat-enemy' &&
 			event.enemyId === objective.enemyId &&
 			objective.mapIds.includes(event.mapId) &&
-			(objective.requiresCompletion === undefined || event.completion === objective.requiresCompletion)
+			(objective.requiresCompletion === undefined ||
+				event.completion === objective.requiresCompletion)
 		);
 	}
 
@@ -993,7 +1015,8 @@ function getExistingProgressForObjective(
 	if (objective.kind === 'collect-item') {
 		return Math.min(
 			objective.target,
-			objective.sources.filter((source) => worldFlags.collectedPickupIds.has(source.pickupId)).length
+			objective.sources.filter((source) => worldFlags.collectedPickupIds.has(source.pickupId))
+				.length
 		);
 	}
 
@@ -1102,6 +1125,7 @@ Expected: commit succeeds.
 ### Task 2: Save State And HUD Bridge
 
 **Files:**
+
 - Modify: `src/lib/game/save/save-state.ts`
 - Modify: `src/lib/game/save/save-state.test.ts`
 - Modify: `src/lib/game/save/storage.ts`
@@ -1285,7 +1309,7 @@ export type SaveState = {
 In `createNewSaveState()`, change `version: 4` and add:
 
 ```ts
-quests: createInitialQuestState()
+quests: createInitialQuestState();
 ```
 
 In `parseSaveState`, keep the returned object shape and rely on `isSaveState`.
@@ -1404,7 +1428,7 @@ quests: buildHudQuestState({
 			? initialSaveResult.saveState.quests
 			: createInitialQuestState(),
 	nearbyQuestGiverId: null
-})
+});
 ```
 
 Add:
@@ -1472,6 +1496,7 @@ Expected: commit succeeds.
 ### Task 3: Phaser Runtime And Map Gating
 
 **Files:**
+
 - Modify: `src/lib/game/content/maps.ts`
 - Modify: `src/lib/game/content/maps.test.ts`
 - Modify: `src/lib/game/phaser/scenes/WorldScene.ts`
@@ -1628,9 +1653,9 @@ it('talking to the Guild Master unlocks ruins and publishes Guild quest offers',
 		currentObjectiveId: 'defeat-ruins-warden',
 		progress: 0
 	});
-	expect(
-		sceneState.buildSaveState().quests.completedObjectives['investigate-the-ruins']
-	).toContain('talk-to-guild-master');
+	expect(sceneState.buildSaveState().quests.completedObjectives['investigate-the-ruins']).toContain(
+		'talk-to-guild-master'
+	);
 	expect(emitHudStateSpy).toHaveBeenLastCalledWith(
 		expect.objectContaining({
 			status: 'Ruins route unlocked',
@@ -1696,7 +1721,9 @@ it('side quest completion from combat grants rewards once', async () => {
 		buildSaveState: () => {
 			wallet: { coins: number };
 			inventory: { stacks: Array<{ itemId: string; quantity: number }> };
-			quests: { entries: Record<string, { status: string; progress: number; rewardApplied: boolean }> };
+			quests: {
+				entries: Record<string, { status: string; progress: number; rewardApplied: boolean }>;
+			};
 		};
 	};
 
@@ -1787,7 +1814,7 @@ this.questState = cloneQuestState(activeSave?.quests ?? createNewSaveState().que
 In `buildSaveState()`, add:
 
 ```ts
-quests: cloneQuestState(this.questState)
+quests: cloneQuestState(this.questState);
 ```
 
 In `handleHudCommand`, add:
@@ -1873,7 +1900,7 @@ In `publishHudState`, add:
 quests: buildHudQuestState({
 	state: this.questState,
 	nearbyQuestGiverId: this.findNearbyNpc()?.id === 'guild-master' ? 'guild-master' : null
-})
+});
 ```
 
 - [ ] **Step 3.8: Progress quests from NPC, combat, and pickups**
@@ -1980,6 +2007,7 @@ Expected: commit succeeds.
 ### Task 4: Quest UI And Browser Coverage
 
 **Files:**
+
 - Modify: `src/lib/game/GameShell.svelte`
 - Modify: `tests/e2e/game.e2e.ts`
 
@@ -2077,8 +2105,9 @@ test('quest log shows main quest and accepts Guild side quests', async ({ page }
 
 	await page.getByRole('button', { name: 'Menu' }).click();
 	await page.getByRole('button', { name: 'Quests' }).click();
-	await expect(page.getByRole('dialog', { name: 'Quest Log' }).getByText('Village slimes defeated: 0 / 3'))
-		.toBeVisible();
+	await expect(
+		page.getByRole('dialog', { name: 'Quest Log' }).getByText('Village slimes defeated: 0 / 3')
+	).toBeVisible();
 });
 ```
 
@@ -2216,9 +2245,7 @@ Add a compact tracker above or near the existing bottom-left HUD:
 		class="pointer-events-none absolute bottom-[8.8rem] left-4 z-20 w-[min(25rem,calc(100vw-2rem))] rounded-[1.2rem] border border-cyan-100/14 bg-[linear-gradient(145deg,rgba(8,13,34,0.9),rgba(12,32,52,0.82))] px-4 py-3 text-slate-50 shadow-[0_18px_44px_rgba(0,0,0,0.3)] backdrop-blur-md sm:bottom-[9.3rem] sm:left-6"
 		aria-label="Quest tracker"
 	>
-		<p class="text-[0.58rem] font-black tracking-[0.28em] text-cyan-100/68 uppercase">
-			Main Quest
-		</p>
+		<p class="text-[0.58rem] font-black tracking-[0.28em] text-cyan-100/68 uppercase">Main Quest</p>
 		<p class="mt-1 truncate text-sm font-black tracking-[0.08em] text-white uppercase">
 			{$hudState.quests.main.objective}
 		</p>
@@ -2301,11 +2328,15 @@ Add after the inventory overlay block:
 									<h4 class="font-black tracking-[0.1em] text-white uppercase">{quest.title}</h4>
 									<p class="mt-2 text-sm text-slate-100/82">{quest.objective}</p>
 									{#if 'progress' in quest}
-										<p class="mt-2 text-xs font-black tracking-[0.16em] text-emerald-100/72 uppercase">
+										<p
+											class="mt-2 text-xs font-black tracking-[0.16em] text-emerald-100/72 uppercase"
+										>
 											{quest.progress.label}: {quest.progress.current} / {quest.progress.target}
 										</p>
 									{:else}
-										<p class="mt-2 text-xs font-black tracking-[0.16em] text-amber-100/72 uppercase">
+										<p
+											class="mt-2 text-xs font-black tracking-[0.16em] text-amber-100/72 uppercase"
+										>
 											Available from Guild Master
 										</p>
 									{/if}
@@ -2334,7 +2365,11 @@ Add after the Quest Log overlay:
 		class="absolute inset-0 z-50 flex items-center justify-center bg-black/52 p-3 backdrop-blur-[3px] sm:p-6"
 		role="presentation"
 	>
-		<div class="absolute inset-0 cursor-default" role="presentation" onclick={closeGuildQuests}></div>
+		<div
+			class="absolute inset-0 cursor-default"
+			role="presentation"
+			onclick={closeGuildQuests}
+		></div>
 		<div
 			bind:this={guildQuestsDialog}
 			class="relative z-10 grid max-h-[calc(100vh-1.5rem)] w-[min(56rem,calc(100vw-1.5rem))] grid-rows-[auto_minmax(0,1fr)] overflow-hidden rounded-[1.8rem] border border-white/12 bg-[linear-gradient(145deg,rgba(8,13,34,0.98),rgba(18,42,40,0.96)_54%,rgba(34,38,16,0.94))] text-slate-50 shadow-[0_34px_100px_rgba(0,0,0,0.58)] backdrop-blur-md sm:max-h-[calc(100vh-3rem)] sm:rounded-[2rem]"
@@ -2369,7 +2404,9 @@ Add after the Quest Log overlay:
 			<div class="min-h-0 overflow-y-auto p-4 sm:p-6">
 				<div class="grid gap-3">
 					{#each $hudState.quests.guildOffer.quests as quest (quest.questId)}
-						<article class="grid gap-3 rounded-[1.05rem] border border-white/10 bg-black/14 p-4 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center">
+						<article
+							class="grid gap-3 rounded-[1.05rem] border border-white/10 bg-black/14 p-4 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center"
+						>
 							<div>
 								<h3 class="font-black tracking-[0.1em] text-white uppercase">{quest.title}</h3>
 								<p class="mt-2 text-sm text-slate-100/82">{quest.objective}</p>
@@ -2446,6 +2483,7 @@ Expected: commit succeeds.
 ### Task 5: Full Verification And Cleanup
 
 **Files:**
+
 - Review all touched files.
 
 - [ ] **Step 5.1: Run focused unit suite**
