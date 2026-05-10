@@ -1,4 +1,4 @@
-import type { NpcFrameName } from '$lib/game/content/assets';
+import type { ForestDressingFrameName, NpcFrameName } from '$lib/game/content/assets';
 import type { DefinitionRegistry, MapDefinition } from '$lib/game/core/types';
 
 export interface MapTransition {
@@ -58,6 +58,25 @@ export interface MapLandmark {
 	label: string;
 }
 
+export interface MapRect {
+	id: string;
+	x: number;
+	y: number;
+	width: number;
+	height: number;
+}
+
+export interface MapForestZone extends MapRect {
+	aggroRadius: number;
+	leashRadius: number;
+}
+
+export type MapFenceSegment = MapRect;
+
+export interface MapForestDecor extends MapRect {
+	frameName: ForestDressingFrameName;
+}
+
 export interface WorldMapDefinition extends MapDefinition {
 	spawn: {
 		x: number;
@@ -68,6 +87,9 @@ export interface WorldMapDefinition extends MapDefinition {
 	encounters?: MapEncounter[];
 	npcs?: MapNpc[];
 	landmarks?: MapLandmark[];
+	forestZone?: MapForestZone;
+	fences?: MapFenceSegment[];
+	forestDecor?: MapForestDecor[];
 }
 
 export const openingMapId = 'meadow-entry';
@@ -185,15 +207,88 @@ export const meadowEntryMap: WorldMapDefinition = {
 			arrival: { x: 256, y: 480, facing: 'right' }
 		}
 	],
-	pickups: [
-		{ id: 'meadow-entry-potion', x: 704, y: 1_248, itemId: 'field-potion', quantity: 2 },
-		{ id: 'meadow-entry-charm', x: 960, y: 1_408, itemId: 'meadow-charm', quantity: 1 },
-		{ id: 'meadow-entry-token', x: 1_280, y: 1_152, itemId: 'meadow-token', quantity: 1 }
+	forestZone: {
+		id: 'east-forest',
+		x: 1_760,
+		y: 1_280,
+		width: 896,
+		height: 640,
+		aggroRadius: 220,
+		leashRadius: 360
+	},
+	fences: [
+		{ id: 'village-fence-north-west', x: 392, y: 848, width: 432, height: 32 },
+		{ id: 'village-fence-north-east', x: 920, y: 848, width: 320, height: 32 },
+		{ id: 'village-fence-west', x: 176, y: 1_296, width: 32, height: 832 },
+		{ id: 'village-fence-south-west', x: 232, y: 1_744, width: 112, height: 32 },
+		{ id: 'village-fence-south-center', x: 752, y: 1_744, width: 320, height: 32 },
+		{ id: 'village-fence-south-east', x: 1_080, y: 1_744, width: 272, height: 32 },
+		{ id: 'village-fence-east-north', x: 1_216, y: 1_024, width: 32, height: 320 },
+		{ id: 'village-fence-east-south', x: 1_216, y: 1_568, width: 32, height: 352 }
+	],
+	forestDecor: [
+		{ id: 'forest-floor', x: 1_760, y: 1_280, width: 820, height: 560, frameName: 'forestFloor' },
+		{
+			id: 'forest-canopy-north',
+			x: 1_760,
+			y: 928,
+			width: 896,
+			height: 96,
+			frameName: 'treeCluster'
+		},
+		{
+			id: 'forest-canopy-south',
+			x: 1_760,
+			y: 1_632,
+			width: 896,
+			height: 96,
+			frameName: 'treeCluster'
+		},
+		{
+			id: 'forest-canopy-west-north',
+			x: 1_280,
+			y: 1_088,
+			width: 96,
+			height: 256,
+			frameName: 'treeCluster'
+		},
+		{
+			id: 'forest-canopy-west-south',
+			x: 1_280,
+			y: 1_512,
+			width: 96,
+			height: 176,
+			frameName: 'treeCluster'
+		},
+		{
+			id: 'forest-canopy-east',
+			x: 2_240,
+			y: 1_280,
+			width: 96,
+			height: 640,
+			frameName: 'treeCluster'
+		},
+		{
+			id: 'forest-entrance',
+			x: 1_328,
+			y: 1_280,
+			width: 128,
+			height: 144,
+			frameName: 'forestEntrance'
+		},
+		{
+			id: 'forest-brush-clearing',
+			x: 1_760,
+			y: 1_504,
+			width: 320,
+			height: 96,
+			frameName: 'brush'
+		}
 	],
 	encounters: [
-		{ id: 'meadow-slime-west', x: 1_568, y: 1_280, enemyId: 'slime-scout' },
-		{ id: 'meadow-slime-center', x: 1_824, y: 1_280, enemyId: 'slime-scout' },
-		{ id: 'meadow-slime-east', x: 2_080, y: 1_280, enemyId: 'slime-scout' }
+		{ id: 'meadow-slime-west', x: 1_536, y: 1_280, enemyId: 'slime-scout' },
+		{ id: 'meadow-slime-center', x: 1_760, y: 1_344, enemyId: 'slime-scout' },
+		{ id: 'meadow-slime-east', x: 1_984, y: 1_280, enemyId: 'slime-scout' }
 	]
 };
 

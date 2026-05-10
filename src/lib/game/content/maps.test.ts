@@ -15,6 +15,29 @@ import {
 	villagerHouse3Map
 } from '$lib/game/content/maps';
 
+type CenterRect = {
+	x: number;
+	y: number;
+	width: number;
+	height: number;
+};
+
+function expectRectInsideMap(rect: CenterRect, map = meadowEntryMap) {
+	expect(rect.width).toBeGreaterThan(0);
+	expect(rect.height).toBeGreaterThan(0);
+	expect(rect.x - rect.width / 2).toBeGreaterThanOrEqual(0);
+	expect(rect.y - rect.height / 2).toBeGreaterThanOrEqual(0);
+	expect(rect.x + rect.width / 2).toBeLessThanOrEqual(map.width * 32);
+	expect(rect.y + rect.height / 2).toBeLessThanOrEqual(map.height * 32);
+}
+
+function expectPointInsideRect(point: { x: number; y: number }, rect: CenterRect) {
+	expect(point.x).toBeGreaterThanOrEqual(rect.x - rect.width / 2);
+	expect(point.x).toBeLessThanOrEqual(rect.x + rect.width / 2);
+	expect(point.y).toBeGreaterThanOrEqual(rect.y - rect.height / 2);
+	expect(point.y).toBeLessThanOrEqual(rect.y + rect.height / 2);
+}
+
 describe('opening map content', () => {
 	it('declares a village spawn, peaceful building doors, road encounters, and ruins exit', () => {
 		expect(meadowEntryMap.width).toBe(80);
@@ -84,9 +107,9 @@ describe('opening map content', () => {
 			}
 		]);
 		expect(meadowEntryMap.encounters).toEqual([
-			{ id: 'meadow-slime-west', x: 1_568, y: 1_280, enemyId: 'slime-scout' },
-			{ id: 'meadow-slime-center', x: 1_824, y: 1_280, enemyId: 'slime-scout' },
-			{ id: 'meadow-slime-east', x: 2_080, y: 1_280, enemyId: 'slime-scout' }
+			{ id: 'meadow-slime-west', x: 1_536, y: 1_280, enemyId: 'slime-scout' },
+			{ id: 'meadow-slime-center', x: 1_760, y: 1_344, enemyId: 'slime-scout' },
+			{ id: 'meadow-slime-east', x: 1_984, y: 1_280, enemyId: 'slime-scout' }
 		]);
 		expect(
 			meadowEntryMap.transitions.find((transition) => transition.id === 'meadow-to-ruins-threshold')
@@ -333,18 +356,64 @@ describe('opening map content', () => {
 		}
 	});
 
-	it('keeps meadow enemies east of the village cluster', () => {
-		expect(meadowEntryMap.encounters?.every((encounter) => encounter.x >= 1_500)).toBe(true);
+	it('keeps meadow enemies inside the bounded forest zone', () => {
+		expect(meadowEntryMap.forestZone).toEqual({
+			id: 'east-forest',
+			x: 1_760,
+			y: 1_280,
+			width: 896,
+			height: 640,
+			aggroRadius: 220,
+			leashRadius: 360
+		});
+		expectRectInsideMap(meadowEntryMap.forestZone!);
+
+		for (const encounter of meadowEntryMap.encounters ?? []) {
+			expectPointInsideRect(encounter, meadowEntryMap.forestZone!);
+		}
+	});
+
+	it('defines village fences and forest dressing inside the meadow map bounds', () => {
+		expect(meadowEntryMap.fences).toEqual([
+			{ id: 'village-fence-north-west', x: 392, y: 848, width: 432, height: 32 },
+			{ id: 'village-fence-north-east', x: 920, y: 848, width: 320, height: 32 },
+			{ id: 'village-fence-west', x: 176, y: 1_296, width: 32, height: 832 },
+			{ id: 'village-fence-south-west', x: 232, y: 1_744, width: 112, height: 32 },
+			{ id: 'village-fence-south-center', x: 752, y: 1_744, width: 320, height: 32 },
+			{ id: 'village-fence-south-east', x: 1_080, y: 1_744, width: 272, height: 32 },
+			{ id: 'village-fence-east-north', x: 1_216, y: 1_024, width: 32, height: 320 },
+			{ id: 'village-fence-east-south', x: 1_216, y: 1_568, width: 32, height: 352 }
+		]);
+		expect(meadowEntryMap.forestDecor?.map((decor) => decor.frameName)).toEqual([
+			'forestFloor',
+			'treeCluster',
+			'treeCluster',
+			'treeCluster',
+			'treeCluster',
+			'treeCluster',
+			'forestEntrance',
+			'brush'
+		]);
+
+		const ids = [
+			...(meadowEntryMap.fences ?? []).map((fence) => fence.id),
+			...(meadowEntryMap.forestDecor ?? []).map((decor) => decor.id)
+		];
+		expect(new Set(ids).size).toBe(ids.length);
+
+		for (const fence of meadowEntryMap.fences ?? []) {
+			expectRectInsideMap(fence);
+		}
+
+		for (const decor of meadowEntryMap.forestDecor ?? []) {
+			expectRectInsideMap(decor);
+		}
 	});
 
 	it('defines valid placed pickups with stable ids and item ids', () => {
 		const pickups = Object.values(maps).flatMap((map) => map.pickups ?? []);
 
-		expect(maps['meadow-entry'].pickups).toEqual([
-			{ id: 'meadow-entry-potion', x: 704, y: 1_248, itemId: 'field-potion', quantity: 2 },
-			{ id: 'meadow-entry-charm', x: 960, y: 1_408, itemId: 'meadow-charm', quantity: 1 },
-			{ id: 'meadow-entry-token', x: 1_280, y: 1_152, itemId: 'meadow-token', quantity: 1 }
-		]);
+		expect(maps['meadow-entry'].pickups ?? []).toEqual([]);
 		expect(maps['ruins-threshold'].pickups).toEqual([
 			{ id: 'ruins-threshold-cap', x: 416, y: 352, itemId: 'iron-cap', quantity: 1 },
 			{ id: 'ruins-threshold-rune', x: 576, y: 608, itemId: 'threshold-rune', quantity: 1 },
