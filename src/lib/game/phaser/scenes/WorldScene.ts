@@ -135,6 +135,8 @@ type CollisionRect = {
 	bottom: number;
 };
 
+type EnemyMovementMode = 'idle' | 'chase' | 'return';
+
 type TilemapLayer = {
 	setDepth?: (depth: number) => unknown;
 };
@@ -149,11 +151,14 @@ type EnemyInstance = {
 	healthBarBg: OverlayMarker;
 	healthBarFill: OverlayMarker;
 	hitReactionUntil: number;
+	homeX: number;
+	homeY: number;
 	hp: number;
 	id: string;
 	invulnerableUntil: number;
 	marker: ActorMarker;
 	maxHp: number;
+	movementMode: EnemyMovementMode;
 	phase: 1 | 2;
 	visualState: ActorAnimationKey;
 	x: number;
@@ -1244,6 +1249,81 @@ export class WorldScene extends Phaser.Scene {
 		return enemy.definition.moveSpeed;
 	}
 
+	private resolveEnemyMovementTarget(enemy: EnemyInstance): { x: number; y: number } | undefined {
+		if (!this.player) {
+			return undefined;
+		}
+
+		const map = this.resolveMap(this.mapId);
+		const forestZone = map.forestZone;
+
+		if (!forestZone || enemy.definition.id !== 'slime-scout') {
+			enemy.movementMode = 'chase';
+			return { x: this.player.x, y: this.player.y };
+		}
+
+		const distanceToPlayer = Phaser.Math.Distance.Between(
+			this.player.x,
+			this.player.y,
+			enemy.x,
+			enemy.y
+		);
+		const playerDistanceFromHome = Phaser.Math.Distance.Between(
+			this.player.x,
+			this.player.y,
+			enemy.homeX,
+			enemy.homeY
+		);
+		const playerInsideForest = this.isPointInsideMapRect(
+			this.player.x,
+			this.player.y,
+			forestZone,
+			WorldScene.playerRadius
+		);
+		const canChase =
+			playerInsideForest &&
+			distanceToPlayer <= forestZone.aggroRadius &&
+			playerDistanceFromHome <= forestZone.leashRadius;
+
+		if (canChase) {
+			enemy.movementMode = 'chase';
+			return { x: this.player.x, y: this.player.y };
+		}
+
+		if (Phaser.Math.Distance.Between(enemy.x, enemy.y, enemy.homeX, enemy.homeY) > 2) {
+			enemy.movementMode = 'return';
+			return { x: enemy.homeX, y: enemy.homeY };
+		}
+
+		enemy.movementMode = 'idle';
+		return undefined;
+	}
+
+	private isPointInsideMapRect(x: number, y: number, rect: MapForestZone, padding = 0): boolean {
+		const bounds = this.getMapRectBounds(rect);
+
+		return (
+			x >= bounds.left - padding &&
+			x <= bounds.right + padding &&
+			y >= bounds.top - padding &&
+			y <= bounds.bottom + padding
+		);
+	}
+
+	private clampPointToMapRect(
+		x: number,
+		y: number,
+		rect: MapForestZone,
+		padding = 0
+	): { x: number; y: number } {
+		const bounds = this.getMapRectBounds(rect);
+
+		return {
+			x: Math.min(Math.max(x, bounds.left + padding), bounds.right - padding),
+			y: Math.min(Math.max(y, bounds.top + padding), bounds.bottom - padding)
+		};
+	}
+
 	private renderLandmarks(map: WorldMapDefinition) {
 		for (const landmark of map.landmarks ?? []) {
 			const frameName = getVillageBuildingFrameName(landmark.id);
@@ -1749,11 +1829,14 @@ export class WorldScene extends Phaser.Scene {
 				healthBarBg,
 				healthBarFill,
 				hitReactionUntil: 0,
+				homeX: encounter.x,
+				homeY: encounter.y,
 				hp: isCleared ? 0 : definition.baseHp,
 				id: encounter.id,
 				invulnerableUntil: 0,
 				marker,
 				maxHp: definition.baseHp,
+				movementMode: 'idle',
 				phase: 1,
 				visualState: 'idle',
 				x: encounter.x,
@@ -2030,28 +2113,49 @@ export class WorldScene extends Phaser.Scene {
 			}
 
 			let chaseDistance = 0;
-			const distanceToPlayer = Phaser.Math.Distance.Between(
-				this.player.x,
-				this.player.y,
-				enemy.x,
-				enemy.y
-			);
+			const movementTarget = this.resolveEnemyMovementTarget(enemy);
 
-			if (distanceToPlayer > 0) {
-				const chaseStep =
-					this.getEnemyMoveSpeed(enemy) * (Math.min(delta, WorldScene.maxMovementDeltaMs) / 1000);
-				chaseDistance = Math.min(
-					chaseStep,
-					Math.max(0, distanceToPlayer - WorldScene.enemyAttackReach)
+			if (movementTarget) {
+				const distanceToTarget = Phaser.Math.Distance.Between(
+					movementTarget.x,
+					movementTarget.y,
+					enemy.x,
+					enemy.y
 				);
-				const directionX = (this.player.x - enemy.x) / distanceToPlayer;
-				const directionY = (this.player.y - enemy.y) / distanceToPlayer;
 
-				enemy.x += directionX * chaseDistance;
-				enemy.y += directionY * chaseDistance;
-				enemy.marker.x = enemy.x;
-				enemy.marker.y = enemy.y;
-				this.updateEnemyHealthBar(enemy);
+				if (distanceToTarget > 0) {
+					const chaseStep =
+						this.getEnemyMoveSpeed(enemy) *
+						(Math.min(delta, WorldScene.maxMovementDeltaMs) / 1000);
+					chaseDistance = Math.min(
+						chaseStep,
+						enemy.movementMode === 'chase'
+							? Math.max(0, distanceToTarget - WorldScene.enemyAttackReach)
+							: distanceToTarget
+					);
+					const directionX = (movementTarget.x - enemy.x) / distanceToTarget;
+					const directionY = (movementTarget.y - enemy.y) / distanceToTarget;
+					let nextX = enemy.x + directionX * chaseDistance;
+					let nextY = enemy.y + directionY * chaseDistance;
+					const map = this.resolveMap(this.mapId);
+
+					if (map.forestZone && enemy.definition.id === 'slime-scout') {
+						const clamped = this.clampPointToMapRect(
+							nextX,
+							nextY,
+							map.forestZone,
+							WorldScene.enemyRadius
+						);
+						nextX = clamped.x;
+						nextY = clamped.y;
+					}
+
+					enemy.x = nextX;
+					enemy.y = nextY;
+					enemy.marker.x = enemy.x;
+					enemy.marker.y = enemy.y;
+					this.updateEnemyHealthBar(enemy);
+				}
 			}
 			this.updateEnemyMovementAnimation(enemy, chaseDistance > 0 ? 'walk' : 'idle', time);
 

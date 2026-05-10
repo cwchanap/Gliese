@@ -2517,6 +2517,65 @@ describe('WorldScene', () => {
 		});
 	});
 
+	it('keeps meadow slimes inside the forest zone while chasing', async () => {
+		const { meadowEntryMap } = await import('$lib/game/content/maps');
+		const { WorldScene } = await import('./WorldScene');
+		const scene = new WorldScene();
+		const sceneState = scene as unknown as {
+			enemies: Array<{ x: number; y: number; movementMode: string }>;
+		};
+
+		scene.create({ mapId: meadowEntryMap.id });
+		Object.assign(phaserState.playerMarker, { x: 1_360, y: 1_280 });
+
+		scene.update(0, 1_000);
+
+		const forestZone = meadowEntryMap.forestZone!;
+		const left = forestZone.x - forestZone.width / 2;
+		for (const enemy of sceneState.enemies) {
+			expect(enemy.x).toBeGreaterThanOrEqual(left);
+		}
+		expect(sceneState.enemies[0]!.movementMode).toBe('chase');
+	});
+
+	it('returns meadow slimes home after the hero escapes the forest', async () => {
+		const { meadowEntryMap } = await import('$lib/game/content/maps');
+		const { WorldScene } = await import('./WorldScene');
+		const scene = new WorldScene();
+		const sceneState = scene as unknown as {
+			enemies: Array<{ x: number; y: number; homeX: number; homeY: number; movementMode: string }>;
+		};
+
+		scene.create({ mapId: meadowEntryMap.id });
+		Object.assign(phaserState.playerMarker, { x: 1_420, y: 1_280 });
+		scene.update(0, 1_000);
+
+		const chasedX = sceneState.enemies[0]!.x;
+		Object.assign(phaserState.playerMarker, { x: 900, y: 1_280 });
+		scene.update(1_000, 1_000);
+
+		expect(sceneState.enemies[0]!.movementMode).toBe('return');
+		expect(sceneState.enemies[0]!.x).toBeGreaterThan(chasedX);
+		expect(sceneState.enemies[0]!.x).toBeLessThanOrEqual(sceneState.enemies[0]!.homeX);
+		expect(sceneState.enemies[0]!.y).toBe(sceneState.enemies[0]!.homeY);
+	});
+
+	it('keeps ruins slimes on the existing direct chase behavior', async () => {
+		const { WorldScene } = await import('./WorldScene');
+		const scene = new WorldScene();
+		const sceneState = scene as unknown as {
+			enemies: Array<{ x: number; movementMode: string }>;
+		};
+
+		scene.create({ mapId: 'ruins-threshold' });
+		Object.assign(phaserState.playerMarker, { x: 256, y: 480 });
+
+		scene.update(0, 1_000);
+
+		expect(sceneState.enemies[0]!.x).toBeLessThan(416);
+		expect(sceneState.enemies[0]!.movementMode).toBe('chase');
+	});
+
 	it('bosses chase, strike back, and enrage in phase 2', async () => {
 		const { WorldScene } = await import('./WorldScene');
 		const scene = new WorldScene();
