@@ -2,6 +2,7 @@
 	import { onMount, tick } from 'svelte';
 	import {
 		hudState,
+		requestAcceptQuest,
 		requestBuyShopItem,
 		requestCloseShop,
 		requestEquipItem,
@@ -16,12 +17,13 @@
 		requestUseItem
 	} from '$lib/game/ui-bridge/store';
 	import type { EquipmentSlot } from '$lib/game/content/items';
+	import type { HudQuestEntry, HudQuestOffer } from '$lib/game/core/quests';
 	import type { HudEquipmentItem, HudInventoryStack, HudKeyItem } from '$lib/game/ui-bridge/events';
 	import type { HudShopBuyEntry, HudShopSellEntry } from '$lib/game/core/shop';
 
 	type InventoryTab = 'consumables' | 'equipment' | 'keyItems';
 	type ShopTab = 'buy' | 'sell';
-	type OverlayPauseOwner = 'settings' | 'inventory' | 'shop';
+	type OverlayPauseOwner = 'settings' | 'inventory' | 'shop' | 'questLog' | 'guildQuests';
 	type InventorySlotItem =
 		| { kind: 'consumable'; item: HudInventoryStack }
 		| { kind: 'equipment'; item: HudEquipmentItem }
@@ -33,12 +35,18 @@
 	let inventoryCloseButton = $state<HTMLButtonElement>();
 	let shopDialog = $state<HTMLDivElement>();
 	let shopCloseButton = $state<HTMLButtonElement>();
+	let questLogDialog = $state<HTMLDivElement>();
+	let questLogCloseButton = $state<HTMLButtonElement>();
+	let guildQuestsDialog = $state<HTMLDivElement>();
+	let guildQuestsCloseButton = $state<HTMLButtonElement>();
 	let inventoryFocusRestoreTarget: HTMLElement | null = null;
 	let shopFocusRestoreTarget: HTMLElement | null = null;
 	let loadError = $state('');
 	let settingsOpen = $state(false);
 	let inventoryOpen = $state(false);
 	let shopOpen = $state(false);
+	let questLogOpen = $state(false);
+	let guildQuestsOpen = $state(false);
 	let activeInventoryTab = $state<InventoryTab>('consumables');
 	let activeShopTab = $state<ShopTab>('buy');
 	let pauseOwner = $state<OverlayPauseOwner | null>(null);
@@ -129,6 +137,34 @@
 		void restoreShopFocus();
 	}
 
+	function openQuestLog() {
+		if (questLogOpen) return;
+		settingsOpen = false;
+		questLogOpen = true;
+		pauseForOverlay('questLog');
+		void focusQuestLogDialog();
+	}
+
+	function closeQuestLog() {
+		if (!questLogOpen) return;
+		questLogOpen = false;
+		resumeForOverlay('questLog');
+	}
+
+	function openGuildQuests() {
+		if (guildQuestsOpen || !$hudState.quests.guildOffer) return;
+		settingsOpen = false;
+		guildQuestsOpen = true;
+		pauseForOverlay('guildQuests');
+		void focusGuildQuestsDialog();
+	}
+
+	function closeGuildQuests() {
+		if (!guildQuestsOpen) return;
+		guildQuestsOpen = false;
+		resumeForOverlay('guildQuests');
+	}
+
 	$effect(() => {
 		if (!$hudState.shop || shopOpen) return;
 
@@ -141,12 +177,20 @@
 		void focusShopDialog();
 	});
 
+	$effect(() => {
+		if (guildQuestsOpen && !$hudState.quests.guildOffer) {
+			closeGuildQuests();
+		}
+	});
+
 	function releaseOverlayPause() {
 		const owner = pauseOwner;
 		const wasShopOpen = shopOpen;
 		settingsOpen = false;
 		inventoryOpen = false;
 		shopOpen = false;
+		questLogOpen = false;
+		guildQuestsOpen = false;
 		pauseOwner = null;
 
 		if (wasShopOpen) requestCloseShop();
@@ -195,6 +239,16 @@
 	async function focusShopDialog() {
 		await tick();
 		(shopCloseButton ?? shopDialog)?.focus();
+	}
+
+	async function focusQuestLogDialog() {
+		await tick();
+		(questLogCloseButton ?? questLogDialog)?.focus();
+	}
+
+	async function focusGuildQuestsDialog() {
+		await tick();
+		(guildQuestsCloseButton ?? guildQuestsDialog)?.focus();
 	}
 
 	async function restoreShopFocus() {
@@ -507,6 +561,14 @@
 		requestSellInventoryItem(item.itemId);
 	}
 
+	function acceptGuildQuest(questId: string) {
+		requestAcceptQuest(questId);
+	}
+
+	function hasQuestProgress(quest: HudQuestEntry | HudQuestOffer): quest is HudQuestEntry {
+		return 'progress' in quest;
+	}
+
 	onMount(() => {
 		let destroyed = false;
 		let cleanup = () => {};
@@ -569,6 +631,25 @@
 			Menu
 		</button>
 	</div>
+
+	{#if $hudState.quests.main}
+		<section
+			class="pointer-events-none absolute bottom-[8.8rem] left-4 z-20 w-[min(25rem,calc(100vw-2rem))] rounded-[1.2rem] border border-cyan-100/14 bg-[linear-gradient(145deg,rgba(8,13,34,0.9),rgba(12,32,52,0.82))] px-4 py-3 text-slate-50 shadow-[0_18px_44px_rgba(0,0,0,0.3)] backdrop-blur-md sm:bottom-[9.3rem] sm:left-6"
+			aria-label="Quest tracker"
+		>
+			<p class="text-[0.58rem] font-black tracking-[0.28em] text-cyan-100/68 uppercase">
+				Main Quest
+			</p>
+			<p class="mt-1 truncate text-sm font-black tracking-[0.08em] text-white uppercase">
+				{$hudState.quests.main.objective}
+			</p>
+			{#if $hudState.quests.side.length > 0}
+				<p class="mt-1 text-xs font-bold text-emerald-100/78">
+					{$hudState.quests.side.length} side active
+				</p>
+			{/if}
+		</section>
+	{/if}
 
 	<section class="pointer-events-none absolute bottom-4 left-4 z-20 sm:bottom-6 sm:left-6">
 		<div
@@ -649,6 +730,22 @@
 			</div>
 
 			<div class="mt-4 grid gap-3">
+				<button
+					type="button"
+					class="hud-action rounded-[1.1rem] border border-cyan-200/20 bg-[linear-gradient(135deg,rgba(26,49,92,0.95),rgba(14,21,44,0.92))] px-4 py-3 text-sm font-black tracking-[0.24em] text-cyan-50 uppercase transition hover:-translate-y-0.5 hover:border-cyan-200/45 hover:shadow-[0_15px_30px_rgba(74,144,255,0.24)] disabled:translate-y-0 disabled:cursor-not-allowed disabled:opacity-45"
+					onclick={openQuestLog}
+					disabled={!$hudState.ready}
+				>
+					Quests
+				</button>
+				<button
+					type="button"
+					class="hud-action rounded-[1.1rem] border border-emerald-200/20 bg-[linear-gradient(135deg,rgba(20,91,76,0.95),rgba(12,42,48,0.92))] px-4 py-3 text-sm font-black tracking-[0.24em] text-emerald-50 uppercase transition hover:-translate-y-0.5 hover:border-emerald-200/45 hover:shadow-[0_15px_30px_rgba(62,205,155,0.22)] disabled:translate-y-0 disabled:cursor-not-allowed disabled:opacity-45"
+					onclick={openGuildQuests}
+					disabled={!$hudState.ready || !$hudState.quests.guildOffer}
+				>
+					Guild Quests
+				</button>
 				<button
 					type="button"
 					class="hud-action rounded-[1.1rem] border border-amber-200/20 bg-[linear-gradient(135deg,rgba(115,75,25,0.96),rgba(63,41,18,0.92))] px-4 py-3 text-sm font-black tracking-[0.24em] text-amber-50 uppercase transition hover:-translate-y-0.5 hover:border-amber-200/45 hover:shadow-[0_15px_30px_rgba(255,190,90,0.22)] disabled:translate-y-0 disabled:cursor-not-allowed disabled:opacity-45"
@@ -910,7 +1007,7 @@
 							<div
 								class="mt-2 grid grid-cols-2 gap-2 lg:max-h-full lg:grid-cols-1 lg:overflow-y-auto"
 							>
-								{#each equipmentSlots as entry}
+								{#each equipmentSlots as entry (entry.slot)}
 									{@const equippedItemId = $hudState.inventory.equipped[entry.slot]}
 									{@const equippedItem = $hudState.inventory.equipment.find(
 										(item) => item.itemId === equippedItemId
@@ -962,6 +1059,169 @@
 							</p>
 						</div>
 					{/if}
+				</div>
+			</div>
+		</div>
+	{/if}
+
+	{#if questLogOpen}
+		<div
+			class="absolute inset-0 z-50 flex items-center justify-center bg-black/52 p-3 backdrop-blur-[3px] sm:p-6"
+			role="presentation"
+		>
+			<div
+				class="absolute inset-0 cursor-default"
+				role="presentation"
+				onclick={closeQuestLog}
+			></div>
+			<div
+				bind:this={questLogDialog}
+				class="relative z-10 grid max-h-[calc(100vh-1.5rem)] w-[min(62rem,calc(100vw-1.5rem))] grid-rows-[auto_minmax(0,1fr)] overflow-hidden rounded-[1.8rem] border border-white/12 bg-[linear-gradient(145deg,rgba(8,13,34,0.98),rgba(15,28,48,0.96)_54%,rgba(16,38,34,0.94))] text-slate-50 shadow-[0_34px_100px_rgba(0,0,0,0.58)] backdrop-blur-md sm:max-h-[calc(100vh-3rem)] sm:rounded-[2rem]"
+				aria-labelledby="quest-log-heading"
+				aria-modal="true"
+				role="dialog"
+				tabindex="-1"
+			>
+				<div class="border-b border-white/10 px-4 py-4 sm:px-6">
+					<div class="flex items-start justify-between gap-4">
+						<div>
+							<p class="text-[0.62rem] font-black tracking-[0.34em] text-cyan-100/68 uppercase">
+								Field Journal
+							</p>
+							<h2
+								id="quest-log-heading"
+								class="mt-1 text-2xl font-black tracking-[0.12em] text-white uppercase sm:text-3xl"
+							>
+								Quest Log
+							</h2>
+						</div>
+						<button
+							bind:this={questLogCloseButton}
+							type="button"
+							class="rounded-full border border-white/12 bg-white/6 px-3 py-2 text-[0.65rem] font-black tracking-[0.24em] text-slate-100 uppercase transition hover:border-white/30"
+							onclick={closeQuestLog}
+						>
+							Close
+						</button>
+					</div>
+				</div>
+				<div class="min-h-0 overflow-y-auto p-4 sm:p-6">
+					<div class="grid gap-4 lg:grid-cols-2">
+						<section class="rounded-[1.2rem] border border-cyan-100/12 bg-cyan-100/8 p-4">
+							<h3 class="text-sm font-black tracking-[0.22em] text-cyan-50 uppercase">Main</h3>
+							{#if $hudState.quests.main}
+								<article class="mt-3 rounded-[0.95rem] border border-white/10 bg-black/14 p-3">
+									<h4 class="font-black tracking-[0.1em] text-white uppercase">
+										{$hudState.quests.main.title}
+									</h4>
+									<p class="mt-2 text-sm text-slate-100/82">{$hudState.quests.main.objective}</p>
+									<p class="mt-2 text-xs font-black tracking-[0.16em] text-cyan-100/72 uppercase">
+										{$hudState.quests.main.progress.label}: {$hudState.quests.main.progress.current} /
+										{$hudState.quests.main.progress.target}
+									</p>
+									<p class="mt-1 text-xs text-slate-300/72">
+										Reward: {$hudState.quests.main.rewardSummary}
+									</p>
+								</article>
+							{/if}
+						</section>
+						<section class="rounded-[1.2rem] border border-emerald-100/12 bg-emerald-100/8 p-4">
+							<h3 class="text-sm font-black tracking-[0.22em] text-emerald-50 uppercase">Side</h3>
+							<div class="mt-3 grid gap-3">
+								{#each [...$hudState.quests.side, ...($hudState.quests.guildOffer?.quests ?? [])] as quest (quest.questId)}
+									<article class="rounded-[0.95rem] border border-white/10 bg-black/14 p-3">
+										<h4 class="font-black tracking-[0.1em] text-white uppercase">{quest.title}</h4>
+										<p class="mt-2 text-sm text-slate-100/82">{quest.objective}</p>
+										{#if hasQuestProgress(quest)}
+											<p
+												class="mt-2 text-xs font-black tracking-[0.16em] text-emerald-100/72 uppercase"
+											>
+												{quest.progress.label}: {quest.progress.current} / {quest.progress.target}
+											</p>
+										{:else}
+											<p
+												class="mt-2 text-xs font-black tracking-[0.16em] text-amber-100/72 uppercase"
+											>
+												Available from Guild Master
+											</p>
+										{/if}
+										<p class="mt-1 text-xs text-slate-300/72">Reward: {quest.rewardSummary}</p>
+									</article>
+								{/each}
+								{#if $hudState.quests.side.length === 0 && !$hudState.quests.guildOffer}
+									<p class="text-sm text-slate-300/72">No side quests active.</p>
+								{/if}
+							</div>
+						</section>
+					</div>
+				</div>
+			</div>
+		</div>
+	{/if}
+
+	{#if guildQuestsOpen && $hudState.quests.guildOffer}
+		<div
+			class="absolute inset-0 z-50 flex items-center justify-center bg-black/52 p-3 backdrop-blur-[3px] sm:p-6"
+			role="presentation"
+		>
+			<div
+				class="absolute inset-0 cursor-default"
+				role="presentation"
+				onclick={closeGuildQuests}
+			></div>
+			<div
+				bind:this={guildQuestsDialog}
+				class="relative z-10 grid max-h-[calc(100vh-1.5rem)] w-[min(56rem,calc(100vw-1.5rem))] grid-rows-[auto_minmax(0,1fr)] overflow-hidden rounded-[1.8rem] border border-white/12 bg-[linear-gradient(145deg,rgba(8,13,34,0.98),rgba(18,42,40,0.96)_54%,rgba(34,38,16,0.94))] text-slate-50 shadow-[0_34px_100px_rgba(0,0,0,0.58)] backdrop-blur-md sm:max-h-[calc(100vh-3rem)] sm:rounded-[2rem]"
+				aria-labelledby="guild-quests-heading"
+				aria-modal="true"
+				role="dialog"
+				tabindex="-1"
+			>
+				<div class="border-b border-white/10 px-4 py-4 sm:px-6">
+					<div class="flex items-start justify-between gap-4">
+						<div>
+							<p class="text-[0.62rem] font-black tracking-[0.34em] text-emerald-100/68 uppercase">
+								{$hudState.quests.guildOffer.giverName}
+							</p>
+							<h2
+								id="guild-quests-heading"
+								class="mt-1 text-2xl font-black tracking-[0.12em] text-white uppercase sm:text-3xl"
+							>
+								Guild Quests
+							</h2>
+						</div>
+						<button
+							bind:this={guildQuestsCloseButton}
+							type="button"
+							class="rounded-full border border-white/12 bg-white/6 px-3 py-2 text-[0.65rem] font-black tracking-[0.24em] text-slate-100 uppercase transition hover:border-white/30"
+							onclick={closeGuildQuests}
+						>
+							Close
+						</button>
+					</div>
+				</div>
+				<div class="min-h-0 overflow-y-auto p-4 sm:p-6">
+					<div class="grid gap-3">
+						{#each $hudState.quests.guildOffer.quests as quest (quest.questId)}
+							<article
+								class="grid gap-3 rounded-[1.05rem] border border-white/10 bg-black/14 p-4 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center"
+							>
+								<div>
+									<h3 class="font-black tracking-[0.1em] text-white uppercase">{quest.title}</h3>
+									<p class="mt-2 text-sm text-slate-100/82">{quest.objective}</p>
+									<p class="mt-1 text-xs text-slate-300/72">Reward: {quest.rewardSummary}</p>
+								</div>
+								<button
+									type="button"
+									class="rounded-full border border-emerald-200/24 bg-emerald-200/12 px-4 py-2 text-xs font-black tracking-[0.18em] text-emerald-50 uppercase transition hover:border-emerald-200/48 disabled:cursor-not-allowed disabled:opacity-45"
+									onclick={() => acceptGuildQuest(quest.questId)}
+									disabled={!$hudState.ready}
+								>
+									Accept {quest.title}
+								</button>
+							</article>
+						{/each}
+					</div>
 				</div>
 			</div>
 		</div>

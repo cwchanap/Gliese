@@ -327,3 +327,87 @@ test('interact key shop purchase appears in inventory', async ({ page }) => {
 	await expect(fieldPotionSlot).toBeVisible();
 	await expect(fieldPotionSlot.getByText('x2')).toBeVisible();
 });
+
+test('quest log shows main quest and accepts Guild side quests', async ({ page }) => {
+	const save = {
+		version: 4,
+		mapId: 'guild-hall',
+		player: {
+			level: 1,
+			xp: 0,
+			hp: 20,
+			attack: 3,
+			x: 192,
+			y: 144,
+			facing: 'up'
+		},
+		flags: { clearedEncounters: [], collectedPickups: [], resolvedEncounterDrops: {} },
+		inventory: {
+			stacks: [{ itemId: 'field-potion', quantity: 1 }],
+			equipment: ['training-sword']
+		},
+		equipment: {
+			weapon: 'training-sword',
+			head: null,
+			body: null,
+			hands: null,
+			accessory: null
+		},
+		wallet: { coins: 30 },
+		shops: {
+			stock: {
+				'guild-quartermaster': {
+					'iron-cap': 1,
+					'grip-wraps': 1,
+					'traveler-vest': 1
+				}
+			}
+		},
+		quests: createQuestFixture()
+	};
+
+	await page.addInitScript((encoded) => {
+		const probeWindow = window as GlieseProbeWindow;
+		probeWindow.__glieseLastHudState = undefined;
+		window.addEventListener('gliese:hud-state', (event) => {
+			probeWindow.__glieseLastHudState = (event as CustomEvent<HudStateSnapshot>).detail;
+		});
+		window.localStorage.setItem('gliese.save.v4', encoded);
+	}, JSON.stringify(save));
+	await page.goto('/');
+	await expect(page.locator('canvas')).toBeVisible();
+
+	await page.getByRole('button', { name: 'Menu' }).click();
+	await page.getByRole('button', { name: 'Resume Save' }).click();
+	await expect(page.getByText('Talk to the Guild Master')).toBeVisible();
+
+	await page.locator('canvas').click();
+	await page.keyboard.press('KeyE');
+	await page.waitForFunction(() => {
+		const state = (window as GlieseProbeWindow).__glieseLastHudState;
+		return state?.status === 'Ruins route unlocked';
+	});
+
+	await page.getByRole('button', { name: 'Menu' }).click();
+	await page.getByRole('button', { name: 'Quests', exact: true }).click();
+	const questDialog = page.getByRole('dialog', { name: 'Quest Log' });
+	await expect(questDialog).toBeVisible();
+	await expect(questDialog.getByText('Investigate the Ruins')).toBeVisible();
+	await expect(questDialog.getByText('Defeat the ruins warden in the ruins core.')).toBeVisible();
+	await expect(questDialog.getByText('Thin Village Slimes')).toBeVisible();
+	await questDialog.getByRole('button', { name: 'Close' }).click();
+
+	await page.getByRole('button', { name: 'Menu' }).click();
+	await page.getByRole('button', { name: 'Guild Quests' }).click();
+	const guildDialog = page.getByRole('dialog', { name: 'Guild Quests' });
+	await expect(guildDialog).toBeVisible();
+	await guildDialog.getByRole('button', { name: 'Accept Thin Village Slimes' }).click();
+	await expect(guildDialog.getByText('Thin Village Slimes')).toHaveCount(0);
+	await guildDialog.getByRole('button', { name: 'Close' }).click();
+
+	await page.getByRole('button', { name: 'Menu' }).click();
+	await page.getByRole('button', { name: 'Quests', exact: true }).click();
+	await expect(
+		page.getByRole('dialog', { name: 'Quest Log' }).getByText('Village slimes defeated: 0 / 3')
+	).toBeVisible();
+});
