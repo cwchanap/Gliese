@@ -589,23 +589,20 @@ describe('WorldScene', () => {
 		}
 
 		expect(scene.add.image).toHaveBeenCalledWith(1_760, 1_280, 'forest-dressing', 'forestFloor');
-		expect(scene.add.image).toHaveBeenCalledWith(
-			1_328,
-			1_280,
-			'forest-dressing',
-			'forestEntrance'
-		);
-		expect(phaserState.imageMarkers.filter((marker) => marker.frame === 'treeCluster')).toHaveLength(
-			5
-		);
+		expect(scene.add.image).toHaveBeenCalledWith(1_328, 1_280, 'forest-dressing', 'forestEntrance');
+		expect(
+			phaserState.imageMarkers.filter((marker) => marker.frame === 'treeCluster')
+		).toHaveLength(5);
 
 		const forestFloor = phaserState.imageMarkers.find((marker) => marker.frame === 'forestFloor');
 		expect(forestFloor?.setDisplaySize).toHaveBeenCalledWith(820, 560);
 
-		const firstForestCallIndex = vi.mocked(scene.add.image).mock.calls.findIndex(
-			([x, y, texture, frame]) =>
-				x === 1_760 && y === 1_280 && texture === 'forest-dressing' && frame === 'forestFloor'
-		);
+		const firstForestCallIndex = vi
+			.mocked(scene.add.image)
+			.mock.calls.findIndex(
+				([x, y, texture, frame]) =>
+					x === 1_760 && y === 1_280 && texture === 'forest-dressing' && frame === 'forestFloor'
+			);
 		const firstHeroCallOrder = vi.mocked(scene.add.sprite).mock.invocationCallOrder[0];
 		const firstForestCallOrder = vi.mocked(scene.add.image).mock.invocationCallOrder[
 			firstForestCallIndex
@@ -2576,6 +2573,25 @@ describe('WorldScene', () => {
 		expect(sceneState.enemies[0]!.x).toBeGreaterThan(chasedX);
 		expect(sceneState.enemies[0]!.x).toBeLessThanOrEqual(sceneState.enemies[0]!.homeX);
 		expect(sceneState.enemies[0]!.y).toBe(sceneState.enemies[0]!.homeY);
+	});
+
+	it('prevents returning meadow slimes from attacking after the hero leaves the forest', async () => {
+		const { WorldScene } = await import('./WorldScene');
+		const scene = new WorldScene();
+		const sceneState = scene as unknown as {
+			enemies: Array<{ x: number; y: number; movementMode: string }>;
+			playerProgress: { hp: number };
+		};
+
+		scene.create({ mapId: 'meadow-entry' });
+		Object.assign(sceneState.enemies[0]!, { x: 1_326, y: 1_280, movementMode: 'chase' });
+		Object.assign(phaserState.playerMarker, { x: 1_298, y: 1_280 });
+		const hpBeforeReturn = sceneState.playerProgress.hp;
+
+		scene.update(1_000, 16);
+
+		expect(sceneState.enemies[0]!.movementMode).toBe('return');
+		expect(sceneState.playerProgress.hp).toBe(hpBeforeReturn);
 	});
 
 	it('keeps ruins slimes on the existing direct chase behavior', async () => {

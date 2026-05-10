@@ -2125,8 +2125,7 @@ export class WorldScene extends Phaser.Scene {
 
 				if (distanceToTarget > 0) {
 					const chaseStep =
-						this.getEnemyMoveSpeed(enemy) *
-						(Math.min(delta, WorldScene.maxMovementDeltaMs) / 1000);
+						this.getEnemyMoveSpeed(enemy) * (Math.min(delta, WorldScene.maxMovementDeltaMs) / 1000);
 					chaseDistance = Math.min(
 						chaseStep,
 						enemy.movementMode === 'chase'
@@ -2158,6 +2157,10 @@ export class WorldScene extends Phaser.Scene {
 				}
 			}
 			this.updateEnemyMovementAnimation(enemy, chaseDistance > 0 ? 'walk' : 'idle', time);
+
+			if (!this.canEnemyAttackPlayer(enemy)) {
+				continue;
+			}
 
 			const contactDistance = Phaser.Math.Distance.Between(
 				this.player.x,
@@ -2192,6 +2195,16 @@ export class WorldScene extends Phaser.Scene {
 			}
 			this.publishHudState(this.playerProgress.hp === 0 ? 'Hero down' : 'Enemy struck first');
 		}
+	}
+
+	private canEnemyAttackPlayer(enemy: EnemyInstance): boolean {
+		const map = this.resolveMap(this.mapId);
+
+		if (!map.forestZone || enemy.definition.id !== 'slime-scout') {
+			return true;
+		}
+
+		return enemy.movementMode === 'chase';
 	}
 
 	private playEnemyHitReaction(enemy: EnemyInstance, time: number) {
