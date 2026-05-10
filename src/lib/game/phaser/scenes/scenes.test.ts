@@ -87,6 +87,13 @@ const phaserState = vi.hoisted(() => {
 		setDisplaySize: ReturnType<typeof vi.fn>;
 		setVisible: ReturnType<typeof vi.fn>;
 	}> = [];
+	const tileSpriteMarkers: Array<{
+		x: number;
+		y: number;
+		width: number;
+		height: number;
+		frame?: string;
+	}> = [];
 
 	function createOverlayMarker() {
 		const marker = {
@@ -182,6 +189,19 @@ const phaserState = vi.hoisted(() => {
 		return marker;
 	}
 
+	function createTileSprite(
+		x: number,
+		y: number,
+		width: number,
+		height: number,
+		_texture: string,
+		frame?: string
+	) {
+		const marker = { x, y, width, height, frame };
+		tileSpriteMarkers.push(marker);
+		return marker;
+	}
+
 	function createRectangle(
 		x: number,
 		y: number,
@@ -236,6 +256,7 @@ const phaserState = vi.hoisted(() => {
 				return marker;
 			}),
 			image: vi.fn(createImage),
+			tileSprite: vi.fn(createTileSprite),
 			sprite: vi.fn(createImage),
 			rectangle: vi.fn(createRectangle),
 			text: vi.fn(() => victoryText)
@@ -289,6 +310,7 @@ const phaserState = vi.hoisted(() => {
 		tilemap,
 		tilemapLayer,
 		imageMarkers,
+		tileSpriteMarkers,
 		reset() {
 			Object.assign(playerMarker, { x: 0, y: 0, frame: undefined, visible: true });
 			Object.assign(enemyMarker, { x: 0, y: 0, frame: undefined, visible: true });
@@ -296,6 +318,7 @@ const phaserState = vi.hoisted(() => {
 			enemyHealthBarBgs.splice(0, enemyHealthBarBgs.length);
 			enemyHealthBarFills.splice(0, enemyHealthBarFills.length);
 			imageMarkers.splice(0, imageMarkers.length);
+			tileSpriteMarkers.splice(0, tileSpriteMarkers.length);
 			nextHitImpactMarkerIndex = 0;
 			playerMarker.setDisplaySize.mockClear();
 			playerMarker.clearTint.mockClear();
@@ -395,6 +418,7 @@ describe('BootScene', () => {
 	it('preloads the static and animation sheets', async () => {
 		const {
 			animationPackAsset,
+			fenceDressingAsset,
 			forestDressingAsset,
 			npcPackAsset,
 			starterPackAsset,
@@ -416,6 +440,7 @@ describe('BootScene', () => {
 			forestDressingAsset.key,
 			forestDressingAsset.path
 		);
+		expect(scene.load.image).toHaveBeenCalledWith(fenceDressingAsset.key, fenceDressingAsset.path);
 	});
 });
 
@@ -469,14 +494,9 @@ describe('WorldScene', () => {
 			'animation-pack',
 			'heroIdle0'
 		);
-		expect(scene.add.sprite).toHaveBeenCalledWith(
-			1_536,
-			1_280,
-			'animation-pack',
-			'slimeScoutIdle0'
-		);
+		expect(scene.add.sprite).toHaveBeenCalledWith(1_664, 832, 'animation-pack', 'slimeScoutIdle0');
 		expect(phaserState.enemyMarkers).toHaveLength(3);
-		expect(scene.add.image).toHaveBeenCalledWith(2_304, 1_280, 'starter-pack', 'doorwayTile');
+		expect(scene.add.image).toHaveBeenCalledWith(2_304, 704, 'starter-pack', 'doorwayTile');
 		expect(scene.cameras.main.setBackgroundColor).toHaveBeenCalledWith('#1a1f2b');
 	});
 
@@ -522,7 +542,7 @@ describe('WorldScene', () => {
 		expect(scene.add.image).not.toHaveBeenCalledWith(352, 1_048, 'starter-pack', 'doorwayTile');
 		expect(scene.add.image).not.toHaveBeenCalledWith(576, 1_592, 'starter-pack', 'doorwayTile');
 		expect(scene.add.image).not.toHaveBeenCalledWith(1_056, 1_368, 'starter-pack', 'doorwayTile');
-		expect(scene.add.image).toHaveBeenCalledWith(2_304, 1_280, 'starter-pack', 'doorwayTile');
+		expect(scene.add.image).toHaveBeenCalledWith(2_304, 704, 'starter-pack', 'doorwayTile');
 		expect(
 			phaserState.imageMarkers.filter((marker) => marker.frame === 'doorwayTile')
 		).toHaveLength(1);
@@ -557,7 +577,7 @@ describe('WorldScene', () => {
 		);
 		const firstDoorwayCallIndex = imageCalls.findIndex(
 			([x, y, texture, frame]) =>
-				x === 2_304 && y === 1_280 && texture === 'starter-pack' && frame === 'doorwayTile'
+				x === 2_304 && y === 704 && texture === 'starter-pack' && frame === 'doorwayTile'
 		);
 		const firstLandmarkCallOrder = vi.mocked(scene.add.image).mock.invocationCallOrder[
 			firstLandmarkCallIndex
@@ -588,45 +608,86 @@ describe('WorldScene', () => {
 			);
 		}
 
-		expect(scene.add.image).toHaveBeenCalledWith(1_760, 1_280, 'forest-dressing', 'forestFloor');
-		expect(scene.add.image).toHaveBeenCalledWith(1_328, 1_280, 'forest-dressing', 'forestEntrance');
+		expect(scene.add.tileSprite).toHaveBeenCalledWith(
+			2_016,
+			544,
+			960,
+			704,
+			'forest-dressing',
+			'forestFloor'
+		);
+		expect(scene.add.tileSprite).toHaveBeenCalledWith(
+			2_016,
+			64,
+			1_088,
+			128,
+			'forest-dressing',
+			'treeCluster'
+		);
+		expect(scene.add.tileSprite).toHaveBeenCalledWith(
+			2_016,
+			704,
+			512,
+			192,
+			'forest-dressing',
+			'brush'
+		);
+		expect(scene.add.image).toHaveBeenCalledWith(1_472, 832, 'forest-dressing', 'forestEntrance');
 		expect(
-			phaserState.imageMarkers.filter((marker) => marker.frame === 'treeCluster')
-		).toHaveLength(5);
+			phaserState.tileSpriteMarkers.filter((marker) => marker.frame === 'treeCluster')
+		).toHaveLength(4);
 
-		const forestFloor = phaserState.imageMarkers.find((marker) => marker.frame === 'forestFloor');
-		expect(forestFloor?.setDisplaySize).toHaveBeenCalledWith(820, 560);
+		const entrance = phaserState.imageMarkers.find((marker) => marker.frame === 'forestEntrance');
+		expect(entrance?.setDisplaySize).toHaveBeenCalledWith(160, 160);
 
 		const firstForestCallIndex = vi
-			.mocked(scene.add.image)
+			.mocked(scene.add.tileSprite)
 			.mock.calls.findIndex(
-				([x, y, texture, frame]) =>
-					x === 1_760 && y === 1_280 && texture === 'forest-dressing' && frame === 'forestFloor'
+				([x, y, width, height, texture, frame]) =>
+					x === 2_016 &&
+					y === 544 &&
+					width === 960 &&
+					height === 704 &&
+					texture === 'forest-dressing' &&
+					frame === 'forestFloor'
 			);
 		const firstHeroCallOrder = vi.mocked(scene.add.sprite).mock.invocationCallOrder[0];
-		const firstForestCallOrder = vi.mocked(scene.add.image).mock.invocationCallOrder[
+		const firstForestCallOrder = vi.mocked(scene.add.tileSprite).mock.invocationCallOrder[
 			firstForestCallIndex
 		];
 		expect(firstForestCallOrder).toBeLessThan(firstHeroCallOrder);
 	});
 
-	it('renders village fence segments as world rectangles', async () => {
+	it('registers and renders village fence segments with generated fence art', async () => {
+		const { fenceDressingAsset } = await import('$lib/game/content/assets');
 		const { meadowEntryMap } = await import('$lib/game/content/maps');
 		const { WorldScene } = await import('./WorldScene');
 		const scene = new WorldScene();
 
 		scene.create({ mapId: meadowEntryMap.id });
 
-		for (const fence of meadowEntryMap.fences ?? []) {
-			expect(scene.add.rectangle).toHaveBeenCalledWith(
-				fence.x,
-				fence.y,
-				fence.width,
-				fence.height,
-				0x6f5132,
-				0.95
+		expect(scene.textures.get).toHaveBeenCalledWith(fenceDressingAsset.key);
+		for (const [frameName, frame] of Object.entries(fenceDressingAsset.frames)) {
+			expect(phaserState.textureMock.add).toHaveBeenCalledWith(
+				frameName,
+				0,
+				frame.x,
+				frame.y,
+				frame.w,
+				frame.h
 			);
 		}
+		expect(scene.add.rectangle).not.toHaveBeenCalledWith(392, 848, 432, 32, 0x6f5132, 0.95);
+		expect(scene.add.image).toHaveBeenCalledWith(200, 848, 'fence-dressing', 'horizontalFence');
+		expect(scene.add.image).toHaveBeenCalledWith(176, 912, 'fence-dressing', 'verticalFence');
+		const horizontalFence = phaserState.imageMarkers.find(
+			(marker) => marker.x === 200 && marker.y === 848 && marker.frame === 'horizontalFence'
+		);
+		const verticalFence = phaserState.imageMarkers.find(
+			(marker) => marker.x === 176 && marker.y === 912 && marker.frame === 'verticalFence'
+		);
+		expect(horizontalFence?.setDisplaySize).toHaveBeenCalledWith(64, 32);
+		expect(verticalFence?.setDisplaySize).toHaveBeenCalledWith(32, 64);
 	});
 
 	it('registers animation pack frames and creates animated hero and enemy sprites', async () => {
@@ -643,12 +704,7 @@ describe('WorldScene', () => {
 			'animation-pack',
 			'heroIdle0'
 		);
-		expect(scene.add.sprite).toHaveBeenCalledWith(
-			1_536,
-			1_280,
-			'animation-pack',
-			'slimeScoutIdle0'
-		);
+		expect(scene.add.sprite).toHaveBeenCalledWith(1_664, 832, 'animation-pack', 'slimeScoutIdle0');
 		expect(phaserState.enemyMarkers).toHaveLength(3);
 		expect(phaserState.textureMock.add).toHaveBeenCalledWith(
 			'heroIdle0',
@@ -972,7 +1028,7 @@ describe('WorldScene', () => {
 
 		scene.create({ mapId: 'meadow-entry' });
 		phaserState.playerMarker.play.mockClear();
-		Object.assign(phaserState.playerMarker, { x: 1_568, y: 1_280 });
+		Object.assign(phaserState.playerMarker, { x: 1_696, y: 832 });
 
 		scene.update(0, 16);
 
@@ -1028,7 +1084,7 @@ describe('WorldScene', () => {
 		const scene = new WorldScene();
 
 		scene.create({ mapId: 'meadow-entry' });
-		Object.assign(phaserState.playerMarker, { x: 1_568, y: 1_280 });
+		Object.assign(phaserState.playerMarker, { x: 1_696, y: 832 });
 
 		scene.update(0, 16);
 
@@ -1047,16 +1103,16 @@ describe('WorldScene', () => {
 		const scene = new WorldScene();
 
 		scene.create({ mapId: 'meadow-entry' });
-		Object.assign(phaserState.playerMarker, { x: 1_568, y: 1_280 });
+		Object.assign(phaserState.playerMarker, { x: 1_696, y: 832 });
 		phaserState.enemyMarker.setTint.mockClear();
 		phaserState.enemyMarker.clearTint.mockClear();
 
 		scene.update(0, 16);
 
-		expect(scene.add.arc).toHaveBeenCalledWith(1_536, 1_280, 32, 210, 330, false, 0xff8a1f, 0.98);
-		expect(scene.add.arc).toHaveBeenCalledWith(1_536, 1_280, 16, 20, 160, false, 0xfff7d6, 1);
-		expect(scene.add.arc).toHaveBeenCalledWith(1_536, 1_280, 26, 0, 360, false, 0xfff0a8, 0.72);
-		expect(scene.add.arc).toHaveBeenCalledWith(1_536, 1_280, 10, 0, 360, false, 0xffffff, 0.92);
+		expect(scene.add.arc).toHaveBeenCalledWith(1_664, 832, 32, 210, 330, false, 0xff8a1f, 0.98);
+		expect(scene.add.arc).toHaveBeenCalledWith(1_664, 832, 16, 20, 160, false, 0xfff7d6, 1);
+		expect(scene.add.arc).toHaveBeenCalledWith(1_664, 832, 26, 0, 360, false, 0xfff0a8, 0.72);
+		expect(scene.add.arc).toHaveBeenCalledWith(1_664, 832, 10, 0, 360, false, 0xffffff, 0.92);
 		expect(phaserState.hitImpactArc.setAlpha).toHaveBeenCalledWith(0.98);
 		expect(phaserState.hitImpactSpark.setAlpha).toHaveBeenCalledWith(1);
 		expect(phaserState.hitImpactRing.setScale).toHaveBeenCalledWith(0.55, 0.55);
@@ -1695,7 +1751,7 @@ describe('WorldScene', () => {
 		const save = createNewSaveState();
 
 		scene.create({ saveState: { ...save, wallet: { coins: 0 } } });
-		Object.assign(phaserState.playerMarker, { x: 1_568, y: 1_280 });
+		Object.assign(phaserState.playerMarker, { x: 1_696, y: 832 });
 		sceneState.enemies[0]!.hp = 3;
 
 		scene.update(500, 16);
@@ -1875,7 +1931,7 @@ describe('WorldScene', () => {
 		};
 
 		scene.create({ mapId: 'meadow-entry' });
-		Object.assign(phaserState.playerMarker, { x: 1_568, y: 1_280 });
+		Object.assign(phaserState.playerMarker, { x: 1_696, y: 832 });
 		sceneState.enemies[0]!.hp = 3;
 
 		scene.update(0, 16);
@@ -1974,7 +2030,7 @@ describe('WorldScene', () => {
 		});
 
 		scene.create({ mapId: 'meadow-entry' });
-		Object.assign(phaserState.playerMarker, { x: 1_568, y: 1_280 });
+		Object.assign(phaserState.playerMarker, { x: 1_696, y: 832 });
 		(scene as unknown as { enemies: Array<{ hp: number }> }).enemies[0]!.hp = 3;
 
 		scene.update(0, 16);
@@ -2004,7 +2060,7 @@ describe('WorldScene', () => {
 
 		try {
 			scene.create({ mapId: 'meadow-entry' });
-			Object.assign(phaserState.playerMarker, { x: 1_568, y: 1_280 });
+			Object.assign(phaserState.playerMarker, { x: 1_696, y: 832 });
 			(scene as unknown as { enemies: Array<{ hp: number }> }).enemies[0]!.hp = 3;
 
 			scene.update(0, 16);
@@ -2052,7 +2108,7 @@ describe('WorldScene', () => {
 					}
 				}
 			});
-			Object.assign(phaserState.playerMarker, { x: 1_568, y: 1_280 });
+			Object.assign(phaserState.playerMarker, { x: 1_696, y: 832 });
 			(scene as unknown as { enemies: Array<{ hp: number }> }).enemies[0]!.hp = 3;
 
 			scene.update(0, 16);
@@ -2079,7 +2135,7 @@ describe('WorldScene', () => {
 		};
 
 		scene.create({ mapId: 'meadow-entry' });
-		Object.assign(phaserState.playerMarker, { x: 1_568, y: 1_280 });
+		Object.assign(phaserState.playerMarker, { x: 1_696, y: 832 });
 
 		scene.update(0, 16);
 
@@ -2094,7 +2150,7 @@ describe('WorldScene', () => {
 		};
 
 		scene.create({ mapId: 'meadow-entry' });
-		Object.assign(phaserState.playerMarker, { x: 1_568, y: 1_280 });
+		Object.assign(phaserState.playerMarker, { x: 1_696, y: 832 });
 		Object.assign(sceneState.enemies[0]!, {
 			hp: 9,
 			maxHp: 9,
@@ -2122,7 +2178,7 @@ describe('WorldScene', () => {
 		};
 
 		scene.create({ mapId: 'meadow-entry' });
-		Object.assign(phaserState.playerMarker, { x: 1_568, y: 1_280 });
+		Object.assign(phaserState.playerMarker, { x: 1_696, y: 832 });
 		sceneState.playerProgress = { level: 2, xp: 5, hp: 24, attack: 4 };
 		sceneState.enemies[0]!.hp = 4;
 
@@ -2178,7 +2234,7 @@ describe('WorldScene', () => {
 					}
 				}
 			});
-			Object.assign(phaserState.playerMarker, { x: 1_952, y: 1_280 });
+			Object.assign(phaserState.playerMarker, { x: 2_304, y: 512 });
 			sceneState.enemies[2]!.hp = 3;
 
 			scene.update(500, 16);
@@ -2219,7 +2275,7 @@ describe('WorldScene', () => {
 			}
 		});
 		emitHudStateSpy.mockClear();
-		Object.assign(phaserState.playerMarker, { x: 2_304, y: 1_280 });
+		Object.assign(phaserState.playerMarker, { x: 2_304, y: 704 });
 
 		scene.update(0, 16);
 
@@ -2259,7 +2315,7 @@ describe('WorldScene', () => {
 			}
 		});
 
-		Object.assign(phaserState.playerMarker, { x: 2_304, y: 1_280 });
+		Object.assign(phaserState.playerMarker, { x: 2_304, y: 704 });
 		scene.update(0, 16);
 
 		expect(scene.scene.restart).toHaveBeenCalledWith({
@@ -2362,7 +2418,7 @@ describe('WorldScene', () => {
 				mapId: 'meadow-entry',
 				player: expect.objectContaining({
 					x: 2_176,
-					y: 1_280,
+					y: 704,
 					facing: 'left'
 				})
 			})
@@ -2418,7 +2474,7 @@ describe('WorldScene', () => {
 				}
 			}
 		});
-		Object.assign(phaserState.playerMarker, { x: 2_304, y: 1_280 });
+		Object.assign(phaserState.playerMarker, { x: 2_304, y: 704 });
 
 		scene.update(0, 16);
 
@@ -2523,7 +2579,7 @@ describe('WorldScene', () => {
 		};
 
 		scene.create({ mapId: meadowEntryMap.id });
-		Object.assign(phaserState.playerMarker, { x: 1_360, y: 1_280 });
+		Object.assign(phaserState.playerMarker, { x: 1_472, y: 832 });
 
 		scene.update(0, 1_000);
 
@@ -2543,8 +2599,8 @@ describe('WorldScene', () => {
 		};
 
 		scene.create({ mapId: 'meadow-entry' });
-		Object.assign(sceneState.enemies[0]!, { x: 1_320, y: 1_280, movementMode: 'chase' });
-		Object.assign(phaserState.playerMarker, { x: 1_660, y: 1_280 });
+		Object.assign(sceneState.enemies[0]!, { x: 1_500, y: 832, movementMode: 'chase' });
+		Object.assign(phaserState.playerMarker, { x: 2_000, y: 832 });
 		const startX = sceneState.enemies[0]!.x;
 
 		scene.update(0, 1_000);
@@ -2562,11 +2618,11 @@ describe('WorldScene', () => {
 		};
 
 		scene.create({ mapId: meadowEntryMap.id });
-		Object.assign(phaserState.playerMarker, { x: 1_420, y: 1_280 });
+		Object.assign(phaserState.playerMarker, { x: 1_472, y: 832 });
 		scene.update(0, 1_000);
 
 		const chasedX = sceneState.enemies[0]!.x;
-		Object.assign(phaserState.playerMarker, { x: 900, y: 1_280 });
+		Object.assign(phaserState.playerMarker, { x: 1_200, y: 832 });
 		scene.update(1_000, 1_000);
 
 		expect(sceneState.enemies[0]!.movementMode).toBe('return');
@@ -2584,8 +2640,8 @@ describe('WorldScene', () => {
 		};
 
 		scene.create({ mapId: 'meadow-entry' });
-		Object.assign(sceneState.enemies[0]!, { x: 1_326, y: 1_280, movementMode: 'chase' });
-		Object.assign(phaserState.playerMarker, { x: 1_298, y: 1_280 });
+		Object.assign(sceneState.enemies[0]!, { x: 1_490, y: 832, movementMode: 'chase' });
+		Object.assign(phaserState.playerMarker, { x: 1_455, y: 832 });
 		const hpBeforeReturn = sceneState.playerProgress.hp;
 
 		scene.update(1_000, 16);

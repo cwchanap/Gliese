@@ -4,6 +4,7 @@ import {
 	actorAnimationAssets,
 	actorAnimationKeys,
 	animationPackAsset,
+	fenceDressingAsset,
 	forestDressingAsset,
 	getActorAnimationAsset,
 	getEnemyActorId,
@@ -211,6 +212,8 @@ export class WorldScene extends Phaser.Scene {
 	private static readonly playerRadius = 12;
 	private static readonly starterNpcDisplaySize = { width: 30, height: 36 };
 	private static readonly tileSize = 32;
+	private static readonly fenceTileLength = 64;
+	private static readonly fenceTileThickness = 32;
 	private static readonly terrainTilesetKey = 'starter-ground-tiles';
 	private static readonly terrainTileIndexes: Record<StarterPackFrameName, number> = {
 		hero: 0,
@@ -332,6 +335,7 @@ export class WorldScene extends Phaser.Scene {
 		this.registerNpcPackFrames();
 		this.registerVillageBuildingFrames();
 		this.registerForestDressingFrames();
+		this.registerFenceDressingFrames();
 		this.registerAnimationPackFrames();
 		this.ensureActorAnimations();
 		this.ensureTerrainTilesetTexture();
@@ -1032,6 +1036,16 @@ export class WorldScene extends Phaser.Scene {
 		}
 	}
 
+	private registerFenceDressingFrames() {
+		const texture = this.textures.get(fenceDressingAsset.key);
+
+		for (const [frameName, frame] of Object.entries(fenceDressingAsset.frames)) {
+			if (!texture.has(frameName)) {
+				texture.add(frameName, 0, frame.x, frame.y, frame.w, frame.h);
+			}
+		}
+	}
+
 	private ensureActorAnimations() {
 		for (const actor of Object.values(actorAnimationAssets)) {
 			for (const clipName of actorAnimationKeys) {
@@ -1366,9 +1380,21 @@ export class WorldScene extends Phaser.Scene {
 		}
 
 		for (const decor of forestDecor) {
-			this.add
-				.image(decor.x, decor.y, forestDressingAsset.key, decor.frameName)
-				.setDisplaySize(decor.width, decor.height);
+			if (decor.frameName === 'forestEntrance') {
+				this.add
+					.image(decor.x, decor.y, forestDressingAsset.key, decor.frameName)
+					.setDisplaySize(decor.width, decor.height);
+				continue;
+			}
+
+			this.add.tileSprite(
+				decor.x,
+				decor.y,
+				decor.width,
+				decor.height,
+				forestDressingAsset.key,
+				decor.frameName
+			);
 		}
 	}
 
@@ -1376,7 +1402,27 @@ export class WorldScene extends Phaser.Scene {
 		const fences: MapFenceSegment[] = map.fences ?? [];
 
 		for (const fence of fences) {
-			this.add.rectangle(fence.x, fence.y, fence.width, fence.height, 0x6f5132, 0.95);
+			this.renderFenceSegment(fence);
+		}
+	}
+
+	private renderFenceSegment(fence: MapFenceSegment) {
+		const isHorizontal = fence.width >= fence.height;
+		const length = isHorizontal ? fence.width : fence.height;
+		const tileCount = Math.max(1, Math.ceil(length / WorldScene.fenceTileLength));
+		const firstOffset = -((tileCount - 1) * WorldScene.fenceTileLength) / 2;
+		const frameName = isHorizontal ? 'horizontalFence' : 'verticalFence';
+		const displayWidth = isHorizontal ? WorldScene.fenceTileLength : WorldScene.fenceTileThickness;
+		const displayHeight = isHorizontal ? WorldScene.fenceTileThickness : WorldScene.fenceTileLength;
+
+		for (let index = 0; index < tileCount; index += 1) {
+			const offset = firstOffset + index * WorldScene.fenceTileLength;
+			const x = fence.x + (isHorizontal ? offset : 0);
+			const y = fence.y + (isHorizontal ? 0 : offset);
+
+			this.add
+				.image(x, y, fenceDressingAsset.key, frameName)
+				.setDisplaySize(displayWidth, displayHeight);
 		}
 	}
 

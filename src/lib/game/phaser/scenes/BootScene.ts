@@ -1,6 +1,7 @@
 import * as Phaser from 'phaser';
 import {
 	animationPackAsset,
+	fenceDressingAsset,
 	forestDressingAsset,
 	npcPackAsset,
 	starterPackAsset,
@@ -22,6 +23,7 @@ export class BootScene extends Phaser.Scene {
 		this.load.image(npcPackAsset.key, npcPackAsset.path);
 		this.load.image(villageBuildingAsset.key, villageBuildingAsset.path);
 		this.load.image(forestDressingAsset.key, forestDressingAsset.path);
+		this.load.image(fenceDressingAsset.key, fenceDressingAsset.path);
 	}
 
 	create() {

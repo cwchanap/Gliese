@@ -53,6 +53,22 @@ export const forestDressingAsset = {
 
 export type ForestDressingFrameName = keyof typeof forestDressingAsset.frames;
 
+export const fenceDressingAsset = {
+	key: 'fence-dressing',
+	path: '/game/assets/fence-dressing.png',
+	cellWidth: 256,
+	cellHeight: 256,
+	columns: 2,
+	frames: {
+		horizontalFence: { x: 0, y: 0, w: 256, h: 256 },
+		verticalFence: { x: 256, y: 0, w: 256, h: 256 },
+		fencePost: { x: 0, y: 256, w: 256, h: 256 },
+		gateMarker: { x: 256, y: 256, w: 256, h: 256 }
+	}
+} as const;
+
+export type FenceDressingFrameName = keyof typeof fenceDressingAsset.frames;
+
 const villageLandmarkFrames: Record<string, VillageBuildingFrameName> = {
 	'hero-house-exterior': 'heroHouse',
 	'guild-hall-exterior': 'guildHall',

@@ -197,7 +197,7 @@ export const meadowEntryMap: WorldMapDefinition = {
 		{
 			id: 'meadow-to-ruins-threshold',
 			x: 2_304,
-			y: 1_280,
+			y: 704,
 			toMapId: 'ruins-threshold',
 			requiresClear: true,
 			questRequirement: {
@@ -209,12 +209,12 @@ export const meadowEntryMap: WorldMapDefinition = {
 	],
 	forestZone: {
 		id: 'east-forest',
-		x: 1_760,
-		y: 1_280,
-		width: 896,
-		height: 640,
-		aggroRadius: 220,
-		leashRadius: 360
+		x: 2_016,
+		y: 544,
+		width: 1_088,
+		height: 832,
+		aggroRadius: 240,
+		leashRadius: 420
 	},
 	fences: [
 		{ id: 'village-fence-north-west', x: 392, y: 848, width: 432, height: 32 },
@@ -227,68 +227,60 @@ export const meadowEntryMap: WorldMapDefinition = {
 		{ id: 'village-fence-east-south', x: 1_216, y: 1_568, width: 32, height: 352 }
 	],
 	forestDecor: [
-		{ id: 'forest-floor', x: 1_760, y: 1_280, width: 820, height: 560, frameName: 'forestFloor' },
+		{ id: 'forest-floor', x: 2_016, y: 544, width: 960, height: 704, frameName: 'forestFloor' },
 		{
 			id: 'forest-canopy-north',
-			x: 1_760,
-			y: 928,
-			width: 896,
-			height: 96,
+			x: 2_016,
+			y: 64,
+			width: 1_088,
+			height: 128,
 			frameName: 'treeCluster'
 		},
 		{
 			id: 'forest-canopy-south',
-			x: 1_760,
-			y: 1_632,
-			width: 896,
-			height: 96,
+			x: 2_016,
+			y: 1_024,
+			width: 1_088,
+			height: 128,
 			frameName: 'treeCluster'
 		},
 		{
-			id: 'forest-canopy-west-north',
-			x: 1_280,
-			y: 1_088,
-			width: 96,
-			height: 256,
-			frameName: 'treeCluster'
-		},
-		{
-			id: 'forest-canopy-west-south',
-			x: 1_280,
-			y: 1_512,
-			width: 96,
-			height: 176,
+			id: 'forest-canopy-west',
+			x: 1_408,
+			y: 544,
+			width: 128,
+			height: 832,
 			frameName: 'treeCluster'
 		},
 		{
 			id: 'forest-canopy-east',
-			x: 2_240,
-			y: 1_280,
-			width: 96,
-			height: 640,
+			x: 2_528,
+			y: 544,
+			width: 64,
+			height: 832,
 			frameName: 'treeCluster'
 		},
 		{
 			id: 'forest-entrance',
-			x: 1_328,
-			y: 1_280,
-			width: 128,
-			height: 144,
+			x: 1_472,
+			y: 832,
+			width: 160,
+			height: 160,
 			frameName: 'forestEntrance'
 		},
 		{
 			id: 'forest-brush-clearing',
-			x: 1_760,
-			y: 1_504,
-			width: 320,
-			height: 96,
+			x: 2_016,
+			y: 704,
+			width: 512,
+			height: 192,
 			frameName: 'brush'
 		}
 	],
 	encounters: [
-		{ id: 'meadow-slime-west', x: 1_536, y: 1_280, enemyId: 'slime-scout' },
-		{ id: 'meadow-slime-center', x: 1_760, y: 1_344, enemyId: 'slime-scout' },
-		{ id: 'meadow-slime-east', x: 1_984, y: 1_280, enemyId: 'slime-scout' }
+		{ id: 'meadow-slime-west', x: 1_664, y: 832, enemyId: 'slime-scout' },
+		{ id: 'meadow-slime-center', x: 2_016, y: 640, enemyId: 'slime-scout' },
+		{ id: 'meadow-slime-east', x: 2_304, y: 512, enemyId: 'slime-scout' }
 	]
 };
 
@@ -434,7 +426,7 @@ export const ruinsThresholdMap: WorldMapDefinition = {
 			y: 480,
 			toMapId: openingMapId,
 			requiresClear: true,
-			arrival: { x: 2_176, y: 1_280, facing: 'left' }
+			arrival: { x: 2_176, y: 704, facing: 'left' }
 		},
 		{
 			id: 'threshold-to-core',

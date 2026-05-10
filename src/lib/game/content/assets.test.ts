@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import {
 	actorAnimationAssets,
 	animationPackAsset,
+	fenceDressingAsset,
 	forestDressingAsset,
 	getActorAnimationAsset,
 	getEnemyActorId,
@@ -13,6 +14,7 @@ import {
 	villageBuildingAsset,
 	type ActorAnimationId,
 	type ActorAnimationKey,
+	type FenceDressingFrameName,
 	type ForestDressingFrameName,
 	type VillageBuildingFrameName
 } from '$lib/game/content/assets';
@@ -31,6 +33,12 @@ const requiredForestFrames: ForestDressingFrameName[] = [
 	'brush',
 	'forestFloor',
 	'forestEntrance'
+];
+const requiredFenceFrames: FenceDressingFrameName[] = [
+	'horizontalFence',
+	'verticalFence',
+	'fencePost',
+	'gateMarker'
 ];
 
 describe('starter pack asset frames', () => {
@@ -93,6 +101,25 @@ describe('forest dressing asset metadata', () => {
 		for (const decor of meadowEntryMap.forestDecor ?? []) {
 			expect(requiredForestFrames).toContain(decor.frameName);
 		}
+	});
+});
+
+describe('fence dressing asset metadata', () => {
+	it('loads generated fence art from a fixed 2x2 sheet', () => {
+		expect(fenceDressingAsset).toMatchObject({
+			key: 'fence-dressing',
+			path: '/game/assets/fence-dressing.png',
+			cellWidth: 256,
+			cellHeight: 256,
+			columns: 2
+		});
+		expect(fenceDressingAsset.frames).toEqual({
+			horizontalFence: { x: 0, y: 0, w: 256, h: 256 },
+			verticalFence: { x: 256, y: 0, w: 256, h: 256 },
+			fencePost: { x: 0, y: 256, w: 256, h: 256 },
+			gateMarker: { x: 256, y: 256, w: 256, h: 256 }
+		});
+		expect(Object.keys(fenceDressingAsset.frames)).toEqual(requiredFenceFrames);
 	});
 });
 
