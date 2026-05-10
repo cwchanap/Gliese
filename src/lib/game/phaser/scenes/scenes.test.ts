@@ -190,6 +190,8 @@ const phaserState = vi.hoisted(() => {
 		color?: number,
 		_alpha?: number
 	) {
+		void _alpha;
+
 		if (width === 34 && height === 4) {
 			const marker = enemyHealthBarBgs.length === 0 ? enemyHealthBarBg : createOverlayMarker();
 			Object.assign(marker, { x, y, scaleX: 1, scaleY: 1, visible: true });
@@ -1194,6 +1196,93 @@ describe('WorldScene', () => {
 		);
 	});
 
+	it('talking to the Guild Master unlocks ruins and publishes Guild quest offers', async () => {
+		const events = await import('$lib/game/ui-bridge/events');
+		const emitHudStateSpy = vi.spyOn(events, 'emitHudState');
+		const { WorldScene } = await import('./WorldScene');
+		const scene = new WorldScene();
+		const sceneState = scene as unknown as {
+			buildSaveState: () => {
+				quests: {
+					entries: Record<string, { currentObjectiveId: string; progress: number }>;
+					completedObjectives: Record<string, string[]>;
+				};
+			};
+		};
+
+		scene.create({ mapId: 'guild-hall' });
+		Object.assign(phaserState.playerMarker, { x: 192, y: 144 });
+		scene.update(0, 16);
+		emitHudStateSpy.mockClear();
+
+		phaserState.interactKeys.e.justDown = true;
+		scene.update(16, 16);
+
+		expect(sceneState.buildSaveState().quests.entries['investigate-the-ruins']).toMatchObject({
+			currentObjectiveId: 'defeat-ruins-warden',
+			progress: 0
+		});
+		expect(
+			sceneState.buildSaveState().quests.completedObjectives['investigate-the-ruins']
+		).toContain('talk-to-guild-master');
+		expect(emitHudStateSpy).toHaveBeenLastCalledWith(
+			expect.objectContaining({
+				status: 'Ruins route unlocked',
+				quests: expect.objectContaining({
+					guildOffer: expect.objectContaining({
+						quests: expect.arrayContaining([
+							expect.objectContaining({ questId: 'thin-village-slimes' })
+						])
+					})
+				})
+			})
+		);
+	});
+
+	it('accepts Guild side quests through HUD commands and seeds cleared village slime progress', async () => {
+		const { createNewSaveState } = await import('$lib/game/save/save-state');
+		const { WorldScene } = await import('./WorldScene');
+		const scene = new WorldScene();
+		const sceneState = scene as unknown as {
+			handleHudCommand: (command: HudCommand) => void;
+			buildSaveState: () => {
+				quests: { entries: Record<string, { currentObjectiveId: string; progress: number }> };
+			};
+		};
+
+		const unlockedSave = createNewSaveState();
+		scene.create({
+			saveState: {
+				...unlockedSave,
+				mapId: 'guild-hall',
+				player: { ...unlockedSave.player, x: 192, y: 144 },
+				flags: {
+					...unlockedSave.flags,
+					clearedEncounters: ['meadow-slime-west', 'meadow-slime-center']
+				},
+				quests: {
+					entries: {
+						'investigate-the-ruins': {
+							status: 'active',
+							currentObjectiveId: 'defeat-ruins-warden',
+							progress: 0,
+							rewardApplied: false,
+							countedSourceIds: []
+						}
+					},
+					completedObjectives: { 'investigate-the-ruins': ['talk-to-guild-master'] }
+				}
+			}
+		});
+
+		sceneState.handleHudCommand({ type: 'accept-quest', questId: 'thin-village-slimes' });
+
+		expect(sceneState.buildSaveState().quests.entries['thin-village-slimes']).toMatchObject({
+			currentObjectiveId: 'defeat-village-slimes',
+			progress: 2
+		});
+	});
+
 	it('opens the nearby guild shop when an interact key is pressed', async () => {
 		const events = await import('$lib/game/ui-bridge/events');
 		const emitHudStateSpy = vi.spyOn(events, 'emitHudState');
@@ -1909,7 +1998,79 @@ describe('WorldScene', () => {
 		expect(sceneState.playerProgress).toEqual({ level: 2, xp: 9, hp: 24, attack: 4 });
 	});
 
-	it('moves into the ruins after the opening encounter is cleared and the exit is reached', async () => {
+	it('side quest completion from combat grants rewards once', async () => {
+		const randomSpy = vi.spyOn(Math, 'random').mockReturnValue(1);
+		const { createNewSaveState } = await import('$lib/game/save/save-state');
+		const { WorldScene } = await import('./WorldScene');
+		const scene = new WorldScene();
+		const sceneState = scene as unknown as {
+			enemies: Array<{ hp: number }>;
+			buildSaveState: () => {
+				wallet: { coins: number };
+				inventory: { stacks: Array<{ itemId: string; quantity: number }> };
+				quests: {
+					entries: Record<string, { status: string; progress: number; rewardApplied: boolean }>;
+				};
+			};
+		};
+
+		try {
+			const save = createNewSaveState();
+			scene.create({
+				saveState: {
+					...save,
+					mapId: 'meadow-entry',
+					wallet: { coins: 0 },
+					flags: {
+						...save.flags,
+						clearedEncounters: ['meadow-slime-west', 'meadow-slime-center']
+					},
+					quests: {
+						entries: {
+							'investigate-the-ruins': {
+								status: 'active',
+								currentObjectiveId: 'defeat-ruins-warden',
+								progress: 0,
+								rewardApplied: false,
+								countedSourceIds: []
+							},
+							'thin-village-slimes': {
+								status: 'active',
+								currentObjectiveId: 'defeat-village-slimes',
+								progress: 2,
+								rewardApplied: false,
+								countedSourceIds: ['encounter:meadow-slime-west', 'encounter:meadow-slime-center']
+							}
+						},
+						completedObjectives: { 'investigate-the-ruins': ['talk-to-guild-master'] }
+					}
+				}
+			});
+			Object.assign(phaserState.playerMarker, { x: 2_080, y: 1_280 });
+			sceneState.enemies[0]!.hp = 3;
+
+			scene.update(500, 16);
+			scene.update(1000, 16);
+
+			const completedSave = sceneState.buildSaveState();
+			expect(completedSave.quests.entries['thin-village-slimes']).toMatchObject({
+				status: 'completed',
+				progress: 3,
+				rewardApplied: true
+			});
+			expect(completedSave.wallet.coins).toBe(16);
+			expect(completedSave.inventory.stacks).toContainEqual({
+				itemId: 'field-potion',
+				quantity: 2
+			});
+		} finally {
+			randomSpy.mockRestore();
+		}
+	});
+
+	it('blocks the ruins route until the Guild Master objective is complete', async () => {
+		const events = await import('$lib/game/ui-bridge/events');
+		const emitHudStateSpy = vi.spyOn(events, 'emitHudState');
 		const { createNewSaveState } = await import('$lib/game/save/save-state');
 		const { WorldScene } = await import('./WorldScene');
 		const scene = new WorldScene();
@@ -1919,9 +2080,49 @@ describe('WorldScene', () => {
 				...createNewSaveState(),
 				mapId: 'meadow-entry',
 				flags: {
+					clearedEncounters: ['meadow-slime-east', 'meadow-slime-center', 'meadow-slime-west'],
+					collectedPickups: [],
+					resolvedEncounterDrops: {}
+				}
+			}
+		});
+		emitHudStateSpy.mockClear();
+		Object.assign(phaserState.playerMarker, { x: 2_304, y: 1_280 });
+
+		scene.update(0, 16);
+
+		expect(scene.scene.restart).not.toHaveBeenCalled();
+		expect(emitHudStateSpy).toHaveBeenLastCalledWith(
+			expect.objectContaining({ status: 'Report to the Guild Master first' })
+		);
+	});
+
+	it('moves into the ruins after the opening encounter is cleared and the exit is reached', async () => {
+		const { createNewSaveState } = await import('$lib/game/save/save-state');
+		const { WorldScene } = await import('./WorldScene');
+		const scene = new WorldScene();
+		const save = createNewSaveState();
+
+		scene.create({
+			saveState: {
+				...save,
+				mapId: 'meadow-entry',
+				flags: {
 					clearedEncounters: ['meadow-slime-center', 'meadow-slime-east', 'meadow-slime-west'],
 					collectedPickups: [],
 					resolvedEncounterDrops: {}
+				},
+				quests: {
+					entries: {
+						'investigate-the-ruins': {
+							status: 'active',
+							currentObjectiveId: 'defeat-ruins-warden',
+							progress: 0,
+							rewardApplied: false,
+							countedSourceIds: []
+						}
+					},
+					completedObjectives: { 'investigate-the-ruins': ['talk-to-guild-master'] }
 				}
 			}
 		});

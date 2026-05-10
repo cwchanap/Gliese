@@ -8,6 +8,10 @@ export interface MapTransition {
 	toMapId: string;
 	requiresClear?: boolean;
 	showMarker?: boolean;
+	questRequirement?: {
+		questId: string;
+		objectiveId: string;
+	};
 	arrival?: {
 		x: number;
 		y: number;
@@ -174,6 +178,10 @@ export const meadowEntryMap: WorldMapDefinition = {
 			y: 1_280,
 			toMapId: 'ruins-threshold',
 			requiresClear: true,
+			questRequirement: {
+				questId: 'investigate-the-ruins',
+				objectiveId: 'talk-to-guild-master'
+			},
 			arrival: { x: 256, y: 480, facing: 'right' }
 		}
 	],
@@ -220,6 +228,15 @@ export const guildHallMap: WorldMapDefinition = {
 		}
 	],
 	npcs: [
+		{
+			id: 'guild-master',
+			x: 192,
+			y: 144,
+			name: 'Guild Master Arlen',
+			dialogue: 'The ruins are stirring again. Speak with me, then clear the warden.',
+			role: 'guild',
+			frameName: 'quartermasterNpc'
+		},
 		{
 			id: 'guild-quartermaster',
 			x: 352,

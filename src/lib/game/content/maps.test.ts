@@ -76,6 +76,10 @@ describe('opening map content', () => {
 				y: 1_280,
 				toMapId: 'ruins-threshold',
 				requiresClear: true,
+				questRequirement: {
+					questId: 'investigate-the-ruins',
+					objectiveId: 'talk-to-guild-master'
+				},
 				arrival: { x: 256, y: 480, facing: 'right' }
 			}
 		]);
@@ -88,7 +92,11 @@ describe('opening map content', () => {
 			meadowEntryMap.transitions.find((transition) => transition.id === 'meadow-to-ruins-threshold')
 		).toMatchObject({
 			toMapId: 'ruins-threshold',
-			requiresClear: true
+			requiresClear: true,
+			questRequirement: {
+				questId: 'investigate-the-ruins',
+				objectiveId: 'talk-to-guild-master'
+			}
 		});
 		expect(
 			meadowEntryMap.transitions
@@ -214,6 +222,15 @@ describe('opening map content', () => {
 
 		expect(heroHouseMap.npcs ?? []).toEqual([]);
 		expect(guildHallMap.npcs).toEqual([
+			{
+				id: 'guild-master',
+				x: 192,
+				y: 144,
+				name: 'Guild Master Arlen',
+				dialogue: 'The ruins are stirring again. Speak with me, then clear the warden.',
+				role: 'guild',
+				frameName: 'quartermasterNpc'
+			},
 			{
 				id: 'guild-quartermaster',
 				x: 352,

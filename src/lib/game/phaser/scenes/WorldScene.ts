@@ -26,6 +26,7 @@ import {
 } from '$lib/game/content/maps';
 import { getItem, type EquipmentSlot } from '$lib/game/content/items';
 import { startingPlayer } from '$lib/game/content/player';
+import { isQuestId } from '$lib/game/content/quests';
 import { getShop } from '$lib/game/content/shops';
 import { advanceBossPhase } from '$lib/game/core/boss';
 import { canReceiveHit, resolveHit } from '$lib/game/core/combat';
@@ -35,9 +36,14 @@ import { addItem, consumeStackItem } from '$lib/game/core/inventory';
 import { resolveLootDrops } from '$lib/game/core/loot';
 import { applyExperienceGain, type ProgressionState } from '$lib/game/core/progression';
 import {
+	acceptQuest,
+	applyQuestEvent,
 	buildHudQuestState,
 	cloneQuestState,
 	createInitialQuestState,
+	hasCompletedQuestObjective,
+	type QuestEvent,
+	type QuestRewardGrant,
 	type QuestState
 } from '$lib/game/core/quests';
 import {
@@ -588,13 +594,20 @@ export class WorldScene extends Phaser.Scene {
 		this.wallet = { coins: this.wallet.coins + enemy.definition.coinReward };
 		this.playerProgress = this.applyReward(enemy.definition.xpReward);
 
+		this.applyQuestProgress(
+			{
+				type: 'defeat-enemy',
+				mapId: this.mapId,
+				encounterId: enemy.id,
+				enemyId: enemy.definition.id,
+				completion: enemy.completion
+			},
+			enemy.completion === 'victory' ? 'Victory: ruins cleared' : 'Enemy defeated'
+		);
+
 		if (enemy.completion === 'victory') {
 			this.showVictoryState();
-			this.publishHudState('Victory: ruins cleared');
-			return;
 		}
-
-		this.publishHudState('Enemy defeated');
 	}
 
 	private equipInventoryItem(itemId: string) {
@@ -686,6 +699,78 @@ export class WorldScene extends Phaser.Scene {
 		this.publishHudState(`Sold ${getItem(itemId)?.name ?? 'item'}`);
 	}
 
+	private acceptGuildQuest(questId: string) {
+		const nearbyNpc = this.findNearbyNpc();
+
+		if (nearbyNpc?.id !== 'guild-master') {
+			this.publishHudState('No Guild quest available');
+			return;
+		}
+
+		this.currentNearbyNpcId = nearbyNpc.id;
+		this.nearbyShopId = null;
+		this.openShopId = null;
+
+		const result = acceptQuest({
+			state: this.quests,
+			questId,
+			worldFlags: {
+				clearedEncounterIds: this.clearedEncounterIds,
+				collectedPickupIds: this.collectedPickupIds
+			}
+		});
+
+		if (!result.accepted) {
+			this.publishHudState(this.formatQuestAcceptFailure(result.reason));
+			return;
+		}
+
+		this.quests = result.state;
+		this.applyQuestRewards(result.rewards);
+		this.publishHudState(
+			result.completedQuestIds.length > 0
+				? `Quest complete: ${result.rewards[0]?.title ?? 'Quest'}`
+				: 'Quest accepted'
+		);
+	}
+
+	private formatQuestAcceptFailure(reason: string): string {
+		if (reason === 'already-active') return 'Quest already active';
+		if (reason === 'already-completed') return 'Quest already complete';
+		if (reason === 'not-available') return 'Quest not available';
+
+		return 'Quest cannot be accepted';
+	}
+
+	private applyQuestProgress(event: QuestEvent, fallbackStatus: string) {
+		const result = applyQuestEvent({ state: this.quests, event });
+		this.quests = result.state;
+		this.applyQuestRewards(result.rewards);
+
+		if (result.completedQuestIds.length > 0) {
+			this.publishHudState(`Quest complete: ${result.rewards[0]?.title ?? 'Quest'}`);
+			return;
+		}
+
+		this.publishHudState(fallbackStatus);
+	}
+
+	private applyQuestRewards(rewards: QuestRewardGrant[]) {
+		for (const grant of rewards) {
+			if (grant.reward.xp) {
+				this.playerProgress = this.applyReward(grant.reward.xp);
+			}
+
+			if (grant.reward.coins) {
+				this.wallet = { coins: this.wallet.coins + grant.reward.coins };
+			}
+
+			for (const item of grant.reward.items ?? []) {
+				this.inventory = addItem(this.inventory, item.itemId, item.quantity);
+			}
+		}
+	}
+
 	private formatBuyFailure(reason: ShopBuyFailureReason): string {
 		if (reason === 'not-enough-coins') return 'Not enough coins';
 		if (reason === 'out-of-stock') return 'Item out of stock';
@@ -753,6 +838,9 @@ export class WorldScene extends Phaser.Scene {
 			case 'sell-inventory-item':
 				this.sellOpenShopItem(command.itemId);
 				return;
+			case 'accept-quest':
+				this.acceptGuildQuest(command.questId);
+				return;
 		}
 	}
 
@@ -777,7 +865,7 @@ export class WorldScene extends Phaser.Scene {
 			shop: this.buildOpenShop(),
 			quests: buildHudQuestState({
 				state: this.quests,
-				nearbyQuestGiverId: this.currentNearbyNpcId
+				nearbyQuestGiverId: this.findNearbyNpc()?.id === 'guild-master' ? 'guild-master' : null
 			}),
 			inventory: this.buildHudInventory()
 		});
@@ -1647,6 +1735,18 @@ export class WorldScene extends Phaser.Scene {
 			);
 
 			if (distance <= WorldScene.playerRadius + WorldScene.transitionRadius) {
+				if (transition.questRequirement) {
+					const { questId, objectiveId } = transition.questRequirement;
+
+					if (
+						!isQuestId(questId) ||
+						!hasCompletedQuestObjective(this.quests, questId, objectiveId)
+					) {
+						this.publishHudState('Report to the Guild Master first');
+						return false;
+					}
+				}
+
 				this.scene.restart({
 					saveState: this.buildTransitionSaveState(transition),
 					reason: 'transition'
@@ -1722,6 +1822,11 @@ export class WorldScene extends Phaser.Scene {
 		this.currentNearbyNpcId = nearbyNpc.id;
 		this.nearbyShopId = nearbyNpc.shopId ?? null;
 
+		if (nearbyNpc.id === 'guild-master') {
+			this.applyQuestProgress({ type: 'talk-to-npc', npcId: nearbyNpc.id }, 'Ruins route unlocked');
+			return;
+		}
+
 		if (nearbyNpc.shopId) {
 			this.openNearbyShop(nearbyNpc.shopId);
 			return;
@@ -1774,7 +1879,16 @@ export class WorldScene extends Phaser.Scene {
 			this.inventory = addItem(this.inventory, pickup.itemId, pickup.quantity);
 			this.collectedPickupIds.add(pickup.id);
 			this.pickupMarkers.get(pickup.id)?.setVisible(false);
-			this.publishHudState(`Found ${getItem(pickup.itemId)?.name ?? 'item'}`);
+			this.applyQuestProgress(
+				{
+					type: 'collect-item',
+					mapId: this.mapId,
+					pickupId: pickup.id,
+					itemId: pickup.itemId,
+					quantity: pickup.quantity
+				},
+				`Found ${getItem(pickup.itemId)?.name ?? 'item'}`
+			);
 			return;
 		}
 	}
