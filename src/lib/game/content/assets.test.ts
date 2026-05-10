@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import {
 	actorAnimationAssets,
 	animationPackAsset,
+	forestDressingAsset,
 	getActorAnimationAsset,
 	getEnemyActorId,
 	getVillageBuildingFrameName,
@@ -12,6 +13,7 @@ import {
 	villageBuildingAsset,
 	type ActorAnimationId,
 	type ActorAnimationKey,
+	type ForestDressingFrameName,
 	type VillageBuildingFrameName
 } from '$lib/game/content/assets';
 import { meadowEntryMap } from '$lib/game/content/maps';
@@ -23,6 +25,12 @@ const requiredBuildingFrames: VillageBuildingFrameName[] = [
 	'guildHall',
 	'itemShop',
 	'villagerHouse'
+];
+const requiredForestFrames: ForestDressingFrameName[] = [
+	'treeCluster',
+	'brush',
+	'forestFloor',
+	'forestEntrance'
 ];
 
 describe('starter pack asset frames', () => {
@@ -60,6 +68,30 @@ describe('village building asset metadata', () => {
 
 		for (const landmark of meadowEntryMap.landmarks ?? []) {
 			expect(requiredBuildingFrames).toContain(getVillageBuildingFrameName(landmark.id));
+		}
+	});
+});
+
+describe('forest dressing asset metadata', () => {
+	it('loads compact forest art from a fixed 2x2 sheet', () => {
+		expect(forestDressingAsset).toMatchObject({
+			key: 'forest-dressing',
+			path: '/game/assets/forest-dressing.png',
+			cellWidth: 256,
+			cellHeight: 256,
+			columns: 2
+		});
+		expect(forestDressingAsset.frames).toEqual({
+			treeCluster: { x: 0, y: 0, w: 256, h: 256 },
+			brush: { x: 256, y: 0, w: 256, h: 256 },
+			forestFloor: { x: 0, y: 256, w: 256, h: 256 },
+			forestEntrance: { x: 256, y: 256, w: 256, h: 256 }
+		});
+	});
+
+	it('covers every meadow forest decor frame reference', () => {
+		for (const decor of meadowEntryMap.forestDecor ?? []) {
+			expect(requiredForestFrames).toContain(decor.frameName);
 		}
 	});
 });

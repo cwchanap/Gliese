@@ -393,8 +393,13 @@ describe('BootScene', () => {
 	});
 
 	it('preloads the static and animation sheets', async () => {
-		const { animationPackAsset, npcPackAsset, starterPackAsset, villageBuildingAsset } =
-			await import('$lib/game/content/assets');
+		const {
+			animationPackAsset,
+			forestDressingAsset,
+			npcPackAsset,
+			starterPackAsset,
+			villageBuildingAsset
+		} = await import('$lib/game/content/assets');
 		const { BootScene } = await import('./BootScene');
 		const scene = new BootScene();
 
@@ -406,6 +411,10 @@ describe('BootScene', () => {
 		expect(scene.load.image).toHaveBeenCalledWith(
 			villageBuildingAsset.key,
 			villageBuildingAsset.path
+		);
+		expect(scene.load.image).toHaveBeenCalledWith(
+			forestDressingAsset.key,
+			forestDressingAsset.path
 		);
 	});
 });

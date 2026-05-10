@@ -37,6 +37,22 @@ export const villageBuildingAsset = {
 
 export type VillageBuildingFrameName = keyof typeof villageBuildingAsset.frames;
 
+export const forestDressingAsset = {
+	key: 'forest-dressing',
+	path: '/game/assets/forest-dressing.png',
+	cellWidth: 256,
+	cellHeight: 256,
+	columns: 2,
+	frames: {
+		treeCluster: { x: 0, y: 0, w: 256, h: 256 },
+		brush: { x: 256, y: 0, w: 256, h: 256 },
+		forestFloor: { x: 0, y: 256, w: 256, h: 256 },
+		forestEntrance: { x: 256, y: 256, w: 256, h: 256 }
+	}
+} as const;
+
+export type ForestDressingFrameName = keyof typeof forestDressingAsset.frames;
+
 const villageLandmarkFrames: Record<string, VillageBuildingFrameName> = {
 	'hero-house-exterior': 'heroHouse',
 	'guild-hall-exterior': 'guildHall',
