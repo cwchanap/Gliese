@@ -1104,11 +1104,17 @@ describe('WorldScene', () => {
 
 		expect(scene.add.image).not.toHaveBeenCalledWith(256, 144, 'starter-pack', 'titleBadge');
 		expect(scene.add.image).not.toHaveBeenCalledWith(256, 144, 'npc-pack', 'miraItemShopNpc');
+		expect(scene.add.image).toHaveBeenCalledWith(192, 144, 'npc-pack', 'guildMasterNpc');
 		expect(scene.add.image).toHaveBeenCalledWith(352, 144, 'npc-pack', 'quartermasterNpc');
 		const npcMarkers = phaserState.imageMarkers.filter(
 			(marker) => marker.x === 256 && marker.y === 144 && marker.frame === 'miraItemShopNpc'
 		);
 		expect(npcMarkers).toHaveLength(0);
+		const guildMasterMarkers = phaserState.imageMarkers.filter(
+			(marker) => marker.x === 192 && marker.y === 144 && marker.frame === 'guildMasterNpc'
+		);
+		expect(guildMasterMarkers).toHaveLength(1);
+		expect(guildMasterMarkers[0]!.setDisplaySize).toHaveBeenCalledWith(48, 58);
 		const quartermasterMarkers = phaserState.imageMarkers.filter(
 			(marker) => marker.x === 352 && marker.y === 144 && marker.frame === 'quartermasterNpc'
 		);

@@ -74,10 +74,12 @@ describe('npc pack metadata', () => {
 		});
 		expect(npcPackAsset.frames).toEqual({
 			miraItemShopNpc: { x: 0, y: 0, w: 96, h: 96 },
-			quartermasterNpc: { x: 96, y: 0, w: 96, h: 96 }
+			quartermasterNpc: { x: 96, y: 0, w: 96, h: 96 },
+			guildMasterNpc: { x: 192, y: 0, w: 96, h: 96 }
 		});
 		expect(isNpcPackFrameName('miraItemShopNpc')).toBe(true);
 		expect(isNpcPackFrameName('quartermasterNpc')).toBe(true);
+		expect(isNpcPackFrameName('guildMasterNpc')).toBe(true);
 		expect(isNpcPackFrameName('titleBadge')).toBe(false);
 	});
 });

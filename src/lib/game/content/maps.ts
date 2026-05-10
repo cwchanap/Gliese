@@ -235,7 +235,7 @@ export const guildHallMap: WorldMapDefinition = {
 			name: 'Guild Master Arlen',
 			dialogue: 'The ruins are stirring again. Speak with me, then clear the warden.',
 			role: 'guild',
-			frameName: 'quartermasterNpc'
+			frameName: 'guildMasterNpc'
 		},
 		{
 			id: 'guild-quartermaster',

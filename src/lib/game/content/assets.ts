@@ -59,7 +59,8 @@ export const npcPackAsset = {
 	cellHeight: 96,
 	frames: {
 		miraItemShopNpc: { x: 0, y: 0, w: 96, h: 96 },
-		quartermasterNpc: { x: 96, y: 0, w: 96, h: 96 }
+		quartermasterNpc: { x: 96, y: 0, w: 96, h: 96 },
+		guildMasterNpc: { x: 192, y: 0, w: 96, h: 96 }
 	}
 } as const;
 
