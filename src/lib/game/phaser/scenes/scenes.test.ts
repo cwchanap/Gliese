@@ -857,6 +857,48 @@ describe('WorldScene', () => {
 		expect(phaserState.playerMarker.y).toBe(1_376);
 	});
 
+	it('blocks player movement through village fence segments', async () => {
+		const { WorldScene } = await import('./WorldScene');
+		const scene = new WorldScene();
+
+		scene.create({ mapId: 'meadow-entry' });
+		Object.assign(phaserState.playerMarker, { x: 1_164, y: 1_024 });
+		phaserState.cursorKeys.right.isDown = true;
+
+		scene.update(0, 250);
+
+		expect(phaserState.playerMarker.x).toBe(1_164);
+		expect(phaserState.playerMarker.y).toBe(1_024);
+	});
+
+	it('keeps the central east fence gate open toward the forest', async () => {
+		const { WorldScene } = await import('./WorldScene');
+		const scene = new WorldScene();
+
+		scene.create({ mapId: 'meadow-entry' });
+		Object.assign(phaserState.playerMarker, { x: 1_184, y: 1_280 });
+		phaserState.cursorKeys.right.isDown = true;
+
+		scene.update(0, 250);
+
+		expect(phaserState.playerMarker.x).toBeGreaterThan(1_184);
+		expect(phaserState.playerMarker.y).toBe(1_280);
+	});
+
+	it('keeps the hero house south fence opening passable', async () => {
+		const { WorldScene } = await import('./WorldScene');
+		const scene = new WorldScene();
+
+		scene.create({ mapId: 'meadow-entry' });
+		Object.assign(phaserState.playerMarker, { x: 384, y: 1_704 });
+		phaserState.cursorKeys.down.isDown = true;
+
+		scene.update(0, 250);
+
+		expect(phaserState.playerMarker.x).toBe(384);
+		expect(phaserState.playerMarker.y).toBeGreaterThan(1_704);
+	});
+
 	it('keeps building doorway transitions reachable from the exterior approach', async () => {
 		const { WorldScene } = await import('./WorldScene');
 		const scene = new WorldScene();

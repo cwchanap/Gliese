@@ -1386,7 +1386,8 @@ export class WorldScene extends Phaser.Scene {
 	): boolean {
 		return (
 			this.isPlayerMovementBlockedByNpc(currentX, currentY, targetX, targetY) ||
-			this.isPlayerMovementBlockedByLandmark(currentX, currentY, targetX, targetY)
+			this.isPlayerMovementBlockedByLandmark(currentX, currentY, targetX, targetY) ||
+			this.isPlayerMovementBlockedByFence(currentX, currentY, targetX, targetY)
 		);
 	}
 
@@ -1471,6 +1472,28 @@ export class WorldScene extends Phaser.Scene {
 		});
 	}
 
+	private isPlayerMovementBlockedByFence(
+		currentX: number,
+		currentY: number,
+		targetX: number,
+		targetY: number
+	): boolean {
+		const map = this.resolveMap(this.mapId);
+
+		return (map.fences ?? []).some((fence) => {
+			const bounds = this.getMapRectBounds(fence);
+
+			return this.isPlayerMovementBlockedByRect(
+				currentX,
+				currentY,
+				targetX,
+				targetY,
+				bounds,
+				bounds
+			);
+		});
+	}
+
 	private getLandmarkCollisionBounds(landmark: MapLandmark): LandmarkCollisionBounds {
 		const left = landmark.x - landmark.width / 2;
 		const right = landmark.x + landmark.width / 2;
@@ -1484,6 +1507,24 @@ export class WorldScene extends Phaser.Scene {
 			bottom,
 			centerX: landmark.x,
 			centerY: landmark.y
+		};
+	}
+
+	private getMapRectBounds(
+		rect: MapFenceSegment | MapForestDecor | MapForestZone
+	): LandmarkCollisionBounds {
+		const left = rect.x - rect.width / 2;
+		const right = rect.x + rect.width / 2;
+		const top = rect.y - rect.height / 2;
+		const bottom = rect.y + rect.height / 2;
+
+		return {
+			left,
+			right,
+			top,
+			bottom,
+			centerX: rect.x,
+			centerY: rect.y
 		};
 	}
 
