@@ -42,7 +42,7 @@ encounters: [
 	{ id: 'meadow-slime-west', x: 1_536, y: 1_280, enemyId: 'slime-scout' },
 	{ id: 'meadow-slime-center', x: 1_760, y: 1_344, enemyId: 'slime-scout' },
 	{ id: 'meadow-slime-east', x: 1_984, y: 1_280, enemyId: 'slime-scout' }
-]
+];
 ```
 
 Author village fence segments as center-based rectangles:
@@ -57,7 +57,7 @@ fences: [
 	{ id: 'village-fence-south-east', x: 1_080, y: 1_744, width: 272, height: 32 },
 	{ id: 'village-fence-east-north', x: 1_216, y: 1_024, width: 32, height: 320 },
 	{ id: 'village-fence-east-south', x: 1_216, y: 1_568, width: 32, height: 352 }
-]
+];
 ```
 
 Add forest decor as center-based rectangles:
@@ -66,18 +66,54 @@ Add forest decor as center-based rectangles:
 forestDecor: [
 	{ id: 'forest-floor', x: 1_760, y: 1_280, width: 820, height: 560, frameName: 'forestFloor' },
 	{ id: 'forest-canopy-north', x: 1_760, y: 928, width: 896, height: 96, frameName: 'treeCluster' },
-	{ id: 'forest-canopy-south', x: 1_760, y: 1_632, width: 896, height: 96, frameName: 'treeCluster' },
-	{ id: 'forest-canopy-west-north', x: 1_280, y: 1_088, width: 96, height: 256, frameName: 'treeCluster' },
-	{ id: 'forest-canopy-west-south', x: 1_280, y: 1_512, width: 96, height: 176, frameName: 'treeCluster' },
-	{ id: 'forest-canopy-east', x: 2_240, y: 1_280, width: 96, height: 640, frameName: 'treeCluster' },
-	{ id: 'forest-entrance', x: 1_328, y: 1_280, width: 128, height: 144, frameName: 'forestEntrance' },
+	{
+		id: 'forest-canopy-south',
+		x: 1_760,
+		y: 1_632,
+		width: 896,
+		height: 96,
+		frameName: 'treeCluster'
+	},
+	{
+		id: 'forest-canopy-west-north',
+		x: 1_280,
+		y: 1_088,
+		width: 96,
+		height: 256,
+		frameName: 'treeCluster'
+	},
+	{
+		id: 'forest-canopy-west-south',
+		x: 1_280,
+		y: 1_512,
+		width: 96,
+		height: 176,
+		frameName: 'treeCluster'
+	},
+	{
+		id: 'forest-canopy-east',
+		x: 2_240,
+		y: 1_280,
+		width: 96,
+		height: 640,
+		frameName: 'treeCluster'
+	},
+	{
+		id: 'forest-entrance',
+		x: 1_328,
+		y: 1_280,
+		width: 128,
+		height: 144,
+		frameName: 'forestEntrance'
+	},
 	{ id: 'forest-brush-clearing', x: 1_760, y: 1_504, width: 320, height: 96, frameName: 'brush' }
-]
+];
 ```
 
 ### Task 1: Map Content And Tests
 
 **Files:**
+
 - Modify: `src/lib/game/content/maps.ts`
 - Modify: `src/lib/game/content/maps.test.ts`
 
@@ -261,6 +297,7 @@ git commit -m "feat: define meadow forest zone"
 ### Task 2: Forest Asset Manifest And Preload
 
 **Files:**
+
 - Create: `public/game/assets/forest-dressing.png`
 - Modify: `src/lib/game/content/assets.ts`
 - Modify: `src/lib/game/content/assets.test.ts`
@@ -416,6 +453,7 @@ git commit -m "feat: add forest dressing asset"
 ### Task 3: Forest And Fence Rendering
 
 **Files:**
+
 - Modify: `src/lib/game/phaser/scenes/WorldScene.ts`
 - Modify: `src/lib/game/phaser/scenes/scenes.test.ts`
 
@@ -446,17 +484,19 @@ it('registers and renders meadow forest dressing before actors', async () => {
 
 	expect(scene.add.image).toHaveBeenCalledWith(1_760, 1_280, 'forest-dressing', 'forestFloor');
 	expect(scene.add.image).toHaveBeenCalledWith(1_328, 1_280, 'forest-dressing', 'forestEntrance');
-	expect(
-		phaserState.imageMarkers.filter((marker) => marker.frame === 'treeCluster')
-	).toHaveLength(5);
+	expect(phaserState.imageMarkers.filter((marker) => marker.frame === 'treeCluster')).toHaveLength(
+		5
+	);
 
 	const forestFloor = phaserState.imageMarkers.find((marker) => marker.frame === 'forestFloor');
 	expect(forestFloor?.setDisplaySize).toHaveBeenCalledWith(820, 560);
 
-	const firstForestCallIndex = vi.mocked(scene.add.image).mock.calls.findIndex(
-		([x, y, texture, frame]) =>
-			x === 1_760 && y === 1_280 && texture === 'forest-dressing' && frame === 'forestFloor'
-	);
+	const firstForestCallIndex = vi
+		.mocked(scene.add.image)
+		.mock.calls.findIndex(
+			([x, y, texture, frame]) =>
+				x === 1_760 && y === 1_280 && texture === 'forest-dressing' && frame === 'forestFloor'
+		);
 	const firstHeroCallOrder = vi.mocked(scene.add.sprite).mock.invocationCallOrder[0];
 	const firstForestCallOrder = vi.mocked(scene.add.image).mock.invocationCallOrder[
 		firstForestCallIndex
@@ -571,6 +611,7 @@ git commit -m "feat: render meadow forest and fences"
 ### Task 4: Fence Collision
 
 **Files:**
+
 - Modify: `src/lib/game/phaser/scenes/WorldScene.ts`
 - Modify: `src/lib/game/phaser/scenes/scenes.test.ts`
 
@@ -708,6 +749,7 @@ git commit -m "feat: block meadow village fences"
 ### Task 5: Meadow Slime Leash Behavior
 
 **Files:**
+
 - Modify: `src/lib/game/phaser/scenes/WorldScene.ts`
 - Modify: `src/lib/game/phaser/scenes/scenes.test.ts`
 
@@ -797,9 +839,9 @@ type EnemyMovementMode = 'idle' | 'chase' | 'return';
 Extend `EnemyInstance`:
 
 ```ts
-	homeX: number;
-	homeY: number;
-	movementMode: EnemyMovementMode;
+homeX: number;
+homeY: number;
+movementMode: EnemyMovementMode;
 ```
 
 In `setupEncounters`, initialize:
@@ -974,6 +1016,7 @@ git commit -m "feat: leash meadow slimes to forest"
 ### Task 6: Final Verification And Browser Review
 
 **Files:**
+
 - Modify only if verification finds defects in touched files.
 
 - [ ] **Step 1: Run focused verification**
