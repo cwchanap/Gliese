@@ -913,6 +913,11 @@ export class WorldScene extends Phaser.Scene {
 			return;
 		}
 
+		if (this.clearStaleNpcDialogueSession()) {
+			this.publishHudState('No dialogue open');
+			return;
+		}
+
 		const previousSession = this.dialogueSession;
 		const advancedSession = advanceDialogue(previousSession);
 		const completionIntent =
@@ -934,6 +939,12 @@ export class WorldScene extends Phaser.Scene {
 
 	private chooseDialogueCommand(choiceId: string) {
 		if (!this.dialogueSession) {
+			this.dialogueSession = buildDialogueFallback('Traveler', 'No dialogue is open.');
+			this.publishHudState('No dialogue open');
+			return;
+		}
+
+		if (this.clearStaleNpcDialogueSession()) {
 			this.dialogueSession = buildDialogueFallback('Traveler', 'No dialogue is open.');
 			this.publishHudState('No dialogue open');
 			return;
@@ -1065,6 +1076,17 @@ export class WorldScene extends Phaser.Scene {
 			buy: buildShopBuyEntries(shop.id, this.shopStockState),
 			sell: buildShopSellEntries({ inventory: this.inventory, equipment: this.equipment })
 		};
+	}
+
+	private clearStaleNpcDialogueSession(nearbyNpc = this.findNearbyNpc()): boolean {
+		const sessionNpcId = this.dialogueSession?.npcId;
+
+		if (!sessionNpcId || nearbyNpc?.dialogueId === sessionNpcId) {
+			return false;
+		}
+
+		this.dialogueSession = null;
+		return true;
 	}
 
 	private buildHudInventory(): HudState['inventory'] {
@@ -2145,6 +2167,7 @@ export class WorldScene extends Phaser.Scene {
 		}
 
 		const nearbyNpc = this.findNearbyNpc();
+		const clearedDialogue = this.clearStaleNpcDialogueSession(nearbyNpc);
 
 		if (!nearbyNpc) {
 			const hadShop = this.nearbyShopId !== null;
@@ -2154,6 +2177,8 @@ export class WorldScene extends Phaser.Scene {
 
 			if (hadShop) {
 				this.publishHudState('Shop out of reach');
+			} else if (clearedDialogue) {
+				this.publishHudState('No one nearby');
 			}
 
 			return;
@@ -2166,6 +2191,9 @@ export class WorldScene extends Phaser.Scene {
 		}
 
 		if (this.currentNearbyNpcId === nearbyNpc.id) {
+			if (clearedDialogue) {
+				this.publishHudState(`${nearbyNpc.name} nearby`);
+			}
 			return;
 		}
 

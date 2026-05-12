@@ -1437,6 +1437,37 @@ describe('WorldScene', () => {
 		).toContain('talk-to-guild-master');
 	});
 
+	it('does not complete Guild Master quest progress from stale out-of-range dialogue', async () => {
+		const { WorldScene } = await import('./WorldScene');
+		const scene = new WorldScene();
+		const sceneState = scene as unknown as {
+			handleHudCommand: (command: HudCommand) => void;
+			buildSaveState: () => {
+				quests: {
+					entries: Record<string, { currentObjectiveId: string }>;
+					completedObjectives: Record<string, string[]>;
+				};
+			};
+		};
+
+		scene.create({ mapId: 'guild-hall' });
+		Object.assign(phaserState.playerMarker, { x: 192, y: 144 });
+		phaserState.interactKeys.e.justDown = true;
+		scene.update(16, 16);
+
+		Object.assign(phaserState.playerMarker, { x: 64, y: 64 });
+		scene.update(32, 16);
+		sceneState.handleHudCommand({ type: 'dialogue-advance' });
+		sceneState.handleHudCommand({ type: 'dialogue-advance' });
+
+		expect(sceneState.buildSaveState().quests.entries['investigate-the-ruins']).toMatchObject({
+			currentObjectiveId: 'talk-to-guild-master'
+		});
+		expect(
+			sceneState.buildSaveState().quests.completedObjectives['investigate-the-ruins'] ?? []
+		).not.toContain('talk-to-guild-master');
+	});
+
 	it('accepts a Guild side quest through dialogue choices', async () => {
 		const { createNewSaveState } = await import('$lib/game/save/save-state');
 		const { WorldScene } = await import('./WorldScene');
@@ -1594,7 +1625,7 @@ describe('WorldScene', () => {
 		});
 	});
 
-	it('opens the nearby guild shop when an interact key is pressed', async () => {
+	it('starts nearby guild shopkeeper dialogue when an interact key is pressed', async () => {
 		const events = await import('$lib/game/ui-bridge/events');
 		const emitHudStateSpy = vi.spyOn(events, 'emitHudState');
 		const { WorldScene } = await import('./WorldScene');
@@ -1615,6 +1646,39 @@ describe('WorldScene', () => {
 				dialogue: expect.objectContaining({
 					speaker: 'Quartermaster Vale',
 					choices: expect.arrayContaining([expect.objectContaining({ id: 'shop' })])
+				})
+			})
+		);
+	});
+
+	it('does not open a shop from stale out-of-range shopkeeper dialogue', async () => {
+		const events = await import('$lib/game/ui-bridge/events');
+		const emitHudStateSpy = vi.spyOn(events, 'emitHudState');
+		const { WorldScene } = await import('./WorldScene');
+		const scene = new WorldScene();
+		const sceneState = scene as unknown as {
+			handleHudCommand: (command: HudCommand) => void;
+		};
+
+		scene.create({ mapId: 'item-shop' });
+		Object.assign(phaserState.playerMarker, { x: 256, y: 144 });
+		phaserState.interactKeys.e.justDown = true;
+		scene.update(16, 16);
+
+		Object.assign(phaserState.playerMarker, { x: 64, y: 64 });
+		scene.update(32, 16);
+		emitHudStateSpy.mockClear();
+
+		sceneState.handleHudCommand({ type: 'dialogue-choose', choiceId: 'shop' });
+
+		expect(emitHudStateSpy).toHaveBeenLastCalledWith(
+			expect.objectContaining({
+				status: 'No dialogue open',
+				nearbyShop: null,
+				shop: null,
+				dialogue: expect.objectContaining({
+					speaker: 'Traveler',
+					line: 'No dialogue is open.'
 				})
 			})
 		);
