@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { onMount } from 'svelte';
 	import type { HudDialogueState } from '$lib/game/ui-bridge/events';
 
 	type Props = {
@@ -9,6 +10,11 @@
 	};
 
 	let { dialogue, onadvance, onclose, onchoose }: Props = $props();
+	let panel = $state<HTMLDialogElement>();
+
+	onMount(() => {
+		panel?.focus({ preventScroll: true });
+	});
 
 	function handleKeydown(event: KeyboardEvent) {
 		if (event.key === 'Escape' && dialogue.canClose) {
@@ -19,6 +25,7 @@
 		}
 
 		if (event.key !== 'Enter' && event.key !== ' ') return;
+		if (event.target !== event.currentTarget) return;
 
 		event.preventDefault();
 		event.stopPropagation();
@@ -36,6 +43,7 @@
 <dialog
 	class="pointer-events-auto absolute right-4 bottom-4 left-4 z-[70] rounded-[1.2rem] border border-white/18 bg-[linear-gradient(145deg,rgba(8,13,34,0.96),rgba(16,24,44,0.94))] p-4 text-slate-50 shadow-[0_24px_70px_rgba(0,0,0,0.48)] backdrop-blur-md sm:right-6 sm:bottom-6 sm:left-6"
 	aria-label={dialogue.speaker}
+	bind:this={panel}
 	open
 	tabindex="-1"
 	onkeydown={handleKeydown}
@@ -63,7 +71,6 @@
 				{#each dialogue.choices as choice (choice.id)}
 					<button
 						type="button"
-						aria-label={choice.id === 'close' ? 'Dismiss option' : undefined}
 						class="rounded-[0.8rem] border border-cyan-100/18 bg-cyan-100/8 px-3 py-2 text-left text-sm font-black tracking-[0.08em] text-cyan-50 uppercase transition hover:border-cyan-100/42 hover:bg-cyan-100/14"
 						onclick={() => onchoose(choice.id)}
 					>
