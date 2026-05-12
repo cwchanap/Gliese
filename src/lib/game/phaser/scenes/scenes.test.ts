@@ -1408,6 +1408,47 @@ describe('WorldScene', () => {
 		);
 	});
 
+	it('starts Guild Master dialogue after a no-NPC fallback prompt', async () => {
+		const events = await import('$lib/game/ui-bridge/events');
+		const emitHudStateSpy = vi.spyOn(events, 'emitHudState');
+		const { WorldScene } = await import('./WorldScene');
+		const scene = new WorldScene();
+
+		scene.create({ mapId: 'guild-hall' });
+		emitHudStateSpy.mockClear();
+
+		phaserState.interactKeys.e.justDown = true;
+		scene.update(0, 16);
+
+		expect(emitHudStateSpy).toHaveBeenLastCalledWith(
+			expect.objectContaining({
+				status: 'No one nearby',
+				dialogue: expect.objectContaining({
+					speaker: 'Traveler',
+					line: 'No one is nearby.'
+				})
+			})
+		);
+
+		Object.assign(phaserState.playerMarker, { x: 192, y: 144 });
+		scene.update(16, 16);
+		emitHudStateSpy.mockClear();
+
+		phaserState.interactKeys.e.justDown = true;
+		scene.update(32, 16);
+
+		expect(emitHudStateSpy).toHaveBeenCalledOnce();
+		expect(emitHudStateSpy).toHaveBeenLastCalledWith(
+			expect.objectContaining({
+				status: 'Guild Master Arlen nearby',
+				dialogue: expect.objectContaining({
+					speaker: 'Guild Master Arlen',
+					line: expect.stringContaining('The eastern ruins are stirring again')
+				})
+			})
+		);
+	});
+
 	it('advances dialogue and records Guild Master quest progress at the end of briefing', async () => {
 		const { WorldScene } = await import('./WorldScene');
 		const scene = new WorldScene();

@@ -1089,6 +1089,15 @@ export class WorldScene extends Phaser.Scene {
 		return true;
 	}
 
+	private isTransientFallbackDialogueSession(session: DialogueSession): boolean {
+		return (
+			session.id.startsWith('fallback:') &&
+			session.npcId === null &&
+			session.mode === 'system' &&
+			session.choices.length === 0
+		);
+	}
+
 	private buildHudInventory(): HudState['inventory'] {
 		return {
 			consumables: this.inventory.stacks.flatMap((stack) => {
@@ -2206,11 +2215,15 @@ export class WorldScene extends Phaser.Scene {
 			return;
 		}
 
+		const nearbyNpc = this.findNearbyNpc();
+
 		if (this.dialogueSession) {
-			return;
+			if (!nearbyNpc || !this.isTransientFallbackDialogueSession(this.dialogueSession)) {
+				return;
+			}
 		}
 
-		this.interactWithNearbyNpc();
+		this.interactWithNearbyNpc(nearbyNpc);
 	}
 
 	private hasInteractJustDown() {
@@ -2220,8 +2233,10 @@ export class WorldScene extends Phaser.Scene {
 		);
 	}
 
-	private interactWithNearbyNpc() {
-		const nearbyNpc = this.findNearbyNpc();
+	private interactWithNearbyNpc(nearbyNpc = this.findNearbyNpc()) {
+		if (this.dialogueSession && !this.isTransientFallbackDialogueSession(this.dialogueSession)) {
+			return;
+		}
 
 		if (!nearbyNpc) {
 			this.dialogueSession = buildDialogueFallback('Traveler', 'No one is nearby.');
