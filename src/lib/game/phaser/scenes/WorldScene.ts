@@ -63,6 +63,16 @@ import {
 	type WalletState
 } from '$lib/game/core/shop';
 import { clampHpToMax, deriveEffectiveStats, type EffectiveStats } from '$lib/game/core/stats';
+import {
+	advanceDialogue,
+	buildDialogueFallback,
+	buildQuestCompletionDialogue,
+	chooseDialogueOption,
+	startNpcDialogue,
+	type DialogueChoiceResult,
+	type DialogueIntent,
+	type DialogueSession
+} from '$lib/game/core/dialogue';
 import type { Direction } from '$lib/game/core/types';
 import { createNewSaveState, type SaveState } from '$lib/game/save/save-state';
 import { loadStoredSaveResult, saveGameState } from '$lib/game/save/storage';
@@ -272,6 +282,7 @@ export class WorldScene extends Phaser.Scene {
 	private equipment: SaveState['equipment'] = { ...createNewSaveState().equipment };
 	private wallet: WalletState = { ...createNewSaveState().wallet };
 	private shopStockState: ShopStockState = cloneShopStockState(createInitialShopStockState());
+	private dialogueSession: DialogueSession | null = null;
 	private nearbyShopId: string | null = null;
 	private openShopId: string | null = null;
 	private resolvedEncounterDrops: SaveState['flags']['resolvedEncounterDrops'] = {};
@@ -317,6 +328,7 @@ export class WorldScene extends Phaser.Scene {
 		this.currentNearbyNpcId = null;
 		this.nearbyShopId = null;
 		this.openShopId = null;
+		this.dialogueSession = null;
 		this.npcMarkers.clear();
 		this.pickupMarkers.clear();
 		this.playerProgress = {
@@ -651,14 +663,17 @@ export class WorldScene extends Phaser.Scene {
 		this.publishHudState('Unequipped item');
 	}
 
-	private openNearbyShop(shopId: string) {
+	private openNearbyShop(shopId: string): boolean {
 		if (this.nearbyShopId !== shopId || !getShop(shopId)) {
+			this.dialogueSession = buildDialogueFallback('Shop', 'Shop out of reach.');
 			this.publishHudState('No shop nearby');
-			return;
+			return false;
 		}
 
 		this.openShopId = shopId;
+		this.dialogueSession = null;
 		this.publishHudState('Shop opened');
+		return true;
 	}
 
 	private closeOpenShop() {
@@ -715,12 +730,16 @@ export class WorldScene extends Phaser.Scene {
 		this.publishHudState(`Sold ${getItem(itemId)?.name ?? 'item'}`);
 	}
 
-	private acceptGuildQuest(questId: string) {
+	private acceptGuildQuest(questId: string): boolean {
 		const nearbyNpc = this.findNearbyNpc();
 
 		if (nearbyNpc?.id !== 'guild-master') {
+			this.dialogueSession = buildDialogueFallback(
+				'Guild Master Arlen',
+				'No Guild quest is available here.'
+			);
 			this.publishHudState('No Guild quest available');
-			return;
+			return false;
 		}
 
 		this.currentNearbyNpcId = nearbyNpc.id;
@@ -737,17 +756,28 @@ export class WorldScene extends Phaser.Scene {
 		});
 
 		if (!result.accepted) {
+			const failureStatus = this.formatQuestAcceptFailure(result.reason);
+			this.dialogueSession = buildDialogueFallback('Guild Master Arlen', failureStatus);
 			this.publishHudState(this.formatQuestAcceptFailure(result.reason));
-			return;
+			return false;
 		}
 
 		this.quests = result.state;
 		this.applyQuestRewards(result.rewards);
+		this.dialogueSession =
+			result.completedQuestIds.length > 0 && result.rewards[0]
+				? buildQuestCompletionDialogue({
+						questId: result.rewards[0].questId,
+						title: result.rewards[0].title,
+						reward: result.rewards[0].reward
+					})
+				: null;
 		this.publishHudState(
 			result.completedQuestIds.length > 0
 				? `Quest complete: ${result.rewards[0]?.title ?? 'Quest'}`
 				: 'Quest accepted'
 		);
+		return true;
 	}
 
 	private formatQuestAcceptFailure(reason: string): string {
@@ -764,6 +794,14 @@ export class WorldScene extends Phaser.Scene {
 		this.applyQuestRewards(result.rewards);
 
 		if (result.completedQuestIds.length > 0) {
+			const rewardGrant = result.rewards[0];
+			if (rewardGrant) {
+				this.dialogueSession = buildQuestCompletionDialogue({
+					questId: rewardGrant.questId,
+					title: rewardGrant.title,
+					reward: rewardGrant.reward
+				});
+			}
 			this.publishHudState(`Quest complete: ${result.rewards[0]?.title ?? 'Quest'}`);
 			return;
 		}
@@ -857,6 +895,89 @@ export class WorldScene extends Phaser.Scene {
 			case 'accept-quest':
 				this.acceptGuildQuest(command.questId);
 				return;
+			case 'dialogue-advance':
+				this.advanceDialogueCommand();
+				return;
+			case 'dialogue-close':
+				this.dialogueSession = null;
+				this.publishHudState('Dialogue closed');
+				return;
+			case 'dialogue-choose':
+				this.chooseDialogueCommand(command.choiceId);
+				return;
+		}
+	}
+
+	private advanceDialogueCommand() {
+		if (!this.dialogueSession) {
+			return;
+		}
+
+		const previousSession = this.dialogueSession;
+		const advancedSession = advanceDialogue(previousSession);
+		const completionIntent =
+			previousSession.lineIndex + 1 >= previousSession.lineCount
+				? previousSession.completionIntent
+				: null;
+		this.dialogueSession = {
+			...advancedSession,
+			completionIntent: completionIntent ? null : advancedSession.completionIntent
+		};
+
+		if (completionIntent) {
+			this.applyDialogueIntent(completionIntent);
+			return;
+		}
+
+		this.publishHudState('Dialogue updated');
+	}
+
+	private chooseDialogueCommand(choiceId: string) {
+		if (!this.dialogueSession) {
+			this.dialogueSession = buildDialogueFallback('Traveler', 'No dialogue is open.');
+			this.publishHudState('No dialogue open');
+			return;
+		}
+
+		const result = chooseDialogueOption({
+			session: this.dialogueSession,
+			choiceId,
+			questState: this.quests
+		});
+		this.applyDialogueChoiceResult(result);
+	}
+
+	private applyDialogueChoiceResult(result: DialogueChoiceResult) {
+		this.dialogueSession = result.session;
+
+		if (result.intent) {
+			this.applyDialogueIntent(result.intent);
+			return;
+		}
+
+		this.publishHudState('Dialogue updated');
+	}
+
+	private applyDialogueIntent(intent: DialogueIntent) {
+		switch (intent.type) {
+			case 'recordNpcTalk':
+				this.applyQuestProgress({ type: 'talk-to-npc', npcId: intent.npcId }, 'Ruins route unlocked');
+				return;
+			case 'acceptQuest':
+				this.acceptGuildQuest(intent.questId);
+				return;
+			case 'openShop':
+				this.openNearbyShop(intent.shopId);
+				return;
+			case 'close':
+				this.dialogueSession = null;
+				this.publishHudState('Dialogue closed');
+				return;
+			case 'talk':
+			case 'showQuestList':
+			case 'showQuestDetails':
+				this.publishHudState('Dialogue updated');
+				return;
 		}
 	}
 
@@ -879,12 +1000,33 @@ export class WorldScene extends Phaser.Scene {
 			wallet: { ...this.wallet },
 			nearbyShop: this.buildNearbyShop(),
 			shop: this.buildOpenShop(),
+			dialogue: this.buildHudDialogue(),
 			quests: buildHudQuestState({
 				state: this.quests,
 				nearbyQuestGiverId: this.findNearbyNpc()?.id === 'guild-master' ? 'guild-master' : null
 			}),
 			inventory: this.buildHudInventory()
 		});
+	}
+
+	private buildHudDialogue(): HudState['dialogue'] {
+		if (!this.dialogueSession) {
+			return null;
+		}
+
+		return {
+			id: this.dialogueSession.id,
+			speaker: this.dialogueSession.speaker,
+			line: this.dialogueSession.line,
+			lineIndex: this.dialogueSession.lineIndex,
+			lineCount: this.dialogueSession.lineCount,
+			mode: this.dialogueSession.mode,
+			choices: this.dialogueSession.choices.map((choice) => ({
+				id: choice.id,
+				label: choice.label
+			})),
+			canClose: this.dialogueSession.canClose
+		};
 	}
 
 	private buildNearbyShop(): HudState['nearbyShop'] {
@@ -2028,11 +2170,15 @@ export class WorldScene extends Phaser.Scene {
 		}
 
 		this.currentNearbyNpcId = nearbyNpc.id;
-		this.publishHudState(`${nearbyNpc.name}: ${nearbyNpc.dialogue}`);
+		this.publishHudState(`${nearbyNpc.name} nearby`);
 	}
 
 	private handleInteractInput() {
 		if (!this.hasInteractJustDown()) {
+			return;
+		}
+
+		if (this.dialogueSession) {
 			return;
 		}
 
@@ -2050,24 +2196,18 @@ export class WorldScene extends Phaser.Scene {
 		const nearbyNpc = this.findNearbyNpc();
 
 		if (!nearbyNpc) {
+			this.dialogueSession = buildDialogueFallback('Traveler', 'No one is nearby.');
 			this.publishHudState('No one nearby');
 			return;
 		}
 
 		this.currentNearbyNpcId = nearbyNpc.id;
 		this.nearbyShopId = nearbyNpc.shopId ?? null;
-
-		if (nearbyNpc.id === 'guild-master') {
-			this.applyQuestProgress({ type: 'talk-to-npc', npcId: nearbyNpc.id }, 'Ruins route unlocked');
-			return;
-		}
-
-		if (nearbyNpc.shopId) {
-			this.openNearbyShop(nearbyNpc.shopId);
-			return;
-		}
-
-		this.publishHudState(`${nearbyNpc.name}: ${nearbyNpc.dialogue}`);
+		this.dialogueSession = startNpcDialogue({
+			npcId: nearbyNpc.dialogueId,
+			questState: this.quests
+		});
+		this.publishHudState(`${nearbyNpc.name} nearby`);
 	}
 
 	private findNearbyNpc(): MapNpc | undefined {

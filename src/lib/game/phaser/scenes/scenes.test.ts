@@ -1336,7 +1336,7 @@ describe('WorldScene', () => {
 		).toBe(false);
 	});
 
-	it('publishes NPC dialogue once when the hero enters proximity', async () => {
+	it('publishes nearby NPC status once when the hero enters proximity', async () => {
 		const events = await import('$lib/game/ui-bridge/events');
 		const emitHudStateSpy = vi.spyOn(events, 'emitHudState');
 		const { WorldScene } = await import('./WorldScene');
@@ -1353,13 +1353,13 @@ describe('WorldScene', () => {
 		expect(emitHudStateSpy).toHaveBeenLastCalledWith(
 			expect.objectContaining({
 				mapId: 'guild-hall',
-				status:
-					'Quartermaster Vale: Need field gear before the ruins? Guild stock is limited, but sturdy.'
+				status: 'Quartermaster Vale nearby',
+				dialogue: null
 			})
 		);
 	});
 
-	it('allows NPC dialogue to publish again after leaving and re-entering proximity', async () => {
+	it('allows nearby NPC status to publish again after leaving and re-entering proximity', async () => {
 		const events = await import('$lib/game/ui-bridge/events');
 		const emitHudStateSpy = vi.spyOn(events, 'emitHudState');
 		const { WorldScene } = await import('./WorldScene');
@@ -1378,18 +1378,139 @@ describe('WorldScene', () => {
 		expect(emitHudStateSpy).toHaveBeenCalledTimes(3);
 		expect(emitHudStateSpy).toHaveBeenLastCalledWith(
 			expect.objectContaining({
-				status:
-					'Mira: Fresh tonics are on the shelf. The guild already stocked your field kit today.'
+				status: 'Mira nearby',
+				dialogue: null
 			})
 		);
 	});
 
-	it('talking to the Guild Master unlocks ruins and publishes Guild quest offers', async () => {
+	it('starts Guild Master dialogue instead of status-only NPC text', async () => {
+		const events = await import('$lib/game/ui-bridge/events');
+		const emitHudStateSpy = vi.spyOn(events, 'emitHudState');
+		const { WorldScene } = await import('./WorldScene');
+		const scene = new WorldScene();
+
+		scene.create({ mapId: 'guild-hall' });
+		Object.assign(phaserState.playerMarker, { x: 192, y: 144 });
+		scene.update(0, 16);
+		emitHudStateSpy.mockClear();
+
+		phaserState.interactKeys.e.justDown = true;
+		scene.update(16, 16);
+
+		expect(emitHudStateSpy).toHaveBeenLastCalledWith(
+			expect.objectContaining({
+				dialogue: expect.objectContaining({
+					speaker: 'Guild Master Arlen',
+					line: expect.stringContaining('The eastern ruins are stirring again')
+				})
+			})
+		);
+	});
+
+	it('advances dialogue and records Guild Master quest progress at the end of briefing', async () => {
+		const { WorldScene } = await import('./WorldScene');
+		const scene = new WorldScene();
+		const sceneState = scene as unknown as {
+			handleHudCommand: (command: HudCommand) => void;
+			buildSaveState: () => {
+				quests: {
+					entries: Record<string, { currentObjectiveId: string }>;
+					completedObjectives: Record<string, string[]>;
+				};
+			};
+		};
+
+		scene.create({ mapId: 'guild-hall' });
+		Object.assign(phaserState.playerMarker, { x: 192, y: 144 });
+		phaserState.interactKeys.e.justDown = true;
+		scene.update(16, 16);
+
+		sceneState.handleHudCommand({ type: 'dialogue-advance' });
+		sceneState.handleHudCommand({ type: 'dialogue-advance' });
+
+		expect(sceneState.buildSaveState().quests.entries['investigate-the-ruins']).toMatchObject({
+			currentObjectiveId: 'defeat-ruins-warden'
+		});
+		expect(
+			sceneState.buildSaveState().quests.completedObjectives['investigate-the-ruins']
+		).toContain('talk-to-guild-master');
+	});
+
+	it('accepts a Guild side quest through dialogue choices', async () => {
+		const { createNewSaveState } = await import('$lib/game/save/save-state');
+		const { WorldScene } = await import('./WorldScene');
+		const scene = new WorldScene();
+		const sceneState = scene as unknown as {
+			handleHudCommand: (command: HudCommand) => void;
+			buildSaveState: () => {
+				quests: { entries: Record<string, { currentObjectiveId: string; progress: number }> };
+			};
+		};
+		const unlockedSave = createNewSaveState();
+
+		scene.create({
+			saveState: {
+				...unlockedSave,
+				mapId: 'guild-hall',
+				player: { ...unlockedSave.player, x: 192, y: 144 },
+				quests: {
+					entries: {
+						'investigate-the-ruins': {
+							status: 'active',
+							currentObjectiveId: 'defeat-ruins-warden',
+							progress: 0,
+							rewardApplied: false,
+							countedSourceIds: []
+						}
+					},
+					completedObjectives: { 'investigate-the-ruins': ['talk-to-guild-master'] }
+				}
+			}
+		});
+		Object.assign(phaserState.playerMarker, { x: 192, y: 144 });
+		phaserState.interactKeys.e.justDown = true;
+		scene.update(16, 16);
+
+		sceneState.handleHudCommand({ type: 'dialogue-choose', choiceId: 'quest' });
+		sceneState.handleHudCommand({ type: 'dialogue-choose', choiceId: 'quest:thin-village-slimes' });
+		sceneState.handleHudCommand({ type: 'dialogue-choose', choiceId: 'accept:thin-village-slimes' });
+
+		expect(sceneState.buildSaveState().quests.entries['thin-village-slimes']).toMatchObject({
+			currentObjectiveId: 'defeat-village-slimes',
+			progress: 0
+		});
+	});
+
+	it('opens shops through dialogue choices', async () => {
+		const events = await import('$lib/game/ui-bridge/events');
+		const emitHudStateSpy = vi.spyOn(events, 'emitHudState');
+		const { WorldScene } = await import('./WorldScene');
+		const scene = new WorldScene();
+
+		scene.create({ mapId: 'guild-hall' });
+		Object.assign(phaserState.playerMarker, { x: 352, y: 144 });
+		phaserState.interactKeys.e.justDown = true;
+		scene.update(16, 16);
+		emitHudStateSpy.mockClear();
+
+		const sceneState = scene as unknown as { handleHudCommand: (command: HudCommand) => void };
+		sceneState.handleHudCommand({ type: 'dialogue-choose', choiceId: 'shop' });
+
+		expect(emitHudStateSpy).toHaveBeenLastCalledWith(
+			expect.objectContaining({
+				shop: expect.objectContaining({ shopId: 'guild-quartermaster' })
+			})
+		);
+	});
+
+	it('talking through the Guild Master briefing unlocks ruins and publishes Guild quest offers', async () => {
 		const events = await import('$lib/game/ui-bridge/events');
 		const emitHudStateSpy = vi.spyOn(events, 'emitHudState');
 		const { WorldScene } = await import('./WorldScene');
 		const scene = new WorldScene();
 		const sceneState = scene as unknown as {
+			handleHudCommand: (command: HudCommand) => void;
 			buildSaveState: () => {
 				quests: {
 					entries: Record<string, { currentObjectiveId: string; progress: number }>;
@@ -1405,6 +1526,8 @@ describe('WorldScene', () => {
 
 		phaserState.interactKeys.e.justDown = true;
 		scene.update(16, 16);
+		sceneState.handleHudCommand({ type: 'dialogue-advance' });
+		sceneState.handleHudCommand({ type: 'dialogue-advance' });
 
 		expect(sceneState.buildSaveState().quests.entries['investigate-the-ruins']).toMatchObject({
 			currentObjectiveId: 'defeat-ruins-warden',
@@ -1488,16 +1611,16 @@ describe('WorldScene', () => {
 		expect(emitHudStateSpy).toHaveBeenCalledOnce();
 		expect(emitHudStateSpy).toHaveBeenLastCalledWith(
 			expect.objectContaining({
-				status: 'Shop opened',
-				shop: expect.objectContaining({
-					shopId: 'guild-quartermaster',
-					merchantName: 'Quartermaster Vale'
+				status: 'Quartermaster Vale nearby',
+				dialogue: expect.objectContaining({
+					speaker: 'Quartermaster Vale',
+					choices: expect.arrayContaining([expect.objectContaining({ id: 'shop' })])
 				})
 			})
 		);
 	});
 
-	it('opens a nearby shop when an interact key is pressed', async () => {
+	it('starts nearby shopkeeper dialogue when an interact key is pressed', async () => {
 		const events = await import('$lib/game/ui-bridge/events');
 		const emitHudStateSpy = vi.spyOn(events, 'emitHudState');
 		const { WorldScene } = await import('./WorldScene');
@@ -1513,10 +1636,10 @@ describe('WorldScene', () => {
 
 		expect(emitHudStateSpy).toHaveBeenLastCalledWith(
 			expect.objectContaining({
-				status: 'Shop opened',
-				shop: expect.objectContaining({
-					shopId: 'miras-item-shop',
-					merchantName: 'Mira'
+				status: 'Mira nearby',
+				dialogue: expect.objectContaining({
+					speaker: 'Mira',
+					choices: expect.arrayContaining([expect.objectContaining({ id: 'shop' })])
 				})
 			})
 		);
@@ -1542,10 +1665,10 @@ describe('WorldScene', () => {
 		expect(emitHudStateSpy).toHaveBeenCalledOnce();
 		expect(emitHudStateSpy).toHaveBeenLastCalledWith(
 			expect.objectContaining({
-				status: 'Shop opened',
-				shop: expect.objectContaining({
-					shopId: 'guild-quartermaster',
-					merchantName: 'Quartermaster Vale'
+				status: 'Quartermaster Vale nearby',
+				dialogue: expect.objectContaining({
+					speaker: 'Quartermaster Vale',
+					choices: expect.arrayContaining([expect.objectContaining({ id: 'shop' })])
 				})
 			})
 		);

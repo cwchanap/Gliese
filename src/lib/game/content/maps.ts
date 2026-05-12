@@ -45,7 +45,6 @@ export interface MapNpc {
 	y: number;
 	name: string;
 	dialogueId: NpcDialogueId;
-	dialogue: string;
 	role: MapNpcRole;
 	frameName: NpcFrameName;
 	shopId?: string;
@@ -323,7 +322,6 @@ export const guildHallMap: WorldMapDefinition = {
 			y: 144,
 			name: 'Guild Master Arlen',
 			dialogueId: 'guild-master',
-			dialogue: 'The ruins are stirring again. Speak with me, then clear the warden.',
 			role: 'guild',
 			frameName: 'guildMasterNpc'
 		},
@@ -333,7 +331,6 @@ export const guildHallMap: WorldMapDefinition = {
 			y: 144,
 			name: 'Quartermaster Vale',
 			dialogueId: 'guild-quartermaster',
-			dialogue: 'Need field gear before the ruins? Guild stock is limited, but sturdy.',
 			role: 'shopkeeper',
 			frameName: 'quartermasterNpc',
 			shopId: 'guild-quartermaster'
@@ -362,7 +359,6 @@ export const itemShopMap: WorldMapDefinition = {
 			y: 144,
 			name: 'Mira',
 			dialogueId: 'shopkeeper-mira',
-			dialogue: 'Fresh tonics are on the shelf. The guild already stocked your field kit today.',
 			role: 'shopkeeper',
 			frameName: 'miraItemShopNpc',
 			shopId: 'miras-item-shop'

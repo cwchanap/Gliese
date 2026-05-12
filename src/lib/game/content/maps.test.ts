@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { enemies } from '$lib/game/content/enemies';
+import { getDialogue } from '$lib/game/content/dialogue';
 import { getItem } from '$lib/game/content/items';
 import { getShop } from '$lib/game/content/shops';
 import {
@@ -251,7 +252,6 @@ describe('opening map content', () => {
 				y: 144,
 				name: 'Guild Master Arlen',
 				dialogueId: 'guild-master',
-				dialogue: 'The ruins are stirring again. Speak with me, then clear the warden.',
 				role: 'guild',
 				frameName: 'guildMasterNpc'
 			},
@@ -261,7 +261,6 @@ describe('opening map content', () => {
 				y: 144,
 				name: 'Quartermaster Vale',
 				dialogueId: 'guild-quartermaster',
-				dialogue: 'Need field gear before the ruins? Guild stock is limited, but sturdy.',
 				role: 'shopkeeper',
 				frameName: 'quartermasterNpc',
 				shopId: 'guild-quartermaster'
@@ -274,7 +273,6 @@ describe('opening map content', () => {
 				y: 144,
 				name: 'Mira',
 				dialogueId: 'shopkeeper-mira',
-				dialogue: 'Fresh tonics are on the shelf. The guild already stocked your field kit today.',
 				role: 'shopkeeper',
 				frameName: 'miraItemShopNpc',
 				shopId: 'miras-item-shop'
@@ -288,7 +286,7 @@ describe('opening map content', () => {
 		for (const map of Object.values(maps)) {
 			for (const npc of map.npcs ?? []) {
 				expect(npc.name).not.toHaveLength(0);
-				expect(npc.dialogue).not.toHaveLength(0);
+				expect(getDialogue(npc.dialogueId)).toBeDefined();
 				expect(roles).toContain(npc.role);
 				expect(npc.x).toBeGreaterThanOrEqual(0);
 				expect(npc.y).toBeGreaterThanOrEqual(0);
