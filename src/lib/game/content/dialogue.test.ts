@@ -1,0 +1,44 @@
+import { describe, expect, it } from 'vitest';
+
+import { getDialogue, npcDialogueList } from '$lib/game/content/dialogue';
+import { maps } from '$lib/game/content/maps';
+import { getQuest } from '$lib/game/content/quests';
+import { getShop } from '$lib/game/content/shops';
+
+describe('dialogue content', () => {
+	it('defines dialogue for every configured NPC', () => {
+		const npcs = Object.values(maps).flatMap((map) => map.npcs ?? []);
+
+		expect(npcs.length).toBeGreaterThan(0);
+		for (const npc of npcs) {
+			expect(getDialogue(npc.dialogueId)?.speaker).toBe(npc.name);
+		}
+	});
+
+	it('uses stable unique dialogue ids', () => {
+		expect(new Set(npcDialogueList.map((dialogue) => dialogue.id)).size).toBe(
+			npcDialogueList.length
+		);
+		expect(getDialogue('guild-master')?.id).toBe('guild-master');
+		expect(getDialogue('guild-quartermaster')?.id).toBe('guild-quartermaster');
+		expect(getDialogue('shopkeeper-mira')?.id).toBe('shopkeeper-mira');
+	});
+
+	it('keeps dialogue action references valid', () => {
+		for (const dialogue of npcDialogueList) {
+			for (const action of dialogue.actions) {
+				if (action.intent.type === 'openShop') {
+					expect(getShop(action.intent.shopId)).toBeDefined();
+				}
+
+				if (action.intent.type === 'showQuestList') {
+					expect(action.intent.giverNpcId).toBe('guild-master');
+				}
+
+				if (action.intent.type === 'showQuestDetails') {
+					expect(getQuest(action.intent.questId)).toBeDefined();
+				}
+			}
+		}
+	});
+});

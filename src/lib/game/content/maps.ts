@@ -1,4 +1,5 @@
 import type { ForestDressingFrameName, NpcFrameName } from '$lib/game/content/assets';
+import type { NpcDialogueId } from '$lib/game/content/dialogue';
 import type { DefinitionRegistry, MapDefinition } from '$lib/game/core/types';
 
 export interface MapTransition {
@@ -43,6 +44,7 @@ export interface MapNpc {
 	x: number;
 	y: number;
 	name: string;
+	dialogueId: NpcDialogueId;
 	dialogue: string;
 	role: MapNpcRole;
 	frameName: NpcFrameName;
@@ -320,6 +322,7 @@ export const guildHallMap: WorldMapDefinition = {
 			x: 192,
 			y: 144,
 			name: 'Guild Master Arlen',
+			dialogueId: 'guild-master',
 			dialogue: 'The ruins are stirring again. Speak with me, then clear the warden.',
 			role: 'guild',
 			frameName: 'guildMasterNpc'
@@ -329,6 +332,7 @@ export const guildHallMap: WorldMapDefinition = {
 			x: 352,
 			y: 144,
 			name: 'Quartermaster Vale',
+			dialogueId: 'guild-quartermaster',
 			dialogue: 'Need field gear before the ruins? Guild stock is limited, but sturdy.',
 			role: 'shopkeeper',
 			frameName: 'quartermasterNpc',
@@ -357,6 +361,7 @@ export const itemShopMap: WorldMapDefinition = {
 			x: 256,
 			y: 144,
 			name: 'Mira',
+			dialogueId: 'shopkeeper-mira',
 			dialogue: 'Fresh tonics are on the shelf. The guild already stocked your field kit today.',
 			role: 'shopkeeper',
 			frameName: 'miraItemShopNpc',
