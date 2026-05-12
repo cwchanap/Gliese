@@ -309,6 +309,11 @@ test('interact key shop purchase appears in inventory', async ({ page }) => {
 	await page.locator('canvas').click();
 	await page.keyboard.press('KeyE');
 
+	const miraDialog = page.getByRole('dialog', { name: 'Mira' });
+	await expect(miraDialog).toBeVisible();
+	await miraDialog.getByRole('button', { name: 'Next' }).click();
+	await miraDialog.getByRole('button', { name: 'Shop' }).click();
+
 	const shopDialog = page.getByRole('dialog', { name: "Mira's Item Shop" });
 	await expect(shopDialog).toBeVisible();
 	await shopDialog
