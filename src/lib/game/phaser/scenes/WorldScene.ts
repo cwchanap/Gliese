@@ -913,11 +913,6 @@ export class WorldScene extends Phaser.Scene {
 			return;
 		}
 
-		if (this.clearStaleNpcDialogueSession()) {
-			this.publishHudState('No dialogue open');
-			return;
-		}
-
 		const previousSession = this.dialogueSession;
 		const advancedSession = advanceDialogue(previousSession);
 		const completionIntent =
@@ -939,12 +934,6 @@ export class WorldScene extends Phaser.Scene {
 
 	private chooseDialogueCommand(choiceId: string) {
 		if (!this.dialogueSession) {
-			this.dialogueSession = buildDialogueFallback('Traveler', 'No dialogue is open.');
-			this.publishHudState('No dialogue open');
-			return;
-		}
-
-		if (this.clearStaleNpcDialogueSession()) {
 			this.dialogueSession = buildDialogueFallback('Traveler', 'No dialogue is open.');
 			this.publishHudState('No dialogue open');
 			return;
@@ -972,6 +961,12 @@ export class WorldScene extends Phaser.Scene {
 	private applyDialogueIntent(intent: DialogueIntent) {
 		switch (intent.type) {
 			case 'recordNpcTalk':
+				if (!this.isNpcDialogueInRange(intent.npcId)) {
+					this.dialogueSession = buildDialogueFallback('Traveler', 'No one is nearby.');
+					this.publishHudState('No one nearby');
+					return;
+				}
+
 				this.applyQuestProgress({ type: 'talk-to-npc', npcId: intent.npcId }, 'Ruins route unlocked');
 				return;
 			case 'acceptQuest':
@@ -1078,15 +1073,8 @@ export class WorldScene extends Phaser.Scene {
 		};
 	}
 
-	private clearStaleNpcDialogueSession(nearbyNpc = this.findNearbyNpc()): boolean {
-		const sessionNpcId = this.dialogueSession?.npcId;
-
-		if (!sessionNpcId || nearbyNpc?.dialogueId === sessionNpcId) {
-			return false;
-		}
-
-		this.dialogueSession = null;
-		return true;
+	private isNpcDialogueInRange(npcId: string): boolean {
+		return this.findNearbyNpc()?.dialogueId === npcId;
 	}
 
 	private isTransientFallbackDialogueSession(session: DialogueSession): boolean {
@@ -2176,7 +2164,6 @@ export class WorldScene extends Phaser.Scene {
 		}
 
 		const nearbyNpc = this.findNearbyNpc();
-		const clearedDialogue = this.clearStaleNpcDialogueSession(nearbyNpc);
 
 		if (!nearbyNpc) {
 			const hadShop = this.nearbyShopId !== null;
@@ -2186,8 +2173,6 @@ export class WorldScene extends Phaser.Scene {
 
 			if (hadShop) {
 				this.publishHudState('Shop out of reach');
-			} else if (clearedDialogue) {
-				this.publishHudState('No one nearby');
 			}
 
 			return;
@@ -2200,9 +2185,6 @@ export class WorldScene extends Phaser.Scene {
 		}
 
 		if (this.currentNearbyNpcId === nearbyNpc.id) {
-			if (clearedDialogue) {
-				this.publishHudState(`${nearbyNpc.name} nearby`);
-			}
 			return;
 		}
 

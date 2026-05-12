@@ -1692,7 +1692,7 @@ describe('WorldScene', () => {
 		);
 	});
 
-	it('does not open a shop from stale out-of-range shopkeeper dialogue', async () => {
+	it('shows shop out-of-reach feedback from stale out-of-range shopkeeper dialogue', async () => {
 		const events = await import('$lib/game/ui-bridge/events');
 		const emitHudStateSpy = vi.spyOn(events, 'emitHudState');
 		const { WorldScene } = await import('./WorldScene');
@@ -1714,12 +1714,65 @@ describe('WorldScene', () => {
 
 		expect(emitHudStateSpy).toHaveBeenLastCalledWith(
 			expect.objectContaining({
-				status: 'No dialogue open',
+				status: 'No shop nearby',
 				nearbyShop: null,
 				shop: null,
 				dialogue: expect.objectContaining({
-					speaker: 'Traveler',
-					line: 'No dialogue is open.'
+					speaker: 'Shop',
+					line: 'Shop out of reach.'
+				})
+			})
+		);
+	});
+
+	it('shows Guild quest feedback from stale out-of-range Guild Master dialogue', async () => {
+		const { createNewSaveState } = await import('$lib/game/save/save-state');
+		const events = await import('$lib/game/ui-bridge/events');
+		const emitHudStateSpy = vi.spyOn(events, 'emitHudState');
+		const { WorldScene } = await import('./WorldScene');
+		const scene = new WorldScene();
+		const sceneState = scene as unknown as {
+			handleHudCommand: (command: HudCommand) => void;
+		};
+		const unlockedSave = createNewSaveState();
+
+		scene.create({
+			saveState: {
+				...unlockedSave,
+				mapId: 'guild-hall',
+				player: { ...unlockedSave.player, x: 192, y: 144 },
+				quests: {
+					entries: {
+						'investigate-the-ruins': {
+							status: 'active',
+							currentObjectiveId: 'defeat-ruins-warden',
+							progress: 0,
+							rewardApplied: false,
+							countedSourceIds: []
+						}
+					},
+					completedObjectives: { 'investigate-the-ruins': ['talk-to-guild-master'] }
+				}
+			}
+		});
+		Object.assign(phaserState.playerMarker, { x: 192, y: 144 });
+		phaserState.interactKeys.e.justDown = true;
+		scene.update(16, 16);
+		sceneState.handleHudCommand({ type: 'dialogue-choose', choiceId: 'quest' });
+		sceneState.handleHudCommand({ type: 'dialogue-choose', choiceId: 'quest:thin-village-slimes' });
+
+		Object.assign(phaserState.playerMarker, { x: 64, y: 64 });
+		scene.update(32, 16);
+		emitHudStateSpy.mockClear();
+
+		sceneState.handleHudCommand({ type: 'dialogue-choose', choiceId: 'accept:thin-village-slimes' });
+
+		expect(emitHudStateSpy).toHaveBeenLastCalledWith(
+			expect.objectContaining({
+				status: 'No Guild quest available',
+				dialogue: expect.objectContaining({
+					speaker: 'Guild Master Arlen',
+					line: 'No Guild quest is available here.'
 				})
 			})
 		);
