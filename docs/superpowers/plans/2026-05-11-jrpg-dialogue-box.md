@@ -18,7 +18,7 @@
 - Create `src/lib/game/core/dialogue.test.ts`: pure tests for Guild Master branches, Talk/Quest/Shop choices, quest detail/accept intents, completion messages, and fallback lines.
 - Create `src/lib/game/DialoguePanel.svelte`: focused bottom-screen JRPG dialogue renderer.
 - Create `src/lib/game/DialoguePanel.svelte.spec.ts`: browser component tests for rendering, choices, close, and keyboard controls.
-- Modify `src/lib/game/content/maps.ts`: replace NPC `dialogue` strings with `dialogueId` references.
+- Modify `src/lib/game/content/maps.ts`: add `dialogueId` references first, then remove legacy NPC `dialogue` strings after `WorldScene` is migrated.
 - Modify `src/lib/game/ui-bridge/events.ts`: add `HudDialogueState` to `HudState` and dialogue commands to `HudCommand`.
 - Modify `src/lib/game/ui-bridge/store.ts`: add request helpers for dialogue advance, close, and choice.
 - Modify `src/lib/game/phaser/scenes/WorldScene.ts`: store active dialogue session, start NPC dialogue, execute dialogue intents, show completion dialogue, and publish dialogue HUD state.
@@ -223,7 +223,7 @@ export function getDialogue(dialogueId: string): NpcDialogueDefinition | undefin
 }
 ```
 
-- [ ] **Step 4: Replace flat NPC dialogue strings with dialogue ids**
+- [ ] **Step 4: Add dialogue ids while preserving existing status text temporarily**
 
 Modify `src/lib/game/content/maps.ts`:
 
@@ -239,6 +239,7 @@ export interface MapNpc {
 	x: number;
 	y: number;
 	name: string;
+	dialogue: string;
 	dialogueId: NpcDialogueId;
 	role: MapNpcRole;
 	frameName: NpcFrameName;
@@ -254,6 +255,7 @@ Update the NPC entries:
 	x: 192,
 	y: 144,
 	name: 'Guild Master Arlen',
+	dialogue: 'The ruins are stirring again. Speak with me, then clear the warden.',
 	dialogueId: 'guild-master',
 	role: 'guild',
 	frameName: 'guildMasterNpc'
@@ -263,6 +265,7 @@ Update the NPC entries:
 	x: 352,
 	y: 144,
 	name: 'Quartermaster Vale',
+	dialogue: 'Need field gear before the ruins? Guild stock is limited, but sturdy.',
 	dialogueId: 'guild-quartermaster',
 	role: 'shopkeeper',
 	frameName: 'quartermasterNpc',
@@ -278,6 +281,7 @@ Update Mira:
 	x: 256,
 	y: 144,
 	name: 'Mira',
+	dialogue: 'Fresh tonics are on the shelf. The guild already stocked your field kit today.',
 	dialogueId: 'shopkeeper-mira',
 	role: 'shopkeeper',
 	frameName: 'miraItemShopNpc',
@@ -1004,6 +1008,7 @@ git commit -m "feat: add dialogue hud panel"
 **Files:**
 - Modify: `src/lib/game/phaser/scenes/WorldScene.ts`
 - Modify: `src/lib/game/phaser/scenes/scenes.test.ts`
+- Modify: `src/lib/game/content/maps.ts`
 
 - [ ] **Step 1: Add failing WorldScene dialogue runtime tests**
 
@@ -1242,6 +1247,25 @@ if (this.currentNearbyNpcId === nearbyNpc.id) {
 this.currentNearbyNpcId = nearbyNpc.id;
 this.publishHudState(`${nearbyNpc.name} nearby`);
 ```
+
+- [ ] **Step 4A: Remove legacy NPC dialogue strings after runtime migration**
+
+Modify `src/lib/game/content/maps.ts` so `MapNpc` no longer exposes `dialogue`:
+
+```ts
+export interface MapNpc {
+	id: string;
+	x: number;
+	y: number;
+	name: string;
+	dialogueId: NpcDialogueId;
+	role: MapNpcRole;
+	frameName: NpcFrameName;
+	shopId?: string;
+}
+```
+
+Remove the `dialogue: ...` fields from the `guild-master`, `guild-quartermaster`, and `shopkeeper-mira` NPC entries. `WorldScene` should use `nearbyNpc.dialogueId` for dialogue sessions and no code should read `nearbyNpc.dialogue`.
 
 - [ ] **Step 5: Handle dialogue HUD commands**
 
