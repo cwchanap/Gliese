@@ -383,31 +383,27 @@ test('quest log shows main quest and accepts Guild side quests', async ({ page }
 
 	await page.locator('canvas').click();
 	await page.keyboard.press('KeyE');
-	await page.waitForFunction(() => {
-		const state = (window as GlieseProbeWindow).__glieseLastHudState;
-		return state?.status === 'Ruins route unlocked';
-	});
+	const guildMasterDialog = page.getByRole('dialog', { name: 'Guild Master Arlen' });
+	await expect(guildMasterDialog).toBeVisible();
+	await expect(guildMasterDialog.getByText(/eastern ruins are stirring/i)).toBeVisible();
+	await guildMasterDialog.getByRole('button', { name: 'Next' }).click();
+	await guildMasterDialog.getByRole('button', { name: 'Next' }).click();
+	await guildMasterDialog.getByRole('button', { name: 'Quest' }).click();
+	await guildMasterDialog.getByRole('button', { name: 'Thin Village Slimes' }).click();
+	await expect(guildMasterDialog.getByText(/Defeat slimes near the village/i)).toBeVisible();
+	await guildMasterDialog.getByRole('button', { name: 'Accept' }).click();
 
 	await page.getByRole('button', { name: 'Menu' }).click();
+	await expect(page.getByText(/^Quest accepted\.?$/)).toBeVisible();
+	await expect(page.getByRole('button', { name: 'Guild Quests' })).toHaveCount(0);
 	await page.getByRole('button', { name: 'Quests', exact: true }).click();
+
 	const questDialog = page.getByRole('dialog', { name: 'Quest Log' });
 	await expect(questDialog).toBeVisible();
 	await expect(questDialog.getByText('Investigate the Ruins')).toBeVisible();
 	await expect(questDialog.getByText('Defeat the ruins warden in the ruins core.')).toBeVisible();
 	await expect(questDialog.getByText('Thin Village Slimes')).toBeVisible();
-	await questDialog.getByRole('button', { name: 'Close' }).click();
-
-	await page.getByRole('button', { name: 'Menu' }).click();
-	await page.getByRole('button', { name: 'Guild Quests' }).click();
-	const guildDialog = page.getByRole('dialog', { name: 'Guild Quests' });
-	await expect(guildDialog).toBeVisible();
-	await guildDialog.getByRole('button', { name: 'Accept Thin Village Slimes' }).click();
-	await expect(guildDialog.getByText('Thin Village Slimes')).toHaveCount(0);
-	await guildDialog.getByRole('button', { name: 'Close' }).click();
-
-	await page.getByRole('button', { name: 'Menu' }).click();
-	await page.getByRole('button', { name: 'Quests', exact: true }).click();
 	await expect(
-		page.getByRole('dialog', { name: 'Quest Log' }).getByText('Village slimes defeated: 0 / 3')
+		questDialog.getByText('Village slimes defeated: 0 / 3')
 	).toBeVisible();
 });
