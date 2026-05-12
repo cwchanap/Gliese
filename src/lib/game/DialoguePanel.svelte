@@ -25,7 +25,10 @@
 		}
 
 		if (event.key !== 'Enter' && event.key !== ' ') return;
-		if (event.target !== event.currentTarget) return;
+		if (event.target !== event.currentTarget) {
+			event.stopPropagation();
+			return;
+		}
 
 		event.preventDefault();
 		event.stopPropagation();

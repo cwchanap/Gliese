@@ -85,17 +85,24 @@ describe('DialoguePanel.svelte', () => {
 	it.each([
 		['Enter', '{Enter}'],
 		['Space', '{Space}']
-	])('selects the focused second choice with %s', async (_label, key) => {
+	])('selects the focused second choice with %s without leaking keydown to the window', async (_label, key) => {
 		const { onchoose } = renderDialogue();
+		const onWindowKeydown = vi.fn();
 		const secondChoice = page.getByRole('button', { name: 'Close' }).last();
 
-		secondChoice.element().focus();
-		await expect.element(secondChoice).toHaveFocus();
-		await userEvent.keyboard(key);
+		window.addEventListener('keydown', onWindowKeydown);
+		try {
+			secondChoice.element().focus();
+			await expect.element(secondChoice).toHaveFocus();
+			await userEvent.keyboard(key);
 
-		expect(onchoose).toHaveBeenCalledOnce();
-		expect(onchoose).toHaveBeenCalledWith('close');
-		expect(onchoose).not.toHaveBeenCalledWith('quest:thin-village-slimes');
+			expect(onchoose).toHaveBeenCalledOnce();
+			expect(onchoose).toHaveBeenCalledWith('close');
+			expect(onchoose).not.toHaveBeenCalledWith('quest:thin-village-slimes');
+			expect(onWindowKeydown).not.toHaveBeenCalled();
+		} finally {
+			window.removeEventListener('keydown', onWindowKeydown);
+		}
 	});
 
 	it('exposes the close choice by visible accessible name and emits its choice id', async () => {
