@@ -392,6 +392,7 @@ test('quest log shows main quest and accepts Guild side quests', async ({ page }
 	await guildMasterDialog.getByRole('button', { name: 'Thin Village Slimes' }).click();
 	await expect(guildMasterDialog.getByText(/Defeat slimes near the village/i)).toBeVisible();
 	await guildMasterDialog.getByRole('button', { name: 'Accept' }).click();
+	await expect(guildMasterDialog).toHaveCount(0);
 
 	await page.getByRole('button', { name: 'Menu' }).click();
 	await expect(page.getByText(/^Quest accepted\.?$/)).toBeVisible();
