@@ -39,6 +39,22 @@ export type HudOpenShop = HudNearbyShop & {
 	sell: HudShopSellEntry[];
 };
 
+export type HudDialogueChoice = {
+	id: string;
+	label: string;
+};
+
+export type HudDialogueState = {
+	id: string;
+	speaker: string;
+	line: string;
+	lineIndex: number;
+	lineCount: number;
+	mode: 'conversation' | 'choice' | 'system';
+	choices: HudDialogueChoice[];
+	canClose: boolean;
+};
+
 export type HudState = {
 	ready: boolean;
 	mapId: string;
@@ -54,6 +70,7 @@ export type HudState = {
 	wallet: { coins: number };
 	nearbyShop: HudNearbyShop | null;
 	shop: HudOpenShop | null;
+	dialogue: HudDialogueState | null;
 	quests: HudQuestState;
 	inventory: {
 		consumables: HudInventoryStack[];
@@ -61,6 +78,10 @@ export type HudState = {
 		keyItems: HudKeyItem[];
 		equipped: Record<EquipmentSlot, string | null>;
 	};
+};
+
+export type HudStatePayload = Omit<HudState, 'dialogue'> & {
+	dialogue?: HudDialogueState | null;
 };
 
 export type HudCommand =
@@ -76,7 +97,10 @@ export type HudCommand =
 	| { type: 'close-shop' }
 	| { type: 'buy-shop-item'; shopId: string; stockId: string }
 	| { type: 'sell-inventory-item'; itemId: string }
-	| { type: 'accept-quest'; questId: string };
+	| { type: 'accept-quest'; questId: string }
+	| { type: 'dialogue-advance' }
+	| { type: 'dialogue-close' }
+	| { type: 'dialogue-choose'; choiceId: string };
 
 export const HUD_STATE_EVENT = 'gliese:hud-state';
 export const HUD_COMMAND_EVENT = 'gliese:hud-command';
@@ -88,8 +112,9 @@ declare global {
 	}
 }
 
-export function emitHudState(state: HudState) {
-	getEventTarget()?.dispatchEvent(new CustomEvent(HUD_STATE_EVENT, { detail: state }));
+export function emitHudState(state: HudStatePayload) {
+	const detail: HudState = { ...state, dialogue: state.dialogue ?? null };
+	getEventTarget()?.dispatchEvent(new CustomEvent(HUD_STATE_EVENT, { detail }));
 }
 
 export function emitHudCommand(command: HudCommand) {

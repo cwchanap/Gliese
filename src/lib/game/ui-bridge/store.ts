@@ -33,6 +33,7 @@ const initialHudState: HudState = {
 	},
 	nearbyShop: null,
 	shop: null,
+	dialogue: null,
 	quests: buildHudQuestState({ state: initialQuestState, nearbyQuestGiverId: null }),
 	inventory: {
 		consumables: [],
@@ -94,4 +95,16 @@ export function requestSellInventoryItem(itemId: string) {
 
 export function requestAcceptQuest(questId: string) {
 	emitHudCommand({ type: 'accept-quest', questId });
+}
+
+export function requestDialogueAdvance() {
+	emitHudCommand({ type: 'dialogue-advance' });
+}
+
+export function requestDialogueClose() {
+	emitHudCommand({ type: 'dialogue-close' });
+}
+
+export function requestDialogueChoice(choiceId: string) {
+	emitHudCommand({ type: 'dialogue-choose', choiceId });
 }
