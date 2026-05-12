@@ -1,10 +1,13 @@
 <script lang="ts">
 	import { onMount, tick } from 'svelte';
+	import DialoguePanel from '$lib/game/DialoguePanel.svelte';
 	import {
 		hudState,
-		requestAcceptQuest,
 		requestBuyShopItem,
 		requestCloseShop,
+		requestDialogueAdvance,
+		requestDialogueChoice,
+		requestDialogueClose,
 		requestEquipItem,
 		requestHeal,
 		requestOpenShop,
@@ -23,7 +26,7 @@
 
 	type InventoryTab = 'consumables' | 'equipment' | 'keyItems';
 	type ShopTab = 'buy' | 'sell';
-	type OverlayPauseOwner = 'settings' | 'inventory' | 'shop' | 'questLog' | 'guildQuests';
+	type OverlayPauseOwner = 'settings' | 'inventory' | 'shop' | 'questLog';
 	type InventorySlotItem =
 		| { kind: 'consumable'; item: HudInventoryStack }
 		| { kind: 'equipment'; item: HudEquipmentItem }
@@ -37,8 +40,6 @@
 	let shopCloseButton = $state<HTMLButtonElement>();
 	let questLogDialog = $state<HTMLDivElement>();
 	let questLogCloseButton = $state<HTMLButtonElement>();
-	let guildQuestsDialog = $state<HTMLDivElement>();
-	let guildQuestsCloseButton = $state<HTMLButtonElement>();
 	let inventoryFocusRestoreTarget: HTMLElement | null = null;
 	let shopFocusRestoreTarget: HTMLElement | null = null;
 	let loadError = $state('');
@@ -46,7 +47,6 @@
 	let inventoryOpen = $state(false);
 	let shopOpen = $state(false);
 	let questLogOpen = $state(false);
-	let guildQuestsOpen = $state(false);
 	let activeInventoryTab = $state<InventoryTab>('consumables');
 	let activeShopTab = $state<ShopTab>('buy');
 	let pauseOwner = $state<OverlayPauseOwner | null>(null);
@@ -151,20 +151,6 @@
 		resumeForOverlay('questLog');
 	}
 
-	function openGuildQuests() {
-		if (guildQuestsOpen || !$hudState.quests.guildOffer) return;
-		settingsOpen = false;
-		guildQuestsOpen = true;
-		pauseForOverlay('guildQuests');
-		void focusGuildQuestsDialog();
-	}
-
-	function closeGuildQuests() {
-		if (!guildQuestsOpen) return;
-		guildQuestsOpen = false;
-		resumeForOverlay('guildQuests');
-	}
-
 	$effect(() => {
 		if (!$hudState.shop || shopOpen) return;
 
@@ -177,12 +163,6 @@
 		void focusShopDialog();
 	});
 
-	$effect(() => {
-		if (guildQuestsOpen && !$hudState.quests.guildOffer) {
-			closeGuildQuests();
-		}
-	});
-
 	function releaseOverlayPause() {
 		const owner = pauseOwner;
 		const wasShopOpen = shopOpen;
@@ -190,7 +170,6 @@
 		inventoryOpen = false;
 		shopOpen = false;
 		questLogOpen = false;
-		guildQuestsOpen = false;
 		pauseOwner = null;
 
 		if (wasShopOpen) requestCloseShop();
@@ -244,11 +223,6 @@
 	async function focusQuestLogDialog() {
 		await tick();
 		(questLogCloseButton ?? questLogDialog)?.focus();
-	}
-
-	async function focusGuildQuestsDialog() {
-		await tick();
-		(guildQuestsCloseButton ?? guildQuestsDialog)?.focus();
 	}
 
 	async function restoreShopFocus() {
@@ -561,10 +535,6 @@
 		requestSellInventoryItem(item.itemId);
 	}
 
-	function acceptGuildQuest(questId: string) {
-		requestAcceptQuest(questId);
-	}
-
 	function hasQuestProgress(quest: HudQuestEntry | HudQuestOffer): quest is HudQuestEntry {
 		return 'progress' in quest;
 	}
@@ -740,14 +710,6 @@
 				</button>
 				<button
 					type="button"
-					class="hud-action rounded-[1.1rem] border border-emerald-200/20 bg-[linear-gradient(135deg,rgba(20,91,76,0.95),rgba(12,42,48,0.92))] px-4 py-3 text-sm font-black tracking-[0.24em] text-emerald-50 uppercase transition hover:-translate-y-0.5 hover:border-emerald-200/45 hover:shadow-[0_15px_30px_rgba(62,205,155,0.22)] disabled:translate-y-0 disabled:cursor-not-allowed disabled:opacity-45"
-					onclick={openGuildQuests}
-					disabled={!$hudState.ready || !$hudState.quests.guildOffer}
-				>
-					Guild Quests
-				</button>
-				<button
-					type="button"
 					class="hud-action rounded-[1.1rem] border border-amber-200/20 bg-[linear-gradient(135deg,rgba(115,75,25,0.96),rgba(63,41,18,0.92))] px-4 py-3 text-sm font-black tracking-[0.24em] text-amber-50 uppercase transition hover:-translate-y-0.5 hover:border-amber-200/45 hover:shadow-[0_15px_30px_rgba(255,190,90,0.22)] disabled:translate-y-0 disabled:cursor-not-allowed disabled:opacity-45"
 					onclick={openShop}
 					disabled={!$hudState.ready || !$hudState.nearbyShop}
@@ -794,6 +756,15 @@
 				<p>{$hudState.status}</p>
 			</div>
 		</aside>
+	{/if}
+
+	{#if $hudState.dialogue}
+		<DialoguePanel
+			dialogue={$hudState.dialogue}
+			onadvance={requestDialogueAdvance}
+			onclose={requestDialogueClose}
+			onchoose={requestDialogueChoice}
+		/>
 	{/if}
 
 	{#if inventoryOpen}
@@ -1153,74 +1124,6 @@
 								{/if}
 							</div>
 						</section>
-					</div>
-				</div>
-			</div>
-		</div>
-	{/if}
-
-	{#if guildQuestsOpen && $hudState.quests.guildOffer}
-		<div
-			class="absolute inset-0 z-50 flex items-center justify-center bg-black/52 p-3 backdrop-blur-[3px] sm:p-6"
-			role="presentation"
-		>
-			<div
-				class="absolute inset-0 cursor-default"
-				role="presentation"
-				onclick={closeGuildQuests}
-			></div>
-			<div
-				bind:this={guildQuestsDialog}
-				class="relative z-10 grid max-h-[calc(100vh-1.5rem)] w-[min(56rem,calc(100vw-1.5rem))] grid-rows-[auto_minmax(0,1fr)] overflow-hidden rounded-[1.8rem] border border-white/12 bg-[linear-gradient(145deg,rgba(8,13,34,0.98),rgba(18,42,40,0.96)_54%,rgba(34,38,16,0.94))] text-slate-50 shadow-[0_34px_100px_rgba(0,0,0,0.58)] backdrop-blur-md sm:max-h-[calc(100vh-3rem)] sm:rounded-[2rem]"
-				aria-labelledby="guild-quests-heading"
-				aria-modal="true"
-				role="dialog"
-				tabindex="-1"
-			>
-				<div class="border-b border-white/10 px-4 py-4 sm:px-6">
-					<div class="flex items-start justify-between gap-4">
-						<div>
-							<p class="text-[0.62rem] font-black tracking-[0.34em] text-emerald-100/68 uppercase">
-								{$hudState.quests.guildOffer.giverName}
-							</p>
-							<h2
-								id="guild-quests-heading"
-								class="mt-1 text-2xl font-black tracking-[0.12em] text-white uppercase sm:text-3xl"
-							>
-								Guild Quests
-							</h2>
-						</div>
-						<button
-							bind:this={guildQuestsCloseButton}
-							type="button"
-							class="rounded-full border border-white/12 bg-white/6 px-3 py-2 text-[0.65rem] font-black tracking-[0.24em] text-slate-100 uppercase transition hover:border-white/30"
-							onclick={closeGuildQuests}
-						>
-							Close
-						</button>
-					</div>
-				</div>
-				<div class="min-h-0 overflow-y-auto p-4 sm:p-6">
-					<div class="grid gap-3">
-						{#each $hudState.quests.guildOffer.quests as quest (quest.questId)}
-							<article
-								class="grid gap-3 rounded-[1.05rem] border border-white/10 bg-black/14 p-4 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center"
-							>
-								<div>
-									<h3 class="font-black tracking-[0.1em] text-white uppercase">{quest.title}</h3>
-									<p class="mt-2 text-sm text-slate-100/82">{quest.objective}</p>
-									<p class="mt-1 text-xs text-slate-300/72">Reward: {quest.rewardSummary}</p>
-								</div>
-								<button
-									type="button"
-									class="rounded-full border border-emerald-200/24 bg-emerald-200/12 px-4 py-2 text-xs font-black tracking-[0.18em] text-emerald-50 uppercase transition hover:border-emerald-200/48 disabled:cursor-not-allowed disabled:opacity-45"
-									onclick={() => acceptGuildQuest(quest.questId)}
-									disabled={!$hudState.ready}
-								>
-									Accept {quest.title}
-								</button>
-							</article>
-						{/each}
 					</div>
 				</div>
 			</div>
