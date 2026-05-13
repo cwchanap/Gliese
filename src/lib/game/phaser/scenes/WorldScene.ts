@@ -972,7 +972,10 @@ export class WorldScene extends Phaser.Scene {
 					return;
 				}
 
-				this.applyQuestProgress({ type: 'talk-to-npc', npcId: intent.npcId }, 'Ruins route unlocked');
+				this.applyQuestProgress(
+					{ type: 'talk-to-npc', npcId: intent.npcId },
+					'Ruins route unlocked'
+				);
 				return;
 			case 'acceptQuest':
 				this.acceptGuildQuest(intent.questId);
@@ -1679,7 +1682,8 @@ export class WorldScene extends Phaser.Scene {
 		return (
 			this.isPlayerMovementBlockedByNpc(currentX, currentY, targetX, targetY) ||
 			this.isPlayerMovementBlockedByLandmark(currentX, currentY, targetX, targetY) ||
-			this.isPlayerMovementBlockedByFence(currentX, currentY, targetX, targetY)
+			this.isPlayerMovementBlockedByFence(currentX, currentY, targetX, targetY) ||
+			this.isPlayerMovementBlockedByForestDecor(currentX, currentY, targetX, targetY)
 		);
 	}
 
@@ -1786,6 +1790,38 @@ export class WorldScene extends Phaser.Scene {
 		});
 	}
 
+	private isPlayerMovementBlockedByForestDecor(
+		currentX: number,
+		currentY: number,
+		targetX: number,
+		targetY: number
+	): boolean {
+		const map = this.resolveMap(this.mapId);
+		const forestDecor = map.forestDecor ?? [];
+		const entranceBounds = forestDecor
+			.filter((decor) => decor.frameName === 'forestEntrance')
+			.map((decor) => this.getMapRectBounds(decor));
+
+		return forestDecor.some((decor) => {
+			if (decor.frameName !== 'treeCluster') {
+				return false;
+			}
+
+			const bounds = this.getMapRectBounds(decor);
+
+			return this.getForestTreeCollisionRects(bounds, entranceBounds).some((rect) =>
+				this.isMovementBlockedByStrictRect(
+					currentX,
+					currentY,
+					targetX,
+					targetY,
+					rect,
+					WorldScene.playerRadius
+				)
+			);
+		});
+	}
+
 	private getLandmarkCollisionBounds(landmark: MapLandmark): LandmarkCollisionBounds {
 		const left = landmark.x - landmark.width / 2;
 		const right = landmark.x + landmark.width / 2;
@@ -1818,6 +1854,50 @@ export class WorldScene extends Phaser.Scene {
 			centerX: rect.x,
 			centerY: rect.y
 		};
+	}
+
+	private getForestTreeCollisionRects(
+		bounds: LandmarkCollisionBounds,
+		entranceBounds: LandmarkCollisionBounds[]
+	): CollisionRect[] {
+		return entranceBounds.reduce<CollisionRect[]>(
+			(rects, entrance) =>
+				rects.flatMap((rect) => this.splitForestTreeCollisionRect(rect, entrance)),
+			[bounds]
+		);
+	}
+
+	private splitForestTreeCollisionRect(
+		rect: CollisionRect,
+		entrance: CollisionRect
+	): CollisionRect[] {
+		if (!this.doRectsOverlap(rect, entrance)) {
+			return [rect];
+		}
+
+		const rectWidth = rect.right - rect.left;
+		const rectHeight = rect.bottom - rect.top;
+
+		if (rectHeight > rectWidth) {
+			return [
+				{ left: rect.left, right: rect.right, top: rect.top, bottom: entrance.top },
+				{ left: rect.left, right: rect.right, top: entrance.bottom, bottom: rect.bottom }
+			].filter((collisionRect) => collisionRect.bottom > collisionRect.top);
+		}
+
+		return [
+			{ left: rect.left, right: entrance.left, top: rect.top, bottom: rect.bottom },
+			{ left: entrance.right, right: rect.right, top: rect.top, bottom: rect.bottom }
+		].filter((collisionRect) => collisionRect.right > collisionRect.left);
+	}
+
+	private doRectsOverlap(rect: CollisionRect, other: CollisionRect): boolean {
+		return (
+			rect.left < other.right &&
+			rect.right > other.left &&
+			rect.top < other.bottom &&
+			rect.bottom > other.top
+		);
 	}
 
 	private getLandmarkCollisionRects(

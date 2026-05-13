@@ -938,6 +938,34 @@ describe('WorldScene', () => {
 		expect(phaserState.playerMarker.y).toBe(1_764);
 	});
 
+	it('blocks player movement through forest tree clusters', async () => {
+		const { WorldScene } = await import('./WorldScene');
+		const scene = new WorldScene();
+
+		scene.create({ mapId: 'meadow-entry' });
+		Object.assign(phaserState.playerMarker, { x: 2_016, y: 1_120 });
+		phaserState.cursorKeys.up.isDown = true;
+
+		scene.update(0, 250);
+
+		expect(phaserState.playerMarker.x).toBe(2_016);
+		expect(phaserState.playerMarker.y).toBe(1_120);
+	});
+
+	it('keeps the forest entrance passable through the west tree cluster', async () => {
+		const { WorldScene } = await import('./WorldScene');
+		const scene = new WorldScene();
+
+		scene.create({ mapId: 'meadow-entry' });
+		Object.assign(phaserState.playerMarker, { x: 1_300, y: 832 });
+		phaserState.cursorKeys.right.isDown = true;
+
+		scene.update(0, 250);
+
+		expect(phaserState.playerMarker.x).toBeGreaterThan(1_300);
+		expect(phaserState.playerMarker.y).toBe(832);
+	});
+
 	it('keeps the central east fence gate open toward the forest', async () => {
 		const { WorldScene } = await import('./WorldScene');
 		const scene = new WorldScene();
@@ -1446,8 +1474,8 @@ describe('WorldScene', () => {
 					line: expect.stringContaining('The eastern ruins are stirring again')
 				})
 			})
-			);
-		});
+		);
+	});
 
 	it('closes terminal dialogue when advance is pressed at the final line', async () => {
 		const events = await import('$lib/game/ui-bridge/events');
@@ -1571,7 +1599,10 @@ describe('WorldScene', () => {
 
 		sceneState.handleHudCommand({ type: 'dialogue-choose', choiceId: 'quest' });
 		sceneState.handleHudCommand({ type: 'dialogue-choose', choiceId: 'quest:thin-village-slimes' });
-		sceneState.handleHudCommand({ type: 'dialogue-choose', choiceId: 'accept:thin-village-slimes' });
+		sceneState.handleHudCommand({
+			type: 'dialogue-choose',
+			choiceId: 'accept:thin-village-slimes'
+		});
 
 		expect(sceneState.buildSaveState().quests.entries['thin-village-slimes']).toMatchObject({
 			currentObjectiveId: 'defeat-village-slimes',
@@ -1790,7 +1821,10 @@ describe('WorldScene', () => {
 		scene.update(32, 16);
 		emitHudStateSpy.mockClear();
 
-		sceneState.handleHudCommand({ type: 'dialogue-choose', choiceId: 'accept:thin-village-slimes' });
+		sceneState.handleHudCommand({
+			type: 'dialogue-choose',
+			choiceId: 'accept:thin-village-slimes'
+		});
 
 		expect(emitHudStateSpy).toHaveBeenLastCalledWith(
 			expect.objectContaining({
