@@ -914,11 +914,16 @@ export class WorldScene extends Phaser.Scene {
 		}
 
 		const previousSession = this.dialogueSession;
+		const isTerminalLine = previousSession.lineIndex + 1 >= previousSession.lineCount;
 		const advancedSession = advanceDialogue(previousSession);
-		const completionIntent =
-			previousSession.lineIndex + 1 >= previousSession.lineCount
-				? previousSession.completionIntent
-				: null;
+		const completionIntent = isTerminalLine ? previousSession.completionIntent : null;
+
+		if (isTerminalLine && !completionIntent && previousSession.choices.length === 0) {
+			this.dialogueSession = null;
+			this.publishHudState('Dialogue closed');
+			return;
+		}
+
 		this.dialogueSession = {
 			...advancedSession,
 			completionIntent: completionIntent ? null : advancedSession.completionIntent

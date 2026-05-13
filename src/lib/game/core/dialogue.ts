@@ -57,11 +57,13 @@ export function startNpcDialogue({
 			branchMatches(candidate.condition, questState)
 		) ?? definition.defaultBranches[definition.defaultBranches.length - 1];
 	const lines = branch?.lines ?? ['No dialogue is available.'];
-	const choices = definition.actions.map((action) => ({
-		id: action.id,
-		label: action.label,
-		intent: action.intent
-	}));
+	const choices = definition.actions
+		.filter((action) => definition.actions.length <= 1 || action.intent.type !== 'talk')
+		.map((action) => ({
+			id: action.id,
+			label: action.label,
+			intent: action.intent
+		}));
 	const needsGuildBriefing =
 		definition.id === 'guild-master' &&
 		!hasCompletedQuestObjective(questState, mainQuestId, 'talk-to-guild-master');
@@ -169,7 +171,7 @@ function createSession({
 	lines,
 	choices,
 	completionIntent = null,
-	mode = 'conversation'
+	mode
 }: {
 	id: string;
 	npcId?: string | null;
@@ -187,7 +189,7 @@ function createSession({
 		line: lines[0] ?? '',
 		lineIndex: 0,
 		lineCount: lines.length,
-		mode,
+		mode: mode ?? (lines.length <= 1 && choices.length > 0 ? 'choice' : 'conversation'),
 		choices,
 		completionIntent,
 		canClose: true

@@ -589,7 +589,7 @@
 		class="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(130,180,255,0.18),transparent_38%),linear-gradient(180deg,rgba(7,10,26,0.1),rgba(4,6,18,0.58)_85%,rgba(3,4,10,0.82))]"
 	></div>
 
-	<div class="pointer-events-auto absolute top-4 right-4 z-20 sm:top-6 sm:right-6">
+	<div class="pointer-events-auto absolute top-[7.75rem] right-4 z-20 sm:top-[8.25rem] sm:right-6">
 		<button
 			bind:this={menuButton}
 			type="button"
@@ -604,7 +604,7 @@
 
 	{#if $hudState.quests.main}
 		<section
-			class="pointer-events-none absolute bottom-[8.8rem] left-4 z-20 w-[min(25rem,calc(100vw-2rem))] rounded-[1.2rem] border border-cyan-100/14 bg-[linear-gradient(145deg,rgba(8,13,34,0.9),rgba(12,32,52,0.82))] px-4 py-3 text-slate-50 shadow-[0_18px_44px_rgba(0,0,0,0.3)] backdrop-blur-md sm:bottom-[9.3rem] sm:left-6"
+			class="pointer-events-none absolute top-4 right-4 z-20 w-[calc(50vw-1.5rem)] rounded-[1.2rem] border border-cyan-100/14 bg-[linear-gradient(145deg,rgba(8,13,34,0.9),rgba(12,32,52,0.82))] px-3 py-2.5 text-slate-50 shadow-[0_18px_44px_rgba(0,0,0,0.3)] backdrop-blur-md sm:top-6 sm:right-6 sm:w-[min(25rem,calc(50vw-2rem))] sm:px-4 sm:py-3"
 			aria-label="Quest tracker"
 		>
 			<p class="text-[0.58rem] font-black tracking-[0.28em] text-cyan-100/68 uppercase">
@@ -621,18 +621,21 @@
 		</section>
 	{/if}
 
-	<section class="pointer-events-none absolute bottom-4 left-4 z-20 sm:bottom-6 sm:left-6">
+	<section
+		class="pointer-events-none absolute top-4 left-4 z-20 sm:top-6 sm:left-6"
+		aria-label="Player status"
+	>
 		<div
-			class="w-[min(25rem,calc(100vw-2rem))] rounded-[1.5rem] border border-white/12 bg-[linear-gradient(145deg,rgba(10,16,40,0.92),rgba(14,12,36,0.84)_55%,rgba(20,32,72,0.8))] px-4 py-3 shadow-[0_24px_60px_rgba(0,0,0,0.34)] backdrop-blur-md"
+			class="w-[calc(50vw-1.5rem)] rounded-[1.3rem] border border-white/12 bg-[linear-gradient(145deg,rgba(10,16,40,0.92),rgba(14,12,36,0.84)_55%,rgba(20,32,72,0.8))] px-3 py-2.5 shadow-[0_24px_60px_rgba(0,0,0,0.34)] backdrop-blur-md sm:w-[min(25rem,calc(50vw-2rem))] sm:rounded-[1.5rem] sm:px-4 sm:py-3"
 		>
-			<div class="grid grid-cols-[auto_minmax(0,1fr)] items-center gap-x-4 gap-y-2">
+			<div class="grid grid-cols-[auto_minmax(0,1fr)] items-center gap-x-2 gap-y-2 sm:gap-x-4">
 				<div
-					class="flex h-14 w-14 flex-col items-center justify-center rounded-2xl border border-fuchsia-300/20 bg-fuchsia-300/10 text-center shadow-[inset_0_1px_0_rgba(255,255,255,0.1)]"
+					class="flex h-11 w-11 flex-col items-center justify-center rounded-xl border border-fuchsia-300/20 bg-fuchsia-300/10 text-center shadow-[inset_0_1px_0_rgba(255,255,255,0.1)] sm:h-14 sm:w-14 sm:rounded-2xl"
 				>
 					<span class="text-[0.58rem] font-black tracking-[0.28em] text-fuchsia-100/70 uppercase">
 						LV
 					</span>
-					<span class="mt-1 text-xl font-black text-white">{$hudState.level}</span>
+					<span class="mt-0.5 text-lg font-black text-white sm:mt-1 sm:text-xl">{$hudState.level}</span>
 				</div>
 
 				<div class="grid gap-2">
@@ -681,7 +684,7 @@
 	{#if settingsOpen}
 		<aside
 			id="game-settings-panel"
-			class="pointer-events-auto absolute top-20 right-4 z-40 w-[min(19rem,calc(100vw-2rem))] translate-y-0 rounded-[1.6rem] border border-white/12 bg-[linear-gradient(145deg,rgba(10,16,40,0.96),rgba(16,14,44,0.94))] p-4 text-slate-50 opacity-100 shadow-[0_28px_80px_rgba(0,0,0,0.45)] backdrop-blur-md transition-all duration-200 sm:top-24 sm:right-6"
+			class="pointer-events-auto absolute top-40 right-4 z-40 w-[min(19rem,calc(100vw-2rem))] translate-y-0 rounded-[1.6rem] border border-white/12 bg-[linear-gradient(145deg,rgba(10,16,40,0.96),rgba(16,14,44,0.94))] p-4 text-slate-50 opacity-100 shadow-[0_28px_80px_rgba(0,0,0,0.45)] backdrop-blur-md transition-all duration-200 sm:top-44 sm:right-6"
 		>
 			<div class="flex items-center justify-between gap-3">
 				<div>

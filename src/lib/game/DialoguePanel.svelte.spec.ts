@@ -2,6 +2,7 @@ import { page, userEvent } from 'vitest/browser';
 import { describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 
+import '../../app.css';
 import DialoguePanel from '$lib/game/DialoguePanel.svelte';
 import type { HudDialogueState } from '$lib/game/ui-bridge/events';
 
@@ -80,6 +81,32 @@ describe('DialoguePanel.svelte', () => {
 		await userEvent.keyboard('{Escape}');
 
 		expect(onclose).toHaveBeenCalledOnce();
+	});
+
+	it('closes with Escape even when focus has left the panel', async () => {
+		const { onclose } = renderDialogue();
+		const event = new KeyboardEvent('keydown', {
+			key: 'Escape',
+			bubbles: true,
+			cancelable: true
+		});
+
+		window.dispatchEvent(event);
+
+		expect(onclose).toHaveBeenCalledOnce();
+		expect(event.defaultPrevented).toBe(true);
+	});
+
+	it('stretches across the full viewport width', async () => {
+		renderDialogue();
+
+		const bounds = page
+			.getByRole('dialog', { name: 'Guild Master Arlen' })
+			.element()
+			.getBoundingClientRect();
+
+		expect(bounds.left).toBeLessThan(1);
+		expect(window.innerWidth - bounds.right).toBeLessThan(1);
 	});
 
 	it.each([

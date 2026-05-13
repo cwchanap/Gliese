@@ -39,7 +39,18 @@ describe('dialogue core', () => {
 			'Go through the forest path, reach the old core, and defeat the warden before it wakes the rest.'
 		);
 		expect(third.mode).toBe('choice');
-		expect(third.choices.map((choice) => choice.label)).toEqual(['Talk', 'Quest']);
+		expect(third.choices.map((choice) => choice.label)).toEqual(['Quest']);
+	});
+
+	it('shows useful choices immediately for single-line NPC dialogue', () => {
+		const session = startNpcDialogue({
+			npcId: 'shopkeeper-mira',
+			questState: createInitialQuestState()
+		});
+
+		expect(session.lineCount).toBe(1);
+		expect(session.mode).toBe('choice');
+		expect(session.choices.map((choice) => choice.label)).toEqual(['Shop']);
 	});
 
 	it('shows Guild quest choices after the Guild briefing is complete', () => {
@@ -64,23 +75,15 @@ describe('dialogue core', () => {
 		]);
 	});
 
-	it('replays state-aware Talk lines from the Talk choice', () => {
+	it('hides Talk when it would repeat the current Guild Master dialogue', () => {
 		const questState = applyQuestEvent({
 			state: createInitialQuestState(),
 			event: { type: 'talk-to-npc', npcId: 'guild-master' }
 		}).state;
 		const session = startNpcDialogue({ npcId: 'guild-master', questState });
-		const choiceResult = chooseDialogueOption({
-			session,
-			choiceId: 'talk',
-			questState
-		});
 
-		expect(choiceResult.intent).toEqual({ type: 'talk' });
-		expect(choiceResult.session).toMatchObject({
-			speaker: 'Guild Master Arlen',
-			line: 'The ruins route is open. Steel yourself before you enter the core.'
-		});
+		expect(session.line).toBe('The ruins route is open. Steel yourself before you enter the core.');
+		expect(session.choices.map((choice) => choice.label)).toEqual(['Quest']);
 	});
 
 	it('returns accept intents from Guild quest detail choices', () => {

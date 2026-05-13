@@ -1446,6 +1446,31 @@ describe('WorldScene', () => {
 					line: expect.stringContaining('The eastern ruins are stirring again')
 				})
 			})
+			);
+		});
+
+	it('closes terminal dialogue when advance is pressed at the final line', async () => {
+		const events = await import('$lib/game/ui-bridge/events');
+		const emitHudStateSpy = vi.spyOn(events, 'emitHudState');
+		const { WorldScene } = await import('./WorldScene');
+		const scene = new WorldScene();
+		const sceneState = scene as unknown as {
+			handleHudCommand: (command: HudCommand) => void;
+		};
+
+		scene.create({ mapId: 'guild-hall' });
+		emitHudStateSpy.mockClear();
+		phaserState.interactKeys.e.justDown = true;
+		scene.update(0, 16);
+		emitHudStateSpy.mockClear();
+
+		sceneState.handleHudCommand({ type: 'dialogue-advance' });
+
+		expect(emitHudStateSpy).toHaveBeenLastCalledWith(
+			expect.objectContaining({
+				status: 'Dialogue closed',
+				dialogue: null
+			})
 		);
 	});
 

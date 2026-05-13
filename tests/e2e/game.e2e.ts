@@ -28,6 +28,21 @@ test('game route boots', async ({ page }) => {
 	await page.goto('/');
 	await expect(page.locator('canvas')).toBeVisible();
 	await expect(page.getByRole('button', { name: 'Menu' })).toBeVisible();
+
+	const viewport = page.viewportSize();
+	const statusPanel = page.getByRole('region', { name: 'Player status' });
+	const questTracker = page.getByRole('region', { name: 'Quest tracker' });
+	await expect(statusPanel).toBeVisible();
+	await expect(questTracker).toBeVisible();
+
+	const statusBox = await statusPanel.boundingBox();
+	const questBox = await questTracker.boundingBox();
+	expect(statusBox?.x).toBeLessThan(40);
+	expect(statusBox?.y).toBeLessThan(40);
+	expect(questBox?.y).toBeLessThan(40);
+	expect((questBox?.x ?? 0) + (questBox?.width ?? 0)).toBeGreaterThan(
+		(viewport?.width ?? 0) - 40
+	);
 });
 
 test('inventory overlay opens from the menu', async ({ page }) => {
@@ -311,7 +326,7 @@ test('interact key shop purchase appears in inventory', async ({ page }) => {
 
 	const miraDialog = page.getByRole('dialog', { name: 'Mira' });
 	await expect(miraDialog).toBeVisible();
-	await miraDialog.getByRole('button', { name: 'Next' }).click();
+	await expect(miraDialog.getByRole('button', { name: 'Next' })).toHaveCount(0);
 	await miraDialog.getByRole('button', { name: 'Shop' }).click();
 
 	const shopDialog = page.getByRole('dialog', { name: "Mira's Item Shop" });

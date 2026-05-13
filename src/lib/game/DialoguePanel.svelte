@@ -14,15 +14,28 @@
 
 	onMount(() => {
 		panel?.focus({ preventScroll: true });
+
+		window.addEventListener('keydown', handleGlobalKeydown);
+		return () => window.removeEventListener('keydown', handleGlobalKeydown);
 	});
 
-	function handleKeydown(event: KeyboardEvent) {
+	function closeFromEscape(event: KeyboardEvent): boolean {
 		if (event.key === 'Escape' && dialogue.canClose) {
 			event.preventDefault();
 			event.stopPropagation();
 			onclose();
-			return;
+			return true;
 		}
+
+		return false;
+	}
+
+	function handleGlobalKeydown(event: KeyboardEvent) {
+		closeFromEscape(event);
+	}
+
+	function handleKeydown(event: KeyboardEvent) {
+		if (closeFromEscape(event)) return;
 
 		if (event.key !== 'Enter' && event.key !== ' ') return;
 		if (event.target !== event.currentTarget) {
@@ -44,7 +57,7 @@
 </script>
 
 <dialog
-	class="pointer-events-auto absolute right-4 bottom-4 left-4 z-[70] rounded-[1.2rem] border border-white/18 bg-[linear-gradient(145deg,rgba(8,13,34,0.96),rgba(16,24,44,0.94))] p-4 text-slate-50 shadow-[0_24px_70px_rgba(0,0,0,0.48)] backdrop-blur-md sm:right-6 sm:bottom-6 sm:left-6"
+	class="pointer-events-auto absolute inset-x-0 bottom-0 z-[70] m-0 w-screen max-w-none rounded-t-[1.2rem] border border-x-0 border-b-0 border-white/18 bg-[linear-gradient(145deg,rgba(8,13,34,0.96),rgba(16,24,44,0.94))] p-4 text-slate-50 shadow-[0_24px_70px_rgba(0,0,0,0.48)] backdrop-blur-md sm:p-5"
 	aria-label={dialogue.speaker}
 	bind:this={panel}
 	open
