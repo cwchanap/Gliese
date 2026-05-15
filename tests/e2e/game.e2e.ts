@@ -86,6 +86,34 @@ test('inventory overlay opens from the menu', async ({ page }) => {
 	await expect(trainingSwordSlot.getByText('Equipped')).toBeVisible();
 });
 
+test('language preference uses English fallback chrome and keeps Japanese selected', async ({
+	page
+}) => {
+	await page.goto('/');
+	await expect(page.locator('canvas')).toBeVisible();
+	await expect(page.getByRole('button', { name: 'Menu' })).toBeVisible();
+
+	await page.getByRole('button', { name: 'Menu' }).click();
+	const languageSelect = page.getByLabel('Language');
+	await expect(languageSelect).toBeVisible();
+	await languageSelect.selectOption('ja');
+	await expect(languageSelect).toHaveValue('ja');
+	await page.getByRole('button', { name: 'Close' }).click();
+	await expect(languageSelect).toHaveCount(0);
+
+	await page.getByRole('button', { name: 'Menu' }).click();
+	await page.getByRole('button', { name: 'Inventory' }).click();
+
+	const inventoryDialog = page.getByRole('dialog', { name: 'Inventory' });
+	await expect(inventoryDialog).toBeVisible();
+	await expect(inventoryDialog.getByRole('heading', { name: 'Inventory' })).toBeVisible();
+	await expect(inventoryDialog.getByRole('tab', { name: 'Consumables' })).toBeVisible();
+	await inventoryDialog.getByRole('button', { name: 'Close' }).click();
+
+	await page.getByRole('button', { name: 'Menu' }).click();
+	await expect(page.getByLabel('Language')).toHaveValue('ja');
+});
+
 test('full hp potions explain why they cannot be consumed', async ({ page }) => {
 	await page.goto('/');
 	await expect(page.locator('canvas')).toBeVisible();
