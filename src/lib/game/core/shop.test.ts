@@ -253,10 +253,12 @@ describe('shop core', () => {
 
 	it('builds normalized buy and sell views', () => {
 		const stockState = createInitialShopStockState();
-		expect(buildShopBuyEntries('guild-quartermaster', stockState)).toContainEqual(
+		expect(buildShopBuyEntries('guild-quartermaster', stockState, 'en')).toContainEqual(
 			expect.objectContaining({
 				stockId: 'iron-cap',
 				itemId: 'iron-cap',
+				name: 'Iron Cap',
+				description: 'Simple protection for dangerous ruins.',
 				iconPath: '/game/assets/items/iron-cap.png',
 				price: 35,
 				availability: { mode: 'finite', remaining: 1 }
@@ -265,11 +267,14 @@ describe('shop core', () => {
 		expect(
 			buildShopSellEntries({
 				inventory: { stacks: [{ itemId: 'field-potion', quantity: 2 }], equipment: ['iron-cap'] },
-				equipment: createEmptyEquipment()
+				equipment: createEmptyEquipment(),
+				locale: 'en'
 			})
 		).toEqual([
 			expect.objectContaining({
 				itemId: 'field-potion',
+				name: 'Field Potion',
+				description: 'Restores 8 HP.',
 				quantity: 2,
 				kind: 'consumable',
 				iconPath: '/game/assets/items/field-potion.png',
@@ -277,10 +282,45 @@ describe('shop core', () => {
 			}),
 			expect.objectContaining({
 				itemId: 'iron-cap',
+				name: 'Iron Cap',
+				description: 'Simple protection for dangerous ruins.',
 				quantity: 1,
 				kind: 'equipment',
 				iconPath: '/game/assets/items/iron-cap.png',
 				price: 17
+			})
+		]);
+	});
+
+	it('falls back to English shop entry text for untranslated locales', () => {
+		const buyEntries = buildShopBuyEntries(
+			'guild-quartermaster',
+			createInitialShopStockState(),
+			'ja'
+		);
+		const sellEntries = buildShopSellEntries({
+			inventory: { stacks: [{ itemId: 'field-potion', quantity: 2 }], equipment: ['iron-cap'] },
+			equipment: createEmptyEquipment(),
+			locale: 'ja'
+		});
+
+		expect(buyEntries).toContainEqual(
+			expect.objectContaining({
+				itemId: 'iron-cap',
+				name: 'Iron Cap',
+				description: 'Simple protection for dangerous ruins.'
+			})
+		);
+		expect(sellEntries).toEqual([
+			expect.objectContaining({
+				itemId: 'field-potion',
+				name: 'Field Potion',
+				description: 'Restores 8 HP.'
+			}),
+			expect.objectContaining({
+				itemId: 'iron-cap',
+				name: 'Iron Cap',
+				description: 'Simple protection for dangerous ruins.'
 			})
 		]);
 	});

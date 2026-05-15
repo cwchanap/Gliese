@@ -1,14 +1,19 @@
-import {
-	getDialogue,
-	type DialogueActionIntent,
-	type DialogueBranchCondition
-} from '$lib/game/content/dialogue';
+import type { DialogueActionIntent, DialogueBranchCondition } from '$lib/game/content/dialogue';
 import { getQuest, mainQuestId, type QuestId, type QuestReward } from '$lib/game/content/quests';
 import {
 	getAvailableGuildQuestIds,
 	hasCompletedQuestObjective,
 	type QuestState
 } from '$lib/game/core/quests';
+import {
+	formatRewardSummary,
+	getDialogueText,
+	getNpcText,
+	getQuestObjectiveText,
+	getQuestText
+} from '$lib/game/i18n/content';
+import type { Locale } from '$lib/game/i18n/locales';
+import { t } from '$lib/game/i18n/translate';
 
 export type DialogueMode = 'conversation' | 'choice' | 'system';
 
@@ -44,13 +49,20 @@ export type DialogueChoiceResult = {
 
 export function startNpcDialogue({
 	npcId,
-	questState
+	questState,
+	locale
 }: {
 	npcId: string;
 	questState: QuestState;
+	locale: Locale;
 }): DialogueSession {
-	const definition = getDialogue(npcId);
-	if (!definition) return buildDialogueFallback('Traveler', 'No dialogue is available.');
+	const definition = getDialogueText(locale, npcId);
+	if (!definition) {
+		return buildDialogueFallback(
+			'Traveler',
+			t(locale, 'content.dialogue.system.noDialogueAvailable')
+		);
+	}
 
 	const branch =
 		definition.defaultBranches.find((candidate) =>
@@ -74,9 +86,7 @@ export function startNpcDialogue({
 		speaker: definition.speaker,
 		lines,
 		choices,
-		completionIntent: needsGuildBriefing
-			? { type: 'recordNpcTalk', npcId: 'guild-master' }
-			: null
+		completionIntent: needsGuildBriefing ? { type: 'recordNpcTalk', npcId: 'guild-master' } : null
 	});
 }
 
@@ -102,33 +112,41 @@ export function advanceDialogue(session: DialogueSession): DialogueSession {
 export function chooseDialogueOption({
 	session,
 	choiceId,
-	questState
+	questState,
+	locale
 }: {
 	session: DialogueSession;
 	choiceId: string;
 	questState: QuestState;
+	locale: Locale;
 }): DialogueChoiceResult {
 	const choice = session.choices.find((candidate) => candidate.id === choiceId);
 	if (!choice) {
 		return {
-			session: buildDialogueFallback(session.speaker, 'That option is not available.'),
+			session: buildDialogueFallback(
+				session.speaker,
+				t(locale, 'content.dialogue.system.optionNotAvailable')
+			),
 			intent: null
 		};
 	}
 
 	if (choice.intent.type === 'showQuestList') {
-		return { session: buildGuildQuestListSession(questState), intent: choice.intent };
+		return { session: buildGuildQuestListSession(questState, locale), intent: choice.intent };
 	}
 
 	if (choice.intent.type === 'talk' && session.npcId) {
 		return {
-			session: startNpcDialogue({ npcId: session.npcId, questState }),
+			session: startNpcDialogue({ npcId: session.npcId, questState, locale }),
 			intent: choice.intent
 		};
 	}
 
 	if (choice.intent.type === 'showQuestDetails') {
-		return { session: buildGuildQuestDetailSession(choice.intent.questId), intent: choice.intent };
+		return {
+			session: buildGuildQuestDetailSession(choice.intent.questId, locale),
+			intent: choice.intent
+		};
 	}
 
 	return { session: null, intent: choice.intent };
@@ -137,17 +155,27 @@ export function chooseDialogueOption({
 export function buildQuestCompletionDialogue({
 	questId,
 	title,
-	reward
+	reward,
+	locale
 }: {
 	questId: QuestId;
 	title: string;
 	reward: QuestReward;
+	locale: Locale;
 }): DialogueSession {
+	const questTitle = getQuestText(locale, questId)?.title ?? title;
+	const rewardSummary = formatRewardSummary(locale, reward);
+
 	return createSession({
 		id: `quest-complete:${questId}`,
 		npcId: null,
 		speaker: 'Guild Notice',
-		lines: [`Quest complete: ${title}. Reward: ${formatRewardSummary(reward)}.`],
+		lines: [
+			t(locale, 'content.dialogue.system.questCompleteNotice', {
+				questTitle,
+				rewardSummary
+			})
+		],
 		choices: [],
 		mode: 'system'
 	});
@@ -196,53 +224,76 @@ function createSession({
 	};
 }
 
-function buildGuildQuestListSession(questState: QuestState): DialogueSession {
+function buildGuildQuestListSession(questState: QuestState, locale: Locale): DialogueSession {
 	const questChoices = getAvailableGuildQuestIds(questState).flatMap((questId) => {
 		const quest = getQuest(questId);
 		if (!quest) return [];
+		const questText = getQuestText(locale, quest.id);
 
 		return [
 			{
 				id: `quest:${quest.id}`,
-				label: quest.title,
+				label: questText?.title ?? quest.title,
 				intent: { type: 'showQuestDetails', questId: quest.id } satisfies DialogueIntent
 			}
 		];
 	});
+	const guildMasterName = getNpcText(locale, 'guild-master')?.name ?? 'Guild Master Arlen';
 
 	return createSession({
 		id: 'guild-quest-list',
 		npcId: 'guild-master',
-		speaker: 'Guild Master Arlen',
+		speaker: guildMasterName,
 		lines:
 			questChoices.length > 0
-				? ['Choose the Guild work you want to review.']
-				: ['No new Guild work is available right now.'],
-		choices: [...questChoices, { id: 'close', label: 'Close', intent: { type: 'close' } }],
+				? [t(locale, 'content.dialogue.system.chooseGuildWork')]
+				: [t(locale, 'content.dialogue.system.noNewGuildWork')],
+		choices: [
+			...questChoices,
+			{ id: 'close', label: t(locale, 'content.dialogue.actions.close'), intent: { type: 'close' } }
+		],
 		mode: 'choice'
 	});
 }
 
-function buildGuildQuestDetailSession(questId: QuestId): DialogueSession {
+function buildGuildQuestDetailSession(questId: QuestId, locale: Locale): DialogueSession {
 	const quest = getQuest(questId);
 	const objective = quest?.objectives[0];
+	const guildMasterName = getNpcText(locale, 'guild-master')?.name ?? 'Guild Master Arlen';
+
 	if (!quest || !objective) {
-		return buildDialogueFallback('Guild Master Arlen', 'That Guild work is no longer available.');
+		return buildDialogueFallback(
+			guildMasterName,
+			t(locale, 'content.dialogue.system.guildWorkUnavailable')
+		);
 	}
+	const questText = getQuestText(locale, quest.id);
+	const objectiveText = getQuestObjectiveText(locale, quest.id, objective.id);
+	const rewardSummary = formatRewardSummary(locale, quest.reward);
 
 	return createSession({
 		id: `guild-quest-detail:${quest.id}`,
 		npcId: 'guild-master',
-		speaker: 'Guild Master Arlen',
-		lines: [`${quest.title}: ${objective.description} Reward: ${formatRewardSummary(quest.reward)}.`],
+		speaker: guildMasterName,
+		lines: [
+			t(locale, 'content.dialogue.system.questDetailNotice', {
+				questTitle: questText?.title ?? quest.title,
+				objectiveDescription: objectiveText?.description ?? objective.description,
+				rewardSummary
+			})
+		],
 		choices: [
-			{ id: `accept:${quest.id}`, label: 'Accept', intent: { type: 'acceptQuest', questId: quest.id } },
+			{
+				id: `accept:${quest.id}`,
+				label: t(locale, 'content.dialogue.actions.accept'),
+				intent: { type: 'acceptQuest', questId: quest.id }
+			},
 			{
 				id: 'quest-list',
-				label: 'Back',
+				label: t(locale, 'content.dialogue.actions.back'),
 				intent: { type: 'showQuestList', giverNpcId: 'guild-master' }
 			},
-			{ id: 'close', label: 'Close', intent: { type: 'close' } }
+			{ id: 'close', label: t(locale, 'content.dialogue.actions.close'), intent: { type: 'close' } }
 		],
 		mode: 'choice'
 	});
@@ -270,14 +321,4 @@ function branchMatches(condition: DialogueBranchCondition, questState: QuestStat
 	}
 
 	return condition === 'always';
-}
-
-function formatRewardSummary(reward: QuestReward): string {
-	const parts = [
-		reward.xp ? `${reward.xp} XP` : '',
-		reward.coins ? `${reward.coins} coins` : '',
-		...(reward.items ?? []).map((item) => `${item.quantity} item`)
-	].filter(Boolean);
-
-	return parts.join(' / ');
 }

@@ -12,6 +12,8 @@ import {
 	removeEquipmentItem,
 	type InventoryState
 } from '$lib/game/core/inventory';
+import { getItemText } from '$lib/game/i18n/content';
+import type { Locale } from '$lib/game/i18n/locales';
 
 export type WalletState = { coins: number };
 
@@ -244,7 +246,11 @@ export function sellInventoryItem({
 	return { sold: true, wallet: { coins: wallet.coins + price }, inventory: result.inventory };
 }
 
-export function buildShopBuyEntries(shopId: string, stockState: ShopStockState): HudShopBuyEntry[] {
+export function buildShopBuyEntries(
+	shopId: string,
+	stockState: ShopStockState,
+	locale: Locale
+): HudShopBuyEntry[] {
 	const shop = getShop(shopId);
 
 	if (!shop) {
@@ -258,13 +264,14 @@ export function buildShopBuyEntries(shopId: string, stockState: ShopStockState):
 		if (!isSellableDefinition(item) || price === undefined) {
 			return [];
 		}
+		const itemText = getItemText(locale, item.id);
 
 		return [
 			{
 				stockId: entry.id,
 				itemId: item.id,
-				name: item.name,
-				description: item.description,
+				name: itemText?.name ?? item.name,
+				description: itemText?.description ?? item.description,
 				iconPath: item.iconPath,
 				kind: item.type,
 				price,
@@ -283,10 +290,12 @@ export function buildShopBuyEntries(shopId: string, stockState: ShopStockState):
 
 export function buildShopSellEntries({
 	inventory,
-	equipment
+	equipment,
+	locale
 }: {
 	inventory: InventoryState;
 	equipment: EquipmentState;
+	locale: Locale;
 }): HudShopSellEntry[] {
 	const stackEntries = inventory.stacks.flatMap((stack) => {
 		const item = getItem(stack.itemId);
@@ -295,12 +304,13 @@ export function buildShopSellEntries({
 		if (item?.type !== 'consumable' || price === undefined || stack.quantity <= 0) {
 			return [];
 		}
+		const itemText = getItemText(locale, item.id);
 
 		return [
 			{
 				itemId: item.id,
-				name: item.name,
-				description: item.description,
+				name: itemText?.name ?? item.name,
+				description: itemText?.description ?? item.description,
 				iconPath: item.iconPath,
 				kind: item.type,
 				quantity: stack.quantity,
@@ -317,12 +327,13 @@ export function buildShopSellEntries({
 		if (item?.type !== 'equipment' || price === undefined || isEquipped(equipment, itemId)) {
 			return [];
 		}
+		const itemText = getItemText(locale, item.id);
 
 		return [
 			{
 				itemId: item.id,
-				name: item.name,
-				description: item.description,
+				name: itemText?.name ?? item.name,
+				description: itemText?.description ?? item.description,
 				iconPath: item.iconPath,
 				kind: item.type,
 				quantity: 1,

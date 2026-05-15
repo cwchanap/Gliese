@@ -415,7 +415,8 @@ describe('quest core', () => {
 
 		const hud = buildHudQuestState({
 			state: accepted.state,
-			nearbyQuestGiverId: 'guild-master'
+			nearbyQuestGiverId: 'guild-master',
+			locale: 'en'
 		});
 
 		expect(hud.main).toMatchObject({
@@ -427,16 +428,47 @@ describe('quest core', () => {
 		expect(hud.side).toContainEqual(
 			expect.objectContaining({
 				questId: 'thin-ruins-slimes',
+				title: 'Thin Ruins Slimes',
+				description: 'Reduce the slime presence inside the ruin threshold.',
 				progress: { current: 0, target: 2, label: 'Ruins slimes defeated' }
 			})
 		);
 		expect(hud.completed).toEqual([]);
+		expect(hud.guildOffer?.giverName).toBe('Guild Master Arlen');
 		expect(hud.guildOffer?.quests.map((quest) => quest.questId)).toEqual([
 			'thin-village-slimes',
 			'recover-ruins-relics'
 		]);
-		expect(buildHudQuestState({ state: accepted.state, nearbyQuestGiverId: null }).guildOffer).toBe(
-			null
-		);
+		expect(
+			buildHudQuestState({ state: accepted.state, nearbyQuestGiverId: null, locale: 'en' })
+				.guildOffer
+		).toBe(null);
+	});
+
+	it('falls back to English quest HUD text for untranslated locales', () => {
+		const unlocked = applyQuestEvent({
+			state: createInitialQuestState(),
+			event: { type: 'talk-to-npc', npcId: 'guild-master' }
+		}).state;
+		const hud = buildHudQuestState({
+			state: unlocked,
+			nearbyQuestGiverId: 'guild-master',
+			locale: 'ja'
+		});
+
+		expect(hud.main).toMatchObject({
+			title: 'Investigate the Ruins',
+			description: 'Report to the Guild Master, then defeat the ruins warden.',
+			objective: 'Defeat the ruins warden in the ruins core.',
+			progress: { current: 0, target: 1, label: 'Ruins warden defeated' },
+			rewardSummary: '15 XP / 35 coins / 1 item'
+		});
+		expect(hud.guildOffer?.giverName).toBe('Guild Master Arlen');
+		expect(hud.guildOffer?.quests[0]).toMatchObject({
+			title: 'Thin Village Slimes',
+			description: 'Clear the slimes gathering on the village road.',
+			objective: 'Defeat slimes near the village.',
+			rewardSummary: '6 XP / 12 coins / 1 item'
+		});
 	});
 });

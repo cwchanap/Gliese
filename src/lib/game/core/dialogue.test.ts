@@ -14,7 +14,8 @@ describe('dialogue core', () => {
 	it('starts Guild Master briefing before the ruins are unlocked', () => {
 		const session = startNpcDialogue({
 			npcId: 'guild-master',
-			questState: createInitialQuestState()
+			questState: createInitialQuestState(),
+			locale: 'en'
 		});
 
 		expect(session).toMatchObject({
@@ -30,7 +31,8 @@ describe('dialogue core', () => {
 	it('advances through briefing lines and exposes choices at the end', () => {
 		const first = startNpcDialogue({
 			npcId: 'guild-master',
-			questState: createInitialQuestState()
+			questState: createInitialQuestState(),
+			locale: 'en'
 		});
 		const second = advanceDialogue(first);
 		const third = advanceDialogue(second);
@@ -45,7 +47,8 @@ describe('dialogue core', () => {
 	it('shows useful choices immediately for single-line NPC dialogue', () => {
 		const session = startNpcDialogue({
 			npcId: 'shopkeeper-mira',
-			questState: createInitialQuestState()
+			questState: createInitialQuestState(),
+			locale: 'en'
 		});
 
 		expect(session.lineCount).toBe(1);
@@ -58,11 +61,12 @@ describe('dialogue core', () => {
 			state: createInitialQuestState(),
 			event: { type: 'talk-to-npc', npcId: 'guild-master' }
 		}).state;
-		const session = startNpcDialogue({ npcId: 'guild-master', questState });
+		const session = startNpcDialogue({ npcId: 'guild-master', questState, locale: 'en' });
 		const choiceResult = chooseDialogueOption({
 			session,
 			choiceId: 'quest',
-			questState
+			questState,
+			locale: 'en'
 		});
 
 		expect(choiceResult.intent).toEqual({ type: 'showQuestList', giverNpcId: 'guild-master' });
@@ -80,7 +84,7 @@ describe('dialogue core', () => {
 			state: createInitialQuestState(),
 			event: { type: 'talk-to-npc', npcId: 'guild-master' }
 		}).state;
-		const session = startNpcDialogue({ npcId: 'guild-master', questState });
+		const session = startNpcDialogue({ npcId: 'guild-master', questState, locale: 'en' });
 
 		expect(session.line).toBe('The ruins route is open. Steel yourself before you enter the core.');
 		expect(session.choices.map((choice) => choice.label)).toEqual(['Quest']);
@@ -91,19 +95,21 @@ describe('dialogue core', () => {
 			state: createInitialQuestState(),
 			event: { type: 'talk-to-npc', npcId: 'guild-master' }
 		}).state;
-		const session = startNpcDialogue({ npcId: 'guild-master', questState });
-		const list = chooseDialogueOption({ session, choiceId: 'quest', questState });
+		const session = startNpcDialogue({ npcId: 'guild-master', questState, locale: 'en' });
+		const list = chooseDialogueOption({ session, choiceId: 'quest', questState, locale: 'en' });
 		if (!list.session) throw new Error('Expected quest list session');
 		const detail = chooseDialogueOption({
 			session: list.session,
 			choiceId: 'quest:thin-village-slimes',
-			questState
+			questState,
+			locale: 'en'
 		});
 		if (!detail.session) throw new Error('Expected quest detail session');
 		const accepted = chooseDialogueOption({
 			session: detail.session,
 			choiceId: 'accept:thin-village-slimes',
-			questState
+			questState,
+			locale: 'en'
 		});
 
 		expect(detail.session.line).toContain('Defeat slimes near the village.');
@@ -118,7 +124,8 @@ describe('dialogue core', () => {
 				xp: 15,
 				coins: 35,
 				items: [{ itemId: 'greater-field-potion', quantity: 1 }]
-			}
+			},
+			locale: 'en'
 		});
 
 		expect(session).toMatchObject({
@@ -135,6 +142,63 @@ describe('dialogue core', () => {
 			speaker: 'Traveler',
 			line: 'No dialogue is available.',
 			mode: 'system'
+		});
+	});
+
+	it('falls back to English dialogue text for untranslated locales', () => {
+		const questState = applyQuestEvent({
+			state: createInitialQuestState(),
+			event: { type: 'talk-to-npc', npcId: 'guild-master' }
+		}).state;
+		const session = startNpcDialogue({ npcId: 'guild-master', questState, locale: 'ja' });
+		const list = chooseDialogueOption({
+			session,
+			choiceId: 'quest',
+			questState,
+			locale: 'ja'
+		});
+		if (!list.session) throw new Error('Expected quest list session');
+		const detail = chooseDialogueOption({
+			session: list.session,
+			choiceId: 'quest:thin-village-slimes',
+			questState,
+			locale: 'ja'
+		});
+		if (!detail.session) throw new Error('Expected quest detail session');
+		const completion = buildQuestCompletionDialogue({
+			questId: mainQuestId,
+			title: 'Investigate the Ruins',
+			reward: { xp: 15, coins: 35, items: [{ itemId: 'greater-field-potion', quantity: 1 }] },
+			locale: 'ja'
+		});
+
+		expect(session).toMatchObject({
+			speaker: 'Guild Master Arlen',
+			line: 'The ruins route is open. Steel yourself before you enter the core.'
+		});
+		expect(session.choices.map((choice) => choice.label)).toEqual(['Quest']);
+		expect(list.session).toMatchObject({
+			speaker: 'Guild Master Arlen',
+			line: 'Choose the Guild work you want to review.'
+		});
+		expect(list.session.choices.map((choice) => choice.label)).toEqual([
+			'Thin Village Slimes',
+			'Thin Ruins Slimes',
+			'Recover Ruins Relics',
+			'Close'
+		]);
+		expect(detail.session).toMatchObject({
+			speaker: 'Guild Master Arlen',
+			line: 'Thin Village Slimes: Defeat slimes near the village. Reward: 6 XP / 12 coins / 1 item.'
+		});
+		expect(detail.session.choices.map((choice) => choice.label)).toEqual([
+			'Accept',
+			'Back',
+			'Close'
+		]);
+		expect(completion).toMatchObject({
+			speaker: 'Guild Notice',
+			line: 'Quest complete: Investigate the Ruins. Reward: 15 XP / 35 coins / 1 item.'
 		});
 	});
 });

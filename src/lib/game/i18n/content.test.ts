@@ -64,14 +64,16 @@ describe('localized content helpers', () => {
 
 		const hud = buildHudQuestState({
 			state: createInitialQuestState(),
-			nearbyQuestGiverId: null
+			nearbyQuestGiverId: null,
+			locale: 'en'
 		});
 		expect(hud.main?.rewardSummary).toBe(i18nSummary);
 
 		const completion = buildQuestCompletionDialogue({
 			questId: mainQuestId,
 			title: mainQuest.title,
-			reward: mainQuest.reward
+			reward: mainQuest.reward,
+			locale: 'en'
 		});
 		expect(completion.line).toContain(`Reward: ${i18nSummary}.`);
 
@@ -81,7 +83,8 @@ describe('localized content helpers', () => {
 		const multiItemCompletion = buildQuestCompletionDialogue({
 			questId: mainQuestId,
 			title: mainQuest.title,
-			reward: multiItemReward
+			reward: multiItemReward,
+			locale: 'en'
 		});
 		expect(multiItemCompletion.line).toContain(
 			`Reward: ${formatRewardSummary('en', multiItemReward)}.`

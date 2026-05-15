@@ -9,6 +9,13 @@ import {
 	type QuestReward
 } from '$lib/game/content/quests';
 import { maps } from '$lib/game/content/maps';
+import {
+	formatRewardSummary,
+	getNpcText,
+	getQuestObjectiveText,
+	getQuestText
+} from '$lib/game/i18n/content';
+import type { Locale } from '$lib/game/i18n/locales';
 
 export type QuestEntryStatus = 'active' | 'completed';
 
@@ -89,7 +96,7 @@ export type HudQuestState = {
 	completed: HudQuestEntry[];
 	guildOffer: null | {
 		giverNpcId: 'guild-master';
-		giverName: 'Guild Master';
+		giverName: string;
 		quests: HudQuestOffer[];
 	};
 };
@@ -243,17 +250,19 @@ export function applyQuestEvent({
 
 export function buildHudQuestState({
 	state,
-	nearbyQuestGiverId
+	nearbyQuestGiverId,
+	locale
 }: {
 	state: QuestState;
 	nearbyQuestGiverId: string | null;
+	locale: Locale;
 }): HudQuestState {
 	const entries = Object.entries(state.entries).flatMap(([questId, entry]) => {
 		const quest = getQuest(questId);
 		const objective = quest?.objectives.find(
 			(candidate) => candidate.id === entry.currentObjectiveId
 		);
-		return quest && objective ? [buildHudEntry(quest, objective, entry)] : [];
+		return quest && objective ? [buildHudEntry(quest, objective, entry, locale)] : [];
 	});
 
 	const availableQuestIds =
@@ -261,8 +270,9 @@ export function buildHudQuestState({
 	const availableQuests = availableQuestIds.flatMap((questId) => {
 		const quest = getQuest(questId);
 		const objective = quest?.objectives[0];
-		return quest && objective ? [buildHudOffer(quest, objective)] : [];
+		return quest && objective ? [buildHudOffer(quest, objective, locale)] : [];
 	});
+	const guildMasterText = getNpcText(locale, 'guild-master');
 
 	return {
 		main: entries.find((entry) => entry.type === 'main') ?? null,
@@ -270,7 +280,11 @@ export function buildHudQuestState({
 		completed: entries.filter((entry) => entry.status === 'completed'),
 		guildOffer:
 			availableQuests.length > 0
-				? { giverNpcId: 'guild-master', giverName: 'Guild Master', quests: availableQuests }
+				? {
+						giverNpcId: 'guild-master',
+						giverName: guildMasterText?.name ?? 'Guild Master',
+						quests: availableQuests
+					}
 				: null
 	};
 }
@@ -397,44 +411,45 @@ function getExistingSourceIdsForObjective(
 function buildHudEntry(
 	quest: QuestDefinition,
 	objective: QuestObjective,
-	entry: QuestEntryState
+	entry: QuestEntryState,
+	locale: Locale
 ): HudQuestEntry {
+	const questText = getQuestText(locale, quest.id);
+	const objectiveText = getQuestObjectiveText(locale, quest.id, objective.id);
+
 	return {
 		questId: quest.id,
-		title: quest.title,
+		title: questText?.title ?? quest.title,
 		type: quest.type,
 		status: entry.status,
-		description: quest.description,
-		objective: objective.description,
+		description: questText?.description ?? quest.description,
+		objective: objectiveText?.description ?? objective.description,
 		progress: {
 			current: entry.progress,
 			target: objective.target,
-			label: objective.progressLabel
+			label: objectiveText?.progressLabel ?? objective.progressLabel
 		},
-		rewardSummary: formatRewardSummary(quest.reward)
+		rewardSummary: formatRewardSummary(locale, quest.reward)
 	};
 }
 
-function buildHudOffer(quest: QuestDefinition, objective: QuestObjective): HudQuestOffer {
+function buildHudOffer(
+	quest: QuestDefinition,
+	objective: QuestObjective,
+	locale: Locale
+): HudQuestOffer {
+	const questText = getQuestText(locale, quest.id);
+	const objectiveText = getQuestObjectiveText(locale, quest.id, objective.id);
+
 	return {
 		questId: quest.id,
-		title: quest.title,
-		description: quest.description,
-		objective: objective.description,
-		rewardSummary: formatRewardSummary(quest.reward)
+		title: questText?.title ?? quest.title,
+		description: questText?.description ?? quest.description,
+		objective: objectiveText?.description ?? objective.description,
+		rewardSummary: formatRewardSummary(locale, quest.reward)
 	};
 }
 
 function buildRewardGrant(quest: QuestDefinition): QuestRewardGrant {
 	return { questId: quest.id, title: quest.title, reward: quest.reward };
-}
-
-function formatRewardSummary(reward: QuestReward): string {
-	const parts = [
-		reward.xp ? `${reward.xp} XP` : '',
-		reward.coins ? `${reward.coins} coins` : '',
-		...(reward.items ?? []).map((item) => `${item.quantity} item`)
-	].filter(Boolean);
-
-	return parts.join(' / ');
 }
