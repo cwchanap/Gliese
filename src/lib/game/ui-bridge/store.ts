@@ -3,10 +3,13 @@ import { readable } from 'svelte/store';
 import { equipmentSlots, type EquipmentSlot } from '$lib/game/content/items';
 import { startingPlayer } from '$lib/game/content/player';
 import { buildHudQuestState, createInitialQuestState } from '$lib/game/core/quests';
+import { getActiveLocale } from '$lib/game/i18n/store';
+import { t } from '$lib/game/i18n/translate';
 import { loadStoredSaveResult } from '$lib/game/save/storage';
 import { emitHudCommand, onHudState, type HudState } from '$lib/game/ui-bridge/events';
 
 const initialSaveResult = loadStoredSaveResult();
+const initialLocale = getActiveLocale();
 const initialQuestState =
 	initialSaveResult.status === 'loaded'
 		? initialSaveResult.saveState.quests
@@ -27,14 +30,18 @@ const initialHudState: HudState = {
 	defense: 0,
 	heals: 1,
 	canResume: initialSaveResult.status === 'loaded',
-	status: 'Loading game',
+	status: t(initialLocale, 'status.loadingGame'),
 	wallet: {
 		coins: initialSaveResult.status === 'loaded' ? initialSaveResult.saveState.wallet.coins : 30
 	},
 	nearbyShop: null,
 	shop: null,
 	dialogue: null,
-	quests: buildHudQuestState({ state: initialQuestState, nearbyQuestGiverId: null }),
+	quests: buildHudQuestState({
+		state: initialQuestState,
+		nearbyQuestGiverId: null,
+		locale: initialLocale
+	}),
 	inventory: {
 		consumables: [],
 		equipment: [],

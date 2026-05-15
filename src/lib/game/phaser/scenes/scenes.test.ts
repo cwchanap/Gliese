@@ -2,6 +2,138 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type { HudCommand } from '$lib/game/ui-bridge/events';
 
+const localeState = vi.hoisted(() => ({
+	activeLocale: 'en' as 'en' | 'ja' | 'zh-Hant'
+}));
+
+vi.mock('$lib/game/i18n/store', () => ({
+	getActiveLocale: () => localeState.activeLocale
+}));
+
+vi.mock('$lib/game/i18n/translate', async () => {
+	const actual =
+		await vi.importActual<typeof import('$lib/game/i18n/translate')>(
+			'$lib/game/i18n/translate'
+		);
+
+	return {
+		...actual,
+		t: vi.fn((locale, key, params) => {
+			if (locale === 'ja' && key === 'content.dialogue.speakers.traveler') {
+				return 'JP Traveler';
+			}
+
+			return actual.t(locale, key, params);
+		})
+	};
+});
+
+vi.mock('$lib/game/i18n/content', async () => {
+	const actual =
+		await vi.importActual<typeof import('$lib/game/i18n/content')>('$lib/game/i18n/content');
+
+	return {
+		...actual,
+		getItemText: vi.fn((locale: 'en' | 'ja' | 'zh-Hant', itemId: string) => {
+			if (locale === 'ja') {
+				if (itemId === 'sunleaf-salve') {
+					return { name: 'JP Sunleaf Salve', description: 'JP salve description.' };
+				}
+
+				if (itemId === 'field-potion') {
+					return { name: 'Field Potion', description: 'Restores 8 HP.' };
+				}
+			}
+
+			return actual.getItemText(locale, itemId);
+		}),
+		getShopText: vi.fn((locale: 'en' | 'ja' | 'zh-Hant', shopId: string) => {
+			if (locale === 'ja' && shopId === 'miras-item-shop') {
+				return {
+					name: 'JP Mira Shop',
+					merchantName: 'JP Mira',
+					description: 'JP reliable field supplies.'
+				};
+			}
+
+			return actual.getShopText(locale, shopId);
+		}),
+		getQuestText: vi.fn((locale: 'en' | 'ja' | 'zh-Hant', questId: string) => {
+			if (locale === 'ja' && questId === 'investigate-the-ruins') {
+				return {
+					title: 'JP Investigate the Ruins',
+					description: 'JP Report to the Guild Master, then defeat the ruins warden.'
+				};
+			}
+
+			return actual.getQuestText(locale, questId);
+		}),
+		getQuestObjectiveText: vi.fn(
+			(locale: 'en' | 'ja' | 'zh-Hant', questId: string, objectiveId: string) => {
+				if (
+					locale === 'ja' &&
+					questId === 'investigate-the-ruins' &&
+					objectiveId === 'talk-to-guild-master'
+				) {
+					return {
+						description: 'JP Talk to the Guild Master in the Guild Hall.',
+						progressLabel: 'JP Guild Master spoken to'
+					};
+				}
+
+				return actual.getQuestObjectiveText(locale, questId, objectiveId);
+			}
+		),
+		getDialogueText: vi.fn((locale: 'en' | 'ja' | 'zh-Hant', dialogueId: string) => {
+			const dialogue = actual.getDialogueText(locale, dialogueId);
+
+			if (locale !== 'ja' || !dialogue) {
+				return dialogue;
+			}
+
+			if (dialogueId === 'shopkeeper-mira') {
+				return {
+					...dialogue,
+					speaker: 'JP Mira',
+					defaultBranches: dialogue.defaultBranches.map((branch) => ({
+						...branch,
+						lines: ['JP Fresh tonics are ready.']
+					})),
+					actions: dialogue.actions.map((action) => ({
+						...action,
+						label: action.id === 'shop' ? 'JP Shop' : action.label
+					}))
+				};
+			}
+
+			if (dialogueId === 'guild-master') {
+				return {
+					...dialogue,
+					speaker: 'JP Guild Master',
+					defaultBranches: dialogue.defaultBranches.map((branch) => ({
+						...branch,
+						lines: ['JP The eastern ruins are stirring again.']
+					})),
+					actions: dialogue.actions.map((action) => ({
+						...action,
+						label: action.id === 'quest' ? 'JP Quest' : action.label
+					}))
+				};
+			}
+
+			return dialogue;
+		}),
+		getNpcText: vi.fn((locale: 'en' | 'ja' | 'zh-Hant', npcId: string) => {
+			if (locale === 'ja') {
+				if (npcId === 'shopkeeper-mira') return { name: 'JP Mira' };
+				if (npcId === 'guild-master') return { name: 'JP Guild Master' };
+			}
+
+			return actual.getNpcText(locale, npcId);
+		})
+	};
+});
+
 const phaserState = vi.hoisted(() => {
 	const cursorKeys = {
 		left: { isDown: false },
@@ -446,6 +578,7 @@ describe('BootScene', () => {
 
 describe('WorldScene', () => {
 	beforeEach(() => {
+		localeState.activeLocale = 'en';
 		vi.clearAllMocks();
 		phaserState.reset();
 		Object.assign(phaserState.cursorKeys.left, { isDown: false });
@@ -1383,6 +1516,227 @@ describe('WorldScene', () => {
 				mapId: 'guild-hall',
 				status: 'Quartermaster Vale nearby',
 				dialogue: null
+			})
+		);
+	});
+
+	it('publishes the initial HUD state with English runtime text by default', async () => {
+		const events = await import('$lib/game/ui-bridge/events');
+		const emitHudStateSpy = vi.spyOn(events, 'emitHudState');
+		const { WorldScene } = await import('./WorldScene');
+		const scene = new WorldScene();
+
+		scene.create({ mapId: 'meadow-entry' });
+
+		expect(emitHudStateSpy).toHaveBeenLastCalledWith(
+			expect.objectContaining({
+				status: 'New run',
+				quests: expect.objectContaining({
+					main: expect.objectContaining({
+						title: 'Investigate the Ruins',
+						objective: 'Talk to the Guild Master in the Guild Hall.',
+						progress: expect.objectContaining({ label: 'Guild Master spoken to' })
+					})
+				})
+			})
+		);
+	});
+
+	it('publishes localized/fallback shop, inventory, dialogue, and buy text for Japanese', async () => {
+		localeState.activeLocale = 'ja';
+		const { createNewSaveState } = await import('$lib/game/save/save-state');
+		const localizedContent = await import('$lib/game/i18n/content');
+		const events = await import('$lib/game/ui-bridge/events');
+		const emitHudStateSpy = vi.spyOn(events, 'emitHudState');
+		const { WorldScene } = await import('./WorldScene');
+		const scene = new WorldScene();
+		const sceneState = scene as unknown as {
+			handleHudCommand: (command: HudCommand) => void;
+		};
+		const save = createNewSaveState();
+
+		scene.create({
+			saveState: {
+				...save,
+				mapId: 'item-shop',
+				player: { ...save.player, x: 256, y: 144 },
+				inventory: {
+					stacks: [{ itemId: 'field-potion', quantity: 2 }],
+					equipment: []
+				}
+			}
+		});
+		Object.assign(phaserState.playerMarker, { x: 256, y: 144 });
+		emitHudStateSpy.mockClear();
+
+		scene.update(0, 16);
+
+		expect(emitHudStateSpy).toHaveBeenLastCalledWith(
+			expect.objectContaining({
+				status: 'JP Mira nearby',
+				nearbyShop: {
+					shopId: 'miras-item-shop',
+					name: 'JP Mira Shop',
+					merchantName: 'JP Mira'
+				}
+			})
+		);
+		expect(localizedContent.getNpcText).toHaveBeenCalledWith('ja', 'shopkeeper-mira');
+		expect(localizedContent.getShopText).toHaveBeenCalledWith('ja', 'miras-item-shop');
+
+		sceneState.handleHudCommand({ type: 'open-shop', shopId: 'miras-item-shop' });
+
+		expect(emitHudStateSpy).toHaveBeenLastCalledWith(
+			expect.objectContaining({
+				status: 'Shop opened',
+				inventory: expect.objectContaining({
+					consumables: expect.arrayContaining([
+						expect.objectContaining({
+							itemId: 'field-potion',
+							name: 'Field Potion',
+							description: 'Restores 8 HP.'
+						})
+					])
+				}),
+				shop: expect.objectContaining({
+					shopId: 'miras-item-shop',
+					name: 'JP Mira Shop',
+					merchantName: 'JP Mira',
+					buy: expect.arrayContaining([
+						expect.objectContaining({
+							itemId: 'field-potion',
+							name: 'Field Potion',
+							description: 'Restores 8 HP.'
+						}),
+						expect.objectContaining({
+							itemId: 'sunleaf-salve',
+							name: 'JP Sunleaf Salve',
+							description: 'JP salve description.'
+						})
+					]),
+					sell: expect.arrayContaining([
+						expect.objectContaining({
+							itemId: 'field-potion',
+							name: 'Field Potion',
+							description: 'Restores 8 HP.'
+						})
+					])
+				})
+			})
+		);
+		expect(localizedContent.getItemText).toHaveBeenCalledWith('ja', 'sunleaf-salve');
+
+		sceneState.handleHudCommand({
+			type: 'buy-shop-item',
+			shopId: 'miras-item-shop',
+			stockId: 'field-potion'
+		});
+
+		expect(emitHudStateSpy).toHaveBeenLastCalledWith(
+			expect.objectContaining({ status: 'Bought Field Potion' })
+		);
+
+		emitHudStateSpy.mockClear();
+		phaserState.interactKeys.space.justDown = true;
+		scene.update(16, 16);
+
+		expect(emitHudStateSpy).toHaveBeenLastCalledWith(
+			expect.objectContaining({
+				status: 'JP Mira nearby',
+				dialogue: expect.objectContaining({
+					speaker: 'JP Mira',
+					line: 'JP Fresh tonics are ready.',
+					choices: expect.arrayContaining([
+						expect.objectContaining({ id: 'shop', label: 'JP Shop' })
+					])
+				})
+			})
+		);
+		expect(localizedContent.getDialogueText).toHaveBeenCalledWith('ja', 'shopkeeper-mira');
+	});
+
+	it('publishes localized/fallback quest and Guild dialogue text for Japanese', async () => {
+		localeState.activeLocale = 'ja';
+		const { createNewSaveState } = await import('$lib/game/save/save-state');
+		const localizedContent = await import('$lib/game/i18n/content');
+		const events = await import('$lib/game/ui-bridge/events');
+		const emitHudStateSpy = vi.spyOn(events, 'emitHudState');
+		const { WorldScene } = await import('./WorldScene');
+		const scene = new WorldScene();
+		const save = createNewSaveState();
+
+		scene.create({
+			saveState: {
+				...save,
+				mapId: 'guild-hall',
+				player: { ...save.player, x: 192, y: 144 }
+			}
+		});
+		Object.assign(phaserState.playerMarker, { x: 192, y: 144 });
+		emitHudStateSpy.mockClear();
+
+		scene.update(0, 16);
+
+		expect(emitHudStateSpy).toHaveBeenLastCalledWith(
+			expect.objectContaining({
+				status: 'JP Guild Master nearby',
+				quests: expect.objectContaining({
+					main: expect.objectContaining({
+						title: 'JP Investigate the Ruins',
+						description: 'JP Report to the Guild Master, then defeat the ruins warden.',
+						objective: 'JP Talk to the Guild Master in the Guild Hall.',
+						progress: expect.objectContaining({ label: 'JP Guild Master spoken to' })
+					})
+				})
+			})
+		);
+		expect(localizedContent.getNpcText).toHaveBeenCalledWith('ja', 'guild-master');
+		expect(localizedContent.getQuestText).toHaveBeenCalledWith('ja', 'investigate-the-ruins');
+		expect(localizedContent.getQuestObjectiveText).toHaveBeenCalledWith(
+			'ja',
+			'investigate-the-ruins',
+			'talk-to-guild-master'
+		);
+
+		emitHudStateSpy.mockClear();
+		phaserState.interactKeys.e.justDown = true;
+		scene.update(16, 16);
+
+		expect(emitHudStateSpy).toHaveBeenLastCalledWith(
+			expect.objectContaining({
+				status: 'JP Guild Master nearby',
+				dialogue: expect.objectContaining({
+					speaker: 'JP Guild Master',
+					line: 'JP The eastern ruins are stirring again.',
+					choices: expect.arrayContaining([
+						expect.objectContaining({ id: 'quest', label: 'JP Quest' })
+					])
+				})
+			})
+		);
+		expect(localizedContent.getDialogueText).toHaveBeenCalledWith('ja', 'guild-master');
+	});
+
+	it('publishes localized/fallback Traveler speaker for Japanese fallback dialogue', async () => {
+		localeState.activeLocale = 'ja';
+		const events = await import('$lib/game/ui-bridge/events');
+		const emitHudStateSpy = vi.spyOn(events, 'emitHudState');
+		const { WorldScene } = await import('./WorldScene');
+		const scene = new WorldScene();
+
+		scene.create({ mapId: 'guild-hall' });
+		emitHudStateSpy.mockClear();
+
+		phaserState.interactKeys.e.justDown = true;
+		scene.update(0, 16);
+
+		expect(emitHudStateSpy).toHaveBeenLastCalledWith(
+			expect.objectContaining({
+				status: 'No one nearby',
+				dialogue: expect.objectContaining({
+					speaker: 'JP Traveler',
+					line: 'No one is nearby.'
+				})
 			})
 		);
 	});

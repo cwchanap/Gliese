@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import { mainQuestId } from '$lib/game/content/quests';
 import { applyQuestEvent, createInitialQuestState } from '$lib/game/core/quests';
@@ -9,6 +9,24 @@ import {
 	chooseDialogueOption,
 	startNpcDialogue
 } from '$lib/game/core/dialogue';
+
+vi.mock('$lib/game/i18n/translate', async () => {
+	const actual =
+		await vi.importActual<typeof import('$lib/game/i18n/translate')>(
+			'$lib/game/i18n/translate'
+		);
+
+	return {
+		...actual,
+		t: vi.fn((locale, key, params) => {
+			if (locale === 'ja' && key === 'content.dialogue.speakers.guildNotice') {
+				return 'JP Guild Notice';
+			}
+
+			return actual.t(locale, key, params);
+		})
+	};
+});
 
 describe('dialogue core', () => {
 	it('starts Guild Master briefing before the ruins are unlocked', () => {
@@ -197,7 +215,7 @@ describe('dialogue core', () => {
 			'Close'
 		]);
 		expect(completion).toMatchObject({
-			speaker: 'Guild Notice',
+			speaker: 'JP Guild Notice',
 			line: 'Quest complete: Investigate the Ruins. Reward: 15 XP / 35 coins / 1 item.'
 		});
 	});

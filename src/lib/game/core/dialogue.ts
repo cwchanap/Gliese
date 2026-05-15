@@ -59,7 +59,7 @@ export function startNpcDialogue({
 	const definition = getDialogueText(locale, npcId);
 	if (!definition) {
 		return buildDialogueFallback(
-			'Traveler',
+			t(locale, 'content.dialogue.speakers.traveler'),
 			t(locale, 'content.dialogue.system.noDialogueAvailable')
 		);
 	}
@@ -169,7 +169,7 @@ export function buildQuestCompletionDialogue({
 	return createSession({
 		id: `quest-complete:${questId}`,
 		npcId: null,
-		speaker: 'Guild Notice',
+		speaker: t(locale, 'content.dialogue.speakers.guildNotice'),
 		lines: [
 			t(locale, 'content.dialogue.system.questCompleteNotice', {
 				questTitle,

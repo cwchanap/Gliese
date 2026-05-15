@@ -293,6 +293,10 @@ export const en = {
 				back: 'Back',
 				close: 'Close'
 			},
+			speakers: {
+				traveler: 'Traveler',
+				guildNotice: 'Guild Notice'
+			},
 			system: {
 				noDialogueAvailable: 'No dialogue is available.',
 				optionNotAvailable: 'That option is not available.',

@@ -74,6 +74,9 @@ import {
 	type DialogueSession
 } from '$lib/game/core/dialogue';
 import type { Direction } from '$lib/game/core/types';
+import { getItemText, getNpcText, getQuestText, getShopText } from '$lib/game/i18n/content';
+import { getActiveLocale } from '$lib/game/i18n/store';
+import { t, type MessageKey } from '$lib/game/i18n/translate';
 import { createNewSaveState, type SaveState } from '$lib/game/save/save-state';
 import { loadStoredSaveResult, saveGameState } from '$lib/game/save/storage';
 import {
@@ -296,6 +299,40 @@ export class WorldScene extends Phaser.Scene {
 		super(WorldScene.key);
 	}
 
+	private getLocale() {
+		return getActiveLocale();
+	}
+
+	private status(key: MessageKey, params: Record<string, string | number> = {}) {
+		return t(this.getLocale(), key, params);
+	}
+
+	private getItemName(itemId: string | undefined, fallback = 'item') {
+		if (!itemId) return fallback;
+		return getItemText(this.getLocale(), itemId)?.name ?? getItem(itemId)?.name ?? fallback;
+	}
+
+	private getQuestTitle(questId: string | undefined, fallback = 'Quest') {
+		if (!questId || !isQuestId(questId)) return fallback;
+		return getQuestText(this.getLocale(), questId)?.title ?? fallback;
+	}
+
+	private getNpcName(npc: MapNpc) {
+		return getNpcText(this.getLocale(), npc.id)?.name ?? npc.name;
+	}
+
+	private getGuildMasterName() {
+		return getNpcText(this.getLocale(), 'guild-master')?.name ?? 'Guild Master Arlen';
+	}
+
+	private getTravelerSpeaker() {
+		return this.status('content.dialogue.speakers.traveler');
+	}
+
+	private getShopSpeaker() {
+		return this.status('content.dialogue.actions.shop');
+	}
+
 	create(data: WorldSceneData = {}) {
 		const activeSave = data.saveState;
 		const map = this.resolveMap(activeSave?.mapId ?? data.mapId);
@@ -403,7 +440,9 @@ export class WorldScene extends Phaser.Scene {
 		this.events?.once?.('shutdown', () => this.removeHudCommandListener());
 
 		this.publishHudState(
-			this.victoryAchieved ? 'Victory: ruins cleared' : this.resolveInitialStatus(reason)
+			this.victoryAchieved
+				? this.status('status.victoryRuinsCleared')
+				: this.resolveInitialStatus(reason)
 		);
 	}
 
@@ -476,7 +515,7 @@ export class WorldScene extends Phaser.Scene {
 			} else {
 				this.playEnemyHitReaction(attackTarget, time);
 				this.showHitImpact(attackTarget.x, attackTarget.y, time);
-				this.publishHudState('Strike landed');
+				this.publishHudState(this.status('status.strikeLanded'));
 			}
 		}
 
@@ -565,7 +604,7 @@ export class WorldScene extends Phaser.Scene {
 		const healingItem = this.consumeFirstHealingItem();
 
 		if (!healingItem) {
-			this.publishHudState('No heal charges left');
+			this.publishHudState(this.status('status.noHealCharges'));
 			return;
 		}
 
@@ -584,21 +623,21 @@ export class WorldScene extends Phaser.Scene {
 		const item = getItem(itemId);
 
 		if (item?.type !== 'consumable' || item.effect.type !== 'heal') {
-			this.publishHudState('Item cannot be used');
+			this.publishHudState(this.status('status.itemCannotBeUsed'));
 			return;
 		}
 
 		const maxHp = this.getEffectiveStats().maxHp;
 
 		if (this.playerProgress.hp >= maxHp) {
-			this.publishHudState('HP already full');
+			this.publishHudState(this.status('status.hpAlreadyFull'));
 			return;
 		}
 
 		const result = consumeStackItem(this.inventory, itemId);
 
 		if (!result.consumed) {
-			this.publishHudState('Item cannot be used');
+			this.publishHudState(this.status('status.itemCannotBeUsed'));
 			return;
 		}
 
@@ -607,7 +646,7 @@ export class WorldScene extends Phaser.Scene {
 			...this.playerProgress,
 			hp: Math.min(maxHp, this.playerProgress.hp + item.effect.amount)
 		};
-		this.publishHudState('Recovered HP');
+		this.publishHudState(this.status('status.recoveredHp'));
 	}
 
 	private finishEncounter(enemy: EnemyInstance) {
@@ -630,7 +669,9 @@ export class WorldScene extends Phaser.Scene {
 				enemyId: enemy.definition.id,
 				completion: enemy.completion
 			},
-			enemy.completion === 'victory' ? 'Victory: ruins cleared' : 'Enemy defeated'
+			enemy.completion === 'victory'
+				? this.status('status.victoryRuinsCleared')
+				: this.status('status.enemyDefeated')
 		);
 
 		if (enemy.completion === 'victory') {
@@ -642,7 +683,7 @@ export class WorldScene extends Phaser.Scene {
 		const result = equipItem(this.equipment, this.inventory.equipment, itemId);
 
 		if (!result.equipped) {
-			this.publishHudState('Item cannot be equipped');
+			this.publishHudState(this.status('status.itemCannotBeEquipped'));
 			return;
 		}
 
@@ -651,7 +692,7 @@ export class WorldScene extends Phaser.Scene {
 			...this.playerProgress,
 			hp: clampHpToMax(this.playerProgress.hp, this.getEffectiveStats())
 		};
-		this.publishHudState('Equipped item');
+		this.publishHudState(this.status('status.equippedItem'));
 	}
 
 	private unequipInventorySlot(slot: EquipmentSlot) {
@@ -660,30 +701,33 @@ export class WorldScene extends Phaser.Scene {
 			...this.playerProgress,
 			hp: clampHpToMax(this.playerProgress.hp, this.getEffectiveStats())
 		};
-		this.publishHudState('Unequipped item');
+		this.publishHudState(this.status('status.unequippedItem'));
 	}
 
 	private openNearbyShop(shopId: string): boolean {
 		if (this.nearbyShopId !== shopId || !getShop(shopId)) {
-			this.dialogueSession = buildDialogueFallback('Shop', 'Shop out of reach.');
-			this.publishHudState('No shop nearby');
+			this.dialogueSession = buildDialogueFallback(
+				this.getShopSpeaker(),
+				this.status('content.dialogue.system.shopOutOfReach')
+			);
+			this.publishHudState(this.status('status.noShopNearby'));
 			return false;
 		}
 
 		this.openShopId = shopId;
 		this.dialogueSession = null;
-		this.publishHudState('Shop opened');
+		this.publishHudState(this.status('status.shopOpened'));
 		return true;
 	}
 
 	private closeOpenShop() {
 		this.openShopId = null;
-		this.publishHudState('Shop closed');
+		this.publishHudState(this.status('status.shopClosed'));
 	}
 
 	private buyOpenShopItem(shopId: string, stockId: string) {
 		if (this.openShopId !== shopId || this.nearbyShopId !== shopId) {
-			this.publishHudState('No shop nearby');
+			this.publishHudState(this.status('status.noShopNearby'));
 			return;
 		}
 
@@ -704,12 +748,14 @@ export class WorldScene extends Phaser.Scene {
 		this.wallet = result.wallet;
 		this.inventory = result.inventory;
 		this.shopStockState = result.stockState;
-		this.publishHudState(`Bought ${getItem(itemId ?? '')?.name ?? 'item'}`);
+		this.publishHudState(
+			this.status('status.boughtItem', { itemName: this.getItemName(itemId) })
+		);
 	}
 
 	private sellOpenShopItem(itemId: string) {
 		if (!this.openShopId || this.nearbyShopId !== this.openShopId) {
-			this.publishHudState('No shop nearby');
+			this.publishHudState(this.status('status.noShopNearby'));
 			return;
 		}
 
@@ -727,7 +773,7 @@ export class WorldScene extends Phaser.Scene {
 
 		this.wallet = result.wallet;
 		this.inventory = result.inventory;
-		this.publishHudState(`Sold ${getItem(itemId)?.name ?? 'item'}`);
+		this.publishHudState(this.status('status.soldItem', { itemName: this.getItemName(itemId) }));
 	}
 
 	private acceptGuildQuest(questId: string): boolean {
@@ -735,10 +781,10 @@ export class WorldScene extends Phaser.Scene {
 
 		if (nearbyNpc?.id !== 'guild-master') {
 			this.dialogueSession = buildDialogueFallback(
-				'Guild Master Arlen',
-				'No Guild quest is available here.'
+				this.getGuildMasterName(),
+				this.status('content.dialogue.system.noGuildQuestAvailableHere')
 			);
-			this.publishHudState('No Guild quest available');
+			this.publishHudState(this.status('status.noGuildQuestAvailable'));
 			return false;
 		}
 
@@ -757,7 +803,7 @@ export class WorldScene extends Phaser.Scene {
 
 		if (!result.accepted) {
 			const failureStatus = this.formatQuestAcceptFailure(result.reason);
-			this.dialogueSession = buildDialogueFallback('Guild Master Arlen', failureStatus);
+			this.dialogueSession = buildDialogueFallback(this.getGuildMasterName(), failureStatus);
 			this.publishHudState(this.formatQuestAcceptFailure(result.reason));
 			return false;
 		}
@@ -769,23 +815,29 @@ export class WorldScene extends Phaser.Scene {
 				? buildQuestCompletionDialogue({
 						questId: result.rewards[0].questId,
 						title: result.rewards[0].title,
-						reward: result.rewards[0].reward
+						reward: result.rewards[0].reward,
+						locale: this.getLocale()
 					})
 				: null;
 		this.publishHudState(
 			result.completedQuestIds.length > 0
-				? `Quest complete: ${result.rewards[0]?.title ?? 'Quest'}`
-				: 'Quest accepted'
+				? this.status('status.questComplete', {
+						questTitle: this.getQuestTitle(
+							result.rewards[0]?.questId,
+							result.rewards[0]?.title ?? 'Quest'
+						)
+					})
+				: this.status('status.questAccepted')
 		);
 		return true;
 	}
 
 	private formatQuestAcceptFailure(reason: string): string {
-		if (reason === 'already-active') return 'Quest already active';
-		if (reason === 'already-completed') return 'Quest already complete';
-		if (reason === 'not-available') return 'Quest not available';
+		if (reason === 'already-active') return this.status('status.questAlreadyActive');
+		if (reason === 'already-completed') return this.status('status.questAlreadyComplete');
+		if (reason === 'not-available') return this.status('status.questNotAvailable');
 
-		return 'Quest cannot be accepted';
+		return this.status('status.questCannotBeAccepted');
 	}
 
 	private applyQuestProgress(event: QuestEvent, fallbackStatus: string) {
@@ -799,10 +851,18 @@ export class WorldScene extends Phaser.Scene {
 				this.dialogueSession = buildQuestCompletionDialogue({
 					questId: rewardGrant.questId,
 					title: rewardGrant.title,
-					reward: rewardGrant.reward
+					reward: rewardGrant.reward,
+					locale: this.getLocale()
 				});
 			}
-			this.publishHudState(`Quest complete: ${result.rewards[0]?.title ?? 'Quest'}`);
+			this.publishHudState(
+				this.status('status.questComplete', {
+					questTitle: this.getQuestTitle(
+						result.rewards[0]?.questId,
+						result.rewards[0]?.title ?? 'Quest'
+					)
+				})
+			);
 			return;
 		}
 
@@ -826,17 +886,17 @@ export class WorldScene extends Phaser.Scene {
 	}
 
 	private formatBuyFailure(reason: ShopBuyFailureReason): string {
-		if (reason === 'not-enough-coins') return 'Not enough coins';
-		if (reason === 'out-of-stock') return 'Item out of stock';
+		if (reason === 'not-enough-coins') return this.status('status.notEnoughCoins');
+		if (reason === 'out-of-stock') return this.status('status.itemOutOfStock');
 
-		return 'Item cannot be bought';
+		return this.status('status.itemCannotBeBought');
 	}
 
 	private formatSellFailure(reason: ShopSellFailureReason): string {
-		if (reason === 'equipped-item') return 'Equipped item cannot be sold';
-		if (reason === 'item-not-owned') return 'Item not owned';
+		if (reason === 'equipped-item') return this.status('status.equippedItemCannotBeSold');
+		if (reason === 'item-not-owned') return this.status('status.itemNotOwned');
 
-		return 'Item cannot be sold';
+		return this.status('status.itemCannotBeSold');
 	}
 
 	private getBaseMaxHp() {
@@ -900,7 +960,7 @@ export class WorldScene extends Phaser.Scene {
 				return;
 			case 'dialogue-close':
 				this.dialogueSession = null;
-				this.publishHudState('Dialogue closed');
+				this.publishHudState(this.status('status.dialogueClosed'));
 				return;
 			case 'dialogue-choose':
 				this.chooseDialogueCommand(command.choiceId);
@@ -920,7 +980,7 @@ export class WorldScene extends Phaser.Scene {
 
 		if (isTerminalLine && !completionIntent && previousSession.choices.length === 0) {
 			this.dialogueSession = null;
-			this.publishHudState('Dialogue closed');
+			this.publishHudState(this.status('status.dialogueClosed'));
 			return;
 		}
 
@@ -934,20 +994,24 @@ export class WorldScene extends Phaser.Scene {
 			return;
 		}
 
-		this.publishHudState('Dialogue updated');
+		this.publishHudState(this.status('status.dialogueUpdated'));
 	}
 
 	private chooseDialogueCommand(choiceId: string) {
 		if (!this.dialogueSession) {
-			this.dialogueSession = buildDialogueFallback('Traveler', 'No dialogue is open.');
-			this.publishHudState('No dialogue open');
+			this.dialogueSession = buildDialogueFallback(
+				this.getTravelerSpeaker(),
+				this.status('content.dialogue.system.noDialogueOpen')
+			);
+			this.publishHudState(this.status('status.noDialogueOpen'));
 			return;
 		}
 
 		const result = chooseDialogueOption({
 			session: this.dialogueSession,
 			choiceId,
-			questState: this.quests
+			questState: this.quests,
+			locale: this.getLocale()
 		});
 		this.applyDialogueChoiceResult(result);
 	}
@@ -960,21 +1024,24 @@ export class WorldScene extends Phaser.Scene {
 			return;
 		}
 
-		this.publishHudState('Dialogue updated');
+		this.publishHudState(this.status('status.dialogueUpdated'));
 	}
 
 	private applyDialogueIntent(intent: DialogueIntent) {
 		switch (intent.type) {
 			case 'recordNpcTalk':
 				if (!this.isNpcDialogueInRange(intent.npcId)) {
-					this.dialogueSession = buildDialogueFallback('Traveler', 'No one is nearby.');
-					this.publishHudState('No one nearby');
+					this.dialogueSession = buildDialogueFallback(
+						this.getTravelerSpeaker(),
+						this.status('content.dialogue.system.noOneNearby')
+					);
+					this.publishHudState(this.status('status.noOneNearby'));
 					return;
 				}
 
 				this.applyQuestProgress(
 					{ type: 'talk-to-npc', npcId: intent.npcId },
-					'Ruins route unlocked'
+					this.status('status.ruinsRouteUnlocked')
 				);
 				return;
 			case 'acceptQuest':
@@ -985,12 +1052,12 @@ export class WorldScene extends Phaser.Scene {
 				return;
 			case 'close':
 				this.dialogueSession = null;
-				this.publishHudState('Dialogue closed');
+				this.publishHudState(this.status('status.dialogueClosed'));
 				return;
 			case 'talk':
 			case 'showQuestList':
 			case 'showQuestDetails':
-				this.publishHudState('Dialogue updated');
+				this.publishHudState(this.status('status.dialogueUpdated'));
 				return;
 		}
 	}
@@ -1017,7 +1084,8 @@ export class WorldScene extends Phaser.Scene {
 			dialogue: this.buildHudDialogue(),
 			quests: buildHudQuestState({
 				state: this.quests,
-				nearbyQuestGiverId: this.findNearbyNpc()?.id === 'guild-master' ? 'guild-master' : null
+				nearbyQuestGiverId: this.findNearbyNpc()?.id === 'guild-master' ? 'guild-master' : null,
+				locale: this.getLocale()
 			}),
 			inventory: this.buildHudInventory()
 		});
@@ -1053,11 +1121,12 @@ export class WorldScene extends Phaser.Scene {
 		if (!shop) {
 			return null;
 		}
+		const shopText = getShopText(this.getLocale(), shop.id);
 
 		return {
 			shopId: shop.id,
-			name: shop.name,
-			merchantName: shop.merchantName
+			name: shopText?.name ?? shop.name,
+			merchantName: shopText?.merchantName ?? shop.merchantName
 		};
 	}
 
@@ -1071,13 +1140,15 @@ export class WorldScene extends Phaser.Scene {
 		if (!shop) {
 			return null;
 		}
+		const locale = this.getLocale();
+		const shopText = getShopText(locale, shop.id);
 
 		return {
 			shopId: shop.id,
-			name: shop.name,
-			merchantName: shop.merchantName,
-			buy: buildShopBuyEntries(shop.id, this.shopStockState),
-			sell: buildShopSellEntries({ inventory: this.inventory, equipment: this.equipment })
+			name: shopText?.name ?? shop.name,
+			merchantName: shopText?.merchantName ?? shop.merchantName,
+			buy: buildShopBuyEntries(shop.id, this.shopStockState, locale),
+			sell: buildShopSellEntries({ inventory: this.inventory, equipment: this.equipment, locale })
 		};
 	}
 
@@ -1098,13 +1169,14 @@ export class WorldScene extends Phaser.Scene {
 		return {
 			consumables: this.inventory.stacks.flatMap((stack) => {
 				const item = getItem(stack.itemId);
+				const itemText = item ? getItemText(this.getLocale(), item.id) : null;
 
 				return item?.type === 'consumable'
 					? [
 							{
 								itemId: item.id,
-								name: item.name,
-								description: item.description,
+								name: itemText?.name ?? item.name,
+								description: itemText?.description ?? item.description,
 								iconPath: item.iconPath,
 								quantity: stack.quantity
 							}
@@ -1113,13 +1185,14 @@ export class WorldScene extends Phaser.Scene {
 			}),
 			equipment: this.inventory.equipment.flatMap((itemId) => {
 				const item = getItem(itemId);
+				const itemText = item ? getItemText(this.getLocale(), item.id) : null;
 
 				return item?.type === 'equipment'
 					? [
 							{
 								itemId: item.id,
-								name: item.name,
-								description: item.description,
+								name: itemText?.name ?? item.name,
+								description: itemText?.description ?? item.description,
 								iconPath: item.iconPath,
 								slot: item.slot,
 								equipped: this.equipment[item.slot] === item.id,
@@ -1130,13 +1203,14 @@ export class WorldScene extends Phaser.Scene {
 			}),
 			keyItems: this.inventory.stacks.flatMap((stack) => {
 				const item = getItem(stack.itemId);
+				const itemText = item ? getItemText(this.getLocale(), item.id) : null;
 
 				return item?.type === 'key'
 					? [
 							{
 								itemId: item.id,
-								name: item.name,
-								description: item.description,
+								name: itemText?.name ?? item.name,
+								description: itemText?.description ?? item.description,
 								iconPath: item.iconPath,
 								quantity: stack.quantity
 							}
@@ -2065,7 +2139,7 @@ export class WorldScene extends Phaser.Scene {
 		const storedSave = loadStoredSaveResult();
 
 		if (storedSave.status === 'missing') {
-			this.publishHudState('No save found');
+			this.publishHudState(this.status('status.noSaveFound'));
 			return;
 		}
 
@@ -2079,7 +2153,7 @@ export class WorldScene extends Phaser.Scene {
 
 	private saveCurrentState() {
 		saveGameState(this.buildSaveState());
-		this.publishHudState('Saved');
+		this.publishHudState(this.status('status.saved'));
 	}
 
 	private setupEncounters(map: WorldMapDefinition) {
@@ -2156,10 +2230,10 @@ export class WorldScene extends Phaser.Scene {
 	}
 
 	private resolveInitialStatus(reason: NonNullable<WorldSceneData['reason']>) {
-		if (reason === 'resume') return 'Save resumed';
-		if (reason === 'transition') return 'Entered area';
-		if (reason === 'invalid-save') return 'Invalid save reset';
-		return 'New run';
+		if (reason === 'resume') return this.status('status.saveResumed');
+		if (reason === 'transition') return this.status('status.enteredArea');
+		if (reason === 'invalid-save') return this.status('status.invalidSaveReset');
+		return this.status('status.newRun');
 	}
 
 	private showVictoryState() {
@@ -2177,10 +2251,15 @@ export class WorldScene extends Phaser.Scene {
 			0.78
 		);
 		this.add
-			.text(this.worldSize.width / 2, this.worldSize.height / 2, 'Victory: ruins cleared', {
-				color: '#f8fafc',
-				fontSize: '28px'
-			})
+			.text(
+				this.worldSize.width / 2,
+				this.worldSize.height / 2,
+				this.status('status.victoryRuinsCleared'),
+				{
+					color: '#f8fafc',
+					fontSize: '28px'
+				}
+			)
 			.setOrigin(0.5);
 	}
 
@@ -2223,7 +2302,7 @@ export class WorldScene extends Phaser.Scene {
 						!isQuestId(questId) ||
 						!hasCompletedQuestObjective(this.quests, questId, objectiveId)
 					) {
-						this.publishHudState('Report to the Guild Master first');
+						this.publishHudState(this.status('status.reportToGuildMasterFirst'));
 						return false;
 					}
 				}
@@ -2257,7 +2336,7 @@ export class WorldScene extends Phaser.Scene {
 			this.openShopId = null;
 
 			if (hadShop) {
-				this.publishHudState('Shop out of reach');
+				this.publishHudState(this.status('status.shopOutOfReach'));
 			}
 
 			return;
@@ -2274,7 +2353,9 @@ export class WorldScene extends Phaser.Scene {
 		}
 
 		this.currentNearbyNpcId = nearbyNpc.id;
-		this.publishHudState(`${nearbyNpc.name} nearby`);
+		this.publishHudState(
+			this.status('status.npcNearby', { npcName: this.getNpcName(nearbyNpc) })
+		);
 	}
 
 	private handleInteractInput() {
@@ -2306,8 +2387,11 @@ export class WorldScene extends Phaser.Scene {
 		}
 
 		if (!nearbyNpc) {
-			this.dialogueSession = buildDialogueFallback('Traveler', 'No one is nearby.');
-			this.publishHudState('No one nearby');
+			this.dialogueSession = buildDialogueFallback(
+				this.getTravelerSpeaker(),
+				this.status('content.dialogue.system.noOneNearby')
+			);
+			this.publishHudState(this.status('status.noOneNearby'));
 			return;
 		}
 
@@ -2315,9 +2399,12 @@ export class WorldScene extends Phaser.Scene {
 		this.nearbyShopId = nearbyNpc.shopId ?? null;
 		this.dialogueSession = startNpcDialogue({
 			npcId: nearbyNpc.dialogueId,
-			questState: this.quests
+			questState: this.quests,
+			locale: this.getLocale()
 		});
-		this.publishHudState(`${nearbyNpc.name} nearby`);
+		this.publishHudState(
+			this.status('status.npcNearby', { npcName: this.getNpcName(nearbyNpc) })
+		);
 	}
 
 	private findNearbyNpc(): MapNpc | undefined {
@@ -2372,7 +2459,7 @@ export class WorldScene extends Phaser.Scene {
 					itemId: pickup.itemId,
 					quantity: pickup.quantity
 				},
-				`Found ${getItem(pickup.itemId)?.name ?? 'item'}`
+				this.status('status.foundItem', { itemName: this.getItemName(pickup.itemId) })
 			);
 			return;
 		}
@@ -2395,7 +2482,7 @@ export class WorldScene extends Phaser.Scene {
 
 		enemy.phase = nextState.phase;
 		enemy.marker.setTint(enemy.definition.boss.phaseTwoColor);
-		this.publishHudState('Boss enraged');
+		this.publishHudState(this.status('status.bossEnraged'));
 	}
 
 	private updateEnemyBehavior(time: number, delta: number) {
@@ -2489,7 +2576,11 @@ export class WorldScene extends Phaser.Scene {
 			} else {
 				this.playHeroHitReaction(time);
 			}
-			this.publishHudState(this.playerProgress.hp === 0 ? 'Hero down' : 'Enemy struck first');
+			this.publishHudState(
+				this.playerProgress.hp === 0
+					? this.status('status.heroDown')
+					: this.status('status.enemyStruckFirst')
+			);
 		}
 	}
 
