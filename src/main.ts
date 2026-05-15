@@ -9,6 +9,9 @@ async function bootstrap() {
 	const storage = await hydrateTauriStorage();
 	setSaveStorage(storage);
 
+	const { initializeLocale } = await import('$lib/game/i18n/store');
+	initializeLocale();
+
 	if (typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window) {
 		const { getCurrentWindow } = await import('@tauri-apps/api/window');
 		const win = getCurrentWindow();

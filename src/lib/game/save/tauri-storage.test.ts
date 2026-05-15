@@ -14,10 +14,13 @@ import {
 	__resetTauriStorageForTests,
 	flushPendingWrites,
 	hydrateTauriStorage,
+	PREFERENCES_FILE_NAME,
+	PREFERENCES_FILE_TMP_NAME,
 	SAVE_FILE_DIR,
 	SAVE_FILE_NAME,
 	SAVE_FILE_TMP_NAME
 } from '$lib/game/save/tauri-storage';
+import { LANGUAGE_PREFERENCE_STORAGE_KEY } from '$lib/game/i18n/preferences';
 import { SAVE_STORAGE_KEY } from '$lib/game/save/storage';
 
 const mockedFs = vi.mocked(fs);
@@ -34,7 +37,7 @@ function setTauriPresent(present: boolean) {
 
 describe('tauri storage adapter', () => {
 	beforeEach(() => {
-		vi.clearAllMocks();
+		vi.resetAllMocks();
 		__resetTauriStorageForTests();
 		mockedFs.exists.mockResolvedValue(false);
 		mockedFs.mkdir.mockResolvedValue(undefined);
@@ -75,7 +78,7 @@ describe('tauri storage adapter', () => {
 
 	it('hydrates from disk when the save file exists', async () => {
 		setTauriPresent(true);
-		mockedFs.exists.mockResolvedValueOnce(true);
+		mockedFs.exists.mockResolvedValueOnce(true).mockResolvedValueOnce(false);
 		mockedFs.readTextFile.mockResolvedValueOnce('{"version":4,"foo":"bar"}');
 
 		const adapter = await hydrateTauriStorage();
@@ -86,13 +89,30 @@ describe('tauri storage adapter', () => {
 		expect(adapter.getItem(SAVE_STORAGE_KEY)).toBe('{"version":4,"foo":"bar"}');
 	});
 
+	it('hydrates from disk when the preference file exists', async () => {
+		setTauriPresent(true);
+		mockedFs.exists.mockResolvedValueOnce(false).mockResolvedValueOnce(true);
+		mockedFs.readTextFile.mockResolvedValueOnce('ja');
+
+		const adapter = await hydrateTauriStorage();
+
+		expect(mockedFs.readTextFile).toHaveBeenCalledWith(
+			`${SAVE_FILE_DIR}/${PREFERENCES_FILE_NAME}`,
+			{
+				baseDir: fs.BaseDirectory.AppData
+			}
+		);
+		expect(adapter.getItem(LANGUAGE_PREFERENCE_STORAGE_KEY)).toBe('ja');
+	});
+
 	it('returns an empty adapter when no save file exists', async () => {
 		setTauriPresent(true);
-		mockedFs.exists.mockResolvedValueOnce(false);
+		mockedFs.exists.mockResolvedValueOnce(false).mockResolvedValueOnce(false);
 
 		const adapter = await hydrateTauriStorage();
 
 		expect(adapter.getItem(SAVE_STORAGE_KEY)).toBeNull();
+		expect(adapter.getItem(LANGUAGE_PREFERENCE_STORAGE_KEY)).toBeNull();
 		expect(mockedFs.readTextFile).not.toHaveBeenCalled();
 	});
 
@@ -128,6 +148,50 @@ describe('tauri storage adapter', () => {
 		);
 	});
 
+	it('writes language preference changes to the preference file only', async () => {
+		setTauriPresent(true);
+		const adapter = await hydrateTauriStorage();
+
+		adapter.setItem(LANGUAGE_PREFERENCE_STORAGE_KEY, 'zh-Hant');
+		await flushPendingWrites();
+
+		expect(mockedFs.writeTextFile).toHaveBeenCalledWith(
+			`${SAVE_FILE_DIR}/${PREFERENCES_FILE_TMP_NAME}`,
+			'zh-Hant',
+			{ baseDir: fs.BaseDirectory.AppData }
+		);
+		expect(mockedFs.rename).toHaveBeenCalledWith(
+			`${SAVE_FILE_DIR}/${PREFERENCES_FILE_TMP_NAME}`,
+			`${SAVE_FILE_DIR}/${PREFERENCES_FILE_NAME}`,
+			{ oldPathBaseDir: fs.BaseDirectory.AppData, newPathBaseDir: fs.BaseDirectory.AppData }
+		);
+		expect(mockedFs.writeTextFile).not.toHaveBeenCalledWith(
+			`${SAVE_FILE_DIR}/${SAVE_FILE_TMP_NAME}`,
+			expect.anything(),
+			expect.anything()
+		);
+	});
+
+	it('flushPendingWrites waits for both save and preference writes', async () => {
+		setTauriPresent(true);
+		const adapter = await hydrateTauriStorage();
+
+		adapter.setItem(SAVE_STORAGE_KEY, '{"version":4}');
+		adapter.setItem(LANGUAGE_PREFERENCE_STORAGE_KEY, 'ja');
+		await flushPendingWrites();
+
+		expect(mockedFs.writeTextFile).toHaveBeenCalledWith(
+			`${SAVE_FILE_DIR}/${SAVE_FILE_TMP_NAME}`,
+			'{"version":4}',
+			{ baseDir: fs.BaseDirectory.AppData }
+		);
+		expect(mockedFs.writeTextFile).toHaveBeenCalledWith(
+			`${SAVE_FILE_DIR}/${PREFERENCES_FILE_TMP_NAME}`,
+			'ja',
+			{ baseDir: fs.BaseDirectory.AppData }
+		);
+	});
+
 	it('coalesces consecutive writes to a single flushed value', async () => {
 		setTauriPresent(true);
 		const adapter = await hydrateTauriStorage();
@@ -147,7 +211,7 @@ describe('tauri storage adapter', () => {
 
 	it('removeItem deletes the save file via writing an empty marker then rename, leaving rename as the final atomic step', async () => {
 		setTauriPresent(true);
-		mockedFs.exists.mockResolvedValueOnce(true);
+		mockedFs.exists.mockResolvedValueOnce(true).mockResolvedValueOnce(false);
 		mockedFs.readTextFile.mockResolvedValueOnce('seed');
 		const adapter = await hydrateTauriStorage();
 
@@ -162,7 +226,7 @@ describe('tauri storage adapter', () => {
 
 	it('creates the app data directory before writing if missing', async () => {
 		setTauriPresent(true);
-		mockedFs.exists.mockResolvedValueOnce(false); // initial existence check (no save file)
+		mockedFs.exists.mockResolvedValueOnce(false).mockResolvedValueOnce(false); // initial existence checks
 
 		const adapter = await hydrateTauriStorage();
 		adapter.setItem(SAVE_STORAGE_KEY, 'value');

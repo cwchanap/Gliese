@@ -18,6 +18,10 @@ export function setSaveStorage(storage: SaveStorage | undefined): void {
 	currentStorage = storage;
 }
 
+export function getSaveStorage(): SaveStorage | undefined {
+	return currentStorage;
+}
+
 export function loadStoredSaveState(
 	storage: SaveStorage | undefined = currentStorage
 ): SaveState | null {
