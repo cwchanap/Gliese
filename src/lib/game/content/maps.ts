@@ -1,6 +1,7 @@
 import type { ForestDressingFrameName, NpcFrameName } from '$lib/game/content/assets';
 import type { NpcDialogueId } from '$lib/game/content/dialogue';
 import type { DefinitionRegistry, MapDefinition } from '$lib/game/core/types';
+import { t, type MessageKey } from '$lib/game/i18n/translate';
 
 export interface MapTransition {
 	id: string;
@@ -43,6 +44,7 @@ export interface MapNpc {
 	id: string;
 	x: number;
 	y: number;
+	nameKey: MessageKey;
 	name: string;
 	dialogueId: NpcDialogueId;
 	role: MapNpcRole;
@@ -56,6 +58,7 @@ export interface MapLandmark {
 	y: number;
 	width: number;
 	height: number;
+	labelKey: MessageKey;
 	label: string;
 }
 
@@ -93,11 +96,18 @@ export interface WorldMapDefinition extends MapDefinition {
 	forestDecor?: MapForestDecor[];
 }
 
+type MapNpcSource = Omit<MapNpc, 'name'>;
+type MapLandmarkSource = Omit<MapLandmark, 'label'>;
+type WorldMapDefinitionSource = Omit<WorldMapDefinition, 'npcs' | 'landmarks'> & {
+	npcs?: MapNpcSource[];
+	landmarks?: MapLandmarkSource[];
+};
+
 export const openingMapId = 'meadow-entry';
 
 const interiorDoor = { x: 256, y: 336 } as const;
 
-export const meadowEntryMap: WorldMapDefinition = {
+export const meadowEntryMap: WorldMapDefinition = addEnglishMapText({
 	id: openingMapId,
 	width: 80,
 	height: 80,
@@ -110,16 +120,23 @@ export const meadowEntryMap: WorldMapDefinition = {
 			y: 1_289,
 			width: 192,
 			height: 174,
-			label: "Hero's House"
+			labelKey: 'content.maps.landmarks.hero-house-exterior.label'
 		},
-		{ id: 'guild-hall-exterior', x: 800, y: 1_054, width: 256, height: 228, label: 'Guild' },
+		{
+			id: 'guild-hall-exterior',
+			x: 800,
+			y: 1_054,
+			width: 256,
+			height: 228,
+			labelKey: 'content.maps.landmarks.guild-hall-exterior.label'
+		},
 		{
 			id: 'item-shop-exterior',
 			x: 832,
 			y: 1_436,
 			width: 192,
 			height: 200,
-			label: 'Item Shop'
+			labelKey: 'content.maps.landmarks.item-shop-exterior.label'
 		},
 		{
 			id: 'villager-house-1-exterior',
@@ -127,7 +144,7 @@ export const meadowEntryMap: WorldMapDefinition = {
 			y: 991,
 			width: 160,
 			height: 178,
-			label: 'Villager Home'
+			labelKey: 'content.maps.landmarks.villager-house-1-exterior.label'
 		},
 		{
 			id: 'villager-house-2-exterior',
@@ -135,7 +152,7 @@ export const meadowEntryMap: WorldMapDefinition = {
 			y: 1_535,
 			width: 160,
 			height: 178,
-			label: 'Villager Home'
+			labelKey: 'content.maps.landmarks.villager-house-2-exterior.label'
 		},
 		{
 			id: 'villager-house-3-exterior',
@@ -143,7 +160,7 @@ export const meadowEntryMap: WorldMapDefinition = {
 			y: 1_311,
 			width: 160,
 			height: 178,
-			label: 'Villager Home'
+			labelKey: 'content.maps.landmarks.villager-house-3-exterior.label'
 		}
 	],
 	transitions: [
@@ -283,7 +300,7 @@ export const meadowEntryMap: WorldMapDefinition = {
 		{ id: 'meadow-slime-center', x: 2_016, y: 640, enemyId: 'slime-scout' },
 		{ id: 'meadow-slime-east', x: 2_304, y: 512, enemyId: 'slime-scout' }
 	]
-};
+});
 
 export const heroHouseMap: WorldMapDefinition = {
 	id: 'hero-house',
@@ -301,7 +318,7 @@ export const heroHouseMap: WorldMapDefinition = {
 	]
 };
 
-export const guildHallMap: WorldMapDefinition = {
+export const guildHallMap: WorldMapDefinition = addEnglishMapText({
 	id: 'guild-hall',
 	width: 16,
 	height: 12,
@@ -320,7 +337,7 @@ export const guildHallMap: WorldMapDefinition = {
 			id: 'guild-master',
 			x: 192,
 			y: 144,
-			name: 'Guild Master Arlen',
+			nameKey: 'content.maps.npcs.guild-master.name',
 			dialogueId: 'guild-master',
 			role: 'guild',
 			frameName: 'guildMasterNpc'
@@ -329,16 +346,16 @@ export const guildHallMap: WorldMapDefinition = {
 			id: 'guild-quartermaster',
 			x: 352,
 			y: 144,
-			name: 'Quartermaster Vale',
+			nameKey: 'content.maps.npcs.guild-quartermaster.name',
 			dialogueId: 'guild-quartermaster',
 			role: 'shopkeeper',
 			frameName: 'quartermasterNpc',
 			shopId: 'guild-quartermaster'
 		}
 	]
-};
+});
 
-export const itemShopMap: WorldMapDefinition = {
+export const itemShopMap: WorldMapDefinition = addEnglishMapText({
 	id: 'item-shop',
 	width: 16,
 	height: 12,
@@ -357,14 +374,14 @@ export const itemShopMap: WorldMapDefinition = {
 			id: 'shopkeeper-mira',
 			x: 256,
 			y: 144,
-			name: 'Mira',
+			nameKey: 'content.maps.npcs.shopkeeper-mira.name',
 			dialogueId: 'shopkeeper-mira',
 			role: 'shopkeeper',
 			frameName: 'miraItemShopNpc',
 			shopId: 'miras-item-shop'
 		}
 	]
-};
+});
 
 export const villagerHouse1Map: WorldMapDefinition = {
 	id: 'villager-house-1',
@@ -485,3 +502,17 @@ export const maps: DefinitionRegistry<WorldMapDefinition> = {
 	[ruinsThresholdMap.id]: ruinsThresholdMap,
 	[ruinsCoreMap.id]: ruinsCoreMap
 };
+
+function addEnglishMapText(map: WorldMapDefinitionSource): WorldMapDefinition {
+	return {
+		...map,
+		landmarks: map.landmarks?.map((landmark) => ({
+			...landmark,
+			label: t('en', landmark.labelKey)
+		})),
+		npcs: map.npcs?.map((npc) => ({
+			...npc,
+			name: t('en', npc.nameKey)
+		}))
+	};
+}

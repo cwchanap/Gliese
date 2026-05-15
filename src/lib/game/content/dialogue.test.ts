@@ -4,6 +4,14 @@ import { getDialogue, npcDialogueList } from '$lib/game/content/dialogue';
 import { maps } from '$lib/game/content/maps';
 import { getQuest } from '$lib/game/content/quests';
 import { getShop } from '$lib/game/content/shops';
+import { t } from '$lib/game/i18n/translate';
+
+function expectEnglishMessage(key: Parameters<typeof t>[1]): string {
+	const value = t('en', key);
+	expect(value).not.toMatch(/^\[/);
+	expect(value.trim()).not.toHaveLength(0);
+	return value;
+}
 
 describe('dialogue content', () => {
 	it('defines dialogue for every configured NPC', () => {
@@ -11,7 +19,11 @@ describe('dialogue content', () => {
 
 		expect(npcs.length).toBeGreaterThan(0);
 		for (const npc of npcs) {
-			expect(getDialogue(npc.dialogueId)?.speaker).toBe(npc.name);
+			const dialogue = getDialogue(npc.dialogueId);
+			expect(dialogue).toBeDefined();
+			expect(dialogue ? expectEnglishMessage(dialogue.speakerKey) : '').toBe(
+				expectEnglishMessage(npc.nameKey)
+			);
 		}
 	});
 
@@ -26,7 +38,16 @@ describe('dialogue content', () => {
 
 	it('keeps dialogue action references valid', () => {
 		for (const dialogue of npcDialogueList) {
+			expectEnglishMessage(dialogue.speakerKey);
+			for (const branch of dialogue.defaultBranches) {
+				for (const lineKey of branch.lineKeys) {
+					expectEnglishMessage(lineKey);
+				}
+			}
+
 			for (const action of dialogue.actions) {
+				expectEnglishMessage(action.labelKey);
+
 				if (action.intent.type === 'openShop') {
 					expect(getShop(action.intent.shopId)).toBeDefined();
 				}

@@ -9,6 +9,14 @@ import {
 	sideQuestIds,
 	type QuestDefinition
 } from '$lib/game/content/quests';
+import { t } from '$lib/game/i18n/translate';
+
+function expectEnglishMessage(key: Parameters<typeof t>[1]): string {
+	const value = t('en', key);
+	expect(value).not.toMatch(/^\[/);
+	expect(value.trim()).not.toHaveLength(0);
+	return value;
+}
 
 describe('quest content', () => {
 	it('declares one main quest and three Guild side quests with stable ids', () => {
@@ -25,12 +33,17 @@ describe('quest content', () => {
 
 	it('defines valid objectives and Guild side quest givers', () => {
 		for (const quest of questList) {
-			expect(quest.title).not.toHaveLength(0);
-			expect(quest.description).not.toHaveLength(0);
+			expectEnglishMessage(quest.titleKey);
+			expectEnglishMessage(quest.descriptionKey);
 			expect(quest.objectives).not.toHaveLength(0);
 			expect(new Set(quest.objectives.map((objective) => objective.id)).size).toBe(
 				quest.objectives.length
 			);
+
+			for (const objective of quest.objectives) {
+				expectEnglishMessage(objective.descriptionKey);
+				expectEnglishMessage(objective.progressLabelKey);
+			}
 
 			if (quest.type === 'side') {
 				expect(quest.giverNpcId).toBe('guild-master');

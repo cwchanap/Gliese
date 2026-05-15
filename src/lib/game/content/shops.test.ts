@@ -2,6 +2,14 @@ import { describe, expect, it } from 'vitest';
 
 import { getItem } from '$lib/game/content/items';
 import { getShop, shopList, shops } from '$lib/game/content/shops';
+import { t } from '$lib/game/i18n/translate';
+
+function expectEnglishMessage(key: Parameters<typeof t>[1]): string {
+	const value = t('en', key);
+	expect(value).not.toMatch(/^\[/);
+	expect(value.trim()).not.toHaveLength(0);
+	return value;
+}
 
 describe('shop content', () => {
 	it('defines the starter item and equipment shops', () => {
@@ -9,14 +17,14 @@ describe('shop content', () => {
 		expect(getShop('guild-quartermaster')).toBe(shops['guild-quartermaster']);
 		expect(shopList).toHaveLength(2);
 		expect(shops['miras-item-shop']).toMatchObject({
-			name: "Mira's Item Shop",
-			merchantName: 'Mira',
-			description: 'Reliable field supplies for the road east.'
+			nameKey: 'content.shops.miras-item-shop.name',
+			merchantNameKey: 'content.shops.miras-item-shop.merchantName',
+			descriptionKey: 'content.shops.miras-item-shop.description'
 		});
 		expect(shops['guild-quartermaster']).toMatchObject({
-			name: 'Guild Quartermaster',
-			merchantName: 'Quartermaster Vale',
-			description: 'Guild-approved gear for new ruins assignments.'
+			nameKey: 'content.shops.guild-quartermaster.name',
+			merchantNameKey: 'content.shops.guild-quartermaster.merchantName',
+			descriptionKey: 'content.shops.guild-quartermaster.description'
 		});
 	});
 
@@ -25,8 +33,9 @@ describe('shop content', () => {
 
 		for (const shop of shopList) {
 			expect(new Set(shop.stock.map((entry) => entry.id)).size).toBe(shop.stock.length);
-			expect(shop.name).not.toHaveLength(0);
-			expect(shop.merchantName).not.toHaveLength(0);
+			expectEnglishMessage(shop.nameKey);
+			expectEnglishMessage(shop.merchantNameKey);
+			expectEnglishMessage(shop.descriptionKey);
 		}
 	});
 

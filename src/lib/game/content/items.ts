@@ -1,4 +1,5 @@
 import type { DefinitionRegistry } from '$lib/game/core/types';
+import { t, type MessageKey } from '$lib/game/i18n/translate';
 
 export const equipmentSlots = ['weapon', 'head', 'body', 'hands', 'accessory'] as const;
 
@@ -12,6 +13,8 @@ export type StatModifiers = {
 
 type BaseItemDefinition = {
 	id: string;
+	nameKey: MessageKey;
+	descriptionKey: MessageKey;
 	name: string;
 	description: string;
 	iconPath: string;
@@ -46,11 +49,16 @@ export type SellableItemDefinition = ConsumableDefinition | EquipmentDefinition;
 
 export type ItemDefinition = ConsumableDefinition | EquipmentDefinition | KeyItemDefinition;
 
-export const items = {
+type ItemDefinitionSource =
+	| Omit<ConsumableDefinition, 'name' | 'description'>
+	| Omit<EquipmentDefinition, 'name' | 'description'>
+	| Omit<KeyItemDefinition, 'name' | 'description'>;
+
+const itemDefinitions = {
 	'field-potion': {
 		id: 'field-potion',
-		name: 'Field Potion',
-		description: 'Restores 8 HP.',
+		nameKey: 'content.items.field-potion.name',
+		descriptionKey: 'content.items.field-potion.description',
 		iconPath: '/game/assets/items/field-potion.png',
 		type: 'consumable',
 		stackable: true,
@@ -59,8 +67,8 @@ export const items = {
 	},
 	'greater-field-potion': {
 		id: 'greater-field-potion',
-		name: 'Greater Field Potion',
-		description: 'Restores 14 HP.',
+		nameKey: 'content.items.greater-field-potion.name',
+		descriptionKey: 'content.items.greater-field-potion.description',
 		iconPath: '/game/assets/items/greater-field-potion.png',
 		type: 'consumable',
 		stackable: true,
@@ -69,8 +77,8 @@ export const items = {
 	},
 	'ember-tonic': {
 		id: 'ember-tonic',
-		name: 'Ember Tonic',
-		description: 'Restores 5 HP.',
+		nameKey: 'content.items.ember-tonic.name',
+		descriptionKey: 'content.items.ember-tonic.description',
 		iconPath: '/game/assets/items/ember-tonic.png',
 		type: 'consumable',
 		stackable: true,
@@ -79,8 +87,8 @@ export const items = {
 	},
 	'ruin-draught': {
 		id: 'ruin-draught',
-		name: 'Ruin Draught',
-		description: 'Restores 10 HP.',
+		nameKey: 'content.items.ruin-draught.name',
+		descriptionKey: 'content.items.ruin-draught.description',
 		iconPath: '/game/assets/items/ruin-draught.png',
 		type: 'consumable',
 		stackable: true,
@@ -89,8 +97,8 @@ export const items = {
 	},
 	'sunleaf-salve': {
 		id: 'sunleaf-salve',
-		name: 'Sunleaf Salve',
-		description: 'Restores 6 HP.',
+		nameKey: 'content.items.sunleaf-salve.name',
+		descriptionKey: 'content.items.sunleaf-salve.description',
 		iconPath: '/game/assets/items/sunleaf-salve.png',
 		type: 'consumable',
 		stackable: true,
@@ -99,8 +107,8 @@ export const items = {
 	},
 	'training-sword': {
 		id: 'training-sword',
-		name: 'Training Sword',
-		description: 'A reliable starter blade.',
+		nameKey: 'content.items.training-sword.name',
+		descriptionKey: 'content.items.training-sword.description',
 		iconPath: '/game/assets/items/training-sword.png',
 		type: 'equipment',
 		stackable: false,
@@ -110,8 +118,8 @@ export const items = {
 	},
 	'ruin-blade': {
 		id: 'ruin-blade',
-		name: 'Ruin Blade',
-		description: 'A chipped sword humming with old heat.',
+		nameKey: 'content.items.ruin-blade.name',
+		descriptionKey: 'content.items.ruin-blade.description',
 		iconPath: '/game/assets/items/ruin-blade.png',
 		type: 'equipment',
 		stackable: false,
@@ -121,8 +129,8 @@ export const items = {
 	},
 	'iron-cap': {
 		id: 'iron-cap',
-		name: 'Iron Cap',
-		description: 'Simple protection for dangerous ruins.',
+		nameKey: 'content.items.iron-cap.name',
+		descriptionKey: 'content.items.iron-cap.description',
 		iconPath: '/game/assets/items/iron-cap.png',
 		type: 'equipment',
 		stackable: false,
@@ -132,8 +140,8 @@ export const items = {
 	},
 	'warden-crown': {
 		id: 'warden-crown',
-		name: 'Warden Crown',
-		description: 'A cracked helm from the ruins core.',
+		nameKey: 'content.items.warden-crown.name',
+		descriptionKey: 'content.items.warden-crown.description',
 		iconPath: '/game/assets/items/warden-crown.png',
 		type: 'equipment',
 		stackable: false,
@@ -143,8 +151,8 @@ export const items = {
 	},
 	'traveler-vest': {
 		id: 'traveler-vest',
-		name: 'Traveler Vest',
-		description: 'Light armor for long walks.',
+		nameKey: 'content.items.traveler-vest.name',
+		descriptionKey: 'content.items.traveler-vest.description',
 		iconPath: '/game/assets/items/traveler-vest.png',
 		type: 'equipment',
 		stackable: false,
@@ -154,8 +162,8 @@ export const items = {
 	},
 	'stone-mail': {
 		id: 'stone-mail',
-		name: 'Stone Mail',
-		description: 'Heavy plates carved from ruin stone.',
+		nameKey: 'content.items.stone-mail.name',
+		descriptionKey: 'content.items.stone-mail.description',
 		iconPath: '/game/assets/items/stone-mail.png',
 		type: 'equipment',
 		stackable: false,
@@ -165,8 +173,8 @@ export const items = {
 	},
 	'grip-wraps': {
 		id: 'grip-wraps',
-		name: 'Grip Wraps',
-		description: 'Cloth wraps that steady each strike.',
+		nameKey: 'content.items.grip-wraps.name',
+		descriptionKey: 'content.items.grip-wraps.description',
 		iconPath: '/game/assets/items/grip-wraps.png',
 		type: 'equipment',
 		stackable: false,
@@ -176,8 +184,8 @@ export const items = {
 	},
 	'meadow-charm': {
 		id: 'meadow-charm',
-		name: 'Meadow Charm',
-		description: 'A small charm from the meadow path.',
+		nameKey: 'content.items.meadow-charm.name',
+		descriptionKey: 'content.items.meadow-charm.description',
 		iconPath: '/game/assets/items/meadow-charm.png',
 		type: 'equipment',
 		stackable: false,
@@ -187,29 +195,31 @@ export const items = {
 	},
 	'meadow-token': {
 		id: 'meadow-token',
-		name: 'Meadow Token',
-		description: 'A keepsake from the entry meadow.',
+		nameKey: 'content.items.meadow-token.name',
+		descriptionKey: 'content.items.meadow-token.description',
 		iconPath: '/game/assets/items/meadow-token.png',
 		type: 'key',
 		stackable: true
 	},
 	'threshold-rune': {
 		id: 'threshold-rune',
-		name: 'Threshold Rune',
-		description: 'A carved marker from the ruin threshold.',
+		nameKey: 'content.items.threshold-rune.name',
+		descriptionKey: 'content.items.threshold-rune.description',
 		iconPath: '/game/assets/items/threshold-rune.png',
 		type: 'key',
 		stackable: true
 	},
 	'warden-sigil': {
 		id: 'warden-sigil',
-		name: 'Warden Sigil',
-		description: 'Proof that the ruins warden fell.',
+		nameKey: 'content.items.warden-sigil.name',
+		descriptionKey: 'content.items.warden-sigil.description',
 		iconPath: '/game/assets/items/warden-sigil.png',
 		type: 'key',
 		stackable: true
 	}
-} satisfies DefinitionRegistry<ItemDefinition>;
+} satisfies DefinitionRegistry<ItemDefinitionSource>;
+
+export const items = addEnglishItemText(itemDefinitions);
 
 export const itemList: ItemDefinition[] = Object.values(items);
 
@@ -231,4 +241,19 @@ export function getSellValue(itemId: string): number | undefined {
 	}
 
 	return Math.max(1, Math.floor(item.basePrice * 0.5));
+}
+
+function addEnglishItemText(
+	definitions: DefinitionRegistry<ItemDefinitionSource>
+): DefinitionRegistry<ItemDefinition> {
+	return Object.fromEntries(
+		Object.entries(definitions).map(([itemId, item]) => [
+			itemId,
+			{
+				...item,
+				name: t('en', item.nameKey),
+				description: t('en', item.descriptionKey)
+			}
+		])
+	) as DefinitionRegistry<ItemDefinition>;
 }

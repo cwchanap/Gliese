@@ -252,24 +252,9 @@ export const en = {
 			}
 		},
 		dialogue: {
-			speakers: {
-				'guild-master': 'Guild Master Arlen',
-				'guild-quartermaster': 'Quartermaster Vale',
-				'shopkeeper-mira': 'Mira',
-				traveler: 'Traveler',
-				shop: 'Shop',
-				guildNotice: 'Guild Notice'
-			},
-			actions: {
-				talk: 'Talk',
-				quest: 'Quest',
-				shop: 'Shop',
-				accept: 'Accept',
-				back: 'Back',
-				close: 'Close'
-			},
-			branches: {
-				'guild-master': {
+			'guild-master': {
+				speaker: 'Guild Master Arlen',
+				lines: {
 					mainQuestNeedsGuildBriefing1:
 						'You made it. The eastern ruins are stirring again, and the village road is no longer safe.',
 					mainQuestNeedsGuildBriefing2:
@@ -283,16 +268,30 @@ export const en = {
 					guildBriefingComplete:
 						'The ruins route is open. Steel yourself before you enter the core.',
 					always: 'The Guild keeps watch over the old road. Speak plainly and choose your work.'
-				},
-				'guild-quartermaster': {
+				}
+			},
+			'guild-quartermaster': {
+				speaker: 'Quartermaster Vale',
+				lines: {
 					guildBriefingComplete: 'If you are bound for the ruins, buy what keeps you standing.',
 					always: 'Need field gear before the ruins? Guild stock is limited, but sturdy.'
-				},
-				'shopkeeper-mira': {
+				}
+			},
+			'shopkeeper-mira': {
+				speaker: 'Mira',
+				lines: {
 					guildBriefingComplete:
 						'Back from the Guild? Take a tonic before the forest path gets rough.',
 					always: 'Fresh tonics are on the shelf. The guild already stocked your field kit today.'
 				}
+			},
+			actions: {
+				talk: 'Talk',
+				quest: 'Quest',
+				shop: 'Shop',
+				accept: 'Accept',
+				back: 'Back',
+				close: 'Close'
 			},
 			system: {
 				noDialogueAvailable: 'No dialogue is available.',
@@ -310,17 +309,17 @@ export const en = {
 		},
 		maps: {
 			landmarks: {
-				'hero-house-exterior': "Hero's House",
-				'guild-hall-exterior': 'Guild',
-				'item-shop-exterior': 'Item Shop',
-				'villager-house-1-exterior': 'Villager Home',
-				'villager-house-2-exterior': 'Villager Home',
-				'villager-house-3-exterior': 'Villager Home'
+				'hero-house-exterior': { label: "Hero's House" },
+				'guild-hall-exterior': { label: 'Guild' },
+				'item-shop-exterior': { label: 'Item Shop' },
+				'villager-house-1-exterior': { label: 'Villager Home' },
+				'villager-house-2-exterior': { label: 'Villager Home' },
+				'villager-house-3-exterior': { label: 'Villager Home' }
 			},
 			npcs: {
-				'guild-master': 'Guild Master Arlen',
-				'guild-quartermaster': 'Quartermaster Vale',
-				'shopkeeper-mira': 'Mira'
+				'guild-master': { name: 'Guild Master Arlen' },
+				'guild-quartermaster': { name: 'Quartermaster Vale' },
+				'shopkeeper-mira': { name: 'Mira' }
 			},
 			areas: {
 				'meadow-entry': 'Meadow Entry',
@@ -334,13 +333,12 @@ export const en = {
 				'ruins-core': 'Ruins Core'
 			}
 		},
-		common: {
-			item: 'item',
-			quest: 'Quest',
+		rewards: {
 			xp: '{{xp}} XP',
 			coins: '{{coins}} coins',
-			itemQuantity: '{{quantity}} item',
-			rewardSeparator: ' / '
+			oneItem: '{{count}} item',
+			itemCount: '{{count}} item',
+			separator: ' / '
 		}
 	}
 } as const;

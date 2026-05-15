@@ -12,6 +12,14 @@ import {
 	itemList,
 	type EquipmentDefinition
 } from '$lib/game/content/items';
+import { t } from '$lib/game/i18n/translate';
+
+function expectEnglishMessage(key: Parameters<typeof t>[1]): string {
+	const value = t('en', key);
+	expect(value).not.toMatch(/^\[/);
+	expect(value.trim()).not.toHaveLength(0);
+	return value;
+}
 
 describe('item content', () => {
 	it('defines the first-pass roster counts', () => {
@@ -29,6 +37,13 @@ describe('item content', () => {
 		expect(items['field-potion']).toMatchObject({ type: 'consumable', stackable: true });
 		expect(items['meadow-charm']).toMatchObject({ type: 'equipment', stackable: false });
 		expect(items['warden-sigil']).toMatchObject({ type: 'key', stackable: true });
+	});
+
+	it('resolves every item text key in the English source dictionary', () => {
+		for (const item of itemList) {
+			expectEnglishMessage(item.nameKey);
+			expectEnglishMessage(item.descriptionKey);
+		}
 	});
 
 	it('assigns equipment to valid slots', () => {

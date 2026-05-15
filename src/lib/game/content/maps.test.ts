@@ -3,6 +3,7 @@ import { enemies } from '$lib/game/content/enemies';
 import { getDialogue } from '$lib/game/content/dialogue';
 import { getItem } from '$lib/game/content/items';
 import { getShop } from '$lib/game/content/shops';
+import { t } from '$lib/game/i18n/translate';
 import {
 	guildHallMap,
 	heroHouseMap,
@@ -15,6 +16,13 @@ import {
 	villagerHouse2Map,
 	villagerHouse3Map
 } from '$lib/game/content/maps';
+
+function expectEnglishMessage(key: Parameters<typeof t>[1]): string {
+	const value = t('en', key);
+	expect(value).not.toMatch(/^\[/);
+	expect(value.trim()).not.toHaveLength(0);
+	return value;
+}
 
 type CenterRect = {
 	x: number;
@@ -245,12 +253,12 @@ describe('opening map content', () => {
 		const roles = ['guild', 'shopkeeper', 'villager', 'home'];
 
 		expect(heroHouseMap.npcs ?? []).toEqual([]);
-		expect(guildHallMap.npcs).toEqual([
+		expect(guildHallMap.npcs).toMatchObject([
 			{
 				id: 'guild-master',
 				x: 192,
 				y: 144,
-				name: 'Guild Master Arlen',
+				nameKey: 'content.maps.npcs.guild-master.name',
 				dialogueId: 'guild-master',
 				role: 'guild',
 				frameName: 'guildMasterNpc'
@@ -259,19 +267,19 @@ describe('opening map content', () => {
 				id: 'guild-quartermaster',
 				x: 352,
 				y: 144,
-				name: 'Quartermaster Vale',
+				nameKey: 'content.maps.npcs.guild-quartermaster.name',
 				dialogueId: 'guild-quartermaster',
 				role: 'shopkeeper',
 				frameName: 'quartermasterNpc',
 				shopId: 'guild-quartermaster'
 			}
 		]);
-		expect(itemShopMap.npcs).toEqual([
+		expect(itemShopMap.npcs).toMatchObject([
 			{
 				id: 'shopkeeper-mira',
 				x: 256,
 				y: 144,
-				name: 'Mira',
+				nameKey: 'content.maps.npcs.shopkeeper-mira.name',
 				dialogueId: 'shopkeeper-mira',
 				role: 'shopkeeper',
 				frameName: 'miraItemShopNpc',
@@ -285,7 +293,7 @@ describe('opening map content', () => {
 
 		for (const map of Object.values(maps)) {
 			for (const npc of map.npcs ?? []) {
-				expect(npc.name).not.toHaveLength(0);
+				expectEnglishMessage(npc.nameKey);
 				expect(getDialogue(npc.dialogueId)).toBeDefined();
 				expect(roles).toContain(npc.role);
 				expect(npc.x).toBeGreaterThanOrEqual(0);
@@ -302,23 +310,30 @@ describe('opening map content', () => {
 	});
 
 	it('defines exterior building landmarks for each village door', () => {
-		expect(meadowEntryMap.landmarks).toEqual([
+		expect(meadowEntryMap.landmarks).toMatchObject([
 			{
 				id: 'hero-house-exterior',
 				x: 384,
 				y: 1_289,
 				width: 192,
 				height: 174,
-				label: "Hero's House"
+				labelKey: 'content.maps.landmarks.hero-house-exterior.label'
 			},
-			{ id: 'guild-hall-exterior', x: 800, y: 1_054, width: 256, height: 228, label: 'Guild' },
+			{
+				id: 'guild-hall-exterior',
+				x: 800,
+				y: 1_054,
+				width: 256,
+				height: 228,
+				labelKey: 'content.maps.landmarks.guild-hall-exterior.label'
+			},
 			{
 				id: 'item-shop-exterior',
 				x: 832,
 				y: 1_436,
 				width: 192,
 				height: 200,
-				label: 'Item Shop'
+				labelKey: 'content.maps.landmarks.item-shop-exterior.label'
 			},
 			{
 				id: 'villager-house-1-exterior',
@@ -326,7 +341,7 @@ describe('opening map content', () => {
 				y: 991,
 				width: 160,
 				height: 178,
-				label: 'Villager Home'
+				labelKey: 'content.maps.landmarks.villager-house-1-exterior.label'
 			},
 			{
 				id: 'villager-house-2-exterior',
@@ -334,7 +349,7 @@ describe('opening map content', () => {
 				y: 1_535,
 				width: 160,
 				height: 178,
-				label: 'Villager Home'
+				labelKey: 'content.maps.landmarks.villager-house-2-exterior.label'
 			},
 			{
 				id: 'villager-house-3-exterior',
@@ -342,12 +357,12 @@ describe('opening map content', () => {
 				y: 1_311,
 				width: 160,
 				height: 178,
-				label: 'Villager Home'
+				labelKey: 'content.maps.landmarks.villager-house-3-exterior.label'
 			}
 		]);
 
 		for (const landmark of meadowEntryMap.landmarks ?? []) {
-			expect(landmark.label).not.toHaveLength(0);
+			expectEnglishMessage(landmark.labelKey);
 			expect(landmark.width).toBeGreaterThan(32);
 			expect(landmark.height).toBeGreaterThan(32);
 			expect(landmark.x).toBeGreaterThanOrEqual(0);

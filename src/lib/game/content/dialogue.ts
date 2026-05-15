@@ -1,4 +1,5 @@
 import type { QuestId } from '$lib/game/content/quests';
+import { t, type MessageKey } from '$lib/game/i18n/translate';
 
 export type NpcDialogueId = 'guild-master' | 'guild-quartermaster' | 'shopkeeper-mira';
 
@@ -18,105 +19,148 @@ export type DialogueActionIntent =
 
 export type DialogueActionDefinition = {
 	id: string;
+	labelKey: MessageKey;
 	label: string;
 	intent: DialogueActionIntent;
 };
 
 export type DialogueBranchDefinition = {
 	condition: DialogueBranchCondition;
+	lineKeys: MessageKey[];
 	lines: string[];
 };
 
 export type NpcDialogueDefinition = {
 	id: NpcDialogueId;
+	speakerKey: MessageKey;
 	speaker: string;
 	defaultBranches: DialogueBranchDefinition[];
 	actions: DialogueActionDefinition[];
 };
 
-export const npcDialogues = {
+type DialogueActionDefinitionSource = Omit<DialogueActionDefinition, 'label'>;
+type DialogueBranchDefinitionSource = Omit<DialogueBranchDefinition, 'lines'>;
+type NpcDialogueDefinitionSource = Omit<
+	NpcDialogueDefinition,
+	'speaker' | 'defaultBranches' | 'actions'
+> & {
+	defaultBranches: DialogueBranchDefinitionSource[];
+	actions: DialogueActionDefinitionSource[];
+};
+
+const npcDialogueDefinitions = {
 	'guild-master': {
 		id: 'guild-master',
-		speaker: 'Guild Master Arlen',
+		speakerKey: 'content.dialogue.guild-master.speaker',
 		defaultBranches: [
 			{
 				condition: 'mainQuestNeedsGuildBriefing',
-				lines: [
-					'You made it. The eastern ruins are stirring again, and the village road is no longer safe.',
-					'Go through the forest path, reach the old core, and defeat the warden before it wakes the rest.'
+				lineKeys: [
+					'content.dialogue.guild-master.lines.mainQuestNeedsGuildBriefing1',
+					'content.dialogue.guild-master.lines.mainQuestNeedsGuildBriefing2'
 				]
 			},
 			{
 				condition: 'hasActiveSideQuest',
-				lines: [
-					'The Guild board is yours to work through, but do not lose sight of the warden.',
-					'Report progress through your journal. I will keep new work here at the counter.'
+				lineKeys: [
+					'content.dialogue.guild-master.lines.hasActiveSideQuest1',
+					'content.dialogue.guild-master.lines.hasActiveSideQuest2'
 				]
 			},
 			{
 				condition: 'hasCompletedQuest',
-				lines: [
-					'Good work out there. The village notices when a hunter keeps the roads clear.'
-				]
+				lineKeys: ['content.dialogue.guild-master.lines.hasCompletedQuest']
 			},
 			{
 				condition: 'guildBriefingComplete',
-				lines: ['The ruins route is open. Steel yourself before you enter the core.']
+				lineKeys: ['content.dialogue.guild-master.lines.guildBriefingComplete']
 			},
 			{
 				condition: 'always',
-				lines: ['The Guild keeps watch over the old road. Speak plainly and choose your work.']
+				lineKeys: ['content.dialogue.guild-master.lines.always']
 			}
 		],
 		actions: [
-			{ id: 'talk', label: 'Talk', intent: { type: 'talk' } },
+			{ id: 'talk', labelKey: 'content.dialogue.actions.talk', intent: { type: 'talk' } },
 			{
 				id: 'quest',
-				label: 'Quest',
+				labelKey: 'content.dialogue.actions.quest',
 				intent: { type: 'showQuestList', giverNpcId: 'guild-master' }
 			}
 		]
 	},
 	'guild-quartermaster': {
 		id: 'guild-quartermaster',
-		speaker: 'Quartermaster Vale',
+		speakerKey: 'content.dialogue.guild-quartermaster.speaker',
 		defaultBranches: [
 			{
 				condition: 'guildBriefingComplete',
-				lines: ['If you are bound for the ruins, buy what keeps you standing.']
+				lineKeys: ['content.dialogue.guild-quartermaster.lines.guildBriefingComplete']
 			},
 			{
 				condition: 'always',
-				lines: ['Need field gear before the ruins? Guild stock is limited, but sturdy.']
+				lineKeys: ['content.dialogue.guild-quartermaster.lines.always']
 			}
 		],
 		actions: [
-			{ id: 'talk', label: 'Talk', intent: { type: 'talk' } },
-			{ id: 'shop', label: 'Shop', intent: { type: 'openShop', shopId: 'guild-quartermaster' } }
+			{ id: 'talk', labelKey: 'content.dialogue.actions.talk', intent: { type: 'talk' } },
+			{
+				id: 'shop',
+				labelKey: 'content.dialogue.actions.shop',
+				intent: { type: 'openShop', shopId: 'guild-quartermaster' }
+			}
 		]
 	},
 	'shopkeeper-mira': {
 		id: 'shopkeeper-mira',
-		speaker: 'Mira',
+		speakerKey: 'content.dialogue.shopkeeper-mira.speaker',
 		defaultBranches: [
 			{
 				condition: 'guildBriefingComplete',
-				lines: ['Back from the Guild? Take a tonic before the forest path gets rough.']
+				lineKeys: ['content.dialogue.shopkeeper-mira.lines.guildBriefingComplete']
 			},
 			{
 				condition: 'always',
-				lines: ['Fresh tonics are on the shelf. The guild already stocked your field kit today.']
+				lineKeys: ['content.dialogue.shopkeeper-mira.lines.always']
 			}
 		],
 		actions: [
-			{ id: 'talk', label: 'Talk', intent: { type: 'talk' } },
-			{ id: 'shop', label: 'Shop', intent: { type: 'openShop', shopId: 'miras-item-shop' } }
+			{ id: 'talk', labelKey: 'content.dialogue.actions.talk', intent: { type: 'talk' } },
+			{
+				id: 'shop',
+				labelKey: 'content.dialogue.actions.shop',
+				intent: { type: 'openShop', shopId: 'miras-item-shop' }
+			}
 		]
 	}
-} satisfies Record<NpcDialogueId, NpcDialogueDefinition>;
+} satisfies Record<NpcDialogueId, NpcDialogueDefinitionSource>;
+
+export const npcDialogues = addEnglishDialogueText(npcDialogueDefinitions);
 
 export const npcDialogueList: NpcDialogueDefinition[] = Object.values(npcDialogues);
 
 export function getDialogue(dialogueId: string): NpcDialogueDefinition | undefined {
 	return (npcDialogues as Record<string, NpcDialogueDefinition>)[dialogueId];
+}
+
+function addEnglishDialogueText(
+	definitions: Record<NpcDialogueId, NpcDialogueDefinitionSource>
+): Record<NpcDialogueId, NpcDialogueDefinition> {
+	return Object.fromEntries(
+		Object.entries(definitions).map(([dialogueId, dialogue]) => [
+			dialogueId,
+			{
+				...dialogue,
+				speaker: t('en', dialogue.speakerKey),
+				defaultBranches: dialogue.defaultBranches.map((branch) => ({
+					...branch,
+					lines: branch.lineKeys.map((key) => t('en', key))
+				})),
+				actions: dialogue.actions.map((action) => ({
+					...action,
+					label: t('en', action.labelKey)
+				}))
+			}
+		])
+	) as Record<NpcDialogueId, NpcDialogueDefinition>;
 }
