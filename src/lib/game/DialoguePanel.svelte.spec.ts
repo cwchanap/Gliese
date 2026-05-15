@@ -1,10 +1,26 @@
 import { page, userEvent } from 'vitest/browser';
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 
 import '../../app.css';
 import DialoguePanel from '$lib/game/DialoguePanel.svelte';
-import type { HudDialogueState } from '$lib/game/ui-bridge/events';
+import GameShell from '$lib/game/GameShell.svelte';
+import { en } from '$lib/game/i18n/messages/en';
+import { getActiveLocale, setActiveLocale } from '$lib/game/i18n/store';
+import { emitHudState, type HudDialogueState, type HudState } from '$lib/game/ui-bridge/events';
+
+vi.mock('$lib/game/i18n/store', async (importOriginal) => {
+	const actual = await importOriginal<typeof import('$lib/game/i18n/store')>();
+
+	return {
+		...actual,
+		setActiveLocale: vi.fn((locale: 'en' | 'zh-Hant' | 'ja') => actual.setActiveLocale(locale))
+	};
+});
+
+vi.mock('$lib/game/phaser/createGame', () => ({
+	createGame: vi.fn(async () => ({ destroy: vi.fn() }))
+}));
 
 const dialogue: HudDialogueState = {
 	id: 'npc:guild-master',
@@ -43,7 +59,68 @@ function renderDialogue(overrides: Partial<HudDialogueState> = {}) {
 	return { onadvance, onclose, onchoose };
 }
 
+const originalCloseLabel = en.ui.close;
+const originalNextLabel = en.ui.next;
+const mockedSetActiveLocale = vi.mocked(setActiveLocale);
+const mutableUiMessages = en.ui as { close: string; next: string };
+
+function setDialogueLabels(close: string, next: string) {
+	mutableUiMessages.close = close;
+	mutableUiMessages.next = next;
+}
+
+function createReadyHudState(overrides: Partial<HudState> = {}): HudState {
+	return {
+		ready: true,
+		mapId: 'meadow-entry',
+		hp: 18,
+		maxHp: 18,
+		level: 1,
+		xp: 0,
+		attack: 4,
+		defense: 1,
+		heals: 1,
+		canResume: false,
+		status: 'Ready',
+		wallet: { coins: 30 },
+		nearbyShop: null,
+		shop: null,
+		dialogue: null,
+		quests: {
+			main: null,
+			side: [],
+			completed: [],
+			guildOffer: null
+		},
+		inventory: {
+			consumables: [],
+			equipment: [],
+			keyItems: [],
+			equipped: {
+				weapon: null,
+				head: null,
+				body: null,
+				hands: null,
+				accessory: null
+			}
+		},
+		...overrides
+	};
+}
+
 describe('DialoguePanel.svelte', () => {
+	beforeEach(() => {
+		setDialogueLabels(originalCloseLabel, originalNextLabel);
+		setActiveLocale('en');
+		mockedSetActiveLocale.mockClear();
+	});
+
+	afterEach(() => {
+		setDialogueLabels(originalCloseLabel, originalNextLabel);
+		setActiveLocale('en');
+		mockedSetActiveLocale.mockClear();
+	});
+
 	it('renders speaker text and choices', async () => {
 		renderDialogue();
 
@@ -112,25 +189,28 @@ describe('DialoguePanel.svelte', () => {
 	it.each([
 		['Enter', '{Enter}'],
 		['Space', '{Space}']
-	])('selects the focused second choice with %s without leaking keydown to the window', async (_label, key) => {
-		const { onchoose } = renderDialogue();
-		const onWindowKeydown = vi.fn();
-		const secondChoice = page.getByRole('button', { name: 'Close' }).last();
+	])(
+		'selects the focused second choice with %s without leaking keydown to the window',
+		async (_label, key) => {
+			const { onchoose } = renderDialogue();
+			const onWindowKeydown = vi.fn();
+			const secondChoice = page.getByRole('button', { name: 'Close' }).last();
 
-		window.addEventListener('keydown', onWindowKeydown);
-		try {
-			secondChoice.element().focus();
-			await expect.element(secondChoice).toHaveFocus();
-			await userEvent.keyboard(key);
+			window.addEventListener('keydown', onWindowKeydown);
+			try {
+				secondChoice.element().focus();
+				await expect.element(secondChoice).toHaveFocus();
+				await userEvent.keyboard(key);
 
-			expect(onchoose).toHaveBeenCalledOnce();
-			expect(onchoose).toHaveBeenCalledWith('close');
-			expect(onchoose).not.toHaveBeenCalledWith('quest:thin-village-slimes');
-			expect(onWindowKeydown).not.toHaveBeenCalled();
-		} finally {
-			window.removeEventListener('keydown', onWindowKeydown);
+				expect(onchoose).toHaveBeenCalledOnce();
+				expect(onchoose).toHaveBeenCalledWith('close');
+				expect(onchoose).not.toHaveBeenCalledWith('quest:thin-village-slimes');
+				expect(onWindowKeydown).not.toHaveBeenCalled();
+			} finally {
+				window.removeEventListener('keydown', onWindowKeydown);
+			}
 		}
-	});
+	);
 
 	it('exposes the close choice by visible accessible name and emits its choice id', async () => {
 		const { onchoose } = renderDialogue();
@@ -141,5 +221,90 @@ describe('DialoguePanel.svelte', () => {
 
 		expect(onchoose).toHaveBeenCalledOnce();
 		expect(onchoose).toHaveBeenCalledWith('close');
+	});
+
+	it('renders Close and Next from the active locale messages', async () => {
+		setDialogueLabels('Dismiss', 'Advance');
+		renderDialogue(conversationDialogue);
+
+		await expect.element(page.getByRole('button', { name: 'Dismiss' })).toBeVisible();
+		await expect.element(page.getByRole('button', { name: 'Advance' })).toBeVisible();
+	});
+
+	it('falls back to English labels when the active locale has no DialoguePanel messages', async () => {
+		setDialogueLabels('Dismiss', 'Advance');
+		setActiveLocale('ja');
+		mockedSetActiveLocale.mockClear();
+		renderDialogue(conversationDialogue);
+
+		await expect.element(page.getByRole('button', { name: 'Dismiss' })).toBeVisible();
+		await expect.element(page.getByRole('button', { name: 'Advance' })).toBeVisible();
+	});
+
+	it('renders a Settings language selector and applies Japanese selection', async () => {
+		render(GameShell);
+
+		await page.getByRole('button', { name: 'Menu' }).click();
+
+		const languageSelector = page.getByLabelText('Language');
+		await expect.element(languageSelector).toBeVisible();
+
+		const selectElement = languageSelector.element() as HTMLSelectElement;
+		expect([...selectElement.options].map((option) => [option.value, option.label])).toEqual([
+			['en', 'English'],
+			['zh-Hant', 'Traditional Chinese'],
+			['ja', 'Japanese']
+		]);
+
+		selectElement.value = 'ja';
+		selectElement.dispatchEvent(new Event('change', { bubbles: true }));
+
+		expect(mockedSetActiveLocale).toHaveBeenCalledWith('ja');
+		expect(getActiveLocale()).toBe('ja');
+	});
+
+	it('renders inventory equipment badges with localized slot labels', async () => {
+		render(GameShell);
+		emitHudState(
+			createReadyHudState({
+				inventory: {
+					consumables: [],
+					equipment: [
+						{
+							itemId: 'training-sword',
+							name: 'Training Sword',
+							description: 'A reliable starter blade.',
+							iconPath: '/game/assets/items/training-sword.png',
+							slot: 'weapon',
+							equipped: false,
+							modifiers: { attack: 1 }
+						}
+					],
+					keyItems: [],
+					equipped: {
+						weapon: null,
+						head: null,
+						body: null,
+						hands: null,
+						accessory: null
+					}
+				}
+			})
+		);
+
+		await page.getByRole('button', { name: 'Menu' }).click();
+		const inventoryButton = page.getByRole('button', { name: 'Inventory' });
+		await expect.element(inventoryButton).toBeEnabled();
+		await inventoryButton.click();
+		await page.getByRole('tab', { name: 'Equipment' }).click();
+
+		const equipmentTile = document.querySelector<HTMLElement>('[aria-label="Training Sword"]');
+		expect(equipmentTile).not.toBeNull();
+		const badgeLabels = Array.from(equipmentTile!.querySelectorAll('span'), (badge) =>
+			badge.textContent?.trim()
+		);
+
+		expect(badgeLabels).toContain('Weapon');
+		expect(badgeLabels).not.toContain('weapon');
 	});
 });

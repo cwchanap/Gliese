@@ -1,5 +1,7 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
+	import { locale } from '$lib/game/i18n/store';
+	import { t } from '$lib/game/i18n/translate';
 	import type { HudDialogueState } from '$lib/game/ui-bridge/events';
 
 	type Props = {
@@ -75,7 +77,7 @@
 					class="rounded-full border border-white/14 bg-white/8 px-3 py-1.5 text-[0.62rem] font-black tracking-[0.2em] text-slate-100 uppercase"
 					onclick={onclose}
 				>
-					Close
+					{t($locale, 'ui.close')}
 				</button>
 			{/if}
 		</div>
@@ -101,7 +103,7 @@
 					class="rounded-full border border-cyan-100/22 bg-cyan-100/10 px-4 py-2 text-xs font-black tracking-[0.2em] text-cyan-50 uppercase"
 					onclick={onadvance}
 				>
-					Next
+					{t($locale, 'ui.next')}
 				</button>
 			</div>
 		{/if}

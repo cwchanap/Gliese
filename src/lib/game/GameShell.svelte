@@ -1,6 +1,9 @@
 <script lang="ts">
 	import { onMount, tick } from 'svelte';
 	import DialoguePanel from '$lib/game/DialoguePanel.svelte';
+	import { locale, setActiveLocale } from '$lib/game/i18n/store';
+	import { localeLabels, supportedLocales, type Locale } from '$lib/game/i18n/locales';
+	import { t } from '$lib/game/i18n/translate';
 	import {
 		hudState,
 		requestBuyShopItem,
@@ -54,13 +57,7 @@
 	let hoveredShopBuyItem = $state<HudShopBuyEntry | null>(null);
 	let hoveredShopSellItem = $state<HudShopSellEntry | null>(null);
 
-	const equipmentSlots: { slot: EquipmentSlot; label: string }[] = [
-		{ slot: 'weapon', label: 'Weapon' },
-		{ slot: 'head', label: 'Head' },
-		{ slot: 'body', label: 'Body' },
-		{ slot: 'hands', label: 'Hands' },
-		{ slot: 'accessory', label: 'Accessory' }
-	];
+	const equipmentSlots: EquipmentSlot[] = ['weapon', 'head', 'body', 'hands', 'accessory'];
 	const inventoryTabs: InventoryTab[] = ['consumables', 'equipment', 'keyItems'];
 	const shopTabs: ShopTab[] = ['buy', 'sell'];
 	const inventorySlotCount = 24;
@@ -390,9 +387,10 @@
 	}
 
 	function getInventoryBadge(slot: InventorySlotItem): string | null {
-		if (slot.kind === 'consumable') return `x${slot.item.quantity}`;
-		if (slot.kind === 'equipment') return slot.item.slot;
-		if (slot.item.quantity > 1) return `x${slot.item.quantity}`;
+		if (slot.kind === 'consumable')
+			return t($locale, 'ui.quantity', { quantity: slot.item.quantity });
+		if (slot.kind === 'equipment') return getEquipmentSlotLabel(slot.item.slot);
+		if (slot.item.quantity > 1) return t($locale, 'ui.quantity', { quantity: slot.item.quantity });
 		return null;
 	}
 
@@ -409,23 +407,68 @@
 	}
 
 	function formatModifierStat(stat: string) {
-		if (stat === 'attack') return 'ATK';
-		if (stat === 'defense') return 'DEF';
-		if (stat === 'maxHp') return 'HP';
+		if (stat === 'attack') return t($locale, 'ui.attack');
+		if (stat === 'defense') return t($locale, 'ui.defense');
+		if (stat === 'maxHp') return t($locale, 'ui.hp');
 		return stat.toUpperCase();
 	}
 
+	function getEquipmentSlotLabel(slot: EquipmentSlot): string {
+		switch (slot) {
+			case 'weapon':
+				return t($locale, 'ui.equipmentSlots.weapon');
+			case 'head':
+				return t($locale, 'ui.equipmentSlots.head');
+			case 'body':
+				return t($locale, 'ui.equipmentSlots.body');
+			case 'hands':
+				return t($locale, 'ui.equipmentSlots.hands');
+			case 'accessory':
+				return t($locale, 'ui.equipmentSlots.accessory');
+		}
+	}
+
+	function getInventoryTabLabel(tab: InventoryTab): string {
+		switch (tab) {
+			case 'consumables':
+				return t($locale, 'ui.consumables');
+			case 'equipment':
+				return t($locale, 'ui.equipment');
+			case 'keyItems':
+				return t($locale, 'ui.keyItems');
+		}
+	}
+
+	function getShopTabLabel(tab: ShopTab): string {
+		return tab === 'buy' ? t($locale, 'ui.buy') : t($locale, 'ui.sell');
+	}
+
+	function getItemKindLabel(kind: HudShopBuyEntry['kind'] | HudShopSellEntry['kind']): string {
+		return kind === 'consumable'
+			? t($locale, 'ui.itemKinds.consumable')
+			: t($locale, 'ui.itemKinds.equipment');
+	}
+
 	function getInventoryTooltipMeta(slot: InventorySlotItem): string {
-		if (slot.kind === 'consumable') return `x${slot.item.quantity}`;
+		if (slot.kind === 'consumable')
+			return t($locale, 'ui.quantity', { quantity: slot.item.quantity });
 		if (slot.kind === 'keyItem')
-			return slot.item.quantity > 1 ? `Key x${slot.item.quantity}` : 'Key item';
+			return slot.item.quantity > 1
+				? t($locale, 'ui.keyQuantity', { quantity: slot.item.quantity })
+				: t($locale, 'ui.keyItem');
 
 		const modifiers = Object.entries(slot.item.modifiers)
 			.filter(([, value]) => value !== undefined && value !== 0)
-			.map(([stat, value]) => `${formatModifierStat(stat)} +${value}`)
+			.map(([stat, value]) =>
+				t($locale, 'ui.statModifier', { stat: formatModifierStat(stat), value })
+			)
 			.join(' / ');
 
-		return modifiers ? `${slot.item.slot} / ${modifiers}` : slot.item.slot;
+		const slotLabel = getEquipmentSlotLabel(slot.item.slot);
+
+		return modifiers
+			? t($locale, 'ui.inventoryMetaWithModifiers', { slot: slotLabel, modifiers })
+			: slotLabel;
 	}
 
 	function showInventoryTooltip(slot: InventorySlotItem) {
@@ -484,12 +527,12 @@
 
 	function getShopBuyStockText(item: HudShopBuyEntry): string {
 		return item.availability.mode === 'unlimited'
-			? 'Unlimited'
-			: `${item.availability.remaining} left`;
+			? t($locale, 'ui.unlimited')
+			: t($locale, 'ui.stockLeft', { count: item.availability.remaining });
 	}
 
 	function getShopBuyMeta(item: HudShopBuyEntry): string {
-		return `${item.price} coins / ${getShopBuyStockText(item)}`;
+		return t($locale, 'ui.shopBuyMeta', { price: item.price, stock: getShopBuyStockText(item) });
 	}
 
 	function canBuyShopItem(item: HudShopBuyEntry): boolean {
@@ -515,11 +558,18 @@
 	}
 
 	function getShopSellBadge(item: HudShopSellEntry): string {
-		return item.quantity > 1 ? `x${item.quantity}` : item.kind;
+		return item.quantity > 1
+			? t($locale, 'ui.quantity', { quantity: item.quantity })
+			: getItemKindLabel(item.kind);
 	}
 
 	function getShopSellMeta(item: HudShopSellEntry): string {
-		return `${item.price} coins${item.quantity > 1 ? ` / x${item.quantity}` : ''}`;
+		return item.quantity > 1
+			? t($locale, 'ui.shopSellMetaWithQuantity', {
+					price: item.price,
+					quantity: item.quantity
+				})
+			: t($locale, 'ui.shopSellMeta', { price: item.price });
 	}
 
 	function showShopSellTooltip(item: HudShopSellEntry) {
@@ -559,7 +609,7 @@
 			} catch (error) {
 				console.error(error);
 				if (!destroyed) {
-					loadError = 'Unable to start the game shell.';
+					loadError = t($locale, 'ui.loadGameShellError');
 				}
 			}
 		})();
@@ -598,24 +648,24 @@
 			aria-expanded={settingsOpen}
 			aria-controls="game-settings-panel"
 		>
-			Menu
+			{t($locale, 'ui.menu')}
 		</button>
 	</div>
 
 	{#if $hudState.quests.main}
 		<section
 			class="pointer-events-none absolute top-4 right-4 z-20 w-[calc(50vw-1.5rem)] rounded-[1.2rem] border border-cyan-100/14 bg-[linear-gradient(145deg,rgba(8,13,34,0.9),rgba(12,32,52,0.82))] px-3 py-2.5 text-slate-50 shadow-[0_18px_44px_rgba(0,0,0,0.3)] backdrop-blur-md sm:top-6 sm:right-6 sm:w-[min(25rem,calc(50vw-2rem))] sm:px-4 sm:py-3"
-			aria-label="Quest tracker"
+			aria-label={t($locale, 'ui.questTracker')}
 		>
 			<p class="text-[0.58rem] font-black tracking-[0.28em] text-cyan-100/68 uppercase">
-				Main Quest
+				{t($locale, 'ui.mainQuest')}
 			</p>
 			<p class="mt-1 truncate text-sm font-black tracking-[0.08em] text-white uppercase">
 				{$hudState.quests.main.objective}
 			</p>
 			{#if $hudState.quests.side.length > 0}
 				<p class="mt-1 text-xs font-bold text-emerald-100/78">
-					{$hudState.quests.side.length} side active
+					{t($locale, 'ui.sideActive', { count: $hudState.quests.side.length })}
 				</p>
 			{/if}
 		</section>
@@ -623,7 +673,7 @@
 
 	<section
 		class="pointer-events-none absolute top-4 left-4 z-20 sm:top-6 sm:left-6"
-		aria-label="Player status"
+		aria-label={t($locale, 'ui.playerStatus')}
 	>
 		<div
 			class="w-[calc(50vw-1.5rem)] rounded-[1.3rem] border border-white/12 bg-[linear-gradient(145deg,rgba(10,16,40,0.92),rgba(14,12,36,0.84)_55%,rgba(20,32,72,0.8))] px-3 py-2.5 shadow-[0_24px_60px_rgba(0,0,0,0.34)] backdrop-blur-md sm:w-[min(25rem,calc(50vw-2rem))] sm:rounded-[1.5rem] sm:px-4 sm:py-3"
@@ -633,9 +683,11 @@
 					class="flex h-11 w-11 flex-col items-center justify-center rounded-xl border border-fuchsia-300/20 bg-fuchsia-300/10 text-center shadow-[inset_0_1px_0_rgba(255,255,255,0.1)] sm:h-14 sm:w-14 sm:rounded-2xl"
 				>
 					<span class="text-[0.58rem] font-black tracking-[0.28em] text-fuchsia-100/70 uppercase">
-						LV
+						{t($locale, 'ui.levelAbbrev')}
 					</span>
-					<span class="mt-0.5 text-lg font-black text-white sm:mt-1 sm:text-xl">{$hudState.level}</span>
+					<span class="mt-0.5 text-lg font-black text-white sm:mt-1 sm:text-xl"
+						>{$hudState.level}</span
+					>
 				</div>
 
 				<div class="grid gap-2">
@@ -643,7 +695,7 @@
 						<div
 							class="flex items-center justify-between text-[0.66rem] font-black tracking-[0.26em] text-rose-50/80 uppercase"
 						>
-							<span>HP</span>
+							<span>{t($locale, 'ui.hp')}</span>
 							<span>{$hudState.hp} / {$hudState.maxHp}</span>
 						</div>
 						<div class="h-3 overflow-hidden rounded-full bg-white/10 ring-1 ring-white/10">
@@ -658,7 +710,7 @@
 						<div
 							class="flex items-center justify-between text-[0.66rem] font-black tracking-[0.26em] text-cyan-50/76 uppercase"
 						>
-							<span>XP</span>
+							<span>{t($locale, 'ui.xp')}</span>
 							<span>{$hudState.xp} / {xpTarget}</span>
 						</div>
 						<div class="h-2.5 overflow-hidden rounded-full bg-white/10 ring-1 ring-white/10">
@@ -689,27 +741,43 @@
 			<div class="flex items-center justify-between gap-3">
 				<div>
 					<p class="text-[0.62rem] font-black tracking-[0.34em] text-cyan-100/68 uppercase">
-						System Menu
+						{t($locale, 'ui.systemMenu')}
 					</p>
-					<h2 class="mt-1 text-xl font-black tracking-[0.1em] text-white uppercase">Settings</h2>
+					<h2 class="mt-1 text-xl font-black tracking-[0.1em] text-white uppercase">
+						{t($locale, 'ui.settings')}
+					</h2>
 				</div>
 				<button
 					type="button"
 					class="rounded-full border border-white/12 bg-white/6 px-3 py-2 text-[0.65rem] font-black tracking-[0.24em] text-slate-100 uppercase transition hover:border-white/30"
 					onclick={closeSettings}
 				>
-					Close
+					{t($locale, 'ui.close')}
 				</button>
 			</div>
 
 			<div class="mt-4 grid gap-3">
+				<label
+					class="grid gap-2 rounded-[1.1rem] border border-white/10 bg-white/6 px-4 py-3 text-[0.68rem] font-black tracking-[0.22em] text-slate-100 uppercase"
+				>
+					<span>{t($locale, 'ui.language')}</span>
+					<select
+						value={$locale}
+						class="rounded-[0.8rem] border border-white/12 bg-slate-950/70 px-3 py-2 text-sm font-bold tracking-normal text-slate-50 transition outline-none focus:border-cyan-200/55"
+						onchange={(event) => setActiveLocale(event.currentTarget.value as Locale)}
+					>
+						{#each supportedLocales as option}
+							<option value={option}>{localeLabels[option]}</option>
+						{/each}
+					</select>
+				</label>
 				<button
 					type="button"
 					class="hud-action rounded-[1.1rem] border border-cyan-200/20 bg-[linear-gradient(135deg,rgba(26,49,92,0.95),rgba(14,21,44,0.92))] px-4 py-3 text-sm font-black tracking-[0.24em] text-cyan-50 uppercase transition hover:-translate-y-0.5 hover:border-cyan-200/45 hover:shadow-[0_15px_30px_rgba(74,144,255,0.24)] disabled:translate-y-0 disabled:cursor-not-allowed disabled:opacity-45"
 					onclick={openQuestLog}
 					disabled={!$hudState.ready}
 				>
-					Quests
+					{t($locale, 'ui.quests')}
 				</button>
 				<button
 					type="button"
@@ -717,7 +785,7 @@
 					onclick={openShop}
 					disabled={!$hudState.ready || !$hudState.nearbyShop}
 				>
-					Shop
+					{t($locale, 'ui.shop')}
 				</button>
 				<button
 					type="button"
@@ -725,7 +793,7 @@
 					onclick={openInventory}
 					disabled={!$hudState.ready}
 				>
-					Inventory
+					{t($locale, 'ui.inventory')}
 				</button>
 				<button
 					type="button"
@@ -733,7 +801,7 @@
 					onclick={resumeSaveFromMenu}
 					disabled={!$hudState.ready || !$hudState.canResume}
 				>
-					Resume Save
+					{t($locale, 'ui.resumeSave')}
 				</button>
 				<button
 					type="button"
@@ -741,7 +809,7 @@
 					onclick={saveFromMenu}
 					disabled={!$hudState.ready}
 				>
-					Save Game
+					{t($locale, 'ui.saveGame')}
 				</button>
 				<button
 					type="button"
@@ -749,7 +817,7 @@
 					onclick={requestHeal}
 					disabled={!$hudState.ready || $hudState.heals < 1}
 				>
-					Use Heal
+					{t($locale, 'ui.useHeal')}
 				</button>
 			</div>
 
@@ -793,13 +861,13 @@
 					<div class="flex items-start justify-between gap-4">
 						<div>
 							<p class="text-[0.62rem] font-black tracking-[0.34em] text-emerald-100/68 uppercase">
-								Field Pack
+								{t($locale, 'ui.fieldPack')}
 							</p>
 							<h2
 								id="inventory-heading"
 								class="mt-1 text-2xl font-black tracking-[0.12em] text-white uppercase sm:text-3xl"
 							>
-								Inventory
+								{t($locale, 'ui.inventory')}
 							</h2>
 						</div>
 						<button
@@ -808,11 +876,15 @@
 							class="rounded-full border border-white/12 bg-white/6 px-3 py-2 text-[0.65rem] font-black tracking-[0.24em] text-slate-100 uppercase transition hover:border-white/30"
 							onclick={closeInventory}
 						>
-							Close
+							{t($locale, 'ui.close')}
 						</button>
 					</div>
 
-					<div class="mt-4 grid grid-cols-3 gap-2" role="tablist" aria-label="Inventory sections">
+					<div
+						class="mt-4 grid grid-cols-3 gap-2"
+						role="tablist"
+						aria-label={t($locale, 'ui.inventorySections')}
+					>
 						<button
 							id="inventory-consumables-tab"
 							type="button"
@@ -828,7 +900,7 @@
 							onclick={() => setInventoryTab('consumables')}
 							onkeydown={(event) => handleInventoryTabKeydown(event, 'consumables')}
 						>
-							Consumables
+							{t($locale, 'ui.consumables')}
 						</button>
 						<button
 							id="inventory-equipment-tab"
@@ -845,7 +917,7 @@
 							onclick={() => setInventoryTab('equipment')}
 							onkeydown={(event) => handleInventoryTabKeydown(event, 'equipment')}
 						>
-							Equipment
+							{t($locale, 'ui.equipment')}
 						</button>
 						<button
 							id="inventory-keyItems-tab"
@@ -862,7 +934,7 @@
 							onclick={() => setInventoryTab('keyItems')}
 							onkeydown={(event) => handleInventoryTabKeydown(event, 'keyItems')}
 						>
-							Key Items
+							{t($locale, 'ui.keyItems')}
 						</button>
 					</div>
 				</div>
@@ -880,7 +952,9 @@
 							<div
 								data-testid="inventory-slot-grid"
 								class="grid grid-cols-6 gap-2.5 sm:gap-3"
-								aria-label={`${activeInventoryTab} inventory slots`}
+								aria-label={t($locale, 'ui.inventorySlotsLabel', {
+									section: getInventoryTabLabel(activeInventoryTab)
+								})}
 							>
 								{#each getInventoryGridSlots(activeInventoryTab) as slot, index (`${activeInventoryTab}-${slot?.item.itemId ?? 'empty'}-${index}`)}
 									{#if slot}
@@ -913,13 +987,13 @@
 												<span
 													class="absolute right-2 bottom-2 left-2 rounded-full border border-cyan-100/20 bg-cyan-100/12 px-2 py-1 text-center text-[0.52rem] font-black tracking-[0.16em] text-cyan-50 uppercase"
 												>
-													Equipped
+													{t($locale, 'ui.equipped')}
 												</span>
 											{:else if slot.kind === 'keyItem'}
 												<span
 													class="absolute right-2 bottom-2 left-2 rounded-full border border-amber-100/16 bg-amber-100/10 px-2 py-1 text-center text-[0.52rem] font-black tracking-[0.18em] text-amber-50/70 uppercase"
 												>
-													Key
+													{t($locale, 'ui.key')}
 												</span>
 											{/if}
 										</article>
@@ -927,9 +1001,9 @@
 										<div
 											data-testid="inventory-slot"
 											class="inventory-slot-empty flex aspect-square items-center justify-center rounded-[0.95rem] border border-dashed border-white/10 bg-white/[0.035] text-[0.54rem] font-black tracking-[0.18em] text-slate-400/38 uppercase"
-											aria-label={`Empty inventory slot ${index + 1}`}
+											aria-label={t($locale, 'ui.emptyInventorySlot', { index: index + 1 })}
 										>
-											Empty
+											{t($locale, 'ui.empty')}
 										</div>
 									{/if}
 								{/each}
@@ -940,14 +1014,14 @@
 					<aside class="grid gap-3 lg:min-h-0 lg:grid-rows-[auto_minmax(0,1fr)]">
 						<div class="rounded-[1.15rem] border border-white/10 bg-white/6 p-3">
 							<p class="text-[0.62rem] font-black tracking-[0.28em] text-cyan-100/64 uppercase">
-								Stats
+								{t($locale, 'ui.stats')}
 							</p>
 							<div class="mt-2 grid grid-cols-3 gap-2 lg:grid-cols-1">
 								<div
 									class="rounded-[0.95rem] border border-rose-100/12 bg-rose-100/8 px-2 py-2 text-center"
 								>
 									<p class="text-[0.58rem] font-black tracking-[0.22em] text-rose-50/64 uppercase">
-										HP
+										{t($locale, 'ui.hp')}
 									</p>
 									<p class="mt-0.5 text-base font-black text-white">
 										{$hudState.hp}/{$hudState.maxHp}
@@ -957,7 +1031,7 @@
 									class="rounded-[0.95rem] border border-cyan-100/12 bg-cyan-100/8 px-2 py-2 text-center"
 								>
 									<p class="text-[0.58rem] font-black tracking-[0.22em] text-cyan-50/64 uppercase">
-										ATK
+										{t($locale, 'ui.attack')}
 									</p>
 									<p class="mt-0.5 text-base font-black text-white">{$hudState.attack}</p>
 								</div>
@@ -967,7 +1041,7 @@
 									<p
 										class="text-[0.58rem] font-black tracking-[0.22em] text-emerald-50/64 uppercase"
 									>
-										DEF
+										{t($locale, 'ui.defense')}
 									</p>
 									<p class="mt-0.5 text-base font-black text-white">{$hudState.defense}</p>
 								</div>
@@ -976,13 +1050,13 @@
 
 						<div class="min-h-0 rounded-[1.15rem] border border-white/10 bg-white/6 p-3">
 							<p class="text-[0.62rem] font-black tracking-[0.28em] text-cyan-100/64 uppercase">
-								Equipped
+								{t($locale, 'ui.equipped')}
 							</p>
 							<div
 								class="mt-2 grid grid-cols-2 gap-2 lg:max-h-full lg:grid-cols-1 lg:overflow-y-auto"
 							>
-								{#each equipmentSlots as entry (entry.slot)}
-									{@const equippedItemId = $hudState.inventory.equipped[entry.slot]}
+								{#each equipmentSlots as slot (slot)}
+									{@const equippedItemId = $hudState.inventory.equipped[slot]}
 									{@const equippedItem = $hudState.inventory.equipment.find(
 										(item) => item.itemId === equippedItemId
 									)}
@@ -993,22 +1067,22 @@
 											<p
 												class="text-[0.54rem] font-black tracking-[0.2em] text-slate-300/62 uppercase"
 											>
-												{entry.label}
+												{getEquipmentSlotLabel(slot)}
 											</p>
 											<p
 												class="mt-0.5 truncate text-[0.8rem] font-black tracking-[0.08em] text-white uppercase"
 											>
-												{equippedItem?.name ?? 'Empty'}
+												{equippedItem?.name ?? t($locale, 'ui.empty')}
 											</p>
 										</div>
 										{#if equippedItemId}
 											<button
 												type="button"
 												class="rounded-full border border-rose-200/20 bg-rose-200/10 px-2.5 py-1.5 text-[0.54rem] font-black tracking-[0.16em] text-rose-50 uppercase transition hover:border-rose-200/45 disabled:cursor-not-allowed disabled:opacity-40"
-												onclick={() => requestUnequipSlot(entry.slot)}
+												onclick={() => requestUnequipSlot(slot)}
 												disabled={!$hudState.ready}
 											>
-												Remove
+												{t($locale, 'ui.remove')}
 											</button>
 										{/if}
 									</div>
@@ -1060,13 +1134,13 @@
 					<div class="flex items-start justify-between gap-4">
 						<div>
 							<p class="text-[0.62rem] font-black tracking-[0.34em] text-cyan-100/68 uppercase">
-								Field Journal
+								{t($locale, 'ui.fieldJournal')}
 							</p>
 							<h2
 								id="quest-log-heading"
 								class="mt-1 text-2xl font-black tracking-[0.12em] text-white uppercase sm:text-3xl"
 							>
-								Quest Log
+								{t($locale, 'ui.questLog')}
 							</h2>
 						</div>
 						<button
@@ -1075,14 +1149,16 @@
 							class="rounded-full border border-white/12 bg-white/6 px-3 py-2 text-[0.65rem] font-black tracking-[0.24em] text-slate-100 uppercase transition hover:border-white/30"
 							onclick={closeQuestLog}
 						>
-							Close
+							{t($locale, 'ui.close')}
 						</button>
 					</div>
 				</div>
 				<div class="min-h-0 overflow-y-auto p-4 sm:p-6">
 					<div class="grid gap-4 lg:grid-cols-2">
 						<section class="rounded-[1.2rem] border border-cyan-100/12 bg-cyan-100/8 p-4">
-							<h3 class="text-sm font-black tracking-[0.22em] text-cyan-50 uppercase">Main</h3>
+							<h3 class="text-sm font-black tracking-[0.22em] text-cyan-50 uppercase">
+								{t($locale, 'ui.main')}
+							</h3>
 							{#if $hudState.quests.main}
 								<article class="mt-3 rounded-[0.95rem] border border-white/10 bg-black/14 p-3">
 									<h4 class="font-black tracking-[0.1em] text-white uppercase">
@@ -1094,13 +1170,17 @@
 										{$hudState.quests.main.progress.target}
 									</p>
 									<p class="mt-1 text-xs text-slate-300/72">
-										Reward: {$hudState.quests.main.rewardSummary}
+										{t($locale, 'ui.reward', {
+											rewardSummary: $hudState.quests.main.rewardSummary
+										})}
 									</p>
 								</article>
 							{/if}
 						</section>
 						<section class="rounded-[1.2rem] border border-emerald-100/12 bg-emerald-100/8 p-4">
-							<h3 class="text-sm font-black tracking-[0.22em] text-emerald-50 uppercase">Side</h3>
+							<h3 class="text-sm font-black tracking-[0.22em] text-emerald-50 uppercase">
+								{t($locale, 'ui.side')}
+							</h3>
 							<div class="mt-3 grid gap-3">
 								{#each [...$hudState.quests.side, ...($hudState.quests.guildOffer?.quests ?? [])] as quest (quest.questId)}
 									<article class="rounded-[0.95rem] border border-white/10 bg-black/14 p-3">
@@ -1116,14 +1196,18 @@
 											<p
 												class="mt-2 text-xs font-black tracking-[0.16em] text-amber-100/72 uppercase"
 											>
-												Available from Guild Master
+												{t($locale, 'ui.availableFromGuildMaster')}
 											</p>
 										{/if}
-										<p class="mt-1 text-xs text-slate-300/72">Reward: {quest.rewardSummary}</p>
+										<p class="mt-1 text-xs text-slate-300/72">
+											{t($locale, 'ui.reward', { rewardSummary: quest.rewardSummary })}
+										</p>
 									</article>
 								{/each}
 								{#if $hudState.quests.side.length === 0 && !$hudState.quests.guildOffer}
-									<p class="text-sm text-slate-300/72">No side quests active.</p>
+									<p class="text-sm text-slate-300/72">
+										{t($locale, 'ui.noSideQuestsActive')}
+									</p>
 								{/if}
 							</div>
 						</section>
@@ -1152,16 +1236,18 @@
 					<div class="flex items-start justify-between gap-4">
 						<div>
 							<p class="text-[0.62rem] font-black tracking-[0.34em] text-amber-100/68 uppercase">
-								{$hudState.shop?.merchantName ?? $hudState.nearbyShop?.merchantName ?? 'Merchant'}
+								{$hudState.shop?.merchantName ??
+									$hudState.nearbyShop?.merchantName ??
+									t($locale, 'ui.merchant')}
 							</p>
 							<h2
 								id="shop-heading"
 								class="mt-1 text-2xl font-black tracking-[0.12em] text-white uppercase sm:text-3xl"
 							>
-								{$hudState.shop?.name ?? $hudState.nearbyShop?.name ?? 'Shop'}
+								{$hudState.shop?.name ?? $hudState.nearbyShop?.name ?? t($locale, 'ui.shop')}
 							</h2>
 							<p class="mt-2 text-sm font-bold tracking-[0.12em] text-amber-100/80 uppercase">
-								Coins: {$hudState.wallet.coins}
+								{t($locale, 'ui.coins', { coins: $hudState.wallet.coins })}
 							</p>
 						</div>
 						<button
@@ -1170,11 +1256,15 @@
 							class="rounded-full border border-white/12 bg-white/6 px-3 py-2 text-[0.65rem] font-black tracking-[0.24em] text-slate-100 uppercase transition hover:border-white/30"
 							onclick={closeShop}
 						>
-							Close
+							{t($locale, 'ui.close')}
 						</button>
 					</div>
 
-					<div class="mt-4 grid grid-cols-2 gap-2" role="tablist" aria-label="Shop sections">
+					<div
+						class="mt-4 grid grid-cols-2 gap-2"
+						role="tablist"
+						aria-label={t($locale, 'ui.shopSections')}
+					>
 						<button
 							id="shop-buy-tab"
 							type="button"
@@ -1190,7 +1280,7 @@
 							onclick={() => setShopTab('buy')}
 							onkeydown={(event) => handleShopTabKeydown(event, 'buy')}
 						>
-							Buy
+							{getShopTabLabel('buy')}
 						</button>
 						<button
 							id="shop-sell-tab"
@@ -1207,7 +1297,7 @@
 							onclick={() => setShopTab('sell')}
 							onkeydown={(event) => handleShopTabKeydown(event, 'sell')}
 						>
-							Sell
+							{getShopTabLabel('sell')}
 						</button>
 					</div>
 
@@ -1242,7 +1332,7 @@
 										<span
 											class="absolute top-2 right-2 z-10 shrink-0 rounded-full border border-amber-100/18 bg-amber-100/12 px-1.5 py-0.5 text-[0.54rem] font-black tracking-[0.12em] text-amber-50 uppercase"
 										>
-											{item.kind}
+											{getItemKindLabel(item.kind)}
 										</span>
 										<div class="flex h-full min-h-0 items-center justify-center">
 											<img
@@ -1255,7 +1345,7 @@
 										<span
 											class="absolute right-2 bottom-2 left-2 rounded-full border border-amber-100/16 bg-amber-100/10 px-2 py-1 text-center text-[0.52rem] font-black tracking-[0.16em] text-amber-50/78 uppercase"
 										>
-											{item.price}c
+											{t($locale, 'ui.priceBadge', { price: item.price })}
 										</span>
 									</article>
 								{/each}
@@ -1264,7 +1354,7 @@
 							<div
 								class="flex min-h-48 items-center justify-center rounded-[1.1rem] border border-dashed border-white/14 bg-white/5 px-6 py-10 text-center text-sm font-bold tracking-[0.2em] text-slate-300/62 uppercase"
 							>
-								No stock available.
+								{t($locale, 'ui.noStockAvailable')}
 							</div>
 						{/if}
 					{:else if $hudState.shop?.sell.length}
@@ -1293,7 +1383,7 @@
 									<span
 										class="absolute right-2 bottom-2 left-2 rounded-full border border-emerald-100/16 bg-emerald-100/10 px-2 py-1 text-center text-[0.52rem] font-black tracking-[0.16em] text-emerald-50/78 uppercase"
 									>
-										{item.price}c
+										{t($locale, 'ui.priceBadge', { price: item.price })}
 									</span>
 								</article>
 							{/each}
@@ -1302,7 +1392,7 @@
 						<div
 							class="flex min-h-48 items-center justify-center rounded-[1.1rem] border border-dashed border-white/14 bg-white/5 px-6 py-10 text-center text-sm font-bold tracking-[0.2em] text-slate-300/62 uppercase"
 						>
-							No sellable items.
+							{t($locale, 'ui.noSellableItems')}
 						</div>
 					{/if}
 
@@ -1318,7 +1408,7 @@
 							<p
 								class="mt-1 text-[0.62rem] font-black tracking-[0.18em] text-slate-300/70 uppercase"
 							>
-								Buy for {getShopBuyMeta(hoveredShopBuyItem)}
+								{t($locale, 'ui.buyFor', { meta: getShopBuyMeta(hoveredShopBuyItem) })}
 							</p>
 						</div>
 					{/if}
@@ -1335,7 +1425,7 @@
 							<p
 								class="mt-1 text-[0.62rem] font-black tracking-[0.18em] text-slate-300/70 uppercase"
 							>
-								Sell for {getShopSellMeta(hoveredShopSellItem)}
+								{t($locale, 'ui.sellFor', { meta: getShopSellMeta(hoveredShopSellItem) })}
 							</p>
 						</div>
 					{/if}
