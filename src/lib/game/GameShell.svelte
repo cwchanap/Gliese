@@ -1475,7 +1475,7 @@
 		right: 1rem;
 		z-index: 40;
 		width: min(19rem, calc(100vw - 2rem));
-		max-height: calc(100vh - 13rem);
+		max-height: min(34rem, calc(76vh - 5.2rem));
 		overflow-y: auto;
 		border-radius: var(--jrpg-radius);
 		padding: 0.85rem;

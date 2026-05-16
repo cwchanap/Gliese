@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test';
+import { expect, test, type Page } from '@playwright/test';
 
 type HudStateSnapshot = {
 	status?: string;
@@ -8,6 +8,14 @@ type HudStateSnapshot = {
 type GlieseProbeWindow = Window & {
 	__glieseLastHudState?: HudStateSnapshot;
 };
+
+function commandBox(page: Page, name = 'Command') {
+	return page.getByRole('region', { name });
+}
+
+function fieldStatus(page: Page) {
+	return page.getByRole('status', { name: 'Field status' });
+}
 
 function createQuestFixture() {
 	return {
@@ -41,6 +49,13 @@ test('game route boots', async ({ page }) => {
 	expect(statusBox?.y).toBeLessThan(40);
 	expect(questBox?.y).toBeLessThan(40);
 	expect((questBox?.x ?? 0) + (questBox?.width ?? 0)).toBeGreaterThan((viewport?.width ?? 0) - 40);
+
+	await page.getByRole('button', { name: 'Menu' }).click();
+	await expect(commandBox(page)).toBeVisible();
+	const commandBounds = await commandBox(page).boundingBox();
+	expect((commandBounds?.y ?? 0) + (commandBounds?.height ?? 0)).toBeLessThan(
+		(viewport?.height ?? 0) * 0.78
+	);
 });
 
 test('inventory overlay opens from the menu', async ({ page }) => {
@@ -49,7 +64,7 @@ test('inventory overlay opens from the menu', async ({ page }) => {
 	await expect(page.getByRole('button', { name: 'Menu' })).toBeVisible();
 
 	await page.getByRole('button', { name: 'Menu' }).click();
-	await page.getByRole('button', { name: 'Inventory' }).click();
+	await commandBox(page).getByRole('button', { name: 'Inventory' }).click();
 
 	const inventoryDialog = page.getByRole('dialog', { name: 'Inventory' });
 	const inventorySlotGrid = inventoryDialog.getByTestId('inventory-slot-grid');
@@ -99,7 +114,7 @@ test('language preference shows Japanese chrome and keeps Japanese selected', as
 	await expect(languageSelect).toHaveCount(0);
 
 	await page.getByRole('button', { name: 'メニュー' }).click();
-	await page.getByRole('button', { name: '持ち物' }).click();
+	await commandBox(page, 'コマンド').getByRole('button', { name: '持ち物' }).click();
 
 	const inventoryDialog = page.getByRole('dialog', { name: '持ち物' });
 	await expect(inventoryDialog).toBeVisible();
@@ -117,7 +132,7 @@ test('full hp potions explain why they cannot be consumed', async ({ page }) => 
 	await expect(page.getByRole('button', { name: 'Menu' })).toBeVisible();
 
 	await page.getByRole('button', { name: 'Menu' }).click();
-	await page.getByRole('button', { name: 'Inventory' }).click();
+	await commandBox(page).getByRole('button', { name: 'Inventory' }).click();
 
 	const inventoryDialog = page.getByRole('dialog', { name: 'Inventory' });
 	const fieldPotionSlot = inventoryDialog.getByLabel('Field Potion');
@@ -128,7 +143,7 @@ test('full hp potions explain why they cannot be consumed', async ({ page }) => 
 	await fieldPotionSlot.dblclick();
 	await inventoryDialog.getByRole('button', { name: 'Close' }).click();
 	await page.getByRole('button', { name: 'Menu' }).click();
-	await expect(page.getByText('HP already full')).toBeVisible();
+	await expect(fieldStatus(page)).toContainText('HP already full');
 });
 
 test('double-clicking unequipped equipment equips it from inventory', async ({ page }) => {
@@ -176,9 +191,9 @@ test('double-clicking unequipped equipment equips it from inventory', async ({ p
 	await expect(page.locator('canvas')).toBeVisible();
 
 	await page.getByRole('button', { name: 'Menu' }).click();
-	await page.getByRole('button', { name: 'Resume Save' }).click();
+	await commandBox(page).getByRole('button', { name: 'Resume Save' }).click();
 	await page.getByRole('button', { name: 'Menu' }).click();
-	await page.getByRole('button', { name: 'Inventory' }).click();
+	await commandBox(page).getByRole('button', { name: 'Inventory' }).click();
 
 	const inventoryDialog = page.getByRole('dialog', { name: 'Inventory' });
 	await page.getByRole('tab', { name: 'Equipment' }).click();
@@ -239,14 +254,14 @@ test('shop overlay opens near a merchant and supports buying and selling', async
 	await expect(page.locator('canvas')).toBeVisible();
 
 	await page.getByRole('button', { name: 'Menu' }).click();
-	await page.getByRole('button', { name: 'Resume Save' }).click();
+	await commandBox(page).getByRole('button', { name: 'Resume Save' }).click();
 	await page.waitForFunction(() => {
 		const state = (window as GlieseProbeWindow).__glieseLastHudState;
 
 		return state?.nearbyShop?.shopId === 'miras-item-shop' || state?.status?.startsWith('Mira:');
 	});
 	await page.getByRole('button', { name: 'Menu' }).click();
-	const shopButton = page.getByRole('button', { name: 'Shop' });
+	const shopButton = commandBox(page).getByRole('button', { name: 'Shop' });
 	await expect(shopButton).toBeEnabled();
 	await shopButton.click();
 
@@ -339,7 +354,7 @@ test('interact key shop purchase appears in inventory', async ({ page }) => {
 	await expect(page.locator('canvas')).toBeVisible();
 
 	await page.getByRole('button', { name: 'Menu' }).click();
-	await page.getByRole('button', { name: 'Resume Save' }).click();
+	await commandBox(page).getByRole('button', { name: 'Resume Save' }).click();
 	await page.waitForFunction(() => {
 		const state = (window as GlieseProbeWindow).__glieseLastHudState;
 
@@ -364,7 +379,7 @@ test('interact key shop purchase appears in inventory', async ({ page }) => {
 	await shopDialog.getByRole('button', { name: 'Close' }).click();
 
 	await page.getByRole('button', { name: 'Menu' }).click();
-	await page.getByRole('button', { name: 'Inventory' }).click();
+	await commandBox(page).getByRole('button', { name: 'Inventory' }).click();
 
 	const inventoryDialog = page.getByRole('dialog', { name: 'Inventory' });
 	const fieldPotionSlot = inventoryDialog.getByLabel('Field Potion');
@@ -423,7 +438,7 @@ test('quest log shows main quest and accepts Guild side quests', async ({ page }
 	await expect(page.locator('canvas')).toBeVisible();
 
 	await page.getByRole('button', { name: 'Menu' }).click();
-	await page.getByRole('button', { name: 'Resume Save' }).click();
+	await commandBox(page).getByRole('button', { name: 'Resume Save' }).click();
 	await expect(page.getByText('Talk to the Guild Master')).toBeVisible();
 
 	await page.locator('canvas').click();
@@ -440,9 +455,9 @@ test('quest log shows main quest and accepts Guild side quests', async ({ page }
 	await expect(guildMasterDialog).toHaveCount(0);
 
 	await page.getByRole('button', { name: 'Menu' }).click();
-	await expect(page.getByText(/^Quest accepted\.?$/)).toBeVisible();
+	await expect(fieldStatus(page)).toContainText(/^Quest accepted\.?$/);
 	await expect(page.getByRole('button', { name: 'Guild Quests' })).toHaveCount(0);
-	await page.getByRole('button', { name: 'Quests', exact: true }).click();
+	await commandBox(page).getByRole('button', { name: 'Quests', exact: true }).click();
 
 	const questDialog = page.getByRole('dialog', { name: 'Quest Log' });
 	await expect(questDialog).toBeVisible();
