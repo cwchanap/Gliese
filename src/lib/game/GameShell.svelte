@@ -46,7 +46,7 @@
 	let inventoryFocusRestoreTarget: HTMLElement | null = null;
 	let shopFocusRestoreTarget: HTMLElement | null = null;
 	let loadError = $state('');
-	let settingsOpen = $state(false);
+	let commandOpen = $state(false);
 	let inventoryOpen = $state(false);
 	let shopOpen = $state(false);
 	let questLogOpen = $state(false);
@@ -78,22 +78,22 @@
 		requestResumeGame();
 	}
 
-	function openSettings() {
-		if (settingsOpen) return;
-		settingsOpen = true;
+	function openCommand() {
+		if (commandOpen) return;
+		commandOpen = true;
 		pauseForOverlay('settings');
 	}
 
-	function closeSettings() {
-		if (!settingsOpen) return;
-		settingsOpen = false;
+	function closeCommand() {
+		if (!commandOpen) return;
+		commandOpen = false;
 		resumeForOverlay('settings');
 	}
 
 	function openInventory() {
 		if (inventoryOpen) return;
 		rememberInventoryFocus();
-		settingsOpen = false;
+		commandOpen = false;
 		inventoryOpen = true;
 		pauseForOverlay('inventory');
 		void focusInventoryDialog();
@@ -115,7 +115,7 @@
 	function openShop() {
 		if (shopOpen || !$hudState.nearbyShop) return;
 		rememberShopFocus();
-		settingsOpen = false;
+		commandOpen = false;
 		inventoryOpen = false;
 		shopOpen = true;
 		activeShopTab = 'buy';
@@ -136,7 +136,7 @@
 
 	function openQuestLog() {
 		if (questLogOpen) return;
-		settingsOpen = false;
+		commandOpen = false;
 		questLogOpen = true;
 		pauseForOverlay('questLog');
 		void focusQuestLogDialog();
@@ -152,7 +152,7 @@
 		if (!$hudState.shop || shopOpen) return;
 
 		rememberShopFocus();
-		settingsOpen = false;
+		commandOpen = false;
 		inventoryOpen = false;
 		shopOpen = true;
 		activeShopTab = 'buy';
@@ -163,7 +163,7 @@
 	function releaseOverlayPause() {
 		const owner = pauseOwner;
 		const wasShopOpen = shopOpen;
-		settingsOpen = false;
+		commandOpen = false;
 		inventoryOpen = false;
 		shopOpen = false;
 		questLogOpen = false;
@@ -203,7 +203,7 @@
 			restoreTarget &&
 			document.contains(restoreTarget) &&
 			!restoreTarget.matches('[disabled], [aria-disabled="true"]') &&
-			!restoreTarget.closest('#game-settings-panel')
+			!restoreTarget.closest('#game-command-panel')
 		) {
 			restoreTarget.focus();
 			return;
@@ -231,7 +231,7 @@
 			restoreTarget &&
 			document.contains(restoreTarget) &&
 			!restoreTarget.matches('[disabled], [aria-disabled="true"]') &&
-			!restoreTarget.closest('#game-settings-panel')
+			!restoreTarget.closest('#game-command-panel')
 		) {
 			restoreTarget.focus();
 			return;
@@ -639,149 +639,91 @@
 		class="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(130,180,255,0.18),transparent_38%),linear-gradient(180deg,rgba(7,10,26,0.1),rgba(4,6,18,0.58)_85%,rgba(3,4,10,0.82))]"
 	></div>
 
-	<div class="pointer-events-auto absolute top-[7.75rem] right-4 z-20 sm:top-[8.25rem] sm:right-6">
+	<div class="pointer-events-auto absolute top-4 right-4 z-30 sm:top-6 sm:right-6">
 		<button
 			bind:this={menuButton}
 			type="button"
-			class="hud-menu-button rounded-full border border-white/14 bg-[linear-gradient(135deg,rgba(24,32,68,0.92),rgba(12,18,38,0.92))] px-4 py-3 text-[0.7rem] font-black tracking-[0.28em] text-cyan-50 uppercase shadow-[0_18px_40px_rgba(0,0,0,0.34)] transition hover:-translate-y-0.5 hover:border-cyan-200/40"
-			onclick={() => (settingsOpen ? closeSettings() : openSettings())}
-			aria-expanded={settingsOpen}
-			aria-controls="game-settings-panel"
+			class="jrpg-command-toggle"
+			onclick={() => (commandOpen ? closeCommand() : openCommand())}
+			aria-expanded={commandOpen}
+			aria-controls="game-command-panel"
 		>
 			{t($locale, 'ui.menu')}
 		</button>
 	</div>
 
 	{#if $hudState.quests.main}
-		<section
-			class="pointer-events-none absolute top-4 right-4 z-20 w-[calc(50vw-1.5rem)] rounded-[1.2rem] border border-cyan-100/14 bg-[linear-gradient(145deg,rgba(8,13,34,0.9),rgba(12,32,52,0.82))] px-3 py-2.5 text-slate-50 shadow-[0_18px_44px_rgba(0,0,0,0.3)] backdrop-blur-md sm:top-6 sm:right-6 sm:w-[min(25rem,calc(50vw-2rem))] sm:px-4 sm:py-3"
-			aria-label={t($locale, 'ui.questTracker')}
-		>
-			<p class="text-[0.58rem] font-black tracking-[0.28em] text-cyan-100/68 uppercase">
-				{t($locale, 'ui.mainQuest')}
-			</p>
-			<p class="mt-1 truncate text-sm font-black tracking-[0.08em] text-white uppercase">
-				{$hudState.quests.main.objective}
-			</p>
+		<section class="jrpg-ledger jrpg-quest-ledger" aria-label={t($locale, 'ui.questTracker')}>
+			<p class="jrpg-label">{t($locale, 'ui.mainQuest')}</p>
+			<p class="jrpg-ledger-title">{$hudState.quests.main.objective}</p>
 			{#if $hudState.quests.side.length > 0}
-				<p class="mt-1 text-xs font-bold text-emerald-100/78">
+				<p class="jrpg-ledger-subtitle">
 					{t($locale, 'ui.sideActive', { count: $hudState.quests.side.length })}
 				</p>
 			{/if}
 		</section>
 	{/if}
 
-	<section
-		class="pointer-events-none absolute top-4 left-4 z-20 sm:top-6 sm:left-6"
-		aria-label={t($locale, 'ui.playerStatus')}
-	>
-		<div
-			class="w-[calc(50vw-1.5rem)] rounded-[1.3rem] border border-white/12 bg-[linear-gradient(145deg,rgba(10,16,40,0.92),rgba(14,12,36,0.84)_55%,rgba(20,32,72,0.8))] px-3 py-2.5 shadow-[0_24px_60px_rgba(0,0,0,0.34)] backdrop-blur-md sm:w-[min(25rem,calc(50vw-2rem))] sm:rounded-[1.5rem] sm:px-4 sm:py-3"
-		>
-			<div class="grid grid-cols-[auto_minmax(0,1fr)] items-center gap-x-2 gap-y-2 sm:gap-x-4">
-				<div
-					class="flex h-11 w-11 flex-col items-center justify-center rounded-xl border border-fuchsia-300/20 bg-fuchsia-300/10 text-center shadow-[inset_0_1px_0_rgba(255,255,255,0.1)] sm:h-14 sm:w-14 sm:rounded-2xl"
-				>
-					<span class="text-[0.58rem] font-black tracking-[0.28em] text-fuchsia-100/70 uppercase">
-						{t($locale, 'ui.levelAbbrev')}
-					</span>
-					<span class="mt-0.5 text-lg font-black text-white sm:mt-1 sm:text-xl"
-						>{$hudState.level}</span
-					>
+	<section class="jrpg-ledger jrpg-hero-ledger" aria-label={t($locale, 'ui.playerStatus')}>
+		<div class="jrpg-level-mark">
+			<span>{t($locale, 'ui.levelAbbrev')}</span>
+			<strong>{$hudState.level}</strong>
+		</div>
+		<div class="jrpg-ledger-bars">
+			<div class="jrpg-meter-row jrpg-meter-row-hp">
+				<div class="jrpg-meter-copy">
+					<span>{t($locale, 'ui.hp')}</span>
+					<span>{$hudState.hp} / {$hudState.maxHp}</span>
 				</div>
-
-				<div class="grid gap-2">
-					<div class="grid gap-1">
-						<div
-							class="flex items-center justify-between text-[0.66rem] font-black tracking-[0.26em] text-rose-50/80 uppercase"
-						>
-							<span>{t($locale, 'ui.hp')}</span>
-							<span>{$hudState.hp} / {$hudState.maxHp}</span>
-						</div>
-						<div class="h-3 overflow-hidden rounded-full bg-white/10 ring-1 ring-white/10">
-							<div
-								class="h-full rounded-full bg-[linear-gradient(90deg,#ff5d8f_0%,#ff7f7a_40%,#ffd26a_100%)] shadow-[0_0_20px_rgba(255,112,145,0.55)] transition-[width] duration-300"
-								style={`width: ${hpPercent}%`}
-							></div>
-						</div>
-					</div>
-
-					<div class="grid gap-1">
-						<div
-							class="flex items-center justify-between text-[0.66rem] font-black tracking-[0.26em] text-cyan-50/76 uppercase"
-						>
-							<span>{t($locale, 'ui.xp')}</span>
-							<span>{$hudState.xp} / {xpTarget}</span>
-						</div>
-						<div class="h-2.5 overflow-hidden rounded-full bg-white/10 ring-1 ring-white/10">
-							<div
-								class="h-full rounded-full bg-[linear-gradient(90deg,#5de0ff_0%,#7f8bff_55%,#d98bff_100%)] shadow-[0_0_20px_rgba(110,164,255,0.45)] transition-[width] duration-300"
-								style={`width: ${xpPercent}%`}
-							></div>
-						</div>
-					</div>
+				<div class="jrpg-meter"><span style={`width: ${hpPercent}%`}></span></div>
+			</div>
+			<div class="jrpg-meter-row jrpg-meter-row-xp">
+				<div class="jrpg-meter-copy">
+					<span>{t($locale, 'ui.xp')}</span>
+					<span>{$hudState.xp} / {xpTarget}</span>
 				</div>
+				<div class="jrpg-meter"><span style={`width: ${xpPercent}%`}></span></div>
 			</div>
 		</div>
 	</section>
 
-	{#if settingsOpen}
-		<div
-			class="absolute inset-0 z-30 bg-black/24 backdrop-blur-[2px]"
-			role="presentation"
-			onclick={closeSettings}
-		></div>
-	{/if}
+	<div
+		class="jrpg-field-status"
+		role="status"
+		aria-label={t($locale, 'ui.fieldStatus')}
+		aria-live="polite"
+	>
+		{$hudState.status}
+	</div>
 
-	{#if settingsOpen}
+	{#if commandOpen}
+		<div
+			class="absolute inset-0 z-30 bg-black/20 backdrop-blur-[1px]"
+			role="presentation"
+			onclick={closeCommand}
+		></div>
 		<aside
-			id="game-settings-panel"
-			class="pointer-events-auto absolute top-40 right-4 z-40 w-[min(19rem,calc(100vw-2rem))] translate-y-0 rounded-[1.6rem] border border-white/12 bg-[linear-gradient(145deg,rgba(10,16,40,0.96),rgba(16,14,44,0.94))] p-4 text-slate-50 opacity-100 shadow-[0_28px_80px_rgba(0,0,0,0.45)] backdrop-blur-md transition-all duration-200 sm:top-44 sm:right-6"
+			id="game-command-panel"
+			class="jrpg-command-box"
+			role="region"
+			aria-label={t($locale, 'ui.command')}
 		>
-			<div class="flex items-center justify-between gap-3">
-				<div>
-					<p class="text-[0.62rem] font-black tracking-[0.34em] text-cyan-100/68 uppercase">
-						{t($locale, 'ui.systemMenu')}
-					</p>
-					<h2 class="mt-1 text-xl font-black tracking-[0.1em] text-white uppercase">
-						{t($locale, 'ui.settings')}
-					</h2>
-				</div>
-				<button
-					type="button"
-					class="rounded-full border border-white/12 bg-white/6 px-3 py-2 text-[0.65rem] font-black tracking-[0.24em] text-slate-100 uppercase transition hover:border-white/30"
-					onclick={closeSettings}
-				>
+			<div class="jrpg-command-heading">
+				<p class="jrpg-label">{t($locale, 'ui.command')}</p>
+				<button type="button" class="jrpg-small-button" onclick={closeCommand}>
 					{t($locale, 'ui.close')}
 				</button>
 			</div>
-
-			<div class="mt-4 grid gap-3">
-				<label
-					class="grid gap-2 rounded-[1.1rem] border border-white/10 bg-white/6 px-4 py-3 text-[0.68rem] font-black tracking-[0.22em] text-slate-100 uppercase"
-				>
-					<span>{t($locale, 'ui.language')}</span>
-					<select
-						value={$locale}
-						class="rounded-[0.8rem] border border-white/12 bg-slate-950/70 px-3 py-2 text-sm font-bold tracking-normal text-slate-50 transition outline-none focus:border-cyan-200/55"
-						onchange={(event) => setActiveLocale(event.currentTarget.value as Locale)}
-					>
-						{#each supportedLocales as option (option)}
-							<option value={option}>{localeLabels[option]}</option>
-						{/each}
-					</select>
-				</label>
-				<button
-					type="button"
-					class="hud-action rounded-[1.1rem] border border-cyan-200/20 bg-[linear-gradient(135deg,rgba(26,49,92,0.95),rgba(14,21,44,0.92))] px-4 py-3 text-sm font-black tracking-[0.24em] text-cyan-50 uppercase transition hover:-translate-y-0.5 hover:border-cyan-200/45 hover:shadow-[0_15px_30px_rgba(74,144,255,0.24)] disabled:translate-y-0 disabled:cursor-not-allowed disabled:opacity-45"
-					onclick={openQuestLog}
-					disabled={!$hudState.ready}
-				>
+			<div class="jrpg-command-list">
+				<button type="button" class="jrpg-command-action" onclick={openQuestLog} disabled={!$hudState.ready}>
 					{t($locale, 'ui.quests')}
+				</button>
+				<button type="button" class="jrpg-command-action" onclick={openInventory} disabled={!$hudState.ready}>
+					{t($locale, 'ui.inventory')}
 				</button>
 				<button
 					type="button"
-					class="hud-action rounded-[1.1rem] border border-amber-200/20 bg-[linear-gradient(135deg,rgba(115,75,25,0.96),rgba(63,41,18,0.92))] px-4 py-3 text-sm font-black tracking-[0.24em] text-amber-50 uppercase transition hover:-translate-y-0.5 hover:border-amber-200/45 hover:shadow-[0_15px_30px_rgba(255,190,90,0.22)] disabled:translate-y-0 disabled:cursor-not-allowed disabled:opacity-45"
+					class="jrpg-command-action"
 					onclick={openShop}
 					disabled={!$hudState.ready || !$hudState.nearbyShop}
 				>
@@ -789,43 +731,38 @@
 				</button>
 				<button
 					type="button"
-					class="hud-action rounded-[1.1rem] border border-emerald-200/20 bg-[linear-gradient(135deg,rgba(20,91,76,0.95),rgba(12,42,48,0.92))] px-4 py-3 text-sm font-black tracking-[0.24em] text-emerald-50 uppercase transition hover:-translate-y-0.5 hover:border-emerald-200/45 hover:shadow-[0_15px_30px_rgba(62,205,155,0.22)] disabled:translate-y-0 disabled:cursor-not-allowed disabled:opacity-45"
-					onclick={openInventory}
-					disabled={!$hudState.ready}
-				>
-					{t($locale, 'ui.inventory')}
-				</button>
-				<button
-					type="button"
-					class="hud-action rounded-[1.1rem] border border-cyan-200/20 bg-[linear-gradient(135deg,rgba(26,49,92,0.95),rgba(14,21,44,0.92))] px-4 py-3 text-sm font-black tracking-[0.24em] text-cyan-50 uppercase transition hover:-translate-y-0.5 hover:border-cyan-200/45 hover:shadow-[0_15px_30px_rgba(74,144,255,0.24)] disabled:translate-y-0 disabled:cursor-not-allowed disabled:opacity-45"
+					class="jrpg-command-action"
 					onclick={resumeSaveFromMenu}
 					disabled={!$hudState.ready || !$hudState.canResume}
 				>
 					{t($locale, 'ui.resumeSave')}
 				</button>
-				<button
-					type="button"
-					class="hud-action rounded-[1.1rem] border border-violet-200/20 bg-[linear-gradient(135deg,rgba(47,31,96,0.95),rgba(21,16,52,0.92))] px-4 py-3 text-sm font-black tracking-[0.24em] text-violet-50 uppercase transition hover:-translate-y-0.5 hover:border-violet-200/45 hover:shadow-[0_15px_30px_rgba(125,92,255,0.24)] disabled:translate-y-0 disabled:cursor-not-allowed disabled:opacity-45"
-					onclick={saveFromMenu}
-					disabled={!$hudState.ready}
-				>
+				<button type="button" class="jrpg-command-action" onclick={saveFromMenu} disabled={!$hudState.ready}>
 					{t($locale, 'ui.saveGame')}
 				</button>
 				<button
 					type="button"
-					class="hud-action rounded-[1.1rem] border border-amber-200/20 bg-[linear-gradient(135deg,rgba(127,68,32,0.96),rgba(78,33,17,0.92))] px-4 py-3 text-sm font-black tracking-[0.24em] text-amber-50 uppercase transition hover:-translate-y-0.5 hover:border-amber-200/45 hover:shadow-[0_15px_30px_rgba(255,152,72,0.24)] disabled:translate-y-0 disabled:cursor-not-allowed disabled:opacity-45"
+					class="jrpg-command-action"
 					onclick={requestHeal}
 					disabled={!$hudState.ready || $hudState.heals < 1}
 				>
 					{t($locale, 'ui.useHeal')}
 				</button>
 			</div>
-
-			<div
-				class="mt-4 rounded-[1.2rem] border border-white/8 bg-white/6 px-4 py-3 text-sm text-slate-200/82"
-			>
-				<p>{$hudState.status}</p>
+			<div class="jrpg-command-status">
+				{$hudState.status}
 			</div>
+			<label class="jrpg-system-row">
+				<span>{t($locale, 'ui.language')}</span>
+				<select
+					value={$locale}
+					onchange={(event) => setActiveLocale(event.currentTarget.value as Locale)}
+				>
+					{#each supportedLocales as option (option)}
+						<option value={option}>{localeLabels[option]}</option>
+					{/each}
+				</select>
+			</label>
 		</aside>
 	{/if}
 
@@ -1447,8 +1384,315 @@
 		display: block;
 	}
 
-	.hud-action {
+	.game-shell {
+		--jrpg-ink: #070916;
+		--jrpg-panel: rgba(9, 13, 31, 0.93);
+		--jrpg-panel-strong: rgba(8, 11, 27, 0.97);
+		--jrpg-frame: rgba(244, 229, 184, 0.24);
+		--jrpg-frame-strong: rgba(244, 229, 184, 0.42);
+		--jrpg-text: #fff7df;
+		--jrpg-muted: rgba(255, 247, 223, 0.68);
+		--jrpg-cyan: #9fe7ff;
+		--jrpg-emerald: #9ff7cb;
+		--jrpg-amber: #ffd37a;
+		--jrpg-radius: 0.55rem;
+		--jrpg-shadow: 0 18px 48px rgba(0, 0, 0, 0.38);
+	}
+
+	.jrpg-ledger,
+	.jrpg-command-box,
+	.jrpg-field-status {
+		position: absolute;
+		border: 1px solid var(--jrpg-frame);
+		background: linear-gradient(145deg, var(--jrpg-panel), rgba(12, 18, 42, 0.88));
+		color: var(--jrpg-text);
+		box-shadow: var(--jrpg-shadow), inset 0 1px 0 rgba(255, 255, 255, 0.08);
 		backdrop-filter: blur(14px);
+	}
+
+	.jrpg-label {
+		margin: 0;
+		font-size: 0.62rem;
+		font-weight: 900;
+		letter-spacing: 0.18em;
+		color: var(--jrpg-cyan);
+		text-transform: uppercase;
+	}
+
+	.jrpg-hero-ledger {
+		top: 1rem;
+		left: 1rem;
+		z-index: 20;
+		display: grid;
+		width: min(22rem, calc(50vw - 1.5rem));
+		grid-template-columns: auto minmax(0, 1fr);
+		gap: 0.8rem;
+		border-radius: var(--jrpg-radius);
+		padding: 0.7rem;
+		pointer-events: none;
+	}
+
+	.jrpg-quest-ledger {
+		top: 1rem;
+		right: 1rem;
+		z-index: 20;
+		width: min(23rem, calc(50vw - 1.5rem));
+		border-radius: var(--jrpg-radius);
+		padding: 0.7rem 0.85rem;
+		pointer-events: none;
+	}
+
+	.jrpg-level-mark {
+		display: grid;
+		min-width: 3.2rem;
+		place-items: center;
+		border: 1px solid rgba(244, 229, 184, 0.18);
+		border-radius: 0.45rem;
+		background: rgba(255, 255, 255, 0.07);
+	}
+
+	.jrpg-level-mark span {
+		font-size: 0.58rem;
+		font-weight: 900;
+		letter-spacing: 0.16em;
+		color: var(--jrpg-muted);
+	}
+
+	.jrpg-level-mark strong {
+		font-size: 1.25rem;
+		line-height: 1;
+	}
+
+	.jrpg-ledger-title {
+		margin: 0.2rem 0 0;
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+		font-size: 0.9rem;
+		font-weight: 900;
+		color: var(--jrpg-text);
+	}
+
+	.jrpg-ledger-subtitle {
+		margin: 0.2rem 0 0;
+		font-size: 0.78rem;
+		font-weight: 800;
+		color: var(--jrpg-emerald);
+	}
+
+	.jrpg-meter-row {
+		display: grid;
+		gap: 0.28rem;
+	}
+
+	.jrpg-ledger-bars {
+		display: grid;
+		gap: 0.55rem;
+	}
+
+	.jrpg-meter-copy {
+		display: flex;
+		justify-content: space-between;
+		gap: 0.5rem;
+		font-size: 0.68rem;
+		font-weight: 900;
+		letter-spacing: 0.12em;
+		color: var(--jrpg-muted);
+	}
+
+	.jrpg-meter {
+		height: 0.48rem;
+		overflow: hidden;
+		border-radius: 999px;
+		background: rgba(255, 255, 255, 0.12);
+	}
+
+	.jrpg-meter span {
+		display: block;
+		height: 100%;
+		border-radius: inherit;
+		transition: width 180ms ease;
+	}
+
+	.jrpg-meter-row-hp .jrpg-meter span {
+		background: linear-gradient(90deg, #f05268, #ffd36e);
+	}
+
+	.jrpg-meter-row-xp .jrpg-meter span {
+		background: linear-gradient(90deg, #5ed8ff, #8fa8ff);
+	}
+
+	.jrpg-command-toggle {
+		border: 1px solid var(--jrpg-frame);
+		border-radius: var(--jrpg-radius);
+		background: var(--jrpg-panel-strong);
+		padding: 0.7rem 0.9rem;
+		color: var(--jrpg-text);
+		font-size: 0.72rem;
+		font-weight: 900;
+		letter-spacing: 0.16em;
+		text-transform: uppercase;
+		box-shadow: var(--jrpg-shadow);
+		transition:
+			transform 160ms ease,
+			border-color 160ms ease;
+	}
+
+	.jrpg-command-toggle:hover,
+	.jrpg-command-toggle:focus-visible {
+		border-color: var(--jrpg-frame-strong);
+		transform: translateY(-1px);
+		outline: none;
+	}
+
+	.jrpg-command-box {
+		top: 5.2rem;
+		right: 1rem;
+		z-index: 40;
+		width: min(19rem, calc(100vw - 2rem));
+		max-height: calc(100vh - 13rem);
+		overflow-y: auto;
+		border-radius: var(--jrpg-radius);
+		padding: 0.85rem;
+	}
+
+	.jrpg-command-heading {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		gap: 0.75rem;
+	}
+
+	.jrpg-command-list {
+		display: grid;
+		gap: 0.45rem;
+		margin-top: 0.75rem;
+	}
+
+	.jrpg-command-action,
+	.jrpg-small-button {
+		border: 1px solid rgba(244, 229, 184, 0.18);
+		background: rgba(255, 255, 255, 0.07);
+		color: var(--jrpg-text);
+		font-weight: 900;
+		transition:
+			transform 160ms ease,
+			border-color 160ms ease,
+			background 160ms ease;
+	}
+
+	.jrpg-command-action {
+		border-radius: 0.42rem;
+		padding: 0.68rem 0.75rem;
+		text-align: left;
+		font-size: 0.82rem;
+		letter-spacing: 0.12em;
+		text-transform: uppercase;
+	}
+
+	.jrpg-small-button {
+		border-radius: 999px;
+		padding: 0.42rem 0.65rem;
+		font-size: 0.62rem;
+		letter-spacing: 0.12em;
+		text-transform: uppercase;
+	}
+
+	.jrpg-command-action:hover:not(:disabled),
+	.jrpg-command-action:focus-visible,
+	.jrpg-small-button:hover,
+	.jrpg-small-button:focus-visible {
+		border-color: var(--jrpg-frame-strong);
+		background: rgba(244, 229, 184, 0.12);
+		transform: translateX(2px);
+		outline: none;
+	}
+
+	.jrpg-command-action:disabled {
+		cursor: not-allowed;
+		opacity: 0.45;
+	}
+
+	.jrpg-command-status {
+		margin-top: 0.75rem;
+		border: 1px solid rgba(159, 231, 255, 0.24);
+		border-radius: 0.42rem;
+		background: rgba(159, 231, 255, 0.08);
+		padding: 0.62rem 0.7rem;
+		color: var(--jrpg-cyan);
+		font-size: 0.78rem;
+		font-weight: 900;
+		line-height: 1.35;
+	}
+
+	.jrpg-system-row {
+		display: grid;
+		gap: 0.45rem;
+		margin-top: 0.85rem;
+		border-top: 1px solid rgba(244, 229, 184, 0.14);
+		padding-top: 0.85rem;
+		color: var(--jrpg-muted);
+		font-size: 0.68rem;
+		font-weight: 900;
+		letter-spacing: 0.12em;
+		text-transform: uppercase;
+	}
+
+	.jrpg-system-row select {
+		border: 1px solid rgba(244, 229, 184, 0.18);
+		border-radius: 0.42rem;
+		background: rgba(0, 0, 0, 0.28);
+		padding: 0.55rem 0.65rem;
+		color: var(--jrpg-text);
+		font-size: 0.86rem;
+		font-weight: 800;
+		letter-spacing: 0;
+		text-transform: none;
+	}
+
+	.jrpg-field-status {
+		right: 1rem;
+		bottom: 23%;
+		z-index: 20;
+		max-width: min(24rem, calc(100vw - 2rem));
+		border-radius: 999px;
+		padding: 0.52rem 0.75rem;
+		font-size: 0.8rem;
+		font-weight: 900;
+		color: var(--jrpg-cyan);
+		pointer-events: none;
+	}
+
+	@media (max-width: 720px) {
+		.jrpg-hero-ledger,
+		.jrpg-quest-ledger {
+			left: 0.75rem;
+			right: 0.75rem;
+			width: auto;
+		}
+
+		.jrpg-quest-ledger {
+			top: 5.4rem;
+		}
+
+		.jrpg-command-toggle {
+			padding: 0.6rem 0.72rem;
+		}
+
+		.jrpg-command-box {
+			top: auto;
+			right: 0.75rem;
+			bottom: 25%;
+			width: min(16rem, calc(100vw - 1.5rem));
+			max-height: 42vh;
+		}
+
+		.jrpg-field-status {
+			right: 0.75rem;
+			bottom: 20%;
+			left: 0.75rem;
+			max-width: none;
+		}
 	}
 
 	.inventory-slot-name,
