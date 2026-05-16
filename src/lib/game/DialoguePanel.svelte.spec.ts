@@ -347,6 +347,9 @@ describe('DialoguePanel.svelte', () => {
 					main: {
 						questId: 'investigate-the-ruins',
 						title: 'Investigate the Ruins',
+						type: 'main',
+						status: 'active',
+						description: 'Report to the Guild Master, then defeat the ruins warden.',
 						objective: 'Talk to the Guild Master.',
 						progress: { label: 'Guild Master spoken to', current: 0, target: 1 },
 						rewardSummary: '8 XP / 20 coins'
