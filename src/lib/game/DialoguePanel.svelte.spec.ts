@@ -338,4 +338,40 @@ describe('DialoguePanel.svelte', () => {
 		expect(badgeLabels).toContain('Weapon');
 		expect(badgeLabels).not.toContain('weapon');
 	});
+
+	it('uses the shared JRPG window frame for inventory and quest log overlays', async () => {
+		render(GameShell);
+		emitHudState(
+			createReadyHudState({
+				quests: {
+					main: {
+						questId: 'investigate-the-ruins',
+						title: 'Investigate the Ruins',
+						objective: 'Talk to the Guild Master.',
+						progress: { label: 'Guild Master spoken to', current: 0, target: 1 },
+						rewardSummary: '8 XP / 20 coins'
+					},
+					side: [],
+					completed: [],
+					guildOffer: null
+				}
+			})
+		);
+
+		await page.getByRole('button', { name: 'Menu' }).click();
+		await page.getByRole('button', { name: 'Inventory' }).click();
+
+		const inventoryDialog = page.getByRole('dialog', { name: 'Inventory' }).element();
+		expect(inventoryDialog.classList.contains('jrpg-window')).toBe(true);
+		expect(inventoryDialog.querySelector('.jrpg-window-header')).not.toBeNull();
+		expect(inventoryDialog.querySelector('.jrpg-side-rail')).not.toBeNull();
+
+		await page.getByRole('button', { name: 'Close' }).click();
+		await page.getByRole('button', { name: 'Menu' }).click();
+		await page.getByRole('button', { name: 'Quests' }).click();
+
+		const questDialog = page.getByRole('dialog', { name: 'Quest Log' }).element();
+		expect(questDialog.classList.contains('jrpg-window')).toBe(true);
+		expect(questDialog.querySelector('.jrpg-window-header')).not.toBeNull();
+	});
 });
