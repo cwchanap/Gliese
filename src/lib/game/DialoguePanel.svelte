@@ -59,7 +59,7 @@
 </script>
 
 <dialog
-	class="pointer-events-auto absolute inset-x-0 bottom-0 z-[70] m-0 w-screen max-w-none rounded-t-[1.2rem] border border-x-0 border-b-0 border-white/18 bg-[linear-gradient(145deg,rgba(8,13,34,0.96),rgba(16,24,44,0.94))] p-4 text-slate-50 shadow-[0_24px_70px_rgba(0,0,0,0.48)] backdrop-blur-md sm:p-5"
+	class="jrpg-dialogue-panel pointer-events-auto absolute inset-x-0 bottom-0 z-[70] m-0 w-screen max-w-none text-slate-50"
 	aria-label={dialogue.speaker}
 	bind:this={panel}
 	open
@@ -68,13 +68,13 @@
 >
 	<div class="grid gap-3">
 		<div class="flex items-center justify-between gap-3">
-			<p class="text-[0.65rem] font-black tracking-[0.28em] text-cyan-100/75 uppercase">
+			<p class="jrpg-dialogue-speaker">
 				{dialogue.speaker}
 			</p>
 			{#if dialogue.canClose}
 				<button
 					type="button"
-					class="rounded-full border border-white/14 bg-white/8 px-3 py-1.5 text-[0.62rem] font-black tracking-[0.2em] text-slate-100 uppercase"
+					class="jrpg-dialogue-action jrpg-dialogue-action-secondary"
 					onclick={onclose}
 				>
 					{t($locale, 'ui.close')}
@@ -82,14 +82,14 @@
 			{/if}
 		</div>
 
-		<p class="min-h-[3rem] text-base leading-7 text-slate-50 sm:text-lg">{dialogue.line}</p>
+		<p class="jrpg-dialogue-line">{dialogue.line}</p>
 
 		{#if dialogue.mode === 'choice'}
 			<div class="grid gap-2 sm:grid-cols-2">
 				{#each dialogue.choices as choice (choice.id)}
 					<button
 						type="button"
-						class="rounded-[0.8rem] border border-cyan-100/18 bg-cyan-100/8 px-3 py-2 text-left text-sm font-black tracking-[0.08em] text-cyan-50 uppercase transition hover:border-cyan-100/42 hover:bg-cyan-100/14"
+						class="jrpg-dialogue-choice"
 						onclick={() => onchoose(choice.id)}
 					>
 						{choice.label}
@@ -100,7 +100,7 @@
 			<div class="flex justify-end">
 				<button
 					type="button"
-					class="rounded-full border border-cyan-100/22 bg-cyan-100/10 px-4 py-2 text-xs font-black tracking-[0.2em] text-cyan-50 uppercase"
+					class="jrpg-dialogue-action"
 					onclick={onadvance}
 				>
 					{t($locale, 'ui.next')}
@@ -109,3 +109,84 @@
 		{/if}
 	</div>
 </dialog>
+
+<style>
+	.jrpg-dialogue-panel {
+		border: 1px solid rgba(244, 229, 184, 0.28);
+		border-right: 0;
+		border-bottom: 0;
+		border-left: 0;
+		border-radius: 0.8rem 0.8rem 0 0;
+		background: linear-gradient(145deg, rgba(8, 11, 27, 0.98), rgba(15, 20, 40, 0.96));
+		padding: 1rem;
+		color: #fff7df;
+		box-shadow: 0 -24px 70px rgba(0, 0, 0, 0.48), inset 0 1px 0 rgba(255, 255, 255, 0.08);
+		backdrop-filter: blur(14px);
+	}
+
+	.jrpg-dialogue-speaker {
+		margin: 0;
+		font-size: 0.68rem;
+		font-weight: 900;
+		letter-spacing: 0.18em;
+		color: #9fe7ff;
+		text-transform: uppercase;
+	}
+
+	.jrpg-dialogue-line {
+		min-height: 3rem;
+		margin: 0;
+		color: #fff7df;
+		font-size: clamp(1rem, 2vw, 1.12rem);
+		line-height: 1.65;
+	}
+
+	.jrpg-dialogue-choice,
+	.jrpg-dialogue-action {
+		border: 1px solid rgba(244, 229, 184, 0.2);
+		background: rgba(255, 255, 255, 0.07);
+		color: #fff7df;
+		font-weight: 900;
+		transition:
+			border-color 160ms ease,
+			background 160ms ease,
+			transform 160ms ease;
+	}
+
+	.jrpg-dialogue-choice {
+		border-radius: 0.5rem;
+		padding: 0.65rem 0.75rem;
+		text-align: left;
+		font-size: 0.84rem;
+		letter-spacing: 0.08em;
+		text-transform: uppercase;
+	}
+
+	.jrpg-dialogue-action {
+		border-radius: 999px;
+		padding: 0.55rem 0.9rem;
+		font-size: 0.7rem;
+		letter-spacing: 0.14em;
+		text-transform: uppercase;
+	}
+
+	.jrpg-dialogue-action-secondary {
+		color: rgba(255, 247, 223, 0.78);
+	}
+
+	.jrpg-dialogue-choice:hover,
+	.jrpg-dialogue-choice:focus-visible,
+	.jrpg-dialogue-action:hover,
+	.jrpg-dialogue-action:focus-visible {
+		border-color: rgba(244, 229, 184, 0.42);
+		background: rgba(244, 229, 184, 0.12);
+		transform: translateY(-1px);
+	}
+
+	.jrpg-dialogue-choice:focus-visible,
+	.jrpg-dialogue-action:focus-visible {
+		outline: 2px solid var(--jrpg-cyan, #9fe7ff);
+		outline-offset: 3px;
+		box-shadow: 0 0 0 4px rgba(159, 231, 255, 0.18);
+	}
+</style>

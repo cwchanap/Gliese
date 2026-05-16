@@ -186,6 +186,14 @@ describe('DialoguePanel.svelte', () => {
 		expect(window.innerWidth - bounds.right).toBeLessThan(1);
 	});
 
+	it('uses the JRPG dialogue frame class', async () => {
+		renderDialogue();
+
+		const panel = page.getByRole('dialog', { name: 'Guild Master Arlen' }).element();
+
+		expect(panel.classList.contains('jrpg-dialogue-panel')).toBe(true);
+	});
+
 	it.each([
 		['Enter', '{Enter}'],
 		['Space', '{Space}']
