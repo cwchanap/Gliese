@@ -262,6 +262,38 @@ describe('DialoguePanel.svelte', () => {
 		expect(getActiveLocale()).toBe('ja');
 	});
 
+	it('opens a JRPG command box and keeps status in a field prompt', async () => {
+		render(GameShell);
+		emitHudState(createReadyHudState({ status: 'HP already full' }));
+
+		await page.getByRole('button', { name: 'Menu' }).click();
+
+		const commandBox = page.getByRole('region', { name: 'Command' });
+		await expect.element(commandBox).toBeVisible();
+		await expect.element(commandBox.getByRole('button', { name: 'Inventory' })).toBeVisible();
+		await expect.element(commandBox.getByRole('button', { name: 'Quests' })).toBeVisible();
+		await expect.element(commandBox.getByRole('button', { name: 'Save Game' })).toBeVisible();
+		await expect.element(page.getByRole('status', { name: 'Field status' })).toHaveTextContent(
+			'HP already full'
+		);
+
+		expect(document.getElementById('game-settings-panel')).toBeNull();
+	});
+
+	it('keeps the command box above the dialogue-safe lower playfield', async () => {
+		render(GameShell);
+		emitHudState(createReadyHudState({ status: 'Ready' }));
+
+		await page.getByRole('button', { name: 'Menu' }).click();
+
+		const commandBounds = page
+			.getByRole('region', { name: 'Command' })
+			.element()
+			.getBoundingClientRect();
+
+		expect(commandBounds.bottom).toBeLessThan(window.innerHeight * 0.78);
+	});
+
 	it('renders inventory equipment badges with localized slot labels', async () => {
 		render(GameShell);
 		emitHudState(
