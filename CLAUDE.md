@@ -11,7 +11,7 @@ via Tauri's `fs` plugin.
 
 - **Language**: TypeScript (Svelte 5 runes mode enforced project-wide via `svelte.config.js`)
 - **Package Manager**: bun
-- **Frontend**: Vite + Svelte 5; single mounted `App.svelte` (no router, no SvelteKit)
+- **Frontend**: Vite + Svelte 5; single mounted `App.svelte` (no router, no SvelteKit). The committed `README.md` is leftover scaffold text and incorrectly references SvelteKit and a `/game` route — trust this file over `README.md`.
 - **Desktop shell**: Tauri v2 (`src-tauri/` Rust crate)
 - **Targets**: macOS, Windows
 - **`AGENTS.md` is a symlink to this file** — both Claude and other agents read the same instructions; edit `CLAUDE.md` only.
@@ -84,22 +84,30 @@ which:
 A `tauri://close-requested` handler in `main.ts` flushes pending writes
 (3s timeout) before the window closes.
 
+The same `SaveStorage` adapter also backs **non-save** preferences (language: key `gliese.preferences.v1`), so anything written through `getSaveStorage()` lands in the same backing store as the main save.
+
 ### Game Layer (`src/lib/game/`)
 
 ```
-content/     Static game definitions (assets, enemies, items, maps, player, shops)
+content/     Static game definitions (assets, dialogue, enemies, items, maps, player, quests, shops)
 core/        Pure TS game logic — no Phaser, no DOM
-             (combat, boss, progression, input, types, inventory, equipment, shop, stats, loot)
+             (combat, boss, progression, input, types, inventory, equipment, shop, stats, loot,
+              dialogue runtime, quests)
 phaser/      Phaser integration
   scenes/
     BootScene.ts    Loads the sprite sheet asset, then hands off to WorldScene
-    WorldScene.ts   Main game loop: movement, combat, transitions, save/load, NPC + shop interaction
+    WorldScene.ts   Main game loop: movement, combat, transitions, save/load, NPC + shop +
+                    dialogue + quest interaction
   createGame.ts     Dynamic-imports Phaser, instantiates the Game object
-save/        SaveState type, serialize/parse/validate, localStorage wrapper
+save/        SaveState type, serialize/parse/validate, storage adapter swapping
+i18n/        Locale-aware UI text: locales registry (en, ja, zh-Hant), translate()/content
+             helpers, preferences persistence, and a Svelte-readable `locale` store. Boot
+             calls `initializeLocale()` from `main.ts` after the save storage is wired up.
 ui-bridge/   Phaser ↔ Svelte communication
   events.ts   Custom DOM events: gliese:hud-state (Phaser → UI) and gliese:hud-command (UI → Phaser)
   store.ts    Svelte readable store wrapping onHudState; exposes request helpers
-GameShell.svelte   Mounts the Phaser canvas via onMount, renders the HUD overlay
+GameShell.svelte    Mounts the Phaser canvas via onMount, renders the HUD overlay
+DialoguePanel.svelte NPC / system dialogue UI driven by `HudState.dialogue`
 ```
 
 ### Phaser ↔ Svelte Bridge
@@ -108,15 +116,18 @@ Phaser and Svelte communicate exclusively through custom `window` events (define
 
 - `WorldScene` calls `emitHudState(...)` after every meaningful state change
 - The Svelte HUD reads `$hudState` (a readable store backed by `onHudState`)
-- The Svelte HUD dispatches commands via `emitHudCommand(...)`, which `WorldScene` receives via `onHudCommand`. The `HudCommand` union currently covers: `heal`, `save`, `resume-save`, `pause-game`, `resume-game`, `use-item`, `equip-item`, `unequip-slot`, `open-shop`, `close-shop`, `buy-shop-item`, `sell-inventory-item`. When adding a new command, update the union in `ui-bridge/events.ts` and handle it in both `WorldScene` and the HUD.
+- The Svelte HUD dispatches commands via `emitHudCommand(...)`, which `WorldScene` receives via `onHudCommand`. The `HudCommand` union currently covers: `heal`, `save`, `resume-save`, `pause-game`, `resume-game`, `use-item`, `equip-item`, `unequip-slot`, `open-shop`, `close-shop`, `buy-shop-item`, `sell-inventory-item`, `accept-quest`, `dialogue-advance`, `dialogue-close`, `dialogue-choose`. When adding a new command, update the union in `ui-bridge/events.ts` and handle it in both `WorldScene` and the HUD.
 
 ### Content / Data Model
 
-- **Maps**: `meadow-entry` is the hub, with interior maps (`hero-house`, `guild-hall`, `item-shop`, `villager-house-1/2/3`) and the dungeon chain `ruins-threshold` → `ruins-core`. A `WorldMapDefinition` may carry transitions, encounters, pickups, NPCs (with optional `shopId`), and landmark rectangles.
+- **Maps**: `meadow-entry` is the hub, with interior maps (`hero-house`, `guild-hall`, `item-shop`, `villager-house-1/2/3`) and the dungeon chain `ruins-threshold` → `ruins-core`. A `WorldMapDefinition` may carry transitions, encounters, pickups, NPCs (with optional `shopId` and/or `dialogueId`), and landmark rectangles.
 - **Enemies**: `slime-scout` (normal), `ruins-warden` (boss with a phase-2 enrage at ≤50% HP)
 - **Items / shops**: Items are defined in `content/items.ts` (consumables, equipment with `StatModifiers`, key items). Shops in `content/shops.ts` reference item IDs with per-shop stock and pricing. Wallet/coin state lives in `core/shop.ts`.
+- **Dialogue**: Conversation trees live in `content/dialogue.ts`; runtime traversal/state lives in `core/dialogue.ts` and is surfaced to the HUD as `HudState.dialogue` (modes: `conversation`, `choice`, `system`). The HUD drives it with the `dialogue-advance` / `dialogue-close` / `dialogue-choose` commands.
+- **Quests**: Definitions in `content/quests.ts` (including `mainQuestId`); runtime state machine in `core/quests.ts`. `QuestState` is part of `SaveState`; HUD surfaces it as `HudState.quests` and accepts via `accept-quest`.
+- **i18n**: Locales are `en` (default), `ja`, `zh-Hant`. `initializeLocale()` resolves preference order: persisted preference (key `gliese.preferences.v1` via `SaveStorage`) → first supported `navigator.languages` match → `defaultLocale`. Use `translate(...)` for UI strings and `content(...)` for content-derived text; new UI strings must be added to every locale file under `i18n/messages/`.
 - **Sprites**: Single sprite sheet at `public/game/assets/starter-pack.png`; frame coordinates are declared in `content/assets.ts` and registered at runtime in `WorldScene.registerStarterPackFrames()`
-- **Save**: JSON serialized via the active `SaveStorage` adapter under key `gliese.save.v3` (`SAVE_STORAGE_KEY` in `src/lib/game/save/storage.ts`). In Tauri the adapter persists to `gliese-save.json` in the app-data directory; in a plain browser it falls back to `localStorage`. The payload's `version` field tracks the schema and is currently `3`; bump it and update `isSaveState` whenever `SaveState` changes shape.
+- **Save**: JSON serialized via the active `SaveStorage` adapter under key `gliese.save.v4` (`SAVE_STORAGE_KEY` in `src/lib/game/save/storage.ts`). In Tauri the adapter persists to `gliese-save.json` in the app-data directory; in a plain browser it falls back to `localStorage`. The payload's `version` field tracks the schema and is currently `4`; bump both `SAVE_STORAGE_KEY` and `version` and update `isSaveState` whenever `SaveState` changes shape.
 
 ### Repo-level docs
 
