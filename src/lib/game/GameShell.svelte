@@ -1807,8 +1807,14 @@
 			width: auto;
 		}
 
+		.jrpg-hero-ledger {
+			right: 5.85rem;
+			gap: 0.65rem;
+			padding: 0.62rem;
+		}
+
 		.jrpg-quest-ledger {
-			top: 5.4rem;
+			top: 7.35rem;
 		}
 
 		.jrpg-command-toggle {
