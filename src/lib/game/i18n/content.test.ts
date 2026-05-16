@@ -15,12 +15,12 @@ import {
 } from '$lib/game/i18n/content';
 
 describe('localized content helpers', () => {
-	it('resolves item text with English fallback', () => {
+	it('resolves item text in the requested locale', () => {
 		expect(getItemText('en', 'field-potion')).toEqual({
 			name: 'Field Potion',
 			description: 'Restores 8 HP.'
 		});
-		expect(getItemText('ja', 'field-potion')?.name).toBe('Field Potion');
+		expect(getItemText('ja', 'field-potion')?.name).toBe('フィールドポーション');
 	});
 
 	it('resolves shop, NPC, map landmark, and quest text', () => {

@@ -292,7 +292,7 @@ describe('shop core', () => {
 		]);
 	});
 
-	it('falls back to English shop entry text for untranslated locales', () => {
+	it('localizes shop entry text for Japanese', () => {
 		const buyEntries = buildShopBuyEntries(
 			'guild-quartermaster',
 			createInitialShopStockState(),
@@ -307,20 +307,20 @@ describe('shop core', () => {
 		expect(buyEntries).toContainEqual(
 			expect.objectContaining({
 				itemId: 'iron-cap',
-				name: 'Iron Cap',
-				description: 'Simple protection for dangerous ruins.'
+				name: '鉄兜',
+				description: '危険な遺跡に備える簡素な防具。'
 			})
 		);
 		expect(sellEntries).toEqual([
 			expect.objectContaining({
 				itemId: 'field-potion',
-				name: 'Field Potion',
-				description: 'Restores 8 HP.'
+				name: 'フィールドポーション',
+				description: 'HPを8回復する。'
 			}),
 			expect.objectContaining({
 				itemId: 'iron-cap',
-				name: 'Iron Cap',
-				description: 'Simple protection for dangerous ruins.'
+				name: '鉄兜',
+				description: '危険な遺跡に備える簡素な防具。'
 			})
 		]);
 	});

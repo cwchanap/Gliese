@@ -445,7 +445,7 @@ describe('quest core', () => {
 		).toBe(null);
 	});
 
-	it('falls back to English quest HUD text for untranslated locales', () => {
+	it('localizes quest HUD text for Japanese', () => {
 		const unlocked = applyQuestEvent({
 			state: createInitialQuestState(),
 			event: { type: 'talk-to-npc', npcId: 'guild-master' }
@@ -457,18 +457,18 @@ describe('quest core', () => {
 		});
 
 		expect(hud.main).toMatchObject({
-			title: 'Investigate the Ruins',
-			description: 'Report to the Guild Master, then defeat the ruins warden.',
-			objective: 'Defeat the ruins warden in the ruins core.',
-			progress: { current: 0, target: 1, label: 'Ruins warden defeated' },
-			rewardSummary: '15 XP / 35 coins / 1 item'
+			title: '遺跡を調査せよ',
+			description: 'ギルドマスターに報告し、その後で遺跡の守護者を倒す。',
+			objective: '遺跡の中心部で守護者を倒す。',
+			progress: { current: 0, target: 1, label: '遺跡の守護者を倒した' },
+			rewardSummary: '15XP / 35コイン / 1個'
 		});
-		expect(hud.guildOffer?.giverName).toBe('Guild Master Arlen');
+		expect(hud.guildOffer?.giverName).toBe('ギルドマスター・アーレン');
 		expect(hud.guildOffer?.quests[0]).toMatchObject({
-			title: 'Thin Village Slimes',
-			description: 'Clear the slimes gathering on the village road.',
-			objective: 'Defeat slimes near the village.',
-			rewardSummary: '6 XP / 12 coins / 1 item'
+			title: '村道のスライム掃討',
+			description: '村へ続く道に集まったスライムを一掃する。',
+			objective: '村の近くでスライムを倒す。',
+			rewardSummary: '6XP / 12コイン / 1個'
 		});
 	});
 });

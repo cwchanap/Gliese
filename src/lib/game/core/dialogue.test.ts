@@ -163,7 +163,7 @@ describe('dialogue core', () => {
 		});
 	});
 
-	it('falls back to English dialogue text for untranslated locales', () => {
+	it('localizes dialogue text for Japanese', () => {
 		const questState = applyQuestEvent({
 			state: createInitialQuestState(),
 			event: { type: 'talk-to-npc', npcId: 'guild-master' }
@@ -191,32 +191,28 @@ describe('dialogue core', () => {
 		});
 
 		expect(session).toMatchObject({
-			speaker: 'Guild Master Arlen',
-			line: 'The ruins route is open. Steel yourself before you enter the core.'
+			speaker: 'ギルドマスター・アーレン',
+			line: '遺跡への道は開いた。中へ入る前に、しっかり備えていけ。'
 		});
-		expect(session.choices.map((choice) => choice.label)).toEqual(['Quest']);
+		expect(session.choices.map((choice) => choice.label)).toEqual(['依頼']);
 		expect(list.session).toMatchObject({
-			speaker: 'Guild Master Arlen',
-			line: 'Choose the Guild work you want to review.'
+			speaker: 'ギルドマスター・アーレン',
+			line: '確認したいギルド仕事を選んでください。'
 		});
 		expect(list.session.choices.map((choice) => choice.label)).toEqual([
-			'Thin Village Slimes',
-			'Thin Ruins Slimes',
-			'Recover Ruins Relics',
-			'Close'
+			'村道のスライム掃討',
+			'遺跡のスライム掃討',
+			'遺跡の遺物回収',
+			'閉じる'
 		]);
 		expect(detail.session).toMatchObject({
-			speaker: 'Guild Master Arlen',
-			line: 'Thin Village Slimes: Defeat slimes near the village. Reward: 6 XP / 12 coins / 1 item.'
+			speaker: 'ギルドマスター・アーレン',
+			line: '村道のスライム掃討: 村の近くでスライムを倒す。 報酬: 6XP / 12コイン / 1個。'
 		});
-		expect(detail.session.choices.map((choice) => choice.label)).toEqual([
-			'Accept',
-			'Back',
-			'Close'
-		]);
+		expect(detail.session.choices.map((choice) => choice.label)).toEqual(['受ける', '戻る', '閉じる']);
 		expect(completion).toMatchObject({
 			speaker: 'JP Guild Notice',
-			line: 'Quest complete: Investigate the Ruins. Reward: 15 XP / 35 coins / 1 item.'
+			line: '依頼達成: 遺跡を調査せよ。報酬: 15XP / 35コイン / 1個。'
 		});
 	});
 });

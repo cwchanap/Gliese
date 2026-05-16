@@ -1573,7 +1573,7 @@ describe('WorldScene', () => {
 
 		expect(emitHudStateSpy).toHaveBeenLastCalledWith(
 			expect.objectContaining({
-				status: 'JP Mira nearby',
+				status: 'JP Miraが近くにいる',
 				nearbyShop: {
 					shopId: 'miras-item-shop',
 					name: 'JP Mira Shop',
@@ -1588,7 +1588,7 @@ describe('WorldScene', () => {
 
 		expect(emitHudStateSpy).toHaveBeenLastCalledWith(
 			expect.objectContaining({
-				status: 'Shop opened',
+				status: '店を開いた',
 				inventory: expect.objectContaining({
 					consumables: expect.arrayContaining([
 						expect.objectContaining({
@@ -1633,7 +1633,7 @@ describe('WorldScene', () => {
 		});
 
 		expect(emitHudStateSpy).toHaveBeenLastCalledWith(
-			expect.objectContaining({ status: 'Bought Field Potion' })
+			expect.objectContaining({ status: 'Field Potionを購入した' })
 		);
 
 		emitHudStateSpy.mockClear();
@@ -1642,7 +1642,7 @@ describe('WorldScene', () => {
 
 		expect(emitHudStateSpy).toHaveBeenLastCalledWith(
 			expect.objectContaining({
-				status: 'JP Mira nearby',
+				status: 'JP Miraが近くにいる',
 				dialogue: expect.objectContaining({
 					speaker: 'JP Mira',
 					line: 'JP Fresh tonics are ready.',
@@ -1679,7 +1679,7 @@ describe('WorldScene', () => {
 
 		expect(emitHudStateSpy).toHaveBeenLastCalledWith(
 			expect.objectContaining({
-				status: 'JP Guild Master nearby',
+				status: 'JP Guild Masterが近くにいる',
 				quests: expect.objectContaining({
 					main: expect.objectContaining({
 						title: 'JP Investigate the Ruins',
@@ -1704,7 +1704,7 @@ describe('WorldScene', () => {
 
 		expect(emitHudStateSpy).toHaveBeenLastCalledWith(
 			expect.objectContaining({
-				status: 'JP Guild Master nearby',
+				status: 'JP Guild Masterが近くにいる',
 				dialogue: expect.objectContaining({
 					speaker: 'JP Guild Master',
 					line: 'JP The eastern ruins are stirring again.',
@@ -1732,10 +1732,10 @@ describe('WorldScene', () => {
 
 		expect(emitHudStateSpy).toHaveBeenLastCalledWith(
 			expect.objectContaining({
-				status: 'No one nearby',
+				status: '近くに誰もいません',
 				dialogue: expect.objectContaining({
 					speaker: 'JP Traveler',
-					line: 'No one is nearby.'
+					line: '近くに誰もいません。'
 				})
 			})
 		);

@@ -86,32 +86,31 @@ test('inventory overlay opens from the menu', async ({ page }) => {
 	await expect(trainingSwordSlot.getByText('Equipped')).toBeVisible();
 });
 
-test('language preference uses English fallback chrome and keeps Japanese selected', async ({
-	page
-}) => {
+test('language preference shows Japanese chrome and keeps Japanese selected', async ({ page }) => {
 	await page.goto('/');
 	await expect(page.locator('canvas')).toBeVisible();
 	await expect(page.getByRole('button', { name: 'Menu' })).toBeVisible();
 
 	await page.getByRole('button', { name: 'Menu' }).click();
-	const languageSelect = page.getByLabel('Language');
+	let languageSelect = page.getByLabel('Language');
 	await expect(languageSelect).toBeVisible();
 	await languageSelect.selectOption('ja');
+	languageSelect = page.getByLabel('言語');
 	await expect(languageSelect).toHaveValue('ja');
-	await page.getByRole('button', { name: 'Close' }).click();
+	await page.getByRole('button', { name: '閉じる' }).click();
 	await expect(languageSelect).toHaveCount(0);
 
-	await page.getByRole('button', { name: 'Menu' }).click();
-	await page.getByRole('button', { name: 'Inventory' }).click();
+	await page.getByRole('button', { name: 'メニュー' }).click();
+	await page.getByRole('button', { name: '持ち物' }).click();
 
-	const inventoryDialog = page.getByRole('dialog', { name: 'Inventory' });
+	const inventoryDialog = page.getByRole('dialog', { name: '持ち物' });
 	await expect(inventoryDialog).toBeVisible();
-	await expect(inventoryDialog.getByRole('heading', { name: 'Inventory' })).toBeVisible();
-	await expect(inventoryDialog.getByRole('tab', { name: 'Consumables' })).toBeVisible();
-	await inventoryDialog.getByRole('button', { name: 'Close' }).click();
+	await expect(inventoryDialog.getByRole('heading', { name: '持ち物' })).toBeVisible();
+	await expect(inventoryDialog.getByRole('tab', { name: '消耗品' })).toBeVisible();
+	await inventoryDialog.getByRole('button', { name: '閉じる' }).click();
 
-	await page.getByRole('button', { name: 'Menu' }).click();
-	await expect(page.getByLabel('Language')).toHaveValue('ja');
+	await page.getByRole('button', { name: 'メニュー' }).click();
+	await expect(page.getByLabel('言語')).toHaveValue('ja');
 });
 
 test('full hp potions explain why they cannot be consumed', async ({ page }) => {

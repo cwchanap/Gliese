@@ -1,6 +1,18 @@
 import { describe, expect, it } from 'vitest';
 
+import { en } from '$lib/game/i18n/messages/en';
+import { ja } from '$lib/game/i18n/messages/ja';
+import { zhHant } from '$lib/game/i18n/messages/zh-Hant';
 import { t, type MessageKey } from '$lib/game/i18n/translate';
+
+function collectLeafPaths(source: unknown, prefix = ''): string[] {
+	if (typeof source !== 'object' || source === null || Array.isArray(source)) return [];
+
+	return Object.entries(source).flatMap(([key, value]) => {
+		const path = prefix ? `${prefix}.${key}` : key;
+		return typeof value === 'string' ? [path] : collectLeafPaths(value, path);
+	});
+}
 
 describe('translation lookup', () => {
 	it('resolves English UI and content messages', () => {
@@ -8,13 +20,32 @@ describe('translation lookup', () => {
 		expect(t('en', 'content.items.field-potion.name')).toBe('Field Potion');
 	});
 
-	it('falls back to English for missing non-English messages', () => {
-		expect(t('zh-Hant', 'ui.menu')).toBe('Menu');
-		expect(t('ja', 'content.quests.investigate-the-ruins.title')).toBe('Investigate the Ruins');
+	it('keeps non-English dictionaries aligned with English source keys', () => {
+		const sourcePaths = collectLeafPaths(en).sort();
+
+		expect(collectLeafPaths(zhHant).sort()).toEqual(sourcePaths);
+		expect(collectLeafPaths(ja).sort()).toEqual(sourcePaths);
 	});
 
-	it('interpolates fallback messages', () => {
-		expect(t('ja', 'status.boughtItem', { itemName: 'Field Potion' })).toBe('Bought Field Potion');
+	it('resolves Traditional Chinese UI and content messages', () => {
+		expect(t('zh-Hant', 'ui.menu')).toBe('選單');
+		expect(t('zh-Hant', 'content.items.field-potion.name')).toBe('野外藥水');
+		expect(t('zh-Hant', 'content.quests.investigate-the-ruins.title')).toBe('調查廢墟');
+	});
+
+	it('resolves Japanese UI and content messages', () => {
+		expect(t('ja', 'ui.menu')).toBe('メニュー');
+		expect(t('ja', 'content.items.field-potion.name')).toBe('フィールドポーション');
+		expect(t('ja', 'content.quests.investigate-the-ruins.title')).toBe('遺跡を調査せよ');
+	});
+
+	it('interpolates localized messages', () => {
+		expect(t('zh-Hant', 'status.boughtItem', { itemName: '野外藥水' })).toBe(
+			'已購買 野外藥水'
+		);
+		expect(t('ja', 'status.boughtItem', { itemName: 'フィールドポーション' })).toBe(
+			'フィールドポーションを購入した'
+		);
 	});
 
 	it('preserves placeholders when interpolation params are missing', () => {

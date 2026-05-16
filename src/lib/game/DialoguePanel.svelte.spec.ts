@@ -231,14 +231,13 @@ describe('DialoguePanel.svelte', () => {
 		await expect.element(page.getByRole('button', { name: 'Advance' })).toBeVisible();
 	});
 
-	it('falls back to English labels when the active locale has no DialoguePanel messages', async () => {
-		setDialogueLabels('Dismiss', 'Advance');
+	it('renders Japanese labels when the active locale is Japanese', async () => {
 		setActiveLocale('ja');
 		mockedSetActiveLocale.mockClear();
 		renderDialogue(conversationDialogue);
 
-		await expect.element(page.getByRole('button', { name: 'Dismiss' })).toBeVisible();
-		await expect.element(page.getByRole('button', { name: 'Advance' })).toBeVisible();
+		await expect.element(page.getByRole('button', { name: '閉じる' })).toBeVisible();
+		await expect.element(page.getByRole('button', { name: '次へ' })).toBeVisible();
 	});
 
 	it('renders a Settings language selector and applies Japanese selection', async () => {
