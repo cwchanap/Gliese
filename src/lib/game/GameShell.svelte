@@ -1832,8 +1832,8 @@
 		.jrpg-field-status {
 			right: 0.75rem;
 			bottom: 20%;
-			left: 0.75rem;
-			max-width: none;
+			left: auto;
+			max-width: min(24rem, calc(100vw - 1.5rem));
 		}
 	}
 

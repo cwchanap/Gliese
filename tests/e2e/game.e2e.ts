@@ -67,22 +67,29 @@ test('mobile HUD stacks without overlapping controls', async ({ page }) => {
 	const menuButton = page.getByRole('button', { name: 'Menu' });
 	const statusPanel = page.getByRole('region', { name: 'Player status' });
 	const questTracker = page.getByRole('region', { name: 'Quest tracker' });
+	const fieldStatusMessage = fieldStatus(page);
 	await expect(menuButton).toBeVisible();
 	await expect(statusPanel).toBeVisible();
 	await expect(questTracker).toBeVisible();
+	await expect(fieldStatusMessage).toBeVisible();
 
 	const menuBox = await menuButton.boundingBox();
 	const statusBox = await statusPanel.boundingBox();
 	const questBox = await questTracker.boundingBox();
+	const fieldStatusBox = await fieldStatusMessage.boundingBox();
 	expect(menuBox).not.toBeNull();
 	expect(statusBox).not.toBeNull();
 	expect(questBox).not.toBeNull();
+	expect(fieldStatusBox).not.toBeNull();
 	const statusRight = statusBox!.x + statusBox!.width;
 	const statusBottom = statusBox!.y + statusBox!.height;
 	const questRight = questBox!.x + questBox!.width;
+	const fieldStatusRight = fieldStatusBox!.x + fieldStatusBox!.width;
 	expect(statusRight).toBeLessThan(menuBox!.x - 8);
 	expect(questBox!.y).toBeGreaterThan(statusBottom + 8);
 	expect(questRight).toBeLessThanOrEqual((viewport?.width ?? 0) - 8);
+	expect(fieldStatusBox!.width).toBeLessThan((viewport?.width ?? 0) * 0.75);
+	expect(fieldStatusRight).toBeLessThanOrEqual((viewport?.width ?? 0) - 8);
 });
 
 test('inventory overlay opens from the menu', async ({ page }) => {
