@@ -262,14 +262,10 @@ export const ja = {
 						'よく来た。東の遺跡がまたざわついている。村へ続く道も、もう安全ではない。',
 					mainQuestNeedsGuildBriefing2:
 						'森の道を抜けて古い中心部へ向かい、目を覚ます前に守護者を倒してくれ。',
-					hasActiveSideQuest1:
-						'ギルドの掲示板は自由に使っていい。だが、守護者のことを忘れるな。',
-					hasActiveSideQuest2:
-						'進捗は手帳で報告してくれ。新しい仕事はこの窓口で受け付けておく。',
-					hasCompletedQuest:
-						'見事だった。道を開いてくれる狩人がいると、村も助かる。',
-					guildBriefingComplete:
-						'遺跡への道は開いた。中へ入る前に、しっかり備えていけ。',
+					hasActiveSideQuest1: 'ギルドの掲示板は自由に使っていい。だが、守護者のことを忘れるな。',
+					hasActiveSideQuest2: '進捗は手帳で報告してくれ。新しい仕事はこの窓口で受け付けておく。',
+					hasCompletedQuest: '見事だった。道を開いてくれる狩人がいると、村も助かる。',
+					guildBriefingComplete: '遺跡への道は開いた。中へ入る前に、しっかり備えていけ。',
 					always: 'ギルドは古い道を見張っている。用件ははっきり伝えて、仕事を選べ。'
 				}
 			},

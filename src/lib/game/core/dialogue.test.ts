@@ -11,10 +11,9 @@ import {
 } from '$lib/game/core/dialogue';
 
 vi.mock('$lib/game/i18n/translate', async () => {
-	const actual =
-		await vi.importActual<typeof import('$lib/game/i18n/translate')>(
-			'$lib/game/i18n/translate'
-		);
+	const actual = await vi.importActual<typeof import('$lib/game/i18n/translate')>(
+		'$lib/game/i18n/translate'
+	);
 
 	return {
 		...actual,
@@ -209,7 +208,11 @@ describe('dialogue core', () => {
 			speaker: 'ギルドマスター・アーレン',
 			line: '村道のスライム掃討: 村の近くでスライムを倒す。 報酬: 6XP / 12コイン / 1個。'
 		});
-		expect(detail.session.choices.map((choice) => choice.label)).toEqual(['受ける', '戻る', '閉じる']);
+		expect(detail.session.choices.map((choice) => choice.label)).toEqual([
+			'受ける',
+			'戻る',
+			'閉じる'
+		]);
 		expect(completion).toMatchObject({
 			speaker: 'JP Guild Notice',
 			line: '依頼達成: 遺跡を調査せよ。報酬: 15XP / 35コイン / 1個。'

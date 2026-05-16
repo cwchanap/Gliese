@@ -29,6 +29,7 @@
 ## Task 1: Dialogue Content Definitions
 
 **Files:**
+
 - Create: `src/lib/game/content/dialogue.ts`
 - Create: `src/lib/game/content/dialogue.test.ts`
 - Modify: `src/lib/game/content/maps.ts`
@@ -156,9 +157,7 @@ export const npcDialogues = {
 			},
 			{
 				condition: 'hasCompletedQuest',
-				lines: [
-					'Good work out there. The village notices when a hunter keeps the roads clear.'
-				]
+				lines: ['Good work out there. The village notices when a hunter keeps the roads clear.']
 			},
 			{
 				condition: 'guildBriefingComplete',
@@ -309,6 +308,7 @@ git commit -m "feat: add dialogue content definitions"
 ## Task 2: Pure Dialogue Engine
 
 **Files:**
+
 - Create: `src/lib/game/core/dialogue.ts`
 - Create: `src/lib/game/core/dialogue.test.ts`
 
@@ -693,10 +693,20 @@ function buildGuildQuestDetailSession(questId: QuestId): DialogueSession {
 		id: `guild-quest-detail:${quest.id}`,
 		npcId: 'guild-master',
 		speaker: 'Guild Master Arlen',
-		lines: [`${quest.title}: ${objective.description} Reward: ${formatRewardSummary(quest.reward)}.`],
+		lines: [
+			`${quest.title}: ${objective.description} Reward: ${formatRewardSummary(quest.reward)}.`
+		],
 		choices: [
-			{ id: `accept:${quest.id}`, label: 'Accept', intent: { type: 'acceptQuest', questId: quest.id } },
-			{ id: 'quest-list', label: 'Back', intent: { type: 'showQuestList', giverNpcId: 'guild-master' } },
+			{
+				id: `accept:${quest.id}`,
+				label: 'Accept',
+				intent: { type: 'acceptQuest', questId: quest.id }
+			},
+			{
+				id: 'quest-list',
+				label: 'Back',
+				intent: { type: 'showQuestList', giverNpcId: 'guild-master' }
+			},
 			{ id: 'close', label: 'Close', intent: { type: 'close' } }
 		],
 		mode: 'choice'
@@ -758,6 +768,7 @@ git commit -m "feat: add pure dialogue engine"
 ## Task 3: HUD Bridge And Dialogue Panel
 
 **Files:**
+
 - Modify: `src/lib/game/ui-bridge/events.ts`
 - Modify: `src/lib/game/ui-bridge/store.ts`
 - Create: `src/lib/game/DialoguePanel.svelte`
@@ -1006,6 +1017,7 @@ git commit -m "feat: add dialogue hud panel"
 ## Task 4: WorldScene Dialogue Runtime
 
 **Files:**
+
 - Modify: `src/lib/game/phaser/scenes/WorldScene.ts`
 - Modify: `src/lib/game/phaser/scenes/scenes.test.ts`
 - Modify: `src/lib/game/content/maps.ts`
@@ -1063,9 +1075,9 @@ it('advances dialogue and records Guild Master quest progress at the end of brie
 	expect(sceneState.buildSaveState().quests.entries['investigate-the-ruins']).toMatchObject({
 		currentObjectiveId: 'defeat-ruins-warden'
 	});
-	expect(
-		sceneState.buildSaveState().quests.completedObjectives['investigate-the-ruins']
-	).toContain('talk-to-guild-master');
+	expect(sceneState.buildSaveState().quests.completedObjectives['investigate-the-ruins']).toContain(
+		'talk-to-guild-master'
+	);
 });
 
 it('accepts a Guild side quest through dialogue choices', async () => {
@@ -1369,7 +1381,10 @@ Update `acceptGuildQuest` failure path to set dialogue feedback:
 
 ```ts
 if (!result.accepted) {
-	this.dialogueSession = buildDialogueFallback('Guild Master Arlen', this.formatQuestAcceptFailure(result.reason));
+	this.dialogueSession = buildDialogueFallback(
+		'Guild Master Arlen',
+		this.formatQuestAcceptFailure(result.reason)
+	);
 	this.publishHudState(this.formatQuestAcceptFailure(result.reason));
 	return;
 }
@@ -1424,6 +1439,7 @@ git commit -m "feat: route npc interactions through dialogue"
 ## Task 5: GameShell Integration
 
 **Files:**
+
 - Modify: `src/lib/game/GameShell.svelte`
 - Modify: `src/lib/game/DialoguePanel.svelte.spec.ts`
 
@@ -1469,26 +1485,23 @@ Expected: FAIL until keyboard focus and event handling are stable.
 Modify imports in `src/lib/game/GameShell.svelte`:
 
 ```svelte
-import DialoguePanel from '$lib/game/DialoguePanel.svelte';
-import {
-	hudState,
-	requestDialogueAdvance,
-	requestDialogueChoice,
-	requestDialogueClose,
-	requestAcceptQuest,
-	requestBuyShopItem,
-	requestCloseShop,
-	requestEquipItem,
-	requestHeal,
-	requestOpenShop,
-	requestPauseGame,
-	requestResume,
-	requestResumeGame,
-	requestSave,
-	requestSellInventoryItem,
-	requestUnequipSlot,
-	requestUseItem
-} from '$lib/game/ui-bridge/store';
+import DialoguePanel from '$lib/game/DialoguePanel.svelte'; import {(hudState,
+requestDialogueAdvance,
+requestDialogueChoice,
+requestDialogueClose,
+requestAcceptQuest,
+requestBuyShopItem,
+requestCloseShop,
+requestEquipItem,
+requestHeal,
+requestOpenShop,
+requestPauseGame,
+requestResume,
+requestResumeGame,
+requestSave,
+requestSellInventoryItem,
+requestUnequipSlot,
+requestUseItem)} from '$lib/game/ui-bridge/store';
 ```
 
 Add the dialogue panel near the other top-level overlays:
@@ -1555,6 +1568,7 @@ git commit -m "feat: render jrpg dialogue panel"
 ## Task 6: Browser Flow And Full Verification
 
 **Files:**
+
 - Modify: `tests/e2e/game.e2e.ts`
 
 - [ ] **Step 1: Update the Guild quest e2e flow to use dialogue**

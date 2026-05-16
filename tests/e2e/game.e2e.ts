@@ -40,9 +40,7 @@ test('game route boots', async ({ page }) => {
 	expect(statusBox?.x).toBeLessThan(40);
 	expect(statusBox?.y).toBeLessThan(40);
 	expect(questBox?.y).toBeLessThan(40);
-	expect((questBox?.x ?? 0) + (questBox?.width ?? 0)).toBeGreaterThan(
-		(viewport?.width ?? 0) - 40
-	);
+	expect((questBox?.x ?? 0) + (questBox?.width ?? 0)).toBeGreaterThan((viewport?.width ?? 0) - 40);
 });
 
 test('inventory overlay opens from the menu', async ({ page }) => {
@@ -451,7 +449,5 @@ test('quest log shows main quest and accepts Guild side quests', async ({ page }
 	await expect(questDialog.getByText('Investigate the Ruins')).toBeVisible();
 	await expect(questDialog.getByText('Defeat the ruins warden in the ruins core.')).toBeVisible();
 	await expect(questDialog.getByText('Thin Village Slimes')).toBeVisible();
-	await expect(
-		questDialog.getByText('Village slimes defeated: 0 / 3')
-	).toBeVisible();
+	await expect(questDialog.getByText('Village slimes defeated: 0 / 3')).toBeVisible();
 });

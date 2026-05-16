@@ -40,9 +40,7 @@ describe('translation lookup', () => {
 	});
 
 	it('interpolates localized messages', () => {
-		expect(t('zh-Hant', 'status.boughtItem', { itemName: '野外藥水' })).toBe(
-			'已購買 野外藥水'
-		);
+		expect(t('zh-Hant', 'status.boughtItem', { itemName: '野外藥水' })).toBe('已購買 野外藥水');
 		expect(t('ja', 'status.boughtItem', { itemName: 'フィールドポーション' })).toBe(
 			'フィールドポーションを購入した'
 		);

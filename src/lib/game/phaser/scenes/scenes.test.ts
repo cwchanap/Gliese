@@ -11,10 +11,9 @@ vi.mock('$lib/game/i18n/store', () => ({
 }));
 
 vi.mock('$lib/game/i18n/translate', async () => {
-	const actual =
-		await vi.importActual<typeof import('$lib/game/i18n/translate')>(
-			'$lib/game/i18n/translate'
-		);
+	const actual = await vi.importActual<typeof import('$lib/game/i18n/translate')>(
+		'$lib/game/i18n/translate'
+	);
 
 	return {
 		...actual,

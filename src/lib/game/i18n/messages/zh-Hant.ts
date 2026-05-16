@@ -258,10 +258,8 @@ export const zhHant = {
 			'guild-master': {
 				speaker: '公會會長阿倫',
 				lines: {
-					mainQuestNeedsGuildBriefing1:
-						'你來得正好。東方廢墟又有動靜，村道已經不安全了。',
-					mainQuestNeedsGuildBriefing2:
-						'走森林小徑，前往舊核心，在它驚動更多東西前擊敗看守者。',
+					mainQuestNeedsGuildBriefing1: '你來得正好。東方廢墟又有動靜，村道已經不安全了。',
+					mainQuestNeedsGuildBriefing2: '走森林小徑，前往舊核心，在它驚動更多東西前擊敗看守者。',
 					hasActiveSideQuest1: '公會公告板上的任務任你挑，但別忘了看守者。',
 					hasActiveSideQuest2: '進度記在你的手冊裡回報。我會把新的委託留在櫃檯這裡。',
 					hasCompletedQuest: '幹得好。當獵手清出道路，村子都看得見。',

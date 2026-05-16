@@ -766,7 +766,7 @@
 						class="rounded-[0.8rem] border border-white/12 bg-slate-950/70 px-3 py-2 text-sm font-bold tracking-normal text-slate-50 transition outline-none focus:border-cyan-200/55"
 						onchange={(event) => setActiveLocale(event.currentTarget.value as Locale)}
 					>
-						{#each supportedLocales as option}
+						{#each supportedLocales as option (option)}
 							<option value={option}>{localeLabels[option]}</option>
 						{/each}
 					</select>

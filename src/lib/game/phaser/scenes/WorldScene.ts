@@ -748,9 +748,7 @@ export class WorldScene extends Phaser.Scene {
 		this.wallet = result.wallet;
 		this.inventory = result.inventory;
 		this.shopStockState = result.stockState;
-		this.publishHudState(
-			this.status('status.boughtItem', { itemName: this.getItemName(itemId) })
-		);
+		this.publishHudState(this.status('status.boughtItem', { itemName: this.getItemName(itemId) }));
 	}
 
 	private sellOpenShopItem(itemId: string) {
@@ -2353,9 +2351,7 @@ export class WorldScene extends Phaser.Scene {
 		}
 
 		this.currentNearbyNpcId = nearbyNpc.id;
-		this.publishHudState(
-			this.status('status.npcNearby', { npcName: this.getNpcName(nearbyNpc) })
-		);
+		this.publishHudState(this.status('status.npcNearby', { npcName: this.getNpcName(nearbyNpc) }));
 	}
 
 	private handleInteractInput() {
@@ -2402,9 +2398,7 @@ export class WorldScene extends Phaser.Scene {
 			questState: this.quests,
 			locale: this.getLocale()
 		});
-		this.publishHudState(
-			this.status('status.npcNearby', { npcName: this.getNpcName(nearbyNpc) })
-		);
+		this.publishHudState(this.status('status.npcNearby', { npcName: this.getNpcName(nearbyNpc) }));
 	}
 
 	private findNearbyNpc(): MapNpc | undefined {

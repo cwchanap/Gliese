@@ -56,6 +56,7 @@
 ## Task 1: Locale Foundation And Preference Storage
 
 **Files:**
+
 - Create: `src/lib/game/i18n/locales.ts`
 - Create: `src/lib/game/i18n/locales.test.ts`
 - Create: `src/lib/game/i18n/preferences.ts`
@@ -161,7 +162,9 @@ export function normalizeLocale(value: string | null | undefined): Locale | null
 	return null;
 }
 
-export function detectSupportedLocale(languages: readonly string[] = getNavigatorLanguages()): Locale {
+export function detectSupportedLocale(
+	languages: readonly string[] = getNavigatorLanguages()
+): Locale {
 	for (const language of languages) {
 		const locale = normalizeLocale(language);
 		if (locale) return locale;
@@ -172,7 +175,9 @@ export function detectSupportedLocale(languages: readonly string[] = getNavigato
 
 function getNavigatorLanguages(): readonly string[] {
 	if (typeof navigator === 'undefined') return [];
-	return navigator.languages.length > 0 ? navigator.languages : [navigator.language].filter(Boolean);
+	return navigator.languages.length > 0
+		? navigator.languages
+		: [navigator.language].filter(Boolean);
 }
 ```
 
@@ -274,7 +279,9 @@ import { getSaveStorage, type SaveStorage } from '$lib/game/save/storage';
 
 export const LANGUAGE_PREFERENCE_STORAGE_KEY = 'gliese.preferences.v1';
 
-export function loadLanguagePreference(storage: SaveStorage | undefined = getSaveStorage()): Locale | null {
+export function loadLanguagePreference(
+	storage: SaveStorage | undefined = getSaveStorage()
+): Locale | null {
 	const value = storage?.getItem(LANGUAGE_PREFERENCE_STORAGE_KEY);
 	return value && isSupportedLocale(value) ? value : null;
 }
@@ -357,6 +364,7 @@ git commit -m "feat: add locale detection and preference storage"
 ## Task 2: Translation Dictionary And Lookup
 
 **Files:**
+
 - Create: `src/lib/game/i18n/messages/types.ts`
 - Create: `src/lib/game/i18n/messages/en.ts`
 - Create: `src/lib/game/i18n/messages/zh-Hant.ts`
@@ -386,9 +394,7 @@ describe('translation lookup', () => {
 	});
 
 	it('interpolates parameters after fallback', () => {
-		expect(t('ja', 'status.boughtItem', { itemName: 'Field Potion' })).toBe(
-			'Bought Field Potion'
-		);
+		expect(t('ja', 'status.boughtItem', { itemName: 'Field Potion' })).toBe('Bought Field Potion');
 	});
 
 	it('returns a readable missing marker only for unknown source keys', () => {
@@ -417,9 +423,7 @@ export type DeepPartial<T> = {
 };
 
 type LeafPath<T, Prefix extends string = ''> = {
-	[K in keyof T & string]: T[K] extends string
-		? `${Prefix}${K}`
-		: LeafPath<T[K], `${Prefix}${K}.`>;
+	[K in keyof T & string]: T[K] extends string ? `${Prefix}${K}` : LeafPath<T[K], `${Prefix}${K}.`>;
 }[keyof T & string];
 
 export type MessagePath<T> = LeafPath<T>;
@@ -660,6 +664,7 @@ git commit -m "feat: add translation dictionaries and lookup"
 ## Task 3: Migrate Content Definitions To Text Keys
 
 **Files:**
+
 - Create: `src/lib/game/i18n/content.ts`
 - Create: `src/lib/game/i18n/content.test.ts`
 - Modify: `src/lib/game/content/items.ts`
@@ -705,11 +710,12 @@ describe('localized content resolvers', () => {
 		expect(getNpcText('en', 'guild-master')?.name).toBe('Guild Master Arlen');
 		expect(getMapLandmarkText('en', 'hero-house-exterior')?.label).toBe("Hero's House");
 		expect(getQuestText('en', 'investigate-the-ruins')?.title).toBe('Investigate the Ruins');
-		expect(getQuestObjectiveText('en', 'investigate-the-ruins', 'talk-to-guild-master'))
-			.toMatchObject({
-				description: 'Talk to the Guild Master in the Guild Hall.',
-				progressLabel: 'Guild Master spoken to'
-			});
+		expect(
+			getQuestObjectiveText('en', 'investigate-the-ruins', 'talk-to-guild-master')
+		).toMatchObject({
+			description: 'Talk to the Guild Master in the Guild Hall.',
+			progressLabel: 'Guild Master spoken to'
+		});
 	});
 
 	it('resolves dialogue speakers, lines, and labels', () => {
@@ -757,10 +763,10 @@ Modify content definition types:
 Use message keys that mirror stable IDs:
 
 ```ts
-nameKey: 'content.items.field-potion.name'
-descriptionKey: 'content.items.field-potion.description'
-titleKey: 'content.quests.investigate-the-ruins.title'
-speakerKey: 'content.dialogue.guild-master.speaker'
+nameKey: 'content.items.field-potion.name';
+descriptionKey: 'content.items.field-potion.description';
+titleKey: 'content.quests.investigate-the-ruins.title';
+speakerKey: 'content.dialogue.guild-master.speaker';
 ```
 
 Keep IDs, mechanics, prices, coordinates, objective targets, and reward definitions unchanged.
@@ -780,7 +786,9 @@ import { t } from '$lib/game/i18n/translate';
 
 export function getItemText(locale: Locale, itemId: string) {
 	const item = getItem(itemId);
-	return item ? { name: t(locale, item.nameKey), description: t(locale, item.descriptionKey) } : null;
+	return item
+		? { name: t(locale, item.nameKey), description: t(locale, item.descriptionKey) }
+		: null;
 }
 
 export function getShopText(locale: Locale, shopId: string) {
@@ -804,7 +812,10 @@ export function getQuestText(locale: Locale, questId: string) {
 export function getQuestObjectiveText(locale: Locale, questId: string, objectiveId: string) {
 	const objective = getQuest(questId)?.objectives.find((candidate) => candidate.id === objectiveId);
 	return objective
-		? { description: t(locale, objective.descriptionKey), progressLabel: t(locale, objective.progressLabelKey) }
+		? {
+				description: t(locale, objective.descriptionKey),
+				progressLabel: t(locale, objective.progressLabelKey)
+			}
 		: null;
 }
 
@@ -817,7 +828,10 @@ export function getDialogueText(locale: Locale, dialogueId: string) {
 					condition: branch.condition,
 					lines: branch.lineKeys.map((key) => t(locale, key))
 				})),
-				actions: definition.actions.map((action) => ({ ...action, label: t(locale, action.labelKey) }))
+				actions: definition.actions.map((action) => ({
+					...action,
+					label: t(locale, action.labelKey)
+				}))
 			}
 		: null;
 }
@@ -881,6 +895,7 @@ git commit -m "feat: move game content text behind locale keys"
 ## Task 4: Localize Core HUD Payload Builders
 
 **Files:**
+
 - Modify: `src/lib/game/core/quests.ts`
 - Modify: `src/lib/game/core/quests.test.ts`
 - Modify: `src/lib/game/core/dialogue.ts`
@@ -965,6 +980,7 @@ git commit -m "feat: localize core hud payload builders"
 ## Task 5: Localize WorldScene Runtime Text
 
 **Files:**
+
 - Modify: `src/lib/game/phaser/scenes/WorldScene.ts`
 - Modify: `src/lib/game/phaser/scenes/scenes.test.ts`
 - Modify: `src/lib/game/ui-bridge/store.ts`
@@ -1063,6 +1079,7 @@ git commit -m "feat: localize world scene hud text"
 ## Task 6: Localize Svelte HUD And Add Language Selector
 
 **Files:**
+
 - Modify: `src/lib/game/GameShell.svelte`
 - Modify: `src/lib/game/DialoguePanel.svelte`
 - Modify: `src/lib/game/DialoguePanel.svelte.spec.ts`
@@ -1164,6 +1181,7 @@ git commit -m "feat: add localized hud language selector"
 ## Task 7: E2E Flow And Full Verification
 
 **Files:**
+
 - Modify: `tests/e2e/game.e2e.ts`
 - Optionally modify: related test utilities in `tests/e2e/`
 
