@@ -35,6 +35,9 @@ jobs:
   unit-test:
     name: Unit Tests
     runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
     steps:
       - uses: actions/checkout@v4
 
@@ -57,6 +60,8 @@ jobs:
       - name: Upload coverage to Codecov
         if: ${{ !cancelled() }}
         uses: codecov/codecov-action@v5
+        with:
+          use_oidc: true
 
   e2e-test:
     name: E2E Tests
