@@ -5,6 +5,8 @@ export const ja = {
 	ui: {
 		menu: 'メニュー',
 		systemMenu: 'システムメニュー',
+		command: 'コマンド',
+		fieldStatus: 'フィールド状態',
 		settings: '設定',
 		language: '言語',
 		quests: '依頼',

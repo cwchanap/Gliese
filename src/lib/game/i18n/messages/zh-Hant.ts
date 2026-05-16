@@ -5,6 +5,8 @@ export const zhHant = {
 	ui: {
 		menu: '選單',
 		systemMenu: '系統選單',
+		command: '指令',
+		fieldStatus: '場地狀態',
 		settings: '設定',
 		language: '語言',
 		quests: '任務',

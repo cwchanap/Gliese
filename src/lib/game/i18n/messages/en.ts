@@ -2,6 +2,8 @@ export const en = {
 	ui: {
 		menu: 'Menu',
 		systemMenu: 'System Menu',
+		command: 'Command',
+		fieldStatus: 'Field status',
 		settings: 'Settings',
 		language: 'Language',
 		quests: 'Quests',

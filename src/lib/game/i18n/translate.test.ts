@@ -51,6 +51,10 @@ describe('translation lookup', () => {
 	});
 
 	it('includes current GameShell UI source strings', () => {
+		expect(t('en', 'ui.command')).toBe('Command');
+		expect(t('en', 'ui.fieldStatus')).toBe('Field status');
+		expect(t('ja', 'ui.command')).toBe('コマンド');
+		expect(t('zh-Hant', 'ui.command')).toBe('指令');
 		expect(t('en', 'ui.equipmentSlots.weapon')).toBe('Weapon');
 		expect(t('en', 'ui.equipmentSlots.accessory')).toBe('Accessory');
 		expect(t('en', 'ui.loadGameShellError')).toBe('Unable to start the game shell.');
