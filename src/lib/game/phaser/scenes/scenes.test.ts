@@ -210,6 +210,13 @@ const phaserState = vi.hoisted(() => {
 		addTilesetImage: vi.fn(() => ({ name: 'starter-ground-tiles' })),
 		createLayer: vi.fn((layerId: number | string) => (layerId === 0 ? tilemapLayer : null))
 	};
+	const mainCamera = {
+		width: 640,
+		height: 360,
+		setBackgroundColor: vi.fn(),
+		setBounds: vi.fn(),
+		startFollow: vi.fn()
+	};
 	const imageMarkers: Array<{
 		x: number;
 		y: number;
@@ -393,11 +400,7 @@ const phaserState = vi.hoisted(() => {
 			text: vi.fn(() => victoryText)
 		};
 		cameras = {
-			main: {
-				setBackgroundColor: vi.fn(),
-				setBounds: vi.fn(),
-				startFollow: vi.fn()
-			}
+			main: mainCamera
 		};
 		make = {
 			tilemap: vi.fn(() => tilemap)
@@ -440,9 +443,14 @@ const phaserState = vi.hoisted(() => {
 		textureMock,
 		tilemap,
 		tilemapLayer,
+		mainCamera,
 		imageMarkers,
 		tileSpriteMarkers,
 		reset() {
+			Object.assign(mainCamera, { width: 640, height: 360 });
+			mainCamera.setBackgroundColor.mockClear();
+			mainCamera.setBounds.mockClear();
+			mainCamera.startFollow.mockClear();
 			Object.assign(playerMarker, { x: 0, y: 0, frame: undefined, visible: true });
 			Object.assign(enemyMarker, { x: 0, y: 0, frame: undefined, visible: true });
 			enemyMarkers.splice(0, enemyMarkers.length);
@@ -911,6 +919,20 @@ describe('WorldScene', () => {
 		expect(ruinsCoreMap.width).toBe(30);
 		expect(ruinsCoreMap.height).toBe(30);
 		expect(scene.cameras.main.setBounds).toHaveBeenCalledWith(0, 0, 960, 960);
+	});
+
+	it('centers compact interior maps inside larger camera viewports', async () => {
+		const { WorldScene } = await import('./WorldScene');
+		const { heroHouseMap } = await import('$lib/game/content/maps');
+		const scene = new WorldScene();
+
+		Object.assign(phaserState.mainCamera, { width: 800, height: 600 });
+
+		scene.create({ mapId: heroHouseMap.id });
+
+		expect(heroHouseMap.width).toBe(16);
+		expect(heroHouseMap.height).toBe(12);
+		expect(scene.cameras.main.setBounds).toHaveBeenCalledWith(-144, -108, 800, 600);
 	});
 
 	it('moves the player marker using the current input state', async () => {

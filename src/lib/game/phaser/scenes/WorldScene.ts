@@ -412,7 +412,13 @@ export class WorldScene extends Phaser.Scene {
 		this.renderNpcs(map);
 
 		this.cameras.main.setBackgroundColor('#1a1f2b');
-		this.cameras.main.setBounds(0, 0, width, height);
+		const cameraBounds = this.getCenteredCameraBounds(width, height);
+		this.cameras.main.setBounds(
+			cameraBounds.x,
+			cameraBounds.y,
+			cameraBounds.width,
+			cameraBounds.height
+		);
 		this.cameras.main.startFollow(
 			this.player,
 			true,
@@ -444,6 +450,21 @@ export class WorldScene extends Phaser.Scene {
 				? this.status('status.victoryRuinsCleared')
 				: this.resolveInitialStatus(reason)
 		);
+	}
+
+	private getCenteredCameraBounds(width: number, height: number) {
+		const camera = this.cameras.main;
+		const viewportWidth = camera.width > 0 ? camera.width : width;
+		const viewportHeight = camera.height > 0 ? camera.height : height;
+		const xPadding = Math.max(0, (viewportWidth - width) / 2);
+		const yPadding = Math.max(0, (viewportHeight - height) / 2);
+
+		return {
+			x: xPadding === 0 ? 0 : -xPadding,
+			y: yPadding === 0 ? 0 : -yPadding,
+			width: width + xPadding * 2,
+			height: height + yPadding * 2
+		};
 	}
 
 	update(time: number, delta: number) {
