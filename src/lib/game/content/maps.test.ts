@@ -48,6 +48,15 @@ function expectPointInsideRect(point: { x: number; y: number }, rect: CenterRect
 	expect(point.y).toBeLessThanOrEqual(rect.y + rect.height / 2);
 }
 
+function isPointInsideRect(point: { x: number; y: number }, rect: CenterRect) {
+	return (
+		point.x >= rect.x - rect.width / 2 &&
+		point.x <= rect.x + rect.width / 2 &&
+		point.y >= rect.y - rect.height / 2 &&
+		point.y <= rect.y + rect.height / 2
+	);
+}
+
 describe('opening map content', () => {
 	it('supports authored ground patches, blockers, stair markers, and route combat bounds', () => {
 		const modelTestMap: WorldMapDefinition = {
@@ -191,7 +200,7 @@ describe('opening map content', () => {
 					questId: 'investigate-the-ruins',
 					objectiveId: 'talk-to-guild-master'
 				},
-				arrival: { x: 512, y: 3_200, facing: 'right' }
+				arrival: { x: 256, y: 480, facing: 'right' }
 			}
 		]);
 		expect(meadowEntryMap.encounters).toEqual([
@@ -236,7 +245,7 @@ describe('opening map content', () => {
 			meadowEntryMap.transitions.find((transition) => transition.id === 'meadow-to-ruins-threshold')
 		).toMatchObject({
 			toMapId: 'ruins-threshold',
-			arrival: { x: 512, y: 3_200, facing: 'right' }
+			arrival: { x: 256, y: 480, facing: 'right' }
 		});
 		expect(
 			ruinsThresholdMap.transitions.find((transition) => transition.id === 'threshold-to-meadow')
@@ -272,6 +281,23 @@ describe('opening map content', () => {
 				arrival: { x: 576, y: 480, facing: 'left' }
 			}
 		]);
+	});
+
+	it('keeps every transition arrival inside its current target map', () => {
+		for (const map of Object.values(maps)) {
+			for (const transition of map.transitions) {
+				if (!transition.arrival) {
+					continue;
+				}
+
+				const targetMap = maps[transition.toMapId];
+				expect(targetMap).toBeDefined();
+				expect(transition.arrival.x).toBeGreaterThanOrEqual(0);
+				expect(transition.arrival.y).toBeGreaterThanOrEqual(0);
+				expect(transition.arrival.x).toBeLessThan(targetMap.width * 32);
+				expect(transition.arrival.y).toBeLessThan(targetMap.height * 32);
+			}
+		}
 	});
 
 	it('registers all compact village interiors', () => {
@@ -494,6 +520,14 @@ describe('opening map content', () => {
 		}
 	});
 
+	it('keeps meadow encounters out of meadow blockers', () => {
+		for (const encounter of meadowEntryMap.encounters ?? []) {
+			for (const blocker of meadowEntryMap.blockers ?? []) {
+				expect(isPointInsideRect(encounter, blocker)).toBe(false);
+			}
+		}
+	});
+
 	it('defines city route ground patches, blockers, fences, and forest dressing inside the meadow map bounds', () => {
 		expect(meadowEntryMap.groundPatches).toEqual([
 			{
@@ -597,9 +631,17 @@ describe('opening map content', () => {
 			{
 				id: 'city-east-district-wall-north',
 				x: 3_200,
-				y: 3_920,
+				y: 3_496,
 				width: 64,
-				height: 1_024,
+				height: 176,
+				kind: 'city-wall'
+			},
+			{
+				id: 'city-east-district-wall-north-lower',
+				x: 3_200,
+				y: 4_264,
+				width: 64,
+				height: 336,
 				kind: 'city-wall'
 			},
 			{

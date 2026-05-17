@@ -3178,8 +3178,8 @@ describe('WorldScene', () => {
 			saveState: expect.objectContaining({
 				mapId: 'ruins-threshold',
 				player: expect.objectContaining({
-					x: 512,
-					y: 3_200,
+					x: 256,
+					y: 480,
 					facing: 'right'
 				})
 			})

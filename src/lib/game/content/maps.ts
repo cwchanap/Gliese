@@ -255,7 +255,7 @@ export const meadowEntryMap: WorldMapDefinition = addEnglishMapText({
 				questId: 'investigate-the-ruins',
 				objectiveId: 'talk-to-guild-master'
 			},
-			arrival: { x: 512, y: 3_200, facing: 'right' }
+			arrival: { x: 256, y: 480, facing: 'right' }
 		}
 	],
 	groundPatches: [
@@ -318,9 +318,17 @@ export const meadowEntryMap: WorldMapDefinition = addEnglishMapText({
 		{
 			id: 'city-east-district-wall-north',
 			x: 3_200,
-			y: 3_920,
+			y: 3_496,
 			width: 64,
-			height: 1_024,
+			height: 176,
+			kind: 'city-wall'
+		},
+		{
+			id: 'city-east-district-wall-north-lower',
+			x: 3_200,
+			y: 4_264,
+			width: 64,
+			height: 336,
 			kind: 'city-wall'
 		},
 		{
