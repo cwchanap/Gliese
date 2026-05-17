@@ -1051,14 +1051,34 @@ describe('WorldScene', () => {
 
 	it('sets camera bounds for the ruins core map dimensions', async () => {
 		const { WorldScene } = await import('./WorldScene');
-		const { ruinsCoreMap } = await import('$lib/game/content/maps');
+		const { ruinsCoreMap, ruinsThresholdMap } = await import('$lib/game/content/maps');
 		const scene = new WorldScene();
 
 		scene.create({ mapId: ruinsCoreMap.id });
 
-		expect(ruinsCoreMap.width).toBe(30);
-		expect(ruinsCoreMap.height).toBe(30);
-		expect(scene.cameras.main.setBounds).toHaveBeenCalledWith(0, 0, 960, 960);
+		expect(ruinsCoreMap.width).toBe(200);
+		expect(ruinsCoreMap.height).toBe(200);
+		expect(scene.cameras.main.setBounds).toHaveBeenCalledWith(0, 0, 6_400, 6_400);
+		expect(ruinsThresholdMap.transitions).toEqual([
+			expect.objectContaining({
+				id: 'threshold-to-meadow',
+				x: 256,
+				y: 3_200,
+				toMapId: 'meadow-entry',
+				requiresClear: true,
+				marker: 'stair',
+				arrival: { x: 5_568, y: 960, facing: 'left' }
+			}),
+			expect.objectContaining({
+				id: 'threshold-to-core',
+				x: 5_888,
+				y: 3_200,
+				toMapId: 'ruins-core',
+				requiresClear: true,
+				marker: 'stair',
+				arrival: { x: 512, y: 3_200, facing: 'right' }
+			})
+		]);
 	});
 
 	it('centers compact interior maps inside larger camera viewports', async () => {
@@ -1367,7 +1387,7 @@ describe('WorldScene', () => {
 
 		scene.create({ mapId: 'ruins-core' });
 		sceneState.playerProgress = { level: 1, xp: 0, hp: 1, attack: 3 };
-		Object.assign(phaserState.playerMarker, { x: 640, y: 480 });
+		Object.assign(phaserState.playerMarker, { x: 4_992, y: 3_200 });
 		phaserState.cursorKeys.right.isDown = true;
 
 		scene.update(500, 16);
@@ -1590,9 +1610,9 @@ describe('WorldScene', () => {
 			}
 		});
 
-		expect(scene.add.image).not.toHaveBeenCalledWith(416, 352, 'starter-pack', 'healFlask');
-		expect(scene.add.image).toHaveBeenCalledWith(576, 608, 'starter-pack', 'healFlask');
-		expect(scene.add.image).toHaveBeenCalledWith(320, 640, 'starter-pack', 'healFlask');
+		expect(scene.add.image).not.toHaveBeenCalledWith(1_728, 2_112, 'starter-pack', 'healFlask');
+		expect(scene.add.image).toHaveBeenCalledWith(3_584, 4_384, 'starter-pack', 'healFlask');
+		expect(scene.add.image).toHaveBeenCalledWith(2_048, 4_800, 'starter-pack', 'healFlask');
 		const pickupMarkers = phaserState.imageMarkers.filter((marker) => marker.frame === 'healFlask');
 		expect(pickupMarkers).toHaveLength(ruinsThresholdMap.pickups!.length - 1);
 		expect(pickupMarkers.every((marker) => marker.setDisplaySize.mock.calls[0]![0] === 28)).toBe(
@@ -2630,9 +2650,9 @@ describe('WorldScene', () => {
 
 		scene.create({ mapId: 'ruins-threshold' });
 		const marker = phaserState.imageMarkers.find(
-			(imageMarker) => imageMarker.x === 320 && imageMarker.y === 640
+			(imageMarker) => imageMarker.x === 2_048 && imageMarker.y === 4_800
 		)!;
-		Object.assign(phaserState.playerMarker, { x: 320, y: 640 });
+		Object.assign(phaserState.playerMarker, { x: 2_048, y: 4_800 });
 
 		scene.update(0, 16);
 
@@ -2806,7 +2826,7 @@ describe('WorldScene', () => {
 
 		scene.create({ mapId: 'ruins-core' });
 		phaserState.enemyMarker.play.mockClear();
-		Object.assign(phaserState.playerMarker, { x: 456, y: 480 });
+		Object.assign(phaserState.playerMarker, { x: 4_912, y: 3_200 });
 
 		scene.update(0, 1000);
 
@@ -2837,7 +2857,7 @@ describe('WorldScene', () => {
 		};
 
 		scene.create({ mapId: 'ruins-core' });
-		Object.assign(phaserState.playerMarker, { x: 600, y: 480 });
+		Object.assign(phaserState.playerMarker, { x: 4_992, y: 3_200 });
 		sceneState.enemies[0]!.attackCooldownUntil = 0;
 		phaserState.playerMarker.setTint.mockClear();
 		phaserState.playerMarker.clearTint.mockClear();
@@ -2864,14 +2884,14 @@ describe('WorldScene', () => {
 		};
 
 		scene.create({ mapId: 'ruins-core' });
-		Object.assign(phaserState.playerMarker, { x: 560, y: 480 });
+		Object.assign(phaserState.playerMarker, { x: 4_912, y: 3_200 });
 
 		scene.update(0, 10_000);
 		scene.update(500, 10_000);
 		scene.update(1000, 10_000);
 
-		expect(sceneState.enemies[0]!.x).toBe(600);
-		expect(sceneState.enemies[0]!.y).toBe(480);
+		expect(sceneState.enemies[0]!.x).toBe(4_952);
+		expect(sceneState.enemies[0]!.y).toBe(3_200);
 		expect(sceneState.playerProgress.hp).toBe(15);
 	});
 
@@ -3178,8 +3198,8 @@ describe('WorldScene', () => {
 			saveState: expect.objectContaining({
 				mapId: 'ruins-threshold',
 				player: expect.objectContaining({
-					x: 256,
-					y: 480,
+					x: 512,
+					y: 3_200,
 					facing: 'right'
 				})
 			})
@@ -3263,7 +3283,7 @@ describe('WorldScene', () => {
 				}
 			}
 		});
-		Object.assign(phaserState.playerMarker, { x: 128, y: 480 });
+		Object.assign(phaserState.playerMarker, { x: 256, y: 3_200 });
 
 		scene.update(0, 16);
 
@@ -3296,7 +3316,7 @@ describe('WorldScene', () => {
 				}
 			}
 		});
-		Object.assign(phaserState.playerMarker, { x: 704, y: 480 });
+		Object.assign(phaserState.playerMarker, { x: 5_888, y: 3_200 });
 
 		scene.update(0, 16);
 
@@ -3305,8 +3325,8 @@ describe('WorldScene', () => {
 			saveState: expect.objectContaining({
 				mapId: 'ruins-core',
 				player: expect.objectContaining({
-					x: 256,
-					y: 480,
+					x: 512,
+					y: 3_200,
 					facing: 'right'
 				})
 			})
@@ -3352,7 +3372,7 @@ describe('WorldScene', () => {
 				}
 			}
 		});
-		Object.assign(phaserState.playerMarker, { x: 128, y: 480 });
+		Object.assign(phaserState.playerMarker, { x: 256, y: 3_200 });
 
 		scene.update(0, 16);
 
@@ -3361,8 +3381,8 @@ describe('WorldScene', () => {
 			saveState: expect.objectContaining({
 				mapId: 'ruins-threshold',
 				player: expect.objectContaining({
-					x: 576,
-					y: 480,
+					x: 5_632,
+					y: 3_200,
 					facing: 'left'
 				})
 			})
@@ -3407,7 +3427,7 @@ describe('WorldScene', () => {
 				}
 			}
 		});
-		Object.assign(phaserState.playerMarker, { x: 704, y: 480 });
+		Object.assign(phaserState.playerMarker, { x: 5_888, y: 3_200 });
 
 		scene.update(0, 16);
 
@@ -3520,11 +3540,11 @@ describe('WorldScene', () => {
 		};
 
 		scene.create({ mapId: 'ruins-threshold' });
-		Object.assign(phaserState.playerMarker, { x: 256, y: 480 });
+		Object.assign(phaserState.playerMarker, { x: 512, y: 3_200 });
 
 		scene.update(0, 1_000);
 
-		expect(sceneState.enemies[0]!.x).toBeLessThan(416);
+		expect(sceneState.enemies[0]!.x).toBeLessThan(2_304);
 		expect(sceneState.enemies[0]!.movementMode).toBe('chase');
 	});
 
@@ -3537,13 +3557,13 @@ describe('WorldScene', () => {
 		};
 
 		scene.create({ mapId: 'ruins-core' });
-		Object.assign(phaserState.playerMarker, { x: 456, y: 480 });
+		Object.assign(phaserState.playerMarker, { x: 4_912, y: 3_200 });
 
 		scene.update(0, 1000);
 
-		expect(sceneState.enemies[0]!.x).toBeLessThan(640);
+		expect(sceneState.enemies[0]!.x).toBeLessThan(4_992);
 
-		Object.assign(phaserState.playerMarker, { x: sceneState.enemies[0]!.x, y: 480 });
+		Object.assign(phaserState.playerMarker, { x: sceneState.enemies[0]!.x, y: 3_200 });
 		scene.update(500, 16);
 
 		expect(sceneState.playerProgress.hp).toBe(15);
@@ -3562,7 +3582,7 @@ describe('WorldScene', () => {
 		};
 
 		scene.create({ mapId: 'ruins-core' });
-		Object.assign(phaserState.playerMarker, { x: 640, y: 480 });
+		Object.assign(phaserState.playerMarker, { x: 4_992, y: 3_200 });
 
 		scene.update(0, 16);
 
@@ -3575,7 +3595,7 @@ describe('WorldScene', () => {
 		const scene = new WorldScene();
 
 		scene.create({ mapId: 'ruins-core' });
-		Object.assign(phaserState.playerMarker, { x: 640, y: 480 });
+		Object.assign(phaserState.playerMarker, { x: 4_992, y: 3_200 });
 		(scene as unknown as { enemies: Array<{ hp: number }> }).enemies[0]!.hp = 3;
 
 		scene.update(0, 16);

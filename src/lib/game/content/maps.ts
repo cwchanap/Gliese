@@ -255,7 +255,7 @@ export const meadowEntryMap: WorldMapDefinition = addEnglishMapText({
 				questId: 'investigate-the-ruins',
 				objectiveId: 'talk-to-guild-master'
 			},
-			arrival: { x: 256, y: 480, facing: 'right' }
+			arrival: { x: 512, y: 3_200, facing: 'right' }
 		}
 	],
 	groundPatches: [
@@ -592,61 +592,308 @@ export const villagerHouse3Map: WorldMapDefinition = {
 
 export const ruinsThresholdMap: WorldMapDefinition = {
 	id: 'ruins-threshold',
-	width: 30,
-	height: 30,
+	width: 200,
+	height: 200,
 	spawnDirection: 'right',
-	spawn: { x: 256, y: 480 },
+	spawn: { x: 512, y: 3_200 },
 	transitions: [
 		{
 			id: 'threshold-to-meadow',
-			x: 128,
-			y: 480,
+			x: 256,
+			y: 3_200,
 			toMapId: openingMapId,
 			requiresClear: true,
+			marker: 'stair',
 			arrival: { x: 5_568, y: 960, facing: 'left' }
 		},
 		{
 			id: 'threshold-to-core',
-			x: 704,
-			y: 480,
+			x: 5_888,
+			y: 3_200,
 			toMapId: 'ruins-core',
 			requiresClear: true,
-			arrival: { x: 256, y: 480, facing: 'right' }
+			marker: 'stair',
+			arrival: { x: 512, y: 3_200, facing: 'right' }
+		}
+	],
+	groundPatches: [
+		{
+			id: 'threshold-main-loop-west',
+			x: 1_600,
+			y: 3_200,
+			width: 2_176,
+			height: 192,
+			tile: 'ruinsFloorTile'
+		},
+		{
+			id: 'threshold-main-loop-east',
+			x: 4_224,
+			y: 3_200,
+			width: 2_560,
+			height: 192,
+			tile: 'ruinsFloorTile'
+		},
+		{
+			id: 'threshold-north-branch',
+			x: 2_240,
+			y: 2_048,
+			width: 192,
+			height: 1_920,
+			tile: 'ruinsFloorTile'
+		},
+		{
+			id: 'threshold-south-branch',
+			x: 3_584,
+			y: 4_352,
+			width: 192,
+			height: 1_920,
+			tile: 'ruinsFloorTile'
+		},
+		{
+			id: 'threshold-north-room',
+			x: 1_728,
+			y: 2_048,
+			width: 832,
+			height: 640,
+			tile: 'ruinsFloorTile'
+		},
+		{
+			id: 'threshold-south-room',
+			x: 3_584,
+			y: 4_608,
+			width: 960,
+			height: 672,
+			tile: 'ruinsFloorTile'
+		},
+		{
+			id: 'threshold-east-room',
+			x: 4_864,
+			y: 3_008,
+			width: 832,
+			height: 640,
+			tile: 'ruinsFloorTile'
+		}
+	],
+	blockers: [
+		{
+			id: 'threshold-north-wall',
+			x: 3_200,
+			y: 1_184,
+			width: 5_120,
+			height: 128,
+			kind: 'ruin-wall'
+		},
+		{
+			id: 'threshold-south-wall',
+			x: 3_200,
+			y: 5_216,
+			width: 5_120,
+			height: 128,
+			kind: 'ruin-wall'
+		},
+		{
+			id: 'threshold-west-wall',
+			x: 768,
+			y: 3_200,
+			width: 128,
+			height: 3_840,
+			kind: 'ruin-wall'
+		},
+		{
+			id: 'threshold-east-wall',
+			x: 5_632,
+			y: 3_200,
+			width: 128,
+			height: 3_840,
+			kind: 'ruin-wall'
+		},
+		{
+			id: 'threshold-loop-divider-north',
+			x: 3_040,
+			y: 2_368,
+			width: 128,
+			height: 1_536,
+			kind: 'ruin-wall'
+		},
+		{
+			id: 'threshold-loop-divider-south',
+			x: 2_912,
+			y: 4_032,
+			width: 128,
+			height: 1_280,
+			kind: 'ruin-wall'
+		},
+		{
+			id: 'threshold-future-gate-north',
+			x: 2_240,
+			y: 2_816,
+			width: 256,
+			height: 96,
+			kind: 'future-gate',
+			label: 'Future north switch gate'
+		},
+		{
+			id: 'threshold-future-gate-east',
+			x: 4_672,
+			y: 3_200,
+			width: 96,
+			height: 320,
+			kind: 'future-gate',
+			label: 'Future east gate'
 		}
 	],
 	pickups: [
-		{ id: 'ruins-threshold-cap', x: 416, y: 352, itemId: 'iron-cap', quantity: 1 },
-		{ id: 'ruins-threshold-rune', x: 576, y: 608, itemId: 'threshold-rune', quantity: 1 },
-		{ id: 'ruins-threshold-salve', x: 320, y: 640, itemId: 'sunleaf-salve', quantity: 2 }
+		{ id: 'ruins-threshold-cap', x: 1_728, y: 2_112, itemId: 'iron-cap', quantity: 1 },
+		{ id: 'ruins-threshold-rune', x: 3_584, y: 4_384, itemId: 'threshold-rune', quantity: 1 },
+		{ id: 'ruins-threshold-salve', x: 2_048, y: 4_800, itemId: 'sunleaf-salve', quantity: 2 }
 	],
 	encounters: [
-		{ id: 'threshold-slime-west', x: 416, y: 480, enemyId: 'slime-scout' },
-		{ id: 'threshold-slime-east', x: 576, y: 480, enemyId: 'slime-scout' }
+		{ id: 'threshold-slime-west', x: 2_304, y: 3_200, enemyId: 'slime-scout' },
+		{ id: 'threshold-slime-east', x: 4_096, y: 3_008, enemyId: 'slime-scout' }
 	]
 };
 
 export const ruinsCoreMap: WorldMapDefinition = {
 	id: 'ruins-core',
-	width: 30,
-	height: 30,
+	width: 200,
+	height: 200,
 	spawnDirection: 'right',
-	spawn: { x: 256, y: 480 },
+	spawn: { x: 512, y: 3_200 },
 	transitions: [
 		{
 			id: 'core-to-threshold',
-			x: 128,
-			y: 480,
+			x: 256,
+			y: 3_200,
 			toMapId: 'ruins-threshold',
 			requiresClear: true,
-			arrival: { x: 576, y: 480, facing: 'left' }
+			marker: 'stair',
+			arrival: { x: 5_632, y: 3_200, facing: 'left' }
+		}
+	],
+	groundPatches: [
+		{
+			id: 'core-main-approach',
+			x: 2_368,
+			y: 3_200,
+			width: 3_648,
+			height: 192,
+			tile: 'ruinsFloorTile'
+		},
+		{
+			id: 'core-north-side-room',
+			x: 2_240,
+			y: 2_048,
+			width: 896,
+			height: 704,
+			tile: 'ruinsFloorTile'
+		},
+		{
+			id: 'core-south-side-room',
+			x: 3_584,
+			y: 4_544,
+			width: 1_024,
+			height: 704,
+			tile: 'ruinsFloorTile'
+		},
+		{
+			id: 'core-boss-chamber',
+			x: 4_992,
+			y: 3_200,
+			width: 1_024,
+			height: 960,
+			tile: 'ruinsFloorTile'
+		},
+		{
+			id: 'core-north-connector',
+			x: 2_240,
+			y: 2_624,
+			width: 192,
+			height: 1_280,
+			tile: 'ruinsFloorTile'
+		},
+		{
+			id: 'core-south-connector',
+			x: 3_584,
+			y: 3_872,
+			width: 192,
+			height: 1_344,
+			tile: 'ruinsFloorTile'
+		}
+	],
+	blockers: [
+		{
+			id: 'core-north-wall',
+			x: 3_200,
+			y: 1_184,
+			width: 5_120,
+			height: 128,
+			kind: 'ruin-wall'
+		},
+		{
+			id: 'core-south-wall',
+			x: 3_200,
+			y: 5_216,
+			width: 5_120,
+			height: 128,
+			kind: 'ruin-wall'
+		},
+		{
+			id: 'core-west-wall',
+			x: 768,
+			y: 3_200,
+			width: 128,
+			height: 3_840,
+			kind: 'ruin-wall'
+		},
+		{
+			id: 'core-east-wall',
+			x: 5_760,
+			y: 3_200,
+			width: 128,
+			height: 3_840,
+			kind: 'ruin-wall'
+		},
+		{
+			id: 'core-boss-approach-north',
+			x: 4_352,
+			y: 2_624,
+			width: 128,
+			height: 1_280,
+			kind: 'ruin-wall'
+		},
+		{
+			id: 'core-boss-approach-south',
+			x: 4_352,
+			y: 3_776,
+			width: 128,
+			height: 1_280,
+			kind: 'ruin-wall'
+		},
+		{
+			id: 'core-future-gate-boss',
+			x: 4_608,
+			y: 3_200,
+			width: 96,
+			height: 448,
+			kind: 'future-gate',
+			label: 'Future boss gate'
+		},
+		{
+			id: 'core-future-gate-south',
+			x: 3_584,
+			y: 3_936,
+			width: 256,
+			height: 96,
+			kind: 'future-gate',
+			label: 'Future south chamber gate'
 		}
 	],
 	pickups: [
-		{ id: 'ruins-core-mail', x: 448, y: 608, itemId: 'stone-mail', quantity: 1 },
-		{ id: 'ruins-core-draught', x: 544, y: 352, itemId: 'ruin-draught', quantity: 1 }
+		{ id: 'ruins-core-mail', x: 2_240, y: 2_048, itemId: 'stone-mail', quantity: 1 },
+		{ id: 'ruins-core-draught', x: 3_584, y: 4_544, itemId: 'ruin-draught', quantity: 1 }
 	],
 	encounters: [
-		{ id: 'ruins-warden', x: 640, y: 480, enemyId: 'ruins-warden', completion: 'victory' }
+		{ id: 'ruins-warden', x: 4_992, y: 3_200, enemyId: 'ruins-warden', completion: 'victory' }
 	]
 };
 
