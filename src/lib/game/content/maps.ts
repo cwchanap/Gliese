@@ -603,7 +603,7 @@ export const ruinsThresholdMap: WorldMapDefinition = {
 			y: 480,
 			toMapId: openingMapId,
 			requiresClear: true,
-			arrival: { x: 2_176, y: 704, facing: 'left' }
+			arrival: { x: 5_568, y: 960, facing: 'left' }
 		},
 		{
 			id: 'threshold-to-core',

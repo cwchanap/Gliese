@@ -251,7 +251,7 @@ describe('opening map content', () => {
 			ruinsThresholdMap.transitions.find((transition) => transition.id === 'threshold-to-meadow')
 		).toMatchObject({
 			toMapId: 'meadow-entry',
-			arrival: { x: 2_176, y: 704, facing: 'left' }
+			arrival: { x: 5_568, y: 960, facing: 'left' }
 		});
 		expect(ruinsThresholdMap.transitions).toEqual([
 			{
@@ -260,7 +260,7 @@ describe('opening map content', () => {
 				y: 480,
 				toMapId: 'meadow-entry',
 				requiresClear: true,
-				arrival: { x: 2_176, y: 704, facing: 'left' }
+				arrival: { x: 5_568, y: 960, facing: 'left' }
 			},
 			{
 				id: 'threshold-to-core',
@@ -297,6 +297,26 @@ describe('opening map content', () => {
 				expect(transition.arrival.x).toBeLessThan(targetMap.width * 32);
 				expect(transition.arrival.y).toBeLessThan(targetMap.height * 32);
 			}
+		}
+	});
+
+	it('returns from the ruins near the city stair and clear of meadow blockers', () => {
+		const cityToRuins = meadowEntryMap.transitions.find(
+			(transition) => transition.id === 'meadow-to-ruins-threshold'
+		);
+		const ruinsToCity = ruinsThresholdMap.transitions.find(
+			(transition) => transition.id === 'threshold-to-meadow'
+		);
+
+		expect(cityToRuins).toBeDefined();
+		expect(ruinsToCity?.arrival).toBeDefined();
+
+		const arrival = ruinsToCity!.arrival!;
+		expect(Math.hypot(arrival.x - cityToRuins!.x, arrival.y - cityToRuins!.y)).toBeLessThanOrEqual(
+			256
+		);
+		for (const blocker of meadowEntryMap.blockers ?? []) {
+			expect(isPointInsideRect(arrival, blocker)).toBe(false);
 		}
 	});
 

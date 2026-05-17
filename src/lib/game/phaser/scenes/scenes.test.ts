@@ -3272,8 +3272,8 @@ describe('WorldScene', () => {
 			saveState: expect.objectContaining({
 				mapId: 'meadow-entry',
 				player: expect.objectContaining({
-					x: 2_176,
-					y: 704,
+					x: 5_568,
+					y: 960,
 					facing: 'left'
 				})
 			})
