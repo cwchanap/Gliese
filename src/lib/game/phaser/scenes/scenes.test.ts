@@ -584,6 +584,57 @@ describe('BootScene', () => {
 });
 
 describe('WorldScene', () => {
+	async function registerSceneSupportTestMap() {
+		const { maps } = await import('$lib/game/content/maps');
+
+		maps['scene-support-test'] = {
+			id: 'scene-support-test',
+			width: 20,
+			height: 20,
+			spawnDirection: 'right',
+			spawn: { x: 96, y: 96 },
+			transitions: [
+				{
+					id: 'scene-support-stair',
+					x: 320,
+					y: 96,
+					toMapId: 'hero-house',
+					marker: 'stair',
+					arrival: { x: 256, y: 224, facing: 'up' }
+				}
+			],
+			groundPatches: [
+				{ id: 'scene-support-path', x: 96, y: 96, width: 160, height: 96, tile: 'pathTile' },
+				{ id: 'scene-support-stone', x: 320, y: 96, width: 96, height: 96, tile: 'stoneWallTile' }
+			],
+			blockers: [
+				{ id: 'scene-support-blocker', x: 160, y: 96, width: 32, height: 160, kind: 'city-wall' },
+				{
+					id: 'scene-support-gate',
+					x: 224,
+					y: 224,
+					width: 96,
+					height: 32,
+					kind: 'future-gate',
+					label: 'Future gate'
+				}
+			],
+			combatBounds: [
+				{
+					id: 'scene-support-combat',
+					x: 320,
+					y: 320,
+					width: 320,
+					height: 320,
+					encounterIds: ['scene-support-slime'],
+					aggroRadius: 120,
+					leashRadius: 180
+				}
+			],
+			encounters: [{ id: 'scene-support-slime', x: 320, y: 320, enemyId: 'slime-scout' }]
+		};
+	}
+
 	beforeEach(() => {
 		localeState.activeLocale = 'en';
 		vi.clearAllMocks();
@@ -638,6 +689,53 @@ describe('WorldScene', () => {
 		expect(phaserState.enemyMarkers).toHaveLength(3);
 		expect(scene.add.image).toHaveBeenCalledWith(2_304, 704, 'starter-pack', 'doorwayTile');
 		expect(scene.cameras.main.setBackgroundColor).toHaveBeenCalledWith('#1a1f2b');
+	});
+
+	it('renders authored ground patches and stair markers from map metadata', async () => {
+		const { WorldScene } = await import('./WorldScene');
+		const scene = new WorldScene();
+		await registerSceneSupportTestMap();
+
+		scene.create({ mapId: 'scene-support-test' });
+
+		const tilemapCall = vi.mocked(scene.make.tilemap).mock.calls[0]![0]!;
+		const tilemapData = tilemapCall.data as number[][];
+		expect(tilemapData[3][3]).toBe(1);
+		expect(tilemapData[3][10]).toBe(3);
+		expect(scene.add.rectangle).toHaveBeenCalledWith(320, 106, 44, 8, 0x4b5563, 0.95);
+		expect(scene.add.rectangle).toHaveBeenCalledWith(320, 96, 36, 8, 0x9ca3af, 0.95);
+		expect(scene.add.rectangle).toHaveBeenCalledWith(320, 86, 28, 8, 0xd1d5db, 0.95);
+	});
+
+	it('renders and blocks authored map blockers', async () => {
+		const { WorldScene } = await import('./WorldScene');
+		const scene = new WorldScene();
+		await registerSceneSupportTestMap();
+
+		scene.create({ mapId: 'scene-support-test' });
+		Object.assign(phaserState.playerMarker, { x: 96, y: 96 });
+		phaserState.cursorKeys.right.isDown = true;
+
+		scene.update(0, 250);
+
+		expect(scene.add.rectangle).toHaveBeenCalledWith(160, 96, 32, 160, 0x4b5563, 0.92);
+		expect(scene.add.rectangle).toHaveBeenCalledWith(224, 224, 96, 32, 0x7c3aed, 0.82);
+		expect(phaserState.playerMarker.x).toBe(96);
+		expect(phaserState.playerMarker.y).toBe(96);
+	});
+
+	it('leashes enemies with route combat bounds instead of a single forest zone', async () => {
+		const { WorldScene } = await import('./WorldScene');
+		const scene = new WorldScene();
+		await registerSceneSupportTestMap();
+
+		scene.create({ mapId: 'scene-support-test' });
+		Object.assign(phaserState.playerMarker, { x: 640, y: 640 });
+
+		scene.update(0, 250);
+
+		expect(phaserState.enemyMarker.x).toBe(320);
+		expect(phaserState.enemyMarker.y).toBe(320);
 	});
 
 	it('renders village building landmarks before doorway markers', async () => {

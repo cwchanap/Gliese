@@ -21,11 +21,15 @@ import { enemies, type EnemyCombatDefinition } from '$lib/game/content/enemies';
 import {
 	maps,
 	openingMapId,
+	type MapBlocker,
+	type MapCombatBounds,
 	type MapFenceSegment,
 	type MapForestDecor,
 	type MapForestZone,
+	type MapGroundPatch,
 	type MapLandmark,
 	type MapNpc,
+	type MapRect,
 	type MapTransition,
 	type WorldMapDefinition
 } from '$lib/game/content/maps';
@@ -391,6 +395,7 @@ export class WorldScene extends Phaser.Scene {
 		this.renderGround(map);
 		this.renderForestDressing(map);
 		this.renderFences(map);
+		this.renderBlockers(map);
 		this.renderLandmarks(map);
 		const heroAnimation = getActorAnimationAsset('hero');
 		this.player = this.add.sprite(
@@ -1501,6 +1506,12 @@ export class WorldScene extends Phaser.Scene {
 
 		return Array.from({ length: map.height }, (_, row) =>
 			Array.from({ length: map.width }, (_, column) => {
+				const patchTile = this.findGroundPatchTile(map, column, row);
+
+				if (patchTile !== undefined) {
+					return patchTile;
+				}
+
 				if (map.id === openingMapId && Math.abs(row - centerRow) <= 1) {
 					return pathTile;
 				}
@@ -1514,6 +1525,37 @@ export class WorldScene extends Phaser.Scene {
 
 				return baseTile;
 			})
+		);
+	}
+
+	private findGroundPatchTile(
+		map: WorldMapDefinition,
+		column: number,
+		row: number
+	): number | undefined {
+		const patches: MapGroundPatch[] = map.groundPatches ?? [];
+		const tileCenterX = column * WorldScene.tileSize + WorldScene.tileSize / 2;
+		const tileCenterY = row * WorldScene.tileSize + WorldScene.tileSize / 2;
+
+		for (let index = patches.length - 1; index >= 0; index -= 1) {
+			const patch = patches[index]!;
+
+			if (this.isPointInsideGenericMapRect(tileCenterX, tileCenterY, patch)) {
+				return WorldScene.terrainTileIndexes[patch.tile];
+			}
+		}
+
+		return undefined;
+	}
+
+	private isPointInsideGenericMapRect(x: number, y: number, rect: MapRect, padding = 0): boolean {
+		const bounds = this.getMapRectBounds(rect);
+
+		return (
+			x >= bounds.left - padding &&
+			x <= bounds.right + padding &&
+			y >= bounds.top - padding &&
+			y <= bounds.bottom + padding
 		);
 	}
 
@@ -1531,9 +1573,9 @@ export class WorldScene extends Phaser.Scene {
 		}
 
 		const map = this.resolveMap(this.mapId);
-		const forestZone = map.forestZone;
+		const combatBounds = this.findCombatBoundsForEnemy(map, enemy) ?? map.forestZone;
 
-		if (!forestZone || enemy.definition.id !== 'slime-scout') {
+		if (!combatBounds) {
 			enemy.movementMode = 'chase';
 			return { x: this.player.x, y: this.player.y };
 		}
@@ -1553,12 +1595,12 @@ export class WorldScene extends Phaser.Scene {
 		const playerInsideForest = this.isPointInsideMapRect(
 			this.player.x,
 			this.player.y,
-			forestZone,
+			combatBounds,
 			WorldScene.playerRadius
 		);
 		const playerWithinLeash =
-			playerInsideForest && playerDistanceFromHome <= forestZone.leashRadius;
-		const canAcquire = distanceToPlayer <= forestZone.aggroRadius;
+			playerInsideForest && playerDistanceFromHome <= combatBounds.leashRadius;
+		const canAcquire = distanceToPlayer <= combatBounds.aggroRadius;
 		const canContinueChase = enemy.movementMode === 'chase' && playerWithinLeash;
 
 		if (playerWithinLeash && (canAcquire || canContinueChase)) {
@@ -1575,7 +1617,16 @@ export class WorldScene extends Phaser.Scene {
 		return undefined;
 	}
 
-	private isPointInsideMapRect(x: number, y: number, rect: MapForestZone, padding = 0): boolean {
+	private findCombatBoundsForEnemy(
+		map: WorldMapDefinition,
+		enemy: EnemyInstance
+	): MapCombatBounds | undefined {
+		return (map.combatBounds ?? []).find((combatBounds) =>
+			combatBounds.encounterIds.includes(enemy.id)
+		);
+	}
+
+	private isPointInsideMapRect(x: number, y: number, rect: MapRect, padding = 0): boolean {
 		const bounds = this.getMapRectBounds(rect);
 
 		return (
@@ -1589,7 +1640,7 @@ export class WorldScene extends Phaser.Scene {
 	private clampPointToMapRect(
 		x: number,
 		y: number,
-		rect: MapForestZone,
+		rect: MapRect,
 		padding = 0
 	): { x: number; y: number } {
 		const bounds = this.getMapRectBounds(rect);
@@ -1668,6 +1719,35 @@ export class WorldScene extends Phaser.Scene {
 		}
 	}
 
+	private renderBlockers(map: WorldMapDefinition) {
+		const blockers: MapBlocker[] = map.blockers ?? [];
+
+		for (const blocker of blockers) {
+			const fill = this.getBlockerFill(blocker);
+
+			this.add.rectangle(
+				blocker.x,
+				blocker.y,
+				blocker.width,
+				blocker.height,
+				fill.color,
+				fill.alpha
+			);
+		}
+	}
+
+	private getBlockerFill(blocker: MapBlocker): { color: number; alpha: number } {
+		if (blocker.kind === 'future-gate') {
+			return { color: 0x7c3aed, alpha: 0.82 };
+		}
+
+		if (blocker.kind === 'ruin-wall') {
+			return { color: 0x59616f, alpha: 0.92 };
+		}
+
+		return { color: 0x4b5563, alpha: 0.92 };
+	}
+
 	private renderFenceSegment(fence: MapFenceSegment) {
 		const isHorizontal = fence.width >= fence.height;
 		const length = isHorizontal ? fence.width : fence.height;
@@ -1732,10 +1812,21 @@ export class WorldScene extends Phaser.Scene {
 				continue;
 			}
 
+			if (transition.marker === 'stair') {
+				this.renderStairTransition(transition.x, transition.y);
+				continue;
+			}
+
 			this.add
 				.image(transition.x, transition.y, starterPackAsset.key, 'doorwayTile')
 				.setDisplaySize(40, 40);
 		}
+	}
+
+	private renderStairTransition(x: number, y: number) {
+		this.add.rectangle(x, y + 10, 44, 8, 0x4b5563, 0.95);
+		this.add.rectangle(x, y, 36, 8, 0x9ca3af, 0.95);
+		this.add.rectangle(x, y - 10, 28, 8, 0xd1d5db, 0.95);
 	}
 
 	private resolveFacing(direction: { x: number; y: number }, fallback: Direction): Direction {
@@ -1776,6 +1867,7 @@ export class WorldScene extends Phaser.Scene {
 			this.isPlayerMovementBlockedByNpc(currentX, currentY, targetX, targetY) ||
 			this.isPlayerMovementBlockedByLandmark(currentX, currentY, targetX, targetY) ||
 			this.isPlayerMovementBlockedByFence(currentX, currentY, targetX, targetY) ||
+			this.isPlayerMovementBlockedByBlocker(currentX, currentY, targetX, targetY) ||
 			this.isPlayerMovementBlockedByForestDecor(currentX, currentY, targetX, targetY)
 		);
 	}
@@ -1883,6 +1975,28 @@ export class WorldScene extends Phaser.Scene {
 		});
 	}
 
+	private isPlayerMovementBlockedByBlocker(
+		currentX: number,
+		currentY: number,
+		targetX: number,
+		targetY: number
+	): boolean {
+		const map = this.resolveMap(this.mapId);
+
+		return (map.blockers ?? []).some((blocker) => {
+			const bounds = this.getMapRectBounds(blocker);
+
+			return this.isMovementBlockedByStrictRect(
+				currentX,
+				currentY,
+				targetX,
+				targetY,
+				bounds,
+				WorldScene.playerRadius
+			);
+		});
+	}
+
 	private isPlayerMovementBlockedByForestDecor(
 		currentX: number,
 		currentY: number,
@@ -1932,7 +2046,7 @@ export class WorldScene extends Phaser.Scene {
 	}
 
 	private getMapRectBounds(
-		rect: MapFenceSegment | MapForestDecor | MapForestZone
+		rect: MapFenceSegment | MapForestDecor | MapForestZone | MapBlocker | MapCombatBounds
 	): LandmarkCollisionBounds {
 		const left = rect.x - rect.width / 2;
 		const right = rect.x + rect.width / 2;
@@ -2535,12 +2649,13 @@ export class WorldScene extends Phaser.Scene {
 					let nextX = enemy.x + directionX * chaseDistance;
 					let nextY = enemy.y + directionY * chaseDistance;
 					const map = this.resolveMap(this.mapId);
+					const combatBounds = this.findCombatBoundsForEnemy(map, enemy) ?? map.forestZone;
 
-					if (map.forestZone && enemy.definition.id === 'slime-scout') {
+					if (combatBounds) {
 						const clamped = this.clampPointToMapRect(
 							nextX,
 							nextY,
-							map.forestZone,
+							combatBounds,
 							WorldScene.enemyRadius
 						);
 						nextX = clamped.x;
@@ -2601,8 +2716,9 @@ export class WorldScene extends Phaser.Scene {
 
 	private canEnemyAttackPlayer(enemy: EnemyInstance): boolean {
 		const map = this.resolveMap(this.mapId);
+		const combatBounds = this.findCombatBoundsForEnemy(map, enemy) ?? map.forestZone;
 
-		if (!map.forestZone || enemy.definition.id !== 'slime-scout') {
+		if (!combatBounds) {
 			return true;
 		}
 
