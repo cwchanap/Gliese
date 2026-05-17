@@ -16,6 +16,7 @@ import {
 	villagerHouse2Map,
 	villagerHouse3Map
 } from '$lib/game/content/maps';
+import type { WorldMapDefinition } from '$lib/game/content/maps';
 
 function expectEnglishMessage(key: Parameters<typeof t>[1]): string {
 	const value = t('en', key);
@@ -48,6 +49,77 @@ function expectPointInsideRect(point: { x: number; y: number }, rect: CenterRect
 }
 
 describe('opening map content', () => {
+	it('supports authored ground patches, blockers, stair markers, and route combat bounds', () => {
+		const modelTestMap: WorldMapDefinition = {
+			id: 'model-test',
+			width: 200,
+			height: 200,
+			spawnDirection: 'down',
+			spawn: { x: 320, y: 320 },
+			transitions: [
+				{
+					id: 'model-test-stair',
+					x: 640,
+					y: 640,
+					toMapId: 'hero-house',
+					marker: 'stair'
+				}
+			],
+			groundPatches: [
+				{
+					id: 'model-test-path',
+					x: 320,
+					y: 320,
+					width: 320,
+					height: 96,
+					tile: 'pathTile'
+				}
+			],
+			blockers: [
+				{
+					id: 'model-test-wall',
+					x: 480,
+					y: 320,
+					width: 64,
+					height: 320,
+					kind: 'city-wall'
+				},
+				{
+					id: 'model-test-future-gate',
+					x: 640,
+					y: 320,
+					width: 96,
+					height: 64,
+					kind: 'future-gate',
+					label: 'Future switch gate'
+				}
+			],
+			combatBounds: [
+				{
+					id: 'model-test-combat-pocket',
+					x: 800,
+					y: 320,
+					width: 480,
+					height: 320,
+					encounterIds: ['model-test-slime'],
+					aggroRadius: 240,
+					leashRadius: 420
+				}
+			]
+		};
+
+		expect(modelTestMap.transitions[0].marker).toBe('stair');
+		expect(modelTestMap.groundPatches?.[0]).toMatchObject({
+			id: 'model-test-path',
+			tile: 'pathTile'
+		});
+		expect(modelTestMap.blockers?.map((blocker) => blocker.kind)).toEqual([
+			'city-wall',
+			'future-gate'
+		]);
+		expect(modelTestMap.combatBounds?.[0].encounterIds).toEqual(['model-test-slime']);
+	});
+
 	it('declares a village spawn, peaceful building doors, forest encounters, and ruins exit', () => {
 		expect(meadowEntryMap.width).toBe(80);
 		expect(meadowEntryMap.height).toBe(80);

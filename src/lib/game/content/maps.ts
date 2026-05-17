@@ -1,4 +1,8 @@
-import type { ForestDressingFrameName, NpcFrameName } from '$lib/game/content/assets';
+import type {
+	ForestDressingFrameName,
+	NpcFrameName,
+	StarterPackFrameName
+} from '$lib/game/content/assets';
 import type { NpcDialogueId } from '$lib/game/content/dialogue';
 import type { DefinitionRegistry, MapDefinition } from '$lib/game/core/types';
 import { t, type MessageKey } from '$lib/game/i18n/translate';
@@ -10,6 +14,7 @@ export interface MapTransition {
 	toMapId: string;
 	requiresClear?: boolean;
 	showMarker?: boolean;
+	marker?: MapTransitionMarker;
 	questRequirement?: {
 		questId: string;
 		objectiveId: string;
@@ -70,6 +75,30 @@ export interface MapRect {
 	height: number;
 }
 
+export type MapTransitionMarker = 'doorway' | 'stair';
+
+export type MapGroundTile = Extract<
+	StarterPackFrameName,
+	'grassTile' | 'pathTile' | 'ruinsFloorTile' | 'stoneWallTile'
+>;
+
+export interface MapGroundPatch extends MapRect {
+	tile: MapGroundTile;
+}
+
+export type MapBlockerKind = 'city-wall' | 'ruin-wall' | 'future-gate';
+
+export interface MapBlocker extends MapRect {
+	kind: MapBlockerKind;
+	label?: string;
+}
+
+export interface MapCombatBounds extends MapRect {
+	encounterIds: string[];
+	aggroRadius: number;
+	leashRadius: number;
+}
+
 export interface MapForestZone extends MapRect {
 	aggroRadius: number;
 	leashRadius: number;
@@ -94,6 +123,9 @@ export interface WorldMapDefinition extends MapDefinition {
 	forestZone?: MapForestZone;
 	fences?: MapFenceSegment[];
 	forestDecor?: MapForestDecor[];
+	groundPatches?: MapGroundPatch[];
+	blockers?: MapBlocker[];
+	combatBounds?: MapCombatBounds[];
 }
 
 type MapNpcSource = Omit<MapNpc, 'name'>;
