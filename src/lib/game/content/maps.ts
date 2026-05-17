@@ -767,7 +767,7 @@ export const ruinsCoreMap: WorldMapDefinition = {
 			toMapId: 'ruins-threshold',
 			requiresClear: true,
 			marker: 'stair',
-			arrival: { x: 5_632, y: 3_200, facing: 'left' }
+			arrival: { x: 5_504, y: 3_200, facing: 'left' }
 		}
 	],
 	groundPatches: [

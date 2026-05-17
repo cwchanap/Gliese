@@ -281,7 +281,7 @@ describe('opening map content', () => {
 				toMapId: 'ruins-threshold',
 				requiresClear: true,
 				marker: 'stair',
-				arrival: { x: 5_632, y: 3_200, facing: 'left' }
+				arrival: { x: 5_504, y: 3_200, facing: 'left' }
 			}
 		]);
 	});
@@ -565,6 +565,13 @@ describe('opening map content', () => {
 				expect(transition.arrival.y).toBeGreaterThanOrEqual(0);
 				expect(transition.arrival.x).toBeLessThan(targetMap.width * 32);
 				expect(transition.arrival.y).toBeLessThan(targetMap.height * 32);
+				const overlappingBlocker = (targetMap.blockers ?? []).find((blocker) =>
+					isPointInsideRect(transition.arrival!, blocker)
+				);
+				expect(
+					overlappingBlocker,
+					`${map.id}:${transition.id} arrival overlaps ${targetMap.id} blocker`
+				).toBeUndefined();
 			}
 		}
 	});
