@@ -1573,7 +1573,7 @@ export class WorldScene extends Phaser.Scene {
 		}
 
 		const map = this.resolveMap(this.mapId);
-		const combatBounds = this.findCombatBoundsForEnemy(map, enemy) ?? map.forestZone;
+		const combatBounds = this.findLeashBoundsForEnemy(map, enemy);
 
 		if (!combatBounds) {
 			enemy.movementMode = 'chase';
@@ -1623,6 +1623,16 @@ export class WorldScene extends Phaser.Scene {
 	): MapCombatBounds | undefined {
 		return (map.combatBounds ?? []).find((combatBounds) =>
 			combatBounds.encounterIds.includes(enemy.id)
+		);
+	}
+
+	private findLeashBoundsForEnemy(
+		map: WorldMapDefinition,
+		enemy: EnemyInstance
+	): MapCombatBounds | MapForestZone | undefined {
+		return (
+			this.findCombatBoundsForEnemy(map, enemy) ??
+			(enemy.definition.id === 'slime-scout' ? map.forestZone : undefined)
 		);
 	}
 
@@ -2649,7 +2659,7 @@ export class WorldScene extends Phaser.Scene {
 					let nextX = enemy.x + directionX * chaseDistance;
 					let nextY = enemy.y + directionY * chaseDistance;
 					const map = this.resolveMap(this.mapId);
-					const combatBounds = this.findCombatBoundsForEnemy(map, enemy) ?? map.forestZone;
+					const combatBounds = this.findLeashBoundsForEnemy(map, enemy);
 
 					if (combatBounds) {
 						const clamped = this.clampPointToMapRect(
@@ -2716,7 +2726,7 @@ export class WorldScene extends Phaser.Scene {
 
 	private canEnemyAttackPlayer(enemy: EnemyInstance): boolean {
 		const map = this.resolveMap(this.mapId);
-		const combatBounds = this.findCombatBoundsForEnemy(map, enemy) ?? map.forestZone;
+		const combatBounds = this.findLeashBoundsForEnemy(map, enemy);
 
 		if (!combatBounds) {
 			return true;

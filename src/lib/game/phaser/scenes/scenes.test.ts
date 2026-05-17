@@ -635,6 +635,29 @@ describe('WorldScene', () => {
 		};
 	}
 
+	async function registerNonSlimeForestZoneTestMap() {
+		const { maps } = await import('$lib/game/content/maps');
+
+		maps['non-slime-forest-zone-test'] = {
+			id: 'non-slime-forest-zone-test',
+			width: 20,
+			height: 20,
+			spawnDirection: 'left',
+			spawn: { x: 360, y: 320 },
+			transitions: [],
+			forestZone: {
+				id: 'non-slime-forest-zone',
+				x: 96,
+				y: 96,
+				width: 96,
+				height: 96,
+				aggroRadius: 120,
+				leashRadius: 180
+			},
+			encounters: [{ id: 'non-slime-forest-warden', x: 320, y: 320, enemyId: 'ruins-warden' }]
+		};
+	}
+
 	beforeEach(() => {
 		localeState.activeLocale = 'en';
 		vi.clearAllMocks();
@@ -736,6 +759,23 @@ describe('WorldScene', () => {
 
 		expect(phaserState.enemyMarker.x).toBe(320);
 		expect(phaserState.enemyMarker.y).toBe(320);
+	});
+
+	it('keeps non-slime enemies on forest-zone maps using direct chase and attack behavior', async () => {
+		const { WorldScene } = await import('./WorldScene');
+		const scene = new WorldScene();
+		const sceneState = scene as unknown as {
+			enemies: Array<{ movementMode: string }>;
+			playerProgress: { hp: number };
+		};
+		await registerNonSlimeForestZoneTestMap();
+
+		scene.create({ mapId: 'non-slime-forest-zone-test' });
+
+		scene.update(500, 16);
+
+		expect(sceneState.enemies[0]!.movementMode).toBe('chase');
+		expect(sceneState.playerProgress.hp).toBe(15);
 	});
 
 	it('renders village building landmarks before doorway markers', async () => {
