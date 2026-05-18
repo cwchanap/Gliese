@@ -1294,6 +1294,52 @@ describe('WorldScene', () => {
 		expect(phaserState.playerMarker.y).toBe(4_640);
 	});
 
+	it('blocks city wall movement while leaving the ruins approach lane usable', async () => {
+		const { WorldScene } = await import('./WorldScene');
+		const scene = new WorldScene();
+
+		scene.create({ mapId: 'meadow-entry' });
+		Object.assign(phaserState.playerMarker, { x: 5_300, y: 1_760 });
+		phaserState.cursorKeys.right.isDown = true;
+
+		scene.update(0, 250);
+
+		expect(phaserState.playerMarker.x).toBe(5_300);
+		expect(phaserState.playerMarker.y).toBe(1_760);
+
+		Object.assign(phaserState.playerMarker, { x: 5_640, y: 1_200 });
+		phaserState.cursorKeys.right.isDown = false;
+		phaserState.cursorKeys.up.isDown = true;
+
+		scene.update(250, 250);
+
+		expect(phaserState.playerMarker.x).toBe(5_640);
+		expect(phaserState.playerMarker.y).toBeLessThan(1_200);
+	});
+
+	it('blocks movement through ruin walls and future gates', async () => {
+		const { WorldScene } = await import('./WorldScene');
+		const scene = new WorldScene();
+
+		scene.create({ mapId: 'ruins-core' });
+		Object.assign(phaserState.playerMarker, { x: 900, y: 2_080 });
+		phaserState.cursorKeys.left.isDown = true;
+
+		scene.update(0, 250);
+
+		expect(phaserState.playerMarker.x).toBe(900);
+		expect(phaserState.playerMarker.y).toBe(2_080);
+
+		Object.assign(phaserState.playerMarker, { x: 4_520, y: 2_816 });
+		phaserState.cursorKeys.left.isDown = false;
+		phaserState.cursorKeys.right.isDown = true;
+
+		scene.update(250, 250);
+
+		expect(phaserState.playerMarker.x).toBe(4_520);
+		expect(phaserState.playerMarker.y).toBe(2_816);
+	});
+
 	it('keeps the hero house south fence opening passable', async () => {
 		const { WorldScene } = await import('./WorldScene');
 		const scene = new WorldScene();
@@ -1308,7 +1354,7 @@ describe('WorldScene', () => {
 		expect(phaserState.playerMarker.y).toBeGreaterThan(5_200);
 	});
 
-	it('keeps building doorway transitions reachable from the exterior approach', async () => {
+	it('keeps the hero house exterior doorway reachable in the large city', async () => {
 		const { WorldScene } = await import('./WorldScene');
 		const scene = new WorldScene();
 
@@ -1316,7 +1362,7 @@ describe('WorldScene', () => {
 		Object.assign(phaserState.playerMarker, { x: 640, y: 5_200 });
 		phaserState.cursorKeys.up.isDown = true;
 
-		scene.update(0, 50);
+		scene.update(0, 80);
 
 		expect(scene.scene.restart).toHaveBeenCalledWith({
 			reason: 'transition',
@@ -3300,7 +3346,7 @@ describe('WorldScene', () => {
 		});
 	});
 
-	it('moves from the ruins threshold into the core when the far exit is reached', async () => {
+	it('uses stair transitions without changing transition save behavior', async () => {
 		const { createNewSaveState } = await import('$lib/game/save/save-state');
 		const { WorldScene } = await import('./WorldScene');
 		const scene = new WorldScene();

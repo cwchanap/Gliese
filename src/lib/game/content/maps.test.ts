@@ -41,6 +41,16 @@ function expectRectInsideMap(rect: CenterRect, map = meadowEntryMap) {
 	expect(rect.y + rect.height / 2).toBeLessThanOrEqual(map.height * 32);
 }
 
+function expectPointInsideMap(
+	point: { x: number; y: number },
+	map: { width: number; height: number }
+) {
+	expect(point.x).toBeGreaterThanOrEqual(0);
+	expect(point.y).toBeGreaterThanOrEqual(0);
+	expect(point.x).toBeLessThanOrEqual(map.width * 32);
+	expect(point.y).toBeLessThanOrEqual(map.height * 32);
+}
+
 function expectPointInsideRect(point: { x: number; y: number }, rect: CenterRect) {
 	expect(point.x).toBeGreaterThanOrEqual(rect.x - rect.width / 2);
 	expect(point.x).toBeLessThanOrEqual(rect.x + rect.width / 2);
@@ -639,6 +649,41 @@ describe('opening map content', () => {
 			from: { x: 512, y: 3_200 },
 			to: { x: 4_992, y: 3_200 }
 		});
+	});
+
+	it('keeps every authored outdoor layout primitive inside map bounds', () => {
+		for (const map of [meadowEntryMap, ruinsThresholdMap, ruinsCoreMap]) {
+			expectPointInsideMap(map.spawn, map);
+
+			for (const transition of map.transitions) {
+				expectPointInsideMap(transition, map);
+
+				if (transition.arrival) {
+					const targetMap = maps[transition.toMapId];
+					expect(targetMap).toBeDefined();
+					expectPointInsideMap(transition.arrival, targetMap);
+				}
+			}
+
+			for (const rect of [
+				...(map.groundPatches ?? []),
+				...(map.blockers ?? []),
+				...(map.combatBounds ?? []),
+				...(map.fences ?? []),
+				...(map.forestDecor ?? []),
+				...(map.landmarks ?? [])
+			]) {
+				expectRectInsideMap(rect, map);
+			}
+
+			for (const point of [
+				...(map.encounters ?? []),
+				...(map.pickups ?? []),
+				...(map.npcs ?? [])
+			]) {
+				expectPointInsideMap(point, map);
+			}
+		}
 	});
 
 	it('returns from the ruins near the city stair and clear of meadow blockers', () => {
