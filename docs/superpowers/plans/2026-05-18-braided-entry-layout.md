@@ -22,6 +22,7 @@
 ## Task 1: Test The Denser Entry Contract
 
 **Files:**
+
 - Modify: `src/lib/game/content/maps.test.ts`
 - Test: `src/lib/game/content/maps.test.ts`
 
@@ -30,14 +31,14 @@
 Update the opening map tests so `meadowEntryMap.groundPatches` expects named roads such as:
 
 ```ts
-'village-home-pocket'
-'village-north-civic-lane'
-'village-middle-market-lane'
-'village-south-service-lane'
-'village-east-gate-neck'
-'outskirts-north-brush-lane'
-'outskirts-south-brush-lane'
-'ruins-final-stair-run'
+'village-home-pocket';
+'village-north-civic-lane';
+'village-middle-market-lane';
+'village-south-service-lane';
+'village-east-gate-neck';
+'outskirts-north-brush-lane';
+'outskirts-south-brush-lane';
+'ruins-final-stair-run';
 ```
 
 Add assertions that the entry has at least `20` ground patches and at least `20` combined blockers/fences.
@@ -80,6 +81,7 @@ Expected: FAIL because `town-hedge` is not part of `MapBlockerKind` yet and the 
 ## Task 2: Test The Smaller Environment Dressing Frames
 
 **Files:**
+
 - Modify: `src/lib/game/phaser/scenes/scenes.test.ts`
 - Test: `src/lib/game/phaser/scenes/scenes.test.ts`
 
@@ -136,6 +138,7 @@ Expected: FAIL because `town-hedge`, `townWallVertical`, and `townHedgeHorizonta
 ## Task 3: Implement Asset Metadata And Rendering
 
 **Files:**
+
 - Modify: `src/lib/game/content/assets.ts`
 - Modify: `src/lib/game/content/maps.ts`
 - Modify: `src/lib/game/phaser/scenes/WorldScene.ts`
@@ -196,6 +199,7 @@ Expected: PASS after the map content task is complete, or fail only on missing m
 ## Task 4: Author The Braided Entry Map
 
 **Files:**
+
 - Modify: `src/lib/game/content/maps.ts`
 - Test: `src/lib/game/content/maps.test.ts`
 
@@ -250,6 +254,7 @@ Expected: PASS.
 ## Task 5: Generate And Verify The Modular PNG
 
 **Files:**
+
 - Replace: `public/game/assets/environment-dressing.png`
 - Test: `.codex/skills/2d-game-asset-workflow/scripts/inspect_png_alpha.py`
 
@@ -271,6 +276,7 @@ Expected: `has_alpha` is `true`, `alpha_min` is `0`, and `transparent_pixels` is
 ## Task 6: Format, Verify, Smoke, And Commit
 
 **Files:**
+
 - Modify all touched source, test, doc, and PNG files.
 
 - [ ] **Step 1: Format/check changed code**

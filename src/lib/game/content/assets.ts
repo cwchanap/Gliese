@@ -72,14 +72,17 @@ export type FenceDressingFrameName = keyof typeof fenceDressingAsset.frames;
 export const environmentDressingAsset = {
 	key: 'environment-dressing',
 	path: '/game/assets/environment-dressing.png',
-	cellWidth: 256,
-	cellHeight: 256,
-	columns: 2,
+	cellWidth: 96,
+	cellHeight: 96,
+	columns: 4,
 	frames: {
-		cityWall: { x: 0, y: 0, w: 256, h: 256 },
-		ruinWall: { x: 256, y: 0, w: 256, h: 256 },
-		futureGate: { x: 0, y: 256, w: 256, h: 256 },
-		stoneStair: { x: 256, y: 256, w: 256, h: 256 }
+		townWallHorizontal: { x: 0, y: 0, w: 96, h: 96 },
+		townWallVertical: { x: 96, y: 0, w: 96, h: 96 },
+		townHedgeHorizontal: { x: 192, y: 0, w: 96, h: 96 },
+		townHedgeVertical: { x: 288, y: 0, w: 96, h: 96 },
+		ruinWall: { x: 0, y: 96, w: 96, h: 96 },
+		futureGate: { x: 96, y: 96, w: 96, h: 96 },
+		stoneStair: { x: 192, y: 96, w: 96, h: 96 }
 	}
 } as const;
 

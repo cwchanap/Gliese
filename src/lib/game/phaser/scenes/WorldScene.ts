@@ -1766,7 +1766,13 @@ export class WorldScene extends Phaser.Scene {
 			return 'ruinWall';
 		}
 
-		return 'cityWall';
+		const orientation = blocker.width >= blocker.height ? 'Horizontal' : 'Vertical';
+
+		if (blocker.kind === 'town-hedge') {
+			return `townHedge${orientation}` as EnvironmentDressingFrameName;
+		}
+
+		return `townWall${orientation}` as EnvironmentDressingFrameName;
 	}
 
 	private renderFenceSegment(fence: MapFenceSegment) {

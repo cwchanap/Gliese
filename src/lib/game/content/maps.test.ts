@@ -132,6 +132,14 @@ describe('opening map content', () => {
 					kind: 'city-wall'
 				},
 				{
+					id: 'model-test-hedge',
+					x: 720,
+					y: 320,
+					width: 160,
+					height: 48,
+					kind: 'town-hedge'
+				},
+				{
 					id: 'model-test-future-gate',
 					x: 640,
 					y: 320,
@@ -162,6 +170,7 @@ describe('opening map content', () => {
 		});
 		expect(modelTestMap.blockers?.map((blocker) => blocker.kind)).toEqual([
 			'city-wall',
+			'town-hedge',
 			'future-gate'
 		]);
 		expect(modelTestMap.combatBounds?.[0].encounterIds).toEqual(['model-test-slime']);
@@ -242,9 +251,9 @@ describe('opening map content', () => {
 			}
 		]);
 		expect(meadowEntryMap.encounters).toEqual([
-			{ id: 'meadow-slime-west', x: 3_200, y: 3_840, enemyId: 'slime-scout' },
-			{ id: 'meadow-slime-center', x: 4_128, y: 2_880, enemyId: 'slime-scout' },
-			{ id: 'meadow-slime-east', x: 5_120, y: 1_600, enemyId: 'slime-scout' }
+			{ id: 'meadow-slime-west', x: 4_160, y: 3_520, enemyId: 'slime-scout' },
+			{ id: 'meadow-slime-center', x: 4_640, y: 4_928, enemyId: 'slime-scout' },
+			{ id: 'meadow-slime-east', x: 5_680, y: 2_080, enemyId: 'slime-scout' }
 		]);
 		expect(
 			meadowEntryMap.transitions.find((transition) => transition.id === 'meadow-to-ruins-threshold')
@@ -907,9 +916,9 @@ describe('opening map content', () => {
 	it('folds meadow combat into city route pockets instead of a separate forest arena', () => {
 		expect(meadowEntryMap.forestZone).toBeUndefined();
 		expect(meadowEntryMap.encounters).toEqual([
-			{ id: 'meadow-slime-west', x: 3_200, y: 3_840, enemyId: 'slime-scout' },
-			{ id: 'meadow-slime-center', x: 4_128, y: 2_880, enemyId: 'slime-scout' },
-			{ id: 'meadow-slime-east', x: 5_120, y: 1_600, enemyId: 'slime-scout' }
+			{ id: 'meadow-slime-west', x: 4_160, y: 3_520, enemyId: 'slime-scout' },
+			{ id: 'meadow-slime-center', x: 4_640, y: 4_928, enemyId: 'slime-scout' },
+			{ id: 'meadow-slime-east', x: 5_680, y: 2_080, enemyId: 'slime-scout' }
 		]);
 
 		const encountersById = new Map(
@@ -937,126 +946,247 @@ describe('opening map content', () => {
 	it('defines city route ground patches, blockers, fences, and forest dressing inside the meadow map bounds', () => {
 		expect(meadowEntryMap.groundPatches).toEqual([
 			{
-				id: 'city-loop-south-road',
-				x: 1_650,
-				y: 5_200,
-				width: 2_300,
-				height: 160,
-				tile: 'pathTile'
-			},
-			{
-				id: 'city-loop-west-road',
+				id: 'village-home-pocket',
 				x: 640,
-				y: 4_640,
-				width: 160,
-				height: 1_280,
-				tile: 'pathTile'
-			},
-			{
-				id: 'city-loop-north-road',
-				x: 1_760,
-				y: 4_256,
-				width: 2_560,
+				y: 5_224,
+				width: 384,
 				height: 160,
 				tile: 'pathTile'
 			},
 			{
-				id: 'city-loop-east-road',
-				x: 2_880,
-				y: 4_160,
-				width: 160,
-				height: 1_280,
-				tile: 'pathTile'
-			},
-			{
-				id: 'city-entry-west-lane',
-				x: 960,
-				y: 4_928,
-				width: 800,
-				height: 128,
-				tile: 'pathTile'
-			},
-			{
-				id: 'city-entry-guild-lane',
-				x: 1_600,
-				y: 4_704,
-				width: 128,
-				height: 896,
-				tile: 'pathTile'
-			},
-			{
-				id: 'city-entry-shop-lane',
-				x: 2_240,
-				y: 4_704,
-				width: 128,
-				height: 800,
-				tile: 'pathTile'
-			},
-			{
-				id: 'city-entry-villager2-lane',
-				x: 1_460,
-				y: 5_360,
-				width: 128,
-				height: 480,
-				tile: 'pathTile'
-			},
-			{
-				id: 'city-entry-east-alley',
-				x: 2_560,
+				id: 'village-home-north-alley',
+				x: 640,
 				y: 4_720,
-				width: 640,
+				width: 96,
+				height: 960,
+				tile: 'pathTile'
+			},
+			{
+				id: 'village-home-south-alley',
+				x: 640,
+				y: 5_488,
+				width: 96,
+				height: 448,
+				tile: 'pathTile'
+			},
+			{
+				id: 'village-north-civic-lane',
+				x: 1_280,
+				y: 4_552,
+				width: 1_280,
 				height: 128,
 				tile: 'pathTile'
 			},
 			{
-				id: 'city-entry-south-service-road',
-				x: 1_240,
+				id: 'village-guild-court',
+				x: 1_600,
+				y: 4_352,
+				width: 576,
+				height: 320,
+				tile: 'pathTile'
+			},
+			{
+				id: 'village-guild-market-alley',
+				x: 1_600,
+				y: 4_624,
+				width: 128,
+				height: 512,
+				tile: 'pathTile'
+			},
+			{
+				id: 'village-villager1-pocket',
+				x: 960,
+				y: 4_624,
+				width: 384,
+				height: 256,
+				tile: 'pathTile'
+			},
+			{
+				id: 'village-central-courtyard',
+				x: 1_600,
+				y: 4_880,
+				width: 576,
+				height: 352,
+				tile: 'pathTile'
+			},
+			{
+				id: 'village-middle-market-lane',
+				x: 1_520,
+				y: 5_040,
+				width: 1_760,
+				height: 128,
+				tile: 'pathTile'
+			},
+			{
+				id: 'village-shop-court',
+				x: 2_240,
+				y: 5_120,
+				width: 576,
+				height: 320,
+				tile: 'pathTile'
+			},
+			{
+				id: 'village-shop-back-alley',
+				x: 2_464,
+				y: 4_800,
+				width: 128,
+				height: 704,
+				tile: 'pathTile'
+			},
+			{
+				id: 'village-villager3-lane',
+				x: 2_620,
+				y: 4_552,
+				width: 960,
+				height: 128,
+				tile: 'pathTile'
+			},
+			{
+				id: 'village-villager3-pocket',
+				x: 2_800,
+				y: 4_624,
+				width: 448,
+				height: 256,
+				tile: 'pathTile'
+			},
+			{
+				id: 'village-villager2-pocket',
+				x: 1_460,
 				y: 5_520,
-				width: 880,
+				width: 448,
+				height: 320,
+				tile: 'pathTile'
+			},
+			{
+				id: 'village-south-service-lane',
+				x: 1_560,
+				y: 5_520,
+				width: 1_360,
 				height: 128,
 				tile: 'pathTile'
 			},
 			{
-				id: 'city-outskirts-road',
-				x: 4_320,
-				y: 2_640,
-				width: 2_900,
-				height: 160,
+				id: 'village-market-south-alley',
+				x: 2_240,
+				y: 5_344,
+				width: 128,
+				height: 448,
 				tile: 'pathTile'
 			},
 			{
-				id: 'city-ruins-road',
-				x: 5_640,
-				y: 1_760,
-				width: 160,
-				height: 1_760,
+				id: 'village-east-gate-court',
+				x: 3_024,
+				y: 4_928,
+				width: 480,
+				height: 288,
 				tile: 'pathTile'
 			},
 			{
-				id: 'city-west-combat-ground',
-				x: 3_200,
-				y: 3_840,
-				width: 720,
-				height: 512,
+				id: 'village-east-gate-neck',
+				x: 3_360,
+				y: 4_928,
+				width: 672,
+				height: 128,
 				tile: 'pathTile'
 			},
 			{
-				id: 'city-center-combat-ground',
-				x: 4_128,
-				y: 2_880,
-				width: 720,
-				height: 512,
+				id: 'outskirts-split-trail',
+				x: 3_700,
+				y: 4_320,
+				width: 128,
+				height: 1_280,
 				tile: 'pathTile'
 			},
 			{
-				id: 'city-east-combat-ground',
-				x: 5_120,
-				y: 1_600,
+				id: 'outskirts-north-brush-lane',
+				x: 4_300,
+				y: 3_760,
+				width: 1_320,
+				height: 128,
+				tile: 'pathTile'
+			},
+			{
+				id: 'outskirts-north-combat-pocket',
+				x: 4_160,
+				y: 3_520,
+				width: 704,
+				height: 448,
+				tile: 'pathTile'
+			},
+			{
+				id: 'outskirts-overlook-dead-end',
+				x: 5_040,
+				y: 3_440,
 				width: 800,
+				height: 128,
+				tile: 'pathTile'
+			},
+			{
+				id: 'outskirts-south-brush-lane',
+				x: 4_520,
+				y: 4_720,
+				width: 1_640,
+				height: 128,
+				tile: 'pathTile'
+			},
+			{
+				id: 'outskirts-south-combat-pocket',
+				x: 4_640,
+				y: 4_928,
+				width: 704,
+				height: 448,
+				tile: 'pathTile'
+			},
+			{
+				id: 'outskirts-center-cross-trail',
+				x: 5_040,
+				y: 4_240,
+				width: 128,
+				height: 1_088,
+				tile: 'pathTile'
+			},
+			{
+				id: 'outskirts-rejoin-clearing',
+				x: 5_360,
+				y: 4_240,
+				width: 576,
+				height: 320,
+				tile: 'pathTile'
+			},
+			{
+				id: 'ruins-approach-lower-run',
+				x: 5_520,
+				y: 3_360,
+				width: 128,
+				height: 1_920,
+				tile: 'pathTile'
+			},
+			{
+				id: 'ruins-east-combat-pocket',
+				x: 5_520,
+				y: 2_080,
+				width: 640,
 				height: 512,
+				tile: 'pathTile'
+			},
+			{
+				id: 'ruins-final-bend',
+				x: 5_760,
+				y: 2_400,
+				width: 608,
+				height: 128,
+				tile: 'pathTile'
+			},
+			{
+				id: 'ruins-final-stair-run',
+				x: 5_760,
+				y: 1_520,
+				width: 128,
+				height: 1_888,
 				tile: 'pathTile'
 			}
 		]);
+		expect(meadowEntryMap.groundPatches).toHaveLength(30);
 		expect(meadowEntryMap.blockers).toEqual([
 			{
 				id: 'city-west-district-wall',
@@ -1064,7 +1194,7 @@ describe('opening map content', () => {
 				y: 4_960,
 				width: 64,
 				height: 1_600,
-				kind: 'city-wall'
+				kind: 'town-hedge'
 			},
 			{
 				id: 'city-south-district-wall',
@@ -1072,7 +1202,7 @@ describe('opening map content', () => {
 				y: 5_872,
 				width: 2_560,
 				height: 64,
-				kind: 'city-wall'
+				kind: 'town-hedge'
 			},
 			{
 				id: 'city-north-district-wall',
@@ -1080,147 +1210,336 @@ describe('opening map content', () => {
 				y: 3_936,
 				width: 2_560,
 				height: 64,
-				kind: 'city-wall'
+				kind: 'town-hedge'
 			},
 			{
-				id: 'city-east-district-wall-north',
-				x: 3_200,
-				y: 3_496,
-				width: 64,
-				height: 176,
-				kind: 'city-wall'
+				id: 'village-home-yard-west-hedge',
+				x: 416,
+				y: 5_200,
+				width: 48,
+				height: 448,
+				kind: 'town-hedge'
 			},
 			{
-				id: 'city-east-district-wall-north-lower',
-				x: 3_200,
-				y: 4_264,
-				width: 64,
-				height: 336,
-				kind: 'city-wall'
-			},
-			{
-				id: 'city-east-district-wall-south',
-				x: 3_200,
+				id: 'village-home-yard-east-hedge',
+				x: 896,
 				y: 5_280,
-				width: 64,
-				height: 960,
-				kind: 'city-wall'
+				width: 48,
+				height: 320,
+				kind: 'town-hedge'
 			},
 			{
-				id: 'city-entry-northwest-garden-wall',
+				id: 'village-home-yard-north-left-hedge',
+				x: 480,
+				y: 4_960,
+				width: 160,
+				height: 48,
+				kind: 'town-hedge'
+			},
+			{
+				id: 'village-home-yard-north-right-hedge',
+				x: 800,
+				y: 4_960,
+				width: 160,
+				height: 48,
+				kind: 'town-hedge'
+			},
+			{
+				id: 'village-guild-court-west-wall',
 				x: 1_280,
-				y: 4_620,
-				width: 240,
-				height: 64,
+				y: 4_352,
+				width: 48,
+				height: 352,
 				kind: 'city-wall'
 			},
 			{
-				id: 'city-entry-central-garden-wall',
+				id: 'village-guild-court-east-wall',
 				x: 1_920,
-				y: 4_560,
-				width: 512,
-				height: 64,
+				y: 4_352,
+				width: 48,
+				height: 352,
 				kind: 'city-wall'
 			},
 			{
-				id: 'city-entry-south-garden-wall',
-				x: 1_080,
-				y: 5_728,
-				width: 520,
-				height: 64,
+				id: 'village-central-yard-west-hedge',
+				x: 1_280,
+				y: 4_880,
+				width: 48,
+				height: 352,
+				kind: 'town-hedge'
+			},
+			{
+				id: 'village-central-yard-east-hedge',
+				x: 1_920,
+				y: 4_880,
+				width: 48,
+				height: 352,
+				kind: 'town-hedge'
+			},
+			{
+				id: 'village-central-yard-south-hedge',
+				x: 1_600,
+				y: 5_312,
+				width: 640,
+				height: 48,
+				kind: 'town-hedge'
+			},
+			{
+				id: 'village-shop-yard-north-wall',
+				x: 2_200,
+				y: 4_864,
+				width: 400,
+				height: 48,
 				kind: 'city-wall'
 			},
 			{
-				id: 'city-entry-shop-yard-wall',
+				id: 'village-shop-yard-east-hedge',
 				x: 2_560,
-				y: 5_280,
-				width: 512,
+				y: 5_120,
+				width: 48,
+				height: 384,
+				kind: 'town-hedge'
+			},
+			{
+				id: 'village-villager1-yard-south-hedge',
+				x: 960,
+				y: 4_800,
+				width: 384,
+				height: 48,
+				kind: 'town-hedge'
+			},
+			{
+				id: 'village-villager3-yard-south-hedge',
+				x: 2_800,
+				y: 4_800,
+				width: 448,
+				height: 48,
+				kind: 'town-hedge'
+			},
+			{
+				id: 'village-villager2-yard-north-hedge',
+				x: 1_460,
+				y: 5_328,
+				width: 352,
+				height: 48,
+				kind: 'town-hedge'
+			},
+			{
+				id: 'village-villager2-yard-west-hedge',
+				x: 1_216,
+				y: 5_664,
+				width: 48,
+				height: 192,
+				kind: 'town-hedge'
+			},
+			{
+				id: 'village-villager2-yard-east-wall',
+				x: 1_704,
+				y: 5_664,
+				width: 48,
+				height: 192,
+				kind: 'city-wall'
+			},
+			{
+				id: 'village-east-gate-north-wall',
+				x: 3_200,
+				y: 4_720,
+				width: 560,
 				height: 64,
 				kind: 'city-wall'
 			},
 			{
-				id: 'city-outskirts-north-tree-line',
-				x: 4_480,
-				y: 2_160,
-				width: 2_720,
-				height: 96,
+				id: 'village-east-gate-south-wall',
+				x: 3_200,
+				y: 5_152,
+				width: 560,
+				height: 64,
 				kind: 'city-wall'
 			},
 			{
-				id: 'city-outskirts-south-tree-line',
+				id: 'outskirts-north-tree-line',
 				x: 4_480,
-				y: 3_120,
-				width: 2_720,
+				y: 3_200,
+				width: 2_200,
 				height: 96,
-				kind: 'city-wall'
+				kind: 'town-hedge'
 			},
 			{
-				id: 'city-ruins-approach-west-wall',
+				id: 'outskirts-south-tree-line',
+				x: 4_480,
+				y: 5_248,
+				width: 2_200,
+				height: 96,
+				kind: 'town-hedge'
+			},
+			{
+				id: 'outskirts-split-west-brush-wall',
+				x: 3_440,
+				y: 4_320,
+				width: 96,
+				height: 1_320,
+				kind: 'town-hedge'
+			},
+			{
+				id: 'outskirts-north-lane-south-hedge',
+				x: 4_400,
+				y: 3_952,
+				width: 1_200,
+				height: 64,
+				kind: 'town-hedge'
+			},
+			{
+				id: 'outskirts-south-lane-north-hedge',
+				x: 4_520,
+				y: 4_528,
+				width: 1_400,
+				height: 64,
+				kind: 'town-hedge'
+			},
+			{
+				id: 'outskirts-north-pocket-north-wall',
+				x: 4_160,
+				y: 3_232,
+				width: 704,
+				height: 64,
+				kind: 'town-hedge'
+			},
+			{
+				id: 'outskirts-north-pocket-east-wall',
+				x: 4_544,
+				y: 3_520,
+				width: 64,
+				height: 448,
+				kind: 'town-hedge'
+			},
+			{
+				id: 'outskirts-south-pocket-south-wall',
+				x: 4_640,
+				y: 5_216,
+				width: 704,
+				height: 64,
+				kind: 'town-hedge'
+			},
+			{
+				id: 'outskirts-south-pocket-east-wall',
+				x: 5_024,
+				y: 4_928,
+				width: 64,
+				height: 448,
+				kind: 'town-hedge'
+			},
+			{
+				id: 'outskirts-rejoin-north-wall',
 				x: 5_360,
-				y: 1_760,
+				y: 3_920,
+				width: 640,
+				height: 64,
+				kind: 'town-hedge'
+			},
+			{
+				id: 'outskirts-rejoin-south-wall',
+				x: 5_360,
+				y: 4_560,
+				width: 640,
+				height: 64,
+				kind: 'town-hedge'
+			},
+			{
+				id: 'ruins-approach-west-wall',
+				x: 5_360,
+				y: 3_360,
 				width: 96,
-				height: 1_760,
+				height: 1_920,
 				kind: 'city-wall'
 			},
 			{
-				id: 'city-ruins-approach-east-wall',
-				x: 6_016,
-				y: 1_760,
+				id: 'ruins-approach-east-wall',
+				x: 5_680,
+				y: 3_360,
 				width: 96,
-				height: 1_760,
+				height: 1_920,
+				kind: 'city-wall'
+			},
+			{
+				id: 'ruins-final-west-wall',
+				x: 5_488,
+				y: 1_520,
+				width: 96,
+				height: 1_648,
+				kind: 'city-wall'
+			},
+			{
+				id: 'ruins-final-east-wall',
+				x: 6_032,
+				y: 1_520,
+				width: 96,
+				height: 1_648,
 				kind: 'city-wall'
 			}
 		]);
 		expect(meadowEntryMap.fences).toEqual([
-			{ id: 'village-fence-south-west', x: 960, y: 5_648, width: 640, height: 32 },
-			{ id: 'village-fence-south-east', x: 2_240, y: 5_648, width: 640, height: 32 },
-			{ id: 'village-fence-west-north', x: 448, y: 4_512, width: 32, height: 736 },
-			{ id: 'village-fence-west-south', x: 448, y: 5_360, width: 32, height: 384 },
-			{ id: 'village-fence-east-north', x: 3_008, y: 4_448, width: 32, height: 640 },
-			{ id: 'village-fence-east-south', x: 3_008, y: 5_280, width: 32, height: 512 }
+			{ id: 'village-home-fence-south-west', x: 520, y: 5_680, width: 240, height: 32 },
+			{ id: 'village-home-fence-south-east', x: 800, y: 5_680, width: 240, height: 32 },
+			{ id: 'village-guild-fence-north-west', x: 1_380, y: 4_160, width: 360, height: 32 },
+			{ id: 'village-guild-fence-north-east', x: 1_820, y: 4_160, width: 360, height: 32 },
+			{ id: 'village-shop-fence-south', x: 2_480, y: 5_344, width: 160, height: 32 },
+			{ id: 'village-villager1-fence-west', x: 704, y: 4_624, width: 32, height: 256 },
+			{ id: 'village-villager3-fence-east', x: 3_072, y: 4_624, width: 32, height: 256 },
+			{ id: 'village-villager2-fence-south', x: 1_460, y: 5_744, width: 448, height: 32 },
+			{ id: 'village-east-gate-fence-north', x: 3_024, y: 4_768, width: 320, height: 32 },
+			{ id: 'village-east-gate-fence-south', x: 3_024, y: 5_088, width: 320, height: 32 }
 		]);
 		expect(meadowEntryMap.forestDecor).toEqual([
 			{
 				id: 'outskirts-tree-line-north',
 				x: 4_480,
-				y: 2_080,
-				width: 2_560,
+				y: 3_040,
+				width: 2_200,
 				height: 160,
 				frameName: 'treeCluster'
 			},
 			{
 				id: 'outskirts-tree-line-south',
 				x: 4_480,
-				y: 3_200,
-				width: 2_560,
+				y: 5_408,
+				width: 2_200,
 				height: 160,
 				frameName: 'treeCluster'
 			},
 			{
-				id: 'outskirts-brush-west-pocket',
-				x: 3_200,
-				y: 3_840,
-				width: 560,
-				height: 256,
-				frameName: 'brush'
-			},
-			{
-				id: 'outskirts-brush-center-pocket',
-				x: 4_128,
-				y: 2_880,
-				width: 560,
-				height: 256,
-				frameName: 'brush'
-			},
-			{
-				id: 'outskirts-brush-east-pocket',
-				x: 5_120,
-				y: 1_600,
+				id: 'outskirts-brush-north-pocket',
+				x: 4_160,
+				y: 3_520,
 				width: 640,
 				height: 256,
 				frameName: 'brush'
+			},
+			{
+				id: 'outskirts-brush-south-pocket',
+				x: 4_640,
+				y: 4_928,
+				width: 640,
+				height: 256,
+				frameName: 'brush'
+			},
+			{
+				id: 'outskirts-brush-rejoin',
+				x: 5_360,
+				y: 4_240,
+				width: 480,
+				height: 256,
+				frameName: 'brush'
+			},
+			{
+				id: 'ruins-approach-brush',
+				x: 5_520,
+				y: 3_000,
+				width: 256,
+				height: 900,
+				frameName: 'brush'
 			}
 		]);
+		expect([...(meadowEntryMap.blockers ?? []), ...(meadowEntryMap.fences ?? [])]).toHaveLength(46);
 
 		const ids = [
 			...(meadowEntryMap.groundPatches ?? []).map((patch) => patch.id),
