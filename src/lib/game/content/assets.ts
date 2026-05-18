@@ -69,6 +69,22 @@ export const fenceDressingAsset = {
 
 export type FenceDressingFrameName = keyof typeof fenceDressingAsset.frames;
 
+export const environmentDressingAsset = {
+	key: 'environment-dressing',
+	path: '/game/assets/environment-dressing.png',
+	cellWidth: 256,
+	cellHeight: 256,
+	columns: 2,
+	frames: {
+		cityWall: { x: 0, y: 0, w: 256, h: 256 },
+		ruinWall: { x: 256, y: 0, w: 256, h: 256 },
+		futureGate: { x: 0, y: 256, w: 256, h: 256 },
+		stoneStair: { x: 256, y: 256, w: 256, h: 256 }
+	}
+} as const;
+
+export type EnvironmentDressingFrameName = keyof typeof environmentDressingAsset.frames;
+
 const villageLandmarkFrames: Record<string, VillageBuildingFrameName> = {
 	'hero-house-exterior': 'heroHouse',
 	'guild-hall-exterior': 'guildHall',

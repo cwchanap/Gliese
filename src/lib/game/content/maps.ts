@@ -270,6 +270,26 @@ export const meadowEntryMap: WorldMapDefinition = addEnglishMapText({
 			tile: 'pathTile'
 		},
 		{ id: 'city-loop-east-road', x: 2_880, y: 4_160, width: 160, height: 1_280, tile: 'pathTile' },
+		{ id: 'city-entry-west-lane', x: 960, y: 4_928, width: 800, height: 128, tile: 'pathTile' },
+		{ id: 'city-entry-guild-lane', x: 1_600, y: 4_704, width: 128, height: 896, tile: 'pathTile' },
+		{ id: 'city-entry-shop-lane', x: 2_240, y: 4_704, width: 128, height: 800, tile: 'pathTile' },
+		{
+			id: 'city-entry-villager2-lane',
+			x: 1_460,
+			y: 5_360,
+			width: 128,
+			height: 480,
+			tile: 'pathTile'
+		},
+		{ id: 'city-entry-east-alley', x: 2_560, y: 4_720, width: 640, height: 128, tile: 'pathTile' },
+		{
+			id: 'city-entry-south-service-road',
+			x: 1_240,
+			y: 5_520,
+			width: 880,
+			height: 128,
+			tile: 'pathTile'
+		},
 		{ id: 'city-outskirts-road', x: 4_320, y: 2_640, width: 2_900, height: 160, tile: 'pathTile' },
 		{ id: 'city-ruins-road', x: 5_640, y: 1_760, width: 160, height: 1_760, tile: 'pathTile' },
 		{
@@ -337,6 +357,38 @@ export const meadowEntryMap: WorldMapDefinition = addEnglishMapText({
 			y: 5_280,
 			width: 64,
 			height: 960,
+			kind: 'city-wall'
+		},
+		{
+			id: 'city-entry-northwest-garden-wall',
+			x: 1_280,
+			y: 4_620,
+			width: 240,
+			height: 64,
+			kind: 'city-wall'
+		},
+		{
+			id: 'city-entry-central-garden-wall',
+			x: 1_920,
+			y: 4_560,
+			width: 512,
+			height: 64,
+			kind: 'city-wall'
+		},
+		{
+			id: 'city-entry-south-garden-wall',
+			x: 1_080,
+			y: 5_728,
+			width: 520,
+			height: 64,
+			kind: 'city-wall'
+		},
+		{
+			id: 'city-entry-shop-yard-wall',
+			x: 2_560,
+			y: 5_280,
+			width: 512,
+			height: 64,
 			kind: 'city-wall'
 		},
 		{

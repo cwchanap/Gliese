@@ -4,6 +4,7 @@ import {
 	actorAnimationAssets,
 	actorAnimationKeys,
 	animationPackAsset,
+	environmentDressingAsset,
 	fenceDressingAsset,
 	forestDressingAsset,
 	getActorAnimationAsset,
@@ -15,6 +16,7 @@ import {
 	starterPackAsset,
 	villageBuildingAsset,
 	type ActorAnimationKey,
+	type EnvironmentDressingFrameName,
 	type StarterPackFrameName
 } from '$lib/game/content/assets';
 import { enemies, type EnemyCombatDefinition } from '$lib/game/content/enemies';
@@ -389,6 +391,7 @@ export class WorldScene extends Phaser.Scene {
 		this.registerVillageBuildingFrames();
 		this.registerForestDressingFrames();
 		this.registerFenceDressingFrames();
+		this.registerEnvironmentDressingFrames();
 		this.registerAnimationPackFrames();
 		this.ensureActorAnimations();
 		this.ensureTerrainTilesetTexture();
@@ -1313,6 +1316,16 @@ export class WorldScene extends Phaser.Scene {
 		}
 	}
 
+	private registerEnvironmentDressingFrames() {
+		const texture = this.textures.get(environmentDressingAsset.key);
+
+		for (const [frameName, frame] of Object.entries(environmentDressingAsset.frames)) {
+			if (!texture.has(frameName)) {
+				texture.add(frameName, 0, frame.x, frame.y, frame.w, frame.h);
+			}
+		}
+	}
+
 	private ensureActorAnimations() {
 		for (const actor of Object.values(actorAnimationAssets)) {
 			for (const clipName of actorAnimationKeys) {
@@ -1733,29 +1746,27 @@ export class WorldScene extends Phaser.Scene {
 		const blockers: MapBlocker[] = map.blockers ?? [];
 
 		for (const blocker of blockers) {
-			const fill = this.getBlockerFill(blocker);
-
-			this.add.rectangle(
+			this.add.tileSprite(
 				blocker.x,
 				blocker.y,
 				blocker.width,
 				blocker.height,
-				fill.color,
-				fill.alpha
+				environmentDressingAsset.key,
+				this.getBlockerFrameName(blocker)
 			);
 		}
 	}
 
-	private getBlockerFill(blocker: MapBlocker): { color: number; alpha: number } {
+	private getBlockerFrameName(blocker: MapBlocker): EnvironmentDressingFrameName {
 		if (blocker.kind === 'future-gate') {
-			return { color: 0x7c3aed, alpha: 0.82 };
+			return 'futureGate';
 		}
 
 		if (blocker.kind === 'ruin-wall') {
-			return { color: 0x59616f, alpha: 0.92 };
+			return 'ruinWall';
 		}
 
-		return { color: 0x4b5563, alpha: 0.92 };
+		return 'cityWall';
 	}
 
 	private renderFenceSegment(fence: MapFenceSegment) {
@@ -1834,9 +1845,7 @@ export class WorldScene extends Phaser.Scene {
 	}
 
 	private renderStairTransition(x: number, y: number) {
-		this.add.rectangle(x, y + 10, 44, 8, 0x4b5563, 0.95);
-		this.add.rectangle(x, y, 36, 8, 0x9ca3af, 0.95);
-		this.add.rectangle(x, y - 10, 28, 8, 0xd1d5db, 0.95);
+		this.add.image(x, y, environmentDressingAsset.key, 'stoneStair').setDisplaySize(56, 42);
 	}
 
 	private resolveFacing(direction: { x: number; y: number }, fallback: Direction): Direction {

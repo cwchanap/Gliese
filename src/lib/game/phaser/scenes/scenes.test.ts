@@ -557,6 +557,7 @@ describe('BootScene', () => {
 	it('preloads the static and animation sheets', async () => {
 		const {
 			animationPackAsset,
+			environmentDressingAsset,
 			fenceDressingAsset,
 			forestDressingAsset,
 			npcPackAsset,
@@ -580,6 +581,10 @@ describe('BootScene', () => {
 			forestDressingAsset.path
 		);
 		expect(scene.load.image).toHaveBeenCalledWith(fenceDressingAsset.key, fenceDressingAsset.path);
+		expect(scene.load.image).toHaveBeenCalledWith(
+			environmentDressingAsset.key,
+			environmentDressingAsset.path
+		);
 	});
 });
 
@@ -716,9 +721,7 @@ describe('WorldScene', () => {
 		);
 		expect(phaserState.enemyMarkers).toHaveLength(3);
 		expect(scene.add.image).not.toHaveBeenCalledWith(5_760, 960, 'starter-pack', 'doorwayTile');
-		expect(scene.add.rectangle).toHaveBeenCalledWith(5_760, 970, 44, 8, 0x4b5563, 0.95);
-		expect(scene.add.rectangle).toHaveBeenCalledWith(5_760, 960, 36, 8, 0x9ca3af, 0.95);
-		expect(scene.add.rectangle).toHaveBeenCalledWith(5_760, 950, 28, 8, 0xd1d5db, 0.95);
+		expect(scene.add.image).toHaveBeenCalledWith(5_760, 960, 'environment-dressing', 'stoneStair');
 		expect(scene.cameras.main.setBackgroundColor).toHaveBeenCalledWith('#1a1f2b');
 	});
 
@@ -733,9 +736,7 @@ describe('WorldScene', () => {
 		const tilemapData = tilemapCall.data as number[][];
 		expect(tilemapData[3][3]).toBe(1);
 		expect(tilemapData[3][10]).toBe(3);
-		expect(scene.add.rectangle).toHaveBeenCalledWith(320, 106, 44, 8, 0x4b5563, 0.95);
-		expect(scene.add.rectangle).toHaveBeenCalledWith(320, 96, 36, 8, 0x9ca3af, 0.95);
-		expect(scene.add.rectangle).toHaveBeenCalledWith(320, 86, 28, 8, 0xd1d5db, 0.95);
+		expect(scene.add.image).toHaveBeenCalledWith(320, 96, 'environment-dressing', 'stoneStair');
 	});
 
 	it('renders and blocks authored map blockers', async () => {
@@ -749,10 +750,67 @@ describe('WorldScene', () => {
 
 		scene.update(0, 250);
 
-		expect(scene.add.rectangle).toHaveBeenCalledWith(160, 96, 32, 160, 0x4b5563, 0.92);
-		expect(scene.add.rectangle).toHaveBeenCalledWith(224, 224, 96, 32, 0x7c3aed, 0.82);
+		expect(scene.add.tileSprite).toHaveBeenCalledWith(
+			160,
+			96,
+			32,
+			160,
+			'environment-dressing',
+			'cityWall'
+		);
+		expect(scene.add.tileSprite).toHaveBeenCalledWith(
+			224,
+			224,
+			96,
+			32,
+			'environment-dressing',
+			'futureGate'
+		);
 		expect(phaserState.playerMarker.x).toBe(96);
 		expect(phaserState.playerMarker.y).toBe(96);
+	});
+
+	it('registers and renders environment blocker and stair art', async () => {
+		const { environmentDressingAsset } = await import('$lib/game/content/assets');
+		const { WorldScene } = await import('./WorldScene');
+		const scene = new WorldScene();
+		await registerSceneSupportTestMap();
+
+		scene.create({ mapId: 'scene-support-test' });
+
+		expect(scene.textures.get).toHaveBeenCalledWith(environmentDressingAsset.key);
+		for (const [frameName, frame] of Object.entries(environmentDressingAsset.frames)) {
+			expect(phaserState.textureMock.add).toHaveBeenCalledWith(
+				frameName,
+				0,
+				frame.x,
+				frame.y,
+				frame.w,
+				frame.h
+			);
+		}
+		expect(scene.add.tileSprite).toHaveBeenCalledWith(
+			160,
+			96,
+			32,
+			160,
+			environmentDressingAsset.key,
+			'cityWall'
+		);
+		expect(scene.add.tileSprite).toHaveBeenCalledWith(
+			224,
+			224,
+			96,
+			32,
+			environmentDressingAsset.key,
+			'futureGate'
+		);
+		expect(scene.add.image).toHaveBeenCalledWith(
+			320,
+			96,
+			environmentDressingAsset.key,
+			'stoneStair'
+		);
 	});
 
 	it('leashes enemies with route combat bounds instead of a single forest zone', async () => {
