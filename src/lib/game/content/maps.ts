@@ -692,19 +692,35 @@ export const ruinsThresholdMap: WorldMapDefinition = {
 			kind: 'ruin-wall'
 		},
 		{
-			id: 'threshold-west-wall',
+			id: 'threshold-west-wall-north',
 			x: 768,
-			y: 3_200,
+			y: 2_080,
 			width: 128,
-			height: 3_840,
+			height: 1_600,
 			kind: 'ruin-wall'
 		},
 		{
-			id: 'threshold-east-wall',
-			x: 5_632,
-			y: 3_200,
+			id: 'threshold-west-wall-south',
+			x: 768,
+			y: 4_320,
 			width: 128,
-			height: 3_840,
+			height: 1_600,
+			kind: 'ruin-wall'
+		},
+		{
+			id: 'threshold-east-wall-north',
+			x: 5_632,
+			y: 2_080,
+			width: 128,
+			height: 1_600,
+			kind: 'ruin-wall'
+		},
+		{
+			id: 'threshold-east-wall-south',
+			x: 5_632,
+			y: 4_320,
+			width: 128,
+			height: 1_600,
 			kind: 'ruin-wall'
 		},
 		{
@@ -734,10 +750,10 @@ export const ruinsThresholdMap: WorldMapDefinition = {
 		},
 		{
 			id: 'threshold-future-gate-east',
-			x: 4_672,
-			y: 3_200,
-			width: 96,
-			height: 320,
+			x: 4_864,
+			y: 2_816,
+			width: 320,
+			height: 96,
 			kind: 'future-gate',
 			label: 'Future east gate'
 		}
@@ -838,11 +854,19 @@ export const ruinsCoreMap: WorldMapDefinition = {
 			kind: 'ruin-wall'
 		},
 		{
-			id: 'core-west-wall',
+			id: 'core-west-wall-north',
 			x: 768,
-			y: 3_200,
+			y: 2_080,
 			width: 128,
-			height: 3_840,
+			height: 1_600,
+			kind: 'ruin-wall'
+		},
+		{
+			id: 'core-west-wall-south',
+			x: 768,
+			y: 4_320,
+			width: 128,
+			height: 1_600,
 			kind: 'ruin-wall'
 		},
 		{
@@ -856,25 +880,25 @@ export const ruinsCoreMap: WorldMapDefinition = {
 		{
 			id: 'core-boss-approach-north',
 			x: 4_352,
-			y: 2_624,
+			y: 2_432,
 			width: 128,
-			height: 1_280,
+			height: 896,
 			kind: 'ruin-wall'
 		},
 		{
 			id: 'core-boss-approach-south',
 			x: 4_352,
-			y: 3_776,
+			y: 3_968,
 			width: 128,
-			height: 1_280,
+			height: 896,
 			kind: 'ruin-wall'
 		},
 		{
 			id: 'core-future-gate-boss',
 			x: 4_608,
-			y: 3_200,
+			y: 2_816,
 			width: 96,
-			height: 448,
+			height: 256,
 			kind: 'future-gate',
 			label: 'Future boss gate'
 		},

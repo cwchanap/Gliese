@@ -57,6 +57,34 @@ function isPointInsideRect(point: { x: number; y: number }, rect: CenterRect) {
 	);
 }
 
+function expectHorizontalRouteClear(
+	map: WorldMapDefinition,
+	route: { id: string; from: { x: number; y: number }; to: { x: number; y: number } }
+) {
+	expect(route.from.y).toBe(route.to.y);
+
+	const startX = Math.min(route.from.x, route.to.x);
+	const endX = Math.max(route.from.x, route.to.x);
+	const sampleXs = new Set<number>();
+
+	for (let x = startX; x <= endX; x += 32) {
+		sampleXs.add(x);
+	}
+	sampleXs.add(endX);
+
+	for (const x of [...sampleXs].sort((left, right) => left - right)) {
+		const point = { x, y: route.from.y };
+		const overlappingBlocker = (map.blockers ?? []).find((blocker) =>
+			isPointInsideRect(point, blocker)
+		);
+
+		expect(
+			overlappingBlocker,
+			`${map.id}:${route.id} blocked at (${point.x}, ${point.y})`
+		).toBeUndefined();
+	}
+}
+
 describe('opening map content', () => {
 	it('supports authored ground patches, blockers, stair markers, and route combat bounds', () => {
 		const modelTestMap: WorldMapDefinition = {
@@ -373,19 +401,35 @@ describe('opening map content', () => {
 				kind: 'ruin-wall'
 			},
 			{
-				id: 'threshold-west-wall',
+				id: 'threshold-west-wall-north',
 				x: 768,
-				y: 3_200,
+				y: 2_080,
 				width: 128,
-				height: 3_840,
+				height: 1_600,
 				kind: 'ruin-wall'
 			},
 			{
-				id: 'threshold-east-wall',
-				x: 5_632,
-				y: 3_200,
+				id: 'threshold-west-wall-south',
+				x: 768,
+				y: 4_320,
 				width: 128,
-				height: 3_840,
+				height: 1_600,
+				kind: 'ruin-wall'
+			},
+			{
+				id: 'threshold-east-wall-north',
+				x: 5_632,
+				y: 2_080,
+				width: 128,
+				height: 1_600,
+				kind: 'ruin-wall'
+			},
+			{
+				id: 'threshold-east-wall-south',
+				x: 5_632,
+				y: 4_320,
+				width: 128,
+				height: 1_600,
 				kind: 'ruin-wall'
 			},
 			{
@@ -415,10 +459,10 @@ describe('opening map content', () => {
 			},
 			{
 				id: 'threshold-future-gate-east',
-				x: 4_672,
-				y: 3_200,
-				width: 96,
-				height: 320,
+				x: 4_864,
+				y: 2_816,
+				width: 320,
+				height: 96,
 				kind: 'future-gate',
 				label: 'Future east gate'
 			}
@@ -500,11 +544,19 @@ describe('opening map content', () => {
 				kind: 'ruin-wall'
 			},
 			{
-				id: 'core-west-wall',
+				id: 'core-west-wall-north',
 				x: 768,
-				y: 3_200,
+				y: 2_080,
 				width: 128,
-				height: 3_840,
+				height: 1_600,
+				kind: 'ruin-wall'
+			},
+			{
+				id: 'core-west-wall-south',
+				x: 768,
+				y: 4_320,
+				width: 128,
+				height: 1_600,
 				kind: 'ruin-wall'
 			},
 			{
@@ -518,25 +570,25 @@ describe('opening map content', () => {
 			{
 				id: 'core-boss-approach-north',
 				x: 4_352,
-				y: 2_624,
+				y: 2_432,
 				width: 128,
-				height: 1_280,
+				height: 896,
 				kind: 'ruin-wall'
 			},
 			{
 				id: 'core-boss-approach-south',
 				x: 4_352,
-				y: 3_776,
+				y: 3_968,
 				width: 128,
-				height: 1_280,
+				height: 896,
 				kind: 'ruin-wall'
 			},
 			{
 				id: 'core-future-gate-boss',
 				x: 4_608,
-				y: 3_200,
+				y: 2_816,
 				width: 96,
-				height: 448,
+				height: 256,
 				kind: 'future-gate',
 				label: 'Future boss gate'
 			},
@@ -574,6 +626,19 @@ describe('opening map content', () => {
 				).toBeUndefined();
 			}
 		}
+	});
+
+	it('keeps required ruin progression corridors clear of blockers', () => {
+		expectHorizontalRouteClear(ruinsThresholdMap, {
+			id: 'meadow-arrival-to-core-stair',
+			from: { x: 512, y: 3_200 },
+			to: { x: 5_888, y: 3_200 }
+		});
+		expectHorizontalRouteClear(ruinsCoreMap, {
+			id: 'core-arrival-to-warden',
+			from: { x: 512, y: 3_200 },
+			to: { x: 4_992, y: 3_200 }
+		});
 	});
 
 	it('returns from the ruins near the city stair and clear of meadow blockers', () => {
