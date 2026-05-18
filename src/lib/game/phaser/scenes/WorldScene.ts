@@ -233,6 +233,7 @@ export class WorldScene extends Phaser.Scene {
 	private static readonly tileSize = 32;
 	private static readonly fenceTileLength = 64;
 	private static readonly fenceTileThickness = 32;
+	private static readonly environmentBlockerSegmentLength = 48;
 	private static readonly terrainTilesetKey = 'starter-ground-tiles';
 	private static readonly terrainTileIndexes: Record<StarterPackFrameName, number> = {
 		hero: 0,
@@ -1746,14 +1747,45 @@ export class WorldScene extends Phaser.Scene {
 		const blockers: MapBlocker[] = map.blockers ?? [];
 
 		for (const blocker of blockers) {
+			const frameName = this.getBlockerFrameName(blocker);
+
+			if (blocker.kind === 'town-hedge') {
+				this.renderBlockerSegments(blocker, forestDressingAsset.key, 'treeCluster');
+				continue;
+			}
+
+			if (blocker.kind === 'city-wall') {
+				this.renderBlockerSegments(blocker, environmentDressingAsset.key, frameName);
+				continue;
+			}
+
 			this.add.tileSprite(
 				blocker.x,
 				blocker.y,
 				blocker.width,
 				blocker.height,
 				environmentDressingAsset.key,
-				this.getBlockerFrameName(blocker)
+				frameName
 			);
+		}
+	}
+
+	private renderBlockerSegments(blocker: MapBlocker, textureKey: string, frameName: string) {
+		const isHorizontal = blocker.width >= blocker.height;
+		const length = isHorizontal ? blocker.width : blocker.height;
+		const tileCount = Math.max(1, Math.ceil(length / WorldScene.environmentBlockerSegmentLength));
+		const firstOffset = -((tileCount - 1) * WorldScene.environmentBlockerSegmentLength) / 2;
+		const displayWidth = isHorizontal ? WorldScene.environmentBlockerSegmentLength : blocker.width;
+		const displayHeight = isHorizontal
+			? blocker.height
+			: WorldScene.environmentBlockerSegmentLength;
+
+		for (let index = 0; index < tileCount; index += 1) {
+			const offset = firstOffset + index * WorldScene.environmentBlockerSegmentLength;
+			const x = blocker.x + (isHorizontal ? offset : 0);
+			const y = blocker.y + (isHorizontal ? 0 : offset);
+
+			this.add.image(x, y, textureKey, frameName).setDisplaySize(displayWidth, displayHeight);
 		}
 	}
 

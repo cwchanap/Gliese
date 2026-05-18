@@ -1,5 +1,6 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { maps } from '$lib/game/content/maps';
 import type { HudCommand } from '$lib/game/ui-bridge/events';
 
 const localeState = vi.hoisted(() => ({
@@ -589,9 +590,7 @@ describe('BootScene', () => {
 });
 
 describe('WorldScene', () => {
-	async function registerSceneSupportTestMap() {
-		const { maps } = await import('$lib/game/content/maps');
-
+	function registerSceneSupportTestMap() {
 		maps['scene-support-test'] = {
 			id: 'scene-support-test',
 			width: 20,
@@ -648,9 +647,7 @@ describe('WorldScene', () => {
 		};
 	}
 
-	async function registerNonSlimeForestZoneTestMap() {
-		const { maps } = await import('$lib/game/content/maps');
-
+	function registerNonSlimeForestZoneTestMap() {
 		maps['non-slime-forest-zone-test'] = {
 			id: 'non-slime-forest-zone-test',
 			width: 20,
@@ -670,6 +667,11 @@ describe('WorldScene', () => {
 			encounters: [{ id: 'non-slime-forest-warden', x: 320, y: 320, enemyId: 'ruins-warden' }]
 		};
 	}
+
+	afterEach(() => {
+		delete maps['scene-support-test'];
+		delete maps['non-slime-forest-zone-test'];
+	});
 
 	beforeEach(() => {
 		localeState.activeLocale = 'en';
@@ -736,7 +738,7 @@ describe('WorldScene', () => {
 	it('renders authored ground patches and stair markers from map metadata', async () => {
 		const { WorldScene } = await import('./WorldScene');
 		const scene = new WorldScene();
-		await registerSceneSupportTestMap();
+		registerSceneSupportTestMap();
 
 		scene.create({ mapId: 'scene-support-test' });
 
@@ -750,7 +752,7 @@ describe('WorldScene', () => {
 	it('renders and blocks authored map blockers', async () => {
 		const { WorldScene } = await import('./WorldScene');
 		const scene = new WorldScene();
-		await registerSceneSupportTestMap();
+		registerSceneSupportTestMap();
 
 		scene.create({ mapId: 'scene-support-test' });
 		Object.assign(phaserState.playerMarker, { x: 96, y: 96 });
@@ -758,22 +760,13 @@ describe('WorldScene', () => {
 
 		scene.update(0, 250);
 
-		expect(scene.add.tileSprite).toHaveBeenCalledWith(
+		expect(scene.add.image).toHaveBeenCalledWith(
 			160,
-			96,
-			32,
-			160,
+			24,
 			'environment-dressing',
 			'townWallVertical'
 		);
-		expect(scene.add.tileSprite).toHaveBeenCalledWith(
-			288,
-			224,
-			128,
-			32,
-			'environment-dressing',
-			'townHedgeHorizontal'
-		);
+		expect(scene.add.image).toHaveBeenCalledWith(288, 224, 'forest-dressing', 'treeCluster');
 		expect(scene.add.tileSprite).toHaveBeenCalledWith(
 			224,
 			224,
@@ -782,15 +775,24 @@ describe('WorldScene', () => {
 			'environment-dressing',
 			'futureGate'
 		);
+		const verticalWall = phaserState.imageMarkers.find(
+			(marker) => marker.x === 160 && marker.y === 24 && marker.frame === 'townWallVertical'
+		);
+		const horizontalHedge = phaserState.imageMarkers.find(
+			(marker) => marker.x === 288 && marker.y === 224 && marker.frame === 'treeCluster'
+		);
+		expect(verticalWall?.setDisplaySize).toHaveBeenCalledWith(32, 48);
+		expect(horizontalHedge?.setDisplaySize).toHaveBeenCalledWith(48, 32);
 		expect(phaserState.playerMarker.x).toBe(96);
 		expect(phaserState.playerMarker.y).toBe(96);
 	});
 
 	it('registers and renders environment blocker and stair art', async () => {
-		const { environmentDressingAsset } = await import('$lib/game/content/assets');
+		const { environmentDressingAsset, forestDressingAsset } =
+			await import('$lib/game/content/assets');
 		const { WorldScene } = await import('./WorldScene');
 		const scene = new WorldScene();
-		await registerSceneSupportTestMap();
+		registerSceneSupportTestMap();
 
 		scene.create({ mapId: 'scene-support-test' });
 
@@ -805,22 +807,13 @@ describe('WorldScene', () => {
 				frame.h
 			);
 		}
-		expect(scene.add.tileSprite).toHaveBeenCalledWith(
+		expect(scene.add.image).toHaveBeenCalledWith(
 			160,
-			96,
-			32,
-			160,
+			24,
 			environmentDressingAsset.key,
 			'townWallVertical'
 		);
-		expect(scene.add.tileSprite).toHaveBeenCalledWith(
-			288,
-			224,
-			128,
-			32,
-			environmentDressingAsset.key,
-			'townHedgeHorizontal'
-		);
+		expect(scene.add.image).toHaveBeenCalledWith(288, 224, forestDressingAsset.key, 'treeCluster');
 		expect(scene.add.tileSprite).toHaveBeenCalledWith(
 			224,
 			224,
@@ -840,7 +833,7 @@ describe('WorldScene', () => {
 	it('leashes enemies with route combat bounds instead of a single forest zone', async () => {
 		const { WorldScene } = await import('./WorldScene');
 		const scene = new WorldScene();
-		await registerSceneSupportTestMap();
+		registerSceneSupportTestMap();
 
 		scene.create({ mapId: 'scene-support-test' });
 		Object.assign(phaserState.playerMarker, { x: 640, y: 640 });
@@ -858,7 +851,7 @@ describe('WorldScene', () => {
 			enemies: Array<{ movementMode: string }>;
 			playerProgress: { hp: number };
 		};
-		await registerNonSlimeForestZoneTestMap();
+		registerNonSlimeForestZoneTestMap();
 
 		scene.create({ mapId: 'non-slime-forest-zone-test' });
 

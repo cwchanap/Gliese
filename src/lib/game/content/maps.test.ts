@@ -272,6 +272,35 @@ describe('opening map content', () => {
 		).toBe(true);
 	});
 
+	it('keeps the town district as narrow alleys instead of broad open roads', () => {
+		const townPatches = meadowEntryMap.groundPatches?.filter((patch) =>
+			patch.id.startsWith('village-')
+		);
+		const oversizedCourts = townPatches?.filter((patch) => patch.width > 448 && patch.height > 160);
+		const wideConnectors = townPatches?.filter(
+			(patch) => /lane|alley|neck/.test(patch.id) && Math.min(patch.width, patch.height) > 96
+		);
+
+		expect(oversizedCourts?.map((patch) => patch.id)).toEqual([]);
+		expect(wideConnectors?.map((patch) => patch.id)).toEqual([]);
+		expect(meadowEntryMap.groundPatches?.map((patch) => patch.id)).toEqual(
+			expect.arrayContaining([
+				'village-guild-door-pocket',
+				'village-market-west-bend',
+				'village-shop-door-pocket',
+				'village-east-gate-pinched-neck'
+			])
+		);
+		expect(meadowEntryMap.blockers?.map((blocker) => blocker.id)).toEqual(
+			expect.arrayContaining([
+				'village-guild-south-pincher',
+				'village-market-center-hedge',
+				'village-shop-west-pincher',
+				'village-east-gate-pinch-south'
+			])
+		);
+	});
+
 	it('declares explicit arrival points for village doors and ruin doorway returns', () => {
 		expect(
 			meadowEntryMap.transitions.find((transition) => transition.id === 'meadow-to-hero-house')
@@ -944,151 +973,12 @@ describe('opening map content', () => {
 	});
 
 	it('defines city route ground patches, blockers, fences, and forest dressing inside the meadow map bounds', () => {
-		expect(meadowEntryMap.groundPatches).toEqual([
-			{
-				id: 'village-home-pocket',
-				x: 640,
-				y: 5_224,
-				width: 384,
-				height: 160,
-				tile: 'pathTile'
-			},
-			{
-				id: 'village-home-north-alley',
-				x: 640,
-				y: 4_720,
-				width: 96,
-				height: 960,
-				tile: 'pathTile'
-			},
-			{
-				id: 'village-home-south-alley',
-				x: 640,
-				y: 5_488,
-				width: 96,
-				height: 448,
-				tile: 'pathTile'
-			},
-			{
-				id: 'village-north-civic-lane',
-				x: 1_280,
-				y: 4_552,
-				width: 1_280,
-				height: 128,
-				tile: 'pathTile'
-			},
-			{
-				id: 'village-guild-court',
-				x: 1_600,
-				y: 4_352,
-				width: 576,
-				height: 320,
-				tile: 'pathTile'
-			},
-			{
-				id: 'village-guild-market-alley',
-				x: 1_600,
-				y: 4_624,
-				width: 128,
-				height: 512,
-				tile: 'pathTile'
-			},
-			{
-				id: 'village-villager1-pocket',
-				x: 960,
-				y: 4_624,
-				width: 384,
-				height: 256,
-				tile: 'pathTile'
-			},
-			{
-				id: 'village-central-courtyard',
-				x: 1_600,
-				y: 4_880,
-				width: 576,
-				height: 352,
-				tile: 'pathTile'
-			},
-			{
-				id: 'village-middle-market-lane',
-				x: 1_520,
-				y: 5_040,
-				width: 1_760,
-				height: 128,
-				tile: 'pathTile'
-			},
-			{
-				id: 'village-shop-court',
-				x: 2_240,
-				y: 5_120,
-				width: 576,
-				height: 320,
-				tile: 'pathTile'
-			},
-			{
-				id: 'village-shop-back-alley',
-				x: 2_464,
-				y: 4_800,
-				width: 128,
-				height: 704,
-				tile: 'pathTile'
-			},
-			{
-				id: 'village-villager3-lane',
-				x: 2_620,
-				y: 4_552,
-				width: 960,
-				height: 128,
-				tile: 'pathTile'
-			},
-			{
-				id: 'village-villager3-pocket',
-				x: 2_800,
-				y: 4_624,
-				width: 448,
-				height: 256,
-				tile: 'pathTile'
-			},
-			{
-				id: 'village-villager2-pocket',
-				x: 1_460,
-				y: 5_520,
-				width: 448,
-				height: 320,
-				tile: 'pathTile'
-			},
-			{
-				id: 'village-south-service-lane',
-				x: 1_560,
-				y: 5_520,
-				width: 1_360,
-				height: 128,
-				tile: 'pathTile'
-			},
-			{
-				id: 'village-market-south-alley',
-				x: 2_240,
-				y: 5_344,
-				width: 128,
-				height: 448,
-				tile: 'pathTile'
-			},
-			{
-				id: 'village-east-gate-court',
-				x: 3_024,
-				y: 4_928,
-				width: 480,
-				height: 288,
-				tile: 'pathTile'
-			},
-			{
-				id: 'village-east-gate-neck',
-				x: 3_360,
-				y: 4_928,
-				width: 672,
-				height: 128,
-				tile: 'pathTile'
-			},
+		const firstOutskirtsPatchIndex =
+			meadowEntryMap.groundPatches?.findIndex((patch) => patch.id === 'outskirts-split-trail') ??
+			-1;
+
+		expect(firstOutskirtsPatchIndex).toBeGreaterThanOrEqual(0);
+		expect(meadowEntryMap.groundPatches?.slice(firstOutskirtsPatchIndex)).toEqual([
 			{
 				id: 'outskirts-split-trail',
 				x: 3_700,
@@ -1186,7 +1076,7 @@ describe('opening map content', () => {
 				tile: 'pathTile'
 			}
 		]);
-		expect(meadowEntryMap.groundPatches).toHaveLength(30);
+		expect(meadowEntryMap.groundPatches).toHaveLength(34);
 		expect(meadowEntryMap.blockers).toEqual([
 			{
 				id: 'city-west-district-wall',
@@ -1261,6 +1151,14 @@ describe('opening map content', () => {
 				kind: 'city-wall'
 			},
 			{
+				id: 'village-guild-south-pincher',
+				x: 1_600,
+				y: 4_592,
+				width: 224,
+				height: 48,
+				kind: 'town-hedge'
+			},
+			{
 				id: 'village-central-yard-west-hedge',
 				x: 1_280,
 				y: 4_880,
@@ -1274,6 +1172,22 @@ describe('opening map content', () => {
 				y: 4_880,
 				width: 48,
 				height: 352,
+				kind: 'town-hedge'
+			},
+			{
+				id: 'village-market-center-hedge',
+				x: 1_600,
+				y: 4_992,
+				width: 288,
+				height: 48,
+				kind: 'town-hedge'
+			},
+			{
+				id: 'village-market-west-pinch-hedge',
+				x: 1_056,
+				y: 4_976,
+				width: 48,
+				height: 192,
 				kind: 'town-hedge'
 			},
 			{
@@ -1293,12 +1207,28 @@ describe('opening map content', () => {
 				kind: 'city-wall'
 			},
 			{
+				id: 'village-shop-west-pincher',
+				x: 2_016,
+				y: 5_040,
+				width: 48,
+				height: 224,
+				kind: 'town-hedge'
+			},
+			{
 				id: 'village-shop-yard-east-hedge',
 				x: 2_560,
 				y: 5_120,
 				width: 48,
 				height: 384,
 				kind: 'town-hedge'
+			},
+			{
+				id: 'village-shop-south-pincher',
+				x: 2_400,
+				y: 5_344,
+				width: 48,
+				height: 192,
+				kind: 'city-wall'
 			},
 			{
 				id: 'village-villager1-yard-south-hedge',
@@ -1347,6 +1277,22 @@ describe('opening map content', () => {
 				width: 560,
 				height: 64,
 				kind: 'city-wall'
+			},
+			{
+				id: 'village-east-gate-pinch-north',
+				x: 3_184,
+				y: 4_800,
+				width: 224,
+				height: 48,
+				kind: 'town-hedge'
+			},
+			{
+				id: 'village-east-gate-pinch-south',
+				x: 3_184,
+				y: 5_056,
+				width: 224,
+				height: 48,
+				kind: 'town-hedge'
 			},
 			{
 				id: 'village-east-gate-south-wall',
@@ -1539,7 +1485,7 @@ describe('opening map content', () => {
 				frameName: 'brush'
 			}
 		]);
-		expect([...(meadowEntryMap.blockers ?? []), ...(meadowEntryMap.fences ?? [])]).toHaveLength(46);
+		expect([...(meadowEntryMap.blockers ?? []), ...(meadowEntryMap.fences ?? [])]).toHaveLength(53);
 
 		const ids = [
 			...(meadowEntryMap.groundPatches ?? []).map((patch) => patch.id),

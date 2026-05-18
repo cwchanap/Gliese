@@ -260,39 +260,70 @@ export const meadowEntryMap: WorldMapDefinition = addEnglishMapText({
 	],
 	groundPatches: [
 		{ id: 'village-home-pocket', x: 640, y: 5_224, width: 384, height: 160, tile: 'pathTile' },
-		{ id: 'village-home-north-alley', x: 640, y: 4_720, width: 96, height: 960, tile: 'pathTile' },
-		{ id: 'village-home-south-alley', x: 640, y: 5_488, width: 96, height: 448, tile: 'pathTile' },
+		{ id: 'village-home-north-alley', x: 640, y: 4_720, width: 96, height: 832, tile: 'pathTile' },
+		{ id: 'village-home-south-alley', x: 640, y: 5_488, width: 96, height: 384, tile: 'pathTile' },
 		{
 			id: 'village-north-civic-lane',
 			x: 1_280,
 			y: 4_552,
 			width: 1_280,
+			height: 96,
+			tile: 'pathTile'
+		},
+		{
+			id: 'village-guild-door-pocket',
+			x: 1_600,
+			y: 4_352,
+			width: 384,
+			height: 160,
+			tile: 'pathTile'
+		},
+		{
+			id: 'village-guild-east-bend',
+			x: 1_824,
+			y: 4_552,
+			width: 288,
 			height: 128,
 			tile: 'pathTile'
 		},
-		{ id: 'village-guild-court', x: 1_600, y: 4_352, width: 576, height: 320, tile: 'pathTile' },
 		{
 			id: 'village-guild-market-alley',
 			x: 1_600,
 			y: 4_624,
-			width: 128,
-			height: 512,
+			width: 96,
+			height: 416,
 			tile: 'pathTile'
 		},
 		{
 			id: 'village-villager1-pocket',
 			x: 960,
-			y: 4_624,
-			width: 384,
-			height: 256,
+			y: 4_552,
+			width: 320,
+			height: 144,
 			tile: 'pathTile'
 		},
 		{
-			id: 'village-central-courtyard',
+			id: 'village-central-cross-pocket',
 			x: 1_600,
 			y: 4_880,
-			width: 576,
-			height: 352,
+			width: 384,
+			height: 160,
+			tile: 'pathTile'
+		},
+		{
+			id: 'village-market-west-bend',
+			x: 1_248,
+			y: 5_040,
+			width: 384,
+			height: 128,
+			tile: 'pathTile'
+		},
+		{
+			id: 'village-market-east-bend',
+			x: 1_888,
+			y: 5_040,
+			width: 384,
+			height: 128,
 			tile: 'pathTile'
 		},
 		{
@@ -300,16 +331,31 @@ export const meadowEntryMap: WorldMapDefinition = addEnglishMapText({
 			x: 1_520,
 			y: 5_040,
 			width: 1_760,
+			height: 96,
+			tile: 'pathTile'
+		},
+		{
+			id: 'village-shop-door-pocket',
+			x: 2_240,
+			y: 5_040,
+			width: 384,
+			height: 160,
+			tile: 'pathTile'
+		},
+		{
+			id: 'village-shop-south-pocket',
+			x: 2_240,
+			y: 5_312,
+			width: 320,
 			height: 128,
 			tile: 'pathTile'
 		},
-		{ id: 'village-shop-court', x: 2_240, y: 5_120, width: 576, height: 320, tile: 'pathTile' },
 		{
 			id: 'village-shop-back-alley',
 			x: 2_464,
 			y: 4_800,
-			width: 128,
-			height: 704,
+			width: 96,
+			height: 576,
 			tile: 'pathTile'
 		},
 		{
@@ -317,23 +363,23 @@ export const meadowEntryMap: WorldMapDefinition = addEnglishMapText({
 			x: 2_620,
 			y: 4_552,
 			width: 960,
-			height: 128,
+			height: 96,
 			tile: 'pathTile'
 		},
 		{
 			id: 'village-villager3-pocket',
 			x: 2_800,
-			y: 4_624,
-			width: 448,
-			height: 256,
+			y: 4_552,
+			width: 320,
+			height: 144,
 			tile: 'pathTile'
 		},
 		{
 			id: 'village-villager2-pocket',
 			x: 1_460,
-			y: 5_520,
-			width: 448,
-			height: 320,
+			y: 5_512,
+			width: 384,
+			height: 160,
 			tile: 'pathTile'
 		},
 		{
@@ -341,31 +387,31 @@ export const meadowEntryMap: WorldMapDefinition = addEnglishMapText({
 			x: 1_560,
 			y: 5_520,
 			width: 1_360,
-			height: 128,
+			height: 96,
 			tile: 'pathTile'
 		},
 		{
 			id: 'village-market-south-alley',
 			x: 2_240,
 			y: 5_344,
-			width: 128,
-			height: 448,
+			width: 96,
+			height: 352,
 			tile: 'pathTile'
 		},
 		{
-			id: 'village-east-gate-court',
+			id: 'village-east-gate-pocket',
 			x: 3_024,
 			y: 4_928,
-			width: 480,
-			height: 288,
+			width: 320,
+			height: 144,
 			tile: 'pathTile'
 		},
 		{
-			id: 'village-east-gate-neck',
+			id: 'village-east-gate-pinched-neck',
 			x: 3_360,
 			y: 4_928,
 			width: 672,
-			height: 128,
+			height: 96,
 			tile: 'pathTile'
 		},
 		{
@@ -525,6 +571,14 @@ export const meadowEntryMap: WorldMapDefinition = addEnglishMapText({
 			kind: 'city-wall'
 		},
 		{
+			id: 'village-guild-south-pincher',
+			x: 1_600,
+			y: 4_592,
+			width: 224,
+			height: 48,
+			kind: 'town-hedge'
+		},
+		{
 			id: 'village-central-yard-west-hedge',
 			x: 1_280,
 			y: 4_880,
@@ -538,6 +592,22 @@ export const meadowEntryMap: WorldMapDefinition = addEnglishMapText({
 			y: 4_880,
 			width: 48,
 			height: 352,
+			kind: 'town-hedge'
+		},
+		{
+			id: 'village-market-center-hedge',
+			x: 1_600,
+			y: 4_992,
+			width: 288,
+			height: 48,
+			kind: 'town-hedge'
+		},
+		{
+			id: 'village-market-west-pinch-hedge',
+			x: 1_056,
+			y: 4_976,
+			width: 48,
+			height: 192,
 			kind: 'town-hedge'
 		},
 		{
@@ -557,12 +627,28 @@ export const meadowEntryMap: WorldMapDefinition = addEnglishMapText({
 			kind: 'city-wall'
 		},
 		{
+			id: 'village-shop-west-pincher',
+			x: 2_016,
+			y: 5_040,
+			width: 48,
+			height: 224,
+			kind: 'town-hedge'
+		},
+		{
 			id: 'village-shop-yard-east-hedge',
 			x: 2_560,
 			y: 5_120,
 			width: 48,
 			height: 384,
 			kind: 'town-hedge'
+		},
+		{
+			id: 'village-shop-south-pincher',
+			x: 2_400,
+			y: 5_344,
+			width: 48,
+			height: 192,
+			kind: 'city-wall'
 		},
 		{
 			id: 'village-villager1-yard-south-hedge',
@@ -611,6 +697,22 @@ export const meadowEntryMap: WorldMapDefinition = addEnglishMapText({
 			width: 560,
 			height: 64,
 			kind: 'city-wall'
+		},
+		{
+			id: 'village-east-gate-pinch-north',
+			x: 3_184,
+			y: 4_800,
+			width: 224,
+			height: 48,
+			kind: 'town-hedge'
+		},
+		{
+			id: 'village-east-gate-pinch-south',
+			x: 3_184,
+			y: 5_056,
+			width: 224,
+			height: 48,
+			kind: 'town-hedge'
 		},
 		{
 			id: 'village-east-gate-south-wall',
