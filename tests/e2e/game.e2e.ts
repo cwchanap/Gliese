@@ -133,6 +133,24 @@ test('inventory overlay opens from the menu', async ({ page }) => {
 	await expect(trainingSwordSlot.getByText('Equipped')).toBeVisible();
 });
 
+test('area map opens from the menu and closes back to field HUD', async ({ page }) => {
+	await page.goto('/');
+	await expect(page.locator('canvas')).toBeVisible();
+
+	await page.getByRole('button', { name: 'Menu' }).click();
+	await commandBox(page).getByRole('button', { name: 'Map' }).click();
+
+	const mapDialog = page.getByRole('dialog', { name: /map$/i });
+	await expect(mapDialog).toBeVisible();
+	await expect(mapDialog.getByTestId('area-map-svg')).toBeVisible();
+	await expect(mapDialog.getByTestId('area-map-player')).toBeVisible();
+
+	await mapDialog.getByRole('button', { name: 'Close' }).click();
+	await expect(mapDialog).toHaveCount(0);
+	await expect(page.getByRole('button', { name: 'Menu' })).toBeVisible();
+	await expect(fieldStatus(page)).toBeVisible();
+});
+
 test('language preference shows Japanese chrome and keeps Japanese selected', async ({ page }) => {
 	await page.goto('/');
 	await expect(page.locator('canvas')).toBeVisible();
@@ -182,7 +200,8 @@ test('full hp potions explain why they cannot be consumed', async ({ page }) => 
 
 test('double-clicking unequipped equipment equips it from inventory', async ({ page }) => {
 	const save = {
-		version: 4,
+		version: 5,
+		mapExploration: {},
 		mapId: 'meadow-entry',
 		player: {
 			level: 1,
@@ -219,7 +238,7 @@ test('double-clicking unequipped equipment equips it from inventory', async ({ p
 	};
 
 	await page.addInitScript((encoded) => {
-		window.localStorage.setItem('gliese.save.v4', encoded);
+		window.localStorage.setItem('gliese.save.v5', encoded);
 	}, JSON.stringify(save));
 	await page.goto('/');
 	await expect(page.locator('canvas')).toBeVisible();
@@ -240,7 +259,8 @@ test('double-clicking unequipped equipment equips it from inventory', async ({ p
 
 test('shop overlay opens near a merchant and supports buying and selling', async ({ page }) => {
 	const save = {
-		version: 4,
+		version: 5,
+		mapExploration: {},
 		mapId: 'item-shop',
 		player: {
 			level: 1,
@@ -282,7 +302,7 @@ test('shop overlay opens near a merchant and supports buying and selling', async
 		window.addEventListener('gliese:hud-state', (event) => {
 			probeWindow.__glieseLastHudState = (event as CustomEvent<HudStateSnapshot>).detail;
 		});
-		window.localStorage.setItem('gliese.save.v4', encoded);
+		window.localStorage.setItem('gliese.save.v5', encoded);
 	}, JSON.stringify(save));
 	await page.goto('/');
 	await expect(page.locator('canvas')).toBeVisible();
@@ -340,7 +360,8 @@ test('shop overlay opens near a merchant and supports buying and selling', async
 
 test('interact key shop purchase appears in inventory', async ({ page }) => {
 	const save = {
-		version: 4,
+		version: 5,
+		mapExploration: {},
 		mapId: 'item-shop',
 		player: {
 			level: 1,
@@ -382,7 +403,7 @@ test('interact key shop purchase appears in inventory', async ({ page }) => {
 		window.addEventListener('gliese:hud-state', (event) => {
 			probeWindow.__glieseLastHudState = (event as CustomEvent<HudStateSnapshot>).detail;
 		});
-		window.localStorage.setItem('gliese.save.v4', encoded);
+		window.localStorage.setItem('gliese.save.v5', encoded);
 	}, JSON.stringify(save));
 	await page.goto('/');
 	await expect(page.locator('canvas')).toBeVisible();
@@ -424,7 +445,8 @@ test('interact key shop purchase appears in inventory', async ({ page }) => {
 
 test('quest log shows main quest and accepts Guild side quests', async ({ page }) => {
 	const save = {
-		version: 4,
+		version: 5,
+		mapExploration: {},
 		mapId: 'guild-hall',
 		player: {
 			level: 1,
@@ -466,7 +488,7 @@ test('quest log shows main quest and accepts Guild side quests', async ({ page }
 		window.addEventListener('gliese:hud-state', (event) => {
 			probeWindow.__glieseLastHudState = (event as CustomEvent<HudStateSnapshot>).detail;
 		});
-		window.localStorage.setItem('gliese.save.v4', encoded);
+		window.localStorage.setItem('gliese.save.v5', encoded);
 	}, JSON.stringify(save));
 	await page.goto('/');
 	await expect(page.locator('canvas')).toBeVisible();
