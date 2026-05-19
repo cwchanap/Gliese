@@ -23,6 +23,7 @@
 		requestUseItem
 	} from '$lib/game/ui-bridge/store';
 	import type { EquipmentSlot } from '$lib/game/content/items';
+	import { parseCellKey } from '$lib/game/core/map-exploration';
 	import type { HudQuestEntry, HudQuestOffer } from '$lib/game/core/quests';
 	import type { HudEquipmentItem, HudInventoryStack, HudKeyItem } from '$lib/game/ui-bridge/events';
 	import type { HudShopBuyEntry, HudShopSellEntry } from '$lib/game/core/shop';
@@ -381,11 +382,6 @@
 			event.preventDefault();
 			firstElement.focus();
 		}
-	}
-
-	function parseAreaMapCellKey(cellKey: string) {
-		const [column = 0, row = 0] = cellKey.split(',').map(Number);
-		return { column, row };
 	}
 
 	async function focusInventoryTab(tab: InventoryTab) {
@@ -787,13 +783,28 @@
 				</button>
 			</div>
 			<div class="jrpg-command-list">
-				<button type="button" class="jrpg-command-action" onclick={openQuestLog} disabled={!$hudState.ready}>
+				<button
+					type="button"
+					class="jrpg-command-action"
+					onclick={openQuestLog}
+					disabled={!$hudState.ready}
+				>
 					{t($locale, 'ui.quests')}
 				</button>
-				<button type="button" class="jrpg-command-action" onclick={openAreaMap} disabled={!$hudState.ready}>
+				<button
+					type="button"
+					class="jrpg-command-action"
+					onclick={openAreaMap}
+					disabled={!$hudState.ready}
+				>
 					{t($locale, 'ui.map')}
 				</button>
-				<button type="button" class="jrpg-command-action" onclick={openInventory} disabled={!$hudState.ready}>
+				<button
+					type="button"
+					class="jrpg-command-action"
+					onclick={openInventory}
+					disabled={!$hudState.ready}
+				>
 					{t($locale, 'ui.inventory')}
 				</button>
 				<button
@@ -812,7 +823,12 @@
 				>
 					{t($locale, 'ui.resumeSave')}
 				</button>
-				<button type="button" class="jrpg-command-action" onclick={saveFromMenu} disabled={!$hudState.ready}>
+				<button
+					type="button"
+					class="jrpg-command-action"
+					onclick={saveFromMenu}
+					disabled={!$hudState.ready}
+				>
 					{t($locale, 'ui.saveGame')}
 				</button>
 				<button
@@ -852,7 +868,11 @@
 
 	{#if inventoryOpen}
 		<div class="jrpg-modal-backdrop" role="presentation">
-			<div class="absolute inset-0 cursor-default" role="presentation" onclick={closeInventory}></div>
+			<div
+				class="absolute inset-0 cursor-default"
+				role="presentation"
+				onclick={closeInventory}
+			></div>
 			<div
 				bind:this={inventoryDialog}
 				class="jrpg-window"
@@ -1043,7 +1063,9 @@
 									{@const equippedItem = $hudState.inventory.equipment.find(
 										(item) => item.itemId === equippedItemId
 									)}
-									<div class="jrpg-equipped-row grid min-h-[3.65rem] grid-cols-[minmax(0,1fr)_auto] items-center gap-2">
+									<div
+										class="jrpg-equipped-row grid min-h-[3.65rem] grid-cols-[minmax(0,1fr)_auto] items-center gap-2"
+									>
 										<div class="min-w-0">
 											<p
 												class="text-[0.54rem] font-black tracking-[0.2em] text-slate-300/62 uppercase"
@@ -1135,7 +1157,7 @@
 								height={$hudState.areaMap.worldHeight}
 							/>
 							{#each $hudState.areaMap.revealedCells as cellKey (cellKey)}
-								{@const cell = parseAreaMapCellKey(cellKey)}
+								{@const cell = parseCellKey(cellKey)}
 								<rect
 									class="area-map-revealed-cell"
 									x={cell.column * $hudState.areaMap.cellSize}
@@ -1177,7 +1199,11 @@
 
 	{#if questLogOpen}
 		<div class="jrpg-modal-backdrop" role="presentation">
-			<div class="absolute inset-0 cursor-default" role="presentation" onclick={closeQuestLog}></div>
+			<div
+				class="absolute inset-0 cursor-default"
+				role="presentation"
+				onclick={closeQuestLog}
+			></div>
 			<div
 				bind:this={questLogDialog}
 				class="jrpg-window jrpg-window-narrow"
@@ -1334,7 +1360,7 @@
 					</div>
 
 					<div
-						class="mx-4 mb-4 mt-4 rounded-[1.1rem] border border-white/8 bg-white/6 px-4 py-3 text-sm text-slate-200/82"
+						class="mx-4 mt-4 mb-4 rounded-[1.1rem] border border-white/8 bg-white/6 px-4 py-3 text-sm text-slate-200/82"
 					>
 						<p>{$hudState.status}</p>
 					</div>
@@ -1491,7 +1517,9 @@
 		border: 1px solid var(--jrpg-frame);
 		background: linear-gradient(145deg, var(--jrpg-panel), rgba(12, 18, 42, 0.88));
 		color: var(--jrpg-text);
-		box-shadow: var(--jrpg-shadow), inset 0 1px 0 rgba(255, 255, 255, 0.08);
+		box-shadow:
+			var(--jrpg-shadow),
+			inset 0 1px 0 rgba(255, 255, 255, 0.08);
 		backdrop-filter: blur(14px);
 	}
 
@@ -1848,8 +1876,7 @@
 		border-radius: var(--jrpg-radius);
 		background:
 			linear-gradient(rgba(159, 231, 255, 0.08) 1px, transparent 1px),
-			linear-gradient(90deg, rgba(159, 231, 255, 0.08) 1px, transparent 1px),
-			#09101f;
+			linear-gradient(90deg, rgba(159, 231, 255, 0.08) 1px, transparent 1px), #09101f;
 		background-size: 2rem 2rem;
 		box-shadow:
 			inset 0 0 0 1px rgba(255, 255, 255, 0.04),

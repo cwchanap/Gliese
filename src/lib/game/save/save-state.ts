@@ -8,6 +8,7 @@ import type { ItemDrop } from '$lib/game/core/loot';
 import {
 	cloneMapExploration,
 	createEmptyMapExploration,
+	isCellKey,
 	type MapExplorationState
 } from '$lib/game/core/map-exploration';
 import { getXpForLevel } from '$lib/game/core/progression';
@@ -111,8 +112,18 @@ function isSaveState(value: unknown): value is SaveState {
 		return false;
 	}
 
-	const { version, mapId, player, flags, inventory, equipment, wallet, shops, quests, mapExploration } =
-		value;
+	const {
+		version,
+		mapId,
+		player,
+		flags,
+		inventory,
+		equipment,
+		wallet,
+		shops,
+		quests,
+		mapExploration
+	} = value;
 
 	if (
 		version !== 5 ||
@@ -150,7 +161,8 @@ function isMapExplorationState(value: unknown): value is MapExplorationState {
 		isRecord(value) &&
 		!Array.isArray(value) &&
 		Object.values(value).every(
-			(cells) => Array.isArray(cells) && cells.every((cell) => typeof cell === 'string')
+			(cells) =>
+				Array.isArray(cells) && cells.every((cell) => typeof cell === 'string' && isCellKey(cell))
 		)
 	);
 }

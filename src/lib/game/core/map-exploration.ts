@@ -3,6 +3,11 @@ export const AREA_MAP_REVEAL_RADIUS = 320;
 
 export type MapExplorationState = Record<string, string[]>;
 
+export type MapExplorationCell = {
+	column: number;
+	row: number;
+};
+
 export type RevealMapAreaInput = {
 	exploration: MapExplorationState;
 	mapId: string;
@@ -26,6 +31,19 @@ export function cloneMapExploration(exploration: MapExplorationState): MapExplor
 
 export function getCellKey(column: number, row: number): string {
 	return `${column},${row}`;
+}
+
+export function isCellKey(value: string): boolean {
+	return /^\d+,\d+$/.test(value);
+}
+
+export function parseCellKey(key: string): MapExplorationCell {
+	if (!isCellKey(key)) {
+		return { column: 0, row: 0 };
+	}
+
+	const [column = 0, row = 0] = key.split(',').map(Number);
+	return { column, row };
 }
 
 export function getCellKeyForWorldPosition({
@@ -121,21 +139,16 @@ export function isWorldPositionRevealed({
 
 function sortCellKeys(cells: string[]): string[] {
 	return [...cells].sort((left, right) => {
-		const [leftColumn, leftRow] = parseCellKey(left);
-		const [rightColumn, rightRow] = parseCellKey(right);
+		const { column: leftColumn, row: leftRow } = parseCellKey(left);
+		const { column: rightColumn, row: rightRow } = parseCellKey(right);
 		return leftRow - rightRow || leftColumn - rightColumn;
 	});
 }
 
 function normalizeCellKeys(cells: string[]): string[] {
-	return sortCellKeys([...new Set(cells)]);
+	return sortCellKeys([...new Set(cells.filter(isCellKey))]);
 }
 
 function areCellKeysEqual(left: string[], right: string[]): boolean {
 	return left.length === right.length && left.every((cell, index) => cell === right[index]);
-}
-
-function parseCellKey(key: string): [number, number] {
-	const [column, row] = key.split(',').map(Number);
-	return [column ?? 0, row ?? 0];
 }

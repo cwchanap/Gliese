@@ -5,8 +5,10 @@ import {
 	AREA_MAP_REVEAL_RADIUS,
 	getCellKey,
 	getCellKeyForWorldPosition,
+	isCellKey,
 	isWorldPositionRevealed,
 	mergeRevealedCells,
+	parseCellKey,
 	revealCellsAroundPoint,
 	revealMapArea
 } from '$lib/game/core/map-exploration';
@@ -18,6 +20,14 @@ describe('map exploration', () => {
 		expect(getCellKeyForWorldPosition({ x: AREA_MAP_CELL_SIZE, y: AREA_MAP_CELL_SIZE * 2 })).toBe(
 			'1,2'
 		);
+	});
+
+	it('parses only canonical non-negative cell keys', () => {
+		expect(isCellKey('2,3')).toBe(true);
+		expect(parseCellKey('2,3')).toEqual({ column: 2, row: 3 });
+		expect(isCellKey('-1,0')).toBe(false);
+		expect(isCellKey('1,NaN')).toBe(false);
+		expect(parseCellKey('1,NaN')).toEqual({ column: 0, row: 0 });
 	});
 
 	it('reveals a circular area around the player and clamps to map bounds', () => {

@@ -99,6 +99,19 @@ describe('save state', () => {
 		expect(parsed?.mapExploration['meadow-entry']).not.toBe(save.mapExploration['meadow-entry']);
 	});
 
+	it('rejects malformed map exploration cell keys', () => {
+		for (const cell of ['bad', '1', '1,NaN', '-1,0']) {
+			expect(
+				parseSaveState(
+					JSON.stringify({
+						...createNewSaveState(),
+						mapExploration: { 'meadow-entry': [cell] }
+					})
+				)
+			).toBeNull();
+		}
+	});
+
 	it('rejects legacy v1 save payloads instead of migrating them', () => {
 		const legacySave = {
 			...createNewSaveState(),

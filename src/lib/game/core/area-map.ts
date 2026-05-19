@@ -1,5 +1,6 @@
 import {
 	maps,
+	meadowEntryMap,
 	type MapEncounter,
 	type MapLandmark,
 	type MapNpc,
@@ -7,11 +8,8 @@ import {
 	type WorldMapDefinition
 } from '$lib/game/content/maps';
 import { mainQuestId } from '$lib/game/content/quests';
-import {
-	AREA_MAP_CELL_SIZE,
-	isWorldPositionRevealed
-} from '$lib/game/core/map-exploration';
-import type { QuestState } from '$lib/game/core/quests';
+import { AREA_MAP_CELL_SIZE, isWorldPositionRevealed } from '$lib/game/core/map-exploration';
+import { createInitialQuestState, type QuestState } from '$lib/game/core/quests';
 import { getQuestText } from '$lib/game/i18n/content';
 import type { Locale } from '$lib/game/i18n/locales';
 import { t, type MessageKey } from '$lib/game/i18n/translate';
@@ -71,6 +69,16 @@ export function buildAreaMapState({
 	};
 }
 
+export function buildInitialAreaMapState(locale: Locale): HudAreaMapState {
+	return buildAreaMapState({
+		map: meadowEntryMap,
+		player: meadowEntryMap.spawn,
+		revealedCells: [],
+		quests: createInitialQuestState(),
+		locale
+	});
+}
+
 function buildLandmarkMarkers(map: WorldMapDefinition, locale: Locale): HudAreaMapMarker[] {
 	return (map.landmarks ?? []).map((landmark) => ({
 		id: landmark.id,
@@ -110,7 +118,7 @@ function buildMainQuestMarkers(
 			kind: 'quest',
 			x: target.x,
 			y: target.y,
-			label: getQuestText(locale, mainQuestId)?.title ?? 'Quest',
+			label: getQuestText(locale, mainQuestId)?.title ?? t(locale, 'ui.quests'),
 			emphasis: true
 		}
 	];

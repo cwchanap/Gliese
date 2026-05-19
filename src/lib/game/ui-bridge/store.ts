@@ -2,6 +2,7 @@ import { readable } from 'svelte/store';
 
 import { equipmentSlots, type EquipmentSlot } from '$lib/game/content/items';
 import { startingPlayer } from '$lib/game/content/player';
+import { buildInitialAreaMapState } from '$lib/game/core/area-map';
 import { buildHudQuestState, createInitialQuestState } from '$lib/game/core/quests';
 import { getActiveLocale } from '$lib/game/i18n/store';
 import { t } from '$lib/game/i18n/translate';
@@ -10,6 +11,7 @@ import { emitHudCommand, onHudState, type HudState } from '$lib/game/ui-bridge/e
 
 const initialSaveResult = loadStoredSaveResult();
 const initialLocale = getActiveLocale();
+const initialAreaMap = buildInitialAreaMapState(initialLocale);
 const initialQuestState =
 	initialSaveResult.status === 'loaded'
 		? initialSaveResult.saveState.quests
@@ -21,17 +23,8 @@ const emptyEquipped = Object.fromEntries(equipmentSlots.map((slot) => [slot, nul
 
 const initialHudState: HudState = {
 	ready: false,
-	mapId: 'meadow-entry',
-	areaMap: {
-		mapId: 'meadow-entry',
-		name: t(initialLocale, 'content.maps.areas.meadow-entry'),
-		worldWidth: 200 * 32,
-		worldHeight: 200 * 32,
-		cellSize: 128,
-		revealedCells: [],
-		player: { x: 0, y: 0 },
-		markers: []
-	},
+	mapId: initialAreaMap.mapId,
+	areaMap: initialAreaMap,
 	hp: startingPlayer.baseHp,
 	maxHp: startingPlayer.baseHp,
 	level: 1,

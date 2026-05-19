@@ -357,6 +357,8 @@ export class WorldScene extends Phaser.Scene {
 		const width = map.width * WorldScene.tileSize;
 		const height = map.height * WorldScene.tileSize;
 		const reason = data.reason ?? (activeSave ? 'resume' : 'new');
+		// A probe run can coexist with a stored save before the player chooses Resume. Do not
+		// auto-persist exploration from that run over the stored save until it is resumed.
 		this.shouldPersistExplorationChanges =
 			data.persistExplorationChanges ??
 			(activeSave !== undefined || loadStoredSaveResult().status !== 'loaded');
@@ -544,7 +546,7 @@ export class WorldScene extends Phaser.Scene {
 			if (this.shouldPersistExplorationChanges) {
 				saveGameState(this.buildSaveState());
 			}
-			this.publishHudState(this.lastPublishedStatus || this.status('status.enteredArea'));
+			this.publishHudState(this.lastPublishedStatus);
 		}
 
 		if (this.tryTransition()) {

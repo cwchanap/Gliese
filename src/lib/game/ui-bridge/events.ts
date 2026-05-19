@@ -82,8 +82,7 @@ export type HudState = {
 	};
 };
 
-export type HudStatePayload = Omit<HudState, 'areaMap' | 'dialogue'> & {
-	areaMap?: HudAreaMapState;
+export type HudStatePayload = Omit<HudState, 'dialogue'> & {
 	dialogue?: HudDialogueState | null;
 };
 
@@ -108,18 +107,6 @@ export type HudCommand =
 export const HUD_STATE_EVENT = 'gliese:hud-state';
 export const HUD_COMMAND_EVENT = 'gliese:hud-command';
 
-// Default bridge payload for pre-ready emissions that do not yet carry scene-owned map state.
-const fallbackAreaMap: HudAreaMapState = {
-	mapId: 'meadow-entry',
-	name: 'Meadow Entry',
-	worldWidth: 200 * 32,
-	worldHeight: 200 * 32,
-	cellSize: 128,
-	revealedCells: [],
-	player: { x: 0, y: 0 },
-	markers: []
-};
-
 declare global {
 	interface WindowEventMap {
 		[HUD_STATE_EVENT]: CustomEvent<HudState>;
@@ -130,7 +117,6 @@ declare global {
 export function emitHudState(state: HudStatePayload) {
 	const detail: HudState = {
 		...state,
-		areaMap: state.areaMap ?? fallbackAreaMap,
 		dialogue: state.dialogue ?? null
 	};
 	getEventTarget()?.dispatchEvent(new CustomEvent(HUD_STATE_EVENT, { detail }));

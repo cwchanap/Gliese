@@ -2,10 +2,27 @@ import { describe, expect, it } from 'vitest';
 
 import { meadowEntryMap, maps } from '$lib/game/content/maps';
 import { mainQuestId } from '$lib/game/content/quests';
-import { buildAreaMapState, type HudAreaMapState } from '$lib/game/core/area-map';
+import {
+	buildAreaMapState,
+	buildInitialAreaMapState,
+	type HudAreaMapState
+} from '$lib/game/core/area-map';
 import { createInitialQuestState } from '$lib/game/core/quests';
 
 describe('area map payload', () => {
+	it('builds the initial area map from meadow entry content', () => {
+		const areaMap = buildInitialAreaMapState('ja');
+
+		expect(areaMap).toMatchObject<Partial<HudAreaMapState>>({
+			mapId: meadowEntryMap.id,
+			name: '草原の入り口',
+			worldWidth: meadowEntryMap.width * 32,
+			worldHeight: meadowEntryMap.height * 32,
+			player: meadowEntryMap.spawn,
+			revealedCells: []
+		});
+	});
+
 	it('includes current map dimensions, player position, and revealed cells', () => {
 		const areaMap = buildAreaMapState({
 			map: meadowEntryMap,
