@@ -5,6 +5,11 @@ import { getShop } from '$lib/game/content/shops';
 import { createEmptyEquipment, type EquipmentState } from '$lib/game/core/equipment';
 import type { InventoryState } from '$lib/game/core/inventory';
 import type { ItemDrop } from '$lib/game/core/loot';
+import {
+	cloneMapExploration,
+	createEmptyMapExploration,
+	type MapExplorationState
+} from '$lib/game/core/map-exploration';
 import { getXpForLevel } from '$lib/game/core/progression';
 import {
 	createInitialQuestState,
@@ -20,7 +25,7 @@ import type { Direction } from '$lib/game/core/types';
 import { getQuest, isQuestId, mainQuestId, type QuestDefinition } from '$lib/game/content/quests';
 
 export type SaveState = {
-	version: 4;
+	version: 5;
 	mapId: string;
 	player: {
 		level: number;
@@ -43,13 +48,14 @@ export type SaveState = {
 		stock: ShopStockState;
 	};
 	quests: QuestState;
+	mapExploration: MapExplorationState;
 };
 
 const DIRECTIONS: Direction[] = ['up', 'down', 'left', 'right'];
 
 export function createNewSaveState(): SaveState {
 	return {
-		version: 4,
+		version: 5,
 		mapId: meadowEntryMap.id,
 		player: {
 			level: 1,
@@ -73,7 +79,8 @@ export function createNewSaveState(): SaveState {
 		shops: {
 			stock: createInitialShopStockState()
 		},
-		quests: createInitialQuestState()
+		quests: createInitialQuestState(),
+		mapExploration: createEmptyMapExploration()
 	};
 }
 
@@ -91,7 +98,8 @@ export function parseSaveState(value: string): SaveState | null {
 
 		return {
 			...parsed,
-			player: normalizePlayerPosition(parsed.mapId, parsed.player)
+			player: normalizePlayerPosition(parsed.mapId, parsed.player),
+			mapExploration: cloneMapExploration(parsed.mapExploration)
 		};
 	} catch {
 		return null;
@@ -103,10 +111,11 @@ function isSaveState(value: unknown): value is SaveState {
 		return false;
 	}
 
-	const { version, mapId, player, flags, inventory, equipment, wallet, shops, quests } = value;
+	const { version, mapId, player, flags, inventory, equipment, wallet, shops, quests, mapExploration } =
+		value;
 
 	if (
-		version !== 4 ||
+		version !== 5 ||
 		typeof mapId !== 'string' ||
 		!isRecord(player) ||
 		!isRecord(flags) ||
@@ -114,7 +123,8 @@ function isSaveState(value: unknown): value is SaveState {
 		!isEquipmentState(equipment, inventory) ||
 		!isWalletState(wallet) ||
 		!isShopsState(shops) ||
-		!isQuestState(quests)
+		!isQuestState(quests) ||
+		!isMapExplorationState(mapExploration)
 	) {
 		return false;
 	}
@@ -132,6 +142,16 @@ function isSaveState(value: unknown): value is SaveState {
 		Array.isArray(flags.collectedPickups) &&
 		flags.collectedPickups.every((entry) => typeof entry === 'string') &&
 		isResolvedDrops(flags.resolvedEncounterDrops)
+	);
+}
+
+function isMapExplorationState(value: unknown): value is MapExplorationState {
+	return (
+		isRecord(value) &&
+		!Array.isArray(value) &&
+		Object.values(value).every(
+			(cells) => Array.isArray(cells) && cells.every((cell) => typeof cell === 'string')
+		)
 	);
 }
 

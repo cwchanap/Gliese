@@ -44,7 +44,7 @@ class MemoryStorage implements Storage {
 describe('save state', () => {
 	it('creates a level 1 starting save', () => {
 		expect(createNewSaveState()).toEqual({
-			version: 4,
+			version: 5,
 			mapId: meadowEntryMap.id,
 			player: {
 				level: 1,
@@ -77,13 +77,26 @@ describe('save state', () => {
 					}
 				}
 			},
-			quests: createInitialQuestState()
+			quests: createInitialQuestState(),
+			mapExploration: {}
 		});
 	});
 
 	it('round-trips a valid save payload', () => {
 		const encoded = serializeSaveState(createNewSaveState());
 		expect(parseSaveState(encoded)?.mapId).toBe('meadow-entry');
+	});
+
+	it('round-trips map exploration cells with cloned arrays', () => {
+		const save = {
+			...createNewSaveState(),
+			mapExploration: { 'meadow-entry': ['0,0', '1,0'] }
+		};
+
+		const parsed = parseSaveState(JSON.stringify(save));
+
+		expect(parsed?.mapExploration['meadow-entry']).toEqual(['0,0', '1,0']);
+		expect(parsed?.mapExploration['meadow-entry']).not.toBe(save.mapExploration['meadow-entry']);
 	});
 
 	it('rejects legacy v1 save payloads instead of migrating them', () => {
@@ -117,9 +130,9 @@ describe('save state', () => {
 		expect(parseSaveState('{"bad":true}')).toBeNull();
 	});
 
-	it('rejects version 3 and accepts version 4', () => {
-		expect(parseSaveState(JSON.stringify({ ...createNewSaveState(), version: 3 }))).toBeNull();
-		expect(parseSaveState(JSON.stringify(createNewSaveState()))?.version).toBe(4);
+	it('rejects version 4 and accepts version 5', () => {
+		expect(parseSaveState(JSON.stringify({ ...createNewSaveState(), version: 4 }))).toBeNull();
+		expect(parseSaveState(JSON.stringify(createNewSaveState()))?.version).toBe(5);
 	});
 
 	it('rejects a payload with wrong player field types', () => {
@@ -418,6 +431,19 @@ describe('save state', () => {
 					completedObjectives: { [mainQuestId]: ['not-an-objective'] }
 				}
 			}
+		]) {
+			expect(parseSaveState(JSON.stringify(invalidPayload))).toBeNull();
+		}
+	});
+
+	it('rejects invalid map exploration state', () => {
+		const save = createNewSaveState();
+
+		for (const invalidPayload of [
+			{ ...save, mapExploration: undefined },
+			{ ...save, mapExploration: [] },
+			{ ...save, mapExploration: { 'meadow-entry': '0,0' } },
+			{ ...save, mapExploration: { 'meadow-entry': ['0,0', 7] } }
 		]) {
 			expect(parseSaveState(JSON.stringify(invalidPayload))).toBeNull();
 		}

@@ -45,6 +45,7 @@ import { equipItem, unequipSlot } from '$lib/game/core/equipment';
 import { resolveMovementVector } from '$lib/game/core/input';
 import { addItem, consumeStackItem } from '$lib/game/core/inventory';
 import { resolveLootDrops } from '$lib/game/core/loot';
+import { createEmptyMapExploration } from '$lib/game/core/map-exploration';
 import { applyExperienceGain, type ProgressionState } from '$lib/game/core/progression';
 import {
 	acceptQuest,
@@ -587,7 +588,7 @@ export class WorldScene extends Phaser.Scene {
 
 	private buildSaveState(): SaveState {
 		return {
-			version: 4,
+			version: 5,
 			mapId: this.mapId,
 			player: {
 				level: this.playerProgress.level,
@@ -609,7 +610,8 @@ export class WorldScene extends Phaser.Scene {
 			shops: {
 				stock: cloneShopStockState(this.shopStockState)
 			},
-			quests: cloneQuestState(this.quests)
+			quests: cloneQuestState(this.quests),
+			mapExploration: createEmptyMapExploration()
 		};
 	}
 
