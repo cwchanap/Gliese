@@ -108,7 +108,7 @@ export type HudCommand =
 export const HUD_STATE_EVENT = 'gliese:hud-state';
 export const HUD_COMMAND_EVENT = 'gliese:hud-command';
 
-// Temporary inert fallback until WorldScene publishes real localized area-map payloads.
+// Default bridge payload for pre-ready emissions that do not yet carry scene-owned map state.
 const fallbackAreaMap: HudAreaMapState = {
 	mapId: 'meadow-entry',
 	name: 'Meadow Entry',

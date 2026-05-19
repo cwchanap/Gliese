@@ -40,6 +40,20 @@ describe('area map payload', () => {
 		expect(areaMap.markers.map((marker) => marker.id)).not.toContain('item-shop-exterior');
 	});
 
+	it('uses current revealed cells to include the player but omit hidden markers', () => {
+		const areaMap = buildAreaMapState({
+			map: meadowEntryMap,
+			player: { x: 640, y: 5_200 },
+			revealedCells: ['5,39'],
+			quests: createInitialQuestState(),
+			locale: 'en'
+		});
+
+		expect(areaMap.player).toEqual({ x: 640, y: 5_200 });
+		expect(areaMap.markers.map((marker) => marker.id)).toContain('hero-house-exterior');
+		expect(areaMap.markers.map((marker) => marker.id)).not.toContain('guild-hall-exterior');
+	});
+
 	it('localizes revealed building marker labels', () => {
 		const areaMap = buildAreaMapState({
 			map: meadowEntryMap,

@@ -668,9 +668,21 @@ describe('WorldScene', () => {
 		};
 	}
 
+	function registerAreaMapRevealTestMap() {
+		maps['area-map-reveal-test'] = {
+			id: 'area-map-reveal-test',
+			width: 30,
+			height: 12,
+			spawnDirection: 'right',
+			spawn: { x: 340, y: 320 },
+			transitions: []
+		};
+	}
+
 	afterEach(() => {
 		delete maps['scene-support-test'];
 		delete maps['non-slime-forest-zone-test'];
+		delete maps['area-map-reveal-test'];
 	});
 
 	beforeEach(() => {
@@ -1182,6 +1194,94 @@ describe('WorldScene', () => {
 
 		expect(phaserState.playerMarker.x).toBe(meadowEntryMap.spawn.x + 60);
 		expect(phaserState.playerMarker.y).toBe(meadowEntryMap.spawn.y);
+	});
+
+	it('reveals explored cells, persists changes, and republishes the map without changing status', async () => {
+		const events = await import('$lib/game/ui-bridge/events');
+		const storage = await import('$lib/game/save/storage');
+		const { createNewSaveState, parseSaveState } = await import('$lib/game/save/save-state');
+		const emitHudStateSpy = vi.spyOn(events, 'emitHudState');
+		const { WorldScene } = await import('./WorldScene');
+		const scene = new WorldScene();
+		const save = createNewSaveState();
+		const storedSaves: string[] = [];
+		const memoryStorage = {
+			getItem: vi.fn(() => null),
+			removeItem: vi.fn(),
+			setItem: vi.fn((_key: string, value: string) => {
+				storedSaves.push(value);
+			})
+		};
+		registerAreaMapRevealTestMap();
+
+		storage.setSaveStorage(memoryStorage);
+		try {
+			scene.create({
+				saveState: {
+					...save,
+					mapId: 'area-map-reveal-test',
+					player: { ...save.player, x: 340, y: 320 },
+					mapExploration: {}
+				}
+			});
+
+			expect(memoryStorage.setItem).toHaveBeenCalledOnce();
+			expect(memoryStorage.setItem).toHaveBeenLastCalledWith(
+				storage.SAVE_STORAGE_KEY,
+				expect.any(String)
+			);
+			expect(parseSaveState(storedSaves.at(-1)!)).toMatchObject({
+				mapExploration: {
+					'area-map-reveal-test': expect.arrayContaining(['2,2'])
+				}
+			});
+			expect(emitHudStateSpy).toHaveBeenLastCalledWith(
+				expect.objectContaining({
+					status: 'Save resumed',
+					areaMap: expect.objectContaining({
+						mapId: 'area-map-reveal-test',
+						player: { x: 340, y: 320 },
+						revealedCells: expect.arrayContaining(['2,2'])
+					})
+				})
+			);
+
+			memoryStorage.setItem.mockClear();
+			storedSaves.splice(0, storedSaves.length);
+			emitHudStateSpy.mockClear();
+			phaserState.cursorKeys.right.isDown = true;
+
+			scene.update(0, 1_000);
+
+			expect(memoryStorage.setItem).toHaveBeenCalledOnce();
+			expect(parseSaveState(storedSaves.at(-1)!)).toMatchObject({
+				mapExploration: {
+					'area-map-reveal-test': expect.arrayContaining(['5,2'])
+				}
+			});
+			expect(emitHudStateSpy).toHaveBeenCalledOnce();
+			expect(emitHudStateSpy).toHaveBeenLastCalledWith(
+				expect.objectContaining({
+					status: 'Save resumed',
+					areaMap: expect.objectContaining({
+						mapId: 'area-map-reveal-test',
+						player: { x: 400, y: 320 },
+						revealedCells: expect.arrayContaining(['5,2'])
+					})
+				})
+			);
+
+			memoryStorage.setItem.mockClear();
+			emitHudStateSpy.mockClear();
+			phaserState.cursorKeys.right.isDown = false;
+
+			scene.update(1_000, 1_000);
+
+			expect(memoryStorage.setItem).not.toHaveBeenCalled();
+			expect(emitHudStateSpy).not.toHaveBeenCalled();
+		} finally {
+			storage.setSaveStorage(undefined);
+		}
 	});
 
 	it('moves the player marker using WASD input state', async () => {

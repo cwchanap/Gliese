@@ -40,12 +40,18 @@ import { startingPlayer } from '$lib/game/content/player';
 import { isQuestId } from '$lib/game/content/quests';
 import { getShop } from '$lib/game/content/shops';
 import { advanceBossPhase } from '$lib/game/core/boss';
+import { buildAreaMapState } from '$lib/game/core/area-map';
 import { canReceiveHit, resolveHit } from '$lib/game/core/combat';
 import { equipItem, unequipSlot } from '$lib/game/core/equipment';
 import { resolveMovementVector } from '$lib/game/core/input';
 import { addItem, consumeStackItem } from '$lib/game/core/inventory';
 import { resolveLootDrops } from '$lib/game/core/loot';
-import { createEmptyMapExploration } from '$lib/game/core/map-exploration';
+import {
+	cloneMapExploration,
+	createEmptyMapExploration,
+	revealMapArea,
+	type MapExplorationState
+} from '$lib/game/core/map-exploration';
 import { applyExperienceGain, type ProgressionState } from '$lib/game/core/progression';
 import {
 	acceptQuest,
@@ -277,7 +283,9 @@ export class WorldScene extends Phaser.Scene {
 	private interactKeys: Phaser.Input.Keyboard.Key[] = [];
 	private inventory: SaveState['inventory'] = cloneInventory(createNewSaveState().inventory);
 	private quests: QuestState = createInitialQuestState();
+	private mapExploration: MapExplorationState = createEmptyMapExploration();
 	private mapId = openingMapId;
+	private lastPublishedStatus = '';
 	private currentNearbyNpcId: string | null = null;
 	private npcMarkers = new Map<string, NpcMarker>();
 	private pickupMarkers = new Map<string, PickupMarker>();
@@ -361,6 +369,9 @@ export class WorldScene extends Phaser.Scene {
 		this.hitImpactUntil = 0;
 		this.inventory = cloneInventory(activeSave?.inventory ?? createNewSaveState().inventory);
 		this.quests = cloneQuestState(activeSave?.quests ?? createInitialQuestState());
+		this.mapExploration = cloneMapExploration(
+			activeSave?.mapExploration ?? createEmptyMapExploration()
+		);
 		this.equipment = { ...(activeSave?.equipment ?? createNewSaveState().equipment) };
 		this.wallet = { ...(activeSave?.wallet ?? createNewSaveState().wallet) };
 		this.shopStockState = cloneShopStockState(
@@ -455,6 +466,11 @@ export class WorldScene extends Phaser.Scene {
 		this.removeHudCommandListener = onHudCommand((command) => this.handleHudCommand(command));
 		this.events?.once?.('shutdown', () => this.removeHudCommandListener());
 
+		const initialExplorationChanged = this.revealCurrentMapArea();
+		if (initialExplorationChanged) {
+			saveGameState(this.buildSaveState());
+		}
+
 		this.publishHudState(
 			this.victoryAchieved
 				? this.status('status.victoryRuinsCleared')
@@ -517,6 +533,12 @@ export class WorldScene extends Phaser.Scene {
 		this.player.x = resolvedPosition.x;
 		this.player.y = resolvedPosition.y;
 		this.facing = this.resolveFacing(direction, this.facing);
+
+		const explorationChanged = this.revealCurrentMapArea();
+		if (explorationChanged) {
+			saveGameState(this.buildSaveState());
+			this.publishHudState(this.lastPublishedStatus || this.status('status.enteredArea'));
+		}
 
 		if (this.tryTransition()) {
 			return;
@@ -611,7 +633,7 @@ export class WorldScene extends Phaser.Scene {
 				stock: cloneShopStockState(this.shopStockState)
 			},
 			quests: cloneQuestState(this.quests),
-			mapExploration: createEmptyMapExploration()
+			mapExploration: cloneMapExploration(this.mapExploration)
 		};
 	}
 
@@ -1095,6 +1117,9 @@ export class WorldScene extends Phaser.Scene {
 	private publishHudState(status: string) {
 		const saveResult = loadStoredSaveResult();
 		const effectiveStats = this.getEffectiveStats();
+		this.lastPublishedStatus = status;
+		const map = this.resolveMap(this.mapId);
+		const revealedCells = this.mapExploration[this.mapId] ?? [];
 
 		emitHudState({
 			ready: true,
@@ -1108,6 +1133,16 @@ export class WorldScene extends Phaser.Scene {
 			heals: this.getConsumableCount(),
 			canResume: saveResult.status === 'loaded',
 			status,
+			areaMap: buildAreaMapState({
+				map,
+				player: {
+					x: this.player?.x ?? map.spawn.x,
+					y: this.player?.y ?? map.spawn.y
+				},
+				revealedCells,
+				quests: this.quests,
+				locale: this.getLocale()
+			}),
 			wallet: { ...this.wallet },
 			nearbyShop: this.buildNearbyShop(),
 			shop: this.buildOpenShop(),
@@ -2325,6 +2360,21 @@ export class WorldScene extends Phaser.Scene {
 
 	private resolveMap(mapId?: string): WorldMapDefinition {
 		return maps[mapId ?? openingMapId] ?? maps[openingMapId];
+	}
+
+	private revealCurrentMapArea(): boolean {
+		if (!this.player) return false;
+		const map = this.resolveMap(this.mapId);
+		const result = revealMapArea({
+			exploration: this.mapExploration,
+			mapId: this.mapId,
+			x: this.player.x,
+			y: this.player.y,
+			mapWidth: map.width * WorldScene.tileSize,
+			mapHeight: map.height * WorldScene.tileSize
+		});
+		this.mapExploration = result.exploration;
+		return result.changed;
 	}
 
 	private resumeStoredSave() {
