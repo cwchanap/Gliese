@@ -73,6 +73,16 @@ function createReadyHudState(overrides: Partial<HudState> = {}): HudState {
 	return {
 		ready: true,
 		mapId: 'meadow-entry',
+		areaMap: {
+			mapId: 'meadow-entry',
+			name: 'Meadow Entry',
+			worldWidth: 200 * 32,
+			worldHeight: 200 * 32,
+			cellSize: 128,
+			revealedCells: [],
+			player: { x: 0, y: 0 },
+			markers: []
+		},
 		hp: 18,
 		maxHp: 18,
 		level: 1,

@@ -22,6 +22,16 @@ const emptyEquipped = Object.fromEntries(equipmentSlots.map((slot) => [slot, nul
 const initialHudState: HudState = {
 	ready: false,
 	mapId: 'meadow-entry',
+	areaMap: {
+		mapId: 'meadow-entry',
+		name: t(initialLocale, 'content.maps.areas.meadow-entry'),
+		worldWidth: 200 * 32,
+		worldHeight: 200 * 32,
+		cellSize: 128,
+		revealedCells: [],
+		player: { x: 0, y: 0 },
+		markers: []
+	},
 	hp: startingPlayer.baseHp,
 	maxHp: startingPlayer.baseHp,
 	level: 1,

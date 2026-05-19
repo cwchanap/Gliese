@@ -1,4 +1,5 @@
 import type { EquipmentSlot, StatModifiers } from '$lib/game/content/items';
+import type { HudAreaMapState } from '$lib/game/core/area-map';
 import type { HudQuestState } from '$lib/game/core/quests';
 import type { HudShopBuyEntry, HudShopSellEntry } from '$lib/game/core/shop';
 
@@ -58,6 +59,7 @@ export type HudDialogueState = {
 export type HudState = {
 	ready: boolean;
 	mapId: string;
+	areaMap: HudAreaMapState;
 	hp: number;
 	maxHp: number;
 	level: number;
@@ -80,7 +82,8 @@ export type HudState = {
 	};
 };
 
-export type HudStatePayload = Omit<HudState, 'dialogue'> & {
+export type HudStatePayload = Omit<HudState, 'areaMap' | 'dialogue'> & {
+	areaMap?: HudAreaMapState;
 	dialogue?: HudDialogueState | null;
 };
 
@@ -105,6 +108,18 @@ export type HudCommand =
 export const HUD_STATE_EVENT = 'gliese:hud-state';
 export const HUD_COMMAND_EVENT = 'gliese:hud-command';
 
+// Temporary inert fallback until WorldScene publishes real localized area-map payloads.
+const fallbackAreaMap: HudAreaMapState = {
+	mapId: 'meadow-entry',
+	name: 'Meadow Entry',
+	worldWidth: 200 * 32,
+	worldHeight: 200 * 32,
+	cellSize: 128,
+	revealedCells: [],
+	player: { x: 0, y: 0 },
+	markers: []
+};
+
 declare global {
 	interface WindowEventMap {
 		[HUD_STATE_EVENT]: CustomEvent<HudState>;
@@ -113,7 +128,11 @@ declare global {
 }
 
 export function emitHudState(state: HudStatePayload) {
-	const detail: HudState = { ...state, dialogue: state.dialogue ?? null };
+	const detail: HudState = {
+		...state,
+		areaMap: state.areaMap ?? fallbackAreaMap,
+		dialogue: state.dialogue ?? null
+	};
 	getEventTarget()?.dispatchEvent(new CustomEvent(HUD_STATE_EVENT, { detail }));
 }
 
