@@ -101,6 +101,7 @@ import {
 
 interface WorldSceneData {
 	mapId?: string;
+	persistExplorationChanges?: boolean;
 	reason?: 'invalid-save' | 'new' | 'resume' | 'transition';
 	saveState?: SaveState | null;
 }
@@ -286,6 +287,7 @@ export class WorldScene extends Phaser.Scene {
 	private mapExploration: MapExplorationState = createEmptyMapExploration();
 	private mapId = openingMapId;
 	private lastPublishedStatus = '';
+	private shouldPersistExplorationChanges = true;
 	private currentNearbyNpcId: string | null = null;
 	private npcMarkers = new Map<string, NpcMarker>();
 	private pickupMarkers = new Map<string, PickupMarker>();
@@ -355,6 +357,9 @@ export class WorldScene extends Phaser.Scene {
 		const width = map.width * WorldScene.tileSize;
 		const height = map.height * WorldScene.tileSize;
 		const reason = data.reason ?? (activeSave ? 'resume' : 'new');
+		this.shouldPersistExplorationChanges =
+			data.persistExplorationChanges ??
+			(activeSave !== undefined || loadStoredSaveResult().status !== 'loaded');
 
 		this.clearedEncounterIds = new Set(activeSave?.flags.clearedEncounters ?? []);
 		this.collectedPickupIds = new Set(activeSave?.flags.collectedPickups ?? []);
@@ -467,7 +472,7 @@ export class WorldScene extends Phaser.Scene {
 		this.events?.once?.('shutdown', () => this.removeHudCommandListener());
 
 		const initialExplorationChanged = this.revealCurrentMapArea();
-		if (initialExplorationChanged) {
+		if (initialExplorationChanged && this.shouldPersistExplorationChanges) {
 			saveGameState(this.buildSaveState());
 		}
 
@@ -536,7 +541,9 @@ export class WorldScene extends Phaser.Scene {
 
 		const explorationChanged = this.revealCurrentMapArea();
 		if (explorationChanged) {
-			saveGameState(this.buildSaveState());
+			if (this.shouldPersistExplorationChanges) {
+				saveGameState(this.buildSaveState());
+			}
 			this.publishHudState(this.lastPublishedStatus || this.status('status.enteredArea'));
 		}
 
@@ -2394,6 +2401,7 @@ export class WorldScene extends Phaser.Scene {
 	}
 
 	private saveCurrentState() {
+		this.shouldPersistExplorationChanges = true;
 		saveGameState(this.buildSaveState());
 		this.publishHudState(this.status('status.saved'));
 	}
@@ -2551,6 +2559,7 @@ export class WorldScene extends Phaser.Scene {
 
 				this.scene.restart({
 					saveState: this.buildTransitionSaveState(transition),
+					...(this.shouldPersistExplorationChanges ? {} : { persistExplorationChanges: false }),
 					reason: 'transition'
 				});
 				return true;

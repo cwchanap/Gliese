@@ -1284,6 +1284,68 @@ describe('WorldScene', () => {
 		}
 	});
 
+	it('does not overwrite an existing stored save with initial exploration before resume', async () => {
+		const storage = await import('$lib/game/save/storage');
+		const { createNewSaveState, serializeSaveState } = await import('$lib/game/save/save-state');
+		const { WorldScene } = await import('./WorldScene');
+		const scene = new WorldScene();
+		const storedSave = createNewSaveState();
+		const memoryStorage = {
+			getItem: vi.fn(() => serializeSaveState(storedSave)),
+			removeItem: vi.fn(),
+			setItem: vi.fn()
+		};
+		registerAreaMapRevealTestMap();
+
+		storage.setSaveStorage(memoryStorage);
+		try {
+			scene.create({ mapId: 'area-map-reveal-test' });
+
+			expect(memoryStorage.setItem).not.toHaveBeenCalled();
+		} finally {
+			storage.setSaveStorage(undefined);
+		}
+	});
+
+	it('keeps exploration persistence disabled across new-run transitions when a stored save exists', async () => {
+		const storage = await import('$lib/game/save/storage');
+		const { createNewSaveState, serializeSaveState } = await import('$lib/game/save/save-state');
+		const { WorldScene } = await import('./WorldScene');
+		const scene = new WorldScene();
+		const storedSave = createNewSaveState();
+		const memoryStorage = {
+			getItem: vi.fn(() => serializeSaveState(storedSave)),
+			removeItem: vi.fn(),
+			setItem: vi.fn()
+		};
+		registerSceneSupportTestMap();
+
+		storage.setSaveStorage(memoryStorage);
+		try {
+			scene.create({ mapId: 'scene-support-test' });
+			Object.assign(phaserState.playerMarker, { x: 320, y: 96 });
+			scene.update(0, 16);
+
+			expect(scene.scene.restart).toHaveBeenCalledWith({
+				saveState: expect.objectContaining({ mapId: 'hero-house' }),
+				reason: 'transition',
+				persistExplorationChanges: false
+			});
+
+			const restartPayload = vi.mocked(scene.scene.restart).mock.calls.at(-1)?.[0];
+			if (!restartPayload) throw new Error('Expected transition restart payload');
+			memoryStorage.setItem.mockClear();
+			phaserState.reset();
+
+			const arrivalScene = new WorldScene();
+			arrivalScene.create(restartPayload);
+
+			expect(memoryStorage.setItem).not.toHaveBeenCalled();
+		} finally {
+			storage.setSaveStorage(undefined);
+		}
+	});
+
 	it('moves the player marker using WASD input state', async () => {
 		const { WorldScene } = await import('./WorldScene');
 		const { meadowEntryMap } = await import('$lib/game/content/maps');
