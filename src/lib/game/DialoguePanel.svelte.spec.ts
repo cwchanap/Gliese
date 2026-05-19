@@ -76,12 +76,28 @@ function createReadyHudState(overrides: Partial<HudState> = {}): HudState {
 		areaMap: {
 			mapId: 'meadow-entry',
 			name: 'Meadow Entry',
-			worldWidth: 200 * 32,
-			worldHeight: 200 * 32,
+			worldWidth: 6_400,
+			worldHeight: 6_400,
 			cellSize: 128,
-			revealedCells: [],
-			player: { x: 0, y: 0 },
-			markers: []
+			revealedCells: ['5,40', '12,33'],
+			player: { x: 640, y: 5_200 },
+			markers: [
+				{
+					id: 'hero-house-exterior',
+					kind: 'building',
+					x: 640,
+					y: 5_088,
+					label: "Hero's House"
+				},
+				{
+					id: 'investigate-the-ruins:talk-to-guild-master:meadow-entry',
+					kind: 'quest',
+					x: 1_600,
+					y: 4_256,
+					label: 'Investigate the Ruins',
+					emphasis: true
+				}
+			]
 		},
 		hp: 18,
 		maxHp: 18,
@@ -296,6 +312,49 @@ describe('DialoguePanel.svelte', () => {
 		);
 
 		expect(document.getElementById('game-settings-panel')).toBeNull();
+	});
+
+	it('opens the area map from the command menu and closes it', async () => {
+		render(GameShell);
+		emitHudState(createReadyHudState());
+
+		await page.getByRole('button', { name: 'Menu' }).click();
+		await page.getByRole('button', { name: 'Map' }).click();
+
+		const mapDialog = page.getByRole('dialog', { name: 'Meadow Entry map' });
+		await expect.element(mapDialog).toBeVisible();
+		await expect.element(mapDialog.getByText("Hero's House")).toBeVisible();
+		await expect.element(mapDialog.getByText('Investigate the Ruins')).toBeVisible();
+
+		expect(mapDialog.element().querySelector('[data-testid="area-map-svg"]')).not.toBeNull();
+		expect(mapDialog.element().querySelector('[data-testid="area-map-player"]')).not.toBeNull();
+
+		await mapDialog.getByRole('button', { name: 'Close' }).click();
+
+		expect(document.querySelector('[role="dialog"][aria-label="Meadow Entry map"]')).toBeNull();
+		await expect.element(page.getByRole('button', { name: 'Menu' })).toHaveFocus();
+	});
+
+	it('keeps keyboard focus in the area map and closes it with Escape', async () => {
+		render(GameShell);
+		emitHudState(createReadyHudState());
+
+		await page.getByRole('button', { name: 'Menu' }).click();
+		await page.getByRole('button', { name: 'Map' }).click();
+
+		const mapDialog = page.getByRole('dialog', { name: 'Meadow Entry map' });
+		await expect.element(mapDialog).toBeVisible();
+
+		const closeButton = mapDialog.getByRole('button', { name: 'Close' });
+		await expect.element(closeButton).toHaveFocus();
+		await userEvent.keyboard('{Tab}');
+		await expect.element(closeButton).toHaveFocus();
+		await userEvent.keyboard('{Shift>}{Tab}{/Shift}');
+		await expect.element(closeButton).toHaveFocus();
+		await userEvent.keyboard('{Escape}');
+
+		expect(document.querySelector('[role="dialog"][aria-label="Meadow Entry map"]')).toBeNull();
+		await expect.element(page.getByRole('button', { name: 'Menu' })).toHaveFocus();
 	});
 
 	it('keeps the command box above the dialogue-safe lower playfield', async () => {

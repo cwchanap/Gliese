@@ -52,6 +52,9 @@ describe('translation lookup', () => {
 
 	it('includes current GameShell UI source strings', () => {
 		expect(t('en', 'ui.command')).toBe('Command');
+		expect(t('en', 'ui.map')).toBe('Map');
+		expect(t('ja', 'ui.map')).toBe('地図');
+		expect(t('zh-Hant', 'ui.map')).toBe('地圖');
 		expect(t('en', 'ui.fieldStatus')).toBe('Field status');
 		expect(t('ja', 'ui.command')).toBe('コマンド');
 		expect(t('zh-Hant', 'ui.command')).toBe('指令');

@@ -29,7 +29,7 @@
 
 	type InventoryTab = 'consumables' | 'equipment' | 'keyItems';
 	type ShopTab = 'buy' | 'sell';
-	type OverlayPauseOwner = 'settings' | 'inventory' | 'shop' | 'questLog';
+	type OverlayPauseOwner = 'settings' | 'inventory' | 'shop' | 'questLog' | 'areaMap';
 	type InventorySlotItem =
 		| { kind: 'consumable'; item: HudInventoryStack }
 		| { kind: 'equipment'; item: HudEquipmentItem }
@@ -43,6 +43,8 @@
 	let shopCloseButton = $state<HTMLButtonElement>();
 	let questLogDialog = $state<HTMLDivElement>();
 	let questLogCloseButton = $state<HTMLButtonElement>();
+	let areaMapDialog = $state<HTMLDivElement>();
+	let areaMapCloseButton = $state<HTMLButtonElement>();
 	let inventoryFocusRestoreTarget: HTMLElement | null = null;
 	let shopFocusRestoreTarget: HTMLElement | null = null;
 	let loadError = $state('');
@@ -50,6 +52,7 @@
 	let inventoryOpen = $state(false);
 	let shopOpen = $state(false);
 	let questLogOpen = $state(false);
+	let areaMapOpen = $state(false);
 	let activeInventoryTab = $state<InventoryTab>('consumables');
 	let activeShopTab = $state<ShopTab>('buy');
 	let pauseOwner = $state<OverlayPauseOwner | null>(null);
@@ -148,6 +151,21 @@
 		resumeForOverlay('questLog');
 	}
 
+	function openAreaMap() {
+		if (areaMapOpen) return;
+		commandOpen = false;
+		areaMapOpen = true;
+		pauseForOverlay('areaMap');
+		void focusAreaMapDialog();
+	}
+
+	function closeAreaMap() {
+		if (!areaMapOpen) return;
+		areaMapOpen = false;
+		resumeForOverlay('areaMap');
+		void restoreAreaMapFocus();
+	}
+
 	$effect(() => {
 		if (!$hudState.shop || shopOpen) return;
 
@@ -167,6 +185,7 @@
 		inventoryOpen = false;
 		shopOpen = false;
 		questLogOpen = false;
+		areaMapOpen = false;
 		pauseOwner = null;
 
 		if (wasShopOpen) requestCloseShop();
@@ -220,6 +239,16 @@
 	async function focusQuestLogDialog() {
 		await tick();
 		(questLogCloseButton ?? questLogDialog)?.focus();
+	}
+
+	async function focusAreaMapDialog() {
+		await tick();
+		(areaMapCloseButton ?? areaMapDialog)?.focus();
+	}
+
+	async function restoreAreaMapFocus() {
+		await tick();
+		menuButton?.focus();
 	}
 
 	async function restoreShopFocus() {
@@ -314,6 +343,49 @@
 			event.preventDefault();
 			firstElement.focus();
 		}
+	}
+
+	function getAreaMapFocusableElements() {
+		if (!areaMapDialog) return [];
+
+		return Array.from(
+			areaMapDialog.querySelectorAll<HTMLElement>(
+				'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+			)
+		).filter((element) => element.offsetParent !== null && element.tabIndex >= 0);
+	}
+
+	function handleAreaMapDialogKeydown(event: KeyboardEvent) {
+		if (event.key === 'Escape') {
+			event.preventDefault();
+			closeAreaMap();
+			return;
+		}
+
+		if (event.key !== 'Tab') return;
+
+		const focusableElements = getAreaMapFocusableElements();
+		if (focusableElements.length === 0) {
+			event.preventDefault();
+			areaMapDialog?.focus();
+			return;
+		}
+
+		const firstElement = focusableElements[0];
+		const lastElement = focusableElements.at(-1);
+
+		if (event.shiftKey && document.activeElement === firstElement) {
+			event.preventDefault();
+			lastElement?.focus();
+		} else if (!event.shiftKey && document.activeElement === lastElement) {
+			event.preventDefault();
+			firstElement.focus();
+		}
+	}
+
+	function parseAreaMapCellKey(cellKey: string) {
+		const [column = 0, row = 0] = cellKey.split(',').map(Number);
+		return { column, row };
 	}
 
 	async function focusInventoryTab(tab: InventoryTab) {
@@ -718,6 +790,9 @@
 				<button type="button" class="jrpg-command-action" onclick={openQuestLog} disabled={!$hudState.ready}>
 					{t($locale, 'ui.quests')}
 				</button>
+				<button type="button" class="jrpg-command-action" onclick={openAreaMap} disabled={!$hudState.ready}>
+					{t($locale, 'ui.map')}
+				</button>
 				<button type="button" class="jrpg-command-action" onclick={openInventory} disabled={!$hudState.ready}>
 					{t($locale, 'ui.inventory')}
 				</button>
@@ -1010,6 +1085,91 @@
 							</p>
 						</div>
 					{/if}
+				</div>
+			</div>
+		</div>
+	{/if}
+
+	{#if areaMapOpen}
+		<div class="jrpg-modal-backdrop" role="presentation">
+			<div class="absolute inset-0 cursor-default" role="presentation" onclick={closeAreaMap}></div>
+			<div
+				bind:this={areaMapDialog}
+				class="jrpg-window jrpg-area-map-window"
+				aria-label={t($locale, 'ui.areaMapDialog', { areaName: $hudState.areaMap.name })}
+				aria-modal="true"
+				role="dialog"
+				tabindex="-1"
+				onkeydown={handleAreaMapDialogKeydown}
+			>
+				<div class="jrpg-window-header">
+					<div>
+						<p class="jrpg-label">{t($locale, 'ui.areaMap')}</p>
+						<h2 class="jrpg-window-title">{$hudState.areaMap.name}</h2>
+					</div>
+					<button
+						bind:this={areaMapCloseButton}
+						type="button"
+						class="jrpg-small-button"
+						onclick={closeAreaMap}
+					>
+						{t($locale, 'ui.close')}
+					</button>
+				</div>
+				<div class="jrpg-window-body">
+					<div class="jrpg-area-map-frame">
+						<svg
+							data-testid="area-map-svg"
+							class="area-map-svg"
+							viewBox={`0 0 ${$hudState.areaMap.worldWidth} ${$hudState.areaMap.worldHeight}`}
+							role="img"
+							aria-label={t($locale, 'ui.areaMapDialog', {
+								areaName: $hudState.areaMap.name
+							})}
+						>
+							<rect
+								class="area-map-fog"
+								x="0"
+								y="0"
+								width={$hudState.areaMap.worldWidth}
+								height={$hudState.areaMap.worldHeight}
+							/>
+							{#each $hudState.areaMap.revealedCells as cellKey (cellKey)}
+								{@const cell = parseAreaMapCellKey(cellKey)}
+								<rect
+									class="area-map-revealed-cell"
+									x={cell.column * $hudState.areaMap.cellSize}
+									y={cell.row * $hudState.areaMap.cellSize}
+									width={$hudState.areaMap.cellSize}
+									height={$hudState.areaMap.cellSize}
+								/>
+							{/each}
+							{#each $hudState.areaMap.markers as marker (marker.id)}
+								<g
+									class={`area-map-marker area-map-marker-${marker.kind} ${
+										marker.emphasis ? 'area-map-marker-emphasis' : ''
+									}`}
+									transform={`translate(${marker.x} ${marker.y})`}
+								>
+									<circle r={marker.emphasis ? 64 : 48} />
+									<text x="76" y="18">{marker.label}</text>
+								</g>
+							{/each}
+							<circle
+								data-testid="area-map-player"
+								class="area-map-player-marker"
+								cx={$hudState.areaMap.player.x}
+								cy={$hudState.areaMap.player.y}
+								r="54"
+							>
+								<title>{t($locale, 'ui.currentPosition')}</title>
+							</circle>
+						</svg>
+					</div>
+					<div class="jrpg-area-map-legend">
+						<span><i class="area-map-legend-current"></i>{t($locale, 'ui.currentPosition')}</span>
+						<span><i class="area-map-legend-unexplored"></i>{t($locale, 'ui.unexplored')}</span>
+					</div>
 				</div>
 			</div>
 		</div>
@@ -1622,6 +1782,10 @@
 		width: min(64rem, calc(100vw - 2rem));
 	}
 
+	.jrpg-area-map-window {
+		width: min(58rem, calc(100vw - 2rem));
+	}
+
 	.jrpg-window-header {
 		display: flex;
 		align-items: flex-start;
@@ -1676,6 +1840,116 @@
 		min-height: 0;
 		overflow-y: auto;
 		padding: 1rem;
+	}
+
+	.jrpg-area-map-frame {
+		overflow: hidden;
+		border: 1px solid rgba(244, 229, 184, 0.16);
+		border-radius: var(--jrpg-radius);
+		background:
+			linear-gradient(rgba(159, 231, 255, 0.08) 1px, transparent 1px),
+			linear-gradient(90deg, rgba(159, 231, 255, 0.08) 1px, transparent 1px),
+			#09101f;
+		background-size: 2rem 2rem;
+		box-shadow:
+			inset 0 0 0 1px rgba(255, 255, 255, 0.04),
+			inset 0 0 48px rgba(0, 0, 0, 0.42);
+	}
+
+	.area-map-svg {
+		display: block;
+		width: 100%;
+		aspect-ratio: 1;
+		max-height: min(62vh, 42rem);
+	}
+
+	.area-map-fog {
+		fill: #08101d;
+	}
+
+	.area-map-revealed-cell {
+		fill: rgba(52, 92, 88, 0.76);
+		stroke: rgba(159, 247, 203, 0.28);
+		stroke-width: 8;
+	}
+
+	.area-map-marker circle {
+		stroke-width: 16;
+	}
+
+	.area-map-marker text {
+		fill: #fff7df;
+		font-size: 104px;
+		font-weight: 900;
+		paint-order: stroke;
+		stroke: rgba(5, 7, 20, 0.92);
+		stroke-width: 18px;
+	}
+
+	.area-map-marker-building circle {
+		fill: rgba(159, 231, 255, 0.26);
+		stroke: rgba(159, 231, 255, 0.78);
+	}
+
+	.area-map-marker-exit circle {
+		fill: rgba(255, 211, 122, 0.22);
+		stroke: rgba(255, 211, 122, 0.74);
+	}
+
+	.area-map-marker-quest circle {
+		fill: rgba(255, 211, 122, 0.32);
+		stroke: rgba(255, 211, 122, 0.9);
+	}
+
+	.area-map-marker-emphasis circle {
+		filter: drop-shadow(0 0 26px rgba(255, 211, 122, 0.72));
+		stroke-width: 24;
+	}
+
+	.area-map-marker-emphasis text {
+		fill: #ffe3a0;
+		font-size: 116px;
+	}
+
+	.area-map-player-marker {
+		fill: #f05268;
+		stroke: #fff7df;
+		stroke-width: 18;
+		filter: drop-shadow(0 0 28px rgba(240, 82, 104, 0.78));
+	}
+
+	.jrpg-area-map-legend {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 0.75rem;
+		margin-top: 0.75rem;
+		color: var(--jrpg-muted);
+		font-size: 0.68rem;
+		font-weight: 900;
+		letter-spacing: 0.12em;
+		text-transform: uppercase;
+	}
+
+	.jrpg-area-map-legend span {
+		display: inline-flex;
+		align-items: center;
+		gap: 0.4rem;
+	}
+
+	.jrpg-area-map-legend i {
+		display: inline-block;
+		width: 0.8rem;
+		height: 0.8rem;
+		border: 1px solid rgba(244, 229, 184, 0.24);
+		border-radius: 999px;
+	}
+
+	.area-map-legend-current {
+		background: #f05268;
+	}
+
+	.area-map-legend-unexplored {
+		background: #08101d;
 	}
 
 	.jrpg-inventory-layout {
@@ -1800,6 +2074,18 @@
 	}
 
 	@media (max-width: 720px) {
+		.jrpg-area-map-window {
+			width: calc(100vw - 1rem);
+		}
+
+		.jrpg-area-map-frame {
+			border-radius: 0.45rem;
+		}
+
+		.area-map-svg {
+			max-height: min(70vh, calc(100vw - 2.5rem));
+		}
+
 		.jrpg-hero-ledger,
 		.jrpg-quest-ledger {
 			left: 0.75rem;
