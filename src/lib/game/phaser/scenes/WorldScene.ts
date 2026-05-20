@@ -361,7 +361,7 @@ export class WorldScene extends Phaser.Scene {
 		// auto-persist exploration from that run over the stored save until it is resumed.
 		this.shouldPersistExplorationChanges =
 			data.persistExplorationChanges ??
-			(activeSave !== undefined || loadStoredSaveResult().status !== 'loaded');
+			(activeSave !== undefined || loadStoredSaveResult().status === 'missing');
 
 		this.clearedEncounterIds = new Set(activeSave?.flags.clearedEncounters ?? []);
 		this.collectedPickupIds = new Set(activeSave?.flags.collectedPickups ?? []);

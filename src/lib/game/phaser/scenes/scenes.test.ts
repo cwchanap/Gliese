@@ -1307,6 +1307,27 @@ describe('WorldScene', () => {
 		}
 	});
 
+	it('does not auto-persist exploration when the stored save is invalid', async () => {
+		const storage = await import('$lib/game/save/storage');
+		const { WorldScene } = await import('./WorldScene');
+		const scene = new WorldScene();
+		const memoryStorage = {
+			getItem: vi.fn(() => '{invalid json that fails parsing'),
+			removeItem: vi.fn(),
+			setItem: vi.fn()
+		};
+		registerAreaMapRevealTestMap();
+
+		storage.setSaveStorage(memoryStorage);
+		try {
+			scene.create({ mapId: 'area-map-reveal-test' });
+
+			expect(memoryStorage.setItem).not.toHaveBeenCalled();
+		} finally {
+			storage.setSaveStorage(undefined);
+		}
+	});
+
 	it('keeps exploration persistence disabled across new-run transitions when a stored save exists', async () => {
 		const storage = await import('$lib/game/save/storage');
 		const { createNewSaveState, serializeSaveState } = await import('$lib/game/save/save-state');
