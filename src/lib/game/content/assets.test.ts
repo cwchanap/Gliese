@@ -65,7 +65,7 @@ describe('village building asset metadata', () => {
 		});
 	});
 
-	it('maps every meadow building landmark to a building frame', () => {
+	it('maps every authored village building landmark to a building frame', () => {
 		expect(getVillageBuildingFrameName('hero-house-exterior')).toBe('heroHouse');
 		expect(getVillageBuildingFrameName('guild-hall-exterior')).toBe('guildHall');
 		expect(getVillageBuildingFrameName('item-shop-exterior')).toBe('itemShop');
@@ -75,6 +75,11 @@ describe('village building asset metadata', () => {
 		expect(getVillageBuildingFrameName('unknown-landmark')).toBeUndefined();
 
 		for (const landmark of meadowEntryMap.landmarks ?? []) {
+			if (!landmark.id.endsWith('-exterior')) {
+				expect(getVillageBuildingFrameName(landmark.id)).toBeUndefined();
+				continue;
+			}
+
 			expect(requiredBuildingFrames).toContain(getVillageBuildingFrameName(landmark.id));
 		}
 	});

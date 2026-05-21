@@ -75,25 +75,25 @@ function createReadyHudState(overrides: Partial<HudState> = {}): HudState {
 		mapId: 'meadow-entry',
 		areaMap: {
 			mapId: 'meadow-entry',
-			name: 'Meadow Entry',
+			name: 'Sundrop Meadows',
 			worldWidth: 6_400,
 			worldHeight: 6_400,
 			cellSize: 128,
-			revealedCells: ['5,40', '12,33'],
-			player: { x: 640, y: 5_200 },
+			revealedCells: ['12,43', '16,45'],
+			player: { x: 1_536, y: 5_600 },
 			markers: [
 				{
 					id: 'hero-house-exterior',
 					kind: 'building',
-					x: 640,
-					y: 5_088,
+					x: 531,
+					y: 5_850,
 					label: "Hero's House"
 				},
 				{
 					id: 'investigate-the-ruins:talk-to-guild-master:meadow-entry',
 					kind: 'quest',
-					x: 1_600,
-					y: 4_256,
+					x: 2_048,
+					y: 5_869,
 					label: 'Investigate the Ruins',
 					emphasis: true
 				}
@@ -200,7 +200,7 @@ describe('DialoguePanel.svelte', () => {
 		expect(event.defaultPrevented).toBe(true);
 	});
 
-	it('stretches across the full viewport width', async () => {
+	it('keeps dialogue in a lower plaza message box instead of full-width chrome', async () => {
 		renderDialogue();
 
 		const bounds = page
@@ -208,8 +208,9 @@ describe('DialoguePanel.svelte', () => {
 			.element()
 			.getBoundingClientRect();
 
-		expect(bounds.left).toBeLessThan(1);
-		expect(window.innerWidth - bounds.right).toBeLessThan(1);
+		expect(bounds.bottom).toBeGreaterThan(window.innerHeight - 24);
+		expect(bounds.width).toBeLessThan(window.innerWidth * 0.75);
+		expect(bounds.left).toBeGreaterThanOrEqual(12);
 	});
 
 	it('uses the JRPG dialogue frame class', async () => {
@@ -307,11 +308,44 @@ describe('DialoguePanel.svelte', () => {
 		await expect.element(commandBox.getByRole('button', { name: 'Inventory' })).toBeVisible();
 		await expect.element(commandBox.getByRole('button', { name: 'Quests' })).toBeVisible();
 		await expect.element(commandBox.getByRole('button', { name: 'Save Game' })).toBeVisible();
-		await expect.element(page.getByRole('status', { name: 'Field status' })).toHaveTextContent(
-			'HP already full'
-		);
+		await expect
+			.element(page.getByRole('status', { name: 'Field status' }))
+			.toHaveTextContent('HP already full');
 
 		expect(document.getElementById('game-settings-panel')).toBeNull();
+	});
+
+	it('renders the Sundrop Meadows HUD clusters around the playfield', async () => {
+		render(GameShell);
+		emitHudState(
+			createReadyHudState({
+				quests: {
+					main: {
+						questId: 'investigate-the-ruins',
+						title: 'Investigate the Ruins',
+						type: 'main',
+						status: 'active',
+						description: 'Report to the Guild Master, then defeat the ruins warden.',
+						objective: 'Talk to the Guild Master.',
+						progress: { label: 'Guild Master spoken to', current: 0, target: 1 },
+						rewardSummary: '8 XP / 20 coins'
+					},
+					side: [],
+					completed: [],
+					guildOffer: null
+				}
+			})
+		);
+
+		await expect
+			.element(page.getByTestId('hud-location-panel'))
+			.toHaveTextContent('Sundrop Meadows');
+		await expect.element(page.getByTestId('hud-minimap')).toHaveTextContent('Village Map');
+		await expect.element(page.getByTestId('hud-party-panel')).toHaveTextContent('LIAM');
+		await expect.element(page.getByTestId('hud-side-panel')).toHaveTextContent('30G');
+		await expect
+			.element(page.getByTestId('hud-side-panel'))
+			.toHaveTextContent('Investigate the Ruins');
 	});
 
 	it('opens the area map from the command menu and closes it', async () => {
@@ -321,7 +355,7 @@ describe('DialoguePanel.svelte', () => {
 		await page.getByRole('button', { name: 'Menu' }).click();
 		await page.getByRole('button', { name: 'Map' }).click();
 
-		const mapDialog = page.getByRole('dialog', { name: 'Meadow Entry map' });
+		const mapDialog = page.getByRole('dialog', { name: 'Sundrop Meadows map' });
 		await expect.element(mapDialog).toBeVisible();
 		await expect.element(mapDialog.getByText("Hero's House")).toBeVisible();
 		await expect.element(mapDialog.getByText('Investigate the Ruins')).toBeVisible();
@@ -331,7 +365,7 @@ describe('DialoguePanel.svelte', () => {
 
 		await mapDialog.getByRole('button', { name: 'Close' }).click();
 
-		expect(document.querySelector('[role="dialog"][aria-label="Meadow Entry map"]')).toBeNull();
+		expect(document.querySelector('[role="dialog"][aria-label="Sundrop Meadows map"]')).toBeNull();
 		await expect.element(page.getByRole('button', { name: 'Menu' })).toHaveFocus();
 	});
 
@@ -342,7 +376,7 @@ describe('DialoguePanel.svelte', () => {
 		await page.getByRole('button', { name: 'Menu' }).click();
 		await page.getByRole('button', { name: 'Map' }).click();
 
-		const mapDialog = page.getByRole('dialog', { name: 'Meadow Entry map' });
+		const mapDialog = page.getByRole('dialog', { name: 'Sundrop Meadows map' });
 		await expect.element(mapDialog).toBeVisible();
 
 		const closeButton = mapDialog.getByRole('button', { name: 'Close' });
@@ -353,7 +387,7 @@ describe('DialoguePanel.svelte', () => {
 		await expect.element(closeButton).toHaveFocus();
 		await userEvent.keyboard('{Escape}');
 
-		expect(document.querySelector('[role="dialog"][aria-label="Meadow Entry map"]')).toBeNull();
+		expect(document.querySelector('[role="dialog"][aria-label="Sundrop Meadows map"]')).toBeNull();
 		await expect.element(page.getByRole('button', { name: 'Menu' })).toHaveFocus();
 	});
 

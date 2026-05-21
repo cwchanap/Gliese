@@ -707,7 +707,7 @@
 		class="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(130,180,255,0.18),transparent_38%),linear-gradient(180deg,rgba(7,10,26,0.1),rgba(4,6,18,0.58)_85%,rgba(3,4,10,0.82))]"
 	></div>
 
-	<div class="pointer-events-auto absolute top-4 right-4 z-30 sm:top-6 sm:right-6">
+	<div class="jrpg-menu-anchor pointer-events-auto">
 		<button
 			bind:this={menuButton}
 			type="button"
@@ -720,40 +720,111 @@
 		</button>
 	</div>
 
-	{#if $hudState.quests.main}
-		<section class="jrpg-ledger jrpg-quest-ledger" aria-label={t($locale, 'ui.questTracker')}>
-			<p class="jrpg-label">{t($locale, 'ui.mainQuest')}</p>
-			<p class="jrpg-ledger-title">{$hudState.quests.main.objective}</p>
-			{#if $hudState.quests.side.length > 0}
-				<p class="jrpg-ledger-subtitle">
-					{t($locale, 'ui.sideActive', { count: $hudState.quests.side.length })}
-				</p>
-			{/if}
-		</section>
-	{/if}
+	<section
+		data-testid="hud-location-panel"
+		class="jrpg-hud-panel jrpg-location-panel"
+		aria-label={$hudState.areaMap.name}
+	>
+		<p class="jrpg-location-name">{$hudState.areaMap.name}</p>
+		<p class="jrpg-location-sub">{t($locale, 'ui.regionSubline')}</p>
+	</section>
 
-	<section class="jrpg-ledger jrpg-hero-ledger" aria-label={t($locale, 'ui.playerStatus')}>
-		<div class="jrpg-level-mark">
-			<span>{t($locale, 'ui.levelAbbrev')}</span>
-			<strong>{$hudState.level}</strong>
+	<section
+		data-testid="hud-minimap"
+		class="jrpg-hud-panel jrpg-minimap-panel"
+		aria-label={t($locale, 'ui.areaMap')}
+	>
+		<div class="jrpg-minimap-heading">
+			<span>{t($locale, 'ui.villageMap')}</span>
 		</div>
-		<div class="jrpg-ledger-bars">
-			<div class="jrpg-meter-row jrpg-meter-row-hp">
-				<div class="jrpg-meter-copy">
-					<span>{t($locale, 'ui.hp')}</span>
-					<span>{$hudState.hp} / {$hudState.maxHp}</span>
-				</div>
-				<div class="jrpg-meter"><span style={`width: ${hpPercent}%`}></span></div>
+		<svg
+			class="jrpg-minimap-svg"
+			viewBox={`0 0 ${$hudState.areaMap.worldWidth} ${$hudState.areaMap.worldHeight}`}
+			aria-hidden="true"
+		>
+			<rect
+				class="jrpg-minimap-fog"
+				x="0"
+				y="0"
+				width={$hudState.areaMap.worldWidth}
+				height={$hudState.areaMap.worldHeight}
+			/>
+			{#each $hudState.areaMap.revealedCells as cellKey (cellKey)}
+				{@const cell = parseCellKey(cellKey)}
+				<rect
+					class="jrpg-minimap-cell"
+					x={cell.column * $hudState.areaMap.cellSize}
+					y={cell.row * $hudState.areaMap.cellSize}
+					width={$hudState.areaMap.cellSize}
+					height={$hudState.areaMap.cellSize}
+				/>
+			{/each}
+			{#each $hudState.areaMap.markers as marker (marker.id)}
+				<circle
+					class={`jrpg-minimap-marker jrpg-minimap-marker-${marker.kind} ${
+						marker.emphasis ? 'jrpg-minimap-marker-emphasis' : ''
+					}`}
+					cx={marker.x}
+					cy={marker.y}
+					r={marker.emphasis ? 76 : 54}
+				/>
+			{/each}
+			<circle
+				class="jrpg-minimap-player"
+				cx={$hudState.areaMap.player.x}
+				cy={$hudState.areaMap.player.y}
+				r="62"
+			/>
+		</svg>
+	</section>
+
+	<section
+		data-testid="hud-party-panel"
+		class="jrpg-hud-panel jrpg-party-panel"
+		aria-label={t($locale, 'ui.playerStatus')}
+	>
+		<div class="jrpg-portrait" aria-hidden="true">L</div>
+		<div class="jrpg-party-copy">
+			<div class="jrpg-party-header">
+				<p>{t($locale, 'ui.heroName')}</p>
+				<span>{t($locale, 'ui.levelAbbrev')} {$hudState.level}</span>
 			</div>
-			<div class="jrpg-meter-row jrpg-meter-row-xp">
-				<div class="jrpg-meter-copy">
-					<span>{t($locale, 'ui.xp')}</span>
-					<span>{$hudState.xp} / {xpTarget}</span>
+			<div class="jrpg-party-meter jrpg-party-meter-hp">
+				<div>
+					<span>{t($locale, 'ui.hp')}</span>
+					<span>{$hudState.hp}/{$hudState.maxHp}</span>
 				</div>
-				<div class="jrpg-meter"><span style={`width: ${xpPercent}%`}></span></div>
+				<i><span style={`width: ${hpPercent}%`}></span></i>
+			</div>
+			<div class="jrpg-party-meter jrpg-party-meter-xp">
+				<div>
+					<span>{t($locale, 'ui.xp')}</span>
+					<span>{$hudState.xp}/{xpTarget}</span>
+				</div>
+				<i><span style={`width: ${xpPercent}%`}></span></i>
 			</div>
 		</div>
 	</section>
+
+	<aside
+		data-testid="hud-side-panel"
+		class="jrpg-side-hud"
+		aria-label={t($locale, 'ui.questTracker')}
+	>
+		<div class="jrpg-hud-panel jrpg-gold-panel">
+			<span>{$hudState.wallet.coins}{t($locale, 'ui.goldSuffix')}</span>
+		</div>
+		{#if $hudState.quests.main}
+			<section class="jrpg-hud-panel jrpg-active-quest-panel">
+				<p class="jrpg-label">{t($locale, 'ui.activeQuest')}</p>
+				<h2>{$hudState.quests.main.title}</h2>
+				<p>{$hudState.quests.main.objective}</p>
+				{#if $hudState.quests.side.length > 0}
+					<span>{t($locale, 'ui.sideActive', { count: $hudState.quests.side.length })}</span>
+				{/if}
+			</section>
+		{/if}
+	</aside>
 
 	<div
 		class="jrpg-field-status"
@@ -1496,143 +1567,276 @@
 	}
 
 	.game-shell {
-		--jrpg-ink: #070916;
-		--jrpg-panel: rgba(9, 13, 31, 0.93);
-		--jrpg-panel-strong: rgba(8, 11, 27, 0.97);
-		--jrpg-frame: rgba(244, 229, 184, 0.24);
-		--jrpg-frame-strong: rgba(244, 229, 184, 0.42);
-		--jrpg-text: #fff7df;
-		--jrpg-muted: rgba(255, 247, 223, 0.68);
-		--jrpg-cyan: #9fe7ff;
-		--jrpg-emerald: #9ff7cb;
-		--jrpg-amber: #ffd37a;
-		--jrpg-radius: 0.55rem;
-		--jrpg-shadow: 0 18px 48px rgba(0, 0, 0, 0.38);
+		--jrpg-ink: #0a0612;
+		--jrpg-panel: rgba(26, 20, 40, 0.96);
+		--jrpg-panel-strong: rgba(26, 20, 40, 0.98);
+		--jrpg-frame: rgba(255, 248, 232, 0.34);
+		--jrpg-frame-strong: rgba(255, 248, 232, 0.62);
+		--jrpg-text: #fff8e8;
+		--jrpg-muted: #b8a8c8;
+		--jrpg-cyan: #5fa8f0;
+		--jrpg-emerald: #5fd860;
+		--jrpg-amber: #ffd040;
+		--jrpg-radius: 0.35rem;
+		--jrpg-shadow: 0 14px 36px rgba(0, 0, 0, 0.42);
 	}
 
-	.jrpg-ledger,
+	.jrpg-hud-panel,
 	.jrpg-command-box,
 	.jrpg-field-status {
-		position: absolute;
 		border: 1px solid var(--jrpg-frame);
-		background: linear-gradient(145deg, var(--jrpg-panel), rgba(12, 18, 42, 0.88));
+		background: var(--jrpg-panel);
 		color: var(--jrpg-text);
 		box-shadow:
 			var(--jrpg-shadow),
+			inset 0 0 0 2px rgba(10, 6, 18, 0.72),
 			inset 0 1px 0 rgba(255, 255, 255, 0.08);
-		backdrop-filter: blur(14px);
 	}
 
 	.jrpg-label {
 		margin: 0;
 		font-size: 0.62rem;
 		font-weight: 900;
-		letter-spacing: 0.18em;
-		color: var(--jrpg-cyan);
+		letter-spacing: 0;
+		color: var(--jrpg-amber);
 		text-transform: uppercase;
 	}
 
-	.jrpg-hero-ledger {
-		top: 1rem;
-		left: 1rem;
+	.jrpg-location-panel,
+	.jrpg-minimap-panel,
+	.jrpg-party-panel {
+		position: absolute;
 		z-index: 20;
-		display: grid;
-		width: min(22rem, calc(50vw - 1.5rem));
-		grid-template-columns: auto minmax(0, 1fr);
-		gap: 0.8rem;
 		border-radius: var(--jrpg-radius);
-		padding: 0.7rem;
 		pointer-events: none;
 	}
 
-	.jrpg-quest-ledger {
-		top: 1rem;
-		right: 1rem;
-		z-index: 20;
-		width: min(23rem, calc(50vw - 1.5rem));
-		border-radius: var(--jrpg-radius);
-		padding: 0.7rem 0.85rem;
-		pointer-events: none;
+	.jrpg-location-panel {
+		top: 0.9rem;
+		left: 0.9rem;
+		width: min(14.5rem, calc(100vw - 12rem));
+		padding: 0.55rem 0.7rem;
 	}
 
-	.jrpg-level-mark {
-		display: grid;
-		min-width: 3.2rem;
-		place-items: center;
-		border: 1px solid rgba(244, 229, 184, 0.18);
-		border-radius: 0.45rem;
-		background: rgba(255, 255, 255, 0.07);
-	}
-
-	.jrpg-level-mark span {
-		font-size: 0.58rem;
-		font-weight: 900;
-		letter-spacing: 0.16em;
-		color: var(--jrpg-muted);
-	}
-
-	.jrpg-level-mark strong {
-		font-size: 1.25rem;
-		line-height: 1;
-	}
-
-	.jrpg-ledger-title {
-		margin: 0.2rem 0 0;
+	.jrpg-location-name {
+		margin: 0;
 		overflow: hidden;
 		text-overflow: ellipsis;
 		white-space: nowrap;
 		font-size: 0.9rem;
 		font-weight: 900;
 		color: var(--jrpg-text);
+		text-transform: uppercase;
 	}
 
-	.jrpg-ledger-subtitle {
+	.jrpg-location-sub {
 		margin: 0.2rem 0 0;
-		font-size: 0.78rem;
-		font-weight: 800;
-		color: var(--jrpg-emerald);
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+		font-size: 0.58rem;
+		font-weight: 900;
+		color: var(--jrpg-muted);
+		text-transform: uppercase;
 	}
 
-	.jrpg-meter-row {
-		display: grid;
-		gap: 0.28rem;
+	.jrpg-minimap-panel {
+		top: 0.9rem;
+		right: 0.9rem;
+		width: 10.25rem;
+		padding: 0.55rem;
 	}
 
-	.jrpg-ledger-bars {
-		display: grid;
-		gap: 0.55rem;
-	}
-
-	.jrpg-meter-copy {
+	.jrpg-minimap-heading {
 		display: flex;
+		align-items: center;
+		justify-content: center;
+		margin-bottom: 0.42rem;
+		color: var(--jrpg-amber);
+		font-size: 0.62rem;
+		font-weight: 800;
+		text-transform: uppercase;
+	}
+
+	.jrpg-minimap-svg {
+		display: block;
+		width: 100%;
+		height: 6.2rem;
+		border: 1px solid rgba(255, 248, 232, 0.16);
+		background: #0d1b26;
+		image-rendering: pixelated;
+	}
+
+	.jrpg-minimap-fog {
+		fill: #142333;
+	}
+
+	.jrpg-minimap-cell {
+		fill: rgba(75, 133, 88, 0.82);
+		stroke: rgba(255, 248, 232, 0.16);
+		stroke-width: 8;
+	}
+
+	.jrpg-minimap-marker {
+		fill: rgba(255, 248, 232, 0.34);
+		stroke: rgba(255, 248, 232, 0.82);
+		stroke-width: 18;
+	}
+
+	.jrpg-minimap-marker-exit,
+	.jrpg-minimap-marker-quest {
+		fill: rgba(255, 208, 64, 0.42);
+		stroke: var(--jrpg-amber);
+	}
+
+	.jrpg-minimap-marker-emphasis {
+		filter: drop-shadow(0 0 32px rgba(255, 208, 64, 0.84));
+	}
+
+	.jrpg-minimap-player {
+		fill: #f05268;
+		stroke: var(--jrpg-text);
+		stroke-width: 18;
+	}
+
+	.jrpg-party-panel {
+		bottom: 0.9rem;
+		left: 0.9rem;
+		display: grid;
+		width: min(17.5rem, calc(100vw - 2rem));
+		grid-template-columns: 3.4rem minmax(0, 1fr);
+		gap: 0.65rem;
+		padding: 0.65rem;
+	}
+
+	.jrpg-portrait {
+		display: grid;
+		place-items: center;
+		border: 1px solid rgba(255, 248, 232, 0.2);
+		border-radius: 0.25rem;
+		background: linear-gradient(180deg, rgba(255, 208, 64, 0.22), rgba(95, 168, 240, 0.14));
+		color: var(--jrpg-amber);
+		font-size: 1.8rem;
+		font-weight: 900;
+		line-height: 1;
+	}
+
+	.jrpg-party-copy {
+		display: grid;
+		min-width: 0;
+		gap: 0.42rem;
+	}
+
+	.jrpg-party-header,
+	.jrpg-party-meter div {
+		display: flex;
+		align-items: center;
 		justify-content: space-between;
 		gap: 0.5rem;
-		font-size: 0.68rem;
+	}
+
+	.jrpg-party-header p,
+	.jrpg-party-header span,
+	.jrpg-party-meter span {
+		margin: 0;
+		font-size: 0.66rem;
 		font-weight: 900;
-		letter-spacing: 0.12em;
 		color: var(--jrpg-muted);
+		text-transform: uppercase;
 	}
 
-	.jrpg-meter {
-		height: 0.48rem;
+	.jrpg-party-header p {
+		color: var(--jrpg-text);
+		font-size: 0.8rem;
+	}
+
+	.jrpg-party-meter {
+		display: grid;
+		gap: 0.2rem;
+	}
+
+	.jrpg-party-meter i {
+		display: block;
+		height: 0.5rem;
 		overflow: hidden;
+		border: 1px solid rgba(255, 248, 232, 0.16);
 		border-radius: 999px;
-		background: rgba(255, 255, 255, 0.12);
+		background: rgba(10, 6, 18, 0.72);
 	}
 
-	.jrpg-meter span {
+	.jrpg-party-meter i span {
 		display: block;
 		height: 100%;
-		border-radius: inherit;
 		transition: width 180ms ease;
 	}
 
-	.jrpg-meter-row-hp .jrpg-meter span {
-		background: linear-gradient(90deg, #f05268, #ffd36e);
+	.jrpg-party-meter-hp i span {
+		background: var(--jrpg-emerald);
 	}
 
-	.jrpg-meter-row-xp .jrpg-meter span {
-		background: linear-gradient(90deg, #5ed8ff, #8fa8ff);
+	.jrpg-party-meter-xp i span {
+		background: var(--jrpg-cyan);
+	}
+
+	.jrpg-side-hud {
+		position: absolute;
+		right: 0.9rem;
+		bottom: 0.9rem;
+		z-index: 20;
+		display: grid;
+		width: min(17rem, calc(100vw - 2rem));
+		gap: 0.55rem;
+		pointer-events: none;
+	}
+
+	.jrpg-gold-panel,
+	.jrpg-active-quest-panel {
+		border-radius: var(--jrpg-radius);
+	}
+
+	.jrpg-gold-panel {
+		justify-self: end;
+		padding: 0.42rem 0.7rem;
+		color: var(--jrpg-amber);
+		font-size: 1.15rem;
+		font-weight: 900;
+	}
+
+	.jrpg-active-quest-panel {
+		padding: 0.62rem 0.7rem;
+	}
+
+	.jrpg-active-quest-panel h2 {
+		margin: 0.16rem 0 0;
+		overflow-wrap: anywhere;
+		color: var(--jrpg-text);
+		font-size: 0.84rem;
+		font-weight: 900;
+		text-transform: uppercase;
+	}
+
+	.jrpg-active-quest-panel p:not(.jrpg-label) {
+		margin: 0.25rem 0 0;
+		color: var(--jrpg-muted);
+		font-size: 0.72rem;
+		font-weight: 800;
+		line-height: 1.3;
+	}
+
+	.jrpg-active-quest-panel span {
+		display: inline-block;
+		margin-top: 0.35rem;
+		color: var(--jrpg-emerald);
+		font-size: 0.68rem;
+		font-weight: 900;
+		text-transform: uppercase;
+	}
+
+	.jrpg-menu-anchor {
+		position: absolute;
+		top: 10.2rem;
+		right: 0.9rem;
+		z-index: 30;
 	}
 
 	.jrpg-command-toggle {
@@ -1643,7 +1847,7 @@
 		color: var(--jrpg-text);
 		font-size: 0.72rem;
 		font-weight: 900;
-		letter-spacing: 0.16em;
+		letter-spacing: 0;
 		text-transform: uppercase;
 		box-shadow: var(--jrpg-shadow);
 		transition:
@@ -1659,11 +1863,12 @@
 	}
 
 	.jrpg-command-box {
-		top: 5.2rem;
-		right: 1rem;
+		position: absolute;
+		top: 13.2rem;
+		right: 0.9rem;
 		z-index: 40;
 		width: min(19rem, calc(100vw - 2rem));
-		max-height: min(34rem, calc(76vh - 5.2rem));
+		max-height: min(21rem, calc(100vh - 14.1rem));
 		overflow-y: auto;
 		border-radius: var(--jrpg-radius);
 		padding: 0.85rem;
@@ -1764,10 +1969,12 @@
 	}
 
 	.jrpg-field-status {
-		right: 1rem;
-		bottom: 23%;
+		position: absolute;
+		left: 50%;
+		bottom: 7rem;
 		z-index: 20;
 		max-width: min(24rem, calc(100vw - 2rem));
+		transform: translateX(-50%);
 		border-radius: 999px;
 		padding: 0.52rem 0.75rem;
 		font-size: 0.8rem;
@@ -2113,21 +2320,41 @@
 			max-height: min(70vh, calc(100vw - 2.5rem));
 		}
 
-		.jrpg-hero-ledger,
-		.jrpg-quest-ledger {
+		.jrpg-location-panel {
+			top: 0.75rem;
+			left: 0.75rem;
+			width: min(12rem, calc(100vw - 9.75rem));
+		}
+
+		.jrpg-minimap-panel {
+			top: 0.75rem;
+			right: 0.75rem;
+			width: 8.25rem;
+			padding: 0.45rem;
+		}
+
+		.jrpg-minimap-svg {
+			height: 4.9rem;
+		}
+
+		.jrpg-menu-anchor {
+			top: 8.65rem;
+			right: 0.75rem;
+		}
+
+		.jrpg-party-panel,
+		.jrpg-side-hud {
 			left: 0.75rem;
 			right: 0.75rem;
 			width: auto;
 		}
 
-		.jrpg-hero-ledger {
-			right: 5.85rem;
-			gap: 0.65rem;
-			padding: 0.62rem;
+		.jrpg-party-panel {
+			bottom: 0.75rem;
 		}
 
-		.jrpg-quest-ledger {
-			top: 7.35rem;
+		.jrpg-side-hud {
+			bottom: 8.4rem;
 		}
 
 		.jrpg-command-toggle {
@@ -2135,17 +2362,14 @@
 		}
 
 		.jrpg-command-box {
-			top: auto;
+			top: 11.35rem;
 			right: 0.75rem;
-			bottom: 25%;
 			width: min(16rem, calc(100vw - 1.5rem));
-			max-height: 42vh;
+			max-height: min(36vh, 17rem);
 		}
 
 		.jrpg-field-status {
-			right: 0.75rem;
-			bottom: 20%;
-			left: auto;
+			bottom: 12.25rem;
 			max-width: min(24rem, calc(100vw - 1.5rem));
 		}
 	}
