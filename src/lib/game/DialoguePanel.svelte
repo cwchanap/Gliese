@@ -59,7 +59,7 @@
 </script>
 
 <dialog
-	class="jrpg-dialogue-panel pointer-events-auto absolute inset-x-0 bottom-0 z-[70] m-0 w-screen max-w-none text-slate-50"
+	class="jrpg-dialogue-panel pointer-events-auto absolute bottom-4 left-4 z-[70] m-0 text-slate-50"
 	aria-label={dialogue.speaker}
 	bind:this={panel}
 	open
@@ -87,22 +87,14 @@
 		{#if dialogue.mode === 'choice'}
 			<div class="grid gap-2 sm:grid-cols-2">
 				{#each dialogue.choices as choice (choice.id)}
-					<button
-						type="button"
-						class="jrpg-dialogue-choice"
-						onclick={() => onchoose(choice.id)}
-					>
+					<button type="button" class="jrpg-dialogue-choice" onclick={() => onchoose(choice.id)}>
 						{choice.label}
 					</button>
 				{/each}
 			</div>
 		{:else}
 			<div class="flex justify-end">
-				<button
-					type="button"
-					class="jrpg-dialogue-action"
-					onclick={onadvance}
-				>
+				<button type="button" class="jrpg-dialogue-action" onclick={onadvance}>
 					{t($locale, 'ui.next')}
 				</button>
 			</div>
@@ -112,40 +104,40 @@
 
 <style>
 	.jrpg-dialogue-panel {
-		border: 1px solid rgba(244, 229, 184, 0.28);
-		border-right: 0;
-		border-bottom: 0;
-		border-left: 0;
-		border-radius: 0.8rem 0.8rem 0 0;
-		background: linear-gradient(145deg, rgba(8, 11, 27, 0.98), rgba(15, 20, 40, 0.96));
-		padding: 1rem;
-		color: #fff7df;
-		box-shadow: 0 -24px 70px rgba(0, 0, 0, 0.48), inset 0 1px 0 rgba(255, 255, 255, 0.08);
-		backdrop-filter: blur(14px);
+		width: min(38rem, calc(100vw - 2rem), 72vw);
+		border: 1px solid rgba(255, 248, 232, 0.38);
+		border-radius: 0.35rem;
+		background: rgba(26, 20, 40, 0.98);
+		padding: 0.85rem 1rem;
+		color: #fff8e8;
+		box-shadow:
+			0 18px 42px rgba(0, 0, 0, 0.46),
+			inset 0 0 0 2px rgba(10, 6, 18, 0.72),
+			inset 0 1px 0 rgba(255, 255, 255, 0.08);
 	}
 
 	.jrpg-dialogue-speaker {
 		margin: 0;
 		font-size: 0.68rem;
 		font-weight: 900;
-		letter-spacing: 0.18em;
-		color: #9fe7ff;
+		letter-spacing: 0;
+		color: #ffd040;
 		text-transform: uppercase;
 	}
 
 	.jrpg-dialogue-line {
-		min-height: 3rem;
+		min-height: 2.5rem;
 		margin: 0;
-		color: #fff7df;
-		font-size: clamp(1rem, 2vw, 1.12rem);
-		line-height: 1.65;
+		color: #fff8e8;
+		font-size: 0.98rem;
+		line-height: 1.55;
 	}
 
 	.jrpg-dialogue-choice,
 	.jrpg-dialogue-action {
-		border: 1px solid rgba(244, 229, 184, 0.2);
+		border: 1px solid rgba(255, 248, 232, 0.22);
 		background: rgba(255, 255, 255, 0.07);
-		color: #fff7df;
+		color: #fff8e8;
 		font-weight: 900;
 		transition:
 			border-color 160ms ease,
@@ -154,11 +146,11 @@
 	}
 
 	.jrpg-dialogue-choice {
-		border-radius: 0.5rem;
+		border-radius: 0.35rem;
 		padding: 0.65rem 0.75rem;
 		text-align: left;
 		font-size: 0.84rem;
-		letter-spacing: 0.08em;
+		letter-spacing: 0;
 		text-transform: uppercase;
 	}
 
@@ -166,27 +158,27 @@
 		border-radius: 999px;
 		padding: 0.55rem 0.9rem;
 		font-size: 0.7rem;
-		letter-spacing: 0.14em;
+		letter-spacing: 0;
 		text-transform: uppercase;
 	}
 
 	.jrpg-dialogue-action-secondary {
-		color: rgba(255, 247, 223, 0.78);
+		color: rgba(255, 248, 232, 0.78);
 	}
 
 	.jrpg-dialogue-choice:hover,
 	.jrpg-dialogue-choice:focus-visible,
 	.jrpg-dialogue-action:hover,
 	.jrpg-dialogue-action:focus-visible {
-		border-color: rgba(244, 229, 184, 0.42);
-		background: rgba(244, 229, 184, 0.12);
+		border-color: rgba(255, 248, 232, 0.46);
+		background: rgba(255, 208, 64, 0.13);
 		transform: translateY(-1px);
 	}
 
 	.jrpg-dialogue-choice:focus-visible,
 	.jrpg-dialogue-action:focus-visible {
-		outline: 2px solid var(--jrpg-cyan, #9fe7ff);
+		outline: 2px solid var(--jrpg-amber, #ffd040);
 		outline-offset: 3px;
-		box-shadow: 0 0 0 4px rgba(159, 231, 255, 0.18);
+		box-shadow: 0 0 0 4px rgba(255, 208, 64, 0.18);
 	}
 </style>

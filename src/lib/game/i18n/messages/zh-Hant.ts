@@ -13,8 +13,13 @@ export const zhHant = {
 		map: '地圖',
 		areaMap: '區域地圖',
 		areaMapDialog: '{{areaName}}地圖',
+		regionSubline: '翠綠地區 / 第 3 日',
+		villageMap: '村莊地圖',
 		unexplored: '未探索',
 		currentPosition: '目前位置',
+		heroName: 'LIAM',
+		goldSuffix: 'G',
+		activeQuest: '進行中任務',
 		shop: '商店',
 		inventory: '背包',
 		resumeSave: '繼續存檔',
@@ -321,7 +326,11 @@ export const zhHant = {
 				'item-shop-exterior': { label: '道具店' },
 				'villager-house-1-exterior': { label: '村民住家' },
 				'villager-house-2-exterior': { label: '村民住家' },
-				'villager-house-3-exterior': { label: '村民住家' }
+				'villager-house-3-exterior': { label: '村民住家' },
+				'sundrop-well': { label: '晴滴之井' },
+				'whispering-cave': { label: '低語洞穴' },
+				blacksmith: { label: '鐵匠鋪' },
+				'shrine-of-aurora': { label: '極光神社' }
 			},
 			npcs: {
 				'guild-master': { name: '公會會長阿倫' },
@@ -329,7 +338,7 @@ export const zhHant = {
 				'shopkeeper-mira': { name: '米拉' }
 			},
 			areas: {
-				'meadow-entry': '草地入口',
+				'meadow-entry': '晴滴草原',
 				'hero-house': '英雄之家',
 				'guild-hall': '公會大廳',
 				'item-shop': '道具店',

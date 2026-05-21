@@ -141,113 +141,145 @@ const interiorDoor = { x: 256, y: 336 } as const;
 
 export const meadowEntryMap: WorldMapDefinition = addEnglishMapText({
 	id: openingMapId,
-	width: 200,
-	height: 200,
-	spawnDirection: 'down',
-	spawn: { x: 640, y: 5_200 },
+	width: 96,
+	height: 64,
+	spawnDirection: 'up',
+	spawn: { x: 1_536, y: 1_248 },
 	landmarks: [
 		{
 			id: 'hero-house-exterior',
-			x: 640,
-			y: 5_088,
-			width: 192,
-			height: 174,
+			x: 531,
+			y: 1_498,
+			width: 294,
+			height: 307,
 			labelKey: 'content.maps.landmarks.hero-house-exterior.label'
 		},
 		{
 			id: 'guild-hall-exterior',
-			x: 1_600,
-			y: 4_256,
-			width: 256,
-			height: 228,
+			x: 2_048,
+			y: 1_517,
+			width: 384,
+			height: 346,
 			labelKey: 'content.maps.landmarks.guild-hall-exterior.label'
 		},
 		{
 			id: 'item-shop-exterior',
-			x: 2_240,
-			y: 4_960,
-			width: 192,
-			height: 200,
+			x: 2_138,
+			y: 282,
+			width: 307,
+			height: 294,
 			labelKey: 'content.maps.landmarks.item-shop-exterior.label'
 		},
 		{
 			id: 'villager-house-1-exterior',
-			x: 960,
-			y: 4_480,
-			width: 160,
-			height: 178,
+			x: 333,
+			y: 800,
+			width: 282,
+			height: 256,
 			labelKey: 'content.maps.landmarks.villager-house-1-exterior.label'
 		},
 		{
 			id: 'villager-house-2-exterior',
-			x: 1_460,
-			y: 5_440,
-			width: 160,
-			height: 178,
+			x: 1_011,
+			y: 266,
+			width: 422,
+			height: 326,
 			labelKey: 'content.maps.landmarks.villager-house-2-exterior.label'
 		},
 		{
 			id: 'villager-house-3-exterior',
-			x: 2_800,
-			y: 4_480,
-			width: 160,
-			height: 178,
+			x: 2_592,
+			y: 426,
+			width: 230,
+			height: 416,
 			labelKey: 'content.maps.landmarks.villager-house-3-exterior.label'
+		},
+		{
+			id: 'sundrop-well',
+			x: 1_536,
+			y: 989,
+			width: 141,
+			height: 160,
+			labelKey: 'content.maps.landmarks.sundrop-well.label'
+		},
+		{
+			id: 'whispering-cave',
+			x: 2_784,
+			y: 1_232,
+			width: 256,
+			height: 224,
+			labelKey: 'content.maps.landmarks.whispering-cave.label'
+		},
+		{
+			id: 'blacksmith',
+			x: 595,
+			y: 525,
+			width: 294,
+			height: 282,
+			labelKey: 'content.maps.landmarks.blacksmith.label'
+		},
+		{
+			id: 'shrine-of-aurora',
+			x: 1_050,
+			y: 1_520,
+			width: 307,
+			height: 416,
+			labelKey: 'content.maps.landmarks.shrine-of-aurora.label'
 		}
 	],
 	transitions: [
 		{
 			id: 'meadow-to-hero-house',
-			x: 640,
-			y: 5_168,
+			x: 531,
+			y: 1_588,
 			toMapId: 'hero-house',
 			showMarker: false,
 			arrival: { x: 256, y: 224, facing: 'up' }
 		},
 		{
 			id: 'meadow-to-guild-hall',
-			x: 1_600,
-			y: 4_352,
+			x: 2_048,
+			y: 1_608,
 			toMapId: 'guild-hall',
 			showMarker: false,
 			arrival: { x: 256, y: 288, facing: 'up' }
 		},
 		{
 			id: 'meadow-to-item-shop',
-			x: 2_240,
-			y: 5_040,
+			x: 2_138,
+			y: 365,
 			toMapId: 'item-shop',
 			showMarker: false,
 			arrival: { x: 256, y: 288, facing: 'up' }
 		},
 		{
 			id: 'meadow-to-villager-house-1',
-			x: 960,
-			y: 4_552,
+			x: 333,
+			y: 870,
 			toMapId: 'villager-house-1',
 			showMarker: false,
 			arrival: { x: 256, y: 288, facing: 'up' }
 		},
 		{
 			id: 'meadow-to-villager-house-2',
-			x: 1_460,
-			y: 5_512,
+			x: 1_011,
+			y: 360,
 			toMapId: 'villager-house-2',
 			showMarker: false,
 			arrival: { x: 256, y: 288, facing: 'up' }
 		},
 		{
 			id: 'meadow-to-villager-house-3',
-			x: 2_800,
-			y: 4_552,
+			x: 2_592,
+			y: 560,
 			toMapId: 'villager-house-3',
 			showMarker: false,
 			arrival: { x: 256, y: 288, facing: 'up' }
 		},
 		{
-			id: 'meadow-to-ruins-threshold',
-			x: 5_760,
-			y: 960,
+			id: 'meadow-to-whispering-cave-ruins-threshold',
+			x: 2_784,
+			y: 1_300,
 			toMapId: 'ruins-threshold',
 			requiresClear: true,
 			marker: 'stair',
@@ -259,688 +291,204 @@ export const meadowEntryMap: WorldMapDefinition = addEnglishMapText({
 		}
 	],
 	groundPatches: [
-		{ id: 'village-home-pocket', x: 640, y: 5_224, width: 384, height: 160, tile: 'pathTile' },
-		{ id: 'village-home-north-alley', x: 640, y: 4_720, width: 96, height: 832, tile: 'pathTile' },
-		{ id: 'village-home-south-alley', x: 640, y: 5_488, width: 96, height: 384, tile: 'pathTile' },
 		{
-			id: 'village-north-civic-lane',
-			x: 1_280,
-			y: 4_552,
-			width: 1_280,
-			height: 96,
-			tile: 'pathTile'
-		},
-		{
-			id: 'village-guild-door-pocket',
-			x: 1_600,
-			y: 4_352,
-			width: 384,
-			height: 160,
-			tile: 'pathTile'
-		},
-		{
-			id: 'village-guild-east-bend',
-			x: 1_824,
-			y: 4_552,
-			width: 288,
-			height: 128,
-			tile: 'pathTile'
-		},
-		{
-			id: 'village-guild-market-alley',
-			x: 1_600,
-			y: 4_624,
-			width: 96,
-			height: 416,
-			tile: 'pathTile'
-		},
-		{
-			id: 'village-villager1-pocket',
-			x: 960,
-			y: 4_552,
-			width: 320,
-			height: 144,
-			tile: 'pathTile'
-		},
-		{
-			id: 'village-central-cross-pocket',
-			x: 1_600,
-			y: 4_880,
-			width: 384,
-			height: 160,
-			tile: 'pathTile'
-		},
-		{
-			id: 'village-market-west-bend',
-			x: 1_248,
-			y: 5_040,
-			width: 384,
-			height: 128,
-			tile: 'pathTile'
-		},
-		{
-			id: 'village-market-east-bend',
-			x: 1_888,
-			y: 5_040,
-			width: 384,
-			height: 128,
-			tile: 'pathTile'
-		},
-		{
-			id: 'village-middle-market-lane',
-			x: 1_520,
-			y: 5_040,
-			width: 1_760,
-			height: 96,
-			tile: 'pathTile'
-		},
-		{
-			id: 'village-shop-door-pocket',
-			x: 2_240,
-			y: 5_040,
-			width: 384,
-			height: 160,
-			tile: 'pathTile'
-		},
-		{
-			id: 'village-shop-south-pocket',
-			x: 2_240,
-			y: 5_312,
-			width: 320,
-			height: 128,
-			tile: 'pathTile'
-		},
-		{
-			id: 'village-shop-back-alley',
-			x: 2_464,
-			y: 4_800,
-			width: 96,
-			height: 576,
-			tile: 'pathTile'
-		},
-		{
-			id: 'village-villager3-lane',
-			x: 2_620,
-			y: 4_552,
-			width: 960,
-			height: 96,
-			tile: 'pathTile'
-		},
-		{
-			id: 'village-villager3-pocket',
-			x: 2_800,
-			y: 4_552,
-			width: 320,
-			height: 144,
-			tile: 'pathTile'
-		},
-		{
-			id: 'village-villager2-pocket',
-			x: 1_460,
-			y: 5_512,
-			width: 384,
-			height: 160,
-			tile: 'pathTile'
-		},
-		{
-			id: 'village-south-service-lane',
-			x: 1_560,
-			y: 5_520,
-			width: 1_360,
-			height: 96,
-			tile: 'pathTile'
-		},
-		{
-			id: 'village-market-south-alley',
-			x: 2_240,
-			y: 5_344,
-			width: 96,
-			height: 352,
-			tile: 'pathTile'
-		},
-		{
-			id: 'village-east-gate-pocket',
-			x: 3_024,
-			y: 4_928,
-			width: 320,
-			height: 144,
-			tile: 'pathTile'
-		},
-		{
-			id: 'village-east-gate-pinched-neck',
-			x: 3_360,
-			y: 4_928,
+			id: 'sundrop-plaza-stone',
+			x: 1_536,
+			y: 992,
 			width: 672,
+			height: 512,
+			tile: 'ruinsFloorTile'
+		},
+		{
+			id: 'sundrop-north-lane',
+			x: 1_536,
+			y: 448,
+			width: 64,
+			height: 640,
+			tile: 'pathTile'
+		},
+		{
+			id: 'sundrop-south-lane',
+			x: 1_536,
+			y: 1_466,
+			width: 64,
+			height: 448,
+			tile: 'pathTile'
+		},
+		{
+			id: 'sundrop-west-lane',
+			x: 720,
+			y: 995,
+			width: 992,
+			height: 70,
+			tile: 'pathTile'
+		},
+		{
+			id: 'sundrop-east-lane',
+			x: 2_336,
+			y: 995,
+			width: 960,
+			height: 70,
+			tile: 'pathTile'
+		},
+		{
+			id: 'sundrop-northwest-branch',
+			x: 896,
+			y: 445,
+			width: 384,
+			height: 58,
+			tile: 'pathTile'
+		},
+		{
+			id: 'sundrop-northeast-branch',
+			x: 2_176,
+			y: 445,
+			width: 384,
+			height: 58,
+			tile: 'pathTile'
+		},
+		{
+			id: 'sundrop-southwest-branch',
+			x: 896,
+			y: 1_501,
+			width: 384,
+			height: 58,
+			tile: 'pathTile'
+		},
+		{
+			id: 'sundrop-southeast-branch',
+			x: 2_176,
+			y: 1_501,
+			width: 384,
+			height: 58,
+			tile: 'pathTile'
+		},
+		{
+			id: 'sundrop-home-pocket',
+			x: 531,
+			y: 1_650,
+			width: 384,
 			height: 96,
 			tile: 'pathTile'
 		},
 		{
-			id: 'outskirts-split-trail',
-			x: 3_700,
-			y: 4_320,
-			width: 128,
-			height: 1_280,
+			id: 'sundrop-cave-pocket',
+			x: 2_784,
+			y: 1_328,
+			width: 288,
+			height: 96,
 			tile: 'pathTile'
 		},
 		{
-			id: 'outskirts-north-brush-lane',
-			x: 4_300,
-			y: 3_760,
-			width: 1_320,
-			height: 128,
+			id: 'wildwood-north-combat-pocket',
+			x: 1_536,
+			y: 480,
+			width: 672,
+			height: 384,
 			tile: 'pathTile'
 		},
 		{
-			id: 'outskirts-north-combat-pocket',
-			x: 4_160,
-			y: 3_520,
-			width: 704,
-			height: 448,
+			id: 'whispering-cave-combat-pocket',
+			x: 2_592,
+			y: 1_024,
+			width: 512,
+			height: 384,
 			tile: 'pathTile'
-		},
-		{
-			id: 'outskirts-overlook-dead-end',
-			x: 5_040,
-			y: 3_440,
-			width: 800,
-			height: 128,
-			tile: 'pathTile'
-		},
-		{
-			id: 'outskirts-south-brush-lane',
-			x: 4_520,
-			y: 4_720,
-			width: 1_640,
-			height: 128,
-			tile: 'pathTile'
-		},
-		{
-			id: 'outskirts-south-combat-pocket',
-			x: 4_640,
-			y: 4_928,
-			width: 704,
-			height: 448,
-			tile: 'pathTile'
-		},
-		{
-			id: 'outskirts-center-cross-trail',
-			x: 5_040,
-			y: 4_240,
-			width: 128,
-			height: 1_088,
-			tile: 'pathTile'
-		},
-		{
-			id: 'outskirts-rejoin-clearing',
-			x: 5_360,
-			y: 4_240,
-			width: 576,
-			height: 320,
-			tile: 'pathTile'
-		},
-		{
-			id: 'ruins-approach-lower-run',
-			x: 5_520,
-			y: 3_360,
-			width: 128,
-			height: 1_920,
-			tile: 'pathTile'
-		},
-		{
-			id: 'ruins-east-combat-pocket',
-			x: 5_520,
-			y: 2_080,
-			width: 640,
-			height: 512,
-			tile: 'pathTile'
-		},
-		{ id: 'ruins-final-bend', x: 5_760, y: 2_400, width: 608, height: 128, tile: 'pathTile' },
-		{ id: 'ruins-final-stair-run', x: 5_760, y: 1_520, width: 128, height: 1_888, tile: 'pathTile' }
+		}
 	],
 	blockers: [
 		{
-			id: 'city-west-district-wall',
-			x: 320,
-			y: 4_960,
+			id: 'sundrop-north-tree-line',
+			x: 1_536,
+			y: 32,
+			width: 3_000,
+			height: 64,
+			kind: 'town-hedge'
+		},
+		{
+			id: 'sundrop-south-shore-line',
+			x: 1_536,
+			y: 1_984,
+			width: 3_000,
+			height: 64,
+			kind: 'town-hedge'
+		},
+		{
+			id: 'sundrop-west-tree-line',
+			x: 32,
+			y: 1_024,
 			width: 64,
-			height: 1_600,
-			kind: 'town-hedge'
-		},
-		{
-			id: 'city-south-district-wall',
-			x: 1_600,
-			y: 5_872,
-			width: 2_560,
-			height: 64,
-			kind: 'town-hedge'
-		},
-		{
-			id: 'city-north-district-wall',
-			x: 1_600,
-			y: 3_936,
-			width: 2_560,
-			height: 64,
-			kind: 'town-hedge'
-		},
-		{
-			id: 'village-home-yard-west-hedge',
-			x: 416,
-			y: 5_200,
-			width: 48,
-			height: 448,
-			kind: 'town-hedge'
-		},
-		{
-			id: 'village-home-yard-east-hedge',
-			x: 896,
-			y: 5_280,
-			width: 48,
-			height: 320,
-			kind: 'town-hedge'
-		},
-		{
-			id: 'village-home-yard-north-left-hedge',
-			x: 480,
-			y: 4_960,
-			width: 160,
-			height: 48,
-			kind: 'town-hedge'
-		},
-		{
-			id: 'village-home-yard-north-right-hedge',
-			x: 800,
-			y: 4_960,
-			width: 160,
-			height: 48,
-			kind: 'town-hedge'
-		},
-		{
-			id: 'village-guild-court-west-wall',
-			x: 1_280,
-			y: 4_352,
-			width: 48,
-			height: 352,
-			kind: 'city-wall'
-		},
-		{
-			id: 'village-guild-court-east-wall',
-			x: 1_920,
-			y: 4_352,
-			width: 48,
-			height: 352,
-			kind: 'city-wall'
-		},
-		{
-			id: 'village-guild-south-pincher',
-			x: 1_600,
-			y: 4_592,
-			width: 224,
-			height: 48,
-			kind: 'town-hedge'
-		},
-		{
-			id: 'village-central-yard-west-hedge',
-			x: 1_280,
-			y: 4_880,
-			width: 48,
-			height: 352,
-			kind: 'town-hedge'
-		},
-		{
-			id: 'village-central-yard-east-hedge',
-			x: 1_920,
-			y: 4_880,
-			width: 48,
-			height: 352,
-			kind: 'town-hedge'
-		},
-		{
-			id: 'village-market-center-hedge',
-			x: 1_600,
-			y: 4_992,
-			width: 288,
-			height: 48,
-			kind: 'town-hedge'
-		},
-		{
-			id: 'village-market-west-pinch-hedge',
-			x: 1_056,
-			y: 4_976,
-			width: 48,
-			height: 192,
-			kind: 'town-hedge'
-		},
-		{
-			id: 'village-central-yard-south-hedge',
-			x: 1_600,
-			y: 5_312,
-			width: 640,
-			height: 48,
-			kind: 'town-hedge'
-		},
-		{
-			id: 'village-shop-yard-north-wall',
-			x: 2_200,
-			y: 4_864,
-			width: 400,
-			height: 48,
-			kind: 'city-wall'
-		},
-		{
-			id: 'village-shop-west-pincher',
-			x: 2_016,
-			y: 5_040,
-			width: 48,
-			height: 224,
-			kind: 'town-hedge'
-		},
-		{
-			id: 'village-shop-yard-east-hedge',
-			x: 2_560,
-			y: 5_120,
-			width: 48,
-			height: 384,
-			kind: 'town-hedge'
-		},
-		{
-			id: 'village-shop-south-pincher',
-			x: 2_400,
-			y: 5_344,
-			width: 48,
-			height: 192,
-			kind: 'city-wall'
-		},
-		{
-			id: 'village-villager1-yard-south-hedge',
-			x: 960,
-			y: 4_800,
-			width: 384,
-			height: 48,
-			kind: 'town-hedge'
-		},
-		{
-			id: 'village-villager3-yard-south-hedge',
-			x: 2_800,
-			y: 4_800,
-			width: 448,
-			height: 48,
-			kind: 'town-hedge'
-		},
-		{
-			id: 'village-villager2-yard-north-hedge',
-			x: 1_460,
-			y: 5_328,
-			width: 352,
-			height: 48,
-			kind: 'town-hedge'
-		},
-		{
-			id: 'village-villager2-yard-west-hedge',
-			x: 1_216,
-			y: 5_664,
-			width: 48,
-			height: 192,
-			kind: 'town-hedge'
-		},
-		{
-			id: 'village-villager2-yard-east-wall',
-			x: 1_704,
-			y: 5_664,
-			width: 48,
-			height: 192,
-			kind: 'city-wall'
-		},
-		{
-			id: 'village-east-gate-north-wall',
-			x: 3_200,
-			y: 4_720,
-			width: 560,
-			height: 64,
-			kind: 'city-wall'
-		},
-		{
-			id: 'village-east-gate-pinch-north',
-			x: 3_184,
-			y: 4_800,
-			width: 224,
-			height: 48,
-			kind: 'town-hedge'
-		},
-		{
-			id: 'village-east-gate-pinch-south',
-			x: 3_184,
-			y: 5_056,
-			width: 224,
-			height: 48,
-			kind: 'town-hedge'
-		},
-		{
-			id: 'village-east-gate-south-wall',
-			x: 3_200,
-			y: 5_152,
-			width: 560,
-			height: 64,
-			kind: 'city-wall'
-		},
-		{
-			id: 'outskirts-north-tree-line',
-			x: 4_480,
-			y: 3_200,
-			width: 2_200,
-			height: 96,
-			kind: 'town-hedge'
-		},
-		{
-			id: 'outskirts-south-tree-line',
-			x: 4_480,
-			y: 5_248,
-			width: 2_200,
-			height: 96,
-			kind: 'town-hedge'
-		},
-		{
-			id: 'outskirts-split-west-brush-wall',
-			x: 3_440,
-			y: 4_320,
-			width: 96,
-			height: 1_320,
-			kind: 'town-hedge'
-		},
-		{
-			id: 'outskirts-north-lane-south-hedge',
-			x: 4_400,
-			y: 3_952,
-			width: 1_200,
-			height: 64,
-			kind: 'town-hedge'
-		},
-		{
-			id: 'outskirts-south-lane-north-hedge',
-			x: 4_520,
-			y: 4_528,
-			width: 1_400,
-			height: 64,
-			kind: 'town-hedge'
-		},
-		{
-			id: 'outskirts-north-pocket-north-wall',
-			x: 4_160,
-			y: 3_232,
-			width: 704,
-			height: 64,
-			kind: 'town-hedge'
-		},
-		{
-			id: 'outskirts-north-pocket-east-wall',
-			x: 4_544,
-			y: 3_520,
-			width: 64,
-			height: 448,
-			kind: 'town-hedge'
-		},
-		{
-			id: 'outskirts-south-pocket-south-wall',
-			x: 4_640,
-			y: 5_216,
-			width: 704,
-			height: 64,
-			kind: 'town-hedge'
-		},
-		{
-			id: 'outskirts-south-pocket-east-wall',
-			x: 5_024,
-			y: 4_928,
-			width: 64,
-			height: 448,
-			kind: 'town-hedge'
-		},
-		{
-			id: 'outskirts-rejoin-north-wall',
-			x: 5_360,
-			y: 3_920,
-			width: 640,
-			height: 64,
-			kind: 'town-hedge'
-		},
-		{
-			id: 'outskirts-rejoin-south-wall',
-			x: 5_360,
-			y: 4_560,
-			width: 640,
-			height: 64,
-			kind: 'town-hedge'
-		},
-		{
-			id: 'ruins-approach-west-wall',
-			x: 5_360,
-			y: 3_360,
-			width: 96,
 			height: 1_920,
-			kind: 'city-wall'
+			kind: 'town-hedge'
 		},
 		{
-			id: 'ruins-approach-east-wall',
-			x: 5_680,
-			y: 3_360,
-			width: 96,
+			id: 'sundrop-east-tree-line',
+			x: 3_040,
+			y: 1_024,
+			width: 64,
 			height: 1_920,
-			kind: 'city-wall'
-		},
-		{
-			id: 'ruins-final-west-wall',
-			x: 5_488,
-			y: 1_520,
-			width: 96,
-			height: 1_648,
-			kind: 'city-wall'
-		},
-		{
-			id: 'ruins-final-east-wall',
-			x: 6_032,
-			y: 1_520,
-			width: 96,
-			height: 1_648,
-			kind: 'city-wall'
+			kind: 'town-hedge'
 		}
 	],
 	fences: [
-		{ id: 'village-home-fence-south-west', x: 520, y: 5_680, width: 240, height: 32 },
-		{ id: 'village-home-fence-south-east', x: 800, y: 5_680, width: 240, height: 32 },
-		{ id: 'village-guild-fence-north-west', x: 1_380, y: 4_160, width: 360, height: 32 },
-		{ id: 'village-guild-fence-north-east', x: 1_820, y: 4_160, width: 360, height: 32 },
-		{ id: 'village-shop-fence-south', x: 2_480, y: 5_344, width: 160, height: 32 },
-		{ id: 'village-villager1-fence-west', x: 704, y: 4_624, width: 32, height: 256 },
-		{ id: 'village-villager3-fence-east', x: 3_072, y: 4_624, width: 32, height: 256 },
-		{ id: 'village-villager2-fence-south', x: 1_460, y: 5_744, width: 448, height: 32 },
-		{ id: 'village-east-gate-fence-north', x: 3_024, y: 4_768, width: 320, height: 32 },
-		{ id: 'village-east-gate-fence-south', x: 3_024, y: 5_088, width: 320, height: 32 }
+		{ id: 'sundrop-home-fence', x: 531, y: 1_720, width: 384, height: 32 },
+		{ id: 'sundrop-plaza-west-fence', x: 1_120, y: 1_184, width: 32, height: 288 },
+		{ id: 'sundrop-plaza-east-fence', x: 1_952, y: 1_184, width: 32, height: 288 }
 	],
 	forestDecor: [
 		{
-			id: 'outskirts-tree-line-north',
-			x: 4_480,
-			y: 3_040,
-			width: 2_200,
+			id: 'wildwood-north-canopy',
+			x: 1_536,
+			y: 128,
+			width: 960,
 			height: 160,
 			frameName: 'treeCluster'
 		},
 		{
-			id: 'outskirts-tree-line-south',
-			x: 4_480,
-			y: 5_408,
-			width: 2_200,
-			height: 160,
-			frameName: 'treeCluster'
-		},
-		{
-			id: 'outskirts-brush-north-pocket',
-			x: 4_160,
-			y: 3_520,
-			width: 640,
-			height: 256,
-			frameName: 'brush'
-		},
-		{
-			id: 'outskirts-brush-south-pocket',
-			x: 4_640,
-			y: 4_928,
-			width: 640,
-			height: 256,
-			frameName: 'brush'
-		},
-		{
-			id: 'outskirts-brush-rejoin',
-			x: 5_360,
-			y: 4_240,
-			width: 480,
-			height: 256,
-			frameName: 'brush'
-		},
-		{
-			id: 'ruins-approach-brush',
-			x: 5_520,
-			y: 3_000,
-			width: 256,
+			id: 'wildwood-east-canopy',
+			x: 2_880,
+			y: 960,
+			width: 160,
 			height: 900,
-			frameName: 'brush'
+			frameName: 'treeCluster'
 		}
 	],
 	combatBounds: [
 		{
-			id: 'city-west-combat-pocket',
-			x: 4_160,
-			y: 3_520,
-			width: 704,
-			height: 448,
+			id: 'wildwood-north-combat-pocket',
+			x: 1_536,
+			y: 480,
+			width: 672,
+			height: 384,
 			encounterIds: ['meadow-slime-west'],
 			aggroRadius: 240,
 			leashRadius: 420
 		},
 		{
-			id: 'city-center-combat-pocket',
-			x: 4_640,
-			y: 4_928,
-			width: 704,
-			height: 448,
+			id: 'sundrop-plaza-combat-pocket',
+			x: 1_536,
+			y: 544,
+			width: 512,
+			height: 320,
 			encounterIds: ['meadow-slime-center'],
 			aggroRadius: 240,
 			leashRadius: 420
 		},
 		{
-			id: 'city-east-combat-pocket',
-			x: 5_520,
-			y: 2_080,
-			width: 640,
-			height: 512,
+			id: 'whispering-cave-combat-pocket',
+			x: 2_592,
+			y: 1_024,
+			width: 512,
+			height: 384,
 			encounterIds: ['meadow-slime-east'],
 			aggroRadius: 240,
 			leashRadius: 420
 		}
 	],
 	encounters: [
-		{ id: 'meadow-slime-west', x: 4_160, y: 3_520, enemyId: 'slime-scout' },
-		{ id: 'meadow-slime-center', x: 4_640, y: 4_928, enemyId: 'slime-scout' },
-		{ id: 'meadow-slime-east', x: 5_680, y: 2_080, enemyId: 'slime-scout' }
+		{ id: 'meadow-slime-west', x: 1_344, y: 480, enemyId: 'slime-scout' },
+		{ id: 'meadow-slime-center', x: 1_536, y: 544, enemyId: 'slime-scout' },
+		{ id: 'meadow-slime-east', x: 2_592, y: 1_024, enemyId: 'slime-scout' }
 	]
 });
 
@@ -955,7 +503,7 @@ export const heroHouseMap: WorldMapDefinition = {
 			id: 'hero-house-to-meadow',
 			...interiorDoor,
 			toMapId: openingMapId,
-			arrival: { x: 640, y: 5_248, facing: 'down' }
+			arrival: { x: 531, y: 1_688, facing: 'down' }
 		}
 	]
 };
@@ -971,7 +519,7 @@ export const guildHallMap: WorldMapDefinition = addEnglishMapText({
 			id: 'guild-hall-to-meadow',
 			...interiorDoor,
 			toMapId: openingMapId,
-			arrival: { x: 1_600, y: 4_432, facing: 'down' }
+			arrival: { x: 2_048, y: 1_728, facing: 'down' }
 		}
 	],
 	npcs: [
@@ -1008,7 +556,7 @@ export const itemShopMap: WorldMapDefinition = addEnglishMapText({
 			id: 'item-shop-to-meadow',
 			...interiorDoor,
 			toMapId: openingMapId,
-			arrival: { x: 2_240, y: 5_120, facing: 'down' }
+			arrival: { x: 2_138, y: 464, facing: 'down' }
 		}
 	],
 	npcs: [
@@ -1036,7 +584,7 @@ export const villagerHouse1Map: WorldMapDefinition = {
 			id: 'villager-house-1-to-meadow',
 			...interiorDoor,
 			toMapId: openingMapId,
-			arrival: { x: 960, y: 4_632, facing: 'down' }
+			arrival: { x: 333, y: 960, facing: 'down' }
 		}
 	]
 };
@@ -1052,7 +600,7 @@ export const villagerHouse2Map: WorldMapDefinition = {
 			id: 'villager-house-2-to-meadow',
 			...interiorDoor,
 			toMapId: openingMapId,
-			arrival: { x: 1_460, y: 5_592, facing: 'down' }
+			arrival: { x: 1_011, y: 464, facing: 'down' }
 		}
 	]
 };
@@ -1068,7 +616,7 @@ export const villagerHouse3Map: WorldMapDefinition = {
 			id: 'villager-house-3-to-meadow',
 			...interiorDoor,
 			toMapId: openingMapId,
-			arrival: { x: 2_800, y: 4_632, facing: 'down' }
+			arrival: { x: 2_592, y: 672, facing: 'down' }
 		}
 	]
 };
@@ -1087,7 +635,7 @@ export const ruinsThresholdMap: WorldMapDefinition = {
 			toMapId: openingMapId,
 			requiresClear: true,
 			marker: 'stair',
-			arrival: { x: 5_568, y: 960, facing: 'left' }
+			arrival: { x: 2_720, y: 1_344, facing: 'left' }
 		},
 		{
 			id: 'threshold-to-core',

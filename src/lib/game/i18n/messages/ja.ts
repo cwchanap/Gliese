@@ -13,8 +13,13 @@ export const ja = {
 		map: '地図',
 		areaMap: 'エリア地図',
 		areaMapDialog: '{{areaName}}の地図',
+		regionSubline: '緑の地方 / 3日目',
+		villageMap: '村の地図',
 		unexplored: '未探索',
 		currentPosition: '現在位置',
+		heroName: 'LIAM',
+		goldSuffix: 'G',
+		activeQuest: '進行中の依頼',
 		shop: '店',
 		inventory: '持ち物',
 		resumeSave: 'セーブ再開',
@@ -324,7 +329,11 @@ export const ja = {
 				'item-shop-exterior': { label: '道具屋' },
 				'villager-house-1-exterior': { label: '民家' },
 				'villager-house-2-exterior': { label: '民家' },
-				'villager-house-3-exterior': { label: '民家' }
+				'villager-house-3-exterior': { label: '民家' },
+				'sundrop-well': { label: 'サンドロップの井戸' },
+				'whispering-cave': { label: 'ささやきの洞窟' },
+				blacksmith: { label: '鍛冶屋' },
+				'shrine-of-aurora': { label: 'オーロラの社' }
 			},
 			npcs: {
 				'guild-master': { name: 'ギルドマスター・アーレン' },
@@ -332,7 +341,7 @@ export const ja = {
 				'shopkeeper-mira': { name: 'ミラ' }
 			},
 			areas: {
-				'meadow-entry': '草原の入り口',
+				'meadow-entry': 'サンドロップ草原',
 				'hero-house': '主人公の家',
 				'guild-hall': 'ギルドホール',
 				'item-shop': '道具屋',

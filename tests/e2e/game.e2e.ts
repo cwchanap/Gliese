@@ -38,17 +38,33 @@ test('game route boots', async ({ page }) => {
 	await expect(page.getByRole('button', { name: 'Menu' })).toBeVisible();
 
 	const viewport = page.viewportSize();
-	const statusPanel = page.getByRole('region', { name: 'Player status' });
-	const questTracker = page.getByRole('region', { name: 'Quest tracker' });
-	await expect(statusPanel).toBeVisible();
+	const locationPanel = page.getByTestId('hud-location-panel');
+	const minimap = page.getByTestId('hud-minimap');
+	const partyPanel = page.getByTestId('hud-party-panel');
+	const questTracker = page.getByTestId('hud-side-panel');
+	await expect(locationPanel).toBeVisible();
+	await expect(minimap).toBeVisible();
+	await expect(partyPanel).toBeVisible();
 	await expect(questTracker).toBeVisible();
 
-	const statusBox = await statusPanel.boundingBox();
+	const locationBox = await locationPanel.boundingBox();
+	const minimapBox = await minimap.boundingBox();
+	const partyBox = await partyPanel.boundingBox();
 	const questBox = await questTracker.boundingBox();
-	expect(statusBox?.x).toBeLessThan(40);
-	expect(statusBox?.y).toBeLessThan(40);
-	expect(questBox?.y).toBeLessThan(40);
+	expect(locationBox?.x).toBeLessThan(40);
+	expect(locationBox?.y).toBeLessThan(40);
+	expect(minimapBox?.y).toBeLessThan(40);
+	expect((minimapBox?.x ?? 0) + (minimapBox?.width ?? 0)).toBeGreaterThan(
+		(viewport?.width ?? 0) - 40
+	);
+	expect(partyBox?.x).toBeLessThan(40);
+	expect((partyBox?.y ?? 0) + (partyBox?.height ?? 0)).toBeGreaterThan(
+		(viewport?.height ?? 0) - 40
+	);
 	expect((questBox?.x ?? 0) + (questBox?.width ?? 0)).toBeGreaterThan((viewport?.width ?? 0) - 40);
+	expect((questBox?.y ?? 0) + (questBox?.height ?? 0)).toBeGreaterThan(
+		(viewport?.height ?? 0) - 40
+	);
 
 	await page.getByRole('button', { name: 'Menu' }).click();
 	await expect(commandBox(page)).toBeVisible();
@@ -65,28 +81,39 @@ test('mobile HUD stacks without overlapping controls', async ({ page }) => {
 
 	const viewport = page.viewportSize();
 	const menuButton = page.getByRole('button', { name: 'Menu' });
-	const statusPanel = page.getByRole('region', { name: 'Player status' });
-	const questTracker = page.getByRole('region', { name: 'Quest tracker' });
+	const locationPanel = page.getByTestId('hud-location-panel');
+	const minimap = page.getByTestId('hud-minimap');
+	const partyPanel = page.getByTestId('hud-party-panel');
+	const questTracker = page.getByTestId('hud-side-panel');
 	const fieldStatusMessage = fieldStatus(page);
 	await expect(menuButton).toBeVisible();
-	await expect(statusPanel).toBeVisible();
+	await expect(locationPanel).toBeVisible();
+	await expect(minimap).toBeVisible();
+	await expect(partyPanel).toBeVisible();
 	await expect(questTracker).toBeVisible();
 	await expect(fieldStatusMessage).toBeVisible();
 
 	const menuBox = await menuButton.boundingBox();
-	const statusBox = await statusPanel.boundingBox();
+	const locationBox = await locationPanel.boundingBox();
+	const minimapBox = await minimap.boundingBox();
+	const partyBox = await partyPanel.boundingBox();
 	const questBox = await questTracker.boundingBox();
 	const fieldStatusBox = await fieldStatusMessage.boundingBox();
 	expect(menuBox).not.toBeNull();
-	expect(statusBox).not.toBeNull();
+	expect(locationBox).not.toBeNull();
+	expect(minimapBox).not.toBeNull();
+	expect(partyBox).not.toBeNull();
 	expect(questBox).not.toBeNull();
 	expect(fieldStatusBox).not.toBeNull();
-	const statusRight = statusBox!.x + statusBox!.width;
-	const statusBottom = statusBox!.y + statusBox!.height;
+	const locationRight = locationBox!.x + locationBox!.width;
+	const minimapBottom = minimapBox!.y + minimapBox!.height;
+	const partyTop = partyBox!.y;
+	const questBottom = questBox!.y + questBox!.height;
 	const questRight = questBox!.x + questBox!.width;
 	const fieldStatusRight = fieldStatusBox!.x + fieldStatusBox!.width;
-	expect(statusRight).toBeLessThan(menuBox!.x - 8);
-	expect(questBox!.y).toBeGreaterThan(statusBottom + 8);
+	expect(locationRight).toBeLessThan(minimapBox!.x - 8);
+	expect(menuBox!.y).toBeGreaterThan(minimapBottom + 8);
+	expect(questBottom).toBeLessThan(partyTop - 8);
 	expect(questRight).toBeLessThanOrEqual((viewport?.width ?? 0) - 8);
 	expect(fieldStatusBox!.width).toBeLessThan((viewport?.width ?? 0) * 0.75);
 	expect(fieldStatusRight).toBeLessThanOrEqual((viewport?.width ?? 0) - 8);

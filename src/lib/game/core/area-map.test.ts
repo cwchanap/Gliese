@@ -15,7 +15,7 @@ describe('area map payload', () => {
 
 		expect(areaMap).toMatchObject<Partial<HudAreaMapState>>({
 			mapId: meadowEntryMap.id,
-			name: '草原の入り口',
+			name: 'サンドロップ草原',
 			worldWidth: meadowEntryMap.width * 32,
 			worldHeight: meadowEntryMap.height * 32,
 			player: meadowEntryMap.spawn,
@@ -26,47 +26,49 @@ describe('area map payload', () => {
 	it('includes current map dimensions, player position, and revealed cells', () => {
 		const areaMap = buildAreaMapState({
 			map: meadowEntryMap,
-			player: { x: 640, y: 5_200 },
-			revealedCells: ['5,39'],
+			player: { x: 1_536, y: 5_600 },
+			revealedCells: ['4,45'],
 			quests: createInitialQuestState(),
 			locale: 'en'
 		});
 
 		expect(areaMap).toMatchObject<Partial<HudAreaMapState>>({
 			mapId: 'meadow-entry',
-			name: 'Meadow Entry',
+			name: 'Sundrop Meadows',
 			worldWidth: meadowEntryMap.width * 32,
 			worldHeight: meadowEntryMap.height * 32,
-			player: { x: 640, y: 5_200 },
-			revealedCells: ['5,39']
+			player: { x: 1_536, y: 5_600 },
+			revealedCells: ['4,45']
 		});
 	});
 
 	it('adds only revealed landmark and exit markers', () => {
 		const areaMap = buildAreaMapState({
 			map: meadowEntryMap,
-			player: { x: 640, y: 5_200 },
-			revealedCells: ['5,39', '12,33', '45,7'],
+			player: { x: 1_536, y: 5_600 },
+			revealedCells: ['4,45', '16,45', '46,14'],
 			quests: createInitialQuestState(),
 			locale: 'en'
 		});
 
 		expect(areaMap.markers.map((marker) => marker.id)).toContain('hero-house-exterior');
 		expect(areaMap.markers.map((marker) => marker.id)).toContain('guild-hall-exterior');
-		expect(areaMap.markers.map((marker) => marker.id)).toContain('meadow-to-ruins-threshold');
+		expect(areaMap.markers.map((marker) => marker.id)).toContain(
+			'meadow-to-whispering-cave-ruins-threshold'
+		);
 		expect(areaMap.markers.map((marker) => marker.id)).not.toContain('item-shop-exterior');
 	});
 
 	it('uses current revealed cells to include the player but omit hidden markers', () => {
 		const areaMap = buildAreaMapState({
 			map: meadowEntryMap,
-			player: { x: 640, y: 5_200 },
-			revealedCells: ['5,39'],
+			player: { x: 1_536, y: 5_600 },
+			revealedCells: ['4,45'],
 			quests: createInitialQuestState(),
 			locale: 'en'
 		});
 
-		expect(areaMap.player).toEqual({ x: 640, y: 5_200 });
+		expect(areaMap.player).toEqual({ x: 1_536, y: 5_600 });
 		expect(areaMap.markers.map((marker) => marker.id)).toContain('hero-house-exterior');
 		expect(areaMap.markers.map((marker) => marker.id)).not.toContain('guild-hall-exterior');
 	});
@@ -74,8 +76,8 @@ describe('area map payload', () => {
 	it('localizes revealed building marker labels', () => {
 		const areaMap = buildAreaMapState({
 			map: meadowEntryMap,
-			player: { x: 640, y: 5_200 },
-			revealedCells: ['12,33'],
+			player: { x: 1_536, y: 5_600 },
+			revealedCells: ['16,45'],
 			quests: createInitialQuestState(),
 			locale: 'ja'
 		});
@@ -100,8 +102,8 @@ describe('area map payload', () => {
 		const quests = createInitialQuestState();
 		const areaMap = buildAreaMapState({
 			map: meadowEntryMap,
-			player: { x: 640, y: 5_200 },
-			revealedCells: ['12,33'],
+			player: { x: 1_536, y: 5_600 },
+			revealedCells: ['16,45'],
 			quests,
 			locale: 'en'
 		});
@@ -121,5 +123,30 @@ describe('area map payload', () => {
 			locale: 'en'
 		});
 		expect(hiddenAreaMap.markers.some((marker) => marker.kind === 'quest')).toBe(false);
+	});
+
+	it('marks the top-right cave exit for the defeat objective once that area is revealed', () => {
+		const quests = createInitialQuestState();
+		quests.entries[mainQuestId] = {
+			...quests.entries[mainQuestId]!,
+			currentObjectiveId: 'defeat-ruins-warden'
+		};
+
+		const areaMap = buildAreaMapState({
+			map: meadowEntryMap,
+			player: { x: 1_536, y: 5_600 },
+			revealedCells: ['46,14'],
+			quests,
+			locale: 'en'
+		});
+
+		expect(areaMap.markers).toContainEqual(
+			expect.objectContaining({
+				kind: 'quest',
+				id: `${mainQuestId}:defeat-ruins-warden:meadow-entry`,
+				x: 5_960,
+				y: 1_868
+			})
+		);
 	});
 });

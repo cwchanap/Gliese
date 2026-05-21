@@ -176,70 +176,70 @@ describe('opening map content', () => {
 		expect(modelTestMap.combatBounds?.[0].encounterIds).toEqual(['model-test-slime']);
 	});
 
-	it('declares a village spawn, peaceful building doors, city route combat pockets, and ruins exit', () => {
+	it('declares a bottom-left village spawn, peaceful building doors, forest combat pockets, and ruins exit', () => {
 		expect(meadowEntryMap.width).toBe(200);
 		expect(meadowEntryMap.height).toBe(200);
-		expect(meadowEntryMap.spawnDirection).toBe('down');
-		expect(meadowEntryMap.spawn).toEqual({ x: 640, y: 5_200 });
+		expect(meadowEntryMap.spawnDirection).toBe('up');
+		expect(meadowEntryMap.spawn).toEqual({ x: 1_536, y: 5_600 });
 		expect(meadowEntryMap.forestZone).toBeUndefined();
 		expect(meadowEntryMap.combatBounds?.map((bounds) => bounds.id)).toEqual([
-			'city-west-combat-pocket',
-			'city-center-combat-pocket',
-			'city-east-combat-pocket'
+			'wildwood-north-combat-pocket',
+			'wildwood-crossing-combat-pocket',
+			'whispering-cave-combat-pocket'
 		]);
 		expect(meadowEntryMap.transitions).toEqual([
 			{
 				id: 'meadow-to-hero-house',
-				x: 640,
-				y: 5_168,
+				x: 531,
+				y: 5_940,
 				toMapId: 'hero-house',
 				showMarker: false,
 				arrival: { x: 256, y: 224, facing: 'up' }
 			},
 			{
 				id: 'meadow-to-guild-hall',
-				x: 1_600,
-				y: 4_352,
+				x: 2_048,
+				y: 5_960,
 				toMapId: 'guild-hall',
 				showMarker: false,
 				arrival: { x: 256, y: 288, facing: 'up' }
 			},
 			{
 				id: 'meadow-to-item-shop',
-				x: 2_240,
-				y: 5_040,
+				x: 2_138,
+				y: 4_717,
 				toMapId: 'item-shop',
 				showMarker: false,
 				arrival: { x: 256, y: 288, facing: 'up' }
 			},
 			{
 				id: 'meadow-to-villager-house-1',
-				x: 960,
-				y: 4_552,
+				x: 333,
+				y: 5_222,
 				toMapId: 'villager-house-1',
 				showMarker: false,
 				arrival: { x: 256, y: 288, facing: 'up' }
 			},
 			{
 				id: 'meadow-to-villager-house-2',
-				x: 1_460,
-				y: 5_512,
+				x: 1_011,
+				y: 4_712,
 				toMapId: 'villager-house-2',
 				showMarker: false,
 				arrival: { x: 256, y: 288, facing: 'up' }
 			},
 			{
 				id: 'meadow-to-villager-house-3',
-				x: 2_800,
-				y: 4_552,
+				x: 2_592,
+				y: 4_912,
 				toMapId: 'villager-house-3',
 				showMarker: false,
 				arrival: { x: 256, y: 288, facing: 'up' }
 			},
 			{
-				id: 'meadow-to-ruins-threshold',
-				x: 5_760,
-				y: 960,
+				id: 'meadow-to-whispering-cave-ruins-threshold',
+				x: 5_960,
+				y: 1_868,
 				toMapId: 'ruins-threshold',
 				requiresClear: true,
 				marker: 'stair',
@@ -251,12 +251,14 @@ describe('opening map content', () => {
 			}
 		]);
 		expect(meadowEntryMap.encounters).toEqual([
-			{ id: 'meadow-slime-west', x: 4_160, y: 3_520, enemyId: 'slime-scout' },
-			{ id: 'meadow-slime-center', x: 4_640, y: 4_928, enemyId: 'slime-scout' },
-			{ id: 'meadow-slime-east', x: 5_680, y: 2_080, enemyId: 'slime-scout' }
+			{ id: 'meadow-slime-west', x: 4_928, y: 960, enemyId: 'slime-scout' },
+			{ id: 'meadow-slime-center', x: 5_360, y: 1_280, enemyId: 'slime-scout' },
+			{ id: 'meadow-slime-east', x: 5_920, y: 1_600, enemyId: 'slime-scout' }
 		]);
 		expect(
-			meadowEntryMap.transitions.find((transition) => transition.id === 'meadow-to-ruins-threshold')
+			meadowEntryMap.transitions.find((transition) =>
+				transition.id.includes('whispering-cave-ruins-threshold')
+			)
 		).toMatchObject({
 			toMapId: 'ruins-threshold',
 			requiresClear: true,
@@ -267,36 +269,30 @@ describe('opening map content', () => {
 		});
 		expect(
 			meadowEntryMap.transitions
-				.filter((transition) => transition.id !== 'meadow-to-ruins-threshold')
+				.filter((transition) => !transition.id.includes('whispering-cave-ruins-threshold'))
 				.every((transition) => transition.requiresClear !== true)
 		).toBe(true);
 	});
 
-	it('keeps the town district as narrow alleys instead of broad open roads', () => {
-		const townPatches = meadowEntryMap.groundPatches?.filter((patch) =>
-			patch.id.startsWith('village-')
-		);
-		const oversizedCourts = townPatches?.filter((patch) => patch.width > 448 && patch.height > 160);
-		const wideConnectors = townPatches?.filter(
-			(patch) => /lane|alley|neck/.test(patch.id) && Math.min(patch.width, patch.height) > 96
-		);
-
-		expect(oversizedCourts?.map((patch) => patch.id)).toEqual([]);
-		expect(wideConnectors?.map((patch) => patch.id)).toEqual([]);
+	it('keeps the bottom-left village readable with a central well and radial paths', () => {
 		expect(meadowEntryMap.groundPatches?.map((patch) => patch.id)).toEqual(
 			expect.arrayContaining([
-				'village-guild-door-pocket',
-				'village-market-west-bend',
-				'village-shop-door-pocket',
-				'village-east-gate-pinched-neck'
+				'sundrop-plaza-stone',
+				'sundrop-north-lane',
+				'sundrop-south-lane',
+				'sundrop-west-lane',
+				'sundrop-east-lane',
+				'sundrop-northwest-branch',
+				'sundrop-southeast-branch'
 			])
 		);
+		expect(meadowEntryMap.landmarks?.map((landmark) => landmark.id)).toContain('sundrop-well');
 		expect(meadowEntryMap.blockers?.map((blocker) => blocker.id)).toEqual(
 			expect.arrayContaining([
-				'village-guild-south-pincher',
-				'village-market-center-hedge',
-				'village-shop-west-pincher',
-				'village-east-gate-pinch-south'
+				'meadow-north-boundary',
+				'meadow-west-boundary',
+				'meadow-east-boundary',
+				'meadow-south-boundary'
 			])
 		);
 	});
@@ -314,11 +310,13 @@ describe('opening map content', () => {
 				x: 256,
 				y: 336,
 				toMapId: 'meadow-entry',
-				arrival: { x: 640, y: 5_248, facing: 'down' }
+				arrival: { x: 531, y: 6_040, facing: 'down' }
 			}
 		]);
 		expect(
-			meadowEntryMap.transitions.find((transition) => transition.id === 'meadow-to-ruins-threshold')
+			meadowEntryMap.transitions.find((transition) =>
+				transition.id.includes('whispering-cave-ruins-threshold')
+			)
 		).toMatchObject({
 			toMapId: 'ruins-threshold',
 			arrival: { x: 512, y: 3_200, facing: 'right' }
@@ -327,7 +325,7 @@ describe('opening map content', () => {
 			ruinsThresholdMap.transitions.find((transition) => transition.id === 'threshold-to-meadow')
 		).toMatchObject({
 			toMapId: 'meadow-entry',
-			arrival: { x: 5_568, y: 960, facing: 'left' }
+			arrival: { x: 5_760, y: 1_868, facing: 'left' }
 		});
 		expect(ruinsThresholdMap.transitions).toEqual([
 			{
@@ -337,7 +335,7 @@ describe('opening map content', () => {
 				toMapId: 'meadow-entry',
 				requiresClear: true,
 				marker: 'stair',
-				arrival: { x: 5_568, y: 960, facing: 'left' }
+				arrival: { x: 5_760, y: 1_868, facing: 'left' }
 			},
 			{
 				id: 'threshold-to-core',
@@ -725,8 +723,8 @@ describe('opening map content', () => {
 	});
 
 	it('returns from the ruins near the city stair and clear of meadow blockers', () => {
-		const cityToRuins = meadowEntryMap.transitions.find(
-			(transition) => transition.id === 'meadow-to-ruins-threshold'
+		const cityToRuins = meadowEntryMap.transitions.find((transition) =>
+			transition.id.includes('whispering-cave-ruins-threshold')
 		);
 		const ruinsToCity = ruinsThresholdMap.transitions.find(
 			(transition) => transition.id === 'threshold-to-meadow'
@@ -797,23 +795,23 @@ describe('opening map content', () => {
 		}
 	});
 
-	it('declares exact exterior return arrivals for compact village interiors', () => {
-		expect(heroHouseMap.transitions[0].arrival).toEqual({ x: 640, y: 5_248, facing: 'down' });
-		expect(guildHallMap.transitions[0].arrival).toEqual({ x: 1_600, y: 4_432, facing: 'down' });
-		expect(itemShopMap.transitions[0].arrival).toEqual({ x: 2_240, y: 5_120, facing: 'down' });
+	it('declares exact exterior return arrivals for bottom-left village interiors', () => {
+		expect(heroHouseMap.transitions[0].arrival).toEqual({ x: 531, y: 6_040, facing: 'down' });
+		expect(guildHallMap.transitions[0].arrival).toEqual({ x: 2_048, y: 6_080, facing: 'down' });
+		expect(itemShopMap.transitions[0].arrival).toEqual({ x: 2_138, y: 4_816, facing: 'down' });
 		expect(villagerHouse1Map.transitions[0].arrival).toEqual({
-			x: 960,
-			y: 4_632,
+			x: 333,
+			y: 5_312,
 			facing: 'down'
 		});
 		expect(villagerHouse2Map.transitions[0].arrival).toEqual({
-			x: 1_460,
-			y: 5_592,
+			x: 1_011,
+			y: 4_816,
 			facing: 'down'
 		});
 		expect(villagerHouse3Map.transitions[0].arrival).toEqual({
-			x: 2_800,
-			y: 4_632,
+			x: 2_592,
+			y: 5_024,
 			facing: 'down'
 		});
 	});
@@ -883,51 +881,83 @@ describe('opening map content', () => {
 		expect(meadowEntryMap.landmarks).toMatchObject([
 			{
 				id: 'hero-house-exterior',
-				x: 640,
-				y: 5_088,
-				width: 192,
-				height: 174,
+				x: 531,
+				y: 5_850,
+				width: 294,
+				height: 307,
 				labelKey: 'content.maps.landmarks.hero-house-exterior.label'
 			},
 			{
 				id: 'guild-hall-exterior',
-				x: 1_600,
-				y: 4_256,
-				width: 256,
-				height: 228,
+				x: 2_048,
+				y: 5_869,
+				width: 384,
+				height: 346,
 				labelKey: 'content.maps.landmarks.guild-hall-exterior.label'
 			},
 			{
 				id: 'item-shop-exterior',
-				x: 2_240,
-				y: 4_960,
-				width: 192,
-				height: 200,
+				x: 2_138,
+				y: 4_634,
+				width: 307,
+				height: 294,
 				labelKey: 'content.maps.landmarks.item-shop-exterior.label'
 			},
 			{
 				id: 'villager-house-1-exterior',
-				x: 960,
-				y: 4_480,
-				width: 160,
-				height: 178,
+				x: 333,
+				y: 5_152,
+				width: 282,
+				height: 256,
 				labelKey: 'content.maps.landmarks.villager-house-1-exterior.label'
 			},
 			{
 				id: 'villager-house-2-exterior',
-				x: 1_460,
-				y: 5_440,
-				width: 160,
-				height: 178,
+				x: 1_011,
+				y: 4_618,
+				width: 422,
+				height: 326,
 				labelKey: 'content.maps.landmarks.villager-house-2-exterior.label'
 			},
 			{
 				id: 'villager-house-3-exterior',
-				x: 2_800,
-				y: 4_480,
-				width: 160,
-				height: 178,
+				x: 2_592,
+				y: 4_778,
+				width: 230,
+				height: 416,
 				labelKey: 'content.maps.landmarks.villager-house-3-exterior.label'
+			},
+			{
+				id: 'sundrop-well',
+				x: 1_536,
+				y: 5_341,
+				width: 141,
+				height: 160,
+				labelKey: 'content.maps.landmarks.sundrop-well.label'
+			},
+			{
+				id: 'whispering-cave',
+				x: 5_960,
+				y: 1_800,
+				width: 256,
+				height: 224,
+				labelKey: 'content.maps.landmarks.whispering-cave.label'
+			},
+			{
+				id: 'blacksmith',
+				x: 595,
+				y: 4_877,
+				width: 294,
+				height: 282,
+				labelKey: 'content.maps.landmarks.blacksmith.label'
+			},
+			{
+				id: 'shrine-of-aurora',
+				x: 1_050,
+				y: 5_872,
+				width: 307,
+				height: 416,
+				labelKey: 'content.maps.landmarks.shrine-of-aurora.label'
 			}
 		]);
 
@@ -942,12 +972,35 @@ describe('opening map content', () => {
 		}
 	});
 
-	it('folds meadow combat into city route pockets instead of a separate forest arena', () => {
+	it('keeps the village cluster in the bottom-left corner and the slime forest in the top-right corner', () => {
+		const villageLandmarks = (meadowEntryMap.landmarks ?? []).filter(
+			(landmark) => landmark.id !== 'whispering-cave'
+		);
+		for (const landmark of villageLandmarks) {
+			expect(landmark.x + landmark.width / 2).toBeLessThanOrEqual(3_072);
+			expect(landmark.y - landmark.height / 2).toBeGreaterThanOrEqual(4_352);
+		}
+
+		const cave = meadowEntryMap.landmarks?.find((landmark) => landmark.id === 'whispering-cave');
+		expect(cave).toMatchObject({ x: 5_960, y: 1_800 });
+
+		for (const combatBounds of meadowEntryMap.combatBounds ?? []) {
+			expect(combatBounds.x - combatBounds.width / 2).toBeGreaterThanOrEqual(4_784);
+			expect(combatBounds.y + combatBounds.height / 2).toBeLessThanOrEqual(1_792);
+		}
+
+		for (const decor of meadowEntryMap.forestDecor ?? []) {
+			expect(decor.x - decor.width / 2).toBeGreaterThanOrEqual(4_880);
+			expect(decor.y + decor.height / 2).toBeLessThanOrEqual(1_470);
+		}
+	});
+
+	it('keeps meadow combat in the top-right forest pockets instead of a separate forest arena', () => {
 		expect(meadowEntryMap.forestZone).toBeUndefined();
 		expect(meadowEntryMap.encounters).toEqual([
-			{ id: 'meadow-slime-west', x: 4_160, y: 3_520, enemyId: 'slime-scout' },
-			{ id: 'meadow-slime-center', x: 4_640, y: 4_928, enemyId: 'slime-scout' },
-			{ id: 'meadow-slime-east', x: 5_680, y: 2_080, enemyId: 'slime-scout' }
+			{ id: 'meadow-slime-west', x: 4_928, y: 960, enemyId: 'slime-scout' },
+			{ id: 'meadow-slime-center', x: 5_360, y: 1_280, enemyId: 'slime-scout' },
+			{ id: 'meadow-slime-east', x: 5_920, y: 1_600, enemyId: 'slime-scout' }
 		]);
 
 		const encountersById = new Map(
@@ -972,520 +1025,160 @@ describe('opening map content', () => {
 		}
 	});
 
-	it('defines city route ground patches, blockers, fences, and forest dressing inside the meadow map bounds', () => {
-		const firstOutskirtsPatchIndex =
-			meadowEntryMap.groundPatches?.findIndex((patch) => patch.id === 'outskirts-split-trail') ??
-			-1;
-
-		expect(firstOutskirtsPatchIndex).toBeGreaterThanOrEqual(0);
-		expect(meadowEntryMap.groundPatches?.slice(firstOutskirtsPatchIndex)).toEqual([
+	it('defines bottom-left village paths, top-right forest paths, blockers, fences, and forest dressing inside the meadow map bounds', () => {
+		expect(meadowEntryMap.groundPatches).toEqual([
 			{
-				id: 'outskirts-split-trail',
-				x: 3_700,
-				y: 4_320,
-				width: 128,
-				height: 1_280,
+				id: 'sundrop-plaza-stone',
+				x: 1_536,
+				y: 5_344,
+				width: 672,
+				height: 512,
+				tile: 'ruinsFloorTile'
+			},
+			{ id: 'sundrop-north-lane', x: 1_536, y: 4_800, width: 64, height: 640, tile: 'pathTile' },
+			{ id: 'sundrop-south-lane', x: 1_536, y: 5_818, width: 64, height: 448, tile: 'pathTile' },
+			{ id: 'sundrop-west-lane', x: 720, y: 5_347, width: 992, height: 70, tile: 'pathTile' },
+			{ id: 'sundrop-east-lane', x: 2_336, y: 5_347, width: 960, height: 70, tile: 'pathTile' },
+			{ id: 'sundrop-northwest-branch', x: 896, y: 4_797, width: 384, height: 58, tile: 'pathTile' },
+			{
+				id: 'sundrop-northeast-branch',
+				x: 2_176,
+				y: 4_797,
+				width: 384,
+				height: 58,
 				tile: 'pathTile'
 			},
 			{
-				id: 'outskirts-north-brush-lane',
-				x: 4_300,
-				y: 3_760,
-				width: 1_320,
-				height: 128,
+				id: 'sundrop-southwest-branch',
+				x: 896,
+				y: 5_853,
+				width: 384,
+				height: 58,
 				tile: 'pathTile'
 			},
 			{
-				id: 'outskirts-north-combat-pocket',
-				x: 4_160,
-				y: 3_520,
-				width: 704,
-				height: 448,
+				id: 'sundrop-southeast-branch',
+				x: 2_176,
+				y: 5_853,
+				width: 384,
+				height: 58,
+				tile: 'pathTile'
+			},
+			{ id: 'sundrop-home-pocket', x: 531, y: 6_002, width: 384, height: 96, tile: 'pathTile' },
+			{
+				id: 'sundrop-forest-road-east',
+				x: 4_200,
+				y: 5_347,
+				width: 2_800,
+				height: 70,
 				tile: 'pathTile'
 			},
 			{
-				id: 'outskirts-overlook-dead-end',
-				x: 5_040,
-				y: 3_440,
-				width: 800,
-				height: 128,
+				id: 'sundrop-forest-road-north',
+				x: 5_600,
+				y: 3_200,
+				width: 70,
+				height: 4_300,
 				tile: 'pathTile'
 			},
 			{
-				id: 'outskirts-south-brush-lane',
-				x: 4_520,
-				y: 4_720,
-				width: 1_640,
-				height: 128,
+				id: 'wildwood-north-combat-pocket',
+				x: 5_120,
+				y: 960,
+				width: 672,
+				height: 384,
 				tile: 'pathTile'
 			},
 			{
-				id: 'outskirts-south-combat-pocket',
-				x: 4_640,
-				y: 4_928,
-				width: 704,
-				height: 448,
-				tile: 'pathTile'
-			},
-			{
-				id: 'outskirts-center-cross-trail',
-				x: 5_040,
-				y: 4_240,
-				width: 128,
-				height: 1_088,
-				tile: 'pathTile'
-			},
-			{
-				id: 'outskirts-rejoin-clearing',
+				id: 'wildwood-crossing-combat-pocket',
 				x: 5_360,
-				y: 4_240,
-				width: 576,
+				y: 1_280,
+				width: 512,
 				height: 320,
 				tile: 'pathTile'
 			},
 			{
-				id: 'ruins-approach-lower-run',
-				x: 5_520,
-				y: 3_360,
-				width: 128,
-				height: 1_920,
+				id: 'whispering-cave-combat-pocket',
+				x: 5_920,
+				y: 1_600,
+				width: 512,
+				height: 384,
 				tile: 'pathTile'
 			},
 			{
-				id: 'ruins-east-combat-pocket',
-				x: 5_520,
-				y: 2_080,
-				width: 640,
-				height: 512,
+				id: 'wildwood-cave-branch',
+				x: 5_880,
+				y: 1_600,
+				width: 520,
+				height: 70,
 				tile: 'pathTile'
 			},
 			{
-				id: 'ruins-final-bend',
-				x: 5_760,
-				y: 2_400,
-				width: 608,
-				height: 128,
-				tile: 'pathTile'
-			},
-			{
-				id: 'ruins-final-stair-run',
-				x: 5_760,
-				y: 1_520,
-				width: 128,
-				height: 1_888,
+				id: 'sundrop-cave-pocket',
+				x: 5_960,
+				y: 1_896,
+				width: 288,
+				height: 96,
 				tile: 'pathTile'
 			}
 		]);
-		expect(meadowEntryMap.groundPatches).toHaveLength(34);
 		expect(meadowEntryMap.blockers).toEqual([
 			{
-				id: 'city-west-district-wall',
-				x: 320,
-				y: 4_960,
-				width: 64,
-				height: 1_600,
-				kind: 'town-hedge'
-			},
-			{
-				id: 'city-south-district-wall',
-				x: 1_600,
-				y: 5_872,
-				width: 2_560,
-				height: 64,
-				kind: 'town-hedge'
-			},
-			{
-				id: 'city-north-district-wall',
-				x: 1_600,
-				y: 3_936,
-				width: 2_560,
-				height: 64,
-				kind: 'town-hedge'
-			},
-			{
-				id: 'village-home-yard-west-hedge',
-				x: 416,
-				y: 5_200,
-				width: 48,
-				height: 448,
-				kind: 'town-hedge'
-			},
-			{
-				id: 'village-home-yard-east-hedge',
-				x: 896,
-				y: 5_280,
-				width: 48,
-				height: 320,
-				kind: 'town-hedge'
-			},
-			{
-				id: 'village-home-yard-north-left-hedge',
-				x: 480,
-				y: 4_960,
-				width: 160,
-				height: 48,
-				kind: 'town-hedge'
-			},
-			{
-				id: 'village-home-yard-north-right-hedge',
-				x: 800,
-				y: 4_960,
-				width: 160,
-				height: 48,
-				kind: 'town-hedge'
-			},
-			{
-				id: 'village-guild-court-west-wall',
-				x: 1_280,
-				y: 4_352,
-				width: 48,
-				height: 352,
-				kind: 'city-wall'
-			},
-			{
-				id: 'village-guild-court-east-wall',
-				x: 1_920,
-				y: 4_352,
-				width: 48,
-				height: 352,
-				kind: 'city-wall'
-			},
-			{
-				id: 'village-guild-south-pincher',
-				x: 1_600,
-				y: 4_592,
-				width: 224,
-				height: 48,
-				kind: 'town-hedge'
-			},
-			{
-				id: 'village-central-yard-west-hedge',
-				x: 1_280,
-				y: 4_880,
-				width: 48,
-				height: 352,
-				kind: 'town-hedge'
-			},
-			{
-				id: 'village-central-yard-east-hedge',
-				x: 1_920,
-				y: 4_880,
-				width: 48,
-				height: 352,
-				kind: 'town-hedge'
-			},
-			{
-				id: 'village-market-center-hedge',
-				x: 1_600,
-				y: 4_992,
-				width: 288,
-				height: 48,
-				kind: 'town-hedge'
-			},
-			{
-				id: 'village-market-west-pinch-hedge',
-				x: 1_056,
-				y: 4_976,
-				width: 48,
-				height: 192,
-				kind: 'town-hedge'
-			},
-			{
-				id: 'village-central-yard-south-hedge',
-				x: 1_600,
-				y: 5_312,
-				width: 640,
-				height: 48,
-				kind: 'town-hedge'
-			},
-			{
-				id: 'village-shop-yard-north-wall',
-				x: 2_200,
-				y: 4_864,
-				width: 400,
-				height: 48,
-				kind: 'city-wall'
-			},
-			{
-				id: 'village-shop-west-pincher',
-				x: 2_016,
-				y: 5_040,
-				width: 48,
-				height: 224,
-				kind: 'town-hedge'
-			},
-			{
-				id: 'village-shop-yard-east-hedge',
-				x: 2_560,
-				y: 5_120,
-				width: 48,
-				height: 384,
-				kind: 'town-hedge'
-			},
-			{
-				id: 'village-shop-south-pincher',
-				x: 2_400,
-				y: 5_344,
-				width: 48,
-				height: 192,
-				kind: 'city-wall'
-			},
-			{
-				id: 'village-villager1-yard-south-hedge',
-				x: 960,
-				y: 4_800,
-				width: 384,
-				height: 48,
-				kind: 'town-hedge'
-			},
-			{
-				id: 'village-villager3-yard-south-hedge',
-				x: 2_800,
-				y: 4_800,
-				width: 448,
-				height: 48,
-				kind: 'town-hedge'
-			},
-			{
-				id: 'village-villager2-yard-north-hedge',
-				x: 1_460,
-				y: 5_328,
-				width: 352,
-				height: 48,
-				kind: 'town-hedge'
-			},
-			{
-				id: 'village-villager2-yard-west-hedge',
-				x: 1_216,
-				y: 5_664,
-				width: 48,
-				height: 192,
-				kind: 'town-hedge'
-			},
-			{
-				id: 'village-villager2-yard-east-wall',
-				x: 1_704,
-				y: 5_664,
-				width: 48,
-				height: 192,
-				kind: 'city-wall'
-			},
-			{
-				id: 'village-east-gate-north-wall',
+				id: 'meadow-north-boundary',
 				x: 3_200,
-				y: 4_720,
-				width: 560,
+				y: 32,
+				width: 6_400,
 				height: 64,
-				kind: 'city-wall'
-			},
-			{
-				id: 'village-east-gate-pinch-north',
-				x: 3_184,
-				y: 4_800,
-				width: 224,
-				height: 48,
 				kind: 'town-hedge'
 			},
 			{
-				id: 'village-east-gate-pinch-south',
-				x: 3_184,
-				y: 5_056,
-				width: 224,
-				height: 48,
-				kind: 'town-hedge'
-			},
-			{
-				id: 'village-east-gate-south-wall',
+				id: 'meadow-south-boundary',
 				x: 3_200,
-				y: 5_152,
-				width: 560,
+				y: 6_368,
+				width: 6_400,
 				height: 64,
-				kind: 'city-wall'
+				kind: 'town-hedge'
 			},
 			{
-				id: 'outskirts-north-tree-line',
-				x: 4_480,
+				id: 'meadow-west-boundary',
+				x: 32,
 				y: 3_200,
-				width: 2_200,
-				height: 96,
-				kind: 'town-hedge'
-			},
-			{
-				id: 'outskirts-south-tree-line',
-				x: 4_480,
-				y: 5_248,
-				width: 2_200,
-				height: 96,
-				kind: 'town-hedge'
-			},
-			{
-				id: 'outskirts-split-west-brush-wall',
-				x: 3_440,
-				y: 4_320,
-				width: 96,
-				height: 1_320,
-				kind: 'town-hedge'
-			},
-			{
-				id: 'outskirts-north-lane-south-hedge',
-				x: 4_400,
-				y: 3_952,
-				width: 1_200,
-				height: 64,
-				kind: 'town-hedge'
-			},
-			{
-				id: 'outskirts-south-lane-north-hedge',
-				x: 4_520,
-				y: 4_528,
-				width: 1_400,
-				height: 64,
-				kind: 'town-hedge'
-			},
-			{
-				id: 'outskirts-north-pocket-north-wall',
-				x: 4_160,
-				y: 3_232,
-				width: 704,
-				height: 64,
-				kind: 'town-hedge'
-			},
-			{
-				id: 'outskirts-north-pocket-east-wall',
-				x: 4_544,
-				y: 3_520,
 				width: 64,
-				height: 448,
+				height: 6_400,
 				kind: 'town-hedge'
 			},
 			{
-				id: 'outskirts-south-pocket-south-wall',
-				x: 4_640,
-				y: 5_216,
-				width: 704,
-				height: 64,
-				kind: 'town-hedge'
-			},
-			{
-				id: 'outskirts-south-pocket-east-wall',
-				x: 5_024,
-				y: 4_928,
+				id: 'meadow-east-boundary',
+				x: 6_368,
+				y: 3_200,
 				width: 64,
-				height: 448,
+				height: 6_400,
 				kind: 'town-hedge'
-			},
-			{
-				id: 'outskirts-rejoin-north-wall',
-				x: 5_360,
-				y: 3_920,
-				width: 640,
-				height: 64,
-				kind: 'town-hedge'
-			},
-			{
-				id: 'outskirts-rejoin-south-wall',
-				x: 5_360,
-				y: 4_560,
-				width: 640,
-				height: 64,
-				kind: 'town-hedge'
-			},
-			{
-				id: 'ruins-approach-west-wall',
-				x: 5_360,
-				y: 3_360,
-				width: 96,
-				height: 1_920,
-				kind: 'city-wall'
-			},
-			{
-				id: 'ruins-approach-east-wall',
-				x: 5_680,
-				y: 3_360,
-				width: 96,
-				height: 1_920,
-				kind: 'city-wall'
-			},
-			{
-				id: 'ruins-final-west-wall',
-				x: 5_488,
-				y: 1_520,
-				width: 96,
-				height: 1_648,
-				kind: 'city-wall'
-			},
-			{
-				id: 'ruins-final-east-wall',
-				x: 6_032,
-				y: 1_520,
-				width: 96,
-				height: 1_648,
-				kind: 'city-wall'
 			}
 		]);
 		expect(meadowEntryMap.fences).toEqual([
-			{ id: 'village-home-fence-south-west', x: 520, y: 5_680, width: 240, height: 32 },
-			{ id: 'village-home-fence-south-east', x: 800, y: 5_680, width: 240, height: 32 },
-			{ id: 'village-guild-fence-north-west', x: 1_380, y: 4_160, width: 360, height: 32 },
-			{ id: 'village-guild-fence-north-east', x: 1_820, y: 4_160, width: 360, height: 32 },
-			{ id: 'village-shop-fence-south', x: 2_480, y: 5_344, width: 160, height: 32 },
-			{ id: 'village-villager1-fence-west', x: 704, y: 4_624, width: 32, height: 256 },
-			{ id: 'village-villager3-fence-east', x: 3_072, y: 4_624, width: 32, height: 256 },
-			{ id: 'village-villager2-fence-south', x: 1_460, y: 5_744, width: 448, height: 32 },
-			{ id: 'village-east-gate-fence-north', x: 3_024, y: 4_768, width: 320, height: 32 },
-			{ id: 'village-east-gate-fence-south', x: 3_024, y: 5_088, width: 320, height: 32 }
+			{ id: 'sundrop-home-fence', x: 531, y: 6_072, width: 384, height: 32 },
+			{ id: 'sundrop-plaza-west-fence', x: 1_120, y: 5_536, width: 32, height: 288 },
+			{ id: 'sundrop-plaza-east-fence', x: 1_952, y: 5_536, width: 32, height: 288 }
 		]);
 		expect(meadowEntryMap.forestDecor).toEqual([
 			{
-				id: 'outskirts-tree-line-north',
-				x: 4_480,
-				y: 3_040,
-				width: 2_200,
-				height: 160,
-				frameName: 'treeCluster'
-			},
-			{
-				id: 'outskirts-tree-line-south',
-				x: 4_480,
-				y: 5_408,
-				width: 2_200,
-				height: 160,
-				frameName: 'treeCluster'
-			},
-			{
-				id: 'outskirts-brush-north-pocket',
-				x: 4_160,
-				y: 3_520,
-				width: 640,
-				height: 256,
-				frameName: 'brush'
-			},
-			{
-				id: 'outskirts-brush-south-pocket',
-				x: 4_640,
-				y: 4_928,
-				width: 640,
-				height: 256,
-				frameName: 'brush'
-			},
-			{
-				id: 'outskirts-brush-rejoin',
+				id: 'wildwood-north-canopy',
 				x: 5_360,
-				y: 4_240,
-				width: 480,
-				height: 256,
-				frameName: 'brush'
+				y: 360,
+				width: 960,
+				height: 160,
+				frameName: 'treeCluster'
 			},
 			{
-				id: 'ruins-approach-brush',
-				x: 5_520,
-				y: 3_000,
-				width: 256,
+				id: 'wildwood-east-canopy',
+				x: 6_120,
+				y: 1_020,
+				width: 160,
 				height: 900,
-				frameName: 'brush'
+				frameName: 'treeCluster'
 			}
 		]);
-		expect([...(meadowEntryMap.blockers ?? []), ...(meadowEntryMap.fences ?? [])]).toHaveLength(53);
 
 		const ids = [
 			...(meadowEntryMap.groundPatches ?? []).map((patch) => patch.id),
@@ -1495,20 +1188,13 @@ describe('opening map content', () => {
 		];
 		expect(new Set(ids).size).toBe(ids.length);
 
-		for (const patch of meadowEntryMap.groundPatches ?? []) {
-			expectRectInsideMap(patch);
-		}
-
-		for (const blocker of meadowEntryMap.blockers ?? []) {
-			expectRectInsideMap(blocker);
-		}
-
-		for (const fence of meadowEntryMap.fences ?? []) {
-			expectRectInsideMap(fence);
-		}
-
-		for (const decor of meadowEntryMap.forestDecor ?? []) {
-			expectRectInsideMap(decor);
+		for (const rect of [
+			...(meadowEntryMap.groundPatches ?? []),
+			...(meadowEntryMap.blockers ?? []),
+			...(meadowEntryMap.fences ?? []),
+			...(meadowEntryMap.forestDecor ?? [])
+		]) {
+			expectRectInsideMap(rect);
 		}
 	});
 

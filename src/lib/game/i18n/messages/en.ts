@@ -10,8 +10,13 @@ export const en = {
 		map: 'Map',
 		areaMap: 'Area Map',
 		areaMapDialog: '{{areaName}} map',
+		regionSubline: 'Verdant Region / Day 03',
+		villageMap: 'Village Map',
 		unexplored: 'Unexplored',
 		currentPosition: 'Current position',
+		heroName: 'LIAM',
+		goldSuffix: 'G',
+		activeQuest: 'Active Quest',
 		shop: 'Shop',
 		inventory: 'Inventory',
 		resumeSave: 'Resume Save',
@@ -325,7 +330,11 @@ export const en = {
 				'item-shop-exterior': { label: 'Item Shop' },
 				'villager-house-1-exterior': { label: 'Villager Home' },
 				'villager-house-2-exterior': { label: 'Villager Home' },
-				'villager-house-3-exterior': { label: 'Villager Home' }
+				'villager-house-3-exterior': { label: 'Villager Home' },
+				'sundrop-well': { label: 'Sundrop Well' },
+				'whispering-cave': { label: 'Whispering Cave' },
+				blacksmith: { label: 'Blacksmith' },
+				'shrine-of-aurora': { label: 'Shrine of Aurora' }
 			},
 			npcs: {
 				'guild-master': { name: 'Guild Master Arlen' },
@@ -333,7 +342,7 @@ export const en = {
 				'shopkeeper-mira': { name: 'Mira' }
 			},
 			areas: {
-				'meadow-entry': 'Meadow Entry',
+				'meadow-entry': 'Sundrop Meadows',
 				'hero-house': "Hero's House",
 				'guild-hall': 'Guild Hall',
 				'item-shop': 'Item Shop',
