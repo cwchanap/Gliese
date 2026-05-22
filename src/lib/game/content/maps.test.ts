@@ -180,7 +180,7 @@ describe('opening map content', () => {
 		expect(meadowEntryMap.width).toBe(200);
 		expect(meadowEntryMap.height).toBe(200);
 		expect(meadowEntryMap.spawnDirection).toBe('up');
-		expect(meadowEntryMap.spawn).toEqual({ x: 1_536, y: 5_600 });
+		expect(meadowEntryMap.spawn).toEqual({ x: 1_536, y: 5_550 });
 		expect(meadowEntryMap.forestZone).toBeUndefined();
 		expect(meadowEntryMap.combatBounds?.map((bounds) => bounds.id)).toEqual([
 			'wildwood-north-combat-pocket',
@@ -1039,7 +1039,14 @@ describe('opening map content', () => {
 			{ id: 'sundrop-south-lane', x: 1_536, y: 5_818, width: 64, height: 448, tile: 'pathTile' },
 			{ id: 'sundrop-west-lane', x: 720, y: 5_347, width: 992, height: 70, tile: 'pathTile' },
 			{ id: 'sundrop-east-lane', x: 2_336, y: 5_347, width: 960, height: 70, tile: 'pathTile' },
-			{ id: 'sundrop-northwest-branch', x: 896, y: 4_797, width: 384, height: 58, tile: 'pathTile' },
+			{
+				id: 'sundrop-northwest-branch',
+				x: 896,
+				y: 4_797,
+				width: 384,
+				height: 58,
+				tile: 'pathTile'
+			},
 			{
 				id: 'sundrop-northeast-branch',
 				x: 2_176,
@@ -1154,6 +1161,14 @@ describe('opening map content', () => {
 				width: 64,
 				height: 6_400,
 				kind: 'town-hedge'
+			},
+			{
+				id: 'sundrop-southwest-ocean',
+				x: 114,
+				y: 6_311,
+				width: 100,
+				height: 50,
+				kind: 'ocean'
 			}
 		]);
 		expect(meadowEntryMap.fences).toEqual([

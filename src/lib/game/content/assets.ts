@@ -26,12 +26,16 @@ export const villageBuildingAsset = {
 	path: '/game/assets/village-buildings.png',
 	cellWidth: 627,
 	cellHeight: 627,
-	columns: 2,
+	columns: 4,
 	frames: {
 		heroHouse: { x: 118, y: 116, w: 407, h: 437 },
 		guildHall: { x: 627, y: 96, w: 563, h: 499 },
 		itemShop: { x: 114, y: 668, w: 430, h: 445 },
-		villagerHouse: { x: 688, y: 675, w: 403, h: 449 }
+		villagerHouse: { x: 688, y: 675, w: 403, h: 449 },
+		blacksmith: { x: 1_254, y: 0, w: 627, h: 627 },
+		shrineOfAurora: { x: 1_881, y: 0, w: 627, h: 627 },
+		whisperingCave: { x: 1_254, y: 627, w: 627, h: 627 },
+		sundropWell: { x: 1_881, y: 627, w: 627, h: 627 }
 	}
 } as const;
 
@@ -94,7 +98,11 @@ const villageLandmarkFrames: Record<string, VillageBuildingFrameName> = {
 	'item-shop-exterior': 'itemShop',
 	'villager-house-1-exterior': 'villagerHouse',
 	'villager-house-2-exterior': 'villagerHouse',
-	'villager-house-3-exterior': 'villagerHouse'
+	'villager-house-3-exterior': 'villagerHouse',
+	blacksmith: 'blacksmith',
+	'shrine-of-aurora': 'shrineOfAurora',
+	'whispering-cave': 'whisperingCave',
+	'sundrop-well': 'sundropWell'
 };
 
 export function getVillageBuildingFrameName(

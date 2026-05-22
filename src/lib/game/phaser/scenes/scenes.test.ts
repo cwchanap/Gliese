@@ -800,6 +800,21 @@ describe('WorldScene', () => {
 		expect(phaserState.playerMarker.y).toBe(96);
 	});
 
+	it('renders and blocks the bottom-left meadow ocean patch', async () => {
+		const { WorldScene } = await import('./WorldScene');
+		const scene = new WorldScene();
+
+		scene.create({ mapId: 'meadow-entry' });
+		Object.assign(phaserState.playerMarker, { x: 114, y: 6_260 });
+		phaserState.cursorKeys.down.isDown = true;
+
+		scene.update(0, 250);
+
+		expect(scene.add.rectangle).toHaveBeenCalledWith(114, 6_311, 100, 50, 0x1d5f9f, 0.92);
+		expect(phaserState.playerMarker.x).toBe(114);
+		expect(phaserState.playerMarker.y).toBe(6_260);
+	});
+
 	it('registers and renders environment blocker and stair art', async () => {
 		const { environmentDressingAsset, forestDressingAsset } =
 			await import('$lib/game/content/assets');
@@ -898,9 +913,37 @@ describe('WorldScene', () => {
 		expect(scene.add.image).toHaveBeenCalledWith(2_048, 5_869, 'village-buildings', 'guildHall');
 		expect(scene.add.image).toHaveBeenCalledWith(2_138, 4_634, 'village-buildings', 'itemShop');
 		expect(scene.add.image).toHaveBeenCalledWith(333, 5_152, 'village-buildings', 'villagerHouse');
-		expect(scene.add.image).toHaveBeenCalledWith(1_011, 4_618, 'village-buildings', 'villagerHouse');
-		expect(scene.add.image).toHaveBeenCalledWith(2_592, 4_778, 'village-buildings', 'villagerHouse');
+		expect(scene.add.image).toHaveBeenCalledWith(
+			1_011,
+			4_618,
+			'village-buildings',
+			'villagerHouse'
+		);
+		expect(scene.add.image).toHaveBeenCalledWith(
+			2_592,
+			4_778,
+			'village-buildings',
+			'villagerHouse'
+		);
+		expect(scene.add.image).toHaveBeenCalledWith(595, 4_877, 'village-buildings', 'blacksmith');
+		expect(scene.add.image).toHaveBeenCalledWith(
+			1_050,
+			5_872,
+			'village-buildings',
+			'shrineOfAurora'
+		);
+		expect(scene.add.image).toHaveBeenCalledWith(
+			5_960,
+			1_800,
+			'village-buildings',
+			'whisperingCave'
+		);
+		expect(scene.add.image).toHaveBeenCalledWith(1_536, 5_341, 'village-buildings', 'sundropWell');
 		expect(scene.add.rectangle).not.toHaveBeenCalledWith(531, 5_850, 294, 307, 0x5b4636, 0.9);
+		expect(scene.add.rectangle).not.toHaveBeenCalledWith(595, 4_877, 294, 282, 0x5b4636, 0.9);
+		expect(scene.add.rectangle).not.toHaveBeenCalledWith(1_050, 5_872, 307, 416, 0x5b4636, 0.9);
+		expect(scene.add.rectangle).not.toHaveBeenCalledWith(5_960, 1_800, 256, 224, 0x5b4636, 0.9);
+		expect(scene.add.rectangle).not.toHaveBeenCalledWith(1_536, 5_341, 141, 160, 0x5b4636, 0.9);
 		expect(scene.add.text).toHaveBeenCalledWith(531, 5_700.5, "Hero's House", {
 			color: '#f8fafc',
 			fontSize: '12px'
@@ -1373,10 +1416,9 @@ describe('WorldScene', () => {
 
 	it('clamps the player marker within the world bounds during movement', async () => {
 		const { WorldScene } = await import('./WorldScene');
-		const { meadowEntryMap } = await import('$lib/game/content/maps');
 		const scene = new WorldScene();
 
-		scene.create({ mapId: meadowEntryMap.id });
+		scene.create({ mapId: 'hero-house' });
 		Object.assign(phaserState.playerMarker, { x: 13, y: 13 });
 		phaserState.cursorKeys.left.isDown = true;
 		phaserState.cursorKeys.up.isDown = true;
@@ -1449,13 +1491,13 @@ describe('WorldScene', () => {
 		const scene = new WorldScene();
 
 		scene.create({ mapId: 'meadow-entry' });
-		Object.assign(phaserState.playerMarker, { x: 776, y: 266 });
+		Object.assign(phaserState.playerMarker, { x: 776, y: 4_618 });
 		phaserState.cursorKeys.right.isDown = true;
 
 		scene.update(0, 250);
 
 		expect(phaserState.playerMarker.x).toBe(776);
-		expect(phaserState.playerMarker.y).toBe(266);
+		expect(phaserState.playerMarker.y).toBe(4_618);
 	});
 
 	it('blocks player movement through village building side windows', async () => {
@@ -1463,13 +1505,13 @@ describe('WorldScene', () => {
 		const scene = new WorldScene();
 
 		scene.create({ mapId: 'meadow-entry' });
-		Object.assign(phaserState.playerMarker, { x: 370, y: 1_498 });
+		Object.assign(phaserState.playerMarker, { x: 370, y: 5_850 });
 		phaserState.cursorKeys.right.isDown = true;
 
 		scene.update(0, 50);
 
 		expect(phaserState.playerMarker.x).toBe(370);
-		expect(phaserState.playerMarker.y).toBe(1_498);
+		expect(phaserState.playerMarker.y).toBe(5_850);
 	});
 
 	it('blocks player movement through village fence segments', async () => {
@@ -1477,13 +1519,13 @@ describe('WorldScene', () => {
 		const scene = new WorldScene();
 
 		scene.create({ mapId: 'meadow-entry' });
-		Object.assign(phaserState.playerMarker, { x: 1_090, y: 1_184 });
+		Object.assign(phaserState.playerMarker, { x: 1_090, y: 5_536 });
 		phaserState.cursorKeys.right.isDown = true;
 
 		scene.update(0, 250);
 
 		expect(phaserState.playerMarker.x).toBe(1_090);
-		expect(phaserState.playerMarker.y).toBe(1_184);
+		expect(phaserState.playerMarker.y).toBe(5_536);
 	});
 
 	it('blocks movement across the lower padded edge of village fence segments', async () => {
@@ -1491,13 +1533,13 @@ describe('WorldScene', () => {
 		const scene = new WorldScene();
 
 		scene.create({ mapId: 'meadow-entry' });
-		Object.assign(phaserState.playerMarker, { x: 531, y: 1_660 });
+		Object.assign(phaserState.playerMarker, { x: 531, y: 6_012 });
 		phaserState.cursorKeys.down.isDown = true;
 
 		scene.update(0, 250);
 
 		expect(phaserState.playerMarker.x).toBe(531);
-		expect(phaserState.playerMarker.y).toBe(1_660);
+		expect(phaserState.playerMarker.y).toBe(6_012);
 	});
 
 	it('blocks player movement through outskirts tree clusters', async () => {
@@ -1505,13 +1547,13 @@ describe('WorldScene', () => {
 		const scene = new WorldScene();
 
 		scene.create({ mapId: 'meadow-entry' });
-		Object.assign(phaserState.playerMarker, { x: 1_536, y: 220 });
+		Object.assign(phaserState.playerMarker, { x: 5_360, y: 452 });
 		phaserState.cursorKeys.up.isDown = true;
 
 		scene.update(0, 250);
 
-		expect(phaserState.playerMarker.x).toBe(1_536);
-		expect(phaserState.playerMarker.y).toBe(220);
+		expect(phaserState.playerMarker.x).toBe(5_360);
+		expect(phaserState.playerMarker.y).toBe(452);
 	});
 
 	it('keeps the plaza road passable between combat pockets', async () => {
@@ -1519,27 +1561,27 @@ describe('WorldScene', () => {
 		const scene = new WorldScene();
 
 		scene.create({ mapId: 'meadow-entry' });
-		Object.assign(phaserState.playerMarker, { x: 1_700, y: 995 });
+		Object.assign(phaserState.playerMarker, { x: 1_700, y: 5_347 });
 		phaserState.cursorKeys.right.isDown = true;
 
 		scene.update(0, 250);
 
 		expect(phaserState.playerMarker.x).toBeGreaterThan(1_700);
-		expect(phaserState.playerMarker.y).toBe(995);
+		expect(phaserState.playerMarker.y).toBe(5_347);
 	});
 
-	it('keeps the east lane open toward the Whispering Cave road', async () => {
+	it('keeps the forest road open toward the Whispering Cave road', async () => {
 		const { WorldScene } = await import('./WorldScene');
 		const scene = new WorldScene();
 
 		scene.create({ mapId: 'meadow-entry' });
-		Object.assign(phaserState.playerMarker, { x: 2_336, y: 995 });
-		phaserState.cursorKeys.right.isDown = true;
+		Object.assign(phaserState.playerMarker, { x: 5_600, y: 3_200 });
+		phaserState.cursorKeys.up.isDown = true;
 
 		scene.update(0, 250);
 
-		expect(phaserState.playerMarker.x).toBeGreaterThan(2_336);
-		expect(phaserState.playerMarker.y).toBe(995);
+		expect(phaserState.playerMarker.x).toBe(5_600);
+		expect(phaserState.playerMarker.y).toBeLessThan(3_200);
 	});
 
 	it('blocks map edge tree lines while leaving the village lanes usable', async () => {
@@ -1547,22 +1589,22 @@ describe('WorldScene', () => {
 		const scene = new WorldScene();
 
 		scene.create({ mapId: 'meadow-entry' });
-		Object.assign(phaserState.playerMarker, { x: 3_000, y: 1_024 });
+		Object.assign(phaserState.playerMarker, { x: 6_320, y: 1_024 });
 		phaserState.cursorKeys.right.isDown = true;
 
 		scene.update(0, 250);
 
-		expect(phaserState.playerMarker.x).toBe(3_000);
+		expect(phaserState.playerMarker.x).toBe(6_320);
 		expect(phaserState.playerMarker.y).toBe(1_024);
 
-		Object.assign(phaserState.playerMarker, { x: 1_536, y: 700 });
+		Object.assign(phaserState.playerMarker, { x: 1_536, y: 5_052 });
 		phaserState.cursorKeys.right.isDown = false;
 		phaserState.cursorKeys.up.isDown = true;
 
 		scene.update(250, 250);
 
 		expect(phaserState.playerMarker.x).toBe(1_536);
-		expect(phaserState.playerMarker.y).toBeLessThan(700);
+		expect(phaserState.playerMarker.y).toBeLessThan(5_052);
 	});
 
 	it('blocks movement through ruin walls and future gates', async () => {
@@ -1593,13 +1635,13 @@ describe('WorldScene', () => {
 		const scene = new WorldScene();
 
 		scene.create({ mapId: 'meadow-entry' });
-		Object.assign(phaserState.playerMarker, { x: 531, y: 1_660 });
+		Object.assign(phaserState.playerMarker, { x: 531, y: 6_012 });
 		phaserState.cursorKeys.down.isDown = true;
 
 		scene.update(0, 250);
 
 		expect(phaserState.playerMarker.x).toBe(531);
-		expect(phaserState.playerMarker.y).toBe(1_660);
+		expect(phaserState.playerMarker.y).toBe(6_012);
 	});
 
 	it('keeps the hero house exterior doorway reachable in the plaza village', async () => {
@@ -1607,7 +1649,7 @@ describe('WorldScene', () => {
 		const scene = new WorldScene();
 
 		scene.create({ mapId: 'meadow-entry' });
-		Object.assign(phaserState.playerMarker, { x: 531, y: 1_588 });
+		Object.assign(phaserState.playerMarker, { x: 531, y: 5_940 });
 
 		scene.update(0, 80);
 
@@ -1663,7 +1705,7 @@ describe('WorldScene', () => {
 
 		scene.create({ mapId: 'meadow-entry' });
 		phaserState.playerMarker.play.mockClear();
-		Object.assign(phaserState.playerMarker, { x: 1_376, y: 480 });
+		Object.assign(phaserState.playerMarker, { x: 4_960, y: 960 });
 
 		scene.update(0, 16);
 
@@ -1719,7 +1761,7 @@ describe('WorldScene', () => {
 		const scene = new WorldScene();
 
 		scene.create({ mapId: 'meadow-entry' });
-		Object.assign(phaserState.playerMarker, { x: 1_376, y: 480 });
+		Object.assign(phaserState.playerMarker, { x: 4_960, y: 960 });
 
 		scene.update(0, 16);
 
@@ -1738,16 +1780,16 @@ describe('WorldScene', () => {
 		const scene = new WorldScene();
 
 		scene.create({ mapId: 'meadow-entry' });
-		Object.assign(phaserState.playerMarker, { x: 1_376, y: 480 });
+		Object.assign(phaserState.playerMarker, { x: 4_960, y: 960 });
 		phaserState.enemyMarker.setTint.mockClear();
 		phaserState.enemyMarker.clearTint.mockClear();
 
 		scene.update(0, 16);
 
-		expect(scene.add.arc).toHaveBeenCalledWith(1_344, 480, 32, 210, 330, false, 0xff8a1f, 0.98);
-		expect(scene.add.arc).toHaveBeenCalledWith(1_344, 480, 16, 20, 160, false, 0xfff7d6, 1);
-		expect(scene.add.arc).toHaveBeenCalledWith(1_344, 480, 26, 0, 360, false, 0xfff0a8, 0.72);
-		expect(scene.add.arc).toHaveBeenCalledWith(1_344, 480, 10, 0, 360, false, 0xffffff, 0.92);
+		expect(scene.add.arc).toHaveBeenCalledWith(4_928, 960, 32, 210, 330, false, 0xff8a1f, 0.98);
+		expect(scene.add.arc).toHaveBeenCalledWith(4_928, 960, 16, 20, 160, false, 0xfff7d6, 1);
+		expect(scene.add.arc).toHaveBeenCalledWith(4_928, 960, 26, 0, 360, false, 0xfff0a8, 0.72);
+		expect(scene.add.arc).toHaveBeenCalledWith(4_928, 960, 10, 0, 360, false, 0xffffff, 0.92);
 		expect(phaserState.hitImpactArc.setAlpha).toHaveBeenCalledWith(0.98);
 		expect(phaserState.hitImpactSpark.setAlpha).toHaveBeenCalledWith(1);
 		expect(phaserState.hitImpactRing.setScale).toHaveBeenCalledWith(0.55, 0.55);
@@ -2919,7 +2961,7 @@ describe('WorldScene', () => {
 		const save = createNewSaveState();
 
 		scene.create({ saveState: { ...save, wallet: { coins: 0 } } });
-		Object.assign(phaserState.playerMarker, { x: 1_376, y: 480 });
+		Object.assign(phaserState.playerMarker, { x: 4_960, y: 960 });
 		sceneState.enemies[0]!.hp = 3;
 
 		scene.update(500, 16);
@@ -3099,7 +3141,7 @@ describe('WorldScene', () => {
 		};
 
 		scene.create({ mapId: 'meadow-entry' });
-		Object.assign(phaserState.playerMarker, { x: 1_376, y: 480 });
+		Object.assign(phaserState.playerMarker, { x: 4_960, y: 960 });
 		sceneState.enemies[0]!.hp = 3;
 
 		scene.update(0, 16);
@@ -3198,7 +3240,7 @@ describe('WorldScene', () => {
 		});
 
 		scene.create({ mapId: 'meadow-entry' });
-		Object.assign(phaserState.playerMarker, { x: 1_376, y: 480 });
+		Object.assign(phaserState.playerMarker, { x: 4_960, y: 960 });
 		(scene as unknown as { enemies: Array<{ hp: number }> }).enemies[0]!.hp = 3;
 
 		scene.update(0, 16);
@@ -3228,7 +3270,7 @@ describe('WorldScene', () => {
 
 		try {
 			scene.create({ mapId: 'meadow-entry' });
-			Object.assign(phaserState.playerMarker, { x: 1_376, y: 480 });
+			Object.assign(phaserState.playerMarker, { x: 4_960, y: 960 });
 			(scene as unknown as { enemies: Array<{ hp: number }> }).enemies[0]!.hp = 3;
 
 			scene.update(0, 16);
@@ -3276,7 +3318,7 @@ describe('WorldScene', () => {
 					}
 				}
 			});
-			Object.assign(phaserState.playerMarker, { x: 1_376, y: 480 });
+			Object.assign(phaserState.playerMarker, { x: 4_960, y: 960 });
 			(scene as unknown as { enemies: Array<{ hp: number }> }).enemies[0]!.hp = 3;
 
 			scene.update(0, 16);
@@ -3303,7 +3345,7 @@ describe('WorldScene', () => {
 		};
 
 		scene.create({ mapId: 'meadow-entry' });
-		Object.assign(phaserState.playerMarker, { x: 1_376, y: 480 });
+		Object.assign(phaserState.playerMarker, { x: 4_960, y: 960 });
 
 		scene.update(0, 16);
 
@@ -3318,7 +3360,7 @@ describe('WorldScene', () => {
 		};
 
 		scene.create({ mapId: 'meadow-entry' });
-		Object.assign(phaserState.playerMarker, { x: 1_376, y: 480 });
+		Object.assign(phaserState.playerMarker, { x: 4_960, y: 960 });
 		Object.assign(sceneState.enemies[0]!, {
 			hp: 9,
 			maxHp: 9,
@@ -3346,7 +3388,7 @@ describe('WorldScene', () => {
 		};
 
 		scene.create({ mapId: 'meadow-entry' });
-		Object.assign(phaserState.playerMarker, { x: 1_376, y: 480 });
+		Object.assign(phaserState.playerMarker, { x: 4_960, y: 960 });
 		sceneState.playerProgress = { level: 2, xp: 5, hp: 24, attack: 4 };
 		sceneState.enemies[0]!.hp = 4;
 
@@ -3402,7 +3444,7 @@ describe('WorldScene', () => {
 					}
 				}
 			});
-			Object.assign(phaserState.playerMarker, { x: 2_624, y: 1_024 });
+			Object.assign(phaserState.playerMarker, { x: 5_952, y: 1_600 });
 			sceneState.enemies[2]!.hp = 3;
 
 			scene.update(500, 16);
@@ -3443,7 +3485,7 @@ describe('WorldScene', () => {
 			}
 		});
 		emitHudStateSpy.mockClear();
-		Object.assign(phaserState.playerMarker, { x: 2_784, y: 1_300 });
+		Object.assign(phaserState.playerMarker, { x: 5_960, y: 1_868 });
 
 		scene.update(0, 16);
 
@@ -3483,7 +3525,7 @@ describe('WorldScene', () => {
 			}
 		});
 
-		Object.assign(phaserState.playerMarker, { x: 2_784, y: 1_300 });
+		Object.assign(phaserState.playerMarker, { x: 5_960, y: 1_868 });
 		scene.update(0, 16);
 
 		expect(scene.scene.restart).toHaveBeenCalledWith({
@@ -3515,7 +3557,7 @@ describe('WorldScene', () => {
 				}
 			}
 		});
-		Object.assign(phaserState.playerMarker, { x: 531, y: 1_588 });
+		Object.assign(phaserState.playerMarker, { x: 531, y: 5_940 });
 
 		scene.update(0, 16);
 
@@ -3553,7 +3595,7 @@ describe('WorldScene', () => {
 				mapId: 'meadow-entry',
 				player: expect.objectContaining({
 					x: 531,
-					y: 1_688,
+					y: 6_040,
 					facing: 'down'
 				})
 			})
@@ -3585,8 +3627,8 @@ describe('WorldScene', () => {
 			saveState: expect.objectContaining({
 				mapId: 'meadow-entry',
 				player: expect.objectContaining({
-					x: 2_720,
-					y: 1_344,
+					x: 5_760,
+					y: 1_868,
 					facing: 'left'
 				})
 			})
@@ -3642,7 +3684,7 @@ describe('WorldScene', () => {
 				}
 			}
 		});
-		Object.assign(phaserState.playerMarker, { x: 2_784, y: 1_300 });
+		Object.assign(phaserState.playerMarker, { x: 5_960, y: 1_868 });
 
 		scene.update(0, 16);
 
@@ -3738,7 +3780,7 @@ describe('WorldScene', () => {
 		});
 	});
 
-	it('keeps meadow slimes inside their city route combat pockets while chasing', async () => {
+	it('keeps meadow slimes inside their top-right forest combat pockets while chasing', async () => {
 		const { meadowEntryMap } = await import('$lib/game/content/maps');
 		const { WorldScene } = await import('./WorldScene');
 		const scene = new WorldScene();
@@ -3747,7 +3789,7 @@ describe('WorldScene', () => {
 		};
 
 		scene.create({ mapId: meadowEntryMap.id });
-		Object.assign(phaserState.playerMarker, { x: 1_460, y: 480 });
+		Object.assign(phaserState.playerMarker, { x: 5_044, y: 960 });
 
 		scene.update(0, 1_000);
 
@@ -3766,7 +3808,7 @@ describe('WorldScene', () => {
 		expect(sceneState.enemies[0]!.movementMode).toBe('chase');
 	});
 
-	it('keeps an engaged meadow slime chasing inside the city pocket leash beyond aggro range', async () => {
+	it('keeps an engaged meadow slime chasing inside the forest pocket leash beyond aggro range', async () => {
 		const { WorldScene } = await import('./WorldScene');
 		const scene = new WorldScene();
 		const sceneState = scene as unknown as {
@@ -3774,8 +3816,8 @@ describe('WorldScene', () => {
 		};
 
 		scene.create({ mapId: 'meadow-entry' });
-		Object.assign(sceneState.enemies[0]!, { x: 1_300, y: 480, movementMode: 'chase' });
-		Object.assign(phaserState.playerMarker, { x: 1_700, y: 480 });
+		Object.assign(sceneState.enemies[0]!, { x: 4_884, y: 960, movementMode: 'chase' });
+		Object.assign(phaserState.playerMarker, { x: 5_240, y: 960 });
 		const startX = sceneState.enemies[0]!.x;
 
 		scene.update(0, 1_000);
@@ -3784,7 +3826,7 @@ describe('WorldScene', () => {
 		expect(sceneState.enemies[0]!.x).toBeGreaterThan(startX);
 	});
 
-	it('returns meadow slimes home after the hero leaves the city combat pocket', async () => {
+	it('returns meadow slimes home after the hero leaves the forest combat pocket', async () => {
 		const { meadowEntryMap } = await import('$lib/game/content/maps');
 		const { WorldScene } = await import('./WorldScene');
 		const scene = new WorldScene();
@@ -3793,11 +3835,11 @@ describe('WorldScene', () => {
 		};
 
 		scene.create({ mapId: meadowEntryMap.id });
-		Object.assign(phaserState.playerMarker, { x: 1_460, y: 480 });
+		Object.assign(phaserState.playerMarker, { x: 5_044, y: 960 });
 		scene.update(0, 1_000);
 
 		const chasedX = sceneState.enemies[0]!.x;
-		Object.assign(phaserState.playerMarker, { x: 2_100, y: 480 });
+		Object.assign(phaserState.playerMarker, { x: 5_600, y: 960 });
 		scene.update(1_000, 1_000);
 
 		expect(sceneState.enemies[0]!.movementMode).toBe('return');
@@ -3806,7 +3848,7 @@ describe('WorldScene', () => {
 		expect(sceneState.enemies[0]!.y).toBe(sceneState.enemies[0]!.homeY);
 	});
 
-	it('prevents returning meadow slimes from attacking after the hero leaves the city pocket', async () => {
+	it('prevents returning meadow slimes from attacking after the hero leaves the forest pocket', async () => {
 		const { WorldScene } = await import('./WorldScene');
 		const scene = new WorldScene();
 		const sceneState = scene as unknown as {
@@ -3815,8 +3857,8 @@ describe('WorldScene', () => {
 		};
 
 		scene.create({ mapId: 'meadow-entry' });
-		Object.assign(sceneState.enemies[0]!, { x: 1_880, y: 480, movementMode: 'chase' });
-		Object.assign(phaserState.playerMarker, { x: 1_910, y: 480 });
+		Object.assign(sceneState.enemies[0]!, { x: 5_460, y: 960, movementMode: 'chase' });
+		Object.assign(phaserState.playerMarker, { x: 5_490, y: 960 });
 		const hpBeforeReturn = sceneState.playerProgress.hp;
 
 		scene.update(1_000, 16);
