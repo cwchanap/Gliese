@@ -340,7 +340,7 @@ describe('DialoguePanel.svelte', () => {
 		await expect
 			.element(page.getByTestId('hud-location-panel'))
 			.toHaveTextContent('Sundrop Meadows');
-		await expect.element(page.getByTestId('hud-minimap')).toHaveTextContent('Village Map');
+		await expect.element(page.getByTestId('hud-minimap')).toHaveTextContent('Area Map');
 		await expect.element(page.getByTestId('hud-party-panel')).toHaveTextContent('LIAM');
 		await expect.element(page.getByTestId('hud-side-panel')).toHaveTextContent('30G');
 		await expect
