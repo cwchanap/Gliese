@@ -153,7 +153,7 @@ function getDefeatRuinsWardenTarget(
 	map: WorldMapDefinition
 ): MapTransition | MapEncounter | undefined {
 	if (map.id === 'meadow-entry') {
-		return map.transitions.find((transition) => transition.id === 'meadow-to-ruins-threshold');
+		return map.transitions.find((transition) => transition.toMapId === 'ruins-threshold');
 	}
 	if (map.id === 'ruins-threshold') {
 		return map.transitions.find((transition) => transition.id === 'threshold-to-core');

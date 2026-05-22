@@ -26,7 +26,7 @@ describe('area map payload', () => {
 	it('includes current map dimensions, player position, and revealed cells', () => {
 		const areaMap = buildAreaMapState({
 			map: meadowEntryMap,
-			player: { x: 1_536, y: 5_600 },
+			player: { x: 1_536, y: 5_550 },
 			revealedCells: ['4,45'],
 			quests: createInitialQuestState(),
 			locale: 'en'
@@ -37,7 +37,7 @@ describe('area map payload', () => {
 			name: 'Sundrop Meadows',
 			worldWidth: meadowEntryMap.width * 32,
 			worldHeight: meadowEntryMap.height * 32,
-			player: { x: 1_536, y: 5_600 },
+			player: { x: 1_536, y: 5_550 },
 			revealedCells: ['4,45']
 		});
 	});
@@ -45,7 +45,7 @@ describe('area map payload', () => {
 	it('adds only revealed landmark and exit markers', () => {
 		const areaMap = buildAreaMapState({
 			map: meadowEntryMap,
-			player: { x: 1_536, y: 5_600 },
+			player: { x: 1_536, y: 5_550 },
 			revealedCells: ['4,45', '16,45', '46,14'],
 			quests: createInitialQuestState(),
 			locale: 'en'
@@ -62,13 +62,13 @@ describe('area map payload', () => {
 	it('uses current revealed cells to include the player but omit hidden markers', () => {
 		const areaMap = buildAreaMapState({
 			map: meadowEntryMap,
-			player: { x: 1_536, y: 5_600 },
+			player: { x: 1_536, y: 5_550 },
 			revealedCells: ['4,45'],
 			quests: createInitialQuestState(),
 			locale: 'en'
 		});
 
-		expect(areaMap.player).toEqual({ x: 1_536, y: 5_600 });
+		expect(areaMap.player).toEqual({ x: 1_536, y: 5_550 });
 		expect(areaMap.markers.map((marker) => marker.id)).toContain('hero-house-exterior');
 		expect(areaMap.markers.map((marker) => marker.id)).not.toContain('guild-hall-exterior');
 	});
@@ -76,7 +76,7 @@ describe('area map payload', () => {
 	it('localizes revealed building marker labels', () => {
 		const areaMap = buildAreaMapState({
 			map: meadowEntryMap,
-			player: { x: 1_536, y: 5_600 },
+			player: { x: 1_536, y: 5_550 },
 			revealedCells: ['16,45'],
 			quests: createInitialQuestState(),
 			locale: 'ja'
@@ -102,7 +102,7 @@ describe('area map payload', () => {
 		const quests = createInitialQuestState();
 		const areaMap = buildAreaMapState({
 			map: meadowEntryMap,
-			player: { x: 1_536, y: 5_600 },
+			player: { x: 1_536, y: 5_550 },
 			revealedCells: ['16,45'],
 			quests,
 			locale: 'en'
@@ -134,7 +134,7 @@ describe('area map payload', () => {
 
 		const areaMap = buildAreaMapState({
 			map: meadowEntryMap,
-			player: { x: 1_536, y: 5_600 },
+			player: { x: 1_536, y: 5_550 },
 			revealedCells: ['46,14'],
 			quests,
 			locale: 'en'

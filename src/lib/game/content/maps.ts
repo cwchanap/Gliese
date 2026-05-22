@@ -86,7 +86,7 @@ export interface MapGroundPatch extends MapRect {
 	tile: MapGroundTile;
 }
 
-export type MapBlockerKind = 'city-wall' | 'town-hedge' | 'ruin-wall' | 'future-gate';
+export type MapBlockerKind = 'city-wall' | 'town-hedge' | 'ruin-wall' | 'future-gate' | 'ocean';
 
 export interface MapBlocker extends MapRect {
 	kind: MapBlockerKind;
@@ -141,15 +141,15 @@ const interiorDoor = { x: 256, y: 336 } as const;
 
 export const meadowEntryMap: WorldMapDefinition = addEnglishMapText({
 	id: openingMapId,
-	width: 96,
-	height: 64,
+	width: 200,
+	height: 200,
 	spawnDirection: 'up',
-	spawn: { x: 1_536, y: 1_248 },
+	spawn: { x: 1_536, y: 5_550 },
 	landmarks: [
 		{
 			id: 'hero-house-exterior',
 			x: 531,
-			y: 1_498,
+			y: 5_850,
 			width: 294,
 			height: 307,
 			labelKey: 'content.maps.landmarks.hero-house-exterior.label'
@@ -157,7 +157,7 @@ export const meadowEntryMap: WorldMapDefinition = addEnglishMapText({
 		{
 			id: 'guild-hall-exterior',
 			x: 2_048,
-			y: 1_517,
+			y: 5_869,
 			width: 384,
 			height: 346,
 			labelKey: 'content.maps.landmarks.guild-hall-exterior.label'
@@ -165,7 +165,7 @@ export const meadowEntryMap: WorldMapDefinition = addEnglishMapText({
 		{
 			id: 'item-shop-exterior',
 			x: 2_138,
-			y: 282,
+			y: 4_634,
 			width: 307,
 			height: 294,
 			labelKey: 'content.maps.landmarks.item-shop-exterior.label'
@@ -173,7 +173,7 @@ export const meadowEntryMap: WorldMapDefinition = addEnglishMapText({
 		{
 			id: 'villager-house-1-exterior',
 			x: 333,
-			y: 800,
+			y: 5_152,
 			width: 282,
 			height: 256,
 			labelKey: 'content.maps.landmarks.villager-house-1-exterior.label'
@@ -181,7 +181,7 @@ export const meadowEntryMap: WorldMapDefinition = addEnglishMapText({
 		{
 			id: 'villager-house-2-exterior',
 			x: 1_011,
-			y: 266,
+			y: 4_618,
 			width: 422,
 			height: 326,
 			labelKey: 'content.maps.landmarks.villager-house-2-exterior.label'
@@ -189,7 +189,7 @@ export const meadowEntryMap: WorldMapDefinition = addEnglishMapText({
 		{
 			id: 'villager-house-3-exterior',
 			x: 2_592,
-			y: 426,
+			y: 4_778,
 			width: 230,
 			height: 416,
 			labelKey: 'content.maps.landmarks.villager-house-3-exterior.label'
@@ -197,15 +197,15 @@ export const meadowEntryMap: WorldMapDefinition = addEnglishMapText({
 		{
 			id: 'sundrop-well',
 			x: 1_536,
-			y: 989,
+			y: 5_341,
 			width: 141,
 			height: 160,
 			labelKey: 'content.maps.landmarks.sundrop-well.label'
 		},
 		{
 			id: 'whispering-cave',
-			x: 2_784,
-			y: 1_232,
+			x: 5_960,
+			y: 1_800,
 			width: 256,
 			height: 224,
 			labelKey: 'content.maps.landmarks.whispering-cave.label'
@@ -213,7 +213,7 @@ export const meadowEntryMap: WorldMapDefinition = addEnglishMapText({
 		{
 			id: 'blacksmith',
 			x: 595,
-			y: 525,
+			y: 4_877,
 			width: 294,
 			height: 282,
 			labelKey: 'content.maps.landmarks.blacksmith.label'
@@ -221,7 +221,7 @@ export const meadowEntryMap: WorldMapDefinition = addEnglishMapText({
 		{
 			id: 'shrine-of-aurora',
 			x: 1_050,
-			y: 1_520,
+			y: 5_872,
 			width: 307,
 			height: 416,
 			labelKey: 'content.maps.landmarks.shrine-of-aurora.label'
@@ -231,7 +231,7 @@ export const meadowEntryMap: WorldMapDefinition = addEnglishMapText({
 		{
 			id: 'meadow-to-hero-house',
 			x: 531,
-			y: 1_588,
+			y: 5_940,
 			toMapId: 'hero-house',
 			showMarker: false,
 			arrival: { x: 256, y: 224, facing: 'up' }
@@ -239,7 +239,7 @@ export const meadowEntryMap: WorldMapDefinition = addEnglishMapText({
 		{
 			id: 'meadow-to-guild-hall',
 			x: 2_048,
-			y: 1_608,
+			y: 5_960,
 			toMapId: 'guild-hall',
 			showMarker: false,
 			arrival: { x: 256, y: 288, facing: 'up' }
@@ -247,7 +247,7 @@ export const meadowEntryMap: WorldMapDefinition = addEnglishMapText({
 		{
 			id: 'meadow-to-item-shop',
 			x: 2_138,
-			y: 365,
+			y: 4_717,
 			toMapId: 'item-shop',
 			showMarker: false,
 			arrival: { x: 256, y: 288, facing: 'up' }
@@ -255,7 +255,7 @@ export const meadowEntryMap: WorldMapDefinition = addEnglishMapText({
 		{
 			id: 'meadow-to-villager-house-1',
 			x: 333,
-			y: 870,
+			y: 5_222,
 			toMapId: 'villager-house-1',
 			showMarker: false,
 			arrival: { x: 256, y: 288, facing: 'up' }
@@ -263,7 +263,7 @@ export const meadowEntryMap: WorldMapDefinition = addEnglishMapText({
 		{
 			id: 'meadow-to-villager-house-2',
 			x: 1_011,
-			y: 360,
+			y: 4_712,
 			toMapId: 'villager-house-2',
 			showMarker: false,
 			arrival: { x: 256, y: 288, facing: 'up' }
@@ -271,15 +271,15 @@ export const meadowEntryMap: WorldMapDefinition = addEnglishMapText({
 		{
 			id: 'meadow-to-villager-house-3',
 			x: 2_592,
-			y: 560,
+			y: 4_912,
 			toMapId: 'villager-house-3',
 			showMarker: false,
 			arrival: { x: 256, y: 288, facing: 'up' }
 		},
 		{
 			id: 'meadow-to-whispering-cave-ruins-threshold',
-			x: 2_784,
-			y: 1_300,
+			x: 5_960,
+			y: 1_868,
 			toMapId: 'ruins-threshold',
 			requiresClear: true,
 			marker: 'stair',
@@ -294,7 +294,7 @@ export const meadowEntryMap: WorldMapDefinition = addEnglishMapText({
 		{
 			id: 'sundrop-plaza-stone',
 			x: 1_536,
-			y: 992,
+			y: 5_344,
 			width: 672,
 			height: 512,
 			tile: 'ruinsFloorTile'
@@ -302,7 +302,7 @@ export const meadowEntryMap: WorldMapDefinition = addEnglishMapText({
 		{
 			id: 'sundrop-north-lane',
 			x: 1_536,
-			y: 448,
+			y: 4_800,
 			width: 64,
 			height: 640,
 			tile: 'pathTile'
@@ -310,7 +310,7 @@ export const meadowEntryMap: WorldMapDefinition = addEnglishMapText({
 		{
 			id: 'sundrop-south-lane',
 			x: 1_536,
-			y: 1_466,
+			y: 5_818,
 			width: 64,
 			height: 448,
 			tile: 'pathTile'
@@ -318,7 +318,7 @@ export const meadowEntryMap: WorldMapDefinition = addEnglishMapText({
 		{
 			id: 'sundrop-west-lane',
 			x: 720,
-			y: 995,
+			y: 5_347,
 			width: 992,
 			height: 70,
 			tile: 'pathTile'
@@ -326,7 +326,7 @@ export const meadowEntryMap: WorldMapDefinition = addEnglishMapText({
 		{
 			id: 'sundrop-east-lane',
 			x: 2_336,
-			y: 995,
+			y: 5_347,
 			width: 960,
 			height: 70,
 			tile: 'pathTile'
@@ -334,7 +334,7 @@ export const meadowEntryMap: WorldMapDefinition = addEnglishMapText({
 		{
 			id: 'sundrop-northwest-branch',
 			x: 896,
-			y: 445,
+			y: 4_797,
 			width: 384,
 			height: 58,
 			tile: 'pathTile'
@@ -342,7 +342,7 @@ export const meadowEntryMap: WorldMapDefinition = addEnglishMapText({
 		{
 			id: 'sundrop-northeast-branch',
 			x: 2_176,
-			y: 445,
+			y: 4_797,
 			width: 384,
 			height: 58,
 			tile: 'pathTile'
@@ -350,7 +350,7 @@ export const meadowEntryMap: WorldMapDefinition = addEnglishMapText({
 		{
 			id: 'sundrop-southwest-branch',
 			x: 896,
-			y: 1_501,
+			y: 5_853,
 			width: 384,
 			height: 58,
 			tile: 'pathTile'
@@ -358,7 +358,7 @@ export const meadowEntryMap: WorldMapDefinition = addEnglishMapText({
 		{
 			id: 'sundrop-southeast-branch',
 			x: 2_176,
-			y: 1_501,
+			y: 5_853,
 			width: 384,
 			height: 58,
 			tile: 'pathTile'
@@ -366,88 +366,128 @@ export const meadowEntryMap: WorldMapDefinition = addEnglishMapText({
 		{
 			id: 'sundrop-home-pocket',
 			x: 531,
-			y: 1_650,
+			y: 6_002,
 			width: 384,
 			height: 96,
 			tile: 'pathTile'
 		},
 		{
-			id: 'sundrop-cave-pocket',
-			x: 2_784,
-			y: 1_328,
-			width: 288,
-			height: 96,
+			id: 'sundrop-forest-road-east',
+			x: 4_200,
+			y: 5_347,
+			width: 2_800,
+			height: 70,
+			tile: 'pathTile'
+		},
+		{
+			id: 'sundrop-forest-road-north',
+			x: 5_600,
+			y: 3_200,
+			width: 70,
+			height: 4_300,
 			tile: 'pathTile'
 		},
 		{
 			id: 'wildwood-north-combat-pocket',
-			x: 1_536,
-			y: 480,
+			x: 5_120,
+			y: 960,
 			width: 672,
 			height: 384,
 			tile: 'pathTile'
 		},
 		{
+			id: 'wildwood-crossing-combat-pocket',
+			x: 5_360,
+			y: 1_280,
+			width: 512,
+			height: 320,
+			tile: 'pathTile'
+		},
+		{
 			id: 'whispering-cave-combat-pocket',
-			x: 2_592,
-			y: 1_024,
+			x: 5_920,
+			y: 1_600,
 			width: 512,
 			height: 384,
+			tile: 'pathTile'
+		},
+		{
+			id: 'wildwood-cave-branch',
+			x: 5_880,
+			y: 1_600,
+			width: 520,
+			height: 70,
+			tile: 'pathTile'
+		},
+		{
+			id: 'sundrop-cave-pocket',
+			x: 5_960,
+			y: 1_896,
+			width: 288,
+			height: 96,
 			tile: 'pathTile'
 		}
 	],
 	blockers: [
 		{
-			id: 'sundrop-north-tree-line',
-			x: 1_536,
+			id: 'meadow-north-boundary',
+			x: 3_200,
 			y: 32,
-			width: 3_000,
+			width: 6_400,
 			height: 64,
 			kind: 'town-hedge'
 		},
 		{
-			id: 'sundrop-south-shore-line',
-			x: 1_536,
-			y: 1_984,
-			width: 3_000,
+			id: 'meadow-south-boundary',
+			x: 3_200,
+			y: 6_368,
+			width: 6_400,
 			height: 64,
 			kind: 'town-hedge'
 		},
 		{
-			id: 'sundrop-west-tree-line',
+			id: 'meadow-west-boundary',
 			x: 32,
-			y: 1_024,
+			y: 3_200,
 			width: 64,
-			height: 1_920,
+			height: 6_400,
 			kind: 'town-hedge'
 		},
 		{
-			id: 'sundrop-east-tree-line',
-			x: 3_040,
-			y: 1_024,
+			id: 'meadow-east-boundary',
+			x: 6_368,
+			y: 3_200,
 			width: 64,
-			height: 1_920,
+			height: 6_400,
 			kind: 'town-hedge'
+		},
+		{
+			id: 'sundrop-southwest-ocean',
+			x: 114,
+			y: 6_311,
+			width: 100,
+			height: 50,
+			kind: 'ocean'
 		}
 	],
 	fences: [
-		{ id: 'sundrop-home-fence', x: 531, y: 1_720, width: 384, height: 32 },
-		{ id: 'sundrop-plaza-west-fence', x: 1_120, y: 1_184, width: 32, height: 288 },
-		{ id: 'sundrop-plaza-east-fence', x: 1_952, y: 1_184, width: 32, height: 288 }
+		{ id: 'sundrop-home-fence', x: 531, y: 6_072, width: 384, height: 32 },
+		{ id: 'sundrop-plaza-west-fence', x: 1_120, y: 5_536, width: 32, height: 288 },
+		{ id: 'sundrop-plaza-east-fence', x: 1_952, y: 5_536, width: 32, height: 288 }
 	],
 	forestDecor: [
 		{
 			id: 'wildwood-north-canopy',
-			x: 1_536,
-			y: 128,
+			x: 5_360,
+			y: 360,
 			width: 960,
 			height: 160,
 			frameName: 'treeCluster'
 		},
 		{
 			id: 'wildwood-east-canopy',
-			x: 2_880,
-			y: 960,
+			x: 6_120,
+			y: 1_020,
 			width: 160,
 			height: 900,
 			frameName: 'treeCluster'
@@ -456,8 +496,8 @@ export const meadowEntryMap: WorldMapDefinition = addEnglishMapText({
 	combatBounds: [
 		{
 			id: 'wildwood-north-combat-pocket',
-			x: 1_536,
-			y: 480,
+			x: 5_120,
+			y: 960,
 			width: 672,
 			height: 384,
 			encounterIds: ['meadow-slime-west'],
@@ -465,9 +505,9 @@ export const meadowEntryMap: WorldMapDefinition = addEnglishMapText({
 			leashRadius: 420
 		},
 		{
-			id: 'sundrop-plaza-combat-pocket',
-			x: 1_536,
-			y: 544,
+			id: 'wildwood-crossing-combat-pocket',
+			x: 5_360,
+			y: 1_280,
 			width: 512,
 			height: 320,
 			encounterIds: ['meadow-slime-center'],
@@ -476,8 +516,8 @@ export const meadowEntryMap: WorldMapDefinition = addEnglishMapText({
 		},
 		{
 			id: 'whispering-cave-combat-pocket',
-			x: 2_592,
-			y: 1_024,
+			x: 5_920,
+			y: 1_600,
 			width: 512,
 			height: 384,
 			encounterIds: ['meadow-slime-east'],
@@ -486,9 +526,9 @@ export const meadowEntryMap: WorldMapDefinition = addEnglishMapText({
 		}
 	],
 	encounters: [
-		{ id: 'meadow-slime-west', x: 1_344, y: 480, enemyId: 'slime-scout' },
-		{ id: 'meadow-slime-center', x: 1_536, y: 544, enemyId: 'slime-scout' },
-		{ id: 'meadow-slime-east', x: 2_592, y: 1_024, enemyId: 'slime-scout' }
+		{ id: 'meadow-slime-west', x: 4_928, y: 960, enemyId: 'slime-scout' },
+		{ id: 'meadow-slime-center', x: 5_360, y: 1_280, enemyId: 'slime-scout' },
+		{ id: 'meadow-slime-east', x: 5_920, y: 1_600, enemyId: 'slime-scout' }
 	]
 });
 
@@ -503,7 +543,7 @@ export const heroHouseMap: WorldMapDefinition = {
 			id: 'hero-house-to-meadow',
 			...interiorDoor,
 			toMapId: openingMapId,
-			arrival: { x: 531, y: 1_688, facing: 'down' }
+			arrival: { x: 531, y: 6_040, facing: 'down' }
 		}
 	]
 };
@@ -519,7 +559,7 @@ export const guildHallMap: WorldMapDefinition = addEnglishMapText({
 			id: 'guild-hall-to-meadow',
 			...interiorDoor,
 			toMapId: openingMapId,
-			arrival: { x: 2_048, y: 1_728, facing: 'down' }
+			arrival: { x: 2_048, y: 6_080, facing: 'down' }
 		}
 	],
 	npcs: [
@@ -556,7 +596,7 @@ export const itemShopMap: WorldMapDefinition = addEnglishMapText({
 			id: 'item-shop-to-meadow',
 			...interiorDoor,
 			toMapId: openingMapId,
-			arrival: { x: 2_138, y: 464, facing: 'down' }
+			arrival: { x: 2_138, y: 4_816, facing: 'down' }
 		}
 	],
 	npcs: [
@@ -584,7 +624,7 @@ export const villagerHouse1Map: WorldMapDefinition = {
 			id: 'villager-house-1-to-meadow',
 			...interiorDoor,
 			toMapId: openingMapId,
-			arrival: { x: 333, y: 960, facing: 'down' }
+			arrival: { x: 333, y: 5_312, facing: 'down' }
 		}
 	]
 };
@@ -600,7 +640,7 @@ export const villagerHouse2Map: WorldMapDefinition = {
 			id: 'villager-house-2-to-meadow',
 			...interiorDoor,
 			toMapId: openingMapId,
-			arrival: { x: 1_011, y: 464, facing: 'down' }
+			arrival: { x: 1_011, y: 4_816, facing: 'down' }
 		}
 	]
 };
@@ -616,7 +656,7 @@ export const villagerHouse3Map: WorldMapDefinition = {
 			id: 'villager-house-3-to-meadow',
 			...interiorDoor,
 			toMapId: openingMapId,
-			arrival: { x: 2_592, y: 672, facing: 'down' }
+			arrival: { x: 2_592, y: 5_024, facing: 'down' }
 		}
 	]
 };
@@ -635,7 +675,7 @@ export const ruinsThresholdMap: WorldMapDefinition = {
 			toMapId: openingMapId,
 			requiresClear: true,
 			marker: 'stair',
-			arrival: { x: 2_720, y: 1_344, facing: 'left' }
+			arrival: { x: 5_760, y: 1_868, facing: 'left' }
 		},
 		{
 			id: 'threshold-to-core',

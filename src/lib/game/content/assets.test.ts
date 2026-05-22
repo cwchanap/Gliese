@@ -26,7 +26,11 @@ const requiredBuildingFrames: VillageBuildingFrameName[] = [
 	'heroHouse',
 	'guildHall',
 	'itemShop',
-	'villagerHouse'
+	'villagerHouse',
+	'blacksmith',
+	'shrineOfAurora',
+	'whisperingCave',
+	'sundropWell'
 ];
 const requiredForestFrames: ForestDressingFrameName[] = [
 	'treeCluster',
@@ -49,19 +53,23 @@ describe('starter pack asset frames', () => {
 });
 
 describe('village building asset metadata', () => {
-	it('loads village building art from a fixed 2x2 sheet', () => {
+	it('loads village building art from a fixed 4x2 sheet', () => {
 		expect(villageBuildingAsset).toMatchObject({
 			key: 'village-buildings',
 			path: '/game/assets/village-buildings.png',
 			cellWidth: 627,
 			cellHeight: 627,
-			columns: 2
+			columns: 4
 		});
 		expect(villageBuildingAsset.frames).toEqual({
 			heroHouse: { x: 118, y: 116, w: 407, h: 437 },
 			guildHall: { x: 627, y: 96, w: 563, h: 499 },
 			itemShop: { x: 114, y: 668, w: 430, h: 445 },
-			villagerHouse: { x: 688, y: 675, w: 403, h: 449 }
+			villagerHouse: { x: 688, y: 675, w: 403, h: 449 },
+			blacksmith: { x: 1_254, y: 0, w: 627, h: 627 },
+			shrineOfAurora: { x: 1_881, y: 0, w: 627, h: 627 },
+			whisperingCave: { x: 1_254, y: 627, w: 627, h: 627 },
+			sundropWell: { x: 1_881, y: 627, w: 627, h: 627 }
 		});
 	});
 
@@ -72,14 +80,13 @@ describe('village building asset metadata', () => {
 		expect(getVillageBuildingFrameName('villager-house-1-exterior')).toBe('villagerHouse');
 		expect(getVillageBuildingFrameName('villager-house-2-exterior')).toBe('villagerHouse');
 		expect(getVillageBuildingFrameName('villager-house-3-exterior')).toBe('villagerHouse');
+		expect(getVillageBuildingFrameName('blacksmith')).toBe('blacksmith');
+		expect(getVillageBuildingFrameName('shrine-of-aurora')).toBe('shrineOfAurora');
+		expect(getVillageBuildingFrameName('whispering-cave')).toBe('whisperingCave');
+		expect(getVillageBuildingFrameName('sundrop-well')).toBe('sundropWell');
 		expect(getVillageBuildingFrameName('unknown-landmark')).toBeUndefined();
 
 		for (const landmark of meadowEntryMap.landmarks ?? []) {
-			if (!landmark.id.endsWith('-exterior')) {
-				expect(getVillageBuildingFrameName(landmark.id)).toBeUndefined();
-				continue;
-			}
-
 			expect(requiredBuildingFrames).toContain(getVillageBuildingFrameName(landmark.id));
 		}
 	});
