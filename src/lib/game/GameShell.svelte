@@ -735,7 +735,7 @@
 		aria-label={t($locale, 'ui.areaMap')}
 	>
 		<div class="jrpg-minimap-heading">
-			<span>{t($locale, 'ui.villageMap')}</span>
+			<span>{t($locale, 'ui.areaMap')}</span>
 		</div>
 		<svg
 			class="jrpg-minimap-svg"
@@ -794,14 +794,14 @@
 					<span>{t($locale, 'ui.hp')}</span>
 					<span>{$hudState.hp}/{$hudState.maxHp}</span>
 				</div>
-				<i><span style={`width: ${hpPercent}%`}></span></i>
+				<div class="jrpg-meter"><span style={`width: ${hpPercent}%`}></span></div>
 			</div>
 			<div class="jrpg-party-meter jrpg-party-meter-xp">
 				<div>
 					<span>{t($locale, 'ui.xp')}</span>
 					<span>{$hudState.xp}/{xpTarget}</span>
 				</div>
-				<i><span style={`width: ${xpPercent}%`}></span></i>
+				<div class="jrpg-meter"><span style={`width: ${xpPercent}%`}></span></div>
 			</div>
 		</div>
 	</section>
@@ -1755,7 +1755,7 @@
 		gap: 0.2rem;
 	}
 
-	.jrpg-party-meter i {
+	.jrpg-meter {
 		display: block;
 		height: 0.5rem;
 		overflow: hidden;
@@ -1764,17 +1764,17 @@
 		background: rgba(10, 6, 18, 0.72);
 	}
 
-	.jrpg-party-meter i span {
+	.jrpg-meter span {
 		display: block;
 		height: 100%;
 		transition: width 180ms ease;
 	}
 
-	.jrpg-party-meter-hp i span {
+	.jrpg-party-meter-hp .jrpg-meter span {
 		background: var(--jrpg-emerald);
 	}
 
-	.jrpg-party-meter-xp i span {
+	.jrpg-party-meter-xp .jrpg-meter span {
 		background: var(--jrpg-cyan);
 	}
 
