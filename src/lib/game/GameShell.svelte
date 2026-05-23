@@ -2369,7 +2369,7 @@
 		}
 
 		.jrpg-field-status {
-			bottom: 12.25rem;
+			bottom: 16.5rem;
 			max-width: min(24rem, calc(100vw - 1.5rem));
 		}
 	}
