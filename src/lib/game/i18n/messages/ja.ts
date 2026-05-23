@@ -14,7 +14,6 @@ export const ja = {
 		areaMap: 'エリア地図',
 		areaMapDialog: '{{areaName}}の地図',
 		regionSubline: '緑の地方 / 3日目',
-		villageMap: '村の地図',
 		unexplored: '未探索',
 		currentPosition: '現在位置',
 		heroName: 'LIAM',

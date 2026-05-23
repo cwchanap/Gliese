@@ -92,7 +92,19 @@ export const environmentDressingAsset = {
 
 export type EnvironmentDressingFrameName = keyof typeof environmentDressingAsset.frames;
 
-const villageLandmarkFrames: Record<string, VillageBuildingFrameName> = {
+export type VillageLandmarkId =
+	| 'hero-house-exterior'
+	| 'guild-hall-exterior'
+	| 'item-shop-exterior'
+	| 'villager-house-1-exterior'
+	| 'villager-house-2-exterior'
+	| 'villager-house-3-exterior'
+	| 'blacksmith'
+	| 'shrine-of-aurora'
+	| 'whispering-cave'
+	| 'sundrop-well';
+
+const villageLandmarkFrames: Partial<Record<VillageLandmarkId, VillageBuildingFrameName>> = {
 	'hero-house-exterior': 'heroHouse',
 	'guild-hall-exterior': 'guildHall',
 	'item-shop-exterior': 'itemShop',
@@ -108,7 +120,7 @@ const villageLandmarkFrames: Record<string, VillageBuildingFrameName> = {
 export function getVillageBuildingFrameName(
 	landmarkId: string
 ): VillageBuildingFrameName | undefined {
-	return villageLandmarkFrames[landmarkId];
+	return villageLandmarkFrames[landmarkId as VillageLandmarkId];
 }
 
 export const npcPackAsset = {
