@@ -24,6 +24,7 @@
 ## Task 1: Add Localized Layout Labels
 
 **Files:**
+
 - Modify: `src/lib/game/i18n/messages/en.ts`
 - Modify: `src/lib/game/i18n/messages/ja.ts`
 - Modify: `src/lib/game/i18n/messages/zh-Hant.ts`
@@ -89,6 +90,7 @@ git commit -m "test: add localized JRPG layout labels"
 ## Task 2: Add Browser Tests For Command Box And Field Status
 
 **Files:**
+
 - Modify: `src/lib/game/DialoguePanel.svelte.spec.ts`
 - Modify later in Task 3: `src/lib/game/GameShell.svelte`
 
@@ -108,9 +110,9 @@ it('opens a JRPG command box and keeps status in a field prompt', async () => {
 	await expect.element(commandBox.getByRole('button', { name: 'Inventory' })).toBeVisible();
 	await expect.element(commandBox.getByRole('button', { name: 'Quests' })).toBeVisible();
 	await expect.element(commandBox.getByRole('button', { name: 'Save Game' })).toBeVisible();
-	await expect.element(page.getByRole('status', { name: 'Field status' })).toHaveTextContent(
-		'HP already full'
-	);
+	await expect
+		.element(page.getByRole('status', { name: 'Field status' }))
+		.toHaveTextContent('HP already full');
 
 	expect(document.getElementById('game-settings-panel')).toBeNull();
 });
@@ -146,6 +148,7 @@ git commit -m "test: cover JRPG command HUD layout"
 ## Task 3: Implement Corner Ledgers, Command Box, And Field Status
 
 **Files:**
+
 - Modify: `src/lib/game/GameShell.svelte`
 - Test: `src/lib/game/DialoguePanel.svelte.spec.ts`
 
@@ -375,7 +378,9 @@ In the `<style>` block of `src/lib/game/GameShell.svelte`, add these classes aft
 	border: 1px solid var(--jrpg-frame);
 	background: linear-gradient(145deg, var(--jrpg-panel), rgba(12, 18, 42, 0.88));
 	color: var(--jrpg-text);
-	box-shadow: var(--jrpg-shadow), inset 0 1px 0 rgba(255, 255, 255, 0.08);
+	box-shadow:
+		var(--jrpg-shadow),
+		inset 0 1px 0 rgba(255, 255, 255, 0.08);
 	backdrop-filter: blur(14px);
 }
 
@@ -675,6 +680,7 @@ git commit -m "feat: add JRPG command HUD layout"
 ## Task 4: Add Browser Tests For Shared Framed Windows
 
 **Files:**
+
 - Modify: `src/lib/game/DialoguePanel.svelte.spec.ts`
 - Modify later in Task 5: `src/lib/game/GameShell.svelte`
 
@@ -736,6 +742,7 @@ git commit -m "test: cover shared JRPG window frames"
 ## Task 5: Restyle Inventory, Shop, Quest Log, Tooltips, And Responsive Grids
 
 **Files:**
+
 - Modify: `src/lib/game/GameShell.svelte`
 - Test: `src/lib/game/DialoguePanel.svelte.spec.ts`
 - Test: `tests/e2e/game.e2e.ts`
@@ -769,7 +776,9 @@ In the `<style>` block of `src/lib/game/GameShell.svelte`, add these classes aft
 	border-radius: var(--jrpg-radius);
 	background: linear-gradient(145deg, var(--jrpg-panel-strong), rgba(17, 21, 42, 0.96));
 	color: var(--jrpg-text);
-	box-shadow: 0 34px 100px rgba(0, 0, 0, 0.58), inset 0 1px 0 rgba(255, 255, 255, 0.08);
+	box-shadow:
+		0 34px 100px rgba(0, 0, 0, 0.58),
+		inset 0 1px 0 rgba(255, 255, 255, 0.08);
 	backdrop-filter: blur(16px);
 }
 
@@ -981,7 +990,12 @@ Replace the inventory header wrapper with:
 		<p class="jrpg-label">{t($locale, 'ui.fieldPack')}</p>
 		<h2 id="inventory-heading" class="jrpg-window-title">{t($locale, 'ui.inventory')}</h2>
 	</div>
-	<button bind:this={inventoryCloseButton} type="button" class="jrpg-small-button" onclick={closeInventory}>
+	<button
+		bind:this={inventoryCloseButton}
+		type="button"
+		class="jrpg-small-button"
+		onclick={closeInventory}
+	>
 		{t($locale, 'ui.close')}
 	</button>
 </div>
@@ -1055,7 +1069,12 @@ Replace the header with:
 		<p class="jrpg-label">{t($locale, 'ui.fieldJournal')}</p>
 		<h2 id="quest-log-heading" class="jrpg-window-title">{t($locale, 'ui.questLog')}</h2>
 	</div>
-	<button bind:this={questLogCloseButton} type="button" class="jrpg-small-button" onclick={closeQuestLog}>
+	<button
+		bind:this={questLogCloseButton}
+		type="button"
+		class="jrpg-small-button"
+		onclick={closeQuestLog}
+	>
 		{t($locale, 'ui.close')}
 	</button>
 </div>
@@ -1093,7 +1112,9 @@ Replace the shop header with:
 <div class="jrpg-window-header">
 	<div>
 		<p class="jrpg-label">
-			{$hudState.shop?.merchantName ?? $hudState.nearbyShop?.merchantName ?? t($locale, 'ui.merchant')}
+			{$hudState.shop?.merchantName ??
+				$hudState.nearbyShop?.merchantName ??
+				t($locale, 'ui.merchant')}
 		</p>
 		<h2 id="shop-heading" class="jrpg-window-title">
 			{$hudState.shop?.name ?? $hudState.nearbyShop?.name ?? t($locale, 'ui.shop')}
@@ -1160,6 +1181,7 @@ git commit -m "feat: restyle JRPG menu windows"
 ## Task 6: Restyle Dialogue Panel With JRPG Frame
 
 **Files:**
+
 - Modify: `src/lib/game/DialoguePanel.svelte.spec.ts`
 - Modify: `src/lib/game/DialoguePanel.svelte`
 
@@ -1188,7 +1210,8 @@ Expected: FAIL because `jrpg-dialogue-panel` is not applied yet.
 In `src/lib/game/DialoguePanel.svelte`, change the `<dialog>` class to:
 
 ```svelte
-class="jrpg-dialogue-panel pointer-events-auto absolute inset-x-0 bottom-0 z-[70] m-0 w-screen max-w-none text-slate-50"
+class="jrpg-dialogue-panel pointer-events-auto absolute inset-x-0 bottom-0 z-[70] m-0 w-screen
+max-w-none text-slate-50"
 ```
 
 Change the speaker label class to:
@@ -1236,7 +1259,9 @@ Add this `<style>` block at the end of `src/lib/game/DialoguePanel.svelte`:
 		background: linear-gradient(145deg, rgba(8, 11, 27, 0.98), rgba(15, 20, 40, 0.96));
 		padding: 1rem;
 		color: #fff7df;
-		box-shadow: 0 -24px 70px rgba(0, 0, 0, 0.48), inset 0 1px 0 rgba(255, 255, 255, 0.08);
+		box-shadow:
+			0 -24px 70px rgba(0, 0, 0, 0.48),
+			inset 0 1px 0 rgba(255, 255, 255, 0.08);
 		backdrop-filter: blur(14px);
 	}
 
@@ -1324,6 +1349,7 @@ git commit -m "feat: restyle JRPG dialogue frame"
 ## Task 7: Update E2E Layout Coverage
 
 **Files:**
+
 - Modify: `tests/e2e/game.e2e.ts`
 
 - [ ] **Step 1: Update boot layout assertions**
@@ -1365,7 +1391,10 @@ Where tests click Menu and then a command, scope the second click to the command
 
 ```ts
 await page.getByRole('button', { name: 'Menu' }).click();
-await page.getByRole('region', { name: 'Command' }).getByRole('button', { name: 'Inventory' }).click();
+await page
+	.getByRole('region', { name: 'Command' })
+	.getByRole('button', { name: 'Inventory' })
+	.click();
 ```
 
 Apply this pattern to Inventory, Quests, Shop, Resume Save, and Save Game command clicks in `tests/e2e/game.e2e.ts`.
@@ -1376,7 +1405,10 @@ In `language preference shows Japanese chrome and keeps Japanese selected`, afte
 
 ```ts
 await page.getByRole('button', { name: 'メニュー' }).click();
-await page.getByRole('region', { name: 'コマンド' }).getByRole('button', { name: '持ち物' }).click();
+await page
+	.getByRole('region', { name: 'コマンド' })
+	.getByRole('button', { name: '持ち物' })
+	.click();
 ```
 
 After closing inventory, reopen the command region and assert:
@@ -1406,6 +1438,7 @@ git commit -m "test: update JRPG layout e2e flows"
 ## Task 8: Full Verification And Visual Review
 
 **Files:**
+
 - No planned source edits.
 
 - [ ] **Step 1: Run Svelte check**

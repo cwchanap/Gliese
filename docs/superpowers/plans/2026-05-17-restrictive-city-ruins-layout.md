@@ -21,6 +21,7 @@
 ## Task 1: Add Map Metadata Types
 
 **Files:**
+
 - Modify: `src/lib/game/content/maps.ts`
 - Test: `src/lib/game/content/maps.test.ts`
 
@@ -191,6 +192,7 @@ git commit -m "test: define restrictive map metadata contract"
 ## Task 2: Add Scene Support For Patches, Blockers, Stairs, And Combat Bounds
 
 **Files:**
+
 - Modify: `src/lib/game/phaser/scenes/WorldScene.ts`
 - Test: `src/lib/game/phaser/scenes/scenes.test.ts`
 
@@ -381,9 +383,9 @@ Change `buildGroundTileData` so authored patches override generated base tiles:
 Call `renderBlockers(map)` after `renderFences(map)` and before `renderLandmarks(map)`:
 
 ```ts
-		this.renderFences(map);
-		this.renderBlockers(map);
-		this.renderLandmarks(map);
+this.renderFences(map);
+this.renderBlockers(map);
+this.renderLandmarks(map);
 ```
 
 Add rendering helpers near `renderFences`:
@@ -412,9 +414,9 @@ Add rendering helpers near `renderFences`:
 Add blocker collision into `isPlayerMovementBlocked`:
 
 ```ts
-			this.isPlayerMovementBlockedByFence(currentX, currentY, targetX, targetY) ||
-			this.isPlayerMovementBlockedByBlocker(currentX, currentY, targetX, targetY) ||
-			this.isPlayerMovementBlockedByForestDecor(currentX, currentY, targetX, targetY)
+this.isPlayerMovementBlockedByFence(currentX, currentY, targetX, targetY) ||
+	this.isPlayerMovementBlockedByBlocker(currentX, currentY, targetX, targetY) ||
+	this.isPlayerMovementBlockedByForestDecor(currentX, currentY, targetX, targetY);
 ```
 
 Add the collision helper:
@@ -595,6 +597,7 @@ git commit -m "feat: support authored map blockers and stair markers"
 ## Task 3: Author The 200x200 City District Loop
 
 **Files:**
+
 - Modify: `src/lib/game/content/maps.ts`
 - Test: `src/lib/game/content/maps.test.ts`
 - Test: `src/lib/game/phaser/scenes/scenes.test.ts`
@@ -630,7 +633,9 @@ it('folds meadow combat into city route pockets instead of a separate forest are
 	for (const bounds of meadowEntryMap.combatBounds ?? []) {
 		expectRectInsideMap(bounds);
 		for (const encounterId of bounds.encounterIds) {
-			const encounter = meadowEntryMap.encounters?.find((candidate) => candidate.id === encounterId);
+			const encounter = meadowEntryMap.encounters?.find(
+				(candidate) => candidate.id === encounterId
+			);
 			expect(encounter).toBeDefined();
 			expectPointInsideRect(encounter!, bounds);
 		}
@@ -943,6 +948,7 @@ git commit -m "feat: reshape meadow entry into a large district loop"
 ## Task 4: Author The 200x200 Ruin Dungeon Shells
 
 **Files:**
+
 - Modify: `src/lib/game/content/maps.ts`
 - Test: `src/lib/game/content/maps.test.ts`
 - Test: `src/lib/game/phaser/scenes/scenes.test.ts`
@@ -956,7 +962,9 @@ expect(ruinsThresholdMap.width).toBe(200);
 expect(ruinsThresholdMap.height).toBe(200);
 expect(ruinsCoreMap.width).toBe(200);
 expect(ruinsCoreMap.height).toBe(200);
-expect(ruinsThresholdMap.transitions.every((transition) => transition.marker === 'stair')).toBe(true);
+expect(ruinsThresholdMap.transitions.every((transition) => transition.marker === 'stair')).toBe(
+	true
+);
 expect(ruinsCoreMap.transitions.every((transition) => transition.marker === 'stair')).toBe(true);
 expect(ruinsThresholdMap.blockers?.some((blocker) => blocker.kind === 'future-gate')).toBe(true);
 expect(ruinsCoreMap.blockers?.some((blocker) => blocker.kind === 'future-gate')).toBe(true);
@@ -1030,21 +1038,98 @@ export const ruinsThresholdMap: WorldMapDefinition = {
 		}
 	],
 	groundPatches: [
-		{ id: 'threshold-main-loop-west', x: 1_600, y: 3_200, width: 2_176, height: 192, tile: 'ruinsFloorTile' },
-		{ id: 'threshold-main-loop-east', x: 4_224, y: 3_200, width: 2_560, height: 192, tile: 'ruinsFloorTile' },
-		{ id: 'threshold-north-branch', x: 2_240, y: 2_048, width: 192, height: 1_920, tile: 'ruinsFloorTile' },
-		{ id: 'threshold-south-branch', x: 3_584, y: 4_352, width: 192, height: 1_920, tile: 'ruinsFloorTile' },
-		{ id: 'threshold-north-room', x: 1_728, y: 2_048, width: 832, height: 640, tile: 'ruinsFloorTile' },
-		{ id: 'threshold-south-room', x: 3_584, y: 4_608, width: 960, height: 672, tile: 'ruinsFloorTile' },
-		{ id: 'threshold-east-room', x: 4_864, y: 3_008, width: 832, height: 640, tile: 'ruinsFloorTile' }
+		{
+			id: 'threshold-main-loop-west',
+			x: 1_600,
+			y: 3_200,
+			width: 2_176,
+			height: 192,
+			tile: 'ruinsFloorTile'
+		},
+		{
+			id: 'threshold-main-loop-east',
+			x: 4_224,
+			y: 3_200,
+			width: 2_560,
+			height: 192,
+			tile: 'ruinsFloorTile'
+		},
+		{
+			id: 'threshold-north-branch',
+			x: 2_240,
+			y: 2_048,
+			width: 192,
+			height: 1_920,
+			tile: 'ruinsFloorTile'
+		},
+		{
+			id: 'threshold-south-branch',
+			x: 3_584,
+			y: 4_352,
+			width: 192,
+			height: 1_920,
+			tile: 'ruinsFloorTile'
+		},
+		{
+			id: 'threshold-north-room',
+			x: 1_728,
+			y: 2_048,
+			width: 832,
+			height: 640,
+			tile: 'ruinsFloorTile'
+		},
+		{
+			id: 'threshold-south-room',
+			x: 3_584,
+			y: 4_608,
+			width: 960,
+			height: 672,
+			tile: 'ruinsFloorTile'
+		},
+		{
+			id: 'threshold-east-room',
+			x: 4_864,
+			y: 3_008,
+			width: 832,
+			height: 640,
+			tile: 'ruinsFloorTile'
+		}
 	],
 	blockers: [
-		{ id: 'threshold-north-wall', x: 3_200, y: 1_184, width: 5_120, height: 128, kind: 'ruin-wall' },
-		{ id: 'threshold-south-wall', x: 3_200, y: 5_216, width: 5_120, height: 128, kind: 'ruin-wall' },
+		{
+			id: 'threshold-north-wall',
+			x: 3_200,
+			y: 1_184,
+			width: 5_120,
+			height: 128,
+			kind: 'ruin-wall'
+		},
+		{
+			id: 'threshold-south-wall',
+			x: 3_200,
+			y: 5_216,
+			width: 5_120,
+			height: 128,
+			kind: 'ruin-wall'
+		},
 		{ id: 'threshold-west-wall', x: 768, y: 3_200, width: 128, height: 3_840, kind: 'ruin-wall' },
 		{ id: 'threshold-east-wall', x: 5_632, y: 3_200, width: 128, height: 3_840, kind: 'ruin-wall' },
-		{ id: 'threshold-loop-divider-north', x: 3_040, y: 2_368, width: 128, height: 1_536, kind: 'ruin-wall' },
-		{ id: 'threshold-loop-divider-south', x: 2_912, y: 4_032, width: 128, height: 1_280, kind: 'ruin-wall' },
+		{
+			id: 'threshold-loop-divider-north',
+			x: 3_040,
+			y: 2_368,
+			width: 128,
+			height: 1_536,
+			kind: 'ruin-wall'
+		},
+		{
+			id: 'threshold-loop-divider-south',
+			x: 2_912,
+			y: 4_032,
+			width: 128,
+			height: 1_280,
+			kind: 'ruin-wall'
+		},
 		{
 			id: 'threshold-future-gate-north',
 			x: 2_240,
@@ -1099,20 +1184,76 @@ export const ruinsCoreMap: WorldMapDefinition = {
 		}
 	],
 	groundPatches: [
-		{ id: 'core-main-approach', x: 2_368, y: 3_200, width: 3_648, height: 192, tile: 'ruinsFloorTile' },
-		{ id: 'core-north-side-room', x: 2_240, y: 2_048, width: 896, height: 704, tile: 'ruinsFloorTile' },
-		{ id: 'core-south-side-room', x: 3_584, y: 4_544, width: 1_024, height: 704, tile: 'ruinsFloorTile' },
-		{ id: 'core-boss-chamber', x: 4_992, y: 3_200, width: 1_024, height: 960, tile: 'ruinsFloorTile' },
-		{ id: 'core-north-connector', x: 2_240, y: 2_624, width: 192, height: 1_280, tile: 'ruinsFloorTile' },
-		{ id: 'core-south-connector', x: 3_584, y: 3_872, width: 192, height: 1_344, tile: 'ruinsFloorTile' }
+		{
+			id: 'core-main-approach',
+			x: 2_368,
+			y: 3_200,
+			width: 3_648,
+			height: 192,
+			tile: 'ruinsFloorTile'
+		},
+		{
+			id: 'core-north-side-room',
+			x: 2_240,
+			y: 2_048,
+			width: 896,
+			height: 704,
+			tile: 'ruinsFloorTile'
+		},
+		{
+			id: 'core-south-side-room',
+			x: 3_584,
+			y: 4_544,
+			width: 1_024,
+			height: 704,
+			tile: 'ruinsFloorTile'
+		},
+		{
+			id: 'core-boss-chamber',
+			x: 4_992,
+			y: 3_200,
+			width: 1_024,
+			height: 960,
+			tile: 'ruinsFloorTile'
+		},
+		{
+			id: 'core-north-connector',
+			x: 2_240,
+			y: 2_624,
+			width: 192,
+			height: 1_280,
+			tile: 'ruinsFloorTile'
+		},
+		{
+			id: 'core-south-connector',
+			x: 3_584,
+			y: 3_872,
+			width: 192,
+			height: 1_344,
+			tile: 'ruinsFloorTile'
+		}
 	],
 	blockers: [
 		{ id: 'core-north-wall', x: 3_200, y: 1_184, width: 5_120, height: 128, kind: 'ruin-wall' },
 		{ id: 'core-south-wall', x: 3_200, y: 5_216, width: 5_120, height: 128, kind: 'ruin-wall' },
 		{ id: 'core-west-wall', x: 768, y: 3_200, width: 128, height: 3_840, kind: 'ruin-wall' },
 		{ id: 'core-east-wall', x: 5_760, y: 3_200, width: 128, height: 3_840, kind: 'ruin-wall' },
-		{ id: 'core-boss-approach-north', x: 4_352, y: 2_624, width: 128, height: 1_280, kind: 'ruin-wall' },
-		{ id: 'core-boss-approach-south', x: 4_352, y: 3_776, width: 128, height: 1_280, kind: 'ruin-wall' },
+		{
+			id: 'core-boss-approach-north',
+			x: 4_352,
+			y: 2_624,
+			width: 128,
+			height: 1_280,
+			kind: 'ruin-wall'
+		},
+		{
+			id: 'core-boss-approach-south',
+			x: 4_352,
+			y: 3_776,
+			width: 128,
+			height: 1_280,
+			kind: 'ruin-wall'
+		},
 		{
 			id: 'core-future-gate-boss',
 			x: 4_608,
@@ -1198,6 +1339,7 @@ git commit -m "feat: expand ruins into puzzle-ready shells"
 ## Task 5: Strengthen Traversal Regression Coverage
 
 **Files:**
+
 - Modify: `src/lib/game/content/maps.test.ts`
 - Modify: `src/lib/game/phaser/scenes/scenes.test.ts`
 
@@ -1206,7 +1348,10 @@ git commit -m "feat: expand ruins into puzzle-ready shells"
 In `src/lib/game/content/maps.test.ts`, add this helper:
 
 ```ts
-function expectPointInsideMap(point: { x: number; y: number }, map: { width: number; height: number }) {
+function expectPointInsideMap(
+	point: { x: number; y: number },
+	map: { width: number; height: number }
+) {
 	expect(point.x).toBeGreaterThanOrEqual(0);
 	expect(point.y).toBeGreaterThanOrEqual(0);
 	expect(point.x).toBeLessThanOrEqual(map.width * 32);
@@ -1352,6 +1497,7 @@ git commit -m "test: cover large map traversal blockers"
 ## Task 6: Full Verification And Browser Smoke
 
 **Files:**
+
 - Modify only if verification exposes a defect in files touched by Tasks 1-5.
 
 - [ ] **Step 1: Run Svelte/TypeScript checks**
