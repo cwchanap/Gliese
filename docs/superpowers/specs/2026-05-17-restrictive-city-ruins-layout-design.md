@@ -74,11 +74,11 @@ References:
 All three outdoor maps use a shared `200x200` tile size. With the existing `32px` tile size,
 each map is `6400x6400px`.
 
-| Map | Current Tiles | New Tiles | New Pixel Size |
-| --- | ---: | ---: | ---: |
-| `meadow-entry` | `80x80` | `200x200` | `6400x6400` |
-| `ruins-threshold` | `30x30` | `200x200` | `6400x6400` |
-| `ruins-core` | `30x30` | `200x200` | `6400x6400` |
+| Map               | Current Tiles | New Tiles | New Pixel Size |
+| ----------------- | ------------: | --------: | -------------: |
+| `meadow-entry`    |       `80x80` | `200x200` |    `6400x6400` |
+| `ruins-threshold` |       `30x30` | `200x200` |    `6400x6400` |
+| `ruins-core`      |       `30x30` | `200x200` |    `6400x6400` |
 
 Compact interiors remain unchanged at `16x12` tiles for this pass.
 
