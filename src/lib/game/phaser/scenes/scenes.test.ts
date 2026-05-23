@@ -815,6 +815,20 @@ describe('WorldScene', () => {
 		expect(phaserState.playerMarker.y).toBe(6_260);
 	});
 
+	it('blocks ocean from the west (lateral approach)', async () => {
+		const { WorldScene } = await import('./WorldScene');
+		const scene = new WorldScene();
+
+		scene.create({ mapId: 'meadow-entry' });
+		Object.assign(phaserState.playerMarker, { x: 63, y: 6_311 });
+		phaserState.cursorKeys.right.isDown = true;
+
+		scene.update(0, 250);
+
+		expect(phaserState.playerMarker.x).toBe(63);
+		expect(phaserState.playerMarker.y).toBe(6_311);
+	});
+
 	it('registers and renders environment blocker and stair art', async () => {
 		const { environmentDressingAsset, forestDressingAsset } =
 			await import('$lib/game/content/assets');

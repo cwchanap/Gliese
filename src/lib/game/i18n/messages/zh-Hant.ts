@@ -14,7 +14,6 @@ export const zhHant = {
 		areaMap: '區域地圖',
 		areaMapDialog: '{{areaName}}地圖',
 		regionSubline: '翠綠地區 / 第 3 日',
-		villageMap: '村莊地圖',
 		unexplored: '未探索',
 		currentPosition: '目前位置',
 		heroName: 'LIAM',

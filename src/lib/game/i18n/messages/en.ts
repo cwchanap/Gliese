@@ -11,7 +11,6 @@ export const en = {
 		areaMap: 'Area Map',
 		areaMapDialog: '{{areaName}} map',
 		regionSubline: 'Verdant Region / Day 03',
-		villageMap: 'Village Map',
 		unexplored: 'Unexplored',
 		currentPosition: 'Current position',
 		heroName: 'LIAM',

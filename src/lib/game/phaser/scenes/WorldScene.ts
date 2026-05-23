@@ -1793,31 +1793,46 @@ export class WorldScene extends Phaser.Scene {
 		const blockers: MapBlocker[] = map.blockers ?? [];
 
 		for (const blocker of blockers) {
-			if (blocker.kind === 'ocean') {
-				this.add.rectangle(blocker.x, blocker.y, blocker.width, blocker.height, 0x1d5f9f, 0.92);
-				continue;
+			switch (blocker.kind) {
+				case 'ocean':
+					this.add.rectangle(
+						blocker.x,
+						blocker.y,
+						blocker.width,
+						blocker.height,
+						0x1d5f9f,
+						0.92
+					);
+					break;
+
+				case 'town-hedge':
+					this.renderBlockerSegments(blocker, forestDressingAsset.key, 'treeCluster');
+					break;
+
+				case 'city-wall':
+					this.renderBlockerSegments(
+						blocker,
+						environmentDressingAsset.key,
+						this.getBlockerFrameName(blocker)
+					);
+					break;
+
+				case 'future-gate':
+				case 'ruin-wall':
+					this.add.tileSprite(
+						blocker.x,
+						blocker.y,
+						blocker.width,
+						blocker.height,
+						environmentDressingAsset.key,
+						this.getBlockerFrameName(blocker)
+					);
+					break;
+
+				default:
+					blocker.kind satisfies never;
+					throw new Error(`Unknown blocker kind: ${blocker.kind}`);
 			}
-
-			const frameName = this.getBlockerFrameName(blocker);
-
-			if (blocker.kind === 'town-hedge') {
-				this.renderBlockerSegments(blocker, forestDressingAsset.key, 'treeCluster');
-				continue;
-			}
-
-			if (blocker.kind === 'city-wall') {
-				this.renderBlockerSegments(blocker, environmentDressingAsset.key, frameName);
-				continue;
-			}
-
-			this.add.tileSprite(
-				blocker.x,
-				blocker.y,
-				blocker.width,
-				blocker.height,
-				environmentDressingAsset.key,
-				frameName
-			);
 		}
 	}
 
@@ -1841,21 +1856,28 @@ export class WorldScene extends Phaser.Scene {
 	}
 
 	private getBlockerFrameName(blocker: MapBlocker): EnvironmentDressingFrameName {
-		if (blocker.kind === 'future-gate') {
-			return 'futureGate';
-		}
-
-		if (blocker.kind === 'ruin-wall') {
-			return 'ruinWall';
-		}
-
 		const orientation = blocker.width >= blocker.height ? 'Horizontal' : 'Vertical';
 
-		if (blocker.kind === 'town-hedge') {
-			return `townHedge${orientation}` as EnvironmentDressingFrameName;
-		}
+		switch (blocker.kind) {
+			case 'ocean':
+				throw new Error('Ocean blockers are rendered as rectangles, not sprites');
 
-		return `townWall${orientation}` as EnvironmentDressingFrameName;
+			case 'future-gate':
+				return 'futureGate';
+
+			case 'ruin-wall':
+				return 'ruinWall';
+
+			case 'town-hedge':
+				return `townHedge${orientation}` as EnvironmentDressingFrameName;
+
+			case 'city-wall':
+				return `townWall${orientation}` as EnvironmentDressingFrameName;
+
+			default:
+				blocker.kind satisfies never;
+				throw new Error(`Unknown blocker kind: ${blocker.kind}`);
+		}
 	}
 
 	private renderFenceSegment(fence: MapFenceSegment) {
