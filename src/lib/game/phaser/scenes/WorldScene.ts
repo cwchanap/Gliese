@@ -1795,14 +1795,7 @@ export class WorldScene extends Phaser.Scene {
 		for (const blocker of blockers) {
 			switch (blocker.kind) {
 				case 'ocean':
-					this.add.rectangle(
-						blocker.x,
-						blocker.y,
-						blocker.width,
-						blocker.height,
-						0x1d5f9f,
-						0.92
-					);
+					this.add.rectangle(blocker.x, blocker.y, blocker.width, blocker.height, 0x1d5f9f, 0.92);
 					break;
 
 				case 'town-hedge':
