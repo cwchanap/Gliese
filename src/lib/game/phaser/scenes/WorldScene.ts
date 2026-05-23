@@ -2262,7 +2262,6 @@ export class WorldScene extends Phaser.Scene {
 
 		return map.transitions.find(
 			(transition) =>
-				transition.showMarker === false &&
 				transition.x >= bounds.left &&
 				transition.x <= bounds.right &&
 				transition.y >= bounds.top &&
