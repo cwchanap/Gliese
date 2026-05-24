@@ -820,12 +820,12 @@ describe('WorldScene', () => {
 		const scene = new WorldScene();
 
 		scene.create({ mapId: 'meadow-entry' });
-		Object.assign(phaserState.playerMarker, { x: 63, y: 6_311 });
+		Object.assign(phaserState.playerMarker, { x: 51, y: 6_311 });
 		phaserState.cursorKeys.right.isDown = true;
 
 		scene.update(0, 250);
 
-		expect(phaserState.playerMarker.x).toBe(63);
+		expect(phaserState.playerMarker.x).toBe(51);
 		expect(phaserState.playerMarker.y).toBe(6_311);
 	});
 
