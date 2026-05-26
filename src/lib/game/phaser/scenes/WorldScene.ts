@@ -485,7 +485,7 @@ export class WorldScene extends Phaser.Scene {
 		this.events?.once?.('shutdown', () => this.removeHudCommandListener());
 
 		const initialExplorationChanged = this.revealCurrentMapArea();
-		if (battleApplication || (initialExplorationChanged && this.shouldPersistExplorationChanges)) {
+		if (this.shouldPersistExplorationChanges && (battleApplication || initialExplorationChanged)) {
 			saveGameState(this.buildSaveState());
 		}
 
@@ -760,7 +760,8 @@ export class WorldScene extends Phaser.Scene {
 			hero: {
 				hp: this.playerProgress.hp,
 				...effectiveStats
-			}
+			},
+			persistExplorationChanges: this.shouldPersistExplorationChanges
 		});
 	}
 

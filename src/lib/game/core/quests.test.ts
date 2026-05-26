@@ -374,10 +374,7 @@ describe('quest core', () => {
 
 		expect(second.state.entries['thin-village-slimes']).toMatchObject({
 			progress: 2,
-			countedSourceIds: [
-				'encounter:meadow-slime-west:unit:0',
-				'encounter:meadow-slime-west:unit:1'
-			]
+			countedSourceIds: ['encounter:meadow-slime-west:unit:0', 'encounter:meadow-slime-west:unit:1']
 		});
 		expect(second.rewards).toEqual([]);
 	});

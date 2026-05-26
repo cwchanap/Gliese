@@ -1178,7 +1178,49 @@ describe('BattleScene', () => {
 			expect(scene.scene.start).toHaveBeenCalledWith(WorldScene.key, {
 				saveState,
 				reason: 'battle-result',
-				battleResult: state.pendingResult
+				battleResult: state.pendingResult,
+				persistExplorationChanges: undefined
+			});
+		} finally {
+			hud.restore();
+		}
+	});
+
+	it('propagates persistExplorationChanges back to WorldScene on dismiss', async () => {
+		const hud = installHudCommandTarget();
+		const { createNewSaveState } = await import('$lib/game/save/save-state');
+		const { BattleScene } = await import('./BattleScene');
+		const { WorldScene } = await import('./WorldScene');
+		const scene = new BattleScene();
+		const saveState = createNewSaveState();
+
+		try {
+			scene.create({
+				saveState,
+				sourceMapId: 'meadow-entry',
+				sourceEncounterId: 'meadow-slime-west',
+				sourceEnemyId: 'slime-scout',
+				returnPosition: { mapId: 'meadow-entry', x: 4_928, y: 1_024, facing: 'down' },
+				enemyCount: 1,
+				hero: { hp: 20, maxHp: 20, attack: 8, defense: 0 },
+				persistExplorationChanges: false
+			});
+			Object.assign(phaserState.playerMarker, { x: 320, y: 180 });
+			const state = scene as unknown as {
+				enemies: Array<{ x: number; y: number }>;
+				pendingResult: unknown;
+			};
+			state.enemies[0]!.x = 330;
+			state.enemies[0]!.y = 180;
+			scene.update(0, 16);
+
+			hud.dispatch({ type: 'dismiss-battle-summary' });
+
+			expect(scene.scene.start).toHaveBeenCalledWith(WorldScene.key, {
+				saveState,
+				reason: 'battle-result',
+				battleResult: state.pendingResult,
+				persistExplorationChanges: false
 			});
 		} finally {
 			hud.restore();
@@ -2587,6 +2629,46 @@ describe('WorldScene', () => {
 				player: expect.objectContaining({ hp: 1, x: 1_536, y: 5_550, facing: 'up' }),
 				wallet: { coins: 9 }
 			});
+		} finally {
+			storage.setSaveStorage(undefined);
+		}
+	});
+
+	it('does not auto-save after a battle result when persistExplorationChanges is false', async () => {
+		const storage = await import('$lib/game/save/storage');
+		const { createNewSaveState } = await import('$lib/game/save/save-state');
+		const { WorldScene } = await import('./WorldScene');
+		const setItemSpy = vi.fn();
+		const memoryStorage = {
+			getItem: vi.fn(() => null),
+			removeItem: vi.fn(),
+			setItem: setItemSpy
+		};
+		const saveState = {
+			...createNewSaveState(),
+			mapId: 'meadow-entry'
+		};
+
+		storage.setSaveStorage(memoryStorage);
+		try {
+			const scene = new WorldScene();
+			scene.create({
+				saveState,
+				reason: 'battle-result',
+				persistExplorationChanges: false,
+				battleResult: {
+					outcome: 'victory',
+					sourceMapId: 'meadow-entry',
+					sourceEncounterId: 'meadow-slime-west',
+					sourceEnemyId: 'slime-scout',
+					returnPosition: { mapId: 'meadow-entry', x: 4_928, y: 1_024, facing: 'down' },
+					finalHeroHp: 18,
+					inventory: saveState.inventory,
+					defeatedUnits: []
+				}
+			});
+
+			expect(setItemSpy).not.toHaveBeenCalled();
 		} finally {
 			storage.setSaveStorage(undefined);
 		}
