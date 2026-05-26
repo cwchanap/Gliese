@@ -61,6 +61,7 @@ describe('createGame', () => {
 		const { createGame } = await import('./createGame');
 		const { BootScene } = await import('$lib/game/phaser/scenes/BootScene');
 		const { WorldScene } = await import('$lib/game/phaser/scenes/WorldScene');
+		const { BattleScene } = await import('$lib/game/phaser/scenes/BattleScene');
 		const mountNode = { id: 'mount-node' } as HTMLElement;
 
 		const instance = await createGame(mountNode);
@@ -73,7 +74,7 @@ describe('createGame', () => {
 					mode: 'RESIZE',
 					autoCenter: 'CENTER_BOTH'
 				},
-				scene: [BootScene, WorldScene]
+				scene: [BootScene, WorldScene, BattleScene]
 			})
 		);
 		expect(instance.destroy).toBeTypeOf('function');
