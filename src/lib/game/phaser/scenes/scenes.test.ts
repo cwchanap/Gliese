@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { maps } from '$lib/game/content/maps';
-import type { HudCommand } from '$lib/game/ui-bridge/events';
+import { HUD_COMMAND_EVENT, type HudCommand } from '$lib/game/ui-bridge/events';
 
 const localeState = vi.hoisted(() => ({
 	activeLocale: 'en' as 'en' | 'ja' | 'zh-Hant'
@@ -539,6 +539,35 @@ vi.mock('phaser', () => {
 	};
 });
 
+function installHudCommandTarget() {
+	const globalWithWindow = globalThis as typeof globalThis & { window?: EventTarget };
+	const hadWindow = Object.prototype.hasOwnProperty.call(globalWithWindow, 'window');
+	const previousWindow = globalWithWindow.window;
+	const target = new EventTarget();
+
+	Object.defineProperty(globalWithWindow, 'window', {
+		configurable: true,
+		value: target
+	});
+
+	return {
+		dispatch(command: HudCommand) {
+			target.dispatchEvent(new CustomEvent(HUD_COMMAND_EVENT, { detail: command }));
+		},
+		restore() {
+			if (hadWindow) {
+				Object.defineProperty(globalWithWindow, 'window', {
+					configurable: true,
+					value: previousWindow
+				});
+				return;
+			}
+
+			Reflect.deleteProperty(globalWithWindow, 'window');
+		}
+	};
+}
+
 describe('BootScene', () => {
 	beforeEach(() => {
 		vi.clearAllMocks();
@@ -1031,6 +1060,128 @@ describe('BattleScene', () => {
 			);
 		} finally {
 			delete mutableAssets.sentinelActor;
+		}
+	});
+
+	it('accepts healing commands and returns the consumed inventory', async () => {
+		const hud = installHudCommandTarget();
+		const events = await import('$lib/game/ui-bridge/events');
+		const emitHudStateSpy = vi.spyOn(events, 'emitHudState');
+		const { createNewSaveState } = await import('$lib/game/save/save-state');
+		const { BattleScene } = await import('./BattleScene');
+		const scene = new BattleScene();
+		const saveState = {
+			...createNewSaveState(),
+			inventory: {
+				stacks: [{ itemId: 'field-potion', quantity: 1 }],
+				equipment: []
+			}
+		};
+
+		try {
+			scene.create({
+				saveState,
+				sourceMapId: 'meadow-entry',
+				sourceEncounterId: 'meadow-slime-west',
+				sourceEnemyId: 'slime-scout',
+				returnPosition: { mapId: 'meadow-entry', x: 4_928, y: 1_024, facing: 'down' },
+				enemyCount: 1,
+				hero: { hp: 4, maxHp: 20, attack: 8, defense: 0 }
+			});
+			emitHudStateSpy.mockClear();
+
+			hud.dispatch({ type: 'heal' });
+
+			const state = scene as unknown as {
+				hero: { hp: number };
+				inventory: { stacks: Array<{ itemId: string; quantity: number }> };
+			};
+			expect(state.hero.hp).toBe(12);
+			expect(state.inventory.stacks).toEqual([]);
+			expect(emitHudStateSpy).toHaveBeenLastCalledWith(
+				expect.objectContaining({
+					hp: 12,
+					heals: 0,
+					status: 'Recovered HP',
+					battle: { phase: 'active', summary: null },
+					inventory: expect.objectContaining({ consumables: [] })
+				})
+			);
+		} finally {
+			hud.restore();
+		}
+	});
+
+	it('locks non-battle commands during active battle', async () => {
+		const hud = installHudCommandTarget();
+		const events = await import('$lib/game/ui-bridge/events');
+		const emitHudStateSpy = vi.spyOn(events, 'emitHudState');
+		const { createNewSaveState } = await import('$lib/game/save/save-state');
+		const { BattleScene } = await import('./BattleScene');
+		const scene = new BattleScene();
+
+		try {
+			scene.create({
+				saveState: createNewSaveState(),
+				sourceMapId: 'meadow-entry',
+				sourceEncounterId: 'meadow-slime-west',
+				sourceEnemyId: 'slime-scout',
+				returnPosition: { mapId: 'meadow-entry', x: 4_928, y: 1_024, facing: 'down' },
+				enemyCount: 1,
+				hero: { hp: 20, maxHp: 20, attack: 8, defense: 0 }
+			});
+			emitHudStateSpy.mockClear();
+
+			hud.dispatch({ type: 'save' });
+
+			expect(scene.scene.start).not.toHaveBeenCalled();
+			expect(emitHudStateSpy).toHaveBeenLastCalledWith(
+				expect.objectContaining({
+					status: 'Cannot do that during battle',
+					battle: { phase: 'active', summary: null }
+				})
+			);
+		} finally {
+			hud.restore();
+		}
+	});
+
+	it('returns to WorldScene with the pending battle result after summary dismissal', async () => {
+		const hud = installHudCommandTarget();
+		const { createNewSaveState } = await import('$lib/game/save/save-state');
+		const { BattleScene } = await import('./BattleScene');
+		const { WorldScene } = await import('./WorldScene');
+		const scene = new BattleScene();
+		const saveState = createNewSaveState();
+
+		try {
+			scene.create({
+				saveState,
+				sourceMapId: 'meadow-entry',
+				sourceEncounterId: 'meadow-slime-west',
+				sourceEnemyId: 'slime-scout',
+				returnPosition: { mapId: 'meadow-entry', x: 4_928, y: 1_024, facing: 'down' },
+				enemyCount: 1,
+				hero: { hp: 20, maxHp: 20, attack: 8, defense: 0 }
+			});
+			Object.assign(phaserState.playerMarker, { x: 320, y: 180 });
+			const state = scene as unknown as {
+				enemies: Array<{ x: number; y: number }>;
+				pendingResult: unknown;
+			};
+			state.enemies[0]!.x = 330;
+			state.enemies[0]!.y = 180;
+			scene.update(0, 16);
+
+			hud.dispatch({ type: 'dismiss-battle-summary' });
+
+			expect(scene.scene.start).toHaveBeenCalledWith(WorldScene.key, {
+				saveState,
+				reason: 'battle-result',
+				battleResult: state.pendingResult
+			});
+		} finally {
+			hud.restore();
 		}
 	});
 });
@@ -2315,6 +2466,29 @@ describe('WorldScene', () => {
 		} finally {
 			storage.setSaveStorage(undefined);
 		}
+	});
+
+	it('rejects battle summary dismissal commands once exploration has resumed', async () => {
+		const events = await import('$lib/game/ui-bridge/events');
+		const emitHudStateSpy = vi.spyOn(events, 'emitHudState');
+		const { WorldScene } = await import('./WorldScene');
+		const scene = new WorldScene();
+		const sceneState = scene as unknown as {
+			handleHudCommand: (command: HudCommand) => void;
+		};
+
+		scene.create({ mapId: 'meadow-entry' });
+		emitHudStateSpy.mockClear();
+
+		sceneState.handleHudCommand({ type: 'dismiss-battle-summary' });
+
+		expect(scene.scene.restart).not.toHaveBeenCalled();
+		expect(emitHudStateSpy).toHaveBeenLastCalledWith(
+			expect.objectContaining({
+				status: 'Cannot do that during battle',
+				battle: { phase: 'none', summary: null }
+			})
+		);
 	});
 
 	it('applies a returned battle defeat at the village spawn without clearing the encounter', async () => {
