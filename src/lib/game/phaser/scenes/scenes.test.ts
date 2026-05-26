@@ -589,6 +589,155 @@ describe('BootScene', () => {
 	});
 });
 
+describe('BattleScene', () => {
+	beforeEach(() => {
+		vi.clearAllMocks();
+		phaserState.reset();
+		Object.assign(phaserState.cursorKeys.left, { isDown: false });
+		Object.assign(phaserState.cursorKeys.right, { isDown: false });
+		Object.assign(phaserState.cursorKeys.up, { isDown: false });
+		Object.assign(phaserState.cursorKeys.down, { isDown: false });
+		Object.assign(phaserState.wasdKeys.left, { isDown: false });
+		Object.assign(phaserState.wasdKeys.right, { isDown: false });
+		Object.assign(phaserState.wasdKeys.up, { isDown: false });
+		Object.assign(phaserState.wasdKeys.down, { isDown: false });
+	});
+
+	it('spawns real generated enemies around the compact arena', async () => {
+		const { createNewSaveState } = await import('$lib/game/save/save-state');
+		const { BattleScene } = await import('./BattleScene');
+		const scene = new BattleScene();
+		const saveState = createNewSaveState();
+
+		scene.create({
+			saveState,
+			sourceMapId: 'meadow-entry',
+			sourceEncounterId: 'meadow-slime-west',
+			sourceEnemyId: 'slime-scout',
+			returnPosition: { mapId: 'meadow-entry', x: 4_928, y: 1_024, facing: 'down' },
+			enemyCount: 4,
+			hero: { hp: 20, maxHp: 20, attack: 4, defense: 0 }
+		});
+
+		const state = scene as unknown as {
+			enemies: Array<{ unitId: string; hp: number; defeated: boolean; x: number; y: number }>;
+		};
+
+		expect(state.enemies).toHaveLength(4);
+		expect(state.enemies.map((enemy) => enemy.unitId)).toEqual([
+			'meadow-slime-west:unit:0',
+			'meadow-slime-west:unit:1',
+			'meadow-slime-west:unit:2',
+			'meadow-slime-west:unit:3'
+		]);
+		expect(state.enemies.every((enemy) => enemy.hp === 8 && !enemy.defeated)).toBe(true);
+		expect(state.enemies.map((enemy) => ({ x: enemy.x, y: enemy.y }))).toEqual(
+			expect.arrayContaining([
+				expect.objectContaining({ x: 320 }),
+				expect.objectContaining({ y: 58 }),
+				expect.objectContaining({ x: 550 }),
+				expect.objectContaining({ x: 90 })
+			])
+		);
+		expect(phaserState.enemyMarkers).toHaveLength(4);
+		expect(phaserState.enemyHealthBarBgs).toHaveLength(4);
+		expect(phaserState.enemyHealthBarFills).toHaveLength(4);
+	});
+
+	it('produces a victory result after all generated enemies are defeated', async () => {
+		const { createNewSaveState } = await import('$lib/game/save/save-state');
+		const { BattleScene } = await import('./BattleScene');
+		const scene = new BattleScene();
+		const saveState = createNewSaveState();
+
+		scene.create({
+			saveState,
+			sourceMapId: 'meadow-entry',
+			sourceEncounterId: 'meadow-slime-west',
+			sourceEnemyId: 'slime-scout',
+			returnPosition: { mapId: 'meadow-entry', x: 4_928, y: 1_024, facing: 'down' },
+			enemyCount: 2,
+			hero: { hp: 20, maxHp: 20, attack: 8, defense: 0 }
+		});
+		Object.assign(phaserState.playerMarker, { x: 320, y: 180 });
+		const state = scene as unknown as {
+			enemies: Array<{ x: number; y: number; hp: number }>;
+			pendingResult: unknown;
+		};
+		state.enemies[0]!.x = 330;
+		state.enemies[0]!.y = 180;
+		state.enemies[1]!.x = 330;
+		state.enemies[1]!.y = 190;
+
+		scene.update(0, 16);
+		scene.update(500, 16);
+
+		expect(state.pendingResult).toMatchObject({
+			outcome: 'victory',
+			sourceMapId: 'meadow-entry',
+			sourceEncounterId: 'meadow-slime-west',
+			sourceEnemyId: 'slime-scout',
+			returnPosition: { mapId: 'meadow-entry', x: 4_928, y: 1_024, facing: 'down' },
+			finalHeroHp: 18,
+			inventory: saveState.inventory,
+			defeatedUnits: [
+				expect.objectContaining({
+					unitId: 'meadow-slime-west:unit:0',
+					unitIndex: 0,
+					enemyId: 'slime-scout',
+					xpReward: 4,
+					coinReward: 4
+				}),
+				expect.objectContaining({
+					unitId: 'meadow-slime-west:unit:1',
+					unitIndex: 1,
+					enemyId: 'slime-scout',
+					xpReward: 4,
+					coinReward: 4
+				})
+			]
+		});
+	});
+
+	it('produces a defeat result when hero HP reaches zero', async () => {
+		const { createNewSaveState } = await import('$lib/game/save/save-state');
+		const { BattleScene } = await import('./BattleScene');
+		const scene = new BattleScene();
+		const saveState = createNewSaveState();
+
+		scene.create({
+			saveState,
+			sourceMapId: 'meadow-entry',
+			sourceEncounterId: 'meadow-slime-west',
+			sourceEnemyId: 'slime-scout',
+			returnPosition: { mapId: 'meadow-entry', x: 4_928, y: 1_024, facing: 'down' },
+			enemyCount: 1,
+			hero: { hp: 1, maxHp: 20, attack: 1, defense: 0 }
+		});
+		Object.assign(phaserState.playerMarker, { x: 320, y: 180 });
+		const state = scene as unknown as {
+			enemies: Array<{ x: number; y: number; attackCooldownUntil: number }>;
+			pendingResult: unknown;
+		};
+		state.enemies[0]!.x = 320;
+		state.enemies[0]!.y = 180;
+		state.enemies[0]!.attackCooldownUntil = 0;
+
+		scene.update(0, 16);
+
+		expect(state.pendingResult).toMatchObject({
+			outcome: 'defeat',
+			sourceMapId: 'meadow-entry',
+			sourceEncounterId: 'meadow-slime-west',
+			sourceEnemyId: 'slime-scout',
+			returnPosition: { mapId: 'meadow-entry', x: 4_928, y: 1_024, facing: 'down' },
+			finalHeroHp: 0,
+			inventory: saveState.inventory,
+			defeatedUnits: []
+		});
+	});
+});
+
 describe('WorldScene', () => {
 	function registerSceneSupportTestMap() {
 		maps['scene-support-test'] = {
