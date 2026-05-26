@@ -46,7 +46,7 @@ import {
 	rollBattleEnemyCount,
 	type BattleResult
 } from '$lib/game/core/battle';
-import { canReceiveHit, resolveHit } from '$lib/game/core/combat';
+import { canReceiveHit } from '$lib/game/core/combat';
 import { equipItem, unequipSlot } from '$lib/game/core/equipment';
 import { resolveMovementVector } from '$lib/game/core/input';
 import { addItem, consumeStackItem } from '$lib/game/core/inventory';
@@ -364,9 +364,6 @@ export class WorldScene extends Phaser.Scene {
 				? applyBattleResultToSaveState(data.saveState, data.battleResult)
 				: null;
 		const activeSave = battleApplication?.saveState ?? data.saveState;
-		if (battleApplication) {
-			saveGameState(battleApplication.saveState);
-		}
 		const map = this.resolveMap(activeSave?.mapId ?? data.mapId);
 		const width = map.width * WorldScene.tileSize;
 		const height = map.height * WorldScene.tileSize;
@@ -488,7 +485,7 @@ export class WorldScene extends Phaser.Scene {
 		this.events?.once?.('shutdown', () => this.removeHudCommandListener());
 
 		const initialExplorationChanged = this.revealCurrentMapArea();
-		if (initialExplorationChanged && this.shouldPersistExplorationChanges) {
+		if (battleApplication || (initialExplorationChanged && this.shouldPersistExplorationChanges)) {
 			saveGameState(this.buildSaveState());
 		}
 
@@ -2836,47 +2833,24 @@ export class WorldScene extends Phaser.Scene {
 			}
 			this.updateEnemyMovementAnimation(enemy, chaseDistance > 0 ? 'walk' : 'idle', time);
 
-			if (!this.canEnemyAttackPlayer(enemy)) {
-				continue;
-			}
-
-			const contactDistance = Phaser.Math.Distance.Between(
-				this.player.x,
-				this.player.y,
-				enemy.x,
-				enemy.y
-			);
-
 			if (
-				contactDistance > WorldScene.enemyAttackReach ||
-				time < enemy.attackCooldownUntil ||
-				time < this.playerInvulnerableUntil
+				chaseDistance > 0 &&
+				this.canEnemyAttackPlayer(enemy) &&
+				this.isEnemyInBattleRange(enemy)
 			) {
-				continue;
+				this.startBattle(enemy);
+				return;
 			}
-
-			this.playerProgress = {
-				...this.playerProgress,
-				hp: resolveHit(
-					{ hp: this.playerProgress.hp, defense: this.getEffectiveStats().defense },
-					{ power: enemy.definition.baseAttack }
-				).hp
-			};
-			enemy.attackCooldownUntil = time + (enemy.definition.boss ? 450 : 700);
-			this.playerInvulnerableUntil = time + 500;
-			enemy.animationLockedUntil = time + 400;
-			this.setEnemyAnimation(enemy, 'attack', false);
-			if (this.playerProgress.hp === 0) {
-				this.defeatHero();
-			} else {
-				this.playHeroHitReaction(time);
-			}
-			this.publishHudState(
-				this.playerProgress.hp === 0
-					? this.status('status.heroDown')
-					: this.status('status.enemyStruckFirst')
-			);
 		}
+	}
+
+	private isEnemyInBattleRange(enemy: EnemyInstance): boolean {
+		if (!this.player) {
+			return false;
+		}
+
+		const distance = Phaser.Math.Distance.Between(this.player.x, this.player.y, enemy.x, enemy.y);
+		return distance <= WorldScene.playerRadius + WorldScene.enemyRadius + WorldScene.attackReach;
 	}
 
 	private canEnemyAttackPlayer(enemy: EnemyInstance): boolean {
