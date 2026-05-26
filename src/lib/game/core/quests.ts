@@ -45,6 +45,7 @@ export type QuestEvent =
 			encounterId: string;
 			enemyId: string;
 			completion?: 'victory';
+			sourceId?: string;
 	  }
 	| { type: 'collect-item'; mapId: string; pickupId: string; itemId: string; quantity: number };
 
@@ -338,7 +339,9 @@ function setQuestEntry(
 
 function getQuestEventSourceId(event: QuestEvent, objective: QuestObjective): string | null {
 	if (objective.kind === 'defeat-enemy' && event.type === 'defeat-enemy') {
-		return `encounter:${event.encounterId}`;
+		return event.sourceId
+			? `encounter:${event.encounterId}:${event.sourceId}`
+			: `encounter:${event.encounterId}`;
 	}
 
 	if (objective.kind === 'collect-item' && event.type === 'collect-item') {
