@@ -101,6 +101,7 @@ export const en = {
 	status: {
 		loadingGame: 'Loading game',
 		battleStarted: 'Battle started',
+		battleActive: 'Battle in progress',
 		battleVictory: 'Battle victory',
 		battleDefeat: 'Battle defeat',
 		battleReturned: 'Returned from battle',

@@ -30,6 +30,7 @@ import { consumeStackItem } from '$lib/game/core/inventory';
 import { resolveLootDrops } from '$lib/game/core/loot';
 import { buildHudQuestState, createInitialQuestState } from '$lib/game/core/quests';
 import { clampHpToMax, deriveEffectiveStats } from '$lib/game/core/stats';
+import { advanceBossPhase } from '$lib/game/core/boss';
 import { getItemText, getQuestText } from '$lib/game/i18n/content';
 import { getActiveLocale } from '$lib/game/i18n/store';
 import { t } from '$lib/game/i18n/translate';
@@ -70,6 +71,7 @@ type BattleEnemyInstance = BattleEnemyUnit & {
 	hitReactionUntil: number;
 	invulnerableUntil: number;
 	marker: ActorMarker;
+	phase: 1 | 2;
 	visualState: ActorAnimationKey;
 	x: number;
 	y: number;
@@ -271,6 +273,7 @@ export class BattleScene extends Phaser.Scene {
 				hitReactionUntil: 0,
 				invulnerableUntil: 0,
 				marker,
+				phase: 1,
 				visualState: 'idle',
 				x: position.x,
 				y: position.y
@@ -361,6 +364,29 @@ export class BattleScene extends Phaser.Scene {
 
 		target.hitReactionUntil = time + BattleScene.hitReactionDurationMs;
 		target.marker.setTint(BattleScene.hitReactionTint);
+		this.updateBossPhase(target);
+	}
+
+	private updateBossPhase(enemy: BattleEnemyInstance) {
+		const definition = getBattleEnemyDefinition(enemy.enemyId);
+
+		if (!definition.boss) {
+			return;
+		}
+
+		const nextState = advanceBossPhase({
+			phase: enemy.phase,
+			hp: enemy.hp,
+			maxHp: enemy.maxHp
+		});
+
+		if (nextState.phase === enemy.phase) {
+			return;
+		}
+
+		enemy.phase = nextState.phase;
+		enemy.marker.setTint(definition.boss.phaseTwoColor);
+		this.publishHudState(t(getActiveLocale(), 'status.bossEnraged'));
 	}
 
 	private finishEnemy(enemy: BattleEnemyInstance) {
@@ -449,7 +475,10 @@ export class BattleScene extends Phaser.Scene {
 
 		if (this.hero.hp === 0 && this.player) {
 			this.setHeroAnimation('dead', false);
+			return;
 		}
+
+		this.publishHudState(t(getActiveLocale(), 'status.battleActive'));
 	}
 
 	private finishBattle(outcome: 'victory' | 'defeat') {

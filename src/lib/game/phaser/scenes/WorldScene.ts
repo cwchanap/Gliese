@@ -756,7 +756,7 @@ export class WorldScene extends Phaser.Scene {
 				y: enemy.homeY + WorldScene.tileSize * 2,
 				facing: this.facing
 			},
-			enemyCount: rollBattleEnemyCount(),
+			enemyCount: enemy.definition.boss ? 1 : rollBattleEnemyCount(),
 			hero: {
 				hp: this.playerProgress.hp,
 				...effectiveStats
