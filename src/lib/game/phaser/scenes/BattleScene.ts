@@ -35,6 +35,7 @@ import { getItemText, getQuestText } from '$lib/game/i18n/content';
 import { getActiveLocale } from '$lib/game/i18n/store';
 import { t } from '$lib/game/i18n/translate';
 import type { SaveState } from '$lib/game/save/save-state';
+import { saveGameState } from '$lib/game/save/storage';
 import {
 	emitHudState,
 	onHudCommand,
@@ -453,7 +454,10 @@ export class BattleScene extends Phaser.Scene {
 			return;
 		}
 
-		const chaseStep = enemy.moveSpeed * (Math.min(delta, BattleScene.maxMovementDeltaMs) / 1000);
+		const definition = getBattleEnemyDefinition(enemy.enemyId);
+		const speedMultiplier = definition.boss && enemy.phase === 2 ? 1.5 : 1;
+		const chaseStep =
+			enemy.moveSpeed * speedMultiplier * (Math.min(delta, BattleScene.maxMovementDeltaMs) / 1000);
 		const appliedStep = Math.min(chaseStep, distance);
 		enemy.x += ((this.player.x - enemy.x) / distance) * appliedStep;
 		enemy.y += ((this.player.y - enemy.y) / distance) * appliedStep;
@@ -498,6 +502,7 @@ export class BattleScene extends Phaser.Scene {
 			defeatedUnits: outcome === 'victory' ? this.defeatedUnits : []
 		};
 		const application = applyBattleResultToSaveState(this.payload.saveState, this.pendingResult);
+		saveGameState(application.saveState);
 		this.publishHudState(
 			this.getBattleSummaryStatus(outcome),
 			application.summary,
@@ -652,7 +657,12 @@ export class BattleScene extends Phaser.Scene {
 			}
 
 			enemy.hitReactionUntil = 0;
-			enemy.marker.clearTint();
+			const definition = getBattleEnemyDefinition(enemy.enemyId);
+			if (definition.boss && enemy.phase === 2) {
+				enemy.marker.setTint(definition.boss.phaseTwoColor);
+			} else {
+				enemy.marker.clearTint();
+			}
 		}
 	}
 
