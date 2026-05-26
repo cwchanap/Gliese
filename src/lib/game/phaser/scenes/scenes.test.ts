@@ -2188,8 +2188,12 @@ describe('WorldScene', () => {
 			expect(parseSaveState(storedSaves.at(-1)!)).toMatchObject({
 				flags: expect.objectContaining({ clearedEncounters: ['meadow-slime-west'] }),
 				player: expect.objectContaining({ x: 4_928, y: 1_024, hp: 20 }),
+				mapExploration: expect.objectContaining({
+					'meadow-entry': expect.arrayContaining(['38,7'])
+				}),
 				wallet: { coins: 8 }
 			});
+			expect(memoryStorage.setItem).toHaveBeenCalledTimes(1);
 		} finally {
 			storage.setSaveStorage(undefined);
 		}
@@ -3759,6 +3763,32 @@ describe('WorldScene', () => {
 		expect(phaserState.playerMarker.clearTint).not.toHaveBeenCalled();
 	});
 
+	it('starts battle when an enemy moves into encounter range during behavior update', async () => {
+		registerSceneSupportTestMap();
+		const { BattleScene } = await import('./BattleScene');
+		const { WorldScene } = await import('./WorldScene');
+		const scene = new WorldScene();
+		const sceneState = scene as unknown as {
+			playerProgress: { hp: number };
+		};
+
+		scene.create({ mapId: 'scene-support-test' });
+		Object.assign(phaserState.playerMarker, { x: 240, y: 320 });
+
+		scene.update(500, 10_000);
+
+		expect(scene.scene.start).toHaveBeenCalledWith(
+			BattleScene.key,
+			expect.objectContaining({
+				sourceMapId: 'scene-support-test',
+				sourceEncounterId: 'scene-support-slime',
+				sourceEnemyId: 'slime-scout'
+			})
+		);
+		expect(sceneState.playerProgress.hp).toBe(20);
+		expect(phaserState.enemyMarker.play).not.toHaveBeenCalledWith('slimeScout-attack', false);
+	});
+
 	it('moves enemies toward a readable melee distance before battle engagement', async () => {
 		const { WorldScene } = await import('./WorldScene');
 		const scene = new WorldScene();
@@ -3768,7 +3798,7 @@ describe('WorldScene', () => {
 		};
 
 		scene.create({ mapId: 'ruins-core' });
-		Object.assign(phaserState.playerMarker, { x: 4_912, y: 3_200 });
+		Object.assign(phaserState.playerMarker, { x: 4_800, y: 3_200 });
 
 		scene.update(0, 10_000);
 
@@ -4525,7 +4555,7 @@ describe('WorldScene', () => {
 		};
 
 		scene.create({ mapId: 'ruins-core' });
-		Object.assign(phaserState.playerMarker, { x: 4_912, y: 3_200 });
+		Object.assign(phaserState.playerMarker, { x: 4_800, y: 3_200 });
 
 		scene.update(0, 1000);
 
