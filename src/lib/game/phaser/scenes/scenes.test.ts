@@ -719,6 +719,8 @@ describe('BattleScene', () => {
 			y: 3_200,
 			facing: 'down'
 		};
+		saveState.inventory.equipment = ['training-sword', 'iron-cap', 'traveler-vest'];
+		saveState.equipment = { ...saveState.equipment, head: 'iron-cap', body: 'traveler-vest' };
 		saveState.wallet = { coins: 30 };
 		saveState.quests = {
 			entries: {
@@ -759,8 +761,12 @@ describe('BattleScene', () => {
 
 			expect(emitHudStateSpy).toHaveBeenLastCalledWith(
 				expect.objectContaining({
+					hp: 24,
+					maxHp: 28,
 					level: 2,
 					xp: 33,
+					attack: 11,
+					defense: 1,
 					wallet: { coins: 90 },
 					heals: 2,
 					battle: {
