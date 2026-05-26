@@ -487,7 +487,6 @@ export class BattleScene extends Phaser.Scene {
 		}
 
 		if (this.pendingResult) {
-			this.publishHudState(t(getActiveLocale(), 'status.battleLocked'));
 			return;
 		}
 
