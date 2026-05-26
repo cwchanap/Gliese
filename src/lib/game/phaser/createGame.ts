@@ -1,4 +1,5 @@
 import { BootScene } from '$lib/game/phaser/scenes/BootScene';
+import { BattleScene } from '$lib/game/phaser/scenes/BattleScene';
 import { WorldScene } from '$lib/game/phaser/scenes/WorldScene';
 
 type PhaserModule = typeof import('phaser');
@@ -20,7 +21,7 @@ export async function createGame(target: HTMLElement) {
 			mode: Phaser.Scale.RESIZE,
 			autoCenter: Phaser.Scale.CENTER_BOTH
 		},
-		scene: [BootScene, WorldScene]
+		scene: [BootScene, WorldScene, BattleScene]
 	});
 
 	return {
