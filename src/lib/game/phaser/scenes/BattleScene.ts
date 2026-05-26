@@ -8,17 +8,28 @@ import {
 	getEnemyActorId,
 	type ActorAnimationKey
 } from '$lib/game/content/assets';
+import { getItem } from '$lib/game/content/items';
+import { maps, openingMapId } from '$lib/game/content/maps';
+import { buildAreaMapState } from '$lib/game/core/area-map';
 import {
+	applyBattleResultToSaveState,
 	buildBattleEnemyUnits,
 	getBattleEnemyDefinition,
 	type BattleDefeatedUnit,
 	type BattleEnemyUnit,
 	type BattleResult,
+	type BattleSummary,
 	type BattleStartPayload
 } from '$lib/game/core/battle';
 import { canReceiveHit, resolveHit } from '$lib/game/core/combat';
+import { createEmptyEquipment } from '$lib/game/core/equipment';
 import { resolveMovementVector } from '$lib/game/core/input';
 import { resolveLootDrops } from '$lib/game/core/loot';
+import { buildHudQuestState, createInitialQuestState } from '$lib/game/core/quests';
+import { getItemText } from '$lib/game/i18n/content';
+import { getActiveLocale } from '$lib/game/i18n/store';
+import { t } from '$lib/game/i18n/translate';
+import { emitHudState, type HudState } from '$lib/game/ui-bridge/events';
 
 type DirectionKey = { isDown: boolean };
 
@@ -94,10 +105,12 @@ export class BattleScene extends Phaser.Scene {
 		this.cameras.main.setBackgroundColor('#17231f');
 
 		if (!isBattleStartPayload(payload)) {
-			this.add.text(320, 180, 'Battle payload missing', {
-				color: '#f8fafc',
-				fontSize: '14px'
-			}).setOrigin(0.5);
+			this.add
+				.text(320, 180, 'Battle payload missing', {
+					color: '#f8fafc',
+					fontSize: '14px'
+				})
+				.setOrigin(0.5);
 			return;
 		}
 
@@ -120,6 +133,7 @@ export class BattleScene extends Phaser.Scene {
 			up: Phaser.Input.Keyboard.KeyCodes.W,
 			down: Phaser.Input.Keyboard.KeyCodes.S
 		}) as Partial<Record<'left' | 'right' | 'up' | 'down', DirectionKey>> | undefined;
+		this.publishHudState(t(getActiveLocale(), 'status.enemyStruckFirst'));
 	}
 
 	update(time: number, delta: number) {
@@ -439,6 +453,8 @@ export class BattleScene extends Phaser.Scene {
 			inventory: this.inventory,
 			defeatedUnits: outcome === 'victory' ? this.defeatedUnits : []
 		};
+		const { summary } = applyBattleResultToSaveState(this.payload.saveState, this.pendingResult);
+		this.publishHudState(this.getBattleSummaryStatus(outcome), summary);
 	}
 
 	private setHeroAnimation(clipName: ActorAnimationKey, ignoreIfPlaying = true) {
@@ -530,6 +546,155 @@ export class BattleScene extends Phaser.Scene {
 		enemy.healthBarFill.setScale(hpRatio, 1);
 		enemy.healthBarBg.setVisible(true);
 		enemy.healthBarFill.setVisible(true);
+	}
+
+	private getBattleSummaryStatus(outcome: 'victory' | 'defeat') {
+		const locale = getActiveLocale();
+
+		if (outcome === 'defeat') {
+			return t(locale, 'status.heroDown');
+		}
+
+		return t(
+			locale,
+			this.payload?.completion === 'victory' ? 'status.victoryRuinsCleared' : 'status.enemyDefeated'
+		);
+	}
+
+	private publishHudState(status: string, summary: BattleSummary | null = null) {
+		const locale = getActiveLocale();
+		const saveState = this.payload?.saveState;
+		const map =
+			maps[this.payload?.sourceMapId ?? saveState?.mapId ?? openingMapId] ?? maps[openingMapId]!;
+		const questState = saveState?.quests ?? createInitialQuestState();
+		const hudSummary: HudState['battle']['summary'] = summary
+			? {
+					outcome: summary.outcome,
+					enemiesDefeated: summary.enemiesDefeated,
+					xpGained: summary.xpGained,
+					coinsGained: summary.coinsGained,
+					drops: summary.drops.map((drop) => {
+						const item = getItem(drop.itemId);
+						const itemText = getItemText(locale, drop.itemId);
+
+						return {
+							itemId: drop.itemId,
+							name: itemText?.name ?? item?.name ?? drop.itemId,
+							quantity: drop.quantity
+						};
+					}),
+					leveledUp: summary.leveledUp,
+					completedQuestTitles: summary.completedQuestIds
+				}
+			: null;
+
+		emitHudState({
+			ready: true,
+			mapId: map.id,
+			hp: this.hero.hp,
+			maxHp: this.hero.maxHp,
+			level: saveState?.player.level ?? 1,
+			xp: saveState?.player.xp ?? 0,
+			attack: this.hero.attack,
+			defense: this.hero.defense,
+			heals: this.getConsumableCount(),
+			canResume: false,
+			status,
+			areaMap: buildAreaMapState({
+				map,
+				player: saveState?.player ?? map.spawn,
+				revealedCells: saveState?.mapExploration[map.id] ?? [],
+				quests: questState,
+				locale
+			}),
+			wallet: { coins: saveState?.wallet.coins ?? 0 },
+			nearbyShop: null,
+			shop: null,
+			dialogue: null,
+			battle: {
+				phase: hudSummary ? 'summary' : 'active',
+				summary: hudSummary
+			},
+			quests: buildHudQuestState({
+				state: questState,
+				nearbyQuestGiverId: null,
+				locale
+			}),
+			inventory: this.buildHudInventory()
+		});
+	}
+
+	private buildHudInventory(): HudState['inventory'] {
+		const locale = getActiveLocale();
+		const inventory = this.inventory ??
+			this.payload?.saveState.inventory ?? { stacks: [], equipment: [] };
+		const equipment = this.payload?.saveState.equipment ?? createEmptyEquipment();
+
+		return {
+			consumables: inventory.stacks.flatMap((stack) => {
+				const item = getItem(stack.itemId);
+				const itemText = item ? getItemText(locale, item.id) : null;
+
+				return item?.type === 'consumable'
+					? [
+							{
+								itemId: item.id,
+								name: itemText?.name ?? item.name,
+								description: itemText?.description ?? item.description,
+								iconPath: item.iconPath,
+								quantity: stack.quantity
+							}
+						]
+					: [];
+			}),
+			equipment: inventory.equipment.flatMap((itemId) => {
+				const item = getItem(itemId);
+				const itemText = item ? getItemText(locale, item.id) : null;
+
+				return item?.type === 'equipment'
+					? [
+							{
+								itemId: item.id,
+								name: itemText?.name ?? item.name,
+								description: itemText?.description ?? item.description,
+								iconPath: item.iconPath,
+								slot: item.slot,
+								equipped: equipment[item.slot] === item.id,
+								modifiers: { ...item.modifiers }
+							}
+						]
+					: [];
+			}),
+			keyItems: inventory.stacks.flatMap((stack) => {
+				const item = getItem(stack.itemId);
+				const itemText = item ? getItemText(locale, item.id) : null;
+
+				return item?.type === 'key'
+					? [
+							{
+								itemId: item.id,
+								name: itemText?.name ?? item.name,
+								description: itemText?.description ?? item.description,
+								iconPath: item.iconPath,
+								quantity: stack.quantity
+							}
+						]
+					: [];
+			}),
+			equipped: { ...equipment }
+		};
+	}
+
+	private getConsumableCount() {
+		const inventory = this.inventory ?? this.payload?.saveState.inventory;
+
+		return (
+			inventory?.stacks.reduce((total, stack) => {
+				const item = getItem(stack.itemId);
+
+				return item?.type === 'consumable' ? total + stack.quantity : total;
+			}, 0) ?? 0
+		);
 	}
 }
 

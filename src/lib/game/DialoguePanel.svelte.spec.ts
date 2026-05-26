@@ -112,6 +112,10 @@ function createReadyHudState(overrides: Partial<HudState> = {}): HudState {
 		nearbyShop: null,
 		shop: null,
 		dialogue: null,
+		battle: {
+			phase: 'none',
+			summary: null
+		},
 		quests: {
 			main: null,
 			side: [],

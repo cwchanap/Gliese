@@ -1178,6 +1178,10 @@ export class WorldScene extends Phaser.Scene {
 			nearbyShop: this.buildNearbyShop(),
 			shop: this.buildOpenShop(),
 			dialogue: this.buildHudDialogue(),
+			battle: {
+				phase: 'none',
+				summary: null
+			},
 			quests: buildHudQuestState({
 				state: this.quests,
 				nearbyQuestGiverId: this.findNearbyNpc()?.id === 'guild-master' ? 'guild-master' : null,
