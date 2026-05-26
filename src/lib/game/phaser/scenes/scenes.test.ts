@@ -1214,7 +1214,7 @@ describe('WorldScene', () => {
 		expect(phaserState.enemyMarker.y).toBe(320);
 	});
 
-	it('keeps non-slime enemies on forest-zone maps using direct chase and attack behavior', async () => {
+	it('keeps non-slime enemies on forest-zone maps using direct chase before battle engagement', async () => {
 		const { WorldScene } = await import('./WorldScene');
 		const scene = new WorldScene();
 		const sceneState = scene as unknown as {
@@ -1224,11 +1224,13 @@ describe('WorldScene', () => {
 		registerNonSlimeForestZoneTestMap();
 
 		scene.create({ mapId: 'non-slime-forest-zone-test' });
+		Object.assign(phaserState.playerMarker, { x: 440, y: 320 });
 
 		scene.update(500, 16);
 
 		expect(sceneState.enemies[0]!.movementMode).toBe('chase');
-		expect(sceneState.playerProgress.hp).toBe(15);
+		expect(sceneState.playerProgress.hp).toBe(20);
+		expect(scene.scene.start).not.toHaveBeenCalled();
 	});
 
 	it('renders village building landmarks without doorway markers for compact interiors', async () => {
@@ -2041,24 +2043,224 @@ describe('WorldScene', () => {
 		expect(phaserState.playerMarker.play).toHaveBeenLastCalledWith('hero-idle', true);
 	});
 
-	it('plays hero attack when auto attacking an enemy', async () => {
+	it('starts BattleScene when the hero engages an uncleared field encounter', async () => {
+		const randomSpy = vi.spyOn(Math, 'random').mockReturnValue(0.5);
+		const { createNewSaveState } = await import('$lib/game/save/save-state');
+		const { BattleScene } = await import('./BattleScene');
 		const { WorldScene } = await import('./WorldScene');
 		const scene = new WorldScene();
+		const save = createNewSaveState();
 
-		scene.create({ mapId: 'meadow-entry' });
-		phaserState.playerMarker.play.mockClear();
-		Object.assign(phaserState.playerMarker, { x: 4_960, y: 960 });
+		try {
+			scene.create({
+				saveState: {
+					...save,
+					mapId: 'meadow-entry',
+					player: { ...save.player, hp: 12, facing: 'down' },
+					inventory: {
+						stacks: save.inventory.stacks,
+						equipment: ['ruin-blade', 'stone-mail']
+					},
+					equipment: {
+						...save.equipment,
+						weapon: 'ruin-blade',
+						body: 'stone-mail'
+					}
+				}
+			});
+			Object.assign(phaserState.playerMarker, { x: 4_960, y: 960 });
 
-		scene.update(0, 16);
+			scene.update(0, 16);
 
-		expect(phaserState.playerMarker.play).toHaveBeenCalledWith('hero-attack', false);
+			expect(scene.scene.start).toHaveBeenCalledWith(
+				BattleScene.key,
+				expect.objectContaining({
+					saveState: expect.objectContaining({
+						mapId: 'meadow-entry',
+						flags: expect.objectContaining({ clearedEncounters: [] })
+					}),
+					sourceMapId: 'meadow-entry',
+					sourceEncounterId: 'meadow-slime-west',
+					sourceEnemyId: 'slime-scout',
+					completion: undefined,
+					returnPosition: { mapId: 'meadow-entry', x: 4_928, y: 1_024, facing: 'down' },
+					enemyCount: 6,
+					hero: { hp: 12, maxHp: 26, attack: 5, defense: 1 }
+				})
+			);
+		} finally {
+			randomSpy.mockRestore();
+		}
 	});
 
-	it('plays hero dead and stops movement when HP reaches zero', async () => {
+	it('does not start BattleScene for cleared or already defeated encounters', async () => {
+		const { createNewSaveState } = await import('$lib/game/save/save-state');
+		const { WorldScene } = await import('./WorldScene');
+		const save = createNewSaveState();
+		const clearedScene = new WorldScene();
+		clearedScene.create({
+			saveState: {
+				...save,
+				mapId: 'meadow-entry',
+				flags: {
+					...save.flags,
+					clearedEncounters: ['meadow-slime-west']
+				}
+			}
+		});
+		Object.assign(phaserState.playerMarker, { x: 4_960, y: 960 });
+
+		clearedScene.update(0, 16);
+
+		expect(clearedScene.scene.start).not.toHaveBeenCalled();
+
+		phaserState.reset();
+		const defeatedScene = new WorldScene();
+		const defeatedState = defeatedScene as unknown as {
+			enemies: Array<{ defeated: boolean; hp: number }>;
+		};
+		defeatedScene.create({ mapId: 'meadow-entry' });
+		Object.assign(phaserState.playerMarker, { x: 4_960, y: 960 });
+		Object.assign(defeatedState.enemies[0]!, { defeated: true, hp: 0 });
+
+		defeatedScene.update(0, 16);
+
+		expect(defeatedScene.scene.start).not.toHaveBeenCalled();
+	});
+
+	it('applies a returned battle victory before rendering the source encounter', async () => {
+		const storage = await import('$lib/game/save/storage');
+		const { createNewSaveState, parseSaveState } = await import('$lib/game/save/save-state');
+		const { WorldScene } = await import('./WorldScene');
+		const storedSaves: string[] = [];
+		const memoryStorage = {
+			getItem: vi.fn(() => null),
+			removeItem: vi.fn(),
+			setItem: vi.fn((_key: string, value: string) => {
+				storedSaves.push(value);
+			})
+		};
+		const saveState = { ...createNewSaveState(), wallet: { coins: 0 } };
+		const scene = new WorldScene();
+
+		storage.setSaveStorage(memoryStorage);
+		try {
+			scene.create({
+				saveState,
+				reason: 'battle-result',
+				battleResult: {
+					outcome: 'victory',
+					sourceMapId: 'meadow-entry',
+					sourceEncounterId: 'meadow-slime-west',
+					sourceEnemyId: 'slime-scout',
+					returnPosition: { mapId: 'meadow-entry', x: 4_928, y: 1_024, facing: 'down' },
+					finalHeroHp: 16,
+					inventory: saveState.inventory,
+					defeatedUnits: [
+						{
+							unitId: 'meadow-slime-west:unit:0',
+							unitIndex: 0,
+							enemyId: 'slime-scout',
+							xpReward: 4,
+							coinReward: 4,
+							drops: []
+						},
+						{
+							unitId: 'meadow-slime-west:unit:1',
+							unitIndex: 1,
+							enemyId: 'slime-scout',
+							xpReward: 4,
+							coinReward: 4,
+							drops: []
+						}
+					]
+				}
+			});
+
+			const builtSave = (
+				scene as unknown as { buildSaveState: () => ReturnType<typeof createNewSaveState> }
+			).buildSaveState();
+			expect(builtSave.flags.clearedEncounters).toEqual(['meadow-slime-west']);
+			expect(builtSave.player).toMatchObject({ x: 4_928, y: 1_024, facing: 'down', hp: 20 });
+			expect(builtSave.player.xp).toBe(8);
+			expect(builtSave.wallet.coins).toBe(8);
+			expect(phaserState.enemyMarker.setVisible).toHaveBeenCalledWith(false);
+			expect(parseSaveState(storedSaves.at(-1)!)).toMatchObject({
+				flags: expect.objectContaining({ clearedEncounters: ['meadow-slime-west'] }),
+				player: expect.objectContaining({ x: 4_928, y: 1_024, hp: 20 }),
+				wallet: { coins: 8 }
+			});
+		} finally {
+			storage.setSaveStorage(undefined);
+		}
+	});
+
+	it('applies a returned battle defeat at the village spawn without clearing the encounter', async () => {
+		const storage = await import('$lib/game/save/storage');
+		const { createNewSaveState, parseSaveState } = await import('$lib/game/save/save-state');
+		const { WorldScene } = await import('./WorldScene');
+		const storedSaves: string[] = [];
+		const memoryStorage = {
+			getItem: vi.fn(() => null),
+			removeItem: vi.fn(),
+			setItem: vi.fn((_key: string, value: string) => {
+				storedSaves.push(value);
+			})
+		};
+		const saveState = {
+			...createNewSaveState(),
+			mapId: 'ruins-threshold',
+			wallet: { coins: 9 },
+			player: {
+				...createNewSaveState().player,
+				x: 512,
+				y: 3_200,
+				facing: 'right' as const,
+				hp: 6
+			}
+		};
+		const scene = new WorldScene();
+
+		storage.setSaveStorage(memoryStorage);
+		try {
+			scene.create({
+				saveState,
+				reason: 'battle-result',
+				battleResult: {
+					outcome: 'defeat',
+					sourceMapId: 'ruins-threshold',
+					sourceEncounterId: 'threshold-slime-west',
+					sourceEnemyId: 'slime-scout',
+					returnPosition: { mapId: 'ruins-threshold', x: 512, y: 3_200, facing: 'right' },
+					finalHeroHp: 0,
+					inventory: saveState.inventory,
+					defeatedUnits: []
+				}
+			});
+
+			const builtSave = (
+				scene as unknown as { buildSaveState: () => ReturnType<typeof createNewSaveState> }
+			).buildSaveState();
+			expect(builtSave.mapId).toBe('meadow-entry');
+			expect(builtSave.player).toMatchObject({ hp: 1, x: 1_536, y: 5_550, facing: 'up' });
+			expect(builtSave.wallet.coins).toBe(9);
+			expect(builtSave.flags.clearedEncounters).toEqual([]);
+			expect(parseSaveState(storedSaves.at(-1)!)).toMatchObject({
+				mapId: 'meadow-entry',
+				flags: expect.objectContaining({ clearedEncounters: [] }),
+				player: expect.objectContaining({ hp: 1, x: 1_536, y: 5_550, facing: 'up' }),
+				wallet: { coins: 9 }
+			});
+		} finally {
+			storage.setSaveStorage(undefined);
+		}
+	});
+
+	it('starts battle instead of resolving a lethal world contact hit', async () => {
+		const { BattleScene } = await import('./BattleScene');
 		const { WorldScene } = await import('./WorldScene');
 		const scene = new WorldScene();
 		const sceneState = scene as unknown as {
-			enemies: Array<{ hp: number }>;
 			playerProgress: { level: number; xp: number; hp: number; attack: number };
 		};
 
@@ -2068,11 +2270,17 @@ describe('WorldScene', () => {
 		phaserState.cursorKeys.right.isDown = true;
 
 		scene.update(500, 16);
-		const xAfterDeath = phaserState.playerMarker.x;
-		scene.update(600, 1000);
 
-		expect(phaserState.playerMarker.play).toHaveBeenCalledWith('hero-dead', false);
-		expect(phaserState.playerMarker.x).toBe(xAfterDeath);
+		expect(scene.scene.start).toHaveBeenCalledWith(
+			BattleScene.key,
+			expect.objectContaining({
+				sourceMapId: 'ruins-core',
+				sourceEncounterId: 'ruins-warden',
+				sourceEnemyId: 'ruins-warden'
+			})
+		);
+		expect(phaserState.playerMarker.play).not.toHaveBeenCalledWith('hero-dead', false);
+		expect(sceneState.playerProgress.hp).toBe(1);
 	});
 
 	it('resumes a zero HP save as dead and keeps movement stopped', async () => {
@@ -2117,7 +2325,8 @@ describe('WorldScene', () => {
 		);
 	});
 
-	it('shows the hero hit impact on the enemy target and clears the hurt reaction', async () => {
+	it('does not play world hit impact when battle starts from a field encounter', async () => {
+		const { BattleScene } = await import('./BattleScene');
 		const { WorldScene } = await import('./WorldScene');
 		const scene = new WorldScene();
 
@@ -2128,36 +2337,13 @@ describe('WorldScene', () => {
 
 		scene.update(0, 16);
 
-		expect(scene.add.arc).toHaveBeenCalledWith(4_928, 960, 32, 210, 330, false, 0xff8a1f, 0.98);
-		expect(scene.add.arc).toHaveBeenCalledWith(4_928, 960, 16, 20, 160, false, 0xfff7d6, 1);
-		expect(scene.add.arc).toHaveBeenCalledWith(4_928, 960, 26, 0, 360, false, 0xfff0a8, 0.72);
-		expect(scene.add.arc).toHaveBeenCalledWith(4_928, 960, 10, 0, 360, false, 0xffffff, 0.92);
-		expect(phaserState.hitImpactArc.setAlpha).toHaveBeenCalledWith(0.98);
-		expect(phaserState.hitImpactSpark.setAlpha).toHaveBeenCalledWith(1);
-		expect(phaserState.hitImpactRing.setScale).toHaveBeenCalledWith(0.55, 0.55);
-		expect(phaserState.hitImpactCore.setScale).toHaveBeenCalledWith(0.85, 0.85);
-		expect(phaserState.hitImpactCore.setAlpha).toHaveBeenCalledWith(0.92);
-		expect(phaserState.enemyMarker.setTint).toHaveBeenCalledWith(0xfff0a8);
-
-		scene.update(200, 16);
-
-		expect(phaserState.hitImpactArc.setVisible).not.toHaveBeenCalledWith(false);
-		expect(phaserState.hitImpactSpark.setVisible).not.toHaveBeenCalledWith(false);
-		expect(phaserState.hitImpactRing.setVisible).not.toHaveBeenCalledWith(false);
-		expect(phaserState.hitImpactCore.setVisible).not.toHaveBeenCalledWith(false);
-		expect(phaserState.hitImpactArc.scaleX).toBeGreaterThan(1);
-		expect(phaserState.hitImpactSpark.alpha).toBeLessThan(0.95);
-		expect(phaserState.hitImpactRing.scaleX).toBeGreaterThan(0.45);
-		expect(phaserState.hitImpactCore.alpha).toBeGreaterThan(0.25);
+		expect(scene.scene.start).toHaveBeenCalledWith(
+			BattleScene.key,
+			expect.objectContaining({ sourceEncounterId: 'meadow-slime-west' })
+		);
+		expect(scene.add.arc).not.toHaveBeenCalled();
+		expect(phaserState.enemyMarker.setTint).not.toHaveBeenCalledWith(0xfff0a8);
 		expect(phaserState.enemyMarker.clearTint).not.toHaveBeenCalled();
-
-		scene.update(470, 16);
-
-		expect(phaserState.hitImpactArc.setVisible).toHaveBeenCalledWith(false);
-		expect(phaserState.hitImpactSpark.setVisible).toHaveBeenCalledWith(false);
-		expect(phaserState.hitImpactRing.setVisible).toHaveBeenCalledWith(false);
-		expect(phaserState.hitImpactCore.setVisible).toHaveBeenCalledWith(false);
-		expect(phaserState.enemyMarker.clearTint).toHaveBeenCalled();
 	});
 
 	it('stops world movement while the gameplay menu is open', async () => {
@@ -3292,22 +3478,38 @@ describe('WorldScene', () => {
 		);
 	});
 
-	it('awards coins when an enemy is defeated once', async () => {
+	it('applies coins when a returned battle victory defeats one enemy', async () => {
 		const { createNewSaveState } = await import('$lib/game/save/save-state');
 		const { WorldScene } = await import('./WorldScene');
 		const scene = new WorldScene();
 		const sceneState = scene as unknown as {
-			enemies: Array<{ hp: number }>;
 			buildSaveState: () => ReturnType<typeof createNewSaveState>;
 		};
 		const save = createNewSaveState();
 
-		scene.create({ saveState: { ...save, wallet: { coins: 0 } } });
-		Object.assign(phaserState.playerMarker, { x: 4_960, y: 960 });
-		sceneState.enemies[0]!.hp = 3;
-
-		scene.update(500, 16);
-		scene.update(1000, 16);
+		scene.create({
+			saveState: { ...save, wallet: { coins: 0 } },
+			reason: 'battle-result',
+			battleResult: {
+				outcome: 'victory',
+				sourceMapId: 'meadow-entry',
+				sourceEncounterId: 'meadow-slime-west',
+				sourceEnemyId: 'slime-scout',
+				returnPosition: { mapId: 'meadow-entry', x: 4_928, y: 1_024, facing: 'down' },
+				finalHeroHp: 20,
+				inventory: save.inventory,
+				defeatedUnits: [
+					{
+						unitId: 'meadow-slime-west:unit:0',
+						unitIndex: 0,
+						enemyId: 'slime-scout',
+						xpReward: 4,
+						coinReward: 4,
+						drops: []
+					}
+				]
+			}
+		});
 
 		expect(sceneState.buildSaveState().wallet.coins).toBe(4);
 	});
@@ -3472,9 +3674,10 @@ describe('WorldScene', () => {
 		);
 	});
 
-	it('defeats an enemy within the melee attack window and applies the xp reward', async () => {
+	it('starts battle instead of applying melee XP in WorldScene', async () => {
 		const progression = await import('$lib/game/core/progression');
 		const applyExperienceGainSpy = vi.spyOn(progression, 'applyExperienceGain');
+		const { BattleScene } = await import('./BattleScene');
 		const { WorldScene } = await import('./WorldScene');
 		const scene = new WorldScene();
 		const sceneState = scene as unknown as {
@@ -3488,13 +3691,18 @@ describe('WorldScene', () => {
 
 		scene.update(0, 16);
 
-		expect(applyExperienceGainSpy).toHaveBeenCalledWith({ level: 1, xp: 0, hp: 20, attack: 3 }, 4);
-		expect(phaserState.enemyHealthBarFill.setScale).toHaveBeenCalledWith(0, 1);
-		expect(sceneState.playerProgress).toMatchObject({ level: 1, xp: 4 });
-		expect(phaserState.enemyMarker.play).toHaveBeenCalledWith('slimeScout-dead', false);
+		expect(scene.scene.start).toHaveBeenCalledWith(
+			BattleScene.key,
+			expect.objectContaining({ sourceEncounterId: 'meadow-slime-west' })
+		);
+		expect(applyExperienceGainSpy).not.toHaveBeenCalled();
+		expect(sceneState.enemies[0]!.hp).toBe(3);
+		expect(sceneState.playerProgress).toMatchObject({ level: 1, xp: 0 });
+		expect(phaserState.enemyMarker.play).not.toHaveBeenCalledWith('slimeScout-dead', false);
 	});
 
-	it('plays enemy walk while chasing and attack when contact damage lands', async () => {
+	it('plays enemy walk while chasing and starts battle at contact', async () => {
+		const { BattleScene } = await import('./BattleScene');
 		const { WorldScene } = await import('./WorldScene');
 		const scene = new WorldScene();
 		const sceneState = scene as unknown as {
@@ -3517,16 +3725,18 @@ describe('WorldScene', () => {
 		sceneState.enemies[0]!.attackCooldownUntil = 0;
 		scene.update(500, 16);
 
-		expect(phaserState.enemyMarker.play).toHaveBeenCalledWith('ruinsWarden-attack', false);
-
-		phaserState.enemyMarker.play.mockClear();
-		scene.update(600, 16);
-
-		expect(phaserState.enemyMarker.play).not.toHaveBeenCalledWith('ruinsWarden-idle', true);
-		expect(phaserState.enemyMarker.play).not.toHaveBeenCalledWith('ruinsWarden-walk', true);
+		expect(scene.scene.start).toHaveBeenCalledWith(
+			BattleScene.key,
+			expect.objectContaining({
+				sourceEncounterId: 'ruins-warden',
+				sourceEnemyId: 'ruins-warden'
+			})
+		);
+		expect(phaserState.enemyMarker.play).not.toHaveBeenCalledWith('ruinsWarden-attack', false);
 	});
 
-	it('shows enemy hit impact on the hero and clears the hurt reaction', async () => {
+	it('starts battle before enemy contact hit impact is resolved', async () => {
+		const { BattleScene } = await import('./BattleScene');
 		const { WorldScene } = await import('./WorldScene');
 		const scene = new WorldScene();
 		const sceneState = scene as unknown as {
@@ -3541,18 +3751,15 @@ describe('WorldScene', () => {
 
 		scene.update(500, 16);
 
-		expect(phaserState.playerMarker.setTint).toHaveBeenCalledWith(0xfff0a8);
-
-		scene.update(700, 16);
-
+		expect(scene.scene.start).toHaveBeenCalledWith(
+			BattleScene.key,
+			expect.objectContaining({ sourceEncounterId: 'ruins-warden' })
+		);
+		expect(phaserState.playerMarker.setTint).not.toHaveBeenCalledWith(0xfff0a8);
 		expect(phaserState.playerMarker.clearTint).not.toHaveBeenCalled();
-
-		scene.update(980, 16);
-
-		expect(phaserState.playerMarker.clearTint).toHaveBeenCalled();
 	});
 
-	it('keeps enemies at a readable melee distance while chasing', async () => {
+	it('moves enemies toward a readable melee distance before battle engagement', async () => {
 		const { WorldScene } = await import('./WorldScene');
 		const scene = new WorldScene();
 		const sceneState = scene as unknown as {
@@ -3564,41 +3771,51 @@ describe('WorldScene', () => {
 		Object.assign(phaserState.playerMarker, { x: 4_912, y: 3_200 });
 
 		scene.update(0, 10_000);
-		scene.update(500, 10_000);
-		scene.update(1000, 10_000);
 
-		expect(sceneState.enemies[0]!.x).toBe(4_952);
+		expect(sceneState.enemies[0]!.x).toBeLessThan(4_992);
+		expect(sceneState.enemies[0]!.x).toBeGreaterThan(4_912);
 		expect(sceneState.enemies[0]!.y).toBe(3_200);
-		expect(sceneState.playerProgress.hp).toBe(15);
+		expect(sceneState.playerProgress.hp).toBe(20);
+		expect(scene.scene.start).not.toHaveBeenCalled();
 	});
 
-	it('plays enemy dead animation before hiding encounter art and health bars', async () => {
+	it('hides encounter art and health bars after a returned battle victory', async () => {
+		const { createNewSaveState } = await import('$lib/game/save/save-state');
 		const { WorldScene } = await import('./WorldScene');
 		const scene = new WorldScene();
-		let deathCallback: (() => void) | undefined;
-		phaserState.enemyMarker.once.mockImplementation((_event: string, callback: () => void) => {
-			deathCallback = callback;
-			return phaserState.enemyMarker;
+		const save = createNewSaveState();
+
+		scene.create({
+			saveState: save,
+			reason: 'battle-result',
+			battleResult: {
+				outcome: 'victory',
+				sourceMapId: 'meadow-entry',
+				sourceEncounterId: 'meadow-slime-west',
+				sourceEnemyId: 'slime-scout',
+				returnPosition: { mapId: 'meadow-entry', x: 4_928, y: 1_024, facing: 'down' },
+				finalHeroHp: 20,
+				inventory: save.inventory,
+				defeatedUnits: [
+					{
+						unitId: 'meadow-slime-west:unit:0',
+						unitIndex: 0,
+						enemyId: 'slime-scout',
+						xpReward: 4,
+						coinReward: 4,
+						drops: []
+					}
+				]
+			}
 		});
-
-		scene.create({ mapId: 'meadow-entry' });
-		Object.assign(phaserState.playerMarker, { x: 4_960, y: 960 });
-		(scene as unknown as { enemies: Array<{ hp: number }> }).enemies[0]!.hp = 3;
-
-		scene.update(0, 16);
-
-		expect(phaserState.enemyMarker.play).toHaveBeenCalledWith('slimeScout-dead', false);
-		expect(phaserState.enemyMarker.setVisible).not.toHaveBeenCalledWith(false);
-
-		deathCallback?.();
 
 		expect(phaserState.enemyMarker.setVisible).toHaveBeenCalledWith(false);
 		expect(phaserState.enemyHealthBarBg.setVisible).toHaveBeenCalledWith(false);
 		expect(phaserState.enemyHealthBarFill.setVisible).toHaveBeenCalledWith(false);
 	});
 
-	it('awards deterministic encounter drops on defeat and saves resolved drops', async () => {
-		const randomSpy = vi.spyOn(Math, 'random').mockReturnValue(0);
+	it('applies returned battle drops and saves resolved drops', async () => {
+		const { createNewSaveState } = await import('$lib/game/save/save-state');
 		const { WorldScene } = await import('./WorldScene');
 		const scene = new WorldScene();
 		const sceneState = scene as unknown as {
@@ -3609,26 +3826,41 @@ describe('WorldScene', () => {
 				};
 			};
 		};
+		const save = createNewSaveState();
 
-		try {
-			scene.create({ mapId: 'meadow-entry' });
-			Object.assign(phaserState.playerMarker, { x: 4_960, y: 960 });
-			(scene as unknown as { enemies: Array<{ hp: number }> }).enemies[0]!.hp = 3;
+		scene.create({
+			saveState: save,
+			reason: 'battle-result',
+			battleResult: {
+				outcome: 'victory',
+				sourceMapId: 'meadow-entry',
+				sourceEncounterId: 'meadow-slime-west',
+				sourceEnemyId: 'slime-scout',
+				returnPosition: { mapId: 'meadow-entry', x: 4_928, y: 1_024, facing: 'down' },
+				finalHeroHp: 20,
+				inventory: save.inventory,
+				defeatedUnits: [
+					{
+						unitId: 'meadow-slime-west:unit:0',
+						unitIndex: 0,
+						enemyId: 'slime-scout',
+						xpReward: 4,
+						coinReward: 4,
+						drops: [{ itemId: 'field-potion', quantity: 1 }]
+					}
+				]
+			}
+		});
 
-			scene.update(0, 16);
-
-			expect(sceneState.buildSaveState()).toMatchObject({
-				inventory: { stacks: [{ itemId: 'field-potion', quantity: 2 }] },
-				flags: {
-					resolvedEncounterDrops: { 'meadow-slime-west': [{ itemId: 'field-potion', quantity: 1 }] }
-				}
-			});
-		} finally {
-			randomSpy.mockRestore();
-		}
+		expect(sceneState.buildSaveState()).toMatchObject({
+			inventory: { stacks: [{ itemId: 'field-potion', quantity: 2 }] },
+			flags: {
+				resolvedEncounterDrops: { 'meadow-slime-west': [{ itemId: 'field-potion', quantity: 1 }] }
+			}
+		});
 	});
 
-	it('reuses loaded encounter drops without rerolling them', async () => {
+	it('uses returned battle drops without rerolling loaded encounter drops', async () => {
 		const randomSpy = vi.spyOn(Math, 'random').mockReturnValue(0);
 		const { createNewSaveState } = await import('$lib/game/save/save-state');
 		const { WorldScene } = await import('./WorldScene');
@@ -3643,9 +3875,10 @@ describe('WorldScene', () => {
 		};
 
 		try {
+			const save = createNewSaveState();
 			scene.create({
 				saveState: {
-					...createNewSaveState(),
+					...save,
 					mapId: 'meadow-entry',
 					flags: {
 						clearedEncounters: [],
@@ -3658,19 +3891,35 @@ describe('WorldScene', () => {
 						stacks: [],
 						equipment: ['training-sword']
 					}
+				},
+				reason: 'battle-result',
+				battleResult: {
+					outcome: 'victory',
+					sourceMapId: 'meadow-entry',
+					sourceEncounterId: 'meadow-slime-west',
+					sourceEnemyId: 'slime-scout',
+					returnPosition: { mapId: 'meadow-entry', x: 4_928, y: 1_024, facing: 'down' },
+					finalHeroHp: 20,
+					inventory: { stacks: [], equipment: ['training-sword'] },
+					defeatedUnits: [
+						{
+							unitId: 'meadow-slime-west:unit:0',
+							unitIndex: 0,
+							enemyId: 'slime-scout',
+							xpReward: 4,
+							coinReward: 4,
+							drops: [{ itemId: 'field-potion', quantity: 1 }]
+						}
+					]
 				}
 			});
-			Object.assign(phaserState.playerMarker, { x: 4_960, y: 960 });
-			(scene as unknown as { enemies: Array<{ hp: number }> }).enemies[0]!.hp = 3;
-
-			scene.update(0, 16);
 
 			expect(randomSpy).not.toHaveBeenCalled();
 			expect(sceneState.buildSaveState()).toMatchObject({
-				inventory: { stacks: [{ itemId: 'greater-field-potion', quantity: 1 }] },
+				inventory: { stacks: [{ itemId: 'field-potion', quantity: 1 }] },
 				flags: {
 					resolvedEncounterDrops: {
-						'meadow-slime-west': [{ itemId: 'greater-field-potion', quantity: 1 }]
+						'meadow-slime-west': [{ itemId: 'field-potion', quantity: 1 }]
 					}
 				}
 			});
@@ -3679,7 +3928,8 @@ describe('WorldScene', () => {
 		}
 	});
 
-	it('auto attacks enemies in range without manual input', async () => {
+	it('starts battle in range without manual input and leaves world enemy HP unchanged', async () => {
+		const { BattleScene } = await import('./BattleScene');
 		const { WorldScene } = await import('./WorldScene');
 		const scene = new WorldScene();
 		const sceneState = scene as unknown as {
@@ -3691,60 +3941,89 @@ describe('WorldScene', () => {
 
 		scene.update(0, 16);
 
-		expect(sceneState.enemies[0]!.hp).toBe(4);
+		expect(scene.scene.start).toHaveBeenCalledWith(
+			BattleScene.key,
+			expect.objectContaining({ sourceEncounterId: 'meadow-slime-west' })
+		);
+		expect(sceneState.enemies[0]!.hp).toBe(8);
 	});
 
-	it('does not auto attack again before the cooldown elapses', async () => {
+	it('does not start battle before the engagement cooldown elapses', async () => {
+		const { BattleScene } = await import('./BattleScene');
 		const { WorldScene } = await import('./WorldScene');
 		const scene = new WorldScene();
 		const sceneState = scene as unknown as {
-			enemies: Array<{ hp: number; maxHp: number; invulnerableUntil: number; defeated: boolean }>;
+			playerAttackCooldownUntil: number;
 		};
 
 		scene.create({ mapId: 'meadow-entry' });
 		Object.assign(phaserState.playerMarker, { x: 4_960, y: 960 });
-		Object.assign(sceneState.enemies[0]!, {
-			hp: 9,
-			maxHp: 9,
-			invulnerableUntil: 0,
-			defeated: false
-		});
+		sceneState.playerAttackCooldownUntil = 500;
 
 		scene.update(0, 16);
 		scene.update(200, 16);
 		scene.update(400, 16);
 
-		expect(sceneState.enemies[0]!.hp).toBe(5);
-		expect(phaserState.enemyHealthBarFill.setScale).toHaveBeenLastCalledWith(
-			expect.closeTo(5 / 9, 5),
-			1
+		expect(scene.scene.start).not.toHaveBeenCalled();
+
+		scene.update(500, 16);
+
+		expect(scene.scene.start).toHaveBeenCalledWith(
+			BattleScene.key,
+			expect.objectContaining({ sourceEncounterId: 'meadow-slime-west' })
 		);
 	});
 
-	it('keeps awarding xp after level 2 without throwing', async () => {
-		const { WorldScene } = await import('./WorldScene');
-		const scene = new WorldScene();
-		const sceneState = scene as unknown as {
-			enemies: Array<{ hp: number }>;
-			playerProgress: { level: number; xp: number; hp: number; attack: number };
-		};
-
-		scene.create({ mapId: 'meadow-entry' });
-		Object.assign(phaserState.playerMarker, { x: 4_960, y: 960 });
-		sceneState.playerProgress = { level: 2, xp: 5, hp: 24, attack: 4 };
-		sceneState.enemies[0]!.hp = 4;
-
-		expect(() => scene.update(0, 16)).not.toThrow();
-		expect(sceneState.playerProgress).toEqual({ level: 2, xp: 9, hp: 24, attack: 4 });
-	});
-
-	it('side quest completion from combat grants rewards once', async () => {
-		const randomSpy = vi.spyOn(Math, 'random').mockReturnValue(1);
+	it('applies returned battle XP after level 2 without throwing', async () => {
 		const { createNewSaveState } = await import('$lib/game/save/save-state');
 		const { WorldScene } = await import('./WorldScene');
 		const scene = new WorldScene();
 		const sceneState = scene as unknown as {
-			enemies: Array<{ hp: number }>;
+			buildSaveState: () => ReturnType<typeof createNewSaveState>;
+		};
+		const save = createNewSaveState();
+
+		expect(() =>
+			scene.create({
+				saveState: {
+					...save,
+					player: { ...save.player, level: 2, xp: 5, hp: 24, attack: 4 }
+				},
+				reason: 'battle-result',
+				battleResult: {
+					outcome: 'victory',
+					sourceMapId: 'meadow-entry',
+					sourceEncounterId: 'meadow-slime-west',
+					sourceEnemyId: 'slime-scout',
+					returnPosition: { mapId: 'meadow-entry', x: 4_928, y: 1_024, facing: 'down' },
+					finalHeroHp: 24,
+					inventory: save.inventory,
+					defeatedUnits: [
+						{
+							unitId: 'meadow-slime-west:unit:0',
+							unitIndex: 0,
+							enemyId: 'slime-scout',
+							xpReward: 4,
+							coinReward: 4,
+							drops: []
+						}
+					]
+				}
+			})
+		).not.toThrow();
+		expect(sceneState.buildSaveState().player).toMatchObject({
+			level: 2,
+			xp: 9,
+			hp: 24,
+			attack: 4
+		});
+	});
+
+	it('side quest completion from returned battle result grants rewards once', async () => {
+		const { createNewSaveState } = await import('$lib/game/save/save-state');
+		const { WorldScene } = await import('./WorldScene');
+		const scene = new WorldScene();
+		const sceneState = scene as unknown as {
 			buildSaveState: () => {
 				wallet: { coins: number };
 				inventory: { stacks: Array<{ itemId: string; quantity: number }> };
@@ -3753,59 +4032,70 @@ describe('WorldScene', () => {
 				};
 			};
 		};
+		const save = createNewSaveState();
 
-		try {
-			const save = createNewSaveState();
-			scene.create({
-				saveState: {
-					...save,
-					mapId: 'meadow-entry',
-					wallet: { coins: 0 },
-					flags: {
-						...save.flags,
-						clearedEncounters: ['meadow-slime-west', 'meadow-slime-center']
-					},
-					quests: {
-						entries: {
-							'investigate-the-ruins': {
-								status: 'active',
-								currentObjectiveId: 'defeat-ruins-warden',
-								progress: 0,
-								rewardApplied: false,
-								countedSourceIds: []
-							},
-							'thin-village-slimes': {
-								status: 'active',
-								currentObjectiveId: 'defeat-village-slimes',
-								progress: 2,
-								rewardApplied: false,
-								countedSourceIds: ['encounter:meadow-slime-west', 'encounter:meadow-slime-center']
-							}
+		scene.create({
+			saveState: {
+				...save,
+				mapId: 'meadow-entry',
+				wallet: { coins: 0 },
+				flags: {
+					...save.flags,
+					clearedEncounters: ['meadow-slime-west', 'meadow-slime-center']
+				},
+				quests: {
+					entries: {
+						'investigate-the-ruins': {
+							status: 'active',
+							currentObjectiveId: 'defeat-ruins-warden',
+							progress: 0,
+							rewardApplied: false,
+							countedSourceIds: []
 						},
-						completedObjectives: { 'investigate-the-ruins': ['talk-to-guild-master'] }
-					}
+						'thin-village-slimes': {
+							status: 'active',
+							currentObjectiveId: 'defeat-village-slimes',
+							progress: 2,
+							rewardApplied: false,
+							countedSourceIds: ['encounter:meadow-slime-west', 'encounter:meadow-slime-center']
+						}
+					},
+					completedObjectives: { 'investigate-the-ruins': ['talk-to-guild-master'] }
 				}
-			});
-			Object.assign(phaserState.playerMarker, { x: 5_952, y: 1_600 });
-			sceneState.enemies[2]!.hp = 3;
+			},
+			reason: 'battle-result',
+			battleResult: {
+				outcome: 'victory',
+				sourceMapId: 'meadow-entry',
+				sourceEncounterId: 'meadow-slime-east',
+				sourceEnemyId: 'slime-scout',
+				returnPosition: { mapId: 'meadow-entry', x: 5_952, y: 1_600, facing: 'down' },
+				finalHeroHp: 20,
+				inventory: save.inventory,
+				defeatedUnits: [
+					{
+						unitId: 'meadow-slime-east:unit:0',
+						unitIndex: 0,
+						enemyId: 'slime-scout',
+						xpReward: 4,
+						coinReward: 4,
+						drops: []
+					}
+				]
+			}
+		});
 
-			scene.update(500, 16);
-			scene.update(1000, 16);
-
-			const completedSave = sceneState.buildSaveState();
-			expect(completedSave.quests.entries['thin-village-slimes']).toMatchObject({
-				status: 'completed',
-				progress: 3,
-				rewardApplied: true
-			});
-			expect(completedSave.wallet.coins).toBe(16);
-			expect(completedSave.inventory.stacks).toContainEqual({
-				itemId: 'field-potion',
-				quantity: 2
-			});
-		} finally {
-			randomSpy.mockRestore();
-		}
+		const completedSave = sceneState.buildSaveState();
+		expect(completedSave.quests.entries['thin-village-slimes']).toMatchObject({
+			status: 'completed',
+			progress: 3,
+			rewardApplied: true
+		});
+		expect(completedSave.wallet.coins).toBe(16);
+		expect(completedSave.inventory.stacks).toContainEqual({
+			itemId: 'field-potion',
+			quantity: 2
+		});
 	});
 
 	it('blocks the ruins route until the Guild Master objective is complete', async () => {
@@ -4200,7 +4490,7 @@ describe('WorldScene', () => {
 
 		scene.create({ mapId: 'meadow-entry' });
 		Object.assign(sceneState.enemies[0]!, { x: 5_460, y: 960, movementMode: 'chase' });
-		Object.assign(phaserState.playerMarker, { x: 5_490, y: 960 });
+		Object.assign(phaserState.playerMarker, { x: 5_600, y: 960 });
 		const hpBeforeReturn = sceneState.playerProgress.hp;
 
 		scene.update(1_000, 16);
@@ -4225,11 +4515,12 @@ describe('WorldScene', () => {
 		expect(sceneState.enemies[0]!.movementMode).toBe('chase');
 	});
 
-	it('bosses chase, strike back, and enrage in phase 2', async () => {
+	it('bosses chase before battle and keep phase-2 enrage behavior', async () => {
 		const { WorldScene } = await import('./WorldScene');
 		const scene = new WorldScene();
 		const sceneState = scene as unknown as {
 			enemies: Array<{ x: number; hp: number }>;
+			updateBossPhase: (enemy: { x: number; hp: number }) => void;
 			playerProgress: { hp: number };
 		};
 
@@ -4239,19 +4530,17 @@ describe('WorldScene', () => {
 		scene.update(0, 1000);
 
 		expect(sceneState.enemies[0]!.x).toBeLessThan(4_992);
-
-		Object.assign(phaserState.playerMarker, { x: sceneState.enemies[0]!.x, y: 3_200 });
-		scene.update(500, 16);
-
-		expect(sceneState.playerProgress.hp).toBe(15);
+		expect(sceneState.playerProgress.hp).toBe(20);
+		expect(scene.scene.start).not.toHaveBeenCalled();
 
 		sceneState.enemies[0]!.hp = 22;
-		scene.update(1000, 16);
+		sceneState.updateBossPhase(sceneState.enemies[0]!);
 
 		expect(phaserState.enemyMarker.setTint).toHaveBeenCalledWith(0xff8a3d);
 	});
 
-	it('does not defeat the boss with one opening hit', async () => {
+	it('starts BattleScene instead of damaging the boss with one opening engagement', async () => {
+		const { BattleScene } = await import('./BattleScene');
 		const { WorldScene } = await import('./WorldScene');
 		const scene = new WorldScene();
 		const sceneState = scene as unknown as {
@@ -4263,19 +4552,49 @@ describe('WorldScene', () => {
 
 		scene.update(0, 16);
 
-		expect(sceneState.enemies[0]).toMatchObject({ hp: 41, defeated: false });
+		expect(scene.scene.start).toHaveBeenCalledWith(
+			BattleScene.key,
+			expect.objectContaining({
+				sourceMapId: 'ruins-core',
+				sourceEncounterId: 'ruins-warden',
+				sourceEnemyId: 'ruins-warden',
+				completion: 'victory'
+			})
+		);
+		expect(sceneState.enemies[0]).toMatchObject({ hp: 45, defeated: false });
 		expect(scene.add.text).not.toHaveBeenCalled();
 	});
 
-	it('shows a victory state after defeating the boss encounter', async () => {
+	it('shows a victory state after a returned boss battle victory', async () => {
+		const { createNewSaveState } = await import('$lib/game/save/save-state');
 		const { WorldScene } = await import('./WorldScene');
 		const scene = new WorldScene();
+		const save = { ...createNewSaveState(), mapId: 'ruins-core' };
 
-		scene.create({ mapId: 'ruins-core' });
-		Object.assign(phaserState.playerMarker, { x: 4_992, y: 3_200 });
-		(scene as unknown as { enemies: Array<{ hp: number }> }).enemies[0]!.hp = 3;
-
-		scene.update(0, 16);
+		scene.create({
+			saveState: save,
+			reason: 'battle-result',
+			battleResult: {
+				outcome: 'victory',
+				sourceMapId: 'ruins-core',
+				sourceEncounterId: 'ruins-warden',
+				sourceEnemyId: 'ruins-warden',
+				completion: 'victory',
+				returnPosition: { mapId: 'ruins-core', x: 4_992, y: 3_264, facing: 'down' },
+				finalHeroHp: 20,
+				inventory: save.inventory,
+				defeatedUnits: [
+					{
+						unitId: 'ruins-warden:unit:0',
+						unitIndex: 0,
+						enemyId: 'ruins-warden',
+						xpReward: 15,
+						coinReward: 30,
+						drops: []
+					}
+				]
+			}
+		});
 
 		expect(scene.add.text).toHaveBeenCalledWith(
 			expect.any(Number),
