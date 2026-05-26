@@ -481,7 +481,8 @@ export class BattleScene extends Phaser.Scene {
 			this.scene.start(WorldScene.key, {
 				saveState: this.payload.saveState,
 				reason: 'battle-result',
-				battleResult: this.pendingResult
+				battleResult: this.pendingResult,
+				persistExplorationChanges: this.payload.persistExplorationChanges
 			});
 			return;
 		}

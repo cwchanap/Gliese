@@ -1,7 +1,3 @@
-import { BootScene } from '$lib/game/phaser/scenes/BootScene';
-import { BattleScene } from '$lib/game/phaser/scenes/BattleScene';
-import { WorldScene } from '$lib/game/phaser/scenes/WorldScene';
-
 type PhaserModule = typeof import('phaser');
 
 export async function createGame(target: HTMLElement) {
@@ -11,6 +7,9 @@ export async function createGame(target: HTMLElement) {
 
 	const PhaserModule = await import('phaser');
 	const Phaser = resolvePhaserRuntime(PhaserModule);
+	const { BootScene } = await import('$lib/game/phaser/scenes/BootScene');
+	const { WorldScene } = await import('$lib/game/phaser/scenes/WorldScene');
+	const { BattleScene } = await import('$lib/game/phaser/scenes/BattleScene');
 	const game = new Phaser.Game({
 		type: Phaser.AUTO,
 		parent: target,
