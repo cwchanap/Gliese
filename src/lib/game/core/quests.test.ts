@@ -9,6 +9,7 @@ import {
 	hasCompletedQuestObjective,
 	isQuestComplete
 } from '$lib/game/core/quests';
+import { mainQuestId } from '$lib/game/content/quests';
 
 const emptyWorldFlags = {
 	clearedEncounterIds: new Set<string>(),
@@ -334,6 +335,51 @@ describe('quest core', () => {
 		expect(first.state.entries['thin-village-slimes']?.progress).toBe(1);
 		expect(duplicate.state.entries['thin-village-slimes']?.progress).toBe(1);
 		expect(duplicate.rewards).toEqual([]);
+	});
+
+	it('counts defeat enemy events from separate battle units in one world encounter', () => {
+		const accepted = acceptQuest({
+			state: {
+				...createInitialQuestState(),
+				completedObjectives: { [mainQuestId]: ['talk-to-guild-master'] }
+			},
+			questId: 'thin-village-slimes',
+			worldFlags: {
+				clearedEncounterIds: new Set(),
+				collectedPickupIds: new Set()
+			}
+		});
+		expect(accepted.accepted).toBe(true);
+
+		const first = applyQuestEvent({
+			state: accepted.accepted ? accepted.state : createInitialQuestState(),
+			event: {
+				type: 'defeat-enemy',
+				mapId: 'meadow-entry',
+				encounterId: 'meadow-slime-west',
+				enemyId: 'slime-scout',
+				sourceId: 'unit:0'
+			}
+		});
+		const second = applyQuestEvent({
+			state: first.state,
+			event: {
+				type: 'defeat-enemy',
+				mapId: 'meadow-entry',
+				encounterId: 'meadow-slime-west',
+				enemyId: 'slime-scout',
+				sourceId: 'unit:1'
+			}
+		});
+
+		expect(second.state.entries['thin-village-slimes']).toMatchObject({
+			progress: 2,
+			countedSourceIds: [
+				'encounter:meadow-slime-west:unit:0',
+				'encounter:meadow-slime-west:unit:1'
+			]
+		});
+		expect(second.rewards).toEqual([]);
 	});
 
 	it('does not count duplicate pickup events before the objective completes', () => {
