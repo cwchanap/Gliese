@@ -11,6 +11,7 @@
 		requestDialogueAdvance,
 		requestDialogueChoice,
 		requestDialogueClose,
+		requestDismissBattleSummary,
 		requestEquipItem,
 		requestHeal,
 		requestOpenShop,
@@ -70,8 +71,12 @@
 	const hpPercent = $derived(($hudState.hp / Math.max($hudState.maxHp, 1)) * 100);
 	const xpTarget = $derived($hudState.level > 1 ? 24 : 12);
 	const xpPercent = $derived((Math.min($hudState.xp, xpTarget) / xpTarget) * 100);
+	const battlePhase = $derived($hudState.battle.phase);
+	const battleLocked = $derived(battlePhase === 'active' || battlePhase === 'summary');
+	const battleSummary = $derived($hudState.battle.summary);
 
 	function pauseForOverlay(owner: OverlayPauseOwner) {
+		if (battleLocked) return;
 		if (pauseOwner === null) requestPauseGame();
 		pauseOwner = owner;
 	}
@@ -95,7 +100,7 @@
 	}
 
 	function openInventory() {
-		if (inventoryOpen) return;
+		if (inventoryOpen || battleLocked) return;
 		rememberInventoryFocus();
 		commandOpen = false;
 		inventoryOpen = true;
@@ -117,7 +122,7 @@
 	}
 
 	function openShop() {
-		if (shopOpen || !$hudState.nearbyShop) return;
+		if (shopOpen || battleLocked || !$hudState.nearbyShop) return;
 		rememberShopFocus();
 		commandOpen = false;
 		inventoryOpen = false;
@@ -139,7 +144,7 @@
 	}
 
 	function openQuestLog() {
-		if (questLogOpen) return;
+		if (questLogOpen || battleLocked) return;
 		commandOpen = false;
 		questLogOpen = true;
 		pauseForOverlay('questLog');
@@ -153,7 +158,7 @@
 	}
 
 	function openAreaMap() {
-		if (areaMapOpen) return;
+		if (areaMapOpen || battleLocked) return;
 		commandOpen = false;
 		areaMapOpen = true;
 		pauseForOverlay('areaMap');
@@ -195,13 +200,19 @@
 	}
 
 	function resumeSaveFromMenu() {
+		if (battleLocked) return;
 		releaseOverlayPause();
 		requestResume();
 	}
 
 	function saveFromMenu() {
+		if (battleLocked) return;
 		releaseOverlayPause();
 		requestSave();
+	}
+
+	function dismissBattleSummary() {
+		requestDismissBattleSummary();
 	}
 
 	function rememberInventoryFocus() {
@@ -548,7 +559,7 @@
 	}
 
 	function activateInventorySlot(slot: InventorySlotItem) {
-		if (!$hudState.ready) return;
+		if (!$hudState.ready || battleLocked) return;
 
 		if (slot.kind === 'consumable') {
 			requestUseItem(slot.item.itemId);
@@ -606,6 +617,7 @@
 	function canBuyShopItem(item: HudShopBuyEntry): boolean {
 		return (
 			$hudState.ready &&
+			!battleLocked &&
 			$hudState.shop !== null &&
 			$hudState.wallet.coins >= item.price &&
 			(item.availability.mode === 'unlimited' || item.availability.remaining > 0)
@@ -649,7 +661,7 @@
 	}
 
 	function activateShopSellItem(item: HudShopSellEntry) {
-		if (!$hudState.ready) return;
+		if (!$hudState.ready || battleLocked) return;
 		requestSellInventoryItem(item.itemId);
 	}
 
@@ -858,7 +870,7 @@
 					type="button"
 					class="jrpg-command-action"
 					onclick={openQuestLog}
-					disabled={!$hudState.ready}
+					disabled={!$hudState.ready || battleLocked}
 				>
 					{t($locale, 'ui.quests')}
 				</button>
@@ -866,7 +878,7 @@
 					type="button"
 					class="jrpg-command-action"
 					onclick={openAreaMap}
-					disabled={!$hudState.ready}
+					disabled={!$hudState.ready || battleLocked}
 				>
 					{t($locale, 'ui.map')}
 				</button>
@@ -874,7 +886,7 @@
 					type="button"
 					class="jrpg-command-action"
 					onclick={openInventory}
-					disabled={!$hudState.ready}
+					disabled={!$hudState.ready || battleLocked}
 				>
 					{t($locale, 'ui.inventory')}
 				</button>
@@ -882,7 +894,7 @@
 					type="button"
 					class="jrpg-command-action"
 					onclick={openShop}
-					disabled={!$hudState.ready || !$hudState.nearbyShop}
+					disabled={!$hudState.ready || battleLocked || !$hudState.nearbyShop}
 				>
 					{t($locale, 'ui.shop')}
 				</button>
@@ -890,7 +902,7 @@
 					type="button"
 					class="jrpg-command-action"
 					onclick={resumeSaveFromMenu}
-					disabled={!$hudState.ready || !$hudState.canResume}
+					disabled={!$hudState.ready || battleLocked || !$hudState.canResume}
 				>
 					{t($locale, 'ui.resumeSave')}
 				</button>
@@ -898,7 +910,7 @@
 					type="button"
 					class="jrpg-command-action"
 					onclick={saveFromMenu}
-					disabled={!$hudState.ready}
+					disabled={!$hudState.ready || battleLocked}
 				>
 					{t($locale, 'ui.saveGame')}
 				</button>
@@ -906,7 +918,7 @@
 					type="button"
 					class="jrpg-command-action"
 					onclick={requestHeal}
-					disabled={!$hudState.ready || $hudState.heals < 1}
+					disabled={!$hudState.ready || $hudState.heals < 1 || battlePhase === 'summary'}
 				>
 					{t($locale, 'ui.useHeal')}
 				</button>
@@ -935,6 +947,65 @@
 			onclose={requestDialogueClose}
 			onchoose={requestDialogueChoice}
 		/>
+	{/if}
+
+	{#if battleSummary}
+		<div class="jrpg-modal-backdrop jrpg-battle-summary-backdrop" role="presentation">
+			<div
+				class="jrpg-window jrpg-window-narrow"
+				aria-label={t($locale, 'ui.battleSummary')}
+				aria-modal="true"
+				role="dialog"
+				tabindex="-1"
+			>
+				<div class="jrpg-window-header">
+					<div>
+						<p class="jrpg-label">
+							{battleSummary.outcome === 'victory'
+								? t($locale, 'ui.battleVictory')
+								: t($locale, 'ui.battleDefeat')}
+						</p>
+						<h2 class="jrpg-window-title">{t($locale, 'ui.battleSummary')}</h2>
+					</div>
+				</div>
+				<div class="jrpg-window-body">
+					<div class="grid gap-3 text-sm text-slate-100/88">
+						<p>
+							{t($locale, 'ui.enemiesDefeated', {
+								count: battleSummary.enemiesDefeated
+							})}
+						</p>
+						<p>{t($locale, 'ui.xpGained', { xp: battleSummary.xpGained })}</p>
+						<p>{t($locale, 'ui.coinsGained', { coins: battleSummary.coinsGained })}</p>
+						{#if battleSummary.leveledUp}
+							<p>{t($locale, 'ui.levelUp')}</p>
+						{/if}
+						{#if battleSummary.drops.length > 0}
+							<ul class="grid gap-1">
+								{#each battleSummary.drops as drop (drop.itemId)}
+									<li>{drop.name} x{drop.quantity}</li>
+								{/each}
+							</ul>
+						{:else}
+							<p>{t($locale, 'ui.noDrops')}</p>
+						{/if}
+						{#if battleSummary.completedQuestTitles.length > 0}
+							<ul class="grid gap-1">
+								{#each battleSummary.completedQuestTitles as questTitle (questTitle)}
+									<li>{t($locale, 'status.questComplete', { questTitle })}</li>
+								{/each}
+							</ul>
+						{/if}
+						{#if battleSummary.outcome === 'defeat'}
+							<p>{t($locale, 'ui.defeatReturnedToVillage')}</p>
+						{/if}
+					</div>
+					<button type="button" class="jrpg-command-action mt-5" onclick={dismissBattleSummary}>
+						{t($locale, 'ui.continue')}
+					</button>
+				</div>
+			</div>
+		</div>
 	{/if}
 
 	{#if inventoryOpen}
@@ -1993,6 +2064,10 @@
 		background: rgba(0, 0, 0, 0.52);
 		padding: 1rem;
 		backdrop-filter: blur(3px);
+	}
+
+	.jrpg-battle-summary-backdrop {
+		z-index: 70;
 	}
 
 	.jrpg-window {
