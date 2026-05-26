@@ -40,6 +40,10 @@ const initialHudState: HudState = {
 	nearbyShop: null,
 	shop: null,
 	dialogue: null,
+	battle: {
+		phase: 'none',
+		summary: null
+	},
 	quests: buildHudQuestState({
 		state: initialQuestState,
 		nearbyQuestGiverId: null,
@@ -117,4 +121,8 @@ export function requestDialogueClose() {
 
 export function requestDialogueChoice(choiceId: string) {
 	emitHudCommand({ type: 'dialogue-choose', choiceId });
+}
+
+export function requestDismissBattleSummary() {
+	emitHudCommand({ type: 'dismiss-battle-summary' });
 }

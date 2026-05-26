@@ -56,6 +56,27 @@ export type HudDialogueState = {
 	canClose: boolean;
 };
 
+export type HudBattleSummaryDrop = {
+	itemId: string;
+	name: string;
+	quantity: number;
+};
+
+export type HudBattleSummary = {
+	outcome: 'victory' | 'defeat';
+	enemiesDefeated: number;
+	xpGained: number;
+	coinsGained: number;
+	drops: HudBattleSummaryDrop[];
+	leveledUp: boolean;
+	completedQuestTitles: string[];
+};
+
+export type HudBattleState = {
+	phase: 'none' | 'active' | 'summary';
+	summary: HudBattleSummary | null;
+};
+
 export type HudState = {
 	ready: boolean;
 	mapId: string;
@@ -73,6 +94,7 @@ export type HudState = {
 	nearbyShop: HudNearbyShop | null;
 	shop: HudOpenShop | null;
 	dialogue: HudDialogueState | null;
+	battle: HudBattleState;
 	quests: HudQuestState;
 	inventory: {
 		consumables: HudInventoryStack[];
@@ -102,7 +124,8 @@ export type HudCommand =
 	| { type: 'accept-quest'; questId: string }
 	| { type: 'dialogue-advance' }
 	| { type: 'dialogue-close' }
-	| { type: 'dialogue-choose'; choiceId: string };
+	| { type: 'dialogue-choose'; choiceId: string }
+	| { type: 'dismiss-battle-summary' };
 
 export const HUD_STATE_EVENT = 'gliese:hud-state';
 export const HUD_COMMAND_EVENT = 'gliese:hud-command';
