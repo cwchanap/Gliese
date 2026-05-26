@@ -1266,6 +1266,146 @@ describe('BattleScene', () => {
 			hud.restore();
 		}
 	});
+
+	it('persists battle results via saveGameState when the battle finishes', async () => {
+		const storage = await import('$lib/game/save/storage');
+		const { createNewSaveState } = await import('$lib/game/save/save-state');
+		const { BattleScene } = await import('./BattleScene');
+		const scene = new BattleScene();
+		const saveState = createNewSaveState();
+		const storedSaves: string[] = [];
+		const memoryStorage = {
+			getItem: vi.fn(() => null),
+			removeItem: vi.fn(),
+			setItem: vi.fn((_key: string, value: string) => {
+				storedSaves.push(value);
+			})
+		};
+
+		storage.setSaveStorage(memoryStorage);
+		try {
+			scene.create({
+				saveState,
+				sourceMapId: 'meadow-entry',
+				sourceEncounterId: 'meadow-slime-west',
+				sourceEnemyId: 'slime-scout',
+				returnPosition: { mapId: 'meadow-entry', x: 4_928, y: 1_024, facing: 'down' },
+				enemyCount: 1,
+				hero: { hp: 20, maxHp: 20, attack: 8, defense: 0 }
+			});
+			Object.assign(phaserState.playerMarker, { x: 320, y: 180 });
+			const state = scene as unknown as {
+				enemies: Array<{ x: number; y: number }>;
+			};
+			state.enemies[0]!.x = 330;
+			state.enemies[0]!.y = 180;
+
+			scene.update(0, 16);
+
+			expect(memoryStorage.setItem).toHaveBeenCalledWith(
+				storage.SAVE_STORAGE_KEY,
+				expect.any(String)
+			);
+			expect(storedSaves.length).toBeGreaterThanOrEqual(1);
+		} finally {
+			storage.setSaveStorage(undefined);
+		}
+	});
+
+	it('applies 1.5x speed multiplier for phase-2 boss enemies', async () => {
+		const { createNewSaveState } = await import('$lib/game/save/save-state');
+		const { BattleScene } = await import('./BattleScene');
+		const scene = new BattleScene();
+		const saveState = createNewSaveState();
+
+		scene.create({
+			saveState,
+			sourceMapId: 'ruins-core',
+			sourceEncounterId: 'ruins-warden',
+			sourceEnemyId: 'ruins-warden',
+			returnPosition: { mapId: 'ruins-core', x: 4_992, y: 3_200, facing: 'down' },
+			enemyCount: 1,
+			hero: { hp: 20, maxHp: 20, attack: 23, defense: 0 }
+		});
+		Object.assign(phaserState.playerMarker, { x: 320, y: 180 });
+		const state = scene as unknown as {
+			enemies: Array<{
+				x: number;
+				y: number;
+				hp: number;
+				maxHp: number;
+				phase: 1 | 2;
+				moveSpeed: number;
+			}>;
+		};
+
+		// Phase 1: position enemy close enough for the hero to hit
+		state.enemies[0]!.x = 330;
+		state.enemies[0]!.y = 180;
+
+		scene.update(0, 16);
+
+		// Hit should trigger enrage (45 HP → 22, below 50%)
+		expect(state.enemies[0]!.phase).toBe(2);
+
+		// Now measure speed in phase 2: move hero far away, boss chases
+		Object.assign(phaserState.playerMarker, { x: 60, y: 60 });
+		const xBeforeChase = state.enemies[0]!.x;
+
+		scene.update(500, 200);
+
+		const phase2Delta = Math.abs(state.enemies[0]!.x - xBeforeChase);
+		// Phase-2 boss (75 * 1.5 = 112.5 speed) * 0.2s = 22.5 units
+		// Phase-1 boss (75 speed) * 0.2s = 15 units
+		expect(phase2Delta).toBeGreaterThan(18);
+	});
+
+	it('restores phase-2 boss tint after hit reaction expires', async () => {
+		const { createNewSaveState } = await import('$lib/game/save/save-state');
+		const { BattleScene } = await import('./BattleScene');
+		const scene = new BattleScene();
+		const saveState = createNewSaveState();
+
+		scene.create({
+			saveState,
+			sourceMapId: 'ruins-core',
+			sourceEncounterId: 'ruins-warden',
+			sourceEnemyId: 'ruins-warden',
+			returnPosition: { mapId: 'ruins-core', x: 4_992, y: 3_200, facing: 'down' },
+			enemyCount: 1,
+			hero: { hp: 20, maxHp: 20, attack: 23, defense: 0 }
+		});
+		Object.assign(phaserState.playerMarker, { x: 320, y: 180 });
+		const state = scene as unknown as {
+			enemies: Array<{
+				x: number;
+				y: number;
+				hp: number;
+				maxHp: number;
+				phase: 1 | 2;
+				hitReactionUntil: number;
+			}>;
+		};
+		state.enemies[0]!.x = 330;
+		state.enemies[0]!.y = 180;
+
+		// First hit: trigger enrage
+		scene.update(0, 16);
+		expect(state.enemies[0]!.phase).toBe(2);
+		expect(phaserState.enemyMarker.setTint).toHaveBeenCalledWith(0xff8a3d);
+
+		// Reset setTint/clearTint mock tracking but keep phase state
+		phaserState.enemyMarker.setTint.mockClear();
+		phaserState.enemyMarker.clearTint.mockClear();
+
+		// Wait for first hit reaction to clear
+		const hitReactionEnd = state.enemies[0]!.hitReactionUntil;
+		scene.update(hitReactionEnd + 1, 16);
+
+		// Phase-2 tint should be restored, not clearTint
+		expect(phaserState.enemyMarker.setTint).toHaveBeenCalledWith(0xff8a3d);
+		expect(phaserState.enemyMarker.clearTint).not.toHaveBeenCalled();
+	});
 });
 
 describe('WorldScene', () => {
