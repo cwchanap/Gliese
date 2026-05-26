@@ -1184,6 +1184,46 @@ describe('BattleScene', () => {
 			hud.restore();
 		}
 	});
+
+	it('ignores non-dismiss commands while the battle summary is showing', async () => {
+		const events = await import('$lib/game/ui-bridge/events');
+		const { createNewSaveState } = await import('$lib/game/save/save-state');
+		const emitHudStateSpy = vi.spyOn(events, 'emitHudState');
+		const { BattleScene } = await import('./BattleScene');
+		const scene = new BattleScene();
+		const saveState = createNewSaveState();
+
+		scene.create({
+			saveState,
+			sourceMapId: 'meadow-entry',
+			sourceEncounterId: 'meadow-slime-west',
+			sourceEnemyId: 'slime-scout',
+			returnPosition: { mapId: 'meadow-entry', x: 4_928, y: 1_024, facing: 'down' },
+			enemyCount: 1,
+			hero: { hp: 20, maxHp: 20, attack: 8, defense: 0 }
+		});
+		Object.assign(phaserState.playerMarker, { x: 320, y: 180 });
+		const state = scene as unknown as {
+			enemies: Array<{ x: number; y: number }>;
+			pendingResult: unknown;
+		};
+		state.enemies[0]!.x = 330;
+		state.enemies[0]!.y = 180;
+
+		scene.update(0, 16);
+
+		expect(state.pendingResult).toBeTruthy();
+		emitHudStateSpy.mockClear();
+
+		const hud = installHudCommandTarget();
+		try {
+			hud.dispatch({ type: 'heal' });
+
+			expect(emitHudStateSpy).not.toHaveBeenCalled();
+		} finally {
+			hud.restore();
+		}
+	});
 });
 
 describe('WorldScene', () => {

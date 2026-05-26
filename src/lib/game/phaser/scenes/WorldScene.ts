@@ -753,7 +753,7 @@ export class WorldScene extends Phaser.Scene {
 			returnPosition: {
 				mapId: this.mapId,
 				x: enemy.homeX,
-				y: enemy.homeY + 64,
+				y: enemy.homeY + WorldScene.tileSize * 2,
 				facing: this.facing
 			},
 			enemyCount: rollBattleEnemyCount(),
