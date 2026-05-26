@@ -41,6 +41,11 @@ import { isQuestId } from '$lib/game/content/quests';
 import { getShop } from '$lib/game/content/shops';
 import { advanceBossPhase } from '$lib/game/core/boss';
 import { buildAreaMapState } from '$lib/game/core/area-map';
+import {
+	applyBattleResultToSaveState,
+	rollBattleEnemyCount,
+	type BattleResult
+} from '$lib/game/core/battle';
 import { canReceiveHit, resolveHit } from '$lib/game/core/combat';
 import { equipItem, unequipSlot } from '$lib/game/core/equipment';
 import { resolveMovementVector } from '$lib/game/core/input';
@@ -98,11 +103,13 @@ import {
 	type HudCommand,
 	type HudState
 } from '$lib/game/ui-bridge/events';
+import { BattleScene } from './BattleScene';
 
 interface WorldSceneData {
+	battleResult?: BattleResult;
 	mapId?: string;
 	persistExplorationChanges?: boolean;
-	reason?: 'invalid-save' | 'new' | 'resume' | 'transition';
+	reason?: 'battle-result' | 'invalid-save' | 'new' | 'resume' | 'transition';
 	saveState?: SaveState | null;
 }
 
@@ -352,7 +359,14 @@ export class WorldScene extends Phaser.Scene {
 	}
 
 	create(data: WorldSceneData = {}) {
-		const activeSave = data.saveState;
+		const battleApplication =
+			data.battleResult && data.saveState
+				? applyBattleResultToSaveState(data.saveState, data.battleResult)
+				: null;
+		const activeSave = battleApplication?.saveState ?? data.saveState;
+		if (battleApplication) {
+			saveGameState(battleApplication.saveState);
+		}
 		const map = this.resolveMap(activeSave?.mapId ?? data.mapId);
 		const width = map.width * WorldScene.tileSize;
 		const height = map.height * WorldScene.tileSize;
@@ -557,28 +571,12 @@ export class WorldScene extends Phaser.Scene {
 		this.handleInteractInput();
 		this.tryCollectPickup();
 
-		const attackTarget =
+		const battleTarget =
 			time >= this.playerAttackCooldownUntil ? this.findHeroAttackTarget(time) : undefined;
 
-		if (attackTarget) {
-			this.playerAttackCooldownUntil = time + WorldScene.autoAttackCooldownMs;
-			this.playHeroAttackAnimation(time);
-			const effectiveStats = this.getEffectiveStats();
-			attackTarget.hp = resolveHit(
-				{ hp: attackTarget.hp, defense: 0 },
-				{ power: effectiveStats.attack }
-			).hp;
-			attackTarget.invulnerableUntil = time + WorldScene.enemyInvulnerabilityMs;
-			this.updateEnemyHealthBar(attackTarget);
-			this.updateBossPhase(attackTarget);
-
-			if (attackTarget.hp === 0) {
-				this.finishEncounter(attackTarget);
-			} else {
-				this.playEnemyHitReaction(attackTarget, time);
-				this.showHitImpact(attackTarget.x, attackTarget.y, time);
-				this.publishHudState(this.status('status.strikeLanded'));
-			}
+		if (battleTarget) {
+			this.startBattle(battleTarget);
+			return;
 		}
 
 		if (!this.hasLivingEnemies()) {
@@ -740,6 +738,33 @@ export class WorldScene extends Phaser.Scene {
 		if (enemy.completion === 'victory') {
 			this.showVictoryState();
 		}
+	}
+
+	private startBattle(enemy: EnemyInstance) {
+		if (!this.player) {
+			return;
+		}
+
+		const effectiveStats = this.getEffectiveStats();
+
+		this.scene.start(BattleScene.key, {
+			saveState: this.buildSaveState(),
+			sourceMapId: this.mapId,
+			sourceEncounterId: enemy.id,
+			sourceEnemyId: enemy.definition.id,
+			completion: enemy.completion,
+			returnPosition: {
+				mapId: this.mapId,
+				x: enemy.homeX,
+				y: enemy.homeY + 64,
+				facing: this.facing
+			},
+			enemyCount: rollBattleEnemyCount(),
+			hero: {
+				hp: this.playerProgress.hp,
+				...effectiveStats
+			}
+		});
 	}
 
 	private equipInventoryItem(itemId: string) {
@@ -2501,6 +2526,7 @@ export class WorldScene extends Phaser.Scene {
 	}
 
 	private resolveInitialStatus(reason: NonNullable<WorldSceneData['reason']>) {
+		if (reason === 'battle-result') return this.status('status.saveResumed');
 		if (reason === 'resume') return this.status('status.saveResumed');
 		if (reason === 'transition') return this.status('status.enteredArea');
 		if (reason === 'invalid-save') return this.status('status.invalidSaveReset');
