@@ -1,6 +1,7 @@
 import * as Phaser from 'phaser';
 
 import {
+	actorAnimationAssets,
 	actorAnimationKeys,
 	animationPackAsset,
 	getActorAnimationAsset,
@@ -29,7 +30,7 @@ type ActorMarker = {
 	setTint: (color: number) => unknown;
 	setVisible: (visible: boolean) => unknown;
 	play: (key: string, ignoreIfPlaying?: boolean) => unknown;
-	once: (event: string, callback: () => void) => unknown;
+	once?: (event: string, callback: () => void) => unknown;
 };
 
 type OverlayMarker = {
@@ -39,9 +40,12 @@ type OverlayMarker = {
 };
 
 type BattleEnemyInstance = BattleEnemyUnit & {
+	animationLockedUntil: number;
 	attackCooldownUntil: number;
+	deathAnimationPending: boolean;
 	healthBarBg: OverlayMarker;
 	healthBarFill: OverlayMarker;
+	hitReactionUntil: number;
 	invulnerableUntil: number;
 	marker: ActorMarker;
 	visualState: ActorAnimationKey;
@@ -61,6 +65,9 @@ export class BattleScene extends Phaser.Scene {
 	private static readonly enemyAttackCooldownMs = 700;
 	private static readonly heroInvulnerabilityMs = 500;
 	private static readonly maxMovementDeltaMs = 250;
+	private static readonly actorAnimationLockMs = 400;
+	private static readonly hitReactionDurationMs = 450;
+	private static readonly hitReactionTint = 0xfff0a8;
 	private static readonly heroMoveSpeed = 140;
 	private static readonly enemyHealthBarOffsetY = 34;
 
@@ -74,6 +81,7 @@ export class BattleScene extends Phaser.Scene {
 	private payload: BattleStartPayload | null = null;
 	private pendingResult: BattleResult | null = null;
 	private player?: ActorMarker;
+	private heroAnimationLockedUntil = 0;
 	private heroVisualState: ActorAnimationKey = 'idle';
 	private wasdKeys?: Partial<Record<'left' | 'right' | 'up' | 'down', DirectionKey>>;
 
@@ -119,7 +127,8 @@ export class BattleScene extends Phaser.Scene {
 			return;
 		}
 
-		this.updateHeroMovement(delta);
+		this.updateHitReactions(time);
+		this.updateHeroMovement(time, delta);
 		this.tryHeroAttack(time);
 		this.updateEnemyBehavior(time, delta);
 	}
@@ -134,6 +143,7 @@ export class BattleScene extends Phaser.Scene {
 		this.enemies = [];
 		this.hero = { hp: 1, maxHp: 1, attack: 1, defense: 0 };
 		this.heroAttackCooldownUntil = 0;
+		this.heroAnimationLockedUntil = 0;
 		this.heroInvulnerableUntil = 0;
 		this.heroVisualState = 'idle';
 		this.inventory = null;
@@ -154,9 +164,7 @@ export class BattleScene extends Phaser.Scene {
 	}
 
 	private ensureActorAnimations() {
-		for (const actor of ['hero', 'slimeScout', 'ruinsWarden'] as const) {
-			const animation = getActorAnimationAsset(actor);
-
+		for (const animation of Object.values(actorAnimationAssets)) {
 			for (const clipName of actorAnimationKeys) {
 				const clip = animation.clips[clipName];
 
@@ -226,9 +234,12 @@ export class BattleScene extends Phaser.Scene {
 
 			const enemy: BattleEnemyInstance = {
 				...unit,
+				animationLockedUntil: 0,
 				attackCooldownUntil: 0,
+				deathAnimationPending: false,
 				healthBarBg,
 				healthBarFill,
+				hitReactionUntil: 0,
 				invulnerableUntil: 0,
 				marker,
 				visualState: 'idle',
@@ -256,7 +267,7 @@ export class BattleScene extends Phaser.Scene {
 		});
 	}
 
-	private updateHeroMovement(delta: number) {
+	private updateHeroMovement(time: number, delta: number) {
 		if (!this.player) {
 			return;
 		}
@@ -281,7 +292,9 @@ export class BattleScene extends Phaser.Scene {
 			BattleScene.arena.height - BattleScene.arena.padding
 		);
 
-		this.setHeroAnimation(direction.x === 0 && direction.y === 0 ? 'idle' : 'walk');
+		if (time >= this.heroAnimationLockedUntil) {
+			this.setHeroAnimation(direction.x === 0 && direction.y === 0 ? 'idle' : 'walk');
+		}
 	}
 
 	private tryHeroAttack(time: number) {
@@ -306,6 +319,7 @@ export class BattleScene extends Phaser.Scene {
 		}
 
 		this.heroAttackCooldownUntil = time + BattleScene.autoAttackCooldownMs;
+		this.heroAnimationLockedUntil = time + BattleScene.actorAnimationLockMs;
 		this.setHeroAnimation('attack', false);
 		target.hp = resolveHit({ hp: target.hp, defense: 0 }, { power: this.hero.attack }).hp;
 		target.invulnerableUntil = time + BattleScene.enemyInvulnerabilityMs;
@@ -316,7 +330,8 @@ export class BattleScene extends Phaser.Scene {
 			return;
 		}
 
-		target.marker.setTint(0xfff0a8);
+		target.hitReactionUntil = time + BattleScene.hitReactionDurationMs;
+		target.marker.setTint(BattleScene.hitReactionTint);
 	}
 
 	private finishEnemy(enemy: BattleEnemyInstance) {
@@ -325,10 +340,7 @@ export class BattleScene extends Phaser.Scene {
 		}
 
 		enemy.defeated = true;
-		this.playEnemyAnimation(enemy, 'dead', false);
-		enemy.marker.setVisible(false);
-		enemy.healthBarBg.setVisible(false);
-		enemy.healthBarFill.setVisible(false);
+		this.playEnemyDeathAnimation(enemy);
 		this.defeatedUnits.push({
 			unitId: enemy.unitId,
 			unitIndex: enemy.unitIndex,
@@ -356,9 +368,9 @@ export class BattleScene extends Phaser.Scene {
 			const distance = Phaser.Math.Distance.Between(this.player.x, this.player.y, enemy.x, enemy.y);
 
 			if (distance > BattleScene.enemyAttackReach) {
-				this.moveEnemyTowardHero(enemy, distance, delta);
+				this.moveEnemyTowardHero(enemy, distance, time, delta);
 			} else {
-				this.playEnemyAnimation(enemy, 'idle');
+				this.updateEnemyMovementAnimation(enemy, 'idle', time);
 			}
 
 			if (
@@ -376,7 +388,12 @@ export class BattleScene extends Phaser.Scene {
 		}
 	}
 
-	private moveEnemyTowardHero(enemy: BattleEnemyInstance, distance: number, delta: number) {
+	private moveEnemyTowardHero(
+		enemy: BattleEnemyInstance,
+		distance: number,
+		time: number,
+		delta: number
+	) {
 		if (!this.player || distance <= 0) {
 			return;
 		}
@@ -387,7 +404,7 @@ export class BattleScene extends Phaser.Scene {
 		enemy.y += ((this.player.y - enemy.y) / distance) * appliedStep;
 		enemy.marker.x = enemy.x;
 		enemy.marker.y = enemy.y;
-		this.playEnemyAnimation(enemy, 'walk');
+		this.updateEnemyMovementAnimation(enemy, 'walk', time);
 		this.updateEnemyHealthBar(enemy);
 	}
 
@@ -397,6 +414,7 @@ export class BattleScene extends Phaser.Scene {
 			{ power: enemy.attack }
 		).hp;
 		enemy.attackCooldownUntil = time + BattleScene.enemyAttackCooldownMs;
+		enemy.animationLockedUntil = time + BattleScene.actorAnimationLockMs;
 		this.heroInvulnerableUntil = time + BattleScene.heroInvulnerabilityMs;
 		this.playEnemyAnimation(enemy, 'attack', false);
 
@@ -432,6 +450,45 @@ export class BattleScene extends Phaser.Scene {
 		this.player.play(getActorAnimationAsset('hero').clips[clipName].key, ignoreIfPlaying);
 	}
 
+	private updateEnemyMovementAnimation(
+		enemy: BattleEnemyInstance,
+		clipName: ActorAnimationKey,
+		time: number
+	) {
+		if (time < enemy.animationLockedUntil) {
+			return;
+		}
+
+		this.playEnemyAnimation(enemy, clipName);
+	}
+
+	private playEnemyDeathAnimation(enemy: BattleEnemyInstance) {
+		if (enemy.deathAnimationPending) {
+			return;
+		}
+
+		enemy.deathAnimationPending = true;
+		enemy.visualState = 'dead';
+		this.playEnemyAnimation(enemy, 'dead', false);
+
+		const hideDefeatedEnemy = () => {
+			enemy.marker.setVisible(false);
+			enemy.healthBarBg.setVisible(false);
+			enemy.healthBarFill.setVisible(false);
+		};
+
+		const completionEvent = `animationcomplete-${
+			getActorAnimationAsset(getEnemyActorId(enemy.enemyId)).clips.dead.key
+		}`;
+
+		if (enemy.marker.once) {
+			enemy.marker.once(completionEvent, hideDefeatedEnemy);
+			return;
+		}
+
+		hideDefeatedEnemy();
+	}
+
 	private playEnemyAnimation(
 		enemy: BattleEnemyInstance,
 		clipName: ActorAnimationKey,
@@ -446,6 +503,17 @@ export class BattleScene extends Phaser.Scene {
 			getActorAnimationAsset(getEnemyActorId(enemy.enemyId)).clips[clipName].key,
 			ignoreIfPlaying
 		);
+	}
+
+	private updateHitReactions(time: number) {
+		for (const enemy of this.enemies) {
+			if (enemy.hitReactionUntil === 0 || time < enemy.hitReactionUntil || enemy.defeated) {
+				continue;
+			}
+
+			enemy.hitReactionUntil = 0;
+			enemy.marker.clearTint();
+		}
 	}
 
 	private updateEnemyHealthBar(enemy: BattleEnemyInstance) {
