@@ -104,6 +104,7 @@ export const ja = {
 	status: {
 		loadingGame: 'ゲームを読み込み中',
 		battleStarted: 'バトル開始',
+		battleActive: 'バトル進行中',
 		battleVictory: 'バトル勝利',
 		battleDefeat: 'バトル敗北',
 		battleReturned: 'バトルから帰還',

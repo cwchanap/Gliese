@@ -104,6 +104,7 @@ export const zhHant = {
 	status: {
 		loadingGame: '遊戲載入中',
 		battleStarted: '戰鬥開始',
+		battleActive: '戰鬥進行中',
 		battleVictory: '戰鬥勝利',
 		battleDefeat: '戰鬥敗北',
 		battleReturned: '已從戰鬥返回',

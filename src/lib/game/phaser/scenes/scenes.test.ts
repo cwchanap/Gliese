@@ -5047,4 +5047,92 @@ describe('WorldScene', () => {
 			expect.anything()
 		);
 	});
+
+	it('passes enemyCount 1 for boss encounters instead of rolling a group', async () => {
+		const { BattleScene } = await import('./BattleScene');
+		const { WorldScene } = await import('./WorldScene');
+		const scene = new WorldScene();
+
+		scene.create({ mapId: 'ruins-core' });
+		Object.assign(phaserState.playerMarker, { x: 4_992, y: 3_200 });
+
+		scene.update(0, 16);
+
+		expect(scene.scene.start).toHaveBeenCalledWith(
+			BattleScene.key,
+			expect.objectContaining({
+				sourceEnemyId: 'ruins-warden',
+				enemyCount: 1
+			})
+		);
+	});
+
+	it('publishes HUD state after a non-lethal enemy hit in BattleScene', async () => {
+		const events = await import('$lib/game/ui-bridge/events');
+		const { createNewSaveState } = await import('$lib/game/save/save-state');
+		const emitHudStateSpy = vi.spyOn(events, 'emitHudState');
+		const { BattleScene } = await import('./BattleScene');
+		const scene = new BattleScene();
+		const saveState = createNewSaveState();
+
+		scene.create({
+			saveState,
+			sourceMapId: 'meadow-entry',
+			sourceEncounterId: 'meadow-slime-west',
+			sourceEnemyId: 'slime-scout',
+			returnPosition: { mapId: 'meadow-entry', x: 4_928, y: 1_024, facing: 'down' },
+			enemyCount: 1,
+			hero: { hp: 20, maxHp: 20, attack: 1, defense: 0 }
+		});
+		Object.assign(phaserState.playerMarker, { x: 320, y: 180 });
+		const state = scene as unknown as {
+			enemies: Array<{ x: number; y: number; attackCooldownUntil: number }>;
+		};
+		state.enemies[0]!.x = 330;
+		state.enemies[0]!.y = 180;
+		state.enemies[0]!.attackCooldownUntil = 0;
+		emitHudStateSpy.mockClear();
+
+		scene.update(0, 16);
+
+		const lastCall = emitHudStateSpy.mock.calls[emitHudStateSpy.mock.calls.length - 1];
+		expect(lastCall?.[0]).toMatchObject({ hp: 18, maxHp: 20 });
+	});
+
+	it('applies boss enrage tint when enemy HP drops below 50% in BattleScene', async () => {
+		const { createNewSaveState } = await import('$lib/game/save/save-state');
+		const { BattleScene } = await import('./BattleScene');
+		const scene = new BattleScene();
+		const saveState = createNewSaveState();
+
+		scene.create({
+			saveState,
+			sourceMapId: 'ruins-core',
+			sourceEncounterId: 'ruins-warden',
+			sourceEnemyId: 'ruins-warden',
+			returnPosition: { mapId: 'ruins-core', x: 4_992, y: 3_200, facing: 'down' },
+			enemyCount: 1,
+			hero: { hp: 20, maxHp: 20, attack: 23, defense: 0 }
+		});
+		Object.assign(phaserState.playerMarker, { x: 320, y: 180 });
+		const state = scene as unknown as {
+			enemies: Array<{
+				x: number;
+				y: number;
+				hp: number;
+				maxHp: number;
+				phase: 1 | 2;
+			}>;
+		};
+		state.enemies[0]!.x = 330;
+		state.enemies[0]!.y = 180;
+
+		expect(state.enemies[0]!.phase).toBe(1);
+
+		scene.update(0, 16);
+
+		expect(state.enemies[0]!.hp).toBe(22);
+		expect(state.enemies[0]!.phase).toBe(2);
+		expect(phaserState.enemyMarker.setTint).toHaveBeenCalledWith(0xff8a3d);
+	});
 });
