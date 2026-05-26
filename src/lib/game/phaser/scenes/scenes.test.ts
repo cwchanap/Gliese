@@ -591,6 +591,7 @@ describe('BootScene', () => {
 
 describe('BattleScene', () => {
 	beforeEach(() => {
+		localeState.activeLocale = 'en';
 		vi.clearAllMocks();
 		phaserState.reset();
 		Object.assign(phaserState.cursorKeys.left, { isDown: false });
@@ -697,6 +698,117 @@ describe('BattleScene', () => {
 				})
 			]
 		});
+	});
+
+	it('publishes the applied victory save state in the battle summary HUD', async () => {
+		const events = await import('$lib/game/ui-bridge/events');
+		const { createNewSaveState } = await import('$lib/game/save/save-state');
+		const emitHudStateSpy = vi.spyOn(events, 'emitHudState');
+		const randomSpy = vi.spyOn(Math, 'random').mockReturnValue(0.99);
+		const { BattleScene } = await import('./BattleScene');
+		const scene = new BattleScene();
+		const saveState = createNewSaveState();
+		saveState.mapId = 'ruins-core';
+		saveState.player = {
+			...saveState.player,
+			level: 1,
+			xp: 0,
+			hp: 20,
+			attack: 9,
+			x: 4_992,
+			y: 3_200,
+			facing: 'down'
+		};
+		saveState.wallet = { coins: 30 };
+		saveState.quests = {
+			entries: {
+				'investigate-the-ruins': {
+					status: 'active',
+					currentObjectiveId: 'defeat-ruins-warden',
+					progress: 0,
+					rewardApplied: false,
+					countedSourceIds: []
+				}
+			},
+			completedObjectives: {
+				'investigate-the-ruins': ['talk-to-guild-master']
+			}
+		};
+		localeState.activeLocale = 'ja';
+
+		try {
+			scene.create({
+				saveState,
+				sourceMapId: 'ruins-core',
+				sourceEncounterId: 'ruins-warden',
+				sourceEnemyId: 'ruins-warden',
+				completion: 'victory',
+				returnPosition: { mapId: 'ruins-core', x: 4_992, y: 3_200, facing: 'down' },
+				enemyCount: 1,
+				hero: { hp: 20, maxHp: 20, attack: 50, defense: 0 }
+			});
+			emitHudStateSpy.mockClear();
+			Object.assign(phaserState.playerMarker, { x: 320, y: 180 });
+			const state = scene as unknown as {
+				enemies: Array<{ x: number; y: number }>;
+			};
+			state.enemies[0]!.x = 330;
+			state.enemies[0]!.y = 180;
+
+			scene.update(0, 16);
+
+			expect(emitHudStateSpy).toHaveBeenLastCalledWith(
+				expect.objectContaining({
+					level: 2,
+					xp: 33,
+					wallet: { coins: 90 },
+					heals: 2,
+					battle: {
+						phase: 'summary',
+						summary: expect.objectContaining({
+							outcome: 'victory',
+							xpGained: 18,
+							coinsGained: 25,
+							completedQuestTitles: ['JP Investigate the Ruins'],
+							drops: expect.arrayContaining([
+								expect.objectContaining({ itemId: 'warden-sigil', quantity: 1 }),
+								expect.objectContaining({ itemId: 'warden-crown', quantity: 1 })
+							])
+						})
+					},
+					quests: expect.objectContaining({
+						completed: expect.arrayContaining([
+							expect.objectContaining({
+								questId: 'investigate-the-ruins',
+								title: 'JP Investigate the Ruins',
+								status: 'completed'
+							})
+						])
+					}),
+					inventory: expect.objectContaining({
+						consumables: expect.arrayContaining([
+							expect.objectContaining({ itemId: 'greater-field-potion', quantity: 1 })
+						]),
+						equipment: expect.arrayContaining([
+							expect.objectContaining({ itemId: 'warden-crown', equipped: false })
+						]),
+						keyItems: expect.arrayContaining([
+							expect.objectContaining({ itemId: 'warden-sigil', quantity: 1 })
+						]),
+						equipped: expect.objectContaining({ weapon: 'training-sword' })
+					})
+				})
+			);
+			expect(saveState.player.level).toBe(1);
+			expect(saveState.wallet.coins).toBe(30);
+			expect(saveState.inventory.stacks).toEqual([{ itemId: 'field-potion', quantity: 1 }]);
+			expect(saveState.quests.entries['investigate-the-ruins']).toMatchObject({
+				status: 'active',
+				currentObjectiveId: 'defeat-ruins-warden'
+			});
+		} finally {
+			randomSpy.mockRestore();
+		}
 	});
 
 	it('produces a defeat result when hero HP reaches zero', async () => {
