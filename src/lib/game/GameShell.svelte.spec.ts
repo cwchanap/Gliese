@@ -1,4 +1,4 @@
-import { page } from 'vitest/browser';
+import { page, userEvent } from 'vitest/browser';
 import { describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 
@@ -53,6 +53,34 @@ function baseHudState(overrides: Partial<HudState> = {}): HudState {
 	};
 }
 
+function hudStateWithEquippedWeapon(overrides: Partial<HudState> = {}): HudState {
+	return baseHudState({
+		inventory: {
+			consumables: [],
+			equipment: [
+				{
+					itemId: 'practice-sword',
+					name: 'Practice Sword',
+					description: 'A wooden training blade.',
+					iconPath: '/game/assets/items/practice-sword.png',
+					slot: 'weapon',
+					equipped: true,
+					modifiers: { attack: 1 }
+				}
+			],
+			keyItems: [],
+			equipped: {
+				weapon: 'practice-sword',
+				head: null,
+				body: null,
+				hands: null,
+				accessory: null
+			}
+		},
+		...overrides
+	});
+}
+
 describe('GameShell battle summary', () => {
 	it('renders a blocking victory summary and dismisses it through the HUD bridge', async () => {
 		const commands: unknown[] = [];
@@ -96,6 +124,66 @@ describe('GameShell battle summary', () => {
 		}
 	});
 
+	it('moves keyboard focus to the summary continue action when the summary appears', async () => {
+		render(GameShell);
+		emitHudState(
+			baseHudState({
+				battle: {
+					phase: 'summary',
+					summary: {
+						outcome: 'victory',
+						enemiesDefeated: 1,
+						xpGained: 4,
+						coinsGained: 3,
+						drops: [],
+						leveledUp: false,
+						completedQuestTitles: []
+					}
+				}
+			})
+		);
+
+		const summary = page.getByRole('dialog', { name: /battle summary/i });
+		await expect.element(summary).toBeVisible();
+		await expect.element(summary.getByRole('button', { name: /continue/i })).toHaveFocus();
+	});
+
+	it('traps tab focus inside the battle summary while command controls are behind it', async () => {
+		render(GameShell);
+		emitHudState(baseHudState({ canResume: true }));
+
+		await page.getByRole('button', { name: /menu/i }).click();
+		await expect.element(page.getByRole('button', { name: /save game/i })).toBeVisible();
+
+		emitHudState(
+			baseHudState({
+				canResume: true,
+				battle: {
+					phase: 'summary',
+					summary: {
+						outcome: 'defeat',
+						enemiesDefeated: 0,
+						xpGained: 0,
+						coinsGained: 0,
+						drops: [],
+						leveledUp: false,
+						completedQuestTitles: []
+					}
+				}
+			})
+		);
+
+		const continueButton = page
+			.getByRole('dialog', { name: /battle summary/i })
+			.getByRole('button', { name: /continue/i });
+		await expect.element(continueButton).toHaveFocus();
+
+		await userEvent.keyboard('{Tab}');
+		await expect.element(continueButton).toHaveFocus();
+		await userEvent.keyboard('{Shift>}{Tab}{/Shift}');
+		await expect.element(continueButton).toHaveFocus();
+	});
+
 	it('disables non-battle command buttons while battle is active but keeps quick heal available', async () => {
 		render(GameShell);
 		emitHudState({
@@ -119,5 +207,41 @@ describe('GameShell battle summary', () => {
 		await expect.element(page.getByRole('button', { name: /resume save/i })).toBeDisabled();
 		await expect.element(page.getByRole('button', { name: /save game/i })).toBeDisabled();
 		await expect.element(page.getByRole('button', { name: /use heal/i })).toBeEnabled();
+	});
+
+	it('disables equipped item removal while battle is locked', async () => {
+		const commands: unknown[] = [];
+		const handleCommand = (event: Event) => commands.push((event as CustomEvent).detail);
+		window.addEventListener(HUD_COMMAND_EVENT, handleCommand);
+
+		try {
+			render(GameShell);
+			emitHudState(hudStateWithEquippedWeapon());
+
+			await page.getByRole('button', { name: /menu/i }).click();
+			await page.getByRole('button', { name: /inventory/i }).click();
+			await page.getByRole('tab', { name: /equipment/i }).click();
+
+			const removeButton = page.getByRole('button', { name: /remove/i });
+			await expect.element(removeButton).toBeEnabled();
+
+			emitHudState(
+				hudStateWithEquippedWeapon({
+					battle: { phase: 'active', summary: null }
+				})
+			);
+
+			await expect.element(removeButton).toBeDisabled();
+			const removeElement = removeButton.element();
+			if (!(removeElement instanceof HTMLButtonElement)) {
+				throw new TypeError('Expected equipped item removal control to be a button');
+			}
+			removeElement.disabled = false;
+			removeElement.click();
+
+			expect(commands).not.toContainEqual({ type: 'unequip-slot', slot: 'weapon' });
+		} finally {
+			window.removeEventListener(HUD_COMMAND_EVENT, handleCommand);
+		}
 	});
 });

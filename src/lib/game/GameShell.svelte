@@ -47,8 +47,11 @@
 	let questLogCloseButton = $state<HTMLButtonElement>();
 	let areaMapDialog = $state<HTMLDivElement>();
 	let areaMapCloseButton = $state<HTMLButtonElement>();
+	let battleSummaryDialog = $state<HTMLDivElement>();
+	let battleSummaryContinueButton = $state<HTMLButtonElement>();
 	let inventoryFocusRestoreTarget: HTMLElement | null = null;
 	let shopFocusRestoreTarget: HTMLElement | null = null;
+	let battleSummaryWasVisible = false;
 	let loadError = $state('');
 	let commandOpen = $state(false);
 	let inventoryOpen = $state(false);
@@ -74,6 +77,12 @@
 	const battlePhase = $derived($hudState.battle.phase);
 	const battleLocked = $derived(battlePhase === 'active' || battlePhase === 'summary');
 	const battleSummary = $derived($hudState.battle.summary);
+
+	$effect(() => {
+		const summaryVisible = battleSummary !== null;
+		if (summaryVisible && !battleSummaryWasVisible) void focusBattleSummaryDialog();
+		battleSummaryWasVisible = summaryVisible;
+	});
 
 	function pauseForOverlay(owner: OverlayPauseOwner) {
 		if (battleLocked) return;
@@ -215,6 +224,11 @@
 		requestDismissBattleSummary();
 	}
 
+	function unequipSlot(slot: EquipmentSlot) {
+		if (!$hudState.ready || battleLocked) return;
+		requestUnequipSlot(slot);
+	}
+
 	function rememberInventoryFocus() {
 		inventoryFocusRestoreTarget =
 			document.activeElement instanceof HTMLElement ? document.activeElement : null;
@@ -256,6 +270,11 @@
 	async function focusAreaMapDialog() {
 		await tick();
 		(areaMapCloseButton ?? areaMapDialog)?.focus();
+	}
+
+	async function focusBattleSummaryDialog() {
+		await tick();
+		(battleSummaryContinueButton ?? battleSummaryDialog)?.focus();
 	}
 
 	async function restoreAreaMapFocus() {
@@ -380,6 +399,38 @@
 		if (focusableElements.length === 0) {
 			event.preventDefault();
 			areaMapDialog?.focus();
+			return;
+		}
+
+		const firstElement = focusableElements[0];
+		const lastElement = focusableElements.at(-1);
+
+		if (event.shiftKey && document.activeElement === firstElement) {
+			event.preventDefault();
+			lastElement?.focus();
+		} else if (!event.shiftKey && document.activeElement === lastElement) {
+			event.preventDefault();
+			firstElement.focus();
+		}
+	}
+
+	function getBattleSummaryFocusableElements() {
+		if (!battleSummaryDialog) return [];
+
+		return Array.from(
+			battleSummaryDialog.querySelectorAll<HTMLElement>(
+				'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+			)
+		).filter((element) => element.offsetParent !== null && element.tabIndex >= 0);
+	}
+
+	function handleBattleSummaryDialogKeydown(event: KeyboardEvent) {
+		if (event.key !== 'Tab') return;
+
+		const focusableElements = getBattleSummaryFocusableElements();
+		if (focusableElements.length === 0) {
+			event.preventDefault();
+			battleSummaryDialog?.focus();
 			return;
 		}
 
@@ -952,11 +1003,13 @@
 	{#if battleSummary}
 		<div class="jrpg-modal-backdrop jrpg-battle-summary-backdrop" role="presentation">
 			<div
+				bind:this={battleSummaryDialog}
 				class="jrpg-window jrpg-window-narrow"
 				aria-label={t($locale, 'ui.battleSummary')}
 				aria-modal="true"
 				role="dialog"
 				tabindex="-1"
+				onkeydown={handleBattleSummaryDialogKeydown}
 			>
 				<div class="jrpg-window-header">
 					<div>
@@ -1000,7 +1053,12 @@
 							<p>{t($locale, 'ui.defeatReturnedToVillage')}</p>
 						{/if}
 					</div>
-					<button type="button" class="jrpg-command-action mt-5" onclick={dismissBattleSummary}>
+					<button
+						bind:this={battleSummaryContinueButton}
+						type="button"
+						class="jrpg-command-action mt-5"
+						onclick={dismissBattleSummary}
+					>
 						{t($locale, 'ui.continue')}
 					</button>
 				</div>
@@ -1224,8 +1282,8 @@
 											<button
 												type="button"
 												class="rounded-full border border-rose-200/20 bg-rose-200/10 px-2.5 py-1.5 text-[0.54rem] font-black tracking-[0.16em] text-rose-50 uppercase transition hover:border-rose-200/45 disabled:cursor-not-allowed disabled:opacity-40"
-												onclick={() => requestUnequipSlot(slot)}
-												disabled={!$hudState.ready}
+												onclick={() => unequipSlot(slot)}
+												disabled={!$hudState.ready || battleLocked}
 											>
 												{t($locale, 'ui.remove')}
 											</button>
