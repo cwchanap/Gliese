@@ -74,6 +74,62 @@ test('game route boots', async ({ page }) => {
 	);
 });
 
+test('encounter opens battle scene and returns through battle summary', async ({ page }) => {
+	const save = {
+		version: 5,
+		mapExploration: {},
+		mapId: 'meadow-entry',
+		player: {
+			level: 1,
+			xp: 0,
+			hp: 200,
+			attack: 50,
+			x: 4_960,
+			y: 960,
+			facing: 'down'
+		},
+		flags: { clearedEncounters: [], collectedPickups: [], resolvedEncounterDrops: {} },
+		inventory: {
+			stacks: [{ itemId: 'field-potion', quantity: 1 }],
+			equipment: ['training-sword']
+		},
+		equipment: {
+			weapon: 'training-sword',
+			head: null,
+			body: null,
+			hands: null,
+			accessory: null
+		},
+		wallet: { coins: 30 },
+		shops: {
+			stock: {
+				'guild-quartermaster': {
+					'iron-cap': 1,
+					'grip-wraps': 1,
+					'traveler-vest': 1
+				}
+			}
+		},
+		quests: createQuestFixture()
+	};
+
+	await page.addInitScript((encoded) => {
+		window.localStorage.setItem('gliese.save.v5', encoded);
+	}, JSON.stringify(save));
+	await page.goto('/');
+	await expect(page.locator('canvas')).toBeVisible();
+
+	await page.getByRole('button', { name: 'Menu' }).click();
+	await commandBox(page).getByRole('button', { name: 'Resume Save' }).click();
+
+	const battleSummary = page.getByRole('dialog', { name: /battle summary/i });
+	await expect(battleSummary).toBeVisible({ timeout: 30_000 });
+	await expect(battleSummary.getByText(/Enemies defeated: (?:[1-9]|10)/i)).toBeVisible();
+	await battleSummary.getByRole('button', { name: /continue/i }).click();
+	await expect(battleSummary).toHaveCount(0);
+	await expect(fieldStatus(page)).toContainText('Returned from battle');
+});
+
 test('mobile HUD stacks without overlapping controls', async ({ page }) => {
 	await page.setViewportSize({ width: 390, height: 844 });
 	await page.goto('/');
