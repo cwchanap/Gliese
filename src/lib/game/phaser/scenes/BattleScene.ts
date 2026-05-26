@@ -10,6 +10,7 @@ import {
 } from '$lib/game/content/assets';
 import { getItem } from '$lib/game/content/items';
 import { maps, openingMapId } from '$lib/game/content/maps';
+import { getQuest } from '$lib/game/content/quests';
 import { buildAreaMapState } from '$lib/game/core/area-map';
 import {
 	applyBattleResultToSaveState,
@@ -26,9 +27,10 @@ import { createEmptyEquipment } from '$lib/game/core/equipment';
 import { resolveMovementVector } from '$lib/game/core/input';
 import { resolveLootDrops } from '$lib/game/core/loot';
 import { buildHudQuestState, createInitialQuestState } from '$lib/game/core/quests';
-import { getItemText } from '$lib/game/i18n/content';
+import { getItemText, getQuestText } from '$lib/game/i18n/content';
 import { getActiveLocale } from '$lib/game/i18n/store';
 import { t } from '$lib/game/i18n/translate';
+import type { SaveState } from '$lib/game/save/save-state';
 import { emitHudState, type HudState } from '$lib/game/ui-bridge/events';
 
 type DirectionKey = { isDown: boolean };
@@ -453,8 +455,12 @@ export class BattleScene extends Phaser.Scene {
 			inventory: this.inventory,
 			defeatedUnits: outcome === 'victory' ? this.defeatedUnits : []
 		};
-		const { summary } = applyBattleResultToSaveState(this.payload.saveState, this.pendingResult);
-		this.publishHudState(this.getBattleSummaryStatus(outcome), summary);
+		const application = applyBattleResultToSaveState(this.payload.saveState, this.pendingResult);
+		this.publishHudState(
+			this.getBattleSummaryStatus(outcome),
+			application.summary,
+			application.saveState
+		);
 	}
 
 	private setHeroAnimation(clipName: ActorAnimationKey, ignoreIfPlaying = true) {
@@ -561,11 +567,16 @@ export class BattleScene extends Phaser.Scene {
 		);
 	}
 
-	private publishHudState(status: string, summary: BattleSummary | null = null) {
+	private publishHudState(
+		status: string,
+		summary: BattleSummary | null = null,
+		appliedSaveState?: SaveState
+	) {
 		const locale = getActiveLocale();
-		const saveState = this.payload?.saveState;
+		const saveState = appliedSaveState ?? this.payload?.saveState;
 		const map =
-			maps[this.payload?.sourceMapId ?? saveState?.mapId ?? openingMapId] ?? maps[openingMapId]!;
+			maps[appliedSaveState?.mapId ?? this.payload?.sourceMapId ?? saveState?.mapId ?? openingMapId] ??
+			maps[openingMapId]!;
 		const questState = saveState?.quests ?? createInitialQuestState();
 		const hudSummary: HudState['battle']['summary'] = summary
 			? {
@@ -585,19 +596,21 @@ export class BattleScene extends Phaser.Scene {
 					}),
 					leveledUp: summary.leveledUp,
 					completedQuestTitles: summary.completedQuestIds
+						.map((questId) => getQuestText(locale, questId)?.title ?? getQuest(questId)?.title)
+						.filter((title): title is string => Boolean(title))
 				}
 			: null;
 
 		emitHudState({
 			ready: true,
 			mapId: map.id,
-			hp: this.hero.hp,
+			hp: appliedSaveState?.player.hp ?? this.hero.hp,
 			maxHp: this.hero.maxHp,
 			level: saveState?.player.level ?? 1,
 			xp: saveState?.player.xp ?? 0,
-			attack: this.hero.attack,
+			attack: appliedSaveState?.player.attack ?? this.hero.attack,
 			defense: this.hero.defense,
-			heals: this.getConsumableCount(),
+			heals: this.getConsumableCount(appliedSaveState?.inventory),
 			canResume: false,
 			status,
 			areaMap: buildAreaMapState({
@@ -620,15 +633,17 @@ export class BattleScene extends Phaser.Scene {
 				nearbyQuestGiverId: null,
 				locale
 			}),
-			inventory: this.buildHudInventory()
+			inventory: this.buildHudInventory(appliedSaveState)
 		});
 	}
 
-	private buildHudInventory(): HudState['inventory'] {
+	private buildHudInventory(appliedSaveState?: SaveState): HudState['inventory'] {
 		const locale = getActiveLocale();
-		const inventory = this.inventory ??
+		const inventory = appliedSaveState?.inventory ??
+			this.inventory ??
 			this.payload?.saveState.inventory ?? { stacks: [], equipment: [] };
-		const equipment = this.payload?.saveState.equipment ?? createEmptyEquipment();
+		const equipment =
+			appliedSaveState?.equipment ?? this.payload?.saveState.equipment ?? createEmptyEquipment();
 
 		return {
 			consumables: inventory.stacks.flatMap((stack) => {
@@ -685,8 +700,8 @@ export class BattleScene extends Phaser.Scene {
 		};
 	}
 
-	private getConsumableCount() {
-		const inventory = this.inventory ?? this.payload?.saveState.inventory;
+	private getConsumableCount(inventoryOverride?: SaveState['inventory']) {
+		const inventory = inventoryOverride ?? this.inventory ?? this.payload?.saveState.inventory;
 
 		return (
 			inventory?.stacks.reduce((total, stack) => {
