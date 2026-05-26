@@ -26,6 +26,7 @@ import {
 import { canReceiveHit, resolveHit } from '$lib/game/core/combat';
 import { createEmptyEquipment } from '$lib/game/core/equipment';
 import { resolveMovementVector } from '$lib/game/core/input';
+import { consumeStackItem } from '$lib/game/core/inventory';
 import { resolveLootDrops } from '$lib/game/core/loot';
 import { buildHudQuestState, createInitialQuestState } from '$lib/game/core/quests';
 import { clampHpToMax, deriveEffectiveStats } from '$lib/game/core/stats';
@@ -33,7 +34,13 @@ import { getItemText, getQuestText } from '$lib/game/i18n/content';
 import { getActiveLocale } from '$lib/game/i18n/store';
 import { t } from '$lib/game/i18n/translate';
 import type { SaveState } from '$lib/game/save/save-state';
-import { emitHudState, type HudState } from '$lib/game/ui-bridge/events';
+import {
+	emitHudState,
+	onHudCommand,
+	type HudCommand,
+	type HudState
+} from '$lib/game/ui-bridge/events';
+import { WorldScene } from './WorldScene';
 
 type DirectionKey = { isDown: boolean };
 
@@ -98,6 +105,7 @@ export class BattleScene extends Phaser.Scene {
 	private player?: ActorMarker;
 	private heroAnimationLockedUntil = 0;
 	private heroVisualState: ActorAnimationKey = 'idle';
+	private removeHudCommandListener = () => {};
 	private wasdKeys?: Partial<Record<'left' | 'right' | 'up' | 'down', DirectionKey>>;
 
 	constructor() {
@@ -105,6 +113,7 @@ export class BattleScene extends Phaser.Scene {
 	}
 
 	create(payload?: BattleStartPayload) {
+		this.removeHudCommandListener();
 		this.resetRuntimeState();
 		this.cameras.main.setBackgroundColor('#17231f');
 
@@ -137,7 +146,9 @@ export class BattleScene extends Phaser.Scene {
 			up: Phaser.Input.Keyboard.KeyCodes.W,
 			down: Phaser.Input.Keyboard.KeyCodes.S
 		}) as Partial<Record<'left' | 'right' | 'up' | 'down', DirectionKey>> | undefined;
-		this.publishHudState(t(getActiveLocale(), 'status.enemyStruckFirst'));
+		this.removeHudCommandListener = onHudCommand((command) => this.handleHudCommand(command));
+		this.events?.once?.('shutdown', () => this.removeHudCommandListener());
+		this.publishHudState(t(getActiveLocale(), 'status.battleStarted'));
 	}
 
 	update(time: number, delta: number) {
@@ -465,6 +476,82 @@ export class BattleScene extends Phaser.Scene {
 		);
 	}
 
+	private handleHudCommand(command: HudCommand) {
+		if (command.type === 'dismiss-battle-summary' && this.pendingResult && this.payload) {
+			this.scene.start(WorldScene.key, {
+				saveState: this.payload.saveState,
+				reason: 'battle-result',
+				battleResult: this.pendingResult
+			});
+			return;
+		}
+
+		if (this.pendingResult) {
+			this.publishHudState(t(getActiveLocale(), 'status.battleLocked'));
+			return;
+		}
+
+		if (command.type === 'heal') {
+			this.consumeFirstHealingItem();
+			return;
+		}
+
+		if (command.type === 'use-item') {
+			this.useItem(command.itemId);
+			return;
+		}
+
+		this.publishHudState(t(getActiveLocale(), 'status.battleLocked'));
+	}
+
+	private consumeFirstHealingItem() {
+		const healingStack = this.inventory?.stacks.find((stack) => {
+			const item = getItem(stack.itemId);
+
+			return item?.type === 'consumable' && item.effect.type === 'heal';
+		});
+
+		if (!healingStack) {
+			this.publishHudState(t(getActiveLocale(), 'status.noHealCharges'));
+			return;
+		}
+
+		this.useItem(healingStack.itemId);
+	}
+
+	private useItem(itemId: string) {
+		if (!this.inventory) {
+			this.publishHudState(t(getActiveLocale(), 'status.battleLocked'));
+			return;
+		}
+
+		const item = getItem(itemId);
+
+		if (item?.type !== 'consumable' || item.effect.type !== 'heal') {
+			this.publishHudState(t(getActiveLocale(), 'status.itemCannotBeUsed'));
+			return;
+		}
+
+		if (this.hero.hp >= this.hero.maxHp) {
+			this.publishHudState(t(getActiveLocale(), 'status.hpAlreadyFull'));
+			return;
+		}
+
+		const result = consumeStackItem(this.inventory, itemId);
+
+		if (!result.consumed) {
+			this.publishHudState(t(getActiveLocale(), 'status.itemCannotBeUsed'));
+			return;
+		}
+
+		this.inventory = result.inventory;
+		this.hero = {
+			...this.hero,
+			hp: Math.min(this.hero.maxHp, this.hero.hp + item.effect.amount)
+		};
+		this.publishHudState(t(getActiveLocale(), 'status.recoveredHp'));
+	}
+
 	private setHeroAnimation(clipName: ActorAnimationKey, ignoreIfPlaying = true) {
 		if (!this.player || (this.heroVisualState === clipName && ignoreIfPlaying)) {
 			return;
@@ -560,13 +647,10 @@ export class BattleScene extends Phaser.Scene {
 		const locale = getActiveLocale();
 
 		if (outcome === 'defeat') {
-			return t(locale, 'status.heroDown');
+			return t(locale, 'status.battleDefeat');
 		}
 
-		return t(
-			locale,
-			this.payload?.completion === 'victory' ? 'status.victoryRuinsCleared' : 'status.enemyDefeated'
-		);
+		return t(locale, 'status.battleVictory');
 	}
 
 	private publishHudState(
@@ -577,8 +661,9 @@ export class BattleScene extends Phaser.Scene {
 		const locale = getActiveLocale();
 		const saveState = appliedSaveState ?? this.payload?.saveState;
 		const map =
-			maps[appliedSaveState?.mapId ?? this.payload?.sourceMapId ?? saveState?.mapId ?? openingMapId] ??
-			maps[openingMapId]!;
+			maps[
+				appliedSaveState?.mapId ?? this.payload?.sourceMapId ?? saveState?.mapId ?? openingMapId
+			] ?? maps[openingMapId]!;
 		const questState = saveState?.quests ?? createInitialQuestState();
 		const heroStats = this.getHudHeroStats(appliedSaveState);
 		const hudSummary: HudState['battle']['summary'] = summary

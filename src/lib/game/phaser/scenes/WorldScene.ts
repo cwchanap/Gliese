@@ -999,6 +999,9 @@ export class WorldScene extends Phaser.Scene {
 
 	private handleHudCommand(command: HudCommand) {
 		switch (command.type) {
+			case 'dismiss-battle-summary':
+				this.publishHudState(this.status('status.battleLocked'));
+				return;
 			case 'pause-game':
 				this.simulationPaused = true;
 				return;
@@ -2527,7 +2530,7 @@ export class WorldScene extends Phaser.Scene {
 	}
 
 	private resolveInitialStatus(reason: NonNullable<WorldSceneData['reason']>) {
-		if (reason === 'battle-result') return this.status('status.saveResumed');
+		if (reason === 'battle-result') return this.status('status.battleReturned');
 		if (reason === 'resume') return this.status('status.saveResumed');
 		if (reason === 'transition') return this.status('status.enteredArea');
 		if (reason === 'invalid-save') return this.status('status.invalidSaveReset');
