@@ -10,6 +10,7 @@ import {
 } from '$lib/game/content/assets';
 import { getItem } from '$lib/game/content/items';
 import { maps, openingMapId } from '$lib/game/content/maps';
+import { startingPlayer } from '$lib/game/content/player';
 import { getQuest } from '$lib/game/content/quests';
 import { buildAreaMapState } from '$lib/game/core/area-map';
 import {
@@ -27,6 +28,7 @@ import { createEmptyEquipment } from '$lib/game/core/equipment';
 import { resolveMovementVector } from '$lib/game/core/input';
 import { resolveLootDrops } from '$lib/game/core/loot';
 import { buildHudQuestState, createInitialQuestState } from '$lib/game/core/quests';
+import { clampHpToMax, deriveEffectiveStats } from '$lib/game/core/stats';
 import { getItemText, getQuestText } from '$lib/game/i18n/content';
 import { getActiveLocale } from '$lib/game/i18n/store';
 import { t } from '$lib/game/i18n/translate';
@@ -578,6 +580,7 @@ export class BattleScene extends Phaser.Scene {
 			maps[appliedSaveState?.mapId ?? this.payload?.sourceMapId ?? saveState?.mapId ?? openingMapId] ??
 			maps[openingMapId]!;
 		const questState = saveState?.quests ?? createInitialQuestState();
+		const heroStats = this.getHudHeroStats(appliedSaveState);
 		const hudSummary: HudState['battle']['summary'] = summary
 			? {
 					outcome: summary.outcome,
@@ -604,12 +607,12 @@ export class BattleScene extends Phaser.Scene {
 		emitHudState({
 			ready: true,
 			mapId: map.id,
-			hp: appliedSaveState?.player.hp ?? this.hero.hp,
-			maxHp: this.hero.maxHp,
+			hp: heroStats.hp,
+			maxHp: heroStats.maxHp,
 			level: saveState?.player.level ?? 1,
 			xp: saveState?.player.xp ?? 0,
-			attack: appliedSaveState?.player.attack ?? this.hero.attack,
-			defense: this.hero.defense,
+			attack: heroStats.attack,
+			defense: heroStats.defense,
 			heals: this.getConsumableCount(appliedSaveState?.inventory),
 			canResume: false,
 			status,
@@ -635,6 +638,26 @@ export class BattleScene extends Phaser.Scene {
 			}),
 			inventory: this.buildHudInventory(appliedSaveState)
 		});
+	}
+
+	private getHudHeroStats(appliedSaveState?: SaveState) {
+		if (!appliedSaveState) {
+			return { ...this.hero };
+		}
+
+		const effectiveStats = deriveEffectiveStats(
+			{
+				hp: appliedSaveState.player.level > 1 ? startingPlayer.baseHp + 4 : startingPlayer.baseHp,
+				attack: appliedSaveState.player.attack,
+				defense: 0
+			},
+			appliedSaveState.equipment
+		);
+
+		return {
+			hp: clampHpToMax(appliedSaveState.player.hp, effectiveStats),
+			...effectiveStats
+		};
 	}
 
 	private buildHudInventory(appliedSaveState?: SaveState): HudState['inventory'] {
