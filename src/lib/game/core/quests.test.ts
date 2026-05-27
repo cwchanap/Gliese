@@ -136,10 +136,7 @@ describe('quest core', () => {
 		).toBe(2);
 		expect(
 			accepted.accepted ? accepted.state.entries['thin-village-slimes']?.countedSourceIds : []
-		).toEqual([
-			'encounter:meadow-slime-west:unit:0',
-			'encounter:meadow-slime-center:unit:0'
-		]);
+		).toEqual(['encounter:meadow-slime-west:unit:0', 'encounter:meadow-slime-center:unit:0']);
 	});
 
 	it('seeds multi-unit encounter progress from cleared encounter unit counts', () => {

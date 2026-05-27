@@ -356,7 +356,10 @@ test('double-clicking unequipped equipment equips it from inventory', async ({ p
 });
 
 test('shop overlay opens near a merchant and supports buying and selling', async ({ page }) => {
-	const save = createSaveFixture({ mapId: 'item-shop', player: { level: 1, xp: 0, hp: 20, attack: 3, x: 256, y: 144, facing: 'up' } });
+	const save = createSaveFixture({
+		mapId: 'item-shop',
+		player: { level: 1, xp: 0, hp: 20, attack: 3, x: 256, y: 144, facing: 'up' }
+	});
 
 	await page.addInitScript((encoded) => {
 		const probeWindow = window as GlieseProbeWindow;
@@ -421,7 +424,10 @@ test('shop overlay opens near a merchant and supports buying and selling', async
 });
 
 test('interact key shop purchase appears in inventory', async ({ page }) => {
-	const save = createSaveFixture({ mapId: 'item-shop', player: { level: 1, xp: 0, hp: 20, attack: 3, x: 256, y: 144, facing: 'up' } });
+	const save = createSaveFixture({
+		mapId: 'item-shop',
+		player: { level: 1, xp: 0, hp: 20, attack: 3, x: 256, y: 144, facing: 'up' }
+	});
 
 	await page.addInitScript((encoded) => {
 		const probeWindow = window as GlieseProbeWindow;
@@ -470,7 +476,10 @@ test('interact key shop purchase appears in inventory', async ({ page }) => {
 });
 
 test('quest log shows main quest and accepts Guild side quests', async ({ page }) => {
-	const save = createSaveFixture({ mapId: 'guild-hall', player: { level: 1, xp: 0, hp: 20, attack: 3, x: 192, y: 144, facing: 'up' } });
+	const save = createSaveFixture({
+		mapId: 'guild-hall',
+		player: { level: 1, xp: 0, hp: 20, attack: 3, x: 192, y: 144, facing: 'up' }
+	});
 
 	await page.addInitScript((encoded) => {
 		const probeWindow = window as GlieseProbeWindow;

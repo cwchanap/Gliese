@@ -63,7 +63,7 @@ describe('save storage', () => {
 			const save = createNewSaveState();
 			saveGameState(save);
 
-		expect(storage.getItem(SAVE_STORAGE_KEY)).toContain('"version":6');
+			expect(storage.getItem(SAVE_STORAGE_KEY)).toContain('"version":6');
 			expect(loadStoredSaveResult()).toEqual({ status: 'loaded', saveState: save });
 		} finally {
 			setSaveStorage(globalThis.localStorage);
