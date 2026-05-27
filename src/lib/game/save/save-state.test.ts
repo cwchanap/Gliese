@@ -55,7 +55,12 @@ describe('save state', () => {
 				y: meadowEntryMap.spawn.y,
 				facing: meadowEntryMap.spawnDirection
 			},
-			flags: { clearedEncounters: [], clearedEncounterUnitCounts: {}, collectedPickups: [], resolvedEncounterDrops: {} },
+			flags: {
+				clearedEncounters: [],
+				clearedEncounterUnitCounts: {},
+				collectedPickups: [],
+				resolvedEncounterDrops: {}
+			},
 			inventory: {
 				stacks: [{ itemId: 'field-potion', quantity: 1 }],
 				equipment: ['training-sword']

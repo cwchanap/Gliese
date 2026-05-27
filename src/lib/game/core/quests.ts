@@ -400,8 +400,9 @@ function getExistingSourceIdsForObjective(
 			.filter((encounterId) => worldFlags.clearedEncounterIds.has(encounterId))
 			.flatMap((encounterId) => {
 				const unitCount = worldFlags.clearedEncounterUnitCounts[encounterId] ?? 1;
-				return Array.from({ length: Math.min(unitCount, objective.target) }, (_, i) =>
-					`encounter:${encounterId}:unit:${i}`
+				return Array.from(
+					{ length: Math.min(unitCount, objective.target) },
+					(_, i) => `encounter:${encounterId}:unit:${i}`
 				);
 			})
 			.slice(0, objective.target);
