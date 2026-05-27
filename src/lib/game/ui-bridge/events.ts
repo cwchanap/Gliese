@@ -62,6 +62,11 @@ export type HudBattleSummaryDrop = {
 	quantity: number;
 };
 
+export type HudBattleSummaryQuestReward = {
+	title: string;
+	rewardSummary: string;
+};
+
 export type HudBattleSummary = {
 	outcome: 'victory' | 'defeat';
 	enemiesDefeated: number;
@@ -70,6 +75,7 @@ export type HudBattleSummary = {
 	drops: HudBattleSummaryDrop[];
 	leveledUp: boolean;
 	completedQuestTitles: string[];
+	questRewards: HudBattleSummaryQuestReward[];
 };
 
 export type HudBattleState = {

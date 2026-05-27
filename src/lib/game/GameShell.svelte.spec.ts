@@ -100,7 +100,13 @@ describe('GameShell battle summary', () => {
 						coinsGained: 12,
 						drops: [{ itemId: 'field-potion', name: 'Field Potion', quantity: 2 }],
 						leveledUp: true,
-						completedQuestTitles: ['Thin the Village Slimes']
+						completedQuestTitles: ['Thin the Village Slimes'],
+						questRewards: [
+							{
+								title: 'Thin the Village Slimes',
+								rewardSummary: '6 XP / 12 coins / 1 item'
+							}
+						]
 					}
 				}
 			});
@@ -112,7 +118,11 @@ describe('GameShell battle summary', () => {
 			await expect.element(summary.getByText(/Coins gained: 12/i)).toBeVisible();
 			await expect.element(summary.getByText(/Field Potion x2/i)).toBeVisible();
 			await expect
-				.element(summary.getByText(/Quest complete: Thin the Village Slimes/i))
+				.element(
+					summary.getByText(
+						/Quest complete: Thin the Village Slimes\. Reward: 6 XP \/ 12 coins \/ 1 item/i
+					)
+				)
 				.toBeVisible();
 			await expect.element(summary.getByText(/Level up/i)).toBeVisible();
 
@@ -137,7 +147,8 @@ describe('GameShell battle summary', () => {
 						coinsGained: 3,
 						drops: [],
 						leveledUp: false,
-						completedQuestTitles: []
+						completedQuestTitles: [],
+						questRewards: []
 					}
 				}
 			})
@@ -167,7 +178,8 @@ describe('GameShell battle summary', () => {
 						coinsGained: 0,
 						drops: [],
 						leveledUp: false,
-						completedQuestTitles: []
+						completedQuestTitles: [],
+						questRewards: []
 					}
 				}
 			})

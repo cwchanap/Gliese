@@ -802,12 +802,13 @@ describe('BattleScene', () => {
 						phase: 'summary',
 						summary: expect.objectContaining({
 							outcome: 'victory',
-							xpGained: 18,
-							coinsGained: 25,
+							xpGained: 33,
+							coinsGained: 60,
 							completedQuestTitles: ['JP Investigate the Ruins'],
 							drops: expect.arrayContaining([
 								expect.objectContaining({ itemId: 'warden-sigil', quantity: 1 }),
-								expect.objectContaining({ itemId: 'warden-crown', quantity: 1 })
+								expect.objectContaining({ itemId: 'warden-crown', quantity: 1 }),
+								expect.objectContaining({ itemId: 'greater-field-potion', quantity: 1 })
 							])
 						})
 					},
