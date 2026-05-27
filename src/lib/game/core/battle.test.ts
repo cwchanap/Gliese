@@ -214,10 +214,10 @@ describe('battle contracts', () => {
 		expect(application.summary).toMatchObject({
 			outcome: 'victory',
 			enemiesDefeated: 3,
-			xpGained: 12,
-			coinsGained: 12,
+			xpGained: 18,
+			coinsGained: 24,
 			leveledUp: true,
-			drops: [{ itemId: 'field-potion', quantity: 2 }],
+			drops: [{ itemId: 'field-potion', quantity: 3 }],
 			completedQuestIds: ['thin-village-slimes'],
 			questRewards: [
 				expect.objectContaining({

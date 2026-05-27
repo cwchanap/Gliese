@@ -1042,10 +1042,15 @@
 						{:else}
 							<p>{t($locale, 'ui.noDrops')}</p>
 						{/if}
-						{#if battleSummary.completedQuestTitles.length > 0}
+						{#if battleSummary.questRewards.length > 0}
 							<ul class="grid gap-1">
-								{#each battleSummary.completedQuestTitles as questTitle (questTitle)}
-									<li>{t($locale, 'status.questComplete', { questTitle })}</li>
+								{#each battleSummary.questRewards as questReward (questReward.title)}
+									<li>
+										{t($locale, 'content.dialogue.system.questCompleteNotice', {
+											questTitle: questReward.title,
+											rewardSummary: questReward.rewardSummary
+										})}
+									</li>
 								{/each}
 							</ul>
 						{/if}

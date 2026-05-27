@@ -57,7 +57,11 @@ import {
 	revealMapArea,
 	type MapExplorationState
 } from '$lib/game/core/map-exploration';
-import { applyExperienceGain, getBaseMaxHp, type ProgressionState } from '$lib/game/core/progression';
+import {
+	applyExperienceGain,
+	getBaseMaxHp,
+	type ProgressionState
+} from '$lib/game/core/progression';
 import {
 	acceptQuest,
 	applyQuestEvent,

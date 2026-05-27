@@ -32,7 +32,7 @@ import { buildHudQuestState, createInitialQuestState } from '$lib/game/core/ques
 import { clampHpToMax, deriveEffectiveStats } from '$lib/game/core/stats';
 import { getBaseMaxHp } from '$lib/game/core/progression';
 import { advanceBossPhase } from '$lib/game/core/boss';
-import { getItemText, getQuestText } from '$lib/game/i18n/content';
+import { formatRewardSummary, getItemText, getQuestText } from '$lib/game/i18n/content';
 import { getActiveLocale } from '$lib/game/i18n/store';
 import { t } from '$lib/game/i18n/translate';
 import type { SaveState } from '$lib/game/save/save-state';
@@ -459,7 +459,8 @@ export class BattleScene extends Phaser.Scene {
 		}
 
 		const definition = getBattleEnemyDefinition(enemy.enemyId);
-		const speedMultiplier = definition.boss && enemy.phase === 2 ? BattleScene.bossPhaseTwoSpeedMultiplier : 1;
+		const speedMultiplier =
+			definition.boss && enemy.phase === 2 ? BattleScene.bossPhaseTwoSpeedMultiplier : 1;
 		const chaseStep =
 			enemy.moveSpeed * speedMultiplier * (Math.min(delta, BattleScene.maxMovementDeltaMs) / 1000);
 		const appliedStep = Math.min(chaseStep, distance);
@@ -737,7 +738,11 @@ export class BattleScene extends Phaser.Scene {
 					leveledUp: summary.leveledUp,
 					completedQuestTitles: summary.completedQuestIds
 						.map((questId) => getQuestText(locale, questId)?.title ?? getQuest(questId)?.title)
-						.filter((title): title is string => Boolean(title))
+						.filter((title): title is string => Boolean(title)),
+					questRewards: summary.questRewards.map((grant) => ({
+						title: grant.title,
+						rewardSummary: formatRewardSummary(locale, grant.reward)
+					}))
 				}
 			: null;
 

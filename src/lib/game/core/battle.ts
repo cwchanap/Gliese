@@ -241,14 +241,27 @@ function applyBattleVictory(saveState: SaveState, result: BattleResult): BattleA
 		quests
 	};
 
+	const questRewardXp = questRewards.reduce((total, grant) => total + (grant.reward.xp ?? 0), 0);
+	const questRewardCoins = questRewards.reduce(
+		(total, grant) => total + (grant.reward.coins ?? 0),
+		0
+	);
+	const questRewardItems = questRewards.flatMap((grant) =>
+		(grant.reward.items ?? []).map((item) => ({
+			itemId: item.itemId,
+			quantity: item.quantity
+		}))
+	);
+	const combinedDrops = groupBattleDrops([...drops, ...questRewardItems]);
+
 	return {
 		saveState: nextSaveState,
 		summary: {
 			outcome: 'victory',
 			enemiesDefeated: defeatedUnits.length,
-			xpGained,
-			coinsGained,
-			drops,
+			xpGained: xpGained + questRewardXp,
+			coinsGained: coinsGained + questRewardCoins,
+			drops: combinedDrops,
 			leveledUp: progression.level > previousLevel,
 			completedQuestIds: Array.from(new Set(completedQuestIds)),
 			questRewards

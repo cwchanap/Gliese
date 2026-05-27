@@ -126,15 +126,11 @@ function migrateSaveState(value: unknown): unknown {
 		version: 6,
 		flags: {
 			...flags,
-			clearedEncounters: Array.isArray(flags.clearedEncounters)
-				? flags.clearedEncounters
-				: [],
+			clearedEncounters: Array.isArray(flags.clearedEncounters) ? flags.clearedEncounters : [],
 			clearedEncounterUnitCounts: isRecord(flags.clearedEncounterUnitCounts)
 				? flags.clearedEncounterUnitCounts
 				: {},
-			collectedPickups: Array.isArray(flags.collectedPickups)
-				? flags.collectedPickups
-				: [],
+			collectedPickups: Array.isArray(flags.collectedPickups) ? flags.collectedPickups : [],
 			resolvedEncounterDrops:
 				isRecord(flags.resolvedEncounterDrops) && !Array.isArray(flags.resolvedEncounterDrops)
 					? flags.resolvedEncounterDrops

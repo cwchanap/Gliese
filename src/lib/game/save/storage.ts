@@ -34,7 +34,8 @@ export function loadStoredSaveResult(
 	storage: SaveStorage | undefined = currentStorage
 ): StoredSaveResult {
 	const resolved = resolveStorage(storage);
-	const encoded = resolved?.getItem(SAVE_STORAGE_KEY) ?? resolved?.getItem(PREVIOUS_SAVE_STORAGE_KEY);
+	const encoded =
+		resolved?.getItem(SAVE_STORAGE_KEY) ?? resolved?.getItem(PREVIOUS_SAVE_STORAGE_KEY);
 
 	if (!encoded) {
 		return { status: 'missing', saveState: null };
