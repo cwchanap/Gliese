@@ -32,6 +32,82 @@ function createQuestFixture() {
 	};
 }
 
+type SaveFixtureOverrides = Partial<{
+	mapId: string;
+	player: {
+		level: number;
+		xp: number;
+		hp: number;
+		attack: number;
+		x: number;
+		y: number;
+		facing: string;
+	};
+	inventory: {
+		stacks: { itemId: string; quantity: number }[];
+		equipment: string[];
+	};
+	equipment: {
+		weapon: string | null;
+		head: string | null;
+		body: string | null;
+		hands: string | null;
+		accessory: string | null;
+	};
+	wallet: { coins: number };
+}>;
+
+function createSaveFixture(overrides: SaveFixtureOverrides = {}) {
+	return {
+		version: 6,
+		mapExploration: {},
+		mapId: overrides.mapId ?? 'meadow-entry',
+		player: overrides.player ?? {
+			level: 1,
+			xp: 0,
+			hp: 20,
+			attack: 3,
+			x: 256,
+			y: 144,
+			facing: 'down'
+		},
+		flags: {
+			clearedEncounters: [],
+			clearedEncounterUnitCounts: {},
+			collectedPickups: [],
+			resolvedEncounterDrops: {}
+		},
+		inventory: overrides.inventory ?? {
+			stacks: [{ itemId: 'field-potion', quantity: 1 }],
+			equipment: ['training-sword']
+		},
+		equipment: overrides.equipment ?? {
+			weapon: 'training-sword',
+			head: null,
+			body: null,
+			hands: null,
+			accessory: null
+		},
+		wallet: overrides.wallet ?? { coins: 30 },
+		shops: {
+			stock: {
+				'guild-quartermaster': {
+					'iron-cap': 1,
+					'grip-wraps': 1,
+					'traveler-vest': 1
+				}
+			}
+		},
+		quests: createQuestFixture()
+	};
+}
+
+function injectSave(page: Page, save: ReturnType<typeof createSaveFixture>) {
+	return page.addInitScript((encoded) => {
+		window.localStorage.setItem('gliese.save.v6', encoded);
+	}, JSON.stringify(save));
+}
+
 test('game route boots', async ({ page }) => {
 	await page.goto('/');
 	await expect(page.locator('canvas')).toBeVisible();
@@ -75,10 +151,7 @@ test('game route boots', async ({ page }) => {
 });
 
 test('encounter opens battle scene and returns through battle summary', async ({ page }) => {
-	const save = {
-		version: 5,
-		mapExploration: {},
-		mapId: 'meadow-entry',
+	const save = createSaveFixture({
 		player: {
 			level: 1,
 			xp: 0,
@@ -87,35 +160,10 @@ test('encounter opens battle scene and returns through battle summary', async ({
 			x: 4_960,
 			y: 960,
 			facing: 'down'
-		},
-		flags: { clearedEncounters: [], collectedPickups: [], resolvedEncounterDrops: {} },
-		inventory: {
-			stacks: [{ itemId: 'field-potion', quantity: 1 }],
-			equipment: ['training-sword']
-		},
-		equipment: {
-			weapon: 'training-sword',
-			head: null,
-			body: null,
-			hands: null,
-			accessory: null
-		},
-		wallet: { coins: 30 },
-		shops: {
-			stock: {
-				'guild-quartermaster': {
-					'iron-cap': 1,
-					'grip-wraps': 1,
-					'traveler-vest': 1
-				}
-			}
-		},
-		quests: createQuestFixture()
-	};
+		}
+	});
 
-	await page.addInitScript((encoded) => {
-		window.localStorage.setItem('gliese.save.v5', encoded);
-	}, JSON.stringify(save));
+	await injectSave(page, save);
 	await page.goto('/');
 	await expect(page.locator('canvas')).toBeVisible();
 
@@ -282,47 +330,14 @@ test('full hp potions explain why they cannot be consumed', async ({ page }) => 
 });
 
 test('double-clicking unequipped equipment equips it from inventory', async ({ page }) => {
-	const save = {
-		version: 5,
-		mapExploration: {},
-		mapId: 'meadow-entry',
-		player: {
-			level: 1,
-			xp: 0,
-			hp: 20,
-			attack: 3,
-			x: 256,
-			y: 144,
-			facing: 'down'
-		},
-		flags: { clearedEncounters: [], collectedPickups: [], resolvedEncounterDrops: {} },
+	const save = createSaveFixture({
 		inventory: {
 			stacks: [{ itemId: 'field-potion', quantity: 1 }],
 			equipment: ['training-sword', 'iron-cap']
-		},
-		equipment: {
-			weapon: 'training-sword',
-			head: null,
-			body: null,
-			hands: null,
-			accessory: null
-		},
-		wallet: { coins: 30 },
-		shops: {
-			stock: {
-				'guild-quartermaster': {
-					'iron-cap': 1,
-					'grip-wraps': 1,
-					'traveler-vest': 1
-				}
-			}
-		},
-		quests: createQuestFixture()
-	};
+		}
+	});
 
-	await page.addInitScript((encoded) => {
-		window.localStorage.setItem('gliese.save.v5', encoded);
-	}, JSON.stringify(save));
+	await injectSave(page, save);
 	await page.goto('/');
 	await expect(page.locator('canvas')).toBeVisible();
 
@@ -341,43 +356,7 @@ test('double-clicking unequipped equipment equips it from inventory', async ({ p
 });
 
 test('shop overlay opens near a merchant and supports buying and selling', async ({ page }) => {
-	const save = {
-		version: 5,
-		mapExploration: {},
-		mapId: 'item-shop',
-		player: {
-			level: 1,
-			xp: 0,
-			hp: 20,
-			attack: 3,
-			x: 256,
-			y: 144,
-			facing: 'up'
-		},
-		flags: { clearedEncounters: [], collectedPickups: [], resolvedEncounterDrops: {} },
-		inventory: {
-			stacks: [{ itemId: 'field-potion', quantity: 1 }],
-			equipment: ['training-sword']
-		},
-		equipment: {
-			weapon: 'training-sword',
-			head: null,
-			body: null,
-			hands: null,
-			accessory: null
-		},
-		wallet: { coins: 30 },
-		shops: {
-			stock: {
-				'guild-quartermaster': {
-					'iron-cap': 1,
-					'grip-wraps': 1,
-					'traveler-vest': 1
-				}
-			}
-		},
-		quests: createQuestFixture()
-	};
+	const save = createSaveFixture({ mapId: 'item-shop', player: { level: 1, xp: 0, hp: 20, attack: 3, x: 256, y: 144, facing: 'up' } });
 
 	await page.addInitScript((encoded) => {
 		const probeWindow = window as GlieseProbeWindow;
@@ -385,7 +364,7 @@ test('shop overlay opens near a merchant and supports buying and selling', async
 		window.addEventListener('gliese:hud-state', (event) => {
 			probeWindow.__glieseLastHudState = (event as CustomEvent<HudStateSnapshot>).detail;
 		});
-		window.localStorage.setItem('gliese.save.v5', encoded);
+		window.localStorage.setItem('gliese.save.v6', encoded);
 	}, JSON.stringify(save));
 	await page.goto('/');
 	await expect(page.locator('canvas')).toBeVisible();
@@ -442,43 +421,7 @@ test('shop overlay opens near a merchant and supports buying and selling', async
 });
 
 test('interact key shop purchase appears in inventory', async ({ page }) => {
-	const save = {
-		version: 5,
-		mapExploration: {},
-		mapId: 'item-shop',
-		player: {
-			level: 1,
-			xp: 0,
-			hp: 20,
-			attack: 3,
-			x: 256,
-			y: 144,
-			facing: 'up'
-		},
-		flags: { clearedEncounters: [], collectedPickups: [], resolvedEncounterDrops: {} },
-		inventory: {
-			stacks: [{ itemId: 'field-potion', quantity: 1 }],
-			equipment: ['training-sword']
-		},
-		equipment: {
-			weapon: 'training-sword',
-			head: null,
-			body: null,
-			hands: null,
-			accessory: null
-		},
-		wallet: { coins: 30 },
-		shops: {
-			stock: {
-				'guild-quartermaster': {
-					'iron-cap': 1,
-					'grip-wraps': 1,
-					'traveler-vest': 1
-				}
-			}
-		},
-		quests: createQuestFixture()
-	};
+	const save = createSaveFixture({ mapId: 'item-shop', player: { level: 1, xp: 0, hp: 20, attack: 3, x: 256, y: 144, facing: 'up' } });
 
 	await page.addInitScript((encoded) => {
 		const probeWindow = window as GlieseProbeWindow;
@@ -486,7 +429,7 @@ test('interact key shop purchase appears in inventory', async ({ page }) => {
 		window.addEventListener('gliese:hud-state', (event) => {
 			probeWindow.__glieseLastHudState = (event as CustomEvent<HudStateSnapshot>).detail;
 		});
-		window.localStorage.setItem('gliese.save.v5', encoded);
+		window.localStorage.setItem('gliese.save.v6', encoded);
 	}, JSON.stringify(save));
 	await page.goto('/');
 	await expect(page.locator('canvas')).toBeVisible();
@@ -527,43 +470,7 @@ test('interact key shop purchase appears in inventory', async ({ page }) => {
 });
 
 test('quest log shows main quest and accepts Guild side quests', async ({ page }) => {
-	const save = {
-		version: 5,
-		mapExploration: {},
-		mapId: 'guild-hall',
-		player: {
-			level: 1,
-			xp: 0,
-			hp: 20,
-			attack: 3,
-			x: 192,
-			y: 144,
-			facing: 'up'
-		},
-		flags: { clearedEncounters: [], collectedPickups: [], resolvedEncounterDrops: {} },
-		inventory: {
-			stacks: [{ itemId: 'field-potion', quantity: 1 }],
-			equipment: ['training-sword']
-		},
-		equipment: {
-			weapon: 'training-sword',
-			head: null,
-			body: null,
-			hands: null,
-			accessory: null
-		},
-		wallet: { coins: 30 },
-		shops: {
-			stock: {
-				'guild-quartermaster': {
-					'iron-cap': 1,
-					'grip-wraps': 1,
-					'traveler-vest': 1
-				}
-			}
-		},
-		quests: createQuestFixture()
-	};
+	const save = createSaveFixture({ mapId: 'guild-hall', player: { level: 1, xp: 0, hp: 20, attack: 3, x: 192, y: 144, facing: 'up' } });
 
 	await page.addInitScript((encoded) => {
 		const probeWindow = window as GlieseProbeWindow;
@@ -571,7 +478,7 @@ test('quest log shows main quest and accepts Guild side quests', async ({ page }
 		window.addEventListener('gliese:hud-state', (event) => {
 			probeWindow.__glieseLastHudState = (event as CustomEvent<HudStateSnapshot>).detail;
 		});
-		window.localStorage.setItem('gliese.save.v5', encoded);
+		window.localStorage.setItem('gliese.save.v6', encoded);
 	}, JSON.stringify(save));
 	await page.goto('/');
 	await expect(page.locator('canvas')).toBeVisible();
