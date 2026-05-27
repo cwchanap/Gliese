@@ -502,7 +502,9 @@ export class BattleScene extends Phaser.Scene {
 			defeatedUnits: outcome === 'victory' ? this.defeatedUnits : []
 		};
 		const application = applyBattleResultToSaveState(this.payload.saveState, this.pendingResult);
-		saveGameState(application.saveState);
+		if (this.payload.persistExplorationChanges !== false) {
+			saveGameState(application.saveState);
+		}
 		this.publishHudState(
 			this.getBattleSummaryStatus(outcome),
 			application.summary,

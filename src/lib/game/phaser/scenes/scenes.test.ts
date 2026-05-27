@@ -1312,6 +1312,46 @@ describe('BattleScene', () => {
 		}
 	});
 
+	it('does not persist battle results when persistExplorationChanges is false', async () => {
+		const storage = await import('$lib/game/save/storage');
+		const { createNewSaveState } = await import('$lib/game/save/save-state');
+		const { BattleScene } = await import('./BattleScene');
+		const scene = new BattleScene();
+		const saveState = createNewSaveState();
+		const setItemSpy = vi.fn();
+		const memoryStorage = {
+			getItem: vi.fn(() => null),
+			removeItem: vi.fn(),
+			setItem: setItemSpy
+		};
+
+		storage.setSaveStorage(memoryStorage);
+		try {
+			scene.create({
+				saveState,
+				sourceMapId: 'meadow-entry',
+				sourceEncounterId: 'meadow-slime-west',
+				sourceEnemyId: 'slime-scout',
+				returnPosition: { mapId: 'meadow-entry', x: 4_928, y: 1_024, facing: 'down' },
+				enemyCount: 1,
+				hero: { hp: 20, maxHp: 20, attack: 8, defense: 0 },
+				persistExplorationChanges: false
+			});
+			Object.assign(phaserState.playerMarker, { x: 320, y: 180 });
+			const state = scene as unknown as {
+				enemies: Array<{ x: number; y: number }>;
+			};
+			state.enemies[0]!.x = 330;
+			state.enemies[0]!.y = 180;
+
+			scene.update(0, 16);
+
+			expect(setItemSpy).not.toHaveBeenCalled();
+		} finally {
+			storage.setSaveStorage(undefined);
+		}
+	});
+
 	it('applies 1.5x speed multiplier for phase-2 boss enemies', async () => {
 		const { createNewSaveState } = await import('$lib/game/save/save-state');
 		const { BattleScene } = await import('./BattleScene');
