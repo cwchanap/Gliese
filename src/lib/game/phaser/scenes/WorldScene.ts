@@ -57,7 +57,7 @@ import {
 	revealMapArea,
 	type MapExplorationState
 } from '$lib/game/core/map-exploration';
-import { applyExperienceGain, type ProgressionState } from '$lib/game/core/progression';
+import { applyExperienceGain, getBaseMaxHp, type ProgressionState } from '$lib/game/core/progression';
 import {
 	acceptQuest,
 	applyQuestEvent,
@@ -273,6 +273,7 @@ export class WorldScene extends Phaser.Scene {
 		'stoneWallTile'
 	];
 	private static readonly cameraFollowLerp = 0.14;
+	private static readonly bossPhaseTwoSpeedMultiplier = 1.5;
 	private static readonly transitionRadius = 18;
 	private static readonly enemyHealthBarOffsetY = 34;
 
@@ -990,7 +991,7 @@ export class WorldScene extends Phaser.Scene {
 	}
 
 	private getBaseMaxHp() {
-		return this.playerProgress.level > 1 ? startingPlayer.baseHp + 4 : startingPlayer.baseHp;
+		return getBaseMaxHp(startingPlayer.baseHp, this.playerProgress.level);
 	}
 
 	private getEffectiveStats(): EffectiveStats {
@@ -1007,7 +1008,6 @@ export class WorldScene extends Phaser.Scene {
 	private handleHudCommand(command: HudCommand) {
 		switch (command.type) {
 			case 'dismiss-battle-summary':
-				this.publishHudState(this.status('status.battleLocked'));
 				return;
 			case 'pause-game':
 				this.simulationPaused = true;
@@ -1657,7 +1657,7 @@ export class WorldScene extends Phaser.Scene {
 
 	private getEnemyMoveSpeed(enemy: EnemyInstance) {
 		if (enemy.definition.boss && enemy.phase === 2) {
-			return enemy.definition.moveSpeed * 1.5;
+			return enemy.definition.moveSpeed * WorldScene.bossPhaseTwoSpeedMultiplier;
 		}
 
 		return enemy.definition.moveSpeed;

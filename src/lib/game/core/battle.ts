@@ -221,7 +221,10 @@ function applyBattleVictory(saveState: SaveState, result: BattleResult): BattleA
 			).sort(),
 			clearedEncounterUnitCounts: {
 				...saveState.flags.clearedEncounterUnitCounts,
-				[result.sourceEncounterId]: defeatedUnits.length
+				[result.sourceEncounterId]: Math.max(
+					saveState.flags.clearedEncounterUnitCounts[result.sourceEncounterId] ?? 0,
+					defeatedUnits.length
+				)
 			},
 			resolvedEncounterDrops: {
 				...saveState.flags.resolvedEncounterDrops,
@@ -296,6 +299,9 @@ function applyProgressionReward(state: ProgressionState, xpReward: number): Prog
 		return state;
 	}
 
+	// Level-1 XP must go through applyExperienceGain which handles the 1→2 level-up
+	// (HP +4, attack +1). Level-2+ has no further level-ups implemented, so XP is just
+	// accumulated without stat changes.
 	if (state.level === 1) {
 		return applyExperienceGain(state, xpReward);
 	}
@@ -304,5 +310,9 @@ function applyProgressionReward(state: ProgressionState, xpReward: number): Prog
 }
 
 export function getBattleEnemyDefinition(enemyId: string): EnemyCombatDefinition {
-	return enemies[enemyId] ?? enemies['slime-scout']!;
+	const definition = enemies[enemyId];
+	if (!definition) {
+		throw new Error(`Unknown enemy ID: "${enemyId}"`);
+	}
+	return definition;
 }

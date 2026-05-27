@@ -98,19 +98,49 @@ export function serializeSaveState(saveState: SaveState): string {
 export function parseSaveState(value: string): SaveState | null {
 	try {
 		const parsed: unknown = JSON.parse(value);
+		const migrated = migrateSaveState(parsed);
 
-		if (!isSaveState(parsed)) {
+		if (!isSaveState(migrated)) {
 			return null;
 		}
 
 		return {
-			...parsed,
-			player: normalizePlayerPosition(parsed.mapId, parsed.player),
-			mapExploration: cloneMapExploration(parsed.mapExploration)
+			...migrated,
+			player: normalizePlayerPosition(migrated.mapId, migrated.player),
+			mapExploration: cloneMapExploration(migrated.mapExploration)
 		};
 	} catch {
 		return null;
 	}
+}
+
+function migrateSaveState(value: unknown): unknown {
+	if (!isRecord(value) || value.version !== 5) {
+		return value;
+	}
+
+	const flags = isRecord(value.flags) ? value.flags : {};
+
+	return {
+		...value,
+		version: 6,
+		flags: {
+			...flags,
+			clearedEncounters: Array.isArray(flags.clearedEncounters)
+				? flags.clearedEncounters
+				: [],
+			clearedEncounterUnitCounts: isRecord(flags.clearedEncounterUnitCounts)
+				? flags.clearedEncounterUnitCounts
+				: {},
+			collectedPickups: Array.isArray(flags.collectedPickups)
+				? flags.collectedPickups
+				: [],
+			resolvedEncounterDrops:
+				isRecord(flags.resolvedEncounterDrops) && !Array.isArray(flags.resolvedEncounterDrops)
+					? flags.resolvedEncounterDrops
+					: {}
+		}
+	};
 }
 
 function isSaveState(value: unknown): value is SaveState {
@@ -131,6 +161,9 @@ function isSaveState(value: unknown): value is SaveState {
 		mapExploration
 	} = value;
 
+	// Version, SAVE_STORAGE_KEY, and isSaveState must all move in lockstep on every schema
+	// change. Bumping version without updating isSaveState lets old-shape payloads pass
+	// validation; bumping SAVE_STORAGE_KEY without migration orphans existing saves.
 	if (
 		version !== 6 ||
 		typeof mapId !== 'string' ||

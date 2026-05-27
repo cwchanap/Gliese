@@ -128,6 +128,20 @@ describe('save state', () => {
 		expect(parseSaveState(JSON.stringify(legacySave))).toBeNull();
 	});
 
+	it('migrates v5 saves to v6 by defaulting clearedEncounterUnitCounts', () => {
+		const v5Save = {
+			...createNewSaveState(),
+			version: 5
+		};
+		delete (v5Save.flags as Record<string, unknown>).clearedEncounterUnitCounts;
+
+		const migrated = parseSaveState(JSON.stringify(v5Save));
+
+		expect(migrated).not.toBeNull();
+		expect(migrated?.version).toBe(6);
+		expect(migrated?.flags.clearedEncounterUnitCounts).toEqual({});
+	});
+
 	it('clamps saved coordinates to the current map bounds', () => {
 		const outOfBoundsSave = {
 			...createNewSaveState(),
@@ -545,5 +559,24 @@ describe('save storage', () => {
 
 		expect(storage.getItem(SAVE_STORAGE_KEY)).toBeNull();
 		expect(loadStoredSaveState(storage)).toBeNull();
+	});
+
+	it('falls back to the previous storage key when the current key is empty', () => {
+		const storage = new MemoryStorage();
+		const v5Key = 'gliese.save.v5';
+		const save = {
+			...createNewSaveState(),
+			inventory: {
+				stacks: [{ itemId: 'field-potion', quantity: 2 }],
+				equipment: ['training-sword']
+			}
+		};
+
+		storage.setItem(v5Key, serializeSaveState(save));
+
+		expect(storage.getItem(SAVE_STORAGE_KEY)).toBeNull();
+		expect(loadStoredSaveState(storage)?.inventory.stacks).toEqual([
+			{ itemId: 'field-potion', quantity: 2 }
+		]);
 	});
 });

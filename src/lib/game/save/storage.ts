@@ -1,6 +1,7 @@
 import { parseSaveState, serializeSaveState, type SaveState } from '$lib/game/save/save-state';
 
 export const SAVE_STORAGE_KEY = 'gliese.save.v6';
+const PREVIOUS_SAVE_STORAGE_KEY = 'gliese.save.v5';
 
 export type SaveStorage = Pick<Storage, 'getItem' | 'removeItem' | 'setItem'>;
 
@@ -32,7 +33,8 @@ export function loadStoredSaveState(
 export function loadStoredSaveResult(
 	storage: SaveStorage | undefined = currentStorage
 ): StoredSaveResult {
-	const encoded = resolveStorage(storage)?.getItem(SAVE_STORAGE_KEY);
+	const resolved = resolveStorage(storage);
+	const encoded = resolved?.getItem(SAVE_STORAGE_KEY) ?? resolved?.getItem(PREVIOUS_SAVE_STORAGE_KEY);
 
 	if (!encoded) {
 		return { status: 'missing', saveState: null };
