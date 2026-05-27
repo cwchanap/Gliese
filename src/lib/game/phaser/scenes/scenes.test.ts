@@ -1146,7 +1146,7 @@ describe('BattleScene', () => {
 		}
 	});
 
-	it('returns to WorldScene with the pending battle result after summary dismissal', async () => {
+	it('returns to WorldScene with the pre-applied save state after summary dismissal', async () => {
 		const hud = installHudCommandTarget();
 		const { createNewSaveState } = await import('$lib/game/save/save-state');
 		const { BattleScene } = await import('./BattleScene');
@@ -1167,18 +1167,20 @@ describe('BattleScene', () => {
 			Object.assign(phaserState.playerMarker, { x: 320, y: 180 });
 			const state = scene as unknown as {
 				enemies: Array<{ x: number; y: number }>;
-				pendingResult: unknown;
+				appliedSaveState: unknown;
 			};
 			state.enemies[0]!.x = 330;
 			state.enemies[0]!.y = 180;
 			scene.update(0, 16);
 
+			expect(state.appliedSaveState).not.toBeNull();
+
 			hud.dispatch({ type: 'dismiss-battle-summary' });
 
 			expect(scene.scene.start).toHaveBeenCalledWith(WorldScene.key, {
-				saveState,
+				saveState: state.appliedSaveState,
 				reason: 'battle-result',
-				battleResult: state.pendingResult,
+				battleResult: undefined,
 				persistExplorationChanges: undefined
 			});
 		} finally {
@@ -1208,18 +1210,20 @@ describe('BattleScene', () => {
 			Object.assign(phaserState.playerMarker, { x: 320, y: 180 });
 			const state = scene as unknown as {
 				enemies: Array<{ x: number; y: number }>;
-				pendingResult: unknown;
+				appliedSaveState: unknown;
 			};
 			state.enemies[0]!.x = 330;
 			state.enemies[0]!.y = 180;
 			scene.update(0, 16);
 
+			expect(state.appliedSaveState).not.toBeNull();
+
 			hud.dispatch({ type: 'dismiss-battle-summary' });
 
 			expect(scene.scene.start).toHaveBeenCalledWith(WorldScene.key, {
-				saveState,
+				saveState: state.appliedSaveState,
 				reason: 'battle-result',
-				battleResult: state.pendingResult,
+				battleResult: undefined,
 				persistExplorationChanges: false
 			});
 		} finally {
@@ -2730,7 +2734,7 @@ describe('WorldScene', () => {
 		}
 	});
 
-	it('rejects battle summary dismissal commands once exploration has resumed', async () => {
+	it('ignores battle summary dismissal commands when no battle is active', async () => {
 		const events = await import('$lib/game/ui-bridge/events');
 		const emitHudStateSpy = vi.spyOn(events, 'emitHudState');
 		const { WorldScene } = await import('./WorldScene');
@@ -2745,12 +2749,7 @@ describe('WorldScene', () => {
 		sceneState.handleHudCommand({ type: 'dismiss-battle-summary' });
 
 		expect(scene.scene.restart).not.toHaveBeenCalled();
-		expect(emitHudStateSpy).toHaveBeenLastCalledWith(
-			expect.objectContaining({
-				status: 'Cannot do that during battle',
-				battle: { phase: 'none', summary: null }
-			})
-		);
+		expect(emitHudStateSpy).not.toHaveBeenCalled();
 	});
 
 	it('applies a returned battle defeat at the village spawn without clearing the encounter', async () => {

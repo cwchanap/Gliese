@@ -30,6 +30,7 @@ import { consumeStackItem } from '$lib/game/core/inventory';
 import { resolveLootDrops } from '$lib/game/core/loot';
 import { buildHudQuestState, createInitialQuestState } from '$lib/game/core/quests';
 import { clampHpToMax, deriveEffectiveStats } from '$lib/game/core/stats';
+import { getBaseMaxHp } from '$lib/game/core/progression';
 import { advanceBossPhase } from '$lib/game/core/boss';
 import { getItemText, getQuestText } from '$lib/game/i18n/content';
 import { getActiveLocale } from '$lib/game/i18n/store';
@@ -94,6 +95,7 @@ export class BattleScene extends Phaser.Scene {
 	private static readonly hitReactionDurationMs = 450;
 	private static readonly hitReactionTint = 0xfff0a8;
 	private static readonly heroMoveSpeed = 140;
+	private static readonly bossPhaseTwoSpeedMultiplier = 1.5;
 	private static readonly enemyHealthBarOffsetY = 34;
 
 	private cursorKeys?: Partial<Record<'left' | 'right' | 'up' | 'down', DirectionKey>>;
@@ -105,6 +107,7 @@ export class BattleScene extends Phaser.Scene {
 	private inventory: BattleStartPayload['saveState']['inventory'] | null = null;
 	private payload: BattleStartPayload | null = null;
 	private pendingResult: BattleResult | null = null;
+	private appliedSaveState: SaveState | null = null;
 	private player?: ActorMarker;
 	private heroAnimationLockedUntil = 0;
 	private heroVisualState: ActorAnimationKey = 'idle';
@@ -181,6 +184,7 @@ export class BattleScene extends Phaser.Scene {
 		this.inventory = null;
 		this.payload = null;
 		this.pendingResult = null;
+		this.appliedSaveState = null;
 		this.player = undefined;
 		this.wasdKeys = undefined;
 	}
@@ -455,7 +459,7 @@ export class BattleScene extends Phaser.Scene {
 		}
 
 		const definition = getBattleEnemyDefinition(enemy.enemyId);
-		const speedMultiplier = definition.boss && enemy.phase === 2 ? 1.5 : 1;
+		const speedMultiplier = definition.boss && enemy.phase === 2 ? BattleScene.bossPhaseTwoSpeedMultiplier : 1;
 		const chaseStep =
 			enemy.moveSpeed * speedMultiplier * (Math.min(delta, BattleScene.maxMovementDeltaMs) / 1000);
 		const appliedStep = Math.min(chaseStep, distance);
@@ -502,8 +506,15 @@ export class BattleScene extends Phaser.Scene {
 			defeatedUnits: outcome === 'victory' ? this.defeatedUnits : []
 		};
 		const application = applyBattleResultToSaveState(this.payload.saveState, this.pendingResult);
+		this.appliedSaveState = application.saveState;
 		if (this.payload.persistExplorationChanges !== false) {
-			saveGameState(application.saveState);
+			try {
+				saveGameState(application.saveState);
+			} catch {
+				if (import.meta.env?.DEV) {
+					console.warn('Failed to persist battle result; progress may be lost on close.');
+				}
+			}
 		}
 		this.publishHudState(
 			this.getBattleSummaryStatus(outcome),
@@ -515,9 +526,9 @@ export class BattleScene extends Phaser.Scene {
 	private handleHudCommand(command: HudCommand) {
 		if (command.type === 'dismiss-battle-summary' && this.pendingResult && this.payload) {
 			this.scene.start(WorldScene.key, {
-				saveState: this.payload.saveState,
+				saveState: this.appliedSaveState ?? this.payload.saveState,
 				reason: 'battle-result',
-				battleResult: this.pendingResult,
+				battleResult: this.appliedSaveState ? undefined : this.pendingResult,
 				persistExplorationChanges: this.payload.persistExplorationChanges
 			});
 			return;
@@ -773,7 +784,7 @@ export class BattleScene extends Phaser.Scene {
 
 		const effectiveStats = deriveEffectiveStats(
 			{
-				hp: appliedSaveState.player.level > 1 ? startingPlayer.baseHp + 4 : startingPlayer.baseHp,
+				hp: getBaseMaxHp(startingPlayer.baseHp, appliedSaveState.player.level),
 				attack: appliedSaveState.player.attack,
 				defense: 0
 			},

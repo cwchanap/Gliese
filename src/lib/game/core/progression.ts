@@ -5,6 +5,12 @@ export type ProgressionState = {
 	attack: number;
 };
 
+const LEVEL_2_HP_BONUS = 4;
+
+export function getBaseMaxHp(baseHp: number, level: number): number {
+	return level > 1 ? baseHp + LEVEL_2_HP_BONUS : baseHp;
+}
+
 export function getXpForLevel(level: number) {
 	return Math.max(0, (level - 1) * 5);
 }
@@ -23,7 +29,7 @@ export function applyExperienceGain(state: ProgressionState, gainedXp: number) {
 	return {
 		level: 2,
 		xp,
-		hp: state.hp + 4,
+		hp: state.hp + LEVEL_2_HP_BONUS,
 		attack: state.attack + 1
 	};
 }
