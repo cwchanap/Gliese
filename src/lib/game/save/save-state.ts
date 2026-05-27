@@ -26,7 +26,7 @@ import type { Direction } from '$lib/game/core/types';
 import { getQuest, isQuestId, mainQuestId, type QuestDefinition } from '$lib/game/content/quests';
 
 export type SaveState = {
-	version: 5;
+	version: 6;
 	mapId: string;
 	player: {
 		level: number;
@@ -39,6 +39,7 @@ export type SaveState = {
 	};
 	flags: {
 		clearedEncounters: string[];
+		clearedEncounterUnitCounts: Record<string, number>;
 		collectedPickups: string[];
 		resolvedEncounterDrops: Record<string, ItemDrop[]>;
 	};
@@ -56,7 +57,7 @@ const DIRECTIONS: Direction[] = ['up', 'down', 'left', 'right'];
 
 export function createNewSaveState(): SaveState {
 	return {
-		version: 5,
+		version: 6,
 		mapId: meadowEntryMap.id,
 		player: {
 			level: 1,
@@ -67,7 +68,7 @@ export function createNewSaveState(): SaveState {
 			y: meadowEntryMap.spawn.y,
 			facing: meadowEntryMap.spawnDirection
 		},
-		flags: { clearedEncounters: [], collectedPickups: [], resolvedEncounterDrops: {} },
+		flags: { clearedEncounters: [], clearedEncounterUnitCounts: {}, collectedPickups: [], resolvedEncounterDrops: {} },
 		inventory: {
 			stacks: [{ itemId: 'field-potion', quantity: 1 }],
 			equipment: ['training-sword']
@@ -126,7 +127,7 @@ function isSaveState(value: unknown): value is SaveState {
 	} = value;
 
 	if (
-		version !== 5 ||
+		version !== 6 ||
 		typeof mapId !== 'string' ||
 		!isRecord(player) ||
 		!isRecord(flags) ||
@@ -150,6 +151,7 @@ function isSaveState(value: unknown): value is SaveState {
 		isFacingDirection(player.facing) &&
 		Array.isArray(flags.clearedEncounters) &&
 		flags.clearedEncounters.every((entry) => typeof entry === 'string') &&
+		isClearedEncounterUnitCounts(flags.clearedEncounterUnitCounts) &&
 		Array.isArray(flags.collectedPickups) &&
 		flags.collectedPickups.every((entry) => typeof entry === 'string') &&
 		isResolvedDrops(flags.resolvedEncounterDrops)
@@ -353,6 +355,16 @@ function isResolvedDrops(value: unknown): value is Record<string, ItemDrop[]> {
 					getItem(drop.itemId) !== undefined &&
 					isPositiveIntegerQuantity(drop.quantity)
 			)
+	);
+}
+
+function isClearedEncounterUnitCounts(value: unknown): value is Record<string, number> {
+	if (!isRecord(value) || Array.isArray(value)) {
+		return false;
+	}
+
+	return Object.values(value).every(
+		(count) => typeof count === 'number' && Number.isInteger(count) && count >= 1
 	);
 }
 

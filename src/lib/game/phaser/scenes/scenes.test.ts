@@ -3065,6 +3065,7 @@ describe('WorldScene', () => {
 				mapId: ruinsThresholdMap.id,
 				flags: {
 					clearedEncounters: [],
+					clearedEncounterUnitCounts: {},
 					collectedPickups: ['ruins-threshold-cap'],
 					resolvedEncounterDrops: {}
 				}
@@ -4506,6 +4507,7 @@ describe('WorldScene', () => {
 					mapId: 'meadow-entry',
 					flags: {
 						clearedEncounters: [],
+						clearedEncounterUnitCounts: {},
 						collectedPickups: [],
 						resolvedEncounterDrops: {
 							'meadow-slime-west': [{ itemId: 'greater-field-potion', quantity: 1 }]
@@ -4735,6 +4737,7 @@ describe('WorldScene', () => {
 				mapId: 'meadow-entry',
 				flags: {
 					clearedEncounters: ['meadow-slime-east', 'meadow-slime-center', 'meadow-slime-west'],
+					clearedEncounterUnitCounts: {},
 					collectedPickups: [],
 					resolvedEncounterDrops: {}
 				}
@@ -4763,6 +4766,7 @@ describe('WorldScene', () => {
 				mapId: 'meadow-entry',
 				flags: {
 					clearedEncounters: ['meadow-slime-center', 'meadow-slime-east', 'meadow-slime-west'],
+					clearedEncounterUnitCounts: {},
 					collectedPickups: [],
 					resolvedEncounterDrops: {}
 				},
@@ -4808,6 +4812,7 @@ describe('WorldScene', () => {
 				mapId: 'meadow-entry',
 				flags: {
 					clearedEncounters: [],
+					clearedEncounterUnitCounts: {},
 					collectedPickups: [],
 					resolvedEncounterDrops: {}
 				}
@@ -4869,6 +4874,7 @@ describe('WorldScene', () => {
 				mapId: 'ruins-threshold',
 				flags: {
 					clearedEncounters: ['threshold-slime-east', 'threshold-slime-west'],
+					clearedEncounterUnitCounts: {},
 					collectedPickups: [],
 					resolvedEncounterDrops: {}
 				}
@@ -4902,6 +4908,7 @@ describe('WorldScene', () => {
 				mapId: 'ruins-threshold',
 				flags: {
 					clearedEncounters: ['threshold-slime-east', 'threshold-slime-west'],
+					clearedEncounterUnitCounts: {},
 					collectedPickups: [],
 					resolvedEncounterDrops: {}
 				}
@@ -4935,6 +4942,7 @@ describe('WorldScene', () => {
 				mapId: 'meadow-entry',
 				flags: {
 					clearedEncounters: ['meadow-slime-west', 'meadow-slime-center'],
+					clearedEncounterUnitCounts: {},
 					collectedPickups: [],
 					resolvedEncounterDrops: {}
 				}
@@ -4958,6 +4966,7 @@ describe('WorldScene', () => {
 				mapId: 'ruins-core',
 				flags: {
 					clearedEncounters: ['ruins-warden'],
+					clearedEncounterUnitCounts: {},
 					collectedPickups: [],
 					resolvedEncounterDrops: {}
 				}
@@ -5011,6 +5020,7 @@ describe('WorldScene', () => {
 				mapId: 'ruins-threshold',
 				flags: {
 					clearedEncounters: ['threshold-slime-east', 'threshold-slime-west'],
+					clearedEncounterUnitCounts: {},
 					collectedPickups: ['meadow-cache'],
 					resolvedEncounterDrops: {
 						'threshold-slime-east': [{ itemId: 'field-potion', quantity: 1 }]
@@ -5027,6 +5037,7 @@ describe('WorldScene', () => {
 			saveState: expect.objectContaining({
 				flags: {
 					clearedEncounters: ['threshold-slime-east', 'threshold-slime-west'],
+					clearedEncounterUnitCounts: {},
 					collectedPickups: ['meadow-cache'],
 					resolvedEncounterDrops: {
 						'threshold-slime-east': [{ itemId: 'field-potion', quantity: 1 }]

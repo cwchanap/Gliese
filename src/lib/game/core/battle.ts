@@ -219,6 +219,10 @@ function applyBattleVictory(saveState: SaveState, result: BattleResult): BattleA
 			clearedEncounters: Array.from(
 				new Set([...saveState.flags.clearedEncounters, result.sourceEncounterId])
 			).sort(),
+			clearedEncounterUnitCounts: {
+				...saveState.flags.clearedEncounterUnitCounts,
+				[result.sourceEncounterId]: defeatedUnits.length
+			},
 			resolvedEncounterDrops: {
 				...saveState.flags.resolvedEncounterDrops,
 				[result.sourceEncounterId]: drops

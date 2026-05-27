@@ -91,6 +91,7 @@ describe('battle contracts', () => {
 			questId: 'thin-village-slimes',
 			worldFlags: {
 				clearedEncounterIds: new Set(),
+				clearedEncounterUnitCounts: {},
 				collectedPickupIds: new Set()
 			}
 		});
@@ -132,6 +133,7 @@ describe('battle contracts', () => {
 			questId: 'thin-village-slimes',
 			worldFlags: {
 				clearedEncounterIds: new Set(),
+				clearedEncounterUnitCounts: {},
 				collectedPickupIds: new Set()
 			}
 		});
@@ -191,6 +193,9 @@ describe('battle contracts', () => {
 		});
 		expect(application.saveState.wallet.coins).toBe(54);
 		expect(application.saveState.flags.clearedEncounters).toEqual(['meadow-slime-west']);
+		expect(application.saveState.flags.clearedEncounterUnitCounts).toEqual({
+			'meadow-slime-west': 3
+		});
 		expect(application.saveState.flags.resolvedEncounterDrops).toEqual({
 			'meadow-slime-west': [{ itemId: 'field-potion', quantity: 2 }]
 		});
@@ -262,6 +267,7 @@ describe('battle contracts', () => {
 		});
 		expect(application.saveState.wallet.coins).toBe(30);
 		expect(application.saveState.flags.clearedEncounters).toEqual([]);
+		expect(application.saveState.flags.clearedEncounterUnitCounts).toEqual({});
 		expect(application.saveState.flags.resolvedEncounterDrops).toEqual({});
 		expect(application.summary).toMatchObject({
 			outcome: 'defeat',

@@ -13,6 +13,7 @@ import { mainQuestId } from '$lib/game/content/quests';
 
 const emptyWorldFlags = {
 	clearedEncounterIds: new Set<string>(),
+	clearedEncounterUnitCounts: {} as Record<string, number>,
 	collectedPickupIds: new Set<string>()
 };
 
@@ -120,6 +121,10 @@ describe('quest core', () => {
 			questId: 'thin-village-slimes',
 			worldFlags: {
 				clearedEncounterIds: new Set(['meadow-slime-west', 'meadow-slime-center']),
+				clearedEncounterUnitCounts: {
+					'meadow-slime-west': 1,
+					'meadow-slime-center': 1
+				},
 				collectedPickupIds: new Set()
 			}
 		});
@@ -131,7 +136,39 @@ describe('quest core', () => {
 		).toBe(2);
 		expect(
 			accepted.accepted ? accepted.state.entries['thin-village-slimes']?.countedSourceIds : []
-		).toEqual(['encounter:meadow-slime-west', 'encounter:meadow-slime-center']);
+		).toEqual([
+			'encounter:meadow-slime-west:unit:0',
+			'encounter:meadow-slime-center:unit:0'
+		]);
+	});
+
+	it('seeds multi-unit encounter progress from cleared encounter unit counts', () => {
+		const unlocked = applyQuestEvent({
+			state: createInitialQuestState(),
+			event: { type: 'talk-to-npc', npcId: 'guild-master' }
+		}).state;
+
+		const accepted = acceptQuest({
+			state: unlocked,
+			questId: 'thin-village-slimes',
+			worldFlags: {
+				clearedEncounterIds: new Set(['meadow-slime-west']),
+				clearedEncounterUnitCounts: { 'meadow-slime-west': 3 },
+				collectedPickupIds: new Set()
+			}
+		});
+
+		expect(accepted.accepted).toBe(true);
+		expect(
+			accepted.accepted ? accepted.state.entries['thin-village-slimes']?.progress : undefined
+		).toBe(3);
+		expect(
+			accepted.accepted ? accepted.state.entries['thin-village-slimes']?.countedSourceIds : []
+		).toEqual([
+			'encounter:meadow-slime-west:unit:0',
+			'encounter:meadow-slime-west:unit:1',
+			'encounter:meadow-slime-west:unit:2'
+		]);
 	});
 
 	it('completes and rewards a side quest on accept when all sources are already cleared', () => {
@@ -149,6 +186,11 @@ describe('quest core', () => {
 					'meadow-slime-center',
 					'meadow-slime-east'
 				]),
+				clearedEncounterUnitCounts: {
+					'meadow-slime-west': 1,
+					'meadow-slime-center': 1,
+					'meadow-slime-east': 1
+				},
 				collectedPickupIds: new Set()
 			}
 		});
@@ -184,6 +226,11 @@ describe('quest core', () => {
 					'meadow-slime-center',
 					'meadow-slime-east'
 				]),
+				clearedEncounterUnitCounts: {
+					'meadow-slime-west': 1,
+					'meadow-slime-center': 1,
+					'meadow-slime-east': 1
+				},
 				collectedPickupIds: new Set()
 			}
 		});
@@ -346,6 +393,7 @@ describe('quest core', () => {
 			questId: 'thin-village-slimes',
 			worldFlags: {
 				clearedEncounterIds: new Set(),
+				clearedEncounterUnitCounts: {},
 				collectedPickupIds: new Set()
 			}
 		});
