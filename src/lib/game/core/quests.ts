@@ -34,6 +34,7 @@ export type QuestState = {
 
 export type QuestWorldFlags = {
 	clearedEncounterIds: Set<string>;
+	clearedEncounterUnitCounts: Record<string, number>;
 	collectedPickupIds: Set<string>;
 };
 
@@ -397,8 +398,13 @@ function getExistingSourceIdsForObjective(
 		);
 		return matchingEncounterIds
 			.filter((encounterId) => worldFlags.clearedEncounterIds.has(encounterId))
-			.slice(0, objective.target)
-			.map((encounterId) => `encounter:${encounterId}`);
+			.flatMap((encounterId) => {
+				const unitCount = worldFlags.clearedEncounterUnitCounts[encounterId] ?? 1;
+				return Array.from({ length: Math.min(unitCount, objective.target) }, (_, i) =>
+					`encounter:${encounterId}:unit:${i}`
+				);
+			})
+			.slice(0, objective.target);
 	}
 
 	if (objective.kind === 'collect-item') {

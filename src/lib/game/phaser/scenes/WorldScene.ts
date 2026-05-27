@@ -277,6 +277,7 @@ export class WorldScene extends Phaser.Scene {
 	private static readonly enemyHealthBarOffsetY = 34;
 
 	private clearedEncounterIds = new Set<string>();
+	private clearedEncounterUnitCounts: Record<string, number> = {};
 	private collectedPickupIds = new Set<string>();
 	private cursorKeys?: Partial<Record<'left' | 'right' | 'up' | 'down', DirectionKey>>;
 	private enemies: EnemyInstance[] = [];
@@ -375,6 +376,9 @@ export class WorldScene extends Phaser.Scene {
 			(activeSave !== undefined || loadStoredSaveResult().status === 'missing');
 
 		this.clearedEncounterIds = new Set(activeSave?.flags.clearedEncounters ?? []);
+		this.clearedEncounterUnitCounts = {
+			...(activeSave?.flags.clearedEncounterUnitCounts ?? {})
+		};
 		this.collectedPickupIds = new Set(activeSave?.flags.collectedPickups ?? []);
 		this.enemies = [];
 		this.facing = activeSave?.player.facing ?? map.spawnDirection;
@@ -614,7 +618,7 @@ export class WorldScene extends Phaser.Scene {
 
 	private buildSaveState(): SaveState {
 		return {
-			version: 5,
+			version: 6,
 			mapId: this.mapId,
 			player: {
 				level: this.playerProgress.level,
@@ -627,6 +631,7 @@ export class WorldScene extends Phaser.Scene {
 			},
 			flags: {
 				clearedEncounters: [...this.clearedEncounterIds].sort(),
+				clearedEncounterUnitCounts: { ...this.clearedEncounterUnitCounts },
 				collectedPickups: [...this.collectedPickupIds].sort(),
 				resolvedEncounterDrops: cloneResolvedEncounterDrops(this.resolvedEncounterDrops)
 			},
@@ -881,6 +886,7 @@ export class WorldScene extends Phaser.Scene {
 			questId,
 			worldFlags: {
 				clearedEncounterIds: this.clearedEncounterIds,
+				clearedEncounterUnitCounts: this.clearedEncounterUnitCounts,
 				collectedPickupIds: this.collectedPickupIds
 			}
 		});

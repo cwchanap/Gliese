@@ -44,7 +44,7 @@ class MemoryStorage implements Storage {
 describe('save state', () => {
 	it('creates a level 1 starting save', () => {
 		expect(createNewSaveState()).toEqual({
-			version: 5,
+			version: 6,
 			mapId: meadowEntryMap.id,
 			player: {
 				level: 1,
@@ -55,7 +55,7 @@ describe('save state', () => {
 				y: meadowEntryMap.spawn.y,
 				facing: meadowEntryMap.spawnDirection
 			},
-			flags: { clearedEncounters: [], collectedPickups: [], resolvedEncounterDrops: {} },
+			flags: { clearedEncounters: [], clearedEncounterUnitCounts: {}, collectedPickups: [], resolvedEncounterDrops: {} },
 			inventory: {
 				stacks: [{ itemId: 'field-potion', quantity: 1 }],
 				equipment: ['training-sword']
@@ -143,9 +143,9 @@ describe('save state', () => {
 		expect(parseSaveState('{"bad":true}')).toBeNull();
 	});
 
-	it('rejects version 4 and accepts version 5', () => {
+	it('rejects version 4 and accepts version 6', () => {
 		expect(parseSaveState(JSON.stringify({ ...createNewSaveState(), version: 4 }))).toBeNull();
-		expect(parseSaveState(JSON.stringify(createNewSaveState()))?.version).toBe(5);
+		expect(parseSaveState(JSON.stringify(createNewSaveState()))?.version).toBe(6);
 	});
 
 	it('rejects a payload with wrong player field types', () => {
@@ -169,6 +169,7 @@ describe('save state', () => {
 					...createNewSaveState(),
 					flags: {
 						clearedEncounters: ['slime-scout-1', 7],
+						clearedEncounterUnitCounts: {},
 						collectedPickups: [],
 						resolvedEncounterDrops: {}
 					}
@@ -320,6 +321,20 @@ describe('save state', () => {
 					resolvedEncounterDrops: {
 						'slime-scout-1': [{ itemId: 'field-potion', quantity: 0 }]
 					}
+				}
+			},
+			{
+				...save,
+				flags: {
+					...save.flags,
+					clearedEncounterUnitCounts: { 'meadow-slime-west': 0 }
+				}
+			},
+			{
+				...save,
+				flags: {
+					...save.flags,
+					clearedEncounterUnitCounts: { 'meadow-slime-west': 1.5 }
 				}
 			}
 		]) {
