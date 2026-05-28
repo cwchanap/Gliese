@@ -3,7 +3,11 @@ import { maps, openingMapId } from '$lib/game/content/maps';
 import { addItem } from '$lib/game/core/inventory';
 import type { ItemDrop } from '$lib/game/core/loot';
 import { applyExperienceGain, type ProgressionState } from '$lib/game/core/progression';
-import { applyQuestEvent, type QuestProgressUpdate, type QuestRewardGrant } from '$lib/game/core/quests';
+import {
+	applyQuestEvent,
+	type QuestProgressUpdate,
+	type QuestRewardGrant
+} from '$lib/game/core/quests';
 import type { Direction } from '$lib/game/core/types';
 import type { SaveState } from '$lib/game/save/save-state';
 
@@ -311,7 +315,8 @@ function applyBattleDefeat(saveState: SaveState, result: BattleResult): BattleAp
 			drops: [],
 			leveledUp: false,
 			completedQuestIds: [],
-			questRewards: []
+			questRewards: [],
+			questProgress: []
 		}
 	};
 }

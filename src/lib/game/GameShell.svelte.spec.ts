@@ -106,7 +106,8 @@ describe('GameShell battle summary', () => {
 								title: 'Thin the Village Slimes',
 								rewardSummary: '6 XP / 12 coins / 1 item'
 							}
-						]
+						],
+						questProgress: []
 					}
 				}
 			});
@@ -148,7 +149,8 @@ describe('GameShell battle summary', () => {
 						drops: [],
 						leveledUp: false,
 						completedQuestTitles: [],
-						questRewards: []
+						questRewards: [],
+						questProgress: []
 					}
 				}
 			})
@@ -179,7 +181,8 @@ describe('GameShell battle summary', () => {
 						drops: [],
 						leveledUp: false,
 						completedQuestTitles: [],
-						questRewards: []
+						questRewards: [],
+						questProgress: []
 					}
 				}
 			})
