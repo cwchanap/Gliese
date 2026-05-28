@@ -717,8 +717,8 @@ describe('BattleScene', () => {
 			hero: { hp: 20, maxHp: 20, attack: 4, defense: 0 }
 		});
 
-		expect(phaserState.mainCamera.scrollX).toBe(320);
-		expect(phaserState.mainCamera.scrollY).toBe(180);
+		expect(phaserState.mainCamera.scrollX).toBe(-320);
+		expect(phaserState.mainCamera.scrollY).toBe(-180);
 	});
 
 	it('registers a resize listener that re-centers the arena', async () => {
@@ -747,8 +747,8 @@ describe('BattleScene', () => {
 		Object.assign(scene.scale, { width: 960, height: 540 });
 		resizeHandler!();
 
-		expect(phaserState.mainCamera.scrollX).toBe(160);
-		expect(phaserState.mainCamera.scrollY).toBe(90);
+		expect(phaserState.mainCamera.scrollX).toBe(-160);
+		expect(phaserState.mainCamera.scrollY).toBe(-90);
 	});
 
 	it('produces a victory result after all generated enemies are defeated', async () => {
