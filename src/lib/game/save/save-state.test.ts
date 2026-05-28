@@ -558,6 +558,26 @@ describe('save storage', () => {
 		clearStoredSaveState(storage);
 
 		expect(storage.getItem(SAVE_STORAGE_KEY)).toBeNull();
+		expect(storage.getItem('gliese.save.v5')).toBeNull();
+		expect(loadStoredSaveState(storage)).toBeNull();
+	});
+
+	it('clears legacy v5 saves when clearing storage', () => {
+		const storage = new MemoryStorage();
+		const v5Key = 'gliese.save.v5';
+		const save = {
+			...createNewSaveState(),
+			inventory: {
+				stacks: [{ itemId: 'field-potion', quantity: 2 }],
+				equipment: ['training-sword']
+			}
+		};
+
+		storage.setItem(v5Key, serializeSaveState(save));
+		clearStoredSaveState(storage);
+
+		expect(storage.getItem(v5Key)).toBeNull();
+		expect(storage.getItem(SAVE_STORAGE_KEY)).toBeNull();
 		expect(loadStoredSaveState(storage)).toBeNull();
 	});
 

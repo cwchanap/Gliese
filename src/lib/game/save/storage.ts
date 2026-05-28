@@ -69,7 +69,11 @@ export function saveGameState(
 }
 
 export function clearStoredSaveState(storage: SaveStorage | undefined = currentStorage): void {
-	resolveStorage(storage)?.removeItem(SAVE_STORAGE_KEY);
+	const resolved = resolveStorage(storage);
+	if (resolved) {
+		resolved.removeItem(SAVE_STORAGE_KEY);
+		resolved.removeItem(PREVIOUS_SAVE_STORAGE_KEY);
+	}
 }
 
 function resolveStorage(storage: SaveStorage | undefined): SaveStorage | undefined {

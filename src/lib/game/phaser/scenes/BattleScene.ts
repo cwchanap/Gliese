@@ -740,7 +740,7 @@ export class BattleScene extends Phaser.Scene {
 						.map((questId) => getQuestText(locale, questId)?.title ?? getQuest(questId)?.title)
 						.filter((title): title is string => Boolean(title)),
 					questRewards: summary.questRewards.map((grant) => ({
-						title: grant.title,
+						title: getQuestText(locale, grant.questId)?.title ?? grant.title,
 						rewardSummary: formatRewardSummary(locale, grant.reward)
 					}))
 				}
