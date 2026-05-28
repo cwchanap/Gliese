@@ -32,11 +32,15 @@ import { buildHudQuestState, createInitialQuestState } from '$lib/game/core/ques
 import { clampHpToMax, deriveEffectiveStats } from '$lib/game/core/stats';
 import { getBaseMaxHp } from '$lib/game/core/progression';
 import { advanceBossPhase } from '$lib/game/core/boss';
-import { formatRewardSummary, getItemText, getQuestText } from '$lib/game/i18n/content';
+import {
+	formatRewardSummary,
+	getItemText,
+	getQuestObjectiveText,
+	getQuestText
+} from '$lib/game/i18n/content';
 import { getActiveLocale } from '$lib/game/i18n/store';
 import { t } from '$lib/game/i18n/translate';
 import type { SaveState } from '$lib/game/save/save-state';
-import { saveGameState } from '$lib/game/save/storage';
 import {
 	emitHudState,
 	onHudCommand,
@@ -523,15 +527,6 @@ export class BattleScene extends Phaser.Scene {
 		};
 		const application = applyBattleResultToSaveState(this.payload.saveState, this.pendingResult);
 		this.appliedSaveState = application.saveState;
-		if (this.payload.persistExplorationChanges !== false) {
-			try {
-				saveGameState(application.saveState);
-			} catch {
-				if (import.meta.env?.DEV) {
-					console.warn('Failed to persist battle result; progress may be lost on close.');
-				}
-			}
-		}
 		this.publishHudState(
 			this.getBattleSummaryStatus(outcome),
 			application.summary,
@@ -542,9 +537,9 @@ export class BattleScene extends Phaser.Scene {
 	private handleHudCommand(command: HudCommand) {
 		if (command.type === 'dismiss-battle-summary' && this.pendingResult && this.payload) {
 			this.scene.start(WorldScene.key, {
-				saveState: this.appliedSaveState ?? this.payload.saveState,
+				saveState: this.payload.saveState,
 				reason: 'battle-result',
-				battleResult: this.appliedSaveState ? undefined : this.pendingResult,
+				battleResult: this.pendingResult,
 				persistExplorationChanges: this.payload.persistExplorationChanges
 			});
 			return;
@@ -757,6 +752,16 @@ export class BattleScene extends Phaser.Scene {
 					questRewards: summary.questRewards.map((grant) => ({
 						title: getQuestText(locale, grant.questId)?.title ?? grant.title,
 						rewardSummary: formatRewardSummary(locale, grant.reward)
+					})),
+					questProgress: (summary.questProgress ?? []).map((update) => ({
+						questId: update.questId,
+						title: getQuestText(locale, update.questId)?.title ?? update.title,
+						progressLabel:
+							getQuestObjectiveText(locale, update.questId, update.objectiveId)?.progressLabel ??
+							update.progressLabel,
+						previousProgress: update.previousProgress,
+						currentProgress: update.currentProgress,
+						target: update.target
 					}))
 				}
 			: null;

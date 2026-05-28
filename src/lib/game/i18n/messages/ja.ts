@@ -33,6 +33,7 @@ export const ja = {
 		levelUp: 'レベルアップ',
 		noDrops: 'アイテムドロップなし',
 		continue: '続ける',
+		questProgressUpdate: '{{progressLabel}}: {{currentProgress}}/{{target}}',
 		defeatReturnedToVillage: '報酬はありません。村へ戻りました。',
 		close: '閉じる',
 		next: '次へ',

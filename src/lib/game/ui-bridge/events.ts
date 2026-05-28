@@ -67,6 +67,15 @@ export type HudBattleSummaryQuestReward = {
 	rewardSummary: string;
 };
 
+export type HudBattleSummaryQuestProgress = {
+	questId: string;
+	title: string;
+	progressLabel: string;
+	previousProgress: number;
+	currentProgress: number;
+	target: number;
+};
+
 export type HudBattleSummary = {
 	outcome: 'victory' | 'defeat';
 	enemiesDefeated: number;
@@ -76,6 +85,7 @@ export type HudBattleSummary = {
 	leveledUp: boolean;
 	completedQuestTitles: string[];
 	questRewards: HudBattleSummaryQuestReward[];
+	questProgress: HudBattleSummaryQuestProgress[];
 };
 
 export type HudBattleState = {

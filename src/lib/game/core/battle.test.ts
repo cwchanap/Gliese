@@ -228,8 +228,66 @@ describe('battle contracts', () => {
 						items: [{ itemId: 'field-potion', quantity: 1 }]
 					}
 				})
-			]
+			],
+			questProgress: []
 		});
+	});
+
+	it('includes questProgress for quests advanced but not completed in the summary', () => {
+		const accepted = acceptQuest({
+			state: {
+				...createNewSaveState().quests,
+				completedObjectives: { [mainQuestId]: ['talk-to-guild-master'] }
+			},
+			questId: 'thin-village-slimes',
+			worldFlags: {
+				clearedEncounterIds: new Set(),
+				clearedEncounterUnitCounts: {},
+				collectedPickupIds: new Set()
+			}
+		});
+		expect(accepted.accepted).toBe(true);
+
+		const saveState = {
+			...createNewSaveState(),
+			quests: accepted.accepted ? accepted.state : createNewSaveState().quests
+		};
+		const result: BattleResult = {
+			outcome: 'victory',
+			sourceMapId: 'meadow-entry',
+			sourceEncounterId: 'meadow-slime-west',
+			sourceEnemyId: 'slime-scout',
+			completion: undefined,
+			returnPosition: { mapId: 'meadow-entry', x: 4_928, y: 1_024, facing: 'down' },
+			finalHeroHp: 14,
+			inventory: saveState.inventory,
+			defeatedUnits: [
+				{
+					unitId: 'meadow-slime-west:unit:0',
+					unitIndex: 0,
+					enemyId: 'slime-scout',
+					xpReward: 4,
+					coinReward: 4,
+					drops: []
+				}
+			]
+		};
+
+		const application = applyBattleResultToSaveState(saveState, result);
+
+		expect(application.summary.questProgress).toEqual([
+			{
+				questId: 'thin-village-slimes',
+				title: 'Thin Village Slimes',
+				objectiveId: 'defeat-village-slimes',
+				progressLabel: 'Village slimes defeated',
+				previousProgress: 0,
+				currentProgress: 1,
+				target: 3
+			}
+		]);
+		expect(application.summary.questRewards).toEqual([]);
+		expect(application.summary.completedQuestIds).toEqual([]);
 	});
 
 	it('applies a defeat result by sending the hero to meadow-entry at 1 HP without rewards', () => {

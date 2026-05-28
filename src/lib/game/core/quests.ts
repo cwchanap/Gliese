@@ -56,10 +56,21 @@ export type QuestRewardGrant = {
 	reward: QuestReward;
 };
 
+export type QuestProgressUpdate = {
+	questId: QuestId;
+	title: string;
+	objectiveId: string;
+	progressLabel: string;
+	previousProgress: number;
+	currentProgress: number;
+	target: number;
+};
+
 export type QuestEventResult = {
 	state: QuestState;
 	rewards: QuestRewardGrant[];
 	completedQuestIds: QuestId[];
+	progressUpdates: QuestProgressUpdate[];
 };
 
 export type AcceptQuestFailureReason =
@@ -211,6 +222,7 @@ export function applyQuestEvent({
 	let nextState = cloneQuestState(state);
 	const rewards: QuestRewardGrant[] = [];
 	const completedQuestIds: QuestId[] = [];
+	const progressUpdates: QuestProgressUpdate[] = [];
 
 	for (const quest of questList) {
 		const entry = nextState.entries[quest.id];
@@ -224,6 +236,7 @@ export function applyQuestEvent({
 		const sourceId = getQuestEventSourceId(event, objective);
 		if (sourceId && entry.countedSourceIds.includes(sourceId)) continue;
 
+		const previousProgress = entry.progress;
 		const nextProgress = Math.min(
 			objective.target,
 			entry.progress + getEventProgress(event, objective)
@@ -244,10 +257,20 @@ export function applyQuestEvent({
 		if (updatedEntry.status === 'completed' && updatedEntry.rewardApplied) {
 			rewards.push(buildRewardGrant(quest));
 			completedQuestIds.push(quest.id);
+		} else if (nextProgress > previousProgress) {
+			progressUpdates.push({
+				questId: quest.id,
+				title: quest.title,
+				objectiveId: objective.id,
+				progressLabel: objective.progressLabel,
+				previousProgress,
+				currentProgress: nextProgress,
+				target: objective.target
+			});
 		}
 	}
 
-	return { state: nextState, rewards, completedQuestIds };
+	return { state: nextState, rewards, completedQuestIds, progressUpdates };
 }
 
 export function buildHudQuestState({

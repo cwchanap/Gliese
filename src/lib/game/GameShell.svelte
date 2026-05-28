@@ -1054,6 +1054,19 @@
 								{/each}
 							</ul>
 						{/if}
+						{#if battleSummary.questProgress?.length > 0}
+							<ul class="grid gap-1">
+								{#each battleSummary.questProgress as progress (progress.questId)}
+									<li>
+										{t($locale, 'ui.questProgressUpdate', {
+											progressLabel: progress.progressLabel,
+											currentProgress: String(progress.currentProgress),
+											target: String(progress.target)
+										})}
+									</li>
+								{/each}
+							</ul>
+						{/if}
 						{#if battleSummary.outcome === 'defeat'}
 							<p>{t($locale, 'ui.defeatReturnedToVillage')}</p>
 						{/if}

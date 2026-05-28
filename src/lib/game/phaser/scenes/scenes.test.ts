@@ -1222,7 +1222,7 @@ describe('BattleScene', () => {
 		}
 	});
 
-	it('returns to WorldScene with the pre-applied save state after summary dismissal', async () => {
+	it('transitions to WorldScene with pre-battle state and battle result after summary dismissal', async () => {
 		const hud = installHudCommandTarget();
 		const { createNewSaveState } = await import('$lib/game/save/save-state');
 		const { BattleScene } = await import('./BattleScene');
@@ -1243,20 +1243,20 @@ describe('BattleScene', () => {
 			Object.assign(phaserState.playerMarker, { x: 320, y: 180 });
 			const state = scene as unknown as {
 				enemies: Array<{ x: number; y: number }>;
-				appliedSaveState: unknown;
+				pendingResult: unknown;
 			};
 			state.enemies[0]!.x = 330;
 			state.enemies[0]!.y = 180;
 			scene.update(0, 16);
 
-			expect(state.appliedSaveState).not.toBeNull();
+			expect(state.pendingResult).not.toBeNull();
 
 			hud.dispatch({ type: 'dismiss-battle-summary' });
 
 			expect(scene.scene.start).toHaveBeenCalledWith(WorldScene.key, {
-				saveState: state.appliedSaveState,
+				saveState,
 				reason: 'battle-result',
-				battleResult: undefined,
+				battleResult: state.pendingResult,
 				persistExplorationChanges: undefined
 			});
 		} finally {
@@ -1286,20 +1286,20 @@ describe('BattleScene', () => {
 			Object.assign(phaserState.playerMarker, { x: 320, y: 180 });
 			const state = scene as unknown as {
 				enemies: Array<{ x: number; y: number }>;
-				appliedSaveState: unknown;
+				pendingResult: unknown;
 			};
 			state.enemies[0]!.x = 330;
 			state.enemies[0]!.y = 180;
 			scene.update(0, 16);
 
-			expect(state.appliedSaveState).not.toBeNull();
+			expect(state.pendingResult).not.toBeNull();
 
 			hud.dispatch({ type: 'dismiss-battle-summary' });
 
 			expect(scene.scene.start).toHaveBeenCalledWith(WorldScene.key, {
-				saveState: state.appliedSaveState,
+				saveState,
 				reason: 'battle-result',
-				battleResult: undefined,
+				battleResult: state.pendingResult,
 				persistExplorationChanges: false
 			});
 		} finally {
@@ -1347,19 +1347,17 @@ describe('BattleScene', () => {
 		}
 	});
 
-	it('persists battle results via saveGameState when the battle finishes', async () => {
+	it('does not persist battle results in BattleScene (deferred to WorldScene)', async () => {
 		const storage = await import('$lib/game/save/storage');
 		const { createNewSaveState } = await import('$lib/game/save/save-state');
 		const { BattleScene } = await import('./BattleScene');
 		const scene = new BattleScene();
 		const saveState = createNewSaveState();
-		const storedSaves: string[] = [];
+		const setItemSpy = vi.fn();
 		const memoryStorage = {
 			getItem: vi.fn(() => null),
 			removeItem: vi.fn(),
-			setItem: vi.fn((_key: string, value: string) => {
-				storedSaves.push(value);
-			})
+			setItem: setItemSpy
 		};
 
 		storage.setSaveStorage(memoryStorage);
@@ -1382,11 +1380,7 @@ describe('BattleScene', () => {
 
 			scene.update(0, 16);
 
-			expect(memoryStorage.setItem).toHaveBeenCalledWith(
-				storage.SAVE_STORAGE_KEY,
-				expect.any(String)
-			);
-			expect(storedSaves.length).toBeGreaterThanOrEqual(1);
+			expect(setItemSpy).not.toHaveBeenCalled();
 		} finally {
 			storage.setSaveStorage(undefined);
 		}
