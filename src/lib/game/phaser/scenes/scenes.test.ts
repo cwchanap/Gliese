@@ -739,9 +739,7 @@ describe('BattleScene', () => {
 		expect(scene.scale.on).toHaveBeenCalledWith('resize', expect.any(Function));
 		const scaleOnMock = scene.scale.on as unknown as import('vitest').Mock;
 		const resizeCalls = scaleOnMock.mock.calls as Array<[string, () => void]>;
-		const resizeHandler = resizeCalls.find(
-			(call) => call[0] === 'resize'
-		)?.[1];
+		const resizeHandler = resizeCalls.find((call) => call[0] === 'resize')?.[1];
 		expect(resizeHandler).toBeTypeOf('function');
 
 		Object.assign(scene.scale, { width: 960, height: 540 });
