@@ -3,7 +3,7 @@ import { maps, openingMapId } from '$lib/game/content/maps';
 import { addItem } from '$lib/game/core/inventory';
 import type { ItemDrop } from '$lib/game/core/loot';
 import { applyExperienceGain, type ProgressionState } from '$lib/game/core/progression';
-import { applyQuestEvent, type QuestRewardGrant } from '$lib/game/core/quests';
+import { applyQuestEvent, type QuestProgressUpdate, type QuestRewardGrant } from '$lib/game/core/quests';
 import type { Direction } from '$lib/game/core/types';
 import type { SaveState } from '$lib/game/save/save-state';
 
@@ -78,6 +78,7 @@ export type BattleSummary = {
 	leveledUp: boolean;
 	completedQuestIds: string[];
 	questRewards: QuestRewardGrant[];
+	questProgress: QuestProgressUpdate[];
 };
 
 export type BattleApplication = {
@@ -173,6 +174,7 @@ function applyBattleVictory(saveState: SaveState, result: BattleResult): BattleA
 	let quests = saveState.quests;
 	const questRewards: QuestRewardGrant[] = [];
 	const completedQuestIds: string[] = [];
+	const allProgressUpdates: QuestProgressUpdate[] = [];
 
 	for (const unit of defeatedUnits) {
 		const questResult = applyQuestEvent({
@@ -189,6 +191,7 @@ function applyBattleVictory(saveState: SaveState, result: BattleResult): BattleA
 		quests = questResult.state;
 		questRewards.push(...questResult.rewards);
 		completedQuestIds.push(...questResult.completedQuestIds);
+		allProgressUpdates.push(...questResult.progressUpdates);
 	}
 
 	for (const grant of questRewards) {
@@ -254,6 +257,11 @@ function applyBattleVictory(saveState: SaveState, result: BattleResult): BattleA
 	);
 	const combinedDrops = groupBattleDrops([...drops, ...questRewardItems]);
 
+	const completedQuestIdSet = new Set(completedQuestIds);
+	const questProgress = allProgressUpdates.filter(
+		(update) => !completedQuestIdSet.has(update.questId)
+	);
+
 	return {
 		saveState: nextSaveState,
 		summary: {
@@ -264,7 +272,8 @@ function applyBattleVictory(saveState: SaveState, result: BattleResult): BattleA
 			drops: combinedDrops,
 			leveledUp: progression.level > previousLevel,
 			completedQuestIds: Array.from(new Set(completedQuestIds)),
-			questRewards
+			questRewards,
+			questProgress
 		}
 	};
 }

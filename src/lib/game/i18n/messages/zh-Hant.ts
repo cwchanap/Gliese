@@ -33,6 +33,7 @@ export const zhHant = {
 		levelUp: '升級',
 		noDrops: '沒有道具掉落',
 		continue: '繼續',
+		questProgressUpdate: '{{progressLabel}}：{{currentProgress}}/{{target}}',
 		defeatReturnedToVillage: '沒有獲得獎勵。已返回村莊。',
 		close: '關閉',
 		next: '下一步',

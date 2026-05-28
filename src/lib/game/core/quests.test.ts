@@ -559,4 +559,118 @@ describe('quest core', () => {
 			rewardSummary: '6XP / 12コイン / 1個'
 		});
 	});
+
+	it('returns progressUpdates for quests advanced but not completed', () => {
+		const unlocked = applyQuestEvent({
+			state: createInitialQuestState(),
+			event: { type: 'talk-to-npc', npcId: 'guild-master' }
+		}).state;
+		const accepted = acceptQuest({
+			state: unlocked,
+			questId: 'thin-village-slimes',
+			worldFlags: emptyWorldFlags
+		});
+		if (!accepted.accepted) throw new Error(accepted.reason);
+
+		const first = applyQuestEvent({
+			state: accepted.state,
+			event: {
+				type: 'defeat-enemy',
+				mapId: 'meadow-entry',
+				encounterId: 'meadow-slime-west',
+				enemyId: 'slime-scout'
+			}
+		});
+		const second = applyQuestEvent({
+			state: first.state,
+			event: {
+				type: 'defeat-enemy',
+				mapId: 'meadow-entry',
+				encounterId: 'meadow-slime-center',
+				enemyId: 'slime-scout'
+			}
+		});
+
+		expect(first.progressUpdates).toEqual([
+			{
+				questId: 'thin-village-slimes',
+				title: 'Thin Village Slimes',
+				objectiveId: 'defeat-village-slimes',
+				progressLabel: 'Village slimes defeated',
+				previousProgress: 0,
+				currentProgress: 1,
+				target: 3
+			}
+		]);
+		expect(second.progressUpdates).toEqual([
+			{
+				questId: 'thin-village-slimes',
+				title: 'Thin Village Slimes',
+				objectiveId: 'defeat-village-slimes',
+				progressLabel: 'Village slimes defeated',
+				previousProgress: 1,
+				currentProgress: 2,
+				target: 3
+			}
+		]);
+	});
+
+	it('excludes progressUpdates for completed quests and includes them only for partial progress', () => {
+		const unlocked = applyQuestEvent({
+			state: createInitialQuestState(),
+			event: { type: 'talk-to-npc', npcId: 'guild-master' }
+		}).state;
+		const accepted = acceptQuest({
+			state: unlocked,
+			questId: 'thin-village-slimes',
+			worldFlags: emptyWorldFlags
+		});
+		if (!accepted.accepted) throw new Error(accepted.reason);
+
+		// Advance to 2/3 — should produce progressUpdates, no rewards
+		const first = applyQuestEvent({
+			state: accepted.state,
+			event: {
+				type: 'defeat-enemy',
+				mapId: 'meadow-entry',
+				encounterId: 'meadow-slime-west',
+				enemyId: 'slime-scout'
+			}
+		});
+		const second = applyQuestEvent({
+			state: first.state,
+			event: {
+				type: 'defeat-enemy',
+				mapId: 'meadow-entry',
+				encounterId: 'meadow-slime-center',
+				enemyId: 'slime-scout'
+			}
+		});
+
+		expect(first.progressUpdates.length).toBe(1);
+		expect(second.progressUpdates.length).toBe(1);
+		expect(first.rewards).toEqual([]);
+		expect(second.rewards).toEqual([]);
+
+		// Complete the quest (3/3) — should produce rewards, no progressUpdates
+		const completing = applyQuestEvent({
+			state: second.state,
+			event: {
+				type: 'defeat-enemy',
+				mapId: 'meadow-entry',
+				encounterId: 'meadow-slime-east',
+				enemyId: 'slime-scout'
+			}
+		});
+
+		expect(completing.progressUpdates).toEqual([]);
+		expect(completing.rewards).toEqual([
+			{
+				questId: 'thin-village-slimes',
+				title: 'Thin Village Slimes',
+				reward: { xp: 6, coins: 12, items: [{ itemId: 'field-potion', quantity: 1 }] }
+			}
+		]);
+		expect(completing.completedQuestIds).toEqual(['thin-village-slimes']);
+	});
 });

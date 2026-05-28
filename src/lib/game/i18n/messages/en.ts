@@ -30,6 +30,7 @@ export const en = {
 		levelUp: 'Level up',
 		noDrops: 'No item drops',
 		continue: 'Continue',
+		questProgressUpdate: '{{progressLabel}}: {{currentProgress}}/{{target}}',
 		defeatReturnedToVillage: 'No rewards gained. Returned to the village.',
 		close: 'Close',
 		next: 'Next',
