@@ -112,6 +112,7 @@ export class BattleScene extends Phaser.Scene {
 	private heroAnimationLockedUntil = 0;
 	private heroVisualState: ActorAnimationKey = 'idle';
 	private removeHudCommandListener = () => {};
+	private removeResizeListener = () => {};
 	private wasdKeys?: Partial<Record<'left' | 'right' | 'up' | 'down', DirectionKey>>;
 
 	constructor() {
@@ -122,6 +123,10 @@ export class BattleScene extends Phaser.Scene {
 		this.removeHudCommandListener();
 		this.resetRuntimeState();
 		this.cameras.main.setBackgroundColor('#17231f');
+		this.centerArena();
+		this.removeResizeListener();
+		this.scale.on('resize', this.centerArena);
+		this.removeResizeListener = () => this.scale.off('resize', this.centerArena);
 
 		if (!isBattleStartPayload(payload)) {
 			this.add
@@ -153,7 +158,10 @@ export class BattleScene extends Phaser.Scene {
 			down: Phaser.Input.Keyboard.KeyCodes.S
 		}) as Partial<Record<'left' | 'right' | 'up' | 'down', DirectionKey>> | undefined;
 		this.removeHudCommandListener = onHudCommand((command) => this.handleHudCommand(command));
-		this.events?.once?.('shutdown', () => this.removeHudCommandListener());
+		this.events?.once?.('shutdown', () => {
+			this.removeHudCommandListener();
+			this.removeResizeListener();
+		});
 		this.publishHudState(t(getActiveLocale(), 'status.battleStarted'));
 	}
 
@@ -186,8 +194,21 @@ export class BattleScene extends Phaser.Scene {
 		this.pendingResult = null;
 		this.appliedSaveState = null;
 		this.player = undefined;
+		this.removeResizeListener();
+		this.removeResizeListener = () => {};
 		this.wasdKeys = undefined;
 	}
+
+	private centerArena = () => {
+		this.cameras.main.scrollX = Math.max(
+			0,
+			(this.scale.width - BattleScene.arena.width) / 2
+		);
+		this.cameras.main.scrollY = Math.max(
+			0,
+			(this.scale.height - BattleScene.arena.height) / 2
+		);
+	};
 
 	private registerAnimationPackFrames() {
 		const texture = this.textures.get(animationPackAsset.key);

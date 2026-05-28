@@ -214,6 +214,8 @@ const phaserState = vi.hoisted(() => {
 	const mainCamera = {
 		width: 640,
 		height: 360,
+		scrollX: 0,
+		scrollY: 0,
 		setBackgroundColor: vi.fn(),
 		setBounds: vi.fn(),
 		startFollow: vi.fn()
@@ -384,6 +386,12 @@ const phaserState = vi.hoisted(() => {
 			create: vi.fn(),
 			generateFrameNames: vi.fn((_key: string, config: { frames: string[] }) => config.frames)
 		};
+		scale = {
+			width: 640,
+			height: 360,
+			on: vi.fn(),
+			off: vi.fn()
+		};
 		add = {
 			arc: vi.fn((x: number, y: number) => {
 				const marker = hitImpactMarkers[nextHitImpactMarkerIndex] ?? createOverlayMarker();
@@ -448,7 +456,7 @@ const phaserState = vi.hoisted(() => {
 		imageMarkers,
 		tileSpriteMarkers,
 		reset() {
-			Object.assign(mainCamera, { width: 640, height: 360 });
+			Object.assign(mainCamera, { width: 640, height: 360, scrollX: 0, scrollY: 0 });
 			mainCamera.setBackgroundColor.mockClear();
 			mainCamera.setBounds.mockClear();
 			mainCamera.startFollow.mockClear();
@@ -672,6 +680,75 @@ describe('BattleScene', () => {
 		expect(phaserState.enemyMarkers).toHaveLength(4);
 		expect(phaserState.enemyHealthBarBgs).toHaveLength(4);
 		expect(phaserState.enemyHealthBarFills).toHaveLength(4);
+	});
+
+	it('centers the arena when the canvas matches the arena size', async () => {
+		const { createNewSaveState } = await import('$lib/game/save/save-state');
+		const { BattleScene } = await import('./BattleScene');
+		const scene = new BattleScene();
+
+		scene.create({
+			saveState: createNewSaveState(),
+			sourceMapId: 'meadow-entry',
+			sourceEncounterId: 'meadow-slime-west',
+			sourceEnemyId: 'slime-scout',
+			returnPosition: { mapId: 'meadow-entry', x: 4_928, y: 1_024, facing: 'down' },
+			enemyCount: 1,
+			hero: { hp: 20, maxHp: 20, attack: 4, defense: 0 }
+		});
+
+		expect(phaserState.mainCamera.scrollX).toBe(0);
+		expect(phaserState.mainCamera.scrollY).toBe(0);
+	});
+
+	it('offsets the camera to center the arena on a larger canvas', async () => {
+		const { createNewSaveState } = await import('$lib/game/save/save-state');
+		const { BattleScene } = await import('./BattleScene');
+		const scene = new BattleScene();
+		Object.assign(scene.scale, { width: 1280, height: 720 });
+
+		scene.create({
+			saveState: createNewSaveState(),
+			sourceMapId: 'meadow-entry',
+			sourceEncounterId: 'meadow-slime-west',
+			sourceEnemyId: 'slime-scout',
+			returnPosition: { mapId: 'meadow-entry', x: 4_928, y: 1_024, facing: 'down' },
+			enemyCount: 1,
+			hero: { hp: 20, maxHp: 20, attack: 4, defense: 0 }
+		});
+
+		expect(phaserState.mainCamera.scrollX).toBe(320);
+		expect(phaserState.mainCamera.scrollY).toBe(180);
+	});
+
+	it('registers a resize listener that re-centers the arena', async () => {
+		const { createNewSaveState } = await import('$lib/game/save/save-state');
+		const { BattleScene } = await import('./BattleScene');
+		const scene = new BattleScene();
+
+		scene.create({
+			saveState: createNewSaveState(),
+			sourceMapId: 'meadow-entry',
+			sourceEncounterId: 'meadow-slime-west',
+			sourceEnemyId: 'slime-scout',
+			returnPosition: { mapId: 'meadow-entry', x: 4_928, y: 1_024, facing: 'down' },
+			enemyCount: 1,
+			hero: { hp: 20, maxHp: 20, attack: 4, defense: 0 }
+		});
+
+		expect(scene.scale.on).toHaveBeenCalledWith('resize', expect.any(Function));
+		const scaleOnMock = scene.scale.on as unknown as import('vitest').Mock;
+		const resizeCalls = scaleOnMock.mock.calls as Array<[string, () => void]>;
+		const resizeHandler = resizeCalls.find(
+			(call) => call[0] === 'resize'
+		)?.[1];
+		expect(resizeHandler).toBeTypeOf('function');
+
+		Object.assign(scene.scale, { width: 960, height: 540 });
+		resizeHandler!();
+
+		expect(phaserState.mainCamera.scrollX).toBe(160);
+		expect(phaserState.mainCamera.scrollY).toBe(90);
 	});
 
 	it('produces a victory result after all generated enemies are defeated', async () => {
