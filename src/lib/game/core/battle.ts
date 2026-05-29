@@ -262,9 +262,21 @@ function applyBattleVictory(saveState: SaveState, result: BattleResult): BattleA
 	const combinedDrops = groupBattleDrops([...drops, ...questRewardItems]);
 
 	const completedQuestIdSet = new Set(completedQuestIds);
-	const questProgress = allProgressUpdates.filter(
-		(update) => !completedQuestIdSet.has(update.questId)
-	);
+	const questProgressMap = new Map<string, QuestProgressUpdate>();
+	for (const update of allProgressUpdates) {
+		if (completedQuestIdSet.has(update.questId)) continue;
+		const existing = questProgressMap.get(update.questId);
+		if (!existing || update.currentProgress > existing.currentProgress) {
+			questProgressMap.set(update.questId, {
+				...update,
+				previousProgress: Math.min(
+					update.previousProgress,
+					existing?.previousProgress ?? update.previousProgress
+				)
+			});
+		}
+	}
+	const questProgress = Array.from(questProgressMap.values());
 
 	return {
 		saveState: nextSaveState,
