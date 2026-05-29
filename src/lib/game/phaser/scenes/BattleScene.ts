@@ -246,7 +246,7 @@ export class BattleScene extends Phaser.Scene {
 			heroAnimation.clips.idle.frames[0]
 		) as ActorMarker;
 		this.player.setDisplaySize(heroAnimation.displaySize.width, heroAnimation.displaySize.height);
-		this.setHeroAnimation('idle');
+		this.setHeroAnimation('idle', false);
 	}
 
 	private createEnemies(payload: BattleStartPayload) {
