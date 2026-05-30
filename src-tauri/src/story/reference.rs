@@ -1,7 +1,11 @@
 pub const MAP_IDS: &[&str] = &[
+    "meadow-entry",
+    "hero-house",
     "guild-hall",
     "item-shop",
-    "meadow-entry",
+    "villager-house-1",
+    "villager-house-2",
+    "villager-house-3",
     "ruins-threshold",
     "ruins-core",
 ];
