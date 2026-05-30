@@ -50,9 +50,18 @@ pub struct StoryDialogueAction {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "type", rename_all = "camelCase")]
 pub enum StoryIntent {
-    ShowQuestList { giver_npc_id: String },
-    OpenShop { shop_id: String },
-    RecordNpcTalk { npc_id: String },
+    ShowQuestList {
+        #[serde(rename = "giverNpcId")]
+        giver_npc_id: String,
+    },
+    OpenShop {
+        #[serde(rename = "shopId")]
+        shop_id: String,
+    },
+    RecordNpcTalk {
+        #[serde(rename = "npcId")]
+        npc_id: String,
+    },
     Close,
 }
 
@@ -99,8 +108,36 @@ mod tests {
             "showQuestList"
         );
         assert_eq!(
-            value["npcDialogues"][0]["branches"][0]["actions"][0]["intent"]["giver_npc_id"],
+            value["npcDialogues"][0]["branches"][0]["actions"][0]["intent"]["giverNpcId"],
             "guild-master"
         );
+    }
+
+    #[test]
+    fn story_intent_payloads_use_camel_case_fields() {
+        let show_quest_list = serde_json::to_value(StoryIntent::ShowQuestList {
+            giver_npc_id: "guild-master".to_string(),
+        })
+        .expect("show quest list intent should serialize");
+        let open_shop = serde_json::to_value(StoryIntent::OpenShop {
+            shop_id: "miras-item-shop".to_string(),
+        })
+        .expect("open shop intent should serialize");
+        let record_npc_talk = serde_json::to_value(StoryIntent::RecordNpcTalk {
+            npc_id: "shopkeeper-mira".to_string(),
+        })
+        .expect("record npc talk intent should serialize");
+
+        assert_eq!(show_quest_list["type"], "showQuestList");
+        assert_eq!(show_quest_list["giverNpcId"], "guild-master");
+        assert!(show_quest_list.get("giver_npc_id").is_none());
+
+        assert_eq!(open_shop["type"], "openShop");
+        assert_eq!(open_shop["shopId"], "miras-item-shop");
+        assert!(open_shop.get("shop_id").is_none());
+
+        assert_eq!(record_npc_talk["type"], "recordNpcTalk");
+        assert_eq!(record_npc_talk["npcId"], "shopkeeper-mira");
+        assert!(record_npc_talk.get("npc_id").is_none());
     }
 }
