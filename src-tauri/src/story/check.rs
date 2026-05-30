@@ -24,6 +24,14 @@ pub struct StoryCheckResult {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+pub struct StoryCheckArgs {
+    pub mode: CheckMode,
+    pub write_report: bool,
+    pub write_generated: bool,
+    pub check_generated: bool,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct StoryCheckError {
     message: String,
 }
@@ -35,6 +43,54 @@ impl fmt::Display for StoryCheckError {
 }
 
 impl Error for StoryCheckError {}
+
+pub fn parse_story_check_args<I, S>(args: I) -> Result<StoryCheckArgs, StoryCheckError>
+where
+    I: IntoIterator<Item = S>,
+    S: AsRef<str>,
+{
+    let mut mode = None;
+    let mut write_report = false;
+    let mut write_generated = false;
+    let mut check_generated = false;
+
+    for arg in args {
+        match arg.as_ref() {
+            "--mode=draft" => {
+                if mode.replace(CheckMode::Draft).is_some() {
+                    return Err(StoryCheckError::new("mode specified more than once"));
+                }
+            }
+            "--mode=strict" => {
+                if mode.replace(CheckMode::Strict).is_some() {
+                    return Err(StoryCheckError::new("mode specified more than once"));
+                }
+            }
+            arg if arg.starts_with("--mode=") => {
+                return Err(StoryCheckError::new(format!("invalid mode argument {arg}")));
+            }
+            "--write-report" => write_report = true,
+            "--write-generated" => write_generated = true,
+            "--check-generated" => check_generated = true,
+            arg => {
+                return Err(StoryCheckError::new(format!("unknown argument {arg}")));
+            }
+        }
+    }
+
+    if write_generated && check_generated {
+        return Err(StoryCheckError::new(
+            "cannot combine --write-generated with --check-generated",
+        ));
+    }
+
+    Ok(StoryCheckArgs {
+        mode: mode.unwrap_or(CheckMode::Draft),
+        write_report,
+        write_generated,
+        check_generated,
+    })
+}
 
 pub fn run_story_check(
     mode: CheckMode,
@@ -511,5 +567,52 @@ primaryNpc: guild-master
         .unwrap_err();
 
         assert!(error.to_string().contains("does not match manifest id"));
+    }
+
+    #[test]
+    fn rejects_invalid_mode_arg() {
+        let error = parse_story_check_args(["--mode=loose"]).unwrap_err();
+
+        assert!(error.to_string().contains("invalid mode"));
+    }
+
+    #[test]
+    fn rejects_unknown_flag() {
+        let error = parse_story_check_args(["--write-report", "--verbose"]).unwrap_err();
+
+        assert!(error.to_string().contains("unknown argument --verbose"));
+    }
+
+    #[test]
+    fn rejects_duplicate_or_conflicting_mode_args() {
+        let duplicate = parse_story_check_args(["--mode=strict", "--mode=strict"]).unwrap_err();
+        let conflicting = parse_story_check_args(["--mode=draft", "--mode=strict"]).unwrap_err();
+
+        assert!(duplicate
+            .to_string()
+            .contains("mode specified more than once"));
+        assert!(conflicting
+            .to_string()
+            .contains("mode specified more than once"));
+    }
+
+    #[test]
+    fn rejects_write_and_check_generated_together() {
+        let error = parse_story_check_args(["--write-generated", "--check-generated"]).unwrap_err();
+
+        assert!(error
+            .to_string()
+            .contains("cannot combine --write-generated with --check-generated"));
+    }
+
+    #[test]
+    fn parses_valid_strict_args() {
+        let args = parse_story_check_args(["--mode=strict", "--write-report", "--check-generated"])
+            .expect("valid strict args should parse");
+
+        assert_eq!(args.mode, CheckMode::Strict);
+        assert!(args.write_report);
+        assert!(!args.write_generated);
+        assert!(args.check_generated);
     }
 }
