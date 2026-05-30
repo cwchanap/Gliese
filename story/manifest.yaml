@@ -1,0 +1,33 @@
+id: sundrop-ruins
+title: Sundrop Ruins
+entryBeat: prologue.guild-master
+defaultLocale: en
+chapters:
+  - id: prologue
+    title: Prologue
+    beats:
+      - id: prologue.guild-master
+        file: beats/prologue/guild-master.md
+      - id: prologue.guild-quartermaster
+        file: beats/prologue/guild-quartermaster.md
+      - id: prologue.shopkeeper-mira
+        file: beats/prologue/shopkeeper-mira.md
+requiredContent:
+  maps:
+    - guild-hall
+    - item-shop
+  npcs:
+    - guild-master
+    - guild-quartermaster
+    - shopkeeper-mira
+  quests:
+    - investigate-the-ruins
+    - thin-village-slimes
+    - thin-ruins-slimes
+    - recover-ruins-relics
+  shops:
+    - guild-quartermaster
+    - miras-item-shop
+  enemies:
+    - slime-scout
+    - ruins-warden
