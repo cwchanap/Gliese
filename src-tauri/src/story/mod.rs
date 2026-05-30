@@ -1,3 +1,4 @@
+pub mod beat;
 pub mod generated;
 pub mod manifest;
 pub mod reference;
