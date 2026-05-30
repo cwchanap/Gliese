@@ -6,6 +6,7 @@
 	"scripts": {
 		"dev": "vite",
 		"build": "vite build",
+		"build:tauri": "bun run story:check:strict && vite build --mode tauri",
 		"preview": "vite preview",
 		"prepare": "playwright install || echo ''",
 		"check": "svelte-check --tsconfig ./tsconfig.json",
@@ -15,6 +16,8 @@
 		"test:unit": "vitest",
 		"test": "npm run test:unit -- --run && npm run test:e2e",
 		"test:e2e": "playwright test",
+		"story:check": "cargo run --manifest-path src-tauri/Cargo.toml --bin story_check -- --mode=draft --write-report --write-generated",
+		"story:check:strict": "cargo run --manifest-path src-tauri/Cargo.toml --bin story_check -- --mode=strict --check-generated",
 		"tauri": "tauri"
 	},
 	"devDependencies": {
