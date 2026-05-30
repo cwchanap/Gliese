@@ -1,21 +1,19 @@
-use gliese_lib::story::check::CheckMode;
+use gliese_lib::story::check::parse_story_check_args;
 
 fn main() {
-    let args: Vec<String> = std::env::args().collect();
-    let strict = args.iter().any(|arg| arg == "--mode=strict");
-    let write_report = args.iter().any(|arg| arg == "--write-report");
-    let write_generated = args.iter().any(|arg| arg == "--write-generated");
-    let check_generated = args.iter().any(|arg| arg == "--check-generated");
+    let args = match parse_story_check_args(std::env::args().skip(1)) {
+        Ok(args) => args,
+        Err(error) => {
+            eprintln!("{error}");
+            std::process::exit(1);
+        }
+    };
 
     if let Err(error) = gliese_lib::story::check::run_story_check(
-        if strict {
-            CheckMode::Strict
-        } else {
-            CheckMode::Draft
-        },
-        write_report,
-        write_generated,
-        check_generated,
+        args.mode,
+        args.write_report,
+        args.write_generated,
+        args.check_generated,
     ) {
         eprintln!("{error}");
         std::process::exit(1);
