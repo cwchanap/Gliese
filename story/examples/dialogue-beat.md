@@ -22,9 +22,9 @@ This is one dialogue paragraph.
 This is a second dialogue paragraph in the same branch.
 
 ::: dialogue
-npc: guild-master
+npc: guild-quartermaster
 branch: always
-speaker: Guild Master Arlen
+speaker: Quartermaster Vale
 choices: shop
 :::
 
@@ -32,5 +32,6 @@ This branch would show shop choices.
 
 ::: unsupported-hook
 id: example-camera-pan
+kind: camera
 reason: Camera scripting is not supported by the first parser.
 :::
