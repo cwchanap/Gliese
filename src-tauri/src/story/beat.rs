@@ -184,9 +184,14 @@ fn parse_choices(source: &str) -> Result<Vec<String>, String> {
     let choices: Vec<String> = source
         .split(',')
         .map(str::trim)
-        .filter(|choice| !choice.is_empty())
-        .map(ToString::to_string)
-        .collect();
+        .map(|choice| {
+            if choice.is_empty() {
+                Err("empty choices in dialogue directive".to_string())
+            } else {
+                Ok(choice.to_string())
+            }
+        })
+        .collect::<Result<Vec<_>, _>>()?;
 
     if choices.is_empty() {
         return Err("empty choices in dialogue directive".to_string());
@@ -404,6 +409,56 @@ choices: ,
 "#,
         )
         .expect_err("empty choices should fail");
+
+        assert!(error.contains("choices"));
+    }
+
+    #[test]
+    fn rejects_sparse_choices() {
+        let error = parse_beat_markdown(
+            r#"# Sparse Choices
+
+::: story
+id: prologue.sparse-choices
+chapter: prologue
+map: guild-hall
+primaryNpc: guild-master
+:::
+
+::: dialogue
+npc: guild-master
+branch: briefing
+speaker: Guild Master Arlen
+choices: quest, , shop
+:::
+"#,
+        )
+        .expect_err("sparse choices should fail");
+
+        assert!(error.contains("choices"));
+    }
+
+    #[test]
+    fn rejects_trailing_choice_separator() {
+        let error = parse_beat_markdown(
+            r#"# Trailing Choice Separator
+
+::: story
+id: prologue.trailing-choice-separator
+chapter: prologue
+map: guild-hall
+primaryNpc: guild-master
+:::
+
+::: dialogue
+npc: guild-master
+branch: briefing
+speaker: Guild Master Arlen
+choices: quest,
+:::
+"#,
+        )
+        .expect_err("trailing choice separator should fail");
 
         assert!(error.contains("choices"));
     }
