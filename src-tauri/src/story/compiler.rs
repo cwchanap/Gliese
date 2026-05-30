@@ -63,19 +63,30 @@ fn compile_branch_condition(branch: &str) -> Result<StoryBranchCondition, String
 }
 
 fn compile_action(choice: &str, npc_id: &str) -> Result<StoryDialogueAction, String> {
-    let intent = match choice {
-        "quest" => StoryIntent::ShowQuestList {
-            giver_npc_id: npc_id.to_string(),
-        },
-        "shop" => StoryIntent::OpenShop {
-            shop_id: shop_id_for_npc(npc_id)?,
-        },
-        _ => return Err(format!("unknown dialogue choice {}", choice)),
+    let (label, intent) = match choice {
+        "quest" => (
+            "Quest",
+            StoryIntent::ShowQuestList {
+                giver_npc_id: npc_id.to_string(),
+            },
+        ),
+        "shop" => (
+            "Shop",
+            StoryIntent::OpenShop {
+                shop_id: shop_id_for_npc(npc_id)?,
+            },
+        ),
+        _ => {
+            return Err(format!(
+                "unknown dialogue choice {} for npc {}",
+                choice, npc_id
+            ));
+        }
     };
 
     Ok(StoryDialogueAction {
         id: choice.to_string(),
-        label: choice.to_string(),
+        label: label.to_string(),
         intent,
     })
 }
@@ -145,6 +156,7 @@ You made it.
             StoryBranchCondition::MainQuestNeedsGuildBriefing
         );
         assert_eq!(branch.actions[0].id, "quest");
+        assert_eq!(branch.actions[0].label, "Quest");
         assert_eq!(
             branch.actions[0].intent,
             StoryIntent::ShowQuestList {
@@ -187,12 +199,148 @@ Need supplies?
         let branch = &catalog.npc_dialogues[0].branches[0];
 
         assert_eq!(branch.actions[0].id, "shop");
+        assert_eq!(branch.actions[0].label, "Shop");
         assert_eq!(
             branch.actions[0].intent,
             StoryIntent::OpenShop {
                 shop_id: "miras-item-shop".to_string()
             }
         );
+    }
+
+    #[test]
+    fn compiles_guild_quartermaster_shop_choice() {
+        let beat = crate::story::beat::parse_beat_markdown(
+            r#"# Guild Quartermaster
+
+::: story
+id: prologue.guild-quartermaster
+chapter: prologue
+map: guild-hall
+primaryNpc: guild-quartermaster
+:::
+
+::: dialogue
+npc: guild-quartermaster
+branch: always
+speaker: Quartermaster
+choices: shop
+:::
+
+Stock up before you go.
+"#,
+        )
+        .unwrap();
+
+        let catalog = compile_catalog("sundrop-ruins", "en", &[beat]).expect("compile");
+        let branch = &catalog.npc_dialogues[0].branches[0];
+
+        assert_eq!(
+            branch.actions[0].intent,
+            StoryIntent::OpenShop {
+                shop_id: "guild-quartermaster".to_string()
+            }
+        );
+    }
+
+    #[test]
+    fn rejects_shop_choice_for_unmapped_npc() {
+        let beat = crate::story::beat::parse_beat_markdown(
+            r#"# Guild Master
+
+::: story
+id: prologue.guild-master
+chapter: prologue
+map: guild-hall
+primaryNpc: guild-master
+:::
+
+::: dialogue
+npc: guild-master
+branch: always
+speaker: Guild Master Arlen
+choices: shop
+:::
+
+No shop here.
+"#,
+        )
+        .unwrap();
+
+        let error = compile_catalog("sundrop-ruins", "en", &[beat]).unwrap_err();
+
+        assert!(error.contains("guild-master"));
+        assert!(error.contains("no shop mapping"));
+    }
+
+    #[test]
+    fn groups_dialogues_by_npc_in_deterministic_order() {
+        let guild_master = crate::story::beat::parse_beat_markdown(
+            r#"# Guild Master
+
+::: story
+id: prologue.guild-master
+chapter: prologue
+map: guild-hall
+primaryNpc: guild-master
+:::
+
+::: dialogue
+npc: guild-master
+branch: always
+speaker: Guild Master Arlen
+choices: quest
+:::
+
+First briefing.
+
+::: dialogue
+npc: shopkeeper-mira
+branch: always
+speaker: Mira
+choices: shop
+:::
+
+Fresh stock.
+"#,
+        )
+        .unwrap();
+        let guild_followup = crate::story::beat::parse_beat_markdown(
+            r#"# Guild Followup
+
+::: story
+id: prologue.guild-followup
+chapter: prologue
+map: guild-hall
+primaryNpc: guild-master
+:::
+
+::: dialogue
+npc: guild-master
+branch: guildBriefingComplete
+speaker: Guild Master Arlen
+choices: quest
+:::
+
+Second briefing.
+"#,
+        )
+        .unwrap();
+
+        let catalog = compile_catalog("sundrop-ruins", "en", &[guild_master, guild_followup])
+            .expect("compile");
+
+        assert_eq!(catalog.npc_dialogues[0].npc_id, "guild-master");
+        assert_eq!(catalog.npc_dialogues[0].branches.len(), 2);
+        assert_eq!(
+            catalog.npc_dialogues[0].branches[0].lines,
+            ["First briefing."]
+        );
+        assert_eq!(
+            catalog.npc_dialogues[0].branches[1].condition,
+            StoryBranchCondition::GuildBriefingComplete
+        );
+        assert_eq!(catalog.npc_dialogues[1].npc_id, "shopkeeper-mira");
     }
 
     #[test]
