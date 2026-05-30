@@ -33,12 +33,15 @@ pub fn parse_beat_markdown(source: &str) -> Result<StoryBeat, String> {
     let mut dialogues = Vec::new();
     let mut unsupported_hooks = Vec::new();
     let mut active_dialogue: Option<usize> = None;
+    let mut paragraph_parts: Vec<String> = Vec::new();
     let mut line_index = 0;
 
     while line_index < lines.len() {
         let trimmed = lines[line_index].trim();
 
         if let Some(directive) = trimmed.strip_prefix(":::") {
+            flush_dialogue_paragraph(&mut dialogues, active_dialogue, &mut paragraph_parts);
+
             let directive = directive.trim();
             if directive.is_empty() {
                 return Err(format!(
@@ -62,12 +65,7 @@ pub fn parse_beat_markdown(source: &str) -> Result<StoryBeat, String> {
                     active_dialogue = None;
                 }
                 "dialogue" => {
-                    let choices = required_field(&fields, "choices", "dialogue")?
-                        .split(',')
-                        .map(str::trim)
-                        .filter(|choice| !choice.is_empty())
-                        .map(ToString::to_string)
-                        .collect();
+                    let choices = parse_choices(&required_field(&fields, "choices", "dialogue")?)?;
                     dialogues.push(BeatDialogue {
                         npc_id: required_field(&fields, "npc", "dialogue")?,
                         branch: required_field(&fields, "branch", "dialogue")?,
@@ -91,16 +89,19 @@ pub fn parse_beat_markdown(source: &str) -> Result<StoryBeat, String> {
                 }
             }
         } else {
-            if trimmed.starts_with('#') {
+            if trimmed.is_empty() {
+                flush_dialogue_paragraph(&mut dialogues, active_dialogue, &mut paragraph_parts);
+            } else if trimmed.starts_with('#') {
+                flush_dialogue_paragraph(&mut dialogues, active_dialogue, &mut paragraph_parts);
                 active_dialogue = None;
-            } else if !trimmed.is_empty() {
-                if let Some(dialogue_index) = active_dialogue {
-                    dialogues[dialogue_index].lines.push(trimmed.to_string());
-                }
+            } else if active_dialogue.is_some() {
+                paragraph_parts.push(trimmed.to_string());
             }
             line_index += 1;
         }
     }
+
+    flush_dialogue_paragraph(&mut dialogues, active_dialogue, &mut paragraph_parts);
 
     let story = story.ok_or_else(|| "missing story directive".to_string())?;
     Ok(StoryBeat {
@@ -137,6 +138,13 @@ fn parse_directive_fields(
             return Ok(fields);
         }
 
+        if trimmed.starts_with(":::") {
+            return Err(format!(
+                "unterminated directive starting at line {}; nested directive at line {}",
+                start_line, *line_index
+            ));
+        }
+
         if trimmed.is_empty() {
             continue;
         }
@@ -144,7 +152,14 @@ fn parse_directive_fields(
         let (key, value) = trimmed
             .split_once(':')
             .ok_or_else(|| format!("invalid directive field at line {}", *line_index))?;
-        fields.insert(key.trim().to_string(), value.trim().to_string());
+        let key = key.trim();
+        if key.is_empty() {
+            return Err(format!("invalid directive field at line {}", *line_index));
+        }
+        if fields.contains_key(key) {
+            return Err(format!("duplicate field {}", key));
+        }
+        fields.insert(key.to_string(), value.trim().to_string());
     }
 
     Err(format!(
@@ -163,6 +178,39 @@ fn required_field(
         .filter(|value| !value.is_empty())
         .cloned()
         .ok_or_else(|| format!("missing {} field in {} directive", field, directive))
+}
+
+fn parse_choices(source: &str) -> Result<Vec<String>, String> {
+    let choices: Vec<String> = source
+        .split(',')
+        .map(str::trim)
+        .filter(|choice| !choice.is_empty())
+        .map(ToString::to_string)
+        .collect();
+
+    if choices.is_empty() {
+        return Err("empty choices in dialogue directive".to_string());
+    }
+
+    Ok(choices)
+}
+
+fn flush_dialogue_paragraph(
+    dialogues: &mut [BeatDialogue],
+    active_dialogue: Option<usize>,
+    paragraph_parts: &mut Vec<String>,
+) {
+    if paragraph_parts.is_empty() {
+        return;
+    }
+
+    if let Some(dialogue_index) = active_dialogue {
+        dialogues[dialogue_index]
+            .lines
+            .push(paragraph_parts.join(" "));
+    }
+
+    paragraph_parts.clear();
 }
 
 #[cfg(test)]
@@ -273,5 +321,148 @@ This should be ignored.
         assert_eq!(beat.dialogues[0].lines, vec!["First line."]);
         assert_eq!(beat.dialogues[1].choices, vec!["shop", "leave"]);
         assert_eq!(beat.dialogues[1].lines, vec!["Second line."]);
+    }
+
+    #[test]
+    fn joins_wrapped_markdown_paragraphs_into_dialogue_lines() {
+        let beat = parse_beat_markdown(
+            r#"# Wrapped
+
+::: story
+id: prologue.wrapped
+chapter: prologue
+map: guild-hall
+primaryNpc: guild-master
+:::
+
+::: dialogue
+npc: guild-master
+branch: briefing
+speaker: Guild Master Arlen
+choices: quest
+:::
+
+This sentence wraps
+onto the next source line.
+
+This is a second paragraph.
+"#,
+        )
+        .expect("beat should parse");
+
+        assert_eq!(
+            beat.dialogues[0].lines,
+            vec![
+                "This sentence wraps onto the next source line.",
+                "This is a second paragraph."
+            ]
+        );
+    }
+
+    #[test]
+    fn rejects_missing_terminator_before_another_directive() {
+        let error = parse_beat_markdown(
+            r#"# Missing Terminator
+
+::: story
+id: prologue.missing-terminator
+chapter: prologue
+map: guild-hall
+primaryNpc: guild-master
+
+::: dialogue
+npc: guild-master
+branch: briefing
+speaker: Guild Master Arlen
+choices: quest
+:::
+"#,
+        )
+        .expect_err("unterminated story directive should fail");
+
+        assert!(error.contains("unterminated"));
+    }
+
+    #[test]
+    fn rejects_empty_choices() {
+        let error = parse_beat_markdown(
+            r#"# Empty Choices
+
+::: story
+id: prologue.empty-choices
+chapter: prologue
+map: guild-hall
+primaryNpc: guild-master
+:::
+
+::: dialogue
+npc: guild-master
+branch: briefing
+speaker: Guild Master Arlen
+choices: ,
+:::
+"#,
+        )
+        .expect_err("empty choices should fail");
+
+        assert!(error.contains("choices"));
+    }
+
+    #[test]
+    fn rejects_duplicate_fields() {
+        let error = parse_beat_markdown(
+            r#"# Duplicate Field
+
+::: story
+id: prologue.duplicate-field
+id: prologue.overwritten
+chapter: prologue
+map: guild-hall
+primaryNpc: guild-master
+:::
+"#,
+        )
+        .expect_err("duplicate fields should fail");
+
+        assert!(error.contains("duplicate field id"));
+    }
+
+    #[test]
+    fn rejects_unknown_directive() {
+        let error = parse_beat_markdown(
+            r#"# Unknown
+
+::: story
+id: prologue.unknown
+chapter: prologue
+map: guild-hall
+primaryNpc: guild-master
+:::
+
+::: camera
+id: camera.pan
+:::
+"#,
+        )
+        .expect_err("unknown directive should fail");
+
+        assert!(error.contains("unknown directive camera"));
+    }
+
+    #[test]
+    fn rejects_missing_required_fields() {
+        let error = parse_beat_markdown(
+            r#"# Missing Field
+
+::: story
+id: prologue.missing-field
+chapter: prologue
+map: guild-hall
+:::
+"#,
+        )
+        .expect_err("missing primaryNpc should fail");
+
+        assert!(error.contains("missing primaryNpc field"));
     }
 }
