@@ -3,6 +3,7 @@ use std::collections::HashSet;
 
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
 #[serde(rename_all = "camelCase")]
+#[serde(deny_unknown_fields)]
 pub struct StoryManifest {
     pub id: String,
     pub title: String,
@@ -15,6 +16,7 @@ pub struct StoryManifest {
 
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
 #[serde(rename_all = "camelCase")]
+#[serde(deny_unknown_fields)]
 pub struct StoryManifestChapter {
     pub id: String,
     pub title: String,
@@ -22,12 +24,14 @@ pub struct StoryManifestChapter {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct StoryManifestBeat {
     pub id: String,
     pub file: String,
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Eq, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct RequiredContent {
     #[serde(default)]
     pub maps: Vec<String>,
@@ -133,5 +137,94 @@ requiredContent: {}
         assert!(errors
             .iter()
             .any(|error| error.contains("duplicate beat id")));
+    }
+
+    #[test]
+    fn rejects_unknown_top_level_or_nested_yaml_key() {
+        assert!(parse_manifest(
+            r#"
+id: sundrop-ruins
+title: Sundrop Ruins
+entryBeat: prologue.guild-master
+defaultLocale: en
+unexpected: value
+chapters:
+  - id: prologue
+    title: Prologue
+    beats:
+      - id: prologue.guild-master
+        file: beats/prologue/guild-master.md
+requiredContent: {}
+"#,
+        )
+        .is_err());
+
+        assert!(parse_manifest(
+            r#"
+id: sundrop-ruins
+title: Sundrop Ruins
+entryBeat: prologue.guild-master
+defaultLocale: en
+chapters:
+  - id: prologue
+    title: Prologue
+    beats:
+      - id: prologue.guild-master
+        file: beats/prologue/guild-master.md
+requiredContent:
+  npc: [guild-master]
+"#,
+        )
+        .is_err());
+    }
+
+    #[test]
+    fn reports_unsupported_default_locale() {
+        let manifest = parse_manifest(
+            r#"
+id: sundrop-ruins
+title: Sundrop Ruins
+entryBeat: prologue.guild-master
+defaultLocale: ja
+chapters:
+  - id: prologue
+    title: Prologue
+    beats:
+      - id: prologue.guild-master
+        file: beats/prologue/guild-master.md
+requiredContent: {}
+"#,
+        )
+        .expect("yaml parses");
+
+        let errors = validate_manifest(&manifest);
+        assert!(errors
+            .iter()
+            .any(|error| error.contains("unsupported defaultLocale ja")));
+    }
+
+    #[test]
+    fn reports_entry_beat_missing_from_chapters() {
+        let manifest = parse_manifest(
+            r#"
+id: sundrop-ruins
+title: Sundrop Ruins
+entryBeat: prologue.guild-master
+defaultLocale: en
+chapters:
+  - id: prologue
+    title: Prologue
+    beats:
+      - id: prologue.villager
+        file: beats/prologue/villager.md
+requiredContent: {}
+"#,
+        )
+        .expect("yaml parses");
+
+        let errors = validate_manifest(&manifest);
+        assert!(errors.iter().any(|error| {
+            error.contains("entryBeat prologue.guild-master is not listed in chapters")
+        }));
     }
 }
