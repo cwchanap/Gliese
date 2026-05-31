@@ -88,10 +88,7 @@ fn compile_action(choice: &str, dialogue: &BeatDialogue) -> Result<StoryDialogue
                 .as_deref()
                 .ok_or_else(|| format!("missing shop field for npc {}", npc_id))?;
             if !SHOP_IDS.contains(&shop_id) {
-                return Err(format!(
-                    "unknown shop id {} for npc {}",
-                    shop_id, npc_id
-                ));
+                return Err(format!("unknown shop id {} for npc {}", shop_id, npc_id));
             }
             (
                 "Shop",
