@@ -51,6 +51,7 @@ pub fn parse_manifest(source: &str) -> Result<StoryManifest, serde_yaml::Error> 
 
 pub fn validate_manifest(manifest: &StoryManifest) -> Vec<String> {
     let mut errors = Vec::new();
+    let mut chapter_ids = HashSet::new();
     let mut beat_ids = HashSet::new();
 
     if manifest.default_locale != "en" {
@@ -61,6 +62,9 @@ pub fn validate_manifest(manifest: &StoryManifest) -> Vec<String> {
     }
 
     for chapter in &manifest.chapters {
+        if !chapter_ids.insert(chapter.id.clone()) {
+            errors.push(format!("duplicate chapter id {}", chapter.id));
+        }
         for beat in &chapter.beats {
             if !beat_ids.insert(beat.id.clone()) {
                 errors.push(format!("duplicate beat id {}", beat.id));
@@ -110,6 +114,36 @@ requiredContent:
             manifest.chapters[0].beats[0].file,
             "beats/prologue/guild-master.md"
         );
+    }
+
+    #[test]
+    fn rejects_duplicate_chapter_ids() {
+        let manifest = parse_manifest(
+            r#"
+id: sundrop-ruins
+title: Sundrop Ruins
+entryBeat: prologue.guild-master
+defaultLocale: en
+chapters:
+  - id: prologue
+    title: Prologue
+    beats:
+      - id: prologue.guild-master
+        file: beats/prologue/guild-master.md
+  - id: prologue
+    title: Duplicate
+    beats:
+      - id: prologue.villager
+        file: beats/prologue/villager.md
+requiredContent: {}
+"#,
+        )
+        .expect("yaml parses");
+
+        let errors = validate_manifest(&manifest);
+        assert!(errors
+            .iter()
+            .any(|error| error.contains("duplicate chapter id")));
     }
 
     #[test]

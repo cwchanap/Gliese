@@ -38,8 +38,8 @@ Plain Markdown paragraphs after a dialogue directive become dialogue lines until
 
 Supported choices:
 
-- `choices: quest`
-- `choices: shop`
+- `choices: quest` — requires the NPC to be a known quest giver
+- `choices: shop` — requires a matching `shop` field with a known shop ID
 
 Supported completion intent:
 

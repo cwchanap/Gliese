@@ -26,6 +26,7 @@ npc: guild-quartermaster
 branch: always
 speaker: Quartermaster Vale
 choices: shop
+shop: guild-quartermaster
 :::
 
 This branch would show shop choices.
