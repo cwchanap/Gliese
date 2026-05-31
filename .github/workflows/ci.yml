@@ -95,6 +95,9 @@ jobs:
       - name: Clippy
         run: cargo clippy --all-targets --all-features -- -D warnings
 
+      - name: Story consistency check
+        run: cargo run --manifest-path src-tauri/Cargo.toml --bin story_check -- --mode=strict --check-generated
+
       - name: Build
         run: cargo build
 
