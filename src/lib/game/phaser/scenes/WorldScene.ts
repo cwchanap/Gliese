@@ -2717,7 +2717,6 @@ export class WorldScene extends Phaser.Scene {
 
 	private async startNearbyNpcStoryDialogue(nearbyNpc: MapNpc) {
 		const requestSeq = ++this.storyDialogueSeq;
-		const requestNpcId = nearbyNpc.id;
 
 		try {
 			const session = await getNpcStoryDialogue({

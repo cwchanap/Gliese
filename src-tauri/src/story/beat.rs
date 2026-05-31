@@ -56,7 +56,11 @@ pub fn parse_beat_markdown(source: &str) -> Result<StoryBeat, String> {
                     if story.is_some() {
                         return Err("duplicate story directive".to_string());
                     }
-                    validate_directive_fields(&fields, &["id", "chapter", "map", "primaryNpc"], "story")?;
+                    validate_directive_fields(
+                        &fields,
+                        &["id", "chapter", "map", "primaryNpc"],
+                        "story",
+                    )?;
                     story = Some(StoryFields {
                         id: required_field(&fields, "id", "story")?,
                         chapter: required_field(&fields, "chapter", "story")?,
@@ -66,7 +70,11 @@ pub fn parse_beat_markdown(source: &str) -> Result<StoryBeat, String> {
                     active_dialogue = None;
                 }
                 "dialogue" => {
-                    validate_directive_fields(&fields, &["choices", "npc", "branch", "speaker", "completionIntent"], "dialogue")?;
+                    validate_directive_fields(
+                        &fields,
+                        &["choices", "npc", "branch", "speaker", "completionIntent"],
+                        "dialogue",
+                    )?;
                     let choices = parse_choices(&required_field(&fields, "choices", "dialogue")?)?;
                     dialogues.push(BeatDialogue {
                         npc_id: required_field(&fields, "npc", "dialogue")?,
@@ -79,7 +87,11 @@ pub fn parse_beat_markdown(source: &str) -> Result<StoryBeat, String> {
                     active_dialogue = Some(dialogues.len() - 1);
                 }
                 "unsupported-hook" => {
-                    validate_directive_fields(&fields, &["id", "kind", "reason"], "unsupported-hook")?;
+                    validate_directive_fields(
+                        &fields,
+                        &["id", "kind", "reason"],
+                        "unsupported-hook",
+                    )?;
                     unsupported_hooks.push(UnsupportedHook {
                         id: required_field(&fields, "id", "unsupported-hook")?,
                         kind: required_field(&fields, "kind", "unsupported-hook")?,
