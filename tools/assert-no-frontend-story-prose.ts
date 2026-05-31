@@ -2,7 +2,21 @@ import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 
 const distDir = join(process.cwd(), 'dist');
-const blockedPhrases = ['The eastern ruins are stirring again', 'Fresh tonics are on the shelf'];
+// At least one distinctive phrase from each beat file in story/beats/prologue/.
+// Ensures every migrated story file has regression coverage.
+const blockedPhrases = [
+	// guild-master.md
+	'The eastern ruins are stirring again',
+	'The Guild board is yours to work through',
+	'Good work out there',
+	'The Guild keeps watch over the old road',
+	// guild-quartermaster.md
+	'If you are bound for the ruins',
+	'Need field gear before the ruins',
+	// shopkeeper-mira.md
+	'Back from the Guild? Take a tonic',
+	'Fresh tonics are on the shelf',
+];
 
 if (!existsSync(distDir)) {
 	console.error('dist/ does not exist. Run the frontend build before checking story prose.');
