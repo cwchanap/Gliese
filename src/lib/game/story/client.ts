@@ -74,10 +74,10 @@ export function createDialogueSessionFromStory(
 		lineCount: response.lines.length,
 		mode: shouldStartInChoice ? 'choice' : 'conversation',
 		choices: response.actions.map((action) => ({
-				id: action.id,
-				label: localizeActionLabel(action.id, action.label, locale),
-				intent: storyIntentToDialogueIntent(action.intent)
-			})),
+			id: action.id,
+			label: localizeActionLabel(action.id, action.label, locale),
+			intent: storyIntentToDialogueIntent(action.intent)
+		})),
 		completionIntent: response.completionIntent
 			? storyIntentToDialogueIntent(response.completionIntent)
 			: null,
