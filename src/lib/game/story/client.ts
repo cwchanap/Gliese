@@ -107,10 +107,10 @@ export async function getNpcStoryDialogue(request: StoryDialogueRequest): Promis
 	if (import.meta.env.VITE_STORY_RUNTIME === 'tauri') {
 		const { invoke } = await import('@tauri-apps/api/core');
 		return getNpcStoryDialogueWithRuntime(request, { mode: 'tauri', invoke });
+	} else {
+		const fixture = await import('$lib/game/story/browser-fixture');
+		return getNpcStoryDialogueWithRuntime(request, { mode: 'browser', fixture });
 	}
-
-	const fixture = await import('$lib/game/story/browser-fixture');
-	return getNpcStoryDialogueWithRuntime(request, { mode: 'browser', fixture });
 }
 
 export async function getNpcStoryDialogueWithRuntime(

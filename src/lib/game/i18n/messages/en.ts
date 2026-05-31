@@ -280,41 +280,7 @@ export const en = {
 			}
 		},
 		dialogue: {
-			'guild-master': {
-				speaker: 'Guild Master Arlen',
-				lines: {
-					mainQuestNeedsGuildBriefing1:
-						'You made it. The eastern ruins are stirring again, and the village road is no longer safe.',
-					mainQuestNeedsGuildBriefing2:
-						'Go through the forest path, reach the old core, and defeat the warden before it wakes the rest.',
-					hasActiveSideQuest1:
-						'The Guild board is yours to work through, but do not lose sight of the warden.',
-					hasActiveSideQuest2:
-						'Report progress through your journal. I will keep new work here at the counter.',
-					hasCompletedQuest:
-						'Good work out there. The village notices when a hunter keeps the roads clear.',
-					guildBriefingComplete:
-						'The ruins route is open. Steel yourself before you enter the core.',
-					always: 'The Guild keeps watch over the old road. Speak plainly and choose your work.'
-				}
-			},
-			'guild-quartermaster': {
-				speaker: 'Quartermaster Vale',
-				lines: {
-					guildBriefingComplete: 'If you are bound for the ruins, buy what keeps you standing.',
-					always: 'Need field gear before the ruins? Guild stock is limited, but sturdy.'
-				}
-			},
-			'shopkeeper-mira': {
-				speaker: 'Mira',
-				lines: {
-					guildBriefingComplete:
-						'Back from the Guild? Take a tonic before the forest path gets rough.',
-					always: 'Fresh tonics are on the shelf. The guild already stocked your field kit today.'
-				}
-			},
 			actions: {
-				talk: 'Talk',
 				quest: 'Quest',
 				shop: 'Shop',
 				accept: 'Accept',

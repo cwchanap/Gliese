@@ -37,14 +37,10 @@ describe('localized content helpers', () => {
 		});
 	});
 
-	it('resolves dialogue speaker, lines, and actions', () => {
+	it('resolves dialogue action labels', () => {
 		const text = getDialogueText('en', 'guild-master');
 
-		expect(text?.speaker).toBe('Guild Master Arlen');
-		expect(text?.defaultBranches[0].lines[0]).toBe(
-			'You made it. The eastern ruins are stirring again, and the village road is no longer safe.'
-		);
-		expect(text?.actions.map((action) => action.label)).toEqual(['Talk', 'Quest']);
+		expect(text?.actions.map((action) => action.label)).toEqual(['Quest']);
 	});
 
 	it('formats localized reward summaries', () => {

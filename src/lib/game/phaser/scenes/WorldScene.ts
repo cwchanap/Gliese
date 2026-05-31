@@ -1151,7 +1151,6 @@ export class WorldScene extends Phaser.Scene {
 				this.dialogueSession = null;
 				this.publishHudState(this.status('status.dialogueClosed'));
 				return;
-			case 'talk':
 			case 'showQuestList':
 			case 'showQuestDetails':
 				this.publishHudState(this.status('status.dialogueUpdated'));

@@ -283,34 +283,7 @@ export const zhHant = {
 			}
 		},
 		dialogue: {
-			'guild-master': {
-				speaker: '公會會長阿倫',
-				lines: {
-					mainQuestNeedsGuildBriefing1: '你來得正好。東方廢墟又有動靜，村道已經不安全了。',
-					mainQuestNeedsGuildBriefing2: '走森林小徑，前往舊核心，在它驚動更多東西前擊敗看守者。',
-					hasActiveSideQuest1: '公會公告板上的任務任你挑，但別忘了看守者。',
-					hasActiveSideQuest2: '進度記在你的手冊裡回報。我會把新的委託留在櫃檯這裡。',
-					hasCompletedQuest: '幹得好。當獵手清出道路，村子都看得見。',
-					guildBriefingComplete: '廢墟路線已開。進入核心前，先把心神穩住。',
-					always: '公會一直看守著舊路。直說，然後選你的委託。'
-				}
-			},
-			'guild-quartermaster': {
-				speaker: '補給官維爾',
-				lines: {
-					guildBriefingComplete: '如果你要去廢墟，就先買些能撐住的裝備。',
-					always: '進廢墟前還缺野外裝備嗎？公會存貨不多，但都很耐用。'
-				}
-			},
-			'shopkeeper-mira': {
-				speaker: '米拉',
-				lines: {
-					guildBriefingComplete: '從公會回來了？森林小徑可不好走，先帶幾瓶靈藥吧。',
-					always: '新鮮靈藥都在架上。公會今天已經把你的野外補給備好了。'
-				}
-			},
 			actions: {
-				talk: '對話',
 				quest: '任務',
 				shop: '商店',
 				accept: '接受',

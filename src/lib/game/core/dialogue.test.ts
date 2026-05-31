@@ -7,7 +7,7 @@ import {
 	buildDialogueFallback,
 	buildQuestCompletionDialogue,
 	chooseDialogueOption,
-	startNpcDialogue
+	type DialogueSession
 } from '$lib/game/core/dialogue';
 
 vi.mock('$lib/game/i18n/translate', async () => {
@@ -28,49 +28,43 @@ vi.mock('$lib/game/i18n/translate', async () => {
 });
 
 describe('dialogue core', () => {
-	it('starts Guild Master briefing before the ruins are unlocked', () => {
-		const session = startNpcDialogue({
+	function createGuildQuestEntrySession(): DialogueSession {
+		return {
+			id: 'npc:guild-master:story',
 			npcId: 'guild-master',
-			questState: createInitialQuestState(),
-			locale: 'en'
-		});
-
-		expect(session).toMatchObject({
 			speaker: 'Guild Master Arlen',
-			line: 'You made it. The eastern ruins are stirring again, and the village road is no longer safe.',
+			lines: ['Choose your work.'],
+			line: 'Choose your work.',
+			lineIndex: 0,
+			lineCount: 1,
+			mode: 'choice',
+			choices: [
+				{
+					id: 'quest',
+					label: 'Quest',
+					intent: { type: 'showQuestList', giverNpcId: 'guild-master' }
+				}
+			],
+			completionIntent: null,
+			canClose: true
+		};
+	}
+
+	it('advances through story lines and exposes choices at the end', () => {
+		const first: DialogueSession = {
+			...createGuildQuestEntrySession(),
+			lines: ['First story line.', 'Second story line.'],
+			line: 'First story line.',
 			lineIndex: 0,
 			lineCount: 2,
 			mode: 'conversation'
-		});
-		expect(session.completionIntent).toEqual({ type: 'recordNpcTalk', npcId: 'guild-master' });
-	});
-
-	it('advances through briefing lines and exposes choices at the end', () => {
-		const first = startNpcDialogue({
-			npcId: 'guild-master',
-			questState: createInitialQuestState(),
-			locale: 'en'
-		});
+		};
 		const second = advanceDialogue(first);
 		const third = advanceDialogue(second);
 
-		expect(second.line).toBe(
-			'Go through the forest path, reach the old core, and defeat the warden before it wakes the rest.'
-		);
+		expect(second.line).toBe('Second story line.');
 		expect(third.mode).toBe('choice');
 		expect(third.choices.map((choice) => choice.label)).toEqual(['Quest']);
-	});
-
-	it('shows useful choices immediately for single-line NPC dialogue', () => {
-		const session = startNpcDialogue({
-			npcId: 'shopkeeper-mira',
-			questState: createInitialQuestState(),
-			locale: 'en'
-		});
-
-		expect(session.lineCount).toBe(1);
-		expect(session.mode).toBe('choice');
-		expect(session.choices.map((choice) => choice.label)).toEqual(['Shop']);
 	});
 
 	it('shows Guild quest choices after the Guild briefing is complete', () => {
@@ -78,7 +72,7 @@ describe('dialogue core', () => {
 			state: createInitialQuestState(),
 			event: { type: 'talk-to-npc', npcId: 'guild-master' }
 		}).state;
-		const session = startNpcDialogue({ npcId: 'guild-master', questState, locale: 'en' });
+		const session = createGuildQuestEntrySession();
 		const choiceResult = chooseDialogueOption({
 			session,
 			choiceId: 'quest',
@@ -96,23 +90,12 @@ describe('dialogue core', () => {
 		]);
 	});
 
-	it('hides Talk when it would repeat the current Guild Master dialogue', () => {
-		const questState = applyQuestEvent({
-			state: createInitialQuestState(),
-			event: { type: 'talk-to-npc', npcId: 'guild-master' }
-		}).state;
-		const session = startNpcDialogue({ npcId: 'guild-master', questState, locale: 'en' });
-
-		expect(session.line).toBe('The ruins route is open. Steel yourself before you enter the core.');
-		expect(session.choices.map((choice) => choice.label)).toEqual(['Quest']);
-	});
-
 	it('returns accept intents from Guild quest detail choices', () => {
 		const questState = applyQuestEvent({
 			state: createInitialQuestState(),
 			event: { type: 'talk-to-npc', npcId: 'guild-master' }
 		}).state;
-		const session = startNpcDialogue({ npcId: 'guild-master', questState, locale: 'en' });
+		const session = createGuildQuestEntrySession();
 		const list = chooseDialogueOption({ session, choiceId: 'quest', questState, locale: 'en' });
 		if (!list.session) throw new Error('Expected quest list session');
 		const detail = chooseDialogueOption({
@@ -167,7 +150,7 @@ describe('dialogue core', () => {
 			state: createInitialQuestState(),
 			event: { type: 'talk-to-npc', npcId: 'guild-master' }
 		}).state;
-		const session = startNpcDialogue({ npcId: 'guild-master', questState, locale: 'ja' });
+		const session = createGuildQuestEntrySession();
 		const list = chooseDialogueOption({
 			session,
 			choiceId: 'quest',
@@ -189,11 +172,6 @@ describe('dialogue core', () => {
 			locale: 'ja'
 		});
 
-		expect(session).toMatchObject({
-			speaker: 'ギルドマスター・アーレン',
-			line: '遺跡への道は開いた。中へ入る前に、しっかり備えていけ。'
-		});
-		expect(session.choices.map((choice) => choice.label)).toEqual(['依頼']);
 		expect(list.session).toMatchObject({
 			speaker: 'ギルドマスター・アーレン',
 			line: '確認したいギルド仕事を選んでください。'
