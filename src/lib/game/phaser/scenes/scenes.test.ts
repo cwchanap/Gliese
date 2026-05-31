@@ -7,6 +7,111 @@ const localeState = vi.hoisted(() => ({
 	activeLocale: 'en' as 'en' | 'ja' | 'zh-Hant'
 }));
 
+const storyClientMock = vi.hoisted(() => {
+	type StoryRequest = {
+		npcId: string;
+		mapId: string;
+		locale: 'en' | 'ja' | 'zh-Hant';
+		quest: {
+			mainQuestNeedsGuildBriefing: boolean;
+			guildBriefingComplete: boolean;
+			hasActiveSideQuest: boolean;
+			hasCompletedQuest: boolean;
+		};
+	};
+
+	function createStorySession({
+		id,
+		speaker,
+		lines,
+		choices,
+		completionIntent
+	}: {
+		id: string;
+		speaker: string;
+		lines: string[];
+		choices: Array<{ id: string; label: string; intent: Record<string, string> }>;
+		completionIntent: Record<string, string> | null;
+	}) {
+		return {
+			id,
+			npcId: null,
+			speaker,
+			lines,
+			line: lines[0] ?? '',
+			lineIndex: 0,
+			lineCount: lines.length,
+			mode: lines.length <= 1 && choices.length > 0 ? 'choice' : 'conversation',
+			choices,
+			completionIntent,
+			canClose: true
+		};
+	}
+
+	return {
+		getNpcStoryDialogue: vi.fn(async (request: StoryRequest) => {
+			if (request.npcId === 'guild-master') {
+				const lines = request.quest.mainQuestNeedsGuildBriefing
+					? [
+							'You made it. The eastern ruins are stirring again, and the village road is no longer safe.',
+							'Go through the forest path, reach the old core, and defeat the warden before it wakes the rest.'
+						]
+					: ['The ruins route is open. Steel yourself before you enter the core.'];
+
+				return createStorySession({
+					id: 'npc:guild-master:prologue.guild-master',
+					speaker: 'Guild Master Arlen',
+					lines,
+					choices: [
+						{
+							id: 'quest',
+							label: 'Quest',
+							intent: { type: 'showQuestList', giverNpcId: 'guild-master' }
+						}
+					],
+					completionIntent: request.quest.mainQuestNeedsGuildBriefing
+						? { type: 'recordNpcTalk', npcId: 'guild-master' }
+						: null
+				});
+			}
+
+			if (request.npcId === 'guild-quartermaster') {
+				return createStorySession({
+					id: 'npc:guild-quartermaster:always',
+					speaker: 'Quartermaster Vale',
+					lines: ['Need field gear before the ruins? Guild stock is limited, but sturdy.'],
+					choices: [
+						{
+							id: 'shop',
+							label: 'Shop',
+							intent: { type: 'openShop', shopId: 'guild-quartermaster' }
+						}
+					],
+					completionIntent: null
+				});
+			}
+
+			return createStorySession({
+				id: 'npc:shopkeeper-mira:always',
+				speaker: 'Mira',
+				lines: ['Fresh tonics are on the shelf.'],
+				choices: [
+					{
+						id: 'shop',
+						label: 'Shop',
+						intent: { type: 'openShop', shopId: 'miras-item-shop' }
+					}
+				],
+				completionIntent: null
+			});
+		})
+	};
+});
+
+vi.mock('$lib/game/story/client', () => ({
+	getNpcStoryDialogue: storyClientMock.getNpcStoryDialogue
+}));
+
 vi.mock('$lib/game/i18n/store', () => ({
 	getActiveLocale: () => localeState.activeLocale
 }));
@@ -1523,6 +1628,11 @@ describe('BattleScene', () => {
 });
 
 describe('WorldScene', () => {
+	async function flushStoryDialogue() {
+		await Promise.resolve();
+		await Promise.resolve();
+	}
+
 	function registerSceneSupportTestMap() {
 		maps['scene-support-test'] = {
 			id: 'scene-support-test',
@@ -3259,6 +3369,7 @@ describe('WorldScene', () => {
 		const { createNewSaveState } = await import('$lib/game/save/save-state');
 		const localizedContent = await import('$lib/game/i18n/content');
 		const events = await import('$lib/game/ui-bridge/events');
+		const storyClient = await import('$lib/game/story/client');
 		const emitHudStateSpy = vi.spyOn(events, 'emitHudState');
 		const { WorldScene } = await import('./WorldScene');
 		const scene = new WorldScene();
@@ -3351,20 +3462,25 @@ describe('WorldScene', () => {
 		emitHudStateSpy.mockClear();
 		phaserState.interactKeys.space.justDown = true;
 		scene.update(16, 16);
+		await flushStoryDialogue();
 
 		expect(emitHudStateSpy).toHaveBeenLastCalledWith(
 			expect.objectContaining({
 				status: 'JP Miraが近くにいる',
 				dialogue: expect.objectContaining({
-					speaker: 'JP Mira',
-					line: 'JP Fresh tonics are ready.',
-					choices: expect.arrayContaining([
-						expect.objectContaining({ id: 'shop', label: 'JP Shop' })
-					])
+					speaker: 'Mira',
+					line: 'Fresh tonics are on the shelf.',
+					choices: expect.arrayContaining([expect.objectContaining({ id: 'shop', label: 'Shop' })])
 				})
 			})
 		);
-		expect(localizedContent.getDialogueText).toHaveBeenCalledWith('ja', 'shopkeeper-mira');
+		expect(storyClient.getNpcStoryDialogue).toHaveBeenCalledWith(
+			expect.objectContaining({
+				npcId: 'shopkeeper-mira',
+				mapId: 'item-shop',
+				locale: 'ja'
+			})
+		);
 	});
 
 	it('publishes localized/fallback quest and Guild dialogue text for Japanese', async () => {
@@ -3372,6 +3488,7 @@ describe('WorldScene', () => {
 		const { createNewSaveState } = await import('$lib/game/save/save-state');
 		const localizedContent = await import('$lib/game/i18n/content');
 		const events = await import('$lib/game/ui-bridge/events');
+		const storyClient = await import('$lib/game/story/client');
 		const emitHudStateSpy = vi.spyOn(events, 'emitHudState');
 		const { WorldScene } = await import('./WorldScene');
 		const scene = new WorldScene();
@@ -3413,20 +3530,27 @@ describe('WorldScene', () => {
 		emitHudStateSpy.mockClear();
 		phaserState.interactKeys.e.justDown = true;
 		scene.update(16, 16);
+		await flushStoryDialogue();
 
 		expect(emitHudStateSpy).toHaveBeenLastCalledWith(
 			expect.objectContaining({
 				status: 'JP Guild Masterが近くにいる',
 				dialogue: expect.objectContaining({
-					speaker: 'JP Guild Master',
-					line: 'JP The eastern ruins are stirring again.',
+					speaker: 'Guild Master Arlen',
+					line: expect.stringContaining('The eastern ruins are stirring again'),
 					choices: expect.arrayContaining([
-						expect.objectContaining({ id: 'quest', label: 'JP Quest' })
+						expect.objectContaining({ id: 'quest', label: 'Quest' })
 					])
 				})
 			})
 		);
-		expect(localizedContent.getDialogueText).toHaveBeenCalledWith('ja', 'guild-master');
+		expect(storyClient.getNpcStoryDialogue).toHaveBeenCalledWith(
+			expect.objectContaining({
+				npcId: 'guild-master',
+				mapId: 'guild-hall',
+				locale: 'ja'
+			})
+		);
 	});
 
 	it('publishes localized/fallback Traveler speaker for Japanese fallback dialogue', async () => {
@@ -3480,6 +3604,7 @@ describe('WorldScene', () => {
 
 	it('starts Guild Master dialogue instead of status-only NPC text', async () => {
 		const events = await import('$lib/game/ui-bridge/events');
+		const storyClient = await import('$lib/game/story/client');
 		const emitHudStateSpy = vi.spyOn(events, 'emitHudState');
 		const { WorldScene } = await import('./WorldScene');
 		const scene = new WorldScene();
@@ -3491,6 +3616,7 @@ describe('WorldScene', () => {
 
 		phaserState.interactKeys.e.justDown = true;
 		scene.update(16, 16);
+		await flushStoryDialogue();
 
 		expect(emitHudStateSpy).toHaveBeenLastCalledWith(
 			expect.objectContaining({
@@ -3498,6 +3624,13 @@ describe('WorldScene', () => {
 					speaker: 'Guild Master Arlen',
 					line: expect.stringContaining('The eastern ruins are stirring again')
 				})
+			})
+		);
+		expect(storyClient.getNpcStoryDialogue).toHaveBeenCalledWith(
+			expect.objectContaining({
+				npcId: 'guild-master',
+				mapId: 'guild-hall',
+				locale: 'en'
 			})
 		);
 	});
@@ -3530,6 +3663,7 @@ describe('WorldScene', () => {
 
 		phaserState.interactKeys.e.justDown = true;
 		scene.update(32, 16);
+		await flushStoryDialogue();
 
 		expect(emitHudStateSpy).toHaveBeenCalledOnce();
 		expect(emitHudStateSpy).toHaveBeenLastCalledWith(
@@ -3585,6 +3719,7 @@ describe('WorldScene', () => {
 		Object.assign(phaserState.playerMarker, { x: 192, y: 144 });
 		phaserState.interactKeys.e.justDown = true;
 		scene.update(16, 16);
+		await flushStoryDialogue();
 
 		sceneState.handleHudCommand({ type: 'dialogue-advance' });
 		sceneState.handleHudCommand({ type: 'dialogue-advance' });
@@ -3614,6 +3749,7 @@ describe('WorldScene', () => {
 		Object.assign(phaserState.playerMarker, { x: 192, y: 144 });
 		phaserState.interactKeys.e.justDown = true;
 		scene.update(16, 16);
+		await flushStoryDialogue();
 
 		Object.assign(phaserState.playerMarker, { x: 64, y: 64 });
 		scene.update(32, 16);
@@ -3662,6 +3798,7 @@ describe('WorldScene', () => {
 		Object.assign(phaserState.playerMarker, { x: 192, y: 144 });
 		phaserState.interactKeys.e.justDown = true;
 		scene.update(16, 16);
+		await flushStoryDialogue();
 
 		sceneState.handleHudCommand({ type: 'dialogue-choose', choiceId: 'quest' });
 		sceneState.handleHudCommand({ type: 'dialogue-choose', choiceId: 'quest:thin-village-slimes' });
@@ -3686,6 +3823,7 @@ describe('WorldScene', () => {
 		Object.assign(phaserState.playerMarker, { x: 352, y: 144 });
 		phaserState.interactKeys.e.justDown = true;
 		scene.update(16, 16);
+		await flushStoryDialogue();
 		emitHudStateSpy.mockClear();
 
 		const sceneState = scene as unknown as { handleHudCommand: (command: HudCommand) => void };
@@ -3720,6 +3858,7 @@ describe('WorldScene', () => {
 
 		phaserState.interactKeys.e.justDown = true;
 		scene.update(16, 16);
+		await flushStoryDialogue();
 		sceneState.handleHudCommand({ type: 'dialogue-advance' });
 		sceneState.handleHudCommand({ type: 'dialogue-advance' });
 
@@ -3801,6 +3940,7 @@ describe('WorldScene', () => {
 
 		phaserState.interactKeys.e.justDown = true;
 		scene.update(16, 16);
+		await flushStoryDialogue();
 
 		expect(emitHudStateSpy).toHaveBeenCalledOnce();
 		expect(emitHudStateSpy).toHaveBeenLastCalledWith(
@@ -3827,6 +3967,7 @@ describe('WorldScene', () => {
 		Object.assign(phaserState.playerMarker, { x: 256, y: 144 });
 		phaserState.interactKeys.e.justDown = true;
 		scene.update(16, 16);
+		await flushStoryDialogue();
 
 		Object.assign(phaserState.playerMarker, { x: 64, y: 64 });
 		scene.update(32, 16);
@@ -3880,6 +4021,7 @@ describe('WorldScene', () => {
 		Object.assign(phaserState.playerMarker, { x: 192, y: 144 });
 		phaserState.interactKeys.e.justDown = true;
 		scene.update(16, 16);
+		await flushStoryDialogue();
 		sceneState.handleHudCommand({ type: 'dialogue-choose', choiceId: 'quest' });
 		sceneState.handleHudCommand({ type: 'dialogue-choose', choiceId: 'quest:thin-village-slimes' });
 
@@ -3916,6 +4058,7 @@ describe('WorldScene', () => {
 
 		phaserState.interactKeys.space.justDown = true;
 		scene.update(16, 16);
+		await flushStoryDialogue();
 
 		expect(emitHudStateSpy).toHaveBeenLastCalledWith(
 			expect.objectContaining({
@@ -3944,6 +4087,7 @@ describe('WorldScene', () => {
 		phaserState.interactKeys.enter.justDown = true;
 		scene.update(16, 16);
 		scene.update(32, 16);
+		await flushStoryDialogue();
 
 		expect(emitHudStateSpy).toHaveBeenCalledOnce();
 		expect(emitHudStateSpy).toHaveBeenLastCalledWith(
