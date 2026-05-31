@@ -10,6 +10,14 @@ Required once per beat. Declares `id`, `chapter`, `map`, and `primaryNpc`.
 
 Declares one NPC dialogue branch. Supported fields are `npc`, `branch`, `speaker`, `choices`, and optional `completionIntent`.
 
+`branch` is enum-restricted. Allowed values:
+
+- `always` — unconditionally shown
+- `mainQuestNeedsGuildBriefing` — player has not yet completed the main quest guild briefing
+- `guildBriefingComplete` — player has completed the guild briefing
+- `hasActiveSideQuest` — player has at least one active non-main quest
+- `hasCompletedQuest` — player has completed at least one non-main quest
+
 Non-empty paragraphs after a dialogue directive become dialogue lines until the next directive or heading.
 
 ## `choices: quest`

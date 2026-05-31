@@ -1,6 +1,7 @@
 use std::collections::BTreeMap;
 
 use super::beat::{BeatDialogue, StoryBeat};
+use super::reference::NPC_IDS;
 use super::types::{
     NpcStoryDialogue, StoryBranchCondition, StoryCatalog, StoryDialogueAction, StoryDialogueBranch,
     StoryIntent,
@@ -106,6 +107,10 @@ fn compile_completion_intent(intent: &str) -> Result<StoryIntent, String> {
 
     if npc_id.is_empty() {
         return Err(format!("invalid completion intent {}", intent));
+    }
+
+    if !NPC_IDS.contains(&npc_id) {
+        return Err(format!("unknown completion intent npc {}", npc_id));
     }
 
     Ok(StoryIntent::RecordNpcTalk {
@@ -379,7 +384,11 @@ You made it.
 
         beat.dialogues[0].choices = vec!["quest".to_string()];
         beat.dialogues[0].completion_intent = Some("markSomethingElse:guild-master".to_string());
-        let error = compile_catalog("sundrop-ruins", "en", &[beat]).unwrap_err();
+        let error = compile_catalog("sundrop-ruins", "en", &[beat.clone()]).unwrap_err();
         assert!(error.contains("unknown completion intent"));
+
+        beat.dialogues[0].completion_intent = Some("recordNpcTalk:guild-mastre".to_string());
+        let error = compile_catalog("sundrop-ruins", "en", &[beat]).unwrap_err();
+        assert!(error.contains("unknown completion intent npc guild-mastre"));
     }
 }

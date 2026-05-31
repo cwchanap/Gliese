@@ -10,7 +10,7 @@
 
 ---
 
-### Task 1: Add Story Source Fixtures
+## Task 1: Add Story Source Fixtures
 
 **Files:**
 - Create: `story/manifest.yaml`
@@ -162,7 +162,7 @@ git commit -m "feat: add story source fixtures"
 
 ---
 
-### Task 2: Add Rust Story Domain Types
+## Task 2: Add Rust Story Domain Types
 
 **Files:**
 - Create: `src-tauri/src/story/mod.rs`
@@ -315,7 +315,7 @@ git commit -m "feat: add rust story domain types"
 
 ---
 
-### Task 3: Parse And Validate The YAML Manifest
+## Task 3: Parse And Validate The YAML Manifest
 
 **Files:**
 - Create: `src-tauri/src/story/manifest.rs`
@@ -496,7 +496,7 @@ git commit -m "feat: parse story manifest"
 
 ---
 
-### Task 4: Parse Markdown Beat Directives
+## Task 4: Parse Markdown Beat Directives
 
 **Files:**
 - Create: `src-tauri/src/story/beat.rs`
@@ -641,7 +641,7 @@ git commit -m "feat: parse story beat markdown"
 
 ---
 
-### Task 5: Compile Story Beats Into A Catalog
+## Task 5: Compile Story Beats Into A Catalog
 
 **Files:**
 - Create: `src-tauri/src/story/compiler.rs`
@@ -734,7 +734,7 @@ git commit -m "feat: compile story catalog"
 
 ---
 
-### Task 6: Add Draft And Strict Story Checker
+## Task 6: Add Draft And Strict Story Checker
 
 **Files:**
 - Create: `src-tauri/src/bin/story_check.rs`
@@ -896,7 +896,7 @@ git commit -m "feat: add story checker"
 
 ---
 
-### Task 7: Add Rust Story Lookup Commands
+## Task 7: Add Rust Story Lookup Commands
 
 **Files:**
 - Create: `src-tauri/src/story/commands.rs`
@@ -1025,7 +1025,7 @@ git commit -m "feat: expose story dialogue command"
 
 ---
 
-### Task 8: Add Frontend Story Client Boundary
+## Task 8: Add Frontend Story Client Boundary
 
 **Files:**
 - Create: `src/lib/game/story/client.ts`
@@ -1147,7 +1147,7 @@ git commit -m "feat: add frontend story client"
 
 ---
 
-### Task 9: Integrate Story Dialogue Into WorldScene
+## Task 9: Integrate Story Dialogue Into WorldScene
 
 **Files:**
 - Modify: `src/lib/game/phaser/scenes/WorldScene.ts`
@@ -1283,7 +1283,7 @@ git commit -m "feat: load npc dialogue from rust story"
 
 ---
 
-### Task 10: Remove Migrated Frontend Dialogue Prose
+## Task 10: Remove Migrated Frontend Dialogue Prose
 
 **Files:**
 - Modify: `src/lib/game/content/dialogue.ts`
@@ -1376,7 +1376,7 @@ git commit -m "refactor: move npc story prose out of frontend"
 
 ---
 
-### Task 11: Add Browser Fixture Mode For Dev And E2E
+## Task 11: Add Browser Fixture Mode For Dev And E2E
 
 **Files:**
 - Modify: `src/lib/game/story/browser-fixture.ts`
@@ -1449,7 +1449,7 @@ git commit -m "test: add story runtime bundle gates"
 
 ---
 
-### Task 12: Add Shared Writer Skill
+## Task 12: Add Shared Writer Skill
 
 **Files:**
 - Create: `.agents/skills/gliese-story-writer/SKILL.md`
@@ -1524,7 +1524,7 @@ git commit -m "docs: add gliese story writer skill"
 
 ---
 
-### Task 13: Final Verification
+## Task 13: Final Verification
 
 **Files:**
 - Modify only files needed by failures found during verification.
