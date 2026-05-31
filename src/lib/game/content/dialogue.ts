@@ -12,7 +12,7 @@ export type DialogueBranchCondition =
 
 export type DialogueActionIntent =
 	| { type: 'talk' }
-	| { type: 'showQuestList'; giverNpcId: 'guild-master' }
+	| { type: 'showQuestList'; giverNpcId: string }
 	| { type: 'showQuestDetails'; questId: QuestId }
 	| { type: 'openShop'; shopId: string }
 	| { type: 'close' };
