@@ -37,7 +37,7 @@ import {
 } from '$lib/game/content/maps';
 import { getItem, type EquipmentSlot } from '$lib/game/content/items';
 import { startingPlayer } from '$lib/game/content/player';
-import { isQuestId } from '$lib/game/content/quests';
+import { isQuestId, mainQuestId } from '$lib/game/content/quests';
 import { getShop } from '$lib/game/content/shops';
 import { advanceBossPhase } from '$lib/game/core/boss';
 import { buildAreaMapState } from '$lib/game/core/area-map';
@@ -90,7 +90,6 @@ import {
 	buildDialogueFallback,
 	buildQuestCompletionDialogue,
 	chooseDialogueOption,
-	startNpcDialogue,
 	type DialogueChoiceResult,
 	type DialogueIntent,
 	type DialogueSession
@@ -101,6 +100,7 @@ import { getActiveLocale } from '$lib/game/i18n/store';
 import { t, type MessageKey } from '$lib/game/i18n/translate';
 import { createNewSaveState, type SaveState } from '$lib/game/save/save-state';
 import { loadStoredSaveResult, saveGameState } from '$lib/game/save/storage';
+import { getNpcStoryDialogue, type StoryQuestSummary } from '$lib/game/story/client';
 import {
 	emitHudState,
 	onHudCommand,
@@ -2708,12 +2708,61 @@ export class WorldScene extends Phaser.Scene {
 
 		this.currentNearbyNpcId = nearbyNpc.id;
 		this.nearbyShopId = nearbyNpc.shopId ?? null;
-		this.dialogueSession = startNpcDialogue({
-			npcId: nearbyNpc.dialogueId,
-			questState: this.quests,
-			locale: this.getLocale()
-		});
-		this.publishHudState(this.status('status.npcNearby', { npcName: this.getNpcName(nearbyNpc) }));
+		void this.startNearbyNpcStoryDialogue(nearbyNpc);
+	}
+
+	private async startNearbyNpcStoryDialogue(nearbyNpc: MapNpc) {
+		const requestNpcId = nearbyNpc.id;
+
+		try {
+			const session = await getNpcStoryDialogue({
+				npcId: nearbyNpc.dialogueId,
+				mapId: this.mapId,
+				locale: this.getLocale(),
+				quest: this.buildStoryQuestSummary()
+			});
+
+			if (this.currentNearbyNpcId !== requestNpcId) {
+				return;
+			}
+
+			this.dialogueSession = {
+				...session,
+				npcId: nearbyNpc.dialogueId
+			};
+			this.publishHudState(this.status('status.npcNearby', { npcName: this.getNpcName(nearbyNpc) }));
+		} catch {
+			if (this.currentNearbyNpcId !== requestNpcId) {
+				return;
+			}
+
+			this.dialogueSession = buildDialogueFallback(
+				this.getTravelerSpeaker(),
+				this.status('content.dialogue.system.noDialogueAvailable')
+			);
+			this.publishHudState(this.status('status.dialogueUpdated'));
+		}
+	}
+
+	private buildStoryQuestSummary(): StoryQuestSummary {
+		return {
+			mainQuestNeedsGuildBriefing: !hasCompletedQuestObjective(
+				this.quests,
+				mainQuestId,
+				'talk-to-guild-master'
+			),
+			guildBriefingComplete: hasCompletedQuestObjective(
+				this.quests,
+				mainQuestId,
+				'talk-to-guild-master'
+			),
+			hasActiveSideQuest: Object.entries(this.quests.entries).some(
+				([questId, entry]) => questId !== mainQuestId && entry.status === 'active'
+			),
+			hasCompletedQuest: Object.entries(this.quests.entries).some(
+				([questId, entry]) => questId !== mainQuestId && entry.status === 'completed'
+			)
+		};
 	}
 
 	private findNearbyNpc(): MapNpc | undefined {
