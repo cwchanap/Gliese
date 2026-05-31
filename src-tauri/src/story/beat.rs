@@ -73,7 +73,14 @@ pub fn parse_beat_markdown(source: &str) -> Result<StoryBeat, String> {
                 "dialogue" => {
                     validate_directive_fields(
                         &fields,
-                        &["choices", "npc", "branch", "speaker", "shop", "completionIntent"],
+                        &[
+                            "choices",
+                            "npc",
+                            "branch",
+                            "speaker",
+                            "shop",
+                            "completionIntent",
+                        ],
                         "dialogue",
                     )?;
                     let choices = parse_choices(&required_field(&fields, "choices", "dialogue")?)?;
