@@ -94,9 +94,7 @@ export function toStoryLocale(_locale: Locale): StoryLocale {
 	return 'en';
 }
 
-function normalizeStoryDialogueRequest(
-	request: StoryDialogueRequest
-): StoryRuntimeDialogueRequest {
+function normalizeStoryDialogueRequest(request: StoryDialogueRequest): StoryRuntimeDialogueRequest {
 	return {
 		...request,
 		locale: toStoryLocale(request.locale)

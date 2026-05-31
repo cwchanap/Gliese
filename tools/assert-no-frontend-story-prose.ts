@@ -15,7 +15,7 @@ const blockedPhrases = [
 	'Need field gear before the ruins',
 	// shopkeeper-mira.md
 	'Back from the Guild? Take a tonic',
-	'Fresh tonics are on the shelf',
+	'Fresh tonics are on the shelf'
 ];
 
 if (!existsSync(distDir)) {

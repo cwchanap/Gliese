@@ -2729,7 +2729,9 @@ export class WorldScene extends Phaser.Scene {
 				...session,
 				npcId: nearbyNpc.dialogueId
 			};
-			this.publishHudState(this.status('status.npcNearby', { npcName: this.getNpcName(nearbyNpc) }));
+			this.publishHudState(
+				this.status('status.npcNearby', { npcName: this.getNpcName(nearbyNpc) })
+			);
 		} catch {
 			if (this.currentNearbyNpcId !== requestNpcId) {
 				return;
