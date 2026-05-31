@@ -3675,6 +3675,60 @@ describe('WorldScene', () => {
 		);
 	});
 
+	it('discards story dialogue response when shop opens while request is in flight', async () => {
+		const events = await import('$lib/game/ui-bridge/events');
+		const emitHudStateSpy = vi.spyOn(events, 'emitHudState');
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any
+		let resolveDialogue: ((session: any) => void) | undefined;
+		const storyClient = await import('$lib/game/story/client');
+		vi.mocked(storyClient.getNpcStoryDialogue).mockImplementationOnce(
+			() =>
+				new Promise((resolve) => {
+					resolveDialogue = resolve;
+				})
+		);
+		const { WorldScene } = await import('./WorldScene');
+		const scene = new WorldScene();
+		const sceneState = scene as unknown as {
+			handleHudCommand: (command: HudCommand) => void;
+		};
+
+		scene.create({ mapId: 'item-shop' });
+		Object.assign(phaserState.playerMarker, { x: 256, y: 144 });
+		scene.update(0, 16);
+		emitHudStateSpy.mockClear();
+
+		phaserState.interactKeys.e.justDown = true;
+		scene.update(16, 16);
+
+		// Open the shop before the story dialogue resolves
+		sceneState.handleHudCommand({ type: 'open-shop', shopId: 'miras-item-shop' });
+		emitHudStateSpy.mockClear();
+
+		// Resolve with a valid-looking session — the stale guard should discard it
+		resolveDialogue!({
+			id: 'npc:shopkeeper-mira:stale',
+			npcId: null,
+			speaker: 'Mira',
+			lines: ['Stale response'],
+			line: 'Stale response',
+			lineIndex: 0,
+			lineCount: 1,
+			mode: 'conversation' as const,
+			choices: [],
+			completionIntent: null,
+			canClose: true
+		});
+		await flushStoryDialogue();
+
+		// The shop state should not have been overwritten by the stale dialogue
+		expect(emitHudStateSpy).not.toHaveBeenLastCalledWith(
+			expect.objectContaining({
+				dialogue: expect.objectContaining({ line: 'Stale response' })
+			})
+		);
+	});
+
 	it('starts Guild Master dialogue after a no-NPC fallback prompt', async () => {
 		const events = await import('$lib/game/ui-bridge/events');
 		const emitHudStateSpy = vi.spyOn(events, 'emitHudState');

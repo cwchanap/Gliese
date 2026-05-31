@@ -319,6 +319,7 @@ export class WorldScene extends Phaser.Scene {
 	private dialogueSession: DialogueSession | null = null;
 	private nearbyShopId: string | null = null;
 	private openShopId: string | null = null;
+	private storyDialogueSeq = 0;
 	private resolvedEncounterDrops: SaveState['flags']['resolvedEncounterDrops'] = {};
 	private removeHudCommandListener = () => {};
 	private simulationPaused = false;
@@ -409,6 +410,7 @@ export class WorldScene extends Phaser.Scene {
 		);
 		this.mapId = map.id;
 		this.currentNearbyNpcId = null;
+		this.storyDialogueSeq++;
 		this.nearbyShopId = null;
 		this.openShopId = null;
 		this.dialogueSession = null;
@@ -810,6 +812,7 @@ export class WorldScene extends Phaser.Scene {
 			return false;
 		}
 
+		this.storyDialogueSeq++;
 		this.openShopId = shopId;
 		this.dialogueSession = null;
 		this.publishHudState(this.status('status.shopOpened'));
@@ -1056,6 +1059,7 @@ export class WorldScene extends Phaser.Scene {
 				this.advanceDialogueCommand();
 				return;
 			case 'dialogue-close':
+				this.storyDialogueSeq++;
 				this.dialogueSession = null;
 				this.publishHudState(this.status('status.dialogueClosed'));
 				return;
@@ -2644,6 +2648,7 @@ export class WorldScene extends Phaser.Scene {
 		if (!nearbyNpc) {
 			const hadShop = this.nearbyShopId !== null;
 			this.currentNearbyNpcId = null;
+			this.storyDialogueSeq++;
 			this.nearbyShopId = null;
 			this.openShopId = null;
 
@@ -2711,6 +2716,7 @@ export class WorldScene extends Phaser.Scene {
 	}
 
 	private async startNearbyNpcStoryDialogue(nearbyNpc: MapNpc) {
+		const requestSeq = ++this.storyDialogueSeq;
 		const requestNpcId = nearbyNpc.id;
 
 		try {
@@ -2721,7 +2727,7 @@ export class WorldScene extends Phaser.Scene {
 				quest: this.buildStoryQuestSummary()
 			});
 
-			if (this.currentNearbyNpcId !== requestNpcId) {
+			if (this.storyDialogueSeq !== requestSeq) {
 				return;
 			}
 
@@ -2741,7 +2747,7 @@ export class WorldScene extends Phaser.Scene {
 				error
 			);
 
-			if (this.currentNearbyNpcId !== requestNpcId) {
+			if (this.storyDialogueSeq !== requestSeq) {
 				return;
 			}
 
