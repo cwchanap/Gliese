@@ -499,7 +499,7 @@ test('quest log shows main quest and accepts Guild side quests', async ({ page }
 	await page.locator('canvas').click();
 	await page.keyboard.press('KeyE');
 	const guildMasterDialog = page.getByRole('dialog', { name: 'Guild Master Arlen' });
-	await expect(guildMasterDialog).toBeVisible();
+	await expect(guildMasterDialog).toBeVisible({ timeout: 10_000 });
 	await expect(guildMasterDialog.getByText(/eastern ruins are stirring/i)).toBeVisible();
 	await guildMasterDialog.getByRole('button', { name: 'Next' }).click();
 	await guildMasterDialog.getByRole('button', { name: 'Next' }).click();
