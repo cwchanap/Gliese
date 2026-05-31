@@ -18,6 +18,7 @@
 		"test:e2e": "playwright test",
 		"story:check": "cargo run --manifest-path src-tauri/Cargo.toml --bin story_check -- --mode=draft --write-report --write-generated",
 		"story:check:strict": "cargo run --manifest-path src-tauri/Cargo.toml --bin story_check -- --mode=strict --check-generated",
+		"story:assert-no-frontend-prose": "bun tools/assert-no-frontend-story-prose.ts",
 		"tauri": "tauri"
 	},
 	"devDependencies": {
