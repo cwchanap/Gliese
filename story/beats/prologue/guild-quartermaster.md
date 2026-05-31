@@ -14,6 +14,7 @@ npc: guild-quartermaster
 branch: guildBriefingComplete
 speaker: Quartermaster Vale
 choices: shop
+shop: guild-quartermaster
 :::
 
 If you are bound for the ruins, buy what keeps you standing.
@@ -23,6 +24,7 @@ npc: guild-quartermaster
 branch: always
 speaker: Quartermaster Vale
 choices: shop
+shop: guild-quartermaster
 :::
 
 Need field gear before the ruins? Guild stock is limited, but sturdy.

@@ -14,6 +14,7 @@ npc: shopkeeper-mira
 branch: guildBriefingComplete
 speaker: Mira
 choices: shop
+shop: miras-item-shop
 :::
 
 Back from the Guild? Take a tonic before the forest path gets rough.
@@ -23,6 +24,7 @@ npc: shopkeeper-mira
 branch: always
 speaker: Mira
 choices: shop
+shop: miras-item-shop
 :::
 
 Fresh tonics are on the shelf. The guild already stocked your field kit today.

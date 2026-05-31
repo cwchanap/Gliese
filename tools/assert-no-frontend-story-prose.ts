@@ -23,6 +23,16 @@ if (!existsSync(distDir)) {
 	process.exit(1);
 }
 
+for (const filePath of walkFiles(distDir)) {
+	if (filePath.includes('browser-fixture')) {
+		console.error(
+			'dist/ appears to be a browser build (browser-fixture chunk found).'
+		);
+		console.error('Run `bun run build --mode tauri` before checking for story prose.');
+		process.exit(1);
+	}
+}
+
 const matches: string[] = [];
 
 for (const filePath of walkFiles(distDir)) {

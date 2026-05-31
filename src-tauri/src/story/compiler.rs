@@ -1,7 +1,7 @@
 use std::collections::BTreeMap;
 
 use super::beat::{BeatDialogue, StoryBeat};
-use super::reference::NPC_IDS;
+use super::reference::{NPC_IDS, SHOP_IDS};
 use super::types::{
     NpcStoryDialogue, StoryBranchCondition, StoryCatalog, StoryDialogueAction, StoryDialogueBranch,
     StoryIntent,
@@ -49,7 +49,7 @@ fn compile_dialogue(dialogue: &BeatDialogue) -> Result<StoryDialogueBranch, Stri
         actions: dialogue
             .choices
             .iter()
-            .map(|choice| compile_action(choice, &dialogue.npc_id))
+            .map(|choice| compile_action(choice, dialogue))
             .collect::<Result<Vec<_>, _>>()?,
         completion_intent: dialogue
             .completion_intent
@@ -70,7 +70,8 @@ fn compile_branch_condition(branch: &str) -> Result<StoryBranchCondition, String
     }
 }
 
-fn compile_action(choice: &str, npc_id: &str) -> Result<StoryDialogueAction, String> {
+fn compile_action(choice: &str, dialogue: &BeatDialogue) -> Result<StoryDialogueAction, String> {
+    let npc_id = &dialogue.npc_id;
     let (label, intent) = match choice {
         "quest" => {
             quest_npc_id(npc_id)?;
@@ -81,12 +82,24 @@ fn compile_action(choice: &str, npc_id: &str) -> Result<StoryDialogueAction, Str
                 },
             )
         }
-        "shop" => (
-            "Shop",
-            StoryIntent::OpenShop {
-                shop_id: shop_id_for_npc(npc_id)?,
-            },
-        ),
+        "shop" => {
+            let shop_id = dialogue
+                .shop
+                .as_deref()
+                .ok_or_else(|| format!("missing shop field for npc {}", npc_id))?;
+            if !SHOP_IDS.contains(&shop_id) {
+                return Err(format!(
+                    "unknown shop id {} for npc {}",
+                    shop_id, npc_id
+                ));
+            }
+            (
+                "Shop",
+                StoryIntent::OpenShop {
+                    shop_id: shop_id.to_string(),
+                },
+            )
+        }
         _ => {
             return Err(format!(
                 "unknown dialogue choice {} for npc {}",
@@ -100,14 +113,6 @@ fn compile_action(choice: &str, npc_id: &str) -> Result<StoryDialogueAction, Str
         label: label.to_string(),
         intent,
     })
-}
-
-fn shop_id_for_npc(npc_id: &str) -> Result<String, String> {
-    match npc_id {
-        "guild-quartermaster" => Ok("guild-quartermaster".to_string()),
-        "shopkeeper-mira" => Ok("miras-item-shop".to_string()),
-        _ => Err(format!("no shop mapping for npc {}", npc_id)),
-    }
 }
 
 fn quest_npc_id(npc_id: &str) -> Result<(), String> {
@@ -197,7 +202,7 @@ You made it.
     }
 
     #[test]
-    fn compiles_shop_choice_by_known_npc_mapping() {
+    fn compiles_shop_choice_by_explicit_shop_field() {
         let beat = crate::story::beat::parse_beat_markdown(
             r#"# Shopkeeper Mira
 
@@ -213,6 +218,7 @@ npc: shopkeeper-mira
 branch: always
 speaker: Mira
 choices: shop
+shop: miras-item-shop
 :::
 
 Need supplies?
@@ -250,6 +256,7 @@ npc: guild-quartermaster
 branch: always
 speaker: Quartermaster
 choices: shop
+shop: guild-quartermaster
 :::
 
 Stock up before you go.
@@ -269,8 +276,8 @@ Stock up before you go.
     }
 
     #[test]
-    fn rejects_shop_choice_for_unmapped_npc() {
-        let beat = crate::story::beat::parse_beat_markdown(
+    fn rejects_shop_choice_with_missing_or_unknown_shop() {
+        let mut beat = crate::story::beat::parse_beat_markdown(
             r#"# Guild Master
 
 ::: story
@@ -292,10 +299,14 @@ No shop here.
         )
         .unwrap();
 
-        let error = compile_catalog("sundrop-ruins", "en", &[beat]).unwrap_err();
-
+        let error = compile_catalog("sundrop-ruins", "en", &[beat.clone()]).unwrap_err();
         assert!(error.contains("guild-master"));
-        assert!(error.contains("no shop mapping"));
+        assert!(error.contains("missing shop field"));
+
+        beat.dialogues[0].shop = Some("unknown-shop".to_string());
+        let error = compile_catalog("sundrop-ruins", "en", &[beat]).unwrap_err();
+        assert!(error.contains("unknown-shop"));
+        assert!(error.contains("unknown shop id"));
     }
 
     #[test]
@@ -324,6 +335,7 @@ npc: shopkeeper-mira
 branch: always
 speaker: Mira
 choices: shop
+shop: miras-item-shop
 :::
 
 Fresh stock.

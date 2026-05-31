@@ -16,6 +16,7 @@ pub struct BeatDialogue {
     pub branch: String,
     pub speaker: String,
     pub choices: Vec<String>,
+    pub shop: Option<String>,
     pub completion_intent: Option<String>,
     pub lines: Vec<String>,
 }
@@ -72,7 +73,7 @@ pub fn parse_beat_markdown(source: &str) -> Result<StoryBeat, String> {
                 "dialogue" => {
                     validate_directive_fields(
                         &fields,
-                        &["choices", "npc", "branch", "speaker", "completionIntent"],
+                        &["choices", "npc", "branch", "speaker", "shop", "completionIntent"],
                         "dialogue",
                     )?;
                     let choices = parse_choices(&required_field(&fields, "choices", "dialogue")?)?;
@@ -81,6 +82,7 @@ pub fn parse_beat_markdown(source: &str) -> Result<StoryBeat, String> {
                         branch: required_field(&fields, "branch", "dialogue")?,
                         speaker: required_field(&fields, "speaker", "dialogue")?,
                         choices,
+                        shop: fields.get("shop").cloned(),
                         completion_intent: fields.get("completionIntent").cloned(),
                         lines: Vec::new(),
                     });

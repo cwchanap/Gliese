@@ -26,7 +26,11 @@ Marks a dialogue branch whose action list should expose quest choices. Use this 
 
 ## `choices: shop`
 
-Marks a dialogue branch whose action list should expose shop choices. The NPC must resolve to a known shop.
+Marks a dialogue branch whose action list should expose shop choices. Requires a `shop` field with a known shop ID.
+
+## `shop: <shopId>`
+
+Required when `choices` includes `shop`. Declares which shop the NPC opens. The shop ID is validated against the manifest's required content.
 
 ## `completionIntent: recordNpcTalk:<npcId>`
 
