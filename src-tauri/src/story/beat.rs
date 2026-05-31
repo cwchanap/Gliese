@@ -56,6 +56,7 @@ pub fn parse_beat_markdown(source: &str) -> Result<StoryBeat, String> {
                     if story.is_some() {
                         return Err("duplicate story directive".to_string());
                     }
+                    validate_directive_fields(&fields, &["id", "chapter", "map", "primaryNpc"], "story")?;
                     story = Some(StoryFields {
                         id: required_field(&fields, "id", "story")?,
                         chapter: required_field(&fields, "chapter", "story")?,
@@ -65,6 +66,7 @@ pub fn parse_beat_markdown(source: &str) -> Result<StoryBeat, String> {
                     active_dialogue = None;
                 }
                 "dialogue" => {
+                    validate_directive_fields(&fields, &["choices", "npc", "branch", "speaker", "completionIntent"], "dialogue")?;
                     let choices = parse_choices(&required_field(&fields, "choices", "dialogue")?)?;
                     dialogues.push(BeatDialogue {
                         npc_id: required_field(&fields, "npc", "dialogue")?,
@@ -77,6 +79,7 @@ pub fn parse_beat_markdown(source: &str) -> Result<StoryBeat, String> {
                     active_dialogue = Some(dialogues.len() - 1);
                 }
                 "unsupported-hook" => {
+                    validate_directive_fields(&fields, &["id", "kind", "reason"], "unsupported-hook")?;
                     unsupported_hooks.push(UnsupportedHook {
                         id: required_field(&fields, "id", "unsupported-hook")?,
                         kind: required_field(&fields, "kind", "unsupported-hook")?,
@@ -178,6 +181,24 @@ fn required_field(
         .filter(|value| !value.is_empty())
         .cloned()
         .ok_or_else(|| format!("missing {} field in {} directive", field, directive))
+}
+
+fn validate_directive_fields(
+    fields: &HashMap<String, String>,
+    allowed: &[&str],
+    directive: &str,
+) -> Result<(), String> {
+    for key in fields.keys() {
+        if !allowed.contains(&key.as_str()) {
+            return Err(format!(
+                "unknown field '{}' in {} directive; allowed fields: {}",
+                key,
+                directive,
+                allowed.join(", ")
+            ));
+        }
+    }
+    Ok(())
 }
 
 fn parse_choices(source: &str) -> Result<Vec<String>, String> {
@@ -519,5 +540,77 @@ map: guild-hall
         .expect_err("missing primaryNpc should fail");
 
         assert!(error.contains("missing primaryNpc field"));
+    }
+
+    #[test]
+    fn rejects_unknown_field_in_story_directive() {
+        let error = parse_beat_markdown(
+            r#"# Unknown Story Field
+
+::: story
+id: prologue.typo
+chapter: prologue
+map: guild-hall
+primaryNpc: guild-master
+typoField: oops
+:::
+"#,
+        )
+        .expect_err("unknown field should fail");
+
+        assert!(error.contains("unknown field 'typoField' in story directive"));
+    }
+
+    #[test]
+    fn rejects_unknown_field_in_dialogue_directive() {
+        let error = parse_beat_markdown(
+            r#"# Unknown Dialogue Field
+
+::: story
+id: prologue.dialogue-typo
+chapter: prologue
+map: guild-hall
+primaryNpc: guild-master
+:::
+
+::: dialogue
+npc: guild-master
+branch: briefing
+speaker: Guild Master Arlen
+choices: quest
+completionintent: recordNpcTalk:guild-master
+:::
+
+Some text.
+"#,
+        )
+        .expect_err("unknown field should fail");
+
+        assert!(error.contains("unknown field 'completionintent' in dialogue directive"));
+    }
+
+    #[test]
+    fn rejects_unknown_field_in_unsupported_hook_directive() {
+        let error = parse_beat_markdown(
+            r#"# Unknown Hook Field
+
+::: story
+id: prologue.hook-typo
+chapter: prologue
+map: guild-hall
+primaryNpc: guild-master
+:::
+
+::: unsupported-hook
+id: cutscene.pan
+kind: camera-pan
+reason: Need a camera movement
+extraField: oops
+:::
+"#,
+        )
+        .expect_err("unknown field should fail");
+
+        assert!(error.contains("unknown field 'extraField' in unsupported-hook directive"));
     }
 }
