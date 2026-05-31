@@ -3651,6 +3651,7 @@ describe('WorldScene', () => {
 		emitHudStateSpy.mockClear();
 		phaserState.interactKeys.e.justDown = true;
 		scene.update(0, 16);
+		await flushStoryDialogue();
 		emitHudStateSpy.mockClear();
 
 		sceneState.handleHudCommand({ type: 'dialogue-advance' });
