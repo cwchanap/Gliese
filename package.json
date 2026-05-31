@@ -6,7 +6,7 @@
 	"scripts": {
 		"dev": "vite",
 		"build": "vite build",
-		"build:tauri": "bun run story:check:strict && vite build --mode tauri",
+		"build:tauri": "bun run story:check:strict && vite build --mode tauri && bun run story:assert-no-frontend-prose",
 		"preview": "vite preview",
 		"prepare": "playwright install || echo ''",
 		"check": "svelte-check --tsconfig ./tsconfig.json",
