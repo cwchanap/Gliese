@@ -2732,7 +2732,15 @@ export class WorldScene extends Phaser.Scene {
 			this.publishHudState(
 				this.status('status.npcNearby', { npcName: this.getNpcName(nearbyNpc) })
 			);
-		} catch {
+		} catch (error) {
+			console.error(
+				'[story] story dialogue failed for npc=%s map=%s locale=%s:',
+				nearbyNpc.dialogueId,
+				this.mapId,
+				this.getLocale(),
+				error
+			);
+
 			if (this.currentNearbyNpcId !== requestNpcId) {
 				return;
 			}

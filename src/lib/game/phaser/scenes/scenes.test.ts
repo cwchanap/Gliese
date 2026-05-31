@@ -3596,6 +3596,85 @@ describe('WorldScene', () => {
 		);
 	});
 
+	it('falls back to noDialogueAvailable when story dialogue rejects', async () => {
+		const events = await import('$lib/game/ui-bridge/events');
+		const emitHudStateSpy = vi.spyOn(events, 'emitHudState');
+		const storyClient = await import('$lib/game/story/client');
+		vi.mocked(storyClient.getNpcStoryDialogue).mockRejectedValueOnce(
+			new Error('unknown story npc: missing-npc')
+		);
+		const { WorldScene } = await import('./WorldScene');
+		const scene = new WorldScene();
+
+		scene.create({ mapId: 'guild-hall' });
+		Object.assign(phaserState.playerMarker, { x: 192, y: 144 });
+		scene.update(0, 16);
+		emitHudStateSpy.mockClear();
+
+		phaserState.interactKeys.e.justDown = true;
+		scene.update(16, 16);
+		await flushStoryDialogue();
+
+		expect(emitHudStateSpy).toHaveBeenLastCalledWith(
+			expect.objectContaining({
+				dialogue: expect.objectContaining({
+					speaker: 'Traveler',
+					line: 'No dialogue is available.'
+				})
+			})
+		);
+	});
+
+	it('discards story dialogue response when the player moves away before it resolves', async () => {
+		const events = await import('$lib/game/ui-bridge/events');
+		const emitHudStateSpy = vi.spyOn(events, 'emitHudState');
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any
+		let resolveDialogue: ((session: any) => void) | undefined;
+		const storyClient = await import('$lib/game/story/client');
+		vi.mocked(storyClient.getNpcStoryDialogue).mockImplementationOnce(
+			() =>
+				new Promise((resolve) => {
+					resolveDialogue = resolve;
+				})
+		);
+		const { WorldScene } = await import('./WorldScene');
+		const scene = new WorldScene();
+
+		scene.create({ mapId: 'guild-hall' });
+		Object.assign(phaserState.playerMarker, { x: 192, y: 144 });
+		scene.update(0, 16);
+		emitHudStateSpy.mockClear();
+
+		phaserState.interactKeys.e.justDown = true;
+		scene.update(16, 16);
+
+		// Move player away before dialogue resolves
+		Object.assign(phaserState.playerMarker, { x: 64, y: 64 });
+		scene.update(32, 16);
+
+		// Resolve with a valid-looking session — the stale guard should discard it
+		resolveDialogue!({
+			id: 'npc:guild-master:stale',
+			npcId: null,
+			speaker: 'Guild Master Arlen',
+			lines: ['Stale response'],
+			line: 'Stale response',
+			lineIndex: 0,
+			lineCount: 1,
+			mode: 'conversation' as const,
+			choices: [],
+			completionIntent: null,
+			canClose: true
+		});
+		await flushStoryDialogue();
+
+		expect(emitHudStateSpy).not.toHaveBeenLastCalledWith(
+			expect.objectContaining({
+				dialogue: expect.objectContaining({ line: 'Stale response' })
+			})
+		);
+	});
+
 	it('starts Guild Master dialogue after a no-NPC fallback prompt', async () => {
 		const events = await import('$lib/game/ui-bridge/events');
 		const emitHudStateSpy = vi.spyOn(events, 'emitHudState');

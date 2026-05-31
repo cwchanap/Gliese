@@ -8,7 +8,6 @@ on:
 
 permissions:
   contents: read
-  actions: write
 
 jobs:
   build-and-lint:
@@ -35,6 +34,11 @@ jobs:
 
       - name: Build
         run: bun run build
+
+      - name: Assert no frontend story prose (Tauri build)
+        run: |
+          bun run build --mode tauri
+          bun run story:assert-no-frontend-prose
 
   unit-test:
     name: Unit Tests
@@ -96,6 +100,7 @@ jobs:
         run: cargo clippy --all-targets --all-features -- -D warnings
 
       - name: Story consistency check
+        working-directory: .
         run: cargo run --manifest-path src-tauri/Cargo.toml --bin story_check -- --mode=strict --check-generated
 
       - name: Build
