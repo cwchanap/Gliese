@@ -1,13 +1,8 @@
-import type { DialogueActionIntent, DialogueBranchCondition } from '$lib/game/content/dialogue';
-import { getQuest, mainQuestId, type QuestId, type QuestReward } from '$lib/game/content/quests';
-import {
-	getAvailableGuildQuestIds,
-	hasCompletedQuestObjective,
-	type QuestState
-} from '$lib/game/core/quests';
+import type { DialogueActionIntent } from '$lib/game/content/dialogue';
+import { getQuest, type QuestId, type QuestReward } from '$lib/game/content/quests';
+import { getAvailableGuildQuestIds, type QuestState } from '$lib/game/core/quests';
 import {
 	formatRewardSummary,
-	getDialogueText,
 	getNpcText,
 	getQuestObjectiveText,
 	getQuestText
@@ -46,49 +41,6 @@ export type DialogueChoiceResult = {
 	session: DialogueSession | null;
 	intent: DialogueIntent | null;
 };
-
-export function startNpcDialogue({
-	npcId,
-	questState,
-	locale
-}: {
-	npcId: string;
-	questState: QuestState;
-	locale: Locale;
-}): DialogueSession {
-	const definition = getDialogueText(locale, npcId);
-	if (!definition) {
-		return buildDialogueFallback(
-			t(locale, 'content.dialogue.speakers.traveler'),
-			t(locale, 'content.dialogue.system.noDialogueAvailable')
-		);
-	}
-
-	const branch =
-		definition.defaultBranches.find((candidate) =>
-			branchMatches(candidate.condition, questState)
-		) ?? definition.defaultBranches[definition.defaultBranches.length - 1];
-	const lines = branch?.lines ?? ['No dialogue is available.'];
-	const choices = definition.actions
-		.filter((action) => definition.actions.length <= 1 || action.intent.type !== 'talk')
-		.map((action) => ({
-			id: action.id,
-			label: action.label,
-			intent: action.intent
-		}));
-	const needsGuildBriefing =
-		definition.id === 'guild-master' &&
-		!hasCompletedQuestObjective(questState, mainQuestId, 'talk-to-guild-master');
-
-	return createSession({
-		id: `npc:${definition.id}`,
-		npcId: definition.id,
-		speaker: definition.speaker,
-		lines,
-		choices,
-		completionIntent: needsGuildBriefing ? { type: 'recordNpcTalk', npcId: 'guild-master' } : null
-	});
-}
 
 export function advanceDialogue(session: DialogueSession): DialogueSession {
 	if (session.lineIndex + 1 < session.lineCount) {
@@ -133,13 +85,6 @@ export function chooseDialogueOption({
 
 	if (choice.intent.type === 'showQuestList') {
 		return { session: buildGuildQuestListSession(questState, locale), intent: choice.intent };
-	}
-
-	if (choice.intent.type === 'talk' && session.npcId) {
-		return {
-			session: startNpcDialogue({ npcId: session.npcId, questState, locale }),
-			intent: choice.intent
-		};
 	}
 
 	if (choice.intent.type === 'showQuestDetails') {
@@ -297,28 +242,4 @@ function buildGuildQuestDetailSession(questId: QuestId, locale: Locale): Dialogu
 		],
 		mode: 'choice'
 	});
-}
-
-function branchMatches(condition: DialogueBranchCondition, questState: QuestState): boolean {
-	if (condition === 'mainQuestNeedsGuildBriefing') {
-		return !hasCompletedQuestObjective(questState, mainQuestId, 'talk-to-guild-master');
-	}
-
-	if (condition === 'guildBriefingComplete') {
-		return hasCompletedQuestObjective(questState, mainQuestId, 'talk-to-guild-master');
-	}
-
-	if (condition === 'hasActiveSideQuest') {
-		return Object.entries(questState.entries).some(
-			([questId, entry]) => questId !== mainQuestId && entry.status === 'active'
-		);
-	}
-
-	if (condition === 'hasCompletedQuest') {
-		return Object.entries(questState.entries).some(
-			([questId, entry]) => questId !== mainQuestId && entry.status === 'completed'
-		);
-	}
-
-	return condition === 'always';
 }

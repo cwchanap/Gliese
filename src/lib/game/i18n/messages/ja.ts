@@ -283,37 +283,7 @@ export const ja = {
 			}
 		},
 		dialogue: {
-			'guild-master': {
-				speaker: 'ギルドマスター・アーレン',
-				lines: {
-					mainQuestNeedsGuildBriefing1:
-						'よく来た。東の遺跡がまたざわついている。村へ続く道も、もう安全ではない。',
-					mainQuestNeedsGuildBriefing2:
-						'森の道を抜けて古い中心部へ向かい、目を覚ます前に守護者を倒してくれ。',
-					hasActiveSideQuest1: 'ギルドの掲示板は自由に使っていい。だが、守護者のことを忘れるな。',
-					hasActiveSideQuest2: '進捗は手帳で報告してくれ。新しい仕事はこの窓口で受け付けておく。',
-					hasCompletedQuest: '見事だった。道を開いてくれる狩人がいると、村も助かる。',
-					guildBriefingComplete: '遺跡への道は開いた。中へ入る前に、しっかり備えていけ。',
-					always: 'ギルドは古い道を見張っている。用件ははっきり伝えて、仕事を選べ。'
-				}
-			},
-			'guild-quartermaster': {
-				speaker: '補給係ヴェイル',
-				lines: {
-					guildBriefingComplete: '遺跡へ行くなら、生き残るための物を買っていけ。',
-					always: '遺跡に入る前の装備ならある。ギルド品は少ないが、堅実だ。'
-				}
-			},
-			'shopkeeper-mira': {
-				speaker: 'ミラ',
-				lines: {
-					guildBriefingComplete:
-						'ギルドから戻ったの？ 森の道が険しくなる前に、ひとつ薬を持っていきなよ。',
-					always: '新しい薬は棚にあるよ。今日はギルドで持ち出し品も揃ってるはず。'
-				}
-			},
 			actions: {
-				talk: '話す',
 				quest: '依頼',
 				shop: '店',
 				accept: '受ける',

@@ -1,7 +1,6 @@
 import {
 	getDialogue,
 	type DialogueActionDefinition,
-	type DialogueBranchDefinition,
 	type NpcDialogueDefinition
 } from '$lib/game/content/dialogue';
 import { getItem } from '$lib/game/content/items';
@@ -32,20 +31,11 @@ export type LocalizedQuestObjectiveText = {
 	progressLabel: string;
 };
 
-export type LocalizedDialogueBranch = Omit<DialogueBranchDefinition, 'lineKeys'> & {
-	lines: string[];
-};
-
 export type LocalizedDialogueAction = Omit<DialogueActionDefinition, 'labelKey'> & {
 	label: string;
 };
 
-export type LocalizedDialogueText = Omit<
-	NpcDialogueDefinition,
-	'speakerKey' | 'defaultBranches' | 'actions'
-> & {
-	speaker: string;
-	defaultBranches: LocalizedDialogueBranch[];
+export type LocalizedDialogueText = Omit<NpcDialogueDefinition, 'actions'> & {
 	actions: LocalizedDialogueAction[];
 };
 
@@ -100,11 +90,6 @@ export function getDialogueText(locale: Locale, dialogueId: string): LocalizedDi
 
 	return {
 		id: dialogue.id,
-		speaker: t(locale, dialogue.speakerKey),
-		defaultBranches: dialogue.defaultBranches.map((branch) => ({
-			condition: branch.condition,
-			lines: branch.lineKeys.map((key) => t(locale, key))
-		})),
 		actions: dialogue.actions.map((action) => ({
 			id: action.id,
 			label: t(locale, action.labelKey),

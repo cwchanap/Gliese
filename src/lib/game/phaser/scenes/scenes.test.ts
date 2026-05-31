@@ -189,45 +189,6 @@ vi.mock('$lib/game/i18n/content', async () => {
 				return actual.getQuestObjectiveText(locale, questId, objectiveId);
 			}
 		),
-		getDialogueText: vi.fn((locale: 'en' | 'ja' | 'zh-Hant', dialogueId: string) => {
-			const dialogue = actual.getDialogueText(locale, dialogueId);
-
-			if (locale !== 'ja' || !dialogue) {
-				return dialogue;
-			}
-
-			if (dialogueId === 'shopkeeper-mira') {
-				return {
-					...dialogue,
-					speaker: 'JP Mira',
-					defaultBranches: dialogue.defaultBranches.map((branch) => ({
-						...branch,
-						lines: ['JP Fresh tonics are ready.']
-					})),
-					actions: dialogue.actions.map((action) => ({
-						...action,
-						label: action.id === 'shop' ? 'JP Shop' : action.label
-					}))
-				};
-			}
-
-			if (dialogueId === 'guild-master') {
-				return {
-					...dialogue,
-					speaker: 'JP Guild Master',
-					defaultBranches: dialogue.defaultBranches.map((branch) => ({
-						...branch,
-						lines: ['JP The eastern ruins are stirring again.']
-					})),
-					actions: dialogue.actions.map((action) => ({
-						...action,
-						label: action.id === 'quest' ? 'JP Quest' : action.label
-					}))
-				};
-			}
-
-			return dialogue;
-		}),
 		getNpcText: vi.fn((locale: 'en' | 'ja' | 'zh-Hant', npcId: string) => {
 			if (locale === 'ja') {
 				if (npcId === 'shopkeeper-mira') return { name: 'JP Mira' };

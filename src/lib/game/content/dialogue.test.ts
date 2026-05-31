@@ -21,9 +21,7 @@ describe('dialogue content', () => {
 		for (const npc of npcs) {
 			const dialogue = getDialogue(npc.dialogueId);
 			expect(dialogue).toBeDefined();
-			expect(dialogue ? expectEnglishMessage(dialogue.speakerKey) : '').toBe(
-				expectEnglishMessage(npc.nameKey)
-			);
+			expectEnglishMessage(npc.nameKey);
 		}
 	});
 
@@ -36,15 +34,15 @@ describe('dialogue content', () => {
 		expect(getDialogue('shopkeeper-mira')?.id).toBe('shopkeeper-mira');
 	});
 
+	it('does not keep migrated NPC story prose in frontend dialogue definitions', () => {
+		const serialized = JSON.stringify(npcDialogueList);
+
+		expect(serialized).not.toContain('The eastern ruins are stirring again');
+		expect(serialized).not.toContain('Fresh tonics are on the shelf');
+	});
+
 	it('keeps dialogue action references valid', () => {
 		for (const dialogue of npcDialogueList) {
-			expectEnglishMessage(dialogue.speakerKey);
-			for (const branch of dialogue.defaultBranches) {
-				for (const lineKey of branch.lineKeys) {
-					expectEnglishMessage(lineKey);
-				}
-			}
-
 			for (const action of dialogue.actions) {
 				expectEnglishMessage(action.labelKey);
 
