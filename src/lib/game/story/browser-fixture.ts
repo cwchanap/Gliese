@@ -1,9 +1,9 @@
 // Browser-only fixture for Vite dev and Playwright. Tauri release builds use VITE_STORY_RUNTIME=tauri and must tree-shake this module.
-import type { DialogueIntent } from '$lib/game/core/dialogue';
 import type {
-	StoryDialogueRequest,
 	StoryDialogueResponse,
-	StoryQuestSummary
+	StoryIntent,
+	StoryQuestSummary,
+	StoryRuntimeDialogueRequest
 } from '$lib/game/story/client';
 
 type StoryBranchCondition =
@@ -17,8 +17,8 @@ type StoryFixtureBranch = {
 	condition: StoryBranchCondition;
 	speaker: string;
 	lines: string[];
-	actions: Array<{ id: string; label: string; intent: DialogueIntent }>;
-	completionIntent: DialogueIntent | null;
+	actions: Array<{ id: string; label: string; intent: StoryIntent }>;
+	completionIntent: StoryIntent | null;
 };
 
 const branchPriority: StoryBranchCondition[] = [
@@ -145,11 +145,7 @@ const npcFixtures: Record<string, StoryFixtureBranch[]> = {
 	]
 };
 
-export function getBrowserNpcDialogue(request: StoryDialogueRequest): StoryDialogueResponse {
-	if (request.locale !== 'en') {
-		throw new Error(`unsupported story locale: ${request.locale}`);
-	}
-
+export function getBrowserNpcDialogue(request: StoryRuntimeDialogueRequest): StoryDialogueResponse {
 	const branches = npcFixtures[request.npcId];
 	if (!branches) {
 		throw new Error(`unknown story npc: ${request.npcId}`);
