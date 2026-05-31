@@ -1,5 +1,6 @@
 import type { DialogueIntent, DialogueSession } from '$lib/game/core/dialogue';
 import type { Locale } from '$lib/game/i18n/locales';
+import { t } from '$lib/game/i18n/translate';
 
 export type StoryLocale = 'en';
 
@@ -51,10 +52,17 @@ export type StoryRuntime =
 			};
 	  };
 
-export function createDialogueSessionFromStory(response: StoryDialogueResponse): DialogueSession {
+export function createDialogueSessionFromStory(
+	response: StoryDialogueResponse,
+	locale: Locale
+): DialogueSession {
 	if (response.lines.length === 0) {
 		throw new Error('Story dialogue response must include at least one line.');
 	}
+
+	const hasCompletionIntent = response.completionIntent !== null;
+	const shouldStartInChoice =
+		response.lines.length <= 1 && response.actions.length > 0 && !hasCompletionIntent;
 
 	return {
 		id: response.sessionId,
@@ -64,12 +72,12 @@ export function createDialogueSessionFromStory(response: StoryDialogueResponse):
 		line: response.lines[0],
 		lineIndex: 0,
 		lineCount: response.lines.length,
-		mode: response.lines.length <= 1 && response.actions.length > 0 ? 'choice' : 'conversation',
+		mode: shouldStartInChoice ? 'choice' : 'conversation',
 		choices: response.actions.map((action) => ({
-			id: action.id,
-			label: action.label,
-			intent: storyIntentToDialogueIntent(action.intent)
-		})),
+				id: action.id,
+				label: localizeActionLabel(action.id, action.label, locale),
+				intent: storyIntentToDialogueIntent(action.intent)
+			})),
 		completionIntent: response.completionIntent
 			? storyIntentToDialogueIntent(response.completionIntent)
 			: null,
@@ -92,6 +100,12 @@ export function storyIntentToDialogueIntent(intent: StoryIntent): DialogueIntent
 
 export function toStoryLocale(_locale: Locale): StoryLocale {
 	return 'en';
+}
+
+function localizeActionLabel(actionId: string, fallback: string, locale: Locale): string {
+	const key = `content.dialogue.actions.${actionId}` as Parameters<typeof t>[1];
+	const localized = t(locale, key);
+	return localized.startsWith('[') ? fallback : localized;
 }
 
 function normalizeStoryDialogueRequest(request: StoryDialogueRequest): StoryRuntimeDialogueRequest {
@@ -123,5 +137,5 @@ export async function getNpcStoryDialogueWithRuntime(
 				})
 			: runtime.fixture.getBrowserNpcDialogue(storyRequest);
 
-	return createDialogueSessionFromStory(response);
+	return createDialogueSessionFromStory(response, request.locale);
 }
