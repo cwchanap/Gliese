@@ -35,6 +35,13 @@ pub fn compile_catalog(
 }
 
 fn compile_dialogue(dialogue: &BeatDialogue) -> Result<StoryDialogueBranch, String> {
+    if dialogue.lines.is_empty() {
+        return Err(format!(
+            "dialogue for npc {} has no dialogue lines",
+            dialogue.npc_id
+        ));
+    }
+
     Ok(StoryDialogueBranch {
         condition: compile_branch_condition(&dialogue.branch)?,
         speaker: dialogue.speaker.clone(),
@@ -65,12 +72,15 @@ fn compile_branch_condition(branch: &str) -> Result<StoryBranchCondition, String
 
 fn compile_action(choice: &str, npc_id: &str) -> Result<StoryDialogueAction, String> {
     let (label, intent) = match choice {
-        "quest" => (
-            "Quest",
-            StoryIntent::ShowQuestList {
-                giver_npc_id: npc_id.to_string(),
-            },
-        ),
+        "quest" => {
+            quest_npc_id(npc_id)?;
+            (
+                "Quest",
+                StoryIntent::ShowQuestList {
+                    giver_npc_id: npc_id.to_string(),
+                },
+            )
+        }
         "shop" => (
             "Shop",
             StoryIntent::OpenShop {
@@ -97,6 +107,16 @@ fn shop_id_for_npc(npc_id: &str) -> Result<String, String> {
         "guild-quartermaster" => Ok("guild-quartermaster".to_string()),
         "shopkeeper-mira" => Ok("miras-item-shop".to_string()),
         _ => Err(format!("no shop mapping for npc {}", npc_id)),
+    }
+}
+
+fn quest_npc_id(npc_id: &str) -> Result<(), String> {
+    match npc_id {
+        "guild-master" => Ok(()),
+        _ => Err(format!(
+            "quest choice not supported for npc {}; only guild-master can give quests",
+            npc_id
+        )),
     }
 }
 
@@ -390,5 +410,65 @@ You made it.
         beat.dialogues[0].completion_intent = Some("recordNpcTalk:guild-mastre".to_string());
         let error = compile_catalog("sundrop-ruins", "en", &[beat]).unwrap_err();
         assert!(error.contains("unknown completion intent npc guild-mastre"));
+    }
+
+    #[test]
+    fn rejects_empty_dialogue_lines() {
+        let mut beat = crate::story::beat::parse_beat_markdown(
+            r#"# Guild Master
+
+::: story
+id: prologue.guild-master
+chapter: prologue
+map: guild-hall
+primaryNpc: guild-master
+:::
+
+::: dialogue
+npc: guild-master
+branch: always
+speaker: Guild Master Arlen
+choices: quest
+:::
+
+Some text.
+"#,
+        )
+        .unwrap();
+
+        beat.dialogues[0].lines.clear();
+        let error = compile_catalog("sundrop-ruins", "en", &[beat]).unwrap_err();
+        assert!(error.contains("no dialogue lines"));
+        assert!(error.contains("guild-master"));
+    }
+
+    #[test]
+    fn rejects_quest_choice_for_non_guild_master_npc() {
+        let mut beat = crate::story::beat::parse_beat_markdown(
+            r#"# Shopkeeper Mira
+
+::: story
+id: prologue.shopkeeper-mira
+chapter: prologue
+map: item-shop
+primaryNpc: shopkeeper-mira
+:::
+
+::: dialogue
+npc: shopkeeper-mira
+branch: always
+speaker: Mira
+choices: shop
+:::
+
+Need supplies?
+"#,
+        )
+        .unwrap();
+
+        beat.dialogues[0].choices = vec!["quest".to_string()];
+        let error = compile_catalog("sundrop-ruins", "en", &[beat]).unwrap_err();
+        assert!(error.contains("quest choice not supported"));
+        assert!(error.contains("shopkeeper-mira"));
     }
 }
