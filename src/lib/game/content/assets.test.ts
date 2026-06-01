@@ -154,7 +154,7 @@ describe('fence dressing asset metadata', () => {
 });
 
 describe('interior prop asset metadata', () => {
-	it('loads reusable interior props from a fixed 4x4 transparent sheet', () => {
+	it('loads reusable interior props from a 4-column sprite sheet with 14 prop frames', () => {
 		expect(interiorPropAsset).toMatchObject({
 			key: 'interior-props',
 			path: '/game/assets/interior-props.png',

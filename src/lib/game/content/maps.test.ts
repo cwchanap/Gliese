@@ -845,7 +845,8 @@ describe('opening map content', () => {
 			'shrine-of-aurora-west-bench',
 			'shrine-of-aurora-east-bench',
 			'shrine-of-aurora-offerings',
-			'shrine-of-aurora-plant'
+			'shrine-of-aurora-plant',
+			'shrine-of-aurora-bookshelf'
 		]);
 		expect(guildHallMap.ambientNpcs?.map((npc) => npc.id)).toEqual([
 			'guild-hall-member-west',

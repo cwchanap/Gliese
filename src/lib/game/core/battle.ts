@@ -1,5 +1,5 @@
 import { enemies, type EnemyCombatDefinition } from '$lib/game/content/enemies';
-import { maps, openingMapId, shrineOfAuroraInteriorMap } from '$lib/game/content/maps';
+import { shrineOfAuroraInteriorMap } from '$lib/game/content/maps';
 import { addItem } from '$lib/game/core/inventory';
 import type { ItemDrop } from '$lib/game/core/loot';
 import { applyExperienceGain, type ProgressionState } from '$lib/game/core/progression';
