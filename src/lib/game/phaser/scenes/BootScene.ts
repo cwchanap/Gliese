@@ -4,6 +4,7 @@ import {
 	environmentDressingAsset,
 	fenceDressingAsset,
 	forestDressingAsset,
+	interiorPropAsset,
 	npcPackAsset,
 	starterPackAsset,
 	villageBuildingAsset
@@ -25,6 +26,7 @@ export class BootScene extends Phaser.Scene {
 		this.load.image(villageBuildingAsset.key, villageBuildingAsset.path);
 		this.load.image(forestDressingAsset.key, forestDressingAsset.path);
 		this.load.image(fenceDressingAsset.key, fenceDressingAsset.path);
+		this.load.image(interiorPropAsset.key, interiorPropAsset.path);
 		this.load.image(environmentDressingAsset.key, environmentDressingAsset.path);
 	}
 

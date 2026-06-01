@@ -664,6 +664,7 @@ describe('BootScene', () => {
 			environmentDressingAsset,
 			fenceDressingAsset,
 			forestDressingAsset,
+			interiorPropAsset,
 			npcPackAsset,
 			starterPackAsset,
 			villageBuildingAsset
@@ -685,6 +686,7 @@ describe('BootScene', () => {
 			forestDressingAsset.path
 		);
 		expect(scene.load.image).toHaveBeenCalledWith(fenceDressingAsset.key, fenceDressingAsset.path);
+		expect(scene.load.image).toHaveBeenCalledWith(interiorPropAsset.key, interiorPropAsset.path);
 		expect(scene.load.image).toHaveBeenCalledWith(
 			environmentDressingAsset.key,
 			environmentDressingAsset.path
