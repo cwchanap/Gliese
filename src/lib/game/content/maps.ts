@@ -680,7 +680,7 @@ export const guildHallMap: WorldMapDefinition = addEnglishMapText({
 			width: 96,
 			height: 54,
 			frameName: 'table',
-			collision: { id: 'guild-hall-east-desk-collision', x: 392, y: 152, width: 56, height: 44 }
+			collision: { id: 'guild-hall-east-desk-collision', x: 400, y: 152, width: 56, height: 44 }
 		},
 		{
 			id: 'guild-hall-west-bench',
