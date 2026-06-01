@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { enemies } from '$lib/game/content/enemies';
 import { getDialogue } from '$lib/game/content/dialogue';
+import { interiorPropAsset } from '$lib/game/content/assets';
 import { getItem } from '$lib/game/content/items';
 import { getShop } from '$lib/game/content/shops';
 import { t } from '$lib/game/i18n/translate';
@@ -12,6 +13,7 @@ import {
 	meadowEntryMap,
 	ruinsCoreMap,
 	ruinsThresholdMap,
+	shrineOfAuroraInteriorMap,
 	villagerHouse1Map,
 	villagerHouse2Map,
 	villagerHouse3Map
@@ -65,6 +67,32 @@ function isPointInsideRect(point: { x: number; y: number }, rect: CenterRect) {
 		point.y >= rect.y - rect.height / 2 &&
 		point.y <= rect.y + rect.height / 2
 	);
+}
+
+function expectRectClearOfRect(rect: CenterRect, blocker: CenterRect, message: string) {
+	const overlaps =
+		rect.x - rect.width / 2 < blocker.x + blocker.width / 2 &&
+		rect.x + rect.width / 2 > blocker.x - blocker.width / 2 &&
+		rect.y - rect.height / 2 < blocker.y + blocker.height / 2 &&
+		rect.y + rect.height / 2 > blocker.y - blocker.height / 2;
+
+	expect(overlaps, message).toBe(false);
+}
+
+function expectPointClearOfInteriorPropCollisions(
+	map: WorldMapDefinition,
+	point: { x: number; y: number },
+	label: string
+) {
+	const pointRect = { x: point.x, y: point.y, width: 24, height: 24 };
+
+	for (const prop of map.interiorProps ?? []) {
+		if (!prop.collision) {
+			continue;
+		}
+
+		expectRectClearOfRect(pointRect, prop.collision, `${map.id}:${label} blocked by ${prop.id}`);
+	}
 }
 
 function expectHorizontalRouteClear(
@@ -233,6 +261,14 @@ describe('opening map content', () => {
 				x: 2_592,
 				y: 4_912,
 				toMapId: 'villager-house-3',
+				showMarker: false,
+				arrival: { x: 256, y: 288, facing: 'up' }
+			},
+			{
+				id: 'meadow-to-shrine-of-aurora',
+				x: 1_050,
+				y: 6_000,
+				toMapId: 'shrine-of-aurora-interior',
 				showMarker: false,
 				arrival: { x: 256, y: 288, facing: 'up' }
 			},
@@ -749,7 +785,8 @@ describe('opening map content', () => {
 			itemShopMap,
 			villagerHouse1Map,
 			villagerHouse2Map,
-			villagerHouse3Map
+			villagerHouse3Map,
+			shrineOfAuroraInteriorMap
 		];
 
 		expect(maps['hero-house']).toBe(heroHouseMap);
@@ -758,12 +795,93 @@ describe('opening map content', () => {
 		expect(maps['villager-house-1']).toBe(villagerHouse1Map);
 		expect(maps['villager-house-2']).toBe(villagerHouse2Map);
 		expect(maps['villager-house-3']).toBe(villagerHouse3Map);
+		expect(maps['shrine-of-aurora-interior']).toBe(shrineOfAuroraInteriorMap);
 
 		for (const map of interiors) {
 			expect(map.width).toBe(16);
 			expect(map.height).toBe(12);
 			expect(map.transitions).toHaveLength(1);
 			expect(map.transitions[0].toMapId).toBe('meadow-entry');
+		}
+	});
+
+	it('decorates compact village interiors with bounded props and ambient NPCs', () => {
+		const interiors = [
+			heroHouseMap,
+			guildHallMap,
+			itemShopMap,
+			villagerHouse1Map,
+			villagerHouse2Map,
+			villagerHouse3Map,
+			shrineOfAuroraInteriorMap
+		];
+		const allAmbientNpcIds = new Set<string>();
+
+		expect(heroHouseMap.interiorProps?.map((prop) => prop.id)).toEqual([
+			'hero-house-rug',
+			'hero-house-bed',
+			'hero-house-table',
+			'hero-house-bookshelf',
+			'hero-house-crates',
+			'hero-house-plant'
+		]);
+		expect(guildHallMap.interiorProps?.map((prop) => prop.id)).toContain('guild-hall-notice-board');
+		expect(itemShopMap.interiorProps?.map((prop) => prop.id)).toContain('item-shop-counter');
+		expect(villagerHouse1Map.interiorProps?.map((prop) => prop.id)).toContain(
+			'villager-house-1-family-table'
+		);
+		expect(villagerHouse2Map.interiorProps?.map((prop) => prop.id)).toContain(
+			'villager-house-2-work-table'
+		);
+		expect(villagerHouse3Map.interiorProps?.map((prop) => prop.id)).toContain(
+			'villager-house-3-bookshelf'
+		);
+		expect(shrineOfAuroraInteriorMap.interiorProps?.map((prop) => prop.id)).toEqual([
+			'shrine-of-aurora-rug',
+			'shrine-of-aurora-west-lamp',
+			'shrine-of-aurora-east-lamp',
+			'shrine-of-aurora-west-bench',
+			'shrine-of-aurora-east-bench',
+			'shrine-of-aurora-offerings',
+			'shrine-of-aurora-plant',
+			'shrine-of-aurora-bookshelf'
+		]);
+		expect(guildHallMap.ambientNpcs?.map((npc) => npc.id)).toEqual([
+			'guild-hall-member-west',
+			'guild-hall-member-east'
+		]);
+		expect(itemShopMap.ambientNpcs?.map((npc) => npc.id)).toEqual(['item-shop-customer']);
+
+		for (const map of interiors) {
+			const propIds = new Set<string>();
+
+			for (const prop of map.interiorProps ?? []) {
+				expect(propIds.has(prop.id), `${map.id}:${prop.id} duplicated`).toBe(false);
+				propIds.add(prop.id);
+				expect(Object.keys(interiorPropAsset.frames)).toContain(prop.frameName);
+				expect(['floor', 'furniture', 'foreground', undefined]).toContain(prop.depth);
+				expectRectInsideMap(prop, map);
+
+				if (prop.collision) {
+					expectRectInsideMap(prop.collision, map);
+				}
+			}
+
+			for (const ambientNpc of map.ambientNpcs ?? []) {
+				expect(allAmbientNpcIds.has(ambientNpc.id), ambientNpc.id).toBe(false);
+				allAmbientNpcIds.add(ambientNpc.id);
+				expectPointInsideMap(ambientNpc, map);
+				expect(['miraItemShopNpc', 'quartermasterNpc', 'guildMasterNpc']).toContain(
+					ambientNpc.frameName
+				);
+			}
+
+			expectPointClearOfInteriorPropCollisions(map, map.spawn, 'spawn');
+			expectPointClearOfInteriorPropCollisions(map, map.transitions[0], 'exit');
+
+			for (const npc of map.npcs ?? []) {
+				expectPointClearOfInteriorPropCollisions(map, npc, npc.id);
+			}
 		}
 	});
 
@@ -779,7 +897,8 @@ describe('opening map content', () => {
 			itemShopMap,
 			villagerHouse1Map,
 			villagerHouse2Map,
-			villagerHouse3Map
+			villagerHouse3Map,
+			shrineOfAuroraInteriorMap
 		]) {
 			const returnTransition = interiorMap.transitions[0];
 			const exteriorTransition = exteriorTransitions.get(interiorMap.id);
@@ -812,6 +931,11 @@ describe('opening map content', () => {
 		expect(villagerHouse3Map.transitions[0].arrival).toEqual({
 			x: 2_592,
 			y: 5_024,
+			facing: 'down'
+		});
+		expect(shrineOfAuroraInteriorMap.transitions[0].arrival).toEqual({
+			x: 1_050,
+			y: 6_104,
 			facing: 'down'
 		});
 	});
@@ -854,14 +978,44 @@ describe('opening map content', () => {
 				shopId: 'miras-item-shop'
 			}
 		]);
-		expect(villagerHouse1Map.npcs ?? []).toEqual([]);
-		expect(villagerHouse2Map.npcs ?? []).toEqual([]);
-		expect(villagerHouse3Map.npcs ?? []).toEqual([]);
+		expect(villagerHouse1Map.npcs).toMatchObject([
+			{
+				id: 'villager-lynn',
+				x: 160,
+				y: 224,
+				nameKey: 'content.maps.npcs.villager-lynn.name',
+				dialogueId: 'villager-lynn',
+				role: 'villager',
+				frameName: 'miraItemShopNpc'
+			}
+		]);
+		expect(villagerHouse2Map.npcs).toMatchObject([
+			{
+				id: 'villager-toma',
+				x: 224,
+				y: 224,
+				nameKey: 'content.maps.npcs.villager-toma.name',
+				dialogueId: 'villager-toma',
+				role: 'villager',
+				frameName: 'quartermasterNpc'
+			}
+		]);
+		expect(villagerHouse3Map.npcs).toMatchObject([
+			{
+				id: 'villager-io',
+				x: 320,
+				y: 224,
+				nameKey: 'content.maps.npcs.villager-io.name',
+				dialogueId: 'villager-io',
+				role: 'villager',
+				frameName: 'guildMasterNpc'
+			}
+		]);
 		expect(new Set(npcs.map((npc) => npc.id)).size).toBe(npcs.length);
 
 		for (const map of Object.values(maps)) {
 			for (const npc of map.npcs ?? []) {
-				expectEnglishMessage(npc.nameKey);
+				expect(npc.name).toBe(expectEnglishMessage(npc.nameKey));
 				expect(getDialogue(npc.dialogueId)).toBeDefined();
 				expect(roles).toContain(npc.role);
 				expect(npc.x).toBeGreaterThanOrEqual(0);

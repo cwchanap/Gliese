@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { meadowEntryMap, maps } from '$lib/game/content/maps';
+import { meadowEntryMap, maps, shrineOfAuroraInteriorMap } from '$lib/game/content/maps';
 import { mainQuestId } from '$lib/game/content/quests';
 import {
 	buildAreaMapState,
@@ -40,6 +40,18 @@ describe('area map payload', () => {
 			player: { x: 1_536, y: 5_550 },
 			revealedCells: ['4,45']
 		});
+	});
+
+	it('localizes the Shrine of Aurora interior area name', () => {
+		const areaMap = buildAreaMapState({
+			map: shrineOfAuroraInteriorMap,
+			player: shrineOfAuroraInteriorMap.spawn,
+			revealedCells: [],
+			quests: createInitialQuestState(),
+			locale: 'en'
+		});
+
+		expect(areaMap.name).toBe('Shrine of Aurora');
 	});
 
 	it('adds only revealed landmark and exit markers', () => {

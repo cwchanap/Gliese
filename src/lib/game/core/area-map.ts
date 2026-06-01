@@ -173,6 +173,7 @@ const areaNameKeys = {
 	'villager-house-1': 'content.maps.areas.villager-house-1',
 	'villager-house-2': 'content.maps.areas.villager-house-2',
 	'villager-house-3': 'content.maps.areas.villager-house-3',
+	'shrine-of-aurora-interior': 'content.maps.areas.shrine-of-aurora-interior',
 	'ruins-threshold': 'content.maps.areas.ruins-threshold',
 	'ruins-core': 'content.maps.areas.ruins-core'
 } as const satisfies Record<keyof typeof maps, MessageKey>;

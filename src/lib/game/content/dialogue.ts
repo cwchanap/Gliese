@@ -1,7 +1,13 @@
 import type { QuestId } from '$lib/game/content/quests';
 import { t, type MessageKey } from '$lib/game/i18n/translate';
 
-export type NpcDialogueId = 'guild-master' | 'guild-quartermaster' | 'shopkeeper-mira';
+export type NpcDialogueId =
+	| 'guild-master'
+	| 'guild-quartermaster'
+	| 'shopkeeper-mira'
+	| 'villager-lynn'
+	| 'villager-toma'
+	| 'villager-io';
 
 export type DialogueActionIntent =
 	| { type: 'showQuestList'; giverNpcId: string }
@@ -54,6 +60,36 @@ const npcDialogueDefinitions = {
 				id: 'shop',
 				labelKey: 'content.dialogue.actions.shop',
 				intent: { type: 'openShop', shopId: 'miras-item-shop' }
+			}
+		]
+	},
+	'villager-lynn': {
+		id: 'villager-lynn',
+		actions: [
+			{
+				id: 'close',
+				labelKey: 'content.dialogue.actions.close',
+				intent: { type: 'close' }
+			}
+		]
+	},
+	'villager-toma': {
+		id: 'villager-toma',
+		actions: [
+			{
+				id: 'close',
+				labelKey: 'content.dialogue.actions.close',
+				intent: { type: 'close' }
+			}
+		]
+	},
+	'villager-io': {
+		id: 'villager-io',
+		actions: [
+			{
+				id: 'close',
+				labelKey: 'content.dialogue.actions.close',
+				intent: { type: 'close' }
 			}
 		]
 	}

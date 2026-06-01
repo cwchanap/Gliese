@@ -182,6 +182,66 @@ pub fn story_catalog() -> StoryCatalog {
                     },
                 ],
             },
+            NpcStoryDialogue {
+                npc_id: "villager-io".to_string(),
+                branches: vec![
+                    StoryDialogueBranch {
+                        condition: StoryBranchCondition::Always,
+                        speaker: "Io".to_string(),
+                        lines: vec![
+                            "Old records say the ruins quiet down when someone brave reaches the core.".to_string(),
+                        ],
+                        actions: vec![
+                            StoryDialogueAction {
+                                id: "close".to_string(),
+                                label: "Close".to_string(),
+                                intent: StoryIntent::Close,
+                            },
+                        ],
+                        completion_intent: None,
+                    },
+                ],
+            },
+            NpcStoryDialogue {
+                npc_id: "villager-lynn".to_string(),
+                branches: vec![
+                    StoryDialogueBranch {
+                        condition: StoryBranchCondition::Always,
+                        speaker: "Lynn".to_string(),
+                        lines: vec![
+                            "The kettle is warm if you need a quiet minute before the road.".to_string(),
+                        ],
+                        actions: vec![
+                            StoryDialogueAction {
+                                id: "close".to_string(),
+                                label: "Close".to_string(),
+                                intent: StoryIntent::Close,
+                            },
+                        ],
+                        completion_intent: None,
+                    },
+                ],
+            },
+            NpcStoryDialogue {
+                npc_id: "villager-toma".to_string(),
+                branches: vec![
+                    StoryDialogueBranch {
+                        condition: StoryBranchCondition::Always,
+                        speaker: "Toma".to_string(),
+                        lines: vec![
+                            "I patched the south fence this morning. If the slimes cross it again, tell the Guild.".to_string(),
+                        ],
+                        actions: vec![
+                            StoryDialogueAction {
+                                id: "close".to_string(),
+                                label: "Close".to_string(),
+                                intent: StoryIntent::Close,
+                            },
+                        ],
+                        completion_intent: None,
+                    },
+                ],
+            },
         ],
     }
 }

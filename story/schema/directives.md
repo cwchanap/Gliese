@@ -28,6 +28,10 @@ Marks a dialogue branch whose action list should expose quest choices. Use this 
 
 Marks a dialogue branch whose action list should expose shop choices. Requires a `shop` field with a known shop ID.
 
+## `choices: close`
+
+Marks a dialogue branch whose action list should expose a Close action that dismisses the dialogue.
+
 ## `shop: <shopId>`
 
 Required when `choices` includes `shop`. Declares which shop the NPC opens. The shop ID is validated against the manifest's required content.

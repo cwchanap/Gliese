@@ -34,7 +34,7 @@ export const zhHant = {
 		noDrops: '沒有道具掉落',
 		continue: '繼續',
 		questProgressUpdate: '{{progressLabel}}：{{currentProgress}}/{{target}}',
-		defeatReturnedToVillage: '沒有獲得獎勵。已返回村莊。',
+		defeatReturnedToVillage: '沒有獲得獎勵。已返回神社。',
 		close: '關閉',
 		next: '下一步',
 		mainQuest: '主線任務',
@@ -324,7 +324,10 @@ export const zhHant = {
 			npcs: {
 				'guild-master': { name: '公會會長阿倫' },
 				'guild-quartermaster': { name: '補給官維爾' },
-				'shopkeeper-mira': { name: '米拉' }
+				'shopkeeper-mira': { name: '米拉' },
+				'villager-lynn': { name: '琳恩' },
+				'villager-toma': { name: '托馬' },
+				'villager-io': { name: '伊歐' }
 			},
 			areas: {
 				'meadow-entry': '晴滴草原',
@@ -334,6 +337,7 @@ export const zhHant = {
 				'villager-house-1': '村民家',
 				'villager-house-2': '村民家',
 				'villager-house-3': '村民家',
+				'shrine-of-aurora-interior': '極光神社',
 				'ruins-threshold': '廢墟入口',
 				'ruins-core': '廢墟核心'
 			}

@@ -14,13 +14,12 @@ function expectEnglishMessage(key: Parameters<typeof t>[1]): string {
 }
 
 describe('dialogue content', () => {
-	it('defines dialogue for every configured NPC', () => {
+	it('defines action shells for every interactable map NPC', () => {
 		const npcs = Object.values(maps).flatMap((map) => map.npcs ?? []);
 
 		expect(npcs.length).toBeGreaterThan(0);
 		for (const npc of npcs) {
-			const dialogue = getDialogue(npc.dialogueId);
-			expect(dialogue).toBeDefined();
+			expect(getDialogue(npc.dialogueId)?.id).toBe(npc.dialogueId);
 			expectEnglishMessage(npc.nameKey);
 		}
 	});

@@ -91,6 +91,16 @@ const storyClientMock = vi.hoisted(() => {
 				});
 			}
 
+			if (request.npcId === 'villager-lynn') {
+				return createStorySession({
+					id: 'npc:villager-lynn:always',
+					speaker: 'Lynn',
+					lines: ['The kettle is warm if you need a quiet minute before the road.'],
+					choices: [{ id: 'close', label: 'Close', intent: { type: 'close' } }],
+					completionIntent: null
+				});
+			}
+
 			return createStorySession({
 				id: 'npc:shopkeeper-mira:always',
 				speaker: 'Mira',
@@ -664,6 +674,7 @@ describe('BootScene', () => {
 			environmentDressingAsset,
 			fenceDressingAsset,
 			forestDressingAsset,
+			interiorPropAsset,
 			npcPackAsset,
 			starterPackAsset,
 			villageBuildingAsset
@@ -685,6 +696,7 @@ describe('BootScene', () => {
 			forestDressingAsset.path
 		);
 		expect(scene.load.image).toHaveBeenCalledWith(fenceDressingAsset.key, fenceDressingAsset.path);
+		expect(scene.load.image).toHaveBeenCalledWith(interiorPropAsset.key, interiorPropAsset.path);
 		expect(scene.load.image).toHaveBeenCalledWith(
 			environmentDressingAsset.key,
 			environmentDressingAsset.path
@@ -2893,7 +2905,7 @@ describe('WorldScene', () => {
 		expect(emitHudStateSpy).not.toHaveBeenCalled();
 	});
 
-	it('applies a returned battle defeat at the village spawn without clearing the encounter', async () => {
+	it('applies a returned battle defeat at the Shrine spawn without clearing the encounter', async () => {
 		const storage = await import('$lib/game/save/storage');
 		const { createNewSaveState, parseSaveState } = await import('$lib/game/save/save-state');
 		const { WorldScene } = await import('./WorldScene');
@@ -2939,14 +2951,14 @@ describe('WorldScene', () => {
 			const builtSave = (
 				scene as unknown as { buildSaveState: () => ReturnType<typeof createNewSaveState> }
 			).buildSaveState();
-			expect(builtSave.mapId).toBe('meadow-entry');
-			expect(builtSave.player).toMatchObject({ hp: 1, x: 1_536, y: 5_550, facing: 'up' });
+			expect(builtSave.mapId).toBe('shrine-of-aurora-interior');
+			expect(builtSave.player).toMatchObject({ hp: 1, x: 256, y: 288, facing: 'up' });
 			expect(builtSave.wallet.coins).toBe(9);
 			expect(builtSave.flags.clearedEncounters).toEqual([]);
 			expect(parseSaveState(storedSaves.at(-1)!)).toMatchObject({
-				mapId: 'meadow-entry',
+				mapId: 'shrine-of-aurora-interior',
 				flags: expect.objectContaining({ clearedEncounters: [] }),
-				player: expect.objectContaining({ hp: 1, x: 1_536, y: 5_550, facing: 'up' }),
+				player: expect.objectContaining({ hp: 1, x: 256, y: 288, facing: 'up' }),
 				wallet: { coins: 9 }
 			});
 		} finally {
@@ -3246,6 +3258,86 @@ describe('WorldScene', () => {
 		);
 		expect(quartermasterMarkers).toHaveLength(1);
 		expect(quartermasterMarkers[0]!.setDisplaySize).toHaveBeenCalledWith(48, 58);
+	});
+
+	it('registers and renders interior props for compact interiors', async () => {
+		const { interiorPropAsset } = await import('$lib/game/content/assets');
+		const { WorldScene } = await import('./WorldScene');
+		const scene = new WorldScene();
+
+		scene.create({ mapId: 'hero-house' });
+
+		expect(scene.textures.get).toHaveBeenCalledWith(interiorPropAsset.key);
+		for (const [frameName, frame] of Object.entries(interiorPropAsset.frames)) {
+			expect(phaserState.textureMock.add).toHaveBeenCalledWith(
+				frameName,
+				0,
+				frame.x,
+				frame.y,
+				frame.w,
+				frame.h
+			);
+		}
+
+		expect(scene.add.image).toHaveBeenCalledWith(256, 252, 'interior-props', 'rug');
+		expect(scene.add.image).toHaveBeenCalledWith(112, 112, 'interior-props', 'bed');
+		expect(scene.add.image).toHaveBeenCalledWith(256, 144, 'interior-props', 'table');
+		const bedMarker = phaserState.imageMarkers.find(
+			(marker) => marker.x === 112 && marker.y === 112 && marker.frame === 'bed'
+		);
+		expect(bedMarker?.setDisplaySize).toHaveBeenCalledWith(96, 72);
+	});
+
+	it('renders ambient NPCs without treating them as interactable NPCs', async () => {
+		const storyClient = await import('$lib/game/story/client');
+		const { WorldScene } = await import('./WorldScene');
+		const scene = new WorldScene();
+
+		scene.create({ mapId: 'item-shop' });
+
+		expect(scene.add.image).toHaveBeenCalledWith(176, 232, 'npc-pack', 'guildMasterNpc');
+		Object.assign(phaserState.playerMarker, { x: 176, y: 232 });
+		scene.update(0, 16);
+		Object.assign(phaserState.interactKeys.e, { justDown: true });
+		scene.update(16, 16);
+
+		expect(storyClient.getNpcStoryDialogue).not.toHaveBeenCalledWith(
+			expect.objectContaining({ npcId: 'item-shop-customer' })
+		);
+	});
+
+	it('blocks movement through solid interior furniture but not floor props', async () => {
+		const { WorldScene } = await import('./WorldScene');
+		const scene = new WorldScene();
+
+		scene.create({ mapId: 'hero-house' });
+		Object.assign(phaserState.playerMarker, { x: 112, y: 178 });
+		phaserState.cursorKeys.up.isDown = true;
+		scene.update(0, 250);
+
+		expect(phaserState.playerMarker.x).toBe(112);
+		expect(phaserState.playerMarker.y).toBe(178);
+
+		phaserState.cursorKeys.up.isDown = false;
+		Object.assign(phaserState.playerMarker, { x: 256, y: 300 });
+		phaserState.cursorKeys.up.isDown = true;
+		scene.update(250, 250);
+
+		expect(phaserState.playerMarker.x).toBe(256);
+		expect(phaserState.playerMarker.y).toBeLessThan(300);
+	});
+
+	it('allows player movement away from an existing furniture overlap', async () => {
+		const { WorldScene } = await import('./WorldScene');
+		const scene = new WorldScene();
+
+		scene.create({ mapId: 'hero-house' });
+		Object.assign(phaserState.playerMarker, { x: 112, y: 112 });
+		phaserState.cursorKeys.down.isDown = true;
+		scene.update(0, 50);
+
+		expect(phaserState.playerMarker.x).toBe(112);
+		expect(phaserState.playerMarker.y).toBeGreaterThan(112);
 	});
 
 	it('renders Mira with item shop NPC art', async () => {
@@ -4044,6 +4136,40 @@ describe('WorldScene', () => {
 				dialogue: expect.objectContaining({
 					speaker: 'Quartermaster Vale',
 					choices: expect.arrayContaining([expect.objectContaining({ id: 'shop' })])
+				})
+			})
+		);
+	});
+
+	it('starts villager flavor dialogue when an interact key is pressed', async () => {
+		const events = await import('$lib/game/ui-bridge/events');
+		const storyClient = await import('$lib/game/story/client');
+		const emitHudStateSpy = vi.spyOn(events, 'emitHudState');
+		const { WorldScene } = await import('./WorldScene');
+		const scene = new WorldScene();
+
+		scene.create({ mapId: 'villager-house-1' });
+		Object.assign(phaserState.playerMarker, { x: 160, y: 224 });
+		scene.update(0, 16);
+		emitHudStateSpy.mockClear();
+		Object.assign(phaserState.interactKeys.e, { justDown: true });
+		scene.update(16, 16);
+		await flushStoryDialogue();
+
+		expect(storyClient.getNpcStoryDialogue).toHaveBeenCalledWith(
+			expect.objectContaining({
+				npcId: 'villager-lynn',
+				mapId: 'villager-house-1',
+				locale: 'en'
+			})
+		);
+		expect(emitHudStateSpy).toHaveBeenLastCalledWith(
+			expect.objectContaining({
+				status: 'Lynn nearby',
+				dialogue: expect.objectContaining({
+					speaker: 'Lynn',
+					line: 'The kettle is warm if you need a quiet minute before the road.',
+					choices: [expect.objectContaining({ id: 'close', label: 'Close' })]
 				})
 			})
 		);
@@ -5167,6 +5293,54 @@ describe('WorldScene', () => {
 					y: 6_040,
 					facing: 'down'
 				})
+			})
+		});
+	});
+
+	it('enters the Shrine of Aurora from the meadow and exits below the Shrine doorway', async () => {
+		const { createNewSaveState } = await import('$lib/game/save/save-state');
+		const { WorldScene } = await import('./WorldScene');
+		const scene = new WorldScene();
+
+		scene.create({
+			saveState: {
+				...createNewSaveState(),
+				mapId: 'meadow-entry',
+				flags: {
+					clearedEncounters: [],
+					clearedEncounterUnitCounts: {},
+					collectedPickups: [],
+					resolvedEncounterDrops: {}
+				}
+			}
+		});
+		Object.assign(phaserState.playerMarker, { x: 1_050, y: 6_000 });
+		scene.update(0, 16);
+
+		expect(scene.scene.restart).toHaveBeenCalledWith({
+			reason: 'transition',
+			saveState: expect.objectContaining({
+				mapId: 'shrine-of-aurora-interior',
+				player: expect.objectContaining({ x: 256, y: 288, facing: 'up' })
+			})
+		});
+
+		const shrineScene = new WorldScene();
+		phaserState.reset();
+		shrineScene.create({
+			saveState: {
+				...createNewSaveState(),
+				mapId: 'shrine-of-aurora-interior'
+			}
+		});
+		Object.assign(phaserState.playerMarker, { x: 256, y: 336 });
+		shrineScene.update(0, 16);
+
+		expect(shrineScene.scene.restart).toHaveBeenCalledWith({
+			reason: 'transition',
+			saveState: expect.objectContaining({
+				mapId: 'meadow-entry',
+				player: expect.objectContaining({ x: 1_050, y: 6_104, facing: 'down' })
 			})
 		});
 	});
