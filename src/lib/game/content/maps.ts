@@ -300,6 +300,14 @@ export const meadowEntryMap: WorldMapDefinition = addEnglishMapText({
 			arrival: { x: 256, y: 288, facing: 'up' }
 		},
 		{
+			id: 'meadow-to-shrine-of-aurora',
+			x: 1_050,
+			y: 6_000,
+			toMapId: 'shrine-of-aurora-interior',
+			showMarker: false,
+			arrival: { x: 256, y: 288, facing: 'up' }
+		},
+		{
 			id: 'meadow-to-whispering-cave-ruins-threshold',
 			x: 5_960,
 			y: 1_868,
@@ -1083,6 +1091,110 @@ export const villagerHouse3Map: WorldMapDefinition = addEnglishMapText({
 	]
 });
 
+export const shrineOfAuroraInteriorMap: WorldMapDefinition = {
+	id: 'shrine-of-aurora-interior',
+	width: 16,
+	height: 12,
+	spawnDirection: 'up',
+	spawn: { x: 256, y: 288 },
+	transitions: [
+		{
+			id: 'shrine-of-aurora-to-meadow',
+			...interiorDoor,
+			toMapId: openingMapId,
+			arrival: { x: 1_050, y: 6_104, facing: 'down' }
+		}
+	],
+	interiorProps: [
+		{
+			id: 'shrine-of-aurora-rug',
+			x: 256,
+			y: 248,
+			width: 132,
+			height: 76,
+			frameName: 'rug',
+			depth: 'floor'
+		},
+		{
+			id: 'shrine-of-aurora-west-lamp',
+			x: 176,
+			y: 128,
+			width: 46,
+			height: 56,
+			frameName: 'hearthLamp',
+			collision: {
+				id: 'shrine-of-aurora-west-lamp-collision',
+				x: 176,
+				y: 128,
+				width: 36,
+				height: 42
+			}
+		},
+		{
+			id: 'shrine-of-aurora-east-lamp',
+			x: 336,
+			y: 128,
+			width: 46,
+			height: 56,
+			frameName: 'hearthLamp',
+			collision: {
+				id: 'shrine-of-aurora-east-lamp-collision',
+				x: 336,
+				y: 128,
+				width: 36,
+				height: 42
+			}
+		},
+		{
+			id: 'shrine-of-aurora-west-bench',
+			x: 128,
+			y: 224,
+			width: 86,
+			height: 34,
+			frameName: 'bench',
+			collision: {
+				id: 'shrine-of-aurora-west-bench-collision',
+				x: 128,
+				y: 224,
+				width: 76,
+				height: 26
+			}
+		},
+		{
+			id: 'shrine-of-aurora-east-bench',
+			x: 384,
+			y: 224,
+			width: 86,
+			height: 34,
+			frameName: 'bench',
+			collision: {
+				id: 'shrine-of-aurora-east-bench-collision',
+				x: 384,
+				y: 224,
+				width: 76,
+				height: 26
+			}
+		},
+		{
+			id: 'shrine-of-aurora-offerings',
+			x: 256,
+			y: 144,
+			width: 58,
+			height: 40,
+			frameName: 'papers',
+			depth: 'floor'
+		},
+		{
+			id: 'shrine-of-aurora-plant',
+			x: 432,
+			y: 256,
+			width: 36,
+			height: 48,
+			frameName: 'plant'
+		}
+	]
+};
+
 export const ruinsThresholdMap: WorldMapDefinition = {
 	id: 'ruins-threshold',
 	width: 200,
@@ -1422,6 +1534,7 @@ export const maps: DefinitionRegistry<WorldMapDefinition> = {
 	[villagerHouse1Map.id]: villagerHouse1Map,
 	[villagerHouse2Map.id]: villagerHouse2Map,
 	[villagerHouse3Map.id]: villagerHouse3Map,
+	[shrineOfAuroraInteriorMap.id]: shrineOfAuroraInteriorMap,
 	[ruinsThresholdMap.id]: ruinsThresholdMap,
 	[ruinsCoreMap.id]: ruinsCoreMap
 };

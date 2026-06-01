@@ -13,6 +13,7 @@ import {
 	meadowEntryMap,
 	ruinsCoreMap,
 	ruinsThresholdMap,
+	shrineOfAuroraInteriorMap,
 	villagerHouse1Map,
 	villagerHouse2Map,
 	villagerHouse3Map
@@ -260,6 +261,14 @@ describe('opening map content', () => {
 				x: 2_592,
 				y: 4_912,
 				toMapId: 'villager-house-3',
+				showMarker: false,
+				arrival: { x: 256, y: 288, facing: 'up' }
+			},
+			{
+				id: 'meadow-to-shrine-of-aurora',
+				x: 1_050,
+				y: 6_000,
+				toMapId: 'shrine-of-aurora-interior',
 				showMarker: false,
 				arrival: { x: 256, y: 288, facing: 'up' }
 			},
@@ -776,7 +785,8 @@ describe('opening map content', () => {
 			itemShopMap,
 			villagerHouse1Map,
 			villagerHouse2Map,
-			villagerHouse3Map
+			villagerHouse3Map,
+			shrineOfAuroraInteriorMap
 		];
 
 		expect(maps['hero-house']).toBe(heroHouseMap);
@@ -785,6 +795,7 @@ describe('opening map content', () => {
 		expect(maps['villager-house-1']).toBe(villagerHouse1Map);
 		expect(maps['villager-house-2']).toBe(villagerHouse2Map);
 		expect(maps['villager-house-3']).toBe(villagerHouse3Map);
+		expect(maps['shrine-of-aurora-interior']).toBe(shrineOfAuroraInteriorMap);
 
 		for (const map of interiors) {
 			expect(map.width).toBe(16);
@@ -801,7 +812,8 @@ describe('opening map content', () => {
 			itemShopMap,
 			villagerHouse1Map,
 			villagerHouse2Map,
-			villagerHouse3Map
+			villagerHouse3Map,
+			shrineOfAuroraInteriorMap
 		];
 		const allAmbientNpcIds = new Set<string>();
 
@@ -826,6 +838,15 @@ describe('opening map content', () => {
 		expect(villagerHouse3Map.interiorProps?.map((prop) => prop.id)).toContain(
 			'villager-house-3-bookshelf'
 		);
+		expect(shrineOfAuroraInteriorMap.interiorProps?.map((prop) => prop.id)).toEqual([
+			'shrine-of-aurora-rug',
+			'shrine-of-aurora-west-lamp',
+			'shrine-of-aurora-east-lamp',
+			'shrine-of-aurora-west-bench',
+			'shrine-of-aurora-east-bench',
+			'shrine-of-aurora-offerings',
+			'shrine-of-aurora-plant'
+		]);
 		expect(guildHallMap.ambientNpcs?.map((npc) => npc.id)).toEqual([
 			'guild-hall-member-west',
 			'guild-hall-member-east'
@@ -877,7 +898,8 @@ describe('opening map content', () => {
 			itemShopMap,
 			villagerHouse1Map,
 			villagerHouse2Map,
-			villagerHouse3Map
+			villagerHouse3Map,
+			shrineOfAuroraInteriorMap
 		]) {
 			const returnTransition = interiorMap.transitions[0];
 			const exteriorTransition = exteriorTransitions.get(interiorMap.id);
@@ -910,6 +932,11 @@ describe('opening map content', () => {
 		expect(villagerHouse3Map.transitions[0].arrival).toEqual({
 			x: 2_592,
 			y: 5_024,
+			facing: 'down'
+		});
+		expect(shrineOfAuroraInteriorMap.transitions[0].arrival).toEqual({
+			x: 1_050,
+			y: 6_104,
 			facing: 'down'
 		});
 	});

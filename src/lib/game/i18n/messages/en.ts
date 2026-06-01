@@ -31,7 +31,7 @@ export const en = {
 		noDrops: 'No item drops',
 		continue: 'Continue',
 		questProgressUpdate: '{{progressLabel}}: {{currentProgress}}/{{target}}',
-		defeatReturnedToVillage: 'No rewards gained. Returned to the village.',
+		defeatReturnedToVillage: 'No rewards gained. Returned to the Shrine.',
 		close: 'Close',
 		next: 'Next',
 		mainQuest: 'Main Quest',
@@ -334,6 +334,7 @@ export const en = {
 				'villager-house-1': 'Villager House',
 				'villager-house-2': 'Villager House',
 				'villager-house-3': 'Villager House',
+				'shrine-of-aurora-interior': 'Shrine of Aurora',
 				'ruins-threshold': 'Ruins Threshold',
 				'ruins-core': 'Ruins Core'
 			}
