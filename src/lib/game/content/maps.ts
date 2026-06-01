@@ -1,5 +1,6 @@
 import type {
 	ForestDressingFrameName,
+	InteriorPropFrameName,
 	NpcFrameName,
 	StarterPackFrameName
 } from '$lib/game/content/assets';
@@ -110,6 +111,26 @@ export interface MapForestDecor extends MapRect {
 	frameName: ForestDressingFrameName;
 }
 
+export type MapInteriorPropDepth = 'floor' | 'furniture' | 'foreground';
+
+export interface MapInteriorProp extends MapRect {
+	frameName: InteriorPropFrameName;
+	depth?: MapInteriorPropDepth;
+	collision?: MapRect;
+}
+
+export type MapAmbientNpcRole = 'guild-member' | 'shopper' | 'family' | 'neighbor';
+
+export interface MapAmbientNpc {
+	id: string;
+	x: number;
+	y: number;
+	frameName: NpcFrameName;
+	width?: number;
+	height?: number;
+	role?: MapAmbientNpcRole;
+}
+
 export interface WorldMapDefinition extends MapDefinition {
 	spawn: {
 		x: number;
@@ -126,6 +147,8 @@ export interface WorldMapDefinition extends MapDefinition {
 	groundPatches?: MapGroundPatch[];
 	blockers?: MapBlocker[];
 	combatBounds?: MapCombatBounds[];
+	interiorProps?: MapInteriorProp[];
+	ambientNpcs?: MapAmbientNpc[];
 }
 
 type MapNpcSource = Omit<MapNpc, 'name'>;
@@ -545,6 +568,54 @@ export const heroHouseMap: WorldMapDefinition = {
 			toMapId: openingMapId,
 			arrival: { x: 531, y: 6_040, facing: 'down' }
 		}
+	],
+	interiorProps: [
+		{
+			id: 'hero-house-rug',
+			x: 256,
+			y: 252,
+			width: 128,
+			height: 72,
+			frameName: 'rug',
+			depth: 'floor'
+		},
+		{
+			id: 'hero-house-bed',
+			x: 112,
+			y: 112,
+			width: 96,
+			height: 72,
+			frameName: 'bed',
+			collision: { id: 'hero-house-bed-collision', x: 112, y: 112, width: 92, height: 62 }
+		},
+		{
+			id: 'hero-house-table',
+			x: 256,
+			y: 144,
+			width: 76,
+			height: 54,
+			frameName: 'table',
+			collision: { id: 'hero-house-table-collision', x: 256, y: 144, width: 70, height: 46 }
+		},
+		{
+			id: 'hero-house-bookshelf',
+			x: 400,
+			y: 112,
+			width: 64,
+			height: 96,
+			frameName: 'bookshelf',
+			collision: { id: 'hero-house-bookshelf-collision', x: 400, y: 112, width: 56, height: 86 }
+		},
+		{
+			id: 'hero-house-crates',
+			x: 416,
+			y: 248,
+			width: 58,
+			height: 58,
+			frameName: 'crateStack',
+			collision: { id: 'hero-house-crates-collision', x: 416, y: 248, width: 48, height: 48 }
+		},
+		{ id: 'hero-house-plant', x: 96, y: 248, width: 36, height: 48, frameName: 'plant' }
 	]
 };
 
@@ -582,6 +653,87 @@ export const guildHallMap: WorldMapDefinition = addEnglishMapText({
 			frameName: 'quartermasterNpc',
 			shopId: 'guild-quartermaster'
 		}
+	],
+	interiorProps: [
+		{
+			id: 'guild-hall-notice-board',
+			x: 256,
+			y: 64,
+			width: 112,
+			height: 72,
+			frameName: 'noticeBoard',
+			collision: { id: 'guild-hall-notice-board-collision', x: 256, y: 64, width: 96, height: 34 }
+		},
+		{
+			id: 'guild-hall-west-desk',
+			x: 128,
+			y: 152,
+			width: 96,
+			height: 54,
+			frameName: 'table',
+			collision: { id: 'guild-hall-west-desk-collision', x: 128, y: 152, width: 88, height: 44 }
+		},
+		{
+			id: 'guild-hall-east-desk',
+			x: 384,
+			y: 152,
+			width: 96,
+			height: 54,
+			frameName: 'table',
+			collision: { id: 'guild-hall-east-desk-collision', x: 392, y: 152, width: 56, height: 44 }
+		},
+		{
+			id: 'guild-hall-west-bench',
+			x: 128,
+			y: 256,
+			width: 96,
+			height: 34,
+			frameName: 'bench',
+			collision: { id: 'guild-hall-west-bench-collision', x: 128, y: 256, width: 86, height: 26 }
+		},
+		{
+			id: 'guild-hall-east-bench',
+			x: 384,
+			y: 256,
+			width: 96,
+			height: 34,
+			frameName: 'bench',
+			collision: { id: 'guild-hall-east-bench-collision', x: 384, y: 256, width: 86, height: 26 }
+		},
+		{
+			id: 'guild-hall-records',
+			x: 64,
+			y: 96,
+			width: 52,
+			height: 64,
+			frameName: 'papers',
+			collision: { id: 'guild-hall-records-collision', x: 64, y: 96, width: 42, height: 44 }
+		},
+		{
+			id: 'guild-hall-weapon-rack',
+			x: 448,
+			y: 96,
+			width: 56,
+			height: 86,
+			frameName: 'weaponRack',
+			collision: { id: 'guild-hall-weapon-rack-collision', x: 448, y: 96, width: 44, height: 72 }
+		}
+	],
+	ambientNpcs: [
+		{
+			id: 'guild-hall-member-west',
+			x: 96,
+			y: 208,
+			frameName: 'quartermasterNpc',
+			role: 'guild-member'
+		},
+		{
+			id: 'guild-hall-member-east',
+			x: 416,
+			y: 208,
+			frameName: 'miraItemShopNpc',
+			role: 'guild-member'
+		}
 	]
 });
 
@@ -610,6 +762,65 @@ export const itemShopMap: WorldMapDefinition = addEnglishMapText({
 			frameName: 'miraItemShopNpc',
 			shopId: 'miras-item-shop'
 		}
+	],
+	interiorProps: [
+		{
+			id: 'item-shop-counter',
+			x: 256,
+			y: 132,
+			width: 192,
+			height: 58,
+			frameName: 'shopCounter',
+			collision: { id: 'item-shop-counter-collision', x: 256, y: 108, width: 184, height: 48 }
+		},
+		{
+			id: 'item-shop-west-shelf',
+			x: 80,
+			y: 128,
+			width: 62,
+			height: 104,
+			frameName: 'displayShelf',
+			collision: { id: 'item-shop-west-shelf-collision', x: 80, y: 128, width: 50, height: 92 }
+		},
+		{
+			id: 'item-shop-east-shelf',
+			x: 432,
+			y: 128,
+			width: 62,
+			height: 104,
+			frameName: 'displayShelf',
+			collision: { id: 'item-shop-east-shelf-collision', x: 432, y: 128, width: 50, height: 92 }
+		},
+		{
+			id: 'item-shop-rug',
+			x: 256,
+			y: 252,
+			width: 118,
+			height: 70,
+			frameName: 'rug',
+			depth: 'floor'
+		},
+		{
+			id: 'item-shop-crates',
+			x: 416,
+			y: 260,
+			width: 58,
+			height: 58,
+			frameName: 'crateStack',
+			collision: { id: 'item-shop-crates-collision', x: 416, y: 260, width: 48, height: 48 }
+		},
+		{
+			id: 'item-shop-barrel',
+			x: 96,
+			y: 260,
+			width: 46,
+			height: 52,
+			frameName: 'barrel',
+			collision: { id: 'item-shop-barrel-collision', x: 96, y: 260, width: 38, height: 42 }
+		}
+	],
+	ambientNpcs: [
+		{ id: 'item-shop-customer', x: 176, y: 232, frameName: 'guildMasterNpc', role: 'shopper' }
 	]
 });
 
@@ -626,6 +837,68 @@ export const villagerHouse1Map: WorldMapDefinition = {
 			toMapId: openingMapId,
 			arrival: { x: 333, y: 5_312, facing: 'down' }
 		}
+	],
+	interiorProps: [
+		{
+			id: 'villager-house-1-rug',
+			x: 256,
+			y: 252,
+			width: 118,
+			height: 70,
+			frameName: 'rug',
+			depth: 'floor'
+		},
+		{
+			id: 'villager-house-1-family-table',
+			x: 256,
+			y: 152,
+			width: 82,
+			height: 56,
+			frameName: 'table',
+			collision: {
+				id: 'villager-house-1-family-table-collision',
+				x: 256,
+				y: 152,
+				width: 72,
+				height: 46
+			}
+		},
+		{
+			id: 'villager-house-1-bed',
+			x: 104,
+			y: 112,
+			width: 90,
+			height: 66,
+			frameName: 'bed',
+			collision: { id: 'villager-house-1-bed-collision', x: 104, y: 112, width: 82, height: 56 }
+		},
+		{
+			id: 'villager-house-1-bench',
+			x: 384,
+			y: 176,
+			width: 82,
+			height: 34,
+			frameName: 'bench',
+			collision: { id: 'villager-house-1-bench-collision', x: 384, y: 176, width: 72, height: 26 }
+		},
+		{
+			id: 'villager-house-1-crates',
+			x: 416,
+			y: 264,
+			width: 54,
+			height: 54,
+			frameName: 'crateStack',
+			collision: {
+				id: 'villager-house-1-crates-collision',
+				x: 416,
+				y: 264,
+				width: 44,
+				height: 44
+			}
+		}
+	],
+	ambientNpcs: [
+		{ id: 'villager-house-1-family', x: 336, y: 224, frameName: 'miraItemShopNpc', role: 'family' }
 	]
 };
 
@@ -642,6 +915,54 @@ export const villagerHouse2Map: WorldMapDefinition = {
 			toMapId: openingMapId,
 			arrival: { x: 1_011, y: 4_816, facing: 'down' }
 		}
+	],
+	interiorProps: [
+		{
+			id: 'villager-house-2-work-table',
+			x: 160,
+			y: 144,
+			width: 92,
+			height: 58,
+			frameName: 'table',
+			collision: {
+				id: 'villager-house-2-work-table-collision',
+				x: 160,
+				y: 144,
+				width: 82,
+				height: 48
+			}
+		},
+		{
+			id: 'villager-house-2-shelf',
+			x: 400,
+			y: 112,
+			width: 62,
+			height: 96,
+			frameName: 'bookshelf',
+			collision: { id: 'villager-house-2-shelf-collision', x: 400, y: 112, width: 52, height: 84 }
+		},
+		{
+			id: 'villager-house-2-crates',
+			x: 96,
+			y: 256,
+			width: 58,
+			height: 58,
+			frameName: 'crateStack',
+			collision: { id: 'villager-house-2-crates-collision', x: 96, y: 256, width: 48, height: 48 }
+		},
+		{
+			id: 'villager-house-2-papers',
+			x: 280,
+			y: 196,
+			width: 54,
+			height: 38,
+			frameName: 'papers',
+			depth: 'floor'
+		},
+		{ id: 'villager-house-2-plant', x: 416, y: 256, width: 36, height: 48, frameName: 'plant' }
+	],
+	ambientNpcs: [
+		{ id: 'villager-house-2-neighbor', x: 320, y: 224, frameName: 'guildMasterNpc', role: 'neighbor' }
 	]
 };
 
@@ -657,6 +978,74 @@ export const villagerHouse3Map: WorldMapDefinition = {
 			...interiorDoor,
 			toMapId: openingMapId,
 			arrival: { x: 2_592, y: 5_024, facing: 'down' }
+		}
+	],
+	interiorProps: [
+		{
+			id: 'villager-house-3-bookshelf',
+			x: 112,
+			y: 112,
+			width: 68,
+			height: 104,
+			frameName: 'bookshelf',
+			collision: {
+				id: 'villager-house-3-bookshelf-collision',
+				x: 112,
+				y: 112,
+				width: 58,
+				height: 92
+			}
+		},
+		{
+			id: 'villager-house-3-east-bookshelf',
+			x: 400,
+			y: 112,
+			width: 68,
+			height: 104,
+			frameName: 'bookshelf',
+			collision: {
+				id: 'villager-house-3-east-bookshelf-collision',
+				x: 400,
+				y: 112,
+				width: 58,
+				height: 92
+			}
+		},
+		{
+			id: 'villager-house-3-rug',
+			x: 256,
+			y: 252,
+			width: 118,
+			height: 70,
+			frameName: 'rug',
+			depth: 'floor'
+		},
+		{
+			id: 'villager-house-3-papers',
+			x: 256,
+			y: 156,
+			width: 58,
+			height: 40,
+			frameName: 'papers',
+			depth: 'floor'
+		},
+		{
+			id: 'villager-house-3-lamp',
+			x: 416,
+			y: 256,
+			width: 46,
+			height: 56,
+			frameName: 'hearthLamp',
+			collision: { id: 'villager-house-3-lamp-collision', x: 416, y: 256, width: 36, height: 42 }
+		}
+	],
+	ambientNpcs: [
+		{
+			id: 'villager-house-3-neighbor',
+			x: 176,
+			y: 224,
+			frameName: 'quartermasterNpc',
+			role: 'neighbor'
 		}
 	]
 };
