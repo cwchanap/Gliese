@@ -825,9 +825,7 @@ describe('opening map content', () => {
 			'hero-house-crates',
 			'hero-house-plant'
 		]);
-		expect(guildHallMap.interiorProps?.map((prop) => prop.id)).toContain(
-			'guild-hall-notice-board'
-		);
+		expect(guildHallMap.interiorProps?.map((prop) => prop.id)).toContain('guild-hall-notice-board');
 		expect(itemShopMap.interiorProps?.map((prop) => prop.id)).toContain('item-shop-counter');
 		expect(villagerHouse1Map.interiorProps?.map((prop) => prop.id)).toContain(
 			'villager-house-1-family-table'
