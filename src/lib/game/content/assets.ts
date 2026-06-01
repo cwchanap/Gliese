@@ -73,6 +73,32 @@ export const fenceDressingAsset = {
 
 export type FenceDressingFrameName = keyof typeof fenceDressingAsset.frames;
 
+export const interiorPropAsset = {
+	key: 'interior-props',
+	path: '/game/assets/interior-props.png',
+	cellWidth: 128,
+	cellHeight: 128,
+	columns: 4,
+	frames: {
+		bed: { x: 0, y: 0, w: 128, h: 128 },
+		table: { x: 128, y: 0, w: 128, h: 128 },
+		bench: { x: 256, y: 0, w: 128, h: 128 },
+		bookshelf: { x: 384, y: 0, w: 128, h: 128 },
+		shopCounter: { x: 0, y: 128, w: 128, h: 128 },
+		noticeBoard: { x: 128, y: 128, w: 128, h: 128 },
+		rug: { x: 256, y: 128, w: 128, h: 128 },
+		crateStack: { x: 384, y: 128, w: 128, h: 128 },
+		barrel: { x: 0, y: 256, w: 128, h: 128 },
+		displayShelf: { x: 128, y: 256, w: 128, h: 128 },
+		papers: { x: 256, y: 256, w: 128, h: 128 },
+		weaponRack: { x: 384, y: 256, w: 128, h: 128 },
+		hearthLamp: { x: 0, y: 384, w: 128, h: 128 },
+		plant: { x: 128, y: 384, w: 128, h: 128 }
+	}
+} as const;
+
+export type InteriorPropFrameName = keyof typeof interiorPropAsset.frames;
+
 export const environmentDressingAsset = {
 	key: 'environment-dressing',
 	path: '/game/assets/environment-dressing.png',

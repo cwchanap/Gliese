@@ -8,6 +8,7 @@ import {
 	getActorAnimationAsset,
 	getEnemyActorId,
 	getVillageBuildingFrameName,
+	interiorPropAsset,
 	isNpcPackFrameName,
 	npcPackAsset,
 	starterPackAsset,
@@ -16,6 +17,7 @@ import {
 	type ActorAnimationKey,
 	type FenceDressingFrameName,
 	type ForestDressingFrameName,
+	type InteriorPropFrameName,
 	type VillageBuildingFrameName
 } from '$lib/game/content/assets';
 import { meadowEntryMap } from '$lib/game/content/maps';
@@ -43,6 +45,22 @@ const requiredFenceFrames: FenceDressingFrameName[] = [
 	'verticalFence',
 	'fencePost',
 	'gateMarker'
+];
+const requiredInteriorPropFrames: InteriorPropFrameName[] = [
+	'bed',
+	'table',
+	'bench',
+	'bookshelf',
+	'shopCounter',
+	'noticeBoard',
+	'rug',
+	'crateStack',
+	'barrel',
+	'displayShelf',
+	'papers',
+	'weaponRack',
+	'hearthLamp',
+	'plant'
 ];
 
 describe('starter pack asset frames', () => {
@@ -132,6 +150,35 @@ describe('fence dressing asset metadata', () => {
 			gateMarker: { x: 256, y: 256, w: 256, h: 256 }
 		});
 		expect(Object.keys(fenceDressingAsset.frames)).toEqual(requiredFenceFrames);
+	});
+});
+
+describe('interior prop asset metadata', () => {
+	it('loads reusable interior props from a fixed 4x4 transparent sheet', () => {
+		expect(interiorPropAsset).toMatchObject({
+			key: 'interior-props',
+			path: '/game/assets/interior-props.png',
+			cellWidth: 128,
+			cellHeight: 128,
+			columns: 4
+		});
+		expect(interiorPropAsset.frames).toEqual({
+			bed: { x: 0, y: 0, w: 128, h: 128 },
+			table: { x: 128, y: 0, w: 128, h: 128 },
+			bench: { x: 256, y: 0, w: 128, h: 128 },
+			bookshelf: { x: 384, y: 0, w: 128, h: 128 },
+			shopCounter: { x: 0, y: 128, w: 128, h: 128 },
+			noticeBoard: { x: 128, y: 128, w: 128, h: 128 },
+			rug: { x: 256, y: 128, w: 128, h: 128 },
+			crateStack: { x: 384, y: 128, w: 128, h: 128 },
+			barrel: { x: 0, y: 256, w: 128, h: 128 },
+			displayShelf: { x: 128, y: 256, w: 128, h: 128 },
+			papers: { x: 256, y: 256, w: 128, h: 128 },
+			weaponRack: { x: 384, y: 256, w: 128, h: 128 },
+			hearthLamp: { x: 0, y: 384, w: 128, h: 128 },
+			plant: { x: 128, y: 384, w: 128, h: 128 }
+		});
+		expect(Object.keys(interiorPropAsset.frames)).toEqual(requiredInteriorPropFrames);
 	});
 });
 
