@@ -989,7 +989,7 @@ describe('opening map content', () => {
 
 		for (const map of Object.values(maps)) {
 			for (const npc of map.npcs ?? []) {
-				expectEnglishMessage(npc.nameKey);
+				expect(npc.name).toBe(expectEnglishMessage(npc.nameKey));
 				expect(getDialogue(npc.dialogueId)).toBeDefined();
 				expect(roles).toContain(npc.role);
 				expect(npc.x).toBeGreaterThanOrEqual(0);
