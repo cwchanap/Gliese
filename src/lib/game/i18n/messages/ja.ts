@@ -34,7 +34,7 @@ export const ja = {
 		noDrops: 'アイテムドロップなし',
 		continue: '続ける',
 		questProgressUpdate: '{{progressLabel}}: {{currentProgress}}/{{target}}',
-		defeatReturnedToVillage: '報酬はありません。村へ戻りました。',
+		defeatReturnedToVillage: '報酬はありません。社へ戻りました。',
 		close: '閉じる',
 		next: '次へ',
 		mainQuest: 'メインクエスト',
@@ -337,6 +337,7 @@ export const ja = {
 				'villager-house-1': '民家',
 				'villager-house-2': '民家',
 				'villager-house-3': '民家',
+				'shrine-of-aurora-interior': 'オーロラの社',
 				'ruins-threshold': '遺跡の境界',
 				'ruins-core': '遺跡の中心'
 			}

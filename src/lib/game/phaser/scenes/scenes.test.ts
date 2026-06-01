@@ -2905,7 +2905,7 @@ describe('WorldScene', () => {
 		expect(emitHudStateSpy).not.toHaveBeenCalled();
 	});
 
-	it('applies a returned battle defeat at the village spawn without clearing the encounter', async () => {
+	it('applies a returned battle defeat at the Shrine spawn without clearing the encounter', async () => {
 		const storage = await import('$lib/game/save/storage');
 		const { createNewSaveState, parseSaveState } = await import('$lib/game/save/save-state');
 		const { WorldScene } = await import('./WorldScene');
@@ -2951,14 +2951,14 @@ describe('WorldScene', () => {
 			const builtSave = (
 				scene as unknown as { buildSaveState: () => ReturnType<typeof createNewSaveState> }
 			).buildSaveState();
-			expect(builtSave.mapId).toBe('meadow-entry');
-			expect(builtSave.player).toMatchObject({ hp: 1, x: 1_536, y: 5_550, facing: 'up' });
+			expect(builtSave.mapId).toBe('shrine-of-aurora-interior');
+			expect(builtSave.player).toMatchObject({ hp: 1, x: 256, y: 288, facing: 'up' });
 			expect(builtSave.wallet.coins).toBe(9);
 			expect(builtSave.flags.clearedEncounters).toEqual([]);
 			expect(parseSaveState(storedSaves.at(-1)!)).toMatchObject({
-				mapId: 'meadow-entry',
+				mapId: 'shrine-of-aurora-interior',
 				flags: expect.objectContaining({ clearedEncounters: [] }),
-				player: expect.objectContaining({ hp: 1, x: 1_536, y: 5_550, facing: 'up' }),
+				player: expect.objectContaining({ hp: 1, x: 256, y: 288, facing: 'up' }),
 				wallet: { coins: 9 }
 			});
 		} finally {
@@ -5293,6 +5293,54 @@ describe('WorldScene', () => {
 					y: 6_040,
 					facing: 'down'
 				})
+			})
+		});
+	});
+
+	it('enters the Shrine of Aurora from the meadow and exits below the Shrine doorway', async () => {
+		const { createNewSaveState } = await import('$lib/game/save/save-state');
+		const { WorldScene } = await import('./WorldScene');
+		const scene = new WorldScene();
+
+		scene.create({
+			saveState: {
+				...createNewSaveState(),
+				mapId: 'meadow-entry',
+				flags: {
+					clearedEncounters: [],
+					clearedEncounterUnitCounts: {},
+					collectedPickups: [],
+					resolvedEncounterDrops: {}
+				}
+			}
+		});
+		Object.assign(phaserState.playerMarker, { x: 1_050, y: 6_000 });
+		scene.update(0, 16);
+
+		expect(scene.scene.restart).toHaveBeenCalledWith({
+			reason: 'transition',
+			saveState: expect.objectContaining({
+				mapId: 'shrine-of-aurora-interior',
+				player: expect.objectContaining({ x: 256, y: 288, facing: 'up' })
+			})
+		});
+
+		const shrineScene = new WorldScene();
+		phaserState.reset();
+		shrineScene.create({
+			saveState: {
+				...createNewSaveState(),
+				mapId: 'shrine-of-aurora-interior'
+			}
+		});
+		Object.assign(phaserState.playerMarker, { x: 256, y: 336 });
+		shrineScene.update(0, 16);
+
+		expect(shrineScene.scene.restart).toHaveBeenCalledWith({
+			reason: 'transition',
+			saveState: expect.objectContaining({
+				mapId: 'meadow-entry',
+				player: expect.objectContaining({ x: 1_050, y: 6_104, facing: 'down' })
 			})
 		});
 	});

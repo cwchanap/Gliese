@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { enemies } from '$lib/game/content/enemies';
-import { openingMapId } from '$lib/game/content/maps';
+import { shrineOfAuroraInteriorMap } from '$lib/game/content/maps';
 import { mainQuestId } from '$lib/game/content/quests';
 import { acceptQuest, applyQuestEvent } from '$lib/game/core/quests';
 import { createNewSaveState } from '$lib/game/save/save-state';
@@ -355,7 +355,7 @@ describe('battle contracts', () => {
 		expect(application.summary.completedQuestIds).toEqual([]);
 	});
 
-	it('applies a defeat result by sending the hero to meadow-entry at 1 HP without rewards', () => {
+	it('applies a defeat result by sending the hero to the Shrine at 1 HP without rewards', () => {
 		const saveState = {
 			...createNewSaveState(),
 			mapId: 'ruins-threshold',
@@ -381,12 +381,12 @@ describe('battle contracts', () => {
 
 		const application = applyBattleResultToSaveState(saveState, result);
 
-		expect(application.saveState.mapId).toBe(openingMapId);
+		expect(application.saveState.mapId).toBe(shrineOfAuroraInteriorMap.id);
 		expect(application.saveState.player).toMatchObject({
 			hp: 1,
-			x: 1_536,
-			y: 5_550,
-			facing: 'up'
+			x: shrineOfAuroraInteriorMap.spawn.x,
+			y: shrineOfAuroraInteriorMap.spawn.y,
+			facing: shrineOfAuroraInteriorMap.spawnDirection
 		});
 		expect(application.saveState.wallet.coins).toBe(30);
 		expect(application.saveState.flags.clearedEncounters).toEqual([]);

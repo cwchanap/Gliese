@@ -1,5 +1,5 @@
 import { enemies, type EnemyCombatDefinition } from '$lib/game/content/enemies';
-import { maps, openingMapId } from '$lib/game/content/maps';
+import { maps, openingMapId, shrineOfAuroraInteriorMap } from '$lib/game/content/maps';
 import { addItem } from '$lib/game/core/inventory';
 import type { ItemDrop } from '$lib/game/core/loot';
 import { applyExperienceGain, type ProgressionState } from '$lib/game/core/progression';
@@ -304,18 +304,18 @@ function normalizeBattleEnemyCount(count: number): number {
 }
 
 function applyBattleDefeat(saveState: SaveState, result: BattleResult): BattleApplication {
-	const meadowEntry = maps[openingMapId]!;
+	const shrine = shrineOfAuroraInteriorMap;
 
 	return {
 		saveState: {
 			...saveState,
-			mapId: openingMapId,
+			mapId: shrine.id,
 			player: {
 				...saveState.player,
 				hp: 1,
-				x: meadowEntry.spawn.x,
-				y: meadowEntry.spawn.y,
-				facing: meadowEntry.spawnDirection
+				x: shrine.spawn.x,
+				y: shrine.spawn.y,
+				facing: shrine.spawnDirection
 			},
 			inventory: result.inventory
 		},
