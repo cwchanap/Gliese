@@ -992,7 +992,13 @@ export const villagerHouse2Map: WorldMapDefinition = addEnglishMapText({
 		}
 	],
 	ambientNpcs: [
-		{ id: 'villager-house-2-neighbor', x: 320, y: 224, frameName: 'guildMasterNpc', role: 'neighbor' }
+		{
+			id: 'villager-house-2-neighbor',
+			x: 320,
+			y: 224,
+			frameName: 'guildMasterNpc',
+			role: 'neighbor'
+		}
 	]
 });
 
