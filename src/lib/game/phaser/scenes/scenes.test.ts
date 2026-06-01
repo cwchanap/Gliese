@@ -3250,6 +3250,73 @@ describe('WorldScene', () => {
 		expect(quartermasterMarkers[0]!.setDisplaySize).toHaveBeenCalledWith(48, 58);
 	});
 
+	it('registers and renders interior props for compact interiors', async () => {
+		const { interiorPropAsset } = await import('$lib/game/content/assets');
+		const { WorldScene } = await import('./WorldScene');
+		const scene = new WorldScene();
+
+		scene.create({ mapId: 'hero-house' });
+
+		expect(scene.textures.get).toHaveBeenCalledWith(interiorPropAsset.key);
+		for (const [frameName, frame] of Object.entries(interiorPropAsset.frames)) {
+			expect(phaserState.textureMock.add).toHaveBeenCalledWith(
+				frameName,
+				0,
+				frame.x,
+				frame.y,
+				frame.w,
+				frame.h
+			);
+		}
+
+		expect(scene.add.image).toHaveBeenCalledWith(256, 252, 'interior-props', 'rug');
+		expect(scene.add.image).toHaveBeenCalledWith(112, 112, 'interior-props', 'bed');
+		expect(scene.add.image).toHaveBeenCalledWith(256, 144, 'interior-props', 'table');
+		const bedMarker = phaserState.imageMarkers.find(
+			(marker) => marker.x === 112 && marker.y === 112 && marker.frame === 'bed'
+		);
+		expect(bedMarker?.setDisplaySize).toHaveBeenCalledWith(96, 72);
+	});
+
+	it('renders ambient NPCs without treating them as interactable NPCs', async () => {
+		const storyClient = await import('$lib/game/story/client');
+		const { WorldScene } = await import('./WorldScene');
+		const scene = new WorldScene();
+
+		scene.create({ mapId: 'item-shop' });
+
+		expect(scene.add.image).toHaveBeenCalledWith(176, 232, 'npc-pack', 'guildMasterNpc');
+		Object.assign(phaserState.playerMarker, { x: 176, y: 232 });
+		scene.update(0, 16);
+		Object.assign(phaserState.interactKeys.e, { justDown: true });
+		scene.update(16, 16);
+
+		expect(storyClient.getNpcStoryDialogue).not.toHaveBeenCalledWith(
+			expect.objectContaining({ npcId: 'item-shop-customer' })
+		);
+	});
+
+	it('blocks movement through solid interior furniture but not floor props', async () => {
+		const { WorldScene } = await import('./WorldScene');
+		const scene = new WorldScene();
+
+		scene.create({ mapId: 'hero-house' });
+		Object.assign(phaserState.playerMarker, { x: 112, y: 178 });
+		phaserState.cursorKeys.up.isDown = true;
+		scene.update(0, 250);
+
+		expect(phaserState.playerMarker.x).toBe(112);
+		expect(phaserState.playerMarker.y).toBe(178);
+
+		phaserState.cursorKeys.up.isDown = false;
+		Object.assign(phaserState.playerMarker, { x: 256, y: 300 });
+		phaserState.cursorKeys.up.isDown = true;
+		scene.update(250, 250);
+
+		expect(phaserState.playerMarker.x).toBe(256);
+		expect(phaserState.playerMarker.y).toBeLessThan(300);
+	});
+
 	it('renders Mira with item shop NPC art', async () => {
 		const { WorldScene } = await import('./WorldScene');
 		const scene = new WorldScene();
