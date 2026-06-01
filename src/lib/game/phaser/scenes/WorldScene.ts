@@ -11,6 +11,7 @@ import {
 	getEnemyActorId,
 	getGroundFrameName,
 	getVillageBuildingFrameName,
+	interiorPropAsset,
 	isNpcPackFrameName,
 	npcPackAsset,
 	starterPackAsset,
@@ -29,6 +30,8 @@ import {
 	type MapForestDecor,
 	type MapForestZone,
 	type MapGroundPatch,
+	type MapAmbientNpc,
+	type MapInteriorProp,
 	type MapLandmark,
 	type MapNpc,
 	type MapRect,
@@ -434,6 +437,7 @@ export class WorldScene extends Phaser.Scene {
 		this.registerForestDressingFrames();
 		this.registerFenceDressingFrames();
 		this.registerEnvironmentDressingFrames();
+		this.registerInteriorPropFrames();
 		this.registerAnimationPackFrames();
 		this.ensureActorAnimations();
 		this.ensureTerrainTilesetTexture();
@@ -442,6 +446,7 @@ export class WorldScene extends Phaser.Scene {
 		this.renderFences(map);
 		this.renderBlockers(map);
 		this.renderLandmarks(map);
+		this.renderInteriorProps(map, ['floor', 'furniture']);
 		const heroAnimation = getActorAnimationAsset('hero');
 		this.player = this.add.sprite(
 			activeSave?.player.x ?? map.spawn.x,
@@ -460,6 +465,8 @@ export class WorldScene extends Phaser.Scene {
 		this.renderTransitions(map);
 		this.renderPickups(map);
 		this.renderNpcs(map);
+		this.renderAmbientNpcs(map);
+		this.renderInteriorProps(map, ['foreground']);
 
 		this.cameras.main.setBackgroundColor('#1a1f2b');
 		const cameraBounds = this.getCenteredCameraBounds(width, height);
@@ -1416,6 +1423,16 @@ export class WorldScene extends Phaser.Scene {
 		}
 	}
 
+	private registerInteriorPropFrames() {
+		const texture = this.textures.get(interiorPropAsset.key);
+
+		for (const [frameName, frame] of Object.entries(interiorPropAsset.frames)) {
+			if (!texture.has(frameName)) {
+				texture.add(frameName, 0, frame.x, frame.y, frame.w, frame.h);
+			}
+		}
+	}
+
 	private ensureActorAnimations() {
 		for (const actor of Object.values(actorAnimationAssets)) {
 			for (const clipName of actorAnimationKeys) {
@@ -1955,6 +1972,35 @@ export class WorldScene extends Phaser.Scene {
 		}
 	}
 
+	private renderInteriorProps(map: WorldMapDefinition, depths: Array<MapInteriorProp['depth']>) {
+		for (const prop of map.interiorProps ?? []) {
+			const depth = prop.depth ?? 'furniture';
+
+			if (!depths.includes(depth)) {
+				continue;
+			}
+
+			this.add
+				.image(prop.x, prop.y, interiorPropAsset.key, prop.frameName)
+				.setDisplaySize(prop.width, prop.height);
+		}
+	}
+
+	private renderAmbientNpcs(map: WorldMapDefinition) {
+		const ambientNpcs: MapAmbientNpc[] = map.ambientNpcs ?? [];
+
+		for (const npc of ambientNpcs) {
+			const usesNpcPack = isNpcPackFrameName(npc.frameName);
+			const displaySize = usesNpcPack
+				? WorldScene.npcPackDisplaySize
+				: WorldScene.starterNpcDisplaySize;
+
+			this.add
+				.image(npc.x, npc.y, usesNpcPack ? npcPackAsset.key : starterPackAsset.key, npc.frameName)
+				.setDisplaySize(npc.width ?? displaySize.width, npc.height ?? displaySize.height);
+		}
+	}
+
 	private renderNpcs(map: WorldMapDefinition) {
 		this.npcMarkers.clear();
 
@@ -2031,6 +2077,7 @@ export class WorldScene extends Phaser.Scene {
 	): boolean {
 		return (
 			this.isPlayerMovementBlockedByNpc(currentX, currentY, targetX, targetY) ||
+			this.isPlayerMovementBlockedByInteriorProp(currentX, currentY, targetX, targetY) ||
 			this.isPlayerMovementBlockedByLandmark(currentX, currentY, targetX, targetY) ||
 			this.isPlayerMovementBlockedByFence(currentX, currentY, targetX, targetY) ||
 			this.isPlayerMovementBlockedByBlocker(currentX, currentY, targetX, targetY) ||
@@ -2100,6 +2147,30 @@ export class WorldScene extends Phaser.Scene {
 			: WorldScene.starterNpcDisplaySize;
 
 		return (Math.min(displaySize.width, displaySize.height) / 2) * WorldScene.npcCollisionScale;
+	}
+
+	private isPlayerMovementBlockedByInteriorProp(
+		currentX: number,
+		currentY: number,
+		targetX: number,
+		targetY: number
+	): boolean {
+		const map = this.resolveMap(this.mapId);
+
+		return (map.interiorProps ?? []).some((prop) => {
+			if (!prop.collision) {
+				return false;
+			}
+
+			return this.isMovementBlockedByStrictRect(
+				currentX,
+				currentY,
+				targetX,
+				targetY,
+				this.getMapRectBounds(prop.collision),
+				WorldScene.playerRadius
+			);
+		});
 	}
 
 	private isPlayerMovementBlockedByLandmark(
@@ -2211,9 +2282,7 @@ export class WorldScene extends Phaser.Scene {
 		};
 	}
 
-	private getMapRectBounds(
-		rect: MapFenceSegment | MapForestDecor | MapForestZone | MapBlocker | MapCombatBounds
-	): LandmarkCollisionBounds {
+	private getMapRectBounds(rect: MapRect): LandmarkCollisionBounds {
 		const left = rect.x - rect.width / 2;
 		const right = rect.x + rect.width / 2;
 		const top = rect.y - rect.height / 2;
