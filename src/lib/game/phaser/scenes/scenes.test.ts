@@ -3317,6 +3317,19 @@ describe('WorldScene', () => {
 		expect(phaserState.playerMarker.y).toBeLessThan(300);
 	});
 
+	it('allows player movement away from an existing furniture overlap', async () => {
+		const { WorldScene } = await import('./WorldScene');
+		const scene = new WorldScene();
+
+		scene.create({ mapId: 'hero-house' });
+		Object.assign(phaserState.playerMarker, { x: 112, y: 112 });
+		phaserState.cursorKeys.down.isDown = true;
+		scene.update(0, 50);
+
+		expect(phaserState.playerMarker.x).toBe(112);
+		expect(phaserState.playerMarker.y).toBeGreaterThan(112);
+	});
+
 	it('renders Mira with item shop NPC art', async () => {
 		const { WorldScene } = await import('./WorldScene');
 		const scene = new WorldScene();
