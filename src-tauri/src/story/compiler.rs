@@ -97,6 +97,7 @@ fn compile_action(choice: &str, dialogue: &BeatDialogue) -> Result<StoryDialogue
                 },
             )
         }
+        "close" => ("Close", StoryIntent::Close),
         _ => {
             return Err(format!(
                 "unknown dialogue choice {} for npc {}",
@@ -270,6 +271,38 @@ Stock up before you go.
                 shop_id: "guild-quartermaster".to_string()
             }
         );
+    }
+
+    #[test]
+    fn compiles_close_choice_to_close_intent() {
+        let beat = crate::story::beat::parse_beat_markdown(
+            r#"# Villager House
+
+::: story
+id: prologue.villager-house-1-family
+chapter: prologue
+map: villager-house-1
+primaryNpc: villager-house-1-family
+:::
+
+::: dialogue
+npc: villager-house-1-family
+branch: always
+speaker: Villager
+choices: close
+:::
+
+Make yourself at home.
+"#,
+        )
+        .unwrap();
+
+        let catalog = compile_catalog("sundrop-ruins", "en", &[beat]).expect("compile");
+        let branch = &catalog.npc_dialogues[0].branches[0];
+
+        assert_eq!(branch.actions[0].id, "close");
+        assert_eq!(branch.actions[0].label, "Close");
+        assert_eq!(branch.actions[0].intent, StoryIntent::Close);
     }
 
     #[test]
