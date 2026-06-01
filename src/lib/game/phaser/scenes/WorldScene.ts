@@ -2162,12 +2162,14 @@ export class WorldScene extends Phaser.Scene {
 				return false;
 			}
 
-			return this.isMovementBlockedByStrictRect(
+			const bounds = this.getMapRectBounds(prop.collision);
+
+			return this.isMovementBlockedByEscapeAwareRect(
 				currentX,
 				currentY,
 				targetX,
 				targetY,
-				this.getMapRectBounds(prop.collision),
+				bounds,
 				WorldScene.playerRadius
 			);
 		});
@@ -2436,6 +2438,35 @@ export class WorldScene extends Phaser.Scene {
 			targetX,
 			targetY,
 			rect,
+			padding
+		);
+	}
+
+	private isMovementBlockedByEscapeAwareRect(
+		currentX: number,
+		currentY: number,
+		targetX: number,
+		targetY: number,
+		bounds: LandmarkCollisionBounds,
+		padding: number
+	) {
+		const currentInside = this.isPointInsideRect(currentX, currentY, bounds, padding);
+		const targetInside = this.isPointInsideRect(targetX, targetY, bounds, padding);
+
+		if (currentInside) {
+			return (
+				targetInside &&
+				this.getPointDistanceFromBoundsCenter(targetX, targetY, bounds) <=
+					this.getPointDistanceFromBoundsCenter(currentX, currentY, bounds)
+			);
+		}
+
+		return this.doesMovementSegmentIntersectRect(
+			currentX,
+			currentY,
+			targetX,
+			targetY,
+			bounds,
 			padding
 		);
 	}
