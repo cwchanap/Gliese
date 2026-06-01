@@ -824,7 +824,7 @@ export const itemShopMap: WorldMapDefinition = addEnglishMapText({
 	]
 });
 
-export const villagerHouse1Map: WorldMapDefinition = {
+export const villagerHouse1Map: WorldMapDefinition = addEnglishMapText({
 	id: 'villager-house-1',
 	width: 16,
 	height: 12,
@@ -911,9 +911,9 @@ export const villagerHouse1Map: WorldMapDefinition = {
 	ambientNpcs: [
 		{ id: 'villager-house-1-family', x: 336, y: 224, frameName: 'miraItemShopNpc', role: 'family' }
 	]
-};
+});
 
-export const villagerHouse2Map: WorldMapDefinition = {
+export const villagerHouse2Map: WorldMapDefinition = addEnglishMapText({
 	id: 'villager-house-2',
 	width: 16,
 	height: 12,
@@ -986,9 +986,9 @@ export const villagerHouse2Map: WorldMapDefinition = {
 	ambientNpcs: [
 		{ id: 'villager-house-2-neighbor', x: 320, y: 224, frameName: 'guildMasterNpc', role: 'neighbor' }
 	]
-};
+});
 
-export const villagerHouse3Map: WorldMapDefinition = {
+export const villagerHouse3Map: WorldMapDefinition = addEnglishMapText({
 	id: 'villager-house-3',
 	width: 16,
 	height: 12,
@@ -1081,7 +1081,7 @@ export const villagerHouse3Map: WorldMapDefinition = {
 			role: 'neighbor'
 		}
 	]
-};
+});
 
 export const ruinsThresholdMap: WorldMapDefinition = {
 	id: 'ruins-threshold',
