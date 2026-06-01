@@ -83,9 +83,9 @@ Expected: the source file exists and is not referenced by project code.
 If the generated image is not already transparent, run:
 
 ```sh
-python3 /Users/chanwaichan/.codex/skills/.system/imagegen/scripts/remove_chroma_key.py \
-  --input /private/tmp/gliese-interior-prop-art/interior-props-source.png \
-  --out /private/tmp/gliese-interior-prop-art/interior-props-alpha.png \
+python3 "${IMAGEGEN_SCRIPT:-$HOME/.codex/skills/.system/imagegen/scripts/remove_chroma_key.py}" \
+  --input /tmp/gliese-interior-prop-art/interior-props-source.png \
+  --out /tmp/gliese-interior-prop-art/interior-props-alpha.png \
   --auto-key border \
   --soft-matte \
   --transparent-threshold 12 \

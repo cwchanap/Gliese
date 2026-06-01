@@ -688,7 +688,7 @@ export const guildHallMap: WorldMapDefinition = addEnglishMapText({
 			width: 96,
 			height: 54,
 			frameName: 'table',
-			collision: { id: 'guild-hall-east-desk-collision', x: 400, y: 152, width: 56, height: 44 }
+			collision: { id: 'guild-hall-east-desk-collision', x: 400, y: 152, width: 56, height: 44 } // left gap intentional — quartermaster NPC stands at x≈352
 		},
 		{
 			id: 'guild-hall-west-bench',
@@ -1191,6 +1191,21 @@ export const shrineOfAuroraInteriorMap: WorldMapDefinition = {
 			width: 36,
 			height: 48,
 			frameName: 'plant'
+		},
+		{
+			id: 'shrine-of-aurora-bookshelf',
+			x: 64,
+			y: 96,
+			width: 56,
+			height: 86,
+			frameName: 'bookshelf',
+			collision: {
+				id: 'shrine-of-aurora-bookshelf-collision',
+				x: 64,
+				y: 96,
+				width: 48,
+				height: 72
+			}
 		}
 	]
 };
