@@ -12,14 +12,26 @@ chapters:
         file: beats/prologue/guild-quartermaster.md
       - id: prologue.shopkeeper-mira
         file: beats/prologue/shopkeeper-mira.md
+      - id: prologue.villager-lynn
+        file: beats/prologue/villager-lynn.md
+      - id: prologue.villager-toma
+        file: beats/prologue/villager-toma.md
+      - id: prologue.villager-io
+        file: beats/prologue/villager-io.md
 requiredContent:
   maps:
     - guild-hall
     - item-shop
+    - villager-house-1
+    - villager-house-2
+    - villager-house-3
   npcs:
     - guild-master
     - guild-quartermaster
     - shopkeeper-mira
+    - villager-lynn
+    - villager-toma
+    - villager-io
   quests:
     - investigate-the-ruins
     - thin-village-slimes

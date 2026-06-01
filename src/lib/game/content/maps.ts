@@ -897,6 +897,17 @@ export const villagerHouse1Map: WorldMapDefinition = {
 			}
 		}
 	],
+	npcs: [
+		{
+			id: 'villager-lynn',
+			x: 160,
+			y: 224,
+			nameKey: 'content.maps.npcs.villager-lynn.name',
+			dialogueId: 'villager-lynn',
+			role: 'villager',
+			frameName: 'miraItemShopNpc'
+		}
+	],
 	ambientNpcs: [
 		{ id: 'villager-house-1-family', x: 336, y: 224, frameName: 'miraItemShopNpc', role: 'family' }
 	]
@@ -960,6 +971,17 @@ export const villagerHouse2Map: WorldMapDefinition = {
 			depth: 'floor'
 		},
 		{ id: 'villager-house-2-plant', x: 416, y: 256, width: 36, height: 48, frameName: 'plant' }
+	],
+	npcs: [
+		{
+			id: 'villager-toma',
+			x: 224,
+			y: 224,
+			nameKey: 'content.maps.npcs.villager-toma.name',
+			dialogueId: 'villager-toma',
+			role: 'villager',
+			frameName: 'quartermasterNpc'
+		}
 	],
 	ambientNpcs: [
 		{ id: 'villager-house-2-neighbor', x: 320, y: 224, frameName: 'guildMasterNpc', role: 'neighbor' }
@@ -1037,6 +1059,17 @@ export const villagerHouse3Map: WorldMapDefinition = {
 			height: 56,
 			frameName: 'hearthLamp',
 			collision: { id: 'villager-house-3-lamp-collision', x: 416, y: 256, width: 36, height: 42 }
+		}
+	],
+	npcs: [
+		{
+			id: 'villager-io',
+			x: 320,
+			y: 224,
+			nameKey: 'content.maps.npcs.villager-io.name',
+			dialogueId: 'villager-io',
+			role: 'villager',
+			frameName: 'guildMasterNpc'
 		}
 	],
 	ambientNpcs: [

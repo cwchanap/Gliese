@@ -321,7 +321,10 @@ export const en = {
 			npcs: {
 				'guild-master': { name: 'Guild Master Arlen' },
 				'guild-quartermaster': { name: 'Quartermaster Vale' },
-				'shopkeeper-mira': { name: 'Mira' }
+				'shopkeeper-mira': { name: 'Mira' },
+				'villager-lynn': { name: 'Lynn' },
+				'villager-toma': { name: 'Toma' },
+				'villager-io': { name: 'Io' }
 			},
 			areas: {
 				'meadow-entry': 'Sundrop Meadows',

@@ -324,7 +324,10 @@ export const zhHant = {
 			npcs: {
 				'guild-master': { name: '公會會長阿倫' },
 				'guild-quartermaster': { name: '補給官維爾' },
-				'shopkeeper-mira': { name: '米拉' }
+				'shopkeeper-mira': { name: '米拉' },
+				'villager-lynn': { name: '琳恩' },
+				'villager-toma': { name: '托馬' },
+				'villager-io': { name: '伊歐' }
 			},
 			areas: {
 				'meadow-entry': '晴滴草原',
