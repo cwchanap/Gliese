@@ -9,7 +9,14 @@ pub const MAP_IDS: &[&str] = &[
     "ruins-threshold",
     "ruins-core",
 ];
-pub const NPC_IDS: &[&str] = &["guild-master", "guild-quartermaster", "shopkeeper-mira"];
+pub const NPC_IDS: &[&str] = &[
+    "guild-master",
+    "guild-quartermaster",
+    "shopkeeper-mira",
+    "villager-lynn",
+    "villager-toma",
+    "villager-io",
+];
 pub const QUEST_IDS: &[&str] = &[
     "investigate-the-ruins",
     "thin-village-slimes",

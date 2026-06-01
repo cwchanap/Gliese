@@ -952,9 +952,39 @@ describe('opening map content', () => {
 				shopId: 'miras-item-shop'
 			}
 		]);
-		expect(villagerHouse1Map.npcs ?? []).toEqual([]);
-		expect(villagerHouse2Map.npcs ?? []).toEqual([]);
-		expect(villagerHouse3Map.npcs ?? []).toEqual([]);
+		expect(villagerHouse1Map.npcs).toMatchObject([
+			{
+				id: 'villager-lynn',
+				x: 160,
+				y: 224,
+				nameKey: 'content.maps.npcs.villager-lynn.name',
+				dialogueId: 'villager-lynn',
+				role: 'villager',
+				frameName: 'miraItemShopNpc'
+			}
+		]);
+		expect(villagerHouse2Map.npcs).toMatchObject([
+			{
+				id: 'villager-toma',
+				x: 224,
+				y: 224,
+				nameKey: 'content.maps.npcs.villager-toma.name',
+				dialogueId: 'villager-toma',
+				role: 'villager',
+				frameName: 'quartermasterNpc'
+			}
+		]);
+		expect(villagerHouse3Map.npcs).toMatchObject([
+			{
+				id: 'villager-io',
+				x: 320,
+				y: 224,
+				nameKey: 'content.maps.npcs.villager-io.name',
+				dialogueId: 'villager-io',
+				role: 'villager',
+				frameName: 'guildMasterNpc'
+			}
+		]);
 		expect(new Set(npcs.map((npc) => npc.id)).size).toBe(npcs.length);
 
 		for (const map of Object.values(maps)) {

@@ -142,6 +142,35 @@ const npcFixtures: Record<string, StoryFixtureBranch[]> = {
 			],
 			completionIntent: null
 		}
+	],
+	'villager-lynn': [
+		{
+			condition: 'always',
+			speaker: 'Lynn',
+			lines: ['The kettle is warm if you need a quiet minute before the road.'],
+			actions: [{ id: 'close', label: 'Close', intent: { type: 'close' } }],
+			completionIntent: null
+		}
+	],
+	'villager-toma': [
+		{
+			condition: 'always',
+			speaker: 'Toma',
+			lines: [
+				'I patched the south fence this morning. If the slimes cross it again, tell the Guild.'
+			],
+			actions: [{ id: 'close', label: 'Close', intent: { type: 'close' } }],
+			completionIntent: null
+		}
+	],
+	'villager-io': [
+		{
+			condition: 'always',
+			speaker: 'Io',
+			lines: ['Old records say the ruins quiet down when someone brave reaches the core.'],
+			actions: [{ id: 'close', label: 'Close', intent: { type: 'close' } }],
+			completionIntent: null
+		}
 	]
 };
 

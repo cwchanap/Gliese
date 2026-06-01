@@ -324,7 +324,10 @@ export const ja = {
 			npcs: {
 				'guild-master': { name: 'ギルドマスター・アーレン' },
 				'guild-quartermaster': { name: '補給係ヴェイル' },
-				'shopkeeper-mira': { name: 'ミラ' }
+				'shopkeeper-mira': { name: 'ミラ' },
+				'villager-lynn': { name: 'リン' },
+				'villager-toma': { name: 'トマ' },
+				'villager-io': { name: 'イオ' }
 			},
 			areas: {
 				'meadow-entry': 'サンドロップ草原',
