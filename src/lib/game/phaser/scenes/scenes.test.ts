@@ -91,6 +91,16 @@ const storyClientMock = vi.hoisted(() => {
 				});
 			}
 
+			if (request.npcId === 'villager-lynn') {
+				return createStorySession({
+					id: 'npc:villager-lynn:always',
+					speaker: 'Lynn',
+					lines: ['The kettle is warm if you need a quiet minute before the road.'],
+					choices: [{ id: 'close', label: 'Close', intent: { type: 'close' } }],
+					completionIntent: null
+				});
+			}
+
 			return createStorySession({
 				id: 'npc:shopkeeper-mira:always',
 				speaker: 'Mira',
@@ -4126,6 +4136,40 @@ describe('WorldScene', () => {
 				dialogue: expect.objectContaining({
 					speaker: 'Quartermaster Vale',
 					choices: expect.arrayContaining([expect.objectContaining({ id: 'shop' })])
+				})
+			})
+		);
+	});
+
+	it('starts villager flavor dialogue when an interact key is pressed', async () => {
+		const events = await import('$lib/game/ui-bridge/events');
+		const storyClient = await import('$lib/game/story/client');
+		const emitHudStateSpy = vi.spyOn(events, 'emitHudState');
+		const { WorldScene } = await import('./WorldScene');
+		const scene = new WorldScene();
+
+		scene.create({ mapId: 'villager-house-1' });
+		Object.assign(phaserState.playerMarker, { x: 160, y: 224 });
+		scene.update(0, 16);
+		emitHudStateSpy.mockClear();
+		Object.assign(phaserState.interactKeys.e, { justDown: true });
+		scene.update(16, 16);
+		await flushStoryDialogue();
+
+		expect(storyClient.getNpcStoryDialogue).toHaveBeenCalledWith(
+			expect.objectContaining({
+				npcId: 'villager-lynn',
+				mapId: 'villager-house-1',
+				locale: 'en'
+			})
+		);
+		expect(emitHudStateSpy).toHaveBeenLastCalledWith(
+			expect.objectContaining({
+				status: 'Lynn nearby',
+				dialogue: expect.objectContaining({
+					speaker: 'Lynn',
+					line: 'The kettle is warm if you need a quiet minute before the road.',
+					choices: [expect.objectContaining({ id: 'close', label: 'Close' })]
 				})
 			})
 		);
