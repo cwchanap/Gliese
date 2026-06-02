@@ -416,7 +416,7 @@ describe('DialoguePanel.svelte', () => {
 		await expect.element(page.getByRole('button', { name: 'Menu' })).toHaveFocus();
 	});
 
-	it('keeps keyboard focus in the area map and closes it with Escape', async () => {
+	it('cycles keyboard focus through the area map markers and closes it with Escape', async () => {
 		render(GameShell);
 		emitHudState(createReadyHudState());
 
@@ -427,11 +427,23 @@ describe('DialoguePanel.svelte', () => {
 		await expect.element(mapDialog).toBeVisible();
 
 		const closeButton = mapDialog.getByRole('button', { name: 'Close' });
+		const heroMarker = mapDialog.getByRole('button', { name: "Hero's House" });
+		const ruinsMarker = mapDialog.getByRole('button', { name: 'Investigate the Ruins' });
+
 		await expect.element(closeButton).toHaveFocus();
+
+		// Tab walks Close -> first marker -> second marker -> wraps to Close.
+		await userEvent.keyboard('{Tab}');
+		await expect.element(heroMarker).toHaveFocus();
+		await userEvent.keyboard('{Tab}');
+		await expect.element(ruinsMarker).toHaveFocus();
 		await userEvent.keyboard('{Tab}');
 		await expect.element(closeButton).toHaveFocus();
+
+		// Shift+Tab from Close wraps back to the last marker.
 		await userEvent.keyboard('{Shift>}{Tab}{/Shift}');
-		await expect.element(closeButton).toHaveFocus();
+		await expect.element(ruinsMarker).toHaveFocus();
+
 		await userEvent.keyboard('{Escape}');
 
 		expect(document.querySelector('[role="dialog"][aria-label="Sundrop Meadows map"]')).toBeNull();
