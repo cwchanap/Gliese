@@ -405,10 +405,10 @@
 		if (!areaMapDialog) return [];
 
 		return Array.from(
-			areaMapDialog.querySelectorAll<HTMLElement>(
+			areaMapDialog.querySelectorAll<HTMLElement | SVGElement>(
 				'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
 			)
-		).filter((element) => element.offsetParent !== null && element.tabIndex >= 0);
+		).filter((element) => element.getClientRects().length > 0 && element.tabIndex >= 0);
 	}
 
 	function handleAreaMapDialogKeydown(event: KeyboardEvent) {
@@ -1420,6 +1420,9 @@
 										marker.emphasis ? 'area-map-marker-emphasis' : ''
 									}`}
 									transform={`translate(${marker.x} ${marker.y})`}
+									role="button"
+									tabindex="0"
+									aria-label={marker.label}
 								>
 									<circle r={marker.emphasis ? 64 : 48} />
 									<text x="76" y="18">{marker.label}</text>
@@ -2299,6 +2302,21 @@
 		paint-order: stroke;
 		stroke: rgba(5, 7, 20, 0.92);
 		stroke-width: 18px;
+	}
+
+	.area-map-marker {
+		cursor: pointer;
+		outline: none;
+	}
+
+	.area-map-marker:focus-visible circle {
+		stroke: #fff7df;
+		stroke-width: 30;
+		filter: drop-shadow(0 0 30px rgba(255, 247, 223, 0.9));
+	}
+
+	.area-map-marker:focus-visible text {
+		fill: #ffffff;
 	}
 
 	.area-map-marker-building circle {
