@@ -352,6 +352,49 @@ describe('DialoguePanel.svelte', () => {
 			.toHaveTextContent('Investigate the Ruins');
 	});
 
+	it('toggles the area map with the M key', async () => {
+		render(GameShell);
+		emitHudState(createReadyHudState());
+
+		await userEvent.keyboard('m');
+
+		const mapDialog = page.getByRole('dialog', { name: 'Sundrop Meadows map' });
+		await expect.element(mapDialog).toBeVisible();
+
+		await userEvent.keyboard('m');
+
+		expect(document.querySelector('[role="dialog"][aria-label="Sundrop Meadows map"]')).toBeNull();
+	});
+
+	it('ignores the M shortcut during battle', async () => {
+		render(GameShell);
+		emitHudState(createReadyHudState({ battle: { phase: 'active', summary: null } }));
+
+		await userEvent.keyboard('m');
+
+		expect(document.querySelector('[role="dialog"][aria-label="Sundrop Meadows map"]')).toBeNull();
+	});
+
+	it('ignores the M shortcut while another overlay is open', async () => {
+		render(GameShell);
+		emitHudState(createReadyHudState());
+
+		await page.getByRole('button', { name: 'Menu' }).click();
+		await userEvent.keyboard('m');
+
+		expect(document.querySelector('[role="dialog"][aria-label="Sundrop Meadows map"]')).toBeNull();
+		await expect.element(page.getByRole('region', { name: 'Command' })).toBeVisible();
+	});
+
+	it('ignores the M shortcut when a modifier key is held', async () => {
+		render(GameShell);
+		emitHudState(createReadyHudState());
+
+		await userEvent.keyboard('{Control>}m{/Control}');
+
+		expect(document.querySelector('[role="dialog"][aria-label="Sundrop Meadows map"]')).toBeNull();
+	});
+
 	it('opens the area map from the command menu and closes it', async () => {
 		render(GameShell);
 		emitHudState(createReadyHudState());

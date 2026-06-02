@@ -181,6 +181,31 @@
 		void restoreAreaMapFocus();
 	}
 
+	function isEditableTarget(target: EventTarget | null): boolean {
+		if (!(target instanceof HTMLElement)) return false;
+		const tag = target.tagName;
+		return tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || target.isContentEditable;
+	}
+
+	function handleGlobalKeydown(event: KeyboardEvent) {
+		if (event.key !== 'm' && event.key !== 'M') return;
+		if (event.ctrlKey || event.metaKey || event.altKey) return;
+		if (event.repeat) return;
+		if (isEditableTarget(event.target)) return;
+
+		if (areaMapOpen) {
+			event.preventDefault();
+			closeAreaMap();
+			return;
+		}
+
+		const otherOverlayOpen = commandOpen || inventoryOpen || shopOpen || questLogOpen;
+		if (otherOverlayOpen || battleLocked || !$hudState.ready) return;
+
+		event.preventDefault();
+		openAreaMap();
+	}
+
 	$effect(() => {
 		if (!$hudState.shop || shopOpen) return;
 
@@ -749,6 +774,11 @@
 			destroyed = true;
 			cleanup();
 		};
+	});
+
+	onMount(() => {
+		window.addEventListener('keydown', handleGlobalKeydown);
+		return () => window.removeEventListener('keydown', handleGlobalKeydown);
 	});
 </script>
 
