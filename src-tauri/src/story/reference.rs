@@ -8,6 +8,7 @@ pub const MAP_IDS: &[&str] = &[
     "villager-house-3",
     "ruins-threshold",
     "ruins-core",
+    "shrine-of-aurora-interior",
 ];
 pub const NPC_IDS: &[&str] = &[
     "guild-master",
