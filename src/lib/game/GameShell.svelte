@@ -58,6 +58,7 @@
 	let shopOpen = $state(false);
 	let questLogOpen = $state(false);
 	let areaMapOpen = $state(false);
+	let focusedMarkerId = $state<string | null>(null);
 	let activeInventoryTab = $state<InventoryTab>('consumables');
 	let activeShopTab = $state<ShopTab>('buy');
 	let pauseOwner = $state<OverlayPauseOwner | null>(null);
@@ -77,6 +78,9 @@
 	const battlePhase = $derived($hudState.battle.phase);
 	const battleLocked = $derived(battlePhase === 'active' || battlePhase === 'summary');
 	const battleSummary = $derived($hudState.battle.summary);
+	const focusedMarkerLabel = $derived(
+		$hudState.areaMap.markers.find((marker) => marker.id === focusedMarkerId)?.label ?? null
+	);
 
 	$effect(() => {
 		const summaryVisible = battleSummary !== null;
@@ -177,6 +181,7 @@
 	function closeAreaMap() {
 		if (!areaMapOpen) return;
 		areaMapOpen = false;
+		focusedMarkerId = null;
 		resumeForOverlay('areaMap');
 		void restoreAreaMapFocus();
 	}
@@ -226,6 +231,7 @@
 		shopOpen = false;
 		questLogOpen = false;
 		areaMapOpen = false;
+		focusedMarkerId = null;
 		pauseOwner = null;
 
 		if (wasShopOpen) requestCloseShop();
@@ -1423,6 +1429,10 @@
 									role="button"
 									tabindex="0"
 									aria-label={marker.label}
+									onfocus={() => (focusedMarkerId = marker.id)}
+									onblur={() => {
+										if (focusedMarkerId === marker.id) focusedMarkerId = null;
+									}}
 								>
 									<circle r={marker.emphasis ? 64 : 48} />
 									<text x="76" y="18">{marker.label}</text>
@@ -1443,6 +1453,11 @@
 						<span><i class="area-map-legend-current"></i>{t($locale, 'ui.currentPosition')}</span>
 						<span><i class="area-map-legend-unexplored"></i>{t($locale, 'ui.unexplored')}</span>
 					</div>
+					<p class="jrpg-area-map-selected" data-testid="area-map-selected" aria-live="polite">
+						{#if focusedMarkerLabel}
+							{t($locale, 'ui.areaMapSelectedMarker', { name: focusedMarkerLabel })}
+						{/if}
+					</p>
 				</div>
 			</div>
 		</div>
@@ -2375,6 +2390,16 @@
 		height: 0.8rem;
 		border: 1px solid rgba(244, 229, 184, 0.24);
 		border-radius: 999px;
+	}
+
+	.jrpg-area-map-selected {
+		min-height: 1.1rem;
+		margin-top: 0.5rem;
+		color: #fff7df;
+		font-size: 0.72rem;
+		font-weight: 900;
+		letter-spacing: 0.08em;
+		text-transform: uppercase;
 	}
 
 	.area-map-legend-current {
