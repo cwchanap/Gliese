@@ -16,6 +16,7 @@ export const zhHant = {
 		regionSubline: '翠綠地區 / 第 3 日',
 		unexplored: '未探索',
 		currentPosition: '目前位置',
+		areaMapSelectedMarker: '已選擇：{{name}}',
 		heroName: 'LIAM',
 		goldSuffix: 'G',
 		activeQuest: '進行中任務',

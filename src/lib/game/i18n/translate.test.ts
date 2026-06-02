@@ -27,6 +27,16 @@ describe('translation lookup', () => {
 		expect(collectLeafPaths(ja).sort()).toEqual(sourcePaths);
 	});
 
+	it('interpolates the selected area-map marker name in every locale', () => {
+		expect(t('en', 'ui.areaMapSelectedMarker', { name: "Hero's House" })).toBe(
+			"Selected: Hero's House"
+		);
+		expect(t('ja', 'ui.areaMapSelectedMarker', { name: "Hero's House" })).toContain("Hero's House");
+		expect(t('zh-Hant', 'ui.areaMapSelectedMarker', { name: "Hero's House" })).toContain(
+			"Hero's House"
+		);
+	});
+
 	it('resolves Traditional Chinese UI and content messages', () => {
 		expect(t('zh-Hant', 'ui.menu')).toBe('選單');
 		expect(t('zh-Hant', 'content.items.field-potion.name')).toBe('野外藥水');
