@@ -467,6 +467,30 @@ describe('DialoguePanel.svelte', () => {
 			.toHaveTextContent("Selected: Hero's House");
 	});
 
+	it('clears the selected marker caption after closing and reopening with M', async () => {
+		render(GameShell);
+		emitHudState(createReadyHudState());
+
+		await userEvent.keyboard('m');
+
+		const mapDialog = page.getByRole('dialog', { name: 'Sundrop Meadows map' });
+		await expect.element(mapDialog).toBeVisible();
+
+		await userEvent.keyboard('{Tab}'); // focuses the first marker (Hero's House)
+		await expect
+			.element(mapDialog.getByTestId('area-map-selected'))
+			.toHaveTextContent("Selected: Hero's House");
+
+		await userEvent.keyboard('m'); // close
+		expect(document.querySelector('[role="dialog"][aria-label="Sundrop Meadows map"]')).toBeNull();
+
+		await userEvent.keyboard('m'); // reopen
+
+		const reopened = page.getByRole('dialog', { name: 'Sundrop Meadows map' });
+		await expect.element(reopened).toBeVisible();
+		expect(reopened.getByTestId('area-map-selected').element().textContent?.trim()).toBe('');
+	});
+
 	it('keeps the command box above the dialogue-safe lower playfield', async () => {
 		render(GameShell);
 		emitHudState(createReadyHudState({ status: 'Ready' }));
