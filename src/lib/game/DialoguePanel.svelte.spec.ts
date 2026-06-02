@@ -450,6 +450,23 @@ describe('DialoguePanel.svelte', () => {
 		await expect.element(page.getByRole('button', { name: 'Menu' })).toHaveFocus();
 	});
 
+	it('shows the selected marker name when a map marker is focused', async () => {
+		render(GameShell);
+		emitHudState(createReadyHudState());
+
+		await page.getByRole('button', { name: 'Menu' }).click();
+		await page.getByRole('button', { name: 'Map' }).click();
+
+		const mapDialog = page.getByRole('dialog', { name: 'Sundrop Meadows map' });
+		await expect.element(mapDialog).toBeVisible();
+
+		await userEvent.keyboard('{Tab}'); // focuses the first marker (Hero's House)
+
+		await expect
+			.element(mapDialog.getByTestId('area-map-selected'))
+			.toHaveTextContent("Selected: Hero's House");
+	});
+
 	it('keeps the command box above the dialogue-safe lower playfield', async () => {
 		render(GameShell);
 		emitHudState(createReadyHudState({ status: 'Ready' }));
