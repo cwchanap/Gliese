@@ -13,6 +13,7 @@ export const en = {
 		regionSubline: 'Verdant Region / Day 03',
 		unexplored: 'Unexplored',
 		currentPosition: 'Current position',
+		areaMapSelectedMarker: 'Selected: {{name}}',
 		heroName: 'LIAM',
 		goldSuffix: 'G',
 		activeQuest: 'Active Quest',

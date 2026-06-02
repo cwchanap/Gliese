@@ -16,6 +16,7 @@ export const ja = {
 		regionSubline: '緑の地方 / 3日目',
 		unexplored: '未探索',
 		currentPosition: '現在位置',
+		areaMapSelectedMarker: '選択中: {{name}}',
 		heroName: 'LIAM',
 		goldSuffix: 'G',
 		activeQuest: '進行中の依頼',
