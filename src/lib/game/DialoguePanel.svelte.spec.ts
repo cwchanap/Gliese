@@ -391,7 +391,15 @@ describe('DialoguePanel.svelte', () => {
 		emitHudState(createReadyHudState());
 
 		await userEvent.keyboard('{Control>}m{/Control}');
+		expect(document.querySelector('[role="dialog"][aria-label="Sundrop Meadows map"]')).toBeNull();
 
+		await userEvent.keyboard('{Alt>}m{/Alt}');
+		expect(document.querySelector('[role="dialog"][aria-label="Sundrop Meadows map"]')).toBeNull();
+
+		await userEvent.keyboard('{Meta>}m{/Meta}');
+		expect(document.querySelector('[role="dialog"][aria-label="Sundrop Meadows map"]')).toBeNull();
+
+		await userEvent.keyboard('{Shift>}m{/Shift}');
 		expect(document.querySelector('[role="dialog"][aria-label="Sundrop Meadows map"]')).toBeNull();
 	});
 
