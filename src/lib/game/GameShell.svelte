@@ -194,7 +194,7 @@
 
 	function handleGlobalKeydown(event: KeyboardEvent) {
 		if (event.key !== 'm' && event.key !== 'M') return;
-		if (event.ctrlKey || event.metaKey || event.altKey) return;
+		if (event.ctrlKey || event.metaKey || event.altKey || event.shiftKey) return;
 		if (event.repeat) return;
 		if (isEditableTarget(event.target)) return;
 
