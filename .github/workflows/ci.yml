@@ -68,6 +68,7 @@ jobs:
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           fail_ci_if_error: false
+          flags: frontend
 
   rust-build-lint:
     name: Rust Build & Lint
@@ -118,6 +119,8 @@ jobs:
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
+        with:
+          components: llvm-tools-preview
 
       - name: Cache Cargo artifacts
         uses: Swatinem/rust-cache@v2
@@ -129,8 +132,20 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
 
-      - name: Run tests
-        run: cargo test
+      - name: Install cargo-llvm-cov
+        uses: taiki-e/install-action@cargo-llvm-cov
+
+      - name: Run tests with coverage
+        run: cargo llvm-cov --lcov --output-path lcov.info
+
+      - name: Upload Rust coverage to Codecov
+        if: ${{ !cancelled() }}
+        uses: codecov/codecov-action@v4
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          fail_ci_if_error: false
+          files: lcov.info
+          flags: rust
 
   e2e-test:
     name: E2E Tests
