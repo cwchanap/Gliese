@@ -395,6 +395,35 @@ describe('DialoguePanel.svelte', () => {
 		expect(document.querySelector('[role="dialog"][aria-label="Sundrop Meadows map"]')).toBeNull();
 	});
 
+	it('ignores repeated M keydown events', async () => {
+		render(GameShell);
+		emitHudState(createReadyHudState());
+
+		window.dispatchEvent(
+			new KeyboardEvent('keydown', { key: 'm', bubbles: true, repeat: true })
+		);
+
+		expect(document.querySelector('[role="dialog"][aria-label="Sundrop Meadows map"]')).toBeNull();
+	});
+
+	it('ignores the M shortcut when an editable element is focused', async () => {
+		render(GameShell);
+		emitHudState(createReadyHudState());
+
+		const input = document.createElement('input');
+		input.type = 'text';
+		document.body.appendChild(input);
+		input.focus();
+
+		window.dispatchEvent(
+			new KeyboardEvent('keydown', { key: 'm', bubbles: true, cancelable: true })
+		);
+
+		expect(document.querySelector('[role="dialog"][aria-label="Sundrop Meadows map"]')).toBeNull();
+
+		input.remove();
+	});
+
 	it('opens the area map from the command menu and closes it', async () => {
 		render(GameShell);
 		emitHudState(createReadyHudState());
@@ -427,8 +456,8 @@ describe('DialoguePanel.svelte', () => {
 		await expect.element(mapDialog).toBeVisible();
 
 		const closeButton = mapDialog.getByRole('button', { name: 'Close' });
-		const heroMarker = mapDialog.getByRole('button', { name: "Hero's House" });
-		const ruinsMarker = mapDialog.getByRole('button', { name: 'Investigate the Ruins' });
+		const heroMarker = mapDialog.getByLabelText("Hero's House");
+		const ruinsMarker = mapDialog.getByLabelText('Investigate the Ruins');
 
 		await expect.element(closeButton).toHaveFocus();
 

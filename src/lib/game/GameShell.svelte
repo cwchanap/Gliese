@@ -1421,12 +1421,12 @@
 								/>
 							{/each}
 							{#each $hudState.areaMap.markers as marker (marker.id)}
+								<!-- svelte-ignore a11y_no_noninteractive_tabindex -->
 								<g
 									class={`area-map-marker area-map-marker-${marker.kind} ${
 										marker.emphasis ? 'area-map-marker-emphasis' : ''
 									}`}
 									transform={`translate(${marker.x} ${marker.y})`}
-									role="button"
 									tabindex="0"
 									aria-label={marker.label}
 									onfocus={() => (focusedMarkerId = marker.id)}
