@@ -444,6 +444,10 @@ describe('DialoguePanel.svelte', () => {
 		await expect.element(mapDialog.getByText("Hero's House")).toBeVisible();
 		await expect.element(mapDialog.getByText('Investigate the Ruins')).toBeVisible();
 
+		// Markers should have role="img" for assistive technology semantics.
+		const heroMarker = mapDialog.getByRole('img', { name: "Hero's House" });
+		await expect.element(heroMarker).toBeInTheDocument();
+
 		expect(mapDialog.element().querySelector('[data-testid="area-map-svg"]')).not.toBeNull();
 		expect(mapDialog.element().querySelector('[data-testid="area-map-player"]')).not.toBeNull();
 
