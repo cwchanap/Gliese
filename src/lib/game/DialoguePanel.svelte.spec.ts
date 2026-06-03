@@ -407,9 +407,7 @@ describe('DialoguePanel.svelte', () => {
 		render(GameShell);
 		emitHudState(createReadyHudState());
 
-		window.dispatchEvent(
-			new KeyboardEvent('keydown', { key: 'm', bubbles: true, repeat: true })
-		);
+		window.dispatchEvent(new KeyboardEvent('keydown', { key: 'm', bubbles: true, repeat: true }));
 
 		expect(document.querySelector('[role="dialog"][aria-label="Sundrop Meadows map"]')).toBeNull();
 	});
