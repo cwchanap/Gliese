@@ -1426,6 +1426,7 @@
 									class={`area-map-marker area-map-marker-${marker.kind} ${
 										marker.emphasis ? 'area-map-marker-emphasis' : ''
 									}`}
+									role="img"
 									transform={`translate(${marker.x} ${marker.y})`}
 									tabindex="0"
 									aria-label={marker.label}
