@@ -7,6 +7,7 @@ import {
 	forestDressingAsset,
 	getActorAnimationAsset,
 	getEnemyActorId,
+	getEnemyFrameName,
 	getVillageBuildingFrameName,
 	interiorPropAsset,
 	isNpcPackFrameName,
@@ -243,6 +244,12 @@ describe('animation pack metadata', () => {
 		expect(getEnemyActorId('slime-scout')).toBe('slimeScout');
 		expect(getEnemyActorId('ruins-warden')).toBe('ruinsWarden');
 		expect(getActorAnimationAsset('hero')).toBe(actorAnimationAssets.hero);
+	});
+
+	it('maps enemies to their starter pack frame names', () => {
+		expect(getEnemyFrameName('ruins-warden')).toBe('ruinsWarden');
+		expect(getEnemyFrameName('slime-scout')).toBe('slimeScout');
+		expect(getEnemyFrameName('unknown-enemy')).toBe('slimeScout');
 	});
 
 	it('keeps the hero attack clip free of baked hit arcs', () => {

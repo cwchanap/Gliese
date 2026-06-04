@@ -36,4 +36,25 @@ describe('locales', () => {
 		expect(detectSupportedLocale(['fr-CA'])).toBe('en');
 		expect(detectSupportedLocale([])).toBe('en');
 	});
+
+	it('normalizes extended Chinese locale prefixes', () => {
+		expect(normalizeLocale('zh-tw-TW')).toBe('zh-Hant');
+		expect(normalizeLocale('zh-hk-HK')).toBe('zh-Hant');
+		expect(normalizeLocale('zh-mo-MO')).toBe('zh-Hant');
+	});
+
+	it('falls back to default locale when navigator is unavailable', () => {
+		expect(detectSupportedLocale(undefined)).toBe('en');
+	});
+
+	it('returns null for empty or whitespace-only input', () => {
+		expect(normalizeLocale('')).toBeNull();
+		expect(normalizeLocale('   ')).toBeNull();
+		expect(normalizeLocale(null)).toBeNull();
+		expect(normalizeLocale(undefined)).toBeNull();
+	});
+
+	it('normalizes zh-hant with an extended prefix', () => {
+		expect(normalizeLocale('zh-hant-TW')).toBe('zh-Hant');
+	});
 });

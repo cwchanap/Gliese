@@ -145,6 +145,58 @@ describe('dialogue core', () => {
 		});
 	});
 
+	it('falls back when choosing an invalid dialogue option', () => {
+		const session = createGuildQuestEntrySession();
+		const result = chooseDialogueOption({
+			session,
+			choiceId: 'nonexistent',
+			questState: createInitialQuestState(),
+			locale: 'en'
+		});
+
+		expect(result.intent).toBeNull();
+		expect(result.session).toMatchObject({
+			speaker: 'Guild Master Arlen',
+			line: 'That option is not available.',
+			mode: 'system'
+		});
+	});
+
+	it('falls back when guild quest detail is requested for a missing quest', () => {
+		const session: DialogueSession = {
+			id: 'test-detail',
+			npcId: 'guild-master',
+			speaker: 'Guild Master Arlen',
+			lines: ['Details.'],
+			line: 'Details.',
+			lineIndex: 0,
+			lineCount: 1,
+			mode: 'choice',
+			choices: [
+				{
+					id: 'detail',
+					label: 'Detail',
+					intent: { type: 'showQuestDetails', questId: 'missing-quest' }
+				}
+			],
+			completionIntent: null,
+			canClose: true
+		};
+
+		const detail = chooseDialogueOption({
+			session,
+			choiceId: 'detail',
+			questState: createInitialQuestState(),
+			locale: 'en'
+		});
+
+		expect(detail.session).toMatchObject({
+			line: 'That Guild work is no longer available.',
+			mode: 'system'
+		});
+		expect(detail.intent).toEqual({ type: 'showQuestDetails', questId: 'missing-quest' });
+	});
+
 	it('localizes dialogue text for Japanese', () => {
 		const questState = applyQuestEvent({
 			state: createInitialQuestState(),

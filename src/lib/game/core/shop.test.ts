@@ -324,4 +324,28 @@ describe('shop core', () => {
 			})
 		]);
 	});
+
+	it('returns an empty buy list for a missing shop', () => {
+		expect(buildShopBuyEntries('missing-shop', {}, 'en')).toEqual([]);
+	});
+
+	it('omits equipped equipment from sell entries', () => {
+		const entries = buildShopSellEntries({
+			inventory: { stacks: [], equipment: ['iron-cap'] },
+			equipment: { ...createEmptyEquipment(), head: 'iron-cap' },
+			locale: 'en'
+		});
+
+		expect(entries.some((e) => e.itemId === 'iron-cap')).toBe(false);
+	});
+
+	it('omits consumables with zero or negative quantity from sell entries', () => {
+		const entries = buildShopSellEntries({
+			inventory: { stacks: [{ itemId: 'field-potion', quantity: 0 }], equipment: [] },
+			equipment: createEmptyEquipment(),
+			locale: 'en'
+		});
+
+		expect(entries.some((e) => e.itemId === 'field-potion')).toBe(false);
+	});
 });
