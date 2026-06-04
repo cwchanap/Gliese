@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 
-import { mainQuestId } from '$lib/game/content/quests';
+import { mainQuestId, type QuestId } from '$lib/game/content/quests';
 import { applyQuestEvent, createInitialQuestState } from '$lib/game/core/quests';
 import {
 	advanceDialogue,
@@ -176,7 +176,7 @@ describe('dialogue core', () => {
 				{
 					id: 'detail',
 					label: 'Detail',
-					intent: { type: 'showQuestDetails', questId: 'missing-quest' }
+					intent: { type: 'showQuestDetails', questId: 'missing-quest' as QuestId }
 				}
 			],
 			completionIntent: null,
@@ -194,7 +194,10 @@ describe('dialogue core', () => {
 			line: 'That Guild work is no longer available.',
 			mode: 'system'
 		});
-		expect(detail.intent).toEqual({ type: 'showQuestDetails', questId: 'missing-quest' });
+		expect(detail.intent).toEqual({
+			type: 'showQuestDetails',
+			questId: 'missing-quest' as QuestId
+		});
 	});
 
 	it('localizes dialogue text for Japanese', () => {
