@@ -41,4 +41,17 @@ describe('language preferences', () => {
 		saveLanguagePreference(null, storage);
 		expect(storage.getItem(LANGUAGE_PREFERENCE_STORAGE_KEY)).toBeNull();
 	});
+
+	it('returns null when storage is undefined', () => {
+		expect(loadLanguagePreference(undefined)).toBeNull();
+	});
+
+	it('does nothing when saving to undefined storage', () => {
+		expect(() => saveLanguagePreference('ja', undefined)).not.toThrow();
+	});
+
+	it('resolves initial locale from browser languages when no storage preference exists', () => {
+		const storage = createMemoryStorage();
+		expect(resolveInitialLocale({ storage, languages: ['ja-JP'] })).toBe('ja');
+	});
 });

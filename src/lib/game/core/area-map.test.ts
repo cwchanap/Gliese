@@ -161,4 +161,47 @@ describe('area map payload', () => {
 			})
 		);
 	});
+
+	it('shows the threshold-to-core transition for the defeat objective on ruins-threshold', () => {
+		const quests = createInitialQuestState();
+		quests.entries[mainQuestId] = {
+			...quests.entries[mainQuestId]!,
+			currentObjectiveId: 'defeat-ruins-warden'
+		};
+
+		const areaMap = buildAreaMapState({
+			map: maps['ruins-threshold']!,
+			player: { x: 512, y: 3_200 },
+			revealedCells: ['46,25'],
+			quests,
+			locale: 'en'
+		});
+
+		expect(areaMap.markers).toContainEqual(
+			expect.objectContaining({
+				kind: 'quest',
+				id: `${mainQuestId}:defeat-ruins-warden:ruins-threshold`,
+				x: 5_888,
+				y: 3_200
+			})
+		);
+	});
+
+	it('returns no quest marker for an unknown main quest objective', () => {
+		const quests = createInitialQuestState();
+		quests.entries[mainQuestId] = {
+			...quests.entries[mainQuestId]!,
+			currentObjectiveId: 'unknown-objective'
+		};
+
+		const areaMap = buildAreaMapState({
+			map: meadowEntryMap,
+			player: { x: 1_536, y: 5_550 },
+			revealedCells: ['46,14'],
+			quests,
+			locale: 'en'
+		});
+
+		expect(areaMap.markers.some((marker) => marker.kind === 'quest')).toBe(false);
+	});
 });

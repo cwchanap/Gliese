@@ -162,6 +162,12 @@ describe('save state', () => {
 		expect(parseSaveState('{"bad":true}')).toBeNull();
 	});
 
+	it('rejects non-object top-level values', () => {
+		expect(parseSaveState('5')).toBeNull();
+		expect(parseSaveState('null')).toBeNull();
+		expect(parseSaveState('[]')).toBeNull();
+	});
+
 	it('rejects version 4 and accepts version 6', () => {
 		expect(parseSaveState(JSON.stringify({ ...createNewSaveState(), version: 4 }))).toBeNull();
 		expect(parseSaveState(JSON.stringify(createNewSaveState()))?.version).toBe(6);
@@ -381,6 +387,13 @@ describe('save state', () => {
 				...save,
 				quests: {
 					...save.quests,
+					entries: { ...save.quests.entries, [mainQuestId]: null }
+				}
+			},
+			{
+				...save,
+				quests: {
+					...save.quests,
 					entries: {
 						...save.quests.entries,
 						[mainQuestId]: { ...mainEntry, status: 'pending' }
@@ -494,6 +507,22 @@ describe('save state', () => {
 		]) {
 			expect(parseSaveState(JSON.stringify(invalidPayload))).toBeNull();
 		}
+	});
+
+	it('preserves player position when the saved map is unknown', () => {
+		const save = {
+			...createNewSaveState(),
+			mapId: 'unknown-map',
+			player: {
+				...createNewSaveState().player,
+				x: 1234,
+				y: 5678
+			}
+		};
+
+		const parsed = parseSaveState(JSON.stringify(save));
+		expect(parsed?.player.x).toBe(1234);
+		expect(parsed?.player.y).toBe(5678);
 	});
 
 	it('rejects invalid wallet and shop stock state', () => {

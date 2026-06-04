@@ -237,4 +237,31 @@ describe('tauri storage adapter', () => {
 			recursive: true
 		});
 	});
+
+	it('removeItem deletes the preference file when removing the language key', async () => {
+		setTauriPresent(true);
+		const adapter = await hydrateTauriStorage();
+
+		adapter.removeItem(LANGUAGE_PREFERENCE_STORAGE_KEY);
+		await flushPendingWrites();
+
+		expect(adapter.getItem(LANGUAGE_PREFERENCE_STORAGE_KEY)).toBeNull();
+		const writes = mockedFs.writeTextFile.mock.calls;
+		expect(writes[writes.length - 1][1]).toBe('');
+	});
+
+	it('logs an error when atomic write fails but does not throw', async () => {
+		setTauriPresent(true);
+		mockedFs.writeTextFile.mockRejectedValueOnce(new Error('disk full'));
+		const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+
+		const adapter = await hydrateTauriStorage();
+		adapter.setItem(SAVE_STORAGE_KEY, 'value');
+		await flushPendingWrites();
+
+		expect(errorSpy).toHaveBeenCalledWith(
+			expect.stringContaining('Failed to persist'),
+			expect.any(Error)
+		);
+	});
 });
