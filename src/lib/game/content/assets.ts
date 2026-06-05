@@ -21,6 +21,37 @@ export const starterPackAsset = {
 
 export type StarterPackFrameName = keyof typeof starterPackAsset.frames;
 
+export const battleBackgroundAssets = {
+	meadow: {
+		key: 'battle-background-meadow',
+		path: '/game/assets/battle-meadow.png'
+	},
+	ruins: {
+		key: 'battle-background-ruins',
+		path: '/game/assets/battle-ruins.png'
+	},
+	neutral: {
+		key: 'battle-background-neutral',
+		path: '/game/assets/battle-neutral.png'
+	}
+} as const;
+
+export type BattleEnvironmentId = keyof typeof battleBackgroundAssets;
+
+const battleEnvironmentByMapId: Partial<Record<string, BattleEnvironmentId>> = {
+	'meadow-entry': 'meadow',
+	'ruins-threshold': 'ruins',
+	'ruins-core': 'ruins'
+};
+
+export function getBattleEnvironmentId(mapId: string): BattleEnvironmentId {
+	return battleEnvironmentByMapId[mapId] ?? 'neutral';
+}
+
+export function getBattleBackgroundAsset(mapId: string) {
+	return battleBackgroundAssets[getBattleEnvironmentId(mapId)];
+}
+
 export const villageBuildingAsset = {
 	key: 'village-buildings',
 	path: '/game/assets/village-buildings.png',

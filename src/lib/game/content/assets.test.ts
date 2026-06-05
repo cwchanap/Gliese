@@ -3,9 +3,12 @@ import { describe, expect, it } from 'vitest';
 import {
 	actorAnimationAssets,
 	animationPackAsset,
+	battleBackgroundAssets,
 	fenceDressingAsset,
 	forestDressingAsset,
 	getActorAnimationAsset,
+	getBattleBackgroundAsset,
+	getBattleEnvironmentId,
 	getEnemyActorId,
 	getEnemyFrameName,
 	getVillageBuildingFrameName,
@@ -68,6 +71,38 @@ describe('starter pack asset frames', () => {
 	it('keeps hero and potion frames large enough to avoid visible cropping', () => {
 		expect(starterPackAsset.frames.hero).toEqual({ x: 90, y: 80, w: 235, h: 280 });
 		expect(starterPackAsset.frames.healFlask).toEqual({ x: 1210, y: 145, w: 150, h: 215 });
+	});
+});
+
+describe('battle background asset metadata', () => {
+	it('defines map-aware battle background assets', () => {
+		expect(battleBackgroundAssets).toEqual({
+			meadow: {
+				key: 'battle-background-meadow',
+				path: '/game/assets/battle-meadow.png'
+			},
+			ruins: {
+				key: 'battle-background-ruins',
+				path: '/game/assets/battle-ruins.png'
+			},
+			neutral: {
+				key: 'battle-background-neutral',
+				path: '/game/assets/battle-neutral.png'
+			}
+		});
+	});
+
+	it('maps source maps to battle environments with a neutral fallback', () => {
+		expect(getBattleEnvironmentId('meadow-entry')).toBe('meadow');
+		expect(getBattleEnvironmentId('ruins-threshold')).toBe('ruins');
+		expect(getBattleEnvironmentId('ruins-core')).toBe('ruins');
+		expect(getBattleEnvironmentId('hero-house')).toBe('neutral');
+		expect(getBattleEnvironmentId('unknown-map')).toBe('neutral');
+	});
+
+	it('returns the background asset for the resolved environment', () => {
+		expect(getBattleBackgroundAsset('ruins-core')).toBe(battleBackgroundAssets.ruins);
+		expect(getBattleBackgroundAsset('villager-house-1')).toBe(battleBackgroundAssets.neutral);
 	});
 });
 
