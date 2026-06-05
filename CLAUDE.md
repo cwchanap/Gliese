@@ -16,6 +16,13 @@ via Tauri's `fs` plugin.
 - **Targets**: macOS, Windows
 - **`AGENTS.md` is a symlink to this file** — both Claude and other agents read the same instructions; edit `CLAUDE.md` only.
 
+## Image Generation
+
+If the user asks to generate an image, always use the `imagegen` skill and
+built-in image generation tool when they are available. If image generation is
+not available in the current environment, tell the user to run the request in
+the Codex app.
+
 ## Commands
 
 ```sh
