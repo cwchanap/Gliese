@@ -65,6 +65,8 @@ type ActorMarker = {
 
 type OverlayMarker = {
 	setPosition: (x: number, y: number) => unknown;
+	setAlpha?: (alpha: number) => unknown;
+	setOrigin?: (x: number, y?: number) => unknown;
 	setScale: (x: number, y?: number) => unknown;
 	setVisible: (visible: boolean) => unknown;
 };
@@ -99,6 +101,8 @@ export class BattleScene extends Phaser.Scene {
 	private static readonly actorAnimationLockMs = 400;
 	private static readonly hitReactionDurationMs = 450;
 	private static readonly hitReactionTint = 0xfff0a8;
+	private static readonly hitStopMs = 70;
+	private static readonly heroLungeDistance = 18;
 	private static readonly heroMoveSpeed = 140;
 	private static readonly bossPhaseTwoSpeedMultiplier = 1.5;
 	private static readonly enemyHealthBarOffsetY = 34;
@@ -109,6 +113,7 @@ export class BattleScene extends Phaser.Scene {
 	private hero = { hp: 1, maxHp: 1, attack: 1, defense: 0 };
 	private heroAttackCooldownUntil = 0;
 	private heroInvulnerableUntil = 0;
+	private hitStopUntil = 0;
 	private inventory: BattleStartPayload['saveState']['inventory'] | null = null;
 	private payload: BattleStartPayload | null = null;
 	private pendingResult: BattleResult | null = null;
@@ -175,6 +180,10 @@ export class BattleScene extends Phaser.Scene {
 		}
 
 		this.updateHitReactions(time);
+		if (time < this.hitStopUntil) {
+			return;
+		}
+
 		this.updateHeroMovement(time, delta);
 		this.tryHeroAttack(time);
 		this.updateEnemyBehavior(time, delta);
@@ -193,6 +202,7 @@ export class BattleScene extends Phaser.Scene {
 		this.heroAnimationLockedUntil = 0;
 		this.heroInvulnerableUntil = 0;
 		this.heroVisualState = 'idle';
+		this.hitStopUntil = 0;
 		this.inventory = null;
 		this.payload = null;
 		this.pendingResult = null;
@@ -400,6 +410,7 @@ export class BattleScene extends Phaser.Scene {
 		this.heroAttackCooldownUntil = time + BattleScene.autoAttackCooldownMs;
 		this.heroAnimationLockedUntil = time + BattleScene.actorAnimationLockMs;
 		this.setHeroAnimation('attack', false);
+		this.playHeroAttackPresentation(target, time);
 		target.hp = resolveHit({ hp: target.hp, defense: 0 }, { power: this.hero.attack }).hp;
 		target.invulnerableUntil = time + BattleScene.enemyInvulnerabilityMs;
 		this.updateEnemyHealthBar(target);
@@ -523,6 +534,7 @@ export class BattleScene extends Phaser.Scene {
 		enemy.animationLockedUntil = time + BattleScene.actorAnimationLockMs;
 		this.heroInvulnerableUntil = time + BattleScene.heroInvulnerabilityMs;
 		this.playEnemyAnimation(enemy, 'attack', false);
+		this.playEnemyAttackPresentation();
 
 		if (this.hero.hp === 0 && this.player) {
 			this.setHeroAnimation('dead', false);
@@ -695,6 +707,100 @@ export class BattleScene extends Phaser.Scene {
 			getActorAnimationAsset(getEnemyActorId(enemy.enemyId)).clips[clipName].key,
 			ignoreIfPlaying
 		);
+	}
+
+	private playHeroAttackPresentation(target: BattleEnemyInstance, time: number) {
+		if (!this.player) {
+			return;
+		}
+
+		const distance = Math.max(
+			Phaser.Math.Distance.Between(this.player.x, this.player.y, target.x, target.y),
+			1
+		);
+		const lungeX =
+			this.player.x + ((target.x - this.player.x) / distance) * BattleScene.heroLungeDistance;
+		const lungeY =
+			this.player.y + ((target.y - this.player.y) / distance) * BattleScene.heroLungeDistance;
+		const midpointX = (this.player.x + target.x) / 2;
+		const midpointY = (this.player.y + target.y) / 2;
+		const slash = this.add.arc(
+			midpointX,
+			midpointY,
+			24,
+			-0.72,
+			0.72,
+			false,
+			0xffd166,
+			0.88
+		) as OverlayMarker;
+		slash.setOrigin?.(0.5);
+		const impact = this.add.arc(
+			target.x,
+			target.y,
+			16,
+			0,
+			Math.PI * 2,
+			false,
+			0xffffff,
+			0.72
+		) as OverlayMarker;
+		impact.setOrigin?.(0.5);
+
+		this.tweens.add({
+			targets: this.player,
+			x: lungeX,
+			y: lungeY,
+			duration: 55,
+			yoyo: true,
+			ease: 'Sine.easeOut'
+		});
+		this.tweens.add({
+			targets: slash,
+			scale: 1.45,
+			alpha: 0,
+			duration: 110,
+			ease: 'Sine.easeOut',
+			onComplete: () => slash.setVisible(false)
+		});
+		this.tweens.add({
+			targets: impact,
+			scale: 1.7,
+			alpha: 0,
+			duration: 95,
+			ease: 'Sine.easeOut',
+			onComplete: () => impact.setVisible(false)
+		});
+		this.hitStopUntil = time + BattleScene.hitStopMs;
+		this.cameras.main.shake(80, 0.004);
+	}
+
+	private playEnemyAttackPresentation() {
+		if (!this.player) {
+			return;
+		}
+
+		const impact = this.add.arc(
+			this.player.x,
+			this.player.y,
+			12,
+			0,
+			Math.PI * 2,
+			false,
+			0xff6b6b,
+			0.65
+		) as OverlayMarker;
+		impact.setOrigin?.(0.5);
+
+		this.tweens.add({
+			targets: impact,
+			scale: 1.55,
+			alpha: 0,
+			duration: 90,
+			ease: 'Sine.easeOut',
+			onComplete: () => impact.setVisible(false)
+		});
+		this.cameras.main.shake(60, 0.003);
 	}
 
 	private updateHitReactions(time: number) {
