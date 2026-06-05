@@ -344,7 +344,8 @@ const phaserState = vi.hoisted(() => {
 			setVisible: vi.fn((visible: boolean) => {
 				marker.visible = visible;
 				return marker;
-			})
+			}),
+			destroy: vi.fn(() => marker)
 		};
 
 		return marker;
@@ -575,6 +576,7 @@ const phaserState = vi.hoisted(() => {
 				marker.setOrigin.mockReset();
 				marker.setAlpha.mockReset();
 				marker.setVisible.mockReset();
+				marker.destroy.mockReset();
 			}
 			enemyHealthBarBg.setPosition.mockReset();
 			enemyHealthBarBg.setScale.mockReset();
@@ -1129,7 +1131,10 @@ describe('BattleScene', () => {
 
 		scene.update(0, 16);
 
-		expect(scene.add.arc).toHaveBeenCalled();
+		expect(scene.add.arc).toHaveBeenCalledWith(453, 252, 24, -55, 55, false, 0xffd166, 0.88);
+		expect(scene.add.arc).toHaveBeenCalledWith(458, 252, 16, 0, 360, false, 0xffffff, 0.72);
+		expect(phaserState.hitImpactMarkers[0]!.destroy).toHaveBeenCalled();
+		expect(phaserState.hitImpactMarkers[1]!.destroy).toHaveBeenCalled();
 		expect(phaserState.mainCamera.shake).toHaveBeenCalledWith(80, 0.004);
 		expect(scene.tweens.add).toHaveBeenCalled();
 		expect(state.hitStopUntil).toBe(70);
@@ -1223,7 +1228,8 @@ describe('BattleScene', () => {
 
 		scene.update(0, 16);
 
-		expect(scene.add.arc).toHaveBeenCalledWith(448, 252, 12, 0, Math.PI * 2, false, 0xff6b6b, 0.65);
+		expect(scene.add.arc).toHaveBeenCalledWith(448, 252, 12, 0, 360, false, 0xff6b6b, 0.65);
+		expect(phaserState.hitImpactMarkers[2]!.destroy).toHaveBeenCalled();
 		expect(phaserState.mainCamera.shake).toHaveBeenCalledWith(60, 0.003);
 	});
 
