@@ -64,6 +64,7 @@ type ActorMarker = {
 };
 
 type OverlayMarker = {
+	destroy?: () => unknown;
 	setPosition: (x: number, y: number) => unknown;
 	setAlpha?: (alpha: number) => unknown;
 	setOrigin?: (x: number, y?: number) => unknown;
@@ -728,8 +729,8 @@ export class BattleScene extends Phaser.Scene {
 			midpointX,
 			midpointY,
 			24,
-			-0.72,
-			0.72,
+			-55,
+			55,
 			false,
 			0xffd166,
 			0.88
@@ -740,7 +741,7 @@ export class BattleScene extends Phaser.Scene {
 			target.y,
 			16,
 			0,
-			Math.PI * 2,
+			360,
 			false,
 			0xffffff,
 			0.72
@@ -761,7 +762,7 @@ export class BattleScene extends Phaser.Scene {
 			alpha: 0,
 			duration: 110,
 			ease: 'Sine.easeOut',
-			onComplete: () => slash.setVisible(false)
+			onComplete: () => slash.destroy?.()
 		});
 		this.tweens.add({
 			targets: impact,
@@ -769,7 +770,7 @@ export class BattleScene extends Phaser.Scene {
 			alpha: 0,
 			duration: 95,
 			ease: 'Sine.easeOut',
-			onComplete: () => impact.setVisible(false)
+			onComplete: () => impact.destroy?.()
 		});
 		this.hitStopUntil = time + BattleScene.hitStopMs;
 		this.cameras.main.shake(80, 0.004);
@@ -785,7 +786,7 @@ export class BattleScene extends Phaser.Scene {
 			this.player.y,
 			12,
 			0,
-			Math.PI * 2,
+			360,
 			false,
 			0xff6b6b,
 			0.65
@@ -798,7 +799,7 @@ export class BattleScene extends Phaser.Scene {
 			alpha: 0,
 			duration: 90,
 			ease: 'Sine.easeOut',
-			onComplete: () => impact.setVisible(false)
+			onComplete: () => impact.destroy?.()
 		});
 		this.cameras.main.shake(60, 0.003);
 	}
