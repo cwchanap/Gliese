@@ -4,6 +4,7 @@ import {
 	actorAnimationAssets,
 	actorAnimationKeys,
 	animationPackAsset,
+	getBattleBackgroundAsset,
 	getActorAnimationAsset,
 	getEnemyActorId,
 	type ActorAnimationKey
@@ -85,7 +86,7 @@ type BattleEnemyInstance = BattleEnemyUnit & {
 
 export class BattleScene extends Phaser.Scene {
 	static readonly key = 'battle';
-	private static readonly arena = { width: 640, height: 360, padding: 34 };
+	private static readonly arena = { width: 896, height: 504, padding: 48 };
 	private static readonly playerRadius = 12;
 	private static readonly enemyRadius = 10;
 	private static readonly attackReach = 40;
@@ -150,8 +151,7 @@ export class BattleScene extends Phaser.Scene {
 		this.hero = { ...payload.hero };
 		this.registerAnimationPackFrames();
 		this.ensureActorAnimations();
-		this.add.rectangle(320, 180, 584, 304, 0x203d31, 1);
-		this.add.rectangle(320, 180, 552, 272, 0x2f6b48, 0.45);
+		this.createBattleBackdrop(payload.sourceMapId);
 		this.createHero();
 		this.createEnemies(payload);
 		this.cursorKeys = this.input?.keyboard?.createCursorKeys?.();
@@ -237,11 +237,34 @@ export class BattleScene extends Phaser.Scene {
 		}
 	}
 
+	private createBattleBackdrop(sourceMapId: string) {
+		const background = getBattleBackgroundAsset(sourceMapId);
+		this.add
+			.image(BattleScene.arena.width / 2, BattleScene.arena.height / 2, background.key)
+			.setDisplaySize(BattleScene.arena.width, BattleScene.arena.height);
+		this.add.rectangle(
+			BattleScene.arena.width / 2,
+			BattleScene.arena.height / 2,
+			BattleScene.arena.width,
+			BattleScene.arena.height,
+			0x07130f,
+			0.18
+		);
+		this.add.rectangle(
+			BattleScene.arena.width / 2,
+			BattleScene.arena.height / 2,
+			BattleScene.arena.width - 54,
+			BattleScene.arena.height - 54,
+			0xf8d78f,
+			0.08
+		);
+	}
+
 	private createHero() {
 		const heroAnimation = getActorAnimationAsset('hero');
 		this.player = this.add.sprite(
-			320,
-			180,
+			BattleScene.arena.width / 2,
+			BattleScene.arena.height / 2,
 			animationPackAsset.key,
 			heroAnimation.clips.idle.frames[0]
 		) as ActorMarker;
@@ -310,8 +333,8 @@ export class BattleScene extends Phaser.Scene {
 	private getEnemySpawnPositions(count: number): Array<{ x: number; y: number }> {
 		const centerX = BattleScene.arena.width / 2;
 		const centerY = BattleScene.arena.height / 2;
-		const radiusX = 230;
-		const radiusY = 122;
+		const radiusX = 342;
+		const radiusY = 178;
 
 		return Array.from({ length: count }, (_, index) => {
 			const angle = (Math.PI * 2 * index) / Math.max(count, 1) - Math.PI / 2;
