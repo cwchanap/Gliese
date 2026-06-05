@@ -293,6 +293,7 @@ const phaserState = vi.hoisted(() => {
 		height: 360,
 		scrollX: 0,
 		scrollY: 0,
+		shake: vi.fn(),
 		setBackgroundColor: vi.fn(),
 		setBounds: vi.fn(),
 		startFollow: vi.fn()
@@ -485,6 +486,12 @@ const phaserState = vi.hoisted(() => {
 			rectangle: vi.fn(createRectangle),
 			text: vi.fn(() => victoryText)
 		};
+		tweens = {
+			add: vi.fn((config: { onComplete?: () => void }) => {
+				config.onComplete?.();
+				return config;
+			})
+		};
 		cameras = {
 			main: mainCamera
 		};
@@ -534,6 +541,7 @@ const phaserState = vi.hoisted(() => {
 		tileSpriteMarkers,
 		reset() {
 			Object.assign(mainCamera, { width: 640, height: 360, scrollX: 0, scrollY: 0 });
+			mainCamera.shake.mockClear();
 			mainCamera.setBackgroundColor.mockClear();
 			mainCamera.setBounds.mockClear();
 			mainCamera.startFollow.mockClear();
@@ -1097,6 +1105,68 @@ describe('BattleScene', () => {
 		expect(phaserState.playerMarker.play).toHaveBeenCalledTimes(callCountAfterStrike);
 	});
 
+	it('plays slash and impact presentation when the hero attacks', async () => {
+		const { createNewSaveState } = await import('$lib/game/save/save-state');
+		const { BattleScene } = await import('./BattleScene');
+		const scene = new BattleScene();
+
+		scene.create({
+			saveState: createNewSaveState(),
+			sourceMapId: 'meadow-entry',
+			sourceEncounterId: 'meadow-slime-west',
+			sourceEnemyId: 'slime-scout',
+			returnPosition: { mapId: 'meadow-entry', x: 4_928, y: 1_024, facing: 'down' },
+			enemyCount: 1,
+			hero: { hp: 20, maxHp: 20, attack: 1, defense: 0 }
+		});
+		Object.assign(phaserState.playerMarker, { x: 448, y: 252 });
+		const state = scene as unknown as {
+			enemies: Array<{ x: number; y: number }>;
+			hitStopUntil: number;
+		};
+		state.enemies[0]!.x = 458;
+		state.enemies[0]!.y = 252;
+
+		scene.update(0, 16);
+
+		expect(scene.add.arc).toHaveBeenCalled();
+		expect(phaserState.mainCamera.shake).toHaveBeenCalledWith(80, 0.004);
+		expect(scene.tweens.add).toHaveBeenCalled();
+		expect(state.hitStopUntil).toBe(70);
+	});
+
+	it('skips movement updates during hit-stop but keeps time advancing afterward', async () => {
+		const { createNewSaveState } = await import('$lib/game/save/save-state');
+		const { BattleScene } = await import('./BattleScene');
+		const scene = new BattleScene();
+
+		scene.create({
+			saveState: createNewSaveState(),
+			sourceMapId: 'meadow-entry',
+			sourceEncounterId: 'meadow-slime-west',
+			sourceEnemyId: 'slime-scout',
+			returnPosition: { mapId: 'meadow-entry', x: 4_928, y: 1_024, facing: 'down' },
+			enemyCount: 1,
+			hero: { hp: 20, maxHp: 20, attack: 1, defense: 0 }
+		});
+		Object.assign(phaserState.playerMarker, { x: 448, y: 252 });
+		const state = scene as unknown as {
+			enemies: Array<{ x: number; y: number }>;
+			hitStopUntil: number;
+		};
+		state.enemies[0]!.x = 458;
+		state.enemies[0]!.y = 252;
+		phaserState.cursorKeys.right.isDown = true;
+
+		scene.update(0, 16);
+		const xDuringStrike = phaserState.playerMarker.x;
+		scene.update(20, 16);
+
+		expect(phaserState.playerMarker.x).toBe(xDuringStrike);
+		scene.update(80, 16);
+		expect(phaserState.playerMarker.x).toBeGreaterThan(xDuringStrike);
+	});
+
 	it('keeps enemy attack animation locked briefly after striking the hero', async () => {
 		const { createNewSaveState } = await import('$lib/game/save/save-state');
 		const { BattleScene } = await import('./BattleScene');
@@ -1126,6 +1196,35 @@ describe('BattleScene', () => {
 
 		expect(phaserState.enemyMarker.play).toHaveBeenCalledWith('slimeScout-attack', false);
 		expect(phaserState.enemyMarker.play).toHaveBeenCalledTimes(callCountAfterStrike);
+	});
+
+	it('plays a compact impact pulse when an enemy attacks the hero', async () => {
+		const { createNewSaveState } = await import('$lib/game/save/save-state');
+		const { BattleScene } = await import('./BattleScene');
+		const scene = new BattleScene();
+
+		scene.create({
+			saveState: createNewSaveState(),
+			sourceMapId: 'meadow-entry',
+			sourceEncounterId: 'meadow-slime-west',
+			sourceEnemyId: 'slime-scout',
+			returnPosition: { mapId: 'meadow-entry', x: 4_928, y: 1_024, facing: 'down' },
+			enemyCount: 1,
+			hero: { hp: 20, maxHp: 20, attack: 1, defense: 0 }
+		});
+		Object.assign(phaserState.playerMarker, { x: 448, y: 252 });
+		const state = scene as unknown as {
+			enemies: Array<{ x: number; y: number; attackCooldownUntil: number }>;
+		};
+		state.enemies[0]!.x = 448;
+		state.enemies[0]!.y = 252;
+		state.enemies[0]!.attackCooldownUntil = 0;
+		vi.mocked(scene.add.arc).mockClear();
+
+		scene.update(0, 16);
+
+		expect(scene.add.arc).toHaveBeenCalledWith(448, 252, 12, 0, Math.PI * 2, false, 0xff6b6b, 0.65);
+		expect(phaserState.mainCamera.shake).toHaveBeenCalledWith(60, 0.003);
 	});
 
 	it('waits for the enemy death animation before hiding the marker and health bars', async () => {
