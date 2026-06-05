@@ -671,6 +671,7 @@ describe('BootScene', () => {
 	it('preloads the static and animation sheets', async () => {
 		const {
 			animationPackAsset,
+			battleBackgroundAssets,
 			environmentDressingAsset,
 			fenceDressingAsset,
 			forestDressingAsset,
@@ -701,6 +702,9 @@ describe('BootScene', () => {
 			environmentDressingAsset.key,
 			environmentDressingAsset.path
 		);
+		for (const asset of Object.values(battleBackgroundAssets)) {
+			expect(scene.load.image).toHaveBeenCalledWith(asset.key, asset.path);
+		}
 	});
 });
 
