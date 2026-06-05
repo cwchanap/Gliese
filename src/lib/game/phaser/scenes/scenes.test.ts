@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { battleBackgroundAssets } from '$lib/game/content/assets';
 import { maps } from '$lib/game/content/maps';
 import { HUD_COMMAND_EVENT, type HudCommand } from '$lib/game/ui-bridge/events';
 
@@ -723,7 +724,7 @@ describe('BattleScene', () => {
 		Object.assign(phaserState.wasdKeys.down, { isDown: false });
 	});
 
-	it('spawns real generated enemies around the compact arena', async () => {
+	it('spawns real generated enemies around the larger battle arena', async () => {
 		const { createNewSaveState } = await import('$lib/game/save/save-state');
 		const { BattleScene } = await import('./BattleScene');
 		const scene = new BattleScene();
@@ -753,10 +754,10 @@ describe('BattleScene', () => {
 		expect(state.enemies.every((enemy) => enemy.hp === 8 && !enemy.defeated)).toBe(true);
 		expect(state.enemies.map((enemy) => ({ x: enemy.x, y: enemy.y }))).toEqual(
 			expect.arrayContaining([
-				expect.objectContaining({ x: 320 }),
-				expect.objectContaining({ y: 58 }),
-				expect.objectContaining({ x: 550 }),
-				expect.objectContaining({ x: 90 })
+				expect.objectContaining({ x: 448 }),
+				expect.objectContaining({ y: 74 }),
+				expect.objectContaining({ x: 790 }),
+				expect.objectContaining({ x: 106 })
 			])
 		);
 		expect(phaserState.enemyMarkers).toHaveLength(4);
@@ -764,10 +765,11 @@ describe('BattleScene', () => {
 		expect(phaserState.enemyHealthBarFills).toHaveLength(4);
 	});
 
-	it('centers the arena when the canvas matches the arena size', async () => {
+	it('centers the larger arena when the canvas matches the arena size', async () => {
 		const { createNewSaveState } = await import('$lib/game/save/save-state');
 		const { BattleScene } = await import('./BattleScene');
 		const scene = new BattleScene();
+		Object.assign(scene.scale, { width: 896, height: 504 });
 
 		scene.create({
 			saveState: createNewSaveState(),
@@ -783,7 +785,7 @@ describe('BattleScene', () => {
 		expect(phaserState.mainCamera.scrollY).toBe(0);
 	});
 
-	it('offsets the camera to center the arena on a larger canvas', async () => {
+	it('offsets the camera to center the larger arena on a larger canvas', async () => {
 		const { createNewSaveState } = await import('$lib/game/save/save-state');
 		const { BattleScene } = await import('./BattleScene');
 		const scene = new BattleScene();
@@ -799,8 +801,30 @@ describe('BattleScene', () => {
 			hero: { hp: 20, maxHp: 20, attack: 4, defense: 0 }
 		});
 
-		expect(phaserState.mainCamera.scrollX).toBe(-320);
-		expect(phaserState.mainCamera.scrollY).toBe(-180);
+		expect(phaserState.mainCamera.scrollX).toBe(-192);
+		expect(phaserState.mainCamera.scrollY).toBe(-108);
+	});
+
+	it('renders a ruins battle backdrop before actors', async () => {
+		const { createNewSaveState } = await import('$lib/game/save/save-state');
+		const { BattleScene } = await import('./BattleScene');
+		const scene = new BattleScene();
+
+		scene.create({
+			saveState: createNewSaveState(),
+			sourceMapId: 'ruins-core',
+			sourceEncounterId: 'ruins-warden',
+			sourceEnemyId: 'ruins-warden',
+			returnPosition: { mapId: 'ruins-core', x: 4_992, y: 3_200, facing: 'down' },
+			enemyCount: 1,
+			hero: { hp: 20, maxHp: 20, attack: 4, defense: 0 }
+		});
+
+		expect(scene.add.image).toHaveBeenCalledWith(448, 252, battleBackgroundAssets.ruins.key);
+		expect(phaserState.imageMarkers[0]?.setDisplaySize).toHaveBeenCalledWith(896, 504);
+		expect(vi.mocked(scene.add.image).mock.invocationCallOrder[0]).toBeLessThan(
+			vi.mocked(scene.add.sprite).mock.invocationCallOrder[0]!
+		);
 	});
 
 	it('registers a resize listener that re-centers the arena', async () => {
@@ -827,8 +851,8 @@ describe('BattleScene', () => {
 		Object.assign(scene.scale, { width: 960, height: 540 });
 		resizeHandler!();
 
-		expect(phaserState.mainCamera.scrollX).toBe(-160);
-		expect(phaserState.mainCamera.scrollY).toBe(-90);
+		expect(phaserState.mainCamera.scrollX).toBe(-32);
+		expect(phaserState.mainCamera.scrollY).toBe(-18);
 	});
 
 	it('produces a victory result after all generated enemies are defeated', async () => {
