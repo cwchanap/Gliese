@@ -1095,7 +1095,7 @@ describe('BattleScene', () => {
 		state.enemies[0]!.attackCooldownUntil = 0;
 
 		scene.update(0, 16);
-		scene.update(80, 16);
+		scene.update(120, 16);
 
 		expect(state.pendingResult).toMatchObject({
 			outcome: 'defeat',
@@ -1170,7 +1170,7 @@ describe('BattleScene', () => {
 		expect(phaserState.hitImpactMarkers[1]!.destroy).toHaveBeenCalled();
 		expect(phaserState.mainCamera.shake).toHaveBeenCalledWith(80, 0.004);
 		expect(scene.tweens.add).toHaveBeenCalled();
-		expect(state.hitStopUntil).toBe(70);
+		expect(state.hitStopUntil).toBe(110);
 	});
 
 	it('skips movement updates during hit-stop but keeps time advancing afterward', async () => {
@@ -1201,7 +1201,12 @@ describe('BattleScene', () => {
 		scene.update(20, 16);
 
 		expect(phaserState.playerMarker.x).toBe(xDuringStrike);
+		// Hit-stop now spans the full 110 ms hero lunge (out + yoyo return),
+		// so input is still frozen at t=80 — the frame where the lunge tween
+		// used to resume overwriting player.x mid-return.
 		scene.update(80, 16);
+		expect(phaserState.playerMarker.x).toBe(xDuringStrike);
+		scene.update(130, 16);
 		expect(phaserState.playerMarker.x).toBeGreaterThan(xDuringStrike);
 	});
 
@@ -1231,8 +1236,58 @@ describe('BattleScene', () => {
 
 		scene.update(0, 16);
 
-		expect(state.hitStopUntil).toBe(70);
+		expect(state.hitStopUntil).toBe(110);
 		expect(state.enemies[0]!.x).toBe(498);
+	});
+
+	it('keeps enemy AI frozen for the full hero lunge return so the lunged sprite cannot trigger a false counterattack', async () => {
+		const { createNewSaveState } = await import('$lib/game/save/save-state');
+		const { BattleScene } = await import('./BattleScene');
+		const scene = new BattleScene();
+
+		scene.create({
+			saveState: createNewSaveState(),
+			sourceMapId: 'meadow-entry',
+			sourceEncounterId: 'meadow-slime-west',
+			sourceEnemyId: 'slime-scout',
+			returnPosition: { mapId: 'meadow-entry', x: 4_928, y: 1_024, facing: 'down' },
+			enemyCount: 1,
+			hero: { hp: 20, maxHp: 20, attack: 1, defense: 0 }
+		});
+		Object.assign(phaserState.playerMarker, { x: 448, y: 252 });
+		// Enemy at distance 50 px: inside hero attack reach (50 <= 62) but
+		// outside enemy attack reach (50 > 40). With the lunge tween pushing
+		// the sprite ~18 px toward the enemy, AI that read the lunged
+		// sprite position would see distance ~32 px and counter-attack.
+		const state = scene as unknown as {
+			enemies: Array<{ x: number; y: number; attackCooldownUntil: number }>;
+			hero: { hp: number };
+			hitStopUntil: number;
+		};
+		state.enemies[0]!.x = 498;
+		state.enemies[0]!.y = 252;
+		state.enemies[0]!.attackCooldownUntil = 0;
+
+		scene.update(0, 16);
+		expect(state.hitStopUntil).toBe(110);
+
+		const hpAtStrike = state.hero.hp;
+		const enemyXAtStrike = state.enemies[0]!.x;
+
+		// t=80 is past the legacy 70 ms hit-stop but still inside the
+		// lunge+yoyo window (55 ms out + 55 ms back = 110 ms). AI and the
+		// hero's logical position must remain frozen here.
+		scene.update(80, 16);
+
+		expect(state.enemies[0]!.x).toBe(enemyXAtStrike);
+		expect(state.hero.hp).toBe(hpAtStrike);
+
+		// After the full lunge returns, gameplay resumes.
+		scene.update(130, 16);
+		// Enemy is still outside its 40 px chase threshold from the hero's
+		// logical position, so it should now close in but not yet attack.
+		expect(state.enemies[0]!.x).toBeLessThan(enemyXAtStrike);
+		expect(state.hero.hp).toBe(hpAtStrike);
 	});
 
 	it('keeps enemy attack animation locked briefly after striking the hero', async () => {
@@ -1259,9 +1314,9 @@ describe('BattleScene', () => {
 		phaserState.enemyMarker.play.mockClear();
 
 		scene.update(0, 16);
-		scene.update(80, 16);
+		scene.update(120, 16);
 		const callCountAfterStrike = phaserState.enemyMarker.play.mock.calls.length;
-		scene.update(96, 16);
+		scene.update(136, 16);
 
 		expect(phaserState.enemyMarker.play).toHaveBeenCalledWith('slimeScout-attack', false);
 		expect(phaserState.enemyMarker.play).toHaveBeenCalledTimes(callCountAfterStrike);
@@ -1292,7 +1347,7 @@ describe('BattleScene', () => {
 
 		scene.update(0, 16);
 		vi.mocked(scene.add.arc).mockClear();
-		scene.update(80, 16);
+		scene.update(120, 16);
 
 		expect(scene.add.arc).toHaveBeenCalledWith(448, 252, 12, 0, 360, false, 0xff6b6b, 0.65);
 		expect(phaserState.hitImpactMarkers[2]!.destroy).toHaveBeenCalled();
@@ -5967,7 +6022,7 @@ describe('WorldScene', () => {
 
 		scene.update(0, 16);
 		emitHudStateSpy.mockClear();
-		scene.update(80, 16);
+		scene.update(120, 16);
 
 		const lastCall = emitHudStateSpy.mock.calls[emitHudStateSpy.mock.calls.length - 1];
 		expect(lastCall?.[0]).toMatchObject({ hp: 18, maxHp: 20 });
