@@ -64,10 +64,10 @@ type ActorMarker = {
 };
 
 type OverlayMarker = {
-	destroy?: () => unknown;
+	destroy: () => unknown;
 	setPosition: (x: number, y: number) => unknown;
-	setAlpha?: (alpha: number) => unknown;
-	setOrigin?: (x: number, y?: number) => unknown;
+	setAlpha: (alpha: number) => unknown;
+	setOrigin: (x: number, y?: number) => unknown;
 	setScale: (x: number, y?: number) => unknown;
 	setVisible: (visible: boolean) => unknown;
 };
@@ -187,6 +187,9 @@ export class BattleScene extends Phaser.Scene {
 
 		this.updateHeroMovement(time, delta);
 		this.tryHeroAttack(time);
+		if (time < this.hitStopUntil) {
+			return;
+		}
 		this.updateEnemyBehavior(time, delta);
 	}
 
@@ -735,7 +738,7 @@ export class BattleScene extends Phaser.Scene {
 			0xffd166,
 			0.88
 		) as OverlayMarker;
-		slash.setOrigin?.(0.5);
+		slash.setOrigin(0.5);
 		const impact = this.add.arc(
 			target.x,
 			target.y,
@@ -746,7 +749,7 @@ export class BattleScene extends Phaser.Scene {
 			0xffffff,
 			0.72
 		) as OverlayMarker;
-		impact.setOrigin?.(0.5);
+		impact.setOrigin(0.5);
 
 		this.tweens.add({
 			targets: this.player,
@@ -762,7 +765,7 @@ export class BattleScene extends Phaser.Scene {
 			alpha: 0,
 			duration: 110,
 			ease: 'Sine.easeOut',
-			onComplete: () => slash.destroy?.()
+			onComplete: () => slash.destroy()
 		});
 		this.tweens.add({
 			targets: impact,
@@ -770,7 +773,7 @@ export class BattleScene extends Phaser.Scene {
 			alpha: 0,
 			duration: 95,
 			ease: 'Sine.easeOut',
-			onComplete: () => impact.destroy?.()
+			onComplete: () => impact.destroy()
 		});
 		this.hitStopUntil = time + BattleScene.hitStopMs;
 		this.cameras.main.shake(80, 0.004);
@@ -791,7 +794,7 @@ export class BattleScene extends Phaser.Scene {
 			0xff6b6b,
 			0.65
 		) as OverlayMarker;
-		impact.setOrigin?.(0.5);
+		impact.setOrigin(0.5);
 
 		this.tweens.add({
 			targets: impact,
@@ -799,7 +802,7 @@ export class BattleScene extends Phaser.Scene {
 			alpha: 0,
 			duration: 90,
 			ease: 'Sine.easeOut',
-			onComplete: () => impact.destroy?.()
+			onComplete: () => impact.destroy()
 		});
 		this.cameras.main.shake(60, 0.003);
 	}
