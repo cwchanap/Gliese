@@ -218,8 +218,16 @@ export class BattleScene extends Phaser.Scene {
 	}
 
 	private centerArena = () => {
-		this.cameras.main.scrollX = (BattleScene.arena.width - this.scale.width) / 2;
-		this.cameras.main.scrollY = (BattleScene.arena.height - this.scale.height) / 2;
+		const fitZoom = Math.min(
+			this.scale.width / BattleScene.arena.width,
+			this.scale.height / BattleScene.arena.height
+		);
+		const zoom = Math.min(1, fitZoom);
+		this.cameras.main.setZoom(zoom);
+		const visibleWidth = this.scale.width / zoom;
+		const visibleHeight = this.scale.height / zoom;
+		this.cameras.main.scrollX = (BattleScene.arena.width - visibleWidth) / 2;
+		this.cameras.main.scrollY = (BattleScene.arena.height - visibleHeight) / 2;
 	};
 
 	private registerAnimationPackFrames() {
