@@ -102,7 +102,14 @@ export class BattleScene extends Phaser.Scene {
 	private static readonly actorAnimationLockMs = 400;
 	private static readonly hitReactionDurationMs = 450;
 	private static readonly hitReactionTint = 0xfff0a8;
-	private static readonly hitStopMs = 70;
+	/**
+	 * Hit-stop length in ms. Must cover the full hero lunge tween
+	 * (`heroLungeMs` out + back = 110 ms) so enemy AI and movement input
+	 * cannot read or overwrite the lunged-forward sprite position while
+	 * the yoyo is still returning. See playHeroAttackPresentation.
+	 */
+	private static readonly hitStopMs = 110;
+	private static readonly heroLungeMs = 55;
 	private static readonly heroLungeDistance = 18;
 	private static readonly heroMoveSpeed = 140;
 	private static readonly bossPhaseTwoSpeedMultiplier = 1.5;
@@ -776,7 +783,7 @@ export class BattleScene extends Phaser.Scene {
 			targets: this.player,
 			x: lungeX,
 			y: lungeY,
-			duration: 55,
+			duration: BattleScene.heroLungeMs,
 			yoyo: true,
 			ease: 'Sine.easeOut'
 		});
