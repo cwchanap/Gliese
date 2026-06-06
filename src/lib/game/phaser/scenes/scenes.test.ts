@@ -293,9 +293,13 @@ const phaserState = vi.hoisted(() => {
 		height: 360,
 		scrollX: 0,
 		scrollY: 0,
+		zoom: 1,
 		shake: vi.fn(),
 		setBackgroundColor: vi.fn(),
 		setBounds: vi.fn(),
+		setZoom: vi.fn(function (this: typeof mainCamera, value: number) {
+			this.zoom = value;
+		}),
 		startFollow: vi.fn()
 	};
 	const imageMarkers: Array<{
@@ -541,10 +545,11 @@ const phaserState = vi.hoisted(() => {
 		imageMarkers,
 		tileSpriteMarkers,
 		reset() {
-			Object.assign(mainCamera, { width: 640, height: 360, scrollX: 0, scrollY: 0 });
+			Object.assign(mainCamera, { width: 640, height: 360, scrollX: 0, scrollY: 0, zoom: 1 });
 			mainCamera.shake.mockClear();
 			mainCamera.setBackgroundColor.mockClear();
 			mainCamera.setBounds.mockClear();
+			mainCamera.setZoom.mockClear();
 			mainCamera.startFollow.mockClear();
 			Object.assign(playerMarker, { x: 0, y: 0, frame: undefined, visible: true });
 			Object.assign(enemyMarker, { x: 0, y: 0, frame: undefined, visible: true });
@@ -791,6 +796,7 @@ describe('BattleScene', () => {
 			hero: { hp: 20, maxHp: 20, attack: 4, defense: 0 }
 		});
 
+		expect(phaserState.mainCamera.setZoom).toHaveBeenCalledWith(1);
 		expect(phaserState.mainCamera.scrollX).toBe(0);
 		expect(phaserState.mainCamera.scrollY).toBe(0);
 	});
@@ -811,6 +817,7 @@ describe('BattleScene', () => {
 			hero: { hp: 20, maxHp: 20, attack: 4, defense: 0 }
 		});
 
+		expect(phaserState.mainCamera.setZoom).toHaveBeenCalledWith(1);
 		expect(phaserState.mainCamera.scrollX).toBe(-192);
 		expect(phaserState.mainCamera.scrollY).toBe(-108);
 	});
@@ -863,6 +870,30 @@ describe('BattleScene', () => {
 
 		expect(phaserState.mainCamera.scrollX).toBe(-32);
 		expect(phaserState.mainCamera.scrollY).toBe(-18);
+	});
+
+	it('zooms out to fit the full arena on a canvas smaller than the arena', async () => {
+		const { createNewSaveState } = await import('$lib/game/save/save-state');
+		const { BattleScene } = await import('./BattleScene');
+		const scene = new BattleScene();
+		Object.assign(scene.scale, { width: 640, height: 360 });
+
+		scene.create({
+			saveState: createNewSaveState(),
+			sourceMapId: 'meadow-entry',
+			sourceEncounterId: 'meadow-slime-west',
+			sourceEnemyId: 'slime-scout',
+			returnPosition: { mapId: 'meadow-entry', x: 4_928, y: 1_024, facing: 'down' },
+			enemyCount: 4,
+			hero: { hp: 20, maxHp: 20, attack: 4, defense: 0 }
+		});
+
+		expect(phaserState.mainCamera.setZoom).toHaveBeenCalled();
+		const zoomArg = vi.mocked(phaserState.mainCamera.setZoom).mock.calls[0]![0];
+		expect(zoomArg).toBeCloseTo(640 / 896, 5);
+		expect(zoomArg).toBeCloseTo(360 / 504, 5);
+		expect(phaserState.mainCamera.scrollX).toBe(0);
+		expect(phaserState.mainCamera.scrollY).toBe(0);
 	});
 
 	it('produces a victory result after all generated enemies are defeated', async () => {
