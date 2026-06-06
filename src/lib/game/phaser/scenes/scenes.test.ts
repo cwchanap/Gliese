@@ -891,6 +891,7 @@ describe('BattleScene', () => {
 		state.enemies[1]!.y = 190;
 
 		scene.update(0, 16);
+		scene.update(200, 16);
 		scene.update(500, 16);
 
 		expect(state.pendingResult).toMatchObject({
@@ -1063,6 +1064,7 @@ describe('BattleScene', () => {
 		state.enemies[0]!.attackCooldownUntil = 0;
 
 		scene.update(0, 16);
+		scene.update(80, 16);
 
 		expect(state.pendingResult).toMatchObject({
 			outcome: 'defeat',
@@ -1172,6 +1174,36 @@ describe('BattleScene', () => {
 		expect(phaserState.playerMarker.x).toBeGreaterThan(xDuringStrike);
 	});
 
+	it('freezes enemy movement on the frame the hero triggers hit-stop', async () => {
+		const { createNewSaveState } = await import('$lib/game/save/save-state');
+		const { BattleScene } = await import('./BattleScene');
+		const scene = new BattleScene();
+
+		scene.create({
+			saveState: createNewSaveState(),
+			sourceMapId: 'meadow-entry',
+			sourceEncounterId: 'meadow-slime-west',
+			sourceEnemyId: 'slime-scout',
+			returnPosition: { mapId: 'meadow-entry', x: 4_928, y: 1_024, facing: 'down' },
+			enemyCount: 1,
+			hero: { hp: 20, maxHp: 20, attack: 1, defense: 0 }
+		});
+		Object.assign(phaserState.playerMarker, { x: 448, y: 252 });
+		const state = scene as unknown as {
+			enemies: Array<{ x: number; y: number }>;
+			hitStopUntil: number;
+		};
+		// Place enemy within hero attack reach (distance 50 <= 62) but outside enemy
+		// chase threshold (50 > 40) so it would normally move on the hit frame.
+		state.enemies[0]!.x = 498;
+		state.enemies[0]!.y = 252;
+
+		scene.update(0, 16);
+
+		expect(state.hitStopUntil).toBe(70);
+		expect(state.enemies[0]!.x).toBe(498);
+	});
+
 	it('keeps enemy attack animation locked briefly after striking the hero', async () => {
 		const { createNewSaveState } = await import('$lib/game/save/save-state');
 		const { BattleScene } = await import('./BattleScene');
@@ -1196,8 +1228,9 @@ describe('BattleScene', () => {
 		phaserState.enemyMarker.play.mockClear();
 
 		scene.update(0, 16);
+		scene.update(80, 16);
 		const callCountAfterStrike = phaserState.enemyMarker.play.mock.calls.length;
-		scene.update(16, 16);
+		scene.update(96, 16);
 
 		expect(phaserState.enemyMarker.play).toHaveBeenCalledWith('slimeScout-attack', false);
 		expect(phaserState.enemyMarker.play).toHaveBeenCalledTimes(callCountAfterStrike);
@@ -1227,6 +1260,8 @@ describe('BattleScene', () => {
 		vi.mocked(scene.add.arc).mockClear();
 
 		scene.update(0, 16);
+		vi.mocked(scene.add.arc).mockClear();
+		scene.update(80, 16);
 
 		expect(scene.add.arc).toHaveBeenCalledWith(448, 252, 12, 0, 360, false, 0xff6b6b, 0.65);
 		expect(phaserState.hitImpactMarkers[2]!.destroy).toHaveBeenCalled();
@@ -5900,6 +5935,8 @@ describe('WorldScene', () => {
 		emitHudStateSpy.mockClear();
 
 		scene.update(0, 16);
+		emitHudStateSpy.mockClear();
+		scene.update(80, 16);
 
 		const lastCall = emitHudStateSpy.mock.calls[emitHudStateSpy.mock.calls.length - 1];
 		expect(lastCall?.[0]).toMatchObject({ hp: 18, maxHp: 20 });
