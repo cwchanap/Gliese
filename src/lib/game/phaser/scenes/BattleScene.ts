@@ -251,6 +251,12 @@ export class BattleScene extends Phaser.Scene {
 		}
 	}
 
+	/**
+	 * Renders the battle backdrop image and decorative overlay rectangles for the arena.
+	 *
+	 * @param sourceMapId - Id of the map that triggered the battle, used to resolve the background asset.
+	 * @returns This method does not return a value.
+	 */
 	private createBattleBackdrop(sourceMapId: string) {
 		const background = getBattleBackgroundAsset(sourceMapId);
 		this.add
@@ -713,6 +719,13 @@ export class BattleScene extends Phaser.Scene {
 		);
 	}
 
+	/**
+	 * Plays the hero's attack presentation: lunge tween toward the target, slash arc, impact flash, hit-stop, and camera shake.
+	 *
+	 * @param target - The enemy unit being attacked; provides the destination position for the lunge and impact effects.
+	 * @param time - Current Phaser scene time (ms since scene start), used to set the hit-stop window.
+	 * @returns This method does not return a value.
+	 */
 	private playHeroAttackPresentation(target: BattleEnemyInstance, time: number) {
 		if (!this.player) {
 			return;
@@ -779,6 +792,11 @@ export class BattleScene extends Phaser.Scene {
 		this.cameras.main.shake(80, 0.004);
 	}
 
+	/**
+	 * Plays the enemy attack presentation on the hero: red impact flash, scale/fade tween, and a brief camera shake.
+	 *
+	 * @returns This method does not return a value.
+	 */
 	private playEnemyAttackPresentation() {
 		if (!this.player) {
 			return;
