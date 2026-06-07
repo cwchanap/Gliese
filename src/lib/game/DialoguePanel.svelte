@@ -59,7 +59,7 @@
 </script>
 
 <dialog
-	class="jrpg-dialogue-panel pointer-events-auto absolute bottom-4 left-4 z-[70] m-0 text-slate-50"
+	class="jrpg-dialogue-panel glass-panel-strong filigree-frame arcane-window-enter pointer-events-auto absolute bottom-4 left-4 z-[70] m-0 font-body text-parchment"
 	aria-label={dialogue.speaker}
 	bind:this={panel}
 	open
@@ -68,13 +68,13 @@
 >
 	<div class="grid gap-3">
 		<div class="flex items-center justify-between gap-3">
-			<p class="jrpg-dialogue-speaker">
+			<p class="jrpg-dialogue-speaker font-display">
 				{dialogue.speaker}
 			</p>
 			{#if dialogue.canClose}
 				<button
 					type="button"
-					class="jrpg-dialogue-action jrpg-dialogue-action-secondary"
+					class="jrpg-dialogue-action jrpg-dialogue-action-secondary glass-button"
 					onclick={onclose}
 				>
 					{t($locale, 'ui.close')}
@@ -82,19 +82,23 @@
 			{/if}
 		</div>
 
-		<p class="jrpg-dialogue-line">{dialogue.line}</p>
+		<p class="jrpg-dialogue-line font-body">{dialogue.line}</p>
 
 		{#if dialogue.mode === 'choice'}
 			<div class="grid gap-2 sm:grid-cols-2">
 				{#each dialogue.choices as choice (choice.id)}
-					<button type="button" class="jrpg-dialogue-choice" onclick={() => onchoose(choice.id)}>
+					<button
+						type="button"
+						class="jrpg-dialogue-choice glass-button"
+						onclick={() => onchoose(choice.id)}
+					>
 						{choice.label}
 					</button>
 				{/each}
 			</div>
 		{:else}
 			<div class="flex justify-end">
-				<button type="button" class="jrpg-dialogue-action" onclick={onadvance}>
+				<button type="button" class="jrpg-dialogue-action glass-button" onclick={onadvance}>
 					{t($locale, 'ui.next')}
 				</button>
 			</div>
@@ -105,15 +109,7 @@
 <style>
 	.jrpg-dialogue-panel {
 		width: min(38rem, calc(100vw - 2rem), 72vw);
-		border: 1px solid rgba(255, 248, 232, 0.38);
-		border-radius: 0.35rem;
-		background: rgba(26, 20, 40, 0.98);
 		padding: 0.85rem 1rem;
-		color: #fff8e8;
-		box-shadow:
-			0 18px 42px rgba(0, 0, 0, 0.46),
-			inset 0 0 0 2px rgba(10, 6, 18, 0.72),
-			inset 0 1px 0 rgba(255, 255, 255, 0.08);
 	}
 
 	.jrpg-dialogue-speaker {
@@ -121,64 +117,37 @@
 		font-size: 0.68rem;
 		font-weight: 900;
 		letter-spacing: 0;
-		color: #ffd040;
+		color: var(--color-gold);
 		text-transform: uppercase;
 	}
 
 	.jrpg-dialogue-line {
 		min-height: 2.5rem;
 		margin: 0;
-		color: #fff8e8;
 		font-size: 0.98rem;
 		line-height: 1.55;
 	}
 
-	.jrpg-dialogue-choice,
-	.jrpg-dialogue-action {
-		border: 1px solid rgba(255, 248, 232, 0.22);
-		background: rgba(255, 255, 255, 0.07);
-		color: #fff8e8;
-		font-weight: 900;
-		transition:
-			border-color 160ms ease,
-			background 160ms ease,
-			transform 160ms ease;
-	}
-
 	.jrpg-dialogue-choice {
-		border-radius: 0.35rem;
 		padding: 0.65rem 0.75rem;
 		text-align: left;
 		font-size: 0.84rem;
-		letter-spacing: 0;
-		text-transform: uppercase;
 	}
 
 	.jrpg-dialogue-action {
 		border-radius: 999px;
 		padding: 0.55rem 0.9rem;
 		font-size: 0.7rem;
-		letter-spacing: 0;
-		text-transform: uppercase;
 	}
 
 	.jrpg-dialogue-action-secondary {
-		color: rgba(255, 248, 232, 0.78);
-	}
-
-	.jrpg-dialogue-choice:hover,
-	.jrpg-dialogue-choice:focus-visible,
-	.jrpg-dialogue-action:hover,
-	.jrpg-dialogue-action:focus-visible {
-		border-color: rgba(255, 248, 232, 0.46);
-		background: rgba(255, 208, 64, 0.13);
-		transform: translateY(-1px);
+		color: rgba(246, 239, 224, 0.78);
 	}
 
 	.jrpg-dialogue-choice:focus-visible,
 	.jrpg-dialogue-action:focus-visible {
-		outline: 2px solid var(--jrpg-amber, #ffd040);
+		outline: 2px solid var(--color-gold);
 		outline-offset: 3px;
-		box-shadow: 0 0 0 4px rgba(255, 208, 64, 0.18);
+		box-shadow: 0 0 0 4px rgba(243, 210, 122, 0.18);
 	}
 </style>
