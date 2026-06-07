@@ -1,3 +1,9 @@
+import '@fontsource/cinzel/500.css';
+import '@fontsource/cinzel/600.css';
+import '@fontsource/cinzel/700.css';
+import '@fontsource/spectral/400.css';
+import '@fontsource/spectral/500.css';
+import '@fontsource/spectral/600.css';
 import { mount } from 'svelte';
 import App from './App.svelte';
 import './app.css';
