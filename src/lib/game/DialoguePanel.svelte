@@ -115,7 +115,7 @@
 	.jrpg-dialogue-speaker {
 		margin: 0;
 		font-size: 0.68rem;
-		font-weight: 900;
+		font-weight: 700;
 		letter-spacing: 0;
 		color: var(--color-gold);
 		text-transform: uppercase;
