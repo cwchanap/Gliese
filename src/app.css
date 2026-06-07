@@ -29,6 +29,12 @@
 }
 
 @layer components {
+	/* Grain texture shared by the glass surfaces below. Stored as a full
+	   url() token so var() substitutes cleanly into the background shorthand. */
+	:root {
+		--grain-texture: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='80' height='80'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.05'/%3E%3C/svg%3E");
+	}
+
 	/* ---- Arcane glass material ---------------------------------------- */
 	.glass-panel,
 	.glass-panel-strong {
@@ -37,7 +43,7 @@
 		border: 1px solid var(--color-frame);
 		border-radius: var(--radius-arcane);
 		background:
-			url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='80' height='80'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.05'/%3E%3C/svg%3E"),
+			var(--grain-texture),
 			radial-gradient(120% 90% at 12% 8%, rgba(123, 142, 214, 0.16), transparent 56%),
 			linear-gradient(150deg, var(--color-panel-glass), rgba(8, 6, 16, 0.92));
 		box-shadow:
@@ -49,7 +55,7 @@
 
 	.glass-panel-strong {
 		background:
-			url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='80' height='80'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.05'/%3E%3C/svg%3E"),
+			var(--grain-texture),
 			radial-gradient(120% 90% at 12% 8%, rgba(123, 142, 214, 0.2), transparent 56%),
 			linear-gradient(150deg, var(--color-panel-glass-strong), rgba(8, 6, 16, 0.96));
 		box-shadow:
@@ -228,6 +234,11 @@
 	}
 	.arcane-stagger > *:nth-child(7) {
 		animation-delay: 420ms;
+	}
+	/* Cap any overflow (e.g. an 8th battle-summary row) at the next step so
+	   late children never animate ahead of the cascade. */
+	.arcane-stagger > *:nth-child(n + 8) {
+		animation-delay: 480ms;
 	}
 
 	/* ---- State flourishes ------------------------------------------- */
