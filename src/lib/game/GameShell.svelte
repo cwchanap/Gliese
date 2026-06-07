@@ -789,8 +789,7 @@
 </script>
 
 <section
-	class="game-shell relative h-screen w-screen overflow-hidden bg-[#060816] text-slate-50"
-	style="font-family: 'Avenir Next Condensed', 'Trebuchet MS', 'Arial Narrow', sans-serif;"
+	class="game-shell relative h-screen w-screen overflow-hidden bg-ink font-body text-parchment"
 >
 	{#if loadError}
 		<div
@@ -810,7 +809,7 @@
 		<button
 			bind:this={menuButton}
 			type="button"
-			class="jrpg-command-toggle"
+			class="glass-button jrpg-command-toggle"
 			onclick={() => (commandOpen ? closeCommand() : openCommand())}
 			aria-expanded={commandOpen}
 			aria-controls="game-command-panel"
@@ -821,16 +820,16 @@
 
 	<section
 		data-testid="hud-location-panel"
-		class="jrpg-hud-panel jrpg-location-panel"
+		class="glass-panel filigree-frame jrpg-location-panel"
 		aria-label={$hudState.areaMap.name}
 	>
-		<p class="jrpg-location-name">{$hudState.areaMap.name}</p>
+		<p class="jrpg-location-name font-display">{$hudState.areaMap.name}</p>
 		<p class="jrpg-location-sub">{t($locale, 'ui.regionSubline')}</p>
 	</section>
 
 	<section
 		data-testid="hud-minimap"
-		class="jrpg-hud-panel jrpg-minimap-panel"
+		class="glass-panel filigree-frame jrpg-minimap-panel"
 		aria-label={t($locale, 'ui.areaMap')}
 	>
 		<div class="jrpg-minimap-heading">
@@ -869,6 +868,12 @@
 				/>
 			{/each}
 			<circle
+				class="jrpg-minimap-player-halo arcane-halo"
+				cx={$hudState.areaMap.player.x}
+				cy={$hudState.areaMap.player.y}
+				r="98"
+			/>
+			<circle
 				class="jrpg-minimap-player"
 				cx={$hudState.areaMap.player.x}
 				cy={$hudState.areaMap.player.y}
@@ -879,28 +884,28 @@
 
 	<section
 		data-testid="hud-party-panel"
-		class="jrpg-hud-panel jrpg-party-panel"
+		class="glass-panel filigree-frame jrpg-party-panel"
 		aria-label={t($locale, 'ui.playerStatus')}
 	>
 		<div class="jrpg-portrait" aria-hidden="true">L</div>
 		<div class="jrpg-party-copy">
 			<div class="jrpg-party-header">
 				<p>{t($locale, 'ui.heroName')}</p>
-				<span>{t($locale, 'ui.levelAbbrev')} {$hudState.level}</span>
+				<span class="tabular-nums">{t($locale, 'ui.levelAbbrev')} {$hudState.level}</span>
 			</div>
 			<div class="jrpg-party-meter jrpg-party-meter-hp">
 				<div>
 					<span>{t($locale, 'ui.hp')}</span>
-					<span>{$hudState.hp}/{$hudState.maxHp}</span>
+					<span class="tabular-nums">{$hudState.hp}/{$hudState.maxHp}</span>
 				</div>
-				<div class="jrpg-meter"><span style={`width: ${hpPercent}%`}></span></div>
+				<div class="arcane-meter arcane-meter-hp"><span style={`width: ${hpPercent}%`}></span></div>
 			</div>
 			<div class="jrpg-party-meter jrpg-party-meter-xp">
 				<div>
 					<span>{t($locale, 'ui.xp')}</span>
-					<span>{$hudState.xp}/{xpTarget}</span>
+					<span class="tabular-nums">{$hudState.xp}/{xpTarget}</span>
 				</div>
-				<div class="jrpg-meter"><span style={`width: ${xpPercent}%`}></span></div>
+				<div class="arcane-meter arcane-meter-xp"><span style={`width: ${xpPercent}%`}></span></div>
 			</div>
 		</div>
 	</section>
@@ -910,12 +915,14 @@
 		class="jrpg-side-hud"
 		aria-label={t($locale, 'ui.questTracker')}
 	>
-		<div class="jrpg-hud-panel jrpg-gold-panel">
-			<span>{$hudState.wallet.coins}{t($locale, 'ui.goldSuffix')}</span>
+		<div class="glass-panel jrpg-coin-token">
+			<span class="font-display tabular-nums"
+				>{$hudState.wallet.coins}{t($locale, 'ui.goldSuffix')}</span
+			>
 		</div>
 		{#if $hudState.quests.main}
-			<section class="jrpg-hud-panel jrpg-active-quest-panel">
-				<p class="jrpg-label">{t($locale, 'ui.activeQuest')}</p>
+			<section class="glass-panel filigree-frame jrpg-active-quest-panel">
+				<p class="jrpg-label font-display">{t($locale, 'ui.activeQuest')}</p>
 				<h2>{$hudState.quests.main.title}</h2>
 				<p>{$hudState.quests.main.objective}</p>
 				{#if $hudState.quests.side.length > 0}
@@ -925,14 +932,16 @@
 		{/if}
 	</aside>
 
-	<div
-		class="jrpg-field-status"
-		role="status"
-		aria-label={t($locale, 'ui.fieldStatus')}
-		aria-live="polite"
-	>
-		{$hudState.status}
-	</div>
+	{#key $hudState.status}
+		<div
+			class="glass-panel jrpg-field-status arcane-window-enter"
+			role="status"
+			aria-label={t($locale, 'ui.fieldStatus')}
+			aria-live="polite"
+		>
+			{$hudState.status}
+		</div>
+	{/key}
 
 	{#if commandOpen}
 		<div
@@ -1777,9 +1786,7 @@
 		--jrpg-shadow: 0 14px 36px rgba(0, 0, 0, 0.42);
 	}
 
-	.jrpg-hud-panel,
-	.jrpg-command-box,
-	.jrpg-field-status {
+	.jrpg-command-box {
 		border: 1px solid var(--jrpg-frame);
 		background: var(--jrpg-panel);
 		color: var(--jrpg-text);
@@ -1794,7 +1801,7 @@
 		font-size: 0.62rem;
 		font-weight: 900;
 		letter-spacing: 0;
-		color: var(--jrpg-amber);
+		color: var(--color-gold);
 		text-transform: uppercase;
 	}
 
@@ -1803,7 +1810,6 @@
 	.jrpg-party-panel {
 		position: absolute;
 		z-index: 20;
-		border-radius: var(--jrpg-radius);
 		pointer-events: none;
 	}
 
@@ -1821,7 +1827,7 @@
 		white-space: nowrap;
 		font-size: 0.9rem;
 		font-weight: 900;
-		color: var(--jrpg-text);
+		color: var(--color-parchment);
 		text-transform: uppercase;
 	}
 
@@ -1832,7 +1838,7 @@
 		white-space: nowrap;
 		font-size: 0.58rem;
 		font-weight: 900;
-		color: var(--jrpg-muted);
+		color: var(--color-muted);
 		text-transform: uppercase;
 	}
 
@@ -1848,7 +1854,7 @@
 		align-items: center;
 		justify-content: center;
 		margin-bottom: 0.42rem;
-		color: var(--jrpg-amber);
+		color: var(--color-gold);
 		font-size: 0.62rem;
 		font-weight: 800;
 		text-transform: uppercase;
@@ -1882,7 +1888,7 @@
 	.jrpg-minimap-marker-exit,
 	.jrpg-minimap-marker-quest {
 		fill: rgba(255, 208, 64, 0.42);
-		stroke: var(--jrpg-amber);
+		stroke: var(--color-gold);
 	}
 
 	.jrpg-minimap-marker-emphasis {
@@ -1891,8 +1897,12 @@
 
 	.jrpg-minimap-player {
 		fill: #f05268;
-		stroke: var(--jrpg-text);
+		stroke: var(--color-parchment);
 		stroke-width: 18;
+	}
+
+	.jrpg-minimap-player-halo {
+		fill: rgba(240, 97, 122, 0.5);
 	}
 
 	.jrpg-party-panel {
@@ -1937,41 +1947,18 @@
 		margin: 0;
 		font-size: 0.66rem;
 		font-weight: 900;
-		color: var(--jrpg-muted);
+		color: var(--color-muted);
 		text-transform: uppercase;
 	}
 
 	.jrpg-party-header p {
-		color: var(--jrpg-text);
+		color: var(--color-parchment);
 		font-size: 0.8rem;
 	}
 
 	.jrpg-party-meter {
 		display: grid;
 		gap: 0.2rem;
-	}
-
-	.jrpg-meter {
-		display: block;
-		height: 0.5rem;
-		overflow: hidden;
-		border: 1px solid rgba(255, 248, 232, 0.16);
-		border-radius: 999px;
-		background: rgba(10, 6, 18, 0.72);
-	}
-
-	.jrpg-meter span {
-		display: block;
-		height: 100%;
-		transition: width 180ms ease;
-	}
-
-	.jrpg-party-meter-hp .jrpg-meter span {
-		background: var(--jrpg-emerald);
-	}
-
-	.jrpg-party-meter-xp .jrpg-meter span {
-		background: var(--jrpg-cyan);
 	}
 
 	.jrpg-side-hud {
@@ -1985,17 +1972,13 @@
 		pointer-events: none;
 	}
 
-	.jrpg-gold-panel,
-	.jrpg-active-quest-panel {
-		border-radius: var(--jrpg-radius);
-	}
-
-	.jrpg-gold-panel {
+	.jrpg-coin-token {
 		justify-self: end;
-		padding: 0.42rem 0.7rem;
-		color: var(--jrpg-amber);
-		font-size: 1.15rem;
-		font-weight: 900;
+		padding: 0.4rem 0.78rem;
+		border-radius: var(--radius-arcane);
+		color: var(--color-gold);
+		font-size: 1.1rem;
+		font-weight: 700;
 	}
 
 	.jrpg-active-quest-panel {
@@ -2005,7 +1988,7 @@
 	.jrpg-active-quest-panel h2 {
 		margin: 0.16rem 0 0;
 		overflow-wrap: anywhere;
-		color: var(--jrpg-text);
+		color: var(--color-parchment);
 		font-size: 0.84rem;
 		font-weight: 900;
 		text-transform: uppercase;
@@ -2013,7 +1996,7 @@
 
 	.jrpg-active-quest-panel p:not(.jrpg-label) {
 		margin: 0.25rem 0 0;
-		color: var(--jrpg-muted);
+		color: var(--color-muted);
 		font-size: 0.72rem;
 		font-weight: 800;
 		line-height: 1.3;
@@ -2022,7 +2005,7 @@
 	.jrpg-active-quest-panel span {
 		display: inline-block;
 		margin-top: 0.35rem;
-		color: var(--jrpg-emerald);
+		color: var(--color-emerald);
 		font-size: 0.68rem;
 		font-weight: 900;
 		text-transform: uppercase;
@@ -2030,32 +2013,14 @@
 
 	.jrpg-menu-anchor {
 		position: absolute;
-		top: 10.2rem;
-		right: 0.9rem;
+		top: 0.9rem;
+		right: 11.4rem;
 		z-index: 30;
 	}
 
 	.jrpg-command-toggle {
-		border: 1px solid var(--jrpg-frame);
-		border-radius: var(--jrpg-radius);
-		background: var(--jrpg-panel-strong);
 		padding: 0.7rem 0.9rem;
-		color: var(--jrpg-text);
 		font-size: 0.72rem;
-		font-weight: 900;
-		letter-spacing: 0;
-		text-transform: uppercase;
-		box-shadow: var(--jrpg-shadow);
-		transition:
-			transform 160ms ease,
-			border-color 160ms ease;
-	}
-
-	.jrpg-command-toggle:hover,
-	.jrpg-command-toggle:focus-visible {
-		border-color: var(--jrpg-frame-strong);
-		transform: translateY(-1px);
-		outline: none;
 	}
 
 	.jrpg-command-box {
@@ -2175,7 +2140,7 @@
 		padding: 0.52rem 0.75rem;
 		font-size: 0.8rem;
 		font-weight: 900;
-		color: var(--jrpg-cyan);
+		color: var(--color-sapphire);
 		pointer-events: none;
 	}
 
