@@ -1,1 +1,30 @@
 @import 'tailwindcss';
+
+@theme {
+	/* Surfaces */
+	--color-ink: #0a0712;
+	--color-panel-glass: rgba(22, 18, 38, 0.82);
+	--color-panel-glass-strong: rgba(18, 15, 32, 0.94);
+
+	/* Framing + text */
+	--color-frame: rgba(243, 210, 122, 0.34);
+	--color-frame-strong: rgba(243, 210, 122, 0.62);
+	--color-parchment: #f6efe0;
+	--color-muted: #b6a9c8;
+
+	/* Jewel accents */
+	--color-gold: #f3d27a;
+	--color-gold-bright: #ffe6a8;
+	--color-sapphire: #6ab4f5;
+	--color-emerald: #5fd89b;
+	--color-amber: #ffc857;
+	--color-rose: #f0617a;
+	--color-lumen: #cfe3ff;
+
+	/* Type */
+	--font-display: 'Cinzel', 'Trajan Pro', serif;
+	--font-body: 'Spectral', 'Georgia', serif;
+
+	/* Frame radius (tighter than the old 0.35rem) */
+	--radius-arcane: 0.28rem;
+}
