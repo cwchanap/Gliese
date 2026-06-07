@@ -147,6 +147,53 @@ describe('GameShell battle summary', () => {
 		}
 	});
 
+	it('renders every victory section including quest progress (max arcane-stagger rows)', async () => {
+		render(GameShell);
+		emitHudState({
+			...baseHudState(),
+			battle: {
+				phase: 'summary',
+				summary: {
+					outcome: 'victory',
+					enemiesDefeated: 2,
+					xpGained: 8,
+					coinsGained: 6,
+					drops: [{ itemId: 'field-potion', name: 'Field Potion', quantity: 1 }],
+					leveledUp: true,
+					completedQuestTitles: ['Thin the Village Slimes'],
+					questRewards: [
+						{
+							title: 'Thin the Village Slimes',
+							rewardSummary: '6 XP / 6 coins'
+						}
+					],
+					questProgress: [
+						{
+							questId: 'thin-the-village-slimes',
+							title: 'Thin the Village Slimes',
+							progressLabel: 'Slimes thinned',
+							previousProgress: 1,
+							currentProgress: 2,
+							target: 3
+						}
+					]
+				}
+			}
+		});
+
+		const summary = page.getByRole('dialog', { name: /battle summary/i });
+		await expect.element(summary).toBeVisible();
+		// Each conditional section renders its own stagger row.
+		await expect.element(summary.getByText(/Field Potion x1/i)).toBeVisible();
+		await expect.element(summary.getByText(/Level up/i)).toBeVisible();
+		await expect
+			.element(
+				summary.getByText(/Quest complete: Thin the Village Slimes\. Reward: 6 XP \/ 6 coins/i)
+			)
+			.toBeVisible();
+		await expect.element(summary.getByText(/Slimes thinned: 2\/3/i)).toBeVisible();
+	});
+
 	it('moves keyboard focus to the summary continue action when the summary appears', async () => {
 		render(GameShell);
 		emitHudState(
