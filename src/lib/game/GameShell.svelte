@@ -1825,7 +1825,7 @@
 		text-overflow: ellipsis;
 		white-space: nowrap;
 		font-size: 0.9rem;
-		font-weight: 900;
+		font-weight: 700;
 		color: var(--color-parchment);
 		text-transform: uppercase;
 	}
@@ -2185,7 +2185,7 @@
 	.jrpg-window-title {
 		margin: 0.2rem 0 0;
 		font-size: clamp(1.25rem, 3vw, 1.9rem);
-		font-weight: 900;
+		font-weight: 700;
 		color: var(--color-parchment);
 		letter-spacing: 0.08em;
 		text-transform: uppercase;
