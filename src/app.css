@@ -242,7 +242,8 @@
 	.arcane-low-hp {
 		animation: arcane-danger-pulse 1.1s ease-in-out infinite;
 	}
-	.arcane-coin-flash {
+	.arcane-coin-flash,
+	.arcane-level-up {
 		animation: arcane-coin-flash 600ms ease;
 	}
 	.arcane-halo {
@@ -318,6 +319,7 @@
 	.arcane-stagger > *,
 	.arcane-low-hp,
 	.arcane-coin-flash,
+	.arcane-level-up,
 	.arcane-halo {
 		animation: none !important;
 		transition: none !important;

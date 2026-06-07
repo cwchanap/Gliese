@@ -913,7 +913,7 @@
 		<div class="jrpg-party-copy">
 			<div class="jrpg-party-header">
 				<p>{t($locale, 'ui.heroName')}</p>
-				<span class={`tabular-nums${levelUpFlash ? ' arcane-coin-flash' : ''}`}
+				<span class={`tabular-nums${levelUpFlash ? ' arcane-level-up' : ''}`}
 					>{t($locale, 'ui.levelAbbrev')} {$hudState.level}</span
 				>
 			</div>
