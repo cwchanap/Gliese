@@ -51,6 +51,8 @@
 		"vitest-browser-svelte": "^2.1.0"
 	},
 	"dependencies": {
+		"@fontsource/cinzel": "^5.2.8",
+		"@fontsource/spectral": "^5.2.8",
 		"@tauri-apps/api": "^2",
 		"@tauri-apps/plugin-fs": "^2",
 		"phaser": "^4.0.0"
