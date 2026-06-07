@@ -81,6 +81,18 @@ function hudStateWithEquippedWeapon(overrides: Partial<HudState> = {}): HudState
 	});
 }
 
+describe('GameShell motion flourishes', () => {
+	it('pulses the party panel when HP is critically low', async () => {
+		render(GameShell);
+		emitHudState(baseHudState({ hp: 10, maxHp: 50 }));
+		const party = page.getByTestId('hud-party-panel');
+		await expect.element(party).toHaveClass(/arcane-low-hp/);
+
+		emitHudState(baseHudState({ hp: 40, maxHp: 50 }));
+		await expect.element(party).not.toHaveClass(/arcane-low-hp/);
+	});
+});
+
 describe('GameShell battle summary', () => {
 	it('renders a blocking victory summary and dismisses it through the HUD bridge', async () => {
 		const commands: unknown[] = [];

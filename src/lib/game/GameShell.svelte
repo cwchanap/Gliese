@@ -77,6 +77,31 @@
 	const xpPercent = $derived((Math.min($hudState.xp, xpTarget) / xpTarget) * 100);
 	const battlePhase = $derived($hudState.battle.phase);
 	const battleLocked = $derived(battlePhase === 'active' || battlePhase === 'summary');
+	const lowHp = $derived($hudState.maxHp > 0 && $hudState.hp / $hudState.maxHp <= 0.25);
+
+	let coinFlash = $state(false);
+	let lastCoins = $hudState.wallet.coins;
+	$effect(() => {
+		const coins = $hudState.wallet.coins;
+		if (coins !== lastCoins) {
+			lastCoins = coins;
+			coinFlash = true;
+			const id = setTimeout(() => (coinFlash = false), 600);
+			return () => clearTimeout(id);
+		}
+	});
+
+	let levelUpFlash = $state(false);
+	let lastLevel = $hudState.level;
+	$effect(() => {
+		const level = $hudState.level;
+		if (level > lastLevel) {
+			lastLevel = level;
+			levelUpFlash = true;
+			const id = setTimeout(() => (levelUpFlash = false), 600);
+			return () => clearTimeout(id);
+		}
+	});
 	const battleSummary = $derived($hudState.battle.summary);
 	const focusedMarkerLabel = $derived(
 		$hudState.areaMap.markers.find((marker) => marker.id === focusedMarkerId)?.label ?? null
@@ -881,14 +906,16 @@
 
 	<section
 		data-testid="hud-party-panel"
-		class="glass-panel filigree-frame jrpg-party-panel"
+		class={`glass-panel filigree-frame jrpg-party-panel${lowHp ? ' arcane-low-hp' : ''}`}
 		aria-label={t($locale, 'ui.playerStatus')}
 	>
 		<div class="jrpg-portrait" aria-hidden="true">L</div>
 		<div class="jrpg-party-copy">
 			<div class="jrpg-party-header">
 				<p>{t($locale, 'ui.heroName')}</p>
-				<span class="tabular-nums">{t($locale, 'ui.levelAbbrev')} {$hudState.level}</span>
+				<span class={`tabular-nums${levelUpFlash ? ' arcane-coin-flash' : ''}`}
+					>{t($locale, 'ui.levelAbbrev')} {$hudState.level}</span
+				>
 			</div>
 			<div class="jrpg-party-meter jrpg-party-meter-hp">
 				<div>
@@ -913,7 +940,7 @@
 		aria-label={t($locale, 'ui.questTracker')}
 	>
 		<div class="glass-panel jrpg-coin-token">
-			<span class="font-display tabular-nums"
+			<span class={`font-display tabular-nums${coinFlash ? ' arcane-coin-flash' : ''}`}
 				>{$hudState.wallet.coins}{t($locale, 'ui.goldSuffix')}</span
 			>
 		</div>
