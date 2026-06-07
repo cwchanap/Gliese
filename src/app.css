@@ -228,6 +228,15 @@
 	.arcane-stagger > *:nth-child(4) {
 		animation-delay: 240ms;
 	}
+	.arcane-stagger > *:nth-child(5) {
+		animation-delay: 300ms;
+	}
+	.arcane-stagger > *:nth-child(6) {
+		animation-delay: 360ms;
+	}
+	.arcane-stagger > *:nth-child(7) {
+		animation-delay: 420ms;
+	}
 
 	/* ---- State flourishes ------------------------------------------- */
 	.arcane-low-hp {

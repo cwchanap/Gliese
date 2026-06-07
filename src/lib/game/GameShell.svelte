@@ -554,14 +554,14 @@
 
 	function getInventoryBadgeClass(slot: InventorySlotItem) {
 		if (slot.kind === 'consumable') {
-			return 'border-emerald-100/18 bg-emerald-100/12 text-emerald';
+			return 'border-emerald/18 bg-emerald/12 text-emerald';
 		}
 
 		if (slot.kind === 'equipment') {
 			return 'border-sapphire/18 bg-sapphire/12 text-sapphire';
 		}
 
-		return 'border-amber-100/18 bg-amber-100/12 text-amber';
+		return 'border-amber/18 bg-amber/12 text-amber';
 	}
 
 	function formatModifierStat(stat: string) {
