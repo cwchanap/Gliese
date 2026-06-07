@@ -530,21 +530,18 @@
 
 	function getInventorySlotClass(slot: InventorySlotItem) {
 		const baseClass =
-			'inventory-slot group relative flex aspect-square min-h-0 flex-col justify-center overflow-hidden rounded-[0.95rem] border p-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)] transition sm:p-3';
-		const actionClass =
-			slot.kind === 'consumable' || (slot.kind === 'equipment' && !slot.item.equipped)
-				? 'cursor-pointer hover:-translate-y-0.5 hover:border-white/32 hover:shadow-[0_12px_28px_rgba(0,0,0,0.28)]'
-				: '';
+			'inventory-slot group relative flex aspect-square min-h-0 flex-col justify-center overflow-hidden p-2.5 transition sm:p-3';
 
 		if (slot.kind === 'consumable') {
-			return `${baseClass} ${actionClass} border-emerald-100/16 bg-[linear-gradient(145deg,rgba(28,69,62,0.54),rgba(12,20,38,0.86))]`;
+			return `${baseClass} jeweled-cell jeweled-cell-emerald jeweled-cell-action cursor-pointer`;
 		}
 
 		if (slot.kind === 'equipment') {
-			return `${baseClass} ${actionClass} border-cyan-100/16 bg-[linear-gradient(145deg,rgba(25,59,88,0.56),rgba(12,20,38,0.86))]`;
+			const actionClass = !slot.item.equipped ? 'jeweled-cell-action cursor-pointer' : '';
+			return `${baseClass} jeweled-cell jeweled-cell-sapphire ${actionClass}`;
 		}
 
-		return `${baseClass} border-amber-100/16 bg-[linear-gradient(145deg,rgba(82,60,25,0.52),rgba(12,20,38,0.86))]`;
+		return `${baseClass} jeweled-cell jeweled-cell-amber`;
 	}
 
 	function getInventoryBadge(slot: InventorySlotItem): string | null {
@@ -557,14 +554,14 @@
 
 	function getInventoryBadgeClass(slot: InventorySlotItem) {
 		if (slot.kind === 'consumable') {
-			return 'border-emerald-100/18 bg-emerald-100/12 text-emerald-50';
+			return 'border-emerald-100/18 bg-emerald-100/12 text-emerald';
 		}
 
 		if (slot.kind === 'equipment') {
-			return 'border-cyan-100/18 bg-cyan-100/12 text-cyan-50';
+			return 'border-sapphire/18 bg-sapphire/12 text-sapphire';
 		}
 
-		return 'border-amber-100/18 bg-amber-100/12 text-amber-50';
+		return 'border-amber-100/18 bg-amber-100/12 text-amber';
 	}
 
 	function formatModifierStat(stat: string) {
@@ -951,20 +948,20 @@
 		></div>
 		<aside
 			id="game-command-panel"
-			class="jrpg-command-box"
+			class="glass-panel-strong jrpg-command-box"
 			role="region"
 			aria-label={t($locale, 'ui.command')}
 		>
 			<div class="jrpg-command-heading">
 				<p class="jrpg-label">{t($locale, 'ui.command')}</p>
-				<button type="button" class="jrpg-small-button" onclick={closeCommand}>
+				<button type="button" class="glass-button jrpg-small-button" onclick={closeCommand}>
 					{t($locale, 'ui.close')}
 				</button>
 			</div>
-			<div class="jrpg-command-list">
+			<div class="arcane-stagger jrpg-command-list">
 				<button
 					type="button"
-					class="jrpg-command-action"
+					class="glass-button jrpg-command-action"
 					onclick={openQuestLog}
 					disabled={!$hudState.ready || battleLocked}
 				>
@@ -972,7 +969,7 @@
 				</button>
 				<button
 					type="button"
-					class="jrpg-command-action"
+					class="glass-button jrpg-command-action"
 					onclick={openAreaMap}
 					disabled={!$hudState.ready || battleLocked}
 				>
@@ -980,7 +977,7 @@
 				</button>
 				<button
 					type="button"
-					class="jrpg-command-action"
+					class="glass-button jrpg-command-action"
 					onclick={openInventory}
 					disabled={!$hudState.ready || battleLocked}
 				>
@@ -988,7 +985,7 @@
 				</button>
 				<button
 					type="button"
-					class="jrpg-command-action"
+					class="glass-button jrpg-command-action"
 					onclick={openShop}
 					disabled={!$hudState.ready || battleLocked || !$hudState.nearbyShop}
 				>
@@ -996,7 +993,7 @@
 				</button>
 				<button
 					type="button"
-					class="jrpg-command-action"
+					class="glass-button jrpg-command-action"
 					onclick={resumeSaveFromMenu}
 					disabled={!$hudState.ready || battleLocked || !$hudState.canResume}
 				>
@@ -1004,7 +1001,7 @@
 				</button>
 				<button
 					type="button"
-					class="jrpg-command-action"
+					class="glass-button jrpg-command-action"
 					onclick={saveFromMenu}
 					disabled={!$hudState.ready || battleLocked}
 				>
@@ -1012,7 +1009,7 @@
 				</button>
 				<button
 					type="button"
-					class="jrpg-command-action"
+					class="glass-button jrpg-command-action"
 					onclick={requestHeal}
 					disabled={!$hudState.ready || $hudState.heals < 1 || battlePhase === 'summary'}
 				>
@@ -1049,7 +1046,7 @@
 		<div class="jrpg-modal-backdrop jrpg-battle-summary-backdrop" role="presentation">
 			<div
 				bind:this={battleSummaryDialog}
-				class="jrpg-window jrpg-window-narrow"
+				class="glass-panel-strong arcane-window-enter jrpg-window jrpg-window-narrow"
 				aria-label={t($locale, 'ui.battleSummary')}
 				aria-modal="true"
 				role="dialog"
@@ -1058,16 +1055,20 @@
 			>
 				<div class="jrpg-window-header">
 					<div>
-						<p class="jrpg-label">
+						<p
+							class="jrpg-label font-display {battleSummary.outcome === 'victory'
+								? 'arcane-coin-flash'
+								: ''}"
+						>
 							{battleSummary.outcome === 'victory'
 								? t($locale, 'ui.battleVictory')
 								: t($locale, 'ui.battleDefeat')}
 						</p>
-						<h2 class="jrpg-window-title">{t($locale, 'ui.battleSummary')}</h2>
+						<h2 class="jrpg-window-title font-display">{t($locale, 'ui.battleSummary')}</h2>
 					</div>
 				</div>
 				<div class="jrpg-window-body">
-					<div class="grid gap-3 text-sm text-slate-100/88">
+					<div class="arcane-stagger grid gap-3 text-sm text-parchment/88">
 						<p>
 							{t($locale, 'ui.enemiesDefeated', {
 								count: battleSummary.enemiesDefeated
@@ -1119,7 +1120,7 @@
 					<button
 						bind:this={battleSummaryContinueButton}
 						type="button"
-						class="jrpg-command-action mt-5"
+						class="glass-button jrpg-command-action mt-5"
 						onclick={dismissBattleSummary}
 					>
 						{t($locale, 'ui.continue')}
@@ -1138,7 +1139,7 @@
 			></div>
 			<div
 				bind:this={inventoryDialog}
-				class="jrpg-window"
+				class="glass-panel-strong arcane-window-enter jrpg-window"
 				aria-labelledby="inventory-heading"
 				aria-modal="true"
 				role="dialog"
@@ -1149,12 +1150,14 @@
 					<div class="jrpg-window-header">
 						<div>
 							<p class="jrpg-label">{t($locale, 'ui.fieldPack')}</p>
-							<h2 id="inventory-heading" class="jrpg-window-title">{t($locale, 'ui.inventory')}</h2>
+							<h2 id="inventory-heading" class="jrpg-window-title font-display">
+								{t($locale, 'ui.inventory')}
+							</h2>
 						</div>
 						<button
 							bind:this={inventoryCloseButton}
 							type="button"
-							class="jrpg-small-button"
+							class="glass-button jrpg-small-button"
 							onclick={closeInventory}
 						>
 							{t($locale, 'ui.close')}
@@ -1169,7 +1172,7 @@
 							id="inventory-consumables-tab"
 							type="button"
 							role="tab"
-							class={`jrpg-tab ${activeInventoryTab === 'consumables' ? 'jrpg-tab-active' : ''}`}
+							class={`glass-button jrpg-tab ${activeInventoryTab === 'consumables' ? 'jrpg-tab-active' : ''}`}
 							aria-selected={activeInventoryTab === 'consumables'}
 							aria-controls="inventory-tab-panel"
 							tabindex={activeInventoryTab === 'consumables' ? 0 : -1}
@@ -1182,7 +1185,7 @@
 							id="inventory-equipment-tab"
 							type="button"
 							role="tab"
-							class={`jrpg-tab ${activeInventoryTab === 'equipment' ? 'jrpg-tab-active' : ''}`}
+							class={`glass-button jrpg-tab ${activeInventoryTab === 'equipment' ? 'jrpg-tab-active' : ''}`}
 							aria-selected={activeInventoryTab === 'equipment'}
 							aria-controls="inventory-tab-panel"
 							tabindex={activeInventoryTab === 'equipment' ? 0 : -1}
@@ -1195,7 +1198,7 @@
 							id="inventory-keyItems-tab"
 							type="button"
 							role="tab"
-							class={`jrpg-tab ${activeInventoryTab === 'keyItems' ? 'jrpg-tab-active' : ''}`}
+							class={`glass-button jrpg-tab ${activeInventoryTab === 'keyItems' ? 'jrpg-tab-active' : ''}`}
 							aria-selected={activeInventoryTab === 'keyItems'}
 							aria-controls="inventory-tab-panel"
 							tabindex={activeInventoryTab === 'keyItems' ? 0 : -1}
@@ -1207,7 +1210,7 @@
 					</div>
 				</div>
 
-				<div class="jrpg-window-body jrpg-inventory-layout">
+				<div class="arcane-stagger jrpg-window-body jrpg-inventory-layout">
 					<div class="jrpg-grid-frame">
 						<div
 							id="inventory-tab-panel"
@@ -1251,13 +1254,13 @@
 
 											{#if slot.kind === 'equipment' && slot.item.equipped}
 												<span
-													class="absolute right-2 bottom-2 left-2 rounded-full border border-cyan-100/20 bg-cyan-100/12 px-2 py-1 text-center text-[0.52rem] font-black tracking-[0.16em] text-cyan-50 uppercase"
+													class="absolute right-2 bottom-2 left-2 rounded-full border border-sapphire/20 bg-sapphire/12 px-2 py-1 text-center text-[0.52rem] font-black tracking-[0.16em] text-sapphire uppercase"
 												>
 													{t($locale, 'ui.equipped')}
 												</span>
 											{:else if slot.kind === 'keyItem'}
 												<span
-													class="absolute right-2 bottom-2 left-2 rounded-full border border-amber-100/16 bg-amber-100/10 px-2 py-1 text-center text-[0.52rem] font-black tracking-[0.18em] text-amber-50/70 uppercase"
+													class="absolute right-2 bottom-2 left-2 rounded-full border border-gold/16 bg-gold/10 px-2 py-1 text-center text-[0.52rem] font-black tracking-[0.18em] text-amber/70 uppercase"
 												>
 													{t($locale, 'ui.key')}
 												</span>
@@ -1279,7 +1282,7 @@
 
 					<aside class="jrpg-side-rail">
 						<div class="jrpg-side-stat">
-							<p class="text-[0.62rem] font-black tracking-[0.28em] text-cyan-100/64 uppercase">
+							<p class="text-[0.62rem] font-black tracking-[0.28em] text-sapphire/64 uppercase">
 								{t($locale, 'ui.stats')}
 							</p>
 							<div class="mt-2 grid grid-cols-3 gap-2 lg:grid-cols-1">
@@ -1315,7 +1318,7 @@
 						</div>
 
 						<div class="jrpg-side-stat min-h-0">
-							<p class="text-[0.62rem] font-black tracking-[0.28em] text-cyan-100/64 uppercase">
+							<p class="text-[0.62rem] font-black tracking-[0.28em] text-sapphire/64 uppercase">
 								{t($locale, 'ui.equipped')}
 							</p>
 							<div
@@ -1330,13 +1333,11 @@
 										class="jrpg-equipped-row grid min-h-[3.65rem] grid-cols-[minmax(0,1fr)_auto] items-center gap-2"
 									>
 										<div class="min-w-0">
-											<p
-												class="text-[0.54rem] font-black tracking-[0.2em] text-slate-300/62 uppercase"
-											>
+											<p class="text-[0.54rem] font-black tracking-[0.2em] text-muted/62 uppercase">
 												{getEquipmentSlotLabel(slot)}
 											</p>
 											<p
-												class="mt-0.5 truncate text-[0.8rem] font-black tracking-[0.08em] text-white uppercase"
+												class="mt-0.5 truncate text-[0.8rem] font-black tracking-[0.08em] text-parchment uppercase"
 											>
 												{equippedItem?.name ?? t($locale, 'ui.empty')}
 											</p>
@@ -1358,14 +1359,12 @@
 					</aside>
 
 					{#if hoveredInventoryItem}
-						<div role="tooltip" class="jrpg-tooltip">
-							<p class="text-[0.68rem] font-black tracking-[0.2em] text-cyan-100/72 uppercase">
+						<div role="tooltip" class="glass-panel-strong jrpg-tooltip">
+							<p class="text-[0.68rem] font-black tracking-[0.2em] text-sapphire/90 uppercase">
 								{hoveredInventoryItem.item.name}
 							</p>
-							<p class="mt-1 text-slate-100/88">{hoveredInventoryItem.item.description}</p>
-							<p
-								class="mt-1 text-[0.62rem] font-black tracking-[0.18em] text-slate-300/70 uppercase"
-							>
+							<p class="mt-1 text-parchment/88">{hoveredInventoryItem.item.description}</p>
+							<p class="mt-1 text-[0.62rem] font-black tracking-[0.18em] text-muted uppercase">
 								{getInventoryTooltipMeta(hoveredInventoryItem)}
 							</p>
 						</div>
@@ -1380,7 +1379,7 @@
 			<div class="absolute inset-0 cursor-default" role="presentation" onclick={closeAreaMap}></div>
 			<div
 				bind:this={areaMapDialog}
-				class="jrpg-window jrpg-area-map-window"
+				class="glass-panel-strong arcane-window-enter jrpg-window jrpg-area-map-window"
 				aria-label={t($locale, 'ui.areaMapDialog', { areaName: $hudState.areaMap.name })}
 				aria-modal="true"
 				role="dialog"
@@ -1390,12 +1389,12 @@
 				<div class="jrpg-window-header">
 					<div>
 						<p class="jrpg-label">{t($locale, 'ui.areaMap')}</p>
-						<h2 class="jrpg-window-title">{$hudState.areaMap.name}</h2>
+						<h2 class="jrpg-window-title font-display">{$hudState.areaMap.name}</h2>
 					</div>
 					<button
 						bind:this={areaMapCloseButton}
 						type="button"
-						class="jrpg-small-button"
+						class="glass-button jrpg-small-button"
 						onclick={closeAreaMap}
 					>
 						{t($locale, 'ui.close')}
@@ -1482,7 +1481,7 @@
 			></div>
 			<div
 				bind:this={questLogDialog}
-				class="jrpg-window jrpg-window-narrow"
+				class="glass-panel-strong arcane-window-enter jrpg-window jrpg-window-narrow"
 				aria-labelledby="quest-log-heading"
 				aria-modal="true"
 				role="dialog"
@@ -1491,12 +1490,14 @@
 				<div class="jrpg-window-header">
 					<div>
 						<p class="jrpg-label">{t($locale, 'ui.fieldJournal')}</p>
-						<h2 id="quest-log-heading" class="jrpg-window-title">{t($locale, 'ui.questLog')}</h2>
+						<h2 id="quest-log-heading" class="jrpg-window-title font-display">
+							{t($locale, 'ui.questLog')}
+						</h2>
 					</div>
 					<button
 						bind:this={questLogCloseButton}
 						type="button"
-						class="jrpg-small-button"
+						class="glass-button jrpg-small-button"
 						onclick={closeQuestLog}
 					>
 						{t($locale, 'ui.close')}
@@ -1505,20 +1506,20 @@
 				<div class="jrpg-window-body">
 					<div class="grid gap-4 lg:grid-cols-2">
 						<section class="jrpg-quest-section p-4">
-							<h3 class="text-sm font-black tracking-[0.22em] text-cyan-50 uppercase">
+							<h3 class="text-sm font-black tracking-[0.22em] text-sapphire uppercase">
 								{t($locale, 'ui.main')}
 							</h3>
 							{#if $hudState.quests.main}
 								<article class="jrpg-quest-card mt-3">
-									<h4 class="font-black tracking-[0.1em] text-white uppercase">
+									<h4 class="font-black tracking-[0.1em] text-parchment uppercase">
 										{$hudState.quests.main.title}
 									</h4>
-									<p class="mt-2 text-sm text-slate-100/82">{$hudState.quests.main.objective}</p>
-									<p class="mt-2 text-xs font-black tracking-[0.16em] text-cyan-100/72 uppercase">
+									<p class="mt-2 text-sm text-parchment/82">{$hudState.quests.main.objective}</p>
+									<p class="mt-2 text-xs font-black tracking-[0.16em] text-sapphire/72 uppercase">
 										{$hudState.quests.main.progress.label}: {$hudState.quests.main.progress.current} /
 										{$hudState.quests.main.progress.target}
 									</p>
-									<p class="mt-1 text-xs text-slate-300/72">
+									<p class="mt-1 text-xs text-muted/72">
 										{t($locale, 'ui.reward', {
 											rewardSummary: $hudState.quests.main.rewardSummary
 										})}
@@ -1527,34 +1528,34 @@
 							{/if}
 						</section>
 						<section class="jrpg-quest-section p-4">
-							<h3 class="text-sm font-black tracking-[0.22em] text-emerald-50 uppercase">
+							<h3 class="text-sm font-black tracking-[0.22em] text-emerald uppercase">
 								{t($locale, 'ui.side')}
 							</h3>
 							<div class="mt-3 grid gap-3">
 								{#each [...$hudState.quests.side, ...($hudState.quests.guildOffer?.quests ?? [])] as quest (quest.questId)}
 									<article class="jrpg-quest-card">
-										<h4 class="font-black tracking-[0.1em] text-white uppercase">{quest.title}</h4>
-										<p class="mt-2 text-sm text-slate-100/82">{quest.objective}</p>
+										<h4 class="font-black tracking-[0.1em] text-parchment uppercase">
+											{quest.title}
+										</h4>
+										<p class="mt-2 text-sm text-parchment/82">{quest.objective}</p>
 										{#if hasQuestProgress(quest)}
 											<p
-												class="mt-2 text-xs font-black tracking-[0.16em] text-emerald-100/72 uppercase"
+												class="mt-2 text-xs font-black tracking-[0.16em] text-emerald/72 uppercase"
 											>
 												{quest.progress.label}: {quest.progress.current} / {quest.progress.target}
 											</p>
 										{:else}
-											<p
-												class="mt-2 text-xs font-black tracking-[0.16em] text-amber-100/72 uppercase"
-											>
+											<p class="mt-2 text-xs font-black tracking-[0.16em] text-gold/72 uppercase">
 												{t($locale, 'ui.availableFromGuildMaster')}
 											</p>
 										{/if}
-										<p class="mt-1 text-xs text-slate-300/72">
+										<p class="mt-1 text-xs text-muted/72">
 											{t($locale, 'ui.reward', { rewardSummary: quest.rewardSummary })}
 										</p>
 									</article>
 								{/each}
 								{#if $hudState.quests.side.length === 0 && !$hudState.quests.guildOffer}
-									<p class="text-sm text-slate-300/72">
+									<p class="text-sm text-muted/72">
 										{t($locale, 'ui.noSideQuestsActive')}
 									</p>
 								{/if}
@@ -1571,7 +1572,7 @@
 			<div class="absolute inset-0 cursor-default" role="presentation" onclick={closeShop}></div>
 			<div
 				bind:this={shopDialog}
-				class="jrpg-window jrpg-window-narrow"
+				class="glass-panel-strong arcane-window-enter jrpg-window jrpg-window-narrow"
 				aria-labelledby="shop-heading"
 				aria-modal="true"
 				role="dialog"
@@ -1586,17 +1587,17 @@
 									$hudState.nearbyShop?.merchantName ??
 									t($locale, 'ui.merchant')}
 							</p>
-							<h2 id="shop-heading" class="jrpg-window-title">
+							<h2 id="shop-heading" class="jrpg-window-title font-display">
 								{$hudState.shop?.name ?? $hudState.nearbyShop?.name ?? t($locale, 'ui.shop')}
 							</h2>
-							<p class="mt-2 text-sm font-black tracking-[0.08em] text-[var(--jrpg-amber)]">
+							<p class="mt-2 text-sm font-black tracking-[0.08em] text-gold">
 								{t($locale, 'ui.coins', { coins: $hudState.wallet.coins })}
 							</p>
 						</div>
 						<button
 							bind:this={shopCloseButton}
 							type="button"
-							class="jrpg-small-button"
+							class="glass-button jrpg-small-button"
 							onclick={closeShop}
 						>
 							{t($locale, 'ui.close')}
@@ -1611,7 +1612,7 @@
 							id="shop-buy-tab"
 							type="button"
 							role="tab"
-							class={`jrpg-tab ${activeShopTab === 'buy' ? 'jrpg-tab-active' : ''}`}
+							class={`glass-button jrpg-tab ${activeShopTab === 'buy' ? 'jrpg-tab-active' : ''}`}
 							aria-selected={activeShopTab === 'buy'}
 							aria-controls="shop-tab-panel"
 							tabindex={activeShopTab === 'buy' ? 0 : -1}
@@ -1624,7 +1625,7 @@
 							id="shop-sell-tab"
 							type="button"
 							role="tab"
-							class={`jrpg-tab ${activeShopTab === 'sell' ? 'jrpg-tab-active' : ''}`}
+							class={`glass-button jrpg-tab ${activeShopTab === 'sell' ? 'jrpg-tab-active' : ''}`}
 							aria-selected={activeShopTab === 'sell'}
 							aria-controls="shop-tab-panel"
 							tabindex={activeShopTab === 'sell' ? 0 : -1}
@@ -1636,7 +1637,7 @@
 					</div>
 
 					<div
-						class="mx-4 mt-4 mb-4 rounded-[1.1rem] border border-white/8 bg-white/6 px-4 py-3 text-sm text-slate-200/82"
+						class="mx-4 mt-4 mb-4 rounded-[1.1rem] border border-frame bg-white/6 px-4 py-3 text-sm text-parchment/82"
 					>
 						<p>{$hudState.status}</p>
 					</div>
@@ -1653,9 +1654,9 @@
 							<div data-testid="shop-buy-grid" class="jrpg-slot-grid">
 								{#each $hudState.shop.buy as item (item.stockId)}
 									<article
-										class={`group relative flex aspect-square min-h-0 flex-col justify-center overflow-hidden rounded-[0.95rem] border border-amber-100/16 bg-[linear-gradient(145deg,rgba(86,60,22,0.56),rgba(12,20,38,0.86))] p-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)] transition sm:p-3 ${
+										class={`group jeweled-cell jeweled-cell-amber relative flex aspect-square min-h-0 flex-col justify-center overflow-hidden p-2.5 transition sm:p-3 ${
 											canBuyShopItem(item)
-												? 'cursor-pointer hover:-translate-y-0.5 hover:border-amber-100/32 hover:shadow-[0_12px_28px_rgba(0,0,0,0.28)]'
+												? 'jeweled-cell-action cursor-pointer'
 												: 'cursor-not-allowed opacity-48'
 										}`}
 										aria-label={item.name}
@@ -1664,7 +1665,7 @@
 										onmouseleave={hideShopBuyTooltip}
 									>
 										<span
-											class="absolute top-2 right-2 z-10 shrink-0 rounded-full border border-amber-100/18 bg-amber-100/12 px-1.5 py-0.5 text-[0.54rem] font-black tracking-[0.12em] text-amber-50 uppercase"
+											class="absolute top-2 right-2 z-10 shrink-0 rounded-full border border-gold/18 bg-gold/12 px-1.5 py-0.5 text-[0.54rem] font-black tracking-[0.12em] text-gold uppercase"
 										>
 											{getItemKindLabel(item.kind)}
 										</span>
@@ -1677,7 +1678,7 @@
 											/>
 										</div>
 										<span
-											class="absolute right-2 bottom-2 left-2 rounded-full border border-amber-100/16 bg-amber-100/10 px-2 py-1 text-center text-[0.52rem] font-black tracking-[0.16em] text-amber-50/78 uppercase"
+											class="absolute right-2 bottom-2 left-2 rounded-full border border-gold/16 bg-gold/10 px-2 py-1 text-center text-[0.52rem] font-black tracking-[0.16em] text-amber/78 uppercase"
 										>
 											{t($locale, 'ui.priceBadge', { price: item.price })}
 										</span>
@@ -1693,14 +1694,14 @@
 						<div data-testid="shop-sell-grid" class="jrpg-slot-grid">
 							{#each $hudState.shop.sell as item (item.itemId)}
 								<article
-									class="group relative flex aspect-square min-h-0 cursor-pointer flex-col justify-center overflow-hidden rounded-[0.95rem] border border-emerald-100/16 bg-[linear-gradient(145deg,rgba(28,69,62,0.54),rgba(12,20,38,0.86))] p-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)] transition hover:-translate-y-0.5 hover:border-emerald-100/32 hover:shadow-[0_12px_28px_rgba(0,0,0,0.28)] sm:p-3"
+									class="group jeweled-cell jeweled-cell-emerald jeweled-cell-action relative flex aspect-square min-h-0 cursor-pointer flex-col justify-center overflow-hidden p-2.5 transition sm:p-3"
 									aria-label={item.name}
 									ondblclick={() => activateShopSellItem(item)}
 									onmouseenter={() => showShopSellTooltip(item)}
 									onmouseleave={hideShopSellTooltip}
 								>
 									<span
-										class="absolute top-2 right-2 z-10 shrink-0 rounded-full border border-emerald-100/18 bg-emerald-100/12 px-1.5 py-0.5 text-[0.54rem] font-black tracking-[0.12em] text-emerald-50 uppercase"
+										class="absolute top-2 right-2 z-10 shrink-0 rounded-full border border-emerald/18 bg-emerald/12 px-1.5 py-0.5 text-[0.54rem] font-black tracking-[0.12em] text-emerald uppercase"
 									>
 										{getShopSellBadge(item)}
 									</span>
@@ -1713,7 +1714,7 @@
 										/>
 									</div>
 									<span
-										class="absolute right-2 bottom-2 left-2 rounded-full border border-emerald-100/16 bg-emerald-100/10 px-2 py-1 text-center text-[0.52rem] font-black tracking-[0.16em] text-emerald-50/78 uppercase"
+										class="absolute right-2 bottom-2 left-2 rounded-full border border-emerald/16 bg-emerald/10 px-2 py-1 text-center text-[0.52rem] font-black tracking-[0.16em] text-emerald/78 uppercase"
 									>
 										{t($locale, 'ui.priceBadge', { price: item.price })}
 									</span>
@@ -1727,28 +1728,24 @@
 					{/if}
 
 					{#if hoveredShopBuyItem}
-						<div role="tooltip" class="jrpg-tooltip">
-							<p class="text-[0.68rem] font-black tracking-[0.2em] text-amber-100/72 uppercase">
+						<div role="tooltip" class="glass-panel-strong jrpg-tooltip">
+							<p class="text-[0.68rem] font-black tracking-[0.2em] text-gold/90 uppercase">
 								{hoveredShopBuyItem.name}
 							</p>
-							<p class="mt-1 text-slate-100/88">{hoveredShopBuyItem.description}</p>
-							<p
-								class="mt-1 text-[0.62rem] font-black tracking-[0.18em] text-slate-300/70 uppercase"
-							>
+							<p class="mt-1 text-parchment/88">{hoveredShopBuyItem.description}</p>
+							<p class="mt-1 text-[0.62rem] font-black tracking-[0.18em] text-muted uppercase">
 								{t($locale, 'ui.buyFor', { meta: getShopBuyMeta(hoveredShopBuyItem) })}
 							</p>
 						</div>
 					{/if}
 
 					{#if hoveredShopSellItem}
-						<div role="tooltip" class="jrpg-tooltip">
-							<p class="text-[0.68rem] font-black tracking-[0.2em] text-emerald-100/72 uppercase">
+						<div role="tooltip" class="glass-panel-strong jrpg-tooltip">
+							<p class="text-[0.68rem] font-black tracking-[0.2em] text-emerald/90 uppercase">
 								{hoveredShopSellItem.name}
 							</p>
-							<p class="mt-1 text-slate-100/88">{hoveredShopSellItem.description}</p>
-							<p
-								class="mt-1 text-[0.62rem] font-black tracking-[0.18em] text-slate-300/70 uppercase"
-							>
+							<p class="mt-1 text-parchment/88">{hoveredShopSellItem.description}</p>
+							<p class="mt-1 text-[0.62rem] font-black tracking-[0.18em] text-muted uppercase">
 								{t($locale, 'ui.sellFor', { meta: getShopSellMeta(hoveredShopSellItem) })}
 							</p>
 						</div>
@@ -1769,31 +1766,6 @@
 		width: 100% !important;
 		height: 100% !important;
 		display: block;
-	}
-
-	.game-shell {
-		--jrpg-ink: #0a0612;
-		--jrpg-panel: rgba(26, 20, 40, 0.96);
-		--jrpg-panel-strong: rgba(26, 20, 40, 0.98);
-		--jrpg-frame: rgba(255, 248, 232, 0.34);
-		--jrpg-frame-strong: rgba(255, 248, 232, 0.62);
-		--jrpg-text: #fff8e8;
-		--jrpg-muted: #b8a8c8;
-		--jrpg-cyan: #5fa8f0;
-		--jrpg-emerald: #5fd860;
-		--jrpg-amber: #ffd040;
-		--jrpg-radius: 0.35rem;
-		--jrpg-shadow: 0 14px 36px rgba(0, 0, 0, 0.42);
-	}
-
-	.jrpg-command-box {
-		border: 1px solid var(--jrpg-frame);
-		background: var(--jrpg-panel);
-		color: var(--jrpg-text);
-		box-shadow:
-			var(--jrpg-shadow),
-			inset 0 0 0 2px rgba(10, 6, 18, 0.72),
-			inset 0 1px 0 rgba(255, 255, 255, 0.08);
 	}
 
 	.jrpg-label {
@@ -1921,7 +1893,7 @@
 		border: 1px solid rgba(255, 248, 232, 0.2);
 		border-radius: 0.25rem;
 		background: linear-gradient(180deg, rgba(255, 208, 64, 0.22), rgba(95, 168, 240, 0.14));
-		color: var(--jrpg-amber);
+		color: var(--color-gold);
 		font-size: 1.8rem;
 		font-weight: 900;
 		line-height: 1;
@@ -2031,7 +2003,7 @@
 		width: min(19rem, calc(100vw - 2rem));
 		max-height: min(21rem, calc(100vh - 14.1rem));
 		overflow-y: auto;
-		border-radius: var(--jrpg-radius);
+		border-radius: var(--radius-arcane);
 		padding: 0.85rem;
 	}
 
@@ -2050,14 +2022,8 @@
 
 	.jrpg-command-action,
 	.jrpg-small-button {
-		border: 1px solid rgba(244, 229, 184, 0.18);
-		background: rgba(255, 255, 255, 0.07);
-		color: var(--jrpg-text);
+		/* border/background/color now from glass-button component class */
 		font-weight: 900;
-		transition:
-			transform 160ms ease,
-			border-color 160ms ease,
-			background 160ms ease;
 	}
 
 	.jrpg-command-action {
@@ -2081,10 +2047,8 @@
 	.jrpg-command-action:focus-visible,
 	.jrpg-small-button:hover,
 	.jrpg-small-button:focus-visible {
-		border-color: var(--jrpg-frame-strong);
-		background: rgba(244, 229, 184, 0.12);
+		/* hover/focus handled by glass-button — keep only unique override */
 		transform: translateX(2px);
-		outline: none;
 	}
 
 	.jrpg-command-action:disabled {
@@ -2098,7 +2062,7 @@
 		border-radius: 0.42rem;
 		background: rgba(159, 231, 255, 0.08);
 		padding: 0.62rem 0.7rem;
-		color: var(--jrpg-cyan);
+		color: var(--color-sapphire);
 		font-size: 0.78rem;
 		font-weight: 900;
 		line-height: 1.35;
@@ -2110,7 +2074,7 @@
 		margin-top: 0.85rem;
 		border-top: 1px solid rgba(244, 229, 184, 0.14);
 		padding-top: 0.85rem;
-		color: var(--jrpg-muted);
+		color: var(--color-muted);
 		font-size: 0.68rem;
 		font-weight: 900;
 		letter-spacing: 0.12em;
@@ -2122,7 +2086,7 @@
 		border-radius: 0.42rem;
 		background: rgba(0, 0, 0, 0.28);
 		padding: 0.55rem 0.65rem;
-		color: var(--jrpg-text);
+		color: var(--color-parchment);
 		font-size: 0.86rem;
 		font-weight: 800;
 		letter-spacing: 0;
@@ -2170,14 +2134,8 @@
 		width: min(76rem, calc(100vw - 2rem));
 		grid-template-rows: auto minmax(0, 1fr);
 		overflow: hidden;
-		border: 1px solid var(--jrpg-frame);
-		border-radius: var(--jrpg-radius);
-		background: linear-gradient(145deg, var(--jrpg-panel-strong), rgba(17, 21, 42, 0.96));
-		color: var(--jrpg-text);
-		box-shadow:
-			0 34px 100px rgba(0, 0, 0, 0.58),
-			inset 0 1px 0 rgba(255, 255, 255, 0.08);
-		backdrop-filter: blur(16px);
+		/* border/background/shadow now from glass-panel-strong component class */
+		color: var(--color-parchment);
 	}
 
 	.jrpg-window-narrow {
@@ -2201,7 +2159,7 @@
 		margin: 0.2rem 0 0;
 		font-size: clamp(1.25rem, 3vw, 1.9rem);
 		font-weight: 900;
-		color: var(--jrpg-text);
+		color: var(--color-parchment);
 		letter-spacing: 0.08em;
 		text-transform: uppercase;
 	}
@@ -2221,11 +2179,9 @@
 	}
 
 	.jrpg-tab {
-		border: 1px solid rgba(244, 229, 184, 0.16);
-		border-radius: 999px;
-		background: rgba(255, 255, 255, 0.06);
+		/* border/background from glass-button component class */
 		padding: 0.58rem 0.7rem;
-		color: var(--jrpg-muted);
+		color: var(--color-muted);
 		font-size: 0.68rem;
 		font-weight: 900;
 		letter-spacing: 0.12em;
@@ -2233,9 +2189,9 @@
 	}
 
 	.jrpg-tab-active {
-		border-color: var(--jrpg-frame-strong);
+		border-color: var(--color-frame-strong);
 		background: rgba(244, 229, 184, 0.13);
-		color: var(--jrpg-text);
+		color: var(--color-parchment);
 	}
 
 	.jrpg-window-body {
@@ -2247,7 +2203,7 @@
 	.jrpg-area-map-frame {
 		overflow: hidden;
 		border: 1px solid rgba(244, 229, 184, 0.16);
-		border-radius: var(--jrpg-radius);
+		border-radius: var(--radius-arcane);
 		background:
 			linear-gradient(rgba(159, 231, 255, 0.08) 1px, transparent 1px),
 			linear-gradient(90deg, rgba(159, 231, 255, 0.08) 1px, transparent 1px), #09101f;
@@ -2339,7 +2295,7 @@
 		flex-wrap: wrap;
 		gap: 0.75rem;
 		margin-top: 0.75rem;
-		color: var(--jrpg-muted);
+		color: var(--color-muted);
 		font-size: 0.68rem;
 		font-weight: 900;
 		letter-spacing: 0.12em;
@@ -2389,7 +2345,7 @@
 	.jrpg-side-rail,
 	.jrpg-quest-section {
 		border: 1px solid rgba(244, 229, 184, 0.14);
-		border-radius: var(--jrpg-radius);
+		border-radius: var(--radius-arcane);
 		background: rgba(255, 255, 255, 0.055);
 	}
 
@@ -2433,12 +2389,9 @@
 		bottom: 1rem;
 		z-index: 20;
 		max-width: 18rem;
-		border: 1px solid var(--jrpg-frame);
-		border-radius: var(--jrpg-radius);
-		background: var(--jrpg-panel-strong);
+		/* border/background/shadow now from glass-panel-strong component class */
 		padding: 0.75rem;
-		color: var(--jrpg-text);
-		box-shadow: var(--jrpg-shadow);
+		color: var(--color-parchment);
 		pointer-events: none;
 	}
 
@@ -2448,11 +2401,11 @@
 		align-items: center;
 		justify-content: center;
 		border: 1px dashed rgba(244, 229, 184, 0.2);
-		border-radius: var(--jrpg-radius);
+		border-radius: var(--radius-arcane);
 		background: rgba(255, 255, 255, 0.04);
 		padding: 2rem;
 		text-align: center;
-		color: var(--jrpg-muted);
+		color: var(--color-muted);
 		font-size: 0.82rem;
 		font-weight: 900;
 		letter-spacing: 0.12em;
