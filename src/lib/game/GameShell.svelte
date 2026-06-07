@@ -2131,11 +2131,13 @@
 
 	.jrpg-field-status {
 		position: absolute;
-		left: 50%;
+		left: 0;
+		right: 0;
 		bottom: 7rem;
 		z-index: 20;
+		width: fit-content;
 		max-width: min(24rem, calc(100vw - 2rem));
-		transform: translateX(-50%);
+		margin-inline: auto;
 		border-radius: 999px;
 		padding: 0.52rem 0.75rem;
 		font-size: 0.8rem;
