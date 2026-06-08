@@ -24,7 +24,7 @@
 	--font-display: 'Cinzel', 'Trajan Pro', serif;
 	--font-body: 'Spectral', 'Georgia', serif;
 
-	/* Frame radius (tighter than the old 0.35rem) */
+	/* Frame radius */
 	--radius-arcane: 0.28rem;
 }
 
