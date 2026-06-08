@@ -316,8 +316,6 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-	.arcane-meter > span::after,
-	.glass-button::before,
 	.arcane-window-enter,
 	.arcane-stagger > *,
 	.arcane-low-hp,
@@ -327,6 +325,14 @@
 		animation: none !important;
 		transition: none !important;
 		transform: none !important;
+	}
+
+	.arcane-meter > span::after,
+	.glass-button::before {
+		animation: none !important;
+		transition: none !important;
+		/* Keep pseudo-elements offscreen — they are purely decorative glints */
+		content: none !important;
 	}
 
 	.glass-button,
