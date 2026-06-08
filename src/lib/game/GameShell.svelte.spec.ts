@@ -91,6 +91,62 @@ describe('GameShell motion flourishes', () => {
 		emitHudState(baseHudState({ hp: 40, maxHp: 50 }));
 		await expect.element(party).not.toHaveClass(/arcane-low-hp/);
 	});
+
+	it('treats exactly 25% HP as critically low', async () => {
+		render(GameShell);
+		emitHudState(baseHudState({ hp: 5, maxHp: 20 }));
+		const party = page.getByTestId('hud-party-panel');
+		await expect.element(party).toHaveClass(/arcane-low-hp/);
+
+		emitHudState(baseHudState({ hp: 6, maxHp: 20 }));
+		await expect.element(party).not.toHaveClass(/arcane-low-hp/);
+	});
+
+	it('flashes the coin display when wallet coins change', async () => {
+		render(GameShell);
+		emitHudState(baseHudState({ wallet: { coins: 30 } }));
+		await expect.element(page.getByText(/30G/)).toBeVisible();
+
+		emitHudState(baseHudState({ wallet: { coins: 50 } }));
+		const coinSpan = page.getByText(/50G/);
+		await expect.element(coinSpan).toBeVisible();
+		await expect.element(coinSpan).toHaveClass(/arcane-coin-flash/);
+	});
+
+	it('does not flash coins on unrelated state changes', async () => {
+		render(GameShell);
+		emitHudState(baseHudState({ wallet: { coins: 30 } }));
+		const coinSpan = page.getByText(/30G/);
+		await expect.element(coinSpan).toBeVisible();
+
+		// Wait for the initial flash to clear (600ms timeout in component)
+		await expect.element(coinSpan).not.toHaveClass(/arcane-coin-flash/);
+
+		emitHudState(baseHudState({ hp: 5, maxHp: 20, wallet: { coins: 30 } }));
+		await expect.element(coinSpan).not.toHaveClass(/arcane-coin-flash/);
+	});
+
+	it('flashes the level display when the level increases', async () => {
+		render(GameShell);
+		emitHudState(baseHudState({ level: 1 }));
+		await expect.element(page.getByText(/LV 1/)).toBeVisible();
+
+		emitHudState(baseHudState({ level: 2 }));
+		const levelSpan = page.getByText(/LV 2/);
+		await expect.element(levelSpan).toBeVisible();
+		await expect.element(levelSpan).toHaveClass(/arcane-level-up/);
+	});
+
+	it('does not flash level on unrelated state changes', async () => {
+		render(GameShell);
+		emitHudState(baseHudState({ level: 1 }));
+		await expect.element(page.getByText(/LV 1/)).toBeVisible();
+
+		emitHudState(baseHudState({ hp: 5, maxHp: 20, level: 1 }));
+		const levelSpan = page.getByText(/LV 1/);
+		await expect.element(levelSpan).toBeVisible();
+		await expect.element(levelSpan).not.toHaveClass(/arcane-level-up/);
+	});
 });
 
 describe('GameShell battle summary', () => {
@@ -147,7 +203,7 @@ describe('GameShell battle summary', () => {
 		}
 	});
 
-	it('renders every victory section including quest progress (max arcane-stagger rows)', async () => {
+	it('renders every victory section including quest progress rows', async () => {
 		render(GameShell);
 		emitHudState({
 			...baseHudState(),

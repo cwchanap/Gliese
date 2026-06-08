@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { onMount, tick } from 'svelte';
+	import { onMount, tick, untrack } from 'svelte';
 	import DialoguePanel from '$lib/game/DialoguePanel.svelte';
 	import { locale, setActiveLocale } from '$lib/game/i18n/store';
 	import { localeLabels, supportedLocales, type Locale } from '$lib/game/i18n/locales';
@@ -52,6 +52,7 @@
 	let inventoryFocusRestoreTarget: HTMLElement | null = null;
 	let shopFocusRestoreTarget: HTMLElement | null = null;
 	let battleSummaryWasVisible = false;
+	let fieldStatusKey = $state(0);
 	let loadError = $state('');
 	let commandOpen = $state(false);
 	let inventoryOpen = $state(false);
@@ -101,6 +102,10 @@
 			const id = setTimeout(() => (levelUpFlash = false), 600);
 			return () => clearTimeout(id);
 		}
+	});
+	$effect(() => {
+		void $hudState.status;
+		untrack(() => fieldStatusKey++);
 	});
 	const battleSummary = $derived($hudState.battle.summary);
 	const focusedMarkerLabel = $derived(
@@ -956,16 +961,16 @@
 		{/if}
 	</aside>
 
-	{#key $hudState.status}
-		<div
-			class="glass-panel jrpg-field-status arcane-window-enter"
-			role="status"
-			aria-label={t($locale, 'ui.fieldStatus')}
-			aria-live="polite"
-		>
-			{$hudState.status}
-		</div>
-	{/key}
+	<div
+		class="glass-panel jrpg-field-status"
+		role="status"
+		aria-label={t($locale, 'ui.fieldStatus')}
+		aria-live="polite"
+	>
+		{#key fieldStatusKey}
+			<span class="arcane-window-enter">{$hudState.status}</span>
+		{/key}
+	</div>
 
 	{#if commandOpen}
 		<div
@@ -2049,7 +2054,7 @@
 
 	.jrpg-command-action,
 	.jrpg-small-button {
-		/* border/background/color now from glass-button component class */
+		/* border/background/color from glass-button; font-weight intentionally overrides glass-button's 600 */
 		font-weight: 900;
 	}
 
