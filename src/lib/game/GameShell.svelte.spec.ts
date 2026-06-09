@@ -147,6 +147,22 @@ describe('GameShell motion flourishes', () => {
 		await expect.element(levelSpan).toBeVisible();
 		await expect.element(levelSpan).not.toHaveClass(/arcane-level-up/);
 	});
+
+	it('flashes level again after a decrease (e.g. save resume) followed by an increase', async () => {
+		render(GameShell);
+		emitHudState(baseHudState({ level: 3 }));
+		await expect.element(page.getByText(/LV 3/)).toBeVisible();
+
+		// Simulate loading an older save at level 1
+		emitHudState(baseHudState({ level: 1 }));
+		await expect.element(page.getByText(/LV 1/)).toBeVisible();
+
+		// Level up from the restored save – should flash
+		emitHudState(baseHudState({ level: 2 }));
+		const levelSpan = page.getByText(/LV 2/);
+		await expect.element(levelSpan).toBeVisible();
+		await expect.element(levelSpan).toHaveClass(/arcane-level-up/);
+	});
 });
 
 describe('GameShell battle summary', () => {

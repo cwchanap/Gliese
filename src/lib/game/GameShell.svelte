@@ -82,34 +82,31 @@
 
 	let coinFlash = $state(false);
 	let lastCoins = $hudState.wallet.coins;
-	let coinFlashTimer: ReturnType<typeof setTimeout> | undefined;
 	$effect(() => {
 		const coins = $hudState.wallet.coins;
 		if (coins !== lastCoins) {
 			lastCoins = coins;
 			coinFlash = true;
-			if (coinFlashTimer !== undefined) clearTimeout(coinFlashTimer);
-			coinFlashTimer = setTimeout(() => {
+			const id = setTimeout(() => {
 				coinFlash = false;
-				coinFlashTimer = undefined;
 			}, 600);
+			return () => clearTimeout(id);
 		}
 	});
 
 	let levelUpFlash = $state(false);
 	let lastLevel = $hudState.level;
-	let levelUpFlashTimer: ReturnType<typeof setTimeout> | undefined;
 	$effect(() => {
 		const level = $hudState.level;
 		if (level > lastLevel) {
-			lastLevel = level;
 			levelUpFlash = true;
-			if (levelUpFlashTimer !== undefined) clearTimeout(levelUpFlashTimer);
-			levelUpFlashTimer = setTimeout(() => {
+			const id = setTimeout(() => {
 				levelUpFlash = false;
-				levelUpFlashTimer = undefined;
 			}, 600);
+			lastLevel = level;
+			return () => clearTimeout(id);
 		}
+		lastLevel = level;
 	});
 
 	let lastStatus = $hudState.status;
