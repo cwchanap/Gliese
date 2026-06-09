@@ -495,6 +495,10 @@ test('quest log shows main quest and accepts Guild side quests', async ({ page }
 	await page.getByRole('button', { name: 'Menu' }).click();
 	await commandBox(page).getByRole('button', { name: 'Resume Save' }).click();
 	await expect(page.getByText('Talk to the Guild Master')).toBeVisible();
+	await page.waitForFunction(() => {
+		const state = (window as GlieseProbeWindow).__glieseLastHudState;
+		return state?.status?.includes('Guild Master');
+	});
 
 	await page.locator('canvas').click();
 	await page.keyboard.press('KeyE');
