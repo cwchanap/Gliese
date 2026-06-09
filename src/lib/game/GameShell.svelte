@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { onMount, tick, untrack } from 'svelte';
+	import { onMount, tick } from 'svelte';
 	import DialoguePanel from '$lib/game/DialoguePanel.svelte';
 	import { locale, setActiveLocale } from '$lib/game/i18n/store';
 	import { localeLabels, supportedLocales, type Locale } from '$lib/game/i18n/locales';
@@ -82,30 +82,43 @@
 
 	let coinFlash = $state(false);
 	let lastCoins = $hudState.wallet.coins;
+	let coinFlashTimer: ReturnType<typeof setTimeout> | undefined;
 	$effect(() => {
 		const coins = $hudState.wallet.coins;
 		if (coins !== lastCoins) {
 			lastCoins = coins;
 			coinFlash = true;
-			const id = setTimeout(() => (coinFlash = false), 600);
-			return () => clearTimeout(id);
+			if (coinFlashTimer !== undefined) clearTimeout(coinFlashTimer);
+			coinFlashTimer = setTimeout(() => {
+				coinFlash = false;
+				coinFlashTimer = undefined;
+			}, 600);
 		}
 	});
 
 	let levelUpFlash = $state(false);
 	let lastLevel = $hudState.level;
+	let levelUpFlashTimer: ReturnType<typeof setTimeout> | undefined;
 	$effect(() => {
 		const level = $hudState.level;
 		if (level > lastLevel) {
 			lastLevel = level;
 			levelUpFlash = true;
-			const id = setTimeout(() => (levelUpFlash = false), 600);
-			return () => clearTimeout(id);
+			if (levelUpFlashTimer !== undefined) clearTimeout(levelUpFlashTimer);
+			levelUpFlashTimer = setTimeout(() => {
+				levelUpFlash = false;
+				levelUpFlashTimer = undefined;
+			}, 600);
 		}
 	});
+
+	let lastStatus = $hudState.status;
 	$effect(() => {
-		void $hudState.status;
-		untrack(() => fieldStatusKey++);
+		const status = $hudState.status;
+		if (status !== lastStatus) {
+			lastStatus = status;
+			fieldStatusKey++;
+		}
 	});
 	const battleSummary = $derived($hudState.battle.summary);
 	const focusedMarkerLabel = $derived(
