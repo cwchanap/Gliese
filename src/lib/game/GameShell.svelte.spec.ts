@@ -1,14 +1,21 @@
 import { page, userEvent } from 'vitest/browser';
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 
 import '../../app.css';
 import GameShell from './GameShell.svelte';
 import { HUD_COMMAND_EVENT, HUD_STATE_EVENT, type HudState } from '$lib/game/ui-bridge/events';
+import type { ConsumableDefinition, EquipmentDefinition } from '$lib/game/content/items';
+import type { HudQuestEntry } from '$lib/game/core/quests';
+import type { HudShopBuyEntry, HudShopSellEntry } from '$lib/game/core/shop';
 
 vi.mock('$lib/game/phaser/createGame', () => ({
 	createGame: vi.fn(async () => ({ destroy: vi.fn() }))
 }));
+
+afterEach(() => {
+	emitHudState(baseHudState({ ready: false }));
+});
 
 function emitHudState(state: HudState) {
 	window.dispatchEvent(new CustomEvent(HUD_STATE_EVENT, { detail: state }));
@@ -79,6 +86,76 @@ function hudStateWithEquippedWeapon(overrides: Partial<HudState> = {}): HudState
 		},
 		...overrides
 	});
+}
+
+function mockConsumable(): ConsumableDefinition {
+	return {
+		id: 'field-potion',
+		nameKey: 'items.fieldPotion.name',
+		descriptionKey: 'items.fieldPotion.description',
+		name: 'Field Potion',
+		description: 'Restores a small amount of HP.',
+		iconPath: '/game/assets/items/field-potion.png',
+		stackable: true,
+		basePrice: 10,
+		type: 'consumable',
+		effect: { type: 'heal', amount: 15 }
+	} as unknown as ConsumableDefinition;
+}
+
+function mockEquipment(): EquipmentDefinition {
+	return {
+		id: 'practice-sword',
+		nameKey: 'items.practiceSword.name',
+		descriptionKey: 'items.practiceSword.description',
+		name: 'Practice Sword',
+		description: 'A wooden training blade.',
+		iconPath: '/game/assets/items/practice-sword.png',
+		stackable: false,
+		basePrice: 20,
+		type: 'equipment',
+		slot: 'weapon'
+	} as unknown as EquipmentDefinition;
+}
+
+function mockShopBuyEntry(): HudShopBuyEntry {
+	return {
+		stockId: 'potion-stock',
+		itemId: 'field-potion',
+		name: 'Field Potion',
+		description: 'Restores a small amount of HP.',
+		iconPath: '/game/assets/items/field-potion.png',
+		kind: 'consumable',
+		price: 10,
+		availability: { mode: 'unlimited' },
+		item: mockConsumable()
+	};
+}
+
+function mockShopSellEntry(): HudShopSellEntry {
+	return {
+		itemId: 'practice-sword',
+		name: 'Practice Sword',
+		description: 'A wooden training blade.',
+		iconPath: '/game/assets/items/practice-sword.png',
+		kind: 'equipment',
+		quantity: 1,
+		price: 5,
+		item: mockEquipment()
+	};
+}
+
+function mockMainQuest(): HudQuestEntry {
+	return {
+		questId: 'investigate-the-ruins',
+		title: 'Investigate the Ruins',
+		type: 'main',
+		status: 'active',
+		description: 'Find out what is lurking in the ruins.',
+		objective: 'Enter the ruins and investigate.',
+		progress: { current: 1, target: 3, label: 'Clues found' },
+		rewardSummary: '24 XP / 30 coins'
+	};
 }
 
 describe('GameShell motion flourishes', () => {
@@ -389,5 +466,191 @@ describe('GameShell battle summary', () => {
 		} finally {
 			window.removeEventListener(HUD_COMMAND_EVENT, handleCommand);
 		}
+	});
+});
+
+describe('GameShell field status', () => {
+	it('re-animates the status text when the status changes', async () => {
+		render(GameShell);
+		emitHudState(baseHudState({ status: 'Exploring' }));
+		await expect.element(page.getByText(/Exploring/)).toBeVisible();
+
+		emitHudState(baseHudState({ status: 'Battle start' }));
+		await expect.element(page.getByText(/Battle start/)).toBeVisible();
+	});
+});
+
+describe('GameShell command menu', () => {
+	it('opens and closes the command menu', async () => {
+		render(GameShell);
+		emitHudState(baseHudState({ heals: 2 }));
+
+		const menuButton = page.getByRole('button', { name: /menu/i });
+		await menuButton.click();
+		await page.getByRole('button', { name: /use heal/i }).click();
+
+		await page.getByRole('button', { name: /close/i }).click();
+		await expect.element(menuButton).toHaveAttribute('aria-expanded', 'false');
+	});
+
+	it('emits heal command when use heal is clicked', async () => {
+		const commands: unknown[] = [];
+		const handleCommand = (event: Event) => commands.push((event as CustomEvent).detail);
+		window.addEventListener(HUD_COMMAND_EVENT, handleCommand);
+
+		try {
+			render(GameShell);
+			emitHudState(baseHudState({ heals: 2 }));
+
+			await page.getByRole('button', { name: /menu/i }).click();
+			await page.getByRole('button', { name: /use heal/i }).click();
+
+			expect(commands).toContainEqual({ type: 'heal' });
+		} finally {
+			window.removeEventListener(HUD_COMMAND_EVENT, handleCommand);
+		}
+	});
+});
+
+describe('GameShell inventory', () => {
+	it('opens from the command menu and switches tabs', async () => {
+		render(GameShell);
+		emitHudState(
+			baseHudState({
+				inventory: {
+					consumables: [
+						{
+							itemId: 'field-potion',
+							name: 'Field Potion',
+							description: 'Restores HP.',
+							iconPath: '/icon.png',
+							quantity: 3
+						}
+					],
+					equipment: [
+						{
+							itemId: 'practice-sword',
+							name: 'Practice Sword',
+							description: 'A blade.',
+							iconPath: '/icon.png',
+							slot: 'weapon',
+							equipped: false,
+							modifiers: { attack: 1 }
+						}
+					],
+					keyItems: [],
+					equipped: { weapon: null, head: null, body: null, hands: null, accessory: null }
+				}
+			})
+		);
+
+		await page.getByRole('button', { name: /menu/i }).click();
+		await page.getByRole('button', { name: /inventory/i }).click();
+
+		await expect.element(page.getByRole('tab', { name: /consumables/i })).toBeVisible();
+		await expect
+			.element(page.getByRole('tab', { name: /consumables/i }))
+			.toHaveAttribute('aria-selected', 'true');
+
+		await page.getByRole('tab', { name: /equipment/i }).click();
+		await expect
+			.element(page.getByRole('tab', { name: /equipment/i }))
+			.toHaveAttribute('aria-selected', 'true');
+	});
+});
+
+describe('GameShell shop', () => {
+	it('auto-opens when shop state arrives and renders buy stock', async () => {
+		render(GameShell);
+		emitHudState(
+			baseHudState({
+				shop: {
+					shopId: 'miras-item-shop',
+					name: "Mira's Item Shop",
+					merchantName: 'Mira',
+					buy: [mockShopBuyEntry()],
+					sell: []
+				}
+			})
+		);
+
+		await expect.element(page.getByTestId('shop-buy-grid')).toBeVisible();
+	});
+
+	it('renders sell tab when sellable items are available', async () => {
+		render(GameShell);
+		emitHudState(
+			baseHudState({
+				shop: {
+					shopId: 'miras-item-shop',
+					name: "Mira's Item Shop",
+					merchantName: 'Mira',
+					buy: [mockShopBuyEntry()],
+					sell: [mockShopSellEntry()]
+				}
+			})
+		);
+
+		await expect.element(page.getByTestId('shop-buy-grid')).toBeVisible();
+
+		await page.getByRole('tab', { name: /sell/i }).click();
+		await expect.element(page.getByTestId('shop-sell-grid')).toBeVisible();
+	});
+});
+
+describe('GameShell quest log', () => {
+	it('opens from the command menu and renders active quests', async () => {
+		render(GameShell);
+		emitHudState(
+			baseHudState({
+				quests: {
+					main: mockMainQuest(),
+					side: [],
+					completed: [],
+					guildOffer: null
+				}
+			})
+		);
+
+		await page.getByRole('button', { name: /menu/i }).click();
+		await page.getByRole('button', { name: /quests/i }).click();
+
+		await expect.element(page.getByText(/Field Journal/)).toBeVisible();
+		await expect.element(page.getByText(/Clues found/)).toBeVisible();
+	});
+
+	it('shows empty state when no side quests are active', async () => {
+		render(GameShell);
+		emitHudState(
+			baseHudState({
+				quests: {
+					main: mockMainQuest(),
+					side: [],
+					completed: [],
+					guildOffer: null
+				}
+			})
+		);
+
+		await page.getByRole('button', { name: /menu/i }).click();
+		await page.getByRole('button', { name: /quests/i }).click();
+
+		await expect.element(page.getByText(/no side quests active/i)).toBeVisible();
+	});
+});
+
+describe('GameShell area map', () => {
+	it('opens and closes from the command menu', async () => {
+		render(GameShell);
+		emitHudState(baseHudState());
+
+		const menuButton = page.getByRole('button', { name: /menu/i });
+		await menuButton.click();
+		await page.getByRole('button', { name: /map/i }).click();
+		await expect.element(menuButton).toHaveAttribute('aria-expanded', 'false');
+		await expect.element(page.getByTestId('area-map-svg')).toBeVisible();
+
+		await page.getByRole('button', { name: /close/i }).click();
+		await expect.element(menuButton).toHaveAttribute('aria-expanded', 'false');
 	});
 });
