@@ -145,6 +145,23 @@ function mockShopSellEntry(): HudShopSellEntry {
 	};
 }
 
+function withCommands(fn: (commands: unknown[]) => Promise<void> | void): Promise<void> {
+	const commands: unknown[] = [];
+	const handleCommand = (event: Event) => commands.push((event as CustomEvent).detail);
+	window.addEventListener(HUD_COMMAND_EVENT, handleCommand);
+	try {
+		const result = fn(commands);
+		return result instanceof Promise
+			? result.finally(() => window.removeEventListener(HUD_COMMAND_EVENT, handleCommand))
+			: (Promise.resolve().finally(() =>
+					window.removeEventListener(HUD_COMMAND_EVENT, handleCommand)
+				) as Promise<void>);
+	} catch (err) {
+		window.removeEventListener(HUD_COMMAND_EVENT, handleCommand);
+		throw err;
+	}
+}
+
 function mockMainQuest(): HudQuestEntry {
 	return {
 		questId: 'investigate-the-ruins',
@@ -244,34 +261,31 @@ describe('GameShell motion flourishes', () => {
 
 describe('GameShell battle summary', () => {
 	it('renders a blocking victory summary and dismisses it through the HUD bridge', async () => {
-		const commands: unknown[] = [];
-		const handleCommand = (event: Event) => commands.push((event as CustomEvent).detail);
-		window.addEventListener(HUD_COMMAND_EVENT, handleCommand);
-
-		try {
+		await withCommands(async (commands) => {
 			render(GameShell);
-			emitHudState({
-				...baseHudState(),
-				battle: {
-					phase: 'summary',
-					summary: {
-						outcome: 'victory',
-						enemiesDefeated: 3,
-						xpGained: 12,
-						coinsGained: 12,
-						drops: [{ itemId: 'field-potion', name: 'Field Potion', quantity: 2 }],
-						leveledUp: true,
-						completedQuestTitles: ['Thin the Village Slimes'],
-						questRewards: [
-							{
-								title: 'Thin the Village Slimes',
-								rewardSummary: '6 XP / 12 coins / 1 item'
-							}
-						],
-						questProgress: []
+			emitHudState(
+				baseHudState({
+					battle: {
+						phase: 'summary',
+						summary: {
+							outcome: 'victory',
+							enemiesDefeated: 3,
+							xpGained: 12,
+							coinsGained: 12,
+							drops: [{ itemId: 'field-potion', name: 'Field Potion', quantity: 2 }],
+							leveledUp: true,
+							completedQuestTitles: ['Thin the Village Slimes'],
+							questRewards: [
+								{
+									title: 'Thin the Village Slimes',
+									rewardSummary: '6 XP / 12 coins / 1 item'
+								}
+							],
+							questProgress: []
+						}
 					}
-				}
-			});
+				})
+			);
 
 			const summary = page.getByRole('dialog', { name: /battle summary/i });
 			await expect.element(summary).toBeVisible();
@@ -291,44 +305,43 @@ describe('GameShell battle summary', () => {
 			await summary.getByRole('button', { name: /continue/i }).click();
 
 			expect(commands.at(-1)).toEqual({ type: 'dismiss-battle-summary' });
-		} finally {
-			window.removeEventListener(HUD_COMMAND_EVENT, handleCommand);
-		}
+		});
 	});
 
 	it('renders every victory section including quest progress rows', async () => {
 		render(GameShell);
-		emitHudState({
-			...baseHudState(),
-			battle: {
-				phase: 'summary',
-				summary: {
-					outcome: 'victory',
-					enemiesDefeated: 2,
-					xpGained: 8,
-					coinsGained: 6,
-					drops: [{ itemId: 'field-potion', name: 'Field Potion', quantity: 1 }],
-					leveledUp: true,
-					completedQuestTitles: ['Thin the Village Slimes'],
-					questRewards: [
-						{
-							title: 'Thin the Village Slimes',
-							rewardSummary: '6 XP / 6 coins'
-						}
-					],
-					questProgress: [
-						{
-							questId: 'thin-the-village-slimes',
-							title: 'Thin the Village Slimes',
-							progressLabel: 'Slimes thinned',
-							previousProgress: 1,
-							currentProgress: 2,
-							target: 3
-						}
-					]
+		emitHudState(
+			baseHudState({
+				battle: {
+					phase: 'summary',
+					summary: {
+						outcome: 'victory',
+						enemiesDefeated: 2,
+						xpGained: 8,
+						coinsGained: 6,
+						drops: [{ itemId: 'field-potion', name: 'Field Potion', quantity: 1 }],
+						leveledUp: true,
+						completedQuestTitles: ['Thin the Village Slimes'],
+						questRewards: [
+							{
+								title: 'Thin the Village Slimes',
+								rewardSummary: '6 XP / 6 coins'
+							}
+						],
+						questProgress: [
+							{
+								questId: 'thin-the-village-slimes',
+								title: 'Thin the Village Slimes',
+								progressLabel: 'Slimes thinned',
+								previousProgress: 1,
+								currentProgress: 2,
+								target: 3
+							}
+						]
+					}
 				}
-			}
-		});
+			})
+		);
 
 		const summary = page.getByRole('dialog', { name: /battle summary/i });
 		await expect.element(summary).toBeVisible();
@@ -409,17 +422,17 @@ describe('GameShell battle summary', () => {
 
 	it('disables non-battle command buttons while battle is active but keeps quick heal available', async () => {
 		render(GameShell);
-		emitHudState({
-			...baseHudState({
+		emitHudState(
+			baseHudState({
 				canResume: true,
 				nearbyShop: {
 					shopId: 'miras-item-shop',
 					name: "Mira's Item Shop",
 					merchantName: 'Mira'
-				}
-			}),
-			battle: { phase: 'active', summary: null }
-		});
+				},
+				battle: { phase: 'active', summary: null }
+			})
+		);
 
 		await page.getByRole('button', { name: /menu/i }).click();
 
@@ -433,11 +446,7 @@ describe('GameShell battle summary', () => {
 	});
 
 	it('disables equipped item removal while battle is locked', async () => {
-		const commands: unknown[] = [];
-		const handleCommand = (event: Event) => commands.push((event as CustomEvent).detail);
-		window.addEventListener(HUD_COMMAND_EVENT, handleCommand);
-
-		try {
+		await withCommands(async (commands) => {
 			render(GameShell);
 			emitHudState(hudStateWithEquippedWeapon());
 
@@ -463,9 +472,7 @@ describe('GameShell battle summary', () => {
 			removeElement.click();
 
 			expect(commands).not.toContainEqual({ type: 'unequip-slot', slot: 'weapon' });
-		} finally {
-			window.removeEventListener(HUD_COMMAND_EVENT, handleCommand);
-		}
+		});
 	});
 });
 
@@ -494,11 +501,7 @@ describe('GameShell command menu', () => {
 	});
 
 	it('emits heal command when use heal is clicked', async () => {
-		const commands: unknown[] = [];
-		const handleCommand = (event: Event) => commands.push((event as CustomEvent).detail);
-		window.addEventListener(HUD_COMMAND_EVENT, handleCommand);
-
-		try {
+		await withCommands(async (commands) => {
 			render(GameShell);
 			emitHudState(baseHudState({ heals: 2 }));
 
@@ -506,9 +509,7 @@ describe('GameShell command menu', () => {
 			await page.getByRole('button', { name: /use heal/i }).click();
 
 			expect(commands).toContainEqual({ type: 'heal' });
-		} finally {
-			window.removeEventListener(HUD_COMMAND_EVENT, handleCommand);
-		}
+		});
 	});
 });
 
@@ -658,23 +659,24 @@ describe('GameShell area map', () => {
 describe('GameShell battle summary defeat', () => {
 	it('renders defeat summary with defeat-specific message and no drops', async () => {
 		render(GameShell);
-		emitHudState({
-			...baseHudState(),
-			battle: {
-				phase: 'summary',
-				summary: {
-					outcome: 'defeat',
-					enemiesDefeated: 0,
-					xpGained: 0,
-					coinsGained: 0,
-					drops: [],
-					leveledUp: false,
-					completedQuestTitles: [],
-					questRewards: [],
-					questProgress: []
+		emitHudState(
+			baseHudState({
+				battle: {
+					phase: 'summary',
+					summary: {
+						outcome: 'defeat',
+						enemiesDefeated: 0,
+						xpGained: 0,
+						coinsGained: 0,
+						drops: [],
+						leveledUp: false,
+						completedQuestTitles: [],
+						questRewards: [],
+						questProgress: []
+					}
 				}
-			}
-		});
+			})
+		);
 
 		const summary = page.getByRole('dialog', { name: /battle summary/i });
 		await expect.element(summary).toBeVisible();
@@ -685,11 +687,7 @@ describe('GameShell battle summary defeat', () => {
 
 describe('GameShell save and resume', () => {
 	it('emits save command when Save Game is clicked', async () => {
-		const commands: unknown[] = [];
-		const handleCommand = (event: Event) => commands.push((event as CustomEvent).detail);
-		window.addEventListener(HUD_COMMAND_EVENT, handleCommand);
-
-		try {
+		await withCommands(async (commands) => {
 			render(GameShell);
 			emitHudState(baseHudState());
 
@@ -697,17 +695,11 @@ describe('GameShell save and resume', () => {
 			await page.getByRole('button', { name: /save game/i }).click();
 
 			expect(commands).toContainEqual({ type: 'save' });
-		} finally {
-			window.removeEventListener(HUD_COMMAND_EVENT, handleCommand);
-		}
+		});
 	});
 
 	it('emits resume-save when Resume Save is clicked', async () => {
-		const commands: unknown[] = [];
-		const handleCommand = (event: Event) => commands.push((event as CustomEvent).detail);
-		window.addEventListener(HUD_COMMAND_EVENT, handleCommand);
-
-		try {
+		await withCommands(async (commands) => {
 			render(GameShell);
 			emitHudState(baseHudState({ canResume: true }));
 
@@ -715,19 +707,13 @@ describe('GameShell save and resume', () => {
 			await page.getByRole('button', { name: /resume save/i }).click();
 
 			expect(commands).toContainEqual({ type: 'resume-save' });
-		} finally {
-			window.removeEventListener(HUD_COMMAND_EVENT, handleCommand);
-		}
+		});
 	});
 });
 
 describe('GameShell inventory actions', () => {
 	it('uses a consumable item on double-click', async () => {
-		const commands: unknown[] = [];
-		const handleCommand = (event: Event) => commands.push((event as CustomEvent).detail);
-		window.addEventListener(HUD_COMMAND_EVENT, handleCommand);
-
-		try {
+		await withCommands(async (commands) => {
 			render(GameShell);
 			emitHudState(
 				baseHudState({
@@ -760,17 +746,11 @@ describe('GameShell inventory actions', () => {
 			await page.getByRole('article', { name: /Field Potion/i }).dblClick();
 
 			expect(commands).toContainEqual({ type: 'use-item', itemId: 'field-potion' });
-		} finally {
-			window.removeEventListener(HUD_COMMAND_EVENT, handleCommand);
-		}
+		});
 	});
 
 	it('equips an unequipped item on double-click', async () => {
-		const commands: unknown[] = [];
-		const handleCommand = (event: Event) => commands.push((event as CustomEvent).detail);
-		window.addEventListener(HUD_COMMAND_EVENT, handleCommand);
-
-		try {
+		await withCommands(async (commands) => {
 			render(GameShell);
 			emitHudState(
 				baseHudState({
@@ -806,9 +786,7 @@ describe('GameShell inventory actions', () => {
 			await page.getByRole('article', { name: /Practice Sword/i }).dblClick();
 
 			expect(commands).toContainEqual({ type: 'equip-item', itemId: 'practice-sword' });
-		} finally {
-			window.removeEventListener(HUD_COMMAND_EVENT, handleCommand);
-		}
+		});
 	});
 
 	it('renders key items in the key items tab', async () => {
@@ -848,11 +826,7 @@ describe('GameShell inventory actions', () => {
 
 describe('GameShell shop actions', () => {
 	it('buys an item on double-click when affordable', async () => {
-		const commands: unknown[] = [];
-		const handleCommand = (event: Event) => commands.push((event as CustomEvent).detail);
-		window.addEventListener(HUD_COMMAND_EVENT, handleCommand);
-
-		try {
+		await withCommands(async (commands) => {
 			render(GameShell);
 			emitHudState(
 				baseHudState({
@@ -874,17 +848,33 @@ describe('GameShell shop actions', () => {
 				shopId: 'miras-item-shop',
 				stockId: 'potion-stock'
 			});
-		} finally {
-			window.removeEventListener(HUD_COMMAND_EVENT, handleCommand);
-		}
+		});
+	});
+
+	it('does not emit buy command when wallet cannot afford the item', async () => {
+		await withCommands(async (commands) => {
+			render(GameShell);
+			emitHudState(
+				baseHudState({
+					wallet: { coins: 0 },
+					shop: {
+						shopId: 'miras-item-shop',
+						name: "Mira's Item Shop",
+						merchantName: 'Mira',
+						buy: [mockShopBuyEntry()],
+						sell: []
+					}
+				})
+			);
+
+			await page.getByRole('article', { name: /Field Potion/i }).dblClick();
+
+			expect(commands).not.toContainEqual(expect.objectContaining({ type: 'buy-shop-item' }));
+		});
 	});
 
 	it('sells an item on double-click', async () => {
-		const commands: unknown[] = [];
-		const handleCommand = (event: Event) => commands.push((event as CustomEvent).detail);
-		window.addEventListener(HUD_COMMAND_EVENT, handleCommand);
-
-		try {
+		await withCommands(async (commands) => {
 			render(GameShell);
 			emitHudState(
 				baseHudState({
@@ -906,9 +896,7 @@ describe('GameShell shop actions', () => {
 				type: 'sell-inventory-item',
 				itemId: 'practice-sword'
 			});
-		} finally {
-			window.removeEventListener(HUD_COMMAND_EVENT, handleCommand);
-		}
+		});
 	});
 });
 
@@ -983,7 +971,7 @@ describe('GameShell quest log guild offers', () => {
 describe('GameShell error handling', () => {
 	it('shows error banner when game fails to load', async () => {
 		const { createGame } = await import('$lib/game/phaser/createGame');
-		vi.mocked(createGame).mockRejectedValueOnce(new Error('test error'));
+		vi.mocked(createGame).mockReset().mockRejectedValueOnce(new Error('test error'));
 
 		render(GameShell);
 
