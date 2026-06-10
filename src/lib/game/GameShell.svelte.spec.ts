@@ -654,3 +654,339 @@ describe('GameShell area map', () => {
 		await expect.element(menuButton).toHaveAttribute('aria-expanded', 'false');
 	});
 });
+
+describe('GameShell battle summary defeat', () => {
+	it('renders defeat summary with defeat-specific message and no drops', async () => {
+		render(GameShell);
+		emitHudState({
+			...baseHudState(),
+			battle: {
+				phase: 'summary',
+				summary: {
+					outcome: 'defeat',
+					enemiesDefeated: 0,
+					xpGained: 0,
+					coinsGained: 0,
+					drops: [],
+					leveledUp: false,
+					completedQuestTitles: [],
+					questRewards: [],
+					questProgress: []
+				}
+			}
+		});
+
+		const summary = page.getByRole('dialog', { name: /battle summary/i });
+		await expect.element(summary).toBeVisible();
+		await expect.element(summary.getByText(/no item drops/i)).toBeVisible();
+		await expect.element(summary.getByText(/returned to the shrine/i)).toBeVisible();
+	});
+});
+
+describe('GameShell save and resume', () => {
+	it('emits save command when Save Game is clicked', async () => {
+		const commands: unknown[] = [];
+		const handleCommand = (event: Event) => commands.push((event as CustomEvent).detail);
+		window.addEventListener(HUD_COMMAND_EVENT, handleCommand);
+
+		try {
+			render(GameShell);
+			emitHudState(baseHudState());
+
+			await page.getByRole('button', { name: /menu/i }).click();
+			await page.getByRole('button', { name: /save game/i }).click();
+
+			expect(commands).toContainEqual({ type: 'save' });
+		} finally {
+			window.removeEventListener(HUD_COMMAND_EVENT, handleCommand);
+		}
+	});
+
+	it('emits resume-save when Resume Save is clicked', async () => {
+		const commands: unknown[] = [];
+		const handleCommand = (event: Event) => commands.push((event as CustomEvent).detail);
+		window.addEventListener(HUD_COMMAND_EVENT, handleCommand);
+
+		try {
+			render(GameShell);
+			emitHudState(baseHudState({ canResume: true }));
+
+			await page.getByRole('button', { name: /menu/i }).click();
+			await page.getByRole('button', { name: /resume save/i }).click();
+
+			expect(commands).toContainEqual({ type: 'resume-save' });
+		} finally {
+			window.removeEventListener(HUD_COMMAND_EVENT, handleCommand);
+		}
+	});
+});
+
+describe('GameShell inventory actions', () => {
+	it('uses a consumable item on double-click', async () => {
+		const commands: unknown[] = [];
+		const handleCommand = (event: Event) => commands.push((event as CustomEvent).detail);
+		window.addEventListener(HUD_COMMAND_EVENT, handleCommand);
+
+		try {
+			render(GameShell);
+			emitHudState(
+				baseHudState({
+					inventory: {
+						consumables: [
+							{
+								itemId: 'field-potion',
+								name: 'Field Potion',
+								description: 'Restores HP.',
+								iconPath: '/icon.png',
+								quantity: 3
+							}
+						],
+						equipment: [],
+						keyItems: [],
+						equipped: {
+							weapon: null,
+							head: null,
+							body: null,
+							hands: null,
+							accessory: null
+						}
+					}
+				})
+			);
+
+			await page.getByRole('button', { name: /menu/i }).click();
+			await page.getByRole('button', { name: /inventory/i }).click();
+
+			await page.getByRole('article', { name: /Field Potion/i }).dblClick();
+
+			expect(commands).toContainEqual({ type: 'use-item', itemId: 'field-potion' });
+		} finally {
+			window.removeEventListener(HUD_COMMAND_EVENT, handleCommand);
+		}
+	});
+
+	it('equips an unequipped item on double-click', async () => {
+		const commands: unknown[] = [];
+		const handleCommand = (event: Event) => commands.push((event as CustomEvent).detail);
+		window.addEventListener(HUD_COMMAND_EVENT, handleCommand);
+
+		try {
+			render(GameShell);
+			emitHudState(
+				baseHudState({
+					inventory: {
+						consumables: [],
+						equipment: [
+							{
+								itemId: 'practice-sword',
+								name: 'Practice Sword',
+								description: 'A blade.',
+								iconPath: '/icon.png',
+								slot: 'weapon',
+								equipped: false,
+								modifiers: { attack: 1 }
+							}
+						],
+						keyItems: [],
+						equipped: {
+							weapon: null,
+							head: null,
+							body: null,
+							hands: null,
+							accessory: null
+						}
+					}
+				})
+			);
+
+			await page.getByRole('button', { name: /menu/i }).click();
+			await page.getByRole('button', { name: /inventory/i }).click();
+			await page.getByRole('tab', { name: /equipment/i }).click();
+
+			await page.getByRole('article', { name: /Practice Sword/i }).dblClick();
+
+			expect(commands).toContainEqual({ type: 'equip-item', itemId: 'practice-sword' });
+		} finally {
+			window.removeEventListener(HUD_COMMAND_EVENT, handleCommand);
+		}
+	});
+
+	it('renders key items in the key items tab', async () => {
+		render(GameShell);
+		emitHudState(
+			baseHudState({
+				inventory: {
+					consumables: [],
+					equipment: [],
+					keyItems: [
+						{
+							itemId: 'ancient-key',
+							name: 'Ancient Key',
+							description: 'Opens the ruins gate.',
+							iconPath: '/icon.png',
+							quantity: 1
+						}
+					],
+					equipped: {
+						weapon: null,
+						head: null,
+						body: null,
+						hands: null,
+						accessory: null
+					}
+				}
+			})
+		);
+
+		await page.getByRole('button', { name: /menu/i }).click();
+		await page.getByRole('button', { name: /inventory/i }).click();
+		await page.getByRole('tab', { name: /key items/i }).click();
+
+		await expect.element(page.getByRole('article', { name: /Ancient Key/i })).toBeVisible();
+	});
+});
+
+describe('GameShell shop actions', () => {
+	it('buys an item on double-click when affordable', async () => {
+		const commands: unknown[] = [];
+		const handleCommand = (event: Event) => commands.push((event as CustomEvent).detail);
+		window.addEventListener(HUD_COMMAND_EVENT, handleCommand);
+
+		try {
+			render(GameShell);
+			emitHudState(
+				baseHudState({
+					wallet: { coins: 30 },
+					shop: {
+						shopId: 'miras-item-shop',
+						name: "Mira's Item Shop",
+						merchantName: 'Mira',
+						buy: [mockShopBuyEntry()],
+						sell: []
+					}
+				})
+			);
+
+			await page.getByRole('article', { name: /Field Potion/i }).dblClick();
+
+			expect(commands).toContainEqual({
+				type: 'buy-shop-item',
+				shopId: 'miras-item-shop',
+				stockId: 'potion-stock'
+			});
+		} finally {
+			window.removeEventListener(HUD_COMMAND_EVENT, handleCommand);
+		}
+	});
+
+	it('sells an item on double-click', async () => {
+		const commands: unknown[] = [];
+		const handleCommand = (event: Event) => commands.push((event as CustomEvent).detail);
+		window.addEventListener(HUD_COMMAND_EVENT, handleCommand);
+
+		try {
+			render(GameShell);
+			emitHudState(
+				baseHudState({
+					wallet: { coins: 30 },
+					shop: {
+						shopId: 'miras-item-shop',
+						name: "Mira's Item Shop",
+						merchantName: 'Mira',
+						buy: [mockShopBuyEntry()],
+						sell: [mockShopSellEntry()]
+					}
+				})
+			);
+
+			await page.getByRole('tab', { name: /sell/i }).click();
+			await page.getByRole('article', { name: /Practice Sword/i }).dblClick();
+
+			expect(commands).toContainEqual({
+				type: 'sell-inventory-item',
+				itemId: 'practice-sword'
+			});
+		} finally {
+			window.removeEventListener(HUD_COMMAND_EVENT, handleCommand);
+		}
+	});
+});
+
+describe('GameShell keyboard shortcuts', () => {
+	it('opens area map with M key', async () => {
+		render(GameShell);
+		emitHudState(baseHudState());
+
+		await userEvent.keyboard('m');
+
+		await expect.element(page.getByTestId('area-map-svg')).toBeVisible();
+	});
+
+	it('closes area map with M key when already open', async () => {
+		render(GameShell);
+		emitHudState(baseHudState());
+
+		await userEvent.keyboard('m');
+		await expect.element(page.getByTestId('area-map-svg')).toBeVisible();
+
+		await userEvent.keyboard('m');
+		await expect.element(page.getByRole('button', { name: /menu/i })).toHaveFocus();
+	});
+
+	it('does not open area map when another overlay is open', async () => {
+		render(GameShell);
+		emitHudState(baseHudState());
+
+		await page.getByRole('button', { name: /menu/i }).click();
+		const closeCommand = page.getByRole('button', { name: /close/i });
+		await expect.element(closeCommand).toBeVisible();
+
+		await userEvent.keyboard('m');
+		await expect.element(closeCommand).toBeVisible();
+	});
+});
+
+describe('GameShell quest log guild offers', () => {
+	it('shows guild offer quests as available in the quest log', async () => {
+		render(GameShell);
+		emitHudState(
+			baseHudState({
+				quests: {
+					main: mockMainQuest(),
+					side: [],
+					completed: [],
+					guildOffer: {
+						giverNpcId: 'guild-master',
+						giverName: 'Guild Master',
+						quests: [
+							{
+								questId: 'thin-village-slimes',
+								title: 'Thin the Village Slimes',
+								description: 'Reduce the slime population.',
+								objective: 'Defeat 3 slimes.',
+								rewardSummary: '6 XP / 12 coins'
+							}
+						]
+					}
+				}
+			})
+		);
+
+		await page.getByRole('button', { name: /menu/i }).click();
+		await page.getByRole('button', { name: /quests/i }).click();
+
+		await expect.element(page.getByText(/Thin the Village Slimes/)).toBeVisible();
+		await expect.element(page.getByText(/available from guild master/i)).toBeVisible();
+	});
+});
+
+describe('GameShell error handling', () => {
+	it('shows error banner when game fails to load', async () => {
+		const { createGame } = await import('$lib/game/phaser/createGame');
+		vi.mocked(createGame).mockRejectedValueOnce(new Error('test error'));
+
+		render(GameShell);
+
+		await expect.element(page.getByText(/unable to start the game shell/i)).toBeVisible();
+	});
+});
