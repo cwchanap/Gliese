@@ -82,31 +82,29 @@
 
 	let coinFlash = $state(false);
 	let lastCoins = $hudState.wallet.coins;
-	let coinFlashTimer: ReturnType<typeof setTimeout> | undefined;
 	$effect(() => {
 		const coins = $hudState.wallet.coins;
 		if (coins !== lastCoins) {
 			lastCoins = coins;
 			coinFlash = true;
-			clearTimeout(coinFlashTimer);
-			coinFlashTimer = setTimeout(() => {
+			const id = setTimeout(() => {
 				coinFlash = false;
 			}, 600);
+			return () => clearTimeout(id);
 		}
 	});
 
 	let levelUpFlash = $state(false);
 	let lastLevel = $hudState.level;
-	let levelUpFlashTimer: ReturnType<typeof setTimeout> | undefined;
 	$effect(() => {
 		const level = $hudState.level;
 		if (level > lastLevel) {
 			levelUpFlash = true;
-			clearTimeout(levelUpFlashTimer);
-			levelUpFlashTimer = setTimeout(() => {
+			const id = setTimeout(() => {
 				levelUpFlash = false;
 			}, 600);
 			lastLevel = level;
+			return () => clearTimeout(id);
 		}
 		lastLevel = level;
 	});
@@ -380,7 +378,7 @@
 			inventoryDialog.querySelectorAll<HTMLElement>(
 				'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
 			)
-		).filter((element) => element.offsetParent !== null);
+		).filter((element) => element.getClientRects().length > 0);
 	}
 
 	function handleInventoryDialogKeydown(event: KeyboardEvent) {
@@ -1313,7 +1311,7 @@
 									{:else}
 										<div
 											data-testid="inventory-slot"
-											class="inventory-slot-empty flex aspect-square items-center justify-center rounded-[0.95rem] border border-dashed border-white/10 bg-white/[0.035] text-[0.54rem] font-black tracking-[0.18em] text-slate-400/38 uppercase"
+											class="inventory-slot-empty flex aspect-square items-center justify-center rounded-[0.95rem] border border-dashed border-parchment/10 bg-white/[0.035] text-[0.54rem] font-black tracking-[0.18em] text-muted/38 uppercase"
 											aria-label={t($locale, 'ui.emptyInventorySlot', { index: index + 1 })}
 										>
 											{t($locale, 'ui.empty')}
@@ -1336,7 +1334,7 @@
 									<p class="text-[0.58rem] font-black tracking-[0.22em] text-rose-50/64 uppercase">
 										{t($locale, 'ui.hp')}
 									</p>
-									<p class="mt-0.5 text-base font-black text-white">
+									<p class="mt-0.5 text-base font-black text-parchment">
 										{$hudState.hp}/{$hudState.maxHp}
 									</p>
 								</div>
@@ -1346,7 +1344,7 @@
 									<p class="text-[0.58rem] font-black tracking-[0.22em] text-cyan-50/64 uppercase">
 										{t($locale, 'ui.attack')}
 									</p>
-									<p class="mt-0.5 text-base font-black text-white">{$hudState.attack}</p>
+									<p class="mt-0.5 text-base font-black text-parchment">{$hudState.attack}</p>
 								</div>
 								<div
 									class="rounded-[0.95rem] border border-emerald-100/12 bg-emerald-100/8 px-2 py-2 text-center"
@@ -1356,7 +1354,7 @@
 									>
 										{t($locale, 'ui.defense')}
 									</p>
-									<p class="mt-0.5 text-base font-black text-white">{$hudState.defense}</p>
+									<p class="mt-0.5 text-base font-black text-parchment">{$hudState.defense}</p>
 								</div>
 							</div>
 						</div>

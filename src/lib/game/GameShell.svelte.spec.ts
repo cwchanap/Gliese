@@ -558,6 +558,25 @@ describe('GameShell inventory', () => {
 			.element(page.getByRole('tab', { name: /equipment/i }))
 			.toHaveAttribute('aria-selected', 'true');
 	});
+
+	it('uses design tokens for stat values and empty slots', async () => {
+		render(GameShell);
+		emitHudState(baseHudState({ hp: 12, maxHp: 20, attack: 4, defense: 0 }));
+
+		await page.getByRole('button', { name: /menu/i }).click();
+		await page.getByRole('button', { name: /inventory/i }).click();
+
+		const inventoryDialog = page.getByRole('dialog', { name: /inventory/i });
+
+		// Stat values use text-parchment instead of text-white
+		const hpText = inventoryDialog.getByText('12/20');
+		await expect.element(hpText).toHaveClass(/text-parchment/);
+
+		// Empty inventory slots use design tokens
+		const emptySlot = page.getByTestId('inventory-slot').first();
+		await expect.element(emptySlot).toHaveClass(/border-parchment/);
+		await expect.element(emptySlot).toHaveClass(/text-muted/);
+	});
 });
 
 describe('GameShell shop', () => {
