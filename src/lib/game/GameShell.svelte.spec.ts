@@ -652,6 +652,42 @@ describe('GameShell shop', () => {
 		await page.getByRole('tab', { name: /sell/i }).click();
 		await expect.element(page.getByTestId('shop-sell-grid')).toBeVisible();
 	});
+
+	it('excludes tabindex -1 buttons from shop focus trap', async () => {
+		render(GameShell);
+		emitHudState(
+			baseHudState({
+				shop: {
+					shopId: 'miras-item-shop',
+					name: "Mira's Item Shop",
+					merchantName: 'Mira',
+					buy: [mockShopBuyEntry()],
+					sell: [mockShopSellEntry()]
+				}
+			})
+		);
+
+		await expect.element(page.getByTestId('shop-buy-grid')).toBeVisible();
+
+		// When Buy tab is active, Sell tab has tabindex="-1" and must NOT be
+		// considered focusable by the Tab trap — otherwise focus escapes.
+		const sellTab = page.getByRole('tab', { name: /sell/i });
+		await expect.element(sellTab).toHaveAttribute('tabindex', '-1');
+
+		// Tabbing from the last truly focusable element should wrap, not escape
+		const dialog = page.getByRole('dialog', { name: /Mira's Item Shop/i });
+		const buyTab = page.getByRole('tab', { name: /buy/i });
+		// Click to focus the Buy tab
+		await buyTab.click();
+		await expect.element(buyTab).toHaveFocus();
+
+		// Simulate Tab — focus should wrap back to the first element inside the dialog
+		await userEvent.keyboard('{Tab}');
+		// Focus should still be inside the dialog, not on the body or outside
+		const focused = document.activeElement;
+		expect(focused).toBeTruthy();
+		expect(dialog.element()?.contains(focused)).toBe(true);
+	});
 });
 
 describe('GameShell quest log', () => {
