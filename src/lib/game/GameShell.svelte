@@ -80,6 +80,7 @@
 	const battleLocked = $derived(battlePhase === 'active' || battlePhase === 'summary');
 	const lowHp = $derived($hudState.maxHp > 0 && $hudState.hp / $hudState.maxHp <= 0.25);
 
+	let coinFlashTimer: ReturnType<typeof setTimeout> | undefined;
 	let coinFlash = $state(false);
 	let lastCoins = $hudState.wallet.coins;
 	$effect(() => {
@@ -87,26 +88,28 @@
 		if (coins !== lastCoins) {
 			lastCoins = coins;
 			coinFlash = true;
-			const id = setTimeout(() => {
+			clearTimeout(coinFlashTimer);
+			coinFlashTimer = setTimeout(() => {
 				coinFlash = false;
 			}, 600);
-			return () => clearTimeout(id);
 		}
 	});
 
+	let levelUpFlashTimer: ReturnType<typeof setTimeout> | undefined;
 	let levelUpFlash = $state(false);
 	let lastLevel = $hudState.level;
 	$effect(() => {
 		const level = $hudState.level;
 		if (level > lastLevel) {
+			lastLevel = level;
 			levelUpFlash = true;
-			const id = setTimeout(() => {
+			clearTimeout(levelUpFlashTimer);
+			levelUpFlashTimer = setTimeout(() => {
 				levelUpFlash = false;
 			}, 600);
+		} else {
 			lastLevel = level;
-			return () => clearTimeout(id);
 		}
-		lastLevel = level;
 	});
 
 	let lastStatus = $hudState.status;
