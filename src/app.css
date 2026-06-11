@@ -323,6 +323,7 @@
 	.arcane-low-hp,
 	.arcane-coin-flash,
 	.arcane-level-up,
+	.arcane-victory-flash,
 	.arcane-halo {
 		animation: none !important;
 		transition: none !important;
