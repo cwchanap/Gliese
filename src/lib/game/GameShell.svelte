@@ -517,6 +517,44 @@
 		}
 	}
 
+	function getQuestLogFocusableElements() {
+		if (!questLogDialog) return [];
+
+		return Array.from(
+			questLogDialog.querySelectorAll<HTMLElement>(
+				'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+			)
+		).filter((element) => element.getClientRects().length > 0);
+	}
+
+	function handleQuestLogDialogKeydown(event: KeyboardEvent) {
+		if (event.key === 'Escape') {
+			event.preventDefault();
+			closeQuestLog();
+			return;
+		}
+
+		if (event.key !== 'Tab') return;
+
+		const focusableElements = getQuestLogFocusableElements();
+		if (focusableElements.length === 0) {
+			event.preventDefault();
+			questLogDialog?.focus();
+			return;
+		}
+
+		const firstElement = focusableElements[0];
+		const lastElement = focusableElements.at(-1);
+
+		if (event.shiftKey && document.activeElement === firstElement) {
+			event.preventDefault();
+			lastElement?.focus();
+		} else if (!event.shiftKey && document.activeElement === lastElement) {
+			event.preventDefault();
+			firstElement.focus();
+		}
+	}
+
 	async function focusInventoryTab(tab: InventoryTab) {
 		activeInventoryTab = tab;
 		hoveredInventoryItem = null;
@@ -1099,7 +1137,7 @@
 					<div>
 						<p
 							class="jrpg-label font-display {battleSummary.outcome === 'victory'
-								? 'arcane-coin-flash'
+								? 'arcane-victory-flash'
 								: ''}"
 						>
 							{battleSummary.outcome === 'victory'
@@ -1528,6 +1566,7 @@
 				aria-modal="true"
 				role="dialog"
 				tabindex="-1"
+				onkeydown={handleQuestLogDialogKeydown}
 			>
 				<div class="jrpg-window-header">
 					<div>
