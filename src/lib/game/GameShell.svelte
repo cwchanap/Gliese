@@ -2093,6 +2093,15 @@
 		transform: translateX(2px);
 	}
 
+	@media (prefers-reduced-motion: reduce) {
+		.jrpg-command-action:hover:not(:disabled),
+		.jrpg-command-action:focus-visible,
+		.jrpg-small-button:hover,
+		.jrpg-small-button:focus-visible {
+			transform: none;
+		}
+	}
+
 	.jrpg-command-action:disabled {
 		cursor: not-allowed;
 		opacity: 0.45;

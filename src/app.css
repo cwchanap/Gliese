@@ -245,9 +245,10 @@
 	.arcane-low-hp {
 		animation: arcane-danger-pulse 1.1s ease-in-out infinite;
 	}
+	/* Gold text glow shared by coin counter and level-up badge. */
 	.arcane-coin-flash,
 	.arcane-level-up {
-		animation: arcane-coin-flash 600ms ease;
+		animation: arcane-text-flash 600ms ease;
 	}
 	.arcane-halo {
 		animation: arcane-halo 2.4s ease-in-out infinite;
@@ -293,7 +294,7 @@
 		box-shadow: 0 0 22px rgba(240, 97, 122, 0.55);
 	}
 }
-@keyframes arcane-coin-flash {
+@keyframes arcane-text-flash {
 	0% {
 		color: var(--color-gold-bright);
 		text-shadow: 0 0 16px rgba(255, 230, 168, 0.85);
