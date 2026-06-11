@@ -416,7 +416,7 @@
 			shopDialog.querySelectorAll<HTMLElement>(
 				'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
 			)
-		).filter((element) => element.offsetParent !== null && element.tabIndex >= 0);
+		).filter((element) => element.getClientRects().length > 0);
 	}
 
 	function handleShopDialogKeydown(event: KeyboardEvent) {
@@ -454,7 +454,7 @@
 			areaMapDialog.querySelectorAll<HTMLElement | SVGElement>(
 				'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
 			)
-		).filter((element) => element.getClientRects().length > 0 && element.tabIndex >= 0);
+		).filter((element) => element.getClientRects().length > 0);
 	}
 
 	function handleAreaMapDialogKeydown(event: KeyboardEvent) {
@@ -492,7 +492,7 @@
 			battleSummaryDialog.querySelectorAll<HTMLElement>(
 				'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
 			)
-		).filter((element) => element.offsetParent !== null && element.tabIndex >= 0);
+		).filter((element) => element.getClientRects().length > 0);
 	}
 
 	function handleBattleSummaryDialogKeydown(event: KeyboardEvent) {
