@@ -657,6 +657,62 @@ describe('GameShell quest log', () => {
 
 		await expect.element(page.getByText(/no side quests active/i)).toBeVisible();
 	});
+
+	it('closes on Escape key', async () => {
+		render(GameShell);
+		emitHudState(
+			baseHudState({
+				quests: {
+					main: mockMainQuest(),
+					side: [],
+					completed: [],
+					guildOffer: null
+				}
+			})
+		);
+
+		await page.getByRole('button', { name: /menu/i }).click();
+		await page.getByRole('button', { name: /quests/i }).click();
+
+		const questDialog = page.getByRole('dialog', { name: /quest log/i });
+		await expect.element(questDialog).toBeVisible();
+
+		// Click the dialog to ensure focus lands inside it
+		await questDialog.click();
+		await expect.element(questDialog).toHaveFocus();
+
+		await userEvent.keyboard('{Escape}');
+
+		// Dialog is removed from DOM via {#if}, so no elements match
+		expect(questDialog.elements()).toHaveLength(0);
+	});
+
+	it('traps tab focus inside the quest log dialog', async () => {
+		render(GameShell);
+		emitHudState(
+			baseHudState({
+				quests: {
+					main: mockMainQuest(),
+					side: [],
+					completed: [],
+					guildOffer: null
+				}
+			})
+		);
+
+		await page.getByRole('button', { name: /menu/i }).click();
+		await page.getByRole('button', { name: /quests/i }).click();
+
+		const closeButton = page
+			.getByRole('dialog', { name: /quest log/i })
+			.getByRole('button', { name: /close/i });
+		await expect.element(closeButton).toHaveFocus();
+
+		await userEvent.keyboard('{Tab}');
+		await expect.element(closeButton).toHaveFocus();
+		await userEvent.keyboard('{Shift>}{Tab}{/Shift}');
+		await expect.element(closeButton).toHaveFocus();
+	});
 });
 
 describe('GameShell area map', () => {
