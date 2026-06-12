@@ -3506,12 +3506,12 @@ describe('WorldScene', () => {
 			(marker) => marker.x === 192 && marker.y === 144 && marker.frame === 'guildMasterNpc'
 		);
 		expect(guildMasterMarkers).toHaveLength(1);
-		expect(guildMasterMarkers[0]!.setDisplaySize).toHaveBeenCalledWith(48, 58);
+		expect(guildMasterMarkers[0]!.setDisplaySize).toHaveBeenCalledWith(96, 87);
 		const quartermasterMarkers = phaserState.imageMarkers.filter(
 			(marker) => marker.x === 352 && marker.y === 144 && marker.frame === 'quartermasterNpc'
 		);
 		expect(quartermasterMarkers).toHaveLength(1);
-		expect(quartermasterMarkers[0]!.setDisplaySize).toHaveBeenCalledWith(48, 58);
+		expect(quartermasterMarkers[0]!.setDisplaySize).toHaveBeenCalledWith(96, 87);
 	});
 
 	it('registers and renders interior props for compact interiors', async () => {
@@ -3605,7 +3605,7 @@ describe('WorldScene', () => {
 			(marker) => marker.x === 256 && marker.y === 144 && marker.frame === 'miraItemShopNpc'
 		);
 		expect(miraMarkers).toHaveLength(1);
-		expect(miraMarkers[0]!.setDisplaySize).toHaveBeenCalledWith(48, 58);
+		expect(miraMarkers[0]!.setDisplaySize).toHaveBeenCalledWith(96, 87);
 	});
 
 	it('does not render placeholder NPCs in villager houses', async () => {

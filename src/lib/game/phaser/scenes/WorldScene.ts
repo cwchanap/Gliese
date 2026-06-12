@@ -247,11 +247,12 @@ export class WorldScene extends Phaser.Scene {
 	private static readonly hitImpactSparkTint = 0xfff7d6;
 	private static readonly maxMovementDeltaMs = 250;
 	private static readonly landmarkDoorwayClearanceWidth = 56;
-	private static readonly npcCollisionScale = 0.7;
+	private static readonly npcPackCollisionRadius = 17;
+	private static readonly starterNpcCollisionRadius = 11;
 	private static readonly npcInteractionRadius = 36;
-	private static readonly npcPackDisplaySize = { width: 48, height: 58 };
+	private static readonly npcPackDisplaySize = { width: 96, height: 87 };
 	private static readonly playerRadius = 12;
-	private static readonly starterNpcDisplaySize = { width: 30, height: 36 };
+	private static readonly starterNpcDisplaySize = { width: 60, height: 54 };
 	private static readonly tileSize = 32;
 	private static readonly fenceTileLength = 64;
 	private static readonly fenceTileThickness = 32;
@@ -2142,11 +2143,9 @@ export class WorldScene extends Phaser.Scene {
 	}
 
 	private getNpcCollisionRadius(npc: MapNpc): number {
-		const displaySize = isNpcPackFrameName(npc.frameName)
-			? WorldScene.npcPackDisplaySize
-			: WorldScene.starterNpcDisplaySize;
-
-		return (Math.min(displaySize.width, displaySize.height) / 2) * WorldScene.npcCollisionScale;
+		return isNpcPackFrameName(npc.frameName)
+			? WorldScene.npcPackCollisionRadius
+			: WorldScene.starterNpcCollisionRadius;
 	}
 
 	private isPlayerMovementBlockedByInteriorProp(

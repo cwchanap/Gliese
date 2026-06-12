@@ -335,9 +335,9 @@ export const animationPackAsset = {
 } as const;
 
 export const actorAnimationAssets: Record<ActorAnimationId, ActorAnimationAsset> = {
-	hero: buildActorAnimationAsset('hero', { width: 44, height: 60 }),
-	slimeScout: buildActorAnimationAsset('slimeScout', { width: 44, height: 44 }),
-	ruinsWarden: buildActorAnimationAsset('ruinsWarden', { width: 80, height: 96 })
+	hero: buildActorAnimationAsset('hero', { width: 88, height: 90 }),
+	slimeScout: buildActorAnimationAsset('slimeScout', { width: 88, height: 66 }),
+	ruinsWarden: buildActorAnimationAsset('ruinsWarden', { width: 160, height: 144 })
 };
 
 export function getEnemyActorId(enemyId: string): ActorAnimationId {
