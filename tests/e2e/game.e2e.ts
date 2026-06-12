@@ -449,7 +449,7 @@ test('interact key shop purchase appears in inventory', async ({ page }) => {
 	});
 
 	await page.locator('canvas').click();
-	await page.keyboard.press('KeyE');
+	await page.keyboard.press('e', { delay: 50 });
 
 	const miraDialog = page.getByRole('dialog', { name: 'Mira' });
 	await expect(miraDialog).toBeVisible();
@@ -501,7 +501,7 @@ test('quest log shows main quest and accepts Guild side quests', async ({ page }
 	});
 
 	await page.locator('canvas').click();
-	await page.keyboard.press('KeyE');
+	await page.keyboard.press('e', { delay: 50 });
 	const guildMasterDialog = page.getByRole('dialog', { name: 'Guild Master Arlen' });
 	await expect(guildMasterDialog).toBeVisible({ timeout: 10_000 });
 	await expect(guildMasterDialog.getByText(/eastern ruins are stirring/i)).toBeVisible();
