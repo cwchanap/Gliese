@@ -284,7 +284,12 @@ export const npcPackAsset = {
 	frames: {
 		miraItemShopNpc: { x: 0, y: 0, w: 96, h: 96 },
 		quartermasterNpc: { x: 96, y: 0, w: 96, h: 96 },
-		guildMasterNpc: { x: 192, y: 0, w: 96, h: 96 }
+		guildMasterNpc: { x: 192, y: 0, w: 96, h: 96 },
+		fisherNpc: { x: 288, y: 0, w: 96, h: 96 },
+		travelerNpc: { x: 384, y: 0, w: 96, h: 96 },
+		pilgrimNpc: { x: 480, y: 0, w: 96, h: 96 },
+		woodcutterNpc: { x: 576, y: 0, w: 96, h: 96 },
+		crierNpc: { x: 672, y: 0, w: 96, h: 96 }
 	}
 } as const;
 
