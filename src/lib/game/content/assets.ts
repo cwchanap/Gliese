@@ -226,6 +226,25 @@ export const marshDressingAsset = {
 
 export type MarshDressingFrameName = keyof typeof marshDressingAsset.frames;
 
+export const crossroadsDressingAsset = {
+	key: 'crossroads-dressing',
+	path: '/game/assets/crossroads-dressing.png',
+	cellWidth: 256,
+	cellHeight: 256,
+	columns: 3,
+	frames: {
+		castleGate: { x: 0, y: 0, w: 256, h: 256 },
+		waystone: { x: 256, y: 0, w: 256, h: 256 },
+		hangingLantern: { x: 512, y: 0, w: 256, h: 256 },
+		poleLantern: { x: 0, y: 256, w: 256, h: 256 },
+		festivalBanner: { x: 256, y: 256, w: 256, h: 256 },
+		marketStall: { x: 512, y: 256, w: 256, h: 256 },
+		flowerBed: { x: 0, y: 512, w: 256, h: 256 }
+	}
+} as const;
+
+export type CrossroadsDressingFrameName = keyof typeof crossroadsDressingAsset.frames;
+
 export type VillageLandmarkId =
 	| 'hero-house-exterior'
 	| 'guild-hall-exterior'

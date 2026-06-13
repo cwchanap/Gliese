@@ -5,6 +5,7 @@ import {
 	animationPackAsset,
 	battleBackgroundAssets,
 	coastDressingAsset,
+	crossroadsDressingAsset,
 	fenceDressingAsset,
 	forestDressingAsset,
 	getActorAnimationAsset,
@@ -359,6 +360,22 @@ describe('marshDressingAsset', () => {
 	it('declares the marsh props', () => {
 		for (const name of ['witchwoodGate', 'deadTree', 'toxicBloom', 'reeds', 'marshRock', 'fog']) {
 			expect(marshDressingAsset.frames).toHaveProperty(name);
+		}
+	});
+});
+
+describe('crossroadsDressingAsset', () => {
+	it('declares the crossroads props', () => {
+		for (const name of [
+			'castleGate',
+			'waystone',
+			'hangingLantern',
+			'poleLantern',
+			'festivalBanner',
+			'marketStall',
+			'flowerBed'
+		]) {
+			expect(crossroadsDressingAsset.frames).toHaveProperty(name);
 		}
 	});
 });
