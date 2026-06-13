@@ -190,6 +190,24 @@ export const coastDressingAsset = {
 
 export type CoastDressingFrameName = keyof typeof coastDressingAsset.frames;
 
+export const shrineDressingAsset = {
+	key: 'shrine-dressing',
+	path: '/game/assets/shrine-dressing.png',
+	cellWidth: 256,
+	cellHeight: 256,
+	columns: 3,
+	frames: {
+		silverShrineGate: { x: 0, y: 0, w: 256, h: 256 },
+		stoneLantern: { x: 256, y: 0, w: 256, h: 256 },
+		offeringStand: { x: 512, y: 0, w: 256, h: 256 },
+		amuletRack: { x: 0, y: 256, w: 256, h: 256 },
+		silverpine: { x: 256, y: 256, w: 256, h: 256 },
+		autumnMaple: { x: 512, y: 256, w: 256, h: 256 }
+	}
+} as const;
+
+export type ShrineDressingFrameName = keyof typeof shrineDressingAsset.frames;
+
 export type VillageLandmarkId =
 	| 'hero-house-exterior'
 	| 'guild-hall-exterior'

@@ -16,6 +16,7 @@ import {
 	interiorPropAsset,
 	isNpcPackFrameName,
 	npcPackAsset,
+	shrineDressingAsset,
 	starterPackAsset,
 	terrainTilesAsset,
 	villageBuildingAsset,
@@ -334,6 +335,21 @@ describe('coastDressingAsset', () => {
 			'shorelineFoam'
 		]) {
 			expect(coastDressingAsset.frames).toHaveProperty(name);
+		}
+	});
+});
+
+describe('shrineDressingAsset', () => {
+	it('declares the shrine props', () => {
+		for (const name of [
+			'silverShrineGate',
+			'stoneLantern',
+			'offeringStand',
+			'amuletRack',
+			'silverpine',
+			'autumnMaple'
+		]) {
+			expect(shrineDressingAsset.frames).toHaveProperty(name);
 		}
 	});
 });
