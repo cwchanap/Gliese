@@ -170,6 +170,26 @@ export const environmentDressingAsset = {
 
 export type EnvironmentDressingFrameName = keyof typeof environmentDressingAsset.frames;
 
+export const coastDressingAsset = {
+	key: 'coast-dressing',
+	path: '/game/assets/coast-dressing.png',
+	cellWidth: 256,
+	cellHeight: 256,
+	columns: 3,
+	frames: {
+		torii: { x: 0, y: 0, w: 256, h: 256 },
+		ferryShrine: { x: 256, y: 0, w: 256, h: 256 },
+		fishingBoat: { x: 512, y: 0, w: 256, h: 256 },
+		fishingNet: { x: 0, y: 256, w: 256, h: 256 },
+		tidePool: { x: 256, y: 256, w: 256, h: 256 },
+		driftwood: { x: 512, y: 256, w: 256, h: 256 },
+		jetty: { x: 0, y: 512, w: 256, h: 256 },
+		shorelineFoam: { x: 256, y: 512, w: 256, h: 256 }
+	}
+} as const;
+
+export type CoastDressingFrameName = keyof typeof coastDressingAsset.frames;
+
 export type VillageLandmarkId =
 	| 'hero-house-exterior'
 	| 'guild-hall-exterior'

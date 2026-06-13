@@ -4,6 +4,7 @@ import {
 	actorAnimationAssets,
 	animationPackAsset,
 	battleBackgroundAssets,
+	coastDressingAsset,
 	fenceDressingAsset,
 	forestDressingAsset,
 	getActorAnimationAsset,
@@ -316,6 +317,23 @@ describe('terrainTilesAsset', () => {
 			expect(frame.x).toBeGreaterThanOrEqual(0);
 			expect(frame.y).toBeGreaterThanOrEqual(0);
 			expect(frame.x + frame.w).toBeLessThanOrEqual(sheetWidth);
+		}
+	});
+});
+
+describe('coastDressingAsset', () => {
+	it('declares the coastal props', () => {
+		for (const name of [
+			'torii',
+			'ferryShrine',
+			'fishingBoat',
+			'fishingNet',
+			'tidePool',
+			'driftwood',
+			'jetty',
+			'shorelineFoam'
+		]) {
+			expect(coastDressingAsset.frames).toHaveProperty(name);
 		}
 	});
 });
