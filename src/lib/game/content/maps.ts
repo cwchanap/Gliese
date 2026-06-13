@@ -1,9 +1,6 @@
 import type { DefinitionRegistry } from '$lib/game/core/types';
-import {
-	addEnglishMapText,
-	meadowEntryMap,
-	openingMapId
-} from '$lib/game/content/maps/meadow-entry';
+import { meadowEntryMap, openingMapId } from '$lib/game/content/maps/meadow-entry';
+import { addEnglishMapText } from '$lib/game/content/maps/text';
 
 export type {
 	MapTransition,
