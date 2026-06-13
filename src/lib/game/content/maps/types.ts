@@ -1,7 +1,7 @@
 import type {
 	InteriorPropFrameName,
 	NpcFrameName,
-	StarterPackFrameName
+	TerrainTileFrameName
 } from '$lib/game/content/assets';
 import type { NpcDialogueId } from '$lib/game/content/dialogue';
 import type { MapDefinition } from '$lib/game/core/types';
@@ -77,10 +77,7 @@ export interface MapRect {
 
 export type MapTransitionMarker = 'doorway' | 'stair';
 
-export type MapGroundTile = Extract<
-	StarterPackFrameName,
-	'grassTile' | 'pathTile' | 'ruinsFloorTile' | 'stoneWallTile'
->;
+export type MapGroundTile = TerrainTileFrameName;
 
 export interface MapGroundPatch extends MapRect {
 	tile: MapGroundTile;

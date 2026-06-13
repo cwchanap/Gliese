@@ -21,6 +21,27 @@ export const starterPackAsset = {
 
 export type StarterPackFrameName = keyof typeof starterPackAsset.frames;
 
+export const terrainTilesAsset = {
+	key: 'terrain-tiles',
+	path: '/game/assets/terrain-tiles.png',
+	cellWidth: 256,
+	cellHeight: 256,
+	columns: 9,
+	frames: {
+		grassTile: { x: 0, y: 0, w: 256, h: 256 },
+		pathTile: { x: 256, y: 0, w: 256, h: 256 },
+		ruinsFloorTile: { x: 512, y: 0, w: 256, h: 256 },
+		stoneWallTile: { x: 768, y: 0, w: 256, h: 256 },
+		seaTile: { x: 1_024, y: 0, w: 256, h: 256 },
+		sandTile: { x: 1_280, y: 0, w: 256, h: 256 },
+		marshMudTile: { x: 1_536, y: 0, w: 256, h: 256 },
+		autumnLeafTile: { x: 1_792, y: 0, w: 256, h: 256 },
+		cobblestoneTile: { x: 2_048, y: 0, w: 256, h: 256 }
+	}
+} as const;
+
+export type TerrainTileFrameName = keyof typeof terrainTilesAsset.frames;
+
 export const battleBackgroundAssets = {
 	meadow: {
 		key: 'battle-background-meadow',

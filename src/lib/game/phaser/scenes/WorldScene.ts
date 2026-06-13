@@ -30,6 +30,7 @@ import {
 	type MapFenceSegment,
 	type MapForestZone,
 	type MapGroundPatch,
+	type MapGroundTile,
 	type MapAmbientNpc,
 	type MapInteriorProp,
 	type MapLandmark,
@@ -258,22 +259,28 @@ export class WorldScene extends Phaser.Scene {
 	private static readonly fenceTileThickness = 32;
 	private static readonly environmentBlockerSegmentLength = 48;
 	private static readonly terrainTilesetKey = 'starter-ground-tiles';
-	private static readonly terrainTileIndexes: Record<StarterPackFrameName, number> = {
-		hero: 0,
-		slimeScout: 0,
-		ruinsWarden: 0,
-		healFlask: 0,
-		grassTile: 0,
-		pathTile: 1,
-		ruinsFloorTile: 2,
-		stoneWallTile: 3,
-		doorwayTile: 0,
-		encounterTile: 0,
-		hudFrame: 0,
-		hpIcon: 0,
-		xpIcon: 0,
-		titleBadge: 0
-	};
+	private static readonly terrainTileIndexes: Record<StarterPackFrameName | MapGroundTile, number> =
+		{
+			hero: 0,
+			slimeScout: 0,
+			ruinsWarden: 0,
+			healFlask: 0,
+			grassTile: 0,
+			pathTile: 1,
+			ruinsFloorTile: 2,
+			stoneWallTile: 3,
+			doorwayTile: 0,
+			encounterTile: 0,
+			hudFrame: 0,
+			hpIcon: 0,
+			xpIcon: 0,
+			titleBadge: 0,
+			seaTile: 0,
+			sandTile: 0,
+			marshMudTile: 0,
+			autumnLeafTile: 0,
+			cobblestoneTile: 0
+		};
 	private static readonly terrainFrames: StarterPackFrameName[] = [
 		'grassTile',
 		'pathTile',
