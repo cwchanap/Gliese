@@ -1,155 +1,33 @@
-import type {
-	ForestDressingFrameName,
-	InteriorPropFrameName,
-	NpcFrameName,
-	StarterPackFrameName
-} from '$lib/game/content/assets';
-import type { NpcDialogueId } from '$lib/game/content/dialogue';
-import type { DefinitionRegistry, MapDefinition } from '$lib/game/core/types';
-import { t, type MessageKey } from '$lib/game/i18n/translate';
+import { forestDressingAsset } from '$lib/game/content/assets';
+import type { DefinitionRegistry } from '$lib/game/core/types';
+import { t } from '$lib/game/i18n/translate';
 
-export interface MapTransition {
-	id: string;
-	x: number;
-	y: number;
-	toMapId: string;
-	requiresClear?: boolean;
-	showMarker?: boolean;
-	marker?: MapTransitionMarker;
-	questRequirement?: {
-		questId: string;
-		objectiveId: string;
-	};
-	arrival?: {
-		x: number;
-		y: number;
-		facing: WorldMapDefinition['spawnDirection'];
-	};
-}
+export type {
+	MapTransition,
+	MapTransitionMarker,
+	MapEncounter,
+	MapPickup,
+	MapNpcRole,
+	MapNpc,
+	MapLandmark,
+	MapRect,
+	MapGroundTile,
+	MapGroundPatch,
+	MapBlockerKind,
+	MapBlocker,
+	MapCombatBounds,
+	MapForestZone,
+	MapFenceSegment,
+	MapInteriorPropDepth,
+	MapInteriorProp,
+	MapAmbientNpcRole,
+	MapAmbientNpc,
+	MapDecor,
+	MapDecorDepth,
+	WorldMapDefinition
+} from '$lib/game/content/maps/types';
 
-export interface MapEncounter {
-	id: string;
-	x: number;
-	y: number;
-	enemyId: string;
-	completion?: 'victory';
-}
-
-export interface MapPickup {
-	id: string;
-	x: number;
-	y: number;
-	itemId: string;
-	quantity: number;
-	label?: string;
-}
-
-export type MapNpcRole = 'guild' | 'shopkeeper' | 'villager' | 'home';
-
-export interface MapNpc {
-	id: string;
-	x: number;
-	y: number;
-	nameKey: MessageKey;
-	name: string;
-	dialogueId: NpcDialogueId;
-	role: MapNpcRole;
-	frameName: NpcFrameName;
-	shopId?: string;
-}
-
-export interface MapLandmark {
-	id: string;
-	x: number;
-	y: number;
-	width: number;
-	height: number;
-	labelKey: MessageKey;
-	label: string;
-}
-
-export interface MapRect {
-	id: string;
-	x: number;
-	y: number;
-	width: number;
-	height: number;
-}
-
-export type MapTransitionMarker = 'doorway' | 'stair';
-
-export type MapGroundTile = Extract<
-	StarterPackFrameName,
-	'grassTile' | 'pathTile' | 'ruinsFloorTile' | 'stoneWallTile'
->;
-
-export interface MapGroundPatch extends MapRect {
-	tile: MapGroundTile;
-}
-
-export type MapBlockerKind = 'city-wall' | 'town-hedge' | 'ruin-wall' | 'future-gate' | 'ocean';
-
-export interface MapBlocker extends MapRect {
-	kind: MapBlockerKind;
-	label?: string;
-}
-
-export interface MapCombatBounds extends MapRect {
-	encounterIds: string[];
-	aggroRadius: number;
-	leashRadius: number;
-}
-
-export interface MapForestZone extends MapRect {
-	aggroRadius: number;
-	leashRadius: number;
-}
-
-export type MapFenceSegment = MapRect;
-
-export interface MapForestDecor extends MapRect {
-	frameName: ForestDressingFrameName;
-}
-
-export type MapInteriorPropDepth = 'floor' | 'furniture' | 'foreground';
-
-export interface MapInteriorProp extends MapRect {
-	frameName: InteriorPropFrameName;
-	depth?: MapInteriorPropDepth;
-	collision?: MapRect;
-}
-
-export type MapAmbientNpcRole = 'guild-member' | 'shopper' | 'family' | 'neighbor';
-
-export interface MapAmbientNpc {
-	id: string;
-	x: number;
-	y: number;
-	frameName: NpcFrameName;
-	width?: number;
-	height?: number;
-	role?: MapAmbientNpcRole;
-}
-
-export interface WorldMapDefinition extends MapDefinition {
-	spawn: {
-		x: number;
-		y: number;
-	};
-	transitions: MapTransition[];
-	pickups?: MapPickup[];
-	encounters?: MapEncounter[];
-	npcs?: MapNpc[];
-	landmarks?: MapLandmark[];
-	forestZone?: MapForestZone;
-	fences?: MapFenceSegment[];
-	forestDecor?: MapForestDecor[];
-	groundPatches?: MapGroundPatch[];
-	blockers?: MapBlocker[];
-	combatBounds?: MapCombatBounds[];
-	interiorProps?: MapInteriorProp[];
-	ambientNpcs?: MapAmbientNpc[];
-}
+import type { MapLandmark, MapNpc, WorldMapDefinition } from '$lib/game/content/maps/types';
 
 type MapNpcSource = Omit<MapNpc, 'name'>;
 type MapLandmarkSource = Omit<MapLandmark, 'label'>;
@@ -506,22 +384,40 @@ export const meadowEntryMap: WorldMapDefinition = addEnglishMapText({
 		{ id: 'sundrop-plaza-west-fence', x: 1_120, y: 5_536, width: 32, height: 288 },
 		{ id: 'sundrop-plaza-east-fence', x: 1_952, y: 5_536, width: 32, height: 288 }
 	],
-	forestDecor: [
+	mapDecor: [
 		{
 			id: 'wildwood-north-canopy',
+			textureKey: forestDressingAsset.key,
+			frameName: 'treeCluster',
 			x: 5_360,
 			y: 360,
 			width: 960,
 			height: 160,
-			frameName: 'treeCluster'
+			mode: 'tile',
+			collision: {
+				id: 'wildwood-north-canopy-collision',
+				x: 5_360,
+				y: 360,
+				width: 960,
+				height: 160
+			}
 		},
 		{
 			id: 'wildwood-east-canopy',
+			textureKey: forestDressingAsset.key,
+			frameName: 'treeCluster',
 			x: 6_120,
 			y: 1_020,
 			width: 160,
 			height: 900,
-			frameName: 'treeCluster'
+			mode: 'tile',
+			collision: {
+				id: 'wildwood-east-canopy-collision',
+				x: 6_120,
+				y: 1_020,
+				width: 160,
+				height: 900
+			}
 		}
 	],
 	combatBounds: [

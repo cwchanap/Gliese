@@ -1,0 +1,158 @@
+import type {
+	InteriorPropFrameName,
+	NpcFrameName,
+	StarterPackFrameName
+} from '$lib/game/content/assets';
+import type { NpcDialogueId } from '$lib/game/content/dialogue';
+import type { MapDefinition } from '$lib/game/core/types';
+import type { MessageKey } from '$lib/game/i18n/translate';
+
+export interface MapTransition {
+	id: string;
+	x: number;
+	y: number;
+	toMapId: string;
+	requiresClear?: boolean;
+	showMarker?: boolean;
+	marker?: MapTransitionMarker;
+	questRequirement?: {
+		questId: string;
+		objectiveId: string;
+	};
+	arrival?: {
+		x: number;
+		y: number;
+		facing: WorldMapDefinition['spawnDirection'];
+	};
+}
+
+export interface MapEncounter {
+	id: string;
+	x: number;
+	y: number;
+	enemyId: string;
+	completion?: 'victory';
+}
+
+export interface MapPickup {
+	id: string;
+	x: number;
+	y: number;
+	itemId: string;
+	quantity: number;
+	label?: string;
+}
+
+export type MapNpcRole = 'guild' | 'shopkeeper' | 'villager' | 'home';
+
+export interface MapNpc {
+	id: string;
+	x: number;
+	y: number;
+	nameKey: MessageKey;
+	name: string;
+	dialogueId: NpcDialogueId;
+	role: MapNpcRole;
+	frameName: NpcFrameName;
+	shopId?: string;
+}
+
+export interface MapLandmark {
+	id: string;
+	x: number;
+	y: number;
+	width: number;
+	height: number;
+	labelKey: MessageKey;
+	label: string;
+}
+
+export interface MapRect {
+	id: string;
+	x: number;
+	y: number;
+	width: number;
+	height: number;
+}
+
+export type MapTransitionMarker = 'doorway' | 'stair';
+
+export type MapGroundTile = Extract<
+	StarterPackFrameName,
+	'grassTile' | 'pathTile' | 'ruinsFloorTile' | 'stoneWallTile'
+>;
+
+export interface MapGroundPatch extends MapRect {
+	tile: MapGroundTile;
+}
+
+export type MapBlockerKind = 'city-wall' | 'town-hedge' | 'ruin-wall' | 'future-gate' | 'ocean';
+
+export interface MapBlocker extends MapRect {
+	kind: MapBlockerKind;
+	label?: string;
+}
+
+export interface MapCombatBounds extends MapRect {
+	encounterIds: string[];
+	aggroRadius: number;
+	leashRadius: number;
+}
+
+export interface MapForestZone extends MapRect {
+	aggroRadius: number;
+	leashRadius: number;
+}
+
+export type MapFenceSegment = MapRect;
+
+export type MapDecorDepth = 'floor' | 'furniture' | 'foreground';
+
+export interface MapDecor extends MapRect {
+	textureKey: string;
+	frameName: string;
+	depth?: MapDecorDepth;
+	mode?: 'image' | 'tile';
+	collision?: MapRect;
+	alpha?: number;
+}
+
+export type MapInteriorPropDepth = 'floor' | 'furniture' | 'foreground';
+
+export interface MapInteriorProp extends MapRect {
+	frameName: InteriorPropFrameName;
+	depth?: MapInteriorPropDepth;
+	collision?: MapRect;
+}
+
+export type MapAmbientNpcRole = 'guild-member' | 'shopper' | 'family' | 'neighbor';
+
+export interface MapAmbientNpc {
+	id: string;
+	x: number;
+	y: number;
+	frameName: NpcFrameName;
+	width?: number;
+	height?: number;
+	role?: MapAmbientNpcRole;
+}
+
+export interface WorldMapDefinition extends MapDefinition {
+	spawn: {
+		x: number;
+		y: number;
+	};
+	transitions: MapTransition[];
+	pickups?: MapPickup[];
+	encounters?: MapEncounter[];
+	npcs?: MapNpc[];
+	landmarks?: MapLandmark[];
+	forestZone?: MapForestZone;
+	fences?: MapFenceSegment[];
+	mapDecor?: MapDecor[];
+	groundPatches?: MapGroundPatch[];
+	blockers?: MapBlocker[];
+	combatBounds?: MapCombatBounds[];
+	interiorProps?: MapInteriorProp[];
+	ambientNpcs?: MapAmbientNpc[];
+}

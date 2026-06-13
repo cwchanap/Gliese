@@ -26,8 +26,8 @@ import {
 	openingMapId,
 	type MapBlocker,
 	type MapCombatBounds,
+	type MapDecorDepth,
 	type MapFenceSegment,
-	type MapForestDecor,
 	type MapForestZone,
 	type MapGroundPatch,
 	type MapAmbientNpc,
@@ -443,7 +443,7 @@ export class WorldScene extends Phaser.Scene {
 		this.ensureActorAnimations();
 		this.ensureTerrainTilesetTexture();
 		this.renderGround(map);
-		this.renderForestDressing(map);
+		this.renderMapDecor(map, ['floor', 'furniture']);
 		this.renderFences(map);
 		this.renderBlockers(map);
 		this.renderLandmarks(map);
@@ -468,6 +468,7 @@ export class WorldScene extends Phaser.Scene {
 		this.renderNpcs(map);
 		this.renderAmbientNpcs(map);
 		this.renderInteriorProps(map, ['foreground']);
+		this.renderMapDecor(map, ['foreground']);
 
 		this.cameras.main.setBackgroundColor('#1a1f2b');
 		const cameraBounds = this.getCenteredCameraBounds(width, height);
@@ -1815,30 +1816,31 @@ export class WorldScene extends Phaser.Scene {
 		}
 	}
 
-	private renderForestDressing(map: WorldMapDefinition) {
-		const forestZone: MapForestZone | undefined = map.forestZone;
-		const forestDecor: MapForestDecor[] = map.forestDecor ?? [];
+	private renderMapDecor(map: WorldMapDefinition, depths: Array<MapDecorDepth>) {
+		for (const decor of map.mapDecor ?? []) {
+			const depth = decor.depth ?? 'furniture';
 
-		if (!forestZone && forestDecor.length === 0) {
-			return;
-		}
-
-		for (const decor of forestDecor) {
-			if (decor.frameName === 'forestEntrance') {
-				this.add
-					.image(decor.x, decor.y, forestDressingAsset.key, decor.frameName)
-					.setDisplaySize(decor.width, decor.height);
+			if (!depths.includes(depth)) {
 				continue;
 			}
 
-			this.add.tileSprite(
-				decor.x,
-				decor.y,
-				decor.width,
-				decor.height,
-				forestDressingAsset.key,
-				decor.frameName
-			);
+			const object =
+				(decor.mode ?? 'image') === 'tile'
+					? this.add.tileSprite(
+							decor.x,
+							decor.y,
+							decor.width,
+							decor.height,
+							decor.textureKey,
+							decor.frameName
+						)
+					: this.add
+							.image(decor.x, decor.y, decor.textureKey, decor.frameName)
+							.setDisplaySize(decor.width, decor.height);
+
+			if (decor.alpha !== undefined) {
+				object.setAlpha(decor.alpha);
+			}
 		}
 	}
 
@@ -2082,7 +2084,7 @@ export class WorldScene extends Phaser.Scene {
 			this.isPlayerMovementBlockedByLandmark(currentX, currentY, targetX, targetY) ||
 			this.isPlayerMovementBlockedByFence(currentX, currentY, targetX, targetY) ||
 			this.isPlayerMovementBlockedByBlocker(currentX, currentY, targetX, targetY) ||
-			this.isPlayerMovementBlockedByForestDecor(currentX, currentY, targetX, targetY)
+			this.isPlayerMovementBlockedByMapDecor(currentX, currentY, targetX, targetY)
 		);
 	}
 
@@ -2235,34 +2237,28 @@ export class WorldScene extends Phaser.Scene {
 		});
 	}
 
-	private isPlayerMovementBlockedByForestDecor(
+	private isPlayerMovementBlockedByMapDecor(
 		currentX: number,
 		currentY: number,
 		targetX: number,
 		targetY: number
 	): boolean {
 		const map = this.resolveMap(this.mapId);
-		const forestDecor = map.forestDecor ?? [];
-		const entranceBounds = forestDecor
-			.filter((decor) => decor.frameName === 'forestEntrance')
-			.map((decor) => this.getMapRectBounds(decor));
 
-		return forestDecor.some((decor) => {
-			if (decor.frameName !== 'treeCluster') {
+		return (map.mapDecor ?? []).some((decor) => {
+			if (!decor.collision) {
 				return false;
 			}
 
-			const bounds = this.getMapRectBounds(decor);
+			const bounds = this.getMapRectBounds(decor.collision);
 
-			return this.getForestTreeCollisionRects(bounds, entranceBounds).some((rect) =>
-				this.isMovementBlockedByStrictRect(
-					currentX,
-					currentY,
-					targetX,
-					targetY,
-					rect,
-					WorldScene.playerRadius
-				)
+			return this.isMovementBlockedByStrictRect(
+				currentX,
+				currentY,
+				targetX,
+				targetY,
+				bounds,
+				WorldScene.playerRadius
 			);
 		});
 	}
@@ -2297,50 +2293,6 @@ export class WorldScene extends Phaser.Scene {
 			centerX: rect.x,
 			centerY: rect.y
 		};
-	}
-
-	private getForestTreeCollisionRects(
-		bounds: LandmarkCollisionBounds,
-		entranceBounds: LandmarkCollisionBounds[]
-	): CollisionRect[] {
-		return entranceBounds.reduce<CollisionRect[]>(
-			(rects, entrance) =>
-				rects.flatMap((rect) => this.splitForestTreeCollisionRect(rect, entrance)),
-			[bounds]
-		);
-	}
-
-	private splitForestTreeCollisionRect(
-		rect: CollisionRect,
-		entrance: CollisionRect
-	): CollisionRect[] {
-		if (!this.doRectsOverlap(rect, entrance)) {
-			return [rect];
-		}
-
-		const rectWidth = rect.right - rect.left;
-		const rectHeight = rect.bottom - rect.top;
-
-		if (rectHeight > rectWidth) {
-			return [
-				{ left: rect.left, right: rect.right, top: rect.top, bottom: entrance.top },
-				{ left: rect.left, right: rect.right, top: entrance.bottom, bottom: rect.bottom }
-			].filter((collisionRect) => collisionRect.bottom > collisionRect.top);
-		}
-
-		return [
-			{ left: rect.left, right: entrance.left, top: rect.top, bottom: rect.bottom },
-			{ left: entrance.right, right: rect.right, top: rect.top, bottom: rect.bottom }
-		].filter((collisionRect) => collisionRect.right > collisionRect.left);
-	}
-
-	private doRectsOverlap(rect: CollisionRect, other: CollisionRect): boolean {
-		return (
-			rect.left < other.right &&
-			rect.right > other.left &&
-			rect.top < other.bottom &&
-			rect.bottom > other.top
-		);
 	}
 
 	private getLandmarkCollisionRects(

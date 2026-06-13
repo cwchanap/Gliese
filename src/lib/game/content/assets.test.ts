@@ -20,7 +20,6 @@ import {
 	type ActorAnimationId,
 	type ActorAnimationKey,
 	type FenceDressingFrameName,
-	type ForestDressingFrameName,
 	type InteriorPropFrameName,
 	type VillageBuildingFrameName
 } from '$lib/game/content/assets';
@@ -37,12 +36,6 @@ const requiredBuildingFrames: VillageBuildingFrameName[] = [
 	'shrineOfAurora',
 	'whisperingCave',
 	'sundropWell'
-];
-const requiredForestFrames: ForestDressingFrameName[] = [
-	'treeCluster',
-	'brush',
-	'forestFloor',
-	'forestEntrance'
 ];
 const requiredFenceFrames: FenceDressingFrameName[] = [
 	'horizontalFence',
@@ -164,8 +157,10 @@ describe('forest dressing asset metadata', () => {
 	});
 
 	it('covers every meadow forest decor frame reference', () => {
-		for (const decor of meadowEntryMap.forestDecor ?? []) {
-			expect(requiredForestFrames).toContain(decor.frameName);
+		for (const decor of meadowEntryMap.mapDecor ?? []) {
+			if (decor.textureKey === forestDressingAsset.key) {
+				expect(forestDressingAsset.frames).toHaveProperty(decor.frameName);
+			}
 		}
 	});
 });
