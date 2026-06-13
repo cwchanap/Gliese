@@ -5,6 +5,7 @@ import {
 	actorAnimationKeys,
 	animationPackAsset,
 	coastDressingAsset,
+	crossroadsDressingAsset,
 	environmentDressingAsset,
 	fenceDressingAsset,
 	forestDressingAsset,
@@ -445,6 +446,7 @@ export class WorldScene extends Phaser.Scene {
 		this.registerCoastDressingFrames();
 		this.registerShrineDressingFrames();
 		this.registerMarshDressingFrames();
+		this.registerCrossroadsDressingFrames();
 		this.registerInteriorPropFrames();
 		this.registerAnimationPackFrames();
 		this.ensureActorAnimations();
@@ -1456,6 +1458,16 @@ export class WorldScene extends Phaser.Scene {
 		const texture = this.textures.get(marshDressingAsset.key);
 
 		for (const [frameName, frame] of Object.entries(marshDressingAsset.frames)) {
+			if (!texture.has(frameName)) {
+				texture.add(frameName, 0, frame.x, frame.y, frame.w, frame.h);
+			}
+		}
+	}
+
+	private registerCrossroadsDressingFrames() {
+		const texture = this.textures.get(crossroadsDressingAsset.key);
+
+		for (const [frameName, frame] of Object.entries(crossroadsDressingAsset.frames)) {
 			if (!texture.has(frameName)) {
 				texture.add(frameName, 0, frame.x, frame.y, frame.w, frame.h);
 			}
