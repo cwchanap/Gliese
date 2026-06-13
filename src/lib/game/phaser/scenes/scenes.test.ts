@@ -2070,7 +2070,7 @@ describe('WorldScene', () => {
 		expect(phaserState.playerMarker.y).toBe(96);
 	});
 
-	it('renders and blocks the bottom-left meadow ocean patch', async () => {
+	it('blocks the bottom-left meadow ocean patch without rendering a visual blocker', async () => {
 		const { WorldScene } = await import('./WorldScene');
 		const scene = new WorldScene();
 
@@ -2080,7 +2080,7 @@ describe('WorldScene', () => {
 
 		scene.update(0, 250);
 
-		expect(scene.add.rectangle).toHaveBeenCalledWith(114, 6_311, 100, 50, 0x1d5f9f, 0.92);
+		expect(scene.add.rectangle).not.toHaveBeenCalledWith(114, 6_311, 100, 50, 0x1d5f9f, 0.92);
 		expect(phaserState.playerMarker.x).toBe(114);
 		expect(phaserState.playerMarker.y).toBe(6_260);
 	});

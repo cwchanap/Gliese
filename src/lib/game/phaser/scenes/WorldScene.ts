@@ -1858,7 +1858,7 @@ export class WorldScene extends Phaser.Scene {
 		for (const blocker of blockers) {
 			switch (blocker.kind) {
 				case 'ocean':
-					this.add.rectangle(blocker.x, blocker.y, blocker.width, blocker.height, 0x1d5f9f, 0.92);
+					// Collision-only: the seaTile ground tile + shoreline-foam decor provide the visuals.
 					break;
 
 				case 'town-hedge':
