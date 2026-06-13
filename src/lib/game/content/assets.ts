@@ -208,6 +208,24 @@ export const shrineDressingAsset = {
 
 export type ShrineDressingFrameName = keyof typeof shrineDressingAsset.frames;
 
+export const marshDressingAsset = {
+	key: 'marsh-dressing',
+	path: '/game/assets/marsh-dressing.png',
+	cellWidth: 256,
+	cellHeight: 256,
+	columns: 3,
+	frames: {
+		witchwoodGate: { x: 0, y: 0, w: 256, h: 256 },
+		deadTree: { x: 256, y: 0, w: 256, h: 256 },
+		toxicBloom: { x: 512, y: 0, w: 256, h: 256 },
+		reeds: { x: 0, y: 256, w: 256, h: 256 },
+		marshRock: { x: 256, y: 256, w: 256, h: 256 },
+		fog: { x: 512, y: 256, w: 256, h: 256 }
+	}
+} as const;
+
+export type MarshDressingFrameName = keyof typeof marshDressingAsset.frames;
+
 export type VillageLandmarkId =
 	| 'hero-house-exterior'
 	| 'guild-hall-exterior'

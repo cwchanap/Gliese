@@ -15,6 +15,7 @@ import {
 	getVillageBuildingFrameName,
 	interiorPropAsset,
 	isNpcPackFrameName,
+	marshDressingAsset,
 	npcPackAsset,
 	shrineDressingAsset,
 	starterPackAsset,
@@ -350,6 +351,14 @@ describe('shrineDressingAsset', () => {
 			'autumnMaple'
 		]) {
 			expect(shrineDressingAsset.frames).toHaveProperty(name);
+		}
+	});
+});
+
+describe('marshDressingAsset', () => {
+	it('declares the marsh props', () => {
+		for (const name of ['witchwoodGate', 'deadTree', 'toxicBloom', 'reeds', 'marshRock', 'fog']) {
+			expect(marshDressingAsset.frames).toHaveProperty(name);
 		}
 	});
 });

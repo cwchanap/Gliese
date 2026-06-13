@@ -7,6 +7,7 @@ import {
 	fenceDressingAsset,
 	forestDressingAsset,
 	interiorPropAsset,
+	marshDressingAsset,
 	npcPackAsset,
 	shrineDressingAsset,
 	starterPackAsset,
@@ -35,6 +36,7 @@ export class BootScene extends Phaser.Scene {
 		this.load.image(environmentDressingAsset.key, environmentDressingAsset.path);
 		this.load.image(coastDressingAsset.key, coastDressingAsset.path);
 		this.load.image(shrineDressingAsset.key, shrineDressingAsset.path);
+		this.load.image(marshDressingAsset.key, marshDressingAsset.path);
 		for (const asset of Object.values(battleBackgroundAssets)) {
 			this.load.image(asset.key, asset.path);
 		}
