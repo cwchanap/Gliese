@@ -14,6 +14,7 @@ import {
 	getVillageBuildingFrameName,
 	interiorPropAsset,
 	isNpcPackFrameName,
+	marshDressingAsset,
 	npcPackAsset,
 	shrineDressingAsset,
 	starterPackAsset,
@@ -443,6 +444,7 @@ export class WorldScene extends Phaser.Scene {
 		this.registerEnvironmentDressingFrames();
 		this.registerCoastDressingFrames();
 		this.registerShrineDressingFrames();
+		this.registerMarshDressingFrames();
 		this.registerInteriorPropFrames();
 		this.registerAnimationPackFrames();
 		this.ensureActorAnimations();
@@ -1444,6 +1446,16 @@ export class WorldScene extends Phaser.Scene {
 		const texture = this.textures.get(shrineDressingAsset.key);
 
 		for (const [frameName, frame] of Object.entries(shrineDressingAsset.frames)) {
+			if (!texture.has(frameName)) {
+				texture.add(frameName, 0, frame.x, frame.y, frame.w, frame.h);
+			}
+		}
+	}
+
+	private registerMarshDressingFrames() {
+		const texture = this.textures.get(marshDressingAsset.key);
+
+		for (const [frameName, frame] of Object.entries(marshDressingAsset.frames)) {
 			if (!texture.has(frameName)) {
 				texture.add(frameName, 0, frame.x, frame.y, frame.w, frame.h);
 			}
