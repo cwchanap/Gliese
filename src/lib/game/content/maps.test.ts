@@ -1,7 +1,15 @@
 import { describe, expect, it } from 'vitest';
 import { enemies } from '$lib/game/content/enemies';
 import { getDialogue } from '$lib/game/content/dialogue';
-import { interiorPropAsset } from '$lib/game/content/assets';
+import {
+	coastDressingAsset,
+	crossroadsDressingAsset,
+	forestDressingAsset,
+	interiorPropAsset,
+	marshDressingAsset,
+	shrineDressingAsset,
+	terrainTilesAsset
+} from '$lib/game/content/assets';
 import { getItem } from '$lib/game/content/items';
 import { getShop } from '$lib/game/content/shops';
 import { t } from '$lib/game/i18n/translate';
@@ -1420,6 +1428,68 @@ describe('opening map content', () => {
 				expect(encounter.x).toBeLessThan(map.width * 32);
 				expect(encounter.y).toBeLessThan(map.height * 32);
 			}
+		}
+	});
+});
+
+const decorAssetFrames: Record<string, Record<string, unknown>> = {
+	[forestDressingAsset.key]: forestDressingAsset.frames,
+	[coastDressingAsset.key]: coastDressingAsset.frames,
+	[shrineDressingAsset.key]: shrineDressingAsset.frames,
+	[marshDressingAsset.key]: marshDressingAsset.frames,
+	[crossroadsDressingAsset.key]: crossroadsDressingAsset.frames
+};
+
+describe('meadow-entry region integrity', () => {
+	it('keeps every ground patch tile within the terrain tileset', () => {
+		for (const patch of meadowEntryMap.groundPatches ?? []) {
+			expect(terrainTilesAsset.frames).toHaveProperty(patch.tile);
+			expectRectInsideMap(patch);
+		}
+	});
+
+	it('points every decor frame at a real asset frame and stays in-bounds', () => {
+		for (const decor of meadowEntryMap.mapDecor ?? []) {
+			const frames = decorAssetFrames[decor.textureKey];
+			expect(frames).toBeDefined();
+			expect(frames).toHaveProperty(decor.frameName);
+			expectRectInsideMap(decor);
+			if (decor.collision) {
+				expectRectInsideMap(decor.collision);
+			}
+		}
+	});
+
+	it('keeps every landmark in-bounds with a translated label', () => {
+		for (const landmark of meadowEntryMap.landmarks ?? []) {
+			expectRectInsideMap(landmark);
+			expectEnglishMessage(landmark.labelKey);
+		}
+	});
+
+	it('resolves every transition target to a known map', () => {
+		for (const transition of meadowEntryMap.transitions) {
+			expect(maps).toHaveProperty(transition.toMapId);
+		}
+	});
+
+	it('references real items from every pickup', () => {
+		expect(meadowEntryMap.pickups ?? []).toBeInstanceOf(Array);
+		for (const pickup of meadowEntryMap.pickups ?? []) {
+			expect(() => getItem(pickup.itemId)).not.toThrow();
+			expect(pickup.quantity).toBeGreaterThan(0);
+		}
+	});
+
+	// SKIPPED until Task 16 adds the three sealed foreshadow gates. Un-skip then.
+	it.skip('seals three foreshadow gates with future-gate collision', () => {
+		const sealedGateIds = ['witchwood-gate-block', 'silver-shrine-gate-block', 'castle-gate-block'];
+		const gateBlockers = (meadowEntryMap.blockers ?? []).filter((blocker) =>
+			sealedGateIds.includes(blocker.id)
+		);
+		expect(gateBlockers).toHaveLength(3);
+		for (const gate of gateBlockers) {
+			expect(gate.kind).toBe('future-gate');
 		}
 	});
 });
