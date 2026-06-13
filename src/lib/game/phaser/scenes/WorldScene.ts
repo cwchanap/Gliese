@@ -15,10 +15,10 @@ import {
 	isNpcPackFrameName,
 	npcPackAsset,
 	starterPackAsset,
+	terrainTilesAsset,
 	villageBuildingAsset,
 	type ActorAnimationKey,
-	type EnvironmentDressingFrameName,
-	type StarterPackFrameName
+	type EnvironmentDressingFrameName
 } from '$lib/game/content/assets';
 import { enemies, type EnemyCombatDefinition } from '$lib/game/content/enemies';
 import {
@@ -259,33 +259,27 @@ export class WorldScene extends Phaser.Scene {
 	private static readonly fenceTileThickness = 32;
 	private static readonly environmentBlockerSegmentLength = 48;
 	private static readonly terrainTilesetKey = 'starter-ground-tiles';
-	private static readonly terrainTileIndexes: Record<StarterPackFrameName | MapGroundTile, number> =
-		{
-			hero: 0,
-			slimeScout: 0,
-			ruinsWarden: 0,
-			healFlask: 0,
-			grassTile: 0,
-			pathTile: 1,
-			ruinsFloorTile: 2,
-			stoneWallTile: 3,
-			doorwayTile: 0,
-			encounterTile: 0,
-			hudFrame: 0,
-			hpIcon: 0,
-			xpIcon: 0,
-			titleBadge: 0,
-			seaTile: 0,
-			sandTile: 0,
-			marshMudTile: 0,
-			autumnLeafTile: 0,
-			cobblestoneTile: 0
-		};
-	private static readonly terrainFrames: StarterPackFrameName[] = [
+	private static readonly terrainTileIndexes: Record<MapGroundTile, number> = {
+		grassTile: 0,
+		pathTile: 1,
+		ruinsFloorTile: 2,
+		stoneWallTile: 3,
+		seaTile: 4,
+		sandTile: 5,
+		marshMudTile: 6,
+		autumnLeafTile: 7,
+		cobblestoneTile: 8
+	};
+	private static readonly terrainFrames: MapGroundTile[] = [
 		'grassTile',
 		'pathTile',
 		'ruinsFloorTile',
-		'stoneWallTile'
+		'stoneWallTile',
+		'seaTile',
+		'sandTile',
+		'marshMudTile',
+		'autumnLeafTile',
+		'cobblestoneTile'
 	];
 	private static readonly cameraFollowLerp = 0.14;
 	private static readonly bossPhaseTwoSpeedMultiplier = 1.5;
@@ -1573,7 +1567,7 @@ export class WorldScene extends Phaser.Scene {
 			return;
 		}
 
-		const sourceImage = this.textures.get(starterPackAsset.key)?.source?.[0]?.image;
+		const sourceImage = this.textures.get(terrainTilesAsset.key)?.source?.[0]?.image;
 
 		if (typeof document === 'undefined' || !sourceImage || !textureManager.addCanvas) {
 			return;
@@ -1589,7 +1583,7 @@ export class WorldScene extends Phaser.Scene {
 		}
 
 		for (const [index, frameName] of WorldScene.terrainFrames.entries()) {
-			const frame = starterPackAsset.frames[frameName];
+			const frame = terrainTilesAsset.frames[frameName];
 			context.drawImage(
 				sourceImage,
 				frame.x,

@@ -228,7 +228,7 @@ export function getEnemyFrameName(enemyId: string): StarterPackFrameName {
 	return 'slimeScout';
 }
 
-export function getGroundFrameName(mapId: string): StarterPackFrameName {
+export function getGroundFrameName(mapId: string): TerrainTileFrameName {
 	if (mapId === 'meadow-entry') {
 		return 'grassTile';
 	}
