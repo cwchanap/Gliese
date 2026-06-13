@@ -742,7 +742,7 @@ describe('opening map content', () => {
 				...(map.blockers ?? []),
 				...(map.combatBounds ?? []),
 				...(map.fences ?? []),
-				...(map.forestDecor ?? []),
+				...(map.mapDecor ?? []),
 				...(map.landmarks ?? [])
 			]) {
 				expectRectInsideMap(rect, map);
@@ -1143,7 +1143,7 @@ describe('opening map content', () => {
 			expect(combatBounds.y + combatBounds.height / 2).toBeLessThanOrEqual(1_792);
 		}
 
-		for (const decor of meadowEntryMap.forestDecor ?? []) {
+		for (const decor of meadowEntryMap.mapDecor ?? []) {
 			expect(decor.x - decor.width / 2).toBeGreaterThanOrEqual(4_880);
 			expect(decor.y + decor.height / 2).toBeLessThanOrEqual(1_470);
 		}
@@ -1330,30 +1330,11 @@ describe('opening map content', () => {
 			{ id: 'sundrop-plaza-west-fence', x: 1_120, y: 5_536, width: 32, height: 288 },
 			{ id: 'sundrop-plaza-east-fence', x: 1_952, y: 5_536, width: 32, height: 288 }
 		]);
-		expect(meadowEntryMap.forestDecor).toEqual([
-			{
-				id: 'wildwood-north-canopy',
-				x: 5_360,
-				y: 360,
-				width: 960,
-				height: 160,
-				frameName: 'treeCluster'
-			},
-			{
-				id: 'wildwood-east-canopy',
-				x: 6_120,
-				y: 1_020,
-				width: 160,
-				height: 900,
-				frameName: 'treeCluster'
-			}
-		]);
-
 		const ids = [
 			...(meadowEntryMap.groundPatches ?? []).map((patch) => patch.id),
 			...(meadowEntryMap.blockers ?? []).map((blocker) => blocker.id),
 			...(meadowEntryMap.fences ?? []).map((fence) => fence.id),
-			...(meadowEntryMap.forestDecor ?? []).map((decor) => decor.id)
+			...(meadowEntryMap.mapDecor ?? []).map((decor) => decor.id)
 		];
 		expect(new Set(ids).size).toBe(ids.length);
 
@@ -1361,9 +1342,21 @@ describe('opening map content', () => {
 			...(meadowEntryMap.groundPatches ?? []),
 			...(meadowEntryMap.blockers ?? []),
 			...(meadowEntryMap.fences ?? []),
-			...(meadowEntryMap.forestDecor ?? [])
+			...(meadowEntryMap.mapDecor ?? [])
 		]) {
 			expectRectInsideMap(rect);
+		}
+	});
+
+	it('keeps the two wildwood canopies as colliding map decor', () => {
+		const canopies = (meadowEntryMap.mapDecor ?? []).filter((decor) =>
+			decor.id.startsWith('wildwood-')
+		);
+		expect(canopies).toHaveLength(2);
+		for (const canopy of canopies) {
+			expect(canopy.frameName).toBe('treeCluster');
+			expect(canopy.mode).toBe('tile');
+			expect(canopy.collision).toBeDefined();
 		}
 	});
 
