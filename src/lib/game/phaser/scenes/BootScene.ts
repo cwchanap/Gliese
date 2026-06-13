@@ -8,6 +8,7 @@ import {
 	interiorPropAsset,
 	npcPackAsset,
 	starterPackAsset,
+	terrainTilesAsset,
 	villageBuildingAsset
 } from '$lib/game/content/assets';
 import { openingMapId } from '$lib/game/content/maps';
@@ -22,6 +23,7 @@ export class BootScene extends Phaser.Scene {
 
 	preload() {
 		this.load.image(starterPackAsset.key, starterPackAsset.path);
+		this.load.image(terrainTilesAsset.key, terrainTilesAsset.path);
 		this.load.image(animationPackAsset.key, animationPackAsset.path);
 		this.load.image(npcPackAsset.key, npcPackAsset.path);
 		this.load.image(villageBuildingAsset.key, villageBuildingAsset.path);
