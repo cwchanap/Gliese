@@ -16,6 +16,7 @@ import {
 	isNpcPackFrameName,
 	npcPackAsset,
 	starterPackAsset,
+	terrainTilesAsset,
 	villageBuildingAsset,
 	type ActorAnimationId,
 	type ActorAnimationKey,
@@ -286,5 +287,35 @@ describe('animation pack metadata', () => {
 		expect(actorAnimationAssets.hero.clips.attack.frames).toEqual(
 			actorAnimationAssets.hero.clips.walk.frames
 		);
+	});
+});
+
+describe('terrainTilesAsset', () => {
+	const required = [
+		'grassTile',
+		'pathTile',
+		'ruinsFloorTile',
+		'stoneWallTile',
+		'seaTile',
+		'sandTile',
+		'marshMudTile',
+		'autumnLeafTile',
+		'cobblestoneTile'
+	] as const;
+
+	it('declares every required ground tile', () => {
+		for (const name of required) {
+			expect(terrainTilesAsset.frames).toHaveProperty(name);
+		}
+	});
+
+	it('keeps every frame inside the sheet bounds', () => {
+		const cols = terrainTilesAsset.columns;
+		const sheetWidth = cols * terrainTilesAsset.cellWidth;
+		for (const frame of Object.values(terrainTilesAsset.frames)) {
+			expect(frame.x).toBeGreaterThanOrEqual(0);
+			expect(frame.y).toBeGreaterThanOrEqual(0);
+			expect(frame.x + frame.w).toBeLessThanOrEqual(sheetWidth);
+		}
 	});
 });
