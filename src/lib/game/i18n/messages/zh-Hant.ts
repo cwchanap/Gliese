@@ -323,7 +323,9 @@ export const zhHant = {
 				'shrine-of-aurora': { label: '極光神社' },
 				'witchwood-gate': { label: '魔林之門' },
 				'silver-shrine-gate': { label: '銀神社之門' },
-				'ferry-crossing': { label: '渡口' }
+				'ferry-crossing': { label: '渡口' },
+				'castle-gate': { label: '封印城門' },
+				'crossroads-waystone': { label: '十字路石碑' }
 			},
 			npcs: {
 				'guild-master': { name: '公會會長阿倫' },
