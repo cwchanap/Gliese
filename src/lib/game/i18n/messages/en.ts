@@ -319,7 +319,8 @@ export const en = {
 				blacksmith: { label: 'Blacksmith' },
 				'shrine-of-aurora': { label: 'Shrine of Aurora' },
 				'witchwood-gate': { label: 'Witchwood Gate' },
-				'silver-shrine-gate': { label: 'Silver Shrine Gate' }
+				'silver-shrine-gate': { label: 'Silver Shrine Gate' },
+				'ferry-crossing': { label: 'Ferry Crossing' }
 			},
 			npcs: {
 				'guild-master': { name: 'Guild Master Arlen' },
