@@ -108,6 +108,33 @@ function injectSave(page: Page, save: ReturnType<typeof createSaveFixture>) {
 	}, JSON.stringify(save));
 }
 
+test('entry map boots with no game console errors', async ({ page }) => {
+	// Collect console errors emitted during boot. Phaser logs missing-texture and
+	// asset-load failures to console.error, so this catches a broken/missing asset
+	// from the entry-map enrichment (terrain tiles, decor packs, etc.).
+	const errors: string[] = [];
+	page.on('console', (msg) => {
+		if (msg.type() === 'error') errors.push(msg.text());
+	});
+
+	await page.goto('/');
+	// Canvas visible + Menu button visible is the suite's canonical "game ready"
+	// signal: the HUD only renders after Phaser boots WorldScene on the entry map.
+	await expect(page.locator('canvas')).toBeVisible();
+	await expect(page.getByRole('button', { name: 'Menu' })).toBeVisible();
+	// Let async asset loads and runtime frame registration settle before asserting.
+	await page.waitForTimeout(1_500);
+
+	// Filter benign, game-unrelated noise (e.g. favicon / generic resource 404s and
+	// devtools chatter) so the assertion stays meaningful. We deliberately do NOT
+	// filter anything that mentions a game asset path, Phaser, texture, or frame
+	// failure — a real missing-texture from the enrichment must still fail here.
+	const benign = /favicon|\.ico\b/i;
+	const gameErrors = errors.filter((text) => !benign.test(text));
+
+	expect(gameErrors).toEqual([]);
+});
+
 test('game route boots', async ({ page }) => {
 	await page.goto('/');
 	await expect(page.locator('canvas')).toBeVisible();
