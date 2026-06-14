@@ -1965,6 +1965,9 @@ export class WorldScene extends Phaser.Scene {
 
 		switch (blocker.kind) {
 			case 'ocean':
+				// RenderBlockers skips ocean (collision-only), so this is runtime-unreachable.
+				// The case is required so `blocker.kind satisfies never` in the default branch
+				// passes the exhaustiveness check.
 				throw new Error('Ocean blockers are rendered as rectangles, not sprites');
 
 			case 'future-gate':
