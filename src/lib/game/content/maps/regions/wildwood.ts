@@ -7,10 +7,20 @@ import type { RegionFragment } from '$lib/game/content/maps/regions/types';
  * ground patches, the colliding canopy decor, the slime encounters, and their
  * combat bounds.
  *
- * Note: the `whispering-cave` landmark itself is authored in the village
- * fragment to preserve the composed map's original landmark ordering.
+ * The `whispering-cave` landmark is co-located here with its transition,
+ * paths, and combat pockets so all Whispering Cave content lives in one file.
  */
 export const wildwoodRegion: RegionFragment = {
+	landmarks: [
+		{
+			id: 'whispering-cave',
+			x: 5_960,
+			y: 1_800,
+			width: 256,
+			height: 224,
+			labelKey: 'content.maps.landmarks.whispering-cave.label'
+		}
+	],
 	transitions: [
 		{
 			id: 'meadow-to-whispering-cave-ruins-threshold',

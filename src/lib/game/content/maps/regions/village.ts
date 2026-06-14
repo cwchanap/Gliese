@@ -6,10 +6,10 @@ import type { RegionFragment } from '$lib/game/content/maps/regions/types';
  * blacksmith, and shrine landmarks with their interior doorways, plaza ground
  * patches, perimeter boundaries, the SW ocean sliver, and plaza fences.
  *
- * Note: the `whispering-cave` landmark (NE forest) is authored in this fragment
- * to preserve the original landmark ordering of the composed meadow-entry map
- * (it sits between `sundrop-well` and `blacksmith`). Its transition, paths, and
- * combat live in the wildwood fragment.
+ * The NE `whispering-cave` landmark lives in the wildwood fragment alongside
+ * its transition, paths, and combat pockets so all Whispering Cave content is
+ * co-located. Landmarks render in array order but none overlap, so the split
+ * has no visual effect.
  */
 export const villageRegion: RegionFragment = {
 	landmarks: [
@@ -68,14 +68,6 @@ export const villageRegion: RegionFragment = {
 			width: 141,
 			height: 160,
 			labelKey: 'content.maps.landmarks.sundrop-well.label'
-		},
-		{
-			id: 'whispering-cave',
-			x: 5_960,
-			y: 1_800,
-			width: 256,
-			height: 224,
-			labelKey: 'content.maps.landmarks.whispering-cave.label'
 		},
 		{
 			id: 'blacksmith',

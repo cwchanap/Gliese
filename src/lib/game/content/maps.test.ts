@@ -1508,6 +1508,80 @@ describe('meadow-entry region integrity', () => {
 		}
 	});
 
+	/**
+	 * Structural connectivity guard: flood-fills the tile grid from spawn,
+	 * treating only `map.blockers` (the region-sealing hedges/walls/gates) as
+	 * impassable, and asserts every transition cell stays reachable.
+	 *
+	 * Ground patches are decorative tiling, not the walkable surface (the player
+	 * walks on any non-blocked tile), and they are intentionally fragmented — so
+	 * a patch-overlap walk is not a valid reachability test. Blockers are the
+	 * surfaces that actually seal off regions, so a flood fill over the blocker
+	 * field is the regression that catches "a future edit silently breaks
+	 * navigation" by adding a sealing wall. mapDecor/fence/landmark collisions
+	 * are local obstacles (with doorway-carved shapes) and are intentionally
+	 * excluded so this stays a structural, flake-free guard.
+	 */
+	const connectivityTileSize = 32;
+
+	function floodFillReachableCells(map: WorldMapDefinition): Set<string> {
+		const isBlocked = (px: number, py: number) =>
+			(map.blockers ?? []).some((blocker) => isPointInsideRect({ x: px, y: py }, blocker));
+
+		const startCol = Math.floor(map.spawn.x / connectivityTileSize);
+		const startRow = Math.floor(map.spawn.y / connectivityTileSize);
+		const seen = new Set<string>([`${startCol},${startRow}`]);
+		const queue: Array<[number, number]> = [[startCol, startRow]];
+
+		while (queue.length > 0) {
+			const [col, row] = queue.shift()!;
+			for (const [dCol, dRow] of [
+				[1, 0],
+				[-1, 0],
+				[0, 1],
+				[0, -1]
+			]) {
+				const nextCol = col + dCol;
+				const nextRow = row + dRow;
+				if (nextCol < 0 || nextRow < 0 || nextCol >= map.width || nextRow >= map.height) {
+					continue;
+				}
+				const cellKey = `${nextCol},${nextRow}`;
+				if (seen.has(cellKey)) {
+					continue;
+				}
+				const cellCenterX = nextCol * connectivityTileSize + connectivityTileSize / 2;
+				const cellCenterY = nextRow * connectivityTileSize + connectivityTileSize / 2;
+				if (isBlocked(cellCenterX, cellCenterY)) {
+					continue;
+				}
+				seen.add(cellKey);
+				queue.push([nextCol, nextRow]);
+			}
+		}
+
+		return seen;
+	}
+
+	it('keeps every meadow transition reachable from spawn through the blocker field', () => {
+		const reachableCells = floodFillReachableCells(meadowEntryMap);
+		const isReachable = (point: { x: number; y: number }) =>
+			reachableCells.has(
+				`${Math.floor(point.x / connectivityTileSize)},${Math.floor(point.y / connectivityTileSize)}`
+			);
+
+		expect(isReachable(meadowEntryMap.spawn), 'spawn cell must not be sealed by a blocker').toBe(
+			true
+		);
+
+		for (const transition of meadowEntryMap.transitions) {
+			expect(
+				isReachable(transition),
+				`${transition.id} at (${transition.x}, ${transition.y}) is sealed off from spawn by blockers`
+			).toBe(true);
+		}
+	});
+
 	it('references real items from every pickup', () => {
 		expect(meadowEntryMap.pickups ?? []).toBeInstanceOf(Array);
 		for (const pickup of meadowEntryMap.pickups ?? []) {
