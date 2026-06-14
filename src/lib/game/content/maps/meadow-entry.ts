@@ -70,6 +70,7 @@ export const meadowEntryMap: WorldMapDefinition = addEnglishMapText({
 	mapDecor: merged.mapDecor,
 	combatBounds: merged.combatBounds,
 	encounters: merged.encounters,
+	npcs: merged.npcs,
 	ambientNpcs: merged.ambientNpcs,
 	pickups: merged.pickups
 });
