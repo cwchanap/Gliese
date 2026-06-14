@@ -7,6 +7,7 @@ import { mistfenRegion } from '$lib/game/content/maps/regions/mistfen';
 import { silverpineRegion } from '$lib/game/content/maps/regions/silverpine';
 import { coastRegion } from '$lib/game/content/maps/regions/coast';
 import { crossroadsRegion } from '$lib/game/content/maps/regions/crossroads';
+import { pathsRegion } from '$lib/game/content/maps/regions/paths';
 
 export const openingMapId = 'meadow-entry';
 
@@ -56,7 +57,8 @@ const merged = mergeRegions([
 	mistfenRegion,
 	silverpineRegion,
 	coastRegion,
-	crossroadsRegion
+	crossroadsRegion,
+	pathsRegion
 ]);
 
 export const meadowEntryMap: WorldMapDefinition = addEnglishMapText({
