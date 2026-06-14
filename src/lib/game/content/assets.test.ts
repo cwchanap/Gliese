@@ -349,11 +349,14 @@ describe('terrainTilesAsset', () => {
 
 	it('keeps every frame inside the sheet bounds', () => {
 		const cols = terrainTilesAsset.columns;
+		const rows = terrainTilesAsset.rows;
 		const sheetWidth = cols * terrainTilesAsset.cellWidth;
+		const sheetHeight = rows * terrainTilesAsset.cellHeight;
 		for (const frame of Object.values(terrainTilesAsset.frames)) {
 			expect(frame.x).toBeGreaterThanOrEqual(0);
 			expect(frame.y).toBeGreaterThanOrEqual(0);
 			expect(frame.x + frame.w).toBeLessThanOrEqual(sheetWidth);
+			expect(frame.y + frame.h).toBeLessThanOrEqual(sheetHeight);
 		}
 	});
 });

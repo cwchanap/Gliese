@@ -27,6 +27,7 @@ export const terrainTilesAsset = {
 	cellWidth: 256,
 	cellHeight: 256,
 	columns: 9,
+	rows: 1,
 	frames: {
 		grassTile: { x: 0, y: 0, w: 256, h: 256 },
 		pathTile: { x: 256, y: 0, w: 256, h: 256 },
