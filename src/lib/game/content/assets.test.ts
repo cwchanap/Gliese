@@ -138,7 +138,10 @@ describe('village building asset metadata', () => {
 		expect(getVillageBuildingFrameName('sundrop-well')).toBe('sundropWell');
 		expect(getVillageBuildingFrameName('unknown-landmark')).toBeUndefined();
 
-		for (const landmark of meadowEntryMap.landmarks ?? []) {
+		const villageBuildingLandmarks = (meadowEntryMap.landmarks ?? []).filter(
+			(landmark) => landmark.id !== 'witchwood-gate'
+		);
+		for (const landmark of villageBuildingLandmarks) {
 			expect(requiredBuildingFrames).toContain(getVillageBuildingFrameName(landmark.id));
 		}
 	});

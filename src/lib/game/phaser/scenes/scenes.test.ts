@@ -316,6 +316,8 @@ const phaserState = vi.hoisted(() => {
 		width: number;
 		height: number;
 		frame?: string;
+		alpha?: number;
+		setAlpha?: ReturnType<typeof vi.fn>;
 	}> = [];
 
 	function createOverlayMarker() {
@@ -421,7 +423,18 @@ const phaserState = vi.hoisted(() => {
 		_texture: string,
 		frame?: string
 	) {
-		const marker = { x, y, width, height, frame };
+		const marker = {
+			x,
+			y,
+			width,
+			height,
+			frame,
+			alpha: 1,
+			setAlpha: vi.fn((alpha: number) => {
+				marker.alpha = alpha;
+				return marker;
+			})
+		};
 		tileSpriteMarkers.push(marker);
 		return marker;
 	}

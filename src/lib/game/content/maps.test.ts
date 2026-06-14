@@ -1040,88 +1040,90 @@ describe('opening map content', () => {
 	});
 
 	it('defines exterior building landmarks for each village door', () => {
-		expect(meadowEntryMap.landmarks).toMatchObject([
-			{
-				id: 'hero-house-exterior',
-				x: 531,
-				y: 5_850,
-				width: 294,
-				height: 307,
-				labelKey: 'content.maps.landmarks.hero-house-exterior.label'
-			},
-			{
-				id: 'guild-hall-exterior',
-				x: 2_048,
-				y: 5_869,
-				width: 384,
-				height: 346,
-				labelKey: 'content.maps.landmarks.guild-hall-exterior.label'
-			},
-			{
-				id: 'item-shop-exterior',
-				x: 2_138,
-				y: 4_634,
-				width: 307,
-				height: 294,
-				labelKey: 'content.maps.landmarks.item-shop-exterior.label'
-			},
-			{
-				id: 'villager-house-1-exterior',
-				x: 333,
-				y: 5_152,
-				width: 282,
-				height: 256,
-				labelKey: 'content.maps.landmarks.villager-house-1-exterior.label'
-			},
-			{
-				id: 'villager-house-2-exterior',
-				x: 1_011,
-				y: 4_618,
-				width: 422,
-				height: 326,
-				labelKey: 'content.maps.landmarks.villager-house-2-exterior.label'
-			},
-			{
-				id: 'villager-house-3-exterior',
-				x: 2_592,
-				y: 4_778,
-				width: 230,
-				height: 416,
-				labelKey: 'content.maps.landmarks.villager-house-3-exterior.label'
-			},
-			{
-				id: 'sundrop-well',
-				x: 1_536,
-				y: 5_341,
-				width: 141,
-				height: 160,
-				labelKey: 'content.maps.landmarks.sundrop-well.label'
-			},
-			{
-				id: 'whispering-cave',
-				x: 5_960,
-				y: 1_800,
-				width: 256,
-				height: 224,
-				labelKey: 'content.maps.landmarks.whispering-cave.label'
-			},
-			{
-				id: 'blacksmith',
-				x: 595,
-				y: 4_877,
-				width: 294,
-				height: 282,
-				labelKey: 'content.maps.landmarks.blacksmith.label'
-			},
-			{
-				id: 'shrine-of-aurora',
-				x: 1_050,
-				y: 5_872,
-				width: 307,
-				height: 416,
-				labelKey: 'content.maps.landmarks.shrine-of-aurora.label'
-			}
-		]);
+		expect(meadowEntryMap.landmarks).toEqual(
+			expect.arrayContaining([
+				expect.objectContaining({
+					id: 'hero-house-exterior',
+					x: 531,
+					y: 5_850,
+					width: 294,
+					height: 307,
+					labelKey: 'content.maps.landmarks.hero-house-exterior.label'
+				}),
+				expect.objectContaining({
+					id: 'guild-hall-exterior',
+					x: 2_048,
+					y: 5_869,
+					width: 384,
+					height: 346,
+					labelKey: 'content.maps.landmarks.guild-hall-exterior.label'
+				}),
+				expect.objectContaining({
+					id: 'item-shop-exterior',
+					x: 2_138,
+					y: 4_634,
+					width: 307,
+					height: 294,
+					labelKey: 'content.maps.landmarks.item-shop-exterior.label'
+				}),
+				expect.objectContaining({
+					id: 'villager-house-1-exterior',
+					x: 333,
+					y: 5_152,
+					width: 282,
+					height: 256,
+					labelKey: 'content.maps.landmarks.villager-house-1-exterior.label'
+				}),
+				expect.objectContaining({
+					id: 'villager-house-2-exterior',
+					x: 1_011,
+					y: 4_618,
+					width: 422,
+					height: 326,
+					labelKey: 'content.maps.landmarks.villager-house-2-exterior.label'
+				}),
+				expect.objectContaining({
+					id: 'villager-house-3-exterior',
+					x: 2_592,
+					y: 4_778,
+					width: 230,
+					height: 416,
+					labelKey: 'content.maps.landmarks.villager-house-3-exterior.label'
+				}),
+				expect.objectContaining({
+					id: 'sundrop-well',
+					x: 1_536,
+					y: 5_341,
+					width: 141,
+					height: 160,
+					labelKey: 'content.maps.landmarks.sundrop-well.label'
+				}),
+				expect.objectContaining({
+					id: 'whispering-cave',
+					x: 5_960,
+					y: 1_800,
+					width: 256,
+					height: 224,
+					labelKey: 'content.maps.landmarks.whispering-cave.label'
+				}),
+				expect.objectContaining({
+					id: 'blacksmith',
+					x: 595,
+					y: 4_877,
+					width: 294,
+					height: 282,
+					labelKey: 'content.maps.landmarks.blacksmith.label'
+				}),
+				expect.objectContaining({
+					id: 'shrine-of-aurora',
+					x: 1_050,
+					y: 5_872,
+					width: 307,
+					height: 416,
+					labelKey: 'content.maps.landmarks.shrine-of-aurora.label'
+				})
+			])
+		);
 
 		for (const landmark of meadowEntryMap.landmarks ?? []) {
 			expectEnglishMessage(landmark.labelKey);
@@ -1136,7 +1138,10 @@ describe('opening map content', () => {
 
 	it('keeps the village cluster in the bottom-left corner and the slime forest in the top-right corner', () => {
 		const villageLandmarks = (meadowEntryMap.landmarks ?? []).filter(
-			(landmark) => landmark.id !== 'whispering-cave'
+			(landmark) =>
+				landmark.id !== 'whispering-cave' &&
+				!landmark.id.startsWith('mistfen-') &&
+				landmark.id !== 'witchwood-gate'
 		);
 		for (const landmark of villageLandmarks) {
 			expect(landmark.x + landmark.width / 2).toBeLessThanOrEqual(3_072);
@@ -1151,7 +1156,10 @@ describe('opening map content', () => {
 			expect(combatBounds.y + combatBounds.height / 2).toBeLessThanOrEqual(1_792);
 		}
 
-		for (const decor of meadowEntryMap.mapDecor ?? []) {
+		const forestDecor = (meadowEntryMap.mapDecor ?? []).filter(
+			(decor) => !decor.id.startsWith('mistfen-') && !decor.id.startsWith('witchwood-gate')
+		);
+		for (const decor of forestDecor) {
 			expect(decor.x - decor.width / 2).toBeGreaterThanOrEqual(4_880);
 			expect(decor.y + decor.height / 2).toBeLessThanOrEqual(1_470);
 		}
@@ -1188,151 +1196,155 @@ describe('opening map content', () => {
 	});
 
 	it('defines bottom-left village paths, top-right forest paths, blockers, fences, and forest dressing inside the meadow map bounds', () => {
-		expect(meadowEntryMap.groundPatches).toEqual([
-			{
-				id: 'sundrop-plaza-stone',
-				x: 1_536,
-				y: 5_344,
-				width: 672,
-				height: 512,
-				tile: 'ruinsFloorTile'
-			},
-			{ id: 'sundrop-north-lane', x: 1_536, y: 4_800, width: 64, height: 640, tile: 'pathTile' },
-			{ id: 'sundrop-south-lane', x: 1_536, y: 5_818, width: 64, height: 448, tile: 'pathTile' },
-			{ id: 'sundrop-west-lane', x: 720, y: 5_347, width: 992, height: 70, tile: 'pathTile' },
-			{ id: 'sundrop-east-lane', x: 2_336, y: 5_347, width: 960, height: 70, tile: 'pathTile' },
-			{
-				id: 'sundrop-northwest-branch',
-				x: 896,
-				y: 4_797,
-				width: 384,
-				height: 58,
-				tile: 'pathTile'
-			},
-			{
-				id: 'sundrop-northeast-branch',
-				x: 2_176,
-				y: 4_797,
-				width: 384,
-				height: 58,
-				tile: 'pathTile'
-			},
-			{
-				id: 'sundrop-southwest-branch',
-				x: 896,
-				y: 5_853,
-				width: 384,
-				height: 58,
-				tile: 'pathTile'
-			},
-			{
-				id: 'sundrop-southeast-branch',
-				x: 2_176,
-				y: 5_853,
-				width: 384,
-				height: 58,
-				tile: 'pathTile'
-			},
-			{ id: 'sundrop-home-pocket', x: 531, y: 6_002, width: 384, height: 96, tile: 'pathTile' },
-			{
-				id: 'sundrop-forest-road-east',
-				x: 4_200,
-				y: 5_347,
-				width: 2_800,
-				height: 70,
-				tile: 'pathTile'
-			},
-			{
-				id: 'sundrop-forest-road-north',
-				x: 5_600,
-				y: 3_200,
-				width: 70,
-				height: 4_300,
-				tile: 'pathTile'
-			},
-			{
-				id: 'wildwood-north-combat-pocket',
-				x: 5_120,
-				y: 960,
-				width: 672,
-				height: 384,
-				tile: 'pathTile'
-			},
-			{
-				id: 'wildwood-crossing-combat-pocket',
-				x: 5_360,
-				y: 1_280,
-				width: 512,
-				height: 320,
-				tile: 'pathTile'
-			},
-			{
-				id: 'whispering-cave-combat-pocket',
-				x: 5_920,
-				y: 1_600,
-				width: 512,
-				height: 384,
-				tile: 'pathTile'
-			},
-			{
-				id: 'wildwood-cave-branch',
-				x: 5_880,
-				y: 1_600,
-				width: 520,
-				height: 70,
-				tile: 'pathTile'
-			},
-			{
-				id: 'sundrop-cave-pocket',
-				x: 5_960,
-				y: 1_896,
-				width: 288,
-				height: 96,
-				tile: 'pathTile'
-			}
-		]);
-		expect(meadowEntryMap.blockers).toEqual([
-			{
-				id: 'meadow-north-boundary',
-				x: 3_200,
-				y: 32,
-				width: 6_400,
-				height: 64,
-				kind: 'town-hedge'
-			},
-			{
-				id: 'meadow-south-boundary',
-				x: 3_200,
-				y: 6_368,
-				width: 6_400,
-				height: 64,
-				kind: 'town-hedge'
-			},
-			{
-				id: 'meadow-west-boundary',
-				x: 32,
-				y: 3_200,
-				width: 64,
-				height: 6_400,
-				kind: 'town-hedge'
-			},
-			{
-				id: 'meadow-east-boundary',
-				x: 6_368,
-				y: 3_200,
-				width: 64,
-				height: 6_400,
-				kind: 'town-hedge'
-			},
-			{
-				id: 'sundrop-southwest-ocean',
-				x: 114,
-				y: 6_311,
-				width: 100,
-				height: 50,
-				kind: 'ocean'
-			}
-		]);
+		expect(meadowEntryMap.groundPatches).toEqual(
+			expect.arrayContaining([
+				{
+					id: 'sundrop-plaza-stone',
+					x: 1_536,
+					y: 5_344,
+					width: 672,
+					height: 512,
+					tile: 'ruinsFloorTile'
+				},
+				{ id: 'sundrop-north-lane', x: 1_536, y: 4_800, width: 64, height: 640, tile: 'pathTile' },
+				{ id: 'sundrop-south-lane', x: 1_536, y: 5_818, width: 64, height: 448, tile: 'pathTile' },
+				{ id: 'sundrop-west-lane', x: 720, y: 5_347, width: 992, height: 70, tile: 'pathTile' },
+				{ id: 'sundrop-east-lane', x: 2_336, y: 5_347, width: 960, height: 70, tile: 'pathTile' },
+				{
+					id: 'sundrop-northwest-branch',
+					x: 896,
+					y: 4_797,
+					width: 384,
+					height: 58,
+					tile: 'pathTile'
+				},
+				{
+					id: 'sundrop-northeast-branch',
+					x: 2_176,
+					y: 4_797,
+					width: 384,
+					height: 58,
+					tile: 'pathTile'
+				},
+				{
+					id: 'sundrop-southwest-branch',
+					x: 896,
+					y: 5_853,
+					width: 384,
+					height: 58,
+					tile: 'pathTile'
+				},
+				{
+					id: 'sundrop-southeast-branch',
+					x: 2_176,
+					y: 5_853,
+					width: 384,
+					height: 58,
+					tile: 'pathTile'
+				},
+				{ id: 'sundrop-home-pocket', x: 531, y: 6_002, width: 384, height: 96, tile: 'pathTile' },
+				{
+					id: 'sundrop-forest-road-east',
+					x: 4_200,
+					y: 5_347,
+					width: 2_800,
+					height: 70,
+					tile: 'pathTile'
+				},
+				{
+					id: 'sundrop-forest-road-north',
+					x: 5_600,
+					y: 3_200,
+					width: 70,
+					height: 4_300,
+					tile: 'pathTile'
+				},
+				{
+					id: 'wildwood-north-combat-pocket',
+					x: 5_120,
+					y: 960,
+					width: 672,
+					height: 384,
+					tile: 'pathTile'
+				},
+				{
+					id: 'wildwood-crossing-combat-pocket',
+					x: 5_360,
+					y: 1_280,
+					width: 512,
+					height: 320,
+					tile: 'pathTile'
+				},
+				{
+					id: 'whispering-cave-combat-pocket',
+					x: 5_920,
+					y: 1_600,
+					width: 512,
+					height: 384,
+					tile: 'pathTile'
+				},
+				{
+					id: 'wildwood-cave-branch',
+					x: 5_880,
+					y: 1_600,
+					width: 520,
+					height: 70,
+					tile: 'pathTile'
+				},
+				{
+					id: 'sundrop-cave-pocket',
+					x: 5_960,
+					y: 1_896,
+					width: 288,
+					height: 96,
+					tile: 'pathTile'
+				}
+			])
+		);
+		expect(meadowEntryMap.blockers).toEqual(
+			expect.arrayContaining([
+				{
+					id: 'meadow-north-boundary',
+					x: 3_200,
+					y: 32,
+					width: 6_400,
+					height: 64,
+					kind: 'town-hedge'
+				},
+				{
+					id: 'meadow-south-boundary',
+					x: 3_200,
+					y: 6_368,
+					width: 6_400,
+					height: 64,
+					kind: 'town-hedge'
+				},
+				{
+					id: 'meadow-west-boundary',
+					x: 32,
+					y: 3_200,
+					width: 64,
+					height: 6_400,
+					kind: 'town-hedge'
+				},
+				{
+					id: 'meadow-east-boundary',
+					x: 6_368,
+					y: 3_200,
+					width: 64,
+					height: 6_400,
+					kind: 'town-hedge'
+				},
+				{
+					id: 'sundrop-southwest-ocean',
+					x: 114,
+					y: 6_311,
+					width: 100,
+					height: 50,
+					kind: 'ocean'
+				}
+			])
+		);
 		expect(meadowEntryMap.fences).toEqual([
 			{ id: 'sundrop-home-fence', x: 531, y: 6_072, width: 384, height: 32 },
 			{ id: 'sundrop-plaza-west-fence', x: 1_120, y: 5_536, width: 32, height: 288 },
@@ -1371,7 +1383,11 @@ describe('opening map content', () => {
 	it('defines valid placed pickups with stable ids and item ids', () => {
 		const pickups = Object.values(maps).flatMap((map) => map.pickups ?? []);
 
-		expect(maps['meadow-entry'].pickups ?? []).toEqual([]);
+		expect(maps['meadow-entry'].pickups ?? []).toEqual(
+			expect.arrayContaining([
+				{ id: 'mistfen-salve', x: 880, y: 2_500, itemId: 'sunleaf-salve', quantity: 1 }
+			])
+		);
 		expect(maps['ruins-threshold'].pickups).toEqual([
 			{ id: 'ruins-threshold-cap', x: 1_728, y: 2_112, itemId: 'iron-cap', quantity: 1 },
 			{
