@@ -6,6 +6,7 @@ import {
 	crossroadsDressingAsset,
 	forestDressingAsset,
 	interiorPropAsset,
+	isNpcPackFrameName,
 	marshDressingAsset,
 	shrineDressingAsset,
 	terrainTilesAsset
@@ -1512,6 +1513,17 @@ describe('meadow-entry region integrity', () => {
 		for (const pickup of meadowEntryMap.pickups ?? []) {
 			expect(() => getItem(pickup.itemId)).not.toThrow();
 			expect(pickup.quantity).toBeGreaterThan(0);
+		}
+	});
+
+	it('keeps every ambient NPC in-bounds with a valid frame', () => {
+		expect(meadowEntryMap.ambientNpcs ?? []).toBeInstanceOf(Array);
+		for (const npc of meadowEntryMap.ambientNpcs ?? []) {
+			expect(isNpcPackFrameName(npc.frameName)).toBe(true);
+			expect(npc.x).toBeGreaterThanOrEqual(0);
+			expect(npc.y).toBeGreaterThanOrEqual(0);
+			expect(npc.x).toBeLessThan(meadowEntryMap.width * 32);
+			expect(npc.y).toBeLessThan(meadowEntryMap.height * 32);
 		}
 	});
 
