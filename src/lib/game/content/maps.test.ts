@@ -1513,8 +1513,7 @@ describe('meadow-entry region integrity', () => {
 		}
 	});
 
-	// SKIPPED until Task 16 adds the three sealed foreshadow gates. Un-skip then.
-	it.skip('seals three foreshadow gates with future-gate collision', () => {
+	it('seals three foreshadow gates with future-gate collision', () => {
 		const sealedGateIds = ['witchwood-gate-block', 'silver-shrine-gate-block', 'castle-gate-block'];
 		const gateBlockers = (meadowEntryMap.blockers ?? []).filter((blocker) =>
 			sealedGateIds.includes(blocker.id)
