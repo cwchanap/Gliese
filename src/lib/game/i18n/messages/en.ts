@@ -318,7 +318,8 @@ export const en = {
 				'whispering-cave': { label: 'Whispering Cave' },
 				blacksmith: { label: 'Blacksmith' },
 				'shrine-of-aurora': { label: 'Shrine of Aurora' },
-				'witchwood-gate': { label: 'Witchwood Gate' }
+				'witchwood-gate': { label: 'Witchwood Gate' },
+				'silver-shrine-gate': { label: 'Silver Shrine Gate' }
 			},
 			npcs: {
 				'guild-master': { name: 'Guild Master Arlen' },
