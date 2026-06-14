@@ -1,4 +1,4 @@
-import { forestDressingAsset } from '$lib/game/content/assets';
+import { forestDressingAsset, shrineDressingAsset } from '$lib/game/content/assets';
 import type { RegionFragment } from '$lib/game/content/maps/regions/types';
 
 /**
@@ -118,8 +118,81 @@ export const wildwoodRegion: RegionFragment = {
 				width: 160,
 				height: 900
 			}
+		},
+		{
+			id: 'wildwood-grove-tree-1',
+			textureKey: forestDressingAsset.key,
+			frameName: 'treeCluster',
+			x: 4_400,
+			y: 3_000,
+			width: 220,
+			height: 280,
+			mode: 'image',
+			collision: {
+				id: 'wildwood-grove-tree-1-collision',
+				x: 4_400,
+				y: 3_090,
+				width: 80,
+				height: 70
+			}
+		},
+		{
+			id: 'wildwood-grove-tree-2',
+			textureKey: forestDressingAsset.key,
+			frameName: 'treeCluster',
+			x: 4_900,
+			y: 4_300,
+			width: 220,
+			height: 280,
+			mode: 'image',
+			collision: {
+				id: 'wildwood-grove-tree-2-collision',
+				x: 4_900,
+				y: 4_390,
+				width: 80,
+				height: 70
+			}
+		},
+		{
+			id: 'wildwood-grove-brush-1',
+			textureKey: forestDressingAsset.key,
+			frameName: 'brush',
+			x: 4_650,
+			y: 3_650,
+			width: 180,
+			height: 150,
+			mode: 'image'
+		},
+		{
+			id: 'wildwood-grove-maple-1',
+			textureKey: shrineDressingAsset.key,
+			frameName: 'autumnMaple',
+			x: 4_500,
+			y: 4_750,
+			width: 240,
+			height: 300,
+			mode: 'image',
+			collision: {
+				id: 'wildwood-grove-maple-1-collision',
+				x: 4_500,
+				y: 4_850,
+				width: 90,
+				height: 80
+			}
+		},
+		{
+			id: 'wildwood-grove-floor-1',
+			textureKey: forestDressingAsset.key,
+			frameName: 'forestFloor',
+			x: 4_800,
+			y: 4_050,
+			width: 320,
+			height: 320,
+			mode: 'tile',
+			depth: 'floor'
 		}
 	],
+	ambientNpcs: [{ id: 'wildwood-woodcutter', x: 4_600, y: 3_300, frameName: 'woodcutterNpc' }],
 	combatBounds: [
 		{
 			id: 'wildwood-north-combat-pocket',

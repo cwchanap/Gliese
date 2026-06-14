@@ -106,6 +106,8 @@ const VILLAGE_LANDMARK_IDS = new Set([
 	'shrine-of-aurora'
 ]);
 
+const CANOPY_DECOR_IDS = new Set(['wildwood-north-canopy', 'wildwood-east-canopy']);
+
 function expectPointClearOfInteriorPropCollisions(
 	map: WorldMapDefinition,
 	point: { x: number; y: number },
@@ -1173,7 +1175,7 @@ describe('opening map content', () => {
 		}
 
 		const forestDecor = (meadowEntryMap.mapDecor ?? []).filter((decor) =>
-			decor.id.startsWith('wildwood')
+			CANOPY_DECOR_IDS.has(decor.id)
 		);
 		for (const decor of forestDecor) {
 			expect(decor.x - decor.width / 2).toBeGreaterThanOrEqual(4_880);
@@ -1386,7 +1388,7 @@ describe('opening map content', () => {
 
 	it('keeps the two wildwood canopies as colliding map decor', () => {
 		const canopies = (meadowEntryMap.mapDecor ?? []).filter((decor) =>
-			decor.id.startsWith('wildwood-')
+			CANOPY_DECOR_IDS.has(decor.id)
 		);
 		expect(canopies).toHaveLength(2);
 		for (const canopy of canopies) {
