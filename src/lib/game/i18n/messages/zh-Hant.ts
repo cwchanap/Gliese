@@ -321,11 +321,11 @@ export const zhHant = {
 				'whispering-cave': { label: '低語洞穴' },
 				blacksmith: { label: '鐵匠鋪' },
 				'shrine-of-aurora': { label: '極光神社' },
-				'witchwood-gate': { label: '魔林之門' },
-				'silver-shrine-gate': { label: '銀神社之門' },
+				'witchwood-gate': { label: '魔女森之門' },
+				'silver-shrine-gate': { label: '白銀神殿之門' },
 				'ferry-crossing': { label: '渡口' },
 				'castle-gate': { label: '封印城門' },
-				'crossroads-waystone': { label: '十字路石碑' }
+				'crossroads-waystone': { label: '十字路道標' }
 			},
 			npcs: {
 				'guild-master': { name: '公會會長阿倫' },
