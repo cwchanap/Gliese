@@ -4,6 +4,7 @@ import { addEnglishMapText } from '$lib/game/content/maps/text';
 import { villageRegion } from '$lib/game/content/maps/regions/village';
 import { wildwoodRegion } from '$lib/game/content/maps/regions/wildwood';
 import { mistfenRegion } from '$lib/game/content/maps/regions/mistfen';
+import { silverpineRegion } from '$lib/game/content/maps/regions/silverpine';
 
 export const openingMapId = 'meadow-entry';
 
@@ -47,7 +48,7 @@ function mergeRegions(
 	};
 }
 
-const merged = mergeRegions([villageRegion, wildwoodRegion, mistfenRegion]);
+const merged = mergeRegions([villageRegion, wildwoodRegion, mistfenRegion, silverpineRegion]);
 
 export const meadowEntryMap: WorldMapDefinition = addEnglishMapText({
 	id: openingMapId,

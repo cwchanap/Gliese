@@ -321,7 +321,8 @@ export const ja = {
 				'whispering-cave': { label: 'ささやきの洞窟' },
 				blacksmith: { label: '鍛冶屋' },
 				'shrine-of-aurora': { label: 'オーロラの社' },
-				'witchwood-gate': { label: '魔樹の門' }
+				'witchwood-gate': { label: '魔樹の門' },
+				'silver-shrine-gate': { label: '銀の社の門' }
 			},
 			npcs: {
 				'guild-master': { name: 'ギルドマスター・アーレン' },
