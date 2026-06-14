@@ -1601,6 +1601,14 @@ describe('meadow-entry region integrity', () => {
 		}
 	});
 
+	it('surfaces composed region interactive NPCs onto the map (no silent drop)', () => {
+		// Guard against the mergeRegions -> meadowEntryMap wiring gap: every
+		// other merged field is spread onto the map literal, so `npcs` must be
+		// too. Today no region contributes interactive NPCs, but the field must
+		// still be present so a future region author's NPCs are rendered.
+		expect(meadowEntryMap.npcs).toEqual([]);
+	});
+
 	it('seals three foreshadow gates with future-gate collision', () => {
 		const sealedGateIds = ['witchwood-gate-block', 'silver-shrine-gate-block', 'castle-gate-block'];
 		const gateBlockers = (meadowEntryMap.blockers ?? []).filter((blocker) =>
