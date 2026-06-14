@@ -320,7 +320,8 @@ export const ja = {
 				'sundrop-well': { label: 'サンドロップの井戸' },
 				'whispering-cave': { label: 'ささやきの洞窟' },
 				blacksmith: { label: '鍛冶屋' },
-				'shrine-of-aurora': { label: 'オーロラの社' }
+				'shrine-of-aurora': { label: 'オーロラの社' },
+				'witchwood-gate': { label: '魔樹の門' }
 			},
 			npcs: {
 				'guild-master': { name: 'ギルドマスター・アーレン' },

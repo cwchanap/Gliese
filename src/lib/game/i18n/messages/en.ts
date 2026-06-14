@@ -317,7 +317,8 @@ export const en = {
 				'sundrop-well': { label: 'Sundrop Well' },
 				'whispering-cave': { label: 'Whispering Cave' },
 				blacksmith: { label: 'Blacksmith' },
-				'shrine-of-aurora': { label: 'Shrine of Aurora' }
+				'shrine-of-aurora': { label: 'Shrine of Aurora' },
+				'witchwood-gate': { label: 'Witchwood Gate' }
 			},
 			npcs: {
 				'guild-master': { name: 'Guild Master Arlen' },

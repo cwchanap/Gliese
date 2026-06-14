@@ -320,7 +320,8 @@ export const zhHant = {
 				'sundrop-well': { label: '晴滴之井' },
 				'whispering-cave': { label: '低語洞穴' },
 				blacksmith: { label: '鐵匠鋪' },
-				'shrine-of-aurora': { label: '極光神社' }
+				'shrine-of-aurora': { label: '極光神社' },
+				'witchwood-gate': { label: '魔林之門' }
 			},
 			npcs: {
 				'guild-master': { name: '公會會長阿倫' },
