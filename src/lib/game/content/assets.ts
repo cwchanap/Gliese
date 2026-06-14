@@ -6,10 +6,8 @@ export const starterPackAsset = {
 		slimeScout: { x: 355, y: 115, w: 250, h: 190 },
 		ruinsWarden: { x: 675, y: 30, w: 430, h: 360 },
 		healFlask: { x: 1210, y: 145, w: 150, h: 215 },
-		grassTile: { x: 25, y: 470, w: 230, h: 220 },
-		pathTile: { x: 280, y: 470, w: 225, h: 220 },
-		ruinsFloorTile: { x: 535, y: 470, w: 225, h: 220 },
-		stoneWallTile: { x: 780, y: 470, w: 225, h: 220 },
+		// Ground tiles (grass/path/ruinsFloor/stoneWall) live in terrainTilesAsset;
+		// doorwayTile and encounterTile are retained as non-rendering sentinels.
 		doorwayTile: { x: 1020, y: 470, w: 230, h: 220 },
 		encounterTile: { x: 1280, y: 470, w: 220, h: 220 },
 		hudFrame: { x: 20, y: 790, w: 500, h: 210 },

@@ -11,9 +11,7 @@ import { pathsRegion } from '$lib/game/content/maps/regions/paths';
 
 export const openingMapId = 'meadow-entry';
 
-function mergeRegions(
-	fragments: RegionFragment[]
-): Required<
+type MergedRegions = Required<
 	Pick<
 		RegionFragment,
 		| 'landmarks'
@@ -28,26 +26,23 @@ function mergeRegions(
 		| 'encounters'
 		| 'combatBounds'
 	>
-> {
-	// The per-key casts are needed because TS can't distribute the `RegionFragment[K]`
-	// union over `flatMap` here: it widens the element type to the union of all field
-	// element types, so we narrow back to the concrete `NonNullable<RegionFragment[K]>`.
-	const pick = <K extends keyof RegionFragment>(key: K): NonNullable<RegionFragment[K]> =>
-		fragments.flatMap((fragment) => (fragment[key] ?? []) as never[]) as NonNullable<
-			RegionFragment[K]
-		>;
+>;
+
+// Per-key `flatMap` preserves each field's concrete element type without the
+// union-widening that forced `as never` casts in the previous generic helper.
+function mergeRegions(fragments: RegionFragment[]): MergedRegions {
 	return {
-		landmarks: pick('landmarks'),
-		transitions: pick('transitions'),
-		groundPatches: pick('groundPatches'),
-		blockers: pick('blockers'),
-		mapDecor: pick('mapDecor'),
-		fences: pick('fences'),
-		ambientNpcs: pick('ambientNpcs'),
-		npcs: pick('npcs'),
-		pickups: pick('pickups'),
-		encounters: pick('encounters'),
-		combatBounds: pick('combatBounds')
+		landmarks: fragments.flatMap((fragment) => fragment.landmarks ?? []),
+		transitions: fragments.flatMap((fragment) => fragment.transitions ?? []),
+		groundPatches: fragments.flatMap((fragment) => fragment.groundPatches ?? []),
+		blockers: fragments.flatMap((fragment) => fragment.blockers ?? []),
+		mapDecor: fragments.flatMap((fragment) => fragment.mapDecor ?? []),
+		fences: fragments.flatMap((fragment) => fragment.fences ?? []),
+		ambientNpcs: fragments.flatMap((fragment) => fragment.ambientNpcs ?? []),
+		npcs: fragments.flatMap((fragment) => fragment.npcs ?? []),
+		pickups: fragments.flatMap((fragment) => fragment.pickups ?? []),
+		encounters: fragments.flatMap((fragment) => fragment.encounters ?? []),
+		combatBounds: fragments.flatMap((fragment) => fragment.combatBounds ?? [])
 	};
 }
 

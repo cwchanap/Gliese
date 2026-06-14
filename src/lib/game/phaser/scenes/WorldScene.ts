@@ -182,6 +182,16 @@ type CollisionRect = {
 	bottom: number;
 };
 
+/**
+ * Shape shared by every sprite-sheet asset (`starterPackAsset`,
+ * `forestDressingAsset`, …): a texture key plus a map of named frames whose
+ * source rectangles live on the sheet.
+ */
+type SpriteSheetAsset = {
+	key: string;
+	frames: Record<string, { x: number; y: number; w: number; h: number }>;
+};
+
 type EnemyMovementMode = 'idle' | 'chase' | 'return';
 
 type TilemapLayer = {
@@ -263,6 +273,15 @@ export class WorldScene extends Phaser.Scene {
 	private static readonly fenceTileThickness = 32;
 	private static readonly environmentBlockerSegmentLength = 48;
 	private static readonly terrainTilesetKey = 'starter-ground-tiles';
+	/**
+	 * Invariant: `terrainTileIndexes[name]` MUST equal the index of `name` in
+	 * `terrainFrames`. `ensureTerrainTileset` builds the canvas tileset by
+	 * drawing `terrainFrames` left-to-right (one tile per index), and
+	 * `buildGroundTileData` emits `terrainTileIndexes[patch.tile]` as the
+	 * tilemap cell value that Phaser resolves against that canvas. The two
+	 * collections must therefore contain the same tiles in the same order,
+	 * mirroring `terrainTilesAsset.frames`.
+	 */
 	private static readonly terrainTileIndexes: Record<MapGroundTile, number> = {
 		grassTile: 0,
 		pathTile: 1,
@@ -437,18 +456,18 @@ export class WorldScene extends Phaser.Scene {
 		this.victoryAchieved = false;
 		this.worldSize = { width, height };
 
-		this.registerStarterPackFrames();
-		this.registerNpcPackFrames();
-		this.registerVillageBuildingFrames();
-		this.registerForestDressingFrames();
-		this.registerFenceDressingFrames();
-		this.registerEnvironmentDressingFrames();
-		this.registerCoastDressingFrames();
-		this.registerShrineDressingFrames();
-		this.registerMarshDressingFrames();
-		this.registerCrossroadsDressingFrames();
-		this.registerInteriorPropFrames();
-		this.registerAnimationPackFrames();
+		this.registerAssetFrames(starterPackAsset);
+		this.registerAssetFrames(npcPackAsset);
+		this.registerAssetFrames(villageBuildingAsset);
+		this.registerAssetFrames(forestDressingAsset);
+		this.registerAssetFrames(fenceDressingAsset);
+		this.registerAssetFrames(environmentDressingAsset);
+		this.registerAssetFrames(coastDressingAsset);
+		this.registerAssetFrames(shrineDressingAsset);
+		this.registerAssetFrames(marshDressingAsset);
+		this.registerAssetFrames(crossroadsDressingAsset);
+		this.registerAssetFrames(interiorPropAsset);
+		this.registerAssetFrames(animationPackAsset);
 		this.ensureActorAnimations();
 		this.ensureTerrainTilesetTexture();
 		this.renderGround(map);
@@ -1364,120 +1383,15 @@ export class WorldScene extends Phaser.Scene {
 		}, 0);
 	}
 
-	private registerStarterPackFrames() {
-		const texture = this.textures.get(starterPackAsset.key);
+	/**
+	 * Registers every frame declared on a sprite-sheet asset into Phaser's
+	 * texture for that asset. Replaces the dozen per-asset `register*Frames`
+	 * methods, which were byte-identical apart from the asset constant.
+	 */
+	private registerAssetFrames(asset: SpriteSheetAsset) {
+		const texture = this.textures.get(asset.key);
 
-		for (const [frameName, frame] of Object.entries(starterPackAsset.frames)) {
-			if (!texture.has(frameName)) {
-				texture.add(frameName, 0, frame.x, frame.y, frame.w, frame.h);
-			}
-		}
-	}
-
-	private registerAnimationPackFrames() {
-		const texture = this.textures.get(animationPackAsset.key);
-
-		for (const [frameName, frame] of Object.entries(animationPackAsset.frames)) {
-			if (!texture.has(frameName)) {
-				texture.add(frameName, 0, frame.x, frame.y, frame.w, frame.h);
-			}
-		}
-	}
-
-	private registerNpcPackFrames() {
-		const texture = this.textures.get(npcPackAsset.key);
-
-		for (const [frameName, frame] of Object.entries(npcPackAsset.frames)) {
-			if (!texture.has(frameName)) {
-				texture.add(frameName, 0, frame.x, frame.y, frame.w, frame.h);
-			}
-		}
-	}
-
-	private registerVillageBuildingFrames() {
-		const texture = this.textures.get(villageBuildingAsset.key);
-
-		for (const [frameName, frame] of Object.entries(villageBuildingAsset.frames)) {
-			if (!texture.has(frameName)) {
-				texture.add(frameName, 0, frame.x, frame.y, frame.w, frame.h);
-			}
-		}
-	}
-
-	private registerForestDressingFrames() {
-		const texture = this.textures.get(forestDressingAsset.key);
-
-		for (const [frameName, frame] of Object.entries(forestDressingAsset.frames)) {
-			if (!texture.has(frameName)) {
-				texture.add(frameName, 0, frame.x, frame.y, frame.w, frame.h);
-			}
-		}
-	}
-
-	private registerFenceDressingFrames() {
-		const texture = this.textures.get(fenceDressingAsset.key);
-
-		for (const [frameName, frame] of Object.entries(fenceDressingAsset.frames)) {
-			if (!texture.has(frameName)) {
-				texture.add(frameName, 0, frame.x, frame.y, frame.w, frame.h);
-			}
-		}
-	}
-
-	private registerEnvironmentDressingFrames() {
-		const texture = this.textures.get(environmentDressingAsset.key);
-
-		for (const [frameName, frame] of Object.entries(environmentDressingAsset.frames)) {
-			if (!texture.has(frameName)) {
-				texture.add(frameName, 0, frame.x, frame.y, frame.w, frame.h);
-			}
-		}
-	}
-
-	private registerCoastDressingFrames() {
-		const texture = this.textures.get(coastDressingAsset.key);
-
-		for (const [frameName, frame] of Object.entries(coastDressingAsset.frames)) {
-			if (!texture.has(frameName)) {
-				texture.add(frameName, 0, frame.x, frame.y, frame.w, frame.h);
-			}
-		}
-	}
-
-	private registerShrineDressingFrames() {
-		const texture = this.textures.get(shrineDressingAsset.key);
-
-		for (const [frameName, frame] of Object.entries(shrineDressingAsset.frames)) {
-			if (!texture.has(frameName)) {
-				texture.add(frameName, 0, frame.x, frame.y, frame.w, frame.h);
-			}
-		}
-	}
-
-	private registerMarshDressingFrames() {
-		const texture = this.textures.get(marshDressingAsset.key);
-
-		for (const [frameName, frame] of Object.entries(marshDressingAsset.frames)) {
-			if (!texture.has(frameName)) {
-				texture.add(frameName, 0, frame.x, frame.y, frame.w, frame.h);
-			}
-		}
-	}
-
-	private registerCrossroadsDressingFrames() {
-		const texture = this.textures.get(crossroadsDressingAsset.key);
-
-		for (const [frameName, frame] of Object.entries(crossroadsDressingAsset.frames)) {
-			if (!texture.has(frameName)) {
-				texture.add(frameName, 0, frame.x, frame.y, frame.w, frame.h);
-			}
-		}
-	}
-
-	private registerInteriorPropFrames() {
-		const texture = this.textures.get(interiorPropAsset.key);
-
-		for (const [frameName, frame] of Object.entries(interiorPropAsset.frames)) {
+		for (const [frameName, frame] of Object.entries(asset.frames)) {
 			if (!texture.has(frameName)) {
 				texture.add(frameName, 0, frame.x, frame.y, frame.w, frame.h);
 			}
@@ -1968,7 +1882,7 @@ export class WorldScene extends Phaser.Scene {
 				// RenderBlockers skips ocean (collision-only), so this is runtime-unreachable.
 				// The case is required so `blocker.kind satisfies never` in the default branch
 				// passes the exhaustiveness check.
-				throw new Error('Ocean blockers are rendered as rectangles, not sprites');
+				throw new Error('Ocean blockers are collision-only and should not request a sprite frame');
 
 			case 'future-gate':
 				return 'futureGate';
