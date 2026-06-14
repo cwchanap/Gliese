@@ -1,3 +1,4 @@
+import { crossroadsDressingAsset, shrineDressingAsset } from '$lib/game/content/assets';
 import type { RegionFragment } from '$lib/game/content/maps/regions/types';
 
 /**
@@ -93,6 +94,52 @@ export const villageRegion: RegionFragment = {
 			labelKey: 'content.maps.landmarks.shrine-of-aurora.label'
 		}
 	],
+	mapDecor: [
+		{
+			id: 'village-maple-1',
+			textureKey: shrineDressingAsset.key,
+			frameName: 'autumnMaple',
+			x: 1_180,
+			y: 5_100,
+			width: 220,
+			height: 280,
+			mode: 'image',
+			collision: { id: 'village-maple-1-collision', x: 1_180, y: 5_190, width: 80, height: 70 }
+		},
+		{
+			id: 'village-stall',
+			textureKey: crossroadsDressingAsset.key,
+			frameName: 'marketStall',
+			x: 1_900,
+			y: 5_500,
+			width: 240,
+			height: 190,
+			mode: 'image',
+			collision: { id: 'village-stall-collision', x: 1_900, y: 5_540, width: 200, height: 110 }
+		},
+		{
+			id: 'village-flowers',
+			textureKey: crossroadsDressingAsset.key,
+			frameName: 'flowerBed',
+			x: 1_536,
+			y: 5_640,
+			width: 160,
+			height: 130,
+			mode: 'image'
+		},
+		{
+			id: 'village-hanging-lantern',
+			textureKey: crossroadsDressingAsset.key,
+			frameName: 'hangingLantern',
+			x: 1_536,
+			y: 5_200,
+			width: 110,
+			height: 130,
+			mode: 'image',
+			depth: 'foreground'
+		}
+	],
+	ambientNpcs: [{ id: 'village-wanderer', x: 1_700, y: 5_700, frameName: 'travelerNpc' }],
 	transitions: [
 		{
 			id: 'meadow-to-hero-house',
