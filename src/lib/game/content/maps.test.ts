@@ -87,6 +87,25 @@ function expectRectClearOfRect(rect: CenterRect, blocker: CenterRect, message: s
 	expect(overlaps, message).toBe(false);
 }
 
+/**
+ * Allow-list of the stable SW village landmark cohort. New regions (Mistfen,
+ * Silverpine, Tidewatch, Crossroads, …) add their own landmarks to the composed
+ * meadow-entry map; selecting the village cohort positively means those regions
+ * require zero edits to the geography test. `whispering-cave` is NE forest and is
+ * asserted separately, so it is intentionally excluded here.
+ */
+const VILLAGE_LANDMARK_IDS = new Set([
+	'hero-house-exterior',
+	'guild-hall-exterior',
+	'item-shop-exterior',
+	'villager-house-1-exterior',
+	'villager-house-2-exterior',
+	'villager-house-3-exterior',
+	'sundrop-well',
+	'blacksmith',
+	'shrine-of-aurora'
+]);
+
 function expectPointClearOfInteriorPropCollisions(
 	map: WorldMapDefinition,
 	point: { x: number; y: number },
@@ -1137,11 +1156,8 @@ describe('opening map content', () => {
 	});
 
 	it('keeps the village cluster in the bottom-left corner and the slime forest in the top-right corner', () => {
-		const villageLandmarks = (meadowEntryMap.landmarks ?? []).filter(
-			(landmark) =>
-				landmark.id !== 'whispering-cave' &&
-				!landmark.id.startsWith('mistfen-') &&
-				landmark.id !== 'witchwood-gate'
+		const villageLandmarks = (meadowEntryMap.landmarks ?? []).filter((landmark) =>
+			VILLAGE_LANDMARK_IDS.has(landmark.id)
 		);
 		for (const landmark of villageLandmarks) {
 			expect(landmark.x + landmark.width / 2).toBeLessThanOrEqual(3_072);
@@ -1156,8 +1172,8 @@ describe('opening map content', () => {
 			expect(combatBounds.y + combatBounds.height / 2).toBeLessThanOrEqual(1_792);
 		}
 
-		const forestDecor = (meadowEntryMap.mapDecor ?? []).filter(
-			(decor) => !decor.id.startsWith('mistfen-') && !decor.id.startsWith('witchwood-gate')
+		const forestDecor = (meadowEntryMap.mapDecor ?? []).filter((decor) =>
+			decor.id.startsWith('wildwood')
 		);
 		for (const decor of forestDecor) {
 			expect(decor.x - decor.width / 2).toBeGreaterThanOrEqual(4_880);

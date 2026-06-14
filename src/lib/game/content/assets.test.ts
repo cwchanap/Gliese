@@ -42,6 +42,24 @@ const requiredBuildingFrames: VillageBuildingFrameName[] = [
 	'whisperingCave',
 	'sundropWell'
 ];
+/**
+ * Allow-list of landmark ids that are genuinely village-BUILDING landmarks (the
+ * ids `getVillageBuildingFrameName` resolves to a frame). New region gates and
+ * non-building landmarks (e.g. `witchwood-gate`, future region gates) are simply
+ * absent here, so future regions require zero edits to the building-frame test.
+ */
+const BUILDING_LANDMARK_IDS = new Set([
+	'hero-house-exterior',
+	'guild-hall-exterior',
+	'item-shop-exterior',
+	'villager-house-1-exterior',
+	'villager-house-2-exterior',
+	'villager-house-3-exterior',
+	'blacksmith',
+	'shrine-of-aurora',
+	'whispering-cave',
+	'sundrop-well'
+]);
 const requiredFenceFrames: FenceDressingFrameName[] = [
 	'horizontalFence',
 	'verticalFence',
@@ -138,8 +156,8 @@ describe('village building asset metadata', () => {
 		expect(getVillageBuildingFrameName('sundrop-well')).toBe('sundropWell');
 		expect(getVillageBuildingFrameName('unknown-landmark')).toBeUndefined();
 
-		const villageBuildingLandmarks = (meadowEntryMap.landmarks ?? []).filter(
-			(landmark) => landmark.id !== 'witchwood-gate'
+		const villageBuildingLandmarks = (meadowEntryMap.landmarks ?? []).filter((landmark) =>
+			BUILDING_LANDMARK_IDS.has(landmark.id)
 		);
 		for (const landmark of villageBuildingLandmarks) {
 			expect(requiredBuildingFrames).toContain(getVillageBuildingFrameName(landmark.id));
