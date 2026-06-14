@@ -1175,10 +1175,10 @@ describe('opening map content', () => {
 			expect(combatBounds.y + combatBounds.height / 2).toBeLessThanOrEqual(1_792);
 		}
 
-		const forestDecor = (meadowEntryMap.mapDecor ?? []).filter((decor) =>
+		const canopyDecor = (meadowEntryMap.mapDecor ?? []).filter((decor) =>
 			CANOPY_DECOR_IDS.has(decor.id)
 		);
-		for (const decor of forestDecor) {
+		for (const decor of canopyDecor) {
 			expect(decor.x - decor.width / 2).toBeGreaterThanOrEqual(4_880);
 			expect(decor.y + decor.height / 2).toBeLessThanOrEqual(1_470);
 		}
