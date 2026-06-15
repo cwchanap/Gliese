@@ -83,6 +83,23 @@ const requiredInteriorPropFrames: InteriorPropFrameName[] = [
 	'plant'
 ];
 
+function assertFramesInsideSheetBounds(asset: {
+	cellWidth: number;
+	cellHeight: number;
+	columns: number;
+	rows: number;
+	frames: Record<string, { x: number; y: number; w: number; h: number }>;
+}) {
+	const sheetWidth = asset.columns * asset.cellWidth;
+	const sheetHeight = asset.rows * asset.cellHeight;
+	for (const frame of Object.values(asset.frames)) {
+		expect(frame.x).toBeGreaterThanOrEqual(0);
+		expect(frame.y).toBeGreaterThanOrEqual(0);
+		expect(frame.x + frame.w).toBeLessThanOrEqual(sheetWidth);
+		expect(frame.y + frame.h).toBeLessThanOrEqual(sheetHeight);
+	}
+}
+
 describe('starter pack asset frames', () => {
 	it('keeps hero and potion frames large enough to avoid visible cropping', () => {
 		expect(starterPackAsset.frames.hero).toEqual({ x: 90, y: 80, w: 235, h: 280 });
@@ -348,16 +365,7 @@ describe('terrainTilesAsset', () => {
 	});
 
 	it('keeps every frame inside the sheet bounds', () => {
-		const cols = terrainTilesAsset.columns;
-		const rows = terrainTilesAsset.rows;
-		const sheetWidth = cols * terrainTilesAsset.cellWidth;
-		const sheetHeight = rows * terrainTilesAsset.cellHeight;
-		for (const frame of Object.values(terrainTilesAsset.frames)) {
-			expect(frame.x).toBeGreaterThanOrEqual(0);
-			expect(frame.y).toBeGreaterThanOrEqual(0);
-			expect(frame.x + frame.w).toBeLessThanOrEqual(sheetWidth);
-			expect(frame.y + frame.h).toBeLessThanOrEqual(sheetHeight);
-		}
+		assertFramesInsideSheetBounds(terrainTilesAsset);
 	});
 });
 
@@ -376,6 +384,10 @@ describe('coastDressingAsset', () => {
 			expect(coastDressingAsset.frames).toHaveProperty(name);
 		}
 	});
+
+	it('keeps every frame inside the sheet bounds', () => {
+		assertFramesInsideSheetBounds(coastDressingAsset);
+	});
 });
 
 describe('shrineDressingAsset', () => {
@@ -391,6 +403,10 @@ describe('shrineDressingAsset', () => {
 			expect(shrineDressingAsset.frames).toHaveProperty(name);
 		}
 	});
+
+	it('keeps every frame inside the sheet bounds', () => {
+		assertFramesInsideSheetBounds(shrineDressingAsset);
+	});
 });
 
 describe('marshDressingAsset', () => {
@@ -398,6 +414,10 @@ describe('marshDressingAsset', () => {
 		for (const name of ['witchwoodGate', 'deadTree', 'toxicBloom', 'reeds', 'marshRock', 'fog']) {
 			expect(marshDressingAsset.frames).toHaveProperty(name);
 		}
+	});
+
+	it('keeps every frame inside the sheet bounds', () => {
+		assertFramesInsideSheetBounds(marshDressingAsset);
 	});
 });
 
@@ -414,5 +434,9 @@ describe('crossroadsDressingAsset', () => {
 		]) {
 			expect(crossroadsDressingAsset.frames).toHaveProperty(name);
 		}
+	});
+
+	it('keeps every frame inside the sheet bounds', () => {
+		assertFramesInsideSheetBounds(crossroadsDressingAsset);
 	});
 });

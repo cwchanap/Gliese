@@ -175,6 +175,7 @@ export const coastDressingAsset = {
 	cellWidth: 256,
 	cellHeight: 256,
 	columns: 3,
+	rows: 3,
 	frames: {
 		torii: { x: 0, y: 0, w: 256, h: 256 },
 		ferryShrine: { x: 256, y: 0, w: 256, h: 256 },
@@ -195,6 +196,7 @@ export const shrineDressingAsset = {
 	cellWidth: 256,
 	cellHeight: 256,
 	columns: 3,
+	rows: 2,
 	frames: {
 		silverShrineGate: { x: 0, y: 0, w: 256, h: 256 },
 		stoneLantern: { x: 256, y: 0, w: 256, h: 256 },
@@ -213,6 +215,7 @@ export const marshDressingAsset = {
 	cellWidth: 256,
 	cellHeight: 256,
 	columns: 3,
+	rows: 2,
 	frames: {
 		witchwoodGate: { x: 0, y: 0, w: 256, h: 256 },
 		deadTree: { x: 256, y: 0, w: 256, h: 256 },
@@ -231,6 +234,7 @@ export const crossroadsDressingAsset = {
 	cellWidth: 256,
 	cellHeight: 256,
 	columns: 3,
+	rows: 3,
 	frames: {
 		castleGate: { x: 0, y: 0, w: 256, h: 256 },
 		waystone: { x: 256, y: 0, w: 256, h: 256 },
