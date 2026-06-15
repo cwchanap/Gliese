@@ -20,6 +20,7 @@ import {
 	npcPackAsset,
 	shrineDressingAsset,
 	starterPackAsset,
+	terrainFrameOrder,
 	terrainTilesAsset,
 	villageBuildingAsset,
 	type ActorAnimationId,
@@ -146,7 +147,8 @@ describe('village building asset metadata', () => {
 			path: '/game/assets/village-buildings.png',
 			cellWidth: 627,
 			cellHeight: 627,
-			columns: 4
+			columns: 4,
+			rows: 2
 		});
 		expect(villageBuildingAsset.frames).toEqual({
 			heroHouse: { x: 118, y: 116, w: 407, h: 437 },
@@ -172,7 +174,13 @@ describe('village building asset metadata', () => {
 		expect(getVillageBuildingFrameName('whispering-cave')).toBe('whisperingCave');
 		expect(getVillageBuildingFrameName('sundrop-well')).toBe('sundropWell');
 		expect(getVillageBuildingFrameName('unknown-landmark')).toBeUndefined();
+	});
 
+	it('keeps every frame inside the sheet bounds', () => {
+		assertFramesInsideSheetBounds(villageBuildingAsset);
+	});
+
+	it('maps every authored village building landmark to a building frame', () => {
 		const villageBuildingLandmarks = (meadowEntryMap.landmarks ?? []).filter((landmark) =>
 			BUILDING_LANDMARK_IDS.has(landmark.id)
 		);
@@ -189,7 +197,8 @@ describe('forest dressing asset metadata', () => {
 			path: '/game/assets/forest-dressing.png',
 			cellWidth: 256,
 			cellHeight: 256,
-			columns: 2
+			columns: 2,
+			rows: 2
 		});
 		expect(forestDressingAsset.frames).toEqual({
 			treeCluster: { x: 0, y: 0, w: 256, h: 256 },
@@ -206,6 +215,10 @@ describe('forest dressing asset metadata', () => {
 			}
 		}
 	});
+
+	it('keeps every frame inside the sheet bounds', () => {
+		assertFramesInsideSheetBounds(forestDressingAsset);
+	});
 });
 
 describe('fence dressing asset metadata', () => {
@@ -215,7 +228,8 @@ describe('fence dressing asset metadata', () => {
 			path: '/game/assets/fence-dressing.png',
 			cellWidth: 256,
 			cellHeight: 256,
-			columns: 2
+			columns: 2,
+			rows: 2
 		});
 		expect(fenceDressingAsset.frames).toEqual({
 			horizontalFence: { x: 0, y: 0, w: 256, h: 256 },
@@ -224,6 +238,10 @@ describe('fence dressing asset metadata', () => {
 			gateMarker: { x: 256, y: 256, w: 256, h: 256 }
 		});
 		expect(Object.keys(fenceDressingAsset.frames)).toEqual(requiredFenceFrames);
+	});
+
+	it('keeps every frame inside the sheet bounds', () => {
+		assertFramesInsideSheetBounds(fenceDressingAsset);
 	});
 });
 
@@ -234,7 +252,8 @@ describe('interior prop asset metadata', () => {
 			path: '/game/assets/interior-props.png',
 			cellWidth: 128,
 			cellHeight: 128,
-			columns: 4
+			columns: 4,
+			rows: 4
 		});
 		expect(interiorPropAsset.frames).toEqual({
 			bed: { x: 0, y: 0, w: 128, h: 128 },
@@ -254,6 +273,10 @@ describe('interior prop asset metadata', () => {
 		});
 		expect(Object.keys(interiorPropAsset.frames)).toEqual(requiredInteriorPropFrames);
 	});
+
+	it('keeps every frame inside the sheet bounds', () => {
+		assertFramesInsideSheetBounds(interiorPropAsset);
+	});
 });
 
 describe('npc pack metadata', () => {
@@ -262,7 +285,9 @@ describe('npc pack metadata', () => {
 			key: 'npc-pack',
 			path: '/game/assets/npc-pack.png',
 			cellWidth: 96,
-			cellHeight: 96
+			cellHeight: 96,
+			columns: 8,
+			rows: 1
 		});
 		expect(npcPackAsset.frames).toEqual({
 			miraItemShopNpc: { x: 0, y: 0, w: 96, h: 96 },
@@ -286,6 +311,10 @@ describe('npc pack metadata', () => {
 		expect(isNpcPackFrameName('pilgrimNpc')).toBe(true);
 		expect(isNpcPackFrameName('woodcutterNpc')).toBe(true);
 		expect(isNpcPackFrameName('crierNpc')).toBe(true);
+	});
+
+	it('keeps every frame inside the sheet bounds', () => {
+		assertFramesInsideSheetBounds(npcPackAsset);
 	});
 });
 
@@ -366,6 +395,13 @@ describe('terrainTilesAsset', () => {
 
 	it('keeps every frame inside the sheet bounds', () => {
 		assertFramesInsideSheetBounds(terrainTilesAsset);
+	});
+
+	it('mirrors terrainFrameOrder so indices stay stable', () => {
+		expect(terrainFrameOrder).toEqual(Object.keys(terrainTilesAsset.frames));
+		for (const name of terrainFrameOrder) {
+			expect(terrainTilesAsset.frames[name]).toBeDefined();
+		}
 	});
 });
 

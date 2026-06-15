@@ -41,6 +41,23 @@ export const terrainTilesAsset = {
 
 export type TerrainTileFrameName = keyof typeof terrainTilesAsset.frames;
 
+/**
+ * Canonical left-to-right order of terrain tile frames.  MUST match
+ * `Object.keys(terrainTilesAsset.frames)` and the index positions used by
+ * `WorldScene` when building the runtime tileset canvas.
+ */
+export const terrainFrameOrder: TerrainTileFrameName[] = [
+	'grassTile',
+	'pathTile',
+	'ruinsFloorTile',
+	'stoneWallTile',
+	'seaTile',
+	'sandTile',
+	'marshMudTile',
+	'autumnLeafTile',
+	'cobblestoneTile'
+];
+
 export const battleBackgroundAssets = {
 	meadow: {
 		key: 'battle-background-meadow',
@@ -78,6 +95,7 @@ export const villageBuildingAsset = {
 	cellWidth: 627,
 	cellHeight: 627,
 	columns: 4,
+	rows: 2,
 	frames: {
 		heroHouse: { x: 118, y: 116, w: 407, h: 437 },
 		guildHall: { x: 627, y: 96, w: 563, h: 499 },
@@ -98,6 +116,7 @@ export const forestDressingAsset = {
 	cellWidth: 256,
 	cellHeight: 256,
 	columns: 2,
+	rows: 2,
 	frames: {
 		treeCluster: { x: 0, y: 0, w: 256, h: 256 },
 		brush: { x: 256, y: 0, w: 256, h: 256 },
@@ -114,6 +133,7 @@ export const fenceDressingAsset = {
 	cellWidth: 256,
 	cellHeight: 256,
 	columns: 2,
+	rows: 2,
 	frames: {
 		horizontalFence: { x: 0, y: 0, w: 256, h: 256 },
 		verticalFence: { x: 256, y: 0, w: 256, h: 256 },
@@ -130,6 +150,7 @@ export const interiorPropAsset = {
 	cellWidth: 128,
 	cellHeight: 128,
 	columns: 4,
+	rows: 4,
 	frames: {
 		bed: { x: 0, y: 0, w: 128, h: 128 },
 		table: { x: 128, y: 0, w: 128, h: 128 },
@@ -284,6 +305,8 @@ export const npcPackAsset = {
 	path: '/game/assets/npc-pack.png',
 	cellWidth: 96,
 	cellHeight: 96,
+	columns: 8,
+	rows: 1,
 	frames: {
 		miraItemShopNpc: { x: 0, y: 0, w: 96, h: 96 },
 		quartermasterNpc: { x: 96, y: 0, w: 96, h: 96 },
