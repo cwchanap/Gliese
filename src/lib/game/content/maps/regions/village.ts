@@ -270,6 +270,14 @@ export const villageRegion: RegionFragment = {
 			width: 384,
 			height: 96,
 			tile: 'pathTile'
+		},
+		{
+			id: 'sundrop-southwest-ocean-patch',
+			x: 114,
+			y: 6_311,
+			width: 100,
+			height: 50,
+			tile: 'seaTile'
 		}
 	],
 	blockers: [

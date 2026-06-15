@@ -19,6 +19,7 @@ import {
 	npcPackAsset,
 	shrineDressingAsset,
 	starterPackAsset,
+	terrainFrameOrder,
 	terrainTilesAsset,
 	villageBuildingAsset,
 	type ActorAnimationKey,
@@ -275,35 +276,17 @@ export class WorldScene extends Phaser.Scene {
 	private static readonly terrainTilesetKey = 'starter-ground-tiles';
 	/**
 	 * Invariant: `terrainTileIndexes[name]` MUST equal the index of `name` in
-	 * `terrainFrames`. `ensureTerrainTileset` builds the canvas tileset by
-	 * drawing `terrainFrames` left-to-right (one tile per index), and
+	 * `terrainFrameOrder`. `ensureTerrainTileset` builds the canvas tileset by
+	 * drawing `terrainFrameOrder` left-to-right (one tile per index), and
 	 * `buildGroundTileData` emits `terrainTileIndexes[patch.tile]` as the
 	 * tilemap cell value that Phaser resolves against that canvas. The two
 	 * collections must therefore contain the same tiles in the same order,
 	 * mirroring `terrainTilesAsset.frames`.
 	 */
-	private static readonly terrainTileIndexes: Record<MapGroundTile, number> = {
-		grassTile: 0,
-		pathTile: 1,
-		ruinsFloorTile: 2,
-		stoneWallTile: 3,
-		seaTile: 4,
-		sandTile: 5,
-		marshMudTile: 6,
-		autumnLeafTile: 7,
-		cobblestoneTile: 8
-	};
-	private static readonly terrainFrames: MapGroundTile[] = [
-		'grassTile',
-		'pathTile',
-		'ruinsFloorTile',
-		'stoneWallTile',
-		'seaTile',
-		'sandTile',
-		'marshMudTile',
-		'autumnLeafTile',
-		'cobblestoneTile'
-	];
+	private static readonly terrainTileIndexes: Record<MapGroundTile, number> = Object.fromEntries(
+		terrainFrameOrder.map((name, index) => [name, index])
+	) as Record<MapGroundTile, number>;
+	private static readonly terrainFrames = terrainFrameOrder;
 	private static readonly cameraFollowLerp = 0.14;
 	private static readonly bossPhaseTwoSpeedMultiplier = 1.5;
 	private static readonly transitionRadius = 18;
