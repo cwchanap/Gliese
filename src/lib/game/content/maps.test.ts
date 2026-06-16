@@ -1743,8 +1743,9 @@ describe('MapDecor compile-time frame safety', () => {
 		});
 
 		// If the union regresses to bare `string`, this directive becomes unused
-		// and svelte-check fails — proving the typo protection is intact.
-		// @ts-expect-error 'toriii' is not a CoastDressingFrameName
+		// and svelte-check fails — proving the typo protection is intact. The
+		// directive must sit directly above the offending property because TS
+		// reports the assignability error on `frameName`, not on the call site.
 		acceptDecor({
 			id: 'bad',
 			x: 0,
@@ -1752,6 +1753,7 @@ describe('MapDecor compile-time frame safety', () => {
 			width: 1,
 			height: 1,
 			textureKey: coastDressingAsset.key,
+			// @ts-expect-error 'toriii' is not a CoastDressingFrameName
 			frameName: 'toriii'
 		});
 

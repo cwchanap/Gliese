@@ -1730,14 +1730,23 @@ export class WorldScene extends Phaser.Scene {
 	}
 
 	private renderLandmarks(map: WorldMapDefinition) {
+		// Landmarks whose art is supplied by a co-located mapDecor sprite (same
+		// anchor x/y) are "decor-backed". Their furniture/foreground sprite is
+		// already drawn by renderMapDecor, so the opaque placeholder rectangle
+		// must be skipped or it would cover the artwork. The pairing convention
+		// across regions (castle-gate, silver-shrine-gate, ferry-crossing,
+		// witchwood-gate, …) is an exact anchor match.
+		const decorAnchors = new Set((map.mapDecor ?? []).map((decor) => `${decor.x}:${decor.y}`));
+
 		for (const landmark of map.landmarks ?? []) {
 			const frameName = getVillageBuildingFrameName(landmark.id);
+			const isDecorBacked = decorAnchors.has(`${landmark.x}:${landmark.y}`);
 
 			if (frameName) {
 				this.add
 					.image(landmark.x, landmark.y, villageBuildingAsset.key, frameName)
 					.setDisplaySize(landmark.width, landmark.height);
-			} else {
+			} else if (!isDecorBacked) {
 				this.add.rectangle(landmark.x, landmark.y, landmark.width, landmark.height, 0x5b4636, 0.9);
 				this.add.rectangle(
 					landmark.x,

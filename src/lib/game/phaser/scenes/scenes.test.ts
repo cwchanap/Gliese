@@ -2298,6 +2298,35 @@ describe('WorldScene', () => {
 		expect(firstLandmarkCallOrder).toBeLessThan(firstEnemyCallOrder);
 	});
 
+	it('skips the opaque fallback for landmarks backed by a co-located mapDecor sprite', async () => {
+		const { crossroadsDressingAsset } = await import('$lib/game/content/assets');
+		const { meadowEntryMap } = await import('$lib/game/content/maps');
+		const { WorldScene } = await import('./WorldScene');
+		const scene = new WorldScene();
+
+		scene.create({ mapId: meadowEntryMap.id });
+
+		// Decor-backed landmarks (no village building frame, but a paired sprite
+		// at the same anchor) must not draw the opaque placeholder rectangle…
+		expect(scene.add.rectangle).not.toHaveBeenCalledWith(3_500, 2_980, 480, 320, 0x5b4636, 0.9);
+		expect(scene.add.rectangle).not.toHaveBeenCalledWith(1_200, 620, 360, 300, 0x5b4636, 0.9);
+		expect(scene.add.rectangle).not.toHaveBeenCalledWith(3_000, 480, 420, 320, 0x5b4636, 0.9);
+		expect(scene.add.rectangle).not.toHaveBeenCalledWith(3_600, 5_720, 360, 320, 0x5b4636, 0.9);
+
+		// …while their artwork is still emitted by renderMapDecor.
+		expect(scene.add.image).toHaveBeenCalledWith(
+			3_500,
+			2_980,
+			crossroadsDressingAsset.key,
+			'castleGate'
+		);
+		// The label is still rendered for every landmark.
+		expect(scene.add.text).toHaveBeenCalledWith(3_500, 2_980 - 320 / 2 + 4, expect.any(String), {
+			color: '#f8fafc',
+			fontSize: '12px'
+		});
+	});
+
 	it('registers and renders meadow forest dressing before actors', async () => {
 		const { forestDressingAsset } = await import('$lib/game/content/assets');
 		const { meadowEntryMap } = await import('$lib/game/content/maps');
