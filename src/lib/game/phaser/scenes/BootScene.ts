@@ -26,6 +26,14 @@ export class BootScene extends Phaser.Scene {
 	}
 
 	preload() {
+		// Phaser returns a `__MISSING` placeholder texture for failed loads rather
+		// than rejecting, so a bad path silently renders the missing-texture box.
+		// Log the offending key so production asset failures are diagnosable.
+		this.load.on('loaderror', (file: { key?: string; src?: string }) => {
+			console.error(
+				`[BootScene] asset load failed: key="${file.key ?? 'unknown'}" src="${file.src ?? ''}"`
+			);
+		});
 		this.load.image(starterPackAsset.key, starterPackAsset.path);
 		this.load.image(terrainTilesAsset.key, terrainTilesAsset.path);
 		this.load.image(animationPackAsset.key, animationPackAsset.path);

@@ -15,20 +15,23 @@ export const pathsRegion: RegionFragment = {
 		// Crossroads → Coast (south to ~4,200,5,500)
 		{ id: 'link-crossroads-coast', x: 3_900, y: 4_700, width: 900, height: 64, tile: 'pathTile' },
 		{ id: 'link-crossroads-coast-v', x: 4_200, y: 5_100, width: 64, height: 900, tile: 'pathTile' },
-		// Crossroads → Mistfen (NW to ~2,150,2,750)
+		// Crossroads → Mistfen (NW to ~2,150,2,750). The vertical rises along the
+		// plaza's west edge (x≈3050) to meet the crossroads, and the horizontal ties
+		// into mistfen-approach-path at y≈2,750 — both seams overlap so the road is
+		// visually continuous (guarded by the link-connectivity test).
 		{
 			id: 'link-crossroads-mistfen',
-			x: 2_800,
-			y: 3_500,
+			x: 3_050,
+			y: 3_150,
 			width: 64,
-			height: 1_100,
+			height: 820,
 			tile: 'pathTile'
 		},
 		{
 			id: 'link-crossroads-mistfen-h',
-			x: 2_500,
-			y: 2_950,
-			width: 700,
+			x: 2_690,
+			y: 2_750,
+			width: 740,
 			height: 64,
 			tile: 'pathTile'
 		},

@@ -475,7 +475,8 @@ const phaserState = vi.hoisted(() => {
 	class SceneMock {
 		scene = { start: vi.fn(), restart: vi.fn() };
 		load = {
-			image: vi.fn()
+			image: vi.fn(),
+			on: vi.fn()
 		};
 		anims = {
 			exists: vi.fn(() => false),
@@ -714,6 +715,7 @@ describe('BootScene', () => {
 
 		scene.preload();
 
+		expect(scene.load.on).toHaveBeenCalledWith('loaderror', expect.any(Function));
 		expect(scene.load.image).toHaveBeenCalledWith(starterPackAsset.key, starterPackAsset.path);
 		expect(scene.load.image).toHaveBeenCalledWith(animationPackAsset.key, animationPackAsset.path);
 		expect(scene.load.image).toHaveBeenCalledWith(npcPackAsset.key, npcPackAsset.path);

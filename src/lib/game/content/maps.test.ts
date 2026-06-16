@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { enemies } from '$lib/game/content/enemies';
 import { getDialogue } from '$lib/game/content/dialogue';
+import { mergeRegions } from '$lib/game/content/maps/meadow-entry';
+import type { RegionFragment } from '$lib/game/content/maps/regions/types';
 import {
 	coastDressingAsset,
 	crossroadsDressingAsset,
@@ -27,7 +29,7 @@ import {
 	villagerHouse2Map,
 	villagerHouse3Map
 } from '$lib/game/content/maps';
-import type { WorldMapDefinition } from '$lib/game/content/maps';
+import type { MapDecor, WorldMapDefinition } from '$lib/game/content/maps';
 
 function expectEnglishMessage(key: Parameters<typeof t>[1]): string {
 	const value = t('en', key);
@@ -86,6 +88,20 @@ function expectRectClearOfRect(rect: CenterRect, blocker: CenterRect, message: s
 		rect.y + rect.height / 2 > blocker.y - blocker.height / 2;
 
 	expect(overlaps, message).toBe(false);
+}
+
+/**
+ * Two center-based rects are "contiguous" when they share an edge or overlap —
+ * the geometric definition of a connected path network. Inclusive bounds so an
+ * exactly-touching seam still counts as connected.
+ */
+function rectsAreContiguous(a: CenterRect, b: CenterRect): boolean {
+	return (
+		a.x - a.width / 2 <= b.x + b.width / 2 &&
+		a.x + a.width / 2 >= b.x - b.width / 2 &&
+		a.y - a.height / 2 <= b.y + b.height / 2 &&
+		a.y + a.height / 2 >= b.y - b.height / 2
+	);
 }
 
 /**
@@ -1584,6 +1600,49 @@ describe('meadow-entry region integrity', () => {
 		}
 	});
 
+	it('keeps every inter-region path link connected to the region ground network', () => {
+		// The `pathsRegion` connectors are decorative ground patches (the player
+		// walks any non-blocked tile, so they do not affect navigation). Their whole
+		// purpose is visual continuity between regions, so a link that no longer
+		// touches the ground network — a mis-coordinated gap leaving it orphaned in
+		// empty grass — is the regression this guards. The ground network spans all
+		// tiles (paths AND cobblestone plazas), since links legitimately bridge onto
+		// plazas. Flood-fills contiguity outward from the region-authored ground
+		// patches and asserts every `link-*` patch is reachable through that network.
+		const groundPatches = meadowEntryMap.groundPatches ?? [];
+		const links = groundPatches.filter((patch) => patch.id.startsWith('link-'));
+		const regionGround = groundPatches.filter((patch) => !patch.id.startsWith('link-'));
+		expect(links.length, 'expected authored inter-region link patches').toBeGreaterThan(0);
+		expect(
+			regionGround.length,
+			'expected region-authored ground patches to anchor against'
+		).toBeGreaterThan(0);
+
+		const byId = new Map(groundPatches.map((patch) => [patch.id, patch]));
+		const connected = new Set<string>(regionGround.map((patch) => patch.id));
+		const queue: string[] = [...connected];
+
+		while (queue.length > 0) {
+			const current = byId.get(queue.shift()!)!;
+			for (const candidate of groundPatches) {
+				if (connected.has(candidate.id)) {
+					continue;
+				}
+				if (rectsAreContiguous(current, candidate)) {
+					connected.add(candidate.id);
+					queue.push(candidate.id);
+				}
+			}
+		}
+
+		for (const link of links) {
+			expect(
+				connected.has(link.id),
+				`${link.id} is not contiguous with the region ground network (orphaned link)`
+			).toBe(true);
+		}
+	});
+
 	it('references real items from every pickup', () => {
 		expect(meadowEntryMap.pickups ?? []).toBeInstanceOf(Array);
 		for (const pickup of meadowEntryMap.pickups ?? []) {
@@ -1620,5 +1679,82 @@ describe('meadow-entry region integrity', () => {
 		for (const gate of gateBlockers) {
 			expect(gate.kind).toBe('future-gate');
 		}
+	});
+
+	it('keeps every id-bearing composed field free of cross-region id collisions', () => {
+		// WorldScene keys pickup/NPC/landmark markers by `id`; a duplicate within a
+		// field silently overwrites one entity. Grounds/blockers/fences/mapDecor are
+		// already checked cross-field above — this pins the remaining interactive
+		// fields that the merge exposes.
+		for (const field of [
+			'transitions',
+			'landmarks',
+			'ambientNpcs',
+			'pickups',
+			'encounters',
+			'combatBounds'
+		] as const) {
+			const ids = (meadowEntryMap[field] ?? []).map((item: { id: string }) => item.id);
+			expect(new Set(ids).size, `duplicate ids in ${field}`).toBe(ids.length);
+		}
+	});
+});
+
+describe('mergeRegions collision guard', () => {
+	it('throws on a duplicate id within a field across composed regions', () => {
+		const regionA: RegionFragment = {
+			transitions: [{ id: 'shared-door', x: 0, y: 0, toMapId: 'meadow-entry' }]
+		};
+		const regionB: RegionFragment = {
+			transitions: [{ id: 'shared-door', x: 100, y: 100, toMapId: 'meadow-entry' }]
+		};
+
+		expect(() => mergeRegions([regionA, regionB])).toThrowError(/duplicate id "shared-door"/);
+	});
+
+	it('accepts distinct ids across regions without throwing', () => {
+		const regionA: RegionFragment = {
+			pickups: [{ id: 'a-relic', x: 0, y: 0, itemId: 'potion', quantity: 1 }]
+		};
+		const regionB: RegionFragment = {
+			pickups: [{ id: 'b-relic', x: 100, y: 100, itemId: 'potion', quantity: 1 }]
+		};
+
+		expect(() => mergeRegions([regionA, regionB])).not.toThrow();
+	});
+});
+
+describe('MapDecor compile-time frame safety', () => {
+	// Sink that forces an object literal to be checked against the MapDecor union.
+	function acceptDecor(_decor: MapDecor) {
+		// intentionally empty: existence of the typed parameter is the assertion
+	}
+
+	it('rejects a frameName that does not belong to its textureKey sheet', () => {
+		// Valid: 'torii' is a real coast-dressing frame.
+		acceptDecor({
+			id: 'valid',
+			x: 0,
+			y: 0,
+			width: 1,
+			height: 1,
+			textureKey: coastDressingAsset.key,
+			frameName: 'torii'
+		});
+
+		// If the union regresses to bare `string`, this directive becomes unused
+		// and svelte-check fails — proving the typo protection is intact.
+		// @ts-expect-error 'toriii' is not a CoastDressingFrameName
+		acceptDecor({
+			id: 'bad',
+			x: 0,
+			y: 0,
+			width: 1,
+			height: 1,
+			textureKey: coastDressingAsset.key,
+			frameName: 'toriii'
+		});
+
+		expect(coastDressingAsset.frames).toHaveProperty('torii');
 	});
 });
