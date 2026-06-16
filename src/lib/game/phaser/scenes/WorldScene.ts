@@ -276,7 +276,7 @@ export class WorldScene extends Phaser.Scene {
 	private static readonly terrainTilesetKey = 'starter-ground-tiles';
 	/**
 	 * Invariant: `terrainTileIndexes[name]` MUST equal the index of `name` in
-	 * `terrainFrameOrder`. `ensureTerrainTileset` builds the canvas tileset by
+	 * `terrainFrameOrder`. `ensureTerrainTilesetTexture` builds the canvas tileset by
 	 * drawing `terrainFrameOrder` left-to-right (one tile per index), and
 	 * `buildGroundTileData` emits `terrainTileIndexes[patch.tile]` as the
 	 * tilemap cell value that Phaser resolves against that canvas. The two

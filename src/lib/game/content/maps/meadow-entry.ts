@@ -30,8 +30,25 @@ type MergedRegions = Required<
 
 // Per-key `flatMap` preserves each field's concrete element type without the
 // union-widening that forced `as never` casts in the previous generic helper.
-function mergeRegions(fragments: RegionFragment[]): MergedRegions {
-	return {
+//
+// Downstream, `WorldScene` keys pickup/NPC/landmark markers by `id`, so two
+// composed regions sharing an id within the same field silently overwrite each
+// other (one entity becomes non-interactive with no error). `assertUniqueIds`
+// turns that class of authoring bug into a fail-fast at module load.
+function assertUniqueIds<T extends { id: string }>(items: T[], field: string): void {
+	const seen = new Set<string>();
+	for (const item of items) {
+		if (seen.has(item.id)) {
+			throw new Error(
+				`mergeRegions: duplicate id "${item.id}" in field "${field}" across composed regions`
+			);
+		}
+		seen.add(item.id);
+	}
+}
+
+export function mergeRegions(fragments: RegionFragment[]): MergedRegions {
+	const merged: MergedRegions = {
 		landmarks: fragments.flatMap((fragment) => fragment.landmarks ?? []),
 		transitions: fragments.flatMap((fragment) => fragment.transitions ?? []),
 		groundPatches: fragments.flatMap((fragment) => fragment.groundPatches ?? []),
@@ -44,6 +61,20 @@ function mergeRegions(fragments: RegionFragment[]): MergedRegions {
 		encounters: fragments.flatMap((fragment) => fragment.encounters ?? []),
 		combatBounds: fragments.flatMap((fragment) => fragment.combatBounds ?? [])
 	};
+
+	assertUniqueIds(merged.landmarks, 'landmarks');
+	assertUniqueIds(merged.transitions, 'transitions');
+	assertUniqueIds(merged.groundPatches, 'groundPatches');
+	assertUniqueIds(merged.blockers, 'blockers');
+	assertUniqueIds(merged.mapDecor, 'mapDecor');
+	assertUniqueIds(merged.fences, 'fences');
+	assertUniqueIds(merged.ambientNpcs, 'ambientNpcs');
+	assertUniqueIds(merged.npcs, 'npcs');
+	assertUniqueIds(merged.pickups, 'pickups');
+	assertUniqueIds(merged.encounters, 'encounters');
+	assertUniqueIds(merged.combatBounds, 'combatBounds');
+
+	return merged;
 }
 
 const merged = mergeRegions([

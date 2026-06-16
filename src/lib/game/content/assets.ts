@@ -6,8 +6,10 @@ export const starterPackAsset = {
 		slimeScout: { x: 355, y: 115, w: 250, h: 190 },
 		ruinsWarden: { x: 675, y: 30, w: 430, h: 360 },
 		healFlask: { x: 1210, y: 145, w: 150, h: 215 },
-		// Ground tiles (grass/path/ruinsFloor/stoneWall) live in terrainTilesAsset;
-		// doorwayTile and encounterTile are retained as non-rendering sentinels.
+		// Ground tiles (grass/path/ruinsFloor/stoneWall) live in terrainTilesAsset.
+		// doorwayTile is the default doorway transition marker rendered by
+		// `WorldScene.renderTransitions` for any transition without a `stair` marker.
+		// encounterTile is currently unreferenced (no renderer consumes it).
 		doorwayTile: { x: 1020, y: 470, w: 230, h: 220 },
 		encounterTile: { x: 1280, y: 470, w: 220, h: 220 },
 		hudFrame: { x: 20, y: 790, w: 500, h: 210 },

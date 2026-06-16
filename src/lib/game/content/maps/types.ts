@@ -1,6 +1,16 @@
 import type {
+	CoastDressingFrameName,
+	CrossroadsDressingFrameName,
+	coastDressingAsset,
+	crossroadsDressingAsset,
+	forestDressingAsset,
+	ForestDressingFrameName,
 	InteriorPropFrameName,
+	marshDressingAsset,
+	MarshDressingFrameName,
 	NpcFrameName,
+	shrineDressingAsset,
+	ShrineDressingFrameName,
 	TerrainTileFrameName
 } from '$lib/game/content/assets';
 import type { NpcDialogueId } from '$lib/game/content/dialogue';
@@ -105,14 +115,41 @@ export type MapFenceSegment = MapRect;
 
 export type MapDecorDepth = 'floor' | 'furniture' | 'foreground';
 
-export interface MapDecor extends MapRect {
-	textureKey: string;
-	frameName: string;
+interface MapDecorBase extends MapRect {
 	depth?: MapDecorDepth;
 	mode?: 'image' | 'tile';
 	collision?: MapRect;
 	alpha?: number;
 }
+
+/**
+ * Outdoor decoration, discriminated by `textureKey` so each sheet's `frameName`
+ * is compile-checked against that sheet's frame set. A typo like
+ * `frameName: 'toriii'` against the coast sheet fails to typecheck instead of
+ * silently rendering the missing-texture box at runtime. To opt a new dressing
+ * sheet into outdoor decor, add one union member here.
+ */
+export type MapDecor =
+	| (MapDecorBase & {
+			textureKey: (typeof coastDressingAsset)['key'];
+			frameName: CoastDressingFrameName;
+	  })
+	| (MapDecorBase & {
+			textureKey: (typeof shrineDressingAsset)['key'];
+			frameName: ShrineDressingFrameName;
+	  })
+	| (MapDecorBase & {
+			textureKey: (typeof marshDressingAsset)['key'];
+			frameName: MarshDressingFrameName;
+	  })
+	| (MapDecorBase & {
+			textureKey: (typeof crossroadsDressingAsset)['key'];
+			frameName: CrossroadsDressingFrameName;
+	  })
+	| (MapDecorBase & {
+			textureKey: (typeof forestDressingAsset)['key'];
+			frameName: ForestDressingFrameName;
+	  });
 
 export type MapInteriorPropDepth = 'floor' | 'furniture' | 'foreground';
 
