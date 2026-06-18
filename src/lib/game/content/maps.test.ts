@@ -1946,3 +1946,27 @@ describe('region design manifest completeness', () => {
 		}
 	});
 });
+
+describe('route: crossroads → coast', () => {
+	it('has no empty segment within a generous radius', () => {
+		const points = interestPoints(meadowEntryMap);
+		const route: Pt[] = [
+			{ x: 3_500, y: 4_000 },
+			{ x: 3_900, y: 4_700 },
+			{ x: 4_200, y: 5_500 },
+			{ x: 4_600, y: 5_840 }
+		];
+		for (let i = 0; i < route.length - 1; i += 1) {
+			expect(
+				segmentHasInterest(route[i], route[i + 1], points, 350, 700),
+				`crossroads→coast segment ${i} runs empty`
+			).toBe(true);
+		}
+	});
+});
+
+describe('dead end: coast jetty', () => {
+	it('rewards reaching the jetty', () => {
+		expect(payoffsNear(meadowEntryMap, { x: 4_900, y: 6_180 }, 360).length).toBeGreaterThan(0);
+	});
+});

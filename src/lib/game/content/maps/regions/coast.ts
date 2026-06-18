@@ -100,9 +100,22 @@ export const coastRegion: RegionFragment = {
 			height: 80,
 			mode: 'tile',
 			depth: 'floor'
+		},
+		{
+			id: 'coast-approach-net',
+			textureKey: coastDressingAsset.key,
+			frameName: 'fishingNet',
+			x: 4_200,
+			y: 5_300,
+			width: 160,
+			height: 140,
+			mode: 'image'
 		}
 	],
 	ambientNpcs: [{ id: 'coast-fisher', x: 4_500, y: 5_780, frameName: 'fisherNpc' }],
-	pickups: [{ id: 'coast-salve', x: 5_300, y: 5_820, itemId: 'sunleaf-salve', quantity: 1 }],
+	pickups: [
+		{ id: 'coast-salve', x: 5_300, y: 5_820, itemId: 'sunleaf-salve', quantity: 1 },
+		{ id: 'coast-jetty-catch', x: 4_900, y: 6_120, itemId: 'field-potion', quantity: 1 }
+	],
 	blockers: [{ id: 'coast-sea-wall', x: 4_600, y: 6_320, width: 3_000, height: 80, kind: 'ocean' }]
 };

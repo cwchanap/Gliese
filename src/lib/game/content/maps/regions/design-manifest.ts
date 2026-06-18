@@ -30,5 +30,15 @@ export const regionDesignManifest: RegionDesignEntry[] = [
 		optionalBranchIds: ['crossroads-nook'],
 		payoffIds: ['crossroads-cache'],
 		exitHookIds: ['castle-gate']
+	},
+	{
+		id: 'coast',
+		emotion: 'open',
+		density: 'medium',
+		anchorIds: ['ferry-crossing'],
+		approachClueIds: ['coast-approach-path', 'coast-net', 'coast-driftwood'],
+		optionalBranchIds: ['coast-tidepool'],
+		payoffIds: ['coast-salve'],
+		exitHookIds: ['coast-jetty']
 	}
 ];
