@@ -645,7 +645,7 @@ export class WorldScene extends Phaser.Scene {
 
 	private buildSaveState(): SaveState {
 		return {
-			version: 6,
+			version: 7,
 			mapId: this.mapId,
 			player: {
 				level: this.playerProgress.level,
@@ -669,7 +669,10 @@ export class WorldScene extends Phaser.Scene {
 				stock: cloneShopStockState(this.shopStockState)
 			},
 			quests: cloneQuestState(this.quests),
-			mapExploration: cloneMapExploration(this.mapExploration)
+			mapExploration: cloneMapExploration(this.mapExploration),
+			// Stopgap for the v7 schema bump (Task 3). Task 13 replaces this with the
+			// scene's live seenDiscoveryIds set once discovery reading is wired in.
+			seenDiscoveries: []
 		};
 	}
 
