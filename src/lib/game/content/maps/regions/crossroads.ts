@@ -26,7 +26,8 @@ export const crossroadsRegion: RegionFragment = {
 			width: 700,
 			height: 300,
 			tile: 'cobblestoneTile'
-		}
+		},
+		{ id: 'crossroads-nook', x: 3_980, y: 4_280, width: 260, height: 220, tile: 'cobblestoneTile' }
 	],
 	landmarks: [
 		{
@@ -145,6 +146,7 @@ export const crossroadsRegion: RegionFragment = {
 			depth: 'foreground'
 		}
 	],
+	pickups: [{ id: 'crossroads-cache', x: 4_000, y: 4_300, itemId: 'sunleaf-salve', quantity: 1 }],
 	ambientNpcs: [
 		{ id: 'crossroads-crier', x: 3_400, y: 4_000, frameName: 'crierNpc' },
 		{ id: 'crossroads-traveler', x: 3_700, y: 4_300, frameName: 'travelerNpc' }

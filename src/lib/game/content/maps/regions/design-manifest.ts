@@ -20,5 +20,15 @@ export const regionDesignManifest: RegionDesignEntry[] = [
 		optionalBranchIds: ['village-crossroads-nook'],
 		payoffIds: ['village-roadside-cache'],
 		exitHookIds: ['crossroads-waystone']
+	},
+	{
+		id: 'crossroads',
+		emotion: 'civic',
+		density: 'dense',
+		anchorIds: ['crossroads-waystone'],
+		approachClueIds: ['crossroads-festival-road', 'crossroads-banner'],
+		optionalBranchIds: ['crossroads-nook'],
+		payoffIds: ['crossroads-cache'],
+		exitHookIds: ['castle-gate']
 	}
 ];
