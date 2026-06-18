@@ -7,6 +7,7 @@ import {
 	buildInitialAreaMapState,
 	type HudAreaMapState
 } from '$lib/game/core/area-map';
+import { revealCellsAroundPoint } from '$lib/game/core/map-exploration';
 import { createInitialQuestState } from '$lib/game/core/quests';
 
 describe('area map payload', () => {
@@ -203,5 +204,40 @@ describe('area map payload', () => {
 		});
 
 		expect(areaMap.markers.some((marker) => marker.kind === 'quest')).toBe(false);
+	});
+});
+
+describe('discovery markers', () => {
+	const seen = 'crossroads-waystone-sign';
+	const discovery = (meadowEntryMap.discoveries ?? []).find((d) => d.id === seen);
+	const revealedCells = discovery
+		? revealCellsAroundPoint({
+				x: discovery.x,
+				y: discovery.y,
+				mapWidth: meadowEntryMap.width * 32,
+				mapHeight: meadowEntryMap.height * 32
+			})
+		: [];
+
+	it('shows a revealMarker discovery only after it is seen', () => {
+		const hidden = buildAreaMapState({
+			map: meadowEntryMap,
+			player: meadowEntryMap.spawn,
+			revealedCells,
+			quests: createInitialQuestState(),
+			locale: 'en',
+			seenDiscoveries: []
+		});
+		expect(hidden.markers.some((m) => m.id === seen)).toBe(false);
+
+		const shown = buildAreaMapState({
+			map: meadowEntryMap,
+			player: meadowEntryMap.spawn,
+			revealedCells,
+			quests: createInitialQuestState(),
+			locale: 'en',
+			seenDiscoveries: [seen]
+		});
+		expect(shown.markers.some((m) => m.id === seen && m.kind === 'discovery')).toBe(true);
 	});
 });
