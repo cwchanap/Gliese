@@ -1,6 +1,7 @@
 import {
 	maps,
 	meadowEntryMap,
+	type MapDiscovery,
 	type MapEncounter,
 	type MapLandmark,
 	type MapNpc,
@@ -14,7 +15,7 @@ import { getQuestText } from '$lib/game/i18n/content';
 import type { Locale } from '$lib/game/i18n/locales';
 import { t, type MessageKey } from '$lib/game/i18n/translate';
 
-export type HudAreaMapMarkerKind = 'building' | 'exit' | 'quest';
+export type HudAreaMapMarkerKind = 'building' | 'exit' | 'quest' | 'discovery';
 
 export type HudAreaMapMarker = {
 	id: string;
@@ -41,18 +42,21 @@ export function buildAreaMapState({
 	player,
 	revealedCells,
 	quests,
-	locale
+	locale,
+	seenDiscoveries = []
 }: {
 	map: WorldMapDefinition;
 	player: { x: number; y: number };
 	revealedCells: string[];
 	quests: QuestState;
 	locale: Locale;
+	seenDiscoveries?: string[];
 }): HudAreaMapState {
 	const markerCandidates = [
 		...buildLandmarkMarkers(map, locale),
 		...buildTransitionMarkers(map, locale),
-		...buildMainQuestMarkers(map, quests, locale)
+		...buildMainQuestMarkers(map, quests, locale),
+		...buildDiscoveryMarkers(map, seenDiscoveries, locale)
 	];
 
 	return {
@@ -87,6 +91,26 @@ function buildLandmarkMarkers(map: WorldMapDefinition, locale: Locale): HudAreaM
 		y: landmark.y,
 		label: t(locale, landmark.labelKey)
 	}));
+}
+
+function buildDiscoveryMarkers(
+	map: WorldMapDefinition,
+	seenDiscoveries: string[],
+	locale: Locale
+): HudAreaMapMarker[] {
+	const seen = new Set(seenDiscoveries);
+	return (map.discoveries ?? [])
+		.filter(
+			(discovery): discovery is MapDiscovery =>
+				discovery.revealMarker === true && seen.has(discovery.id)
+		)
+		.map((discovery) => ({
+			id: discovery.id,
+			kind: 'discovery' as const,
+			x: discovery.x,
+			y: discovery.y,
+			label: t(locale, discovery.labelKey)
+		}));
 }
 
 function buildTransitionMarkers(map: WorldMapDefinition, locale: Locale): HudAreaMapMarker[] {

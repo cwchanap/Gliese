@@ -1217,7 +1217,8 @@ export class WorldScene extends Phaser.Scene {
 				},
 				revealedCells,
 				quests: this.quests,
-				locale: this.getLocale()
+				locale: this.getLocale(),
+				seenDiscoveries: [...this.seenDiscoveryIds]
 			}),
 			wallet: { ...this.wallet },
 			nearbyShop: this.buildNearbyShop(),
