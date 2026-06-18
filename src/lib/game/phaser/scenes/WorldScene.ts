@@ -32,6 +32,7 @@ import {
 	type MapBlocker,
 	type MapCombatBounds,
 	type MapDecorDepth,
+	type MapDiscovery,
 	type MapFenceSegment,
 	type MapForestZone,
 	type MapGroundPatch,
@@ -291,10 +292,13 @@ export class WorldScene extends Phaser.Scene {
 	private static readonly bossPhaseTwoSpeedMultiplier = 1.5;
 	private static readonly transitionRadius = 18;
 	private static readonly enemyHealthBarOffsetY = 34;
+	private static readonly discoveryInteractRadius = 64;
 
 	private clearedEncounterIds = new Set<string>();
 	private clearedEncounterUnitCounts: Record<string, number> = {};
 	private collectedPickupIds = new Set<string>();
+	private seenDiscoveryIds = new Set<string>();
+	private discoveryMarkers = new Map<string, Phaser.GameObjects.Arc>();
 	private cursorKeys?: Partial<Record<'left' | 'right' | 'up' | 'down', DirectionKey>>;
 	private enemies: EnemyInstance[] = [];
 	private facing: Direction = 'down';
@@ -397,6 +401,7 @@ export class WorldScene extends Phaser.Scene {
 			...(activeSave?.flags.clearedEncounterUnitCounts ?? {})
 		};
 		this.collectedPickupIds = new Set(activeSave?.flags.collectedPickups ?? []);
+		this.seenDiscoveryIds = new Set(activeSave?.seenDiscoveries ?? []);
 		this.enemies = [];
 		this.facing = activeSave?.player.facing ?? map.spawnDirection;
 		this.heroAnimationLockedUntil = 0;
@@ -427,6 +432,7 @@ export class WorldScene extends Phaser.Scene {
 		this.dialogueSession = null;
 		this.npcMarkers.clear();
 		this.pickupMarkers.clear();
+		this.discoveryMarkers.clear();
 		this.playerProgress = {
 			level: activeSave?.player.level ?? 1,
 			xp: activeSave?.player.xp ?? 0,
@@ -476,6 +482,7 @@ export class WorldScene extends Phaser.Scene {
 		this.setupEncounters(map);
 		this.renderTransitions(map);
 		this.renderPickups(map);
+		this.renderDiscoveries(map);
 		this.renderNpcs(map);
 		this.renderAmbientNpcs(map);
 		this.renderInteriorProps(map, ['foreground']);
@@ -670,9 +677,7 @@ export class WorldScene extends Phaser.Scene {
 			},
 			quests: cloneQuestState(this.quests),
 			mapExploration: cloneMapExploration(this.mapExploration),
-			// Stopgap for the v7 schema bump (Task 3). Task 13 replaces this with the
-			// scene's live seenDiscoveryIds set once discovery reading is wired in.
-			seenDiscoveries: []
+			seenDiscoveries: [...this.seenDiscoveryIds].sort()
 		};
 	}
 
@@ -1936,6 +1941,22 @@ export class WorldScene extends Phaser.Scene {
 		}
 	}
 
+	private renderDiscoveries(map: WorldMapDefinition) {
+		this.discoveryMarkers.clear();
+		for (const discovery of map.discoveries ?? []) {
+			const marker = this.add.circle(discovery.x, discovery.y, 10, 0xfff2b0, 0.55);
+			marker.setStrokeStyle(2, 0xffd24d, 0.9);
+			this.tweens.add({
+				targets: marker,
+				alpha: { from: 0.25, to: 0.7 },
+				duration: 900,
+				yoyo: true,
+				repeat: -1
+			});
+			this.discoveryMarkers.set(discovery.id, marker);
+		}
+	}
+
 	private renderInteriorProps(map: WorldMapDefinition, depths: Array<MapInteriorProp['depth']>) {
 		for (const prop of map.interiorProps ?? []) {
 			const depth = prop.depth ?? 'furniture';
@@ -2698,7 +2719,58 @@ export class WorldScene extends Phaser.Scene {
 			}
 		}
 
+		if (!nearbyNpc) {
+			const discovery = this.findNearbyDiscovery();
+			if (discovery) {
+				this.readDiscovery(discovery);
+				return;
+			}
+		}
+
 		this.interactWithNearbyNpc(nearbyNpc);
+	}
+
+	private findNearbyDiscovery(): MapDiscovery | undefined {
+		if (!this.player) {
+			return undefined;
+		}
+
+		const map = this.resolveMap(this.mapId);
+
+		return (map.discoveries ?? [])
+			.map((discovery) => ({
+				discovery,
+				distance: Phaser.Math.Distance.Between(
+					this.player!.x,
+					this.player!.y,
+					discovery.x,
+					discovery.y
+				)
+			}))
+			.filter(
+				({ discovery, distance }) =>
+					distance <=
+					WorldScene.playerRadius + (discovery.radius ?? WorldScene.discoveryInteractRadius)
+			)
+			.sort((left, right) => left.distance - right.distance)[0]?.discovery;
+	}
+
+	private readDiscovery(discovery: MapDiscovery) {
+		const locale = this.getLocale();
+		this.storyDialogueSeq++;
+		this.dialogueSession = buildDialogueFallback(
+			t(locale, discovery.labelKey),
+			t(locale, discovery.descriptionKey)
+		);
+
+		if (!this.seenDiscoveryIds.has(discovery.id)) {
+			this.seenDiscoveryIds.add(discovery.id);
+			if (this.shouldPersistExplorationChanges) {
+				saveGameState(this.buildSaveState());
+			}
+		}
+
+		this.publishHudState(this.status('status.dialogueUpdated'));
 	}
 
 	private hasInteractJustDown() {
