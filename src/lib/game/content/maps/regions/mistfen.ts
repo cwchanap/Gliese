@@ -89,6 +89,26 @@ export const mistfenRegion: RegionFragment = {
 			collision: { id: 'mistfen-marsh-rock-collision', x: 720, y: 2_320, width: 120, height: 90 }
 		},
 		{
+			id: 'mistfen-bloom-trail-1',
+			textureKey: marshDressingAsset.key,
+			frameName: 'toxicBloom',
+			x: 1_220,
+			y: 1_180,
+			width: 150,
+			height: 150,
+			mode: 'image'
+		},
+		{
+			id: 'mistfen-bloom-trail-2',
+			textureKey: marshDressingAsset.key,
+			frameName: 'toxicBloom',
+			x: 1_700,
+			y: 2_200,
+			width: 150,
+			height: 150,
+			mode: 'image'
+		},
+		{
 			id: 'mistfen-fog',
 			textureKey: marshDressingAsset.key,
 			frameName: 'fog',
@@ -101,8 +121,11 @@ export const mistfenRegion: RegionFragment = {
 			alpha: 0.35
 		}
 	],
-	ambientNpcs: [{ id: 'mistfen-forager', x: 1_120, y: 2_400, frameName: 'travelerNpc' }],
-	pickups: [{ id: 'mistfen-salve', x: 880, y: 2_500, itemId: 'sunleaf-salve', quantity: 1 }],
+	ambientNpcs: [{ id: 'mistfen-forager', x: 2_400, y: 2_700, frameName: 'travelerNpc' }],
+	pickups: [
+		{ id: 'mistfen-salve', x: 880, y: 2_500, itemId: 'sunleaf-salve', quantity: 1 },
+		{ id: 'mistfen-cache', x: 1_780, y: 2_120, itemId: 'field-potion', quantity: 1 }
+	],
 	blockers: [
 		{ id: 'witchwood-gate-block', x: 1_200, y: 470, width: 384, height: 96, kind: 'future-gate' }
 	]

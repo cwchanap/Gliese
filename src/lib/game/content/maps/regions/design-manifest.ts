@@ -40,5 +40,15 @@ export const regionDesignManifest: RegionDesignEntry[] = [
 		optionalBranchIds: ['coast-tidepool'],
 		payoffIds: ['coast-salve'],
 		exitHookIds: ['coast-jetty']
+	},
+	{
+		id: 'mistfen',
+		emotion: 'eerie',
+		density: 'quiet',
+		anchorIds: ['witchwood-gate'],
+		approachClueIds: ['mistfen-toxic-bloom', 'mistfen-reeds-1'],
+		optionalBranchIds: ['mistfen-pool-east'],
+		payoffIds: ['mistfen-salve'],
+		exitHookIds: ['witchwood-gate']
 	}
 ];
