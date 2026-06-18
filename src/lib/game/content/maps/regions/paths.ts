@@ -5,6 +5,14 @@ export const pathsRegion: RegionFragment = {
 		// Village (NE corner ~2,400,5,000) → Crossroads plaza (SW ~3,050,4,450)
 		{ id: 'link-village-crossroads', x: 2_750, y: 4_700, width: 900, height: 64, tile: 'pathTile' },
 		{
+			id: 'village-crossroads-nook',
+			x: 2_980,
+			y: 4_820,
+			width: 240,
+			height: 220,
+			tile: 'autumnLeafTile'
+		},
+		{
 			id: 'link-village-crossroads-v',
 			x: 3_050,
 			y: 4_550,

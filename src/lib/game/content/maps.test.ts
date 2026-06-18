@@ -1892,3 +1892,42 @@ describe('exploration test helpers', () => {
 		expect(storyFacingNear(meadowEntryMap, anchor, 1).length).toBeGreaterThan(0);
 	});
 });
+
+describe('route: spawn → crossroads', () => {
+	it('has no empty segment within a generous radius', () => {
+		const points = interestPoints(meadowEntryMap);
+		const route: Pt[] = [
+			{ x: 1_536, y: 5_550 },
+			{ x: 2_750, y: 4_700 },
+			{ x: 3_500, y: 4_000 }
+		];
+		for (let i = 0; i < route.length - 1; i += 1) {
+			expect(
+				segmentHasInterest(route[i], route[i + 1], points, 350, 700),
+				`spawn→crossroads segment ${i} runs empty`
+			).toBe(true);
+		}
+	});
+});
+
+describe('region design manifest completeness', () => {
+	const ids = collectEntityIds(meadowEntryMap);
+	it.each(regionDesignManifest)('region $id declares a complete exploration loop', (entry) => {
+		expect(entry.anchorIds.length, `${entry.id}: no anchor`).toBeGreaterThan(0);
+		expect(entry.payoffIds.length, `${entry.id}: no payoff`).toBeGreaterThan(0);
+		expect(entry.approachClueIds.length, `${entry.id}: no approach clue`).toBeGreaterThan(0);
+		expect(entry.exitHookIds.length, `${entry.id}: no exit hook`).toBeGreaterThan(0);
+		const declared = [
+			...entry.anchorIds,
+			...entry.approachClueIds,
+			...entry.optionalBranchIds,
+			...entry.payoffIds,
+			...entry.exitHookIds
+		];
+		for (const id of declared) {
+			expect(ids.has(id), `manifest id "${id}" (region ${entry.id}) resolves to no entity`).toBe(
+				true
+			);
+		}
+	});
+});

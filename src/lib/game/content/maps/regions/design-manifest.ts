@@ -10,4 +10,15 @@ export interface RegionDesignEntry {
 }
 
 /** Design-intent manifest. Regions are appended as their content tasks land. */
-export const regionDesignManifest: RegionDesignEntry[] = [];
+export const regionDesignManifest: RegionDesignEntry[] = [
+	{
+		id: 'village',
+		emotion: 'home',
+		density: 'dense',
+		anchorIds: ['guild-hall-exterior'],
+		approachClueIds: ['village-waymarker', 'link-village-crossroads'],
+		optionalBranchIds: ['village-crossroads-nook'],
+		payoffIds: ['village-roadside-cache'],
+		exitHookIds: ['crossroads-waystone']
+	}
+];
