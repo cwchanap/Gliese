@@ -171,6 +171,21 @@ export interface MapAmbientNpc {
 	role?: MapAmbientNpcRole;
 }
 
+export type MapDiscoveryKind = 'sign' | 'lore' | 'vista' | 'secret' | 'warning' | 'foreshadow';
+
+export interface MapDiscovery {
+	id: string;
+	x: number;
+	y: number;
+	/** Interact proximity in px (player center to discovery). Defaults to a WorldScene constant. */
+	radius?: number;
+	labelKey: MessageKey;
+	descriptionKey: MessageKey;
+	kind: MapDiscoveryKind;
+	/** When true, becomes an area-map pin after it has been examined. */
+	revealMarker?: boolean;
+}
+
 export interface WorldMapDefinition extends MapDefinition {
 	spawn: {
 		x: number;
@@ -189,4 +204,5 @@ export interface WorldMapDefinition extends MapDefinition {
 	combatBounds?: MapCombatBounds[];
 	interiorProps?: MapInteriorProp[];
 	ambientNpcs?: MapAmbientNpc[];
+	discoveries?: MapDiscovery[];
 }

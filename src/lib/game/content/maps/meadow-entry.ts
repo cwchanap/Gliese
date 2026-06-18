@@ -25,6 +25,7 @@ type MergedRegions = Required<
 		| 'pickups'
 		| 'encounters'
 		| 'combatBounds'
+		| 'discoveries'
 	>
 >;
 
@@ -59,7 +60,8 @@ export function mergeRegions(fragments: RegionFragment[]): MergedRegions {
 		npcs: fragments.flatMap((fragment) => fragment.npcs ?? []),
 		pickups: fragments.flatMap((fragment) => fragment.pickups ?? []),
 		encounters: fragments.flatMap((fragment) => fragment.encounters ?? []),
-		combatBounds: fragments.flatMap((fragment) => fragment.combatBounds ?? [])
+		combatBounds: fragments.flatMap((fragment) => fragment.combatBounds ?? []),
+		discoveries: fragments.flatMap((fragment) => fragment.discoveries ?? [])
 	};
 
 	assertUniqueIds(merged.landmarks, 'landmarks');
@@ -73,6 +75,7 @@ export function mergeRegions(fragments: RegionFragment[]): MergedRegions {
 	assertUniqueIds(merged.pickups, 'pickups');
 	assertUniqueIds(merged.encounters, 'encounters');
 	assertUniqueIds(merged.combatBounds, 'combatBounds');
+	assertUniqueIds(merged.discoveries, 'discoveries');
 
 	return merged;
 }
@@ -103,5 +106,6 @@ export const meadowEntryMap: WorldMapDefinition = addEnglishMapText({
 	encounters: merged.encounters,
 	npcs: merged.npcs,
 	ambientNpcs: merged.ambientNpcs,
-	pickups: merged.pickups
+	pickups: merged.pickups,
+	discoveries: merged.discoveries
 });

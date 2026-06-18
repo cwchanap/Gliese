@@ -3,6 +3,7 @@ import type {
 	MapBlocker,
 	MapCombatBounds,
 	MapDecor,
+	MapDiscovery,
 	MapEncounter,
 	MapFenceSegment,
 	MapGroundPatch,
@@ -28,4 +29,5 @@ export interface RegionFragment {
 	pickups?: MapPickup[];
 	encounters?: MapEncounter[];
 	combatBounds?: MapCombatBounds[];
+	discoveries?: MapDiscovery[];
 }
