@@ -1910,6 +1910,21 @@ describe('route: spawn → crossroads', () => {
 	});
 });
 
+describe('dead end: castle gate', () => {
+	it('has a payoff and a story-facing element beyond the blocker', () => {
+		const endpoint = { x: 3_500, y: 2_980 };
+		expect(payoffsNear(meadowEntryMap, endpoint, 360).length).toBeGreaterThan(0);
+		expect(storyFacingNear(meadowEntryMap, endpoint, 360).length).toBeGreaterThan(0);
+	});
+});
+
+describe('crossroads hub', () => {
+	it('offers a payoff pickup without leaving the plaza', () => {
+		const cache = (meadowEntryMap.pickups ?? []).find((p) => p.id === 'crossroads-cache');
+		expect(cache).toBeDefined();
+	});
+});
+
 describe('region design manifest completeness', () => {
 	const ids = collectEntityIds(meadowEntryMap);
 	it.each(regionDesignManifest)('region $id declares a complete exploration loop', (entry) => {
