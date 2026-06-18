@@ -2037,3 +2037,30 @@ describe('dead end: silver shrine gate', () => {
 		).toBeGreaterThan(0);
 	});
 });
+
+describe('route: crossroads → wildwood cave', () => {
+	it('has no empty segment within a generous radius', () => {
+		const points = interestPoints(meadowEntryMap);
+		const route: Pt[] = [
+			{ x: 4_000, y: 4_300 },
+			{ x: 4_200, y: 5_347 },
+			{ x: 5_600, y: 5_347 },
+			{ x: 5_600, y: 3_200 },
+			{ x: 5_960, y: 1_800 }
+		];
+		for (let i = 0; i < route.length - 1; i += 1) {
+			expect(
+				segmentHasInterest(route[i], route[i + 1], points, 350, 700),
+				`crossroads→wildwood segment ${i} runs empty`
+			).toBe(true);
+		}
+	});
+
+	it('preserves the slime encounters and the ruins transition', () => {
+		const encounterIds = (meadowEntryMap.encounters ?? []).map((e) => e.id);
+		expect(encounterIds).toEqual(
+			expect.arrayContaining(['meadow-slime-west', 'meadow-slime-center', 'meadow-slime-east'])
+		);
+		expect(meadowEntryMap.transitions.some((t) => t.toMapId === 'ruins-threshold')).toBe(true);
+	});
+});

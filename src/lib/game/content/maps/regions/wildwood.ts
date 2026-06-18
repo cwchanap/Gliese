@@ -200,9 +200,33 @@ export const wildwoodRegion: RegionFragment = {
 			height: 320,
 			mode: 'tile',
 			depth: 'floor'
+		},
+		{
+			id: 'wildwood-staging-brush',
+			textureKey: forestDressingAsset.key,
+			frameName: 'brush',
+			x: 5_600,
+			y: 4_200,
+			width: 180,
+			height: 150,
+			mode: 'image'
+		},
+		{
+			id: 'wildwood-cave-canopy',
+			textureKey: forestDressingAsset.key,
+			frameName: 'treeCluster',
+			x: 5_700,
+			y: 2_100,
+			width: 200,
+			height: 260,
+			mode: 'image',
+			collision: { id: 'wildwood-cave-canopy-collision', x: 5_700, y: 2_180, width: 80, height: 70 }
 		}
 	],
 	ambientNpcs: [{ id: 'wildwood-woodcutter', x: 4_600, y: 3_300, frameName: 'woodcutterNpc' }],
+	pickups: [
+		{ id: 'wildwood-grove-cache', x: 4_700, y: 3_650, itemId: 'sunleaf-salve', quantity: 1 }
+	],
 	combatBounds: [
 		{
 			id: 'wildwood-north-combat-pocket',
