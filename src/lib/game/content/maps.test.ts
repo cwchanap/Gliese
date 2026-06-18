@@ -1970,3 +1970,30 @@ describe('dead end: coast jetty', () => {
 		expect(payoffsNear(meadowEntryMap, { x: 4_900, y: 6_180 }, 360).length).toBeGreaterThan(0);
 	});
 });
+
+describe('route: crossroads → mistfen', () => {
+	it('has no empty segment within a generous radius', () => {
+		const points = interestPoints(meadowEntryMap);
+		const route: Pt[] = [
+			{ x: 3_050, y: 3_150 },
+			{ x: 2_690, y: 2_750 },
+			{ x: 2_150, y: 2_750 },
+			{ x: 1_250, y: 1_750 },
+			{ x: 1_200, y: 620 }
+		];
+		for (let i = 0; i < route.length - 1; i += 1) {
+			expect(
+				segmentHasInterest(route[i], route[i + 1], points, 350, 700),
+				`crossroads→mistfen segment ${i} runs empty`
+			).toBe(true);
+		}
+	});
+});
+
+describe('dead end: witchwood gate', () => {
+	it('has a payoff and a story-facing element beyond the blocker', () => {
+		const endpoint = { x: 1_200, y: 620 };
+		expect(payoffsNear(meadowEntryMap, endpoint, 360).length).toBeGreaterThan(0);
+		expect(storyFacingNear(meadowEntryMap, endpoint, 360).length).toBeGreaterThan(0);
+	});
+});
