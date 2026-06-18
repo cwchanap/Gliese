@@ -3,6 +3,7 @@ import { meadowEntryMap, openingMapId } from '$lib/game/content/maps/meadow-entr
 import { addEnglishMapText } from '$lib/game/content/maps/text';
 
 export type {
+	MapDiscovery,
 	MapTransition,
 	MapTransitionMarker,
 	MapEncounter,

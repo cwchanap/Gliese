@@ -499,6 +499,14 @@ const phaserState = vi.hoisted(() => {
 				Object.assign(marker, { x, y, alpha: 1, scaleX: 1, scaleY: 1, visible: true });
 				return marker;
 			}),
+			circle: vi.fn((x: number, y: number) => {
+				const marker = createOverlayMarker();
+				Object.assign(marker, { x, y, alpha: 1, scaleX: 1, scaleY: 1, visible: true });
+				(marker as unknown as { setStrokeStyle: ReturnType<typeof vi.fn> }).setStrokeStyle = vi.fn(
+					() => marker
+				);
+				return marker;
+			}),
 			image: vi.fn(createImage),
 			tileSprite: vi.fn(createTileSprite),
 			sprite: vi.fn(createImage),
