@@ -60,5 +60,15 @@ export const regionDesignManifest: RegionDesignEntry[] = [
 		optionalBranchIds: ['silverpine-amulet-rack'],
 		payoffIds: ['silverpine-tonic'],
 		exitHookIds: ['silver-shrine-gate']
+	},
+	{
+		id: 'wildwood',
+		emotion: 'tense',
+		density: 'medium',
+		anchorIds: ['whispering-cave'],
+		approachClueIds: ['sundrop-forest-road-north', 'wildwood-woodcutter'],
+		optionalBranchIds: ['wildwood-grove-cache'],
+		payoffIds: ['wildwood-grove-cache'],
+		exitHookIds: ['whispering-cave']
 	}
 ];
