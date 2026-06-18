@@ -1724,6 +1724,28 @@ describe('mergeRegions collision guard', () => {
 	});
 });
 
+describe('map discoveries', () => {
+	it('exposes a discoveries array on the merged meadow-entry map', () => {
+		expect(Array.isArray(meadowEntryMap.discoveries)).toBe(true);
+	});
+
+	it('rejects duplicate discovery ids across composed regions', () => {
+		const duplicate: RegionFragment = {
+			discoveries: [
+				{
+					id: 'dup-discovery',
+					x: 100,
+					y: 100,
+					labelKey: 'content.maps.landmarks.castle-gate.label',
+					descriptionKey: 'content.maps.landmarks.castle-gate.label',
+					kind: 'sign'
+				}
+			]
+		};
+		expect(() => mergeRegions([duplicate, duplicate])).toThrow(/duplicate id "dup-discovery"/);
+	});
+});
+
 describe('MapDecor compile-time frame safety', () => {
 	// Sink that forces an object literal to be checked against the MapDecor union.
 	function acceptDecor(_decor: MapDecor) {
