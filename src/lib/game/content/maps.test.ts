@@ -3,6 +3,9 @@ import { enemies } from '$lib/game/content/enemies';
 import { getDialogue } from '$lib/game/content/dialogue';
 import { mergeRegions } from '$lib/game/content/maps/meadow-entry';
 import type { RegionFragment } from '$lib/game/content/maps/regions/types';
+import { en } from '$lib/game/i18n/messages/en';
+import { ja } from '$lib/game/i18n/messages/ja';
+import { zhHant } from '$lib/game/i18n/messages/zh-Hant';
 import {
 	coastDressingAsset,
 	crossroadsDressingAsset,
@@ -1925,6 +1928,10 @@ describe('dead end: castle gate', () => {
 		const endpoint = { x: 3_500, y: 2_980 };
 		expect(payoffsNear(meadowEntryMap, endpoint, 360).length).toBeGreaterThan(0);
 		expect(storyFacingNear(meadowEntryMap, endpoint, 360).length).toBeGreaterThan(0);
+		expect(
+			nonLandmarkPayoffsNear(meadowEntryMap, { x: 3_500, y: 2_980 }, 360).length,
+			'castle gate dead end needs a non-landmark payoff (warning discovery)'
+		).toBeGreaterThan(0);
 	});
 });
 
@@ -2005,6 +2012,10 @@ describe('dead end: witchwood gate', () => {
 		const endpoint = { x: 1_200, y: 620 };
 		expect(payoffsNear(meadowEntryMap, endpoint, 360).length).toBeGreaterThan(0);
 		expect(storyFacingNear(meadowEntryMap, endpoint, 360).length).toBeGreaterThan(0);
+		expect(
+			nonLandmarkPayoffsNear(meadowEntryMap, { x: 1_200, y: 620 }, 360).length,
+			'witchwood gate dead end needs a non-landmark payoff (poison warning discovery)'
+		).toBeGreaterThan(0);
 	});
 });
 
@@ -2106,6 +2117,36 @@ describe('critical routes avoid blockers', () => {
 					}
 				}
 			}
+		}
+	});
+});
+
+const discoveryKinds = ['sign', 'lore', 'vista', 'secret', 'warning', 'foreshadow'];
+
+function localeHasPath(source: unknown, key: string): boolean {
+	let current: unknown = source;
+	for (const segment of key.split('.')) {
+		if (typeof current !== 'object' || current === null) return false;
+		current = (current as Record<string, unknown>)[segment];
+	}
+	return typeof current === 'string' && current.trim().length > 0;
+}
+
+describe('discovery content', () => {
+	const discoveries = meadowEntryMap.discoveries ?? [];
+
+	it('places at least the curated discovery set', () => {
+		expect(discoveries.length).toBeGreaterThanOrEqual(6);
+	});
+
+	it.each(discoveries)('discovery $id is valid and localized in all locales', (discovery) => {
+		expectRectInsideMap({ x: discovery.x, y: discovery.y, width: 2, height: 2 });
+		expect(discoveryKinds).toContain(discovery.kind);
+		for (const key of [discovery.labelKey, discovery.descriptionKey]) {
+			expectEnglishMessage(key);
+			expect(localeHasPath(en, key), `en missing ${key}`).toBe(true);
+			expect(localeHasPath(ja, key), `ja missing ${key}`).toBe(true);
+			expect(localeHasPath(zhHant, key), `zh-Hant missing ${key}`).toBe(true);
 		}
 	});
 });

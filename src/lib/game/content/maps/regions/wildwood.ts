@@ -223,6 +223,17 @@ export const wildwoodRegion: RegionFragment = {
 			collision: { id: 'wildwood-cave-canopy-collision', x: 5_700, y: 2_180, width: 80, height: 70 }
 		}
 	],
+	discoveries: [
+		{
+			id: 'wildwood-cave-danger',
+			x: 5_960,
+			y: 1_700,
+			kind: 'warning',
+			revealMarker: true,
+			labelKey: 'content.maps.discoveries.wildwood-cave-danger.label',
+			descriptionKey: 'content.maps.discoveries.wildwood-cave-danger.description'
+		}
+	],
 	ambientNpcs: [{ id: 'wildwood-woodcutter', x: 4_600, y: 3_300, frameName: 'woodcutterNpc' }],
 	pickups: [
 		{ id: 'wildwood-grove-cache', x: 4_700, y: 3_650, itemId: 'sunleaf-salve', quantity: 1 }

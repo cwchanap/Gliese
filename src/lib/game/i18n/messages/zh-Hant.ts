@@ -327,6 +327,36 @@ export const zhHant = {
 				'castle-gate': { label: '封印城門' },
 				'crossroads-waystone': { label: '十字路道標' }
 			},
+			discoveries: {
+				'crossroads-waystone-sign': {
+					label: '磨損的道標',
+					description: '刻鑿的箭頭向四方延伸——北往神社、南往海岸、西往沼澤、東往洞穴。'
+				},
+				'castle-gate-warning': {
+					label: '城門告示',
+					description: '王道已依詔封閉。節慶結束前，無人得越過白線。'
+				},
+				'ferry-shrine-lore': {
+					label: '渡口神龕',
+					description: '黃昏時敲鐘，渡夫便會應答——只要潮汐與戰事允許。'
+				},
+				'coast-jetty-foreshadow': {
+					label: '棧橋盡頭',
+					description: '木板在開闊水面前終止。此處尚無船隻等候。'
+				},
+				'witchwood-poison-warning': {
+					label: '魔女森標石',
+					description: '過了門要淺呼吸。此處的花朵滲出毒霧。'
+				},
+				'silverpine-amulet-foreshadow': {
+					label: '護符架',
+					description: '朝聖者懸掛護符，締結一個比神社更古老的盟約。'
+				},
+				'wildwood-cave-danger': {
+					label: '洞穴警告',
+					description: '樹皮上有爪痕。棲息於低語洞穴中的某物並未沉眠。'
+				}
+			},
 			npcs: {
 				'guild-master': { name: '公會會長阿倫' },
 				'guild-quartermaster': { name: '補給官維爾' },

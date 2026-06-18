@@ -146,6 +146,26 @@ export const crossroadsRegion: RegionFragment = {
 			depth: 'foreground'
 		}
 	],
+	discoveries: [
+		{
+			id: 'crossroads-waystone-sign',
+			x: 3_500,
+			y: 4_000,
+			kind: 'sign',
+			revealMarker: true,
+			labelKey: 'content.maps.discoveries.crossroads-waystone-sign.label',
+			descriptionKey: 'content.maps.discoveries.crossroads-waystone-sign.description'
+		},
+		{
+			id: 'castle-gate-warning',
+			x: 3_500,
+			y: 3_020,
+			kind: 'warning',
+			revealMarker: true,
+			labelKey: 'content.maps.discoveries.castle-gate-warning.label',
+			descriptionKey: 'content.maps.discoveries.castle-gate-warning.description'
+		}
+	],
 	pickups: [{ id: 'crossroads-cache', x: 4_000, y: 4_300, itemId: 'sunleaf-salve', quantity: 1 }],
 	ambientNpcs: [
 		{ id: 'crossroads-crier', x: 3_400, y: 4_000, frameName: 'crierNpc' },

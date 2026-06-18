@@ -112,6 +112,26 @@ export const coastRegion: RegionFragment = {
 			mode: 'image'
 		}
 	],
+	discoveries: [
+		{
+			id: 'ferry-shrine-lore',
+			x: 3_600,
+			y: 5_720,
+			kind: 'lore',
+			revealMarker: true,
+			labelKey: 'content.maps.discoveries.ferry-shrine-lore.label',
+			descriptionKey: 'content.maps.discoveries.ferry-shrine-lore.description'
+		},
+		{
+			id: 'coast-jetty-foreshadow',
+			x: 4_900,
+			y: 6_180,
+			kind: 'foreshadow',
+			revealMarker: false,
+			labelKey: 'content.maps.discoveries.coast-jetty-foreshadow.label',
+			descriptionKey: 'content.maps.discoveries.coast-jetty-foreshadow.description'
+		}
+	],
 	ambientNpcs: [{ id: 'coast-fisher', x: 4_500, y: 5_780, frameName: 'fisherNpc' }],
 	pickups: [
 		{ id: 'coast-salve', x: 5_300, y: 5_820, itemId: 'sunleaf-salve', quantity: 1 },

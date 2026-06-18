@@ -324,6 +324,38 @@ export const en = {
 				'castle-gate': { label: 'Sealed Castle Gate' },
 				'crossroads-waystone': { label: 'Crossroads Waystone' }
 			},
+			discoveries: {
+				'crossroads-waystone-sign': {
+					label: 'Worn Waystone',
+					description: 'Carved arrows fan out: shrine north, coast south, marsh west, cave east.'
+				},
+				'castle-gate-warning': {
+					label: 'Castle Gate Notice',
+					description:
+						'The royal road is sealed by decree. None pass the white line until the festival ends.'
+				},
+				'ferry-shrine-lore': {
+					label: 'Ferry Shrine',
+					description:
+						'Ring the bell at dusk and the ferryman answers — when the tide and the war allow.'
+				},
+				'coast-jetty-foreshadow': {
+					label: "Jetty's End",
+					description: 'The planks stop at open water. No boat waits here yet.'
+				},
+				'witchwood-poison-warning': {
+					label: 'Witchwood Marker',
+					description: 'Breathe shallow past the gate. The blooms here weep a poison mist.'
+				},
+				'silverpine-amulet-foreshadow': {
+					label: 'Amulet Rack',
+					description: 'Pilgrims hang charms to seal a pact older than the shrine.'
+				},
+				'wildwood-cave-danger': {
+					label: 'Cave Warning',
+					description: 'Claw-scarred bark. Something denned in the Whispering Cave does not sleep.'
+				}
+			},
 			npcs: {
 				'guild-master': { name: 'Guild Master Arlen' },
 				'guild-quartermaster': { name: 'Quartermaster Vale' },
