@@ -1886,7 +1886,9 @@ describe('exploration test helpers', () => {
 		const a: Pt = { x: 0, y: 0 };
 		const b: Pt = { x: 700, y: 0 };
 		expect(segmentHasInterest(a, b, [], 350, 1)).toBe(false);
-		expect(payoffsNear(meadowEntryMap, { x: 0, y: 0 }, 0)).toBeInstanceOf(Array);
-		expect(storyFacingNear(meadowEntryMap, { x: 0, y: 0 }, 0)).toBeInstanceOf(Array);
+		const anchor = (meadowEntryMap.landmarks ?? [])[0];
+		expect(anchor).toBeDefined();
+		expect(payoffsNear(meadowEntryMap, anchor, 1).length).toBeGreaterThan(0);
+		expect(storyFacingNear(meadowEntryMap, anchor, 1).length).toBeGreaterThan(0);
 	});
 });
