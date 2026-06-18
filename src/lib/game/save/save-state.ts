@@ -26,7 +26,7 @@ import type { Direction } from '$lib/game/core/types';
 import { getQuest, isQuestId, mainQuestId, type QuestDefinition } from '$lib/game/content/quests';
 
 export type SaveState = {
-	version: 6;
+	version: 7;
 	mapId: string;
 	player: {
 		level: number;
@@ -51,13 +51,14 @@ export type SaveState = {
 	};
 	quests: QuestState;
 	mapExploration: MapExplorationState;
+	seenDiscoveries: string[];
 };
 
 const DIRECTIONS: Direction[] = ['up', 'down', 'left', 'right'];
 
 export function createNewSaveState(): SaveState {
 	return {
-		version: 6,
+		version: 7,
 		mapId: meadowEntryMap.id,
 		player: {
 			level: 1,
@@ -87,7 +88,8 @@ export function createNewSaveState(): SaveState {
 			stock: createInitialShopStockState()
 		},
 		quests: createInitialQuestState(),
-		mapExploration: createEmptyMapExploration()
+		mapExploration: createEmptyMapExploration(),
+		seenDiscoveries: []
 	};
 }
 
@@ -115,6 +117,12 @@ export function parseSaveState(value: string): SaveState | null {
 }
 
 function migrateSaveState(value: unknown): unknown {
+	let migrated = migrateV5ToV6(value);
+	migrated = migrateV6ToV7(migrated);
+	return migrated;
+}
+
+function migrateV5ToV6(value: unknown): unknown {
 	if (!isRecord(value) || value.version !== 5) {
 		return value;
 	}
@@ -139,6 +147,18 @@ function migrateSaveState(value: unknown): unknown {
 	};
 }
 
+function migrateV6ToV7(value: unknown): unknown {
+	if (!isRecord(value) || value.version !== 6) {
+		return value;
+	}
+
+	return {
+		...value,
+		version: 7,
+		seenDiscoveries: Array.isArray(value.seenDiscoveries) ? value.seenDiscoveries : []
+	};
+}
+
 function isSaveState(value: unknown): value is SaveState {
 	if (!isRecord(value)) {
 		return false;
@@ -154,14 +174,15 @@ function isSaveState(value: unknown): value is SaveState {
 		wallet,
 		shops,
 		quests,
-		mapExploration
+		mapExploration,
+		seenDiscoveries
 	} = value;
 
 	// Version, SAVE_STORAGE_KEY, and isSaveState must all move in lockstep on every schema
 	// change. Bumping version without updating isSaveState lets old-shape payloads pass
 	// validation; bumping SAVE_STORAGE_KEY without migration orphans existing saves.
 	if (
-		version !== 6 ||
+		version !== 7 ||
 		typeof mapId !== 'string' ||
 		!isRecord(player) ||
 		!isRecord(flags) ||
@@ -188,7 +209,9 @@ function isSaveState(value: unknown): value is SaveState {
 		isClearedEncounterUnitCounts(flags.clearedEncounterUnitCounts) &&
 		Array.isArray(flags.collectedPickups) &&
 		flags.collectedPickups.every((entry) => typeof entry === 'string') &&
-		isResolvedDrops(flags.resolvedEncounterDrops)
+		isResolvedDrops(flags.resolvedEncounterDrops) &&
+		Array.isArray(seenDiscoveries) &&
+		seenDiscoveries.every((entry) => typeof entry === 'string')
 	);
 }
 

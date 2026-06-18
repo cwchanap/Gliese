@@ -32,7 +32,7 @@ describe('save storage', () => {
 		saveGameState(save, storage);
 
 		expect(storage.getItem(SAVE_STORAGE_KEY)).toContain('"mapId":"meadow-entry"');
-		expect(storage.getItem(SAVE_STORAGE_KEY)).toContain('"version":6');
+		expect(storage.getItem(SAVE_STORAGE_KEY)).toContain('"version":7');
 		expect(loadStoredSaveResult(storage)).toEqual({ status: 'loaded', saveState: save });
 		expect(loadStoredSaveResult(storage).saveState?.wallet).toEqual({ coins: 30 });
 		expect(loadStoredSaveResult(storage).saveState?.inventory.stacks).toEqual([
@@ -63,7 +63,7 @@ describe('save storage', () => {
 			const save = createNewSaveState();
 			saveGameState(save);
 
-			expect(storage.getItem(SAVE_STORAGE_KEY)).toContain('"version":6');
+			expect(storage.getItem(SAVE_STORAGE_KEY)).toContain('"version":7');
 			expect(loadStoredSaveResult()).toEqual({ status: 'loaded', saveState: save });
 		} finally {
 			setSaveStorage(globalThis.localStorage);
