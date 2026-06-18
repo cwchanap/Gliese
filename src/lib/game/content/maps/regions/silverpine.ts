@@ -128,10 +128,30 @@ export const silverpineRegion: RegionFragment = {
 			height: 300,
 			mode: 'image',
 			collision: { id: 'silverpine-maple-2-collision', x: 2_700, y: 2_000, width: 90, height: 80 }
+		},
+		{
+			id: 'silverpine-lantern-mid',
+			textureKey: shrineDressingAsset.key,
+			frameName: 'stoneLantern',
+			x: 3_080,
+			y: 1_080,
+			width: 120,
+			height: 180,
+			mode: 'image',
+			collision: {
+				id: 'silverpine-lantern-mid-collision',
+				x: 3_080,
+				y: 1_140,
+				width: 70,
+				height: 70
+			}
 		}
 	],
 	ambientNpcs: [{ id: 'silverpine-pilgrim', x: 3_100, y: 1_150, frameName: 'pilgrimNpc' }],
-	pickups: [{ id: 'silverpine-tonic', x: 2_900, y: 1_700, itemId: 'field-potion', quantity: 1 }],
+	pickups: [
+		{ id: 'silverpine-tonic', x: 2_900, y: 1_700, itemId: 'field-potion', quantity: 1 },
+		{ id: 'silverpine-offering-cache', x: 3_260, y: 720, itemId: 'sunleaf-salve', quantity: 1 }
+	],
 	blockers: [
 		{
 			id: 'silver-shrine-gate-block',

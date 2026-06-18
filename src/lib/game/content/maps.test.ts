@@ -1997,3 +1997,29 @@ describe('dead end: witchwood gate', () => {
 		expect(storyFacingNear(meadowEntryMap, endpoint, 360).length).toBeGreaterThan(0);
 	});
 });
+
+describe('route: crossroads → silverpine', () => {
+	it('has no empty segment within a generous radius', () => {
+		const points = interestPoints(meadowEntryMap);
+		const route: Pt[] = [
+			{ x: 3_500, y: 3_000 },
+			{ x: 3_300, y: 2_950 },
+			{ x: 3_100, y: 1_600 },
+			{ x: 3_000, y: 520 }
+		];
+		for (let i = 0; i < route.length - 1; i += 1) {
+			expect(
+				segmentHasInterest(route[i], route[i + 1], points, 350, 700),
+				`crossroads→silverpine segment ${i} runs empty`
+			).toBe(true);
+		}
+	});
+});
+
+describe('dead end: silver shrine gate', () => {
+	it('has a payoff and a story-facing element beyond the blocker', () => {
+		const endpoint = { x: 3_000, y: 480 };
+		expect(payoffsNear(meadowEntryMap, endpoint, 360).length).toBeGreaterThan(0);
+		expect(storyFacingNear(meadowEntryMap, endpoint, 360).length).toBeGreaterThan(0);
+	});
+});
