@@ -50,5 +50,15 @@ export const regionDesignManifest: RegionDesignEntry[] = [
 		optionalBranchIds: ['mistfen-pool-east'],
 		payoffIds: ['mistfen-salve'],
 		exitHookIds: ['witchwood-gate']
+	},
+	{
+		id: 'silverpine',
+		emotion: 'reverent',
+		density: 'medium',
+		anchorIds: ['silver-shrine-gate'],
+		approachClueIds: ['silverpine-lantern-west', 'silverpine-lantern-east'],
+		optionalBranchIds: ['silverpine-amulet-rack'],
+		payoffIds: ['silverpine-tonic'],
+		exitHookIds: ['silver-shrine-gate']
 	}
 ];
