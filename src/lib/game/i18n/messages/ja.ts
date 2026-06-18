@@ -327,6 +327,36 @@ export const ja = {
 				'castle-gate': { label: '封印された城門' },
 				'crossroads-waystone': { label: '辻の道標' }
 			},
+			discoveries: {
+				'crossroads-waystone-sign': {
+					label: '古い道標',
+					description: '刻まれた矢印が四方を指す——北に社、南に海岸、西に湿地、東に洞窟。'
+				},
+				'castle-gate-warning': {
+					label: '城門の告示',
+					description: '王道は勅命により封じられている。祭が終わるまで白線を越える者はいない。'
+				},
+				'ferry-shrine-lore': {
+					label: '渡し場の祠',
+					description: '夕暮れに鐘を鳴らせば渡し守が答える——潮と戦の許す限りにおいて。'
+				},
+				'coast-jetty-foreshadow': {
+					label: '桟橋の突端',
+					description: '板は開けた水面で途絶える。まだ舟は待っていない。'
+				},
+				'witchwood-poison-warning': {
+					label: '魔女の森の標石',
+					description: '門を過ぎたら浅く息をせよ。この花は毒の霧を流す。'
+				},
+				'silverpine-amulet-foreshadow': {
+					label: '護符の棚',
+					description: '巡礼者が護符を吊るし、社より古い誓いを結ぶ。'
+				},
+				'wildwood-cave-danger': {
+					label: '洞窟への警告',
+					description: '爪で引き裂かれた樹皮。ささやきの洞窟に棲む何かは眠っていない。'
+				}
+			},
 			npcs: {
 				'guild-master': { name: 'ギルドマスター・アーレン' },
 				'guild-quartermaster': { name: '補給係ヴェイル' },

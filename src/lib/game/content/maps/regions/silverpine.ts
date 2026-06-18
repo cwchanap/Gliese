@@ -147,6 +147,17 @@ export const silverpineRegion: RegionFragment = {
 			}
 		}
 	],
+	discoveries: [
+		{
+			id: 'silverpine-amulet-foreshadow',
+			x: 2_840,
+			y: 1_120,
+			kind: 'foreshadow',
+			revealMarker: false,
+			labelKey: 'content.maps.discoveries.silverpine-amulet-foreshadow.label',
+			descriptionKey: 'content.maps.discoveries.silverpine-amulet-foreshadow.description'
+		}
+	],
 	ambientNpcs: [{ id: 'silverpine-pilgrim', x: 3_100, y: 1_150, frameName: 'pilgrimNpc' }],
 	pickups: [
 		{ id: 'silverpine-tonic', x: 2_900, y: 1_700, itemId: 'field-potion', quantity: 1 },
