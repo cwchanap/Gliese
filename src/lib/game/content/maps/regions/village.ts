@@ -88,6 +88,27 @@ export const villageRegion: RegionFragment = {
 	],
 	mapDecor: [
 		{
+			id: 'village-waymarker',
+			textureKey: crossroadsDressingAsset.key,
+			frameName: 'poleLantern',
+			x: 2_700,
+			y: 4_760,
+			width: 110,
+			height: 220,
+			mode: 'image',
+			collision: { id: 'village-waymarker-collision', x: 2_700, y: 4_840, width: 50, height: 60 }
+		},
+		{
+			id: 'village-roadside-flowers',
+			textureKey: crossroadsDressingAsset.key,
+			frameName: 'flowerBed',
+			x: 3_040,
+			y: 4_900,
+			width: 160,
+			height: 130,
+			mode: 'image'
+		},
+		{
 			id: 'village-maple-1',
 			textureKey: shrineDressingAsset.key,
 			frameName: 'autumnMaple',
@@ -132,6 +153,9 @@ export const villageRegion: RegionFragment = {
 		}
 	],
 	ambientNpcs: [{ id: 'village-wanderer', x: 1_700, y: 5_700, frameName: 'travelerNpc' }],
+	pickups: [
+		{ id: 'village-roadside-cache', x: 2_980, y: 4_780, itemId: 'field-potion', quantity: 1 }
+	],
 	transitions: [
 		{
 			id: 'meadow-to-hero-house',
