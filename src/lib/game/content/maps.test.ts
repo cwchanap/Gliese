@@ -1847,6 +1847,16 @@ function payoffsNear(map: WorldMapDefinition, endpoint: Pt, radius: number): Pt[
 	return candidates.filter((c) => Math.hypot(c.x - endpoint.x, c.y - endpoint.y) <= radius);
 }
 
+function nonLandmarkPayoffsNear(map: WorldMapDefinition, endpoint: Pt, radius: number): Pt[] {
+	const candidates = [
+		...(map.pickups ?? []),
+		...(map.npcs ?? []),
+		...(map.ambientNpcs ?? []),
+		...(map.discoveries ?? [])
+	];
+	return candidates.filter((c) => Math.hypot(c.x - endpoint.x, c.y - endpoint.y) <= radius);
+}
+
 function storyFacingNear(map: WorldMapDefinition, endpoint: Pt, radius: number): Pt[] {
 	const candidates = [...(map.landmarks ?? []), ...(map.discoveries ?? [])];
 	return candidates.filter((c) => Math.hypot(c.x - endpoint.x, c.y - endpoint.y) <= radius);
@@ -2021,5 +2031,9 @@ describe('dead end: silver shrine gate', () => {
 		const endpoint = { x: 3_000, y: 480 };
 		expect(payoffsNear(meadowEntryMap, endpoint, 360).length).toBeGreaterThan(0);
 		expect(storyFacingNear(meadowEntryMap, endpoint, 360).length).toBeGreaterThan(0);
+		expect(
+			nonLandmarkPayoffsNear(meadowEntryMap, endpoint, 360).length,
+			'silver shrine gate dead end needs a non-landmark payoff (offering cache)'
+		).toBeGreaterThan(0);
 	});
 });
