@@ -30,6 +30,7 @@ import {
 	villagerHouse3Map
 } from '$lib/game/content/maps';
 import type { MapDecor, WorldMapDefinition } from '$lib/game/content/maps';
+import { regionDesignManifest } from '$lib/game/content/maps/regions/design-manifest';
 
 function expectEnglishMessage(key: Parameters<typeof t>[1]): string {
 	const value = t('en', key);
@@ -1780,5 +1781,112 @@ describe('MapDecor compile-time frame safety', () => {
 		});
 
 		expect(coastDressingAsset.frames).toHaveProperty('torii');
+	});
+});
+
+type Pt = { x: number; y: number };
+
+function collectEntityIds(map: WorldMapDefinition): Set<string> {
+	const ids = new Set<string>();
+	const lists = [
+		map.landmarks,
+		map.pickups,
+		map.npcs,
+		map.ambientNpcs,
+		map.encounters,
+		map.blockers,
+		map.mapDecor,
+		map.groundPatches,
+		map.fences,
+		map.transitions,
+		map.discoveries
+	];
+	for (const list of lists) {
+		for (const item of list ?? []) ids.add(item.id);
+	}
+	return ids;
+}
+
+function interestPoints(map: WorldMapDefinition): Pt[] {
+	const points: Pt[] = [];
+	for (const l of map.landmarks ?? []) points.push({ x: l.x, y: l.y });
+	for (const p of map.pickups ?? []) points.push({ x: p.x, y: p.y });
+	for (const e of map.encounters ?? []) points.push({ x: e.x, y: e.y });
+	for (const n of map.npcs ?? []) points.push({ x: n.x, y: n.y });
+	for (const a of map.ambientNpcs ?? []) points.push({ x: a.x, y: a.y });
+	for (const d of map.discoveries ?? []) points.push({ x: d.x, y: d.y });
+	for (const b of map.blockers ?? []) if (b.kind === 'future-gate') points.push({ x: b.x, y: b.y });
+	return points;
+}
+
+function segmentSamples(a: Pt, b: Pt, stepPx: number): Pt[] {
+	const distance = Math.hypot(b.x - a.x, b.y - a.y);
+	const steps = Math.max(1, Math.ceil(distance / stepPx));
+	const samples: Pt[] = [];
+	for (let i = 0; i <= steps; i += 1) {
+		const t = i / steps;
+		samples.push({ x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t });
+	}
+	return samples;
+}
+
+function segmentHasInterest(a: Pt, b: Pt, points: Pt[], stepPx: number, radius: number): boolean {
+	return segmentSamples(a, b, stepPx).some((sample) =>
+		points.some((point) => Math.hypot(point.x - sample.x, point.y - sample.y) <= radius)
+	);
+}
+
+function payoffsNear(map: WorldMapDefinition, endpoint: Pt, radius: number): Pt[] {
+	const candidates = [
+		...(map.pickups ?? []),
+		...(map.landmarks ?? []),
+		...(map.npcs ?? []),
+		...(map.ambientNpcs ?? []),
+		...(map.discoveries ?? [])
+	];
+	return candidates.filter((c) => Math.hypot(c.x - endpoint.x, c.y - endpoint.y) <= radius);
+}
+
+function storyFacingNear(map: WorldMapDefinition, endpoint: Pt, radius: number): Pt[] {
+	const candidates = [...(map.landmarks ?? []), ...(map.discoveries ?? [])];
+	return candidates.filter((c) => Math.hypot(c.x - endpoint.x, c.y - endpoint.y) <= radius);
+}
+
+function pointInsideRect(
+	point: Pt,
+	rect: { x: number; y: number; width: number; height: number }
+): boolean {
+	return (
+		Math.abs(point.x - rect.x) <= rect.width / 2 && Math.abs(point.y - rect.y) <= rect.height / 2
+	);
+}
+
+describe('exploration test helpers', () => {
+	it('collects entity ids and interest points from the meadow map', () => {
+		expect(collectEntityIds(meadowEntryMap).size).toBeGreaterThan(0);
+		expect(interestPoints(meadowEntryMap).length).toBeGreaterThan(0);
+	});
+
+	it('samples a segment inclusive of both endpoints', () => {
+		const samples = segmentSamples({ x: 0, y: 0 }, { x: 700, y: 0 }, 350);
+		expect(samples[0]).toEqual({ x: 0, y: 0 });
+		expect(samples.at(-1)).toEqual({ x: 700, y: 0 });
+	});
+
+	it('detects a point inside a center-based rect', () => {
+		expect(pointInsideRect({ x: 10, y: 10 }, { x: 0, y: 0, width: 40, height: 40 })).toBe(true);
+		expect(pointInsideRect({ x: 30, y: 0 }, { x: 0, y: 0, width: 40, height: 40 })).toBe(false);
+	});
+
+	it('starts with an empty design manifest (regions appended in later tasks)', () => {
+		expect(Array.isArray(regionDesignManifest)).toBe(true);
+	});
+
+	it('exercises remaining helpers without throwing', () => {
+		const a: Pt = { x: 0, y: 0 };
+		const b: Pt = { x: 700, y: 0 };
+		expect(segmentHasInterest(a, b, [], 350, 1)).toBe(false);
+		expect(payoffsNear(meadowEntryMap, { x: 0, y: 0 }, 0)).toBeInstanceOf(Array);
+		expect(storyFacingNear(meadowEntryMap, { x: 0, y: 0 }, 0)).toBeInstanceOf(Array);
 	});
 });
