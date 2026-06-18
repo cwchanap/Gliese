@@ -2064,3 +2064,48 @@ describe('route: crossroads → wildwood cave', () => {
 		expect(meadowEntryMap.transitions.some((t) => t.toMapId === 'ruins-threshold')).toBe(true);
 	});
 });
+
+describe('critical routes avoid blockers', () => {
+	const criticalRoutes: Pt[][] = [
+		[
+			{ x: 1_536, y: 5_550 },
+			{ x: 2_750, y: 4_700 },
+			{ x: 3_500, y: 4_000 }
+		],
+		[
+			{ x: 3_500, y: 4_000 },
+			{ x: 4_200, y: 5_500 },
+			{ x: 4_600, y: 5_840 }
+		],
+		[
+			{ x: 3_500, y: 4_000 },
+			{ x: 3_300, y: 2_950 }
+		],
+		[
+			{ x: 3_050, y: 3_150 },
+			{ x: 2_150, y: 2_750 }
+		],
+		[
+			{ x: 4_000, y: 4_300 },
+			{ x: 4_200, y: 5_347 },
+			{ x: 5_600, y: 5_347 },
+			{ x: 5_600, y: 3_200 }
+		]
+	];
+
+	it('keeps every critical-route sample outside blockers', () => {
+		const blockers = meadowEntryMap.blockers ?? [];
+		for (const route of criticalRoutes) {
+			for (let i = 0; i < route.length - 1; i += 1) {
+				for (const sample of segmentSamples(route[i], route[i + 1], 48)) {
+					for (const blocker of blockers) {
+						expect(
+							pointInsideRect(sample, blocker),
+							`route sample (${Math.round(sample.x)},${Math.round(sample.y)}) is inside blocker ${blocker.id}`
+						).toBe(false);
+					}
+				}
+			}
+		}
+	});
+});
