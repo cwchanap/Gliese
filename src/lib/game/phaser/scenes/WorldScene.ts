@@ -293,6 +293,9 @@ export class WorldScene extends Phaser.Scene {
 	private static readonly transitionRadius = 18;
 	private static readonly enemyHealthBarOffsetY = 34;
 	private static readonly discoveryInteractRadius = 64;
+	// World markers stay hidden until the player is within this distance, so a normal
+	// camera view never shows a cluster of pulsing circles — at most the one(s) nearby.
+	private static readonly discoveryRevealRadius = 240;
 
 	private clearedEncounterIds = new Set<string>();
 	private clearedEncounterUnitCounts: Record<string, number> = {};
@@ -603,6 +606,7 @@ export class WorldScene extends Phaser.Scene {
 		}
 
 		this.updateNpcDialogue();
+		this.updateDiscoveryMarkers();
 		this.handleInteractInput();
 		this.tryCollectPickup();
 
@@ -1947,6 +1951,8 @@ export class WorldScene extends Phaser.Scene {
 		for (const discovery of map.discoveries ?? []) {
 			const marker = this.add.circle(discovery.x, discovery.y, 10, 0xfff2b0, 0.55);
 			marker.setStrokeStyle(2, 0xffd24d, 0.9);
+			// Hidden until the player approaches; updateDiscoveryMarkers() toggles visibility.
+			marker.setVisible(false);
 			this.tweens.add({
 				targets: marker,
 				alpha: { from: 0.25, to: 0.7 },
@@ -2729,6 +2735,26 @@ export class WorldScene extends Phaser.Scene {
 		}
 
 		this.interactWithNearbyNpc(nearbyNpc);
+	}
+
+	private updateDiscoveryMarkers() {
+		if (!this.player) {
+			return;
+		}
+
+		const map = this.resolveMap(this.mapId);
+		const playerX = this.player.x;
+		const playerY = this.player.y;
+
+		for (const discovery of map.discoveries ?? []) {
+			const marker = this.discoveryMarkers.get(discovery.id);
+			if (!marker) {
+				continue;
+			}
+
+			const distance = Phaser.Math.Distance.Between(playerX, playerY, discovery.x, discovery.y);
+			marker.setVisible(distance <= WorldScene.discoveryRevealRadius);
+		}
 	}
 
 	private findNearbyDiscovery(): MapDiscovery | undefined {

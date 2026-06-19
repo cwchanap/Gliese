@@ -1810,6 +1810,22 @@ function collectEntityIds(map: WorldMapDefinition): Set<string> {
 	return ids;
 }
 
+function manifestReferencedIds(): Set<string> {
+	const ids = new Set<string>();
+	for (const entry of regionDesignManifest) {
+		for (const id of [
+			...entry.anchorIds,
+			...entry.approachClueIds,
+			...entry.optionalBranchIds,
+			...entry.payoffIds,
+			...entry.exitHookIds
+		]) {
+			ids.add(id);
+		}
+	}
+	return ids;
+}
+
 function interestPoints(map: WorldMapDefinition): Pt[] {
 	const points: Pt[] = [];
 	for (const l of map.landmarks ?? []) points.push({ x: l.x, y: l.y });
@@ -1819,6 +1835,13 @@ function interestPoints(map: WorldMapDefinition): Pt[] {
 	for (const a of map.ambientNpcs ?? []) points.push({ x: a.x, y: a.y });
 	for (const d of map.discoveries ?? []) points.push({ x: d.x, y: d.y });
 	for (const b of map.blockers ?? []) if (b.kind === 'future-gate') points.push({ x: b.x, y: b.y });
+	// Visual breadcrumbs count as interest even when not interactive: a decor prop or
+	// ground patch the design manifest flags as part of a region's exploration loop
+	// reads as "something is over there" to the player walking the route.
+	const manifestIds = manifestReferencedIds();
+	for (const d of map.mapDecor ?? []) if (manifestIds.has(d.id)) points.push({ x: d.x, y: d.y });
+	for (const g of map.groundPatches ?? [])
+		if (manifestIds.has(g.id)) points.push({ x: g.x, y: g.y });
 	return points;
 }
 
@@ -1833,10 +1856,57 @@ function segmentSamples(a: Pt, b: Pt, stepPx: number): Pt[] {
 	return samples;
 }
 
-function segmentHasInterest(a: Pt, b: Pt, points: Pt[], stepPx: number, radius: number): boolean {
-	return segmentSamples(a, b, stepPx).some((sample) =>
-		points.some((point) => Math.hypot(point.x - sample.x, point.y - sample.y) <= radius)
-	);
+// Stricter than "is any sample near interest?": walks the segment and returns the
+// longest continuous stretch with nothing interesting within `radius`, plus where that
+// gap is, so a failing route names the dead spot instead of just the segment index.
+function worstEmptyGapAlongSegment(
+	a: Pt,
+	b: Pt,
+	points: Pt[],
+	stepPx: number,
+	radius: number
+): { gap: number; at: Pt } {
+	let currentGap = 0;
+	let maxGap = 0;
+	let worstAt: Pt = a;
+	for (const sample of segmentSamples(a, b, stepPx)) {
+		const hasNearbyInterest = points.some(
+			(point) => Math.hypot(point.x - sample.x, point.y - sample.y) <= radius
+		);
+		if (hasNearbyInterest) {
+			currentGap = 0;
+		} else {
+			currentGap += stepPx;
+			if (currentGap > maxGap) {
+				maxGap = currentGap;
+				worstAt = sample;
+			}
+		}
+	}
+	return { gap: maxGap, at: worstAt };
+}
+
+// Sampling cadence + tolerances for the route-interest tests. A route fails when any
+// stretch longer than ROUTE_MAX_EMPTY_GAP has no interest within ROUTE_INTEREST_RADIUS.
+const ROUTE_STEP_PX = 256;
+const ROUTE_INTEREST_RADIUS = 650;
+const ROUTE_MAX_EMPTY_GAP = 700;
+
+function expectRouteHasNoEmptyStretch(label: string, route: Pt[]): void {
+	const points = interestPoints(meadowEntryMap);
+	for (let i = 0; i < route.length - 1; i += 1) {
+		const { gap, at } = worstEmptyGapAlongSegment(
+			route[i],
+			route[i + 1],
+			points,
+			ROUTE_STEP_PX,
+			ROUTE_INTEREST_RADIUS
+		);
+		expect(
+			gap,
+			`${label}: ${gap}px with no interest near (${Math.round(at.x)}, ${Math.round(at.y)}) on segment ${i}`
+		).toBeLessThanOrEqual(ROUTE_MAX_EMPTY_GAP);
+	}
 }
 
 function payoffsNear(map: WorldMapDefinition, endpoint: Pt, radius: number): Pt[] {
@@ -1898,7 +1968,7 @@ describe('exploration test helpers', () => {
 	it('exercises remaining helpers without throwing', () => {
 		const a: Pt = { x: 0, y: 0 };
 		const b: Pt = { x: 700, y: 0 };
-		expect(segmentHasInterest(a, b, [], 350, 1)).toBe(false);
+		expect(worstEmptyGapAlongSegment(a, b, [], 350, 1).gap).toBeGreaterThan(0);
 		const anchor = (meadowEntryMap.landmarks ?? [])[0];
 		expect(anchor).toBeDefined();
 		expect(payoffsNear(meadowEntryMap, anchor, 1).length).toBeGreaterThan(0);
@@ -1906,20 +1976,20 @@ describe('exploration test helpers', () => {
 	});
 });
 
+// Route-interest guard: each route below must have no walkable stretch longer than
+// ROUTE_MAX_EMPTY_GAP without something interesting within ROUTE_INTEREST_RADIUS. These
+// bite — removing wildwood-staging-brush reopens a 1536px dead stretch on the wildwood
+// climb, and removing crossroads-cache fails the crossroads payoff test. The spawn→
+// crossroads approach is intentionally NOT single-breadcrumb dependent: it is redundantly
+// covered by village-roadside-cache, village-roadside-flowers, and villager-house-3, so
+// no one prop is load-bearing there. That redundancy is by design, not a gap in the test.
 describe('route: spawn → crossroads', () => {
-	it('has no empty segment within a generous radius', () => {
-		const points = interestPoints(meadowEntryMap);
-		const route: Pt[] = [
+	it('has no empty stretch longer than the gap tolerance', () => {
+		expectRouteHasNoEmptyStretch('spawn → crossroads', [
 			{ x: 1_536, y: 5_550 },
 			{ x: 2_750, y: 4_700 },
 			{ x: 3_500, y: 4_000 }
-		];
-		for (let i = 0; i < route.length - 1; i += 1) {
-			expect(
-				segmentHasInterest(route[i], route[i + 1], points, 350, 700),
-				`spawn→crossroads segment ${i} runs empty`
-			).toBe(true);
-		}
+		]);
 	});
 });
 
@@ -1944,11 +2014,24 @@ describe('crossroads hub', () => {
 
 describe('region design manifest completeness', () => {
 	const ids = collectEntityIds(meadowEntryMap);
+	const landmarkIds = new Set((meadowEntryMap.landmarks ?? []).map((l) => l.id));
 	it.each(regionDesignManifest)('region $id declares a complete exploration loop', (entry) => {
 		expect(entry.anchorIds.length, `${entry.id}: no anchor`).toBeGreaterThan(0);
 		expect(entry.payoffIds.length, `${entry.id}: no payoff`).toBeGreaterThan(0);
 		expect(entry.approachClueIds.length, `${entry.id}: no approach clue`).toBeGreaterThan(0);
+		expect(
+			entry.optionalBranchIds.length,
+			`${entry.id}: no optional branch / side pocket`
+		).toBeGreaterThan(0);
 		expect(entry.exitHookIds.length, `${entry.id}: no exit hook`).toBeGreaterThan(0);
+		// Payoffs must be real rewards off the signposted path, not just a landmark gate the
+		// player walks up to anyway. Keeps the exploration loop ending on something earned.
+		for (const id of entry.payoffIds) {
+			expect(
+				landmarkIds.has(id),
+				`${entry.id}: payoff "${id}" is a landmark; payoffs should be non-landmark rewards`
+			).toBe(false);
+		}
 		const declared = [
 			...entry.anchorIds,
 			...entry.approachClueIds,
@@ -1965,20 +2048,13 @@ describe('region design manifest completeness', () => {
 });
 
 describe('route: crossroads → coast', () => {
-	it('has no empty segment within a generous radius', () => {
-		const points = interestPoints(meadowEntryMap);
-		const route: Pt[] = [
+	it('has no empty stretch longer than the gap tolerance', () => {
+		expectRouteHasNoEmptyStretch('crossroads → coast', [
 			{ x: 3_500, y: 4_000 },
 			{ x: 3_900, y: 4_700 },
 			{ x: 4_200, y: 5_500 },
 			{ x: 4_600, y: 5_840 }
-		];
-		for (let i = 0; i < route.length - 1; i += 1) {
-			expect(
-				segmentHasInterest(route[i], route[i + 1], points, 350, 700),
-				`crossroads→coast segment ${i} runs empty`
-			).toBe(true);
-		}
+		]);
 	});
 });
 
@@ -1989,21 +2065,14 @@ describe('dead end: coast jetty', () => {
 });
 
 describe('route: crossroads → mistfen', () => {
-	it('has no empty segment within a generous radius', () => {
-		const points = interestPoints(meadowEntryMap);
-		const route: Pt[] = [
+	it('has no empty stretch longer than the gap tolerance', () => {
+		expectRouteHasNoEmptyStretch('crossroads → mistfen', [
 			{ x: 3_050, y: 3_150 },
 			{ x: 2_690, y: 2_750 },
 			{ x: 2_150, y: 2_750 },
 			{ x: 1_250, y: 1_750 },
 			{ x: 1_200, y: 620 }
-		];
-		for (let i = 0; i < route.length - 1; i += 1) {
-			expect(
-				segmentHasInterest(route[i], route[i + 1], points, 350, 700),
-				`crossroads→mistfen segment ${i} runs empty`
-			).toBe(true);
-		}
+		]);
 	});
 });
 
@@ -2020,20 +2089,13 @@ describe('dead end: witchwood gate', () => {
 });
 
 describe('route: crossroads → silverpine', () => {
-	it('has no empty segment within a generous radius', () => {
-		const points = interestPoints(meadowEntryMap);
-		const route: Pt[] = [
+	it('has no empty stretch longer than the gap tolerance', () => {
+		expectRouteHasNoEmptyStretch('crossroads → silverpine', [
 			{ x: 3_500, y: 3_000 },
 			{ x: 3_300, y: 2_950 },
 			{ x: 3_100, y: 1_600 },
 			{ x: 3_000, y: 520 }
-		];
-		for (let i = 0; i < route.length - 1; i += 1) {
-			expect(
-				segmentHasInterest(route[i], route[i + 1], points, 350, 700),
-				`crossroads→silverpine segment ${i} runs empty`
-			).toBe(true);
-		}
+		]);
 	});
 });
 
@@ -2050,21 +2112,14 @@ describe('dead end: silver shrine gate', () => {
 });
 
 describe('route: crossroads → wildwood cave', () => {
-	it('has no empty segment within a generous radius', () => {
-		const points = interestPoints(meadowEntryMap);
-		const route: Pt[] = [
+	it('has no empty stretch longer than the gap tolerance', () => {
+		expectRouteHasNoEmptyStretch('crossroads → wildwood cave', [
 			{ x: 4_000, y: 4_300 },
 			{ x: 4_200, y: 5_347 },
 			{ x: 5_600, y: 5_347 },
 			{ x: 5_600, y: 3_200 },
 			{ x: 5_960, y: 1_800 }
-		];
-		for (let i = 0; i < route.length - 1; i += 1) {
-			expect(
-				segmentHasInterest(route[i], route[i + 1], points, 350, 700),
-				`crossroads→wildwood segment ${i} runs empty`
-			).toBe(true);
-		}
+		]);
 	});
 
 	it('preserves the slime encounters and the ruins transition', () => {
