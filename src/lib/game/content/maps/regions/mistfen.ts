@@ -132,6 +132,9 @@ export const mistfenRegion: RegionFragment = {
 			descriptionKey: 'content.maps.discoveries.witchwood-poison-warning.description'
 		}
 	],
+	// Sits on the safe approach at the Mistfen entrance (route segment 2690→2150, y≈2750) so the
+	// forager reads as a "this way is passable" clue before the toxic blooms / gate —
+	// follow-up plan §2.4.
 	ambientNpcs: [{ id: 'mistfen-forager', x: 2_400, y: 2_700, frameName: 'travelerNpc' }],
 	pickups: [
 		{ id: 'mistfen-salve', x: 880, y: 2_500, itemId: 'sunleaf-salve', quantity: 1 },
