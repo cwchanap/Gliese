@@ -27,6 +27,9 @@ test-results
 # Local brainstorming companion artifacts
 .superpowers/
 
+# Local playtest screenshots
+docs/superpowers/reports/entry-map-playtest/
+
 # Local git worktrees
 .worktrees/
 
