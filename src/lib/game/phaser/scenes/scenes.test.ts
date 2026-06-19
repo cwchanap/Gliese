@@ -516,7 +516,9 @@ const phaserState = vi.hoisted(() => {
 		tweens = {
 			add: vi.fn((config: { onComplete?: () => void }) => {
 				config.onComplete?.();
-				return config;
+				// Return a Tween-like stub with pause/resume so discovery-marker pulse tweens
+				// can be paused/resumed alongside visibility in updateDiscoveryMarkers().
+				return { pause: vi.fn(), resume: vi.fn() };
 			})
 		};
 		cameras = {
@@ -2052,19 +2054,30 @@ describe('WorldScene', () => {
 		expect(discovery).toBeDefined();
 		const state = scene as unknown as {
 			discoveryMarkers: Map<string, { visible: boolean }>;
+			discoveryTweens: Map<
+				string,
+				{ pause: ReturnType<typeof vi.fn>; resume: ReturnType<typeof vi.fn> }
+			>;
 		};
 		const marker = state.discoveryMarkers.get(discovery!.id);
 		expect(marker).toBeDefined();
+		const tween = state.discoveryTweens.get(discovery!.id);
+		expect(tween).toBeDefined();
+		// The pulse tween starts paused because the marker is hidden at render time.
+		expect(tween!.pause).toHaveBeenCalled();
+		expect(tween!.resume).not.toHaveBeenCalled();
 
 		// Out of range: the marker stays hidden so the camera view is not littered with pulses.
 		Object.assign(phaserState.playerMarker, { x: discovery!.x, y: discovery!.y - 1_500 });
 		scene.update(0, 16);
 		expect(marker!.visible).toBe(false);
+		expect(tween!.resume).not.toHaveBeenCalled();
 
 		// Within range: the marker reveals so the discovery is still findable.
 		Object.assign(phaserState.playerMarker, { x: discovery!.x, y: discovery!.y });
 		scene.update(16, 16);
 		expect(marker!.visible).toBe(true);
+		expect(tween!.resume).toHaveBeenCalledTimes(1);
 	});
 
 	it('renders authored ground patches and stair markers from map metadata', async () => {

@@ -302,6 +302,9 @@ export class WorldScene extends Phaser.Scene {
 	private collectedPickupIds = new Set<string>();
 	private seenDiscoveryIds = new Set<string>();
 	private discoveryMarkers = new Map<string, Phaser.GameObjects.Arc>();
+	// Pulse tweens for discovery markers, paused while their marker is invisible so
+	// off-screen markers don't keep ticking `repeat: -1` tweens every frame.
+	private discoveryTweens = new Map<string, Phaser.Tweens.Tween>();
 	private cursorKeys?: Partial<Record<'left' | 'right' | 'up' | 'down', DirectionKey>>;
 	private enemies: EnemyInstance[] = [];
 	private facing: Direction = 'down';
@@ -436,6 +439,7 @@ export class WorldScene extends Phaser.Scene {
 		this.npcMarkers.clear();
 		this.pickupMarkers.clear();
 		this.discoveryMarkers.clear();
+		this.discoveryTweens.clear();
 		this.playerProgress = {
 			level: activeSave?.player.level ?? 1,
 			xp: activeSave?.player.xp ?? 0,
@@ -1948,18 +1952,22 @@ export class WorldScene extends Phaser.Scene {
 
 	private renderDiscoveries(map: WorldMapDefinition) {
 		this.discoveryMarkers.clear();
+		this.discoveryTweens.clear();
 		for (const discovery of map.discoveries ?? []) {
 			const marker = this.add.circle(discovery.x, discovery.y, 10, 0xfff2b0, 0.55);
 			marker.setStrokeStyle(2, 0xffd24d, 0.9);
 			// Hidden until the player approaches; updateDiscoveryMarkers() toggles visibility.
 			marker.setVisible(false);
-			this.tweens.add({
+			const tween = this.tweens.add({
 				targets: marker,
 				alpha: { from: 0.25, to: 0.7 },
 				duration: 900,
 				yoyo: true,
 				repeat: -1
 			});
+			// Marker starts hidden, so pause the pulse until updateDiscoveryMarkers() reveals it.
+			tween.pause();
+			this.discoveryTweens.set(discovery.id, tween);
 			this.discoveryMarkers.set(discovery.id, marker);
 		}
 	}
@@ -2753,7 +2761,18 @@ export class WorldScene extends Phaser.Scene {
 			}
 
 			const distance = Phaser.Math.Distance.Between(playerX, playerY, discovery.x, discovery.y);
-			marker.setVisible(distance <= WorldScene.discoveryRevealRadius);
+			const visible = distance <= WorldScene.discoveryRevealRadius;
+			marker.setVisible(visible);
+			// Keep the pulse tween running only while the marker is on screen; otherwise it
+			// would tick forever on an invisible object.
+			const tween = this.discoveryTweens.get(discovery.id);
+			if (tween) {
+				if (visible) {
+					tween.resume();
+				} else {
+					tween.pause();
+				}
+			}
 		}
 	}
 
