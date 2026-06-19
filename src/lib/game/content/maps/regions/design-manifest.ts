@@ -66,7 +66,7 @@ export const regionDesignManifest: RegionDesignEntry[] = [
 		emotion: 'tense',
 		density: 'medium',
 		anchorIds: ['whispering-cave'],
-		approachClueIds: ['sundrop-forest-road-north', 'wildwood-woodcutter'],
+		approachClueIds: ['sundrop-forest-road-north', 'wildwood-staging-brush', 'wildwood-woodcutter'],
 		optionalBranchIds: ['wildwood-grove-cache'],
 		payoffIds: ['wildwood-grove-cache'],
 		exitHookIds: ['whispering-cave']

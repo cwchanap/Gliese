@@ -1,5 +1,12 @@
 # Entry Map Exploration Enrichment Plan — Reviewed Version
 
+> **⚠️ BACKGROUND / SUPERSEDED.** This document is kept for history only. The original
+> content/system work it describes has landed. The active execution plan is
+> [`entry-map-followup-improvement-plan.md`](./entry-map-followup-improvement-plan.md), and the
+> validation/playtest record is
+> [`superpowers/reports/2026-06-17-entry-map-playtest.md`](./superpowers/reports/2026-06-17-entry-map-playtest.md).
+> Do not execute from this file.
+
 > **Purpose:** This is a second-pass plan for making `meadow-entry` feel exploratory, dense, directed, and rewarding. It assumes the first entry-map enrichment work already added the six-region structure, `mapDecor`, terrain tiles, per-region modules, and content tests.
 
 ## Self-review summary

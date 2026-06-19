@@ -2041,6 +2041,32 @@ describe('WorldScene', () => {
 		expect(scene.cameras.main.setBackgroundColor).toHaveBeenCalledWith('#1a1f2b');
 	});
 
+	it('reveals a discovery marker only when the hero is within range', async () => {
+		const { WorldScene } = await import('./WorldScene');
+		const { meadowEntryMap } = await import('$lib/game/content/maps');
+		const scene = new WorldScene();
+
+		scene.create({ mapId: meadowEntryMap.id });
+
+		const discovery = (meadowEntryMap.discoveries ?? []).find((d) => d.id === 'ferry-shrine-lore');
+		expect(discovery).toBeDefined();
+		const state = scene as unknown as {
+			discoveryMarkers: Map<string, { visible: boolean }>;
+		};
+		const marker = state.discoveryMarkers.get(discovery!.id);
+		expect(marker).toBeDefined();
+
+		// Out of range: the marker stays hidden so the camera view is not littered with pulses.
+		Object.assign(phaserState.playerMarker, { x: discovery!.x, y: discovery!.y - 1_500 });
+		scene.update(0, 16);
+		expect(marker!.visible).toBe(false);
+
+		// Within range: the marker reveals so the discovery is still findable.
+		Object.assign(phaserState.playerMarker, { x: discovery!.x, y: discovery!.y });
+		scene.update(16, 16);
+		expect(marker!.visible).toBe(true);
+	});
+
 	it('renders authored ground patches and stair markers from map metadata', async () => {
 		const { WorldScene } = await import('./WorldScene');
 		const scene = new WorldScene();
