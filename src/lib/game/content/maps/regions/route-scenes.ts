@@ -52,13 +52,21 @@ export const routeSceneDefinitions: RouteSceneDefinition[] = [
 				id: 'village-roadside-nook',
 				routeId: 'spawn-to-crossroads',
 				cameraPoint: { x: 2_900, y: 4_780 },
-				purpose: 'payoff',
+				purpose: 'fork',
 				expectedVisibleIds: [
 					'village-waymarker',
 					'village-roadside-flowers',
 					'village-roadside-cache'
 				],
 				optionalPathIds: ['village-crossroads-nook'],
+				storyMotif: 'homeward-road'
+			},
+			{
+				id: 'village-roadside-cache-payoff',
+				routeId: 'spawn-to-crossroads',
+				cameraPoint: { x: 2_980, y: 4_780 },
+				purpose: 'payoff',
+				expectedVisibleIds: ['village-roadside-cache', 'village-crossroads-nook'],
 				payoffIds: ['village-roadside-cache'],
 				storyMotif: 'homeward-road'
 			},
@@ -135,6 +143,8 @@ export const routeSceneDefinitions: RouteSceneDefinition[] = [
 			{ x: 3_050, y: 3_150 },
 			{ x: 2_690, y: 2_750 },
 			{ x: 2_150, y: 2_750 },
+			{ x: 1_760, y: 2_540 },
+			{ x: 1_400, y: 2_030 },
 			{ x: 1_250, y: 1_750 },
 			{ x: 1_200, y: 620 }
 		],
@@ -152,8 +162,13 @@ export const routeSceneDefinitions: RouteSceneDefinition[] = [
 				routeId: 'crossroads-to-mistfen',
 				cameraPoint: { x: 1_700, y: 2_100 },
 				purpose: 'fork',
-				expectedVisibleIds: ['mistfen-pool-east', 'mistfen-bloom-trail-2', 'mistfen-cache'],
-				optionalPathIds: ['mistfen-pool-east']
+				expectedVisibleIds: [
+					'mistfen-pool-east',
+					'mistfen-hidden-pool-pocket',
+					'mistfen-reed-wall-east',
+					'mistfen-cache'
+				],
+				optionalPathIds: ['mistfen-hidden-pool-pocket']
 			},
 			{
 				id: 'mistfen-west-salve-payoff',
@@ -167,8 +182,13 @@ export const routeSceneDefinitions: RouteSceneDefinition[] = [
 				id: 'mistfen-toxic-reveal',
 				routeId: 'crossroads-to-mistfen',
 				cameraPoint: { x: 1_250, y: 1_750 },
-				purpose: 'danger',
-				expectedVisibleIds: ['mistfen-toxic-bloom', 'mistfen-reeds-1', 'mistfen-fog'],
+				purpose: 'reveal',
+				expectedVisibleIds: [
+					'mistfen-toxic-bloom',
+					'mistfen-deadfall-bend',
+					'mistfen-reeds-1',
+					'mistfen-fog-middle'
+				],
 				storyMotif: 'gate'
 			},
 			{
@@ -188,29 +208,47 @@ export const routeSceneDefinitions: RouteSceneDefinition[] = [
 		mainRoute: [
 			{ x: 3_500, y: 3_000 },
 			{ x: 3_300, y: 2_950 },
-			{ x: 3_100, y: 1_600 },
+			{ x: 3_180, y: 2_360 },
+			{ x: 2_900, y: 1_820 },
+			{ x: 3_220, y: 1_320 },
+			{ x: 3_000, y: 760 },
 			{ x: 3_000, y: 520 }
 		],
 		beats: [
 			{
 				id: 'silverpine-lantern-hook',
 				routeId: 'crossroads-to-silverpine',
-				cameraPoint: { x: 3_100, y: 1_600 },
+				cameraPoint: { x: 3_180, y: 2_360 },
 				purpose: 'hook',
-				expectedVisibleIds: ['silverpine-lantern-mid', 'silverpine-pilgrim'],
+				expectedVisibleIds: ['silverpine-lower-approach', 'silverpine-lantern-mid'],
+				storyMotif: 'shrine'
+			},
+			{
+				id: 'silverpine-bend-fork',
+				routeId: 'crossroads-to-silverpine',
+				cameraPoint: { x: 2_900, y: 1_820 },
+				purpose: 'fork',
+				expectedVisibleIds: [
+					'silverpine-bend-west',
+					'silverpine-bend-east',
+					'silverpine-side-grove-floor',
+					'silverpine-side-grove-maple',
+					'silverpine-pilgrim'
+				],
+				optionalPathIds: ['silverpine-side-grove-floor'],
 				storyMotif: 'shrine'
 			},
 			{
 				id: 'silverpine-side-grove',
 				routeId: 'crossroads-to-silverpine',
-				cameraPoint: { x: 2_900, y: 1_700 },
-				purpose: 'fork',
+				cameraPoint: { x: 2_620, y: 1_560 },
+				purpose: 'payoff',
 				expectedVisibleIds: [
-					'silverpine-grove-floor',
-					'silverpine-amulet-rack',
+					'silverpine-side-grove-floor',
+					'silverpine-side-grove-maple',
+					'silverpine-side-grove-pine',
 					'silverpine-tonic'
 				],
-				optionalPathIds: ['silverpine-grove-floor'],
 				payoffIds: ['silverpine-tonic'],
 				storyMotif: 'shrine'
 			},
@@ -218,7 +256,7 @@ export const routeSceneDefinitions: RouteSceneDefinition[] = [
 				id: 'silverpine-terrace-reveal',
 				routeId: 'crossroads-to-silverpine',
 				cameraPoint: { x: 3_000, y: 520 },
-				purpose: 'gate',
+				purpose: 'reveal',
 				expectedVisibleIds: [
 					'silver-shrine-gate',
 					'silver-shrine-gate-sprite',
@@ -226,6 +264,14 @@ export const routeSceneDefinitions: RouteSceneDefinition[] = [
 				],
 				payoffIds: ['silverpine-offering-cache'],
 				storyMotif: 'shrine'
+			},
+			{
+				id: 'silverpine-sealed-threshold',
+				routeId: 'crossroads-to-silverpine',
+				cameraPoint: { x: 3_000, y: 480 },
+				purpose: 'gate',
+				expectedVisibleIds: ['silver-shrine-gate', 'silver-shrine-gate-block'],
+				storyMotif: 'gate'
 			}
 		]
 	},
@@ -237,6 +283,7 @@ export const routeSceneDefinitions: RouteSceneDefinition[] = [
 			{ x: 4_000, y: 4_300 },
 			{ x: 4_200, y: 5_347 },
 			{ x: 5_600, y: 5_347 },
+			{ x: 5_520, y: 4_420 },
 			{ x: 5_600, y: 3_200 },
 			{ x: 5_960, y: 1_800 }
 		],
@@ -244,30 +291,49 @@ export const routeSceneDefinitions: RouteSceneDefinition[] = [
 			{
 				id: 'wildwood-threshold-hook',
 				routeId: 'crossroads-to-wildwood',
-				cameraPoint: { x: 5_600, y: 4_200 },
+				cameraPoint: { x: 5_520, y: 4_420 },
 				purpose: 'hook',
-				expectedVisibleIds: ['wildwood-staging-brush', 'wildwood-woodcutter'],
+				expectedVisibleIds: [
+					'wildwood-threshold-floor',
+					'wildwood-threshold-brush-left',
+					'wildwood-woodcutter'
+				],
 				storyMotif: 'forest-danger'
 			},
 			{
 				id: 'wildwood-side-grove',
 				routeId: 'crossroads-to-wildwood',
-				cameraPoint: { x: 4_700, y: 3_650 },
+				cameraPoint: { x: 4_620, y: 3_650 },
 				purpose: 'fork',
 				expectedVisibleIds: [
-					'wildwood-grove-floor-1',
-					'wildwood-grove-brush-1',
+					'wildwood-side-clearing',
+					'wildwood-cache-brush-screen',
+					'wildwood-cache-tree-cover'
+				],
+				optionalPathIds: ['wildwood-side-clearing']
+			},
+			{
+				id: 'wildwood-hidden-cache-payoff',
+				routeId: 'crossroads-to-wildwood',
+				cameraPoint: { x: 4_700, y: 3_650 },
+				purpose: 'payoff',
+				expectedVisibleIds: [
+					'wildwood-cache-brush-screen',
+					'wildwood-cache-tree-cover',
 					'wildwood-grove-cache'
 				],
-				optionalPathIds: ['wildwood-grove-floor-1'],
 				payoffIds: ['wildwood-grove-cache']
 			},
 			{
 				id: 'wildwood-combat-reveal',
 				routeId: 'crossroads-to-wildwood',
 				cameraPoint: { x: 5_360, y: 1_280 },
-				purpose: 'danger',
-				expectedVisibleIds: ['meadow-slime-center', 'wildwood-crossing-combat-pocket'],
+				purpose: 'reveal',
+				expectedVisibleIds: [
+					'meadow-slime-center',
+					'wildwood-crossing-combat-pocket',
+					'wildwood-cave-canopy-heavy'
+				],
 				storyMotif: 'forest-danger'
 			},
 			{

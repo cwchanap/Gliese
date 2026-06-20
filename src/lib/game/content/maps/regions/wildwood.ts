@@ -92,6 +92,14 @@ export const wildwoodRegion: RegionFragment = {
 			width: 288,
 			height: 96,
 			tile: 'pathTile'
+		},
+		{
+			id: 'wildwood-side-clearing',
+			x: 4_620,
+			y: 3_650,
+			width: 520,
+			height: 360,
+			tile: 'pathTile'
 		}
 	],
 	mapDecor: [
@@ -174,6 +182,64 @@ export const wildwoodRegion: RegionFragment = {
 			mode: 'image'
 		},
 		{
+			id: 'wildwood-threshold-floor',
+			textureKey: forestDressingAsset.key,
+			frameName: 'forestFloor',
+			x: 5_520,
+			y: 4_420,
+			width: 520,
+			height: 360,
+			mode: 'tile',
+			depth: 'floor'
+		},
+		{
+			id: 'wildwood-threshold-brush-left',
+			textureKey: forestDressingAsset.key,
+			frameName: 'brush',
+			x: 5_360,
+			y: 4_380,
+			width: 180,
+			height: 150,
+			mode: 'image'
+		},
+		{
+			id: 'wildwood-threshold-brush-right',
+			textureKey: forestDressingAsset.key,
+			frameName: 'brush',
+			x: 5_820,
+			y: 4_380,
+			width: 180,
+			height: 150,
+			mode: 'image'
+		},
+		{
+			id: 'wildwood-cache-brush-screen',
+			textureKey: forestDressingAsset.key,
+			frameName: 'brush',
+			x: 4_780,
+			y: 3_540,
+			width: 210,
+			height: 170,
+			mode: 'image'
+		},
+		{
+			id: 'wildwood-cache-tree-cover',
+			textureKey: forestDressingAsset.key,
+			frameName: 'treeCluster',
+			x: 4_480,
+			y: 3_420,
+			width: 240,
+			height: 300,
+			mode: 'image',
+			collision: {
+				id: 'wildwood-cache-tree-cover-collision',
+				x: 4_480,
+				y: 3_520,
+				width: 90,
+				height: 80
+			}
+		},
+		{
 			id: 'wildwood-grove-maple-1',
 			textureKey: shrineDressingAsset.key,
 			frameName: 'autumnMaple',
@@ -212,6 +278,17 @@ export const wildwoodRegion: RegionFragment = {
 			mode: 'image'
 		},
 		{
+			id: 'wildwood-cave-warning-floor',
+			textureKey: forestDressingAsset.key,
+			frameName: 'forestFloor',
+			x: 5_900,
+			y: 1_760,
+			width: 420,
+			height: 300,
+			mode: 'tile',
+			depth: 'floor'
+		},
+		{
 			id: 'wildwood-cave-canopy',
 			textureKey: forestDressingAsset.key,
 			frameName: 'treeCluster',
@@ -221,6 +298,23 @@ export const wildwoodRegion: RegionFragment = {
 			height: 260,
 			mode: 'image',
 			collision: { id: 'wildwood-cave-canopy-collision', x: 5_700, y: 2_180, width: 80, height: 70 }
+		},
+		{
+			id: 'wildwood-cave-canopy-heavy',
+			textureKey: forestDressingAsset.key,
+			frameName: 'treeCluster',
+			x: 5_980,
+			y: 2_120,
+			width: 260,
+			height: 320,
+			mode: 'image',
+			collision: {
+				id: 'wildwood-cave-canopy-heavy-collision',
+				x: 5_980,
+				y: 2_230,
+				width: 90,
+				height: 80
+			}
 		}
 	],
 	discoveries: [
@@ -234,7 +328,7 @@ export const wildwoodRegion: RegionFragment = {
 			descriptionKey: 'content.maps.discoveries.wildwood-cave-danger.description'
 		}
 	],
-	ambientNpcs: [{ id: 'wildwood-woodcutter', x: 4_600, y: 3_300, frameName: 'woodcutterNpc' }],
+	ambientNpcs: [{ id: 'wildwood-woodcutter', x: 5_340, y: 4_520, frameName: 'woodcutterNpc' }],
 	pickups: [
 		{ id: 'wildwood-grove-cache', x: 4_700, y: 3_650, itemId: 'sunleaf-salve', quantity: 1 }
 	],

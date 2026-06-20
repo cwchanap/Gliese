@@ -59,8 +59,39 @@ function pointByEntityId(map: WorldMapDefinition, id: string): Pt | undefined {
 	return undefined;
 }
 
+function distanceAlongPolylineToProjection(point: Pt, route: Pt[]): number {
+	let bestDistance = Number.POSITIVE_INFINITY;
+	let bestRouteDistance = 0;
+	let traveled = 0;
+
+	for (let i = 0; i < route.length - 1; i += 1) {
+		const a = route[i];
+		const b = route[i + 1];
+		const dx = b.x - a.x;
+		const dy = b.y - a.y;
+		const length = Math.hypot(dx, dy);
+		const lengthSquared = dx * dx + dy * dy;
+		const t =
+			lengthSquared === 0
+				? 0
+				: Math.max(0, Math.min(1, ((point.x - a.x) * dx + (point.y - a.y) * dy) / lengthSquared));
+		const projected = { x: a.x + t * dx, y: a.y + t * dy };
+		const distance = Math.hypot(point.x - projected.x, point.y - projected.y);
+
+		if (distance < bestDistance) {
+			bestDistance = distance;
+			bestRouteDistance = traveled + length * t;
+		}
+
+		traveled += length;
+	}
+
+	return bestRouteDistance;
+}
+
 describe('route-scene manifest', () => {
 	const entityKinds = collectEntityKinds(meadowEntryMap);
+	const requiredBeatPurposes = ['hook', 'fork', 'reveal', 'payoff'] as const;
 
 	it('declares camera beats for the five entry-map routes', () => {
 		expect(routeSceneDefinitions.map((route) => route.id)).toEqual([
@@ -91,6 +122,12 @@ describe('route-scene manifest', () => {
 				route.beats.some((beat) => beat.storyMotif),
 				`${route.id}: needs at least one story motif`
 			).toBe(true);
+			for (const purpose of requiredBeatPurposes) {
+				expect(
+					route.beats.some((beat) => beat.purpose === purpose),
+					`${route.id}: needs a ${purpose} beat`
+				).toBe(true);
+			}
 
 			for (const beat of route.beats) {
 				expect(
@@ -131,6 +168,28 @@ describe('route-scene manifest', () => {
 		}
 	});
 
+	it('places approach hooks at least 500px before the route destination', () => {
+		for (const route of routeSceneDefinitions) {
+			const routeLength = route.mainRoute
+				.slice(0, -1)
+				.reduce(
+					(sum, point, index) =>
+						sum +
+						Math.hypot(
+							route.mainRoute[index + 1].x - point.x,
+							route.mainRoute[index + 1].y - point.y
+						),
+					0
+				);
+			const firstHook = route.beats.find((beat) => beat.purpose === 'hook');
+			expect(firstHook, `${route.id}: missing hook beat`).toBeDefined();
+			expect(
+				routeLength - distanceAlongPolylineToProjection(firstHook!.cameraPoint, route.mainRoute),
+				`${route.id}: hook is too close to destination`
+			).toBeGreaterThanOrEqual(500);
+		}
+	});
+
 	it('locks the Coast fork to actual fork geometry and side-payout composition', () => {
 		const coastRoute = routeSceneDefinitions.find((route) => route.id === 'crossroads-to-coast');
 		expect(coastRoute).toBeDefined();
@@ -141,5 +200,66 @@ describe('route-scene manifest', () => {
 			coastRoute!.beats.some((beat) => beat.expectedVisibleIds.includes('coast-shrine-landing'))
 		).toBe(true);
 		expect(coastRoute!.beats.some((beat) => beat.payoffIds?.includes('coast-salve'))).toBe(true);
+	});
+
+	it('locks Crossroads hub exits to four directional motif clusters and a castle line', () => {
+		for (const id of [
+			'crossroads-coast-cue-sand',
+			'crossroads-coast-cue-net',
+			'crossroads-mistfen-cue-mud',
+			'crossroads-mistfen-cue-reeds',
+			'crossroads-silverpine-cue-leaves',
+			'crossroads-silverpine-cue-lantern',
+			'crossroads-wildwood-cue-floor',
+			'crossroads-wildwood-cue-brush',
+			'crossroads-white-line'
+		]) {
+			expect(entityKinds.has(id), `missing Crossroads directional cue ${id}`).toBe(true);
+		}
+	});
+
+	it('locks Mistfen to an S-curve, hidden pool pocket, and fog gradient', () => {
+		for (const id of [
+			'mistfen-safe-curve-a',
+			'mistfen-safe-curve-b',
+			'mistfen-reed-wall-east',
+			'mistfen-reed-wall-west',
+			'mistfen-deadfall-bend',
+			'mistfen-hidden-pool-pocket',
+			'mistfen-fog-entry',
+			'mistfen-fog-middle',
+			'mistfen-fog-gate'
+		]) {
+			expect(entityKinds.has(id), `missing Mistfen route-scene cue ${id}`).toBe(true);
+		}
+	});
+
+	it('locks Silverpine to a bent ascent and real side grove', () => {
+		for (const id of [
+			'silverpine-lower-approach',
+			'silverpine-bend-west',
+			'silverpine-bend-east',
+			'silverpine-terrace-landing',
+			'silverpine-side-grove-floor',
+			'silverpine-side-grove-maple',
+			'silverpine-side-grove-pine'
+		]) {
+			expect(entityKinds.has(id), `missing Silverpine ascent cue ${id}`).toBe(true);
+		}
+	});
+
+	it('locks Wildwood to a forest threshold, side clearing, and cave escalation', () => {
+		for (const id of [
+			'wildwood-threshold-floor',
+			'wildwood-threshold-brush-left',
+			'wildwood-threshold-brush-right',
+			'wildwood-side-clearing',
+			'wildwood-cache-brush-screen',
+			'wildwood-cache-tree-cover',
+			'wildwood-cave-canopy-heavy',
+			'wildwood-cave-warning-floor'
+		]) {
+			expect(entityKinds.has(id), `missing Wildwood route-scene cue ${id}`).toBe(true);
+		}
 	});
 });

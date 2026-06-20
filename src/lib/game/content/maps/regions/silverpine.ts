@@ -5,6 +5,16 @@ export const silverpineRegion: RegionFragment = {
 	groundPatches: [
 		{ id: 'silverpine-stair-path', x: 3_100, y: 1_600, width: 70, height: 2_400, tile: 'pathTile' },
 		{
+			id: 'silverpine-lower-approach',
+			x: 3_180,
+			y: 2_360,
+			width: 520,
+			height: 70,
+			tile: 'pathTile'
+		},
+		{ id: 'silverpine-bend-west', x: 2_900, y: 1_820, width: 440, height: 70, tile: 'pathTile' },
+		{ id: 'silverpine-bend-east', x: 3_220, y: 1_320, width: 440, height: 70, tile: 'pathTile' },
+		{
 			id: 'silverpine-grove-floor',
 			x: 3_100,
 			y: 900,
@@ -13,11 +23,27 @@ export const silverpineRegion: RegionFragment = {
 			tile: 'autumnLeafTile'
 		},
 		{
+			id: 'silverpine-side-grove-floor',
+			x: 2_620,
+			y: 1_560,
+			width: 500,
+			height: 420,
+			tile: 'autumnLeafTile'
+		},
+		{
 			id: 'silverpine-shrine-terrace',
 			x: 3_000,
 			y: 520,
 			width: 900,
 			height: 360,
+			tile: 'cobblestoneTile'
+		},
+		{
+			id: 'silverpine-terrace-landing',
+			x: 3_000,
+			y: 760,
+			width: 820,
+			height: 260,
 			tile: 'cobblestoneTile'
 		}
 	],
@@ -97,6 +123,40 @@ export const silverpineRegion: RegionFragment = {
 			mode: 'image'
 		},
 		{
+			id: 'silverpine-side-grove-maple',
+			textureKey: shrineDressingAsset.key,
+			frameName: 'autumnMaple',
+			x: 2_420,
+			y: 1_520,
+			width: 230,
+			height: 290,
+			mode: 'image',
+			collision: {
+				id: 'silverpine-side-grove-maple-collision',
+				x: 2_420,
+				y: 1_620,
+				width: 90,
+				height: 80
+			}
+		},
+		{
+			id: 'silverpine-side-grove-pine',
+			textureKey: shrineDressingAsset.key,
+			frameName: 'silverpine',
+			x: 2_820,
+			y: 1_360,
+			width: 220,
+			height: 300,
+			mode: 'image',
+			collision: {
+				id: 'silverpine-side-grove-pine-collision',
+				x: 2_820,
+				y: 1_460,
+				width: 90,
+				height: 80
+			}
+		},
+		{
 			id: 'silverpine-tree-1',
 			textureKey: shrineDressingAsset.key,
 			frameName: 'silverpine',
@@ -158,9 +218,9 @@ export const silverpineRegion: RegionFragment = {
 			descriptionKey: 'content.maps.discoveries.silverpine-amulet-foreshadow.description'
 		}
 	],
-	ambientNpcs: [{ id: 'silverpine-pilgrim', x: 3_100, y: 1_150, frameName: 'pilgrimNpc' }],
+	ambientNpcs: [{ id: 'silverpine-pilgrim', x: 3_120, y: 1_360, frameName: 'pilgrimNpc' }],
 	pickups: [
-		{ id: 'silverpine-tonic', x: 2_900, y: 1_700, itemId: 'field-potion', quantity: 1 },
+		{ id: 'silverpine-tonic', x: 2_620, y: 1_560, itemId: 'field-potion', quantity: 1 },
 		{ id: 'silverpine-offering-cache', x: 3_260, y: 720, itemId: 'sunleaf-salve', quantity: 1 }
 	],
 	blockers: [

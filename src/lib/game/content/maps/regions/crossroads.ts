@@ -1,4 +1,10 @@
-import { crossroadsDressingAsset } from '$lib/game/content/assets';
+import {
+	coastDressingAsset,
+	crossroadsDressingAsset,
+	forestDressingAsset,
+	marshDressingAsset,
+	shrineDressingAsset
+} from '$lib/game/content/assets';
 import type { RegionFragment } from '$lib/game/content/maps/regions/types';
 
 export const crossroadsRegion: RegionFragment = {
@@ -26,6 +32,38 @@ export const crossroadsRegion: RegionFragment = {
 			width: 700,
 			height: 300,
 			tile: 'cobblestoneTile'
+		},
+		{
+			id: 'crossroads-white-line',
+			x: 3_500,
+			y: 3_145,
+			width: 560,
+			height: 34,
+			tile: 'sandTile'
+		},
+		{
+			id: 'crossroads-coast-cue-sand',
+			x: 3_990,
+			y: 4_480,
+			width: 300,
+			height: 140,
+			tile: 'sandTile'
+		},
+		{
+			id: 'crossroads-mistfen-cue-mud',
+			x: 3_090,
+			y: 3_640,
+			width: 260,
+			height: 160,
+			tile: 'marshMudTile'
+		},
+		{
+			id: 'crossroads-silverpine-cue-leaves',
+			x: 3_260,
+			y: 3_330,
+			width: 260,
+			height: 150,
+			tile: 'autumnLeafTile'
 		},
 		{ id: 'crossroads-nook', x: 3_980, y: 4_280, width: 260, height: 220, tile: 'cobblestoneTile' }
 	],
@@ -132,6 +170,57 @@ export const crossroadsRegion: RegionFragment = {
 			y: 3_800,
 			width: 180,
 			height: 150,
+			mode: 'image'
+		},
+		{
+			id: 'crossroads-coast-cue-net',
+			textureKey: coastDressingAsset.key,
+			frameName: 'fishingNet',
+			x: 4_060,
+			y: 4_500,
+			width: 150,
+			height: 130,
+			mode: 'image'
+		},
+		{
+			id: 'crossroads-mistfen-cue-reeds',
+			textureKey: marshDressingAsset.key,
+			frameName: 'reeds',
+			x: 3_020,
+			y: 3_620,
+			width: 190,
+			height: 160,
+			mode: 'tile'
+		},
+		{
+			id: 'crossroads-silverpine-cue-lantern',
+			textureKey: shrineDressingAsset.key,
+			frameName: 'stoneLantern',
+			x: 3_260,
+			y: 3_310,
+			width: 100,
+			height: 150,
+			mode: 'image'
+		},
+		{
+			id: 'crossroads-wildwood-cue-floor',
+			textureKey: forestDressingAsset.key,
+			frameName: 'forestFloor',
+			x: 4_080,
+			y: 4_180,
+			width: 260,
+			height: 260,
+			mode: 'tile',
+			depth: 'floor'
+		},
+		{
+			id: 'crossroads-wildwood-cue-brush',
+			textureKey: forestDressingAsset.key,
+			frameName: 'brush',
+			x: 4_120,
+			y: 4_100,
+			width: 150,
+			height: 130,
 			mode: 'image'
 		},
 		{

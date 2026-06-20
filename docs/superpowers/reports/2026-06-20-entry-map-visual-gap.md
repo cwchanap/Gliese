@@ -3,39 +3,36 @@
 Branch: `feat/entry-map-enrichment`
 Date: 2026-06-20
 
-This report records the route-scene gaps from the review plan. Screenshots are stored in
-[`./entry-map-playtest-reviewed/`](./entry-map-playtest-reviewed/) so reviewers can inspect them
-without running the game locally.
+This report records the visual gaps from the route-scene review plan and the patch evidence for each
+route. Screenshots are stored in [`./entry-map-playtest-reviewed/`](./entry-map-playtest-reviewed/) so
+reviewers can inspect them without running the game locally.
 
 ## Route: Spawn -> Crossroads
 
-Current camera impression: The village has dense home-region detail and a readable roadside nook.
+Current camera impression: Dense village road with a visible roadside nook.
 
-What still feels same: The route relies on small village props more than a strong road-home silhouette.
+What still feels same: The route already had the strongest "home road" composition before this pass.
 
-What should become visible: A clearer homeward-road cadence from village plaza to waymarker to Crossroads.
+What should become visible: A distinct fork/payoff beat in the manifest, not just generic nearby interest.
 
-What route choice is missing: No major missing choice in this slice; the roadside nook already exists.
+What route choice is missing: None after this pass; the existing nook is now tracked as a fork beat.
 
-What story motif is missing: The "route home" motif could be stronger through repeated waymarker language.
+What story motif is missing: None required for this pass; the homeward-road motif is represented by village
+to waymarker to Crossroads.
 
-Screenshot: [02-village-reststop.png](./entry-map-playtest-reviewed/02-village-reststop.png)
+Screenshot: [after-02-village-reststop.png](./entry-map-playtest-reviewed/after-02-village-reststop.png)
 
 ## Route: Crossroads -> Coast
 
-Current camera impression: Before this pass, the coast read as a mostly vertical descent into a decorated
-beach scene.
+Current camera impression: Previously a mostly vertical descent into a decorated beach.
 
-What still feels same: The broad beach remains a large open sand band.
+What still feels same: The beach remains broad by design.
 
-What should become visible: A horizontal fork from the coast approach, with Ferry Shrine and shoreline/jetty
-as visible separate choices.
+What should become visible: A fork before the beach, with Ferry Shrine and shoreline/jetty as separate choices.
 
-What route choice is missing: Fixed in this slice. `coast-ferry-fork` and `coast-shrine-landing` now connect
-the approach path to the shrine while the shoreline continues toward tidepool and jetty.
+What route choice is missing: Fixed with `coast-ferry-fork`, `coast-shrine-landing`, and `coast-tidepool-pocket`.
 
-What story motif is missing: Fixed in this slice. The shrine, fishing net, driftwood, torii sightline, boat,
-tidepool, and jetty now carry the ferry/sea-route motif across the camera view.
+What story motif is missing: Fixed with shrine, torii, net, driftwood, fisherman, boat, tidepool, and jetty.
 
 Screenshots: [before Ferry Shrine](./entry-map-playtest-reviewed/before-05-coast-ferry-shrine.png),
 [after fork](./entry-map-playtest-reviewed/after-04-coast-fork.png),
@@ -43,67 +40,67 @@ Screenshots: [before Ferry Shrine](./entry-map-playtest-reviewed/before-05-coast
 
 ## Route: Crossroads -> Mistfen
 
-Current camera impression: Mistfen reads eerie and quiet, with fog, mud, toxic blooms, and the Witchwood Gate.
+Current camera impression: Previously eerie but basin-like.
 
-What still feels same: The route shape is still subtle; it can read as a basin with props more than an authored
-safe curve.
+What still feels same: Mistfen remains quiet and low-density by design.
 
-What should become visible: Reeds, pools, and fog bands forming an obvious S-curve from entry warning to gate.
+What should become visible: A safe S-curve, hidden pool pocket, and fog gradient toward Witchwood Gate.
 
-What route choice is missing: The east-pool side pocket exists, but its reward is not hidden enough to feel
-discovered.
+What route choice is missing: Fixed with `mistfen-hidden-pool-pocket` and reed walls.
 
-What story motif is missing: The forbidden-gate motif lands at Witchwood Gate; the approach could preview it
-earlier with stronger fog gradient.
+What story motif is missing: Fixed with denser gate fog and stronger poison/gate approach cues.
 
-Screenshot: [07-mistfen-marsh.png](./entry-map-playtest-reviewed/07-mistfen-marsh.png)
+Screenshots: [before marsh](./entry-map-playtest-reviewed/07-mistfen-marsh.png),
+[after marsh](./entry-map-playtest-reviewed/after-07-mistfen-marsh.png),
+[after Witchwood Gate](./entry-map-playtest-reviewed/after-08-witchwood-gate.png)
 
 ## Route: Crossroads -> Silverpine
 
-Current camera impression: Silverpine has shrine language, lanterns, pilgrim, terrace, and sealed gate.
+Current camera impression: Previously shrine-themed but too straight.
 
-What still feels same: The climb is still mostly straight, so ascent rhythm depends on decor cadence more than
-route geometry.
+What still feels same: Shrine terrace remains the calm final reveal.
 
-What should become visible: A path bend or step rhythm before the terrace reveal.
+What should become visible: A bent ascent and an optional side grove.
 
-What route choice is missing: The side grove exists but could read as a more deliberate optional grove.
+What route choice is missing: Fixed with `silverpine-side-grove-floor` and moved `silverpine-tonic`.
 
-What story motif is missing: Shrine path and sealed threshold are present; the white-line/bell motif is still
-understated.
+What story motif is missing: The shrine/sealed-threshold motif is present; dedicated bell art is deferred by
+the no-new-art constraint.
 
-Screenshot: [09-silverpine-climb.png](./entry-map-playtest-reviewed/09-silverpine-climb.png)
+Screenshots: [before climb](./entry-map-playtest-reviewed/09-silverpine-climb.png),
+[after climb](./entry-map-playtest-reviewed/after-09-silverpine-climb.png),
+[after shrine gate](./entry-map-playtest-reviewed/after-10-silverpine-shrine-gate.png)
 
 ## Route: Crossroads -> Wildwood
 
-Current camera impression: Wildwood clearly carries danger through forest floor, woodcutter, slime visibility,
-and cave warning.
+Current camera impression: Previously dangerous near the cave, but the threshold and side secret were weak.
 
-What still feels same: The side cache is still lightly screened, so the secret-grove beat is weaker than the
-danger beat.
+What still feels same: Combat route and slime encounter IDs are preserved.
 
-What should become visible: A tighter forest threshold and a more physical brush/tree screen around the side
-clearing.
+What should become visible: Forest threshold, side clearing, hidden cache screen, and cave escalation.
 
-What route choice is missing: The side clearing exists, but it should be visually tempting before the player
-commits to the combat route.
+What route choice is missing: Fixed with `wildwood-side-clearing`, `wildwood-cache-brush-screen`, and
+`wildwood-cache-tree-cover`.
 
-What story motif is missing: Forest-danger motif is present; the "wrong gate / forbidden threshold" motif could
-build earlier before the cave.
+What story motif is missing: Fixed with stronger threshold and cave danger composition.
 
-Screenshot: [11-wildwood-grove.png](./entry-map-playtest-reviewed/11-wildwood-grove.png)
+Screenshots: [before grove](./entry-map-playtest-reviewed/11-wildwood-grove.png),
+[after threshold/grove](./entry-map-playtest-reviewed/after-11-wildwood-threshold-grove.png),
+[after cave danger](./entry-map-playtest-reviewed/after-12-wildwood-danger-approach.png)
 
 ## Crossroads Hub
 
-Current camera impression: The hub has a waystone, market nook, bannered castle road, and multiple exits.
+Current camera impression: Previously a hub, but directional exit language was uneven.
 
-What still feels same: Directional motifs are not yet balanced for all exits from one center camera.
+What still feels same: Waystone and market nook remain the center anchors.
 
-What should become visible: Coast, Mistfen, Silverpine, Wildwood, and Castle Gate should each have distinct
-exit-language visible at the hub edge.
+What should become visible: Coast, Mistfen, Silverpine, Wildwood, and Castle Gate exit motifs from one center
+camera.
 
-What route choice is missing: Not missing, but exit identity could be stronger without adding center clutter.
+What route choice is missing: Fixed with directional motif clusters placed near exits rather than in the
+plaza center.
 
-What story motif is missing: The castle/white-line future destination is the next strongest hub motif to sharpen.
+What story motif is missing: Dedicated white-line art is deferred; `crossroads-white-line` approximates it
+with existing terrain.
 
 Screenshot: [after Crossroads hub](./entry-map-playtest-reviewed/after-03-crossroads-hub.png)
