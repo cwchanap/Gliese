@@ -3,11 +3,8 @@
 Branch: `feat/entry-map-enrichment`
 Date: 2026-06-20
 
-Status: Coast-first implementation slice. This report updates the proof trail for Phase 0 through the
-Crossroads -> Coast golden route. The remaining route redesign phases are intentionally deferred until the
-Coast route is reviewed.
-
-Screenshots: [`./entry-map-playtest-reviewed/`](./entry-map-playtest-reviewed/)
+Status: full route-scene redesign pass. Screenshots are reviewable in
+[`./entry-map-playtest-reviewed/`](./entry-map-playtest-reviewed/).
 
 ## Coast Route Diagram
 
@@ -25,24 +22,25 @@ flowchart TD
 
 Before screenshot: [02-village-reststop.png](./entry-map-playtest-reviewed/02-village-reststop.png)
 
-After screenshot: Deferred; no geometry change in this slice.
+After screenshot: [after-02-village-reststop.png](./entry-map-playtest-reviewed/after-02-village-reststop.png)
 
 Question 1: What is the first thing that pulls your eye?
-Answer: Village density: well, road, nearby buildings, and roadside dressing.
+Answer: Village density, the waymarker, and the off-road cache nook.
 
 Question 2: Where is the first route choice?
-Answer: The roadside nook near the village-to-crossroads link.
+Answer: The roadside nook branching off the village-to-crossroads link.
 
 Question 3: What reward did you choose to detour for?
 Answer: `village-roadside-cache`.
 
 Question 4: What story motif did the route communicate?
-Answer: Homeward road, but the motif depends on small waymarker props.
+Answer: Homeward road into a named hub.
 
 Question 5: What still felt empty or samey?
-Answer: No new finding for this slice; stronger repeated road-home cues remain future polish.
+Answer: No route-blocking issue found; this route already carried the homeward beat.
 
-Patch applied after playtest: None.
+Patch applied after playtest: Manifest split the fork and payoff beats so the side nook cannot be counted as
+only a generic point of interest.
 
 ## Route: Crossroads -> Coast
 
@@ -54,98 +52,125 @@ After screenshot: [new fork](./entry-map-playtest-reviewed/after-04-coast-fork.p
 [jetty/tidepool](./entry-map-playtest-reviewed/after-06-coast-jetty-tidepool.png)
 
 Question 1: What is the first thing that pulls your eye?
-Answer: The approach now lands on a horizontal sand fork with driftwood and a fisherman, not just a vertical road.
+Answer: The horizontal sand fork with driftwood and fisherman, not a vertical road dropping into a beach.
 
 Question 2: Where is the first route choice?
 Answer: `coast-ferry-fork`; the player can branch left to Ferry Shrine or continue toward the shoreline.
 
 Question 3: What reward did you choose to detour for?
-Answer: `coast-salve` is now beside the tidepool/boat/net cluster, while `coast-jetty-catch` sits off the jetty's center.
+Answer: `coast-salve` beside the tidepool/boat/net cluster, plus `coast-jetty-catch` off the jetty center.
 
 Question 4: What story motif did the route communicate?
-Answer: Ferry crossing and future sea route: shrine, torii sightline, net, boat, tidepool, and jetty all stay in the same route language.
+Answer: Ferry crossing and future sea route.
 
 Question 5: What still felt empty or samey?
-Answer: The sand band is still broad, but the route no longer reads as one straight descent to a decorated beach.
+Answer: The beach remains broad, but the route no longer reads as one straight descent.
 
 Patch applied after playtest:
 
-- Added `coast-ferry-fork` and `coast-shrine-landing` ground patches.
-- Moved `ferry-shrine-lore` in front of the shrine collision so it reads as examinable from the approach.
-- Reclustered boat/net/tidepool around `coast-salve` and moved `coast-jetty-catch` off the central planks.
+- Added `coast-ferry-fork`, `coast-shrine-landing`, and `coast-tidepool-pocket`.
+- Moved `ferry-shrine-lore` in front of shrine collision.
+- Reclustered tidepool/boat/net/salve and moved `coast-jetty-catch` off-center.
 
 ## Route: Crossroads -> Mistfen
 
-Before screenshot: [07-mistfen-marsh.png](./entry-map-playtest-reviewed/07-mistfen-marsh.png)
+Before screenshot: [07-mistfen-marsh.png](./entry-map-playtest-reviewed/07-mistfen-marsh.png),
+[08-witchwood-gate.png](./entry-map-playtest-reviewed/08-witchwood-gate.png)
 
-After screenshot: Deferred; no geometry change in this slice.
+After screenshot: [after-07-mistfen-marsh.png](./entry-map-playtest-reviewed/after-07-mistfen-marsh.png),
+[after-08-witchwood-gate.png](./entry-map-playtest-reviewed/after-08-witchwood-gate.png)
 
 Question 1: What is the first thing that pulls your eye?
-Answer: Fog, toxic bloom, marsh water, and the forager warning.
+Answer: The new safe path curve and reed walls, with toxic blooms as danger breadcrumbs.
 
 Question 2: Where is the first route choice?
-Answer: The east-pool pocket.
+Answer: `mistfen-hidden-pool-pocket`, screened by `mistfen-reed-wall-east` / `mistfen-reed-wall-west`.
 
 Question 3: What reward did you choose to detour for?
-Answer: `mistfen-salve` / `mistfen-cache`, depending on approach angle.
+Answer: `mistfen-cache` in the hidden pocket, with `mistfen-salve` still serving the west-side marsh detour.
 
 Question 4: What story motif did the route communicate?
-Answer: Forbidden gate and poison warning.
+Answer: Forbidden gate and poison warning, strengthened by denser fog near Witchwood Gate.
 
 Question 5: What still felt empty or samey?
-Answer: The S-curve is too subtle and the side reward remains too exposed.
+Answer: The route is still intentionally quiet, but it now has a visible S-curve rather than a flat basin.
 
-Patch applied after playtest: Deferred to Mistfen phase so this slice stays Coast-focused.
+Patch applied after playtest:
+
+- Added `mistfen-safe-curve-a`, `mistfen-safe-curve-b`, and `mistfen-hidden-pool-pocket`.
+- Added reed walls, `mistfen-deadfall-bend`, and entry/middle/gate fog layers.
+- Moved `mistfen-cache` into the pocket.
 
 ## Route: Crossroads -> Silverpine
 
-Before screenshot: [09-silverpine-climb.png](./entry-map-playtest-reviewed/09-silverpine-climb.png)
+Before screenshot: [09-silverpine-climb.png](./entry-map-playtest-reviewed/09-silverpine-climb.png),
+[10-silverpine-shrine-gate.png](./entry-map-playtest-reviewed/10-silverpine-shrine-gate.png)
 
-After screenshot: Deferred; no geometry change in this slice.
+After screenshot: [after-09-silverpine-climb.png](./entry-map-playtest-reviewed/after-09-silverpine-climb.png),
+[after-10-silverpine-shrine-gate.png](./entry-map-playtest-reviewed/after-10-silverpine-shrine-gate.png)
 
 Question 1: What is the first thing that pulls your eye?
-Answer: Lanterns, pilgrim, and shrine dressing.
+Answer: The path now bends through an autumn side grove before the wide shrine terrace.
 
 Question 2: Where is the first route choice?
-Answer: The grove/offering side area.
+Answer: `silverpine-side-grove-floor`, visible from the bent ascent.
 
 Question 3: What reward did you choose to detour for?
-Answer: `silverpine-tonic` or the offering cache, depending on path.
+Answer: `silverpine-tonic` in the side grove, with `silverpine-offering-cache` on the shrine terrace.
 
 Question 4: What story motif did the route communicate?
-Answer: Shrine ascent and sealed threshold.
+Answer: Ceremonial shrine ascent and sealed threshold.
 
 Question 5: What still felt empty or samey?
-Answer: The route is still mostly straight; the ascent needs stronger bends or steps.
+Answer: No functional gap found; the grove is now deliberately pronounced so it reads in one camera.
 
-Patch applied after playtest: Deferred to Silverpine phase.
+Patch applied after playtest:
+
+- Added lower approach, west/east bend patches, terrace landing, and side grove floor.
+- Added side-grove maple/pine framing.
+- Moved `silverpine-tonic` and pilgrim into stronger ascent composition.
 
 ## Route: Crossroads -> Wildwood
 
 Before screenshot: [11-wildwood-grove.png](./entry-map-playtest-reviewed/11-wildwood-grove.png),
 [12-wildwood-danger-approach.png](./entry-map-playtest-reviewed/12-wildwood-danger-approach.png)
 
-After screenshot: Deferred; no geometry change in this slice.
+After screenshot: [after-11-wildwood-threshold-grove.png](./entry-map-playtest-reviewed/after-11-wildwood-threshold-grove.png),
+[after-12-wildwood-danger-approach.png](./entry-map-playtest-reviewed/after-12-wildwood-danger-approach.png)
 
 Question 1: What is the first thing that pulls your eye?
-Answer: Forest threshold, woodcutter, and darker forest-floor dressing.
+Answer: The forest threshold: darker floor, brush on both sides, and the woodcutter at the entry.
 
 Question 2: Where is the first route choice?
-Answer: The side grove near `wildwood-grove-cache`.
+Answer: `wildwood-side-clearing`, screened by brush/tree cover before the combat climb.
 
 Question 3: What reward did you choose to detour for?
-Answer: `wildwood-grove-cache`.
+Answer: `wildwood-grove-cache`, now visually tucked behind `wildwood-cache-brush-screen` and tree cover.
 
 Question 4: What story motif did the route communicate?
-Answer: Forest danger and forbidden cave threshold.
+Answer: Forest danger escalating into the sealed cave threshold.
 
 Question 5: What still felt empty or samey?
-Answer: The side cache is only lightly screened, so it reads less secret than intended.
+Answer: No remaining macro-route gap found; cave approach has visible danger and heavier canopy.
 
-Patch applied after playtest: Deferred to Wildwood phase.
+Patch applied after playtest:
 
-## Deferred Issues
+- Added `wildwood-threshold-floor`, threshold brush, and moved the woodcutter to the threshold.
+- Added `wildwood-side-clearing`, cache brush screen, and tree cover.
+- Added cave warning floor and heavier cave canopy while preserving slime encounter IDs and the ruins transition.
 
-1. Mistfen needs a stronger S-curve and hidden side-pocket reward. Deferred because Coast is the plan's golden-route gate.
-2. Silverpine needs path bends/step rhythm. Deferred to avoid changing all routes before Coast review.
-3. Wildwood needs a stronger threshold and brush-screened side clearing. Deferred to keep this diff scoped.
+## Crossroads Center
+
+Screenshot: [after-03-crossroads-hub.png](./entry-map-playtest-reviewed/after-03-crossroads-hub.png)
+
+Patch applied after playtest:
+
+- Added directional motif clusters for coast, mistfen, silverpine, and wildwood exits.
+- Added `crossroads-white-line` before Castle Gate to imply a sealed future route with existing tiles.
+- Kept market-stall nook readable and optional.
+
+## Deferred Issue
+
+No new art was added. A dedicated bell or white-line asset would improve the story motif, but it is deferred
+because this plan explicitly reuses existing primitives and avoids new art/systems. The current pass
+approximates that motif with existing terrain and shrine/crossroads dressing.

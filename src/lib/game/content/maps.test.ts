@@ -1426,7 +1426,7 @@ describe('opening map content', () => {
 			expect.arrayContaining([
 				{ id: 'mistfen-salve', x: 880, y: 2_500, itemId: 'sunleaf-salve', quantity: 1 },
 				{ id: 'coast-salve', x: 5_440, y: 5_930, itemId: 'sunleaf-salve', quantity: 1 },
-				{ id: 'silverpine-tonic', x: 2_900, y: 1_700, itemId: 'field-potion', quantity: 1 }
+				{ id: 'silverpine-tonic', x: 2_620, y: 1_560, itemId: 'field-potion', quantity: 1 }
 			])
 		);
 		expect(maps['ruins-threshold'].pickups).toEqual([
