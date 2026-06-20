@@ -261,6 +261,13 @@ export const crossroadsRegion: RegionFragment = {
 		{ id: 'crossroads-traveler', x: 3_700, y: 4_300, frameName: 'travelerNpc' }
 	],
 	blockers: [
-		{ id: 'castle-gate-block', x: 3_500, y: 2_840, width: 480, height: 96, kind: 'future-gate' }
+		{ id: 'castle-gate-block', x: 3_500, y: 2_840, width: 480, height: 96, kind: 'future-gate' },
+		{ id: 'crossroads-west-hedge', x: 3_000, y: 4_000, width: 64, height: 760, kind: 'town-hedge' },
+		{ id: 'crossroads-east-hedge', x: 4_210, y: 4_080, width: 64, height: 620, kind: 'town-hedge' }
+	],
+	fences: [
+		{ id: 'crossroads-south-market-fence', x: 3_600, y: 4_510, width: 520, height: 32 },
+		{ id: 'crossroads-north-festival-barrier', x: 3_160, y: 3_370, width: 280, height: 32 },
+		{ id: 'crossroads-north-festival-barrier-east', x: 3_840, y: 3_370, width: 280, height: 32 }
 	]
 };

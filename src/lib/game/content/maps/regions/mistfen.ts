@@ -85,7 +85,14 @@ export const mistfenRegion: RegionFragment = {
 			y: 2_300,
 			width: 260,
 			height: 220,
-			mode: 'tile'
+			mode: 'tile',
+			collision: {
+				id: 'mistfen-reed-wall-east-collision',
+				x: 1_840,
+				y: 2_300,
+				width: 110,
+				height: 200
+			}
 		},
 		{
 			id: 'mistfen-reed-wall-west',
@@ -95,7 +102,48 @@ export const mistfenRegion: RegionFragment = {
 			y: 2_120,
 			width: 260,
 			height: 220,
-			mode: 'tile'
+			mode: 'tile',
+			collision: {
+				id: 'mistfen-reed-wall-west-collision',
+				x: 1_220,
+				y: 2_120,
+				width: 150,
+				height: 200
+			}
+		},
+		{
+			id: 'mistfen-reed-wall-north',
+			textureKey: marshDressingAsset.key,
+			frameName: 'reeds',
+			x: 1_850,
+			y: 2_630,
+			width: 760,
+			height: 120,
+			mode: 'tile',
+			collision: {
+				id: 'mistfen-reed-wall-north-collision',
+				x: 1_850,
+				y: 2_630,
+				width: 760,
+				height: 110
+			}
+		},
+		{
+			id: 'mistfen-reed-wall-south',
+			textureKey: marshDressingAsset.key,
+			frameName: 'reeds',
+			x: 1_850,
+			y: 2_890,
+			width: 760,
+			height: 120,
+			mode: 'tile',
+			collision: {
+				id: 'mistfen-reed-wall-south-collision',
+				x: 1_850,
+				y: 2_890,
+				width: 760,
+				height: 110
+			}
 		},
 		{
 			id: 'mistfen-deadfall-bend',
@@ -192,6 +240,42 @@ export const mistfenRegion: RegionFragment = {
 			alpha: 0.48
 		},
 		{
+			id: 'mistfen-gate-fog-wall',
+			textureKey: marshDressingAsset.key,
+			frameName: 'fog',
+			x: 960,
+			y: 1_180,
+			width: 180,
+			height: 900,
+			mode: 'tile',
+			depth: 'foreground',
+			alpha: 0.42,
+			collision: {
+				id: 'mistfen-gate-fog-wall-collision',
+				x: 960,
+				y: 1_180,
+				width: 120,
+				height: 760
+			}
+		},
+		{
+			id: 'mistfen-gate-reed-wall-east',
+			textureKey: marshDressingAsset.key,
+			frameName: 'reeds',
+			x: 1_470,
+			y: 1_080,
+			width: 160,
+			height: 820,
+			mode: 'tile',
+			collision: {
+				id: 'mistfen-gate-reed-wall-east-collision',
+				x: 1_470,
+				y: 1_080,
+				width: 120,
+				height: 760
+			}
+		},
+		{
 			id: 'mistfen-fog',
 			textureKey: marshDressingAsset.key,
 			frameName: 'fog',
@@ -221,9 +305,11 @@ export const mistfenRegion: RegionFragment = {
 	ambientNpcs: [{ id: 'mistfen-forager', x: 2_400, y: 2_700, frameName: 'travelerNpc' }],
 	pickups: [
 		{ id: 'mistfen-salve', x: 880, y: 2_500, itemId: 'sunleaf-salve', quantity: 1 },
-		{ id: 'mistfen-cache', x: 1_560, y: 2_250, itemId: 'field-potion', quantity: 1 }
+		{ id: 'mistfen-cache', x: 1_820, y: 2_300, itemId: 'field-potion', quantity: 1 }
 	],
 	blockers: [
-		{ id: 'witchwood-gate-block', x: 1_200, y: 470, width: 384, height: 96, kind: 'future-gate' }
+		{ id: 'witchwood-gate-block', x: 1_200, y: 470, width: 384, height: 96, kind: 'future-gate' },
+		{ id: 'mistfen-pool-west-blocker', x: 800, y: 1_400, width: 420, height: 300, kind: 'ocean' },
+		{ id: 'mistfen-pool-east-blocker', x: 1_700, y: 2_100, width: 360, height: 280, kind: 'ocean' }
 	]
 };

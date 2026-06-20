@@ -1,4 +1,11 @@
-export type RouteSceneBeatPurpose = 'hook' | 'fork' | 'reveal' | 'payoff' | 'danger' | 'gate';
+export type RouteSceneBeatPurpose =
+	| 'hook'
+	| 'threshold'
+	| 'fork'
+	| 'reveal'
+	| 'payoff'
+	| 'danger'
+	| 'gate';
 
 export type RouteSceneStoryMotif =
 	| 'gate'
@@ -7,7 +14,8 @@ export type RouteSceneStoryMotif =
 	| 'bell'
 	| 'shrine'
 	| 'forest-danger'
-	| 'homeward-road';
+	| 'homeward-road'
+	| 'memory-topology';
 
 export interface RouteSceneBeat {
 	id: string;
@@ -17,6 +25,7 @@ export interface RouteSceneBeat {
 	expectedVisibleIds: string[];
 	optionalPathIds?: string[];
 	payoffIds?: string[];
+	boundaryIds?: string[];
 	storyMotif?: RouteSceneStoryMotif;
 }
 
@@ -31,8 +40,8 @@ export interface RouteSceneDefinition {
 export const routeSceneDefinitions: RouteSceneDefinition[] = [
 	{
 		id: 'spawn-to-crossroads',
-		from: 'Sundrop Village',
-		to: 'Crossroads',
+		from: 'village-plaza-room',
+		to: 'crossroads-hub-room',
 		mainRoute: [
 			{ x: 1_536, y: 5_550 },
 			{ x: 2_336, y: 5_347 },
@@ -46,6 +55,20 @@ export const routeSceneDefinitions: RouteSceneDefinition[] = [
 				cameraPoint: { x: 1_536, y: 5_550 },
 				purpose: 'hook',
 				expectedVisibleIds: ['sundrop-well', 'village-wanderer'],
+				boundaryIds: ['sundrop-plaza-east-fence', 'village-road-west-fence-a'],
+				storyMotif: 'homeward-road'
+			},
+			{
+				id: 'village-fenced-lane-threshold',
+				routeId: 'spawn-to-crossroads',
+				cameraPoint: { x: 2_700, y: 4_760 },
+				purpose: 'threshold',
+				expectedVisibleIds: [
+					'village-waymarker',
+					'village-road-west-fence-a',
+					'village-road-east-fence-a'
+				],
+				boundaryIds: ['village-road-west-fence-a', 'village-road-east-fence-a'],
 				storyMotif: 'homeward-road'
 			},
 			{
@@ -59,15 +82,17 @@ export const routeSceneDefinitions: RouteSceneDefinition[] = [
 					'village-roadside-cache'
 				],
 				optionalPathIds: ['village-crossroads-nook'],
+				boundaryIds: ['village-reststop-fence', 'village-road-west-fence-b'],
 				storyMotif: 'homeward-road'
 			},
 			{
 				id: 'village-roadside-cache-payoff',
 				routeId: 'spawn-to-crossroads',
-				cameraPoint: { x: 2_980, y: 4_780 },
+				cameraPoint: { x: 3_040, y: 4_930 },
 				purpose: 'payoff',
 				expectedVisibleIds: ['village-roadside-cache', 'village-crossroads-nook'],
 				payoffIds: ['village-roadside-cache'],
+				boundaryIds: ['village-reststop-fence', 'village-road-west-fence-b'],
 				storyMotif: 'homeward-road'
 			},
 			{
@@ -75,14 +100,20 @@ export const routeSceneDefinitions: RouteSceneDefinition[] = [
 				routeId: 'spawn-to-crossroads',
 				cameraPoint: { x: 3_500, y: 4_000 },
 				purpose: 'reveal',
-				expectedVisibleIds: ['crossroads-waystone', 'crossroads-waystone-sign', 'crossroads-banner']
+				expectedVisibleIds: [
+					'crossroads-waystone',
+					'crossroads-waystone-sign',
+					'crossroads-banner'
+				],
+				boundaryIds: ['crossroads-west-hedge', 'crossroads-south-market-fence'],
+				storyMotif: 'memory-topology'
 			}
 		]
 	},
 	{
 		id: 'crossroads-to-coast',
-		from: 'Crossroads',
-		to: 'Coast',
+		from: 'crossroads-hub-room',
+		to: 'coast-jetty-vista-room',
 		mainRoute: [
 			{ x: 3_500, y: 4_000 },
 			{ x: 3_900, y: 4_700 },
@@ -92,11 +123,21 @@ export const routeSceneDefinitions: RouteSceneDefinition[] = [
 		],
 		beats: [
 			{
-				id: 'coast-approach-clue',
+				id: 'coast-crossroads-hook',
+				routeId: 'crossroads-to-coast',
+				cameraPoint: { x: 3_990, y: 4_480 },
+				purpose: 'hook',
+				expectedVisibleIds: ['crossroads-coast-cue-sand', 'crossroads-coast-cue-net'],
+				boundaryIds: ['crossroads-east-hedge', 'crossroads-south-market-fence'],
+				storyMotif: 'ferry'
+			},
+			{
+				id: 'coast-corridor-threshold',
 				routeId: 'crossroads-to-coast',
 				cameraPoint: { x: 4_200, y: 5_300 },
-				purpose: 'hook',
+				purpose: 'threshold',
 				expectedVisibleIds: ['coast-approach-path', 'coast-approach-net', 'coast-driftwood'],
+				boundaryIds: ['coast-approach-west-fence', 'coast-approach-east-fence'],
 				storyMotif: 'ferry'
 			},
 			{
@@ -106,6 +147,7 @@ export const routeSceneDefinitions: RouteSceneDefinition[] = [
 				purpose: 'fork',
 				expectedVisibleIds: ['coast-ferry-fork', 'coast-shrine-landing', 'ferry-crossing'],
 				optionalPathIds: ['coast-ferry-fork', 'coast-shrine-landing'],
+				boundaryIds: ['coast-fork-west-driftwood-wall', 'coast-fork-east-field-fence'],
 				storyMotif: 'ferry'
 			},
 			{
@@ -114,6 +156,7 @@ export const routeSceneDefinitions: RouteSceneDefinition[] = [
 				cameraPoint: { x: 3_600, y: 5_560 },
 				purpose: 'reveal',
 				expectedVisibleIds: ['coast-ferry-shrine', 'ferry-shrine-lore', 'coast-fisher'],
+				boundaryIds: ['coast-shrine-pocket-boundary', 'coast-ferry-shrine'],
 				storyMotif: 'shrine'
 			},
 			{
@@ -122,7 +165,8 @@ export const routeSceneDefinitions: RouteSceneDefinition[] = [
 				cameraPoint: { x: 5_300, y: 5_900 },
 				purpose: 'payoff',
 				expectedVisibleIds: ['coast-tidepool', 'coast-net', 'coast-boat', 'coast-salve'],
-				payoffIds: ['coast-salve']
+				payoffIds: ['coast-salve'],
+				boundaryIds: ['coast-tidepool-rock-wall', 'coast-boat']
 			},
 			{
 				id: 'coast-jetty-future-route',
@@ -131,14 +175,15 @@ export const routeSceneDefinitions: RouteSceneDefinition[] = [
 				purpose: 'gate',
 				expectedVisibleIds: ['coast-jetty', 'coast-jetty-foreshadow', 'coast-jetty-catch'],
 				payoffIds: ['coast-jetty-catch'],
+				boundaryIds: ['coast-jetty-neck', 'coast-sea-wall'],
 				storyMotif: 'ferry'
 			}
 		]
 	},
 	{
 		id: 'crossroads-to-mistfen',
-		from: 'Crossroads',
-		to: 'Mistfen',
+		from: 'crossroads-hub-room',
+		to: 'mistfen-gate-room',
 		mainRoute: [
 			{ x: 3_050, y: 3_150 },
 			{ x: 2_690, y: 2_750 },
@@ -155,6 +200,20 @@ export const routeSceneDefinitions: RouteSceneDefinition[] = [
 				cameraPoint: { x: 2_400, y: 2_700 },
 				purpose: 'hook',
 				expectedVisibleIds: ['mistfen-forager', 'mistfen-approach-path'],
+				boundaryIds: ['crossroads-west-hedge', 'crossroads-north-festival-barrier'],
+				storyMotif: 'gate'
+			},
+			{
+				id: 'mistfen-reed-corridor-threshold',
+				routeId: 'crossroads-to-mistfen',
+				cameraPoint: { x: 2_150, y: 2_750 },
+				purpose: 'threshold',
+				expectedVisibleIds: [
+					'mistfen-reed-wall-north',
+					'mistfen-reed-wall-south',
+					'mistfen-fog-entry'
+				],
+				boundaryIds: ['mistfen-reed-wall-north', 'mistfen-reed-wall-south'],
 				storyMotif: 'gate'
 			},
 			{
@@ -168,7 +227,8 @@ export const routeSceneDefinitions: RouteSceneDefinition[] = [
 					'mistfen-reed-wall-east',
 					'mistfen-cache'
 				],
-				optionalPathIds: ['mistfen-hidden-pool-pocket']
+				optionalPathIds: ['mistfen-hidden-pool-pocket'],
+				boundaryIds: ['mistfen-reed-wall-east', 'mistfen-pool-east-blocker']
 			},
 			{
 				id: 'mistfen-west-salve-payoff',
@@ -176,7 +236,8 @@ export const routeSceneDefinitions: RouteSceneDefinition[] = [
 				cameraPoint: { x: 880, y: 2_500 },
 				purpose: 'payoff',
 				expectedVisibleIds: ['mistfen-marsh-rock', 'mistfen-salve'],
-				payoffIds: ['mistfen-salve']
+				payoffIds: ['mistfen-salve'],
+				boundaryIds: ['mistfen-marsh-rock', 'mistfen-pool-west-blocker']
 			},
 			{
 				id: 'mistfen-toxic-reveal',
@@ -189,6 +250,7 @@ export const routeSceneDefinitions: RouteSceneDefinition[] = [
 					'mistfen-reeds-1',
 					'mistfen-fog-middle'
 				],
+				boundaryIds: ['mistfen-deadfall-bend', 'mistfen-gate-reed-wall-east'],
 				storyMotif: 'gate'
 			},
 			{
@@ -197,14 +259,15 @@ export const routeSceneDefinitions: RouteSceneDefinition[] = [
 				cameraPoint: { x: 1_200, y: 620 },
 				purpose: 'gate',
 				expectedVisibleIds: ['witchwood-gate', 'witchwood-poison-warning', 'witchwood-gate-block'],
+				boundaryIds: ['mistfen-gate-fog-wall', 'witchwood-gate-block'],
 				storyMotif: 'gate'
 			}
 		]
 	},
 	{
 		id: 'crossroads-to-silverpine',
-		from: 'Crossroads',
-		to: 'Silverpine',
+		from: 'crossroads-hub-room',
+		to: 'silverpine-terrace-room',
 		mainRoute: [
 			{ x: 3_500, y: 3_000 },
 			{ x: 3_300, y: 2_950 },
@@ -216,11 +279,27 @@ export const routeSceneDefinitions: RouteSceneDefinition[] = [
 		],
 		beats: [
 			{
+				id: 'silverpine-crossroads-threshold',
+				routeId: 'crossroads-to-silverpine',
+				cameraPoint: { x: 3_260, y: 3_310 },
+				purpose: 'threshold',
+				expectedVisibleIds: [
+					'crossroads-silverpine-cue-leaves',
+					'crossroads-silverpine-cue-lantern'
+				],
+				boundaryIds: [
+					'crossroads-north-festival-barrier',
+					'crossroads-north-festival-barrier-east'
+				],
+				storyMotif: 'shrine'
+			},
+			{
 				id: 'silverpine-lantern-hook',
 				routeId: 'crossroads-to-silverpine',
 				cameraPoint: { x: 3_180, y: 2_360 },
 				purpose: 'hook',
 				expectedVisibleIds: ['silverpine-lower-approach', 'silverpine-lantern-mid'],
+				boundaryIds: ['silverpine-lower-wall-west', 'silverpine-lower-wall-east'],
 				storyMotif: 'shrine'
 			},
 			{
@@ -236,6 +315,7 @@ export const routeSceneDefinitions: RouteSceneDefinition[] = [
 					'silverpine-pilgrim'
 				],
 				optionalPathIds: ['silverpine-side-grove-floor'],
+				boundaryIds: ['silverpine-switchback-west', 'silverpine-switchback-east'],
 				storyMotif: 'shrine'
 			},
 			{
@@ -250,6 +330,7 @@ export const routeSceneDefinitions: RouteSceneDefinition[] = [
 					'silverpine-tonic'
 				],
 				payoffIds: ['silverpine-tonic'],
+				boundaryIds: ['silverpine-offering-grove-wall', 'silverpine-side-grove-pine'],
 				storyMotif: 'shrine'
 			},
 			{
@@ -263,6 +344,7 @@ export const routeSceneDefinitions: RouteSceneDefinition[] = [
 					'silverpine-offering-cache'
 				],
 				payoffIds: ['silverpine-offering-cache'],
+				boundaryIds: ['silverpine-terrace-boundary', 'silverpine-lantern-east'],
 				storyMotif: 'shrine'
 			},
 			{
@@ -271,14 +353,15 @@ export const routeSceneDefinitions: RouteSceneDefinition[] = [
 				cameraPoint: { x: 3_000, y: 480 },
 				purpose: 'gate',
 				expectedVisibleIds: ['silver-shrine-gate', 'silver-shrine-gate-block'],
+				boundaryIds: ['silver-shrine-gate-block', 'silverpine-lantern-west'],
 				storyMotif: 'gate'
 			}
 		]
 	},
 	{
 		id: 'crossroads-to-wildwood',
-		from: 'Crossroads',
-		to: 'Wildwood',
+		from: 'crossroads-hub-room',
+		to: 'wildwood-cave-room',
 		mainRoute: [
 			{ x: 4_000, y: 4_300 },
 			{ x: 4_200, y: 5_347 },
@@ -289,15 +372,26 @@ export const routeSceneDefinitions: RouteSceneDefinition[] = [
 		],
 		beats: [
 			{
+				id: 'wildwood-crossroads-hook',
+				routeId: 'crossroads-to-wildwood',
+				cameraPoint: { x: 4_080, y: 4_180 },
+				purpose: 'hook',
+				expectedVisibleIds: ['crossroads-wildwood-cue-floor', 'crossroads-wildwood-cue-brush'],
+				boundaryIds: ['crossroads-east-hedge', 'crossroads-south-market-fence'],
+				storyMotif: 'forest-danger'
+			},
+			{
 				id: 'wildwood-threshold-hook',
 				routeId: 'crossroads-to-wildwood',
 				cameraPoint: { x: 5_520, y: 4_420 },
-				purpose: 'hook',
+				purpose: 'threshold',
 				expectedVisibleIds: [
 					'wildwood-threshold-floor',
+					'wildwood-threshold-tree-wall-west',
 					'wildwood-threshold-brush-left',
 					'wildwood-woodcutter'
 				],
+				boundaryIds: ['wildwood-threshold-tree-wall-west', 'wildwood-threshold-tree-wall-east'],
 				storyMotif: 'forest-danger'
 			},
 			{
@@ -310,7 +404,8 @@ export const routeSceneDefinitions: RouteSceneDefinition[] = [
 					'wildwood-cache-brush-screen',
 					'wildwood-cache-tree-cover'
 				],
-				optionalPathIds: ['wildwood-side-clearing']
+				optionalPathIds: ['wildwood-side-clearing'],
+				boundaryIds: ['wildwood-cache-tree-cover', 'wildwood-grove-tree-1']
 			},
 			{
 				id: 'wildwood-hidden-cache-payoff',
@@ -322,7 +417,8 @@ export const routeSceneDefinitions: RouteSceneDefinition[] = [
 					'wildwood-cache-tree-cover',
 					'wildwood-grove-cache'
 				],
-				payoffIds: ['wildwood-grove-cache']
+				payoffIds: ['wildwood-grove-cache'],
+				boundaryIds: ['wildwood-cache-tree-cover', 'wildwood-grove-tree-1']
 			},
 			{
 				id: 'wildwood-combat-reveal',
@@ -334,6 +430,7 @@ export const routeSceneDefinitions: RouteSceneDefinition[] = [
 					'wildwood-crossing-combat-pocket',
 					'wildwood-cave-canopy-heavy'
 				],
+				boundaryIds: ['wildwood-combat-pocket-wall-west', 'wildwood-combat-pocket-wall-east'],
 				storyMotif: 'forest-danger'
 			},
 			{
@@ -346,6 +443,7 @@ export const routeSceneDefinitions: RouteSceneDefinition[] = [
 					'wildwood-cave-danger',
 					'meadow-to-whispering-cave-ruins-threshold'
 				],
+				boundaryIds: ['wildwood-cave-canopy-neck', 'wildwood-east-canopy'],
 				storyMotif: 'gate'
 			}
 		]
