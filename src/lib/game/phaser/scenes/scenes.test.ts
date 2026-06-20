@@ -2410,9 +2410,25 @@ describe('WorldScene', () => {
 			'forest-dressing',
 			'treeCluster'
 		);
+		expect(scene.add.tileSprite).toHaveBeenCalledWith(
+			5_000,
+			5_200,
+			1_100,
+			120,
+			'forest-dressing',
+			'treeCluster'
+		);
+		expect(scene.add.tileSprite).toHaveBeenCalledWith(
+			5_000,
+			5_500,
+			1_100,
+			120,
+			'forest-dressing',
+			'treeCluster'
+		);
 		expect(
 			phaserState.tileSpriteMarkers.filter((marker) => marker.frame === 'treeCluster')
-		).toHaveLength(2);
+		).toHaveLength(4);
 		expect(phaserState.tileSpriteMarkers.filter((marker) => marker.frame === 'brush')).toHaveLength(
 			0
 		);

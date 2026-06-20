@@ -205,6 +205,108 @@ export const silverpineRegion: RegionFragment = {
 				width: 70,
 				height: 70
 			}
+		},
+		{
+			id: 'silverpine-lower-wall-west',
+			textureKey: shrineDressingAsset.key,
+			frameName: 'silverpine',
+			x: 2_920,
+			y: 2_340,
+			width: 220,
+			height: 300,
+			mode: 'image',
+			collision: {
+				id: 'silverpine-lower-wall-west-collision',
+				x: 2_920,
+				y: 2_440,
+				width: 90,
+				height: 100
+			}
+		},
+		{
+			id: 'silverpine-lower-wall-east',
+			textureKey: shrineDressingAsset.key,
+			frameName: 'silverpine',
+			x: 3_440,
+			y: 2_340,
+			width: 220,
+			height: 300,
+			mode: 'image',
+			collision: {
+				id: 'silverpine-lower-wall-east-collision',
+				x: 3_440,
+				y: 2_440,
+				width: 90,
+				height: 100
+			}
+		},
+		{
+			id: 'silverpine-switchback-west',
+			textureKey: shrineDressingAsset.key,
+			frameName: 'autumnMaple',
+			x: 2_620,
+			y: 1_780,
+			width: 240,
+			height: 300,
+			mode: 'image',
+			collision: {
+				id: 'silverpine-switchback-west-collision',
+				x: 2_620,
+				y: 1_880,
+				width: 90,
+				height: 90
+			}
+		},
+		{
+			id: 'silverpine-switchback-east',
+			textureKey: shrineDressingAsset.key,
+			frameName: 'silverpine',
+			x: 3_520,
+			y: 1_520,
+			width: 220,
+			height: 300,
+			mode: 'image',
+			collision: {
+				id: 'silverpine-switchback-east-collision',
+				x: 3_520,
+				y: 1_620,
+				width: 90,
+				height: 90
+			}
+		},
+		{
+			id: 'silverpine-offering-grove-wall',
+			textureKey: shrineDressingAsset.key,
+			frameName: 'autumnMaple',
+			x: 2_300,
+			y: 1_620,
+			width: 240,
+			height: 300,
+			mode: 'image',
+			collision: {
+				id: 'silverpine-offering-grove-wall-collision',
+				x: 2_300,
+				y: 1_720,
+				width: 90,
+				height: 90
+			}
+		},
+		{
+			id: 'silverpine-terrace-boundary',
+			textureKey: shrineDressingAsset.key,
+			frameName: 'silverpine',
+			x: 2_560,
+			y: 940,
+			width: 240,
+			height: 170,
+			mode: 'tile',
+			collision: {
+				id: 'silverpine-terrace-boundary-collision',
+				x: 2_560,
+				y: 940,
+				width: 220,
+				height: 90
+			}
 		}
 	],
 	discoveries: [

@@ -154,7 +154,7 @@ export const villageRegion: RegionFragment = {
 	],
 	ambientNpcs: [{ id: 'village-wanderer', x: 1_700, y: 5_700, frameName: 'travelerNpc' }],
 	pickups: [
-		{ id: 'village-roadside-cache', x: 2_980, y: 4_780, itemId: 'field-potion', quantity: 1 }
+		{ id: 'village-roadside-cache', x: 3_040, y: 4_930, itemId: 'field-potion', quantity: 1 }
 	],
 	transitions: [
 		{
@@ -349,6 +349,11 @@ export const villageRegion: RegionFragment = {
 	fences: [
 		{ id: 'sundrop-home-fence', x: 531, y: 6_072, width: 384, height: 32 },
 		{ id: 'sundrop-plaza-west-fence', x: 1_120, y: 5_536, width: 32, height: 288 },
-		{ id: 'sundrop-plaza-east-fence', x: 1_952, y: 5_536, width: 32, height: 288 }
+		{ id: 'sundrop-plaza-east-fence', x: 1_952, y: 5_536, width: 32, height: 288 },
+		{ id: 'village-road-west-fence-a', x: 2_670, y: 4_835, width: 620, height: 32 },
+		{ id: 'village-road-east-fence-a', x: 2_760, y: 4_565, width: 560, height: 32 },
+		{ id: 'village-road-west-fence-b', x: 2_925, y: 4_560, width: 32, height: 360 },
+		{ id: 'village-road-east-fence-b', x: 3_210, y: 4_560, width: 32, height: 340 },
+		{ id: 'village-reststop-fence', x: 3_090, y: 5_050, width: 330, height: 32 }
 	]
 };

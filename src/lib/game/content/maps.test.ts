@@ -1387,7 +1387,18 @@ describe('opening map content', () => {
 		expect(meadowEntryMap.fences).toEqual([
 			{ id: 'sundrop-home-fence', x: 531, y: 6_072, width: 384, height: 32 },
 			{ id: 'sundrop-plaza-west-fence', x: 1_120, y: 5_536, width: 32, height: 288 },
-			{ id: 'sundrop-plaza-east-fence', x: 1_952, y: 5_536, width: 32, height: 288 }
+			{ id: 'sundrop-plaza-east-fence', x: 1_952, y: 5_536, width: 32, height: 288 },
+			{ id: 'village-road-west-fence-a', x: 2_670, y: 4_835, width: 620, height: 32 },
+			{ id: 'village-road-east-fence-a', x: 2_760, y: 4_565, width: 560, height: 32 },
+			{ id: 'village-road-west-fence-b', x: 2_925, y: 4_560, width: 32, height: 360 },
+			{ id: 'village-road-east-fence-b', x: 3_210, y: 4_560, width: 32, height: 340 },
+			{ id: 'village-reststop-fence', x: 3_090, y: 5_050, width: 330, height: 32 },
+			{ id: 'coast-approach-west-fence', x: 4_020, y: 5_250, width: 32, height: 520 },
+			{ id: 'coast-approach-east-fence', x: 4_380, y: 5_250, width: 32, height: 520 },
+			{ id: 'coast-fork-east-field-fence', x: 4_460, y: 5_660, width: 500, height: 32 },
+			{ id: 'crossroads-south-market-fence', x: 3_600, y: 4_510, width: 520, height: 32 },
+			{ id: 'crossroads-north-festival-barrier', x: 3_160, y: 3_370, width: 280, height: 32 },
+			{ id: 'crossroads-north-festival-barrier-east', x: 3_840, y: 3_370, width: 280, height: 32 }
 		]);
 		const ids = [
 			...(meadowEntryMap.groundPatches ?? []).map((patch) => patch.id),

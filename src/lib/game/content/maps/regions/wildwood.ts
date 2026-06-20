@@ -193,6 +193,74 @@ export const wildwoodRegion: RegionFragment = {
 			depth: 'floor'
 		},
 		{
+			id: 'wildwood-forest-lane-north-wall',
+			textureKey: forestDressingAsset.key,
+			frameName: 'treeCluster',
+			x: 5_000,
+			y: 5_200,
+			width: 1_100,
+			height: 120,
+			mode: 'tile',
+			collision: {
+				id: 'wildwood-forest-lane-north-wall-collision',
+				x: 5_000,
+				y: 5_200,
+				width: 1_100,
+				height: 110
+			}
+		},
+		{
+			id: 'wildwood-forest-lane-south-wall',
+			textureKey: forestDressingAsset.key,
+			frameName: 'treeCluster',
+			x: 5_000,
+			y: 5_500,
+			width: 1_100,
+			height: 120,
+			mode: 'tile',
+			collision: {
+				id: 'wildwood-forest-lane-south-wall-collision',
+				x: 5_000,
+				y: 5_500,
+				width: 1_100,
+				height: 110
+			}
+		},
+		{
+			id: 'wildwood-threshold-tree-wall-west',
+			textureKey: forestDressingAsset.key,
+			frameName: 'treeCluster',
+			x: 5_280,
+			y: 4_420,
+			width: 220,
+			height: 320,
+			mode: 'image',
+			collision: {
+				id: 'wildwood-threshold-tree-wall-west-collision',
+				x: 5_280,
+				y: 4_540,
+				width: 90,
+				height: 110
+			}
+		},
+		{
+			id: 'wildwood-threshold-tree-wall-east',
+			textureKey: forestDressingAsset.key,
+			frameName: 'treeCluster',
+			x: 5_900,
+			y: 4_420,
+			width: 220,
+			height: 320,
+			mode: 'image',
+			collision: {
+				id: 'wildwood-threshold-tree-wall-east-collision',
+				x: 5_900,
+				y: 4_540,
+				width: 90,
+				height: 110
+			}
+		},
+		{
 			id: 'wildwood-threshold-brush-left',
 			textureKey: forestDressingAsset.key,
 			frameName: 'brush',
@@ -314,6 +382,57 @@ export const wildwoodRegion: RegionFragment = {
 				y: 2_230,
 				width: 90,
 				height: 80
+			}
+		},
+		{
+			id: 'wildwood-combat-pocket-wall-west',
+			textureKey: forestDressingAsset.key,
+			frameName: 'treeCluster',
+			x: 5_040,
+			y: 1_280,
+			width: 220,
+			height: 360,
+			mode: 'image',
+			collision: {
+				id: 'wildwood-combat-pocket-wall-west-collision',
+				x: 5_040,
+				y: 1_390,
+				width: 90,
+				height: 120
+			}
+		},
+		{
+			id: 'wildwood-combat-pocket-wall-east',
+			textureKey: forestDressingAsset.key,
+			frameName: 'treeCluster',
+			x: 5_680,
+			y: 1_280,
+			width: 220,
+			height: 360,
+			mode: 'image',
+			collision: {
+				id: 'wildwood-combat-pocket-wall-east-collision',
+				x: 5_680,
+				y: 1_390,
+				width: 90,
+				height: 120
+			}
+		},
+		{
+			id: 'wildwood-cave-canopy-neck',
+			textureKey: forestDressingAsset.key,
+			frameName: 'treeCluster',
+			x: 5_760,
+			y: 1_920,
+			width: 220,
+			height: 280,
+			mode: 'image',
+			collision: {
+				id: 'wildwood-cave-canopy-neck-collision',
+				x: 5_760,
+				y: 2_020,
+				width: 90,
+				height: 90
 			}
 		}
 	],

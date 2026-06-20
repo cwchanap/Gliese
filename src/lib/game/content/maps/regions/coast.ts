@@ -113,6 +113,68 @@ export const coastRegion: RegionFragment = {
 			width: 160,
 			height: 140,
 			mode: 'image'
+		},
+		{
+			id: 'coast-fork-west-driftwood-wall',
+			textureKey: coastDressingAsset.key,
+			frameName: 'driftwood',
+			x: 3_830,
+			y: 5_400,
+			width: 300,
+			height: 130,
+			mode: 'image',
+			collision: {
+				id: 'coast-fork-west-driftwood-wall-collision',
+				x: 3_830,
+				y: 5_400,
+				width: 260,
+				height: 80
+			}
+		},
+		{
+			id: 'coast-shrine-pocket-boundary',
+			textureKey: coastDressingAsset.key,
+			frameName: 'driftwood',
+			x: 3_420,
+			y: 5_650,
+			width: 220,
+			height: 130,
+			mode: 'image',
+			collision: {
+				id: 'coast-shrine-pocket-boundary-collision',
+				x: 3_420,
+				y: 5_650,
+				width: 180,
+				height: 80
+			}
+		},
+		{
+			id: 'coast-tidepool-rock-wall',
+			textureKey: coastDressingAsset.key,
+			frameName: 'driftwood',
+			x: 5_650,
+			y: 5_820,
+			width: 260,
+			height: 130,
+			mode: 'image',
+			collision: {
+				id: 'coast-tidepool-rock-wall-collision',
+				x: 5_650,
+				y: 5_820,
+				width: 220,
+				height: 80
+			}
+		},
+		{
+			id: 'coast-jetty-neck',
+			textureKey: coastDressingAsset.key,
+			frameName: 'driftwood',
+			x: 5_060,
+			y: 6_000,
+			width: 220,
+			height: 130,
+			mode: 'image',
+			collision: { id: 'coast-jetty-neck-collision', x: 5_060, y: 6_000, width: 180, height: 80 }
 		}
 	],
 	discoveries: [
@@ -140,5 +202,10 @@ export const coastRegion: RegionFragment = {
 		{ id: 'coast-salve', x: 5_440, y: 5_930, itemId: 'sunleaf-salve', quantity: 1 },
 		{ id: 'coast-jetty-catch', x: 4_760, y: 6_060, itemId: 'field-potion', quantity: 1 }
 	],
-	blockers: [{ id: 'coast-sea-wall', x: 4_600, y: 6_320, width: 3_000, height: 80, kind: 'ocean' }]
+	blockers: [{ id: 'coast-sea-wall', x: 4_600, y: 6_320, width: 3_000, height: 80, kind: 'ocean' }],
+	fences: [
+		{ id: 'coast-approach-west-fence', x: 4_020, y: 5_250, width: 32, height: 520 },
+		{ id: 'coast-approach-east-fence', x: 4_380, y: 5_250, width: 32, height: 520 },
+		{ id: 'coast-fork-east-field-fence', x: 4_460, y: 5_660, width: 500, height: 32 }
+	]
 };
