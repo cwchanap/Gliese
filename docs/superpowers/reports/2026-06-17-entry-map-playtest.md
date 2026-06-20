@@ -31,13 +31,14 @@ Date: 2026-06-19
 
 Method: launched `bun run dev`, drove the live game through Chrome DevTools, and captured the five
 routes plus both sealed gates. Findings below are visual-composition observations from these captures
-(not stopwatch-timed). Screenshots live in [`./entry-map-playtest/`](./entry-map-playtest/).
+(not stopwatch-timed). Reviewable screenshots live in
+[`./entry-map-playtest-reviewed/`](./entry-map-playtest-reviewed/).
 
 ### Route 1: Spawn → Crossroads
 
-![spawn](./entry-map-playtest/01-spawn.png)
-![rest stop](./entry-map-playtest/02-village-reststop.png)
-![crossroads hub](./entry-map-playtest/03-crossroads-hub.png)
+![spawn](./entry-map-playtest-reviewed/01-spawn.png)
+![rest stop](./entry-map-playtest-reviewed/02-village-reststop.png)
+![crossroads hub](./entry-map-playtest-reviewed/03-crossroads-hub.png)
 
 - First visible hook: immediate — well, market stall, traveler NPC, flower bed and an examinable
   prompt are all on screen at spawn.
@@ -50,8 +51,8 @@ routes plus both sealed gates. Findings below are visual-composition observation
 
 ### Route 2: Crossroads → Coast → Jetty → Tidepool
 
-![ferry shrine](./entry-map-playtest/05-coast-ferry-shrine.png)
-![jetty + tidepool](./entry-map-playtest/06-coast-jetty-tidepool.png)
+![ferry shrine](./entry-map-playtest-reviewed/05-coast-ferry-shrine.png)
+![jetty + tidepool](./entry-map-playtest-reviewed/06-coast-jetty-tidepool.png)
 
 - First hook: the Ferry Crossing shrine on the sand, with driftwood and a beached rowboat.
 - Three nodes present: **ferry shrine** (readable from the front), **tidepool** (foamy pool, east),
@@ -61,8 +62,8 @@ routes plus both sealed gates. Findings below are visual-composition observation
 
 ### Route 3: Crossroads → Mistfen → Witchwood Gate
 
-![mistfen marsh](./entry-map-playtest/07-mistfen-marsh.png)
-![witchwood gate](./entry-map-playtest/08-witchwood-gate.png)
+![mistfen marsh](./entry-map-playtest-reviewed/07-mistfen-marsh.png)
+![witchwood gate](./entry-map-playtest-reviewed/08-witchwood-gate.png)
 
 - First hook: toxic blooms and a marsh pool under noticeably dimmer, eerier lighting.
 - Side pocket: the **east pool** holds the `mistfen-salve` reward off the safe approach.
@@ -71,8 +72,8 @@ routes plus both sealed gates. Findings below are visual-composition observation
 
 ### Route 4: Crossroads → Silverpine → Shrine Gate
 
-![silverpine climb](./entry-map-playtest/09-silverpine-climb.png)
-![shrine gate](./entry-map-playtest/10-silverpine-shrine-gate.png)
+![silverpine climb](./entry-map-playtest-reviewed/09-silverpine-climb.png)
+![shrine gate](./entry-map-playtest-reviewed/10-silverpine-shrine-gate.png)
 
 - First hook: an offering archway, a stone lantern, and a pilgrim NPC facing uphill.
 - Reads as an ascent: lantern cadence + pilgrim + silver tree / autumn maples flanking the climbing path.
@@ -81,8 +82,8 @@ routes plus both sealed gates. Findings below are visual-composition observation
 
 ### Route 5: Crossroads → Wildwood → Whispering Cave
 
-![wildwood grove](./entry-map-playtest/11-wildwood-grove.png)
-![danger approach + cave](./entry-map-playtest/12-wildwood-danger-approach.png)
+![wildwood grove](./entry-map-playtest-reviewed/11-wildwood-grove.png)
+![danger approach + cave](./entry-map-playtest-reviewed/12-wildwood-danger-approach.png)
 
 - First hook: the forest road and the woodcutter NPC; darker forest floor.
 - Side pocket: `wildwood-grove-cache` tucked into brush, spatially off the main route.
