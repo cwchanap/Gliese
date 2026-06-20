@@ -5,7 +5,10 @@ export const coastRegion: RegionFragment = {
 	groundPatches: [
 		{ id: 'coast-sea', x: 4_600, y: 6_180, width: 3_000, height: 360, tile: 'seaTile' },
 		{ id: 'coast-sand', x: 4_600, y: 5_840, width: 3_000, height: 360, tile: 'sandTile' },
-		{ id: 'coast-approach-path', x: 4_200, y: 5_500, width: 64, height: 360, tile: 'pathTile' }
+		{ id: 'coast-approach-path', x: 4_200, y: 5_500, width: 64, height: 360, tile: 'pathTile' },
+		{ id: 'coast-ferry-fork', x: 3_900, y: 5_520, width: 700, height: 64, tile: 'sandTile' },
+		{ id: 'coast-shrine-landing', x: 3_600, y: 5_650, width: 420, height: 260, tile: 'sandTile' },
+		{ id: 'coast-tidepool-pocket', x: 5_280, y: 5_940, width: 620, height: 280, tile: 'sandTile' }
 	],
 	landmarks: [
 		{
@@ -22,8 +25,8 @@ export const coastRegion: RegionFragment = {
 			id: 'coast-torii',
 			textureKey: coastDressingAsset.key,
 			frameName: 'torii',
-			x: 4_200,
-			y: 6_160,
+			x: 4_240,
+			y: 6_080,
 			width: 320,
 			height: 360,
 			mode: 'image'
@@ -43,19 +46,19 @@ export const coastRegion: RegionFragment = {
 			id: 'coast-boat',
 			textureKey: coastDressingAsset.key,
 			frameName: 'fishingBoat',
-			x: 5_000,
-			y: 5_900,
+			x: 5_160,
+			y: 5_880,
 			width: 260,
 			height: 180,
 			mode: 'image',
-			collision: { id: 'coast-boat-collision', x: 5_000, y: 5_900, width: 200, height: 120 }
+			collision: { id: 'coast-boat-collision', x: 5_160, y: 5_890, width: 200, height: 120 }
 		},
 		{
 			id: 'coast-net',
 			textureKey: coastDressingAsset.key,
 			frameName: 'fishingNet',
-			x: 4_700,
-			y: 5_780,
+			x: 5_240,
+			y: 5_960,
 			width: 180,
 			height: 160,
 			mode: 'image'
@@ -64,8 +67,8 @@ export const coastRegion: RegionFragment = {
 			id: 'coast-tidepool',
 			textureKey: coastDressingAsset.key,
 			frameName: 'tidePool',
-			x: 5_400,
-			y: 6_040,
+			x: 5_440,
+			y: 6_020,
 			width: 220,
 			height: 160,
 			mode: 'image'
@@ -74,8 +77,8 @@ export const coastRegion: RegionFragment = {
 			id: 'coast-driftwood',
 			textureKey: coastDressingAsset.key,
 			frameName: 'driftwood',
-			x: 4_000,
-			y: 5_900,
+			x: 3_920,
+			y: 5_520,
 			width: 200,
 			height: 130,
 			mode: 'image'
@@ -105,8 +108,8 @@ export const coastRegion: RegionFragment = {
 			id: 'coast-approach-net',
 			textureKey: coastDressingAsset.key,
 			frameName: 'fishingNet',
-			x: 4_200,
-			y: 5_300,
+			x: 4_120,
+			y: 5_380,
 			width: 160,
 			height: 140,
 			mode: 'image'
@@ -116,7 +119,7 @@ export const coastRegion: RegionFragment = {
 		{
 			id: 'ferry-shrine-lore',
 			x: 3_600,
-			y: 5_720,
+			y: 5_500,
 			kind: 'lore',
 			revealMarker: true,
 			labelKey: 'content.maps.discoveries.ferry-shrine-lore.label',
@@ -132,10 +135,10 @@ export const coastRegion: RegionFragment = {
 			descriptionKey: 'content.maps.discoveries.coast-jetty-foreshadow.description'
 		}
 	],
-	ambientNpcs: [{ id: 'coast-fisher', x: 4_500, y: 5_780, frameName: 'fisherNpc' }],
+	ambientNpcs: [{ id: 'coast-fisher', x: 3_840, y: 5_570, frameName: 'fisherNpc' }],
 	pickups: [
-		{ id: 'coast-salve', x: 5_300, y: 5_820, itemId: 'sunleaf-salve', quantity: 1 },
-		{ id: 'coast-jetty-catch', x: 4_900, y: 6_120, itemId: 'field-potion', quantity: 1 }
+		{ id: 'coast-salve', x: 5_440, y: 5_930, itemId: 'sunleaf-salve', quantity: 1 },
+		{ id: 'coast-jetty-catch', x: 4_760, y: 6_060, itemId: 'field-potion', quantity: 1 }
 	],
 	blockers: [{ id: 'coast-sea-wall', x: 4_600, y: 6_320, width: 3_000, height: 80, kind: 'ocean' }]
 };
