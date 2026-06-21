@@ -257,6 +257,114 @@ describe('soft-maze route-scene contract', () => {
 	});
 });
 
+describe('route boundary continuity (path-texture-off invariant)', () => {
+	const solids = [...collectSolidRects(meadowEntryMap).values()];
+	const roomBounds = softMazeRooms.map((room) => room.bounds);
+	// Perpendicular leak budget per the plan's Phase-7 leak detector: probe every
+	// 32px out to 640px perpendicular to the route; a sample is "leaked" when no
+	// solid (blocker/fence/landmark/colliding decor) appears within budget on a
+	// side. This is the objective encoding of "can the player follow the route
+	// with path textures off?".
+	const leakBudget = 640;
+
+	function leaksForRoute(route: { mainRoute: Pt[] }): string[] {
+		const leaks: string[] = [];
+		for (const { point, direction } of corridorSamples(route.mainRoute)) {
+			if (roomBounds.some((room) => pointInRect(point, room))) continue;
+			const normal = { x: -direction.y, y: direction.x };
+			let leftHit = false;
+			let rightHit = false;
+			for (let step = 32; step <= leakBudget; step += 32) {
+				const probeLeft = { x: point.x - normal.x * step, y: point.y - normal.y * step };
+				const probeRight = { x: point.x + normal.x * step, y: point.y + normal.y * step };
+				if (!leftHit && solids.some((rect) => pointInRect(probeLeft, rect))) leftHit = true;
+				if (!rightHit && solids.some((rect) => pointInRect(probeRight, rect))) rightHit = true;
+				if (leftHit && rightHit) break;
+			}
+			if (!leftHit) leaks.push(`LEFT@(${Math.round(point.x)},${Math.round(point.y)})`);
+			if (!rightHit) leaks.push(`RIGHT@(${Math.round(point.x)},${Math.round(point.y)})`);
+		}
+		return leaks;
+	}
+
+	// Diagnostic: pins the current open-field leak baseline per route so any
+	// geometry change is detected (count drops as corridors gain continuous
+	// boundaries; rises if a boundary is removed). Update the baseline when the
+	// count intentionally changes. Each route's hard goal test lives below,
+	// skipped until that route is fully bounded.
+	it('reports the current open-field leak baseline per route', () => {
+		const baseline: Record<string, number> = {
+			'spawn-to-crossroads': 7,
+			'crossroads-to-coast': 10,
+			'crossroads-to-mistfen': 17,
+			'crossroads-to-silverpine': 21,
+			'crossroads-to-wildwood': 40
+		};
+		for (const route of routeSceneDefinitions) {
+			const count = leaksForRoute(route).length;
+			expect(
+				count,
+				`${route.id} leak count changed from baseline ${baseline[route.id]}; update the baseline if intentional, or investigate a regression`
+			).toBe(baseline[route.id]);
+		}
+	});
+
+	// GOAL TESTS — one per route. Un-skip a route here once its leak count
+	// reaches 0 (continuous boundaries along the whole route). The diagnostic
+	// above tracks progress; these enforce the finished standard.
+	it.skip('spawn-to-crossroads has continuous left/right boundaries', () => {
+		const route = routeSceneDefinitions.find((r) => r.id === 'spawn-to-crossroads')!;
+		expect(leaksForRoute(route)).toEqual([]);
+	});
+	it.skip('crossroads-to-coast has continuous left/right boundaries', () => {
+		const route = routeSceneDefinitions.find((r) => r.id === 'crossroads-to-coast')!;
+		expect(leaksForRoute(route)).toEqual([]);
+	});
+	it.skip('crossroads-to-mistfen has continuous left/right boundaries', () => {
+		const route = routeSceneDefinitions.find((r) => r.id === 'crossroads-to-mistfen')!;
+		expect(leaksForRoute(route)).toEqual([]);
+	});
+	it.skip('crossroads-to-silverpine has continuous left/right boundaries', () => {
+		const route = routeSceneDefinitions.find((r) => r.id === 'crossroads-to-silverpine')!;
+		expect(leaksForRoute(route)).toEqual([]);
+	});
+	it.skip('crossroads-to-wildwood has continuous left/right boundaries', () => {
+		const route = routeSceneDefinitions.find((r) => r.id === 'crossroads-to-wildwood')!;
+		expect(leaksForRoute(route)).toEqual([]);
+	});
+});
+
+describe('shortcut closure', () => {
+	const solids = [...collectSolidRects(meadowEntryMap).values()];
+
+	// Each entry is a forbidden straight-line shortcut between two major rooms.
+	// The sample line must cross at least one solid (blocker/fence/landmark/
+	// colliding decor) so the player is forced onto the authored corridor
+	// instead of cutting diagonally across open field — the plan's
+	// "path-texture-off" requirement expressed as a geometric invariant.
+	const forbiddenShortcuts: Array<{ id: string; from: Pt; to: Pt }> = [
+		{ id: 'village-to-coast', from: { x: 1_536, y: 5_344 }, to: { x: 4_100, y: 5_520 } },
+		{ id: 'crossroads-to-witchwood-gate', from: { x: 3_500, y: 4_000 }, to: { x: 1_200, y: 620 } },
+		{
+			id: 'crossroads-to-whispering-cave',
+			from: { x: 3_500, y: 4_000 },
+			to: { x: 5_960, y: 1_800 }
+		},
+		{ id: 'silverpine-to-mistfen', from: { x: 3_000, y: 520 }, to: { x: 1_200, y: 620 } }
+	];
+
+	it('blocks every forbidden inter-room diagonal with at least one solid', () => {
+		for (const shortcut of forbiddenShortcuts) {
+			const samples = segmentSamples(shortcut.from, shortcut.to, 48);
+			const blocked = samples.some((sample) => solids.some((rect) => pointInRect(sample, rect)));
+			expect(
+				blocked,
+				`${shortcut.id} diagonal is open field — no solid crosses the straight line`
+			).toBe(true);
+		}
+	});
+});
+
 describe('decor role manifest', () => {
 	const decorById = new Map((meadowEntryMap.mapDecor ?? []).map((decor) => [decor.id, decor]));
 	const roleById = new Map(decorRoles.map((entry) => [entry.id, entry]));

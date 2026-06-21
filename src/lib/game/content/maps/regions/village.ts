@@ -302,6 +302,18 @@ export const villageRegion: RegionFragment = {
 			width: 100,
 			height: 50,
 			tile: 'seaTile'
+		},
+		// Visual fill for the open vertical gap between the plaza's east lane
+		// (y≈5347) and the village→crossroads horizontal lane (y≈4700). Without
+		// this strip the connector reads as empty grass; with it the route is a
+		// continuous lane bounded by the field hedges below.
+		{
+			id: 'village-lane-connector',
+			x: 2_750,
+			y: 5_020,
+			width: 64,
+			height: 700,
+			tile: 'pathTile'
 		}
 	],
 	blockers: [
@@ -344,6 +356,31 @@ export const villageRegion: RegionFragment = {
 			width: 100,
 			height: 50,
 			kind: 'ocean'
+		},
+		// Field seal south of the village→crossroads lane, west of villager-house-3
+		// (which sits at x≈2477–2707). Blocks the open-field diagonal from the
+		// plaza up toward the crossroads; the gap east of x2477 (house-3's west
+		// wall + the connector at x≈2750) stays open so the authored lane remains
+		// the only north route. y=4900 sits between the lane (4700) and the
+		// house-3 doorway arrival (5024) so it touches neither.
+		{
+			id: 'village-field-boundary-south',
+			x: 2_188,
+			y: 4_900,
+			width: 577,
+			height: 64,
+			kind: 'town-hedge'
+		},
+		// Field seal north of the lane, acting as the south wall of the
+		// crossroads approach field. Forces northbound traffic onto the neck at
+		// x≈3050 instead of cutting across open grass west of the hub.
+		{
+			id: 'village-field-boundary-north',
+			x: 2_400,
+			y: 4_400,
+			width: 1_000,
+			height: 64,
+			kind: 'town-hedge'
 		}
 	],
 	fences: [
