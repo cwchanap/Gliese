@@ -487,5 +487,48 @@ export const wildwoodRegion: RegionFragment = {
 		{ id: 'meadow-slime-west', x: 4_928, y: 960, enemyId: 'slime-scout' },
 		{ id: 'meadow-slime-center', x: 5_360, y: 1_280, enemyId: 'slime-scout' },
 		{ id: 'meadow-slime-east', x: 5_920, y: 1_600, enemyId: 'slime-scout' }
+	],
+	blockers: [
+		// Forest-lane banks flanking the vertical climb at x≈5600 (route segment
+		// between the horizontal lane y≈5347 and the combat rooms y≈3200). Both
+		// stop at y=5300 so they never cross the horizontal lane junction, and
+		// both sit outside the threshold room (x 5140–5900) and the route
+		// centerline (x 5600).
+		{
+			id: 'wildwood-forest-lane-west-bank',
+			x: 5_000,
+			y: 4_250,
+			width: 64,
+			height: 2_100,
+			kind: 'town-hedge'
+		},
+		{
+			id: 'wildwood-forest-lane-east-bank',
+			x: 6_100,
+			y: 4_250,
+			width: 64,
+			height: 2_100,
+			kind: 'town-hedge'
+		},
+		// North-climb banks flanking the diagonal from the top of the forest lane
+		// (5600,3200) up to the Whispering Cave mouth (5960,1800). West bank
+		// stays east of the combat rooms; east bank sits inside the map east
+		// margin. Both stop south of the cave room so the cave neck stays open.
+		{
+			id: 'wildwood-north-climb-west-bank',
+			x: 5_400,
+			y: 2_500,
+			width: 64,
+			height: 1_100,
+			kind: 'town-hedge'
+		},
+		{
+			id: 'wildwood-north-climb-east-bank',
+			x: 6_200,
+			y: 2_750,
+			width: 64,
+			height: 1_100,
+			kind: 'town-hedge'
+		}
 	]
 };

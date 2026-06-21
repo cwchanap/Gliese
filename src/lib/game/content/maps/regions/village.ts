@@ -365,10 +365,21 @@ export const villageRegion: RegionFragment = {
 		// house-3 doorway arrival (5024) so it touches neither.
 		{
 			id: 'village-field-boundary-south',
-			x: 2_188,
+			x: 2_150,
 			y: 4_900,
-			width: 577,
+			width: 650,
 			height: 64,
+			kind: 'town-hedge'
+		},
+		// Connector east bank: flanks the vertical connector at x≈2750 on its
+		// east side, giving the plaza→lane diagonal a right-hand boundary so the
+		// route reads as a lane rather than open grass south of house-3.
+		{
+			id: 'village-connector-east-bank',
+			x: 2_680,
+			y: 5_150,
+			width: 64,
+			height: 350,
 			kind: 'town-hedge'
 		},
 		// Field seal north of the lane, acting as the south wall of the

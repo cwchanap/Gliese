@@ -310,6 +310,27 @@ export const mistfenRegion: RegionFragment = {
 	blockers: [
 		{ id: 'witchwood-gate-block', x: 1_200, y: 470, width: 384, height: 96, kind: 'future-gate' },
 		{ id: 'mistfen-pool-west-blocker', x: 800, y: 1_400, width: 420, height: 300, kind: 'ocean' },
-		{ id: 'mistfen-pool-east-blocker', x: 1_700, y: 2_100, width: 360, height: 280, kind: 'ocean' }
+		{ id: 'mistfen-pool-east-blocker', x: 1_700, y: 2_100, width: 360, height: 280, kind: 'ocean' },
+		// Entry bank east of the crossroads→mistfen exit mouth so the reed
+		// corridor begins at a defined threshold rather than open grass. (The
+		// west side is covered by the declared mistfen-crossroads-exit-room.)
+		{
+			id: 'mistfen-entry-bank-east',
+			x: 3_100,
+			y: 2_850,
+			width: 64,
+			height: 500,
+			kind: 'town-hedge'
+		},
+		// West bank of the gate approach so the final climb to the Witchwood Gate
+		// reads as a narrowing corridor.
+		{
+			id: 'mistfen-gate-approach-west-bank',
+			x: 1_080,
+			y: 1_750,
+			width: 64,
+			height: 600,
+			kind: 'town-hedge'
+		}
 	]
 };
