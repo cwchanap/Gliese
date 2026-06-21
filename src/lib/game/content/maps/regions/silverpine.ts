@@ -333,6 +333,34 @@ export const silverpineRegion: RegionFragment = {
 			width: 420,
 			height: 96,
 			kind: 'future-gate'
+		},
+		// Stair banks flanking the ceremonial climb at x≈3100. West banks sit
+		// east of the offering-grove room (x≤2900) and stop short of the grove's
+		// y-range; east bank runs the far side of the stair. Together they read
+		// the climb as a corridor rather than a painted strip in open grass.
+		{
+			id: 'silverpine-stair-west-bank-lower',
+			x: 2_750,
+			y: 2_350,
+			width: 64,
+			height: 1_100,
+			kind: 'town-hedge'
+		},
+		{
+			id: 'silverpine-stair-west-bank-upper',
+			x: 2_900,
+			y: 1_100,
+			width: 64,
+			height: 450,
+			kind: 'town-hedge'
+		},
+		{
+			id: 'silverpine-stair-east-bank',
+			x: 3_500,
+			y: 1_800,
+			width: 64,
+			height: 2_000,
+			kind: 'town-hedge'
 		}
 	]
 };

@@ -202,7 +202,29 @@ export const coastRegion: RegionFragment = {
 		{ id: 'coast-salve', x: 5_440, y: 5_930, itemId: 'sunleaf-salve', quantity: 1 },
 		{ id: 'coast-jetty-catch', x: 4_760, y: 6_060, itemId: 'field-potion', quantity: 1 }
 	],
-	blockers: [{ id: 'coast-sea-wall', x: 4_600, y: 6_320, width: 3_000, height: 80, kind: 'ocean' }],
+	blockers: [
+		{ id: 'coast-sea-wall', x: 4_600, y: 6_320, width: 3_000, height: 80, kind: 'ocean' },
+		// South wall of the crossroads→coast exit mouth, giving the approach a
+		// left/right boundary where it leaves the hub.
+		{
+			id: 'coast-crossroads-mouth-bank',
+			x: 3_500,
+			y: 4_650,
+			width: 64,
+			height: 400,
+			kind: 'town-hedge'
+		},
+		// West bank of the lower coast approach so the sandy corridor reads as a
+		// lane rather than open beach.
+		{
+			id: 'coast-approach-west-bank',
+			x: 4_080,
+			y: 5_950,
+			width: 64,
+			height: 450,
+			kind: 'town-hedge'
+		}
+	],
 	fences: [
 		{ id: 'coast-approach-west-fence', x: 4_020, y: 5_250, width: 32, height: 520 },
 		{ id: 'coast-approach-east-fence', x: 4_380, y: 5_250, width: 32, height: 520 },

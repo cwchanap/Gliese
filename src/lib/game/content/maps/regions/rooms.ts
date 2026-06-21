@@ -38,6 +38,14 @@ export const softMazeRooms: SoftMazeRoom[] = [
 		storyMotif: 'homeward-road'
 	},
 	{
+		id: 'village-east-exit-room',
+		kind: 'threshold',
+		bounds: { id: 'village-east-exit-room', x: 2_300, y: 5_250, width: 1_200, height: 400 },
+		routeIds: ['spawn-to-crossroads'],
+		requiredVisibleIds: ['sundrop-east-lane', 'village-lane-connector'],
+		storyMotif: 'homeward-road'
+	},
+	{
 		id: 'village-road-reststop-room',
 		kind: 'side-pocket',
 		bounds: { id: 'village-road-reststop-room', x: 3_030, y: 4_900, width: 420, height: 340 },
@@ -108,6 +116,14 @@ export const softMazeRooms: SoftMazeRoom[] = [
 		storyMotif: 'gate'
 	},
 	{
+		id: 'mistfen-crossroads-exit-room',
+		kind: 'threshold',
+		bounds: { id: 'mistfen-crossroads-exit-room', x: 2_600, y: 2_950, width: 900, height: 400 },
+		routeIds: ['crossroads-to-mistfen'],
+		requiredVisibleIds: ['mistfen-approach-path'],
+		storyMotif: 'gate'
+	},
+	{
 		id: 'mistfen-east-pool-room',
 		kind: 'side-pocket',
 		bounds: { id: 'mistfen-east-pool-room', x: 1_560, y: 2_260, width: 560, height: 360 },
@@ -172,6 +188,14 @@ export const softMazeRooms: SoftMazeRoom[] = [
 			'wildwood-threshold-tree-wall-west',
 			'wildwood-woodcutter'
 		],
+		storyMotif: 'forest-danger'
+	},
+	{
+		id: 'wildwood-approach-room',
+		kind: 'threshold',
+		bounds: { id: 'wildwood-approach-room', x: 4_275, y: 4_650, width: 650, height: 1_000 },
+		routeIds: ['crossroads-to-wildwood'],
+		requiredVisibleIds: ['crossroads-wildwood-cue-floor', 'wildwood-grove-maple-1'],
 		storyMotif: 'forest-danger'
 	},
 	{
