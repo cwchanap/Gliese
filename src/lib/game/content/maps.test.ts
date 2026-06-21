@@ -1615,6 +1615,121 @@ describe('meadow-entry region integrity', () => {
 		}
 	});
 
+	/**
+	 * Full-obstacle connectivity guard: same flood fill as the structural guard
+	 * above, but treating every movement-blocking surface — `blockers`, `fences`,
+	 * and colliding `mapDecor` — as impassable. Landmarks are excluded because
+	 * their collision is doorway-carved at runtime; this is intentionally a
+	 * SUPERSET of the structural guard so a lane fence or decor wall that
+	 * accidentally seals a corridor junction (trapping the player off-screen) is
+	 * caught here even though it is not a region-sealing blocker. Every
+	 * interactable gameplay object — transitions, pickups, encounters, NPCs, and
+	 * discoveries — must stay reachable from spawn through the full obstacle field.
+	 */
+	function floodFillReachableCellsOverAllSolids(map: WorldMapDefinition): Set<string> {
+		const solids: CenterRect[] = [
+			...(map.blockers ?? []),
+			...(map.fences ?? []),
+			...(map.mapDecor ?? [])
+				.filter((decor) => decor.collision)
+				.map((decor) => decor.collision as CenterRect)
+		];
+		const isBlocked = (px: number, py: number) =>
+			solids.some((rect) => isPointInsideRect({ x: px, y: py }, rect));
+
+		const startCol = Math.floor(map.spawn.x / connectivityTileSize);
+		const startRow = Math.floor(map.spawn.y / connectivityTileSize);
+		const seen = new Set<string>([`${startCol},${startRow}`]);
+		const queue: Array<[number, number]> = [[startCol, startRow]];
+
+		while (queue.length > 0) {
+			const [col, row] = queue.shift()!;
+			for (const [dCol, dRow] of [
+				[1, 0],
+				[-1, 0],
+				[0, 1],
+				[0, -1]
+			]) {
+				const nextCol = col + dCol;
+				const nextRow = row + dRow;
+				if (nextCol < 0 || nextRow < 0 || nextCol >= map.width || nextRow >= map.height) {
+					continue;
+				}
+				const cellKey = `${nextCol},${nextRow}`;
+				if (seen.has(cellKey)) {
+					continue;
+				}
+				const cellCenterX = nextCol * connectivityTileSize + connectivityTileSize / 2;
+				const cellCenterY = nextRow * connectivityTileSize + connectivityTileSize / 2;
+				if (isBlocked(cellCenterX, cellCenterY)) {
+					continue;
+				}
+				seen.add(cellKey);
+				queue.push([nextCol, nextRow]);
+			}
+		}
+
+		return seen;
+	}
+
+	it('keeps every gameplay object reachable from spawn through the full obstacle field', () => {
+		const reachableCells = floodFillReachableCellsOverAllSolids(meadowEntryMap);
+		const cellKey = (point: { x: number; y: number }) =>
+			`${Math.floor(point.x / connectivityTileSize)},${Math.floor(point.y / connectivityTileSize)}`;
+		// Transitions and encounters require a standable cell — the player walks
+		// onto the tile to trigger them — so they must be reachable at the exact cell.
+		const isReachable = (point: { x: number; y: number }) => reachableCells.has(cellKey(point));
+		// Pickups, discoveries, and NPCs are proximity-interacted (a radius around
+		// the object), and authors legitimately tuck them against a wall so the
+		// object's own cell sits inside a collision rect. Treat such an object as
+		// reachable when any cell within a 2-tile neighbourhood is walkable.
+		const isReachableNearby = (point: { x: number; y: number }) => {
+			const col = Math.floor(point.x / connectivityTileSize);
+			const row = Math.floor(point.y / connectivityTileSize);
+			for (let dCol = -2; dCol <= 2; dCol += 1) {
+				for (let dRow = -2; dRow <= 2; dRow += 1) {
+					if (reachableCells.has(`${col + dCol},${row + dRow}`)) {
+						return true;
+					}
+				}
+			}
+			return false;
+		};
+
+		expect(isReachable(meadowEntryMap.spawn), 'spawn cell must not be sealed by any solid').toBe(
+			true
+		);
+
+		for (const transition of meadowEntryMap.transitions) {
+			expect(
+				isReachable(transition),
+				`${transition.id} at (${transition.x}, ${transition.y}) is sealed off from spawn by a solid obstacle`
+			).toBe(true);
+		}
+		for (const encounter of meadowEntryMap.encounters ?? []) {
+			expect(
+				isReachable(encounter),
+				`${encounter.id} at (${encounter.x}, ${encounter.y}) is sealed off from spawn by a solid obstacle`
+			).toBe(true);
+		}
+
+		const proximityChecks: Array<{ kind: string; point: { x: number; y: number }; id: string }> = [
+			...(meadowEntryMap.pickups ?? []).map((p) => ({ kind: 'pickup', point: p, id: p.id })),
+			...(meadowEntryMap.discoveries ?? []).map((d) => ({
+				kind: 'discovery',
+				point: d,
+				id: d.id
+			})),
+			...(meadowEntryMap.npcs ?? []).map((n) => ({ kind: 'npc', point: n, id: n.id }))
+		];
+		for (const { kind, point, id } of proximityChecks) {
+			expect(
+				isReachableNearby(point),
+				`${kind} ${id} at (${point.x}, ${point.y}) has no walkable cell within 2 tiles`
+			).toBe(true);
+		}
+	});
+
 	it('keeps every inter-region path link connected to the region ground network', () => {
 		// The `pathsRegion` connectors are decorative ground patches (the player
 		// walks any non-blocked tile, so they do not affect navigation). Their whole
@@ -2146,6 +2261,7 @@ describe('critical routes avoid blockers', () => {
 	const criticalRoutes: Pt[][] = [
 		[
 			{ x: 1_536, y: 5_550 },
+			{ x: 2_750, y: 5_347 },
 			{ x: 2_750, y: 4_700 },
 			{ x: 3_500, y: 4_000 }
 		],
