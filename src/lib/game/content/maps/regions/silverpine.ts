@@ -337,7 +337,7 @@ export const silverpineRegion: RegionFragment = {
 		// Silverpine corridor walls — paired hedges at ±160px perpendicular
 		// to each reshaped mainRoute segment, forming a winding JRPG-dungeon
 		// corridor ≤320px wide. Gaps at beat-room boundaries act as doorways.
-		// Seg A: x=3500, y∈[2700,3000] (vertical)
+		// Seg A: x=3500, y∈[2750,3000] (vertical)
 		{
 			id: 'silverpine-wall-A-west',
 			x: 3_340,
