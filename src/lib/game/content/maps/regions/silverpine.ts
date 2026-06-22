@@ -506,6 +506,66 @@ export const silverpineRegion: RegionFragment = {
 			width: 64,
 			height: 120,
 			kind: 'town-hedge'
+		},
+		// Alcove pocket enclosure — walls around the silverpine-mid-climb-alcove
+		// pocket at (3420, 1320) so flood-fill from the pocket center reaches
+		// the corridor before leaking >640px into open field. The existing
+		// silverpine-wall-H-east (x=3380, y∈[1290,1610]) seals the west side;
+		// these walls seal north, east, and south. The west-side gap between
+		// the north wall and wall-H-east (y∈[1222,1290]) drains into the
+		// corridor absorption zone (distToRoute<160) before leaking.
+		{
+			id: 'silverpine-mid-climb-alcove-wall-east',
+			x: 3_580,
+			y: 1_290,
+			width: 64,
+			height: 380,
+			kind: 'town-hedge'
+		},
+		{
+			id: 'silverpine-mid-climb-alcove-wall-north',
+			x: 3_460,
+			y: 1_190,
+			width: 320,
+			height: 64,
+			kind: 'town-hedge'
+		},
+		{
+			id: 'silverpine-mid-climb-alcove-wall-south',
+			x: 3_460,
+			y: 1_450,
+			width: 320,
+			height: 64,
+			kind: 'town-hedge'
+		},
+		// Grove pocket enclosure — walls around the silverpine-grove-pocket at
+		// (2620, 1560) so flood-fill from the pocket center reaches the corridor
+		// (x=2900) before leaking >640px west into open field. The east side
+		// opens to the corridor where the absorption zone (distToRoute<160)
+		// drains the flood-fill.
+		{
+			id: 'silverpine-grove-pocket-wall-west',
+			x: 2_360,
+			y: 1_560,
+			width: 64,
+			height: 520,
+			kind: 'town-hedge'
+		},
+		{
+			id: 'silverpine-grove-pocket-wall-north',
+			x: 2_620,
+			y: 1_300,
+			width: 560,
+			height: 64,
+			kind: 'town-hedge'
+		},
+		{
+			id: 'silverpine-grove-pocket-wall-south',
+			x: 2_600,
+			y: 1_820,
+			width: 480,
+			height: 64,
+			kind: 'town-hedge'
 		}
 	]
 };
