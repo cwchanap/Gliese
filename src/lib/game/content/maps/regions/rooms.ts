@@ -14,6 +14,7 @@ export interface SoftMazeRoom {
 	kind: SoftMazeRoomKind;
 	bounds: { id: string; x: number; y: number; width: number; height: number };
 	routeIds: string[];
+	beatId: string;
 	requiredVisibleIds: string[];
 	payoffIds?: string[];
 	storyMotif?: RouteSceneStoryMotif;
@@ -34,15 +35,8 @@ export const softMazeRooms: SoftMazeRoom[] = [
 		kind: 'safe',
 		bounds: { id: 'village-plaza-room', x: 1_536, y: 5_344, width: 672, height: 512 },
 		routeIds: ['spawn-to-crossroads'],
+		beatId: 'village-homeward-hook',
 		requiredVisibleIds: ['sundrop-well', 'guild-hall-exterior', 'village-wanderer'],
-		storyMotif: 'homeward-road'
-	},
-	{
-		id: 'village-east-exit-room',
-		kind: 'threshold',
-		bounds: { id: 'village-east-exit-room', x: 2_300, y: 5_250, width: 1_200, height: 400 },
-		routeIds: ['spawn-to-crossroads'],
-		requiredVisibleIds: ['sundrop-east-lane', 'village-lane-connector'],
 		storyMotif: 'homeward-road'
 	},
 	{
@@ -50,6 +44,7 @@ export const softMazeRooms: SoftMazeRoom[] = [
 		kind: 'side-pocket',
 		bounds: { id: 'village-road-reststop-room', x: 3_030, y: 4_900, width: 420, height: 340 },
 		routeIds: ['spawn-to-crossroads'],
+		beatId: 'village-roadside-nook',
 		requiredVisibleIds: ['village-crossroads-nook', 'village-roadside-flowers'],
 		payoffIds: ['village-roadside-cache'],
 		storyMotif: 'homeward-road'
@@ -65,6 +60,7 @@ export const softMazeRooms: SoftMazeRoom[] = [
 			'crossroads-to-silverpine',
 			'crossroads-to-wildwood'
 		],
+		beatId: 'crossroads-waystone-reveal',
 		requiredVisibleIds: [
 			'crossroads-waystone',
 			'crossroads-waystone-sign',
@@ -77,6 +73,7 @@ export const softMazeRooms: SoftMazeRoom[] = [
 		kind: 'threshold',
 		bounds: { id: 'coast-fork-room', x: 4_100, y: 5_520, width: 760, height: 360 },
 		routeIds: ['crossroads-to-coast'],
+		beatId: 'coast-ferry-fork-beat',
 		requiredVisibleIds: ['coast-ferry-fork', 'coast-fork-west-driftwood-wall'],
 		storyMotif: 'ferry'
 	},
@@ -85,6 +82,7 @@ export const softMazeRooms: SoftMazeRoom[] = [
 		kind: 'vista',
 		bounds: { id: 'coast-ferry-shrine-room', x: 3_600, y: 5_650, width: 520, height: 440 },
 		routeIds: ['crossroads-to-coast'],
+		beatId: 'coast-ferry-shrine-reveal',
 		requiredVisibleIds: ['coast-ferry-shrine', 'ferry-shrine-lore', 'coast-fisher'],
 		payoffIds: ['ferry-shrine-lore'],
 		storyMotif: 'ferry'
@@ -94,6 +92,7 @@ export const softMazeRooms: SoftMazeRoom[] = [
 		kind: 'side-pocket',
 		bounds: { id: 'coast-tidepool-room', x: 5_340, y: 5_920, width: 700, height: 360 },
 		routeIds: ['crossroads-to-coast'],
+		beatId: 'coast-tidepool-payoff',
 		requiredVisibleIds: ['coast-tidepool', 'coast-boat', 'coast-net'],
 		payoffIds: ['coast-salve'],
 		storyMotif: 'ferry'
@@ -103,6 +102,7 @@ export const softMazeRooms: SoftMazeRoom[] = [
 		kind: 'vista',
 		bounds: { id: 'coast-jetty-vista-room', x: 4_900, y: 6_120, width: 560, height: 420 },
 		routeIds: ['crossroads-to-coast'],
+		beatId: 'coast-jetty-future-route',
 		requiredVisibleIds: ['coast-jetty', 'coast-jetty-foreshadow', 'coast-jetty-catch'],
 		payoffIds: ['coast-jetty-catch'],
 		storyMotif: 'homeward-road'
@@ -112,15 +112,8 @@ export const softMazeRooms: SoftMazeRoom[] = [
 		kind: 'threshold',
 		bounds: { id: 'mistfen-entry-room', x: 2_150, y: 2_750, width: 760, height: 360 },
 		routeIds: ['crossroads-to-mistfen'],
+		beatId: 'mistfen-entry-warning',
 		requiredVisibleIds: ['mistfen-forager', 'mistfen-reed-wall-north', 'mistfen-reed-wall-south'],
-		storyMotif: 'gate'
-	},
-	{
-		id: 'mistfen-crossroads-exit-room',
-		kind: 'threshold',
-		bounds: { id: 'mistfen-crossroads-exit-room', x: 2_600, y: 2_950, width: 900, height: 400 },
-		routeIds: ['crossroads-to-mistfen'],
-		requiredVisibleIds: ['mistfen-approach-path'],
 		storyMotif: 'gate'
 	},
 	{
@@ -128,6 +121,7 @@ export const softMazeRooms: SoftMazeRoom[] = [
 		kind: 'side-pocket',
 		bounds: { id: 'mistfen-east-pool-room', x: 1_560, y: 2_260, width: 560, height: 360 },
 		routeIds: ['crossroads-to-mistfen'],
+		beatId: 'mistfen-east-pool-pocket',
 		requiredVisibleIds: [
 			'mistfen-pool-east',
 			'mistfen-hidden-pool-pocket',
@@ -141,6 +135,7 @@ export const softMazeRooms: SoftMazeRoom[] = [
 		kind: 'gate',
 		bounds: { id: 'mistfen-gate-room', x: 1_200, y: 620, width: 760, height: 540 },
 		routeIds: ['crossroads-to-mistfen'],
+		beatId: 'witchwood-gate-payoff',
 		requiredVisibleIds: ['witchwood-gate', 'witchwood-poison-warning', 'witchwood-gate-block'],
 		storyMotif: 'gate'
 	},
@@ -149,6 +144,7 @@ export const softMazeRooms: SoftMazeRoom[] = [
 		kind: 'threshold',
 		bounds: { id: 'silverpine-lower-room', x: 3_180, y: 2_360, width: 620, height: 420 },
 		routeIds: ['crossroads-to-silverpine'],
+		beatId: 'silverpine-lantern-hook',
 		requiredVisibleIds: ['silverpine-lower-approach', 'silverpine-lantern-mid'],
 		storyMotif: 'shrine'
 	},
@@ -157,6 +153,7 @@ export const softMazeRooms: SoftMazeRoom[] = [
 		kind: 'side-pocket',
 		bounds: { id: 'silverpine-offering-grove-room', x: 2_620, y: 1_560, width: 560, height: 460 },
 		routeIds: ['crossroads-to-silverpine'],
+		beatId: 'silverpine-side-grove',
 		requiredVisibleIds: [
 			'silverpine-side-grove-floor',
 			'silverpine-side-grove-maple',
@@ -170,6 +167,7 @@ export const softMazeRooms: SoftMazeRoom[] = [
 		kind: 'gate',
 		bounds: { id: 'silverpine-terrace-room', x: 3_000, y: 590, width: 900, height: 600 },
 		routeIds: ['crossroads-to-silverpine'],
+		beatId: 'silverpine-terrace-reveal',
 		requiredVisibleIds: [
 			'silver-shrine-gate',
 			'silver-shrine-gate-block',
@@ -183,6 +181,7 @@ export const softMazeRooms: SoftMazeRoom[] = [
 		kind: 'threshold',
 		bounds: { id: 'wildwood-threshold-room', x: 5_520, y: 4_420, width: 760, height: 520 },
 		routeIds: ['crossroads-to-wildwood'],
+		beatId: 'wildwood-threshold-hook',
 		requiredVisibleIds: [
 			'wildwood-threshold-floor',
 			'wildwood-threshold-tree-wall-west',
@@ -191,18 +190,11 @@ export const softMazeRooms: SoftMazeRoom[] = [
 		storyMotif: 'forest-danger'
 	},
 	{
-		id: 'wildwood-approach-room',
-		kind: 'threshold',
-		bounds: { id: 'wildwood-approach-room', x: 4_275, y: 4_650, width: 650, height: 1_000 },
-		routeIds: ['crossroads-to-wildwood'],
-		requiredVisibleIds: ['crossroads-wildwood-cue-floor', 'wildwood-grove-maple-1'],
-		storyMotif: 'forest-danger'
-	},
-	{
 		id: 'wildwood-side-clearing-room',
 		kind: 'side-pocket',
 		bounds: { id: 'wildwood-side-clearing-room', x: 4_620, y: 3_650, width: 560, height: 420 },
 		routeIds: ['crossroads-to-wildwood'],
+		beatId: 'wildwood-side-grove',
 		requiredVisibleIds: [
 			'wildwood-side-clearing',
 			'wildwood-cache-brush-screen',
@@ -216,6 +208,7 @@ export const softMazeRooms: SoftMazeRoom[] = [
 		kind: 'combat',
 		bounds: { id: 'wildwood-combat-room', x: 5_360, y: 1_280, width: 720, height: 480 },
 		routeIds: ['crossroads-to-wildwood'],
+		beatId: 'wildwood-combat-reveal',
 		requiredVisibleIds: ['meadow-slime-center', 'wildwood-crossing-combat-pocket'],
 		storyMotif: 'forest-danger'
 	},
@@ -224,6 +217,7 @@ export const softMazeRooms: SoftMazeRoom[] = [
 		kind: 'gate',
 		bounds: { id: 'wildwood-cave-room', x: 5_960, y: 1_800, width: 560, height: 520 },
 		routeIds: ['crossroads-to-wildwood'],
+		beatId: 'wildwood-cave-gate',
 		requiredVisibleIds: ['whispering-cave', 'wildwood-cave-danger', 'wildwood-cave-warning-floor'],
 		storyMotif: 'gate'
 	}
