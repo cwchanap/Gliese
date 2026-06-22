@@ -14,8 +14,6 @@
 <text x="-424" y="1066" fill="#9ca3af" font-size="22" font-family="monospace">silverpine-lower-room</text>
 <rect x="1840" y="3060" width="760" height="520" fill="#1f2937" stroke="#374151" stroke-width="2"/>
 <text x="1846" y="3076" fill="#9ca3af" font-size="22" font-family="monospace">wildwood-threshold-room</text>
-<rect x="650" y="3050" width="650" height="1000" fill="#1f2937" stroke="#374151" stroke-width="2"/>
-<text x="656" y="3066" fill="#9ca3af" font-size="22" font-family="monospace">wildwood-approach-room</text>
 <rect x="1040" y="2340" width="560" height="420" fill="#1f2937" stroke="#374151" stroke-width="2"/>
 <text x="1046" y="2356" fill="#9ca3af" font-size="22" font-family="monospace">wildwood-side-clearing-room</text>
 <rect x="1700" y="-60" width="720" height="480" fill="#1f2937" stroke="#374151" stroke-width="2"/>
@@ -27,7 +25,15 @@
 <rect x="2768" y="2100" width="64" height="2100" fill="#b91c1c" fill-opacity="0.55" stroke="#ef4444" stroke-width="1"/>
 <rect x="2068" y="850" width="64" height="1100" fill="#b91c1c" fill-opacity="0.55" stroke="#ef4444" stroke-width="1"/>
 <rect x="2868" y="1100" width="64" height="1100" fill="#b91c1c" fill-opacity="0.55" stroke="#ef4444" stroke-width="1"/>
-<rect x="168" y="-300" width="64" height="2000" fill="#b91c1c" fill-opacity="0.55" stroke="#ef4444" stroke-width="1"/>
+<rect x="8" y="1600" width="64" height="300" fill="#b91c1c" fill-opacity="0.55" stroke="#ef4444" stroke-width="1"/>
+<rect x="328" y="1600" width="64" height="300" fill="#b91c1c" fill-opacity="0.55" stroke="#ef4444" stroke-width="1"/>
+<rect x="-152" y="1458" width="384" height="64" fill="#b91c1c" fill-opacity="0.55" stroke="#ef4444" stroke-width="1"/>
+<rect x="-152" y="1778" width="384" height="64" fill="#b91c1c" fill-opacity="0.55" stroke="#ef4444" stroke-width="1"/>
+<rect x="8" y="1440" width="64" height="240" fill="#b91c1c" fill-opacity="0.55" stroke="#ef4444" stroke-width="1"/>
+<rect x="48" y="190" width="64" height="320" fill="#b91c1c" fill-opacity="0.55" stroke="#ef4444" stroke-width="1"/>
+<rect x="248" y="0" width="64" height="380" fill="#b91c1c" fill-opacity="0.55" stroke="#ef4444" stroke-width="1"/>
+<rect x="0" y="58" width="320" height="64" fill="#b91c1c" fill-opacity="0.55" stroke="#ef4444" stroke-width="1"/>
+<rect x="0" y="318" width="320" height="64" fill="#b91c1c" fill-opacity="0.55" stroke="#ef4444" stroke-width="1"/>
 <rect x="168" y="3350" width="64" height="400" fill="#b91c1c" fill-opacity="0.55" stroke="#ef4444" stroke-width="1"/>
 <rect x="748" y="4625" width="64" height="450" fill="#b91c1c" fill-opacity="0.55" stroke="#ef4444" stroke-width="1"/>
 <rect x="-40" y="1692" width="480" height="96" fill="#b91c1c" fill-opacity="0.55" stroke="#ef4444" stroke-width="1"/>
