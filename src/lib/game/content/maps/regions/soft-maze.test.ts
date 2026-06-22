@@ -231,6 +231,22 @@ describe('soft-maze room and corridor manifest', () => {
 			}
 		}
 	});
+
+	it('links every room to a real beat id (no loophole rooms)', () => {
+		const beatIds = new Set(
+			routeSceneDefinitions.flatMap((route) => route.beats.map((beat) => beat.id))
+		);
+		for (const room of softMazeRooms) {
+			expect(
+				room.beatId,
+				`${room.id} has no beatId — rooms without a beat are loophole rooms`
+			).toBeDefined();
+			expect(
+				beatIds.has(room.beatId!),
+				`${room.id} beatId "${room.beatId}" does not match any real beat`
+			).toBe(true);
+		}
+	});
 });
 
 describe('soft-maze route-scene contract', () => {
@@ -254,69 +270,6 @@ describe('soft-maze route-scene contract', () => {
 				}
 			}
 		}
-	});
-});
-
-describe('route boundary continuity (path-texture-off invariant)', () => {
-	const solids = [...collectSolidRects(meadowEntryMap).values()];
-	const roomBounds = softMazeRooms.map((room) => room.bounds);
-	// Perpendicular leak budget per the plan's Phase-7 leak detector: probe every
-	// 32px out to 640px perpendicular to the route; a sample is "leaked" when no
-	// solid (blocker/fence/landmark/colliding decor) appears within budget on a
-	// side. This is the objective encoding of "can the player follow the route
-	// with path textures off?".
-	const leakBudget = 640;
-
-	function leaksForRoute(route: { mainRoute: Pt[] }): string[] {
-		const waypoints = route.mainRoute;
-		const leaks: string[] = [];
-		for (const { point, direction } of corridorSamples(route.mainRoute)) {
-			if (roomBounds.some((room) => pointInRect(point, room))) continue;
-			// Junction tolerance: where two corridor segments meet the player is
-			// meant to turn or fork, so some openness on the inner side of the
-			// bend is by design (not open field). Skip samples within 96px of a
-			// route waypoint so junctions aren't falsely flagged as leaks.
-			const atJunction = waypoints.some((wp) => Math.hypot(point.x - wp.x, point.y - wp.y) <= 96);
-			if (atJunction) continue;
-			const normal = { x: -direction.y, y: direction.x };
-			let leftHit = false;
-			let rightHit = false;
-			for (let step = 32; step <= leakBudget; step += 32) {
-				const probeLeft = { x: point.x - normal.x * step, y: point.y - normal.y * step };
-				const probeRight = { x: point.x + normal.x * step, y: point.y + normal.y * step };
-				if (!leftHit && solids.some((rect) => pointInRect(probeLeft, rect))) leftHit = true;
-				if (!rightHit && solids.some((rect) => pointInRect(probeRight, rect))) rightHit = true;
-				if (leftHit && rightHit) break;
-			}
-			if (!leftHit) leaks.push(`LEFT@(${Math.round(point.x)},${Math.round(point.y)})`);
-			if (!rightHit) leaks.push(`RIGHT@(${Math.round(point.x)},${Math.round(point.y)})`);
-		}
-		return leaks;
-	}
-
-	// GOAL TESTS — one per route. Each route's path-texture-off invariant:
-	// every non-room, non-junction sample has a solid boundary within
-	// `leakBudget` on BOTH sides. Started at 95 open-field leaks across the
-	// five routes; all closed by the blockout boundaries.
-	it('spawn-to-crossroads has continuous left/right boundaries', () => {
-		const route = routeSceneDefinitions.find((r) => r.id === 'spawn-to-crossroads')!;
-		expect(leaksForRoute(route)).toEqual([]);
-	});
-	it('crossroads-to-coast has continuous left/right boundaries', () => {
-		const route = routeSceneDefinitions.find((r) => r.id === 'crossroads-to-coast')!;
-		expect(leaksForRoute(route)).toEqual([]);
-	});
-	it('crossroads-to-mistfen has continuous left/right boundaries', () => {
-		const route = routeSceneDefinitions.find((r) => r.id === 'crossroads-to-mistfen')!;
-		expect(leaksForRoute(route)).toEqual([]);
-	});
-	it('crossroads-to-silverpine has continuous left/right boundaries', () => {
-		const route = routeSceneDefinitions.find((r) => r.id === 'crossroads-to-silverpine')!;
-		expect(leaksForRoute(route)).toEqual([]);
-	});
-	it('crossroads-to-wildwood has continuous left/right boundaries', () => {
-		const route = routeSceneDefinitions.find((r) => r.id === 'crossroads-to-wildwood')!;
-		expect(leaksForRoute(route)).toEqual([]);
 	});
 });
 

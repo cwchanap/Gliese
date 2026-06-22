@@ -35,6 +35,7 @@ export interface RouteSceneDefinition {
 	to: string;
 	mainRoute: Array<{ x: number; y: number }>;
 	beats: RouteSceneBeat[];
+	pockets?: Array<{ id: string; x: number; y: number; w: number; h: number }>;
 }
 
 export const routeSceneDefinitions: RouteSceneDefinition[] = [
