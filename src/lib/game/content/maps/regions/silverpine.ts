@@ -334,32 +334,177 @@ export const silverpineRegion: RegionFragment = {
 			height: 96,
 			kind: 'future-gate'
 		},
-		// Stair banks flanking the ceremonial climb at x≈3100. West banks sit
-		// east of the offering-grove room (x≤2900) and stop short of the grove's
-		// y-range; east bank runs the far side of the stair. Together they read
-		// the climb as a corridor rather than a painted strip in open grass.
+		// Silverpine corridor walls — paired hedges at ±160px perpendicular
+		// to each reshaped mainRoute segment, forming a winding JRPG-dungeon
+		// corridor ≤320px wide. Gaps at beat-room boundaries act as doorways.
+		// Seg A: x=3500, y∈[2700,3000] (vertical)
 		{
-			id: 'silverpine-stair-west-bank-lower',
-			x: 2_750,
-			y: 2_350,
+			id: 'silverpine-wall-A-west',
+			x: 3_340,
+			y: 2_850,
 			width: 64,
-			height: 1_100,
+			height: 300,
 			kind: 'town-hedge'
 		},
 		{
-			id: 'silverpine-stair-west-bank-upper',
-			x: 2_900,
-			y: 1_100,
+			id: 'silverpine-wall-A-east',
+			x: 3_660,
+			y: 2_850,
 			width: 64,
-			height: 450,
+			height: 300,
+			kind: 'town-hedge'
+		},
+		// Seg B: y=2750, x∈[3180,3500] (horizontal)
+		{
+			id: 'silverpine-wall-B-north',
+			x: 3_340,
+			y: 2_590,
+			width: 384,
+			height: 64,
 			kind: 'town-hedge'
 		},
 		{
-			id: 'silverpine-stair-east-bank',
-			x: 3_500,
-			y: 1_800,
+			id: 'silverpine-wall-B-south',
+			x: 3_340,
+			y: 2_910,
+			width: 384,
+			height: 64,
+			kind: 'town-hedge'
+		},
+		// Seg C: x=3180, y∈[2360,2750] (vertical); lower-room covers y≤2570
+		{
+			id: 'silverpine-wall-C-west',
+			x: 3_020,
+			y: 2_660,
 			width: 64,
-			height: 2_000,
+			height: 240,
+			kind: 'town-hedge'
+		},
+		{
+			id: 'silverpine-wall-C-east',
+			x: 3_340,
+			y: 2_660,
+			width: 64,
+			height: 240,
+			kind: 'town-hedge'
+		},
+		// Seg E: x=2900, y∈[1820,2360] (vertical); lower-room covers y≥2150
+		{
+			id: 'silverpine-wall-E-west',
+			x: 2_740,
+			y: 1_985,
+			width: 64,
+			height: 370,
+			kind: 'town-hedge'
+		},
+		{
+			id: 'silverpine-wall-E-east',
+			x: 3_060,
+			y: 1_985,
+			width: 64,
+			height: 370,
+			kind: 'town-hedge'
+		},
+		// Seg G: y=1580, x∈[2900,3220] (horizontal); grove covers x≤2900
+		{
+			id: 'silverpine-wall-G-north',
+			x: 3_060,
+			y: 1_420,
+			width: 400,
+			height: 64,
+			kind: 'town-hedge'
+		},
+		{
+			id: 'silverpine-wall-G-south',
+			x: 3_060,
+			y: 1_740,
+			width: 400,
+			height: 64,
+			kind: 'town-hedge'
+		},
+		// Seg H: x=3220, y∈[1320,1580] (vertical)
+		{
+			id: 'silverpine-wall-H-west',
+			x: 3_060,
+			y: 1_450,
+			width: 64,
+			height: 320,
+			kind: 'town-hedge'
+		},
+		{
+			id: 'silverpine-wall-H-east',
+			x: 3_380,
+			y: 1_450,
+			width: 64,
+			height: 320,
+			kind: 'town-hedge'
+		},
+		// Seg I: y=1320, x∈[3100,3220] (horizontal)
+		{
+			id: 'silverpine-wall-I-north',
+			x: 3_160,
+			y: 1_160,
+			width: 200,
+			height: 64,
+			kind: 'town-hedge'
+		},
+		{
+			id: 'silverpine-wall-I-south',
+			x: 3_160,
+			y: 1_480,
+			width: 200,
+			height: 64,
+			kind: 'town-hedge'
+		},
+		// Seg J: x=3100, y∈[1000,1320] (vertical)
+		{
+			id: 'silverpine-wall-J-west',
+			x: 2_940,
+			y: 1_160,
+			width: 64,
+			height: 380,
+			kind: 'town-hedge'
+		},
+		{
+			id: 'silverpine-wall-J-east',
+			x: 3_260,
+			y: 1_160,
+			width: 64,
+			height: 380,
+			kind: 'town-hedge'
+		},
+		// Seg K: y=1000, x∈[3000,3100] (horizontal)
+		{
+			id: 'silverpine-wall-K-north',
+			x: 3_050,
+			y: 840,
+			width: 164,
+			height: 64,
+			kind: 'town-hedge'
+		},
+		{
+			id: 'silverpine-wall-K-south',
+			x: 3_050,
+			y: 1_160,
+			width: 164,
+			height: 64,
+			kind: 'town-hedge'
+		},
+		// Seg L: x=3000, y∈[760,1000] (vertical); terrace covers y≤890
+		{
+			id: 'silverpine-wall-L-west',
+			x: 2_840,
+			y: 1_000,
+			width: 64,
+			height: 120,
+			kind: 'town-hedge'
+		},
+		{
+			id: 'silverpine-wall-L-east',
+			x: 3_160,
+			y: 1_000,
+			width: 64,
+			height: 120,
 			kind: 'town-hedge'
 		}
 	]

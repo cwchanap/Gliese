@@ -114,7 +114,6 @@ function rayHitsSolid(
 	return { hit: false, distance: maxDistance };
 }
 
-// eslint-disable-next-line @typescript-eslint/no-unused-vars -- wired up in Task 3 (silverpine geometry)
 function corridorWidthViolations(
 	route: { mainRoute: Pt[] },
 	{ maxHalfWidth }: { maxHalfWidth: number }
@@ -133,7 +132,6 @@ function corridorWidthViolations(
 	return violations;
 }
 
-// eslint-disable-next-line @typescript-eslint/no-unused-vars -- wired up in Task 3 (silverpine geometry)
 function sightlineViolations(
 	route: { mainRoute: Pt[] },
 	{ maxSightDistance }: { maxSightDistance: number }
@@ -149,7 +147,6 @@ function sightlineViolations(
 	return violations;
 }
 
-// eslint-disable-next-line @typescript-eslint/no-unused-vars -- wired up in Task 3 (silverpine geometry)
 function bendViolations(
 	route: { mainRoute: Pt[] },
 	{ minTurnDegrees, minSegmentPx }: { minTurnDegrees: number; minSegmentPx: number }
@@ -455,5 +452,24 @@ describe('decor role manifest', () => {
 				expect(entry.storyMotif, `${entry.id} story-symbol role needs a motif`).toBeDefined();
 			}
 		}
+	});
+});
+
+describe('silverpine pilot — winding JRPG corridor invariants', () => {
+	const SILVERPINE = () => routeSceneDefinitions.find((r) => r.id === 'crossroads-to-silverpine')!;
+
+	it('keeps corridor width ≤ 320px outside beat-rooms', () => {
+		const violations = corridorWidthViolations(SILVERPINE(), { maxHalfWidth: 160 });
+		expect(violations, JSON.stringify(violations.slice(0, 3))).toEqual([]);
+	});
+
+	it('occludes forward sight within 384px outside beat-rooms', () => {
+		const violations = sightlineViolations(SILVERPINE(), { maxSightDistance: 384 });
+		expect(violations, JSON.stringify(violations.slice(0, 3))).toEqual([]);
+	});
+
+	it('bends ≥30° at least once per inter-beat segment >256px', () => {
+		const violations = bendViolations(SILVERPINE(), { minTurnDegrees: 30, minSegmentPx: 256 });
+		expect(violations, JSON.stringify(violations)).toEqual([]);
 	});
 });
