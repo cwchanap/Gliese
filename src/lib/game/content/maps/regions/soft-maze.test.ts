@@ -472,4 +472,42 @@ describe('silverpine pilot — winding JRPG corridor invariants', () => {
 		const violations = bendViolations(SILVERPINE(), { minTurnDegrees: 30, minSegmentPx: 256 });
 		expect(violations, JSON.stringify(violations)).toEqual([]);
 	});
+
+	it('declares ≥2 pockets per route, each enclosed (no open-field leak)', () => {
+		const route = SILVERPINE();
+		expect(
+			route.pockets?.length ?? 0,
+			'silverpine needs at least 2 pockets for Phase 6 rewards'
+		).toBeGreaterThanOrEqual(2);
+
+		const solids = [...collectSolidRects(meadowEntryMap).values()];
+		for (const pocket of route.pockets ?? []) {
+			// Flood-fill from pocket center; must NOT reach >640px from centerline
+			// without crossing a solid (i.e., the pocket is a genuine dead-end).
+			const center = { x: pocket.x, y: pocket.y };
+			const visited = new Set<string>();
+			const queue = [center];
+			let leaked = false;
+			for (let guard = 0; queue.length > 0 && guard < 5_000; guard++) {
+				const p = queue.shift()!;
+				const key = `${Math.round(p.x)},${Math.round(p.y)}`;
+				if (visited.has(key)) continue;
+				visited.add(key);
+				if (solids.some((r) => pointInRect(p, r))) continue;
+				const distToRoute = distancePointToPolyline(p, route.mainRoute);
+				if (distToRoute < 160) continue; // reached the corridor — OK
+				if (distToRoute > 640) {
+					leaked = true;
+					break;
+				}
+				queue.push(
+					{ x: p.x + 32, y: p.y },
+					{ x: p.x - 32, y: p.y },
+					{ x: p.x, y: p.y + 32 },
+					{ x: p.x, y: p.y - 32 }
+				);
+			}
+			expect(!leaked, `pocket ${pocket.id} floods into open field — not enclosed`).toBe(true);
+		}
+	});
 });

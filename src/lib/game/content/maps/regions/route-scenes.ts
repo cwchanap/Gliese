@@ -364,6 +364,22 @@ export const routeSceneDefinitions: RouteSceneDefinition[] = [
 				boundaryIds: ['silver-shrine-gate-block', 'silverpine-lantern-west'],
 				storyMotif: 'gate'
 			}
+		],
+		pockets: [
+			{
+				id: 'silverpine-grove-pocket',
+				x: 2_620,
+				y: 1_560,
+				w: 500,
+				h: 420
+			},
+			{
+				id: 'silverpine-mid-climb-alcove',
+				x: 3_420,
+				y: 1_320,
+				w: 200,
+				h: 200
+			}
 		]
 	},
 	{
