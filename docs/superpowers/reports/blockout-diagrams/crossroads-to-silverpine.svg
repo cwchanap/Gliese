@@ -4,8 +4,6 @@
 <text x="856" y="3746" fill="#9ca3af" font-size="22" font-family="monospace">crossroads-hub-room</text>
 <rect x="-430" y="2750" width="760" height="360" fill="#1f2937" stroke="#374151" stroke-width="2"/>
 <text x="-424" y="2766" fill="#9ca3af" font-size="22" font-family="monospace">mistfen-entry-room</text>
-<rect x="-50" y="2930" width="900" height="400" fill="#1f2937" stroke="#374151" stroke-width="2"/>
-<text x="-44" y="2946" fill="#9ca3af" font-size="22" font-family="monospace">mistfen-crossroads-exit-room</text>
 <rect x="670" y="2330" width="620" height="420" fill="#1f2937" stroke="#374151" stroke-width="2"/>
 <text x="676" y="2346" fill="#9ca3af" font-size="22" font-family="monospace">silverpine-lower-room</text>
 <rect x="140" y="1510" width="560" height="460" fill="#1f2937" stroke="#374151" stroke-width="2"/>
@@ -15,9 +13,32 @@
 <rect x="-2200" y="180" width="6400" height="64" fill="#b91c1c" fill-opacity="0.55" stroke="#ef4444" stroke-width="1"/>
 <rect x="868" y="2780" width="64" height="500" fill="#b91c1c" fill-opacity="0.55" stroke="#ef4444" stroke-width="1"/>
 <rect x="590" y="472" width="420" height="96" fill="#b91c1c" fill-opacity="0.55" stroke="#ef4444" stroke-width="1"/>
-<rect x="518" y="1980" width="64" height="1100" fill="#b91c1c" fill-opacity="0.55" stroke="#ef4444" stroke-width="1"/>
-<rect x="668" y="1055" width="64" height="450" fill="#b91c1c" fill-opacity="0.55" stroke="#ef4444" stroke-width="1"/>
-<rect x="1268" y="980" width="64" height="2000" fill="#b91c1c" fill-opacity="0.55" stroke="#ef4444" stroke-width="1"/>
+<rect x="1108" y="2880" width="64" height="300" fill="#b91c1c" fill-opacity="0.55" stroke="#ef4444" stroke-width="1"/>
+<rect x="1428" y="2880" width="64" height="300" fill="#b91c1c" fill-opacity="0.55" stroke="#ef4444" stroke-width="1"/>
+<rect x="948" y="2738" width="384" height="64" fill="#b91c1c" fill-opacity="0.55" stroke="#ef4444" stroke-width="1"/>
+<rect x="948" y="3058" width="384" height="64" fill="#b91c1c" fill-opacity="0.55" stroke="#ef4444" stroke-width="1"/>
+<rect x="788" y="2720" width="64" height="240" fill="#b91c1c" fill-opacity="0.55" stroke="#ef4444" stroke-width="1"/>
+<rect x="1108" y="2720" width="64" height="240" fill="#b91c1c" fill-opacity="0.55" stroke="#ef4444" stroke-width="1"/>
+<rect x="508" y="1980" width="64" height="370" fill="#b91c1c" fill-opacity="0.55" stroke="#ef4444" stroke-width="1"/>
+<rect x="828" y="1980" width="64" height="370" fill="#b91c1c" fill-opacity="0.55" stroke="#ef4444" stroke-width="1"/>
+<rect x="660" y="1568" width="400" height="64" fill="#b91c1c" fill-opacity="0.55" stroke="#ef4444" stroke-width="1"/>
+<rect x="660" y="1888" width="400" height="64" fill="#b91c1c" fill-opacity="0.55" stroke="#ef4444" stroke-width="1"/>
+<rect x="828" y="1470" width="64" height="320" fill="#b91c1c" fill-opacity="0.55" stroke="#ef4444" stroke-width="1"/>
+<rect x="1148" y="1470" width="64" height="320" fill="#b91c1c" fill-opacity="0.55" stroke="#ef4444" stroke-width="1"/>
+<rect x="860" y="1308" width="200" height="64" fill="#b91c1c" fill-opacity="0.55" stroke="#ef4444" stroke-width="1"/>
+<rect x="860" y="1628" width="200" height="64" fill="#b91c1c" fill-opacity="0.55" stroke="#ef4444" stroke-width="1"/>
+<rect x="708" y="1150" width="64" height="380" fill="#b91c1c" fill-opacity="0.55" stroke="#ef4444" stroke-width="1"/>
+<rect x="1028" y="1150" width="64" height="380" fill="#b91c1c" fill-opacity="0.55" stroke="#ef4444" stroke-width="1"/>
+<rect x="768" y="988" width="164" height="64" fill="#b91c1c" fill-opacity="0.55" stroke="#ef4444" stroke-width="1"/>
+<rect x="768" y="1308" width="164" height="64" fill="#b91c1c" fill-opacity="0.55" stroke="#ef4444" stroke-width="1"/>
+<rect x="608" y="1120" width="64" height="120" fill="#b91c1c" fill-opacity="0.55" stroke="#ef4444" stroke-width="1"/>
+<rect x="928" y="1120" width="64" height="120" fill="#b91c1c" fill-opacity="0.55" stroke="#ef4444" stroke-width="1"/>
+<rect x="1348" y="1280" width="64" height="380" fill="#b91c1c" fill-opacity="0.55" stroke="#ef4444" stroke-width="1"/>
+<rect x="1100" y="1338" width="320" height="64" fill="#b91c1c" fill-opacity="0.55" stroke="#ef4444" stroke-width="1"/>
+<rect x="1100" y="1598" width="320" height="64" fill="#b91c1c" fill-opacity="0.55" stroke="#ef4444" stroke-width="1"/>
+<rect x="128" y="1480" width="64" height="520" fill="#b91c1c" fill-opacity="0.55" stroke="#ef4444" stroke-width="1"/>
+<rect x="140" y="1448" width="560" height="64" fill="#b91c1c" fill-opacity="0.55" stroke="#ef4444" stroke-width="1"/>
+<rect x="160" y="1968" width="480" height="64" fill="#b91c1c" fill-opacity="0.55" stroke="#ef4444" stroke-width="1"/>
 <rect x="1060" y="2972" width="480" height="96" fill="#b91c1c" fill-opacity="0.55" stroke="#ef4444" stroke-width="1"/>
 <rect x="768" y="3800" width="64" height="760" fill="#b91c1c" fill-opacity="0.55" stroke="#ef4444" stroke-width="1"/>
 <rect x="820" y="3534" width="280" height="32" fill="#b91c1c" fill-opacity="0.55" stroke="#ef4444" stroke-width="1"/>
@@ -42,12 +63,19 @@
 <rect x="250" y="1075" width="220" height="90" fill="#b91c1c" fill-opacity="0.55" stroke="#ef4444" stroke-width="1"/>
 <rect x="1135" y="3730" width="50" height="60" fill="#b91c1c" fill-opacity="0.55" stroke="#ef4444" stroke-width="1"/>
 <rect x="1415" y="3730" width="50" height="60" fill="#b91c1c" fill-opacity="0.55" stroke="#ef4444" stroke-width="1"/>
-<polyline points="1300,3180 1100,3130 980,2540 700,2000 1020,1500 800,940 800,700" fill="none" stroke="#22d3ee" stroke-width="6" stroke-opacity="0.9"/>
+<polyline points="1300,3180 1300,2930 980,2930 980,2540 700,2540 700,2000 700,1760 1020,1760 1020,1500 900,1500 900,1180 800,1180 800,940 800,700" fill="none" stroke="#22d3ee" stroke-width="6" stroke-opacity="0.9"/>
 <circle cx="1300" cy="3180" r="14" fill="#22d3ee"/>
-<circle cx="1100" cy="3130" r="14" fill="#22d3ee"/>
+<circle cx="1300" cy="2930" r="14" fill="#22d3ee"/>
+<circle cx="980" cy="2930" r="14" fill="#22d3ee"/>
 <circle cx="980" cy="2540" r="14" fill="#22d3ee"/>
+<circle cx="700" cy="2540" r="14" fill="#22d3ee"/>
 <circle cx="700" cy="2000" r="14" fill="#22d3ee"/>
+<circle cx="700" cy="1760" r="14" fill="#22d3ee"/>
+<circle cx="1020" cy="1760" r="14" fill="#22d3ee"/>
 <circle cx="1020" cy="1500" r="14" fill="#22d3ee"/>
+<circle cx="900" cy="1500" r="14" fill="#22d3ee"/>
+<circle cx="900" cy="1180" r="14" fill="#22d3ee"/>
+<circle cx="800" cy="1180" r="14" fill="#22d3ee"/>
 <circle cx="800" cy="940" r="14" fill="#22d3ee"/>
 <circle cx="800" cy="700" r="14" fill="#22d3ee"/>
 <text x="12" y="28" fill="#e5e7eb" font-size="26" font-family="monospace">crossroads-to-silverpine — cyan=route, red=boundaries, gray=rooms</text>
