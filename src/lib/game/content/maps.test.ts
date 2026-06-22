@@ -2272,7 +2272,7 @@ describe('critical routes avoid blockers', () => {
 		],
 		[
 			{ x: 3_500, y: 4_000 },
-			{ x: 3_300, y: 2_950 }
+			{ x: 3_500, y: 3_000 }
 		],
 		[
 			{ x: 3_050, y: 3_150 },
