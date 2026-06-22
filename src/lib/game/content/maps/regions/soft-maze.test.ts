@@ -96,6 +96,85 @@ function collectSolidRects(map: WorldMapDefinition): Map<string, Rect> {
 	return solids;
 }
 
+type Solid = { id: string; x: number; y: number; width: number; height: number };
+
+function rayHitsSolid(
+	from: Pt,
+	dir: Pt,
+	solids: Solid[],
+	maxDistance: number,
+	step = 16
+): { hit: boolean; distance: number } {
+	for (let stepPx = step; stepPx <= maxDistance; stepPx += step) {
+		const probe = { x: from.x + dir.x * stepPx, y: from.y + dir.y * stepPx };
+		if (solids.some((rect) => pointInRect(probe, rect))) {
+			return { hit: true, distance: stepPx };
+		}
+	}
+	return { hit: false, distance: maxDistance };
+}
+
+// eslint-disable-next-line @typescript-eslint/no-unused-vars -- wired up in Task 3 (silverpine geometry)
+function corridorWidthViolations(
+	route: { mainRoute: Pt[] },
+	{ maxHalfWidth }: { maxHalfWidth: number }
+): Array<{ sample: Pt; side: 'LEFT' | 'RIGHT'; clearance: number }> {
+	const solids = [...collectSolidRects(meadowEntryMap).values()];
+	const roomBounds = softMazeRooms.map((room) => room.bounds);
+	const violations: Array<{ sample: Pt; side: 'LEFT' | 'RIGHT'; clearance: number }> = [];
+	for (const { point, direction } of corridorSamples(route.mainRoute)) {
+		if (roomBounds.some((room) => pointInRect(point, room))) continue;
+		const normal = { x: -direction.y, y: direction.x };
+		const left = rayHitsSolid(point, { x: -normal.x, y: -normal.y }, solids, maxHalfWidth + 32);
+		const right = rayHitsSolid(point, { x: normal.x, y: normal.y }, solids, maxHalfWidth + 32);
+		if (!left.hit) violations.push({ sample: point, side: 'LEFT', clearance: maxHalfWidth + 32 });
+		if (!right.hit) violations.push({ sample: point, side: 'RIGHT', clearance: maxHalfWidth + 32 });
+	}
+	return violations;
+}
+
+// eslint-disable-next-line @typescript-eslint/no-unused-vars -- wired up in Task 3 (silverpine geometry)
+function sightlineViolations(
+	route: { mainRoute: Pt[] },
+	{ maxSightDistance }: { maxSightDistance: number }
+): Array<{ sample: Pt; distance: number }> {
+	const solids = [...collectSolidRects(meadowEntryMap).values()];
+	const roomBounds = softMazeRooms.map((room) => room.bounds);
+	const violations: Array<{ sample: Pt; distance: number }> = [];
+	for (const { point, direction } of corridorSamples(route.mainRoute)) {
+		if (roomBounds.some((room) => pointInRect(point, room))) continue;
+		const { hit, distance } = rayHitsSolid(point, direction, solids, maxSightDistance);
+		if (!hit) violations.push({ sample: point, distance });
+	}
+	return violations;
+}
+
+// eslint-disable-next-line @typescript-eslint/no-unused-vars -- wired up in Task 3 (silverpine geometry)
+function bendViolations(
+	route: { mainRoute: Pt[] },
+	{ minTurnDegrees, minSegmentPx }: { minTurnDegrees: number; minSegmentPx: number }
+): Array<{ from: Pt; to: Pt; length: number }> {
+	const violations: Array<{ from: Pt; to: Pt; length: number }> = [];
+	const pts = route.mainRoute;
+	for (let i = 0; i < pts.length - 1; i++) {
+		const a = pts[i];
+		const b = pts[i + 1];
+		const length = Math.hypot(b.x - a.x, b.y - a.y);
+		if (length <= minSegmentPx) continue;
+		const dirA = Math.atan2(b.y - a.y, b.x - a.x);
+		let hasBend = false;
+		if (i > 0) {
+			const prev = pts[i - 1];
+			const dirPrev = Math.atan2(a.y - prev.y, a.x - prev.x);
+			let turn = Math.abs(dirA - dirPrev) * (180 / Math.PI);
+			if (turn > 180) turn = 360 - turn;
+			if (turn >= minTurnDegrees) hasBend = true;
+		}
+		if (!hasBend) violations.push({ from: a, to: b, length });
+	}
+	return violations;
+}
+
 function corridorSamples(route: Pt[]): Array<{ point: Pt; direction: Pt }> {
 	const samples: Array<{ point: Pt; direction: Pt }> = [];
 	for (let index = 0; index < route.length - 1; index += 1) {
