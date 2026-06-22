@@ -112,10 +112,10 @@ Map each room to its beat by matching `cameraPoint` proximity in `route-scenes.t
 | `silverpine-lower-room` | `silverpine-lantern-hook` |
 | `silverpine-offering-grove-room` | `silverpine-side-grove` |
 | `silverpine-terrace-room` | `silverpine-terrace-reveal` |
-| `wildwood-threshold-room` | `wildwood-threshold-guard` |
-| `wildwood-side-clearing-room` | `wildwood-side-clearing-hook` |
-| `wildwood-combat-room` | `wildwood-crossing-combat-reveal` |
-| `wildwood-cave-room` | `whispering-cave-gate` |
+| `wildwood-threshold-room` | `wildwood-threshold-hook` |
+| `wildwood-side-clearing-room` | `wildwood-side-grove` |
+| `wildwood-combat-room` | `wildwood-combat-reveal` |
+| `wildwood-cave-room` | `wildwood-cave-gate` |
 
 If any beat id above does not exist in `route-scenes.ts` (the wildwood beats may differ), grep for the correct beat id in that route and use the one whose `cameraPoint` is inside the room bounds. The test will tell you if the id is wrong.
 
