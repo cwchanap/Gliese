@@ -9,7 +9,6 @@ type Rect = { id: string; x: number; y: number; width: number; height: number };
 
 const REQUIRED_ROOM_IDS = [
 	'village-plaza-room',
-	'village-road-reststop-room',
 	'crossroads-hub-room',
 	'coast-fork-room',
 	'coast-ferry-shrine-room',
@@ -445,7 +444,7 @@ describe('shortcut closure', () => {
 	// instead of cutting diagonally across open field — the plan's
 	// "path-texture-off" requirement expressed as a geometric invariant.
 	const forbiddenShortcuts: Array<{ id: string; from: Pt; to: Pt }> = [
-		{ id: 'village-to-coast', from: { x: 1_536, y: 5_344 }, to: { x: 4_100, y: 5_520 } },
+		{ id: 'village-to-coast', from: { x: 1_000, y: 5_100 }, to: { x: 4_100, y: 5_520 } },
 		{ id: 'crossroads-to-witchwood-gate', from: { x: 3_500, y: 4_000 }, to: { x: 1_200, y: 620 } },
 		{
 			id: 'crossroads-to-whispering-cave',

@@ -44,17 +44,6 @@ function roles(
 }
 
 export const decorRoles: DecorRoleEntry[] = [
-	role('village-waymarker', 'threshold', {
-		routeId: 'spawn-to-crossroads',
-		storyMotif: 'homeward-road'
-	}),
-	role('village-roadside-flowers', 'hide-reward', {
-		routeId: 'spawn-to-crossroads',
-		supports: ['village-roadside-cache']
-	}),
-	role('village-maple-1', 'wall', { routeId: 'spawn-to-crossroads' }),
-	role('village-stall', 'frame-landmark', { storyMotif: 'homeward-road' }),
-	role('village-flowers', 'frame-landmark', { storyMotif: 'homeward-road' }),
 	role('village-hanging-lantern', 'story-symbol', { storyMotif: 'homeward-road' }),
 
 	...roles(['wildwood-north-canopy', 'wildwood-east-canopy'], 'wall', {
