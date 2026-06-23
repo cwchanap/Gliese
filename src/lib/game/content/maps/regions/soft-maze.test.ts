@@ -153,23 +153,110 @@ function bendViolations(
 ): Array<{ from: Pt; to: Pt; length: number }> {
 	const violations: Array<{ from: Pt; to: Pt; length: number }> = [];
 	const pts = route.mainRoute;
-	for (let i = 0; i < pts.length - 1; i++) {
+	for (let i = 1; i < pts.length - 1; i++) {
 		const a = pts[i];
 		const b = pts[i + 1];
 		const length = Math.hypot(b.x - a.x, b.y - a.y);
 		if (length <= minSegmentPx) continue;
 		const dirA = Math.atan2(b.y - a.y, b.x - a.x);
-		let hasBend = false;
-		if (i > 0) {
-			const prev = pts[i - 1];
-			const dirPrev = Math.atan2(a.y - prev.y, a.x - prev.x);
-			let turn = Math.abs(dirA - dirPrev) * (180 / Math.PI);
-			if (turn > 180) turn = 360 - turn;
-			if (turn >= minTurnDegrees) hasBend = true;
-		}
-		if (!hasBend) violations.push({ from: a, to: b, length });
+		const prev = pts[i - 1];
+		const dirPrev = Math.atan2(a.y - prev.y, a.x - prev.x);
+		let turn = Math.abs(dirA - dirPrev) * (180 / Math.PI);
+		if (turn > 180) turn = 360 - turn;
+		if (turn < minTurnDegrees) violations.push({ from: a, to: b, length });
 	}
 	return violations;
+}
+
+type LaneSegment = { from: Pt; to: Pt };
+
+function sampleLaneSet(segments: LaneSegment[]): Array<{ point: Pt; direction: Pt }> {
+	const samples: Array<{ point: Pt; direction: Pt }> = [];
+	const step = 48;
+	for (const seg of segments) {
+		const dx = seg.to.x - seg.from.x;
+		const dy = seg.to.y - seg.from.y;
+		const len = Math.hypot(dx, dy);
+		if (len === 0) continue;
+		const dir = { x: dx / len, y: dy / len };
+		for (let d = step; d < len; d += step) {
+			samples.push({
+				point: { x: seg.from.x + dir.x * d, y: seg.from.y + dir.y * d },
+				direction: dir
+			});
+		}
+	}
+	return samples;
+}
+
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+function laneWidthViolations(
+	segments: LaneSegment[],
+	roomBounds: Rect[],
+	{ maxHalfWidth }: { maxHalfWidth: number }
+): Array<{ sample: Pt; side: 'LEFT' | 'RIGHT' }> {
+	const solids = [...collectSolidRects(meadowEntryMap).values()];
+	const violations: Array<{ sample: Pt; side: 'LEFT' | 'RIGHT' }> = [];
+	for (const { point, direction } of sampleLaneSet(segments)) {
+		if (roomBounds.some((room) => pointInRect(point, room))) continue;
+		const normal = { x: -direction.y, y: direction.x };
+		const left = rayHitsSolid(point, { x: -normal.x, y: -normal.y }, solids, maxHalfWidth + 32);
+		const right = rayHitsSolid(point, { x: normal.x, y: normal.y }, solids, maxHalfWidth + 32);
+		if (!left.hit) violations.push({ sample: point, side: 'LEFT' });
+		if (!right.hit) violations.push({ sample: point, side: 'RIGHT' });
+	}
+	return violations;
+}
+
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+function junctionOcclusionViolations(
+	junctions: Array<{ point: Pt; approaches: Pt[] }>,
+	{ maxDistance }: { maxDistance: number }
+): Array<{ junction: Pt; direction: Pt }> {
+	const solids = [...collectSolidRects(meadowEntryMap).values()];
+	const violations: Array<{ junction: Pt; direction: Pt }> = [];
+	for (const { point, approaches } of junctions) {
+		for (const approach of approaches) {
+			const { hit } = rayHitsSolid(point, approach, solids, maxDistance);
+			if (!hit) violations.push({ junction: point, direction: approach });
+		}
+	}
+	return violations;
+}
+
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+function countDeadEnds(
+	laneSamples: Array<{ point: Pt }>,
+	{ minDepth }: { minDepth: number }
+): number {
+	const solids = [...collectSolidRects(meadowEntryMap).values()];
+	const deadEnds = new Set<string>();
+	const step = 32;
+	for (const { point: start } of laneSamples) {
+		const visited = new Set<string>();
+		const queue = [start];
+		let maxReach = 0;
+		for (let guard = 0; queue.length > 0 && guard < 200; guard++) {
+			const p = queue.shift()!;
+			const key = `${Math.round(p.x / step) * step},${Math.round(p.y / step) * step}`;
+			if (visited.has(key)) continue;
+			visited.add(key);
+			if (solids.some((r) => pointInRect(p, r))) continue;
+			const dist = Math.hypot(p.x - start.x, p.y - start.y);
+			if (dist > maxReach) maxReach = dist;
+			if (maxReach > minDepth + 320) break;
+			queue.push(
+				{ x: p.x + step, y: p.y },
+				{ x: p.x - step, y: p.y },
+				{ x: p.x, y: p.y + step },
+				{ x: p.x, y: p.y - step }
+			);
+		}
+		if (maxReach >= minDepth && maxReach <= minDepth + 320) {
+			deadEnds.add(`${Math.round(start.x / 64) * 64},${Math.round(start.y / 64) * 64}`);
+		}
+	}
+	return deadEnds.size;
 }
 
 function corridorSamples(route: Pt[]): Array<{ point: Pt; direction: Pt }> {
