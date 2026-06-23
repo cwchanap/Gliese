@@ -33,20 +33,10 @@ export const softMazeRooms: SoftMazeRoom[] = [
 	{
 		id: 'village-plaza-room',
 		kind: 'safe',
-		bounds: { id: 'village-plaza-room', x: 1_536, y: 5_344, width: 672, height: 512 },
+		bounds: { id: 'village-plaza-room', x: 1_000, y: 5_100, width: 400, height: 400 },
 		routeIds: ['spawn-to-crossroads'],
 		beatId: 'village-homeward-hook',
 		requiredVisibleIds: ['sundrop-well', 'guild-hall-exterior', 'village-wanderer'],
-		storyMotif: 'homeward-road'
-	},
-	{
-		id: 'village-road-reststop-room',
-		kind: 'side-pocket',
-		bounds: { id: 'village-road-reststop-room', x: 3_030, y: 4_900, width: 420, height: 340 },
-		routeIds: ['spawn-to-crossroads'],
-		beatId: 'village-roadside-nook',
-		requiredVisibleIds: ['village-crossroads-nook', 'village-roadside-flowers'],
-		payoffIds: ['village-roadside-cache'],
 		storyMotif: 'homeward-road'
 	},
 	{
@@ -224,28 +214,6 @@ export const softMazeRooms: SoftMazeRoom[] = [
 ];
 
 export const softMazeCorridors: SoftMazeCorridor[] = [
-	{
-		id: 'village-fenced-lane',
-		fromRoomId: 'village-plaza-room',
-		toRoomId: 'village-road-reststop-room',
-		route: [
-			{ x: 2_360, y: 4_700 },
-			{ x: 2_950, y: 4_700 }
-		],
-		expectedBoundaryIds: ['village-road-west-fence-a', 'village-road-east-fence-a'],
-		maxWalkableWidth: 360
-	},
-	{
-		id: 'village-crossroads-neck',
-		fromRoomId: 'village-road-reststop-room',
-		toRoomId: 'crossroads-hub-room',
-		route: [
-			{ x: 3_050, y: 4_660 },
-			{ x: 3_050, y: 4_380 }
-		],
-		expectedBoundaryIds: ['village-road-west-fence-b', 'village-road-east-fence-b'],
-		maxWalkableWidth: 360
-	},
 	{
 		id: 'crossroads-coast-corridor',
 		fromRoomId: 'crossroads-hub-room',

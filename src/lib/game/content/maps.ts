@@ -45,7 +45,7 @@ export const heroHouseMap: WorldMapDefinition = {
 			id: 'hero-house-to-meadow',
 			...interiorDoor,
 			toMapId: openingMapId,
-			arrival: { x: 531, y: 6_040, facing: 'down' }
+			arrival: { x: 700, y: 5_700, facing: 'down' }
 		}
 	],
 	interiorProps: [
@@ -109,7 +109,7 @@ export const guildHallMap: WorldMapDefinition = addEnglishMapText({
 			id: 'guild-hall-to-meadow',
 			...interiorDoor,
 			toMapId: openingMapId,
-			arrival: { x: 2_048, y: 6_080, facing: 'down' }
+			arrival: { x: 1_400, y: 5_170, facing: 'down' }
 		}
 	],
 	npcs: [
@@ -227,7 +227,7 @@ export const itemShopMap: WorldMapDefinition = addEnglishMapText({
 			id: 'item-shop-to-meadow',
 			...interiorDoor,
 			toMapId: openingMapId,
-			arrival: { x: 2_138, y: 4_816, facing: 'down' }
+			arrival: { x: 600, y: 5_045, facing: 'down' }
 		}
 	],
 	npcs: [
@@ -314,7 +314,7 @@ export const villagerHouse1Map: WorldMapDefinition = addEnglishMapText({
 			id: 'villager-house-1-to-meadow',
 			...interiorDoor,
 			toMapId: openingMapId,
-			arrival: { x: 333, y: 5_312, facing: 'down' }
+			arrival: { x: 900, y: 4_980, facing: 'down' }
 		}
 	],
 	interiorProps: [
@@ -403,7 +403,7 @@ export const villagerHouse2Map: WorldMapDefinition = addEnglishMapText({
 			id: 'villager-house-2-to-meadow',
 			...interiorDoor,
 			toMapId: openingMapId,
-			arrival: { x: 1_011, y: 4_816, facing: 'down' }
+			arrival: { x: 1_200, y: 4_970, facing: 'down' }
 		}
 	],
 	interiorProps: [
@@ -484,7 +484,7 @@ export const villagerHouse3Map: WorldMapDefinition = addEnglishMapText({
 			id: 'villager-house-3-to-meadow',
 			...interiorDoor,
 			toMapId: openingMapId,
-			arrival: { x: 2_592, y: 5_024, facing: 'down' }
+			arrival: { x: 1_450, y: 5_560, facing: 'down' }
 		}
 	],
 	interiorProps: [
@@ -579,7 +579,7 @@ export const shrineOfAuroraInteriorMap: WorldMapDefinition = {
 			id: 'shrine-of-aurora-to-meadow',
 			...interiorDoor,
 			toMapId: openingMapId,
-			arrival: { x: 1_050, y: 6_104, facing: 'down' }
+			arrival: { x: 1_000, y: 5_710, facing: 'down' }
 		}
 	],
 	interiorProps: [

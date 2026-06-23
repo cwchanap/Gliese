@@ -44,56 +44,47 @@ export const routeSceneDefinitions: RouteSceneDefinition[] = [
 		from: 'village-plaza-room',
 		to: 'crossroads-hub-room',
 		mainRoute: [
-			{ x: 1_536, y: 5_550 },
-			{ x: 2_336, y: 5_347 },
-			{ x: 2_750, y: 4_700 },
+			{ x: 700, y: 5_600 },
+			{ x: 1_000, y: 5_100 },
+			{ x: 1_600, y: 4_600 },
+			{ x: 3_200, y: 4_400 },
 			{ x: 3_500, y: 4_000 }
 		],
 		beats: [
 			{
 				id: 'village-homeward-hook',
 				routeId: 'spawn-to-crossroads',
-				cameraPoint: { x: 1_536, y: 5_550 },
+				cameraPoint: { x: 700, y: 5_500 },
 				purpose: 'hook',
-				expectedVisibleIds: ['sundrop-well', 'village-wanderer'],
-				boundaryIds: ['sundrop-plaza-east-fence', 'village-road-west-fence-a'],
+				expectedVisibleIds: ['hero-house-exterior', 'village-wanderer'],
+				boundaryIds: ['hero-house-exterior', 'blacksmith'],
 				storyMotif: 'homeward-road'
 			},
 			{
 				id: 'village-fenced-lane-threshold',
 				routeId: 'spawn-to-crossroads',
-				cameraPoint: { x: 2_700, y: 4_760 },
+				cameraPoint: { x: 1_500, y: 4_600 },
 				purpose: 'threshold',
-				expectedVisibleIds: [
-					'village-waymarker',
-					'village-road-west-fence-a',
-					'village-road-east-fence-a'
-				],
-				boundaryIds: ['village-road-west-fence-a', 'village-road-east-fence-a'],
+				expectedVisibleIds: ['guild-hall-exterior', 'villager-house-2-exterior'],
+				boundaryIds: ['guild-hall-exterior', 'villager-house-3-exterior'],
 				storyMotif: 'homeward-road'
 			},
 			{
 				id: 'village-roadside-nook',
 				routeId: 'spawn-to-crossroads',
-				cameraPoint: { x: 2_900, y: 4_780 },
+				cameraPoint: { x: 2_200, y: 4_100 },
 				purpose: 'fork',
-				expectedVisibleIds: [
-					'village-waymarker',
-					'village-roadside-flowers',
-					'village-roadside-cache'
-				],
-				optionalPathIds: ['village-crossroads-nook'],
-				boundaryIds: ['village-reststop-fence', 'village-road-west-fence-b'],
+				expectedVisibleIds: ['villager-house-3-exterior', 'guild-hall-exterior'],
+				boundaryIds: ['villager-house-3-exterior', 'guild-hall-exterior'],
 				storyMotif: 'homeward-road'
 			},
 			{
 				id: 'village-roadside-cache-payoff',
 				routeId: 'spawn-to-crossroads',
-				cameraPoint: { x: 3_040, y: 4_930 },
+				cameraPoint: { x: 2_900, y: 4_250 },
 				purpose: 'payoff',
-				expectedVisibleIds: ['village-roadside-cache', 'village-crossroads-nook'],
-				payoffIds: ['village-roadside-cache'],
-				boundaryIds: ['village-reststop-fence', 'village-road-west-fence-b'],
+				expectedVisibleIds: ['guild-hall-exterior', 'villager-house-3-exterior'],
+				boundaryIds: ['villager-house-3-exterior', 'guild-hall-exterior'],
 				storyMotif: 'homeward-road'
 			},
 			{
