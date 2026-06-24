@@ -40,6 +40,25 @@ export const softMazeRooms: SoftMazeRoom[] = [
 		storyMotif: 'homeward-road'
 	},
 	{
+		id: 'village-gate-threshold-room',
+		kind: 'gate',
+		bounds: { id: 'village-gate-threshold-room', x: 1_650, y: 4_425, width: 300, height: 350 },
+		routeIds: ['spawn-to-crossroads'],
+		beatId: 'village-fenced-lane-threshold',
+		requiredVisibleIds: ['village-gate-lantern-a', 'village-gate-lantern-b'],
+		storyMotif: 'homeward-road'
+	},
+	{
+		id: 'village-road-reststop-room',
+		kind: 'side-pocket',
+		bounds: { id: 'village-road-reststop-room', x: 2_800, y: 4_400, width: 400, height: 300 },
+		routeIds: ['spawn-to-crossroads'],
+		beatId: 'village-roadside-cache-payoff',
+		requiredVisibleIds: ['village-corridor-cache'],
+		payoffIds: ['village-corridor-cache'],
+		storyMotif: 'homeward-road'
+	},
+	{
 		id: 'crossroads-hub-room',
 		kind: 'hub',
 		bounds: { id: 'crossroads-hub-room', x: 3_500, y: 4_000, width: 900, height: 900 },
