@@ -1,4 +1,4 @@
-import { crossroadsDressingAsset } from '$lib/game/content/assets';
+import { crossroadsDressingAsset, shrineDressingAsset } from '$lib/game/content/assets';
 import type { RegionFragment } from '$lib/game/content/maps/regions/types';
 
 /**
@@ -100,6 +100,128 @@ export const villageRegion: RegionFragment = {
 			mode: 'image',
 			depth: 'foreground'
 		},
+		// Plaza decor
+		{
+			id: 'village-market-stall',
+			textureKey: crossroadsDressingAsset.key,
+			frameName: 'marketStall',
+			x: 1_150,
+			y: 5_050,
+			width: 240,
+			height: 190,
+			mode: 'image'
+		},
+		{
+			id: 'village-festival-banner',
+			textureKey: crossroadsDressingAsset.key,
+			frameName: 'festivalBanner',
+			x: 870,
+			y: 5_050,
+			width: 200,
+			height: 250,
+			mode: 'image'
+		},
+		{
+			id: 'village-plaza-flowers-1',
+			textureKey: crossroadsDressingAsset.key,
+			frameName: 'flowerBed',
+			x: 850,
+			y: 5_250,
+			width: 160,
+			height: 130,
+			mode: 'image'
+		},
+		{
+			id: 'village-plaza-flowers-2',
+			textureKey: crossroadsDressingAsset.key,
+			frameName: 'flowerBed',
+			x: 1_150,
+			y: 5_250,
+			width: 160,
+			height: 130,
+			mode: 'image'
+		},
+		// Junction pole lanterns
+		{
+			id: 'village-lantern-junction-sw',
+			textureKey: crossroadsDressingAsset.key,
+			frameName: 'poleLantern',
+			x: 400,
+			y: 5_400,
+			width: 110,
+			height: 220,
+			mode: 'image',
+			collision: { id: 'village-lantern-sw-collision', x: 400, y: 5_480, width: 50, height: 60 }
+		},
+		{
+			id: 'village-lantern-junction-nw',
+			textureKey: crossroadsDressingAsset.key,
+			frameName: 'poleLantern',
+			x: 500,
+			y: 4_650,
+			width: 110,
+			height: 220,
+			mode: 'image',
+			collision: { id: 'village-lantern-nw-collision', x: 500, y: 4_730, width: 50, height: 60 }
+		},
+		{
+			id: 'village-lantern-junction-ne',
+			textureKey: crossroadsDressingAsset.key,
+			frameName: 'poleLantern',
+			x: 1_550,
+			y: 4_650,
+			width: 110,
+			height: 220,
+			mode: 'image',
+			collision: { id: 'village-lantern-ne-collision', x: 1_550, y: 4_730, width: 50, height: 60 }
+		},
+		// Dead-end accents
+		{
+			id: 'village-maple-garden',
+			textureKey: shrineDressingAsset.key,
+			frameName: 'autumnMaple',
+			x: 340,
+			y: 4_775,
+			width: 220,
+			height: 280,
+			mode: 'image',
+			collision: { id: 'village-maple-garden-collision', x: 340, y: 4_865, width: 80, height: 70 }
+		},
+		{
+			id: 'village-shrine-offering',
+			textureKey: shrineDressingAsset.key,
+			frameName: 'offeringStand',
+			x: 920,
+			y: 5_500,
+			width: 200,
+			height: 200,
+			mode: 'image',
+			collision: {
+				id: 'village-shrine-offering-collision',
+				x: 920,
+				y: 5_550,
+				width: 80,
+				height: 60
+			}
+		},
+		{
+			id: 'village-stone-lantern',
+			textureKey: shrineDressingAsset.key,
+			frameName: 'stoneLantern',
+			x: 1_080,
+			y: 5_500,
+			width: 200,
+			height: 200,
+			mode: 'image',
+			collision: {
+				id: 'village-stone-lantern-collision',
+				x: 1_080,
+				y: 5_550,
+				width: 80,
+				height: 60
+			}
+		},
+		// Gate decor (from Task 4)
 		{
 			id: 'village-gate-lantern-a',
 			textureKey: crossroadsDressingAsset.key,
@@ -152,7 +274,12 @@ export const villageRegion: RegionFragment = {
 			}
 		}
 	],
-	ambientNpcs: [{ id: 'village-wanderer', x: 1_000, y: 5_150, frameName: 'travelerNpc' }],
+	ambientNpcs: [
+		{ id: 'village-wanderer', x: 1_000, y: 5_150, frameName: 'travelerNpc' },
+		{ id: 'village-woodcutter', x: 308, y: 4_800, frameName: 'woodcutterNpc' },
+		{ id: 'village-fisher', x: 308, y: 5_500, frameName: 'fisherNpc' },
+		{ id: 'village-crier', x: 1_692, y: 4_900, frameName: 'crierNpc' }
+	],
 	pickups: [
 		{ id: 'village-corridor-cache', x: 2_700, y: 4_480, itemId: 'field-potion', quantity: 1 }
 	],
@@ -228,6 +355,63 @@ export const villageRegion: RegionFragment = {
 			x: 700,
 			y: 5_550,
 			width: 300,
+			height: 100,
+			tile: 'pathTile'
+		},
+		// Ring road lane tiles — between perimeter and inner walls
+		{ id: 'village-lane-west-ring', x: 308, y: 5_100, width: 100, height: 1_000, tile: 'pathTile' },
+		{
+			id: 'village-lane-north-ring',
+			x: 1_000,
+			y: 4_483,
+			width: 1_300,
+			height: 100,
+			tile: 'pathTile'
+		},
+		{
+			id: 'village-lane-east-ring',
+			x: 1_692,
+			y: 5_100,
+			width: 100,
+			height: 1_000,
+			tile: 'pathTile'
+		},
+		{
+			id: 'village-lane-south-ring',
+			x: 1_000,
+			y: 5_711,
+			width: 1_400,
+			height: 100,
+			tile: 'pathTile'
+		},
+		// Spoke lanes — connecting plaza to ring road
+		{ id: 'village-lane-w-spoke', x: 600, y: 5_000, width: 600, height: 100, tile: 'pathTile' },
+		{ id: 'village-lane-e-spoke', x: 1_250, y: 5_130, width: 450, height: 100, tile: 'pathTile' },
+		{ id: 'village-lane-s-spoke', x: 950, y: 5_400, width: 100, height: 300, tile: 'pathTile' },
+		// Dead-end spur tiles
+		{
+			id: 'village-lane-blacksmith-spur',
+			x: 500,
+			y: 5_200,
+			width: 100,
+			height: 200,
+			tile: 'pathTile'
+		},
+		{
+			id: 'village-lane-itemshop-spur',
+			x: 600,
+			y: 4_800,
+			width: 100,
+			height: 150,
+			tile: 'pathTile'
+		},
+		{ id: 'village-lane-vh2-spur', x: 1_200, y: 4_700, width: 100, height: 100, tile: 'pathTile' },
+		// Exit corridor path
+		{
+			id: 'village-lane-exit-corridor',
+			x: 2_275,
+			y: 4_225,
+			width: 900,
 			height: 100,
 			tile: 'pathTile'
 		},
