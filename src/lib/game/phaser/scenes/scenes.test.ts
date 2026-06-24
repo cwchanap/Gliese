@@ -2957,12 +2957,14 @@ describe('WorldScene', () => {
 		const scene = new WorldScene();
 
 		scene.create({ mapId: 'meadow-entry' });
-		Object.assign(phaserState.playerMarker, { x: 1_700, y: 5_347 });
+		// Just east of the village perimeter (x≈1800) in the open field — the maze
+		// hedge network now occupies the old (1700,5347) road point.
+		Object.assign(phaserState.playerMarker, { x: 1_860, y: 5_347 });
 		phaserState.cursorKeys.right.isDown = true;
 
 		scene.update(0, 250);
 
-		expect(phaserState.playerMarker.x).toBeGreaterThan(1_700);
+		expect(phaserState.playerMarker.x).toBeGreaterThan(1_860);
 		expect(phaserState.playerMarker.y).toBe(5_347);
 	});
 
@@ -2993,14 +2995,16 @@ describe('WorldScene', () => {
 		expect(phaserState.playerMarker.x).toBe(6_320);
 		expect(phaserState.playerMarker.y).toBe(1_024);
 
-		Object.assign(phaserState.playerMarker, { x: 1_300, y: 5_700 });
+		// Village-lane-usability check moved into the plaza interior: the hedge maze
+		// now fills the old (1300,5700) point. (1100,5250) is clear of the sundrop well.
+		Object.assign(phaserState.playerMarker, { x: 1_100, y: 5_250 });
 		phaserState.cursorKeys.right.isDown = false;
 		phaserState.cursorKeys.up.isDown = true;
 
 		scene.update(250, 250);
 
-		expect(phaserState.playerMarker.x).toBe(1_300);
-		expect(phaserState.playerMarker.y).toBeLessThan(5_700);
+		expect(phaserState.playerMarker.x).toBe(1_100);
+		expect(phaserState.playerMarker.y).toBeLessThan(5_250);
 	});
 
 	it('blocks movement through ruin walls and future gates', async () => {
