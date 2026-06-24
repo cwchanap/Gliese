@@ -1,7 +1,7 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 2800 3580" width="700" height="895">
 <rect width="2800" height="3580" fill="#0d1117"/>
-<rect x="20" y="1430" width="420" height="340" fill="#1f2937" stroke="#374151" stroke-width="2"/>
-<text x="26" y="1446" fill="#9ca3af" font-size="22" font-family="monospace">village-road-reststop-room</text>
+<rect x="-200" y="950" width="400" height="300" fill="#1f2937" stroke="#374151" stroke-width="2"/>
+<text x="-194" y="966" fill="#9ca3af" font-size="22" font-family="monospace">village-road-reststop-room</text>
 <rect x="250" y="250" width="900" height="900" fill="#1f2937" stroke="#374151" stroke-width="2"/>
 <text x="256" y="266" fill="#9ca3af" font-size="22" font-family="monospace">crossroads-hub-room</text>
 <rect x="920" y="2040" width="760" height="360" fill="#1f2937" stroke="#374151" stroke-width="2"/>
@@ -17,18 +17,15 @@
 <rect x="1540" y="140" width="560" height="420" fill="#1f2937" stroke="#374151" stroke-width="2"/>
 <text x="1546" y="156" fill="#9ca3af" font-size="22" font-family="monospace">wildwood-side-clearing-room</text>
 <rect x="-2800" y="3036" width="6400" height="64" fill="#b91c1c" fill-opacity="0.55" stroke="#ef4444" stroke-width="1"/>
-<rect x="-900" y="1068" width="1000" height="64" fill="#b91c1c" fill-opacity="0.55" stroke="#ef4444" stroke-width="1"/>
+<rect x="-260" y="608" width="370" height="64" fill="#b91c1c" fill-opacity="0.55" stroke="#ef4444" stroke-width="1"/>
+<rect x="-260" y="928" width="370" height="64" fill="#b91c1c" fill-opacity="0.55" stroke="#ef4444" stroke-width="1"/>
+<rect x="100" y="1228" width="300" height="64" fill="#b91c1c" fill-opacity="0.55" stroke="#ef4444" stroke-width="1"/>
 <rect x="2168" y="-100" width="64" height="2100" fill="#b91c1c" fill-opacity="0.55" stroke="#ef4444" stroke-width="1"/>
 <rect x="300" y="2980" width="3000" height="80" fill="#b91c1c" fill-opacity="0.55" stroke="#ef4444" stroke-width="1"/>
 <rect x="668" y="1150" width="64" height="400" fill="#b91c1c" fill-opacity="0.55" stroke="#ef4444" stroke-width="1"/>
 <rect x="1248" y="2425" width="64" height="450" fill="#b91c1c" fill-opacity="0.55" stroke="#ef4444" stroke-width="1"/>
 <rect x="168" y="320" width="64" height="760" fill="#b91c1c" fill-opacity="0.55" stroke="#ef4444" stroke-width="1"/>
 <rect x="1378" y="470" width="64" height="620" fill="#b91c1c" fill-opacity="0.55" stroke="#ef4444" stroke-width="1"/>
-<rect x="-440" y="1519" width="620" height="32" fill="#b91c1c" fill-opacity="0.55" stroke="#ef4444" stroke-width="1"/>
-<rect x="-320" y="1249" width="560" height="32" fill="#b91c1c" fill-opacity="0.55" stroke="#ef4444" stroke-width="1"/>
-<rect x="109" y="1080" width="32" height="360" fill="#b91c1c" fill-opacity="0.55" stroke="#ef4444" stroke-width="1"/>
-<rect x="394" y="1090" width="32" height="340" fill="#b91c1c" fill-opacity="0.55" stroke="#ef4444" stroke-width="1"/>
-<rect x="125" y="1734" width="330" height="32" fill="#b91c1c" fill-opacity="0.55" stroke="#ef4444" stroke-width="1"/>
 <rect x="1204" y="1690" width="32" height="520" fill="#b91c1c" fill-opacity="0.55" stroke="#ef4444" stroke-width="1"/>
 <rect x="1564" y="1690" width="32" height="520" fill="#b91c1c" fill-opacity="0.55" stroke="#ef4444" stroke-width="1"/>
 <rect x="1410" y="2344" width="500" height="32" fill="#b91c1c" fill-opacity="0.55" stroke="#ef4444" stroke-width="1"/>
