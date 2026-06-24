@@ -99,10 +99,63 @@ export const villageRegion: RegionFragment = {
 			height: 130,
 			mode: 'image',
 			depth: 'foreground'
+		},
+		{
+			id: 'village-gate-lantern-a',
+			textureKey: crossroadsDressingAsset.key,
+			frameName: 'poleLantern',
+			x: 1_580,
+			y: 4_500,
+			width: 110,
+			height: 220,
+			mode: 'image',
+			collision: {
+				id: 'village-gate-lantern-a-collision',
+				x: 1_580,
+				y: 4_580,
+				width: 50,
+				height: 60
+			}
+		},
+		{
+			id: 'village-gate-lantern-b',
+			textureKey: crossroadsDressingAsset.key,
+			frameName: 'poleLantern',
+			x: 1_720,
+			y: 4_500,
+			width: 110,
+			height: 220,
+			mode: 'image',
+			collision: {
+				id: 'village-gate-lantern-b-collision',
+				x: 1_720,
+				y: 4_580,
+				width: 50,
+				height: 60
+			}
+		},
+		{
+			id: 'village-corridor-waymarker',
+			textureKey: crossroadsDressingAsset.key,
+			frameName: 'poleLantern',
+			x: 2_200,
+			y: 4_180,
+			width: 110,
+			height: 220,
+			mode: 'image',
+			collision: {
+				id: 'village-corridor-waymarker-collision',
+				x: 2_200,
+				y: 4_260,
+				width: 50,
+				height: 60
+			}
 		}
 	],
 	ambientNpcs: [{ id: 'village-wanderer', x: 1_000, y: 5_150, frameName: 'travelerNpc' }],
-	pickups: [],
+	pickups: [
+		{ id: 'village-corridor-cache', x: 2_700, y: 4_480, itemId: 'field-potion', quantity: 1 }
+	],
 	transitions: [
 		{
 			id: 'meadow-to-hero-house',
@@ -359,7 +412,40 @@ export const villageRegion: RegionFragment = {
 		{ id: 'vs-gap-w', x: 375, y: 5_630, width: 350, height: 48, kind: 'town-hedge' },
 		{ id: 'vs-gap-mid', x: 1_240, y: 5_630, width: 180, height: 48, kind: 'town-hedge' },
 		// vs-gap-e stops at x≤1690 so the E-ring corridor (x≈1716) can reach the S-ring.
-		{ id: 'vs-gap-e', x: 1_625, y: 5_630, width: 130, height: 48, kind: 'town-hedge' }
+		{ id: 'vs-gap-e', x: 1_625, y: 5_630, width: 130, height: 48, kind: 'town-hedge' },
+		// === Exit corridor walls ===
+		// Paired town-hedge walls flanking the winding dogleg from village gate to crossroads.
+		// ±160px perpendicular offset from each corridor segment. Each wall extends 20px
+		// past segment endpoints to ensure corner overlap (no ray-cast edge gaps).
+		// Segment 1 (1650,4550)→(1650,4350) passes through the village gate — no
+		// dedicated walls needed; the village perimeter provides enclosure there.
+		// Segment: (1650,4350)→(1850,4350) horizontal
+		{ id: 'corridor-wall-2a', x: 1_750, y: 4_190, width: 220, height: 64, kind: 'town-hedge' },
+		{ id: 'corridor-wall-2b', x: 1_775, y: 4_510, width: 170, height: 64, kind: 'town-hedge' },
+		// Segment: (1850,4350)→(1850,4100) vertical
+		// wall-3a height capped at 220 (y∈[4115,4335]) so it doesn't block the
+		// mainRoute junction at y=4350 where segment 2 turns into segment 3.
+		{ id: 'corridor-wall-3a', x: 1_690, y: 4_225, width: 64, height: 220, kind: 'town-hedge' },
+		{ id: 'corridor-wall-3b', x: 2_010, y: 4_225, width: 64, height: 270, kind: 'town-hedge' },
+		// Segment: (1850,4100)→(2200,4100) horizontal
+		{ id: 'corridor-wall-4a', x: 2_025, y: 3_940, width: 370, height: 64, kind: 'town-hedge' },
+		{ id: 'corridor-wall-4b', x: 2_040, y: 4_260, width: 330, height: 64, kind: 'town-hedge' },
+		// Segment: (2200,4100)→(2200,4350) vertical
+		{ id: 'corridor-wall-5a', x: 2_040, y: 4_225, width: 64, height: 270, kind: 'town-hedge' },
+		{ id: 'corridor-wall-5b', x: 2_360, y: 4_225, width: 64, height: 270, kind: 'town-hedge' },
+		// Segment: (2200,4350)→(2550,4350) horizontal
+		{ id: 'corridor-wall-6a', x: 2_375, y: 4_190, width: 370, height: 64, kind: 'town-hedge' },
+		{ id: 'corridor-wall-6b', x: 2_375, y: 4_510, width: 370, height: 64, kind: 'town-hedge' },
+		// Segment: (2550,4350)→(2550,4100) vertical
+		{ id: 'corridor-wall-7a', x: 2_390, y: 4_225, width: 64, height: 270, kind: 'town-hedge' },
+		{ id: 'corridor-wall-7b', x: 2_710, y: 4_225, width: 64, height: 270, kind: 'town-hedge' },
+		// Segment: (2550,4100)→(2900,4100) horizontal
+		{ id: 'corridor-wall-8a', x: 2_725, y: 3_940, width: 370, height: 64, kind: 'town-hedge' },
+		{ id: 'corridor-wall-8b', x: 2_725, y: 4_260, width: 370, height: 64, kind: 'town-hedge' },
+		// Segment: (2900,4100)→(2900,4400) vertical — east side covered by crossroads-west-hedge
+		{ id: 'corridor-wall-9a', x: 2_740, y: 4_250, width: 64, height: 300, kind: 'town-hedge' },
+		// Segment: (2900,4400)→(3200,4400) horizontal — north side covered by crossroads-west-hedge
+		{ id: 'corridor-wall-10b', x: 3_050, y: 4_560, width: 300, height: 64, kind: 'town-hedge' }
 	],
 	fences: []
 };

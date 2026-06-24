@@ -45,6 +45,11 @@ function roles(
 
 export const decorRoles: DecorRoleEntry[] = [
 	role('village-hanging-lantern', 'story-symbol', { storyMotif: 'homeward-road' }),
+	...roles(['village-gate-lantern-a', 'village-gate-lantern-b'], 'threshold', {
+		routeId: 'spawn-to-crossroads',
+		storyMotif: 'homeward-road'
+	}),
+	role('village-corridor-waymarker', 'breadcrumb', { routeId: 'spawn-to-crossroads' }),
 
 	...roles(['wildwood-north-canopy', 'wildwood-east-canopy'], 'wall', {
 		routeId: 'crossroads-to-wildwood'

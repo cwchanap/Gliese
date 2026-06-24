@@ -46,7 +46,17 @@ export const routeSceneDefinitions: RouteSceneDefinition[] = [
 		mainRoute: [
 			{ x: 700, y: 5_600 },
 			{ x: 1_000, y: 5_100 },
-			{ x: 1_600, y: 4_600 },
+			{ x: 1_650, y: 4_550 },
+			{ x: 1_650, y: 4_350 },
+			{ x: 1_850, y: 4_350 },
+			{ x: 1_850, y: 4_100 },
+			{ x: 2_200, y: 4_100 },
+			{ x: 2_200, y: 4_350 },
+			{ x: 2_550, y: 4_350 },
+			{ x: 2_550, y: 4_100 },
+			{ x: 2_900, y: 4_100 },
+			{ x: 2_900, y: 4_250 },
+			{ x: 2_900, y: 4_400 },
 			{ x: 3_200, y: 4_400 },
 			{ x: 3_500, y: 4_000 }
 		],
@@ -63,10 +73,10 @@ export const routeSceneDefinitions: RouteSceneDefinition[] = [
 			{
 				id: 'village-fenced-lane-threshold',
 				routeId: 'spawn-to-crossroads',
-				cameraPoint: { x: 1_500, y: 4_600 },
+				cameraPoint: { x: 1_650, y: 4_550 },
 				purpose: 'threshold',
-				expectedVisibleIds: ['guild-hall-exterior', 'villager-house-2-exterior'],
-				boundaryIds: ['guild-hall-exterior', 'villager-house-3-exterior'],
+				expectedVisibleIds: ['village-gate-lantern-a', 'village-gate-lantern-b'],
+				boundaryIds: ['corridor-wall-2a', 'corridor-wall-2b'],
 				storyMotif: 'homeward-road'
 			},
 			{
@@ -74,8 +84,8 @@ export const routeSceneDefinitions: RouteSceneDefinition[] = [
 				routeId: 'spawn-to-crossroads',
 				cameraPoint: { x: 2_200, y: 4_100 },
 				purpose: 'fork',
-				expectedVisibleIds: ['villager-house-3-exterior', 'guild-hall-exterior'],
-				boundaryIds: ['villager-house-3-exterior', 'guild-hall-exterior'],
+				expectedVisibleIds: ['village-corridor-waymarker'],
+				boundaryIds: ['corridor-wall-4a', 'corridor-wall-4b'],
 				storyMotif: 'homeward-road'
 			},
 			{
@@ -83,8 +93,9 @@ export const routeSceneDefinitions: RouteSceneDefinition[] = [
 				routeId: 'spawn-to-crossroads',
 				cameraPoint: { x: 2_900, y: 4_250 },
 				purpose: 'payoff',
-				expectedVisibleIds: ['guild-hall-exterior', 'villager-house-3-exterior'],
-				boundaryIds: ['villager-house-3-exterior', 'guild-hall-exterior'],
+				expectedVisibleIds: ['village-corridor-cache'],
+				payoffIds: ['village-corridor-cache'],
+				boundaryIds: ['corridor-wall-9a', 'corridor-wall-10b'],
 				storyMotif: 'homeward-road'
 			},
 			{
