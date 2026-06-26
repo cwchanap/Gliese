@@ -270,7 +270,7 @@ describe('opening map content', () => {
 			{
 				id: 'meadow-to-hero-house',
 				x: 700,
-				y: 5_600,
+				y: 5_573,
 				toMapId: 'hero-house',
 				showMarker: false,
 				arrival: { x: 256, y: 224, facing: 'up' }
@@ -278,7 +278,7 @@ describe('opening map content', () => {
 			{
 				id: 'meadow-to-guild-hall',
 				x: 1_400,
-				y: 5_070,
+				y: 5_038,
 				toMapId: 'guild-hall',
 				showMarker: false,
 				arrival: { x: 256, y: 288, facing: 'up' }
@@ -286,7 +286,7 @@ describe('opening map content', () => {
 			{
 				id: 'meadow-to-item-shop',
 				x: 600,
-				y: 4_945,
+				y: 4_918,
 				toMapId: 'item-shop',
 				showMarker: false,
 				arrival: { x: 256, y: 288, facing: 'up' }
@@ -294,7 +294,7 @@ describe('opening map content', () => {
 			{
 				id: 'meadow-to-villager-house-1',
 				x: 900,
-				y: 4_880,
+				y: 4_852,
 				toMapId: 'villager-house-1',
 				showMarker: false,
 				arrival: { x: 256, y: 288, facing: 'up' }
@@ -302,7 +302,7 @@ describe('opening map content', () => {
 			{
 				id: 'meadow-to-villager-house-2',
 				x: 1_200,
-				y: 4_870,
+				y: 4_830,
 				toMapId: 'villager-house-2',
 				showMarker: false,
 				arrival: { x: 256, y: 288, facing: 'up' }
@@ -310,7 +310,7 @@ describe('opening map content', () => {
 			{
 				id: 'meadow-to-villager-house-3',
 				x: 1_450,
-				y: 5_610,
+				y: 5_566,
 				toMapId: 'villager-house-3',
 				showMarker: false,
 				arrival: { x: 256, y: 288, facing: 'up' }
@@ -318,7 +318,7 @@ describe('opening map content', () => {
 			{
 				id: 'meadow-to-shrine-of-aurora',
 				x: 1_000,
-				y: 5_610,
+				y: 5_566,
 				toMapId: 'shrine-of-aurora-interior',
 				showMarker: false,
 				arrival: { x: 256, y: 288, facing: 'up' }
@@ -973,7 +973,7 @@ describe('opening map content', () => {
 		});
 		expect(villagerHouse3Map.transitions[0].arrival).toEqual({
 			x: 1_450,
-			y: 5_560,
+			y: 5_700,
 			facing: 'down'
 		});
 		expect(shrineOfAuroraInteriorMap.transitions[0].arrival).toEqual({
@@ -1081,48 +1081,48 @@ describe('opening map content', () => {
 					id: 'hero-house-exterior',
 					x: 700,
 					y: 5_450,
-					width: 294,
-					height: 307,
+					width: 235,
+					height: 246,
 					labelKey: 'content.maps.landmarks.hero-house-exterior.label'
 				}),
 				expect.objectContaining({
 					id: 'guild-hall-exterior',
 					x: 1_400,
 					y: 4_900,
-					width: 384,
-					height: 346,
+					width: 307,
+					height: 277,
 					labelKey: 'content.maps.landmarks.guild-hall-exterior.label'
 				}),
 				expect.objectContaining({
 					id: 'item-shop-exterior',
 					x: 600,
 					y: 4_800,
-					width: 307,
-					height: 294,
+					width: 246,
+					height: 235,
 					labelKey: 'content.maps.landmarks.item-shop-exterior.label'
 				}),
 				expect.objectContaining({
 					id: 'villager-house-1-exterior',
 					x: 900,
 					y: 4_750,
-					width: 282,
-					height: 256,
+					width: 226,
+					height: 205,
 					labelKey: 'content.maps.landmarks.villager-house-1-exterior.label'
 				}),
 				expect.objectContaining({
 					id: 'villager-house-2-exterior',
 					x: 1_200,
 					y: 4_700,
-					width: 422,
-					height: 326,
+					width: 338,
+					height: 261,
 					labelKey: 'content.maps.landmarks.villager-house-2-exterior.label'
 				}),
 				expect.objectContaining({
 					id: 'villager-house-3-exterior',
 					x: 1_450,
 					y: 5_400,
-					width: 230,
-					height: 416,
+					width: 184,
+					height: 333,
 					labelKey: 'content.maps.landmarks.villager-house-3-exterior.label'
 				}),
 				expect.objectContaining({
@@ -1145,16 +1145,16 @@ describe('opening map content', () => {
 					id: 'blacksmith',
 					x: 500,
 					y: 5_200,
-					width: 294,
-					height: 282,
+					width: 235,
+					height: 226,
 					labelKey: 'content.maps.landmarks.blacksmith.label'
 				}),
 				expect.objectContaining({
 					id: 'shrine-of-aurora',
 					x: 1_000,
 					y: 5_400,
-					width: 307,
-					height: 416,
+					width: 246,
+					height: 333,
 					labelKey: 'content.maps.landmarks.shrine-of-aurora.label'
 				})
 			])
