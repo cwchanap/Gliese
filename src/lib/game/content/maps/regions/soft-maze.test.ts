@@ -705,6 +705,9 @@ describe('village maze — compact hamlet invariants', () => {
 	// intentional opening — the SE-detour corridor mouth and the shrine↔vh3 /
 	// item-shop↔blacksmith gaps. At these points perpendicular "lane width" is
 	// undefined (they are gaps, not lanes), so they are excluded from the cap.
+	// The cap itself was also raised 128→144 (256→288px) to accommodate the
+	// handful of near-cap lanes widened by the shrink (worst non-gap sample
+	// measures 176px); see the plan's realization notes.
 	const laneWidthGapCrossings = [
 		{ x: 1_136, y: 5_680 },
 		{ x: 1_584, y: 5_130 },

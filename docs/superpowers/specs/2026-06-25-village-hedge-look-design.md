@@ -115,3 +115,14 @@ Smaller collision footprints can only **widen** passable gaps, never close them.
 - Scene: hedge frame rendered for a `garden-hedge` blocker; building `add.image` displaySizes updated; transition positions updated.
 - Regression: full maze connectivity + critical-route suite green; `svelte-check` 0 errors; lint clean; build succeeds.
 - Visual QA: Sonnet 4.6 inspects the generated hedge sprite (style match, no green matte, clean edges).
+
+---
+
+## Realization Notes (post-implementation)
+
+Decisions made during implementation that refine the design above, recorded for auditability:
+
+- **Hedge cell 256×256, not 64×64.** Section 1 specified a ~64×64 native frame. Realized at **256×256** instead: AI image-gen cannot produce a clean 64² raster, 256² matches the project's other painted dressing cells, and `renderBlockerSegments` sizes the output via `setDisplaySize` (segment length × blocker height), so the source-frame native size never affects the rendered hedge. No visible difference; only the asset metadata changed.
+- **Sprite generated via `codex exec`, QA deferred.** The `agy` CLI was non-functional in the build environment (silent even for text replies — TTY/auth), so generation used `codex exec` (gpt-image, 1254² → chroma-stripped → resized to 256²). Controller vision-QA was not possible (model has no image input), so aesthetic acceptance is deferred to the human gate.
+- **Lane-width cap raised 256→288px.** Section 2's connectivity note ("smaller buildings can only widen passable gaps") missed that lane width has an **upper** cap. The maze was designed right at the 256px cap, so any shrink widens adjacent lanes. At 80%, ~4 lane samples land on inter-building gap crossings (SE-detour mouth, shrine↔vh3, item-shop↔blacksmith) where perpendicular lane-width is undefined post-shrink — these 4 are excluded via a documented `laneWidthGapCrossings` filter in `soft-maze.test.ts`. The cap itself was raised `maxHalfWidth` 128→144 to cover the few near-cap lanes widened by the shrink (worst non-gap sample = 176px). This was an explicit, user-approved design decision (less-crowded village ⟹ wider lanes).
+- **vh3 return-arrival moved.** The plan said "Leave arrival unchanged," but vh3's interior→meadow return arrival (y=5560) falls **inside** the 80%-shrunk vh3 footprint (new south edge 5566.5), which would spawn the player inside collision. Moved to y=5700 (~134px south of the door), consistent with the other village exits. Documented inline at `src/lib/game/content/maps.ts`.
