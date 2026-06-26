@@ -2287,6 +2287,14 @@ describe('WorldScene', () => {
 			'whisperingCave'
 		);
 		expect(scene.add.image).toHaveBeenCalledWith(1_000, 5_100, 'village-buildings', 'sundropWell');
+		// Village-internal walls now render as hedge segments, not tree clusters
+		expect(
+			vi
+				.mocked(scene.add.image)
+				.mock.calls.some(
+					([, , texture, frame]) => texture === 'village-hedge' && frame === 'hedgeSegment'
+				)
+		).toBe(true);
 		expect(scene.add.rectangle).not.toHaveBeenCalledWith(700, 5_450, 294, 307, 0x5b4636, 0.9);
 		expect(scene.add.rectangle).not.toHaveBeenCalledWith(500, 5_200, 294, 282, 0x5b4636, 0.9);
 		expect(scene.add.rectangle).not.toHaveBeenCalledWith(1_000, 5_400, 307, 416, 0x5b4636, 0.9);

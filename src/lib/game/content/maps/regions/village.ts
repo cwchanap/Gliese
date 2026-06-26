@@ -519,7 +519,7 @@ export const villageRegion: RegionFragment = {
 			y: 4_400,
 			width: 1_432,
 			height: 64,
-			kind: 'town-hedge'
+			kind: 'garden-hedge'
 		},
 		{
 			id: 'village-perimeter-north-east',
@@ -527,7 +527,7 @@ export const villageRegion: RegionFragment = {
 			y: 4_400,
 			width: 132,
 			height: 64,
-			kind: 'town-hedge'
+			kind: 'garden-hedge'
 		},
 		{
 			id: 'village-perimeter-west',
@@ -535,7 +535,7 @@ export const villageRegion: RegionFragment = {
 			y: 5_100,
 			width: 64,
 			height: 1_400,
-			kind: 'town-hedge'
+			kind: 'garden-hedge'
 		},
 		{
 			id: 'village-perimeter-south',
@@ -543,7 +543,7 @@ export const villageRegion: RegionFragment = {
 			y: 5_800,
 			width: 1_664,
 			height: 64,
-			kind: 'town-hedge'
+			kind: 'garden-hedge'
 		},
 		// East wall runs the full height y∈[4400,5800], closing the unintended
 		// y∈[4432,4600] gap. The ONLY NE opening is the gate at x∈[1600,1700]
@@ -554,92 +554,92 @@ export const villageRegion: RegionFragment = {
 			y: 5_100,
 			width: 64,
 			height: 1_400,
-			kind: 'town-hedge'
+			kind: 'garden-hedge'
 		},
 		// === Ring road pocket walls (double as inner ring boundary + dead-end enclosures) ===
 		// Each pocket is a small enclosed room off the ring road; lane samples inside count as dead-ends.
 		// NW pocket — interior x∈[240,440], y∈[4440,4530]. Walls S only (perimeter
 		// forms N + W). E wall removed to open a ~120px gap onto the N-ring lane
 		// (was a sealed box on all 4 sides).
-		{ id: 'vp-nw-s', x: 340, y: 4_540, width: 220, height: 32, kind: 'town-hedge' },
+		{ id: 'vp-nw-s', x: 340, y: 4_540, width: 220, height: 32, kind: 'garden-hedge' },
 		// N pocket — interior x∈[820,1020], y∈[4440,4520]. Walls S + W (perimeter
 		// forms N). E wall removed to open a ~100px gap onto the N-ring lane
 		// (was a sealed box on all 4 sides).
-		{ id: 'vp-n-s', x: 920, y: 4_540, width: 220, height: 32, kind: 'town-hedge' },
-		{ id: 'vp-n-w', x: 820, y: 4_490, width: 32, height: 100, kind: 'town-hedge' },
+		{ id: 'vp-n-s', x: 920, y: 4_540, width: 220, height: 32, kind: 'garden-hedge' },
+		{ id: 'vp-n-w', x: 820, y: 4_490, width: 32, height: 100, kind: 'garden-hedge' },
 		// NE pocket — interior x∈[1430,1640], y∈[4440,4530]. Walls S + W (perimeter forms N + E).
-		{ id: 'vp-ne-s', x: 1_530, y: 4_540, width: 220, height: 32, kind: 'town-hedge' },
-		{ id: 'vp-ne-w', x: 1_430, y: 4_485, width: 32, height: 120, kind: 'town-hedge' },
+		{ id: 'vp-ne-s', x: 1_530, y: 4_540, width: 220, height: 32, kind: 'garden-hedge' },
+		{ id: 'vp-ne-w', x: 1_430, y: 4_485, width: 32, height: 120, kind: 'garden-hedge' },
 		// W pocket — interior x∈[250,440], y∈[4700,4850]. 3 walls (perimeter forms W).
-		{ id: 'vp-w-n', x: 340, y: 4_700, width: 180, height: 32, kind: 'town-hedge' },
-		{ id: 'vp-w-e', x: 448, y: 4_775, width: 32, height: 120, kind: 'town-hedge' },
-		{ id: 'vp-w-s', x: 340, y: 4_850, width: 180, height: 32, kind: 'town-hedge' },
+		{ id: 'vp-w-n', x: 340, y: 4_700, width: 180, height: 32, kind: 'garden-hedge' },
+		{ id: 'vp-w-e', x: 448, y: 4_775, width: 32, height: 120, kind: 'garden-hedge' },
+		{ id: 'vp-w-s', x: 340, y: 4_850, width: 180, height: 32, kind: 'garden-hedge' },
 		// E pocket — interior x∈[1490,1710], y∈[5250,5400]. N/S walls stop at x≤1710
 		// so the E-ring corridor (x≈1716) stays clear for connectivity; opens E to ring.
-		{ id: 'vp-e-n', x: 1_600, y: 5_250, width: 220, height: 32, kind: 'town-hedge' },
-		{ id: 'vp-e-w', x: 1_490, y: 5_325, width: 32, height: 120, kind: 'town-hedge' },
-		{ id: 'vp-e-s', x: 1_600, y: 5_400, width: 220, height: 32, kind: 'town-hedge' },
+		{ id: 'vp-e-n', x: 1_600, y: 5_250, width: 220, height: 32, kind: 'garden-hedge' },
+		{ id: 'vp-e-w', x: 1_490, y: 5_325, width: 32, height: 120, kind: 'garden-hedge' },
+		{ id: 'vp-e-s', x: 1_600, y: 5_400, width: 220, height: 32, kind: 'garden-hedge' },
 		// SW pocket — interior x∈[300,440], y∈[5450,5600]. 3 walls (perimeter forms W).
 		// Walls start at x≥300 to keep the W-ring corridor (x≈276) clear for connectivity.
-		{ id: 'vp-sw-n', x: 365, y: 5_450, width: 130, height: 32, kind: 'town-hedge' },
-		{ id: 'vp-sw-e', x: 448, y: 5_525, width: 32, height: 120, kind: 'town-hedge' },
-		{ id: 'vp-sw-s', x: 365, y: 5_600, width: 130, height: 32, kind: 'town-hedge' },
+		{ id: 'vp-sw-n', x: 365, y: 5_450, width: 130, height: 32, kind: 'garden-hedge' },
+		{ id: 'vp-sw-e', x: 448, y: 5_525, width: 32, height: 120, kind: 'garden-hedge' },
+		{ id: 'vp-sw-s', x: 365, y: 5_600, width: 130, height: 32, kind: 'garden-hedge' },
 		// S pocket — interior x∈[820,1020], y∈[5650,5750]. Only the N wall (vp-s-n) is
 		// needed: it doubles as the S-ring north boundary. The W/E walls are omitted so
 		// the S-ring corridor stays fully navigable around the S-junction noses (the
 		// detour band y∈[5712,5768] must have a clear 32px-grid row).
-		{ id: 'vp-s-n', x: 920, y: 5_650, width: 220, height: 32, kind: 'town-hedge' },
+		{ id: 'vp-s-n', x: 920, y: 5_650, width: 220, height: 32, kind: 'garden-hedge' },
 		// SE pocket — interior x∈[1490,1710], y∈[5450,5600]. N/S walls stop at x≤1710
 		// to keep the E-ring corridor clear; opens E to ring.
-		{ id: 'vp-se-n', x: 1_600, y: 5_450, width: 220, height: 32, kind: 'town-hedge' },
-		{ id: 'vp-se-w', x: 1_490, y: 5_525, width: 32, height: 120, kind: 'town-hedge' },
-		{ id: 'vp-se-s', x: 1_600, y: 5_600, width: 220, height: 32, kind: 'town-hedge' },
+		{ id: 'vp-se-n', x: 1_600, y: 5_450, width: 220, height: 32, kind: 'garden-hedge' },
+		{ id: 'vp-se-w', x: 1_490, y: 5_525, width: 32, height: 120, kind: 'garden-hedge' },
+		{ id: 'vp-se-s', x: 1_600, y: 5_600, width: 220, height: 32, kind: 'garden-hedge' },
 		// SE-S pocket — interior x∈[1180,1380], y∈[5650,5750]. Only N wall kept (S-ring
 		// north boundary); W/E walls omitted to keep the S-ring detour band navigable.
-		{ id: 'vp-ses-n', x: 1_280, y: 5_650, width: 220, height: 32, kind: 'town-hedge' },
+		{ id: 'vp-ses-n', x: 1_280, y: 5_650, width: 220, height: 32, kind: 'garden-hedge' },
 		// === Junction noses ===
 		// W-spoke × W-ring junction at (290, 5000): noses block sight N, S, and E.
-		{ id: 'vn-w-nose-n', x: 264, y: 4_968, width: 64, height: 32, kind: 'town-hedge' },
-		{ id: 'vn-w-nose-s', x: 264, y: 5_032, width: 64, height: 32, kind: 'town-hedge' },
-		{ id: 'vn-w-nose-e', x: 354, y: 4_984, width: 32, height: 64, kind: 'town-hedge' },
+		{ id: 'vn-w-nose-n', x: 264, y: 4_968, width: 64, height: 32, kind: 'garden-hedge' },
+		{ id: 'vn-w-nose-s', x: 264, y: 5_032, width: 64, height: 32, kind: 'garden-hedge' },
+		{ id: 'vn-w-nose-e', x: 354, y: 4_984, width: 32, height: 64, kind: 'garden-hedge' },
 		// E-spoke × E-ring junction at (1700, 5130): noses block sight N, S, and W.
 		// Noses centered on x=1700 so junction rays (which stay at x=1700) hit them.
-		{ id: 'vn-e-nose-n', x: 1_700, y: 5_068, width: 32, height: 32, kind: 'town-hedge' },
-		{ id: 'vn-e-nose-s', x: 1_700, y: 5_192, width: 32, height: 32, kind: 'town-hedge' },
-		{ id: 'vn-e-nose-w', x: 1_646, y: 5_130, width: 32, height: 32, kind: 'town-hedge' },
+		{ id: 'vn-e-nose-n', x: 1_700, y: 5_068, width: 32, height: 32, kind: 'garden-hedge' },
+		{ id: 'vn-e-nose-s', x: 1_700, y: 5_192, width: 32, height: 32, kind: 'garden-hedge' },
+		{ id: 'vn-e-nose-w', x: 1_646, y: 5_130, width: 32, height: 32, kind: 'garden-hedge' },
 		// SE detour bend at (1240, 5400): noses block sight across the bend.
-		{ id: 'vn-se-nose-n', x: 1_208, y: 5_336, width: 64, height: 32, kind: 'town-hedge' },
-		{ id: 'vn-se-nose-s', x: 1_240, y: 5_448, width: 32, height: 64, kind: 'town-hedge' },
-		{ id: 'vn-se-nose-w', x: 1_176, y: 5_400, width: 32, height: 64, kind: 'town-hedge' },
+		{ id: 'vn-se-nose-n', x: 1_208, y: 5_336, width: 64, height: 32, kind: 'garden-hedge' },
+		{ id: 'vn-se-nose-s', x: 1_240, y: 5_448, width: 32, height: 64, kind: 'garden-hedge' },
+		{ id: 'vn-se-nose-w', x: 1_176, y: 5_400, width: 32, height: 64, kind: 'garden-hedge' },
 		// S-corridor junction at (1000, 5680): noses block sight E, W, N.
-		{ id: 'vn-s-nose-n', x: 1_032, y: 5_648, width: 32, height: 64, kind: 'town-hedge' },
-		{ id: 'vn-s-nose-w', x: 936, y: 5_696, width: 32, height: 32, kind: 'town-hedge' },
-		{ id: 'vn-s-nose-e', x: 1_064, y: 5_696, width: 32, height: 32, kind: 'town-hedge' },
+		{ id: 'vn-s-nose-n', x: 1_032, y: 5_648, width: 32, height: 64, kind: 'garden-hedge' },
+		{ id: 'vn-s-nose-w', x: 936, y: 5_696, width: 32, height: 32, kind: 'garden-hedge' },
+		{ id: 'vn-s-nose-e', x: 1_064, y: 5_696, width: 32, height: 32, kind: 'garden-hedge' },
 		// === Inner ring boundary walls ===
 		// These bound the ring-road lane samples on the building side,
 		// filling y-gaps between buildings. Gaps left for spokes.
 		// W inner (x≈400): covers y above item-shop and below blacksmith.
-		{ id: 'vw-inner-upper', x: 400, y: 4_713, width: 32, height: 467, kind: 'town-hedge' },
-		{ id: 'vw-inner-lower', x: 400, y: 5_370, width: 32, height: 620, kind: 'town-hedge' },
+		{ id: 'vw-inner-upper', x: 400, y: 4_713, width: 32, height: 467, kind: 'garden-hedge' },
+		{ id: 'vw-inner-lower', x: 400, y: 5_370, width: 32, height: 620, kind: 'garden-hedge' },
 		// W spoke S boundary (where blacksmith doesn't cover, x∈[320,800]).
 		// y=5090 sits below the item-shop-to-meadow arrival at (600,5045).
-		{ id: 'vw-spoke-s', x: 560, y: 5_090, width: 480, height: 32, kind: 'town-hedge' },
+		{ id: 'vw-spoke-s', x: 560, y: 5_090, width: 480, height: 32, kind: 'garden-hedge' },
 		// N inner (y≈4550): continuous above the north buildings row.
-		{ id: 'vn-inner', x: 900, y: 4_550, width: 1_400, height: 32, kind: 'town-hedge' },
+		{ id: 'vn-inner', x: 900, y: 4_550, width: 1_400, height: 32, kind: 'garden-hedge' },
 		// E inner (x≈1600): covers the y-gap below guild-hall only. The E-ring N-half
 		// lane starts at y=4740 (guild-hall top) so no west wall is needed above it —
 		// that region is the NE exit-gate corridor the spawn→crossroads route threads.
-		{ id: 've-inner-lower', x: 1_600, y: 5_400, width: 32, height: 480, kind: 'town-hedge' },
+		{ id: 've-inner-lower', x: 1_600, y: 5_400, width: 32, height: 480, kind: 'garden-hedge' },
 		// E spoke boundary fillers — guild-hall (N) and shrine/vh3 (S) leave end gaps.
 		// South gap between shrine (right 1154) and vh3 (left 1335): wall at y=5220.
-		{ id: 've-spoke-s', x: 1_245, y: 5_220, width: 180, height: 32, kind: 'town-hedge' },
+		{ id: 've-spoke-s', x: 1_245, y: 5_220, width: 180, height: 32, kind: 'garden-hedge' },
 		// North gap east of guild-hall (right 1592) up to E ring (1700): wall at y=5050.
-		{ id: 've-spoke-n', x: 1_645, y: 5_050, width: 90, height: 32, kind: 'town-hedge' },
+		{ id: 've-spoke-n', x: 1_645, y: 5_050, width: 90, height: 32, kind: 'garden-hedge' },
 		// S corridor N boundary (filling x-gaps between buildings at y≈5610).
-		{ id: 'vs-gap-w', x: 375, y: 5_630, width: 350, height: 48, kind: 'town-hedge' },
-		{ id: 'vs-gap-mid', x: 1_240, y: 5_630, width: 180, height: 48, kind: 'town-hedge' },
+		{ id: 'vs-gap-w', x: 375, y: 5_630, width: 350, height: 48, kind: 'garden-hedge' },
+		{ id: 'vs-gap-mid', x: 1_240, y: 5_630, width: 180, height: 48, kind: 'garden-hedge' },
 		// vs-gap-e stops at x≤1690 so the E-ring corridor (x≈1716) can reach the S-ring.
-		{ id: 'vs-gap-e', x: 1_625, y: 5_630, width: 130, height: 48, kind: 'town-hedge' },
+		{ id: 'vs-gap-e', x: 1_625, y: 5_630, width: 130, height: 48, kind: 'garden-hedge' },
 		// === Exit corridor walls ===
 		// Paired town-hedge walls flanking the winding dogleg from village gate to crossroads.
 		// ±160px perpendicular offset from each corridor segment. Each wall extends 20px
@@ -647,32 +647,32 @@ export const villageRegion: RegionFragment = {
 		// Segment 1 (1650,4550)→(1650,4350) passes through the village gate — no
 		// dedicated walls needed; the village perimeter provides enclosure there.
 		// Segment: (1650,4350)→(1850,4350) horizontal
-		{ id: 'corridor-wall-2a', x: 1_750, y: 4_190, width: 220, height: 64, kind: 'town-hedge' },
-		{ id: 'corridor-wall-2b', x: 1_775, y: 4_510, width: 170, height: 64, kind: 'town-hedge' },
+		{ id: 'corridor-wall-2a', x: 1_750, y: 4_190, width: 220, height: 64, kind: 'garden-hedge' },
+		{ id: 'corridor-wall-2b', x: 1_775, y: 4_510, width: 170, height: 64, kind: 'garden-hedge' },
 		// Segment: (1850,4350)→(1850,4100) vertical
 		// wall-3a height capped at 220 (y∈[4115,4335]) so it doesn't block the
 		// mainRoute junction at y=4350 where segment 2 turns into segment 3.
-		{ id: 'corridor-wall-3a', x: 1_690, y: 4_225, width: 64, height: 220, kind: 'town-hedge' },
-		{ id: 'corridor-wall-3b', x: 2_010, y: 4_225, width: 64, height: 270, kind: 'town-hedge' },
+		{ id: 'corridor-wall-3a', x: 1_690, y: 4_225, width: 64, height: 220, kind: 'garden-hedge' },
+		{ id: 'corridor-wall-3b', x: 2_010, y: 4_225, width: 64, height: 270, kind: 'garden-hedge' },
 		// Segment: (1850,4100)→(2200,4100) horizontal
-		{ id: 'corridor-wall-4a', x: 2_025, y: 3_940, width: 370, height: 64, kind: 'town-hedge' },
-		{ id: 'corridor-wall-4b', x: 2_040, y: 4_260, width: 330, height: 64, kind: 'town-hedge' },
+		{ id: 'corridor-wall-4a', x: 2_025, y: 3_940, width: 370, height: 64, kind: 'garden-hedge' },
+		{ id: 'corridor-wall-4b', x: 2_040, y: 4_260, width: 330, height: 64, kind: 'garden-hedge' },
 		// Segment: (2200,4100)→(2200,4350) vertical
-		{ id: 'corridor-wall-5a', x: 2_040, y: 4_225, width: 64, height: 270, kind: 'town-hedge' },
-		{ id: 'corridor-wall-5b', x: 2_360, y: 4_225, width: 64, height: 270, kind: 'town-hedge' },
+		{ id: 'corridor-wall-5a', x: 2_040, y: 4_225, width: 64, height: 270, kind: 'garden-hedge' },
+		{ id: 'corridor-wall-5b', x: 2_360, y: 4_225, width: 64, height: 270, kind: 'garden-hedge' },
 		// Segment: (2200,4350)→(2550,4350) horizontal
-		{ id: 'corridor-wall-6a', x: 2_375, y: 4_190, width: 370, height: 64, kind: 'town-hedge' },
-		{ id: 'corridor-wall-6b', x: 2_375, y: 4_510, width: 370, height: 64, kind: 'town-hedge' },
+		{ id: 'corridor-wall-6a', x: 2_375, y: 4_190, width: 370, height: 64, kind: 'garden-hedge' },
+		{ id: 'corridor-wall-6b', x: 2_375, y: 4_510, width: 370, height: 64, kind: 'garden-hedge' },
 		// Segment: (2550,4350)→(2550,4100) vertical
-		{ id: 'corridor-wall-7a', x: 2_390, y: 4_225, width: 64, height: 270, kind: 'town-hedge' },
-		{ id: 'corridor-wall-7b', x: 2_710, y: 4_225, width: 64, height: 270, kind: 'town-hedge' },
+		{ id: 'corridor-wall-7a', x: 2_390, y: 4_225, width: 64, height: 270, kind: 'garden-hedge' },
+		{ id: 'corridor-wall-7b', x: 2_710, y: 4_225, width: 64, height: 270, kind: 'garden-hedge' },
 		// Segment: (2550,4100)→(2900,4100) horizontal
-		{ id: 'corridor-wall-8a', x: 2_725, y: 3_940, width: 370, height: 64, kind: 'town-hedge' },
-		{ id: 'corridor-wall-8b', x: 2_725, y: 4_260, width: 370, height: 64, kind: 'town-hedge' },
+		{ id: 'corridor-wall-8a', x: 2_725, y: 3_940, width: 370, height: 64, kind: 'garden-hedge' },
+		{ id: 'corridor-wall-8b', x: 2_725, y: 4_260, width: 370, height: 64, kind: 'garden-hedge' },
 		// Segment: (2900,4100)→(2900,4400) vertical — east side covered by crossroads-west-hedge
-		{ id: 'corridor-wall-9a', x: 2_740, y: 4_250, width: 64, height: 300, kind: 'town-hedge' },
+		{ id: 'corridor-wall-9a', x: 2_740, y: 4_250, width: 64, height: 300, kind: 'garden-hedge' },
 		// Segment: (2900,4400)→(3200,4400) horizontal — north side covered by crossroads-west-hedge
-		{ id: 'corridor-wall-10b', x: 3_050, y: 4_560, width: 300, height: 64, kind: 'town-hedge' }
+		{ id: 'corridor-wall-10b', x: 3_050, y: 4_560, width: 300, height: 64, kind: 'garden-hedge' }
 	],
 	fences: []
 };

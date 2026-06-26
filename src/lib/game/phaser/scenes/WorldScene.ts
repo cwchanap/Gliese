@@ -1841,6 +1841,10 @@ export class WorldScene extends Phaser.Scene {
 					this.renderBlockerSegments(blocker, forestDressingAsset.key, 'treeCluster');
 					break;
 
+				case 'garden-hedge':
+					this.renderBlockerSegments(blocker, villageHedgeAsset.key, 'hedgeSegment');
+					break;
+
 				case 'city-wall':
 					this.renderBlockerSegments(
 						blocker,
@@ -1896,6 +1900,11 @@ export class WorldScene extends Phaser.Scene {
 				// The case is required so `blocker.kind satisfies never` in the default branch
 				// passes the exhaustiveness check.
 				throw new Error('Ocean blockers are collision-only and should not request a sprite frame');
+
+			case 'garden-hedge':
+				throw new Error(
+					'garden-hedge blockers render via renderBlockerSegments and should not request an orientation frame'
+				);
 
 			case 'future-gate':
 				return 'futureGate';
