@@ -95,7 +95,13 @@ export interface MapGroundPatch extends MapRect {
 	tile: MapGroundTile;
 }
 
-export type MapBlockerKind = 'city-wall' | 'town-hedge' | 'ruin-wall' | 'future-gate' | 'ocean';
+export type MapBlockerKind =
+	| 'city-wall'
+	| 'town-hedge'
+	| 'garden-hedge'
+	| 'ruin-wall'
+	| 'future-gate'
+	| 'ocean';
 
 export interface MapBlocker extends MapRect {
 	kind: MapBlockerKind;

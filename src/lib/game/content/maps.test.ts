@@ -1171,6 +1171,31 @@ describe('opening map content', () => {
 		}
 	});
 
+	it('renders village-internal walls as garden-hedge and keeps meadow boundaries as town-hedge', () => {
+		const internal = meadowEntryMap.blockers?.filter((b) => b.kind === 'garden-hedge') ?? [];
+		const meadowBoundaries =
+			meadowEntryMap.blockers?.filter(
+				(b) => b.kind === 'town-hedge' && b.id.startsWith('meadow-')
+			) ?? [];
+
+		// The ~60 village-internal walls (perimeter, ring-road, junction noses, exit corridor)
+		expect(internal.length).toBeGreaterThan(50);
+		// The 4 world-edge boundaries stay forest tree-cluster
+		expect(meadowBoundaries).toHaveLength(4);
+		expect(meadowBoundaries.map((b) => b.id)).toEqual(
+			expect.arrayContaining([
+				'meadow-north-boundary',
+				'meadow-south-boundary',
+				'meadow-west-boundary',
+				'meadow-east-boundary'
+			])
+		);
+		// No ocean blocker changed kind
+		expect(
+			meadowEntryMap.blockers?.some((b) => b.id === 'sundrop-southwest-ocean' && b.kind === 'ocean')
+		).toBe(true);
+	});
+
 	it('keeps the village cluster in the bottom-left corner and the slime forest in the top-right corner', () => {
 		const villageLandmarks = (meadowEntryMap.landmarks ?? []).filter((landmark) =>
 			VILLAGE_LANDMARK_IDS.has(landmark.id)
