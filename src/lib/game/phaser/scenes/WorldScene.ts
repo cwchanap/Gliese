@@ -23,6 +23,7 @@ import {
 	terrainTilesAsset,
 	villageBuildingAsset,
 	villageDressingAsset,
+	villageHedgeAsset,
 	type ActorAnimationKey,
 	type EnvironmentDressingFrameName
 } from '$lib/game/content/assets';
@@ -464,6 +465,7 @@ export class WorldScene extends Phaser.Scene {
 		this.registerAssetFrames(marshDressingAsset);
 		this.registerAssetFrames(crossroadsDressingAsset);
 		this.registerAssetFrames(villageDressingAsset);
+		this.registerAssetFrames(villageHedgeAsset);
 		this.registerAssetFrames(interiorPropAsset);
 		this.registerAssetFrames(animationPackAsset);
 		this.ensureActorAnimations();

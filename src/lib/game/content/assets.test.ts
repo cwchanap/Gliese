@@ -24,6 +24,7 @@ import {
 	terrainFrameOrder,
 	terrainTilesAsset,
 	villageBuildingAsset,
+	villageHedgeAsset,
 	type ActorAnimationId,
 	type ActorAnimationKey,
 	type FenceDressingFrameName,
@@ -510,5 +511,13 @@ describe('villageDressingAsset', () => {
 
 	it('keeps every frame inside the sheet bounds', () => {
 		assertFramesInsideSheetBounds(villageDressingAsset);
+	});
+});
+
+describe('villageHedgeAsset', () => {
+	it('exposes a hedgeSegment frame for the garden-hedge blocker renderer', () => {
+		expect(villageHedgeAsset.key).toBe('village-hedge');
+		expect(villageHedgeAsset.path).toBe('/game/assets/village-hedge.png');
+		expect(villageHedgeAsset.frames.hedgeSegment).toEqual({ x: 0, y: 0, w: 256, h: 256 });
 	});
 });

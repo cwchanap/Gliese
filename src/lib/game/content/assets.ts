@@ -302,6 +302,16 @@ export const villageDressingAsset = {
 
 export type VillageDressingFrameName = keyof typeof villageDressingAsset.frames;
 
+export const villageHedgeAsset = {
+	key: 'village-hedge',
+	path: '/game/assets/village-hedge.png',
+	frames: {
+		hedgeSegment: { x: 0, y: 0, w: 256, h: 256 }
+	}
+} as const;
+
+export type VillageHedgeFrameName = keyof typeof villageHedgeAsset.frames;
+
 export type VillageLandmarkId =
 	| 'hero-house-exterior'
 	| 'guild-hall-exterior'
