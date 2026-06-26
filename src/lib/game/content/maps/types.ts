@@ -11,7 +11,9 @@ import type {
 	NpcFrameName,
 	shrineDressingAsset,
 	ShrineDressingFrameName,
-	TerrainTileFrameName
+	TerrainTileFrameName,
+	villageDressingAsset,
+	VillageDressingFrameName
 } from '$lib/game/content/assets';
 import type { NpcDialogueId } from '$lib/game/content/dialogue';
 import type { MapDefinition } from '$lib/game/core/types';
@@ -149,6 +151,10 @@ export type MapDecor =
 	| (MapDecorBase & {
 			textureKey: (typeof forestDressingAsset)['key'];
 			frameName: ForestDressingFrameName;
+	  })
+	| (MapDecorBase & {
+			textureKey: (typeof villageDressingAsset)['key'];
+			frameName: VillageDressingFrameName;
 	  });
 
 export type MapInteriorPropDepth = 'floor' | 'furniture' | 'foreground';

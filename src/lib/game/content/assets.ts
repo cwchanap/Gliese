@@ -26,7 +26,7 @@ export const terrainTilesAsset = {
 	path: '/game/assets/terrain-tiles.png',
 	cellWidth: 256,
 	cellHeight: 256,
-	columns: 9,
+	columns: 10,
 	rows: 1,
 	frames: {
 		grassTile: { x: 0, y: 0, w: 256, h: 256 },
@@ -37,7 +37,8 @@ export const terrainTilesAsset = {
 		sandTile: { x: 1_280, y: 0, w: 256, h: 256 },
 		marshMudTile: { x: 1_536, y: 0, w: 256, h: 256 },
 		autumnLeafTile: { x: 1_792, y: 0, w: 256, h: 256 },
-		cobblestoneTile: { x: 2_048, y: 0, w: 256, h: 256 }
+		cobblestoneTile: { x: 2_048, y: 0, w: 256, h: 256 },
+		plazaStoneTile: { x: 2_304, y: 0, w: 256, h: 256 }
 	}
 } as const;
 
@@ -57,7 +58,8 @@ export const terrainFrameOrder: TerrainTileFrameName[] = [
 	'sandTile',
 	'marshMudTile',
 	'autumnLeafTile',
-	'cobblestoneTile'
+	'cobblestoneTile',
+	'plazaStoneTile'
 ];
 
 export const battleBackgroundAssets = {
@@ -270,6 +272,35 @@ export const crossroadsDressingAsset = {
 } as const;
 
 export type CrossroadsDressingFrameName = keyof typeof crossroadsDressingAsset.frames;
+
+export const villageDressingAsset = {
+	key: 'village-dressing',
+	path: '/game/assets/village-dressing.png',
+	cellWidth: 256,
+	cellHeight: 256,
+	columns: 4,
+	rows: 3,
+	frames: {
+		// Row 1 — village-styled variants of the crossroads frames (same frame
+		// names so village.ts only swaps textureKey, not frameName).
+		marketStall: { x: 0, y: 0, w: 256, h: 256 },
+		festivalBanner: { x: 256, y: 0, w: 256, h: 256 },
+		flowerBed: { x: 512, y: 0, w: 256, h: 256 },
+		poleLantern: { x: 768, y: 0, w: 256, h: 256 },
+		// Row 2 — village-styled variants of the shrine frames.
+		hangingLantern: { x: 0, y: 256, w: 256, h: 256 },
+		stoneLantern: { x: 256, y: 256, w: 256, h: 256 },
+		offeringStand: { x: 512, y: 256, w: 256, h: 256 },
+		autumnMaple: { x: 768, y: 256, w: 256, h: 256 },
+		// Row 3 — village-exclusive props.
+		gateArch: { x: 0, y: 512, w: 256, h: 256 },
+		fountain: { x: 256, y: 512, w: 256, h: 256 },
+		scarecrow: { x: 512, y: 512, w: 256, h: 256 },
+		hedgeTopiary: { x: 768, y: 512, w: 256, h: 256 }
+	}
+} as const;
+
+export type VillageDressingFrameName = keyof typeof villageDressingAsset.frames;
 
 export type VillageLandmarkId =
 	| 'hero-house-exterior'

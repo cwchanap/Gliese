@@ -1,4 +1,4 @@
-import { crossroadsDressingAsset, shrineDressingAsset } from '$lib/game/content/assets';
+import { villageDressingAsset } from '$lib/game/content/assets';
 import type { RegionFragment } from '$lib/game/content/maps/regions/types';
 
 /**
@@ -91,7 +91,7 @@ export const villageRegion: RegionFragment = {
 	mapDecor: [
 		{
 			id: 'village-hanging-lantern',
-			textureKey: crossroadsDressingAsset.key,
+			textureKey: villageDressingAsset.key,
 			frameName: 'hangingLantern',
 			x: 1_000,
 			y: 4_950,
@@ -103,7 +103,7 @@ export const villageRegion: RegionFragment = {
 		// Plaza decor
 		{
 			id: 'village-market-stall',
-			textureKey: crossroadsDressingAsset.key,
+			textureKey: villageDressingAsset.key,
 			frameName: 'marketStall',
 			x: 1_150,
 			y: 5_050,
@@ -113,7 +113,7 @@ export const villageRegion: RegionFragment = {
 		},
 		{
 			id: 'village-festival-banner',
-			textureKey: crossroadsDressingAsset.key,
+			textureKey: villageDressingAsset.key,
 			frameName: 'festivalBanner',
 			x: 870,
 			y: 5_050,
@@ -123,7 +123,7 @@ export const villageRegion: RegionFragment = {
 		},
 		{
 			id: 'village-plaza-flowers-1',
-			textureKey: crossroadsDressingAsset.key,
+			textureKey: villageDressingAsset.key,
 			frameName: 'flowerBed',
 			x: 850,
 			y: 5_250,
@@ -133,7 +133,7 @@ export const villageRegion: RegionFragment = {
 		},
 		{
 			id: 'village-plaza-flowers-2',
-			textureKey: crossroadsDressingAsset.key,
+			textureKey: villageDressingAsset.key,
 			frameName: 'flowerBed',
 			x: 1_150,
 			y: 5_250,
@@ -144,7 +144,7 @@ export const villageRegion: RegionFragment = {
 		// Junction pole lanterns
 		{
 			id: 'village-lantern-junction-sw',
-			textureKey: crossroadsDressingAsset.key,
+			textureKey: villageDressingAsset.key,
 			frameName: 'poleLantern',
 			x: 400,
 			y: 5_400,
@@ -155,7 +155,7 @@ export const villageRegion: RegionFragment = {
 		},
 		{
 			id: 'village-lantern-junction-nw',
-			textureKey: crossroadsDressingAsset.key,
+			textureKey: villageDressingAsset.key,
 			frameName: 'poleLantern',
 			x: 500,
 			y: 4_650,
@@ -166,7 +166,7 @@ export const villageRegion: RegionFragment = {
 		},
 		{
 			id: 'village-lantern-junction-ne',
-			textureKey: crossroadsDressingAsset.key,
+			textureKey: villageDressingAsset.key,
 			frameName: 'poleLantern',
 			x: 1_550,
 			y: 4_650,
@@ -178,7 +178,7 @@ export const villageRegion: RegionFragment = {
 		// Dead-end accents
 		{
 			id: 'village-maple-garden',
-			textureKey: shrineDressingAsset.key,
+			textureKey: villageDressingAsset.key,
 			frameName: 'autumnMaple',
 			x: 340,
 			y: 4_775,
@@ -189,7 +189,7 @@ export const villageRegion: RegionFragment = {
 		},
 		{
 			id: 'village-shrine-offering',
-			textureKey: shrineDressingAsset.key,
+			textureKey: villageDressingAsset.key,
 			frameName: 'offeringStand',
 			x: 920,
 			y: 5_500,
@@ -206,7 +206,7 @@ export const villageRegion: RegionFragment = {
 		},
 		{
 			id: 'village-stone-lantern',
-			textureKey: shrineDressingAsset.key,
+			textureKey: villageDressingAsset.key,
 			frameName: 'stoneLantern',
 			x: 1_080,
 			y: 5_500,
@@ -224,7 +224,7 @@ export const villageRegion: RegionFragment = {
 		// Gate decor (from Task 4)
 		{
 			id: 'village-gate-lantern-a',
-			textureKey: crossroadsDressingAsset.key,
+			textureKey: villageDressingAsset.key,
 			frameName: 'poleLantern',
 			x: 1_580,
 			y: 4_500,
@@ -241,7 +241,7 @@ export const villageRegion: RegionFragment = {
 		},
 		{
 			id: 'village-gate-lantern-b',
-			textureKey: crossroadsDressingAsset.key,
+			textureKey: villageDressingAsset.key,
 			frameName: 'poleLantern',
 			x: 1_720,
 			y: 4_500,
@@ -258,7 +258,7 @@ export const villageRegion: RegionFragment = {
 		},
 		{
 			id: 'village-corridor-waymarker',
-			textureKey: crossroadsDressingAsset.key,
+			textureKey: villageDressingAsset.key,
 			frameName: 'poleLantern',
 			x: 2_200,
 			y: 4_180,
@@ -272,6 +272,49 @@ export const villageRegion: RegionFragment = {
 				width: 50,
 				height: 60
 			}
+		},
+		// Village-exclusive props (village-dressing row 3). No collision by
+		// default — keeps the validated maze/corridor reachability intact
+		// (same precedent as the no-collision market stall).
+		{
+			id: 'village-gate-arch',
+			textureKey: villageDressingAsset.key,
+			frameName: 'gateArch',
+			x: 1_650,
+			y: 4_400,
+			width: 220,
+			height: 200,
+			mode: 'image'
+		},
+		{
+			id: 'village-plaza-fountain',
+			textureKey: villageDressingAsset.key,
+			frameName: 'fountain',
+			x: 1_130,
+			y: 5_280,
+			width: 180,
+			height: 150,
+			mode: 'image'
+		},
+		{
+			id: 'village-field-scarecrow',
+			textureKey: villageDressingAsset.key,
+			frameName: 'scarecrow',
+			x: 400,
+			y: 5_580,
+			width: 120,
+			height: 170,
+			mode: 'image'
+		},
+		{
+			id: 'village-junction-topiary',
+			textureKey: villageDressingAsset.key,
+			frameName: 'hedgeTopiary',
+			x: 600,
+			y: 4_900,
+			width: 130,
+			height: 150,
+			mode: 'image'
 		}
 	],
 	ambientNpcs: [
@@ -348,7 +391,7 @@ export const villageRegion: RegionFragment = {
 			y: 5_100,
 			width: 400,
 			height: 400,
-			tile: 'ruinsFloorTile'
+			tile: 'plazaStoneTile'
 		},
 		{
 			id: 'village-spawn-pocket',
