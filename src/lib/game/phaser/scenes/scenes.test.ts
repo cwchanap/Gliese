@@ -2295,21 +2295,21 @@ describe('WorldScene', () => {
 					([, , texture, frame]) => texture === 'village-hedge' && frame === 'hedgeSegment'
 				)
 		).toBe(true);
-		expect(scene.add.rectangle).not.toHaveBeenCalledWith(700, 5_450, 294, 307, 0x5b4636, 0.9);
-		expect(scene.add.rectangle).not.toHaveBeenCalledWith(500, 5_200, 294, 282, 0x5b4636, 0.9);
-		expect(scene.add.rectangle).not.toHaveBeenCalledWith(1_000, 5_400, 307, 416, 0x5b4636, 0.9);
+		expect(scene.add.rectangle).not.toHaveBeenCalledWith(700, 5_450, 235, 246, 0x5b4636, 0.9);
+		expect(scene.add.rectangle).not.toHaveBeenCalledWith(500, 5_200, 235, 226, 0x5b4636, 0.9);
+		expect(scene.add.rectangle).not.toHaveBeenCalledWith(1_000, 5_400, 246, 333, 0x5b4636, 0.9);
 		expect(scene.add.rectangle).not.toHaveBeenCalledWith(5_960, 1_800, 256, 224, 0x5b4636, 0.9);
 		expect(scene.add.rectangle).not.toHaveBeenCalledWith(1_000, 5_100, 141, 160, 0x5b4636, 0.9);
-		expect(scene.add.text).toHaveBeenCalledWith(700, 5_300.5, "Hero's House", {
+		expect(scene.add.text).toHaveBeenCalledWith(700, 5_331, "Hero's House", {
 			color: '#f8fafc',
 			fontSize: '12px'
 		});
-		expect(scene.add.image).not.toHaveBeenCalledWith(700, 5_600, 'starter-pack', 'doorwayTile');
-		expect(scene.add.image).not.toHaveBeenCalledWith(1_400, 5_070, 'starter-pack', 'doorwayTile');
-		expect(scene.add.image).not.toHaveBeenCalledWith(600, 4_945, 'starter-pack', 'doorwayTile');
-		expect(scene.add.image).not.toHaveBeenCalledWith(900, 4_880, 'starter-pack', 'doorwayTile');
-		expect(scene.add.image).not.toHaveBeenCalledWith(1_200, 4_870, 'starter-pack', 'doorwayTile');
-		expect(scene.add.image).not.toHaveBeenCalledWith(1_450, 5_610, 'starter-pack', 'doorwayTile');
+		expect(scene.add.image).not.toHaveBeenCalledWith(700, 5_573, 'starter-pack', 'doorwayTile');
+		expect(scene.add.image).not.toHaveBeenCalledWith(1_400, 5_038, 'starter-pack', 'doorwayTile');
+		expect(scene.add.image).not.toHaveBeenCalledWith(600, 4_918, 'starter-pack', 'doorwayTile');
+		expect(scene.add.image).not.toHaveBeenCalledWith(900, 4_852, 'starter-pack', 'doorwayTile');
+		expect(scene.add.image).not.toHaveBeenCalledWith(1_200, 4_830, 'starter-pack', 'doorwayTile');
+		expect(scene.add.image).not.toHaveBeenCalledWith(1_450, 5_566, 'starter-pack', 'doorwayTile');
 		expect(
 			phaserState.imageMarkers.filter((marker) => marker.frame === 'doorwayTile')
 		).toHaveLength(0);
@@ -2326,18 +2326,18 @@ describe('WorldScene', () => {
 		const villagerHouseMarkers = phaserState.imageMarkers.filter(
 			(marker) => marker.frame === 'villagerHouse'
 		);
-		expect(heroHouseMarker?.setDisplaySize).toHaveBeenCalledWith(294, 307);
-		expect(guildHallMarker?.setDisplaySize).toHaveBeenCalledWith(384, 346);
-		expect(itemShopMarker?.setDisplaySize).toHaveBeenCalledWith(307, 294);
+		expect(heroHouseMarker?.setDisplaySize).toHaveBeenCalledWith(235, 246);
+		expect(guildHallMarker?.setDisplaySize).toHaveBeenCalledWith(307, 277);
+		expect(itemShopMarker?.setDisplaySize).toHaveBeenCalledWith(246, 235);
 		expect(villagerHouseMarkers).toHaveLength(3);
 		expect(
 			villagerHouseMarkers.every((marker) =>
-				[282, 422, 230].includes(marker.setDisplaySize.mock.calls[0]![0] as number)
+				[226, 338, 184].includes(marker.setDisplaySize.mock.calls[0]![0] as number)
 			)
 		).toBe(true);
 		expect(
 			villagerHouseMarkers.every((marker) =>
-				[256, 326, 416].includes(marker.setDisplaySize.mock.calls[0]![1] as number)
+				[205, 261, 333].includes(marker.setDisplaySize.mock.calls[0]![1] as number)
 			)
 		).toBe(true);
 
@@ -2895,13 +2895,13 @@ describe('WorldScene', () => {
 		const scene = new WorldScene();
 
 		scene.create({ mapId: 'meadow-entry' });
-		Object.assign(phaserState.playerMarker, { x: 776, y: 4_618 });
+		Object.assign(phaserState.playerMarker, { x: 776, y: 4_650 });
 		phaserState.cursorKeys.right.isDown = true;
 
 		scene.update(0, 250);
 
 		expect(phaserState.playerMarker.x).toBe(776);
-		expect(phaserState.playerMarker.y).toBe(4_618);
+		expect(phaserState.playerMarker.y).toBe(4_650);
 	});
 
 	it('blocks player movement through village building side windows', async () => {
@@ -2909,12 +2909,12 @@ describe('WorldScene', () => {
 		const scene = new WorldScene();
 
 		scene.create({ mapId: 'meadow-entry' });
-		Object.assign(phaserState.playerMarker, { x: 540, y: 5_450 });
+		Object.assign(phaserState.playerMarker, { x: 570, y: 5_450 });
 		phaserState.cursorKeys.right.isDown = true;
 
 		scene.update(0, 50);
 
-		expect(phaserState.playerMarker.x).toBe(540);
+		expect(phaserState.playerMarker.x).toBe(570);
 		expect(phaserState.playerMarker.y).toBe(5_450);
 	});
 
@@ -3057,7 +3057,7 @@ describe('WorldScene', () => {
 		const scene = new WorldScene();
 
 		scene.create({ mapId: 'meadow-entry' });
-		Object.assign(phaserState.playerMarker, { x: 700, y: 5_600 });
+		Object.assign(phaserState.playerMarker, { x: 700, y: 5_573 });
 
 		scene.update(0, 80);
 
@@ -5636,7 +5636,7 @@ describe('WorldScene', () => {
 				}
 			}
 		});
-		Object.assign(phaserState.playerMarker, { x: 700, y: 5_600 });
+		Object.assign(phaserState.playerMarker, { x: 700, y: 5_573 });
 
 		scene.update(0, 16);
 
@@ -5698,7 +5698,7 @@ describe('WorldScene', () => {
 				}
 			}
 		});
-		Object.assign(phaserState.playerMarker, { x: 1_000, y: 5_610 });
+		Object.assign(phaserState.playerMarker, { x: 1_000, y: 5_566 });
 		scene.update(0, 16);
 
 		expect(scene.scene.restart).toHaveBeenCalledWith({
