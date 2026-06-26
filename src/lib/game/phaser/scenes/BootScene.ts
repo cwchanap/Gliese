@@ -14,7 +14,8 @@ import {
 	starterPackAsset,
 	terrainTilesAsset,
 	villageBuildingAsset,
-	villageDressingAsset
+	villageDressingAsset,
+	villageHedgeAsset
 } from '$lib/game/content/assets';
 import { openingMapId } from '$lib/game/content/maps';
 import { WorldScene } from './WorldScene';
@@ -49,6 +50,7 @@ export class BootScene extends Phaser.Scene {
 		this.load.image(marshDressingAsset.key, marshDressingAsset.path);
 		this.load.image(crossroadsDressingAsset.key, crossroadsDressingAsset.path);
 		this.load.image(villageDressingAsset.key, villageDressingAsset.path);
+		this.load.image(villageHedgeAsset.key, villageHedgeAsset.path);
 		for (const asset of Object.values(battleBackgroundAssets)) {
 			this.load.image(asset.key, asset.path);
 		}
