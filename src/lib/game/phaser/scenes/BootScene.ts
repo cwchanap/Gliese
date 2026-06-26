@@ -13,7 +13,8 @@ import {
 	shrineDressingAsset,
 	starterPackAsset,
 	terrainTilesAsset,
-	villageBuildingAsset
+	villageBuildingAsset,
+	villageDressingAsset
 } from '$lib/game/content/assets';
 import { openingMapId } from '$lib/game/content/maps';
 import { WorldScene } from './WorldScene';
@@ -47,6 +48,7 @@ export class BootScene extends Phaser.Scene {
 		this.load.image(shrineDressingAsset.key, shrineDressingAsset.path);
 		this.load.image(marshDressingAsset.key, marshDressingAsset.path);
 		this.load.image(crossroadsDressingAsset.key, crossroadsDressingAsset.path);
+		this.load.image(villageDressingAsset.key, villageDressingAsset.path);
 		for (const asset of Object.values(battleBackgroundAssets)) {
 			this.load.image(asset.key, asset.path);
 		}

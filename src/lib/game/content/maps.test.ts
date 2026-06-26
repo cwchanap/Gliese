@@ -9,6 +9,7 @@ import { zhHant } from '$lib/game/i18n/messages/zh-Hant';
 import {
 	coastDressingAsset,
 	crossroadsDressingAsset,
+	villageDressingAsset,
 	forestDressingAsset,
 	interiorPropAsset,
 	isNpcPackFrameName,
@@ -1235,7 +1236,7 @@ describe('opening map content', () => {
 					y: 5_100,
 					width: 400,
 					height: 400,
-					tile: 'ruinsFloorTile'
+					tile: 'plazaStoneTile'
 				},
 				{ id: 'village-spawn-pocket', x: 700, y: 5_550, width: 300, height: 100, tile: 'pathTile' },
 				{
@@ -1453,7 +1454,8 @@ const decorAssetFrames: Record<string, Record<string, unknown>> = {
 	[coastDressingAsset.key]: coastDressingAsset.frames,
 	[shrineDressingAsset.key]: shrineDressingAsset.frames,
 	[marshDressingAsset.key]: marshDressingAsset.frames,
-	[crossroadsDressingAsset.key]: crossroadsDressingAsset.frames
+	[crossroadsDressingAsset.key]: crossroadsDressingAsset.frames,
+	[villageDressingAsset.key]: villageDressingAsset.frames
 };
 
 describe('meadow-entry region integrity', () => {

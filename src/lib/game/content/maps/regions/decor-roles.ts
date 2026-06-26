@@ -63,6 +63,13 @@ export const decorRoles: DecorRoleEntry[] = [
 		storyMotif: 'homeward-road'
 	}),
 	role('village-corridor-waymarker', 'breadcrumb', { routeId: 'spawn-to-crossroads' }),
+	role('village-gate-arch', 'threshold', {
+		routeId: 'spawn-to-crossroads',
+		storyMotif: 'homeward-road'
+	}),
+	role('village-plaza-fountain', 'frame-landmark', { storyMotif: 'homeward-road' }),
+	role('village-field-scarecrow', 'signal-biome', { storyMotif: 'homeward-road' }),
+	role('village-junction-topiary', 'frame-landmark', { storyMotif: 'homeward-road' }),
 
 	...roles(['wildwood-north-canopy', 'wildwood-east-canopy'], 'wall', {
 		routeId: 'crossroads-to-wildwood'

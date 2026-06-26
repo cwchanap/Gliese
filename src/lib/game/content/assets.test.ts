@@ -6,6 +6,7 @@ import {
 	battleBackgroundAssets,
 	coastDressingAsset,
 	crossroadsDressingAsset,
+	villageDressingAsset,
 	fenceDressingAsset,
 	forestDressingAsset,
 	getActorAnimationAsset,
@@ -474,5 +475,40 @@ describe('crossroadsDressingAsset', () => {
 
 	it('keeps every frame inside the sheet bounds', () => {
 		assertFramesInsideSheetBounds(crossroadsDressingAsset);
+	});
+});
+
+describe('villageDressingAsset', () => {
+	it('loads village dressing art from a fixed 4x3 sheet with the 12 village frames', () => {
+		expect(villageDressingAsset).toMatchObject({
+			key: 'village-dressing',
+			path: '/game/assets/village-dressing.png',
+			cellWidth: 256,
+			cellHeight: 256,
+			columns: 4,
+			rows: 3
+		});
+		for (const name of [
+			// borrowed-name variants (must match crossroads/shrine frame names)
+			'marketStall',
+			'festivalBanner',
+			'flowerBed',
+			'poleLantern',
+			'hangingLantern',
+			'stoneLantern',
+			'offeringStand',
+			'autumnMaple',
+			// village-exclusive props
+			'gateArch',
+			'fountain',
+			'scarecrow',
+			'hedgeTopiary'
+		]) {
+			expect(villageDressingAsset.frames).toHaveProperty(name);
+		}
+	});
+
+	it('keeps every frame inside the sheet bounds', () => {
+		assertFramesInsideSheetBounds(villageDressingAsset);
 	});
 });
