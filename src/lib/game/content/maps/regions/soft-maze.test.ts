@@ -548,7 +548,7 @@ describe('silverpine pilot — winding JRPG corridor invariants', () => {
 	const SILVERPINE = () => routeSceneDefinitions.find((r) => r.id === 'crossroads-to-silverpine')!;
 
 	it('keeps corridor width ≤ 320px outside beat-rooms', () => {
-		const violations = corridorWidthViolations(SILVERPINE(), { maxHalfWidth: 128 });
+		const violations = corridorWidthViolations(SILVERPINE(), { maxHalfWidth: 160 });
 		expect(violations, JSON.stringify(violations.slice(0, 3))).toEqual([]);
 	});
 
@@ -786,7 +786,7 @@ describe('exit corridor — village gate to crossroads', () => {
 	};
 
 	it('keeps corridor width ≤ 320px outside beat-rooms', () => {
-		const violations = corridorWidthViolations(CORRIDOR_ROUTE(), { maxHalfWidth: 128 });
+		const violations = corridorWidthViolations(CORRIDOR_ROUTE(), { maxHalfWidth: 160 });
 		expect(violations, JSON.stringify(violations.slice(0, 3))).toEqual([]);
 	});
 
