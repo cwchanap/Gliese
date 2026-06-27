@@ -33,7 +33,7 @@ export const softMazeRooms: SoftMazeRoom[] = [
 	{
 		id: 'village-plaza-room',
 		kind: 'safe',
-		bounds: { id: 'village-plaza-room', x: 1_000, y: 5_100, width: 400, height: 400 },
+		bounds: { id: 'village-plaza-room', x: 1_000, y: 5_160, width: 500, height: 420 },
 		routeIds: ['spawn-to-crossroads'],
 		beatId: 'village-homeward-hook',
 		requiredVisibleIds: ['sundrop-well', 'guild-hall-exterior', 'village-wanderer'],
@@ -49,14 +49,14 @@ export const softMazeRooms: SoftMazeRoom[] = [
 		storyMotif: 'homeward-road'
 	},
 	{
-		id: 'village-road-reststop-room',
+		id: 'village-shrine-garden-room',
 		kind: 'side-pocket',
-		bounds: { id: 'village-road-reststop-room', x: 2_800, y: 4_400, width: 400, height: 300 },
+		bounds: { id: 'village-shrine-garden-room', x: 1_400, y: 5_650, width: 420, height: 300 },
 		routeIds: ['spawn-to-crossroads'],
-		beatId: 'village-roadside-cache-payoff',
-		requiredVisibleIds: ['village-corridor-cache'],
-		payoffIds: ['village-corridor-cache'],
-		storyMotif: 'homeward-road'
+		beatId: 'village-shrine-cache-payoff',
+		requiredVisibleIds: ['village-shrine-cache', 'shrine-of-aurora'],
+		payoffIds: ['village-shrine-cache'],
+		storyMotif: 'shrine'
 	},
 	{
 		id: 'crossroads-hub-room',

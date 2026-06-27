@@ -18,7 +18,7 @@ export const regionDesignManifest: RegionDesignEntry[] = [
 		anchorIds: ['guild-hall-exterior'],
 		approachClueIds: ['sundrop-well', 'link-village-crossroads', 'village-corridor-waymarker'],
 		optionalBranchIds: ['village-crossroads-nook'],
-		payoffIds: ['village-corridor-cache'],
+		payoffIds: ['village-shrine-cache'],
 		exitHookIds: ['crossroads-waystone']
 	},
 	{
