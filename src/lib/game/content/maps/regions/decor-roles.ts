@@ -44,20 +44,26 @@ function roles(
 }
 
 export const decorRoles: DecorRoleEntry[] = [
+	// Village plaza identity
+	role('village-plaza-fountain', 'frame-landmark', { storyMotif: 'homeward-road' }),
 	role('village-hanging-lantern', 'story-symbol', { storyMotif: 'homeward-road' }),
-	role('village-market-stall', 'frame-landmark', { storyMotif: 'homeward-road' }),
-	role('village-festival-banner', 'story-symbol', { storyMotif: 'homeward-road' }),
-	...roles(['village-plaza-flowers-1', 'village-plaza-flowers-2'], 'frame-landmark', {
+	...roles(['village-plaza-flowers-west', 'village-plaza-flowers-east'], 'frame-landmark', {
 		storyMotif: 'homeward-road'
 	}),
-	...roles(
-		['village-lantern-junction-sw', 'village-lantern-junction-nw', 'village-lantern-junction-ne'],
-		'breadcrumb',
-		{ storyMotif: 'homeward-road' }
-	),
-	role('village-maple-garden', 'signal-biome', { storyMotif: 'homeward-road' }),
+	// West market lane
+	role('village-market-stall', 'frame-landmark', { storyMotif: 'homeward-road' }),
+	role('village-market-banner', 'frame-landmark', { storyMotif: 'homeward-road' }),
+	// Blacksmith / field
+	role('village-field-scarecrow', 'signal-biome', { storyMotif: 'homeward-road' }),
+	role('village-blacksmith-topiary', 'frame-landmark', { storyMotif: 'homeward-road' }),
+	// North lane thresholds
+	role('village-north-lantern-west', 'threshold'),
+	role('village-north-lantern-east', 'threshold'),
+	// Shrine garden
 	role('village-shrine-offering', 'story-symbol', { storyMotif: 'shrine' }),
 	role('village-stone-lantern', 'story-symbol', { storyMotif: 'shrine' }),
+	role('village-shrine-maple', 'hide-reward', { supports: ['village-shrine-cache'] }),
+	// East gate exit
 	...roles(['village-gate-lantern-a', 'village-gate-lantern-b'], 'threshold', {
 		routeId: 'spawn-to-crossroads',
 		storyMotif: 'homeward-road'
@@ -67,9 +73,6 @@ export const decorRoles: DecorRoleEntry[] = [
 		routeId: 'spawn-to-crossroads',
 		storyMotif: 'homeward-road'
 	}),
-	role('village-plaza-fountain', 'frame-landmark', { storyMotif: 'homeward-road' }),
-	role('village-field-scarecrow', 'signal-biome', { storyMotif: 'homeward-road' }),
-	role('village-junction-topiary', 'frame-landmark', { storyMotif: 'homeward-road' }),
 
 	...roles(['wildwood-north-canopy', 'wildwood-east-canopy'], 'wall', {
 		routeId: 'crossroads-to-wildwood'

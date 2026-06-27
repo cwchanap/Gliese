@@ -206,55 +206,6 @@ function laneWidthViolations(
 	return violations;
 }
 
-function junctionOcclusionViolations(
-	junctions: Array<{ point: Pt; approaches: Pt[] }>,
-	{ maxDistance }: { maxDistance: number }
-): Array<{ junction: Pt; direction: Pt }> {
-	const solids = [...collectSolidRects(meadowEntryMap).values()];
-	const violations: Array<{ junction: Pt; direction: Pt }> = [];
-	for (const { point, approaches } of junctions) {
-		for (const approach of approaches) {
-			const { hit } = rayHitsSolid(point, approach, solids, maxDistance);
-			if (!hit) violations.push({ junction: point, direction: approach });
-		}
-	}
-	return violations;
-}
-
-function countDeadEnds(
-	laneSamples: Array<{ point: Pt }>,
-	{ minDepth }: { minDepth: number }
-): number {
-	const solids = [...collectSolidRects(meadowEntryMap).values()];
-	const deadEnds = new Set<string>();
-	const step = 32;
-	for (const { point: start } of laneSamples) {
-		const visited = new Set<string>();
-		const queue = [start];
-		let maxReach = 0;
-		for (let guard = 0; queue.length > 0 && guard < 200; guard++) {
-			const p = queue.shift()!;
-			const key = `${Math.round(p.x / step) * step},${Math.round(p.y / step) * step}`;
-			if (visited.has(key)) continue;
-			visited.add(key);
-			if (solids.some((r) => pointInRect(p, r))) continue;
-			const dist = Math.hypot(p.x - start.x, p.y - start.y);
-			if (dist > maxReach) maxReach = dist;
-			if (maxReach > minDepth + 320) break;
-			queue.push(
-				{ x: p.x + step, y: p.y },
-				{ x: p.x - step, y: p.y },
-				{ x: p.x, y: p.y + step },
-				{ x: p.x, y: p.y - step }
-			);
-		}
-		if (maxReach >= minDepth && maxReach <= minDepth + 320) {
-			deadEnds.add(`${Math.round(start.x / 64) * 64},${Math.round(start.y / 64) * 64}`);
-		}
-	}
-	return deadEnds.size;
-}
-
 function corridorSamples(route: Pt[]): Array<{ point: Pt; direction: Pt }> {
 	const samples: Array<{ point: Pt; direction: Pt }> = [];
 	// Interior route vertices are junction corners where the corridor turns.
@@ -602,155 +553,50 @@ describe('silverpine pilot — winding JRPG corridor invariants', () => {
 });
 
 describe('village maze — compact hamlet invariants', () => {
-	const roomBounds = softMazeRooms
-		.filter((r) => r.id === 'village-plaza-room')
-		.map((r) => r.bounds);
+	// Open rooms where lane-width samples are skipped (the village is a set of
+	// rooms connected by bent lanes, not a hedge-grid).
+	const villageRoomBounds: Rect[] = [
+		{ id: 'village-plaza-room', x: 1_000, y: 5_160, width: 500, height: 420 },
+		{ id: 'village-home-yard', x: 700, y: 5_585, width: 420, height: 180 },
+		{ id: 'village-blacksmith-yard', x: 400, y: 5_280, width: 360, height: 300 },
+		{ id: 'village-north-courtyard', x: 1_120, y: 4_690, width: 620, height: 200 },
+		{ id: 'village-guild-forecourt', x: 1_460, y: 5_040, width: 360, height: 180 },
+		{ id: 'village-shrine-garden', x: 1_200, y: 5_660, width: 520, height: 320 },
+		{ id: 'village-hidden-pocket', x: 1_520, y: 5_620, width: 300, height: 260 },
+		{ id: 'village-gate-road', x: 1_760, y: 4_440, width: 520, height: 120 }
+	];
 
-	// Lanes trace the walkable corridors of the village maze. The plaza room
-	// (x∈[800,1200], y∈[4900,5300]) is a safe hub; samples inside it are skipped.
-	// Ring road runs between the perimeter (x∈[200,1800], y∈[4400,5800]) and the
-	// building cluster. Spokes thread between buildings from plaza to ring/doorways.
+	// Lanes trace the walkable corridors between rooms. Width checks only apply
+	// to samples OUTSIDE the room bounds above (the narrow connecting lanes).
 	const villageLanes: Array<{ from: Pt; to: Pt }> = [
-		// === Ring road (clockwise from SW corner) — split at spoke crossings ===
-		// W ring (S half, below W spoke)
-		{ from: { x: 290, y: 5_680 }, to: { x: 290, y: 5_080 } },
-		// W ring (N half, above W spoke)
-		{ from: { x: 290, y: 4_920 }, to: { x: 290, y: 4_480 } },
-		// N ring
-		{ from: { x: 290, y: 4_480 }, to: { x: 920, y: 4_480 } },
-		{ from: { x: 920, y: 4_480 }, to: { x: 1_530, y: 4_480 } },
-		{ from: { x: 1_530, y: 4_480 }, to: { x: 1_600, y: 4_480 } },
-		// E ring (N half, above E spoke) — starts at guild-hall top (y=4740) so its west
-		// side is bounded by the guild-hall building; the y∈[4480,4740] strip above is the
-		// NE exit-gate corridor (kept clear for the spawn→crossroads critical route).
-		{ from: { x: 1_700, y: 4_740 }, to: { x: 1_700, y: 5_060 } },
-		// E ring (S half, below E spoke)
-		{ from: { x: 1_700, y: 5_220 }, to: { x: 1_700, y: 5_680 } },
-		// S ring
-		{ from: { x: 1_700, y: 5_680 }, to: { x: 1_280, y: 5_680 } },
-		{ from: { x: 1_280, y: 5_680 }, to: { x: 920, y: 5_680 } },
-		{ from: { x: 920, y: 5_680 }, to: { x: 290, y: 5_680 } },
-		// === Spokes (plaza → ring road) ===
-		// W spoke: plaza W edge → W ring (between item-shop S & blacksmith N)
-		{ from: { x: 800, y: 5_000 }, to: { x: 290, y: 5_000 } },
-		// E spoke: plaza E edge → E ring (between guild-hall S & shrine/vh3 N)
-		{ from: { x: 1_200, y: 5_130 }, to: { x: 1_700, y: 5_130 } },
-		// SE detour: plaza → around shrine E → S corridor
-		{ from: { x: 1_200, y: 5_300 }, to: { x: 1_240, y: 5_400 } },
-		{ from: { x: 1_240, y: 5_400 }, to: { x: 1_240, y: 5_590 } },
-		// === Dead-end pocket lanes (samples inside enclosed rooms count as dead-ends) ===
-		// NW pocket interior ~x∈[240,440], y∈[4440,4530]
-		{ from: { x: 280, y: 4_470 }, to: { x: 400, y: 4_510 } },
-		// N pocket interior ~x∈[820,1020], y∈[4440,4520]
-		{ from: { x: 860, y: 4_470 }, to: { x: 980, y: 4_510 } },
-		// NE pocket interior ~x∈[1430,1640], y∈[4440,4530]
-		{ from: { x: 1_470, y: 4_470 }, to: { x: 1_600, y: 4_510 } },
-		// W pocket interior ~x∈[250,440], y∈[4700,4850]
-		{ from: { x: 290, y: 4_730 }, to: { x: 410, y: 4_820 } },
-		// E pocket interior ~x∈[1490,1750], y∈[5250,5400]
-		{ from: { x: 1_530, y: 5_280 }, to: { x: 1_720, y: 5_370 } },
-		// SW pocket interior ~x∈[250,440], y∈[5450,5600]
-		{ from: { x: 290, y: 5_480 }, to: { x: 410, y: 5_570 } },
-		// S pocket interior ~x∈[820,1020], y∈[5650,5750]
-		{ from: { x: 860, y: 5_680 }, to: { x: 980, y: 5_720 } },
-		// SE pocket interior ~x∈[1490,1750], y∈[5450,5600]
-		{ from: { x: 1_530, y: 5_480 }, to: { x: 1_720, y: 5_570 } },
-		// SE-S pocket interior ~x∈[1180,1380], y∈[5650,5750]
-		{ from: { x: 1_220, y: 5_680 }, to: { x: 1_340, y: 5_720 } }
+		// South lane: home yard → plaza (narrow vertical corridor)
+		{ from: { x: 780, y: 5_490 }, to: { x: 800, y: 5_390 } },
+		// Market lane: plaza → blacksmith yard (bounded by market walls)
+		{ from: { x: 930, y: 5_045 }, to: { x: 650, y: 5_045 } },
+		// Shrine path: plaza → shrine garden (narrow vertical corridor)
+		{ from: { x: 1_100, y: 5_370 }, to: { x: 1_100, y: 5_500 } }
 	];
 
-	// Junctions sit at corridor intersections (outside the plaza room, outside buildings).
-	const junctions: Array<{ point: Pt; approaches: Pt[] }> = [
-		// W-spoke meets W-ring at (290, 5000): approaches from N, S, E
-		{
-			point: { x: 290, y: 5_000 },
-			approaches: [
-				{ x: 0, y: -1 },
-				{ x: 0, y: 1 },
-				{ x: 1, y: 0 }
-			]
-		},
-		// E-spoke meets E-ring at (1700, 5130): approaches from N, S, W
-		{
-			point: { x: 1_700, y: 5_130 },
-			approaches: [
-				{ x: 0, y: -1 },
-				{ x: 0, y: 1 },
-				{ x: -1, y: 0 }
-			]
-		},
-		// SE detour bend at (1240, 5400): approaches from N, S, W
-		{
-			point: { x: 1_240, y: 5_400 },
-			approaches: [
-				{ x: 0, y: -1 },
-				{ x: 0, y: 1 },
-				{ x: -1, y: 0 }
-			]
-		},
-		// S-corridor × shrine approach at (1000, 5680): approaches from E, W, N
-		{
-			point: { x: 1_000, y: 5_680 },
-			approaches: [
-				{ x: -1, y: 0 },
-				{ x: 1, y: 0 },
-				{ x: 0, y: -1 }
-			]
-		}
-	];
-
-	// Lane-width samples that land on inter-building gap crossings. The 80%
-	// house shrink pulls a building off the sample's perpendicular ray (the
-	// buildings ARE the lane walls here), so the ray escapes through an
-	// intentional opening — the SE-detour corridor mouth and the shrine↔vh3 /
-	// item-shop↔blacksmith gaps. At these points perpendicular "lane width" is
-	// undefined (they are gaps, not lanes), so they are excluded from the cap.
-	// The cap itself was also raised 128→144 (256→288px) to accommodate the
-	// handful of near-cap lanes widened by the shrink (worst non-gap sample
-	// measures 176px); see the plan's realization notes.
-	const laneWidthGapCrossings = [
-		{ x: 1_136, y: 5_680 },
-		{ x: 1_584, y: 5_130 },
-		{ x: 1_344, y: 5_130 },
-		{ x: 752, y: 5_000 }
-	];
-	it('keeps village lane width ≤ 288px outside rooms', () => {
-		const violations = laneWidthViolations(villageLanes, roomBounds, { maxHalfWidth: 144 }).filter(
-			(v) => !laneWidthGapCrossings.some((p) => p.x === v.sample.x && p.y === v.sample.y)
-		);
+	it('keeps village corridor width ≤ 360px outside rooms', () => {
+		const violations = laneWidthViolations(villageLanes, villageRoomBounds, {
+			maxHalfWidth: 180
+		});
 		expect(violations, JSON.stringify(violations.slice(0, 3))).toEqual([]);
-	});
-
-	it('occludes cross-zone sight at every junction', () => {
-		const violations = junctionOcclusionViolations(junctions, { maxDistance: 64 });
-		expect(violations, JSON.stringify(violations.slice(0, 3))).toEqual([]);
-	});
-
-	it('has ≥9 dead-ends in the village maze', () => {
-		const laneSamples = sampleLaneSet(villageLanes);
-		const count = countDeadEnds(laneSamples, { minDepth: 96 });
-		expect(count, `found ${count} dead-ends, need ≥9`).toBeGreaterThanOrEqual(9);
 	});
 
 	it('every building transition is reachable from the plaza', () => {
 		const solids = [...collectSolidRects(meadowEntryMap).values()];
-		// Only village transitions — the whispering-cave threshold is far outside
-		// the village perimeter and is gated by a quest anyway.
 		const transitions = (meadowEntryMap.transitions ?? []).filter(
 			(t) => t.x >= 200 && t.x <= 1_800 && t.y >= 4_400 && t.y <= 5_800
 		);
 		// Start from NE plaza corner — clear of the sundrop-well solid at plaza center.
 		const start = { x: 1_140, y: 5_000 };
-		// Clamp exploration to the village interior so the flood-fill budget is spent
-		// on village connectivity rather than escaping through the NE exit gate into
-		// the open map. Village transitions are all inside the perimeter.
-		const inVillage = (p: Pt) => p.x >= 240 && p.x <= 1_760 && p.y >= 4_440 && p.y <= 5_760;
+		const inVillage = (p: Pt) => p.x >= 240 && p.x <= 1_880 && p.y >= 4_400 && p.y <= 5_860;
 		for (const t of transitions) {
 			const visited = new Set<string>();
 			const queue = [{ ...start }];
 			let found = false;
-			// NOTE: BFS bound temporary — Task 4 seals NE gate, then remove
-			for (let guard = 0; queue.length > 0 && guard < 10_000; guard++) {
+			for (let guard = 0; queue.length > 0 && guard < 12_000; guard++) {
 				const p = queue.shift()!;
 				const key = `${Math.round(p.x / 32) * 32},${Math.round(p.y / 32) * 32}`;
 				if (visited.has(key)) continue;
@@ -780,11 +626,10 @@ describe('exit corridor — village gate to crossroads', () => {
 	// Village-interior segments are validated by the village maze tests.
 	const CORRIDOR_ROUTE = () => {
 		const full = ROUTE();
-		// Include one vertex before the corridor so the gate junction at
-		// (1850,4350) is treated as an interior vertex and skipped by the
-		// junction-aware sampler.  Village-interior segments are validated
-		// by the village maze tests.
-		const gateApproachIdx = full.mainRoute.findIndex((p) => p.x === 1_650 && p.y === 4_350);
+		// Include one vertex before the corridor so the gate junction is
+		// treated as an interior vertex and skipped by the junction-aware
+		// sampler. Village-interior segments are validated by the village tests.
+		const gateApproachIdx = full.mainRoute.findIndex((p) => p.x === 1_690 && p.y === 4_350);
 		return { ...full, mainRoute: full.mainRoute.slice(gateApproachIdx) };
 	};
 

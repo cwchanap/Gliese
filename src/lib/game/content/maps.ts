@@ -109,7 +109,7 @@ export const guildHallMap: WorldMapDefinition = addEnglishMapText({
 			id: 'guild-hall-to-meadow',
 			...interiorDoor,
 			toMapId: openingMapId,
-			arrival: { x: 1_400, y: 5_170, facing: 'down' }
+			arrival: { x: 1_460, y: 5_170, facing: 'down' }
 		}
 	],
 	npcs: [
@@ -227,7 +227,7 @@ export const itemShopMap: WorldMapDefinition = addEnglishMapText({
 			id: 'item-shop-to-meadow',
 			...interiorDoor,
 			toMapId: openingMapId,
-			arrival: { x: 600, y: 5_045, facing: 'down' }
+			arrival: { x: 520, y: 5_120, facing: 'down' }
 		}
 	],
 	npcs: [
@@ -314,7 +314,7 @@ export const villagerHouse1Map: WorldMapDefinition = addEnglishMapText({
 			id: 'villager-house-1-to-meadow',
 			...interiorDoor,
 			toMapId: openingMapId,
-			arrival: { x: 900, y: 4_980, facing: 'down' }
+			arrival: { x: 870, y: 4_870, facing: 'down' }
 		}
 	],
 	interiorProps: [
@@ -403,7 +403,7 @@ export const villagerHouse2Map: WorldMapDefinition = addEnglishMapText({
 			id: 'villager-house-2-to-meadow',
 			...interiorDoor,
 			toMapId: openingMapId,
-			arrival: { x: 1_200, y: 4_970, facing: 'down' }
+			arrival: { x: 1_180, y: 4_840, facing: 'down' }
 		}
 	],
 	interiorProps: [
@@ -488,7 +488,7 @@ export const villagerHouse3Map: WorldMapDefinition = addEnglishMapText({
 			// now falls inside the new south edge (5666.5), so it would spawn the
 			// player inside collision. y=5700 sits ~134px clear, matching the
 			// other village exits (≈127-144px south of their doorways).
-			arrival: { x: 1_450, y: 5_700, facing: 'down' }
+			arrival: { x: 1_520, y: 5_700, facing: 'down' }
 		}
 	],
 	interiorProps: [
@@ -583,7 +583,7 @@ export const shrineOfAuroraInteriorMap: WorldMapDefinition = {
 			id: 'shrine-of-aurora-to-meadow',
 			...interiorDoor,
 			toMapId: openingMapId,
-			arrival: { x: 1_000, y: 5_710, facing: 'down' }
+			arrival: { x: 1_180, y: 5_760, facing: 'down' }
 		}
 	],
 	interiorProps: [

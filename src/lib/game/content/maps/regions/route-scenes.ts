@@ -45,10 +45,16 @@ export const routeSceneDefinitions: RouteSceneDefinition[] = [
 		to: 'crossroads-hub-room',
 		mainRoute: [
 			{ x: 700, y: 5_600 },
-			{ x: 1_000, y: 5_100 },
-			{ x: 1_650, y: 4_550 },
-			{ x: 1_650, y: 4_350 },
-			{ x: 1_850, y: 4_350 },
+			{ x: 850, y: 5_400 },
+			{ x: 1_000, y: 5_160 },
+			{ x: 1_300, y: 5_060 },
+			{ x: 1_460, y: 5_040 },
+			{ x: 1_490, y: 4_760 },
+			{ x: 1_490, y: 4_500 },
+			{ x: 1_660, y: 4_440 },
+			{ x: 1_690, y: 4_350 },
+			{ x: 1_740, y: 4_280 },
+			{ x: 1_850, y: 4_280 },
 			{ x: 1_850, y: 4_100 },
 			{ x: 2_200, y: 4_100 },
 			{ x: 2_200, y: 4_350 },
@@ -89,14 +95,14 @@ export const routeSceneDefinitions: RouteSceneDefinition[] = [
 				storyMotif: 'homeward-road'
 			},
 			{
-				id: 'village-roadside-cache-payoff',
+				id: 'village-shrine-cache-payoff',
 				routeId: 'spawn-to-crossroads',
-				cameraPoint: { x: 2_900, y: 4_250 },
+				cameraPoint: { x: 1_300, y: 5_600 },
 				purpose: 'payoff',
-				expectedVisibleIds: ['village-corridor-cache'],
-				payoffIds: ['village-corridor-cache'],
-				boundaryIds: ['corridor-wall-9a', 'corridor-wall-10b'],
-				storyMotif: 'homeward-road'
+				expectedVisibleIds: ['village-shrine-cache', 'shrine-of-aurora'],
+				payoffIds: ['village-shrine-cache'],
+				boundaryIds: ['village-shrine-garden-west-wall', 'village-shrine-garden-south-wall'],
+				storyMotif: 'shrine'
 			},
 			{
 				id: 'crossroads-waystone-reveal',
