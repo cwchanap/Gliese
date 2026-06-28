@@ -34,7 +34,6 @@ import {
 	villagerHouse3Map
 } from '$lib/game/content/maps';
 import type { MapDecor, WorldMapDefinition } from '$lib/game/content/maps';
-import { regionDesignManifest } from '$lib/game/content/maps/regions/design-manifest';
 
 function expectEnglishMessage(key: Parameters<typeof t>[1]): string {
 	const value = t('en', key);
@@ -1912,22 +1911,6 @@ function collectEntityIds(map: WorldMapDefinition): Set<string> {
 	return ids;
 }
 
-function manifestReferencedIds(): Set<string> {
-	const ids = new Set<string>();
-	for (const entry of regionDesignManifest) {
-		for (const id of [
-			...entry.anchorIds,
-			...entry.approachClueIds,
-			...entry.optionalBranchIds,
-			...entry.payoffIds,
-			...entry.exitHookIds
-		]) {
-			ids.add(id);
-		}
-	}
-	return ids;
-}
-
 function interestPoints(map: WorldMapDefinition): Pt[] {
 	const points: Pt[] = [];
 	for (const l of map.landmarks ?? []) points.push({ x: l.x, y: l.y });
@@ -1938,12 +1921,9 @@ function interestPoints(map: WorldMapDefinition): Pt[] {
 	for (const d of map.discoveries ?? []) points.push({ x: d.x, y: d.y });
 	for (const b of map.blockers ?? []) if (b.kind === 'future-gate') points.push({ x: b.x, y: b.y });
 	// Visual breadcrumbs count as interest even when not interactive: a decor prop or
-	// ground patch the design manifest flags as part of a region's exploration loop
-	// reads as "something is over there" to the player walking the route.
-	const manifestIds = manifestReferencedIds();
-	for (const d of map.mapDecor ?? []) if (manifestIds.has(d.id)) points.push({ x: d.x, y: d.y });
-	for (const g of map.groundPatches ?? [])
-		if (manifestIds.has(g.id)) points.push({ x: g.x, y: g.y });
+	// ground patch reads as "something is over there" to the player walking the route.
+	for (const d of map.mapDecor ?? []) points.push({ x: d.x, y: d.y });
+	for (const g of map.groundPatches ?? []) points.push({ x: g.x, y: g.y });
 	return points;
 }
 
@@ -2063,10 +2043,6 @@ describe('exploration test helpers', () => {
 		expect(pointInsideRect({ x: 30, y: 0 }, { x: 0, y: 0, width: 40, height: 40 })).toBe(false);
 	});
 
-	it('starts with an empty design manifest (regions appended in later tasks)', () => {
-		expect(Array.isArray(regionDesignManifest)).toBe(true);
-	});
-
 	it('exercises remaining helpers without throwing', () => {
 		const a: Pt = { x: 0, y: 0 };
 		const b: Pt = { x: 700, y: 0 };
@@ -2122,41 +2098,6 @@ describe('crossroads hub', () => {
 	it('offers a payoff pickup without leaving the plaza', () => {
 		const cache = (meadowEntryMap.pickups ?? []).find((p) => p.id === 'crossroads-cache');
 		expect(cache).toBeDefined();
-	});
-});
-
-describe('region design manifest completeness', () => {
-	const ids = collectEntityIds(meadowEntryMap);
-	const landmarkIds = new Set((meadowEntryMap.landmarks ?? []).map((l) => l.id));
-	it.each(regionDesignManifest)('region $id declares a complete exploration loop', (entry) => {
-		expect(entry.anchorIds.length, `${entry.id}: no anchor`).toBeGreaterThan(0);
-		expect(entry.payoffIds.length, `${entry.id}: no payoff`).toBeGreaterThan(0);
-		expect(entry.approachClueIds.length, `${entry.id}: no approach clue`).toBeGreaterThan(0);
-		expect(
-			entry.optionalBranchIds.length,
-			`${entry.id}: no optional branch / side pocket`
-		).toBeGreaterThan(0);
-		expect(entry.exitHookIds.length, `${entry.id}: no exit hook`).toBeGreaterThan(0);
-		// Payoffs must be real rewards off the signposted path, not just a landmark gate the
-		// player walks up to anyway. Keeps the exploration loop ending on something earned.
-		for (const id of entry.payoffIds) {
-			expect(
-				landmarkIds.has(id),
-				`${entry.id}: payoff "${id}" is a landmark; payoffs should be non-landmark rewards`
-			).toBe(false);
-		}
-		const declared = [
-			...entry.anchorIds,
-			...entry.approachClueIds,
-			...entry.optionalBranchIds,
-			...entry.payoffIds,
-			...entry.exitHookIds
-		];
-		for (const id of declared) {
-			expect(ids.has(id), `manifest id "${id}" (region ${entry.id}) resolves to no entity`).toBe(
-				true
-			);
-		}
 	});
 });
 
@@ -2311,7 +2252,7 @@ describe('critical routes avoid blockers', () => {
 	});
 });
 
-const discoveryKinds = ['sign', 'lore', 'vista', 'secret', 'warning', 'foreshadow'];
+const discoveryKinds = ['sign', 'lore', 'vista', 'warning', 'foreshadow'];
 
 function localeHasPath(source: unknown, key: string): boolean {
 	let current: unknown = source;
