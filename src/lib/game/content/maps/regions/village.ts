@@ -334,10 +334,10 @@ export const villageRegion: RegionFragment = {
 		}
 	],
 	ambientNpcs: [
-		{ id: 'village-wanderer', x: 1_020, y: 5_080, frameName: 'travelerNpc' },
-		{ id: 'village-woodcutter', x: 420, y: 5_060, frameName: 'woodcutterNpc' },
-		{ id: 'village-pilgrim', x: 1_300, y: 5_470, frameName: 'pilgrimNpc' },
-		{ id: 'village-crier', x: 1_620, y: 4_620, frameName: 'crierNpc' }
+		{ id: 'village-wanderer', x: 1_140, y: 5_000, frameName: 'travelerNpc' },
+		{ id: 'village-woodcutter', x: 560, y: 5_260, frameName: 'woodcutterNpc' },
+		{ id: 'village-pilgrim', x: 1_100, y: 5_780, frameName: 'pilgrimNpc' },
+		{ id: 'village-crier', x: 1_540, y: 4_620, frameName: 'crierNpc' }
 	],
 	pickups: [
 		{

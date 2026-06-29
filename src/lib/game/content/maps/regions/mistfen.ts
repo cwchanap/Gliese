@@ -292,7 +292,7 @@ export const mistfenRegion: RegionFragment = {
 		{
 			id: 'witchwood-poison-warning',
 			x: 1_200,
-			y: 620,
+			y: 820,
 			kind: 'warning',
 			revealMarker: true,
 			labelKey: 'content.maps.discoveries.witchwood-poison-warning.label',
@@ -305,7 +305,7 @@ export const mistfenRegion: RegionFragment = {
 	ambientNpcs: [{ id: 'mistfen-forager', x: 2_400, y: 2_700, frameName: 'travelerNpc' }],
 	pickups: [
 		{ id: 'mistfen-salve', x: 880, y: 2_500, itemId: 'sunleaf-salve', quantity: 1 },
-		{ id: 'mistfen-cache', x: 1_820, y: 2_300, itemId: 'field-potion', quantity: 1 }
+		{ id: 'mistfen-cache', x: 1_920, y: 2_300, itemId: 'field-potion', quantity: 1 }
 	],
 	blockers: [
 		{ id: 'witchwood-gate-block', x: 1_200, y: 470, width: 384, height: 96, kind: 'future-gate' },

@@ -238,7 +238,7 @@ export const crossroadsRegion: RegionFragment = {
 	discoveries: [
 		{
 			id: 'crossroads-waystone-sign',
-			x: 3_500,
+			x: 3_600,
 			y: 4_000,
 			kind: 'sign',
 			revealMarker: true,
@@ -248,7 +248,7 @@ export const crossroadsRegion: RegionFragment = {
 		{
 			id: 'castle-gate-warning',
 			x: 3_500,
-			y: 3_020,
+			y: 3_220,
 			kind: 'warning',
 			revealMarker: true,
 			labelKey: 'content.maps.discoveries.castle-gate-warning.label',

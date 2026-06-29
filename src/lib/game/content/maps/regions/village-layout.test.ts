@@ -6,7 +6,7 @@ type Rect = { id: string; x: number; y: number; width: number; height: number };
 
 /**
  * Deterministic village-layout tests — validate the authored Sundrop Village
- * blueprint (see sundrop-village-deterministic-layout-plan.md §12).
+ * blueprint (see docs/superpowers/plans/2026-06-12-entry-map-enrichment.md).
  *
  * The village is a compact JRPG settlement, not a hedge-grid. These tests
  * enforce named rooms, off-route side rewards, path-texture-off navigation,

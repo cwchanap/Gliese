@@ -1767,6 +1767,54 @@ describe('meadow-entry region integrity', () => {
 		}
 	});
 
+	it('does not author pickups, discoveries, or ambient NPCs inside solid rects', () => {
+		// Regression guard: a reward/NPC/discovery placed inside a blocker,
+		// fence, landmark collision bounds, or colliding decor would be
+		// unreachable or visually clipped. Solids use the full landmark rect
+		// (conservative — the doorway carve is a movement exception, not an
+		// authoring invitation). Mirrors collectSolidRects in soft-maze.test.ts.
+		const solids: Array<{ id: string; x: number; y: number; width: number; height: number }> = [
+			...(meadowEntryMap.blockers ?? []),
+			...(meadowEntryMap.fences ?? []),
+			...(meadowEntryMap.landmarks ?? []),
+			...(meadowEntryMap.mapDecor ?? [])
+				.map((decor) => decor.collision)
+				.filter((rect): rect is NonNullable<typeof rect> => rect !== undefined)
+		];
+		const pointInRect = (
+			px: number,
+			py: number,
+			rect: { x: number; y: number; width: number; height: number }
+		): boolean =>
+			Math.abs(px - rect.x) <= rect.width / 2 && Math.abs(py - rect.y) <= rect.height / 2;
+
+		const entities: Array<{ kind: string; id: string; x: number; y: number }> = [
+			...(meadowEntryMap.pickups ?? []).map((p) => ({ kind: 'pickup', id: p.id, x: p.x, y: p.y })),
+			...(meadowEntryMap.discoveries ?? []).map((d) => ({
+				kind: 'discovery',
+				id: d.id,
+				x: d.x,
+				y: d.y
+			})),
+			...(meadowEntryMap.ambientNpcs ?? []).map((n) => ({
+				kind: 'ambientNpc',
+				id: n.id,
+				x: n.x,
+				y: n.y
+			}))
+		];
+
+		for (const entity of entities) {
+			const inside = solids.filter((rect) => pointInRect(entity.x, entity.y, rect));
+			expect(
+				inside,
+				`${entity.kind} ${entity.id} at (${entity.x}, ${entity.y}) is inside solid(s): ${inside
+					.map((r) => r.id)
+					.join(', ')}`
+			).toEqual([]);
+		}
+	});
+
 	it('surfaces composed region interactive NPCs onto the map (no silent drop)', () => {
 		// Guard against the mergeRegions -> meadowEntryMap wiring gap: every
 		// other merged field is spread onto the map literal, so `npcs` must be
