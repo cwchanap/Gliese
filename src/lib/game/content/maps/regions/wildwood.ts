@@ -441,7 +441,6 @@ export const wildwoodRegion: RegionFragment = {
 			id: 'wildwood-cave-danger',
 			x: 5_960,
 			y: 1_620,
-			kind: 'warning',
 			revealMarker: true,
 			labelKey: 'content.maps.discoveries.wildwood-cave-danger.label',
 			descriptionKey: 'content.maps.discoveries.wildwood-cave-danger.description'

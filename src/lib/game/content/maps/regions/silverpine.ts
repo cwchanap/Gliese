@@ -314,7 +314,6 @@ export const silverpineRegion: RegionFragment = {
 			id: 'silverpine-amulet-foreshadow',
 			x: 2_840,
 			y: 1_120,
-			kind: 'foreshadow',
 			revealMarker: false,
 			labelKey: 'content.maps.discoveries.silverpine-amulet-foreshadow.label',
 			descriptionKey: 'content.maps.discoveries.silverpine-amulet-foreshadow.description'

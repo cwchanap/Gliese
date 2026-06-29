@@ -505,6 +505,9 @@ const phaserState = vi.hoisted(() => {
 				(marker as unknown as { setStrokeStyle: ReturnType<typeof vi.fn> }).setStrokeStyle = vi.fn(
 					() => marker
 				);
+				(marker as unknown as { setDepth: ReturnType<typeof vi.fn> }).setDepth = vi.fn(
+					() => marker
+				);
 				return marker;
 			}),
 			image: vi.fn(createImage),

@@ -1969,6 +1969,7 @@ export class WorldScene extends Phaser.Scene {
 		for (const discovery of map.discoveries ?? []) {
 			const marker = this.add.circle(discovery.x, discovery.y, 10, 0xfff2b0, 0.55);
 			marker.setStrokeStyle(2, 0xffd24d, 0.9);
+			marker.setDepth(1000);
 			// Hidden until the player approaches; updateDiscoveryMarkers() toggles visibility.
 			marker.setVisible(false);
 			const tween = this.tweens.add({

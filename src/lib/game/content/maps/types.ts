@@ -183,8 +183,6 @@ export interface MapAmbientNpc {
 	role?: MapAmbientNpcRole;
 }
 
-type MapDiscoveryKind = 'sign' | 'lore' | 'vista' | 'warning' | 'foreshadow';
-
 export interface MapDiscovery {
 	id: string;
 	x: number;
@@ -193,7 +191,6 @@ export interface MapDiscovery {
 	radius?: number;
 	labelKey: MessageKey;
 	descriptionKey: MessageKey;
-	kind: MapDiscoveryKind;
 	/** When true, becomes an area-map pin after it has been examined. */
 	revealMarker?: boolean;
 }

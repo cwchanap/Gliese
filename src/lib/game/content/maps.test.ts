@@ -1890,8 +1890,7 @@ describe('map discoveries', () => {
 					x: 100,
 					y: 100,
 					labelKey: 'content.maps.landmarks.castle-gate.label',
-					descriptionKey: 'content.maps.landmarks.castle-gate.label',
-					kind: 'sign'
+					descriptionKey: 'content.maps.landmarks.castle-gate.label'
 				}
 			]
 		};
@@ -2300,8 +2299,6 @@ describe('critical routes avoid blockers', () => {
 	});
 });
 
-const discoveryKinds = ['sign', 'lore', 'vista', 'warning', 'foreshadow'];
-
 function localeHasPath(source: unknown, key: string): boolean {
 	let current: unknown = source;
 	for (const segment of key.split('.')) {
@@ -2320,7 +2317,6 @@ describe('discovery content', () => {
 
 	it.each(discoveries)('discovery $id is valid and localized in all locales', (discovery) => {
 		expectRectInsideMap({ x: discovery.x, y: discovery.y, width: 2, height: 2 });
-		expect(discoveryKinds).toContain(discovery.kind);
 		for (const key of [discovery.labelKey, discovery.descriptionKey]) {
 			expectEnglishMessage(key);
 			expect(localeHasPath(en, key), `en missing ${key}`).toBe(true);

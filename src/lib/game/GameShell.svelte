@@ -1947,6 +1947,16 @@
 		stroke: var(--color-gold);
 	}
 
+	.jrpg-minimap-marker-building {
+		fill: rgba(159, 231, 255, 0.34);
+		stroke: rgba(159, 231, 255, 0.82);
+	}
+
+	.jrpg-minimap-marker-discovery {
+		fill: rgba(159, 247, 203, 0.34);
+		stroke: rgba(159, 247, 203, 0.82);
+	}
+
 	.jrpg-minimap-marker-emphasis {
 		filter: drop-shadow(0 0 32px rgba(255, 208, 64, 0.84));
 	}
@@ -2364,6 +2374,11 @@
 	.area-map-marker-quest circle {
 		fill: rgba(255, 211, 122, 0.32);
 		stroke: rgba(255, 211, 122, 0.9);
+	}
+
+	.area-map-marker-discovery circle {
+		fill: rgba(159, 247, 203, 0.22);
+		stroke: rgba(159, 247, 203, 0.78);
 	}
 
 	.area-map-marker-emphasis circle {
