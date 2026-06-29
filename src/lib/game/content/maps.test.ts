@@ -259,7 +259,6 @@ describe('opening map content', () => {
 		expect(meadowEntryMap.height).toBe(200);
 		expect(meadowEntryMap.spawnDirection).toBe('up');
 		expect(meadowEntryMap.spawn).toEqual({ x: 700, y: 5_600 });
-		expect(meadowEntryMap.forestZone).toBeUndefined();
 		expect(meadowEntryMap.combatBounds?.map((bounds) => bounds.id)).toEqual([
 			'wildwood-north-combat-pocket',
 			'wildwood-crossing-combat-pocket',
@@ -1223,7 +1222,6 @@ describe('opening map content', () => {
 	});
 
 	it('keeps meadow combat in the top-right forest pockets instead of a separate forest arena', () => {
-		expect(meadowEntryMap.forestZone).toBeUndefined();
 		expect(meadowEntryMap.encounters).toEqual([
 			{ id: 'meadow-slime-west', x: 4_928, y: 960, enemyId: 'slime-scout' },
 			{ id: 'meadow-slime-center', x: 5_360, y: 1_280, enemyId: 'slime-scout' },
@@ -2278,9 +2276,11 @@ describe('critical routes avoid blockers', () => {
 	];
 
 	it('keeps every critical-route sample outside blockers', () => {
-		// Corridor-path walls define the winding route; they're validated by the
-		// corridor width/sightline goal tests. The critical-route check is for
-		// map-level blockers (perimeter, landmarks) that should never be crossed.
+		// Corridor-path walls define the winding route; the critical-route check
+		// is for map-level blockers (perimeter, landmarks) that should never be
+		// crossed. (The per-corridor width/sightline invariants that used to
+		// accompany this were removed in 0234be6 along with the route-scene
+		// infrastructure.)
 		const blockers = (meadowEntryMap.blockers ?? []).filter(
 			(b) => !b.id.startsWith('corridor-wall-')
 		);

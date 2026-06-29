@@ -17,7 +17,6 @@ export type {
 	MapBlockerKind,
 	MapBlocker,
 	MapCombatBounds,
-	MapForestZone,
 	MapFenceSegment,
 	MapInteriorPropDepth,
 	MapInteriorProp,

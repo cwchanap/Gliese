@@ -15,7 +15,7 @@
 ## Important notes for the implementer
 
 - **Branch:** All work happens on the existing `entry-map-enrichment` branch (already checked out). Verify with `git branch --show-current` → `entry-map-enrichment`.
-- **Coordinate system:** The world is 6,400 × 6,400px (200 × 200 tiles @ 32px). All map rects are **center-based**: `{ x, y, width, height }` means a box centered on `(x, y)`. Origin is top-left, +y points **down**. Player spawns at `(1536, 5550)` in the village (south-center).
+- **Coordinate system:** The world is 6,400 × 6,400px (200 × 200 tiles @ 32px). All map rects are **center-based**: `{ x, y, width, height }` means a box centered on `(x, y)`. Origin is top-left, +y points **down**. Player spawns at `(700, 5600)` in the village (south-center). (Originally `(1536, 5550)`; moved during the compact-cluster repositioning in commit 9480172.)
 - **Decor coordinates are starting values.** Tasks 13–18 give concrete coordinates that satisfy the test harness (in-bounds, valid frames). They are intended to be **visually tuned in `bun run dev`** — nudge positions/sizes freely; the unit tests guarantee the invariants stay correct. Do not treat the exact pixel values as sacred.
 - **Codex image generation:** Asset tasks delegate image generation to the Codex CLI (it has the image tool). If Codex is unavailable, use the `imagegen` skill as a fallback. Generated PNGs go in `public/game/assets/`. The `assets.ts` frame declarations + unit tests do **not** require the image to exist (they only check coordinate math), so engine/test tasks are never blocked on art. Runtime visuals require the PNG; verify those during the manual walkthrough (Task 20).
 - **Test commands:**
@@ -881,7 +881,7 @@ export const meadowEntryMap: WorldMapDefinition = addEnglishMapText({
 	width: 200,
 	height: 200,
 	spawnDirection: 'up',
-	spawn: { x: 1_536, y: 5_550 },
+	spawn: { x: 700, y: 5_600 },
 	landmarks: merged.landmarks,
 	transitions: merged.transitions,
 	groundPatches: merged.groundPatches,
