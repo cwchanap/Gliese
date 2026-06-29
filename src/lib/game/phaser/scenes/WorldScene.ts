@@ -36,7 +36,6 @@ import {
 	type MapDecorDepth,
 	type MapDiscovery,
 	type MapFenceSegment,
-	type MapForestZone,
 	type MapGroundPatch,
 	type MapGroundTile,
 	type MapAmbientNpc,
@@ -1718,11 +1717,8 @@ export class WorldScene extends Phaser.Scene {
 	private findLeashBoundsForEnemy(
 		map: WorldMapDefinition,
 		enemy: EnemyInstance
-	): MapCombatBounds | MapForestZone | undefined {
-		return (
-			this.findCombatBoundsForEnemy(map, enemy) ??
-			(enemy.definition.id === 'slime-scout' ? map.forestZone : undefined)
-		);
+	): MapCombatBounds | undefined {
+		return this.findCombatBoundsForEnemy(map, enemy);
 	}
 
 	private isPointInsideMapRect(x: number, y: number, rect: MapRect, padding = 0): boolean {

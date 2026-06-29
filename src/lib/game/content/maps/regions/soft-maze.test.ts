@@ -143,6 +143,17 @@ describe('village maze — compact hamlet invariants', () => {
 		{ from: { x: 1_100, y: 5_370 }, to: { x: 1_100, y: 5_500 } }
 	];
 
+	// Lane-cap history (recorded here because the realization-notes spec that
+	// originally documented it was removed with the rest of the branch planning
+	// docs in adf9456):
+	//   - Original spec cap: 256px (maxHalfWidth 128).
+	//   - Raised to 288px (maxHalfWidth 144) when village buildings were shrunk
+	//     to 80% — a user-approved decision (less-crowded village ⟹ wider lanes).
+	//   - Raised to 360px (maxHalfWidth 180) by the compact-cluster
+	//     repositioning (108c560), which moved buildings closer together and
+	//     widened the remaining inter-building lanes. This is wider than the
+	//     non-village corridor cap (320px) on purpose: the village is a hamlet
+	//     of rooms connected by short bent lanes, not a winding corridor.
 	it('keeps village corridor width ≤ 360px outside rooms', () => {
 		const violations = laneWidthViolations(villageLanes, villageRoomBounds, {
 			maxHalfWidth: 180

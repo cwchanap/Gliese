@@ -114,11 +114,6 @@ export interface MapCombatBounds extends MapRect {
 	leashRadius: number;
 }
 
-export interface MapForestZone extends MapRect {
-	aggroRadius: number;
-	leashRadius: number;
-}
-
 export type MapFenceSegment = MapRect;
 
 export type MapDecorDepth = 'floor' | 'furniture' | 'foreground';
@@ -205,7 +200,6 @@ export interface WorldMapDefinition extends MapDefinition {
 	encounters?: MapEncounter[];
 	npcs?: MapNpc[];
 	landmarks?: MapLandmark[];
-	forestZone?: MapForestZone;
 	fences?: MapFenceSegment[];
 	mapDecor?: MapDecor[];
 	groundPatches?: MapGroundPatch[];
