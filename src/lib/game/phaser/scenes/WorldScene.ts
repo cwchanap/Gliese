@@ -2794,17 +2794,13 @@ export class WorldScene extends Phaser.Scene {
 			return undefined;
 		}
 
+		const player = this.player;
 		const map = this.resolveMap(this.mapId);
 
 		return (map.discoveries ?? [])
 			.map((discovery) => ({
 				discovery,
-				distance: Phaser.Math.Distance.Between(
-					this.player!.x,
-					this.player!.y,
-					discovery.x,
-					discovery.y
-				)
+				distance: Phaser.Math.Distance.Between(player.x, player.y, discovery.x, discovery.y)
 			}))
 			.filter(
 				({ discovery, distance }) =>
