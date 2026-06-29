@@ -293,7 +293,6 @@ export const mistfenRegion: RegionFragment = {
 			id: 'witchwood-poison-warning',
 			x: 1_200,
 			y: 820,
-			kind: 'warning',
 			revealMarker: true,
 			labelKey: 'content.maps.discoveries.witchwood-poison-warning.label',
 			descriptionKey: 'content.maps.discoveries.witchwood-poison-warning.description'

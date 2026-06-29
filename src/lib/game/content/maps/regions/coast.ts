@@ -182,7 +182,6 @@ export const coastRegion: RegionFragment = {
 			id: 'ferry-shrine-lore',
 			x: 3_600,
 			y: 5_500,
-			kind: 'lore',
 			revealMarker: true,
 			labelKey: 'content.maps.discoveries.ferry-shrine-lore.label',
 			descriptionKey: 'content.maps.discoveries.ferry-shrine-lore.description'
@@ -191,7 +190,6 @@ export const coastRegion: RegionFragment = {
 			id: 'coast-jetty-foreshadow',
 			x: 4_900,
 			y: 6_180,
-			kind: 'foreshadow',
 			revealMarker: false,
 			labelKey: 'content.maps.discoveries.coast-jetty-foreshadow.label',
 			descriptionKey: 'content.maps.discoveries.coast-jetty-foreshadow.description'

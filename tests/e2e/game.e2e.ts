@@ -59,7 +59,7 @@ type SaveFixtureOverrides = Partial<{
 
 function createSaveFixture(overrides: SaveFixtureOverrides = {}) {
 	return {
-		version: 6,
+		version: 7,
 		mapExploration: {},
 		mapId: overrides.mapId ?? 'meadow-entry',
 		player: overrides.player ?? {
@@ -98,13 +98,14 @@ function createSaveFixture(overrides: SaveFixtureOverrides = {}) {
 				}
 			}
 		},
-		quests: createQuestFixture()
+		quests: createQuestFixture(),
+		seenDiscoveries: []
 	};
 }
 
 function injectSave(page: Page, save: ReturnType<typeof createSaveFixture>) {
 	return page.addInitScript((encoded) => {
-		window.localStorage.setItem('gliese.save.v6', encoded);
+		window.localStorage.setItem('gliese.save.v7', encoded);
 	}, JSON.stringify(save));
 }
 
@@ -394,7 +395,7 @@ test('shop overlay opens near a merchant and supports buying and selling', async
 		window.addEventListener('gliese:hud-state', (event) => {
 			probeWindow.__glieseLastHudState = (event as CustomEvent<HudStateSnapshot>).detail;
 		});
-		window.localStorage.setItem('gliese.save.v6', encoded);
+		window.localStorage.setItem('gliese.save.v7', encoded);
 	}, JSON.stringify(save));
 	await page.goto('/');
 	await expect(page.locator('canvas')).toBeVisible();
@@ -462,7 +463,7 @@ test('interact key shop purchase appears in inventory', async ({ page }) => {
 		window.addEventListener('gliese:hud-state', (event) => {
 			probeWindow.__glieseLastHudState = (event as CustomEvent<HudStateSnapshot>).detail;
 		});
-		window.localStorage.setItem('gliese.save.v6', encoded);
+		window.localStorage.setItem('gliese.save.v7', encoded);
 	}, JSON.stringify(save));
 	await page.goto('/');
 	await expect(page.locator('canvas')).toBeVisible();
@@ -514,7 +515,7 @@ test('quest log shows main quest and accepts Guild side quests', async ({ page }
 		window.addEventListener('gliese:hud-state', (event) => {
 			probeWindow.__glieseLastHudState = (event as CustomEvent<HudStateSnapshot>).detail;
 		});
-		window.localStorage.setItem('gliese.save.v6', encoded);
+		window.localStorage.setItem('gliese.save.v7', encoded);
 	}, JSON.stringify(save));
 	await page.goto('/');
 	await expect(page.locator('canvas')).toBeVisible();
