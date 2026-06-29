@@ -183,7 +183,7 @@ export interface MapAmbientNpc {
 	role?: MapAmbientNpcRole;
 }
 
-export type MapDiscoveryKind = 'sign' | 'lore' | 'vista' | 'warning' | 'foreshadow';
+type MapDiscoveryKind = 'sign' | 'lore' | 'vista' | 'warning' | 'foreshadow';
 
 export interface MapDiscovery {
 	id: string;

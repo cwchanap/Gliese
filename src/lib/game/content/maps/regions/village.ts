@@ -843,6 +843,5 @@ export const villageRegion: RegionFragment = {
 		{ id: 'corridor-wall-8b', x: 2_725, y: 4_260, width: 370, height: 64, kind: 'garden-hedge' },
 		{ id: 'corridor-wall-9a', x: 2_740, y: 4_250, width: 64, height: 300, kind: 'garden-hedge' },
 		{ id: 'corridor-wall-10b', x: 3_050, y: 4_560, width: 300, height: 64, kind: 'garden-hedge' }
-	],
-	fences: []
+	]
 };
