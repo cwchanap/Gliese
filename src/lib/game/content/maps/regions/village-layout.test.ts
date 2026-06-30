@@ -51,6 +51,14 @@ const villageDecorRoles: Record<string, string> = {
 	'village-corridor-waymarker': 'crossroads-breadcrumb'
 };
 
+/**
+ * Shortest distance from `point` to the finite line segment `a`→`b`.
+ *
+ * @param point - The point to measure from.
+ * @param a - Segment start.
+ * @param b - Segment end (if equal to `a`, falls back to distance from `point` to `a`).
+ * @returns The minimum Euclidean distance from `point` to any spot on the segment.
+ */
 function pointSegmentDistance(point: Pt, a: Pt, b: Pt): number {
 	const dx = b.x - a.x;
 	const dy = b.y - a.y;
@@ -60,6 +68,14 @@ function pointSegmentDistance(point: Pt, a: Pt, b: Pt): number {
 	return Math.hypot(point.x - (a.x + t * dx), point.y - (a.y + t * dy));
 }
 
+/**
+ * Shortest distance from `point` to a polyline (an ordered series of vertices
+ * connected by segments). Returns `Infinity` for an empty/single-vertex route.
+ *
+ * @param point - The point to measure from.
+ * @param route - Polyline vertices walked in order.
+ * @returns The minimum distance from `point` to any segment of the route.
+ */
 function distancePointToPolyline(point: Pt, route: Pt[]): number {
 	return route
 		.slice(0, -1)
@@ -70,6 +86,14 @@ function distancePointToPolyline(point: Pt, route: Pt[]): number {
 		);
 }
 
+/**
+ * Shortest distance from `point` to the boundary of an axis-aligned rect
+ * (centered at `rect.x`/`rect.y`). Returns 0 when the point is inside the rect.
+ *
+ * @param point - The point to measure from.
+ * @param rect - Axis-aligned rect described by its center and full width/height.
+ * @returns The minimum distance from `point` to the rect edge (0 if inside).
+ */
 function distanceToRect(point: Pt, rect: Rect): number {
 	const dx = Math.max(Math.abs(point.x - rect.x) - rect.width / 2, 0);
 	const dy = Math.max(Math.abs(point.y - rect.y) - rect.height / 2, 0);

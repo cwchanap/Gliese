@@ -57,9 +57,21 @@ type SaveFixtureOverrides = Partial<{
 	wallet: { coins: number };
 }>;
 
+// Single source of truth for the save schema version/storage key in this e2e
+// suite. Mirrors SAVE_STORAGE_KEY / SaveState.version in src/lib/game/save —
+// kept local (not imported) so the Playwright Node worker doesn't have to
+// resolve the game's `$lib` alias. addInitScript callbacks run in the browser
+// and cannot close over Node bindings, so the key is passed to them as an arg.
+const SAVE_VERSION = 7;
+const SAVE_STORAGE_KEY = 'gliese.save.v7';
+
+// addInitScript serializes its callback to the browser and accepts only one
+// arg, so the save JSON and the storage key are bundled into a single object.
+type SaveInitPayload = { encoded: string; key: string };
+
 function createSaveFixture(overrides: SaveFixtureOverrides = {}) {
 	return {
-		version: 7,
+		version: SAVE_VERSION,
 		mapExploration: {},
 		mapId: overrides.mapId ?? 'meadow-entry',
 		player: overrides.player ?? {
@@ -104,9 +116,12 @@ function createSaveFixture(overrides: SaveFixtureOverrides = {}) {
 }
 
 function injectSave(page: Page, save: ReturnType<typeof createSaveFixture>) {
-	return page.addInitScript((encoded) => {
-		window.localStorage.setItem('gliese.save.v7', encoded);
-	}, JSON.stringify(save));
+	return page.addInitScript(
+		(payload: SaveInitPayload) => {
+			window.localStorage.setItem(payload.key, payload.encoded);
+		},
+		{ encoded: JSON.stringify(save), key: SAVE_STORAGE_KEY }
+	);
 }
 
 test('entry map boots with no game console errors', async ({ page }) => {
@@ -389,14 +404,17 @@ test('shop overlay opens near a merchant and supports buying and selling', async
 		player: { level: 1, xp: 0, hp: 20, attack: 3, x: 256, y: 144, facing: 'up' }
 	});
 
-	await page.addInitScript((encoded) => {
-		const probeWindow = window as GlieseProbeWindow;
-		probeWindow.__glieseLastHudState = undefined;
-		window.addEventListener('gliese:hud-state', (event) => {
-			probeWindow.__glieseLastHudState = (event as CustomEvent<HudStateSnapshot>).detail;
-		});
-		window.localStorage.setItem('gliese.save.v7', encoded);
-	}, JSON.stringify(save));
+	await page.addInitScript(
+		(payload: SaveInitPayload) => {
+			const probeWindow = window as GlieseProbeWindow;
+			probeWindow.__glieseLastHudState = undefined;
+			window.addEventListener('gliese:hud-state', (event) => {
+				probeWindow.__glieseLastHudState = (event as CustomEvent<HudStateSnapshot>).detail;
+			});
+			window.localStorage.setItem(payload.key, payload.encoded);
+		},
+		{ encoded: JSON.stringify(save), key: SAVE_STORAGE_KEY }
+	);
 	await page.goto('/');
 	await expect(page.locator('canvas')).toBeVisible();
 
@@ -457,14 +475,17 @@ test('interact key shop purchase appears in inventory', async ({ page }) => {
 		player: { level: 1, xp: 0, hp: 20, attack: 3, x: 256, y: 144, facing: 'up' }
 	});
 
-	await page.addInitScript((encoded) => {
-		const probeWindow = window as GlieseProbeWindow;
-		probeWindow.__glieseLastHudState = undefined;
-		window.addEventListener('gliese:hud-state', (event) => {
-			probeWindow.__glieseLastHudState = (event as CustomEvent<HudStateSnapshot>).detail;
-		});
-		window.localStorage.setItem('gliese.save.v7', encoded);
-	}, JSON.stringify(save));
+	await page.addInitScript(
+		(payload: SaveInitPayload) => {
+			const probeWindow = window as GlieseProbeWindow;
+			probeWindow.__glieseLastHudState = undefined;
+			window.addEventListener('gliese:hud-state', (event) => {
+				probeWindow.__glieseLastHudState = (event as CustomEvent<HudStateSnapshot>).detail;
+			});
+			window.localStorage.setItem(payload.key, payload.encoded);
+		},
+		{ encoded: JSON.stringify(save), key: SAVE_STORAGE_KEY }
+	);
 	await page.goto('/');
 	await expect(page.locator('canvas')).toBeVisible();
 
@@ -509,14 +530,17 @@ test('quest log shows main quest and accepts Guild side quests', async ({ page }
 		player: { level: 1, xp: 0, hp: 20, attack: 3, x: 192, y: 144, facing: 'up' }
 	});
 
-	await page.addInitScript((encoded) => {
-		const probeWindow = window as GlieseProbeWindow;
-		probeWindow.__glieseLastHudState = undefined;
-		window.addEventListener('gliese:hud-state', (event) => {
-			probeWindow.__glieseLastHudState = (event as CustomEvent<HudStateSnapshot>).detail;
-		});
-		window.localStorage.setItem('gliese.save.v7', encoded);
-	}, JSON.stringify(save));
+	await page.addInitScript(
+		(payload: SaveInitPayload) => {
+			const probeWindow = window as GlieseProbeWindow;
+			probeWindow.__glieseLastHudState = undefined;
+			window.addEventListener('gliese:hud-state', (event) => {
+				probeWindow.__glieseLastHudState = (event as CustomEvent<HudStateSnapshot>).detail;
+			});
+			window.localStorage.setItem(payload.key, payload.encoded);
+		},
+		{ encoded: JSON.stringify(save), key: SAVE_STORAGE_KEY }
+	);
 	await page.goto('/');
 	await expect(page.locator('canvas')).toBeVisible();
 
