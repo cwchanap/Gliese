@@ -1536,8 +1536,17 @@ describe('meadow-entry region integrity', () => {
 
 		const startCol = Math.floor(map.spawn.x / connectivityTileSize);
 		const startRow = Math.floor(map.spawn.y / connectivityTileSize);
-		const seen = new Set<string>([`${startCol},${startRow}`]);
-		const queue: Array<[number, number]> = [[startCol, startRow]];
+		// Only seed the spawn cell once we confirm it is not itself sealed by a
+		// blocker. Seeding unconditionally would mark a blocked spawn reachable
+		// and make the "spawn cell must not be sealed" assertion below a tautology.
+		const seen = new Set<string>();
+		const queue: Array<[number, number]> = [];
+		const startCenterX = startCol * connectivityTileSize + connectivityTileSize / 2;
+		const startCenterY = startRow * connectivityTileSize + connectivityTileSize / 2;
+		if (!isBlocked(startCenterX, startCenterY)) {
+			seen.add(`${startCol},${startRow}`);
+			queue.push([startCol, startRow]);
+		}
 
 		while (queue.length > 0) {
 			const [col, row] = queue.shift()!;
@@ -1612,8 +1621,17 @@ describe('meadow-entry region integrity', () => {
 
 		const startCol = Math.floor(map.spawn.x / connectivityTileSize);
 		const startRow = Math.floor(map.spawn.y / connectivityTileSize);
-		const seen = new Set<string>([`${startCol},${startRow}`]);
-		const queue: Array<[number, number]> = [[startCol, startRow]];
+		// See floodFillReachableCells: only seed the spawn cell when it is not
+		// itself sealed by a solid, otherwise the blocked-spawn assertion below
+		// would pass against a spawn that is actually unwalkable.
+		const seen = new Set<string>();
+		const queue: Array<[number, number]> = [];
+		const startCenterX = startCol * connectivityTileSize + connectivityTileSize / 2;
+		const startCenterY = startRow * connectivityTileSize + connectivityTileSize / 2;
+		if (!isBlocked(startCenterX, startCenterY)) {
+			seen.add(`${startCol},${startRow}`);
+			queue.push([startCol, startRow]);
+		}
 
 		while (queue.length > 0) {
 			const [col, row] = queue.shift()!;
@@ -1693,7 +1711,14 @@ describe('meadow-entry region integrity', () => {
 				point: d,
 				id: d.id
 			})),
-			...(meadowEntryMap.npcs ?? []).map((n) => ({ kind: 'npc', point: n, id: n.id }))
+			...(meadowEntryMap.npcs ?? []).map((n) => ({ kind: 'npc', point: n, id: n.id })),
+			// Ambient NPCs are proximity-interacted just like authored NPCs; a
+			// solid that seals one of these off spawn would otherwise go uncaught.
+			...(meadowEntryMap.ambientNpcs ?? []).map((n) => ({
+				kind: 'ambient-npc',
+				point: n,
+				id: n.id
+			}))
 		];
 		for (const { kind, point, id } of proximityChecks) {
 			expect(
@@ -1893,6 +1918,35 @@ describe('map discoveries', () => {
 			]
 		};
 		expect(() => mergeRegions([duplicate, duplicate])).toThrow(/duplicate id "dup-discovery"/);
+	});
+
+	it('places every discovery outside every encounter aggro radius', () => {
+		// A discovery that sits inside an encounter's aggro radius surfaces its
+		// warning only once the player is already in combat (the wildwood-cave-
+		// danger regression, which used to share a tile with meadow-slime-east).
+		// aggroRadius lives on combatBounds; resolve each encounter to its bound.
+		const encountersById = new Map(
+			(meadowEntryMap.encounters ?? []).map((encounter) => [encounter.id, encounter])
+		);
+		const aggroZones = (meadowEntryMap.combatBounds ?? []).flatMap((bounds) =>
+			bounds.encounterIds.map((id) => {
+				const encounter = encountersById.get(id);
+				return encounter
+					? { id, x: encounter.x, y: encounter.y, radius: bounds.aggroRadius }
+					: null;
+			})
+		);
+
+		for (const discovery of meadowEntryMap.discoveries ?? []) {
+			for (const zone of aggroZones) {
+				if (!zone) continue;
+				const distance = Math.hypot(discovery.x - zone.x, discovery.y - zone.y);
+				expect(
+					distance,
+					`${discovery.id} at (${discovery.x}, ${discovery.y}) is inside the ${zone.radius}px aggro radius of encounter ${zone.id} — the warning would reveal only once combat has already triggered`
+				).toBeGreaterThan(zone.radius);
+			}
+		}
 	});
 });
 

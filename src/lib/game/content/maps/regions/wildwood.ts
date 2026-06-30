@@ -439,8 +439,15 @@ export const wildwoodRegion: RegionFragment = {
 	discoveries: [
 		{
 			id: 'wildwood-cave-danger',
+			// Placed on the sundrop-cave-pocket staging approach (~322px south of
+			// the meadow-slime-east encounter), outside its 240px aggro radius and
+			// south of the whispering-cave landmark. With discoveryRevealRadius
+			// (240) the warning reveals on the climb up before the player crosses
+			// into the combat pocket, instead of surfacing once they are already
+			// in aggro range (the regression when this sat at y=1620 inside the
+			// pocket, ~45px from the slime).
 			x: 5_960,
-			y: 1_620,
+			y: 1_920,
 			revealMarker: true,
 			labelKey: 'content.maps.discoveries.wildwood-cave-danger.label',
 			descriptionKey: 'content.maps.discoveries.wildwood-cave-danger.description'
