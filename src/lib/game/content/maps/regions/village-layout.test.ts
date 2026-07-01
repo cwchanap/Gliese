@@ -1,5 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { meadowEntryMap, type WorldMapDefinition } from '$lib/game/content/maps';
+import { villageDecorRoles } from './decor-roles';
+import { villageCorridors, villageMainRoute, villageRooms } from './rooms';
+import { spawnToCrossroadsRouteScene } from './route-scenes';
 
 type Pt = { x: number; y: number };
 type Rect = { id: string; x: number; y: number; width: number; height: number };
@@ -12,44 +15,6 @@ type Rect = { id: string; x: number; y: number; width: number; height: number };
  * enforce named rooms, off-route side rewards, path-texture-off navigation,
  * and no random decor.
  */
-
-const villageRooms: Array<{ id: string; center: Pt; radius: number }> = [
-	{ id: 'home-yard', center: { x: 700, y: 5_585 }, radius: 260 },
-	{ id: 'well-plaza', center: { x: 1_000, y: 5_160 }, radius: 320 },
-	{ id: 'market-lane', center: { x: 650, y: 5_045 }, radius: 320 },
-	{ id: 'north-residences', center: { x: 1_050, y: 4_860 }, radius: 420 },
-	{ id: 'shrine-garden', center: { x: 1_200, y: 5_660 }, radius: 340 },
-	{ id: 'east-gate', center: { x: 1_660, y: 4_430 }, radius: 260 }
-];
-
-const villageMainRoute: Pt[] = [
-	{ x: 700, y: 5_600 },
-	{ x: 780, y: 5_390 },
-	{ x: 1_000, y: 5_160 },
-	{ x: 1_460, y: 4_900 },
-	{ x: 1_660, y: 4_430 },
-	{ x: 2_120, y: 4_440 }
-];
-
-const villageDecorRoles: Record<string, string> = {
-	'village-plaza-fountain': 'anchor',
-	'village-hanging-lantern': 'plaza-frame',
-	'village-plaza-flowers-west': 'plaza-frame',
-	'village-plaza-flowers-east': 'plaza-frame',
-	'village-market-stall': 'market-identity',
-	'village-market-banner': 'market-threshold',
-	'village-field-scarecrow': 'field-background',
-	'village-blacksmith-topiary': 'dead-end-frame',
-	'village-north-lantern-west': 'north-threshold',
-	'village-north-lantern-east': 'guild-threshold',
-	'village-shrine-offering': 'shrine-symbol',
-	'village-stone-lantern': 'shrine-symbol',
-	'village-shrine-maple': 'hide-reward',
-	'village-gate-arch': 'exit-threshold',
-	'village-gate-lantern-a': 'exit-threshold',
-	'village-gate-lantern-b': 'exit-threshold',
-	'village-corridor-waymarker': 'crossroads-breadcrumb'
-};
 
 /**
  * Shortest distance from `point` to the finite line segment `a`→`b`.
@@ -76,7 +41,7 @@ function pointSegmentDistance(point: Pt, a: Pt, b: Pt): number {
  * @param route - Polyline vertices walked in order.
  * @returns The minimum distance from `point` to any segment of the route.
  */
-function distancePointToPolyline(point: Pt, route: Pt[]): number {
+function distancePointToPolyline(point: Pt, route: readonly Pt[]): number {
 	return route
 		.slice(0, -1)
 		.reduce(
@@ -100,8 +65,105 @@ function distanceToRect(point: Pt, rect: Rect): number {
 	return Math.hypot(dx, dy);
 }
 
+const expectedVillageRoomIds = [
+	'village-home-yard-room',
+	'village-well-plaza-room',
+	'village-market-yard-room',
+	'village-north-residences-room',
+	'village-shrine-garden-room',
+	'village-east-gate-room'
+];
+
+const expectedVillageCorridorIds = [
+	'village-home-to-plaza',
+	'village-plaza-to-market',
+	'village-plaza-to-north-residences',
+	'village-plaza-to-shrine',
+	'village-plaza-to-east-gate',
+	'village-east-gate-to-crossroads-road'
+];
+
+const expectedSpawnToCrossroadsBeatIds = [
+	'home-yard-origin',
+	'well-plaza-choice',
+	'east-gate-threshold',
+	'crossroads-road-breadcrumb'
+];
+
+const expectedVillageDecorRoles = [
+	'anchor',
+	'crossroads-breadcrumb',
+	'dead-end-frame',
+	'exit-threshold',
+	'field-background',
+	'guild-threshold',
+	'hide-reward',
+	'market-identity',
+	'market-threshold',
+	'north-threshold',
+	'plaza-frame',
+	'shrine-symbol'
+];
+
+const removedVillageManifestIds = new Set([
+	'village-lane-west-ring',
+	'village-lane-north-ring',
+	'village-lane-east-ring',
+	'village-lane-south-ring',
+	'village-lane-w-spoke',
+	'village-lane-e-spoke',
+	'village-lane-s-spoke'
+]);
+
+function collectVillageManifestIds(): string[] {
+	return [
+		...villageRooms.map((room) => room.id),
+		...villageCorridors.flatMap((corridor) => [
+			corridor.id,
+			corridor.fromRoomId,
+			corridor.toRoomId
+		]),
+		spawnToCrossroadsRouteScene.id,
+		...spawnToCrossroadsRouteScene.beats.flatMap((beat) => [
+			beat.id,
+			beat.roomId || '',
+			...(beat.boundaryIds || [])
+		]),
+		...Object.keys(villageDecorRoles)
+	].filter((id) => id.length > 0);
+}
+
 describe('village deterministic layout', () => {
 	const map: WorldMapDefinition = meadowEntryMap;
+
+	describe('authoring manifests', () => {
+		it('exports the deterministic HPA-112 room ids', () => {
+			expect(villageRooms.map((room) => room.id)).toEqual(expectedVillageRoomIds);
+		});
+
+		it('exports the deterministic HPA-112 corridor ids', () => {
+			expect(villageCorridors.map((corridor) => corridor.id)).toEqual(expectedVillageCorridorIds);
+		});
+
+		it('exports the spawn-to-crossroads route-scene beats', () => {
+			expect(spawnToCrossroadsRouteScene.id).toBe('spawn-to-crossroads');
+			expect(spawnToCrossroadsRouteScene.beats.map((beat) => beat.id)).toEqual(
+				expectedSpawnToCrossroadsBeatIds
+			);
+		});
+
+		it('keeps decor roles inside the HPA-112 role set', () => {
+			expect([...new Set(Object.values(villageDecorRoles))].sort()).toEqual(
+				expectedVillageDecorRoles
+			);
+		});
+
+		it('does not reference removed micro-hedges or ring-spoke ids', () => {
+			const manifestIds = collectVillageManifestIds();
+			expect(manifestIds.filter((id) => /^(vp|vn|vw|ve|vs)-/.test(id))).toEqual([]);
+			expect(manifestIds.filter((id) => removedVillageManifestIds.has(id))).toEqual([]);
+		});
+	});
 
 	describe('named rooms exist', () => {
 		const groundPatches = map.groundPatches ?? [];
