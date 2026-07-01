@@ -1259,7 +1259,7 @@ describe('opening map content', () => {
 					y: 5_160,
 					width: 500,
 					height: 420,
-					tile: 'plazaStoneTile'
+					tile: 'cobblestoneTile'
 				},
 				{ id: 'village-home-yard', x: 700, y: 5_585, width: 420, height: 180, tile: 'pathTile' },
 				{

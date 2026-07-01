@@ -441,7 +441,7 @@ export const villageRegion: RegionFragment = {
 			y: 5_160,
 			width: 500,
 			height: 420,
-			tile: 'plazaStoneTile'
+			tile: 'cobblestoneTile'
 		},
 
 		// West route: market / blacksmith bend
@@ -487,7 +487,7 @@ export const villageRegion: RegionFragment = {
 			y: 5_040,
 			width: 360,
 			height: 180,
-			tile: 'plazaStoneTile'
+			tile: 'cobblestoneTile'
 		},
 
 		// East gate path
