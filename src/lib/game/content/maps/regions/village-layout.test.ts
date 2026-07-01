@@ -115,6 +115,8 @@ const removedVillageManifestIds = new Set([
 	'village-lane-s-spoke'
 ]);
 
+const removedVillageMicroHedgePrefix = /^(vp|vn|vw|ve|vs)-/;
+
 function collectVillageManifestIds(): string[] {
 	return [
 		...villageRooms.map((room) => room.id),
@@ -160,8 +162,18 @@ describe('village deterministic layout', () => {
 
 		it('does not reference removed micro-hedges or ring-spoke ids', () => {
 			const manifestIds = collectVillageManifestIds();
-			expect(manifestIds.filter((id) => /^(vp|vn|vw|ve|vs)-/.test(id))).toEqual([]);
+			expect(manifestIds.filter((id) => removedVillageMicroHedgePrefix.test(id))).toEqual([]);
 			expect(manifestIds.filter((id) => removedVillageManifestIds.has(id))).toEqual([]);
+		});
+	});
+
+	describe('no old micro-hedges', () => {
+		it('does not use removed technical blocker prefixes in runtime blockers', () => {
+			const removedMicroHedgeBlockers = (map.blockers || [])
+				.map((blocker) => blocker.id)
+				.filter((id) => removedVillageMicroHedgePrefix.test(id));
+
+			expect(removedMicroHedgeBlockers).toEqual([]);
 		});
 	});
 
