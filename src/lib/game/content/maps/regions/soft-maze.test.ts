@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import { meadowEntryMap, type WorldMapDefinition } from '$lib/game/content/maps';
+import {
+	type VillageCorridorId,
+	type VillageRoomId,
+	villageCorridors,
+	villageRooms
+} from './rooms';
 
 type Pt = { x: number; y: number };
 type Rect = { id: string; x: number; y: number; width: number; height: number };
@@ -49,6 +55,27 @@ function rayHitsSolid(
 }
 
 type LaneSegment = { from: Pt; to: Pt };
+type VillageLane = { id: VillageCorridorId; segments: LaneSegment[] };
+type RoomRectSize = { width: number; height: number };
+
+const villageRoomSizes: Record<VillageRoomId, RoomRectSize> = {
+	'village-home-yard-room': { width: 420, height: 180 },
+	'village-well-plaza-room': { width: 440, height: 420 },
+	'village-market-yard-room': { width: 240, height: 300 },
+	'village-north-residences-room': { width: 860, height: 390 },
+	'village-shrine-garden-room': { width: 520, height: 320 },
+	'village-east-gate-room': { width: 520, height: 280 }
+};
+
+const villageSoftMazeCorridorIds: readonly VillageCorridorId[] = [
+	'village-home-to-plaza',
+	'village-plaza-to-market',
+	'village-plaza-to-shrine'
+];
+
+function routeToLaneSegments(route: readonly Pt[]): LaneSegment[] {
+	return route.slice(0, -1).map((from, index) => ({ from, to: route[index + 1] }));
+}
 
 function sampleLaneSet(segments: LaneSegment[]): Array<{ point: Pt; direction: Pt }> {
 	const samples: Array<{ point: Pt; direction: Pt }> = [];
@@ -69,6 +96,15 @@ function sampleLaneSet(segments: LaneSegment[]): Array<{ point: Pt; direction: P
 	return samples;
 }
 
+function samplesOutsideRooms(
+	segments: LaneSegment[],
+	roomBounds: Rect[]
+): Array<{ point: Pt; direction: Pt }> {
+	return sampleLaneSet(segments).filter(
+		({ point }) => !roomBounds.some((room) => pointInRect(point, room))
+	);
+}
+
 function laneWidthViolations(
 	segments: LaneSegment[],
 	roomBounds: Rect[],
@@ -76,8 +112,7 @@ function laneWidthViolations(
 ): Array<{ sample: Pt; side: 'LEFT' | 'RIGHT' }> {
 	const solids = [...collectSolidRects(meadowEntryMap).values()];
 	const violations: Array<{ sample: Pt; side: 'LEFT' | 'RIGHT' }> = [];
-	for (const { point, direction } of sampleLaneSet(segments)) {
-		if (roomBounds.some((room) => pointInRect(point, room))) continue;
+	for (const { point, direction } of samplesOutsideRooms(segments, roomBounds)) {
 		const normal = { x: -direction.y, y: direction.x };
 		const left = rayHitsSolid(point, { x: -normal.x, y: -normal.y }, solids, maxHalfWidth + 32);
 		const right = rayHitsSolid(point, { x: normal.x, y: normal.y }, solids, maxHalfWidth + 32);
@@ -138,27 +173,25 @@ describe('shortcut closure', () => {
 describe('village maze — compact hamlet invariants', () => {
 	// Open rooms where lane-width samples are skipped (the village is a set of
 	// rooms connected by bent lanes, not a hedge-grid).
-	const villageRoomBounds: Rect[] = [
-		{ id: 'village-plaza-room', x: 1_000, y: 5_160, width: 500, height: 420 },
-		{ id: 'village-home-yard', x: 700, y: 5_585, width: 420, height: 180 },
-		{ id: 'village-blacksmith-yard', x: 400, y: 5_280, width: 360, height: 300 },
-		{ id: 'village-north-courtyard', x: 1_120, y: 4_690, width: 620, height: 200 },
-		{ id: 'village-guild-forecourt', x: 1_460, y: 5_040, width: 360, height: 180 },
-		{ id: 'village-shrine-garden', x: 1_200, y: 5_660, width: 520, height: 320 },
-		{ id: 'village-hidden-pocket', x: 1_520, y: 5_620, width: 300, height: 260 },
-		{ id: 'village-gate-road', x: 1_760, y: 4_440, width: 520, height: 120 }
-	];
+	const villageRoomBounds: Rect[] = villageRooms.map((room) => {
+		const size = villageRoomSizes[room.id];
+		return {
+			id: room.id,
+			x: room.center.x,
+			y: room.center.y,
+			width: size.width,
+			height: size.height
+		};
+	});
 
 	// Lanes trace the walkable corridors between rooms. Width checks only apply
 	// to samples OUTSIDE the room bounds above (the narrow connecting lanes).
-	const villageLanes: Array<{ from: Pt; to: Pt }> = [
-		// South lane: home yard → plaza (narrow vertical corridor)
-		{ from: { x: 780, y: 5_490 }, to: { x: 800, y: 5_390 } },
-		// Market lane: plaza → blacksmith yard (bounded by market walls)
-		{ from: { x: 930, y: 5_045 }, to: { x: 650, y: 5_045 } },
-		// Shrine path: plaza → shrine garden (narrow vertical corridor)
-		{ from: { x: 1_100, y: 5_370 }, to: { x: 1_100, y: 5_500 } }
-	];
+	const villageLanes: VillageLane[] = villageCorridors
+		.filter((corridor) => villageSoftMazeCorridorIds.includes(corridor.id))
+		.map((corridor) => ({
+			id: corridor.id,
+			segments: routeToLaneSegments(corridor.route)
+		}));
 
 	// Lane-cap history (recorded here because the realization-notes spec that
 	// originally documented it was removed with the rest of the branch planning
@@ -172,7 +205,16 @@ describe('village maze — compact hamlet invariants', () => {
 	//     non-village corridor cap (320px) on purpose: the village is a hamlet
 	//     of rooms connected by short bent lanes, not a winding corridor.
 	it('keeps village corridor width ≤ 360px outside rooms', () => {
-		const violations = laneWidthViolations(villageLanes, villageRoomBounds, {
+		for (const lane of villageLanes) {
+			const outsideSamples = samplesOutsideRooms(lane.segments, villageRoomBounds);
+			expect(
+				outsideSamples.length,
+				`${lane.id} has no sampled lane points outside room bounds`
+			).toBeGreaterThan(0);
+		}
+
+		const laneSegments = villageLanes.flatMap((lane) => lane.segments);
+		const violations = laneWidthViolations(laneSegments, villageRoomBounds, {
 			maxHalfWidth: 180
 		});
 		expect(violations, JSON.stringify(violations.slice(0, 3))).toEqual([]);
