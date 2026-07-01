@@ -90,6 +90,8 @@ const expectedSpawnToCrossroadsBeatIds = [
 	'crossroads-road-breadcrumb'
 ];
 
+const expectedVillageCacheIds = ['village-market-cache', 'village-shrine-cache'];
+
 const expectedVillageDecorRoles = [
 	'anchor',
 	'crossroads-breadcrumb',
@@ -220,6 +222,10 @@ describe('village deterministic layout', () => {
 
 	describe('side rewards are off the main route', () => {
 		const villageCaches = (map.pickups ?? []).filter((p) => p.id.startsWith('village-'));
+
+		it('uses the authored side-pocket reward ids', () => {
+			expect(villageCaches.map((cache) => cache.id).sort()).toEqual(expectedVillageCacheIds);
+		});
 
 		it.each(villageCaches)('$id is at least 160px from the main route', (cache) => {
 			expect(
