@@ -11,6 +11,40 @@ import { pathsRegion } from '$lib/game/content/maps/regions/paths';
 
 export const openingMapId = 'meadow-entry';
 
+const meadowBoundsRegion: RegionFragment = {
+	blockers: [
+		{ id: 'meadow-north-boundary', x: 3_200, y: 32, width: 6_400, height: 64, kind: 'town-hedge' },
+		{
+			id: 'meadow-south-boundary',
+			x: 3_200,
+			y: 6_368,
+			width: 6_400,
+			height: 64,
+			kind: 'town-hedge'
+		},
+		{ id: 'meadow-west-boundary', x: 32, y: 3_200, width: 64, height: 6_400, kind: 'town-hedge' },
+		{
+			id: 'meadow-east-boundary',
+			x: 6_368,
+			y: 3_200,
+			width: 64,
+			height: 6_400,
+			kind: 'town-hedge'
+		},
+		{ id: 'sundrop-southwest-ocean', x: 114, y: 6_311, width: 100, height: 50, kind: 'ocean' }
+	],
+	groundPatches: [
+		{
+			id: 'sundrop-southwest-ocean-patch',
+			x: 114,
+			y: 6_311,
+			width: 100,
+			height: 50,
+			tile: 'seaTile'
+		}
+	]
+};
+
 type MergedRegions = Required<
 	Pick<
 		RegionFragment,
@@ -87,7 +121,8 @@ const merged = mergeRegions([
 	silverpineRegion,
 	coastRegion,
 	crossroadsRegion,
-	pathsRegion
+	pathsRegion,
+	meadowBoundsRegion
 ]);
 
 export const meadowEntryMap: WorldMapDefinition = addEnglishMapText({
