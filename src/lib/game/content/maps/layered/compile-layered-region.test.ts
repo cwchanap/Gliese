@@ -75,9 +75,9 @@ describe('compileLayeredRegion — dimensions and ground patches', () => {
 		expect(out.groundPatches).toHaveLength(1);
 		const patch = out.groundPatches![0];
 		expect(patch.tile).toBe('pathTile');
-		expect(patch.x).toBe(256 + 0 * 32); // col 0 center
-		expect(patch.y).toBe(4376 + 0 * 32); // row 0 center
-		expect(patch.width).toBe(64); // 2 tiles
+		expect(patch.x).toBe(256 + 0 * 32);
+		expect(patch.y).toBe(4376 + 0 * 32);
+		expect(patch.width).toBe(64);
 		expect(patch.height).toBe(32);
 	});
 
@@ -120,5 +120,68 @@ describe('compileLayeredRegion — dimensions and ground patches', () => {
 		expect(out.groundPatches).toEqual([
 			{ id: expect.any(String), x: 256 + 1 * 32, y: 4376, width: 32, height: 32, tile: 'seaTile' }
 		]);
+	});
+});
+
+describe('compileLayeredRegion — blockers', () => {
+	it('emits a garden-hedge blocker for a # run', () => {
+		const collision = ['##..', '....', '....'];
+		const src = makeSource({
+			width: 4,
+			height: 3,
+			layers: {
+				collision,
+				terrain: Array.from({ length: 3 }, () => dot(4)),
+				paths: Array.from({ length: 3 }, () => dot(4)),
+				decor: Array.from({ length: 3 }, () => dot(4)),
+				regions: Array.from({ length: 3 }, () => dot(4))
+			}
+		});
+		const out = compileLayeredRegion(src);
+		expect(out.blockers).toHaveLength(1);
+		expect(out.blockers![0]).toMatchObject({
+			kind: 'garden-hedge',
+			x: 256,
+			y: 4376,
+			width: 64,
+			height: 32
+		});
+	});
+
+	it('maps B and T to garden-hedge, W to ocean, G to future-gate', () => {
+		const collision = ['B.T.', 'W.G.', '....'];
+		const src = makeSource({
+			width: 4,
+			height: 3,
+			layers: {
+				collision,
+				terrain: Array.from({ length: 3 }, () => dot(4)),
+				paths: Array.from({ length: 3 }, () => dot(4)),
+				decor: Array.from({ length: 3 }, () => dot(4)),
+				regions: Array.from({ length: 3 }, () => dot(4))
+			}
+		});
+		const out = compileLayeredRegion(src);
+		const byKind = new Map(out.blockers!.map((b) => [b.kind, b]));
+		expect(byKind.has('garden-hedge')).toBe(true);
+		expect(byKind.has('ocean')).toBe(true);
+		expect(byKind.has('future-gate')).toBe(true);
+	});
+
+	it('merges adjacent same-kind runs horizontally', () => {
+		const collision = ['##B#', '....', '....'];
+		const src = makeSource({
+			width: 4,
+			height: 3,
+			layers: {
+				collision,
+				terrain: Array.from({ length: 3 }, () => dot(4)),
+				paths: Array.from({ length: 3 }, () => dot(4)),
+				decor: Array.from({ length: 3 }, () => dot(4)),
+				regions: Array.from({ length: 3 }, () => dot(4))
+			}
+		});
+		const out = compileLayeredRegion(src);
+		expect(out.blockers!.filter((b) => b.kind === 'garden-hedge')).toHaveLength(3);
 	});
 });
