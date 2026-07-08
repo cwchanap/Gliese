@@ -185,3 +185,88 @@ describe('compileLayeredRegion — blockers', () => {
 		expect(out.blockers!.filter((b) => b.kind === 'garden-hedge')).toHaveLength(3);
 	});
 });
+
+describe('compileLayeredRegion — mapDecor', () => {
+	it('emits a decor object per decor glyph using the glyph table', () => {
+		const decor = ['l...', '....', '....'];
+		const decorGlyphTable = {
+			l: {
+				frame: 'poleLantern',
+				textureKey: 'village-dressing',
+				renderWidth: 100,
+				renderHeight: 200,
+				collision: { width: 50, height: 60 }
+			}
+		};
+		const src = makeSource({
+			width: 4,
+			height: 3,
+			layers: {
+				decor,
+				terrain: Array.from({ length: 3 }, () => dot(4)),
+				paths: Array.from({ length: 3 }, () => dot(4)),
+				collision: Array.from({ length: 3 }, () => dot(4)),
+				regions: Array.from({ length: 3 }, () => dot(4))
+			},
+			decorGlyphTable
+		});
+		const out = compileLayeredRegion(src);
+		expect(out.mapDecor).toHaveLength(1);
+		const d = out.mapDecor![0];
+		expect(d).toMatchObject({
+			textureKey: 'village-dressing',
+			frameName: 'poleLantern',
+			mode: 'image',
+			width: 100,
+			height: 200
+		});
+		expect(d.x).toBe(256);
+		expect(d.y).toBe(4376);
+		expect(d.collision).toMatchObject({ width: 50, height: 60 });
+	});
+
+	it('throws on an unknown decor glyph', () => {
+		const decor = ['z...', '....', '....'];
+		const src = makeSource({
+			width: 4,
+			height: 3,
+			layers: {
+				decor,
+				terrain: Array.from({ length: 3 }, () => dot(4)),
+				paths: Array.from({ length: 3 }, () => dot(4)),
+				collision: Array.from({ length: 3 }, () => dot(4)),
+				regions: Array.from({ length: 3 }, () => dot(4))
+			},
+			decorGlyphTable: {}
+		});
+		expect(() => compileLayeredRegion(src)).toThrow(/unknown decor glyph/);
+	});
+
+	it('emits depth when the glyph table specifies it', () => {
+		const decor = ['h...', '....', '....'];
+		const decorGlyphTable = {
+			h: {
+				frame: 'hangingLantern',
+				textureKey: 'village-dressing',
+				renderWidth: 110,
+				renderHeight: 130,
+				depth: 'foreground' as const
+			}
+		};
+		const src = makeSource({
+			width: 4,
+			height: 3,
+			layers: {
+				decor,
+				terrain: Array.from({ length: 3 }, () => dot(4)),
+				paths: Array.from({ length: 3 }, () => dot(4)),
+				collision: Array.from({ length: 3 }, () => dot(4)),
+				regions: Array.from({ length: 3 }, () => dot(4))
+			},
+			decorGlyphTable
+		});
+		const out = compileLayeredRegion(src);
+		expect(out.mapDecor![0].depth).toBe('foreground');
+		expect(out.mapDecor![0].collision).toBeUndefined();
+	});
+});
