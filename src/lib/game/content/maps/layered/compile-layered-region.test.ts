@@ -270,3 +270,80 @@ describe('compileLayeredRegion — mapDecor', () => {
 		expect(out.mapDecor![0].collision).toBeUndefined();
 	});
 });
+
+describe('compileLayeredRegion — objects', () => {
+	it('maps landmarks, transitions, pickups, and ambient npcs to world coords', () => {
+		const src = makeSource({
+			width: 4,
+			height: 3,
+			origin: { x: 240, y: 4360 },
+			objects: {
+				landmarks: [
+					{
+						id: 'lm-1',
+						col: 1,
+						row: 1,
+						width: 235,
+						height: 246,
+						labelKey: 'content.maps.landmarks.hero-house-exterior.label'
+					}
+				],
+				transitions: [
+					{
+						id: 't-1',
+						col: 2,
+						row: 0,
+						toMapId: 'hero-house',
+						arrival: { x: 256, y: 224, facing: 'up' }
+					}
+				],
+				pickups: [{ id: 'p-1', col: 0, row: 0, itemId: 'field-potion', quantity: 1 }],
+				ambientNpcs: [{ id: 'a-1', col: 3, row: 2, frameName: 'travelerNpc' }]
+			}
+		});
+		const out = compileLayeredRegion(src);
+		expect(out.landmarks![0]).toMatchObject({
+			id: 'lm-1',
+			x: 256 + 32,
+			y: 4376 + 32,
+			width: 235,
+			height: 246
+		});
+		expect(out.transitions![0]).toMatchObject({
+			id: 't-1',
+			x: 256 + 64,
+			y: 4376,
+			toMapId: 'hero-house'
+		});
+		expect(out.pickups![0]).toMatchObject({
+			id: 'p-1',
+			x: 256,
+			y: 4376,
+			itemId: 'field-potion',
+			quantity: 1
+		});
+		expect(out.ambientNpcs![0]).toMatchObject({
+			id: 'a-1',
+			x: 256 + 96,
+			y: 4376 + 64,
+			frameName: 'travelerNpc'
+		});
+	});
+
+	it('is deterministic across repeated calls', () => {
+		const src = makeSource({
+			width: 4,
+			height: 3,
+			layers: {
+				terrain: Array.from({ length: 3 }, () => dot(4)),
+				paths: ['pp..', 'cc..', '....'],
+				collision: ['##..', '..##', '....'],
+				decor: Array.from({ length: 3 }, () => dot(4)),
+				regions: Array.from({ length: 3 }, () => dot(4))
+			}
+		});
+		const a = JSON.stringify(compileLayeredRegion(src));
+		const b = JSON.stringify(compileLayeredRegion(src));
+		expect(a).toBe(b);
+	});
+});
