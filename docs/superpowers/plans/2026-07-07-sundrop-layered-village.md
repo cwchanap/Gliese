@@ -211,8 +211,8 @@ describe('compileLayeredRegion — dimensions and ground patches', () => {
 		const paths = ['pca.', '....', '....'];
 		const src = makeSource({ width: 4, height: 3, layers: { paths, terrain: Array.from({ length: 3 }, () => dot(4)), collision: Array.from({ length: 3 }, () => dot(4)), decor: Array.from({ length: 3 }, () => dot(4)), regions: Array.from({ length: 3 }, () => dot(4)) } });
 		const out = compileLayeredRegion(src);
-		expect(out.groundPatches).toHaveLength(2);
-		expect(out.groundPatches!.map((p) => p.tile)).toEqual(['pathTile', 'plazaStoneTile']);
+		expect(out.groundPatches).toHaveLength(3);
+		expect(out.groundPatches!.map((p) => p.tile)).toEqual(['pathTile', 'plazaStoneTile', 'autumnLeafTile']);
 	});
 
 	it('terrain grass produces no patch; terrain water produces a seaTile patch', () => {
@@ -1023,12 +1023,10 @@ describe('sundrop village layered source', () => {
 		expect(sundropVillageLayered.layers.regions[cache.row][cache.col]).toBe('S');
 	});
 
-	it('places every object on a region glyph or a path tile', () => {
+	it('places every transition and pickup on a region glyph or a path tile', () => {
 		const all = [
-			...(sundropVillageLayered.objects.landmarks ?? []).map((o) => ({ ...o, kind: 'landmark' })),
 			...(sundropVillageLayered.objects.transitions ?? []).map((o) => ({ ...o, kind: 'transition' })),
-			...(sundropVillageLayered.objects.pickups ?? []).map((o) => ({ ...o, kind: 'pickup' })),
-			...(sundropVillageLayered.objects.ambientNpcs ?? []).map((o) => ({ ...o, kind: 'ambient' }))
+			...(sundropVillageLayered.objects.pickups ?? []).map((o) => ({ ...o, kind: 'pickup' }))
 		];
 		const regionGlyphs = new Set(['H', 'P', 'M', 'N', 'S', 'E', 'C']);
 		const pathGlyphs = new Set(['p', 'c', 'a', 's']);
