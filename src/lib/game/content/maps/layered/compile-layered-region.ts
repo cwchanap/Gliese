@@ -1,6 +1,12 @@
 import type { LayeredRegionSource } from '$lib/game/content/maps/layered/types';
-import type { RegionFragment } from '$lib/game/content/maps/regions/types';
-import type { MapBlocker, MapDecor, MapGroundPatch } from '$lib/game/content/maps/types';
+import type { RegionFragment, RegionLandmark } from '$lib/game/content/maps/regions/types';
+import type {
+	MapAmbientNpc,
+	MapBlocker,
+	MapDecor,
+	MapDiscovery,
+	MapGroundPatch
+} from '$lib/game/content/maps/types';
 
 const PATH_TILE: Record<string, string> = {
 	p: 'pathTile',
@@ -161,9 +167,60 @@ export function compileLayeredRegion(source: LayeredRegionSource): RegionFragmen
 	assertDimensions(source, 'collision', source.layers.collision);
 	assertDimensions(source, 'decor', source.layers.decor);
 	assertDimensions(source, 'regions', source.layers.regions);
+	const objects = source.objects;
+	const landmarks = objects.landmarks?.map((lm) => {
+		const c = tileCenter(source, lm.col, lm.row);
+		return {
+			id: lm.id,
+			x: c.x,
+			y: c.y,
+			width: lm.width,
+			height: lm.height,
+			labelKey: lm.labelKey as RegionLandmark['labelKey']
+		};
+	});
+	const transitions = objects.transitions?.map((t) => {
+		const c = tileCenter(source, t.col, t.row);
+		return {
+			id: t.id,
+			x: c.x,
+			y: c.y,
+			toMapId: t.toMapId,
+			...(t.showMarker !== undefined ? { showMarker: t.showMarker } : {}),
+			...(t.arrival ? { arrival: t.arrival } : {})
+		};
+	});
+	const pickups = objects.pickups?.map((p) => {
+		const c = tileCenter(source, p.col, p.row);
+		return { id: p.id, x: c.x, y: c.y, itemId: p.itemId, quantity: p.quantity };
+	});
+	const ambientNpcs = objects.ambientNpcs?.map((n) => {
+		const c = tileCenter(source, n.col, n.row);
+		return {
+			id: n.id,
+			x: c.x,
+			y: c.y,
+			frameName: n.frameName as MapAmbientNpc['frameName']
+		};
+	});
+	const discoveries = objects.discoveries?.map((d) => {
+		const c = tileCenter(source, d.col, d.row);
+		return {
+			id: d.id,
+			x: c.x,
+			y: c.y,
+			labelKey: d.labelKey as MapDiscovery['labelKey'],
+			descriptionKey: d.descriptionKey as MapDiscovery['descriptionKey']
+		};
+	});
 	return {
 		groundPatches: buildGroundPatches(source),
 		blockers: buildBlockers(source),
-		mapDecor: buildMapDecor(source)
+		mapDecor: buildMapDecor(source),
+		...(landmarks ? { landmarks } : {}),
+		...(transitions ? { transitions } : {}),
+		...(pickups ? { pickups } : {}),
+		...(ambientNpcs ? { ambientNpcs } : {}),
+		...(discoveries ? { discoveries } : {})
 	};
 }
