@@ -1,6 +1,6 @@
 import type { LayeredRegionSource } from '$lib/game/content/maps/layered/types';
 import type { RegionFragment } from '$lib/game/content/maps/regions/types';
-import type { MapGroundPatch } from '$lib/game/content/maps/types';
+import type { MapBlocker, MapGroundPatch } from '$lib/game/content/maps/types';
 
 const PATH_TILE: Record<string, string> = {
 	p: 'pathTile',
@@ -11,6 +11,13 @@ const PATH_TILE: Record<string, string> = {
 const TERRAIN_TILE: Record<string, string> = {
 	g: 'sandTile',
 	w: 'seaTile'
+};
+const COLLISION_KIND: Record<string, string> = {
+	'#': 'garden-hedge',
+	B: 'garden-hedge',
+	T: 'garden-hedge',
+	W: 'ocean',
+	G: 'future-gate'
 };
 
 function assertDimensions(
@@ -83,9 +90,38 @@ function buildGroundPatches(source: LayeredRegionSource): MapGroundPatch[] {
 	return patches;
 }
 
+function buildBlockers(source: LayeredRegionSource): MapBlocker[] {
+	const blockers: MapBlocker[] = [];
+	for (let row = 0; row < source.height; row++) {
+		const line = source.layers.collision[row];
+		let runStart = -1;
+		let runGlyph = '';
+		for (let col = 0; col <= line.length; col++) {
+			const glyph = col < line.length ? line[col] : '.';
+			const kind = COLLISION_KIND[glyph] ?? '';
+			if (kind !== '' && glyph === runGlyph) continue;
+			if (runStart >= 0) {
+				const start = tileCenter(source, runStart, row);
+				const end = tileCenter(source, col - 1, row);
+				blockers.push({
+					id: `block-${row}-${runStart}`,
+					x: start.x,
+					y: start.y,
+					width: end.x - start.x + source.tileSize,
+					height: source.tileSize,
+					kind: (COLLISION_KIND[runGlyph] ?? '') as MapBlocker['kind']
+				});
+			}
+			runStart = kind !== '' ? col : -1;
+			runGlyph = kind !== '' ? glyph : '';
+		}
+	}
+	return blockers;
+}
+
 export function compileLayeredRegion(source: LayeredRegionSource): RegionFragment {
 	assertDimensions(source, 'collision', source.layers.collision);
 	assertDimensions(source, 'decor', source.layers.decor);
 	assertDimensions(source, 'regions', source.layers.regions);
-	return { groundPatches: buildGroundPatches(source) };
+	return { groundPatches: buildGroundPatches(source), blockers: buildBlockers(source) };
 }
