@@ -1,6 +1,6 @@
 import type { LayeredRegionSource } from '$lib/game/content/maps/layered/types';
 import type { RegionFragment } from '$lib/game/content/maps/regions/types';
-import type { MapBlocker, MapGroundPatch } from '$lib/game/content/maps/types';
+import type { MapBlocker, MapDecor, MapGroundPatch } from '$lib/game/content/maps/types';
 
 const PATH_TILE: Record<string, string> = {
 	p: 'pathTile',
@@ -119,9 +119,51 @@ function buildBlockers(source: LayeredRegionSource): MapBlocker[] {
 	return blockers;
 }
 
+function buildMapDecor(source: LayeredRegionSource): MapDecor[] {
+	const decor: MapDecor[] = [];
+	for (let row = 0; row < source.height; row++) {
+		const line = source.layers.decor[row];
+		for (let col = 0; col < line.length; col++) {
+			const glyph = line[col];
+			if (glyph === '.') continue;
+			const spec = source.decorGlyphTable[glyph];
+			if (!spec) throw new Error(`unknown decor glyph "${glyph}" at col ${col} row ${row}`);
+			const center = tileCenter(source, col, row);
+			const base: MapDecor = {
+				id: `decor-${row}-${col}`,
+				textureKey: spec.textureKey as MapDecor['textureKey'],
+				frameName: spec.frame as MapDecor['frameName'],
+				x: center.x,
+				y: center.y,
+				width: spec.renderWidth,
+				height: spec.renderHeight,
+				mode: 'image',
+				...(spec.depth ? { depth: spec.depth } : {}),
+				...(spec.collision
+					? {
+							collision: {
+								id: `decor-${row}-${col}-collision`,
+								x: center.x,
+								y: center.y + spec.renderHeight / 2 - spec.collision.height / 2,
+								width: spec.collision.width,
+								height: spec.collision.height
+							}
+						}
+					: {})
+			} as MapDecor;
+			decor.push(base);
+		}
+	}
+	return decor;
+}
+
 export function compileLayeredRegion(source: LayeredRegionSource): RegionFragment {
 	assertDimensions(source, 'collision', source.layers.collision);
 	assertDimensions(source, 'decor', source.layers.decor);
 	assertDimensions(source, 'regions', source.layers.regions);
-	return { groundPatches: buildGroundPatches(source), blockers: buildBlockers(source) };
+	return {
+		groundPatches: buildGroundPatches(source),
+		blockers: buildBlockers(source),
+		mapDecor: buildMapDecor(source)
+	};
 }
