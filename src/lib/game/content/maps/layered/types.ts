@@ -1,4 +1,4 @@
-import type { MapDecorDepth } from '$lib/game/content/maps/types';
+import type { MapDecor, MapDecorDepth } from '$lib/game/content/maps/types';
 
 export interface DecorGlyphSpec<K extends string = string, F extends string = string> {
 	readonly frame: F;
@@ -54,7 +54,10 @@ export interface LayeredDiscovery {
 	readonly descriptionKey: string;
 }
 
-export interface LayeredRegionSource {
+export interface LayeredRegionSource<
+	K extends MapDecor['textureKey'] = MapDecor['textureKey'],
+	F extends MapDecor['frameName'] = MapDecor['frameName']
+> {
 	readonly idPrefix: string;
 	readonly tileSize: 32;
 	readonly origin: { readonly x: number; readonly y: number };
@@ -67,7 +70,7 @@ export interface LayeredRegionSource {
 		readonly decor: readonly string[];
 		readonly regions: readonly string[];
 	};
-	readonly decorGlyphTable: Record<string, DecorGlyphSpec>;
+	readonly decorGlyphTable: Record<string, DecorGlyphSpec<K, F>>;
 	readonly objects: {
 		readonly landmarks?: readonly LayeredLandmark[];
 		readonly transitions?: readonly LayeredTransition[];

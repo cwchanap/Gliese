@@ -201,7 +201,10 @@ describe('sundrop village layered source', () => {
 
 	it('village.ts has no hand-authored blockers/groundPatches/mapDecor literals', () => {
 		const villageSourcePath = fileURLToPath(new URL('./village.ts', import.meta.url));
-		const source = readFileSync(villageSourcePath, 'utf8');
+		const raw = readFileSync(villageSourcePath, 'utf8');
+		// Strip // line comments so words like "blockers:" in a comment don't
+		// trip the guard — we only care about actual object-literal keys.
+		const source = raw.replace(/\/\/.*$/gm, '');
 		expect(source, 'village.ts must compile from the layered source').not.toMatch(/\bblockers\s*:/);
 		expect(source).not.toMatch(/\bgroundPatches\s*:/);
 		expect(source).not.toMatch(/\bmapDecor\s*:/);

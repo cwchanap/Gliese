@@ -137,9 +137,9 @@ describe('shortcut closure', () => {
 
 describe('village maze — compact hamlet invariants', () => {
 	// Open rooms where lane-width samples are skipped (the village is a set of
-	// rooms connected by bent lanes, not a hedge-grid). Bounds are derived from
-	// the region glyph extents in village-layered.ts so they track the compiled
-	// layout, not hand-authored pixel rects.
+	// rooms connected by bent lanes, not a hedge-grid). Bounds were derived from
+	// the region glyph extents in village-layered.ts but are hardcoded here as
+	// literals — update them manually if the village layout changes.
 	const villageRoomBounds: Rect[] = [
 		{ id: 'village-plaza', x: 1_088, y: 5_192, width: 416, height: 256 },
 		{ id: 'village-home-yard', x: 672, y: 5_624, width: 480, height: 224 },

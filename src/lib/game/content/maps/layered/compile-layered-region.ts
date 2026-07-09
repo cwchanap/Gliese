@@ -178,7 +178,9 @@ function mergeBlockersVertically(blockers: MapBlocker[]): MapBlocker[] {
 	return merged;
 }
 
-function buildMapDecor(source: LayeredRegionSource): MapDecor[] {
+function buildMapDecor<K extends MapDecor['textureKey'], F extends MapDecor['frameName']>(
+	source: LayeredRegionSource<K, F>
+): MapDecor[] {
 	const decor: MapDecor[] = [];
 	for (let row = 0; row < source.height; row++) {
 		const line = source.layers.decor[row];
@@ -187,11 +189,17 @@ function buildMapDecor(source: LayeredRegionSource): MapDecor[] {
 			if (glyph === '.') continue;
 			const spec = source.decorGlyphTable[glyph];
 			if (!spec) throw new Error(`unknown decor glyph "${glyph}" at col ${col} row ${row}`);
+			const collisionGlyph = source.layers.collision[row][col];
+			if (collisionGlyph !== '.') {
+				throw new Error(
+					`decor glyph "${glyph}" at col ${col} row ${row} sits on collision glyph "${collisionGlyph}" — decor must not overlap a wall`
+				);
+			}
 			const center = tileCenter(source, col, row);
 			const base: MapDecor = {
 				id: `${source.idPrefix}-decor-${row}-${col}`,
-				textureKey: spec.textureKey as MapDecor['textureKey'],
-				frameName: spec.frame as MapDecor['frameName'],
+				textureKey: spec.textureKey,
+				frameName: spec.frame,
 				x: center.x,
 				y: center.y,
 				width: spec.renderWidth,
@@ -216,7 +224,10 @@ function buildMapDecor(source: LayeredRegionSource): MapDecor[] {
 	return decor;
 }
 
-export function compileLayeredRegion(source: LayeredRegionSource): RegionFragment {
+export function compileLayeredRegion<
+	K extends MapDecor['textureKey'],
+	F extends MapDecor['frameName']
+>(source: LayeredRegionSource<K, F>): RegionFragment {
 	assertDimensions(source, 'collision', source.layers.collision);
 	assertDimensions(source, 'decor', source.layers.decor);
 	assertDimensions(source, 'regions', source.layers.regions);
