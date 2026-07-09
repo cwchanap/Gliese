@@ -82,7 +82,7 @@ function buildGroundPatches(source: LayeredRegionSource): MapGroundPatch[] {
 				const end = tileCenter(source, col - 1, row);
 				patches.push({
 					id: `ground-${row}-${runStart}`,
-					x: start.x,
+					x: (start.x + end.x) / 2,
 					y: start.y,
 					width: end.x - start.x + source.tileSize,
 					height: source.tileSize,
@@ -111,7 +111,7 @@ function buildBlockers(source: LayeredRegionSource): MapBlocker[] {
 				const end = tileCenter(source, col - 1, row);
 				blockers.push({
 					id: `block-${row}-${runStart}`,
-					x: start.x,
+					x: (start.x + end.x) / 2,
 					y: start.y,
 					width: end.x - start.x + source.tileSize,
 					height: source.tileSize,

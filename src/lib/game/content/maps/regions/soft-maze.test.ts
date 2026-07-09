@@ -137,27 +137,28 @@ describe('shortcut closure', () => {
 
 describe('village maze — compact hamlet invariants', () => {
 	// Open rooms where lane-width samples are skipped (the village is a set of
-	// rooms connected by bent lanes, not a hedge-grid).
+	// rooms connected by bent lanes, not a hedge-grid). Bounds are derived from
+	// the region glyph extents in village-layered.ts so they track the compiled
+	// layout, not hand-authored pixel rects.
 	const villageRoomBounds: Rect[] = [
-		{ id: 'village-plaza-room', x: 1_000, y: 5_160, width: 500, height: 420 },
-		{ id: 'village-home-yard', x: 700, y: 5_585, width: 420, height: 180 },
-		{ id: 'village-blacksmith-yard', x: 400, y: 5_280, width: 360, height: 300 },
-		{ id: 'village-north-courtyard', x: 1_120, y: 4_690, width: 620, height: 200 },
-		{ id: 'village-guild-forecourt', x: 1_460, y: 5_040, width: 360, height: 180 },
-		{ id: 'village-shrine-garden', x: 1_200, y: 5_660, width: 520, height: 320 },
-		{ id: 'village-hidden-pocket', x: 1_520, y: 5_620, width: 300, height: 260 },
-		{ id: 'village-gate-road', x: 1_760, y: 4_440, width: 520, height: 120 }
+		{ id: 'village-plaza', x: 1_088, y: 5_192, width: 416, height: 256 },
+		{ id: 'village-home-yard', x: 672, y: 5_624, width: 480, height: 224 },
+		{ id: 'village-market', x: 640, y: 5_224, width: 480, height: 320 },
+		{ id: 'village-north', x: 1_184, y: 4_744, width: 736, height: 256 },
+		{ id: 'village-shrine', x: 1_264, y: 5_608, width: 640, height: 320 },
+		{ id: 'village-gate', x: 1_728, y: 4_472, width: 160, height: 96 },
+		{ id: 'village-gate-approach', x: 1_664, y: 4_584, width: 288, height: 128 }
 	];
 
 	// Lanes trace the walkable corridors between rooms. Width checks only apply
 	// to samples OUTSIDE the room bounds above (the narrow connecting lanes).
 	const villageLanes: Array<{ from: Pt; to: Pt }> = [
-		// South lane: home yard → plaza (narrow vertical corridor)
-		{ from: { x: 780, y: 5_490 }, to: { x: 800, y: 5_390 } },
-		// Market lane: plaza → blacksmith yard (bounded by market walls)
-		{ from: { x: 930, y: 5_045 }, to: { x: 650, y: 5_045 } },
-		// Shrine path: plaza → shrine garden (narrow vertical corridor)
-		{ from: { x: 1_100, y: 5_370 }, to: { x: 1_100, y: 5_500 } }
+		// South lane: home yard → plaza (narrow vertical corridor bounded by hedges)
+		{ from: { x: 736, y: 5_490 }, to: { x: 736, y: 5_300 } },
+		// Market lane: plaza → market yard (bounded by market walls)
+		{ from: { x: 928, y: 5_300 }, to: { x: 640, y: 5_300 } },
+		// Plaza north passage: plaza → north residences
+		{ from: { x: 1_088, y: 5_300 }, to: { x: 1_088, y: 5_060 } }
 	];
 
 	// Lane-cap history (recorded here because the realization-notes spec that
@@ -183,8 +184,9 @@ describe('village maze — compact hamlet invariants', () => {
 		const transitions = (meadowEntryMap.transitions ?? []).filter(
 			(t) => t.x >= 200 && t.x <= 1_800 && t.y >= 4_400 && t.y <= 5_800
 		);
-		// Start from NE plaza corner — clear of the sundrop-well solid at plaza center.
-		const start = { x: 1_140, y: 5_000 };
+		// Start from the plaza interior — clear of the sundrop-well solid at
+		// plaza center and clear of the compiled hedge walls.
+		const start = { x: 1_088, y: 5_080 };
 		const inVillage = (p: Pt) => p.x >= 240 && p.x <= 1_880 && p.y >= 4_400 && p.y <= 5_860;
 		for (const t of transitions) {
 			const visited = new Set<string>();

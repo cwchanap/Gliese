@@ -1,3 +1,6 @@
+import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
+
 import { describe, expect, it } from 'vitest';
 import { sundropVillageLayered } from '$lib/game/content/maps/regions/village-layered';
 import { compileLayeredRegion } from '$lib/game/content/maps/layered/compile-layered-region';
@@ -119,5 +122,13 @@ describe('sundrop village layered source', () => {
 		const a = JSON.stringify(compileLayeredRegion(sundropVillageLayered));
 		const b = JSON.stringify(compileLayeredRegion(sundropVillageLayered));
 		expect(a).toBe(b);
+	});
+
+	it('village.ts has no hand-authored blockers/groundPatches/mapDecor literals', () => {
+		const villageSourcePath = fileURLToPath(new URL('./village.ts', import.meta.url));
+		const source = readFileSync(villageSourcePath, 'utf8');
+		expect(source, 'village.ts must compile from the layered source').not.toMatch(/\bblockers\s*:/);
+		expect(source).not.toMatch(/\bgroundPatches\s*:/);
+		expect(source).not.toMatch(/\bmapDecor\s*:/);
 	});
 });
