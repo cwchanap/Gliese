@@ -97,13 +97,17 @@ describe('sundrop village layered source', () => {
 		expect(sundropVillageLayered.layers.regions[cache.row][cache.col]).toBe('S');
 	});
 
-	it('places every transition and pickup on a region glyph or a path tile', () => {
+	it('places every transition, pickup, and ambient npc on a region glyph or a path tile', () => {
 		const all = [
 			...(sundropVillageLayered.objects.transitions ?? []).map((o) => ({
 				...o,
 				kind: 'transition'
 			})),
-			...(sundropVillageLayered.objects.pickups ?? []).map((o) => ({ ...o, kind: 'pickup' }))
+			...(sundropVillageLayered.objects.pickups ?? []).map((o) => ({ ...o, kind: 'pickup' })),
+			...(sundropVillageLayered.objects.ambientNpcs ?? []).map((o) => ({
+				...o,
+				kind: 'ambient'
+			}))
 		];
 		const regionGlyphs = new Set(['H', 'P', 'M', 'N', 'S', 'E', 'C']);
 		const pathGlyphs = new Set(['p', 'c', 'a', 's']);
@@ -130,5 +134,9 @@ describe('sundrop village layered source', () => {
 		expect(source, 'village.ts must compile from the layered source').not.toMatch(/\bblockers\s*:/);
 		expect(source).not.toMatch(/\bgroundPatches\s*:/);
 		expect(source).not.toMatch(/\bmapDecor\s*:/);
+		expect(source).not.toMatch(/\blandmarks\s*:/);
+		expect(source).not.toMatch(/\btransitions\s*:/);
+		expect(source).not.toMatch(/\bpickups\s*:/);
+		expect(source).not.toMatch(/\bambientNpcs\s*:/);
 	});
 });

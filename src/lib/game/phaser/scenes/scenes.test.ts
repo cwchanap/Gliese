@@ -2266,12 +2266,6 @@ describe('WorldScene', () => {
 			color: '#f8fafc',
 			fontSize: '12px'
 		});
-		expect(scene.add.image).not.toHaveBeenCalledWith(700, 5_555, 'starter-pack', 'doorwayTile');
-		expect(scene.add.image).not.toHaveBeenCalledWith(1_460, 5_040, 'starter-pack', 'doorwayTile');
-		expect(scene.add.image).not.toHaveBeenCalledWith(520, 5_080, 'starter-pack', 'doorwayTile');
-		expect(scene.add.image).not.toHaveBeenCalledWith(870, 4_825, 'starter-pack', 'doorwayTile');
-		expect(scene.add.image).not.toHaveBeenCalledWith(1_180, 4_795, 'starter-pack', 'doorwayTile');
-		expect(scene.add.image).not.toHaveBeenCalledWith(1_520, 5_548, 'starter-pack', 'doorwayTile');
 		expect(
 			phaserState.imageMarkers.filter((marker) => marker.frame === 'doorwayTile')
 		).toHaveLength(0);
