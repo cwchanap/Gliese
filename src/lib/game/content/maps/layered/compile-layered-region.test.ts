@@ -168,7 +168,7 @@ describe('compileLayeredRegion — blockers', () => {
 		expect(byKind.has('future-gate')).toBe(true);
 	});
 
-	it('merges adjacent same-kind runs horizontally', () => {
+	it('merges adjacent same-glyph runs horizontally', () => {
 		const collision = ['##B#', '....', '....'];
 		const src = makeSource({
 			width: 4,

@@ -1,8 +1,8 @@
 import type { MapDecorDepth } from '$lib/game/content/maps/types';
 
-export interface DecorGlyphSpec {
-	readonly frame: string;
-	readonly textureKey: string;
+export interface DecorGlyphSpec<K extends string = string, F extends string = string> {
+	readonly frame: F;
+	readonly textureKey: K;
 	readonly renderWidth: number;
 	readonly renderHeight: number;
 	readonly depth?: MapDecorDepth;

@@ -3,22 +3,24 @@ import type { RegionFragment, RegionLandmark } from '$lib/game/content/maps/regi
 import type {
 	MapAmbientNpc,
 	MapBlocker,
+	MapBlockerKind,
 	MapDecor,
 	MapDiscovery,
-	MapGroundPatch
+	MapGroundPatch,
+	MapGroundTile
 } from '$lib/game/content/maps/types';
 
-const PATH_TILE: Record<string, string> = {
+const PATH_TILE: Partial<Record<string, MapGroundTile>> = {
 	p: 'pathTile',
 	c: 'plazaStoneTile',
 	a: 'autumnLeafTile',
 	s: 'seaTile'
 };
-const TERRAIN_TILE: Record<string, string> = {
+const TERRAIN_TILE: Partial<Record<string, MapGroundTile>> = {
 	g: 'sandTile',
 	w: 'seaTile'
 };
-const COLLISION_KIND: Record<string, string> = {
+const COLLISION_KIND: Partial<Record<string, MapBlockerKind>> = {
 	'#': 'garden-hedge',
 	B: 'garden-hedge',
 	T: 'garden-hedge',
@@ -57,7 +59,7 @@ function tileCenter(
 function buildGroundPatches(source: LayeredRegionSource): MapGroundPatch[] {
 	assertDimensions(source, 'terrain', source.layers.terrain);
 	assertDimensions(source, 'paths', source.layers.paths);
-	const cellTile: string[] = new Array(source.width * source.height).fill('');
+	const cellTile: (MapGroundTile | '')[] = new Array(source.width * source.height).fill('');
 	for (let row = 0; row < source.height; row++) {
 		for (let col = 0; col < source.width; col++) {
 			const t = TERRAIN_TILE[source.layers.terrain[row][col]];
@@ -73,11 +75,11 @@ function buildGroundPatches(source: LayeredRegionSource): MapGroundPatch[] {
 	const patches: MapGroundPatch[] = [];
 	for (let row = 0; row < source.height; row++) {
 		let runStart = -1;
-		let runTile = '';
+		let runTile: MapGroundTile | '' = '';
 		for (let col = 0; col <= source.width; col++) {
 			const tile = col < source.width ? cellTile[row * source.width + col] : '';
 			if (tile !== '' && tile === runTile) continue;
-			if (runStart >= 0) {
+			if (runStart >= 0 && runTile) {
 				const start = tileCenter(source, runStart, row);
 				const end = tileCenter(source, col - 1, row);
 				patches.push({
@@ -86,7 +88,7 @@ function buildGroundPatches(source: LayeredRegionSource): MapGroundPatch[] {
 					y: start.y,
 					width: end.x - start.x + source.tileSize,
 					height: source.tileSize,
-					tile: runTile as MapGroundPatch['tile']
+					tile: runTile
 				});
 			}
 			runStart = tile !== '' ? col : -1;
@@ -102,6 +104,7 @@ function buildBlockers(source: LayeredRegionSource): MapBlocker[] {
 		const line = source.layers.collision[row];
 		let runStart = -1;
 		let runGlyph = '';
+		let runKind: MapBlockerKind | '' = '';
 		for (let col = 0; col <= line.length; col++) {
 			const glyph = col < line.length ? line[col] : '.';
 			if (glyph !== '.' && !(glyph in COLLISION_KIND)) {
@@ -109,7 +112,7 @@ function buildBlockers(source: LayeredRegionSource): MapBlocker[] {
 			}
 			const kind = COLLISION_KIND[glyph] ?? '';
 			if (kind !== '' && glyph === runGlyph) continue;
-			if (runStart >= 0) {
+			if (runStart >= 0 && runKind) {
 				const start = tileCenter(source, runStart, row);
 				const end = tileCenter(source, col - 1, row);
 				blockers.push({
@@ -118,11 +121,12 @@ function buildBlockers(source: LayeredRegionSource): MapBlocker[] {
 					y: start.y,
 					width: end.x - start.x + source.tileSize,
 					height: source.tileSize,
-					kind: (COLLISION_KIND[runGlyph] ?? '') as MapBlocker['kind']
+					kind: runKind
 				});
 			}
 			runStart = kind !== '' ? col : -1;
 			runGlyph = kind !== '' ? glyph : '';
+			runKind = kind;
 		}
 	}
 	return blockers;

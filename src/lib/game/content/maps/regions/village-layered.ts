@@ -1,5 +1,88 @@
-import { villageDressingAsset } from '$lib/game/content/assets';
-import type { LayeredRegionSource } from '$lib/game/content/maps/layered/types';
+import { villageDressingAsset, type VillageDressingFrameName } from '$lib/game/content/assets';
+import type { DecorGlyphSpec, LayeredRegionSource } from '$lib/game/content/maps/layered/types';
+
+const villageDecorGlyphTable: Record<
+	string,
+	DecorGlyphSpec<(typeof villageDressingAsset)['key'], VillageDressingFrameName>
+> = {
+	f: {
+		frame: 'flowerBed',
+		textureKey: villageDressingAsset.key,
+		renderWidth: 150,
+		renderHeight: 120
+	},
+	m: {
+		frame: 'marketStall',
+		textureKey: villageDressingAsset.key,
+		renderWidth: 240,
+		renderHeight: 190
+	},
+	b: {
+		frame: 'festivalBanner',
+		textureKey: villageDressingAsset.key,
+		renderWidth: 160,
+		renderHeight: 220
+	},
+	s: {
+		frame: 'scarecrow',
+		textureKey: villageDressingAsset.key,
+		renderWidth: 120,
+		renderHeight: 170
+	},
+	D: {
+		frame: 'hedgeTopiary',
+		textureKey: villageDressingAsset.key,
+		renderWidth: 120,
+		renderHeight: 140
+	},
+	F: {
+		frame: 'fountain',
+		textureKey: villageDressingAsset.key,
+		renderWidth: 180,
+		renderHeight: 150
+	},
+	A: {
+		frame: 'gateArch',
+		textureKey: villageDressingAsset.key,
+		renderWidth: 220,
+		renderHeight: 200
+	},
+	l: {
+		frame: 'poleLantern',
+		textureKey: villageDressingAsset.key,
+		renderWidth: 100,
+		renderHeight: 200,
+		collision: { width: 50, height: 60 }
+	},
+	h: {
+		frame: 'hangingLantern',
+		textureKey: villageDressingAsset.key,
+		renderWidth: 110,
+		renderHeight: 130,
+		depth: 'foreground'
+	},
+	o: {
+		frame: 'offeringStand',
+		textureKey: villageDressingAsset.key,
+		renderWidth: 180,
+		renderHeight: 180,
+		collision: { width: 80, height: 60 }
+	},
+	t: {
+		frame: 'stoneLantern',
+		textureKey: villageDressingAsset.key,
+		renderWidth: 180,
+		renderHeight: 180,
+		collision: { width: 80, height: 60 }
+	},
+	M: {
+		frame: 'autumnMaple',
+		textureKey: villageDressingAsset.key,
+		renderWidth: 220,
+		renderHeight: 280,
+		collision: { width: 70, height: 70 }
+	}
+};
 
 export const sundropVillageLayered: LayeredRegionSource = {
 	tileSize: 32,
@@ -239,7 +322,7 @@ export const sundropVillageLayered: LayeredRegionSource = {
 			'......MMMMMMMMMMMMMMPPPPPPPPPPPPP.......................',
 			'......MMMMMMMMMMMMMMPPPPPPPPPPPPP.......................',
 			'........................................................',
-			'.....M..................................................',
+			'........................................................',
 			'........................................................',
 			'........................................................',
 			'......................SSSSSSSSSSSSSSSSSSS...............',
@@ -258,85 +341,7 @@ export const sundropVillageLayered: LayeredRegionSource = {
 			'........................................................'
 		]
 	},
-	decorGlyphTable: {
-		f: {
-			frame: 'flowerBed',
-			textureKey: villageDressingAsset.key,
-			renderWidth: 150,
-			renderHeight: 120
-		},
-		m: {
-			frame: 'marketStall',
-			textureKey: villageDressingAsset.key,
-			renderWidth: 240,
-			renderHeight: 190
-		},
-		b: {
-			frame: 'festivalBanner',
-			textureKey: villageDressingAsset.key,
-			renderWidth: 160,
-			renderHeight: 220
-		},
-		s: {
-			frame: 'scarecrow',
-			textureKey: villageDressingAsset.key,
-			renderWidth: 120,
-			renderHeight: 170
-		},
-		D: {
-			frame: 'hedgeTopiary',
-			textureKey: villageDressingAsset.key,
-			renderWidth: 120,
-			renderHeight: 140
-		},
-		F: {
-			frame: 'fountain',
-			textureKey: villageDressingAsset.key,
-			renderWidth: 180,
-			renderHeight: 150
-		},
-		A: {
-			frame: 'gateArch',
-			textureKey: villageDressingAsset.key,
-			renderWidth: 220,
-			renderHeight: 200
-		},
-		l: {
-			frame: 'poleLantern',
-			textureKey: villageDressingAsset.key,
-			renderWidth: 100,
-			renderHeight: 200,
-			collision: { width: 50, height: 60 }
-		},
-		h: {
-			frame: 'hangingLantern',
-			textureKey: villageDressingAsset.key,
-			renderWidth: 110,
-			renderHeight: 130,
-			depth: 'foreground'
-		},
-		o: {
-			frame: 'offeringStand',
-			textureKey: villageDressingAsset.key,
-			renderWidth: 180,
-			renderHeight: 180,
-			collision: { width: 80, height: 60 }
-		},
-		t: {
-			frame: 'stoneLantern',
-			textureKey: villageDressingAsset.key,
-			renderWidth: 180,
-			renderHeight: 180,
-			collision: { width: 80, height: 60 }
-		},
-		M: {
-			frame: 'autumnMaple',
-			textureKey: villageDressingAsset.key,
-			renderWidth: 220,
-			renderHeight: 280,
-			collision: { width: 70, height: 70 }
-		}
-	},
+	decorGlyphTable: villageDecorGlyphTable,
 	objects: {
 		landmarks: [
 			{
