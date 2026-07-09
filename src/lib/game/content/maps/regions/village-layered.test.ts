@@ -54,6 +54,77 @@ function firstGlyphCell(glyph: string, layer: 'regions'): { col: number; row: nu
 	throw new Error(`glyph ${glyph} not found in ${layer}`);
 }
 
+// --- Ported invariants from village-layout.test.ts (spec §5 Gap D) ---
+
+const MAIN_ROUTE_REGIONS = new Set(['H', 'P', 'N', 'E', 'C']);
+
+function mainRoutePathTiles(src = sundropVillageLayered): Set<string> {
+	const walkable = walkableCells(src);
+	const tiles = new Set<string>();
+	for (let row = 0; row < src.height; row++) {
+		for (let col = 0; col < src.width; col++) {
+			const region = src.layers.regions[row][col];
+			const path = src.layers.paths[row][col];
+			if (MAIN_ROUTE_REGIONS.has(region) && path !== '.' && walkable.has(`${col}:${row}`)) {
+				tiles.add(`${col}:${row}`);
+			}
+		}
+	}
+	return tiles;
+}
+
+function bfsDistanceToNearest(start: string, walkable: Set<string>, targets: Set<string>): number {
+	if (targets.has(start)) return 0;
+	const seen = new Set<string>([start]);
+	const queue: Array<{ cell: string; dist: number }> = [{ cell: start, dist: 0 }];
+	while (queue.length) {
+		const { cell, dist } = queue.shift()!;
+		const [colStr, rowStr] = cell.split(':');
+		const col = Number(colStr);
+		const row = Number(rowStr);
+		for (const [dc, dr] of [
+			[1, 0],
+			[-1, 0],
+			[0, 1],
+			[0, -1]
+		]) {
+			const next = `${col + dc}:${row + dr}`;
+			if (!walkable.has(next) || seen.has(next)) continue;
+			seen.add(next);
+			if (targets.has(next)) return dist + 1;
+			queue.push({ cell: next, dist: dist + 1 });
+		}
+	}
+	return Number.POSITIVE_INFINITY;
+}
+
+function nearestCollisionDistance(col: number, row: number, src = sundropVillageLayered): number {
+	let best = Number.POSITIVE_INFINITY;
+	for (let r = 0; r < src.height; r++) {
+		const line = src.layers.collision[r];
+		for (let c = 0; c < src.width; c++) {
+			if (line[c] !== '.') {
+				const dist = Math.max(Math.abs(c - col), Math.abs(r - row));
+				if (dist < best) best = dist;
+			}
+		}
+	}
+	return best;
+}
+
+function nearestLandmarkDistance(col: number, row: number, src = sundropVillageLayered): number {
+	let best = Number.POSITIVE_INFINITY;
+	for (const lm of src.objects.landmarks ?? []) {
+		const halfW = lm.width / 2 / src.tileSize;
+		const halfH = lm.height / 2 / src.tileSize;
+		const dx = Math.max(Math.abs(col - lm.col) - halfW, 0);
+		const dy = Math.max(Math.abs(row - lm.row) - halfH, 0);
+		const dist = Math.max(dx, dy);
+		if (dist < best) best = dist;
+	}
+	return best;
+}
+
 describe('sundrop village layered source', () => {
 	it('every layer has exactly width × height cells', () => {
 		for (const [name, rows] of Object.entries(sundropVillageLayered.layers)) {
@@ -138,5 +209,41 @@ describe('sundrop village layered source', () => {
 		expect(source).not.toMatch(/\btransitions\s*:/);
 		expect(source).not.toMatch(/\bpickups\s*:/);
 		expect(source).not.toMatch(/\bambientNpcs\s*:/);
+	});
+
+	// Ported from village-layout.test.ts — spec §5 Gap D requires these two
+	// durable invariants be re-expressed in grid terms and asserted here.
+
+	it('keeps village caches off the main route (walkable distance ≥ 5 tiles)', () => {
+		const walkable = walkableCells();
+		const routeTiles = mainRoutePathTiles();
+		const caches = sundropVillageLayered.objects.pickups!.filter(
+			(p) => p.id === 'village-market-cache' || p.id === 'village-shrine-cache'
+		);
+		expect(caches).toHaveLength(2);
+		for (const cache of caches) {
+			const dist = bfsDistanceToNearest(`${cache.col}:${cache.row}`, walkable, routeTiles);
+			expect(
+				dist,
+				`${cache.id} at (${cache.col},${cache.row}) is only ${dist} walkable tiles from the main route`
+			).toBeGreaterThanOrEqual(5);
+		}
+	});
+
+	it('flanks the main route with visible solids within 10 tiles (320px)', () => {
+		const routeTiles = mainRoutePathTiles();
+		expect(routeTiles.size, 'main route should have path tiles').toBeGreaterThan(0);
+		for (const cell of routeTiles) {
+			const [colStr, rowStr] = cell.split(':');
+			const col = Number(colStr);
+			const row = Number(rowStr);
+			const collisionDist = nearestCollisionDistance(col, row);
+			const landmarkDist = nearestLandmarkDistance(col, row);
+			const nearest = Math.min(collisionDist, landmarkDist);
+			expect(
+				nearest,
+				`route tile (${col},${row}) has no visible solid within 10 tiles`
+			).toBeLessThanOrEqual(10);
+		}
 	});
 });
