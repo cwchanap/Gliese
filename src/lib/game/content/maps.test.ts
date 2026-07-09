@@ -1176,7 +1176,8 @@ describe('opening map content', () => {
 		// The village-internal walls (outer boundary, room enclosures, lane hedges,
 		// shrine garden, exit corridor) — readable rooms instead of a hedge-grid.
 		// Count reflects vertical+horizontal merge passes, not raw tile count.
-		expect(internal.length).toBeGreaterThan(15);
+		// Actual count is ~40; floor at 20 catches merge-pass regressions.
+		expect(internal.length).toBeGreaterThanOrEqual(20);
 		// The 4 world-edge boundaries stay forest tree-cluster
 		expect(meadowBoundaries).toHaveLength(4);
 		expect(meadowBoundaries.map((b) => b.id)).toEqual(

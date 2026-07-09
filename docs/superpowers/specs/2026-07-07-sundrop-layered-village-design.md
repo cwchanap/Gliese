@@ -72,7 +72,11 @@ The `maps.test.ts` suite (`:1172` hedge-kind, `:1581` spawn-to-crossroads reacha
 ### 4.1 Layered source types — `src/lib/game/content/maps/layered/types.ts`
 
 ```ts
-export interface LayeredRegionSource {
+export interface LayeredRegionSource<
+  K extends MapDecor['textureKey'] = MapDecor['textureKey'],
+  F extends MapDecor['frameName'] = MapDecor['frameName']
+> {
+  readonly idPrefix: string;  // prepended to generated IDs (blockers, ground patches, decor)
   readonly tileSize: 32;
   readonly origin: { x: number; y: number };
   readonly width: number;   // tiles
@@ -84,6 +88,7 @@ export interface LayeredRegionSource {
     readonly decor:     readonly string[];
     readonly regions:   readonly string[];
   };
+  readonly decorGlyphTable: Record<string, DecorGlyphSpec<K, F>>;  // region-supplied
   readonly objects: {
     readonly landmarks?:  LayeredLandmark[];
     readonly transitions?: LayeredTransition[];
@@ -98,7 +103,7 @@ Layer rows are ASCII strings of exactly `width` chars; each layer has exactly `h
 
 ### 4.2 Glyph legends
 
-**Terrain:** `.` grass · `g` garden · `w` water
+**Terrain:** `.` grass · `g` sand (maps to `sandTile`) · `w` water
 **Paths:** `.` none · `p` pathTile · `c` plazaStoneTile · `a` autumnLeafTile · `s` seaTile
 **Collision (produces `blockers[]`):** `.` walkable · `#` garden-hedge · `B` building footprint (garden-hedge, landmark-linked) · `W` ocean · `G` future-gate · `T` standalone large obstacle (garden-hedge; rare/standalone — village v1 does not use it)
 **Regions:** `.` none · `H` home yard · `P` well plaza · `M` market yard · `N` north residences · `S` shrine garden · `E` east gate · `C` crossroads road
@@ -127,14 +132,17 @@ Note: `M` appears in two layers (decor `M` autumnMaple; region `M` market yard).
 ### 4.3 Compiler — `src/lib/game/content/maps/layered/compile-layered-region.ts`
 
 ```ts
-export function compileLayeredRegion(source: LayeredRegionSource): RegionFragment
+export function compileLayeredRegion<
+  K extends MapDecor['textureKey'],
+  F extends MapDecor['frameName']
+>(source: LayeredRegionSource<K, F>): RegionFragment
 ```
 
 Pure, deterministic. Emits (all in world coords):
 
 - **groundPatches** — per row, run-length merge contiguous cells sharing the same path/terrain tile glyph into one `MapGroundPatch` (`{id, x, y, width, height, tile}`). Ids derived deterministically from `layer + row + startCol`.
 - **blockers** — from the collision layer: merge contiguous same-kind runs horizontally into one `MapBlocker`. `#`/`B`/`T` → `garden-hedge`; `W` → `ocean`; `G` → `future-gate`.
-- **mapDecor** — from the decor layer via the glyph table: `{id, textureKey, frameName, x, y, width, height, mode:'image', depth?, collision?}`. `collision` populated from the table footprint, centered horizontally on the anchor tile, positioned at the sprite base.
+- **mapDecor** — from the decor layer via the glyph table: `{id, textureKey, frameName, x, y, width, height, mode:'image', depth?, collision?}`. `collision` populated from the table footprint, centered horizontally on the anchor tile, positioned at the sprite base. **Validation:** throws if a decor glyph sits on a non-`.` collision tile (decor must not overlap a wall).
 - **landmarks / transitions / pickups / ambientNpcs / discoveries** — from `objects.*`, tile→world mapped.
 
 The compiler is generic over `LayeredRegionSource`; the decor glyph table is **region-supplied** (part of the layered source's contract, since other regions may use different dressing sheets), so the compiler stays region-agnostic. For the village the table maps to `villageDressingAsset`.

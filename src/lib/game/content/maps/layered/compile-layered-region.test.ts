@@ -231,8 +231,8 @@ describe('compileLayeredRegion — mapDecor', () => {
 		const decor = ['l...', '....', '....'];
 		const decorGlyphTable = {
 			l: {
-				frame: 'poleLantern',
-				textureKey: 'village-dressing',
+				frame: 'poleLantern' as const,
+				textureKey: 'village-dressing' as const,
 				renderWidth: 100,
 				renderHeight: 200,
 				collision: { width: 50, height: 60 }
@@ -282,12 +282,39 @@ describe('compileLayeredRegion — mapDecor', () => {
 		expect(() => compileLayeredRegion(src)).toThrow(/unknown decor glyph/);
 	});
 
+	it('throws when a decor glyph overlaps a collision tile', () => {
+		const decor = ['l...', '....', '....'];
+		const collision = ['#...', '....', '....'];
+		const decorGlyphTable = {
+			l: {
+				frame: 'poleLantern' as const,
+				textureKey: 'village-dressing' as const,
+				renderWidth: 100,
+				renderHeight: 200,
+				collision: { width: 50, height: 60 }
+			}
+		};
+		const src = makeSource({
+			width: 4,
+			height: 3,
+			layers: {
+				decor,
+				collision,
+				terrain: Array.from({ length: 3 }, () => dot(4)),
+				paths: Array.from({ length: 3 }, () => dot(4)),
+				regions: Array.from({ length: 3 }, () => dot(4))
+			},
+			decorGlyphTable
+		});
+		expect(() => compileLayeredRegion(src)).toThrow(/decor glyph.*sits on collision/);
+	});
+
 	it('emits depth when the glyph table specifies it', () => {
 		const decor = ['h...', '....', '....'];
 		const decorGlyphTable = {
 			h: {
-				frame: 'hangingLantern',
-				textureKey: 'village-dressing',
+				frame: 'hangingLantern' as const,
+				textureKey: 'village-dressing' as const,
 				renderWidth: 110,
 				renderHeight: 130,
 				depth: 'foreground' as const
