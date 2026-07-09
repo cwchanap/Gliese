@@ -75,7 +75,7 @@ describe('compileLayeredRegion — dimensions and ground patches', () => {
 		expect(out.groundPatches).toHaveLength(1);
 		const patch = out.groundPatches![0];
 		expect(patch.tile).toBe('pathTile');
-		expect(patch.x).toBe(256 + 0 * 32);
+		expect(patch.x).toBe(256 + 0 * 32 + 16);
 		expect(patch.y).toBe(4376 + 0 * 32);
 		expect(patch.width).toBe(64);
 		expect(patch.height).toBe(32);
@@ -141,7 +141,7 @@ describe('compileLayeredRegion — blockers', () => {
 		expect(out.blockers).toHaveLength(1);
 		expect(out.blockers![0]).toMatchObject({
 			kind: 'garden-hedge',
-			x: 256,
+			x: 272,
 			y: 4376,
 			width: 64,
 			height: 32

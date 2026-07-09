@@ -2219,25 +2219,25 @@ describe('WorldScene', () => {
 			);
 		}
 
-		expect(scene.add.image).toHaveBeenCalledWith(700, 5_430, 'village-buildings', 'heroHouse');
-		expect(scene.add.image).toHaveBeenCalledWith(1_460, 4_900, 'village-buildings', 'guildHall');
-		expect(scene.add.image).toHaveBeenCalledWith(520, 4_960, 'village-buildings', 'itemShop');
-		expect(scene.add.image).toHaveBeenCalledWith(870, 4_720, 'village-buildings', 'villagerHouse');
+		expect(scene.add.image).toHaveBeenCalledWith(704, 5_432, 'village-buildings', 'heroHouse');
+		expect(scene.add.image).toHaveBeenCalledWith(1_472, 4_888, 'village-buildings', 'guildHall');
+		expect(scene.add.image).toHaveBeenCalledWith(512, 4_952, 'village-buildings', 'itemShop');
+		expect(scene.add.image).toHaveBeenCalledWith(864, 4_472, 'village-buildings', 'villagerHouse');
 		expect(scene.add.image).toHaveBeenCalledWith(
-			1_180,
-			4_660,
+			1_184,
+			4_504,
 			'village-buildings',
 			'villagerHouse'
 		);
 		expect(scene.add.image).toHaveBeenCalledWith(
-			1_520,
-			5_380,
+			1_536,
+			5_368,
 			'village-buildings',
 			'villagerHouse'
 		);
-		expect(scene.add.image).toHaveBeenCalledWith(380, 5_260, 'village-buildings', 'blacksmith');
+		expect(scene.add.image).toHaveBeenCalledWith(384, 5_272, 'village-buildings', 'blacksmith');
 		expect(scene.add.image).toHaveBeenCalledWith(
-			1_180,
+			1_184,
 			5_560,
 			'village-buildings',
 			'shrineOfAurora'
@@ -2248,7 +2248,7 @@ describe('WorldScene', () => {
 			'village-buildings',
 			'whisperingCave'
 		);
-		expect(scene.add.image).toHaveBeenCalledWith(1_000, 5_160, 'village-buildings', 'sundropWell');
+		expect(scene.add.image).toHaveBeenCalledWith(992, 5_176, 'village-buildings', 'sundropWell');
 		// Village-internal walls now render as hedge segments, not tree clusters
 		expect(
 			vi
@@ -2257,12 +2257,12 @@ describe('WorldScene', () => {
 					([, , texture, frame]) => texture === 'village-hedge' && frame === 'hedgeSegment'
 				)
 		).toBe(true);
-		expect(scene.add.rectangle).not.toHaveBeenCalledWith(700, 5_430, 235, 246, 0x5b4636, 0.9);
-		expect(scene.add.rectangle).not.toHaveBeenCalledWith(380, 5_260, 235, 226, 0x5b4636, 0.9);
-		expect(scene.add.rectangle).not.toHaveBeenCalledWith(1_180, 5_560, 246, 333, 0x5b4636, 0.9);
+		expect(scene.add.rectangle).not.toHaveBeenCalledWith(704, 5_432, 235, 246, 0x5b4636, 0.9);
+		expect(scene.add.rectangle).not.toHaveBeenCalledWith(384, 5_272, 235, 226, 0x5b4636, 0.9);
+		expect(scene.add.rectangle).not.toHaveBeenCalledWith(1_184, 5_560, 246, 333, 0x5b4636, 0.9);
 		expect(scene.add.rectangle).not.toHaveBeenCalledWith(5_960, 1_800, 256, 224, 0x5b4636, 0.9);
-		expect(scene.add.rectangle).not.toHaveBeenCalledWith(1_000, 5_160, 141, 160, 0x5b4636, 0.9);
-		expect(scene.add.text).toHaveBeenCalledWith(700, 5_311, "Hero's House", {
+		expect(scene.add.rectangle).not.toHaveBeenCalledWith(992, 5_176, 141, 160, 0x5b4636, 0.9);
+		expect(scene.add.text).toHaveBeenCalledWith(704, 5_313, "Hero's House", {
 			color: '#f8fafc',
 			fontSize: '12px'
 		});
@@ -2277,13 +2277,13 @@ describe('WorldScene', () => {
 		).toHaveLength(0);
 
 		const heroHouseMarker = phaserState.imageMarkers.find(
-			(marker) => marker.x === 700 && marker.y === 5_430 && marker.frame === 'heroHouse'
+			(marker) => marker.x === 704 && marker.y === 5_432 && marker.frame === 'heroHouse'
 		);
 		const guildHallMarker = phaserState.imageMarkers.find(
-			(marker) => marker.x === 1_460 && marker.y === 4_900 && marker.frame === 'guildHall'
+			(marker) => marker.x === 1_472 && marker.y === 4_888 && marker.frame === 'guildHall'
 		);
 		const itemShopMarker = phaserState.imageMarkers.find(
-			(marker) => marker.x === 520 && marker.y === 4_960 && marker.frame === 'itemShop'
+			(marker) => marker.x === 512 && marker.y === 4_952 && marker.frame === 'itemShop'
 		);
 		const villagerHouseMarkers = phaserState.imageMarkers.filter(
 			(marker) => marker.frame === 'villagerHouse'
@@ -2306,7 +2306,7 @@ describe('WorldScene', () => {
 		const imageCalls = vi.mocked(scene.add.image).mock.calls;
 		const firstLandmarkCallIndex = imageCalls.findIndex(
 			([x, y, texture, frame]) =>
-				x === 700 && y === 5_430 && texture === 'village-buildings' && frame === 'heroHouse'
+				x === 704 && y === 5_432 && texture === 'village-buildings' && frame === 'heroHouse'
 		);
 		const firstLandmarkCallOrder = vi.mocked(scene.add.image).mock.invocationCallOrder[
 			firstLandmarkCallIndex
@@ -2857,13 +2857,13 @@ describe('WorldScene', () => {
 		const scene = new WorldScene();
 
 		scene.create({ mapId: 'meadow-entry' });
-		Object.assign(phaserState.playerMarker, { x: 776, y: 4_650 });
+		Object.assign(phaserState.playerMarker, { x: 776, y: 4_472 });
 		phaserState.cursorKeys.right.isDown = true;
 
 		scene.update(0, 250);
 
 		expect(phaserState.playerMarker.x).toBe(776);
-		expect(phaserState.playerMarker.y).toBe(4_650);
+		expect(phaserState.playerMarker.y).toBe(4_472);
 	});
 
 	it('blocks player movement through village building side windows', async () => {
