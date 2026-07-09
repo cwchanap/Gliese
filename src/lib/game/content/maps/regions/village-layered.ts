@@ -477,7 +477,7 @@ export const sundropVillageLayered: LayeredRegionSource = {
 		ambientNpcs: [
 			{ id: 'village-wanderer', col: 26, row: 19, frameName: 'travelerNpc' },
 			{ id: 'village-woodcutter', col: 10, row: 28, frameName: 'woodcutterNpc' },
-			{ id: 'village-pilgrim', col: 26, row: 44, frameName: 'pilgrimNpc' },
+			{ id: 'village-pilgrim', col: 26, row: 43, frameName: 'pilgrimNpc' },
 			{ id: 'village-crier', col: 40, row: 8, frameName: 'crierNpc' }
 		]
 	}

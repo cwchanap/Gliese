@@ -49,8 +49,8 @@ function tileCenter(
 	row: number
 ): { x: number; y: number } {
 	return {
-		x: source.origin.x + col * source.tileSize + 16,
-		y: source.origin.y + row * source.tileSize + 16
+		x: source.origin.x + col * source.tileSize + source.tileSize / 2,
+		y: source.origin.y + row * source.tileSize + source.tileSize / 2
 	};
 }
 
@@ -104,6 +104,9 @@ function buildBlockers(source: LayeredRegionSource): MapBlocker[] {
 		let runGlyph = '';
 		for (let col = 0; col <= line.length; col++) {
 			const glyph = col < line.length ? line[col] : '.';
+			if (glyph !== '.' && !(glyph in COLLISION_KIND)) {
+				throw new Error(`unknown collision glyph "${glyph}" at col ${col} row ${row}`);
+			}
 			const kind = COLLISION_KIND[glyph] ?? '';
 			if (kind !== '' && glyph === runGlyph) continue;
 			if (runStart >= 0) {
