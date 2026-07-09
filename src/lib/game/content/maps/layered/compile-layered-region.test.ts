@@ -17,6 +17,7 @@ function makeSource(
 		regions: Array.from({ length: height }, () => dot(width))
 	};
 	return {
+		idPrefix: 'test',
 		tileSize: 32,
 		origin: { x: 240, y: 4_360 },
 		width,
@@ -183,6 +184,45 @@ describe('compileLayeredRegion — blockers', () => {
 		});
 		const out = compileLayeredRegion(src);
 		expect(out.blockers!.filter((b) => b.kind === 'garden-hedge')).toHaveLength(3);
+	});
+
+	it('merges vertically-adjacent same-kind same-span blockers into one', () => {
+		const collision = ['##..', '##..', '##..'];
+		const src = makeSource({
+			width: 4,
+			height: 3,
+			layers: {
+				collision,
+				terrain: Array.from({ length: 3 }, () => dot(4)),
+				paths: Array.from({ length: 3 }, () => dot(4)),
+				decor: Array.from({ length: 3 }, () => dot(4)),
+				regions: Array.from({ length: 3 }, () => dot(4))
+			}
+		});
+		const out = compileLayeredRegion(src);
+		expect(out.blockers).toHaveLength(1);
+		const b = out.blockers![0];
+		expect(b.kind).toBe('garden-hedge');
+		expect(b.height).toBe(96); // 3 tiles × 32
+		expect(b.y).toBe(4376 + 32); // center of rows 0-2
+	});
+
+	it('does not merge vertically-adjacent blockers with different x or width', () => {
+		const collision = ['##..', '.#..', '.#..'];
+		const src = makeSource({
+			width: 4,
+			height: 3,
+			layers: {
+				collision,
+				terrain: Array.from({ length: 3 }, () => dot(4)),
+				paths: Array.from({ length: 3 }, () => dot(4)),
+				decor: Array.from({ length: 3 }, () => dot(4)),
+				regions: Array.from({ length: 3 }, () => dot(4))
+			}
+		});
+		const out = compileLayeredRegion(src);
+		// Row 0: ## (width 64, x 272); rows 1-2: .# (width 32, x 288) — different span, no merge
+		expect(out.blockers).toHaveLength(2);
 	});
 });
 
