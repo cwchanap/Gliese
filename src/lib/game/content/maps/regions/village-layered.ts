@@ -85,6 +85,7 @@ const villageDecorGlyphTable: Record<
 };
 
 export const sundropVillageLayered: LayeredRegionSource = {
+	idPrefix: 'village',
 	tileSize: 32,
 	origin: { x: 240, y: 4_360 },
 	width: 56,

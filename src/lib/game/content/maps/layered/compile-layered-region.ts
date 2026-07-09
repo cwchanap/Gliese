@@ -83,7 +83,7 @@ function buildGroundPatches(source: LayeredRegionSource): MapGroundPatch[] {
 				const start = tileCenter(source, runStart, row);
 				const end = tileCenter(source, col - 1, row);
 				patches.push({
-					id: `ground-${row}-${runStart}`,
+					id: `${source.idPrefix}-ground-${row}-${runStart}`,
 					x: (start.x + end.x) / 2,
 					y: start.y,
 					width: end.x - start.x + source.tileSize,
@@ -99,7 +99,7 @@ function buildGroundPatches(source: LayeredRegionSource): MapGroundPatch[] {
 }
 
 function buildBlockers(source: LayeredRegionSource): MapBlocker[] {
-	const blockers: MapBlocker[] = [];
+	const horizontal: MapBlocker[] = [];
 	for (let row = 0; row < source.height; row++) {
 		const line = source.layers.collision[row];
 		let runStart = -1;
@@ -115,8 +115,8 @@ function buildBlockers(source: LayeredRegionSource): MapBlocker[] {
 			if (runStart >= 0 && runKind) {
 				const start = tileCenter(source, runStart, row);
 				const end = tileCenter(source, col - 1, row);
-				blockers.push({
-					id: `block-${row}-${runStart}`,
+				horizontal.push({
+					id: `${source.idPrefix}-block-${row}-${runStart}`,
 					x: (start.x + end.x) / 2,
 					y: start.y,
 					width: end.x - start.x + source.tileSize,
@@ -129,7 +129,53 @@ function buildBlockers(source: LayeredRegionSource): MapBlocker[] {
 			runKind = kind;
 		}
 	}
-	return blockers;
+	return mergeBlockersVertically(horizontal);
+}
+
+/**
+ * After horizontal run-length merging, stack vertically-adjacent blockers that
+ * share the same kind and horizontal span (x, width) into a single taller
+ * blocker. Without this pass, a vertical wall N tiles tall produces N separate
+ * 32px-tall blockers — a ~3× count regression that inflates the
+ * `isPlayerMovementBlockedByBlocker` hot path in WorldScene.
+ */
+function mergeBlockersVertically(blockers: MapBlocker[]): MapBlocker[] {
+	if (blockers.length <= 1) return blockers;
+	const groups = new Map<string, MapBlocker[]>();
+	for (const b of blockers) {
+		const key = `${b.kind}|${b.x}|${b.width}`;
+		const group = groups.get(key);
+		if (group) group.push(b);
+		else groups.set(key, [b]);
+	}
+	const merged: MapBlocker[] = [];
+	for (const group of groups.values()) {
+		if (group.length === 1) {
+			merged.push(group[0]);
+			continue;
+		}
+		group.sort((a, b) => a.y - b.y);
+		let current = group[0];
+		for (let i = 1; i < group.length; i++) {
+			const next = group[i];
+			const currentBottom = current.y + current.height / 2;
+			const nextTop = next.y - next.height / 2;
+			if (Math.abs(currentBottom - nextTop) < 0.001) {
+				const topEdge = current.y - current.height / 2;
+				const bottomEdge = next.y + next.height / 2;
+				current = {
+					...current,
+					y: (topEdge + bottomEdge) / 2,
+					height: bottomEdge - topEdge
+				};
+			} else {
+				merged.push(current);
+				current = next;
+			}
+		}
+		merged.push(current);
+	}
+	return merged;
 }
 
 function buildMapDecor(source: LayeredRegionSource): MapDecor[] {
@@ -143,7 +189,7 @@ function buildMapDecor(source: LayeredRegionSource): MapDecor[] {
 			if (!spec) throw new Error(`unknown decor glyph "${glyph}" at col ${col} row ${row}`);
 			const center = tileCenter(source, col, row);
 			const base: MapDecor = {
-				id: `decor-${row}-${col}`,
+				id: `${source.idPrefix}-decor-${row}-${col}`,
 				textureKey: spec.textureKey as MapDecor['textureKey'],
 				frameName: spec.frame as MapDecor['frameName'],
 				x: center.x,
@@ -155,7 +201,7 @@ function buildMapDecor(source: LayeredRegionSource): MapDecor[] {
 				...(spec.collision
 					? {
 							collision: {
-								id: `decor-${row}-${col}-collision`,
+								id: `${source.idPrefix}-decor-${row}-${col}-collision`,
 								x: center.x,
 								y: center.y + spec.renderHeight / 2 - spec.collision.height / 2,
 								width: spec.collision.width,

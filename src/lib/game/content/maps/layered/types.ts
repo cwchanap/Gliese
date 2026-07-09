@@ -55,6 +55,7 @@ export interface LayeredDiscovery {
 }
 
 export interface LayeredRegionSource {
+	readonly idPrefix: string;
 	readonly tileSize: 32;
 	readonly origin: { readonly x: number; readonly y: number };
 	readonly width: number;
