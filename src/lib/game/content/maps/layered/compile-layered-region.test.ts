@@ -467,4 +467,57 @@ describe('compileLayeredRegion — objects', () => {
 		});
 		expect(() => compileLayeredRegion(src)).toThrow(/out of bounds/);
 	});
+
+	it.each([
+		[
+			'landmark',
+			{
+				landmarks: [
+					{
+						id: 'lm-wall',
+						col: 0,
+						row: 0,
+						width: 100,
+						height: 100,
+						labelKey: 'content.maps.landmarks.hero-house-exterior.label'
+					}
+				]
+			}
+		],
+		['transition', { transitions: [{ id: 't-wall', col: 0, row: 0, toMapId: 'hero-house' }] }],
+		[
+			'pickup',
+			{ pickups: [{ id: 'p-wall', col: 0, row: 0, itemId: 'field-potion', quantity: 1 }] }
+		],
+		['ambientNpc', { ambientNpcs: [{ id: 'a-wall', col: 0, row: 0, frameName: 'travelerNpc' }] }],
+		[
+			'discovery',
+			{
+				discoveries: [
+					{
+						id: 'd-wall',
+						col: 0,
+						row: 0,
+						labelKey: 'content.maps.landmarks.hero-house-exterior.label',
+						descriptionKey: 'content.maps.landmarks.hero-house-exterior.label'
+					}
+				]
+			}
+		]
+	] as const)('throws when a %s sits on a collision tile', (_kind, objectOverrides) => {
+		const collision = ['#...', '....', '....'];
+		const src = makeSource({
+			width: 4,
+			height: 3,
+			layers: {
+				collision,
+				terrain: Array.from({ length: 3 }, () => dot(4)),
+				paths: Array.from({ length: 3 }, () => dot(4)),
+				decor: Array.from({ length: 3 }, () => dot(4)),
+				regions: Array.from({ length: 3 }, () => dot(4))
+			},
+			objects: objectOverrides as LayeredRegionSource['objects']
+		});
+		expect(() => compileLayeredRegion(src)).toThrow(/sits on collision/);
+	});
 });

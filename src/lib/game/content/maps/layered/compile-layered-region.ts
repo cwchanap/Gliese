@@ -67,6 +67,20 @@ function assertObjectInBounds(
 	}
 }
 
+function assertObjectNotOnCollision(
+	source: LayeredRegionSource,
+	id: string,
+	col: number,
+	row: number
+): void {
+	const glyph = source.layers.collision[row][col];
+	if (glyph !== '.') {
+		throw new Error(
+			`object "${id}" at col ${col} row ${row} sits on collision glyph "${glyph}" — objects must not overlap a wall`
+		);
+	}
+}
+
 function buildGroundPatches(source: LayeredRegionSource): MapGroundPatch[] {
 	assertDimensions(source, 'terrain', source.layers.terrain);
 	assertDimensions(source, 'paths', source.layers.paths);
@@ -243,6 +257,7 @@ export function compileLayeredRegion<
 	const objects = source.objects;
 	const landmarks = objects.landmarks?.map((lm) => {
 		assertObjectInBounds(source, lm.id, lm.col, lm.row);
+		assertObjectNotOnCollision(source, lm.id, lm.col, lm.row);
 		const c = tileCenter(source, lm.col, lm.row);
 		return {
 			id: lm.id,
@@ -255,6 +270,7 @@ export function compileLayeredRegion<
 	});
 	const transitions = objects.transitions?.map((t) => {
 		assertObjectInBounds(source, t.id, t.col, t.row);
+		assertObjectNotOnCollision(source, t.id, t.col, t.row);
 		const c = tileCenter(source, t.col, t.row);
 		return {
 			id: t.id,
@@ -267,11 +283,13 @@ export function compileLayeredRegion<
 	});
 	const pickups = objects.pickups?.map((p) => {
 		assertObjectInBounds(source, p.id, p.col, p.row);
+		assertObjectNotOnCollision(source, p.id, p.col, p.row);
 		const c = tileCenter(source, p.col, p.row);
 		return { id: p.id, x: c.x, y: c.y, itemId: p.itemId, quantity: p.quantity };
 	});
 	const ambientNpcs = objects.ambientNpcs?.map((n) => {
 		assertObjectInBounds(source, n.id, n.col, n.row);
+		assertObjectNotOnCollision(source, n.id, n.col, n.row);
 		const c = tileCenter(source, n.col, n.row);
 		return {
 			id: n.id,
@@ -282,6 +300,7 @@ export function compileLayeredRegion<
 	});
 	const discoveries = objects.discoveries?.map((d) => {
 		assertObjectInBounds(source, d.id, d.col, d.row);
+		assertObjectNotOnCollision(source, d.id, d.col, d.row);
 		const c = tileCenter(source, d.col, d.row);
 		return {
 			id: d.id,

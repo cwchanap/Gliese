@@ -46,7 +46,7 @@ The grid boundary at `x=2032` / `y=4360` is a natural seam: every genuine villag
 
 A single-glyph-per-tile decor layer cannot express three things the current village decor carries: varied render sizes (fountain 180×150 vs poleLantern 100×200), foreground depth (`village-hanging-lantern`), and per-piece collision sub-rects (poleLantern visual 100×200 / collision 50×60 at the base).
 
-**Resolution:** each decor glyph maps, via a compiler glyph table, to `{ frame, renderWidth, renderHeight, depth? }`. The decor layer paints only anchor cells; the table supplies geometry. Anchor convention is **center-tile** (matches how `village-layout.test.ts` already treats decor `x,y` as centers). Collision sub-rects for big decor are **auto-derived from the glyph table footprint** and emitted on the decor object as `decor.collision` (the existing `MapDecor.collision` shape), so `WorldScene`'s decor-collision handling is unchanged. Of the ~18 village decor pieces, 9 are pure visual, 8 carry collision (auto-derived), 1 needs foreground depth (`h`).
+**Resolution:** each decor glyph maps, via a compiler glyph table, to `{ frame, renderWidth, renderHeight, depth? }`. The decor layer paints only anchor cells; the table supplies geometry. Anchor convention is **center-tile** (matches how `village-layout.test.ts` already treats decor `x,y` as centers). Collision sub-rects for big decor are **auto-derived from the glyph table footprint** and emitted on the decor object as `decor.collision` (the existing `MapDecor.collision` shape), so `WorldScene`'s decor-collision handling is unchanged. Of the ~16 village decor pieces, 9 are pure visual, 7 carry collision (auto-derived), 1 needs foreground depth (`h`).
 
 ### Gap C — Legend completeness
 
