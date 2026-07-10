@@ -155,7 +155,7 @@ Doorways (gaps in walls):
 
 Transitions (doorways) at tiles adjacent to each landmark.
 Pickups: village-market-cache (11,27), village-shrine-cache (41,40).
-Ambient NPCs: wanderer (26,19), woodcutter (10,28), pilgrim (26,44), crier (40,8).
+Ambient NPCs: wanderer (26,19), woodcutter (10,28), pilgrim (26,43), crier (40,8).
 
 ## Spatial adjustments during Task 8
 
