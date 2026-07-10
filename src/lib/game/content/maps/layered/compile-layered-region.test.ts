@@ -449,7 +449,7 @@ describe('compileLayeredRegion — objects', () => {
 						row: 0,
 						width: 100,
 						height: 100,
-						labelKey: 'test.label'
+						labelKey: 'content.maps.landmarks.hero-house-exterior.label'
 					}
 				]
 			}

@@ -1,11 +1,10 @@
 import type { LayeredRegionSource } from '$lib/game/content/maps/layered/types';
-import type { RegionFragment, RegionLandmark } from '$lib/game/content/maps/regions/types';
+import type { RegionFragment } from '$lib/game/content/maps/regions/types';
 import type {
 	MapAmbientNpc,
 	MapBlocker,
 	MapBlockerKind,
 	MapDecor,
-	MapDiscovery,
 	MapGroundPatch,
 	MapGroundTile
 } from '$lib/game/content/maps/types';
@@ -252,7 +251,7 @@ export function compileLayeredRegion<
 			y: c.y,
 			width: lm.width,
 			height: lm.height,
-			labelKey: lm.labelKey as RegionLandmark['labelKey']
+			labelKey: lm.labelKey
 		};
 	});
 	const transitions = objects.transitions?.map((t) => {
@@ -289,8 +288,8 @@ export function compileLayeredRegion<
 			id: d.id,
 			x: c.x,
 			y: c.y,
-			labelKey: d.labelKey as MapDiscovery['labelKey'],
-			descriptionKey: d.descriptionKey as MapDiscovery['descriptionKey']
+			labelKey: d.labelKey,
+			descriptionKey: d.descriptionKey
 		};
 	});
 	return {
