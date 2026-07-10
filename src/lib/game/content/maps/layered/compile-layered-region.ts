@@ -1,7 +1,6 @@
 import type { LayeredRegionSource } from '$lib/game/content/maps/layered/types';
 import type { RegionFragment } from '$lib/game/content/maps/regions/types';
 import type {
-	MapAmbientNpc,
 	MapBlocker,
 	MapBlockerKind,
 	MapDecor,
@@ -278,7 +277,7 @@ export function compileLayeredRegion<
 			id: n.id,
 			x: c.x,
 			y: c.y,
-			frameName: n.frameName as MapAmbientNpc['frameName']
+			frameName: n.frameName
 		};
 	});
 	const discoveries = objects.discoveries?.map((d) => {
