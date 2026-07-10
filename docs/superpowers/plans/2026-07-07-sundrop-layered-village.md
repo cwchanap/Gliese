@@ -18,7 +18,8 @@
 - Tile `(col, row)` world center = `(256 + col*32, 4376 + row*32)` (i.e. `origin + col*32 + 16`).
 - Landmarks use **center** x/y (per `maps.test.ts:1203`).
 - All compiled village-internal blockers are `kind: 'garden-hedge'`. Global meadow boundaries stay `town-hedge`; ocean stays `ocean`.
-- Runtime model (`RegionFragment`, `WorldScene`) is unchanged — the compiler output must match existing rectangle shapes exactly.
+- Runtime model (`RegionFragment`, `WorldScene`) is unchanged: the layered source compiles down to the same rectangle *types* (`groundPatches`, `blockers`, `mapDecor`, …) that `mergeRegions` already consumes. The player-facing route (Home Yard → Well Plaza → Market / North / Shrine / East Gate) is preserved.
+- **Geometry is re-authored onto the 32px grid, not bit-preserved.** Object centers are quantized to the nearest tile (`tileCenter = origin + col*32 + 16`); walls are grid-aligned hedges; a few objects were re-placed during Task 8 to resolve overlaps the quantization introduced (see `docs/superpowers/reports/2026-07-04-sundrop-layered-village-review.md` §"Spatial adjustments during Task 8"). Pre-refactor pixel coordinates are therefore *not* reproduced exactly. Because the layout changed, **the human visual review (Task 9, spec §7) is the load-bearing acceptance gate** before merge — green tests prove the new layout's internal consistency, not behavioral preservation of the old one.
 - No comments in code unless asked. Follow existing file conventions (tabs, import order).
 - Validation gate before any task is "done": `bun run test:unit -- --run`, `bun run check`, `bun run lint`.
 
@@ -834,15 +835,15 @@ Author `village-layered.ts` against the test suite. The grid params, decor glyph
 
 Grid: `origin { x: 240, y: 4_360 }`, `width: 56`, `height: 48`, `tileSize: 32`. Tile `(col,row)` → world center `(256 + col*32, 4376 + row*32)`.
 
-**Objects** (translated from current `village.ts`, rounded to nearest tile):
+**Objects** (shipped positions; original deterministic-translation values in parens where they moved during Task 8 overlap/cluster-bounds fixes — see `docs/superpowers/reports/2026-07-04-sundrop-layered-village-review.md` §"Spatial adjustments during Task 8"):
 
 | Object | id | col | row | extras |
 |---|---|---|---|---|
 | landmark | hero-house-exterior | 14 | 33 | 235×246, labelKey `content.maps.landmarks.hero-house-exterior.label` |
 | landmark | item-shop-exterior | 8 | 18 | 246×235, `…item-shop-exterior.label` |
 | landmark | blacksmith | 4 | 28 | 235×226, `…blacksmith.label` |
-| landmark | villager-house-1-exterior | 19 | 1 | 226×205, `…villager-house-1-exterior.label` |
-| landmark | villager-house-2-exterior | 29 | 1 | 338×261, `…villager-house-2-exterior.label` |
+| landmark | villager-house-1-exterior | 19 | 3 (was 1) | 226×205, `…villager-house-1-exterior.label` |
+| landmark | villager-house-2-exterior | 29 | 4 (was 1) | 338×261, `…villager-house-2-exterior.label` |
 | landmark | guild-hall-exterior | 38 | 16 | 307×277, `…guild-hall-exterior.label` |
 | landmark | sundrop-well | 23 | 25 | 141×160, `…sundrop-well.label` |
 | landmark | shrine-of-aurora | 29 | 37 | 246×333, `…shrine-of-aurora.label` |
@@ -854,14 +855,14 @@ Grid: `origin { x: 240, y: 4_360 }`, `width: 56`, `height: 48`, `tileSize: 32`. 
 | transition | meadow-to-guild-hall | 38 | 21 | toMapId `guild-hall`, arrival `{x:256,y:288,facing:'up'}` |
 | transition | meadow-to-shrine-of-aurora | 29 | 42 | toMapId `shrine-of-aurora-interior`, arrival `{x:256,y:288,facing:'up'}` |
 | transition | meadow-to-villager-house-3 | 40 | 37 | toMapId `villager-house-3`, arrival `{x:256,y:288,facing:'up'}` |
-| pickup | village-market-cache | 5 | 31 | itemId `field-potion`, qty 1 |
+| pickup | village-market-cache | 11 | 27 (was 5,31) | itemId `field-potion`, qty 1 — moved off the blacksmith landmark rect |
 | pickup | village-shrine-cache | 41 | 40 | itemId `sunleaf-salve`, qty 1 |
-| ambientNpc | village-wanderer | 28 | 19 | frameName `travelerNpc` |
+| ambientNpc | village-wanderer | 26 | 19 (was 28) | frameName `travelerNpc` — moved off a hedge wall |
 | ambientNpc | village-woodcutter | 10 | 28 | frameName `woodcutterNpc` |
-| ambientNpc | village-pilgrim | 26 | 44 | frameName `pilgrimNpc` |
+| ambientNpc | village-pilgrim | 26 | 43 (was 44) | frameName `pilgrimNpc` |
 | ambientNpc | village-crier | 40 | 8 | frameName `crierNpc` |
 
-**Decor glyphs** (placed on the decor layer at the tile, resolved through the glyph table):
+**Decor glyphs** (placed on the decor layer at the tile, resolved through the glyph table; shipped positions, original in parens where moved):
 
 | glyph | tile (col,row) | frame | render W×H | depth | collision footprint |
 |---|---|---|---|---|---|
@@ -871,15 +872,15 @@ Grid: `origin { x: 240, y: 4_360 }`, `width: 56`, `height: 48`, `tileSize: 32`. 
 | f | 28,29 | flowerBed | 150×120 | — | — |
 | m | 12,23 | marketStall | 240×190 | — | — |
 | b | 16,17 | festivalBanner | 160×220 | — | — |
-| s | 2,37 | scarecrow | 120×170 | — | — |
+| s | 3,37 (was 2,37) | scarecrow | 120×170 | — | — |
 | D | 7,33 | hedgeTopiary | 120×140 | — | — |
 | l | 16,15 | poleLantern | 100×200 | — | 50×60 |
 | l | 36,12 | poleLantern | 100×200 | — | 50×60 |
-| l | 41,2 | poleLantern | 100×200 | — | 50×60 |
+| l | 41,3 (was 41,2) | poleLantern | 100×200 | — | 50×60 |
 | l | 47,2 | poleLantern | 100×200 | — | 50×60 |
 | o | 25,39 | offeringStand | 180×180 | — | 80×60 |
 | t | 33,39 | stoneLantern | 180×180 | — | 80×60 |
-| M | 40,34 | autumnMaple | 220×280 | — | 70×70 |
+| M | 40,35 (was 40,34) | autumnMaple | 220×280 | — | 70×70 — moved so its collision footprint no longer seals the villager-house-3 transition |
 | A | 44,2 | gateArch | 220×200 | — | — |
 
 ### Layer authoring specification (rectangles; later entries overwrite earlier within a layer)

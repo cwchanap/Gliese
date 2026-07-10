@@ -1177,11 +1177,12 @@ describe('opening map content', () => {
 		// The village-internal walls (outer boundary, room enclosures, lane hedges,
 		// shrine garden, exit corridor) — readable rooms instead of a hedge-grid.
 		// Count reflects vertical+horizontal merge passes, not raw tile count.
-		// Actual count is ~40. The floor catches a horizontal-merge regression
-		// (count drops); the ceiling catches a vertical-merge regression (count
-		// blows up ~3× to ~120 unmerged 32px-tall blockers).
-		expect(internal.length).toBeGreaterThanOrEqual(20);
-		expect(internal.length).toBeLessThanOrEqual(80);
+		// Actual count is 40. Band is ±25% (30–50): the floor catches a
+		// horizontal-merge regression (count drops); the ceiling catches a
+		// vertical-merge regression (count blows up ~3× to ~120 unmerged
+		// 32px-tall blockers). A wider band would admit a silently-dropped wall.
+		expect(internal.length).toBeGreaterThanOrEqual(30);
+		expect(internal.length).toBeLessThanOrEqual(50);
 		// The 4 world-edge boundaries stay forest tree-cluster
 		expect(meadowBoundaries).toHaveLength(4);
 		expect(meadowBoundaries.map((b) => b.id)).toEqual(

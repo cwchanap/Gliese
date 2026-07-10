@@ -1,3 +1,4 @@
+import type { NpcFrameName } from '$lib/game/content/assets';
 import type { MapDecor, MapDecorDepth } from '$lib/game/content/maps/types';
 import type { MessageKey } from '$lib/game/i18n/translate';
 
@@ -47,7 +48,7 @@ export interface LayeredAmbientNpc {
 	readonly id: string;
 	readonly col: number;
 	readonly row: number;
-	readonly frameName: string;
+	readonly frameName: NpcFrameName;
 }
 
 export interface LayeredDiscovery {
@@ -72,6 +73,9 @@ export interface LayeredRegionSource<
 		readonly paths: readonly string[];
 		readonly collision: readonly string[];
 		readonly decor: readonly string[];
+		// Authoring aid only: labels cells by room (H/P/M/N/S/E/C) for human
+		// review. The compiler dimension-validates this layer but never reads it
+		// for output — it carries no runtime effect.
 		readonly regions: readonly string[];
 	};
 	readonly decorGlyphTable: Record<string, DecorGlyphSpec<K, F>>;

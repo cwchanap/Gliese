@@ -149,7 +149,7 @@ The compiler is generic over `LayeredRegionSource`; the decor glyph table is **r
 
 ### 4.4 Village layered source — `src/lib/game/content/maps/regions/village-layered.ts`
 
-A `LayeredRegionSource` with `origin { x: 240, y: 4_360 }`, `width: 56`, `height: 48`, `tileSize: 32`, populated by translating the current village content into the five ASCII layers + object arrays. This file is the human-reviewable artifact — five compact layer maps instead of 800 lines of coordinates.
+A `LayeredRegionSource` with `origin { x: 240, y: 4_360 }`, `width: 56`, `height: 48`, `tileSize: 32`, populated by re-authoring the current village content onto the 32px grid: object centers quantized to the nearest tile, walls redrawn as grid-aligned hedges, and a few objects re-placed to resolve overlaps the quantization introduced (see the review report's "Spatial adjustments during Task 8"). This file is the human-reviewable artifact — five compact layer maps instead of 800 lines of coordinates. Because geometry is re-authored (not bit-preserved), the human visual review (§7) is the load-bearing acceptance gate.
 
 ### 4.5 Village swap — `src/lib/game/content/maps/regions/village.ts`
 
