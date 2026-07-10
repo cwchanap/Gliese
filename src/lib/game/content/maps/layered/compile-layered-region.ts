@@ -56,6 +56,19 @@ function tileCenter(
 	};
 }
 
+function assertObjectInBounds(
+	source: LayeredRegionSource,
+	id: string,
+	col: number,
+	row: number
+): void {
+	if (col < 0 || col >= source.width || row < 0 || row >= source.height) {
+		throw new Error(
+			`object "${id}" at col ${col} row ${row} is out of bounds (grid ${source.width}×${source.height})`
+		);
+	}
+}
+
 function buildGroundPatches(source: LayeredRegionSource): MapGroundPatch[] {
 	assertDimensions(source, 'terrain', source.layers.terrain);
 	assertDimensions(source, 'paths', source.layers.paths);
@@ -103,7 +116,6 @@ function buildBlockers(source: LayeredRegionSource): MapBlocker[] {
 	for (let row = 0; row < source.height; row++) {
 		const line = source.layers.collision[row];
 		let runStart = -1;
-		let runGlyph = '';
 		let runKind: MapBlockerKind | '' = '';
 		for (let col = 0; col <= line.length; col++) {
 			const glyph = col < line.length ? line[col] : '.';
@@ -111,7 +123,7 @@ function buildBlockers(source: LayeredRegionSource): MapBlocker[] {
 				throw new Error(`unknown collision glyph "${glyph}" at col ${col} row ${row}`);
 			}
 			const kind = COLLISION_KIND[glyph] ?? '';
-			if (kind !== '' && glyph === runGlyph) continue;
+			if (kind !== '' && kind === runKind) continue;
 			if (runStart >= 0 && runKind) {
 				const start = tileCenter(source, runStart, row);
 				const end = tileCenter(source, col - 1, row);
@@ -125,7 +137,6 @@ function buildBlockers(source: LayeredRegionSource): MapBlocker[] {
 				});
 			}
 			runStart = kind !== '' ? col : -1;
-			runGlyph = kind !== '' ? glyph : '';
 			runKind = kind;
 		}
 	}
@@ -233,6 +244,7 @@ export function compileLayeredRegion<
 	assertDimensions(source, 'regions', source.layers.regions);
 	const objects = source.objects;
 	const landmarks = objects.landmarks?.map((lm) => {
+		assertObjectInBounds(source, lm.id, lm.col, lm.row);
 		const c = tileCenter(source, lm.col, lm.row);
 		return {
 			id: lm.id,
@@ -244,6 +256,7 @@ export function compileLayeredRegion<
 		};
 	});
 	const transitions = objects.transitions?.map((t) => {
+		assertObjectInBounds(source, t.id, t.col, t.row);
 		const c = tileCenter(source, t.col, t.row);
 		return {
 			id: t.id,
@@ -255,10 +268,12 @@ export function compileLayeredRegion<
 		};
 	});
 	const pickups = objects.pickups?.map((p) => {
+		assertObjectInBounds(source, p.id, p.col, p.row);
 		const c = tileCenter(source, p.col, p.row);
 		return { id: p.id, x: c.x, y: c.y, itemId: p.itemId, quantity: p.quantity };
 	});
 	const ambientNpcs = objects.ambientNpcs?.map((n) => {
+		assertObjectInBounds(source, n.id, n.col, n.row);
 		const c = tileCenter(source, n.col, n.row);
 		return {
 			id: n.id,
@@ -268,6 +283,7 @@ export function compileLayeredRegion<
 		};
 	});
 	const discoveries = objects.discoveries?.map((d) => {
+		assertObjectInBounds(source, d.id, d.col, d.row);
 		const c = tileCenter(source, d.col, d.row);
 		return {
 			id: d.id,

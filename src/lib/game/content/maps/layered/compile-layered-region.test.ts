@@ -169,7 +169,7 @@ describe('compileLayeredRegion — blockers', () => {
 		expect(byKind.has('future-gate')).toBe(true);
 	});
 
-	it('merges adjacent same-glyph runs horizontally', () => {
+	it('merges adjacent same-kind runs horizontally across different glyphs', () => {
 		const collision = ['##B#', '....', '....'];
 		const src = makeSource({
 			width: 4,
@@ -183,7 +183,27 @@ describe('compileLayeredRegion — blockers', () => {
 			}
 		});
 		const out = compileLayeredRegion(src);
-		expect(out.blockers!.filter((b) => b.kind === 'garden-hedge')).toHaveLength(3);
+		// # and B both map to garden-hedge — same-kind runs merge into one blocker
+		expect(out.blockers!.filter((b) => b.kind === 'garden-hedge')).toHaveLength(1);
+		expect(out.blockers![0].width).toBe(128); // 4 tiles × 32
+	});
+
+	it('splits horizontal runs on kind change', () => {
+		const collision = ['##W#', '....', '....'];
+		const src = makeSource({
+			width: 4,
+			height: 3,
+			layers: {
+				collision,
+				terrain: Array.from({ length: 3 }, () => dot(4)),
+				paths: Array.from({ length: 3 }, () => dot(4)),
+				decor: Array.from({ length: 3 }, () => dot(4)),
+				regions: Array.from({ length: 3 }, () => dot(4))
+			}
+		});
+		const out = compileLayeredRegion(src);
+		// ## (garden-hedge), W (ocean), # (garden-hedge) — three distinct kind runs
+		expect(out.blockers).toHaveLength(3);
 	});
 
 	it('merges vertically-adjacent same-kind same-span blockers into one', () => {
@@ -415,5 +435,36 @@ describe('compileLayeredRegion — objects', () => {
 		const a = JSON.stringify(compileLayeredRegion(src));
 		const b = JSON.stringify(compileLayeredRegion(src));
 		expect(a).toBe(b);
+	});
+
+	it('throws when an object col/row is out of grid bounds', () => {
+		const src = makeSource({
+			width: 4,
+			height: 3,
+			objects: {
+				landmarks: [
+					{
+						id: 'lm-oob',
+						col: 5,
+						row: 0,
+						width: 100,
+						height: 100,
+						labelKey: 'test.label'
+					}
+				]
+			}
+		});
+		expect(() => compileLayeredRegion(src)).toThrow(/out of bounds/);
+	});
+
+	it('throws when an object row is negative', () => {
+		const src = makeSource({
+			width: 4,
+			height: 3,
+			objects: {
+				pickups: [{ id: 'p-oob', col: 0, row: -1, itemId: 'field-potion', quantity: 1 }]
+			}
+		});
+		expect(() => compileLayeredRegion(src)).toThrow(/out of bounds/);
 	});
 });
