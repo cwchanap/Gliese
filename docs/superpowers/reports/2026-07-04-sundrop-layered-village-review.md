@@ -174,7 +174,7 @@ Ambient NPCs: wanderer (26,19), woodcutter (10,28), pilgrim (26,43), crier (40,8
 | `bun run lint` | clean (prettier + eslint) |
 | `bun run test:e2e` | 12 passed |
 | village-layered.test.ts (connectivity + guard) | 16 passed |
-| compile-layered-region.test.ts | 19 passed |
+| compile-layered-region.test.ts | 24 passed |
 
 ## Human visual review checklist
 
