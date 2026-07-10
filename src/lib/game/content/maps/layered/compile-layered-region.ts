@@ -183,7 +183,9 @@ function mergeBlockersVertically(blockers: MapBlocker[]): MapBlocker[] {
 			const next = group[i];
 			const currentBottom = current.y + current.height / 2;
 			const nextTop = next.y - next.height / 2;
-			if (Math.abs(currentBottom - nextTop) < 0.001) {
+			// Edges are grid-aligned (origin + k*tileSize, tileSize === 32), so adjacency
+			// is an exact integer comparison — no floating-point tolerance needed.
+			if (currentBottom === nextTop) {
 				const topEdge = current.y - current.height / 2;
 				const bottomEdge = next.y + next.height / 2;
 				current = {
@@ -240,6 +242,8 @@ function buildMapDecor<K extends MapDecor['textureKey'], F extends MapDecor['fra
 							}
 						}
 					: {})
+				// MapDecor is a per-sheet discriminated union; conditional spreads + generic
+				// textureKey/frameName can't narrow to one member, so the cast is required.
 			} as MapDecor;
 			decor.push(base);
 		}
