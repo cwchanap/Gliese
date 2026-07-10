@@ -169,12 +169,12 @@ Ambient NPCs: wanderer (26,19), woodcutter (10,28), pilgrim (26,44), crier (40,8
 
 | Gate | Result |
 |------|--------|
-| `bun run test:unit -- --run` | 612 passed (43 files) |
+| `bun run test:unit -- --run` | 617 passed (43 files) |
 | `bun run check` | 0 errors, 0 warnings |
 | `bun run lint` | clean (prettier + eslint) |
 | `bun run test:e2e` | 12 passed |
 | village-layered.test.ts (connectivity + guard) | 16 passed |
-| compile-layered-region.test.ts | 15 passed |
+| compile-layered-region.test.ts | 19 passed |
 
 ## Human visual review checklist
 
