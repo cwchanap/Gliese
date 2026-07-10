@@ -1,6 +1,10 @@
 import type { MapDecor, MapDecorDepth } from '$lib/game/content/maps/types';
+import type { MessageKey } from '$lib/game/i18n/translate';
 
-export interface DecorGlyphSpec<K extends string = string, F extends string = string> {
+export interface DecorGlyphSpec<
+	K extends MapDecor['textureKey'] = MapDecor['textureKey'],
+	F extends MapDecor['frameName'] = MapDecor['frameName']
+> {
 	readonly frame: F;
 	readonly textureKey: K;
 	readonly renderWidth: number;
@@ -15,7 +19,7 @@ export interface LayeredLandmark {
 	readonly row: number;
 	readonly width: number;
 	readonly height: number;
-	readonly labelKey: string;
+	readonly labelKey: MessageKey;
 }
 
 export interface LayeredTransition {
@@ -50,8 +54,8 @@ export interface LayeredDiscovery {
 	readonly id: string;
 	readonly col: number;
 	readonly row: number;
-	readonly labelKey: string;
-	readonly descriptionKey: string;
+	readonly labelKey: MessageKey;
+	readonly descriptionKey: MessageKey;
 }
 
 export interface LayeredRegionSource<

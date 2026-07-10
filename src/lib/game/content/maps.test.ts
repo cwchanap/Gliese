@@ -33,7 +33,8 @@ import {
 	villagerHouse2Map,
 	villagerHouse3Map
 } from '$lib/game/content/maps';
-import type { MapDecor, WorldMapDefinition } from '$lib/game/content/maps';
+import type { MapDecor, MapGroundTile, WorldMapDefinition } from '$lib/game/content/maps';
+import { sundropVillageLayered } from '$lib/game/content/maps/regions/village-layered';
 
 function expectEnglishMessage(key: Parameters<typeof t>[1]): string {
 	const value = t('en', key);
@@ -1220,6 +1221,48 @@ describe('opening map content', () => {
 		for (const decor of canopyDecor) {
 			expect(decor.x - decor.width / 2).toBeGreaterThanOrEqual(4_880);
 			expect(decor.y + decor.height / 2).toBeLessThanOrEqual(1_470);
+		}
+	});
+
+	it('covers each village room floor with ground patches of the authored tile type', () => {
+		const src = sundropVillageLayered;
+		const pathTileMap: Record<string, MapGroundTile> = {
+			p: 'pathTile',
+			c: 'plazaStoneTile',
+			a: 'autumnLeafTile',
+			s: 'seaTile'
+		};
+		const roomGlyphs = ['H', 'P', 'M', 'N', 'S', 'E', 'C'] as const;
+		const patches = meadowEntryMap.groundPatches ?? [];
+
+		for (const glyph of roomGlyphs) {
+			const roomCells: Array<{ col: number; row: number; tile: MapGroundTile }> = [];
+			for (let row = 0; row < src.height; row++) {
+				for (let col = 0; col < src.width; col++) {
+					if (src.layers.regions[row][col] !== glyph) continue;
+					const tile = pathTileMap[src.layers.paths[row][col]];
+					if (tile) roomCells.push({ col, row, tile });
+				}
+			}
+			expect(roomCells.length, `room ${glyph} has no path-tiled cells`).toBeGreaterThan(0);
+
+			// Sample every 3rd cell — enough to catch a shrunk patch without
+			// asserting every single tile (which would couple the test to the
+			// exact run-length-merge boundaries).
+			const samples = roomCells.filter((_, i) => i % 3 === 0);
+			for (const { col, row, tile } of samples) {
+				const worldX = src.origin.x + col * src.tileSize + src.tileSize / 2;
+				const worldY = src.origin.y + row * src.tileSize + src.tileSize / 2;
+				const patch = patches.find((p) => isPointInsideRect({ x: worldX, y: worldY }, p));
+				expect(
+					patch,
+					`room ${glyph} cell (${col},${row}) → world (${worldX},${worldY}) not covered by any ground patch`
+				).toBeDefined();
+				expect(
+					patch!.tile,
+					`room ${glyph} cell (${col},${row}) has tile ${patch!.tile}, expected ${tile}`
+				).toBe(tile);
+			}
 		}
 	});
 

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { meadowEntryMap, type WorldMapDefinition } from '$lib/game/content/maps';
+import { sundropVillageLayered } from '$lib/game/content/maps/regions/village-layered';
 
 type Pt = { x: number; y: number };
 type Rect = { id: string; x: number; y: number; width: number; height: number };
@@ -87,6 +88,49 @@ function laneWidthViolations(
 	return violations;
 }
 
+/**
+ * Derive village room bounding boxes from the region glyph extents in
+ * village-layered.ts, converting grid cells to world-space center-based rects.
+ * This keeps the room bounds in sync with the authored layout automatically —
+ * no hardcoded literals to update when the village grid changes.
+ */
+function deriveVillageRoomBounds(): Rect[] {
+	const src = sundropVillageLayered;
+	const glyphToId: Record<string, string> = {
+		H: 'village-home-yard',
+		P: 'village-plaza',
+		M: 'village-market',
+		N: 'village-north',
+		S: 'village-shrine',
+		E: 'village-gate-approach',
+		C: 'village-gate'
+	};
+	const bounds: Rect[] = [];
+	for (const [glyph, id] of Object.entries(glyphToId)) {
+		let minCol = Infinity;
+		let maxCol = -Infinity;
+		let minRow = Infinity;
+		let maxRow = -Infinity;
+		for (let row = 0; row < src.height; row++) {
+			for (let col = 0; col < src.width; col++) {
+				if (src.layers.regions[row][col] !== glyph) continue;
+				minCol = Math.min(minCol, col);
+				maxCol = Math.max(maxCol, col);
+				minRow = Math.min(minRow, row);
+				maxRow = Math.max(maxRow, row);
+			}
+		}
+		bounds.push({
+			id,
+			x: src.origin.x + ((minCol + maxCol + 1) / 2) * src.tileSize,
+			y: src.origin.y + ((minRow + maxRow + 1) / 2) * src.tileSize,
+			width: (maxCol - minCol + 1) * src.tileSize,
+			height: (maxRow - minRow + 1) * src.tileSize
+		});
+	}
+	return bounds;
+}
+
 describe('shortcut closure', () => {
 	const solids = [...collectSolidRects(meadowEntryMap).values()];
 
@@ -137,18 +181,10 @@ describe('shortcut closure', () => {
 
 describe('village maze — compact hamlet invariants', () => {
 	// Open rooms where lane-width samples are skipped (the village is a set of
-	// rooms connected by bent lanes, not a hedge-grid). Bounds were derived from
-	// the region glyph extents in village-layered.ts but are hardcoded here as
-	// literals — update them manually if the village layout changes.
-	const villageRoomBounds: Rect[] = [
-		{ id: 'village-plaza', x: 1_088, y: 5_192, width: 416, height: 256 },
-		{ id: 'village-home-yard', x: 672, y: 5_624, width: 480, height: 224 },
-		{ id: 'village-market', x: 640, y: 5_224, width: 480, height: 320 },
-		{ id: 'village-north', x: 1_184, y: 4_744, width: 736, height: 256 },
-		{ id: 'village-shrine', x: 1_264, y: 5_608, width: 640, height: 320 },
-		{ id: 'village-gate', x: 1_728, y: 4_472, width: 160, height: 96 },
-		{ id: 'village-gate-approach', x: 1_664, y: 4_584, width: 288, height: 128 }
-	];
+	// rooms connected by bent lanes, not a hedge-grid). Bounds are derived from
+	// the region glyph extents in village-layered.ts at test time so they stay
+	// in sync with the authored layout automatically.
+	const villageRoomBounds: Rect[] = deriveVillageRoomBounds();
 
 	// Lanes trace the walkable corridors between rooms. Width checks only apply
 	// to samples OUTSIDE the room bounds above (the narrow connecting lanes).
