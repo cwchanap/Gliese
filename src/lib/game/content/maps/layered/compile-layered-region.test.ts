@@ -262,6 +262,9 @@ describe('compileLayeredRegion — mapDecor', () => {
 		});
 		expect(d.x).toBe(256);
 		expect(d.y).toBe(4376);
+		expect(d.collision!.x).toBe(256);
+		expect(d.collision!.y).toBe(4376 + 200 / 2 - 60 / 2);
+		expect(d.collision!.y).toBe(4446);
 		expect(d.collision).toMatchObject({ width: 50, height: 60 });
 	});
 
