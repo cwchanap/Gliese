@@ -1538,6 +1538,23 @@ describe('meadow-entry region integrity', () => {
 		}
 	});
 
+	it('anchors every village-sheet poleLantern collision to the compiler convention', () => {
+		// The layered compiler anchors decor collision at
+		//   center.y + renderHeight/2 - collisionHeight/2
+		// (compile-layered-region.ts:237). Hand-authored decor fragments that
+		// share the same sprite (e.g. corridorWaymarker) must match so identical
+		// poleLanterns don't collide 10px apart in the merged map.
+		const lanterns = (meadowEntryMap.mapDecor ?? []).filter(
+			(d) => d.textureKey === villageDressingAsset.key && d.frameName === 'poleLantern'
+		);
+		expect(lanterns.length).toBeGreaterThan(0);
+		for (const decor of lanterns) {
+			expect(decor.collision).toBeDefined();
+			const expected = decor.y + decor.height / 2 - (decor.collision?.height ?? 0) / 2;
+			expect(decor.collision?.y).toBe(expected);
+		}
+	});
+
 	it('keeps every landmark in-bounds with a translated label', () => {
 		for (const landmark of meadowEntryMap.landmarks ?? []) {
 			expectRectInsideMap(landmark);

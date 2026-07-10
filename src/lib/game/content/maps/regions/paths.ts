@@ -33,7 +33,7 @@ const corridorWaymarker: MapDecor = {
 	collision: {
 		id: 'village-corridor-waymarker-collision',
 		x: 2_120,
-		y: 4_520,
+		y: 4_510,
 		width: 50,
 		height: 60
 	}
