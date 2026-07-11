@@ -385,7 +385,7 @@ describe('opening map content', () => {
 				x: 256,
 				y: 336,
 				toMapId: 'meadow-entry',
-				arrival: { x: 700, y: 5_700, facing: 'down' }
+				arrival: { x: 704, y: 5_700, facing: 'down' }
 			}
 		]);
 		expect(
@@ -953,27 +953,49 @@ describe('opening map content', () => {
 		}
 	});
 
+	it('aligns interior return arrival x with exterior door transition x', () => {
+		const exteriorTransitions = new Map(
+			meadowEntryMap.transitions.map((transition) => [transition.toMapId, transition])
+		);
+
+		for (const interiorMap of [
+			heroHouseMap,
+			guildHallMap,
+			itemShopMap,
+			villagerHouse1Map,
+			villagerHouse2Map,
+			villagerHouse3Map,
+			shrineOfAuroraInteriorMap
+		]) {
+			const returnTransition = interiorMap.transitions[0];
+			const exteriorTransition = exteriorTransitions.get(interiorMap.id);
+			expect(exteriorTransition).toBeDefined();
+			expect(returnTransition.arrival).toBeDefined();
+			expect(returnTransition.arrival!.x).toBe(exteriorTransition!.x);
+		}
+	});
+
 	it('declares exact exterior return arrivals for bottom-left village interiors', () => {
-		expect(heroHouseMap.transitions[0].arrival).toEqual({ x: 700, y: 5_700, facing: 'down' });
-		expect(guildHallMap.transitions[0].arrival).toEqual({ x: 1_460, y: 5_170, facing: 'down' });
-		expect(itemShopMap.transitions[0].arrival).toEqual({ x: 520, y: 5_120, facing: 'down' });
+		expect(heroHouseMap.transitions[0].arrival).toEqual({ x: 704, y: 5_700, facing: 'down' });
+		expect(guildHallMap.transitions[0].arrival).toEqual({ x: 1_472, y: 5_170, facing: 'down' });
+		expect(itemShopMap.transitions[0].arrival).toEqual({ x: 512, y: 5_120, facing: 'down' });
 		expect(villagerHouse1Map.transitions[0].arrival).toEqual({
-			x: 870,
+			x: 864,
 			y: 4_870,
 			facing: 'down'
 		});
 		expect(villagerHouse2Map.transitions[0].arrival).toEqual({
-			x: 1_180,
+			x: 1_184,
 			y: 4_840,
 			facing: 'down'
 		});
 		expect(villagerHouse3Map.transitions[0].arrival).toEqual({
-			x: 1_520,
+			x: 1_536,
 			y: 5_700,
 			facing: 'down'
 		});
 		expect(shrineOfAuroraInteriorMap.transitions[0].arrival).toEqual({
-			x: 1_180,
+			x: 1_184,
 			y: 5_760,
 			facing: 'down'
 		});
