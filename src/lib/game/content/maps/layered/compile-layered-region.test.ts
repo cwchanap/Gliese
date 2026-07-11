@@ -244,6 +244,28 @@ describe('compileLayeredRegion — blockers', () => {
 		// Row 0: ## (width 64, x 272); rows 1-2: .# (width 32, x 288) — different span, no merge
 		expect(out.blockers).toHaveLength(2);
 	});
+
+	it('keeps same-kind same-span blockers separate when a y-gap exists between them', () => {
+		const collision = ['##..', '....', '##..'];
+		const src = makeSource({
+			width: 4,
+			height: 3,
+			layers: {
+				collision,
+				terrain: Array.from({ length: 3 }, () => dot(4)),
+				paths: Array.from({ length: 3 }, () => dot(4)),
+				decor: Array.from({ length: 3 }, () => dot(4)),
+				regions: Array.from({ length: 3 }, () => dot(4))
+			}
+		});
+		const out = compileLayeredRegion(src);
+		// Rows 0 and 2 share kind/x/width but row 1 is a gap — else branch fires, stays as 2 blockers
+		expect(out.blockers).toHaveLength(2);
+		expect(out.blockers!.every((b) => b.kind === 'garden-hedge')).toBe(true);
+		expect(out.blockers!.every((b) => b.width === 64)).toBe(true);
+		expect(out.blockers![0].y).toBe(4376); // row 0 center
+		expect(out.blockers![1].y).toBe(4376 + 64); // row 2 center
+	});
 });
 
 describe('compileLayeredRegion — mapDecor', () => {
