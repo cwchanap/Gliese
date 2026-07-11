@@ -285,7 +285,7 @@ describe('opening map content', () => {
 			{
 				id: 'meadow-to-villager-house-1',
 				x: 864,
-				y: 4_824,
+				y: 4_632,
 				toMapId: 'villager-house-1',
 				showMarker: false,
 				arrival: { x: 256, y: 288, facing: 'up' }
@@ -293,7 +293,7 @@ describe('opening map content', () => {
 			{
 				id: 'meadow-to-villager-house-2',
 				x: 1_184,
-				y: 4_792,
+				y: 4_664,
 				toMapId: 'villager-house-2',
 				showMarker: false,
 				arrival: { x: 256, y: 288, facing: 'up' }
@@ -981,12 +981,12 @@ describe('opening map content', () => {
 		expect(itemShopMap.transitions[0].arrival).toEqual({ x: 512, y: 5_120, facing: 'down' });
 		expect(villagerHouse1Map.transitions[0].arrival).toEqual({
 			x: 864,
-			y: 4_870,
+			y: 4_678,
 			facing: 'down'
 		});
 		expect(villagerHouse2Map.transitions[0].arrival).toEqual({
 			x: 1_184,
-			y: 4_840,
+			y: 4_712,
 			facing: 'down'
 		});
 		expect(villagerHouse3Map.transitions[0].arrival).toEqual({
@@ -1272,10 +1272,12 @@ describe('opening map content', () => {
 			// Sample every 3rd cell — enough to catch a shrunk patch without
 			// asserting every single tile (which would couple the test to the
 			// exact run-length-merge boundaries).
+			const globalColStart = Math.floor((src.origin.x + src.tileSize / 2) / src.tileSize);
+			const globalRowStart = Math.floor((src.origin.y + src.tileSize / 2) / src.tileSize);
 			const samples = roomCells.filter((_, i) => i % 3 === 0);
 			for (const { col, row, tile } of samples) {
-				const worldX = src.origin.x + col * src.tileSize + src.tileSize / 2;
-				const worldY = src.origin.y + row * src.tileSize + src.tileSize / 2;
+				const worldX = (globalColStart + col) * src.tileSize + src.tileSize / 2;
+				const worldY = (globalRowStart + row) * src.tileSize + src.tileSize / 2;
 				const patch = patches.find((p) => isPointInsideRect({ x: worldX, y: worldY }, p));
 				expect(
 					patch,

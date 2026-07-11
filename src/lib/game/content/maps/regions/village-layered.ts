@@ -441,7 +441,7 @@ export const sundropVillageLayered: LayeredRegionSource<
 			{
 				id: 'meadow-to-villager-house-1',
 				col: 19,
-				row: 14,
+				row: 8,
 				toMapId: 'villager-house-1',
 				showMarker: false,
 				arrival: { x: 256, y: 288, facing: 'up' }
@@ -449,7 +449,7 @@ export const sundropVillageLayered: LayeredRegionSource<
 			{
 				id: 'meadow-to-villager-house-2',
 				col: 29,
-				row: 13,
+				row: 9,
 				toMapId: 'villager-house-2',
 				showMarker: false,
 				arrival: { x: 256, y: 288, facing: 'up' }

@@ -87,16 +87,34 @@ function buildGroundPatches(source: LayeredRegionSource): MapGroundPatch[] {
 	const cellTile: (MapGroundTile | '')[] = new Array(source.width * source.height).fill('');
 	for (let row = 0; row < source.height; row++) {
 		for (let col = 0; col < source.width; col++) {
-			const t = TERRAIN_TILE[source.layers.terrain[row][col]];
-			if (t) cellTile[row * source.width + col] = t;
+			const glyph = source.layers.terrain[row][col];
+			if (glyph === '.') continue;
+			const t = TERRAIN_TILE[glyph];
+			if (!t) {
+				throw new Error(`unknown terrain glyph "${glyph}" at col ${col} row ${row}`);
+			}
+			cellTile[row * source.width + col] = t;
 		}
 	}
 	for (let row = 0; row < source.height; row++) {
 		for (let col = 0; col < source.width; col++) {
-			const p = PATH_TILE[source.layers.paths[row][col]];
-			if (p) cellTile[row * source.width + col] = p;
+			const glyph = source.layers.paths[row][col];
+			if (glyph === '.') continue;
+			const p = PATH_TILE[glyph];
+			if (!p) {
+				throw new Error(`unknown path glyph "${glyph}" at col ${col} row ${row}`);
+			}
+			cellTile[row * source.width + col] = p;
 		}
 	}
+	// Rasterize patches on the runtime (global) tile grid so that
+	// WorldScene.findGroundPatchTile — which samples at column*32+16 —
+	// hits the correct tile. The layered origin may be offset from the
+	// global grid (e.g. x=240 is 7.5 tiles), so computing patch bounds
+	// from layered tile centers would shift boundaries by the offset
+	// and paint extra runtime cells at the edges.
+	const globalColStart = Math.floor((source.origin.x + source.tileSize / 2) / source.tileSize);
+	const globalRowStart = Math.floor((source.origin.y + source.tileSize / 2) / source.tileSize);
 	const patches: MapGroundPatch[] = [];
 	for (let row = 0; row < source.height; row++) {
 		let runStart = -1;
@@ -105,13 +123,13 @@ function buildGroundPatches(source: LayeredRegionSource): MapGroundPatch[] {
 			const tile = col < source.width ? cellTile[row * source.width + col] : '';
 			if (tile !== '' && tile === runTile) continue;
 			if (runStart >= 0 && runTile) {
-				const start = tileCenter(source, runStart, row);
-				const end = tileCenter(source, col - 1, row);
+				const firstGlobalX = (globalColStart + runStart) * source.tileSize + source.tileSize / 2;
+				const lastGlobalX = (globalColStart + col - 1) * source.tileSize + source.tileSize / 2;
 				patches.push({
 					id: `${source.idPrefix}-ground-${row}-${runStart}`,
-					x: (start.x + end.x) / 2,
-					y: start.y,
-					width: end.x - start.x + source.tileSize,
+					x: (firstGlobalX + lastGlobalX) / 2,
+					y: (globalRowStart + row) * source.tileSize + source.tileSize / 2,
+					width: (col - runStart) * source.tileSize,
 					height: source.tileSize,
 					tile: runTile
 				});
