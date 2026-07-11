@@ -485,8 +485,10 @@ export const villagerHouse3Map: WorldMapDefinition = addEnglishMapText({
 			toMapId: openingMapId,
 			// Arrival moved south of the 80%-shrunk vh3 footprint: the old y=5560
 			// now falls inside the new south edge (5666.5), so it would spawn the
-			// player inside collision. y=5700 sits ~134px clear, matching the
-			// other village exits (≈127-144px south of their doorways).
+			// player inside collision. y=5_692 sits ~140px south of the doorway
+			// (row 37 → y=5552), matching the hero-house exit (also y=5_692).
+			// These two are the only village exits in the ~127-144px range; the
+			// others land 24-122px south of their doorways.
 			arrival: { x: 1_552, y: 5_692, facing: 'down' }
 		}
 	],

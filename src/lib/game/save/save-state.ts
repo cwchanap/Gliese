@@ -57,6 +57,11 @@ export type SaveState = {
 
 const DIRECTIONS: Direction[] = ['up', 'down', 'left', 'right'];
 const NORMALIZE_TILE_SIZE = 32;
+// Mirrors WorldScene.playerRadius — strict-rect collision (blockers, fences,
+// decor) expands every rect by this radius before testing containment, so a
+// tile center outside the raw rect but inside the padded rect still traps the
+// player. Normalization must test against the same padded bounds.
+const NORMALIZE_PLAYER_RADIUS = 12;
 
 export function createNewSaveState(): SaveState {
 	return {
@@ -354,11 +359,18 @@ function normalizePlayerPosition(mapId: string, player: SaveState['player']): Sa
 	// Landmarks and interior props are excluded because their collision is
 	// escape-aware (allows moving outward from inside).
 	const collisionRects = collectStrictCollisionRects(map);
-	if (!isInsideAnyCollisionRect(x, y, collisionRects)) {
+	if (!isInsideAnyCollisionRect(x, y, collisionRects, NORMALIZE_PLAYER_RADIUS)) {
 		return { ...player, x, y };
 	}
 
-	const nearest = findNearestWalkableTile(x, y, map.width, map.height, collisionRects);
+	const nearest = findNearestWalkableTile(
+		x,
+		y,
+		map.width,
+		map.height,
+		collisionRects,
+		NORMALIZE_PLAYER_RADIUS
+	);
 	if (nearest) {
 		return { ...player, x: nearest.x, y: nearest.y };
 	}
@@ -374,7 +386,7 @@ interface CollisionRect {
 	height: number;
 }
 
-function collectStrictCollisionRects(map: WorldMapDefinition): CollisionRect[] {
+export function collectStrictCollisionRects(map: WorldMapDefinition): CollisionRect[] {
 	const rects: CollisionRect[] = [];
 	for (const blocker of map.blockers ?? []) {
 		rects.push(blocker);
@@ -390,25 +402,52 @@ function collectStrictCollisionRects(map: WorldMapDefinition): CollisionRect[] {
 	return rects;
 }
 
-function isInsideAnyCollisionRect(x: number, y: number, rects: CollisionRect[]): boolean {
-	return rects.some((rect) => isInsideCollisionRect(x, y, rect));
+export function isInsideAnyCollisionRect(
+	x: number,
+	y: number,
+	rects: CollisionRect[],
+	padding: number
+): boolean {
+	return rects.some((rect) => isInsideCollisionRect(x, y, rect, padding));
 }
 
-function isInsideCollisionRect(x: number, y: number, rect: CollisionRect): boolean {
+export function isInsideCollisionRect(
+	x: number,
+	y: number,
+	rect: CollisionRect,
+	padding: number
+): boolean {
 	return (
-		x >= rect.x - rect.width / 2 &&
-		x <= rect.x + rect.width / 2 &&
-		y >= rect.y - rect.height / 2 &&
-		y <= rect.y + rect.height / 2
+		x >= rect.x - rect.width / 2 - padding &&
+		x <= rect.x + rect.width / 2 + padding &&
+		y >= rect.y - rect.height / 2 - padding &&
+		y <= rect.y + rect.height / 2 + padding
 	);
 }
 
+/**
+ * Searches outward from the tile containing (x, y) for the nearest tile
+ * whose center is not inside any padded collision rect. Used by
+ * {@link normalizePlayerPosition} to rescue saves that land inside a
+ * wall, fence, or decor collision rect.
+ *
+ * @param x - World-space x coordinate of the position to search from.
+ * @param y - World-space y coordinate of the position to search from.
+ * @param mapWidth - Map width in tiles; bounds the search horizontally.
+ * @param mapHeight - Map height in tiles; bounds the search vertically.
+ * @param rects - Strict collision rects (blockers, fences, decor) to avoid.
+ * @param padding - Pixels to expand each rect by when testing containment
+ *   (matches the player radius so padded-trapped positions are rejected).
+ * @returns The world-space center of the nearest walkable tile, or `null`
+ *   if every tile on the map is inside a padded collision rect.
+ */
 function findNearestWalkableTile(
 	x: number,
 	y: number,
 	mapWidth: number,
 	mapHeight: number,
-	rects: CollisionRect[]
+	rects: CollisionRect[],
+	padding: number
 ): { x: number; y: number } | null {
 	const startCol = Math.floor(x / NORMALIZE_TILE_SIZE);
 	const startRow = Math.floor(y / NORMALIZE_TILE_SIZE);
@@ -427,7 +466,7 @@ function findNearestWalkableTile(
 				}
 				const tileCenterX = col * NORMALIZE_TILE_SIZE + NORMALIZE_TILE_SIZE / 2;
 				const tileCenterY = row * NORMALIZE_TILE_SIZE + NORMALIZE_TILE_SIZE / 2;
-				if (!isInsideAnyCollisionRect(tileCenterX, tileCenterY, rects)) {
+				if (!isInsideAnyCollisionRect(tileCenterX, tileCenterY, rects, padding)) {
 					return { x: tileCenterX, y: tileCenterY };
 				}
 			}

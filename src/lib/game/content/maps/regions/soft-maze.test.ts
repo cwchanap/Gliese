@@ -120,6 +120,11 @@ function deriveVillageRoomBounds(): Rect[] {
 				maxRow = Math.max(maxRow, row);
 			}
 		}
+		if (minCol === Infinity) {
+			throw new Error(
+				`deriveVillageRoomBounds: glyph "${glyph}" (id: ${id}) not found in sundropVillageLayered regions`
+			);
+		}
 		bounds.push({
 			id,
 			x: src.origin.x + ((minCol + maxCol + 1) / 2) * src.tileSize,
