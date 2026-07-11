@@ -259,7 +259,7 @@ describe('opening map content', () => {
 		expect(meadowEntryMap.width).toBe(200);
 		expect(meadowEntryMap.height).toBe(200);
 		expect(meadowEntryMap.spawnDirection).toBe('up');
-		expect(meadowEntryMap.spawn).toEqual({ x: 700, y: 5_600 });
+		expect(meadowEntryMap.spawn).toEqual({ x: 716, y: 5_592 });
 		expect(meadowEntryMap.combatBounds?.map((bounds) => bounds.id)).toEqual([
 			'wildwood-north-combat-pocket',
 			'wildwood-crossing-combat-pocket',
@@ -268,56 +268,56 @@ describe('opening map content', () => {
 		expect(meadowEntryMap.transitions).toEqual([
 			{
 				id: 'meadow-to-hero-house',
-				x: 704,
-				y: 5_560,
+				x: 720,
+				y: 5_552,
 				toMapId: 'hero-house',
 				showMarker: false,
 				arrival: { x: 256, y: 224, facing: 'up' }
 			},
 			{
 				id: 'meadow-to-item-shop',
-				x: 512,
-				y: 5_080,
+				x: 528,
+				y: 5_072,
 				toMapId: 'item-shop',
 				showMarker: false,
 				arrival: { x: 256, y: 288, facing: 'up' }
 			},
 			{
 				id: 'meadow-to-villager-house-1',
-				x: 864,
-				y: 4_632,
+				x: 880,
+				y: 4_624,
 				toMapId: 'villager-house-1',
 				showMarker: false,
 				arrival: { x: 256, y: 288, facing: 'up' }
 			},
 			{
 				id: 'meadow-to-villager-house-2',
-				x: 1_184,
-				y: 4_664,
+				x: 1_200,
+				y: 4_656,
 				toMapId: 'villager-house-2',
 				showMarker: false,
 				arrival: { x: 256, y: 288, facing: 'up' }
 			},
 			{
 				id: 'meadow-to-guild-hall',
-				x: 1_472,
-				y: 5_048,
+				x: 1_488,
+				y: 5_040,
 				toMapId: 'guild-hall',
 				showMarker: false,
 				arrival: { x: 256, y: 288, facing: 'up' }
 			},
 			{
 				id: 'meadow-to-shrine-of-aurora',
-				x: 1_184,
-				y: 5_720,
+				x: 1_200,
+				y: 5_712,
 				toMapId: 'shrine-of-aurora-interior',
 				showMarker: false,
 				arrival: { x: 256, y: 288, facing: 'up' }
 			},
 			{
 				id: 'meadow-to-villager-house-3',
-				x: 1_536,
-				y: 5_560,
+				x: 1_552,
+				y: 5_552,
 				toMapId: 'villager-house-3',
 				showMarker: false,
 				arrival: { x: 256, y: 288, facing: 'up' }
@@ -385,7 +385,7 @@ describe('opening map content', () => {
 				x: 256,
 				y: 336,
 				toMapId: 'meadow-entry',
-				arrival: { x: 704, y: 5_700, facing: 'down' }
+				arrival: { x: 720, y: 5_692, facing: 'down' }
 			}
 		]);
 		expect(
@@ -976,27 +976,27 @@ describe('opening map content', () => {
 	});
 
 	it('declares exact exterior return arrivals for bottom-left village interiors', () => {
-		expect(heroHouseMap.transitions[0].arrival).toEqual({ x: 704, y: 5_700, facing: 'down' });
-		expect(guildHallMap.transitions[0].arrival).toEqual({ x: 1_472, y: 5_170, facing: 'down' });
-		expect(itemShopMap.transitions[0].arrival).toEqual({ x: 512, y: 5_120, facing: 'down' });
+		expect(heroHouseMap.transitions[0].arrival).toEqual({ x: 720, y: 5_692, facing: 'down' });
+		expect(guildHallMap.transitions[0].arrival).toEqual({ x: 1_488, y: 5_162, facing: 'down' });
+		expect(itemShopMap.transitions[0].arrival).toEqual({ x: 528, y: 5_112, facing: 'down' });
 		expect(villagerHouse1Map.transitions[0].arrival).toEqual({
-			x: 864,
-			y: 4_678,
+			x: 880,
+			y: 4_670,
 			facing: 'down'
 		});
 		expect(villagerHouse2Map.transitions[0].arrival).toEqual({
-			x: 1_184,
-			y: 4_712,
+			x: 1_200,
+			y: 4_704,
 			facing: 'down'
 		});
 		expect(villagerHouse3Map.transitions[0].arrival).toEqual({
-			x: 1_536,
-			y: 5_700,
+			x: 1_552,
+			y: 5_692,
 			facing: 'down'
 		});
 		expect(shrineOfAuroraInteriorMap.transitions[0].arrival).toEqual({
-			x: 1_184,
-			y: 5_760,
+			x: 1_200,
+			y: 5_752,
 			facing: 'down'
 		});
 	});
@@ -1097,56 +1097,56 @@ describe('opening map content', () => {
 			expect.arrayContaining([
 				expect.objectContaining({
 					id: 'hero-house-exterior',
-					x: 704,
-					y: 5_432,
+					x: 720,
+					y: 5_424,
 					width: 235,
 					height: 246,
 					labelKey: 'content.maps.landmarks.hero-house-exterior.label'
 				}),
 				expect.objectContaining({
 					id: 'guild-hall-exterior',
-					x: 1_472,
-					y: 4_888,
+					x: 1_488,
+					y: 4_880,
 					width: 307,
 					height: 277,
 					labelKey: 'content.maps.landmarks.guild-hall-exterior.label'
 				}),
 				expect.objectContaining({
 					id: 'item-shop-exterior',
-					x: 512,
-					y: 4_952,
+					x: 528,
+					y: 4_944,
 					width: 246,
 					height: 235,
 					labelKey: 'content.maps.landmarks.item-shop-exterior.label'
 				}),
 				expect.objectContaining({
 					id: 'villager-house-1-exterior',
-					x: 864,
-					y: 4_472,
+					x: 880,
+					y: 4_464,
 					width: 226,
 					height: 205,
 					labelKey: 'content.maps.landmarks.villager-house-1-exterior.label'
 				}),
 				expect.objectContaining({
 					id: 'villager-house-2-exterior',
-					x: 1_184,
-					y: 4_504,
+					x: 1_200,
+					y: 4_496,
 					width: 338,
 					height: 261,
 					labelKey: 'content.maps.landmarks.villager-house-2-exterior.label'
 				}),
 				expect.objectContaining({
 					id: 'villager-house-3-exterior',
-					x: 1_536,
-					y: 5_368,
+					x: 1_552,
+					y: 5_360,
 					width: 184,
 					height: 333,
 					labelKey: 'content.maps.landmarks.villager-house-3-exterior.label'
 				}),
 				expect.objectContaining({
 					id: 'sundrop-well',
-					x: 992,
-					y: 5_176,
+					x: 1_008,
+					y: 5_168,
 					width: 141,
 					height: 160,
 					labelKey: 'content.maps.landmarks.sundrop-well.label'
@@ -1161,16 +1161,16 @@ describe('opening map content', () => {
 				}),
 				expect.objectContaining({
 					id: 'blacksmith',
-					x: 384,
-					y: 5_272,
+					x: 400,
+					y: 5_264,
 					width: 235,
 					height: 226,
 					labelKey: 'content.maps.landmarks.blacksmith.label'
 				}),
 				expect.objectContaining({
 					id: 'shrine-of-aurora',
-					x: 1_184,
-					y: 5_560,
+					x: 1_200,
+					y: 5_552,
 					width: 246,
 					height: 333,
 					labelKey: 'content.maps.landmarks.shrine-of-aurora.label'
@@ -2239,10 +2239,10 @@ describe('exploration test helpers', () => {
 describe('route: spawn → crossroads', () => {
 	it('has no empty stretch longer than the gap tolerance', () => {
 		expectRouteHasNoEmptyStretch('spawn → crossroads', [
-			{ x: 700, y: 5_600 },
-			{ x: 1_000, y: 5_100 },
-			{ x: 1_650, y: 4_550 },
-			{ x: 1_650, y: 4_350 },
+			{ x: 716, y: 5_592 },
+			{ x: 1_016, y: 5_092 },
+			{ x: 1_666, y: 4_542 },
+			{ x: 1_666, y: 4_342 },
 			{ x: 1_850, y: 4_350 },
 			{ x: 1_850, y: 4_100 },
 			{ x: 2_200, y: 4_100 },
@@ -2363,15 +2363,15 @@ describe('route: crossroads → wildwood cave', () => {
 describe('critical routes avoid blockers', () => {
 	const criticalRoutes: Pt[][] = [
 		[
-			{ x: 700, y: 5_600 },
-			{ x: 850, y: 5_400 },
-			{ x: 1_000, y: 5_160 },
-			{ x: 1_300, y: 5_060 },
-			{ x: 1_460, y: 5_040 },
-			{ x: 1_490, y: 4_760 },
-			{ x: 1_490, y: 4_500 },
-			{ x: 1_660, y: 4_440 },
-			{ x: 1_690, y: 4_350 },
+			{ x: 716, y: 5_592 },
+			{ x: 866, y: 5_392 },
+			{ x: 1_016, y: 5_152 },
+			{ x: 1_316, y: 5_052 },
+			{ x: 1_476, y: 5_032 },
+			{ x: 1_506, y: 4_752 },
+			{ x: 1_506, y: 4_492 },
+			{ x: 1_676, y: 4_432 },
+			{ x: 1_706, y: 4_342 },
 			{ x: 1_740, y: 4_280 },
 			{ x: 1_850, y: 4_280 },
 			{ x: 1_850, y: 4_100 },

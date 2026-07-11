@@ -109,12 +109,11 @@ function buildGroundPatches(source: LayeredRegionSource): MapGroundPatch[] {
 	}
 	// Compute patch bounds from the layered origin — the same coordinate
 	// system used by buildBlockers, buildMapDecor, and object placement.
-	// WorldScene.findGroundPatchTile samples at global grid centers
-	// (column*32+16); when the origin is fractional (e.g. x=240 = 7.5
-	// tiles), a boundary global cell may fall inside an edge patch and
-	// pick up the tile.  That 16px of bleed at the perimeter is covered
-	// by the hedge/wall sprite and is far less visible than shifting
-	// every patch off the authored geometry.
+	// The origin must be grid-aligned (a multiple of tileSize) so that
+	// layered tile centers coincide with the global grid centers that
+	// WorldScene.findGroundPatchTile samples at (column*32+16).  A
+	// non-grid-aligned origin would shift patch boundaries off the
+	// global grid, causing adjacent runs to overlap at every boundary.
 	const patches: MapGroundPatch[] = [];
 	for (let row = 0; row < source.height; row++) {
 		let runStart = -1;

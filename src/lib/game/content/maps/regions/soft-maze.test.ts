@@ -222,8 +222,8 @@ describe('village maze — compact hamlet invariants', () => {
 		);
 		// Start from the plaza interior — clear of the sundrop-well solid at
 		// plaza center and clear of the compiled hedge walls.
-		const start = { x: 1_088, y: 5_080 };
-		const inVillage = (p: Pt) => p.x >= 240 && p.x <= 1_880 && p.y >= 4_400 && p.y <= 5_860;
+		const start = { x: 1_104, y: 5_072 };
+		const inVillage = (p: Pt) => p.x >= 256 && p.x <= 1_896 && p.y >= 4_392 && p.y <= 5_852;
 		for (const t of transitions) {
 			const visited = new Set<string>();
 			const queue = [{ ...start }];

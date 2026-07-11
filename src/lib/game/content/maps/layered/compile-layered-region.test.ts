@@ -19,7 +19,7 @@ function makeSource(
 	return {
 		idPrefix: 'test',
 		tileSize: 32,
-		origin: { x: 240, y: 4_360 },
+		origin: { x: 256, y: 4_352 },
 		width,
 		height,
 		decorGlyphTable: {},
@@ -70,17 +70,17 @@ describe('compileLayeredRegion — dimensions and ground patches', () => {
 				decor: Array.from({ length: 3 }, () => dot(4)),
 				regions: Array.from({ length: 3 }, () => dot(4))
 			},
-			origin: { x: 240, y: 4360 }
+			origin: { x: 256, y: 4352 }
 		});
 		const out = compileLayeredRegion(src);
 		expect(out.groundPatches).toHaveLength(1);
 		const patch = out.groundPatches![0];
 		expect(patch.tile).toBe('pathTile');
 		// Patch bounds use the layered origin (same as blockers/decor):
-		// origin (240,4360) + col*32 + 16. A 2-cell run at cols 0-1
-		// spans centers 256..288, centered at 272.
-		expect(patch.x).toBe((256 + 288) / 2);
-		expect(patch.y).toBe(4_376);
+		// origin (256,4352) + col*32 + 16. A 2-cell run at cols 0-1
+		// spans centers 272..304, centered at 288.
+		expect(patch.x).toBe((272 + 304) / 2);
+		expect(patch.y).toBe(4_368);
 		expect(patch.width).toBe(64);
 		expect(patch.height).toBe(32);
 	});
@@ -124,8 +124,8 @@ describe('compileLayeredRegion — dimensions and ground patches', () => {
 		expect(out.groundPatches).toEqual([
 			{
 				id: expect.any(String),
-				x: 288,
-				y: 4_376,
+				x: 304,
+				y: 4_368,
 				width: 32,
 				height: 32,
 				tile: 'seaTile'
@@ -182,8 +182,8 @@ describe('compileLayeredRegion — blockers', () => {
 		expect(out.blockers).toHaveLength(1);
 		expect(out.blockers![0]).toMatchObject({
 			kind: 'garden-hedge',
-			x: 272,
-			y: 4376,
+			x: 288,
+			y: 4368,
 			width: 64,
 			height: 32
 		});
@@ -264,7 +264,7 @@ describe('compileLayeredRegion — blockers', () => {
 		const b = out.blockers![0];
 		expect(b.kind).toBe('garden-hedge');
 		expect(b.height).toBe(96); // 3 tiles × 32
-		expect(b.y).toBe(4376 + 32); // center of rows 0-2
+		expect(b.y).toBe(4368 + 32); // center of rows 0-2
 	});
 
 	it('does not merge vertically-adjacent blockers with different x or width', () => {
@@ -281,7 +281,7 @@ describe('compileLayeredRegion — blockers', () => {
 			}
 		});
 		const out = compileLayeredRegion(src);
-		// Row 0: ## (width 64, x 272); rows 1-2: .# (width 32, x 288) — different span, no merge
+		// Row 0: ## (width 64, x 288); rows 1-2: .# (width 32, x 304) — different span, no merge
 		expect(out.blockers).toHaveLength(2);
 	});
 
@@ -303,8 +303,8 @@ describe('compileLayeredRegion — blockers', () => {
 		expect(out.blockers).toHaveLength(2);
 		expect(out.blockers!.every((b) => b.kind === 'garden-hedge')).toBe(true);
 		expect(out.blockers!.every((b) => b.width === 64)).toBe(true);
-		expect(out.blockers![0].y).toBe(4376); // row 0 center
-		expect(out.blockers![1].y).toBe(4376 + 64); // row 2 center
+		expect(out.blockers![0].y).toBe(4368); // row 0 center
+		expect(out.blockers![1].y).toBe(4368 + 64); // row 2 center
 	});
 });
 
@@ -342,11 +342,11 @@ describe('compileLayeredRegion — mapDecor', () => {
 			width: 100,
 			height: 200
 		});
-		expect(d.x).toBe(256);
-		expect(d.y).toBe(4376);
-		expect(d.collision!.x).toBe(256);
-		expect(d.collision!.y).toBe(4376 + 200 / 2 - 60 / 2);
-		expect(d.collision!.y).toBe(4446);
+		expect(d.x).toBe(272);
+		expect(d.y).toBe(4368);
+		expect(d.collision!.x).toBe(272);
+		expect(d.collision!.y).toBe(4368 + 200 / 2 - 60 / 2);
+		expect(d.collision!.y).toBe(4438);
 		expect(d.collision).toMatchObject({ width: 50, height: 60 });
 	});
 
@@ -428,7 +428,7 @@ describe('compileLayeredRegion — objects', () => {
 		const src = makeSource({
 			width: 4,
 			height: 3,
-			origin: { x: 240, y: 4360 },
+			origin: { x: 256, y: 4352 },
 			objects: {
 				landmarks: [
 					{
@@ -456,28 +456,28 @@ describe('compileLayeredRegion — objects', () => {
 		const out = compileLayeredRegion(src);
 		expect(out.landmarks![0]).toMatchObject({
 			id: 'lm-1',
-			x: 256 + 32,
-			y: 4376 + 32,
+			x: 272 + 32,
+			y: 4368 + 32,
 			width: 235,
 			height: 246
 		});
 		expect(out.transitions![0]).toMatchObject({
 			id: 't-1',
-			x: 256 + 64,
-			y: 4376,
+			x: 272 + 64,
+			y: 4368,
 			toMapId: 'hero-house'
 		});
 		expect(out.pickups![0]).toMatchObject({
 			id: 'p-1',
-			x: 256,
-			y: 4376,
+			x: 272,
+			y: 4368,
 			itemId: 'field-potion',
 			quantity: 1
 		});
 		expect(out.ambientNpcs![0]).toMatchObject({
 			id: 'a-1',
-			x: 256 + 96,
-			y: 4376 + 64,
+			x: 272 + 96,
+			y: 4368 + 64,
 			frameName: 'travelerNpc'
 		});
 	});
