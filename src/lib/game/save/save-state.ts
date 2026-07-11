@@ -1,5 +1,6 @@
 import { equipmentSlots, getItem } from '$lib/game/content/items';
 import { maps, meadowEntryMap } from '$lib/game/content/maps';
+import type { WorldMapDefinition } from '$lib/game/content/maps/types';
 import { startingPlayer } from '$lib/game/content/player';
 import { getShop } from '$lib/game/content/shops';
 import { createEmptyEquipment, type EquipmentState } from '$lib/game/core/equipment';
@@ -55,6 +56,7 @@ export type SaveState = {
 };
 
 const DIRECTIONS: Direction[] = ['up', 'down', 'left', 'right'];
+const NORMALIZE_TILE_SIZE = 32;
 
 export function createNewSaveState(): SaveState {
 	return {
@@ -343,7 +345,96 @@ function normalizePlayerPosition(mapId: string, player: SaveState['player']): Sa
 	const x = clamp(player.x, 0, map.width * 32);
 	const y = clamp(player.y, 0, map.height * 32);
 
-	return { ...player, x, y };
+	// After bounds clamping, check if the position is inside any strict-rect
+	// collision (blockers, fences, decor collision). These use
+	// isMovementBlockedByStrictRect in WorldScene, which traps the player —
+	// every small step keeps the target inside the padded rect, so no movement
+	// is possible. Nudge to the nearest walkable tile center to prevent
+	// soft-locks after map layout changes (e.g. the layered village refactor).
+	// Landmarks and interior props are excluded because their collision is
+	// escape-aware (allows moving outward from inside).
+	const collisionRects = collectStrictCollisionRects(map);
+	if (!isInsideAnyCollisionRect(x, y, collisionRects)) {
+		return { ...player, x, y };
+	}
+
+	const nearest = findNearestWalkableTile(x, y, map.width, map.height, collisionRects);
+	if (nearest) {
+		return { ...player, x: nearest.x, y: nearest.y };
+	}
+
+	// Fallback: map spawn (guaranteed walkable by map validation tests)
+	return { ...player, x: map.spawn.x, y: map.spawn.y };
+}
+
+interface CollisionRect {
+	x: number;
+	y: number;
+	width: number;
+	height: number;
+}
+
+function collectStrictCollisionRects(map: WorldMapDefinition): CollisionRect[] {
+	const rects: CollisionRect[] = [];
+	for (const blocker of map.blockers ?? []) {
+		rects.push(blocker);
+	}
+	for (const fence of map.fences ?? []) {
+		rects.push(fence);
+	}
+	for (const decor of map.mapDecor ?? []) {
+		if (decor.collision) {
+			rects.push(decor.collision);
+		}
+	}
+	return rects;
+}
+
+function isInsideAnyCollisionRect(x: number, y: number, rects: CollisionRect[]): boolean {
+	return rects.some((rect) => isInsideCollisionRect(x, y, rect));
+}
+
+function isInsideCollisionRect(x: number, y: number, rect: CollisionRect): boolean {
+	return (
+		x >= rect.x - rect.width / 2 &&
+		x <= rect.x + rect.width / 2 &&
+		y >= rect.y - rect.height / 2 &&
+		y <= rect.y + rect.height / 2
+	);
+}
+
+function findNearestWalkableTile(
+	x: number,
+	y: number,
+	mapWidth: number,
+	mapHeight: number,
+	rects: CollisionRect[]
+): { x: number; y: number } | null {
+	const startCol = Math.floor(x / NORMALIZE_TILE_SIZE);
+	const startRow = Math.floor(y / NORMALIZE_TILE_SIZE);
+	const maxRadius = Math.max(mapWidth, mapHeight);
+
+	for (let radius = 0; radius <= maxRadius; radius++) {
+		const minCol = Math.max(0, startCol - radius);
+		const maxCol = Math.min(mapWidth - 1, startCol + radius);
+		const minRow = Math.max(0, startRow - radius);
+		const maxRow = Math.min(mapHeight - 1, startRow + radius);
+
+		for (let row = minRow; row <= maxRow; row++) {
+			for (let col = minCol; col <= maxCol; col++) {
+				if (Math.max(Math.abs(col - startCol), Math.abs(row - startRow)) !== radius) {
+					continue;
+				}
+				const tileCenterX = col * NORMALIZE_TILE_SIZE + NORMALIZE_TILE_SIZE / 2;
+				const tileCenterY = row * NORMALIZE_TILE_SIZE + NORMALIZE_TILE_SIZE / 2;
+				if (!isInsideAnyCollisionRect(tileCenterX, tileCenterY, rects)) {
+					return { x: tileCenterX, y: tileCenterY };
+				}
+			}
+		}
+	}
+
+	return null;
 }
 
 function clamp(value: number, min: number, max: number): number {
