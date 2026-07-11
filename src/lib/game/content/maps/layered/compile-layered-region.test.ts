@@ -76,8 +76,11 @@ describe('compileLayeredRegion — dimensions and ground patches', () => {
 		expect(out.groundPatches).toHaveLength(1);
 		const patch = out.groundPatches![0];
 		expect(patch.tile).toBe('pathTile');
-		expect(patch.x).toBe(256 + 0 * 32 + 16);
-		expect(patch.y).toBe(4376 + 0 * 32);
+		// Rasterized on the global tile grid: origin (240,4360) maps to
+		// global col 8 / row 136. A 2-cell run at cols 0-1 spans global
+		// cols 8-9, centered at (272+304)/2 = 288.
+		expect(patch.x).toBe((8 * 32 + 16 + 9 * 32 + 16) / 2);
+		expect(patch.y).toBe(136 * 32 + 16);
 		expect(patch.width).toBe(64);
 		expect(patch.height).toBe(32);
 	});
@@ -119,8 +122,45 @@ describe('compileLayeredRegion — dimensions and ground patches', () => {
 		});
 		const out = compileLayeredRegion(src);
 		expect(out.groundPatches).toEqual([
-			{ id: expect.any(String), x: 256 + 1 * 32, y: 4376, width: 32, height: 32, tile: 'seaTile' }
+			{
+				id: expect.any(String),
+				x: 9 * 32 + 16,
+				y: 136 * 32 + 16,
+				width: 32,
+				height: 32,
+				tile: 'seaTile'
+			}
 		]);
+	});
+
+	it('throws on an unknown terrain glyph', () => {
+		const src = makeSource({
+			width: 4,
+			height: 3,
+			layers: {
+				terrain: ['.z..', '....', '....'],
+				paths: Array.from({ length: 3 }, () => dot(4)),
+				collision: Array.from({ length: 3 }, () => dot(4)),
+				decor: Array.from({ length: 3 }, () => dot(4)),
+				regions: Array.from({ length: 3 }, () => dot(4))
+			}
+		});
+		expect(() => compileLayeredRegion(src)).toThrow(/unknown terrain glyph "z"/);
+	});
+
+	it('throws on an unknown path glyph', () => {
+		const src = makeSource({
+			width: 4,
+			height: 3,
+			layers: {
+				terrain: Array.from({ length: 3 }, () => dot(4)),
+				paths: ['.z..', '....', '....'],
+				collision: Array.from({ length: 3 }, () => dot(4)),
+				decor: Array.from({ length: 3 }, () => dot(4)),
+				regions: Array.from({ length: 3 }, () => dot(4))
+			}
+		});
+		expect(() => compileLayeredRegion(src)).toThrow(/unknown path glyph "z"/);
 	});
 });
 

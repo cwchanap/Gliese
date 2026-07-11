@@ -313,7 +313,7 @@ export const villagerHouse1Map: WorldMapDefinition = addEnglishMapText({
 			id: 'villager-house-1-to-meadow',
 			...interiorDoor,
 			toMapId: openingMapId,
-			arrival: { x: 864, y: 4_870, facing: 'down' }
+			arrival: { x: 864, y: 4_678, facing: 'down' }
 		}
 	],
 	interiorProps: [
@@ -402,7 +402,7 @@ export const villagerHouse2Map: WorldMapDefinition = addEnglishMapText({
 			id: 'villager-house-2-to-meadow',
 			...interiorDoor,
 			toMapId: openingMapId,
-			arrival: { x: 1_184, y: 4_840, facing: 'down' }
+			arrival: { x: 1_184, y: 4_712, facing: 'down' }
 		}
 	],
 	interiorProps: [
