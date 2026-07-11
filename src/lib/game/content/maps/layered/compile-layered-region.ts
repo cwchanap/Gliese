@@ -107,14 +107,14 @@ function buildGroundPatches(source: LayeredRegionSource): MapGroundPatch[] {
 			cellTile[row * source.width + col] = p;
 		}
 	}
-	// Rasterize patches on the runtime (global) tile grid so that
-	// WorldScene.findGroundPatchTile — which samples at column*32+16 —
-	// hits the correct tile. The layered origin may be offset from the
-	// global grid (e.g. x=240 is 7.5 tiles), so computing patch bounds
-	// from layered tile centers would shift boundaries by the offset
-	// and paint extra runtime cells at the edges.
-	const globalColStart = Math.floor((source.origin.x + source.tileSize / 2) / source.tileSize);
-	const globalRowStart = Math.floor((source.origin.y + source.tileSize / 2) / source.tileSize);
+	// Compute patch bounds from the layered origin — the same coordinate
+	// system used by buildBlockers, buildMapDecor, and object placement.
+	// WorldScene.findGroundPatchTile samples at global grid centers
+	// (column*32+16); when the origin is fractional (e.g. x=240 = 7.5
+	// tiles), a boundary global cell may fall inside an edge patch and
+	// pick up the tile.  That 16px of bleed at the perimeter is covered
+	// by the hedge/wall sprite and is far less visible than shifting
+	// every patch off the authored geometry.
 	const patches: MapGroundPatch[] = [];
 	for (let row = 0; row < source.height; row++) {
 		let runStart = -1;
@@ -123,13 +123,13 @@ function buildGroundPatches(source: LayeredRegionSource): MapGroundPatch[] {
 			const tile = col < source.width ? cellTile[row * source.width + col] : '';
 			if (tile !== '' && tile === runTile) continue;
 			if (runStart >= 0 && runTile) {
-				const firstGlobalX = (globalColStart + runStart) * source.tileSize + source.tileSize / 2;
-				const lastGlobalX = (globalColStart + col - 1) * source.tileSize + source.tileSize / 2;
+				const start = tileCenter(source, runStart, row);
+				const end = tileCenter(source, col - 1, row);
 				patches.push({
 					id: `${source.idPrefix}-ground-${row}-${runStart}`,
-					x: (firstGlobalX + lastGlobalX) / 2,
-					y: (globalRowStart + row) * source.tileSize + source.tileSize / 2,
-					width: (col - runStart) * source.tileSize,
+					x: (start.x + end.x) / 2,
+					y: start.y,
+					width: end.x - start.x + source.tileSize,
 					height: source.tileSize,
 					tile: runTile
 				});

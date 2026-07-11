@@ -1272,12 +1272,10 @@ describe('opening map content', () => {
 			// Sample every 3rd cell — enough to catch a shrunk patch without
 			// asserting every single tile (which would couple the test to the
 			// exact run-length-merge boundaries).
-			const globalColStart = Math.floor((src.origin.x + src.tileSize / 2) / src.tileSize);
-			const globalRowStart = Math.floor((src.origin.y + src.tileSize / 2) / src.tileSize);
 			const samples = roomCells.filter((_, i) => i % 3 === 0);
 			for (const { col, row, tile } of samples) {
-				const worldX = (globalColStart + col) * src.tileSize + src.tileSize / 2;
-				const worldY = (globalRowStart + row) * src.tileSize + src.tileSize / 2;
+				const worldX = src.origin.x + col * src.tileSize + src.tileSize / 2;
+				const worldY = src.origin.y + row * src.tileSize + src.tileSize / 2;
 				const patch = patches.find((p) => isPointInsideRect({ x: worldX, y: worldY }, p));
 				expect(
 					patch,
