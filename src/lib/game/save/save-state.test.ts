@@ -145,7 +145,7 @@ describe('save state', () => {
 		expect(migrated?.seenDiscoveries).toEqual([]);
 	});
 
-	it('clamps saved coordinates to the current map bounds', () => {
+	it('clamps saved coordinates to the current map bounds and nudges off collision', () => {
 		const outOfBoundsSave = {
 			...createNewSaveState(),
 			player: {
@@ -155,10 +155,122 @@ describe('save state', () => {
 			}
 		};
 
-		expect(parseSaveState(JSON.stringify(outOfBoundsSave))?.player).toMatchObject({
-			x: meadowEntryMap.width * 32,
-			y: 0
-		});
+		const parsed = parseSaveState(JSON.stringify(outOfBoundsSave));
+		expect(parsed).not.toBeNull();
+		// Position must be within map bounds
+		expect(parsed!.player.x).toBeGreaterThanOrEqual(0);
+		expect(parsed!.player.x).toBeLessThanOrEqual(meadowEntryMap.width * 32);
+		expect(parsed!.player.y).toBeGreaterThanOrEqual(0);
+		expect(parsed!.player.y).toBeLessThanOrEqual(meadowEntryMap.height * 32);
+		// Position must not be inside any collision rect (corner walls get nudged)
+		expect(isPositionWalkable(parsed!.player.x, parsed!.player.y)).toBe(true);
+	});
+
+	/**
+	 * Collision-aware normalization: after the layered village refactor, old
+	 * saves can have player positions that now land inside a wall blocker,
+	 * fence, or decor collision rect. Blockers and fences use strict-rect
+	 * collision (isMovementBlockedByStrictRect), which traps the player —
+	 * every small step keeps the target inside the padded rect, so no
+	 * movement is possible. normalizePlayerPosition must nudge such
+	 * positions to the nearest walkable tile.
+	 */
+	function isInsideCollisionRect(
+		px: number,
+		py: number,
+		rect: { x: number; y: number; width: number; height: number }
+	): boolean {
+		return (
+			px >= rect.x - rect.width / 2 &&
+			px <= rect.x + rect.width / 2 &&
+			py >= rect.y - rect.height / 2 &&
+			py <= rect.y + rect.height / 2
+		);
+	}
+
+	function isPositionWalkable(px: number, py: number): boolean {
+		const blockers = meadowEntryMap.blockers ?? [];
+		const fences = meadowEntryMap.fences ?? [];
+		const decor = (meadowEntryMap.mapDecor ?? []).filter((d) => d.collision);
+		return (
+			!blockers.some((b) => isInsideCollisionRect(px, py, b)) &&
+			!fences.some((f) => isInsideCollisionRect(px, py, f)) &&
+			!decor.some((d) => isInsideCollisionRect(px, py, d.collision!))
+		);
+	}
+
+	it('nudges a saved position inside a wall blocker to the nearest walkable tile', () => {
+		// (700, 5430) is inside village-block-30-13 (garden-hedge at (688, 5408), 32x192).
+		// This was the old hero-house landmark center — a valid save position before
+		// the layered village refactor moved the walls.
+		const blockedSave = {
+			...createNewSaveState(),
+			player: {
+				...createNewSaveState().player,
+				x: 700,
+				y: 5430
+			}
+		};
+
+		const parsed = parseSaveState(JSON.stringify(blockedSave));
+		expect(parsed).not.toBeNull();
+		expect(isPositionWalkable(parsed!.player.x, parsed!.player.y)).toBe(true);
+		// Should be within 3 tiles (96px) of the original position
+		expect(Math.abs(parsed!.player.x - 700)).toBeLessThanOrEqual(96);
+		expect(Math.abs(parsed!.player.y - 5430)).toBeLessThanOrEqual(96);
+	});
+
+	it('nudges a saved position inside a fence to the nearest walkable tile', () => {
+		// (4020, 5250) is inside coast-approach-west-fence (32x520 at (4020, 5250)).
+		const blockedSave = {
+			...createNewSaveState(),
+			player: {
+				...createNewSaveState().player,
+				x: 4020,
+				y: 5250
+			}
+		};
+
+		const parsed = parseSaveState(JSON.stringify(blockedSave));
+		expect(parsed).not.toBeNull();
+		expect(isPositionWalkable(parsed!.player.x, parsed!.player.y)).toBe(true);
+		expect(Math.abs(parsed!.player.x - 4020)).toBeLessThanOrEqual(96);
+		expect(Math.abs(parsed!.player.y - 5250)).toBeLessThanOrEqual(96);
+	});
+
+	it('nudges a saved position inside a decor collision rect to the nearest walkable tile', () => {
+		// (1776, 4502) is inside village-decor-2-47 collision (50x60 at (1776, 4502)).
+		const blockedSave = {
+			...createNewSaveState(),
+			player: {
+				...createNewSaveState().player,
+				x: 1776,
+				y: 4502
+			}
+		};
+
+		const parsed = parseSaveState(JSON.stringify(blockedSave));
+		expect(parsed).not.toBeNull();
+		expect(isPositionWalkable(parsed!.player.x, parsed!.player.y)).toBe(true);
+		expect(Math.abs(parsed!.player.x - 1776)).toBeLessThanOrEqual(96);
+		expect(Math.abs(parsed!.player.y - 4502)).toBeLessThanOrEqual(96);
+	});
+
+	it('leaves a walkable saved position unchanged', () => {
+		// meadow-entry spawn is walkable
+		const walkableSave = {
+			...createNewSaveState(),
+			player: {
+				...createNewSaveState().player,
+				x: meadowEntryMap.spawn.x,
+				y: meadowEntryMap.spawn.y
+			}
+		};
+
+		const parsed = parseSaveState(JSON.stringify(walkableSave));
+		expect(parsed).not.toBeNull();
+		expect(parsed!.player.x).toBe(meadowEntryMap.spawn.x);
+		expect(parsed!.player.y).toBe(meadowEntryMap.spawn.y);
 	});
 
 	it('rejects invalid payloads', () => {
