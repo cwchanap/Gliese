@@ -130,7 +130,7 @@ export const meadowEntryMap: WorldMapDefinition = addEnglishMapText({
 	width: 200,
 	height: 200,
 	spawnDirection: 'up',
-	spawn: { x: 700, y: 5_600 },
+	spawn: { x: 716, y: 5_592 },
 	landmarks: merged.landmarks,
 	transitions: merged.transitions,
 	groundPatches: merged.groundPatches,
