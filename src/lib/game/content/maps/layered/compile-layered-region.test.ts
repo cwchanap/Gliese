@@ -76,11 +76,11 @@ describe('compileLayeredRegion — dimensions and ground patches', () => {
 		expect(out.groundPatches).toHaveLength(1);
 		const patch = out.groundPatches![0];
 		expect(patch.tile).toBe('pathTile');
-		// Rasterized on the global tile grid: origin (240,4360) maps to
-		// global col 8 / row 136. A 2-cell run at cols 0-1 spans global
-		// cols 8-9, centered at (272+304)/2 = 288.
-		expect(patch.x).toBe((8 * 32 + 16 + 9 * 32 + 16) / 2);
-		expect(patch.y).toBe(136 * 32 + 16);
+		// Patch bounds use the layered origin (same as blockers/decor):
+		// origin (240,4360) + col*32 + 16. A 2-cell run at cols 0-1
+		// spans centers 256..288, centered at 272.
+		expect(patch.x).toBe((256 + 288) / 2);
+		expect(patch.y).toBe(4_376);
 		expect(patch.width).toBe(64);
 		expect(patch.height).toBe(32);
 	});
@@ -124,8 +124,8 @@ describe('compileLayeredRegion — dimensions and ground patches', () => {
 		expect(out.groundPatches).toEqual([
 			{
 				id: expect.any(String),
-				x: 9 * 32 + 16,
-				y: 136 * 32 + 16,
+				x: 288,
+				y: 4_376,
 				width: 32,
 				height: 32,
 				tile: 'seaTile'
