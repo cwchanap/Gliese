@@ -5,7 +5,13 @@ import { startingPlayer } from '$lib/game/content/player';
 import { mainQuestId } from '$lib/game/content/quests';
 import { getXpForLevel } from '$lib/game/core/progression';
 import { createInitialQuestState } from '$lib/game/core/quests';
-import { createNewSaveState, parseSaveState, serializeSaveState } from '$lib/game/save/save-state';
+import {
+	collectStrictCollisionRects,
+	createNewSaveState,
+	isInsideAnyCollisionRect,
+	parseSaveState,
+	serializeSaveState
+} from '$lib/game/save/save-state';
 import {
 	SAVE_STORAGE_KEY,
 	clearStoredSaveState,
@@ -174,28 +180,20 @@ describe('save state', () => {
 	 * every small step keeps the target inside the padded rect, so no
 	 * movement is possible. normalizePlayerPosition must nudge such
 	 * positions to the nearest walkable tile.
+	 *
+	 * The padded check mirrors WorldScene.isMovementBlockedByStrictRect,
+	 * which expands every strict rect by playerRadius (12px) before testing
+	 * containment. A tile center outside the raw rect but inside the padded
+	 * rect still traps the player, so walkability is tested with padding.
 	 */
-	function isInsideCollisionRect(
-		px: number,
-		py: number,
-		rect: { x: number; y: number; width: number; height: number }
-	): boolean {
-		return (
-			px >= rect.x - rect.width / 2 &&
-			px <= rect.x + rect.width / 2 &&
-			py >= rect.y - rect.height / 2 &&
-			py <= rect.y + rect.height / 2
-		);
-	}
+	const NORMALIZE_PLAYER_RADIUS = 12;
 
 	function isPositionWalkable(px: number, py: number): boolean {
-		const blockers = meadowEntryMap.blockers ?? [];
-		const fences = meadowEntryMap.fences ?? [];
-		const decor = (meadowEntryMap.mapDecor ?? []).filter((d) => d.collision);
-		return (
-			!blockers.some((b) => isInsideCollisionRect(px, py, b)) &&
-			!fences.some((f) => isInsideCollisionRect(px, py, f)) &&
-			!decor.some((d) => isInsideCollisionRect(px, py, d.collision!))
+		return !isInsideAnyCollisionRect(
+			px,
+			py,
+			collectStrictCollisionRects(meadowEntryMap),
+			NORMALIZE_PLAYER_RADIUS
 		);
 	}
 
@@ -254,6 +252,32 @@ describe('save state', () => {
 		expect(isPositionWalkable(parsed!.player.x, parsed!.player.y)).toBe(true);
 		expect(Math.abs(parsed!.player.x - 1776)).toBeLessThanOrEqual(96);
 		expect(Math.abs(parsed!.player.y - 4502)).toBeLessThanOrEqual(96);
+	});
+
+	it('nudges a saved position to a tile center outside the padded collision bounds', () => {
+		// (1664, 4480) is inside village-block-3-43. The nearest tile center
+		// outside the *raw* rect is (1680, 4496), but that point is still inside
+		// the *padded* bounds of corridor-wall-2b (170x64 at (1775, 4510)):
+		// WorldScene.isMovementBlockedByStrictRect expands the rect by
+		// playerRadius (12px), so the player would be trapped in every
+		// direction. The normalizer must reject padded-trapped tile centers
+		// and keep searching outward.
+		const blockedSave = {
+			...createNewSaveState(),
+			player: {
+				...createNewSaveState().player,
+				x: 1664,
+				y: 4480
+			}
+		};
+
+		const parsed = parseSaveState(JSON.stringify(blockedSave));
+		expect(parsed).not.toBeNull();
+		expect(isPositionWalkable(parsed!.player.x, parsed!.player.y)).toBe(true);
+		// Must not be the padded-trapped tile center (1680, 4496).
+		expect(parsed!.player.x === 1680 && parsed!.player.y === 4496).toBe(false);
+		expect(Math.abs(parsed!.player.x - 1664)).toBeLessThanOrEqual(128);
+		expect(Math.abs(parsed!.player.y - 4480)).toBeLessThanOrEqual(128);
 	});
 
 	it('leaves a walkable saved position unchanged', () => {
