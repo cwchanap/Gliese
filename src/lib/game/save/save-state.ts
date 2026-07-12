@@ -27,7 +27,7 @@ import type { Direction } from '$lib/game/core/types';
 import { getQuest, isQuestId, mainQuestId, type QuestDefinition } from '$lib/game/content/quests';
 
 export type SaveState = {
-	version: 7;
+	version: 8;
 	mapId: string;
 	player: {
 		level: number;
@@ -73,7 +73,7 @@ const NORMALIZE_TRANSITION_RADIUS = 18;
 
 export function createNewSaveState(): SaveState {
 	return {
-		version: 7,
+		version: 8,
 		mapId: meadowEntryMap.id,
 		player: {
 			level: 1,
@@ -134,6 +134,7 @@ export function parseSaveState(value: string): SaveState | null {
 function migrateSaveState(value: unknown): unknown {
 	let migrated = migrateV5ToV6(value);
 	migrated = migrateV6ToV7(migrated);
+	migrated = migrateV7ToV8(migrated);
 	return migrated;
 }
 
@@ -174,6 +175,28 @@ function migrateV6ToV7(value: unknown): unknown {
 	};
 }
 
+function migrateV7ToV8(value: unknown): unknown {
+	if (!isRecord(value) || value.version !== 7) {
+		return value;
+	}
+
+	// The layered village refactor moved landmarks substantially within
+	// meadow-entry (e.g. villager-house-1 door shifted from (870, 4825) to
+	// (880, 4624)). mapExploration cells are coordinate-based (128px grid),
+	// so old cells no longer cover the new landmark positions — area map
+	// markers would stay hidden until the player re-explores. Clear the
+	// meadow-entry exploration so the player rediscovers the repositioned
+	// village on load.
+	const mapExploration = isRecord(value.mapExploration) ? { ...value.mapExploration } : {};
+	delete mapExploration['meadow-entry'];
+
+	return {
+		...value,
+		version: 8,
+		mapExploration
+	};
+}
+
 function isSaveState(value: unknown): value is SaveState {
 	if (!isRecord(value)) {
 		return false;
@@ -197,7 +220,7 @@ function isSaveState(value: unknown): value is SaveState {
 	// change. Bumping version without updating isSaveState lets old-shape payloads pass
 	// validation; bumping SAVE_STORAGE_KEY without migration orphans existing saves.
 	if (
-		version !== 7 ||
+		version !== 8 ||
 		typeof mapId !== 'string' ||
 		!isRecord(player) ||
 		!isRecord(flags) ||

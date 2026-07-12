@@ -51,7 +51,7 @@ class MemoryStorage implements Storage {
 describe('save state', () => {
 	it('creates a level 1 starting save', () => {
 		expect(createNewSaveState()).toEqual({
-			version: 7,
+			version: 8,
 			mapId: meadowEntryMap.id,
 			player: {
 				level: 1,
@@ -136,7 +136,7 @@ describe('save state', () => {
 		expect(parseSaveState(JSON.stringify(legacySave))).toBeNull();
 	});
 
-	it('migrates v5 saves to v7 by defaulting clearedEncounterUnitCounts and seenDiscoveries', () => {
+	it('migrates v5 saves to v8 by defaulting clearedEncounterUnitCounts and seenDiscoveries', () => {
 		const v5Save = {
 			...createNewSaveState(),
 			version: 5
@@ -147,9 +147,48 @@ describe('save state', () => {
 		const migrated = parseSaveState(JSON.stringify(v5Save));
 
 		expect(migrated).not.toBeNull();
-		expect(migrated?.version).toBe(7);
+		expect(migrated?.version).toBe(8);
 		expect(migrated?.flags.clearedEncounterUnitCounts).toEqual({});
 		expect(migrated?.seenDiscoveries).toEqual([]);
+	});
+
+	it('migrates v7 saves to v8 by clearing meadow-entry exploration', () => {
+		// The layered village refactor moved landmarks within meadow-entry,
+		// so coordinate-based exploration cells no longer cover the new
+		// landmark positions. The v7→v8 migration must clear meadow-entry
+		// exploration so area map markers reappear as the player re-explores.
+		const v7Save = {
+			...createNewSaveState(),
+			version: 7,
+			mapExploration: {
+				'meadow-entry': ['6,37', '6,36'],
+				'ruins-core': ['0,0', '1,0']
+			}
+		};
+
+		const migrated = parseSaveState(JSON.stringify(v7Save));
+
+		expect(migrated).not.toBeNull();
+		expect(migrated?.version).toBe(8);
+		expect(migrated?.mapExploration['meadow-entry']).toBeUndefined();
+		// Other maps' exploration is preserved.
+		expect(migrated?.mapExploration['ruins-core']).toEqual(['0,0', '1,0']);
+	});
+
+	it('migrates v7 saves to v8 preserving exploration when meadow-entry is absent', () => {
+		const v7Save = {
+			...createNewSaveState(),
+			version: 7,
+			mapExploration: {
+				'ruins-core': ['0,0', '1,0']
+			}
+		};
+
+		const migrated = parseSaveState(JSON.stringify(v7Save));
+
+		expect(migrated).not.toBeNull();
+		expect(migrated?.version).toBe(8);
+		expect(migrated?.mapExploration['ruins-core']).toEqual(['0,0', '1,0']);
 	});
 
 	it('clamps saved coordinates to the current map bounds and nudges off collision', () => {
@@ -362,9 +401,9 @@ describe('save state', () => {
 		expect(parseSaveState('[]')).toBeNull();
 	});
 
-	it('rejects version 4 and accepts version 7', () => {
+	it('rejects version 4 and accepts version 8', () => {
 		expect(parseSaveState(JSON.stringify({ ...createNewSaveState(), version: 4 }))).toBeNull();
-		expect(parseSaveState(JSON.stringify(createNewSaveState()))?.version).toBe(7);
+		expect(parseSaveState(JSON.stringify(createNewSaveState()))?.version).toBe(8);
 	});
 
 	it('rejects a payload with wrong player field types', () => {
@@ -769,7 +808,7 @@ describe('seenDiscoveries', () => {
 		const v6 = { ...createNewSaveState(), version: 6 } as Record<string, unknown>;
 		delete v6.seenDiscoveries;
 		const parsed = parseSaveState(JSON.stringify(v6));
-		expect(parsed?.version).toBe(7);
+		expect(parsed?.version).toBe(8);
 		expect(parsed?.seenDiscoveries).toEqual([]);
 	});
 
@@ -806,13 +845,13 @@ describe('save storage', () => {
 		clearStoredSaveState(storage);
 
 		expect(storage.getItem(SAVE_STORAGE_KEY)).toBeNull();
-		expect(storage.getItem('gliese.save.v6')).toBeNull();
+		expect(storage.getItem('gliese.save.v7')).toBeNull();
 		expect(loadStoredSaveState(storage)).toBeNull();
 	});
 
-	it('clears legacy v6 saves when clearing storage', () => {
+	it('clears legacy v7 saves when clearing storage', () => {
 		const storage = new MemoryStorage();
-		const v6Key = 'gliese.save.v6';
+		const v7Key = 'gliese.save.v7';
 		const save = {
 			...createNewSaveState(),
 			inventory: {
@@ -821,17 +860,17 @@ describe('save storage', () => {
 			}
 		};
 
-		storage.setItem(v6Key, serializeSaveState(save));
+		storage.setItem(v7Key, serializeSaveState(save));
 		clearStoredSaveState(storage);
 
-		expect(storage.getItem(v6Key)).toBeNull();
+		expect(storage.getItem(v7Key)).toBeNull();
 		expect(storage.getItem(SAVE_STORAGE_KEY)).toBeNull();
 		expect(loadStoredSaveState(storage)).toBeNull();
 	});
 
 	it('falls back to the previous storage key when the current key is empty', () => {
 		const storage = new MemoryStorage();
-		const v6Key = 'gliese.save.v6';
+		const v7Key = 'gliese.save.v7';
 		const save = {
 			...createNewSaveState(),
 			inventory: {
@@ -840,7 +879,7 @@ describe('save storage', () => {
 			}
 		};
 
-		storage.setItem(v6Key, serializeSaveState(save));
+		storage.setItem(v7Key, serializeSaveState(save));
 
 		expect(storage.getItem(SAVE_STORAGE_KEY)).toBeNull();
 		expect(loadStoredSaveState(storage)?.inventory.stacks).toEqual([

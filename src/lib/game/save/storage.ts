@@ -1,7 +1,7 @@
 import { parseSaveState, serializeSaveState, type SaveState } from '$lib/game/save/save-state';
 
-export const SAVE_STORAGE_KEY = 'gliese.save.v7';
-const PREVIOUS_SAVE_STORAGE_KEY = 'gliese.save.v6';
+export const SAVE_STORAGE_KEY = 'gliese.save.v8';
+const PREVIOUS_SAVE_STORAGE_KEY = 'gliese.save.v7';
 
 export type SaveStorage = Pick<Storage, 'getItem' | 'removeItem' | 'setItem'>;
 

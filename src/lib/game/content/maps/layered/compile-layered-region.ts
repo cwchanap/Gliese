@@ -272,9 +272,20 @@ function buildMapDecor<K extends MapDecor['textureKey']>(
 	return decor;
 }
 
+function assertGridAlignedOrigin<K extends MapDecor['textureKey']>(
+	source: LayeredRegionSource<K>
+): void {
+	if (source.origin.x % source.tileSize !== 0 || source.origin.y % source.tileSize !== 0) {
+		throw new Error(
+			`layered origin {x:${source.origin.x}, y:${source.origin.y}} is not grid-aligned to tileSize ${source.tileSize}; ground patch bounds would shift off the global tile grid`
+		);
+	}
+}
+
 export function compileLayeredRegion<K extends MapDecor['textureKey']>(
 	source: LayeredRegionSource<K>
 ): RegionFragment {
+	assertGridAlignedOrigin(source);
 	assertDimensions(source, 'collision', source.layers.collision);
 	assertDimensions(source, 'decor', source.layers.decor);
 	assertDimensions(source, 'regions', source.layers.regions);
