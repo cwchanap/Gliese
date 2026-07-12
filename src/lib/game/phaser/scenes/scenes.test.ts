@@ -2004,7 +2004,7 @@ describe('WorldScene', () => {
 		expect(phaserState.tilemap.createLayer).toHaveBeenCalledWith(0, expect.anything(), 0, 0);
 		expect(phaserState.tilemapLayer.setDepth).toHaveBeenCalledWith(-10);
 		expect(tilemapData[0][0]).toBe(0);
-		expect(tilemapData[159][31]).toBe(9);
+		expect(tilemapData[159][31]).toBe(8);
 		expect(tilemapData[173][21]).toBe(1);
 		expect(scene.add.sprite).toHaveBeenCalledWith(
 			meadowEntryMap.spawn.x,

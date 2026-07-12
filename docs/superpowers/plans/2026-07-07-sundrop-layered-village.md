@@ -213,7 +213,7 @@ describe('compileLayeredRegion — dimensions and ground patches', () => {
 		const src = makeSource({ width: 4, height: 3, layers: { paths, terrain: Array.from({ length: 3 }, () => dot(4)), collision: Array.from({ length: 3 }, () => dot(4)), decor: Array.from({ length: 3 }, () => dot(4)), regions: Array.from({ length: 3 }, () => dot(4)) } });
 		const out = compileLayeredRegion(src);
 		expect(out.groundPatches).toHaveLength(3);
-		expect(out.groundPatches!.map((p) => p.tile)).toEqual(['pathTile', 'plazaStoneTile', 'autumnLeafTile']);
+		expect(out.groundPatches!.map((p) => p.tile)).toEqual(['pathTile', 'cobblestoneTile', 'autumnLeafTile']);
 	});
 
 	it('terrain grass produces no patch; terrain water produces a seaTile patch', () => {
@@ -239,7 +239,7 @@ import type { MapGroundPatch } from '$lib/game/content/maps/types';
 
 const PATH_TILE: Record<string, string> = {
 	p: 'pathTile',
-	c: 'plazaStoneTile',
+	c: 'cobblestoneTile',
 	a: 'autumnLeafTile',
 	s: 'seaTile'
 };

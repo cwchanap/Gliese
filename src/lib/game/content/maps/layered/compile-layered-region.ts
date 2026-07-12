@@ -10,7 +10,7 @@ import type {
 
 const PATH_TILE: Partial<Record<string, MapGroundTile>> = {
 	p: 'pathTile',
-	c: 'plazaStoneTile',
+	c: 'cobblestoneTile',
 	a: 'autumnLeafTile',
 	s: 'seaTile'
 };

@@ -104,7 +104,7 @@ Layer rows are ASCII strings of exactly `width` chars; each layer has exactly `h
 ### 4.2 Glyph legends
 
 **Terrain:** `.` grass · `g` sand (maps to `sandTile`) · `w` water
-**Paths:** `.` none · `p` pathTile · `c` plazaStoneTile · `a` autumnLeafTile · `s` seaTile
+**Paths:** `.` none · `p` pathTile · `c` cobblestoneTile · `a` autumnLeafTile · `s` seaTile
 **Collision (produces `blockers[]`):** `.` walkable · `#` garden-hedge · `B` building footprint (garden-hedge, landmark-linked) · `W` ocean · `G` future-gate · `T` standalone large obstacle (garden-hedge; rare/standalone — village v1 does not use it)
 **Regions:** `.` none · `H` home yard · `P` well plaza · `M` market yard · `N` north residences · `S` shrine garden · `E` east gate · `C` crossroads road
 

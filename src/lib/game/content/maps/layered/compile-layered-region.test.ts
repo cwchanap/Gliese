@@ -102,7 +102,7 @@ describe('compileLayeredRegion — dimensions and ground patches', () => {
 		expect(out.groundPatches).toHaveLength(3);
 		expect(out.groundPatches!.map((p) => p.tile)).toEqual([
 			'pathTile',
-			'plazaStoneTile',
+			'cobblestoneTile',
 			'autumnLeafTile'
 		]);
 	});

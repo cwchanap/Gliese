@@ -1251,7 +1251,7 @@ describe('opening map content', () => {
 		const src = sundropVillageLayered;
 		const pathTileMap: Record<string, MapGroundTile> = {
 			p: 'pathTile',
-			c: 'plazaStoneTile',
+			c: 'cobblestoneTile',
 			a: 'autumnLeafTile',
 			s: 'seaTile'
 		};
