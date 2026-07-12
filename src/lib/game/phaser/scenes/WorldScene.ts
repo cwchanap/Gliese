@@ -663,7 +663,7 @@ export class WorldScene extends Phaser.Scene {
 
 	private buildSaveState(): SaveState {
 		return {
-			version: 7,
+			version: 8,
 			mapId: this.mapId,
 			player: {
 				level: this.playerProgress.level,

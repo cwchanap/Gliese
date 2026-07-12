@@ -162,6 +162,20 @@ describe('compileLayeredRegion — dimensions and ground patches', () => {
 		});
 		expect(() => compileLayeredRegion(src)).toThrow(/unknown path glyph "z"/);
 	});
+
+	it('throws when the origin is not grid-aligned to tileSize', () => {
+		const src = makeSource({
+			origin: { x: 240, y: 4360 }
+		});
+		expect(() => compileLayeredRegion(src)).toThrow(/not grid-aligned/);
+	});
+
+	it('accepts a grid-aligned origin', () => {
+		const src = makeSource({
+			origin: { x: 0, y: 0 }
+		});
+		expect(() => compileLayeredRegion(src)).not.toThrow();
+	});
 });
 
 describe('compileLayeredRegion — blockers', () => {
