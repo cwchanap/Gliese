@@ -2,11 +2,22 @@ import type { NpcFrameName } from '$lib/game/content/assets';
 import type { MapDecor, MapDecorDepth } from '$lib/game/content/maps/types';
 import type { MessageKey } from '$lib/game/i18n/translate';
 
-export interface DecorGlyphSpec<
-	K extends MapDecor['textureKey'] = MapDecor['textureKey'],
-	F extends MapDecor['frameName'] = MapDecor['frameName']
-> {
-	readonly frame: F;
+/**
+ * Derives the frame-name type that corresponds to a given decor texture key.
+ * `MapDecor` is a discriminated union on `textureKey` — each member pairs a
+ * specific sheet key with that sheet's frame-name type. This helper extracts
+ * the frame-name type for a concrete `K` so that `DecorGlyphSpec<K>` enforces
+ * the pairing at authoring time: a `DecorGlyphSpec<coastKey>` rejects a
+ * `VillageDressingFrameName` frame, preventing the mismatched pair from
+ * reaching `buildMapDecor`'s `as MapDecor` cast and Phaser's renderer.
+ */
+type MapDecorFrameForTexture<K extends MapDecor['textureKey']> = Extract<
+	MapDecor,
+	{ textureKey: K }
+>['frameName'];
+
+export interface DecorGlyphSpec<K extends MapDecor['textureKey'] = MapDecor['textureKey']> {
+	readonly frame: MapDecorFrameForTexture<K>;
 	readonly textureKey: K;
 	readonly renderWidth: number;
 	readonly renderHeight: number;
@@ -59,10 +70,7 @@ export interface LayeredDiscovery {
 	readonly descriptionKey: MessageKey;
 }
 
-export interface LayeredRegionSource<
-	K extends MapDecor['textureKey'] = MapDecor['textureKey'],
-	F extends MapDecor['frameName'] = MapDecor['frameName']
-> {
+export interface LayeredRegionSource<K extends MapDecor['textureKey'] = MapDecor['textureKey']> {
 	readonly idPrefix: string;
 	readonly tileSize: 32;
 	readonly origin: { readonly x: number; readonly y: number };
@@ -78,7 +86,7 @@ export interface LayeredRegionSource<
 		// for output — it carries no runtime effect.
 		readonly regions: readonly string[];
 	};
-	readonly decorGlyphTable: Record<string, DecorGlyphSpec<K, F>>;
+	readonly decorGlyphTable: Record<string, DecorGlyphSpec<K>>;
 	readonly objects: {
 		readonly landmarks?: readonly LayeredLandmark[];
 		readonly transitions?: readonly LayeredTransition[];

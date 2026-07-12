@@ -1,6 +1,6 @@
 import { equipmentSlots, getItem } from '$lib/game/content/items';
 import { maps, meadowEntryMap } from '$lib/game/content/maps';
-import type { WorldMapDefinition } from '$lib/game/content/maps/types';
+import type { MapLandmark, MapTransition, WorldMapDefinition } from '$lib/game/content/maps/types';
 import { startingPlayer } from '$lib/game/content/player';
 import { getShop } from '$lib/game/content/shops';
 import { createEmptyEquipment, type EquipmentState } from '$lib/game/core/equipment';
@@ -62,6 +62,14 @@ const NORMALIZE_TILE_SIZE = 32;
 // tile center outside the raw rect but inside the padded rect still traps the
 // player. Normalization must test against the same padded bounds.
 const NORMALIZE_PLAYER_RADIUS = 12;
+// Mirrors WorldScene.landmarkDoorwayClearanceWidth — the horizontal opening
+// carved around a transition that sits inside a landmark bounds, so the
+// doorway position remains walkable. Without this carving, normalization
+// treats a valid doorway position as inside the landmark and nudges it out.
+const NORMALIZE_DOORWAY_CLEARANCE_WIDTH = 56;
+// Mirrors WorldScene.transitionRadius — the vertical clearance above the
+// doorway transition point that stays open for the player to enter.
+const NORMALIZE_TRANSITION_RADIUS = 18;
 
 export function createNewSaveState(): SaveState {
 	return {
@@ -405,12 +413,66 @@ export function collectStrictCollisionRects(map: WorldMapDefinition): CollisionR
 }
 
 export function collectLandmarkRects(map: WorldMapDefinition): CollisionRect[] {
-	return (map.landmarks ?? []).map((landmark) => ({
-		x: landmark.x,
-		y: landmark.y,
-		width: landmark.width,
-		height: landmark.height
-	}));
+	const rects: CollisionRect[] = [];
+	for (const landmark of map.landmarks ?? []) {
+		const bounds = {
+			left: landmark.x - landmark.width / 2,
+			right: landmark.x + landmark.width / 2,
+			top: landmark.y - landmark.height / 2,
+			bottom: landmark.y + landmark.height / 2
+		};
+		const doorway = findLandmarkDoorway(landmark, bounds, map.transitions);
+		if (!doorway) {
+			rects.push({ x: landmark.x, y: landmark.y, width: landmark.width, height: landmark.height });
+			continue;
+		}
+
+		// Carve the same doorway opening that WorldScene.getLandmarkCollisionRects
+		// carves at runtime: a horizontal gap of doorwayClearanceWidth centered on
+		// the transition x, from the top of the landmark down to transition y -
+		// transitionRadius. The three resulting rects (above the door, left of
+		// the door, right of the door) are converted from edge-based to
+		// center-based CollisionRect format.
+		const doorLeft = Math.max(bounds.left, doorway.x - NORMALIZE_DOORWAY_CLEARANCE_WIDTH / 2);
+		const doorRight = Math.min(bounds.right, doorway.x + NORMALIZE_DOORWAY_CLEARANCE_WIDTH / 2);
+		const doorTop = Math.max(bounds.top, doorway.y - NORMALIZE_TRANSITION_RADIUS);
+
+		const carved = [
+			{ left: bounds.left, right: bounds.right, top: bounds.top, bottom: doorTop },
+			{ left: bounds.left, right: doorLeft, top: doorTop, bottom: bounds.bottom },
+			{ left: doorRight, right: bounds.right, top: doorTop, bottom: bounds.bottom }
+		].filter((rect) => rect.right > rect.left && rect.bottom > rect.top);
+
+		for (const rect of carved) {
+			rects.push({
+				x: (rect.left + rect.right) / 2,
+				y: (rect.top + rect.bottom) / 2,
+				width: rect.right - rect.left,
+				height: rect.bottom - rect.top
+			});
+		}
+	}
+	return rects;
+}
+
+/**
+ * Mirrors WorldScene.findLandmarkDoorway: returns the transition whose
+ * position falls inside the landmark bounds and whose id contains the
+ * landmark id (with '-exterior' stripped), or undefined if no match.
+ */
+function findLandmarkDoorway(
+	landmark: MapLandmark,
+	bounds: { left: number; right: number; top: number; bottom: number },
+	transitions: MapTransition[]
+): MapTransition | undefined {
+	return transitions.find(
+		(transition) =>
+			transition.x >= bounds.left &&
+			transition.x <= bounds.right &&
+			transition.y >= bounds.top &&
+			transition.y <= bounds.bottom &&
+			transition.id.includes(landmark.id.replace('-exterior', ''))
+	);
 }
 
 export function isInsideAnyCollisionRect(

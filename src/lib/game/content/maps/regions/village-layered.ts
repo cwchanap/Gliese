@@ -1,9 +1,9 @@
-import { villageDressingAsset, type VillageDressingFrameName } from '$lib/game/content/assets';
+import { villageDressingAsset } from '$lib/game/content/assets';
 import type { DecorGlyphSpec, LayeredRegionSource } from '$lib/game/content/maps/layered/types';
 
 const villageDecorGlyphTable: Record<
 	string,
-	DecorGlyphSpec<(typeof villageDressingAsset)['key'], VillageDressingFrameName>
+	DecorGlyphSpec<(typeof villageDressingAsset)['key']>
 > = {
 	f: {
 		frame: 'flowerBed',
@@ -84,10 +84,7 @@ const villageDecorGlyphTable: Record<
 	}
 };
 
-export const sundropVillageLayered: LayeredRegionSource<
-	(typeof villageDressingAsset)['key'],
-	VillageDressingFrameName
-> = {
+export const sundropVillageLayered: LayeredRegionSource<(typeof villageDressingAsset)['key']> = {
 	idPrefix: 'village',
 	tileSize: 32,
 	origin: { x: 256, y: 4_352 },
