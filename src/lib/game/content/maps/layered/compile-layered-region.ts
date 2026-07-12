@@ -26,8 +26,8 @@ const COLLISION_KIND: Partial<Record<string, MapBlockerKind>> = {
 	G: 'future-gate'
 };
 
-function assertDimensions(
-	source: LayeredRegionSource,
+function assertDimensions<K extends MapDecor['textureKey']>(
+	source: LayeredRegionSource<K>,
 	layerName: string,
 	rows: readonly string[]
 ): void {
@@ -43,8 +43,8 @@ function assertDimensions(
 	}
 }
 
-function tileCenter(
-	source: LayeredRegionSource,
+function tileCenter<K extends MapDecor['textureKey']>(
+	source: LayeredRegionSource<K>,
 	col: number,
 	row: number
 ): { x: number; y: number } {
@@ -54,8 +54,8 @@ function tileCenter(
 	};
 }
 
-function assertObjectInBounds(
-	source: LayeredRegionSource,
+function assertObjectInBounds<K extends MapDecor['textureKey']>(
+	source: LayeredRegionSource<K>,
 	id: string,
 	col: number,
 	row: number
@@ -67,8 +67,8 @@ function assertObjectInBounds(
 	}
 }
 
-function assertObjectNotOnCollision(
-	source: LayeredRegionSource,
+function assertObjectNotOnCollision<K extends MapDecor['textureKey']>(
+	source: LayeredRegionSource<K>,
 	id: string,
 	col: number,
 	row: number
@@ -81,7 +81,9 @@ function assertObjectNotOnCollision(
 	}
 }
 
-function buildGroundPatches(source: LayeredRegionSource): MapGroundPatch[] {
+function buildGroundPatches<K extends MapDecor['textureKey']>(
+	source: LayeredRegionSource<K>
+): MapGroundPatch[] {
 	assertDimensions(source, 'terrain', source.layers.terrain);
 	assertDimensions(source, 'paths', source.layers.paths);
 	const cellTile: (MapGroundTile | '')[] = new Array(source.width * source.height).fill('');
@@ -140,7 +142,9 @@ function buildGroundPatches(source: LayeredRegionSource): MapGroundPatch[] {
 	return patches;
 }
 
-function buildBlockers(source: LayeredRegionSource): MapBlocker[] {
+function buildBlockers<K extends MapDecor['textureKey']>(
+	source: LayeredRegionSource<K>
+): MapBlocker[] {
 	const horizontal: MapBlocker[] = [];
 	for (let row = 0; row < source.height; row++) {
 		const line = source.layers.collision[row];
@@ -220,8 +224,8 @@ function mergeBlockersVertically(blockers: MapBlocker[]): MapBlocker[] {
 	return merged;
 }
 
-function buildMapDecor<K extends MapDecor['textureKey'], F extends MapDecor['frameName']>(
-	source: LayeredRegionSource<K, F>
+function buildMapDecor<K extends MapDecor['textureKey']>(
+	source: LayeredRegionSource<K>
 ): MapDecor[] {
 	const decor: MapDecor[] = [];
 	for (let row = 0; row < source.height; row++) {
@@ -268,10 +272,9 @@ function buildMapDecor<K extends MapDecor['textureKey'], F extends MapDecor['fra
 	return decor;
 }
 
-export function compileLayeredRegion<
-	K extends MapDecor['textureKey'],
-	F extends MapDecor['frameName']
->(source: LayeredRegionSource<K, F>): RegionFragment {
+export function compileLayeredRegion<K extends MapDecor['textureKey']>(
+	source: LayeredRegionSource<K>
+): RegionFragment {
 	assertDimensions(source, 'collision', source.layers.collision);
 	assertDimensions(source, 'decor', source.layers.decor);
 	assertDimensions(source, 'regions', source.layers.regions);
