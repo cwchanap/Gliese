@@ -6,6 +6,7 @@ import { mainQuestId } from '$lib/game/content/quests';
 import { getXpForLevel } from '$lib/game/core/progression';
 import { createInitialQuestState } from '$lib/game/core/quests';
 import {
+	collectLandmarkRects,
 	collectStrictCollisionRects,
 	createNewSaveState,
 	isInsideAnyCollisionRect,
@@ -192,15 +193,17 @@ describe('save state', () => {
 		return !isInsideAnyCollisionRect(
 			px,
 			py,
-			collectStrictCollisionRects(meadowEntryMap),
+			[...collectStrictCollisionRects(meadowEntryMap), ...collectLandmarkRects(meadowEntryMap)],
 			NORMALIZE_PLAYER_RADIUS
 		);
 	}
 
 	it('nudges a saved position inside a wall blocker to the nearest walkable tile', () => {
-		// (700, 5430) is inside village-block-30-13 (garden-hedge at (688, 5408), 32x192).
-		// This was the old hero-house landmark center — a valid save position before
-		// the layered village refactor moved the walls.
+		// (700, 5430) is inside village-block-30-13 (garden-hedge at (688, 5408), 32x192)
+		// and inside the hero-house-exterior landmark (235×246 at (720, 5424)). This was
+		// the old hero-house landmark center — a valid save position before the layered
+		// village refactor moved the walls. The rescue must place the player outside
+		// both the blocker and the landmark building.
 		const blockedSave = {
 			...createNewSaveState(),
 			player: {
@@ -213,9 +216,39 @@ describe('save state', () => {
 		const parsed = parseSaveState(JSON.stringify(blockedSave));
 		expect(parsed).not.toBeNull();
 		expect(isPositionWalkable(parsed!.player.x, parsed!.player.y)).toBe(true);
-		// Should be within 3 tiles (96px) of the original position
-		expect(Math.abs(parsed!.player.x - 700)).toBeLessThanOrEqual(96);
-		expect(Math.abs(parsed!.player.y - 5430)).toBeLessThanOrEqual(96);
+		// The nearest tile outside both the blocker and the landmark is ~140px away
+		// (the landmark is 235px wide, so clearing it requires moving several tiles).
+		expect(Math.abs(parsed!.player.x - 700)).toBeLessThanOrEqual(160);
+		expect(Math.abs(parsed!.player.y - 5430)).toBeLessThanOrEqual(160);
+	});
+
+	it('does not rescue a saved position into a landmark building', () => {
+		// (700, 5430) was the old hero-house landmark center. The rescue must
+		// not place the player inside any landmark (opaque building), even
+		// though landmark collision is escape-aware in WorldScene.
+		const blockedSave = {
+			...createNewSaveState(),
+			player: {
+				...createNewSaveState().player,
+				x: 700,
+				y: 5430
+			}
+		};
+
+		const parsed = parseSaveState(JSON.stringify(blockedSave));
+		expect(parsed).not.toBeNull();
+		for (const landmark of meadowEntryMap.landmarks ?? []) {
+			const left = landmark.x - landmark.width / 2;
+			const right = landmark.x + landmark.width / 2;
+			const top = landmark.y - landmark.height / 2;
+			const bottom = landmark.y + landmark.height / 2;
+			const inside =
+				parsed!.player.x >= left &&
+				parsed!.player.x <= right &&
+				parsed!.player.y >= top &&
+				parsed!.player.y <= bottom;
+			expect(inside, `rescued position inside landmark ${landmark.id}`).toBe(false);
+		}
 	});
 
 	it('nudges a saved position inside a fence to the nearest walkable tile', () => {

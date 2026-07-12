@@ -351,14 +351,16 @@ function normalizePlayerPosition(mapId: string, player: SaveState['player']): Sa
 	const y = clamp(player.y, 0, map.height * 32);
 
 	// After bounds clamping, check if the position is inside any strict-rect
-	// collision (blockers, fences, decor collision). These use
-	// isMovementBlockedByStrictRect in WorldScene, which traps the player —
-	// every small step keeps the target inside the padded rect, so no movement
-	// is possible. Nudge to the nearest walkable tile center to prevent
-	// soft-locks after map layout changes (e.g. the layered village refactor).
-	// Landmarks and interior props are excluded because their collision is
-	// escape-aware (allows moving outward from inside).
-	const collisionRects = collectStrictCollisionRects(map);
+	// collision (blockers, fences, decor collision) or any landmark bounds.
+	// Strict-rect collision uses isMovementBlockedByStrictRect in WorldScene,
+	// which traps the player — every small step keeps the target inside the
+	// padded rect, so no movement is possible. Landmarks use escape-aware
+	// collision (allows moving outward from inside), so they are not soft-locks,
+	// but placing the player inside an opaque building is still wrong — the
+	// player would appear embedded in the wall sprite. Nudge to the nearest
+	// walkable tile center outside both strict collision and landmark bounds to
+	// prevent soft-locks and visual embedding after map layout changes.
+	const collisionRects = [...collectStrictCollisionRects(map), ...collectLandmarkRects(map)];
 	if (!isInsideAnyCollisionRect(x, y, collisionRects, NORMALIZE_PLAYER_RADIUS)) {
 		return { ...player, x, y };
 	}
@@ -400,6 +402,15 @@ export function collectStrictCollisionRects(map: WorldMapDefinition): CollisionR
 		}
 	}
 	return rects;
+}
+
+export function collectLandmarkRects(map: WorldMapDefinition): CollisionRect[] {
+	return (map.landmarks ?? []).map((landmark) => ({
+		x: landmark.x,
+		y: landmark.y,
+		width: landmark.width,
+		height: landmark.height
+	}));
 }
 
 export function isInsideAnyCollisionRect(
