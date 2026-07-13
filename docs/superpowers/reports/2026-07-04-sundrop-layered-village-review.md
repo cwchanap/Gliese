@@ -67,7 +67,9 @@ The first fresh layered capture exposed a pale checkerboard across Well Plaza.
 The source legend names `c` as cobblestone, but the compiler mapped it to the
 literal checkerboard `plazaStoneTile` frame. The mapping now targets
 `cobblestoneTile`; compiler, map, and scene tests lock the corrected terrain
-index, and all screenshots above were recaptured after the fix.
+index, and the layered captures above were recaptured after the fix. The PR #11
+comparison images in the side-by-side tables are historical reference captures
+and were not regenerated.
 
 Visible reductions in mess compared with PR #11:
 
