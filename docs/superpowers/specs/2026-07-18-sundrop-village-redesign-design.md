@@ -95,10 +95,20 @@ intended funnel silhouette.
 
 `tools/preview-layered-region.ts`.
 
-Structure: a pure `renderLayeredPreviews(source: LayeredRegionSource): Map<string, string>`
-returning filename → file contents, plus a thin CLI writing to
-`docs/superpowers/reports/img/hpa-238/`. The renderer takes any `LayeredRegionSource`, so
-later regions get previews for free.
+Two functions, because the composed view needs an input the generic renderer must not have:
+
+```ts
+// Generic. Pure, source-only, works for any layered region.
+renderLayeredPreviews(source: LayeredRegionSource): Map<string, string>
+
+// Composed. Takes explicit overlay blockers; no implicit pathsRegion import.
+renderComposedCollision(source: LayeredRegionSource, overlays: readonly MapBlocker[]): string
+```
+
+A thin CLI calls both and writes to `docs/superpowers/reports/img/hpa-238/`, passing
+`pathsRegion.blockers` as the overlay. Keeping the overlay a parameter rather than an import
+means the generic renderer stays pure and reusable for regions with no external walls, and
+the composed view can be reused later for any region that acquires them.
 
 Outputs:
 
@@ -121,8 +131,8 @@ new glyph cannot render as silent whitespace.
 
 The generator is presentation-only. It must not import from `compile-layered-region.ts` for
 anything other than types — previews render the *source*, so a compiler bug cannot hide a
-design defect. `village-composed-collision.svg` is the one exception: it reads `pathsRegion`
-blockers, which is the point of that view.
+design defect. The composed view is not an exception to this: it takes overlay blockers as
+an argument, so it still never reads compiler output.
 
 **The 2026-07-04 report is not touched.** `img/village-layered-designer-view.svg` is a
 historical record of that review's moment — commit `86d5393` exists specifically to mark
@@ -132,8 +142,21 @@ make it silently misdescribe itself as later phases re-run the generator. New ou
 
 ## Phase 2 — Design contract
 
-New tests in `village-layered.test.ts`; existing tests retained, with the `it.each` room
-enumeration gaining `G`.
+New tests in `village-layered.test.ts`; existing tests retained.
+
+**Introducing `G` touches four hard-coded glyph lists, not one.** The current test file
+repeats the room set in four places, and all must include `G` or the new room is silently
+excluded from the invariants that matter most:
+
+| Site | Current | Effect if missed |
+| --- | --- | --- |
+| `village-layered.test.ts:59` `MAIN_ROUTE_REGIONS` | `H P N E C` | Guild excluded from main-route flanking + cache-distance checks |
+| `village-layered.test.ts:138` `it.each` | `H P M N S E C` | no assertion that `G` exists at all |
+| `village-layered.test.ts:149` connectivity targets | `P M N S E C` | `H`→`G` connectivity never checked |
+| `village-layered.test.ts:183` `regionGlyphs` | `H P M N S E C` | objects in `G` fail the region-or-path check |
+
+Phase 2 replaces all four with shared constants (`ROOM_GLYPHS`, `CRITICAL_ROUTE_GLYPHS`)
+exported from one place, so the next room added cannot repeat this.
 
 **Tests land in two waves.** The contract constrains things that phases 3, 4, and 5 author
 separately, so introducing it all at once would leave the suite red between phases — the
@@ -223,10 +246,58 @@ never touch, and `N/G/E` never touch `M/S`. Any accidental extra adjacency fails
 | A6 | exclusion zones (cols 44–50 rows 3–5; cols 53–55 row 0) are empty in village source |
 | A7 | **integration:** composing village collision with `pathsRegion` blockers, the critical route is ≥3 wide end to end and `E` reaches `C` |
 | A8 | west and shrine loops both exist and are distinct simple cycles |
-| A9 | every landmark anchor sits on a walkable cell of its owning room (see ownership table) |
+| A9 | every landmark, decor glyph, and object anchor sits on a walkable cell of its owning room |
+| A10 | no object **footprint** (padded) intersects an opening cell or a critical-route cell |
 
-A9 is in Wave A, not Wave B: `compileLayeredRegion` throws when a landmark sits on a
-collision glyph, so a blockout that strands a landmark breaks the *build*, not just a test.
+A9 is in Wave A, not Wave B: `compileLayeredRegion` throws when a landmark *or a decor glyph*
+sits on a collision glyph, so a blockout that strands either breaks the *build*, not just a
+test.
+
+### A10 — footprint containment
+
+A9 only checks anchor cells, and anchors are single tiles while buildings are not.
+`hero-house-exterior` is 235×246px ≈ 7×8 tiles, and `WorldScene` blocks player movement
+against landmark rects (`isPlayerMovementBlockedByLandmark`, WorldScene.ts:2186) and decor
+collision rects, padded by `playerRadius = 12`. A landmark placed at a legal anchor can
+therefore seal a 3-tile opening while every other Wave A test passes.
+
+A10 closes this **from the source**, not from compiled output. Landmark `width`/`height`,
+`DecorGlyphSpec.collision`, and the tile geometry are all already in
+`LayeredRegionSource`, so the footprint is computable without touching WorldScene:
+
+> For every landmark, every decor glyph carrying `collision`, and every ambient NPC, the
+> footprint rect expanded by 12px must not intersect any opening cell or any critical-route
+> cell.
+
+A footprint **may** overlap solid cells — a building sitting partly inside a hedge or
+divider blocks nothing that was passable. Only openings and route cells are protected. This
+matters for fit: `shrine-of-aurora` is 246×333px ≈ 7.7×10.4 tiles and `S` is only 11 rows
+tall, so centered at row 38 it spans rows 32.8–43.2 and necessarily overlaps the row-32
+divider. That is legal; what it must not do is reach cols 30–31 at row 32, the `P–S`
+opening. A10 constrains *where* the large landmarks sit rather than whether they fit.
+
+Deliberately conservative in the safe direction: `getLandmarkCollisionRects` carves a
+doorway out of the full bounds, so treating a landmark as its solid rect over-blocks rather
+than under-blocks. Extracting WorldScene's collision geometry into a shared pure module
+would give an exact answer, but that is a map-system change and the issue scopes this work
+to level design; the conservative source-level test buys the same protection without it.
+
+### Route definition (A3, A7, A10)
+
+Wave A runs before the path layer is re-authored, so "critical-route tile" cannot mean a
+`p` cell. It is defined structurally:
+
+> The **critical route** is the union of the room interiors of `H`, `P`, `N`, `G`, `E`, `C`
+> and the five opening cell-sets connecting them, restricted to walkable cells.
+
+Width is measured along a concrete traversal: take the BFS-shortest walkable path from the
+`H` centroid to the `C` centroid; at each cell on it, measure the maximal free run
+perpendicular to the local direction of travel. A3 asserts that run is ≥ 3 everywhere.
+
+**Occupancy rule.** `pathsRegion` blockers are not grid-aligned, so A7 needs a tile rule:
+a tile counts as blocked iff a blocker rect covers **more than 50% of the tile's area**.
+This is why `corridor-wall-2b` is listed both as bounding box (cols 44–50, rows 3–5) and as
+substantial footprint (cols 45–49, rows 4–5) — A7 uses the latter.
 
 ### Wave B — content (lands with phases 4–5)
 
@@ -294,10 +365,18 @@ trusted:
 
 ### Plaza asymmetry
 
-Load-bearing — this is what stops the plaza reading as a symmetric hedge box. Its three
-openings are all different widths and all on different edges: 3-wide west mouth into Market
-(rows 25–27), 3-wide north neck into the residences (cols 26–28), 2-wide south opening into
-the Shrine (cols 30–31). No two openings the same.
+`P` is the hub, so it carries **four** openings — one per graph edge (`H`, `M`, `N`, `S`).
+Three are 3 wide and one is 2, and two of them (`H–P` and `P–S`) share the south edge. The
+asymmetry therefore does *not* come from every opening differing; it comes from:
+
+- the **south edge carrying two openings of different widths** — 3 at cols 20–22, 2 at
+  cols 30–31 — set off-center against each other rather than mirrored
+- the **north neck being the narrowest exit relative to its wall length**, pinching a
+  14-wide room down to a 3-wide passage
+- the **west mouth sitting low** (rows 25–27 of a 20–31 room) rather than centered
+
+Composition, not opening count, is what stops it reading as a hedge box. A2 enforces the
+widths; the off-center placement is a review-gate judgement, not a test.
 
 ### Silhouette requirements
 
@@ -343,12 +422,31 @@ Ownership table:
 | `village-shrine-cache`, `village-pilgrim` | `S` |
 | `village-crier` | `E` |
 
+### Stranded decor
+
+`buildMapDecor` throws on the same condition as landmarks — a decor glyph over a collision
+glyph. Four of the sixteen current glyphs strand under the new blockout:
+
+| Glyph | Cell | Why |
+| --- | --- | --- |
+| `A` gateArch | (44, 2) | row 2 solid outside cols 40–42 |
+| `l` poleLantern | (47, 2) | same |
+| `h` hangingLantern | (23, 19) | `N`\|`P` divider, outside the cols 26–28 opening |
+| `s` scarecrow | (3, 37) | west of `H` (cols 6–22) |
+
+Phase 3 relocates these four to valid cells in the nearest owning room. `A` and `l` follow
+the moved gate to cols 40–42; the rest are holding positions pending the Phase 6 decor pass.
+
 ### What Phase 3 does not touch
 
-`paths` and `decor` keep their current content. Intermediate previews will therefore look
-wrong on purpose — the stale path layer will disagree with the new rooms until Phase 4. The
-"readable without paths" judgement happens against `village-designer-muted.svg`, which is
-exactly the view that ignores it.
+`paths` keeps its current content — the stale path layer will disagree with the new rooms
+until Phase 4, so intermediate previews look wrong on purpose. The "readable without paths"
+judgement happens against `village-designer-muted.svg`, which is exactly the view that
+ignores it.
+
+Decor is **not** frozen, but is only relocated where the blockout strands it. The general
+rule for Phase 3: it does whatever is needed to make the map *compile and traverse*, and
+nothing that makes it *look good* — composition is phases 4–6.
 
 ## Verification
 
