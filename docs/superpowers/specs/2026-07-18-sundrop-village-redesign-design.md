@@ -36,17 +36,35 @@ Note that total painted coverage (34.3%) is *not* itself the problem, and `c` (4
 ### Corridor geometry (verified, load-bearing)
 
 The village occupies px `x 256..2048`, `y 4352..5888`. The village→crossroads corridor is a
-soft maze of hedges owned by `paths.ts`, sitting at cols 44–53, rows −14..+4 in village-tile
-coordinates. `corridor-wall-2b` (x1775, y4510) lands **inside** the village grid at cols
-45–50, row 4.
+soft maze of hedges owned by `paths.ts`, spanning cols 44–55, rows −14..+5 in village-tile
+coordinates.
+
+**Coordinate convention:** `MapBlocker.x`/`.y` are rect **centers**, not top-left corners
+(`WorldScene.ts:2274`: `left = landmark.x - landmark.width / 2`; the compiler emits
+`x: (start.x + end.x) / 2`). Footprints below are computed on that basis. Reading them as
+top-left shifts every result ~3 cols east and ~2 rows south.
+
+Three external walls intrude into the village grid:
+
+| Wall | Pixel rect | In-grid footprint |
+| --- | --- | --- |
+| `corridor-wall-2b` | x1775 y4510 170×64 | cols 44–50, rows 3–5 |
+| `corridor-wall-3b` | x2010 y4225 64×270 | cols 53–55, row 0 |
+| `corridor-wall-5a` | x2040 y4225 64×270 | cols 54–55, row 0 |
 
 Consequences the blockout must respect:
 
 - The exit vents **north** through the existing gap in `collision` row 2 at cols 43–48.
 - "East Gate" is a geometric misnomer — it is the north-east corner — but the ID is
   preserved per the semantic-ID constraint.
-- The village's own collision layer must not duplicate or fight the external corridor walls
-  at cols 44–50, rows 0–5.
+- The village's own collision layer must not duplicate or fight external walls at
+  **cols 44–50 rows 3–5** or **cols 53–55 row 0**. These are the exclusion zones; the
+  blockout leaves them empty and lets `paths.ts` own them.
+- **Open east shell:** `collision` rows 5–8 have no wall at col 52 — the only solid there is
+  col 2 — so cols 3–55 form one unbroken band across the full village width, reachable to
+  the east grid edge. `corridor-wall-2b` covers row 5 at cols 44–50, but **rows 6–8 are
+  covered by nothing**. Phase 3 must close this deliberately as part of the `E` room
+  boundary rather than leaving it to fall out of the blockout.
 
 ## Phase 1 — Preview tooling
 
@@ -76,6 +94,13 @@ The generator is presentation-only. It must not import from `compile-layered-reg
 anything other than types — previews render the *source*, so a compiler bug cannot hide a
 design defect.
 
+**Superseding the existing artifact.** `docs/superpowers/reports/img/village-layered-designer-view.svg`
+already exists, hand-drawn, and is linked from `2026-07-04-sundrop-layered-village-review.md`
+with the subtitle "Paths muted; collision, rooms, decor, and objects emphasized" — the same
+view as the new `village-designer-muted.svg`. Phase 1 deletes the hand-drawn file and
+repoints the 2026-07-04 report's link at the generated one, so the repo does not carry two
+designer views that disagree. The rest of that report is historical and stays as-is.
+
 ## Phase 2 — Design contract
 
 New tests in `village-layered.test.ts` (existing tests retained; the `it.each` room
@@ -101,6 +126,27 @@ Bounding *thickness* rather than run length is deliberate: a legitimate 3×20 co
 corridors and a 5×5 inscribed-square cap does not.
 
 ### The room graph
+
+**Definition of adjacency.** Rooms are separated by a one-tile divider that openings pierce,
+so neither raw region-cell contact nor global BFS reachability expresses what we mean —
+the first calls rooms non-adjacent despite an opening, the second makes the graph a
+trivial star. The test uses reachability restricted to the pair:
+
+> Rooms `A` and `B` are **adjacent** iff some walkable cell labelled `A` is 4-connected to
+> some walkable cell labelled `B` by a chain of walkable cells whose labels are all in
+> `{A, B, unlabelled}`.
+
+"Walkable" means `layers.collision[row][col] === '.'`; "labelled" means the cell's glyph in
+`layers.regions`; "unlabelled" is `.` (divider and interstitial cells). This makes an
+opening the *only* way two rooms become adjacent, which is exactly the property tests 2 and
+3 constrain the width of.
+
+**Representation.** Every Phase 2 test operates on the **source layers**
+(`layers.collision`, `layers.regions`, `layers.paths`), consistent with the existing
+`walkableCells()` helper — never on `compileLayeredRegion` output. Landmark rects and
+decor-collision rects are compiler outputs and are therefore invisible to these tests by
+construction; test 10's "unreachable pocket" cannot be tripped by the well, the fountain,
+or the lantern collision boxes.
 
 The strongest test asserts the room adjacency graph equals **exactly** this edge set —
 no more, no less:
