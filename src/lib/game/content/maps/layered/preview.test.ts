@@ -2,9 +2,11 @@ import { describe, expect, it } from 'vitest';
 import { sundropVillageLayered } from '$lib/game/content/maps/regions/village-layered';
 import {
 	UNKNOWN_FILL,
+	renderComposedCollisionSvg,
 	renderLayeredPreviews,
 	renderRegionsSvg
 } from '$lib/game/content/maps/layered/preview';
+import type { MapBlocker } from '$lib/game/content/maps/types';
 
 function glyphsIn(rows: readonly string[]): string[] {
 	const seen = new Set<string>();
@@ -59,5 +61,25 @@ describe('layered region preview renderer', () => {
 		for (const landmark of sundropVillageLayered.objects.landmarks ?? []) {
 			expect(md).toContain(landmark.id);
 		}
+	});
+});
+
+describe('composed collision view', () => {
+	const overlay: MapBlocker[] = [
+		// Centred on the village tile (col 10, row 10): origin 256+10*32+16 = 592.
+		{ id: 'test-overlay', x: 592, y: 4_688, width: 32, height: 32, kind: 'garden-hedge' }
+	];
+
+	it('is deterministic', () => {
+		expect(renderComposedCollisionSvg(sundropVillageLayered, overlay)).toBe(
+			renderComposedCollisionSvg(sundropVillageLayered, overlay)
+		);
+	});
+
+	it('paints the overlay tile distinctly from village collision', () => {
+		const withOverlay = renderComposedCollisionSvg(sundropVillageLayered, overlay);
+		const without = renderComposedCollisionSvg(sundropVillageLayered, []);
+		expect(withOverlay).not.toBe(without);
+		expect(withOverlay).toContain('#b91c1c');
 	});
 });

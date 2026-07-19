@@ -8,6 +8,7 @@
 		"build": "vite build",
 		"build:tauri": "bun run story:check:strict && vite build --mode tauri && bun run story:assert-no-frontend-prose",
 		"preview": "vite preview",
+		"preview:village": "bun tools/preview-layered-region.ts",
 		"prepare": "playwright install || echo '' && husky",
 		"check": "svelte-check --tsconfig ./tsconfig.json",
 		"check:watch": "svelte-check --tsconfig ./tsconfig.json --watch",
