@@ -259,7 +259,7 @@ describe('opening map content', () => {
 		expect(meadowEntryMap.width).toBe(200);
 		expect(meadowEntryMap.height).toBe(200);
 		expect(meadowEntryMap.spawnDirection).toBe('up');
-		expect(meadowEntryMap.spawn).toEqual({ x: 716, y: 5_592 });
+		expect(meadowEntryMap.spawn).toEqual({ x: 624, y: 5_776 });
 		expect(meadowEntryMap.combatBounds?.map((bounds) => bounds.id)).toEqual([
 			'wildwood-north-combat-pocket',
 			'wildwood-crossing-combat-pocket',
@@ -2239,7 +2239,7 @@ describe('exploration test helpers', () => {
 describe('route: spawn → crossroads', () => {
 	it('has no empty stretch longer than the gap tolerance', () => {
 		expectRouteHasNoEmptyStretch('spawn → crossroads', [
-			{ x: 716, y: 5_592 },
+			{ x: 624, y: 5_776 },
 			{ x: 1_016, y: 5_092 },
 			{ x: 1_666, y: 4_542 },
 			{ x: 1_666, y: 4_342 },
@@ -2368,7 +2368,7 @@ describe('critical routes avoid blockers', () => {
 			// G-E door -> E -> E-C door -> C, following the nine authored
 			// room-to-room openings (village-layered.ts) before rejoining the
 			// unchanged crossroads-ward leg below.
-			{ x: 716, y: 5_592 },
+			{ x: 624, y: 5_776 },
 			{ x: 976, y: 5_584 },
 			{ x: 976, y: 5_360 },
 			{ x: 1_168, y: 5_360 },
