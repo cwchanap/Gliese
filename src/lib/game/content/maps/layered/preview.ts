@@ -1,5 +1,5 @@
 import type { LayeredRegionSource } from '$lib/game/content/maps/layered/types';
-import type { MapDecor } from '$lib/game/content/maps/types';
+import type { MapBlocker, MapDecor } from '$lib/game/content/maps/types';
 
 /** Pixels per tile in generated SVGs. */
 export const CELL = 12;
@@ -30,6 +30,7 @@ const TERRAIN_FILL: Record<string, string> = { g: '#d9c9a3', w: '#5b8fa8' };
 const COLLISION_FILL = '#3f3f46';
 const BACKGROUND_FILL = '#faf9f7';
 const LEGEND_HEIGHT = 22;
+const OVERLAY_FILL = '#b91c1c';
 
 function escapeXml(value: string): string {
 	return value
@@ -213,6 +214,56 @@ export function renderObjectsMarkdown<K extends MapDecor['textureKey']>(
 		);
 	}
 	return lines.join('\n') + '\n';
+}
+
+/**
+ * Tiles a non-grid-aligned rect occupies. A tile counts as covered when the
+ * rect overlaps more than half its area — the same rule the A7 contract test
+ * uses, so preview and assertion never disagree.
+ *
+ * `rect.x`/`.y` are CENTRES, matching MapBlocker throughout the codebase.
+ */
+export function tileCoverage<K extends MapDecor['textureKey']>(
+	rect: { x: number; y: number; width: number; height: number },
+	source: LayeredRegionSource<K>
+): Array<{ col: number; row: number }> {
+	const left = rect.x - rect.width / 2;
+	const right = rect.x + rect.width / 2;
+	const top = rect.y - rect.height / 2;
+	const bottom = rect.y + rect.height / 2;
+	const size = source.tileSize;
+	const area = size * size;
+	const out: Array<{ col: number; row: number }> = [];
+	for (let row = 0; row < source.height; row++) {
+		for (let col = 0; col < source.width; col++) {
+			const cl = source.origin.x + col * size;
+			const ct = source.origin.y + row * size;
+			const ox = Math.max(0, Math.min(right, cl + size) - Math.max(left, cl));
+			const oy = Math.max(0, Math.min(bottom, ct + size) - Math.max(top, ct));
+			if (ox * oy > area * 0.5) out.push({ col, row });
+		}
+	}
+	return out;
+}
+
+export function renderComposedCollisionSvg<K extends MapDecor['textureKey']>(
+	source: LayeredRegionSource<K>,
+	overlays: readonly MapBlocker[]
+): string {
+	const out = [
+		...header(source, 'composed collision (village + overlays)'),
+		...paintLayer(
+			source,
+			source.layers.collision,
+			Object.fromEntries(glyphsIn(source.layers.collision).map((g) => [g, COLLISION_FILL]))
+		)
+	];
+	for (const blocker of overlays) {
+		for (const { col, row } of tileCoverage(blocker, source)) {
+			out.push(cell(col, row, OVERLAY_FILL, 0.85));
+		}
+	}
+	return [...out, ...footer(source, ['village', 'overlay'])].join('\n');
 }
 
 export function renderLayeredPreviews<K extends MapDecor['textureKey']>(
