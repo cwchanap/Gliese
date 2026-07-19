@@ -2230,7 +2230,7 @@ describe('WorldScene', () => {
 			'villagerHouse'
 		);
 		expect(scene.add.image).toHaveBeenCalledWith(
-			1_168,
+			1_648,
 			5_584,
 			'village-buildings',
 			'villagerHouse'

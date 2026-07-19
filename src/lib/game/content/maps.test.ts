@@ -316,7 +316,7 @@ describe('opening map content', () => {
 			},
 			{
 				id: 'meadow-to-villager-house-3',
-				x: 1_168,
+				x: 1_648,
 				y: 5_776,
 				toMapId: 'villager-house-3',
 				showMarker: false,
@@ -990,7 +990,7 @@ describe('opening map content', () => {
 			facing: 'down'
 		});
 		expect(villagerHouse3Map.transitions[0].arrival).toEqual({
-			x: 1_168,
+			x: 1_648,
 			y: 5_816,
 			facing: 'down'
 		});
@@ -1137,7 +1137,7 @@ describe('opening map content', () => {
 				}),
 				expect.objectContaining({
 					id: 'villager-house-3-exterior',
-					x: 1_168,
+					x: 1_648,
 					y: 5_584,
 					width: 184,
 					height: 333,
@@ -2363,20 +2363,30 @@ describe('route: crossroads → wildwood cave', () => {
 describe('critical routes avoid blockers', () => {
 	const criticalRoutes: Pt[][] = [
 		[
-			// Village leg re-traced after the 8-room redesign (9c82652..986d03c):
-			// spawn (H) -> H-P door -> P -> P-N door -> N -> N-G door -> G ->
-			// G-E door -> E -> E-C door -> C, following the nine authored
-			// room-to-room openings (village-layered.ts) before rejoining the
-			// unchanged crossroads-ward leg below.
+			// Village leg re-derived by a BFS over the real collision + landmark
+			// rects (save-state.ts isInsideAnyCollisionRect, padding 12 — the
+			// game's own movement rule), not just the collision layer: a
+			// layer-only route walks straight through a building, because the
+			// layer under a landmark reads '.'. The spine climbs to row 16 before
+			// heading east across the north commons so it clears the building that
+			// sits at cols 31-33/row 18, then threads H -> H-P gate -> P -> N-P
+			// gate -> N -> G-N gate -> G -> E-G gate -> E -> C (direct contact, no
+			// divider row) before rejoining the unchanged crossroads-ward leg.
 			{ x: 624, y: 5_776 },
-			{ x: 976, y: 5_584 },
-			{ x: 976, y: 5_360 },
-			{ x: 1_168, y: 5_360 },
-			{ x: 1_168, y: 4_944 },
-			{ x: 1_360, y: 4_944 },
-			{ x: 1_360, y: 4_880 },
-			{ x: 1_616, y: 4_880 },
-			{ x: 1_616, y: 4_400 },
+			{ x: 1_008, y: 5_776 },
+			{ x: 1_008, y: 5_072 }, // north through H-P gate (cols 21-23, row 32)
+			{ x: 1_168, y: 5_072 },
+			{ x: 1_168, y: 4_944 }, // north through N-P gate (cols 26-28, row 19)
+			{ x: 1_232, y: 4_944 },
+			{ x: 1_232, y: 4_880 }, // climb to row 16 to clear the commons building
+			{ x: 1_424, y: 4_880 }, // east through G-N gate (col 35, rows 14-16)
+			{ x: 1_424, y: 5_008 },
+			{ x: 1_808, y: 5_008 },
+			{ x: 1_808, y: 4_656 }, // north through E-G gate (cols 48-50, row 10)
+			{ x: 1_648, y: 4_656 },
+			{ x: 1_648, y: 4_464 },
+			{ x: 1_616, y: 4_464 },
+			{ x: 1_616, y: 4_400 }, // into C (row 2/row 3 direct contact, col 42)
 			{ x: 1_706, y: 4_342 },
 			{ x: 1_740, y: 4_280 },
 			{ x: 1_850, y: 4_280 },
