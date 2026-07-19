@@ -2221,7 +2221,7 @@ describe('WorldScene', () => {
 
 		expect(scene.add.image).toHaveBeenCalledWith(624, 5_552, 'village-buildings', 'heroHouse');
 		expect(scene.add.image).toHaveBeenCalledWith(1_616, 4_848, 'village-buildings', 'guildHall');
-		expect(scene.add.image).toHaveBeenCalledWith(464, 5_136, 'village-buildings', 'itemShop');
+		expect(scene.add.image).toHaveBeenCalledWith(496, 5_136, 'village-buildings', 'itemShop');
 		expect(scene.add.image).toHaveBeenCalledWith(848, 4_720, 'village-buildings', 'villagerHouse');
 		expect(scene.add.image).toHaveBeenCalledWith(
 			1_168,
@@ -2235,7 +2235,7 @@ describe('WorldScene', () => {
 			'village-buildings',
 			'villagerHouse'
 		);
-		expect(scene.add.image).toHaveBeenCalledWith(720, 5_232, 'village-buildings', 'blacksmith');
+		expect(scene.add.image).toHaveBeenCalledWith(752, 5_232, 'village-buildings', 'blacksmith');
 		expect(scene.add.image).toHaveBeenCalledWith(
 			1_424,
 			5_584,
@@ -2258,7 +2258,7 @@ describe('WorldScene', () => {
 				)
 		).toBe(true);
 		expect(scene.add.rectangle).not.toHaveBeenCalledWith(624, 5_552, 235, 246, 0x5b4636, 0.9);
-		expect(scene.add.rectangle).not.toHaveBeenCalledWith(720, 5_232, 235, 226, 0x5b4636, 0.9);
+		expect(scene.add.rectangle).not.toHaveBeenCalledWith(752, 5_232, 235, 226, 0x5b4636, 0.9);
 		expect(scene.add.rectangle).not.toHaveBeenCalledWith(1_424, 5_584, 246, 333, 0x5b4636, 0.9);
 		expect(scene.add.rectangle).not.toHaveBeenCalledWith(5_960, 1_800, 256, 224, 0x5b4636, 0.9);
 		expect(scene.add.rectangle).not.toHaveBeenCalledWith(1_104, 5_168, 141, 160, 0x5b4636, 0.9);
@@ -2277,7 +2277,7 @@ describe('WorldScene', () => {
 			(marker) => marker.x === 1_616 && marker.y === 4_848 && marker.frame === 'guildHall'
 		);
 		const itemShopMarker = phaserState.imageMarkers.find(
-			(marker) => marker.x === 464 && marker.y === 5_136 && marker.frame === 'itemShop'
+			(marker) => marker.x === 496 && marker.y === 5_136 && marker.frame === 'itemShop'
 		);
 		const villagerHouseMarkers = phaserState.imageMarkers.filter(
 			(marker) => marker.frame === 'villagerHouse'
@@ -2578,15 +2578,15 @@ describe('WorldScene', () => {
 
 		scene.create({ mapId: meadowEntryMap.id });
 		Object.assign(phaserState.playerMarker, {
-			x: meadowEntryMap.spawn.x,
-			y: meadowEntryMap.spawn.y + 80
+			x: 880,
+			y: 5_520
 		});
 		phaserState.cursorKeys.right.isDown = true;
 
 		scene.update(0, 1000);
 
-		expect(phaserState.playerMarker.x).toBe(meadowEntryMap.spawn.x + 60);
-		expect(phaserState.playerMarker.y).toBe(meadowEntryMap.spawn.y + 80);
+		expect(phaserState.playerMarker.x).toBe(940);
+		expect(phaserState.playerMarker.y).toBe(5_520);
 	});
 
 	it('reveals explored cells, persists changes, and republishes the map without changing status', async () => {
@@ -2766,12 +2766,16 @@ describe('WorldScene', () => {
 		const scene = new WorldScene();
 
 		scene.create({ mapId: meadowEntryMap.id });
+		Object.assign(phaserState.playerMarker, {
+			x: 880,
+			y: 5_520
+		});
 		phaserState.wasdKeys.down.isDown = true;
 
 		scene.update(0, 1000);
 
-		expect(phaserState.playerMarker.x).toBe(meadowEntryMap.spawn.x);
-		expect(phaserState.playerMarker.y).toBe(meadowEntryMap.spawn.y + 60);
+		expect(phaserState.playerMarker.x).toBe(880);
+		expect(phaserState.playerMarker.y).toBe(5_580);
 	});
 
 	it('clamps the player marker within the world bounds during movement', async () => {
@@ -3043,15 +3047,15 @@ describe('WorldScene', () => {
 
 		scene.create({ mapId: meadowEntryMap.id });
 		Object.assign(phaserState.playerMarker, {
-			x: meadowEntryMap.spawn.x,
-			y: meadowEntryMap.spawn.y + 80
+			x: 880,
+			y: 5_520
 		});
 		phaserState.cursorKeys.right.isDown = true;
 
 		scene.update(0, 10_000);
 
-		expect(phaserState.playerMarker.x).toBe(meadowEntryMap.spawn.x + 60);
-		expect(phaserState.playerMarker.y).toBe(meadowEntryMap.spawn.y + 80);
+		expect(phaserState.playerMarker.x).toBe(940);
+		expect(phaserState.playerMarker.y).toBe(5_520);
 	});
 
 	it('plays hero walk while moving and idle after stopping', async () => {
@@ -3448,21 +3452,21 @@ describe('WorldScene', () => {
 
 		scene.create({ mapId: meadowEntryMap.id });
 		Object.assign(phaserState.playerMarker, {
-			x: meadowEntryMap.spawn.x,
-			y: meadowEntryMap.spawn.y + 80
+			x: 880,
+			y: 5_520
 		});
 		phaserState.cursorKeys.right.isDown = true;
 		sceneState.handleHudCommand({ type: 'pause-game' });
 
 		scene.update(0, 1000);
 
-		expect(phaserState.playerMarker.x).toBe(meadowEntryMap.spawn.x);
-		expect(phaserState.playerMarker.y).toBe(meadowEntryMap.spawn.y + 80);
+		expect(phaserState.playerMarker.x).toBe(880);
+		expect(phaserState.playerMarker.y).toBe(5_520);
 
 		sceneState.handleHudCommand({ type: 'resume-game' });
 		scene.update(1000, 1000);
 
-		expect(phaserState.playerMarker.x).toBe(meadowEntryMap.spawn.x + 60);
+		expect(phaserState.playerMarker.x).toBe(940);
 	});
 
 	it('uses a field potion command to heal and publish the updated inventory', async () => {
