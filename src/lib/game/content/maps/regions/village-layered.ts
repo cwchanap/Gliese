@@ -191,6 +191,17 @@ export const sundropVillageLayered: LayeredRegionSource<(typeof villageDressingA
 			'........................................................',
 			'........................................................'
 		],
+		// task 4j: row 10 (G-E gate) moved its 3-col opening from 42-44 to
+		// 48-50 — guild-hall-exterior (cols 37.70-47.30) blocked the approach
+		// from inside G at the old position. row 32 (H-M gate) moved its 2-col
+		// opening from 8-9 to 4-5 — hero-house-exterior (cols 7.83-15.17)
+		// blocked the approach from inside H at the old position. col 20
+		// (M-P gate) moved its 2-row opening from rows 25-27→21-22 — this
+		// gate was not one of the brief's four root causes, but measuring it
+		// (per the brief's own "check both sides" instruction) found
+		// blacksmith (cols 11.83-19.17, rows 23.97-31.03) blocking the
+		// approach from inside M at the old rows; rows 20-23 are clear of
+		// both blacksmith and the row-19 N/M wall.
 		collision: [
 			'.....................................#...........#......',
 			'.....................................#...........#......',
@@ -202,7 +213,7 @@ export const sundropVillageLayered: LayeredRegionSource<(typeof villageDressingA
 			'..##...............................#...............##...',
 			'..##...............................#...............##...',
 			'..##...............................#...............##...',
-			'..##...............................#######...########...',
+			'..##...............................#############...##...',
 			'..##...............................#...............##...',
 			'..##...............................#...............##...',
 			'..##...............................#...............##...',
@@ -213,18 +224,18 @@ export const sundropVillageLayered: LayeredRegionSource<(typeof villageDressingA
 			'..##...............................#...............##...',
 			'..########################...#######...............##...',
 			'..#.................#.............##...............##...',
-			'..#.................#.............##...............##...',
-			'..#.................#.............##...............##...',
-			'..#.................#.............##...............##...',
-			'..#.................#.............##...............##...',
-			'..#...............................##...............##...',
 			'..#...............................##...............##...',
 			'..#...............................##...............##...',
 			'..#.................#.............##...............##...',
 			'..#.................#.............##...............##...',
 			'..#.................#.............##...............##...',
 			'..#.................#.............##...............##...',
-			'..######..###########...######..#####################...',
+			'..#.................#.............##...............##...',
+			'..#.................#.............##...............##...',
+			'..#.................#.............##...............##...',
+			'..#.................#.............##...............##...',
+			'..#.................#.............##...............##...',
+			'..##..###############...######..#####################...',
 			'..##....................#........................####...',
 			'..##....................#........................####...',
 			'..##....................#........................####...',
@@ -241,6 +252,19 @@ export const sundropVillageLayered: LayeredRegionSource<(typeof villageDressingA
 			'..###################################################...',
 			'........................................................'
 		],
+		// task 4j: the pole lantern 'l' marking the N-G gateway moved from
+		// (col 36, row 12) to (col 32, row 16). Its collision box is anchored
+		// ~70px below its glyph tile (not centred), so at row 12 the padded
+		// box reached back up and covered the N-G gate cells at col 35, rows
+		// 14-15, cutting that gate from 3 standable tiles to 1. Sliding it
+		// down the SAME column (36), or to the immediately adjacent column
+		// (34), does not fix this: the box's half-width (25px) plus the
+		// player radius (12px) reaches 37px — more than one 32px tile pitch
+		// — so any glyph within 1 column of col 35 still foots the gate at
+		// whatever rows its ~3-row vertical reach lands on. Needed >=2
+		// columns of clearance (col 32) to guarantee col 35 is never
+		// touched, and row 16 to clear villager-house-2-exterior (rows
+		// 7.42-15.58 at this column).
 		decor: [
 			'........................................................',
 			'........................................................',
@@ -254,11 +278,11 @@ export const sundropVillageLayered: LayeredRegionSource<(typeof villageDressingA
 			'........................................................',
 			'........................................................',
 			'........................................................',
-			'....................................l...................',
+			'........................................................',
 			'........................................................',
 			'........................................................',
 			'................l.......................................',
-			'........................................................',
+			'................................l.......................',
 			'................b.......................................',
 			'........................................................',
 			'........................................................',
@@ -410,8 +434,14 @@ export const sundropVillageLayered: LayeredRegionSource<(typeof villageDressingA
 				labelKey: 'content.maps.landmarks.shrine-of-aurora.label'
 			},
 			{
+				// task 4j: moved from col 28 to col 43. At col 28 this footprint sat
+				// directly on top of the P-S gate's south-side approach ((30,33) and
+				// (31,33)) and the H-S gate's east-side approach ((25,36) and
+				// (25,37)), sealing room S entirely. Cols 40.6-46.4 is the only band
+				// in room S (cols 25-48) that clears both gate approaches without
+				// colliding with shrine-of-aurora (cols 32.66-40.34).
 				id: 'villager-house-3-exterior',
-				col: 28,
+				col: 43,
 				row: 38,
 				width: 184,
 				height: 333,
@@ -469,7 +499,7 @@ export const sundropVillageLayered: LayeredRegionSource<(typeof villageDressingA
 			},
 			{
 				id: 'meadow-to-villager-house-3',
-				col: 28,
+				col: 43,
 				row: 44,
 				toMapId: 'villager-house-3',
 				showMarker: false,
@@ -481,7 +511,11 @@ export const sundropVillageLayered: LayeredRegionSource<(typeof villageDressingA
 			// col 16 clears every landmark and stays >=5 walkable tiles from the
 			// main route (village-layered.test.ts asserts the distance).
 			{ id: 'village-market-cache', col: 16, row: 21, itemId: 'field-potion', quantity: 1 },
-			{ id: 'village-shrine-cache', col: 43, row: 43, itemId: 'sunleaf-salve', quantity: 1 }
+			// col 41/row 44 sits on the doorstep strip south of both the shrine and
+			// the (relocated) villager-house-3 footprint — the original (43,43)
+			// spot is now inside villager-house-3-exterior's moved footprint
+			// (task 4j: the house moved to col 43 to unseal room S's gates).
+			{ id: 'village-shrine-cache', col: 41, row: 44, itemId: 'sunleaf-salve', quantity: 1 }
 		],
 		ambientNpcs: [
 			{ id: 'village-wanderer', col: 23, row: 28, frameName: 'travelerNpc' },
