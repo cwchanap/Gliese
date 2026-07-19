@@ -142,8 +142,8 @@ export const sundropVillageLayered: LayeredRegionSource<(typeof villageDressingA
 			'........................................................'
 		],
 		paths: [
-			'........................................................',
-			'........................................................',
+			'......................................ppppppppppp.......',
+			'......................................ppppppppppp.......',
 			'............................................ppppp.......',
 			'............................................ppppp.......',
 			'............................................ppppp.......',
@@ -362,11 +362,18 @@ export const sundropVillageLayered: LayeredRegionSource<(typeof villageDressingA
 				labelKey: 'content.maps.landmarks.item-shop-exterior.label'
 			},
 			{
+				// col/width/height narrowed from the original 9/235/226: at full size
+				// this landmark's box overlapped item-shop-exterior's footprint (and the
+				// meadow-to-item-shop door + its 64px approach clearance), making the
+				// door unreachable under any check that treats landmarks as solid. Room
+				// M has no space east of item-shop-exterior for a box this size without
+				// bleeding into room P, so the box is narrowed to fit alongside it
+				// instead of just being moved.
 				id: 'blacksmith',
-				col: 9,
+				col: 17,
 				row: 29,
-				width: 235,
-				height: 226,
+				width: 130,
+				height: 126,
 				labelKey: 'content.maps.landmarks.blacksmith.label'
 			},
 			{
@@ -386,11 +393,19 @@ export const sundropVillageLayered: LayeredRegionSource<(typeof villageDressingA
 				labelKey: 'content.maps.landmarks.villager-house-2-exterior.label'
 			},
 			{
+				// height narrowed from 277: at full height the box's south edge
+				// buried the door (row 17) ~42px deep inside the landmark, and the
+				// only approach is the north gap (row 10) straight down col 42 to
+				// the door. With the door landmark-covered, no point within 64px of
+				// it was ever solid-free, so meadow-to-guild-hall was unreachable
+				// regardless of the actual walkable path. Shrinking (center
+				// unchanged) puts the door just past the south edge, matching
+				// hero-house/item-shop's working convention.
 				id: 'guild-hall-exterior',
 				col: 42,
 				row: 14,
 				width: 307,
-				height: 277,
+				height: 182,
 				labelKey: 'content.maps.landmarks.guild-hall-exterior.label'
 			},
 			{
@@ -402,19 +417,28 @@ export const sundropVillageLayered: LayeredRegionSource<(typeof villageDressingA
 				labelKey: 'content.maps.landmarks.sundrop-well.label'
 			},
 			{
+				// height narrowed from 333 for the same reason as guild-hall-exterior
+				// above: at full height the door (row 42) sat ~38px inside the
+				// landmark with no other approach, making meadow-to-shrine-of-aurora
+				// unreachable. Shrinking (center unchanged) exposes the door.
 				id: 'shrine-of-aurora',
 				col: 36,
 				row: 38,
 				width: 246,
-				height: 333,
+				height: 246,
 				labelKey: 'content.maps.landmarks.shrine-of-aurora.label'
 			},
 			{
+				// height narrowed from 333 for the same reason as guild-hall-exterior
+				// above: at full height the door (row 41) sat ~38px inside the
+				// landmark with no other approach, making
+				// meadow-to-villager-house-3 unreachable. Shrinking (center
+				// unchanged) exposes the door.
 				id: 'villager-house-3-exterior',
 				col: 27,
 				row: 37,
 				width: 184,
-				height: 333,
+				height: 246,
 				labelKey: 'content.maps.landmarks.villager-house-3-exterior.label'
 			}
 		],
@@ -482,7 +506,10 @@ export const sundropVillageLayered: LayeredRegionSource<(typeof villageDressingA
 		],
 		ambientNpcs: [
 			{ id: 'village-wanderer', col: 23, row: 28, frameName: 'travelerNpc' },
-			{ id: 'village-woodcutter', col: 13, row: 26, frameName: 'woodcutterNpc' },
+			// col 13 fell inside item-shop-exterior's compiled footprint after the
+			// re-cut; col 17 stays in room M clear of item-shop-exterior and
+			// blacksmith's footprints.
+			{ id: 'village-woodcutter', col: 17, row: 23, frameName: 'woodcutterNpc' },
 			{ id: 'village-pilgrim', col: 31, row: 40, frameName: 'pilgrimNpc' },
 			{ id: 'village-crier', col: 39, row: 7, frameName: 'crierNpc' }
 		]
