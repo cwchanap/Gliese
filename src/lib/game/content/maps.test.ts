@@ -276,7 +276,7 @@ describe('opening map content', () => {
 			},
 			{
 				id: 'meadow-to-item-shop',
-				x: 464,
+				x: 496,
 				y: 5_296,
 				toMapId: 'item-shop',
 				showMarker: false,
@@ -978,7 +978,7 @@ describe('opening map content', () => {
 	it('declares exact exterior return arrivals for bottom-left village interiors', () => {
 		expect(heroHouseMap.transitions[0].arrival).toEqual({ x: 624, y: 5_752, facing: 'down' });
 		expect(guildHallMap.transitions[0].arrival).toEqual({ x: 1_616, y: 5_080, facing: 'down' });
-		expect(itemShopMap.transitions[0].arrival).toEqual({ x: 464, y: 5_336, facing: 'down' });
+		expect(itemShopMap.transitions[0].arrival).toEqual({ x: 496, y: 5_336, facing: 'down' });
 		expect(villagerHouse1Map.transitions[0].arrival).toEqual({
 			x: 848,
 			y: 4_920,
@@ -1113,7 +1113,7 @@ describe('opening map content', () => {
 				}),
 				expect.objectContaining({
 					id: 'item-shop-exterior',
-					x: 464,
+					x: 496,
 					y: 5_136,
 					width: 246,
 					height: 235,
@@ -1161,7 +1161,7 @@ describe('opening map content', () => {
 				}),
 				expect.objectContaining({
 					id: 'blacksmith',
-					x: 720,
+					x: 752,
 					y: 5_232,
 					width: 235,
 					height: 226,
