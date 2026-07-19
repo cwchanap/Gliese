@@ -268,39 +268,39 @@ describe('opening map content', () => {
 		expect(meadowEntryMap.transitions).toEqual([
 			{
 				id: 'meadow-to-hero-house',
-				x: 720,
-				y: 5_552,
+				x: 624,
+				y: 5_712,
 				toMapId: 'hero-house',
 				showMarker: false,
 				arrival: { x: 256, y: 224, facing: 'up' }
 			},
 			{
 				id: 'meadow-to-item-shop',
-				x: 528,
-				y: 5_072,
+				x: 464,
+				y: 5_296,
 				toMapId: 'item-shop',
 				showMarker: false,
 				arrival: { x: 256, y: 288, facing: 'up' }
 			},
 			{
 				id: 'meadow-to-villager-house-1',
-				x: 880,
-				y: 4_624,
+				x: 848,
+				y: 4_880,
 				toMapId: 'villager-house-1',
 				showMarker: false,
 				arrival: { x: 256, y: 288, facing: 'up' }
 			},
 			{
 				id: 'meadow-to-villager-house-2',
-				x: 1_200,
-				y: 4_656,
+				x: 1_168,
+				y: 4_880,
 				toMapId: 'villager-house-2',
 				showMarker: false,
 				arrival: { x: 256, y: 288, facing: 'up' }
 			},
 			{
 				id: 'meadow-to-guild-hall',
-				x: 1_488,
+				x: 1_616,
 				y: 5_040,
 				toMapId: 'guild-hall',
 				showMarker: false,
@@ -308,16 +308,16 @@ describe('opening map content', () => {
 			},
 			{
 				id: 'meadow-to-shrine-of-aurora',
-				x: 1_200,
-				y: 5_712,
+				x: 1_424,
+				y: 5_776,
 				toMapId: 'shrine-of-aurora-interior',
 				showMarker: false,
 				arrival: { x: 256, y: 288, facing: 'up' }
 			},
 			{
 				id: 'meadow-to-villager-house-3',
-				x: 1_552,
-				y: 5_552,
+				x: 1_168,
+				y: 5_776,
 				toMapId: 'villager-house-3',
 				showMarker: false,
 				arrival: { x: 256, y: 288, facing: 'up' }
@@ -385,7 +385,7 @@ describe('opening map content', () => {
 				x: 256,
 				y: 336,
 				toMapId: 'meadow-entry',
-				arrival: { x: 720, y: 5_692, facing: 'down' }
+				arrival: { x: 624, y: 5_752, facing: 'down' }
 			}
 		]);
 		expect(
@@ -976,27 +976,27 @@ describe('opening map content', () => {
 	});
 
 	it('declares exact exterior return arrivals for bottom-left village interiors', () => {
-		expect(heroHouseMap.transitions[0].arrival).toEqual({ x: 720, y: 5_692, facing: 'down' });
-		expect(guildHallMap.transitions[0].arrival).toEqual({ x: 1_488, y: 5_162, facing: 'down' });
-		expect(itemShopMap.transitions[0].arrival).toEqual({ x: 528, y: 5_112, facing: 'down' });
+		expect(heroHouseMap.transitions[0].arrival).toEqual({ x: 624, y: 5_752, facing: 'down' });
+		expect(guildHallMap.transitions[0].arrival).toEqual({ x: 1_616, y: 5_080, facing: 'down' });
+		expect(itemShopMap.transitions[0].arrival).toEqual({ x: 464, y: 5_336, facing: 'down' });
 		expect(villagerHouse1Map.transitions[0].arrival).toEqual({
-			x: 880,
-			y: 4_670,
+			x: 848,
+			y: 4_920,
 			facing: 'down'
 		});
 		expect(villagerHouse2Map.transitions[0].arrival).toEqual({
-			x: 1_200,
-			y: 4_704,
+			x: 1_168,
+			y: 4_920,
 			facing: 'down'
 		});
 		expect(villagerHouse3Map.transitions[0].arrival).toEqual({
-			x: 1_552,
-			y: 5_692,
+			x: 1_168,
+			y: 5_816,
 			facing: 'down'
 		});
 		expect(shrineOfAuroraInteriorMap.transitions[0].arrival).toEqual({
-			x: 1_200,
-			y: 5_752,
+			x: 1_424,
+			y: 5_816,
 			facing: 'down'
 		});
 	});
@@ -1097,55 +1097,55 @@ describe('opening map content', () => {
 			expect.arrayContaining([
 				expect.objectContaining({
 					id: 'hero-house-exterior',
-					x: 720,
-					y: 5_424,
+					x: 624,
+					y: 5_552,
 					width: 235,
 					height: 246,
 					labelKey: 'content.maps.landmarks.hero-house-exterior.label'
 				}),
 				expect.objectContaining({
 					id: 'guild-hall-exterior',
-					x: 1_488,
-					y: 4_880,
+					x: 1_616,
+					y: 4_848,
 					width: 307,
 					height: 277,
 					labelKey: 'content.maps.landmarks.guild-hall-exterior.label'
 				}),
 				expect.objectContaining({
 					id: 'item-shop-exterior',
-					x: 528,
-					y: 4_944,
+					x: 464,
+					y: 5_136,
 					width: 246,
 					height: 235,
 					labelKey: 'content.maps.landmarks.item-shop-exterior.label'
 				}),
 				expect.objectContaining({
 					id: 'villager-house-1-exterior',
-					x: 880,
-					y: 4_464,
+					x: 848,
+					y: 4_720,
 					width: 226,
 					height: 205,
 					labelKey: 'content.maps.landmarks.villager-house-1-exterior.label'
 				}),
 				expect.objectContaining({
 					id: 'villager-house-2-exterior',
-					x: 1_200,
-					y: 4_496,
+					x: 1_168,
+					y: 4_720,
 					width: 338,
 					height: 261,
 					labelKey: 'content.maps.landmarks.villager-house-2-exterior.label'
 				}),
 				expect.objectContaining({
 					id: 'villager-house-3-exterior',
-					x: 1_552,
-					y: 5_360,
+					x: 1_168,
+					y: 5_584,
 					width: 184,
 					height: 333,
 					labelKey: 'content.maps.landmarks.villager-house-3-exterior.label'
 				}),
 				expect.objectContaining({
 					id: 'sundrop-well',
-					x: 1_008,
+					x: 1_104,
 					y: 5_168,
 					width: 141,
 					height: 160,
@@ -1161,16 +1161,16 @@ describe('opening map content', () => {
 				}),
 				expect.objectContaining({
 					id: 'blacksmith',
-					x: 400,
-					y: 5_264,
+					x: 720,
+					y: 5_232,
 					width: 235,
 					height: 226,
 					labelKey: 'content.maps.landmarks.blacksmith.label'
 				}),
 				expect.objectContaining({
 					id: 'shrine-of-aurora',
-					x: 1_200,
-					y: 5_552,
+					x: 1_424,
+					y: 5_584,
 					width: 246,
 					height: 333,
 					labelKey: 'content.maps.landmarks.shrine-of-aurora.label'
@@ -1255,7 +1255,7 @@ describe('opening map content', () => {
 			a: 'autumnLeafTile',
 			s: 'seaTile'
 		};
-		const roomGlyphs = ['H', 'P', 'M', 'N', 'S', 'E', 'C'] as const;
+		const roomGlyphs = ['H', 'P', 'M', 'N', 'S', 'E', 'C', 'G'] as const;
 		const patches = meadowEntryMap.groundPatches ?? [];
 
 		for (const glyph of roomGlyphs) {
@@ -2363,14 +2363,20 @@ describe('route: crossroads → wildwood cave', () => {
 describe('critical routes avoid blockers', () => {
 	const criticalRoutes: Pt[][] = [
 		[
+			// Village leg re-traced after the 8-room redesign (9c82652..986d03c):
+			// spawn (H) -> H-P door -> P -> P-N door -> N -> N-G door -> G ->
+			// G-E door -> E -> E-C door -> C, following the nine authored
+			// room-to-room openings (village-layered.ts) before rejoining the
+			// unchanged crossroads-ward leg below.
 			{ x: 716, y: 5_592 },
-			{ x: 866, y: 5_392 },
-			{ x: 1_016, y: 5_152 },
-			{ x: 1_316, y: 5_052 },
-			{ x: 1_476, y: 5_032 },
-			{ x: 1_506, y: 4_752 },
-			{ x: 1_506, y: 4_492 },
-			{ x: 1_676, y: 4_432 },
+			{ x: 976, y: 5_584 },
+			{ x: 976, y: 5_360 },
+			{ x: 1_168, y: 5_360 },
+			{ x: 1_168, y: 4_944 },
+			{ x: 1_360, y: 4_944 },
+			{ x: 1_360, y: 4_880 },
+			{ x: 1_616, y: 4_880 },
+			{ x: 1_616, y: 4_400 },
 			{ x: 1_706, y: 4_342 },
 			{ x: 1_740, y: 4_280 },
 			{ x: 1_850, y: 4_280 },

@@ -59,7 +59,7 @@ describe('area map payload', () => {
 		const areaMap = buildAreaMapState({
 			map: meadowEntryMap,
 			player: { x: 700, y: 5_600 },
-			revealedCells: ['5,42', '11,38', '46,14'],
+			revealedCells: ['4,43', '12,37', '46,14'],
 			quests: createInitialQuestState(),
 			locale: 'en'
 		});
@@ -76,7 +76,7 @@ describe('area map payload', () => {
 		const areaMap = buildAreaMapState({
 			map: meadowEntryMap,
 			player: { x: 700, y: 5_600 },
-			revealedCells: ['5,42'],
+			revealedCells: ['4,43'],
 			quests: createInitialQuestState(),
 			locale: 'en'
 		});
@@ -90,7 +90,7 @@ describe('area map payload', () => {
 		const areaMap = buildAreaMapState({
 			map: meadowEntryMap,
 			player: { x: 700, y: 5_600 },
-			revealedCells: ['11,38'],
+			revealedCells: ['12,37'],
 			quests: createInitialQuestState(),
 			locale: 'ja'
 		});
@@ -116,7 +116,7 @@ describe('area map payload', () => {
 		const areaMap = buildAreaMapState({
 			map: meadowEntryMap,
 			player: { x: 700, y: 5_600 },
-			revealedCells: ['11,38'],
+			revealedCells: ['12,37'],
 			quests,
 			locale: 'en'
 		});

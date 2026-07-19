@@ -309,25 +309,25 @@ describe('save state', () => {
 	});
 
 	it('preserves a saved position at a landmark doorway opening', () => {
-		// (1200, 5712) is the shrine-of-aurora doorway transition position.
-		// The shrine landmark (246×333 at (1200, 5552)) spans bounds
-		// (1077–1323, 5385.5–5718.5), so the transition sits inside the
-		// landmark. WorldScene.getLandmarkCollisionRects carves a doorway
-		// opening there; normalization must do the same so the player is
-		// not nudged away from a valid doorway position.
+		// (1424, 5776) is the shrine-of-aurora doorway transition position.
+		// The shrine landmark (246×333 at (1424, 5584)) spans bounds
+		// (1301–1547, 5417.5–5750.5); the transition sits just south of the
+		// landmark's bottom edge (clearing it, with the 12px normalize
+		// padding, by 13.5px), so it is walkable on its own without needing
+		// a carved doorway opening. Normalization must leave it untouched.
 		const doorwaySave = {
 			...createNewSaveState(),
 			player: {
 				...createNewSaveState().player,
-				x: 1200,
-				y: 5712
+				x: 1424,
+				y: 5776
 			}
 		};
 
 		const parsed = parseSaveState(JSON.stringify(doorwaySave));
 		expect(parsed).not.toBeNull();
-		expect(parsed!.player.x).toBe(1200);
-		expect(parsed!.player.y).toBe(5712);
+		expect(parsed!.player.x).toBe(1424);
+		expect(parsed!.player.y).toBe(5776);
 	});
 
 	it('nudges a saved position inside a decor collision rect to the nearest walkable tile', () => {
