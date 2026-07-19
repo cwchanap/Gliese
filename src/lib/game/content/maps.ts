@@ -229,10 +229,10 @@ export const itemShopMap: WorldMapDefinition = addEnglishMapText({
 			id: 'item-shop-to-meadow',
 			...interiorDoor,
 			toMapId: openingMapId,
-			// x matches the meadow-to-item-shop door (village-layered.ts, col 6
+			// x matches the meadow-to-item-shop door (village-layered.ts, col 7
 			// row 29); y is 40px south of the door, inside room M and clear of
 			// item-shop-exterior's footprint.
-			arrival: { x: 464, y: 5_336, facing: 'down' }
+			arrival: { x: 496, y: 5_336, facing: 'down' }
 		}
 	],
 	npcs: [
