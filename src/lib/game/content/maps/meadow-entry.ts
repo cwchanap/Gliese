@@ -130,7 +130,10 @@ export const meadowEntryMap: WorldMapDefinition = addEnglishMapText({
 	width: 200,
 	height: 200,
 	spawnDirection: 'up',
-	spawn: { x: 716, y: 5_592 },
+	// Two tiles south of the hero-house door (624, 5712), facing up at it. The
+	// village redesign moved the hero house over the previous spawn point, so
+	// this is re-derived from the new door rather than carried over.
+	spawn: { x: 624, y: 5_776 },
 	landmarks: merged.landmarks,
 	transitions: merged.transitions,
 	groundPatches: merged.groundPatches,
