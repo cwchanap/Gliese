@@ -1,5 +1,14 @@
 # Sundrop Village Redesign — Phases 1–3 Implementation Plan
 
+> **Executed and complete.** Implementation revealed defects that moved rooms, gates, and
+> objects and changed two test definitions. Specific coordinates, object placements, and the
+> **A10 test code** in the task bodies below are the design-time plan and are now **stale** —
+> do not treat them as as-built. The authoritative final state is the spec's "As-built
+> reconciliation" section, the SDD ledger at `.superpowers/sdd/progress.md`, and the compiled
+> `meadowEntryMap` with the A1–A11 contract in `village-layered.test.ts`. In particular: A10
+> as built protects gate throats (not landmark footprints), A11 was added, `villager-house-3`
+> is at grid (43,38), and the spawn is (624,5776).
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Build deterministic preview tooling and a spatial design contract for Sundrop Village, then re-author its region and collision layers into a readable spine-and-pockets layout.

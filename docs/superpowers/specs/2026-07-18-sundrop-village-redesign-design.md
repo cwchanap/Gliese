@@ -459,3 +459,59 @@ belong to phases 7–8.
 
 Automated tests do not constitute completion — the issue is explicit about this, and the
 blockout gate is a human preview review.
+
+---
+
+## As-built reconciliation (post-implementation, 2026-07-19)
+
+The body above is the design as authored *before* the blockout. Implementing Wave A
+surfaced defects that moved rooms, gates, and objects, and changed two test definitions.
+The values below are authoritative and supersede the corresponding sections above; the
+prose is left intact as the design record. The mechanical source of truth is the compiled
+`meadowEntryMap` and the A1–A11 contract in `village-layered.test.ts`.
+
+**Room extents (final).** Outer shell `{c0:2, c1:52, r0:2, r1:46}`. Inclusive ranges:
+
+| Room | Cols | Rows |
+| --- | --- | --- |
+| `C` Crossroads Corridor | 38–48 | 0–2 |
+| `E` East Gate | 36–50 | 3–9 |
+| `G` Guild | 36–50 | 11–31 |
+| `N` North Commons | 4–34 | 4–18 |
+| `M` Market | 3–19 | 20–31 |
+| `P` Plaza | 21–33 | 20–31 |
+| `H` Home Yard | 4–23 | 33–45 |
+| `S` Shrine | 25–48 | 33–45 |
+
+`C` grew to three rows and meets `E` **directly** — row 2 is `C`'s own bottom row, row 3 is
+`E`'s top row, no divider. The north gate is therefore 11 wide, not 3. Gate jambs at cols 37
+and 49 (rows 0–1) stay solid, or `C` leaks to the outside ring. The perimeter is sealed:
+rooms no longer touch the meadow margin outside the shell (367 such cells are correctly
+unreachable — A5 scopes reachability to village cells).
+
+**Openings (final).** Critical (on the H→C route, ≥3 wide): `H-P` 21–23/32 · `N-P` 26–28/19 ·
+`G-N` 35/14–16 · `E-G` 48–50/10 · `C-E` 38–48/2. Secondary (≥2): `H-M` 4–5/32 · `M-P`
+20/20–22 · `P-S` 30–31/32 · `H-S` 24/36–37.
+
+**Spawn.** Moved to world `(624, 5776)` — two tiles south of the relocated hero-house door,
+facing up at it — because the redesign moved the hero house over the old spawn, which
+`normalizePlayerPosition` was rescuing to `(784, 5520)`.
+
+**Villager-house-3.** Relocated to grid `(43, 38)` (world x 1648) to clear both of the
+shrine's gate approaches; its door, interior return arrival, and exterior landmark moved with
+it. `village-shrine-cache` moved to `(41, 44)` to avoid being entombed under it.
+
+**A10 (changed).** The plan's A10 measured landmark *footprints* (`footprintTiles`, area
+overlap) against every walkable cell of the six route rooms. That is not the game's collision
+rule (which is *tile-centre inside a rect padded by the player radius*), and a route BFS'd on
+the bare collision layer walks straight through a building (the layer under a landmark reads
+`.`). As built, A10 protects the **critical gate throats and their walkable approach cells**,
+measured against the composed `meadowEntryMap` rects — the check that actually catches a
+building sealing a gate.
+
+**A11 (added, not in the original plan).** Full per-room passability: flood-fill from the
+spawn under the composed collision rule and require every room's reachable-standable count to
+equal its total-standable count and be non-zero. Added because the village became impassable
+twice during implementation — a building's rendered rect sat on the cells its own room used to
+reach its own gate — a defect class A1–A10 cannot see, because they read the collision *layer*
+and the layer was fine both times.
