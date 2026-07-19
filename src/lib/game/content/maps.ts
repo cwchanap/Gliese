@@ -108,7 +108,10 @@ export const guildHallMap: WorldMapDefinition = addEnglishMapText({
 			id: 'guild-hall-to-meadow',
 			...interiorDoor,
 			toMapId: openingMapId,
-			arrival: { x: 1_616, y: 4_952, facing: 'down' }
+			// x matches the meadow-to-guild-hall door (village-layered.ts, col 42
+			// row 21); y is 40px south of the door, inside guild forecourt and
+			// clear of guild-hall-exterior's footprint.
+			arrival: { x: 1_616, y: 5_080, facing: 'down' }
 		}
 	],
 	npcs: [
@@ -226,7 +229,10 @@ export const itemShopMap: WorldMapDefinition = addEnglishMapText({
 			id: 'item-shop-to-meadow',
 			...interiorDoor,
 			toMapId: openingMapId,
-			arrival: { x: 592, y: 5_304, facing: 'down' }
+			// x matches the meadow-to-item-shop door (village-layered.ts, col 6
+			// row 29); y is 40px south of the door, inside room M and clear of
+			// item-shop-exterior's footprint.
+			arrival: { x: 464, y: 5_336, facing: 'down' }
 		}
 	],
 	npcs: [
@@ -484,9 +490,9 @@ export const villagerHouse3Map: WorldMapDefinition = addEnglishMapText({
 			...interiorDoor,
 			toMapId: openingMapId,
 			// x matches the meadow-to-villager-house-3 door (village-layered.ts,
-			// col 27 row 41); y is 40px south of the door, inside the doorway's
-			// open room and clear of village-block-44-2 (starts y=5_760).
-			arrival: { x: 1_136, y: 5_720, facing: 'down' }
+			// col 28 row 44); y is 40px south of the door, inside room S and
+			// clear of villager-house-3-exterior's footprint.
+			arrival: { x: 1_168, y: 5_816, facing: 'down' }
 		}
 	],
 	interiorProps: [
@@ -581,7 +587,10 @@ export const shrineOfAuroraInteriorMap: WorldMapDefinition = {
 			id: 'shrine-of-aurora-to-meadow',
 			...interiorDoor,
 			toMapId: openingMapId,
-			arrival: { x: 1_424, y: 5_752, facing: 'down' }
+			// x matches the meadow-to-shrine-of-aurora door (village-layered.ts,
+			// col 36 row 44); y is 40px south of the door, inside room S and
+			// clear of shrine-of-aurora's footprint.
+			arrival: { x: 1_424, y: 5_816, facing: 'down' }
 		}
 	],
 	interiorProps: [
