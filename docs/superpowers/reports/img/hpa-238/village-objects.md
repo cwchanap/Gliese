@@ -10,16 +10,16 @@
 | landmark | `guild-hall-exterior` | 42 | 15 | G | 307×277px |
 | landmark | `sundrop-well` | 26 | 25 | P | 141×160px |
 | landmark | `shrine-of-aurora` | 36 | 38 | S | 246×333px |
-| landmark | `villager-house-3-exterior` | 28 | 38 | S | 184×333px |
+| landmark | `villager-house-3-exterior` | 43 | 38 | S | 184×333px |
 | transition | `meadow-to-hero-house` | 11 | 42 | H | → hero-house |
 | transition | `meadow-to-item-shop` | 7 | 29 | M | → item-shop |
 | transition | `meadow-to-villager-house-1` | 18 | 16 | N | → villager-house-1 |
 | transition | `meadow-to-villager-house-2` | 28 | 16 | N | → villager-house-2 |
 | transition | `meadow-to-guild-hall` | 42 | 21 | G | → guild-hall |
 | transition | `meadow-to-shrine-of-aurora` | 36 | 44 | S | → shrine-of-aurora-interior |
-| transition | `meadow-to-villager-house-3` | 28 | 44 | S | → villager-house-3 |
+| transition | `meadow-to-villager-house-3` | 43 | 44 | S | → villager-house-3 |
 | pickup | `village-market-cache` | 16 | 21 | M | field-potion ×1 |
-| pickup | `village-shrine-cache` | 43 | 43 | S | sunleaf-salve ×1 |
+| pickup | `village-shrine-cache` | 41 | 44 | S | sunleaf-salve ×1 |
 | npc | `village-wanderer` | 23 | 28 | P | travelerNpc |
 | npc | `village-woodcutter` | 17 | 23 | M | woodcutterNpc |
 | npc | `village-pilgrim` | 31 | 40 | S | pilgrimNpc |
