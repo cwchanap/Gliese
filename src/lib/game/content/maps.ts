@@ -44,7 +44,7 @@ export const heroHouseMap: WorldMapDefinition = {
 			id: 'hero-house-to-meadow',
 			...interiorDoor,
 			toMapId: openingMapId,
-			arrival: { x: 720, y: 5_692, facing: 'down' }
+			arrival: { x: 624, y: 5_752, facing: 'down' }
 		}
 	],
 	interiorProps: [
@@ -108,7 +108,7 @@ export const guildHallMap: WorldMapDefinition = addEnglishMapText({
 			id: 'guild-hall-to-meadow',
 			...interiorDoor,
 			toMapId: openingMapId,
-			arrival: { x: 1_488, y: 5_162, facing: 'down' }
+			arrival: { x: 1_616, y: 4_952, facing: 'down' }
 		}
 	],
 	npcs: [
@@ -226,7 +226,7 @@ export const itemShopMap: WorldMapDefinition = addEnglishMapText({
 			id: 'item-shop-to-meadow',
 			...interiorDoor,
 			toMapId: openingMapId,
-			arrival: { x: 528, y: 5_112, facing: 'down' }
+			arrival: { x: 592, y: 5_304, facing: 'down' }
 		}
 	],
 	npcs: [
@@ -313,7 +313,7 @@ export const villagerHouse1Map: WorldMapDefinition = addEnglishMapText({
 			id: 'villager-house-1-to-meadow',
 			...interiorDoor,
 			toMapId: openingMapId,
-			arrival: { x: 880, y: 4_670, facing: 'down' }
+			arrival: { x: 848, y: 4_920, facing: 'down' }
 		}
 	],
 	interiorProps: [
@@ -402,7 +402,7 @@ export const villagerHouse2Map: WorldMapDefinition = addEnglishMapText({
 			id: 'villager-house-2-to-meadow',
 			...interiorDoor,
 			toMapId: openingMapId,
-			arrival: { x: 1_200, y: 4_704, facing: 'down' }
+			arrival: { x: 1_168, y: 4_920, facing: 'down' }
 		}
 	],
 	interiorProps: [
@@ -483,13 +483,10 @@ export const villagerHouse3Map: WorldMapDefinition = addEnglishMapText({
 			id: 'villager-house-3-to-meadow',
 			...interiorDoor,
 			toMapId: openingMapId,
-			// Arrival moved south of the 80%-shrunk vh3 footprint: the old y=5560
-			// now falls inside the new south edge (5666.5), so it would spawn the
-			// player inside collision. y=5_692 sits ~140px south of the doorway
-			// (row 37 → y=5552), matching the hero-house exit (also y=5_692).
-			// These two are the only village exits in the ~127-144px range; the
-			// others land 24-122px south of their doorways.
-			arrival: { x: 1_552, y: 5_692, facing: 'down' }
+			// x matches the meadow-to-villager-house-3 door (village-layered.ts,
+			// col 27 row 41); y is 40px south of the door, inside the doorway's
+			// open room and clear of village-block-44-2 (starts y=5_760).
+			arrival: { x: 1_136, y: 5_720, facing: 'down' }
 		}
 	],
 	interiorProps: [
@@ -584,7 +581,7 @@ export const shrineOfAuroraInteriorMap: WorldMapDefinition = {
 			id: 'shrine-of-aurora-to-meadow',
 			...interiorDoor,
 			toMapId: openingMapId,
-			arrival: { x: 1_200, y: 5_752, facing: 'down' }
+			arrival: { x: 1_424, y: 5_752, facing: 'down' }
 		}
 	],
 	interiorProps: [
