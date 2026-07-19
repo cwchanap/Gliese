@@ -421,26 +421,31 @@ describe('sundrop village — Wave A design contract', () => {
 		assertMainRouteWidth(composed);
 	});
 
-	it('A8 — the market and shrine loops each stand without the plaza or home shortcut', () => {
-		const withoutPlaza = (col: number, row: number) =>
-			isWalkableTile(col, row) && V.layers.regions[row][col] !== 'P';
-		const withoutHome = (col: number, row: number) =>
-			isWalkableTile(col, row) && V.layers.regions[row][col] !== 'H';
+	it('A8 — the market and shrine loops give the H↔plaza spine a redundant route', () => {
+		// The point of two loops (west H–M–P, shrine H–S–P) off the H–P spine is
+		// redundant connectivity. Seal the direct H–P gate: H must still reach P
+		// through a loop. This is the property A1's exact edge set does NOT
+		// guarantee — if H–P were a bridge (a linear village), this fails.
+		const hpGate = new Set(cellsIn(21, 23, 32, 32).map((c) => `${c.col}:${c.row}`));
+		const spineSealed = (col: number, row: number) =>
+			isWalkableTile(col, row) && !hpGate.has(`${col}:${row}`);
 		expect(
-			bfsPath(roomCentroid('H'), roomCentroid('M'), withoutPlaza, DIMS),
-			'H→M without plaza'
+			bfsPath(roomCentroid('H'), roomCentroid('P'), spineSealed, DIMS),
+			'H→P has no loop route once the direct gate is sealed'
+		).not.toBeNull();
+		// And the two loops are distinct: the market is reachable without the
+		// shrine, and the shrine without the market.
+		const notShrine = (col: number, row: number) =>
+			isWalkableTile(col, row) && V.layers.regions[row][col] !== 'S';
+		const notMarket = (col: number, row: number) =>
+			isWalkableTile(col, row) && V.layers.regions[row][col] !== 'M';
+		expect(
+			bfsPath(roomCentroid('H'), roomCentroid('M'), notShrine, DIMS),
+			'west loop: H→M without the shrine'
 		).not.toBeNull();
 		expect(
-			bfsPath(roomCentroid('H'), roomCentroid('S'), withoutPlaza, DIMS),
-			'H→S without plaza'
-		).not.toBeNull();
-		expect(
-			bfsPath(roomCentroid('P'), roomCentroid('M'), withoutHome, DIMS),
-			'P→M without home'
-		).not.toBeNull();
-		expect(
-			bfsPath(roomCentroid('P'), roomCentroid('S'), withoutHome, DIMS),
-			'P→S without home'
+			bfsPath(roomCentroid('H'), roomCentroid('S'), notMarket, DIMS),
+			'shrine loop: H→S without the market'
 		).not.toBeNull();
 	});
 
