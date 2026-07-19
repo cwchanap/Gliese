@@ -23,4 +23,4 @@
 | npc | `village-wanderer` | 23 | 28 | P | travelerNpc |
 | npc | `village-woodcutter` | 17 | 23 | M | woodcutterNpc |
 | npc | `village-pilgrim` | 31 | 40 | S | pilgrimNpc |
-| npc | `village-crier` | 39 | 7 | E | crierNpc |
+| npc | `village-crier` | 38 | 7 | E | crierNpc |

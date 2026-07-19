@@ -521,7 +521,7 @@ export const sundropVillageLayered: LayeredRegionSource<(typeof villageDressingA
 			{ id: 'village-wanderer', col: 23, row: 28, frameName: 'travelerNpc' },
 			{ id: 'village-woodcutter', col: 17, row: 23, frameName: 'woodcutterNpc' },
 			{ id: 'village-pilgrim', col: 31, row: 40, frameName: 'pilgrimNpc' },
-			{ id: 'village-crier', col: 39, row: 7, frameName: 'crierNpc' }
+			{ id: 'village-crier', col: 38, row: 7, frameName: 'crierNpc' }
 		]
 	}
 };
