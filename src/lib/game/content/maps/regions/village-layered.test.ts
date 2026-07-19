@@ -56,7 +56,10 @@ function firstGlyphCell(glyph: string, layer: 'regions'): { col: number; row: nu
 
 // --- Ported invariants from village-layout.test.ts (spec §5 Gap D) ---
 
-const MAIN_ROUTE_REGIONS = new Set(['H', 'P', 'N', 'E', 'C']);
+const ROOM_GLYPHS = ['H', 'P', 'M', 'N', 'G', 'S', 'E', 'C'] as const;
+const CRITICAL_ROUTE_GLYPHS = ['H', 'P', 'N', 'G', 'E', 'C'] as const;
+
+const MAIN_ROUTE_REGIONS = new Set<string>(CRITICAL_ROUTE_GLYPHS);
 
 function mainRoutePathTiles(src = sundropVillageLayered): Set<string> {
 	const walkable = walkableCells(src);
@@ -135,18 +138,15 @@ describe('sundrop village layered source', () => {
 		}
 	});
 
-	it.each(['H', 'P', 'M', 'N', 'S', 'E', 'C'] as const)(
-		'regions layer contains glyph %s',
-		(glyph) => {
-			expect(sundropVillageLayered.layers.regions.some((r) => r.includes(glyph))).toBe(true);
-		}
-	);
+	it.each(ROOM_GLYPHS)('regions layer contains glyph %s', (glyph) => {
+		expect(sundropVillageLayered.layers.regions.some((r) => r.includes(glyph))).toBe(true);
+	});
 
 	it('connects H by walkable path to P, M, N, S, E, C', () => {
 		const walkable = walkableCells();
 		const start = firstGlyphCell('H', 'regions');
 		const reachable = bfsReachable(`${start.col}:${start.row}`, walkable);
-		for (const glyph of ['P', 'M', 'N', 'S', 'E', 'C'] as const) {
+		for (const glyph of ROOM_GLYPHS.filter((g) => g !== 'H')) {
 			const target = firstGlyphCell(glyph, 'regions');
 			expect(reachable.has(`${target.col}:${target.row}`), `H not connected to ${glyph}`).toBe(
 				true
@@ -180,7 +180,7 @@ describe('sundrop village layered source', () => {
 				kind: 'ambient'
 			}))
 		];
-		const regionGlyphs = new Set(['H', 'P', 'M', 'N', 'S', 'E', 'C']);
+		const regionGlyphs = new Set<string>(ROOM_GLYPHS);
 		const pathGlyphs = new Set(['p', 'c', 'a', 's']);
 		for (const obj of all) {
 			const region = sundropVillageLayered.layers.regions[obj.row][obj.col];
