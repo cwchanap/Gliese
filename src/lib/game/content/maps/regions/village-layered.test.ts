@@ -536,4 +536,36 @@ describe('sundrop village — Wave A design contract', () => {
 			expect(reachable, `room ${glyph} has standable-but-unreachable cells`).toBe(standable);
 		}
 	});
+
+	it('A12 — no two village sprite rects (building or decor) overlap', () => {
+		// compileLayeredRegion checks only that each object's ANCHOR tile is
+		// walkable; it does NOT check that the sprites it renders stay disjoint.
+		// Decor sprites are far larger than their one-tile anchor (a maple is
+		// ~7×9 tiles), so without this guard a prop silently renders on top of a
+		// building or another prop. Every village sprite must be fully disjoint.
+		// Scope to the village window — other regions (e.g. mistfen fog) layer
+		// their decor on purpose.
+		const inWindow = (x: number, y: number): boolean =>
+			x >= V.origin.x &&
+			x <= V.origin.x + V.width * V.tileSize &&
+			y >= V.origin.y &&
+			y <= V.origin.y + V.height * V.tileSize;
+		const sprites: Array<{ id: string; x: number; y: number; w: number; h: number }> = [];
+		for (const lm of meadowEntryMap.landmarks ?? [])
+			if (inWindow(lm.x, lm.y))
+				sprites.push({ id: lm.id, x: lm.x, y: lm.y, w: lm.width, h: lm.height });
+		for (const d of meadowEntryMap.mapDecor ?? [])
+			if (inWindow(d.x, d.y)) sprites.push({ id: d.id, x: d.x, y: d.y, w: d.width, h: d.height });
+		const overlaps: string[] = [];
+		for (let i = 0; i < sprites.length; i++)
+			for (let j = i + 1; j < sprites.length; j++) {
+				const a = sprites[i];
+				const b = sprites[j];
+				const ox = Math.min(a.x + a.w / 2, b.x + b.w / 2) - Math.max(a.x - a.w / 2, b.x - b.w / 2);
+				const oy = Math.min(a.y + a.h / 2, b.y + b.h / 2) - Math.max(a.y - a.h / 2, b.y - b.h / 2);
+				if (ox > 0 && oy > 0)
+					overlaps.push(`${a.id} <-> ${b.id} (${Math.round((ox * oy) / 1024)} tiles²)`);
+			}
+		expect(overlaps, 'village building/decor sprites that overlap').toEqual([]);
+	});
 });
