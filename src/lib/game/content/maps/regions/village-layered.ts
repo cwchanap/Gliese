@@ -252,65 +252,66 @@ export const sundropVillageLayered: LayeredRegionSource<(typeof villageDressingA
 			'..###################################################...',
 			'........................................................'
 		],
-		// task 4j: the pole lantern 'l' marking the N-G gateway moved from
-		// (col 36, row 12) to (col 32, row 16). Its collision box is anchored
-		// ~70px below its glyph tile (not centred), so at row 12 the padded
-		// box reached back up and covered the N-G gate cells at col 35, rows
-		// 14-15, cutting that gate from 3 standable tiles to 1. Sliding it
-		// down the SAME column (36), or to the immediately adjacent column
-		// (34), does not fix this: the box's half-width (25px) plus the
-		// player radius (12px) reaches 37px — more than one 32px tile pitch
-		// — so any glyph within 1 column of col 35 still foots the gate at
-		// whatever rows its ~3-row vertical reach lands on. Needed >=2
-		// columns of clearance (col 32) to guarantee col 35 is never
-		// touched, and row 16 to clear villager-house-2-exterior (rows
-		// 7.42-15.58 at this column).
+		// HPA-238 v2 decor pass (human visual gate: "obstacles don't look
+		// natural"). The first pass scattered sixteen lone props; this one
+		// groups every prop by purpose so the eye reads intent, not noise:
+		//   - a single gate arch frames the crossroads entrance (row 3);
+		//   - the two residential alleys each hold one maple (row 9);
+		//   - flower-bed pairs flank every house and the hero-house door;
+		//   - the market is a stall cluster with flowers (rows 21/29);
+		//   - the plaza carries a banner + strung lantern by the well (row 28)
+		//     and is otherwise left open so its four gates stay clear;
+		//   - the guild forecourt gets a lantern pair;
+		//   - the shrine garden is symmetric — hedges, stone lanterns, and
+		//     offering stands mirrored about the shrine door (rows 39/42/44).
+		// Collision-bearing props (maple/lantern/offering/stone) are kept off
+		// the gates and main route; A9/A10/A11 verify it.
 		decor: [
 			'........................................................',
 			'........................................................',
 			'........................................................',
-			'.........................................l..............',
-			'.........................................A..............',
-			'........................................................',
-			'........................................l...............',
+			'..........................................A.............',
 			'........................................................',
 			'........................................................',
 			'........................................................',
 			'........................................................',
 			'........................................................',
-			'........................................................',
-			'........................................................',
-			'........................................................',
-			'................l.......................................',
-			'................................l.......................',
-			'................b.......................................',
-			'........................................................',
-			'........................................................',
-			'........................................................',
-			'........................................................',
-			'...........................h............................',
-			'............m...........................................',
-			'........................................................',
-			'........................................................',
-			'........................................................',
-			'.......................F................................',
-			'........................................................',
-			'..................f.........f...........................',
-			'........................................................',
-			'........................................................',
-			'........................................................',
-			'.......D................................................',
-			'........................................................',
-			'........s.................................M.............',
-			'........................................................',
-			'........................................................',
-			'........................................................',
-			'.........................o.......t......................',
+			'.............M........M.................................',
 			'........................................................',
 			'........................................................',
 			'........................................................',
 			'........................................................',
 			'........................................................',
+			'......f...f.............................................',
+			'..........................f...f.........................',
+			'...............f...f....................................',
+			'........................................................',
+			'........................................................',
+			'.......................................l.....l..........',
+			'............m.m.........................................',
+			'........................................................',
+			'........................................................',
+			'........................................................',
+			'........................................................',
+			'........................................................',
+			'........................................................',
+			'......................b.......h.........................',
+			'.............f.m.f......................................',
+			'........................................................',
+			'........................................................',
+			'........................................................',
+			'........................................................',
+			'........................................................',
+			'........................................................',
+			'........................................................',
+			'........................................................',
+			'........................................................',
+			'...........................D.................D..........',
+			'........................................................',
+			'........................................................',
+			'.........f...f..............t...............t...........',
+			'.....D.............s....................................',
+			'.................................o.....o................',
 			'........................................................',
 			'........................................................',
 			'........................................................'
@@ -368,6 +369,21 @@ export const sundropVillageLayered: LayeredRegionSource<(typeof villageDressingA
 	},
 	decorGlyphTable: villageDecorGlyphTable,
 	objects: {
+		// HPA-238 v2 (human visual gate): the first blockout read as crowded
+		// because three building pairs sat wall-to-wall (item-shop+blacksmith in
+		// M, the two north houses in N, shrine+villager-house-3 in S). Buildings
+		// are landmark rects, not collision-layer glyphs, so repositioning them
+		// leaves the room/gate/corridor skeleton (A1–A8) untouched and only the
+		// composed-rule passability (A9–A11) to re-verify. New distribution — one
+		// or two well-separated buildings per room:
+		//   H  home yard : hero-house alone, open yard around the spawn
+		//   M  market    : item-shop alone, fronted by a stall cluster
+		//   P  plaza     : the well alone
+		//   N  residences: a lane of three houses — villager-house-1 (west),
+		//                  villager-house-3 (centre), villager-house-2 (east),
+		//                  each separated by a two-tile alley
+		//   G  guild ward: guild-hall (top) + blacksmith (relocated to its open bottom)
+		//   S  shrine    : shrine-of-aurora alone, centred in its garden
 		landmarks: [
 			{
 				id: 'hero-house-exterior',
@@ -386,16 +402,20 @@ export const sundropVillageLayered: LayeredRegionSource<(typeof villageDressingA
 				labelKey: 'content.maps.landmarks.item-shop-exterior.label'
 			},
 			{
+				// Relocated from the market (col 15) to the guild ward's open south
+				// half. The smithy has no interior transition, so it is a fully
+				// solid rect; G's lower rows (20–31) are clear of the E-G and G-N
+				// gates, so it seals nothing.
 				id: 'blacksmith',
-				col: 15,
-				row: 27,
+				col: 42,
+				row: 26,
 				width: 235,
 				height: 226,
 				labelKey: 'content.maps.landmarks.blacksmith.label'
 			},
 			{
 				id: 'villager-house-1-exterior',
-				col: 18,
+				col: 8,
 				row: 11,
 				width: 226,
 				height: 205,
@@ -434,15 +454,13 @@ export const sundropVillageLayered: LayeredRegionSource<(typeof villageDressingA
 				labelKey: 'content.maps.landmarks.shrine-of-aurora.label'
 			},
 			{
-				// task 4j: moved from col 28 to col 43. At col 28 this footprint sat
-				// directly on top of the P-S gate's south-side approach ((30,33) and
-				// (31,33)) and the H-S gate's east-side approach ((25,36) and
-				// (25,37)), sealing room S entirely. Cols 40.6-46.4 is the only band
-				// in room S (cols 25-48) that clears both gate approaches without
-				// colliding with shrine-of-aurora (cols 32.66-40.34).
+				// Relocated from the packed shrine garden (col 43) to the centre of
+				// the north residential lane, a spaced neighbour between houses 1
+				// and 2. Its tall footprint sits high in N (rows 6–16), leaving the
+				// rows 17–18 lane clear beneath it.
 				id: 'villager-house-3-exterior',
-				col: 43,
-				row: 38,
+				col: 17,
+				row: 11,
 				width: 184,
 				height: 333,
 				labelKey: 'content.maps.landmarks.villager-house-3-exterior.label'
@@ -467,8 +485,8 @@ export const sundropVillageLayered: LayeredRegionSource<(typeof villageDressingA
 			},
 			{
 				id: 'meadow-to-villager-house-1',
-				col: 18,
-				row: 16,
+				col: 8,
+				row: 15,
 				toMapId: 'villager-house-1',
 				showMarker: false,
 				arrival: { x: 256, y: 288, facing: 'up' }
@@ -499,29 +517,28 @@ export const sundropVillageLayered: LayeredRegionSource<(typeof villageDressingA
 			},
 			{
 				id: 'meadow-to-villager-house-3',
-				col: 43,
-				row: 44,
+				col: 17,
+				row: 17,
 				toMapId: 'villager-house-3',
 				showMarker: false,
 				arrival: { x: 256, y: 288, facing: 'up' }
 			}
 		],
 		pickups: [
-			// col 6/row 21 sits inside item-shop-exterior's restored footprint;
-			// col 16 clears every landmark and stays >=5 walkable tiles from the
-			// main route (village-layered.test.ts asserts the distance).
+			// Tucked in the market's open east side (region M): clears item-shop
+			// (cols 3–11) and the stall cluster, and stays >=5 walkable tiles from
+			// the main route (village-layered.test.ts asserts the distance).
 			{ id: 'village-market-cache', col: 16, row: 21, itemId: 'field-potion', quantity: 1 },
-			// col 41/row 44 sits on the doorstep strip south of both the shrine and
-			// the (relocated) villager-house-3 footprint — the original (43,43)
-			// spot is now inside villager-house-3-exterior's moved footprint
-			// (task 4j: the house moved to col 43 to unseal room S's gates).
+			// In the shrine garden's open east side (region S), on the doorstep
+			// strip south of the shrine. With villager-house-3 relocated to the
+			// north lane, room S is now a single-building garden with room to spare.
 			{ id: 'village-shrine-cache', col: 41, row: 44, itemId: 'sunleaf-salve', quantity: 1 }
 		],
 		ambientNpcs: [
 			{ id: 'village-wanderer', col: 23, row: 28, frameName: 'travelerNpc' },
-			{ id: 'village-woodcutter', col: 17, row: 23, frameName: 'woodcutterNpc' },
-			{ id: 'village-pilgrim', col: 31, row: 40, frameName: 'pilgrimNpc' },
-			{ id: 'village-crier', col: 38, row: 7, frameName: 'crierNpc' }
+			{ id: 'village-woodcutter', col: 12, row: 16, frameName: 'woodcutterNpc' },
+			{ id: 'village-pilgrim', col: 30, row: 44, frameName: 'pilgrimNpc' },
+			{ id: 'village-crier', col: 29, row: 30, frameName: 'crierNpc' }
 		]
 	}
 };

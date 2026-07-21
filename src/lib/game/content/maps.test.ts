@@ -284,8 +284,8 @@ describe('opening map content', () => {
 			},
 			{
 				id: 'meadow-to-villager-house-1',
-				x: 848,
-				y: 4_880,
+				x: 528,
+				y: 4_848,
 				toMapId: 'villager-house-1',
 				showMarker: false,
 				arrival: { x: 256, y: 288, facing: 'up' }
@@ -316,8 +316,8 @@ describe('opening map content', () => {
 			},
 			{
 				id: 'meadow-to-villager-house-3',
-				x: 1_648,
-				y: 5_776,
+				x: 816,
+				y: 4_912,
 				toMapId: 'villager-house-3',
 				showMarker: false,
 				arrival: { x: 256, y: 288, facing: 'up' }
@@ -980,8 +980,8 @@ describe('opening map content', () => {
 		expect(guildHallMap.transitions[0].arrival).toEqual({ x: 1_616, y: 5_080, facing: 'down' });
 		expect(itemShopMap.transitions[0].arrival).toEqual({ x: 496, y: 5_336, facing: 'down' });
 		expect(villagerHouse1Map.transitions[0].arrival).toEqual({
-			x: 848,
-			y: 4_920,
+			x: 528,
+			y: 4_888,
 			facing: 'down'
 		});
 		expect(villagerHouse2Map.transitions[0].arrival).toEqual({
@@ -990,8 +990,8 @@ describe('opening map content', () => {
 			facing: 'down'
 		});
 		expect(villagerHouse3Map.transitions[0].arrival).toEqual({
-			x: 1_648,
-			y: 5_816,
+			x: 816,
+			y: 4_952,
 			facing: 'down'
 		});
 		expect(shrineOfAuroraInteriorMap.transitions[0].arrival).toEqual({
@@ -1121,7 +1121,7 @@ describe('opening map content', () => {
 				}),
 				expect.objectContaining({
 					id: 'villager-house-1-exterior',
-					x: 848,
+					x: 528,
 					y: 4_720,
 					width: 226,
 					height: 205,
@@ -1137,8 +1137,8 @@ describe('opening map content', () => {
 				}),
 				expect.objectContaining({
 					id: 'villager-house-3-exterior',
-					x: 1_648,
-					y: 5_584,
+					x: 816,
+					y: 4_720,
 					width: 184,
 					height: 333,
 					labelKey: 'content.maps.landmarks.villager-house-3-exterior.label'
@@ -1161,8 +1161,8 @@ describe('opening map content', () => {
 				}),
 				expect.objectContaining({
 					id: 'blacksmith',
-					x: 752,
-					y: 5_232,
+					x: 1_616,
+					y: 5_200,
 					width: 235,
 					height: 226,
 					labelKey: 'content.maps.landmarks.blacksmith.label'
@@ -2363,15 +2363,15 @@ describe('route: crossroads → wildwood cave', () => {
 describe('critical routes avoid blockers', () => {
 	const criticalRoutes: Pt[][] = [
 		[
-			// Village leg re-derived by a BFS over the real collision + landmark
+			// Village leg verified standable against the real collision + landmark
 			// rects (save-state.ts isInsideAnyCollisionRect, padding 12 — the
 			// game's own movement rule), not just the collision layer: a
 			// layer-only route walks straight through a building, because the
-			// layer under a landmark reads '.'. The spine climbs to row 16 before
-			// heading east across the north commons so it clears the building that
-			// sits at cols 31-33/row 18, then threads H -> H-P gate -> P -> N-P
-			// gate -> N -> G-N gate -> G -> E-G gate -> E -> C (direct contact, no
-			// divider row) before rejoining the unchanged crossroads-ward leg.
+			// layer under a landmark reads '.'. After the v2 redesign relocated the
+			// north houses and blacksmith, this leg still threads H -> H-P gate ->
+			// P (west of the well) -> N-P gate -> N lane (row 16, clear of
+			// villager-house-2) -> G-N gate -> G -> E-G gate -> E -> C (direct
+			// contact, no divider row) before rejoining the crossroads-ward leg.
 			{ x: 624, y: 5_776 },
 			{ x: 1_008, y: 5_776 },
 			{ x: 1_008, y: 5_072 }, // north through H-P gate (cols 21-23, row 32)
