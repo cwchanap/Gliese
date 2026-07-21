@@ -2222,20 +2222,15 @@ describe('WorldScene', () => {
 		expect(scene.add.image).toHaveBeenCalledWith(624, 5_552, 'village-buildings', 'heroHouse');
 		expect(scene.add.image).toHaveBeenCalledWith(1_616, 4_848, 'village-buildings', 'guildHall');
 		expect(scene.add.image).toHaveBeenCalledWith(496, 5_136, 'village-buildings', 'itemShop');
-		expect(scene.add.image).toHaveBeenCalledWith(848, 4_720, 'village-buildings', 'villagerHouse');
+		expect(scene.add.image).toHaveBeenCalledWith(528, 4_720, 'village-buildings', 'villagerHouse');
 		expect(scene.add.image).toHaveBeenCalledWith(
 			1_168,
 			4_720,
 			'village-buildings',
 			'villagerHouse'
 		);
-		expect(scene.add.image).toHaveBeenCalledWith(
-			1_648,
-			5_584,
-			'village-buildings',
-			'villagerHouse'
-		);
-		expect(scene.add.image).toHaveBeenCalledWith(752, 5_232, 'village-buildings', 'blacksmith');
+		expect(scene.add.image).toHaveBeenCalledWith(816, 4_720, 'village-buildings', 'villagerHouse');
+		expect(scene.add.image).toHaveBeenCalledWith(1_616, 5_200, 'village-buildings', 'blacksmith');
 		expect(scene.add.image).toHaveBeenCalledWith(
 			1_424,
 			5_584,
@@ -2258,7 +2253,7 @@ describe('WorldScene', () => {
 				)
 		).toBe(true);
 		expect(scene.add.rectangle).not.toHaveBeenCalledWith(624, 5_552, 235, 246, 0x5b4636, 0.9);
-		expect(scene.add.rectangle).not.toHaveBeenCalledWith(752, 5_232, 235, 226, 0x5b4636, 0.9);
+		expect(scene.add.rectangle).not.toHaveBeenCalledWith(1_616, 5_200, 235, 226, 0x5b4636, 0.9);
 		expect(scene.add.rectangle).not.toHaveBeenCalledWith(1_424, 5_584, 246, 333, 0x5b4636, 0.9);
 		expect(scene.add.rectangle).not.toHaveBeenCalledWith(5_960, 1_800, 256, 224, 0x5b4636, 0.9);
 		expect(scene.add.rectangle).not.toHaveBeenCalledWith(1_104, 5_168, 141, 160, 0x5b4636, 0.9);

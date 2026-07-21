@@ -319,7 +319,7 @@ export const villagerHouse1Map: WorldMapDefinition = addEnglishMapText({
 			id: 'villager-house-1-to-meadow',
 			...interiorDoor,
 			toMapId: openingMapId,
-			arrival: { x: 848, y: 4_920, facing: 'down' }
+			arrival: { x: 528, y: 4_888, facing: 'down' }
 		}
 	],
 	interiorProps: [
@@ -490,10 +490,10 @@ export const villagerHouse3Map: WorldMapDefinition = addEnglishMapText({
 			...interiorDoor,
 			toMapId: openingMapId,
 			// x matches the meadow-to-villager-house-3 door (village-layered.ts,
-			// col 43 row 44 — moved from col 28 in task 4j to unseal room S's
-			// gates); y is 40px south of the door, inside room S and clear of
-			// villager-house-3-exterior's moved footprint.
-			arrival: { x: 1_648, y: 5_816, facing: 'down' }
+			// col 17 row 17 — relocated to the north residential lane in the v2
+			// redesign); y is 40px south of the door, in room N's lane and clear of
+			// villager-house-3-exterior's footprint.
+			arrival: { x: 816, y: 4_952, facing: 'down' }
 		}
 	],
 	interiorProps: [
