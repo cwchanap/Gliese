@@ -2367,25 +2367,21 @@ describe('critical routes avoid blockers', () => {
 			// rects (save-state.ts isInsideAnyCollisionRect, padding 12 — the
 			// game's own movement rule), not just the collision layer: a
 			// layer-only route walks straight through a building, because the
-			// layer under a landmark reads '.'. After the v2 redesign relocated the
-			// north houses and blacksmith, this leg still threads H -> H-P gate ->
-			// P (west of the well) -> N-P gate -> N lane (row 16, clear of
-			// villager-house-2) -> G-N gate -> G -> E-G gate -> E -> C (direct
-			// contact, no divider row) before rejoining the crossroads-ward leg.
-			{ x: 624, y: 5_776 },
-			{ x: 1_008, y: 5_776 },
-			{ x: 1_008, y: 5_072 }, // north through H-P gate (cols 21-23, row 32)
-			{ x: 1_168, y: 5_072 },
-			{ x: 1_168, y: 4_944 }, // north through N-P gate (cols 26-28, row 19)
-			{ x: 1_232, y: 4_944 },
-			{ x: 1_232, y: 4_880 }, // climb to row 16 to clear the commons building
-			{ x: 1_424, y: 4_880 }, // east through G-N gate (col 35, rows 14-16)
-			{ x: 1_424, y: 5_008 },
-			{ x: 1_808, y: 5_008 },
-			{ x: 1_808, y: 4_656 }, // north through E-G gate (cols 48-50, row 10)
-			{ x: 1_648, y: 4_656 },
-			{ x: 1_648, y: 4_464 },
-			{ x: 1_616, y: 4_464 },
+			// layer under a landmark reads '.'. After opening the interior walls
+			// into three bands, this leg runs east along the open south band, north
+			// through the row-32 east gap (P-S, col 31), up the west edge of the
+			// commons/north column at col 36 (clear of the well and the guild hall,
+			// which fill the column's east half), then east into E and up to C
+			// before rejoining the crossroads-ward leg.
+			{ x: 624, y: 5_776 }, // south band, west end (tile 11,44)
+			{ x: 1_264, y: 5_776 }, // east across the open south band (tile 31,44)
+			{ x: 1_264, y: 5_392 }, // north through the row-32 east gap / P-S (tile 31,32)
+			{ x: 1_328, y: 5_392 }, // step east inside the commons (tile 33,32)
+			{ x: 1_328, y: 5_360 }, // (tile 33,31)
+			{ x: 1_424, y: 5_360 }, // east to the column's west edge (tile 36,31)
+			{ x: 1_424, y: 4_688 }, // north up col 36, clear of well + guild hall (tile 36,10)
+			{ x: 1_616, y: 4_688 }, // east into the E band (tile 42,10)
+			{ x: 1_616, y: 4_464 }, // north toward C (tile 42,3)
 			{ x: 1_616, y: 4_400 }, // into C (row 2/row 3 direct contact, col 42)
 			{ x: 1_706, y: 4_342 },
 			{ x: 1_740, y: 4_280 },
