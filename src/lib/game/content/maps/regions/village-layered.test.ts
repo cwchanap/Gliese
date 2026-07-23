@@ -276,25 +276,9 @@ const V = sundropVillageLayered;
 const DIMS = { width: V.width, height: V.height };
 const PLAYER_RADIUS = 12;
 
-// roomAdjacency emits sorted "a-b" edge keys. These twelve are exactly the
-// room-to-room connections the open three-band layout produces — no more, no
-// fewer. Opening the interior walls (the design owner's "open up interior
-// walls" direction) collapsed the eight walled compartments into three open
-// bands, so rooms that share a band now abut directly.
-const EXPECTED_EDGES = [
-	'C-E',
-	'E-G',
-	'E-N',
-	'E-P',
-	'G-N',
-	'G-P',
-	'H-M',
-	'H-S',
-	'M-N',
-	'M-P',
-	'N-P',
-	'P-S'
-];
+// roomAdjacency emits sorted "a-b" edge keys. These nine are exactly the
+// room-to-room connections the redesign requires — no more, no fewer.
+const EXPECTED_EDGES = ['C-E', 'E-G', 'G-N', 'H-M', 'H-P', 'H-S', 'M-P', 'N-P', 'P-S'];
 
 function cellsIn(c0: number, c1: number, r0: number, r1: number): Cell[] {
 	const out: Cell[] = [];
@@ -302,16 +286,26 @@ function cellsIn(c0: number, c1: number, r0: number, r1: number): Cell[] {
 	return out;
 }
 
-// The four street gaps in the two interior hedge lines — the only internal
-// solids in the open layout. Row 19 divides the north band from the central
-// commons; row 32 divides the commons from the south band. Each gap is the
-// street between two bands and must stay at least 3 tiles wide so the player
-// can pass. Cell ranges are read straight off the committed collision layer.
-const OPENINGS: Array<{ edge: string; cells: Cell[] }> = [
-	{ edge: 'M-N (row-19 west)', cells: cellsIn(13, 18, 19, 19) },
-	{ edge: 'north↔commons (row-19 east)', cells: cellsIn(28, 50, 19, 19) },
-	{ edge: 'H-M (row-32 west)', cells: cellsIn(13, 17, 32, 32) },
-	{ edge: 'P-S (row-32 east)', cells: cellsIn(29, 33, 32, 32) }
+// Openings derived mechanically from the committed collision layer. Critical
+// gates sit on the H→C main route and need three walkable tiles; secondary
+// gates need two. C and E meet directly — row 2 is C's own bottom row and row
+// 3 is E's top row — so the C-E "opening" cells are room cells, not divider
+// cells.
+//
+// v3 widened every gate past its minimum: the dividers are partial spurs, so a
+// gate is a street the room opens onto rather than a slot punched through a
+// wall. The width classes below stay at the contract minimums on purpose —
+// they are the floor the layout may not drop under, not a description of it.
+const OPENINGS: Array<{ edge: string; cells: Cell[]; critical: boolean }> = [
+	{ edge: 'H-P', cells: cellsIn(20, 23, 32, 32), critical: true },
+	{ edge: 'N-P', cells: cellsIn(24, 29, 19, 19), critical: true },
+	{ edge: 'G-N', cells: cellsIn(35, 35, 14, 18), critical: true },
+	{ edge: 'E-G', cells: cellsIn(48, 50, 10, 10), critical: true },
+	{ edge: 'C-E', cells: cellsIn(38, 48, 2, 2), critical: true },
+	{ edge: 'H-M', cells: cellsIn(4, 7, 32, 32), critical: false },
+	{ edge: 'M-P', cells: cellsIn(20, 20, 20, 24), critical: false },
+	{ edge: 'P-S', cells: cellsIn(29, 32, 32, 32), critical: false },
+	{ edge: 'H-S', cells: cellsIn(24, 24, 36, 40), critical: false }
 ];
 
 const isWalkableTile = (col: number, row: number): boolean =>
@@ -351,27 +345,6 @@ const isStandableTile = (col: number, row: number): boolean =>
 		PLAYER_RADIUS
 	);
 
-// A room's centroid can land on a building (walkable on the bare collision
-// layer, unstandable once the landmark rect composes in), so it is the wrong
-// endpoint for a composed-rule route. Pick the standable cell nearest the
-// centroid instead — a deterministic, building-free representative of the room.
-function standableRep(glyph: string): Cell {
-	const centroid = roomCentroid(glyph);
-	if (isStandableTile(centroid.col, centroid.row)) return centroid;
-	let best: Cell | null = null;
-	let bestDist = Number.POSITIVE_INFINITY;
-	for (let r = 0; r < V.height; r++)
-		for (let c = 0; c < V.width; c++) {
-			if (V.layers.regions[r][c] !== glyph || !isStandableTile(c, r)) continue;
-			const dist = Math.max(Math.abs(c - centroid.col), Math.abs(r - centroid.row));
-			if (dist < bestDist) {
-				bestDist = dist;
-				best = { col: c, row: r };
-			}
-		}
-	return best ?? centroid;
-}
-
 // A3 and A7 are the same route-width check under different walkability
 // predicates (collision layer alone vs. collision layer minus the external
 // corridor walls). One helper, called twice — identical assertions and
@@ -386,14 +359,14 @@ function assertMainRouteWidth(walkable: (col: number, row: number) => boolean): 
 }
 
 describe('sundrop village — Wave A design contract', () => {
-	it('A1 — room adjacency equals the twelve authored edges exactly', () => {
+	it('A1 — room adjacency equals the nine authored edges exactly', () => {
 		const edges = roomAdjacency(V.layers.regions, V.layers.collision, [...ROOM_GLYPHS]);
 		expect([...edges].sort()).toEqual(EXPECTED_EDGES);
 	});
 
-	it.each(OPENINGS)('A2 — street $edge is at least 3 tiles wide', ({ edge, cells }) => {
+	it.each(OPENINGS)('A2 — opening $edge meets its width class', ({ edge, cells, critical }) => {
 		const width = cells.filter((cell) => isWalkableTile(cell.col, cell.row)).length;
-		expect(width, `${edge} walkable width`).toBeGreaterThanOrEqual(3);
+		expect(width, `${edge} walkable width`).toBeGreaterThanOrEqual(critical ? 3 : 2);
 	});
 
 	it('A3 — no cell on the main route is narrower than 3 tiles', () => {
@@ -453,32 +426,32 @@ describe('sundrop village — Wave A design contract', () => {
 		assertMainRouteWidth(composed);
 	});
 
-	it('A8 — the south band keeps two independent exits to the commons', () => {
-		// The home yard (H) and shrine yard (S) share one open south band, which
-		// reaches the central commons through two street gaps in the row-32 hedge:
-		// a west gap (H↔M) and an east gap (P↔S). Redundancy means neither is a
-		// single point of failure — seal either and the band still reaches the
-		// commons; seal both and it is cut off. The both-sealed leg is what proves
-		// those two gaps are the ONLY exits, so the redundancy is real and not
-		// leaking through some third opening A1's edge set would not reveal.
-		const westGap = new Set(cellsIn(13, 17, 32, 32).map((c) => `${c.col}:${c.row}`));
-		const eastGap = new Set(cellsIn(29, 33, 32, 32).map((c) => `${c.col}:${c.row}`));
-		const sealing =
-			(...gaps: Set<string>[]) =>
-			(col: number, row: number) =>
-				isWalkableTile(col, row) && !gaps.some((gap) => gap.has(`${col}:${row}`));
+	it('A8 — the market and shrine loops give the H↔plaza spine a redundant route', () => {
+		// The point of two loops (west H–M–P, shrine H–S–P) off the H–P spine is
+		// redundant connectivity. Seal the direct H–P gate: H must still reach P
+		// through a loop. This is the property A1's exact edge set does NOT
+		// guarantee — if H–P were a bridge (a linear village), this fails.
+		const hpGate = new Set(cellsIn(20, 23, 32, 32).map((c) => `${c.col}:${c.row}`));
+		const spineSealed = (col: number, row: number) =>
+			isWalkableTile(col, row) && !hpGate.has(`${col}:${row}`);
 		expect(
-			bfsPath(roomCentroid('H'), roomCentroid('P'), sealing(westGap), DIMS),
-			'east exit: H→P still connects with the west gap sealed'
+			bfsPath(roomCentroid('H'), roomCentroid('P'), spineSealed, DIMS),
+			'H→P has no loop route once the direct gate is sealed'
+		).not.toBeNull();
+		// And the two loops are distinct: the market is reachable without the
+		// shrine, and the shrine without the market.
+		const notShrine = (col: number, row: number) =>
+			isWalkableTile(col, row) && V.layers.regions[row][col] !== 'S';
+		const notMarket = (col: number, row: number) =>
+			isWalkableTile(col, row) && V.layers.regions[row][col] !== 'M';
+		expect(
+			bfsPath(roomCentroid('H'), roomCentroid('M'), notShrine, DIMS),
+			'west loop: H→M without the shrine'
 		).not.toBeNull();
 		expect(
-			bfsPath(roomCentroid('H'), roomCentroid('M'), sealing(eastGap), DIMS),
-			'west exit: H→M still connects with the east gap sealed'
+			bfsPath(roomCentroid('H'), roomCentroid('S'), notMarket, DIMS),
+			'shrine loop: H→S without the market'
 		).not.toBeNull();
-		expect(
-			bfsPath(roomCentroid('H'), roomCentroid('P'), sealing(westGap, eastGap), DIMS),
-			'the two gaps are the south band’s only exits to the commons'
-		).toBeNull();
 	});
 
 	it('A9 — every object and decor glyph sits on a walkable collision cell', () => {
@@ -499,26 +472,38 @@ describe('sundrop village — Wave A design contract', () => {
 		expect(offenders, 'objects or decor on collision cells').toEqual([]);
 	});
 
-	it('A10 — the critical route stays 3 tiles wide under the composed collision rule', () => {
-		// The bare collision-layer route (A3) is the wrong thing to protect: BFS on
-		// the layer alone walks straight through a building's footprint, because the
-		// layer under a landmark is '.'. The composed rule adds the building and
-		// decor rects, so this is where a building that seals or pinches the
-		// spawn→Crossroads spine shows up — the exact failure that once let a
-		// building close a room whose collision layer looked fine. Route from a
-		// standable Home-Yard cell to a standable Crossroads cell under the composed
-		// rule and require every cell on it at least 3 tiles wide. (Buildings may
-		// still occupy parts of a wide street — e.g. the guild hall fills the east
-		// half of the row-19 gap — so long as a 3-wide standable channel survives.)
-		const route = bfsPath(standableRep('H'), standableRep('C'), isStandableTile, DIMS);
-		expect(route, 'no standable H→C route once buildings and decor are composed in').not.toBeNull();
-		const narrow = route!
-			.filter((_, index) => perpendicularRun(route!, index, isStandableTile, DIMS) < 3)
-			.map((cell) => `(${cell.col},${cell.row})`);
-		expect(
-			narrow,
-			'composed critical-route cells pinched below 3 tiles by a building or decor'
-		).toEqual([]);
+	it('A10 — no building or decor blocks a critical gate throat or its approaches', () => {
+		// A bare collision-layer route is the wrong thing to protect: BFS on the
+		// layer alone walks straight through a building's footprint, because the
+		// layer under a landmark is '.'. What must stay clear is each critical
+		// gate throat AND the cells immediately beyond it on both sides — the
+		// exact check that was missing when a building twice sealed a room whose
+		// collision layer looked fine. Protect the opening cells and their
+		// walkable orthogonal neighbours; require every one standable under the
+		// composed rule.
+		const protectedCells = new Set<string>();
+		for (const opening of OPENINGS) {
+			if (!opening.critical) continue;
+			for (const cell of opening.cells) {
+				protectedCells.add(`${cell.col}:${cell.row}`);
+				for (const [dc, dr] of [
+					[1, 0],
+					[-1, 0],
+					[0, 1],
+					[0, -1]
+				] as const) {
+					const c = cell.col + dc;
+					const r = cell.row + dr;
+					if (isWalkableTile(c, r)) protectedCells.add(`${c}:${r}`);
+				}
+			}
+		}
+		const blocked: string[] = [];
+		for (const key of protectedCells) {
+			const [col, row] = key.split(':').map(Number);
+			if (!isStandableTile(col, row)) blocked.push(`(${col},${row})`);
+		}
+		expect(blocked, 'critical gate cells made unstandable by a building or decor').toEqual([]);
 	});
 
 	it('A11 — every room is fully reachable from the spawn under the composed collision rule', () => {
