@@ -5,9 +5,16 @@
 > **A10 test code** in the task bodies below are the design-time plan and are now **stale** —
 > do not treat them as as-built. The authoritative final state is the spec's "As-built
 > reconciliation" section, the SDD ledger at `.superpowers/sdd/progress.md`, and the compiled
-> `meadowEntryMap` with the A1–A11 contract in `village-layered.test.ts`. In particular: A10
+> `meadowEntryMap` with the A1–A12 contract in `village-layered.test.ts`. In particular: A10
 > as built protects gate throats (not landmark footprints), A11 was added, `villager-house-3`
 > is at grid (43,38), and the spawn is (624,5776).
+>
+> **Two further passes landed after this plan (see the spec's "Revisions").** v2 re-spaced the
+> buildings, thinned decor to nine disjoint glyphs, and added A12 (sprite-overlap — the
+> compiler checks only anchor-tile walkability). v3 rebuilt the dividers as **partial spurs**
+> after the issue was rewritten as a control-map blockout: the nine-edge room graph below is
+> still correct and normative, but every **opening coordinate** in the task bodies is stale —
+> the gates were widened. The as-built list is in the spec's "Openings (v3)".
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 

@@ -489,9 +489,9 @@ and 49 (rows 0–1) stay solid, or `C` leaks to the outside ring. The perimeter 
 rooms no longer touch the meadow margin outside the shell (367 such cells are correctly
 unreachable — A5 scopes reachability to village cells).
 
-**Openings (final).** Critical (on the H→C route, ≥3 wide): `H-P` 21–23/32 · `N-P` 26–28/19 ·
+**Openings (v1).** Critical (on the H→C route, ≥3 wide): `H-P` 21–23/32 · `N-P` 26–28/19 ·
 `G-N` 35/14–16 · `E-G` 48–50/10 · `C-E` 38–48/2. Secondary (≥2): `H-M` 4–5/32 · `M-P`
-20/20–22 · `P-S` 30–31/32 · `H-S` 24/36–37.
+20/20–22 · `P-S` 30–31/32 · `H-S` 24/36–37. Superseded by v3 — see "Revisions" below.
 
 **Spawn.** Moved to world `(624, 5776)` — two tiles south of the relocated hero-house door,
 facing up at it — because the redesign moved the hero house over the old spawn, which
@@ -515,3 +515,58 @@ equal its total-standable count and be non-zero. Added because the village becam
 twice during implementation — a building's rendered rect sat on the cells its own room used to
 reach its own gate — a defect class A1–A10 cannot see, because they read the collision *layer*
 and the layer was fine both times.
+
+## Revisions
+
+### v2 — building spacing, sparse decor, open bands (superseded in part)
+
+Three rounds of human visual-gate feedback ("chaotic and crowded", "still too crowded",
+"the obstacles don't look natural", "check for overlap"):
+
+- **Buildings re-spaced.** Three pairs sat wall-to-wall (item-shop + blacksmith in `M`, the
+  two north houses in `N`, shrine + villager-house-3 in `S`). Redistributed to one or two
+  well-separated buildings per room. Buildings are landmark rects, not collision glyphs, so
+  this left the room/gate skeleton untouched.
+- **Decor thinned.** Decor sprites render far larger than their one-tile anchor — a maple is
+  ~7×9 tiles, a market stall ~7×6 — so the grouped pass had props overlapping buildings and
+  each other. Reduced to nine sparse, disjoint glyphs.
+- **A12 added.** `compileLayeredRegion` validates only that an object's *anchor tile* is
+  walkable; it does **not** check sprite overlap. A12 closes that gap in the contract, since
+  the compiler will not.
+- **Open bands (reverted in v3).** The eight compartments were opened into three bands. This
+  read better but collapsed the room graph — see below.
+
+### v3 — partial spurs (current)
+
+The issue was rewritten to *"Complete Sundrop Village logical layout and control-map
+blockout"*, with final environmental artwork split out to HPA-307 (baked regional background
+rendering). Two consequences for this spec:
+
+1. **Scope.** Tile terrain is explicitly fallback/control rendering. Decor stays sparse by
+   policy, not just by taste — chasing visual richness is now an explicit non-goal, which
+   retroactively justifies the v2 decor thinning.
+2. **The route graph is normative.** The issue spells out the target route structure, and it
+   is exactly the nine edges this spec already specified. The v2 band layout violated it:
+   every room sharing a band abutted every other, giving **12** edges — it gained `E-N`,
+   `E-P`, `G-P`, `M-N` and lost `H-P`, which is on the critical route. That also pushed the
+   village toward the ring road the acceptance criteria forbid.
+
+v3 keeps the nine-edge skeleton but cuts each divider back to a **partial spur**: a boundary
+is implied by a short wall stub rather than enclosed by a full-height one, so a gate is a
+street the room opens onto rather than a slot punched through a wall. This satisfies the
+openness feedback and the route graph simultaneously — the failure mode of both earlier
+attempts.
+
+**Openings (v3).** Critical (≥3): `H-P` 20–23/32 · `N-P` 24–29/19 · `G-N` 35/14–18 · `E-G`
+48–50/10 · `C-E` 38–48/2. Secondary (≥2): `H-M` 4–7/32 · `M-P` 20/20–24 · `P-S` 29–32/32 ·
+`H-S` 24/36–40. Every gate is wider than its class minimum, so the width classes in the
+contract are the floor the layout may not drop under, not a description of it.
+
+**`E-G` was not widened.** A first draft pulled it west to col 46; A10 rejected it, because
+row 11 cols 46–47 are under the guild hall — walkable on the collision layer, unstandable
+once the landmark composes in. The gate stayed at 48–50. This is A10 doing exactly the job
+it was rewritten for.
+
+**Openness is a collision-layer property here, not a decor one.** The rooms were always
+large (`N` is 31×15, `S` 24×13); what read as cramped was full-height dividers slicing the
+space plus, before v2, building and decor density. v3 changes only the collision layer.
