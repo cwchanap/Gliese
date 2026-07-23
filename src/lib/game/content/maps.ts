@@ -108,10 +108,14 @@ export const guildHallMap: WorldMapDefinition = addEnglishMapText({
 			id: 'guild-hall-to-meadow',
 			...interiorDoor,
 			toMapId: openingMapId,
-			// x matches the meadow-to-guild-hall door (village-layered.ts, col 42
-			// row 21); y is 40px south of the door, inside guild forecourt and
-			// clear of guild-hall-exterior's footprint.
-			arrival: { x: 1_616, y: 5_080, facing: 'down' }
+			// Door is at village-layered.ts col 42 row 21. The arrival sits 40px
+			// EAST rather than south: the v2 redesign moved the blacksmith into
+			// the guild ward's open bottom, and its padded footprint starts at
+			// y 5075, so the old 40px-south point (y 5080) was inside it and the
+			// player arrived unable to move. East keeps the 40px separation the
+			// transition radius needs (30px) while staying in the open band
+			// between guild-hall-exterior (padded to y 4999) and the blacksmith.
+			arrival: { x: 1_656, y: 5_040, facing: 'down' }
 		}
 	],
 	npcs: [
@@ -489,11 +493,14 @@ export const villagerHouse3Map: WorldMapDefinition = addEnglishMapText({
 			id: 'villager-house-3-to-meadow',
 			...interiorDoor,
 			toMapId: openingMapId,
-			// x matches the meadow-to-villager-house-3 door (village-layered.ts,
-			// col 17 row 17 — relocated to the north residential lane in the v2
-			// redesign); y is 40px south of the door, in room N's lane and clear of
-			// villager-house-3-exterior's footprint.
-			arrival: { x: 816, y: 4_952, facing: 'down' }
+			// Door is at village-layered.ts col 17 row 17 (relocated to the north
+			// residential lane in the v2 redesign). The standable band here is only
+			// ~49px tall — villager-house-3-exterior pads down to y 4899 and the
+			// row-19 spur wall pads up to y 4948 — so the old 40px-south point
+			// (y 4952) was inside the wall. Offset east instead, centred in the
+			// band, keeping >30px from the door so the first step out does not
+			// re-trigger the transition.
+			arrival: { x: 856, y: 4_920, facing: 'down' }
 		}
 	],
 	interiorProps: [
@@ -588,10 +595,14 @@ export const shrineOfAuroraInteriorMap: WorldMapDefinition = {
 			id: 'shrine-of-aurora-to-meadow',
 			...interiorDoor,
 			toMapId: openingMapId,
-			// x matches the meadow-to-shrine-of-aurora door (village-layered.ts,
-			// col 36 row 44); y is 40px south of the door, inside room S and
-			// clear of shrine-of-aurora's footprint.
-			arrival: { x: 1_424, y: 5_816, facing: 'down' }
+			// Door is at village-layered.ts col 36 row 44. The standable band is
+			// only ~50px tall — shrine-of-aurora pads down to y 5762 and the south
+			// perimeter wall (row 46) pads up to y 5812 — so the old 40px-south
+			// point (y 5816) was inside the perimeter and the player arrived hard
+			// stuck, unable to move in any direction. Offset east instead, centred
+			// in the band, keeping >30px from the door so the first step out does
+			// not re-trigger the transition.
+			arrival: { x: 1_464, y: 5_788, facing: 'down' }
 		}
 	],
 	interiorProps: [
