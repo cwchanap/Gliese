@@ -35,6 +35,11 @@ import {
 } from '$lib/game/content/maps';
 import type { MapDecor, MapGroundTile, WorldMapDefinition } from '$lib/game/content/maps';
 import { sundropVillageLayered } from '$lib/game/content/maps/regions/village-layered';
+import {
+	collectLandmarkRects,
+	collectStrictCollisionRects,
+	isInsideAnyCollisionRect
+} from '$lib/game/save/save-state';
 
 function expectEnglishMessage(key: Parameters<typeof t>[1]): string {
 	const value = t('en', key);
@@ -953,7 +958,16 @@ describe('opening map content', () => {
 		}
 	});
 
-	it('aligns interior return arrival x with exterior door transition x', () => {
+	it('keeps interior return arrivals close to their exterior door', () => {
+		// Originally this asserted arrival.x === door.x exactly. That is not a
+		// property the map can always satisfy: guild-hall, villager-house-3 and
+		// shrine-of-aurora each sit in a standable band too shallow to hold the
+		// conventional 40px-south arrival, so their arrivals are offset EAST and
+		// their x deliberately differs from the door's. What must hold is that the
+		// player still lands recognisably at the door they used — within one tile
+		// on x. Standability and trigger clearance are asserted separately, in
+		// "interior return arrivals are standable".
+		const TILE = 32;
 		const exteriorTransitions = new Map(
 			meadowEntryMap.transitions.map((transition) => [transition.toMapId, transition])
 		);
@@ -971,13 +985,16 @@ describe('opening map content', () => {
 			const exteriorTransition = exteriorTransitions.get(interiorMap.id);
 			expect(exteriorTransition).toBeDefined();
 			expect(returnTransition.arrival).toBeDefined();
-			expect(returnTransition.arrival!.x).toBe(exteriorTransition!.x);
+			expect(
+				Math.abs(returnTransition.arrival!.x - exteriorTransition!.x),
+				`${interiorMap.id} arrival x drifts more than a tile from its door`
+			).toBeLessThanOrEqual(TILE + TILE / 4);
 		}
 	});
 
 	it('declares exact exterior return arrivals for bottom-left village interiors', () => {
 		expect(heroHouseMap.transitions[0].arrival).toEqual({ x: 624, y: 5_752, facing: 'down' });
-		expect(guildHallMap.transitions[0].arrival).toEqual({ x: 1_616, y: 5_080, facing: 'down' });
+		expect(guildHallMap.transitions[0].arrival).toEqual({ x: 1_656, y: 5_040, facing: 'down' });
 		expect(itemShopMap.transitions[0].arrival).toEqual({ x: 496, y: 5_336, facing: 'down' });
 		expect(villagerHouse1Map.transitions[0].arrival).toEqual({
 			x: 528,
@@ -990,13 +1007,13 @@ describe('opening map content', () => {
 			facing: 'down'
 		});
 		expect(villagerHouse3Map.transitions[0].arrival).toEqual({
-			x: 816,
-			y: 4_952,
+			x: 856,
+			y: 4_920,
 			facing: 'down'
 		});
 		expect(shrineOfAuroraInteriorMap.transitions[0].arrival).toEqual({
-			x: 1_424,
-			y: 5_816,
+			x: 1_464,
+			y: 5_788,
 			facing: 'down'
 		});
 	});
@@ -2357,6 +2374,58 @@ describe('route: crossroads → wildwood cave', () => {
 			expect.arrayContaining(['meadow-slime-west', 'meadow-slime-center', 'meadow-slime-east'])
 		);
 		expect(meadowEntryMap.transitions.some((t) => t.toMapId === 'ruins-threshold')).toBe(true);
+	});
+});
+
+describe('interior return arrivals are standable', () => {
+	// Regression: three interiors (guild-hall, villager-house-3, shrine-of-aurora)
+	// each returned the player to a point inside a padded blocker. The shrine one
+	// was hard stuck — WorldScene refuses any move that leaves the player
+	// intersecting a blocker, and the arrival already intersected the south
+	// perimeter wall, so every direction was refused and the save recorded that
+	// position. Nothing caught it: the layered contract (A1-A12) validates the
+	// village *source*, and these arrivals live in the interior maps.
+	//
+	// Two properties, both load-bearing:
+	//  1. the arrival is standable under the game's real composed rule
+	//     (tile centre outside every collision + landmark rect padded by the
+	//     player radius) — otherwise the player arrives entombed;
+	//  2. it is further from its door than the transition trigger radius
+	//     (playerRadius 12 + transitionRadius 18 = 30px) — otherwise the first
+	//     step after arriving re-enters the interior the player just left.
+	const PLAYER_RADIUS = 12;
+	const TRANSITION_TRIGGER = 30;
+	const rects = [
+		...collectStrictCollisionRects(meadowEntryMap),
+		...collectLandmarkRects(meadowEntryMap)
+	];
+	const returns = Object.values(maps).flatMap((map) =>
+		(map.transitions ?? [])
+			.filter((transition) => transition.toMapId === meadowEntryMap.id && transition.arrival)
+			.map((transition) => ({ mapId: map.id, transition }))
+	);
+
+	it('covers every interior that returns to the meadow', () => {
+		expect(returns.length).toBeGreaterThanOrEqual(7);
+	});
+
+	it.each(returns)('$mapId — $transition.id arrival is standable', ({ transition }) => {
+		const { x, y } = transition.arrival!;
+		expect(
+			isInsideAnyCollisionRect(x, y, rects, PLAYER_RADIUS),
+			`arrival (${x},${y}) is inside a padded blocker — the player would arrive unable to move`
+		).toBe(false);
+	});
+
+	it.each(returns)('$mapId — $transition.id arrival clears its door', ({ mapId, transition }) => {
+		const { x, y } = transition.arrival!;
+		const door = meadowEntryMap.transitions.find((t) => t.toMapId === mapId);
+		expect(door, `no meadow-side door targets ${mapId}`).toBeDefined();
+		const distance = Math.hypot(x - door!.x, y - door!.y);
+		expect(
+			distance,
+			`arrival (${x},${y}) is ${Math.round(distance)}px from its door — inside the ${TRANSITION_TRIGGER}px trigger, so stepping out re-enters`
+		).toBeGreaterThan(TRANSITION_TRIGGER);
 	});
 });
 

@@ -5690,7 +5690,7 @@ describe('WorldScene', () => {
 			reason: 'transition',
 			saveState: expect.objectContaining({
 				mapId: 'meadow-entry',
-				player: expect.objectContaining({ x: 1_424, y: 5_816, facing: 'down' })
+				player: expect.objectContaining({ x: 1_464, y: 5_788, facing: 'down' })
 			})
 		});
 	});
