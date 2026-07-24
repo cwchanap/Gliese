@@ -43,7 +43,7 @@ standable band along the south — and its own door sat in the middle of that ba
 
 Measured across the band (x 1280–1570, composed rule, 30px trigger radius), **before**:
 
-```
+```text
 y 5750-5762   blocked by the shrine footprint
 y 5764-5806   standable, but 12-16 of 74 sample points are inside the door trigger
 y 5808-5811   standable AND clear of the door   <-- the only bypass
@@ -65,7 +65,7 @@ northmost tile the grid allows — the footprint's back edge tucks ~22px into th
 band — and row 43 is the northmost door row still south of the footprint. Measured **after**,
 against the same composed rule:
 
-```
+```text
 crossing lane at the door column (x 1424):   5px  ->  37px   (y 5775-5811)
 crossing lane at the exit column  (x 1464):          81px    (y 5731-5811)
 ```
