@@ -456,9 +456,19 @@ export const sundropVillageLayered: LayeredRegionSource<(typeof villageDressingA
 				labelKey: 'content.maps.landmarks.sundrop-well.label'
 			},
 			{
+				// HPA-238 walkthrough gate: the shrine (246×333) nearly fills room S
+				// (13 rows). At row 38 it left only a ~50px south band with the door
+				// trigger sitting in the middle of it, so the only shrine→cache
+				// crossing hugged the perimeter in a ~4px lane and the player was
+				// always funnelled into the shrine. Pushed one tile north (row 37) —
+				// as far as the tile grid allows, its back edge tucked ~22px into the
+				// row-32 hedge line — so the footprint bottom rises from y 5750 to
+				// 5718 and, with the door lifted north to match (below), the south
+				// band opens a ~38px crossing lane clear of the 30px door trigger. It
+				// stays centred in its garden on x.
 				id: 'shrine-of-aurora',
 				col: 36,
-				row: 38,
+				row: 37,
 				width: 246,
 				height: 333,
 				labelKey: 'content.maps.landmarks.shrine-of-aurora.label'
@@ -518,9 +528,16 @@ export const sundropVillageLayered: LayeredRegionSource<(typeof villageDressingA
 				arrival: { x: 256, y: 288, facing: 'up' }
 			},
 			{
+				// Lifted one tile north (row 44 -> 43) to track the shrine's north
+				// shift above: the door stays the doorstep just south of the footprint
+				// (bottom y 5718), and raising its 30px trigger off the perimeter is
+				// what opens the east-west crossing lane through room S. Row 43 is the
+				// highest row that keeps the door south of the footprint — row 42 would
+				// sit inside it. The interior return arrival (1464, 5788) lands in the
+				// lane this opens, 59px clear of this door.
 				id: 'meadow-to-shrine-of-aurora',
 				col: 36,
-				row: 44,
+				row: 43,
 				toMapId: 'shrine-of-aurora-interior',
 				showMarker: false,
 				arrival: { x: 256, y: 288, facing: 'up' }

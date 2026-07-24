@@ -570,3 +570,26 @@ it was rewritten for.
 **Openness is a collision-layer property here, not a decor one.** The rooms were always
 large (`N` is 31×15, `S` 24×13); what read as cramped was full-height dividers slicing the
 space plus, before v2, building and decor density. v3 changes only the collision layer.
+
+### v4 — shrine pushed north (walkthrough gate, 2026-07-23)
+
+The controller walkthrough found room `S` split into a west half (the two entrances,
+`H-S` and `P-S`) and an east half (the reward cache) joined only by a south band, with
+`shrine-of-aurora` (246×333) sitting across it. The shrine nearly fills `S` (13 rows), so at
+`row 38` the band was ~50px and the door trigger sat in the middle of it — the only crossing
+lane clear of the 30px trigger was **5px** hugging the perimeter (measured against the real
+composed rule). The player was funnelled into the shrine every crossing.
+
+Fix: the shrine landmark moved `row 38 → 37` and its door `meadow-to-shrine-of-aurora` moved
+`row 44 → 43` to track it. Row 37 is the northmost tile the grid allows — the footprint's
+back edge tucks ~22px into the row-32 hedge band (approved at the human visual gate) — and
+row 43 is the northmost door row still south of the footprint. Footprint bottom rises
+5750 → 5718; the crossing lane at the door column widens **5px → 37px**, and the interior
+return arrival `(1464, 5788)` now lands in **81px** of clear band instead of a padded wall.
+
+This is a landmark/transition move only — the collision, region, path, terrain and decor
+layers are untouched, so A1–A12 are unaffected. It changes only as-built fixture pins (the
+shrine's rendered `y` and the door's `y`) in `maps.test.ts` / `scenes.test.ts`. The crossing
+lane itself is a runtime navigation property no contract guards; the standing guard is the
+`interior return arrivals are standable` contract, which keeps the arrival out of a blocker
+and clear of its door.
