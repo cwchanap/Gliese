@@ -314,7 +314,7 @@ describe('opening map content', () => {
 			{
 				id: 'meadow-to-shrine-of-aurora',
 				x: 1_424,
-				y: 5_776,
+				y: 5_744,
 				toMapId: 'shrine-of-aurora-interior',
 				showMarker: false,
 				arrival: { x: 256, y: 288, facing: 'up' }
@@ -1187,7 +1187,7 @@ describe('opening map content', () => {
 				expect.objectContaining({
 					id: 'shrine-of-aurora',
 					x: 1_424,
-					y: 5_584,
+					y: 5_552,
 					width: 246,
 					height: 333,
 					labelKey: 'content.maps.landmarks.shrine-of-aurora.label'

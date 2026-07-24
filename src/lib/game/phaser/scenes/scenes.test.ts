@@ -2233,7 +2233,7 @@ describe('WorldScene', () => {
 		expect(scene.add.image).toHaveBeenCalledWith(1_616, 5_200, 'village-buildings', 'blacksmith');
 		expect(scene.add.image).toHaveBeenCalledWith(
 			1_424,
-			5_584,
+			5_552,
 			'village-buildings',
 			'shrineOfAurora'
 		);
@@ -5661,10 +5661,10 @@ describe('WorldScene', () => {
 				}
 			}
 		});
-		// meadow-to-shrine-of-aurora door is now at (1424, 5776); (1404, 5792) keeps
-		// the same (-20, +16) offset used before the redesign, within the 30px
-		// trigger radius.
-		Object.assign(phaserState.playerMarker, { x: 1_404, y: 5_792 });
+		// meadow-to-shrine-of-aurora door is now at (1424, 5744) after the shrine
+		// was pushed north (HPA-238 walkthrough gate); (1404, 5760) keeps the same
+		// (-20, +16) offset used before the redesign, within the 30px trigger radius.
+		Object.assign(phaserState.playerMarker, { x: 1_404, y: 5_760 });
 		scene.update(0, 16);
 
 		expect(scene.scene.restart).toHaveBeenCalledWith({

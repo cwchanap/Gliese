@@ -36,12 +36,12 @@ Closed by a new contract, `interior return arrivals are standable`, which assert
 meadow-bound arrivals that each is standable under the real composed rule and clears its
 door's trigger radius.
 
-### 2. The shrine splits room S into halves joined by a ~4px lane — OPEN, needs a decision
+### 2. The shrine splits room S into halves joined by a ~4px lane — FIXED
 
 `shrine-of-aurora` is 246×333px. Room `S` is 13 rows (416px). The building leaves a ~50px
-standable band along the south — and its own door sits in the middle of that band.
+standable band along the south — and its own door sat in the middle of that band.
 
-Measured across the band (x 1280–1570, composed rule, 30px trigger radius):
+Measured across the band (x 1280–1570, composed rule, 30px trigger radius), **before**:
 
 ```
 y 5750-5762   blocked by the shrine footprint
@@ -50,20 +50,30 @@ y 5808-5811   standable AND clear of the door   <-- the only bypass
 y 5812+       blocked by the south perimeter
 ```
 
-So crossing room S east↔west without being pulled into the shrine means threading a ~4px lane
-hugging the perimeter wall. In practice the player always enters the shrine — reproduced
-three times by the navigation controller. The shrine reward cache sits in the east half, so
-the shrine loop forces this crossing.
+So crossing room S east↔west without being pulled into the shrine meant threading a ~4px lane
+hugging the perimeter wall. In practice the player always entered the shrine — reproduced
+three times by the navigation controller. The reward cache sits in the east half, so the
+shrine loop forced this crossing.
 
-This is a building-placement issue from the v2 spacing pass, not a v3 regression, and the
-contract permits it: A11 only requires rooms be *reachable*, and A3/A10 protect the critical
-route, which does not pass through S.
+This was a building-placement issue from the v2 spacing pass, not a v3 regression, and no
+contract caught it: A11 only requires rooms be *reachable*, and A3/A10 protect the critical
+route, which does not pass through S. The crossing lane is a runtime navigation property.
 
-Fixing it means moving a building, which needs the visual gate — so it is left open. Options:
-1. Move `shrine-of-aurora` north so it sits flush against the row-32 divider, widening the
-   south band to ~74px (the ticket's own "buildings form the boundary rather than hedge").
-2. Move the shrine door to the building's west or east face.
-3. Accept it — the shrine is a dead-end detour, so being funnelled into it is arguably fine.
+**Fix (approved at the human visual gate, 2026-07-23):** `shrine-of-aurora` moved `row 38 →
+37` and its door `meadow-to-shrine-of-aurora` moved `row 44 → 43` to track it. Row 37 is the
+northmost tile the grid allows — the footprint's back edge tucks ~22px into the row-32 hedge
+band — and row 43 is the northmost door row still south of the footprint. Measured **after**,
+against the same composed rule:
+
+```
+crossing lane at the door column (x 1424):   5px  ->  37px   (y 5775-5811)
+crossing lane at the exit column  (x 1464):          81px    (y 5731-5811)
+```
+
+The interior return arrival `(1464, 5788)` now lands in open band instead of hugging the
+perimeter. Landmark/transition move only — collision, region, path, terrain and decor layers
+untouched, so A1–A12 are unaffected; only as-built fixture pins changed. Before/after render:
+`img/hpa-238/shrine-move-before-after.png`.
 
 ## Route log
 
