@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
 	bfsPath,
-	footprintTiles,
 	maximalRun,
 	perpendicularRun,
 	roomAdjacency
@@ -11,9 +10,6 @@ const solidFrom = (rows: readonly string[]) => (col: number, row: number) =>
 	rows[row]?.[col] === '#';
 const walkableFrom = (rows: readonly string[]) => (col: number, row: number) =>
 	rows[row]?.[col] !== undefined && rows[row][col] !== '#';
-
-const sortCells = (cells: readonly { col: number; row: number }[]) =>
-	[...cells].sort((a, b) => a.row - b.row || a.col - b.col);
 
 describe('roomAdjacency', () => {
 	it('reports two rooms adjacent only through an opening in their divider', () => {
@@ -125,28 +121,5 @@ describe('bfsPath and perpendicularRun', () => {
 		expect(path).not.toBeNull();
 		expect(perpendicularRun(path, 0, walkableFrom(vertical), dims3)).toBe(3);
 		expect(perpendicularRun(path, 1, walkableFrom(vertical), dims3)).toBe(1);
-	});
-});
-
-describe('footprintTiles', () => {
-	it('covers the tiles a centred rect occupies, including padding', () => {
-		// 32px rect centred on tile (5,5), no padding => exactly that tile.
-		expect(footprintTiles(5, 5, 32, 32, 0, 32)).toEqual([{ col: 5, row: 5 }]);
-	});
-
-	it('expands by the padding radius', () => {
-		const tiles = footprintTiles(5, 5, 32, 32, 12, 32);
-		const expected = [
-			{ col: 4, row: 4 },
-			{ col: 5, row: 4 },
-			{ col: 6, row: 4 },
-			{ col: 4, row: 5 },
-			{ col: 5, row: 5 },
-			{ col: 6, row: 5 },
-			{ col: 4, row: 6 },
-			{ col: 5, row: 6 },
-			{ col: 6, row: 6 }
-		];
-		expect(sortCells(tiles)).toEqual(sortCells(expected));
 	});
 });

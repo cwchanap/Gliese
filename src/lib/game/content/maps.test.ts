@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { enemies } from '$lib/game/content/enemies';
 import { getDialogue } from '$lib/game/content/dialogue';
 import { mergeRegions } from '$lib/game/content/maps/meadow-entry';
+import { STEPS } from '$lib/game/content/maps/layered/geometry';
 import type { RegionFragment } from '$lib/game/content/maps/regions/types';
 import { en } from '$lib/game/i18n/messages/en';
 import { ja } from '$lib/game/i18n/messages/ja';
@@ -1643,12 +1644,7 @@ describe('meadow-entry region integrity', () => {
 
 		while (queue.length > 0) {
 			const [col, row] = queue.shift()!;
-			for (const [dCol, dRow] of [
-				[1, 0],
-				[-1, 0],
-				[0, 1],
-				[0, -1]
-			]) {
+			for (const [dCol, dRow] of STEPS) {
 				const nextCol = col + dCol;
 				const nextRow = row + dRow;
 				if (nextCol < 0 || nextRow < 0 || nextCol >= map.width || nextRow >= map.height) {
@@ -1728,12 +1724,7 @@ describe('meadow-entry region integrity', () => {
 
 		while (queue.length > 0) {
 			const [col, row] = queue.shift()!;
-			for (const [dCol, dRow] of [
-				[1, 0],
-				[-1, 0],
-				[0, 1],
-				[0, -1]
-			]) {
+			for (const [dCol, dRow] of STEPS) {
 				const nextCol = col + dCol;
 				const nextRow = row + dRow;
 				if (nextCol < 0 || nextRow < 0 || nextCol >= map.width || nextRow >= map.height) {

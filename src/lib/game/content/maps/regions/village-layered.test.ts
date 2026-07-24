@@ -9,6 +9,7 @@ import {
 	maximalRun,
 	perpendicularRun,
 	roomAdjacency,
+	STEPS,
 	type Cell
 } from '$lib/game/content/maps/layered/geometry';
 import { pathsRegion } from '$lib/game/content/maps/regions/paths';
@@ -43,12 +44,7 @@ function bfsReachable(start: string, walkable: Set<string>): Set<string> {
 		const [colStr, rowStr] = queue.shift()!.split(':');
 		const col = Number(colStr);
 		const row = Number(rowStr);
-		for (const [dc, dr] of [
-			[1, 0],
-			[-1, 0],
-			[0, 1],
-			[0, -1]
-		]) {
+		for (const [dc, dr] of STEPS) {
 			const next = `${col + dc}:${row + dr}`;
 			if (walkable.has(next) && !seen.has(next)) {
 				seen.add(next);
@@ -99,12 +95,7 @@ function bfsDistanceToNearest(start: string, walkable: Set<string>, targets: Set
 		const [colStr, rowStr] = cell.split(':');
 		const col = Number(colStr);
 		const row = Number(rowStr);
-		for (const [dc, dr] of [
-			[1, 0],
-			[-1, 0],
-			[0, 1],
-			[0, -1]
-		]) {
+		for (const [dc, dr] of STEPS) {
 			const next = `${col + dc}:${row + dr}`;
 			if (!walkable.has(next) || seen.has(next)) continue;
 			seen.add(next);
@@ -494,12 +485,7 @@ describe('sundrop village — Wave A design contract', () => {
 			if (!opening.critical) continue;
 			for (const cell of opening.cells) {
 				protectedCells.add(`${cell.col}:${cell.row}`);
-				for (const [dc, dr] of [
-					[1, 0],
-					[-1, 0],
-					[0, 1],
-					[0, -1]
-				] as const) {
+				for (const [dc, dr] of STEPS) {
 					const c = cell.col + dc;
 					const r = cell.row + dr;
 					if (isWalkableTile(c, r)) protectedCells.add(`${c}:${r}`);
@@ -522,12 +508,7 @@ describe('sundrop village — Wave A design contract', () => {
 		const queue: Cell[] = [{ col: spawnCol, row: spawnRow }];
 		while (queue.length) {
 			const { col, row } = queue.shift()!;
-			for (const [dc, dr] of [
-				[1, 0],
-				[-1, 0],
-				[0, 1],
-				[0, -1]
-			] as const) {
+			for (const [dc, dr] of STEPS) {
 				const nc = col + dc;
 				const nr = row + dr;
 				const key = `${nc}:${nr}`;

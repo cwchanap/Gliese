@@ -2079,9 +2079,10 @@ describe('WorldScene', () => {
 		const { WorldScene } = await import('./WorldScene');
 		const scene = new WorldScene();
 		registerSceneSupportTestMap();
+		const { spawn } = maps['scene-support-test'];
 
 		scene.create({ mapId: 'scene-support-test' });
-		Object.assign(phaserState.playerMarker, { x: 96, y: 96 });
+		Object.assign(phaserState.playerMarker, { x: spawn.x, y: spawn.y });
 		phaserState.cursorKeys.right.isDown = true;
 
 		scene.update(0, 250);
@@ -2109,8 +2110,8 @@ describe('WorldScene', () => {
 		);
 		expect(verticalWall?.setDisplaySize).toHaveBeenCalledWith(32, 48);
 		expect(horizontalHedge?.setDisplaySize).toHaveBeenCalledWith(48, 32);
-		expect(phaserState.playerMarker.x).toBe(96);
-		expect(phaserState.playerMarker.y).toBe(96);
+		expect(phaserState.playerMarker.x).toBe(spawn.x);
+		expect(phaserState.playerMarker.y).toBe(spawn.y);
 	});
 
 	it('blocks the bottom-left meadow ocean patch without rendering a visual blocker', async () => {
