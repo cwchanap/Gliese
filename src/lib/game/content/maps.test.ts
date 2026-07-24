@@ -35,6 +35,11 @@ import {
 } from '$lib/game/content/maps';
 import type { MapDecor, MapGroundTile, WorldMapDefinition } from '$lib/game/content/maps';
 import { sundropVillageLayered } from '$lib/game/content/maps/regions/village-layered';
+import {
+	collectLandmarkRects,
+	collectStrictCollisionRects,
+	isInsideAnyCollisionRect
+} from '$lib/game/save/save-state';
 
 function expectEnglishMessage(key: Parameters<typeof t>[1]): string {
 	const value = t('en', key);
@@ -259,7 +264,7 @@ describe('opening map content', () => {
 		expect(meadowEntryMap.width).toBe(200);
 		expect(meadowEntryMap.height).toBe(200);
 		expect(meadowEntryMap.spawnDirection).toBe('up');
-		expect(meadowEntryMap.spawn).toEqual({ x: 716, y: 5_592 });
+		expect(meadowEntryMap.spawn).toEqual({ x: 624, y: 5_776 });
 		expect(meadowEntryMap.combatBounds?.map((bounds) => bounds.id)).toEqual([
 			'wildwood-north-combat-pocket',
 			'wildwood-crossing-combat-pocket',
@@ -268,39 +273,39 @@ describe('opening map content', () => {
 		expect(meadowEntryMap.transitions).toEqual([
 			{
 				id: 'meadow-to-hero-house',
-				x: 720,
-				y: 5_552,
+				x: 624,
+				y: 5_712,
 				toMapId: 'hero-house',
 				showMarker: false,
 				arrival: { x: 256, y: 224, facing: 'up' }
 			},
 			{
 				id: 'meadow-to-item-shop',
-				x: 528,
-				y: 5_072,
+				x: 496,
+				y: 5_296,
 				toMapId: 'item-shop',
 				showMarker: false,
 				arrival: { x: 256, y: 288, facing: 'up' }
 			},
 			{
 				id: 'meadow-to-villager-house-1',
-				x: 880,
-				y: 4_624,
+				x: 528,
+				y: 4_848,
 				toMapId: 'villager-house-1',
 				showMarker: false,
 				arrival: { x: 256, y: 288, facing: 'up' }
 			},
 			{
 				id: 'meadow-to-villager-house-2',
-				x: 1_200,
-				y: 4_656,
+				x: 1_168,
+				y: 4_880,
 				toMapId: 'villager-house-2',
 				showMarker: false,
 				arrival: { x: 256, y: 288, facing: 'up' }
 			},
 			{
 				id: 'meadow-to-guild-hall',
-				x: 1_488,
+				x: 1_616,
 				y: 5_040,
 				toMapId: 'guild-hall',
 				showMarker: false,
@@ -308,16 +313,16 @@ describe('opening map content', () => {
 			},
 			{
 				id: 'meadow-to-shrine-of-aurora',
-				x: 1_200,
-				y: 5_712,
+				x: 1_424,
+				y: 5_744,
 				toMapId: 'shrine-of-aurora-interior',
 				showMarker: false,
 				arrival: { x: 256, y: 288, facing: 'up' }
 			},
 			{
 				id: 'meadow-to-villager-house-3',
-				x: 1_552,
-				y: 5_552,
+				x: 816,
+				y: 4_912,
 				toMapId: 'villager-house-3',
 				showMarker: false,
 				arrival: { x: 256, y: 288, facing: 'up' }
@@ -385,7 +390,7 @@ describe('opening map content', () => {
 				x: 256,
 				y: 336,
 				toMapId: 'meadow-entry',
-				arrival: { x: 720, y: 5_692, facing: 'down' }
+				arrival: { x: 624, y: 5_752, facing: 'down' }
 			}
 		]);
 		expect(
@@ -953,7 +958,16 @@ describe('opening map content', () => {
 		}
 	});
 
-	it('aligns interior return arrival x with exterior door transition x', () => {
+	it('keeps interior return arrivals close to their exterior door', () => {
+		// Originally this asserted arrival.x === door.x exactly. That is not a
+		// property the map can always satisfy: guild-hall, villager-house-3 and
+		// shrine-of-aurora each sit in a standable band too shallow to hold the
+		// conventional 40px-south arrival, so their arrivals are offset EAST and
+		// their x deliberately differs from the door's. What must hold is that the
+		// player still lands recognisably at the door they used — within 1.25
+		// tiles on x (TILE + TILE/4 = 40px). Standability and trigger clearance
+		// are asserted separately, in "interior return arrivals are standable".
+		const TILE = 32;
 		const exteriorTransitions = new Map(
 			meadowEntryMap.transitions.map((transition) => [transition.toMapId, transition])
 		);
@@ -971,32 +985,35 @@ describe('opening map content', () => {
 			const exteriorTransition = exteriorTransitions.get(interiorMap.id);
 			expect(exteriorTransition).toBeDefined();
 			expect(returnTransition.arrival).toBeDefined();
-			expect(returnTransition.arrival!.x).toBe(exteriorTransition!.x);
+			expect(
+				Math.abs(returnTransition.arrival!.x - exteriorTransition!.x),
+				`${interiorMap.id} arrival x drifts more than 1.25 tiles from its door`
+			).toBeLessThanOrEqual(TILE + TILE / 4);
 		}
 	});
 
 	it('declares exact exterior return arrivals for bottom-left village interiors', () => {
-		expect(heroHouseMap.transitions[0].arrival).toEqual({ x: 720, y: 5_692, facing: 'down' });
-		expect(guildHallMap.transitions[0].arrival).toEqual({ x: 1_488, y: 5_162, facing: 'down' });
-		expect(itemShopMap.transitions[0].arrival).toEqual({ x: 528, y: 5_112, facing: 'down' });
+		expect(heroHouseMap.transitions[0].arrival).toEqual({ x: 624, y: 5_752, facing: 'down' });
+		expect(guildHallMap.transitions[0].arrival).toEqual({ x: 1_656, y: 5_040, facing: 'down' });
+		expect(itemShopMap.transitions[0].arrival).toEqual({ x: 496, y: 5_336, facing: 'down' });
 		expect(villagerHouse1Map.transitions[0].arrival).toEqual({
-			x: 880,
-			y: 4_670,
+			x: 528,
+			y: 4_888,
 			facing: 'down'
 		});
 		expect(villagerHouse2Map.transitions[0].arrival).toEqual({
-			x: 1_200,
-			y: 4_704,
+			x: 1_168,
+			y: 4_920,
 			facing: 'down'
 		});
 		expect(villagerHouse3Map.transitions[0].arrival).toEqual({
-			x: 1_552,
-			y: 5_692,
+			x: 856,
+			y: 4_920,
 			facing: 'down'
 		});
 		expect(shrineOfAuroraInteriorMap.transitions[0].arrival).toEqual({
-			x: 1_200,
-			y: 5_752,
+			x: 1_464,
+			y: 5_788,
 			facing: 'down'
 		});
 	});
@@ -1097,55 +1114,55 @@ describe('opening map content', () => {
 			expect.arrayContaining([
 				expect.objectContaining({
 					id: 'hero-house-exterior',
-					x: 720,
-					y: 5_424,
+					x: 624,
+					y: 5_552,
 					width: 235,
 					height: 246,
 					labelKey: 'content.maps.landmarks.hero-house-exterior.label'
 				}),
 				expect.objectContaining({
 					id: 'guild-hall-exterior',
-					x: 1_488,
-					y: 4_880,
+					x: 1_616,
+					y: 4_848,
 					width: 307,
 					height: 277,
 					labelKey: 'content.maps.landmarks.guild-hall-exterior.label'
 				}),
 				expect.objectContaining({
 					id: 'item-shop-exterior',
-					x: 528,
-					y: 4_944,
+					x: 496,
+					y: 5_136,
 					width: 246,
 					height: 235,
 					labelKey: 'content.maps.landmarks.item-shop-exterior.label'
 				}),
 				expect.objectContaining({
 					id: 'villager-house-1-exterior',
-					x: 880,
-					y: 4_464,
+					x: 528,
+					y: 4_720,
 					width: 226,
 					height: 205,
 					labelKey: 'content.maps.landmarks.villager-house-1-exterior.label'
 				}),
 				expect.objectContaining({
 					id: 'villager-house-2-exterior',
-					x: 1_200,
-					y: 4_496,
+					x: 1_168,
+					y: 4_720,
 					width: 338,
 					height: 261,
 					labelKey: 'content.maps.landmarks.villager-house-2-exterior.label'
 				}),
 				expect.objectContaining({
 					id: 'villager-house-3-exterior',
-					x: 1_552,
-					y: 5_360,
+					x: 816,
+					y: 4_720,
 					width: 184,
 					height: 333,
 					labelKey: 'content.maps.landmarks.villager-house-3-exterior.label'
 				}),
 				expect.objectContaining({
 					id: 'sundrop-well',
-					x: 1_008,
+					x: 1_104,
 					y: 5_168,
 					width: 141,
 					height: 160,
@@ -1161,15 +1178,15 @@ describe('opening map content', () => {
 				}),
 				expect.objectContaining({
 					id: 'blacksmith',
-					x: 400,
-					y: 5_264,
+					x: 1_616,
+					y: 5_200,
 					width: 235,
 					height: 226,
 					labelKey: 'content.maps.landmarks.blacksmith.label'
 				}),
 				expect.objectContaining({
 					id: 'shrine-of-aurora',
-					x: 1_200,
+					x: 1_424,
 					y: 5_552,
 					width: 246,
 					height: 333,
@@ -1255,7 +1272,7 @@ describe('opening map content', () => {
 			a: 'autumnLeafTile',
 			s: 'seaTile'
 		};
-		const roomGlyphs = ['H', 'P', 'M', 'N', 'S', 'E', 'C'] as const;
+		const roomGlyphs = ['H', 'P', 'M', 'N', 'S', 'E', 'C', 'G'] as const;
 		const patches = meadowEntryMap.groundPatches ?? [];
 
 		for (const glyph of roomGlyphs) {
@@ -2239,7 +2256,7 @@ describe('exploration test helpers', () => {
 describe('route: spawn → crossroads', () => {
 	it('has no empty stretch longer than the gap tolerance', () => {
 		expectRouteHasNoEmptyStretch('spawn → crossroads', [
-			{ x: 716, y: 5_592 },
+			{ x: 624, y: 5_776 },
 			{ x: 1_016, y: 5_092 },
 			{ x: 1_666, y: 4_542 },
 			{ x: 1_666, y: 4_342 },
@@ -2360,17 +2377,87 @@ describe('route: crossroads → wildwood cave', () => {
 	});
 });
 
+describe('interior return arrivals are standable', () => {
+	// Regression: three interiors (guild-hall, villager-house-3, shrine-of-aurora)
+	// each returned the player to a point inside a padded blocker. The shrine one
+	// was hard stuck — WorldScene refuses any move that leaves the player
+	// intersecting a blocker, and the arrival already intersected the south
+	// perimeter wall, so every direction was refused and the save recorded that
+	// position. Nothing caught it: the layered contract (A1-A12) validates the
+	// village *source*, and these arrivals live in the interior maps.
+	//
+	// Two properties, both load-bearing:
+	//  1. the arrival is standable under the game's real composed rule
+	//     (tile centre outside every collision + landmark rect padded by the
+	//     player radius) — otherwise the player arrives entombed;
+	//  2. it is further from its door than the transition trigger radius
+	//     (playerRadius 12 + transitionRadius 18 = 30px) — otherwise the first
+	//     step after arriving re-enters the interior the player just left.
+	const PLAYER_RADIUS = 12;
+	const TRANSITION_TRIGGER = 30;
+	const rects = [
+		...collectStrictCollisionRects(meadowEntryMap),
+		...collectLandmarkRects(meadowEntryMap)
+	];
+	const returns = Object.values(maps).flatMap((map) =>
+		(map.transitions ?? [])
+			.filter((transition) => transition.toMapId === meadowEntryMap.id && transition.arrival)
+			.map((transition) => ({ mapId: map.id, transition }))
+	);
+
+	it('covers every interior that returns to the meadow', () => {
+		expect(returns.length).toBeGreaterThanOrEqual(7);
+	});
+
+	it.each(returns)('$mapId — $transition.id arrival is standable', ({ transition }) => {
+		const { x, y } = transition.arrival!;
+		expect(
+			isInsideAnyCollisionRect(x, y, rects, PLAYER_RADIUS),
+			`arrival (${x},${y}) is inside a padded blocker — the player would arrive unable to move`
+		).toBe(false);
+	});
+
+	it.each(returns)('$mapId — $transition.id arrival clears its door', ({ mapId, transition }) => {
+		const { x, y } = transition.arrival!;
+		const door = meadowEntryMap.transitions.find((t) => t.toMapId === mapId);
+		expect(door, `no meadow-side door targets ${mapId}`).toBeDefined();
+		const distance = Math.hypot(x - door!.x, y - door!.y);
+		expect(
+			distance,
+			`arrival (${x},${y}) is ${Math.round(distance)}px from its door — inside the ${TRANSITION_TRIGGER}px trigger, so stepping out re-enters`
+		).toBeGreaterThan(TRANSITION_TRIGGER);
+	});
+});
+
 describe('critical routes avoid blockers', () => {
 	const criticalRoutes: Pt[][] = [
 		[
-			{ x: 716, y: 5_592 },
-			{ x: 866, y: 5_392 },
-			{ x: 1_016, y: 5_152 },
-			{ x: 1_316, y: 5_052 },
-			{ x: 1_476, y: 5_032 },
-			{ x: 1_506, y: 4_752 },
-			{ x: 1_506, y: 4_492 },
-			{ x: 1_676, y: 4_432 },
+			// Village leg verified standable against the real collision + landmark
+			// rects (save-state.ts isInsideAnyCollisionRect, padding 12 — the
+			// game's own movement rule), not just the collision layer: a
+			// layer-only route walks straight through a building, because the
+			// layer under a landmark reads '.'. This leg threads the issue's target
+			// critical route, H -> P -> N -> G -> E -> C. The v3 partial-spur pass
+			// only widened gates — every waypoint below sat in a gate before it and
+			// still does — so the leg is unchanged: H -> H-P gate -> P (west of the
+			// well) -> N-P gate -> N lane (row 16, clear of villager-house-2) ->
+			// G-N gate -> G -> E-G gate -> E -> C (direct
+			// contact, no divider row) before rejoining the crossroads-ward leg.
+			{ x: 624, y: 5_776 },
+			{ x: 1_008, y: 5_776 },
+			{ x: 1_008, y: 5_072 }, // north through H-P gate (cols 21-23, row 32)
+			{ x: 1_168, y: 5_072 },
+			{ x: 1_168, y: 4_944 }, // north through N-P gate (cols 26-28, row 19)
+			{ x: 1_232, y: 4_944 },
+			{ x: 1_232, y: 4_880 }, // climb to row 16 to clear the commons building
+			{ x: 1_424, y: 4_880 }, // east through G-N gate (col 35, rows 14-16)
+			{ x: 1_424, y: 5_008 },
+			{ x: 1_808, y: 5_008 },
+			{ x: 1_808, y: 4_656 }, // north through E-G gate (cols 48-50, row 10)
+			{ x: 1_648, y: 4_656 },
+			{ x: 1_648, y: 4_464 },
+			{ x: 1_616, y: 4_464 },
+			{ x: 1_616, y: 4_400 }, // into C (row 2/row 3 direct contact, col 42)
 			{ x: 1_706, y: 4_342 },
 			{ x: 1_740, y: 4_280 },
 			{ x: 1_850, y: 4_280 },

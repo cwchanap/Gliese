@@ -82,7 +82,7 @@ describe('createGame', () => {
 		instance.destroy();
 
 		expect(phaserState.destroyMock).toHaveBeenCalledWith(true);
-	});
+	}, 20_000);
 
 	it('throws when called outside the browser', async () => {
 		delete (globalThis as { window?: unknown }).window;

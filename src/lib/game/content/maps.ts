@@ -44,7 +44,7 @@ export const heroHouseMap: WorldMapDefinition = {
 			id: 'hero-house-to-meadow',
 			...interiorDoor,
 			toMapId: openingMapId,
-			arrival: { x: 720, y: 5_692, facing: 'down' }
+			arrival: { x: 624, y: 5_752, facing: 'down' }
 		}
 	],
 	interiorProps: [
@@ -108,7 +108,14 @@ export const guildHallMap: WorldMapDefinition = addEnglishMapText({
 			id: 'guild-hall-to-meadow',
 			...interiorDoor,
 			toMapId: openingMapId,
-			arrival: { x: 1_488, y: 5_162, facing: 'down' }
+			// Door is at village-layered.ts col 42 row 21. The arrival sits 40px
+			// EAST rather than south: the v2 redesign moved the blacksmith into
+			// the guild ward's open bottom, and its padded footprint starts at
+			// y 5075, so the old 40px-south point (y 5080) was inside it and the
+			// player arrived unable to move. East keeps the 40px separation the
+			// transition radius needs (30px) while staying in the open band
+			// between guild-hall-exterior (padded to y 4999) and the blacksmith.
+			arrival: { x: 1_656, y: 5_040, facing: 'down' }
 		}
 	],
 	npcs: [
@@ -226,7 +233,10 @@ export const itemShopMap: WorldMapDefinition = addEnglishMapText({
 			id: 'item-shop-to-meadow',
 			...interiorDoor,
 			toMapId: openingMapId,
-			arrival: { x: 528, y: 5_112, facing: 'down' }
+			// x matches the meadow-to-item-shop door (village-layered.ts, col 7
+			// row 29); y is 40px south of the door, inside room M and clear of
+			// item-shop-exterior's footprint.
+			arrival: { x: 496, y: 5_336, facing: 'down' }
 		}
 	],
 	npcs: [
@@ -313,7 +323,7 @@ export const villagerHouse1Map: WorldMapDefinition = addEnglishMapText({
 			id: 'villager-house-1-to-meadow',
 			...interiorDoor,
 			toMapId: openingMapId,
-			arrival: { x: 880, y: 4_670, facing: 'down' }
+			arrival: { x: 528, y: 4_888, facing: 'down' }
 		}
 	],
 	interiorProps: [
@@ -402,7 +412,7 @@ export const villagerHouse2Map: WorldMapDefinition = addEnglishMapText({
 			id: 'villager-house-2-to-meadow',
 			...interiorDoor,
 			toMapId: openingMapId,
-			arrival: { x: 1_200, y: 4_704, facing: 'down' }
+			arrival: { x: 1_168, y: 4_920, facing: 'down' }
 		}
 	],
 	interiorProps: [
@@ -483,13 +493,14 @@ export const villagerHouse3Map: WorldMapDefinition = addEnglishMapText({
 			id: 'villager-house-3-to-meadow',
 			...interiorDoor,
 			toMapId: openingMapId,
-			// Arrival moved south of the 80%-shrunk vh3 footprint: the old y=5560
-			// now falls inside the new south edge (5666.5), so it would spawn the
-			// player inside collision. y=5_692 sits ~140px south of the doorway
-			// (row 37 → y=5552), matching the hero-house exit (also y=5_692).
-			// These two are the only village exits in the ~127-144px range; the
-			// others land 24-122px south of their doorways.
-			arrival: { x: 1_552, y: 5_692, facing: 'down' }
+			// Door is at village-layered.ts col 17 row 17 (relocated to the north
+			// residential lane in the v2 redesign). The standable band here is only
+			// ~49px tall — villager-house-3-exterior pads down to y 4899 and the
+			// row-19 spur wall pads up to y 4948 — so the old 40px-south point
+			// (y 4952) was inside the wall. Offset east instead, centred in the
+			// band, keeping >30px from the door so the first step out does not
+			// re-trigger the transition.
+			arrival: { x: 856, y: 4_920, facing: 'down' }
 		}
 	],
 	interiorProps: [
@@ -584,7 +595,14 @@ export const shrineOfAuroraInteriorMap: WorldMapDefinition = {
 			id: 'shrine-of-aurora-to-meadow',
 			...interiorDoor,
 			toMapId: openingMapId,
-			arrival: { x: 1_200, y: 5_752, facing: 'down' }
+			// Door is at village-layered.ts col 36 row 44. The standable band is
+			// only ~50px tall — shrine-of-aurora pads down to y 5762 and the south
+			// perimeter wall (row 46) pads up to y 5812 — so the old 40px-south
+			// point (y 5816) was inside the perimeter and the player arrived hard
+			// stuck, unable to move in any direction. Offset east instead, centred
+			// in the band, keeping >30px from the door so the first step out does
+			// not re-trigger the transition.
+			arrival: { x: 1_464, y: 5_788, facing: 'down' }
 		}
 	],
 	interiorProps: [
