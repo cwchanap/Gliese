@@ -2,9 +2,11 @@ import { describe, expect, it } from 'vitest';
 import { sundropVillageLayered } from '$lib/game/content/maps/regions/village-layered';
 import {
 	UNKNOWN_FILL,
+	renderCollisionSvg,
 	renderComposedCollisionSvg,
 	renderLayeredPreviews,
-	renderRegionsSvg
+	renderRegionsSvg,
+	renderTerrainPathsSvg
 } from '$lib/game/content/maps/layered/preview';
 import type { MapBlocker } from '$lib/game/content/maps/types';
 
@@ -36,25 +38,64 @@ describe('layered region preview renderer', () => {
 		]);
 	});
 
-	it('lists every region glyph present in the source in the legend', () => {
-		const svg = renderRegionsSvg(sundropVillageLayered);
-		for (const glyph of glyphsIn(sundropVillageLayered.layers.regions)) {
-			expect(svg, `glyph ${glyph} missing from legend`).toContain(`&#160;${glyph}&#160;`);
-		}
-	});
+	// Each renderer's legend must list every glyph its layer(s) contain, so a
+	// newly introduced glyph can never render as silent whitespace. The design
+	// acceptance test says "every layer glyph" — parameterize across regions,
+	// collision, and the combined terrain+paths view.
+	const LEGEND_CASES: Array<{
+		readonly name: string;
+		readonly render: (src: typeof sundropVillageLayered) => string;
+		readonly layers: ReadonlyArray<keyof typeof sundropVillageLayered.layers>;
+	}> = [
+		{ name: 'regions', render: renderRegionsSvg, layers: ['regions'] },
+		{ name: 'collision', render: renderCollisionSvg, layers: ['collision'] },
+		{ name: 'terrain+paths', render: renderTerrainPathsSvg, layers: ['terrain', 'paths'] }
+	];
 
-	it('renders an unmapped glyph in the loud placeholder colour rather than blank', () => {
-		const patched = {
-			...sundropVillageLayered,
-			layers: {
-				...sundropVillageLayered.layers,
-				regions: sundropVillageLayered.layers.regions.map((row, i) =>
-					i === 0 ? 'Z'.repeat(sundropVillageLayered.width) : row
-				)
+	it.each(LEGEND_CASES)(
+		'lists every $name glyph present in the source in the legend',
+		({ render, layers }) => {
+			const svg = render(sundropVillageLayered);
+			for (const layer of layers)
+				for (const glyph of glyphsIn(sundropVillageLayered.layers[layer])) {
+					expect(svg, `glyph ${glyph} missing from ${layer} legend`).toContain(
+						`&#160;${glyph}&#160;`
+					);
+				}
+		}
+	);
+
+	// The unknown-glyph fallback only applies to renderers with static fill
+	// tables (REGION_FILL, TERRAIN_FILL, PATH_FILL). The collision renderer
+	// dynamically maps every present glyph to COLLISION_FILL, so there is no
+	// "unmapped" case to test there.
+	const STATIC_FILL_CASES: Array<{
+		readonly name: string;
+		readonly render: (src: typeof sundropVillageLayered) => string;
+		readonly layers: ReadonlyArray<keyof typeof sundropVillageLayered.layers>;
+	}> = [
+		{ name: 'regions', render: renderRegionsSvg, layers: ['regions'] },
+		{ name: 'terrain+paths', render: renderTerrainPathsSvg, layers: ['terrain', 'paths'] }
+	];
+
+	it.each(STATIC_FILL_CASES)(
+		'renders an unmapped $name glyph in the loud placeholder colour rather than blank',
+		({ render, layers }) => {
+			for (const layer of layers) {
+				const rows = sundropVillageLayered.layers[layer];
+				const patched = {
+					...sundropVillageLayered,
+					layers: {
+						...sundropVillageLayered.layers,
+						[layer]: rows.map((row, i) => (i === 0 ? 'Z'.repeat(sundropVillageLayered.width) : row))
+					}
+				};
+				expect(render(patched), `unknown glyph in ${layer} did not use placeholder`).toContain(
+					UNKNOWN_FILL
+				);
 			}
-		};
-		expect(renderRegionsSvg(patched)).toContain(UNKNOWN_FILL);
-	});
+		}
+	);
 
 	it('renders the object table with one row per landmark', () => {
 		const md = renderLayeredPreviews(sundropVillageLayered).get('village-objects.md')!;

@@ -2254,7 +2254,7 @@ describe('WorldScene', () => {
 		).toBe(true);
 		expect(scene.add.rectangle).not.toHaveBeenCalledWith(624, 5_552, 235, 246, 0x5b4636, 0.9);
 		expect(scene.add.rectangle).not.toHaveBeenCalledWith(1_616, 5_200, 235, 226, 0x5b4636, 0.9);
-		expect(scene.add.rectangle).not.toHaveBeenCalledWith(1_424, 5_584, 246, 333, 0x5b4636, 0.9);
+		expect(scene.add.rectangle).not.toHaveBeenCalledWith(1_424, 5_552, 246, 333, 0x5b4636, 0.9);
 		expect(scene.add.rectangle).not.toHaveBeenCalledWith(5_960, 1_800, 256, 224, 0x5b4636, 0.9);
 		expect(scene.add.rectangle).not.toHaveBeenCalledWith(1_104, 5_168, 141, 160, 0x5b4636, 0.9);
 		expect(scene.add.text).toHaveBeenCalledWith(624, 5_433, "Hero's House", {
