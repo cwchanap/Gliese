@@ -217,9 +217,12 @@ export function renderObjectsMarkdown<K extends MapDecor['textureKey']>(
 }
 
 /**
- * Tiles a non-grid-aligned rect occupies. A tile counts as covered when the
- * rect overlaps more than half its area — the same rule the A7 contract test
- * uses, so preview and assertion never disagree.
+ * Tiles a non-grid-aligned rect occupies, for the composed-collision preview.
+ * A tile counts as covered when the rect overlaps more than half its area — a
+ * visualization heuristic, NOT the runtime collision rule (which pads the rect
+ * by the player radius and tests the tile centre). A7 uses the runtime rule
+ * directly via `isInsideAnyCollisionRect`; this function is only for painting
+ * the preview SVG.
  *
  * `rect.x`/`.y` are CENTRES, matching MapBlocker throughout the codebase.
  */
@@ -251,7 +254,7 @@ export function renderComposedCollisionSvg<K extends MapDecor['textureKey']>(
 	overlays: readonly MapBlocker[]
 ): string {
 	const out = [
-		...header(source, 'composed collision (village + overlays)'),
+		...header(source, `composed collision (${source.idPrefix} + overlays)`),
 		...paintLayer(
 			source,
 			source.layers.collision,
@@ -263,18 +266,19 @@ export function renderComposedCollisionSvg<K extends MapDecor['textureKey']>(
 			out.push(cell(col, row, OVERLAY_FILL, 0.85));
 		}
 	}
-	return [...out, ...footer(source, ['village', 'overlay'])].join('\n');
+	return [...out, ...footer(source, [source.idPrefix, 'overlay'])].join('\n');
 }
 
 export function renderLayeredPreviews<K extends MapDecor['textureKey']>(
 	source: LayeredRegionSource<K>
 ): Map<string, string> {
+	const p = source.idPrefix;
 	return new Map([
-		['village-regions.svg', renderRegionsSvg(source)],
-		['village-collision.svg', renderCollisionSvg(source)],
-		['village-terrain-paths.svg', renderTerrainPathsSvg(source)],
-		['village-designer.svg', renderDesignerSvg(source, { mutePaths: false })],
-		['village-designer-muted.svg', renderDesignerSvg(source, { mutePaths: true })],
-		['village-objects.md', renderObjectsMarkdown(source)]
+		[`${p}-regions.svg`, renderRegionsSvg(source)],
+		[`${p}-collision.svg`, renderCollisionSvg(source)],
+		[`${p}-terrain-paths.svg`, renderTerrainPathsSvg(source)],
+		[`${p}-designer.svg`, renderDesignerSvg(source, { mutePaths: false })],
+		[`${p}-designer-muted.svg`, renderDesignerSvg(source, { mutePaths: true })],
+		[`${p}-objects.md`, renderObjectsMarkdown(source)]
 	]);
 }

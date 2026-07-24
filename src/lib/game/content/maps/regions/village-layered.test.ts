@@ -11,7 +11,6 @@ import {
 	roomAdjacency,
 	type Cell
 } from '$lib/game/content/maps/layered/geometry';
-import { tileCoverage } from '$lib/game/content/maps/layered/preview';
 import { pathsRegion } from '$lib/game/content/maps/regions/paths';
 import { meadowEntryMap } from '$lib/game/content/maps';
 import {
@@ -418,11 +417,20 @@ describe('sundrop village — Wave A design contract', () => {
 	});
 
 	it('A7 — the main route survives composition with the external corridor walls', () => {
-		const blocked = new Set<string>();
-		for (const blocker of pathsRegion.blockers ?? [])
-			for (const { col, row } of tileCoverage(blocker, V)) blocked.add(`${col}:${row}`);
+		// The runtime collision rule: a tile is blocked when its centre falls
+		// inside a blocker rect expanded by the player radius. This is the same
+		// predicate WorldScene uses (isInsideCollisionRect with playerRadius),
+		// not the >50%-area-overlap heuristic the preview painter uses — the
+		// area rule can mark a tile walkable whose centre the runtime traps.
+		const corridorRects = pathsRegion.blockers ?? [];
 		const composed = (col: number, row: number) =>
-			isWalkableTile(col, row) && !blocked.has(`${col}:${row}`);
+			isWalkableTile(col, row) &&
+			!isInsideAnyCollisionRect(
+				V.origin.x + col * V.tileSize + V.tileSize / 2,
+				V.origin.y + row * V.tileSize + V.tileSize / 2,
+				corridorRects,
+				PLAYER_RADIUS
+			);
 		assertMainRouteWidth(composed);
 	});
 
