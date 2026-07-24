@@ -964,9 +964,9 @@ describe('opening map content', () => {
 		// shrine-of-aurora each sit in a standable band too shallow to hold the
 		// conventional 40px-south arrival, so their arrivals are offset EAST and
 		// their x deliberately differs from the door's. What must hold is that the
-		// player still lands recognisably at the door they used — within one tile
-		// on x. Standability and trigger clearance are asserted separately, in
-		// "interior return arrivals are standable".
+		// player still lands recognisably at the door they used — within 1.25
+		// tiles on x (TILE + TILE/4 = 40px). Standability and trigger clearance
+		// are asserted separately, in "interior return arrivals are standable".
 		const TILE = 32;
 		const exteriorTransitions = new Map(
 			meadowEntryMap.transitions.map((transition) => [transition.toMapId, transition])
@@ -987,7 +987,7 @@ describe('opening map content', () => {
 			expect(returnTransition.arrival).toBeDefined();
 			expect(
 				Math.abs(returnTransition.arrival!.x - exteriorTransition!.x),
-				`${interiorMap.id} arrival x drifts more than a tile from its door`
+				`${interiorMap.id} arrival x drifts more than 1.25 tiles from its door`
 			).toBeLessThanOrEqual(TILE + TILE / 4);
 		}
 	});
