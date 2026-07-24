@@ -563,8 +563,18 @@ export const sundropVillageLayered: LayeredRegionSource<(typeof villageDressingA
 		],
 		ambientNpcs: [
 			{ id: 'village-wanderer', col: 23, row: 28, frameName: 'travelerNpc' },
+			// Moved from the market (room M, spec ownership table) to the north
+			// residential lane (room N) by the v2 re-spacing pass (458464a): M was
+			// reduced to the item-shop alone and N became the three-house lane, so
+			// the woodcutter follows the residences. Stands in the house-1/house-3
+			// alley, clear of the N-P and G-N gate throats.
 			{ id: 'village-woodcutter', col: 12, row: 16, frameName: 'woodcutterNpc' },
 			{ id: 'village-pilgrim', col: 30, row: 44, frameName: 'pilgrimNpc' },
+			// Moved from the east gate (room E, spec ownership table) to the plaza
+			// (room P) by the v2 re-spacing pass (458464a): P was left open with the
+			// well alone, so the crier anchors its north edge without sealing the
+			// P-S opening. (An earlier intra-E nudge, fa3206b, cleared a lantern
+			// collision box; the E→P room move itself is the v2 pass.)
 			{ id: 'village-crier', col: 29, row: 30, frameName: 'crierNpc' }
 		]
 	}

@@ -7,7 +7,8 @@
 > reconciliation" section, the SDD ledger at `.superpowers/sdd/progress.md`, and the compiled
 > `meadowEntryMap` with the A1–A12 contract in `village-layered.test.ts`. In particular: A10
 > as built protects gate throats (not landmark footprints), A11 was added, `villager-house-3`
-> is at grid (43,38), and the spawn is (624,5776).
+> is at grid (17,11) in room N (the v2 re-spacing moved it out of S; the (43,38) value below
+> is the pre-v2 as-built), and the spawn is (624,5776).
 >
 > **Two further passes landed after this plan (see the spec's "Revisions").** v2 re-spaced the
 > buildings, thinned decor to nine disjoint glyphs, and added A12 (sprite-overlap — the
