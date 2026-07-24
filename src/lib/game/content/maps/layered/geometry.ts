@@ -9,7 +9,8 @@ export interface Dims {
 	readonly height: number;
 }
 
-const STEPS: ReadonlyArray<readonly [number, number]> = [
+/** 4-connected neighbour offsets, shared with test helpers that mirror the geometry routines. */
+export const STEPS: ReadonlyArray<readonly [number, number]> = [
 	[1, 0],
 	[-1, 0],
 	[0, 1],
@@ -161,32 +162,4 @@ export function perpendicularRun(
 		}
 	}
 	return run;
-}
-
-/**
- * Tiles covered by a rect centred on a tile centre and expanded by `padPx`.
- * Used to check that a building footprint clears an opening — WorldScene
- * blocks movement against landmark rects padded by its player radius.
- */
-export function footprintTiles(
-	centreCol: number,
-	centreRow: number,
-	widthPx: number,
-	heightPx: number,
-	padPx: number,
-	tileSize: number
-): Cell[] {
-	const cx = centreCol * tileSize + tileSize / 2;
-	const cy = centreRow * tileSize + tileSize / 2;
-	const left = cx - widthPx / 2 - padPx;
-	const right = cx + widthPx / 2 + padPx;
-	const top = cy - heightPx / 2 - padPx;
-	const bottom = cy + heightPx / 2 + padPx;
-	const out: Cell[] = [];
-	for (let row = Math.floor(top / tileSize); row <= Math.floor((bottom - 1) / tileSize); row++) {
-		for (let col = Math.floor(left / tileSize); col <= Math.floor((right - 1) / tileSize); col++) {
-			if (col >= 0 && row >= 0) out.push({ col, row });
-		}
-	}
-	return out;
 }
