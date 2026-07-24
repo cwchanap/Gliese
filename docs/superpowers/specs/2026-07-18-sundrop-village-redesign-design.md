@@ -499,7 +499,12 @@ facing up at it — because the redesign moved the hero house over the old spawn
 
 **Villager-house-3.** Relocated to grid `(43, 38)` (world x 1648) to clear both of the
 shrine's gate approaches; its door, interior return arrival, and exterior landmark moved with
-it. `village-shrine-cache` moved to `(41, 44)` to avoid being entombed under it.
+it. `village-shrine-cache` moved to `(41, 44)` to avoid being entombed under it. **Superseded
+by the v2 re-spacing pass (commit `458464a`):** villager-house-3 left the packed shrine garden
+entirely and moved to the centre of the north residential lane at grid `(17, 11)` (room N,
+rows 6–16), a spaced neighbour between houses 1 and 2 — see the v2 revision below and the
+landmark comment in `village-layered.ts`. Room S now holds the shrine alone, so
+`village-shrine-cache` at `(41, 44)` sits in a single-building garden.
 
 **A10 (changed).** The plan's A10 measured landmark *footprints* (`footprintTiles`, area
 overlap) against every walkable cell of the six route rooms. That is not the game's collision
