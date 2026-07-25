@@ -61,15 +61,15 @@ const NORMALIZE_TILE_SIZE = 32;
 // decor) expands every rect by this radius before testing containment, so a
 // tile center outside the raw rect but inside the padded rect still traps the
 // player. Normalization must test against the same padded bounds.
-const NORMALIZE_PLAYER_RADIUS = 12;
+export const NORMALIZE_PLAYER_RADIUS = 12;
 // Mirrors WorldScene.landmarkDoorwayClearanceWidth — the horizontal opening
 // carved around a transition that sits inside a landmark bounds, so the
 // doorway position remains walkable. Without this carving, normalization
 // treats a valid doorway position as inside the landmark and nudges it out.
-const NORMALIZE_DOORWAY_CLEARANCE_WIDTH = 56;
+export const NORMALIZE_DOORWAY_CLEARANCE_WIDTH = 56;
 // Mirrors WorldScene.transitionRadius — the vertical clearance above the
 // doorway transition point that stays open for the player to enter.
-const NORMALIZE_TRANSITION_RADIUS = 18;
+export const NORMALIZE_TRANSITION_RADIUS = 18;
 
 export function createNewSaveState(): SaveState {
 	return {
