@@ -612,8 +612,18 @@ describe('sundrop village — Wave A design contract', () => {
 			const cy = V.origin.y + row * V.tileSize + V.tileSize / 2;
 			return Math.hypot(cx - shrineTransition.x, cy - shrineTransition.y) > triggerRadius;
 		};
+		// Restrict the crossing search to shrine-room cells plus the H-S
+		// opening cells used as entry points. Without the region guard
+		// hasWidePath could detour through H→P→S, masking a regression at
+		// the direct east–west crossing through S that this test exists to
+		// catch. The opening cells are the gate itself — the BFS can step
+		// from one into S but cannot go deeper into H (non-opening H cells
+		// fail the predicate), so the path stays within S.
+		const hsOpening = new Set(cellsIn(24, 24, 36, 40).map((c) => `${c.col}:${c.row}`));
 		const isCrossingTile = (col: number, row: number): boolean =>
-			isStandableTile(col, row) && isClearOfShrineTrigger(col, row);
+			isStandableTile(col, row) &&
+			isClearOfShrineTrigger(col, row) &&
+			(V.layers.regions[row][col] === 'S' || hsOpening.has(`${col}:${row}`));
 
 		const cache = V.objects.pickups!.find((p) => p.id === 'village-shrine-cache')!;
 		const goal: Cell = { col: cache.col, row: cache.row };
