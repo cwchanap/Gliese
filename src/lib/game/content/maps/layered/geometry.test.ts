@@ -213,12 +213,12 @@ describe('hasWidePath', () => {
 		// Start at (1,0) is in a 1-wide vertical slot (walls left and right
 		// on row 0) — hRun=1, so isWide(start) fails immediately.
 		//
-		//   row 0:  .#.
-		//   row 1:  .#.
+		//   row 0:  #.#
+		//   row 1:  #.#
 		//   row 2:  ...
 		//   row 3:  ...
 		//   row 4:  ...
-		const rows = ['.#.', '.#.', '...', '...', '...'];
+		const rows = ['#.#', '#.#', '...', '...', '...'];
 		const dims = { width: 3, height: 5 };
 		const walkable = walkableFrom(rows);
 		expect(hasWidePath({ col: 1, row: 0 }, { col: 1, row: 4 }, walkable, dims, 2)).toBe(false);
@@ -231,9 +231,9 @@ describe('hasWidePath', () => {
 		//   row 0:  ...
 		//   row 1:  ...
 		//   row 2:  ...
-		//   row 3:  .#.
-		//   row 4:  .#.
-		const rows = ['...', '...', '...', '.#.', '.#.'];
+		//   row 3:  #.#
+		//   row 4:  #.#
+		const rows = ['...', '...', '...', '#.#', '#.#'];
 		const dims = { width: 3, height: 5 };
 		const walkable = walkableFrom(rows);
 		expect(hasWidePath({ col: 1, row: 0 }, { col: 1, row: 4 }, walkable, dims, 2)).toBe(false);
