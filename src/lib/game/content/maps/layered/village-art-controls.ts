@@ -345,25 +345,16 @@ export function canonicalizeVillageArtControlInputs<K extends MapDecor['textureK
 	const sortedLandmarkInput = [...input.landmarkCollisionRects].sort(
 		(a, b) => a.x - b.x || a.y - b.y || a.width - b.width || a.height - b.height
 	);
-	const strictCollisionRects = sortedStrictInput
-		.flatMap((rect, index) => {
-			const local = padClipWorldRectToLocal(
-				{ ...rect, id: stableRectId(rect, 'strict', index) },
-				canvas,
-				0
-			);
-			return local ? [structuralRect(local, local.id)] : [];
-		})
+	const strictCollisionRects = localRects(sortedStrictInput, canvas, input.playerRadius, 'strict')
+		.map((rect) => structuralRect(rect, rect.id))
 		.sort((a, b) => String(a.id).localeCompare(String(b.id)));
-	const landmarkCollisionRects = sortedLandmarkInput
-		.flatMap((rect, index) => {
-			const local = padClipWorldRectToLocal(
-				{ ...rect, id: stableRectId(rect, 'landmark', index) },
-				canvas,
-				0
-			);
-			return local ? [structuralRect(local, local.id)] : [];
-		})
+	const landmarkCollisionRects = localRects(
+		sortedLandmarkInput,
+		canvas,
+		input.playerRadius,
+		'landmark'
+	)
+		.map((rect) => structuralRect(rect, rect.id))
 		.sort((a, b) => String(a.id).localeCompare(String(b.id)));
 	const decorGlyphs = Object.keys(source.decorGlyphTable)
 		.sort()

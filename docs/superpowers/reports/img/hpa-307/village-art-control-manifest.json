@@ -12,7 +12,7 @@
     "width": 1792,
     "height": 1536
   },
-  "computedControlFingerprint": "9b6abbbb9d373e53887023d40f63c0e2ff8fc7dd4152cf50b19481856bc50431",
+  "computedControlFingerprint": "bdf8bcd17edd6f8878debd97c55bcc72736dac7e65830130e9191753c9cf2db4",
   "artifacts": [
     "village-art-control-manifest.json",
     "village-art-control.svg",
@@ -520,197 +520,197 @@
           "id": "corridor-wall-2b",
           "x": 1519,
           "y": 158,
-          "width": 170,
-          "height": 64
+          "width": 194,
+          "height": 88
         },
         {
           "id": "corridor-wall-3b",
-          "x": 1754,
-          "y": 4,
-          "width": 64,
-          "height": 8
+          "x": 1751,
+          "y": 10,
+          "width": 82,
+          "height": 20
         },
         {
           "id": "corridor-wall-5a",
-          "x": 1772,
-          "y": 4,
-          "width": 40,
-          "height": 8
+          "x": 1766,
+          "y": 10,
+          "width": 52,
+          "height": 20
         },
         {
           "id": "village-block-0-37",
           "x": 1200,
-          "y": 32,
-          "width": 32,
-          "height": 64
+          "y": 38,
+          "width": 56,
+          "height": 76
         },
         {
           "id": "village-block-0-49",
           "x": 1584,
-          "y": 32,
-          "width": 32,
-          "height": 64
+          "y": 38,
+          "width": 56,
+          "height": 76
         },
         {
           "id": "village-block-10-35",
           "x": 1328,
           "y": 336,
-          "width": 416,
-          "height": 32
+          "width": 440,
+          "height": 56
         },
         {
           "id": "village-block-11-35",
           "x": 1136,
           "y": 400,
-          "width": 32,
-          "height": 96
+          "width": 56,
+          "height": 120
         },
         {
           "id": "village-block-19-2",
           "x": 416,
           "y": 624,
-          "width": 704,
-          "height": 32
+          "width": 728,
+          "height": 56
         },
         {
           "id": "village-block-19-30",
           "x": 1056,
           "y": 624,
-          "width": 192,
-          "height": 32
+          "width": 216,
+          "height": 56
         },
         {
           "id": "village-block-2-2",
           "x": 640,
           "y": 80,
-          "width": 1152,
-          "height": 32
+          "width": 1176,
+          "height": 56
         },
         {
           "id": "village-block-2-49",
           "x": 1632,
           "y": 80,
-          "width": 128,
-          "height": 32
+          "width": 152,
+          "height": 56
         },
         {
           "id": "village-block-20-2",
           "x": 80,
           "y": 832,
-          "width": 32,
-          "height": 384
+          "width": 56,
+          "height": 408
         },
         {
           "id": "village-block-20-34",
           "x": 1120,
           "y": 832,
-          "width": 64,
-          "height": 384
+          "width": 88,
+          "height": 408
         },
         {
           "id": "village-block-25-20",
           "x": 656,
           "y": 912,
-          "width": 32,
-          "height": 224
+          "width": 56,
+          "height": 248
         },
         {
           "id": "village-block-3-2",
           "x": 608,
           "y": 112,
-          "width": 1088,
-          "height": 32
+          "width": 1112,
+          "height": 56
         },
         {
           "id": "village-block-3-51",
           "x": 1664,
           "y": 560,
-          "width": 64,
-          "height": 928
+          "width": 88,
+          "height": 952
         },
         {
           "id": "village-block-32-2",
           "x": 96,
           "y": 1248,
-          "width": 64,
-          "height": 448
+          "width": 88,
+          "height": 472
         },
         {
           "id": "village-block-32-24",
           "x": 848,
           "y": 1040,
-          "width": 160,
-          "height": 32
+          "width": 184,
+          "height": 56
         },
         {
           "id": "village-block-32-33",
           "x": 1376,
           "y": 1040,
-          "width": 640,
-          "height": 32
+          "width": 664,
+          "height": 56
         },
         {
           "id": "village-block-32-8",
           "x": 448,
           "y": 1040,
-          "width": 384,
-          "height": 32
+          "width": 408,
+          "height": 56
         },
         {
           "id": "village-block-33-24",
           "x": 784,
           "y": 1104,
-          "width": 32,
-          "height": 96
+          "width": 56,
+          "height": 120
         },
         {
           "id": "village-block-33-49",
           "x": 1632,
           "y": 1264,
-          "width": 128,
-          "height": 416
+          "width": 152,
+          "height": 440
         },
         {
           "id": "village-block-4-2",
           "x": 96,
           "y": 368,
-          "width": 64,
-          "height": 480
+          "width": 88,
+          "height": 504
         },
         {
           "id": "village-block-4-35",
           "x": 1136,
           "y": 224,
-          "width": 32,
-          "height": 192
+          "width": 56,
+          "height": 216
         },
         {
           "id": "village-block-41-24",
           "x": 784,
           "y": 1392,
-          "width": 32,
-          "height": 160
+          "width": 56,
+          "height": 184
         },
         {
           "id": "village-block-46-2",
           "x": 880,
           "y": 1488,
-          "width": 1632,
-          "height": 32
+          "width": 1656,
+          "height": 56
         },
         {
           "id": "village-decor-40-28-collision",
           "x": 912,
           "y": 1356,
-          "width": 80,
-          "height": 60
+          "width": 104,
+          "height": 84
         },
         {
           "id": "village-decor-40-44-collision",
           "x": 1424,
           "y": 1356,
-          "width": 80,
-          "height": 60
+          "width": 104,
+          "height": 84
         }
       ],
       "landmarks": [
@@ -718,64 +718,64 @@
           "id": "landmark-1104-5168-141-160-0004",
           "x": 848,
           "y": 816,
-          "width": 141,
-          "height": 160
+          "width": 165,
+          "height": 184
         },
         {
           "id": "landmark-1168-4720-338-261-0005",
           "x": 912,
           "y": 368,
-          "width": 338,
-          "height": 261
+          "width": 362,
+          "height": 285
         },
         {
           "id": "landmark-1424-5552-246-333-0007",
           "x": 1168,
           "y": 1200,
-          "width": 246,
-          "height": 333
+          "width": 270,
+          "height": 357
         },
         {
           "id": "landmark-1616-4848-307-277-0008",
           "x": 1360,
           "y": 496,
-          "width": 307,
-          "height": 277
+          "width": 331,
+          "height": 301
         },
         {
           "id": "landmark-1616-5200-235-226-0009",
           "x": 1360,
           "y": 848,
-          "width": 235,
-          "height": 226
+          "width": 259,
+          "height": 250
         },
         {
           "id": "landmark-496-5136-246-235-0000",
           "x": 240,
           "y": 784,
-          "width": 246,
-          "height": 235
+          "width": 270,
+          "height": 259
         },
         {
           "id": "landmark-528-4720-226-205-0001",
           "x": 272,
           "y": 368,
-          "width": 226,
-          "height": 205
+          "width": 250,
+          "height": 229
         },
         {
           "id": "landmark-624-5552-235-246-0002",
           "x": 368,
           "y": 1200,
-          "width": 235,
-          "height": 246
+          "width": 259,
+          "height": 270
         },
         {
           "id": "landmark-816-4720-184-333-0003",
           "x": 560,
           "y": 368,
-          "width": 184,
-          "height": 333
+          "width": 208,
+          "height": 357
         }
       ]
     },
