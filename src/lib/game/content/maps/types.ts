@@ -87,6 +87,11 @@ export interface MapRect {
 	height: number;
 }
 
+export interface MapBackgroundImage extends MapRect {
+	textureKey: string;
+	depth: number;
+}
+
 export type MapTransitionMarker = 'doorway' | 'stair';
 
 export type MapGroundTile = TerrainTileFrameName;
@@ -208,4 +213,5 @@ export interface WorldMapDefinition extends MapDefinition {
 	interiorProps?: MapInteriorProp[];
 	ambientNpcs?: MapAmbientNpc[];
 	discoveries?: MapDiscovery[];
+	backgroundImages?: MapBackgroundImage[];
 }

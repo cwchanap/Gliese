@@ -1930,6 +1930,20 @@ describe('meadow-entry region integrity', () => {
 		expect(meadowEntryMap.npcs).toEqual([]);
 	});
 
+	it('merges the source-derived Sundrop regional background onto the opening map', () => {
+		expect(meadowEntryMap.backgroundImages).toEqual([
+			{
+				id: 'sundrop-village-regional-background',
+				textureKey: 'sundrop-village-background',
+				x: 1_152,
+				y: 5_120,
+				width: 1_792,
+				height: 1_536,
+				depth: -9
+			}
+		]);
+	});
+
 	it('seals three foreshadow gates with future-gate collision', () => {
 		const sealedGateIds = ['witchwood-gate-block', 'silver-shrine-gate-block', 'castle-gate-block'];
 		const gateBlockers = (meadowEntryMap.blockers ?? []).filter((blocker) =>
@@ -1961,6 +1975,37 @@ describe('meadow-entry region integrity', () => {
 });
 
 describe('mergeRegions collision guard', () => {
+	it('throws on a duplicate background image id across composed regions', () => {
+		const regionA: RegionFragment = {
+			backgroundImages: [
+				{
+					id: 'shared-background',
+					textureKey: 'first-background',
+					x: 100,
+					y: 100,
+					width: 100,
+					height: 100,
+					depth: -9
+				}
+			]
+		};
+		const regionB: RegionFragment = {
+			backgroundImages: [
+				{
+					id: 'shared-background',
+					textureKey: 'second-background',
+					x: 200,
+					y: 200,
+					width: 200,
+					height: 200,
+					depth: -8
+				}
+			]
+		};
+
+		expect(() => mergeRegions([regionA, regionB])).toThrowError(/duplicate id "shared-background"/);
+	});
+
 	it('throws on a duplicate id within a field across composed regions', () => {
 		const regionA: RegionFragment = {
 			transitions: [{ id: 'shared-door', x: 0, y: 0, toMapId: 'meadow-entry' }]

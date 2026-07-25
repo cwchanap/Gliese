@@ -1,5 +1,6 @@
 import type {
 	MapAmbientNpc,
+	MapBackgroundImage,
 	MapBlocker,
 	MapCombatBounds,
 	MapDecor,
@@ -30,4 +31,5 @@ export interface RegionFragment {
 	encounters?: MapEncounter[];
 	combatBounds?: MapCombatBounds[];
 	discoveries?: MapDiscovery[];
+	backgroundImages?: MapBackgroundImage[];
 }
