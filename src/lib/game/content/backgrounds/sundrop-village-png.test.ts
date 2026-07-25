@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
+import { mkdtemp, readFile, readdir, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
@@ -16,6 +16,7 @@ import {
 	normalizeSundropVillageBackground,
 	quantizeSundropVillageRgba,
 	rasterizeSundropVillageArtControl,
+	validateSundropVillagePng,
 	writeFinalizedSundropVillagePng
 } from './sundrop-village-png';
 
@@ -27,6 +28,7 @@ let opaqueFixture: Buffer;
 let metadataFixture: Buffer;
 let nonOpaqueFixture: Buffer;
 let wrongDimensionsFixture: Buffer;
+let finalizedFixture: Buffer;
 
 function expectedAlpha(distance: number): number {
 	const t = Math.max(0, Math.min(1, distance / 64));
@@ -48,6 +50,64 @@ function pngChunkTypes(png: Buffer): string[] {
 		if (type === 'IEND') break;
 	}
 	return types;
+}
+
+interface PngChunkLocation {
+	readonly offset: number;
+	readonly dataOffset: number;
+	readonly dataLength: number;
+	readonly crcOffset: number;
+	readonly endOffset: number;
+}
+
+function findPngChunk(png: Buffer, wantedType: string): PngChunkLocation {
+	let offset = 8;
+	while (offset + 12 <= png.length) {
+		const dataLength = png.readUInt32BE(offset);
+		const dataOffset = offset + 8;
+		const crcOffset = dataOffset + dataLength;
+		const endOffset = crcOffset + 4;
+		const type = png.toString('ascii', offset + 4, offset + 8);
+		if (type === wantedType) return { offset, dataOffset, dataLength, crcOffset, endOffset };
+		offset = endOffset;
+	}
+	throw new Error(`Missing PNG chunk ${wantedType}`);
+}
+
+function testCrc32(bytes: Uint8Array): number {
+	let crc = 0xffffffff;
+	for (const byte of bytes) {
+		crc ^= byte;
+		for (let bit = 0; bit < 8; bit += 1) {
+			crc = (crc >>> 1) ^ (crc & 1 ? 0xedb88320 : 0);
+		}
+	}
+	return (crc ^ 0xffffffff) >>> 0;
+}
+
+function makePngChunk(type: string, data: Uint8Array): Buffer {
+	const chunk = Buffer.alloc(12 + data.byteLength);
+	chunk.writeUInt32BE(data.byteLength, 0);
+	chunk.write(type, 4, 4, 'ascii');
+	Buffer.from(data).copy(chunk, 8);
+	chunk.writeUInt32BE(testCrc32(chunk.subarray(4, 8 + data.byteLength)), 8 + data.byteLength);
+	return chunk;
+}
+
+function replacePngChunk(png: Buffer, type: string, replacement: Buffer): Buffer {
+	const location = findPngChunk(png, type);
+	return Buffer.concat([
+		png.subarray(0, location.offset),
+		replacement,
+		png.subarray(location.endOffset)
+	]);
+}
+
+function corruptPngChunkCrc(png: Buffer, type: string): Buffer {
+	const corrupted = Buffer.from(png);
+	const { crcOffset } = findPngChunk(corrupted, type);
+	corrupted[crcOffset] = (corrupted[crcOffset] ?? 0) ^ 0x01;
+	return corrupted;
 }
 
 async function makeTemporaryDirectory(): Promise<string> {
@@ -88,6 +148,7 @@ beforeAll(async () => {
 	})
 		.png()
 		.toBuffer();
+	finalizedFixture = (await finalizeSundropVillagePng(opaqueFixture, 0)).png;
 });
 
 afterEach(async () => {
@@ -233,6 +294,73 @@ describe('Sundrop Village deterministic PNG pipeline', () => {
 		expect(first.bytes).toBe(first.png.byteLength);
 	});
 
+	it.each(['IHDR', 'IDAT', 'IEND'])('rejects a corrupted %s chunk CRC', async (chunkType) => {
+		await expect(
+			validateSundropVillagePng(corruptPngChunkCrc(finalizedFixture, chunkType))
+		).rejects.toThrow(`${chunkType} CRC mismatch`);
+	});
+
+	it('rejects a corrupted ancillary chunk CRC before decoding', async () => {
+		const iend = findPngChunk(finalizedFixture, 'IEND');
+		const ancillary = makePngChunk('vpAg', Buffer.from([1, 2, 3]));
+		ancillary[ancillary.length - 1] = (ancillary[ancillary.length - 1] ?? 0) ^ 0x01;
+		const corrupted = Buffer.concat([
+			finalizedFixture.subarray(0, iend.offset),
+			ancillary,
+			finalizedFixture.subarray(iend.offset)
+		]);
+
+		await expect(validateSundropVillagePng(corrupted)).rejects.toThrow('vpAg CRC mismatch');
+	});
+
+	it('rejects a truncated PNG chunk', async () => {
+		await expect(validateSundropVillagePng(finalizedFixture.subarray(0, -1))).rejects.toThrow(
+			'truncated chunk'
+		);
+	});
+
+	it('rejects bytes after IEND', async () => {
+		await expect(
+			validateSundropVillagePng(Buffer.concat([finalizedFixture, Buffer.from([0xde, 0xad])]))
+		).rejects.toThrow('bytes after IEND');
+	});
+
+	it('requires a 13-byte IHDR chunk', async () => {
+		const ihdr = findPngChunk(finalizedFixture, 'IHDR');
+		const malformed = replacePngChunk(
+			finalizedFixture,
+			'IHDR',
+			makePngChunk('IHDR', finalizedFixture.subarray(ihdr.dataOffset, ihdr.dataOffset + 12))
+		);
+
+		await expect(validateSundropVillagePng(malformed)).rejects.toThrow(
+			'IHDR must contain exactly 13 bytes'
+		);
+	});
+
+	it('requires a zero-byte IEND chunk', async () => {
+		const malformed = replacePngChunk(
+			finalizedFixture,
+			'IEND',
+			makePngChunk('IEND', Buffer.from([0]))
+		);
+
+		await expect(validateSundropVillagePng(malformed)).rejects.toThrow(
+			'IEND must contain zero bytes'
+		);
+	});
+
+	it('rejects a second IEND chunk', async () => {
+		const iend = findPngChunk(finalizedFixture, 'IEND');
+		const malformed = Buffer.concat([
+			finalizedFixture.subarray(0, iend.offset),
+			finalizedFixture.subarray(iend.offset),
+			finalizedFixture.subarray(iend.offset)
+		]);
+
+		await expect(validateSundropVillagePng(malformed)).rejects.toThrow('bytes after IEND');
+	});
+
 	it('does not replace an existing output when source validation fails', async () => {
 		const directory = await makeTemporaryDirectory();
 		const input = join(directory, 'invalid.png');
@@ -246,6 +374,30 @@ describe('Sundrop Village deterministic PNG pipeline', () => {
 		);
 
 		expect(await readFile(output)).toEqual(sentinel);
+	});
+
+	it('cleans the temporary file and preserves the destination when exact-byte validation fails', async () => {
+		const directory = await makeTemporaryDirectory();
+		const input = join(directory, 'valid.png');
+		const output = join(directory, 'existing.png');
+		const sentinel = Buffer.from('approved-existing-output');
+		await writeFile(input, opaqueFixture);
+		await writeFile(output, sentinel);
+
+		await expect(
+			writeFinalizedSundropVillagePng(
+				{ input, output, tier: 0 },
+				{
+					afterTemporaryWrite: async (temporaryPath) => {
+						const temporaryBytes = await readFile(temporaryPath);
+						await writeFile(temporaryPath, corruptPngChunkCrc(temporaryBytes, 'IEND'));
+					}
+				}
+			)
+		).rejects.toThrow('IEND CRC mismatch');
+
+		expect(await readFile(output)).toEqual(sentinel);
+		expect((await readdir(directory)).sort()).toEqual(['existing.png', 'valid.png']);
 	});
 
 	it('does not replace an existing output when the encoded hard budget is exceeded', async () => {
