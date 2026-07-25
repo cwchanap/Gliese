@@ -118,6 +118,10 @@ import {
 	type HudCommand,
 	type HudState
 } from '$lib/game/ui-bridge/events';
+import {
+	resolveWorldRenderOptions,
+	type WorldRenderOptions
+} from '$lib/game/phaser/world-render-options';
 import { BattleScene } from './BattleScene';
 
 interface WorldSceneData {
@@ -344,6 +348,7 @@ export class WorldScene extends Phaser.Scene {
 	private storyDialogueSeq = 0;
 	private resolvedEncounterDrops: SaveState['flags']['resolvedEncounterDrops'] = {};
 	private removeHudCommandListener = () => {};
+	private renderOptions!: WorldRenderOptions;
 	private simulationPaused = false;
 	private victoryAchieved = false;
 	private wasdKeys?: Partial<Record<'left' | 'right' | 'up' | 'down', DirectionKey>>;
@@ -388,6 +393,7 @@ export class WorldScene extends Phaser.Scene {
 	}
 
 	create(data: WorldSceneData = {}) {
+		this.renderOptions = resolveWorldRenderOptions();
 		const battleApplication =
 			data.battleResult && data.saveState
 				? applyBattleResultToSaveState(data.saveState, data.battleResult)
@@ -470,6 +476,7 @@ export class WorldScene extends Phaser.Scene {
 		this.ensureActorAnimations();
 		this.ensureTerrainTilesetTexture();
 		this.renderGround(map);
+		this.renderRegionalBackgrounds(map);
 		this.renderMapDecor(map, ['floor', 'furniture']);
 		this.renderFences(map);
 		this.renderBlockers(map);
@@ -1584,6 +1591,75 @@ export class WorldScene extends Phaser.Scene {
 
 		const layer = tilemap.createLayer(0, tileset, 0, 0) as TilemapLayer | null;
 		layer?.setDepth?.(-10);
+	}
+
+	private renderRegionalBackgrounds(map: WorldMapDefinition) {
+		if (!this.renderOptions.regionalBackgrounds) {
+			return;
+		}
+
+		for (const background of map.backgroundImages ?? []) {
+			const textureManager = this.textures as typeof this.textures & {
+				exists?: (key: string) => boolean;
+			};
+
+			if (!textureManager.exists?.(background.textureKey)) {
+				console.warn(
+					`[WorldScene] regional background unavailable: id="${background.id}" textureKey="${background.textureKey}" mapId="${map.id}"`
+				);
+				continue;
+			}
+
+			const dimensions = this.getTextureSourceDimensions(background.textureKey);
+
+			if (!dimensions) {
+				console.warn(
+					`[WorldScene] regional background unavailable: id="${background.id}" textureKey="${background.textureKey}" mapId="${map.id}"`
+				);
+				continue;
+			}
+
+			if (dimensions.width !== background.width || dimensions.height !== background.height) {
+				console.warn(
+					`[WorldScene] regional background dimensions mismatch: id="${background.id}" textureKey="${background.textureKey}" mapId="${map.id}" expected=${background.width}x${background.height} actual=${dimensions.width}x${dimensions.height}`
+				);
+				continue;
+			}
+
+			this.add
+				.image(background.x, background.y, background.textureKey)
+				.setOrigin(0.5, 0.5)
+				.setDisplaySize(background.width, background.height)
+				.setDepth(background.depth);
+		}
+	}
+
+	private getTextureSourceDimensions(
+		textureKey: string
+	): { width: number; height: number } | undefined {
+		const texture = this.textures.get(textureKey) as {
+			key?: string;
+			source?: Array<{ width?: number; height?: number }>;
+			get?: () => { cutWidth?: number; cutHeight?: number };
+		};
+
+		if (!texture || texture.key === '__MISSING') {
+			return undefined;
+		}
+
+		const source = texture.source?.[0];
+
+		if (typeof source?.width === 'number' && typeof source.height === 'number') {
+			return { width: source.width, height: source.height };
+		}
+
+		const baseFrame = texture.get?.();
+
+		if (typeof baseFrame?.cutWidth === 'number' && typeof baseFrame.cutHeight === 'number') {
+			return { width: baseFrame.cutWidth, height: baseFrame.cutHeight };
+		}
+
+		return undefined;
 	}
 
 	private buildGroundTileData(map: WorldMapDefinition) {

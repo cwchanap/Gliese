@@ -19,6 +19,7 @@ import {
 	isNpcPackFrameName,
 	marshDressingAsset,
 	npcPackAsset,
+	regionalBackgroundAssets,
 	shrineDressingAsset,
 	starterPackAsset,
 	terrainFrameOrder,
@@ -31,6 +32,11 @@ import {
 	type InteriorPropFrameName,
 	type VillageBuildingFrameName
 } from '$lib/game/content/assets';
+import { sundropVillageBackgroundApproval } from '$lib/game/content/approvals/sundrop-village-background';
+import {
+	SUNDROP_VILLAGE_BACKGROUND_PATH,
+	SUNDROP_VILLAGE_BACKGROUND_TEXTURE_KEY
+} from '$lib/game/content/backgrounds/sundrop-village-background';
 import { meadowEntryMap } from '$lib/game/content/maps';
 
 const requiredActors: ActorAnimationId[] = ['hero', 'slimeScout', 'ruinsWarden'];
@@ -139,6 +145,19 @@ describe('battle background asset metadata', () => {
 	it('returns the background asset for the resolved environment', () => {
 		expect(getBattleBackgroundAsset('ruins-core')).toBe(battleBackgroundAssets.ruins);
 		expect(getBattleBackgroundAsset('villager-house-1')).toBe(battleBackgroundAssets.neutral);
+	});
+});
+
+describe('regional background asset metadata', () => {
+	it('registers the approved Sundrop Village background exactly once', () => {
+		expect(regionalBackgroundAssets).toEqual([
+			{
+				key: SUNDROP_VILLAGE_BACKGROUND_TEXTURE_KEY,
+				path: SUNDROP_VILLAGE_BACKGROUND_PATH,
+				approvedControlFingerprint: sundropVillageBackgroundApproval.approvedControlFingerprint,
+				approvedPngSha256: sundropVillageBackgroundApproval.approvedPngSha256
+			}
+		]);
 	});
 });
 

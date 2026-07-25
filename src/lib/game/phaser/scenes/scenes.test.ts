@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { battleBackgroundAssets } from '$lib/game/content/assets';
+import { SUNDROP_VILLAGE_BACKGROUND_TEXTURE_KEY } from '$lib/game/content/backgrounds/sundrop-village-background';
 import { maps } from '$lib/game/content/maps';
 import { HUD_COMMAND_EVENT, type HudCommand } from '$lib/game/ui-bridge/events';
 
@@ -212,6 +213,7 @@ vi.mock('$lib/game/i18n/content', async () => {
 });
 
 const phaserState = vi.hoisted(() => {
+	const regionalBackgroundTextureKey = 'sundrop-village-background';
 	const cursorKeys = {
 		left: { isDown: false },
 		right: { isDown: false },
@@ -281,6 +283,12 @@ const phaserState = vi.hoisted(() => {
 		has: vi.fn(() => false),
 		add: vi.fn()
 	};
+	const regionalBackgroundTextureMock = {
+		key: regionalBackgroundTextureKey,
+		source: [{ width: 1792, height: 1536 }],
+		get: vi.fn(() => ({ cutWidth: 1792, cutHeight: 1536 }))
+	};
+	const missingTextureKeys = new Set<string>();
 	const tilemapLayer = {
 		setDepth: vi.fn(() => tilemapLayer)
 	};
@@ -305,9 +313,12 @@ const phaserState = vi.hoisted(() => {
 	const imageMarkers: Array<{
 		x: number;
 		y: number;
+		texture: string;
 		frame?: string;
 		visible: boolean;
+		setDepth: ReturnType<typeof vi.fn>;
 		setDisplaySize: ReturnType<typeof vi.fn>;
+		setOrigin: ReturnType<typeof vi.fn>;
 		setVisible: ReturnType<typeof vi.fn>;
 	}> = [];
 	const tileSpriteMarkers: Array<{
@@ -371,7 +382,7 @@ const phaserState = vi.hoisted(() => {
 	const attackFlash = createOverlayMarker();
 	const victoryOverlay = createOverlayMarker();
 
-	function createImage(x: number, y: number, _texture: string, frame?: string) {
+	function createImage(x: number, y: number, texture: string, frame?: string) {
 		if (
 			frame === 'hero' ||
 			frame?.startsWith('heroIdle') ||
@@ -403,9 +414,12 @@ const phaserState = vi.hoisted(() => {
 		const marker = {
 			x,
 			y,
+			texture,
 			frame,
 			visible: true,
+			setDepth: vi.fn(() => marker),
 			setDisplaySize: vi.fn(() => marker),
+			setOrigin: vi.fn(() => marker),
 			setVisible: vi.fn((visible: boolean) => {
 				marker.visible = visible;
 				return marker;
@@ -538,7 +552,10 @@ const phaserState = vi.hoisted(() => {
 			}
 		};
 		textures = {
-			get: vi.fn(() => textureMock)
+			exists: vi.fn((key: string) => !missingTextureKeys.has(key)),
+			get: vi.fn((key: string) =>
+				key === regionalBackgroundTextureKey ? regionalBackgroundTextureMock : textureMock
+			)
 		};
 
 		constructor(...args: unknown[]) {
@@ -566,6 +583,8 @@ const phaserState = vi.hoisted(() => {
 		attackFlash,
 		victoryText,
 		textureMock,
+		regionalBackgroundTextureMock,
+		missingTextureKeys,
 		tilemap,
 		tilemapLayer,
 		mainCamera,
@@ -624,6 +643,10 @@ const phaserState = vi.hoisted(() => {
 			attackFlash.setVisible.mockReset();
 			textureMock.has.mockClear();
 			textureMock.add.mockClear();
+			regionalBackgroundTextureMock.key = regionalBackgroundTextureKey;
+			regionalBackgroundTextureMock.source[0] = { width: 1792, height: 1536 };
+			regionalBackgroundTextureMock.get.mockClear();
+			missingTextureKeys.clear();
 			tilemap.addTilesetImage.mockClear();
 			tilemap.createLayer.mockClear();
 			tilemapLayer.setDepth.mockClear();
@@ -747,6 +770,18 @@ describe('BootScene', () => {
 			environmentDressingAsset.path
 		);
 		for (const asset of Object.values(battleBackgroundAssets)) {
+			expect(scene.load.image).toHaveBeenCalledWith(asset.key, asset.path);
+		}
+	});
+
+	it('preloads every registered regional background', async () => {
+		const { regionalBackgroundAssets } = await import('$lib/game/content/assets');
+		const { BootScene } = await import('./BootScene');
+		const scene = new BootScene();
+
+		scene.preload();
+
+		for (const asset of regionalBackgroundAssets) {
 			expect(scene.load.image).toHaveBeenCalledWith(asset.key, asset.path);
 		}
 	});
@@ -2022,6 +2057,202 @@ describe('WorldScene', () => {
 			'stoneStair'
 		);
 		expect(scene.cameras.main.setBackgroundColor).toHaveBeenCalledWith('#1a1f2b');
+	});
+
+	it('renders the Sundrop regional background at its source-derived center and center origin', async () => {
+		const { WorldScene } = await import('./WorldScene');
+		const scene = new WorldScene();
+
+		scene.create({ mapId: 'meadow-entry' });
+
+		expect(scene.add.image).toHaveBeenCalledWith(
+			1152,
+			5120,
+			SUNDROP_VILLAGE_BACKGROUND_TEXTURE_KEY
+		);
+		const background = phaserState.imageMarkers.find(
+			(marker) => marker.texture === SUNDROP_VILLAGE_BACKGROUND_TEXTURE_KEY
+		);
+		expect(background?.setOrigin).toHaveBeenCalledWith(0.5, 0.5);
+	});
+
+	it('sizes the Sundrop regional background to its descriptor and places it at depth -9', async () => {
+		const { WorldScene } = await import('./WorldScene');
+		const scene = new WorldScene();
+
+		scene.create({ mapId: 'meadow-entry' });
+
+		const background = phaserState.imageMarkers.find(
+			(marker) => marker.texture === SUNDROP_VILLAGE_BACKGROUND_TEXTURE_KEY
+		);
+		expect(background?.setDisplaySize).toHaveBeenCalledWith(1792, 1536);
+		expect(background?.setDepth).toHaveBeenCalledWith(-9);
+	});
+
+	it('skips a missing regional texture with one targeted warning and keeps fallback ground', async () => {
+		const { WorldScene } = await import('./WorldScene');
+		const scene = new WorldScene();
+		const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+		phaserState.missingTextureKeys.add(SUNDROP_VILLAGE_BACKGROUND_TEXTURE_KEY);
+
+		try {
+			scene.create({ mapId: 'meadow-entry' });
+
+			expect(
+				phaserState.imageMarkers.some(
+					(marker) => marker.texture === SUNDROP_VILLAGE_BACKGROUND_TEXTURE_KEY
+				)
+			).toBe(false);
+			expect(phaserState.tilemapLayer.setDepth).toHaveBeenCalledWith(-10);
+			expect(warn).toHaveBeenCalledTimes(1);
+			expect(warn).toHaveBeenCalledWith(
+				'[WorldScene] regional background unavailable: id="sundrop-village-regional-background" textureKey="sundrop-village-background" mapId="meadow-entry"'
+			);
+		} finally {
+			warn.mockRestore();
+		}
+	});
+
+	it('skips a wrong-sized regional texture with one expected/actual dimension warning', async () => {
+		const { WorldScene } = await import('./WorldScene');
+		const scene = new WorldScene();
+		const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+		phaserState.regionalBackgroundTextureMock.source[0] = { width: 1700, height: 1400 };
+
+		try {
+			scene.create({ mapId: 'meadow-entry' });
+
+			expect(
+				phaserState.imageMarkers.some(
+					(marker) => marker.texture === SUNDROP_VILLAGE_BACKGROUND_TEXTURE_KEY
+				)
+			).toBe(false);
+			expect(phaserState.tilemapLayer.setDepth).toHaveBeenCalledWith(-10);
+			expect(warn).toHaveBeenCalledTimes(1);
+			expect(warn).toHaveBeenCalledWith(
+				'[WorldScene] regional background dimensions mismatch: id="sundrop-village-regional-background" textureKey="sundrop-village-background" mapId="meadow-entry" expected=1792x1536 actual=1700x1400'
+			);
+		} finally {
+			warn.mockRestore();
+		}
+	});
+
+	it('keeps fallback ground but skips the regional image when the URL disables backgrounds', async () => {
+		const previousLocation = Object.getOwnPropertyDescriptor(globalThis, 'location');
+		let searchReads = 0;
+		Object.defineProperty(globalThis, 'location', {
+			configurable: true,
+			value: {
+				get search() {
+					searchReads += 1;
+					return '?regionalBackground=off';
+				}
+			}
+		});
+
+		try {
+			const { WorldScene } = await import('./WorldScene');
+			const scene = new WorldScene();
+
+			scene.create({ mapId: 'meadow-entry' });
+
+			expect(
+				phaserState.imageMarkers.some(
+					(marker) => marker.texture === SUNDROP_VILLAGE_BACKGROUND_TEXTURE_KEY
+				)
+			).toBe(false);
+			expect(phaserState.tilemapLayer.setDepth).toHaveBeenCalledWith(-10);
+			expect(searchReads).toBe(1);
+		} finally {
+			if (previousLocation) {
+				Object.defineProperty(globalThis, 'location', previousLocation);
+			} else {
+				Reflect.deleteProperty(globalThis, 'location');
+			}
+		}
+	});
+
+	it('accepts matching immutable base-frame dimensions when source dimensions are absent', async () => {
+		const { WorldScene } = await import('./WorldScene');
+		const scene = new WorldScene();
+		phaserState.regionalBackgroundTextureMock.source = [];
+
+		scene.create({ mapId: 'meadow-entry' });
+
+		expect(
+			phaserState.imageMarkers.some(
+				(marker) => marker.texture === SUNDROP_VILLAGE_BACKGROUND_TEXTURE_KEY
+			)
+		).toBe(true);
+		expect(phaserState.regionalBackgroundTextureMock.get).toHaveBeenCalledOnce();
+	});
+
+	it('never renders Phaser’s missing-texture placeholder', async () => {
+		const { WorldScene } = await import('./WorldScene');
+		const scene = new WorldScene();
+		const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+		phaserState.regionalBackgroundTextureMock.key = '__MISSING';
+
+		try {
+			scene.create({ mapId: 'meadow-entry' });
+
+			expect(
+				phaserState.imageMarkers.some(
+					(marker) => marker.texture === SUNDROP_VILLAGE_BACKGROUND_TEXTURE_KEY
+				)
+			).toBe(false);
+			expect(warn).toHaveBeenCalledTimes(1);
+		} finally {
+			warn.mockRestore();
+		}
+	});
+
+	it('renders regional backgrounds after fallback ground and before floor decor', async () => {
+		registerSceneSupportTestMap();
+		maps['scene-support-test']!.backgroundImages = [
+			{
+				id: 'scene-support-background',
+				x: 320,
+				y: 320,
+				width: 1792,
+				height: 1536,
+				textureKey: SUNDROP_VILLAGE_BACKGROUND_TEXTURE_KEY,
+				depth: -9
+			}
+		];
+		maps['scene-support-test']!.mapDecor = [
+			{
+				id: 'scene-support-floor-decor',
+				x: 128,
+				y: 128,
+				width: 64,
+				height: 64,
+				textureKey: 'forest-dressing',
+				frameName: 'brush',
+				depth: 'floor'
+			}
+		];
+		const { WorldScene } = await import('./WorldScene');
+		const scene = new WorldScene();
+
+		scene.create({ mapId: 'scene-support-test' });
+
+		const imageCalls = vi.mocked(scene.add.image).mock.calls;
+		const backgroundCallIndex = imageCalls.findIndex(
+			([, , texture]) => texture === SUNDROP_VILLAGE_BACKGROUND_TEXTURE_KEY
+		);
+		const floorDecorCallIndex = imageCalls.findIndex(
+			([, , texture, frame]) => texture === 'forest-dressing' && frame === 'brush'
+		);
+		const groundOrder = vi.mocked(scene.make.tilemap).mock.invocationCallOrder[0]!;
+		const backgroundOrder = vi.mocked(scene.add.image).mock.invocationCallOrder[
+			backgroundCallIndex
+		]!;
+		const floorDecorOrder = vi.mocked(scene.add.image).mock.invocationCallOrder[
+			floorDecorCallIndex
+		]!;
+		expect(groundOrder).toBeLessThan(backgroundOrder);
+		expect(backgroundOrder).toBeLessThan(floorDecorOrder);
 	});
 
 	it('reveals a discovery marker only when the hero is within range', async () => {

@@ -1,3 +1,9 @@
+import { sundropVillageBackgroundApproval } from '$lib/game/content/approvals/sundrop-village-background';
+import {
+	SUNDROP_VILLAGE_BACKGROUND_PATH,
+	SUNDROP_VILLAGE_BACKGROUND_TEXTURE_KEY
+} from '$lib/game/content/backgrounds/sundrop-village-background';
+
 export const starterPackAsset = {
 	key: 'starter-pack',
 	path: '/game/assets/starter-pack.png',
@@ -76,6 +82,15 @@ export const battleBackgroundAssets = {
 		path: '/game/assets/battle-neutral.png'
 	}
 } as const;
+
+export const regionalBackgroundAssets = [
+	{
+		key: SUNDROP_VILLAGE_BACKGROUND_TEXTURE_KEY,
+		path: SUNDROP_VILLAGE_BACKGROUND_PATH,
+		approvedControlFingerprint: sundropVillageBackgroundApproval.approvedControlFingerprint,
+		approvedPngSha256: sundropVillageBackgroundApproval.approvedPngSha256
+	}
+] as const;
 
 export type BattleEnvironmentId = keyof typeof battleBackgroundAssets;
 
