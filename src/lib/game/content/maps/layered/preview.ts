@@ -86,6 +86,12 @@ function footer<K extends MapDecor['textureKey']>(
 	return out;
 }
 
+function collisionFillMap<K extends MapDecor['textureKey']>(
+	source: LayeredRegionSource<K>
+): Record<string, string> {
+	return Object.fromEntries(glyphsIn(source.layers.collision).map((g) => [g, COLLISION_FILL]));
+}
+
 function paintLayer<K extends MapDecor['textureKey']>(
 	source: LayeredRegionSource<K>,
 	rows: readonly string[],
@@ -118,11 +124,7 @@ export function renderCollisionSvg<K extends MapDecor['textureKey']>(
 ): string {
 	return [
 		...header(source, 'collision'),
-		...paintLayer(
-			source,
-			source.layers.collision,
-			Object.fromEntries(glyphsIn(source.layers.collision).map((g) => [g, COLLISION_FILL]))
-		),
+		...paintLayer(source, source.layers.collision, collisionFillMap(source)),
 		...footer(source, glyphsIn(source.layers.collision))
 	].join('\n');
 }
@@ -146,11 +148,7 @@ export function renderDesignerSvg<K extends MapDecor['textureKey']>(
 		...header(source, options.mutePaths ? 'designer (paths muted)' : 'designer'),
 		...paintLayer(source, source.layers.regions, REGION_FILL, 0.45),
 		...paintLayer(source, source.layers.paths, PATH_FILL, options.mutePaths ? 0.12 : 0.75),
-		...paintLayer(
-			source,
-			source.layers.collision,
-			Object.fromEntries(glyphsIn(source.layers.collision).map((g) => [g, COLLISION_FILL]))
-		)
+		...paintLayer(source, source.layers.collision, collisionFillMap(source))
 	];
 	for (const landmark of source.objects.landmarks ?? []) {
 		const w = landmark.width / source.tileSize;
@@ -226,7 +224,7 @@ export function renderObjectsMarkdown<K extends MapDecor['textureKey']>(
  *
  * `rect.x`/`.y` are CENTRES, matching MapBlocker throughout the codebase.
  */
-export function tileCoverage<K extends MapDecor['textureKey']>(
+function tileCoverage<K extends MapDecor['textureKey']>(
 	rect: { x: number; y: number; width: number; height: number },
 	source: LayeredRegionSource<K>
 ): Array<{ col: number; row: number }> {
@@ -255,11 +253,7 @@ export function renderComposedCollisionSvg<K extends MapDecor['textureKey']>(
 ): string {
 	const out = [
 		...header(source, `composed collision (${source.idPrefix} + overlays)`),
-		...paintLayer(
-			source,
-			source.layers.collision,
-			Object.fromEntries(glyphsIn(source.layers.collision).map((g) => [g, COLLISION_FILL]))
-		)
+		...paintLayer(source, source.layers.collision, collisionFillMap(source))
 	];
 	for (const blocker of overlays) {
 		for (const { col, row } of tileCoverage(blocker, source)) {
