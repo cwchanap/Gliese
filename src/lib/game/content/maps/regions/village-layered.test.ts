@@ -308,15 +308,23 @@ function roomCentroid(glyph: string): Cell {
 	for (let r = 0; r < V.height; r++)
 		for (let c = 0; c < V.width; c++)
 			if (V.layers.regions[r][c] === glyph && isWalkableTile(c, r)) cells.push({ col: c, row: r });
+	expect(cells.length, `room ${glyph} has no walkable cells`).toBeGreaterThan(0);
 	const col = Math.round(cells.reduce((sum, cell) => sum + cell.col, 0) / cells.length);
 	const row = Math.round(cells.reduce((sum, cell) => sum + cell.row, 0) / cells.length);
-	const centroid = cells.find((cell) => cell.col === col && cell.row === row);
-	// If the rounded centroid is not itself a walkable cell (irregular room
-	// shape), the nearest walkable cell in scan order is used. Assert so a
-	// future room layout that pushes the centroid onto a wall surfaces here
-	// instead of silently starting BFS from a corner.
-	expect(centroid, `room ${glyph} centroid (${col},${row}) is not a walkable cell`).toBeDefined();
-	return centroid ?? cells[0];
+	// The rounded centroid may land on a wall in a concave or irregular room
+	// without that being a routing defect. Pick the walkable cell nearest to
+	// the calculated centroid (Chebyshev distance) so BFS starts from a
+	// representative interior cell rather than a scan-order corner.
+	let best = cells[0]!;
+	let bestDist = Math.max(Math.abs(best.col - col), Math.abs(best.row - row));
+	for (const cell of cells) {
+		const dist = Math.max(Math.abs(cell.col - col), Math.abs(cell.row - row));
+		if (dist < bestDist) {
+			best = cell;
+			bestDist = dist;
+		}
+	}
+	return best;
 }
 
 // The game's real standability rule, measured against the fully composed
@@ -567,5 +575,44 @@ describe('sundrop village — Wave A design contract', () => {
 					overlaps.push(`${a.id} <-> ${b.id} (${Math.round((ox * oy) / 1024)} tiles²)`);
 			}
 		expect(overlaps, 'village building/decor sprites that overlap').toEqual([]);
+	});
+
+	it('A13 — the shrine-room east–west crossing stays ≥2 tiles wide under the composed rule', () => {
+		// Regression guard for the HPA-238 shrine-lane defect: the shrine
+		// building left only a ~4px bypass along room S's south band, so
+		// crossing east↔west to reach village-shrine-cache pulled the player
+		// into the shrine. A11 only checks reachability; A3/A10 protect the
+		// critical route, which does not pass through S. This asserts the
+		// composed cross-section of the actual crossing route stays ≥2 tiles —
+		// the floor that was missing when a one-tile building adjustment
+		// recreated the narrow funnel while every other test stayed green.
+		const cache = V.objects.pickups!.find((p) => p.id === 'village-shrine-cache')!;
+		const goal: Cell = { col: cache.col, row: cache.row };
+		expect(isStandableTile(goal.col, goal.row), 'village-shrine-cache tile is standable').toBe(
+			true
+		);
+		// Western entrance to S: the H-S opening cells on the S side.
+		const entries = cellsIn(24, 24, 36, 40).filter((c) => isStandableTile(c.col, c.row));
+		expect(entries.length, 'H-S opening has standable S-side cells').toBeGreaterThan(0);
+		// The crossing must offer at least one route whose perpendicular
+		// cross-section never drops below 2 tiles. Try every entry and keep
+		// the widest bottleneck — the route a player would actually take.
+		let bestMin = -1;
+		for (const entry of entries) {
+			const path = bfsPath(entry, goal, isStandableTile, DIMS);
+			if (!path) continue;
+			let min = Number.POSITIVE_INFINITY;
+			for (let i = 0; i < path.length; i++) {
+				min = Math.min(min, perpendicularRun(path, i, isStandableTile, DIMS));
+			}
+			if (min > bestMin) bestMin = min;
+		}
+		expect(bestMin, 'no standable crossing from H-S gate to village-shrine-cache').toBeGreaterThan(
+			-1
+		);
+		expect(
+			bestMin,
+			`shrine-room crossing narrows to ${bestMin} tile(s) below the 2-tile floor`
+		).toBeGreaterThanOrEqual(2);
 	});
 });
