@@ -115,7 +115,7 @@ describe('Sundrop Village HPA-307 art controls', () => {
 		const actual = computeVillageArtControlFingerprint(sundropVillageLayered, makeInputs());
 
 		expect(actual).toBe(expected);
-		expect(actual).toBe('9b6abbbb9d373e53887023d40f63c0e2ff8fc7dd4152cf50b19481856bc50431');
+		expect(actual).toBe('bdf8bcd17edd6f8878debd97c55bcc72736dac7e65830130e9191753c9cf2db4');
 	});
 
 	it('includes the player-radius sliver of corridor-wall-2b but leaves the next point open', () => {
@@ -229,6 +229,59 @@ describe('Sundrop Village HPA-307 art controls', () => {
 
 		expect(computeVillageArtControlFingerprint(sundropVillageLayered, changed)).not.toBe(
 			computeVillageArtControlFingerprint(sundropVillageLayered, inputs)
+		);
+	});
+
+	it('fingerprints collision halos that reach into the canvas from outside its raw edge', () => {
+		const source = {
+			...sundropVillageLayered,
+			origin: { x: 0, y: 0 },
+			width: 1,
+			height: 1,
+			layers: {
+				terrain: ['.'],
+				paths: ['.'],
+				collision: ['.'],
+				decor: ['.'],
+				regions: ['.']
+			},
+			objects: {}
+		};
+		const map: WorldMapDefinition = {
+			id: 'edge-halo-map',
+			width: 1,
+			height: 1,
+			spawnDirection: 'down',
+			spawn: { x: 16, y: 16 },
+			transitions: []
+		};
+		const inputsAt = (x: number): VillageArtControlInputs => ({
+			compiledVillage: {},
+			map,
+			strictCollisionRects: [{ id: 'edge-halo', x, y: 16, width: 2, height: 2 }],
+			landmarkCollisionRects: [],
+			playerRadius: 12,
+			doorwayClearanceWidth: 56,
+			transitionRadius: 18
+		});
+		const firstInputs = inputsAt(-2);
+		const movedInputs = inputsAt(-3);
+		const firstData = collectVillageArtControlData(source, firstInputs);
+		const movedData = collectVillageArtControlData(source, movedInputs);
+		const firstArtifacts = renderVillageArtControlArtifacts(source, firstInputs);
+		const movedArtifacts = renderVillageArtControlArtifacts(source, movedInputs);
+
+		expect(firstData.strictCollisionRects).toEqual([
+			{ id: 'edge-halo', x: 5.5, y: 16, width: 11, height: 26 }
+		]);
+		expect(movedData.strictCollisionRects).toEqual([
+			{ id: 'edge-halo', x: 5, y: 16, width: 10, height: 26 }
+		]);
+		expect(firstArtifacts.get('village-composed-collision-mask.svg')).not.toBe(
+			movedArtifacts.get('village-composed-collision-mask.svg')
+		);
+		expect(computeVillageArtControlFingerprint(source, firstInputs)).not.toBe(
+			computeVillageArtControlFingerprint(source, movedInputs)
 		);
 	});
 
