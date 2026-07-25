@@ -4,6 +4,7 @@ import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import { sundropVillageLayered } from '$lib/game/content/maps/regions/village-layered';
 import { compileLayeredRegion } from '$lib/game/content/maps/layered/compile-layered-region';
+import { createLayeredRegionBackground } from '$lib/game/content/maps/layered/region-background';
 import {
 	bfsPath,
 	hasWidePath,
@@ -135,6 +136,29 @@ function nearestLandmarkDistance(col: number, row: number, src = sundropVillageL
 }
 
 describe('sundrop village layered source', () => {
+	it('derives the Sundrop regional background bounds from the layered source', () => {
+		const background = createLayeredRegionBackground(sundropVillageLayered, {
+			id: 'sundrop-village-regional-background',
+			textureKey: 'sundrop-village-background'
+		});
+
+		expect(background).toEqual({
+			id: 'sundrop-village-regional-background',
+			textureKey: 'sundrop-village-background',
+			x: 1_152,
+			y: 5_120,
+			width: 1_792,
+			height: 1_536,
+			depth: -9
+		});
+		expect({
+			left: background.x - background.width / 2,
+			top: background.y - background.height / 2,
+			right: background.x + background.width / 2,
+			bottom: background.y + background.height / 2
+		}).toEqual({ left: 256, top: 4_352, right: 2_048, bottom: 5_888 });
+	});
+
 	it('every layer has exactly width × height cells', () => {
 		for (const [name, rows] of Object.entries(sundropVillageLayered.layers)) {
 			expect(rows, `${name} row count`).toHaveLength(sundropVillageLayered.height);
