@@ -79,7 +79,25 @@ interface DecodedOpaqueSource {
 	readonly height: number;
 }
 
+interface PngChunk {
+	readonly type: string;
+	readonly offset: number;
+	readonly dataLength: number;
+	readonly endOffset: number;
+}
+
+interface WriteFinalizedSundropVillagePngTestSeam {
+	readonly afterTemporaryWrite?: (temporaryPath: string) => void | Promise<void>;
+}
+
 const METADATA_CHUNKS = new Set(['eXIf', 'iCCP', 'iTXt', 'pHYs', 'tEXt', 'tIME', 'zTXt']);
+const PNG_CRC32_TABLE = Uint32Array.from({ length: 256 }, (_, value) => {
+	let crc = value;
+	for (let bit = 0; bit < 8; bit += 1) {
+		crc = (crc >>> 1) ^ (crc & 1 ? 0xedb88320 : 0);
+	}
+	return crc >>> 0;
+});
 
 function assertTier(tier: number): asserts tier is SundropVillagePngTier {
 	if (!Number.isInteger(tier) || tier < 0 || tier > 3) {
@@ -125,45 +143,79 @@ async function decodeOpaqueSource(input: Buffer): Promise<DecodedOpaqueSource> {
 	return { data, width: info.width, height: info.height };
 }
 
-function pngChunkTypes(png: Buffer): string[] {
+function pngCrc32(bytes: Uint8Array): number {
+	let crc = 0xffffffff;
+	for (const byte of bytes) {
+		crc = (PNG_CRC32_TABLE[(crc ^ byte) & 0xff] ?? 0) ^ (crc >>> 8);
+	}
+	return (crc ^ 0xffffffff) >>> 0;
+}
+
+function parsePngChunks(png: Buffer): PngChunk[] {
 	const expectedSignature = Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]);
-	if (png.length < 33 || !png.subarray(0, 8).equals(expectedSignature)) {
+	if (png.length < expectedSignature.length || !png.subarray(0, 8).equals(expectedSignature)) {
 		throw new Error('Sundrop Village final output is not a valid PNG');
 	}
 
-	const types: string[] = [];
+	const chunks: PngChunk[] = [];
 	let offset = 8;
-	while (offset + 12 <= png.length) {
-		const length = png.readUInt32BE(offset);
-		const nextOffset = offset + 12 + length;
+	while (offset < png.length) {
+		if (png.length - offset < 12) {
+			throw new Error('Sundrop Village final PNG contains a truncated chunk');
+		}
+		const dataLength = png.readUInt32BE(offset);
+		const crcOffset = offset + 8 + dataLength;
+		const nextOffset = crcOffset + 4;
 		if (nextOffset > png.length) {
 			throw new Error('Sundrop Village final PNG contains a truncated chunk');
 		}
 		const type = png.toString('ascii', offset + 4, offset + 8);
-		types.push(type);
+		const storedCrc = png.readUInt32BE(crcOffset);
+		const computedCrc = pngCrc32(png.subarray(offset + 4, crcOffset));
+		if (storedCrc !== computedCrc) {
+			throw new Error(
+				`Sundrop Village final PNG ${type} CRC mismatch: expected ${storedCrc.toString(16).padStart(8, '0')}, computed ${computedCrc.toString(16).padStart(8, '0')}`
+			);
+		}
+
+		if (chunks.length === 0) {
+			if (type !== 'IHDR') {
+				throw new Error('Sundrop Village final PNG must begin with IHDR');
+			}
+			if (dataLength !== 13) {
+				throw new Error('Sundrop Village final PNG IHDR must contain exactly 13 bytes');
+			}
+		} else if (type === 'IHDR') {
+			throw new Error('Sundrop Village final PNG must contain a single IHDR');
+		}
+
+		chunks.push({ type, offset, dataLength, endOffset: nextOffset });
+		if (type === 'IEND') {
+			if (dataLength !== 0) {
+				throw new Error('Sundrop Village final PNG IEND must contain zero bytes');
+			}
+			if (nextOffset !== png.length) {
+				throw new Error('Sundrop Village final PNG contains bytes after IEND');
+			}
+			return chunks;
+		}
 		offset = nextOffset;
-		if (type === 'IEND') break;
 	}
 
-	if (types[0] !== 'IHDR' || types.at(-1) !== 'IEND') {
-		throw new Error('Sundrop Village final PNG has an invalid chunk sequence');
-	}
-	return types;
+	throw new Error('Sundrop Village final PNG must end with a single IEND');
 }
 
 function stripPngMetadata(png: Buffer): Buffer {
-	pngChunkTypes(png);
+	const chunks = parsePngChunks(png);
 	const retainedChunks: Buffer[] = [png.subarray(0, 8)];
-	let offset = 8;
-	while (offset + 12 <= png.length) {
-		const length = png.readUInt32BE(offset);
-		const nextOffset = offset + 12 + length;
-		const type = png.toString('ascii', offset + 4, offset + 8);
-		if (!METADATA_CHUNKS.has(type)) retainedChunks.push(png.subarray(offset, nextOffset));
-		offset = nextOffset;
-		if (type === 'IEND') break;
+	for (const chunk of chunks) {
+		if (!METADATA_CHUNKS.has(chunk.type)) {
+			retainedChunks.push(png.subarray(chunk.offset, chunk.endOffset));
+		}
 	}
-	return Buffer.concat(retainedChunks);
+	const stripped = Buffer.concat(retainedChunks);
+	parsePngChunks(stripped);
+	return stripped;
 }
 
 async function writeAtomicFile(outputPath: string, contents: Buffer | string): Promise<void> {
@@ -240,13 +292,13 @@ export async function finalizeSundropVillagePng(
 }
 
 export async function validateSundropVillagePng(png: Buffer): Promise<ValidatedSundropVillagePng> {
-	const chunkTypes = pngChunkTypes(png);
+	const chunks = parsePngChunks(png);
 	if (png[24] !== 8 || png[25] !== 6) {
 		throw new Error(
 			`Sundrop Village final PNG must be 8-bit truecolor RGBA (color type 6); received bit depth ${png[24]} and color type ${png[25]}`
 		);
 	}
-	const metadataChunk = chunkTypes.find((type) => METADATA_CHUNKS.has(type));
+	const metadataChunk = chunks.find((chunk) => METADATA_CHUNKS.has(chunk.type))?.type;
 	if (metadataChunk) {
 		throw new Error(`Sundrop Village final PNG must not contain metadata chunk ${metadataChunk}`);
 	}
@@ -412,7 +464,8 @@ export async function normalizeSundropVillageBackground(
 }
 
 export async function writeFinalizedSundropVillagePng(
-	options: WriteFinalizedSundropVillagePngOptions
+	options: WriteFinalizedSundropVillagePngOptions,
+	testSeam: WriteFinalizedSundropVillagePngTestSeam = {}
 ): Promise<FinalizedSundropVillagePng> {
 	const maxBytes = options.maxBytes ?? SUNDROP_VILLAGE_BACKGROUND_HARD_LIMIT_BYTES;
 	if (!Number.isSafeInteger(maxBytes) || maxBytes <= 0) {
@@ -431,6 +484,7 @@ export async function writeFinalizedSundropVillagePng(
 
 	try {
 		await writeFile(temporary, finalized.png, { flag: 'wx' });
+		await testSeam.afterTemporaryWrite?.(temporary);
 		const exactOutput = await readFile(temporary);
 		const validated = await validateSundropVillagePng(exactOutput);
 		if (validated.bytes > maxBytes) {
