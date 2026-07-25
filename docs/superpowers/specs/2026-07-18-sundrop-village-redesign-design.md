@@ -165,12 +165,18 @@ separately, so introducing it all at once would leave the suite red between phas
 object placement and lands with phases 4–5. This sequences the contract; it does not weaken
 it, and no test is skipped or marked pending.
 
-**Representation.** Every test operates on the **source layers**
+**Representation.** The structural tests (A1–A6, A8, A9) operate on the **source layers**
 (`layers.collision`, `layers.regions`, `layers.paths`), consistent with the existing
 `walkableCells()` helper — never on `compileLayeredRegion` output. Landmark rects and
-decor-collision rects are compiler outputs and are therefore invisible to these tests by
+decor-collision rects are compiler outputs and are therefore invisible to those tests by
 construction; test A5's "unreachable pocket" cannot be tripped by the well, the fountain, or
-the lantern collision boxes. Test A7 is the deliberate exception and composes `pathsRegion`.
+the lantern collision boxes. The **integration tests** (A7, A10, A11, A12, A13) are the
+deliberate exceptions: they read the fully compiled `meadowEntryMap` (strict collision rects,
+carved landmark rectangles, decor collision) and apply the game's real standability rule
+(tile centre inside a rect padded by `playerRadius = 12`). This is the only predicate that
+sees building and decor rects — the collision layer alone does not — so these are the tests
+that catch a building that seals a room even though the layer looks fine. A7 additionally
+composes `pathsRegion` blockers to catch the external-corridor chokepoint.
 
 ### Parameters
 
@@ -294,10 +300,15 @@ Width is measured along a concrete traversal: take the BFS-shortest walkable pat
 `H` centroid to the `C` centroid; at each cell on it, measure the maximal free run
 perpendicular to the local direction of travel. A3 asserts that run is ≥ 3 everywhere.
 
-**Occupancy rule.** `pathsRegion` blockers are not grid-aligned, so A7 needs a tile rule:
-a tile counts as blocked iff a blocker rect covers **more than 50% of the tile's area**.
+**Occupancy rule.** `pathsRegion` blockers are not grid-aligned, so A7 needs a tile rule.
+As built, A7 uses the **runtime padded-centre rule** — the same predicate `WorldScene` uses
+(`isInsideAnyCollisionRect` with `playerRadius = 12`): a tile counts as blocked iff its
+centre falls inside a blocker rect expanded by the player radius. This is deliberately
+stricter than the visual >50%-area-overlap heuristic the preview painter
+(`preview.ts:tileCoverage`) uses for the composed-collision SVG — the area rule can mark a
+tile walkable whose centre the runtime traps, so the test uses the runtime rule directly.
 This is why `corridor-wall-2b` is listed both as bounding box (cols 44–50, rows 3–5) and as
-substantial footprint (cols 45–49, rows 4–5) — A7 uses the latter.
+substantial footprint (cols 45–49, rows 4–5) — the runtime rule blocks the latter.
 
 ### Wave B — content (lands with phases 4–5)
 
@@ -468,7 +479,7 @@ The body above is the design as authored *before* the blockout. Implementing Wav
 surfaced defects that moved rooms, gates, and objects, and changed two test definitions.
 The values below are authoritative and supersede the corresponding sections above; the
 prose is left intact as the design record. The mechanical source of truth is the compiled
-`meadowEntryMap` and the A1–A11 contract in `village-layered.test.ts`.
+`meadowEntryMap` and the A1–A13 contract in `village-layered.test.ts`.
 
 **Room extents (final).** Outer shell `{c0:2, c1:52, r0:2, r1:46}`. Inclusive ranges:
 
@@ -520,6 +531,13 @@ equal its total-standable count and be non-zero. Added because the village becam
 twice during implementation — a building's rendered rect sat on the cells its own room used to
 reach its own gate — a defect class A1–A10 cannot see, because they read the collision *layer*
 and the layer was fine both times.
+
+**A13 (added with the v4 shrine fix).** The shrine-room east–west crossing: BFS from each
+H-S gate entry cell to `village-shrine-cache` under the composed rule, and require at least
+one route whose perpendicular cross-section never drops below 2 tiles. Added because the v4
+walkthrough found the shrine left only a ~4px bypass that pulled the player into the shrine
+on every crossing — a defect A11 (reachability only) and A3/A10 (critical route only, S is
+not on it) cannot see.
 
 ## Revisions
 
@@ -593,8 +611,12 @@ row 43 is the northmost door row still south of the footprint. Footprint bottom 
 return arrival `(1464, 5788)` now lands in **81px** of clear band instead of a padded wall.
 
 This is a landmark/transition move only — the collision, region, path, terrain and decor
-layers are untouched, so A1–A12 are unaffected. It changes only as-built fixture pins (the
+layers are untouched, so A1–A12 are unaffected; **A13** is added with this fix to guard the
+crossing lane itself. It changes only as-built fixture pins (the
 shrine's rendered `y` and the door's `y`) in `maps.test.ts` / `scenes.test.ts`. The crossing
-lane itself is a runtime navigation property no contract guards; the standing guard is the
+lane is a runtime navigation property; **A13** now guards it by
+requiring the composed cross-section of the H-S gate → `village-shrine-cache` route to stay
+≥2 tiles wide everywhere, so a future one-tile building or doorway adjustment that recreates
+the narrow funnel fails the contract. The standing guard is the
 `interior return arrivals are standable` contract, which keeps the arrival out of a blocker
 and clear of its door.
