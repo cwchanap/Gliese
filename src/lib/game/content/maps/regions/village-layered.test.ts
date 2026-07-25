@@ -2,6 +2,11 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
 import { describe, expect, it } from 'vitest';
+import {
+	SUNDROP_VILLAGE_BACKGROUND_DEPTH,
+	SUNDROP_VILLAGE_BACKGROUND_ID,
+	SUNDROP_VILLAGE_BACKGROUND_TEXTURE_KEY
+} from '$lib/game/content/backgrounds/sundrop-village-background';
 import { sundropVillageLayered } from '$lib/game/content/maps/regions/village-layered';
 import { compileLayeredRegion } from '$lib/game/content/maps/layered/compile-layered-region';
 import { createLayeredRegionBackground } from '$lib/game/content/maps/layered/region-background';
@@ -137,19 +142,21 @@ function nearestLandmarkDistance(col: number, row: number, src = sundropVillageL
 
 describe('sundrop village layered source', () => {
 	it('derives the Sundrop regional background bounds from the layered source', () => {
+		const width = sundropVillageLayered.width * sundropVillageLayered.tileSize;
+		const height = sundropVillageLayered.height * sundropVillageLayered.tileSize;
 		const background = createLayeredRegionBackground(sundropVillageLayered, {
-			id: 'sundrop-village-regional-background',
-			textureKey: 'sundrop-village-background'
+			id: SUNDROP_VILLAGE_BACKGROUND_ID,
+			textureKey: SUNDROP_VILLAGE_BACKGROUND_TEXTURE_KEY
 		});
 
 		expect(background).toEqual({
-			id: 'sundrop-village-regional-background',
-			textureKey: 'sundrop-village-background',
-			x: 1_152,
-			y: 5_120,
-			width: 1_792,
-			height: 1_536,
-			depth: -9
+			id: SUNDROP_VILLAGE_BACKGROUND_ID,
+			textureKey: SUNDROP_VILLAGE_BACKGROUND_TEXTURE_KEY,
+			x: sundropVillageLayered.origin.x + width / 2,
+			y: sundropVillageLayered.origin.y + height / 2,
+			width,
+			height,
+			depth: SUNDROP_VILLAGE_BACKGROUND_DEPTH
 		});
 		expect({
 			left: background.x - background.width / 2,

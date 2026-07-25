@@ -1,4 +1,9 @@
 import { describe, expect, it } from 'vitest';
+import {
+	SUNDROP_VILLAGE_BACKGROUND_DEPTH,
+	SUNDROP_VILLAGE_BACKGROUND_ID,
+	SUNDROP_VILLAGE_BACKGROUND_TEXTURE_KEY
+} from '$lib/game/content/backgrounds/sundrop-village-background';
 import { enemies } from '$lib/game/content/enemies';
 import { getDialogue } from '$lib/game/content/dialogue';
 import { mergeRegions } from '$lib/game/content/maps/meadow-entry';
@@ -1931,15 +1936,18 @@ describe('meadow-entry region integrity', () => {
 	});
 
 	it('merges the source-derived Sundrop regional background onto the opening map', () => {
+		const width = sundropVillageLayered.width * sundropVillageLayered.tileSize;
+		const height = sundropVillageLayered.height * sundropVillageLayered.tileSize;
+
 		expect(meadowEntryMap.backgroundImages).toEqual([
 			{
-				id: 'sundrop-village-regional-background',
-				textureKey: 'sundrop-village-background',
-				x: 1_152,
-				y: 5_120,
-				width: 1_792,
-				height: 1_536,
-				depth: -9
+				id: SUNDROP_VILLAGE_BACKGROUND_ID,
+				textureKey: SUNDROP_VILLAGE_BACKGROUND_TEXTURE_KEY,
+				x: sundropVillageLayered.origin.x + width / 2,
+				y: sundropVillageLayered.origin.y + height / 2,
+				width,
+				height,
+				depth: SUNDROP_VILLAGE_BACKGROUND_DEPTH
 			}
 		]);
 	});
