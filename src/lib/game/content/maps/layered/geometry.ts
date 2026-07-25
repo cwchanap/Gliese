@@ -163,3 +163,55 @@ export function perpendicularRun(
 	}
 	return run;
 }
+
+/**
+ * Does there exist a path from start to goal whose perpendicular
+ * cross-section never drops below `minWidth` tiles? Unlike bfsPath +
+ * perpendicularRun on a single shortest path, this searches for ANY
+ * qualifying route — a shortest path can clip a narrow corner while a
+ * longer valid route exists, false-failing the contract.
+ *
+ * A cell is passable when its minimum perpendicular run across BOTH
+ * travel directions is ≥ minWidth. This is conservative (a cell wide in
+ * one direction but narrow in the other is rejected) but sound: any path
+ * found is guaranteed to satisfy the width floor at every step regardless
+ * of travel direction.
+ */
+export function hasWidePath(
+	start: Cell,
+	goal: Cell,
+	walkable: Walkable,
+	dims: Dims,
+	minWidth: number
+): boolean {
+	const isWide = (col: number, row: number): boolean => {
+		if (!walkable(col, row)) return false;
+		const vRun = maximalRun(walkable, col, row, 'vertical', dims.width, dims.height);
+		const hRun = maximalRun(walkable, col, row, 'horizontal', dims.width, dims.height);
+		return Math.min(vRun, hRun) >= minWidth;
+	};
+	if (!isWide(start.col, start.row) || !isWide(goal.col, goal.row)) return false;
+	const seen = new Set<string>([`${start.col}:${start.row}`]);
+	const queue: Cell[] = [start];
+	while (queue.length > 0) {
+		const current = queue.shift()!;
+		if (current.col === goal.col && current.row === goal.row) return true;
+		for (const [dc, dr] of STEPS) {
+			const next = { col: current.col + dc, row: current.row + dr };
+			const key = `${next.col}:${next.row}`;
+			if (
+				next.col < 0 ||
+				next.row < 0 ||
+				next.col >= dims.width ||
+				next.row >= dims.height ||
+				seen.has(key) ||
+				!isWide(next.col, next.row)
+			) {
+				continue;
+			}
+			seen.add(key);
+			queue.push(next);
+		}
+	}
+	return false;
+}
