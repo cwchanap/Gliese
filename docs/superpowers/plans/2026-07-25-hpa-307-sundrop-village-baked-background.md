@@ -57,7 +57,7 @@ Initialize and use:
 ```
 
 The controller records each task's base SHA, final SHA, implementer report, specification
-review, and quality review in `ledger.md`. Every implementer reads only the current task
+review, and quality review in `progress.md`. Every implementer reads only the current task
 brief plus the exact consumed interfaces below. Before starting a task, the controller
 records `rtk git rev-parse HEAD` and confirms it matches the prerequisite task's final SHA
 in the ledger.
