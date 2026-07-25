@@ -6,6 +6,7 @@ import { sundropVillageLayered } from '$lib/game/content/maps/regions/village-la
 import { compileLayeredRegion } from '$lib/game/content/maps/layered/compile-layered-region';
 import {
 	bfsPath,
+	hasWidePath,
 	maximalRun,
 	perpendicularRun,
 	roomAdjacency,
@@ -586,33 +587,57 @@ describe('sundrop village — Wave A design contract', () => {
 		// composed cross-section of the actual crossing route stays ≥2 tiles —
 		// the floor that was missing when a one-tile building adjustment
 		// recreated the narrow funnel while every other test stayed green.
+		//
+		// The crossing predicate must also exclude the shrine doorway's
+		// activation radius. isStandableTile counts trigger cells as standable
+		// because collectLandmarkRects carves the doorway opening out of the
+		// landmark rect, but the runtime tryTransition() pulls the player in
+		// on a circular radius of playerRadius + transitionRadius (30px). In
+		// the broken arrangement (shrine row 38, door row 44) both standable
+		// tile centres at y=5776 and y=5808 passed isStandableTile even though
+		// one sat inside the trigger — giving a false 2-tile perpendicularRun.
+		// Excluding the trigger radius is what makes this test actually guard
+		// the defect it was written for.
+		const shrineTransition = meadowEntryMap.transitions.find(
+			(t) => t.id === 'meadow-to-shrine-of-aurora'
+		)!;
+		expect(
+			shrineTransition,
+			'meadow-to-shrine-of-aurora transition exists in composed map'
+		).toBeTruthy();
+		const TRANSITION_RADIUS = 18;
+		const triggerRadius = PLAYER_RADIUS + TRANSITION_RADIUS;
+		const isClearOfShrineTrigger = (col: number, row: number): boolean => {
+			const cx = V.origin.x + col * V.tileSize + V.tileSize / 2;
+			const cy = V.origin.y + row * V.tileSize + V.tileSize / 2;
+			return Math.hypot(cx - shrineTransition.x, cy - shrineTransition.y) > triggerRadius;
+		};
+		const isCrossingTile = (col: number, row: number): boolean =>
+			isStandableTile(col, row) && isClearOfShrineTrigger(col, row);
+
 		const cache = V.objects.pickups!.find((p) => p.id === 'village-shrine-cache')!;
 		const goal: Cell = { col: cache.col, row: cache.row };
-		expect(isStandableTile(goal.col, goal.row), 'village-shrine-cache tile is standable').toBe(
-			true
-		);
-		// Western entrance to S: the H-S opening cells on the S side.
-		const entries = cellsIn(24, 24, 36, 40).filter((c) => isStandableTile(c.col, c.row));
-		expect(entries.length, 'H-S opening has standable S-side cells').toBeGreaterThan(0);
-		// The crossing must offer at least one route whose perpendicular
-		// cross-section never drops below 2 tiles. Try every entry and keep
-		// the widest bottleneck — the route a player would actually take.
-		let bestMin = -1;
-		for (const entry of entries) {
-			const path = bfsPath(entry, goal, isStandableTile, DIMS);
-			if (!path) continue;
-			let min = Number.POSITIVE_INFINITY;
-			for (let i = 0; i < path.length; i++) {
-				min = Math.min(min, perpendicularRun(path, i, isStandableTile, DIMS));
-			}
-			if (min > bestMin) bestMin = min;
-		}
-		expect(bestMin, 'no standable crossing from H-S gate to village-shrine-cache').toBeGreaterThan(
-			-1
-		);
 		expect(
-			bestMin,
-			`shrine-room crossing narrows to ${bestMin} tile(s) below the 2-tile floor`
-		).toBeGreaterThanOrEqual(2);
+			isCrossingTile(goal.col, goal.row),
+			'village-shrine-cache tile is standable and clear of the shrine trigger'
+		).toBe(true);
+		// Western entrance to S: the H-S opening cells on the S side.
+		const entries = cellsIn(24, 24, 36, 40).filter((c) => isCrossingTile(c.col, c.row));
+		expect(entries.length, 'H-S opening has crossing-safe S-side cells').toBeGreaterThan(0);
+		// The crossing must offer at least one route whose perpendicular
+		// cross-section never drops below 2 tiles. hasWidePath searches for
+		// ANY qualifying route — not just the shortest path from each entry,
+		// which can clip a narrow corner while a longer valid route exists.
+		let found = false;
+		for (const entry of entries) {
+			if (hasWidePath(entry, goal, isCrossingTile, DIMS, 2)) {
+				found = true;
+				break;
+			}
+		}
+		expect(
+			found,
+			'no ≥2-tile-wide crossing from H-S gate to village-shrine-cache clear of the shrine trigger'
+		).toBe(true);
 	});
 });
