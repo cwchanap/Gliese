@@ -296,6 +296,7 @@ export class WorldScene extends Phaser.Scene {
 	private static readonly cameraFollowLerp = 0.14;
 	private static readonly bossPhaseTwoSpeedMultiplier = 1.5;
 	private static readonly transitionRadius = 18;
+	private static readonly pickupRadius = 18;
 	private static readonly enemyHealthBarOffsetY = 34;
 	private static readonly discoveryInteractRadius = 64;
 	// World markers stay hidden until the player is within this distance, so a normal
@@ -304,6 +305,7 @@ export class WorldScene extends Phaser.Scene {
 
 	private clearedEncounterIds = new Set<string>();
 	private clearedEncounterUnitCounts: Record<string, number> = {};
+	private collisionDebugGraphics?: Phaser.GameObjects.Graphics;
 	private collectedPickupIds = new Set<string>();
 	private seenDiscoveryIds = new Set<string>();
 	private discoveryMarkers = new Map<string, Phaser.GameObjects.Arc>();
@@ -504,6 +506,7 @@ export class WorldScene extends Phaser.Scene {
 		this.renderAmbientNpcs(map);
 		this.renderInteriorProps(map, ['foreground']);
 		this.renderMapDecor(map, ['foreground']);
+		this.renderCollisionDebugOverlay(map);
 
 		this.cameras.main.setBackgroundColor('#1a1f2b');
 		const cameraBounds = this.getCenteredCameraBounds(width, height);
@@ -1632,6 +1635,134 @@ export class WorldScene extends Phaser.Scene {
 				.setDisplaySize(background.width, background.height)
 				.setDepth(background.depth);
 		}
+	}
+
+	private renderCollisionDebugOverlay(map: WorldMapDefinition) {
+		if (!this.renderOptions.collisionDebug) {
+			return;
+		}
+
+		const width = map.width * WorldScene.tileSize;
+		const height = map.height * WorldScene.tileSize;
+		const graphics = this.add.graphics();
+		this.collisionDebugGraphics = graphics;
+		graphics.setDepth(10_000);
+		graphics.lineStyle(2, 0xffffff, 0.95);
+		graphics.strokeRect(0, 0, width, height);
+		graphics.lineStyle(1, 0x38bdf8, 0.9);
+		graphics.strokeRect(
+			WorldScene.playerRadius,
+			WorldScene.playerRadius,
+			width - WorldScene.playerRadius * 2,
+			height - WorldScene.playerRadius * 2
+		);
+		// These are resolved player-center exclusion envelopes and alignment aids, not
+		// an exact movement predictor: escape-aware rectangles and the landmark
+		// below-footprint rule also depend on the current and target positions.
+		graphics.fillStyle(0xff3355, 0.18);
+		for (const blocker of map.blockers ?? []) {
+			this.fillExpandedCollisionRect(
+				graphics,
+				this.getMapRectBounds(blocker),
+				WorldScene.playerRadius
+			);
+		}
+		for (const fence of map.fences ?? []) {
+			this.fillExpandedCollisionRect(
+				graphics,
+				this.getMapRectBounds(fence),
+				WorldScene.playerRadius
+			);
+		}
+		for (const decor of map.mapDecor ?? []) {
+			if (decor.collision) {
+				this.fillExpandedCollisionRect(
+					graphics,
+					this.getMapRectBounds(decor.collision),
+					WorldScene.playerRadius
+				);
+			}
+		}
+		for (const prop of map.interiorProps ?? []) {
+			if (prop.collision) {
+				this.fillExpandedCollisionRect(
+					graphics,
+					this.getMapRectBounds(prop.collision),
+					WorldScene.playerRadius
+				);
+			}
+		}
+		graphics.lineStyle(2, 0xffc857, 0.95);
+		for (const landmark of map.landmarks ?? []) {
+			const bounds = this.getLandmarkCollisionBounds(landmark);
+			graphics.strokeRect(
+				bounds.left,
+				bounds.top,
+				bounds.right - bounds.left,
+				bounds.bottom - bounds.top
+			);
+		}
+		graphics.fillStyle(0xff8c42, 0.2);
+		for (const landmark of map.landmarks ?? []) {
+			const bounds = this.getLandmarkCollisionBounds(landmark);
+			for (const collisionRect of this.getLandmarkCollisionRects(landmark, bounds)) {
+				this.fillExpandedCollisionRect(graphics, collisionRect, WorldScene.playerRadius);
+			}
+		}
+		graphics.lineStyle(2, 0xc084fc, 0.95);
+		for (const npc of map.npcs ?? []) {
+			graphics.strokeCircle(
+				npc.x,
+				npc.y,
+				WorldScene.playerRadius + this.getNpcCollisionRadius(npc)
+			);
+		}
+		graphics.lineStyle(2, 0x22d3ee, 0.95);
+		for (const transition of map.transitions) {
+			graphics.strokeCircle(
+				transition.x,
+				transition.y,
+				WorldScene.playerRadius + WorldScene.transitionRadius
+			);
+		}
+		graphics.lineStyle(2, 0x4ade80, 0.95);
+		for (const pickup of map.pickups ?? []) {
+			if (!this.collectedPickupIds.has(pickup.id)) {
+				graphics.strokeCircle(
+					pickup.x,
+					pickup.y,
+					WorldScene.playerRadius + WorldScene.pickupRadius
+				);
+			}
+		}
+		graphics.lineStyle(2, 0xfacc15, 0.95);
+		for (const discovery of map.discoveries ?? []) {
+			graphics.strokeCircle(
+				discovery.x,
+				discovery.y,
+				WorldScene.playerRadius + (discovery.radius ?? WorldScene.discoveryInteractRadius)
+			);
+		}
+		this.events.once('shutdown', () => {
+			graphics.clear();
+			graphics.destroy();
+			if (this.collisionDebugGraphics === graphics) {
+				this.collisionDebugGraphics = undefined;
+			}
+		});
+	}
+
+	private fillExpandedCollisionRect(
+		graphics: Phaser.GameObjects.Graphics,
+		bounds: CollisionRect,
+		padding: number
+	) {
+		graphics.fillRect(
+			bounds.left - padding,
+			bounds.top - padding,
+			bounds.right - bounds.left + padding * 2,
+			bounds.bottom - bounds.top + padding * 2
+		);
 	}
 
 	private getTextureSourceDimensions(
@@ -3028,7 +3159,7 @@ export class WorldScene extends Phaser.Scene {
 				pickup.y
 			);
 
-			if (distance > WorldScene.playerRadius + 18) {
+			if (distance > WorldScene.playerRadius + WorldScene.pickupRadius) {
 				continue;
 			}
 

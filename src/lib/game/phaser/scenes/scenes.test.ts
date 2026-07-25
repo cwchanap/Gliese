@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { battleBackgroundAssets } from '$lib/game/content/assets';
 import { SUNDROP_VILLAGE_BACKGROUND_TEXTURE_KEY } from '$lib/game/content/backgrounds/sundrop-village-background';
 import { maps } from '$lib/game/content/maps';
+import type { RegionalBackgroundRendererDiagnostic } from '$lib/game/phaser/renderer-diagnostics';
 import { HUD_COMMAND_EVENT, type HudCommand } from '$lib/game/ui-bridge/events';
 
 const localeState = vi.hoisted(() => ({
@@ -214,6 +215,14 @@ vi.mock('$lib/game/i18n/content', async () => {
 
 const phaserState = vi.hoisted(() => {
 	const regionalBackgroundTextureKey = 'sundrop-village-background';
+	const gl = {
+		MAX_TEXTURE_SIZE: 0x0d33,
+		getParameter: vi.fn(() => 4096)
+	};
+	const renderer = {
+		type: 2,
+		gl
+	};
 	const cursorKeys = {
 		left: { isDown: false },
 		right: { isDown: false },
@@ -330,6 +339,111 @@ const phaserState = vi.hoisted(() => {
 		alpha?: number;
 		setAlpha?: ReturnType<typeof vi.fn>;
 	}> = [];
+	type RecordedGraphicsCommand =
+		| {
+				kind: 'fillRect';
+				x: number;
+				y: number;
+				width: number;
+				height: number;
+				color: number;
+				alpha: number;
+		  }
+		| {
+				kind: 'strokeCircle';
+				x: number;
+				y: number;
+				radius: number;
+				color: number;
+				alpha: number;
+				lineWidth: number;
+		  }
+		| {
+				kind: 'strokeRect';
+				x: number;
+				y: number;
+				width: number;
+				height: number;
+				color: number;
+				alpha: number;
+				lineWidth: number;
+		  };
+	const graphicsMarkers: Array<{
+		commands: RecordedGraphicsCommand[];
+		clear: ReturnType<typeof vi.fn>;
+		destroy: ReturnType<typeof vi.fn>;
+		fillRect: ReturnType<typeof vi.fn>;
+		fillStyle: ReturnType<typeof vi.fn>;
+		lineStyle: ReturnType<typeof vi.fn>;
+		setDepth: ReturnType<typeof vi.fn>;
+		strokeCircle: ReturnType<typeof vi.fn>;
+		strokeRect: ReturnType<typeof vi.fn>;
+	}> = [];
+
+	function createGraphics() {
+		let fillColor = 0;
+		let fillAlpha = 1;
+		let lineColor = 0;
+		let lineAlpha = 1;
+		let lineWidth = 1;
+		const commands: RecordedGraphicsCommand[] = [];
+		const marker = {
+			commands,
+			clear: vi.fn(() => marker),
+			destroy: vi.fn(() => marker),
+			fillStyle: vi.fn((color: number, alpha = 1) => {
+				fillColor = color;
+				fillAlpha = alpha;
+				return marker;
+			}),
+			fillRect: vi.fn((x: number, y: number, width: number, height: number) => {
+				commands.push({
+					kind: 'fillRect',
+					x,
+					y,
+					width,
+					height,
+					color: fillColor,
+					alpha: fillAlpha
+				});
+				return marker;
+			}),
+			lineStyle: vi.fn((width: number, color: number, alpha = 1) => {
+				lineWidth = width;
+				lineColor = color;
+				lineAlpha = alpha;
+				return marker;
+			}),
+			setDepth: vi.fn(() => marker),
+			strokeCircle: vi.fn((x: number, y: number, radius: number) => {
+				commands.push({
+					kind: 'strokeCircle',
+					x,
+					y,
+					radius,
+					color: lineColor,
+					alpha: lineAlpha,
+					lineWidth
+				});
+				return marker;
+			}),
+			strokeRect: vi.fn((x: number, y: number, width: number, height: number) => {
+				commands.push({
+					kind: 'strokeRect',
+					x,
+					y,
+					width,
+					height,
+					color: lineColor,
+					alpha: lineAlpha,
+					lineWidth
+				});
+				return marker;
+			})
+		};
+		graphicsMarkers.push(marker);
+		return marker;
+	}
 
 	function createOverlayMarker() {
 		const marker = {
@@ -488,9 +602,62 @@ const phaserState = vi.hoisted(() => {
 
 	class SceneMock {
 		scene = { start: vi.fn(), restart: vi.fn() };
+		private sceneEventListeners = new Map<
+			string,
+			Set<{ callback: (...args: unknown[]) => void; once: boolean }>
+		>();
+		private loadListeners = new Map<
+			string,
+			Set<{ callback: (...args: unknown[]) => void; once: boolean }>
+		>();
 		load = {
 			image: vi.fn(),
-			on: vi.fn()
+			on: vi.fn((event: string, callback: (...args: unknown[]) => void) => {
+				const listeners = this.loadListeners.get(event) ?? new Set();
+				listeners.add({ callback, once: false });
+				this.loadListeners.set(event, listeners);
+			}),
+			once: vi.fn((event: string, callback: (...args: unknown[]) => void) => {
+				const listeners = this.loadListeners.get(event) ?? new Set();
+				listeners.add({ callback, once: true });
+				this.loadListeners.set(event, listeners);
+			}),
+			off: vi.fn((event: string, callback: (...args: unknown[]) => void) => {
+				const listeners = this.loadListeners.get(event);
+				for (const listener of listeners ?? []) {
+					if (listener.callback === callback) {
+						listeners!.delete(listener);
+					}
+				}
+			}),
+			emit: (event: string, ...args: unknown[]) => {
+				const listeners = this.loadListeners.get(event);
+				for (const listener of [...(listeners ?? [])]) {
+					listener.callback(...args);
+					if (listener.once) {
+						listeners!.delete(listener);
+					}
+				}
+			},
+			listenerCount: (event: string) => this.loadListeners.get(event)?.size ?? 0
+		};
+		game = { renderer };
+		events = {
+			once: vi.fn((event: string, callback: (...args: unknown[]) => void) => {
+				const listeners = this.sceneEventListeners.get(event) ?? new Set();
+				listeners.add({ callback, once: true });
+				this.sceneEventListeners.set(event, listeners);
+			}),
+			emit: (event: string, ...args: unknown[]) => {
+				const listeners = this.sceneEventListeners.get(event);
+				for (const listener of [...(listeners ?? [])]) {
+					listener.callback(...args);
+					if (listener.once) {
+						listeners!.delete(listener);
+					}
+				}
+			},
+			listenerCount: (event: string) => this.sceneEventListeners.get(event)?.size ?? 0
 		};
 		anims = {
 			exists: vi.fn(() => false),
@@ -524,6 +691,7 @@ const phaserState = vi.hoisted(() => {
 				);
 				return marker;
 			}),
+			graphics: vi.fn(createGraphics),
 			image: vi.fn(createImage),
 			tileSprite: vi.fn(createTileSprite),
 			sprite: vi.fn(createImage),
@@ -565,6 +733,8 @@ const phaserState = vi.hoisted(() => {
 
 	return {
 		SceneMock,
+		gl,
+		renderer,
 		cursorKeys,
 		wasdKeys,
 		interactKeys,
@@ -588,6 +758,7 @@ const phaserState = vi.hoisted(() => {
 		tilemap,
 		tilemapLayer,
 		mainCamera,
+		graphicsMarkers,
 		imageMarkers,
 		tileSpriteMarkers,
 		reset() {
@@ -604,6 +775,7 @@ const phaserState = vi.hoisted(() => {
 			enemyHealthBarFills.splice(0, enemyHealthBarFills.length);
 			imageMarkers.splice(0, imageMarkers.length);
 			tileSpriteMarkers.splice(0, tileSpriteMarkers.length);
+			graphicsMarkers.splice(0, graphicsMarkers.length);
 			nextHitImpactMarkerIndex = 0;
 			playerMarker.setDisplaySize.mockClear();
 			playerMarker.clearTint.mockClear();
@@ -651,6 +823,9 @@ const phaserState = vi.hoisted(() => {
 			tilemap.createLayer.mockClear();
 			tilemapLayer.setDepth.mockClear();
 			victoryText.setOrigin.mockReset();
+			renderer.type = 2;
+			gl.getParameter.mockReset();
+			gl.getParameter.mockReturnValue(4096);
 		}
 	};
 });
@@ -658,6 +833,9 @@ const phaserState = vi.hoisted(() => {
 vi.mock('phaser', () => {
 	const runtime = {
 		Scene: phaserState.SceneMock,
+		AUTO: 0,
+		CANVAS: 1,
+		WEBGL: 2,
 		Math: {
 			Distance: {
 				Between: (x1: number, y1: number, x2: number, y2: number) => Math.hypot(x2 - x1, y2 - y1)
@@ -701,6 +879,7 @@ function installHudCommandTarget() {
 	});
 
 	return {
+		target,
 		dispatch(command: HudCommand) {
 			target.dispatchEvent(new CustomEvent(HUD_COMMAND_EVENT, { detail: command }));
 		},
@@ -714,6 +893,22 @@ function installHudCommandTarget() {
 			}
 
 			Reflect.deleteProperty(globalWithWindow, 'window');
+		}
+	};
+}
+
+function installLocationSearch(search: string) {
+	const previousLocation = Object.getOwnPropertyDescriptor(globalThis, 'location');
+	Object.defineProperty(globalThis, 'location', {
+		configurable: true,
+		value: { search }
+	});
+
+	return () => {
+		if (previousLocation) {
+			Object.defineProperty(globalThis, 'location', previousLocation);
+		} else {
+			Reflect.deleteProperty(globalThis, 'location');
 		}
 	};
 }
@@ -783,6 +978,200 @@ describe('BootScene', () => {
 
 		for (const asset of regionalBackgroundAssets) {
 			expect(scene.load.image).toHaveBeenCalledWith(asset.key, asset.path);
+		}
+	});
+
+	it('emits WebGL renderer evidence with one maximum-texture-size query', async () => {
+		const { regionalBackgroundAssets } = await import('$lib/game/content/assets');
+		const { REGIONAL_BACKGROUND_RENDERER_DIAGNOSTIC_EVENT } =
+			await import('$lib/game/phaser/renderer-diagnostics');
+		const { BootScene } = await import('./BootScene');
+		const target = installHudCommandTarget();
+		const now = vi.spyOn(performance, 'now');
+		now.mockReturnValueOnce(10).mockReturnValueOnce(25);
+		const diagnostics: RegionalBackgroundRendererDiagnostic[] = [];
+		target.target.addEventListener(REGIONAL_BACKGROUND_RENDERER_DIAGNOSTIC_EVENT, (event) => {
+			diagnostics.push((event as CustomEvent<RegionalBackgroundRendererDiagnostic>).detail);
+		});
+		const scene = new BootScene();
+
+		try {
+			scene.preload();
+			scene.load.emit('filecomplete', regionalBackgroundAssets[0]!.key, 'image', {});
+			scene.load.emit('complete');
+
+			expect(phaserState.gl.getParameter).toHaveBeenCalledOnce();
+			expect(phaserState.gl.getParameter).toHaveBeenCalledWith(phaserState.gl.MAX_TEXTURE_SIZE);
+			expect(diagnostics).toEqual([
+				{
+					renderer: 'webgl',
+					maxTextureSize: 4096,
+					regionalBackgroundLoadMs: 15,
+					regionalBackgroundLoadCompletions: 1
+				}
+			]);
+		} finally {
+			now.mockRestore();
+			target.restore();
+		}
+	});
+
+	it('reports Canvas with no texture limit without touching WebGL', async () => {
+		const { regionalBackgroundAssets } = await import('$lib/game/content/assets');
+		const { REGIONAL_BACKGROUND_RENDERER_DIAGNOSTIC_EVENT } =
+			await import('$lib/game/phaser/renderer-diagnostics');
+		const { BootScene } = await import('./BootScene');
+		const target = installHudCommandTarget();
+		const now = vi.spyOn(performance, 'now');
+		now.mockReturnValueOnce(5).mockReturnValueOnce(9);
+		const diagnostics: RegionalBackgroundRendererDiagnostic[] = [];
+		target.target.addEventListener(REGIONAL_BACKGROUND_RENDERER_DIAGNOSTIC_EVENT, (event) => {
+			diagnostics.push((event as CustomEvent<RegionalBackgroundRendererDiagnostic>).detail);
+		});
+		phaserState.renderer.type = 1;
+		const scene = new BootScene();
+
+		try {
+			scene.preload();
+			scene.load.emit('filecomplete', regionalBackgroundAssets[0]!.key, 'image', {});
+			scene.load.emit('complete');
+
+			expect(phaserState.gl.getParameter).not.toHaveBeenCalled();
+			expect(diagnostics).toEqual([
+				{
+					renderer: 'canvas',
+					maxTextureSize: null,
+					regionalBackgroundLoadMs: 4,
+					regionalBackgroundLoadCompletions: 1
+				}
+			]);
+		} finally {
+			phaserState.renderer.type = 2;
+			now.mockRestore();
+			target.restore();
+		}
+	});
+
+	it('counts only unique successful image completions from the regional catalog', async () => {
+		const { regionalBackgroundAssets } = await import('$lib/game/content/assets');
+		const { REGIONAL_BACKGROUND_RENDERER_DIAGNOSTIC_EVENT } =
+			await import('$lib/game/phaser/renderer-diagnostics');
+		const { BootScene } = await import('./BootScene');
+		const target = installHudCommandTarget();
+		const now = vi.spyOn(performance, 'now');
+		now.mockReturnValueOnce(2).mockReturnValueOnce(8);
+		const diagnostics: RegionalBackgroundRendererDiagnostic[] = [];
+		target.target.addEventListener(REGIONAL_BACKGROUND_RENDERER_DIAGNOSTIC_EVENT, (event) => {
+			diagnostics.push((event as CustomEvent<RegionalBackgroundRendererDiagnostic>).detail);
+		});
+		phaserState.renderer.type = 2;
+		const scene = new BootScene();
+		const regionalKey = regionalBackgroundAssets[0]!.key;
+
+		try {
+			scene.preload();
+			scene.load.emit('filecomplete', regionalKey, 'image', {});
+			scene.load.emit('filecomplete', regionalKey, 'image', {});
+			scene.load.emit('filecomplete', 'unrelated-image', 'image', {});
+			scene.load.emit('filecomplete', regionalKey, 'json', {});
+			scene.load.emit('complete');
+
+			expect(diagnostics[0]?.regionalBackgroundLoadCompletions).toBe(1);
+		} finally {
+			now.mockRestore();
+			target.restore();
+		}
+	});
+
+	it('emits once per loader completion lifecycle and removes regional completion bookkeeping', async () => {
+		const { REGIONAL_BACKGROUND_RENDERER_DIAGNOSTIC_EVENT } =
+			await import('$lib/game/phaser/renderer-diagnostics');
+		const { BootScene } = await import('./BootScene');
+		const target = installHudCommandTarget();
+		const now = vi.spyOn(performance, 'now');
+		now.mockReturnValueOnce(3).mockReturnValueOnce(7);
+		const diagnostics: RegionalBackgroundRendererDiagnostic[] = [];
+		target.target.addEventListener(REGIONAL_BACKGROUND_RENDERER_DIAGNOSTIC_EVENT, (event) => {
+			diagnostics.push((event as CustomEvent<RegionalBackgroundRendererDiagnostic>).detail);
+		});
+		const scene = new BootScene();
+
+		try {
+			scene.preload();
+			scene.load.emit('complete');
+			scene.load.emit('complete');
+
+			expect(diagnostics).toHaveLength(1);
+			expect(scene.load.listenerCount('complete')).toBe(0);
+			expect(scene.load.listenerCount('filecomplete')).toBe(0);
+		} finally {
+			now.mockRestore();
+			target.restore();
+		}
+	});
+
+	it('reports a failed registered background as zero successful completions with a preload window', async () => {
+		const { regionalBackgroundAssets } = await import('$lib/game/content/assets');
+		const { REGIONAL_BACKGROUND_RENDERER_DIAGNOSTIC_EVENT } =
+			await import('$lib/game/phaser/renderer-diagnostics');
+		const { BootScene } = await import('./BootScene');
+		const target = installHudCommandTarget();
+		const now = vi.spyOn(performance, 'now');
+		now.mockReturnValueOnce(10).mockReturnValueOnce(30);
+		const error = vi.spyOn(console, 'error').mockImplementation(() => {});
+		const diagnostics: RegionalBackgroundRendererDiagnostic[] = [];
+		target.target.addEventListener(REGIONAL_BACKGROUND_RENDERER_DIAGNOSTIC_EVENT, (event) => {
+			diagnostics.push((event as CustomEvent<RegionalBackgroundRendererDiagnostic>).detail);
+		});
+		const scene = new BootScene();
+
+		try {
+			scene.preload();
+			scene.load.emit('loaderror', {
+				key: regionalBackgroundAssets[0]!.key,
+				src: regionalBackgroundAssets[0]!.path
+			});
+			scene.load.emit('complete');
+
+			expect(diagnostics[0]?.regionalBackgroundLoadMs).toBe(20);
+			expect(diagnostics[0]?.regionalBackgroundLoadCompletions).toBe(0);
+		} finally {
+			error.mockRestore();
+			now.mockRestore();
+			target.restore();
+		}
+	});
+
+	it('reports null timing and zero completions when no regional background is registered', async () => {
+		const assetsModule = await import('$lib/game/content/assets');
+		const { REGIONAL_BACKGROUND_RENDERER_DIAGNOSTIC_EVENT } =
+			await import('$lib/game/phaser/renderer-diagnostics');
+		const { BootScene } = await import('./BootScene');
+		const mutableAssets = assetsModule.regionalBackgroundAssets as unknown as Array<{
+			key: string;
+			path: string;
+		}>;
+		const savedAssets = [...mutableAssets];
+		mutableAssets.splice(0, mutableAssets.length);
+		const target = installHudCommandTarget();
+		const now = vi.spyOn(performance, 'now');
+		const diagnostics: RegionalBackgroundRendererDiagnostic[] = [];
+		target.target.addEventListener(REGIONAL_BACKGROUND_RENDERER_DIAGNOSTIC_EVENT, (event) => {
+			diagnostics.push((event as CustomEvent<RegionalBackgroundRendererDiagnostic>).detail);
+		});
+		const scene = new BootScene();
+
+		try {
+			scene.preload();
+			scene.load.emit('complete');
+
+			expect(now).not.toHaveBeenCalled();
+			expect(diagnostics[0]?.regionalBackgroundLoadMs).toBeNull();
+			expect(diagnostics[0]?.regionalBackgroundLoadCompletions).toBe(0);
+		} finally {
+			mutableAssets.push(...savedAssets);
+			now.mockRestore();
+			target.restore();
 		}
 	});
 });
@@ -2253,6 +2642,402 @@ describe('WorldScene', () => {
 		]!;
 		expect(groundOrder).toBeLessThan(backgroundOrder);
 		expect(backgroundOrder).toBeLessThan(floorDecorOrder);
+	});
+
+	it('creates no collision-debug Graphics object by default', async () => {
+		registerSceneSupportTestMap();
+		const { WorldScene } = await import('./WorldScene');
+		const scene = new WorldScene();
+
+		scene.create({ mapId: 'scene-support-test' });
+
+		expect(scene.add.graphics).not.toHaveBeenCalled();
+		expect(phaserState.graphicsMarkers).toHaveLength(0);
+	});
+
+	it('creates one high-depth collision overlay with the map perimeter and player-center inset', async () => {
+		registerSceneSupportTestMap();
+		const restoreLocation = installLocationSearch('?mapDebug=collision');
+		const { WorldScene } = await import('./WorldScene');
+		const scene = new WorldScene();
+
+		try {
+			scene.create({ mapId: 'scene-support-test' });
+
+			expect(scene.add.graphics).toHaveBeenCalledOnce();
+			expect(phaserState.graphicsMarkers).toHaveLength(1);
+			const graphics = phaserState.graphicsMarkers[0]!;
+			expect(graphics.setDepth).toHaveBeenCalledWith(10_000);
+			expect(graphics.commands).toContainEqual(
+				expect.objectContaining({
+					kind: 'strokeRect',
+					x: 0,
+					y: 0,
+					width: 640,
+					height: 640
+				})
+			);
+			expect(graphics.commands).toContainEqual(
+				expect.objectContaining({
+					kind: 'strokeRect',
+					x: 12,
+					y: 12,
+					width: 616,
+					height: 616
+				})
+			);
+		} finally {
+			restoreLocation();
+		}
+	});
+
+	it('builds the static collision command buffer after foreground world content', async () => {
+		registerSceneSupportTestMap();
+		maps['scene-support-test']!.mapDecor = [
+			{
+				id: 'scene-support-foreground',
+				x: 320,
+				y: 320,
+				width: 64,
+				height: 64,
+				textureKey: 'forest-dressing',
+				frameName: 'brush',
+				depth: 'foreground'
+			}
+		];
+		const restoreLocation = installLocationSearch('?mapDebug=collision');
+		const { WorldScene } = await import('./WorldScene');
+		const scene = new WorldScene();
+
+		try {
+			scene.create({ mapId: 'scene-support-test' });
+
+			const foregroundCallIndex = vi
+				.mocked(scene.add.image)
+				.mock.calls.findIndex(
+					([, , texture, frame]) => texture === 'forest-dressing' && frame === 'brush'
+				);
+			const foregroundOrder = vi.mocked(scene.add.image).mock.invocationCallOrder[
+				foregroundCallIndex
+			]!;
+			const debugOrder = vi.mocked(scene.add.graphics).mock.invocationCallOrder[0]!;
+			expect(foregroundOrder).toBeLessThan(debugOrder);
+		} finally {
+			restoreLocation();
+		}
+	});
+
+	it('draws player-radius-expanded blocker, fence, and colliding decor envelopes', async () => {
+		registerSceneSupportTestMap();
+		maps['scene-support-test']!.fences = [
+			{ id: 'scene-support-fence', x: 400, y: 400, width: 64, height: 32 }
+		];
+		maps['scene-support-test']!.mapDecor = [
+			{
+				id: 'scene-support-colliding-decor',
+				x: 500,
+				y: 500,
+				width: 48,
+				height: 32,
+				textureKey: 'forest-dressing',
+				frameName: 'brush',
+				collision: {
+					id: 'scene-support-colliding-decor-bounds',
+					x: 500,
+					y: 500,
+					width: 40,
+					height: 20
+				}
+			}
+		];
+		const restoreLocation = installLocationSearch('?mapDebug=collision');
+		const { WorldScene } = await import('./WorldScene');
+		const scene = new WorldScene();
+
+		try {
+			scene.create({ mapId: 'scene-support-test' });
+
+			const commands = phaserState.graphicsMarkers[0]!.commands;
+			expect(commands).toContainEqual({
+				kind: 'fillRect',
+				x: 132,
+				y: 4,
+				width: 56,
+				height: 184,
+				color: 0xff3355,
+				alpha: 0.18
+			});
+			expect(commands).toContainEqual({
+				kind: 'fillRect',
+				x: 356,
+				y: 372,
+				width: 88,
+				height: 56,
+				color: 0xff3355,
+				alpha: 0.18
+			});
+			expect(commands).toContainEqual({
+				kind: 'fillRect',
+				x: 468,
+				y: 478,
+				width: 64,
+				height: 44,
+				color: 0xff3355,
+				alpha: 0.18
+			});
+		} finally {
+			restoreLocation();
+		}
+	});
+
+	it('draws a landmark raw footprint and its doorway-carved collision pieces with player padding', async () => {
+		registerSceneSupportTestMap();
+		maps['scene-support-test']!.landmarks = [
+			{
+				id: 'scene-support-house-exterior',
+				x: 320,
+				y: 320,
+				width: 96,
+				height: 96,
+				labelKey: 'content.maps.landmarks.hero-house-exterior.label',
+				label: 'Test house'
+			}
+		];
+		maps['scene-support-test']!.transitions.push({
+			id: 'scene-support-house-door',
+			x: 320,
+			y: 350,
+			toMapId: 'hero-house'
+		});
+		const restoreLocation = installLocationSearch('?mapDebug=collision');
+		const { WorldScene } = await import('./WorldScene');
+		const scene = new WorldScene();
+
+		try {
+			scene.create({ mapId: 'scene-support-test' });
+
+			const commands = phaserState.graphicsMarkers[0]!.commands;
+			expect(commands).toContainEqual({
+				kind: 'strokeRect',
+				x: 272,
+				y: 272,
+				width: 96,
+				height: 96,
+				color: 0xffc857,
+				alpha: 0.95,
+				lineWidth: 2
+			});
+			expect(commands).toContainEqual(
+				expect.objectContaining({
+					kind: 'fillRect',
+					x: 260,
+					y: 260,
+					width: 120,
+					height: 84,
+					color: 0xff8c42
+				})
+			);
+			expect(commands).toContainEqual(
+				expect.objectContaining({
+					kind: 'fillRect',
+					x: 260,
+					y: 320,
+					width: 44,
+					height: 60,
+					color: 0xff8c42
+				})
+			);
+			expect(commands).toContainEqual(
+				expect.objectContaining({
+					kind: 'fillRect',
+					x: 336,
+					y: 320,
+					width: 44,
+					height: 60,
+					color: 0xff8c42
+				})
+			);
+		} finally {
+			restoreLocation();
+		}
+	});
+
+	it('draws the item-shop counter player-center exclusion envelope at (152, 72, 208, 72)', async () => {
+		const restoreLocation = installLocationSearch('?mapDebug=collision');
+		const { WorldScene } = await import('./WorldScene');
+		const scene = new WorldScene();
+
+		try {
+			scene.create({ mapId: 'item-shop' });
+
+			expect(phaserState.graphicsMarkers[0]!.commands).toContainEqual({
+				kind: 'fillRect',
+				x: 152,
+				y: 72,
+				width: 208,
+				height: 72,
+				color: 0xff3355,
+				alpha: 0.18
+			});
+		} finally {
+			restoreLocation();
+		}
+	});
+
+	it('draws shopkeeper Mira at collision radius 29 without treating the ambient customer as a blocker', async () => {
+		const restoreLocation = installLocationSearch('?mapDebug=collision');
+		const { WorldScene } = await import('./WorldScene');
+		const scene = new WorldScene();
+
+		try {
+			scene.create({ mapId: 'item-shop' });
+
+			const circles = phaserState.graphicsMarkers[0]!.commands.filter(
+				(command) => command.kind === 'strokeCircle'
+			);
+			expect(circles).toContainEqual({
+				kind: 'strokeCircle',
+				x: 256,
+				y: 144,
+				radius: 29,
+				color: 0xc084fc,
+				alpha: 0.95,
+				lineWidth: 2
+			});
+			expect(circles).not.toContainEqual(
+				expect.objectContaining({
+					kind: 'strokeCircle',
+					x: 176,
+					y: 232
+				})
+			);
+		} finally {
+			restoreLocation();
+		}
+	});
+
+	it('draws transition, pickup, and discovery alignment rings with runtime-effective radii', async () => {
+		registerSceneSupportTestMap();
+		maps['scene-support-test']!.pickups = [
+			{
+				id: 'scene-support-pickup',
+				x: 200,
+				y: 300,
+				itemId: 'field-potion',
+				quantity: 1
+			}
+		];
+		maps['scene-support-test']!.discoveries = [
+			{
+				id: 'scene-support-discovery',
+				x: 100,
+				y: 300,
+				labelKey: 'content.maps.discoveries.ferry-shrine-lore.label',
+				descriptionKey: 'content.maps.discoveries.ferry-shrine-lore.description'
+			}
+		];
+		const restoreLocation = installLocationSearch('?mapDebug=collision');
+		const { WorldScene } = await import('./WorldScene');
+		const scene = new WorldScene();
+
+		try {
+			scene.create({ mapId: 'scene-support-test' });
+
+			const circles = phaserState.graphicsMarkers[0]!.commands.filter(
+				(command) => command.kind === 'strokeCircle'
+			);
+			expect(circles).toContainEqual(
+				expect.objectContaining({
+					kind: 'strokeCircle',
+					x: 320,
+					y: 96,
+					radius: 30,
+					color: 0x22d3ee
+				})
+			);
+			expect(circles).toContainEqual(
+				expect.objectContaining({
+					kind: 'strokeCircle',
+					x: 200,
+					y: 300,
+					radius: 30,
+					color: 0x4ade80
+				})
+			);
+			expect(circles).toContainEqual(
+				expect.objectContaining({
+					kind: 'strokeCircle',
+					x: 100,
+					y: 300,
+					radius: 76,
+					color: 0xfacc15
+				})
+			);
+		} finally {
+			restoreLocation();
+		}
+	});
+
+	it('clears and destroys the scene-owned collision overlay exactly once on shutdown', async () => {
+		registerSceneSupportTestMap();
+		const restoreLocation = installLocationSearch('?mapDebug=collision');
+		const { WorldScene } = await import('./WorldScene');
+		const scene = new WorldScene();
+
+		try {
+			scene.create({ mapId: 'scene-support-test' });
+			const graphics = phaserState.graphicsMarkers[0]!;
+
+			expect(scene.events.listenerCount('shutdown')).toBeGreaterThanOrEqual(2);
+			scene.events.emit('shutdown');
+			scene.events.emit('shutdown');
+
+			expect(graphics.clear).toHaveBeenCalledOnce();
+			expect(graphics.destroy).toHaveBeenCalledOnce();
+			expect(scene.events.listenerCount('shutdown')).toBe(0);
+		} finally {
+			restoreLocation();
+		}
+	});
+
+	it('rebuilds a fresh collision overlay from the newly active interior map', async () => {
+		registerSceneSupportTestMap();
+		const restoreLocation = installLocationSearch('?mapDebug=collision');
+		const { WorldScene } = await import('./WorldScene');
+		const scene = new WorldScene();
+
+		try {
+			scene.create({ mapId: 'scene-support-test' });
+			const firstGraphics = phaserState.graphicsMarkers[0]!;
+			scene.events.emit('shutdown');
+
+			scene.create({ mapId: 'item-shop' });
+
+			expect(phaserState.graphicsMarkers).toHaveLength(2);
+			const interiorGraphics = phaserState.graphicsMarkers[1]!;
+			expect(interiorGraphics).not.toBe(firstGraphics);
+			expect(firstGraphics.destroy).toHaveBeenCalledOnce();
+			expect(interiorGraphics.commands).toContainEqual(
+				expect.objectContaining({
+					kind: 'strokeRect',
+					x: 0,
+					y: 0,
+					width: 512,
+					height: 384
+				})
+			);
+			expect(interiorGraphics.commands).toContainEqual(
+				expect.objectContaining({
+					kind: 'strokeRect',
+					x: 12,
+					y: 12,
+					width: 488,
+					height: 360
+				})
+			);
+		} finally {
+			restoreLocation();
+		}
 	});
 
 	it('reveals a discovery marker only when the hero is within range', async () => {
