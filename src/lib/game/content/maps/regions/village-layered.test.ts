@@ -310,7 +310,13 @@ function roomCentroid(glyph: string): Cell {
 			if (V.layers.regions[r][c] === glyph && isWalkableTile(c, r)) cells.push({ col: c, row: r });
 	const col = Math.round(cells.reduce((sum, cell) => sum + cell.col, 0) / cells.length);
 	const row = Math.round(cells.reduce((sum, cell) => sum + cell.row, 0) / cells.length);
-	return cells.find((cell) => cell.col === col && cell.row === row) ?? cells[0];
+	const centroid = cells.find((cell) => cell.col === col && cell.row === row);
+	// If the rounded centroid is not itself a walkable cell (irregular room
+	// shape), the nearest walkable cell in scan order is used. Assert so a
+	// future room layout that pushes the centroid onto a wall surfaces here
+	// instead of silently starting BFS from a corner.
+	expect(centroid, `room ${glyph} centroid (${col},${row}) is not a walkable cell`).toBeDefined();
+	return centroid ?? cells[0];
 }
 
 // The game's real standability rule, measured against the fully composed
