@@ -19,6 +19,10 @@ import {
 	villageHedgeAsset
 } from '$lib/game/content/assets';
 import { openingMapId } from '$lib/game/content/maps';
+import {
+	buildRegionalBackgroundRendererDiagnostic,
+	emitRegionalBackgroundRendererDiagnostic
+} from '$lib/game/phaser/renderer-diagnostics';
 import { WorldScene } from './WorldScene';
 
 export class BootScene extends Phaser.Scene {
@@ -35,6 +39,48 @@ export class BootScene extends Phaser.Scene {
 		this.load.on('loaderror', (file: { key?: string; src?: string }) => {
 			console.error(
 				`[BootScene] asset load failed: key="${file.key ?? 'unknown'}" src="${file.src ?? ''}"`
+			);
+		});
+		const regionalBackgroundKeys = new Set(
+			regionalBackgroundAssets.map((asset) => asset.key as string)
+		);
+		const completedRegionalBackgroundKeys = new Set<string>();
+		let regionalBackgroundLoadStartedAtMs: number | null = null;
+		const onFileComplete = (key: string, type: string) => {
+			if (type === 'image' && regionalBackgroundKeys.has(key)) {
+				completedRegionalBackgroundKeys.add(key);
+			}
+		};
+		this.load.on('filecomplete', onFileComplete);
+		this.load.once('complete', () => {
+			this.load.off('filecomplete', onFileComplete);
+			const regionalBackgroundLoadCompletedAtMs =
+				regionalBackgroundLoadStartedAtMs === null ? null : performance.now();
+			const renderer = this.game.renderer.type === Phaser.WEBGL ? 'webgl' : 'canvas';
+			let maxTextureSize: number | null = null;
+
+			if (renderer === 'webgl') {
+				try {
+					const gl = (
+						this.game.renderer as Phaser.Renderer.WebGL.WebGLRenderer & {
+							gl: WebGLRenderingContext;
+						}
+					).gl;
+					const queriedLimit = gl.getParameter(gl.MAX_TEXTURE_SIZE);
+					maxTextureSize = typeof queriedLimit === 'number' ? queriedLimit : null;
+				} catch {
+					maxTextureSize = null;
+				}
+			}
+
+			emitRegionalBackgroundRendererDiagnostic(
+				buildRegionalBackgroundRendererDiagnostic({
+					renderer,
+					maxTextureSize,
+					loadStartedAtMs: regionalBackgroundLoadStartedAtMs,
+					loadCompletedAtMs: regionalBackgroundLoadCompletedAtMs,
+					regionalBackgroundLoadCompletions: completedRegionalBackgroundKeys.size
+				})
 			);
 		});
 		this.load.image(starterPackAsset.key, starterPackAsset.path);
@@ -56,6 +102,12 @@ export class BootScene extends Phaser.Scene {
 			this.load.image(asset.key, asset.path);
 		}
 		for (const asset of regionalBackgroundAssets) {
+			if (regionalBackgroundLoadStartedAtMs === null) {
+				// This duration spans from the first regional queue operation through the
+				// loader's overall completion callback. It is not isolated network latency
+				// and the completion count is loader/decode bookkeeping, not GPU uploads.
+				regionalBackgroundLoadStartedAtMs = performance.now();
+			}
 			this.load.image(asset.key, asset.path);
 		}
 	}
