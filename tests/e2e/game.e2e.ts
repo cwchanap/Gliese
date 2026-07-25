@@ -1,8 +1,31 @@
-import { expect, test, type Page } from '@playwright/test';
+import { expect, test, type Page, type TestInfo } from '@playwright/test';
+import { writeFile } from 'node:fs/promises';
+
+import {
+	SUNDROP_VILLAGE_BACKGROUND_ID,
+	SUNDROP_VILLAGE_BACKGROUND_PATH,
+	SUNDROP_VILLAGE_BACKGROUND_TEXTURE_KEY
+} from '../../src/lib/game/content/backgrounds/sundrop-village-background';
+import {
+	REGIONAL_BACKGROUND_RENDERER_DIAGNOSTIC_EVENT,
+	type RegionalBackgroundRendererDiagnostic
+} from '../../src/lib/game/phaser/renderer-diagnostics';
 
 type HudStateSnapshot = {
 	status?: string;
 	nearbyShop?: { shopId?: string; merchantName?: string } | null;
+};
+
+type ConsoleEntry = {
+	type: string;
+	text: string;
+	url: string;
+};
+
+type RegionalBackgroundEvidenceCase = {
+	name: string;
+	screenshotName: string;
+	url: string;
 };
 
 type GlieseProbeWindow = Window & {
@@ -122,6 +145,220 @@ function injectSave(page: Page, save: ReturnType<typeof createSaveFixture>) {
 		},
 		{ encoded: JSON.stringify(save), key: SAVE_STORAGE_KEY }
 	);
+}
+
+async function captureRuntimeScreenshot(page: Page, testInfo: TestInfo, name: string) {
+	const outputPath = testInfo.outputPath(name);
+	await page.screenshot({ path: outputPath });
+	await testInfo.attach(name, { path: outputPath, contentType: 'image/png' });
+}
+
+function createRegionalBackgroundSaveFixture() {
+	return createSaveFixture({
+		mapId: 'meadow-entry',
+		player: {
+			level: 1,
+			xp: 0,
+			hp: 20,
+			attack: 3,
+			x: 624,
+			y: 5_776,
+			facing: 'up'
+		}
+	});
+}
+
+async function installRegionalBackgroundDiagnosticListener(page: Page) {
+	const diagnostics: RegionalBackgroundRendererDiagnostic[] = [];
+	const bindingName = 'captureRegionalBackgroundRendererDiagnostic';
+
+	await page.exposeBinding(bindingName, (_source, detail: RegionalBackgroundRendererDiagnostic) => {
+		diagnostics.push(detail);
+	});
+	await page.addInitScript(
+		({ diagnosticBindingName, eventName }) => {
+			window.addEventListener(eventName, (event) => {
+				const binding = (
+					window as unknown as Record<
+						string,
+						(detail: RegionalBackgroundRendererDiagnostic) => Promise<void>
+					>
+				)[diagnosticBindingName];
+				void binding((event as CustomEvent<RegionalBackgroundRendererDiagnostic>).detail);
+			});
+		},
+		{
+			diagnosticBindingName: bindingName,
+			eventName: REGIONAL_BACKGROUND_RENDERER_DIAGNOSTIC_EVENT
+		}
+	);
+
+	return diagnostics;
+}
+
+async function prepareRegionalBackgroundEvidencePage(page: Page) {
+	await page.setViewportSize({ width: 1280, height: 720 });
+	await injectSave(page, createRegionalBackgroundSaveFixture());
+	return installRegionalBackgroundDiagnosticListener(page);
+}
+
+async function expectGameReady(page: Page) {
+	await expect(page.locator('canvas')).toBeVisible();
+	await expect(page.getByRole('button', { name: 'Menu' })).toBeVisible();
+}
+
+async function assertAndAttachRendererDiagnostic(
+	diagnostics: RegionalBackgroundRendererDiagnostic[],
+	expectedLoadCompletions: number,
+	attachmentName: string,
+	testInfo: TestInfo
+) {
+	await expect.poll(() => diagnostics.length).toBe(1);
+	expect(diagnostics).toHaveLength(1);
+
+	const diagnostic = diagnostics[0]!;
+	expect(diagnostic.regionalBackgroundLoadCompletions).toBe(expectedLoadCompletions);
+	expect(diagnostic.regionalBackgroundLoadMs).toBeGreaterThanOrEqual(0);
+	if (diagnostic.renderer === 'canvas') {
+		expect(diagnostic.maxTextureSize).toBeNull();
+	} else {
+		expect(diagnostic.maxTextureSize).toBeGreaterThan(0);
+	}
+
+	const diagnosticOutputPath = testInfo.outputPath(attachmentName);
+	await writeFile(diagnosticOutputPath, `${JSON.stringify(diagnostic, null, 2)}\n`, 'utf8');
+	await testInfo.attach(attachmentName, {
+		path: diagnosticOutputPath,
+		contentType: 'application/json'
+	});
+}
+
+test('regional background load failure keeps fallback gameplay ready with scoped diagnostics', async ({
+	page
+}, testInfo) => {
+	const consoleEntries: ConsoleEntry[] = [];
+	const pageErrors: Error[] = [];
+	const expectedAssetUrl = new URL(SUNDROP_VILLAGE_BACKGROUND_PATH, 'http://127.0.0.1:4173').href;
+
+	const diagnostics = await prepareRegionalBackgroundEvidencePage(page);
+	page.on('console', (message) => {
+		consoleEntries.push({
+			type: message.type(),
+			text: message.text(),
+			url: message.location().url
+		});
+	});
+	page.on('pageerror', (error) => pageErrors.push(error));
+	await page.route(`**${SUNDROP_VILLAGE_BACKGROUND_PATH}`, (route) => route.abort('failed'));
+
+	await page.goto('/');
+	await expectGameReady(page);
+	await assertAndAttachRendererDiagnostic(
+		diagnostics,
+		0,
+		'runtime-background-load-failure.renderer.json',
+		testInfo
+	);
+
+	const bootErrors = consoleEntries.filter(
+		(entry) => entry.type === 'error' && entry.text.startsWith('[BootScene] asset load failed:')
+	);
+	expect(bootErrors).toHaveLength(1);
+	expect(bootErrors[0]?.text).toContain(`key="${SUNDROP_VILLAGE_BACKGROUND_TEXTURE_KEY}"`);
+	const bootSource = bootErrors[0]?.text.match(/\ssrc="([^"]+)"$/)?.[1];
+	expect(bootSource).toBeDefined();
+	expect(new URL(bootSource!, expectedAssetUrl).href).toBe(expectedAssetUrl);
+
+	const expectedWorldWarning =
+		`[WorldScene] regional background unavailable: id="${SUNDROP_VILLAGE_BACKGROUND_ID}" ` +
+		`textureKey="${SUNDROP_VILLAGE_BACKGROUND_TEXTURE_KEY}" mapId="meadow-entry"`;
+	const findTargetedWorldWarnings = () =>
+		consoleEntries.filter(
+			(entry) =>
+				entry.type === 'warning' && entry.text.includes(`id="${SUNDROP_VILLAGE_BACKGROUND_ID}"`)
+		);
+	await expect
+		.poll(() => findTargetedWorldWarnings().map((entry) => entry.text))
+		.toEqual([expectedWorldWarning]);
+	const targetedWorldWarnings = findTargetedWorldWarnings();
+	expect(targetedWorldWarnings.map((entry) => entry.text)).toEqual([expectedWorldWarning]);
+
+	const toleratedChromiumFailures = consoleEntries.filter((entry) => {
+		if (entry.type !== 'error' || entry.text !== 'Failed to load resource: net::ERR_FAILED') {
+			return false;
+		}
+
+		try {
+			return new URL(entry.url).href === expectedAssetUrl;
+		} catch {
+			return false;
+		}
+	});
+	const unexpectedErrors = consoleEntries.filter(
+		(entry) =>
+			entry.type === 'error' &&
+			!bootErrors.includes(entry) &&
+			!toleratedChromiumFailures.includes(entry)
+	);
+	expect(unexpectedErrors).toEqual([]);
+
+	const unexpectedGameWarnings = consoleEntries.filter(
+		(entry) =>
+			entry.type === 'warning' &&
+			!targetedWorldWarnings.includes(entry) &&
+			/\[(?:BootScene|WorldScene)\]|game\/assets|phaser|texture|frame/i.test(
+				`${entry.text} ${entry.url}`
+			)
+	);
+	expect(unexpectedGameWarnings).toEqual([]);
+	expect(pageErrors).toEqual([]);
+	await captureRuntimeScreenshot(page, testInfo, 'runtime-background-load-failure.png');
+	expect(
+		testInfo.attachments.some(
+			(attachment) =>
+				attachment.name === 'runtime-background-load-failure.png' &&
+				attachment.contentType === 'image/png'
+		)
+	).toBe(true);
+});
+
+const regionalBackgroundEvidenceCases: RegionalBackgroundEvidenceCase[] = [
+	{
+		name: 'enabled capture',
+		screenshotName: 'runtime-background-enabled.png',
+		url: '/'
+	},
+	{
+		name: 'off capture',
+		screenshotName: 'runtime-background-off.png',
+		url: '/?regionalBackground=off'
+	},
+	{
+		name: 'collision capture',
+		screenshotName: 'runtime-background-collision.png',
+		url: '/?mapDebug=collision'
+	},
+	{
+		name: 'off collision capture',
+		screenshotName: 'runtime-background-off-collision.png',
+		url: '/?regionalBackground=off&mapDebug=collision'
+	}
+];
+
+for (const evidenceCase of regionalBackgroundEvidenceCases) {
+	test(`regional background ${evidenceCase.name}`, async ({ page }, testInfo) => {
+		const diagnostics = await prepareRegionalBackgroundEvidencePage(page);
+
+		await page.goto(evidenceCase.url);
+		await expectGameReady(page);
+		await assertAndAttachRendererDiagnostic(
+			diagnostics,
+			1,
+			evidenceCase.screenshotName.replace(/\.png$/, '.renderer.json'),
+			testInfo
+		);
+		await captureRuntimeScreenshot(page, testInfo, evidenceCase.screenshotName);
+	});
 }
 
 test('entry map boots with no game console errors', async ({ page }) => {

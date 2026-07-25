@@ -3,7 +3,10 @@
 ## Status
 
 Approved production master. The first generated candidate was rejected before finalization;
-the selected master is the corrected continuous-ground edit described below.
+the selected master is the corrected continuous-ground edit described below. The automated
+browser fallback matrix also passes. Physical-controller, Tauri renderer, physical
+GPU-upload/decode, and device-local frame-profile gates remain separate final-acceptance work
+and are not claimed by this report.
 
 ## Production provenance
 
@@ -158,6 +161,114 @@ inspected after exact-alpha finalization.
   budget semantics; and matched the exact SHA-256.
 - `rtk bun run check` passed with 0 errors and 0 warnings.
 - `rtk bun run lint` passed; Prettier and ESLint were clean.
+
+## Browser runtime evidence
+
+### Automated Playwright matrix
+
+Every regional-background capture used Chromium at an exact `1280×720` viewport. Before
+navigation, the test injected a version-8 save for `meadow-entry` with the player at
+`(624, 5776)`, facing up, level 1, 0 XP, 20 HP, and 3 attack. That position is two tiles
+south of the hero-house door and inside the regional canvas. Canvas visibility plus the
+visible `Menu` button was the ready-state gate.
+
+The final focused command passed:
+
+```sh
+rtk bun run test:e2e -- --grep "regional background"
+```
+
+Result: `5 passed (12.8s)`.
+
+The final full-suite command passed:
+
+```sh
+rtk bun run test:e2e
+```
+
+Result: `17 passed (53.0s)`.
+
+The missing-asset case aborted the exact production request,
+`/game/assets/regions/sundrop-village-background.png`, before navigation. It asserted one
+scoped BootScene `console.error`, one exact WorldScene `console.warn` containing background
+ID `sundrop-village-regional-background`, texture key `sundrop-village-background`, and map
+ID `meadow-entry`, no duplicate targeted warning, no unexpected console error, and no
+`pageerror`. Chromium's exact `Failed to load resource: net::ERR_FAILED` message is tolerated
+only when its console location is the intercepted production URL; no broad network, Phaser,
+resource, or console filter is used.
+
+The first full-suite run exposed a test-order timing edge: the renderer diagnostic can be
+forwarded immediately before `WorldScene.create()` emits the targeted warning. The test now
+polls for that exact warning and still requires the one-element exact-message array. The
+unchanged assertions then passed in the focused and full reruns.
+
+### Captured browser diagnostics
+
+The listener was installed with `page.addInitScript(...)` before navigation and used the
+exported `REGIONAL_BACKGROUND_RENDERER_DIAGNOSTIC_EVENT` constant plus a Playwright binding;
+the production event-name string was not copied into the test and no production test hook
+was added. Each JSON payload was attached to its Playwright result.
+
+`regionalBackgroundLoadMs` is the measured window from the first regional-background queue
+operation through Phaser's overall loader-complete callback. It is not isolated network
+latency, GPU upload time, or a p95 measurement. The successful completion count is loader
+file-completion bookkeeping, not a GPU-upload claim.
+
+| Mode | Renderer | `MAX_TEXTURE_SIZE` | Load window (ms) | Successful completions |
+| --- | --- | ---: | ---: | ---: |
+| enabled | WebGL | 8192 | 422.7000000476837 | 1 |
+| background off | WebGL | 8192 | 314.5 | 1 |
+| collision overlay | WebGL | 8192 | 367.60000002384186 | 1 |
+| background off + collision | WebGL | 8192 | 350.80000001192093 | 1 |
+| intercepted load failure | WebGL | 8192 | 292.2000000476837 | 0 |
+
+This local Chromium run observed a positive `MAX_TEXTURE_SIZE` of 8192. The automated
+contract requires a positive WebGL value (or `null` for Canvas) but deliberately does not
+encode the reference-device `>=1792` acceptance gate as a CI assertion.
+
+### Reviewed runtime captures
+
+- [Baked background enabled](img/hpa-307/runtime-background-enabled.png)
+- [Fallback tiles with background off](img/hpa-307/runtime-background-off.png)
+- [Baked background with live collision overlay](img/hpa-307/runtime-background-collision.png)
+- [Fallback tiles with live collision overlay](img/hpa-307/runtime-background-off-collision.png)
+- [Fallback after intercepted background load failure](img/hpa-307/runtime-background-load-failure.png)
+
+All five final focused-run PNGs were opened at original resolution with `view_image` before
+the reviewed copies above were committed.
+
+- The enabled capture shows the rich continuous regional terrain under unchanged live
+  buildings, characters, props, and HUD.
+- The off capture shows the tile fallback clearly across the same Home Yard camera view.
+- The collision capture shows the translucent live collision regions, landmark footprint,
+  and player-clearance circle above the baked background.
+- The combined capture shows the same live collision geometry above fallback tiles.
+- The load-failure capture shows fallback tiles, not Phaser's missing-texture placeholder;
+  it is visually consistent with the background-off baseline while the canvas and HUD remain
+  ready.
+
+The visible `Hero's House` landmark label is live `WorldScene.renderLandmarks(...)` output.
+It appears in both baked and fallback captures and is not text baked into the regional
+master.
+
+### Evidence boundary and remaining manual gates
+
+The automated browser run proves the production request boundary, loader completion
+diagnostic, URL modes, targeted failure diagnostics, boot continuity, retained fallback
+rendering, and screenshot artifact generation. Playwright is configured to retain
+failure-only screenshots and traces, and CI uploads both `playwright-report/` and
+`test-results/` under the existing non-cancelled seven-day artifact policy.
+
+The following acceptance gates were not performed in this browser evidence slice and remain
+explicitly unclaimed:
+
+- the physical-controller village route, every interior round trip, and the four named
+  save/reload checkpoints;
+- the Tauri renderer measurement on the reference device;
+- a physical WebGL upload count or Canvas decode count across scene/interior round trips;
+- enabled-versus-disabled median and p95 frame profiling and the `<=2ms` device-local p95
+  regression gate;
+- visible hitch or re-upload observation during the controller route.
 
 ## Concerns
 
