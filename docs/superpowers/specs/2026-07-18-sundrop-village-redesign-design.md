@@ -532,12 +532,15 @@ twice during implementation — a building's rendered rect sat on the cells its 
 reach its own gate — a defect class A1–A10 cannot see, because they read the collision *layer*
 and the layer was fine both times.
 
-**A13 (added with the v4 shrine fix).** The shrine-room east–west crossing: BFS from each
-H-S gate entry cell to `village-shrine-cache` under the composed rule, and require at least
-one route whose perpendicular cross-section never drops below 2 tiles. Added because the v4
-walkthrough found the shrine left only a ~4px bypass that pulled the player into the shrine
-on every crossing — a defect A11 (reachability only) and A3/A10 (critical route only, S is
-not on it) cannot see.
+**A13 (added with the v4 shrine fix).** The shrine-room crossing: for **every shrine entry
+cell** — both the H-S opening (cols 24, rows 36–40) and the P-S opening (cols 29–32, row 32)
+— BFS from that entry cell to `village-shrine-cache` under the composed rule, and require at
+least one route whose perpendicular cross-section never drops below 2 tiles. Added because
+the v4 walkthrough found the shrine left only a ~4px bypass that pulled the player into the
+shrine on every crossing — a defect A11 (reachability only) and A3/A10 (critical route only,
+S is not on it) cannot see. Both entries are covered because each is a distinct way the
+player enters S to reach the cache, and a future building or doorway adjustment could narrow
+either crossing independently.
 
 ## Revisions
 
@@ -611,12 +614,16 @@ row 43 is the northmost door row still south of the footprint. Footprint bottom 
 return arrival `(1464, 5788)` now lands in **81px** of clear band instead of a padded wall.
 
 This is a landmark/transition move only — the collision, region, path, terrain and decor
-layers are untouched, so A1–A12 are unaffected; **A13** is added with this fix to guard the
-crossing lane itself. It changes only as-built fixture pins (the
-shrine's rendered `y` and the door's `y`) in `maps.test.ts` / `scenes.test.ts`. The crossing
-lane is a runtime navigation property; **A13** now guards it by
-requiring the composed cross-section of the H-S gate → `village-shrine-cache` route to stay
-≥2 tiles wide everywhere, so a future one-tile building or doorway adjustment that recreates
-the narrow funnel fails the contract. The standing guard is the
-`interior return arrivals are standable` contract, which keeps the arrival out of a blocker
-and clear of its door.
+layers are untouched, so the structural-layer assertions **A1–A8** are unaffected. **A9–A12
+are not** structural: A9 (landmark/decor/object anchor on a walkable cell), A10 (footprint
+vs. openings and the critical route), A11 (composed per-room passability), and A12 (sprite
+rect overlap) all depend on landmark, object, decor, and composed-passability state, so they
+must be rerun after any landmark move — including this one. They do pass against the moved
+shrine, but that is a checked property, not an assumption. **A13** is added with this fix to
+guard the crossing lane itself. It changes only as-built fixture pins (the shrine's rendered
+`y` and the door's `y`) in `maps.test.ts` / `scenes.test.ts`. The crossing lane is a runtime
+navigation property; **A13** now guards it by requiring the composed cross-section of every
+shrine-entry → `village-shrine-cache` route (both H-S and P-S) to stay ≥2 tiles wide
+everywhere, so a future one-tile building or doorway adjustment that recreates the narrow
+funnel fails the contract. The standing guard is the `interior return arrivals are standable`
+contract, which keeps the arrival out of a blocker and clear of its door.

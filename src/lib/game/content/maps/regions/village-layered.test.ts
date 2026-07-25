@@ -612,18 +612,20 @@ describe('sundrop village — Wave A design contract', () => {
 			const cy = V.origin.y + row * V.tileSize + V.tileSize / 2;
 			return Math.hypot(cx - shrineTransition.x, cy - shrineTransition.y) > triggerRadius;
 		};
-		// Restrict the crossing search to shrine-room cells plus the H-S
-		// opening cells used as entry points. Without the region guard
-		// hasWidePath could detour through H→P→S, masking a regression at
-		// the direct east–west crossing through S that this test exists to
-		// catch. The opening cells are the gate itself — the BFS can step
-		// from one into S but cannot go deeper into H (non-opening H cells
-		// fail the predicate), so the path stays within S.
+		// Restrict the crossing search to shrine-room cells plus the shrine
+		// entry openings (H-S and P-S) used as entry points. Without the
+		// region guard hasWidePath could detour through H→P→S, masking a
+		// regression at the direct crossing through S that this test exists
+		// to catch. The opening cells are the gate itself — the BFS can step
+		// from one into S but cannot go deeper into H or P (non-opening H/P
+		// cells fail the predicate), so the path stays within S.
 		const hsOpening = new Set(cellsIn(24, 24, 36, 40).map((c) => `${c.col}:${c.row}`));
+		const psOpening = new Set(cellsIn(29, 32, 32, 32).map((c) => `${c.col}:${c.row}`));
+		const entryOpenings = new Set<string>([...hsOpening, ...psOpening]);
 		const isCrossingTile = (col: number, row: number): boolean =>
 			isStandableTile(col, row) &&
 			isClearOfShrineTrigger(col, row) &&
-			(V.layers.regions[row][col] === 'S' || hsOpening.has(`${col}:${row}`));
+			(V.layers.regions[row][col] === 'S' || entryOpenings.has(`${col}:${row}`));
 
 		const cache = V.objects.pickups!.find((p) => p.id === 'village-shrine-cache')!;
 		const goal: Cell = { col: cache.col, row: cache.row };
@@ -631,23 +633,29 @@ describe('sundrop village — Wave A design contract', () => {
 			isCrossingTile(goal.col, goal.row),
 			'village-shrine-cache tile is standable and clear of the shrine trigger'
 		).toBe(true);
-		// Western entrance to S: the H-S opening cells on the S side.
-		const entries = cellsIn(24, 24, 36, 40).filter((c) => isCrossingTile(c.col, c.row));
-		expect(entries.length, 'H-S opening has crossing-safe S-side cells').toBeGreaterThan(0);
-		// The crossing must offer at least one route whose perpendicular
-		// cross-section never drops below 2 tiles. hasWidePath searches for
-		// ANY qualifying route — not just the shortest path from each entry,
-		// which can clip a narrow corner while a longer valid route exists.
-		let found = false;
-		for (const entry of entries) {
-			if (hasWidePath(entry, goal, isCrossingTile, DIMS, 2)) {
-				found = true;
-				break;
+		// Every shrine entry opening must have at least one crossing-safe
+		// S-side cell, and at least one ≥2-tile-wide route from it to the
+		// cache. hasWidePath searches for ANY qualifying route — not just
+		// the shortest path from each entry, which can clip a narrow corner
+		// while a longer valid route exists.
+		const entryGroups: Array<{ edge: string; cells: Cell[] }> = [
+			{ edge: 'H-S', cells: cellsIn(24, 24, 36, 40) },
+			{ edge: 'P-S', cells: cellsIn(29, 32, 32, 32) }
+		];
+		for (const { edge, cells } of entryGroups) {
+			const entries = cells.filter((c) => isCrossingTile(c.col, c.row));
+			expect(entries.length, `${edge} opening has crossing-safe S-side cells`).toBeGreaterThan(0);
+			let found = false;
+			for (const entry of entries) {
+				if (hasWidePath(entry, goal, isCrossingTile, DIMS, 2)) {
+					found = true;
+					break;
+				}
 			}
+			expect(
+				found,
+				`no ≥2-tile-wide crossing from ${edge} gate to village-shrine-cache clear of the shrine trigger`
+			).toBe(true);
 		}
-		expect(
-			found,
-			'no ≥2-tile-wide crossing from H-S gate to village-shrine-cache clear of the shrine trigger'
-		).toBe(true);
 	});
 });
