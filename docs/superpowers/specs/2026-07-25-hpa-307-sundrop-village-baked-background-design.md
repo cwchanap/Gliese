@@ -74,7 +74,9 @@ existing interior, but does not bake or re-author those rooms.
 - Remove the non-colliding Home Yard scarecrow without changing gameplay geometry.
 - Keep collision, navigation, minimap, transitions, rewards, NPCs, and saves unchanged.
 - Keep buildings and every interactive, animated, stateful, foreground, or
-  collision-bearing object live.
+  collision-bearing object live. Village `garden-hedge` collision remains live, but its
+  legacy repeated sprite is suppressed where the approved regional background rendered
+  successfully so it does not duplicate the baked presentation.
 - Generate deterministic, source-derived art-control masks at the exact master resolution.
 - Detect stale art when the underlying control geometry changes.
 - Provide URL-controlled fallback and collision-overlay validation modes.
@@ -246,6 +248,15 @@ The full opening-map tile data, including every compiled village `groundPatch`, 
 unchanged and is built on every scene creation. HPA-307 does not strip visually hidden
 patches as an optimization because they remain authoritative for fallback rendering,
 minimap semantics, and geometry-preserving regression tests.
+
+Village `garden-hedge` blockers that are fully covered by a successfully rendered regional
+background are collision-only in the normal baked presentation. `WorldScene` suppresses
+only their repeated `village-hedge/hedgeSegment` images; the authored blockers remain in
+`map.blockers` and continue to drive movement, normalization, collision debugging, and art
+controls. The decision is based on backgrounds that actually passed texture and dimension
+validation, not only the URL option. Therefore `?regionalBackground=off`, missing textures,
+and wrong-sized textures retain the live hedge sprites alongside fallback ground. The 15
+Crossroads corridor walls outside the rendered bounds also remain visible.
 
 ### Developer modes
 
@@ -779,7 +790,8 @@ Review artifacts include whole-map alignment views and close crops for:
 The richer revision refreshes this complete evidence set. Screenshots from the first
 integrated master may remain as explicitly labeled “before” comparisons, but they cannot be
 reused as proof for the revised PNG. The Home Yard crop must show that the scarecrow is
-absent, its former space remains open, and no baked mark reads as a substitute obstacle.
+absent, its former space remains open, the legacy green hedge-segment overlay is absent, and
+no baked mark reads as a substitute obstacle.
 
 The load-failure run also saves a screenshot artifact beside the
 `?regionalBackground=off` baseline. Human review of that pair—not DOM/canvas visibility
