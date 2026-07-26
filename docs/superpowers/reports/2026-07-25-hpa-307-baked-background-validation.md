@@ -281,6 +281,35 @@ corrected control, fingerprint chain, unchanged base PNG, and explicit reapprova
   building-entrance, and composed-collision overlays confirmed aligned routes and approaches,
   with no baked scarecrow or upright replacement.
 
+## 2026-07-26 follow-up: Home Yard west-edge tree wall
+
+- Follow-up visual feedback clarified that the unwanted obstacle was the repeated tree wall
+  at the far-left edge of the Home Yard camera, not only the previously removed scarecrow.
+- The wall came from the full-height `meadow-west-boundary` blocker. `WorldScene` rendered
+  its `town-hedge` kind as 134 repeated `forest-dressing/treeCluster` images at `x=32`;
+  43 marker centers were at or below the baked village origin.
+- Shortened only `meadow-west-boundary` from the full `6400 px` map height to `4320 px`.
+  Its extent is derived from the authored village origin and tile size, preserving the
+  northern overworld edge while ending one `32 px` authored tile before the baked village.
+  Movement beside the remaining west map edge stays constrained by `WorldScene`'s existing
+  player-radius clamp against the `6400×6400` map bounds. The other meadow edge blockers,
+  village hedges, room graph, routes, buildings, doors, props, and pickups remain unchanged.
+- A renderer-level regression test failed against the previous source with 134 total
+  west-edge tree-cluster markers. It now verifies each retained tree sprite's complete
+  `48 px` rendered extent ends at or before the one-tile village clearance. The affected
+  map, layered village, and scene suites pass 315 tests.
+- Regenerating the nine art controls retained fingerprint
+  `0c47a7dc58d48e87fa9dd9c290cf6835b8acc3f4eb60a4e2c1ba4eae37e4ed33`
+  with no control diff. The refreshed
+  [Home Yard capture](img/hpa-307/runtime-district-home-yard.png) shows open terrain where
+  the stale tree wall appeared.
+- Current follow-up gates pass: art validation 22 tests, the complete unit suite 51 files
+  and 831 tests, the complete Playwright suite 17 scenarios, Svelte check with zero
+  diagnostics, Prettier/ESLint, and the strict Tauri frontend build with its no-story-prose
+  assertion. The first sandboxed complete-unit attempt was environment-red when macOS denied
+  Chromium's Mach-port registration; the unchanged suite passed with browser-launch
+  permission.
+
 ## Automated validation
 
 ### Task 11 revision gate matrix
@@ -682,8 +711,8 @@ before the reviewed copies were committed.
   exactly after reload.
 - The six district captures remain visually distinct while live buildings, NPCs, door
   approaches, labels, minimap, and HUD remain legible.
-- The Home Yard capture confirms that the removed upright scarecrow has not returned and
-  that its former space remains open.
+- The refreshed Home Yard capture confirms that neither the west-edge tree wall nor the
+  removed upright scarecrow has returned, and that both areas remain open.
 - The four seam captures retain open transition geometry and alpha blending without a hard
   missing-texture boundary. They also make the still-noticeable rich-baked-to-plain-fallback
   material shift explicit instead of treating alpha blending as an invisible seam.
