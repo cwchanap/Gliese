@@ -4,9 +4,12 @@
 
 Approved production master. The first generated candidate was rejected before finalization;
 the selected master is the corrected continuous-ground edit described below. The automated
-browser fallback matrix also passes. Physical-controller, Tauri renderer, physical
-GPU-upload/decode, and device-local frame-profile gates remain separate final-acceptance work
-and are not claimed by this report.
+browser fallback matrix also passes. A headed Chromium run on the macOS reference device now
+covers the complete keyboard-driven village route, all seven interior round trips, both
+regional rewards, four exact save/reload checkpoints, scoped WebGL API-call observation, and
+the enabled-versus-disabled frame-time gate. Physical gamepad/controller input, the Tauri
+renderer, physical GPU residency/decode behavior, and subjective human feel remain
+explicitly unclaimed.
 
 ## Production provenance
 
@@ -226,6 +229,145 @@ This local Chromium run observed a positive `MAX_TEXTURE_SIZE` of 8192. The auto
 contract requires a positive WebGL value (or `null` for Canvas) but deliberately does not
 encode the reference-device `>=1792` acceptance gate as a CI assertion.
 
+### Reference-device headed-browser acceptance
+
+#### Environment and method
+
+The richer acceptance pass ran against commit
+`764afd9bc5170758316be9f4ec2523b0a69c5410` with the production Vite preview. It used a
+separate headed Chromium context for the save/reload route, background-enabled timing, and
+background-disabled timing.
+
+| Property | Recorded value |
+| --- | --- |
+| Host | macOS reference device |
+| Browser | Chromium `147.0.7727.15`, headed |
+| Viewport | `1280×720`, device scale factor `1` |
+| Input | Playwright keyboard, bounded held-arrow bursts |
+| Burst bound | adaptive `60–160 ms`, followed by a `50 ms` settle |
+| Authoritative state | dispatch `gliese:hud-command` `{ type: "save" }`, then parse `gliese.save.v8` |
+| Movement bound | at most 120 attempts per axis and a `9 px` waypoint tolerance |
+| Ready gate | visible canvas and visible `Menu` button |
+
+This is keyboard automation through the same input path used by the game. It is not evidence
+for a physical gamepad or controller. Every movement burst was checked against the persisted
+map ID, position, facing, and collected-pickup state; the controller did not infer success
+from elapsed time or screenshot pixels.
+
+#### Route coverage
+
+The accepted route started at Home Yard, crossed the authored regional connections through
+Well Plaza, Market/Blacksmith, Shrine Garden, North Residences/Guild, East Gate, and the
+north Crossroads throat, then returned to East Gate. The final acceptance pass recorded:
+
+| Measure | Result |
+| --- | ---: |
+| Ordered route legs | 43 |
+| Held-key bursts | 297 |
+| Authoritative saved states | 307 |
+| No-progress snags | 0 |
+| Interior round trips | 7 of 7 |
+| Regional rewards | 2 of 2 |
+| Final state | `meadow-entry (1832.0136, 4592.1696), right` |
+
+Both `village-market-cache` and `village-shrine-cache` were present in the final saved
+pickup set. The seven entered-and-exited interiors were:
+
+| Sequence | Interior |
+| ---: | --- |
+| 1 | `item-shop` |
+| 2 | `hero-house` |
+| 3 | `shrine-of-aurora-interior` |
+| 4 | `villager-house-2` |
+| 5 | `villager-house-3` |
+| 6 | `villager-house-1` |
+| 7 | `guild-hall` |
+
+#### Exact save/reload checkpoints
+
+At each checkpoint the controller saved through the HUD bridge, reloaded the page, waited
+for the game-ready gate, read `gliese.save.v8` again, and required exact equality of map ID,
+floating-point coordinates, and facing. All four comparisons passed:
+
+| Checkpoint | Exact state before and after reload | Reviewed screenshot |
+| --- | --- | --- |
+| Home Yard | `meadow-entry (624, 5776), up` | [Home](img/hpa-307/runtime-save-reload-home.png) |
+| Well Plaza | `meadow-entry (940.2072000000002, 5307.935200000016), left` | [Plaza](img/hpa-307/runtime-save-reload-plaza.png) |
+| Shrine Garden | `meadow-entry (1472.1287999999986, 5781.942399999996), left` | [Shrine](img/hpa-307/runtime-save-reload-shrine.png) |
+| East Gate | `meadow-entry (1831.9464000000005, 4607.947200000011), up` | [East Gate](img/hpa-307/runtime-save-reload-east-gate.png) |
+
+The checkpoint run necessarily made five exact regional-background requests: the initial
+page plus four page reloads. That count is intentionally separate from the one-request
+continuous-route observation below.
+
+#### Route calibration record
+
+The controller route was calibrated against persisted coordinates and the authored
+collision geometry. These observations came from rejected tuning passes; the final
+acceptance pass and both final timing passes completed with zero snags.
+
+| Calibration observation | Accepted route handling |
+| --- | --- |
+| Moving west immediately after leaving `villager-house-3` could re-enter its combined `30 px` door trigger. | Move south to about `y=4946`, pass west of the trigger, then return north. |
+| Staying on the south edge of the G-N connection stopped near `(1321.6128, 4946.4256)`. | Cross the house trigger on its south edge, rise near `y=4920`, then continue east through G-N. |
+| The west shrine aisle met the padded stone-lantern edge near `(1118.9712, 5664.0616)`. | Use the clear authored aisle around `x=1100`. |
+| A direct Crossroads approach met padded `corridor-wall-2b` geometry. | Use the authored throat at `x=1600`, west of the wall, to reach about `y=4320`. |
+| One tuning run saw a transient first guild-exit no-progress state. | Refocus the canvas once and retry within the bounded controller; no retry was needed in final runs. |
+| A strict millisecond-for-millisecond replay diverged at burst 153 because subpixel state drift reached a padded collision edge. | Reject that replay as the timing basis; run the same ordered 43-leg waypoint schedule with burst duration deterministically recomputed from each authoritative saved position. |
+
+The timing comparison therefore matches route intent, waypoint order, state-readback
+algorithm, and controller bounds. It does not claim that the two modes replayed one
+identical recorded millisecond-level key log.
+
+#### Continuous-route load and WebGL API observations
+
+Instrumentation was installed before navigation. It listened for the production renderer
+diagnostic, counted requests whose URL pathname exactly matched the production PNG, watched
+`webglcontextlost`, and wrapped WebGL/WebGL2 `texImage2D` to retain only calls whose source
+was exactly `1792×1536`.
+
+| Continuous enabled route observation | Result |
+| --- | --- |
+| Exact production PNG requests | 1 |
+| Renderer diagnostic events retained | 1 |
+| Renderer / `MAX_TEXTURE_SIZE` | WebGL / `16384` |
+| Loader window / successful file completions | `236.80000001192093 ms` / 1 |
+| Filtered `texImage2D` calls | 1 WebGL call, 6 arguments, source `1792×1536` |
+| WebGL context-loss events | 0 |
+| Uncaught page errors | 0 |
+
+The `texImage2D` result is an observed JavaScript WebGL API call, not proof of physical GPU
+upload count, texture residency, driver allocation, or decode count. The background-off
+mode also made one exact asset request and one matching API call because BootScene still
+preloads the texture; disabling the regional sprite is a rendering toggle, not a loader
+toggle.
+
+#### Frame-time comparison
+
+The requestAnimationFrame sampler was installed before navigation. After the game-ready
+gate it discarded a 120-frame warm-up, reset its state, and then retained every frame
+interval from immediately before the first route movement until the complete 43-leg route
+returned to East Gate. No hitch samples or outliers were filtered.
+
+The median is the ordinary sorted-sample median. The p95 uses the nearest-rank definition:
+`sorted[ceil(0.95 × sampleCount) - 1]`.
+
+| Mode | Route legs | Bursts | Snags | Samples | Median (ms) | p95 (ms) | Min–max (ms) |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| background enabled | 43 | 278 | 0 | 6470 | 8.300000000000182 | 10 | 6.3–26.5 |
+| background off | 43 | 278 | 0 | 6441 | 8.300000000000182 | 10 | 6.3–26.7 |
+
+`p95(enabled) - p95(off) = 0 ms`, which passes the `<=2 ms` browser reference-device gate.
+This is a headed-browser result and is not a Tauri-renderer measurement or a subjective
+human hitch assessment.
+
+#### Raw acceptance artifacts
+
+- [Browser acceptance summary](img/hpa-307/runtime-browser-acceptance-summary.json)
+- [Acceptance route and checkpoint record](img/hpa-307/runtime-route-acceptance.json)
+- [Enabled timing samples and route record](img/hpa-307/runtime-timing-enabled.json)
+- [Background-off timing samples and route record](img/hpa-307/runtime-timing-off.json)
+
 ### Reviewed runtime captures
 
 - [Baked background enabled](img/hpa-307/runtime-background-enabled.png)
@@ -233,9 +375,13 @@ encode the reference-device `>=1792` acceptance gate as a CI assertion.
 - [Baked background with live collision overlay](img/hpa-307/runtime-background-collision.png)
 - [Fallback tiles with live collision overlay](img/hpa-307/runtime-background-off-collision.png)
 - [Fallback after intercepted background load failure](img/hpa-307/runtime-background-load-failure.png)
+- [Home Yard after save/reload](img/hpa-307/runtime-save-reload-home.png)
+- [Well Plaza after save/reload](img/hpa-307/runtime-save-reload-plaza.png)
+- [Shrine Garden after save/reload](img/hpa-307/runtime-save-reload-shrine.png)
+- [East Gate after save/reload](img/hpa-307/runtime-save-reload-east-gate.png)
 
-All five final focused-run PNGs were opened at original resolution with `view_image` before
-the reviewed copies above were committed.
+All nine final PNGs were opened at original resolution with `view_image` before the reviewed
+copies above were committed.
 
 - The enabled capture shows the rich continuous regional terrain under unchanged live
   buildings, characters, props, and HUD.
@@ -246,6 +392,9 @@ the reviewed copies above were committed.
 - The load-failure capture shows fallback tiles, not Phaser's missing-texture placeholder;
   it is visually consistent with the background-off baseline while the canvas and HUD remain
   ready.
+- The four checkpoint captures show the expected Home Yard, Well Plaza, Shrine Garden, and
+  East Gate live scenes after reload, with the player visible, the HUD intact, and the
+  persisted position aligned with live map content.
 
 The visible `Hero's House` landmark label is live `WorldScene.renderLandmarks(...)` output.
 It appears in both baked and fallback captures and is not text baked into the regional
@@ -253,26 +402,30 @@ master.
 
 ### Evidence boundary and remaining manual gates
 
-The automated browser run proves interception of the exact production request, exact
-BootScene and WorldScene diagnostics, ready-state continuity, renderer-event payloads and
-completion bookkeeping, and screenshot artifact production. Human review of the five
-committed screenshots proves the enabled/off presentation, visible fallback pixels in the
-off and load-failure modes, absence of Phaser's missing-texture placeholder, and visual
-alignment of the collision overlay above both baked ground and fallback tiles. Playwright is
-configured to retain failure-only screenshots and traces, and CI uploads both
-`playwright-report/` and `test-results/` under the existing non-cancelled seven-day artifact
-policy.
+The combined browser evidence now proves exact production-request interception, scoped
+BootScene and WorldScene diagnostics, ready-state continuity, enabled/off and load-failure
+presentation, keyboard traversal of the complete accepted route, all seven interior round
+trips, both rewards, four exact save/reload checkpoints, one request and one observed
+dimension-matched `texImage2D` API call over a continuous no-reload route, zero observed
+context losses, and a `0 ms` enabled-versus-disabled p95 delta under the documented headed
+Chromium method.
 
-The following acceptance gates were not performed in this browser evidence slice and remain
-explicitly unclaimed:
+The captured evidence run also recorded generic Chromium console errors reading
+`Failed to load resource: the server responded with a status of 404 (Not Found)`: four
+across the save/reload acceptance context and one in each continuous timing context. The
+collector did not retain a URL or console location, so this report does not attribute those
+messages to a resource. All exact regional-background requests, renderer diagnostics, load
+completions, route assertions, screenshots, and timing runs succeeded, and there were zero
+uncaught `pageerror` events. A later short headed probe did not reproduce the 404 and saw
+only Chromium WebGL `ReadPixels` performance warnings. This is a disclosed diagnostic
+limitation, not a zero-console-error claim.
 
-- the physical-controller village route, every interior round trip, and the four named
-  save/reload checkpoints;
-- the Tauri renderer measurement on the reference device;
-- a physical WebGL upload count or Canvas decode count across scene/interior round trips;
-- enabled-versus-disabled median and p95 frame profiling and the `<=2ms` device-local p95
-  regression gate;
-- visible hitch or re-upload observation during the controller route.
+The following gates remain explicitly unclaimed:
+
+- the Tauri renderer and its runtime-specific frame profile;
+- physical GPU upload count, texture residency, driver allocation, or Canvas decode count;
+- physical controller/gamepad traversal;
+- subjective human assessment of movement feel, visible hitching, or re-upload behavior.
 
 ## Concerns
 
