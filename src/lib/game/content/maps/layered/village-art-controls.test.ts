@@ -450,8 +450,8 @@ describe('Sundrop Village art-control rendering edge cases', () => {
 					y: 16,
 					width: 16,
 					height: 16,
-					textureKey: 'starter-pack',
-					frameName: 'bush'
+					textureKey: 'village-dressing',
+					frameName: 'marketStall'
 				}
 			]
 		});
