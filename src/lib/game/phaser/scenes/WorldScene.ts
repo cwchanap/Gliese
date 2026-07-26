@@ -1643,6 +1643,20 @@ export class WorldScene extends Phaser.Scene {
 		return renderedBackgrounds;
 	}
 
+	/**
+	 * Renders a visual overlay of the collision categories for a map when
+	 * `renderOptions.collisionDebug` is enabled. Draws, onto a single
+	 * high-depth `Graphics` object, the map bounds and player-radius inset,
+	 * then the player-expanded exclusion envelopes for blockers, fences,
+	 * map decor, and interior props, the landmark bounds and their
+	 * collision rects, and the interaction radii around NPCs, transitions,
+	 * pickups, and discoveries. The graphics are cleared and destroyed on
+	 * scene shutdown. No-op when collision debugging is disabled.
+	 *
+	 * @param map - The WorldMapDefinition whose collision shapes are rendered.
+	 * @returns void; the overlay is drawn into the scene and tracked via
+	 *   `collisionDebugGraphics`.
+	 */
 	private renderCollisionDebugOverlay(map: WorldMapDefinition) {
 		if (!this.renderOptions.collisionDebug) {
 			return;

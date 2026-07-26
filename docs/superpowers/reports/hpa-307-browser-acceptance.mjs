@@ -599,6 +599,8 @@ async function moveTo(
 	};
 	for (const axis of axes) {
 		let noProgressRecoveryUsed = false;
+		let lastDirection = 0;
+		let alternatingCount = 0;
 		for (let attempt = 0; attempt < 120; attempt += 1) {
 			const current = run.last;
 			if (current.mapId !== expectedMap) {
@@ -620,6 +622,7 @@ async function moveTo(
 				160,
 				Math.max(60, Math.ceil((Math.max(0, Math.abs(difference) - tolerance) / 240) * 1000))
 			);
+			const direction = difference > 0 ? 1 : -1;
 			const burst = await performBurst(run, key, durationMs, label);
 			if (burst.mapChanged) {
 				throw new Error(
@@ -637,9 +640,29 @@ async function moveTo(
 					`${label}: no progress at ${burst.after.mapId} ${burst.after.x},${burst.after.y}`
 				);
 			}
-			if (attempt === 119) {
-				throw new Error(`${label}: exceeded bounded movement attempts`);
+			const postDifference = target[axis] - (run.last?.[axis] ?? current[axis]);
+			if (Math.abs(postDifference) <= tolerance) break;
+			if (lastDirection !== 0 && direction !== lastDirection) {
+				alternatingCount += 1;
+				if (alternatingCount >= 3) {
+					const snag = {
+						burstIndex: burst.index,
+						label,
+						key,
+						durationMs,
+						state: point(burst.after),
+						kind: 'thrashing',
+						axis,
+						alternatingCount
+					};
+					run.snags.push(snag);
+					console.log(`SNAG ${JSON.stringify(snag)}`);
+					break;
+				}
+			} else {
+				alternatingCount = 0;
 			}
+			lastDirection = direction;
 		}
 	}
 	const end = run.last;

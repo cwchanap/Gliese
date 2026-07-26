@@ -230,7 +230,15 @@ function retainCanonicalPngChunks(png: Buffer): Buffer {
 	return stripped;
 }
 
-async function writeAtomicFile(outputPath: string, contents: Buffer | string): Promise<void> {
+export interface StagedFile {
+	readonly output: string;
+	readonly temporary: string;
+}
+
+export async function stageTemporaryFile(
+	outputPath: string,
+	contents: Buffer | string
+): Promise<StagedFile> {
 	const output = resolve(outputPath);
 	const temporary = resolve(
 		dirname(output),
@@ -238,11 +246,19 @@ async function writeAtomicFile(outputPath: string, contents: Buffer | string): P
 	);
 	try {
 		await writeFile(temporary, contents, { flag: 'wx' });
-		await rename(temporary, output);
+		return { output, temporary };
 	} catch (error) {
 		await unlink(temporary).catch(() => undefined);
 		throw error;
 	}
+}
+
+export async function writeAtomicFile(
+	outputPath: string,
+	contents: Buffer | string
+): Promise<void> {
+	const { output, temporary } = await stageTemporaryFile(outputPath, contents);
+	await rename(temporary, output);
 }
 
 export function quantizeSundropVillageRgba(
@@ -466,8 +482,17 @@ export async function normalizeSundropVillageBackground(
 		scale: SUNDROP_VILLAGE_BACKGROUND_WIDTH / crop.width
 	};
 
-	await writeAtomicFile(options.output, png);
-	await writeAtomicFile(options.transformOutput, `${JSON.stringify(transform, null, 2)}\n`);
+	const staged: StagedFile[] = [];
+	try {
+		staged.push(await stageTemporaryFile(options.output, png));
+		staged.push(
+			await stageTemporaryFile(options.transformOutput, `${JSON.stringify(transform, null, 2)}\n`)
+		);
+		for (const item of staged) await rename(item.temporary, item.output);
+	} catch (error) {
+		await Promise.all(staged.map((item) => unlink(item.temporary).catch(() => undefined)));
+		throw error;
+	}
 	return transform;
 }
 
@@ -484,14 +509,9 @@ export async function writeFinalizedSundropVillagePng(
 
 	const input = await readFile(options.input);
 	const finalized = await finalizeSundropVillagePng(input, options.tier);
-	const output = resolve(options.output);
-	const temporary = resolve(
-		dirname(output),
-		`.${basename(output)}.${process.pid}.${randomUUID()}.tmp`
-	);
+	const { output, temporary } = await stageTemporaryFile(options.output, finalized.png);
 
 	try {
-		await writeFile(temporary, finalized.png, { flag: 'wx' });
 		await testSeam.afterTemporaryWrite?.(temporary);
 		const exactOutput = await readFile(temporary);
 		const validated = await validateSundropVillagePng(exactOutput);

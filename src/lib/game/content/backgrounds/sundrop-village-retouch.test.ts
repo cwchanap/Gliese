@@ -23,6 +23,8 @@ const INPUT_PATH = join(process.cwd(), SUNDROP_VILLAGE_RETOUCH_INPUT_PATH);
 const EXPECTED_INPUT_SHA256 = '20a3625640131917f18d1309b0c192f2cbdac5e4279fe9e6abb23c24c64859fd';
 const EXPECTED_APPROVED_OUTPUT_SHA256 =
 	'ba4f3ce170b8f40aabf1c81f83ce496436c1f6ea7e151401b221c5ae6e29cbf5';
+const EXPECTED_APPROVED_OUTPUT_PIXELS_SHA256 =
+	'a6ef5013c5e20468e3b846dc410ce9ed4ccac3c0fffb28bb2ee8c4585bd80cd4';
 const WIDTH = 1792;
 const HEIGHT = 1536;
 const TILE_SIZE = 32;
@@ -163,6 +165,7 @@ describe('Sundrop Village deterministic retouch output', () => {
 		const outputSha256 = createHash('sha256').update(firstResult.png).digest('hex');
 		expect(outputSha256).toBe(EXPECTED_APPROVED_OUTPUT_SHA256);
 		expect(firstResult.provenance.output.sha256).toBe(EXPECTED_APPROVED_OUTPUT_SHA256);
+		expect(firstResult.provenance.output.pixelsSha256).toBe(EXPECTED_APPROVED_OUTPUT_PIXELS_SHA256);
 	});
 
 	it('keeps exact dimensions, writes an opaque intermediate, and changes only same-coordinate RGB', () => {

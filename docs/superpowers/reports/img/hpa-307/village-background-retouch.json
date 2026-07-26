@@ -11,6 +11,7 @@
   },
   "output": {
     "sha256": "ba4f3ce170b8f40aabf1c81f83ce496436c1f6ea7e151401b221c5ae6e29cbf5",
+    "pixelsSha256": "a6ef5013c5e20468e3b846dc410ce9ed4ccac3c0fffb28bb2ee8c4585bd80cd4",
     "bytes": 7311554,
     "dimensions": {
       "width": 1792,

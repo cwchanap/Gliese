@@ -483,7 +483,7 @@ export function collectLandmarkRects(map: WorldMapDefinition): CollisionRect[] {
  * position falls inside the landmark bounds and whose id contains the
  * landmark id (with '-exterior' stripped), or undefined if no match.
  */
-function findLandmarkDoorway(
+export function findLandmarkDoorway(
 	landmark: MapLandmark,
 	bounds: { left: number; right: number; top: number; bottom: number },
 	transitions: MapTransition[]
