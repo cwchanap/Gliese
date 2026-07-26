@@ -117,7 +117,7 @@ describe('Sundrop Village HPA-307 art controls', () => {
 		const actual = computeVillageArtControlFingerprint(sundropVillageLayered, makeInputs());
 
 		expect(actual).toBe(expected);
-		expect(actual).toBe('cf2901101b542e2d5f412f039598f33d11b3aa93769164e1ab15fd7120c01104');
+		expect(actual).toBe('0c47a7dc58d48e87fa9dd9c290cf6835b8acc3f4eb60a4e2c1ba4eae37e4ed33');
 	});
 
 	it('includes the player-radius sliver of corridor-wall-2b but leaves the next point open', () => {
@@ -219,6 +219,19 @@ describe('Sundrop Village HPA-307 art controls', () => {
 		if (!decor?.collision) return;
 		decor.x += 1;
 		decor.collision.x += 1;
+
+		expect(fingerprint(map)).not.toBe(fingerprint(meadowEntryMap));
+	});
+
+	it('changes the fingerprint when non-colliding decor is removed', () => {
+		const map = cloneMap();
+		const decor = map.mapDecor?.find(
+			(item) =>
+				!item.collision && item.x >= 256 && item.x <= 2_048 && item.y >= 4_352 && item.y <= 5_888
+		);
+		expect(decor).toBeDefined();
+		if (!decor) return;
+		map.mapDecor = map.mapDecor?.filter(({ id }) => id !== decor.id);
 
 		expect(fingerprint(map)).not.toBe(fingerprint(meadowEntryMap));
 	});

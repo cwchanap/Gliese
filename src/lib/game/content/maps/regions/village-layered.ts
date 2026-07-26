@@ -23,12 +23,6 @@ const villageDecorGlyphTable: Record<
 		renderWidth: 160,
 		renderHeight: 220
 	},
-	s: {
-		frame: 'scarecrow',
-		textureKey: villageDressingAsset.key,
-		renderWidth: 120,
-		renderHeight: 170
-	},
 	D: {
 		frame: 'hedgeTopiary',
 		textureKey: villageDressingAsset.key,
@@ -271,8 +265,8 @@ export const sundropVillageLayered: LayeredRegionSource<(typeof villageDressingA
 		// heavily, which read as clutter. This set is deliberately sparse and
 		// every sprite rect is disjoint from every building and every other prop
 		// (asserted by the "no sprite overlaps" contract test): a gate arch at
-		// the entrance, one stall in the market's open east, a scarecrow + flower
-		// bed in the open home yard, and a symmetric shrine garden (two hedges
+		// the entrance, one stall in the market's open east, a flower bed as the
+		// only Home Yard accent, and a symmetric shrine garden (two hedges
 		// above two stone lanterns, mirrored about the shrine). The two stone
 		// lanterns are the only collision props; A9/A10/A11 verify they seal
 		// nothing. Everything else is left as open ground.
@@ -315,7 +309,7 @@ export const sundropVillageLayered: LayeredRegionSource<(typeof villageDressingA
 			'........................................................',
 			'........................................................',
 			'........................................................',
-			'...................s....................................',
+			'........................................................',
 			'........................................................',
 			'............................t...............t...........',
 			'........................................................',

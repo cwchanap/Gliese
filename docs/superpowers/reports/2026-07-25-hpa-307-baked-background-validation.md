@@ -157,6 +157,23 @@ fingerprint chain, unchanged PNG, and explicit reapproval rationale.
 - All four edge strips remain continuous ground with the authored handoff geometry
   unobstructed.
 
+## Task 9 reapproval: Home Yard scarecrow removal
+
+- Removed live non-colliding decor ID `village-decor-38-19` (the Home Yard `scarecrow`)
+  from the layered source; the Home Yard flower bed is now its only live accent.
+- Approved control fingerprint changed from
+  `cf2901101b542e2d5f412f039598f33d11b3aa93769164e1ab15fd7120c01104` to
+  `0c47a7dc58d48e87fa9dd9c290cf6835b8acc3f4eb60a4e2c1ba4eae37e4ed33`.
+- The committed production PNG remains byte-identical at
+  `20a3625640131917f18d1309b0c192f2cbdac5e4279fe9e6abb23c24c64859fd`.
+- Collision controls remain byte-identical: `village-layered-collision-mask.svg` is
+  `d5bf78d332700d46e62759997e6f60fcd58724c9f8e51df616f7a160d405fc57`, and
+  `village-composed-collision-mask.svg` is
+  `445923c3cead0dcfbf26f16f1819d761420b830e9e26a838b5a1dc52e77bf4d9`.
+- Fresh visual inspection of the unchanged PNG against regenerated control, object-anchor,
+  building-entrance, and composed-collision overlays confirmed aligned routes and approaches,
+  with no baked scarecrow or upright replacement.
+
 ## Automated validation
 
 ### Red evidence
