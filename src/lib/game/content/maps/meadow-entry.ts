@@ -2,7 +2,6 @@ import type { WorldMapDefinition } from '$lib/game/content/maps/types';
 import type { RegionFragment } from '$lib/game/content/maps/regions/types';
 import { addEnglishMapText } from '$lib/game/content/maps/text';
 import { villageRegion } from '$lib/game/content/maps/regions/village';
-import { sundropVillageLayered } from '$lib/game/content/maps/regions/village-layered';
 import { wildwoodRegion } from '$lib/game/content/maps/regions/wildwood';
 import { mistfenRegion } from '$lib/game/content/maps/regions/mistfen';
 import { silverpineRegion } from '$lib/game/content/maps/regions/silverpine';
@@ -11,8 +10,6 @@ import { crossroadsRegion } from '$lib/game/content/maps/regions/crossroads';
 import { pathsRegion } from '$lib/game/content/maps/regions/paths';
 
 export const openingMapId = 'meadow-entry';
-
-const meadowWestBoundaryBottom = sundropVillageLayered.origin.y - sundropVillageLayered.tileSize;
 
 const meadowBoundsRegion: RegionFragment = {
 	blockers: [
@@ -26,15 +23,11 @@ const meadowBoundsRegion: RegionFragment = {
 			kind: 'town-hedge'
 		},
 		{
-			// Preserve the northern overworld edge, but stop at the baked village
-			// origin, with one authored tile of visual clearance, so Home Yard
-			// has no repeated tree wall. WorldScene clamps movement along the
-			// remaining west map edge.
 			id: 'meadow-west-boundary',
 			x: 32,
-			y: meadowWestBoundaryBottom / 2,
+			y: 3_200,
 			width: 64,
-			height: meadowWestBoundaryBottom,
+			height: 6_400,
 			kind: 'town-hedge'
 		},
 		{

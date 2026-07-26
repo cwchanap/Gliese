@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { battleBackgroundAssets } from '$lib/game/content/assets';
+import { battleBackgroundAssets, villageHedgeAsset } from '$lib/game/content/assets';
 import { SUNDROP_VILLAGE_BACKGROUND_TEXTURE_KEY } from '$lib/game/content/backgrounds/sundrop-village-background';
 import { maps } from '$lib/game/content/maps';
 import type { RegionalBackgroundRendererDiagnostic } from '$lib/game/phaser/renderer-diagnostics';
@@ -2307,6 +2307,22 @@ describe('BattleScene', () => {
 });
 
 describe('WorldScene', () => {
+	const sundropVillageBounds = {
+		left: 256,
+		right: 2_048,
+		top: 4_352,
+		bottom: 5_888
+	} as const;
+	const villageHedgeMarkers = () =>
+		phaserState.imageMarkers.filter(
+			(marker) => marker.texture === villageHedgeAsset.key && marker.frame === 'hedgeSegment'
+		);
+	const isInsideSundropVillage = (marker: (typeof phaserState.imageMarkers)[number]) =>
+		marker.x >= sundropVillageBounds.left &&
+		marker.x <= sundropVillageBounds.right &&
+		marker.y >= sundropVillageBounds.top &&
+		marker.y <= sundropVillageBounds.bottom;
+
 	async function flushStoryDialogue() {
 		await Promise.resolve();
 		await Promise.resolve();
@@ -2478,7 +2494,21 @@ describe('WorldScene', () => {
 		expect(background?.setDepth).toHaveBeenCalledWith(-9);
 	});
 
-	it('skips a missing regional texture with one targeted warning and keeps fallback ground', async () => {
+	it('keeps live garden-hedge visuals off a successfully rendered regional background', async () => {
+		const { meadowEntryMap } = await import('$lib/game/content/maps');
+		const { WorldScene } = await import('./WorldScene');
+		const scene = new WorldScene();
+
+		scene.create({ mapId: meadowEntryMap.id });
+
+		expect(meadowEntryMap.blockers?.some((blocker) => blocker.kind === 'garden-hedge')).toBe(true);
+		expect(villageHedgeMarkers().filter(isInsideSundropVillage)).toHaveLength(0);
+		expect(villageHedgeMarkers().filter((marker) => !isInsideSundropVillage(marker))).toHaveLength(
+			101
+		);
+	});
+
+	it('skips a missing regional texture with one targeted warning and keeps fallback visuals', async () => {
 		const { WorldScene } = await import('./WorldScene');
 		const scene = new WorldScene();
 		const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
@@ -2493,6 +2523,10 @@ describe('WorldScene', () => {
 				)
 			).toBe(false);
 			expect(phaserState.tilemapLayer.setDepth).toHaveBeenCalledWith(-10);
+			expect(villageHedgeMarkers().filter(isInsideSundropVillage)).toHaveLength(228);
+			expect(
+				villageHedgeMarkers().filter((marker) => !isInsideSundropVillage(marker))
+			).toHaveLength(101);
 			expect(warn).toHaveBeenCalledTimes(1);
 			expect(warn).toHaveBeenCalledWith(
 				'[WorldScene] regional background unavailable: id="sundrop-village-regional-background" textureKey="sundrop-village-background" mapId="meadow-entry"'
@@ -2517,6 +2551,7 @@ describe('WorldScene', () => {
 				)
 			).toBe(false);
 			expect(phaserState.tilemapLayer.setDepth).toHaveBeenCalledWith(-10);
+			expect(villageHedgeMarkers().filter(isInsideSundropVillage)).toHaveLength(228);
 			expect(warn).toHaveBeenCalledTimes(1);
 			expect(warn).toHaveBeenCalledWith(
 				'[WorldScene] regional background dimensions mismatch: id="sundrop-village-regional-background" textureKey="sundrop-village-background" mapId="meadow-entry" expected=1792x1536 actual=1700x1400'
@@ -2526,7 +2561,7 @@ describe('WorldScene', () => {
 		}
 	});
 
-	it('keeps fallback ground but skips the regional image when the URL disables backgrounds', async () => {
+	it('keeps fallback ground and live hedge visuals when the URL disables backgrounds', async () => {
 		const previousLocation = Object.getOwnPropertyDescriptor(globalThis, 'location');
 		let searchReads = 0;
 		Object.defineProperty(globalThis, 'location', {
@@ -2551,6 +2586,7 @@ describe('WorldScene', () => {
 				)
 			).toBe(false);
 			expect(phaserState.tilemapLayer.setDepth).toHaveBeenCalledWith(-10);
+			expect(villageHedgeMarkers().filter(isInsideSundropVillage)).toHaveLength(228);
 			expect(searchReads).toBe(1);
 		} finally {
 			if (previousLocation) {
@@ -2559,6 +2595,20 @@ describe('WorldScene', () => {
 				Reflect.deleteProperty(globalThis, 'location');
 			}
 		}
+	});
+
+	it('keeps authored village collision while covered hedge visuals are hidden', async () => {
+		const { WorldScene } = await import('./WorldScene');
+		const scene = new WorldScene();
+
+		scene.create({ mapId: 'meadow-entry' });
+		Object.assign(phaserState.playerMarker, { x: 1_136, y: 5_800 });
+		phaserState.cursorKeys.down.isDown = true;
+
+		scene.update(0, 250);
+
+		expect(phaserState.playerMarker.x).toBe(1_136);
+		expect(phaserState.playerMarker.y).toBe(5_800);
 	});
 
 	it('accepts matching immutable base-frame dimensions when source dimensions are absent', async () => {
@@ -3216,28 +3266,28 @@ describe('WorldScene', () => {
 		expect(phaserState.enemyMarker.y).toBe(320);
 	});
 
-	it('keeps the Home Yard west view free of the map-edge tree wall', async () => {
+	it('keeps the authored outer west map-boundary tree wall', async () => {
 		const { forestDressingAsset } = await import('$lib/game/content/assets');
 		const { meadowEntryMap } = await import('$lib/game/content/maps');
-		const { sundropVillageLayered } =
-			await import('$lib/game/content/maps/regions/village-layered');
 		const { WorldScene } = await import('./WorldScene');
 		const scene = new WorldScene();
 
 		scene.create({ mapId: meadowEntryMap.id });
 
-		const westBoundaryTrees = phaserState.imageMarkers.filter(
-			(marker) =>
-				marker.x === 32 &&
-				marker.texture === forestDressingAsset.key &&
-				marker.frame === 'treeCluster'
-		);
-		const expectedTreeLineBottom = sundropVillageLayered.origin.y - sundropVillageLayered.tileSize;
+		const westBoundaryTrees = phaserState.imageMarkers
+			.filter(
+				(marker) =>
+					marker.x === 32 &&
+					marker.texture === forestDressingAsset.key &&
+					marker.frame === 'treeCluster'
+			)
+			.sort((a, b) => a.y - b.y);
 
-		expect(westBoundaryTrees.length).toBeGreaterThan(0);
+		expect(westBoundaryTrees).toHaveLength(134);
+		expect(westBoundaryTrees[0]?.y).toBe(8);
+		expect(westBoundaryTrees.at(-1)?.y).toBe(6_392);
 		for (const tree of westBoundaryTrees) {
 			expect(tree.setDisplaySize).toHaveBeenCalledWith(64, 48);
-			expect(tree.y + 48 / 2).toBeLessThanOrEqual(expectedTreeLineBottom);
 		}
 	});
 
@@ -3286,14 +3336,6 @@ describe('WorldScene', () => {
 			'whisperingCave'
 		);
 		expect(scene.add.image).toHaveBeenCalledWith(1_104, 5_168, 'village-buildings', 'sundropWell');
-		// Village-internal walls now render as hedge segments, not tree clusters
-		expect(
-			vi
-				.mocked(scene.add.image)
-				.mock.calls.some(
-					([, , texture, frame]) => texture === 'village-hedge' && frame === 'hedgeSegment'
-				)
-		).toBe(true);
 		expect(scene.add.rectangle).not.toHaveBeenCalledWith(624, 5_552, 235, 246, 0x5b4636, 0.9);
 		expect(scene.add.rectangle).not.toHaveBeenCalledWith(1_616, 5_200, 235, 226, 0x5b4636, 0.9);
 		expect(scene.add.rectangle).not.toHaveBeenCalledWith(1_424, 5_552, 246, 333, 0x5b4636, 0.9);

@@ -281,34 +281,54 @@ corrected control, fingerprint chain, unchanged base PNG, and explicit reapprova
   building-entrance, and composed-collision overlays confirmed aligned routes and approaches,
   with no baked scarecrow or upright replacement.
 
-## 2026-07-26 follow-up: Home Yard west-edge tree wall
+## 2026-07-26 correction: unrelated west map boundary restored
 
-- Follow-up visual feedback clarified that the unwanted obstacle was the repeated tree wall
-  at the far-left edge of the Home Yard camera, not only the previously removed scarecrow.
-- The wall came from the full-height `meadow-west-boundary` blocker. `WorldScene` rendered
-  its `town-hedge` kind as 134 repeated `forest-dressing/treeCluster` images at `x=32`;
-  43 marker centers were at or below the baked village origin.
-- Shortened only `meadow-west-boundary` from the full `6400 px` map height to `4320 px`.
-  Its extent is derived from the authored village origin and tile size, preserving the
-  northern overworld edge while ending one `32 px` authored tile before the baked village.
-  Movement beside the remaining west map edge stays constrained by `WorldScene`'s existing
-  player-radius clamp against the `6400×6400` map bounds. The other meadow edge blockers,
-  village hedges, room graph, routes, buildings, doors, props, and pickups remain unchanged.
-- A renderer-level regression test failed against the previous source with 134 total
-  west-edge tree-cluster markers. It now verifies each retained tree sprite's complete
-  `48 px` rendered extent ends at or before the one-tile village clearance. The affected
-  map, layered village, and scene suites pass 315 tests.
-- Regenerating the nine art controls retained fingerprint
-  `0c47a7dc58d48e87fa9dd9c290cf6835b8acc3f4eb60a4e2c1ba4eae37e4ed33`
-  with no control diff. The refreshed
-  [Home Yard capture](img/hpa-307/runtime-district-home-yard.png) shows open terrain where
-  the stale tree wall appeared.
-- Current follow-up gates pass: art validation 22 tests, the complete unit suite 51 files
-  and 831 tests, the complete Playwright suite 17 scenarios, Svelte check with zero
-  diagnostics, Prettier/ESLint, and the strict Tauri frontend build with its no-story-prose
-  assertion. The first sandboxed complete-unit attempt was environment-red when macOS denied
-  Chromium's Mach-port registration; the unchanged suite passed with browser-launch
-  permission.
+- The first follow-up mistakenly identified the full-height outer
+  `meadow-west-boundary` tree line as the reported obstacle and shortened it from `6400 px`
+  to `4320 px`.
+- Further clarification established that the target was instead the small green village
+  hedge overlay inside the baked region. The wrong-target boundary change is reverted:
+  `meadow-west-boundary` again spans the authored full map height and renders all 134
+  `forest-dressing/treeCluster` images.
+- A renderer regression now preserves that complete outer boundary independently of the
+  covered-village-hedge suppression below. Its collision, the remaining map boundaries, and
+  the village room graph are unchanged from their pre-follow-up behavior.
+
+## 2026-07-26 follow-up: covered village hedge overlay
+
+- Further clarification identified the unwanted green tree-like obstacle as the repeated
+  `village-hedge/hedgeSegment` artwork laid over the baked background, not the scarecrow or
+  the separate west map-edge tree wall.
+- The authored `#` collision cells compile to 23 `village-block-*` `garden-hedge`
+  rectangles. `WorldScene` previously rendered them unconditionally after the regional
+  background, expanding them to 224 repeated hedge images; the Home Yard boundary runs
+  accounted for 85 of those images. One four-segment corridor wall is also fully covered, so
+  228 hedge images in total duplicated the baked region.
+- `renderRegionalBackgrounds(...)` now reports only descriptors whose textures existed,
+  passed immutable dimension validation, and rendered. `renderBlockers(...)` suppresses the
+  hedge sprite only for `garden-hedge` blockers fully contained by one of those rendered
+  bounds. The 15 external `corridor-wall-*` garden hedges remain visible as 101 segments.
+- Collision and navigation are unchanged: every compiled blocker remains in
+  `meadowEntryMap.blockers`, continues to block player movement, remains available to the
+  collision overlay and save normalization, and still contributes to the source-derived art
+  controls. Disabled, missing, and wrong-sized regional backgrounds retain the original live
+  hedge visuals with fallback ground.
+- The renderer regression was written first and failed against the previous scene because a
+  covered hedge marker was still present. It now covers the valid-background suppression,
+  external-wall preservation, disabled/missing/wrong-sized fallback branches, and continued
+  movement collision.
+- The refreshed
+  [Home Yard capture](img/hpa-307/runtime-district-home-yard.png) confirms that the green
+  hedge overlay is absent while the unrelated outer west tree line, baked terrain, building,
+  flower bed, NPC, and HUD remain intact.
+- Current gates pass: the complete scene suite has 189 tests; the complete unit suite has
+  51 files and 833 tests when run without file-level parallelism; the complete Playwright
+  suite has 17 scenarios; art validation has 22 tests; Svelte check reports zero
+  diagnostics; Prettier/ESLint, the browser build, and the strict Tauri frontend build with
+  its no-story-prose assertion pass. Under default file parallelism, the unchanged
+  PNG-provenance test exceeded its existing 5-second limit by 8–102 ms while competing with
+  the rest of the suite; that same derivation passed in the focused art gate and in the
+  serialized complete run.
 
 ## Automated validation
 
@@ -711,8 +731,9 @@ before the reviewed copies were committed.
   exactly after reload.
 - The six district captures remain visually distinct while live buildings, NPCs, door
   approaches, labels, minimap, and HUD remain legible.
-- The refreshed Home Yard capture confirms that neither the west-edge tree wall nor the
-  removed upright scarecrow has returned, and that both areas remain open.
+- The refreshed Home Yard capture confirms that the green live hedge overlay and removed
+  upright scarecrow are absent while the unrelated outer west map-boundary tree line and
+  baked terrain remain readable.
 - The four seam captures retain open transition geometry and alpha blending without a hard
   missing-texture boundary. They also make the still-noticeable rich-baked-to-plain-fallback
   material shift explicit instead of treating alpha blending as an invisible seam.
