@@ -1212,7 +1212,7 @@ describe('opening map content', () => {
 		}
 	});
 
-	it('renders village-internal walls as garden-hedge and keeps meadow boundaries as town-hedge', () => {
+	it('renders village-internal walls as garden-hedge and keeps the remaining meadow boundaries as town-hedge', () => {
 		const internal = meadowEntryMap.blockers?.filter((b) => b.kind === 'garden-hedge') ?? [];
 		const meadowBoundaries =
 			meadowEntryMap.blockers?.filter(
@@ -1228,16 +1228,17 @@ describe('opening map content', () => {
 		// 32px-tall blockers). A wider band would admit a silently-dropped wall.
 		expect(internal.length).toBeGreaterThanOrEqual(30);
 		expect(internal.length).toBeLessThanOrEqual(50);
-		// The 4 world-edge boundaries stay forest tree-cluster
+		// The west tree line stops at the baked-village origin to leave Home Yard
+		// visually open; all four boundaries retain the northern overworld edge.
 		expect(meadowBoundaries).toHaveLength(4);
-		expect(meadowBoundaries.map((b) => b.id)).toEqual(
-			expect.arrayContaining([
-				'meadow-north-boundary',
-				'meadow-south-boundary',
-				'meadow-west-boundary',
-				'meadow-east-boundary'
-			])
-		);
+		const expectedWestBoundaryBottom =
+			sundropVillageLayered.origin.y - sundropVillageLayered.tileSize;
+		expect(meadowBoundaries.find((b) => b.id === 'meadow-west-boundary')).toMatchObject({
+			x: 32,
+			y: expectedWestBoundaryBottom / 2,
+			width: 64,
+			height: expectedWestBoundaryBottom
+		});
 		// No ocean blocker changed kind
 		expect(
 			meadowEntryMap.blockers?.some((b) => b.id === 'sundrop-southwest-ocean' && b.kind === 'ocean')
@@ -1423,9 +1424,9 @@ describe('opening map content', () => {
 				{
 					id: 'meadow-west-boundary',
 					x: 32,
-					y: 3_200,
+					y: (sundropVillageLayered.origin.y - sundropVillageLayered.tileSize) / 2,
 					width: 64,
-					height: 6_400,
+					height: sundropVillageLayered.origin.y - sundropVillageLayered.tileSize,
 					kind: 'town-hedge'
 				},
 				{

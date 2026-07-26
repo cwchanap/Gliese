@@ -3216,6 +3216,31 @@ describe('WorldScene', () => {
 		expect(phaserState.enemyMarker.y).toBe(320);
 	});
 
+	it('keeps the Home Yard west view free of the map-edge tree wall', async () => {
+		const { forestDressingAsset } = await import('$lib/game/content/assets');
+		const { meadowEntryMap } = await import('$lib/game/content/maps');
+		const { sundropVillageLayered } =
+			await import('$lib/game/content/maps/regions/village-layered');
+		const { WorldScene } = await import('./WorldScene');
+		const scene = new WorldScene();
+
+		scene.create({ mapId: meadowEntryMap.id });
+
+		const westBoundaryTrees = phaserState.imageMarkers.filter(
+			(marker) =>
+				marker.x === 32 &&
+				marker.texture === forestDressingAsset.key &&
+				marker.frame === 'treeCluster'
+		);
+		const expectedTreeLineBottom = sundropVillageLayered.origin.y - sundropVillageLayered.tileSize;
+
+		expect(westBoundaryTrees.length).toBeGreaterThan(0);
+		for (const tree of westBoundaryTrees) {
+			expect(tree.setDisplaySize).toHaveBeenCalledWith(64, 48);
+			expect(tree.y + 48 / 2).toBeLessThanOrEqual(expectedTreeLineBottom);
+		}
+	});
+
 	it('renders village building landmarks without doorway markers for compact interiors', async () => {
 		const { villageBuildingAsset } = await import('$lib/game/content/assets');
 		const { WorldScene } = await import('./WorldScene');
