@@ -23,6 +23,7 @@ import {
 	buildRegionalBackgroundRendererDiagnostic,
 	emitRegionalBackgroundRendererDiagnostic
 } from '$lib/game/phaser/renderer-diagnostics';
+import { resolveWorldRenderOptions } from '$lib/game/phaser/world-render-options';
 import { WorldScene } from './WorldScene';
 
 export class BootScene extends Phaser.Scene {
@@ -113,14 +114,20 @@ export class BootScene extends Phaser.Scene {
 		for (const asset of Object.values(battleBackgroundAssets)) {
 			this.load.image(asset.key, asset.path);
 		}
-		for (const asset of regionalBackgroundAssets) {
-			if (regionalBackgroundLoadStartedAtMs === null) {
-				// This duration spans from the first regional queue operation through the
-				// loader's overall completion callback. It is not isolated network latency
-				// and the completion count is loader/decode bookkeeping, not GPU uploads.
-				regionalBackgroundLoadStartedAtMs = performance.now();
+		// Resolve the URL option before queueing so `?regionalBackground=off` skips the
+		// 7.6 MB download/decode entirely, not just the draw. The diagnostic completion
+		// count then reflects zero regional loads in off-mode.
+		const renderOptions = resolveWorldRenderOptions();
+		if (renderOptions.regionalBackgrounds) {
+			for (const asset of regionalBackgroundAssets) {
+				if (regionalBackgroundLoadStartedAtMs === null) {
+					// This duration spans from the first regional queue operation through the
+					// loader's overall completion callback. It is not isolated network latency
+					// and the completion count is loader/decode bookkeeping, not GPU uploads.
+					regionalBackgroundLoadStartedAtMs = performance.now();
+				}
+				this.load.image(asset.key, asset.path);
 			}
-			this.load.image(asset.key, asset.path);
 		}
 	}
 

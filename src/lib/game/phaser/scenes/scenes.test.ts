@@ -1211,6 +1211,32 @@ describe('BootScene', () => {
 			target.restore();
 		}
 	});
+
+	it('skips queueing regional backgrounds when the URL disables them', async () => {
+		const { regionalBackgroundAssets } = await import('$lib/game/content/assets');
+		const { BootScene } = await import('./BootScene');
+		const previousLocation = Object.getOwnPropertyDescriptor(globalThis, 'location');
+		Object.defineProperty(globalThis, 'location', {
+			configurable: true,
+			value: { search: '?regionalBackground=off' }
+		});
+
+		try {
+			const scene = new BootScene();
+
+			scene.preload();
+
+			for (const asset of regionalBackgroundAssets) {
+				expect(scene.load.image).not.toHaveBeenCalledWith(asset.key, asset.path);
+			}
+		} finally {
+			if (previousLocation) {
+				Object.defineProperty(globalThis, 'location', previousLocation);
+			} else {
+				Reflect.deleteProperty(globalThis, 'location');
+			}
+		}
+	});
 });
 
 describe('BattleScene', () => {
@@ -2531,15 +2557,17 @@ describe('WorldScene', () => {
 		expect(background?.setDepth).toHaveBeenCalledWith(-9);
 	});
 
-	it('keeps live garden-hedge visuals off a successfully rendered regional background', async () => {
+	it('renders live garden-hedge visuals on top of a successfully rendered regional background', async () => {
 		const { meadowEntryMap } = await import('$lib/game/content/maps');
 		const { WorldScene } = await import('./WorldScene');
 		const scene = new WorldScene();
 
 		scene.create({ mapId: meadowEntryMap.id });
 
+		// The Sundrop regional background is ground-only (no hedges/trees/walls),
+		// so live hedge sprites must remain visible to mark collision walls.
 		expect(meadowEntryMap.blockers?.some((blocker) => blocker.kind === 'garden-hedge')).toBe(true);
-		expect(villageHedgeMarkers().filter(isInsideSundropVillage)).toHaveLength(0);
+		expect(villageHedgeMarkers().filter(isInsideSundropVillage)).toHaveLength(228);
 		expect(villageHedgeMarkers().filter((marker) => !isInsideSundropVillage(marker))).toHaveLength(
 			101
 		);
@@ -2634,7 +2662,7 @@ describe('WorldScene', () => {
 		}
 	});
 
-	it('keeps authored village collision while covered hedge visuals are hidden', async () => {
+	it('keeps authored village collision active alongside live hedge visuals', async () => {
 		const { WorldScene } = await import('./WorldScene');
 		const scene = new WorldScene();
 

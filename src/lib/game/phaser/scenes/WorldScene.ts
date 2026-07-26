@@ -46,7 +46,6 @@ import {
 	type MapTransition,
 	type WorldMapDefinition
 } from '$lib/game/content/maps';
-import type { MapBackgroundImage } from '$lib/game/content/maps/types';
 import { getItem, type EquipmentSlot } from '$lib/game/content/items';
 import { startingPlayer } from '$lib/game/content/player';
 import { isQuestId, mainQuestId } from '$lib/game/content/quests';
@@ -479,10 +478,10 @@ export class WorldScene extends Phaser.Scene {
 		this.ensureActorAnimations();
 		this.ensureTerrainTilesetTexture();
 		this.renderGround(map);
-		const renderedRegionalBackgrounds = this.renderRegionalBackgrounds(map);
+		this.renderRegionalBackgrounds(map);
 		this.renderMapDecor(map, ['floor', 'furniture']);
 		this.renderFences(map);
-		this.renderBlockers(map, renderedRegionalBackgrounds);
+		this.renderBlockers(map);
 		this.renderLandmarks(map);
 		this.renderInteriorProps(map, ['floor', 'furniture']);
 		const heroAnimation = getActorAnimationAsset('hero');
@@ -1597,11 +1596,9 @@ export class WorldScene extends Phaser.Scene {
 		layer?.setDepth?.(-10);
 	}
 
-	private renderRegionalBackgrounds(map: WorldMapDefinition): MapBackgroundImage[] {
-		const renderedBackgrounds: MapBackgroundImage[] = [];
-
+	private renderRegionalBackgrounds(map: WorldMapDefinition): void {
 		if (!this.renderOptions.regionalBackgrounds) {
-			return renderedBackgrounds;
+			return;
 		}
 
 		for (const background of map.backgroundImages ?? []) {
@@ -1637,10 +1634,7 @@ export class WorldScene extends Phaser.Scene {
 				.setOrigin(0.5, 0.5)
 				.setDisplaySize(background.width, background.height)
 				.setDepth(background.depth);
-			renderedBackgrounds.push(background);
 		}
-
-		return renderedBackgrounds;
 	}
 
 	/**
@@ -2051,10 +2045,7 @@ export class WorldScene extends Phaser.Scene {
 		}
 	}
 
-	private renderBlockers(
-		map: WorldMapDefinition,
-		renderedRegionalBackgrounds: readonly MapBackgroundImage[]
-	) {
+	private renderBlockers(map: WorldMapDefinition) {
 		const blockers: MapBlocker[] = map.blockers ?? [];
 
 		for (const blocker of blockers) {
@@ -2068,9 +2059,6 @@ export class WorldScene extends Phaser.Scene {
 					break;
 
 				case 'garden-hedge':
-					if (this.isBlockerCoveredByRegionalBackground(blocker, renderedRegionalBackgrounds)) {
-						break;
-					}
 					this.renderBlockerSegments(blocker, villageHedgeAsset.key, 'hedgeSegment');
 					break;
 
@@ -2099,24 +2087,6 @@ export class WorldScene extends Phaser.Scene {
 					throw new Error(`Unknown blocker kind: ${blocker.kind}`);
 			}
 		}
-	}
-
-	private isBlockerCoveredByRegionalBackground(
-		blocker: MapBlocker,
-		backgrounds: readonly MapBackgroundImage[]
-	): boolean {
-		const blockerBounds = this.getMapRectBounds(blocker);
-
-		return backgrounds.some((background) => {
-			const backgroundBounds = this.getMapRectBounds(background);
-
-			return (
-				blockerBounds.left >= backgroundBounds.left &&
-				blockerBounds.right <= backgroundBounds.right &&
-				blockerBounds.top >= backgroundBounds.top &&
-				blockerBounds.bottom <= backgroundBounds.bottom
-			);
-		});
 	}
 
 	private renderBlockerSegments(blocker: MapBlocker, textureKey: string, frameName: string) {

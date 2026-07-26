@@ -78,7 +78,7 @@ const RENDERER_SIDECARS = [
 	{
 		mode: 'background-off',
 		query: '?regionalBackground=off',
-		expectedCompletions: 1,
+		expectedCompletions: 0,
 		screenshotName: 'runtime-background-off.png',
 		sidecarName: 'runtime-background-off.renderer.json'
 	},
@@ -92,7 +92,7 @@ const RENDERER_SIDECARS = [
 	{
 		mode: 'background-off-plus-collision',
 		query: '?regionalBackground=off&mapDebug=collision',
-		expectedCompletions: 1,
+		expectedCompletions: 0,
 		screenshotName: 'runtime-background-off-collision.png',
 		sidecarName: 'runtime-background-off-collision.renderer.json'
 	},
