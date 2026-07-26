@@ -74,9 +74,10 @@ existing interior, but does not bake or re-author those rooms.
 - Remove the non-colliding Home Yard scarecrow without changing gameplay geometry.
 - Keep collision, navigation, minimap, transitions, rewards, NPCs, and saves unchanged.
 - Keep buildings and every interactive, animated, stateful, foreground, or
-  collision-bearing object live. Village `garden-hedge` collision remains live, but its
-  legacy repeated sprite is suppressed where the approved regional background rendered
-  successfully so it does not duplicate the baked presentation.
+  collision-bearing object live. Village `garden-hedge` collision and its live
+  `village-hedge/hedgeSegment` sprites remain visible everywhere: the approved regional
+  background is ground-only and depicts no hedges, so suppressing the live sprites would
+  leave collision walls invisible.
 - Generate deterministic, source-derived art-control masks at the exact master resolution.
 - Detect stale art when the underlying control geometry changes.
 - Provide URL-controlled fallback and collision-overlay validation modes.
@@ -249,14 +250,13 @@ unchanged and is built on every scene creation. HPA-307 does not strip visually 
 patches as an optimization because they remain authoritative for fallback rendering,
 minimap semantics, and geometry-preserving regression tests.
 
-Village `garden-hedge` blockers that are fully covered by a successfully rendered regional
-background are collision-only in the normal baked presentation. `WorldScene` suppresses
-only their repeated `village-hedge/hedgeSegment` images; the authored blockers remain in
-`map.blockers` and continue to drive movement, normalization, collision debugging, and art
-controls. The decision is based on backgrounds that actually passed texture and dimension
-validation, not only the URL option. Therefore `?regionalBackground=off`, missing textures,
-and wrong-sized textures retain the live hedge sprites alongside fallback ground. The 15
-Crossroads corridor walls outside the rendered bounds also remain visible.
+Village `garden-hedge` blockers keep both their collision and their live
+`village-hedge/hedgeSegment` sprites in every render mode. The approved regional background
+is ground-only and depicts no hedges (per the production prompt's avoid list: walls, fences,
+tall plants, tall silhouettes), so suppressing the live sprites would leave authored
+collision walls invisible to the player. `WorldScene` therefore renders garden-hedge
+segments unconditionally; the authored blockers in `map.blockers` continue to drive
+movement, normalization, collision debugging, and art controls in all modes.
 
 ### Developer modes
 
