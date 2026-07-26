@@ -13,6 +13,8 @@
 		"art:rasterize:village": "bun tools/rasterize-sundrop-village-art-control.ts",
 		"art:normalize:village": "bun tools/normalize-sundrop-village-background.ts",
 		"art:finalize:village": "bun tools/finalize-sundrop-village-background.ts",
+		"art:retouch:village": "bun tools/retouch-sundrop-village-background.ts",
+		"art:evidence:village": "bun tools/refresh-sundrop-village-background-evidence.ts",
 		"art:validate:village": "bun run test:unit -- --run src/lib/game/content/sundrop-village-background.asset.test.ts src/lib/game/content/maps/layered/village-art-controls.test.ts",
 		"prepare": "playwright install || echo '' && husky",
 		"check": "svelte-check --tsconfig ./tsconfig.json",
