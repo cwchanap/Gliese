@@ -253,11 +253,15 @@ master.
 
 ### Evidence boundary and remaining manual gates
 
-The automated browser run proves the production request boundary, loader completion
-diagnostic, URL modes, targeted failure diagnostics, boot continuity, retained fallback
-rendering, and screenshot artifact generation. Playwright is configured to retain
-failure-only screenshots and traces, and CI uploads both `playwright-report/` and
-`test-results/` under the existing non-cancelled seven-day artifact policy.
+The automated browser run proves interception of the exact production request, exact
+BootScene and WorldScene diagnostics, ready-state continuity, renderer-event payloads and
+completion bookkeeping, and screenshot artifact production. Human review of the five
+committed screenshots proves the enabled/off presentation, visible fallback pixels in the
+off and load-failure modes, absence of Phaser's missing-texture placeholder, and visual
+alignment of the collision overlay above both baked ground and fallback tiles. Playwright is
+configured to retain failure-only screenshots and traces, and CI uploads both
+`playwright-report/` and `test-results/` under the existing non-cancelled seven-day artifact
+policy.
 
 The following acceptance gates were not performed in this browser evidence slice and remain
 explicitly unclaimed:
