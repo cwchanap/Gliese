@@ -17,7 +17,8 @@ import {
 	quantizeSundropVillageRgba,
 	rasterizeSundropVillageArtControl,
 	validateSundropVillagePng,
-	writeFinalizedSundropVillagePng
+	writeFinalizedSundropVillagePng,
+	type SundropVillagePngTier
 } from './sundrop-village-png';
 
 const WIDTH = SUNDROP_VILLAGE_BACKGROUND_WIDTH;
@@ -548,12 +549,12 @@ describe('Sundrop Village PNG preprocessing', () => {
 
 describe('Sundrop Village PNG tier and quantization guards', () => {
 	it('rejects a tier outside the 0-3 range', () => {
-		expect(() => quantizeSundropVillageRgba(new Uint8Array(4), 4, 1, 1)).toThrow(
-			'Sundrop Village PNG tier must be one of 0, 1, 2, or 3; received 4'
-		);
-		expect(() => quantizeSundropVillageRgba(new Uint8Array(4), -1, 1, 1)).toThrow(
-			'Sundrop Village PNG tier must be one of 0, 1, 2, or 3; received -1'
-		);
+		expect(() =>
+			quantizeSundropVillageRgba(new Uint8Array(4), 4 as unknown as SundropVillagePngTier, 1, 1)
+		).toThrow('Sundrop Village PNG tier must be one of 0, 1, 2, or 3; received 4');
+		expect(() =>
+			quantizeSundropVillageRgba(new Uint8Array(4), -1 as unknown as SundropVillagePngTier, 1, 1)
+		).toThrow('Sundrop Village PNG tier must be one of 0, 1, 2, or 3; received -1');
 	});
 
 	it('rejects non-positive-integer raw RGBA dimensions', () => {
