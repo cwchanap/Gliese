@@ -521,11 +521,17 @@ the exporter twice against the same source produces byte-identical text artifact
 
 ### Generation workflow
 
-The default production tool is Codex's built-in `image_gen`. It receives an exact-size
-rasterization of `village-art-control.svg` as its reference image; the SVG remains the
-authoritative vector artifact. The fixed prompt requests one complete, orthographic
-top-down village master at the target `7:6` aspect ratio, with the approved palette,
-upper-left lighting direction, baked/live exclusions, and route-preservation rules.
+The default production tool is Codex's built-in `image_gen`. The first production pass
+receives an exact-size rasterization of `village-art-control.svg` as its reference image;
+the SVG remains the authoritative vector artifact. A revision of an already approved
+master receives two references: the clean opaque pre-feather source of the current approved
+PNG first, preserving its ground-material style and complete composition, and the
+regenerated exact-size art-control raster second, preserving geometry. Do not use the
+transparent-feathered runtime PNG as an edit target. The fixed prompt requests one complete,
+orthographic top-down village
+master at the target `7:6` aspect ratio, with the approved palette, upper-left lighting
+direction, six district treatments, three-scale detail hierarchy, baked/live exclusions,
+and route-preservation rules.
 
 The built-in generator does not promise a fixed native output size. For every candidate the
 validation report records the production tool, prompt, reference fingerprint, and complete
@@ -696,9 +702,15 @@ variation makes a universal color-delta threshold misleading.
 Tests cover:
 
 - exact center-based placement and source-derived `1792×1536` bounds;
+- no village-scoped live `scarecrow` decor and an open former anchor at world
+  `(880,5584)` / source cell `(19,38)`;
 - explicit Phaser `0.5, 0.5` origin and helper-defaulted `-9` depth;
 - `RegionFragment` and opening-map background merging;
 - deterministic controls and complete artifact inventory;
+- fingerprint changes when non-colliding decor is moved or removed;
+- byte-identical layered and composed collision-control artifacts after the non-colliding
+  scarecrow removal, while object-anchor, forbidden-tall, combined-control, manifest, and
+  generated-fingerprint evidence refreshes;
 - static occupancy geometry matching the runtime rectangle/radius/doorway rules, including
   the concrete `corridor-wall-2b` points `(1682,4510)` (excluded) and `(1677,4510)` (open);
 - the synthetic matching-landmark transition at `(100,130)` (open), plus full-map clipping
