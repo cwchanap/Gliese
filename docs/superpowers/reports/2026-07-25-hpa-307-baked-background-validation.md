@@ -25,7 +25,10 @@ explicitly unclaimed.
   `docs/superpowers/reports/img/hpa-307/village-background-retouch-base.png`.
 - Stable source SHA-256:
   `20a3625640131917f18d1309b0c192f2cbdac5e4279fe9e6abb23c24c64859fd`.
-- Stable source dimensions and format: `1792×1536`, opaque RGBA PNG, `6,794,867` bytes.
+- Stable source dimensions and format: `1792×1536`, feathered RGBA PNG with the
+  deterministic 64 px runtime alpha feather, `6,794,867` bytes.
+- The retouch uses the source RGB at the same coordinates and replaces the feathered source
+  alpha with `255` in the controller-approved opaque intermediate.
 - Retouch algorithm: `sundrop-village-retouch-v3`,
   `same-coordinate-additive-rgb`.
 - Geometry source: `sundropVillageLayered.layers.regions+paths`, `56×48` cells at
