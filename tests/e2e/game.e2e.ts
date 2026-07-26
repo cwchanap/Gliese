@@ -26,6 +26,8 @@ type RegionalBackgroundEvidenceCase = {
 	name: string;
 	screenshotName: string;
 	url: string;
+	/** Expected regional background load completions; defaults to 1 when omitted. */
+	expectedLoadCompletions?: number;
 };
 
 type GlieseProbeWindow = Window & {
@@ -242,14 +244,19 @@ async function assertAndAttachRendererDiagnostic(
 	diagnostics: RegionalBackgroundRendererDiagnostic[],
 	expectedLoadCompletions: number,
 	attachmentName: string,
-	testInfo: TestInfo
+	testInfo: TestInfo,
+	expectedLoadMs: 'null' | 'non-negative' = 'non-negative'
 ) {
 	await expect.poll(() => diagnostics.length).toBe(1);
 	expect(diagnostics).toHaveLength(1);
 
 	const diagnostic = diagnostics[0]!;
 	expect(diagnostic.regionalBackgroundLoadCompletions).toBe(expectedLoadCompletions);
-	expect(diagnostic.regionalBackgroundLoadMs).toBeGreaterThanOrEqual(0);
+	if (expectedLoadMs === 'null') {
+		expect(diagnostic.regionalBackgroundLoadMs).toBeNull();
+	} else {
+		expect(diagnostic.regionalBackgroundLoadMs).toBeGreaterThanOrEqual(0);
+	}
 	if (diagnostic.renderer === 'canvas') {
 		expect(diagnostic.maxTextureSize).toBeNull();
 	} else {
@@ -362,7 +369,8 @@ const regionalBackgroundEvidenceCases: RegionalBackgroundEvidenceCase[] = [
 	{
 		name: 'off capture',
 		screenshotName: 'runtime-background-off.png',
-		url: '/?regionalBackground=off'
+		url: '/?regionalBackground=off',
+		expectedLoadCompletions: 0
 	},
 	{
 		name: 'collision capture',
@@ -372,7 +380,8 @@ const regionalBackgroundEvidenceCases: RegionalBackgroundEvidenceCase[] = [
 	{
 		name: 'off collision capture',
 		screenshotName: 'runtime-background-off-collision.png',
-		url: '/?regionalBackground=off&mapDebug=collision'
+		url: '/?regionalBackground=off&mapDebug=collision',
+		expectedLoadCompletions: 0
 	}
 ];
 
@@ -384,9 +393,10 @@ for (const evidenceCase of regionalBackgroundEvidenceCases) {
 		await expectGameReady(page);
 		await assertAndAttachRendererDiagnostic(
 			diagnostics,
-			1,
+			evidenceCase.expectedLoadCompletions ?? 1,
 			evidenceCase.screenshotName.replace(/\.png$/, '.renderer.json'),
-			testInfo
+			testInfo,
+			evidenceCase.expectedLoadCompletions === 0 ? 'null' : 'non-negative'
 		);
 		await captureRuntimeScreenshot(page, testInfo, evidenceCase.screenshotName);
 	});
