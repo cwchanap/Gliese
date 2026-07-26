@@ -7,6 +7,8 @@ import {
 	writeFinalizedSundropVillagePng
 } from '../src/lib/game/content/backgrounds/sundrop-village-png';
 
+import { parseFlagPairs } from './parse-flag-pairs';
+
 function parseTier(value: string): SundropVillagePngTier {
 	const tier = Number(value);
 	if (tier !== 0 && tier !== 1 && tier !== 2 && tier !== 3) {
@@ -20,28 +22,13 @@ function parseArguments(argv: readonly string[]): {
 	output: string;
 	tier: SundropVillagePngTier;
 } {
-	const values = new Map<string, string>();
-	const args = argv[0] === '--' ? argv.slice(1) : [...argv];
-	for (let index = 0; index < args.length; index += 2) {
-		const name = args[index];
-		const value = args[index + 1];
-		if (!name?.startsWith('--') || !value || value.startsWith('--')) {
-			throw new Error(
-				'Usage: art:finalize:village -- --input <normalized.png> --output <final.png> --tier <0|1|2|3>'
-			);
-		}
-		if (name !== '--input' && name !== '--output' && name !== '--tier') {
-			throw new Error(`Unknown argument ${name}`);
-		}
-		if (values.has(name)) throw new Error(`Duplicate argument ${name}`);
-		values.set(name, value);
-	}
-	const input = values.get('--input');
-	const output = values.get('--output');
-	const tier = values.get('--tier');
+	const values = parseFlagPairs(['--input', '--output', '--tier'], [...argv]);
+	const input = values.get('input');
+	const output = values.get('output');
+	const tier = values.get('tier');
 	if (!input || !output || tier === undefined) {
 		throw new Error(
-			'Usage: art:finalize:village -- --input <normalized.png> --output <final.png> --tier <0|1|2|3>'
+			'Usage: art:finalize:village -- --input=<normalized.png> --output=<final.png> --tier=<0|1|2|3>'
 		);
 	}
 	return { input, output, tier: parseTier(tier) };

@@ -5,35 +5,20 @@ import {
 	writeSundropVillageRetouch
 } from '../src/lib/game/content/backgrounds/sundrop-village-retouch';
 
+import { parseFlagPairs } from './parse-flag-pairs';
+
 interface RetouchArguments {
 	readonly output: string;
 	readonly provenanceOutput: string;
 }
 
 function parseArguments(argv: readonly string[]): RetouchArguments {
-	const values = new Map<string, string>();
-	const args = argv[0] === '--' ? argv.slice(1) : [...argv];
-
-	for (let index = 0; index < args.length; index += 2) {
-		const name = args[index];
-		const value = args[index + 1];
-		if (!name?.startsWith('--') || !value || value.startsWith('--')) {
-			throw new Error(
-				'Usage: art:retouch:village -- --output <candidate.png> --provenance-output <provenance.json>'
-			);
-		}
-		if (name !== '--output' && name !== '--provenance-output') {
-			throw new Error(`Unknown argument ${name}`);
-		}
-		if (values.has(name)) throw new Error(`Duplicate argument ${name}`);
-		values.set(name, value);
-	}
-
-	const output = values.get('--output');
-	const provenanceOutput = values.get('--provenance-output');
+	const values = parseFlagPairs(['--output', '--provenance-output'], [...argv]);
+	const output = values.get('output');
+	const provenanceOutput = values.get('provenance-output');
 	if (!output || !provenanceOutput) {
 		throw new Error(
-			'Usage: art:retouch:village -- --output <candidate.png> --provenance-output <provenance.json>'
+			'Usage: art:retouch:village -- --output=<candidate.png> --provenance-output=<provenance.json>'
 		);
 	}
 

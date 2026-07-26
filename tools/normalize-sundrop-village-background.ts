@@ -1,5 +1,7 @@
 import { normalizeSundropVillageBackground } from '../src/lib/game/content/backgrounds/sundrop-village-png';
 
+import { parseFlagPairs } from './parse-flag-pairs';
+
 const REQUIRED_ARGUMENTS = [
 	'--input',
 	'--output',
@@ -22,35 +24,20 @@ function parseArguments(argv: readonly string[]): {
 	transformOutput: string;
 	crop: { x: number; y: number; width: number; height: number };
 } {
-	const values = new Map<string, string>();
-	const args = argv[0] === '--' ? argv.slice(1) : [...argv];
-	for (let index = 0; index < args.length; index += 2) {
-		const name = args[index];
-		const value = args[index + 1];
-		if (!name?.startsWith('--') || !value || value.startsWith('--')) {
-			throw new Error(
-				'Usage: art:normalize:village -- --input <candidate> --output <normalized.png> --transform-output <transform.json> --crop-x <integer> --crop-y <integer> --crop-width <integer> --crop-height <integer>'
-			);
-		}
-		if (!(REQUIRED_ARGUMENTS as readonly string[]).includes(name)) {
-			throw new Error(`Unknown argument ${name}`);
-		}
-		if (values.has(name)) throw new Error(`Duplicate argument ${name}`);
-		values.set(name, value);
-	}
+	const values = parseFlagPairs([...REQUIRED_ARGUMENTS], [...argv]);
 	for (const name of REQUIRED_ARGUMENTS) {
-		if (!values.has(name)) throw new Error(`Missing required argument ${name}`);
+		if (!values.has(name.slice(2))) throw new Error(`Missing required argument ${name}`);
 	}
 
 	return {
-		input: values.get('--input')!,
-		output: values.get('--output')!,
-		transformOutput: values.get('--transform-output')!,
+		input: values.get('input')!,
+		output: values.get('output')!,
+		transformOutput: values.get('transform-output')!,
 		crop: {
-			x: parseInteger(values.get('--crop-x')!, '--crop-x'),
-			y: parseInteger(values.get('--crop-y')!, '--crop-y'),
-			width: parseInteger(values.get('--crop-width')!, '--crop-width'),
-			height: parseInteger(values.get('--crop-height')!, '--crop-height')
+			x: parseInteger(values.get('crop-x')!, '--crop-x'),
+			y: parseInteger(values.get('crop-y')!, '--crop-y'),
+			width: parseInteger(values.get('crop-width')!, '--crop-width'),
+			height: parseInteger(values.get('crop-height')!, '--crop-height')
 		}
 	};
 }

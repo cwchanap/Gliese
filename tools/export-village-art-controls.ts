@@ -56,8 +56,11 @@ outputs.set(generatedFile, generatedContent);
 mkdirSync(outputDirectory, { recursive: true });
 mkdirSync(join(repositoryRoot, 'src/lib/game/content/generated'), { recursive: true });
 
-for (const [path, content] of [...outputs].sort(([a], [b]) => a.localeCompare(b))) {
+const sortedOutputs = [...outputs].sort(([a], [b]) => a.localeCompare(b));
+for (const [path] of sortedOutputs) {
 	assertAllowedOutputPath(path);
+}
+for (const [path, content] of sortedOutputs) {
 	writeFileSync(path, content, { encoding: 'utf8' });
 	const repositoryPath = relative(repositoryRoot, path).split(sep).join('/');
 	console.log(`${repositoryPath}\t${Buffer.byteLength(content, 'utf8')} bytes`);

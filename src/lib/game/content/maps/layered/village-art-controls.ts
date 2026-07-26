@@ -6,9 +6,9 @@ import type {
 	MapDecor,
 	MapLandmark,
 	MapRect,
-	MapTransition,
 	WorldMapDefinition
 } from '$lib/game/content/maps/types';
+import { findLandmarkDoorway } from '$lib/game/save/save-state';
 
 export const VILLAGE_ART_CONTROL_FILENAMES = [
 	'village-art-control-manifest.json',
@@ -155,6 +155,21 @@ function pointInsideRect(x: number, y: number, rect: LocalRect): boolean {
 	);
 }
 
+/**
+ * Collects collision and exclusion data for the village art-control surface.
+ *
+ * Strict and landmark collision rects are computed in LOCAL coordinate space
+ * (origin at the region canvas top-left, y-down); the returned
+ * `isWorldPointExcluded` closure converts world points into that local space
+ * before testing. `composedCollisionRects` is the union of strict and landmark
+ * rects in local space, suitable for rasterizing a single composed mask.
+ *
+ * @param source - The layered region source providing geometry and decor.
+ * @param input - The art-control inputs (collision rects in source grid units,
+ *   plus normalization parameters like player radius).
+ * @returns The collision data: canvas dimensions, per-category collision rects
+ *   in local space, and point-exclusion closures in both local and world space.
+ */
 export function collectVillageArtControlData<K extends MapDecor['textureKey']>(
 	source: LayeredRegionSource<K>,
 	input: VillageArtControlInputs
@@ -185,24 +200,6 @@ export function collectVillageArtControlData<K extends MapDecor['textureKey']>(
 		isWorldPointExcluded: (x, y) => isLocalPointExcluded(x - canvas.x, y - canvas.y),
 		isLocalPointExcluded
 	};
-}
-
-function matchingDoorway(
-	landmark: MapLandmark,
-	transitions: readonly MapTransition[]
-): MapTransition | undefined {
-	const left = landmark.x - landmark.width / 2;
-	const right = landmark.x + landmark.width / 2;
-	const top = landmark.y - landmark.height / 2;
-	const bottom = landmark.y + landmark.height / 2;
-	return transitions.find(
-		(transition) =>
-			transition.x >= left &&
-			transition.x <= right &&
-			transition.y >= top &&
-			transition.y <= bottom &&
-			transition.id.includes(landmark.id.replace('-exterior', ''))
-	);
 }
 
 function structuralRect(rect: CollisionRect, id: string): Record<string, string | number> {
@@ -272,7 +269,16 @@ function structuralAnchors(input: VillageArtControlInputs, canvas: CanvasBounds)
 			...(collision === undefined ? {} : { collision: structuralRect(collision, collision.id) })
 		})),
 		landmarks: sortById(landmarks).map(({ id, x, y, width, height }) => {
-			const doorway = matchingDoorway({ id, x, y, width, height } as MapLandmark, map.transitions);
+			const doorway = findLandmarkDoorway(
+				{ id, x, y, width, height } as MapLandmark,
+				{
+					left: x - width / 2,
+					right: x + width / 2,
+					top: y - height / 2,
+					bottom: y + height / 2
+				},
+				map.transitions
+			);
 			return {
 				id,
 				x,
@@ -300,6 +306,21 @@ function structuralAnchors(input: VillageArtControlInputs, canvas: CanvasBounds)
 	};
 }
 
+/**
+ * Serializes the village art-control inputs into a canonical JSON string for
+ * fingerprinting.
+ *
+ * Canonical ordering is enforced by sorting all object collections by id (or
+ * by x/y/width/height for position-stable ordering) and by sorting the
+ * decor-glyph table by glyph. This guarantees that two structurally identical
+ * region sources produce byte-identical output regardless of authoring order,
+ * so the SHA-256 of the returned string is a stable fingerprint.
+ *
+ * @param source - The layered region source providing geometry, layers, and
+ *   decor glyph specifications.
+ * @param input - The art-control inputs to canonicalize.
+ * @returns A canonical JSON string suitable for hashing.
+ */
 export function canonicalizeVillageArtControlInputs<K extends MapDecor['textureKey']>(
 	source: LayeredRegionSource<K>,
 	input: VillageArtControlInputs
@@ -543,6 +564,19 @@ function renderForbiddenTall<K extends MapDecor['textureKey']>(
 	return geometry;
 }
 
+/**
+ * Renders the fixed set of village art-control artifacts as SVG/JSON strings.
+ *
+ * Produces a Map keyed by the fixed filename inventory declared in
+ * `VILLAGE_ART_CONTROL_FILENAMES`: region tiles, layered and composed collision
+ * masks, building-entrance and forbidden-tall masks, object anchors, and the
+ * manifest. All geometry is emitted in LOCAL coordinate space (canvas
+ * top-left origin, y-down) consistent with `collectVillageArtControlData`.
+ *
+ * @param source - The layered region source providing geometry and decor.
+ * @param input - The art-control inputs (collision rects, anchors, etc.).
+ * @returns A Map from filename to artifact content (SVG or JSON string).
+ */
 export function renderVillageArtControlArtifacts<K extends MapDecor['textureKey']>(
 	source: LayeredRegionSource<K>,
 	input: VillageArtControlInputs

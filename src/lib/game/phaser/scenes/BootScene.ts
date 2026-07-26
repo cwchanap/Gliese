@@ -41,6 +41,18 @@ export class BootScene extends Phaser.Scene {
 				`[BootScene] asset load failed: key="${file.key ?? 'unknown'}" src="${file.src ?? ''}"`
 			);
 		});
+		// Regional-background diagnostic tracking: collects timing and
+		// completion data for regional background image loads during preload.
+		// The timing window is bounded by `regionalBackgroundLoadStartedAtMs`
+		// (intended to mark when loading began) and the Phaser loader's
+		// `complete` event, which records `regionalBackgroundLoadCompletedAtMs`
+		// via `performance.now()`. When the start timestamp is unavailable
+		// (null), the load duration is reported as null.
+		// `completedRegionalBackgroundKeys` counts how many regional background
+		// images finished loading. The assembled diagnostic is emitted via
+		// `emitRegionalBackgroundRendererDiagnostic` and consumed by the
+		// Playwright e2e suite (`installRegionalBackgroundDiagnosticListener`
+		// in `tests/e2e/game.e2e.ts`).
 		const regionalBackgroundKeys = new Set(
 			regionalBackgroundAssets.map((asset) => asset.key as string)
 		);

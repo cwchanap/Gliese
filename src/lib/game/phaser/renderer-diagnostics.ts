@@ -16,6 +16,22 @@ export interface RegionalBackgroundRendererDiagnosticInput {
 	regionalBackgroundLoadCompletions: number;
 }
 
+/**
+ * Builds a normalized `RegionalBackgroundRendererDiagnostic` from raw preload
+ * timing and renderer-capability inputs. Normalization rules:
+ *   - `regionalBackgroundLoadMs` is the clamped (>=0) difference between the
+ *     completed and started timestamps, or `null` when either is non-finite.
+ *   - `maxTextureSize` is preserved only for the `webgl` renderer when finite
+ *     and positive; otherwise it is coerced to `null` (canvas has no limit).
+ *   - `regionalBackgroundLoadCompletions` is coerced to a non-negative integer
+ *     (non-finite inputs become 0).
+ *   - `renderer` is passed through unchanged.
+ *
+ * @param input - Raw diagnostic inputs: renderer type, optional max texture
+ *   size, load start/completed timestamps (ms), and regional background load
+ *   completion count.
+ * @returns The normalized, emit-ready diagnostic record.
+ */
 export function buildRegionalBackgroundRendererDiagnostic(
 	input: RegionalBackgroundRendererDiagnosticInput
 ): RegionalBackgroundRendererDiagnostic {

@@ -168,6 +168,18 @@ function createRegionalBackgroundSaveFixture() {
 	});
 }
 
+/**
+ * Installs a Playwright binding + page init script that captures every
+ * `gliese:regional-background-renderer-diagnostic` event dispatched by the
+ * running app. Each event's `detail` is forwarded through the
+ * `captureRegionalBackgroundRendererDiagnostic` binding and appended to the
+ * returned array. The listener is registered before page scripts run, so no
+ * diagnostic emitted during boot is missed.
+ *
+ * @param page - The Playwright page to install the listener on.
+ * @returns A mutable array that accumulates `RegionalBackgroundRendererDiagnostic`
+ *   records as they are emitted by the app.
+ */
 async function installRegionalBackgroundDiagnosticListener(page: Page) {
 	const diagnostics: RegionalBackgroundRendererDiagnostic[] = [];
 	const bindingName = 'captureRegionalBackgroundRendererDiagnostic';
@@ -207,6 +219,25 @@ async function expectGameReady(page: Page) {
 	await expect(page.getByRole('button', { name: 'Menu' })).toBeVisible();
 }
 
+/**
+ * Asserts the captured regional-background diagnostic matches expectations and
+ * attaches it as a JSON test artifact. Polls until exactly one diagnostic has
+ * been collected, then verifies the load-completion count equals
+ * `expectedLoadCompletions`, the load duration is non-negative, and
+ * `maxTextureSize` is null for canvas renderers or a positive number for
+ * WebGL. Finally, writes the diagnostic to `testInfo.outputPath(attachmentName)`
+ * and attaches it to the test report.
+ *
+ * @param diagnostics - The array populated by
+ *   `installRegionalBackgroundDiagnosticListener`.
+ * @param expectedLoadCompletions - The expected
+ *   `regionalBackgroundLoadCompletions` value.
+ * @param attachmentName - Name used for both the output file and the test
+ *   attachment.
+ * @param testInfo - The Playwright `TestInfo` for the current test, used to
+ *   resolve the output path and attach the artifact.
+ * @returns void; assertions and attachment are performed as side effects.
+ */
 async function assertAndAttachRendererDiagnostic(
 	diagnostics: RegionalBackgroundRendererDiagnostic[],
 	expectedLoadCompletions: number,
