@@ -22,6 +22,7 @@ import {
 import { pathsRegion } from '$lib/game/content/maps/regions/paths';
 import { meadowEntryMap } from '$lib/game/content/maps';
 import {
+	NORMALIZE_PLAYER_RADIUS,
 	collectLandmarkRects,
 	collectStrictCollisionRects,
 	isInsideAnyCollisionRect
@@ -234,6 +235,21 @@ describe('sundrop village layered source', () => {
 		const a = JSON.stringify(compileLayeredRegion(sundropVillageLayered));
 		const b = JSON.stringify(compileLayeredRegion(sundropVillageLayered));
 		expect(a).toBe(b);
+	});
+
+	it('keeps the Home Yard open without a scarecrow', () => {
+		const compiled = compileLayeredRegion(sundropVillageLayered);
+		const collisionRects = [
+			...collectStrictCollisionRects(meadowEntryMap),
+			...collectLandmarkRects(meadowEntryMap)
+		];
+
+		expect(compiled.mapDecor?.some((decor) => decor.frameName === 'scarecrow')).toBe(false);
+		expect(sundropVillageLayered.layers.decor[38][19]).toBe('.');
+		expect(sundropVillageLayered.layers.collision[38][19]).toBe('.');
+		expect(isInsideAnyCollisionRect(880, 5_584, collisionRects, NORMALIZE_PLAYER_RADIUS)).toBe(
+			false
+		);
 	});
 
 	it('village.ts has no hand-authored blockers/groundPatches/mapDecor literals', () => {
