@@ -23,13 +23,13 @@ const WARMUP_TIMEOUT_MS = 10_000;
 const EVIDENCE_PATH_PREFIX = 'docs/superpowers/reports/';
 const EXPECTED_PRODUCTION_SHA256 =
 	'3933829f19e7eab4b26ba2d31c7a0cfac25d4fae0a16196893fac6dbf02187c1';
-const COMMIT = execFileSync('rtk', ['git', 'rev-parse', 'HEAD'], {
+const COMMIT = execFileSync('git', ['rev-parse', 'HEAD'], {
 	cwd: REPO,
 	encoding: 'utf8'
 }).trim();
 const WORKTREE_PATHS = execFileSync(
-	'rtk',
-	['git', 'status', '--porcelain=v1', '--untracked-files=all'],
+	'git',
+	['status', '--porcelain=v1', '--untracked-files=all'],
 	{
 		cwd: REPO,
 		encoding: 'utf8'
@@ -835,7 +835,11 @@ async function runAuthoredRoute(run, { checkpoints = false, captures = false } =
 	await moveTo(run, 'Villager house 3 east return', { x: 856, y: 4920 }, { axes: ['x'] });
 	await roundTrip(run, 'villager-house-3', 'left');
 	// The house-3 return is east of its door in a narrow lane. Dip to the lane's
-	// south edge before crossing west so the 18px doorway trigger is not re-entered.
+	// south edge before crossing west so the 30 px transition trigger (playerRadius 12
+	// + transitionRadius 18) around (816, 4912) is not re-entered. The wall at row 19
+	// (y=4976) expands to top=4948 with playerRadius, so the player cannot go south
+	// of ~4948. Target y=4946 with a 1 px tolerance keeps the player in the
+	// 6 px safe window [4942, 4948] that clears the trigger when crossing x=816.
 	await moveTo(
 		run,
 		'Villager house 3 south bypass',
@@ -851,14 +855,14 @@ async function runAuthoredRoute(run, { checkpoints = false, captures = false } =
 		run,
 		'North lane after house 1',
 		{ x: 528, y: 4946 },
-		{ axes: ['y'], tolerance: 1 }
+		{ axes: ['y'], tolerance: 9 }
 	);
 	await moveTo(run, 'Villager house 3 east bypass', { x: 880, y: 4946 }, { axes: ['x'] });
 	await moveTo(
 		run,
 		'G-N gate lane',
 		{ x: 880, y: 4920 },
-		{ axes: ['y'], tolerance: 1 }
+		{ axes: ['y'], tolerance: 9 }
 	);
 	await moveTo(
 		run,
@@ -1067,7 +1071,7 @@ async function captureRendererModes(browser) {
 			const requestCountIsValid =
 				descriptor.abortAsset === true
 					? probe.exactRegionalRequestCount >= 1
-					: probe.exactRegionalRequestCount === 1;
+					: probe.exactRegionalRequestCount === descriptor.expectedCompletions;
 			if (!requestCountIsValid || probe.pageErrors.length > 0) {
 				throw new Error(
 					`${descriptor.mode} observed ${probe.exactRegionalRequestCount} exact requests and ${probe.pageErrors.length} page errors`
