@@ -2,20 +2,29 @@
 
 ## Status
 
-Approved production master. Task 10 applies the controller-approved deterministic district
-retouch described below to the original corrected continuous-ground master while preserving
-all authored geometry. The original generated candidate history remains below as the
-provenance of the stable retouch base. The automated browser fallback matrix also passes. A
-headed Chromium run on the macOS reference device now
-covers the complete keyboard-driven village route, all seven interior round trips, both
-regional rewards, four exact save/reload checkpoints, scoped WebGL API-call observation, and
-the enabled-versus-disabled frame-time gate. The corrected packaged Tauri application and
-CI-mode DMG also build successfully, and an operator-observed window-only native smoke
-records the baked village rendering in the packaged macOS app under the unchanged live
-scene. Physical
-gamepad/controller input, Tauri-specific frame profiling and renderer-capability
-instrumentation, physical GPU residency/decode behavior, and subjective human feel remain
-explicitly unclaimed.
+**Task 11 result: `DONE_WITH_CONCERNS`.** The approved production master and all authored
+gameplay controls remain byte-stable. The refreshed headed Chromium acceptance run against
+commit `8923035babb0eb348b956661b545bd5c4f3b028e` covers the complete keyboard-driven
+village route, six named districts, all seven interior round trips, both regional rewards,
+four exact save/reload checkpoints, four save-injected edge inspections plus the traversed
+north Crossroads continuation, five renderer/fallback modes, scoped WebGL API-call
+observation, and the enabled-versus-disabled frame-time gate.
+
+The exact ordinary `rtk bun run tauri build` is not green: it built the application bundle
+and then exited `1` in the interactive Finder-cosmetics DMG helper. The supported
+non-interactive `CI=true` path produced an arm64 application and a checksum-valid DMG, but
+that does not satisfy the ordinary-command release gate. A bounded launch of the current
+CI-built application created the Gliese process and completed WebKit resource loading, then
+exited normally; System Events exposed zero windows, so this revision does **not** claim
+current native visual acceptance. Physical gamepad/controller input, Tauri-specific frame
+profiling and renderer-capability instrumentation, physical GPU residency/decode behavior,
+and subjective human feel also remain unclaimed.
+
+Visual review found no hard missing-texture boundary and all transition throats remain open,
+but the material/value change from the rich baked village to the plain neighboring fallback
+tiles remains noticeable, especially at the north and east edges. HPA-307 should therefore
+remain incomplete pending manual/native acceptance and an explicit decision on whether that
+cross-region fidelity shift is acceptable.
 
 ## Task 10 district retouch (authoritative current production)
 
@@ -274,25 +283,33 @@ corrected control, fingerprint chain, unchanged base PNG, and explicit reapprova
 
 ## Automated validation
 
-### Task 10 final gate matrix
+### Task 11 revision gate matrix
 
-- A fresh `rtk bun run art:retouch:village` read the stable checked-in base and regenerated
-  `7,311,554` approved opaque bytes with SHA-256
-  `ba4f3ce170b8f40aabf1c81f83ce496436c1f6ea7e151401b221c5ae6e29cbf5`; both the PNG and
-  provenance JSON passed byte-for-byte `cmp` against the controller-approved output and
-  checked-in provenance.
-- `rtk bun run art:evidence:village` refreshed all nine static evidence PNGs successfully.
-- `rtk bun run art:controls:village` regenerated all controls and retained fingerprint
+- `rtk bun run art:controls:village` passed and retained fingerprint
   `0c47a7dc58d48e87fa9dd9c290cf6835b8acc3f4eb60a4e2c1ba4eae37e4ed33`.
+  All nine source controls plus the generated TypeScript output remained byte-identical
+  before and after regeneration.
+- The stable retouch base remained SHA-256
+  `20a3625640131917f18d1309b0c192f2cbdac5e4279fe9e6abb23c24c64859fd`.
+- The production PNG remained tier 0, `7,601,173` bytes, SHA-256
+  `3933829f19e7eab4b26ba2d31c7a0cfac25d4fae0a16196893fac6dbf02187c1`.
 - `rtk bun run art:validate:village` passed: 2 files, 21 tests, 0 failures.
-- The explicit focused asset/control command passed: 2 files, 21 tests, 0 failures.
-- The deterministic retouch suite passed: 1 file, 9 tests, 0 failures.
 - `rtk bun run check` passed with 0 errors and 0 warnings.
 - `rtk bun run lint` passed; Prettier and ESLint were clean.
-- The finished runtime PNG remained tier 0, `7,601,173` bytes, SHA-256
-  `3933829f19e7eab4b26ba2d31c7a0cfac25d4fae0a16196893fac6dbf02187c1`.
+- The complete unit gate passed 51 files and 826 tests. A sandboxed attempt first completed
+  48 files and 755 assertions before macOS denied the Chromium worker's Mach-port
+  registration; the unchanged suite passed after browser-launch permission was granted.
+  That passing unit gate includes fallback/warning coverage for both a missing texture and a
+  `1700×1400` texture where the regional descriptor requires `1792×1536`.
+- The focused regional-background Playwright gate passed 5 scenarios in `11.2s`; the full
+  Playwright gate passed all 17 scenarios in `45.4s`.
+- Rust gates passed: `cargo fmt --all -- --check`, clippy across all targets and features
+  with warnings denied, and 47 tests across four suites.
+- The exact ordinary `rtk bun run tauri build` exited `1` in `bundle_dmg.sh` after the
+  application bundle was created. `rtk env CI=true bun run tauri build` passed and produced
+  both bundles; the resulting DMG passed `hdiutil verify` and `hdiutil imageinfo`.
 
-### Red evidence
+### Red evidence (historical implementation)
 
 - The first focused production-asset run failed exactly at the two absent approval gates:
   `public/game/assets/regions/sundrop-village-background.png` and
@@ -304,7 +321,7 @@ corrected control, fingerprint chain, unchanged base PNG, and explicit reapprova
 - Tier 0 finalization was an expected production red: `8,395,802` bytes exceeded the
   `8,388,608`-byte hard limit, and the atomic finalizer left the runtime output absent.
 
-### Green evidence
+### Green evidence (historical implementation and review)
 
 - `rtk bun run art:validate:village` passed: 2 files, 20 tests, 0 failures.
 - `rtk bun run test:unit -- --run src/lib/game/content/sundrop-village-background.asset.test.ts src/lib/game/content/maps/layered/village-art-controls.test.ts`
@@ -325,15 +342,15 @@ corrected control, fingerprint chain, unchanged base PNG, and explicit reapprova
   `54` tests plus type checking and diff hygiene with no remaining actionable finding.
 - `rtk bun run check` passed with 0 errors and 0 warnings.
 - `rtk bun run lint` passed; Prettier and ESLint were clean.
-- The final committed-tree gate reran `rtk bun run art:controls:village`; the generated
+- The pre-retouch review gate reran `rtk bun run art:controls:village`; the generated
   fingerprint remained
   `cf2901101b542e2d5f412f039598f33d11b3aa93769164e1ab15fd7120c01104`, and the worktree
   remained clean after regeneration.
-- The final complete unit gate passed 50 files and 814 tests. The first sandboxed attempt
+- The Task 10 complete unit gate passed 50 files and 814 tests. Its first sandboxed attempt
   executed 743 passing assertions but could not launch Vitest's Chromium worker because
   macOS denied its Mach-port registration; the unchanged suite was rerun with browser-launch
   permission and exited cleanly.
-- The final full Playwright gate passed all 17 scenarios in `48.0s`.
+- The Task 10 full Playwright gate passed all 17 scenarios in `48.0s`.
 - Final Rust gates passed: `cargo fmt --all -- --check`, clippy across all targets and
   features with warnings denied, and 47 tests across four suites.
 
@@ -353,7 +370,7 @@ The final focused command passed:
 rtk bun run test:e2e -- --grep "regional background"
 ```
 
-Result: `5 passed (12.8s)`.
+Result: `5 passed (11.2s)`.
 
 The final full-suite command passed:
 
@@ -361,7 +378,7 @@ The final full-suite command passed:
 rtk bun run test:e2e
 ```
 
-Result: `17 passed (53.0s)`.
+Result: `17 passed (45.4s)`.
 
 The missing-asset case aborted the exact production request,
 `/game/assets/regions/sundrop-village-background.png`, before navigation. It asserted one
@@ -389,15 +406,15 @@ operation through Phaser's overall loader-complete callback. It is not isolated 
 latency, GPU upload time, or a p95 measurement. The successful completion count is loader
 file-completion bookkeeping, not a GPU-upload claim.
 
-| Mode | Renderer | `MAX_TEXTURE_SIZE` | Load window (ms) | Successful completions |
-| --- | --- | ---: | ---: | ---: |
-| enabled | WebGL | 8192 | 422.7000000476837 | 1 |
-| background off | WebGL | 8192 | 314.5 | 1 |
-| collision overlay | WebGL | 8192 | 367.60000002384186 | 1 |
-| background off + collision | WebGL | 8192 | 350.80000001192093 | 1 |
-| intercepted load failure | WebGL | 8192 | 292.2000000476837 | 0 |
+| Mode | Renderer | `MAX_TEXTURE_SIZE` | Exact requests | Load window (ms) | Successful completions |
+| --- | --- | ---: | ---: | ---: | ---: |
+| enabled | WebGL | 16384 | 1 | 308.19999998807907 | 1 |
+| background off | WebGL | 16384 | 1 | 303.0999999642372 | 1 |
+| collision overlay | WebGL | 16384 | 1 | 286.5999999642372 | 1 |
+| background off + collision | WebGL | 16384 | 1 | 282.9000000357628 | 1 |
+| intercepted load failure | WebGL | 16384 | 3 intercepted attempts | 247.69999998807907 | 0 |
 
-This local Chromium run observed a positive `MAX_TEXTURE_SIZE` of 8192. The automated
+This headed Chromium run observed a positive `MAX_TEXTURE_SIZE` of 16384. The automated
 contract requires a positive WebGL value (or `null` for Canvas) but deliberately does not
 encode the reference-device `>=1792` acceptance gate as a CI assertion.
 
@@ -406,9 +423,16 @@ encode the reference-device `>=1792` acceptance gate as a CI assertion.
 #### Environment and method
 
 The richer acceptance pass ran against commit
-`764afd9bc5170758316be9f4ec2523b0a69c5410` with the production Vite preview. It used a
+`8923035babb0eb348b956661b545bd5c4f3b028e` with the production Vite preview. It used a
 separate headed Chromium context for the save/reload route, background-enabled timing, and
-background-disabled timing.
+background-disabled timing. The reproducible controller is retained at
+`docs/superpowers/reports/hpa-307-browser-acceptance.mjs`; it resolves the current repository
+and commit at runtime, refuses dirty product paths outside the report/evidence tree, rejects
+any production-background SHA mismatch, rebuilds `dist`, starts and owns a fresh
+strict-port Vite preview, round-trips a unique marker through it, and byte-compares its
+served production PNG before navigating. The generated JSON retains the exact build/start
+commands, timestamps, preview PID/base URL, and served-asset hash. This prevents a stale or
+unrelated preview from being labeled with the current source commit.
 
 | Property | Recorded value |
 | --- | --- |
@@ -435,12 +459,12 @@ north Crossroads throat, then returned to East Gate. The final acceptance pass r
 | Measure | Result |
 | --- | ---: |
 | Ordered route legs | 43 |
-| Held-key bursts | 297 |
-| Authoritative saved states | 307 |
+| Held-key bursts | 368 |
+| Authoritative saved states | 378 |
 | No-progress snags | 0 |
 | Interior round trips | 7 of 7 |
 | Regional rewards | 2 of 2 |
-| Final state | `meadow-entry (1832.0136, 4592.1696), right` |
+| Final state | `meadow-entry (1832.824799999999, 4604.085600000007), right` |
 
 Both `village-market-cache` and `village-shrine-cache` were present in the final saved
 pickup set. The seven entered-and-exited interiors were:
@@ -455,6 +479,23 @@ pickup set. The seven entered-and-exited interiors were:
 | 6 | `villager-house-1` |
 | 7 | `guild-hall` |
 
+#### Edge-handoff inspection
+
+The accepted route traversed the north throat into Crossroads and returned. For consistent
+camera-centered visual inspection of every edge, a separate context injected bounded
+version-8 save positions and read each position back before capture. Those four injected
+positions are seam-inspection evidence, not traversal evidence:
+
+| Edge | Requested state | Observed state |
+| --- | --- | --- |
+| North | `meadow-entry (1680, 4376), up` | exact |
+| South | `meadow-entry (960, 5864), down` | normalized by live map loading to `meadow-entry (976, 5872), down` |
+| West | `meadow-entry (280, 5200), left` | exact |
+| East | `meadow-entry (2024, 5200), right` | exact |
+
+The four approaches remain open. Alpha feathering avoids an abrupt missing-texture edge,
+but visual review still sees a material/value shift into the neighboring fallback terrain.
+
 #### Exact save/reload checkpoints
 
 At each checkpoint the controller saved through the HUD bridge, reloaded the page, waited
@@ -464,9 +505,9 @@ floating-point coordinates, and facing. All four comparisons passed:
 | Checkpoint | Exact state before and after reload | Reviewed screenshot |
 | --- | --- | --- |
 | Home Yard | `meadow-entry (624, 5776), up` | [Home](img/hpa-307/runtime-save-reload-home.png) |
-| Well Plaza | `meadow-entry (940.2072000000002, 5307.935200000016), left` | [Plaza](img/hpa-307/runtime-save-reload-plaza.png) |
-| Shrine Garden | `meadow-entry (1472.1287999999986, 5781.942399999996), left` | [Shrine](img/hpa-307/runtime-save-reload-shrine.png) |
-| East Gate | `meadow-entry (1831.9464000000005, 4607.947200000011), up` | [East Gate](img/hpa-307/runtime-save-reload-east-gate.png) |
+| Well Plaza | `meadow-entry (944.1936000000006, 5303.675200000018), left` | [Plaza](img/hpa-307/runtime-save-reload-plaza.png) |
+| Shrine Garden | `meadow-entry (1470.9263999999987, 5783.994399999994), left` | [Shrine](img/hpa-307/runtime-save-reload-shrine.png) |
+| East Gate | `meadow-entry (1844.8103999999987, 4607.997600000007), up` | [East Gate](img/hpa-307/runtime-save-reload-east-gate.png) |
 
 The checkpoint run necessarily made five exact regional-background requests: the initial
 page plus four page reloads. That count is intentionally separate from the one-request
@@ -503,7 +544,7 @@ was exactly `1792×1536`.
 | Exact production PNG requests | 1 |
 | Renderer diagnostic events retained | 1 |
 | Renderer / `MAX_TEXTURE_SIZE` | WebGL / `16384` |
-| Loader window / successful file completions | `236.80000001192093 ms` / 1 |
+| Loader window / successful file completions | `301.69999998807907 ms` / 1 |
 | Filtered `texImage2D` calls | 1 WebGL call, 6 arguments, source `1792×1536` |
 | WebGL context-loss events | 0 |
 | Uncaught page errors | 0 |
@@ -526,35 +567,78 @@ The median is the ordinary sorted-sample median. The p95 uses the nearest-rank d
 
 | Mode | Route legs | Bursts | Snags | Samples | Median (ms) | p95 (ms) | Min–max (ms) |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
-| background enabled | 43 | 278 | 0 | 6470 | 8.300000000000182 | 10 | 6.3–26.5 |
-| background off | 43 | 278 | 0 | 6441 | 8.300000000000182 | 10 | 6.3–26.7 |
+| background enabled | 43 | 313 | 0 | 6894 | 8.300000000001091 | 9.89999999999418 | 6.3–40.8 |
+| background off | 43 | 277 | 0 | 6390 | 8.30000000000291 | 9.900000000001455 | 6.3–25.9 |
 
-`p95(enabled) - p95(off) = 0 ms`, which passes the `<=2 ms` browser reference-device gate.
-This is a headed-browser result and is not a Tauri-renderer measurement or a subjective
-human hitch assessment.
+`p95(enabled) - p95(off) = -7.275957614183426e-12 ms` (floating-point noise, effectively
+zero), which passes the `<=2 ms` browser reference-device gate. This is a headed-browser
+result and is not a Tauri-renderer measurement or a subjective human hitch assessment.
 
 #### Raw acceptance artifacts
 
+- [Reproducible headed-browser controller](hpa-307-browser-acceptance.mjs)
 - [Browser acceptance summary](img/hpa-307/runtime-browser-acceptance-summary.json)
 - [Acceptance route and checkpoint record](img/hpa-307/runtime-route-acceptance.json)
 - [Enabled timing samples and route record](img/hpa-307/runtime-timing-enabled.json)
 - [Background-off timing samples and route record](img/hpa-307/runtime-timing-off.json)
+- [Four-edge handoff inspection record](img/hpa-307/runtime-handoff-inspection.json)
 
 ### Reviewed runtime captures
+
+Five renderer/fallback modes:
 
 - [Baked background enabled](img/hpa-307/runtime-background-enabled.png)
 - [Fallback tiles with background off](img/hpa-307/runtime-background-off.png)
 - [Baked background with live collision overlay](img/hpa-307/runtime-background-collision.png)
 - [Fallback tiles with live collision overlay](img/hpa-307/runtime-background-off-collision.png)
 - [Fallback after intercepted background load failure](img/hpa-307/runtime-background-load-failure.png)
+
+Each mode has a same-basename `.renderer.json` record containing its renderer,
+`MAX_TEXTURE_SIZE`, loader window, and successful-completion count, plus capture time,
+tested commit, browser/viewport/mode, production-asset binding, and the exact screenshot's
+path, byte count, and SHA-256.
+
+Six named village districts:
+
+- [Home Yard](img/hpa-307/runtime-district-home-yard.png)
+- [Well Plaza](img/hpa-307/runtime-district-well-plaza.png)
+- [Market / Blacksmith](img/hpa-307/runtime-district-market-blacksmith.png)
+- [North Residences / Guild](img/hpa-307/runtime-district-north-guild.png)
+- [Shrine Garden](img/hpa-307/runtime-district-shrine-garden.png)
+- [East Gate](img/hpa-307/runtime-district-east-gate.png)
+
+Four regional edges and the traversed north continuation:
+
+- [North edge](img/hpa-307/runtime-handoff-north.png)
+- [North Crossroads continuation](img/hpa-307/runtime-handoff-north-crossroads.png)
+- [South edge](img/hpa-307/runtime-handoff-south.png)
+- [West edge](img/hpa-307/runtime-handoff-west.png)
+- [East edge](img/hpa-307/runtime-handoff-east.png)
+
+Seven live interiors, exercised only as regression scope for HPA-307:
+
+- [Item Shop](img/hpa-307/runtime-interior-item-shop.png)
+- [Hero House](img/hpa-307/runtime-interior-hero-house.png)
+- [Shrine of Aurora interior](img/hpa-307/runtime-interior-shrine-of-aurora-interior.png)
+- [Villager House 2](img/hpa-307/runtime-interior-villager-house-2.png)
+- [Villager House 3](img/hpa-307/runtime-interior-villager-house-3.png)
+- [Villager House 1](img/hpa-307/runtime-interior-villager-house-1.png)
+- [Guild Hall](img/hpa-307/runtime-interior-guild-hall.png)
+
+Two collected regional rewards:
+
+- [Market cache](img/hpa-307/runtime-reward-market.png)
+- [Shrine cache](img/hpa-307/runtime-reward-shrine.png)
+
+Four exact save/reload checkpoints:
+
 - [Home Yard after save/reload](img/hpa-307/runtime-save-reload-home.png)
 - [Well Plaza after save/reload](img/hpa-307/runtime-save-reload-plaza.png)
 - [Shrine Garden after save/reload](img/hpa-307/runtime-save-reload-shrine.png)
 - [East Gate after save/reload](img/hpa-307/runtime-save-reload-east-gate.png)
-- [Packaged macOS Tauri smoke](img/hpa-307/runtime-tauri-native-smoke.png)
 
-All ten final PNGs were opened at original resolution with `view_image` before the reviewed
-copies above were committed.
+All 29 current browser PNGs above were opened at original resolution with `view_image`
+before the reviewed copies were committed.
 
 - The enabled capture shows the rich continuous regional terrain under unchanged live
   buildings, characters, props, and HUD.
@@ -568,11 +652,21 @@ copies above were committed.
 - The four checkpoint captures show the expected Home Yard, Well Plaza, Shrine Garden, and
   East Gate live scenes after reload, with the player visible, the HUD intact, and the
   persisted position aligned with live map content.
-- The window-only packaged-app capture shows the baked Home Yard in the native macOS Tauri
-  window at `1280×720`, below the live hero house, player, NPCs, landmark label, minimap, and
-  Svelte HUD. It excludes unrelated desktop windows and notifications. The Retina capture
-  was uniformly downsampled by 50% from `2696×1576` to `1348×788` for repository size,
-  without cropping or non-uniform scaling.
+- The six district captures remain visually distinct while live buildings, NPCs, door
+  approaches, labels, minimap, and HUD remain legible.
+- The Home Yard capture confirms that the removed upright scarecrow has not returned and
+  that its former space remains open.
+- The four seam captures retain open transition geometry and alpha blending without a hard
+  missing-texture boundary. They also make the still-noticeable rich-baked-to-plain-fallback
+  material shift explicit instead of treating alpha blending as an invisible seam.
+- Every interior capture retains its existing live tile/prop renderer; no baked interior art
+  was added under HPA-307.
+- The reward captures show `village-market-cache` and `village-shrine-cache` collected
+  through the live route.
+
+The older `runtime-tauri-native-smoke.png` remains historical evidence only. Task 11 did not
+reuse it as proof of current bundle provenance, observed bounds, or a current native visual
+pass.
 
 The visible `Hero's House` landmark label is live `WorldScene.renderLandmarks(...)` output.
 It appears in both baked and fallback captures and is not text baked into the regional
@@ -580,85 +674,126 @@ master.
 
 ## Native release and smoke evidence
 
-The first exact release attempt exposed an ambiguous and incorrect multi-binary selection:
-Tauri selected `src/bin/story_check.rs` as the packaged application. The package now sets
-`default-run = "gliese"`. A release build without bundling then completed with the explicit
-output:
+Task 11 ran both release commands without changing the project configuration:
 
-```text
-Built application at: src-tauri/target/release/gliese
-```
+| Command | Exit | Exact boundary |
+| --- | ---: | --- |
+| `rtk bun run tauri build` | 1 | Strict story validation, prose assertion, optimized Rust compilation, and `Gliese.app` bundling passed; the command then failed in `bundle_dmg.sh` after entering the interactive Finder-prettifying AppleScript path. |
+| `rtk env CI=true bun run tauri build` | 0 | Produced both `Gliese.app` and `Gliese_0.0.1_aarch64.dmg`. |
 
-The corrected exact `rtk bun run tauri build` proceeded through strict story validation,
-the prose-free Tauri frontend build, optimized Rust compilation, and `Gliese.app` creation.
-Its final DMG stage did not complete in this interactive automation environment. The
-generated Finder cosmetic AppleScript mounted the read/write image successfully and then
-waited without a timeout for `.DS_Store`; Tauri eventually exited the helper before DMG
-compression. The generated script and project configuration were not patched.
+The ordinary command's terminal output did not identify a more specific failing AppleScript
+statement. The generated helper contains the expected `osascript` Finder-cosmetics branch,
+and the CI path skips that branch. This is recorded as an environment-sensitive packaging
+failure, not as proof of a manifest defect. It nevertheless leaves the required exact
+ordinary release command red.
 
-Tauri's supported non-interactive path was then exercised:
+The CI-mode artifacts were inspected immediately after the passing build:
 
-```sh
-rtk env CI=true bun run tauri build
-```
+| Artifact fact | Observed value |
+| --- | --- |
+| `CFBundleExecutable` | `gliese` |
+| Bundled executable | arm64 Mach-O, `33,083,344` bytes |
+| Bundled/release executable SHA-256 | `8c79f07f3463154b351215bfc0352be8f33363384c6b6a0eba9c938b9be42e2d` for both |
+| Signature inspection | ad-hoc linker signature; no Team ID, no Developer ID/notarization claim |
+| DMG file bytes / SHA-256 | `27,777,327` / `9e2427d9fe8208abd415161ecafd2e7fd9c4d7b394740bc70b5369ecd8e18c83` |
+| `hdiutil verify` | valid, CRC32 `B9C61BFC` |
+| `hdiutil imageinfo` | UDZO read-only zlib-compressed, checksummed, GUID/HFS+, `60,855,296` logical bytes |
 
-That command passed and produced both bundles:
+The machine-readable command/result record is
+[runtime-tauri-artifact-inspection.json](img/hpa-307/runtime-tauri-artifact-inspection.json).
 
-```text
-src-tauri/target/release/bundle/macos/Gliese.app
-src-tauri/target/release/bundle/dmg/Gliese_0.0.1_aarch64.dmg
-```
-
-In Tauri CLI 2.11.1, `CI=true` adds create-dmg's `--skip-jenkins` option. It skips only
-Finder's cosmetic positioning/background phase; app bundling plus DMG
-create/resize/mount/link/detach/compression still run. Final artifact checks confirmed:
-
-- `CFBundleExecutable` is `gliese`, not `story_check`;
-- `Contents/MacOS/gliese` is an arm64 Mach-O executable;
-- `hdiutil verify` reports the final DMG checksum as valid;
-- `hdiutil imageinfo` identifies a checksummed UDZO read-only zlib-compressed HFS+ image.
-
-For the bounded native smoke, the operator launched that built `.app`, queried the Gliese
-process window's configured bounds as `1280×720`, captured only its CoreGraphics window,
-visually inspected the baked village under live scene objects and HUD, and issued the
-normal application quit command successfully. The screenshot is visual presentation
-evidence; the launch target, logical bounds, and quit result are recorded operator
-observations rather than facts inferred from its PNG pixels.
+For the bounded native attempt, `open -n` launched the exact inspected application as PID
+`11129`. LaunchServices reported bundle ID `com.gliese.app`; the process remained alive, a
+WebKit page load completed, and a `7,601,173`-byte resource completed loading. That byte
+length matches the production background, but the unified-log line does not retain the URL,
+so it is supporting correlation rather than URL-level native proof. System Events reported
+the Gliese process as visible but returned `0` windows before and after a frontmost attempt.
+No current native screenshot was captured or accepted. The normal application quit command
+returned `0`, and a follow-up process query confirmed the application was absent.
 
 Tauri also retains its existing warning that identifier `com.gliese.app` ends in `.app`.
-That warning predates HPA-307 and did not prevent the corrected application or CI-mode DMG
-from being built.
+That warning predates HPA-307 and did not prevent the application or CI-mode DMG from being
+built.
 
 ### Evidence boundary and remaining manual gates
 
 The combined browser evidence now proves exact production-request interception, scoped
 BootScene and WorldScene diagnostics, ready-state continuity, enabled/off and load-failure
 presentation, keyboard traversal of the complete accepted route, all seven interior round
-trips, both rewards, four exact save/reload checkpoints, one request and one observed
-dimension-matched `texImage2D` API call over a continuous no-reload route, zero observed
-context losses, and a `0 ms` enabled-versus-disabled p95 delta under the documented headed
-Chromium method.
+trips, both rewards, four exact save/reload checkpoints, four edge inspection points plus a
+traversed north Crossroads continuation, one request and one observed dimension-matched
+`texImage2D` API call over a continuous no-reload route, zero observed context losses, and
+an effectively `0 ms` enabled-versus-disabled p95 delta under the documented headed Chromium
+method.
 
-The captured evidence run also recorded generic Chromium console errors reading
-`Failed to load resource: the server responded with a status of 404 (Not Found)`: four
-across the save/reload acceptance context and one in each continuous timing context. The
-collector did not retain a URL or console location, so this report does not attribute those
-messages to a resource. All exact regional-background requests, renderer diagnostics, load
-completions, route assertions, screenshots, and timing runs succeeded, and there were zero
-uncaught `pageerror` events. A later short headed probe did not reproduce the 404 and saw
-only Chromium WebGL `ReadPixels` performance warnings. This is a disclosed diagnostic
-limitation, not a zero-console-error claim.
+A follow-up headed Playwright CLI probe identified the generic `404 (Not Found)` console
+error as `http://127.0.0.1:4173/favicon.ico`; the exact production background request
+remained successful. The acceptance collector stores console text but not console location,
+so its raw JSON still cannot make that attribution independently. There were zero uncaught
+`pageerror` events.
 
 The following gates remain explicitly unclaimed:
 
+- current native visual presentation: the bounded current launch exposed zero System Events
+  windows, and the older native PNG is not current-bundle proof;
 - Tauri-specific renderer-capability diagnostics and a native runtime frame profile;
 - physical GPU upload count, texture residency, driver allocation, or Canvas decode count;
 - physical controller/gamepad traversal;
 - subjective human assessment of movement feel, visible hitching, or re-upload behavior.
 
-## Concerns
+## Linear-ready future-scope briefs
+
+### 1. Bake the remaining overworld regions
+
+**Outcome:** bring Crossroads, Wildwood, Coast, Mistfen, and Silverpine to a comparable
+regional-background fidelity so village handoffs no longer jump from rich baked terrain to
+plain fallback tiles.
+
+**Scope:** treat each region as its own authored control/master/evidence unit; preserve its
+current collision, transitions, encounters, pickups, live buildings/props, camera behavior,
+fallback renderer, and save compatibility. Validate all region-to-region seams in both
+directions and retain per-region load, texture-size, request-count, fallback, and frame-time
+evidence.
+
+**Non-goals:** do not expand map geometry, merge masters into one world texture, replace
+live gameplay objects, or use Sundrop Village's control mask as another region's geometry.
+
+**Acceptance:** each region has an approved native-size master, immutable provenance and
+hash, deterministic controls, enabled/off/load-failure captures, complete traversal and
+transition evidence, an explicit asset-budget decision, and no hard seam or blocked throat.
+
+### 2. Prototype baked interiors for Hero House and Guild Hall
+
+**Outcome:** test whether a baked floor/background treatment improves the two most important
+interior spaces without flattening their live interaction/readability.
+
+**Scope:** prototype Hero House and Guild Hall first. Keep walls, doors, NPCs, furniture,
+collision, foreground occlusion, dialogue/shop/quest hooks, transition coordinates, and
+fallback tiles live and independently testable. Use separate masters and evidence for each
+interior.
+
+**Non-goals:** do not bake all seven interiors in the prototype, move entrances, change
+interior dimensions, combine village and interior art, or remove existing live props merely
+because similar shapes appear in a background.
+
+**Acceptance:** each prototype proves enabled/off/load-failure presentation, unchanged
+collision and entrance/exit behavior, readable live actors/props, save/reload continuity,
+asset/hash/provenance gates, and a documented decision before later interiors are scheduled.
+
+## Concerns and completion decision
 
 The approved tier-0 asset is `3,406,869` bytes above the 4 MiB review target. It remains
 `787,435` bytes below the hard limit, and the explicit quality-based exception is recorded
-in both the hand-maintained approval and this report. No geometry, route, doorway, reward,
-edge-handoff, or baked-vs-live art concern remains after the corrected-candidate review.
+in both the hand-maintained approval and this report.
+
+All tested geometry, routes, doorways, rewards, and transition throats pass. However:
+
+- the rich village versus plain neighboring-region material/value shift remains visibly
+  noticeable at the feathered boundary, especially north and east;
+- the exact ordinary Tauri release command remains red in the Finder DMG helper even though
+  the CI-mode artifact verifies;
+- current native visual presentation, physical controller feel, native frame behavior, and
+  physical GPU behavior remain open.
+
+The evidence package is therefore suitable for engineering handoff as
+`DONE_WITH_CONCERNS`, but it does not support marking HPA-307 complete.
