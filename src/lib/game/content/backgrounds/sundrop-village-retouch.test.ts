@@ -19,6 +19,8 @@ import {
 
 const INPUT_PATH = join(process.cwd(), SUNDROP_VILLAGE_RETOUCH_INPUT_PATH);
 const EXPECTED_INPUT_SHA256 = '20a3625640131917f18d1309b0c192f2cbdac5e4279fe9e6abb23c24c64859fd';
+const EXPECTED_APPROVED_OUTPUT_SHA256 =
+	'ba4f3ce170b8f40aabf1c81f83ce496436c1f6ea7e151401b221c5ae6e29cbf5';
 const WIDTH = 1792;
 const HEIGHT = 1536;
 const TILE_SIZE = 32;
@@ -156,9 +158,9 @@ describe('Sundrop Village deterministic retouch output', () => {
 			'docs/superpowers/reports/img/hpa-307/village-background-retouch-base.png'
 		);
 		expect(firstResult.provenance.input.sha256).toBe(EXPECTED_INPUT_SHA256);
-		expect(firstResult.provenance.output.sha256).toBe(
-			createHash('sha256').update(firstResult.png).digest('hex')
-		);
+		const outputSha256 = createHash('sha256').update(firstResult.png).digest('hex');
+		expect(outputSha256).toBe(EXPECTED_APPROVED_OUTPUT_SHA256);
+		expect(firstResult.provenance.output.sha256).toBe(EXPECTED_APPROVED_OUTPUT_SHA256);
 	});
 
 	it('keeps exact dimensions, writes an opaque intermediate, and changes only same-coordinate RGB', () => {
@@ -255,6 +257,24 @@ describe('Sundrop Village deterministic retouch output', () => {
 		expect(
 			firstResult.provenance.statistics.longIdenticalRgbDeltaRunsInGradedTransitions
 		).toBeGreaterThanOrEqual(0);
+	});
+
+	it('rejects output drift from the controller-approved opaque PNG before producing provenance', async () => {
+		const driftedSource = structuredClone(sundropVillageLayered);
+		const regionRow = driftedSource.layers.regions.findIndex((row) => row.includes('H'));
+		const regionColumn = driftedSource.layers.regions[regionRow]?.indexOf('H') ?? -1;
+		expect(regionRow).toBeGreaterThanOrEqual(0);
+		expect(regionColumn).toBeGreaterThanOrEqual(0);
+		const mutableRegions = driftedSource.layers.regions as string[];
+		mutableRegions[regionRow] = replaceGlyph(
+			driftedSource.layers.regions[regionRow] ?? '',
+			regionColumn,
+			'C'
+		);
+
+		await expect(retouchSundropVillagePng(inputPng, driftedSource)).rejects.toThrow(
+			`Sundrop Village controller-approved opaque output SHA-256 must remain ${EXPECTED_APPROVED_OUTPUT_SHA256}`
+		);
 	});
 
 	it('rejects any input whose exact PNG bytes do not match the approved source hash', async () => {

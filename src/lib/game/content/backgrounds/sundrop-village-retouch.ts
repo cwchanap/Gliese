@@ -124,6 +124,8 @@ const DISTRICT_SET = new Set<string>(DISTRICTS);
 const EXPECTED_INPUT_SHA256 = '20a3625640131917f18d1309b0c192f2cbdac5e4279fe9e6abb23c24c64859fd';
 const EXPECTED_CONTROL_FINGERPRINT =
 	'0c47a7dc58d48e87fa9dd9c290cf6835b8acc3f4eb60a4e2c1ba4eae37e4ed33';
+const CONTROLLER_APPROVED_OPAQUE_OUTPUT_SHA256 =
+	'ba4f3ce170b8f40aabf1c81f83ce496436c1f6ea7e151401b221c5ae6e29cbf5';
 const ALGORITHM_VERSION = 'sundrop-village-retouch-v3';
 const DISTRICT_SIGMA_PX = 48;
 const PATH_SIGMA_PX = 24;
@@ -594,6 +596,11 @@ export async function retouchSundropVillagePng(
 		.png(SUNDROP_VILLAGE_PNG_OPTIONS)
 		.toBuffer();
 	const outputSha256 = sha256(png);
+	if (outputSha256 !== CONTROLLER_APPROVED_OPAQUE_OUTPUT_SHA256) {
+		throw new Error(
+			`Sundrop Village controller-approved opaque output SHA-256 must remain ${CONTROLLER_APPROVED_OPAQUE_OUTPUT_SHA256}; received ${outputSha256}`
+		);
+	}
 	const provenance: SundropVillageRetouchProvenance = {
 		algorithmVersion: ALGORITHM_VERSION,
 		input: {
