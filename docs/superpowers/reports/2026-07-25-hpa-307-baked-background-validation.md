@@ -17,8 +17,10 @@ explicitly unclaimed.
 - Authoritative reference:
   `/private/tmp/hpa-307-village-art-control.png`, rasterized from
   `docs/superpowers/reports/img/hpa-307/village-art-control.svg`.
-- Source control fingerprint:
+- Original production control fingerprint (schema v1):
   `bdf8bcd17edd6f8878debd97c55bcc72736dac7e65830130e9191753c9cf2db4`.
+- Final approved control fingerprint after the conservative-mask review (schema v2):
+  `cf2901101b542e2d5f412f039598f33d11b3aa93769164e1ab15fd7120c01104`.
 - Initial generated output:
   `/Users/chanwaichan/.codex/generated_images/019f9b51-72b6-7591-83a3-49ac92dc6ec1/call_xdyLYrWkdy0tWdzG115e3G7p.png`.
 - Initial generated output disposition: rejected before finalization because it rendered the
@@ -117,12 +119,25 @@ lowest visually acceptable tier.
   `docs/superpowers/reports/img/hpa-307/village-background-doorway-transition-approaches.png`.
 - North, south, west, and east edges:
   `docs/superpowers/reports/img/hpa-307/village-background-all-four-edges.png`.
+- Schema-v2 conservative forbidden-tall reapproval overlay:
+  `docs/superpowers/reports/img/hpa-307/village-background-forbidden-tall-v2.png`.
 
 The selected native candidate, normalized master, final tier-1 PNG, whole-map overlay,
 doorway sheet, edge sheet, and every named regional crop were inspected with `view_image`.
 The parent visual gate rejected the first candidate, then approved the corrected
 continuous-ground native and normalized master before finalization. Tier 1 was also
 inspected after exact-alpha finalization.
+
+The final review found that schema-v1 classified each forbidden-tall tile by its center,
+which could omit a tile containing a narrow traversable sliver. Schema v2 omits a tile only
+when one composed exclusion rectangle covers the full `32×32` tile. The regenerated mask
+adds the previously missing cell `(44,4)` at local `(1408,128)` and conservatively protects
+all comparable boundary tiles. The schema-v2 mask and its yellow-on-master overlay above
+were inspected at original resolution. The production PNG remains byte-identical at
+`20a3625640131917f18d1309b0c192f2cbdac5e4279fe9e6abb23c24c64859fd`; because the approved
+master contains ground treatment only and no tall silhouettes, the expanded mask introduces
+no art conflict. Two independent focused re-reviews approved the corrected control,
+fingerprint chain, unchanged PNG, and explicit reapproval rationale.
 
 ## Visual acceptance
 
@@ -154,14 +169,23 @@ inspected after exact-alpha finalization.
 
 ### Green evidence
 
-- `rtk bun run art:validate:village` passed: 2 files, 19 tests, 0 failures.
+- `rtk bun run art:validate:village` passed: 2 files, 20 tests, 0 failures.
 - `rtk bun run test:unit -- --run src/lib/game/content/sundrop-village-background.asset.test.ts src/lib/game/content/maps/layered/village-art-controls.test.ts`
-  passed: 2 files, 19 tests, 0 failures.
+  passed: 2 files, 20 tests, 0 failures.
 - The independent asset test recomputed the live control fingerprint; matched the manifest,
   generated constant, and hand-maintained approval; decoded the exact committed PNG as
   `1792×1536` 8-bit truecolor RGBA; matched every alpha byte; proved monotonic edge normals
   with maximum adjacent jump no greater than `32`; enforced the target/exception and hard
   budget semantics; and matched the exact SHA-256.
+- Final review regressions proved that the forbidden-tall mask includes partially traversable
+  cell `(44,4)` and that the control schema/fingerprint advanced together to v2 /
+  `cf2901101b542e2d5f412f039598f33d11b3aa93769164e1ab15fd7120c01104`.
+- PNG validation now permits only canonical static output chunks in exact
+  `IHDR → IDAT+ → IEND` order. Valid-CRC `gAMA`, private `vpAg`, and APNG `acTL` regression
+  inputs are rejected; the committed production PNG was independently confirmed already
+  canonical and therefore remains byte-identical.
+- The two review-fix test files passed `50` tests, and a separate focused re-review passed
+  `54` tests plus type checking and diff hygiene with no remaining actionable finding.
 - `rtk bun run check` passed with 0 errors and 0 warnings.
 - `rtk bun run lint` passed; Prettier and ESLint were clean.
 

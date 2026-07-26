@@ -90,7 +90,7 @@ interface WriteFinalizedSundropVillagePngTestSeam {
 	readonly afterTemporaryWrite?: (temporaryPath: string) => void | Promise<void>;
 }
 
-const METADATA_CHUNKS = new Set(['eXIf', 'iCCP', 'iTXt', 'pHYs', 'tEXt', 'tIME', 'zTXt']);
+const CANONICAL_PNG_CHUNKS = new Set(['IHDR', 'IDAT', 'IEND']);
 const PNG_CRC32_TABLE = Uint32Array.from({ length: 256 }, (_, value) => {
 	let crc = value;
 	for (let bit = 0; bit < 8; bit += 1) {
@@ -205,16 +205,28 @@ function parsePngChunks(png: Buffer): PngChunk[] {
 	throw new Error('Sundrop Village final PNG must end with a single IEND');
 }
 
-function stripPngMetadata(png: Buffer): Buffer {
+function assertCanonicalPngChunks(chunks: readonly PngChunk[]): void {
+	const nonCanonicalChunk = chunks.find((chunk) => !CANONICAL_PNG_CHUNKS.has(chunk.type))?.type;
+	if (nonCanonicalChunk) {
+		throw new Error(`Sundrop Village final PNG contains non-canonical chunk ${nonCanonicalChunk}`);
+	}
+	if (chunks.length < 3 || chunks.slice(1, -1).some((chunk) => chunk.type !== 'IDAT')) {
+		throw new Error(
+			'Sundrop Village final PNG must contain IHDR, one or more consecutive IDAT chunks, and IEND'
+		);
+	}
+}
+
+function retainCanonicalPngChunks(png: Buffer): Buffer {
 	const chunks = parsePngChunks(png);
 	const retainedChunks: Buffer[] = [png.subarray(0, 8)];
 	for (const chunk of chunks) {
-		if (!METADATA_CHUNKS.has(chunk.type)) {
+		if (CANONICAL_PNG_CHUNKS.has(chunk.type)) {
 			retainedChunks.push(png.subarray(chunk.offset, chunk.endOffset));
 		}
 	}
 	const stripped = Buffer.concat(retainedChunks);
-	parsePngChunks(stripped);
+	assertCanonicalPngChunks(parsePngChunks(stripped));
 	return stripped;
 }
 
@@ -280,7 +292,7 @@ export async function finalizeSundropVillagePng(
 	})
 		.png(SUNDROP_VILLAGE_PNG_OPTIONS)
 		.toBuffer();
-	const png = stripPngMetadata(encoded);
+	const png = retainCanonicalPngChunks(encoded);
 	const validated = await validateSundropVillagePng(png);
 
 	return {
@@ -293,16 +305,12 @@ export async function finalizeSundropVillagePng(
 
 export async function validateSundropVillagePng(png: Buffer): Promise<ValidatedSundropVillagePng> {
 	const chunks = parsePngChunks(png);
+	assertCanonicalPngChunks(chunks);
 	if (png[24] !== 8 || png[25] !== 6) {
 		throw new Error(
 			`Sundrop Village final PNG must be 8-bit truecolor RGBA (color type 6); received bit depth ${png[24]} and color type ${png[25]}`
 		);
 	}
-	const metadataChunk = chunks.find((chunk) => METADATA_CHUNKS.has(chunk.type))?.type;
-	if (metadataChunk) {
-		throw new Error(`Sundrop Village final PNG must not contain metadata chunk ${metadataChunk}`);
-	}
-
 	const image = sharp(png);
 	const metadata = await image.metadata();
 	assertDimensions(metadata.width, metadata.height);
@@ -363,7 +371,7 @@ export async function rasterizeSundropVillageArtControl(
 		.ensureAlpha()
 		.png(SUNDROP_VILLAGE_PNG_OPTIONS)
 		.toBuffer();
-	const png = stripPngMetadata(encoded);
+	const png = retainCanonicalPngChunks(encoded);
 	const outputMetadata = await sharp(png).metadata();
 	assertDimensions(outputMetadata.width, outputMetadata.height);
 	if (
@@ -447,7 +455,7 @@ export async function normalizeSundropVillageBackground(
 	})
 		.png(SUNDROP_VILLAGE_PNG_OPTIONS)
 		.toBuffer();
-	const png = stripPngMetadata(encoded);
+	const png = retainCanonicalPngChunks(encoded);
 	const transform: SundropVillageBackgroundTransform = {
 		native: { width: metadata.width, height: metadata.height },
 		crop: { ...crop },

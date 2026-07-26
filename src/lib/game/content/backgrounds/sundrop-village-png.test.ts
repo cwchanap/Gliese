@@ -313,6 +313,23 @@ describe('Sundrop Village deterministic PNG pipeline', () => {
 		await expect(validateSundropVillagePng(corrupted)).rejects.toThrow('vpAg CRC mismatch');
 	});
 
+	it.each([
+		['gAMA', Buffer.from([0x00, 0x00, 0xb1, 0x8f])],
+		['vpAg', Buffer.from([1, 2, 3])],
+		['acTL', Buffer.from([0, 0, 0, 1, 0, 0, 0, 0])]
+	])('rejects a valid-CRC non-canonical %s chunk', async (chunkType, data) => {
+		const idat = findPngChunk(finalizedFixture, 'IDAT');
+		const nonCanonical = Buffer.concat([
+			finalizedFixture.subarray(0, idat.offset),
+			makePngChunk(chunkType, data),
+			finalizedFixture.subarray(idat.offset)
+		]);
+
+		await expect(validateSundropVillagePng(nonCanonical)).rejects.toThrow(
+			`non-canonical chunk ${chunkType}`
+		);
+	});
+
 	it('rejects a truncated PNG chunk', async () => {
 		await expect(validateSundropVillagePng(finalizedFixture.subarray(0, -1))).rejects.toThrow(
 			'truncated chunk'
