@@ -7,8 +7,12 @@ the selected master is the corrected continuous-ground edit described below. The
 browser fallback matrix also passes. A headed Chromium run on the macOS reference device now
 covers the complete keyboard-driven village route, all seven interior round trips, both
 regional rewards, four exact save/reload checkpoints, scoped WebGL API-call observation, and
-the enabled-versus-disabled frame-time gate. Physical gamepad/controller input, the Tauri
-renderer, physical GPU residency/decode behavior, and subjective human feel remain
+the enabled-versus-disabled frame-time gate. The corrected packaged Tauri application and
+CI-mode DMG also build successfully, and an operator-observed window-only native smoke
+records the baked village rendering in the packaged macOS app under the unchanged live
+scene. Physical
+gamepad/controller input, Tauri-specific frame profiling and renderer-capability
+instrumentation, physical GPU residency/decode behavior, and subjective human feel remain
 explicitly unclaimed.
 
 ## Production provenance
@@ -188,6 +192,17 @@ fingerprint chain, unchanged PNG, and explicit reapproval rationale.
   `54` tests plus type checking and diff hygiene with no remaining actionable finding.
 - `rtk bun run check` passed with 0 errors and 0 warnings.
 - `rtk bun run lint` passed; Prettier and ESLint were clean.
+- The final committed-tree gate reran `rtk bun run art:controls:village`; the generated
+  fingerprint remained
+  `cf2901101b542e2d5f412f039598f33d11b3aa93769164e1ab15fd7120c01104`, and the worktree
+  remained clean after regeneration.
+- The final complete unit gate passed 50 files and 814 tests. The first sandboxed attempt
+  executed 743 passing assertions but could not launch Vitest's Chromium worker because
+  macOS denied its Mach-port registration; the unchanged suite was rerun with browser-launch
+  permission and exited cleanly.
+- The final full Playwright gate passed all 17 scenarios in `48.0s`.
+- Final Rust gates passed: `cargo fmt --all -- --check`, clippy across all targets and
+  features with warnings denied, and 47 tests across four suites.
 
 ## Browser runtime evidence
 
@@ -403,8 +418,9 @@ human hitch assessment.
 - [Well Plaza after save/reload](img/hpa-307/runtime-save-reload-plaza.png)
 - [Shrine Garden after save/reload](img/hpa-307/runtime-save-reload-shrine.png)
 - [East Gate after save/reload](img/hpa-307/runtime-save-reload-east-gate.png)
+- [Packaged macOS Tauri smoke](img/hpa-307/runtime-tauri-native-smoke.png)
 
-All nine final PNGs were opened at original resolution with `view_image` before the reviewed
+All ten final PNGs were opened at original resolution with `view_image` before the reviewed
 copies above were committed.
 
 - The enabled capture shows the rich continuous regional terrain under unchanged live
@@ -419,10 +435,66 @@ copies above were committed.
 - The four checkpoint captures show the expected Home Yard, Well Plaza, Shrine Garden, and
   East Gate live scenes after reload, with the player visible, the HUD intact, and the
   persisted position aligned with live map content.
+- The window-only packaged-app capture shows the baked Home Yard in the native macOS Tauri
+  window at `1280×720`, below the live hero house, player, NPCs, landmark label, minimap, and
+  Svelte HUD. It excludes unrelated desktop windows and notifications. The Retina capture
+  was uniformly downsampled by 50% from `2696×1576` to `1348×788` for repository size,
+  without cropping or non-uniform scaling.
 
 The visible `Hero's House` landmark label is live `WorldScene.renderLandmarks(...)` output.
 It appears in both baked and fallback captures and is not text baked into the regional
 master.
+
+## Native release and smoke evidence
+
+The first exact release attempt exposed an ambiguous and incorrect multi-binary selection:
+Tauri selected `src/bin/story_check.rs` as the packaged application. The package now sets
+`default-run = "gliese"`. A release build without bundling then completed with the explicit
+output:
+
+```text
+Built application at: src-tauri/target/release/gliese
+```
+
+The corrected exact `rtk bun run tauri build` proceeded through strict story validation,
+the prose-free Tauri frontend build, optimized Rust compilation, and `Gliese.app` creation.
+Its final DMG stage did not complete in this interactive automation environment. The
+generated Finder cosmetic AppleScript mounted the read/write image successfully and then
+waited without a timeout for `.DS_Store`; Tauri eventually exited the helper before DMG
+compression. The generated script and project configuration were not patched.
+
+Tauri's supported non-interactive path was then exercised:
+
+```sh
+rtk env CI=true bun run tauri build
+```
+
+That command passed and produced both bundles:
+
+```text
+src-tauri/target/release/bundle/macos/Gliese.app
+src-tauri/target/release/bundle/dmg/Gliese_0.0.1_aarch64.dmg
+```
+
+In Tauri CLI 2.11.1, `CI=true` adds create-dmg's `--skip-jenkins` option. It skips only
+Finder's cosmetic positioning/background phase; app bundling plus DMG
+create/resize/mount/link/detach/compression still run. Final artifact checks confirmed:
+
+- `CFBundleExecutable` is `gliese`, not `story_check`;
+- `Contents/MacOS/gliese` is an arm64 Mach-O executable;
+- `hdiutil verify` reports the final DMG checksum as valid;
+- `hdiutil imageinfo` identifies a checksummed UDZO read-only zlib-compressed HFS+ image.
+
+For the bounded native smoke, the operator launched that built `.app`, queried the Gliese
+process window's configured bounds as `1280×720`, captured only its CoreGraphics window,
+visually inspected the baked village under live scene objects and HUD, and issued the
+normal application quit command successfully. The screenshot is visual presentation
+evidence; the launch target, logical bounds, and quit result are recorded operator
+observations rather than facts inferred from its PNG pixels.
+
+Tauri also retains its existing warning that identifier `com.gliese.app` ends in `.app`.
+That warning predates HPA-307 and did not prevent the corrected application or CI-mode DMG
+from being built.
 
 ### Evidence boundary and remaining manual gates
 
@@ -446,7 +518,7 @@ limitation, not a zero-console-error claim.
 
 The following gates remain explicitly unclaimed:
 
-- the Tauri renderer and its runtime-specific frame profile;
+- Tauri-specific renderer-capability diagnostics and a native runtime frame profile;
 - physical GPU upload count, texture residency, driver allocation, or Canvas decode count;
 - physical controller/gamepad traversal;
 - subjective human assessment of movement feel, visible hitching, or re-upload behavior.
