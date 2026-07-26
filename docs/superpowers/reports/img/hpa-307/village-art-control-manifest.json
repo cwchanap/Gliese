@@ -1,5 +1,5 @@
 {
-  "version": 1,
+  "version": 2,
   "viewBox": {
     "x": 0,
     "y": 0,
@@ -12,7 +12,7 @@
     "width": 1792,
     "height": 1536
   },
-  "computedControlFingerprint": "bdf8bcd17edd6f8878debd97c55bcc72736dac7e65830130e9191753c9cf2db4",
+  "computedControlFingerprint": "cf2901101b542e2d5f412f039598f33d11b3aa93769164e1ab15fd7120c01104",
   "artifacts": [
     "village-art-control-manifest.json",
     "village-art-control.svg",
@@ -25,7 +25,7 @@
     "village-terrain-path-mask.svg"
   ],
   "structuralInputs": {
-    "version": 1,
+    "version": 2,
     "source": {
       "idPrefix": "village",
       "origin": {

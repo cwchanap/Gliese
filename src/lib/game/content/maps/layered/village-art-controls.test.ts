@@ -98,11 +98,13 @@ describe('Sundrop Village HPA-307 art controls', () => {
 			reordered
 		);
 		const parsed = JSON.parse(canonical) as {
+			version: number;
 			source: { layers: { collision: string[] } };
 			anchors: { transitions: Array<{ id: string }> };
 		};
 
 		expect(reorderedCanonical).toBe(canonical);
+		expect(parsed.version).toBe(2);
 		expect(parsed.source.layers.collision).toEqual(sundropVillageLayered.layers.collision);
 		expect(parsed.anchors.transitions.map(({ id }) => id)).toEqual(
 			[...parsed.anchors.transitions.map(({ id }) => id)].sort()
@@ -115,7 +117,7 @@ describe('Sundrop Village HPA-307 art controls', () => {
 		const actual = computeVillageArtControlFingerprint(sundropVillageLayered, makeInputs());
 
 		expect(actual).toBe(expected);
-		expect(actual).toBe('bdf8bcd17edd6f8878debd97c55bcc72736dac7e65830130e9191753c9cf2db4');
+		expect(actual).toBe('cf2901101b542e2d5f412f039598f33d11b3aa93769164e1ab15fd7120c01104');
 	});
 
 	it('includes the player-radius sliver of corridor-wall-2b but leaves the next point open', () => {
@@ -125,6 +127,17 @@ describe('Sundrop Village HPA-307 art controls', () => {
 		expect(data.isLocalPointExcluded(1_426, 158)).toBe(true);
 		expect(data.isWorldPointExcluded(1_677, 4_510)).toBe(false);
 		expect(data.isLocalPointExcluded(1_421, 158)).toBe(false);
+	});
+
+	it('forbids tall art across a tile that contains any traversable sliver', () => {
+		const forbiddenTallMask = renderVillageArtControlArtifacts(
+			sundropVillageLayered,
+			makeInputs()
+		).get('village-forbidden-tall-mask.svg');
+
+		expect(forbiddenTallMask).toContain(
+			'<rect x="1408" y="128" width="32" height="32" fill="#ffffff"/>'
+		);
 	});
 
 	it('keeps the full-map north handoff open at the regional canvas edge', () => {

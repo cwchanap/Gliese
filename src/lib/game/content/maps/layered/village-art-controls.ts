@@ -62,6 +62,7 @@ interface VillageArtControlData {
 }
 
 const SVG_NAMESPACE = 'http://www.w3.org/2000/svg';
+const VILLAGE_ART_CONTROL_SCHEMA_VERSION = 2;
 
 const REGION_FILL: Record<string, string> = {
 	C: '#8a8f7a',
@@ -369,7 +370,7 @@ export function canonicalizeVillageArtControlInputs<K extends MapDecor['textureK
 		});
 
 	return JSON.stringify({
-		version: 1,
+		version: VILLAGE_ART_CONTROL_SCHEMA_VERSION,
 		source: {
 			idPrefix: source.idPrefix,
 			origin: source.origin,
@@ -517,11 +518,23 @@ function renderForbiddenTall<K extends MapDecor['textureKey']>(
 	const geometry: string[] = [];
 	for (let row = 0; row < source.height; row += 1) {
 		for (let col = 0; col < source.width; col += 1) {
-			const x = col * source.tileSize + source.tileSize / 2;
-			const y = row * source.tileSize + source.tileSize / 2;
-			if (!data.isLocalPointExcluded(x, y)) {
+			const left = col * source.tileSize;
+			const top = row * source.tileSize;
+			const right = left + source.tileSize;
+			const bottom = top + source.tileSize;
+			// A tile is safe to omit only when one exclusion rectangle covers it
+			// completely. Treat union-only coverage as forbidden too: the mask is
+			// deliberately conservative and must never miss a traversable sliver.
+			const fullyExcluded = data.composedCollisionRects.some((rect) => {
+				const rectLeft = rect.x - rect.width / 2;
+				const rectRight = rect.x + rect.width / 2;
+				const rectTop = rect.y - rect.height / 2;
+				const rectBottom = rect.y + rect.height / 2;
+				return rectLeft <= left && rectRight >= right && rectTop <= top && rectBottom >= bottom;
+			});
+			if (!fullyExcluded) {
 				geometry.push(
-					`<rect x="${col * source.tileSize}" y="${row * source.tileSize}" width="${source.tileSize}" height="${source.tileSize}" fill="#ffffff"/>`
+					`<rect x="${left}" y="${top}" width="${source.tileSize}" height="${source.tileSize}" fill="#ffffff"/>`
 				);
 			}
 		}
@@ -566,7 +579,7 @@ export function renderVillageArtControlArtifacts<K extends MapDecor['textureKey'
 	const canonical = JSON.parse(canonicalizeVillageArtControlInputs(source, input)) as object;
 	const manifest = `${JSON.stringify(
 		{
-			version: 1,
+			version: VILLAGE_ART_CONTROL_SCHEMA_VERSION,
 			viewBox: { x: 0, y: 0, width: canvas.width, height: canvas.height },
 			worldBounds: canvas,
 			computedControlFingerprint: fingerprint,
