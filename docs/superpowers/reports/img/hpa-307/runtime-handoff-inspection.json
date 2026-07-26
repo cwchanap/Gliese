@@ -1,0 +1,79 @@
+{
+  "capturedAtIso": "2026-07-26T09:43:51.647Z",
+  "commit": "8923035babb0eb348b956661b545bd5c4f3b028e",
+  "productionSha256": "3933829f19e7eab4b26ba2d31c7a0cfac25d4fae0a16196893fac6dbf02187c1",
+  "viewport": {
+    "width": 1280,
+    "height": 720
+  },
+  "inspections": [
+    {
+      "name": "north",
+      "requested": {
+        "mapId": "meadow-entry",
+        "x": 1680,
+        "y": 4376,
+        "facing": "up"
+      },
+      "observed": {
+        "mapId": "meadow-entry",
+        "x": 1680,
+        "y": 4376,
+        "facing": "up"
+      },
+      "screenshot": "runtime-handoff-north.png",
+      "method": "save-position injection for live seam inspection; not traversal evidence"
+    },
+    {
+      "name": "south",
+      "requested": {
+        "mapId": "meadow-entry",
+        "x": 960,
+        "y": 5864,
+        "facing": "down"
+      },
+      "observed": {
+        "mapId": "meadow-entry",
+        "x": 976,
+        "y": 5872,
+        "facing": "down"
+      },
+      "screenshot": "runtime-handoff-south.png",
+      "method": "save-position injection for live seam inspection; not traversal evidence"
+    },
+    {
+      "name": "west",
+      "requested": {
+        "mapId": "meadow-entry",
+        "x": 280,
+        "y": 5200,
+        "facing": "left"
+      },
+      "observed": {
+        "mapId": "meadow-entry",
+        "x": 280,
+        "y": 5200,
+        "facing": "left"
+      },
+      "screenshot": "runtime-handoff-west.png",
+      "method": "save-position injection for live seam inspection; not traversal evidence"
+    },
+    {
+      "name": "east",
+      "requested": {
+        "mapId": "meadow-entry",
+        "x": 2024,
+        "y": 5200,
+        "facing": "right"
+      },
+      "observed": {
+        "mapId": "meadow-entry",
+        "x": 2024,
+        "y": 5200,
+        "facing": "right"
+      },
+      "screenshot": "runtime-handoff-east.png",
+      "method": "save-position injection for live seam inspection; not traversal evidence"
+    }
+  ]
+}

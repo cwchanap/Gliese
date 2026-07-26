@@ -1,0 +1,91 @@
+{
+  "schemaVersion": 1,
+  "capturedAtIso": "2026-07-26T09:42:30.151Z",
+  "commit": "8923035babb0eb348b956661b545bd5c4f3b028e",
+  "sourceBinding": {
+    "sourceCommit": "8923035babb0eb348b956661b545bd5c4f3b028e",
+    "productTreeCleanOutsideEvidence": true,
+    "build": {
+      "command": "rtk bun run build",
+      "startedAtIso": "2026-07-26T09:42:26.649Z",
+      "completedAtIso": "2026-07-26T09:42:27.742Z",
+      "exitCode": 0
+    },
+    "preview": {
+      "command": "rtk bun run preview -- --host 127.0.0.1 --port 50417 --strictPort",
+      "ownedByRunner": true,
+      "pid": 41718,
+      "baseUrl": "http://127.0.0.1:50417/",
+      "startedAtIso": "2026-07-26T09:42:27.745Z",
+      "readyAtIso": "2026-07-26T09:42:28.180Z",
+      "markerVerified": true
+    },
+    "servedProductionAsset": {
+      "url": "http://127.0.0.1:50417/game/assets/regions/sundrop-village-background.png",
+      "bytes": 7601173,
+      "sha256": "3933829f19e7eab4b26ba2d31c7a0cfac25d4fae0a16196893fac6dbf02187c1",
+      "matchesLocalProductionAsset": true
+    }
+  },
+  "environment": {
+    "browser": "Chromium 147.0.7727.15",
+    "headed": true,
+    "viewport": {
+      "width": 1280,
+      "height": 720
+    }
+  },
+  "mode": "enabled",
+  "query": "",
+  "url": "http://127.0.0.1:50417/",
+  "productionAsset": {
+    "path": "public/game/assets/regions/sundrop-village-background.png",
+    "bytes": 7601173,
+    "sha256": "3933829f19e7eab4b26ba2d31c7a0cfac25d4fae0a16196893fac6dbf02187c1"
+  },
+  "screenshot": {
+    "path": "docs/superpowers/reports/img/hpa-307/runtime-background-enabled.png",
+    "bytes": 1123891,
+    "sha256": "dacc042a624c5e1ce13178daa3fa5d758b99820677cce30de8e8d12389e6f536"
+  },
+  "assetInterception": null,
+  "probe": {
+    "exactRegionalRequests": [
+      {
+        "url": "http://127.0.0.1:50417/game/assets/regions/sundrop-village-background.png",
+        "method": "GET",
+        "resourceType": "xhr",
+        "atIso": "2026-07-26T09:42:29.341Z"
+      }
+    ],
+    "exactRegionalRequestCount": 1,
+    "diagnostics": [
+      {
+        "receivedAtMs": 680.8999999761581,
+        "detail": {
+          "renderer": "webgl",
+          "maxTextureSize": 16384,
+          "regionalBackgroundLoadMs": 308.19999998807907,
+          "regionalBackgroundLoadCompletions": 1
+        }
+      }
+    ],
+    "contextLossCount": 0,
+    "texImage2DCalls": [
+      {
+        "atMs": 641.5,
+        "context": "webgl",
+        "argumentCount": 6,
+        "width": 1792,
+        "height": 1536
+      }
+    ],
+    "pageErrors": [],
+    "consoleErrors": [
+      {
+        "type": "error",
+        "text": "Failed to load resource: the server responded with a status of 404 (Not Found)"
+      }
+    ]
+  }
+}
