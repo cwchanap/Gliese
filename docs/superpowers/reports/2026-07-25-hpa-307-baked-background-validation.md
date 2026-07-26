@@ -2,9 +2,11 @@
 
 ## Status
 
-Approved production master. The first generated candidate was rejected before finalization;
-the selected master is the corrected continuous-ground edit described below. The automated
-browser fallback matrix also passes. A headed Chromium run on the macOS reference device now
+Approved production master. Task 10 applies the controller-approved deterministic district
+retouch described below to the original corrected continuous-ground master while preserving
+all authored geometry. The original generated candidate history remains below as the
+provenance of the stable retouch base. The automated browser fallback matrix also passes. A
+headed Chromium run on the macOS reference device now
 covers the complete keyboard-driven village route, all seven interior round trips, both
 regional rewards, four exact save/reload checkpoints, scoped WebGL API-call observation, and
 the enabled-versus-disabled frame-time gate. The corrected packaged Tauri application and
@@ -15,7 +17,95 @@ gamepad/controller input, Tauri-specific frame profiling and renderer-capability
 instrumentation, physical GPU residency/decode behavior, and subjective human feel remain
 explicitly unclaimed.
 
-## Production provenance
+## Task 10 district retouch (authoritative current production)
+
+- Retouch tool: deterministic checked-in CLI `rtk bun run art:retouch:village`; no
+  generative model or image-generation prompt was used.
+- Stable source contract:
+  `docs/superpowers/reports/img/hpa-307/village-background-retouch-base.png`.
+- Stable source SHA-256:
+  `20a3625640131917f18d1309b0c192f2cbdac5e4279fe9e6abb23c24c64859fd`.
+- Stable source dimensions and format: `1792×1536`, opaque RGBA PNG, `6,794,867` bytes.
+- Retouch algorithm: `sundrop-village-retouch-v3`,
+  `same-coordinate-additive-rgb`.
+- Geometry source: `sundropVillageLayered.layers.regions+paths`, `56×48` cells at
+  `32` pixels per cell.
+- Mask expansion: nearest-neighbor; district Gaussian sigma `48px`; authored-path
+  Gaussian sigma `24px`; maximum path strength `0.4`.
+- Edge guard: linear fade over `96px`, zero strength at the canvas boundary, full strength
+  at `96px`; all four boundary rows/columns remain byte-identical in decoded RGB.
+- Maximum permitted absolute per-channel delta: `16`; observed maximum: `15`.
+- Approved control fingerprint:
+  `0c47a7dc58d48e87fa9dd9c290cf6835b8acc3f4eb60a4e2c1ba4eae37e4ed33`.
+- Stable provenance:
+  `docs/superpowers/reports/img/hpa-307/village-background-retouch.json`.
+- Controller-approved opaque retouch output: `7,311,554` bytes, SHA-256
+  `ba4f3ce170b8f40aabf1c81f83ce496436c1f6ea7e151401b221c5ae6e29cbf5`.
+- Reproducibility stop-check: a fresh run from the stable source was byte-identical to the
+  controller-approved output above.
+- Native retouch dimensions: `1792×1536`, opaque RGBA.
+- Identity normalization crop: `x=0`, `y=0`, `width=1792`, `height=1536`.
+- Normalized dimensions: `1792×1536`; uniform scale: `1`.
+- Normalized master:
+  `/private/tmp/hpa-307-village-normalized-revision.png`, SHA-256
+  `627ac9c1ccdffb02dd270c354cdf17f09817a0863ebfa90504f5e3ccf2fd8413`.
+- Transform record:
+  `docs/superpowers/reports/img/hpa-307/village-background-transform.json`.
+
+### Exact deterministic retouch directive
+
+```text
+No generative prompt. Apply the checked-in sundrop-village-retouch-v3 same-coordinate
+additive RGB profile to the stable approved base: H=(+15,+4,-9), P=(-12,+6,+15),
+M=(+11,-5,-11), N=(-10,0,+11), G=(-6,+4,+14), S=(-7,+7,+10),
+E=(+15,-2,-10), C=(0,0,0). Derive feathered district and path weights exclusively
+from sundropVillageLayered.layers.regions+paths; cap authored-path strength at 0.4;
+fade strength linearly to zero at every canvas boundary across 96 pixels; change only
+same-coordinate RGB; preserve opaque alpha and exact 1792×1536 geometry.
+```
+
+### Executed Task 10 production commands
+
+```sh
+rtk bun run art:retouch:village -- --output /private/tmp/hpa-307-village-retouched-opaque-v3-reproduced.png --provenance-output docs/superpowers/reports/img/hpa-307/village-background-retouch.json
+rtk shasum -a 256 /private/tmp/hpa-307-village-retouched-opaque-v3-reproduced.png /private/tmp/hpa-307-village-retouched-opaque-v3.png
+rtk cmp /private/tmp/hpa-307-village-retouched-opaque-v3-reproduced.png /private/tmp/hpa-307-village-retouched-opaque-v3.png
+rtk bun run art:normalize:village -- --input /private/tmp/hpa-307-village-retouched-opaque-v3-reproduced.png --output /private/tmp/hpa-307-village-normalized-revision.png --transform-output docs/superpowers/reports/img/hpa-307/village-background-transform.json --crop-x 0 --crop-y 0 --crop-width 1792 --crop-height 1536
+rtk bun run art:finalize:village -- --input /private/tmp/hpa-307-village-normalized-revision.png --output /private/tmp/hpa-307-village-final-tier0.png --tier 0
+rtk bun run art:finalize:village -- --input /private/tmp/hpa-307-village-normalized-revision.png --output /private/tmp/hpa-307-village-final-tier1.png --tier 1
+rtk bun run art:finalize:village -- --input /private/tmp/hpa-307-village-normalized-revision.png --output /private/tmp/hpa-307-village-final-tier2.png --tier 2
+rtk bun run art:finalize:village -- --input /private/tmp/hpa-307-village-normalized-revision.png --output /private/tmp/hpa-307-village-final-tier3.png --tier 3
+rtk bun run art:evidence:village
+```
+
+All four tiers were generated independently from the untouched normalized master and
+inspected at native resolution:
+
+| Tier | Bytes | Review target | Hard limit | SHA-256 |
+| ---: | ---: | --- | --- | --- |
+| 0 | 7,601,173 | exception required | pass | `3933829f19e7eab4b26ba2d31c7a0cfac25d4fae0a16196893fac6dbf02187c1` |
+| 1 | 6,939,185 | exception required | pass | `e1cfd92231412b6866788337ad83016ba0c253dd78a13b9b9c8deebe39712265` |
+| 2 | 5,126,066 | exception required | pass | `9a02b928fda573c4bdbe45a59a9f6b4694564a272869883742eee8013353a44f` |
+| 3 | 3,448,834 | pass | pass | `6bd51d6893cb4a92b3f9cc787aec2f7be8dd1a0a321d5807904654234b4acd4c` |
+
+Tier 0 is the lowest finalizer tier, is visually clean at native resolution, and remains
+below the `8,388,608`-byte hard limit. It was therefore selected without accepting the
+additional quantization of a higher tier. The explicit over-`4,194,304`-byte exception is
+retained to preserve the approved district separation and detailed grass, worn road,
+cobblestone, flowers, and flat foundation treatment.
+
+### Final production bytes
+
+- Runtime asset:
+  `public/game/assets/regions/sundrop-village-background.png`.
+- Selected quantization tier: `0`.
+- Final byte count: `7,601,173`.
+- Review target: exception required because the asset is above `4,194,304` bytes.
+- Hard limit: pass; the asset is below `8,388,608` bytes.
+- Final SHA-256:
+  `3933829f19e7eab4b26ba2d31c7a0cfac25d4fae0a16196893fac6dbf02187c1`.
+
+## Original production provenance (historical base)
 
 - Production tool: Codex built-in `image_gen`.
 - Authoritative reference:
@@ -72,7 +162,7 @@ Constraints: ground-only baked layer; broad unobstructed routes and entrances; n
 Avoid: any dark void, black/navy trench, cutout, empty hole, mask color, raised stone border, curb, wall, foundation box, enclosure, platform, building, roof, door, false door, NPC, pickup, tree, arch, fence, well, cart, statue, bench, tall plant, tall silhouette, foreground object, text, label, sign, logo, watermark, blocked approach, perspective tilt, or isometric geometry.
 ```
 
-## Executed production commands
+## Original production commands (historical base)
 
 ```sh
 rtk bun run art:controls:village
@@ -88,7 +178,7 @@ Tier 0 produced `8,395,802` bytes and was rejected atomically because it exceede
 untouched normalized master, visually compared with that master, and selected as the
 lowest visually acceptable tier.
 
-## Final production bytes
+## Pre-retouch production bytes (historical base)
 
 - Runtime asset:
   `public/game/assets/regions/sundrop-village-background.png`.
@@ -126,22 +216,25 @@ lowest visually acceptable tier.
 - Schema-v2 conservative forbidden-tall reapproval overlay:
   `docs/superpowers/reports/img/hpa-307/village-background-forbidden-tall-v2.png`.
 
-The selected native candidate, normalized master, final tier-1 PNG, whole-map overlay,
-doorway sheet, edge sheet, and every named regional crop were inspected with `view_image`.
-The parent visual gate rejected the first candidate, then approved the corrected
-continuous-ground native and normalized master before finalization. Tier 1 was also
-inspected after exact-alpha finalization.
+The original selected native candidate, normalized master, and final tier-1 PNG were
+inspected with `view_image` during the initial production pass. Task 10 then inspected the
+controller-approved v3 retouch, every finalizer tier at native resolution, and the refreshed
+whole-map overlay, doorway sheet, edge sheet, and every named regional crop. The parent
+visual gate rejected the first historical candidate, approved the corrected continuous-ground
+base, and later approved the exact deterministic v3 retouch SHA before integration.
 
 The final review found that schema-v1 classified each forbidden-tall tile by its center,
 which could omit a tile containing a narrow traversable sliver. Schema v2 omits a tile only
 when one composed exclusion rectangle covers the full `32×32` tile. The regenerated mask
 adds the previously missing cell `(44,4)` at local `(1408,128)` and conservatively protects
 all comparable boundary tiles. The schema-v2 mask and its yellow-on-master overlay above
-were inspected at original resolution. The production PNG remains byte-identical at
-`20a3625640131917f18d1309b0c192f2cbdac5e4279fe9e6abb23c24c64859fd`; because the approved
-master contains ground treatment only and no tall silhouettes, the expanded mask introduces
-no art conflict. Two independent focused re-reviews approved the corrected control,
-fingerprint chain, unchanged PNG, and explicit reapproval rationale.
+were inspected at original resolution. At that review, the production PNG remained
+byte-identical at
+`20a3625640131917f18d1309b0c192f2cbdac5e4279fe9e6abb23c24c64859fd`; Task 10 preserves
+that exact base and changes only same-coordinate RGB under the unchanged control fingerprint.
+Because both the base and retouch contain ground treatment only and no tall silhouettes, the
+expanded mask introduces no art conflict. Two independent focused re-reviews approved the
+corrected control, fingerprint chain, unchanged base PNG, and explicit reapproval rationale.
 
 ## Visual acceptance
 
@@ -164,8 +257,10 @@ fingerprint chain, unchanged PNG, and explicit reapproval rationale.
 - Approved control fingerprint changed from
   `cf2901101b542e2d5f412f039598f33d11b3aa93769164e1ab15fd7120c01104` to
   `0c47a7dc58d48e87fa9dd9c290cf6835b8acc3f4eb60a4e2c1ba4eae37e4ed33`.
-- The committed production PNG remains byte-identical at
-  `20a3625640131917f18d1309b0c192f2cbdac5e4279fe9e6abb23c24c64859fd`.
+- At Task 9, the committed production PNG remained byte-identical at
+  `20a3625640131917f18d1309b0c192f2cbdac5e4279fe9e6abb23c24c64859fd`;
+  Task 10 preserves those exact bytes at
+  `docs/superpowers/reports/img/hpa-307/village-background-retouch-base.png`.
 - Collision controls remain byte-identical: `village-layered-collision-mask.svg` is
   `d5bf78d332700d46e62759997e6f60fcd58724c9f8e51df616f7a160d405fc57`, and
   `village-composed-collision-mask.svg` is
@@ -175,6 +270,24 @@ fingerprint chain, unchanged PNG, and explicit reapproval rationale.
   with no baked scarecrow or upright replacement.
 
 ## Automated validation
+
+### Task 10 final gate matrix
+
+- A fresh `rtk bun run art:retouch:village` read the stable checked-in base and regenerated
+  `7,311,554` approved opaque bytes with SHA-256
+  `ba4f3ce170b8f40aabf1c81f83ce496436c1f6ea7e151401b221c5ae6e29cbf5`; both the PNG and
+  provenance JSON passed byte-for-byte `cmp` against the controller-approved output and
+  checked-in provenance.
+- `rtk bun run art:evidence:village` refreshed all nine static evidence PNGs successfully.
+- `rtk bun run art:controls:village` regenerated all controls and retained fingerprint
+  `0c47a7dc58d48e87fa9dd9c290cf6835b8acc3f4eb60a4e2c1ba4eae37e4ed33`.
+- `rtk bun run art:validate:village` passed: 2 files, 21 tests, 0 failures.
+- The explicit focused asset/control command passed: 2 files, 21 tests, 0 failures.
+- The deterministic retouch suite passed: 1 file, 9 tests, 0 failures.
+- `rtk bun run check` passed with 0 errors and 0 warnings.
+- `rtk bun run lint` passed; Prettier and ESLint were clean.
+- The finished runtime PNG remained tier 0, `7,601,173` bytes, SHA-256
+  `3933829f19e7eab4b26ba2d31c7a0cfac25d4fae0a16196893fac6dbf02187c1`.
 
 ### Red evidence
 
@@ -542,7 +655,7 @@ The following gates remain explicitly unclaimed:
 
 ## Concerns
 
-The approved tier-1 asset is `2,600,563` bytes above the 4 MiB review target. It remains
-`1,593,741` bytes below the hard limit, and the explicit quality-based exception is recorded
+The approved tier-0 asset is `3,406,869` bytes above the 4 MiB review target. It remains
+`787,435` bytes below the hard limit, and the explicit quality-based exception is recorded
 in both the hand-maintained approval and this report. No geometry, route, doorway, reward,
 edge-handoff, or baked-vs-live art concern remains after the corrected-candidate review.

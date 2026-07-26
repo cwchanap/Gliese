@@ -1,17 +1,17 @@
 {
   "native": {
-    "width": 1355,
-    "height": 1160
+    "width": 1792,
+    "height": 1536
   },
   "crop": {
-    "x": 2,
-    "y": 1,
-    "width": 1351,
-    "height": 1158
+    "x": 0,
+    "y": 0,
+    "width": 1792,
+    "height": 1536
   },
   "output": {
     "width": 1792,
     "height": 1536
   },
-  "scale": 1.3264248704663213
+  "scale": 1
 }
