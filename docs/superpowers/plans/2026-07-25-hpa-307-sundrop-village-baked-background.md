@@ -2,9 +2,17 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Ship one approved, deterministic `1792×1536` baked ground background for Sundrop Village while preserving the existing layered map as the authoritative gameplay and fallback path.
+**Goal:** Ship one approved, deterministic `1792×1536` baked ground background with
+district-specific environmental structure, remove the non-colliding Home Yard scarecrow,
+and preserve the existing layered map as the authoritative gameplay and fallback path.
 
-**Architecture:** Add a generic center-based regional-background descriptor to the map model, derive Sundrop's one descriptor from its layered bounds, and render it between the fallback ground and live decor. Build a separate HPA-307 art-control pipeline from committed collision and map sources, use a manually maintained approval record to bind the reviewed control fingerprint to the reviewed PNG bytes, and keep all developer modes observational. Generate the master with built-in image generation, normalize it uniformly, finalize it through a pinned deterministic RGBA pipeline, then validate runtime fallback, diagnostics, screenshots, controller traversal, and device-local rendering evidence.
+**Architecture:** Retain the implemented generic regional-background runtime and deterministic
+art-control pipeline. Remove the scarecrow from the layered live-decor source, regenerate and
+re-approve the affected control fingerprint without changing collision evidence, then revise
+the existing master through built-in image generation using both the clean opaque
+pre-feather master and exact art control as references. Normalize and finalize the revised
+PNG through the existing pinned RGBA pipeline, then refresh whole-village runtime, fallback,
+controller, and native evidence.
 
 **Tech Stack:** TypeScript 6, Bun, Phaser 4, Vitest 4, Playwright, Sharp 0.35.3, SVG, SHA-256, Svelte 5, Tauri 2
 
@@ -23,6 +31,28 @@ The implementation starts from clean commit `ad75bd7` on
 - `rtk bun run lint`: Prettier and ESLint pass.
 - `rtk bun run test:e2e`: 12 tests pass.
 
+### Approved revision baseline
+
+Tasks 1–8 landed through `3199d3c`; the approved visual-review design revision is committed
+as `8647c03`. Revision execution starts at Task 9. Do not replay or rewrite Tasks 1–8 unless
+a new failing regression test implicates their runtime contracts.
+
+The current integrated PNG and runtime are the “before” baseline. Existing Home Yard,
+browser, and native evidence may be retained only when clearly labeled as pre-revision
+comparison material.
+
+Measured pre-revision values are:
+
+- control fingerprint:
+  `cf2901101b542e2d5f412f039598f33d11b3aa93769164e1ab15fd7120c01104`;
+- PNG SHA-256:
+  `20a3625640131917f18d1309b0c192f2cbdac5e4279fe9e6abb23c24c64859fd`;
+- encoded size: `6,794,867` bytes;
+- selected quantization tier: `1`.
+
+Task 9 may carry the unchanged PNG values forward only after re-reviewing it against the
+new controls. Task 10 must replace them with newly measured revision values.
+
 ## Global Constraints
 
 - [ ] Run every repository shell command through `rtk`.
@@ -30,6 +60,18 @@ The implementation starts from clean commit `ad75bd7` on
       intended failure, add the minimum implementation, observe the test pass, then refactor.
 - [ ] Preserve `groundPatches`, collision, transitions, NPCs, rewards, saves, minimap
       semantics, and the full fallback tilemap. HPA-307 changes presentation only.
+- [ ] Remove only the live, non-colliding scarecrow placement and its now-unused glyph
+      specification. Do not edit `layers.collision`, transitions, landmarks, NPCs, pickups,
+      buildings, or any collision-bearing decor.
+- [ ] Keep the shared `scarecrow` atlas frame and asset metadata intact; only its Sundrop
+      Village placement is removed.
+- [ ] Treat “richer” as broad and medium environmental structure with district identity,
+      not uniformly increased micro-texture.
+- [ ] Keep Home Yard, Well Plaza, Market Lane, North Residences/Guild, Shrine Garden, and
+      East Gate visually distinct while keeping routes, doors, NPC spaces, rewards, and
+      transition throats calm.
+- [ ] Do not add remaining overworld regions or baked building interiors to this plan.
+      Existing interiors are regression-walkthrough coverage only.
 - [ ] Treat `MapRect.x/y` as center coordinates. The art-control files alone use a local
       top-left origin.
 - [ ] Keep the HPA-238 preview renderer and `img/hpa-238/` outputs untouched.
@@ -72,6 +114,9 @@ in the ledger.
 | 6 | Task 5 URL/background lifecycle and current WorldScene collision inputs | live collision overlay and one typed renderer-diagnostic event |
 | 7 | Task 5 fallback diagnostics and Task 6 event/overlay | E2E matrix, curated screenshots, completed runtime evidence |
 | 8 | all prerequisite task SHAs and artifacts | full verified branch with resolved final reviews |
+| 9 | implemented layered source, controls, approval record, and current master | scarecrow-free live decor, regenerated controls, re-approved unchanged PNG, unchanged collision masks |
+| 10 | Task 9 control fingerprint and current approved master | richer district-specific PNG, updated PNG approval, complete revised alignment evidence |
+| 11 | Task 10 approved asset and existing runtime diagnostics | refreshed browser/native acceptance report and final revision review |
 
 ---
 
@@ -1094,16 +1139,475 @@ pixels are visible and no missing-texture placeholder appears.
 - [ ] Update HPA-307 with a concise implementation and evidence summary and move it to the
       project’s completed state only after every automated and manual acceptance gate passes.
 
+---
+
+## Task 9: Remove the Home Yard scarecrow and re-approve the controls
+
+**Files:**
+
+- Modify: `src/lib/game/content/maps/regions/village-layered.ts:26-31,267-327`
+- Modify: `src/lib/game/content/maps/regions/village-layered.test.ts`
+- Modify: `src/lib/game/content/maps/layered/village-art-controls.test.ts`
+- Regenerate: `src/lib/game/content/generated/sundrop-village-art-control.ts`
+- Regenerate: `docs/superpowers/reports/img/hpa-307/village-art-control-manifest.json`
+- Regenerate selected SVG controls under:
+  `docs/superpowers/reports/img/hpa-307/`
+- Modify: `src/lib/game/content/approvals/sundrop-village-background.ts`
+- Modify:
+  `docs/superpowers/reports/2026-07-25-hpa-307-baked-background-validation.md`
+
+**Interfaces:**
+
+- Consumes: `sundropVillageLayered`, `compileLayeredRegion(...)`,
+  `computeVillageArtControlFingerprint(...)`, `bun run art:controls:village`, and the
+  currently approved PNG/hash.
+- Produces: a scarecrow-free live decor layer, a new approved control fingerprint, updated
+  object-anchor/control evidence, and byte-identical layered/composed collision masks. The
+  PNG and `approvedPngSha256` remain unchanged in this task.
+
+### Steps
+
+- [ ] Add `NORMALIZE_PLAYER_RADIUS` to the existing
+      `$lib/game/save/save-state` import in `village-layered.test.ts`.
+- [ ] Add this failing regression test beside the existing deterministic compilation tests:
+
+  ```ts
+  it('keeps the Home Yard open without a scarecrow', () => {
+    const compiled = compileLayeredRegion(sundropVillageLayered);
+    const collisionRects = [
+      ...collectStrictCollisionRects(meadowEntryMap),
+      ...collectLandmarkRects(meadowEntryMap)
+    ];
+
+    expect(compiled.mapDecor?.some((decor) => decor.frameName === 'scarecrow')).toBe(false);
+    expect(sundropVillageLayered.layers.decor[38][19]).toBe('.');
+    expect(sundropVillageLayered.layers.collision[38][19]).toBe('.');
+    expect(
+      isInsideAnyCollisionRect(880, 5_584, collisionRects, NORMALIZE_PLAYER_RADIUS)
+    ).toBe(false);
+  });
+  ```
+
+- [ ] Run the focused test and confirm that it fails because the compiled decor still
+      contains the live `scarecrow` at row `38`, column `19`:
+
+  ```sh
+  rtk bun run test:unit -- --run \
+    src/lib/game/content/maps/regions/village-layered.test.ts
+  ```
+
+- [ ] In `village-layered.ts`, remove the `s` entry from `villageDecorGlyphTable`, replace
+      the row-38/column-19 `s` with `.`, and update the nearby HPA-238 decor comment so it
+      describes the flower bed as the only Home Yard accent. Do not change any collision
+      row or any other decor glyph.
+- [ ] Rerun the focused test and confirm it passes.
+- [ ] Add this control-fingerprint regression beside the existing collision-bearing decor
+      test:
+
+  ```ts
+  it('changes the fingerprint when non-colliding decor is removed', () => {
+    const map = cloneMap();
+    const decor = map.mapDecor?.find(
+      (item) =>
+        !item.collision &&
+        item.x >= 256 &&
+        item.x <= 2_048 &&
+        item.y >= 4_352 &&
+        item.y <= 5_888
+    );
+    expect(decor).toBeDefined();
+    if (!decor) return;
+    map.mapDecor = map.mapDecor?.filter(({ id }) => id !== decor.id);
+
+    expect(fingerprint(map)).not.toBe(fingerprint(meadowEntryMap));
+  });
+  ```
+
+- [ ] Run `village-art-controls.test.ts` and confirm this characterization test passes
+      against the already implemented canonicalization. Keep the existing literal
+      fingerprint assertion; after regeneration, update it only to the exact new computed
+      SHA-256.
+- [ ] Record the pre-regeneration SHA-256 values of:
+
+  ```sh
+  rtk shasum -a 256 \
+    docs/superpowers/reports/img/hpa-307/village-layered-collision-mask.svg \
+    docs/superpowers/reports/img/hpa-307/village-composed-collision-mask.svg
+  ```
+
+- [ ] Regenerate the deterministic controls:
+
+  ```sh
+  rtk bun run art:controls:village
+  ```
+
+- [ ] Confirm the exporter emits control fingerprint
+      `0c47a7dc58d48e87fa9dd9c290cf6835b8acc3f4eb60a4e2c1ba4eae37e4ed33`.
+      This value comes from a read-only dry run of the exact source delta; the real
+      exporter output remains authoritative, so any disagreement requires inspecting the
+      source diff rather than copying the predicted value.
+- [ ] Re-run the same `rtk shasum -a 256` command and require both collision-mask digests to
+      match the pre-regeneration values exactly. Review the generated diff:
+
+  - `village-object-anchors.svg` must lose `village-decor-38-19`;
+  - `village-forbidden-tall-mask.svg` and `village-art-control.svg` must lose the former
+    live anchor at local `(624,1232)`;
+  - the manifest, generated TypeScript fingerprint, and the literal test fingerprint must
+    change together;
+  - neither collision mask may change;
+  - any additional generated change requires a concrete source-derived explanation before
+    proceeding.
+
+  The expected byte-identical control digests are:
+
+  | Artifact | SHA-256 |
+  | --- | --- |
+  | `village-composed-collision-mask.svg` | `445923c3cead0dcfbf26f16f1819d761420b830e9e26a838b5a1dc52e77bf4d9` |
+  | `village-layered-collision-mask.svg` | `d5bf78d332700d46e62759997e6f60fcd58724c9f8e51df616f7a160d405fc57` |
+  | `village-building-entrance-mask.svg` | `9df14228c474a811fc2e59a3b412a4269e1605ac4dd57e7797402d19dd28ebaf` |
+  | `village-region-mask.svg` | `ec9c4482b6b7b738b22a430bce5d59a06a9bc3955f4670d400fc6d10a54fb556` |
+  | `village-terrain-path-mask.svg` | `462391dd7e6a7dddf836d9bd4d9967578d1e9b112a293e942c4b85ac66424181` |
+
+- [ ] Run the read-only validator and observe the expected stale-approval failure:
+
+  ```sh
+  rtk bun run art:validate:village
+  ```
+
+  The failure must identify `approvedControlFingerprint`; it must not report a PNG hash,
+  dimension, alpha, or size failure.
+
+- [ ] Inspect the existing PNG against the regenerated control, object-anchor, entrance,
+      and collision overlays. Confirm that the ground-only PNG contains no baked scarecrow
+      or upright substitute and remains aligned after the live prop removal.
+- [ ] Update only `approvedControlFingerprint` in the approval record. Keep
+      `approvedPngSha256` and `sizeBudgetException` unchanged. Add a report entry recording
+      the removed live decor ID, old/new control fingerprints, unchanged PNG hash, and
+      byte-identical collision-mask digests.
+- [ ] Run:
+
+  ```sh
+  rtk bun run art:validate:village
+  rtk bun run test:unit -- --run \
+    src/lib/game/content/maps/regions/village-layered.test.ts \
+    src/lib/game/content/maps/layered/village-art-controls.test.ts \
+    src/lib/game/content/sundrop-village-background.asset.test.ts
+  rtk bun run check
+  rtk bun run lint
+  ```
+
+- [ ] Commit:
+
+  ```sh
+  rtk git add \
+    src/lib/game/content/maps/regions/village-layered.ts \
+    src/lib/game/content/maps/regions/village-layered.test.ts \
+    src/lib/game/content/maps/layered/village-art-controls.test.ts \
+    src/lib/game/content/generated/sundrop-village-art-control.ts \
+    src/lib/game/content/approvals/sundrop-village-background.ts \
+    docs/superpowers/reports/2026-07-25-hpa-307-baked-background-validation.md \
+    docs/superpowers/reports/img/hpa-307
+  rtk git commit -m "feat(maps): remove Sundrop Home Yard scarecrow"
+  ```
+
+---
+
+## Task 10: Revise and approve the district-rich master
+
+**Files:**
+
+- Modify: `public/game/assets/regions/sundrop-village-background.png`
+- Modify: `src/lib/game/content/approvals/sundrop-village-background.ts`
+- Modify:
+  `docs/superpowers/reports/2026-07-25-hpa-307-baked-background-validation.md`
+- Refresh: `docs/superpowers/reports/img/hpa-307/village-background-transform.json`
+- Refresh the stable alignment and district-review images under:
+  `docs/superpowers/reports/img/hpa-307/`
+
+**Interfaces:**
+
+- Consumes: Task 9's approved control fingerprint, the exact `1792×1536` art-control
+  raster, the clean opaque pre-feather master as the style/composition baseline, and the
+  existing normalize/finalize CLIs.
+- Produces: one richer `1792×1536` RGBA master, an updated approved PNG SHA-256, and
+  refreshed whole-map and six-district alignment evidence. It does not change source
+  geometry or the Task 9 control fingerprint.
+
+### Production prompt
+
+Use the built-in `image_gen` editing path with the clean opaque pre-feather master as the
+first reference and the exact rasterized `village-art-control.svg` as the second reference:
+
+```text
+Revise the first reference into one complete orthographic top-down JRPG village
+ground-only master at a strict 7:6 composition. The second reference is the exact
+geometry and alignment control; preserve every route, doorway approach, transition
+throat, reward pocket, district boundary, and all four edge handoffs.
+
+Keep the existing warm lush palette and upper-left lighting, but make the scene richer
+through broad and medium environmental structure rather than uniform fine noise.
+
+Give each district a distinct ground-level identity:
+- Home Yard: warm compacted soil, gentle doorway wear, restrained garden traces, low
+  perimeter vegetation, and an open former-scarecrow area with no upright replacement.
+- Well Plaza: radial traffic wear, aged stone variation, damp-edge moss, and clear
+  material connections to each outgoing route.
+- Market Lane: wheel ruts, scattered straw-like marks, worn cobble transitions, and
+  earthier working-area colors.
+- North Residences and Guild: tidier paths, firmer stone edging, and lower floral density.
+- Shrine Garden: softer moss, pale gravel, fallen petals, cooler stone, and the existing
+  autumn accent.
+- East Gate: a broader travel-worn road, embedded stones, and vegetation thinning toward
+  the Crossroads handoff.
+
+Use high detail only at non-walkable margins, foundations, gardens, and boundary
+transitions; medium detail in yards; and low detail on critical routes, plazas, doorway
+approaches, NPC spaces, rewards, and transitions. Include only flat ground materials,
+low vegetation, erosion, drainage, stones, moss, petals, and contact shadows.
+
+Do not add text, labels, signs, buildings, doors, NPCs, pickups, trees, arches, tall
+objects, collision-bearing props, foreground silhouettes, false entrances, false paths,
+visual obstacles, or non-uniform perspective. Preserve the aspect ratio and complete
+composition.
+```
+
+### Steps
+
+- [ ] Read the repository `2d-game-asset-workflow` skill and the built-in `imagegen` skill
+      before generating or editing the image.
+- [ ] Validate and rasterize the approved controls:
+
+  ```sh
+  rtk bun run art:validate:village
+  rtk bun run art:rasterize:village -- \
+    --input docs/superpowers/reports/img/hpa-307/village-art-control.svg \
+    --output /private/tmp/hpa-307-village-art-control-revision.png
+  ```
+
+- [ ] Inspect the current PNG and rasterized control at original resolution. Verify that
+      `/private/tmp/hpa-307-village-normalized-opaque.png` hashes to
+      `ed4610aea2ba2ceb3574bf878b75104bf974cdbd69c9b7221732b0dbab378201`.
+      Do not use the transparent-feathered runtime PNG as the edit target. Invoke
+      `image_gen` with the verified opaque master, rasterized control, and exact prompt
+      above.
+- [ ] Preserve the untouched generated bytes at
+      `/private/tmp/hpa-307-village-generated-revision.png` and record the tool output path,
+      native dimensions, byte count, and SHA-256 before normalization.
+- [ ] Inspect the native candidate. Reject it if any district is cropped, a required edge
+      handoff is lost, the former scarecrow area contains an upright replacement, or no
+      in-bounds `7:6` crop preserves the complete composition.
+- [ ] Normalize the accepted candidate from untouched generated bytes with
+      `rtk bun run art:normalize:village`. Pass the stable input
+      `/private/tmp/hpa-307-village-generated-revision.png`, stable output
+      `/private/tmp/hpa-307-village-normalized-revision.png`, transform output
+      `docs/superpowers/reports/img/hpa-307/village-background-transform.json`, and all four
+      `--crop-x`, `--crop-y`, `--crop-width`, and `--crop-height` integer flags from the
+      reviewed candidate. Copy the exact executed command into the validation report.
+      Do not stretch, pad, or invent edge content.
+
+- [ ] Composite and inspect the normalized master against the region, terrain/path,
+      collision, entrance, object-anchor, and forbidden-tall controls. Refresh these stable
+      evidence files:
+
+  - `village-background-alignment-whole.png`;
+  - `village-background-home-yard.png`;
+  - `village-background-well-plaza.png`;
+  - `village-background-market-blacksmith.png`;
+  - `village-background-north-residences-guild.png`;
+  - `village-background-shrine-garden-reward.png`;
+  - `village-background-east-gate-crossroads.png`;
+  - `village-background-doorway-transition-approaches.png`;
+  - `village-background-all-four-edges.png`.
+
+- [ ] Review at original resolution. Reject or clean the candidate unless all six district
+      identities are visible, routes and interaction zones remain quieter than their
+      surroundings, the Home Yard is open, and no baked feature implies collision.
+- [ ] Finalize from the untouched normalized opaque master to a temporary tier-0 candidate:
+
+  ```sh
+  rtk bun run art:finalize:village -- \
+    --input /private/tmp/hpa-307-village-normalized-revision.png \
+    --output /private/tmp/hpa-307-village-tier-0.png \
+    --tier 0
+  ```
+
+- [ ] If tier 0 exceeds `4,194,304` bytes, compare each required nonzero tier against the
+      normalized master and select the lowest visually acceptable tier at or below the
+      `8,388,608`-byte hard limit. Write every tier to a distinct `/private/tmp` path and
+      start each attempt from the untouched normalized master; never requantize a previous
+      tier.
+- [ ] After selecting and reviewing a tier, rerun the finalizer directly from the untouched
+      normalized master to
+      `public/game/assets/regions/sundrop-village-background.png` with that selected tier.
+      Do not replace the production asset before this review gate.
+- [ ] Update only the PNG-dependent approval/report values:
+
+  - keep Task 9's `approvedControlFingerprint`;
+  - set `approvedPngSha256` to the finalizer's exact output;
+  - set `sizeBudgetException` according to the existing 4 MiB/8 MiB contract;
+  - record the exact image-generation tool, prompt, native dimensions, crop, scale,
+    quantization tier, final bytes, and final digest.
+
+- [ ] Run:
+
+  ```sh
+  rtk bun run art:validate:village
+  rtk bun run test:unit -- --run \
+    src/lib/game/content/sundrop-village-background.asset.test.ts \
+    src/lib/game/content/maps/layered/village-art-controls.test.ts
+  rtk bun run check
+  rtk bun run lint
+  ```
+
+- [ ] Commit:
+
+  ```sh
+  rtk git add \
+    public/game/assets/regions/sundrop-village-background.png \
+    src/lib/game/content/approvals/sundrop-village-background.ts \
+    docs/superpowers/reports/2026-07-25-hpa-307-baked-background-validation.md \
+    docs/superpowers/reports/img/hpa-307
+  rtk git commit -m "feat(art): enrich Sundrop background districts"
+  ```
+
+---
+
+## Task 11: Refresh whole-village and native acceptance evidence
+
+**Files:**
+
+- Modify only code or tests implicated by a reproduced regression.
+- Refresh:
+  `docs/superpowers/reports/2026-07-25-hpa-307-baked-background-validation.md`
+- Refresh selected runtime evidence under:
+  `docs/superpowers/reports/img/hpa-307/`
+
+**Interfaces:**
+
+- Consumes: Task 10's approved PNG/hash, the existing background URL modes, renderer
+  diagnostic event, collision overlay, E2E helpers, controller route, and release commands.
+- Produces: honest revised browser/native evidence, a complete acceptance decision, and no
+  expansion into other overworld regions or baked interiors.
+
+### Steps
+
+- [ ] Run the five existing background modes against the revised PNG and refresh their
+      stable screenshots/JSON attachments:
+
+  ```sh
+  rtk bun run test:e2e -- --grep "regional background"
+  ```
+
+  Inspect enabled, off, collision, off-plus-collision, and intercepted-load-failure output.
+  Confirm the normal render uses the revised master and the failure/off modes still expose
+  fallback tiles without a missing-texture placeholder.
+
+- [ ] Add clean live runtime captures for Market/Blacksmith and North Residences/Guild,
+      which were not present in the pre-revision evidence. Review those together with clean
+      Home Yard, Well Plaza, Shrine Garden, and East Gate captures so every approved
+      district is represented without a control overlay.
+- [ ] Inspect all four live handoffs at runtime, with particular attention to the East Gate
+      value/material transition into fallback Crossroads tiles. A mathematically valid alpha
+      feather is insufficient if the perceptual seam remains visible.
+- [ ] Complete one continuous native controller walkthrough with the revised master:
+
+  ```text
+  Spawn → Plaza → Market reward → Home → Shrine reward → Plaza
+  → North Residences → every building entrance → Guild → East Gate
+  → Crossroads → return to village
+  ```
+
+  Enter and exit every interior. Confirm the Home Yard scarecrow is absent, its former
+  location is traversable, no substitute obstacle appears, doors and NPCs remain readable,
+  and returning from interiors does not trigger a texture re-upload or visible hitch.
+
+- [ ] Save and reload at Home Yard, Well Plaza, Shrine Garden, and East Gate. Refresh the
+      four stable save/reload screenshots.
+- [ ] Repeat the enabled/off timing route on the same reference device. Refresh the timing
+      JSON and report the selected renderer, WebGL texture limit or Canvas decode, load
+      duration, upload/decode count, median frame time, p95 frame time, and the exact p95
+      delta. Do not convert a browser-only observation into a native/GPU claim.
+- [ ] Run the complete automated gates:
+
+  ```sh
+  rtk bun run art:validate:village
+  rtk bun run check
+  rtk bun run lint
+  rtk bun run test:unit -- --run
+  rtk bun run test:e2e
+  ```
+
+- [ ] Run the Rust gates from `src-tauri/`:
+
+  ```sh
+  rtk cargo fmt --all -- --check
+  rtk cargo clippy --all-targets --all-features -- -D warnings
+  rtk cargo test
+  ```
+
+- [ ] Run the ordinary release gate:
+
+  ```sh
+  rtk bun run tauri build
+  ```
+
+  If the known Finder-cosmetics AppleScript path prevents DMG completion, retain the exact
+  failure evidence and additionally run:
+
+  ```sh
+  rtk env CI=true bun run tauri build
+  ```
+
+  Report the two outcomes separately. The CI-mode DMG does not make the ordinary command a
+  pass.
+
+- [ ] Inspect the final PNG, all six district crops, every doorway/edge crop, runtime modes,
+      native walkthrough evidence, timing evidence, and validation report together.
+- [ ] Run a fresh specification-compliance review and a separate code-quality review. Fix
+      each valid finding with the smallest relevant regression test and rerun the affected
+      gate.
+- [ ] Confirm `rtk bun run art:controls:village` is byte-stable and leaves the expected
+      control artifacts unchanged.
+- [ ] Commit refreshed evidence and any reviewed fixes by staging only their exact paths:
+
+  ```sh
+  rtk git add \
+    docs/superpowers/reports/2026-07-25-hpa-307-baked-background-validation.md \
+    docs/superpowers/reports/img/hpa-307
+  rtk git commit -m "docs(reports): refresh HPA-307 revision evidence"
+  ```
+
+- [ ] Update HPA-307 with the revised asset/evidence summary. Move it to the project’s
+      completed state only if every automated gate and the required native/manual acceptance
+      gate passes; otherwise leave its state unchanged and list the remaining evidence
+      explicitly.
+- [ ] Include two Linear-ready follow-up briefs in the handoff, without implementing or
+      creating them unless separately authorized:
+
+  1. **Roll out source-derived baked backgrounds to the remaining opening-map regions** —
+     Crossroads, Wildwood, Coast, Mistfen, and Silverpine; one independently reviewable
+     master/evidence set per region using the HPA-307 alignment and fallback architecture.
+  2. **Prototype baked interior environment art for Hero's House and Guild Hall** — establish
+     reusable floor, wall, lighting, and furniture-grounding rules while keeping doors,
+     furniture, NPCs, collision, and interactive objects live; later expansion covers Item
+     Shop, villager houses, and the Shrine of Aurora interior.
+
 ## Completion Definition
 
 HPA-307 is complete only when all of the following are true:
 
 - the approved PNG is the exact asset loaded by BootScene;
+- the Home Yard contains no live or baked scarecrow, its former position remains open, and
+  collision geometry is unchanged;
+- Home Yard, Well Plaza, Market Lane, North Residences/Guild, Shrine Garden, and East Gate
+  exhibit the approved distinct material and wear identities;
 - its source-derived descriptor covers world
   `(256,4352)`–`(2048,5888)` at center `(1152,5120)`;
 - fallback tiles always exist and retain all existing gameplay semantics;
 - default, off, collision, combined, missing, and wrong-dimension paths are tested;
 - all nine controls are deterministic and byte-stable;
+- the layered and composed collision-control SVGs are byte-identical to the pre-scarecrow
+  revision, while the expected live-anchor controls and fingerprint are refreshed;
 - computed, generated, manifest, approved-control, and approved-PNG digests agree;
 - exact edge alpha and both file-size limits pass;
 - visual evidence covers all required rooms, routes, doors, transitions, edges, and fallback;
@@ -1112,3 +1616,5 @@ HPA-307 is complete only when all of the following are true:
   are recorded honestly;
 - typecheck, lint, unit, E2E, Rust, and Tauri release gates pass;
 - final specification and code-quality reviews have no unresolved valid finding.
+- other overworld regions and baked interior redesign remain separate, ticket-ready
+  follow-up scopes rather than unreviewed HPA-307 implementation.
