@@ -790,8 +790,10 @@ Review artifacts include whole-map alignment views and close crops for:
 The richer revision refreshes this complete evidence set. Screenshots from the first
 integrated master may remain as explicitly labeled “before” comparisons, but they cannot be
 reused as proof for the revised PNG. The Home Yard crop must show that the scarecrow is
-absent, its former space remains open, the legacy green hedge-segment overlay is absent, and
-no baked mark reads as a substitute obstacle.
+absent, its former space remains open, the live `village-hedge/hedgeSegment` overlay
+remains visible (the approved background is ground-only and depicts no hedges, so the live
+sprites mark the authored collision walls), and no baked mark reads as a substitute
+obstacle.
 
 The load-failure run also saves a screenshot artifact beside the
 `?regionalBackground=off` baseline. Human review of that pair—not DOM/canvas visibility
