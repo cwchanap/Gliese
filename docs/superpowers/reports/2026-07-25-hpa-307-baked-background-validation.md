@@ -309,6 +309,33 @@ corrected control, fingerprint chain, unchanged base PNG, and explicit reapprova
   application bundle was created. `rtk env CI=true bun run tauri build` passed and produced
   both bundles; the resulting DMG passed `hdiutil verify` and `hdiutil imageinfo`.
 
+### Final whole-branch review follow-up
+
+- Retouch publication now recomputes the complete current control fingerprint from the same
+  shared input builder used by the deterministic exporter and approval test. Mask and
+  non-mask gameplay-control drift both fail before provenance can be published.
+- The production approval gate now re-derives the opaque retouch from the stable base,
+  compares the committed provenance sidecar byte-for-byte, finalizes tier 0, and requires
+  exact equality with the committed runtime PNG and approved SHA-256.
+- PNG and provenance outputs must resolve to distinct paths. Both outputs are staged before
+  either destination is replaced, so a failed second-stage write leaves the existing PNG
+  untouched.
+- `rtk bun run art:validate:village` now passes 2 files and 22 tests. The expanded retouch,
+  approval, and art-control suite passes 3 files and 35 tests.
+- The post-review complete unit gate passes 51 files and 830 tests. Its first full attempt
+  reached 829 assertions before an unrelated BootScene dynamic-import test exceeded its
+  5-second timeout; that test passed alone in `629 ms`, and the unchanged complete suite then
+  passed in `38.66s`.
+- A post-review Playwright run initially passed 15 of 17 scenarios after previewing the
+  existing Tauri-mode `dist/`: the two story-dependent NPC cases correctly fell back to
+  `Traveler / No dialogue is available` because that release bundle intentionally excludes
+  the browser story fixture. Rebuilding with `rtk bun run build` restored the documented
+  browser-E2E precondition. Both affected cases then passed in isolation, and the unchanged
+  full suite passed all 17 scenarios in `46.5s`. No gameplay or E2E source change was needed.
+- Independent whole-branch re-review found no remaining Critical or Important code finding.
+  The save/reload PNG wording was also corrected: those images are pre-reload scene
+  captures, while the machine-readable before/after records prove exact resumed state.
+
 ### Red evidence (historical implementation)
 
 - The first focused production-asset run failed exactly at the two absent approval gates:
@@ -502,7 +529,7 @@ At each checkpoint the controller saved through the HUD bridge, reloaded the pag
 for the game-ready gate, read `gliese.save.v8` again, and required exact equality of map ID,
 floating-point coordinates, and facing. All four comparisons passed:
 
-| Checkpoint | Exact state before and after reload | Reviewed screenshot |
+| Checkpoint | Exact state before and after reload | Reviewed pre-reload scene capture |
 | --- | --- | --- |
 | Home Yard | `meadow-entry (624, 5776), up` | [Home](img/hpa-307/runtime-save-reload-home.png) |
 | Well Plaza | `meadow-entry (944.1936000000006, 5303.675200000018), left` | [Plaza](img/hpa-307/runtime-save-reload-plaza.png) |
@@ -630,12 +657,12 @@ Two collected regional rewards:
 - [Market cache](img/hpa-307/runtime-reward-market.png)
 - [Shrine cache](img/hpa-307/runtime-reward-shrine.png)
 
-Four exact save/reload checkpoints:
+Four exact save/reload checkpoints with scene captures taken immediately before reload:
 
-- [Home Yard after save/reload](img/hpa-307/runtime-save-reload-home.png)
-- [Well Plaza after save/reload](img/hpa-307/runtime-save-reload-plaza.png)
-- [Shrine Garden after save/reload](img/hpa-307/runtime-save-reload-shrine.png)
-- [East Gate after save/reload](img/hpa-307/runtime-save-reload-east-gate.png)
+- [Home Yard before reload](img/hpa-307/runtime-save-reload-home.png)
+- [Well Plaza before reload](img/hpa-307/runtime-save-reload-plaza.png)
+- [Shrine Garden before reload](img/hpa-307/runtime-save-reload-shrine.png)
+- [East Gate before reload](img/hpa-307/runtime-save-reload-east-gate.png)
 
 All 29 current browser PNGs above were opened at original resolution with `view_image`
 before the reviewed copies were committed.
@@ -650,8 +677,9 @@ before the reviewed copies were committed.
   it is visually consistent with the background-off baseline while the canvas and HUD remain
   ready.
 - The four checkpoint captures show the expected Home Yard, Well Plaza, Shrine Garden, and
-  East Gate live scenes after reload, with the player visible, the HUD intact, and the
-  persisted position aligned with live map content.
+  East Gate live scenes immediately before reload. The machine-readable before/after
+  checkpoint records, rather than the PNGs, prove that each persisted position resumed
+  exactly after reload.
 - The six district captures remain visually distinct while live buildings, NPCs, door
   approaches, labels, minimap, and HUD remain legible.
 - The Home Yard capture confirms that the removed upright scarecrow has not returned and

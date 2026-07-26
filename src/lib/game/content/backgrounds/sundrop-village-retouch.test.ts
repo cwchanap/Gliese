@@ -1,5 +1,6 @@
 import { createHash } from 'node:crypto';
-import { readFile } from 'node:fs/promises';
+import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 import sharp from 'sharp';
@@ -14,7 +15,8 @@ import {
 	retouchSundropVillagePng,
 	SUNDROP_VILLAGE_RETOUCH_INPUT_PATH,
 	sundropVillageEdgeGuardStrength,
-	type SundropVillageRetouchResult
+	type SundropVillageRetouchResult,
+	writeSundropVillageRetouch
 } from './sundrop-village-retouch';
 
 const INPUT_PATH = join(process.cwd(), SUNDROP_VILLAGE_RETOUCH_INPUT_PATH);
@@ -259,7 +261,7 @@ describe('Sundrop Village deterministic retouch output', () => {
 		).toBeGreaterThanOrEqual(0);
 	});
 
-	it('rejects output drift from the controller-approved opaque PNG before producing provenance', async () => {
+	it('rejects mask geometry drift before producing provenance', async () => {
 		const driftedSource = structuredClone(sundropVillageLayered);
 		const regionRow = driftedSource.layers.regions.findIndex((row) => row.includes('H'));
 		const regionColumn = driftedSource.layers.regions[regionRow]?.indexOf('H') ?? -1;
@@ -273,7 +275,29 @@ describe('Sundrop Village deterministic retouch output', () => {
 		);
 
 		await expect(retouchSundropVillagePng(inputPng, driftedSource)).rejects.toThrow(
-			`Sundrop Village controller-approved opaque output SHA-256 must remain ${EXPECTED_APPROVED_OUTPUT_SHA256}`
+			`Sundrop Village retouch control fingerprint must remain 0c47a7dc58d48e87fa9dd9c290cf6835b8acc3f4eb60a4e2c1ba4eae37e4ed33`
+		);
+	});
+
+	it('rejects stale provenance when non-mask gameplay controls change', async () => {
+		const driftedSource = structuredClone(sundropVillageLayered);
+		const collisionRow = driftedSource.layers.collision.findIndex((row) =>
+			[...row].some((glyph) => glyph !== '.')
+		);
+		const collisionColumn = [...(driftedSource.layers.collision[collisionRow] ?? '')].findIndex(
+			(glyph) => glyph !== '.'
+		);
+		expect(collisionRow).toBeGreaterThanOrEqual(0);
+		expect(collisionColumn).toBeGreaterThanOrEqual(0);
+		const mutableCollision = driftedSource.layers.collision as string[];
+		mutableCollision[collisionRow] = replaceGlyph(
+			driftedSource.layers.collision[collisionRow] ?? '',
+			collisionColumn,
+			'.'
+		);
+
+		await expect(retouchSundropVillagePng(inputPng, driftedSource)).rejects.toThrow(
+			`Sundrop Village retouch control fingerprint must remain 0c47a7dc58d48e87fa9dd9c290cf6835b8acc3f4eb60a4e2c1ba4eae37e4ed33`
 		);
 	});
 
@@ -284,5 +308,53 @@ describe('Sundrop Village deterministic retouch output', () => {
 		await expect(retouchSundropVillagePng(wrongInput)).rejects.toThrow(
 			/Sundrop Village retouch input SHA-256.*20a36256/
 		);
+	});
+
+	it('rejects aliased PNG and provenance paths without changing the existing file', async () => {
+		const directory = await mkdtemp(join(tmpdir(), 'gliese-retouch-alias-'));
+		const input = join(directory, 'input.png');
+		const sharedOutput = join(directory, 'shared-output');
+		const sentinel = Buffer.from('existing-output');
+		try {
+			await writeFile(input, inputPng);
+			await writeFile(sharedOutput, sentinel);
+
+			let failure: unknown;
+			try {
+				await writeSundropVillageRetouch({
+					input,
+					output: sharedOutput,
+					provenanceOutput: sharedOutput
+				});
+			} catch (error) {
+				failure = error;
+			}
+			expect(failure).toBeInstanceOf(Error);
+			expect((failure as Error).message).toMatch(
+				/PNG and provenance outputs must use distinct paths/
+			);
+			expect((await readFile(sharedOutput)).equals(sentinel)).toBe(true);
+		} finally {
+			await rm(directory, { recursive: true, force: true });
+		}
+	});
+
+	it('leaves the existing PNG untouched when provenance staging fails', async () => {
+		const directory = await mkdtemp(join(tmpdir(), 'gliese-retouch-stage-'));
+		const input = join(directory, 'input.png');
+		const output = join(directory, 'output.png');
+		const provenanceOutput = join(directory, 'missing', 'provenance.json');
+		const sentinel = Buffer.from('existing-output');
+		try {
+			await writeFile(input, inputPng);
+			await writeFile(output, sentinel);
+
+			await expect(
+				writeSundropVillageRetouch({ input, output, provenanceOutput })
+			).rejects.toThrow();
+			expect((await readFile(output)).equals(sentinel)).toBe(true);
+		} finally {
+			await rm(directory, { recursive: true, force: true });
+		}
 	});
 });
