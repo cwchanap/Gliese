@@ -357,4 +357,27 @@ describe('Sundrop Village deterministic retouch output', () => {
 			await rm(directory, { recursive: true, force: true });
 		}
 	});
+
+	it('atomically writes both the PNG and provenance sidecar on the success path', async () => {
+		const directory = await mkdtemp(join(tmpdir(), 'gliese-retouch-success-'));
+		const input = join(directory, 'input.png');
+		const output = join(directory, 'output.png');
+		const provenanceOutput = join(directory, 'provenance.json');
+		try {
+			await writeFile(input, inputPng);
+
+			const result = await writeSundropVillageRetouch({ input, output, provenanceOutput });
+
+			const writtenPng = await readFile(output);
+			const writtenProvenance = await readFile(provenanceOutput, 'utf8');
+
+			expect(writtenPng.equals(result.png)).toBe(true);
+			expect(writtenProvenance).toBe(`${JSON.stringify(result.provenance, null, 2)}\n`);
+			expect(createHash('sha256').update(writtenPng).digest('hex')).toBe(
+				EXPECTED_APPROVED_OUTPUT_SHA256
+			);
+		} finally {
+			await rm(directory, { recursive: true, force: true });
+		}
+	});
 });

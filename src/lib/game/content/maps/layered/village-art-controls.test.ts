@@ -342,3 +342,125 @@ describe('Sundrop Village HPA-307 art controls', () => {
 		}
 	});
 });
+
+describe('Sundrop Village art-control rendering edge cases', () => {
+	function makeMinimalSource() {
+		return {
+			idPrefix: 'test',
+			tileSize: 32 as const,
+			origin: { x: 0, y: 0 },
+			width: 2,
+			height: 2,
+			layers: {
+				terrain: ['..', '..'],
+				paths: ['..', '..'],
+				collision: ['..', '..'],
+				decor: ['..', '..'],
+				regions: ['..', '..']
+			},
+			decorGlyphTable: {},
+			objects: {}
+		};
+	}
+
+	function makeMinimalMap(overrides: Partial<WorldMapDefinition> = {}): WorldMapDefinition {
+		return {
+			id: 'test-map',
+			width: 2,
+			height: 2,
+			spawnDirection: 'down',
+			spawn: { x: 16, y: 16 },
+			transitions: [],
+			...overrides
+		};
+	}
+
+	function makeMinimalInputs(map: WorldMapDefinition): VillageArtControlInputs {
+		return {
+			compiledVillage: compileLayeredRegion(sundropVillageLayered),
+			map,
+			strictCollisionRects: [],
+			landmarkCollisionRects: [],
+			playerRadius: NORMALIZE_PLAYER_RADIUS,
+			doorwayClearanceWidth: NORMALIZE_DOORWAY_CLEARANCE_WIDTH,
+			transitionRadius: NORMALIZE_TRANSITION_RADIUS
+		};
+	}
+
+	it('omits the spawn marker when the map spawn falls outside the regional canvas', () => {
+		const source = makeMinimalSource();
+		const map = makeMinimalMap({ spawn: { x: 10_000, y: 10_000 } });
+		const artifacts = renderVillageArtControlArtifacts(source, makeMinimalInputs(map));
+		const anchorsSvg = artifacts.get('village-object-anchors.svg') ?? '';
+
+		expect(anchorsSvg).not.toContain('fill="#ffffff"');
+	});
+
+	it('skips building-entrance transitions that fall outside the regional canvas', () => {
+		const source = makeMinimalSource();
+		const map = makeMinimalMap({
+			transitions: [{ id: 'far-away-door', x: 10_000, y: 10_000, toMapId: 'nowhere' }]
+		});
+		const artifacts = renderVillageArtControlArtifacts(source, makeMinimalInputs(map));
+		const entranceMask = artifacts.get('village-building-entrance-mask.svg') ?? '';
+
+		expect(entranceMask).not.toContain('fill="#f97316"');
+	});
+
+	it('renders an unknown region glyph with the magenta fallback fill', () => {
+		const source = makeMinimalSource();
+		(source.layers as { regions: string[] }).regions = ['X.', '..'];
+		const artifacts = renderVillageArtControlArtifacts(source, makeMinimalInputs(makeMinimalMap()));
+		const regionMask = artifacts.get('village-region-mask.svg') ?? '';
+
+		expect(regionMask).toContain('fill="#ff00ff"');
+	});
+
+	it('omits the doorway entry when a landmark has no matching transition', () => {
+		const source = makeMinimalSource();
+		const map = makeMinimalMap({
+			landmarks: [
+				{
+					id: 'lonely-house-exterior',
+					x: 16,
+					y: 16,
+					width: 32,
+					height: 32,
+					labelKey: 'content.maps.landmarks.hero-house-exterior.label',
+					label: 'Lonely'
+				}
+			]
+		});
+		const canonical = canonicalizeVillageArtControlInputs(source, makeMinimalInputs(map));
+		const parsed = JSON.parse(canonical) as {
+			anchors: { landmarks: Array<{ id: string; doorway?: unknown }> };
+		};
+
+		expect(parsed.anchors.landmarks).toHaveLength(1);
+		expect(parsed.anchors.landmarks[0]?.doorway).toBeUndefined();
+	});
+
+	it('omits the collision field for decor items that carry no collision rect', () => {
+		const source = makeMinimalSource();
+		const map = makeMinimalMap({
+			mapDecor: [
+				{
+					id: 'non-colliding-decor',
+					x: 16,
+					y: 16,
+					width: 16,
+					height: 16,
+					textureKey: 'starter-pack',
+					frameName: 'bush'
+				}
+			]
+		});
+		const canonical = canonicalizeVillageArtControlInputs(source, makeMinimalInputs(map));
+		const parsed = JSON.parse(canonical) as {
+			anchors: { decor: Array<{ id: string; collision?: unknown }> };
+		};
+
+		expect(parsed.anchors.decor).toHaveLength(1);
+		expect(parsed.anchors.decor[0]?.collision).toBeUndefined();
+	});
+});

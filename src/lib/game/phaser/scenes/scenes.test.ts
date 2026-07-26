@@ -1016,6 +1016,43 @@ describe('BootScene', () => {
 		}
 	});
 
+	it('reports null maxTextureSize when the WebGL query throws', async () => {
+		const { regionalBackgroundAssets } = await import('$lib/game/content/assets');
+		const { REGIONAL_BACKGROUND_RENDERER_DIAGNOSTIC_EVENT } =
+			await import('$lib/game/phaser/renderer-diagnostics');
+		const { BootScene } = await import('./BootScene');
+		const target = installHudCommandTarget();
+		const now = vi.spyOn(performance, 'now');
+		now.mockReturnValueOnce(10).mockReturnValueOnce(25);
+		const diagnostics: RegionalBackgroundRendererDiagnostic[] = [];
+		target.target.addEventListener(REGIONAL_BACKGROUND_RENDERER_DIAGNOSTIC_EVENT, (event) => {
+			diagnostics.push((event as CustomEvent<RegionalBackgroundRendererDiagnostic>).detail);
+		});
+		const scene = new BootScene();
+		phaserState.gl.getParameter = vi.fn(() => {
+			throw new Error('WebGL context lost');
+		});
+
+		try {
+			scene.preload();
+			scene.load.emit('filecomplete', regionalBackgroundAssets[0]!.key, 'image', {});
+			scene.load.emit('complete');
+
+			expect(diagnostics).toEqual([
+				{
+					renderer: 'webgl',
+					maxTextureSize: null,
+					regionalBackgroundLoadMs: 15,
+					regionalBackgroundLoadCompletions: 1
+				}
+			]);
+		} finally {
+			phaserState.gl.getParameter = vi.fn(() => 4096);
+			now.mockRestore();
+			target.restore();
+		}
+	});
+
 	it('reports Canvas with no texture limit without touching WebGL', async () => {
 		const { regionalBackgroundAssets } = await import('$lib/game/content/assets');
 		const { REGIONAL_BACKGROUND_RENDERER_DIAGNOSTIC_EVENT } =
