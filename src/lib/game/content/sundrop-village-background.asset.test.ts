@@ -10,20 +10,19 @@ import {
 	SUNDROP_VILLAGE_BACKGROUND_WIDTH,
 	sundropVillageBackgroundAlpha
 } from '$lib/game/content/backgrounds/sundrop-village-background';
-import { validateSundropVillagePng } from '$lib/game/content/backgrounds/sundrop-village-png';
+import {
+	finalizeSundropVillagePng,
+	validateSundropVillagePng
+} from '$lib/game/content/backgrounds/sundrop-village-png';
+import {
+	retouchSundropVillagePng,
+	SUNDROP_VILLAGE_RETOUCH_INPUT_PATH
+} from '$lib/game/content/backgrounds/sundrop-village-retouch';
 import { sundropVillageBackgroundApproval } from '$lib/game/content/approvals/sundrop-village-background';
 import { SUNDROP_VILLAGE_ART_CONTROL_FINGERPRINT } from '$lib/game/content/generated/sundrop-village-art-control';
-import { compileLayeredRegion } from '$lib/game/content/maps/layered/compile-layered-region';
+import { buildVillageArtControlInputs } from '$lib/game/content/maps/layered/village-art-control-inputs';
 import { computeVillageArtControlFingerprint } from '$lib/game/content/maps/layered/village-art-controls';
 import { sundropVillageLayered } from '$lib/game/content/maps/regions/village-layered';
-import { meadowEntryMap } from '$lib/game/content/maps/meadow-entry';
-import {
-	NORMALIZE_DOORWAY_CLEARANCE_WIDTH,
-	NORMALIZE_PLAYER_RADIUS,
-	NORMALIZE_TRANSITION_RADIUS,
-	collectLandmarkRects,
-	collectStrictCollisionRects
-} from '$lib/game/save/save-state';
 import sharp from 'sharp';
 import { describe, expect, it } from 'vitest';
 
@@ -38,6 +37,11 @@ const approvalPath = join(
 const manifestPath = join(
 	repositoryRoot,
 	'docs/superpowers/reports/img/hpa-307/village-art-control-manifest.json'
+);
+const retouchInputPath = join(repositoryRoot, SUNDROP_VILLAGE_RETOUCH_INPUT_PATH);
+const retouchProvenancePath = join(
+	repositoryRoot,
+	'docs/superpowers/reports/img/hpa-307/village-background-retouch.json'
 );
 
 let loadedAsset:
@@ -73,15 +77,10 @@ describe('Sundrop Village production background approval', () => {
 	});
 
 	it('keeps the approved master tied to current control geometry', async () => {
-		const currentFingerprint = computeVillageArtControlFingerprint(sundropVillageLayered, {
-			compiledVillage: compileLayeredRegion(sundropVillageLayered),
-			map: meadowEntryMap,
-			strictCollisionRects: collectStrictCollisionRects(meadowEntryMap),
-			landmarkCollisionRects: collectLandmarkRects(meadowEntryMap),
-			playerRadius: NORMALIZE_PLAYER_RADIUS,
-			doorwayClearanceWidth: NORMALIZE_DOORWAY_CLEARANCE_WIDTH,
-			transitionRadius: NORMALIZE_TRANSITION_RADIUS
-		});
+		const currentFingerprint = computeVillageArtControlFingerprint(
+			sundropVillageLayered,
+			buildVillageArtControlInputs()
+		);
 		const manifest = JSON.parse(await readFile(manifestPath, 'utf8')) as {
 			readonly computedControlFingerprint: string;
 		};
@@ -91,6 +90,20 @@ describe('Sundrop Village production background approval', () => {
 		expect(currentFingerprint, staleGeometryMessage).toBe(
 			sundropVillageBackgroundApproval.approvedControlFingerprint
 		);
+	});
+
+	it('reproduces the committed retouch provenance and final runtime PNG', async () => {
+		const [retouchInput, committedProvenance, committedRuntimePng] = await Promise.all([
+			readFile(retouchInputPath),
+			readFile(retouchProvenancePath),
+			readFile(assetPath)
+		]);
+		const retouched = await retouchSundropVillagePng(retouchInput);
+		const finalized = await finalizeSundropVillagePng(retouched.png, 0);
+
+		expect(retouched.provenanceJson.equals(committedProvenance)).toBe(true);
+		expect(finalized.png.equals(committedRuntimePng)).toBe(true);
+		expect(finalized.sha256).toBe(sundropVillageBackgroundApproval.approvedPngSha256);
 	});
 
 	it('matches the approved PNG bytes, alpha edge, and size-budget disposition', async () => {

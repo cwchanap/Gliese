@@ -5,6 +5,8 @@ import { basename, dirname, resolve } from 'node:path';
 import sharp from 'sharp';
 
 import { SUNDROP_VILLAGE_ART_CONTROL_FINGERPRINT } from '$lib/game/content/generated/sundrop-village-art-control';
+import { buildVillageArtControlInputs } from '$lib/game/content/maps/layered/village-art-control-inputs';
+import { computeVillageArtControlFingerprint } from '$lib/game/content/maps/layered/village-art-controls';
 import { sundropVillageLayered } from '$lib/game/content/maps/regions/village-layered';
 
 import {
@@ -552,7 +554,7 @@ async function retouchRgba(
 
 export async function retouchSundropVillagePng(
 	input: Buffer,
-	source: SundropVillageRetouchMaskSource = sundropVillageLayered
+	source: typeof sundropVillageLayered = sundropVillageLayered
 ): Promise<SundropVillageRetouchResult> {
 	const inputSha256 = sha256(input);
 	if (inputSha256 !== EXPECTED_INPUT_SHA256) {
@@ -560,9 +562,18 @@ export async function retouchSundropVillagePng(
 			`Sundrop Village retouch input SHA-256 must be ${EXPECTED_INPUT_SHA256}; received ${inputSha256}`
 		);
 	}
-	if (SUNDROP_VILLAGE_ART_CONTROL_FINGERPRINT !== EXPECTED_CONTROL_FINGERPRINT) {
+	const controlFingerprint = computeVillageArtControlFingerprint(
+		source,
+		buildVillageArtControlInputs(source)
+	);
+	if (controlFingerprint !== EXPECTED_CONTROL_FINGERPRINT) {
 		throw new Error(
-			`Sundrop Village retouch control fingerprint must remain ${EXPECTED_CONTROL_FINGERPRINT}; received ${SUNDROP_VILLAGE_ART_CONTROL_FINGERPRINT}`
+			`Sundrop Village retouch control fingerprint must remain ${EXPECTED_CONTROL_FINGERPRINT}; received ${controlFingerprint}`
+		);
+	}
+	if (SUNDROP_VILLAGE_ART_CONTROL_FINGERPRINT !== controlFingerprint) {
+		throw new Error(
+			`Sundrop Village generated control fingerprint must match current geometry ${controlFingerprint}; received ${SUNDROP_VILLAGE_ART_CONTROL_FINGERPRINT}`
 		);
 	}
 
@@ -622,7 +633,7 @@ export async function retouchSundropVillagePng(
 			colorType: 'RGBA',
 			alpha: 'opaque'
 		},
-		controlFingerprint: SUNDROP_VILLAGE_ART_CONTROL_FINGERPRINT,
+		controlFingerprint,
 		spatialTransform: 'same-coordinate-additive-rgb',
 		masks: {
 			source: 'sundropVillageLayered.layers.regions+paths',
@@ -653,7 +664,15 @@ export async function retouchSundropVillagePng(
 	return { png, provenance, provenanceJson };
 }
 
-async function writeAtomic(outputPath: string, contents: Uint8Array): Promise<void> {
+interface StagedRetouchOutput {
+	readonly output: string;
+	readonly temporary: string;
+}
+
+async function stageRetouchOutput(
+	outputPath: string,
+	contents: Uint8Array
+): Promise<StagedRetouchOutput> {
 	const output = resolve(outputPath);
 	const temporary = resolve(
 		dirname(output),
@@ -661,7 +680,7 @@ async function writeAtomic(outputPath: string, contents: Uint8Array): Promise<vo
 	);
 	try {
 		await writeFile(temporary, contents, { flag: 'wx' });
-		await rename(temporary, output);
+		return { output, temporary };
 	} catch (error) {
 		await unlink(temporary).catch(() => undefined);
 		throw error;
@@ -671,9 +690,22 @@ async function writeAtomic(outputPath: string, contents: Uint8Array): Promise<vo
 export async function writeSundropVillageRetouch(
 	options: WriteSundropVillageRetouchOptions
 ): Promise<SundropVillageRetouchResult> {
+	const output = resolve(options.output);
+	const provenanceOutput = resolve(options.provenanceOutput);
+	if (output === provenanceOutput) {
+		throw new Error('Sundrop Village retouch PNG and provenance outputs must use distinct paths');
+	}
+
 	const input = await readFile(options.input);
 	const result = await retouchSundropVillagePng(input);
-	await writeAtomic(options.output, result.png);
-	await writeAtomic(options.provenanceOutput, result.provenanceJson);
-	return result;
+	const staged: StagedRetouchOutput[] = [];
+	try {
+		staged.push(await stageRetouchOutput(output, result.png));
+		staged.push(await stageRetouchOutput(provenanceOutput, result.provenanceJson));
+		for (const item of staged) await rename(item.temporary, item.output);
+		return result;
+	} catch (error) {
+		await Promise.all(staged.map(({ temporary }) => unlink(temporary).catch(() => undefined)));
+		throw error;
+	}
 }
