@@ -291,36 +291,47 @@ corrected control, fingerprint chain, unchanged base PNG, and explicit reapprova
   `meadow-west-boundary` again spans the authored full map height and renders all 134
   `forest-dressing/treeCluster` images.
 - A renderer regression now preserves that complete outer boundary independently of the
-  covered-village-hedge suppression below. Its collision, the remaining map boundaries, and
+  village-hedge render described below. Its collision, the remaining map boundaries, and
   the village room graph are unchanged from their pre-follow-up behavior.
 
-## 2026-07-26 follow-up: covered village hedge overlay
+## 2026-07-26 follow-up: village hedge overlay retained
 
-- Further clarification identified the unwanted green tree-like obstacle as the repeated
-  `village-hedge/hedgeSegment` artwork laid over the baked background, not the scarecrow or
-  the separate west map-edge tree wall.
+- Further clarification initially identified the repeated
+  `village-hedge/hedgeSegment` artwork laid over the baked background as an unwanted
+  green tree-like obstacle, not the scarecrow or the separate west map-edge tree wall.
 - The authored `#` collision cells compile to 23 `village-block-*` `garden-hedge`
-  rectangles. `WorldScene` previously rendered them unconditionally after the regional
-  background, expanding them to 224 repeated hedge images; the Home Yard boundary runs
-  accounted for 85 of those images. One four-segment corridor wall is also fully covered, so
-  228 hedge images in total duplicated the baked region.
-- `renderRegionalBackgrounds(...)` now reports only descriptors whose textures existed,
-  passed immutable dimension validation, and rendered. `renderBlockers(...)` suppresses the
-  hedge sprite only for `garden-hedge` blockers fully contained by one of those rendered
-  bounds. The 15 external `corridor-wall-*` garden hedges remain visible as 101 segments.
+  rectangles. `WorldScene` renders them unconditionally after the regional background,
+  expanding them to 224 repeated hedge images; the Home Yard boundary accounts for 85 of
+  those images. One four-segment corridor wall is also fully covered, so 228 hedge images
+  in total overlay the baked region. The 15 external `corridor-wall-*` garden hedges
+  remain visible as 101 segments.
+- A covered-village-hedge suppression was attempted (commit `2307907`):
+  `renderBlockers(...)` skipped the hedge sprite for `garden-hedge` blockers fully
+  contained by a rendered regional background bounds. That suppression was reverted
+  (commit `e32cfdc`) because the approved regional background is ground-only and depicts
+  no hedges, walls, or tall silhouettes (per the production prompt's avoid list), so
+  suppressing the live sprites left authored collision walls invisible: players would
+  walk toward open ground and stop against unseen hedges, including the near-full-width
+  southern boundary.
+- Final behavior: `WorldScene` renders `garden-hedge` segments unconditionally in every
+  mode (enabled, disabled, missing-texture, wrong-sized, collision overlay). All 228
+  in-village hedge segments remain visible on top of the baked background; the four
+  scene-suite assertions at `scenes.test.ts` (lines 2570, 2591, 2619, 2654) enforce this
+  count. `renderRegionalBackgrounds(...)` still reports only descriptors whose textures
+  existed, passed immutable dimension validation, and rendered, but that report no longer
+  gates hedge rendering.
 - Collision and navigation are unchanged: every compiled blocker remains in
   `meadowEntryMap.blockers`, continues to block player movement, remains available to the
   collision overlay and save normalization, and still contributes to the source-derived art
-  controls. Disabled, missing, and wrong-sized regional backgrounds retain the original live
-  hedge visuals with fallback ground.
-- The renderer regression was written first and failed against the previous scene because a
-  covered hedge marker was still present. It now covers the valid-background suppression,
-  external-wall preservation, disabled/missing/wrong-sized fallback branches, and continued
-  movement collision.
-- The refreshed
-  [Home Yard capture](img/hpa-307/runtime-district-home-yard.png) confirms that the green
-  hedge overlay is absent while the unrelated outer west tree line, baked terrain, building,
-  flower bed, NPC, and HUD remain intact.
+  controls.
+- The renderer regression was written first and now covers the unconditional render, the
+  228-segment in-village count, external-wall preservation, disabled/missing/wrong-sized
+  fallback branches, and continued movement collision.
+- The [Home Yard capture](img/hpa-307/runtime-district-home-yard.png) predates the revert
+  and shows the briefly-attempted suppressed state; it is retained as historical evidence
+  of the attempted suppression and should not be read as proof of the final visual. A
+  refreshed capture showing the 228 live hedge segments over the baked background is
+  pending a headed run.
 - Current gates pass: the complete scene suite has 189 tests; the complete unit suite has
   51 files and 833 tests when run without file-level parallelism; the complete Playwright
   suite has 17 scenarios; art validation has 22 tests; Svelte check reports zero
@@ -731,9 +742,12 @@ before the reviewed copies were committed.
   exactly after reload.
 - The six district captures remain visually distinct while live buildings, NPCs, door
   approaches, labels, minimap, and HUD remain legible.
-- The refreshed Home Yard capture confirms that the green live hedge overlay and removed
-  upright scarecrow are absent while the unrelated outer west map-boundary tree line and
-  baked terrain remain readable.
+- The Home Yard capture predates the final hedge correction and shows the
+  briefly-attempted suppressed state. The final render keeps all 228 live
+  `garden-hedge` segments visible over the baked background (see the 2026-07-26
+  follow-up above); the upright scarecrow remains removed and the outer west
+  map-boundary tree line remains readable. A refreshed capture matching the final
+  render is pending a headed run.
 - The four seam captures retain open transition geometry and alpha blending without a hard
   missing-texture boundary. They also make the still-noticeable rich-baked-to-plain-fallback
   material shift explicit instead of treating alpha blending as an invisible seam.
