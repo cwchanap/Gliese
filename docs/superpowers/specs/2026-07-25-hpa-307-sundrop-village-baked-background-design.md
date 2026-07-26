@@ -45,9 +45,33 @@ The master is not divided into independently generated chunks. Runtime cropping 
 implemented in HPA-307; a supported-target texture-limit failure triggers a measured,
 separately designed follow-up.
 
+### Approved visual-review revision
+
+The first integrated master proved the runtime architecture and alignment contract, but its
+visual review identified two presentation changes before HPA-307 can be accepted:
+
+1. **Make the background richer through authored district identity.** The current master
+   already contains substantial fine surface texture. The revision must add environmental
+   structure at broad and medium scales rather than merely increasing high-frequency noise.
+   Home Yard, Well Plaza, Market Lane, North Residences/Guild, Shrine Garden, and East Gate
+   each receive a recognizable material and wear pattern while retaining quiet navigation
+   and interaction zones.
+2. **Remove the Home Yard scarecrow.** The scarecrow is a live, non-colliding decor glyph,
+   so removing its placement changes presentation without changing collision or navigation.
+   Its former footprint remains open and receives only flat baked ground detail; no upright
+   replacement prop is added.
+
+The revised master is reviewed across the complete Sundrop Village, not only the opening
+Home Yard camera. Other opening-map regions and visually redesigned building interiors
+remain separate future work. HPA-307 continues to validate entering and exiting every
+existing interior, but does not bake or re-author those rooms.
+
 ## Goals
 
 - Render one coherent Sundrop Village background aligned to the 56×48 layered source.
+- Give each village district a distinct, readable ground-material identity without
+  increasing route clutter.
+- Remove the non-colliding Home Yard scarecrow without changing gameplay geometry.
 - Keep collision, navigation, minimap, transitions, rewards, NPCs, and saves unchanged.
 - Keep buildings and every interactive, animated, stateful, foreground, or
   collision-bearing object live.
@@ -65,6 +89,8 @@ separately designed follow-up.
 - Baking buildings, doors, signs, labels, NPCs, pickups, quest objects, tall props, arches,
   trees, foreground objects, or animations.
 - Migrating any opening-map region other than Sundrop Village.
+- Visually redesigning or baking Hero's House, Guild Hall, Item Shop, villager houses, or
+  the Shrine of Aurora interior.
 - Adding HUD controls, settings UI, save fields, day/night variants, weather, or animation.
 - Replacing the layered source, compiler, minimap, or fallback tile renderer.
 - Generating independent visual chunks before approving a coherent regional master.
@@ -578,15 +604,29 @@ digest for review but cannot create or update the approval record.
 
 ### Visual composition
 
-The approved master provides:
+The approved revision treats “richer” as authored environmental structure, not uniform
+micro-detail. Detail is composed at three scales:
 
-- varied grass and packed soil;
-- organic road edges and irregular cobblestone;
-- worn tracks, erosion, drainage, moss, stones, weeds, and flowers;
-- richer garden beds and shrine-season ground dressing;
-- subtle ground relief that never implies false collision;
-- foundation wear and contact shadows aligned to live footprints;
-- strong regional character without changing the room graph.
+1. broad material and color zones establish district identity;
+2. medium wear, erosion, and edge patterns explain use and movement;
+3. small flowers, stones, moss, and surface marks reward close inspection.
+
+The districts use these ground-level identities:
+
+| District | Approved treatment |
+| --- | --- |
+| Home Yard | warm compacted soil, gentle doorway traffic, restrained garden traces, and low perimeter vegetation; no scarecrow or replacement upright prop |
+| Well Plaza | deliberate radial wear, aged stone variation, damp-edge moss, and clear material connections to each outgoing route |
+| Market Lane | wheel ruts, scattered straw-like ground marks, worn cobble transitions, and earthier working-area colors |
+| North Residences / Guild | tidier paths, firmer stone edging, and lower floral density for a modest civic character |
+| Shrine Garden | softer moss, pale gravel, fallen petals, and cooler stone tones with the existing autumn accent |
+| East Gate | a broader travel-worn road, embedded stones, and vegetation that gradually thins toward the Crossroads handoff |
+
+Across those districts, the master provides varied grass and packed soil, organic road
+edges, irregular cobblestone, drainage, foundation wear, contact shadows aligned to live
+footprints, and subtle ground relief that never implies false collision. The revision may
+reduce or reorganize existing micro-texture where doing so creates a clearer visual
+hierarchy.
 
 Lighting is fixed from the upper left to remain coherent with the existing live sprites. The
 palette is warm and lush, with a distinct autumn accent around the shrine.
@@ -598,6 +638,10 @@ Detail density follows navigation:
 - **medium detail:** yards and secondary open spaces;
 - **low detail:** critical routes, plazas, doorway approaches, reward approaches, and
   transition throats.
+
+Doorway approaches, NPC standing areas, collision corridors, and transition throats must
+remain visually calmer than their surroundings even when the containing district receives
+additional structure.
 
 ### Baked versus live contract
 
@@ -611,6 +655,13 @@ Detail density follows navigation:
 
 The master contains no signs, labels, text, false entrances, building silhouettes, tall
 objects, or visually collision-bearing structures.
+
+The live scarecrow placement is removed from `sundropVillageLayered.layers.decor`, and its
+unused `s` glyph specification is removed from the village decor table. Because that glyph
+has no `collision` member, the collision layer and all navigation contracts remain
+byte-for-byte unchanged. Regenerating controls intentionally changes the control fingerprint
+and removes the scarecrow anchor from the object/control evidence; it must not change the
+composed collision mask.
 
 ### Regional edge treatment
 
@@ -713,6 +764,11 @@ Review artifacts include whole-map alignment views and close crops for:
 - every building doorway and transition approach;
 - all four regional canvas edges.
 
+The richer revision refreshes this complete evidence set. Screenshots from the first
+integrated master may remain as explicitly labeled “before” comparisons, but they cannot be
+reused as proof for the revised PNG. The Home Yard crop must show that the scarecrow is
+absent, its former space remains open, and no baked mark reads as a substitute obstacle.
+
 The load-failure run also saves a screenshot artifact beside the
 `?regionalBackground=off` baseline. Human review of that pair—not DOM/canvas visibility
 alone—is the evidence that fallback tile pixels are visible and no missing-texture
@@ -737,6 +793,11 @@ Enter and exit every village interior. Confirm no corner snagging, false route c
 transition, NPC obstruction, or misleading visual obstacle. Save and reload in Home Yard,
 Well Plaza, Shrine Garden, and East Gate and confirm positions and navigation remain
 unchanged.
+
+The walkthrough explicitly verifies that the Home Yard contains no scarecrow, that its
+former location remains traversable, and that no collision or substitute upright prop was
+introduced. Interior traversal is regression evidence only; the interiors retain their
+existing live floor, furniture, NPC, transition, and collision presentation.
 
 ### Loading and GPU review
 
@@ -833,6 +894,24 @@ The final report at
 records the controller walkthrough and browser/Tauri performance evidence. Automated gates
 do not claim that the device-local p95 number is CI-portable.
 
+## Follow-up boundary
+
+No current Linear issue schedules the remaining regional backgrounds or a baked interior
+art pass. Those expansions must not be folded into HPA-307 after this prototype review.
+Recommended follow-up tracks are:
+
+1. **Regional background rollout:** apply the proven source-derived controls, exact
+   alignment, fallback, and evidence workflow to Crossroads, Wildwood, Coast, Mistfen, and
+   Silverpine. Each region receives its own environmental identity and independently
+   reviewable artifact.
+2. **Baked interior environment pilot:** begin with Hero's House and Guild Hall to establish
+   reusable floor, wall, lighting, and furniture-grounding rules, then expand to Item Shop,
+   the villager houses, and the Shrine of Aurora interior. Doors, furniture, NPCs,
+   collision, and all interactive objects remain live.
+
+Creating and scheduling those Linear issues is an explicit product-planning action after
+the HPA-307 revision plan is accepted; their absence does not block this prototype.
+
 ## Alternatives considered
 
 ### Mask-driven material composition
@@ -859,6 +938,8 @@ product/design work rather than an implicit contingency in this issue.
 | HPA-307 acceptance requirement | Design mechanism |
 | --- | --- |
 | coherent rich regional surface | one generated and cleaned master |
+| distinct district identity | six approved material/wear treatments reviewed at three detail scales |
+| open Home Yard without scarecrow | remove the non-colliding live glyph; use flat baked detail only |
 | layered geometry remains authoritative | display-only background descriptor |
 | live buildings and interactions | explicit baked/live contract and render ordering |
 | exact route and doorway alignment | source-derived masks, overlays, and walkthrough |
@@ -874,6 +955,10 @@ product/design work rather than an implicit contingency in this issue.
 HPA-307 is complete when:
 
 - the approved `1792×1536` master is committed and fingerprint-current;
+- all six village districts show the approved broad-, medium-, and small-scale material
+  identity while critical paths and interaction zones remain calm;
+- the Home Yard scarecrow is absent, its former space remains open, and no replacement
+  upright prop or collision is introduced;
 - the encoded master meets the `4 MiB` review target or carries an explicit visual-quality
   exception, and is at or below the hard `8 MiB` limit after deterministic finalization;
 - the committed master matches the manually approved PNG SHA-256;
