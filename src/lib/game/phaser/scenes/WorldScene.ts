@@ -1603,11 +1603,11 @@ export class WorldScene extends Phaser.Scene {
 			return;
 		}
 
-		for (const background of map.backgroundImages ?? []) {
-			const textureManager = this.textures as typeof this.textures & {
-				exists?: (key: string) => boolean;
-			};
+		const textureManager = this.textures as typeof this.textures & {
+			exists?: (key: string) => boolean;
+		};
 
+		for (const background of map.backgroundImages ?? []) {
 			if (!textureManager.exists?.(background.textureKey)) {
 				console.warn(
 					`[WorldScene] regional background unavailable: id="${background.id}" textureKey="${background.textureKey}" mapId="${map.id}"`
@@ -1619,7 +1619,7 @@ export class WorldScene extends Phaser.Scene {
 
 			if (!dimensions) {
 				console.warn(
-					`[WorldScene] regional background unavailable: id="${background.id}" textureKey="${background.textureKey}" mapId="${map.id}"`
+					`[WorldScene] regional background source dimensions unavailable: id="${background.id}" textureKey="${background.textureKey}" mapId="${map.id}"`
 				);
 				continue;
 			}

@@ -1,27 +1,27 @@
 {
   "schemaVersion": 1,
-  "capturedAtIso": "2026-07-26T22:39:59.419Z",
-  "commit": "e32cfdc74c49adbf81f7a9fa3d4a0e8ecb8f2bd7",
+  "capturedAtIso": "2026-07-27T06:29:24.149Z",
+  "commit": "f6e2d5d6de44e6d8e5fdff9532af2dce65e75298",
   "sourceBinding": {
-    "sourceCommit": "e32cfdc74c49adbf81f7a9fa3d4a0e8ecb8f2bd7",
+    "sourceCommit": "f6e2d5d6de44e6d8e5fdff9532af2dce65e75298",
     "productTreeCleanOutsideEvidence": true,
     "build": {
       "command": "rtk bun run build",
-      "startedAtIso": "2026-07-26T22:39:52.154Z",
-      "completedAtIso": "2026-07-26T22:39:54.144Z",
+      "startedAtIso": "2026-07-27T06:29:17.786Z",
+      "completedAtIso": "2026-07-27T06:29:19.418Z",
       "exitCode": 0
     },
     "preview": {
-      "command": "rtk bun run preview -- --host 127.0.0.1 --port 59635 --strictPort",
+      "command": "rtk bun run preview -- --host 127.0.0.1 --port 53341 --strictPort",
       "ownedByRunner": true,
-      "pid": 38872,
-      "baseUrl": "http://127.0.0.1:59635/",
-      "startedAtIso": "2026-07-26T22:39:54.149Z",
-      "readyAtIso": "2026-07-26T22:39:54.691Z",
+      "pid": 17478,
+      "baseUrl": "http://127.0.0.1:53341/",
+      "startedAtIso": "2026-07-27T06:29:19.421Z",
+      "readyAtIso": "2026-07-27T06:29:19.850Z",
       "markerVerified": true
     },
     "servedProductionAsset": {
-      "url": "http://127.0.0.1:59635/game/assets/regions/sundrop-village-background.png",
+      "url": "http://127.0.0.1:53341/game/assets/regions/sundrop-village-background.png",
       "bytes": 7601173,
       "sha256": "3933829f19e7eab4b26ba2d31c7a0cfac25d4fae0a16196893fac6dbf02187c1",
       "matchesLocalProductionAsset": true
@@ -37,7 +37,7 @@
   },
   "mode": "collision-overlay",
   "query": "?mapDebug=collision",
-  "url": "http://127.0.0.1:59635/?mapDebug=collision",
+  "url": "http://127.0.0.1:53341/?mapDebug=collision",
   "productionAsset": {
     "path": "public/game/assets/regions/sundrop-village-background.png",
     "bytes": 7601173,
@@ -45,27 +45,27 @@
   },
   "screenshot": {
     "path": "docs/superpowers/reports/img/hpa-307/runtime-background-collision.png",
-    "bytes": 1126137,
-    "sha256": "a62f8a964e8dd417596319ee1c8de3274763a58004435c2fbfb29d1f8b54551d"
+    "bytes": 1126130,
+    "sha256": "b74582a98ce749edf42e07c01bd9d3d99bcdd40595690047b234f5be083acd8d"
   },
   "assetInterception": null,
   "probe": {
     "exactRegionalRequests": [
       {
-        "url": "http://127.0.0.1:59635/game/assets/regions/sundrop-village-background.png",
+        "url": "http://127.0.0.1:53341/game/assets/regions/sundrop-village-background.png",
         "method": "GET",
         "resourceType": "xhr",
-        "atIso": "2026-07-26T22:39:58.717Z"
+        "atIso": "2026-07-27T06:29:23.510Z"
       }
     ],
     "exactRegionalRequestCount": 1,
     "diagnostics": [
       {
-        "receivedAtMs": 415.0999999642372,
+        "receivedAtMs": 411.10000002384186,
         "detail": {
           "renderer": "webgl",
           "maxTextureSize": 16384,
-          "regionalBackgroundLoadMs": 241.80000001192093,
+          "regionalBackgroundLoadMs": 235.0999999642372,
           "regionalBackgroundLoadCompletions": 1
         }
       }
@@ -73,7 +73,7 @@
     "contextLossCount": 0,
     "texImage2DCalls": [
       {
-        "atMs": 372.7999999523163,
+        "atMs": 369.5,
         "context": "webgl",
         "argumentCount": 6,
         "width": 1792,
@@ -81,6 +81,19 @@
       }
     ],
     "pageErrors": [],
-    "consoleErrors": []
+    "consoleErrors": [
+      {
+        "type": "error",
+        "text": "Failed to load resource: the server responded with a status of 404 (Not Found)"
+      }
+    ],
+    "failedResponses": [
+      {
+        "url": "http://127.0.0.1:53341/favicon.ico",
+        "status": 404,
+        "statusText": "Not Found",
+        "atIso": "2026-07-27T06:29:23.366Z"
+      }
+    ]
   }
 }

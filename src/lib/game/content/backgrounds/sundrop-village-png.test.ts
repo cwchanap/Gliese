@@ -711,9 +711,8 @@ describe('Sundrop Village PNG normalization guards', () => {
 describe('Sundrop Village PNG hard-limit guard', () => {
 	it('rejects a non-positive or non-integer maxBytes before reading the input', async () => {
 		const directory = await makeTemporaryDirectory();
-		const input = join(directory, 'valid.png');
+		const input = join(directory, 'nonexistent.png');
 		const output = join(directory, 'output.png');
-		await writeFile(input, opaqueFixture);
 
 		await expect(
 			writeFinalizedSundropVillagePng({ input, output, tier: 0, maxBytes: 0 })
