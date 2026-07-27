@@ -317,9 +317,9 @@ corrected control, fingerprint chain, unchanged base PNG, and explicit reapprova
   mode (enabled, disabled, missing-texture, wrong-sized, collision overlay). All 228
   in-village hedge segments remain visible on top of the baked background; the four
   scene-suite assertions at `scenes.test.ts` (lines 2570, 2591, 2619, 2654) enforce this
-  count. `renderRegionalBackgrounds(...)` still reports only descriptors whose textures
-  existed, passed immutable dimension validation, and rendered, but that report no longer
-  gates hedge rendering.
+  count. `renderRegionalBackgrounds(...)` renders only backgrounds whose textures exist
+  and pass immutable dimension validation; background rendering no longer gates hedge
+  rendering.
 - Collision and navigation are unchanged: every compiled blocker remains in
   `meadowEntryMap.blockers`, continues to block player movement, remains available to the
   collision overlay and save normalization, and still contributes to the source-derived art
@@ -327,11 +327,13 @@ corrected control, fingerprint chain, unchanged base PNG, and explicit reapprova
 - The renderer regression was written first and now covers the unconditional render, the
   228-segment in-village count, external-wall preservation, disabled/missing/wrong-sized
   fallback branches, and continued movement collision.
-- The [Home Yard capture](img/hpa-307/runtime-district-home-yard.png) predates the revert
-  and shows the briefly-attempted suppressed state; it is retained as historical evidence
-  of the attempted suppression and should not be read as proof of the final visual. A
-  refreshed capture showing the 228 live hedge segments over the baked background is
-  pending a headed run.
+- The [Home Yard capture](img/hpa-307/runtime-district-home-yard.png) was regenerated
+  from the reverted commit `e32cfdc` in `91f7858` (SHA-256
+  `a5ccd62a2d8fd790269bf359880a2bdd219f7212208e5e48007970139a386cc5`, 1,120,286 bytes) and
+  is distinct from the suppression-era capture at `2307907` (SHA-256
+  `d4cf59984bce45fb53e8a439847be8de4e6a8feb90d43db146c61b75dbb55630`, 1,117,401 bytes). It
+  is the current visual evidence and shows the 228 live hedge segments over the baked
+  background, satisfying the design spec's Home Yard evidence contract.
 - Current gates pass: the complete scene suite has 189 tests; the complete unit suite has
   51 files and 833 tests when run without file-level parallelism; the complete Playwright
   suite has 17 scenarios; art validation has 22 tests; Svelte check reports zero
@@ -742,12 +744,10 @@ before the reviewed copies were committed.
   exactly after reload.
 - The six district captures remain visually distinct while live buildings, NPCs, door
   approaches, labels, minimap, and HUD remain legible.
-- The Home Yard capture predates the final hedge correction and shows the
-  briefly-attempted suppressed state. The final render keeps all 228 live
-  `garden-hedge` segments visible over the baked background (see the 2026-07-26
-  follow-up above); the upright scarecrow remains removed and the outer west
-  map-boundary tree line remains readable. A refreshed capture matching the final
-  render is pending a headed run.
+- The Home Yard capture was regenerated from the reverted commit `e32cfdc` in `91f7858`
+  and shows the final render with all 228 live `garden-hedge` segments visible over the
+  baked background (see the 2026-07-26 follow-up above); the upright scarecrow remains
+  removed and the outer west map-boundary tree line remains readable.
 - The four seam captures retain open transition geometry and alpha blending without a hard
   missing-texture boundary. They also make the still-noticeable rich-baked-to-plain-fallback
   material shift explicit instead of treating alpha blending as an invisible seam.
