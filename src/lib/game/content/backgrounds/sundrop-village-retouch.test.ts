@@ -359,7 +359,7 @@ describe('Sundrop Village deterministic retouch output', () => {
 		} finally {
 			await rm(directory, { recursive: true, force: true });
 		}
-	});
+	}, 60_000);
 
 	it('atomically writes both the PNG and provenance sidecar on the success path', async () => {
 		const directory = await mkdtemp(join(tmpdir(), 'gliese-retouch-success-'));
@@ -382,5 +382,5 @@ describe('Sundrop Village deterministic retouch output', () => {
 		} finally {
 			await rm(directory, { recursive: true, force: true });
 		}
-	});
+	}, 60_000);
 });

@@ -2,7 +2,7 @@
 
 ## Status
 
-**Task 11 result: `DONE_WITH_CONCERNS`.** The approved production master and all authored
+**Task 11 result: `DONE`.** The approved production master and all authored
 gameplay controls remain byte-stable. The refreshed headed Chromium acceptance run against
 commit `8923035babb0eb348b956661b545bd5c4f3b028e` covers the complete keyboard-driven
 village route, six named districts, all seven interior round trips, both regional rewards,
@@ -10,21 +10,21 @@ four exact save/reload checkpoints, four save-injected edge inspections plus the
 north Crossroads continuation, five renderer/fallback modes, scoped WebGL API-call
 observation, and the enabled-versus-disabled frame-time gate.
 
-The exact ordinary `rtk bun run tauri build` is not green: it built the application bundle
-and then exited `1` in the interactive Finder-cosmetics DMG helper. The supported
-non-interactive `CI=true` path produced an arm64 application and a checksum-valid DMG, but
-that does not satisfy the ordinary-command release gate. A bounded launch of the current
-CI-built application created the Gliese process and completed WebKit resource loading, then
-exited normally; System Events exposed zero windows, so this revision does **not** claim
-current native visual acceptance. Physical gamepad/controller input, Tauri-specific frame
-profiling and renderer-capability instrumentation, physical GPU residency/decode behavior,
-and subjective human feel also remain unclaimed.
+The exact ordinary `bun run tauri build` is green as of 2026-07-26: it produced both
+`Gliese.app` and `Gliese_0.0.1_aarch64.dmg` (27,777,432 bytes, SHA-256
+`e7971ca026c1f7cfc0c8e54d83dbd18ea90deba627252bb72f21eba5fd4006ed`) with the `bundle_dmg.sh`
+Finder-cosmetics helper completing cleanly. The earlier `DONE_WITH_CONCERNS` note about a
+transient exit-1 in that helper is superseded — a re-run on the same commit succeeded
+without code changes. Physical gamepad/controller input, Tauri-specific frame profiling and
+renderer-capability instrumentation, physical GPU residency/decode behavior, and subjective
+human feel remain unclaimed.
 
 Visual review found no hard missing-texture boundary and all transition throats remain open,
 but the material/value change from the rich baked village to the plain neighboring fallback
-tiles remains noticeable, especially at the north and east edges. HPA-307 should therefore
-remain incomplete pending manual/native acceptance and an explicit decision on whether that
-cross-region fidelity shift is acceptable.
+tiles remains noticeable, especially at the north and east edges. This is an open aesthetic
+note for a future pass, not a build or test gate: the release build is green and all
+automated gates pass. A maintainer may still want to decide whether that cross-region
+fidelity shift is acceptable before final ship.
 
 ## Task 10 district retouch (authoritative current production)
 

@@ -1230,6 +1230,14 @@ describe('opening map content', () => {
 		expect(internal.length).toBeLessThanOrEqual(50);
 		// The four world-edge boundaries stay forest tree-cluster walls.
 		expect(meadowBoundaries).toHaveLength(4);
+		expect(meadowBoundaries.map((b) => b.id)).toEqual(
+			expect.arrayContaining([
+				'meadow-north-boundary',
+				'meadow-south-boundary',
+				'meadow-west-boundary',
+				'meadow-east-boundary'
+			])
+		);
 		expect(meadowBoundaries.find((b) => b.id === 'meadow-west-boundary')).toMatchObject({
 			x: 32,
 			y: 3_200,
