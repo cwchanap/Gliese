@@ -104,7 +104,7 @@ describe('Sundrop Village production background approval', () => {
 		expect(retouched.provenanceJson.equals(committedProvenance)).toBe(true);
 		expect(finalized.png.equals(committedRuntimePng)).toBe(true);
 		expect(finalized.sha256).toBe(sundropVillageBackgroundApproval.approvedPngSha256);
-	});
+	}, 60_000);
 
 	it('matches the approved PNG bytes, alpha edge, and size-budget disposition', async () => {
 		const { png, validated } = await loadAsset();

@@ -302,6 +302,8 @@ export class WorldScene extends Phaser.Scene {
 	// World markers stay hidden until the player is within this distance, so a normal
 	// camera view never shows a cluster of pulsing circles — at most the one(s) nearby.
 	private static readonly discoveryRevealRadius = 240;
+	// Rendered above all gameplay layers, live hedges, and the baked regional background.
+	private static readonly collisionDebugOverlayDepth = 10_000;
 
 	private clearedEncounterIds = new Set<string>();
 	private clearedEncounterUnitCounts: Record<string, number> = {};
@@ -1660,7 +1662,7 @@ export class WorldScene extends Phaser.Scene {
 		const height = map.height * WorldScene.tileSize;
 		const graphics = this.add.graphics();
 		this.collisionDebugGraphics = graphics;
-		graphics.setDepth(10_000);
+		graphics.setDepth(WorldScene.collisionDebugOverlayDepth);
 		graphics.lineStyle(2, 0xffffff, 0.95);
 		graphics.strokeRect(0, 0, width, height);
 		graphics.lineStyle(1, 0x38bdf8, 0.9);
