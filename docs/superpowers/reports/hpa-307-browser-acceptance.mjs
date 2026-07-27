@@ -451,6 +451,22 @@ async function createSession(browser, name, query = '', { abortRegionalAsset = f
 	const requests = [];
 	const pageErrors = [];
 	const consoleErrors = [];
+	const failedResponses = [];
+	const diagnosticSnapshots = [];
+	const cdpSession = await context.newCDPSession(page);
+	await cdpSession.send('Network.enable');
+	cdpSession.on('Network.responseReceived', (params) => {
+		const status = params.response.status;
+		if (status >= 400) {
+			failedResponses.push({
+				url: params.response.url,
+				status,
+				statusText: params.response.statusText,
+				atIso: new Date().toISOString(),
+				matched: false
+			});
+		}
+	});
 	page.on('request', (request) => {
 		const url = new URL(request.url());
 		if (url.pathname === ASSET_PATH) {
@@ -465,10 +481,21 @@ async function createSession(browser, name, query = '', { abortRegionalAsset = f
 	page.on('pageerror', (error) => pageErrors.push(error.message));
 	page.on('console', (message) => {
 		if (message.type() === 'error' || message.type() === 'warning') {
-			consoleErrors.push({
-				type: message.type(),
-				text: message.text()
-			});
+			const text = message.text();
+			const entry = { type: message.type(), text };
+			const statusMatch = text.match(/status of (\d+)/);
+			if (statusMatch) {
+				const status = Number(statusMatch[1]);
+				const responseIndex = failedResponses.findIndex(
+					(candidate) => candidate.status === status && !candidate.matched
+				);
+				if (responseIndex !== -1) {
+					failedResponses[responseIndex].matched = true;
+					entry.url = failedResponses[responseIndex].url;
+					entry.status = failedResponses[responseIndex].status;
+				}
+			}
+			consoleErrors.push(entry);
 		}
 	});
 	if (abortRegionalAsset) {
@@ -483,7 +510,9 @@ async function createSession(browser, name, query = '', { abortRegionalAsset = f
 		page,
 		requests,
 		pageErrors,
-		consoleErrors
+		consoleErrors,
+		failedResponses,
+		diagnosticSnapshots
 	};
 }
 
@@ -752,6 +781,7 @@ async function checkpoint(run, name) {
 	const screenshotPath = await captureScreenshot(run, `runtime-save-reload-${name}.png`);
 	await page.reload({ waitUntil: 'domcontentloaded' });
 	await waitForReady(page);
+	await collectDiagnosticSnapshot(run.session);
 	await page.getByRole('button', { name: 'Menu' }).click();
 	await page
 		.getByRole('region', { name: 'Command' })
@@ -777,6 +807,7 @@ async function checkpoint(run, name) {
 
 async function runAuthoredRoute(run, { checkpoints = false, captures = false } = {}) {
 	run.captureInteriors = captures;
+	await collectDiagnosticSnapshot(run.session);
 	const initial = await readSave(run, 'route:spawn');
 	if (
 		initial.mapId !== 'meadow-entry' ||
@@ -1016,6 +1047,16 @@ async function stopRouteSampling(page) {
 	});
 }
 
+async function collectDiagnosticSnapshot(session) {
+	await session.page.waitForFunction(
+		() => window.__hpa307Probe && window.__hpa307Probe.diagnostics.length > 0,
+		undefined,
+		{ timeout: 10_000 }
+	);
+	const diagnostics = await session.page.evaluate(() => window.__hpa307Probe.diagnostics);
+	session.diagnosticSnapshots.push(...diagnostics);
+}
+
 async function collectProbe(session) {
 	const probe = await session.page.evaluate(() => ({
 		diagnostics: window.__hpa307Probe.diagnostics,
@@ -1025,9 +1066,13 @@ async function collectProbe(session) {
 	return {
 		exactRegionalRequests: session.requests,
 		exactRegionalRequestCount: session.requests.length,
-		...probe,
+		diagnostics:
+			session.diagnosticSnapshots.length > 0 ? session.diagnosticSnapshots : probe.diagnostics,
+		contextLossCount: probe.contextLossCount,
+		texImage2DCalls: probe.texImage2DCalls,
 		pageErrors: session.pageErrors,
-		consoleErrors: session.consoleErrors
+		consoleErrors: session.consoleErrors,
+		failedResponses: session.failedResponses.map(({ matched: _matched, ...rest }) => rest)
 	};
 }
 
@@ -1177,6 +1222,12 @@ async function runFull(browser) {
 			route: serializableRun(acceptanceRun),
 			probeAcrossReloads: await collectProbe(acceptanceSession)
 		};
+		const expectedDiagnosticCount = acceptanceRun.checkpoints.length + 1;
+		if (acceptance.probeAcrossReloads.diagnostics.length !== expectedDiagnosticCount) {
+			throw new Error(
+				`probeAcrossReloads retained ${acceptance.probeAcrossReloads.diagnostics.length} diagnostics; expected ${expectedDiagnosticCount} (one per page load: initial + ${acceptanceRun.checkpoints.length} checkpoint reloads)`
+			);
+		}
 	} finally {
 		await acceptanceSession.context.close();
 	}

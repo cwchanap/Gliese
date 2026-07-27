@@ -3,6 +3,9 @@ export function parseFlagPairs(allowedFlags: string[], args: string[]): Map<stri
 	const result = new Map<string, string>();
 	const normalizedArgs = args[0] === '--' ? args.slice(1) : [...args];
 	for (const arg of normalizedArgs) {
+		if (!arg.startsWith('--')) {
+			throw new Error(`Malformed flag pair: ${arg} (expected --name=value)`);
+		}
 		const stripped = arg.replace(/^--/, '');
 		const equalsIndex = stripped.indexOf('=');
 		if (equalsIndex === -1) {
