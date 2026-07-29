@@ -1,0 +1,150 @@
+import { describe, expect, it } from 'vitest';
+
+import {
+	buildSundropVillageObstacleControlInputs,
+	computeSundropVillageObstacleControlFingerprint,
+	renderSundropVillageObstacleControlArtifacts,
+	SUNDROP_VILLAGE_OBSTACLE_CONTROL_FILENAMES
+} from './sundrop-village-obstacle-controls';
+import { SUNDROP_VILLAGE_FOREGROUND_FRONT_CUTOFF_PX } from './sundrop-village-backgrounds';
+import { SUNDROP_VILLAGE_OBSTACLE_OWNERSHIP } from './sundrop-village-obstacle-ownership';
+
+describe('Sundrop Village obstacle controls', () => {
+	it('owns exactly the fixed six-artifact inventory', () => {
+		expect(SUNDROP_VILLAGE_OBSTACLE_CONTROL_FILENAMES).toEqual([
+			'village-obstacle-ownership.json',
+			'village-obstacle-base-mask.svg',
+			'village-obstacle-foreground-mask.svg',
+			'village-obstacle-protected-mask.svg',
+			'village-obstacle-composite-control.svg',
+			'village-obstacle-control-manifest.json'
+		]);
+	});
+
+	it('renders resolved ownership and masks in the local 1792 by 1536 crop', () => {
+		const inputs = buildSundropVillageObstacleControlInputs();
+		const artifacts = renderSundropVillageObstacleControlArtifacts(inputs);
+		const ownership = JSON.parse(artifacts.get('village-obstacle-ownership.json') ?? '{}');
+		expect(ownership.entries).toHaveLength(21);
+		expect(ownership.entries.every((entry: { blocker: unknown }) => entry.blocker)).toBe(true);
+		expect(artifacts.get('village-obstacle-base-mask.svg')).toContain('viewBox="0 0 1792 1536"');
+		expect(artifacts.get('village-obstacle-foreground-mask.svg')).toContain(
+			'viewBox="0 0 1792 1536"'
+		);
+		expect(inputs.foregroundRects).toHaveLength(7);
+		expect(inputs.foregroundRects.map((rect) => rect.id)).toEqual(
+			SUNDROP_VILLAGE_OBSTACLE_OWNERSHIP.filter((entry) => entry.foregroundMargins)
+				.map((entry) => entry.blockerId)
+				.sort()
+		);
+		expect(inputs.baseRects.map((rect) => rect.id)).not.toEqual(
+			expect.arrayContaining(['village-block-0-37', 'village-block-0-49', 'village-block-46-2'])
+		);
+		for (const rect of inputs.foregroundRects) {
+			expect(rect.blockerBottom).toBeDefined();
+			expect(rect.bottom).toBe(
+				(rect.blockerBottom ?? 0) - SUNDROP_VILLAGE_FOREGROUND_FRONT_CUTOFF_PX
+			);
+		}
+	});
+
+	it('protects live Sundrop footprints including both full stone-lantern renders', () => {
+		const inputs = buildSundropVillageObstacleControlInputs();
+		const lanterns = (inputs.map.mapDecor ?? []).filter((decor) => {
+			if (decor.frameName !== 'stoneLantern') return false;
+			return (
+				decor.x + decor.width / 2 > inputs.crop.x &&
+				decor.x - decor.width / 2 < inputs.crop.x + inputs.crop.width &&
+				decor.y + decor.height / 2 > inputs.crop.y &&
+				decor.y - decor.height / 2 < inputs.crop.y + inputs.crop.height
+			);
+		});
+		expect(lanterns).toHaveLength(2);
+		for (const lantern of lanterns) {
+			expect(inputs.protectedRects).toContainEqual(
+				expect.objectContaining({ id: lantern.id, width: 180, height: 180 })
+			);
+		}
+		for (const decor of inputs.map.mapDecor ?? []) {
+			if (
+				decor.x + decor.width / 2 > inputs.crop.x &&
+				decor.x - decor.width / 2 < inputs.crop.x + inputs.crop.width &&
+				decor.y + decor.height / 2 > inputs.crop.y &&
+				decor.y - decor.height / 2 < inputs.crop.y + inputs.crop.height
+			) {
+				expect(inputs.protectedRects).toContainEqual(
+					expect.objectContaining({ id: decor.id, width: decor.width, height: decor.height })
+				);
+			}
+		}
+		for (const [prefix, items] of [
+			['transition', inputs.map.transitions],
+			['encounter', inputs.map.encounters ?? []],
+			['discovery', inputs.map.discoveries ?? []],
+			['pickup', inputs.map.pickups ?? []]
+		] as const) {
+			for (const item of items) {
+				if (
+					item.x >= inputs.crop.x &&
+					item.x <= inputs.crop.x + inputs.crop.width &&
+					item.y >= inputs.crop.y &&
+					item.y <= inputs.crop.y + inputs.crop.height
+				) {
+					expect(inputs.protectedRects).toContainEqual(
+						expect.objectContaining({ id: `${prefix}-${item.id}` })
+					);
+				}
+			}
+		}
+	});
+
+	it('invalidates the fingerprint for all approved ownership and source inputs', () => {
+		const inputs = buildSundropVillageObstacleControlInputs();
+		const fingerprint = computeSundropVillageObstacleControlFingerprint(inputs);
+		expect(
+			computeSundropVillageObstacleControlFingerprint({
+				...inputs,
+				ownership: SUNDROP_VILLAGE_OBSTACLE_OWNERSHIP.map((entry, index) =>
+					index === 0 ? { ...entry, ownerBackgroundIds: ['changed-owner'] } : entry
+				)
+			})
+		).not.toBe(fingerprint);
+		expect(
+			computeSundropVillageObstacleControlFingerprint({
+				...inputs,
+				ownership: inputs.ownership.map((entry, index) =>
+					index === 0
+						? { ...entry, baseMargins: { ...entry.baseMargins, top: entry.baseMargins.top + 1 } }
+						: entry
+				)
+			})
+		).not.toBe(fingerprint);
+		expect(
+			computeSundropVillageObstacleControlFingerprint({
+				...inputs,
+				protectedRects: [{ ...inputs.protectedRects[0], width: inputs.protectedRects[0].width + 1 }]
+			})
+		).not.toBe(fingerprint);
+		expect(
+			computeSundropVillageObstacleControlFingerprint({
+				...inputs,
+				heroDisplayHeight: inputs.heroDisplayHeight + 1
+			})
+		).not.toBe(fingerprint);
+		expect(
+			computeSundropVillageObstacleControlFingerprint({
+				...inputs,
+				sourceHashes: {
+					...inputs.sourceHashes,
+					'sundrop-village-hpa-307-ground-input.png': 'changed'
+				}
+			})
+		).not.toBe(fingerprint);
+		expect(
+			computeSundropVillageObstacleControlFingerprint({
+				...inputs,
+				hpa307ArtifactHashes: { ...inputs.hpa307ArtifactHashes, changed: 'hash' }
+			})
+		).not.toBe(fingerprint);
+	});
+});
