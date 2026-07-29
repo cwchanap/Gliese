@@ -37,6 +37,7 @@ const foregroundOutputPath = join(
 	repositoryRoot,
 	'public/game/assets/regions/sundrop-village-foreground.png'
 );
+const CANDIDATE_ALIGNMENT_INSET_PX = 16;
 
 function centeredUniformTransform(
 	nativeWidth: number,
@@ -148,6 +149,7 @@ async function main(): Promise<void> {
 				png: readFileSync(join(artifactDirectory, 'village-obstacle-protected-mask.svg'))
 			}
 		},
+		candidateAlignmentInsetPx: CANDIDATE_ALIGNMENT_INSET_PX,
 		normalizationTransform,
 		controlFingerprint,
 		controlArtifacts,

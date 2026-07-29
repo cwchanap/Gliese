@@ -15,6 +15,7 @@
 		"art:normalize:village": "bun tools/normalize-sundrop-village-background.ts",
 		"art:finalize:village": "bun tools/finalize-sundrop-village-background.ts",
 		"art:finalize:village-obstacles": "bun tools/finalize-sundrop-village-obstacles.ts",
+		"art:proof:village-obstacles": "bun tools/render-sundrop-village-obstacle-proof.ts",
 		"art:retouch:village": "bun tools/retouch-sundrop-village-background.ts",
 		"art:evidence:village": "bun tools/refresh-sundrop-village-background-evidence.ts",
 		"art:validate:village": "bun run test:unit -- --run src/lib/game/content/sundrop-village-background.asset.test.ts src/lib/game/content/maps/layered/village-art-controls.test.ts src/lib/game/content/backgrounds/sundrop-village-png.test.ts src/lib/game/content/backgrounds/sundrop-village-retouch.test.ts src/lib/game/content/backgrounds/sundrop-village-obstacle-ownership.test.ts src/lib/game/content/backgrounds/sundrop-village-obstacle-controls.test.ts src/lib/game/content/backgrounds/sundrop-village-obstacle-composite.test.ts src/lib/game/content/sundrop-village-obstacle-assets.test.ts",

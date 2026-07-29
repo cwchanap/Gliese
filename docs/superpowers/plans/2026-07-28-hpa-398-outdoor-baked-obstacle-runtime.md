@@ -953,9 +953,12 @@ source-aligned game-art process and `imagegen` for the candidate edit.
 Use `4×4` fixture buffers to assert:
 
 - base RGBA is byte-identical to the ground outside the base mask;
-- the candidate RGB is normalized obstacle-layer RGB alpha-composited over the
-  source, candidate alpha equals layer alpha, and alpha-zero pixels retain source
-  RGB;
+- a fixed `16px` inward linear alignment feather makes candidate contribution
+  reach source identity at the final permitted base-mask pixel and full strength
+  at distance `17px`; mask geometry and ownership remain unchanged;
+- the candidate RGB is aligned obstacle-layer RGB alpha-composited over the
+  source, candidate alpha equals aligned layer alpha, and alpha-zero pixels
+  retain source RGB;
 - inside the base mask, RGB comes from that constructed candidate while alpha comes from the
   supplied base-alpha function;
 - foreground alpha is zero outside its mask and protected pixels;
@@ -1048,9 +1051,10 @@ Add:
 
 The tool reads fixed repository paths, records the layer's uniform centered
 scale/crop transform, and constructs
-`village-obstacle-candidate.png` deterministically. Candidate RGB is normalized
-obstacle-layer RGB alpha-composited over immutable HPA-307 source RGB;
-candidate alpha is normalized layer alpha; fully transparent pixels keep source
+`village-obstacle-candidate.png` deterministically. It applies the fixed `16px`
+inward linear alignment feather without altering the approved masks, then
+alpha-composites aligned obstacle-layer RGB over immutable HPA-307 source RGB.
+Candidate alpha is aligned layer alpha; fully transparent pixels keep source
 RGB. It then calls `compositeSundropVillageObstacles(...)` and writes the
 candidate, two production PNGs, and `village-obstacle-provenance.json`.
 

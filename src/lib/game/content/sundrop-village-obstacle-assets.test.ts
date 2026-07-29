@@ -36,6 +36,7 @@ const foregroundMaskPath = join(reports, 'village-obstacle-foreground-mask.svg')
 const protectedMaskPath = join(reports, 'village-obstacle-protected-mask.svg');
 const transformPath = join(reports, 'village-obstacle-candidate-transform.json');
 const provenancePath = join(reports, 'village-obstacle-provenance.json');
+const CANDIDATE_ALIGNMENT_INSET_PX = 16;
 
 interface Decoded {
 	readonly data: Buffer;
@@ -81,6 +82,14 @@ function rgbaEqual(left: Buffer, right: Buffer, offset: number): boolean {
 	);
 }
 
+function rgbEqual(left: Buffer, right: Buffer, offset: number): boolean {
+	return (
+		left[offset] === right[offset] &&
+		left[offset + 1] === right[offset + 1] &&
+		left[offset + 2] === right[offset + 2]
+	);
+}
+
 function alphaAt(data: Buffer, pixel: number): number {
 	return data[pixel * 4 + 3] ?? 0;
 }
@@ -118,6 +127,42 @@ let obstacleLayer: Decoded;
 let baseMask: Decoded;
 let foregroundMask: Decoded;
 let protectedMask: Decoded;
+let candidateAlignmentDistance: Uint16Array;
+
+function buildCandidateAlignmentDistance(): Uint16Array {
+	const maximumDistance = CANDIDATE_ALIGNMENT_INSET_PX + 1;
+	const distance = new Uint16Array(
+		SUNDROP_VILLAGE_BACKGROUND_WIDTH * SUNDROP_VILLAGE_BACKGROUND_HEIGHT
+	);
+	for (let pixel = 0; pixel < distance.length; pixel += 1) {
+		distance[pixel] =
+			alphaAt(baseMask.data, pixel) > 0 && alphaAt(protectedMask.data, pixel) === 0
+				? maximumDistance
+				: 0;
+	}
+	for (let y = 0; y < SUNDROP_VILLAGE_BACKGROUND_HEIGHT; y += 1) {
+		for (let x = 0; x < SUNDROP_VILLAGE_BACKGROUND_WIDTH; x += 1) {
+			const pixel = y * SUNDROP_VILLAGE_BACKGROUND_WIDTH + x;
+			if (distance[pixel] === 0) continue;
+			const left = x === 0 ? 0 : (distance[pixel - 1] ?? 0);
+			const top = y === 0 ? 0 : (distance[pixel - SUNDROP_VILLAGE_BACKGROUND_WIDTH] ?? 0);
+			distance[pixel] = Math.min(distance[pixel] ?? maximumDistance, left + 1, top + 1);
+		}
+	}
+	for (let y = SUNDROP_VILLAGE_BACKGROUND_HEIGHT - 1; y >= 0; y -= 1) {
+		for (let x = SUNDROP_VILLAGE_BACKGROUND_WIDTH - 1; x >= 0; x -= 1) {
+			const pixel = y * SUNDROP_VILLAGE_BACKGROUND_WIDTH + x;
+			if (distance[pixel] === 0) continue;
+			const right = x === SUNDROP_VILLAGE_BACKGROUND_WIDTH - 1 ? 0 : (distance[pixel + 1] ?? 0);
+			const bottom =
+				y === SUNDROP_VILLAGE_BACKGROUND_HEIGHT - 1
+					? 0
+					: (distance[pixel + SUNDROP_VILLAGE_BACKGROUND_WIDTH] ?? 0);
+			distance[pixel] = Math.min(distance[pixel] ?? maximumDistance, right + 1, bottom + 1);
+		}
+	}
+	return distance;
+}
 
 beforeAll(async () => {
 	[base, foreground, source, candidate, rawObstacleLayer, baseMask, foregroundMask, protectedMask] =
@@ -152,6 +197,7 @@ beforeAll(async () => {
 		height: normalized.info.height,
 		channels: normalized.info.channels
 	};
+	candidateAlignmentDistance = buildCandidateAlignmentDistance();
 });
 
 describe('Sundrop Village obstacle production assets', () => {
@@ -184,7 +230,7 @@ describe('Sundrop Village obstacle production assets', () => {
 			sundropVillageBackgroundsApproval.approvedControlFingerprint
 		);
 		expect(provenance.controlFingerprint).toBe(SUNDROP_VILLAGE_OBSTACLE_CONTROL_FINGERPRINT);
-		expect(provenance.algorithmVersion).toBe('sundrop-village-obstacle-composite-v2');
+		expect(provenance.algorithmVersion).toBe('sundrop-village-obstacle-composite-v3');
 		expect(provenance.chromaSource).toMatchObject({
 			path: 'docs/superpowers/reports/img/hpa-398/village-obstacle-chroma-source.png',
 			sha256: sha256(chromaSourcePng)
@@ -196,7 +242,13 @@ describe('Sundrop Village obstacle production assets', () => {
 		expect(provenance.candidate).toMatchObject({
 			path: 'docs/superpowers/reports/img/hpa-398/village-obstacle-candidate.png',
 			sha256: sha256(candidatePng),
-			pixelsSha256: sha256(candidate.data)
+			pixelsSha256: sha256(candidate.data),
+			alignment: {
+				method: 'base-permitted-inner-linear-feather',
+				insetPx: CANDIDATE_ALIGNMENT_INSET_PX,
+				sourceIdentityAtDistancePx: 1,
+				fullContributionAtDistancePx: CANDIDATE_ALIGNMENT_INSET_PX + 1
+			}
 		});
 	});
 
@@ -209,7 +261,13 @@ describe('Sundrop Village obstacle production assets', () => {
 			pixel += 1
 		) {
 			const offset = pixel * 4;
-			const alpha = obstacleLayer.data[offset + 3] ?? 0;
+			const obstacleAlpha = obstacleLayer.data[offset + 3] ?? 0;
+			const boundaryDistance = candidateAlignmentDistance[pixel] ?? 0;
+			const alignmentWeight =
+				boundaryDistance === 0
+					? 1
+					: Math.min(1, Math.max(0, (boundaryDistance - 1) / CANDIDATE_ALIGNMENT_INSET_PX));
+			const alpha = Math.round(obstacleAlpha * alignmentWeight);
 			for (let channel = 0; channel < 3; channel += 1) {
 				const expected =
 					alpha === 0
@@ -289,6 +347,40 @@ describe('Sundrop Village obstacle production assets', () => {
 		expect(provenance.statistics.baseAlphaViolations).toBe(0);
 	});
 
+	test('returns base RGB to source identity before every permitted-mask boundary', () => {
+		const permittedAt = (x: number, y: number): boolean => {
+			if (
+				x < 0 ||
+				x >= SUNDROP_VILLAGE_BACKGROUND_WIDTH ||
+				y < 0 ||
+				y >= SUNDROP_VILLAGE_BACKGROUND_HEIGHT
+			) {
+				return false;
+			}
+			const pixel = y * SUNDROP_VILLAGE_BACKGROUND_WIDTH + x;
+			return alphaAt(baseMask.data, pixel) > 0 && alphaAt(protectedMask.data, pixel) === 0;
+		};
+		let boundaryPixels = 0;
+		let sourceIdentityViolations = 0;
+		for (let y = 0; y < SUNDROP_VILLAGE_BACKGROUND_HEIGHT; y += 1) {
+			for (let x = 0; x < SUNDROP_VILLAGE_BACKGROUND_WIDTH; x += 1) {
+				if (!permittedAt(x, y)) continue;
+				const isInnerBoundary = [
+					[x - 1, y],
+					[x + 1, y],
+					[x, y - 1],
+					[x, y + 1]
+				].some(([neighborX, neighborY]) => !permittedAt(neighborX ?? -1, neighborY ?? -1));
+				if (!isInnerBoundary) continue;
+				boundaryPixels += 1;
+				const offset = (y * SUNDROP_VILLAGE_BACKGROUND_WIDTH + x) * 4;
+				if (!rgbEqual(base.data, source.data, offset)) sourceIdentityViolations += 1;
+			}
+		}
+		expect(boundaryPixels).toBeGreaterThan(0);
+		expect(sourceIdentityViolations).toBe(0);
+	});
+
 	test('derives exact foreground alpha from mask, protection, edge profile, and 33px cutoffs', () => {
 		const cutoffs = controls.foregroundRects.map((rect) => ({
 			...rect,
@@ -329,7 +421,7 @@ describe('Sundrop Village obstacle production assets', () => {
 				);
 				const expected =
 					masked && !protectedPixel && cutoffSafe && !excluded
-						? Math.round((alphaAt(obstacleLayer.data, pixel) * edgeAlpha) / 255)
+						? Math.round((alphaAt(candidate.data, pixel) * edgeAlpha) / 255)
 						: 0;
 				const actual = alphaAt(foreground.data, pixel);
 				if (actual !== expected) alphaViolations += 1;

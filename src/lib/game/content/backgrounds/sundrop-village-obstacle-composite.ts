@@ -55,6 +55,7 @@ export interface SundropVillageObstacleCompositeInput {
 		readonly foreground: SundropVillageObstacleImageInput;
 		readonly protected: SundropVillageObstacleImageInput;
 	};
+	readonly candidateAlignmentInsetPx: number;
 	readonly normalizationTransform: SundropVillageObstacleNormalizationTransform;
 	readonly controlFingerprint: string;
 	readonly controlArtifacts: Readonly<
@@ -77,6 +78,12 @@ interface DecodedRgba {
 	readonly data: Buffer;
 	readonly width: number;
 	readonly height: number;
+}
+
+interface CandidateAlignmentResult {
+	readonly layer: DecodedRgba;
+	readonly changedAlphaPixels: number;
+	readonly zeroedBoundaryPixels: number;
 }
 
 function sha256(contents: Uint8Array): string {
@@ -222,6 +229,69 @@ function alphaAt(data: Buffer, pixel: number): number {
 	return data[pixel * 4 + 3] ?? 0;
 }
 
+function alignObstacleLayerToBaseMask(
+	obstacleLayer: DecodedRgba,
+	baseMask: DecodedRgba,
+	protectedMask: DecodedRgba,
+	insetPx: number
+): CandidateAlignmentResult {
+	if (!Number.isInteger(insetPx) || insetPx < 0 || insetPx > 64) {
+		throw new Error('Sundrop Village obstacle candidate alignment inset must be 0..64 pixels');
+	}
+	if (insetPx === 0) {
+		return { layer: obstacleLayer, changedAlphaPixels: 0, zeroedBoundaryPixels: 0 };
+	}
+
+	const totalPixels = obstacleLayer.width * obstacleLayer.height;
+	const maximumDistance = insetPx + 1;
+	const distance = new Uint16Array(totalPixels);
+	for (let pixel = 0; pixel < totalPixels; pixel += 1) {
+		distance[pixel] =
+			alphaAt(baseMask.data, pixel) > 0 && alphaAt(protectedMask.data, pixel) === 0
+				? maximumDistance
+				: 0;
+	}
+	for (let y = 0; y < obstacleLayer.height; y += 1) {
+		for (let x = 0; x < obstacleLayer.width; x += 1) {
+			const pixel = y * obstacleLayer.width + x;
+			if (distance[pixel] === 0) continue;
+			const left = x === 0 ? 0 : (distance[pixel - 1] ?? 0);
+			const top = y === 0 ? 0 : (distance[pixel - obstacleLayer.width] ?? 0);
+			distance[pixel] = Math.min(distance[pixel] ?? maximumDistance, left + 1, top + 1);
+		}
+	}
+	for (let y = obstacleLayer.height - 1; y >= 0; y -= 1) {
+		for (let x = obstacleLayer.width - 1; x >= 0; x -= 1) {
+			const pixel = y * obstacleLayer.width + x;
+			if (distance[pixel] === 0) continue;
+			const right = x === obstacleLayer.width - 1 ? 0 : (distance[pixel + 1] ?? 0);
+			const bottom =
+				y === obstacleLayer.height - 1 ? 0 : (distance[pixel + obstacleLayer.width] ?? 0);
+			distance[pixel] = Math.min(distance[pixel] ?? maximumDistance, right + 1, bottom + 1);
+		}
+	}
+
+	const data = Buffer.from(obstacleLayer.data);
+	let changedAlphaPixels = 0;
+	let zeroedBoundaryPixels = 0;
+	for (let pixel = 0; pixel < totalPixels; pixel += 1) {
+		const boundaryDistance = distance[pixel] ?? 0;
+		if (boundaryDistance === 0) continue;
+		const offset = pixel * 4;
+		const originalAlpha = obstacleLayer.data[offset + 3] ?? 0;
+		const weight = Math.min(1, Math.max(0, (boundaryDistance - 1) / insetPx));
+		const alignedAlpha = Math.round(originalAlpha * weight);
+		data[offset + 3] = alignedAlpha;
+		if (alignedAlpha !== originalAlpha) changedAlphaPixels += 1;
+		if (boundaryDistance === 1 && alignedAlpha === 0) zeroedBoundaryPixels += 1;
+	}
+	return {
+		layer: { data, width: obstacleLayer.width, height: obstacleLayer.height },
+		changedAlphaPixels,
+		zeroedBoundaryPixels
+	};
+}
+
 function alphaStatistics(decoded: DecodedRgba) {
 	let minimum = 255;
 	let maximum = 0;
@@ -342,13 +412,19 @@ export async function compositeSundropVillageObstacles(
 		input.width,
 		input.height
 	);
-	const candidate = constructSourceBackedCandidate(source, obstacleLayer.normalized);
 	assertDimensions(
 		'Sundrop Village obstacle protected mask',
 		protectedMask,
 		input.width,
 		input.height
 	);
+	const candidateAlignment = alignObstacleLayerToBaseMask(
+		obstacleLayer.normalized,
+		baseMask,
+		protectedMask,
+		input.candidateAlignmentInsetPx
+	);
+	const candidate = constructSourceBackedCandidate(source, candidateAlignment.layer);
 
 	const base = Buffer.from(source.data);
 	const foreground = Buffer.alloc(source.data.byteLength);
@@ -441,7 +517,7 @@ export async function compositeSundropVillageObstacles(
 		dimensions: dimensions(decoded)
 	});
 	const provenance = {
-		algorithmVersion: 'sundrop-village-obstacle-composite-v2',
+		algorithmVersion: 'sundrop-village-obstacle-composite-v3',
 		controlFingerprint: input.controlFingerprint,
 		prompt: input.prompt,
 		source: maskProvenance(input.source, source),
@@ -461,7 +537,16 @@ export async function compositeSundropVillageObstacles(
 		candidate: {
 			path: input.candidateOutputPath,
 			construction:
-				'normalized obstacle RGB alpha-composited over immutable HPA-307 source; obstacle alpha retained',
+				'aligned obstacle RGB alpha-composited over immutable HPA-307 source; aligned obstacle alpha retained',
+			alignment: {
+				method: 'base-permitted-inner-linear-feather',
+				insetPx: input.candidateAlignmentInsetPx,
+				sourceIdentityAtDistancePx: 1,
+				fullContributionAtDistancePx: input.candidateAlignmentInsetPx + 1,
+				changedAlphaPixels: candidateAlignment.changedAlphaPixels,
+				zeroedBoundaryPixels: candidateAlignment.zeroedBoundaryPixels,
+				alignedPixelsSha256: sha256(candidateAlignment.layer.data)
+			},
 			bytes: candidatePng.byteLength,
 			sha256: sha256(candidatePng),
 			pixelsSha256: sha256(candidate.data),

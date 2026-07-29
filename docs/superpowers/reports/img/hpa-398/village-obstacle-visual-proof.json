@@ -1,0 +1,64 @@
+{
+  "version": 1,
+  "inputs": {
+    "base": {
+      "path": "public/game/assets/regions/sundrop-village-base.png",
+      "sha256": "f1184b045c27c544ac18937a4f8ccfa12cd386319b1722be5d808aea8048ade6"
+    },
+    "foreground": {
+      "path": "public/game/assets/regions/sundrop-village-foreground.png",
+      "sha256": "2d0a6703de1a404e49c0746f092a4c6f9f113ae17cd8bc35de635b5ec084ce45"
+    },
+    "hero": {
+      "path": "public/game/assets/animation-pack.png",
+      "frame": {
+        "x": 0,
+        "y": 0,
+        "width": 192,
+        "height": 192
+      }
+    }
+  },
+  "playerDisplaySize": {
+    "width": 88,
+    "height": 90
+  },
+  "outputs": {
+    "village-obstacle-proof-base.png": {
+      "path": "docs/superpowers/reports/img/hpa-398/village-obstacle-proof-base.png",
+      "sha256": "2e98c4c43d3cd4333f298d36f81535ca38b6c800fdb8415a944314b15933a7c6"
+    },
+    "village-obstacle-proof-foreground.png": {
+      "path": "docs/superpowers/reports/img/hpa-398/village-obstacle-proof-foreground.png",
+      "sha256": "af7b06e8c3c86836337ab53cbdf25f76925a1f67735c0d9db9499f376e7d110f"
+    },
+    "village-obstacle-proof-composite.png": {
+      "path": "docs/superpowers/reports/img/hpa-398/village-obstacle-proof-composite.png",
+      "sha256": "a99645a6aec26deab3c661de63c1721979f09f5a0352e55c61f9c698e83e34b4"
+    },
+    "village-obstacle-proof-crop-edges.png": {
+      "path": "docs/superpowers/reports/img/hpa-398/village-obstacle-proof-crop-edges.png",
+      "sha256": "84d3f0123ab9037a6e735d7ed59a5cd0ac2a3947dd182ddd09298aba779d08a7"
+    },
+    "village-obstacle-proof-corridor-seam.png": {
+      "path": "docs/superpowers/reports/img/hpa-398/village-obstacle-proof-corridor-seam.png",
+      "sha256": "158b26ee88a311ab6fac9d955f9cab00d87cd2b78f26f66cf0b133556236f9ab"
+    },
+    "village-obstacle-proof-hedge-behind.png": {
+      "path": "docs/superpowers/reports/img/hpa-398/village-obstacle-proof-hedge-behind.png",
+      "sha256": "a98231602d09e50007f83d405ca3ee4357d9e328850ed416dfce919ef4c5ea2b"
+    },
+    "village-obstacle-proof-hedge-front.png": {
+      "path": "docs/superpowers/reports/img/hpa-398/village-obstacle-proof-hedge-front.png",
+      "sha256": "3f5ba60ef84b62b94ee64420d757dd0503b6482faed5dc45e1d4e8f3ac34a2fe"
+    },
+    "village-obstacle-proof-wall-behind.png": {
+      "path": "docs/superpowers/reports/img/hpa-398/village-obstacle-proof-wall-behind.png",
+      "sha256": "e79d5eec57e1af4f831041eecda12cc92f53ac67933699a1ae03f9cbd713f438"
+    },
+    "village-obstacle-proof-wall-front.png": {
+      "path": "docs/superpowers/reports/img/hpa-398/village-obstacle-proof-wall-front.png",
+      "sha256": "eba1866f09fedc616f5c518b6c5aaee091c424b6f293157d5543eb293ff3a04c"
+    }
+  }
+}

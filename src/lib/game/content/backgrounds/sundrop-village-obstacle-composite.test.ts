@@ -84,6 +84,7 @@ async function fixtureInput(
 			foreground: { path: 'foreground-mask.png', png: foregroundMask },
 			protected: { path: 'protected-mask.png', png: protectedMask }
 		},
+		candidateAlignmentInsetPx: 0,
 		normalizationTransform: {
 			native: { width: WIDTH, height: HEIGHT },
 			crop: { x: 0, y: 0, width: WIDTH, height: HEIGHT },
@@ -133,6 +134,31 @@ describe('compositeSundropVillageObstacles', () => {
 		expect(pixel(foreground, 2, 1)).toEqual([0, 0, 0, 0]);
 		expect(pixel(foreground, 1, 2)).toEqual([0, 0, 0, 0]);
 		expect(pixel(foreground, 1, 1)).toEqual([82, 92, 101, Math.round((200 * 91) / 255)]);
+	});
+
+	test('returns candidate contribution to source identity at the inner base-mask boundary', async () => {
+		const input = await fixtureInput({ candidateAlignmentInsetPx: 1 });
+		const result = await compositeSundropVillageObstacles(input);
+		const source = await decoded(input.source.png);
+		const candidate = await decoded(result.candidatePng);
+		const base = await decoded(result.basePng);
+		const provenance = JSON.parse(result.provenanceJson.toString('utf8'));
+
+		expect(pixel(candidate, 1, 1)).toEqual([
+			pixel(source, 1, 1)[0],
+			pixel(source, 1, 1)[1],
+			pixel(source, 1, 1)[2],
+			0
+		]);
+		expect(pixel(base, 1, 1)).toEqual(pixel(source, 1, 1));
+		expect(provenance.candidate.alignment).toMatchObject({
+			method: 'base-permitted-inner-linear-feather',
+			insetPx: 1,
+			sourceIdentityAtDistancePx: 1,
+			fullContributionAtDistancePx: 2,
+			changedAlphaPixels: 1,
+			zeroedBoundaryPixels: 1
+		});
 	});
 
 	test('emits deterministic canonical PNGs and complete zero-violation provenance', async () => {

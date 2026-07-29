@@ -695,9 +695,11 @@ The current HPA-307 production PNG is the immutable ground input.
    only; non-uniform scaling is
    forbidden.
 5. Deterministically construct `village-obstacle-candidate.png`: its RGB is the
-   normalized obstacle layer alpha-composited over the immutable HPA-307 ground,
-   its alpha is the normalized obstacle-layer alpha, and fully transparent
-   candidate pixels retain the ground source RGB.
+   normalized obstacle layer alpha-composited over the immutable HPA-307 ground.
+   Before compositing, a fixed `16px` inward linear alignment feather reduces
+   obstacle-layer alpha to `0` at the final permitted base-mask pixel and reaches
+   full contribution at distance `17px`. Fully transparent candidate pixels
+   retain the ground source RGB. Mask geometry and ownership are unchanged.
 6. Deterministically composite candidate RGB into the base only where the
    permitted base mask allows. Base alpha is never taken from the candidate or
    forced to `255`; it remains exactly
