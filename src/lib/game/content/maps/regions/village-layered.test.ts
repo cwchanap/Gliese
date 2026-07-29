@@ -3,9 +3,11 @@ import { fileURLToPath } from 'node:url';
 
 import { describe, expect, it } from 'vitest';
 import {
-	SUNDROP_VILLAGE_BACKGROUND_ID,
-	SUNDROP_VILLAGE_BACKGROUND_TEXTURE_KEY
-} from '$lib/game/content/backgrounds/sundrop-village-background';
+	SUNDROP_VILLAGE_BASE_BACKGROUND_ID,
+	SUNDROP_VILLAGE_BASE_BACKGROUND_TEXTURE_KEY,
+	SUNDROP_VILLAGE_FOREGROUND_BACKGROUND_ID,
+	SUNDROP_VILLAGE_FOREGROUND_BACKGROUND_TEXTURE_KEY
+} from '$lib/game/content/backgrounds/sundrop-village-backgrounds';
 import { PLAYER_COLLISION_RADIUS } from '$lib/game/core/collision';
 import { sundropVillageLayered } from '$lib/game/content/maps/regions/village-layered';
 import { compileLayeredRegion } from '$lib/game/content/maps/layered/compile-layered-region';
@@ -141,24 +143,43 @@ function nearestLandmarkDistance(col: number, row: number, src = sundropVillageL
 }
 
 describe('sundrop village layered source', () => {
-	it('derives the Sundrop regional background bounds from the layered source', () => {
+	it('derives both Sundrop regional background planes from the layered source', () => {
 		const width = sundropVillageLayered.width * sundropVillageLayered.tileSize;
 		const height = sundropVillageLayered.height * sundropVillageLayered.tileSize;
-		const background = createLayeredRegionBackground(sundropVillageLayered, {
-			id: SUNDROP_VILLAGE_BACKGROUND_ID,
-			textureKey: SUNDROP_VILLAGE_BACKGROUND_TEXTURE_KEY,
-			plane: 'base'
-		});
+		const backgrounds = [
+			createLayeredRegionBackground(sundropVillageLayered, {
+				id: SUNDROP_VILLAGE_BASE_BACKGROUND_ID,
+				textureKey: SUNDROP_VILLAGE_BASE_BACKGROUND_TEXTURE_KEY,
+				plane: 'base'
+			}),
+			createLayeredRegionBackground(sundropVillageLayered, {
+				id: SUNDROP_VILLAGE_FOREGROUND_BACKGROUND_ID,
+				textureKey: SUNDROP_VILLAGE_FOREGROUND_BACKGROUND_TEXTURE_KEY,
+				plane: 'foreground'
+			})
+		];
 
-		expect(background).toEqual({
-			id: SUNDROP_VILLAGE_BACKGROUND_ID,
-			textureKey: SUNDROP_VILLAGE_BACKGROUND_TEXTURE_KEY,
-			x: sundropVillageLayered.origin.x + width / 2,
-			y: sundropVillageLayered.origin.y + height / 2,
-			width,
-			height,
-			plane: 'base'
-		});
+		expect(backgrounds).toEqual([
+			{
+				id: SUNDROP_VILLAGE_BASE_BACKGROUND_ID,
+				textureKey: SUNDROP_VILLAGE_BASE_BACKGROUND_TEXTURE_KEY,
+				x: sundropVillageLayered.origin.x + width / 2,
+				y: sundropVillageLayered.origin.y + height / 2,
+				width,
+				height,
+				plane: 'base'
+			},
+			{
+				id: SUNDROP_VILLAGE_FOREGROUND_BACKGROUND_ID,
+				textureKey: SUNDROP_VILLAGE_FOREGROUND_BACKGROUND_TEXTURE_KEY,
+				x: sundropVillageLayered.origin.x + width / 2,
+				y: sundropVillageLayered.origin.y + height / 2,
+				width,
+				height,
+				plane: 'foreground'
+			}
+		]);
+		const background = backgrounds[0]!;
 		expect({
 			left: background.x - background.width / 2,
 			top: background.y - background.height / 2,

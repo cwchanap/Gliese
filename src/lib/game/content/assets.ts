@@ -1,8 +1,10 @@
-import { sundropVillageBackgroundApproval } from '$lib/game/content/approvals/sundrop-village-background';
+import { sundropVillageBackgroundsApproval } from '$lib/game/content/approvals/sundrop-village-backgrounds';
 import {
-	SUNDROP_VILLAGE_BACKGROUND_PATH,
-	SUNDROP_VILLAGE_BACKGROUND_TEXTURE_KEY
-} from '$lib/game/content/backgrounds/sundrop-village-background';
+	SUNDROP_VILLAGE_BASE_BACKGROUND_PATH,
+	SUNDROP_VILLAGE_BASE_BACKGROUND_TEXTURE_KEY,
+	SUNDROP_VILLAGE_FOREGROUND_BACKGROUND_PATH,
+	SUNDROP_VILLAGE_FOREGROUND_BACKGROUND_TEXTURE_KEY
+} from '$lib/game/content/backgrounds/sundrop-village-backgrounds';
 
 export const starterPackAsset = {
 	key: 'starter-pack',
@@ -85,10 +87,16 @@ export const battleBackgroundAssets = {
 
 export const regionalBackgroundAssets = [
 	{
-		key: SUNDROP_VILLAGE_BACKGROUND_TEXTURE_KEY,
-		path: SUNDROP_VILLAGE_BACKGROUND_PATH,
-		approvedControlFingerprint: sundropVillageBackgroundApproval.approvedControlFingerprint,
-		approvedPngSha256: sundropVillageBackgroundApproval.approvedPngSha256
+		key: SUNDROP_VILLAGE_BASE_BACKGROUND_TEXTURE_KEY,
+		path: SUNDROP_VILLAGE_BASE_BACKGROUND_PATH,
+		approvedControlFingerprint: sundropVillageBackgroundsApproval.approvedControlFingerprint,
+		approvedPngSha256: sundropVillageBackgroundsApproval.base.approvedPngSha256
+	},
+	{
+		key: SUNDROP_VILLAGE_FOREGROUND_BACKGROUND_TEXTURE_KEY,
+		path: SUNDROP_VILLAGE_FOREGROUND_BACKGROUND_PATH,
+		approvedControlFingerprint: sundropVillageBackgroundsApproval.approvedControlFingerprint,
+		approvedPngSha256: sundropVillageBackgroundsApproval.foreground.approvedPngSha256
 	}
 ] as const;
 

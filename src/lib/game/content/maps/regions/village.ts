@@ -1,7 +1,9 @@
 import {
-	SUNDROP_VILLAGE_BACKGROUND_ID,
-	SUNDROP_VILLAGE_BACKGROUND_TEXTURE_KEY
-} from '$lib/game/content/backgrounds/sundrop-village-background';
+	SUNDROP_VILLAGE_BASE_BACKGROUND_ID,
+	SUNDROP_VILLAGE_BASE_BACKGROUND_TEXTURE_KEY,
+	SUNDROP_VILLAGE_FOREGROUND_BACKGROUND_ID,
+	SUNDROP_VILLAGE_FOREGROUND_BACKGROUND_TEXTURE_KEY
+} from '$lib/game/content/backgrounds/sundrop-village-backgrounds';
 import { compileLayeredRegion } from '$lib/game/content/maps/layered/compile-layered-region';
 import { createLayeredRegionBackground } from '$lib/game/content/maps/layered/region-background';
 import { sundropVillageLayered } from '$lib/game/content/maps/regions/village-layered';
@@ -24,9 +26,14 @@ export const villageRegion: RegionFragment = {
 	...compileLayeredRegion(sundropVillageLayered),
 	backgroundImages: [
 		createLayeredRegionBackground(sundropVillageLayered, {
-			id: SUNDROP_VILLAGE_BACKGROUND_ID,
-			textureKey: SUNDROP_VILLAGE_BACKGROUND_TEXTURE_KEY,
+			id: SUNDROP_VILLAGE_BASE_BACKGROUND_ID,
+			textureKey: SUNDROP_VILLAGE_BASE_BACKGROUND_TEXTURE_KEY,
 			plane: 'base'
+		}),
+		createLayeredRegionBackground(sundropVillageLayered, {
+			id: SUNDROP_VILLAGE_FOREGROUND_BACKGROUND_ID,
+			textureKey: SUNDROP_VILLAGE_FOREGROUND_BACKGROUND_TEXTURE_KEY,
+			plane: 'foreground'
 		})
 	]
 };
