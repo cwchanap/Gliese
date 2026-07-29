@@ -11,18 +11,41 @@ import { chromium } from 'playwright';
 const SCRIPT_PATH = fileURLToPath(import.meta.url);
 const REPO = resolve(dirname(SCRIPT_PATH), '../../..');
 let BASE_URL;
-const ASSET_PATH = '/game/assets/regions/sundrop-village-background.png';
-const ASSET_FILE = join(REPO, 'public/game/assets/regions/sundrop-village-background.png');
+const PROFILE = process.env.GLIESE_BROWSER_ACCEPTANCE_PROFILE ?? 'hpa-307';
+if (!['hpa-307', 'hpa-398'].includes(PROFILE)) {
+	throw new Error(`unknown GLIESE_BROWSER_ACCEPTANCE_PROFILE ${PROFILE}`);
+}
+const PRODUCTION_ASSETS =
+	PROFILE === 'hpa-398'
+		? [
+				{
+					path: '/game/assets/regions/sundrop-village-base.png',
+					file: join(REPO, 'public/game/assets/regions/sundrop-village-base.png'),
+					expectedSha256: 'f1184b045c27c544ac18937a4f8ccfa12cd386319b1722be5d808aea8048ade6'
+				},
+				{
+					path: '/game/assets/regions/sundrop-village-foreground.png',
+					file: join(REPO, 'public/game/assets/regions/sundrop-village-foreground.png'),
+					expectedSha256: '2d0a6703de1a404e49c0746f092a4c6f9f113ae17cd8bc35de635b5ec084ce45'
+				}
+			]
+		: [
+				{
+					path: '/game/assets/regions/sundrop-village-background.png',
+					file: join(REPO, 'public/game/assets/regions/sundrop-village-background.png'),
+					expectedSha256: '3933829f19e7eab4b26ba2d31c7a0cfac25d4fae0a16196893fac6dbf02187c1'
+				}
+			];
+const ASSET_PATHS = new Set(PRODUCTION_ASSETS.map((asset) => asset.path));
+const EXPECTED_ENABLED_COMPLETIONS = PRODUCTION_ASSETS.length;
 const SAVE_KEY = 'gliese.save.v8';
-const OUTPUT_DIR = join(REPO, 'docs/superpowers/reports/img/hpa-307');
-const TEMP_RESULT = '/private/tmp/hpa-307-route-result.json';
+const OUTPUT_DIR = join(REPO, `docs/superpowers/reports/img/${PROFILE}`);
+const TEMP_RESULT = `/private/tmp/${PROFILE}-route-result.json`;
 const PHASE = process.argv[2] ?? 'route';
 const VIEWPORT = { width: 1280, height: 720 };
 const WARMUP_FRAMES = 120;
 const WARMUP_TIMEOUT_MS = 10_000;
 const EVIDENCE_PATH_PREFIX = 'docs/superpowers/reports/';
-const EXPECTED_PRODUCTION_SHA256 =
-	'3933829f19e7eab4b26ba2d31c7a0cfac25d4fae0a16196893fac6dbf02187c1';
 const COMMIT = execFileSync('git', ['rev-parse', 'HEAD'], {
 	cwd: REPO,
 	encoding: 'utf8'
@@ -44,20 +67,27 @@ const WORKTREE_PATHS = execFileSync(
 		return match[1].split(' -> ').at(-1);
 	});
 const PRODUCT_DIRTY_PATHS = [...new Set(WORKTREE_PATHS)].filter(
-	(path) => !path.startsWith(EVIDENCE_PATH_PREFIX)
+	(path) =>
+		!path.startsWith(EVIDENCE_PATH_PREFIX) &&
+		!(PROFILE === 'hpa-398' && path.startsWith('output/playwright/'))
 );
 if (PRODUCT_DIRTY_PATHS.length > 0) {
 	throw new Error(
 		`refusing to label evidence with ${COMMIT} while product paths are dirty: ${PRODUCT_DIRTY_PATHS.join(', ')}`
 	);
 }
-const PRODUCTION_ASSET = await readFile(ASSET_FILE);
-const PRODUCTION_SHA256 = createHash('sha256').update(PRODUCTION_ASSET).digest('hex');
-if (PRODUCTION_SHA256 !== EXPECTED_PRODUCTION_SHA256) {
-	throw new Error(
-		`production asset drift: expected ${EXPECTED_PRODUCTION_SHA256}, received ${PRODUCTION_SHA256}`
-	);
+for (const asset of PRODUCTION_ASSETS) {
+	asset.contents = await readFile(asset.file);
+	asset.sha256 = createHash('sha256').update(asset.contents).digest('hex');
+	if (asset.sha256 !== asset.expectedSha256) {
+		throw new Error(
+			`production asset drift for ${asset.path}: expected ${asset.expectedSha256}, received ${asset.sha256}`
+		);
+	}
 }
+const PRODUCTION_SHA256 = createHash('sha256')
+	.update(PRODUCTION_ASSETS.map((asset) => asset.sha256).join('\n'))
+	.digest('hex');
 const EXPECTED_INTERIORS = [
 	'item-shop',
 	'hero-house',
@@ -71,7 +101,7 @@ const RENDERER_SIDECARS = [
 	{
 		mode: 'enabled',
 		query: '',
-		expectedCompletions: 1,
+		expectedCompletions: EXPECTED_ENABLED_COMPLETIONS,
 		screenshotName: 'runtime-background-enabled.png',
 		sidecarName: 'runtime-background-enabled.renderer.json'
 	},
@@ -85,7 +115,7 @@ const RENDERER_SIDECARS = [
 	{
 		mode: 'collision-overlay',
 		query: '?mapDebug=collision',
-		expectedCompletions: 1,
+		expectedCompletions: EXPECTED_ENABLED_COMPLETIONS,
 		screenshotName: 'runtime-background-collision.png',
 		sidecarName: 'runtime-background-collision.renderer.json'
 	},
@@ -202,7 +232,7 @@ async function startOwnedPreview() {
 	});
 	const stdout = captureBoundedOutput(child.stdout);
 	const stderr = captureBoundedOutput(child.stderr);
-	const markerName = `.hpa-307-preview-binding-${process.pid}-${Date.now()}.txt`;
+	const markerName = `.${PROFILE}-preview-binding-${process.pid}-${Date.now()}.txt`;
 	const markerPath = join(REPO, 'dist', markerName);
 	const markerContents = `${COMMIT}:${PRODUCTION_SHA256}\n`;
 	try {
@@ -243,23 +273,29 @@ async function startOwnedPreview() {
 			throw new Error('preview binding probe did not return the current dist marker');
 		}
 
-		const assetUrl = new URL(ASSET_PATH, BASE_URL);
-		const assetResponse = await fetch(assetUrl, {
-			cache: 'no-store',
-			signal: AbortSignal.timeout(30_000)
-		});
-		if (!assetResponse.ok) {
-			throw new Error(`served production asset returned HTTP ${assetResponse.status}`);
-		}
-		const servedAsset = Buffer.from(await assetResponse.arrayBuffer());
-		const servedAssetSha256 = createHash('sha256').update(servedAsset).digest('hex');
-		if (
-			servedAsset.byteLength !== PRODUCTION_ASSET.byteLength ||
-			servedAssetSha256 !== PRODUCTION_SHA256
-		) {
-			throw new Error(
-				`served production asset drift: ${servedAsset.byteLength} bytes, SHA-256 ${servedAssetSha256}`
-			);
+		const servedProductionAssets = [];
+		for (const asset of PRODUCTION_ASSETS) {
+			const assetUrl = new URL(asset.path, BASE_URL);
+			const assetResponse = await fetch(assetUrl, {
+				cache: 'no-store',
+				signal: AbortSignal.timeout(30_000)
+			});
+			if (!assetResponse.ok) {
+				throw new Error(`served production asset ${asset.path} returned HTTP ${assetResponse.status}`);
+			}
+			const servedAsset = Buffer.from(await assetResponse.arrayBuffer());
+			const servedAssetSha256 = createHash('sha256').update(servedAsset).digest('hex');
+			if (servedAsset.byteLength !== asset.contents.byteLength || servedAssetSha256 !== asset.sha256) {
+				throw new Error(
+					`served production asset drift for ${asset.path}: ${servedAsset.byteLength} bytes, SHA-256 ${servedAssetSha256}`
+				);
+			}
+			servedProductionAssets.push({
+				url: assetUrl.href,
+				bytes: servedAsset.byteLength,
+				sha256: servedAssetSha256,
+				matchesLocalProductionAsset: true
+			});
 		}
 
 		return {
@@ -282,12 +318,7 @@ async function startOwnedPreview() {
 					readyAtIso,
 					markerVerified: true
 				},
-				servedProductionAsset: {
-					url: assetUrl.href,
-					bytes: servedAsset.byteLength,
-					sha256: servedAssetSha256,
-					matchesLocalProductionAsset: true
-				}
+				servedProductionAssets
 			}
 		};
 	} catch (error) {
@@ -339,9 +370,10 @@ function summarizeFrames(samples) {
 
 async function installProbe(context) {
 	await context.addInitScript(
-		({ diagnosticEvent, width, height }) => {
+		({ diagnosticEvent, planeDiagnosticEvent, width, height }) => {
 			const probe = {
 				diagnostics: [],
+				planeDiagnostics: [],
 				contextLossCount: 0,
 				texImage2DCalls: [],
 				raf: {
@@ -354,6 +386,12 @@ async function installProbe(context) {
 
 			window.addEventListener(diagnosticEvent, (event) => {
 				probe.diagnostics.push({
+					receivedAtMs: performance.now(),
+					detail: event.detail
+				});
+			});
+			window.addEventListener(planeDiagnosticEvent, (event) => {
+				probe.planeDiagnostics.push({
 					receivedAtMs: performance.now(),
 					detail: event.detail
 				});
@@ -428,6 +466,7 @@ async function installProbe(context) {
 		},
 		{
 			diagnosticEvent: 'gliese:regional-background-renderer-diagnostic',
+			planeDiagnosticEvent: 'gliese:regional-background-plane-render-diagnostic',
 			width: 1792,
 			height: 1536
 		}
@@ -469,7 +508,7 @@ async function createSession(browser, name, query = '', { abortRegionalAsset = f
 	});
 	page.on('request', (request) => {
 		const url = new URL(request.url());
-		if (url.pathname === ASSET_PATH) {
+		if (ASSET_PATHS.has(url.pathname)) {
 			requests.push({
 				url: request.url(),
 				method: request.method(),
@@ -499,7 +538,9 @@ async function createSession(browser, name, query = '', { abortRegionalAsset = f
 		}
 	});
 	if (abortRegionalAsset) {
-		await page.route(`**${ASSET_PATH}`, (route) => route.abort('failed'));
+		for (const assetPath of ASSET_PATHS) {
+			await page.route(`**${assetPath}`, (route) => route.abort('failed'));
+		}
 	}
 	await page.goto(`${BASE_URL}${query}`, { waitUntil: 'domcontentloaded' });
 	await waitForReady(page);
@@ -535,7 +576,7 @@ function createRun(session) {
 async function captureScreenshot(run, name) {
 	const screenshotPath = join(OUTPUT_DIR, name);
 	await run.session.page.screenshot({ path: screenshotPath });
-	return `${EVIDENCE_PATH_PREFIX}img/hpa-307/${name}`;
+	return `${EVIDENCE_PATH_PREFIX}img/${PROFILE}/${name}`;
 }
 
 async function readSave(run, label) {
@@ -615,7 +656,7 @@ async function moveTo(
 	run,
 	label,
 	target,
-	{ axes = ['x', 'y'], tolerance = 9, expectedMap = 'meadow-entry' } = {}
+	{ axes = ['x', 'y'], tolerance = 9, expectedMap = 'meadow-entry', minimumBurstMs = 60 } = {}
 ) {
 	const start = run.last ?? (await readSave(run, `${label}:start`));
 	const leg = {
@@ -649,7 +690,10 @@ async function moveTo(
 						: 'ArrowUp';
 			const durationMs = Math.min(
 				160,
-				Math.max(60, Math.ceil((Math.max(0, Math.abs(difference) - tolerance) / 240) * 1000))
+				Math.max(
+					minimumBurstMs,
+					Math.ceil((Math.max(0, Math.abs(difference) - tolerance) / 240) * 1000)
+				)
 			);
 			const direction = difference > 0 ? 1 : -1;
 			const burst = await performBurst(run, key, durationMs, label);
@@ -869,13 +913,13 @@ async function runAuthoredRoute(run, { checkpoints = false, captures = false } =
 	// south edge before crossing west so the 30 px transition trigger (playerRadius 12
 	// + transitionRadius 18) around (816, 4912) is not re-entered. The wall at row 19
 	// (y=4976) expands to top=4948 with playerRadius, so the player cannot go south
-	// of ~4948. Target y=4946 with a 1 px tolerance keeps the player in the
-	// 6 px safe window [4942, 4948] that clears the trigger when crossing x=816.
+	// of ~4948. Target y=4946 with a 4 px tolerance accepts the safe window's
+	// north edge at 4942, while collision itself prevents travel south of 4948.
 	await moveTo(
 		run,
 		'Villager house 3 south bypass',
 		{ x: 856, y: 4946 },
-		{ axes: ['y'], tolerance: 1 }
+		{ axes: ['y'], tolerance: 4, minimumBurstMs: 16 }
 	);
 	await moveTo(run, 'Villager house 3 west bypass', { x: 760, y: 4946 }, { axes: ['x'] });
 	await moveTo(run, 'Villager house 1 lane', { x: 528, y: 4920 }, { axes: ['y', 'x'] });
@@ -1060,6 +1104,7 @@ async function collectDiagnosticSnapshot(session) {
 async function collectProbe(session) {
 	const probe = await session.page.evaluate(() => ({
 		diagnostics: window.__hpa307Probe.diagnostics,
+		planeDiagnostics: window.__hpa307Probe.planeDiagnostics,
 		contextLossCount: window.__hpa307Probe.contextLossCount,
 		texImage2DCalls: window.__hpa307Probe.texImage2DCalls
 	}));
@@ -1068,6 +1113,7 @@ async function collectProbe(session) {
 		exactRegionalRequestCount: session.requests.length,
 		diagnostics:
 			session.diagnosticSnapshots.length > 0 ? session.diagnosticSnapshots : probe.diagnostics,
+		planeDiagnostics: probe.planeDiagnostics,
 		contextLossCount: probe.contextLossCount,
 		texImage2DCalls: probe.texImage2DCalls,
 		pageErrors: session.pageErrors,
@@ -1136,9 +1182,11 @@ async function captureRendererModes(browser) {
 				query: descriptor.query,
 				url: `${BASE_URL}${descriptor.query}`,
 				productionAsset: {
-					path: 'public/game/assets/regions/sundrop-village-background.png',
-					bytes: PRODUCTION_ASSET.byteLength,
-					sha256: PRODUCTION_SHA256
+					assets: PRODUCTION_ASSETS.map((asset) => ({
+						path: asset.file.slice(REPO.length + 1),
+						bytes: asset.contents.byteLength,
+						sha256: asset.sha256
+					}))
 				},
 				screenshot: {
 					path: screenshotPath,
@@ -1147,7 +1195,7 @@ async function captureRendererModes(browser) {
 				},
 				assetInterception:
 					descriptor.abortAsset === true
-						? { exactPath: ASSET_PATH, action: "route.abort('failed')" }
+						? { exactPaths: [...ASSET_PATHS], action: "route.abort('failed')" }
 						: null,
 				probe
 			};
@@ -1158,7 +1206,7 @@ async function captureRendererModes(browser) {
 				query: descriptor.query,
 				capturedAtIso: record.capturedAtIso,
 				sidecar: {
-					path: `${EVIDENCE_PATH_PREFIX}img/hpa-307/${descriptor.sidecarName}`,
+					path: `${EVIDENCE_PATH_PREFIX}img/${PROFILE}/${descriptor.sidecarName}`,
 					bytes: sidecarContents.byteLength,
 					sha256: createHash('sha256').update(sidecarContents).digest('hex')
 				},
@@ -1206,6 +1254,65 @@ async function runRouteOnly(browser) {
 		return result;
 	} finally {
 		await session.context.close();
+	}
+}
+
+function assertHpa398PerformanceEvidence(enabled, off) {
+	if (PROFILE !== 'hpa-398') return;
+	const enabledDiagnostic = enabled.probe.diagnostics.at(-1)?.detail;
+	const offDiagnostic = off.probe.diagnostics.at(-1)?.detail;
+	const enabledMeadowDiagnostics = enabled.probe.planeDiagnostics.filter(
+		(entry) => entry.detail.mapId === 'meadow-entry'
+	);
+	const offMeadowDiagnostics = off.probe.planeDiagnostics.filter(
+		(entry) => entry.detail.mapId === 'meadow-entry'
+	);
+	const isExactStatusSet = (entry, statuses, successfulBackgroundIds) =>
+		JSON.stringify(entry.detail.entries.map((candidate) => candidate.status)) ===
+			JSON.stringify(statuses) &&
+		JSON.stringify(entry.detail.successfulBackgroundIds) ===
+			JSON.stringify(successfulBackgroundIds);
+	const hasCleanRuntime = (probe) =>
+		probe.contextLossCount === 0 &&
+		probe.pageErrors.length === 0 &&
+		probe.consoleErrors.length === 0 &&
+		probe.failedResponses.length === 0;
+	const rendererMeetsGate =
+		enabledDiagnostic?.renderer === 'webgl'
+			? enabledDiagnostic.maxTextureSize >= 1792
+			: enabledDiagnostic?.renderer === 'canvas';
+	const enabledUploadsAreExact =
+		enabled.probe.texImage2DCalls.length === 2 &&
+		enabled.probe.texImage2DCalls.every(
+			(call) => call.width === 1792 && call.height === 1536
+		);
+
+	if (
+		enabled.probe.exactRegionalRequestCount !== 2 ||
+		off.probe.exactRegionalRequestCount !== 0 ||
+		enabledDiagnostic?.regionalBackgroundLoadCompletions !== 2 ||
+		offDiagnostic?.regionalBackgroundLoadCompletions !== 0 ||
+		enabledMeadowDiagnostics.length === 0 ||
+		!enabledMeadowDiagnostics.every((entry) =>
+			isExactStatusSet(entry, ['rendered', 'rendered'], [
+				'sundrop-village-base-image',
+				'sundrop-village-foreground-image'
+			])
+		) ||
+		offMeadowDiagnostics.length === 0 ||
+		!offMeadowDiagnostics.every((entry) =>
+			isExactStatusSet(entry, ['disabled', 'disabled'], [])
+		) ||
+		!rendererMeetsGate ||
+		!enabledUploadsAreExact ||
+		off.probe.texImage2DCalls.length !== 0 ||
+		!hasCleanRuntime(enabled.probe) ||
+		!hasCleanRuntime(off.probe) ||
+		enabled.route.interiorRoundTrips.length !== 7 ||
+		off.route.interiorRoundTrips.length !== 7 ||
+		enabled.stats.p95Ms > off.stats.p95Ms + 2
+	) {
+		throw new Error('HPA-398 performance evidence did not satisfy the exact Step 4 contract');
 	}
 }
 
@@ -1279,16 +1386,17 @@ async function runFull(browser) {
 	} finally {
 		await offSession.context.close();
 	}
+	assertHpa398PerformanceEvidence(enabled, off);
 
 	const summary = {
 		capturedAtIso: new Date().toISOString(),
 		commit: COMMIT,
 		sourceBinding: SOURCE_BINDING,
-		productionAsset: {
-			path: 'public/game/assets/regions/sundrop-village-background.png',
-			sha256: PRODUCTION_SHA256,
-			bytes: PRODUCTION_ASSET.byteLength
-		},
+		productionAssets: PRODUCTION_ASSETS.map((asset) => ({
+			path: asset.file.slice(REPO.length + 1),
+			sha256: asset.sha256,
+			bytes: asset.contents.byteLength
+		})),
 		environment: {
 			os: 'macOS reference device',
 			browser: `Chromium ${browser.version()}`,
@@ -1297,6 +1405,7 @@ async function runFull(browser) {
 		},
 		controller: {
 			path: 'docs/superpowers/reports/hpa-307-browser-acceptance.mjs',
+			profile: PROFILE,
 			input: 'bounded held-arrow-key bursts',
 			readback: `${SAVE_KEY} after gliese:hud-command {type: "save"}`,
 			crossroadsTarget: 'north Crossroads throat through E-C at x=1600 to y=4320, then return'
