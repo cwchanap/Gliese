@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { meadowEntryMap } from '$lib/game/content/maps';
 import { startingPlayer } from '$lib/game/content/player';
 import { mainQuestId } from '$lib/game/content/quests';
+import { PLAYER_COLLISION_RADIUS } from '$lib/game/core/collision';
 import { getXpForLevel } from '$lib/game/core/progression';
 import { createInitialQuestState } from '$lib/game/core/quests';
 import {
@@ -226,14 +227,12 @@ describe('save state', () => {
 	 * containment. A tile center outside the raw rect but inside the padded
 	 * rect still traps the player, so walkability is tested with padding.
 	 */
-	const NORMALIZE_PLAYER_RADIUS = 12;
-
 	function isPositionWalkable(px: number, py: number): boolean {
 		return !isInsideAnyCollisionRect(
 			px,
 			py,
 			[...collectStrictCollisionRects(meadowEntryMap), ...collectLandmarkRects(meadowEntryMap)],
-			NORMALIZE_PLAYER_RADIUS
+			PLAYER_COLLISION_RADIUS
 		);
 	}
 

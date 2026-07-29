@@ -1,4 +1,8 @@
-import type { MapBackgroundImage, MapDecor } from '$lib/game/content/maps/types';
+import type {
+	MapBackgroundImage,
+	MapBackgroundPlane,
+	MapDecor
+} from '$lib/game/content/maps/types';
 import type { LayeredRegionSource } from '$lib/game/content/maps/layered/types';
 
 export function createLayeredRegionBackground<K extends MapDecor['textureKey']>(
@@ -6,7 +10,7 @@ export function createLayeredRegionBackground<K extends MapDecor['textureKey']>(
 	input: {
 		id: string;
 		textureKey: string;
-		depth?: number;
+		plane: MapBackgroundPlane;
 	}
 ): MapBackgroundImage {
 	const width = source.width * source.tileSize;
@@ -19,6 +23,6 @@ export function createLayeredRegionBackground<K extends MapDecor['textureKey']>(
 		y: source.origin.y + height / 2,
 		width,
 		height,
-		depth: input.depth ?? -9
+		plane: input.plane
 	};
 }

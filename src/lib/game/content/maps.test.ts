@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'vitest';
 import {
-	SUNDROP_VILLAGE_BACKGROUND_DEPTH,
 	SUNDROP_VILLAGE_BACKGROUND_ID,
 	SUNDROP_VILLAGE_BACKGROUND_TEXTURE_KEY
 } from '$lib/game/content/backgrounds/sundrop-village-background';
@@ -1953,7 +1952,7 @@ describe('meadow-entry region integrity', () => {
 				y: sundropVillageLayered.origin.y + height / 2,
 				width,
 				height,
-				depth: SUNDROP_VILLAGE_BACKGROUND_DEPTH
+				plane: 'base'
 			}
 		]);
 	});
@@ -1999,7 +1998,7 @@ describe('mergeRegions collision guard', () => {
 					y: 100,
 					width: 100,
 					height: 100,
-					depth: -9
+					plane: 'base'
 				}
 			]
 		};
@@ -2012,7 +2011,7 @@ describe('mergeRegions collision guard', () => {
 					y: 200,
 					width: 200,
 					height: 200,
-					depth: -8
+					plane: 'foreground'
 				}
 			]
 		};

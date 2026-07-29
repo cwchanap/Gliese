@@ -15,9 +15,9 @@ import {
 import { sundropVillageLayered } from '$lib/game/content/maps/regions/village-layered';
 import { meadowEntryMap } from '$lib/game/content/maps/meadow-entry';
 import type { MapLandmark, WorldMapDefinition } from '$lib/game/content/maps/types';
+import { PLAYER_COLLISION_RADIUS } from '$lib/game/core/collision';
 import {
 	NORMALIZE_DOORWAY_CLEARANCE_WIDTH,
-	NORMALIZE_PLAYER_RADIUS,
 	NORMALIZE_TRANSITION_RADIUS,
 	collectLandmarkRects,
 	collectStrictCollisionRects,
@@ -43,7 +43,7 @@ function makeInputs(map: WorldMapDefinition = meadowEntryMap): VillageArtControl
 		map,
 		strictCollisionRects: collectStrictCollisionRects(map),
 		landmarkCollisionRects: collectLandmarkRects(map),
-		playerRadius: NORMALIZE_PLAYER_RADIUS,
+		playerRadius: PLAYER_COLLISION_RADIUS,
 		doorwayClearanceWidth: NORMALIZE_DOORWAY_CLEARANCE_WIDTH,
 		transitionRadius: NORMALIZE_TRANSITION_RADIUS
 	};
@@ -175,11 +175,11 @@ describe('Sundrop Village HPA-307 art controls', () => {
 			{ x: 62, y: 130, width: 20, height: 36 },
 			{ x: 138, y: 130, width: 20, height: 36 }
 		]);
-		expect(isInsideAnyCollisionRect(100, 130, rects, NORMALIZE_PLAYER_RADIUS)).toBe(false);
+		expect(isInsideAnyCollisionRect(100, 130, rects, PLAYER_COLLISION_RADIUS)).toBe(false);
 	});
 
 	it('pads player-center exclusion before clipping it to the regional canvas', () => {
-		expect(NORMALIZE_PLAYER_RADIUS).toBe(12);
+		expect(PLAYER_COLLISION_RADIUS).toBe(12);
 		expect(
 			padClipWorldRectToLocal(
 				{ id: 'west-edge', x: 250, y: 4_368, width: 20, height: 8 },
@@ -189,7 +189,7 @@ describe('Sundrop Village HPA-307 art controls', () => {
 					width: sundropVillageLayered.width * sundropVillageLayered.tileSize,
 					height: sundropVillageLayered.height * sundropVillageLayered.tileSize
 				},
-				NORMALIZE_PLAYER_RADIUS
+				PLAYER_COLLISION_RADIUS
 			)
 		).toEqual({ id: 'west-edge', x: 8, y: 16, width: 16, height: 32 });
 	});
@@ -381,7 +381,7 @@ describe('Sundrop Village art-control rendering edge cases', () => {
 			map,
 			strictCollisionRects: [],
 			landmarkCollisionRects: [],
-			playerRadius: NORMALIZE_PLAYER_RADIUS,
+			playerRadius: PLAYER_COLLISION_RADIUS,
 			doorwayClearanceWidth: NORMALIZE_DOORWAY_CLEARANCE_WIDTH,
 			transitionRadius: NORMALIZE_TRANSITION_RADIUS
 		};

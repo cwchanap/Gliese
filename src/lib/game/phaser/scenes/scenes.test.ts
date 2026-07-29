@@ -2721,7 +2721,7 @@ describe('WorldScene', () => {
 				width: 1792,
 				height: 1536,
 				textureKey: SUNDROP_VILLAGE_BACKGROUND_TEXTURE_KEY,
-				depth: -9
+				plane: 'base'
 			}
 		];
 		maps['scene-support-test']!.mapDecor = [

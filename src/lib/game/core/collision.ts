@@ -1,0 +1,1 @@
+export const PLAYER_COLLISION_RADIUS = 12;

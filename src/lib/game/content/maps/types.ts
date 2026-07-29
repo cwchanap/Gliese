@@ -87,9 +87,11 @@ export interface MapRect {
 	height: number;
 }
 
+export type MapBackgroundPlane = 'base' | 'foreground';
+
 export interface MapBackgroundImage extends MapRect {
 	textureKey: string;
-	depth: number;
+	plane: MapBackgroundPlane;
 }
 
 export type MapTransitionMarker = 'doorway' | 'stair';
@@ -108,9 +110,14 @@ export type MapBlockerKind =
 	| 'future-gate'
 	| 'ocean';
 
+export type MapBlockerVisual =
+	| { mode: 'always' }
+	| { mode: 'fallback-only'; ownerBackgroundIds: readonly string[] };
+
 export interface MapBlocker extends MapRect {
 	kind: MapBlockerKind;
 	label?: string;
+	visual?: MapBlockerVisual;
 }
 
 export interface MapCombatBounds extends MapRect {
