@@ -1,0 +1,10 @@
+$ bun run test:unit -- --run src/lib/game/content/maps/layered/village-art-controls.test.ts src/lib/game/content/backgrounds/sundrop-village-png.test.ts src/lib/game/content/backgrounds/sundrop-village-retouch.test.ts src/lib/game/content/backgrounds/sundrop-village-obstacle-ownership.test.ts src/lib/game/content/backgrounds/sundrop-village-obstacle-controls.test.ts src/lib/game/content/backgrounds/sundrop-village-obstacle-composite.test.ts src/lib/game/content/sundrop-village-obstacle-assets.test.ts
+$ vitest --run src/lib/game/content/maps/layered/village-art-controls.test.ts src/lib/game/content/backgrounds/sundrop-village-png.test.ts src/lib/game/content/backgrounds/sundrop-village-retouch.test.ts src/lib/game/content/backgrounds/sundrop-village-obstacle-ownership.test.ts src/lib/game/content/backgrounds/sundrop-village-obstacle-controls.test.ts src/lib/game/content/backgrounds/sundrop-village-obstacle-composite.test.ts src/lib/game/content/sundrop-village-obstacle-assets.test.ts
+
+ RUN  v4.1.5 /Users/chanwaichan/workspace/Gliese
+
+
+ Test Files  7 passed (7)
+      Tests  107 passed (107)
+   Start at  12:11:48
+   Duration  7.27s (transform 1.65s, setup 0ms, import 2.50s, tests 9.85s, environment 0ms)
