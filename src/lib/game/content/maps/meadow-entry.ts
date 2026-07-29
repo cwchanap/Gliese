@@ -1,6 +1,12 @@
 import type { WorldMapDefinition } from '$lib/game/content/maps/types';
 import type { RegionFragment } from '$lib/game/content/maps/regions/types';
 import { addEnglishMapText } from '$lib/game/content/maps/text';
+import { validateMapBackgroundOwnership } from '$lib/game/content/maps/background-ownership';
+import {
+	applySundropObstacleOwnership,
+	SUNDROP_VILLAGE_OBSTACLE_OWNERSHIP,
+	validateSundropObstacleCoverage
+} from '$lib/game/content/backgrounds/sundrop-village-obstacle-ownership';
 import { villageRegion } from '$lib/game/content/maps/regions/village';
 import { wildwoodRegion } from '$lib/game/content/maps/regions/wildwood';
 import { mistfenRegion } from '$lib/game/content/maps/regions/mistfen';
@@ -135,6 +141,15 @@ const merged = mergeRegions([
 	meadowBoundsRegion
 ]);
 
+const ownedBlockers = applySundropObstacleOwnership(merged.blockers);
+const ownershipSource = {
+	blockers: ownedBlockers,
+	backgroundImages: merged.backgroundImages
+};
+
+validateMapBackgroundOwnership(ownershipSource);
+validateSundropObstacleCoverage(ownershipSource, SUNDROP_VILLAGE_OBSTACLE_OWNERSHIP);
+
 export const meadowEntryMap: WorldMapDefinition = addEnglishMapText({
 	id: openingMapId,
 	width: 200,
@@ -147,7 +162,7 @@ export const meadowEntryMap: WorldMapDefinition = addEnglishMapText({
 	landmarks: merged.landmarks,
 	transitions: merged.transitions,
 	groundPatches: merged.groundPatches,
-	blockers: merged.blockers,
+	blockers: ownedBlockers,
 	fences: merged.fences,
 	mapDecor: merged.mapDecor,
 	combatBounds: merged.combatBounds,

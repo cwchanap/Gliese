@@ -2,14 +2,20 @@ import { expect, test, type Page, type TestInfo } from '@playwright/test';
 import { writeFile } from 'node:fs/promises';
 
 import {
-	SUNDROP_VILLAGE_BACKGROUND_ID,
-	SUNDROP_VILLAGE_BACKGROUND_PATH,
-	SUNDROP_VILLAGE_BACKGROUND_TEXTURE_KEY
-} from '../../src/lib/game/content/backgrounds/sundrop-village-background';
+	SUNDROP_VILLAGE_BASE_BACKGROUND_ID,
+	SUNDROP_VILLAGE_BASE_BACKGROUND_PATH,
+	SUNDROP_VILLAGE_BASE_BACKGROUND_TEXTURE_KEY,
+	SUNDROP_VILLAGE_FOREGROUND_BACKGROUND_ID,
+	SUNDROP_VILLAGE_FOREGROUND_BACKGROUND_PATH
+} from '../../src/lib/game/content/backgrounds/sundrop-village-backgrounds';
 import {
 	REGIONAL_BACKGROUND_RENDERER_DIAGNOSTIC_EVENT,
 	type RegionalBackgroundRendererDiagnostic
 } from '../../src/lib/game/phaser/renderer-diagnostics';
+import {
+	REGIONAL_BACKGROUND_PLANE_RENDER_DIAGNOSTIC_EVENT,
+	type RegionalBackgroundPlaneRenderDiagnostic
+} from '../../src/lib/game/phaser/regional-background-plane-render-diagnostics';
 
 type HudStateSnapshot = {
 	status?: string;
@@ -26,7 +32,7 @@ type RegionalBackgroundEvidenceCase = {
 	name: string;
 	screenshotName: string;
 	url: string;
-	/** Expected regional background load completions; defaults to 1 when omitted. */
+	/** Expected regional background load completions; defaults to 2 when omitted. */
 	expectedLoadCompletions?: number;
 };
 
@@ -210,10 +216,47 @@ async function installRegionalBackgroundDiagnosticListener(page: Page) {
 	return diagnostics;
 }
 
+async function installRegionalBackgroundPlaneDiagnosticListener(page: Page) {
+	const diagnostics: RegionalBackgroundPlaneRenderDiagnostic[] = [];
+	const bindingName = 'captureRegionalBackgroundPlaneRenderDiagnostic';
+	await page.exposeBinding(
+		bindingName,
+		(_source, detail: RegionalBackgroundPlaneRenderDiagnostic) => diagnostics.push(detail)
+	);
+	await page.addInitScript(
+		({ diagnosticBindingName, eventName }) => {
+			window.addEventListener(eventName, (event) => {
+				const binding = (
+					window as unknown as Record<
+						string,
+						(detail: RegionalBackgroundPlaneRenderDiagnostic) => Promise<void>
+					>
+				)[diagnosticBindingName];
+				void binding((event as CustomEvent<RegionalBackgroundPlaneRenderDiagnostic>).detail);
+			});
+		},
+		{
+			diagnosticBindingName: bindingName,
+			eventName: REGIONAL_BACKGROUND_PLANE_RENDER_DIAGNOSTIC_EVENT
+		}
+	);
+	return diagnostics;
+}
+
+type RegionalBackgroundEvidenceDiagnostics = RegionalBackgroundRendererDiagnostic[] & {
+	planeDiagnostics: RegionalBackgroundPlaneRenderDiagnostic[];
+};
+
 async function prepareRegionalBackgroundEvidencePage(page: Page) {
 	await page.setViewportSize({ width: 1280, height: 720 });
 	await injectSave(page, createRegionalBackgroundSaveFixture());
-	return installRegionalBackgroundDiagnosticListener(page);
+	const [rendererDiagnostics, planeDiagnostics] = await Promise.all([
+		installRegionalBackgroundDiagnosticListener(page),
+		installRegionalBackgroundPlaneDiagnosticListener(page)
+	]);
+	return Object.assign(rendererDiagnostics, {
+		planeDiagnostics
+	}) as RegionalBackgroundEvidenceDiagnostics;
 }
 
 async function expectGameReady(page: Page) {
@@ -271,12 +314,26 @@ async function assertAndAttachRendererDiagnostic(
 	});
 }
 
+async function assertPlaneDiagnostics(
+	diagnostics: RegionalBackgroundPlaneRenderDiagnostic[],
+	statuses: readonly RegionalBackgroundPlaneRenderDiagnostic['entries'][number]['status'][]
+) {
+	await expect.poll(() => diagnostics.length).toBe(1);
+	expect(diagnostics[0]?.mapId).toBe('meadow-entry');
+	expect(diagnostics[0]?.entries.map((entry) => entry.status)).toEqual(statuses);
+	expect(diagnostics[0]?.entries.map((entry) => entry.id)).toEqual([
+		SUNDROP_VILLAGE_BASE_BACKGROUND_ID,
+		SUNDROP_VILLAGE_FOREGROUND_BACKGROUND_ID
+	]);
+}
+
 test('regional background load failure keeps fallback gameplay ready with scoped diagnostics', async ({
 	page
 }, testInfo) => {
 	const consoleEntries: ConsoleEntry[] = [];
 	const pageErrors: Error[] = [];
-	const expectedAssetUrl = new URL(SUNDROP_VILLAGE_BACKGROUND_PATH, 'http://127.0.0.1:4173').href;
+	const expectedAssetUrl = new URL(SUNDROP_VILLAGE_BASE_BACKGROUND_PATH, 'http://127.0.0.1:4173')
+		.href;
 
 	const diagnostics = await prepareRegionalBackgroundEvidencePage(page);
 	page.on('console', (message) => {
@@ -287,13 +344,13 @@ test('regional background load failure keeps fallback gameplay ready with scoped
 		});
 	});
 	page.on('pageerror', (error) => pageErrors.push(error));
-	await page.route(`**${SUNDROP_VILLAGE_BACKGROUND_PATH}`, (route) => route.abort('failed'));
+	await page.route(`**${SUNDROP_VILLAGE_BASE_BACKGROUND_PATH}`, (route) => route.abort('failed'));
 
 	await page.goto('/');
 	await expectGameReady(page);
 	await assertAndAttachRendererDiagnostic(
 		diagnostics,
-		0,
+		1,
 		'runtime-background-load-failure.renderer.json',
 		testInfo
 	);
@@ -302,24 +359,26 @@ test('regional background load failure keeps fallback gameplay ready with scoped
 		(entry) => entry.type === 'error' && entry.text.startsWith('[BootScene] asset load failed:')
 	);
 	expect(bootErrors).toHaveLength(1);
-	expect(bootErrors[0]?.text).toContain(`key="${SUNDROP_VILLAGE_BACKGROUND_TEXTURE_KEY}"`);
+	expect(bootErrors[0]?.text).toContain(`key="${SUNDROP_VILLAGE_BASE_BACKGROUND_TEXTURE_KEY}"`);
 	const bootSource = bootErrors[0]?.text.match(/\ssrc="([^"]+)"$/)?.[1];
 	expect(bootSource).toBeDefined();
 	expect(new URL(bootSource!, expectedAssetUrl).href).toBe(expectedAssetUrl);
 
 	const expectedWorldWarning =
-		`[WorldScene] regional background unavailable: id="${SUNDROP_VILLAGE_BACKGROUND_ID}" ` +
-		`textureKey="${SUNDROP_VILLAGE_BACKGROUND_TEXTURE_KEY}" mapId="meadow-entry"`;
+		`[WorldScene] regional background unavailable: id="${SUNDROP_VILLAGE_BASE_BACKGROUND_ID}" ` +
+		`textureKey="${SUNDROP_VILLAGE_BASE_BACKGROUND_TEXTURE_KEY}" mapId="meadow-entry"`;
 	const findTargetedWorldWarnings = () =>
 		consoleEntries.filter(
 			(entry) =>
-				entry.type === 'warning' && entry.text.includes(`id="${SUNDROP_VILLAGE_BACKGROUND_ID}"`)
+				entry.type === 'warning' &&
+				entry.text.includes(`id="${SUNDROP_VILLAGE_BASE_BACKGROUND_ID}"`)
 		);
 	await expect
 		.poll(() => findTargetedWorldWarnings().map((entry) => entry.text))
 		.toEqual([expectedWorldWarning]);
 	const targetedWorldWarnings = findTargetedWorldWarnings();
 	expect(targetedWorldWarnings.map((entry) => entry.text)).toEqual([expectedWorldWarning]);
+	await assertPlaneDiagnostics(diagnostics.planeDiagnostics, ['missing-texture', 'rendered']);
 
 	const toleratedChromiumFailures = consoleEntries.filter((entry) => {
 		if (entry.type !== 'error' || entry.text !== 'Failed to load resource: net::ERR_FAILED') {
@@ -360,6 +419,85 @@ test('regional background load failure keeps fallback gameplay ready with scoped
 	).toBe(true);
 });
 
+const ONE_PIXEL_PNG = Buffer.from(
+	'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVQIHWP4z8DwHwAFgAI/ScL5hAAAAABJRU5ErkJggg==',
+	'base64'
+);
+
+for (const failureCase of [
+	{
+		name: 'missing foreground',
+		path: SUNDROP_VILLAGE_FOREGROUND_BACKGROUND_PATH,
+		statuses: ['rendered', 'missing-texture'] as const,
+		loadCompletions: 1,
+		intercept: (route: import('@playwright/test').Route) => route.abort('failed')
+	},
+	{
+		name: 'wrong-sized base',
+		path: SUNDROP_VILLAGE_BASE_BACKGROUND_PATH,
+		statuses: ['invalid-dimensions', 'rendered'] as const,
+		loadCompletions: 2,
+		intercept: (route: import('@playwright/test').Route) =>
+			route.fulfill({ contentType: 'image/png', body: ONE_PIXEL_PNG })
+	},
+	{
+		name: 'wrong-sized foreground',
+		path: SUNDROP_VILLAGE_FOREGROUND_BACKGROUND_PATH,
+		statuses: ['rendered', 'invalid-dimensions'] as const,
+		loadCompletions: 2,
+		intercept: (route: import('@playwright/test').Route) =>
+			route.fulfill({ contentType: 'image/png', body: ONE_PIXEL_PNG })
+	}
+] as const) {
+	test(`regional background ${failureCase.name} retains its valid plane and fallback gameplay`, async ({
+		page
+	}, testInfo) => {
+		const diagnostics = await prepareRegionalBackgroundEvidencePage(page);
+		await page.route(`**${failureCase.path}`, failureCase.intercept);
+		await page.goto('/');
+		await expectGameReady(page);
+		await assertAndAttachRendererDiagnostic(
+			diagnostics,
+			failureCase.loadCompletions,
+			`runtime-background-${failureCase.name.replaceAll(' ', '-')}.renderer.json`,
+			testInfo
+		);
+		await assertPlaneDiagnostics(diagnostics.planeDiagnostics, failureCase.statuses);
+		// The game remains interactive after the failed plane, while collision continues to be
+		// enforced by the unchanged source blockers.
+		await page.keyboard.press('ArrowDown');
+		await expect(page.locator('canvas')).toBeVisible();
+		await captureRuntimeScreenshot(
+			page,
+			testInfo,
+			`runtime-background-${failureCase.name.replaceAll(' ', '-')}.png`
+		);
+	});
+}
+
+for (const renderFault of [
+	{
+		name: 'base render failure',
+		url: `/?regionalBackgroundFault=${SUNDROP_VILLAGE_BASE_BACKGROUND_ID}:render`,
+		statuses: ['render-failed', 'rendered'] as const
+	},
+	{
+		name: 'foreground render failure',
+		url: `/?regionalBackgroundFault=${SUNDROP_VILLAGE_FOREGROUND_BACKGROUND_ID}:render`,
+		statuses: ['rendered', 'render-failed'] as const
+	}
+] as const) {
+	test(`regional background ${renderFault.name} keeps the other plane visible`, async ({
+		page
+	}) => {
+		const diagnostics = await prepareRegionalBackgroundEvidencePage(page);
+		await page.goto(renderFault.url);
+		await expectGameReady(page);
+		await assertPlaneDiagnostics(diagnostics.planeDiagnostics, renderFault.statuses);
+		await expect(page.locator('canvas')).toBeVisible();
+	});
+}
+
 const regionalBackgroundEvidenceCases: RegionalBackgroundEvidenceCase[] = [
 	{
 		name: 'enabled capture',
@@ -393,10 +531,16 @@ for (const evidenceCase of regionalBackgroundEvidenceCases) {
 		await expectGameReady(page);
 		await assertAndAttachRendererDiagnostic(
 			diagnostics,
-			evidenceCase.expectedLoadCompletions ?? 1,
+			evidenceCase.expectedLoadCompletions ?? 2,
 			evidenceCase.screenshotName.replace(/\.png$/, '.renderer.json'),
 			testInfo,
 			evidenceCase.expectedLoadCompletions === 0 ? 'null' : 'non-negative'
+		);
+		await assertPlaneDiagnostics(
+			diagnostics.planeDiagnostics,
+			evidenceCase.expectedLoadCompletions === 0
+				? ['disabled', 'disabled']
+				: ['rendered', 'rendered']
 		);
 		await captureRuntimeScreenshot(page, testInfo, evidenceCase.screenshotName);
 	});

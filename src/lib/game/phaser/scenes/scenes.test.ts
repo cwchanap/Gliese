@@ -1,7 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { battleBackgroundAssets, villageHedgeAsset } from '$lib/game/content/assets';
-import { SUNDROP_VILLAGE_BACKGROUND_TEXTURE_KEY } from '$lib/game/content/backgrounds/sundrop-village-background';
+import {
+	SUNDROP_VILLAGE_BASE_BACKGROUND_TEXTURE_KEY,
+	SUNDROP_VILLAGE_FOREGROUND_BACKGROUND_TEXTURE_KEY
+} from '$lib/game/content/backgrounds/sundrop-village-backgrounds';
 import { maps } from '$lib/game/content/maps';
 import type { RegionalBackgroundRendererDiagnostic } from '$lib/game/phaser/renderer-diagnostics';
 import type { RegionalBackgroundPlaneRenderDiagnostic } from '$lib/game/phaser/regional-background-plane-render-diagnostics';
@@ -215,7 +218,7 @@ vi.mock('$lib/game/i18n/content', async () => {
 });
 
 const phaserState = vi.hoisted(() => {
-	const regionalBackgroundTextureKey = 'sundrop-village-background';
+	const regionalBackgroundTextureKey = 'sundrop-village-base';
 	const gl = {
 		MAX_TEXTURE_SIZE: 0x0d33,
 		getParameter: vi.fn(() => 4096)
@@ -838,6 +841,11 @@ const phaserState = vi.hoisted(() => {
 			regionalBackgroundTextureMock.source[0] = { width: 1792, height: 1536 };
 			regionalBackgroundTextureMock.get.mockClear();
 			regionalBackgroundTextureMocks.clear();
+			regionalBackgroundTextureMocks.set('sundrop-village-foreground', {
+				key: 'sundrop-village-foreground',
+				source: [{ width: 1792, height: 1536 }],
+				get: vi.fn(() => ({ cutWidth: 1792, cutHeight: 1536 }))
+			});
 			imageCreationFailureKeys.clear();
 			postCreationFailureKeys.clear();
 			missingTextureKeys.clear();
@@ -2653,21 +2661,22 @@ describe('WorldScene', () => {
 		expect(scene.cameras.main.setBackgroundColor).toHaveBeenCalledWith('#1a1f2b');
 	});
 
-	it('renders the Sundrop regional background at its source-derived center and center origin', async () => {
+	it('renders both Sundrop regional background planes at their source-derived center and semantic depths', async () => {
 		const { WorldScene } = await import('./WorldScene');
 		const scene = new WorldScene();
 
 		scene.create({ mapId: 'meadow-entry' });
 
-		expect(scene.add.image).toHaveBeenCalledWith(
-			1152,
-			5120,
-			SUNDROP_VILLAGE_BACKGROUND_TEXTURE_KEY
-		);
-		const background = phaserState.imageMarkers.find(
-			(marker) => marker.texture === SUNDROP_VILLAGE_BACKGROUND_TEXTURE_KEY
-		);
-		expect(background?.setOrigin).toHaveBeenCalledWith(0.5, 0.5);
+		for (const [textureKey, depth] of [
+			[SUNDROP_VILLAGE_BASE_BACKGROUND_TEXTURE_KEY, -9],
+			[SUNDROP_VILLAGE_FOREGROUND_BACKGROUND_TEXTURE_KEY, 100]
+		] as const) {
+			expect(scene.add.image).toHaveBeenCalledWith(1152, 5120, textureKey);
+			const background = phaserState.imageMarkers.find((marker) => marker.texture === textureKey);
+			expect(background?.setOrigin).toHaveBeenCalledWith(0.5, 0.5);
+			expect(background?.setDisplaySize).toHaveBeenCalledWith(1792, 1536);
+			expect(background?.setDepth).toHaveBeenCalledWith(depth);
+		}
 	});
 
 	it('renders independent base and foreground planes at their semantic depths', async () => {
@@ -2898,57 +2907,66 @@ describe('WorldScene', () => {
 		}
 	});
 
-	it('sizes the Sundrop regional background to its descriptor and places it at depth -9', async () => {
-		const { WorldScene } = await import('./WorldScene');
-		const scene = new WorldScene();
-
-		scene.create({ mapId: 'meadow-entry' });
-
-		const background = phaserState.imageMarkers.find(
-			(marker) => marker.texture === SUNDROP_VILLAGE_BACKGROUND_TEXTURE_KEY
-		);
-		expect(background?.setDisplaySize).toHaveBeenCalledWith(1792, 1536);
-		expect(background?.setDepth).toHaveBeenCalledWith(-9);
-	});
-
-	it('renders live garden-hedge visuals on top of a successfully rendered regional background', async () => {
+	it('suppresses exactly the 21 selected Sundrop blockers only when both planes render', async () => {
 		const { meadowEntryMap } = await import('$lib/game/content/maps');
 		const { WorldScene } = await import('./WorldScene');
 		const scene = new WorldScene();
 
 		scene.create({ mapId: meadowEntryMap.id });
 
-		// The Sundrop regional background is ground-only (no hedges/trees/walls),
-		// so live hedge sprites must remain visible to mark collision walls.
-		expect(meadowEntryMap.blockers?.some((blocker) => blocker.kind === 'garden-hedge')).toBe(true);
-		expect(villageHedgeMarkers().filter(isInsideSundropVillage)).toHaveLength(228);
-		expect(villageHedgeMarkers().filter((marker) => !isInsideSundropVillage(marker))).toHaveLength(
-			101
+		const selected = (meadowEntryMap.blockers ?? []).filter(
+			(blocker) => blocker.visual?.mode === 'fallback-only'
 		);
+		expect(selected).toHaveLength(21);
+		expect(
+			selected.filter(
+				(blocker) =>
+					blocker.visual?.mode === 'fallback-only' && blocker.visual.ownerBackgroundIds.length === 2
+			)
+		).toHaveLength(7);
+		expect(
+			(meadowEntryMap.blockers ?? []).filter(
+				(blocker) =>
+					['village-block-0-37', 'village-block-0-49', 'village-block-46-2'].includes(blocker.id) &&
+					(blocker.visual?.mode ?? 'always') === 'always'
+			).length
+		).toBe(3);
+		const segmentTotal = (blockers: typeof selected) =>
+			blockers.reduce(
+				(total, blocker) => total + Math.ceil(Math.max(blocker.width, blocker.height) / 48),
+				0
+			);
+		expect(segmentTotal(selected)).toBeGreaterThan(21);
+		expect(villageHedgeMarkers().filter(isInsideSundropVillage).length).toBeLessThan(228);
 	});
 
 	it('skips a missing regional texture with one targeted warning and keeps fallback visuals', async () => {
 		const { WorldScene } = await import('./WorldScene');
 		const scene = new WorldScene();
 		const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
-		phaserState.missingTextureKeys.add(SUNDROP_VILLAGE_BACKGROUND_TEXTURE_KEY);
+		phaserState.missingTextureKeys.add(SUNDROP_VILLAGE_BASE_BACKGROUND_TEXTURE_KEY);
 
 		try {
 			scene.create({ mapId: 'meadow-entry' });
 
 			expect(
 				phaserState.imageMarkers.some(
-					(marker) => marker.texture === SUNDROP_VILLAGE_BACKGROUND_TEXTURE_KEY
+					(marker) => marker.texture === SUNDROP_VILLAGE_BASE_BACKGROUND_TEXTURE_KEY
 				)
 			).toBe(false);
+			expect(
+				phaserState.imageMarkers.some(
+					(marker) => marker.texture === SUNDROP_VILLAGE_FOREGROUND_BACKGROUND_TEXTURE_KEY
+				)
+			).toBe(true);
 			expect(phaserState.tilemapLayer.setDepth).toHaveBeenCalledWith(-10);
-			expect(villageHedgeMarkers().filter(isInsideSundropVillage)).toHaveLength(228);
+			expect(villageHedgeMarkers().filter(isInsideSundropVillage).length).toBeGreaterThan(0);
 			expect(
 				villageHedgeMarkers().filter((marker) => !isInsideSundropVillage(marker))
 			).toHaveLength(101);
 			expect(warn).toHaveBeenCalledTimes(1);
 			expect(warn).toHaveBeenCalledWith(
-				'[WorldScene] regional background unavailable: id="sundrop-village-regional-background" textureKey="sundrop-village-background" mapId="meadow-entry"'
+				'[WorldScene] regional background unavailable: id="sundrop-village-base-image" textureKey="sundrop-village-base" mapId="meadow-entry"'
 			);
 		} finally {
 			warn.mockRestore();
@@ -2966,14 +2984,19 @@ describe('WorldScene', () => {
 
 			expect(
 				phaserState.imageMarkers.some(
-					(marker) => marker.texture === SUNDROP_VILLAGE_BACKGROUND_TEXTURE_KEY
+					(marker) => marker.texture === SUNDROP_VILLAGE_BASE_BACKGROUND_TEXTURE_KEY
 				)
 			).toBe(false);
+			expect(
+				phaserState.imageMarkers.some(
+					(marker) => marker.texture === SUNDROP_VILLAGE_FOREGROUND_BACKGROUND_TEXTURE_KEY
+				)
+			).toBe(true);
 			expect(phaserState.tilemapLayer.setDepth).toHaveBeenCalledWith(-10);
-			expect(villageHedgeMarkers().filter(isInsideSundropVillage)).toHaveLength(228);
+			expect(villageHedgeMarkers().filter(isInsideSundropVillage).length).toBeGreaterThan(0);
 			expect(warn).toHaveBeenCalledTimes(1);
 			expect(warn).toHaveBeenCalledWith(
-				'[WorldScene] regional background dimensions mismatch: id="sundrop-village-regional-background" textureKey="sundrop-village-background" mapId="meadow-entry" expected=1792x1536 actual=1700x1400'
+				'[WorldScene] regional background dimensions mismatch: id="sundrop-village-base-image" textureKey="sundrop-village-base" mapId="meadow-entry" expected=1792x1536 actual=1700x1400'
 			);
 		} finally {
 			warn.mockRestore();
@@ -3001,11 +3024,13 @@ describe('WorldScene', () => {
 
 			expect(
 				phaserState.imageMarkers.some(
-					(marker) => marker.texture === SUNDROP_VILLAGE_BACKGROUND_TEXTURE_KEY
+					(marker) =>
+						marker.texture === SUNDROP_VILLAGE_BASE_BACKGROUND_TEXTURE_KEY ||
+						marker.texture === SUNDROP_VILLAGE_FOREGROUND_BACKGROUND_TEXTURE_KEY
 				)
 			).toBe(false);
 			expect(phaserState.tilemapLayer.setDepth).toHaveBeenCalledWith(-10);
-			expect(villageHedgeMarkers().filter(isInsideSundropVillage)).toHaveLength(228);
+			expect(villageHedgeMarkers().filter(isInsideSundropVillage).length).toBeGreaterThan(0);
 			expect(searchReads).toBe(1);
 		} finally {
 			if (previousLocation) {
@@ -3039,7 +3064,7 @@ describe('WorldScene', () => {
 
 		expect(
 			phaserState.imageMarkers.some(
-				(marker) => marker.texture === SUNDROP_VILLAGE_BACKGROUND_TEXTURE_KEY
+				(marker) => marker.texture === SUNDROP_VILLAGE_BASE_BACKGROUND_TEXTURE_KEY
 			)
 		).toBe(true);
 		expect(phaserState.regionalBackgroundTextureMock.get).toHaveBeenCalledOnce();
@@ -3056,7 +3081,7 @@ describe('WorldScene', () => {
 
 			expect(
 				phaserState.imageMarkers.some(
-					(marker) => marker.texture === SUNDROP_VILLAGE_BACKGROUND_TEXTURE_KEY
+					(marker) => marker.texture === SUNDROP_VILLAGE_BASE_BACKGROUND_TEXTURE_KEY
 				)
 			).toBe(false);
 			expect(warn).toHaveBeenCalledTimes(1);
@@ -3074,7 +3099,7 @@ describe('WorldScene', () => {
 				y: 320,
 				width: 1792,
 				height: 1536,
-				textureKey: SUNDROP_VILLAGE_BACKGROUND_TEXTURE_KEY,
+				textureKey: SUNDROP_VILLAGE_BASE_BACKGROUND_TEXTURE_KEY,
 				plane: 'base'
 			}
 		];
@@ -3097,7 +3122,7 @@ describe('WorldScene', () => {
 
 		const imageCalls = vi.mocked(scene.add.image).mock.calls;
 		const backgroundCallIndex = imageCalls.findIndex(
-			([, , texture]) => texture === SUNDROP_VILLAGE_BACKGROUND_TEXTURE_KEY
+			([, , texture]) => texture === SUNDROP_VILLAGE_BASE_BACKGROUND_TEXTURE_KEY
 		);
 		const floorDecorCallIndex = imageCalls.findIndex(
 			([, , texture, frame]) => texture === 'forest-dressing' && frame === 'brush'

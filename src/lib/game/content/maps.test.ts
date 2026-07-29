@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import {
-	SUNDROP_VILLAGE_BACKGROUND_ID,
-	SUNDROP_VILLAGE_BACKGROUND_TEXTURE_KEY
-} from '$lib/game/content/backgrounds/sundrop-village-background';
+	SUNDROP_VILLAGE_BASE_BACKGROUND_ID,
+	SUNDROP_VILLAGE_FOREGROUND_BACKGROUND_ID
+} from '$lib/game/content/backgrounds/sundrop-village-backgrounds';
 import { enemies } from '$lib/game/content/enemies';
 import { getDialogue } from '$lib/game/content/dialogue';
 import { mergeRegions } from '$lib/game/content/maps/meadow-entry';
@@ -1940,21 +1940,66 @@ describe('meadow-entry region integrity', () => {
 		expect(meadowEntryMap.npcs).toEqual([]);
 	});
 
-	it('merges the source-derived Sundrop regional background onto the opening map', () => {
-		const width = sundropVillageLayered.width * sundropVillageLayered.tileSize;
-		const height = sundropVillageLayered.height * sundropVillageLayered.tileSize;
-
+	it('merges both source-derived Sundrop regional background planes and their ownership', () => {
 		expect(meadowEntryMap.backgroundImages).toEqual([
 			{
-				id: SUNDROP_VILLAGE_BACKGROUND_ID,
-				textureKey: SUNDROP_VILLAGE_BACKGROUND_TEXTURE_KEY,
-				x: sundropVillageLayered.origin.x + width / 2,
-				y: sundropVillageLayered.origin.y + height / 2,
-				width,
-				height,
-				plane: 'base'
+				id: 'sundrop-village-base-image',
+				textureKey: 'sundrop-village-base',
+				plane: 'base',
+				x: 1152,
+				y: 5120,
+				width: 1792,
+				height: 1536
+			},
+			{
+				id: 'sundrop-village-foreground-image',
+				textureKey: 'sundrop-village-foreground',
+				plane: 'foreground',
+				x: 1152,
+				y: 5120,
+				width: 1792,
+				height: 1536
 			}
 		]);
+
+		const selected = (meadowEntryMap.blockers ?? []).filter(
+			(blocker) => blocker.visual?.mode === 'fallback-only'
+		);
+		expect(selected).toHaveLength(21);
+		expect(
+			selected.filter(
+				(blocker) =>
+					blocker.visual?.mode === 'fallback-only' && blocker.visual.ownerBackgroundIds.length === 1
+			)
+		).toHaveLength(14);
+		expect(
+			selected.filter(
+				(blocker) =>
+					blocker.visual?.mode === 'fallback-only' && blocker.visual.ownerBackgroundIds.length === 2
+			)
+		).toHaveLength(7);
+		expect(
+			(meadowEntryMap.blockers ?? [])
+				.filter((blocker) => (blocker.visual?.mode ?? 'always') === 'always')
+				.map((blocker) => blocker.id)
+		).toContain('village-block-0-37');
+		expect(
+			(meadowEntryMap.blockers ?? [])
+				.filter((blocker) => (blocker.visual?.mode ?? 'always') === 'always')
+				.map((blocker) => blocker.id)
+		).toContain('village-block-0-49');
+		expect(
+			(meadowEntryMap.blockers ?? [])
+				.filter((blocker) => (blocker.visual?.mode ?? 'always') === 'always')
+				.map((blocker) => blocker.id)
+		).toContain('village-block-46-2');
+		expect(selected.find((blocker) => blocker.id === 'corridor-wall-2b')?.visual).toEqual({
+			mode: 'fallback-only',
+			ownerBackgroundIds: [
+				SUNDROP_VILLAGE_BASE_BACKGROUND_ID,
+				SUNDROP_VILLAGE_FOREGROUND_BACKGROUND_ID
+			]
+		});
 	});
 
 	it('seals three foreshadow gates with future-gate collision', () => {
