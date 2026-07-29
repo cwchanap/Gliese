@@ -9,6 +9,18 @@ import {
 import { SUNDROP_VILLAGE_FOREGROUND_FRONT_CUTOFF_PX } from './sundrop-village-backgrounds';
 import { SUNDROP_VILLAGE_OBSTACLE_OWNERSHIP } from './sundrop-village-obstacle-ownership';
 
+function intersects(
+	left: { x: number; y: number; width: number; height: number },
+	right: { x: number; y: number; width: number; height: number }
+): boolean {
+	return (
+		left.x - left.width / 2 < right.x + right.width / 2 &&
+		left.x + left.width / 2 > right.x - right.width / 2 &&
+		left.y - left.height / 2 < right.y + right.height / 2 &&
+		left.y + left.height / 2 > right.y - right.height / 2
+	);
+}
+
 describe('Sundrop Village obstacle controls', () => {
 	it('owns exactly the fixed six-artifact inventory', () => {
 		expect(SUNDROP_VILLAGE_OBSTACLE_CONTROL_FILENAMES).toEqual([
@@ -31,8 +43,9 @@ describe('Sundrop Village obstacle controls', () => {
 		expect(artifacts.get('village-obstacle-foreground-mask.svg')).toContain(
 			'viewBox="0 0 1792 1536"'
 		);
-		expect(inputs.foregroundRects).toHaveLength(7);
-		expect(inputs.foregroundRects.map((rect) => rect.id)).toEqual(
+		const foregroundBlockerIds = [...new Set(inputs.foregroundRects.map((rect) => rect.id))].sort();
+		expect(foregroundBlockerIds).toHaveLength(7);
+		expect(foregroundBlockerIds).toEqual(
 			SUNDROP_VILLAGE_OBSTACLE_OWNERSHIP.filter((entry) => entry.foregroundMargins)
 				.map((entry) => entry.blockerId)
 				.sort()
@@ -45,6 +58,30 @@ describe('Sundrop Village obstacle controls', () => {
 			expect(rect.bottom).toBe(
 				(rect.blockerBottom ?? 0) - SUNDROP_VILLAGE_FOREGROUND_FRONT_CUTOFF_PX
 			);
+		}
+	});
+
+	it('subtracts every feather-band blocker from the geometric base and foreground masks', () => {
+		const inputs = buildSundropVillageObstacleControlInputs();
+		const blockersById = new Map(
+			(inputs.map.blockers ?? []).map((blocker) => [blocker.id, blocker])
+		);
+		const featherBands = ['village-block-0-37', 'village-block-0-49', 'village-block-46-2'].map(
+			(id) => {
+				const blocker = blockersById.get(id);
+				if (!blocker) throw new Error(`Missing expected feather-band blocker: ${id}`);
+				return {
+					x: blocker.x - inputs.crop.x,
+					y: blocker.y - inputs.crop.y,
+					width: blocker.width,
+					height: blocker.height
+				};
+			}
+		);
+		for (const maskRect of [...inputs.baseRects, ...inputs.foregroundRects]) {
+			for (const featherBand of featherBands) {
+				expect(intersects(maskRect, featherBand)).toBe(false);
+			}
 		}
 	});
 

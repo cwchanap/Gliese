@@ -3,7 +3,9 @@
   <rect data-id="village-block-10-35" x="1112" y="288" width="432" height="31" fill="#ffffff"/>
   <rect data-id="village-block-19-2" x="56" y="576" width="720" height="31" fill="#ffffff"/>
   <rect data-id="village-block-19-30" x="952" y="576" width="208" height="31" fill="#ffffff"/>
-  <rect data-id="village-block-2-2" x="56" y="32" width="1168" height="31" fill="#ffffff"/>
-  <rect data-id="village-block-2-49" x="1560" y="32" width="144" height="31" fill="#ffffff"/>
+  <rect data-id="village-block-2-2" x="56" y="32" width="1128" height="31" fill="#ffffff"/>
+  <rect data-id="village-block-2-2" x="1216" y="32" width="8" height="31" fill="#ffffff"/>
+  <rect data-id="village-block-2-49" x="1560" y="32" width="8" height="31" fill="#ffffff"/>
+  <rect data-id="village-block-2-49" x="1600" y="32" width="104" height="31" fill="#ffffff"/>
   <rect data-id="village-block-3-2" x="56" y="64" width="1104" height="31" fill="#ffffff"/>
 </svg>
