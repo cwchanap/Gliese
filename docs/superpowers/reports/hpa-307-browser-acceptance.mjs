@@ -3,7 +3,7 @@ import { createHash } from 'node:crypto';
 import { once } from 'node:events';
 import { mkdir, readFile, unlink, writeFile } from 'node:fs/promises';
 import { createServer } from 'node:net';
-import { dirname, join, resolve } from 'node:path';
+import { dirname, join, relative, resolve } from 'node:path';
 import { setTimeout as delay } from 'node:timers/promises';
 import { fileURLToPath } from 'node:url';
 import { chromium } from 'playwright';
@@ -1424,6 +1424,52 @@ function serializableRun(run) {
 	};
 }
 
+function assertCurrentSourceBinding(label, value) {
+	if (value.commit !== COMMIT) {
+		throw new Error(`${label} commit ${value.commit ?? '<missing>'} does not match ${COMMIT}`);
+	}
+	if (value.sourceBinding?.sourceCommit !== COMMIT) {
+		throw new Error(
+			`${label} source binding ${value.sourceBinding?.sourceCommit ?? '<missing>'} does not match ${COMMIT}`
+		);
+	}
+	if (JSON.stringify(value.sourceBinding) !== JSON.stringify(SOURCE_BINDING)) {
+		throw new Error(`${label} sourceBinding does not match the owned preview provenance`);
+	}
+}
+
+async function writeJsonArtifact(filename, value, { requireSourceBinding = false } = {}) {
+	if (requireSourceBinding) assertCurrentSourceBinding(filename, value);
+	const path = join(OUTPUT_DIR, filename);
+	const contents = Buffer.from(`${JSON.stringify(value, null, 2)}\n`, 'utf8');
+	await writeFile(path, contents);
+	return {
+		path: relative(REPO, path),
+		bytes: contents.byteLength,
+		sha256: createHash('sha256').update(contents).digest('hex')
+	};
+}
+
+function assertRawArtifactDescriptors(rawArtifacts) {
+	const expectedPaths = {
+		routeAcceptance: 'runtime-route-acceptance.json',
+		timingEnabled: 'runtime-timing-enabled.json',
+		timingOff: 'runtime-timing-off.json'
+	};
+	for (const [name, filename] of Object.entries(expectedPaths)) {
+		const descriptor = rawArtifacts[name];
+		const expectedPath = relative(REPO, join(OUTPUT_DIR, filename));
+		if (
+			descriptor?.path !== expectedPath ||
+			!Number.isInteger(descriptor.bytes) ||
+			descriptor.bytes <= 0 ||
+			!/^[a-f0-9]{64}$/.test(descriptor.sha256)
+		) {
+			throw new Error(`${name} raw artifact descriptor is missing or invalid`);
+		}
+	}
+}
+
 async function runRouteOnly(browser) {
 	const session = await createSession(browser, 'route-smoke');
 	const run = createRun(session);
@@ -1447,7 +1493,7 @@ async function runRouteOnly(browser) {
 	}
 }
 
-function evaluateHpa398PerformanceEvidence(enabled, off) {
+function evaluateHpa398PerformanceEvidence(enabled, off, rawArtifacts) {
 	if (PROFILE !== 'hpa-398') return null;
 	const enabledDiagnostic = enabled.probe.diagnostics.at(-1)?.detail;
 	const offDiagnostic = off.probe.diagnostics.at(-1)?.detail;
@@ -1595,6 +1641,7 @@ function evaluateHpa398PerformanceEvidence(enabled, off) {
 		capturedAtIso: new Date().toISOString(),
 		commit: COMMIT,
 		sourceBinding: SOURCE_BINDING,
+		rawArtifacts,
 		passes: predicates.every((entry) => entry.pass),
 		predicates
 	};
@@ -1611,6 +1658,8 @@ async function runFull(browser) {
 	try {
 		await runAuthoredRoute(acceptanceRun, { checkpoints: true, captures: true });
 		acceptance = {
+			commit: COMMIT,
+			sourceBinding: SOURCE_BINDING,
 			route: serializableRun(acceptanceRun),
 			probeAcrossReloads: await collectProbe(acceptanceSession)
 		};
@@ -1633,6 +1682,8 @@ async function runFull(browser) {
 		await runAuthoredRoute(enabledRun);
 		const samples = await stopRouteSampling(enabledSession.page);
 		enabled = {
+			commit: COMMIT,
+			sourceBinding: SOURCE_BINDING,
 			mode: 'enabled',
 			url: BASE_URL,
 			warmupFrames: WARMUP_FRAMES,
@@ -1658,6 +1709,8 @@ async function runFull(browser) {
 			throw new Error('off route did not execute the identical ordered waypoint schedule');
 		}
 		off = {
+			commit: COMMIT,
+			sourceBinding: SOURCE_BINDING,
 			mode: 'off',
 			url: `${BASE_URL}?regionalBackground=off`,
 			warmupFrames: WARMUP_FRAMES,
@@ -1671,19 +1724,25 @@ async function runFull(browser) {
 	} finally {
 		await offSession.context.close();
 	}
-	await writeFile(
-		join(OUTPUT_DIR, 'runtime-timing-enabled.json'),
-		`${JSON.stringify(enabled, null, 2)}\n`
-	);
-	await writeFile(
-		join(OUTPUT_DIR, 'runtime-timing-off.json'),
-		`${JSON.stringify(off, null, 2)}\n`
-	);
-	const performanceGate = evaluateHpa398PerformanceEvidence(enabled, off);
+	const rawArtifacts = {
+		routeAcceptance: await writeJsonArtifact('runtime-route-acceptance.json', acceptance, {
+			requireSourceBinding: true
+		}),
+		timingEnabled: await writeJsonArtifact('runtime-timing-enabled.json', enabled, {
+			requireSourceBinding: true
+		}),
+		timingOff: await writeJsonArtifact('runtime-timing-off.json', off, {
+			requireSourceBinding: true
+		})
+	};
+	assertRawArtifactDescriptors(rawArtifacts);
+	const performanceGate = evaluateHpa398PerformanceEvidence(enabled, off, rawArtifacts);
+	let performanceGateArtifact = null;
 	if (performanceGate) {
-		await writeFile(
-			join(OUTPUT_DIR, 'runtime-performance-gate.json'),
-			`${JSON.stringify(performanceGate, null, 2)}\n`
+		performanceGateArtifact = await writeJsonArtifact(
+			'runtime-performance-gate.json',
+			performanceGate,
+			{ requireSourceBinding: true }
 		);
 		if (!performanceGate.passes) {
 			const failedNames = performanceGate.predicates
@@ -1720,15 +1779,16 @@ async function runFull(browser) {
 		rendererModeSidecars,
 		occlusionProofs,
 		acceptance,
+		rawArtifacts,
 		handoffs,
 		timing: {
 			enabled: {
 				stats: enabled.stats,
-				rawArtifact: 'runtime-timing-enabled.json'
+				rawArtifact: rawArtifacts.timingEnabled
 			},
 			off: {
 				stats: off.stats,
-				rawArtifact: 'runtime-timing-off.json'
+				rawArtifact: rawArtifacts.timingOff
 			},
 			p95DeltaMs: enabled.stats.p95Ms - off.stats.p95Ms,
 			gateMs: 2,
@@ -1738,29 +1798,16 @@ async function runFull(browser) {
 			performanceGate === null
 				? null
 				: {
-						path: 'runtime-performance-gate.json',
+						...performanceGateArtifact,
 						passes: performanceGate.passes,
 						predicateCount: performanceGate.predicates.length
 					},
 		continuousRouteLoadUploadEvidence: enabled.probe
 	};
 
-	await writeFile(
-		join(OUTPUT_DIR, 'runtime-route-acceptance.json'),
-		`${JSON.stringify(acceptance, null, 2)}\n`
-	);
-	await writeFile(
-		join(OUTPUT_DIR, 'runtime-timing-enabled.json'),
-		`${JSON.stringify(enabled, null, 2)}\n`
-	);
-	await writeFile(
-		join(OUTPUT_DIR, 'runtime-timing-off.json'),
-		`${JSON.stringify(off, null, 2)}\n`
-	);
-	await writeFile(
-		join(OUTPUT_DIR, 'runtime-browser-acceptance-summary.json'),
-		`${JSON.stringify(summary, null, 2)}\n`
-	);
+	await writeJsonArtifact('runtime-browser-acceptance-summary.json', summary, {
+		requireSourceBinding: true
+	});
 	console.log(`FULL COMPLETE ${join(OUTPUT_DIR, 'runtime-browser-acceptance-summary.json')}`);
 	return summary;
 }
