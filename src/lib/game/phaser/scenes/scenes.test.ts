@@ -8,6 +8,10 @@ import {
 import { maps } from '$lib/game/content/maps';
 import type { RegionalBackgroundRendererDiagnostic } from '$lib/game/phaser/renderer-diagnostics';
 import type { RegionalBackgroundPlaneRenderDiagnostic } from '$lib/game/phaser/regional-background-plane-render-diagnostics';
+import {
+	PLAYER_MOVEMENT_DIAGNOSTIC_EVENT,
+	type PlayerMovementDiagnostic
+} from '$lib/game/phaser/player-movement-diagnostics';
 import { HUD_COMMAND_EVENT, type HudCommand } from '$lib/game/ui-bridge/events';
 
 const localeState = vi.hoisted(() => ({
@@ -2412,6 +2416,56 @@ describe('WorldScene', () => {
 		phaserState.imageMarkers.filter(
 			(marker) => marker.texture === villageHedgeAsset.key && marker.frame === 'hedgeSegment'
 		);
+	const sundropSelectedFallbackIds = [
+		'village-block-2-2',
+		'village-block-2-49',
+		'village-block-33-49',
+		'village-block-3-2',
+		'village-block-3-51',
+		'village-block-4-2',
+		'village-block-32-2',
+		'village-block-4-35',
+		'village-block-11-35',
+		'village-block-10-35',
+		'village-block-19-2',
+		'village-block-19-30',
+		'village-block-20-2',
+		'village-block-20-34',
+		'village-block-25-20',
+		'village-block-32-8',
+		'village-block-32-24',
+		'village-block-32-33',
+		'village-block-33-24',
+		'village-block-41-24',
+		'corridor-wall-2b'
+	] as const;
+	const sundropForegroundFallbackIds = [
+		'village-block-2-2',
+		'village-block-2-49',
+		'village-block-3-2',
+		'village-block-10-35',
+		'village-block-19-2',
+		'village-block-19-30',
+		'corridor-wall-2b'
+	] as const;
+	function selectedSundropBlockers(ids: readonly string[]) {
+		return (maps['meadow-entry']?.blockers ?? []).filter((blocker) => ids.includes(blocker.id));
+	}
+	function renderedSundropSegmentCount(ids: readonly string[]) {
+		return selectedSundropBlockers(ids)
+			.flatMap((blocker) => {
+				const horizontal = blocker.width >= blocker.height;
+				const count = Math.ceil(Math.max(blocker.width, blocker.height) / 48);
+				const firstOffset = -((count - 1) * 48) / 2;
+				return Array.from({ length: count }, (_, index) => ({
+					x: blocker.x + (horizontal ? firstOffset + index * 48 : 0),
+					y: blocker.y + (horizontal ? 0 : firstOffset + index * 48)
+				}));
+			})
+			.filter((expected) =>
+				villageHedgeMarkers().some((marker) => marker.x === expected.x && marker.y === expected.y)
+			).length;
+	}
 	const isInsideSundropVillage = (marker: (typeof phaserState.imageMarkers)[number]) =>
 		marker.x >= sundropVillageBounds.left &&
 		marker.x <= sundropVillageBounds.right &&
@@ -2940,6 +2994,51 @@ describe('WorldScene', () => {
 		expect(villageHedgeMarkers().filter(isInsideSundropVillage).length).toBeLessThan(228);
 	});
 
+	it.each([
+		{
+			name: 'both planes render',
+			arrange: () => undefined,
+			statuses: ['rendered', 'rendered'] as const,
+			ids: [] as readonly string[],
+			segments: 0
+		},
+		{
+			name: 'only the base plane renders',
+			arrange: () =>
+				phaserState.missingTextureKeys.add(SUNDROP_VILLAGE_FOREGROUND_BACKGROUND_TEXTURE_KEY),
+			statuses: ['rendered', 'missing-texture'] as const,
+			ids: sundropForegroundFallbackIds,
+			segments: 82
+		},
+		{
+			name: 'the base plane is missing',
+			arrange: () =>
+				phaserState.missingTextureKeys.add(SUNDROP_VILLAGE_BASE_BACKGROUND_TEXTURE_KEY),
+			statuses: ['missing-texture', 'rendered'] as const,
+			ids: sundropSelectedFallbackIds,
+			segments: 190
+		}
+	])(
+		'renders exact Sundrop fallback decisions and 48px segments when $name',
+		async ({ arrange, statuses, ids, segments }) => {
+			const target = installPlaneDiagnosticListener();
+			const { WorldScene } = await import('./WorldScene');
+			const scene = new WorldScene();
+			arrange();
+
+			try {
+				scene.create({ mapId: 'meadow-entry' });
+
+				expect(target.diagnostics[0]?.entries.map((entry) => entry.status)).toEqual(statuses);
+				expect(target.diagnostics[0]?.selectedFallbackBlockerIds).toEqual(ids);
+				expect(target.diagnostics[0]?.selectedFallbackBlockerSegmentCount).toBe(segments);
+				expect(renderedSundropSegmentCount(ids)).toBe(segments);
+			} finally {
+				target.restore();
+			}
+		}
+	);
+
 	it('skips a missing regional texture with one targeted warning and keeps fallback visuals', async () => {
 		const { WorldScene } = await import('./WorldScene');
 		const scene = new WorldScene();
@@ -2966,7 +3065,7 @@ describe('WorldScene', () => {
 			).toHaveLength(101);
 			expect(warn).toHaveBeenCalledTimes(1);
 			expect(warn).toHaveBeenCalledWith(
-				'[WorldScene] regional background unavailable: id="sundrop-village-base-image" textureKey="sundrop-village-base" mapId="meadow-entry"'
+				'[WorldScene] regional background unavailable: id="sundrop-village-base-image" textureKey="sundrop-village-base" plane="base" mapId="meadow-entry"'
 			);
 		} finally {
 			warn.mockRestore();
@@ -2996,7 +3095,7 @@ describe('WorldScene', () => {
 			expect(villageHedgeMarkers().filter(isInsideSundropVillage).length).toBeGreaterThan(0);
 			expect(warn).toHaveBeenCalledTimes(1);
 			expect(warn).toHaveBeenCalledWith(
-				'[WorldScene] regional background dimensions mismatch: id="sundrop-village-base-image" textureKey="sundrop-village-base" mapId="meadow-entry" expected=1792x1536 actual=1700x1400'
+				'[WorldScene] regional background dimensions mismatch: id="sundrop-village-base-image" textureKey="sundrop-village-base" plane="base" mapId="meadow-entry" expected=1792x1536 actual=1700x1400'
 			);
 		} finally {
 			warn.mockRestore();
@@ -5180,6 +5279,11 @@ describe('WorldScene', () => {
 	});
 
 	it('blocks movement through solid interior furniture but not floor props', async () => {
+		const target = installHudCommandTarget();
+		const movementDiagnostics: PlayerMovementDiagnostic[] = [];
+		target.target.addEventListener(PLAYER_MOVEMENT_DIAGNOSTIC_EVENT, (event) => {
+			movementDiagnostics.push((event as CustomEvent<PlayerMovementDiagnostic>).detail);
+		});
 		const { WorldScene } = await import('./WorldScene');
 		const scene = new WorldScene();
 
@@ -5190,6 +5294,13 @@ describe('WorldScene', () => {
 
 		expect(phaserState.playerMarker.x).toBe(112);
 		expect(phaserState.playerMarker.y).toBe(178);
+		expect(movementDiagnostics).toContainEqual({
+			mapId: 'hero-house',
+			previousPosition: { x: 112, y: 178 },
+			requestedPosition: { x: 112, y: 118 },
+			resolvedPosition: { x: 112, y: 178 },
+			blocked: true
+		});
 
 		phaserState.cursorKeys.up.isDown = false;
 		Object.assign(phaserState.playerMarker, { x: 256, y: 300 });
@@ -5198,6 +5309,7 @@ describe('WorldScene', () => {
 
 		expect(phaserState.playerMarker.x).toBe(256);
 		expect(phaserState.playerMarker.y).toBeLessThan(300);
+		target.restore();
 	});
 
 	it('allows player movement away from an existing furniture overlap', async () => {

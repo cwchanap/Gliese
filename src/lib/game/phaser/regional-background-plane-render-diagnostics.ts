@@ -24,6 +24,10 @@ export interface RegionalBackgroundPlaneRenderDiagnostic {
 	regionalBackgroundsEnabled: boolean;
 	entries: readonly RegionalBackgroundPlaneRenderDiagnosticEntry[];
 	successfulBackgroundIds: readonly string[];
+	/** Fallback-only blocker IDs drawn live after applying this exact plane-success set. */
+	selectedFallbackBlockerIds?: readonly string[];
+	/** Sum of Math.ceil(max(blocker.width, blocker.height) / 48) for selected fallbacks. */
+	selectedFallbackBlockerSegmentCount?: number;
 }
 
 export function emitRegionalBackgroundPlaneRenderDiagnostic(
