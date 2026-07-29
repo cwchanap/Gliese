@@ -156,6 +156,18 @@ describe('Sundrop Village obstacle ownership', () => {
 				replaceFirst({
 					...SUNDROP_VILLAGE_OBSTACLE_OWNERSHIP[0],
 					ownerBackgroundIds: [
+						SUNDROP_VILLAGE_FOREGROUND_BACKGROUND_ID,
+						SUNDROP_VILLAGE_BASE_BACKGROUND_ID
+					]
+				})
+			)
+		).toThrow('village-block-2-2');
+		expect(() =>
+			validateSundropObstacleCoverage(
+				map,
+				replaceFirst({
+					...SUNDROP_VILLAGE_OBSTACLE_OWNERSHIP[0],
+					ownerBackgroundIds: [
 						SUNDROP_VILLAGE_BASE_BACKGROUND_ID,
 						SUNDROP_VILLAGE_FOREGROUND_BACKGROUND_ID,
 						SUNDROP_VILLAGE_BASE_BACKGROUND_ID
@@ -169,6 +181,15 @@ describe('Sundrop Village obstacle ownership', () => {
 				replaceFirst({
 					...SUNDROP_VILLAGE_OBSTACLE_OWNERSHIP[0],
 					baseMargins: { top: 9, right: 8, bottom: 8, left: 8 }
+				})
+			)
+		).toThrow('village-block-2-2');
+		expect(() =>
+			validateSundropObstacleCoverage(
+				map,
+				replaceFirst({
+					...SUNDROP_VILLAGE_OBSTACLE_OWNERSHIP[0],
+					foregroundMargins: { top: 31, right: 8, bottom: 0, left: 8 }
 				})
 			)
 		).toThrow('village-block-2-2');
