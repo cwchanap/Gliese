@@ -934,7 +934,8 @@ source-aligned game-art process and `imagegen` for the candidate edit.
 - Create: `src/lib/game/content/sundrop-village-obstacle-assets.test.ts`
 - Create: `public/game/assets/regions/sundrop-village-base.png`
 - Create: `public/game/assets/regions/sundrop-village-foreground.png`
-- Create: candidate, prompt, transform, and provenance artifacts under
+- Create: raw chroma source, extracted obstacle layer, constructed candidate,
+  prompt, transform, and provenance artifacts under
   `docs/superpowers/reports/img/hpa-398/`
 - Modify: `package.json`
 
@@ -942,15 +943,20 @@ source-aligned game-art process and `imagegen` for the candidate edit.
 
 - Consumes: immutable
   `docs/superpowers/reports/img/hpa-398/sundrop-village-hpa-307-ground-input.png`,
-  HPA-398 masks, candidate PNG, and generated control fingerprint.
-- Produces canonical base/foreground PNGs and one provenance JSON document.
+  HPA-398 masks, obstacle-only chroma source/layer, and generated control
+  fingerprint.
+- Produces a deterministic source-backed candidate, canonical base/foreground
+  PNGs, and one provenance JSON document.
 
 - [ ] **Step 1: Write failing compositor tests with tiny RGBA fixtures**
 
 Use `4×4` fixture buffers to assert:
 
 - base RGBA is byte-identical to the ground outside the base mask;
-- inside the base mask, RGB comes from the candidate while alpha comes from the
+- the candidate RGB is normalized obstacle-layer RGB alpha-composited over the
+  source, candidate alpha equals layer alpha, and alpha-zero pixels retain source
+  RGB;
+- inside the base mask, RGB comes from that constructed candidate while alpha comes from the
   supplied base-alpha function;
 - foreground alpha is zero outside its mask and protected pixels;
 - foreground alpha is:
@@ -982,6 +988,7 @@ Export:
 
 ```ts
 export interface SundropVillageObstacleCompositeResult {
+  readonly candidatePng: Buffer;
   readonly basePng: Buffer;
   readonly foregroundPng: Buffer;
   readonly provenanceJson: Buffer;
@@ -997,7 +1004,7 @@ mask/protected/cutoff decisions in integer pixel coordinates, encode with the
 existing canonical PNG options, and calculate hashes from both encoded bytes
 and decoded RGBA.
 
-- [ ] **Step 4: Generate one aligned obstacle candidate**
+- [ ] **Step 4: Generate and extract one aligned obstacle-only layer**
 
 Rasterize the SVG control to a temporary PNG without changing dimensions:
 
@@ -1005,25 +1012,31 @@ Rasterize the SVG control to a temporary PNG without changing dimensions:
 rtk bun --eval 'import sharp from "sharp"; await sharp("docs/superpowers/reports/img/hpa-398/village-obstacle-composite-control.svg").png().toFile("/tmp/hpa-398-village-obstacle-composite-control.png");'
 ```
 
-Use the archived ground PNG and
-`/tmp/hpa-398-village-obstacle-composite-control.png` as image-generation
-references with this prompt:
+Inspect both references, then use built-in image generation only. The archived
+ground is a style/palette/lighting/scale reference; the control raster is the
+exact obstacle placement and kind guide. Request only clipped hedges, low
+stone/timber walls, and low root/rock silhouettes on a perfectly flat solid
+`#ff00ff` background. Forbid terrain, grass, roads, paths, water, buildings,
+doors, landmarks, characters, shadows, labels, guides, text, and `#ff00ff`
+inside the obstacle art. Archive the exact approved prompt in
+`village-obstacle-generation-prompt.txt`.
 
-```text
-Edit this source-aligned JRPG village map crop without moving, replacing, or
-redrawing the existing terrain, buildings, roads, doors, objects, or landmarks.
-Paint coherent static obstacle treatments only inside the colored obstacle
-control regions: clipped leafy hedges for hedge regions, low weathered
-stone/timber walls for low-wall regions, and low roots/rocks for root-rock
-regions. Keep paths and every protected area completely clear. Keep all
-obstacles low enough for the supplied collision footprints. Preserve the exact
-1792x1536 canvas, camera, coordinates, lighting, palette, and aspect ratio.
-Return one aligned RGBA candidate with no labels, legends, guides, or text.
+Save the unmodified built-in result as
+`docs/superpowers/reports/img/hpa-398/village-obstacle-chroma-source.png`.
+Extract transparency with the installed imagegen helper:
+
+```bash
+rtk python3 /Users/chanwaichan/.codex/skills/.system/imagegen/scripts/remove_chroma_key.py \
+  --input docs/superpowers/reports/img/hpa-398/village-obstacle-chroma-source.png \
+  --out docs/superpowers/reports/img/hpa-398/village-obstacle-layer.png \
+  --auto-key border --soft-matte --transparent-threshold 12 \
+  --opaque-threshold 220 --despill
 ```
 
-Save the unmodified result as
-`docs/superpowers/reports/img/hpa-398/village-obstacle-candidate.png` and save
-the exact prompt as `village-obstacle-generation-prompt.txt`.
+Reject the layer unless it has alpha, transparent corners, `alpha_min = 0`,
+nonzero transparent pixels, plausible obstacle coverage, and no magenta fringe.
+One extraction retry with `--edge-contract 1` is allowed; do not change the
+generation strategy within Task 5.
 
 - [ ] **Step 5: Normalize uniformly and finalize both planes**
 
@@ -1033,9 +1046,13 @@ Add:
 "art:finalize:village-obstacles": "bun tools/finalize-sundrop-village-obstacles.ts"
 ```
 
-The tool reads fixed repository paths, records the uniform scale/crop transform,
-calls `compositeSundropVillageObstacles(...)`, and writes the two production
-PNGs plus `village-obstacle-provenance.json`.
+The tool reads fixed repository paths, records the layer's uniform centered
+scale/crop transform, and constructs
+`village-obstacle-candidate.png` deterministically. Candidate RGB is normalized
+obstacle-layer RGB alpha-composited over immutable HPA-307 source RGB;
+candidate alpha is normalized layer alpha; fully transparent pixels keep source
+RGB. It then calls `compositeSundropVillageObstacles(...)` and writes the
+candidate, two production PNGs, and `village-obstacle-provenance.json`.
 
 Run:
 
