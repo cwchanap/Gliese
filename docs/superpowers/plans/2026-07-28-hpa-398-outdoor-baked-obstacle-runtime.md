@@ -1366,18 +1366,18 @@ Verify remaining occurrences:
 
 ```bash
 rtk rg -n \
-  "sundrop-village-regional-background|sundrop-village-background\\.png" \
+  "sundrop-village-regional-background|\bsundrop-village-background\b|/game/assets/regions/sundrop-village-background\.png" \
   src/lib/game/content/assets.ts \
   src/lib/game/content/maps \
   src/lib/game/phaser \
   tests \
+  tools \
   package.json
 ```
 
-Expected: no live runtime/test/package references. Separately inspect matches
-under historical HPA-307 tooling; each remaining occurrence must be an input or
-reproduction default outside active package scripts, never the HPA-398
-production output.
+Expected: no live runtime/test/tool/package references. Historical HPA-307
+tooling may retain the old identifiers only as an input or reproduction default
+outside active package scripts, never as the HPA-398 production output.
 
 - [ ] **Step 10: Run focused runtime and browser gates**
 
@@ -1452,8 +1452,8 @@ HPA-307 artifacts are unchanged.
 rtk bun run check
 rtk bun run lint
 rtk bun run test:unit -- --run
-rtk bun run test:e2e
 rtk bun run build
+rtk bun run test:e2e
 ```
 
 Expected: every command exits `0`. If concurrent server image tests time out,
@@ -1488,7 +1488,14 @@ covering:
 - enabled p95 walking frame no more than `2ms` slower than disabled on the
   reference device.
 
-- [ ] **Step 5: Write the acceptance report**
+- [ ] **Step 5: Run a whole-branch review and commit any fixes**
+
+Review the full diff against `main`, verify every finding against current code,
+and fix only still-valid findings. Run the smallest affected gate and the final
+full gate after the fixes. Commit every accepted review fix before preparing
+the acceptance evidence.
+
+- [ ] **Step 6: Write the acceptance report**
 
 Include exact:
 
@@ -1509,17 +1516,18 @@ Include exact:
 - native-device or production limitations, explicitly `none` when no
   limitation remains.
 
-- [ ] **Step 6: Run the final cleanliness gate**
+- [ ] **Step 7: Run the final cleanliness gate**
 
 ```bash
 rtk git diff --check
 rtk git status --short
 ```
 
-Expected before the evidence commit: only the acceptance report, HPA-398
-evidence, and any verified final-fix files are modified.
+Expected before the evidence commit: only the acceptance report and HPA-398
+evidence are modified. The report's final commit and scope must include every
+accepted whole-branch-review fix.
 
-- [ ] **Step 7: Commit acceptance evidence**
+- [ ] **Step 8: Commit acceptance evidence**
 
 ```bash
 rtk git add \
@@ -1527,12 +1535,6 @@ rtk git add \
   docs/superpowers/reports/img/hpa-398
 rtk git commit -m "test(hpa-398): prove Sundrop baked obstacle runtime"
 ```
-
-- [ ] **Step 8: Run a whole-branch review**
-
-Review the full diff against `main`, verify every finding against current code,
-fix only still-valid findings, and re-run the smallest affected gate plus the
-final full gate before declaring the branch ready.
 
 Do not push, create a PR, merge, update Linear, or post Linear evidence until
 the user chooses the finishing action.

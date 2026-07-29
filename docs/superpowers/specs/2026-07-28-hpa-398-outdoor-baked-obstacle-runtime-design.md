@@ -182,9 +182,7 @@ The generic `validateMapBackgroundOwnership(...)` rejects:
 - duplicate background image IDs;
 - a fallback-only blocker with an empty owner list;
 - duplicate IDs within one owner list;
-- an owner ID that is absent from the assembled map;
-- an ownership assignment that targets a blocker ID absent from the assembled
-  map.
+- an owner ID that is absent from the assembled map.
 
 The Sundrop-specific `validateSundropObstacleCoverage(...)` separately rejects:
 
@@ -935,8 +933,8 @@ asset integrity and provenance tests
 bun run check
 bun run lint
 bun run test:unit -- --run
-bun run test:e2e
 bun run build
+bun run test:e2e
 bun run tauri build
 git diff --check
 ```
