@@ -6,35 +6,40 @@ describe('world render URL options', () => {
 	it('enables regional backgrounds and disables collision debug by default', () => {
 		expect(parseWorldRenderOptions('')).toEqual({
 			regionalBackgrounds: true,
-			collisionDebug: false
+			collisionDebug: false,
+			regionalBackgroundFault: null
 		});
 	});
 
 	it('disables regional backgrounds only for the exact off value', () => {
 		expect(parseWorldRenderOptions('?regionalBackground=off')).toEqual({
 			regionalBackgrounds: false,
-			collisionDebug: false
+			collisionDebug: false,
+			regionalBackgroundFault: null
 		});
 	});
 
 	it('enables collision debug only for the exact collision value', () => {
 		expect(parseWorldRenderOptions('?mapDebug=collision')).toEqual({
 			regionalBackgrounds: true,
-			collisionDebug: true
+			collisionDebug: true,
+			regionalBackgroundFault: null
 		});
 	});
 
 	it('combines background fallback and collision debug', () => {
 		expect(parseWorldRenderOptions('?regionalBackground=off&mapDebug=collision')).toEqual({
 			regionalBackgrounds: false,
-			collisionDebug: true
+			collisionDebug: true,
+			regionalBackgroundFault: null
 		});
 	});
 
 	it('preserves defaults for unknown parameter values', () => {
 		expect(parseWorldRenderOptions('?regionalBackground=OFF&mapDebug=collisions')).toEqual({
 			regionalBackgrounds: true,
-			collisionDebug: false
+			collisionDebug: false,
+			regionalBackgroundFault: null
 		});
 	});
 
@@ -45,7 +50,8 @@ describe('world render URL options', () => {
 			)
 		).toEqual({
 			regionalBackgrounds: true,
-			collisionDebug: false
+			collisionDebug: false,
+			regionalBackgroundFault: null
 		});
 		expect(
 			parseWorldRenderOptions(
@@ -53,7 +59,8 @@ describe('world render URL options', () => {
 			)
 		).toEqual({
 			regionalBackgrounds: false,
-			collisionDebug: true
+			collisionDebug: true,
+			regionalBackgroundFault: null
 		});
 	});
 
@@ -62,7 +69,32 @@ describe('world render URL options', () => {
 
 		expect(resolveWorldRenderOptions(readSearch)).toEqual({
 			regionalBackgrounds: false,
-			collisionDebug: true
+			collisionDebug: true,
+			regionalBackgroundFault: null
 		});
+	});
+
+	it('parses a typed per-descriptor render fault', () => {
+		expect(
+			parseWorldRenderOptions('?regionalBackgroundFault=sundrop-village-foreground-image:render')
+		).toEqual({
+			regionalBackgrounds: true,
+			collisionDebug: false,
+			regionalBackgroundFault: {
+				backgroundId: 'sundrop-village-foreground-image',
+				mode: 'render'
+			}
+		});
+	});
+
+	it.each([
+		'?regionalBackgroundFault=',
+		'?regionalBackgroundFault=:render',
+		'?regionalBackgroundFault=base:render:extra',
+		'?regionalBackgroundFault=sundrop-village-background',
+		'?regionalBackgroundFault=base:missing',
+		'?regionalBackgroundFault=base:load'
+	])('rejects malformed regional background render faults: %s', (search) => {
+		expect(parseWorldRenderOptions(search).regionalBackgroundFault).toBeNull();
 	});
 });

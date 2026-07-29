@@ -28,7 +28,10 @@ import {
 	type EnvironmentDressingFrameName
 } from '$lib/game/content/assets';
 import { enemies, type EnemyCombatDefinition } from '$lib/game/content/enemies';
-import { getMapBackgroundDepth } from '$lib/game/content/maps/background-ownership';
+import {
+	getMapBackgroundDepth,
+	shouldRenderBlockerVisual
+} from '$lib/game/content/maps/background-ownership';
 import {
 	maps,
 	openingMapId,
@@ -51,6 +54,10 @@ import { getItem, type EquipmentSlot } from '$lib/game/content/items';
 import { startingPlayer } from '$lib/game/content/player';
 import { isQuestId, mainQuestId } from '$lib/game/content/quests';
 import { getShop } from '$lib/game/content/shops';
+import {
+	emitRegionalBackgroundPlaneRenderDiagnostic,
+	type RegionalBackgroundPlaneRenderDiagnosticEntry
+} from '$lib/game/phaser/regional-background-plane-render-diagnostics';
 import { advanceBossPhase } from '$lib/game/core/boss';
 import { buildAreaMapState } from '$lib/game/core/area-map';
 import {
@@ -482,10 +489,10 @@ export class WorldScene extends Phaser.Scene {
 		this.ensureActorAnimations();
 		this.ensureTerrainTilesetTexture();
 		this.renderGround(map);
-		this.renderRegionalBackgrounds(map);
+		const successfulBackgroundIds = this.renderRegionalBackgrounds(map);
 		this.renderMapDecor(map, ['floor', 'furniture']);
 		this.renderFences(map);
-		this.renderBlockers(map);
+		this.renderBlockers(map, successfulBackgroundIds);
 		this.renderLandmarks(map);
 		this.renderInteriorProps(map, ['floor', 'furniture']);
 		const heroAnimation = getActorAnimationAsset('hero');
@@ -1600,17 +1607,53 @@ export class WorldScene extends Phaser.Scene {
 		layer?.setDepth?.(-10);
 	}
 
-	private renderRegionalBackgrounds(map: WorldMapDefinition): void {
-		if (!this.renderOptions.regionalBackgrounds) {
-			return;
-		}
-
+	private renderRegionalBackgrounds(map: WorldMapDefinition): ReadonlySet<string> {
+		const successfulBackgroundIds = new Set<string>();
+		const entries: RegionalBackgroundPlaneRenderDiagnosticEntry[] = [];
 		const textureManager = this.textures as typeof this.textures & {
 			exists?: (key: string) => boolean;
 		};
 
 		for (const background of map.backgroundImages ?? []) {
+			const expectedDimensions = { width: background.width, height: background.height };
+
+			if (!this.renderOptions.regionalBackgrounds) {
+				entries.push({
+					id: background.id,
+					textureKey: background.textureKey,
+					plane: background.plane,
+					expectedDimensions,
+					observedDimensions: null,
+					status: 'disabled'
+				});
+				continue;
+			}
+
 			if (!textureManager.exists?.(background.textureKey)) {
+				entries.push({
+					id: background.id,
+					textureKey: background.textureKey,
+					plane: background.plane,
+					expectedDimensions,
+					observedDimensions: null,
+					status: 'missing-texture'
+				});
+				console.warn(
+					`[WorldScene] regional background unavailable: id="${background.id}" textureKey="${background.textureKey}" mapId="${map.id}"`
+				);
+				continue;
+			}
+
+			const texture = this.textures.get(background.textureKey) as { key?: string } | undefined;
+			if (texture?.key === '__MISSING') {
+				entries.push({
+					id: background.id,
+					textureKey: background.textureKey,
+					plane: background.plane,
+					expectedDimensions,
+					observedDimensions: null,
+					status: 'missing-texture'
+				});
 				console.warn(
 					`[WorldScene] regional background unavailable: id="${background.id}" textureKey="${background.textureKey}" mapId="${map.id}"`
 				);
@@ -1620,6 +1663,14 @@ export class WorldScene extends Phaser.Scene {
 			const dimensions = this.getTextureSourceDimensions(background.textureKey);
 
 			if (!dimensions) {
+				entries.push({
+					id: background.id,
+					textureKey: background.textureKey,
+					plane: background.plane,
+					expectedDimensions,
+					observedDimensions: null,
+					status: 'invalid-dimensions'
+				});
 				console.warn(
 					`[WorldScene] regional background source dimensions unavailable: id="${background.id}" textureKey="${background.textureKey}" mapId="${map.id}"`
 				);
@@ -1627,18 +1678,62 @@ export class WorldScene extends Phaser.Scene {
 			}
 
 			if (dimensions.width !== background.width || dimensions.height !== background.height) {
+				entries.push({
+					id: background.id,
+					textureKey: background.textureKey,
+					plane: background.plane,
+					expectedDimensions,
+					observedDimensions: dimensions,
+					status: 'invalid-dimensions'
+				});
 				console.warn(
 					`[WorldScene] regional background dimensions mismatch: id="${background.id}" textureKey="${background.textureKey}" mapId="${map.id}" expected=${background.width}x${background.height} actual=${dimensions.width}x${dimensions.height}`
 				);
 				continue;
 			}
 
-			this.add
-				.image(background.x, background.y, background.textureKey)
-				.setOrigin(0.5, 0.5)
-				.setDisplaySize(background.width, background.height)
-				.setDepth(getMapBackgroundDepth(background.plane));
+			let image: Phaser.GameObjects.Image | undefined;
+			try {
+				image = this.add.image(background.x, background.y, background.textureKey);
+				if (this.renderOptions.regionalBackgroundFault?.backgroundId === background.id) {
+					throw new Error('injected regional background render failure');
+				}
+				image
+					.setOrigin(0.5, 0.5)
+					.setDisplaySize(background.width, background.height)
+					.setDepth(getMapBackgroundDepth(background.plane));
+				successfulBackgroundIds.add(background.id);
+				entries.push({
+					id: background.id,
+					textureKey: background.textureKey,
+					plane: background.plane,
+					expectedDimensions,
+					observedDimensions: dimensions,
+					status: 'rendered'
+				});
+			} catch {
+				image?.destroy();
+				entries.push({
+					id: background.id,
+					textureKey: background.textureKey,
+					plane: background.plane,
+					expectedDimensions,
+					observedDimensions: dimensions,
+					status: 'render-failed'
+				});
+				console.warn(
+					`[WorldScene] regional background render failed: id="${background.id}" textureKey="${background.textureKey}" mapId="${map.id}"`
+				);
+			}
 		}
+
+		emitRegionalBackgroundPlaneRenderDiagnostic({
+			mapId: map.id,
+			regionalBackgroundsEnabled: this.renderOptions.regionalBackgrounds,
+			entries,
+			successfulBackgroundIds: [...successfulBackgroundIds]
+		});
+		return successfulBackgroundIds;
 	}
 
 	/**
@@ -2049,15 +2144,20 @@ export class WorldScene extends Phaser.Scene {
 		}
 	}
 
-	private renderBlockers(map: WorldMapDefinition) {
+	private renderBlockers(map: WorldMapDefinition, successfulBackgroundIds: ReadonlySet<string>) {
 		const blockers: MapBlocker[] = map.blockers ?? [];
 
 		for (const blocker of blockers) {
-			switch (blocker.kind) {
-				case 'ocean':
-					// Collision-only: the seaTile ground tile + shoreline-foam decor provide the visuals.
-					break;
+			if (blocker.kind === 'ocean') {
+				// Collision-only: the seaTile ground tile + shoreline-foam decor provide the visuals.
+				continue;
+			}
 
+			if (!shouldRenderBlockerVisual(blocker, successfulBackgroundIds)) {
+				continue;
+			}
+
+			switch (blocker.kind) {
 				case 'town-hedge':
 					this.renderBlockerSegments(blocker, forestDressingAsset.key, 'treeCluster');
 					break;

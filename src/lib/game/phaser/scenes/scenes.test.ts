@@ -4,6 +4,7 @@ import { battleBackgroundAssets, villageHedgeAsset } from '$lib/game/content/ass
 import { SUNDROP_VILLAGE_BACKGROUND_TEXTURE_KEY } from '$lib/game/content/backgrounds/sundrop-village-background';
 import { maps } from '$lib/game/content/maps';
 import type { RegionalBackgroundRendererDiagnostic } from '$lib/game/phaser/renderer-diagnostics';
+import type { RegionalBackgroundPlaneRenderDiagnostic } from '$lib/game/phaser/regional-background-plane-render-diagnostics';
 import { HUD_COMMAND_EVENT, type HudCommand } from '$lib/game/ui-bridge/events';
 
 const localeState = vi.hoisted(() => ({
@@ -297,6 +298,9 @@ const phaserState = vi.hoisted(() => {
 		source: [{ width: 1792, height: 1536 }],
 		get: vi.fn(() => ({ cutWidth: 1792, cutHeight: 1536 }))
 	};
+	const regionalBackgroundTextureMocks = new Map<string, typeof regionalBackgroundTextureMock>();
+	const imageCreationFailureKeys = new Set<string>();
+	const postCreationFailureKeys = new Set<string>();
 	const missingTextureKeys = new Set<string>();
 	const tilemapLayer = {
 		setDepth: vi.fn(() => tilemapLayer)
@@ -329,6 +333,7 @@ const phaserState = vi.hoisted(() => {
 		setDisplaySize: ReturnType<typeof vi.fn>;
 		setOrigin: ReturnType<typeof vi.fn>;
 		setVisible: ReturnType<typeof vi.fn>;
+		destroy: ReturnType<typeof vi.fn>;
 	}> = [];
 	const tileSpriteMarkers: Array<{
 		x: number;
@@ -497,6 +502,9 @@ const phaserState = vi.hoisted(() => {
 	const victoryOverlay = createOverlayMarker();
 
 	function createImage(x: number, y: number, texture: string, frame?: string) {
+		if (imageCreationFailureKeys.has(texture)) {
+			throw new Error(`Image creation failed for ${texture}`);
+		}
 		if (
 			frame === 'hero' ||
 			frame?.startsWith('heroIdle') ||
@@ -531,13 +539,19 @@ const phaserState = vi.hoisted(() => {
 			texture,
 			frame,
 			visible: true,
-			setDepth: vi.fn(() => marker),
+			setDepth: vi.fn(() => {
+				if (postCreationFailureKeys.has(texture)) {
+					throw new Error(`Post-creation failure for ${texture}`);
+				}
+				return marker;
+			}),
 			setDisplaySize: vi.fn(() => marker),
 			setOrigin: vi.fn(() => marker),
 			setVisible: vi.fn((visible: boolean) => {
 				marker.visible = visible;
 				return marker;
-			})
+			}),
+			destroy: vi.fn(() => marker)
 		};
 		imageMarkers.push(marker);
 		return marker;
@@ -721,8 +735,10 @@ const phaserState = vi.hoisted(() => {
 		};
 		textures = {
 			exists: vi.fn((key: string) => !missingTextureKeys.has(key)),
-			get: vi.fn((key: string) =>
-				key === regionalBackgroundTextureKey ? regionalBackgroundTextureMock : textureMock
+			get: vi.fn(
+				(key: string) =>
+					regionalBackgroundTextureMocks.get(key) ??
+					(key === regionalBackgroundTextureKey ? regionalBackgroundTextureMock : textureMock)
 			)
 		};
 
@@ -754,6 +770,9 @@ const phaserState = vi.hoisted(() => {
 		victoryText,
 		textureMock,
 		regionalBackgroundTextureMock,
+		regionalBackgroundTextureMocks,
+		imageCreationFailureKeys,
+		postCreationFailureKeys,
 		missingTextureKeys,
 		tilemap,
 		tilemapLayer,
@@ -818,6 +837,9 @@ const phaserState = vi.hoisted(() => {
 			regionalBackgroundTextureMock.key = regionalBackgroundTextureKey;
 			regionalBackgroundTextureMock.source[0] = { width: 1792, height: 1536 };
 			regionalBackgroundTextureMock.get.mockClear();
+			regionalBackgroundTextureMocks.clear();
+			imageCreationFailureKeys.clear();
+			postCreationFailureKeys.clear();
 			missingTextureKeys.clear();
 			tilemap.addTilesetImage.mockClear();
 			tilemap.createLayer.mockClear();
@@ -2370,6 +2392,8 @@ describe('BattleScene', () => {
 });
 
 describe('WorldScene', () => {
+	const twoPlaneBaseTextureKey = 'two-plane-base';
+	const twoPlaneForegroundTextureKey = 'two-plane-foreground';
 	const sundropVillageBounds = {
 		left: 256,
 		right: 2_048,
@@ -2446,6 +2470,108 @@ describe('WorldScene', () => {
 			],
 			encounters: [{ id: 'scene-support-slime', x: 320, y: 320, enemyId: 'slime-scout' }]
 		};
+	}
+
+	function registerTwoPlaneBackgroundTestMap() {
+		maps['scene-support-test'] = {
+			id: 'scene-support-test',
+			width: 20,
+			height: 20,
+			spawnDirection: 'right',
+			spawn: { x: 96, y: 96 },
+			transitions: [],
+			backgroundImages: [
+				{
+					id: 'two-plane-base-image',
+					x: 320,
+					y: 160,
+					width: 640,
+					height: 320,
+					textureKey: twoPlaneBaseTextureKey,
+					plane: 'base'
+				},
+				{
+					id: 'two-plane-foreground-image',
+					x: 352,
+					y: 192,
+					width: 640,
+					height: 320,
+					textureKey: twoPlaneForegroundTextureKey,
+					plane: 'foreground'
+				}
+			],
+			blockers: [
+				{
+					id: 'two-plane-base-only',
+					x: 96,
+					y: 160,
+					width: 32,
+					height: 64,
+					kind: 'city-wall',
+					visual: { mode: 'fallback-only', ownerBackgroundIds: ['two-plane-base-image'] }
+				},
+				{
+					id: 'two-plane-multi-owner',
+					x: 128,
+					y: 160,
+					width: 32,
+					height: 64,
+					kind: 'city-wall',
+					visual: {
+						mode: 'fallback-only',
+						ownerBackgroundIds: ['two-plane-base-image', 'two-plane-foreground-image']
+					}
+				},
+				{
+					id: 'two-plane-implicit-always',
+					x: 160,
+					y: 160,
+					width: 32,
+					height: 64,
+					kind: 'city-wall'
+				},
+				{
+					id: 'two-plane-explicit-always',
+					x: 192,
+					y: 160,
+					width: 32,
+					height: 64,
+					kind: 'city-wall',
+					visual: { mode: 'always' }
+				}
+			]
+		};
+		for (const textureKey of [twoPlaneBaseTextureKey, twoPlaneForegroundTextureKey]) {
+			phaserState.regionalBackgroundTextureMocks.set(textureKey, {
+				key: textureKey,
+				source: [{ width: 640, height: 320 }],
+				get: vi.fn(() => ({ cutWidth: 640, cutHeight: 320 }))
+			});
+		}
+	}
+
+	const twoPlaneBackgroundMarkers = () =>
+		phaserState.imageMarkers.filter(
+			(marker) =>
+				(marker.texture === twoPlaneBaseTextureKey ||
+					marker.texture === twoPlaneForegroundTextureKey) &&
+				marker.destroy.mock.calls.length === 0
+		);
+	const twoPlaneBlockerMarkers = () =>
+		phaserState.imageMarkers.filter(
+			(marker) => marker.texture === 'environment-dressing' && marker.frame === 'townWallVertical'
+		);
+
+	function installPlaneDiagnosticListener() {
+		const target = installHudCommandTarget();
+		const diagnostics: RegionalBackgroundPlaneRenderDiagnostic[] = [];
+		target.target.addEventListener(
+			'gliese:regional-background-plane-render-diagnostic',
+			(event) => {
+				diagnostics.push((event as CustomEvent<RegionalBackgroundPlaneRenderDiagnostic>).detail);
+			}
+		);
+		return { ...target, diagnostics };
 	}
 
 	function registerAreaMapRevealTestMap() {
@@ -2542,6 +2668,177 @@ describe('WorldScene', () => {
 			(marker) => marker.texture === SUNDROP_VILLAGE_BACKGROUND_TEXTURE_KEY
 		);
 		expect(background?.setOrigin).toHaveBeenCalledWith(0.5, 0.5);
+	});
+
+	it('renders independent base and foreground planes at their semantic depths', async () => {
+		registerTwoPlaneBackgroundTestMap();
+		const target = installPlaneDiagnosticListener();
+		const { WorldScene } = await import('./WorldScene');
+		const scene = new WorldScene();
+
+		try {
+			scene.create({ mapId: 'scene-support-test' });
+
+			expect(twoPlaneBackgroundMarkers()).toHaveLength(2);
+			expect(twoPlaneBackgroundMarkers()[0]).toMatchObject({
+				x: 320,
+				y: 160,
+				texture: twoPlaneBaseTextureKey
+			});
+			expect(twoPlaneBackgroundMarkers()[0]?.setDisplaySize).toHaveBeenCalledWith(640, 320);
+			expect(twoPlaneBackgroundMarkers()[0]?.setDepth).toHaveBeenCalledWith(-9);
+			expect(twoPlaneBackgroundMarkers()[1]).toMatchObject({
+				x: 352,
+				y: 192,
+				texture: twoPlaneForegroundTextureKey
+			});
+			expect(twoPlaneBackgroundMarkers()[1]?.setDisplaySize).toHaveBeenCalledWith(640, 320);
+			expect(twoPlaneBackgroundMarkers()[1]?.setDepth).toHaveBeenCalledWith(100);
+			expect(twoPlaneBlockerMarkers()).toHaveLength(4);
+			expect(target.diagnostics).toHaveLength(1);
+			expect(target.diagnostics[0]?.entries.map((entry) => entry.status)).toEqual([
+				'rendered',
+				'rendered'
+			]);
+			expect(target.diagnostics[0]?.successfulBackgroundIds).toEqual([
+				'two-plane-base-image',
+				'two-plane-foreground-image'
+			]);
+		} finally {
+			target.restore();
+		}
+	});
+
+	it('records ordered disabled plane diagnostics and retains every live blocker visual', async () => {
+		registerTwoPlaneBackgroundTestMap();
+		const target = installPlaneDiagnosticListener();
+		const restoreLocation = installLocationSearch('?regionalBackground=off');
+		const { WorldScene } = await import('./WorldScene');
+		const scene = new WorldScene();
+
+		try {
+			scene.create({ mapId: 'scene-support-test' });
+
+			expect(twoPlaneBackgroundMarkers()).toHaveLength(0);
+			expect(twoPlaneBlockerMarkers()).toHaveLength(8);
+			expect(target.diagnostics[0]?.entries.map((entry) => entry.status)).toEqual([
+				'disabled',
+				'disabled'
+			]);
+			expect(target.diagnostics[0]?.successfulBackgroundIds).toEqual([]);
+		} finally {
+			restoreLocation();
+			target.restore();
+		}
+	});
+
+	it.each([
+		[
+			'missing texture',
+			(key: string): void => {
+				phaserState.missingTextureKeys.add(key);
+			},
+			'missing-texture'
+		],
+		[
+			'missing placeholder',
+			(key: string): void => {
+				phaserState.regionalBackgroundTextureMocks.get(key)!.key = '__MISSING';
+			},
+			'missing-texture'
+		],
+		[
+			'wrong dimensions',
+			(key: string): void => {
+				phaserState.regionalBackgroundTextureMocks.get(key)!.source[0] = {
+					width: 639,
+					height: 320
+				};
+			},
+			'invalid-dimensions'
+		],
+		[
+			'image creation exception',
+			(key: string): void => {
+				phaserState.imageCreationFailureKeys.add(key);
+			},
+			'render-failed'
+		],
+		[
+			'post-creation exception',
+			(key: string): void => {
+				phaserState.postCreationFailureKeys.add(key);
+			},
+			'render-failed'
+		]
+	] as const)('isolates a %s to its foreground descriptor', async (_label, arrange, status) => {
+		registerTwoPlaneBackgroundTestMap();
+		const target = installPlaneDiagnosticListener();
+		arrange(twoPlaneForegroundTextureKey);
+		const { WorldScene } = await import('./WorldScene');
+		const scene = new WorldScene();
+
+		try {
+			scene.create({ mapId: 'scene-support-test' });
+
+			expect(twoPlaneBackgroundMarkers().map((marker) => marker.texture)).toEqual([
+				twoPlaneBaseTextureKey
+			]);
+			expect(twoPlaneBlockerMarkers()).toHaveLength(6);
+			expect(target.diagnostics[0]?.entries.map((entry) => entry.status)).toEqual([
+				'rendered',
+				status
+			]);
+			expect(target.diagnostics[0]?.successfulBackgroundIds).toEqual(['two-plane-base-image']);
+			if (status === 'render-failed' && _label === 'post-creation exception') {
+				expect(
+					phaserState.imageMarkers.find((marker) => marker.texture === twoPlaneForegroundTextureKey)
+						?.destroy
+				).toHaveBeenCalledOnce();
+			}
+		} finally {
+			target.restore();
+		}
+	});
+
+	it('uses the exact successful plane set for base-only and multi-owner live fallbacks', async () => {
+		registerTwoPlaneBackgroundTestMap();
+		const restoreLocation = installLocationSearch(
+			'?regionalBackgroundFault=two-plane-foreground-image:render'
+		);
+		const { WorldScene } = await import('./WorldScene');
+		const scene = new WorldScene();
+
+		try {
+			scene.create({ mapId: 'scene-support-test' });
+
+			expect(twoPlaneBackgroundMarkers().map((marker) => marker.texture)).toEqual([
+				twoPlaneBaseTextureKey
+			]);
+			expect(twoPlaneBlockerMarkers()).toHaveLength(6);
+		} finally {
+			restoreLocation();
+		}
+	});
+
+	it('restores both base-only and multi-owner live fallbacks when the base plane fails', async () => {
+		registerTwoPlaneBackgroundTestMap();
+		const restoreLocation = installLocationSearch(
+			'?regionalBackgroundFault=two-plane-base-image:render'
+		);
+		const { WorldScene } = await import('./WorldScene');
+		const scene = new WorldScene();
+
+		try {
+			scene.create({ mapId: 'scene-support-test' });
+
+			expect(twoPlaneBackgroundMarkers().map((marker) => marker.texture)).toEqual([
+				twoPlaneForegroundTextureKey
+			]);
+			expect(twoPlaneBlockerMarkers()).toHaveLength(8);
+		} finally {
+			restoreLocation();
+		}
 	});
 
 	it('sizes the Sundrop regional background to its descriptor and places it at depth -9', async () => {
