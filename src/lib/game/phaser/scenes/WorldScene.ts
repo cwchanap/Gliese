@@ -58,6 +58,7 @@ import {
 	emitRegionalBackgroundPlaneRenderDiagnostic,
 	type RegionalBackgroundPlaneRenderDiagnosticEntry
 } from '$lib/game/phaser/regional-background-plane-render-diagnostics';
+import { emitPlayerMovementDiagnostic } from '$lib/game/phaser/player-movement-diagnostics';
 import { advanceBossPhase } from '$lib/game/core/boss';
 import { buildAreaMapState } from '$lib/game/core/area-map';
 import {
@@ -616,6 +617,15 @@ export class WorldScene extends Phaser.Scene {
 			targetX,
 			targetY
 		);
+		if (direction.x !== 0 || direction.y !== 0) {
+			emitPlayerMovementDiagnostic({
+				mapId: this.mapId,
+				previousPosition: { x: this.player.x, y: this.player.y },
+				requestedPosition: { x: targetX, y: targetY },
+				resolvedPosition,
+				blocked: resolvedPosition.x !== targetX || resolvedPosition.y !== targetY
+			});
+		}
 
 		this.player.x = resolvedPosition.x;
 		this.player.y = resolvedPosition.y;
@@ -1639,7 +1649,7 @@ export class WorldScene extends Phaser.Scene {
 					status: 'missing-texture'
 				});
 				console.warn(
-					`[WorldScene] regional background unavailable: id="${background.id}" textureKey="${background.textureKey}" mapId="${map.id}"`
+					`[WorldScene] regional background unavailable: id="${background.id}" textureKey="${background.textureKey}" plane="${background.plane}" mapId="${map.id}"`
 				);
 				continue;
 			}
@@ -1655,7 +1665,7 @@ export class WorldScene extends Phaser.Scene {
 					status: 'missing-texture'
 				});
 				console.warn(
-					`[WorldScene] regional background unavailable: id="${background.id}" textureKey="${background.textureKey}" mapId="${map.id}"`
+					`[WorldScene] regional background unavailable: id="${background.id}" textureKey="${background.textureKey}" plane="${background.plane}" mapId="${map.id}"`
 				);
 				continue;
 			}
@@ -1672,7 +1682,7 @@ export class WorldScene extends Phaser.Scene {
 					status: 'invalid-dimensions'
 				});
 				console.warn(
-					`[WorldScene] regional background source dimensions unavailable: id="${background.id}" textureKey="${background.textureKey}" mapId="${map.id}"`
+					`[WorldScene] regional background source dimensions unavailable: id="${background.id}" textureKey="${background.textureKey}" plane="${background.plane}" mapId="${map.id}"`
 				);
 				continue;
 			}
@@ -1687,7 +1697,7 @@ export class WorldScene extends Phaser.Scene {
 					status: 'invalid-dimensions'
 				});
 				console.warn(
-					`[WorldScene] regional background dimensions mismatch: id="${background.id}" textureKey="${background.textureKey}" mapId="${map.id}" expected=${background.width}x${background.height} actual=${dimensions.width}x${dimensions.height}`
+					`[WorldScene] regional background dimensions mismatch: id="${background.id}" textureKey="${background.textureKey}" plane="${background.plane}" mapId="${map.id}" expected=${background.width}x${background.height} actual=${dimensions.width}x${dimensions.height}`
 				);
 				continue;
 			}
@@ -1722,16 +1732,26 @@ export class WorldScene extends Phaser.Scene {
 					status: 'render-failed'
 				});
 				console.warn(
-					`[WorldScene] regional background render failed: id="${background.id}" textureKey="${background.textureKey}" mapId="${map.id}"`
+					`[WorldScene] regional background render failed: id="${background.id}" textureKey="${background.textureKey}" plane="${background.plane}" mapId="${map.id}"`
 				);
 			}
 		}
 
+		const selectedFallbackBlockers = (map.blockers ?? []).filter(
+			(blocker) =>
+				blocker.visual?.mode === 'fallback-only' &&
+				shouldRenderBlockerVisual(blocker, successfulBackgroundIds)
+		);
 		emitRegionalBackgroundPlaneRenderDiagnostic({
 			mapId: map.id,
 			regionalBackgroundsEnabled: this.renderOptions.regionalBackgrounds,
 			entries,
-			successfulBackgroundIds: [...successfulBackgroundIds]
+			successfulBackgroundIds: [...successfulBackgroundIds],
+			selectedFallbackBlockerIds: selectedFallbackBlockers.map((blocker) => blocker.id),
+			selectedFallbackBlockerSegmentCount: selectedFallbackBlockers.reduce(
+				(total, blocker) => total + Math.ceil(Math.max(blocker.width, blocker.height) / 48),
+				0
+			)
 		});
 		return successfulBackgroundIds;
 	}

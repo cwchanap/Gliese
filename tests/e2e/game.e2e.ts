@@ -6,7 +6,8 @@ import {
 	SUNDROP_VILLAGE_BASE_BACKGROUND_PATH,
 	SUNDROP_VILLAGE_BASE_BACKGROUND_TEXTURE_KEY,
 	SUNDROP_VILLAGE_FOREGROUND_BACKGROUND_ID,
-	SUNDROP_VILLAGE_FOREGROUND_BACKGROUND_PATH
+	SUNDROP_VILLAGE_FOREGROUND_BACKGROUND_PATH,
+	SUNDROP_VILLAGE_FOREGROUND_BACKGROUND_TEXTURE_KEY
 } from '../../src/lib/game/content/backgrounds/sundrop-village-backgrounds';
 import {
 	REGIONAL_BACKGROUND_RENDERER_DIAGNOSTIC_EVENT,
@@ -16,6 +17,11 @@ import {
 	REGIONAL_BACKGROUND_PLANE_RENDER_DIAGNOSTIC_EVENT,
 	type RegionalBackgroundPlaneRenderDiagnostic
 } from '../../src/lib/game/phaser/regional-background-plane-render-diagnostics';
+import {
+	PLAYER_MOVEMENT_DIAGNOSTIC_EVENT,
+	type PlayerMovementDiagnostic
+} from '../../src/lib/game/phaser/player-movement-diagnostics';
+import { HUD_COMMAND_EVENT } from '../../src/lib/game/ui-bridge/events';
 
 type HudStateSnapshot = {
 	status?: string;
@@ -40,6 +46,38 @@ type GlieseProbeWindow = Window & {
 	__glieseLastHudState?: HudStateSnapshot;
 };
 
+const SUNDROP_SELECTED_FALLBACK_IDS = [
+	'village-block-2-2',
+	'village-block-2-49',
+	'village-block-33-49',
+	'village-block-3-2',
+	'village-block-3-51',
+	'village-block-4-2',
+	'village-block-32-2',
+	'village-block-4-35',
+	'village-block-11-35',
+	'village-block-10-35',
+	'village-block-19-2',
+	'village-block-19-30',
+	'village-block-20-2',
+	'village-block-20-34',
+	'village-block-25-20',
+	'village-block-32-8',
+	'village-block-32-24',
+	'village-block-32-33',
+	'village-block-33-24',
+	'village-block-41-24',
+	'corridor-wall-2b'
+] as const;
+const SUNDROP_FOREGROUND_FALLBACK_IDS = [
+	'village-block-2-2',
+	'village-block-2-49',
+	'village-block-3-2',
+	'village-block-10-35',
+	'village-block-19-2',
+	'village-block-19-30',
+	'corridor-wall-2b'
+] as const;
 function commandBox(page: Page, name = 'Command') {
 	return page.getByRole('region', { name });
 }
@@ -146,6 +184,11 @@ function createSaveFixture(overrides: SaveFixtureOverrides = {}) {
 	};
 }
 
+const SUNDROP_BLOCKED_MOTION_SAVE = createSaveFixture({
+	mapId: 'meadow-entry',
+	player: { level: 1, xp: 0, hp: 20, attack: 3, x: 896, y: 4480, facing: 'up' }
+});
+
 function injectSave(page: Page, save: ReturnType<typeof createSaveFixture>) {
 	return page.addInitScript(
 		(payload: SaveInitPayload) => {
@@ -243,19 +286,45 @@ async function installRegionalBackgroundPlaneDiagnosticListener(page: Page) {
 	return diagnostics;
 }
 
+async function installPlayerMovementDiagnosticListener(page: Page) {
+	const diagnostics: PlayerMovementDiagnostic[] = [];
+	const bindingName = 'capturePlayerMovementDiagnostic';
+	await page.exposeBinding(bindingName, (_source, detail: PlayerMovementDiagnostic) =>
+		diagnostics.push(detail)
+	);
+	await page.addInitScript(
+		({ diagnosticBindingName, eventName }) => {
+			window.addEventListener(eventName, (event) => {
+				const binding = (
+					window as unknown as Record<string, (detail: PlayerMovementDiagnostic) => Promise<void>>
+				)[diagnosticBindingName];
+				void binding((event as CustomEvent<PlayerMovementDiagnostic>).detail);
+			});
+		},
+		{ diagnosticBindingName: bindingName, eventName: PLAYER_MOVEMENT_DIAGNOSTIC_EVENT }
+	);
+	return diagnostics;
+}
+
 type RegionalBackgroundEvidenceDiagnostics = RegionalBackgroundRendererDiagnostic[] & {
 	planeDiagnostics: RegionalBackgroundPlaneRenderDiagnostic[];
+	movementDiagnostics: PlayerMovementDiagnostic[];
 };
 
-async function prepareRegionalBackgroundEvidencePage(page: Page) {
+async function prepareRegionalBackgroundEvidencePage(
+	page: Page,
+	save = createRegionalBackgroundSaveFixture()
+) {
 	await page.setViewportSize({ width: 1280, height: 720 });
-	await injectSave(page, createRegionalBackgroundSaveFixture());
-	const [rendererDiagnostics, planeDiagnostics] = await Promise.all([
+	await injectSave(page, save);
+	const [rendererDiagnostics, planeDiagnostics, movementDiagnostics] = await Promise.all([
 		installRegionalBackgroundDiagnosticListener(page),
-		installRegionalBackgroundPlaneDiagnosticListener(page)
+		installRegionalBackgroundPlaneDiagnosticListener(page),
+		installPlayerMovementDiagnosticListener(page)
 	]);
 	return Object.assign(rendererDiagnostics, {
-		planeDiagnostics
+		planeDiagnostics,
+		movementDiagnostics
 	}) as RegionalBackgroundEvidenceDiagnostics;
 }
 
@@ -321,10 +390,59 @@ async function assertPlaneDiagnostics(
 	await expect.poll(() => diagnostics.length).toBe(1);
 	expect(diagnostics[0]?.mapId).toBe('meadow-entry');
 	expect(diagnostics[0]?.entries.map((entry) => entry.status)).toEqual(statuses);
-	expect(diagnostics[0]?.entries.map((entry) => entry.id)).toEqual([
-		SUNDROP_VILLAGE_BASE_BACKGROUND_ID,
-		SUNDROP_VILLAGE_FOREGROUND_BACKGROUND_ID
-	]);
+	expect(diagnostics[0]?.entries).toEqual(
+		[
+			{
+				id: SUNDROP_VILLAGE_BASE_BACKGROUND_ID,
+				textureKey: SUNDROP_VILLAGE_BASE_BACKGROUND_TEXTURE_KEY,
+				plane: 'base'
+			},
+			{
+				id: SUNDROP_VILLAGE_FOREGROUND_BACKGROUND_ID,
+				textureKey: SUNDROP_VILLAGE_FOREGROUND_BACKGROUND_TEXTURE_KEY,
+				plane: 'foreground'
+			}
+		].map((expected, index) => expect.objectContaining({ ...expected, status: statuses[index] }))
+	);
+	const expectedFallback =
+		statuses[0] === 'rendered' && statuses[1] === 'rendered'
+			? { ids: [], segments: 0 }
+			: statuses[0] === 'rendered'
+				? { ids: SUNDROP_FOREGROUND_FALLBACK_IDS, segments: 82 }
+				: { ids: SUNDROP_SELECTED_FALLBACK_IDS, segments: 190 };
+	expect(diagnostics[0]?.selectedFallbackBlockerIds).toEqual(expectedFallback.ids);
+	expect(diagnostics[0]?.selectedFallbackBlockerSegmentCount).toBe(expectedFallback.segments);
+}
+
+async function resumeAndAssertSundropBlockerStopsPlayer(
+	page: Page,
+	movementDiagnostics: PlayerMovementDiagnostic[]
+) {
+	await page.evaluate((eventName) => {
+		window.dispatchEvent(new CustomEvent(eventName, { detail: { type: 'resume-save' } }));
+	}, HUD_COMMAND_EVENT);
+	await page.waitForTimeout(150);
+	await expectGameReady(page);
+	await page.locator('canvas').click();
+	await page.keyboard.down('ArrowUp');
+	await page.waitForTimeout(300);
+	await page.keyboard.up('ArrowUp');
+	// Resume normalizes the deliberately near-blocker seed (896, 4480) to the
+	// closest walkable center (912, 4496). Holding Up requests a lower Y inside
+	// village-block-2-2; collision must resolve it back to that exact center.
+	await expect.poll(() => movementDiagnostics.length).toBeGreaterThan(0);
+	const blockedUpwardMovement = movementDiagnostics.find(
+		(diagnostic) => diagnostic.requestedPosition.y < diagnostic.previousPosition.y
+	);
+	expect(blockedUpwardMovement).toEqual(
+		expect.objectContaining({
+			mapId: 'meadow-entry',
+			previousPosition: { x: 912, y: 4496 },
+			resolvedPosition: { x: 912, y: 4496 },
+			blocked: true
+		})
+	);
+	expect(blockedUpwardMovement!.requestedPosition.y).toBeLessThan(4496);
 }
 
 test('regional background load failure keeps fallback gameplay ready with scoped diagnostics', async ({
@@ -335,7 +453,10 @@ test('regional background load failure keeps fallback gameplay ready with scoped
 	const expectedAssetUrl = new URL(SUNDROP_VILLAGE_BASE_BACKGROUND_PATH, 'http://127.0.0.1:4173')
 		.href;
 
-	const diagnostics = await prepareRegionalBackgroundEvidencePage(page);
+	const diagnostics = await prepareRegionalBackgroundEvidencePage(
+		page,
+		SUNDROP_BLOCKED_MOTION_SAVE
+	);
 	page.on('console', (message) => {
 		consoleEntries.push({
 			type: message.type(),
@@ -366,7 +487,7 @@ test('regional background load failure keeps fallback gameplay ready with scoped
 
 	const expectedWorldWarning =
 		`[WorldScene] regional background unavailable: id="${SUNDROP_VILLAGE_BASE_BACKGROUND_ID}" ` +
-		`textureKey="${SUNDROP_VILLAGE_BASE_BACKGROUND_TEXTURE_KEY}" mapId="meadow-entry"`;
+		`textureKey="${SUNDROP_VILLAGE_BASE_BACKGROUND_TEXTURE_KEY}" plane="base" mapId="meadow-entry"`;
 	const findTargetedWorldWarnings = () =>
 		consoleEntries.filter(
 			(entry) =>
@@ -379,6 +500,7 @@ test('regional background load failure keeps fallback gameplay ready with scoped
 	const targetedWorldWarnings = findTargetedWorldWarnings();
 	expect(targetedWorldWarnings.map((entry) => entry.text)).toEqual([expectedWorldWarning]);
 	await assertPlaneDiagnostics(diagnostics.planeDiagnostics, ['missing-texture', 'rendered']);
+	await resumeAndAssertSundropBlockerStopsPlayer(page, diagnostics.movementDiagnostics);
 
 	const toleratedChromiumFailures = consoleEntries.filter((entry) => {
 		if (entry.type !== 'error' || entry.text !== 'Failed to load resource: net::ERR_FAILED') {
@@ -402,7 +524,7 @@ test('regional background load failure keeps fallback gameplay ready with scoped
 	const unexpectedGameWarnings = consoleEntries.filter(
 		(entry) =>
 			entry.type === 'warning' &&
-			!targetedWorldWarnings.includes(entry) &&
+			!findTargetedWorldWarnings().includes(entry) &&
 			/\[(?:BootScene|WorldScene)\]|game\/assets|phaser|texture|frame/i.test(
 				`${entry.text} ${entry.url}`
 			)
@@ -452,7 +574,10 @@ for (const failureCase of [
 	test(`regional background ${failureCase.name} retains its valid plane and fallback gameplay`, async ({
 		page
 	}, testInfo) => {
-		const diagnostics = await prepareRegionalBackgroundEvidencePage(page);
+		const diagnostics = await prepareRegionalBackgroundEvidencePage(
+			page,
+			SUNDROP_BLOCKED_MOTION_SAVE
+		);
 		await page.route(`**${failureCase.path}`, failureCase.intercept);
 		await page.goto('/');
 		await expectGameReady(page);
@@ -463,10 +588,7 @@ for (const failureCase of [
 			testInfo
 		);
 		await assertPlaneDiagnostics(diagnostics.planeDiagnostics, failureCase.statuses);
-		// The game remains interactive after the failed plane, while collision continues to be
-		// enforced by the unchanged source blockers.
-		await page.keyboard.press('ArrowDown');
-		await expect(page.locator('canvas')).toBeVisible();
+		await resumeAndAssertSundropBlockerStopsPlayer(page, diagnostics.movementDiagnostics);
 		await captureRuntimeScreenshot(
 			page,
 			testInfo,
@@ -490,11 +612,14 @@ for (const renderFault of [
 	test(`regional background ${renderFault.name} keeps the other plane visible`, async ({
 		page
 	}) => {
-		const diagnostics = await prepareRegionalBackgroundEvidencePage(page);
+		const diagnostics = await prepareRegionalBackgroundEvidencePage(
+			page,
+			SUNDROP_BLOCKED_MOTION_SAVE
+		);
 		await page.goto(renderFault.url);
 		await expectGameReady(page);
 		await assertPlaneDiagnostics(diagnostics.planeDiagnostics, renderFault.statuses);
-		await expect(page.locator('canvas')).toBeVisible();
+		await resumeAndAssertSundropBlockerStopsPlayer(page, diagnostics.movementDiagnostics);
 	});
 }
 
