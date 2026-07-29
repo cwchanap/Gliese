@@ -681,25 +681,37 @@ never rewrites an HPA-307 artifact.
 The current HPA-307 production PNG is the immutable ground input.
 
 1. Regenerate and review HPA-398 control artifacts.
-2. Use the built-in image-generation workflow to edit/generate an aligned
-   obstacle candidate from the current ground and the text-free control image.
-3. Archive the exact prompt and candidate hash.
-4. Normalize with uniform scaling and cropping only; non-uniform scaling is
+2. Use the built-in image-generation workflow with the current ground as the
+   style reference and the text-free control image as the exact placement guide.
+   Generate obstacle silhouettes only on a flat `#ff00ff` chroma background;
+   generated terrain, roads, buildings, characters, shadows, labels, and guides
+   are forbidden.
+3. Archive the unmodified generated RGB image as
+   `village-obstacle-chroma-source.png`, then remove the chroma locally with the
+   imagegen skill's `remove_chroma_key.py` helper. Archive the resulting RGBA
+   `village-obstacle-layer.png` and reject it unless it has real transparency,
+   transparent corners, plausible coverage, and no magenta fringe.
+4. Normalize the obstacle layer with uniform centered cropping and scaling
+   only; non-uniform scaling is
    forbidden.
-5. Deterministically composite candidate RGB into the base only where the
+5. Deterministically construct `village-obstacle-candidate.png`: its RGB is the
+   normalized obstacle layer alpha-composited over the immutable HPA-307 ground,
+   its alpha is the normalized obstacle-layer alpha, and fully transparent
+   candidate pixels retain the ground source RGB.
+6. Deterministically composite candidate RGB into the base only where the
    permitted base mask allows. Base alpha is never taken from the candidate or
    forced to `255`; it remains exactly
    `sundropVillageBackgroundAlpha(x, y, width, height)` everywhere, including
    the feather bands.
-6. Build the transparent foreground only where the foreground mask allows.
+7. Build the transparent foreground only where the foreground mask allows.
    Every foreground pixel is additionally clipped by the horizontal
    blocker-specific `bottom - 33px` front-safe cutoff. Its candidate alpha is
    modulated as
    `Math.round(candidateAlpha * sundropVillageBackgroundAlpha(...) / 255)` so
    foreground edges cannot form a hard seam against the feathered base.
-7. Subtract protected routes, approaches, handoffs, rewards, building
+8. Subtract protected routes, approaches, handoffs, rewards, building
    footprints, and live-object footprints from both permitted masks.
-8. Finalize canonical PNGs and emit provenance.
+9. Finalize canonical PNGs and emit provenance.
 
 “Pixel-identical outside the mask” means decoded RGBA pixel bytes are identical
 to the HPA-307 ground input outside the permitted base mask. PNG file bytes may
@@ -735,8 +747,11 @@ The production provenance records:
 - HPA-307 input path, size, dimensions, SHA-256, and decoded-pixel SHA-256;
 - control fingerprint and every control artifact hash;
 - exact image-generation prompt;
-- raw candidate path, size, dimensions, and SHA-256;
+- raw chroma-source path, size, dimensions, and SHA-256;
+- extracted obstacle-layer path, size, dimensions, alpha facts, and SHA-256;
 - normalization transform;
+- constructed candidate path, dimensions, encoded/decoded hashes, and
+  source-backed alpha-composite contract;
 - mask hashes and margins;
 - base and foreground output hashes, dimensions, encoded bytes, and
   decoded-pixel hashes;

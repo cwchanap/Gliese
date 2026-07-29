@@ -1,0 +1,368 @@
+{
+  "algorithmVersion": "sundrop-village-obstacle-composite-v2",
+  "controlFingerprint": "8b3f80fdde4591465d90aca558ff747d3825939c5879fdadaf3c55e70cb3b4b2",
+  "prompt": "Use case: stylized-concept\nAsset type: source-aligned top-down JRPG obstacle-only production layer\nInput images: Image 1 is a style, palette, lighting, scale, and material reference only; Image 2 is the exact obstacle placement and obstacle-kind guide\nPrimary request: create only the low static obstacles indicated by Image 2: clipped leafy hedges for hedge regions, low weathered stone or timber walls for low-wall regions, and low roots or rocks for root-rock regions\nScene/backdrop: perfectly flat solid #ff00ff chroma-key background for local background removal\nStyle/medium: match Image 1's illustrated top-down JRPG village style, palette, lighting, texture, and scale\nComposition/framing: preserve Image 2's exact 7:6 canvas layout, coordinates, footprints, and top-down camera\nConstraints: the background must be one uniform #ff00ff color with no shadows, gradients, texture, reflections, floor plane, or lighting variation; render obstacle silhouettes only; keep every obstacle low enough for the supplied collision footprint; crisp readable edges; no cast shadow; no contact shadow; no terrain; no grass; no roads; no paths; no water; no buildings; no doors; no landmarks; no characters; no guides; no labels; no text; no watermark; do not use #ff00ff anywhere in the obstacle art\nAvoid: rectangular terrain strips, background scenery, moved geometry, tall occluders, halos, magenta fringe, extra objects\n",
+  "source": {
+    "path": "docs/superpowers/reports/img/hpa-398/sundrop-village-hpa-307-ground-input.png",
+    "bytes": 7601173,
+    "sha256": "3933829f19e7eab4b26ba2d31c7a0cfac25d4fae0a16196893fac6dbf02187c1",
+    "pixelsSha256": "7f13a455fcbfc0b2ccd12d8305d7015fa1cb4468fe394270d41f2e1978daec2a",
+    "dimensions": {
+      "width": 1792,
+      "height": 1536
+    }
+  },
+  "chromaSource": {
+    "path": "docs/superpowers/reports/img/hpa-398/village-obstacle-chroma-source.png",
+    "bytes": 2395797,
+    "sha256": "28e5fe80e40633f41412d5af9cd2cf40c1c80c0da17cca981bef9f66faf0a376",
+    "pixelsSha256": "832aca1dee1cd4c67b7ab65cee550aee75a51c802a510aaecde6f6ded332af8b",
+    "dimensions": {
+      "width": 1355,
+      "height": 1161
+    }
+  },
+  "obstacleLayer": {
+    "path": "docs/superpowers/reports/img/hpa-398/village-obstacle-layer.png",
+    "bytes": 1953872,
+    "sha256": "55e9721bd66e065e1e2a93907f7b27450597b208c448507aded17b315b213982",
+    "pixelsSha256": "ff2ad964e115eb34656507bad802866dd98f493a58404f9c3ede95d8547cd445",
+    "dimensions": {
+      "width": 1355,
+      "height": 1161
+    },
+    "alpha": {
+      "minimum": 0,
+      "maximum": 255,
+      "transparentPixels": 889684,
+      "translucentPixels": 35780,
+      "opaquePixels": 647691,
+      "nonTransparentCoverage": 0.4344587786963141,
+      "cornerAlpha": [
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    "normalized": {
+      "pixelsSha256": "e95992e300d874bb89deabafea22ffc3c89095bdc20b91e30d9cd0af613ad5d6",
+      "dimensions": {
+        "width": 1792,
+        "height": 1536
+      }
+    }
+  },
+  "candidate": {
+    "path": "docs/superpowers/reports/img/hpa-398/village-obstacle-candidate.png",
+    "construction": "normalized obstacle RGB alpha-composited over immutable HPA-307 source; obstacle alpha retained",
+    "bytes": 8271352,
+    "sha256": "6efa7ed506950df63df8d47decf7924663a6ed067869a9f264639968d6bde5f8",
+    "pixelsSha256": "beb3ecdc32d64af295eeaf31d9d0b536f0a6e2967c9ea2ed3b43f9cc7042d9ec",
+    "dimensions": {
+      "width": 1792,
+      "height": 1536
+    }
+  },
+  "normalizationTransform": {
+    "native": {
+      "width": 1355,
+      "height": 1161
+    },
+    "crop": {
+      "x": 2,
+      "y": 1,
+      "width": 1351,
+      "height": 1158
+    },
+    "output": {
+      "width": 1792,
+      "height": 1536
+    },
+    "scaleX": 1.3264248704663213,
+    "scaleY": 1.3264248704663213
+  },
+  "controlArtifacts": {
+    "village-obstacle-base-mask.svg": {
+      "path": "docs/superpowers/reports/img/hpa-398/village-obstacle-base-mask.svg",
+      "bytes": 2637,
+      "sha256": "e4280f59e5f2645f37a910b5c06651604ff8c823faa840f3dbbc082d2afe3803"
+    },
+    "village-obstacle-composite-control.svg": {
+      "path": "docs/superpowers/reports/img/hpa-398/village-obstacle-composite-control.svg",
+      "bytes": 6529,
+      "sha256": "6c83fa87823efd32d1f2e7fce199d00da112eb1eac5ba615410771ae475f029e"
+    },
+    "village-obstacle-control-manifest.json": {
+      "path": "docs/superpowers/reports/img/hpa-398/village-obstacle-control-manifest.json",
+      "bytes": 1693,
+      "sha256": "49213a297840ab8f573abcaf281ced8ed8c0bb05259d5ba61a9d16f3d1658a72"
+    },
+    "village-obstacle-foreground-mask.svg": {
+      "path": "docs/superpowers/reports/img/hpa-398/village-obstacle-foreground-mask.svg",
+      "bytes": 936,
+      "sha256": "3829fdf5163989670dd8bcc87960cb888edce3eb21dc3f90fb22c0f11e8449e1"
+    },
+    "village-obstacle-ownership.json": {
+      "path": "docs/superpowers/reports/img/hpa-398/village-obstacle-ownership.json",
+      "bytes": 10408,
+      "sha256": "cb2ee183b34cff0729be702f1f1ccd79967a238ed1ab5094a96c09b75e16d36f"
+    },
+    "village-obstacle-protected-mask.svg": {
+      "path": "docs/superpowers/reports/img/hpa-398/village-obstacle-protected-mask.svg",
+      "bytes": 3154,
+      "sha256": "827442f4ecfc3ae770dcbc5ea49607943a119f606fd0ccbfd06a842fef1e7b0e"
+    }
+  },
+  "masks": {
+    "base": {
+      "path": "docs/superpowers/reports/img/hpa-398/village-obstacle-base-mask.svg",
+      "bytes": 2637,
+      "sha256": "e4280f59e5f2645f37a910b5c06651604ff8c823faa840f3dbbc082d2afe3803",
+      "pixelsSha256": "f8de65314942829bfbe5b1f927415226c34b5d64309f4b735fb8b5db1dcceb57",
+      "dimensions": {
+        "width": 1792,
+        "height": 1536
+      }
+    },
+    "foreground": {
+      "path": "docs/superpowers/reports/img/hpa-398/village-obstacle-foreground-mask.svg",
+      "bytes": 936,
+      "sha256": "3829fdf5163989670dd8bcc87960cb888edce3eb21dc3f90fb22c0f11e8449e1",
+      "pixelsSha256": "63272b18df09a0fd4240a9fbb32f226675af2d0b12e1849a5378b1d139fd605a",
+      "dimensions": {
+        "width": 1792,
+        "height": 1536
+      }
+    },
+    "protected": {
+      "path": "docs/superpowers/reports/img/hpa-398/village-obstacle-protected-mask.svg",
+      "bytes": 3154,
+      "sha256": "827442f4ecfc3ae770dcbc5ea49607943a119f606fd0ccbfd06a842fef1e7b0e",
+      "pixelsSha256": "9cb948a538a563b1d688cecad3225075d722176b92d329c2ed62b2812e744dbe",
+      "dimensions": {
+        "width": 1792,
+        "height": 1536
+      }
+    }
+  },
+  "foregroundCutoffs": [
+    {
+      "id": "corridor-wall-2b",
+      "left": 1426,
+      "right": 1612,
+      "cutoffY": 157
+    },
+    {
+      "id": "village-block-10-35",
+      "left": 1112,
+      "right": 1544,
+      "cutoffY": 319
+    },
+    {
+      "id": "village-block-19-2",
+      "left": 56,
+      "right": 776,
+      "cutoffY": 607
+    },
+    {
+      "id": "village-block-19-30",
+      "left": 952,
+      "right": 1160,
+      "cutoffY": 607
+    },
+    {
+      "id": "village-block-2-2",
+      "left": 56,
+      "right": 1184,
+      "cutoffY": 63
+    },
+    {
+      "id": "village-block-2-2",
+      "left": 1216,
+      "right": 1224,
+      "cutoffY": 63
+    },
+    {
+      "id": "village-block-2-49",
+      "left": 1560,
+      "right": 1568,
+      "cutoffY": 63
+    },
+    {
+      "id": "village-block-2-49",
+      "left": 1600,
+      "right": 1704,
+      "cutoffY": 63
+    },
+    {
+      "id": "village-block-3-2",
+      "left": 56,
+      "right": 1160,
+      "cutoffY": 95
+    }
+  ],
+  "foregroundExclusions": [
+    {
+      "id": "village-block-11-35",
+      "x": 1136,
+      "y": 400,
+      "width": 48,
+      "height": 112,
+      "kind": "base"
+    },
+    {
+      "id": "village-block-20-2",
+      "x": 80,
+      "y": 832,
+      "width": 48,
+      "height": 400,
+      "kind": "base"
+    },
+    {
+      "id": "village-block-20-34",
+      "x": 1120,
+      "y": 832,
+      "width": 80,
+      "height": 400,
+      "kind": "base"
+    },
+    {
+      "id": "village-block-25-20",
+      "x": 656,
+      "y": 912,
+      "width": 48,
+      "height": 240,
+      "kind": "base"
+    },
+    {
+      "id": "village-block-3-51",
+      "x": 1664,
+      "y": 560,
+      "width": 80,
+      "height": 944,
+      "kind": "base"
+    },
+    {
+      "id": "village-block-32-2",
+      "x": 96,
+      "y": 1244,
+      "width": 80,
+      "height": 456,
+      "kind": "base"
+    },
+    {
+      "id": "village-block-32-2",
+      "x": 60,
+      "y": 1476,
+      "width": 8,
+      "height": 8,
+      "kind": "base"
+    },
+    {
+      "id": "village-block-32-24",
+      "x": 848,
+      "y": 1040,
+      "width": 176,
+      "height": 48,
+      "kind": "base"
+    },
+    {
+      "id": "village-block-32-33",
+      "x": 1376,
+      "y": 1040,
+      "width": 656,
+      "height": 48,
+      "kind": "base"
+    },
+    {
+      "id": "village-block-32-8",
+      "x": 448,
+      "y": 1040,
+      "width": 400,
+      "height": 48,
+      "kind": "base"
+    },
+    {
+      "id": "village-block-33-24",
+      "x": 784,
+      "y": 1104,
+      "width": 48,
+      "height": 112,
+      "kind": "base"
+    },
+    {
+      "id": "village-block-33-49",
+      "x": 1632,
+      "y": 1260,
+      "width": 144,
+      "height": 424,
+      "kind": "base"
+    },
+    {
+      "id": "village-block-33-49",
+      "x": 1700,
+      "y": 1476,
+      "width": 8,
+      "height": 8,
+      "kind": "base"
+    },
+    {
+      "id": "village-block-4-2",
+      "x": 96,
+      "y": 368,
+      "width": 80,
+      "height": 496,
+      "kind": "base"
+    },
+    {
+      "id": "village-block-4-35",
+      "x": 1136,
+      "y": 224,
+      "width": 48,
+      "height": 208,
+      "kind": "base"
+    },
+    {
+      "id": "village-block-41-24",
+      "x": 784,
+      "y": 1388,
+      "width": 48,
+      "height": 168,
+      "kind": "base"
+    }
+  ],
+  "outputs": {
+    "base": {
+      "bytes": 7775606,
+      "sha256": "e94758cc3e689691748eaa3949b9781c330f4744ee29e4993f380230ca7ba245",
+      "pixelsSha256": "719974b03bbdf6d1302d8a9678ceaaad1b74bbcbdcdbf7f1f5e2ead460c95f6d",
+      "dimensions": {
+        "width": 1792,
+        "height": 1536
+      }
+    },
+    "foreground": {
+      "bytes": 384824,
+      "sha256": "dd7469c1215885844231556283ac3d0848048540fad06502cd3af25dbb44cf41",
+      "pixelsSha256": "073d6b49d82acfa0546d8aa7cc12109f0a9859be72a6bf2a8d23dca7624591b8",
+      "dimensions": {
+        "width": 1792,
+        "height": 1536
+      }
+    }
+  },
+  "statistics": {
+    "totalPixels": 2752512,
+    "baseChangedPixels": 340223,
+    "baseUnchangedPixels": 2412289,
+    "baseAlphaViolations": 0,
+    "foregroundOpaquePixels": 65426,
+    "foregroundTranslucentPixels": 23003,
+    "foregroundTransparentPixels": 2664083,
+    "protectedAreaViolations": 0,
+    "foregroundMaskViolations": 0,
+    "foregroundCutoffViolations": 0,
+    "foregroundEdgeAlphaViolations": 0
+  }
+}
