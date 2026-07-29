@@ -1,5 +1,5 @@
 {
-  "algorithmVersion": "sundrop-village-obstacle-composite-v2",
+  "algorithmVersion": "sundrop-village-obstacle-composite-v3",
   "controlFingerprint": "8b3f80fdde4591465d90aca558ff747d3825939c5879fdadaf3c55e70cb3b4b2",
   "prompt": "Use case: stylized-concept\nAsset type: source-aligned top-down JRPG obstacle-only production layer\nInput images: Image 1 is a style, palette, lighting, scale, and material reference only; Image 2 is the exact obstacle placement and obstacle-kind guide\nPrimary request: create only the low static obstacles indicated by Image 2: clipped leafy hedges for hedge regions, low weathered stone or timber walls for low-wall regions, and low roots or rocks for root-rock regions\nScene/backdrop: perfectly flat solid #ff00ff chroma-key background for local background removal\nStyle/medium: match Image 1's illustrated top-down JRPG village style, palette, lighting, texture, and scale\nComposition/framing: preserve Image 2's exact 7:6 canvas layout, coordinates, footprints, and top-down camera\nConstraints: the background must be one uniform #ff00ff color with no shadows, gradients, texture, reflections, floor plane, or lighting variation; render obstacle silhouettes only; keep every obstacle low enough for the supplied collision footprint; crisp readable edges; no cast shadow; no contact shadow; no terrain; no grass; no roads; no paths; no water; no buildings; no doors; no landmarks; no characters; no guides; no labels; no text; no watermark; do not use #ff00ff anywhere in the obstacle art\nAvoid: rectangular terrain strips, background scenery, moved geometry, tall occluders, halos, magenta fringe, extra objects\n",
   "source": {
@@ -55,10 +55,19 @@
   },
   "candidate": {
     "path": "docs/superpowers/reports/img/hpa-398/village-obstacle-candidate.png",
-    "construction": "normalized obstacle RGB alpha-composited over immutable HPA-307 source; obstacle alpha retained",
-    "bytes": 8271352,
-    "sha256": "6efa7ed506950df63df8d47decf7924663a6ed067869a9f264639968d6bde5f8",
-    "pixelsSha256": "beb3ecdc32d64af295eeaf31d9d0b536f0a6e2967c9ea2ed3b43f9cc7042d9ec",
+    "construction": "aligned obstacle RGB alpha-composited over immutable HPA-307 source; aligned obstacle alpha retained",
+    "alignment": {
+      "method": "base-permitted-inner-linear-feather",
+      "insetPx": 16,
+      "sourceIdentityAtDistancePx": 1,
+      "fullContributionAtDistancePx": 17,
+      "changedAlphaPixels": 146412,
+      "zeroedBoundaryPixels": 16085,
+      "alignedPixelsSha256": "db455ddcace60214467e394e8efc898bcd83b8f30ca19ed5f3c19c8eb07cbc4a"
+    },
+    "bytes": 8367886,
+    "sha256": "79045dec04bfea5adea57fdfe998f6dc1219eed9d1390bd48371097e1080d1cf",
+    "pixelsSha256": "49a14b3bdb1727fb51523b071c718565ca962dcd3d903e4a11fdc57890a54038",
     "dimensions": {
       "width": 1792,
       "height": 1536
@@ -334,18 +343,18 @@
   ],
   "outputs": {
     "base": {
-      "bytes": 7775606,
-      "sha256": "e94758cc3e689691748eaa3949b9781c330f4744ee29e4993f380230ca7ba245",
-      "pixelsSha256": "719974b03bbdf6d1302d8a9678ceaaad1b74bbcbdcdbf7f1f5e2ead460c95f6d",
+      "bytes": 7753201,
+      "sha256": "f1184b045c27c544ac18937a4f8ccfa12cd386319b1722be5d808aea8048ade6",
+      "pixelsSha256": "8548047ae30b9005411ccf528b7d0952b7092346b41b5ede75803423abb8e91a",
       "dimensions": {
         "width": 1792,
         "height": 1536
       }
     },
     "foreground": {
-      "bytes": 384824,
-      "sha256": "dd7469c1215885844231556283ac3d0848048540fad06502cd3af25dbb44cf41",
-      "pixelsSha256": "073d6b49d82acfa0546d8aa7cc12109f0a9859be72a6bf2a8d23dca7624591b8",
+      "bytes": 385087,
+      "sha256": "2d0a6703de1a404e49c0746f092a4c6f9f113ae17cd8bc35de635b5ec084ce45",
+      "pixelsSha256": "52b9b46b861d5d94e0ee39c409e33e27a844f600deb96d134f8514fb387bc461",
       "dimensions": {
         "width": 1792,
         "height": 1536
@@ -354,12 +363,12 @@
   },
   "statistics": {
     "totalPixels": 2752512,
-    "baseChangedPixels": 340223,
-    "baseUnchangedPixels": 2412289,
+    "baseChangedPixels": 331656,
+    "baseUnchangedPixels": 2420856,
     "baseAlphaViolations": 0,
-    "foregroundOpaquePixels": 65426,
-    "foregroundTranslucentPixels": 23003,
-    "foregroundTransparentPixels": 2664083,
+    "foregroundOpaquePixels": 47674,
+    "foregroundTranslucentPixels": 38384,
+    "foregroundTransparentPixels": 2666454,
     "protectedAreaViolations": 0,
     "foregroundMaskViolations": 0,
     "foregroundCutoffViolations": 0,
