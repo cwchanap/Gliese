@@ -1,0 +1,9 @@
+$ bun tools/finalize-sundrop-village-obstacles.ts
+controlFingerprint=8b3f80fdde4591465d90aca558ff747d3825939c5879fdadaf3c55e70cb3b4b2
+base.bytes=7753201
+base.sha256=f1184b045c27c544ac18937a4f8ccfa12cd386319b1722be5d808aea8048ade6
+foreground.bytes=385087
+foreground.sha256=2d0a6703de1a404e49c0746f092a4c6f9f113ae17cd8bc35de635b5ec084ce45
+combined.bytes=8138288
+transform=docs/superpowers/reports/img/hpa-398/village-obstacle-candidate-transform.json
+provenance=docs/superpowers/reports/img/hpa-398/village-obstacle-provenance.json

@@ -1,0 +1,9 @@
+$ vitest --run --project server --no-file-parallelism
+
+ RUN  v4.1.5 /Users/chanwaichan/workspace/Gliese
+
+
+ Test Files  55 passed (55)
+      Tests  836 passed (836)
+   Start at  12:12:29
+   Duration  68.78s (transform 1.29s, setup 0ms, import 2.98s, tests 59.33s, environment 3ms)

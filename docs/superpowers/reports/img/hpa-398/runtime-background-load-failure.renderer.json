@@ -1,0 +1,231 @@
+{
+  "schemaVersion": 1,
+  "capturedAtIso": "2026-07-29T18:59:25.750Z",
+  "commit": "3ca8eaf774ea2fd7184edcf5db10d9bb6a59d578",
+  "sourceBinding": {
+    "sourceCommit": "3ca8eaf774ea2fd7184edcf5db10d9bb6a59d578",
+    "productTreeCleanOutsideEvidence": true,
+    "build": {
+      "command": "rtk bun run build",
+      "startedAtIso": "2026-07-29T18:58:46.750Z",
+      "completedAtIso": "2026-07-29T18:59:03.804Z",
+      "exitCode": 0
+    },
+    "preview": {
+      "command": "rtk bun run preview -- --host 127.0.0.1 --port 62680 --strictPort",
+      "ownedByRunner": true,
+      "pid": 41341,
+      "baseUrl": "http://127.0.0.1:62680/",
+      "startedAtIso": "2026-07-29T18:59:03.814Z",
+      "readyAtIso": "2026-07-29T18:59:08.521Z",
+      "markerVerified": true
+    },
+    "servedProductionAssets": [
+      {
+        "url": "http://127.0.0.1:62680/game/assets/regions/sundrop-village-base.png",
+        "bytes": 7753201,
+        "sha256": "f1184b045c27c544ac18937a4f8ccfa12cd386319b1722be5d808aea8048ade6",
+        "matchesLocalProductionAsset": true
+      },
+      {
+        "url": "http://127.0.0.1:62680/game/assets/regions/sundrop-village-foreground.png",
+        "bytes": 385087,
+        "sha256": "2d0a6703de1a404e49c0746f092a4c6f9f113ae17cd8bc35de635b5ec084ce45",
+        "matchesLocalProductionAsset": true
+      }
+    ]
+  },
+  "environment": {
+    "browser": "Chromium 147.0.7727.15",
+    "headed": true,
+    "viewport": {
+      "width": 1280,
+      "height": 720
+    }
+  },
+  "mode": "intercepted-load-failure",
+  "query": "",
+  "url": "http://127.0.0.1:62680/",
+  "productionAsset": {
+    "assets": [
+      {
+        "path": "public/game/assets/regions/sundrop-village-base.png",
+        "bytes": 7753201,
+        "sha256": "f1184b045c27c544ac18937a4f8ccfa12cd386319b1722be5d808aea8048ade6"
+      },
+      {
+        "path": "public/game/assets/regions/sundrop-village-foreground.png",
+        "bytes": 385087,
+        "sha256": "2d0a6703de1a404e49c0746f092a4c6f9f113ae17cd8bc35de635b5ec084ce45"
+      }
+    ]
+  },
+  "screenshot": {
+    "path": "docs/superpowers/reports/img/hpa-398/runtime-background-load-failure.png",
+    "bytes": 851588,
+    "sha256": "4f293f441fe2d0593484372ce7ad9c52cb5871e54c2e7e21d591632985ca3c87"
+  },
+  "assetInterception": {
+    "exactPaths": [
+      "/game/assets/regions/sundrop-village-base.png",
+      "/game/assets/regions/sundrop-village-foreground.png"
+    ],
+    "action": "route.abort('failed')"
+  },
+  "probe": {
+    "exactRegionalRequests": [
+      {
+        "url": "http://127.0.0.1:62680/game/assets/regions/sundrop-village-base.png",
+        "method": "GET",
+        "resourceType": "xhr",
+        "atIso": "2026-07-29T18:59:24.629Z"
+      },
+      {
+        "url": "http://127.0.0.1:62680/game/assets/regions/sundrop-village-foreground.png",
+        "method": "GET",
+        "resourceType": "xhr",
+        "atIso": "2026-07-29T18:59:24.630Z"
+      },
+      {
+        "url": "http://127.0.0.1:62680/game/assets/regions/sundrop-village-base.png",
+        "method": "GET",
+        "resourceType": "xhr",
+        "atIso": "2026-07-29T18:59:24.637Z"
+      },
+      {
+        "url": "http://127.0.0.1:62680/game/assets/regions/sundrop-village-foreground.png",
+        "method": "GET",
+        "resourceType": "xhr",
+        "atIso": "2026-07-29T18:59:24.648Z"
+      },
+      {
+        "url": "http://127.0.0.1:62680/game/assets/regions/sundrop-village-base.png",
+        "method": "GET",
+        "resourceType": "xhr",
+        "atIso": "2026-07-29T18:59:24.718Z"
+      },
+      {
+        "url": "http://127.0.0.1:62680/game/assets/regions/sundrop-village-foreground.png",
+        "method": "GET",
+        "resourceType": "xhr",
+        "atIso": "2026-07-29T18:59:24.821Z"
+      }
+    ],
+    "exactRegionalRequestCount": 6,
+    "diagnostics": [
+      {
+        "receivedAtMs": 1126.1000000238419,
+        "detail": {
+          "renderer": "webgl",
+          "maxTextureSize": 16384,
+          "regionalBackgroundLoadMs": 603,
+          "regionalBackgroundLoadCompletions": 0
+        }
+      }
+    ],
+    "planeDiagnostics": [
+      {
+        "receivedAtMs": 1167.7999999523163,
+        "detail": {
+          "mapId": "meadow-entry",
+          "regionalBackgroundsEnabled": true,
+          "entries": [
+            {
+              "id": "sundrop-village-base-image",
+              "textureKey": "sundrop-village-base",
+              "plane": "base",
+              "expectedDimensions": {
+                "width": 1792,
+                "height": 1536
+              },
+              "observedDimensions": null,
+              "status": "missing-texture"
+            },
+            {
+              "id": "sundrop-village-foreground-image",
+              "textureKey": "sundrop-village-foreground",
+              "plane": "foreground",
+              "expectedDimensions": {
+                "width": 1792,
+                "height": 1536
+              },
+              "observedDimensions": null,
+              "status": "missing-texture"
+            }
+          ],
+          "successfulBackgroundIds": [],
+          "selectedFallbackBlockerIds": [
+            "village-block-2-2",
+            "village-block-2-49",
+            "village-block-33-49",
+            "village-block-3-2",
+            "village-block-3-51",
+            "village-block-4-2",
+            "village-block-32-2",
+            "village-block-4-35",
+            "village-block-11-35",
+            "village-block-10-35",
+            "village-block-19-2",
+            "village-block-19-30",
+            "village-block-20-2",
+            "village-block-20-34",
+            "village-block-25-20",
+            "village-block-32-8",
+            "village-block-32-24",
+            "village-block-32-33",
+            "village-block-33-24",
+            "village-block-41-24",
+            "corridor-wall-2b"
+          ],
+          "selectedFallbackBlockerSegmentCount": 190
+        }
+      }
+    ],
+    "contextLossCount": 0,
+    "texImage2DCalls": [],
+    "pageErrors": [],
+    "consoleErrors": [
+      {
+        "type": "error",
+        "text": "Failed to load resource: net::ERR_FAILED"
+      },
+      {
+        "type": "error",
+        "text": "Failed to load resource: net::ERR_FAILED"
+      },
+      {
+        "type": "error",
+        "text": "Failed to load resource: net::ERR_FAILED"
+      },
+      {
+        "type": "error",
+        "text": "Failed to load resource: net::ERR_FAILED"
+      },
+      {
+        "type": "error",
+        "text": "[BootScene] asset load failed: key=\"sundrop-village-base\" src=\"/game/assets/regions/sundrop-village-base.png\""
+      },
+      {
+        "type": "error",
+        "text": "Failed to load resource: net::ERR_FAILED"
+      },
+      {
+        "type": "error",
+        "text": "[BootScene] asset load failed: key=\"sundrop-village-foreground\" src=\"/game/assets/regions/sundrop-village-foreground.png\""
+      },
+      {
+        "type": "error",
+        "text": "Failed to load resource: net::ERR_FAILED"
+      },
+      {
+        "type": "warning",
+        "text": "[WorldScene] regional background unavailable: id=\"sundrop-village-base-image\" textureKey=\"sundrop-village-base\" plane=\"base\" mapId=\"meadow-entry\""
+      },
+      {
+        "type": "warning",
+        "text": "[WorldScene] regional background unavailable: id=\"sundrop-village-foreground-image\" textureKey=\"sundrop-village-foreground\" plane=\"foreground\" mapId=\"meadow-entry\""
+      }
+    ],
+    "failedResponses": []
+  }
+}
