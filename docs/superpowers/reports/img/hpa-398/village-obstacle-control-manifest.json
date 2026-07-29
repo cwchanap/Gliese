@@ -1,0 +1,33 @@
+{
+  "version": 1,
+  "viewBox": {
+    "x": 0,
+    "y": 0,
+    "width": 1792,
+    "height": 1536
+  },
+  "computedControlFingerprint": "40dc910aaa485f7957ea3ac58dcacbf1acb12d390e8637902356932a6a772c7b",
+  "artifacts": [
+    "village-obstacle-ownership.json",
+    "village-obstacle-base-mask.svg",
+    "village-obstacle-foreground-mask.svg",
+    "village-obstacle-protected-mask.svg",
+    "village-obstacle-composite-control.svg",
+    "village-obstacle-control-manifest.json"
+  ],
+  "hpa307Fingerprint": "0c47a7dc58d48e87fa9dd9c290cf6835b8acc3f4eb60a4e2c1ba4eae37e4ed33",
+  "hpa307ArtifactHashes": {
+    "village-art-control-manifest.json": "8dc8349aa3ac4581ee1e2ce143e5b69f9497ec1a0c2610f72fe1647382ade6e3",
+    "village-art-control.svg": "d31dfc7421d42f8925ef881edb99c28a0a9daa638b2d3a6f2df0b0be047806f5",
+    "village-building-entrance-mask.svg": "9df14228c474a811fc2e59a3b412a4269e1605ac4dd57e7797402d19dd28ebaf",
+    "village-composed-collision-mask.svg": "445923c3cead0dcfbf26f16f1819d761420b830e9e26a838b5a1dc52e77bf4d9",
+    "village-forbidden-tall-mask.svg": "44f18ff3f85ec017d42ece0bb28102aadadceac53a00bc7d8f6338467bdecd48",
+    "village-layered-collision-mask.svg": "d5bf78d332700d46e62759997e6f60fcd58724c9f8e51df616f7a160d405fc57",
+    "village-object-anchors.svg": "0e58af6e9ad55eaed57eb1daad16d31e910ee368bfac0661c4076af68f70dd4f",
+    "village-region-mask.svg": "ec9c4482b6b7b738b22a430bce5d59a06a9bc3955f4670d400fc6d10a54fb556",
+    "village-terrain-path-mask.svg": "462391dd7e6a7dddf836d9bd4d9967578d1e9b112a293e942c4b85ac66424181"
+  },
+  "sourceHashes": {
+    "sundrop-village-hpa-307-ground-input.png": "3933829f19e7eab4b26ba2d31c7a0cfac25d4fae0a16196893fac6dbf02187c1"
+  }
+}

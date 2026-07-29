@@ -10,6 +10,7 @@
 		"preview": "vite preview",
 		"preview:village": "bun tools/preview-layered-region.ts",
 		"art:controls:village": "bun tools/export-village-art-controls.ts",
+		"art:controls:village-obstacles": "bun tools/export-sundrop-village-obstacle-controls.ts",
 		"art:rasterize:village": "bun tools/rasterize-sundrop-village-art-control.ts",
 		"art:normalize:village": "bun tools/normalize-sundrop-village-background.ts",
 		"art:finalize:village": "bun tools/finalize-sundrop-village-background.ts",
