@@ -28,6 +28,7 @@ import {
 	type EnvironmentDressingFrameName
 } from '$lib/game/content/assets';
 import { enemies, type EnemyCombatDefinition } from '$lib/game/content/enemies';
+import { getMapBackgroundDepth } from '$lib/game/content/maps/background-ownership';
 import {
 	maps,
 	openingMapId,
@@ -58,6 +59,7 @@ import {
 	type BattleResult
 } from '$lib/game/core/battle';
 import { canReceiveHit } from '$lib/game/core/combat';
+import { PLAYER_COLLISION_RADIUS } from '$lib/game/core/collision';
 import { equipItem, unequipSlot } from '$lib/game/core/equipment';
 import { resolveMovementVector } from '$lib/game/core/input';
 import { addItem, consumeStackItem } from '$lib/game/core/inventory';
@@ -273,7 +275,7 @@ export class WorldScene extends Phaser.Scene {
 	private static readonly starterNpcCollisionRadius = 11;
 	private static readonly npcInteractionRadius = 36;
 	private static readonly npcPackDisplaySize = { width: 96, height: 87 };
-	private static readonly playerRadius = 12;
+	private static readonly playerRadius = PLAYER_COLLISION_RADIUS;
 	private static readonly starterNpcDisplaySize = { width: 60, height: 54 };
 	private static readonly tileSize = 32;
 	private static readonly fenceTileLength = 64;
@@ -1635,7 +1637,7 @@ export class WorldScene extends Phaser.Scene {
 				.image(background.x, background.y, background.textureKey)
 				.setOrigin(0.5, 0.5)
 				.setDisplaySize(background.width, background.height)
-				.setDepth(background.depth);
+				.setDepth(getMapBackgroundDepth(background.plane));
 		}
 	}
 

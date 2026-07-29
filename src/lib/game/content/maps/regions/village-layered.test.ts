@@ -3,10 +3,10 @@ import { fileURLToPath } from 'node:url';
 
 import { describe, expect, it } from 'vitest';
 import {
-	SUNDROP_VILLAGE_BACKGROUND_DEPTH,
 	SUNDROP_VILLAGE_BACKGROUND_ID,
 	SUNDROP_VILLAGE_BACKGROUND_TEXTURE_KEY
 } from '$lib/game/content/backgrounds/sundrop-village-background';
+import { PLAYER_COLLISION_RADIUS } from '$lib/game/core/collision';
 import { sundropVillageLayered } from '$lib/game/content/maps/regions/village-layered';
 import { compileLayeredRegion } from '$lib/game/content/maps/layered/compile-layered-region';
 import { createLayeredRegionBackground } from '$lib/game/content/maps/layered/region-background';
@@ -22,7 +22,6 @@ import {
 import { pathsRegion } from '$lib/game/content/maps/regions/paths';
 import { meadowEntryMap } from '$lib/game/content/maps';
 import {
-	NORMALIZE_PLAYER_RADIUS,
 	collectLandmarkRects,
 	collectStrictCollisionRects,
 	isInsideAnyCollisionRect
@@ -147,7 +146,8 @@ describe('sundrop village layered source', () => {
 		const height = sundropVillageLayered.height * sundropVillageLayered.tileSize;
 		const background = createLayeredRegionBackground(sundropVillageLayered, {
 			id: SUNDROP_VILLAGE_BACKGROUND_ID,
-			textureKey: SUNDROP_VILLAGE_BACKGROUND_TEXTURE_KEY
+			textureKey: SUNDROP_VILLAGE_BACKGROUND_TEXTURE_KEY,
+			plane: 'base'
 		});
 
 		expect(background).toEqual({
@@ -157,7 +157,7 @@ describe('sundrop village layered source', () => {
 			y: sundropVillageLayered.origin.y + height / 2,
 			width,
 			height,
-			depth: SUNDROP_VILLAGE_BACKGROUND_DEPTH
+			plane: 'base'
 		});
 		expect({
 			left: background.x - background.width / 2,
@@ -247,7 +247,7 @@ describe('sundrop village layered source', () => {
 		expect(compiled.mapDecor?.some((decor) => decor.frameName === 'scarecrow')).toBe(false);
 		expect(sundropVillageLayered.layers.decor[38][19]).toBe('.');
 		expect(sundropVillageLayered.layers.collision[38][19]).toBe('.');
-		expect(isInsideAnyCollisionRect(880, 5_584, collisionRects, NORMALIZE_PLAYER_RADIUS)).toBe(
+		expect(isInsideAnyCollisionRect(880, 5_584, collisionRects, PLAYER_COLLISION_RADIUS)).toBe(
 			false
 		);
 	});

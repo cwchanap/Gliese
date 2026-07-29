@@ -1,5 +1,4 @@
 import {
-	SUNDROP_VILLAGE_BACKGROUND_DEPTH,
 	SUNDROP_VILLAGE_BACKGROUND_ID,
 	SUNDROP_VILLAGE_BACKGROUND_TEXTURE_KEY
 } from '$lib/game/content/backgrounds/sundrop-village-background';
@@ -27,7 +26,7 @@ export const villageRegion: RegionFragment = {
 		createLayeredRegionBackground(sundropVillageLayered, {
 			id: SUNDROP_VILLAGE_BACKGROUND_ID,
 			textureKey: SUNDROP_VILLAGE_BACKGROUND_TEXTURE_KEY,
-			depth: SUNDROP_VILLAGE_BACKGROUND_DEPTH
+			plane: 'base'
 		})
 	]
 };

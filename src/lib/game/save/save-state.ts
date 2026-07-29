@@ -4,6 +4,7 @@ import type { MapLandmark, MapTransition, WorldMapDefinition } from '$lib/game/c
 import { startingPlayer } from '$lib/game/content/player';
 import { getShop } from '$lib/game/content/shops';
 import { createEmptyEquipment, type EquipmentState } from '$lib/game/core/equipment';
+import { PLAYER_COLLISION_RADIUS } from '$lib/game/core/collision';
 import type { InventoryState } from '$lib/game/core/inventory';
 import type { ItemDrop } from '$lib/game/core/loot';
 import {
@@ -57,11 +58,10 @@ export type SaveState = {
 
 const DIRECTIONS: Direction[] = ['up', 'down', 'left', 'right'];
 const NORMALIZE_TILE_SIZE = 32;
-// Mirrors WorldScene.playerRadius — strict-rect collision (blockers, fences,
+// Shared strict-rect collision radius (blockers, fences,
 // decor) expands every rect by this radius before testing containment, so a
 // tile center outside the raw rect but inside the padded rect still traps the
 // player. Normalization must test against the same padded bounds.
-export const NORMALIZE_PLAYER_RADIUS = 12;
 // Mirrors WorldScene.landmarkDoorwayClearanceWidth — the horizontal opening
 // carved around a transition that sits inside a landmark bounds, so the
 // doorway position remains walkable. Without this carving, normalization
@@ -392,7 +392,7 @@ function normalizePlayerPosition(mapId: string, player: SaveState['player']): Sa
 	// walkable tile center outside both strict collision and landmark bounds to
 	// prevent soft-locks and visual embedding after map layout changes.
 	const collisionRects = [...collectStrictCollisionRects(map), ...collectLandmarkRects(map)];
-	if (!isInsideAnyCollisionRect(x, y, collisionRects, NORMALIZE_PLAYER_RADIUS)) {
+	if (!isInsideAnyCollisionRect(x, y, collisionRects, PLAYER_COLLISION_RADIUS)) {
 		return { ...player, x, y };
 	}
 
@@ -402,7 +402,7 @@ function normalizePlayerPosition(mapId: string, player: SaveState['player']): Sa
 		map.width,
 		map.height,
 		collisionRects,
-		NORMALIZE_PLAYER_RADIUS
+		PLAYER_COLLISION_RADIUS
 	);
 	if (nearest) {
 		return { ...player, x: nearest.x, y: nearest.y };
