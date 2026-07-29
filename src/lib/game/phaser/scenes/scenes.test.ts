@@ -2841,6 +2841,63 @@ describe('WorldScene', () => {
 		}
 	});
 
+	it('keeps visually suppressed fallback-only blockers in movement and collision-debug geometry', async () => {
+		registerTwoPlaneBackgroundTestMap();
+		const restoreLocation = installLocationSearch('?mapDebug=collision');
+		const { WorldScene } = await import('./WorldScene');
+		const scene = new WorldScene();
+
+		try {
+			scene.create({ mapId: 'scene-support-test' });
+
+			// The base-only and multi-owner blockers have no live sprites because both owners rendered.
+			expect(twoPlaneBlockerMarkers()).toHaveLength(4);
+			expect(phaserState.graphicsMarkers[0]?.commands).toContainEqual({
+				kind: 'fillRect',
+				x: 68,
+				y: 116,
+				width: 56,
+				height: 88,
+				color: 0xff3355,
+				alpha: 0.18
+			});
+
+			Object.assign(phaserState.playerMarker, { x: 96, y: 96 });
+			phaserState.cursorKeys.down.isDown = true;
+			scene.update(0, 250);
+
+			expect(phaserState.playerMarker).toMatchObject({ x: 96, y: 96 });
+		} finally {
+			restoreLocation();
+		}
+	});
+
+	it('resets successful background IDs when the same scene creates a second map instance', async () => {
+		registerTwoPlaneBackgroundTestMap();
+		const target = installPlaneDiagnosticListener();
+		const { WorldScene } = await import('./WorldScene');
+		const scene = new WorldScene();
+
+		try {
+			scene.create({ mapId: 'scene-support-test' });
+			phaserState.missingTextureKeys.add(twoPlaneForegroundTextureKey);
+			scene.create({ mapId: 'scene-support-test' });
+
+			expect(target.diagnostics).toHaveLength(2);
+			expect(target.diagnostics[0]?.successfulBackgroundIds).toEqual([
+				'two-plane-base-image',
+				'two-plane-foreground-image'
+			]);
+			expect(target.diagnostics[1]?.entries.map((entry) => entry.status)).toEqual([
+				'rendered',
+				'missing-texture'
+			]);
+			expect(target.diagnostics[1]?.successfulBackgroundIds).toEqual(['two-plane-base-image']);
+		} finally {
+			target.restore();
+		}
+	});
+
 	it('sizes the Sundrop regional background to its descriptor and places it at depth -9', async () => {
 		const { WorldScene } = await import('./WorldScene');
 		const scene = new WorldScene();
