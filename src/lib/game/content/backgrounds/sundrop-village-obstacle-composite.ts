@@ -492,6 +492,7 @@ export async function compositeSundropVillageObstacles(
 	let foregroundMaskViolations = 0;
 	let foregroundCutoffViolations = 0;
 	let foregroundEdgeAlphaViolations = 0;
+	let foregroundAlphaModulationViolations = 0;
 	for (let y = 0; y < input.height; y += 1) {
 		for (let x = 0; x < input.width; x += 1) {
 			const pixel = y * input.width + x;
@@ -502,10 +503,18 @@ export async function compositeSundropVillageObstacles(
 			const protectedPixel = alphaAt(protectedMask.data, pixel) > 0;
 			const masked = alphaAt(foregroundMask.data, pixel) > 0;
 			const cutoffSafe = isForegroundSafe(x, y, input.foregroundCutoffs);
+			const excluded = isExcluded(x, y, input.foregroundExclusions);
+			const expectedForegroundAlpha =
+				masked && !protectedPixel && cutoffSafe && !excluded
+					? Math.round(((candidate.data[offset + 3] ?? 0) * expectedEdgeAlpha) / 255)
+					: 0;
 			if (protectedPixel && actualForegroundAlpha !== 0) protectedAreaViolations += 1;
 			if (!masked && actualForegroundAlpha !== 0) foregroundMaskViolations += 1;
 			if (!cutoffSafe && actualForegroundAlpha !== 0) foregroundCutoffViolations += 1;
 			if (actualForegroundAlpha > expectedEdgeAlpha) foregroundEdgeAlphaViolations += 1;
+			if (actualForegroundAlpha !== expectedForegroundAlpha) {
+				foregroundAlphaModulationViolations += 1;
+			}
 		}
 	}
 
@@ -597,7 +606,8 @@ export async function compositeSundropVillageObstacles(
 			protectedAreaViolations,
 			foregroundMaskViolations,
 			foregroundCutoffViolations,
-			foregroundEdgeAlphaViolations
+			foregroundEdgeAlphaViolations,
+			foregroundAlphaModulationViolations
 		}
 	};
 

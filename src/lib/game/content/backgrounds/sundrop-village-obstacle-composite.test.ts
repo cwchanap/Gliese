@@ -196,7 +196,8 @@ describe('compositeSundropVillageObstacles', () => {
 				protectedAreaViolations: 0,
 				foregroundMaskViolations: 0,
 				foregroundCutoffViolations: 0,
-				foregroundEdgeAlphaViolations: 0
+				foregroundEdgeAlphaViolations: 0,
+				foregroundAlphaModulationViolations: 0
 			}
 		});
 		for (const section of [

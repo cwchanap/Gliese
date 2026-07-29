@@ -1,7 +1,15 @@
 import { describe, expect, it } from 'vitest';
 
+import { PLAYER_COLLISION_RADIUS } from '$lib/game/core/collision';
+import {
+	collectLandmarkRects,
+	collectStrictCollisionRects,
+	isInsideAnyCollisionRect
+} from '$lib/game/save/save-state';
+
 import {
 	buildSundropVillageObstacleControlInputs,
+	buildSundropVillageObstacleOcclusionProofCases,
 	computeSundropVillageObstacleControlFingerprint,
 	renderSundropVillageObstacleControlArtifacts,
 	SUNDROP_VILLAGE_OBSTACLE_CONTROL_FILENAMES
@@ -58,6 +66,45 @@ describe('Sundrop Village obstacle controls', () => {
 			expect(rect.bottom).toBe(
 				(rect.blockerBottom ?? 0) - SUNDROP_VILLAGE_FOREGROUND_FRONT_CUTOFF_PX
 			);
+		}
+	});
+
+	it('derives hedge and low-wall occlusion views from foreground-owned assembled blockers', () => {
+		const inputs = buildSundropVillageObstacleControlInputs();
+		const proofCases = buildSundropVillageObstacleOcclusionProofCases(inputs);
+		const collisionRects = [
+			...collectStrictCollisionRects(inputs.map),
+			...collectLandmarkRects(inputs.map)
+		];
+		expect(proofCases.map((proofCase) => proofCase.motif)).toEqual(['hedge', 'low-wall']);
+		for (const proofCase of proofCases) {
+			const ownership = inputs.ownership.find((entry) => entry.blockerId === proofCase.blockerId);
+			const blocker = inputs.map.blockers?.find(
+				(candidate) => candidate.id === proofCase.blockerId
+			);
+			expect(ownership?.foregroundMargins).toBeDefined();
+			expect(proofCase.ownerBackgroundIds).toEqual(ownership?.ownerBackgroundIds);
+			expect(blocker).toEqual(expect.objectContaining(proofCase.blocker.world));
+			expect(proofCase.foregroundControlRect.id).toBe(proofCase.blockerId);
+			expect(proofCase.cutoff.worldY).toBe(inputs.crop.y + proofCase.foregroundControlRect.bottom!);
+			expect(proofCase.player.behind.centerDeltaFromCutoffPx).toBeLessThan(0);
+			expect(proofCase.player.front.centerDeltaFromCutoffPx).toBeGreaterThan(0);
+			expect(proofCase.player.behind.world.y).toBeLessThan(
+				proofCase.blocker.world.y - proofCase.blocker.world.height / 2
+			);
+			expect(proofCase.player.front.world.y).toBeGreaterThan(
+				proofCase.blocker.world.y + proofCase.blocker.world.height / 2
+			);
+			for (const position of Object.values(proofCase.player)) {
+				expect(
+					isInsideAnyCollisionRect(
+						position.world.x,
+						position.world.y,
+						collisionRects,
+						PLAYER_COLLISION_RADIUS
+					)
+				).toBe(false);
+			}
 		}
 	});
 

@@ -441,6 +441,7 @@ describe('Sundrop Village obstacle production assets', () => {
 		expect(protectedViolations).toBe(0);
 		expect(outsideMaskViolations).toBe(0);
 		expect(cutoffViolations).toBe(0);
+		expect(provenance.statistics.foregroundAlphaModulationViolations).toBe(0);
 	});
 
 	test('keeps feather bands, vertical runs, and root-rock runs out of disallowed planes', () => {

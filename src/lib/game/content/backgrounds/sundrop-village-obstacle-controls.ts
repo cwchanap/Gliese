@@ -10,6 +10,7 @@ import { createLayeredRegionBackground } from '$lib/game/content/maps/layered/re
 import { sundropVillageLayered } from '$lib/game/content/maps/regions/village-layered';
 import type { MapRect, WorldMapDefinition } from '$lib/game/content/maps/types';
 import { PLAYER_COLLISION_RADIUS } from '$lib/game/core/collision';
+import { collectLandmarkRects, collectStrictCollisionRects } from '$lib/game/save/save-state';
 
 import {
 	SUNDROP_VILLAGE_BASE_BACKGROUND_ID,
@@ -63,6 +64,40 @@ export interface SundropVillageObstacleControlInputs {
 	readonly hpa307Fingerprint: string;
 	readonly hpa307ArtifactHashes: Readonly<Record<string, string>>;
 	readonly sourceHashes: Readonly<Record<string, string>>;
+}
+
+export type SundropVillageObstacleOcclusionMotif = 'hedge' | 'low-wall';
+export type SundropVillageObstacleOcclusionSide = 'behind' | 'front';
+
+export interface SundropVillageObstacleOcclusionProofCase {
+	readonly motif: SundropVillageObstacleOcclusionMotif;
+	readonly blockerId: string;
+	readonly ownerBackgroundIds: readonly string[];
+	readonly crop: {
+		readonly left: number;
+		readonly top: number;
+		readonly width: number;
+		readonly height: number;
+	};
+	readonly blocker: {
+		readonly world: MapRect;
+		readonly local: MapRect;
+	};
+	readonly foregroundControlRect: SundropObstacleControlRect;
+	readonly cutoff: {
+		readonly localY: number;
+		readonly worldY: number;
+		readonly blockerBottomWorldY: number;
+	};
+	readonly player: Record<
+		SundropVillageObstacleOcclusionSide,
+		{
+			readonly semantic: string;
+			readonly local: { readonly x: number; readonly y: number };
+			readonly world: { readonly x: number; readonly y: number };
+			readonly centerDeltaFromCutoffPx: number;
+		}
+	>;
 }
 
 function sha256(value: Uint8Array | string): string {
@@ -338,6 +373,173 @@ export function buildSundropVillageObstacleControlInputs(
 		hpa307ArtifactHashes: hpa307InputHashes(repositoryRoot),
 		sourceHashes: { 'sundrop-village-hpa-307-ground-input.png': sha256(readFileSync(archive)) }
 	};
+}
+
+function clampProofCrop(
+	left: number,
+	top: number,
+	width: number,
+	height: number,
+	canvasWidth: number,
+	canvasHeight: number
+) {
+	const resolvedLeft = Math.max(0, Math.min(Math.round(left), canvasWidth - width));
+	const resolvedTop = Math.max(0, Math.min(Math.round(top), canvasHeight - height));
+	return { left: resolvedLeft, top: resolvedTop, width, height };
+}
+
+function collectProofCollisionRects(map: WorldMapDefinition) {
+	return [...collectStrictCollisionRects(map), ...collectLandmarkRects(map)];
+}
+
+function resolveVerticalProofPosition(
+	x: number,
+	initialY: number,
+	direction: -1 | 1,
+	collisionRects: readonly Pick<MapRect, 'x' | 'y' | 'width' | 'height'>[]
+): number {
+	let y = initialY;
+	for (let attempt = 0; attempt < collisionRects.length + 1; attempt += 1) {
+		const containing = collisionRects.filter(
+			(rect) =>
+				x >= rect.x - rect.width / 2 - PLAYER_COLLISION_RADIUS &&
+				x <= rect.x + rect.width / 2 + PLAYER_COLLISION_RADIUS &&
+				y >= rect.y - rect.height / 2 - PLAYER_COLLISION_RADIUS &&
+				y <= rect.y + rect.height / 2 + PLAYER_COLLISION_RADIUS
+		);
+		if (containing.length === 0) return y;
+		y =
+			direction < 0
+				? Math.floor(
+						Math.min(
+							...containing.map((rect) => rect.y - rect.height / 2 - PLAYER_COLLISION_RADIUS - 8)
+						)
+					)
+				: Math.ceil(
+						Math.max(
+							...containing.map((rect) => rect.y + rect.height / 2 + PLAYER_COLLISION_RADIUS + 8)
+						)
+					);
+	}
+	throw new Error(`Unable to derive a walkable vertical proof position at x=${x}`);
+}
+
+/**
+ * Selects one reviewed foreground-owned hedge and low wall and derives the
+ * front/behind proof positions from their assembled blocker/control geometry.
+ */
+export function buildSundropVillageObstacleOcclusionProofCases(
+	inputs: SundropVillageObstacleControlInputs = buildSundropVillageObstacleControlInputs()
+): readonly SundropVillageObstacleOcclusionProofCase[] {
+	const collisionRects = collectProofCollisionRects(inputs.map);
+	return (['hedge', 'low-wall'] as const).map((motif) => {
+		const candidates = inputs.ownership
+			.filter((entry) => entry.motif === motif && entry.foregroundMargins !== undefined)
+			.map((ownership) => {
+				const blocker = (inputs.map.blockers ?? []).find(
+					(candidate) => candidate.id === ownership.blockerId
+				);
+				if (!blocker) throw new Error(`Missing assembled proof blocker ${ownership.blockerId}`);
+				const foregroundControlRect = inputs.foregroundRects
+					.filter((rect) => rect.id === ownership.blockerId && rect.bottom !== undefined)
+					.sort((left, right) => right.width * right.height - left.width * left.height)[0];
+				if (!foregroundControlRect || foregroundControlRect.bottom === undefined) {
+					throw new Error(`Missing foreground proof control ${ownership.blockerId}`);
+				}
+				const behindWorldY = resolveVerticalProofPosition(
+					blocker.x,
+					blocker.y - blocker.height / 2 - PLAYER_COLLISION_RADIUS - 8,
+					-1,
+					collisionRects
+				);
+				const frontWorldY = resolveVerticalProofPosition(
+					blocker.x,
+					blocker.y + blocker.height / 2 + PLAYER_COLLISION_RADIUS + 8,
+					1,
+					collisionRects
+				);
+				return {
+					ownership,
+					blocker,
+					foregroundControlRect,
+					behindWorldY,
+					frontWorldY
+				};
+			})
+			.sort(
+				(left, right) =>
+					left.frontWorldY - left.behindWorldY - (right.frontWorldY - right.behindWorldY)
+			);
+		const selected = candidates[0];
+		if (!selected) throw new Error(`Missing foreground-owned ${motif} proof obstacle`);
+		const { ownership, blocker, foregroundControlRect, behindWorldY, frontWorldY } = selected;
+		const cutoffLocalY = foregroundControlRect.bottom!;
+		const cutoffWorldY = inputs.crop.y + cutoffLocalY;
+		const playerLocalX = blocker.x - inputs.crop.x;
+		const behindLocalY = behindWorldY - inputs.crop.y;
+		const frontLocalY = frontWorldY - inputs.crop.y;
+		const cropWidth = motif === 'hedge' ? 640 : 760;
+		const cropHeight = motif === 'hedge' ? 360 : 440;
+		const crop = clampProofCrop(
+			playerLocalX - cropWidth / 2,
+			(behindLocalY + frontLocalY) / 2 - cropHeight / 2,
+			cropWidth,
+			cropHeight,
+			inputs.crop.width,
+			inputs.crop.height
+		);
+		const position = (
+			side: SundropVillageObstacleOcclusionSide,
+			localY: number,
+			semantic: string
+		) => ({
+			semantic,
+			local: { x: playerLocalX, y: localY },
+			world: { x: inputs.crop.x + playerLocalX, y: inputs.crop.y + localY },
+			centerDeltaFromCutoffPx: localY - cutoffLocalY
+		});
+
+		return {
+			motif,
+			blockerId: ownership.blockerId,
+			ownerBackgroundIds: ownership.ownerBackgroundIds,
+			crop,
+			blocker: {
+				world: {
+					id: blocker.id,
+					x: blocker.x,
+					y: blocker.y,
+					width: blocker.width,
+					height: blocker.height
+				},
+				local: {
+					id: blocker.id,
+					x: blocker.x - inputs.crop.x,
+					y: blocker.y - inputs.crop.y,
+					width: blocker.width,
+					height: blocker.height
+				}
+			},
+			foregroundControlRect,
+			cutoff: {
+				localY: cutoffLocalY,
+				worldY: cutoffWorldY,
+				blockerBottomWorldY: blocker.y + blocker.height / 2
+			},
+			player: {
+				behind: position(
+					'behind',
+					behindLocalY,
+					'behind/north: player center is north of the authored cutoff and the foreground occludes the lower silhouette'
+				),
+				front: position(
+					'front',
+					frontLocalY,
+					'front/south: player center is south of the authored cutoff and remains readable'
+				)
+			}
+		};
+	});
 }
 
 export function computeSundropVillageObstacleControlFingerprint(

@@ -4,6 +4,13 @@ import { join, relative } from 'node:path';
 
 import sharp from 'sharp';
 
+import { MAP_BACKGROUND_DEPTHS } from '$lib/game/content/maps/background-ownership';
+import {
+	buildSundropVillageObstacleControlInputs,
+	buildSundropVillageObstacleOcclusionProofCases,
+	computeSundropVillageObstacleControlFingerprint
+} from '$lib/game/content/backgrounds/sundrop-village-obstacle-controls';
+
 const root = process.cwd();
 const reports = join(root, 'docs/superpowers/reports/img/hpa-398');
 const basePath = join(root, 'public/game/assets/regions/sundrop-village-base.png');
@@ -77,6 +84,10 @@ async function checkerboard(width: number, height: number): Promise<Buffer> {
 }
 
 async function main(): Promise<void> {
+	const controlInputs = buildSundropVillageObstacleControlInputs(root);
+	const proofCases = buildSundropVillageObstacleOcclusionProofCases(controlInputs);
+	const hedge = proofCases.find((proofCase) => proofCase.motif === 'hedge')!;
+	const lowWall = proofCases.find((proofCase) => proofCase.motif === 'low-wall')!;
 	const [baseReview, foregroundReview, heroPng] = await Promise.all([
 		sharp(basePng).resize(896, 768).png().toBuffer(),
 		sharp(foregroundPng).resize(896, 768).png().toBuffer(),
@@ -135,27 +146,27 @@ async function main(): Promise<void> {
 		'village-obstacle-proof-crop-edges.png': edgeProof,
 		'village-obstacle-proof-corridor-seam.png': corridorProof,
 		'village-obstacle-proof-hedge-behind.png': await labeledPlayerView(
-			'Hedge — player behind/north (foreground occludes lower body)',
-			{ left: 180, top: 0, width: 640, height: 360 },
-			{ x: 500, y: 70 },
+			`Hedge ${hedge.blockerId} — behind/north (${hedge.player.behind.centerDeltaFromCutoffPx}px from cutoff)`,
+			hedge.crop,
+			hedge.player.behind.local,
 			heroPng
 		),
 		'village-obstacle-proof-hedge-front.png': await labeledPlayerView(
-			'Hedge — player front/south (fully readable)',
-			{ left: 180, top: 0, width: 640, height: 360 },
-			{ x: 500, y: 160 },
+			`Hedge ${hedge.blockerId} — front/south (+${hedge.player.front.centerDeltaFromCutoffPx}px from cutoff)`,
+			hedge.crop,
+			hedge.player.front.local,
 			heroPng
 		),
 		'village-obstacle-proof-wall-behind.png': await labeledPlayerView(
-			'Low wall — player behind/north (foreground occludes lower body)',
-			{ left: 120, top: 400, width: 760, height: 440 },
-			{ x: 450, y: 570 },
+			`Low wall ${lowWall.blockerId} — behind/north (${lowWall.player.behind.centerDeltaFromCutoffPx}px from cutoff)`,
+			lowWall.crop,
+			lowWall.player.behind.local,
 			heroPng
 		),
 		'village-obstacle-proof-wall-front.png': await labeledPlayerView(
-			'Low wall — player front/south (fully readable)',
-			{ left: 120, top: 400, width: 760, height: 440 },
-			{ x: 450, y: 680 },
+			`Low wall ${lowWall.blockerId} — front/south (+${lowWall.player.front.centerDeltaFromCutoffPx}px from cutoff)`,
+			lowWall.crop,
+			lowWall.player.front.local,
 			heroPng
 		)
 	};
@@ -168,13 +179,24 @@ async function main(): Promise<void> {
 		)
 	);
 	const manifest = {
-		version: 1,
+		version: 2,
 		inputs: {
 			base: { path: relative(root, basePath), sha256: sha256(basePng) },
 			foreground: { path: relative(root, foregroundPath), sha256: sha256(foregroundPng) },
-			hero: { path: relative(root, animationPath), frame: { x: 0, y: 0, width: 192, height: 192 } }
+			hero: {
+				path: relative(root, animationPath),
+				frame: { x: 0, y: 0, width: 192, height: 192 }
+			},
+			controlFingerprint: computeSundropVillageObstacleControlFingerprint(controlInputs)
 		},
 		playerDisplaySize: { width: 88, height: 90 },
+		runtimeLayering: {
+			baseDepth: MAP_BACKGROUND_DEPTHS.base,
+			playerDepth: 0,
+			foregroundDepth: MAP_BACKGROUND_DEPTHS.foreground,
+			backgrounds: controlInputs.map.backgroundImages
+		},
+		proofCases,
 		outputs
 	};
 	writeFileSync(
