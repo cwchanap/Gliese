@@ -25,7 +25,14 @@
         "y": 4432,
         "width": 1152,
         "height": 32,
-        "kind": "garden-hedge"
+        "kind": "garden-hedge",
+        "visual": {
+          "mode": "fallback-only",
+          "ownerBackgroundIds": [
+            "sundrop-village-base-image",
+            "sundrop-village-foreground-image"
+          ]
+        }
       }
     },
     {
@@ -53,7 +60,14 @@
         "y": 4432,
         "width": 128,
         "height": 32,
-        "kind": "garden-hedge"
+        "kind": "garden-hedge",
+        "visual": {
+          "mode": "fallback-only",
+          "ownerBackgroundIds": [
+            "sundrop-village-base-image",
+            "sundrop-village-foreground-image"
+          ]
+        }
       }
     },
     {
@@ -81,7 +95,14 @@
         "y": 4464,
         "width": 1088,
         "height": 32,
-        "kind": "garden-hedge"
+        "kind": "garden-hedge",
+        "visual": {
+          "mode": "fallback-only",
+          "ownerBackgroundIds": [
+            "sundrop-village-base-image",
+            "sundrop-village-foreground-image"
+          ]
+        }
       }
     },
     {
@@ -109,7 +130,14 @@
         "y": 4510,
         "width": 170,
         "height": 64,
-        "kind": "garden-hedge"
+        "kind": "garden-hedge",
+        "visual": {
+          "mode": "fallback-only",
+          "ownerBackgroundIds": [
+            "sundrop-village-base-image",
+            "sundrop-village-foreground-image"
+          ]
+        }
       }
     },
     {
@@ -130,7 +158,13 @@
         "y": 4912,
         "width": 64,
         "height": 928,
-        "kind": "garden-hedge"
+        "kind": "garden-hedge",
+        "visual": {
+          "mode": "fallback-only",
+          "ownerBackgroundIds": [
+            "sundrop-village-base-image"
+          ]
+        }
       }
     },
     {
@@ -151,7 +185,13 @@
         "y": 4720,
         "width": 64,
         "height": 480,
-        "kind": "garden-hedge"
+        "kind": "garden-hedge",
+        "visual": {
+          "mode": "fallback-only",
+          "ownerBackgroundIds": [
+            "sundrop-village-base-image"
+          ]
+        }
       }
     },
     {
@@ -172,7 +212,13 @@
         "y": 5600,
         "width": 64,
         "height": 448,
-        "kind": "garden-hedge"
+        "kind": "garden-hedge",
+        "visual": {
+          "mode": "fallback-only",
+          "ownerBackgroundIds": [
+            "sundrop-village-base-image"
+          ]
+        }
       }
     },
     {
@@ -193,7 +239,13 @@
         "y": 5616,
         "width": 128,
         "height": 416,
-        "kind": "garden-hedge"
+        "kind": "garden-hedge",
+        "visual": {
+          "mode": "fallback-only",
+          "ownerBackgroundIds": [
+            "sundrop-village-base-image"
+          ]
+        }
       }
     },
     {
@@ -221,7 +273,14 @@
         "y": 4688,
         "width": 416,
         "height": 32,
-        "kind": "garden-hedge"
+        "kind": "garden-hedge",
+        "visual": {
+          "mode": "fallback-only",
+          "ownerBackgroundIds": [
+            "sundrop-village-base-image",
+            "sundrop-village-foreground-image"
+          ]
+        }
       }
     },
     {
@@ -249,7 +308,14 @@
         "y": 4976,
         "width": 704,
         "height": 32,
-        "kind": "garden-hedge"
+        "kind": "garden-hedge",
+        "visual": {
+          "mode": "fallback-only",
+          "ownerBackgroundIds": [
+            "sundrop-village-base-image",
+            "sundrop-village-foreground-image"
+          ]
+        }
       }
     },
     {
@@ -277,7 +343,14 @@
         "y": 4976,
         "width": 192,
         "height": 32,
-        "kind": "garden-hedge"
+        "kind": "garden-hedge",
+        "visual": {
+          "mode": "fallback-only",
+          "ownerBackgroundIds": [
+            "sundrop-village-base-image",
+            "sundrop-village-foreground-image"
+          ]
+        }
       }
     },
     {
@@ -298,7 +371,13 @@
         "y": 4576,
         "width": 32,
         "height": 192,
-        "kind": "garden-hedge"
+        "kind": "garden-hedge",
+        "visual": {
+          "mode": "fallback-only",
+          "ownerBackgroundIds": [
+            "sundrop-village-base-image"
+          ]
+        }
       }
     },
     {
@@ -319,7 +398,13 @@
         "y": 4752,
         "width": 32,
         "height": 96,
-        "kind": "garden-hedge"
+        "kind": "garden-hedge",
+        "visual": {
+          "mode": "fallback-only",
+          "ownerBackgroundIds": [
+            "sundrop-village-base-image"
+          ]
+        }
       }
     },
     {
@@ -340,7 +425,13 @@
         "y": 5184,
         "width": 32,
         "height": 384,
-        "kind": "garden-hedge"
+        "kind": "garden-hedge",
+        "visual": {
+          "mode": "fallback-only",
+          "ownerBackgroundIds": [
+            "sundrop-village-base-image"
+          ]
+        }
       }
     },
     {
@@ -361,7 +452,13 @@
         "y": 5184,
         "width": 64,
         "height": 384,
-        "kind": "garden-hedge"
+        "kind": "garden-hedge",
+        "visual": {
+          "mode": "fallback-only",
+          "ownerBackgroundIds": [
+            "sundrop-village-base-image"
+          ]
+        }
       }
     },
     {
@@ -382,7 +479,13 @@
         "y": 5264,
         "width": 32,
         "height": 224,
-        "kind": "garden-hedge"
+        "kind": "garden-hedge",
+        "visual": {
+          "mode": "fallback-only",
+          "ownerBackgroundIds": [
+            "sundrop-village-base-image"
+          ]
+        }
       }
     },
     {
@@ -403,7 +506,13 @@
         "y": 5392,
         "width": 384,
         "height": 32,
-        "kind": "garden-hedge"
+        "kind": "garden-hedge",
+        "visual": {
+          "mode": "fallback-only",
+          "ownerBackgroundIds": [
+            "sundrop-village-base-image"
+          ]
+        }
       }
     },
     {
@@ -424,7 +533,13 @@
         "y": 5392,
         "width": 160,
         "height": 32,
-        "kind": "garden-hedge"
+        "kind": "garden-hedge",
+        "visual": {
+          "mode": "fallback-only",
+          "ownerBackgroundIds": [
+            "sundrop-village-base-image"
+          ]
+        }
       }
     },
     {
@@ -445,7 +560,13 @@
         "y": 5392,
         "width": 640,
         "height": 32,
-        "kind": "garden-hedge"
+        "kind": "garden-hedge",
+        "visual": {
+          "mode": "fallback-only",
+          "ownerBackgroundIds": [
+            "sundrop-village-base-image"
+          ]
+        }
       }
     },
     {
@@ -466,7 +587,13 @@
         "y": 5456,
         "width": 32,
         "height": 96,
-        "kind": "garden-hedge"
+        "kind": "garden-hedge",
+        "visual": {
+          "mode": "fallback-only",
+          "ownerBackgroundIds": [
+            "sundrop-village-base-image"
+          ]
+        }
       }
     },
     {
@@ -487,7 +614,13 @@
         "y": 5744,
         "width": 32,
         "height": 160,
-        "kind": "garden-hedge"
+        "kind": "garden-hedge",
+        "visual": {
+          "mode": "fallback-only",
+          "ownerBackgroundIds": [
+            "sundrop-village-base-image"
+          ]
+        }
       }
     }
   ]
