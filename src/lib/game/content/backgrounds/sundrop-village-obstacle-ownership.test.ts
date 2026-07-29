@@ -123,27 +123,54 @@ describe('Sundrop Village obstacle ownership', () => {
 			})
 		).toThrow(SUNDROP_VILLAGE_FOREGROUND_BACKGROUND_ID);
 		expect(() =>
+			validateSundropObstacleCoverage({
+				blockers: (meadowEntryMap.blockers ?? []).map((blocker) =>
+					blocker.id === 'village-block-2-2'
+						? {
+								...blocker,
+								x: finalBackgrounds[0].x - finalBackgrounds[0].width / 2,
+								width: 1
+							}
+						: blocker
+				),
+				backgroundImages: finalBackgrounds
+			})
+		).toThrow('village-block-2-2');
+	});
+
+	it('rejects altered approved owner sets and margins even when their rectangles fit', () => {
+		const map = { blockers: meadowEntryMap.blockers, backgroundImages: finalBackgrounds };
+		const replaceFirst = (entry: (typeof SUNDROP_VILLAGE_OBSTACLE_OWNERSHIP)[number]) => [
+			entry,
+			...SUNDROP_VILLAGE_OBSTACLE_OWNERSHIP.slice(1)
+		];
+		expect(() =>
 			validateSundropObstacleCoverage(
-				{
-					blockers: [
-						{
-							id: 'crop-edge',
-							x: finalBackgrounds[0].x - finalBackgrounds[0].width / 2,
-							y: finalBackgrounds[0].y,
-							width: 1,
-							height: 1,
-							kind: 'garden-hedge'
-						}
-					],
-					backgroundImages: finalBackgrounds
-				},
-				[
-					{
-						...SUNDROP_VILLAGE_OBSTACLE_OWNERSHIP[0],
-						blockerId: 'crop-edge'
-					}
-				]
+				map,
+				replaceFirst({ ...SUNDROP_VILLAGE_OBSTACLE_OWNERSHIP[0], ownerBackgroundIds: [] })
 			)
-		).toThrow('crop-edge');
+		).toThrow('village-block-2-2');
+		expect(() =>
+			validateSundropObstacleCoverage(
+				map,
+				replaceFirst({
+					...SUNDROP_VILLAGE_OBSTACLE_OWNERSHIP[0],
+					ownerBackgroundIds: [
+						SUNDROP_VILLAGE_BASE_BACKGROUND_ID,
+						SUNDROP_VILLAGE_FOREGROUND_BACKGROUND_ID,
+						SUNDROP_VILLAGE_BASE_BACKGROUND_ID
+					]
+				})
+			)
+		).toThrow('village-block-2-2');
+		expect(() =>
+			validateSundropObstacleCoverage(
+				map,
+				replaceFirst({
+					...SUNDROP_VILLAGE_OBSTACLE_OWNERSHIP[0],
+					baseMargins: { top: 9, right: 8, bottom: 8, left: 8 }
+				})
+			)
+		).toThrow('village-block-2-2');
 	});
 });

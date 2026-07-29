@@ -87,6 +87,50 @@ function indexBlockers(blockers: readonly MapBlocker[]): Map<string, MapBlocker>
 	return entries;
 }
 
+function marginsMatch(
+	left: SundropObstacleMargins | undefined,
+	right: SundropObstacleMargins | undefined
+): boolean {
+	return (
+		left?.top === right?.top &&
+		left?.right === right?.right &&
+		left?.bottom === right?.bottom &&
+		left?.left === right?.left
+	);
+}
+
+function ownershipContractMatches(
+	actual: SundropObstacleOwnershipEntry,
+	approved: SundropObstacleOwnershipEntry
+): boolean {
+	return (
+		actual.motif === approved.motif &&
+		actual.ownerBackgroundIds.length === approved.ownerBackgroundIds.length &&
+		actual.ownerBackgroundIds.every(
+			(ownerId, index) => ownerId === approved.ownerBackgroundIds[index]
+		) &&
+		marginsMatch(actual.baseMargins, approved.baseMargins) &&
+		marginsMatch(actual.foregroundMargins, approved.foregroundMargins)
+	);
+}
+
+function assertApprovedOwnershipContract(
+	manifestById: ReadonlyMap<string, SundropObstacleOwnershipEntry>
+): void {
+	const approvedById = indexManifest(SUNDROP_VILLAGE_OBSTACLE_OWNERSHIP);
+	for (const [blockerId, approved] of approvedById) {
+		const actual = manifestById.get(blockerId);
+		if (!actual || !ownershipContractMatches(actual, approved)) {
+			throw new Error(`Sundrop obstacle ownership contract drift: ${blockerId}`);
+		}
+	}
+	for (const blockerId of manifestById.keys()) {
+		if (!approvedById.has(blockerId)) {
+			throw new Error(`Sundrop obstacle ownership contract drift: ${blockerId}`);
+		}
+	}
+}
+
 function assertManifestBlockersExist(
 	blockers: ReadonlyMap<string, MapBlocker>,
 	manifest: ReadonlyMap<string, SundropObstacleOwnershipEntry>
@@ -145,6 +189,7 @@ export function validateSundropObstacleCoverage(
 	manifest: readonly SundropObstacleOwnershipEntry[] = SUNDROP_VILLAGE_OBSTACLE_OWNERSHIP
 ): void {
 	const manifestById = indexManifest(manifest);
+	assertApprovedOwnershipContract(manifestById);
 	const blockersById = indexBlockers(map.blockers ?? []);
 	assertManifestBlockersExist(blockersById, manifestById);
 	const backgroundsById = new Map(

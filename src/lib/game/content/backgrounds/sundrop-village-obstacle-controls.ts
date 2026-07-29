@@ -41,6 +41,12 @@ export interface SundropObstacleControlRect extends MapRect {
 	readonly bottom?: number;
 }
 
+const SUNDROP_VILLAGE_FEATHER_BAND_BLOCKER_IDS = [
+	'village-block-0-37',
+	'village-block-0-49',
+	'village-block-46-2'
+] as const;
+
 export interface SundropVillageObstacleControlInputs {
 	readonly map: WorldMapDefinition;
 	readonly ownership: readonly SundropObstacleOwnershipEntry[];
@@ -134,6 +140,56 @@ function foregroundRect(
 				bottom: safeBottom - crop.y
 			}
 		: null;
+}
+
+function subtractRect(
+	source: SundropObstacleControlRect,
+	exclusion: SundropObstacleControlRect
+): SundropObstacleControlRect[] {
+	const left = source.x - source.width / 2;
+	const right = source.x + source.width / 2;
+	const top = source.y - source.height / 2;
+	const bottom = source.y + source.height / 2;
+	const exclusionLeft = Math.max(left, exclusion.x - exclusion.width / 2);
+	const exclusionRight = Math.min(right, exclusion.x + exclusion.width / 2);
+	const exclusionTop = Math.max(top, exclusion.y - exclusion.height / 2);
+	const exclusionBottom = Math.min(bottom, exclusion.y + exclusion.height / 2);
+	if (exclusionLeft >= exclusionRight || exclusionTop >= exclusionBottom) return [source];
+
+	const fragment = (
+		fragmentLeft: number,
+		fragmentTop: number,
+		fragmentRight: number,
+		fragmentBottom: number
+	) =>
+		fragmentRight > fragmentLeft && fragmentBottom > fragmentTop
+			? {
+					...source,
+					x: (fragmentLeft + fragmentRight) / 2,
+					y: (fragmentTop + fragmentBottom) / 2,
+					width: fragmentRight - fragmentLeft,
+					height: fragmentBottom - fragmentTop
+				}
+			: null;
+	return [
+		fragment(left, top, right, exclusionTop),
+		fragment(left, exclusionBottom, right, bottom),
+		fragment(left, exclusionTop, exclusionLeft, exclusionBottom),
+		fragment(exclusionRight, exclusionTop, right, exclusionBottom)
+	].filter((fragment): fragment is SundropObstacleControlRect => fragment !== null);
+}
+
+function subtractFeatherBands(
+	rects: readonly SundropObstacleControlRect[],
+	featherBands: readonly SundropObstacleControlRect[]
+): SundropObstacleControlRect[] {
+	return rects.flatMap((rect) =>
+		featherBands.reduce(
+			(fragments, featherBand) =>
+				fragments.flatMap((fragment) => subtractRect(fragment, featherBand)),
+			[rect]
+		)
+	);
 }
 
 function protect(
@@ -255,6 +311,13 @@ export function buildSundropVillageObstacleControlInputs(
 		const foreground = foregroundRect(blocker, entry, crop);
 		if (foreground) foregroundRects.push(foreground);
 	}
+	const featherBands = SUNDROP_VILLAGE_FEATHER_BAND_BLOCKER_IDS.map((blockerId) => {
+		const blocker = blockersById.get(blockerId);
+		if (!blocker) throw new Error(`Missing Sundrop feather-band blocker: ${blockerId}`);
+		const local = relativeRect(blocker, crop, 'base');
+		if (!local) throw new Error(`Sundrop feather-band blocker is outside crop: ${blockerId}`);
+		return local;
+	});
 	const archive = join(
 		repositoryRoot,
 		'docs/superpowers/reports/img/hpa-398/sundrop-village-hpa-307-ground-input.png'
@@ -264,8 +327,12 @@ export function buildSundropVillageObstacleControlInputs(
 		ownership: SUNDROP_VILLAGE_OBSTACLE_OWNERSHIP,
 		crop,
 		heroDisplayHeight: getActorAnimationAsset('hero').displaySize.height,
-		baseRects: baseRects.sort((left, right) => left.id.localeCompare(right.id)),
-		foregroundRects: foregroundRects.sort((left, right) => left.id.localeCompare(right.id)),
+		baseRects: subtractFeatherBands(baseRects, featherBands).sort((left, right) =>
+			left.id.localeCompare(right.id)
+		),
+		foregroundRects: subtractFeatherBands(foregroundRects, featherBands).sort((left, right) =>
+			left.id.localeCompare(right.id)
+		),
 		protectedRects: buildProtectedRects(map, crop),
 		hpa307Fingerprint: SUNDROP_VILLAGE_ART_CONTROL_FINGERPRINT,
 		hpa307ArtifactHashes: hpa307InputHashes(repositoryRoot),
