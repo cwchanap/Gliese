@@ -16,6 +16,15 @@ export interface RegionalBackgroundPlaneRenderDiagnosticEntry {
 	plane: MapBackgroundPlane;
 	expectedDimensions: { width: number; height: number };
 	observedDimensions: { width: number; height: number } | null;
+	renderTransform?: {
+		x: number;
+		y: number;
+		originX: number;
+		originY: number;
+		displayWidth: number;
+		displayHeight: number;
+		depth: number;
+	};
 	status: RegionalBackgroundRenderStatus;
 }
 

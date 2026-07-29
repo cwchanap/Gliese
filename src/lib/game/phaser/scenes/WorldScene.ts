@@ -1719,6 +1719,15 @@ export class WorldScene extends Phaser.Scene {
 					plane: background.plane,
 					expectedDimensions,
 					observedDimensions: dimensions,
+					renderTransform: {
+						x: image.x,
+						y: image.y,
+						originX: image.originX,
+						originY: image.originY,
+						displayWidth: image.displayWidth,
+						displayHeight: image.displayHeight,
+						depth: image.depth
+					},
 					status: 'rendered'
 				});
 			} catch {

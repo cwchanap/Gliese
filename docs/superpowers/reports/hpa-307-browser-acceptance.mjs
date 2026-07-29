@@ -97,6 +97,38 @@ const EXPECTED_INTERIORS = [
 	'villager-house-1',
 	'guild-hall'
 ];
+const SUNDROP_SELECTED_FALLBACK_IDS = [
+	'village-block-2-2',
+	'village-block-2-49',
+	'village-block-33-49',
+	'village-block-3-2',
+	'village-block-3-51',
+	'village-block-4-2',
+	'village-block-32-2',
+	'village-block-4-35',
+	'village-block-11-35',
+	'village-block-10-35',
+	'village-block-19-2',
+	'village-block-19-30',
+	'village-block-20-2',
+	'village-block-20-34',
+	'village-block-25-20',
+	'village-block-32-8',
+	'village-block-32-24',
+	'village-block-32-33',
+	'village-block-33-24',
+	'village-block-41-24',
+	'corridor-wall-2b'
+];
+const SUNDROP_FOREGROUND_FALLBACK_IDS = [
+	'village-block-2-2',
+	'village-block-2-49',
+	'village-block-3-2',
+	'village-block-10-35',
+	'village-block-19-2',
+	'village-block-19-30',
+	'corridor-wall-2b'
+];
 const RENDERER_SIDECARS = [
 	{
 		mode: 'enabled',
@@ -133,7 +165,31 @@ const RENDERER_SIDECARS = [
 		abortAsset: true,
 		screenshotName: 'runtime-background-load-failure.png',
 		sidecarName: 'runtime-background-load-failure.renderer.json'
-	}
+	},
+	...(PROFILE === 'hpa-398'
+		? [
+				{
+					mode: 'base-render-failure',
+					query: '?regionalBackgroundFault=sundrop-village-base-image:render',
+					expectedCompletions: 2,
+					screenshotName: 'runtime-background-base-render-failure.png',
+					sidecarName: 'runtime-background-base-render-failure.renderer.json',
+					expectedPlaneStatuses: ['render-failed', 'rendered'],
+					expectedFallbackIds: SUNDROP_SELECTED_FALLBACK_IDS,
+					expectedFallbackSegments: 190
+				},
+				{
+					mode: 'foreground-render-failure',
+					query: '?regionalBackgroundFault=sundrop-village-foreground-image:render',
+					expectedCompletions: 2,
+					screenshotName: 'runtime-background-foreground-render-failure.png',
+					sidecarName: 'runtime-background-foreground-render-failure.renderer.json',
+					expectedPlaneStatuses: ['rendered', 'render-failed'],
+					expectedFallbackIds: SUNDROP_FOREGROUND_FALLBACK_IDS,
+					expectedFallbackSegments: 82
+				}
+			]
+		: [])
 ];
 
 async function reservePreviewPort() {
@@ -979,7 +1035,11 @@ async function runAuthoredRoute(run, { checkpoints = false, captures = false } =
 	return final;
 }
 
-async function resumeAt(session, target) {
+async function resumeAt(
+	session,
+	target,
+	screenshotName = `runtime-handoff-${target.name}.png`
+) {
 	const page = session.page;
 	await page.evaluate(
 		({ saveKey, next }) => {
@@ -1010,12 +1070,12 @@ async function resumeAt(session, target) {
 	await page.locator('canvas').click({ position: { x: 320, y: 180 } });
 	const run = createRun(session);
 	const state = await readSave(run, `handoff:${target.name}`);
-	await captureScreenshot(run, `runtime-handoff-${target.name}.png`);
+	await captureScreenshot(run, screenshotName);
 	return {
 		name: target.name,
 		requested: { mapId: 'meadow-entry', x: target.x, y: target.y, facing: target.facing },
 		observed: point(state),
-		screenshot: `runtime-handoff-${target.name}.png`,
+		screenshot: screenshotName,
 		method: 'save-position injection for live seam inspection; not traversal evidence'
 	};
 }
@@ -1168,6 +1228,21 @@ async function captureRendererModes(browser) {
 					`${descriptor.mode} observed ${probe.exactRegionalRequestCount} exact requests and ${probe.pageErrors.length} page errors`
 				);
 			}
+			if (descriptor.expectedPlaneStatuses) {
+				const planeDiagnostic = probe.planeDiagnostics.at(-1)?.detail;
+				const statuses = planeDiagnostic?.entries.map((entry) => entry.status);
+				if (
+					JSON.stringify(statuses) !== JSON.stringify(descriptor.expectedPlaneStatuses) ||
+					JSON.stringify(planeDiagnostic?.selectedFallbackBlockerIds) !==
+						JSON.stringify(descriptor.expectedFallbackIds) ||
+					planeDiagnostic?.selectedFallbackBlockerSegmentCount !==
+						descriptor.expectedFallbackSegments
+				) {
+					throw new Error(
+						`${descriptor.mode} plane/fallback diagnostic did not match the exact asymmetric failure contract`
+					);
+				}
+			}
 			const record = {
 				schemaVersion: 1,
 				capturedAtIso: new Date().toISOString(),
@@ -1219,6 +1294,121 @@ async function captureRendererModes(browser) {
 	return records;
 }
 
+async function captureOcclusionProofs(browser) {
+	if (PROFILE !== 'hpa-398') return [];
+	const proofManifestPath = join(OUTPUT_DIR, 'village-obstacle-visual-proof.json');
+	const proofManifestBytes = await readFile(proofManifestPath);
+	const proofManifest = JSON.parse(proofManifestBytes);
+	if (
+		proofManifest.version !== 2 ||
+		proofManifest.inputs?.base?.sha256 !== PRODUCTION_ASSETS[0]?.sha256 ||
+		proofManifest.inputs?.foreground?.sha256 !== PRODUCTION_ASSETS[1]?.sha256 ||
+		!Array.isArray(proofManifest.proofCases) ||
+		proofManifest.proofCases.length !== 2
+	) {
+		throw new Error('runtime occlusion proof manifest is stale or malformed');
+	}
+
+	const records = [];
+	for (const proofCase of proofManifest.proofCases) {
+		for (const side of ['behind', 'front']) {
+			const position = proofCase.player?.[side];
+			if (!position) throw new Error(`missing ${proofCase.motif} ${side} proof position`);
+			const artifactStem = `runtime-occlusion-${proofCase.motif}-${side}`;
+			const session = await createSession(browser, artifactStem);
+			try {
+				const inspection = await resumeAt(
+					session,
+					{
+						name: artifactStem,
+						x: position.world.x,
+						y: position.world.y,
+						facing: side === 'behind' ? 'up' : 'down'
+					},
+					`${artifactStem}.png`
+				);
+				if (
+					inspection.observed.x !== position.world.x ||
+					inspection.observed.y !== position.world.y
+				) {
+					throw new Error(
+						`${artifactStem} resolved to ${inspection.observed.x},${inspection.observed.y}; expected ${position.world.x},${position.world.y}`
+					);
+				}
+				const probe = await collectProbe(session);
+				const planeDiagnostic = probe.planeDiagnostics.at(-1)?.detail;
+				if (
+					!planeDiagnostic ||
+					JSON.stringify(planeDiagnostic.entries.map((entry) => entry.status)) !==
+						JSON.stringify(['rendered', 'rendered'])
+				) {
+					throw new Error(`${artifactStem} did not render both background planes`);
+				}
+				for (const background of proofManifest.runtimeLayering.backgrounds) {
+					const entry = planeDiagnostic.entries.find((candidate) => candidate.id === background.id);
+					const expectedDepth =
+						background.plane === 'base'
+							? proofManifest.runtimeLayering.baseDepth
+							: proofManifest.runtimeLayering.foregroundDepth;
+					if (
+						JSON.stringify(entry?.renderTransform) !==
+						JSON.stringify({
+							x: background.x,
+							y: background.y,
+							originX: 0.5,
+							originY: 0.5,
+							displayWidth: background.width,
+							displayHeight: background.height,
+							depth: expectedDepth
+						})
+					) {
+						throw new Error(`${artifactStem} observed an unexpected ${background.plane} transform`);
+					}
+				}
+				const screenshotPath = join(OUTPUT_DIR, inspection.screenshot);
+				const screenshot = await readFile(screenshotPath);
+				const record = {
+					schemaVersion: 1,
+					capturedAtIso: new Date().toISOString(),
+					commit: COMMIT,
+					sourceBinding: SOURCE_BINDING,
+					staticProofManifest: {
+						path: `${EVIDENCE_PATH_PREFIX}img/${PROFILE}/village-obstacle-visual-proof.json`,
+						sha256: createHash('sha256').update(proofManifestBytes).digest('hex')
+					},
+					proofCase,
+					side,
+					playerDepth: proofManifest.runtimeLayering.playerDepth,
+					inspection,
+					planeDiagnostic,
+					screenshot: {
+						path: `${EVIDENCE_PATH_PREFIX}img/${PROFILE}/${inspection.screenshot}`,
+						bytes: screenshot.byteLength,
+						sha256: createHash('sha256').update(screenshot).digest('hex')
+					}
+				};
+				const sidecarName = `${artifactStem}.planes.json`;
+				const sidecarContents = Buffer.from(`${JSON.stringify(record, null, 2)}\n`);
+				await writeFile(join(OUTPUT_DIR, sidecarName), sidecarContents);
+				records.push({
+					motif: proofCase.motif,
+					side,
+					blockerId: proofCase.blockerId,
+					screenshot: record.screenshot,
+					sidecar: {
+						path: `${EVIDENCE_PATH_PREFIX}img/${PROFILE}/${sidecarName}`,
+						bytes: sidecarContents.byteLength,
+						sha256: createHash('sha256').update(sidecarContents).digest('hex')
+					}
+				});
+			} finally {
+				await session.context.close();
+			}
+		}
+	}
+	return records;
+}
+
 function serializableRun(run) {
 	return {
 		name: run.name,
@@ -1257,8 +1447,8 @@ async function runRouteOnly(browser) {
 	}
 }
 
-function assertHpa398PerformanceEvidence(enabled, off) {
-	if (PROFILE !== 'hpa-398') return;
+function evaluateHpa398PerformanceEvidence(enabled, off) {
+	if (PROFILE !== 'hpa-398') return null;
 	const enabledDiagnostic = enabled.probe.diagnostics.at(-1)?.detail;
 	const offDiagnostic = off.probe.diagnostics.at(-1)?.detail;
 	const enabledMeadowDiagnostics = enabled.probe.planeDiagnostics.filter(
@@ -1286,39 +1476,134 @@ function assertHpa398PerformanceEvidence(enabled, off) {
 		enabled.probe.texImage2DCalls.every(
 			(call) => call.width === 1792 && call.height === 1536
 		);
-
-	if (
-		enabled.probe.exactRegionalRequestCount !== 2 ||
-		off.probe.exactRegionalRequestCount !== 0 ||
-		enabledDiagnostic?.regionalBackgroundLoadCompletions !== 2 ||
-		offDiagnostic?.regionalBackgroundLoadCompletions !== 0 ||
-		enabledMeadowDiagnostics.length === 0 ||
-		!enabledMeadowDiagnostics.every((entry) =>
+	const predicate = (name, pass, observed, expected) => ({ name, pass, observed, expected });
+	const enabledStatusesExact =
+		enabledMeadowDiagnostics.length > 0 &&
+		enabledMeadowDiagnostics.every((entry) =>
 			isExactStatusSet(entry, ['rendered', 'rendered'], [
 				'sundrop-village-base-image',
 				'sundrop-village-foreground-image'
 			])
-		) ||
-		offMeadowDiagnostics.length === 0 ||
-		!offMeadowDiagnostics.every((entry) =>
+		);
+	const offStatusesExact =
+		offMeadowDiagnostics.length > 0 &&
+		offMeadowDiagnostics.every((entry) =>
 			isExactStatusSet(entry, ['disabled', 'disabled'], [])
-		) ||
-		!rendererMeetsGate ||
-		!enabledUploadsAreExact ||
-		off.probe.texImage2DCalls.length !== 0 ||
-		!hasCleanRuntime(enabled.probe) ||
-		!hasCleanRuntime(off.probe) ||
-		enabled.route.interiorRoundTrips.length !== 7 ||
-		off.route.interiorRoundTrips.length !== 7 ||
-		enabled.stats.p95Ms > off.stats.p95Ms + 2
-	) {
-		throw new Error('HPA-398 performance evidence did not satisfy the exact Step 4 contract');
-	}
+		);
+	const predicates = [
+		predicate(
+			'enabled exact regional request count',
+			enabled.probe.exactRegionalRequestCount === 2,
+			enabled.probe.exactRegionalRequestCount,
+			2
+		),
+		predicate(
+			'off exact regional request count',
+			off.probe.exactRegionalRequestCount === 0,
+			off.probe.exactRegionalRequestCount,
+			0
+		),
+		predicate(
+			'enabled preload completions',
+			enabledDiagnostic?.regionalBackgroundLoadCompletions === 2,
+			enabledDiagnostic?.regionalBackgroundLoadCompletions ?? null,
+			2
+		),
+		predicate(
+			'off preload completions',
+			offDiagnostic?.regionalBackgroundLoadCompletions === 0,
+			offDiagnostic?.regionalBackgroundLoadCompletions ?? null,
+			0
+		),
+		predicate(
+			'enabled meadow plane status and ownership',
+			enabledStatusesExact,
+			enabledMeadowDiagnostics.map((entry) => entry.detail),
+			{
+				statuses: ['rendered', 'rendered'],
+				successfulBackgroundIds: [
+					'sundrop-village-base-image',
+					'sundrop-village-foreground-image'
+				]
+			}
+		),
+		predicate(
+			'off meadow plane status and ownership',
+			offStatusesExact,
+			offMeadowDiagnostics.map((entry) => entry.detail),
+			{ statuses: ['disabled', 'disabled'], successfulBackgroundIds: [] }
+		),
+		predicate('renderer texture-size gate', rendererMeetsGate, enabledDiagnostic ?? null, {
+			webglMinimumTextureSize: 1792,
+			canvasAccepted: true
+		}),
+		predicate(
+			'enabled exact texture uploads',
+			enabledUploadsAreExact,
+			enabled.probe.texImage2DCalls,
+			{ count: 2, width: 1792, height: 1536 }
+		),
+		predicate(
+			'off texture uploads',
+			off.probe.texImage2DCalls.length === 0,
+			off.probe.texImage2DCalls,
+			[]
+		),
+		predicate(
+			'enabled clean runtime',
+			hasCleanRuntime(enabled.probe),
+			{
+				contextLossCount: enabled.probe.contextLossCount,
+				pageErrors: enabled.probe.pageErrors,
+				consoleErrors: enabled.probe.consoleErrors,
+				failedResponses: enabled.probe.failedResponses
+			},
+			{ contextLossCount: 0, pageErrors: [], consoleErrors: [], failedResponses: [] }
+		),
+		predicate(
+			'off clean runtime',
+			hasCleanRuntime(off.probe),
+			{
+				contextLossCount: off.probe.contextLossCount,
+				pageErrors: off.probe.pageErrors,
+				consoleErrors: off.probe.consoleErrors,
+				failedResponses: off.probe.failedResponses
+			},
+			{ contextLossCount: 0, pageErrors: [], consoleErrors: [], failedResponses: [] }
+		),
+		predicate(
+			'enabled interior round trips',
+			enabled.route.interiorRoundTrips.length === 7,
+			enabled.route.interiorRoundTrips.length,
+			7
+		),
+		predicate(
+			'off interior round trips',
+			off.route.interiorRoundTrips.length === 7,
+			off.route.interiorRoundTrips.length,
+			7
+		),
+		predicate(
+			'p95 frame-time delta',
+			enabled.stats.p95Ms <= off.stats.p95Ms + 2,
+			enabled.stats.p95Ms - off.stats.p95Ms,
+			{ maximumMs: 2 }
+		)
+	];
+	return {
+		schemaVersion: 1,
+		capturedAtIso: new Date().toISOString(),
+		commit: COMMIT,
+		sourceBinding: SOURCE_BINDING,
+		passes: predicates.every((entry) => entry.pass),
+		predicates
+	};
 }
 
 async function runFull(browser) {
 	await mkdir(OUTPUT_DIR, { recursive: true });
 	const rendererModeSidecars = await captureRendererModes(browser);
+	const occlusionProofs = await captureOcclusionProofs(browser);
 
 	const acceptanceSession = await createSession(browser, 'acceptance-enabled');
 	const acceptanceRun = createRun(acceptanceSession);
@@ -1386,7 +1671,29 @@ async function runFull(browser) {
 	} finally {
 		await offSession.context.close();
 	}
-	assertHpa398PerformanceEvidence(enabled, off);
+	await writeFile(
+		join(OUTPUT_DIR, 'runtime-timing-enabled.json'),
+		`${JSON.stringify(enabled, null, 2)}\n`
+	);
+	await writeFile(
+		join(OUTPUT_DIR, 'runtime-timing-off.json'),
+		`${JSON.stringify(off, null, 2)}\n`
+	);
+	const performanceGate = evaluateHpa398PerformanceEvidence(enabled, off);
+	if (performanceGate) {
+		await writeFile(
+			join(OUTPUT_DIR, 'runtime-performance-gate.json'),
+			`${JSON.stringify(performanceGate, null, 2)}\n`
+		);
+		if (!performanceGate.passes) {
+			const failedNames = performanceGate.predicates
+				.filter((predicate) => !predicate.pass)
+				.map((predicate) => predicate.name);
+			throw new Error(
+				`HPA-398 performance evidence failed named Step 4 predicates: ${failedNames.join(', ')}`
+			);
+		}
+	}
 
 	const summary = {
 		capturedAtIso: new Date().toISOString(),
@@ -1411,6 +1718,7 @@ async function runFull(browser) {
 			crossroadsTarget: 'north Crossroads throat through E-C at x=1600 to y=4320, then return'
 		},
 		rendererModeSidecars,
+		occlusionProofs,
 		acceptance,
 		handoffs,
 		timing: {
@@ -1426,6 +1734,14 @@ async function runFull(browser) {
 			gateMs: 2,
 			passes: enabled.stats.p95Ms - off.stats.p95Ms <= 2
 		},
+		performanceGate:
+			performanceGate === null
+				? null
+				: {
+						path: 'runtime-performance-gate.json',
+						passes: performanceGate.passes,
+						predicateCount: performanceGate.predicates.length
+					},
 		continuousRouteLoadUploadEvidence: enabled.probe
 	};
 

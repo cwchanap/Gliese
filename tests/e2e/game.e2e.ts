@@ -10,6 +10,11 @@ import {
 	SUNDROP_VILLAGE_FOREGROUND_BACKGROUND_TEXTURE_KEY
 } from '../../src/lib/game/content/backgrounds/sundrop-village-backgrounds';
 import {
+	buildSundropVillageObstacleControlInputs,
+	buildSundropVillageObstacleOcclusionProofCases
+} from '../../src/lib/game/content/backgrounds/sundrop-village-obstacle-controls';
+import { MAP_BACKGROUND_DEPTHS } from '../../src/lib/game/content/maps/background-ownership';
+import {
 	REGIONAL_BACKGROUND_RENDERER_DIAGNOSTIC_EVENT,
 	type RegionalBackgroundRendererDiagnostic
 } from '../../src/lib/game/phaser/renderer-diagnostics';
@@ -78,6 +83,10 @@ const SUNDROP_FOREGROUND_FALLBACK_IDS = [
 	'village-block-19-30',
 	'corridor-wall-2b'
 ] as const;
+const SUNDROP_OCCLUSION_CONTROL_INPUTS = buildSundropVillageObstacleControlInputs(process.cwd());
+const SUNDROP_OCCLUSION_PROOF_CASES = buildSundropVillageObstacleOcclusionProofCases(
+	SUNDROP_OCCLUSION_CONTROL_INPUTS
+);
 function commandBox(page: Page, name = 'Command') {
 	return page.getByRole('region', { name });
 }
@@ -414,6 +423,18 @@ async function assertPlaneDiagnostics(
 	expect(diagnostics[0]?.selectedFallbackBlockerSegmentCount).toBe(expectedFallback.segments);
 }
 
+async function assertAndAttachPlaneDiagnostic(
+	diagnostics: RegionalBackgroundPlaneRenderDiagnostic[],
+	statuses: readonly RegionalBackgroundPlaneRenderDiagnostic['entries'][number]['status'][],
+	attachmentName: string,
+	testInfo: TestInfo
+) {
+	await assertPlaneDiagnostics(diagnostics, statuses);
+	const outputPath = testInfo.outputPath(attachmentName);
+	await writeFile(outputPath, `${JSON.stringify(diagnostics[0], null, 2)}\n`, 'utf8');
+	await testInfo.attach(attachmentName, { path: outputPath, contentType: 'application/json' });
+}
+
 async function resumeAndAssertSundropBlockerStopsPlayer(
 	page: Page,
 	movementDiagnostics: PlayerMovementDiagnostic[]
@@ -611,16 +632,103 @@ for (const renderFault of [
 ] as const) {
 	test(`regional background ${renderFault.name} keeps the other plane visible`, async ({
 		page
-	}) => {
+	}, testInfo) => {
 		const diagnostics = await prepareRegionalBackgroundEvidencePage(
 			page,
 			SUNDROP_BLOCKED_MOTION_SAVE
 		);
 		await page.goto(renderFault.url);
 		await expectGameReady(page);
-		await assertPlaneDiagnostics(diagnostics.planeDiagnostics, renderFault.statuses);
+		const artifactStem = `runtime-background-${renderFault.name.replaceAll(' ', '-')}`;
+		await assertAndAttachRendererDiagnostic(
+			diagnostics,
+			2,
+			`${artifactStem}.renderer.json`,
+			testInfo
+		);
+		await assertAndAttachPlaneDiagnostic(
+			diagnostics.planeDiagnostics,
+			renderFault.statuses,
+			`${artifactStem}.planes.json`,
+			testInfo
+		);
 		await resumeAndAssertSundropBlockerStopsPlayer(page, diagnostics.movementDiagnostics);
+		await captureRuntimeScreenshot(page, testInfo, `${artifactStem}.png`);
 	});
+}
+
+for (const proofCase of SUNDROP_OCCLUSION_PROOF_CASES) {
+	for (const side of ['behind', 'front'] as const) {
+		test(`regional foreground runtime ${proofCase.motif} ${side} proof uses authored geometry and plane depth`, async ({
+			page
+		}, testInfo) => {
+			const position = proofCase.player[side];
+			const diagnostics = await prepareRegionalBackgroundEvidencePage(
+				page,
+				createSaveFixture({
+					mapId: 'meadow-entry',
+					player: {
+						level: 1,
+						xp: 0,
+						hp: 20,
+						attack: 3,
+						x: position.world.x,
+						y: position.world.y,
+						facing: side === 'behind' ? 'up' : 'down'
+					}
+				})
+			);
+			await page.goto('/');
+			await expectGameReady(page);
+			await assertPlaneDiagnostics(diagnostics.planeDiagnostics, ['rendered', 'rendered']);
+			const planeEntries = diagnostics.planeDiagnostics[0]!.entries;
+			for (const [
+				index,
+				background
+			] of SUNDROP_OCCLUSION_CONTROL_INPUTS.map.backgroundImages!.entries()) {
+				expect(planeEntries[index]?.renderTransform).toEqual({
+					x: background.x,
+					y: background.y,
+					originX: 0.5,
+					originY: 0.5,
+					displayWidth: background.width,
+					displayHeight: background.height,
+					depth:
+						background.plane === 'base'
+							? MAP_BACKGROUND_DEPTHS.base
+							: MAP_BACKGROUND_DEPTHS.foreground
+				});
+			}
+			expect(MAP_BACKGROUND_DEPTHS.base).toBeLessThan(0);
+			expect(MAP_BACKGROUND_DEPTHS.foreground).toBeGreaterThan(0);
+			expect(position.centerDeltaFromCutoffPx < 0).toBe(side === 'behind');
+
+			await page.evaluate((eventName) => {
+				window.dispatchEvent(new CustomEvent(eventName, { detail: { type: 'resume-save' } }));
+			}, HUD_COMMAND_EVENT);
+			await page.waitForTimeout(200);
+			const artifactStem = `runtime-occlusion-${proofCase.motif}-${side}`;
+			const sidecarPath = testInfo.outputPath(`${artifactStem}.planes.json`);
+			await writeFile(
+				sidecarPath,
+				`${JSON.stringify(
+					{
+						proofCase,
+						playerDepth: 0,
+						planeDiagnostic: diagnostics.planeDiagnostics[0]
+					},
+					null,
+					2
+				)}\n`,
+				'utf8'
+			);
+			await testInfo.attach(`${artifactStem}.planes.json`, {
+				path: sidecarPath,
+				contentType: 'application/json'
+			});
+			await captureRuntimeScreenshot(page, testInfo, `${artifactStem}.png`);
+		});
+	}
 }
 
 const regionalBackgroundEvidenceCases: RegionalBackgroundEvidenceCase[] = [
