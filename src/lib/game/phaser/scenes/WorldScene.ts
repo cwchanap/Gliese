@@ -618,7 +618,7 @@ export class WorldScene extends Phaser.Scene {
 			targetX,
 			targetY
 		);
-		if (direction.x !== 0 || direction.y !== 0) {
+		if ((direction.x !== 0 || direction.y !== 0) && this.renderOptions.movementDiagnostics) {
 			emitPlayerMovementDiagnostic({
 				mapId: this.mapId,
 				previousPosition: { x: this.player.x, y: this.player.y },

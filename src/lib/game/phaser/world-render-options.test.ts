@@ -7,6 +7,7 @@ describe('world render URL options', () => {
 		expect(parseWorldRenderOptions('')).toEqual({
 			regionalBackgrounds: true,
 			collisionDebug: false,
+			movementDiagnostics: false,
 			regionalBackgroundFault: null
 		});
 	});
@@ -15,6 +16,7 @@ describe('world render URL options', () => {
 		expect(parseWorldRenderOptions('?regionalBackground=off')).toEqual({
 			regionalBackgrounds: false,
 			collisionDebug: false,
+			movementDiagnostics: false,
 			regionalBackgroundFault: null
 		});
 	});
@@ -23,6 +25,7 @@ describe('world render URL options', () => {
 		expect(parseWorldRenderOptions('?mapDebug=collision')).toEqual({
 			regionalBackgrounds: true,
 			collisionDebug: true,
+			movementDiagnostics: false,
 			regionalBackgroundFault: null
 		});
 	});
@@ -31,6 +34,7 @@ describe('world render URL options', () => {
 		expect(parseWorldRenderOptions('?regionalBackground=off&mapDebug=collision')).toEqual({
 			regionalBackgrounds: false,
 			collisionDebug: true,
+			movementDiagnostics: false,
 			regionalBackgroundFault: null
 		});
 	});
@@ -39,6 +43,7 @@ describe('world render URL options', () => {
 		expect(parseWorldRenderOptions('?regionalBackground=OFF&mapDebug=collisions')).toEqual({
 			regionalBackgrounds: true,
 			collisionDebug: false,
+			movementDiagnostics: false,
 			regionalBackgroundFault: null
 		});
 	});
@@ -51,6 +56,7 @@ describe('world render URL options', () => {
 		).toEqual({
 			regionalBackgrounds: true,
 			collisionDebug: false,
+			movementDiagnostics: false,
 			regionalBackgroundFault: null
 		});
 		expect(
@@ -60,6 +66,28 @@ describe('world render URL options', () => {
 		).toEqual({
 			regionalBackgrounds: false,
 			collisionDebug: true,
+			movementDiagnostics: false,
+			regionalBackgroundFault: null
+		});
+	});
+
+	it('enables movement diagnostics only for the exact on value', () => {
+		expect(parseWorldRenderOptions('?movementDiagnostics=on')).toEqual({
+			regionalBackgrounds: true,
+			collisionDebug: false,
+			movementDiagnostics: true,
+			regionalBackgroundFault: null
+		});
+		expect(parseWorldRenderOptions('?movementDiagnostics=off')).toEqual({
+			regionalBackgrounds: true,
+			collisionDebug: false,
+			movementDiagnostics: false,
+			regionalBackgroundFault: null
+		});
+		expect(parseWorldRenderOptions('?movementDiagnostics=ON')).toEqual({
+			regionalBackgrounds: true,
+			collisionDebug: false,
+			movementDiagnostics: false,
 			regionalBackgroundFault: null
 		});
 	});
@@ -70,6 +98,7 @@ describe('world render URL options', () => {
 		expect(resolveWorldRenderOptions(readSearch)).toEqual({
 			regionalBackgrounds: false,
 			collisionDebug: true,
+			movementDiagnostics: false,
 			regionalBackgroundFault: null
 		});
 	});
@@ -80,6 +109,7 @@ describe('world render URL options', () => {
 		).toEqual({
 			regionalBackgrounds: true,
 			collisionDebug: false,
+			movementDiagnostics: false,
 			regionalBackgroundFault: {
 				backgroundId: 'sundrop-village-foreground-image',
 				mode: 'render'

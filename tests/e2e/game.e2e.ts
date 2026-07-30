@@ -515,7 +515,7 @@ test('regional background load failure keeps fallback gameplay ready with scoped
 	page.on('pageerror', (error) => pageErrors.push(error));
 	await page.route(`**${SUNDROP_VILLAGE_BASE_BACKGROUND_PATH}`, (route) => route.abort('failed'));
 
-	await page.goto('/');
+	await page.goto('/?movementDiagnostics=on');
 	await expectGameReady(page);
 	await assertAndAttachRendererDiagnostic(
 		diagnostics,
@@ -627,7 +627,7 @@ for (const failureCase of [
 			SUNDROP_BLOCKED_MOTION_SAVE
 		);
 		await page.route(`**${failureCase.path}`, failureCase.intercept);
-		await page.goto('/');
+		await page.goto('/?movementDiagnostics=on');
 		await expectGameReady(page);
 		await assertAndAttachRendererDiagnostic(
 			diagnostics,
@@ -648,12 +648,12 @@ for (const failureCase of [
 for (const renderFault of [
 	{
 		name: 'base render failure',
-		url: `/?regionalBackgroundFault=${SUNDROP_VILLAGE_BASE_BACKGROUND_ID}:render`,
+		url: `/?regionalBackgroundFault=${SUNDROP_VILLAGE_BASE_BACKGROUND_ID}:render&movementDiagnostics=on`,
 		statuses: ['render-failed', 'rendered'] as const
 	},
 	{
 		name: 'foreground render failure',
-		url: `/?regionalBackgroundFault=${SUNDROP_VILLAGE_FOREGROUND_BACKGROUND_ID}:render`,
+		url: `/?regionalBackgroundFault=${SUNDROP_VILLAGE_FOREGROUND_BACKGROUND_ID}:render&movementDiagnostics=on`,
 		statuses: ['rendered', 'render-failed'] as const
 	}
 ] as const) {

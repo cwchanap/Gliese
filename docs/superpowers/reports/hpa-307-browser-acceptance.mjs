@@ -11,7 +11,7 @@ import { chromium } from 'playwright';
 const SCRIPT_PATH = fileURLToPath(import.meta.url);
 const REPO = resolve(dirname(SCRIPT_PATH), '../../..');
 let BASE_URL;
-const PROFILE = process.env.GLIESE_BROWSER_ACCEPTANCE_PROFILE ?? 'hpa-307';
+const PROFILE = process.env.GLIESE_BROWSER_ACCEPTANCE_PROFILE ?? 'hpa-398';
 if (!['hpa-307', 'hpa-398'].includes(PROFILE)) {
 	throw new Error(`unknown GLIESE_BROWSER_ACCEPTANCE_PROFILE ${PROFILE}`);
 }
