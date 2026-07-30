@@ -1,0 +1,195 @@
+{
+  "schemaVersion": 1,
+  "capturedAtIso": "2026-07-29T18:59:34.099Z",
+  "commit": "3ca8eaf774ea2fd7184edcf5db10d9bb6a59d578",
+  "sourceBinding": {
+    "sourceCommit": "3ca8eaf774ea2fd7184edcf5db10d9bb6a59d578",
+    "productTreeCleanOutsideEvidence": true,
+    "build": {
+      "command": "rtk bun run build",
+      "startedAtIso": "2026-07-29T18:58:46.750Z",
+      "completedAtIso": "2026-07-29T18:59:03.804Z",
+      "exitCode": 0
+    },
+    "preview": {
+      "command": "rtk bun run preview -- --host 127.0.0.1 --port 62680 --strictPort",
+      "ownedByRunner": true,
+      "pid": 41341,
+      "baseUrl": "http://127.0.0.1:62680/",
+      "startedAtIso": "2026-07-29T18:59:03.814Z",
+      "readyAtIso": "2026-07-29T18:59:08.521Z",
+      "markerVerified": true
+    },
+    "servedProductionAssets": [
+      {
+        "url": "http://127.0.0.1:62680/game/assets/regions/sundrop-village-base.png",
+        "bytes": 7753201,
+        "sha256": "f1184b045c27c544ac18937a4f8ccfa12cd386319b1722be5d808aea8048ade6",
+        "matchesLocalProductionAsset": true
+      },
+      {
+        "url": "http://127.0.0.1:62680/game/assets/regions/sundrop-village-foreground.png",
+        "bytes": 385087,
+        "sha256": "2d0a6703de1a404e49c0746f092a4c6f9f113ae17cd8bc35de635b5ec084ce45",
+        "matchesLocalProductionAsset": true
+      }
+    ]
+  },
+  "staticProofManifest": {
+    "path": "docs/superpowers/reports/img/hpa-398/village-obstacle-visual-proof.json",
+    "sha256": "fba9e74f8050d42321723fc0ee3ef016e4c146213617303e1102fd456d897a9e"
+  },
+  "proofCase": {
+    "motif": "hedge",
+    "blockerId": "village-block-2-2",
+    "ownerBackgroundIds": [
+      "sundrop-village-base-image",
+      "sundrop-village-foreground-image"
+    ],
+    "crop": {
+      "left": 320,
+      "top": 0,
+      "width": 640,
+      "height": 360
+    },
+    "blocker": {
+      "world": {
+        "id": "village-block-2-2",
+        "x": 896,
+        "y": 4432,
+        "width": 1152,
+        "height": 32
+      },
+      "local": {
+        "id": "village-block-2-2",
+        "x": 640,
+        "y": 80,
+        "width": 1152,
+        "height": 32
+      }
+    },
+    "foregroundControlRect": {
+      "id": "village-block-2-2",
+      "x": 620,
+      "y": 47.5,
+      "width": 1128,
+      "height": 31,
+      "kind": "foreground",
+      "blockerBottom": 96,
+      "bottom": 63
+    },
+    "cutoff": {
+      "localY": 63,
+      "worldY": 4415,
+      "blockerBottomWorldY": 4448
+    },
+    "player": {
+      "behind": {
+        "semantic": "behind/north: player center is north of the authored cutoff and the foreground occludes the lower silhouette",
+        "local": {
+          "x": 640,
+          "y": 44
+        },
+        "world": {
+          "x": 896,
+          "y": 4396
+        },
+        "centerDeltaFromCutoffPx": -19
+      },
+      "front": {
+        "semantic": "front/south: player center is south of the authored cutoff and remains readable",
+        "local": {
+          "x": 640,
+          "y": 148
+        },
+        "world": {
+          "x": 896,
+          "y": 4500
+        },
+        "centerDeltaFromCutoffPx": 85
+      }
+    }
+  },
+  "side": "behind",
+  "playerDepth": 0,
+  "inspection": {
+    "name": "runtime-occlusion-hedge-behind",
+    "requested": {
+      "mapId": "meadow-entry",
+      "x": 896,
+      "y": 4396,
+      "facing": "up"
+    },
+    "observed": {
+      "mapId": "meadow-entry",
+      "x": 896,
+      "y": 4396,
+      "facing": "up"
+    },
+    "screenshot": "runtime-occlusion-hedge-behind.png",
+    "method": "save-position injection for live seam inspection; not traversal evidence"
+  },
+  "planeDiagnostic": {
+    "mapId": "meadow-entry",
+    "regionalBackgroundsEnabled": true,
+    "entries": [
+      {
+        "id": "sundrop-village-base-image",
+        "textureKey": "sundrop-village-base",
+        "plane": "base",
+        "expectedDimensions": {
+          "width": 1792,
+          "height": 1536
+        },
+        "observedDimensions": {
+          "width": 1792,
+          "height": 1536
+        },
+        "renderTransform": {
+          "x": 1152,
+          "y": 5120,
+          "originX": 0.5,
+          "originY": 0.5,
+          "displayWidth": 1792,
+          "displayHeight": 1536,
+          "depth": -9
+        },
+        "status": "rendered"
+      },
+      {
+        "id": "sundrop-village-foreground-image",
+        "textureKey": "sundrop-village-foreground",
+        "plane": "foreground",
+        "expectedDimensions": {
+          "width": 1792,
+          "height": 1536
+        },
+        "observedDimensions": {
+          "width": 1792,
+          "height": 1536
+        },
+        "renderTransform": {
+          "x": 1152,
+          "y": 5120,
+          "originX": 0.5,
+          "originY": 0.5,
+          "displayWidth": 1792,
+          "displayHeight": 1536,
+          "depth": 100
+        },
+        "status": "rendered"
+      }
+    ],
+    "successfulBackgroundIds": [
+      "sundrop-village-base-image",
+      "sundrop-village-foreground-image"
+    ],
+    "selectedFallbackBlockerIds": [],
+    "selectedFallbackBlockerSegmentCount": 0
+  },
+  "screenshot": {
+    "path": "docs/superpowers/reports/img/hpa-398/runtime-occlusion-hedge-behind.png",
+    "bytes": 1218308,
+    "sha256": "0de3ca758fdb15cc9b7acdba8b4d48956f591e2fc28a726be06cf12e0ffb7d57"
+  }
+}

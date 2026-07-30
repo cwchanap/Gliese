@@ -1,0 +1,9 @@
+$ bun tools/export-sundrop-village-obstacle-controls.ts
+docs/superpowers/reports/img/hpa-398/village-obstacle-base-mask.svg	2637 bytes
+docs/superpowers/reports/img/hpa-398/village-obstacle-composite-control.svg	6529 bytes
+docs/superpowers/reports/img/hpa-398/village-obstacle-control-manifest.json	1693 bytes
+docs/superpowers/reports/img/hpa-398/village-obstacle-foreground-mask.svg	936 bytes
+docs/superpowers/reports/img/hpa-398/village-obstacle-ownership.json	13957 bytes
+docs/superpowers/reports/img/hpa-398/village-obstacle-protected-mask.svg	3154 bytes
+src/lib/game/content/generated/sundrop-village-obstacle-control.ts	200 bytes
+fingerprint	8b3f80fdde4591465d90aca558ff747d3825939c5879fdadaf3c55e70cb3b4b2
