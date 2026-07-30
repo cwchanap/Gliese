@@ -1,9 +1,0 @@
-Use case: stylized-concept
-Asset type: source-aligned top-down JRPG obstacle-only production layer
-Input images: Image 1 is a style, palette, lighting, scale, and material reference only; Image 2 is the exact obstacle placement and obstacle-kind guide
-Primary request: create only the low static obstacles indicated by Image 2: clipped leafy hedges for hedge regions, low weathered stone or timber walls for low-wall regions, and low roots or rocks for root-rock regions
-Scene/backdrop: perfectly flat solid #ff00ff chroma-key background for local background removal
-Style/medium: match Image 1's illustrated top-down JRPG village style, palette, lighting, texture, and scale
-Composition/framing: preserve Image 2's exact 7:6 canvas layout, coordinates, footprints, and top-down camera
-Constraints: the background must be one uniform #ff00ff color with no shadows, gradients, texture, reflections, floor plane, or lighting variation; render obstacle silhouettes only; keep every obstacle low enough for the supplied collision footprint; crisp readable edges; no cast shadow; no contact shadow; no terrain; no grass; no roads; no paths; no water; no buildings; no doors; no landmarks; no characters; no guides; no labels; no text; no watermark; do not use #ff00ff anywhere in the obstacle art
-Avoid: rectangular terrain strips, background scenery, moved geometry, tall occluders, halos, magenta fringe, extra objects
