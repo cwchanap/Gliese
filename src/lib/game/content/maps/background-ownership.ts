@@ -18,6 +18,19 @@ export function getMapBackgroundDepth(plane: MapBackgroundPlane): number {
 	return MAP_BACKGROUND_DEPTHS[plane];
 }
 
+/**
+ * Validates the background-ownership contract for a map.
+ *
+ * Ensures every background descriptor ID is unique, and for every blocker
+ * using `fallback-only` visual mode, verifies its owner background ID list
+ * is non-empty, has no duplicates, and references only descriptor IDs that
+ * actually exist on the map.
+ *
+ * @param map - A map subset carrying `backgroundImages` and `blockers`.
+ * @throws when a background descriptor ID is duplicated, a `fallback-only`
+ *   blocker has an empty owner list, a blocker lists a duplicate owner ID,
+ *   or a blocker references a missing owner background ID.
+ */
 export function validateMapBackgroundOwnership(map: MapBackgroundOwnershipSource): void {
 	const descriptorIds = new Set<string>();
 
@@ -54,6 +67,20 @@ export function validateMapBackgroundOwnership(map: MapBackgroundOwnershipSource
 	}
 }
 
+/**
+ * Decides whether a blocker's own visual should be rendered given the set
+ * of backgrounds that loaded successfully.
+ *
+ * Blockers with no `visual` or `mode === 'always'` always render. A
+ * `fallback-only` blocker renders only when at least one of its owner
+ * backgrounds failed to load (i.e. not every owner ID is in
+ * `successfulBackgroundIds`), so the visual stands in for the missing art.
+ *
+ * @param blocker - The blocker whose visual mode is consulted.
+ * @param successfulBackgroundIds - IDs of backgrounds that loaded and
+ *   rendered successfully.
+ * @returns `true` when the blocker visual should be drawn.
+ */
 export function shouldRenderBlockerVisual(
 	blocker: MapBlocker,
 	successfulBackgroundIds: ReadonlySet<string>

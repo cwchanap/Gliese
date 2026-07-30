@@ -142,6 +142,18 @@ function assertManifestBlockersExist(
 	}
 }
 
+/**
+ * Applies the reviewed Sundrop obstacle ownership manifest to a blocker list,
+ * marking each manifest entry's blocker as `fallback-only` with its approved
+ * owner background IDs. Blockers not in the manifest are returned unchanged.
+ *
+ * @param blockers - Assembled blockers to tag.
+ * @param manifest - Ownership manifest; defaults to the reviewed
+ *   `SUNDROP_VILLAGE_OBSTACLE_OWNERSHIP`.
+ * @returns A new blocker array with `visual` set on manifest entries.
+ * @throws when a manifest blocker ID is missing from `blockers` or the
+ *   manifest contains a duplicate blocker ID.
+ */
 export function applySundropObstacleOwnership(
 	blockers: readonly MapBlocker[],
 	manifest: readonly SundropObstacleOwnershipEntry[] = SUNDROP_VILLAGE_OBSTACLE_OWNERSHIP
@@ -184,6 +196,21 @@ function assertExpandedBlockerFitsOwner(
 	}
 }
 
+/**
+ * Validates that the reviewed Sundrop obstacle ownership manifest is fully
+ * covered by the assembled map: the manifest contract is unchanged, every
+ * manifest blocker exists, every owner background exists, and each blocker
+ * (expanded by its per-owner margins) fits inside the corresponding owner
+ * background rectangle.
+ *
+ * @param map - A map subset carrying `backgroundImages` and `blockers`.
+ * @param manifest - Ownership manifest; defaults to the reviewed
+ *   `SUNDROP_VILLAGE_OBSTACLE_OWNERSHIP`.
+ * @throws when the manifest contract drifts from the approved manifest, a
+ *   manifest blocker or owner background is missing, a foreground-owned
+ *   entry lacks foreground margins, or an expanded blocker exceeds its
+ *   owner background bounds.
+ */
 export function validateSundropObstacleCoverage(
 	map: MapBackgroundOwnershipSource,
 	manifest: readonly SundropObstacleOwnershipEntry[] = SUNDROP_VILLAGE_OBSTACLE_OWNERSHIP

@@ -64,9 +64,10 @@ describe('Sundrop Village obstacle ownership', () => {
 				])
 			)
 		).toEqual({ hedge: 8, 'low-wall': 8, 'root-rock': 5 });
-		expect(SUNDROP_VILLAGE_OBSTACLE_OWNERSHIP.map((entry) => entry.blockerId)).not.toEqual(
-			expect.arrayContaining(['village-block-0-37', 'village-block-0-49', 'village-block-46-2'])
-		);
+		const ownershipBlockerIds = SUNDROP_VILLAGE_OBSTACLE_OWNERSHIP.map((entry) => entry.blockerId);
+		for (const excludedId of ['village-block-0-37', 'village-block-0-49', 'village-block-46-2']) {
+			expect(ownershipBlockerIds).not.toContain(excludedId);
+		}
 		const blockersById = new Map(
 			(meadowEntryMap.blockers ?? []).map((blocker) => [blocker.id, blocker])
 		);

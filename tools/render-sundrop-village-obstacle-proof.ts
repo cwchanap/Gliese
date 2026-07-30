@@ -5,6 +5,7 @@ import { join, relative } from 'node:path';
 import sharp from 'sharp';
 
 import { MAP_BACKGROUND_DEPTHS } from '$lib/game/content/maps/background-ownership';
+import { getActorAnimationAsset } from '$lib/game/content/assets';
 import {
 	buildSundropVillageObstacleControlInputs,
 	buildSundropVillageObstacleOcclusionProofCases,
@@ -45,7 +46,9 @@ async function labeledPlayerView(
 	label: string,
 	crop: { left: number; top: number; width: number; height: number },
 	player: { x: number; y: number },
-	heroPng: Buffer
+	heroPng: Buffer,
+	heroDisplayWidth: number,
+	heroDisplayHeight: number
 ): Promise<Buffer> {
 	const [baseCrop, foregroundCrop] = await Promise.all([
 		sharp(basePng).extract(crop).png().toBuffer(),
@@ -55,8 +58,8 @@ async function labeledPlayerView(
 		.composite([
 			{
 				input: heroPng,
-				left: player.x - crop.left - 44,
-				top: player.y - crop.top - 45
+				left: player.x - crop.left - heroDisplayWidth / 2,
+				top: player.y - crop.top - heroDisplayHeight / 2
 			},
 			{ input: foregroundCrop },
 			{ input: labelSvg(crop.width, label), left: 0, top: 0 }
@@ -86,14 +89,19 @@ async function checkerboard(width: number, height: number): Promise<Buffer> {
 async function main(): Promise<void> {
 	const controlInputs = buildSundropVillageObstacleControlInputs(root);
 	const proofCases = buildSundropVillageObstacleOcclusionProofCases(controlInputs);
-	const hedge = proofCases.find((proofCase) => proofCase.motif === 'hedge')!;
-	const lowWall = proofCases.find((proofCase) => proofCase.motif === 'low-wall')!;
+	const hedge = proofCases.find((proofCase) => proofCase.motif === 'hedge');
+	const lowWall = proofCases.find((proofCase) => proofCase.motif === 'low-wall');
+	if (!hedge) throw new Error('Missing Sundrop obstacle proof case for motif: hedge');
+	if (!lowWall) throw new Error('Missing Sundrop obstacle proof case for motif: low-wall');
+	const heroDisplaySize = getActorAnimationAsset('hero').displaySize;
+	const heroDisplayWidth = heroDisplaySize.width;
+	const heroDisplayHeight = heroDisplaySize.height;
 	const [baseReview, foregroundReview, heroPng] = await Promise.all([
 		sharp(basePng).resize(896, 768).png().toBuffer(),
 		sharp(foregroundPng).resize(896, 768).png().toBuffer(),
 		sharp(animationPath)
 			.extract({ left: 0, top: 0, width: 192, height: 192 })
-			.resize(88, 90)
+			.resize(heroDisplayWidth, heroDisplayHeight)
 			.png()
 			.toBuffer()
 	]);
@@ -149,25 +157,33 @@ async function main(): Promise<void> {
 			`Hedge ${hedge.blockerId} — behind/north (${hedge.player.behind.centerDeltaFromCutoffPx}px from cutoff)`,
 			hedge.crop,
 			hedge.player.behind.local,
-			heroPng
+			heroPng,
+			heroDisplayWidth,
+			heroDisplayHeight
 		),
 		'village-obstacle-proof-hedge-front.png': await labeledPlayerView(
 			`Hedge ${hedge.blockerId} — front/south (+${hedge.player.front.centerDeltaFromCutoffPx}px from cutoff)`,
 			hedge.crop,
 			hedge.player.front.local,
-			heroPng
+			heroPng,
+			heroDisplayWidth,
+			heroDisplayHeight
 		),
 		'village-obstacle-proof-wall-behind.png': await labeledPlayerView(
 			`Low wall ${lowWall.blockerId} — behind/north (${lowWall.player.behind.centerDeltaFromCutoffPx}px from cutoff)`,
 			lowWall.crop,
 			lowWall.player.behind.local,
-			heroPng
+			heroPng,
+			heroDisplayWidth,
+			heroDisplayHeight
 		),
 		'village-obstacle-proof-wall-front.png': await labeledPlayerView(
 			`Low wall ${lowWall.blockerId} — front/south (+${lowWall.player.front.centerDeltaFromCutoffPx}px from cutoff)`,
 			lowWall.crop,
 			lowWall.player.front.local,
-			heroPng
+			heroPng,
+			heroDisplayWidth,
+			heroDisplayHeight
 		)
 	};
 	const outputs = Object.fromEntries(
@@ -189,7 +205,7 @@ async function main(): Promise<void> {
 			},
 			controlFingerprint: computeSundropVillageObstacleControlFingerprint(controlInputs)
 		},
-		playerDisplaySize: { width: 88, height: 90 },
+		playerDisplaySize: { width: heroDisplayWidth, height: heroDisplayHeight },
 		runtimeLayering: {
 			baseDepth: MAP_BACKGROUND_DEPTHS.base,
 			playerDepth: 0,

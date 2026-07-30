@@ -8,7 +8,10 @@ import { beforeAll, describe, expect, test } from 'vitest';
 import { sundropVillageBackgroundsApproval } from './approvals/sundrop-village-backgrounds';
 import { sundropVillageBackgroundAlpha } from './backgrounds/sundrop-village-background';
 import { buildSundropVillageObstacleControlInputs } from './backgrounds/sundrop-village-obstacle-controls';
-import type { SundropVillageObstacleNormalizationTransform } from './backgrounds/sundrop-village-obstacle-composite';
+import {
+	CANDIDATE_ALIGNMENT_INSET_PX,
+	type SundropVillageObstacleNormalizationTransform
+} from './backgrounds/sundrop-village-obstacle-composite';
 import { SUNDROP_VILLAGE_OBSTACLE_OWNERSHIP } from './backgrounds/sundrop-village-obstacle-ownership';
 import {
 	SUNDROP_VILLAGE_BACKGROUND_COMBINED_HARD_LIMIT_BYTES,
@@ -36,7 +39,6 @@ const foregroundMaskPath = join(reports, 'village-obstacle-foreground-mask.svg')
 const protectedMaskPath = join(reports, 'village-obstacle-protected-mask.svg');
 const transformPath = join(reports, 'village-obstacle-candidate-transform.json');
 const provenancePath = join(reports, 'village-obstacle-provenance.json');
-const CANDIDATE_ALIGNMENT_INSET_PX = 16;
 
 interface Decoded {
 	readonly data: Buffer;

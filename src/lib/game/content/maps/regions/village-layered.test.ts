@@ -186,6 +186,35 @@ describe('sundrop village layered source', () => {
 			right: background.x + background.width / 2,
 			bottom: background.y + background.height / 2
 		}).toEqual({ left: 256, top: 4_352, right: 2_048, bottom: 5_888 });
+
+		// Production assembly path: meadowEntryMap.backgroundImages is
+		// assembled by mergeRegions from the region fragments (including
+		// villageRegion) and must carry both Sundrop planes with their
+		// authored base/foreground plane values and shared geometry.
+		const productionBase = meadowEntryMap.backgroundImages?.find(
+			(image) => image.id === SUNDROP_VILLAGE_BASE_BACKGROUND_ID
+		);
+		const productionForeground = meadowEntryMap.backgroundImages?.find(
+			(image) => image.id === SUNDROP_VILLAGE_FOREGROUND_BACKGROUND_ID
+		);
+		expect(productionBase).toMatchObject({
+			id: SUNDROP_VILLAGE_BASE_BACKGROUND_ID,
+			textureKey: SUNDROP_VILLAGE_BASE_BACKGROUND_TEXTURE_KEY,
+			plane: 'base',
+			x: backgrounds[0]!.x,
+			y: backgrounds[0]!.y,
+			width,
+			height
+		});
+		expect(productionForeground).toMatchObject({
+			id: SUNDROP_VILLAGE_FOREGROUND_BACKGROUND_ID,
+			textureKey: SUNDROP_VILLAGE_FOREGROUND_BACKGROUND_TEXTURE_KEY,
+			plane: 'foreground',
+			x: backgrounds[1]!.x,
+			y: backgrounds[1]!.y,
+			width,
+			height
+		});
 	});
 
 	it('every layer has exactly width × height cells', () => {

@@ -74,6 +74,15 @@ export interface SundropVillageObstacleCompositeResult {
 	readonly provenanceJson: Buffer;
 }
 
+/**
+ * Canonical candidate-alignment feather inset, in composite pixels. The
+ * obstacle layer's alpha is ramped from 0 at the base-permitted boundary
+ * (distance 1) to full contribution at `inset + 1`. Shared by the production
+ * generator (`tools/finalize-sundrop-village-obstacles.ts`) and the asset
+ * tests so both agree on the feather width.
+ */
+export const CANDIDATE_ALIGNMENT_INSET_PX = 16;
+
 interface DecodedRgba {
 	readonly data: Buffer;
 	readonly width: number;
@@ -229,6 +238,33 @@ function alphaAt(data: Buffer, pixel: number): number {
 	return data[pixel * 4 + 3] ?? 0;
 }
 
+/**
+ * Feathers the obstacle layer's alpha so it fades to zero at the inner
+ * boundary of the base-permitted region (excluding protected pixels).
+ *
+ * Implemented as a two-pass city-block (Manhattan) distance transform over
+ * the pixels that are base-permitted AND not protected: a forward pass
+ * (top-left to bottom-right) propagates `min(left+1, top+1)` and a backward
+ * pass (bottom-right to top-left) propagates `min(right+1, bottom+1)`. The
+ * resulting per-pixel distance is the Manhattan distance to the nearest
+ * non-base-permitted (or protected) neighbour.
+ *
+ * Feather semantics: at distance 0 the alpha is untouched; at distance 1
+ * (the boundary) the weight is 0 so the pixel becomes source-only; the
+ * weight ramps linearly to 1 at distance `insetPx + 1` and clamps to 1
+ * beyond that, so the obstacle reaches full contribution one pixel inside
+ * the feather band.
+ *
+ * @param obstacleLayer - Normalized RGBA obstacle layer to feather.
+ * @param baseMask - Base-permitted mask; pixels with alpha > 0 are eligible.
+ * @param protectedMask - Protected mask; pixels with alpha > 0 are excluded
+ *   from the feather region (treated as boundary).
+ * @param insetPx - Feather band width in pixels; must be an integer in 0..64.
+ *   0 returns the layer unchanged with zero counts.
+ * @returns The feathered layer plus `changedAlphaPixels` (pixels whose alpha
+ *   changed) and `zeroedBoundaryPixels` (distance-1 pixels that became fully
+ *   transparent).
+ */
 function alignObstacleLayerToBaseMask(
 	obstacleLayer: DecodedRgba,
 	baseMask: DecodedRgba,
@@ -384,6 +420,26 @@ async function encodeCanonicalRgba(data: Buffer, width: number, height: number):
 /**
  * Produces deterministic base and foreground planes from one source-aligned
  * candidate while enforcing the HPA-398 masks and immutable edge-alpha rule.
+ *
+ * The candidate is built by alpha-compositing the aligned obstacle layer's
+ * RGB over the immutable HPA-307 source and retaining the aligned alpha.
+ * The base plane copies candidate RGB only inside the base-permitted mask
+ * (minus protected pixels) and forces the alpha to the authored edge
+ * profile. The foreground plane copies candidate RGB only inside the
+ * foreground mask, above each blocker's front cutoff, outside excluded
+ * base-only rects, and modulates alpha by the candidate alpha and edge
+ * profile. A post-pass counts mask/alpha/cutoff violations and throws if
+ * any are non-zero, so generation fails before emitting invalid planes.
+ *
+ * @param input - Composite inputs: source/chroma/obstacle images, masks,
+ *   alignment inset, normalization transform, control fingerprint +
+ *   artifacts, prompt, base-alpha function, foreground cutoffs, and
+ *   exclusion rects. All images must decode to the composite's
+ *   `width` x `height` RGBA.
+ * @returns `{ candidatePng, basePng, foregroundPng, provenanceJson }` —
+ *   canonical PNGs for the candidate, base, and foreground planes plus a
+ *   JSON provenance document recording inputs, hashes, alignment stats, and
+ *   violation counters.
  */
 export async function compositeSundropVillageObstacles(
 	input: SundropVillageObstacleCompositeInput
@@ -515,6 +571,20 @@ export async function compositeSundropVillageObstacles(
 			if (actualForegroundAlpha !== expectedForegroundAlpha) {
 				foregroundAlphaModulationViolations += 1;
 			}
+		}
+	}
+
+	const violationCounts = {
+		baseAlphaViolations,
+		protectedAreaViolations,
+		foregroundMaskViolations,
+		foregroundCutoffViolations,
+		foregroundEdgeAlphaViolations,
+		foregroundAlphaModulationViolations
+	};
+	for (const [name, count] of Object.entries(violationCounts)) {
+		if (count !== 0) {
+			throw new Error(`Sundrop Village obstacle composite failed validation: ${name}=${count}`);
 		}
 	}
 
