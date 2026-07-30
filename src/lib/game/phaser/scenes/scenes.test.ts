@@ -5280,6 +5280,7 @@ describe('WorldScene', () => {
 
 	it('blocks movement through solid interior furniture but not floor props', async () => {
 		const target = installHudCommandTarget();
+		const restoreLocation = installLocationSearch('?movementDiagnostics=on');
 		const movementDiagnostics: PlayerMovementDiagnostic[] = [];
 		target.target.addEventListener(PLAYER_MOVEMENT_DIAGNOSTIC_EVENT, (event) => {
 			movementDiagnostics.push((event as CustomEvent<PlayerMovementDiagnostic>).detail);
@@ -5309,6 +5310,7 @@ describe('WorldScene', () => {
 
 		expect(phaserState.playerMarker.x).toBe(256);
 		expect(phaserState.playerMarker.y).toBeLessThan(300);
+		restoreLocation();
 		target.restore();
 	});
 
