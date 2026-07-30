@@ -58,9 +58,10 @@ describe('Sundrop Village obstacle controls', () => {
 				.map((entry) => entry.blockerId)
 				.sort()
 		);
-		expect(inputs.baseRects.map((rect) => rect.id)).not.toEqual(
-			expect.arrayContaining(['village-block-0-37', 'village-block-0-49', 'village-block-46-2'])
-		);
+		const baseRectIds = inputs.baseRects.map((rect) => rect.id);
+		for (const excludedId of ['village-block-0-37', 'village-block-0-49', 'village-block-46-2']) {
+			expect(baseRectIds).not.toContain(excludedId);
+		}
 		for (const rect of inputs.foregroundRects) {
 			expect(rect.blockerBottom).toBeDefined();
 			expect(rect.bottom).toBe(

@@ -268,6 +268,14 @@ async function installRegionalBackgroundDiagnosticListener(page: Page) {
 	return diagnostics;
 }
 
+/**
+ * Installs a window listener that captures every
+ * `gliese:regional-background-plane-render-diagnostic` event into a
+ * returned array via a Playwright exposed binding.
+ *
+ * @param page - The Playwright page to instrument.
+ * @returns A live array that accumulates `RegionalBackgroundPlaneRenderDiagnostic` details.
+ */
 async function installRegionalBackgroundPlaneDiagnosticListener(page: Page) {
 	const diagnostics: RegionalBackgroundPlaneRenderDiagnostic[] = [];
 	const bindingName = 'captureRegionalBackgroundPlaneRenderDiagnostic';
@@ -295,6 +303,14 @@ async function installRegionalBackgroundPlaneDiagnosticListener(page: Page) {
 	return diagnostics;
 }
 
+/**
+ * Installs a window listener that captures every
+ * `gliese:player-movement-diagnostic` event into a returned array via a
+ * Playwright exposed binding.
+ *
+ * @param page - The Playwright page to instrument.
+ * @returns A live array that accumulates `PlayerMovementDiagnostic` details.
+ */
 async function installPlayerMovementDiagnosticListener(page: Page) {
 	const diagnostics: PlayerMovementDiagnostic[] = [];
 	const bindingName = 'capturePlayerMovementDiagnostic';
@@ -320,6 +336,17 @@ type RegionalBackgroundEvidenceDiagnostics = RegionalBackgroundRendererDiagnosti
 	movementDiagnostics: PlayerMovementDiagnostic[];
 };
 
+/**
+ * Prepares a Playwright page for regional-background evidence collection:
+ * sets the viewport, injects the given save fixture, and installs the
+ * renderer, plane-render, and player-movement diagnostic listeners.
+ *
+ * @param page - The Playwright page to prepare.
+ * @param save - The save fixture to inject; defaults to
+ *   `createRegionalBackgroundSaveFixture()`.
+ * @returns The renderer diagnostic array augmented with `planeDiagnostics`
+ *   and `movementDiagnostics` arrays.
+ */
 async function prepareRegionalBackgroundEvidencePage(
 	page: Page,
 	save = createRegionalBackgroundSaveFixture()

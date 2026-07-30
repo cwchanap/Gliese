@@ -56,7 +56,8 @@ import { isQuestId, mainQuestId } from '$lib/game/content/quests';
 import { getShop } from '$lib/game/content/shops';
 import {
 	emitRegionalBackgroundPlaneRenderDiagnostic,
-	type RegionalBackgroundPlaneRenderDiagnosticEntry
+	type RegionalBackgroundPlaneRenderDiagnosticEntry,
+	type RegionalBackgroundRenderStatus
 } from '$lib/game/phaser/regional-background-plane-render-diagnostics';
 import { emitPlayerMovementDiagnostic } from '$lib/game/phaser/player-movement-diagnostics';
 import { advanceBossPhase } from '$lib/game/core/boss';
@@ -1617,6 +1618,17 @@ export class WorldScene extends Phaser.Scene {
 		layer?.setDepth?.(-10);
 	}
 
+	/**
+	 * Renders the regional background planes for a map and emits a
+	 * `gliese:regional-background-plane-render-diagnostic` event describing
+	 * each plane's render status (disabled / missing-texture /
+	 * invalid-dimensions / rendered / render-failed).
+	 *
+	 * @param map - The WorldMapDefinition whose `backgroundImages` are rendered.
+	 * @returns The set of background IDs that loaded and rendered
+	 * successfully; used to decide which `fallback-only` blockers draw their
+	 * own visual. Emits a plane-render diagnostic as a side effect.
+	 */
 	private renderRegionalBackgrounds(map: WorldMapDefinition): ReadonlySet<string> {
 		const successfulBackgroundIds = new Set<string>();
 		const entries: RegionalBackgroundPlaneRenderDiagnosticEntry[] = [];
@@ -1628,44 +1640,41 @@ export class WorldScene extends Phaser.Scene {
 			const expectedDimensions = { width: background.width, height: background.height };
 
 			if (!this.renderOptions.regionalBackgrounds) {
-				entries.push({
-					id: background.id,
-					textureKey: background.textureKey,
-					plane: background.plane,
+				this.pushRegionalBackgroundDiagnosticEntry(
+					entries,
+					background,
 					expectedDimensions,
-					observedDimensions: null,
-					status: 'disabled'
-				});
+					null,
+					'disabled',
+					map.id,
+					null
+				);
 				continue;
 			}
 
 			if (!textureManager.exists?.(background.textureKey)) {
-				entries.push({
-					id: background.id,
-					textureKey: background.textureKey,
-					plane: background.plane,
+				this.pushRegionalBackgroundDiagnosticEntry(
+					entries,
+					background,
 					expectedDimensions,
-					observedDimensions: null,
-					status: 'missing-texture'
-				});
-				console.warn(
-					`[WorldScene] regional background unavailable: id="${background.id}" textureKey="${background.textureKey}" plane="${background.plane}" mapId="${map.id}"`
+					null,
+					'missing-texture',
+					map.id,
+					'unavailable'
 				);
 				continue;
 			}
 
 			const texture = this.textures.get(background.textureKey) as { key?: string } | undefined;
 			if (texture?.key === '__MISSING') {
-				entries.push({
-					id: background.id,
-					textureKey: background.textureKey,
-					plane: background.plane,
+				this.pushRegionalBackgroundDiagnosticEntry(
+					entries,
+					background,
 					expectedDimensions,
-					observedDimensions: null,
-					status: 'missing-texture'
-				});
-				console.warn(
-					`[WorldScene] regional background unavailable: id="${background.id}" textureKey="${background.textureKey}" plane="${background.plane}" mapId="${map.id}"`
+					null,
+					'missing-texture',
+					map.id,
+					'unavailable'
 				);
 				continue;
 			}
@@ -1673,31 +1682,28 @@ export class WorldScene extends Phaser.Scene {
 			const dimensions = this.getTextureSourceDimensions(background.textureKey);
 
 			if (!dimensions) {
-				entries.push({
-					id: background.id,
-					textureKey: background.textureKey,
-					plane: background.plane,
+				this.pushRegionalBackgroundDiagnosticEntry(
+					entries,
+					background,
 					expectedDimensions,
-					observedDimensions: null,
-					status: 'invalid-dimensions'
-				});
-				console.warn(
-					`[WorldScene] regional background source dimensions unavailable: id="${background.id}" textureKey="${background.textureKey}" plane="${background.plane}" mapId="${map.id}"`
+					null,
+					'invalid-dimensions',
+					map.id,
+					'source dimensions unavailable'
 				);
 				continue;
 			}
 
 			if (dimensions.width !== background.width || dimensions.height !== background.height) {
-				entries.push({
-					id: background.id,
-					textureKey: background.textureKey,
-					plane: background.plane,
+				this.pushRegionalBackgroundDiagnosticEntry(
+					entries,
+					background,
 					expectedDimensions,
-					observedDimensions: dimensions,
-					status: 'invalid-dimensions'
-				});
-				console.warn(
-					`[WorldScene] regional background dimensions mismatch: id="${background.id}" textureKey="${background.textureKey}" plane="${background.plane}" mapId="${map.id}" expected=${background.width}x${background.height} actual=${dimensions.width}x${dimensions.height}`
+					dimensions,
+					'invalid-dimensions',
+					map.id,
+					'dimensions mismatch',
+					` expected=${background.width}x${background.height} actual=${dimensions.width}x${dimensions.height}`
 				);
 				continue;
 			}
@@ -1732,16 +1738,14 @@ export class WorldScene extends Phaser.Scene {
 				});
 			} catch {
 				image?.destroy();
-				entries.push({
-					id: background.id,
-					textureKey: background.textureKey,
-					plane: background.plane,
+				this.pushRegionalBackgroundDiagnosticEntry(
+					entries,
+					background,
 					expectedDimensions,
-					observedDimensions: dimensions,
-					status: 'render-failed'
-				});
-				console.warn(
-					`[WorldScene] regional background render failed: id="${background.id}" textureKey="${background.textureKey}" plane="${background.plane}" mapId="${map.id}"`
+					dimensions,
+					'render-failed',
+					map.id,
+					'render failed'
 				);
 			}
 		}
@@ -1763,6 +1767,37 @@ export class WorldScene extends Phaser.Scene {
 			)
 		});
 		return successfulBackgroundIds;
+	}
+
+	/**
+	 * Pushes a regional-background diagnostic entry and, when `warnMessage` is
+	 * not null, emits the matching `[WorldScene] regional background ...`
+	 * warning. Shared by the disabled / missing-texture / invalid-dimensions /
+	 * render-failed paths so the entry shape and warning prefix stay in sync.
+	 */
+	private pushRegionalBackgroundDiagnosticEntry(
+		entries: RegionalBackgroundPlaneRenderDiagnosticEntry[],
+		background: NonNullable<WorldMapDefinition['backgroundImages']>[number],
+		expectedDimensions: { width: number; height: number },
+		observedDimensions: { width: number; height: number } | null,
+		status: RegionalBackgroundRenderStatus,
+		mapId: string,
+		warnMessage: string | null,
+		warnSuffix = ''
+	): void {
+		entries.push({
+			id: background.id,
+			textureKey: background.textureKey,
+			plane: background.plane,
+			expectedDimensions,
+			observedDimensions,
+			status
+		});
+		if (warnMessage !== null) {
+			console.warn(
+				`[WorldScene] regional background ${warnMessage}: id="${background.id}" textureKey="${background.textureKey}" plane="${background.plane}" mapId="${mapId}"${warnSuffix}`
+			);
+		}
 	}
 
 	/**

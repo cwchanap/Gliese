@@ -112,6 +112,7 @@ function stable(value: unknown): string {
 			.map(([key, item]) => `${JSON.stringify(key)}:${stable(item)}`)
 			.join(',')}}`;
 	}
+	if (value === undefined) return 'undefined';
 	return JSON.stringify(value);
 }
 
@@ -427,6 +428,23 @@ function resolveVerticalProofPosition(
 /**
  * Selects one reviewed foreground-owned hedge and low wall and derives the
  * front/behind proof positions from their assembled blocker/control geometry.
+ *
+ * For each motif, every foreground-owned ownership entry is turned into a
+ * candidate by resolving its assembled blocker and largest foreground
+ * control rect, then deriving walkable player positions just behind
+ * (north of) and in front of (south of) the blocker via
+ * `resolveVerticalProofPosition`. Candidates are ranked by the smallest
+ * `frontWorldY - behindWorldY` span so the chosen evidence is the tightest
+ * front/behind pair — i.e. the case where the cutoff most clearly
+ * discriminates occlusion from readability — rather than an arbitrary
+ * first match.
+ *
+ * @param inputs - Sundrop obstacle control inputs; defaults to the
+ *   production-assembled inputs when omitted.
+ * @returns Exactly two proof cases, one for `hedge` and one for `low-wall`,
+ *   each carrying the blocker geometry, foreground control rect, cutoff
+ *   world/local Y, and behind/front player positions with their signed
+ *   delta from the cutoff.
  */
 export function buildSundropVillageObstacleOcclusionProofCases(
 	inputs: SundropVillageObstacleControlInputs = buildSundropVillageObstacleControlInputs()
@@ -462,6 +480,7 @@ export function buildSundropVillageObstacleOcclusionProofCases(
 					ownership,
 					blocker,
 					foregroundControlRect,
+					foregroundBottom: foregroundControlRect.bottom,
 					behindWorldY,
 					frontWorldY
 				};
@@ -472,8 +491,15 @@ export function buildSundropVillageObstacleOcclusionProofCases(
 			);
 		const selected = candidates[0];
 		if (!selected) throw new Error(`Missing foreground-owned ${motif} proof obstacle`);
-		const { ownership, blocker, foregroundControlRect, behindWorldY, frontWorldY } = selected;
-		const cutoffLocalY = foregroundControlRect.bottom!;
+		const {
+			ownership,
+			blocker,
+			foregroundControlRect,
+			foregroundBottom,
+			behindWorldY,
+			frontWorldY
+		} = selected;
+		const cutoffLocalY = foregroundBottom;
 		const cutoffWorldY = inputs.crop.y + cutoffLocalY;
 		const playerLocalX = blocker.x - inputs.crop.x;
 		const behindLocalY = behindWorldY - inputs.crop.y;

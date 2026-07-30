@@ -10,6 +10,7 @@ import {
 	SUNDROP_VILLAGE_OBSTACLE_CONTROL_FILENAMES
 } from '$lib/game/content/backgrounds/sundrop-village-obstacle-controls';
 import {
+	CANDIDATE_ALIGNMENT_INSET_PX,
 	compositeSundropVillageObstacles,
 	type SundropVillageObstacleNormalizationTransform
 } from '$lib/game/content/backgrounds/sundrop-village-obstacle-composite';
@@ -37,14 +38,35 @@ const foregroundOutputPath = join(
 	repositoryRoot,
 	'public/game/assets/regions/sundrop-village-foreground.png'
 );
-const CANDIDATE_ALIGNMENT_INSET_PX = 16;
+
+function greatestCommonDivisor(left: number, right: number): number {
+	return right === 0 ? left : greatestCommonDivisor(right, left % right);
+}
+
+function maskInputFromControlArtifact(
+	controlArtifacts: Record<string, { readonly path: string; readonly bytes: Buffer }>,
+	filename: string
+): { readonly path: string; readonly png: Buffer } {
+	const artifact = controlArtifacts[filename];
+	if (!artifact) {
+		throw new Error(`Missing Sundrop obstacle control artifact: ${filename}`);
+	}
+	return { path: artifact.path, png: artifact.bytes };
+}
 
 function centeredUniformTransform(
 	nativeWidth: number,
 	nativeHeight: number
 ): SundropVillageObstacleNormalizationTransform {
-	const commonWidth = SUNDROP_VILLAGE_BACKGROUND_WIDTH / 256;
-	const commonHeight = SUNDROP_VILLAGE_BACKGROUND_HEIGHT / 256;
+	// Derive the shared aspect unit from the background dimensions so the
+	// 7:6 normalization stays correct if the constants ever change. For the
+	// committed 1792x1536 crop this is gcd(1792, 1536) = 256.
+	const aspectUnit = greatestCommonDivisor(
+		SUNDROP_VILLAGE_BACKGROUND_WIDTH,
+		SUNDROP_VILLAGE_BACKGROUND_HEIGHT
+	);
+	const commonWidth = SUNDROP_VILLAGE_BACKGROUND_WIDTH / aspectUnit;
+	const commonHeight = SUNDROP_VILLAGE_BACKGROUND_HEIGHT / aspectUnit;
 	const factor = Math.floor(Math.min(nativeWidth / commonWidth, nativeHeight / commonHeight));
 	if (factor <= 0) {
 		throw new Error('Sundrop Village obstacle candidate is too small to normalize');
@@ -130,24 +152,15 @@ async function main(): Promise<void> {
 		obstacleLayer: { path: relative(repositoryRoot, obstacleLayerPath), png: obstacleLayer },
 		candidateOutputPath: relative(repositoryRoot, candidatePath),
 		masks: {
-			base: {
-				path: relative(repositoryRoot, join(artifactDirectory, 'village-obstacle-base-mask.svg')),
-				png: readFileSync(join(artifactDirectory, 'village-obstacle-base-mask.svg'))
-			},
-			foreground: {
-				path: relative(
-					repositoryRoot,
-					join(artifactDirectory, 'village-obstacle-foreground-mask.svg')
-				),
-				png: readFileSync(join(artifactDirectory, 'village-obstacle-foreground-mask.svg'))
-			},
-			protected: {
-				path: relative(
-					repositoryRoot,
-					join(artifactDirectory, 'village-obstacle-protected-mask.svg')
-				),
-				png: readFileSync(join(artifactDirectory, 'village-obstacle-protected-mask.svg'))
-			}
+			base: maskInputFromControlArtifact(controlArtifacts, 'village-obstacle-base-mask.svg'),
+			foreground: maskInputFromControlArtifact(
+				controlArtifacts,
+				'village-obstacle-foreground-mask.svg'
+			),
+			protected: maskInputFromControlArtifact(
+				controlArtifacts,
+				'village-obstacle-protected-mask.svg'
+			)
 		},
 		candidateAlignmentInsetPx: CANDIDATE_ALIGNMENT_INSET_PX,
 		normalizationTransform,
