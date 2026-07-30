@@ -12,30 +12,32 @@ const SCRIPT_PATH = fileURLToPath(import.meta.url);
 const REPO = resolve(dirname(SCRIPT_PATH), '../../..');
 let BASE_URL;
 const PROFILE = process.env.GLIESE_BROWSER_ACCEPTANCE_PROFILE ?? 'hpa-398';
-if (!['hpa-307', 'hpa-398'].includes(PROFILE)) {
+if (PROFILE === 'hpa-307') {
+	throw new Error(
+		'GLIESE_BROWSER_ACCEPTANCE_PROFILE=hpa-307 is no longer runnable: the ' +
+			'single-plane sundrop-village-background.png production asset was retired by ' +
+			'HPA-398 and is absent from public/game/assets/regions/. The HPA-307 evidence ' +
+			'is preserved as frozen artifacts under docs/superpowers/reports/img/hpa-307/ ' +
+			'(see the "Immutable HPA-307 gate" in ' +
+			'docs/superpowers/reports/2026-07-28-hpa-398-outdoor-baked-obstacle-validation.md). ' +
+			'Run with GLIESE_BROWSER_ACCEPTANCE_PROFILE=hpa-398 (the default) instead.'
+	);
+}
+if (!['hpa-398'].includes(PROFILE)) {
 	throw new Error(`unknown GLIESE_BROWSER_ACCEPTANCE_PROFILE ${PROFILE}`);
 }
-const PRODUCTION_ASSETS =
-	PROFILE === 'hpa-398'
-		? [
-				{
-					path: '/game/assets/regions/sundrop-village-base.png',
-					file: join(REPO, 'public/game/assets/regions/sundrop-village-base.png'),
-					expectedSha256: 'f1184b045c27c544ac18937a4f8ccfa12cd386319b1722be5d808aea8048ade6'
-				},
-				{
-					path: '/game/assets/regions/sundrop-village-foreground.png',
-					file: join(REPO, 'public/game/assets/regions/sundrop-village-foreground.png'),
-					expectedSha256: '2d0a6703de1a404e49c0746f092a4c6f9f113ae17cd8bc35de635b5ec084ce45'
-				}
-			]
-		: [
-				{
-					path: '/game/assets/regions/sundrop-village-background.png',
-					file: join(REPO, 'public/game/assets/regions/sundrop-village-background.png'),
-					expectedSha256: '3933829f19e7eab4b26ba2d31c7a0cfac25d4fae0a16196893fac6dbf02187c1'
-				}
-			];
+const PRODUCTION_ASSETS = [
+	{
+		path: '/game/assets/regions/sundrop-village-base.png',
+		file: join(REPO, 'public/game/assets/regions/sundrop-village-base.png'),
+		expectedSha256: 'f1184b045c27c544ac18937a4f8ccfa12cd386319b1722be5d808aea8048ade6'
+	},
+	{
+		path: '/game/assets/regions/sundrop-village-foreground.png',
+		file: join(REPO, 'public/game/assets/regions/sundrop-village-foreground.png'),
+		expectedSha256: '2d0a6703de1a404e49c0746f092a4c6f9f113ae17cd8bc35de635b5ec084ce45'
+	}
+];
 const ASSET_PATHS = new Set(PRODUCTION_ASSETS.map((asset) => asset.path));
 const EXPECTED_ENABLED_COMPLETIONS = PRODUCTION_ASSETS.length;
 const SAVE_KEY = 'gliese.save.v8';
@@ -69,7 +71,7 @@ const WORKTREE_PATHS = execFileSync(
 const PRODUCT_DIRTY_PATHS = [...new Set(WORKTREE_PATHS)].filter(
 	(path) =>
 		!path.startsWith(EVIDENCE_PATH_PREFIX) &&
-		!(PROFILE === 'hpa-398' && path.startsWith('output/playwright/'))
+		!path.startsWith('output/playwright/')
 );
 if (PRODUCT_DIRTY_PATHS.length > 0) {
 	throw new Error(
@@ -166,30 +168,26 @@ const RENDERER_SIDECARS = [
 		screenshotName: 'runtime-background-load-failure.png',
 		sidecarName: 'runtime-background-load-failure.renderer.json'
 	},
-	...(PROFILE === 'hpa-398'
-		? [
-				{
-					mode: 'base-render-failure',
-					query: '?regionalBackgroundFault=sundrop-village-base-image:render',
-					expectedCompletions: 2,
-					screenshotName: 'runtime-background-base-render-failure.png',
-					sidecarName: 'runtime-background-base-render-failure.renderer.json',
-					expectedPlaneStatuses: ['render-failed', 'rendered'],
-					expectedFallbackIds: SUNDROP_SELECTED_FALLBACK_IDS,
-					expectedFallbackSegments: 190
-				},
-				{
-					mode: 'foreground-render-failure',
-					query: '?regionalBackgroundFault=sundrop-village-foreground-image:render',
-					expectedCompletions: 2,
-					screenshotName: 'runtime-background-foreground-render-failure.png',
-					sidecarName: 'runtime-background-foreground-render-failure.renderer.json',
-					expectedPlaneStatuses: ['rendered', 'render-failed'],
-					expectedFallbackIds: SUNDROP_FOREGROUND_FALLBACK_IDS,
-					expectedFallbackSegments: 82
-				}
-			]
-		: [])
+	{
+		mode: 'base-render-failure',
+		query: '?regionalBackgroundFault=sundrop-village-base-image:render',
+		expectedCompletions: 2,
+		screenshotName: 'runtime-background-base-render-failure.png',
+		sidecarName: 'runtime-background-base-render-failure.renderer.json',
+		expectedPlaneStatuses: ['render-failed', 'rendered'],
+		expectedFallbackIds: SUNDROP_SELECTED_FALLBACK_IDS,
+		expectedFallbackSegments: 190
+	},
+	{
+		mode: 'foreground-render-failure',
+		query: '?regionalBackgroundFault=sundrop-village-foreground-image:render',
+		expectedCompletions: 2,
+		screenshotName: 'runtime-background-foreground-render-failure.png',
+		sidecarName: 'runtime-background-foreground-render-failure.renderer.json',
+		expectedPlaneStatuses: ['rendered', 'render-failed'],
+		expectedFallbackIds: SUNDROP_FOREGROUND_FALLBACK_IDS,
+		expectedFallbackSegments: 82
+	}
 ];
 
 async function reservePreviewPort() {
