@@ -1,0 +1,234 @@
+{
+  "version": 2,
+  "inputs": {
+    "base": {
+      "path": "public/game/assets/regions/sundrop-village-base.png",
+      "sha256": "f1184b045c27c544ac18937a4f8ccfa12cd386319b1722be5d808aea8048ade6"
+    },
+    "foreground": {
+      "path": "public/game/assets/regions/sundrop-village-foreground.png",
+      "sha256": "2d0a6703de1a404e49c0746f092a4c6f9f113ae17cd8bc35de635b5ec084ce45"
+    },
+    "hero": {
+      "path": "public/game/assets/animation-pack.png",
+      "frame": {
+        "x": 0,
+        "y": 0,
+        "width": 192,
+        "height": 192
+      }
+    },
+    "controlFingerprint": "8b3f80fdde4591465d90aca558ff747d3825939c5879fdadaf3c55e70cb3b4b2"
+  },
+  "playerDisplaySize": {
+    "width": 88,
+    "height": 90
+  },
+  "runtimeLayering": {
+    "baseDepth": -9,
+    "playerDepth": 0,
+    "foregroundDepth": 100,
+    "backgrounds": [
+      {
+        "id": "sundrop-village-base-image",
+        "textureKey": "sundrop-village-base",
+        "x": 1152,
+        "y": 5120,
+        "width": 1792,
+        "height": 1536,
+        "plane": "base"
+      },
+      {
+        "id": "sundrop-village-foreground-image",
+        "textureKey": "sundrop-village-foreground",
+        "x": 1152,
+        "y": 5120,
+        "width": 1792,
+        "height": 1536,
+        "plane": "foreground"
+      }
+    ]
+  },
+  "proofCases": [
+    {
+      "motif": "hedge",
+      "blockerId": "village-block-2-2",
+      "ownerBackgroundIds": [
+        "sundrop-village-base-image",
+        "sundrop-village-foreground-image"
+      ],
+      "crop": {
+        "left": 320,
+        "top": 0,
+        "width": 640,
+        "height": 360
+      },
+      "blocker": {
+        "world": {
+          "id": "village-block-2-2",
+          "x": 896,
+          "y": 4432,
+          "width": 1152,
+          "height": 32
+        },
+        "local": {
+          "id": "village-block-2-2",
+          "x": 640,
+          "y": 80,
+          "width": 1152,
+          "height": 32
+        }
+      },
+      "foregroundControlRect": {
+        "id": "village-block-2-2",
+        "x": 620,
+        "y": 47.5,
+        "width": 1128,
+        "height": 31,
+        "kind": "foreground",
+        "blockerBottom": 96,
+        "bottom": 63
+      },
+      "cutoff": {
+        "localY": 63,
+        "worldY": 4415,
+        "blockerBottomWorldY": 4448
+      },
+      "player": {
+        "behind": {
+          "semantic": "behind/north: player center is north of the authored cutoff and the foreground occludes the lower silhouette",
+          "local": {
+            "x": 640,
+            "y": 44
+          },
+          "world": {
+            "x": 896,
+            "y": 4396
+          },
+          "centerDeltaFromCutoffPx": -19
+        },
+        "front": {
+          "semantic": "front/south: player center is south of the authored cutoff and remains readable",
+          "local": {
+            "x": 640,
+            "y": 148
+          },
+          "world": {
+            "x": 896,
+            "y": 4500
+          },
+          "centerDeltaFromCutoffPx": 85
+        }
+      }
+    },
+    {
+      "motif": "low-wall",
+      "blockerId": "village-block-19-2",
+      "ownerBackgroundIds": [
+        "sundrop-village-base-image",
+        "sundrop-village-foreground-image"
+      ],
+      "crop": {
+        "left": 36,
+        "top": 404,
+        "width": 760,
+        "height": 440
+      },
+      "blocker": {
+        "world": {
+          "id": "village-block-19-2",
+          "x": 672,
+          "y": 4976,
+          "width": 704,
+          "height": 32
+        },
+        "local": {
+          "id": "village-block-19-2",
+          "x": 416,
+          "y": 624,
+          "width": 704,
+          "height": 32
+        }
+      },
+      "foregroundControlRect": {
+        "id": "village-block-19-2",
+        "x": 416,
+        "y": 591.5,
+        "width": 720,
+        "height": 31,
+        "kind": "foreground",
+        "blockerBottom": 640,
+        "bottom": 607
+      },
+      "cutoff": {
+        "localY": 607,
+        "worldY": 4959,
+        "blockerBottomWorldY": 4992
+      },
+      "player": {
+        "behind": {
+          "semantic": "behind/north: player center is north of the authored cutoff and the foreground occludes the lower silhouette",
+          "local": {
+            "x": 416,
+            "y": 588
+          },
+          "world": {
+            "x": 672,
+            "y": 4940
+          },
+          "centerDeltaFromCutoffPx": -19
+        },
+        "front": {
+          "semantic": "front/south: player center is south of the authored cutoff and remains readable",
+          "local": {
+            "x": 416,
+            "y": 660
+          },
+          "world": {
+            "x": 672,
+            "y": 5012
+          },
+          "centerDeltaFromCutoffPx": 53
+        }
+      }
+    }
+  ],
+  "outputs": {
+    "village-obstacle-proof-base.png": {
+      "path": "docs/superpowers/reports/img/hpa-398/village-obstacle-proof-base.png",
+      "sha256": "2e98c4c43d3cd4333f298d36f81535ca38b6c800fdb8415a944314b15933a7c6"
+    },
+    "village-obstacle-proof-foreground.png": {
+      "path": "docs/superpowers/reports/img/hpa-398/village-obstacle-proof-foreground.png",
+      "sha256": "af7b06e8c3c86836337ab53cbdf25f76925a1f67735c0d9db9499f376e7d110f"
+    },
+    "village-obstacle-proof-composite.png": {
+      "path": "docs/superpowers/reports/img/hpa-398/village-obstacle-proof-composite.png",
+      "sha256": "a99645a6aec26deab3c661de63c1721979f09f5a0352e55c61f9c698e83e34b4"
+    },
+    "village-obstacle-proof-crop-edges.png": {
+      "path": "docs/superpowers/reports/img/hpa-398/village-obstacle-proof-crop-edges.png",
+      "sha256": "84d3f0123ab9037a6e735d7ed59a5cd0ac2a3947dd182ddd09298aba779d08a7"
+    },
+    "village-obstacle-proof-corridor-seam.png": {
+      "path": "docs/superpowers/reports/img/hpa-398/village-obstacle-proof-corridor-seam.png",
+      "sha256": "158b26ee88a311ab6fac9d955f9cab00d87cd2b78f26f66cf0b133556236f9ab"
+    },
+    "village-obstacle-proof-hedge-behind.png": {
+      "path": "docs/superpowers/reports/img/hpa-398/village-obstacle-proof-hedge-behind.png",
+      "sha256": "2278acdc0ebb8ff22a7f6b6f22c6faa5cb00538babbf069275a964bea49826ce"
+    },
+    "village-obstacle-proof-hedge-front.png": {
+      "path": "docs/superpowers/reports/img/hpa-398/village-obstacle-proof-hedge-front.png",
+      "sha256": "c1494cc01035552889620af005ddb1a4b69c8a804db3956ce452f31e51ecad28"
+    },
+    "village-obstacle-proof-wall-behind.png": {
+      "path": "docs/superpowers/reports/img/hpa-398/village-obstacle-proof-wall-behind.png",
+      "sha256": "18f23562c02e81c5f3c3714240ec42e5e547837d135358581256776fc7cb401b"
+    },
+    "village-obstacle-proof-wall-front.png": {
+      "path": "docs/superpowers/reports/img/hpa-398/village-obstacle-proof-wall-front.png",
+      "sha256": "cb7ec615cecd7c0e8b0f124ba34ffdb97519ed6d0a7bfb943acf7c084779da7a"
+    }
+  }
+}

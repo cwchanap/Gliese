@@ -1,0 +1,69 @@
+$ vite build
+vite v8.0.10 building client environment for production...
+[2Ktransforming...✓ 194 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/index.html                                                  0.55 kB │ gzip:   0.32 kB
+dist/assets/spectral-cyrillic-ext-400-normal--n_iQ4wr.woff       4.34 kB
+dist/assets/spectral-cyrillic-ext-500-normal-B5u3KHyE.woff       4.56 kB
+dist/assets/spectral-cyrillic-ext-600-normal-BVATWin6.woff       4.59 kB
+dist/assets/spectral-vietnamese-400-normal-CWkMWCzb.woff         5.70 kB
+dist/assets/spectral-vietnamese-500-normal-BfZg6KYt.woff         5.74 kB
+dist/assets/spectral-vietnamese-600-normal-esmjhrFa.woff         5.74 kB
+dist/assets/spectral-cyrillic-ext-400-normal-B4-YHs9i.woff2      6.52 kB
+dist/assets/spectral-cyrillic-ext-500-normal-bcG1qx3J.woff2      6.72 kB
+dist/assets/spectral-cyrillic-ext-600-normal-CvRHnPuy.woff2      6.79 kB
+dist/assets/spectral-vietnamese-400-normal-C7CRHYqk.woff2        7.67 kB
+dist/assets/spectral-vietnamese-500-normal-qnENts6X.woff2        7.72 kB
+dist/assets/spectral-vietnamese-600-normal-ZNiwCzjU.woff2        7.87 kB
+dist/assets/cinzel-latin-ext-900-normal-CWXxiu5r.woff2           8.05 kB
+dist/assets/cinzel-latin-ext-500-normal-1Z8Q-7rh.woff2           8.18 kB
+dist/assets/cinzel-latin-ext-700-normal-C24KFjuG.woff2           8.25 kB
+dist/assets/cinzel-latin-ext-600-normal-BEFdM_VE.woff2           8.35 kB
+dist/assets/cinzel-latin-ext-900-normal-BlZZvP7K.woff            9.53 kB
+dist/assets/cinzel-latin-ext-500-normal-BxIh9iwm.woff            9.67 kB
+dist/assets/cinzel-latin-ext-600-normal-BY9Mq9iK.woff            9.78 kB
+dist/assets/cinzel-latin-ext-700-normal-CORa-yIv.woff            9.81 kB
+dist/assets/spectral-cyrillic-400-normal-X3p2PSzL.woff          11.69 kB
+dist/assets/spectral-cyrillic-500-normal-CNC_J6mt.woff          13.12 kB
+dist/assets/spectral-cyrillic-600-normal-veT-ELBO.woff          13.20 kB
+dist/assets/cinzel-latin-900-normal-BI3z7Tow.woff2              14.80 kB
+dist/assets/cinzel-latin-500-normal-B-2dbOfA.woff2              15.04 kB
+dist/assets/cinzel-latin-700-normal-Dkw14w9r.woff2              15.18 kB
+dist/assets/cinzel-latin-600-normal-Dd5YO2UX.woff2              15.20 kB
+dist/assets/spectral-cyrillic-400-normal-Bx9Tn3WZ.woff2         15.37 kB
+dist/assets/spectral-latin-ext-400-normal-BHbqXr-7.woff         16.59 kB
+dist/assets/spectral-cyrillic-500-normal-medSbGbm.woff2         16.61 kB
+dist/assets/spectral-cyrillic-600-normal-Dl75bDKp.woff2         16.90 kB
+dist/assets/cinzel-latin-900-normal-t_fSDEbn.woff               17.06 kB
+dist/assets/spectral-latin-ext-500-normal-Bmnp8FUT.woff         17.07 kB
+dist/assets/spectral-latin-ext-600-normal-DnKmvInL.woff         17.10 kB
+dist/assets/spectral-latin-400-normal-D34IWA1h.woff             17.33 kB
+dist/assets/cinzel-latin-500-normal-DMNTwV-V.woff               17.39 kB
+dist/assets/cinzel-latin-600-normal-CH_LB4su.woff               17.50 kB
+dist/assets/cinzel-latin-700-normal-C-gK7hA8.woff               17.52 kB
+dist/assets/spectral-latin-500-normal-PrYyf_gG.woff             18.45 kB
+dist/assets/spectral-latin-600-normal-DXnQJnYb.woff             18.51 kB
+dist/assets/spectral-latin-ext-400-normal-XDLFwhqg.woff2        20.24 kB
+dist/assets/spectral-latin-ext-500-normal-CC9VEg_t.woff2        20.64 kB
+dist/assets/spectral-latin-ext-600-normal-DKlDBbgb.woff2        20.82 kB
+dist/assets/spectral-latin-400-normal-CTVgUekv.woff2            21.69 kB
+dist/assets/spectral-latin-500-normal-nNjq7_Cd.woff2            22.83 kB
+dist/assets/spectral-latin-600-normal-DE3OxvnQ.woff2            22.93 kB
+dist/assets/index-Bd2GdfHc.css                                  80.41 kB │ gzip:  14.23 kB
+dist/assets/BattleScene-BQ4qAeHk.js                              0.07 kB │ gzip:   0.08 kB
+dist/assets/createGame-BwBT9vUD.js                               1.16 kB │ gzip:   0.58 kB
+dist/assets/BootScene-sjlpYHKi.js                                2.33 kB │ gzip:   0.98 kB
+dist/assets/browser-fixture-BQ2sKsyD.js                          4.02 kB │ gzip:   1.22 kB
+dist/assets/window-CP5RqvVz.js                                  14.13 kB │ gzip:   3.44 kB
+dist/assets/index-s9O0eh0y.js                                   76.25 kB │ gzip:  23.39 kB
+dist/assets/WorldScene-DnafPFsl.js                              76.62 kB │ gzip:  20.98 kB
+dist/assets/store-Bn7Rq_Kb.js                                  169.52 kB │ gzip:  44.93 kB
+dist/assets/phaser.esm-erw2nkQq.js                           1,353.44 kB │ gzip: 351.51 kB
+
+[plugin builtin:vite-reporter]
+(!) Some chunks are larger than 500 kB after minification. Consider:
+- Using dynamic import() to code-split the application
+- Use build.rolldownOptions.output.codeSplitting to improve chunking: https://rolldown.rs/reference/OutputOptions.codeSplitting
+- Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.
+✓ built in 1.28s
