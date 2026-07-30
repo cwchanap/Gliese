@@ -51,19 +51,19 @@ dist/assets/spectral-latin-400-normal-CTVgUekv.woff2            21.69 kB
 dist/assets/spectral-latin-500-normal-nNjq7_Cd.woff2            22.83 kB
 dist/assets/spectral-latin-600-normal-DE3OxvnQ.woff2            22.93 kB
 dist/assets/index-Bd2GdfHc.css                                  80.41 kB │ gzip:  14.23 kB
-dist/assets/BattleScene-BQ4qAeHk.js                              0.07 kB │ gzip:   0.08 kB
-dist/assets/createGame-BwBT9vUD.js                               1.16 kB │ gzip:   0.58 kB
-dist/assets/BootScene-sjlpYHKi.js                                2.33 kB │ gzip:   0.98 kB
+dist/assets/BattleScene-Bx-SSLCB.js                              0.07 kB │ gzip:   0.08 kB
+dist/assets/createGame-DXfUd7V5.js                               1.16 kB │ gzip:   0.58 kB
+dist/assets/BootScene-O_XjFs8w.js                                2.33 kB │ gzip:   0.98 kB
 dist/assets/browser-fixture-BQ2sKsyD.js                          4.02 kB │ gzip:   1.22 kB
-dist/assets/window-CP5RqvVz.js                                  14.13 kB │ gzip:   3.44 kB
-dist/assets/index-s9O0eh0y.js                                   76.25 kB │ gzip:  23.39 kB
-dist/assets/WorldScene-DnafPFsl.js                              76.62 kB │ gzip:  20.98 kB
+dist/assets/window-BU4WQnkm.js                                  14.13 kB │ gzip:   3.44 kB
+dist/assets/WorldScene-B5FWE6f8.js                              76.12 kB │ gzip:  21.02 kB
+dist/assets/index-DWoom7Jf.js                                   76.25 kB │ gzip:  23.39 kB
 dist/assets/store-Bn7Rq_Kb.js                                  169.52 kB │ gzip:  44.93 kB
 dist/assets/phaser.esm-erw2nkQq.js                           1,353.44 kB │ gzip: 351.51 kB
 
-[plugin builtin:vite-reporter]
+✓ built in 1.05s
+[plugin builtin:vite-reporter] 
 (!) Some chunks are larger than 500 kB after minification. Consider:
 - Using dynamic import() to code-split the application
 - Use build.rolldownOptions.output.codeSplitting to improve chunking: https://rolldown.rs/reference/OutputOptions.codeSplitting
 - Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.
-✓ built in 1.28s

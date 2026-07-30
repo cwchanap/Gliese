@@ -1,6 +1,6 @@
 # HPA-398 Outdoor Baked Obstacle Runtime Validation
 
-Date: 2026-07-29
+Date: 2026-07-30
 
 Status: accepted for branch completion
 
@@ -9,8 +9,13 @@ Status: accepted for branch completion
 The product and acceptance harness proven by this report are exactly:
 
 ```text
-3ca8eaf774ea2fd7184edcf5db10d9bb6a59d578
+513071611d0072aa5052d594d85fe82ca3af265c
 ```
+
+This refresh supersedes the earlier `3ca8eaf` evidence set. A subsequent
+commit modified production, generation, and test files, invalidating the
+"packaging-only" claim of the prior report. The full validation pipeline
+was rerun from the new HEAD to restore provenance integrity.
 
 All runtime JSON, screenshot sidecars, the production-preview build provenance,
 and the raw-evidence hash chain identify that source commit. The commit that
@@ -177,25 +182,26 @@ render failure against the production build.
 | `rtk git diff --exit-code -- docs/superpowers/reports/img/hpa-307` | exit 0 | no output on success |
 | `rtk bun run check` | exit 0; 0 errors / 0 warnings | `docs/superpowers/reports/img/hpa-398/step-2-check.log` |
 | `rtk bun run lint` | exit 0 | `docs/superpowers/reports/img/hpa-398/step-2-lint.log` |
-| `rtk bun run test:unit -- --run --project server --no-file-parallelism` | exit 0; 55 files / 836 tests | `docs/superpowers/reports/img/hpa-398/step-2-test-unit-server-serialized.log` |
+| `rtk bun run test:unit -- --run --project server --no-file-parallelism` | exit 0; 55 files / 837 tests | `docs/superpowers/reports/img/hpa-398/step-2-test-unit-server-serialized.log` |
 | `rtk bun run test:unit -- --run --project client` | exit 0; 3 files / 71 tests | `docs/superpowers/reports/img/hpa-398/step-2-test-unit-client.log` |
 | `rtk bun run build` | exit 0 | `docs/superpowers/reports/img/hpa-398/step-2-build.log` |
 | `rtk bun run test:e2e` | exit 0; 26/26 passed | `docs/superpowers/reports/img/hpa-398/step-2-test-e2e.log` |
 | `rtk bun run tauri build` | exit 0; `.app` and `.dmg` bundled | `docs/superpowers/reports/img/hpa-398/step-3-tauri-build.log` |
 | `GLIESE_BROWSER_ACCEPTANCE_PROFILE=hpa-398 rtk bun docs/superpowers/reports/hpa-307-browser-acceptance.mjs full` | exit 0; `FULL COMPLETE` | aggregate/raw JSON below |
 | independent JSON/hash/matrix verifier | exit 0; 22/22 JSON parsed, all descriptors matched | `docs/superpowers/reports/img/hpa-398/step-4-browser-evidence-verification.log` |
-| final report/evidence integrity verifier | exit 0; all report references, runtime captures, static proofs, logs, JSON, and hashes checked | `docs/superpowers/reports/img/hpa-398/step-7-evidence-integrity.log` |
+| final report/evidence integrity verifier | exit 0; 81/81 report references, 52/52 runtime, 9/9 static proofs, 12/12 logs, 22/22 JSON, 3/3 raw + 1/1 gate hash chain | `docs/superpowers/reports/img/hpa-398/step-7-evidence-integrity.log` |
 
 The client-unit log includes `Error: test error` from the intentional
 GameShell error-boundary fixture; the authoritative summary is 3 files and 71
 tests passed.
 
-During the final `3ca8eaf` browser-evidence refresh, two partial attempts were
-discarded before raw aggregate evidence was emitted: one transiently re-entered
-Villager House 3 and one reached the existing Home Yard convergence guard at
-`x=942.168` rather than target `x=960`. Only their exact untracked `runtime-*`
-outputs were removed. The unchanged third run completed all three 43-leg
-routes with zero snags and is the sole committed runtime evidence set.
+During the final `5130716` browser-evidence refresh, two partial attempts
+were discarded before raw aggregate evidence was emitted: the first
+transiently redirected to an external page before the canvas appeared, and
+the second reached a save-handoff inspection with no localStorage save
+present. Only their exact untracked `runtime-*` outputs were removed. The
+unchanged third run completed all three 43-leg routes with zero snags and is
+the sole committed runtime evidence set.
 
 Earlier diagnostic Tauri attempts encountered the macOS DMG
 Finder/AppleScript boundary. The fresh final exact release command completed
@@ -208,7 +214,7 @@ no-frontend-story-prose assertion, Rust release compilation, and both bundles:
 ## Runtime capture and sidecar inventory
 
 All paths below are relative to the repository root and all runtime sidecars
-identify source commit `3ca8eaf774ea2fd7184edcf5db10d9bb6a59d578`.
+identify source commit `513071611d0072aa5052d594d85fe82ca3af265c`.
 
 ### Renderer and failure states
 
@@ -345,21 +351,21 @@ Raw route and timing evidence:
 - `docs/superpowers/reports/img/hpa-398/runtime-browser-acceptance-summary.json`.
 
 All five carry direct `commit` and `sourceBinding.sourceCommit` fields equal to
-`3ca8eaf774ea2fd7184edcf5db10d9bb6a59d578`.
+`513071611d0072aa5052d594d85fe82ca3af265c`.
 
 The gate and summary cryptographically bind the exact emitted raw bytes:
 
 | Raw artifact | Bytes | SHA-256 |
 | --- | ---: | --- |
-| route acceptance | 279,367 | `e3012ecaa67b6e1ed158294265ed3d3765446b7a8282ab4601237bda09d5f20f` |
-| timing enabled | 419,886 | `73cdd4c3c8f62f61761b7f96fd9200b401cea1c2a7d20f5f349957fa05685977` |
-| timing disabled | 427,667 | `f913465002c086756aa7372fffbf95655e6e5b707b4f2c6c1d7265d0228b3ac9` |
+| route acceptance | 293,050 | `7478bbb57568f3b543492f22601309e7c3c063b8e5bfe14325c7f499d5414788` |
+| timing enabled | 445,161 | `b6a3ae59a0a4aac2ffa9daca48d9986f14aef59bbe0715de2534fd2be17dc907` |
+| timing disabled | 437,851 | `f6f9b0c7061e0591acadd91375b1351d532d2d08507d7e04c8cb2b7e5c193586` |
 
 The summary also binds the exact named performance gate:
 
 ```text
-33,581 bytes
-41c6d7790e5a042707dc60d072025a6a39d23a70b700624fd7b5cc797109e195
+33,599 bytes
+8179c5d88aed4ac58a5fa737ed4bf375881b49e5b1c6b9d5d741ffcd172b9828
 ```
 
 An independent post-run verifier re-read every file and recomputed all four
@@ -383,17 +389,17 @@ Final timed evidence:
 | preload completions | 2 | 0 |
 | successful plane descriptors | 2 | 0 (`disabled`) |
 | observed regional `texImage2D` uploads | exactly two `1792×1536` | 0 |
-| frame samples | 5,510 | 5,578 |
-| median frame time | `8.400000000001455ms` | `8.399999999997817ms` |
-| p95 frame time | `16.700000000000728ms` | `16.700000000000728ms` |
+| frame samples | 6,417 | 6,397 |
+| median frame time | `8.30000000000291ms` | `8.300000000001091ms` |
+| p95 frame time | `9.199999999999818ms` | `9.400000000001455ms` |
 | WebGL context loss | 0 | 0 |
 | uncaught page errors | 0 | 0 |
 | console errors | 0 | 0 |
 | failed responses | 0 | 0 |
 
 The enabled upload count remains exactly two after all seven interior round
-trips, so no regional texture re-upload was observed. The p95 delta is exactly
-`0ms`, passing the `<=2ms` gate. All 14 named performance predicates pass.
+trips, so no regional texture re-upload was observed. The p95 delta is
+`-0.2000000000016371ms`, passing the `<=2ms` gate. All 14 named performance predicates pass.
 
 ## Limitations and conclusion
 
@@ -405,7 +411,7 @@ fresh command built both the application bundle and DMG. Windows packaging and
 execution were not run on this macOS host and are not claimed by this report.
 
 The accepted HPA-398 contract is therefore proven at source commit
-`3ca8eaf774ea2fd7184edcf5db10d9bb6a59d578`: deterministic art and ownership,
+`513071611d0072aa5052d594d85fe82ca3af265c`: deterministic art and ownership,
 zero normal-state duplication, complete degraded fallback, collision
 independence, live occlusion, continuous traversal/save/minimap behavior,
 clean normal runtime diagnostics, bounded decoded allocation, and a passing

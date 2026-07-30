@@ -1,18 +1,18 @@
-RAW routeAcceptance bytes=279367 sha256=e3012ecaa67b6e1ed158294265ed3d3765446b7a8282ab4601237bda09d5f20f
-RAW timingEnabled bytes=419886 sha256=73cdd4c3c8f62f61761b7f96fd9200b401cea1c2a7d20f5f349957fa05685977
-RAW timingOff bytes=427667 sha256=f913465002c086756aa7372fffbf95655e6e5b707b4f2c6c1d7265d0228b3ac9
-GATE bytes=33581 sha256=41c6d7790e5a042707dc60d072025a6a39d23a70b700624fd7b5cc797109e195
+RAW routeAcceptance bytes=293050 sha256=7478bbb57568f3b543492f22601309e7c3c063b8e5bfe14325c7f499d5414788
+RAW timingEnabled bytes=445161 sha256=b6a3ae59a0a4aac2ffa9daca48d9986f14aef59bbe0715de2534fd2be17dc907
+RAW timingOff bytes=437851 sha256=f6f9b0c7061e0591acadd91375b1351d532d2d08507d7e04c8cb2b7e5c193586
+GATE bytes=33599 sha256=8179c5d88aed4ac58a5fa737ed4bf375881b49e5b1c6b9d5d741ffcd172b9828
 PREDICATES 14/14 pass
-MODE foreground-render-failure statuses=rendered/render-failed fallback=7/82
-MODE base-render-failure statuses=render-failed/rendered fallback=21/190
 MODE enabled statuses=rendered/rendered fallback=0/0
 MODE collision-overlay statuses=rendered/rendered fallback=0/0
 MODE background-off statuses=disabled/disabled fallback=21/190
 MODE intercepted-load-failure statuses=missing-texture/missing-texture fallback=21/190
+MODE base-render-failure statuses=render-failed/rendered fallback=21/190
+MODE foreground-render-failure statuses=rendered/render-failed fallback=7/82
 MODE background-off-plus-collision statuses=disabled/disabled fallback=21/190
 ROUTE runtime-route-acceptance.json legs=43 interiors=7 snags=0
 ROUTE runtime-timing-enabled.json legs=43 interiors=7 snags=0
 ROUTE runtime-timing-off.json legs=43 interiors=7 snags=0
-TIMING enabledP95=16.700000000000728 offP95=16.700000000000728 delta=0 gate=2 pass
+TIMING enabledP95=9.199999999999818 offP95=9.400000000001455 delta=-0.2000000000016371 gate=2 pass=True
 JSON_PARSE 22/22 pass
-SOURCE_COMMIT 3ca8eaf774ea2fd7184edcf5db10d9bb6a59d578
+SOURCE_COMMIT 513071611d0072aa5052d594d85fe82ca3af265c
