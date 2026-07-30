@@ -4,7 +4,7 @@ $ tauri build
      Running beforeBuildCommand `bun run build:tauri`
 $ bun run story:check:strict && vite build --mode tauri && bun run story:assert-no-frontend-prose
 $ cargo run --manifest-path src-tauri/Cargo.toml --bin story_check -- --mode=strict --check-generated
-    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.60s
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.58s
      Running `src-tauri/target/debug/story_check --mode=strict --check-generated`
 # Story Integration Report
 
@@ -71,27 +71,27 @@ dist/assets/spectral-latin-400-normal-CTVgUekv.woff2            21.69 kB
 dist/assets/spectral-latin-500-normal-nNjq7_Cd.woff2            22.83 kB
 dist/assets/spectral-latin-600-normal-DE3OxvnQ.woff2            22.93 kB
 dist/assets/index-Bd2GdfHc.css                                  80.41 kB │ gzip:  14.23 kB
-dist/assets/BattleScene-lrXn-5CA.js                              0.07 kB │ gzip:   0.08 kB
+dist/assets/BattleScene-CmNBEytq.js                              0.07 kB │ gzip:   0.08 kB
 dist/assets/rolldown-runtime-lhHHWwHU.js                         0.15 kB │ gzip:   0.15 kB
 dist/assets/core-D_18OPcl.js                                     1.16 kB │ gzip:   0.59 kB
-dist/assets/createGame-BKuo9fju.js                               1.24 kB │ gzip:   0.61 kB
-dist/assets/BootScene-DFS0qPJS.js                                2.33 kB │ gzip:   0.98 kB
+dist/assets/createGame-g1PHdpmP.js                               1.24 kB │ gzip:   0.61 kB
+dist/assets/BootScene-BsLqN4rM.js                                2.33 kB │ gzip:   0.98 kB
 dist/assets/window-CLJNwT_J.js                                  14.12 kB │ gzip:   3.44 kB
-dist/assets/index-CvOCa0G-.js                                   75.49 kB │ gzip:  23.12 kB
-dist/assets/WorldScene-CZJEjQoJ.js                              76.84 kB │ gzip:  21.09 kB
+dist/assets/index-DxQXqZR9.js                                   75.49 kB │ gzip:  23.12 kB
+dist/assets/WorldScene-dYHd43OI.js                              76.34 kB │ gzip:  21.13 kB
 dist/assets/store-CyX9Z8Tl.js                                  169.44 kB │ gzip:  44.89 kB
 dist/assets/phaser.esm-BtxVzLfl.js                           1,353.44 kB │ gzip: 351.51 kB
 
-[plugin builtin:vite-reporter]
+[plugin builtin:vite-reporter] 
 (!) Some chunks are larger than 500 kB after minification. Consider:
 - Using dynamic import() to code-split the application
 - Use build.rolldownOptions.output.codeSplitting to improve chunking: https://rolldown.rs/reference/OutputOptions.codeSplitting
 - Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.
-✓ built in 1.15s
+✓ built in 1.76s
 $ bun tools/assert-no-frontend-story-prose.ts
 No migrated story prose found in dist/.
    Compiling gliese v0.1.0 (/Users/chanwaichan/workspace/Gliese/src-tauri)
-    Finished `release` profile [optimized] target(s) in 39.64s
+    Finished `release` profile [optimized] target(s) in 56.02s
        Built application at: /Users/chanwaichan/workspace/Gliese/src-tauri/target/release/gliese
     Bundling Gliese.app (/Users/chanwaichan/workspace/Gliese/src-tauri/target/release/bundle/macos/Gliese.app)
     Bundling Gliese_0.0.1_aarch64.dmg (/Users/chanwaichan/workspace/Gliese/src-tauri/target/release/bundle/dmg/Gliese_0.0.1_aarch64.dmg)
@@ -99,3 +99,4 @@ No migrated story prose found in dist/.
     Finished 2 bundles at:
         /Users/chanwaichan/workspace/Gliese/src-tauri/target/release/bundle/macos/Gliese.app
         /Users/chanwaichan/workspace/Gliese/src-tauri/target/release/bundle/dmg/Gliese_0.0.1_aarch64.dmg
+

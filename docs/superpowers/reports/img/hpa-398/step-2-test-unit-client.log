@@ -1,12 +1,35 @@
 $ vitest --run --project client
 
- RUN  v4.1.5 /Users/chanwaichan/workspace/Gliese
+[1m[30m[46m RUN [49m[39m[22m [36mv4.1.5 [39m[90m/Users/chanwaichan/workspace/Gliese[39m
 
-12:14:05 PM [vite] (client) [console.error] Error: test error
-    at http://localhost:63315/Users/chanwaichan/workspace/Gliese/src/lib/game/GameShell.svelte.spec.ts?import&browserv=1785352436583:1095:59
-    at async http://localhost:63315/node_modules/@vitest/runner/dist/chunk-artifact.js?v=8d512c83:1903:20
+ [32m✓[39m [30m[43m client (chromium) [49m[39m src/lib/vitest-examples/Welcome.svelte.spec.ts [2m([22m[2m1 test[22m[2m)[22m[32m 9[2mms[22m[39m
+ [32m✓[39m [30m[43m client (chromium) [49m[39m src/lib/game/DialoguePanel.svelte.spec.ts [2m([22m[2m28 tests[22m[2m)[22m[33m 2561[2mms[22m[39m
+     [33m[2m✓[22m[39m emits choose and close callbacks [33m 451[2mms[22m[39m
+     [33m[2m✓[22m[39m exposes the close choice by visible accessible name and emits its choice id [33m 325[2mms[22m[39m
+     [33m[2m✓[22m[39m opens the area map from the command menu and closes it [33m 377[2mms[22m[39m
+     [33m[2m✓[22m[39m renders inventory equipment badges with localized slot labels [33m 393[2mms[22m[39m
+     [33m[2m✓[22m[39m uses the shared JRPG window frame for inventory and quest log overlays [33m 458[2mms[22m[39m
+[90mstderr[2m | src/lib/game/GameShell.svelte.spec.ts[2m:1119:2[22m[2m[2m > [22m[2mGameShell error handling[2m > [22m[2mshows error banner when game fails to load
+[22m[39m[Error: test error]
+ [32m✓[39m [30m[43m client (chromium) [49m[39m src/lib/game/GameShell.svelte.spec.ts [2m([22m[2m42 tests[22m[2m)[22m[33m 7577[2mms[22m[39m
+     [33m[2m✓[22m[39m keeps coin flash alive across unrelated HUD updates before the timer expires [33m 635[2mms[22m[39m
+     [33m[2m✓[22m[39m keeps level-up flash alive across unrelated HUD updates before the timer expires [33m 617[2mms[22m[39m
+     [33m[2m✓[22m[39m renders a blocking victory summary and dismisses it through the HUD bridge [33m 384[2mms[22m[39m
+     [33m[2m✓[22m[39m disables equipped item removal while battle is locked [33m 380[2mms[22m[39m
+     [33m[2m✓[22m[39m opens from the command menu and switches tabs [33m 384[2mms[22m[39m
+     [33m[2m✓[22m[39m renders sell tab when sellable items are available [33m 319[2mms[22m[39m
+     [33m[2m✓[22m[39m excludes tabindex -1 buttons from shop focus trap [33m 326[2mms[22m[39m
+     [33m[2m✓[22m[39m closes on Escape key [33m 367[2mms[22m[39m
+     [33m[2m✓[22m[39m opens and closes from the command menu [33m 359[2mms[22m[39m
+     [33m[2m✓[22m[39m uses a consumable item on double-click [33m 902[2mms[22m[39m
+     [33m[2m✓[22m[39m equips an unequipped item on double-click [33m 495[2mms[22m[39m
+     [33m[2m✓[22m[39m renders key items in the key items tab [33m 451[2mms[22m[39m
+     [33m[2m✓[22m[39m buys an item on double-click when affordable [33m 366[2mms[22m[39m
+     [33m[2m✓[22m[39m does not emit buy command when wallet cannot afford the item [33m 325[2mms[22m[39m
+     [33m[2m✓[22m[39m sells an item on double-click [33m 350[2mms[22m[39m
 
- Test Files  3 passed (3)
-      Tests  71 passed (71)
-   Start at  12:13:54
-   Duration  11.29s (transform 0ms, setup 0ms, import 3.06s, tests 10.80s, environment 0ms)
+[2m Test Files [22m [1m[32m3 passed[39m[22m[90m (3)[39m
+[2m      Tests [22m [1m[32m71 passed[39m[22m[90m (71)[39m
+[2m   Start at [22m 22:31:42
+[2m   Duration [22m 10.77s[2m (transform 0ms, setup 0ms, import 2.52s, tests 10.15s, environment 0ms)[22m
+
