@@ -36,12 +36,12 @@
 - `src/lib/game/content/backgrounds/meadow-entry-source-catalog.ts` — canonical source-fragment catalog and exact source lookup.
 - `src/lib/game/content/backgrounds/meadow-entry-authoring-layout.ts` — hand-authored region partitions, `pathsRegion` ownership, cross-region attachments, and outlier declarations.
 - `src/lib/game/content/backgrounds/meadow-entry-bake-ownership.ts` — explicit per-source bake/fallback disposition and HPA-406 runtime obligation.
-- `src/lib/game/content/backgrounds/meadow-entry-crop-manifest.ts` — approved crops, edge clamps, overlaps, corner groups, runtime baked/fallback coverage, filenames, texture keys, draw order, and computed budgets.
+- `src/lib/game/content/backgrounds/meadow-entry-crop-manifest.ts` — approved crops, edge clamps, overlaps, route mouths, corner groups, runtime baked/fallback coverage, filenames, texture keys, draw order, and computed budgets.
 - `src/lib/game/content/backgrounds/meadow-entry-controls.ts` — deterministic control inputs, stable serialization, SVG/JSON renderers, source/authoring/combined fingerprints, and fixed inventory.
 - `src/lib/game/content/generated/meadow-entry-art-control.ts` — generated combined control fingerprint.
 - `src/lib/game/content/approvals/meadow-entry-controls.ts` — reviewed control/crop/storage approval data.
 - `tools/propose-meadow-entry-authoring-layout.ts` — source inventory, outlier, partition, candidate crop, handoff, corner, and coverage proposal report.
-- `tools/export-meadow-entry-art-controls.ts` — fixed-inventory deterministic control exporter.
+- `tools/export-meadow-entry-art-controls.ts` — fixed-inventory deterministic control exporter with write and `--check` modes.
 - `tools/approve-meadow-entry-controls.ts` — writes reviewed approval data from generated artifacts after explicit review.
 - `tools/verify-meadow-entry-art-storage.ts` — Git LFS prerequisite, pointer, object, and materialization verifier.
 - `artifacts/meadow-entry/hpa-399/lfs-canary.png` — one-pixel LFS-tracked canary used only to prove storage.
@@ -148,8 +148,6 @@ describe('meadow-entry art storage', () => {
 
 - [ ] **Step 2: Run the test and verify it fails**
 
-Run:
-
 ```bash
 rtk bun run test:unit -- --run src/lib/game/content/backgrounds/meadow-entry-storage.test.ts
 ```
@@ -177,8 +175,6 @@ Implement `meadow-entry-storage.ts` with the exact constant above and reject any
 
 - [ ] **Step 4: Generate and track the one-pixel canary through LFS**
 
-Run:
-
 ```bash
 rtk git lfs install
 rtk bun --eval "import sharp from 'sharp'; await sharp({create:{width:1,height:1,channels:4,background:{r:0,g:0,b:0,alpha:0}}}).png().toFile('artifacts/meadow-entry/hpa-399/lfs-canary.png')"
@@ -194,14 +190,15 @@ Expected: the exact canary path is printed.
 
 ```text
 git lfs version
-git check-attr filter -- <canary path>
-git lfs ls-files --name-only
-git lfs fsck
-git show :<canary path>  # must be an LFS pointer
-git hash-object <canary path>  # materialized file must exist and be non-pointer
+git check-attr filter -- <canary path>        => filter: lfs
+git lfs ls-files --name-only                  => contains the canary
+git lfs fsck                                  => success
+git show :<canary path>                       => starts with version https://git-lfs.github.com/spec/v1
+working-tree canary bytes                     => start with the eight-byte PNG signature
+working-tree canary Sharp metadata            => width=1, height=1
 ```
 
-Exit non-zero with a path-specific message when any prerequisite or object is missing.
+Exit non-zero with a path-specific message when any prerequisite, pointer, object, or materialized PNG is missing.
 
 Add:
 
@@ -273,8 +270,15 @@ export interface RawPixelBounds {
   bottom: number;
 }
 
-export interface PixelBounds extends RawPixelBounds {}
+export type PixelBounds = RawPixelBounds;
 export type WorldEdge = 'left' | 'right' | 'top' | 'bottom';
+export interface Insets {
+  top: number;
+  right: number;
+  bottom: number;
+  left: number;
+}
+
 export const MEADOW_ENTRY_WORLD_BOUNDS: PixelBounds;
 export const MEADOW_ENTRY_TILE_SIZE_PX = 32;
 export const MEADOW_ENTRY_MIN_HANDOFF_PX = 128;
@@ -319,10 +323,12 @@ describe('meadow-entry authoring geometry', () => {
   });
 
   it('computes union area without double-counting overlaps', () => {
-    expect(unionArea([
-      { left: 0, top: 0, right: 32, bottom: 32 },
-      { left: 16, top: 0, right: 48, bottom: 32 }
-    ])).toBe(48 * 32);
+    expect(
+      unionArea([
+        { left: 0, top: 0, right: 32, bottom: 32 },
+        { left: 16, top: 0, right: 48, bottom: 32 }
+      ])
+    ).toBe(48 * 32);
   });
 
   it('snaps candidate crops outward to the tile grid', () => {
@@ -414,6 +420,7 @@ export interface MeadowEntrySourceRecord {
   visualCapable: boolean;
 }
 
+export function meadowEntrySourceKey(ref: MeadowEntrySourceRef): string;
 export function collectMeadowEntrySourceCatalog(): readonly MeadowEntrySourceRecord[];
 export function resolveMeadowEntrySource(ref: MeadowEntrySourceRef): MeadowEntrySourceRecord;
 ```
@@ -448,21 +455,27 @@ describe('meadow-entry source catalog', () => {
   });
 
   it('includes inline meadowBoundsRegion sources', () => {
-    expect(resolveMeadowEntrySource({
-      sourceType: 'ground-patch',
-      sourceId: 'sundrop-southwest-ocean-patch'
-    }).fragmentId).toBe('outer-boundary');
-    expect(resolveMeadowEntrySource({
-      sourceType: 'blocker',
-      sourceId: 'meadow-east-boundary'
-    }).fragmentId).toBe('outer-boundary');
+    expect(
+      resolveMeadowEntrySource({
+        sourceType: 'ground-patch',
+        sourceId: 'sundrop-southwest-ocean-patch'
+      }).fragmentId
+    ).toBe('outer-boundary');
+    expect(
+      resolveMeadowEntrySource({
+        sourceType: 'blocker',
+        sourceId: 'meadow-east-boundary'
+      }).fragmentId
+    ).toBe('outer-boundary');
   });
 
   it('preserves source-fragment provenance lost by mergeRegions', () => {
-    expect(resolveMeadowEntrySource({
-      sourceType: 'ground-patch',
-      sourceId: 'sundrop-forest-road-east'
-    }).fragmentId).toBe('wildwood');
+    expect(
+      resolveMeadowEntrySource({
+        sourceType: 'ground-patch',
+        sourceId: 'sundrop-forest-road-east'
+      }).fragmentId
+    ).toBe('wildwood');
   });
 });
 ```
@@ -535,13 +548,18 @@ export interface MeadowEntryAuthoringRegion {
   neighbors: readonly MeadowEntryAuthoringRegionId[];
 }
 
-export const MEADOW_ENTRY_AUTHORING_REGIONS: readonly MeadowEntryAuthoringRegion[];
-export const MEADOW_ENTRY_PRIMARY_SOURCE_OWNERS: Readonly<Record<string, MeadowEntryAuthoringRegionId>>;
-export const MEADOW_ENTRY_CROSS_REGION_COVERAGE: readonly {
+export interface MeadowEntryCrossRegionCoverage {
   sourceKey: string;
   bounds: readonly PixelBounds[];
   secondaryRegions: readonly MeadowEntryAuthoringRegionId[];
-}[];
+}
+
+export const MEADOW_ENTRY_AUTHORING_REGIONS: readonly MeadowEntryAuthoringRegion[];
+export const MEADOW_ENTRY_PRIMARY_SOURCE_OWNERS: Readonly<
+  Record<string, MeadowEntryAuthoringRegionId>
+>;
+export const MEADOW_ENTRY_CROSS_REGION_COVERAGE: readonly MeadowEntryCrossRegionCoverage[];
+export function validateMeadowEntryAuthoringLayout(): void;
 ```
 
 - [ ] **Step 1: Write the proposal tool before the registry**
@@ -570,7 +588,7 @@ Expected: proposal JSON/SVG are generated without changing runtime source files.
 ```ts
 import { describe, expect, it } from 'vitest';
 import {
-  MEADOW_ENTRY_AUTHORING_REGIONS,
+  MEADOW_ENTRY_CROSS_REGION_COVERAGE,
   MEADOW_ENTRY_PRIMARY_SOURCE_OWNERS,
   validateMeadowEntryAuthoringLayout
 } from './meadow-entry-authoring-layout';
@@ -589,12 +607,12 @@ describe('meadow-entry authoring layout', () => {
     );
   });
 
-  it('does not inflate Wildwood to the raw fragment envelope', () => {
-    const wildwood = MEADOW_ENTRY_AUTHORING_REGIONS.find(({ id }) => id === 'wildwood')!;
-    expect(wildwood.reviewBounds.left).toBeGreaterThanOrEqual(4096);
-    expect(MEADOW_ENTRY_PRIMARY_SOURCE_OWNERS['ground-patch:sundrop-forest-road-east']).not.toBe(
-      undefined
-    );
+  it('resolves the Wildwood road outlier explicitly', () => {
+    const key = 'ground-patch:sundrop-forest-road-east';
+    const owner = MEADOW_ENTRY_PRIMARY_SOURCE_OWNERS[key];
+    const attachment = MEADOW_ENTRY_CROSS_REGION_COVERAGE.find(({ sourceKey }) => sourceKey === key);
+    expect(owner).toBeDefined();
+    expect(owner !== 'wildwood' || attachment !== undefined).toBe(true);
   });
 });
 ```
@@ -678,6 +696,13 @@ export type MeadowEntryRuntimeOwnershipRequirement =
   | 'fallback-tile'
   | 'none';
 
+export interface MeadowEntryBakeOwnershipEntry {
+  ref: MeadowEntrySourceRef;
+  primaryRegionId: MeadowEntryAuthoringRegionId;
+  disposition: MeadowEntryBakeDisposition;
+  runtimeRequirement: MeadowEntryRuntimeOwnershipRequirement;
+}
+
 export const MEADOW_ENTRY_FOREGROUND_FRONT_CUTOFF_PX: number;
 export const MEADOW_ENTRY_BAKE_OWNERSHIP: readonly MeadowEntryBakeOwnershipEntry[];
 export function validateMeadowEntryBakeOwnership(): void;
@@ -720,7 +745,8 @@ describe('meadow-entry bake ownership', () => {
 
   it('classifies the southwest ocean patch explicitly', () => {
     const entry = MEADOW_ENTRY_BAKE_OWNERSHIP.find(
-      ({ ref }) => ref.sourceType === 'ground-patch' && ref.sourceId === 'sundrop-southwest-ocean-patch'
+      ({ ref }) =>
+        ref.sourceType === 'ground-patch' && ref.sourceId === 'sundrop-southwest-ocean-patch'
     );
     expect(['base-underlay', 'runtime-fallback-only']).toContain(entry?.disposition.mode);
   });
@@ -785,10 +811,24 @@ export interface MeadowEntryApprovedCrop {
   preClampBounds: PixelBounds;
   edgeClamp: { sides: readonly WorldEdge[]; reason: string } | null;
   bounds: PixelBounds;
+  expectedDimensions: { width: number; height: number };
   baseFilename: string;
   foregroundFilename: string | null;
   textureKeys: { base: string; foreground: string | null };
   drawOrder: number;
+  sourceRegionIds: readonly MeadowEntryAuthoringRegionId[];
+  neighborIds: readonly string[];
+  overlapIds: readonly string[];
+  alphaPolicy: {
+    base: 'opaque';
+    foreground: 'sparse-eligible-mask' | null;
+  };
+  sizeBudgets: {
+    baseReviewBytes: number;
+    baseHardBytes: number;
+    foregroundReviewBytes: number | null;
+    foregroundHardBytes: number | null;
+  };
 }
 
 export interface MeadowEntryOverlap {
@@ -796,6 +836,8 @@ export interface MeadowEntryOverlap {
   firstCropId: string;
   secondCropId: string;
   bounds: PixelBounds;
+  routeMouth: { sharedAxis: 'x' | 'y'; bounds: PixelBounds };
+  minimumSharedPixels: 128;
   planePolicy: 'base-only' | 'base-and-foreground';
   ownerCropId: string;
   cornerGroupId?: string;
@@ -805,9 +847,19 @@ export type MeadowEntryRuntimeCoverage =
   | { mode: 'baked'; bounds: PixelBounds; cropIds: readonly string[] }
   | { mode: 'fallback-tile'; bounds: PixelBounds; reason: string };
 
+export interface MeadowEntryCropBudgetSummary {
+  exportAreaRatio: number;
+  overlapArea: number;
+  aggregateBaseReviewBytes: number;
+  aggregateBaseHardBytes: number;
+  aggregateForegroundReviewBytes: number;
+  aggregateForegroundHardBytes: number;
+}
+
 export const MEADOW_ENTRY_APPROVED_CROPS: readonly MeadowEntryApprovedCrop[];
 export const MEADOW_ENTRY_APPROVED_OVERLAPS: readonly MeadowEntryOverlap[];
 export const MEADOW_ENTRY_RUNTIME_COVERAGE: readonly MeadowEntryRuntimeCoverage[];
+export const MEADOW_ENTRY_CROP_BUDGET_SUMMARY: MeadowEntryCropBudgetSummary;
 export function validateMeadowEntryCropContract(): void;
 ```
 
@@ -822,7 +874,7 @@ import {
 } from './meadow-entry-crop-manifest';
 
 describe('meadow-entry crop contract', () => {
-  it('validates exact crops, overlaps, clamps, corners, and coverage', () => {
+  it('validates exact crops, overlaps, clamps, corners, budgets, and coverage', () => {
     expect(() => validateMeadowEntryCropContract()).not.toThrow();
   });
 
@@ -831,6 +883,10 @@ describe('meadow-entry crop contract', () => {
     expect(crop.derivation).toEqual({ mode: 'exact-bounds' });
     expect(crop.bounds).toEqual({ left: 256, top: 4352, right: 2048, bottom: 5888 });
     expect(crop.foregroundFilename).toBeNull();
+    expect(crop.sizeBudgets).toMatchObject({
+      baseReviewBytes: 4 * 1024 * 1024,
+      baseHardBytes: 8 * 1024 * 1024
+    });
   });
 
   it('declares every edge clamp and compares post-clamp bounds', () => {
@@ -842,12 +898,13 @@ describe('meadow-entry crop contract', () => {
     }
   });
 
-  it('provides at least 128px at every route handoff', () => {
+  it('provides 128px on the declared shared axis at every route mouth', () => {
     for (const overlap of MEADOW_ENTRY_APPROVED_OVERLAPS) {
-      expect(Math.max(
-        overlap.bounds.right - overlap.bounds.left,
-        overlap.bounds.bottom - overlap.bounds.top
-      )).toBeGreaterThanOrEqual(128);
+      const sharedPixels =
+        overlap.routeMouth.sharedAxis === 'x'
+          ? overlap.bounds.right - overlap.bounds.left
+          : overlap.bounds.bottom - overlap.bounds.top;
+      expect(sharedPixels).toBeGreaterThanOrEqual(overlap.minimumSharedPixels);
     }
   });
 });
@@ -867,7 +924,7 @@ Extend the proposal tool to:
 2. snap outward to `32`;
 3. record pre-clamp bounds;
 4. clamp only declared world edges;
-5. calculate intersections, route-mouth widths, triple intersections, crop-union area, and uncovered baked source extents;
+5. calculate intersections, route-mouth axes and widths, triple intersections, crop-union area, overlap area, aggregate budgets, and uncovered baked source extents;
 6. propose base-only `outer-boundary-*` crops when a baked source or camera-visible reviewed edge is otherwise uncovered.
 
 Run:
@@ -897,7 +954,7 @@ rtk bun run test:unit -- --run \
   src/lib/game/content/backgrounds/meadow-entry-bake-ownership.test.ts
 ```
 
-Expected: zero unexplained runtime coverage area, every baked source covered, all handoffs ≥128px, and all corners declared.
+Expected: zero unexplained runtime coverage area, every baked source covered, all route mouths ≥128px on their declared axes, all corners declared, and aggregate budgets equal the sum of per-crop budgets.
 
 - [ ] **Step 6: Commit**
 
@@ -928,8 +985,35 @@ rtk git commit -m "feat(hpa-399): freeze meadow-entry crop and coverage contract
 - Produces:
 
 ```ts
+export interface MeadowEntryControlInputs {
+  mapId: 'meadow-entry';
+  worldBounds: PixelBounds;
+  tileSizePx: 32;
+  playerCollisionRadiusPx: 12;
+  foregroundFrontCutoffPx: 33;
+  sourceCatalog: readonly MeadowEntrySourceRecord[];
+  authoringRegions: readonly MeadowEntryAuthoringRegion[];
+  primarySourceOwners: Readonly<Record<string, MeadowEntryAuthoringRegionId>>;
+  crossRegionCoverage: readonly MeadowEntryCrossRegionCoverage[];
+  bakeOwnership: readonly MeadowEntryBakeOwnershipEntry[];
+  crops: readonly MeadowEntryApprovedCrop[];
+  overlaps: readonly MeadowEntryOverlap[];
+  runtimeCoverage: readonly MeadowEntryRuntimeCoverage[];
+  cropBudgetSummary: MeadowEntryCropBudgetSummary;
+  strictCollisionRects: readonly PixelBounds[];
+  landmarkCollisionRects: readonly PixelBounds[];
+  protectedRects: readonly PixelBounds[];
+  predecessor: {
+    hpa307ArtifactHashes: Readonly<Record<string, string>>;
+    hpa398ControlFingerprint: string;
+    hpa398BaseSha256: string;
+    hpa398ForegroundSha256: string;
+  };
+  storage: typeof MEADOW_ENTRY_ART_STORAGE;
+  sourceFileHashes: Readonly<Record<string, string>>;
+}
+
 export const MEADOW_ENTRY_CONTROL_FILENAMES: readonly string[];
-export interface MeadowEntryControlInputs { /* canonical source and registry data */ }
 export function buildMeadowEntryControlInputs(): MeadowEntryControlInputs;
 export function renderMeadowEntryControls(
   inputs: MeadowEntryControlInputs
@@ -981,32 +1065,39 @@ rtk bun run test:unit -- --run src/lib/game/content/backgrounds/meadow-entry-con
 
 - [ ] **Step 3: Implement canonical inputs and renderers**
 
-Follow the existing HPA-398 stable serializer and SHA-256 pattern. Hash sorted kind-qualified sources, source file hashes, layout, ownership, crops, overlaps, coverage, storage configuration, budgets, HPA-398 approvals, and required HPA-307 historical hashes.
+Follow the existing HPA-398 stable serializer and SHA-256 pattern. Hash sorted kind-qualified sources, source file hashes, layout, ownership, crops, overlaps, route mouths, coverage, storage configuration, budgets, HPA-398 approvals, and required HPA-307 historical hashes.
 
 All SVGs use `viewBox="0 0 6400 6400"`. Render raw/raster source metadata in JSON and rasterized integer bounds in masks. Render separate baked and fallback coverage masks.
 
-- [ ] **Step 4: Implement the fixed-inventory exporter**
+- [ ] **Step 4: Implement write and check modes**
 
 The exporter must:
 
 - reject writes outside the exact inventory;
-- write to a temporary directory;
-- compare repeated output bytes;
-- atomically replace the generated controls;
-- update only `src/lib/game/content/generated/meadow-entry-art-control.ts` with the combined fingerprint;
+- render all outputs in memory first;
+- in normal mode, write to a temporary directory and atomically replace the generated controls;
+- in `--check` mode, compare rendered bytes with every checked-in output and fail without writing;
+- update only `src/lib/game/content/generated/meadow-entry-art-control.ts` with the combined fingerprint in normal mode;
+- compare the generated module in `--check` mode;
 - refuse to write HPA-307/HPA-398 paths.
 
-- [ ] **Step 5: Run tests and export twice**
+- [ ] **Step 5: Run tests and prove repeated output identity**
 
 ```bash
 rtk bun run test:unit -- --run src/lib/game/content/backgrounds/meadow-entry-controls.test.ts
 rtk bun tools/export-meadow-entry-art-controls.ts
-rtk git diff --exit-code -- docs/superpowers/reports/img/hpa-399/controls src/lib/game/content/generated/meadow-entry-art-control.ts || true
+find docs/superpowers/reports/img/hpa-399/controls -type f -print0 | sort -z | \
+  xargs -0 sha256sum > /tmp/hpa399-controls.before
+sha256sum src/lib/game/content/generated/meadow-entry-art-control.ts >> /tmp/hpa399-controls.before
 rtk bun tools/export-meadow-entry-art-controls.ts
-rtk git diff --exit-code -- docs/superpowers/reports/img/hpa-399/controls src/lib/game/content/generated/meadow-entry-art-control.ts
+find docs/superpowers/reports/img/hpa-399/controls -type f -print0 | sort -z | \
+  xargs -0 sha256sum > /tmp/hpa399-controls.after
+sha256sum src/lib/game/content/generated/meadow-entry-art-control.ts >> /tmp/hpa399-controls.after
+rtk diff -u /tmp/hpa399-controls.before /tmp/hpa399-controls.after
+rtk bun tools/export-meadow-entry-art-controls.ts --check
 ```
 
-Expected: the second export is byte-identical and clean.
+Expected: no hash diff and `--check` passes.
 
 - [ ] **Step 6: Commit**
 
@@ -1037,14 +1128,16 @@ rtk git commit -m "feat(hpa-399): generate full meadow-entry controls"
 - Produces:
 
 ```ts
-export const meadowEntryControlsApproval = {
-  combinedControlFingerprint: string,
-  cropManifestSha256: string,
-  bakeOwnershipSha256: string,
-  storageMode: 'git-lfs',
-  storageConfigurationSha256: string,
-  evidencePath: 'docs/superpowers/reports/2026-07-30-hpa-399-controls-crops-storage-validation.md'
-} as const;
+export interface MeadowEntryControlsApproval {
+  combinedControlFingerprint: string;
+  cropManifestSha256: string;
+  bakeOwnershipSha256: string;
+  storageMode: 'git-lfs';
+  storageConfigurationSha256: string;
+  evidencePath: 'docs/superpowers/reports/2026-07-30-hpa-399-controls-crops-storage-validation.md';
+}
+
+export const meadowEntryControlsApproval: MeadowEntryControlsApproval;
 ```
 
 - [ ] **Step 1: Write the failing asset/approval test**
@@ -1076,7 +1169,7 @@ Add:
 ```json
 "art:controls:meadow-entry": "bun tools/export-meadow-entry-art-controls.ts",
 "art:approve:meadow-entry-controls": "bun tools/approve-meadow-entry-controls.ts",
-"art:validate:meadow-entry-controls": "bun run art:storage:meadow-entry && bun run art:controls:meadow-entry && bun run test:unit -- --run src/lib/game/content/backgrounds/meadow-entry-authoring-geometry.test.ts src/lib/game/content/backgrounds/meadow-entry-storage.test.ts src/lib/game/content/backgrounds/meadow-entry-source-catalog.test.ts src/lib/game/content/backgrounds/meadow-entry-authoring-layout.test.ts src/lib/game/content/backgrounds/meadow-entry-bake-ownership.test.ts src/lib/game/content/backgrounds/meadow-entry-crop-manifest.test.ts src/lib/game/content/backgrounds/meadow-entry-controls.test.ts src/lib/game/content/meadow-entry-controls.asset.test.ts"
+"art:validate:meadow-entry-controls": "bun run art:storage:meadow-entry && bun tools/export-meadow-entry-art-controls.ts --check && bun run test:unit -- --run src/lib/game/content/backgrounds/meadow-entry-authoring-geometry.test.ts src/lib/game/content/backgrounds/meadow-entry-storage.test.ts src/lib/game/content/backgrounds/meadow-entry-source-catalog.test.ts src/lib/game/content/backgrounds/meadow-entry-authoring-layout.test.ts src/lib/game/content/backgrounds/meadow-entry-bake-ownership.test.ts src/lib/game/content/backgrounds/meadow-entry-crop-manifest.test.ts src/lib/game/content/backgrounds/meadow-entry-controls.test.ts src/lib/game/content/meadow-entry-controls.asset.test.ts"
 ```
 
 - [ ] **Step 4: Perform explicit control review before approval**
@@ -1105,7 +1198,7 @@ The approval tool reads generated hashes and writes the exact approval module; i
 rtk bun run art:validate:meadow-entry-controls
 ```
 
-Expected: PASS with no generated diff.
+Expected: PASS without modifying generated files.
 
 - [ ] **Step 6: Commit**
 
@@ -1138,7 +1231,7 @@ rtk bun run art:validate:meadow-entry-controls
 rtk git diff --exit-code
 ```
 
-Expected: clean tree after regeneration.
+Expected: clean tree after validation.
 
 - [ ] **Step 2: Run repository checks**
 
@@ -1169,7 +1262,7 @@ The report must include:
 - source commit and branch;
 - exact generated control fingerprint;
 - crop/overlap/coverage table hashes;
-- crop count, overlap count, corner count, `exportAreaRatio`, baked area, fallback area, unexplained area (`0`);
+- crop count, overlap count, route-mouth count, corner count, `exportAreaRatio`, baked area, fallback area, unexplained area (`0`);
 - every edge clamp and fallback-tile reason;
 - LFS version, canary pointer/object hashes, and CI materialization result;
 - HPA-307/HPA-398 predecessor hashes;
@@ -1200,7 +1293,7 @@ Do not start the visual-master plan until reviewers approve all of the following
 exact authoring partitions
 complete bake/fallback ownership
 HPA-406 decor/fence obligations
-exact crop/overlap/clamp/corner tables
+exact crop/overlap/route-mouth/clamp/corner tables
 zero unexplained runtime coverage
 Git LFS canary materialized in CI
 approved deterministic control fingerprint
