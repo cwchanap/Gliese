@@ -49,6 +49,8 @@ describe('meadow-entry crop manifest', () => {
 				bounds: crop.bounds,
 				dimensions: crop.expectedDimensions,
 				drawOrder: crop.drawOrder,
+				sourceRegionIds: crop.sourceRegionIds,
+				alphaPolicy: crop.alphaPolicy,
 				budgets: crop.sizeBudgets
 			}))
 		).toEqual([
@@ -61,6 +63,8 @@ describe('meadow-entry crop manifest', () => {
 				bounds: { left: 256, top: 4_352, right: 2_048, bottom: 5_888 },
 				dimensions: { width: 1_792, height: 1_536 },
 				drawOrder: 0,
+				sourceRegionIds: ['sundrop-village'],
+				alphaPolicy: { base: 'opaque', foreground: null },
 				budgets: {
 					baseReviewBytes: 4_194_304,
 					baseHardBytes: 8_388_608,
@@ -81,6 +85,8 @@ describe('meadow-entry crop manifest', () => {
 				bounds: { left: 4_832, top: 896, right: 6_272, bottom: 5_504 },
 				dimensions: { width: 1_440, height: 4_608 },
 				drawOrder: 10,
+				sourceRegionIds: ['wildwood', 'tidewatch-coast'],
+				alphaPolicy: { base: 'opaque', foreground: null },
 				budgets: {
 					baseReviewBytes: 25_165_824,
 					baseHardBytes: 37_748_736,
@@ -97,6 +103,8 @@ describe('meadow-entry crop manifest', () => {
 				bounds: { left: 1_408, top: 3_712, right: 3_328, bottom: 5_088 },
 				dimensions: { width: 1_920, height: 1_376 },
 				drawOrder: 100,
+				sourceRegionIds: ['connector-village-crossroads'],
+				alphaPolicy: { base: 'opaque', foreground: 'sparse-eligible-mask' },
 				budgets: {
 					baseReviewBytes: 8_657_044,
 					baseHardBytes: 12_985_566,
@@ -113,6 +121,8 @@ describe('meadow-entry crop manifest', () => {
 				bounds: { left: 3_296, top: 4_416, right: 4_480, bottom: 5_696 },
 				dimensions: { width: 1_184, height: 1_280 },
 				drawOrder: 110,
+				sourceRegionIds: ['connector-crossroads-coast'],
+				alphaPolicy: { base: 'opaque', foreground: 'sparse-eligible-mask' },
 				budgets: {
 					baseReviewBytes: 4_966_056,
 					baseHardBytes: 7_449_084,
@@ -129,6 +139,8 @@ describe('meadow-entry crop manifest', () => {
 				bounds: { left: 2_176, top: 2_432, right: 3_264, bottom: 3_712 },
 				dimensions: { width: 1_088, height: 1_280 },
 				drawOrder: 120,
+				sourceRegionIds: ['connector-crossroads-mistfen'],
+				alphaPolicy: { base: 'opaque', foreground: 'sparse-eligible-mask' },
 				budgets: {
 					baseReviewBytes: 4_563_403,
 					baseHardBytes: 6_845_105,
@@ -145,6 +157,8 @@ describe('meadow-entry crop manifest', () => {
 				bounds: { left: 2_912, top: 2_752, right: 3_712, bottom: 3_232 },
 				dimensions: { width: 800, height: 480 },
 				drawOrder: 130,
+				sourceRegionIds: ['connector-crossroads-silverpine'],
+				alphaPolicy: { base: 'opaque', foreground: 'sparse-eligible-mask' },
 				budgets: {
 					baseReviewBytes: 1_258_292,
 					baseHardBytes: 2_097_152,
@@ -161,6 +175,8 @@ describe('meadow-entry crop manifest', () => {
 				bounds: { left: 3_840, top: 3_584, right: 4_480, bottom: 5_056 },
 				dimensions: { width: 640, height: 1_472 },
 				drawOrder: 140,
+				sourceRegionIds: ['connector-crossroads-wildwood'],
+				alphaPolicy: { base: 'opaque', foreground: 'sparse-eligible-mask' },
 				budgets: {
 					baseReviewBytes: 3_087_008,
 					baseHardBytes: 4_630_512,
@@ -177,6 +193,8 @@ describe('meadow-entry crop manifest', () => {
 				bounds: { left: 2_784, top: 2_496, right: 4_384, bottom: 4_704 },
 				dimensions: { width: 1_600, height: 2_208 },
 				drawOrder: 200,
+				sourceRegionIds: ['crossroads'],
+				alphaPolicy: { base: 'opaque', foreground: 'sparse-eligible-mask' },
 				budgets: {
 					baseReviewBytes: 11_576_280,
 					baseHardBytes: 17_364_419,
@@ -200,6 +218,8 @@ describe('meadow-entry crop manifest', () => {
 				bounds: { left: 2_656, top: 4_320, right: 6_400, bottom: 6_400 },
 				dimensions: { width: 3_744, height: 2_080 },
 				drawOrder: 210,
+				sourceRegionIds: ['tidewatch-coast'],
+				alphaPolicy: { base: 'opaque', foreground: 'sparse-eligible-mask' },
 				budgets: {
 					baseReviewBytes: 25_518_146,
 					baseHardBytes: 38_277_219,
@@ -216,6 +236,8 @@ describe('meadow-entry crop manifest', () => {
 				bounds: { left: 96, top: 288, right: 2_688, bottom: 3_232 },
 				dimensions: { width: 2_592, height: 2_944 },
 				drawOrder: 220,
+				sourceRegionIds: ['mistfen'],
+				alphaPolicy: { base: 'opaque', foreground: 'sparse-eligible-mask' },
 				budgets: {
 					baseReviewBytes: 25_004_763,
 					baseHardBytes: 37_507_145,
@@ -232,6 +254,8 @@ describe('meadow-entry crop manifest', () => {
 				bounds: { left: 2_048, top: 128, right: 3_936, bottom: 3_136 },
 				dimensions: { width: 1_888, height: 3_008 },
 				drawOrder: 230,
+				sourceRegionIds: ['silverpine'],
+				alphaPolicy: { base: 'opaque', foreground: 'sparse-eligible-mask' },
 				budgets: {
 					baseReviewBytes: 18_609_288,
 					baseHardBytes: 27_913_932,
@@ -248,6 +272,8 @@ describe('meadow-entry crop manifest', () => {
 				bounds: { left: 3_712, top: 128, right: 6_400, bottom: 5_056 },
 				dimensions: { width: 2_688, height: 4_928 },
 				drawOrder: 240,
+				sourceRegionIds: ['wildwood'],
+				alphaPolicy: { base: 'opaque', foreground: 'sparse-eligible-mask' },
 				budgets: {
 					baseReviewBytes: 43_406_014,
 					baseHardBytes: 65_109_020,
@@ -315,6 +341,373 @@ describe('meadow-entry crop manifest', () => {
 				preClampBounds: { left: 3_712, top: 128, right: 6_528, bottom: 5_056 },
 				sides: ['right'],
 				bounds: { left: 3_712, top: 128, right: 6_400, bottom: 5_056 }
+			}
+		]);
+	});
+
+	it('freezes the exact reviewed overlap, route-mouth, plane, owner, and corner table', () => {
+		expect(
+			MEADOW_ENTRY_APPROVED_OVERLAPS.map((overlap) => ({
+				id: overlap.id,
+				firstCropId: overlap.firstCropId,
+				secondCropId: overlap.secondCropId,
+				bounds: overlap.bounds,
+				routeMouth: overlap.routeMouth,
+				minimumSharedPixels: overlap.minimumSharedPixels,
+				planePolicy: overlap.planePolicy,
+				ownerCropId: overlap.ownerCropId,
+				cornerGroupId: overlap.cornerGroupId ?? null
+			}))
+		).toEqual([
+			{
+				id: 'overlap-sundrop-village-underlay--village-crossroads-connector',
+				firstCropId: 'sundrop-village-underlay',
+				secondCropId: 'village-crossroads-connector',
+				bounds: { left: 1_408, top: 4_352, right: 2_048, bottom: 5_088 },
+				routeMouth: {
+					sharedAxis: 'y',
+					bounds: { left: 1_408, top: 4_352, right: 2_048, bottom: 5_088 }
+				},
+				minimumSharedPixels: 128,
+				planePolicy: 'base-only',
+				ownerCropId: 'village-crossroads-connector',
+				cornerGroupId: null
+			},
+			{
+				id: 'overlap-outer-boundary-east-forest-lane--tidewatch-coast',
+				firstCropId: 'outer-boundary-east-forest-lane',
+				secondCropId: 'tidewatch-coast',
+				bounds: { left: 4_832, top: 4_320, right: 6_272, bottom: 5_504 },
+				routeMouth: {
+					sharedAxis: 'x',
+					bounds: { left: 4_832, top: 4_320, right: 6_272, bottom: 5_504 }
+				},
+				minimumSharedPixels: 128,
+				planePolicy: 'base-only',
+				ownerCropId: 'tidewatch-coast',
+				cornerGroupId: 'corner-meadow-entry-handoff-network'
+			},
+			{
+				id: 'overlap-outer-boundary-east-forest-lane--wildwood',
+				firstCropId: 'outer-boundary-east-forest-lane',
+				secondCropId: 'wildwood',
+				bounds: { left: 4_832, top: 896, right: 6_272, bottom: 5_056 },
+				routeMouth: {
+					sharedAxis: 'y',
+					bounds: { left: 4_832, top: 896, right: 6_272, bottom: 5_056 }
+				},
+				minimumSharedPixels: 128,
+				planePolicy: 'base-only',
+				ownerCropId: 'wildwood',
+				cornerGroupId: 'corner-meadow-entry-handoff-network'
+			},
+			{
+				id: 'overlap-village-crossroads-connector--crossroads-coast-connector',
+				firstCropId: 'village-crossroads-connector',
+				secondCropId: 'crossroads-coast-connector',
+				bounds: { left: 3_296, top: 4_416, right: 3_328, bottom: 5_088 },
+				routeMouth: {
+					sharedAxis: 'y',
+					bounds: { left: 3_296, top: 4_416, right: 3_328, bottom: 5_088 }
+				},
+				minimumSharedPixels: 128,
+				planePolicy: 'base-and-foreground',
+				ownerCropId: 'crossroads-coast-connector',
+				cornerGroupId: 'corner-meadow-entry-handoff-network'
+			},
+			{
+				id: 'overlap-village-crossroads-connector--crossroads',
+				firstCropId: 'village-crossroads-connector',
+				secondCropId: 'crossroads',
+				bounds: { left: 2_784, top: 3_712, right: 3_328, bottom: 4_704 },
+				routeMouth: {
+					sharedAxis: 'y',
+					bounds: { left: 2_784, top: 3_712, right: 3_328, bottom: 4_704 }
+				},
+				minimumSharedPixels: 128,
+				planePolicy: 'base-and-foreground',
+				ownerCropId: 'crossroads',
+				cornerGroupId: 'corner-meadow-entry-handoff-network'
+			},
+			{
+				id: 'overlap-village-crossroads-connector--tidewatch-coast',
+				firstCropId: 'village-crossroads-connector',
+				secondCropId: 'tidewatch-coast',
+				bounds: { left: 2_656, top: 4_320, right: 3_328, bottom: 5_088 },
+				routeMouth: {
+					sharedAxis: 'y',
+					bounds: { left: 2_656, top: 4_320, right: 3_328, bottom: 5_088 }
+				},
+				minimumSharedPixels: 128,
+				planePolicy: 'base-and-foreground',
+				ownerCropId: 'tidewatch-coast',
+				cornerGroupId: 'corner-meadow-entry-handoff-network'
+			},
+			{
+				id: 'overlap-crossroads-coast-connector--crossroads-wildwood-connector',
+				firstCropId: 'crossroads-coast-connector',
+				secondCropId: 'crossroads-wildwood-connector',
+				bounds: { left: 3_840, top: 4_416, right: 4_480, bottom: 5_056 },
+				routeMouth: {
+					sharedAxis: 'x',
+					bounds: { left: 3_840, top: 4_416, right: 4_480, bottom: 5_056 }
+				},
+				minimumSharedPixels: 128,
+				planePolicy: 'base-and-foreground',
+				ownerCropId: 'crossroads-wildwood-connector',
+				cornerGroupId: 'corner-meadow-entry-handoff-network'
+			},
+			{
+				id: 'overlap-crossroads-coast-connector--crossroads',
+				firstCropId: 'crossroads-coast-connector',
+				secondCropId: 'crossroads',
+				bounds: { left: 3_296, top: 4_416, right: 4_384, bottom: 4_704 },
+				routeMouth: {
+					sharedAxis: 'x',
+					bounds: { left: 3_296, top: 4_416, right: 4_384, bottom: 4_704 }
+				},
+				minimumSharedPixels: 128,
+				planePolicy: 'base-and-foreground',
+				ownerCropId: 'crossroads',
+				cornerGroupId: 'corner-meadow-entry-handoff-network'
+			},
+			{
+				id: 'overlap-crossroads-coast-connector--tidewatch-coast',
+				firstCropId: 'crossroads-coast-connector',
+				secondCropId: 'tidewatch-coast',
+				bounds: { left: 3_296, top: 4_416, right: 4_480, bottom: 5_696 },
+				routeMouth: {
+					sharedAxis: 'y',
+					bounds: { left: 3_296, top: 4_416, right: 4_480, bottom: 5_696 }
+				},
+				minimumSharedPixels: 128,
+				planePolicy: 'base-and-foreground',
+				ownerCropId: 'tidewatch-coast',
+				cornerGroupId: 'corner-meadow-entry-handoff-network'
+			},
+			{
+				id: 'overlap-crossroads-coast-connector--wildwood',
+				firstCropId: 'crossroads-coast-connector',
+				secondCropId: 'wildwood',
+				bounds: { left: 3_712, top: 4_416, right: 4_480, bottom: 5_056 },
+				routeMouth: {
+					sharedAxis: 'x',
+					bounds: { left: 3_712, top: 4_416, right: 4_480, bottom: 5_056 }
+				},
+				minimumSharedPixels: 128,
+				planePolicy: 'base-and-foreground',
+				ownerCropId: 'wildwood',
+				cornerGroupId: 'corner-meadow-entry-handoff-network'
+			},
+			{
+				id: 'overlap-crossroads-mistfen-connector--crossroads-silverpine-connector',
+				firstCropId: 'crossroads-mistfen-connector',
+				secondCropId: 'crossroads-silverpine-connector',
+				bounds: { left: 2_912, top: 2_752, right: 3_264, bottom: 3_232 },
+				routeMouth: {
+					sharedAxis: 'y',
+					bounds: { left: 2_912, top: 2_752, right: 3_264, bottom: 3_232 }
+				},
+				minimumSharedPixels: 128,
+				planePolicy: 'base-and-foreground',
+				ownerCropId: 'crossroads-silverpine-connector',
+				cornerGroupId: 'corner-meadow-entry-handoff-network'
+			},
+			{
+				id: 'overlap-crossroads-mistfen-connector--crossroads',
+				firstCropId: 'crossroads-mistfen-connector',
+				secondCropId: 'crossroads',
+				bounds: { left: 2_784, top: 2_496, right: 3_264, bottom: 3_712 },
+				routeMouth: {
+					sharedAxis: 'y',
+					bounds: { left: 2_784, top: 2_496, right: 3_264, bottom: 3_712 }
+				},
+				minimumSharedPixels: 128,
+				planePolicy: 'base-and-foreground',
+				ownerCropId: 'crossroads',
+				cornerGroupId: 'corner-meadow-entry-handoff-network'
+			},
+			{
+				id: 'overlap-crossroads-mistfen-connector--mistfen',
+				firstCropId: 'crossroads-mistfen-connector',
+				secondCropId: 'mistfen',
+				bounds: { left: 2_176, top: 2_432, right: 2_688, bottom: 3_232 },
+				routeMouth: {
+					sharedAxis: 'y',
+					bounds: { left: 2_176, top: 2_432, right: 2_688, bottom: 3_232 }
+				},
+				minimumSharedPixels: 128,
+				planePolicy: 'base-and-foreground',
+				ownerCropId: 'mistfen',
+				cornerGroupId: 'corner-meadow-entry-handoff-network'
+			},
+			{
+				id: 'overlap-crossroads-mistfen-connector--silverpine',
+				firstCropId: 'crossroads-mistfen-connector',
+				secondCropId: 'silverpine',
+				bounds: { left: 2_176, top: 2_432, right: 3_264, bottom: 3_136 },
+				routeMouth: {
+					sharedAxis: 'x',
+					bounds: { left: 2_176, top: 2_432, right: 3_264, bottom: 3_136 }
+				},
+				minimumSharedPixels: 128,
+				planePolicy: 'base-and-foreground',
+				ownerCropId: 'silverpine',
+				cornerGroupId: 'corner-meadow-entry-handoff-network'
+			},
+			{
+				id: 'overlap-crossroads-silverpine-connector--crossroads',
+				firstCropId: 'crossroads-silverpine-connector',
+				secondCropId: 'crossroads',
+				bounds: { left: 2_912, top: 2_752, right: 3_712, bottom: 3_232 },
+				routeMouth: {
+					sharedAxis: 'x',
+					bounds: { left: 2_912, top: 2_752, right: 3_712, bottom: 3_232 }
+				},
+				minimumSharedPixels: 128,
+				planePolicy: 'base-and-foreground',
+				ownerCropId: 'crossroads',
+				cornerGroupId: 'corner-meadow-entry-handoff-network'
+			},
+			{
+				id: 'overlap-crossroads-silverpine-connector--silverpine',
+				firstCropId: 'crossroads-silverpine-connector',
+				secondCropId: 'silverpine',
+				bounds: { left: 2_912, top: 2_752, right: 3_712, bottom: 3_136 },
+				routeMouth: {
+					sharedAxis: 'x',
+					bounds: { left: 2_912, top: 2_752, right: 3_712, bottom: 3_136 }
+				},
+				minimumSharedPixels: 128,
+				planePolicy: 'base-and-foreground',
+				ownerCropId: 'silverpine',
+				cornerGroupId: 'corner-meadow-entry-handoff-network'
+			},
+			{
+				id: 'overlap-crossroads-wildwood-connector--crossroads',
+				firstCropId: 'crossroads-wildwood-connector',
+				secondCropId: 'crossroads',
+				bounds: { left: 3_840, top: 3_584, right: 4_384, bottom: 4_704 },
+				routeMouth: {
+					sharedAxis: 'y',
+					bounds: { left: 3_840, top: 3_584, right: 4_384, bottom: 4_704 }
+				},
+				minimumSharedPixels: 128,
+				planePolicy: 'base-and-foreground',
+				ownerCropId: 'crossroads',
+				cornerGroupId: 'corner-meadow-entry-handoff-network'
+			},
+			{
+				id: 'overlap-crossroads-wildwood-connector--tidewatch-coast',
+				firstCropId: 'crossroads-wildwood-connector',
+				secondCropId: 'tidewatch-coast',
+				bounds: { left: 3_840, top: 4_320, right: 4_480, bottom: 5_056 },
+				routeMouth: {
+					sharedAxis: 'y',
+					bounds: { left: 3_840, top: 4_320, right: 4_480, bottom: 5_056 }
+				},
+				minimumSharedPixels: 128,
+				planePolicy: 'base-and-foreground',
+				ownerCropId: 'tidewatch-coast',
+				cornerGroupId: 'corner-meadow-entry-handoff-network'
+			},
+			{
+				id: 'overlap-crossroads-wildwood-connector--wildwood',
+				firstCropId: 'crossroads-wildwood-connector',
+				secondCropId: 'wildwood',
+				bounds: { left: 3_840, top: 3_584, right: 4_480, bottom: 5_056 },
+				routeMouth: {
+					sharedAxis: 'y',
+					bounds: { left: 3_840, top: 3_584, right: 4_480, bottom: 5_056 }
+				},
+				minimumSharedPixels: 128,
+				planePolicy: 'base-and-foreground',
+				ownerCropId: 'wildwood',
+				cornerGroupId: 'corner-meadow-entry-handoff-network'
+			},
+			{
+				id: 'overlap-crossroads--tidewatch-coast',
+				firstCropId: 'crossroads',
+				secondCropId: 'tidewatch-coast',
+				bounds: { left: 2_784, top: 4_320, right: 4_384, bottom: 4_704 },
+				routeMouth: {
+					sharedAxis: 'x',
+					bounds: { left: 2_784, top: 4_320, right: 4_384, bottom: 4_704 }
+				},
+				minimumSharedPixels: 128,
+				planePolicy: 'base-and-foreground',
+				ownerCropId: 'tidewatch-coast',
+				cornerGroupId: 'corner-meadow-entry-handoff-network'
+			},
+			{
+				id: 'overlap-crossroads--silverpine',
+				firstCropId: 'crossroads',
+				secondCropId: 'silverpine',
+				bounds: { left: 2_784, top: 2_496, right: 3_936, bottom: 3_136 },
+				routeMouth: {
+					sharedAxis: 'x',
+					bounds: { left: 2_784, top: 2_496, right: 3_936, bottom: 3_136 }
+				},
+				minimumSharedPixels: 128,
+				planePolicy: 'base-and-foreground',
+				ownerCropId: 'silverpine',
+				cornerGroupId: 'corner-meadow-entry-handoff-network'
+			},
+			{
+				id: 'overlap-crossroads--wildwood',
+				firstCropId: 'crossroads',
+				secondCropId: 'wildwood',
+				bounds: { left: 3_712, top: 2_496, right: 4_384, bottom: 4_704 },
+				routeMouth: {
+					sharedAxis: 'y',
+					bounds: { left: 3_712, top: 2_496, right: 4_384, bottom: 4_704 }
+				},
+				minimumSharedPixels: 128,
+				planePolicy: 'base-and-foreground',
+				ownerCropId: 'wildwood',
+				cornerGroupId: 'corner-meadow-entry-handoff-network'
+			},
+			{
+				id: 'overlap-tidewatch-coast--wildwood',
+				firstCropId: 'tidewatch-coast',
+				secondCropId: 'wildwood',
+				bounds: { left: 3_712, top: 4_320, right: 6_400, bottom: 5_056 },
+				routeMouth: {
+					sharedAxis: 'x',
+					bounds: { left: 3_712, top: 4_320, right: 6_400, bottom: 5_056 }
+				},
+				minimumSharedPixels: 128,
+				planePolicy: 'base-and-foreground',
+				ownerCropId: 'wildwood',
+				cornerGroupId: 'corner-meadow-entry-handoff-network'
+			},
+			{
+				id: 'overlap-mistfen--silverpine',
+				firstCropId: 'mistfen',
+				secondCropId: 'silverpine',
+				bounds: { left: 2_048, top: 288, right: 2_688, bottom: 3_136 },
+				routeMouth: {
+					sharedAxis: 'y',
+					bounds: { left: 2_048, top: 288, right: 2_688, bottom: 3_136 }
+				},
+				minimumSharedPixels: 128,
+				planePolicy: 'base-and-foreground',
+				ownerCropId: 'silverpine',
+				cornerGroupId: 'corner-meadow-entry-handoff-network'
+			},
+			{
+				id: 'overlap-silverpine--wildwood',
+				firstCropId: 'silverpine',
+				secondCropId: 'wildwood',
+				bounds: { left: 3_712, top: 128, right: 3_936, bottom: 3_136 },
+				routeMouth: {
+					sharedAxis: 'y',
+					bounds: { left: 3_712, top: 128, right: 3_936, bottom: 3_136 }
+				},
+				minimumSharedPixels: 128,
+				planePolicy: 'base-and-foreground',
+				ownerCropId: 'wildwood',
+				cornerGroupId: 'corner-meadow-entry-handoff-network'
 			}
 		]);
 	});
