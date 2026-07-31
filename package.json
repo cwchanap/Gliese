@@ -14,6 +14,7 @@
 		"art:rasterize:village": "bun tools/rasterize-sundrop-village-art-control.ts",
 		"art:finalize:village-obstacles": "bun tools/finalize-sundrop-village-obstacles.ts",
 		"art:proof:village-obstacles": "bun tools/render-sundrop-village-obstacle-proof.ts",
+		"art:storage:meadow-entry": "bun tools/verify-meadow-entry-art-storage.ts",
 		"art:validate:village": "bun run test:unit -- --run src/lib/game/content/maps/layered/village-art-controls.test.ts src/lib/game/content/backgrounds/sundrop-village-png.test.ts src/lib/game/content/backgrounds/sundrop-village-retouch.test.ts src/lib/game/content/backgrounds/sundrop-village-obstacle-ownership.test.ts src/lib/game/content/backgrounds/sundrop-village-obstacle-controls.test.ts src/lib/game/content/backgrounds/sundrop-village-obstacle-composite.test.ts src/lib/game/content/sundrop-village-obstacle-assets.test.ts",
 		"prepare": "playwright install || echo '' && husky",
 		"check": "svelte-check --tsconfig ./tsconfig.json",
