@@ -38,7 +38,10 @@ import {
 	MEADOW_ENTRY_MIN_HANDOFF_PX,
 	MEADOW_ENTRY_TILE_SIZE_PX,
 	MEADOW_ENTRY_WORLD_BOUNDS,
-	rasterizeCoverageBounds
+	boundsArea,
+	intersectBounds,
+	rasterizeCoverageBounds,
+	unionArea
 } from './meadow-entry-authoring-geometry';
 import {
 	collectMeadowEntrySourceCatalog,
@@ -86,7 +89,7 @@ export interface MeadowEntryRendererMaskMaterialContract {
 	};
 	collisionExpansionPx: 12;
 	walkableSpaceTileSizePx: 32;
-	walkableSpaceRule: 'tile-forbidden-unless-one-player-expanded-collision-covers-it';
+	walkableSpaceRule: 'tile-forbidden-unless-player-expanded-collision-union-covers-it';
 	foregroundRule: 'explicit-base-and-foreground-minus-forbidden-and-protected';
 	protectedRule: 'protected-live-source-bounds-plus-reviewed-margins';
 	rasterizationRule: 'raw-center-edges-floor-left-top-ceil-right-bottom';
@@ -245,13 +248,15 @@ function collisionBounds(rect: Pick<MapRect, 'x' | 'y' | 'width' | 'height'>): P
 	return expanded;
 }
 
-function containsPixelBounds(container: PixelBounds, value: PixelBounds): boolean {
-	return (
-		container.left <= value.left &&
-		container.top <= value.top &&
-		container.right >= value.right &&
-		container.bottom >= value.bottom
-	);
+function collisionUnionCoversBounds(
+	bounds: PixelBounds,
+	collisionRects: readonly PixelBounds[]
+): boolean {
+	const clipped = collisionRects.flatMap((collision) => {
+		const intersection = intersectBounds(bounds, collision);
+		return intersection ? [intersection] : [];
+	});
+	return unionArea(clipped) === boundsArea(bounds);
 }
 
 function buildWalkableSpaceRects(
@@ -267,6 +272,25 @@ function buildWalkableSpaceRects(
 
 	const columnCount = width / tileSizePx;
 	const rowCount = height / tileSizePx;
+	const collisionRectsByTile: Array<PixelBounds[] | undefined> = new Array(columnCount * rowCount);
+	for (const collision of collisionRects) {
+		const firstColumn = Math.max(0, Math.floor((collision.left - worldBounds.left) / tileSizePx));
+		const lastColumn = Math.min(
+			columnCount - 1,
+			Math.ceil((collision.right - worldBounds.left) / tileSizePx) - 1
+		);
+		const firstRow = Math.max(0, Math.floor((collision.top - worldBounds.top) / tileSizePx));
+		const lastRow = Math.min(
+			rowCount - 1,
+			Math.ceil((collision.bottom - worldBounds.top) / tileSizePx) - 1
+		);
+		for (let row = firstRow; row <= lastRow; row += 1) {
+			for (let column = firstColumn; column <= lastColumn; column += 1) {
+				const index = row * columnCount + column;
+				(collisionRectsByTile[index] ??= []).push(collision);
+			}
+		}
+	}
 	const output: PixelBounds[] = [];
 	let activeRuns = new Map<string, PixelBounds>();
 
@@ -280,7 +304,10 @@ function buildWalkableSpaceRects(
 			const left = worldBounds.left + column * tileSizePx;
 			const right = left + tileSizePx;
 			const tile = { left, top, right, bottom };
-			const fullyBlocked = collisionRects.some((collision) => containsPixelBounds(collision, tile));
+			const fullyBlocked = collisionUnionCoversBounds(
+				tile,
+				collisionRectsByTile[row * columnCount + column] ?? []
+			);
 
 			if (!fullyBlocked && runLeft === null) runLeft = left;
 			if (fullyBlocked && runLeft !== null) {
@@ -418,7 +445,7 @@ function buildRendererMaskMaterialContract(
 		pointExtentsPx: POINT_EXTENTS_PX,
 		collisionExpansionPx: PLAYER_COLLISION_RADIUS,
 		walkableSpaceTileSizePx: MEADOW_ENTRY_TILE_SIZE_PX,
-		walkableSpaceRule: 'tile-forbidden-unless-one-player-expanded-collision-covers-it',
+		walkableSpaceRule: 'tile-forbidden-unless-player-expanded-collision-union-covers-it',
 		foregroundRule: 'explicit-base-and-foreground-minus-forbidden-and-protected',
 		protectedRule: 'protected-live-source-bounds-plus-reviewed-margins',
 		rasterizationRule: 'raw-center-edges-floor-left-top-ceil-right-bottom',

@@ -106,6 +106,50 @@ function containsBounds(rect: TestBounds, bounds: TestBounds): boolean {
 	);
 }
 
+function clippedUnionArea(bounds: TestBounds, rects: readonly TestBounds[]): number {
+	const clipped = rects.flatMap((rect) => {
+		const intersection = {
+			left: Math.max(bounds.left, rect.left),
+			top: Math.max(bounds.top, rect.top),
+			right: Math.min(bounds.right, rect.right),
+			bottom: Math.min(bounds.bottom, rect.bottom)
+		};
+		return intersection.left < intersection.right && intersection.top < intersection.bottom
+			? [intersection]
+			: [];
+	});
+	const xEdges = [...new Set(clipped.flatMap((rect) => [rect.left, rect.right]))].sort(
+		(left, right) => left - right
+	);
+	let area = 0;
+	for (let index = 0; index < xEdges.length - 1; index += 1) {
+		const left = xEdges[index]!;
+		const right = xEdges[index + 1]!;
+		const yIntervals = clipped
+			.filter((rect) => rect.left < right && rect.right > left)
+			.map((rect) => [rect.top, rect.bottom] as const)
+			.sort(([leftTop], [rightTop]) => leftTop - rightTop);
+		let coveredHeight = 0;
+		let activeTop: number | null = null;
+		let activeBottom = 0;
+		for (const [top, bottom] of yIntervals) {
+			if (activeTop === null) {
+				activeTop = top;
+				activeBottom = bottom;
+			} else if (top > activeBottom) {
+				coveredHeight += activeBottom - activeTop;
+				activeTop = top;
+				activeBottom = bottom;
+			} else {
+				activeBottom = Math.max(activeBottom, bottom);
+			}
+		}
+		if (activeTop !== null) coveredHeight += activeBottom - activeTop;
+		area += (right - left) * coveredHeight;
+	}
+	return area;
+}
+
 function boundsAround(x: number, y: number, width: number, height: number): TestBounds {
 	return {
 		left: Math.floor(x - width / 2),
@@ -376,6 +420,21 @@ describe('meadow-entry deterministic authoring controls', () => {
 			...collectStrictCollisionRects(meadowEntryMap),
 			...collectLandmarkRects(meadowEntryMap)
 		];
+		const expandedCollisionRects = rawCollisionRects.map((rect) => ({
+			left: Math.max(0, Math.floor(rect.x - rect.width / 2 - PLAYER_COLLISION_RADIUS)),
+			top: Math.max(0, Math.floor(rect.y - rect.height / 2 - PLAYER_COLLISION_RADIUS)),
+			right: Math.min(6_400, Math.ceil(rect.x + rect.width / 2 + PLAYER_COLLISION_RADIUS)),
+			bottom: Math.min(6_400, Math.ceil(rect.y + rect.height / 2 + PLAYER_COLLISION_RADIUS))
+		}));
+		const seamTile = { left: 3_040, top: 2_592, right: 3_072, bottom: 2_624 };
+		expect(clippedUnionArea(seamTile, expandedCollisionRects)).toBe(32 * 32);
+		expect(expandedCollisionRects.some((rect) => containsBounds(rect, seamTile))).toBe(false);
+		expect(
+			walkableSpaceRects.some((bounds) => containsBounds(bounds, seamTile)),
+			'union-covered seam tile 95,81'
+		).toBe(false);
+
+		let unionOnlyCollisionTileCount = 0;
 		for (let row = 0; row < meadowEntryMap.height; row += 1) {
 			for (let column = 0; column < meadowEntryMap.width; column += 1) {
 				const tile = {
@@ -384,23 +443,17 @@ describe('meadow-entry deterministic authoring controls', () => {
 					right: column * 32 + 32,
 					bottom: row * 32 + 32
 				};
-				const fullyBlocked = rawCollisionRects.some((rect) =>
-					containsBounds(
-						{
-							left: Math.max(0, Math.floor(rect.x - rect.width / 2 - PLAYER_COLLISION_RADIUS)),
-							top: Math.max(0, Math.floor(rect.y - rect.height / 2 - PLAYER_COLLISION_RADIUS)),
-							right: Math.min(6_400, Math.ceil(rect.x + rect.width / 2 + PLAYER_COLLISION_RADIUS)),
-							bottom: Math.min(6_400, Math.ceil(rect.y + rect.height / 2 + PLAYER_COLLISION_RADIUS))
-						},
-						tile
-					)
-				);
+				const fullyBlocked = clippedUnionArea(tile, expandedCollisionRects) === 32 * 32;
+				if (fullyBlocked && !expandedCollisionRects.some((rect) => containsBounds(rect, tile))) {
+					unionOnlyCollisionTileCount += 1;
+				}
 				const representedAsWalkable = walkableSpaceRects.some((bounds) =>
 					containsBounds(bounds, tile)
 				);
 				expect(representedAsWalkable, `tile ${column},${row}`).toBe(!fullyBlocked);
 			}
 		}
+		expect(unionOnlyCollisionTileCount).toBe(20);
 
 		const rendered = renderMeadowEntryControls(input);
 		const generatedForbidden = rendered['meadow-entry-forbidden-tall-mask.svg']!;
