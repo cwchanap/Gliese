@@ -1,6 +1,8 @@
 import { createHash } from 'node:crypto';
 import { describe, expect, it } from 'vitest';
 
+import { meadowEntryMap } from '$lib/game/content/maps/meadow-entry';
+
 import { SUNDROP_VILLAGE_FOREGROUND_FRONT_CUTOFF_PX } from './sundrop-village-backgrounds';
 import { SUNDROP_VILLAGE_OBSTACLE_OWNERSHIP } from './sundrop-village-obstacle-ownership';
 import {
@@ -67,8 +69,8 @@ describe('meadow-entry bake ownership', () => {
 			'base-and-foreground': 85,
 			'base-static': 65,
 			'base-underlay': 117,
-			'control-only': 17,
-			'protected-live': 74,
+			'control-only': 13,
+			'protected-live': 78,
 			'runtime-fallback-only': 2
 		});
 		expect(runtimeCounts).toEqual({
@@ -76,11 +78,11 @@ describe('meadow-entry bake ownership', () => {
 			'extend-decor-fallback': 69,
 			'extend-fence-fallback': 6,
 			'fallback-tile': 119,
-			none: 17,
-			'remain-live': 74
+			none: 13,
+			'remain-live': 78
 		});
 		expect(MEADOW_ENTRY_REVIEWED_BAKE_OWNERSHIP_SHA256).toBe(
-			'4effa2e819e7550d1914311a138d3d4c252d230136282d91c4d281d067423a63'
+			'54b8b40002853b93cf213c5a06f22af485f03191d4cff99bb6495e07bd8dad7c'
 		);
 		expect(createHash('sha256').update(canonicalRegistry).digest('hex')).toBe(
 			MEADOW_ENTRY_REVIEWED_BAKE_OWNERSHIP_SHA256
@@ -164,13 +166,99 @@ describe('meadow-entry bake ownership', () => {
 			'ground-patch:sundrop-southwest-ocean-patch'
 		]);
 		expect(byKey.get('blocker:sundrop-southwest-ocean')).toMatchObject({
-			disposition: { mode: 'runtime-fallback-only' },
+			disposition: {
+				mode: 'runtime-fallback-only',
+				reason: expect.stringMatching(/paired sea ground patch/i)
+			},
 			runtimeRequirement: 'fallback-tile'
 		});
 		expect(byKey.get('ground-patch:sundrop-southwest-ocean-patch')).toMatchObject({
 			disposition: { mode: 'runtime-fallback-only' },
 			runtimeRequirement: 'fallback-tile'
 		});
+	});
+
+	it('matches the blocker renderer contract for ocean collision and live boundaries', async () => {
+		const { getBlockerRuntimeRenderMode } =
+			await import('$lib/game/content/maps/blocker-rendering');
+		const blockersById = new Map(
+			(meadowEntryMap.blockers ?? []).map((blocker) => [blocker.id, blocker])
+		);
+		const ownership = ownershipByKey();
+		const oceanBlocker = blockersById.get('sundrop-southwest-ocean');
+		const oceanPatch = meadowEntryMap.groundPatches?.find(
+			({ id }) => id === 'sundrop-southwest-ocean-patch'
+		);
+		const boundaryIds = [
+			'meadow-east-boundary',
+			'meadow-north-boundary',
+			'meadow-south-boundary',
+			'meadow-west-boundary'
+		];
+
+		expect(oceanBlocker?.kind).toBe('ocean');
+		expect(oceanBlocker && getBlockerRuntimeRenderMode(oceanBlocker.kind)).toBe('collision-only');
+		expect(oceanPatch?.tile).toBe('seaTile');
+		for (const boundaryId of boundaryIds) {
+			const blocker = blockersById.get(boundaryId);
+			expect(blocker?.kind, boundaryId).toBe('town-hedge');
+			expect(blocker && getBlockerRuntimeRenderMode(blocker.kind), boundaryId).toBe(
+				'rendered-live'
+			);
+			expect(ownership.get(`blocker:${boundaryId}`), boundaryId).toMatchObject({
+				disposition: { mode: 'protected-live' },
+				runtimeRequirement: 'remain-live'
+			});
+		}
+	});
+
+	it('deep-freezes every disposition inset against cross-entry mutation', () => {
+		const first = MEADOW_ENTRY_BAKE_OWNERSHIP.find(
+			({ ref }) => meadowEntrySourceKey(ref) === 'decor:coast-foam'
+		);
+		const second = MEADOW_ENTRY_BAKE_OWNERSHIP.find(
+			({ ref }) => meadowEntrySourceKey(ref) === 'decor:crossroads-flowers'
+		);
+		expect(first?.disposition.mode).toBe('base-static');
+		expect(second?.disposition.mode).toBe('base-static');
+		if (first?.disposition.mode !== 'base-static' || second?.disposition.mode !== 'base-static') {
+			return;
+		}
+
+		const firstMargins = first.disposition.margins as { top: number };
+		const originalTop = firstMargins.top;
+		let mutationError: unknown;
+		try {
+			firstMargins.top = originalTop + 1;
+		} catch (error) {
+			mutationError = error;
+		} finally {
+			if (!Object.isFrozen(firstMargins)) firstMargins.top = originalTop;
+		}
+
+		expect(Object.isFrozen(first.disposition.margins)).toBe(true);
+		expect(mutationError).toBeInstanceOf(TypeError);
+		expect(second.disposition.margins.top).toBe(originalTop);
+		expect(validateMeadowEntryBakeOwnership).not.toThrow();
+		for (const entry of MEADOW_ENTRY_BAKE_OWNERSHIP) {
+			const disposition = entry.disposition;
+			if (disposition.mode === 'base-static') {
+				expect(Object.isFrozen(disposition.margins), meadowEntrySourceKey(entry.ref)).toBe(true);
+			} else if (disposition.mode === 'base-and-foreground') {
+				expect(Object.isFrozen(disposition.baseMargins), meadowEntrySourceKey(entry.ref)).toBe(
+					true
+				);
+				expect(
+					Object.isFrozen(disposition.foregroundMargins),
+					meadowEntrySourceKey(entry.ref)
+				).toBe(true);
+			} else if (disposition.mode === 'protected-live') {
+				expect(
+					Object.isFrozen(disposition.protectionMargins),
+					meadowEntrySourceKey(entry.ref)
+				).toBe(true);
+			}
+		}
 	});
 
 	it('keeps every translucent Mistfen fog source protected and live', () => {
