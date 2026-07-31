@@ -28,9 +28,9 @@
     "meadow-entry-crop-manifest.json"
   ],
   "fingerprints": {
-    "gameplaySource": "ea6663679104d70c9ee5c59cbecc2793f134ba88dee49e665ee398a85a892ce2",
-    "authoringContract": "3f259886598eb5e3c9402a35bf4fbb470d47ecf6ca2e343f649f31f58a9cd827",
-    "combinedControl": "c1c16098f71853c474607dd3d9bb655321ee8e9a0560c59bf865c662192b5c01"
+    "gameplaySource": "33937a946acdb91c0e8ac56162dfb5a2f440fd65e028bb55f8a923d389c1652a",
+    "authoringContract": "3a450e799df0bdaf543d3ea1143d913a5264e4cdc7e920e6b2ae53bef301d67b",
+    "combinedControl": "29cdb2feecdc9f7caf5695513471fdb10d24a3ce500abe63b915b30b67dd6ea6"
   },
   "predecessor": {
     "hpa307ArtifactHashes": {
@@ -65,5 +65,482 @@
     "src/lib/game/content/maps/regions/paths.ts": "cdd5ab59707a1e829cc0bb679703f76a265e87279d174418f3bf0ae45ab243f7",
     "src/lib/game/save/save-state.ts": "6198f56bd219f0233d697f103bba548b53f1c40d20ac58b55f7cfbd44025daaa",
     "src/lib/game/core/collision.ts": "18b5cacc81d1ddf568a8bdc966327fd9946831a918104c766fe2a6d0ad8bd13d"
-  }
+  },
+  "rendererMaskMaterialContract": {
+    "version": 1,
+    "implementationSha256": "ac338771ddaac092f9d8949dc0dbd6387b439566d5ba93d39043d0def5e73c09",
+    "maskDimensionsPx": {
+      "width": 6400,
+      "height": 6400
+    },
+    "pointExtentsPx": {
+      "spawn": {
+        "width": 96,
+        "height": 96
+      },
+      "transition": {
+        "width": 96,
+        "height": 96
+      },
+      "npc": {
+        "width": 96,
+        "height": 87
+      },
+      "ambientNpcDefault": {
+        "width": 96,
+        "height": 87
+      },
+      "pickup": {
+        "width": 48,
+        "height": 48
+      },
+      "encounter": {
+        "width": 96,
+        "height": 96
+      },
+      "discoveryDefaultDiameter": 96
+    },
+    "collisionExpansionPx": 12,
+    "walkableRouteExpansionPx": 12,
+    "foregroundRule": "explicit-base-and-foreground-minus-forbidden-and-protected",
+    "protectedRule": "protected-live-source-bounds-plus-reviewed-margins",
+    "rasterizationRule": "raw-center-edges-floor-left-top-ceil-right-bottom",
+    "clippingRule": "half-open-clamp-to-0-6400",
+    "materialProfiles": {
+      "sundrop-village": "sundrop-painted-village",
+      "crossroads": "crossroads-cobblestone-festival",
+      "tidewatch-coast": "tidewatch-sand-and-sea",
+      "mistfen": "mistfen-marsh-and-fog",
+      "silverpine": "silverpine-autumn-shrine",
+      "wildwood": "wildwood-forest-and-ruins",
+      "connector-village-crossroads": "village-crossroads-handoff",
+      "connector-crossroads-coast": "crossroads-coast-handoff",
+      "connector-crossroads-mistfen": "crossroads-mistfen-handoff",
+      "connector-crossroads-silverpine": "crossroads-silverpine-handoff",
+      "connector-crossroads-wildwood": "crossroads-wildwood-handoff",
+      "outer-boundary": "outer-boundary-control"
+    }
+  },
+  "controlClearanceRects": [
+    {
+      "id": "ambient-npc:coast-fisher",
+      "kind": "ambient-npc",
+      "bounds": {
+        "left": 3792,
+        "top": 5526,
+        "right": 3888,
+        "bottom": 5614
+      }
+    },
+    {
+      "id": "ambient-npc:crossroads-crier",
+      "kind": "ambient-npc",
+      "bounds": {
+        "left": 3352,
+        "top": 3956,
+        "right": 3448,
+        "bottom": 4044
+      }
+    },
+    {
+      "id": "ambient-npc:crossroads-traveler",
+      "kind": "ambient-npc",
+      "bounds": {
+        "left": 3652,
+        "top": 4256,
+        "right": 3748,
+        "bottom": 4344
+      }
+    },
+    {
+      "id": "ambient-npc:mistfen-forager",
+      "kind": "ambient-npc",
+      "bounds": {
+        "left": 2352,
+        "top": 2656,
+        "right": 2448,
+        "bottom": 2744
+      }
+    },
+    {
+      "id": "ambient-npc:silverpine-pilgrim",
+      "kind": "ambient-npc",
+      "bounds": {
+        "left": 3072,
+        "top": 1316,
+        "right": 3168,
+        "bottom": 1404
+      }
+    },
+    {
+      "id": "ambient-npc:village-crier",
+      "kind": "ambient-npc",
+      "bounds": {
+        "left": 1152,
+        "top": 5284,
+        "right": 1248,
+        "bottom": 5372
+      }
+    },
+    {
+      "id": "ambient-npc:village-pilgrim",
+      "kind": "ambient-npc",
+      "bounds": {
+        "left": 1184,
+        "top": 5732,
+        "right": 1280,
+        "bottom": 5820
+      }
+    },
+    {
+      "id": "ambient-npc:village-wanderer",
+      "kind": "ambient-npc",
+      "bounds": {
+        "left": 960,
+        "top": 5220,
+        "right": 1056,
+        "bottom": 5308
+      }
+    },
+    {
+      "id": "ambient-npc:village-woodcutter",
+      "kind": "ambient-npc",
+      "bounds": {
+        "left": 608,
+        "top": 4836,
+        "right": 704,
+        "bottom": 4924
+      }
+    },
+    {
+      "id": "ambient-npc:wildwood-woodcutter",
+      "kind": "ambient-npc",
+      "bounds": {
+        "left": 5292,
+        "top": 4476,
+        "right": 5388,
+        "bottom": 4564
+      }
+    },
+    {
+      "id": "combat-bounds:whispering-cave-combat-pocket",
+      "kind": "combat-bounds",
+      "bounds": {
+        "left": 5664,
+        "top": 1408,
+        "right": 6176,
+        "bottom": 1792
+      }
+    },
+    {
+      "id": "combat-bounds:wildwood-crossing-combat-pocket",
+      "kind": "combat-bounds",
+      "bounds": {
+        "left": 5104,
+        "top": 1120,
+        "right": 5616,
+        "bottom": 1440
+      }
+    },
+    {
+      "id": "combat-bounds:wildwood-north-combat-pocket",
+      "kind": "combat-bounds",
+      "bounds": {
+        "left": 4784,
+        "top": 768,
+        "right": 5456,
+        "bottom": 1152
+      }
+    },
+    {
+      "id": "discovery:castle-gate-warning",
+      "kind": "discovery",
+      "bounds": {
+        "left": 3452,
+        "top": 3172,
+        "right": 3548,
+        "bottom": 3268
+      }
+    },
+    {
+      "id": "discovery:coast-jetty-foreshadow",
+      "kind": "discovery",
+      "bounds": {
+        "left": 4852,
+        "top": 6132,
+        "right": 4948,
+        "bottom": 6228
+      }
+    },
+    {
+      "id": "discovery:crossroads-waystone-sign",
+      "kind": "discovery",
+      "bounds": {
+        "left": 3552,
+        "top": 3952,
+        "right": 3648,
+        "bottom": 4048
+      }
+    },
+    {
+      "id": "discovery:ferry-shrine-lore",
+      "kind": "discovery",
+      "bounds": {
+        "left": 3552,
+        "top": 5452,
+        "right": 3648,
+        "bottom": 5548
+      }
+    },
+    {
+      "id": "discovery:silverpine-amulet-foreshadow",
+      "kind": "discovery",
+      "bounds": {
+        "left": 2792,
+        "top": 1072,
+        "right": 2888,
+        "bottom": 1168
+      }
+    },
+    {
+      "id": "discovery:wildwood-cave-danger",
+      "kind": "discovery",
+      "bounds": {
+        "left": 5912,
+        "top": 1872,
+        "right": 6008,
+        "bottom": 1968
+      }
+    },
+    {
+      "id": "discovery:witchwood-poison-warning",
+      "kind": "discovery",
+      "bounds": {
+        "left": 1152,
+        "top": 772,
+        "right": 1248,
+        "bottom": 868
+      }
+    },
+    {
+      "id": "encounter:meadow-slime-center",
+      "kind": "encounter",
+      "bounds": {
+        "left": 5312,
+        "top": 1232,
+        "right": 5408,
+        "bottom": 1328
+      }
+    },
+    {
+      "id": "encounter:meadow-slime-east",
+      "kind": "encounter",
+      "bounds": {
+        "left": 5872,
+        "top": 1552,
+        "right": 5968,
+        "bottom": 1648
+      }
+    },
+    {
+      "id": "encounter:meadow-slime-west",
+      "kind": "encounter",
+      "bounds": {
+        "left": 4880,
+        "top": 912,
+        "right": 4976,
+        "bottom": 1008
+      }
+    },
+    {
+      "id": "pickup:coast-jetty-catch",
+      "kind": "pickup",
+      "bounds": {
+        "left": 4736,
+        "top": 6036,
+        "right": 4784,
+        "bottom": 6084
+      }
+    },
+    {
+      "id": "pickup:coast-salve",
+      "kind": "pickup",
+      "bounds": {
+        "left": 5416,
+        "top": 5906,
+        "right": 5464,
+        "bottom": 5954
+      }
+    },
+    {
+      "id": "pickup:crossroads-cache",
+      "kind": "pickup",
+      "bounds": {
+        "left": 3976,
+        "top": 4276,
+        "right": 4024,
+        "bottom": 4324
+      }
+    },
+    {
+      "id": "pickup:mistfen-cache",
+      "kind": "pickup",
+      "bounds": {
+        "left": 1896,
+        "top": 2276,
+        "right": 1944,
+        "bottom": 2324
+      }
+    },
+    {
+      "id": "pickup:mistfen-salve",
+      "kind": "pickup",
+      "bounds": {
+        "left": 856,
+        "top": 2476,
+        "right": 904,
+        "bottom": 2524
+      }
+    },
+    {
+      "id": "pickup:silverpine-offering-cache",
+      "kind": "pickup",
+      "bounds": {
+        "left": 3236,
+        "top": 696,
+        "right": 3284,
+        "bottom": 744
+      }
+    },
+    {
+      "id": "pickup:silverpine-tonic",
+      "kind": "pickup",
+      "bounds": {
+        "left": 2596,
+        "top": 1536,
+        "right": 2644,
+        "bottom": 1584
+      }
+    },
+    {
+      "id": "pickup:village-market-cache",
+      "kind": "pickup",
+      "bounds": {
+        "left": 760,
+        "top": 5016,
+        "right": 808,
+        "bottom": 5064
+      }
+    },
+    {
+      "id": "pickup:village-shrine-cache",
+      "kind": "pickup",
+      "bounds": {
+        "left": 1560,
+        "top": 5752,
+        "right": 1608,
+        "bottom": 5800
+      }
+    },
+    {
+      "id": "pickup:wildwood-grove-cache",
+      "kind": "pickup",
+      "bounds": {
+        "left": 4676,
+        "top": 3626,
+        "right": 4724,
+        "bottom": 3674
+      }
+    },
+    {
+      "id": "spawn:player",
+      "kind": "spawn",
+      "bounds": {
+        "left": 576,
+        "top": 5728,
+        "right": 672,
+        "bottom": 5824
+      }
+    },
+    {
+      "id": "transition:meadow-to-guild-hall",
+      "kind": "transition",
+      "bounds": {
+        "left": 1568,
+        "top": 4992,
+        "right": 1664,
+        "bottom": 5088
+      }
+    },
+    {
+      "id": "transition:meadow-to-hero-house",
+      "kind": "transition",
+      "bounds": {
+        "left": 576,
+        "top": 5664,
+        "right": 672,
+        "bottom": 5760
+      }
+    },
+    {
+      "id": "transition:meadow-to-item-shop",
+      "kind": "transition",
+      "bounds": {
+        "left": 448,
+        "top": 5248,
+        "right": 544,
+        "bottom": 5344
+      }
+    },
+    {
+      "id": "transition:meadow-to-shrine-of-aurora",
+      "kind": "transition",
+      "bounds": {
+        "left": 1376,
+        "top": 5696,
+        "right": 1472,
+        "bottom": 5792
+      }
+    },
+    {
+      "id": "transition:meadow-to-villager-house-1",
+      "kind": "transition",
+      "bounds": {
+        "left": 480,
+        "top": 4800,
+        "right": 576,
+        "bottom": 4896
+      }
+    },
+    {
+      "id": "transition:meadow-to-villager-house-2",
+      "kind": "transition",
+      "bounds": {
+        "left": 1120,
+        "top": 4832,
+        "right": 1216,
+        "bottom": 4928
+      }
+    },
+    {
+      "id": "transition:meadow-to-villager-house-3",
+      "kind": "transition",
+      "bounds": {
+        "left": 768,
+        "top": 4864,
+        "right": 864,
+        "bottom": 4960
+      }
+    },
+    {
+      "id": "transition:meadow-to-whispering-cave-ruins-threshold",
+      "kind": "transition",
+      "bounds": {
+        "left": 5912,
+        "top": 1820,
+        "right": 6008,
+        "bottom": 1916
+      }
+    }
+  ]
 }
