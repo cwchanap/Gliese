@@ -187,17 +187,32 @@ function assertCatalogIsUnique(catalog: readonly MeadowEntrySourceRecord[]): voi
 function assertCatalogResolvesAgainstAssembledMap(
 	catalog: readonly MeadowEntrySourceRecord[]
 ): void {
-	for (const record of catalog) {
-		const definition = meadowEntrySourceDefinitions.find(
-			({ sourceType }) => sourceType === record.ref.sourceType
+	for (const definition of meadowEntrySourceDefinitions) {
+		const catalogKeys = new Set(
+			catalog
+				.filter(({ ref }) => ref.sourceType === definition.sourceType)
+				.map(({ ref }) => meadowEntrySourceKey(ref))
 		);
-		if (!definition) {
-			throw new Error(`meadow-entry source catalog has unknown type "${record.ref.sourceType}"`);
-		}
-		if (!definition.itemsFromMap(meadowEntryMap).some(({ id }) => id === record.ref.sourceId)) {
+		const assembledSources = definition.itemsFromMap(meadowEntryMap);
+		const assembledKeys = new Set(
+			assembledSources.map(({ id }) =>
+				meadowEntrySourceKey({ sourceType: definition.sourceType, sourceId: id })
+			)
+		);
+
+		if (assembledKeys.size !== assembledSources.length) {
 			throw new Error(
-				`meadow-entry source catalog cannot resolve "${meadowEntrySourceKey(record.ref)}" against meadowEntryMap`
+				`meadowEntryMap has duplicate ${definition.sourceType} source ids that cannot map exactly to the source catalog`
 			);
+		}
+		for (const key of assembledKeys) {
+			if (!catalogKeys.has(key)) {
+				throw new Error(`meadowEntryMap source is absent from source catalog "${key}"`);
+			}
+		}
+		for (const key of catalogKeys) {
+			if (assembledKeys.has(key)) continue;
+			throw new Error(`meadow-entry source catalog cannot resolve "${key}" against meadowEntryMap`);
 		}
 	}
 }
