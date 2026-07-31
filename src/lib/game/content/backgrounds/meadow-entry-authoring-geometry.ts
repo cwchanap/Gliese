@@ -23,7 +23,7 @@ function assertFiniteBounds(bounds: RawPixelBounds, name: string): void {
 			throw new Error(`${name}.${edge} must be finite`);
 		}
 	}
-	if (bounds.left > bounds.right || bounds.top > bounds.bottom) {
+	if (bounds.left >= bounds.right || bounds.top >= bounds.bottom) {
 		throw new Error(`${name} must not be inverted`);
 	}
 }
@@ -100,13 +100,15 @@ export function clampBoundsToWorld(bounds: PixelBounds): {
 	if (bounds.right > MEADOW_ENTRY_WORLD_BOUNDS.right) clampedSides.push('right');
 	if (bounds.top < MEADOW_ENTRY_WORLD_BOUNDS.top) clampedSides.push('top');
 	if (bounds.bottom > MEADOW_ENTRY_WORLD_BOUNDS.bottom) clampedSides.push('bottom');
+	const clampedBounds = {
+		left: Math.max(bounds.left, MEADOW_ENTRY_WORLD_BOUNDS.left),
+		top: Math.max(bounds.top, MEADOW_ENTRY_WORLD_BOUNDS.top),
+		right: Math.min(bounds.right, MEADOW_ENTRY_WORLD_BOUNDS.right),
+		bottom: Math.min(bounds.bottom, MEADOW_ENTRY_WORLD_BOUNDS.bottom)
+	};
+	assertFiniteBounds(clampedBounds, 'clamped bounds');
 	return {
-		bounds: {
-			left: Math.max(bounds.left, MEADOW_ENTRY_WORLD_BOUNDS.left),
-			top: Math.max(bounds.top, MEADOW_ENTRY_WORLD_BOUNDS.top),
-			right: Math.min(bounds.right, MEADOW_ENTRY_WORLD_BOUNDS.right),
-			bottom: Math.min(bounds.bottom, MEADOW_ENTRY_WORLD_BOUNDS.bottom)
-		},
+		bounds: clampedBounds,
 		clampedSides
 	};
 }
