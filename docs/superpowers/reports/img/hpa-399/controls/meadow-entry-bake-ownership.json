@@ -1,0 +1,6170 @@
+{
+  "entries": [
+    {
+      "ref": {
+        "sourceType": "ambient-npc",
+        "sourceId": "coast-fisher"
+      },
+      "primaryRegionId": "tidewatch-coast",
+      "disposition": {
+        "mode": "protected-live",
+        "protectionMargins": {
+          "top": 32,
+          "right": 16,
+          "bottom": 16,
+          "left": 16
+        },
+        "reason": "Animated ambient character remains live."
+      },
+      "runtimeRequirement": "remain-live"
+    },
+    {
+      "ref": {
+        "sourceType": "ambient-npc",
+        "sourceId": "crossroads-crier"
+      },
+      "primaryRegionId": "crossroads",
+      "disposition": {
+        "mode": "protected-live",
+        "protectionMargins": {
+          "top": 32,
+          "right": 16,
+          "bottom": 16,
+          "left": 16
+        },
+        "reason": "Animated ambient character remains live."
+      },
+      "runtimeRequirement": "remain-live"
+    },
+    {
+      "ref": {
+        "sourceType": "ambient-npc",
+        "sourceId": "crossroads-traveler"
+      },
+      "primaryRegionId": "crossroads",
+      "disposition": {
+        "mode": "protected-live",
+        "protectionMargins": {
+          "top": 32,
+          "right": 16,
+          "bottom": 16,
+          "left": 16
+        },
+        "reason": "Animated ambient character remains live."
+      },
+      "runtimeRequirement": "remain-live"
+    },
+    {
+      "ref": {
+        "sourceType": "ambient-npc",
+        "sourceId": "mistfen-forager"
+      },
+      "primaryRegionId": "mistfen",
+      "disposition": {
+        "mode": "protected-live",
+        "protectionMargins": {
+          "top": 32,
+          "right": 16,
+          "bottom": 16,
+          "left": 16
+        },
+        "reason": "Animated ambient character remains live."
+      },
+      "runtimeRequirement": "remain-live"
+    },
+    {
+      "ref": {
+        "sourceType": "ambient-npc",
+        "sourceId": "silverpine-pilgrim"
+      },
+      "primaryRegionId": "silverpine",
+      "disposition": {
+        "mode": "protected-live",
+        "protectionMargins": {
+          "top": 32,
+          "right": 16,
+          "bottom": 16,
+          "left": 16
+        },
+        "reason": "Animated ambient character remains live."
+      },
+      "runtimeRequirement": "remain-live"
+    },
+    {
+      "ref": {
+        "sourceType": "ambient-npc",
+        "sourceId": "village-crier"
+      },
+      "primaryRegionId": "sundrop-village",
+      "disposition": {
+        "mode": "protected-live",
+        "protectionMargins": {
+          "top": 32,
+          "right": 16,
+          "bottom": 16,
+          "left": 16
+        },
+        "reason": "Animated ambient character remains live."
+      },
+      "runtimeRequirement": "remain-live"
+    },
+    {
+      "ref": {
+        "sourceType": "ambient-npc",
+        "sourceId": "village-pilgrim"
+      },
+      "primaryRegionId": "sundrop-village",
+      "disposition": {
+        "mode": "protected-live",
+        "protectionMargins": {
+          "top": 32,
+          "right": 16,
+          "bottom": 16,
+          "left": 16
+        },
+        "reason": "Animated ambient character remains live."
+      },
+      "runtimeRequirement": "remain-live"
+    },
+    {
+      "ref": {
+        "sourceType": "ambient-npc",
+        "sourceId": "village-wanderer"
+      },
+      "primaryRegionId": "sundrop-village",
+      "disposition": {
+        "mode": "protected-live",
+        "protectionMargins": {
+          "top": 32,
+          "right": 16,
+          "bottom": 16,
+          "left": 16
+        },
+        "reason": "Animated ambient character remains live."
+      },
+      "runtimeRequirement": "remain-live"
+    },
+    {
+      "ref": {
+        "sourceType": "ambient-npc",
+        "sourceId": "village-woodcutter"
+      },
+      "primaryRegionId": "sundrop-village",
+      "disposition": {
+        "mode": "protected-live",
+        "protectionMargins": {
+          "top": 32,
+          "right": 16,
+          "bottom": 16,
+          "left": 16
+        },
+        "reason": "Animated ambient character remains live."
+      },
+      "runtimeRequirement": "remain-live"
+    },
+    {
+      "ref": {
+        "sourceType": "ambient-npc",
+        "sourceId": "wildwood-woodcutter"
+      },
+      "primaryRegionId": "wildwood",
+      "disposition": {
+        "mode": "protected-live",
+        "protectionMargins": {
+          "top": 32,
+          "right": 16,
+          "bottom": 16,
+          "left": 16
+        },
+        "reason": "Animated ambient character remains live."
+      },
+      "runtimeRequirement": "remain-live"
+    },
+    {
+      "ref": {
+        "sourceType": "blocker",
+        "sourceId": "castle-gate-block"
+      },
+      "primaryRegionId": "crossroads",
+      "disposition": {
+        "mode": "protected-live",
+        "protectionMargins": {
+          "top": 32,
+          "right": 16,
+          "bottom": 16,
+          "left": 16
+        },
+        "reason": "Story-gate collision and visual state remain live."
+      },
+      "runtimeRequirement": "remain-live"
+    },
+    {
+      "ref": {
+        "sourceType": "blocker",
+        "sourceId": "coast-approach-west-bank"
+      },
+      "primaryRegionId": "tidewatch-coast",
+      "disposition": {
+        "mode": "base-static",
+        "margins": {
+          "top": 8,
+          "right": 8,
+          "bottom": 8,
+          "left": 8
+        },
+        "motif": "hedge"
+      },
+      "runtimeRequirement": "existing-blocker-fallback"
+    },
+    {
+      "ref": {
+        "sourceType": "blocker",
+        "sourceId": "coast-crossroads-mouth-bank"
+      },
+      "primaryRegionId": "tidewatch-coast",
+      "disposition": {
+        "mode": "base-static",
+        "margins": {
+          "top": 8,
+          "right": 8,
+          "bottom": 8,
+          "left": 8
+        },
+        "motif": "hedge"
+      },
+      "runtimeRequirement": "existing-blocker-fallback"
+    },
+    {
+      "ref": {
+        "sourceType": "blocker",
+        "sourceId": "coast-sea-wall"
+      },
+      "primaryRegionId": "tidewatch-coast",
+      "disposition": {
+        "mode": "base-static",
+        "margins": {
+          "top": 8,
+          "right": 8,
+          "bottom": 8,
+          "left": 8
+        },
+        "motif": "water-edge"
+      },
+      "runtimeRequirement": "existing-blocker-fallback"
+    },
+    {
+      "ref": {
+        "sourceType": "blocker",
+        "sourceId": "corridor-wall-10b"
+      },
+      "primaryRegionId": "connector-village-crossroads",
+      "disposition": {
+        "mode": "base-and-foreground",
+        "baseMargins": {
+          "top": 8,
+          "right": 8,
+          "bottom": 8,
+          "left": 8
+        },
+        "foregroundMargins": {
+          "top": 32,
+          "right": 8,
+          "bottom": 0,
+          "left": 8
+        },
+        "frontCutoffPx": 33,
+        "motif": "hedge"
+      },
+      "runtimeRequirement": "existing-blocker-fallback"
+    },
+    {
+      "ref": {
+        "sourceType": "blocker",
+        "sourceId": "corridor-wall-2a"
+      },
+      "primaryRegionId": "connector-village-crossroads",
+      "disposition": {
+        "mode": "base-and-foreground",
+        "baseMargins": {
+          "top": 8,
+          "right": 8,
+          "bottom": 8,
+          "left": 8
+        },
+        "foregroundMargins": {
+          "top": 32,
+          "right": 8,
+          "bottom": 0,
+          "left": 8
+        },
+        "frontCutoffPx": 33,
+        "motif": "hedge"
+      },
+      "runtimeRequirement": "existing-blocker-fallback"
+    },
+    {
+      "ref": {
+        "sourceType": "blocker",
+        "sourceId": "corridor-wall-2b"
+      },
+      "primaryRegionId": "connector-village-crossroads",
+      "disposition": {
+        "mode": "base-and-foreground",
+        "baseMargins": {
+          "top": 8,
+          "right": 8,
+          "bottom": 8,
+          "left": 8
+        },
+        "foregroundMargins": {
+          "top": 32,
+          "right": 8,
+          "bottom": 0,
+          "left": 8
+        },
+        "frontCutoffPx": 33,
+        "motif": "hedge"
+      },
+      "runtimeRequirement": "existing-blocker-fallback"
+    },
+    {
+      "ref": {
+        "sourceType": "blocker",
+        "sourceId": "corridor-wall-3a"
+      },
+      "primaryRegionId": "connector-village-crossroads",
+      "disposition": {
+        "mode": "base-static",
+        "margins": {
+          "top": 8,
+          "right": 8,
+          "bottom": 8,
+          "left": 8
+        },
+        "motif": "hedge"
+      },
+      "runtimeRequirement": "existing-blocker-fallback"
+    },
+    {
+      "ref": {
+        "sourceType": "blocker",
+        "sourceId": "corridor-wall-3b"
+      },
+      "primaryRegionId": "connector-village-crossroads",
+      "disposition": {
+        "mode": "base-static",
+        "margins": {
+          "top": 8,
+          "right": 8,
+          "bottom": 8,
+          "left": 8
+        },
+        "motif": "hedge"
+      },
+      "runtimeRequirement": "existing-blocker-fallback"
+    },
+    {
+      "ref": {
+        "sourceType": "blocker",
+        "sourceId": "corridor-wall-4a"
+      },
+      "primaryRegionId": "connector-village-crossroads",
+      "disposition": {
+        "mode": "base-and-foreground",
+        "baseMargins": {
+          "top": 8,
+          "right": 8,
+          "bottom": 8,
+          "left": 8
+        },
+        "foregroundMargins": {
+          "top": 32,
+          "right": 8,
+          "bottom": 0,
+          "left": 8
+        },
+        "frontCutoffPx": 33,
+        "motif": "hedge"
+      },
+      "runtimeRequirement": "existing-blocker-fallback"
+    },
+    {
+      "ref": {
+        "sourceType": "blocker",
+        "sourceId": "corridor-wall-4b"
+      },
+      "primaryRegionId": "connector-village-crossroads",
+      "disposition": {
+        "mode": "base-and-foreground",
+        "baseMargins": {
+          "top": 8,
+          "right": 8,
+          "bottom": 8,
+          "left": 8
+        },
+        "foregroundMargins": {
+          "top": 32,
+          "right": 8,
+          "bottom": 0,
+          "left": 8
+        },
+        "frontCutoffPx": 33,
+        "motif": "hedge"
+      },
+      "runtimeRequirement": "existing-blocker-fallback"
+    },
+    {
+      "ref": {
+        "sourceType": "blocker",
+        "sourceId": "corridor-wall-5a"
+      },
+      "primaryRegionId": "connector-village-crossroads",
+      "disposition": {
+        "mode": "base-static",
+        "margins": {
+          "top": 8,
+          "right": 8,
+          "bottom": 8,
+          "left": 8
+        },
+        "motif": "hedge"
+      },
+      "runtimeRequirement": "existing-blocker-fallback"
+    },
+    {
+      "ref": {
+        "sourceType": "blocker",
+        "sourceId": "corridor-wall-5b"
+      },
+      "primaryRegionId": "connector-village-crossroads",
+      "disposition": {
+        "mode": "base-static",
+        "margins": {
+          "top": 8,
+          "right": 8,
+          "bottom": 8,
+          "left": 8
+        },
+        "motif": "hedge"
+      },
+      "runtimeRequirement": "existing-blocker-fallback"
+    },
+    {
+      "ref": {
+        "sourceType": "blocker",
+        "sourceId": "corridor-wall-6a"
+      },
+      "primaryRegionId": "connector-village-crossroads",
+      "disposition": {
+        "mode": "base-and-foreground",
+        "baseMargins": {
+          "top": 8,
+          "right": 8,
+          "bottom": 8,
+          "left": 8
+        },
+        "foregroundMargins": {
+          "top": 32,
+          "right": 8,
+          "bottom": 0,
+          "left": 8
+        },
+        "frontCutoffPx": 33,
+        "motif": "hedge"
+      },
+      "runtimeRequirement": "existing-blocker-fallback"
+    },
+    {
+      "ref": {
+        "sourceType": "blocker",
+        "sourceId": "corridor-wall-6b"
+      },
+      "primaryRegionId": "connector-village-crossroads",
+      "disposition": {
+        "mode": "base-and-foreground",
+        "baseMargins": {
+          "top": 8,
+          "right": 8,
+          "bottom": 8,
+          "left": 8
+        },
+        "foregroundMargins": {
+          "top": 32,
+          "right": 8,
+          "bottom": 0,
+          "left": 8
+        },
+        "frontCutoffPx": 33,
+        "motif": "hedge"
+      },
+      "runtimeRequirement": "existing-blocker-fallback"
+    },
+    {
+      "ref": {
+        "sourceType": "blocker",
+        "sourceId": "corridor-wall-7a"
+      },
+      "primaryRegionId": "connector-village-crossroads",
+      "disposition": {
+        "mode": "base-static",
+        "margins": {
+          "top": 8,
+          "right": 8,
+          "bottom": 8,
+          "left": 8
+        },
+        "motif": "hedge"
+      },
+      "runtimeRequirement": "existing-blocker-fallback"
+    },
+    {
+      "ref": {
+        "sourceType": "blocker",
+        "sourceId": "corridor-wall-7b"
+      },
+      "primaryRegionId": "connector-village-crossroads",
+      "disposition": {
+        "mode": "base-static",
+        "margins": {
+          "top": 8,
+          "right": 8,
+          "bottom": 8,
+          "left": 8
+        },
+        "motif": "hedge"
+      },
+      "runtimeRequirement": "existing-blocker-fallback"
+    },
+    {
+      "ref": {
+        "sourceType": "blocker",
+        "sourceId": "corridor-wall-8a"
+      },
+      "primaryRegionId": "connector-village-crossroads",
+      "disposition": {
+        "mode": "base-and-foreground",
+        "baseMargins": {
+          "top": 8,
+          "right": 8,
+          "bottom": 8,
+          "left": 8
+        },
+        "foregroundMargins": {
+          "top": 32,
+          "right": 8,
+          "bottom": 0,
+          "left": 8
+        },
+        "frontCutoffPx": 33,
+        "motif": "hedge"
+      },
+      "runtimeRequirement": "existing-blocker-fallback"
+    },
+    {
+      "ref": {
+        "sourceType": "blocker",
+        "sourceId": "corridor-wall-8b"
+      },
+      "primaryRegionId": "connector-village-crossroads",
+      "disposition": {
+        "mode": "base-and-foreground",
+        "baseMargins": {
+          "top": 8,
+          "right": 8,
+          "bottom": 8,
+          "left": 8
+        },
+        "foregroundMargins": {
+          "top": 32,
+          "right": 8,
+          "bottom": 0,
+          "left": 8
+        },
+        "frontCutoffPx": 33,
+        "motif": "hedge"
+      },
+      "runtimeRequirement": "existing-blocker-fallback"
+    },
+    {
+      "ref": {
+        "sourceType": "blocker",
+        "sourceId": "corridor-wall-9a"
+      },
+      "primaryRegionId": "connector-village-crossroads",
+      "disposition": {
+        "mode": "base-static",
+        "margins": {
+          "top": 8,
+          "right": 8,
+          "bottom": 8,
+          "left": 8
+        },
+        "motif": "hedge"
+      },
+      "runtimeRequirement": "existing-blocker-fallback"
+    },
+    {
+      "ref": {
+        "sourceType": "blocker",
+        "sourceId": "crossroads-east-hedge"
+      },
+      "primaryRegionId": "crossroads",
+      "disposition": {
+        "mode": "base-static",
+        "margins": {
+          "top": 8,
+          "right": 8,
+          "bottom": 8,
+          "left": 8
+        },
+        "motif": "hedge"
+      },
+      "runtimeRequirement": "existing-blocker-fallback"
+    },
+    {
+      "ref": {
+        "sourceType": "blocker",
+        "sourceId": "crossroads-west-hedge"
+      },
+      "primaryRegionId": "crossroads",
+      "disposition": {
+        "mode": "base-static",
+        "margins": {
+          "top": 8,
+          "right": 8,
+          "bottom": 8,
+          "left": 8
+        },
+        "motif": "hedge"
+      },
+      "runtimeRequirement": "existing-blocker-fallback"
+    },
+    {
+      "ref": {
+        "sourceType": "blocker",
+        "sourceId": "meadow-east-boundary"
+      },
+      "primaryRegionId": "outer-boundary",
+      "disposition": {
+        "mode": "protected-live",
+        "protectionMargins": {
+          "top": 32,
+          "right": 16,
+          "bottom": 16,
+          "left": 16
+        },
+        "reason": "Runtime renders this town-hedge boundary as live tree-cluster segments."
+      },
+      "runtimeRequirement": "remain-live"
+    },
+    {
+      "ref": {
+        "sourceType": "blocker",
+        "sourceId": "meadow-north-boundary"
+      },
+      "primaryRegionId": "outer-boundary",
+      "disposition": {
+        "mode": "protected-live",
+        "protectionMargins": {
+          "top": 32,
+          "right": 16,
+          "bottom": 16,
+          "left": 16
+        },
+        "reason": "Runtime renders this town-hedge boundary as live tree-cluster segments."
+      },
+      "runtimeRequirement": "remain-live"
+    },
+    {
+      "ref": {
+        "sourceType": "blocker",
+        "sourceId": "meadow-south-boundary"
+      },
+      "primaryRegionId": "outer-boundary",
+      "disposition": {
+        "mode": "protected-live",
+        "protectionMargins": {
+          "top": 32,
+          "right": 16,
+          "bottom": 16,
+          "left": 16
+        },
+        "reason": "Runtime renders this town-hedge boundary as live tree-cluster segments."
+      },
+      "runtimeRequirement": "remain-live"
+    },
+    {
+      "ref": {
+        "sourceType": "blocker",
+        "sourceId": "meadow-west-boundary"
+      },
+      "primaryRegionId": "outer-boundary",
+      "disposition": {
+        "mode": "protected-live",
+        "protectionMargins": {
+          "top": 32,
+          "right": 16,
+          "bottom": 16,
+          "left": 16
+        },
+        "reason": "Runtime renders this town-hedge boundary as live tree-cluster segments."
+      },
+      "runtimeRequirement": "remain-live"
+    },
+    {
+      "ref": {
+        "sourceType": "blocker",
+        "sourceId": "mistfen-entry-bank-east"
+      },
+      "primaryRegionId": "connector-crossroads-mistfen",
+      "disposition": {
+        "mode": "base-static",
+        "margins": {
+          "top": 8,
+          "right": 8,
+          "bottom": 8,
+          "left": 8
+        },
+        "motif": "hedge"
+      },
+      "runtimeRequirement": "existing-blocker-fallback"
+    },
+    {
+      "ref": {
+        "sourceType": "blocker",
+        "sourceId": "mistfen-gate-approach-west-bank"
+      },
+      "primaryRegionId": "mistfen",
+      "disposition": {
+        "mode": "base-static",
+        "margins": {
+          "top": 8,
+          "right": 8,
+          "bottom": 8,
+          "left": 8
+        },
+        "motif": "hedge"
+      },
+      "runtimeRequirement": "existing-blocker-fallback"
+    },
+    {
+      "ref": {
+        "sourceType": "blocker",
+        "sourceId": "mistfen-pool-east-blocker"
+      },
+      "primaryRegionId": "mistfen",
+      "disposition": {
+        "mode": "base-static",
+        "margins": {
+          "top": 8,
+          "right": 8,
+          "bottom": 8,
+          "left": 8
+        },
+        "motif": "water-edge"
+      },
+      "runtimeRequirement": "existing-blocker-fallback"
+    },
+    {
+      "ref": {
+        "sourceType": "blocker",
+        "sourceId": "mistfen-pool-west-blocker"
+      },
+      "primaryRegionId": "mistfen",
+      "disposition": {
+        "mode": "base-static",
+        "margins": {
+          "top": 8,
+          "right": 8,
+          "bottom": 8,
+          "left": 8
+        },
+        "motif": "water-edge"
+      },
+      "runtimeRequirement": "existing-blocker-fallback"
+    },
+    {
+      "ref": {
+        "sourceType": "blocker",
+        "sourceId": "silver-shrine-gate-block"
+      },
+      "primaryRegionId": "silverpine",
+      "disposition": {
+        "mode": "protected-live",
+        "protectionMargins": {
+          "top": 32,
+          "right": 16,
+          "bottom": 16,
+          "left": 16
+        },
+        "reason": "Story-gate collision and visual state remain live."
+      },
+      "runtimeRequirement": "remain-live"
+    },
+    {
+      "ref": {
+        "sourceType": "blocker",
+        "sourceId": "silverpine-grove-pocket-wall-north"
+      },
+      "primaryRegionId": "silverpine",
+      "disposition": {
+        "mode": "base-and-foreground",
+        "baseMargins": {
+          "top": 8,
+          "right": 8,
+          "bottom": 8,
+          "left": 8
+        },
+        "foregroundMargins": {
+          "top": 32,
+          "right": 8,
+          "bottom": 0,
+          "left": 8
+        },
+        "frontCutoffPx": 33,
+        "motif": "tree-wall"
+      },
+      "runtimeRequirement": "existing-blocker-fallback"
+    },
+    {
+      "ref": {
+        "sourceType": "blocker",
+        "sourceId": "silverpine-grove-pocket-wall-south"
+      },
+      "primaryRegionId": "silverpine",
+      "disposition": {
+        "mode": "base-and-foreground",
+        "baseMargins": {
+          "top": 8,
+          "right": 8,
+          "bottom": 8,
+          "left": 8
+        },
+        "foregroundMargins": {
+          "top": 32,
+          "right": 8,
+          "bottom": 0,
+          "left": 8
+        },
+        "frontCutoffPx": 33,
+        "motif": "tree-wall"
+      },
+      "runtimeRequirement": "existing-blocker-fallback"
+    },
+    {
+      "ref": {
+        "sourceType": "blocker",
+        "sourceId": "silverpine-grove-pocket-wall-west"
+      },
+      "primaryRegionId": "silverpine",
+      "disposition": {
+        "mode": "base-static",
+        "margins": {
+          "top": 8,
+          "right": 8,
+          "bottom": 8,
+          "left": 8
+        },
+        "motif": "tree-wall"
+      },
+      "runtimeRequirement": "existing-blocker-fallback"
+    },
+    {
+      "ref": {
+        "sourceType": "blocker",
+        "sourceId": "silverpine-mid-climb-alcove-wall-east"
+      },
+      "primaryRegionId": "silverpine",
+      "disposition": {
+        "mode": "base-static",
+        "margins": {
+          "top": 8,
+          "right": 8,
+          "bottom": 8,
+          "left": 8
+        },
+        "motif": "tree-wall"
+      },
+      "runtimeRequirement": "existing-blocker-fallback"
+    },
+    {
+      "ref": {
+        "sourceType": "blocker",
+        "sourceId": "silverpine-mid-climb-alcove-wall-north"
+      },
+      "primaryRegionId": "silverpine",
+      "disposition": {
+        "mode": "base-and-foreground",
+        "baseMargins": {
+          "top": 8,
+          "right": 8,
+          "bottom": 8,
+          "left": 8
+        },
+        "foregroundMargins": {
+          "top": 32,
+          "right": 8,
+          "bottom": 0,
+          "left": 8
+        },
+        "frontCutoffPx": 33,
+        "motif": "tree-wall"
+      },
+      "runtimeRequirement": "existing-blocker-fallback"
+    },
+    {
+      "ref": {
+        "sourceType": "blocker",
+        "sourceId": "silverpine-mid-climb-alcove-wall-south"
+      },
+      "primaryRegionId": "silverpine",
+      "disposition": {
+        "mode": "base-and-foreground",
+        "baseMargins": {
+          "top": 8,
+          "right": 8,
+          "bottom": 8,
+          "left": 8
+        },
+        "foregroundMargins": {
+          "top": 32,
+          "right": 8,
+          "bottom": 0,
+          "left": 8
+        },
+        "frontCutoffPx": 33,
+        "motif": "tree-wall"
+      },
+      "runtimeRequirement": "existing-blocker-fallback"
+    },
+    {
+      "ref": {
+        "sourceType": "blocker",
+        "sourceId": "silverpine-wall-A-east"
+      },
+      "primaryRegionId": "silverpine",
+      "disposition": {
+        "mode": "base-static",
+        "margins": {
+          "top": 8,
+          "right": 8,
+          "bottom": 8,
+          "left": 8
+        },
+        "motif": "tree-wall"
+      },
+      "runtimeRequirement": "existing-blocker-fallback"
+    },
+    {
+      "ref": {
+        "sourceType": "blocker",
+        "sourceId": "silverpine-wall-A-west"
+      },
+      "primaryRegionId": "silverpine",
+      "disposition": {
+        "mode": "base-static",
+        "margins": {
+          "top": 8,
+          "right": 8,
+          "bottom": 8,
+          "left": 8
+        },
+        "motif": "tree-wall"
+      },
+      "runtimeRequirement": "existing-blocker-fallback"
+    },
+    {
+      "ref": {
+        "sourceType": "blocker",
+        "sourceId": "silverpine-wall-B-north"
+      },
+      "primaryRegionId": "silverpine",
+      "disposition": {
+        "mode": "base-and-foreground",
+        "baseMargins": {
+          "top": 8,
+          "right": 8,
+          "bottom": 8,
+          "left": 8
+        },
+        "foregroundMargins": {
+          "top": 32,
+          "right": 8,
+          "bottom": 0,
+          "left": 8
+        },
+        "frontCutoffPx": 33,
+        "motif": "tree-wall"
+      },
+      "runtimeRequirement": "existing-blocker-fallback"
+    },
+    {
+      "ref": {
+        "sourceType": "blocker",
+        "sourceId": "silverpine-wall-B-south"
+      },
+      "primaryRegionId": "silverpine",
+      "disposition": {
+        "mode": "base-and-foreground",
+        "baseMargins": {
+          "top": 8,
+          "right": 8,
+          "bottom": 8,
+          "left": 8
+        },
+        "foregroundMargins": {
+          "top": 32,
+          "right": 8,
+          "bottom": 0,
+          "left": 8
+        },
+        "frontCutoffPx": 33,
+        "motif": "tree-wall"
+      },
+      "runtimeRequirement": "existing-blocker-fallback"
+    },
+    {
+      "ref": {
+        "sourceType": "blocker",
+        "sourceId": "silverpine-wall-C-east"
+      },
+      "primaryRegionId": "silverpine",
+      "disposition": {
+        "mode": "base-static",
+        "margins": {
+          "top": 8,
+          "right": 8,
+          "bottom": 8,
+          "left": 8
+        },
+        "motif": "tree-wall"
+      },
+      "runtimeRequirement": "existing-blocker-fallback"
+    },
+    {
+      "ref": {
+        "sourceType": "blocker",
+        "sourceId": "silverpine-wall-C-west"
+      },
+      "primaryRegionId": "silverpine",
+      "disposition": {
+        "mode": "base-static",
+        "margins": {
+          "top": 8,
+          "right": 8,
+          "bottom": 8,
+          "left": 8
+        },
+        "motif": "tree-wall"
+      },
+      "runtimeRequirement": "existing-blocker-fallback"
+    },
+    {
+      "ref": {
+        "sourceType": "blocker",
+        "sourceId": "silverpine-wall-E-east"
+      },
+      "primaryRegionId": "silverpine",
+      "disposition": {
+        "mode": "base-static",
+        "margins": {
+          "top": 8,
+          "right": 8,
+          "bottom": 8,
+          "left": 8
+        },
+        "motif": "tree-wall"
+      },
+      "runtimeRequirement": "existing-blocker-fallback"
+    },
+    {
+      "ref": {
+        "sourceType": "blocker",
+        "sourceId": "silverpine-wall-E-west"
+      },
+      "primaryRegionId": "silverpine",
+      "disposition": {
+        "mode": "base-static",
+        "margins": {
+          "top": 8,
+          "right": 8,
+          "bottom": 8,
+          "left": 8
+        },
+        "motif": "tree-wall"
+      },
+      "runtimeRequirement": "existing-blocker-fallback"
+    },
+    {
+      "ref": {
+        "sourceType": "blocker",
+        "sourceId": "silverpine-wall-G-north"
+      },
+      "primaryRegionId": "silverpine",
+      "disposition": {
+        "mode": "base-and-foreground",
+        "baseMargins": {
+          "top": 8,
+          "right": 8,
+          "bottom": 8,
+          "left": 8
+        },
+        "foregroundMargins": {
+          "top": 32,
+          "right": 8,
+          "bottom": 0,
+          "left": 8
+        },
+        "frontCutoffPx": 33,
+        "motif": "tree-wall"
+      },
+      "runtimeRequirement": "existing-blocker-fallback"
+    },
+    {
+      "ref": {
+        "sourceType": "blocker",
+        "sourceId": "silverpine-wall-G-south"
+      },
+      "primaryRegionId": "silverpine",
+      "disposition": {
+        "mode": "base-and-foreground",
+        "baseMargins": {
+          "top": 8,
+          "right": 8,
+          "bottom": 8,
+          "left": 8
+        },
+        "foregroundMargins": {
+          "top": 32,
+          "right": 8,
+          "bottom": 0,
+          "left": 8
+        },
+        "frontCutoffPx": 33,
+        "motif": "tree-wall"
+      },
+      "runtimeRequirement": "existing-blocker-fallback"
+    },
+    {
+      "ref": {
+        "sourceType": "blocker",
+        "sourceId": "silverpine-wall-H-east"
+      },
+      "primaryRegionId": "silverpine",
+      "disposition": {
+        "mode": "base-static",
+        "margins": {
+          "top": 8,
+          "right": 8,
+          "bottom": 8,
+          "left": 8
+        },
+        "motif": "tree-wall"
+      },
+      "runtimeRequirement": "existing-blocker-fallback"
+    },
+    {
+      "ref": {
+        "sourceType": "blocker",
+        "sourceId": "silverpine-wall-H-west"
+      },
+      "primaryRegionId": "silverpine",
+      "disposition": {
+        "mode": "base-static",
+        "margins": {
+          "top": 8,
+          "right": 8,
+          "bottom": 8,
+          "left": 8
+        },
+        "motif": "tree-wall"
+      },
+      "runtimeRequirement": "existing-blocker-fallback"
+    },
+    {
+      "ref": {
+        "sourceType": "blocker",
+        "sourceId": "silverpine-wall-I-north"
+      },
+      "primaryRegionId": "silverpine",
+      "disposition": {
+        "mode": "base-and-foreground",
+        "baseMargins": {
+          "top": 8,
+          "right": 8,
+          "bottom": 8,
+          "left": 8
+        },
+        "foregroundMargins": {
+          "top": 32,
+          "right": 8,
+          "bottom": 0,
+          "left": 8
+        },
+        "frontCutoffPx": 33,
+        "motif": "tree-wall"
+      },
+      "runtimeRequirement": "existing-blocker-fallback"
+    },
+    {
+      "ref": {
+        "sourceType": "blocker",
+        "sourceId": "silverpine-wall-I-south"
+      },
+      "primaryRegionId": "silverpine",
+      "disposition": {
+        "mode": "base-and-foreground",
+        "baseMargins": {
+          "top": 8,
+          "right": 8,
+          "bottom": 8,
+          "left": 8
+        },
+        "foregroundMargins": {
+          "top": 32,
+          "right": 8,
+          "bottom": 0,
+          "left": 8
+        },
+        "frontCutoffPx": 33,
+        "motif": "tree-wall"
+      },
+      "runtimeRequirement": "existing-blocker-fallback"
+    },
+    {
+      "ref": {
+        "sourceType": "blocker",
+        "sourceId": "silverpine-wall-J-east"
+      },
+      "primaryRegionId": "silverpine",
+      "disposition": {
+        "mode": "base-static",
+        "margins": {
+          "top": 8,
+          "right": 8,
+          "bottom": 8,
+          "left": 8
+        },
+        "motif": "tree-wall"
+      },
+      "runtimeRequirement": "existing-blocker-fallback"
+    },
+    {
+      "ref": {
+        "sourceType": "blocker",
+        "sourceId": "silverpine-wall-J-west"
+      },
+      "primaryRegionId": "silverpine",
+      "disposition": {
+        "mode": "base-static",
+        "margins": {
+          "top": 8,
+          "right": 8,
+          "bottom": 8,
+          "left": 8
+        },
+        "motif": "tree-wall"
+      },
+      "runtimeRequirement": "existing-blocker-fallback"
+    },
+    {
+      "ref": {
+        "sourceType": "blocker",
+        "sourceId": "silverpine-wall-K-north"
+      },
+      "primaryRegionId": "silverpine",
+      "disposition": {
+        "mode": "base-and-foreground",
+        "baseMargins": {
+          "top": 8,
+          "right": 8,
+          "bottom": 8,
+          "left": 8
+        },
+        "foregroundMargins": {
+          "top": 32,
+          "right": 8,
+          "bottom": 0,
+          "left": 8
+        },
+        "frontCutoffPx": 33,
+        "motif": "tree-wall"
+      },
+      "runtimeRequirement": "existing-blocker-fallback"
+    },
+    {
+      "ref": {
+        "sourceType": "blocker",
+        "sourceId": "silverpine-wall-K-south"
+      },
+      "primaryRegionId": "silverpine",
+      "disposition": {
+        "mode": "base-and-foreground",
+        "baseMargins": {
+          "top": 8,
+          "right": 8,
+          "bottom": 8,
+          "left": 8
+        },
+        "foregroundMargins": {
+          "top": 32,
+          "right": 8,
+          "bottom": 0,
+          "left": 8
+        },
+        "frontCutoffPx": 33,
+        "motif": "tree-wall"
+      },
+      "runtimeRequirement": "existing-blocker-fallback"
+    },
+    {
+      "ref": {
+        "sourceType": "blocker",
+        "sourceId": "silverpine-wall-L-east"
+      },
+      "primaryRegionId": "silverpine",
+      "disposition": {
+        "mode": "base-static",
+        "margins": {
+          "top": 8,
+          "right": 8,
+          "bottom": 8,
+          "left": 8
+        },
+        "motif": "tree-wall"
+      },
+      "runtimeRequirement": "existing-blocker-fallback"
+    },
+    {
+      "ref": {
+        "sourceType": "blocker",
+        "sourceId": "silverpine-wall-L-west"
+      },
+      "primaryRegionId": "silverpine",
+      "disposition": {
+        "mode": "base-static",
+        "margins": {
+          "top": 8,
+          "right": 8,
+          "bottom": 8,
+          "left": 8
+        },
+        "motif": "tree-wall"
+      },
+      "runtimeRequirement": "existing-blocker-fallback"
+    },
+    {
+      "ref": {
+        "sourceType": "blocker",
+        "sourceId": "sundrop-southwest-ocean"
+      },
+      "primaryRegionId": "outer-boundary",
+      "disposition": {
+        "mode": "runtime-fallback-only",
+        "reason": "The ocean blocker is collision-only; its paired sea ground patch remains visual fallback outside every regional runtime crop."
+      },
+      "runtimeRequirement": "fallback-tile"
+    },
+    {
+      "ref": {
+        "sourceType": "blocker",
+        "sourceId": "village-block-0-37"
+      },
+      "primaryRegionId": "sundrop-village",
+      "disposition": {
+        "mode": "protected-live",
+        "protectionMargins": {
+          "top": 32,
+          "right": 16,
+          "bottom": 16,
+          "left": 16
+        },
+        "reason": "This HPA-398 feather-band blocker was deliberately excluded from baked ownership."
+      },
+      "runtimeRequirement": "remain-live"
+    },
+    {
+      "ref": {
+        "sourceType": "blocker",
+        "sourceId": "village-block-0-49"
+      },
+      "primaryRegionId": "sundrop-village",
+      "disposition": {
+        "mode": "protected-live",
+        "protectionMargins": {
+          "top": 32,
+          "right": 16,
+          "bottom": 16,
+          "left": 16
+        },
+        "reason": "This HPA-398 feather-band blocker was deliberately excluded from baked ownership."
+      },
+      "runtimeRequirement": "remain-live"
+    },
+    {
+      "ref": {
+        "sourceType": "blocker",
+        "sourceId": "village-block-10-35"
+      },
+      "primaryRegionId": "sundrop-village",
+      "disposition": {
+        "mode": "base-and-foreground",
+        "baseMargins": {
+          "top": 8,
+          "right": 8,
+          "bottom": 8,
+          "left": 8
+        },
+        "foregroundMargins": {
+          "top": 32,
+          "right": 8,
+          "bottom": 0,
+          "left": 8
+        },
+        "frontCutoffPx": 33,
+        "motif": "low-wall"
+      },
+      "runtimeRequirement": "existing-blocker-fallback"
+    },
+    {
+      "ref": {
+        "sourceType": "blocker",
+        "sourceId": "village-block-11-35"
+      },
+      "primaryRegionId": "sundrop-village",
+      "disposition": {
+        "mode": "base-static",
+        "margins": {
+          "top": 8,
+          "right": 8,
+          "bottom": 8,
+          "left": 8
+        },
+        "motif": "low-wall"
+      },
+      "runtimeRequirement": "existing-blocker-fallback"
+    },
+    {
+      "ref": {
+        "sourceType": "blocker",
+        "sourceId": "village-block-19-2"
+      },
+      "primaryRegionId": "sundrop-village",
+      "disposition": {
+        "mode": "base-and-foreground",
+        "baseMargins": {
+          "top": 8,
+          "right": 8,
+          "bottom": 8,
+          "left": 8
+        },
+        "foregroundMargins": {
+          "top": 32,
+          "right": 8,
+          "bottom": 0,
+          "left": 8
+        },
+        "frontCutoffPx": 33,
+        "motif": "low-wall"
+      },
+      "runtimeRequirement": "existing-blocker-fallback"
+    },
+    {
+      "ref": {
+        "sourceType": "blocker",
+        "sourceId": "village-block-19-30"
+      },
+      "primaryRegionId": "sundrop-village",
+      "disposition": {
+        "mode": "base-and-foreground",
+        "baseMargins": {
+          "top": 8,
+          "right": 8,
+          "bottom": 8,
+          "left": 8
+        },
+        "foregroundMargins": {
+          "top": 32,
+          "right": 8,
+          "bottom": 0,
+          "left": 8
+        },
+        "frontCutoffPx": 33,
+        "motif": "low-wall"
+      },
+      "runtimeRequirement": "existing-blocker-fallback"
+    },
+    {
+      "ref": {
+        "sourceType": "blocker",
+        "sourceId": "village-block-2-2"
+      },
+      "primaryRegionId": "sundrop-village",
+      "disposition": {
+        "mode": "base-and-foreground",
+        "baseMargins": {
+          "top": 8,
+          "right": 8,
+          "bottom": 8,
+          "left": 8
+        },
+        "foregroundMargins": {
+          "top": 32,
+          "right": 8,
+          "bottom": 0,
+          "left": 8
+        },
+        "frontCutoffPx": 33,
+        "motif": "hedge"
+      },
+      "runtimeRequirement": "existing-blocker-fallback"
+    },
+    {
+      "ref": {
+        "sourceType": "blocker",
+        "sourceId": "village-block-2-49"
+      },
+      "primaryRegionId": "sundrop-village",
+      "disposition": {
+        "mode": "base-and-foreground",
+        "baseMargins": {
+          "top": 8,
+          "right": 8,
+          "bottom": 8,
+          "left": 8
+        },
+        "foregroundMargins": {
+          "top": 32,
+          "right": 8,
+          "bottom": 0,
+          "left": 8
+        },
+        "frontCutoffPx": 33,
+        "motif": "hedge"
+      },
+      "runtimeRequirement": "existing-blocker-fallback"
+    },
+    {
+      "ref": {
+        "sourceType": "blocker",
+        "sourceId": "village-block-20-2"
+      },
+      "primaryRegionId": "sundrop-village",
+      "disposition": {
+        "mode": "base-static",
+        "margins": {
+          "top": 8,
+          "right": 8,
+          "bottom": 8,
+          "left": 8
+        },
+        "motif": "low-wall"
+      },
+      "runtimeRequirement": "existing-blocker-fallback"
+    },
+    {
+      "ref": {
+        "sourceType": "blocker",
+        "sourceId": "village-block-20-34"
+      },
+      "primaryRegionId": "sundrop-village",
+      "disposition": {
+        "mode": "base-static",
+        "margins": {
+          "top": 8,
+          "right": 8,
+          "bottom": 8,
+          "left": 8
+        },
+        "motif": "low-wall"
+      },
+      "runtimeRequirement": "existing-blocker-fallback"
+    },
+    {
+      "ref": {
+        "sourceType": "blocker",
+        "sourceId": "village-block-25-20"
+      },
+      "primaryRegionId": "sundrop-village",
+      "disposition": {
+        "mode": "base-static",
+        "margins": {
+          "top": 8,
+          "right": 8,
+          "bottom": 8,
+          "left": 8
+        },
+        "motif": "low-wall"
+      },
+      "runtimeRequirement": "existing-blocker-fallback"
+    },
+    {
+      "ref": {
+        "sourceType": "blocker",
+        "sourceId": "village-block-3-2"
+      },
+      "primaryRegionId": "sundrop-village",
+      "disposition": {
+        "mode": "base-and-foreground",
+        "baseMargins": {
+          "top": 8,
+          "right": 8,
+          "bottom": 8,
+          "left": 8
+        },
+        "foregroundMargins": {
+          "top": 32,
+          "right": 8,
+          "bottom": 0,
+          "left": 8
+        },
+        "frontCutoffPx": 33,
+        "motif": "hedge"
+      },
+      "runtimeRequirement": "existing-blocker-fallback"
+    },
+    {
+      "ref": {
+        "sourceType": "blocker",
+        "sourceId": "village-block-3-51"
+      },
+      "primaryRegionId": "sundrop-village",
+      "disposition": {
+        "mode": "base-static",
+        "margins": {
+          "top": 8,
+          "right": 8,
+          "bottom": 8,
+          "left": 8
+        },
+        "motif": "hedge"
+      },
+      "runtimeRequirement": "existing-blocker-fallback"
+    },
+    {
+      "ref": {
+        "sourceType": "blocker",
+        "sourceId": "village-block-32-2"
+      },
+      "primaryRegionId": "sundrop-village",
+      "disposition": {
+        "mode": "base-static",
+        "margins": {
+          "top": 8,
+          "right": 8,
+          "bottom": 8,
+          "left": 8
+        },
+        "motif": "hedge"
+      },
+      "runtimeRequirement": "existing-blocker-fallback"
+    },
+    {
+      "ref": {
+        "sourceType": "blocker",
+        "sourceId": "village-block-32-24"
+      },
+      "primaryRegionId": "sundrop-village",
+      "disposition": {
+        "mode": "base-static",
+        "margins": {
+          "top": 8,
+          "right": 8,
+          "bottom": 8,
+          "left": 8
+        },
+        "motif": "root-rock"
+      },
+      "runtimeRequirement": "existing-blocker-fallback"
+    },
+    {
+      "ref": {
+        "sourceType": "blocker",
+        "sourceId": "village-block-32-33"
+      },
+      "primaryRegionId": "sundrop-village",
+      "disposition": {
+        "mode": "base-static",
+        "margins": {
+          "top": 8,
+          "right": 8,
+          "bottom": 8,
+          "left": 8
+        },
+        "motif": "root-rock"
+      },
+      "runtimeRequirement": "existing-blocker-fallback"
+    },
+    {
+      "ref": {
+        "sourceType": "blocker",
+        "sourceId": "village-block-32-8"
+      },
+      "primaryRegionId": "sundrop-village",
+      "disposition": {
+        "mode": "base-static",
+        "margins": {
+          "top": 8,
+          "right": 8,
+          "bottom": 8,
+          "left": 8
+        },
+        "motif": "root-rock"
+      },
+      "runtimeRequirement": "existing-blocker-fallback"
+    },
+    {
+      "ref": {
+        "sourceType": "blocker",
+        "sourceId": "village-block-33-24"
+      },
+      "primaryRegionId": "sundrop-village",
+      "disposition": {
+        "mode": "base-static",
+        "margins": {
+          "top": 8,
+          "right": 8,
+          "bottom": 8,
+          "left": 8
+        },
+        "motif": "root-rock"
+      },
+      "runtimeRequirement": "existing-blocker-fallback"
+    },
+    {
+      "ref": {
+        "sourceType": "blocker",
+        "sourceId": "village-block-33-49"
+      },
+      "primaryRegionId": "sundrop-village",
+      "disposition": {
+        "mode": "base-static",
+        "margins": {
+          "top": 8,
+          "right": 8,
+          "bottom": 8,
+          "left": 8
+        },
+        "motif": "hedge"
+      },
+      "runtimeRequirement": "existing-blocker-fallback"
+    },
+    {
+      "ref": {
+        "sourceType": "blocker",
+        "sourceId": "village-block-4-2"
+      },
+      "primaryRegionId": "sundrop-village",
+      "disposition": {
+        "mode": "base-static",
+        "margins": {
+          "top": 8,
+          "right": 8,
+          "bottom": 8,
+          "left": 8
+        },
+        "motif": "hedge"
+      },
+      "runtimeRequirement": "existing-blocker-fallback"
+    },
+    {
+      "ref": {
+        "sourceType": "blocker",
+        "sourceId": "village-block-4-35"
+      },
+      "primaryRegionId": "sundrop-village",
+      "disposition": {
+        "mode": "base-static",
+        "margins": {
+          "top": 8,
+          "right": 8,
+          "bottom": 8,
+          "left": 8
+        },
+        "motif": "low-wall"
+      },
+      "runtimeRequirement": "existing-blocker-fallback"
+    },
+    {
+      "ref": {
+        "sourceType": "blocker",
+        "sourceId": "village-block-41-24"
+      },
+      "primaryRegionId": "sundrop-village",
+      "disposition": {
+        "mode": "base-static",
+        "margins": {
+          "top": 8,
+          "right": 8,
+          "bottom": 8,
+          "left": 8
+        },
+        "motif": "root-rock"
+      },
+      "runtimeRequirement": "existing-blocker-fallback"
+    },
+    {
+      "ref": {
+        "sourceType": "blocker",
+        "sourceId": "village-block-46-2"
+      },
+      "primaryRegionId": "sundrop-village",
+      "disposition": {
+        "mode": "protected-live",
+        "protectionMargins": {
+          "top": 32,
+          "right": 16,
+          "bottom": 16,
+          "left": 16
+        },
+        "reason": "This HPA-398 feather-band blocker was deliberately excluded from baked ownership."
+      },
+      "runtimeRequirement": "remain-live"
+    },
+    {
+      "ref": {
+        "sourceType": "blocker",
+        "sourceId": "wildwood-forest-lane-east-bank"
+      },
+      "primaryRegionId": "wildwood",
+      "disposition": {
+        "mode": "base-static",
+        "margins": {
+          "top": 8,
+          "right": 8,
+          "bottom": 8,
+          "left": 8
+        },
+        "motif": "forest-bank"
+      },
+      "runtimeRequirement": "existing-blocker-fallback"
+    },
+    {
+      "ref": {
+        "sourceType": "blocker",
+        "sourceId": "wildwood-forest-lane-west-bank"
+      },
+      "primaryRegionId": "wildwood",
+      "disposition": {
+        "mode": "base-static",
+        "margins": {
+          "top": 8,
+          "right": 8,
+          "bottom": 8,
+          "left": 8
+        },
+        "motif": "forest-bank"
+      },
+      "runtimeRequirement": "existing-blocker-fallback"
+    },
+    {
+      "ref": {
+        "sourceType": "blocker",
+        "sourceId": "wildwood-north-climb-east-bank"
+      },
+      "primaryRegionId": "wildwood",
+      "disposition": {
+        "mode": "base-static",
+        "margins": {
+          "top": 8,
+          "right": 8,
+          "bottom": 8,
+          "left": 8
+        },
+        "motif": "forest-bank"
+      },
+      "runtimeRequirement": "existing-blocker-fallback"
+    },
+    {
+      "ref": {
+        "sourceType": "blocker",
+        "sourceId": "wildwood-north-climb-west-bank"
+      },
+      "primaryRegionId": "wildwood",
+      "disposition": {
+        "mode": "base-static",
+        "margins": {
+          "top": 8,
+          "right": 8,
+          "bottom": 8,
+          "left": 8
+        },
+        "motif": "forest-bank"
+      },
+      "runtimeRequirement": "existing-blocker-fallback"
+    },
+    {
+      "ref": {
+        "sourceType": "blocker",
+        "sourceId": "witchwood-gate-block"
+      },
+      "primaryRegionId": "mistfen",
+      "disposition": {
+        "mode": "protected-live",
+        "protectionMargins": {
+          "top": 32,
+          "right": 16,
+          "bottom": 16,
+          "left": 16
+        },
+        "reason": "Story-gate collision and visual state remain live."
+      },
+      "runtimeRequirement": "remain-live"
+    },
+    {
+      "ref": {
+        "sourceType": "combat-bounds",
+        "sourceId": "whispering-cave-combat-pocket"
+      },
+      "primaryRegionId": "wildwood",
+      "disposition": {
+        "mode": "control-only",
+        "reason": "Combat bounds are non-visual semantic control data."
+      },
+      "runtimeRequirement": "none"
+    },
+    {
+      "ref": {
+        "sourceType": "combat-bounds",
+        "sourceId": "wildwood-crossing-combat-pocket"
+      },
+      "primaryRegionId": "wildwood",
+      "disposition": {
+        "mode": "control-only",
+        "reason": "Combat bounds are non-visual semantic control data."
+      },
+      "runtimeRequirement": "none"
+    },
+    {
+      "ref": {
+        "sourceType": "combat-bounds",
+        "sourceId": "wildwood-north-combat-pocket"
+      },
+      "primaryRegionId": "wildwood",
+      "disposition": {
+        "mode": "control-only",
+        "reason": "Combat bounds are non-visual semantic control data."
+      },
+      "runtimeRequirement": "none"
+    },
+    {
+      "ref": {
+        "sourceType": "decor",
+        "sourceId": "castle-gate-sprite"
+      },
+      "primaryRegionId": "crossroads",
+      "disposition": {
+        "mode": "protected-live",
+        "protectionMargins": {
+          "top": 32,
+          "right": 16,
+          "bottom": 16,
+          "left": 16
+        },
+        "reason": "Narrative, cave, landmark, or predecessor-owned decor remains live."
+      },
+      "runtimeRequirement": "remain-live"
+    },
+    {
+      "ref": {
+        "sourceType": "decor",
+        "sourceId": "coast-approach-net"
+      },
+      "primaryRegionId": "tidewatch-coast",
+      "disposition": {
+        "mode": "base-and-foreground",
+        "baseMargins": {
+          "top": 8,
+          "right": 8,
+          "bottom": 8,
+          "left": 8
+        },
+        "foregroundMargins": {
+          "top": 32,
+          "right": 8,
+          "bottom": 0,
+          "left": 8
+        },
+        "frontCutoffPx": 33,
+        "motif": "regional-occluding-decor"
+      },
+      "runtimeRequirement": "extend-decor-fallback"
+    },
+    {
+      "ref": {
+        "sourceType": "decor",
+        "sourceId": "coast-boat"
+      },
+      "primaryRegionId": "tidewatch-coast",
+      "disposition": {
+        "mode": "base-and-foreground",
+        "baseMargins": {
+          "top": 8,
+          "right": 8,
+          "bottom": 8,
+          "left": 8
+        },
+        "foregroundMargins": {
+          "top": 32,
+          "right": 8,
+          "bottom": 0,
+          "left": 8
+        },
+        "frontCutoffPx": 33,
+        "motif": "regional-occluding-decor"
+      },
+      "runtimeRequirement": "extend-decor-fallback"
+    },
+    {
+      "ref": {
+        "sourceType": "decor",
+        "sourceId": "coast-driftwood"
+      },
+      "primaryRegionId": "tidewatch-coast",
+      "disposition": {
+        "mode": "base-static",
+        "margins": {
+          "top": 8,
+          "right": 8,
+          "bottom": 8,
+          "left": 8
+        },
+        "motif": "low-profile-regional-decor"
+      },
+      "runtimeRequirement": "extend-decor-fallback"
+    },
+    {
+      "ref": {
+        "sourceType": "decor",
+        "sourceId": "coast-ferry-shrine"
+      },
+      "primaryRegionId": "tidewatch-coast",
+      "disposition": {
+        "mode": "protected-live",
+        "protectionMargins": {
+          "top": 32,
+          "right": 16,
+          "bottom": 16,
+          "left": 16
+        },
+        "reason": "Narrative, cave, landmark, or predecessor-owned decor remains live."
+      },
+      "runtimeRequirement": "remain-live"
+    },
+    {
+      "ref": {
+        "sourceType": "decor",
+        "sourceId": "coast-foam"
+      },
+      "primaryRegionId": "tidewatch-coast",
+      "disposition": {
+        "mode": "base-static",
+        "margins": {
+          "top": 8,
+          "right": 8,
+          "bottom": 8,
+          "left": 8
+        },
+        "motif": "low-profile-regional-decor"
+      },
+      "runtimeRequirement": "extend-decor-fallback"
+    },
+    {
+      "ref": {
+        "sourceType": "decor",
+        "sourceId": "coast-fork-west-driftwood-wall"
+      },
+      "primaryRegionId": "tidewatch-coast",
+      "disposition": {
+        "mode": "base-and-foreground",
+        "baseMargins": {
+          "top": 8,
+          "right": 8,
+          "bottom": 8,
+          "left": 8
+        },
+        "foregroundMargins": {
+          "top": 32,
+          "right": 8,
+          "bottom": 0,
+          "left": 8
+        },
+        "frontCutoffPx": 33,
+        "motif": "regional-occluding-decor"
+      },
+      "runtimeRequirement": "extend-decor-fallback"
+    },
+    {
+      "ref": {
+        "sourceType": "decor",
+        "sourceId": "coast-jetty"
+      },
+      "primaryRegionId": "tidewatch-coast",
+      "disposition": {
+        "mode": "base-and-foreground",
+        "baseMargins": {
+          "top": 8,
+          "right": 8,
+          "bottom": 8,
+          "left": 8
+        },
+        "foregroundMargins": {
+          "top": 32,
+          "right": 8,
+          "bottom": 0,
+          "left": 8
+        },
+        "frontCutoffPx": 33,
+        "motif": "regional-occluding-decor"
+      },
+      "runtimeRequirement": "extend-decor-fallback"
+    },
+    {
+      "ref": {
+        "sourceType": "decor",
+        "sourceId": "coast-jetty-neck"
+      },
+      "primaryRegionId": "tidewatch-coast",
+      "disposition": {
+        "mode": "base-and-foreground",
+        "baseMargins": {
+          "top": 8,
+          "right": 8,
+          "bottom": 8,
+          "left": 8
+        },
+        "foregroundMargins": {
+          "top": 32,
+          "right": 8,
+          "bottom": 0,
+          "left": 8
+        },
+        "frontCutoffPx": 33,
+        "motif": "regional-occluding-decor"
+      },
+      "runtimeRequirement": "extend-decor-fallback"
+    },
+    {
+      "ref": {
+        "sourceType": "decor",
+        "sourceId": "coast-net"
+      },
+      "primaryRegionId": "tidewatch-coast",
+      "disposition": {
+        "mode": "base-and-foreground",
+        "baseMargins": {
+          "top": 8,
+          "right": 8,
+          "bottom": 8,
+          "left": 8
+        },
+        "foregroundMargins": {
+          "top": 32,
+          "right": 8,
+          "bottom": 0,
+          "left": 8
+        },
+        "frontCutoffPx": 33,
+        "motif": "regional-occluding-decor"
+      },
+      "runtimeRequirement": "extend-decor-fallback"
+    },
+    {
+      "ref": {
+        "sourceType": "decor",
+        "sourceId": "coast-shrine-pocket-boundary"
+      },
+      "primaryRegionId": "tidewatch-coast",
+      "disposition": {
+        "mode": "base-and-foreground",
+        "baseMargins": {
+          "top": 8,
+          "right": 8,
+          "bottom": 8,
+          "left": 8
+        },
+        "foregroundMargins": {
+          "top": 32,
+          "right": 8,
+          "bottom": 0,
+          "left": 8
+        },
+        "frontCutoffPx": 33,
+        "motif": "regional-occluding-decor"
+      },
+      "runtimeRequirement": "extend-decor-fallback"
+    },
+    {
+      "ref": {
+        "sourceType": "decor",
+        "sourceId": "coast-tidepool"
+      },
+      "primaryRegionId": "tidewatch-coast",
+      "disposition": {
+        "mode": "base-static",
+        "margins": {
+          "top": 8,
+          "right": 8,
+          "bottom": 8,
+          "left": 8
+        },
+        "motif": "low-profile-regional-decor"
+      },
+      "runtimeRequirement": "extend-decor-fallback"
+    },
+    {
+      "ref": {
+        "sourceType": "decor",
+        "sourceId": "coast-tidepool-rock-wall"
+      },
+      "primaryRegionId": "tidewatch-coast",
+      "disposition": {
+        "mode": "base-and-foreground",
+        "baseMargins": {
+          "top": 8,
+          "right": 8,
+          "bottom": 8,
+          "left": 8
+        },
+        "foregroundMargins": {
+          "top": 32,
+          "right": 8,
+          "bottom": 0,
+          "left": 8
+        },
+        "frontCutoffPx": 33,
+        "motif": "regional-occluding-decor"
+      },
+      "runtimeRequirement": "extend-decor-fallback"
+    },
+    {
+      "ref": {
+        "sourceType": "decor",
+        "sourceId": "coast-torii"
+      },
+      "primaryRegionId": "tidewatch-coast",
+      "disposition": {
+        "mode": "protected-live",
+        "protectionMargins": {
+          "top": 32,
+          "right": 16,
+          "bottom": 16,
+          "left": 16
+        },
+        "reason": "Narrative, cave, landmark, or predecessor-owned decor remains live."
+      },
+      "runtimeRequirement": "remain-live"
+    },
+    {
+      "ref": {
+        "sourceType": "decor",
+        "sourceId": "crossroads-banner"
+      },
+      "primaryRegionId": "crossroads",
+      "disposition": {
+        "mode": "base-and-foreground",
+        "baseMargins": {
+          "top": 8,
+          "right": 8,
+          "bottom": 8,
+          "left": 8
+        },
+        "foregroundMargins": {
+          "top": 32,
+          "right": 8,
+          "bottom": 0,
+          "left": 8
+        },
+        "frontCutoffPx": 33,
+        "motif": "regional-occluding-decor"
+      },
+      "runtimeRequirement": "extend-decor-fallback"
+    },
+    {
+      "ref": {
+        "sourceType": "decor",
+        "sourceId": "crossroads-coast-cue-net"
+      },
+      "primaryRegionId": "crossroads",
+      "disposition": {
+        "mode": "base-and-foreground",
+        "baseMargins": {
+          "top": 8,
+          "right": 8,
+          "bottom": 8,
+          "left": 8
+        },
+        "foregroundMargins": {
+          "top": 32,
+          "right": 8,
+          "bottom": 0,
+          "left": 8
+        },
+        "frontCutoffPx": 33,
+        "motif": "regional-occluding-decor"
+      },
+      "runtimeRequirement": "extend-decor-fallback"
+    },
+    {
+      "ref": {
+        "sourceType": "decor",
+        "sourceId": "crossroads-flowers"
+      },
+      "primaryRegionId": "crossroads",
+      "disposition": {
+        "mode": "base-static",
+        "margins": {
+          "top": 8,
+          "right": 8,
+          "bottom": 8,
+          "left": 8
+        },
+        "motif": "low-profile-regional-decor"
+      },
+      "runtimeRequirement": "extend-decor-fallback"
+    },
+    {
+      "ref": {
+        "sourceType": "decor",
+        "sourceId": "crossroads-hanging-lantern"
+      },
+      "primaryRegionId": "crossroads",
+      "disposition": {
+        "mode": "base-and-foreground",
+        "baseMargins": {
+          "top": 8,
+          "right": 8,
+          "bottom": 8,
+          "left": 8
+        },
+        "foregroundMargins": {
+          "top": 32,
+          "right": 8,
+          "bottom": 0,
+          "left": 8
+        },
+        "frontCutoffPx": 33,
+        "motif": "regional-occluding-decor"
+      },
+      "runtimeRequirement": "extend-decor-fallback"
+    },
+    {
+      "ref": {
+        "sourceType": "decor",
+        "sourceId": "crossroads-lantern-east"
+      },
+      "primaryRegionId": "crossroads",
+      "disposition": {
+        "mode": "base-and-foreground",
+        "baseMargins": {
+          "top": 8,
+          "right": 8,
+          "bottom": 8,
+          "left": 8
+        },
+        "foregroundMargins": {
+          "top": 32,
+          "right": 8,
+          "bottom": 0,
+          "left": 8
+        },
+        "frontCutoffPx": 33,
+        "motif": "regional-occluding-decor"
+      },
+      "runtimeRequirement": "extend-decor-fallback"
+    },
+    {
+      "ref": {
+        "sourceType": "decor",
+        "sourceId": "crossroads-lantern-west"
+      },
+      "primaryRegionId": "crossroads",
+      "disposition": {
+        "mode": "base-and-foreground",
+        "baseMargins": {
+          "top": 8,
+          "right": 8,
+          "bottom": 8,
+          "left": 8
+        },
+        "foregroundMargins": {
+          "top": 32,
+          "right": 8,
+          "bottom": 0,
+          "left": 8
+        },
+        "frontCutoffPx": 33,
+        "motif": "regional-occluding-decor"
+      },
+      "runtimeRequirement": "extend-decor-fallback"
+    },
+    {
+      "ref": {
+        "sourceType": "decor",
+        "sourceId": "crossroads-mistfen-cue-reeds"
+      },
+      "primaryRegionId": "crossroads",
+      "disposition": {
+        "mode": "base-and-foreground",
+        "baseMargins": {
+          "top": 8,
+          "right": 8,
+          "bottom": 8,
+          "left": 8
+        },
+        "foregroundMargins": {
+          "top": 32,
+          "right": 8,
+          "bottom": 0,
+          "left": 8
+        },
+        "frontCutoffPx": 33,
+        "motif": "regional-occluding-decor"
+      },
+      "runtimeRequirement": "extend-decor-fallback"
+    },
+    {
+      "ref": {
+        "sourceType": "decor",
+        "sourceId": "crossroads-silverpine-cue-lantern"
+      },
+      "primaryRegionId": "crossroads",
+      "disposition": {
+        "mode": "base-and-foreground",
+        "baseMargins": {
+          "top": 8,
+          "right": 8,
+          "bottom": 8,
+          "left": 8
+        },
+        "foregroundMargins": {
+          "top": 32,
+          "right": 8,
+          "bottom": 0,
+          "left": 8
+        },
+        "frontCutoffPx": 33,
+        "motif": "regional-occluding-decor"
+      },
+      "runtimeRequirement": "extend-decor-fallback"
+    },
+    {
+      "ref": {
+        "sourceType": "decor",
+        "sourceId": "crossroads-stall"
+      },
+      "primaryRegionId": "crossroads",
+      "disposition": {
+        "mode": "base-and-foreground",
+        "baseMargins": {
+          "top": 8,
+          "right": 8,
+          "bottom": 8,
+          "left": 8
+        },
+        "foregroundMargins": {
+          "top": 32,
+          "right": 8,
+          "bottom": 0,
+          "left": 8
+        },
+        "frontCutoffPx": 33,
+        "motif": "regional-occluding-decor"
+      },
+      "runtimeRequirement": "extend-decor-fallback"
+    },
+    {
+      "ref": {
+        "sourceType": "decor",
+        "sourceId": "crossroads-waystone-sprite"
+      },
+      "primaryRegionId": "crossroads",
+      "disposition": {
+        "mode": "protected-live",
+        "protectionMargins": {
+          "top": 32,
+          "right": 16,
+          "bottom": 16,
+          "left": 16
+        },
+        "reason": "Narrative, cave, landmark, or predecessor-owned decor remains live."
+      },
+      "runtimeRequirement": "remain-live"
+    },
+    {
+      "ref": {
+        "sourceType": "decor",
+        "sourceId": "crossroads-wildwood-cue-brush"
+      },
+      "primaryRegionId": "crossroads",
+      "disposition": {
+        "mode": "base-static",
+        "margins": {
+          "top": 8,
+          "right": 8,
+          "bottom": 8,
+          "left": 8
+        },
+        "motif": "low-profile-regional-decor"
+      },
+      "runtimeRequirement": "extend-decor-fallback"
+    },
+    {
+      "ref": {
+        "sourceType": "decor",
+        "sourceId": "crossroads-wildwood-cue-floor"
+      },
+      "primaryRegionId": "crossroads",
+      "disposition": {
+        "mode": "base-static",
+        "margins": {
+          "top": 8,
+          "right": 8,
+          "bottom": 8,
+          "left": 8
+        },
+        "motif": "low-profile-regional-decor"
+      },
+      "runtimeRequirement": "extend-decor-fallback"
+    },
+    {
+      "ref": {
+        "sourceType": "decor",
+        "sourceId": "mistfen-bloom-trail-1"
+      },
+      "primaryRegionId": "mistfen",
+      "disposition": {
+        "mode": "base-static",
+        "margins": {
+          "top": 8,
+          "right": 8,
+          "bottom": 8,
+          "left": 8
+        },
+        "motif": "low-profile-regional-decor"
+      },
+      "runtimeRequirement": "extend-decor-fallback"
+    },
+    {
+      "ref": {
+        "sourceType": "decor",
+        "sourceId": "mistfen-bloom-trail-2"
+      },
+      "primaryRegionId": "mistfen",
+      "disposition": {
+        "mode": "base-static",
+        "margins": {
+          "top": 8,
+          "right": 8,
+          "bottom": 8,
+          "left": 8
+        },
+        "motif": "low-profile-regional-decor"
+      },
+      "runtimeRequirement": "extend-decor-fallback"
+    },
+    {
+      "ref": {
+        "sourceType": "decor",
+        "sourceId": "mistfen-dead-tree-east"
+      },
+      "primaryRegionId": "mistfen",
+      "disposition": {
+        "mode": "base-and-foreground",
+        "baseMargins": {
+          "top": 8,
+          "right": 8,
+          "bottom": 8,
+          "left": 8
+        },
+        "foregroundMargins": {
+          "top": 32,
+          "right": 8,
+          "bottom": 0,
+          "left": 8
+        },
+        "frontCutoffPx": 33,
+        "motif": "regional-occluding-decor"
+      },
+      "runtimeRequirement": "extend-decor-fallback"
+    },
+    {
+      "ref": {
+        "sourceType": "decor",
+        "sourceId": "mistfen-dead-tree-west"
+      },
+      "primaryRegionId": "mistfen",
+      "disposition": {
+        "mode": "base-and-foreground",
+        "baseMargins": {
+          "top": 8,
+          "right": 8,
+          "bottom": 8,
+          "left": 8
+        },
+        "foregroundMargins": {
+          "top": 32,
+          "right": 8,
+          "bottom": 0,
+          "left": 8
+        },
+        "frontCutoffPx": 33,
+        "motif": "regional-occluding-decor"
+      },
+      "runtimeRequirement": "extend-decor-fallback"
+    },
+    {
+      "ref": {
+        "sourceType": "decor",
+        "sourceId": "mistfen-deadfall-bend"
+      },
+      "primaryRegionId": "mistfen",
+      "disposition": {
+        "mode": "base-and-foreground",
+        "baseMargins": {
+          "top": 8,
+          "right": 8,
+          "bottom": 8,
+          "left": 8
+        },
+        "foregroundMargins": {
+          "top": 32,
+          "right": 8,
+          "bottom": 0,
+          "left": 8
+        },
+        "frontCutoffPx": 33,
+        "motif": "regional-occluding-decor"
+      },
+      "runtimeRequirement": "extend-decor-fallback"
+    },
+    {
+      "ref": {
+        "sourceType": "decor",
+        "sourceId": "mistfen-fog"
+      },
+      "primaryRegionId": "mistfen",
+      "disposition": {
+        "mode": "protected-live",
+        "protectionMargins": {
+          "top": 32,
+          "right": 16,
+          "bottom": 16,
+          "left": 16
+        },
+        "reason": "Translucent Mistfen fog remains a live foreground effect."
+      },
+      "runtimeRequirement": "remain-live"
+    },
+    {
+      "ref": {
+        "sourceType": "decor",
+        "sourceId": "mistfen-fog-entry"
+      },
+      "primaryRegionId": "mistfen",
+      "disposition": {
+        "mode": "protected-live",
+        "protectionMargins": {
+          "top": 32,
+          "right": 16,
+          "bottom": 16,
+          "left": 16
+        },
+        "reason": "Translucent Mistfen fog remains a live foreground effect."
+      },
+      "runtimeRequirement": "remain-live"
+    },
+    {
+      "ref": {
+        "sourceType": "decor",
+        "sourceId": "mistfen-fog-gate"
+      },
+      "primaryRegionId": "mistfen",
+      "disposition": {
+        "mode": "protected-live",
+        "protectionMargins": {
+          "top": 32,
+          "right": 16,
+          "bottom": 16,
+          "left": 16
+        },
+        "reason": "Translucent Mistfen fog remains a live foreground effect."
+      },
+      "runtimeRequirement": "remain-live"
+    },
+    {
+      "ref": {
+        "sourceType": "decor",
+        "sourceId": "mistfen-fog-middle"
+      },
+      "primaryRegionId": "mistfen",
+      "disposition": {
+        "mode": "protected-live",
+        "protectionMargins": {
+          "top": 32,
+          "right": 16,
+          "bottom": 16,
+          "left": 16
+        },
+        "reason": "Translucent Mistfen fog remains a live foreground effect."
+      },
+      "runtimeRequirement": "remain-live"
+    },
+    {
+      "ref": {
+        "sourceType": "decor",
+        "sourceId": "mistfen-gate-fog-wall"
+      },
+      "primaryRegionId": "mistfen",
+      "disposition": {
+        "mode": "protected-live",
+        "protectionMargins": {
+          "top": 32,
+          "right": 16,
+          "bottom": 16,
+          "left": 16
+        },
+        "reason": "Translucent Mistfen fog remains a live foreground effect."
+      },
+      "runtimeRequirement": "remain-live"
+    },
+    {
+      "ref": {
+        "sourceType": "decor",
+        "sourceId": "mistfen-gate-reed-wall-east"
+      },
+      "primaryRegionId": "mistfen",
+      "disposition": {
+        "mode": "base-and-foreground",
+        "baseMargins": {
+          "top": 8,
+          "right": 8,
+          "bottom": 8,
+          "left": 8
+        },
+        "foregroundMargins": {
+          "top": 32,
+          "right": 8,
+          "bottom": 0,
+          "left": 8
+        },
+        "frontCutoffPx": 33,
+        "motif": "regional-occluding-decor"
+      },
+      "runtimeRequirement": "extend-decor-fallback"
+    },
+    {
+      "ref": {
+        "sourceType": "decor",
+        "sourceId": "mistfen-marsh-rock"
+      },
+      "primaryRegionId": "mistfen",
+      "disposition": {
+        "mode": "base-static",
+        "margins": {
+          "top": 8,
+          "right": 8,
+          "bottom": 8,
+          "left": 8
+        },
+        "motif": "low-profile-regional-decor"
+      },
+      "runtimeRequirement": "extend-decor-fallback"
+    },
+    {
+      "ref": {
+        "sourceType": "decor",
+        "sourceId": "mistfen-reed-wall-east"
+      },
+      "primaryRegionId": "mistfen",
+      "disposition": {
+        "mode": "base-and-foreground",
+        "baseMargins": {
+          "top": 8,
+          "right": 8,
+          "bottom": 8,
+          "left": 8
+        },
+        "foregroundMargins": {
+          "top": 32,
+          "right": 8,
+          "bottom": 0,
+          "left": 8
+        },
+        "frontCutoffPx": 33,
+        "motif": "regional-occluding-decor"
+      },
+      "runtimeRequirement": "extend-decor-fallback"
+    },
+    {
+      "ref": {
+        "sourceType": "decor",
+        "sourceId": "mistfen-reed-wall-north"
+      },
+      "primaryRegionId": "mistfen",
+      "disposition": {
+        "mode": "base-and-foreground",
+        "baseMargins": {
+          "top": 8,
+          "right": 8,
+          "bottom": 8,
+          "left": 8
+        },
+        "foregroundMargins": {
+          "top": 32,
+          "right": 8,
+          "bottom": 0,
+          "left": 8
+        },
+        "frontCutoffPx": 33,
+        "motif": "regional-occluding-decor"
+      },
+      "runtimeRequirement": "extend-decor-fallback"
+    },
+    {
+      "ref": {
+        "sourceType": "decor",
+        "sourceId": "mistfen-reed-wall-south"
+      },
+      "primaryRegionId": "mistfen",
+      "disposition": {
+        "mode": "base-and-foreground",
+        "baseMargins": {
+          "top": 8,
+          "right": 8,
+          "bottom": 8,
+          "left": 8
+        },
+        "foregroundMargins": {
+          "top": 32,
+          "right": 8,
+          "bottom": 0,
+          "left": 8
+        },
+        "frontCutoffPx": 33,
+        "motif": "regional-occluding-decor"
+      },
+      "runtimeRequirement": "extend-decor-fallback"
+    },
+    {
+      "ref": {
+        "sourceType": "decor",
+        "sourceId": "mistfen-reed-wall-west"
+      },
+      "primaryRegionId": "mistfen",
+      "disposition": {
+        "mode": "base-and-foreground",
+        "baseMargins": {
+          "top": 8,
+          "right": 8,
+          "bottom": 8,
+          "left": 8
+        },
+        "foregroundMargins": {
+          "top": 32,
+          "right": 8,
+          "bottom": 0,
+          "left": 8
+        },
+        "frontCutoffPx": 33,
+        "motif": "regional-occluding-decor"
+      },
+      "runtimeRequirement": "extend-decor-fallback"
+    },
+    {
+      "ref": {
+        "sourceType": "decor",
+        "sourceId": "mistfen-reeds-1"
+      },
+      "primaryRegionId": "mistfen",
+      "disposition": {
+        "mode": "base-and-foreground",
+        "baseMargins": {
+          "top": 8,
+          "right": 8,
+          "bottom": 8,
+          "left": 8
+        },
+        "foregroundMargins": {
+          "top": 32,
+          "right": 8,
+          "bottom": 0,
+          "left": 8
+        },
+        "frontCutoffPx": 33,
+        "motif": "regional-occluding-decor"
+      },
+      "runtimeRequirement": "extend-decor-fallback"
+    },
+    {
+      "ref": {
+        "sourceType": "decor",
+        "sourceId": "mistfen-toxic-bloom"
+      },
+      "primaryRegionId": "mistfen",
+      "disposition": {
+        "mode": "base-static",
+        "margins": {
+          "top": 8,
+          "right": 8,
+          "bottom": 8,
+          "left": 8
+        },
+        "motif": "low-profile-regional-decor"
+      },
+      "runtimeRequirement": "extend-decor-fallback"
+    },
+    {
+      "ref": {
+        "sourceType": "decor",
+        "sourceId": "silver-shrine-gate-sprite"
+      },
+      "primaryRegionId": "silverpine",
+      "disposition": {
+        "mode": "protected-live",
+        "protectionMargins": {
+          "top": 32,
+          "right": 16,
+          "bottom": 16,
+          "left": 16
+        },
+        "reason": "Narrative, cave, landmark, or predecessor-owned decor remains live."
+      },
+      "runtimeRequirement": "remain-live"
+    },
+    {
+      "ref": {
+        "sourceType": "decor",
+        "sourceId": "silverpine-amulet-rack"
+      },
+      "primaryRegionId": "silverpine",
+      "disposition": {
+        "mode": "protected-live",
+        "protectionMargins": {
+          "top": 32,
+          "right": 16,
+          "bottom": 16,
+          "left": 16
+        },
+        "reason": "Narrative, cave, landmark, or predecessor-owned decor remains live."
+      },
+      "runtimeRequirement": "remain-live"
+    },
+    {
+      "ref": {
+        "sourceType": "decor",
+        "sourceId": "silverpine-lantern-east"
+      },
+      "primaryRegionId": "silverpine",
+      "disposition": {
+        "mode": "base-and-foreground",
+        "baseMargins": {
+          "top": 8,
+          "right": 8,
+          "bottom": 8,
+          "left": 8
+        },
+        "foregroundMargins": {
+          "top": 32,
+          "right": 8,
+          "bottom": 0,
+          "left": 8
+        },
+        "frontCutoffPx": 33,
+        "motif": "regional-occluding-decor"
+      },
+      "runtimeRequirement": "extend-decor-fallback"
+    },
+    {
+      "ref": {
+        "sourceType": "decor",
+        "sourceId": "silverpine-lantern-mid"
+      },
+      "primaryRegionId": "silverpine",
+      "disposition": {
+        "mode": "base-and-foreground",
+        "baseMargins": {
+          "top": 8,
+          "right": 8,
+          "bottom": 8,
+          "left": 8
+        },
+        "foregroundMargins": {
+          "top": 32,
+          "right": 8,
+          "bottom": 0,
+          "left": 8
+        },
+        "frontCutoffPx": 33,
+        "motif": "regional-occluding-decor"
+      },
+      "runtimeRequirement": "extend-decor-fallback"
+    },
+    {
+      "ref": {
+        "sourceType": "decor",
+        "sourceId": "silverpine-lantern-west"
+      },
+      "primaryRegionId": "silverpine",
+      "disposition": {
+        "mode": "base-and-foreground",
+        "baseMargins": {
+          "top": 8,
+          "right": 8,
+          "bottom": 8,
+          "left": 8
+        },
+        "foregroundMargins": {
+          "top": 32,
+          "right": 8,
+          "bottom": 0,
+          "left": 8
+        },
+        "frontCutoffPx": 33,
+        "motif": "regional-occluding-decor"
+      },
+      "runtimeRequirement": "extend-decor-fallback"
+    },
+    {
+      "ref": {
+        "sourceType": "decor",
+        "sourceId": "silverpine-lower-wall-east"
+      },
+      "primaryRegionId": "silverpine",
+      "disposition": {
+        "mode": "base-and-foreground",
+        "baseMargins": {
+          "top": 8,
+          "right": 8,
+          "bottom": 8,
+          "left": 8
+        },
+        "foregroundMargins": {
+          "top": 32,
+          "right": 8,
+          "bottom": 0,
+          "left": 8
+        },
+        "frontCutoffPx": 33,
+        "motif": "regional-occluding-decor"
+      },
+      "runtimeRequirement": "extend-decor-fallback"
+    },
+    {
+      "ref": {
+        "sourceType": "decor",
+        "sourceId": "silverpine-lower-wall-west"
+      },
+      "primaryRegionId": "silverpine",
+      "disposition": {
+        "mode": "base-and-foreground",
+        "baseMargins": {
+          "top": 8,
+          "right": 8,
+          "bottom": 8,
+          "left": 8
+        },
+        "foregroundMargins": {
+          "top": 32,
+          "right": 8,
+          "bottom": 0,
+          "left": 8
+        },
+        "frontCutoffPx": 33,
+        "motif": "regional-occluding-decor"
+      },
+      "runtimeRequirement": "extend-decor-fallback"
+    },
+    {
+      "ref": {
+        "sourceType": "decor",
+        "sourceId": "silverpine-maple-1"
+      },
+      "primaryRegionId": "silverpine",
+      "disposition": {
+        "mode": "base-and-foreground",
+        "baseMargins": {
+          "top": 8,
+          "right": 8,
+          "bottom": 8,
+          "left": 8
+        },
+        "foregroundMargins": {
+          "top": 32,
+          "right": 8,
+          "bottom": 0,
+          "left": 8
+        },
+        "frontCutoffPx": 33,
+        "motif": "regional-occluding-decor"
+      },
+      "runtimeRequirement": "extend-decor-fallback"
+    },
+    {
+      "ref": {
+        "sourceType": "decor",
+        "sourceId": "silverpine-maple-2"
+      },
+      "primaryRegionId": "silverpine",
+      "disposition": {
+        "mode": "base-and-foreground",
+        "baseMargins": {
+          "top": 8,
+          "right": 8,
+          "bottom": 8,
+          "left": 8
+        },
+        "foregroundMargins": {
+          "top": 32,
+          "right": 8,
+          "bottom": 0,
+          "left": 8
+        },
+        "frontCutoffPx": 33,
+        "motif": "regional-occluding-decor"
+      },
+      "runtimeRequirement": "extend-decor-fallback"
+    },
+    {
+      "ref": {
+        "sourceType": "decor",
+        "sourceId": "silverpine-offering"
+      },
+      "primaryRegionId": "silverpine",
+      "disposition": {
+        "mode": "protected-live",
+        "protectionMargins": {
+          "top": 32,
+          "right": 16,
+          "bottom": 16,
+          "left": 16
+        },
+        "reason": "Narrative, cave, landmark, or predecessor-owned decor remains live."
+      },
+      "runtimeRequirement": "remain-live"
+    },
+    {
+      "ref": {
+        "sourceType": "decor",
+        "sourceId": "silverpine-offering-grove-wall"
+      },
+      "primaryRegionId": "silverpine",
+      "disposition": {
+        "mode": "base-and-foreground",
+        "baseMargins": {
+          "top": 8,
+          "right": 8,
+          "bottom": 8,
+          "left": 8
+        },
+        "foregroundMargins": {
+          "top": 32,
+          "right": 8,
+          "bottom": 0,
+          "left": 8
+        },
+        "frontCutoffPx": 33,
+        "motif": "regional-occluding-decor"
+      },
+      "runtimeRequirement": "extend-decor-fallback"
+    },
+    {
+      "ref": {
+        "sourceType": "decor",
+        "sourceId": "silverpine-side-grove-maple"
+      },
+      "primaryRegionId": "silverpine",
+      "disposition": {
+        "mode": "base-and-foreground",
+        "baseMargins": {
+          "top": 8,
+          "right": 8,
+          "bottom": 8,
+          "left": 8
+        },
+        "foregroundMargins": {
+          "top": 32,
+          "right": 8,
+          "bottom": 0,
+          "left": 8
+        },
+        "frontCutoffPx": 33,
+        "motif": "regional-occluding-decor"
+      },
+      "runtimeRequirement": "extend-decor-fallback"
+    },
+    {
+      "ref": {
+        "sourceType": "decor",
+        "sourceId": "silverpine-side-grove-pine"
+      },
+      "primaryRegionId": "silverpine",
+      "disposition": {
+        "mode": "base-and-foreground",
+        "baseMargins": {
+          "top": 8,
+          "right": 8,
+          "bottom": 8,
+          "left": 8
+        },
+        "foregroundMargins": {
+          "top": 32,
+          "right": 8,
+          "bottom": 0,
+          "left": 8
+        },
+        "frontCutoffPx": 33,
+        "motif": "regional-occluding-decor"
+      },
+      "runtimeRequirement": "extend-decor-fallback"
+    },
+    {
+      "ref": {
+        "sourceType": "decor",
+        "sourceId": "silverpine-switchback-east"
+      },
+      "primaryRegionId": "silverpine",
+      "disposition": {
+        "mode": "base-and-foreground",
+        "baseMargins": {
+          "top": 8,
+          "right": 8,
+          "bottom": 8,
+          "left": 8
+        },
+        "foregroundMargins": {
+          "top": 32,
+          "right": 8,
+          "bottom": 0,
+          "left": 8
+        },
+        "frontCutoffPx": 33,
+        "motif": "regional-occluding-decor"
+      },
+      "runtimeRequirement": "extend-decor-fallback"
+    },
+    {
+      "ref": {
+        "sourceType": "decor",
+        "sourceId": "silverpine-switchback-west"
+      },
+      "primaryRegionId": "silverpine",
+      "disposition": {
+        "mode": "base-and-foreground",
+        "baseMargins": {
+          "top": 8,
+          "right": 8,
+          "bottom": 8,
+          "left": 8
+        },
+        "foregroundMargins": {
+          "top": 32,
+          "right": 8,
+          "bottom": 0,
+          "left": 8
+        },
+        "frontCutoffPx": 33,
+        "motif": "regional-occluding-decor"
+      },
+      "runtimeRequirement": "extend-decor-fallback"
+    },
+    {
+      "ref": {
+        "sourceType": "decor",
+        "sourceId": "silverpine-terrace-boundary"
+      },
+      "primaryRegionId": "silverpine",
+      "disposition": {
+        "mode": "base-and-foreground",
+        "baseMargins": {
+          "top": 8,
+          "right": 8,
+          "bottom": 8,
+          "left": 8
+        },
+        "foregroundMargins": {
+          "top": 32,
+          "right": 8,
+          "bottom": 0,
+          "left": 8
+        },
+        "frontCutoffPx": 33,
+        "motif": "regional-occluding-decor"
+      },
+      "runtimeRequirement": "extend-decor-fallback"
+    },
+    {
+      "ref": {
+        "sourceType": "decor",
+        "sourceId": "silverpine-tree-1"
+      },
+      "primaryRegionId": "silverpine",
+      "disposition": {
+        "mode": "base-and-foreground",
+        "baseMargins": {
+          "top": 8,
+          "right": 8,
+          "bottom": 8,
+          "left": 8
+        },
+        "foregroundMargins": {
+          "top": 32,
+          "right": 8,
+          "bottom": 0,
+          "left": 8
+        },
+        "frontCutoffPx": 33,
+        "motif": "regional-occluding-decor"
+      },
+      "runtimeRequirement": "extend-decor-fallback"
+    },
+    {
+      "ref": {
+        "sourceType": "decor",
+        "sourceId": "village-corridor-waymarker"
+      },
+      "primaryRegionId": "connector-village-crossroads",
+      "disposition": {
+        "mode": "base-and-foreground",
+        "baseMargins": {
+          "top": 8,
+          "right": 8,
+          "bottom": 8,
+          "left": 8
+        },
+        "foregroundMargins": {
+          "top": 32,
+          "right": 8,
+          "bottom": 0,
+          "left": 8
+        },
+        "frontCutoffPx": 33,
+        "motif": "regional-occluding-decor"
+      },
+      "runtimeRequirement": "extend-decor-fallback"
+    },
+    {
+      "ref": {
+        "sourceType": "decor",
+        "sourceId": "village-decor-25-16"
+      },
+      "primaryRegionId": "sundrop-village",
+      "disposition": {
+        "mode": "protected-live",
+        "protectionMargins": {
+          "top": 32,
+          "right": 16,
+          "bottom": 16,
+          "left": 16
+        },
+        "reason": "Narrative, cave, landmark, or predecessor-owned decor remains live."
+      },
+      "runtimeRequirement": "remain-live"
+    },
+    {
+      "ref": {
+        "sourceType": "decor",
+        "sourceId": "village-decor-3-42"
+      },
+      "primaryRegionId": "sundrop-village",
+      "disposition": {
+        "mode": "protected-live",
+        "protectionMargins": {
+          "top": 32,
+          "right": 16,
+          "bottom": 16,
+          "left": 16
+        },
+        "reason": "Narrative, cave, landmark, or predecessor-owned decor remains live."
+      },
+      "runtimeRequirement": "remain-live"
+    },
+    {
+      "ref": {
+        "sourceType": "decor",
+        "sourceId": "village-decor-31-14"
+      },
+      "primaryRegionId": "sundrop-village",
+      "disposition": {
+        "mode": "protected-live",
+        "protectionMargins": {
+          "top": 32,
+          "right": 16,
+          "bottom": 16,
+          "left": 16
+        },
+        "reason": "Narrative, cave, landmark, or predecessor-owned decor remains live."
+      },
+      "runtimeRequirement": "remain-live"
+    },
+    {
+      "ref": {
+        "sourceType": "decor",
+        "sourceId": "village-decor-34-28"
+      },
+      "primaryRegionId": "sundrop-village",
+      "disposition": {
+        "mode": "protected-live",
+        "protectionMargins": {
+          "top": 32,
+          "right": 16,
+          "bottom": 16,
+          "left": 16
+        },
+        "reason": "Narrative, cave, landmark, or predecessor-owned decor remains live."
+      },
+      "runtimeRequirement": "remain-live"
+    },
+    {
+      "ref": {
+        "sourceType": "decor",
+        "sourceId": "village-decor-34-44"
+      },
+      "primaryRegionId": "sundrop-village",
+      "disposition": {
+        "mode": "protected-live",
+        "protectionMargins": {
+          "top": 32,
+          "right": 16,
+          "bottom": 16,
+          "left": 16
+        },
+        "reason": "Narrative, cave, landmark, or predecessor-owned decor remains live."
+      },
+      "runtimeRequirement": "remain-live"
+    },
+    {
+      "ref": {
+        "sourceType": "decor",
+        "sourceId": "village-decor-40-28"
+      },
+      "primaryRegionId": "sundrop-village",
+      "disposition": {
+        "mode": "protected-live",
+        "protectionMargins": {
+          "top": 32,
+          "right": 16,
+          "bottom": 16,
+          "left": 16
+        },
+        "reason": "Narrative, cave, landmark, or predecessor-owned decor remains live."
+      },
+      "runtimeRequirement": "remain-live"
+    },
+    {
+      "ref": {
+        "sourceType": "decor",
+        "sourceId": "village-decor-40-44"
+      },
+      "primaryRegionId": "sundrop-village",
+      "disposition": {
+        "mode": "protected-live",
+        "protectionMargins": {
+          "top": 32,
+          "right": 16,
+          "bottom": 16,
+          "left": 16
+        },
+        "reason": "Narrative, cave, landmark, or predecessor-owned decor remains live."
+      },
+      "runtimeRequirement": "remain-live"
+    },
+    {
+      "ref": {
+        "sourceType": "decor",
+        "sourceId": "village-decor-44-19"
+      },
+      "primaryRegionId": "sundrop-village",
+      "disposition": {
+        "mode": "protected-live",
+        "protectionMargins": {
+          "top": 32,
+          "right": 16,
+          "bottom": 16,
+          "left": 16
+        },
+        "reason": "Narrative, cave, landmark, or predecessor-owned decor remains live."
+      },
+      "runtimeRequirement": "remain-live"
+    },
+    {
+      "ref": {
+        "sourceType": "decor",
+        "sourceId": "wildwood-cache-brush-screen"
+      },
+      "primaryRegionId": "wildwood",
+      "disposition": {
+        "mode": "base-static",
+        "margins": {
+          "top": 8,
+          "right": 8,
+          "bottom": 8,
+          "left": 8
+        },
+        "motif": "low-profile-regional-decor"
+      },
+      "runtimeRequirement": "extend-decor-fallback"
+    },
+    {
+      "ref": {
+        "sourceType": "decor",
+        "sourceId": "wildwood-cache-tree-cover"
+      },
+      "primaryRegionId": "wildwood",
+      "disposition": {
+        "mode": "base-and-foreground",
+        "baseMargins": {
+          "top": 8,
+          "right": 8,
+          "bottom": 8,
+          "left": 8
+        },
+        "foregroundMargins": {
+          "top": 32,
+          "right": 8,
+          "bottom": 0,
+          "left": 8
+        },
+        "frontCutoffPx": 33,
+        "motif": "regional-occluding-decor"
+      },
+      "runtimeRequirement": "extend-decor-fallback"
+    },
+    {
+      "ref": {
+        "sourceType": "decor",
+        "sourceId": "wildwood-cave-canopy"
+      },
+      "primaryRegionId": "wildwood",
+      "disposition": {
+        "mode": "protected-live",
+        "protectionMargins": {
+          "top": 32,
+          "right": 16,
+          "bottom": 16,
+          "left": 16
+        },
+        "reason": "Narrative, cave, landmark, or predecessor-owned decor remains live."
+      },
+      "runtimeRequirement": "remain-live"
+    },
+    {
+      "ref": {
+        "sourceType": "decor",
+        "sourceId": "wildwood-cave-canopy-heavy"
+      },
+      "primaryRegionId": "wildwood",
+      "disposition": {
+        "mode": "protected-live",
+        "protectionMargins": {
+          "top": 32,
+          "right": 16,
+          "bottom": 16,
+          "left": 16
+        },
+        "reason": "Narrative, cave, landmark, or predecessor-owned decor remains live."
+      },
+      "runtimeRequirement": "remain-live"
+    },
+    {
+      "ref": {
+        "sourceType": "decor",
+        "sourceId": "wildwood-cave-canopy-neck"
+      },
+      "primaryRegionId": "wildwood",
+      "disposition": {
+        "mode": "protected-live",
+        "protectionMargins": {
+          "top": 32,
+          "right": 16,
+          "bottom": 16,
+          "left": 16
+        },
+        "reason": "Narrative, cave, landmark, or predecessor-owned decor remains live."
+      },
+      "runtimeRequirement": "remain-live"
+    },
+    {
+      "ref": {
+        "sourceType": "decor",
+        "sourceId": "wildwood-cave-warning-floor"
+      },
+      "primaryRegionId": "wildwood",
+      "disposition": {
+        "mode": "protected-live",
+        "protectionMargins": {
+          "top": 32,
+          "right": 16,
+          "bottom": 16,
+          "left": 16
+        },
+        "reason": "Narrative, cave, landmark, or predecessor-owned decor remains live."
+      },
+      "runtimeRequirement": "remain-live"
+    },
+    {
+      "ref": {
+        "sourceType": "decor",
+        "sourceId": "wildwood-combat-pocket-wall-east"
+      },
+      "primaryRegionId": "wildwood",
+      "disposition": {
+        "mode": "base-and-foreground",
+        "baseMargins": {
+          "top": 8,
+          "right": 8,
+          "bottom": 8,
+          "left": 8
+        },
+        "foregroundMargins": {
+          "top": 32,
+          "right": 8,
+          "bottom": 0,
+          "left": 8
+        },
+        "frontCutoffPx": 33,
+        "motif": "regional-occluding-decor"
+      },
+      "runtimeRequirement": "extend-decor-fallback"
+    },
+    {
+      "ref": {
+        "sourceType": "decor",
+        "sourceId": "wildwood-combat-pocket-wall-west"
+      },
+      "primaryRegionId": "wildwood",
+      "disposition": {
+        "mode": "base-and-foreground",
+        "baseMargins": {
+          "top": 8,
+          "right": 8,
+          "bottom": 8,
+          "left": 8
+        },
+        "foregroundMargins": {
+          "top": 32,
+          "right": 8,
+          "bottom": 0,
+          "left": 8
+        },
+        "frontCutoffPx": 33,
+        "motif": "regional-occluding-decor"
+      },
+      "runtimeRequirement": "extend-decor-fallback"
+    },
+    {
+      "ref": {
+        "sourceType": "decor",
+        "sourceId": "wildwood-east-canopy"
+      },
+      "primaryRegionId": "wildwood",
+      "disposition": {
+        "mode": "base-and-foreground",
+        "baseMargins": {
+          "top": 8,
+          "right": 8,
+          "bottom": 8,
+          "left": 8
+        },
+        "foregroundMargins": {
+          "top": 32,
+          "right": 8,
+          "bottom": 0,
+          "left": 8
+        },
+        "frontCutoffPx": 33,
+        "motif": "regional-occluding-decor"
+      },
+      "runtimeRequirement": "extend-decor-fallback"
+    },
+    {
+      "ref": {
+        "sourceType": "decor",
+        "sourceId": "wildwood-forest-lane-north-wall"
+      },
+      "primaryRegionId": "wildwood",
+      "disposition": {
+        "mode": "base-and-foreground",
+        "baseMargins": {
+          "top": 8,
+          "right": 8,
+          "bottom": 8,
+          "left": 8
+        },
+        "foregroundMargins": {
+          "top": 32,
+          "right": 8,
+          "bottom": 0,
+          "left": 8
+        },
+        "frontCutoffPx": 33,
+        "motif": "regional-occluding-decor"
+      },
+      "runtimeRequirement": "extend-decor-fallback"
+    },
+    {
+      "ref": {
+        "sourceType": "decor",
+        "sourceId": "wildwood-forest-lane-south-wall"
+      },
+      "primaryRegionId": "wildwood",
+      "disposition": {
+        "mode": "base-and-foreground",
+        "baseMargins": {
+          "top": 8,
+          "right": 8,
+          "bottom": 8,
+          "left": 8
+        },
+        "foregroundMargins": {
+          "top": 32,
+          "right": 8,
+          "bottom": 0,
+          "left": 8
+        },
+        "frontCutoffPx": 33,
+        "motif": "regional-occluding-decor"
+      },
+      "runtimeRequirement": "extend-decor-fallback"
+    },
+    {
+      "ref": {
+        "sourceType": "decor",
+        "sourceId": "wildwood-grove-brush-1"
+      },
+      "primaryRegionId": "wildwood",
+      "disposition": {
+        "mode": "base-static",
+        "margins": {
+          "top": 8,
+          "right": 8,
+          "bottom": 8,
+          "left": 8
+        },
+        "motif": "low-profile-regional-decor"
+      },
+      "runtimeRequirement": "extend-decor-fallback"
+    },
+    {
+      "ref": {
+        "sourceType": "decor",
+        "sourceId": "wildwood-grove-floor-1"
+      },
+      "primaryRegionId": "wildwood",
+      "disposition": {
+        "mode": "base-static",
+        "margins": {
+          "top": 8,
+          "right": 8,
+          "bottom": 8,
+          "left": 8
+        },
+        "motif": "low-profile-regional-decor"
+      },
+      "runtimeRequirement": "extend-decor-fallback"
+    },
+    {
+      "ref": {
+        "sourceType": "decor",
+        "sourceId": "wildwood-grove-maple-1"
+      },
+      "primaryRegionId": "wildwood",
+      "disposition": {
+        "mode": "base-and-foreground",
+        "baseMargins": {
+          "top": 8,
+          "right": 8,
+          "bottom": 8,
+          "left": 8
+        },
+        "foregroundMargins": {
+          "top": 32,
+          "right": 8,
+          "bottom": 0,
+          "left": 8
+        },
+        "frontCutoffPx": 33,
+        "motif": "regional-occluding-decor"
+      },
+      "runtimeRequirement": "extend-decor-fallback"
+    },
+    {
+      "ref": {
+        "sourceType": "decor",
+        "sourceId": "wildwood-grove-tree-1"
+      },
+      "primaryRegionId": "wildwood",
+      "disposition": {
+        "mode": "base-and-foreground",
+        "baseMargins": {
+          "top": 8,
+          "right": 8,
+          "bottom": 8,
+          "left": 8
+        },
+        "foregroundMargins": {
+          "top": 32,
+          "right": 8,
+          "bottom": 0,
+          "left": 8
+        },
+        "frontCutoffPx": 33,
+        "motif": "regional-occluding-decor"
+      },
+      "runtimeRequirement": "extend-decor-fallback"
+    },
+    {
+      "ref": {
+        "sourceType": "decor",
+        "sourceId": "wildwood-grove-tree-2"
+      },
+      "primaryRegionId": "wildwood",
+      "disposition": {
+        "mode": "base-and-foreground",
+        "baseMargins": {
+          "top": 8,
+          "right": 8,
+          "bottom": 8,
+          "left": 8
+        },
+        "foregroundMargins": {
+          "top": 32,
+          "right": 8,
+          "bottom": 0,
+          "left": 8
+        },
+        "frontCutoffPx": 33,
+        "motif": "regional-occluding-decor"
+      },
+      "runtimeRequirement": "extend-decor-fallback"
+    },
+    {
+      "ref": {
+        "sourceType": "decor",
+        "sourceId": "wildwood-north-canopy"
+      },
+      "primaryRegionId": "wildwood",
+      "disposition": {
+        "mode": "base-and-foreground",
+        "baseMargins": {
+          "top": 8,
+          "right": 8,
+          "bottom": 8,
+          "left": 8
+        },
+        "foregroundMargins": {
+          "top": 32,
+          "right": 8,
+          "bottom": 0,
+          "left": 8
+        },
+        "frontCutoffPx": 33,
+        "motif": "regional-occluding-decor"
+      },
+      "runtimeRequirement": "extend-decor-fallback"
+    },
+    {
+      "ref": {
+        "sourceType": "decor",
+        "sourceId": "wildwood-staging-brush"
+      },
+      "primaryRegionId": "wildwood",
+      "disposition": {
+        "mode": "base-static",
+        "margins": {
+          "top": 8,
+          "right": 8,
+          "bottom": 8,
+          "left": 8
+        },
+        "motif": "low-profile-regional-decor"
+      },
+      "runtimeRequirement": "extend-decor-fallback"
+    },
+    {
+      "ref": {
+        "sourceType": "decor",
+        "sourceId": "wildwood-threshold-brush-left"
+      },
+      "primaryRegionId": "wildwood",
+      "disposition": {
+        "mode": "base-static",
+        "margins": {
+          "top": 8,
+          "right": 8,
+          "bottom": 8,
+          "left": 8
+        },
+        "motif": "low-profile-regional-decor"
+      },
+      "runtimeRequirement": "extend-decor-fallback"
+    },
+    {
+      "ref": {
+        "sourceType": "decor",
+        "sourceId": "wildwood-threshold-brush-right"
+      },
+      "primaryRegionId": "wildwood",
+      "disposition": {
+        "mode": "base-static",
+        "margins": {
+          "top": 8,
+          "right": 8,
+          "bottom": 8,
+          "left": 8
+        },
+        "motif": "low-profile-regional-decor"
+      },
+      "runtimeRequirement": "extend-decor-fallback"
+    },
+    {
+      "ref": {
+        "sourceType": "decor",
+        "sourceId": "wildwood-threshold-floor"
+      },
+      "primaryRegionId": "wildwood",
+      "disposition": {
+        "mode": "base-static",
+        "margins": {
+          "top": 8,
+          "right": 8,
+          "bottom": 8,
+          "left": 8
+        },
+        "motif": "low-profile-regional-decor"
+      },
+      "runtimeRequirement": "extend-decor-fallback"
+    },
+    {
+      "ref": {
+        "sourceType": "decor",
+        "sourceId": "wildwood-threshold-tree-wall-east"
+      },
+      "primaryRegionId": "wildwood",
+      "disposition": {
+        "mode": "base-and-foreground",
+        "baseMargins": {
+          "top": 8,
+          "right": 8,
+          "bottom": 8,
+          "left": 8
+        },
+        "foregroundMargins": {
+          "top": 32,
+          "right": 8,
+          "bottom": 0,
+          "left": 8
+        },
+        "frontCutoffPx": 33,
+        "motif": "regional-occluding-decor"
+      },
+      "runtimeRequirement": "extend-decor-fallback"
+    },
+    {
+      "ref": {
+        "sourceType": "decor",
+        "sourceId": "wildwood-threshold-tree-wall-west"
+      },
+      "primaryRegionId": "wildwood",
+      "disposition": {
+        "mode": "base-and-foreground",
+        "baseMargins": {
+          "top": 8,
+          "right": 8,
+          "bottom": 8,
+          "left": 8
+        },
+        "foregroundMargins": {
+          "top": 32,
+          "right": 8,
+          "bottom": 0,
+          "left": 8
+        },
+        "frontCutoffPx": 33,
+        "motif": "regional-occluding-decor"
+      },
+      "runtimeRequirement": "extend-decor-fallback"
+    },
+    {
+      "ref": {
+        "sourceType": "decor",
+        "sourceId": "witchwood-gate-sprite"
+      },
+      "primaryRegionId": "mistfen",
+      "disposition": {
+        "mode": "protected-live",
+        "protectionMargins": {
+          "top": 32,
+          "right": 16,
+          "bottom": 16,
+          "left": 16
+        },
+        "reason": "Narrative, cave, landmark, or predecessor-owned decor remains live."
+      },
+      "runtimeRequirement": "remain-live"
+    },
+    {
+      "ref": {
+        "sourceType": "discovery",
+        "sourceId": "castle-gate-warning"
+      },
+      "primaryRegionId": "crossroads",
+      "disposition": {
+        "mode": "control-only",
+        "reason": "Discovery interaction and map-pin state are semantic controls."
+      },
+      "runtimeRequirement": "none"
+    },
+    {
+      "ref": {
+        "sourceType": "discovery",
+        "sourceId": "coast-jetty-foreshadow"
+      },
+      "primaryRegionId": "tidewatch-coast",
+      "disposition": {
+        "mode": "control-only",
+        "reason": "Discovery interaction and map-pin state are semantic controls."
+      },
+      "runtimeRequirement": "none"
+    },
+    {
+      "ref": {
+        "sourceType": "discovery",
+        "sourceId": "crossroads-waystone-sign"
+      },
+      "primaryRegionId": "crossroads",
+      "disposition": {
+        "mode": "control-only",
+        "reason": "Discovery interaction and map-pin state are semantic controls."
+      },
+      "runtimeRequirement": "none"
+    },
+    {
+      "ref": {
+        "sourceType": "discovery",
+        "sourceId": "ferry-shrine-lore"
+      },
+      "primaryRegionId": "tidewatch-coast",
+      "disposition": {
+        "mode": "control-only",
+        "reason": "Discovery interaction and map-pin state are semantic controls."
+      },
+      "runtimeRequirement": "none"
+    },
+    {
+      "ref": {
+        "sourceType": "discovery",
+        "sourceId": "silverpine-amulet-foreshadow"
+      },
+      "primaryRegionId": "silverpine",
+      "disposition": {
+        "mode": "control-only",
+        "reason": "Discovery interaction and map-pin state are semantic controls."
+      },
+      "runtimeRequirement": "none"
+    },
+    {
+      "ref": {
+        "sourceType": "discovery",
+        "sourceId": "wildwood-cave-danger"
+      },
+      "primaryRegionId": "wildwood",
+      "disposition": {
+        "mode": "control-only",
+        "reason": "Discovery interaction and map-pin state are semantic controls."
+      },
+      "runtimeRequirement": "none"
+    },
+    {
+      "ref": {
+        "sourceType": "discovery",
+        "sourceId": "witchwood-poison-warning"
+      },
+      "primaryRegionId": "mistfen",
+      "disposition": {
+        "mode": "control-only",
+        "reason": "Discovery interaction and map-pin state are semantic controls."
+      },
+      "runtimeRequirement": "none"
+    },
+    {
+      "ref": {
+        "sourceType": "encounter",
+        "sourceId": "meadow-slime-center"
+      },
+      "primaryRegionId": "wildwood",
+      "disposition": {
+        "mode": "control-only",
+        "reason": "Encounter spawn state is semantic control data."
+      },
+      "runtimeRequirement": "none"
+    },
+    {
+      "ref": {
+        "sourceType": "encounter",
+        "sourceId": "meadow-slime-east"
+      },
+      "primaryRegionId": "wildwood",
+      "disposition": {
+        "mode": "control-only",
+        "reason": "Encounter spawn state is semantic control data."
+      },
+      "runtimeRequirement": "none"
+    },
+    {
+      "ref": {
+        "sourceType": "encounter",
+        "sourceId": "meadow-slime-west"
+      },
+      "primaryRegionId": "wildwood",
+      "disposition": {
+        "mode": "control-only",
+        "reason": "Encounter spawn state is semantic control data."
+      },
+      "runtimeRequirement": "none"
+    },
+    {
+      "ref": {
+        "sourceType": "fence",
+        "sourceId": "coast-approach-east-fence"
+      },
+      "primaryRegionId": "tidewatch-coast",
+      "disposition": {
+        "mode": "base-and-foreground",
+        "baseMargins": {
+          "top": 8,
+          "right": 8,
+          "bottom": 8,
+          "left": 8
+        },
+        "foregroundMargins": {
+          "top": 32,
+          "right": 8,
+          "bottom": 0,
+          "left": 8
+        },
+        "frontCutoffPx": 33,
+        "motif": "fence-front"
+      },
+      "runtimeRequirement": "extend-fence-fallback"
+    },
+    {
+      "ref": {
+        "sourceType": "fence",
+        "sourceId": "coast-approach-west-fence"
+      },
+      "primaryRegionId": "tidewatch-coast",
+      "disposition": {
+        "mode": "base-and-foreground",
+        "baseMargins": {
+          "top": 8,
+          "right": 8,
+          "bottom": 8,
+          "left": 8
+        },
+        "foregroundMargins": {
+          "top": 32,
+          "right": 8,
+          "bottom": 0,
+          "left": 8
+        },
+        "frontCutoffPx": 33,
+        "motif": "fence-front"
+      },
+      "runtimeRequirement": "extend-fence-fallback"
+    },
+    {
+      "ref": {
+        "sourceType": "fence",
+        "sourceId": "coast-fork-east-field-fence"
+      },
+      "primaryRegionId": "tidewatch-coast",
+      "disposition": {
+        "mode": "base-and-foreground",
+        "baseMargins": {
+          "top": 8,
+          "right": 8,
+          "bottom": 8,
+          "left": 8
+        },
+        "foregroundMargins": {
+          "top": 32,
+          "right": 8,
+          "bottom": 0,
+          "left": 8
+        },
+        "frontCutoffPx": 33,
+        "motif": "fence-front"
+      },
+      "runtimeRequirement": "extend-fence-fallback"
+    },
+    {
+      "ref": {
+        "sourceType": "fence",
+        "sourceId": "crossroads-north-festival-barrier"
+      },
+      "primaryRegionId": "crossroads",
+      "disposition": {
+        "mode": "base-and-foreground",
+        "baseMargins": {
+          "top": 8,
+          "right": 8,
+          "bottom": 8,
+          "left": 8
+        },
+        "foregroundMargins": {
+          "top": 32,
+          "right": 8,
+          "bottom": 0,
+          "left": 8
+        },
+        "frontCutoffPx": 33,
+        "motif": "fence-front"
+      },
+      "runtimeRequirement": "extend-fence-fallback"
+    },
+    {
+      "ref": {
+        "sourceType": "fence",
+        "sourceId": "crossroads-north-festival-barrier-east"
+      },
+      "primaryRegionId": "crossroads",
+      "disposition": {
+        "mode": "base-and-foreground",
+        "baseMargins": {
+          "top": 8,
+          "right": 8,
+          "bottom": 8,
+          "left": 8
+        },
+        "foregroundMargins": {
+          "top": 32,
+          "right": 8,
+          "bottom": 0,
+          "left": 8
+        },
+        "frontCutoffPx": 33,
+        "motif": "fence-front"
+      },
+      "runtimeRequirement": "extend-fence-fallback"
+    },
+    {
+      "ref": {
+        "sourceType": "fence",
+        "sourceId": "crossroads-south-market-fence"
+      },
+      "primaryRegionId": "crossroads",
+      "disposition": {
+        "mode": "base-and-foreground",
+        "baseMargins": {
+          "top": 8,
+          "right": 8,
+          "bottom": 8,
+          "left": 8
+        },
+        "foregroundMargins": {
+          "top": 32,
+          "right": 8,
+          "bottom": 0,
+          "left": 8
+        },
+        "frontCutoffPx": 33,
+        "motif": "fence-front"
+      },
+      "runtimeRequirement": "extend-fence-fallback"
+    },
+    {
+      "ref": {
+        "sourceType": "ground-patch",
+        "sourceId": "coast-approach-path"
+      },
+      "primaryRegionId": "tidewatch-coast",
+      "disposition": {
+        "mode": "base-underlay"
+      },
+      "runtimeRequirement": "fallback-tile"
+    },
+    {
+      "ref": {
+        "sourceType": "ground-patch",
+        "sourceId": "coast-ferry-fork"
+      },
+      "primaryRegionId": "tidewatch-coast",
+      "disposition": {
+        "mode": "base-underlay"
+      },
+      "runtimeRequirement": "fallback-tile"
+    },
+    {
+      "ref": {
+        "sourceType": "ground-patch",
+        "sourceId": "coast-sand"
+      },
+      "primaryRegionId": "tidewatch-coast",
+      "disposition": {
+        "mode": "base-underlay"
+      },
+      "runtimeRequirement": "fallback-tile"
+    },
+    {
+      "ref": {
+        "sourceType": "ground-patch",
+        "sourceId": "coast-sea"
+      },
+      "primaryRegionId": "tidewatch-coast",
+      "disposition": {
+        "mode": "base-underlay"
+      },
+      "runtimeRequirement": "fallback-tile"
+    },
+    {
+      "ref": {
+        "sourceType": "ground-patch",
+        "sourceId": "coast-shrine-landing"
+      },
+      "primaryRegionId": "tidewatch-coast",
+      "disposition": {
+        "mode": "base-underlay"
+      },
+      "runtimeRequirement": "fallback-tile"
+    },
+    {
+      "ref": {
+        "sourceType": "ground-patch",
+        "sourceId": "coast-tidepool-pocket"
+      },
+      "primaryRegionId": "tidewatch-coast",
+      "disposition": {
+        "mode": "base-underlay"
+      },
+      "runtimeRequirement": "fallback-tile"
+    },
+    {
+      "ref": {
+        "sourceType": "ground-patch",
+        "sourceId": "crossroads-coast-cue-sand"
+      },
+      "primaryRegionId": "crossroads",
+      "disposition": {
+        "mode": "base-underlay"
+      },
+      "runtimeRequirement": "fallback-tile"
+    },
+    {
+      "ref": {
+        "sourceType": "ground-patch",
+        "sourceId": "crossroads-festival-road"
+      },
+      "primaryRegionId": "crossroads",
+      "disposition": {
+        "mode": "base-underlay"
+      },
+      "runtimeRequirement": "fallback-tile"
+    },
+    {
+      "ref": {
+        "sourceType": "ground-patch",
+        "sourceId": "crossroads-gate-terrace"
+      },
+      "primaryRegionId": "crossroads",
+      "disposition": {
+        "mode": "base-underlay"
+      },
+      "runtimeRequirement": "fallback-tile"
+    },
+    {
+      "ref": {
+        "sourceType": "ground-patch",
+        "sourceId": "crossroads-mistfen-cue-mud"
+      },
+      "primaryRegionId": "crossroads",
+      "disposition": {
+        "mode": "base-underlay"
+      },
+      "runtimeRequirement": "fallback-tile"
+    },
+    {
+      "ref": {
+        "sourceType": "ground-patch",
+        "sourceId": "crossroads-nook"
+      },
+      "primaryRegionId": "crossroads",
+      "disposition": {
+        "mode": "base-underlay"
+      },
+      "runtimeRequirement": "fallback-tile"
+    },
+    {
+      "ref": {
+        "sourceType": "ground-patch",
+        "sourceId": "crossroads-plaza"
+      },
+      "primaryRegionId": "crossroads",
+      "disposition": {
+        "mode": "base-underlay"
+      },
+      "runtimeRequirement": "fallback-tile"
+    },
+    {
+      "ref": {
+        "sourceType": "ground-patch",
+        "sourceId": "crossroads-silverpine-cue-leaves"
+      },
+      "primaryRegionId": "crossroads",
+      "disposition": {
+        "mode": "base-underlay"
+      },
+      "runtimeRequirement": "fallback-tile"
+    },
+    {
+      "ref": {
+        "sourceType": "ground-patch",
+        "sourceId": "crossroads-white-line"
+      },
+      "primaryRegionId": "crossroads",
+      "disposition": {
+        "mode": "base-underlay"
+      },
+      "runtimeRequirement": "fallback-tile"
+    },
+    {
+      "ref": {
+        "sourceType": "ground-patch",
+        "sourceId": "link-crossroads-coast"
+      },
+      "primaryRegionId": "connector-crossroads-coast",
+      "disposition": {
+        "mode": "base-underlay"
+      },
+      "runtimeRequirement": "fallback-tile"
+    },
+    {
+      "ref": {
+        "sourceType": "ground-patch",
+        "sourceId": "link-crossroads-coast-v"
+      },
+      "primaryRegionId": "connector-crossroads-coast",
+      "disposition": {
+        "mode": "base-underlay"
+      },
+      "runtimeRequirement": "fallback-tile"
+    },
+    {
+      "ref": {
+        "sourceType": "ground-patch",
+        "sourceId": "link-crossroads-mistfen"
+      },
+      "primaryRegionId": "connector-crossroads-mistfen",
+      "disposition": {
+        "mode": "base-underlay"
+      },
+      "runtimeRequirement": "fallback-tile"
+    },
+    {
+      "ref": {
+        "sourceType": "ground-patch",
+        "sourceId": "link-crossroads-mistfen-h"
+      },
+      "primaryRegionId": "connector-crossroads-mistfen",
+      "disposition": {
+        "mode": "base-underlay"
+      },
+      "runtimeRequirement": "fallback-tile"
+    },
+    {
+      "ref": {
+        "sourceType": "ground-patch",
+        "sourceId": "link-crossroads-silverpine"
+      },
+      "primaryRegionId": "connector-crossroads-silverpine",
+      "disposition": {
+        "mode": "base-underlay"
+      },
+      "runtimeRequirement": "fallback-tile"
+    },
+    {
+      "ref": {
+        "sourceType": "ground-patch",
+        "sourceId": "link-crossroads-wildwood"
+      },
+      "primaryRegionId": "connector-crossroads-wildwood",
+      "disposition": {
+        "mode": "base-underlay"
+      },
+      "runtimeRequirement": "fallback-tile"
+    },
+    {
+      "ref": {
+        "sourceType": "ground-patch",
+        "sourceId": "link-village-crossroads"
+      },
+      "primaryRegionId": "connector-village-crossroads",
+      "disposition": {
+        "mode": "base-underlay"
+      },
+      "runtimeRequirement": "fallback-tile"
+    },
+    {
+      "ref": {
+        "sourceType": "ground-patch",
+        "sourceId": "link-village-crossroads-v"
+      },
+      "primaryRegionId": "connector-village-crossroads",
+      "disposition": {
+        "mode": "base-underlay"
+      },
+      "runtimeRequirement": "fallback-tile"
+    },
+    {
+      "ref": {
+        "sourceType": "ground-patch",
+        "sourceId": "mistfen-approach-path"
+      },
+      "primaryRegionId": "mistfen",
+      "disposition": {
+        "mode": "base-underlay"
+      },
+      "runtimeRequirement": "fallback-tile"
+    },
+    {
+      "ref": {
+        "sourceType": "ground-patch",
+        "sourceId": "mistfen-basin"
+      },
+      "primaryRegionId": "mistfen",
+      "disposition": {
+        "mode": "base-underlay"
+      },
+      "runtimeRequirement": "fallback-tile"
+    },
+    {
+      "ref": {
+        "sourceType": "ground-patch",
+        "sourceId": "mistfen-hidden-pool-pocket"
+      },
+      "primaryRegionId": "mistfen",
+      "disposition": {
+        "mode": "base-underlay"
+      },
+      "runtimeRequirement": "fallback-tile"
+    },
+    {
+      "ref": {
+        "sourceType": "ground-patch",
+        "sourceId": "mistfen-pool-east"
+      },
+      "primaryRegionId": "mistfen",
+      "disposition": {
+        "mode": "base-underlay"
+      },
+      "runtimeRequirement": "fallback-tile"
+    },
+    {
+      "ref": {
+        "sourceType": "ground-patch",
+        "sourceId": "mistfen-pool-west"
+      },
+      "primaryRegionId": "mistfen",
+      "disposition": {
+        "mode": "base-underlay"
+      },
+      "runtimeRequirement": "fallback-tile"
+    },
+    {
+      "ref": {
+        "sourceType": "ground-patch",
+        "sourceId": "mistfen-safe-curve-a"
+      },
+      "primaryRegionId": "mistfen",
+      "disposition": {
+        "mode": "base-underlay"
+      },
+      "runtimeRequirement": "fallback-tile"
+    },
+    {
+      "ref": {
+        "sourceType": "ground-patch",
+        "sourceId": "mistfen-safe-curve-b"
+      },
+      "primaryRegionId": "mistfen",
+      "disposition": {
+        "mode": "base-underlay"
+      },
+      "runtimeRequirement": "fallback-tile"
+    },
+    {
+      "ref": {
+        "sourceType": "ground-patch",
+        "sourceId": "silverpine-bend-east"
+      },
+      "primaryRegionId": "silverpine",
+      "disposition": {
+        "mode": "base-underlay"
+      },
+      "runtimeRequirement": "fallback-tile"
+    },
+    {
+      "ref": {
+        "sourceType": "ground-patch",
+        "sourceId": "silverpine-bend-west"
+      },
+      "primaryRegionId": "silverpine",
+      "disposition": {
+        "mode": "base-underlay"
+      },
+      "runtimeRequirement": "fallback-tile"
+    },
+    {
+      "ref": {
+        "sourceType": "ground-patch",
+        "sourceId": "silverpine-grove-floor"
+      },
+      "primaryRegionId": "silverpine",
+      "disposition": {
+        "mode": "base-underlay"
+      },
+      "runtimeRequirement": "fallback-tile"
+    },
+    {
+      "ref": {
+        "sourceType": "ground-patch",
+        "sourceId": "silverpine-lower-approach"
+      },
+      "primaryRegionId": "silverpine",
+      "disposition": {
+        "mode": "base-underlay"
+      },
+      "runtimeRequirement": "fallback-tile"
+    },
+    {
+      "ref": {
+        "sourceType": "ground-patch",
+        "sourceId": "silverpine-shrine-terrace"
+      },
+      "primaryRegionId": "silverpine",
+      "disposition": {
+        "mode": "base-underlay"
+      },
+      "runtimeRequirement": "fallback-tile"
+    },
+    {
+      "ref": {
+        "sourceType": "ground-patch",
+        "sourceId": "silverpine-side-grove-floor"
+      },
+      "primaryRegionId": "silverpine",
+      "disposition": {
+        "mode": "base-underlay"
+      },
+      "runtimeRequirement": "fallback-tile"
+    },
+    {
+      "ref": {
+        "sourceType": "ground-patch",
+        "sourceId": "silverpine-stair-path"
+      },
+      "primaryRegionId": "silverpine",
+      "disposition": {
+        "mode": "base-underlay"
+      },
+      "runtimeRequirement": "fallback-tile"
+    },
+    {
+      "ref": {
+        "sourceType": "ground-patch",
+        "sourceId": "silverpine-terrace-landing"
+      },
+      "primaryRegionId": "silverpine",
+      "disposition": {
+        "mode": "base-underlay"
+      },
+      "runtimeRequirement": "fallback-tile"
+    },
+    {
+      "ref": {
+        "sourceType": "ground-patch",
+        "sourceId": "sundrop-cave-pocket"
+      },
+      "primaryRegionId": "wildwood",
+      "disposition": {
+        "mode": "base-underlay"
+      },
+      "runtimeRequirement": "fallback-tile"
+    },
+    {
+      "ref": {
+        "sourceType": "ground-patch",
+        "sourceId": "sundrop-forest-road-east"
+      },
+      "primaryRegionId": "wildwood",
+      "disposition": {
+        "mode": "base-underlay"
+      },
+      "runtimeRequirement": "fallback-tile"
+    },
+    {
+      "ref": {
+        "sourceType": "ground-patch",
+        "sourceId": "sundrop-forest-road-north"
+      },
+      "primaryRegionId": "wildwood",
+      "disposition": {
+        "mode": "base-underlay"
+      },
+      "runtimeRequirement": "fallback-tile"
+    },
+    {
+      "ref": {
+        "sourceType": "ground-patch",
+        "sourceId": "sundrop-southwest-ocean-patch"
+      },
+      "primaryRegionId": "outer-boundary",
+      "disposition": {
+        "mode": "runtime-fallback-only",
+        "reason": "The reviewed southwest margin is outside every regional runtime crop; the existing sea tile remains visible fallback coverage."
+      },
+      "runtimeRequirement": "fallback-tile"
+    },
+    {
+      "ref": {
+        "sourceType": "ground-patch",
+        "sourceId": "village-crossroads-nook"
+      },
+      "primaryRegionId": "connector-village-crossroads",
+      "disposition": {
+        "mode": "base-underlay"
+      },
+      "runtimeRequirement": "fallback-tile"
+    },
+    {
+      "ref": {
+        "sourceType": "ground-patch",
+        "sourceId": "village-ground-0-38"
+      },
+      "primaryRegionId": "sundrop-village",
+      "disposition": {
+        "mode": "base-underlay"
+      },
+      "runtimeRequirement": "fallback-tile"
+    },
+    {
+      "ref": {
+        "sourceType": "ground-patch",
+        "sourceId": "village-ground-1-38"
+      },
+      "primaryRegionId": "sundrop-village",
+      "disposition": {
+        "mode": "base-underlay"
+      },
+      "runtimeRequirement": "fallback-tile"
+    },
+    {
+      "ref": {
+        "sourceType": "ground-patch",
+        "sourceId": "village-ground-10-18"
+      },
+      "primaryRegionId": "sundrop-village",
+      "disposition": {
+        "mode": "base-underlay"
+      },
+      "runtimeRequirement": "fallback-tile"
+    },
+    {
+      "ref": {
+        "sourceType": "ground-patch",
+        "sourceId": "village-ground-11-18"
+      },
+      "primaryRegionId": "sundrop-village",
+      "disposition": {
+        "mode": "base-underlay"
+      },
+      "runtimeRequirement": "fallback-tile"
+    },
+    {
+      "ref": {
+        "sourceType": "ground-patch",
+        "sourceId": "village-ground-12-18"
+      },
+      "primaryRegionId": "sundrop-village",
+      "disposition": {
+        "mode": "base-underlay"
+      },
+      "runtimeRequirement": "fallback-tile"
+    },
+    {
+      "ref": {
+        "sourceType": "ground-patch",
+        "sourceId": "village-ground-13-18"
+      },
+      "primaryRegionId": "sundrop-village",
+      "disposition": {
+        "mode": "base-underlay"
+      },
+      "runtimeRequirement": "fallback-tile"
+    },
+    {
+      "ref": {
+        "sourceType": "ground-patch",
+        "sourceId": "village-ground-14-18"
+      },
+      "primaryRegionId": "sundrop-village",
+      "disposition": {
+        "mode": "base-underlay"
+      },
+      "runtimeRequirement": "fallback-tile"
+    },
+    {
+      "ref": {
+        "sourceType": "ground-patch",
+        "sourceId": "village-ground-15-18"
+      },
+      "primaryRegionId": "sundrop-village",
+      "disposition": {
+        "mode": "base-underlay"
+      },
+      "runtimeRequirement": "fallback-tile"
+    },
+    {
+      "ref": {
+        "sourceType": "ground-patch",
+        "sourceId": "village-ground-16-25"
+      },
+      "primaryRegionId": "sundrop-village",
+      "disposition": {
+        "mode": "base-underlay"
+      },
+      "runtimeRequirement": "fallback-tile"
+    },
+    {
+      "ref": {
+        "sourceType": "ground-patch",
+        "sourceId": "village-ground-16-33"
+      },
+      "primaryRegionId": "sundrop-village",
+      "disposition": {
+        "mode": "base-underlay"
+      },
+      "runtimeRequirement": "fallback-tile"
+    },
+    {
+      "ref": {
+        "sourceType": "ground-patch",
+        "sourceId": "village-ground-17-25"
+      },
+      "primaryRegionId": "sundrop-village",
+      "disposition": {
+        "mode": "base-underlay"
+      },
+      "runtimeRequirement": "fallback-tile"
+    },
+    {
+      "ref": {
+        "sourceType": "ground-patch",
+        "sourceId": "village-ground-17-33"
+      },
+      "primaryRegionId": "sundrop-village",
+      "disposition": {
+        "mode": "base-underlay"
+      },
+      "runtimeRequirement": "fallback-tile"
+    },
+    {
+      "ref": {
+        "sourceType": "ground-patch",
+        "sourceId": "village-ground-18-25"
+      },
+      "primaryRegionId": "sundrop-village",
+      "disposition": {
+        "mode": "base-underlay"
+      },
+      "runtimeRequirement": "fallback-tile"
+    },
+    {
+      "ref": {
+        "sourceType": "ground-patch",
+        "sourceId": "village-ground-18-33"
+      },
+      "primaryRegionId": "sundrop-village",
+      "disposition": {
+        "mode": "base-underlay"
+      },
+      "runtimeRequirement": "fallback-tile"
+    },
+    {
+      "ref": {
+        "sourceType": "ground-patch",
+        "sourceId": "village-ground-19-25"
+      },
+      "primaryRegionId": "sundrop-village",
+      "disposition": {
+        "mode": "base-underlay"
+      },
+      "runtimeRequirement": "fallback-tile"
+    },
+    {
+      "ref": {
+        "sourceType": "ground-patch",
+        "sourceId": "village-ground-19-33"
+      },
+      "primaryRegionId": "sundrop-village",
+      "disposition": {
+        "mode": "base-underlay"
+      },
+      "runtimeRequirement": "fallback-tile"
+    },
+    {
+      "ref": {
+        "sourceType": "ground-patch",
+        "sourceId": "village-ground-2-44"
+      },
+      "primaryRegionId": "sundrop-village",
+      "disposition": {
+        "mode": "base-underlay"
+      },
+      "runtimeRequirement": "fallback-tile"
+    },
+    {
+      "ref": {
+        "sourceType": "ground-patch",
+        "sourceId": "village-ground-20-25"
+      },
+      "primaryRegionId": "sundrop-village",
+      "disposition": {
+        "mode": "base-underlay"
+      },
+      "runtimeRequirement": "fallback-tile"
+    },
+    {
+      "ref": {
+        "sourceType": "ground-patch",
+        "sourceId": "village-ground-20-33"
+      },
+      "primaryRegionId": "sundrop-village",
+      "disposition": {
+        "mode": "base-underlay"
+      },
+      "runtimeRequirement": "fallback-tile"
+    },
+    {
+      "ref": {
+        "sourceType": "ground-patch",
+        "sourceId": "village-ground-21-25"
+      },
+      "primaryRegionId": "sundrop-village",
+      "disposition": {
+        "mode": "base-underlay"
+      },
+      "runtimeRequirement": "fallback-tile"
+    },
+    {
+      "ref": {
+        "sourceType": "ground-patch",
+        "sourceId": "village-ground-21-33"
+      },
+      "primaryRegionId": "sundrop-village",
+      "disposition": {
+        "mode": "base-underlay"
+      },
+      "runtimeRequirement": "fallback-tile"
+    },
+    {
+      "ref": {
+        "sourceType": "ground-patch",
+        "sourceId": "village-ground-22-20"
+      },
+      "primaryRegionId": "sundrop-village",
+      "disposition": {
+        "mode": "base-underlay"
+      },
+      "runtimeRequirement": "fallback-tile"
+    },
+    {
+      "ref": {
+        "sourceType": "ground-patch",
+        "sourceId": "village-ground-22-6"
+      },
+      "primaryRegionId": "sundrop-village",
+      "disposition": {
+        "mode": "base-underlay"
+      },
+      "runtimeRequirement": "fallback-tile"
+    },
+    {
+      "ref": {
+        "sourceType": "ground-patch",
+        "sourceId": "village-ground-23-20"
+      },
+      "primaryRegionId": "sundrop-village",
+      "disposition": {
+        "mode": "base-underlay"
+      },
+      "runtimeRequirement": "fallback-tile"
+    },
+    {
+      "ref": {
+        "sourceType": "ground-patch",
+        "sourceId": "village-ground-23-6"
+      },
+      "primaryRegionId": "sundrop-village",
+      "disposition": {
+        "mode": "base-underlay"
+      },
+      "runtimeRequirement": "fallback-tile"
+    },
+    {
+      "ref": {
+        "sourceType": "ground-patch",
+        "sourceId": "village-ground-24-20"
+      },
+      "primaryRegionId": "sundrop-village",
+      "disposition": {
+        "mode": "base-underlay"
+      },
+      "runtimeRequirement": "fallback-tile"
+    },
+    {
+      "ref": {
+        "sourceType": "ground-patch",
+        "sourceId": "village-ground-24-6"
+      },
+      "primaryRegionId": "sundrop-village",
+      "disposition": {
+        "mode": "base-underlay"
+      },
+      "runtimeRequirement": "fallback-tile"
+    },
+    {
+      "ref": {
+        "sourceType": "ground-patch",
+        "sourceId": "village-ground-25-21"
+      },
+      "primaryRegionId": "sundrop-village",
+      "disposition": {
+        "mode": "base-underlay"
+      },
+      "runtimeRequirement": "fallback-tile"
+    },
+    {
+      "ref": {
+        "sourceType": "ground-patch",
+        "sourceId": "village-ground-25-6"
+      },
+      "primaryRegionId": "sundrop-village",
+      "disposition": {
+        "mode": "base-underlay"
+      },
+      "runtimeRequirement": "fallback-tile"
+    },
+    {
+      "ref": {
+        "sourceType": "ground-patch",
+        "sourceId": "village-ground-26-21"
+      },
+      "primaryRegionId": "sundrop-village",
+      "disposition": {
+        "mode": "base-underlay"
+      },
+      "runtimeRequirement": "fallback-tile"
+    },
+    {
+      "ref": {
+        "sourceType": "ground-patch",
+        "sourceId": "village-ground-26-6"
+      },
+      "primaryRegionId": "sundrop-village",
+      "disposition": {
+        "mode": "base-underlay"
+      },
+      "runtimeRequirement": "fallback-tile"
+    },
+    {
+      "ref": {
+        "sourceType": "ground-patch",
+        "sourceId": "village-ground-27-20"
+      },
+      "primaryRegionId": "sundrop-village",
+      "disposition": {
+        "mode": "base-underlay"
+      },
+      "runtimeRequirement": "fallback-tile"
+    },
+    {
+      "ref": {
+        "sourceType": "ground-patch",
+        "sourceId": "village-ground-27-6"
+      },
+      "primaryRegionId": "sundrop-village",
+      "disposition": {
+        "mode": "base-underlay"
+      },
+      "runtimeRequirement": "fallback-tile"
+    },
+    {
+      "ref": {
+        "sourceType": "ground-patch",
+        "sourceId": "village-ground-28-20"
+      },
+      "primaryRegionId": "sundrop-village",
+      "disposition": {
+        "mode": "base-underlay"
+      },
+      "runtimeRequirement": "fallback-tile"
+    },
+    {
+      "ref": {
+        "sourceType": "ground-patch",
+        "sourceId": "village-ground-28-6"
+      },
+      "primaryRegionId": "sundrop-village",
+      "disposition": {
+        "mode": "base-underlay"
+      },
+      "runtimeRequirement": "fallback-tile"
+    },
+    {
+      "ref": {
+        "sourceType": "ground-patch",
+        "sourceId": "village-ground-29-20"
+      },
+      "primaryRegionId": "sundrop-village",
+      "disposition": {
+        "mode": "base-underlay"
+      },
+      "runtimeRequirement": "fallback-tile"
+    },
+    {
+      "ref": {
+        "sourceType": "ground-patch",
+        "sourceId": "village-ground-29-6"
+      },
+      "primaryRegionId": "sundrop-village",
+      "disposition": {
+        "mode": "base-underlay"
+      },
+      "runtimeRequirement": "fallback-tile"
+    },
+    {
+      "ref": {
+        "sourceType": "ground-patch",
+        "sourceId": "village-ground-3-44"
+      },
+      "primaryRegionId": "sundrop-village",
+      "disposition": {
+        "mode": "base-underlay"
+      },
+      "runtimeRequirement": "fallback-tile"
+    },
+    {
+      "ref": {
+        "sourceType": "ground-patch",
+        "sourceId": "village-ground-30-14"
+      },
+      "primaryRegionId": "sundrop-village",
+      "disposition": {
+        "mode": "base-underlay"
+      },
+      "runtimeRequirement": "fallback-tile"
+    },
+    {
+      "ref": {
+        "sourceType": "ground-patch",
+        "sourceId": "village-ground-30-25"
+      },
+      "primaryRegionId": "sundrop-village",
+      "disposition": {
+        "mode": "base-underlay"
+      },
+      "runtimeRequirement": "fallback-tile"
+    },
+    {
+      "ref": {
+        "sourceType": "ground-patch",
+        "sourceId": "village-ground-31-14"
+      },
+      "primaryRegionId": "sundrop-village",
+      "disposition": {
+        "mode": "base-underlay"
+      },
+      "runtimeRequirement": "fallback-tile"
+    },
+    {
+      "ref": {
+        "sourceType": "ground-patch",
+        "sourceId": "village-ground-31-25"
+      },
+      "primaryRegionId": "sundrop-village",
+      "disposition": {
+        "mode": "base-underlay"
+      },
+      "runtimeRequirement": "fallback-tile"
+    },
+    {
+      "ref": {
+        "sourceType": "ground-patch",
+        "sourceId": "village-ground-32-14"
+      },
+      "primaryRegionId": "sundrop-village",
+      "disposition": {
+        "mode": "base-underlay"
+      },
+      "runtimeRequirement": "fallback-tile"
+    },
+    {
+      "ref": {
+        "sourceType": "ground-patch",
+        "sourceId": "village-ground-32-25"
+      },
+      "primaryRegionId": "sundrop-village",
+      "disposition": {
+        "mode": "base-underlay"
+      },
+      "runtimeRequirement": "fallback-tile"
+    },
+    {
+      "ref": {
+        "sourceType": "ground-patch",
+        "sourceId": "village-ground-33-14"
+      },
+      "primaryRegionId": "sundrop-village",
+      "disposition": {
+        "mode": "base-underlay"
+      },
+      "runtimeRequirement": "fallback-tile"
+    },
+    {
+      "ref": {
+        "sourceType": "ground-patch",
+        "sourceId": "village-ground-33-25"
+      },
+      "primaryRegionId": "sundrop-village",
+      "disposition": {
+        "mode": "base-underlay"
+      },
+      "runtimeRequirement": "fallback-tile"
+    },
+    {
+      "ref": {
+        "sourceType": "ground-patch",
+        "sourceId": "village-ground-34-14"
+      },
+      "primaryRegionId": "sundrop-village",
+      "disposition": {
+        "mode": "base-underlay"
+      },
+      "runtimeRequirement": "fallback-tile"
+    },
+    {
+      "ref": {
+        "sourceType": "ground-patch",
+        "sourceId": "village-ground-34-22"
+      },
+      "primaryRegionId": "sundrop-village",
+      "disposition": {
+        "mode": "base-underlay"
+      },
+      "runtimeRequirement": "fallback-tile"
+    },
+    {
+      "ref": {
+        "sourceType": "ground-patch",
+        "sourceId": "village-ground-35-14"
+      },
+      "primaryRegionId": "sundrop-village",
+      "disposition": {
+        "mode": "base-underlay"
+      },
+      "runtimeRequirement": "fallback-tile"
+    },
+    {
+      "ref": {
+        "sourceType": "ground-patch",
+        "sourceId": "village-ground-35-22"
+      },
+      "primaryRegionId": "sundrop-village",
+      "disposition": {
+        "mode": "base-underlay"
+      },
+      "runtimeRequirement": "fallback-tile"
+    },
+    {
+      "ref": {
+        "sourceType": "ground-patch",
+        "sourceId": "village-ground-36-22"
+      },
+      "primaryRegionId": "sundrop-village",
+      "disposition": {
+        "mode": "base-underlay"
+      },
+      "runtimeRequirement": "fallback-tile"
+    },
+    {
+      "ref": {
+        "sourceType": "ground-patch",
+        "sourceId": "village-ground-36-6"
+      },
+      "primaryRegionId": "sundrop-village",
+      "disposition": {
+        "mode": "base-underlay"
+      },
+      "runtimeRequirement": "fallback-tile"
+    },
+    {
+      "ref": {
+        "sourceType": "ground-patch",
+        "sourceId": "village-ground-37-22"
+      },
+      "primaryRegionId": "sundrop-village",
+      "disposition": {
+        "mode": "base-underlay"
+      },
+      "runtimeRequirement": "fallback-tile"
+    },
+    {
+      "ref": {
+        "sourceType": "ground-patch",
+        "sourceId": "village-ground-37-6"
+      },
+      "primaryRegionId": "sundrop-village",
+      "disposition": {
+        "mode": "base-underlay"
+      },
+      "runtimeRequirement": "fallback-tile"
+    },
+    {
+      "ref": {
+        "sourceType": "ground-patch",
+        "sourceId": "village-ground-38-22"
+      },
+      "primaryRegionId": "sundrop-village",
+      "disposition": {
+        "mode": "base-underlay"
+      },
+      "runtimeRequirement": "fallback-tile"
+    },
+    {
+      "ref": {
+        "sourceType": "ground-patch",
+        "sourceId": "village-ground-38-6"
+      },
+      "primaryRegionId": "sundrop-village",
+      "disposition": {
+        "mode": "base-underlay"
+      },
+      "runtimeRequirement": "fallback-tile"
+    },
+    {
+      "ref": {
+        "sourceType": "ground-patch",
+        "sourceId": "village-ground-39-22"
+      },
+      "primaryRegionId": "sundrop-village",
+      "disposition": {
+        "mode": "base-underlay"
+      },
+      "runtimeRequirement": "fallback-tile"
+    },
+    {
+      "ref": {
+        "sourceType": "ground-patch",
+        "sourceId": "village-ground-39-6"
+      },
+      "primaryRegionId": "sundrop-village",
+      "disposition": {
+        "mode": "base-underlay"
+      },
+      "runtimeRequirement": "fallback-tile"
+    },
+    {
+      "ref": {
+        "sourceType": "ground-patch",
+        "sourceId": "village-ground-4-44"
+      },
+      "primaryRegionId": "sundrop-village",
+      "disposition": {
+        "mode": "base-underlay"
+      },
+      "runtimeRequirement": "fallback-tile"
+    },
+    {
+      "ref": {
+        "sourceType": "ground-patch",
+        "sourceId": "village-ground-40-22"
+      },
+      "primaryRegionId": "sundrop-village",
+      "disposition": {
+        "mode": "base-underlay"
+      },
+      "runtimeRequirement": "fallback-tile"
+    },
+    {
+      "ref": {
+        "sourceType": "ground-patch",
+        "sourceId": "village-ground-40-6"
+      },
+      "primaryRegionId": "sundrop-village",
+      "disposition": {
+        "mode": "base-underlay"
+      },
+      "runtimeRequirement": "fallback-tile"
+    },
+    {
+      "ref": {
+        "sourceType": "ground-patch",
+        "sourceId": "village-ground-41-22"
+      },
+      "primaryRegionId": "sundrop-village",
+      "disposition": {
+        "mode": "base-underlay"
+      },
+      "runtimeRequirement": "fallback-tile"
+    },
+    {
+      "ref": {
+        "sourceType": "ground-patch",
+        "sourceId": "village-ground-41-6"
+      },
+      "primaryRegionId": "sundrop-village",
+      "disposition": {
+        "mode": "base-underlay"
+      },
+      "runtimeRequirement": "fallback-tile"
+    },
+    {
+      "ref": {
+        "sourceType": "ground-patch",
+        "sourceId": "village-ground-42-22"
+      },
+      "primaryRegionId": "sundrop-village",
+      "disposition": {
+        "mode": "base-underlay"
+      },
+      "runtimeRequirement": "fallback-tile"
+    },
+    {
+      "ref": {
+        "sourceType": "ground-patch",
+        "sourceId": "village-ground-42-6"
+      },
+      "primaryRegionId": "sundrop-village",
+      "disposition": {
+        "mode": "base-underlay"
+      },
+      "runtimeRequirement": "fallback-tile"
+    },
+    {
+      "ref": {
+        "sourceType": "ground-patch",
+        "sourceId": "village-ground-43-22"
+      },
+      "primaryRegionId": "sundrop-village",
+      "disposition": {
+        "mode": "base-underlay"
+      },
+      "runtimeRequirement": "fallback-tile"
+    },
+    {
+      "ref": {
+        "sourceType": "ground-patch",
+        "sourceId": "village-ground-5-40"
+      },
+      "primaryRegionId": "sundrop-village",
+      "disposition": {
+        "mode": "base-underlay"
+      },
+      "runtimeRequirement": "fallback-tile"
+    },
+    {
+      "ref": {
+        "sourceType": "ground-patch",
+        "sourceId": "village-ground-6-40"
+      },
+      "primaryRegionId": "sundrop-village",
+      "disposition": {
+        "mode": "base-underlay"
+      },
+      "runtimeRequirement": "fallback-tile"
+    },
+    {
+      "ref": {
+        "sourceType": "ground-patch",
+        "sourceId": "village-ground-7-40"
+      },
+      "primaryRegionId": "sundrop-village",
+      "disposition": {
+        "mode": "base-underlay"
+      },
+      "runtimeRequirement": "fallback-tile"
+    },
+    {
+      "ref": {
+        "sourceType": "ground-patch",
+        "sourceId": "village-ground-8-18"
+      },
+      "primaryRegionId": "sundrop-village",
+      "disposition": {
+        "mode": "base-underlay"
+      },
+      "runtimeRequirement": "fallback-tile"
+    },
+    {
+      "ref": {
+        "sourceType": "ground-patch",
+        "sourceId": "village-ground-9-18"
+      },
+      "primaryRegionId": "sundrop-village",
+      "disposition": {
+        "mode": "base-underlay"
+      },
+      "runtimeRequirement": "fallback-tile"
+    },
+    {
+      "ref": {
+        "sourceType": "ground-patch",
+        "sourceId": "whispering-cave-combat-pocket"
+      },
+      "primaryRegionId": "wildwood",
+      "disposition": {
+        "mode": "base-underlay"
+      },
+      "runtimeRequirement": "fallback-tile"
+    },
+    {
+      "ref": {
+        "sourceType": "ground-patch",
+        "sourceId": "wildwood-cave-branch"
+      },
+      "primaryRegionId": "wildwood",
+      "disposition": {
+        "mode": "base-underlay"
+      },
+      "runtimeRequirement": "fallback-tile"
+    },
+    {
+      "ref": {
+        "sourceType": "ground-patch",
+        "sourceId": "wildwood-crossing-combat-pocket"
+      },
+      "primaryRegionId": "wildwood",
+      "disposition": {
+        "mode": "base-underlay"
+      },
+      "runtimeRequirement": "fallback-tile"
+    },
+    {
+      "ref": {
+        "sourceType": "ground-patch",
+        "sourceId": "wildwood-north-combat-pocket"
+      },
+      "primaryRegionId": "wildwood",
+      "disposition": {
+        "mode": "base-underlay"
+      },
+      "runtimeRequirement": "fallback-tile"
+    },
+    {
+      "ref": {
+        "sourceType": "ground-patch",
+        "sourceId": "wildwood-side-clearing"
+      },
+      "primaryRegionId": "wildwood",
+      "disposition": {
+        "mode": "base-underlay"
+      },
+      "runtimeRequirement": "fallback-tile"
+    },
+    {
+      "ref": {
+        "sourceType": "landmark",
+        "sourceId": "blacksmith"
+      },
+      "primaryRegionId": "sundrop-village",
+      "disposition": {
+        "mode": "protected-live",
+        "protectionMargins": {
+          "top": 32,
+          "right": 16,
+          "bottom": 16,
+          "left": 16
+        },
+        "reason": "Landmark and doorway approach remain live and readable."
+      },
+      "runtimeRequirement": "remain-live"
+    },
+    {
+      "ref": {
+        "sourceType": "landmark",
+        "sourceId": "castle-gate"
+      },
+      "primaryRegionId": "crossroads",
+      "disposition": {
+        "mode": "protected-live",
+        "protectionMargins": {
+          "top": 32,
+          "right": 16,
+          "bottom": 16,
+          "left": 16
+        },
+        "reason": "Landmark and doorway approach remain live and readable."
+      },
+      "runtimeRequirement": "remain-live"
+    },
+    {
+      "ref": {
+        "sourceType": "landmark",
+        "sourceId": "crossroads-waystone"
+      },
+      "primaryRegionId": "crossroads",
+      "disposition": {
+        "mode": "protected-live",
+        "protectionMargins": {
+          "top": 32,
+          "right": 16,
+          "bottom": 16,
+          "left": 16
+        },
+        "reason": "Landmark and doorway approach remain live and readable."
+      },
+      "runtimeRequirement": "remain-live"
+    },
+    {
+      "ref": {
+        "sourceType": "landmark",
+        "sourceId": "ferry-crossing"
+      },
+      "primaryRegionId": "tidewatch-coast",
+      "disposition": {
+        "mode": "protected-live",
+        "protectionMargins": {
+          "top": 32,
+          "right": 16,
+          "bottom": 16,
+          "left": 16
+        },
+        "reason": "Landmark and doorway approach remain live and readable."
+      },
+      "runtimeRequirement": "remain-live"
+    },
+    {
+      "ref": {
+        "sourceType": "landmark",
+        "sourceId": "guild-hall-exterior"
+      },
+      "primaryRegionId": "sundrop-village",
+      "disposition": {
+        "mode": "protected-live",
+        "protectionMargins": {
+          "top": 32,
+          "right": 16,
+          "bottom": 16,
+          "left": 16
+        },
+        "reason": "Landmark and doorway approach remain live and readable."
+      },
+      "runtimeRequirement": "remain-live"
+    },
+    {
+      "ref": {
+        "sourceType": "landmark",
+        "sourceId": "hero-house-exterior"
+      },
+      "primaryRegionId": "sundrop-village",
+      "disposition": {
+        "mode": "protected-live",
+        "protectionMargins": {
+          "top": 32,
+          "right": 16,
+          "bottom": 16,
+          "left": 16
+        },
+        "reason": "Landmark and doorway approach remain live and readable."
+      },
+      "runtimeRequirement": "remain-live"
+    },
+    {
+      "ref": {
+        "sourceType": "landmark",
+        "sourceId": "item-shop-exterior"
+      },
+      "primaryRegionId": "sundrop-village",
+      "disposition": {
+        "mode": "protected-live",
+        "protectionMargins": {
+          "top": 32,
+          "right": 16,
+          "bottom": 16,
+          "left": 16
+        },
+        "reason": "Landmark and doorway approach remain live and readable."
+      },
+      "runtimeRequirement": "remain-live"
+    },
+    {
+      "ref": {
+        "sourceType": "landmark",
+        "sourceId": "shrine-of-aurora"
+      },
+      "primaryRegionId": "sundrop-village",
+      "disposition": {
+        "mode": "protected-live",
+        "protectionMargins": {
+          "top": 32,
+          "right": 16,
+          "bottom": 16,
+          "left": 16
+        },
+        "reason": "Landmark and doorway approach remain live and readable."
+      },
+      "runtimeRequirement": "remain-live"
+    },
+    {
+      "ref": {
+        "sourceType": "landmark",
+        "sourceId": "silver-shrine-gate"
+      },
+      "primaryRegionId": "silverpine",
+      "disposition": {
+        "mode": "protected-live",
+        "protectionMargins": {
+          "top": 32,
+          "right": 16,
+          "bottom": 16,
+          "left": 16
+        },
+        "reason": "Landmark and doorway approach remain live and readable."
+      },
+      "runtimeRequirement": "remain-live"
+    },
+    {
+      "ref": {
+        "sourceType": "landmark",
+        "sourceId": "sundrop-well"
+      },
+      "primaryRegionId": "sundrop-village",
+      "disposition": {
+        "mode": "protected-live",
+        "protectionMargins": {
+          "top": 32,
+          "right": 16,
+          "bottom": 16,
+          "left": 16
+        },
+        "reason": "Landmark and doorway approach remain live and readable."
+      },
+      "runtimeRequirement": "remain-live"
+    },
+    {
+      "ref": {
+        "sourceType": "landmark",
+        "sourceId": "villager-house-1-exterior"
+      },
+      "primaryRegionId": "sundrop-village",
+      "disposition": {
+        "mode": "protected-live",
+        "protectionMargins": {
+          "top": 32,
+          "right": 16,
+          "bottom": 16,
+          "left": 16
+        },
+        "reason": "Landmark and doorway approach remain live and readable."
+      },
+      "runtimeRequirement": "remain-live"
+    },
+    {
+      "ref": {
+        "sourceType": "landmark",
+        "sourceId": "villager-house-2-exterior"
+      },
+      "primaryRegionId": "sundrop-village",
+      "disposition": {
+        "mode": "protected-live",
+        "protectionMargins": {
+          "top": 32,
+          "right": 16,
+          "bottom": 16,
+          "left": 16
+        },
+        "reason": "Landmark and doorway approach remain live and readable."
+      },
+      "runtimeRequirement": "remain-live"
+    },
+    {
+      "ref": {
+        "sourceType": "landmark",
+        "sourceId": "villager-house-3-exterior"
+      },
+      "primaryRegionId": "sundrop-village",
+      "disposition": {
+        "mode": "protected-live",
+        "protectionMargins": {
+          "top": 32,
+          "right": 16,
+          "bottom": 16,
+          "left": 16
+        },
+        "reason": "Landmark and doorway approach remain live and readable."
+      },
+      "runtimeRequirement": "remain-live"
+    },
+    {
+      "ref": {
+        "sourceType": "landmark",
+        "sourceId": "whispering-cave"
+      },
+      "primaryRegionId": "wildwood",
+      "disposition": {
+        "mode": "protected-live",
+        "protectionMargins": {
+          "top": 32,
+          "right": 16,
+          "bottom": 16,
+          "left": 16
+        },
+        "reason": "Landmark and doorway approach remain live and readable."
+      },
+      "runtimeRequirement": "remain-live"
+    },
+    {
+      "ref": {
+        "sourceType": "landmark",
+        "sourceId": "witchwood-gate"
+      },
+      "primaryRegionId": "mistfen",
+      "disposition": {
+        "mode": "protected-live",
+        "protectionMargins": {
+          "top": 32,
+          "right": 16,
+          "bottom": 16,
+          "left": 16
+        },
+        "reason": "Landmark and doorway approach remain live and readable."
+      },
+      "runtimeRequirement": "remain-live"
+    },
+    {
+      "ref": {
+        "sourceType": "pickup",
+        "sourceId": "coast-jetty-catch"
+      },
+      "primaryRegionId": "tidewatch-coast",
+      "disposition": {
+        "mode": "protected-live",
+        "protectionMargins": {
+          "top": 32,
+          "right": 16,
+          "bottom": 16,
+          "left": 16
+        },
+        "reason": "Collectible presence and save-state visibility remain live."
+      },
+      "runtimeRequirement": "remain-live"
+    },
+    {
+      "ref": {
+        "sourceType": "pickup",
+        "sourceId": "coast-salve"
+      },
+      "primaryRegionId": "tidewatch-coast",
+      "disposition": {
+        "mode": "protected-live",
+        "protectionMargins": {
+          "top": 32,
+          "right": 16,
+          "bottom": 16,
+          "left": 16
+        },
+        "reason": "Collectible presence and save-state visibility remain live."
+      },
+      "runtimeRequirement": "remain-live"
+    },
+    {
+      "ref": {
+        "sourceType": "pickup",
+        "sourceId": "crossroads-cache"
+      },
+      "primaryRegionId": "crossroads",
+      "disposition": {
+        "mode": "protected-live",
+        "protectionMargins": {
+          "top": 32,
+          "right": 16,
+          "bottom": 16,
+          "left": 16
+        },
+        "reason": "Collectible presence and save-state visibility remain live."
+      },
+      "runtimeRequirement": "remain-live"
+    },
+    {
+      "ref": {
+        "sourceType": "pickup",
+        "sourceId": "mistfen-cache"
+      },
+      "primaryRegionId": "mistfen",
+      "disposition": {
+        "mode": "protected-live",
+        "protectionMargins": {
+          "top": 32,
+          "right": 16,
+          "bottom": 16,
+          "left": 16
+        },
+        "reason": "Collectible presence and save-state visibility remain live."
+      },
+      "runtimeRequirement": "remain-live"
+    },
+    {
+      "ref": {
+        "sourceType": "pickup",
+        "sourceId": "mistfen-salve"
+      },
+      "primaryRegionId": "mistfen",
+      "disposition": {
+        "mode": "protected-live",
+        "protectionMargins": {
+          "top": 32,
+          "right": 16,
+          "bottom": 16,
+          "left": 16
+        },
+        "reason": "Collectible presence and save-state visibility remain live."
+      },
+      "runtimeRequirement": "remain-live"
+    },
+    {
+      "ref": {
+        "sourceType": "pickup",
+        "sourceId": "silverpine-offering-cache"
+      },
+      "primaryRegionId": "silverpine",
+      "disposition": {
+        "mode": "protected-live",
+        "protectionMargins": {
+          "top": 32,
+          "right": 16,
+          "bottom": 16,
+          "left": 16
+        },
+        "reason": "Collectible presence and save-state visibility remain live."
+      },
+      "runtimeRequirement": "remain-live"
+    },
+    {
+      "ref": {
+        "sourceType": "pickup",
+        "sourceId": "silverpine-tonic"
+      },
+      "primaryRegionId": "silverpine",
+      "disposition": {
+        "mode": "protected-live",
+        "protectionMargins": {
+          "top": 32,
+          "right": 16,
+          "bottom": 16,
+          "left": 16
+        },
+        "reason": "Collectible presence and save-state visibility remain live."
+      },
+      "runtimeRequirement": "remain-live"
+    },
+    {
+      "ref": {
+        "sourceType": "pickup",
+        "sourceId": "village-market-cache"
+      },
+      "primaryRegionId": "sundrop-village",
+      "disposition": {
+        "mode": "protected-live",
+        "protectionMargins": {
+          "top": 32,
+          "right": 16,
+          "bottom": 16,
+          "left": 16
+        },
+        "reason": "Collectible presence and save-state visibility remain live."
+      },
+      "runtimeRequirement": "remain-live"
+    },
+    {
+      "ref": {
+        "sourceType": "pickup",
+        "sourceId": "village-shrine-cache"
+      },
+      "primaryRegionId": "sundrop-village",
+      "disposition": {
+        "mode": "protected-live",
+        "protectionMargins": {
+          "top": 32,
+          "right": 16,
+          "bottom": 16,
+          "left": 16
+        },
+        "reason": "Collectible presence and save-state visibility remain live."
+      },
+      "runtimeRequirement": "remain-live"
+    },
+    {
+      "ref": {
+        "sourceType": "pickup",
+        "sourceId": "wildwood-grove-cache"
+      },
+      "primaryRegionId": "wildwood",
+      "disposition": {
+        "mode": "protected-live",
+        "protectionMargins": {
+          "top": 32,
+          "right": 16,
+          "bottom": 16,
+          "left": 16
+        },
+        "reason": "Collectible presence and save-state visibility remain live."
+      },
+      "runtimeRequirement": "remain-live"
+    },
+    {
+      "ref": {
+        "sourceType": "transition",
+        "sourceId": "meadow-to-guild-hall"
+      },
+      "primaryRegionId": "sundrop-village",
+      "disposition": {
+        "mode": "protected-live",
+        "protectionMargins": {
+          "top": 32,
+          "right": 16,
+          "bottom": 16,
+          "left": 16
+        },
+        "reason": "Stateful transition and doorway marker remain live."
+      },
+      "runtimeRequirement": "remain-live"
+    },
+    {
+      "ref": {
+        "sourceType": "transition",
+        "sourceId": "meadow-to-hero-house"
+      },
+      "primaryRegionId": "sundrop-village",
+      "disposition": {
+        "mode": "protected-live",
+        "protectionMargins": {
+          "top": 32,
+          "right": 16,
+          "bottom": 16,
+          "left": 16
+        },
+        "reason": "Stateful transition and doorway marker remain live."
+      },
+      "runtimeRequirement": "remain-live"
+    },
+    {
+      "ref": {
+        "sourceType": "transition",
+        "sourceId": "meadow-to-item-shop"
+      },
+      "primaryRegionId": "sundrop-village",
+      "disposition": {
+        "mode": "protected-live",
+        "protectionMargins": {
+          "top": 32,
+          "right": 16,
+          "bottom": 16,
+          "left": 16
+        },
+        "reason": "Stateful transition and doorway marker remain live."
+      },
+      "runtimeRequirement": "remain-live"
+    },
+    {
+      "ref": {
+        "sourceType": "transition",
+        "sourceId": "meadow-to-shrine-of-aurora"
+      },
+      "primaryRegionId": "sundrop-village",
+      "disposition": {
+        "mode": "protected-live",
+        "protectionMargins": {
+          "top": 32,
+          "right": 16,
+          "bottom": 16,
+          "left": 16
+        },
+        "reason": "Stateful transition and doorway marker remain live."
+      },
+      "runtimeRequirement": "remain-live"
+    },
+    {
+      "ref": {
+        "sourceType": "transition",
+        "sourceId": "meadow-to-villager-house-1"
+      },
+      "primaryRegionId": "sundrop-village",
+      "disposition": {
+        "mode": "protected-live",
+        "protectionMargins": {
+          "top": 32,
+          "right": 16,
+          "bottom": 16,
+          "left": 16
+        },
+        "reason": "Stateful transition and doorway marker remain live."
+      },
+      "runtimeRequirement": "remain-live"
+    },
+    {
+      "ref": {
+        "sourceType": "transition",
+        "sourceId": "meadow-to-villager-house-2"
+      },
+      "primaryRegionId": "sundrop-village",
+      "disposition": {
+        "mode": "protected-live",
+        "protectionMargins": {
+          "top": 32,
+          "right": 16,
+          "bottom": 16,
+          "left": 16
+        },
+        "reason": "Stateful transition and doorway marker remain live."
+      },
+      "runtimeRequirement": "remain-live"
+    },
+    {
+      "ref": {
+        "sourceType": "transition",
+        "sourceId": "meadow-to-villager-house-3"
+      },
+      "primaryRegionId": "sundrop-village",
+      "disposition": {
+        "mode": "protected-live",
+        "protectionMargins": {
+          "top": 32,
+          "right": 16,
+          "bottom": 16,
+          "left": 16
+        },
+        "reason": "Stateful transition and doorway marker remain live."
+      },
+      "runtimeRequirement": "remain-live"
+    },
+    {
+      "ref": {
+        "sourceType": "transition",
+        "sourceId": "meadow-to-whispering-cave-ruins-threshold"
+      },
+      "primaryRegionId": "wildwood",
+      "disposition": {
+        "mode": "protected-live",
+        "protectionMargins": {
+          "top": 32,
+          "right": 16,
+          "bottom": 16,
+          "left": 16
+        },
+        "reason": "Stateful transition and doorway marker remain live."
+      },
+      "runtimeRequirement": "remain-live"
+    }
+  ]
+}
