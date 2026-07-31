@@ -28,9 +28,9 @@
     "meadow-entry-crop-manifest.json"
   ],
   "fingerprints": {
-    "gameplaySource": "b64a4aa5459f677faf6584517f3f856e7f9a19f5c758d73a35d49780e8a4fdfe",
-    "authoringContract": "29b7e43e28b0e0475348fc8bc707cc1720ff98c7ecbd64a6f6f72a4a49637e4a",
-    "combinedControl": "88b83d5814401edf97b359175268d066e7802f76df49a36abd041e5571c90bb5"
+    "gameplaySource": "d3b669a1a42e3f15a9084bfc4657e5cf16b5bd508841ff48d45660db49213a95",
+    "authoringContract": "dd49a5f37927fe14073f8e477e938070276cbc4348b6593bb3b1631a303561a8",
+    "combinedControl": "4c238c40fccfa191345ac4de1fdee63e448f554ec455e024fc4f78bc344f36f7"
   },
   "predecessor": {
     "hpa307ArtifactHashes": {
@@ -68,7 +68,7 @@
   },
   "rendererMaskMaterialContract": {
     "version": 1,
-    "implementationSha256": "313d178fbdccaf6ce4e68f63c575f7b3fe341c3f559618f136001e94bc450742",
+    "implementationSha256": "7d3352c4116d8ac0f12a58a731286cc42d5145af0cb2d3216ea0b48a5b0d000f",
     "maskDimensionsPx": {
       "width": 6400,
       "height": 6400
@@ -102,7 +102,7 @@
     },
     "collisionExpansionPx": 12,
     "walkableSpaceTileSizePx": 32,
-    "walkableSpaceRule": "tile-forbidden-unless-one-player-expanded-collision-covers-it",
+    "walkableSpaceRule": "tile-forbidden-unless-player-expanded-collision-union-covers-it",
     "foregroundRule": "explicit-base-and-foreground-minus-forbidden-and-protected",
     "protectedRule": "protected-live-source-bounds-plus-reviewed-margins",
     "rasterizationRule": "raw-center-edges-floor-left-top-ceil-right-bottom",
@@ -892,12 +892,6 @@
       "bottom": 2688
     },
     {
-      "left": 3040,
-      "top": 2592,
-      "right": 3072,
-      "bottom": 2784
-    },
-    {
       "left": 3136,
       "top": 2624,
       "right": 3296,
@@ -1576,12 +1570,6 @@
       "bottom": 5152
     },
     {
-      "left": 352,
-      "top": 5024,
-      "right": 384,
-      "bottom": 5248
-    },
-    {
       "left": 608,
       "top": 5024,
       "right": 1344,
@@ -1675,7 +1663,7 @@
       "left": 384,
       "top": 5376,
       "right": 512,
-      "bottom": 5408
+      "bottom": 5664
     },
     {
       "left": 896,
@@ -1702,10 +1690,10 @@
       "bottom": 5440
     },
     {
-      "left": 384,
+      "left": 736,
       "top": 5408,
       "right": 1024,
-      "bottom": 5440
+      "bottom": 5504
     },
     {
       "left": 1056,
@@ -1718,18 +1706,6 @@
       "top": 5408,
       "right": 1824,
       "bottom": 5696
-    },
-    {
-      "left": 384,
-      "top": 5440,
-      "right": 512,
-      "bottom": 5664
-    },
-    {
-      "left": 736,
-      "top": 5440,
-      "right": 1024,
-      "bottom": 5504
     },
     {
       "left": 1952,
