@@ -283,6 +283,33 @@ describe('meadow-entry deterministic authoring controls', () => {
 		}
 	});
 
+	it('orders canonical source IDs by Unicode code point instead of host locale collation', () => {
+		const input: MeadowEntryControlInputs = {
+			...buildMeadowEntryControlInputs(),
+			sourceCatalog: [
+				{
+					ref: { sourceType: 'landmark', sourceId: 'a-locale-probe' },
+					fragmentId: 'outer-boundary',
+					bounds: { left: 32, top: 32, right: 64, bottom: 64 },
+					visualCapable: true
+				},
+				{
+					ref: { sourceType: 'landmark', sourceId: 'Z-code-point-probe' },
+					fragmentId: 'outer-boundary',
+					bounds: { left: 64, top: 32, right: 96, bottom: 64 },
+					visualCapable: true
+				}
+			],
+			primarySourceOwners: {},
+			bakeOwnership: []
+		};
+		const ids = parseSvgRects(
+			renderMeadowEntryControls(input)['meadow-entry-building-footprint-mask.svg']!
+		).map(({ id }) => id);
+
+		expect(ids).toEqual(['landmark:Z-code-point-probe', 'landmark:a-locale-probe']);
+	});
+
 	it('separates gameplay, authoring, and combined lowercase SHA-256 domains', () => {
 		const input = buildMeadowEntryControlInputs();
 		const gameplay = computeMeadowEntryGameplaySourceFingerprint(input);

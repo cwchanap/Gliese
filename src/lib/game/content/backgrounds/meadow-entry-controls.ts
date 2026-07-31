@@ -185,11 +185,15 @@ function sha256(value: Uint8Array | string): string {
 	return createHash('sha256').update(value).digest('hex');
 }
 
+function compareCodePoints(left: string, right: string): number {
+	return left < right ? -1 : left > right ? 1 : 0;
+}
+
 function stable(value: unknown): string {
 	if (Array.isArray(value)) return `[${value.map(stable).join(',')}]`;
 	if (value && typeof value === 'object') {
 		return `{${Object.entries(value as Record<string, unknown>)
-			.sort(([left], [right]) => left.localeCompare(right))
+			.sort(([left], [right]) => compareCodePoints(left, right))
 			.map(([key, item]) => `${JSON.stringify(key)}:${stable(item)}`)
 			.join(',')}}`;
 	}
@@ -488,7 +492,7 @@ function buildControlClearanceRects(
 		}
 		clearances.push({ id: meadowEntrySourceKey(record.ref), kind, bounds });
 	}
-	return clearances.sort((left, right) => left.id.localeCompare(right.id));
+	return clearances.sort((left, right) => compareCodePoints(left.id, right.id));
 }
 
 export function buildMeadowEntryControlInputs(): MeadowEntryControlInputs {
@@ -552,14 +556,14 @@ export function buildMeadowEntryControlInputs(): MeadowEntryControlInputs {
 
 function sortedSourceCatalog(input: MeadowEntryControlInputs): readonly MeadowEntrySourceRecord[] {
 	return [...input.sourceCatalog].sort((left, right) =>
-		meadowEntrySourceKey(left.ref).localeCompare(meadowEntrySourceKey(right.ref))
+		compareCodePoints(meadowEntrySourceKey(left.ref), meadowEntrySourceKey(right.ref))
 	);
 }
 
 function sortedById<T extends { readonly id: string }>(
 	items: readonly T[] | undefined
 ): readonly T[] {
-	return [...(items ?? [])].sort((left, right) => left.id.localeCompare(right.id));
+	return [...(items ?? [])].sort((left, right) => compareCodePoints(left.id, right.id));
 }
 
 function gameplayMapSnapshot(map: WorldMapDefinition): unknown {
@@ -727,7 +731,7 @@ function svgDocument(rects: readonly SvgRect[]): string {
 			const width = bounds.right - bounds.left;
 			const height = bounds.bottom - bounds.top;
 			const dataAttributes = Object.entries(attributes ?? {})
-				.sort(([left], [right]) => left.localeCompare(right))
+				.sort(([left], [right]) => compareCodePoints(left, right))
 				.map(([name, value]) => ` data-${name}="${xmlEscape(String(value))}"`)
 				.join('');
 			return `  <rect data-id="${xmlEscape(id)}" x="${bounds.left}" y="${bounds.top}" width="${width}" height="${height}" fill="${fill}"${opacity === undefined ? '' : ` opacity="${opacity}"`}${stroke === undefined ? '' : ` stroke="${stroke}"`}${dataAttributes}/>`;

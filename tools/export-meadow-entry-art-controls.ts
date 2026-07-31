@@ -162,16 +162,19 @@ function checkedInControlFilenames(
 		.sort();
 }
 
-function assertNoUnexpectedCheckedInPaths(
+function assertCheckedInControlInventory(
 	paths: MeadowEntryExportPaths,
-	fileSystem: MeadowEntryExportFileSystem
+	fileSystem: MeadowEntryExportFileSystem,
+	requireComplete: boolean
 ): void {
 	const expected = [...MEADOW_ENTRY_CONTROL_FILENAMES].sort();
 	const actual = checkedInControlFilenames(paths, fileSystem);
-	if (
-		actual.length !== expected.length ||
-		actual.some((filename, index) => filename !== expected[index])
-	) {
+	const unexpected = actual.filter((filename) => !allowedControlFilenames.has(filename));
+	const incomplete =
+		requireComplete &&
+		(actual.length !== expected.length ||
+			actual.some((filename, index) => filename !== expected[index]));
+	if (unexpected.length > 0 || incomplete) {
 		throw new Error(
 			`Checked-in meadow-entry control inventory differs from the fixed allowlist: expected [${expected.join(', ')}], received [${actual.join(', ')}]`
 		);
@@ -184,7 +187,7 @@ export function checkMeadowEntryExportPackage(
 	fileSystem: MeadowEntryExportFileSystem = NODE_FILE_SYSTEM
 ): void {
 	assertRenderedInventory(packageBytes, paths);
-	assertNoUnexpectedCheckedInPaths(paths, fileSystem);
+	assertCheckedInControlInventory(paths, fileSystem, true);
 	for (const filename of MEADOW_ENTRY_CONTROL_FILENAMES) {
 		const path = join(paths.controlsDirectory, filename);
 		assertAllowedMeadowEntryDestination(paths, path);
@@ -245,7 +248,7 @@ export function publishMeadowEntryExportPackage(
 
 	const hadControls = fileSystem.existsSync(paths.controlsDirectory);
 	const hadGenerated = fileSystem.existsSync(paths.generatedPath);
-	if (hadControls) assertNoUnexpectedCheckedInPaths(paths, fileSystem);
+	if (hadControls) assertCheckedInControlInventory(paths, fileSystem, false);
 
 	const temporaryControls = fileSystem.mkdtempSync(
 		join(controlsParent, '.meadow-entry-package-controls-')
