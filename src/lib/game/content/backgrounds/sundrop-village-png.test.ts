@@ -1,0 +1,725 @@
+import { createHash } from 'node:crypto';
+import { mkdtemp, readFile, readdir, rm, writeFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+
+import sharp from 'sharp';
+import { afterEach, beforeAll, describe, expect, it } from 'vitest';
+
+import {
+	SUNDROP_VILLAGE_BACKGROUND_HEIGHT,
+	SUNDROP_VILLAGE_BACKGROUND_WIDTH,
+	sundropVillageBackgroundAlpha
+} from './sundrop-village-background';
+import {
+	finalizeSundropVillagePng,
+	normalizeSundropVillageBackground,
+	quantizeSundropVillageRgba,
+	rasterizeSundropVillageArtControl,
+	validateSundropVillagePng,
+	writeFinalizedSundropVillagePng,
+	type SundropVillagePngTier
+} from './sundrop-village-png';
+
+const WIDTH = SUNDROP_VILLAGE_BACKGROUND_WIDTH;
+const HEIGHT = SUNDROP_VILLAGE_BACKGROUND_HEIGHT;
+const temporaryDirectories: string[] = [];
+
+let opaqueFixture: Buffer;
+let metadataFixture: Buffer;
+let nonOpaqueFixture: Buffer;
+let wrongDimensionsFixture: Buffer;
+let finalizedFixture: Buffer;
+
+function expectedAlpha(distance: number): number {
+	const t = Math.max(0, Math.min(1, distance / 64));
+	return Math.round(255 * (t * t * (3 - 2 * t)));
+}
+
+function pngColorType(png: Uint8Array): number {
+	return png[25] ?? -1;
+}
+
+function pngChunkTypes(png: Buffer): string[] {
+	const types: string[] = [];
+	let offset = 8;
+	while (offset + 12 <= png.length) {
+		const length = png.readUInt32BE(offset);
+		const type = png.toString('ascii', offset + 4, offset + 8);
+		types.push(type);
+		offset += 12 + length;
+		if (type === 'IEND') break;
+	}
+	return types;
+}
+
+interface PngChunkLocation {
+	readonly offset: number;
+	readonly dataOffset: number;
+	readonly dataLength: number;
+	readonly crcOffset: number;
+	readonly endOffset: number;
+}
+
+function findPngChunk(png: Buffer, wantedType: string): PngChunkLocation {
+	let offset = 8;
+	while (offset + 12 <= png.length) {
+		const dataLength = png.readUInt32BE(offset);
+		const dataOffset = offset + 8;
+		const crcOffset = dataOffset + dataLength;
+		const endOffset = crcOffset + 4;
+		const type = png.toString('ascii', offset + 4, offset + 8);
+		if (type === wantedType) return { offset, dataOffset, dataLength, crcOffset, endOffset };
+		offset = endOffset;
+	}
+	throw new Error(`Missing PNG chunk ${wantedType}`);
+}
+
+function testCrc32(bytes: Uint8Array): number {
+	let crc = 0xffffffff;
+	for (const byte of bytes) {
+		crc ^= byte;
+		for (let bit = 0; bit < 8; bit += 1) {
+			crc = (crc >>> 1) ^ (crc & 1 ? 0xedb88320 : 0);
+		}
+	}
+	return (crc ^ 0xffffffff) >>> 0;
+}
+
+function makePngChunk(type: string, data: Uint8Array): Buffer {
+	const chunk = Buffer.alloc(12 + data.byteLength);
+	chunk.writeUInt32BE(data.byteLength, 0);
+	chunk.write(type, 4, 4, 'ascii');
+	Buffer.from(data).copy(chunk, 8);
+	chunk.writeUInt32BE(testCrc32(chunk.subarray(4, 8 + data.byteLength)), 8 + data.byteLength);
+	return chunk;
+}
+
+function replacePngChunk(png: Buffer, type: string, replacement: Buffer): Buffer {
+	const location = findPngChunk(png, type);
+	return Buffer.concat([
+		png.subarray(0, location.offset),
+		replacement,
+		png.subarray(location.endOffset)
+	]);
+}
+
+function corruptPngChunkCrc(png: Buffer, type: string): Buffer {
+	const corrupted = Buffer.from(png);
+	const { crcOffset } = findPngChunk(corrupted, type);
+	corrupted[crcOffset] = (corrupted[crcOffset] ?? 0) ^ 0x01;
+	return corrupted;
+}
+
+async function makeTemporaryDirectory(): Promise<string> {
+	const directory = await mkdtemp(join(tmpdir(), 'gliese-sundrop-village-png-'));
+	temporaryDirectories.push(directory);
+	return directory;
+}
+
+beforeAll(async () => {
+	const source = sharp({
+		create: {
+			width: WIDTH,
+			height: HEIGHT,
+			channels: 4,
+			background: { r: 255, g: 126, b: 61, alpha: 1 }
+		}
+	});
+
+	opaqueFixture = await source.clone().png().toBuffer();
+	metadataFixture = await source.clone().withMetadata({ density: 300 }).png().toBuffer();
+	nonOpaqueFixture = await sharp({
+		create: {
+			width: WIDTH,
+			height: HEIGHT,
+			channels: 4,
+			background: { r: 255, g: 126, b: 61, alpha: 0.5 }
+		}
+	})
+		.png()
+		.toBuffer();
+	wrongDimensionsFixture = await sharp({
+		create: {
+			width: WIDTH - 1,
+			height: HEIGHT,
+			channels: 4,
+			background: { r: 255, g: 126, b: 61, alpha: 1 }
+		}
+	})
+		.png()
+		.toBuffer();
+	finalizedFixture = (await finalizeSundropVillagePng(opaqueFixture, 0)).png;
+});
+
+afterEach(async () => {
+	await Promise.all(
+		temporaryDirectories.splice(0).map((directory) =>
+			rm(directory, {
+				recursive: true,
+				force: true
+			})
+		)
+	);
+});
+
+describe('Sundrop Village background edge alpha', () => {
+	it('makes every pixel on all four outer edges transparent', () => {
+		for (let x = 0; x < WIDTH; x += 1) {
+			expect(sundropVillageBackgroundAlpha(x, 0)).toBe(0);
+			expect(sundropVillageBackgroundAlpha(x, HEIGHT - 1)).toBe(0);
+		}
+		for (let y = 0; y < HEIGHT; y += 1) {
+			expect(sundropVillageBackgroundAlpha(0, y)).toBe(0);
+			expect(sundropVillageBackgroundAlpha(WIDTH - 1, y)).toBe(0);
+		}
+	});
+
+	it('is fully opaque at and beyond distance 64', () => {
+		expect(sundropVillageBackgroundAlpha(64, 64)).toBe(255);
+		expect(sundropVillageBackgroundAlpha(65, 65)).toBe(255);
+		expect(sundropVillageBackgroundAlpha(WIDTH / 2, HEIGHT / 2)).toBe(255);
+	});
+
+	it.each([
+		{ distance: 0, alpha: 0 },
+		{ distance: 16, alpha: 40 },
+		{ distance: 32, alpha: 128 },
+		{ distance: 48, alpha: 215 },
+		{ distance: 64, alpha: 255 }
+	])('matches the pinned smoothstep at distance $distance', ({ distance, alpha }) => {
+		expect(sundropVillageBackgroundAlpha(distance, HEIGHT / 2)).toBe(alpha);
+	});
+
+	it('is monotonic along every inward edge normal', () => {
+		for (let distance = 1; distance <= 64; distance += 1) {
+			const previous = expectedAlpha(distance - 1);
+			expect(sundropVillageBackgroundAlpha(distance, HEIGHT / 2)).toBeGreaterThanOrEqual(previous);
+			expect(
+				sundropVillageBackgroundAlpha(WIDTH - 1 - distance, HEIGHT / 2)
+			).toBeGreaterThanOrEqual(previous);
+			expect(sundropVillageBackgroundAlpha(WIDTH / 2, distance)).toBeGreaterThanOrEqual(previous);
+			expect(
+				sundropVillageBackgroundAlpha(WIDTH / 2, HEIGHT - 1 - distance)
+			).toBeGreaterThanOrEqual(previous);
+		}
+	});
+
+	it('never jumps more than 32 alpha levels between adjacent pixels', () => {
+		let maximumJump = 0;
+		for (let distance = 1; distance <= 64; distance += 1) {
+			maximumJump = Math.max(
+				maximumJump,
+				sundropVillageBackgroundAlpha(distance, HEIGHT / 2) -
+					sundropVillageBackgroundAlpha(distance - 1, HEIGHT / 2)
+			);
+		}
+
+		expect(maximumJump).toBeLessThanOrEqual(32);
+	});
+});
+
+describe('Sundrop Village deterministic PNG pipeline', () => {
+	it('rejects source images with the wrong dimensions', async () => {
+		await expect(finalizeSundropVillagePng(wrongDimensionsFixture, 0)).rejects.toThrow(
+			'exactly 1792x1536'
+		);
+	});
+
+	it('rejects any source pixel that is not fully opaque', async () => {
+		await expect(finalizeSundropVillagePng(nonOpaqueFixture, 0)).rejects.toThrow('fully opaque');
+	});
+
+	it('derives every tier independently without mutating the untouched source', () => {
+		const source = Buffer.from([255, 126, 61, 255, 17, 34, 51, 255]);
+		const original = Buffer.from(source);
+
+		const tier1 = quantizeSundropVillageRgba(source, 1, 2, 1);
+		const tier3 = quantizeSundropVillageRgba(source, 3, 2, 1);
+		const tier2 = quantizeSundropVillageRgba(source, 2, 2, 1);
+
+		expect(source).toEqual(original);
+		expect([...tier1]).toEqual([254, 126, 60, 0, 16, 34, 50, 0]);
+		expect([...tier2]).toEqual([252, 124, 60, 0, 16, 32, 48, 0]);
+		expect([...tier3]).toEqual([248, 120, 56, 0, 16, 32, 48, 0]);
+	});
+
+	it('strips source metadata and writes truecolor RGBA PNG output', async () => {
+		const inputMetadata = await sharp(metadataFixture).metadata();
+		const result = await finalizeSundropVillagePng(metadataFixture, 0);
+		const outputMetadata = await sharp(result.png).metadata();
+
+		expect(inputMetadata.density).toBe(300);
+		expect(pngChunkTypes(metadataFixture)).toContain('pHYs');
+		expect(pngChunkTypes(result.png)).not.toContain('pHYs');
+		expect(outputMetadata.format).toBe('png');
+		expect(outputMetadata.width).toBe(WIDTH);
+		expect(outputMetadata.height).toBe(HEIGHT);
+		expect(outputMetadata.channels).toBe(4);
+		expect(outputMetadata.depth).toBe('uchar');
+		expect(outputMetadata.hasAlpha).toBe(true);
+		expect(pngColorType(result.png)).toBe(6);
+	});
+
+	it('recomputes and matches every output alpha byte', async () => {
+		const result = await finalizeSundropVillagePng(opaqueFixture, 0);
+		const { data, info } = await sharp(result.png)
+			.ensureAlpha()
+			.raw()
+			.toBuffer({ resolveWithObject: true });
+		const mismatches: Array<{ x: number; y: number; actual: number; expected: number }> = [];
+
+		for (let y = 0; y < HEIGHT; y += 1) {
+			for (let x = 0; x < WIDTH; x += 1) {
+				const distance = Math.min(x, y, WIDTH - 1 - x, HEIGHT - 1 - y);
+				const expected = expectedAlpha(distance);
+				const actual = data[(y * WIDTH + x) * 4 + 3] ?? -1;
+				if (actual !== expected && mismatches.length === 0) {
+					mismatches.push({ x, y, actual, expected });
+				}
+			}
+		}
+
+		expect(info.channels).toBe(4);
+		expect(mismatches).toEqual([]);
+	});
+
+	it('produces identical bytes and SHA-256 for identical input, tier, and arguments', async () => {
+		const first = await finalizeSundropVillagePng(opaqueFixture, 2);
+		const second = await finalizeSundropVillagePng(opaqueFixture, 2);
+		const independentlyHashed = createHash('sha256').update(first.png).digest('hex');
+
+		expect(second.png).toEqual(first.png);
+		expect(second.sha256).toBe(first.sha256);
+		expect(first.sha256).toBe(independentlyHashed);
+		expect(first.bytes).toBe(first.png.byteLength);
+	});
+
+	it.each(['IHDR', 'IDAT', 'IEND'])('rejects a corrupted %s chunk CRC', async (chunkType) => {
+		await expect(
+			validateSundropVillagePng(corruptPngChunkCrc(finalizedFixture, chunkType))
+		).rejects.toThrow(`${chunkType} CRC mismatch`);
+	});
+
+	it('rejects a corrupted ancillary chunk CRC before decoding', async () => {
+		const iend = findPngChunk(finalizedFixture, 'IEND');
+		const ancillary = makePngChunk('vpAg', Buffer.from([1, 2, 3]));
+		ancillary[ancillary.length - 1] = (ancillary[ancillary.length - 1] ?? 0) ^ 0x01;
+		const corrupted = Buffer.concat([
+			finalizedFixture.subarray(0, iend.offset),
+			ancillary,
+			finalizedFixture.subarray(iend.offset)
+		]);
+
+		await expect(validateSundropVillagePng(corrupted)).rejects.toThrow('vpAg CRC mismatch');
+	});
+
+	it.each([
+		['gAMA', Buffer.from([0x00, 0x00, 0xb1, 0x8f])],
+		['vpAg', Buffer.from([1, 2, 3])],
+		['acTL', Buffer.from([0, 0, 0, 1, 0, 0, 0, 0])]
+	])('rejects a valid-CRC non-canonical %s chunk', async (chunkType, data) => {
+		const idat = findPngChunk(finalizedFixture, 'IDAT');
+		const nonCanonical = Buffer.concat([
+			finalizedFixture.subarray(0, idat.offset),
+			makePngChunk(chunkType, data),
+			finalizedFixture.subarray(idat.offset)
+		]);
+
+		await expect(validateSundropVillagePng(nonCanonical)).rejects.toThrow(
+			`non-canonical chunk ${chunkType}`
+		);
+	});
+
+	it('rejects a truncated PNG chunk', async () => {
+		await expect(validateSundropVillagePng(finalizedFixture.subarray(0, -1))).rejects.toThrow(
+			'truncated chunk'
+		);
+	});
+
+	it('rejects bytes after IEND', async () => {
+		await expect(
+			validateSundropVillagePng(Buffer.concat([finalizedFixture, Buffer.from([0xde, 0xad])]))
+		).rejects.toThrow('bytes after IEND');
+	});
+
+	it('requires a 13-byte IHDR chunk', async () => {
+		const ihdr = findPngChunk(finalizedFixture, 'IHDR');
+		const malformed = replacePngChunk(
+			finalizedFixture,
+			'IHDR',
+			makePngChunk('IHDR', finalizedFixture.subarray(ihdr.dataOffset, ihdr.dataOffset + 12))
+		);
+
+		await expect(validateSundropVillagePng(malformed)).rejects.toThrow(
+			'IHDR must contain exactly 13 bytes'
+		);
+	});
+
+	it('requires a zero-byte IEND chunk', async () => {
+		const malformed = replacePngChunk(
+			finalizedFixture,
+			'IEND',
+			makePngChunk('IEND', Buffer.from([0]))
+		);
+
+		await expect(validateSundropVillagePng(malformed)).rejects.toThrow(
+			'IEND must contain zero bytes'
+		);
+	});
+
+	it('rejects a second IEND chunk', async () => {
+		const iend = findPngChunk(finalizedFixture, 'IEND');
+		const malformed = Buffer.concat([
+			finalizedFixture.subarray(0, iend.offset),
+			finalizedFixture.subarray(iend.offset),
+			finalizedFixture.subarray(iend.offset)
+		]);
+
+		await expect(validateSundropVillagePng(malformed)).rejects.toThrow('bytes after IEND');
+	});
+
+	it('does not replace an existing output when source validation fails', async () => {
+		const directory = await makeTemporaryDirectory();
+		const input = join(directory, 'invalid.png');
+		const output = join(directory, 'existing.png');
+		const sentinel = Buffer.from('approved-existing-output');
+		await writeFile(input, wrongDimensionsFixture);
+		await writeFile(output, sentinel);
+
+		await expect(writeFinalizedSundropVillagePng({ input, output, tier: 0 })).rejects.toThrow(
+			'exactly 1792x1536'
+		);
+
+		expect(await readFile(output)).toEqual(sentinel);
+	});
+
+	it('cleans the temporary file and preserves the destination when exact-byte validation fails', async () => {
+		const directory = await makeTemporaryDirectory();
+		const input = join(directory, 'valid.png');
+		const output = join(directory, 'existing.png');
+		const sentinel = Buffer.from('approved-existing-output');
+		await writeFile(input, opaqueFixture);
+		await writeFile(output, sentinel);
+
+		await expect(
+			writeFinalizedSundropVillagePng(
+				{ input, output, tier: 0 },
+				{
+					afterTemporaryWrite: async (temporaryPath) => {
+						const temporaryBytes = await readFile(temporaryPath);
+						await writeFile(temporaryPath, corruptPngChunkCrc(temporaryBytes, 'IEND'));
+					}
+				}
+			)
+		).rejects.toThrow('IEND CRC mismatch');
+
+		expect(await readFile(output)).toEqual(sentinel);
+		expect((await readdir(directory)).sort()).toEqual(['existing.png', 'valid.png']);
+	});
+
+	it('does not replace an existing output when the encoded hard budget is exceeded', async () => {
+		const directory = await makeTemporaryDirectory();
+		const input = join(directory, 'valid.png');
+		const output = join(directory, 'existing.png');
+		const sentinel = Buffer.from('approved-existing-output');
+		await writeFile(input, opaqueFixture);
+		await writeFile(output, sentinel);
+
+		await expect(
+			writeFinalizedSundropVillagePng({
+				input,
+				output,
+				tier: 0,
+				maxBytes: 1
+			})
+		).rejects.toThrow('exceeds the 1-byte hard limit');
+
+		expect(await readFile(output)).toEqual(sentinel);
+	});
+});
+
+describe('Sundrop Village PNG preprocessing', () => {
+	it('rasterizes only the named combined art control at the exact regional dimensions', async () => {
+		const directory = await makeTemporaryDirectory();
+		const input = join(directory, 'village-art-control.svg');
+		const output = join(directory, 'reference.png');
+		await writeFile(
+			input,
+			`<svg xmlns="http://www.w3.org/2000/svg" width="${WIDTH}" height="${HEIGHT}" viewBox="0 0 ${WIDTH} ${HEIGHT}"><rect width="${WIDTH}" height="${HEIGHT}" fill="#123456"/></svg>`
+		);
+
+		await rasterizeSundropVillageArtControl({ input, output });
+		const metadata = await sharp(output).metadata();
+
+		expect(metadata.width).toBe(WIDTH);
+		expect(metadata.height).toBe(HEIGHT);
+		expect(metadata.channels).toBe(4);
+		expect(pngColorType(await readFile(output))).toBe(6);
+	});
+
+	it('rejects any SVG input not named village-art-control.svg', async () => {
+		const directory = await makeTemporaryDirectory();
+		const input = join(directory, 'other-control.svg');
+		const output = join(directory, 'reference.png');
+		await writeFile(
+			input,
+			`<svg xmlns="http://www.w3.org/2000/svg" width="${WIDTH}" height="${HEIGHT}"/>`
+		);
+
+		await expect(rasterizeSundropVillageArtControl({ input, output })).rejects.toThrow(
+			'must be named village-art-control.svg'
+		);
+	});
+
+	it('rejects non-7:6 and out-of-bounds normalization crops', async () => {
+		const directory = await makeTemporaryDirectory();
+		const input = join(directory, 'candidate.png');
+		const output = join(directory, 'normalized.png');
+		const transformOutput = join(directory, 'transform.json');
+		const candidate = await sharp({
+			create: {
+				width: 140,
+				height: 120,
+				channels: 4,
+				background: { r: 12, g: 34, b: 56, alpha: 1 }
+			}
+		})
+			.png()
+			.toBuffer();
+		await writeFile(input, candidate);
+
+		await expect(
+			normalizeSundropVillageBackground({
+				input,
+				output,
+				transformOutput,
+				crop: { x: 0, y: 0, width: 70, height: 70 }
+			})
+		).rejects.toThrow('exactly 7:6');
+		await expect(
+			normalizeSundropVillageBackground({
+				input,
+				output,
+				transformOutput,
+				crop: { x: 80, y: 0, width: 70, height: 60 }
+			})
+		).rejects.toThrow('falls outside');
+	});
+
+	it('records native dimensions, crop, and one uniform scale in a JSON sidecar', async () => {
+		const directory = await makeTemporaryDirectory();
+		const input = join(directory, 'candidate.png');
+		const output = join(directory, 'normalized.png');
+		const transformOutput = join(directory, 'transform.json');
+		const candidate = await sharp({
+			create: {
+				width: 140,
+				height: 120,
+				channels: 4,
+				background: { r: 12, g: 34, b: 56, alpha: 1 }
+			}
+		})
+			.png()
+			.toBuffer();
+		await writeFile(input, candidate);
+
+		const transform = await normalizeSundropVillageBackground({
+			input,
+			output,
+			transformOutput,
+			crop: { x: 35, y: 30, width: 70, height: 60 }
+		});
+		const persistedTransform = JSON.parse(await readFile(transformOutput, 'utf8')) as unknown;
+		const metadata = await sharp(output).metadata();
+
+		expect(transform).toEqual({
+			native: { width: 140, height: 120 },
+			crop: { x: 35, y: 30, width: 70, height: 60 },
+			output: { width: WIDTH, height: HEIGHT },
+			scale: 25.6
+		});
+		expect(persistedTransform).toEqual(transform);
+		expect(metadata.width).toBe(WIDTH);
+		expect(metadata.height).toBe(HEIGHT);
+		expect(metadata.channels).toBe(4);
+		expect(pngColorType(await readFile(output))).toBe(6);
+	});
+});
+
+describe('Sundrop Village PNG tier and quantization guards', () => {
+	it('rejects a tier outside the 0-3 range', () => {
+		expect(() =>
+			quantizeSundropVillageRgba(new Uint8Array(4), 4 as unknown as SundropVillagePngTier, 1, 1)
+		).toThrow('Sundrop Village PNG tier must be one of 0, 1, 2, or 3; received 4');
+		expect(() =>
+			quantizeSundropVillageRgba(new Uint8Array(4), -1 as unknown as SundropVillagePngTier, 1, 1)
+		).toThrow('Sundrop Village PNG tier must be one of 0, 1, 2, or 3; received -1');
+	});
+
+	it('rejects non-positive-integer raw RGBA dimensions', () => {
+		expect(() => quantizeSundropVillageRgba(new Uint8Array(4), 0, 0, 1)).toThrow(
+			'Raw RGBA dimensions must be positive integers; received 0x1'
+		);
+		expect(() => quantizeSundropVillageRgba(new Uint8Array(4), 0, 1, -2)).toThrow(
+			'Raw RGBA dimensions must be positive integers; received 1x-2'
+		);
+	});
+
+	it('rejects a raw RGBA buffer whose byte length does not match the declared dimensions', () => {
+		expect(() => quantizeSundropVillageRgba(new Uint8Array(7), 0, 2, 1)).toThrow(
+			'Raw RGBA input must contain 8 bytes; received 7'
+		);
+	});
+});
+
+describe('Sundrop Village PNG validation guards', () => {
+	it('rejects bytes that do not begin with the PNG signature', async () => {
+		await expect(validateSundropVillagePng(Buffer.from('not-a-png-at-all'))).rejects.toThrow(
+			'not a valid PNG'
+		);
+	});
+
+	it('rejects a PNG whose first chunk is truncated before a full chunk header', async () => {
+		const signature = Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]);
+		const truncated = Buffer.concat([signature, Buffer.from([0, 0, 0, 1])]);
+		await expect(validateSundropVillagePng(truncated)).rejects.toThrow('truncated chunk');
+	});
+
+	it('rejects a PNG that contains only IHDR and IEND without any IDAT', async () => {
+		const ihdr = findPngChunk(finalizedFixture, 'IHDR');
+		const iend = findPngChunk(finalizedFixture, 'IEND');
+		const ihdrChunk = finalizedFixture.subarray(ihdr.offset, ihdr.endOffset);
+		const iendChunk = finalizedFixture.subarray(iend.offset, iend.endOffset);
+		const noIdat = Buffer.concat([finalizedFixture.subarray(0, 8), ihdrChunk, iendChunk]);
+
+		await expect(validateSundropVillagePng(noIdat)).rejects.toThrow(
+			'IHDR, one or more consecutive IDAT chunks, and IEND'
+		);
+	});
+
+	it('rejects a PNG whose IHDR declares a non-RGBA color type', async () => {
+		const ihdr = findPngChunk(finalizedFixture, 'IHDR');
+		const ihdrData = Buffer.from(finalizedFixture.subarray(ihdr.dataOffset, ihdr.dataOffset + 13));
+		ihdrData[9] = 2; // color type 2 (RGB) instead of 6 (RGBA)
+		const modified = replacePngChunk(finalizedFixture, 'IHDR', makePngChunk('IHDR', ihdrData));
+
+		await expect(validateSundropVillagePng(modified)).rejects.toThrow('8-bit truecolor RGBA');
+	});
+
+	it('rejects a PNG whose IHDR declares a non-8-bit depth', async () => {
+		const ihdr = findPngChunk(finalizedFixture, 'IHDR');
+		const ihdrData = Buffer.from(finalizedFixture.subarray(ihdr.dataOffset, ihdr.dataOffset + 13));
+		ihdrData[8] = 16; // bit depth 16 instead of 8
+		const modified = replacePngChunk(finalizedFixture, 'IHDR', makePngChunk('IHDR', ihdrData));
+
+		await expect(validateSundropVillagePng(modified)).rejects.toThrow('8-bit truecolor RGBA');
+	});
+});
+
+describe('Sundrop Village PNG rasterization guards', () => {
+	it('rejects a non-SVG file even when named village-art-control.svg', async () => {
+		const directory = await makeTemporaryDirectory();
+		const input = join(directory, 'village-art-control.svg');
+		const output = join(directory, 'reference.png');
+		await writeFile(input, await opaqueFixture);
+
+		await expect(rasterizeSundropVillageArtControl({ input, output })).rejects.toThrow(
+			'must be SVG; received png'
+		);
+	});
+
+	it('rejects an SVG with the wrong dimensions', async () => {
+		const directory = await makeTemporaryDirectory();
+		const input = join(directory, 'village-art-control.svg');
+		const output = join(directory, 'reference.png');
+		await writeFile(
+			input,
+			`<svg xmlns="http://www.w3.org/2000/svg" width="${WIDTH - 1}" height="${HEIGHT}" viewBox="0 0 ${WIDTH - 1} ${HEIGHT}"/>`
+		);
+
+		await expect(rasterizeSundropVillageArtControl({ input, output })).rejects.toThrow(
+			'exactly 1792x1536'
+		);
+	});
+});
+
+describe('Sundrop Village PNG normalization guards', () => {
+	it('rejects non-integer or negative crop coordinates', async () => {
+		const directory = await makeTemporaryDirectory();
+		const input = join(directory, 'candidate.png');
+		const output = join(directory, 'normalized.png');
+		const transformOutput = join(directory, 'transform.json');
+		const candidate = await sharp({
+			create: {
+				width: 140,
+				height: 120,
+				channels: 4,
+				background: { r: 12, g: 34, b: 56, alpha: 1 }
+			}
+		})
+			.png()
+			.toBuffer();
+		await writeFile(input, candidate);
+
+		await expect(
+			normalizeSundropVillageBackground({
+				input,
+				output,
+				transformOutput,
+				crop: { x: -1, y: 0, width: 70, height: 60 }
+			})
+		).rejects.toThrow('non-negative integer coordinates');
+		await expect(
+			normalizeSundropVillageBackground({
+				input,
+				output,
+				transformOutput,
+				crop: { x: 0.5, y: 0, width: 70, height: 60 }
+			})
+		).rejects.toThrow('non-negative integer coordinates');
+	});
+
+	it('rejects a normalization candidate with non-opaque pixels', async () => {
+		const directory = await makeTemporaryDirectory();
+		const input = join(directory, 'candidate.png');
+		const output = join(directory, 'normalized.png');
+		const transformOutput = join(directory, 'transform.json');
+		const candidate = await sharp({
+			create: {
+				width: 140,
+				height: 120,
+				channels: 4,
+				background: { r: 12, g: 34, b: 56, alpha: 0.5 }
+			}
+		})
+			.png()
+			.toBuffer();
+		await writeFile(input, candidate);
+
+		await expect(
+			normalizeSundropVillageBackground({
+				input,
+				output,
+				transformOutput,
+				crop: { x: 0, y: 0, width: 70, height: 60 }
+			})
+		).rejects.toThrow('fully opaque');
+	});
+});
+
+describe('Sundrop Village PNG hard-limit guard', () => {
+	it('rejects a non-positive or non-integer maxBytes before reading the input', async () => {
+		const directory = await makeTemporaryDirectory();
+		const input = join(directory, 'nonexistent.png');
+		const output = join(directory, 'output.png');
+
+		await expect(
+			writeFinalizedSundropVillagePng({ input, output, tier: 0, maxBytes: 0 })
+		).rejects.toThrow('hard limit must be a positive integer; received 0');
+
+		await expect(
+			writeFinalizedSundropVillagePng({ input, output, tier: 0, maxBytes: -1 })
+		).rejects.toThrow('hard limit must be a positive integer; received -1');
+	});
+});

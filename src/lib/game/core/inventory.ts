@@ -1,0 +1,86 @@
+import { getItem } from '$lib/game/content/items';
+
+export type InventoryStack = {
+	itemId: string;
+	quantity: number;
+};
+
+export type InventoryState = {
+	stacks: InventoryStack[];
+	equipment: string[];
+};
+
+export function createEmptyInventory(): InventoryState {
+	return { stacks: [], equipment: [] };
+}
+
+function isPositiveIntegerQuantity(value: number): boolean {
+	return Number.isFinite(value) && Number.isInteger(value) && value >= 1;
+}
+
+export function addItem(inventory: InventoryState, itemId: string, quantity = 1): InventoryState {
+	const item = getItem(itemId);
+
+	if (!item || !isPositiveIntegerQuantity(quantity)) {
+		return inventory;
+	}
+
+	if (item.type === 'equipment') {
+		return inventory.equipment.includes(itemId)
+			? inventory
+			: { ...inventory, equipment: [...inventory.equipment, itemId] };
+	}
+
+	const existing = inventory.stacks.find((stack) => stack.itemId === itemId);
+	const stacks = existing
+		? inventory.stacks.map((stack) =>
+				stack.itemId === itemId ? { ...stack, quantity: stack.quantity + quantity } : stack
+			)
+		: [...inventory.stacks, { itemId, quantity }];
+
+	return { ...inventory, stacks };
+}
+
+export function consumeStackItem(
+	inventory: InventoryState,
+	itemId: string
+): { consumed: boolean; inventory: InventoryState } {
+	const existing = inventory.stacks.find((stack) => stack.itemId === itemId);
+	const item = getItem(itemId);
+
+	if (!existing || !item?.stackable || !isPositiveIntegerQuantity(existing.quantity)) {
+		return { consumed: false, inventory };
+	}
+
+	const stacks =
+		existing.quantity > 1
+			? inventory.stacks.map((stack) =>
+					stack.itemId === itemId ? { ...stack, quantity: stack.quantity - 1 } : stack
+				)
+			: inventory.stacks.filter((stack) => stack.itemId !== itemId);
+
+	return { consumed: true, inventory: { ...inventory, stacks } };
+}
+
+export function removeEquipmentItem(
+	inventory: InventoryState,
+	itemId: string
+): { removed: boolean; inventory: InventoryState } {
+	const equipmentIndex = inventory.equipment.indexOf(itemId);
+
+	if (equipmentIndex === -1) {
+		return { removed: false, inventory };
+	}
+
+	return {
+		removed: true,
+		inventory: {
+			...inventory,
+			equipment: inventory.equipment.filter((_, index) => index !== equipmentIndex)
+		}
+	};
+}
+
+export function ownsEquipment(inventory: InventoryState, itemId: string): boolean {
+	return inventory.equipment.includes(itemId);
+}

@@ -1,0 +1,41 @@
+node_modules
+
+# Output
+.output
+.vercel
+.netlify
+.wrangler
+/build
+coverage/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Env
+.env
+.env.*
+!.env.example
+!.env.test
+
+# Vite
+vite.config.js.timestamp-*
+vite.config.ts.timestamp-*
+# Playwright
+test-results
+
+# Local brainstorming companion artifacts
+.superpowers/
+
+# Local playtest screenshots
+docs/superpowers/reports/entry-map-playtest/
+
+# Local git worktrees
+.worktrees/
+
+# Claude Code local settings
+.claude/settings.local.json
+
+src-tauri/target/
+src-tauri/gen/
+dist/
