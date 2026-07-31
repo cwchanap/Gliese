@@ -4,50 +4,46 @@
 
 **Goal:** Produce, approve, and package one coherent `6400×6400` base master, one sparse foreground master, the exact Sundrop underlay, and every deterministic regional/connector export defined by the approved PR-1 crop contract.
 
-**Architecture:** Treat the approved PR-1 controls, crop tables, runtime coverage, storage configuration, and combined fingerprint as immutable inputs. Keep art creation and regional refinement explicitly reviewed and provenance-rich, while making normalization, masking, PNG encoding, export, overlap checks, proof rendering, hash approval, and regeneration deterministic. Store masters, exports, and native proofs through the verified Git LFS contract and leave runtime registration to HPA-406.
+**Architecture:** Treat the merged PR-1 control fingerprint, crop/overlap/coverage tables, Git LFS configuration, and predecessor hashes as immutable inputs. Separate reviewed art creation from deterministic engineering: candidate creation and masked refinement are provenance-rich review steps; normalization, masking, PNG encoding, export, overlap comparison, proof generation, approval hashing, and CI validation are deterministic. HPA-399 stores the package but never registers it at runtime; HPA-406 owns integration and fallback execution.
 
-**Tech Stack:** TypeScript 6, Bun, Vitest, Sharp 0.35.3, Git LFS, SVG/PNG/JSON, GitHub Actions, Prettier, ESLint, Svelte/Vite, Tauri 2.
+**Tech Stack:** TypeScript 6, Bun, Vitest, Sharp 0.35.3, Git LFS, SVG/PNG/JSON, GitHub Actions, Prettier, ESLint, Vite, Tauri 2.
 
 ## Global Constraints
 
-- Start only after the controls/crops/storage PR is merged and its stop gate is explicitly approved. Create `codex/hpa-399-visual-masters-exports` from that merged `main` in an isolated worktree through `superpowers:using-git-worktrees`.
+- Start only after the controls/crops/storage PR is merged and explicitly approved. Create `codex/hpa-399-visual-masters-exports` from that `main` in an isolated worktree using `superpowers:using-git-worktrees`.
 - Do not change Linear status or post detailed Linear evidence without separate user authorization.
-- The generated `MEADOW_ENTRY_ART_CONTROL_FINGERPRINT`, approved crop/overlap/coverage tables, Git LFS configuration, HPA-398 asset hashes, and predecessor fingerprints are immutable inputs. Any drift blocks this plan.
-- Do not change gameplay geometry, collision, encounters, transitions, pickups, discoveries, landmarks, NPCs, or save behavior.
-- Do not add non-village runtime descriptors, preload registrations, `WorldScene` suppression, or fallback integration. HPA-406 owns all runtime integration.
-- The base master is exactly `6400×6400` RGBA and alpha `255` at every pixel.
-- The foreground master is exactly `6400×6400` RGBA, has alpha only inside the approved foreground-eligible mask, and has RGB `0,0,0` wherever alpha is `0`.
-- The foreground contains no pixels over protected-live foreground `MapDecor`, buildings, gates, NPCs, pickups, transitions, encounters, discoveries, story objects, or animated/stateful visuals.
-- Use the shared `33px` foreground front cutoff; a smaller reviewed per-entry value is allowed, a larger value is not.
-- Mistfen fog-color treatment in base is opaque. Translucent fog remains live unless PR 1 approved an explicit foreground disposition and HPA-406 runtime obligation.
-- `sundrop-village-underlay` is a base-only direct crop at `{ left: 256, top: 4352, right: 2048, bottom: 5888 }`; it has a `4 MiB` review target and `8 MiB` hard limit.
-- Preserve `public/game/assets/regions/sundrop-village-base.png`, `sundrop-village-foreground.png`, HPA-307 evidence, and HPA-398 evidence byte-for-byte.
-- Every regional export is a direct pixel crop of the approved master. No resampling, recoloring, sharpening, geometric transform, or crop-local retouch is allowed during export.
-- All shared decoded RGBA overlap pixels must be byte-identical. Every declared corner group is validated in two dimensions.
-- Candidate and refinement source images stay under ignored `artifacts/meadow-entry/hpa-399/candidates/` or `work/` paths and are never committed.
-- Masters, exports, and native-resolution proofs are Git LFS objects. Compact JSON/Markdown/SVG reports remain ordinary Git.
-- Base master operational budget: `128 MiB` review, `192 MiB` hard. Foreground: `48 MiB` review, `96 MiB` hard. Per-export and aggregate budgets come exclusively from the approved PR-1 manifest.
-- Deterministic finalization/export may be called byte-reproducible. Generative recreation may not be called byte-reproducible unless the provider actually guarantees it.
-- Commands below use `rtk`. Run from repository root unless noted.
+- The approved PR-1 control fingerprint, storage hash, crop/overlap/coverage tables, HPA-398 PNG hashes, and historical HPA-307 hashes are immutable inputs. Drift blocks all finalization and export.
+- Do not change gameplay geometry, collision, encounters, transitions, pickups, discoveries, landmarks, NPCs, save data, preload registration, background descriptors, `WorldScene`, or live fallback logic.
+- Base master: exactly `6400×6400` RGBA, alpha `255` everywhere, review target `128 MiB`, hard limit `192 MiB`.
+- Foreground master: exactly `6400×6400` RGBA, pixels only inside the approved eligible mask, no pixels over protected-live foreground decor, RGB `0,0,0` whenever alpha is `0`, review target `48 MiB`, hard limit `96 MiB`.
+- Shared foreground front cutoff is `33px`; smaller reviewed exceptions are allowed, larger values are forbidden.
+- Mistfen fog-color ground is opaque base paint. Translucent fog remains live unless PR 1 approved explicit foreground ownership and an HPA-406 fallback obligation.
+- `sundrop-village-underlay` is a direct base-only crop at `{ left: 256, top: 4352, right: 2048, bottom: 5888 }`, with `4 MiB` review and `8 MiB` hard limits.
+- Preserve `public/game/assets/regions/sundrop-village-base.png`, `sundrop-village-foreground.png`, and all HPA-307/HPA-398 approvals/evidence byte-for-byte.
+- Exports are direct half-open crops of approved masters. No resize, recolor, sharpen, warp, or crop-local retouch is permitted.
+- Shared decoded RGBA overlap pixels must be identical; every corner group is validated in two dimensions.
+- Candidate and refinement sources stay under ignored `artifacts/meadow-entry/hpa-399/candidates/` or `work/` paths and are never committed.
+- Masters, exports, and native proofs are Git LFS objects. Compact JSON, Markdown, and SVG controls remain ordinary Git.
+- CI validates approved masters and deterministically regenerates exports/proofs. CI does not claim to reproduce nondeterministic generative candidates.
+- Commands use `rtk` and run from repository root unless noted.
 
 ## File Structure
 
-### New focused modules
+### New modules
 
-- `src/lib/game/content/backgrounds/meadow-entry-png.ts` — canonical PNG options, decoding, alpha/RGB validation, hashing, canonical chunk validation, atomic writes, and budgets.
-- `src/lib/game/content/backgrounds/meadow-entry-master-provenance.ts` — candidate, transform, generation/manual, refinement, control, storage, final master, export, and proof provenance schemas.
-- `src/lib/game/content/backgrounds/meadow-entry-master-finalizer.ts` — exact-ratio normalization, base/foreground validation, foreground masking, predecessor checks, canonical encoding, and atomic master-package finalization.
-- `src/lib/game/content/backgrounds/meadow-entry-master-refinement.ts` — source-mask-constrained regional refinement composition against the current canonical master.
-- `src/lib/game/content/backgrounds/meadow-entry-exporter.ts` — direct master crops, stable filenames/keys, deterministic PNGs, overlap/corner verification, budgets, and export provenance.
-- `src/lib/game/content/backgrounds/meadow-entry-proof-renderer.ts` — native control overlays, checkerboard foreground, immutable Sundrop composite, region/connector proofs, fallback boundaries, overlap diffs, corner proofs, and feather-edge proofs.
-- `src/lib/game/content/approvals/meadow-entry-art-package.ts` — selected storage mode, master/export/provenance/proof hashes, dimensions, budgets, exceptions, and evidence path.
+- `src/lib/game/content/backgrounds/meadow-entry-png.ts`
+- `src/lib/game/content/backgrounds/meadow-entry-master-provenance.ts`
+- `src/lib/game/content/backgrounds/meadow-entry-master-finalizer.ts`
+- `src/lib/game/content/backgrounds/meadow-entry-master-refinement.ts`
+- `src/lib/game/content/backgrounds/meadow-entry-exporter.ts`
+- `src/lib/game/content/backgrounds/meadow-entry-proof-renderer.ts`
+- `src/lib/game/content/approvals/meadow-entry-art-package.ts`
 - `tools/finalize-meadow-entry-masters.ts`
 - `tools/refine-meadow-entry-master.ts`
 - `tools/export-meadow-entry-regions.ts`
 - `tools/render-meadow-entry-art-proofs.ts`
 - `tools/approve-meadow-entry-art-package.ts`
 - `tools/validate-meadow-entry-art-package.ts`
-- `docs/superpowers/reports/2026-07-30-hpa-399-visual-masters-exports-validation.md`
 
 ### New tests
 
@@ -59,12 +55,12 @@
 - `src/lib/game/content/backgrounds/meadow-entry-proof-renderer.test.ts`
 - `src/lib/game/content/meadow-entry-art-package.asset.test.ts`
 
-### Existing files changed in place
+### Existing files modified
 
 - `package.json`
 - `.github/workflows/ci.yml`
 
-### LFS-backed logical package
+### LFS-backed package
 
 ```text
 artifacts/meadow-entry/hpa-399/
@@ -78,11 +74,7 @@ artifacts/meadow-entry/hpa-399/
     meadow-entry-master-provenance.json
     meadow-entry-export-provenance.json
     meadow-entry-crop-manifest.json
-```
 
-### LFS-backed native proofs
-
-```text
 docs/superpowers/reports/img/hpa-399/proofs/
   full/
   regions/
@@ -107,9 +99,6 @@ docs/superpowers/reports/img/hpa-399/proofs/
 
 **Interfaces:**
 
-- Consumes: Sharp, approved storage configuration, approved control fingerprint.
-- Produces:
-
 ```ts
 export const MEADOW_ENTRY_PNG_OPTIONS = {
   palette: false,
@@ -118,25 +107,18 @@ export const MEADOW_ENTRY_PNG_OPTIONS = {
   force: true
 } as const;
 
+export interface DecodedMeadowEntryRgba {
+  data: Buffer;
+  width: number;
+  height: number;
+}
+
 export interface ValidatedMeadowEntryPng {
   width: number;
   height: number;
   bytes: number;
   sha256: string;
 }
-
-export async function decodeMeadowEntryRgba(png: Buffer): Promise<{
-  data: Buffer;
-  width: number;
-  height: number;
-}>;
-export async function encodeCanonicalMeadowEntryPng(
-  raw: Buffer,
-  width: number,
-  height: number
-): Promise<Buffer>;
-export function validateCanonicalPngChunks(png: Buffer): void;
-export async function writeAtomicMeadowEntryPng(path: string, png: Buffer): Promise<void>;
 
 export interface MeadowEntryGenerationProvenance {
   mode: 'generative' | 'manual';
@@ -154,12 +136,39 @@ export interface MeadowEntryGenerationProvenance {
   byteReproducibleGeneration: boolean;
 }
 
+export interface MeadowEntryNormalizationTransform {
+  native: { width: number; height: number };
+  crop: { left: number; top: number; width: number; height: number };
+  output: { width: number; height: number };
+  scale: number;
+}
+
+export interface MeadowEntryRefinementProvenance {
+  plane: 'base' | 'foreground';
+  sourceRegionIds: readonly string[];
+  editMaskSha256: string;
+  replacementSha256: string;
+  beforeMasterSha256: string;
+  afterMasterSha256: string;
+  changedBounds: PixelBounds;
+  affectedCropIds: readonly string[];
+  transform: MeadowEntryNormalizationTransform;
+}
+
+export async function decodeMeadowEntryRgba(png: Buffer): Promise<DecodedMeadowEntryRgba>;
+export async function encodeCanonicalMeadowEntryPng(
+  raw: Buffer,
+  width: number,
+  height: number
+): Promise<Buffer>;
+export function validateCanonicalPngChunks(png: Buffer): void;
+export async function writeAtomicMeadowEntryPng(path: string, png: Buffer): Promise<void>;
 export function validateMeadowEntryGenerationProvenance(
-  provenance: MeadowEntryGenerationProvenance
+  value: MeadowEntryGenerationProvenance
 ): void;
 ```
 
-- [ ] **Step 1: Write failing PNG and provenance tests**
+- [ ] **Step 1: Write failing PNG tests**
 
 ```ts
 import sharp from 'sharp';
@@ -169,7 +178,6 @@ import {
   encodeCanonicalMeadowEntryPng,
   validateCanonicalPngChunks
 } from './meadow-entry-png';
-import { validateMeadowEntryGenerationProvenance } from './meadow-entry-master-provenance';
 
 describe('meadow-entry PNG contract', () => {
   it('encodes identical raw pixels byte-identically', async () => {
@@ -181,7 +189,7 @@ describe('meadow-entry PNG contract', () => {
     expect(await decodeMeadowEntryRgba(first)).toMatchObject({ width: 2, height: 1 });
   });
 
-  it('rejects non-canonical metadata chunks', async () => {
+  it('rejects PNG metadata chunks', async () => {
     const png = await sharp({
       create: { width: 1, height: 1, channels: 4, background: '#00000000' }
     })
@@ -191,16 +199,23 @@ describe('meadow-entry PNG contract', () => {
     expect(() => validateCanonicalPngChunks(png)).toThrow(/non-canonical PNG chunk/i);
   });
 });
+```
+
+- [ ] **Step 2: Write failing provenance tests**
+
+```ts
+import { describe, expect, it } from 'vitest';
+import { validateMeadowEntryGenerationProvenance } from './meadow-entry-master-provenance';
 
 describe('meadow-entry generation provenance', () => {
-  it('accepts an honest non-seeded generative record', () => {
+  it('accepts a generative record when the provider exposes no seed', () => {
     expect(() =>
       validateMeadowEntryGenerationProvenance({
         mode: 'generative',
         provider: 'approved-provider',
         model: 'approved-model',
         modelVersion: '2026-07-30',
-        tool: 'image-generation-client',
+        tool: 'image-client',
         toolVersion: '1.0.0',
         settings: { width: 2048, height: 2048 },
         seed: null,
@@ -213,29 +228,48 @@ describe('meadow-entry generation provenance', () => {
     ).not.toThrow();
   });
 
-  it('rejects a false byte-reproducibility claim without a seed', () => {
+  it('accepts manual production with no seed semantics', () => {
     expect(() =>
       validateMeadowEntryGenerationProvenance({
-        mode: 'generative',
-        provider: 'approved-provider',
-        model: 'approved-model',
-        modelVersion: '2026-07-30',
-        tool: 'image-generation-client',
-        toolVersion: '1.0.0',
+        mode: 'manual',
+        provider: null,
+        model: null,
+        modelVersion: null,
+        tool: 'manual-paint',
+        toolVersion: '1',
         settings: {},
         seed: null,
-        seedUnavailable: true,
-        prompt: 'orthographic meadow-entry master',
-        promptSha256: 'a'.repeat(64),
+        seedUnavailable: false,
+        prompt: null,
+        promptSha256: null,
         referenceImageSha256: [],
         byteReproducibleGeneration: true
       })
-    ).toThrow(/byte-reproducible/i);
+    ).not.toThrow();
+  });
+
+  it('rejects a false byte-reproducibility claim for a seedless model', () => {
+    const invalid = {
+      mode: 'generative' as const,
+      provider: 'approved-provider',
+      model: 'approved-model',
+      modelVersion: '2026-07-30',
+      tool: 'image-client',
+      toolVersion: '1.0.0',
+      settings: {},
+      seed: null,
+      seedUnavailable: true,
+      prompt: 'orthographic meadow-entry master',
+      promptSha256: 'a'.repeat(64),
+      referenceImageSha256: [],
+      byteReproducibleGeneration: true
+    };
+    expect(() => validateMeadowEntryGenerationProvenance(invalid)).toThrow(/byte-reproducible/i);
   });
 });
 ```
 
-- [ ] **Step 2: Run and verify failure**
+- [ ] **Step 3: Run and verify failure**
 
 ```bash
 rtk bun run test:unit -- --run \
@@ -243,33 +277,24 @@ rtk bun run test:unit -- --run \
   src/lib/game/content/backgrounds/meadow-entry-master-provenance.test.ts
 ```
 
-- [ ] **Step 3: Implement canonical encoding and atomic writes**
+- [ ] **Step 4: Implement canonical encoding and validation**
 
-Reuse the proven HPA-398 PNG CRC/chunk and temporary-write patterns without modifying HPA-398 modules. Accept only `IHDR`, `IDAT`, and `IEND`; write to a randomized sibling temporary path, validate bytes after write, then rename atomically.
+Reuse the proven HPA-398 CRC/chunk and randomized sibling temporary-write patterns without modifying HPA-398 modules. Accept only `IHDR`, `IDAT`, and `IEND` chunks.
 
-- [ ] **Step 4: Implement provenance validation**
+Provenance rules:
 
-Reject:
+- generative mode requires provider, model, model version, prompt, and prompt hash;
+- in generative mode, `seed: null` requires `seedUnavailable: true`;
+- manual mode requires provider/model/modelVersion/seed/prompt/promptSha256 to be `null` and `seedUnavailable: false`;
+- a generative record may claim byte reproducibility only when its provider declaration and seed support that claim;
+- all hashes are lowercase 64-character SHA-256 values.
 
-- a generative entry without provider, model, version, prompt, or prompt hash;
-- a manual entry with provider/model/seed populated;
-- `seed: null` unless `seedUnavailable` is `true`;
-- a claim of byte-reproducible generation when the record lacks a seed or deterministic-provider declaration;
-- malformed SHA-256 values.
-
-- [ ] **Step 5: Run tests**
+- [ ] **Step 5: Run tests and commit**
 
 ```bash
 rtk bun run test:unit -- --run \
   src/lib/game/content/backgrounds/meadow-entry-png.test.ts \
   src/lib/game/content/backgrounds/meadow-entry-master-provenance.test.ts
-```
-
-Expected: PASS.
-
-- [ ] **Step 6: Commit**
-
-```bash
 rtk git add src/lib/game/content/backgrounds/meadow-entry-{png,master-provenance}.ts \
   src/lib/game/content/backgrounds/meadow-entry-{png,master-provenance}.test.ts
 rtk git commit -m "feat(hpa-399): add master PNG and provenance contracts"
@@ -277,7 +302,7 @@ rtk git commit -m "feat(hpa-399): add master PNG and provenance contracts"
 
 ---
 
-### Task 2: Implement Deterministic Master Finalization
+### Task 2: Implement Deterministic Base and Foreground Finalizers
 
 **Files:**
 
@@ -286,9 +311,6 @@ rtk git commit -m "feat(hpa-399): add master PNG and provenance contracts"
 - Create: `tools/finalize-meadow-entry-masters.ts`
 
 **Interfaces:**
-
-- Consumes: approved controls, candidate PNG buffers, transforms, raster masks, HPA-398 predecessor bytes/hashes, storage contract, and budgets.
-- Produces:
 
 ```ts
 export interface MeadowEntryMasterPolicy {
@@ -302,21 +324,8 @@ export interface MeadowEntryMasterPolicy {
 
 export const MEADOW_ENTRY_MASTER_POLICY: MeadowEntryMasterPolicy;
 
-export interface MeadowEntryNormalizationTransform {
-  native: { width: number; height: number };
-  crop: { left: number; top: number; width: number; height: number };
-  output: { width: number; height: number };
-  scale: number;
-}
-
-export interface FinalizeMeadowEntryMastersInput {
+export interface MeadowEntryFinalizerContext {
   policy: MeadowEntryMasterPolicy;
-  baseCandidatePng: Buffer;
-  foregroundCandidatePng: Buffer;
-  baseTransform: MeadowEntryNormalizationTransform;
-  foregroundTransform: MeadowEntryNormalizationTransform;
-  foregroundEligibleMaskPng: Buffer;
-  protectedForegroundMaskPng: Buffer;
   controlFingerprint: string;
   approvedControlFingerprint: string;
   storageConfigurationSha256: string;
@@ -327,158 +336,65 @@ export interface FinalizeMeadowEntryMastersInput {
     approvedBaseSha256: string;
     approvedForegroundSha256: string;
   };
-  generation: {
-    base: MeadowEntryGenerationProvenance;
-    foreground: MeadowEntryGenerationProvenance;
-  };
+}
+
+export interface FinalizeMeadowEntryBaseInput extends MeadowEntryFinalizerContext {
+  candidatePng: Buffer;
+  transform: MeadowEntryNormalizationTransform;
+  generation: MeadowEntryGenerationProvenance;
   refinements: readonly MeadowEntryRefinementProvenance[];
 }
 
-export interface FinalizedMeadowEntryMasters {
-  basePng: Buffer;
-  foregroundPng: Buffer;
-  provenanceJson: Buffer;
+export interface FinalizeMeadowEntryForegroundInput extends MeadowEntryFinalizerContext {
+  candidatePng: Buffer;
+  transform: MeadowEntryNormalizationTransform;
+  eligibleMaskPng: Buffer;
+  protectedMaskPng: Buffer;
+  generation: MeadowEntryGenerationProvenance;
+  refinements: readonly MeadowEntryRefinementProvenance[];
 }
 
-export async function finalizeMeadowEntryMasters(
-  input: FinalizeMeadowEntryMastersInput
-): Promise<FinalizedMeadowEntryMasters>;
+export async function finalizeMeadowEntryBase(
+  input: FinalizeMeadowEntryBaseInput
+): Promise<{ png: Buffer; provenance: object }>;
+export async function finalizeMeadowEntryForeground(
+  input: FinalizeMeadowEntryForegroundInput
+): Promise<{ png: Buffer; provenance: object }>;
+export async function finalizeMeadowEntryMasters(input: {
+  base: FinalizeMeadowEntryBaseInput;
+  foreground: FinalizeMeadowEntryForegroundInput;
+}): Promise<{ basePng: Buffer; foregroundPng: Buffer; provenanceJson: Buffer }>;
 ```
 
-- [ ] **Step 1: Write failing finalizer tests with concrete 2×2 fixtures**
+- [ ] **Step 1: Write failing 2×2 finalizer tests**
+
+Use in-memory Sharp fixtures. The first test must prove:
 
 ```ts
-import { createHash } from 'node:crypto';
-import sharp from 'sharp';
-import { describe, expect, it } from 'vitest';
-import { decodeMeadowEntryRgba } from './meadow-entry-png';
-import { finalizeMeadowEntryMasters } from './meadow-entry-master-finalizer';
-
-const sha256 = (bytes: Buffer) => createHash('sha256').update(bytes).digest('hex');
-
-async function rgbaPng(width: number, height: number, bytes: number[]): Promise<Buffer> {
-  return sharp(Buffer.from(bytes), { raw: { width, height, channels: 4 } }).png().toBuffer();
-}
-
-const identityTransform = (width: number, height: number) => ({
-  native: { width, height },
-  crop: { left: 0, top: 0, width, height },
-  output: { width, height },
-  scale: 1
+const base = await finalizeMeadowEntryBase({
+  ...context,
+  candidatePng: rgbaPngWithNonOpaqueAlpha,
+  transform: identityTransform(2, 2),
+  generation: manualFixture,
+  refinements: []
 });
+expect(alphaBytes(await decodeMeadowEntryRgba(base.png))).toEqual([255, 255, 255, 255]);
 
-const generation = {
-  mode: 'manual' as const,
-  provider: null,
-  model: null,
-  modelVersion: null,
-  tool: 'fixture',
-  toolVersion: '1',
-  settings: {},
-  seed: null,
-  seedUnavailable: false,
-  prompt: null,
-  promptSha256: null,
-  referenceImageSha256: [],
-  byteReproducibleGeneration: true
-};
-
-describe('meadow-entry master finalizer', () => {
-  it('forces opaque base and removes forbidden foreground pixels', async () => {
-    const base = await rgbaPng(2, 2, [
-      10, 20, 30, 20, 10, 20, 30, 40,
-      10, 20, 30, 60, 10, 20, 30, 80
-    ]);
-    const foreground = await rgbaPng(2, 2, [
-      200, 1, 2, 255, 200, 1, 2, 255,
-      200, 1, 2, 255, 200, 1, 2, 255
-    ]);
-    const eligible = await rgbaPng(2, 2, [
-      0, 0, 0, 255, 0, 0, 0, 0,
-      0, 0, 0, 255, 0, 0, 0, 255
-    ]);
-    const protectedMask = await rgbaPng(2, 2, [
-      0, 0, 0, 0, 0, 0, 0, 0,
-      0, 0, 0, 255, 0, 0, 0, 0
-    ]);
-    const predecessorBase = await rgbaPng(1, 1, [1, 2, 3, 255]);
-    const predecessorForeground = await rgbaPng(1, 1, [0, 0, 0, 0]);
-
-    const result = await finalizeMeadowEntryMasters({
-      policy: {
-        width: 2,
-        height: 2,
-        baseReviewBytes: 1024,
-        baseHardBytes: 2048,
-        foregroundReviewBytes: 1024,
-        foregroundHardBytes: 2048
-      },
-      baseCandidatePng: base,
-      foregroundCandidatePng: foreground,
-      baseTransform: identityTransform(2, 2),
-      foregroundTransform: identityTransform(2, 2),
-      foregroundEligibleMaskPng: eligible,
-      protectedForegroundMaskPng: protectedMask,
-      controlFingerprint: 'a'.repeat(64),
-      approvedControlFingerprint: 'a'.repeat(64),
-      storageConfigurationSha256: 'b'.repeat(64),
-      approvedStorageConfigurationSha256: 'b'.repeat(64),
-      predecessor: {
-        basePng: predecessorBase,
-        foregroundPng: predecessorForeground,
-        approvedBaseSha256: sha256(predecessorBase),
-        approvedForegroundSha256: sha256(predecessorForeground)
-      },
-      generation: { base: generation, foreground: generation },
-      refinements: []
-    });
-
-    const decodedBase = await decodeMeadowEntryRgba(result.basePng);
-    const decodedForeground = await decodeMeadowEntryRgba(result.foregroundPng);
-    expect([...decodedBase.data].filter((_, index) => index % 4 === 3)).toEqual([255, 255, 255, 255]);
-    expect([...decodedForeground.data.subarray(4, 8)]).toEqual([0, 0, 0, 0]);
-    expect([...decodedForeground.data.subarray(8, 12)]).toEqual([0, 0, 0, 0]);
-    expect([...decodedForeground.data.subarray(0, 4)]).toEqual([200, 1, 2, 255]);
-  });
-
-  it('rejects a non-uniform transform', async () => {
-    const png = await rgbaPng(2, 2, new Array(16).fill(255));
-    const bad = { ...identityTransform(2, 2), crop: { left: 0, top: 0, width: 2, height: 1 } };
-    await expect(
-      finalizeMeadowEntryMasters({
-        policy: {
-          width: 2,
-          height: 2,
-          baseReviewBytes: 1024,
-          baseHardBytes: 2048,
-          foregroundReviewBytes: 1024,
-          foregroundHardBytes: 2048
-        },
-        baseCandidatePng: png,
-        foregroundCandidatePng: png,
-        baseTransform: bad,
-        foregroundTransform: identityTransform(2, 2),
-        foregroundEligibleMaskPng: png,
-        protectedForegroundMaskPng: await rgbaPng(2, 2, new Array(16).fill(0)),
-        controlFingerprint: 'a'.repeat(64),
-        approvedControlFingerprint: 'a'.repeat(64),
-        storageConfigurationSha256: 'b'.repeat(64),
-        approvedStorageConfigurationSha256: 'b'.repeat(64),
-        predecessor: {
-          basePng: png,
-          foregroundPng: png,
-          approvedBaseSha256: sha256(png),
-          approvedForegroundSha256: sha256(png)
-        },
-        generation: { base: generation, foreground: generation },
-        refinements: []
-      })
-    ).rejects.toThrow(/uniform/i);
-  });
+const foreground = await finalizeMeadowEntryForeground({
+  ...context,
+  candidatePng: fullyPaintedForeground,
+  transform: identityTransform(2, 2),
+  eligibleMaskPng: eligiblePixelsZeroAndThree,
+  protectedMaskPng: protectedPixelThree,
+  generation: manualFixture,
+  refinements: []
 });
+expect(pixel(await decodeMeadowEntryRgba(foreground.png), 0)).toEqual([200, 1, 2, 255]);
+expect(pixel(await decodeMeadowEntryRgba(foreground.png), 1)).toEqual([0, 0, 0, 0]);
+expect(pixel(await decodeMeadowEntryRgba(foreground.png), 3)).toEqual([0, 0, 0, 0]);
 ```
 
-Also add table-driven cases for stale control hash, stale storage hash, changed predecessor hash, hard-budget excess, and identical-input byte identity.
+Add exact failure cases for non-uniform transforms, stale control hash, stale storage hash, changed predecessor hash, hard-budget excess, wrong mask dimensions, and repeated byte identity.
 
 - [ ] **Step 2: Run and verify failure**
 
@@ -486,30 +402,20 @@ Also add table-driven cases for stale control hash, stale storage hash, changed 
 rtk bun run test:unit -- --run src/lib/game/content/backgrounds/meadow-entry-master-finalizer.test.ts
 ```
 
-- [ ] **Step 3: Implement exact-ratio normalization**
+- [ ] **Step 3: Implement exact-ratio normalization and plane rules**
 
 Validate:
 
 ```text
 scale = output.width / crop.width = output.height / crop.height
-crop fits native candidate
+crop fits native input
 production policy = 6400×6400
-no non-uniform scale
-no geometric warp
+no non-uniform scale or warp
 ```
 
-Normalize with one `extract` and one uniform `resize(..., { kernel: lanczos3 })`. Record native dimensions, crop, scale, candidate SHA, and normalized SHA.
+Use one `extract` and one uniform Lanczos3 resize. Base output forces all alpha to `255`. Foreground output applies `eligible ∩ ¬protected`, and sets all four channels to zero outside that mask. Validate predecessor hashes before producing bytes.
 
-- [ ] **Step 4: Implement base and foreground rules**
-
-- Base: convert to sRGB RGBA, force every alpha byte to `255`, canonical-encode, and enforce base budget.
-- Foreground: raster-mask by `foregroundEligibleMask ∩ ¬protectedForegroundMask`; set all four channels to `0` outside the allowed mask; canonical-encode and enforce foreground budget.
-- Verify approved HPA-398 base/foreground hashes before any write.
-- Validate the combined control fingerprint and storage hash against approved PR-1 data.
-
-- [ ] **Step 5: Implement atomic CLI finalization**
-
-`tools/finalize-meadow-entry-masters.ts` accepts:
+- [ ] **Step 4: Implement the CLI**
 
 ```text
 --plane base|foreground|both
@@ -520,31 +426,16 @@ Normalize with one `extract` and one uniform `resize(..., { kernel: lanczos3 })`
 --base-provenance
 --foreground-provenance
 --refinement-manifest
---output-root <path>          # defaults to artifacts/meadow-entry/hpa-399
---validate-only              # performs all checks without writing
+--output-root <path>       # default artifacts/meadow-entry/hpa-399
+--validate-only
 ```
 
-In approved mode it writes temporary masters and provenance, validates the complete package, then atomically replaces:
+`base` and `foreground` modes call the corresponding pure finalizer and support ignored review output roots. `both` finalizes both planes, validates one combined provenance object, then atomically replaces the approved logical package. Failure leaves prior approved files untouched.
 
-```text
-artifacts/meadow-entry/hpa-399/masters/meadow-entry-base-master.png
-artifacts/meadow-entry/hpa-399/masters/meadow-entry-foreground-master.png
-artifacts/meadow-entry/hpa-399/provenance/meadow-entry-master-provenance.json
-```
-
-A failure leaves previous approved logical files untouched.
-
-- [ ] **Step 6: Run focused tests**
+- [ ] **Step 5: Run tests and commit**
 
 ```bash
 rtk bun run test:unit -- --run src/lib/game/content/backgrounds/meadow-entry-master-finalizer.test.ts
-```
-
-Expected: PASS.
-
-- [ ] **Step 7: Commit code only**
-
-```bash
 rtk git add \
   src/lib/game/content/backgrounds/meadow-entry-master-finalizer.ts \
   src/lib/game/content/backgrounds/meadow-entry-master-finalizer.test.ts \
@@ -564,22 +455,7 @@ rtk git commit -m "feat(hpa-399): finalize meadow-entry master planes"
 
 **Interfaces:**
 
-- Consumes: current canonical master, replacement candidate, source-derived edit mask, protected/non-target masks, transform, approved crops, and control fingerprint.
-- Produces:
-
 ```ts
-export interface MeadowEntryRefinementProvenance {
-  plane: 'base' | 'foreground';
-  sourceRegionIds: readonly string[];
-  editMaskSha256: string;
-  replacementSha256: string;
-  beforeMasterSha256: string;
-  afterMasterSha256: string;
-  changedBounds: PixelBounds;
-  affectedCropIds: readonly string[];
-  transform: MeadowEntryNormalizationTransform;
-}
-
 export interface MeadowEntryRefinementInput {
   plane: 'base' | 'foreground';
   currentMasterPng: Buffer;
@@ -591,6 +467,7 @@ export interface MeadowEntryRefinementInput {
   sourceRegionIds: readonly string[];
   controlFingerprint: string;
   approvedControlFingerprint: string;
+  approvedCrops: readonly MeadowEntryApprovedCrop[];
 }
 
 export async function applyMeadowEntryRefinement(
@@ -598,64 +475,9 @@ export async function applyMeadowEntryRefinement(
 ): Promise<{ masterPng: Buffer; provenance: MeadowEntryRefinementProvenance }>;
 ```
 
-- [ ] **Step 1: Write failing mask-safety tests with a 2×1 master**
+- [ ] **Step 1: Write failing 2×1 mask-safety tests**
 
-```ts
-import sharp from 'sharp';
-import { describe, expect, it } from 'vitest';
-import { decodeMeadowEntryRgba } from './meadow-entry-png';
-import { applyMeadowEntryRefinement } from './meadow-entry-master-refinement';
-
-async function png(bytes: number[]): Promise<Buffer> {
-  return sharp(Buffer.from(bytes), { raw: { width: 2, height: 1, channels: 4 } }).png().toBuffer();
-}
-
-const transform = {
-  native: { width: 2, height: 1 },
-  crop: { left: 0, top: 0, width: 2, height: 1 },
-  output: { width: 2, height: 1 },
-  scale: 1
-};
-
-describe('meadow-entry master refinement', () => {
-  it('changes only edit-mask pixels', async () => {
-    const result = await applyMeadowEntryRefinement({
-      plane: 'base',
-      currentMasterPng: await png([0, 0, 0, 255, 0, 0, 0, 255]),
-      replacementPng: await png([255, 0, 0, 255, 255, 0, 0, 255]),
-      editMaskPng: await png([0, 0, 0, 255, 0, 0, 0, 0]),
-      protectedMaskPng: await png([0, 0, 0, 0, 0, 0, 0, 0]),
-      nonTargetMaskPng: await png([0, 0, 0, 0, 0, 0, 0, 0]),
-      transform,
-      sourceRegionIds: ['crossroads'],
-      controlFingerprint: 'a'.repeat(64),
-      approvedControlFingerprint: 'a'.repeat(64)
-    });
-    expect([...((await decodeMeadowEntryRgba(result.masterPng)).data)]).toEqual([
-      255, 0, 0, 255, 0, 0, 0, 255
-    ]);
-  });
-
-  it('rejects protected-mask overlap', async () => {
-    await expect(
-      applyMeadowEntryRefinement({
-        plane: 'base',
-        currentMasterPng: await png([0, 0, 0, 255, 0, 0, 0, 255]),
-        replacementPng: await png([255, 0, 0, 255, 255, 0, 0, 255]),
-        editMaskPng: await png([0, 0, 0, 255, 0, 0, 0, 0]),
-        protectedMaskPng: await png([0, 0, 0, 255, 0, 0, 0, 0]),
-        nonTargetMaskPng: await png([0, 0, 0, 0, 0, 0, 0, 0]),
-        transform,
-        sourceRegionIds: ['crossroads'],
-        controlFingerprint: 'a'.repeat(64),
-        approvedControlFingerprint: 'a'.repeat(64)
-      })
-    ).rejects.toThrow(/protected/i);
-  });
-});
-```
-
-Also assert non-target rejection, foreground zero-RGB preservation, stale fingerprint rejection, and computed affected crop IDs from the approved crop table.
+Create a black two-pixel master, red replacement, and a mask selecting only pixel zero. Assert the result is red/black. Then create a protected mask selecting pixel zero and assert `/protected/i`. Add cases for non-target overlap, stale fingerprint, foreground zero-RGB preservation, changed-bounds calculation, and affected-crop derivation.
 
 - [ ] **Step 2: Run and verify failure**
 
@@ -663,13 +485,11 @@ Also assert non-target rejection, foreground zero-RGB preservation, stale finger
 rtk bun run test:unit -- --run src/lib/game/content/backgrounds/meadow-entry-master-refinement.test.ts
 ```
 
-- [ ] **Step 3: Implement the compositor**
+- [ ] **Step 3: Implement compositor and CLI**
 
-Normalize the replacement through the same transform validator as the master finalizer. Composite only where `editMask > 0`, fail on any protected/non-target intersection, canonical-encode, calculate changed bounds, derive every intersecting crop ID from the approved crop table, and record before/after hashes.
+Normalize the replacement through the shared transform validator. Composite only where `editMask > 0`; reject protected or non-target intersections; canonical-encode; derive changed bounds and every intersecting approved crop; record before/after hashes.
 
-- [ ] **Step 4: Implement the CLI**
-
-`tools/refine-meadow-entry-master.ts` requires:
+CLI:
 
 ```text
 --plane base|foreground
@@ -682,9 +502,9 @@ Normalize the replacement through the same transform validator as the master fin
 --source-region
 ```
 
-It refuses an unknown source region or a changed area not covered by approved crops/fallback policy. It writes a new candidate master and refinement sidecar under ignored `work/`; it never writes approved master paths directly.
+Write only an ignored `work/` candidate plus refinement sidecar. Never write approved master paths.
 
-- [ ] **Step 5: Run tests and commit**
+- [ ] **Step 4: Run tests and commit**
 
 ```bash
 rtk bun run test:unit -- --run src/lib/game/content/backgrounds/meadow-entry-master-refinement.test.ts
@@ -697,7 +517,7 @@ rtk git commit -m "feat(hpa-399): constrain regional master refinements"
 
 ---
 
-### Task 4: Produce and Approve the Global Base Candidate
+### Task 4: Produce and Review the Global Base Candidate
 
 **Files:**
 
@@ -705,34 +525,27 @@ rtk git commit -m "feat(hpa-399): constrain regional master refinements"
 - Local untracked: `artifacts/meadow-entry/hpa-399/candidates/meadow-entry-base-generation.json`
 - Local untracked: `artifacts/meadow-entry/hpa-399/candidates/meadow-entry-base-transform.json`
 - Local untracked: `artifacts/meadow-entry/hpa-399/candidates/meadow-entry-refinements.json`
-- LFS output after Task 5 finalization: `artifacts/meadow-entry/hpa-399/masters/meadow-entry-base-master.png`
 
-**Interfaces:**
+- [ ] **Step 1: Generate or manually paint one global candidate**
 
-- Consumes: full control composite, terrain/path, region, collision, protected-live, handoff, baked/fallback, and crop controls.
-- Produces: one reviewed global base candidate and complete provenance.
-
-- [ ] **Step 1: Generate or paint one square global candidate**
-
-Use the complete control package as reference. The production brief is:
+Use the full control package. Production brief:
 
 ```text
-Orthographic top-down JRPG overworld environment, one coherent square world.
-Upper-left daylight, consistent soft contact shadows, no perspective tilt.
-Continuous authored roads and transition throats matching the supplied controls.
-Warm Sundrop underlay; worn Crossroads cobble and festival earth; Tidewatch sand,
-salt grass and low shoreline rock; Mistfen mud, shallow pools, roots and opaque
-fog-color ground; Silverpine autumn floor and ceremonial stone; Wildwood forest
-floor, roots and cave approach. Quiet detail on routes, doorway approaches,
-encounters, rewards and handoffs. Include only approved low static obstacle
-treatment. Do not invent buildings, gates, signs, doors, NPCs, pickups, enemies,
-markers, story objects, text, or false paths. Preserve all protected-live
-footprints.
+Orthographic top-down JRPG overworld, one coherent square world. Upper-left
+sunlight, consistent soft contact shadows, no perspective tilt. Continuous
+roads and transition throats exactly matching controls. Warm Sundrop underlay;
+worn Crossroads cobble and festival earth; Tidewatch sand, salt grass and low
+shoreline rock; Mistfen mud, shallow pools, roots and opaque fog-color ground;
+Silverpine autumn floor and ceremonial stone; Wildwood forest floor, roots and
+cave approach. Quiet detail on routes, doorway approaches, encounters, rewards
+and handoffs. Include only approved low static obstacle treatment. Do not
+invent buildings, gates, signs, doors, NPCs, pickups, enemies, markers, story
+objects, text, or false paths. Preserve every protected-live footprint.
 ```
 
-Record provider/model/tool/version/settings, prompt, reference hashes, native dimensions, seed or seed-unavailable declaration, and candidate SHA in the generation JSON.
+Record provider/model/tool/version/settings, prompt/reference hashes, native dimensions, seed or seed-unavailable declaration, and candidate SHA.
 
-- [ ] **Step 2: Normalize into an ignored review output**
+- [ ] **Step 2: Normalize to ignored review output**
 
 ```bash
 rtk bun tools/finalize-meadow-entry-masters.ts \
@@ -744,69 +557,36 @@ rtk bun tools/finalize-meadow-entry-masters.ts \
   --output-root artifacts/meadow-entry/hpa-399/work/base-review
 ```
 
-Expected: a review-only base and provenance are written under ignored `work/`; approved logical paths are untouched.
+- [ ] **Step 3: Review and refine**
 
-- [ ] **Step 3: Review at native resolution**
+Inspect full master, every crop, every handoff, every baked/fallback boundary, and Sundrop feather composition. Reject road drift, false entrances, palette breaks, crop seams, missing baked obstacles, invented live objects, forbidden tall paint, or unapproved fallback boundaries.
 
-Review the full candidate plus every crop/handoff overlay. Reject and refine when any of these occur:
-
-```text
-road centerline drift
-false route or entrance
-abrupt regional lighting/palette change
-crop-local seam
-missing required baked obstacle
-invented live semantic object
-foreground-like tall paint in forbidden area
-unreviewed fallback boundary
-Sundrop feather mismatch over the proposed underlay
-```
-
-- [ ] **Step 4: Apply controlled refinements only through Task 3 tooling**
-
-For each accepted refinement, record source region, edit mask, replacement hash, transform, changed-pixel bounds, and computed affected crop IDs. Re-review the recomposed full master and every affected handoff.
-
-- [ ] **Step 5: Freeze the base candidate inputs**
-
-When approved, update only the untracked generation/refinement provenance inputs consumed by finalization. Do not commit candidates or intermediate refinements.
-
-No Git commit occurs in this task; the approved LFS master is committed atomically with the foreground in Task 5.
+Apply all corrections through Task 3 tooling and re-review every affected crop/handoff. Do not commit candidates or intermediate refinements.
 
 ---
 
-### Task 5: Produce the Sparse Foreground and Finalize Both Masters
+### Task 5: Produce Foreground and Finalize Both Masters
 
 **Files:**
 
-- Local untracked: `artifacts/meadow-entry/hpa-399/candidates/meadow-entry-foreground-candidate.png`
-- Local untracked: `artifacts/meadow-entry/hpa-399/candidates/meadow-entry-foreground-generation.json`
-- Local untracked: `artifacts/meadow-entry/hpa-399/candidates/meadow-entry-foreground-transform.json`
+- Local untracked: foreground candidate/provenance/transform
 - Create LFS: `artifacts/meadow-entry/hpa-399/masters/meadow-entry-base-master.png`
 - Create LFS: `artifacts/meadow-entry/hpa-399/masters/meadow-entry-foreground-master.png`
 - Create: `artifacts/meadow-entry/hpa-399/provenance/meadow-entry-master-provenance.json`
 
-**Interfaces:**
-
-- Consumes: approved base candidate, foreground eligible/protected masks, shared cutoff, candidate provenance.
-- Produces: both canonical master planes plus master provenance.
-
-- [ ] **Step 1: Create the foreground candidate against the approved base**
-
-The foreground brief is:
+- [ ] **Step 1: Create the sparse foreground candidate**
 
 ```text
-Transparent orthographic occlusion layer aligned exactly to the supplied base
-master and foreground-eligible mask. Include only approved canopy tops, hedge
-tops, wall fronts, arches, reeds and branches. Keep all RGB zero where alpha is
-zero. Do not paint buildings, gates, NPCs, pickups, encounters, discoveries,
-story/stateful objects, protected live foreground decor, routes, doorways, or
-interaction clearances. Respect the shared 33px front cutoff and every smaller
-entry-specific exception.
+Transparent orthographic occlusion layer aligned to the approved base and
+eligible mask. Include only approved canopy tops, hedge tops, wall fronts,
+arches, reeds, and branches. Do not paint buildings, gates, NPCs, pickups,
+encounters, discoveries, story/stateful objects, protected live foreground
+decor, routes, doorways, or interaction clearances. Respect the shared 33px
+front cutoff and every smaller approved exception. RGB must be zero when alpha
+is zero.
 ```
 
-Record complete generation/manual provenance as in Task 4.
-
-- [ ] **Step 2: Preflight foreground masks without writing**
+- [ ] **Step 2: Validate without writing**
 
 ```bash
 rtk bun tools/finalize-meadow-entry-masters.ts \
@@ -818,42 +598,16 @@ rtk bun tools/finalize-meadow-entry-masters.ts \
   --validate-only
 ```
 
-Require:
+Require zero pixels outside eligibility, over protected foreground decor, or with nonzero RGB at zero alpha.
 
-```text
-foreground pixels outside eligible mask = 0
-foreground pixels over protected foreground decor = 0
-zero-alpha pixels with nonzero RGB = 0
-forbidden-tall violations = 0
-```
+- [ ] **Step 3: Review on checkerboard and over base**
 
-- [ ] **Step 3: Review foreground behavior**
+Inspect every eligible obstacle, cutoff case, route mouth, discovery/reward clearance, Mistfen live fog footprint, and immutable HPA-398 foreground boundary.
 
-Render on checkerboard and over the base. Inspect every eligible obstacle at native resolution, behind/front cutoff positions, every route mouth, discovery/reward clearance, Mistfen live fog footprint, and the immutable HPA-398 foreground boundary.
-
-- [ ] **Step 4: Finalize atomically**
+- [ ] **Step 4: Finalize atomically and prove repeatability**
 
 ```bash
-rtk bun tools/finalize-meadow-entry-masters.ts \
-  --plane both \
-  --base-candidate artifacts/meadow-entry/hpa-399/candidates/meadow-entry-base-candidate.png \
-  --foreground-candidate artifacts/meadow-entry/hpa-399/candidates/meadow-entry-foreground-candidate.png \
-  --base-transform artifacts/meadow-entry/hpa-399/candidates/meadow-entry-base-transform.json \
-  --foreground-transform artifacts/meadow-entry/hpa-399/candidates/meadow-entry-foreground-transform.json \
-  --base-provenance artifacts/meadow-entry/hpa-399/candidates/meadow-entry-base-generation.json \
-  --foreground-provenance artifacts/meadow-entry/hpa-399/candidates/meadow-entry-foreground-generation.json \
-  --refinement-manifest artifacts/meadow-entry/hpa-399/candidates/meadow-entry-refinements.json
-```
-
-Expected: both LFS masters and master provenance are written; HPA-398 hashes remain unchanged.
-
-- [ ] **Step 5: Re-run finalization and prove byte identity**
-
-```bash
-rtk sha256sum artifacts/meadow-entry/hpa-399/masters/*.png \
-  artifacts/meadow-entry/hpa-399/provenance/meadow-entry-master-provenance.json > /tmp/hpa399-master-hashes.before
-rtk bun tools/finalize-meadow-entry-masters.ts \
-  --plane both \
+rtk bun tools/finalize-meadow-entry-masters.ts --plane both \
   --base-candidate artifacts/meadow-entry/hpa-399/candidates/meadow-entry-base-candidate.png \
   --foreground-candidate artifacts/meadow-entry/hpa-399/candidates/meadow-entry-foreground-candidate.png \
   --base-transform artifacts/meadow-entry/hpa-399/candidates/meadow-entry-base-transform.json \
@@ -862,30 +616,32 @@ rtk bun tools/finalize-meadow-entry-masters.ts \
   --foreground-provenance artifacts/meadow-entry/hpa-399/candidates/meadow-entry-foreground-generation.json \
   --refinement-manifest artifacts/meadow-entry/hpa-399/candidates/meadow-entry-refinements.json
 rtk sha256sum artifacts/meadow-entry/hpa-399/masters/*.png \
-  artifacts/meadow-entry/hpa-399/provenance/meadow-entry-master-provenance.json > /tmp/hpa399-master-hashes.after
-rtk diff -u /tmp/hpa399-master-hashes.before /tmp/hpa399-master-hashes.after
+  artifacts/meadow-entry/hpa-399/provenance/meadow-entry-master-provenance.json > /tmp/hpa399-masters.before
+rtk bun tools/finalize-meadow-entry-masters.ts --plane both \
+  --base-candidate artifacts/meadow-entry/hpa-399/candidates/meadow-entry-base-candidate.png \
+  --foreground-candidate artifacts/meadow-entry/hpa-399/candidates/meadow-entry-foreground-candidate.png \
+  --base-transform artifacts/meadow-entry/hpa-399/candidates/meadow-entry-base-transform.json \
+  --foreground-transform artifacts/meadow-entry/hpa-399/candidates/meadow-entry-foreground-transform.json \
+  --base-provenance artifacts/meadow-entry/hpa-399/candidates/meadow-entry-base-generation.json \
+  --foreground-provenance artifacts/meadow-entry/hpa-399/candidates/meadow-entry-foreground-generation.json \
+  --refinement-manifest artifacts/meadow-entry/hpa-399/candidates/meadow-entry-refinements.json
+rtk sha256sum artifacts/meadow-entry/hpa-399/masters/*.png \
+  artifacts/meadow-entry/hpa-399/provenance/meadow-entry-master-provenance.json > /tmp/hpa399-masters.after
+rtk diff -u /tmp/hpa399-masters.before /tmp/hpa399-masters.after
 ```
 
-Expected: no diff.
-
-- [ ] **Step 6: Verify LFS and budgets**
+- [ ] **Step 5: Verify LFS and commit**
 
 ```bash
 rtk git add artifacts/meadow-entry/hpa-399/masters/*.png \
   artifacts/meadow-entry/hpa-399/provenance/meadow-entry-master-provenance.json
-rtk git lfs ls-files --name-only | grep -E '^artifacts/meadow-entry/hpa-399/masters/.+\.png$'
 rtk git lfs fsck
-```
-
-- [ ] **Step 7: Commit**
-
-```bash
 rtk git commit -m "art(hpa-399): add approved meadow-entry masters"
 ```
 
 ---
 
-### Task 6: Export Every Approved Crop and Verify Shared Pixels
+### Task 6: Export Crops and Verify Shared Pixels
 
 **Files:**
 
@@ -893,26 +649,11 @@ rtk git commit -m "art(hpa-399): add approved meadow-entry masters"
 - Create: `src/lib/game/content/backgrounds/meadow-entry-exporter.test.ts`
 - Create: `tools/export-meadow-entry-regions.ts`
 - Create LFS: `artifacts/meadow-entry/hpa-399/exports/*.png`
-- Create: `artifacts/meadow-entry/hpa-399/provenance/meadow-entry-export-provenance.json`
-- Copy generated contract: `artifacts/meadow-entry/hpa-399/provenance/meadow-entry-crop-manifest.json`
+- Create provenance JSON files.
 
 **Interfaces:**
 
-- Consumes: canonical masters and approved crop/overlap/corner tables.
-- Produces:
-
 ```ts
-export interface MeadowEntryExportContract {
-  crops: readonly MeadowEntryApprovedCrop[];
-  overlaps: readonly MeadowEntryOverlap[];
-}
-
-export interface MeadowEntryExportResult {
-  cropId: string;
-  base: ValidatedMeadowEntryPng;
-  foreground: ValidatedMeadowEntryPng | null;
-}
-
 export interface MeadowEntryDecodedExport {
   cropId: string;
   plane: 'base' | 'foreground';
@@ -927,10 +668,10 @@ export async function exportMeadowEntryRegions(input: {
   foregroundMasterPng: Buffer;
   controlFingerprint: string;
   approvedControlFingerprint: string;
-  contract: MeadowEntryExportContract;
+  crops: readonly MeadowEntryApprovedCrop[];
+  overlaps: readonly MeadowEntryOverlap[];
 }): Promise<{
   files: Readonly<Record<string, Buffer>>;
-  results: readonly MeadowEntryExportResult[];
   decoded: readonly MeadowEntryDecodedExport[];
   provenanceJson: Buffer;
 }>;
@@ -941,108 +682,9 @@ export function verifyMeadowEntryOverlapPixels(input: {
 }): void;
 ```
 
-- [ ] **Step 1: Write failing exporter tests with a concrete 3×1 fixture master**
+- [ ] **Step 1: Write failing fixture tests**
 
-```ts
-import sharp from 'sharp';
-import { describe, expect, it } from 'vitest';
-import { decodeMeadowEntryRgba } from './meadow-entry-png';
-import {
-  exportMeadowEntryRegions,
-  verifyMeadowEntryOverlapPixels
-} from './meadow-entry-exporter';
-
-async function master(bytes: number[]): Promise<Buffer> {
-  return sharp(Buffer.from(bytes), { raw: { width: 3, height: 1, channels: 4 } }).png().toBuffer();
-}
-
-const crop = {
-  id: 'fixture',
-  derivation: { mode: 'exact-bounds' as const },
-  reviewBounds: { left: 1, top: 0, right: 3, bottom: 1 },
-  coverageAttachments: [],
-  preClampBounds: { left: 1, top: 0, right: 3, bottom: 1 },
-  edgeClamp: null,
-  bounds: { left: 1, top: 0, right: 3, bottom: 1 },
-  expectedDimensions: { width: 2, height: 1 },
-  baseFilename: 'fixture-base.png',
-  foregroundFilename: null,
-  textureKeys: { base: 'meadow-entry-fixture-base', foreground: null },
-  drawOrder: 1,
-  sourceRegionIds: ['crossroads'],
-  neighborIds: [],
-  overlapIds: [],
-  alphaPolicy: { base: 'opaque' as const, foreground: null },
-  sizeBudgets: {
-    baseReviewBytes: 1024,
-    baseHardBytes: 2048,
-    foregroundReviewBytes: null,
-    foregroundHardBytes: null
-  }
-};
-
-describe('meadow-entry exporter', () => {
-  it('extracts exact half-open pixels without resizing', async () => {
-    const base = await master([
-      255, 0, 0, 255,
-      0, 255, 0, 255,
-      0, 0, 255, 255
-    ]);
-    const transparent = await master(new Array(12).fill(0));
-    const result = await exportMeadowEntryRegions({
-      baseMasterPng: base,
-      foregroundMasterPng: transparent,
-      controlFingerprint: 'a'.repeat(64),
-      approvedControlFingerprint: 'a'.repeat(64),
-      contract: { crops: [crop], overlaps: [] }
-    });
-    const decoded = await decodeMeadowEntryRgba(result.files['fixture-base.png']!);
-    expect([...decoded.data]).toEqual([0, 255, 0, 255, 0, 0, 255, 255]);
-    expect(result.files['fixture-foreground.png']).toBeUndefined();
-  });
-
-  it('reports the first differing overlap coordinate', () => {
-    const first = {
-      cropId: 'a',
-      plane: 'base' as const,
-      bounds: { left: 0, top: 0, right: 2, bottom: 1 },
-      width: 2,
-      height: 1,
-      rgba: Buffer.from([1, 2, 3, 255, 4, 5, 6, 255])
-    };
-    const second = {
-      cropId: 'b',
-      plane: 'base' as const,
-      bounds: { left: 1, top: 0, right: 3, bottom: 1 },
-      width: 2,
-      height: 1,
-      rgba: Buffer.from([9, 9, 9, 255, 7, 8, 9, 255])
-    };
-    expect(() =>
-      verifyMeadowEntryOverlapPixels({
-        decoded: [first, second],
-        overlaps: [
-          {
-            id: 'a-b',
-            firstCropId: 'a',
-            secondCropId: 'b',
-            bounds: { left: 1, top: 0, right: 2, bottom: 1 },
-            routeMouth: {
-              sharedAxis: 'x',
-              bounds: { left: 1, top: 0, right: 2, bottom: 1 }
-            },
-            minimumSharedPixels: 1,
-            planePolicy: 'base-only',
-            ownerCropId: 'a'
-          }
-        ]
-      })
-    ).toThrow(/master=1,0.*crop=a.*crop=b/i);
-  });
-});
-```
-
-Add exact tests for transparent canonical foregrounds, two-dimensional corner groups, per-crop/aggregate budgets, stale fingerprints, and repeated byte identity.
+Use a `3×1` red/green/blue master and a crop `[1,3)`; assert exported bytes are green/blue and no foreground file exists for a base-only crop. Create two decoded overlapping exports with different RGBA values and assert the error reports both crop IDs plus `master=1,0`. Add cases for transparent canonical foregrounds, corner groups, stale fingerprints, budget calculation, and repeated byte identity.
 
 - [ ] **Step 2: Run and verify failure**
 
@@ -1050,60 +692,33 @@ Add exact tests for transparent canonical foregrounds, two-dimensional corner gr
 rtk bun run test:unit -- --run src/lib/game/content/backgrounds/meadow-entry-exporter.test.ts
 ```
 
-- [ ] **Step 3: Implement direct cropping and canonical encoding**
+- [ ] **Step 3: Implement direct extraction and verification**
 
-For each approved crop, use exactly one Sharp `extract` against each master and no `resize`. Decode each result and compare every pixel with the corresponding master coordinates before encoding approval. Enforce stable filename, texture-key, plane, draw-order, dimensions, and budget data.
+Use one Sharp `extract` per plane/crop and no resize. Compare decoded result pixels against master coordinates. Enforce filenames, texture keys, dimensions, draw order, plane policy, per-crop budgets, and computed aggregate budgets. Compare overlap/corner pixels channel-by-channel and report first differing master/local coordinates.
 
-- [ ] **Step 4: Implement overlap and corner verification**
-
-Decode each pair and compare shared coordinates channel-by-channel. On failure report:
-
-```text
-firstCropId
-secondCropId
-plane
-masterX/masterY
-first local coordinate and RGBA
-second local coordinate and RGBA
-cornerGroupId when present
-```
-
-- [ ] **Step 5: Implement atomic exporter CLI**
-
-`tools/export-meadow-entry-regions.ts` validates masters and approvals, writes all outputs to a temporary directory, verifies the complete package, then atomically replaces only the fixed export/provenance inventory.
-
-- [ ] **Step 6: Export twice and prove identity**
+- [ ] **Step 4: Implement atomic CLI, export twice, and commit**
 
 ```bash
 rtk bun tools/export-meadow-entry-regions.ts
 rtk sha256sum artifacts/meadow-entry/hpa-399/exports/*.png \
-  artifacts/meadow-entry/hpa-399/provenance/meadow-entry-export-provenance.json > /tmp/hpa399-export-hashes.before
+  artifacts/meadow-entry/hpa-399/provenance/meadow-entry-export-provenance.json > /tmp/hpa399-exports.before
 rtk bun tools/export-meadow-entry-regions.ts
 rtk sha256sum artifacts/meadow-entry/hpa-399/exports/*.png \
-  artifacts/meadow-entry/hpa-399/provenance/meadow-entry-export-provenance.json > /tmp/hpa399-export-hashes.after
-rtk diff -u /tmp/hpa399-export-hashes.before /tmp/hpa399-export-hashes.after
-```
-
-Expected: no diff.
-
-- [ ] **Step 7: Run tests and LFS verification**
-
-```bash
+  artifacts/meadow-entry/hpa-399/provenance/meadow-entry-export-provenance.json > /tmp/hpa399-exports.after
+rtk diff -u /tmp/hpa399-exports.before /tmp/hpa399-exports.after
 rtk bun run test:unit -- --run src/lib/game/content/backgrounds/meadow-entry-exporter.test.ts
 rtk git add artifacts/meadow-entry/hpa-399/exports/*.png \
-  artifacts/meadow-entry/hpa-399/provenance/*.json
+  artifacts/meadow-entry/hpa-399/provenance/*.json \
+  src/lib/game/content/backgrounds/meadow-entry-exporter.ts \
+  src/lib/game/content/backgrounds/meadow-entry-exporter.test.ts \
+  tools/export-meadow-entry-regions.ts
 rtk git lfs fsck
-```
-
-- [ ] **Step 8: Commit**
-
-```bash
 rtk git commit -m "art(hpa-399): export approved meadow-entry regions"
 ```
 
 ---
 
-### Task 7: Render Native Proofs and Approve the Art Package
+### Task 7: Render Native Proofs and Approve the Package
 
 **Files:**
 
@@ -1113,12 +728,9 @@ rtk git commit -m "art(hpa-399): export approved meadow-entry regions"
 - Create: `tools/approve-meadow-entry-art-package.ts`
 - Create: `src/lib/game/content/approvals/meadow-entry-art-package.ts`
 - Create: `src/lib/game/content/meadow-entry-art-package.asset.test.ts`
-- Create LFS: `docs/superpowers/reports/img/hpa-399/proofs/**/*.png`
+- Create LFS proof inventory.
 
 **Interfaces:**
-
-- Consumes: masters, exports, controls, runtime coverage, HPA-398 assets, provenance.
-- Produces:
 
 ```ts
 export interface ApprovedPngArtifact {
@@ -1127,18 +739,6 @@ export interface ApprovedPngArtifact {
   bytes: number;
   width: number;
   height: number;
-}
-
-export interface ApprovedMeadowEntryExport extends ApprovedPngArtifact {
-  cropId: string;
-  plane: 'base' | 'foreground';
-  textureKey: string;
-  drawOrder: number;
-}
-
-export interface ApprovedMeadowEntryProof extends ApprovedPngArtifact {
-  proofId: string;
-  inputSha256: readonly string[];
 }
 
 export interface MeadowEntryArtPackageApproval {
@@ -1150,8 +750,16 @@ export interface MeadowEntryArtPackageApproval {
   cropManifestSha256: string;
   masterProvenanceSha256: string;
   exportProvenanceSha256: string;
-  exports: readonly ApprovedMeadowEntryExport[];
-  proofs: readonly ApprovedMeadowEntryProof[];
+  exports: readonly (ApprovedPngArtifact & {
+    cropId: string;
+    plane: 'base' | 'foreground';
+    textureKey: string;
+    drawOrder: number;
+  })[];
+  proofs: readonly (ApprovedPngArtifact & {
+    proofId: string;
+    inputSha256: readonly string[];
+  })[];
   evidencePath: 'docs/superpowers/reports/2026-07-30-hpa-399-visual-masters-exports-validation.md';
 }
 
@@ -1163,50 +771,11 @@ export async function renderMeadowEntryReviewComposite(input: {
   sundropForegroundPng: Buffer;
   sundropBounds: PixelBounds;
 }): Promise<Buffer>;
-export function buildMeadowEntryProofInventory(): readonly string[];
-export const meadowEntryArtPackageApproval: MeadowEntryArtPackageApproval;
 ```
 
-- [ ] **Step 1: Write failing proof tests with concrete ordering and inventory assertions**
+- [ ] **Step 1: Write failing proof tests**
 
-```ts
-import sharp from 'sharp';
-import { describe, expect, it } from 'vitest';
-import { decodeMeadowEntryRgba } from './meadow-entry-png';
-import {
-  MEADOW_ENTRY_PROOF_FILENAMES,
-  buildMeadowEntryProofInventory,
-  renderMeadowEntryReviewComposite
-} from './meadow-entry-proof-renderer';
-
-async function pixel(r: number, g: number, b: number, alpha: number): Promise<Buffer> {
-  return sharp(Buffer.from([r, g, b, alpha]), {
-    raw: { width: 1, height: 1, channels: 4 }
-  }).png().toBuffer();
-}
-
-describe('meadow-entry proof renderer', () => {
-  it('renders immutable Sundrop overlays above HPA-399 planes', async () => {
-    const composite = await renderMeadowEntryReviewComposite({
-      baseMasterPng: await pixel(0, 255, 0, 255),
-      foregroundMasterPng: await pixel(0, 0, 255, 128),
-      sundropBasePng: await pixel(255, 0, 0, 255),
-      sundropForegroundPng: await pixel(255, 255, 0, 128),
-      sundropBounds: { left: 0, top: 0, right: 1, bottom: 1 }
-    });
-    const rgba = (await decodeMeadowEntryRgba(composite)).data;
-    expect([...rgba]).not.toEqual([0, 255, 0, 255]);
-    expect(rgba[0]).toBeGreaterThan(rgba[2]!);
-  });
-
-  it('returns the exact fixed proof inventory', () => {
-    expect(buildMeadowEntryProofInventory()).toEqual(MEADOW_ENTRY_PROOF_FILENAMES);
-    expect(new Set(MEADOW_ENTRY_PROOF_FILENAMES).size).toBe(MEADOW_ENTRY_PROOF_FILENAMES.length);
-  });
-});
-```
-
-Add fixture tests for zero-valued overlap diffs, every crop/overlap/corner/clamp/fallback proof ID, four Sundrop edge proofs, and rejection of writes outside the fixed inventory.
+Use four one-pixel layers to prove immutable Sundrop base/foreground composite above HPA-399 planes. Assert the fixed proof inventory has no duplicates. Add cases for zero-valued overlap diffs, every crop/overlap/corner/clamp/fallback proof ID, four Sundrop edge proofs, and rejection of unexpected output paths.
 
 - [ ] **Step 2: Run and verify failure**
 
@@ -1214,51 +783,28 @@ Add fixture tests for zero-valued overlap diffs, every crop/overlap/corner/clamp
 rtk bun run test:unit -- --run src/lib/game/content/backgrounds/meadow-entry-proof-renderer.test.ts
 ```
 
-- [ ] **Step 3: Implement fixed proof rendering**
+- [ ] **Step 3: Implement and render proofs**
 
-Generate:
-
-```text
-full base
-foreground on checkerboard
-full immutable-Sundrop composite
-protected/collision/foreground-eligible overlays
-runtime baked/fallback coverage overlays
-every region and connector at native resolution
-every overlap difference image
-every corner group
-every declared edge clamp
-every baked-to-fallback boundary
-four Sundrop feather-over-underlay edges
-```
-
-Proof sidecars record input hashes and master coordinates. The renderer rejects unexpected files and writes atomically.
-
-- [ ] **Step 4: Render and review proofs**
+Generate full base, foreground checkerboard, immutable-Sundrop composite, protected/collision/eligibility overlays, baked/fallback coverage, every region/connector, overlap diff, corner group, edge clamp, fallback boundary, and four Sundrop feather edges. Sidecars record input hashes and master coordinates. Writes are fixed-inventory and atomic.
 
 ```bash
 rtk bun tools/render-meadow-entry-art-proofs.ts
 rtk git lfs ls-files --name-only | grep '^docs/superpowers/reports/img/hpa-399/proofs/'
 ```
 
-Review all native proofs. The approval gate requires zero overlap differences, no unexplained coverage, continuous Sundrop feather edges, readable interactions, and no protected-live foreground overlap.
+- [ ] **Step 4: Review and approve**
 
-- [ ] **Step 5: Write the approval tool and asset test**
+Require zero overlap differences, zero unexplained coverage, continuous feather edges, readable interactions, and no protected foreground overlap.
 
-`tools/approve-meadow-entry-art-package.ts` reads existing artifacts, hashes and decodes each one, and writes a concrete `MeadowEntryArtPackageApproval`. The independent asset test re-hashes every path, validates dimensions/bytes, confirms every approved export/proof exists exactly once, and matches the PR-1 fingerprint/storage hash.
-
-- [ ] **Step 6: Approve after explicit review**
+`tools/approve-meadow-entry-art-package.ts` hashes/decodes every master, export, and proof and writes a concrete `MeadowEntryArtPackageApproval`. The independent asset test re-hashes every path, validates dimensions/bytes, checks exact inventory membership, and matches PR-1 control/storage hashes.
 
 ```bash
 rtk bun tools/approve-meadow-entry-art-package.ts \
   --reviewed-by "$USER" \
   --reviewed-at "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
-rtk bun run test:unit -- --run src/lib/game/content/meadow-entry-art-package.asset.test.ts
-```
-
-- [ ] **Step 7: Commit**
-
-```bash
+rtk bun run test:unit -- --run \
+  src/lib/game/content/backgrounds/meadow-entry-proof-renderer.test.ts \
+  src/lib/game/content/meadow-entry-art-package.asset.test.ts
 rtk git add \
   src/lib/game/content/backgrounds/meadow-entry-proof-renderer.ts \
   src/lib/game/content/backgrounds/meadow-entry-proof-renderer.test.ts \
@@ -1281,12 +827,7 @@ rtk git commit -m "test(hpa-399): approve meadow-entry art package"
 - Modify: `.github/workflows/ci.yml`
 - Create: `docs/superpowers/reports/2026-07-30-hpa-399-visual-masters-exports-validation.md`
 
-**Interfaces:**
-
-- Consumes: all approved masters, exports, proofs, controls, storage, provenance, and tests.
-- Produces: one deterministic validation command and the final HPA-399 evidence report.
-
-- [ ] **Step 1: Add package scripts**
+- [ ] **Step 1: Add scripts**
 
 ```json
 "art:finalize:meadow-entry": "bun tools/finalize-meadow-entry-masters.ts",
@@ -1296,47 +837,38 @@ rtk git commit -m "test(hpa-399): approve meadow-entry art package"
 "art:validate:meadow-entry": "bun tools/validate-meadow-entry-art-package.ts"
 ```
 
-- [ ] **Step 2: Implement the validator orchestration**
+- [ ] **Step 2: Implement validator orchestration**
 
-It must run in this order and stop on first failure:
+Stop on first failure:
 
 ```text
-Git LFS prerequisite/pointer/object/materialization verification
-PR-1 control regeneration in --check mode
-master approval, predecessor freeze, canonical PNG, alpha, mask, and budget validation
+Git LFS prerequisite, pointer, object, and materialization verification
+PR-1 controls in --check mode
+master approval, predecessor freeze, canonical PNG, alpha, mask, and budget checks
 export regeneration and clean hash comparison
 overlap/corner verification
 proof regeneration and clean hash comparison
 all HPA-399 focused unit/asset tests
-provenance and fixed-inventory/path allowlist verification
+provenance and fixed-inventory/path allowlist checks
 ```
 
-The validator does not claim to regenerate generative source candidates in CI. It validates approved masters and deterministically regenerates only exports and proofs from those masters.
+The validator never claims to recreate generative candidates. It validates approved masters and regenerates only deterministic downstream artifacts.
 
-- [ ] **Step 3: Add an HPA-399 art CI job**
+- [ ] **Step 3: Add CI job**
 
-Add a job using `actions/checkout@v4` with `lfs: true`, Bun setup, frozen install, and:
+Use `actions/checkout@v4` with `lfs: true`, frozen Bun install, then:
 
 ```yaml
 - name: Validate HPA-399 art package
   run: bun run art:validate:meadow-entry
 ```
 
-Do not add runtime `public/` assets or alter existing app build behavior.
-
-- [ ] **Step 4: Run focused validation from a clean tree**
+- [ ] **Step 4: Run focused and repository gates**
 
 ```bash
 rtk bun run art:validate:meadow-entry
 rtk git diff --exit-code
 rtk git lfs fsck
-```
-
-Expected: PASS and no deterministic regeneration diff.
-
-- [ ] **Step 5: Run repository gates**
-
-```bash
 rtk bun run check
 rtk bun run lint
 rtk bun run test:unit -- --run
@@ -1344,26 +876,13 @@ rtk bun run build
 rtk bun run build:tauri
 ```
 
-Run `rtk bun run tauri build` on a supported host only when packaging evidence is intended; do not claim it otherwise.
+Run `rtk bun run tauri build` only on a supported host when packaging evidence is intended.
 
-- [ ] **Step 6: Write the final report**
+- [ ] **Step 5: Write final evidence report**
 
-Include:
+Record source commit, PR-1 fingerprint, LFS version/object/materialization results, master hashes/dimensions/budgets, generation/manual provenance, refinements, crop/export counts, `exportAreaRatio`, aggregate budgets, overlap/corner/clamp/fallback results, predecessor hashes, feather proofs, proof inventory, all command results, reviewer/time, deterministic-versus-generative reproducibility distinction, and explicit non-claims for runtime integration/traversal/fallback execution/GPU/save/performance.
 
-- source commit/branch and approved PR-1 control fingerprint;
-- storage mode, LFS version, object counts, pointer/materialization checks;
-- base/foreground dimensions, hashes, byte counts, budgets, and exceptions;
-- generation/manual provenance and refinement list;
-- complete crop/export count, `exportAreaRatio`, aggregate budgets, hashes, and dimensions;
-- overlap/corner/clamp/fallback-boundary results;
-- Sundrop predecessor hashes and four feather-edge results;
-- proof inventory and durable object hashes;
-- focused/repository command results;
-- explicit native-review identity/time;
-- explicit distinction between deterministic finalization/export and non-byte-reproducible generative recreation;
-- explicit statement that no non-village runtime integration, traversal, fallback execution, GPU, save/reload, or performance claim is made.
-
-- [ ] **Step 7: Format, revalidate, and commit**
+- [ ] **Step 6: Format, revalidate, and commit**
 
 ```bash
 rtk bunx prettier --write \
@@ -1377,14 +896,14 @@ rtk git add package.json .github/workflows/ci.yml \
 rtk git commit -m "docs(hpa-399): record visual package validation"
 ```
 
-- [ ] **Step 8: Final HPA-399 stop gate**
+- [ ] **Step 7: Final HPA-399 stop gate**
 
-Before handing off to HPA-406, reviewers must approve:
+Reviewers must approve:
 
 ```text
 canonical base and foreground hashes
 immutable HPA-398 composite and feather proofs
-all direct regional exports
+all direct exports
 zero overlap/corner differences
 all clamps and baked/fallback boundaries
 complete LFS materialization
