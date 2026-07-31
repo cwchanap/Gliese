@@ -451,7 +451,7 @@ width=1792, height=1536
 
 This prevents a larger underlay from extending beyond the immutable HPA-398 ownership surface. The exception does not weaken handoff validation: every neighbor crop that meets the underlay must extend far enough into these exact bounds to create a declared base-only intersection at least `MEADOW_ENTRY_MIN_HANDOFF_PX` wide or high along the applicable route mouth.
 
-The underlay contains base paint only. HPA-406 renders all intersecting HPA-399 base crops first, then renders the immutable HPA-398 base above them.
+The underlay contains base paint only. HPA-406 renders all HPA-399 base crops—including connector crops that intersect the underlay—in deterministic `drawOrder`, then renders the immutable HPA-398 base above the complete HPA-399 base set.
 
 ### Mandatory PR 1 crop and overlap tables
 
@@ -991,7 +991,7 @@ Mitigation: refinements start from the current master, retain material/lighting 
 
 ### Sundrop does not blend
 
-Mitigation: use an exact, unexpanded underlay below immutable feathered HPA-398 bytes; neighboring crops still provide validated `128px` base-only intersections; review all four edges.
+Mitigation: use an exact, unexpanded underlay below immutable feathered HPA-398 bytes; neighboring crops still provide validated `128px` base-only intersections; render every HPA-399 base crop before the immutable HPA-398 base; review all four edges.
 
 ### Static ownership is incomplete
 
