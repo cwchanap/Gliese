@@ -1,38 +1,78 @@
-import { spawnSync } from 'node:child_process';
-import { readFileSync, writeFileSync } from 'node:fs';
-import { join } from 'node:path';
-
-import sharp from 'sharp';
 import { describe, expect, it } from 'vitest';
 
-const repositoryRoot = process.cwd();
-const canaryPath = join(repositoryRoot, 'artifacts/meadow-entry/hpa-399/lfs-canary.png');
+interface StorageVerifierApi {
+	assertTransparentOnePixelCanary?: (
+		metadata: { width?: number; height?: number },
+		rgbaPixel: Uint8Array
+	) => void;
+	verifyMeadowEntryLfsAttributeCoverage?: (runGit: (...args: string[]) => string) => void;
+}
+
+async function verifierApi(): Promise<StorageVerifierApi> {
+	return import('../../../../../tools/verify-meadow-entry-art-storage');
+}
+
+function checkedAttributes(path: string, override?: { name: string; value: string }): string {
+	const values = {
+		filter: 'lfs',
+		diff: 'lfs',
+		merge: 'lfs',
+		text: 'unset',
+		...(override ? { [override.name]: override.value } : {})
+	};
+	return Object.entries(values)
+		.map(([name, value]) => `${path}: ${name}: ${value}`)
+		.join('\n');
+}
 
 describe('Meadow Entry art storage verifier', () => {
-	it('rejects an opaque one-pixel canary', async () => {
-		const originalCanary = readFileSync(canaryPath);
+	it('rejects an opaque one-pixel canary without mutating the checked-in canary', async () => {
+		const api = await verifierApi();
+		const validateCanary = api.assertTransparentOnePixelCanary;
 
-		try {
-			await sharp({
-				create: {
-					width: 1,
-					height: 1,
-					channels: 4,
-					background: { r: 0, g: 0, b: 0, alpha: 1 }
-				}
-			})
-				.png()
-				.toFile(canaryPath);
+		expect(validateCanary).toBeTypeOf('function');
+		if (!validateCanary) return;
+		expect(() => validateCanary({ width: 1, height: 1 }, new Uint8Array([0, 0, 0, 255]))).toThrow(
+			/transparent RGBA pixel/
+		);
+	});
 
-			const result = spawnSync('bun', ['run', 'art:storage:meadow-entry'], {
-				cwd: repositoryRoot,
-				encoding: 'utf8'
-			});
+	it.each([
+		['asset', 'artifacts/meadow-entry/hpa-399/lfs-canary.png'],
+		['proof', 'docs/superpowers/reports/img/hpa-399/proofs/lfs-pattern-probe.png']
+	])('rejects a changed %s Git LFS pattern', async (label, changedPath) => {
+		const api = await verifierApi();
 
-			expect(result.status).toBe(1);
-			expect(result.stderr).toContain('transparent RGBA pixel');
-		} finally {
-			writeFileSync(canaryPath, originalCanary);
-		}
+		expect(api.verifyMeadowEntryLfsAttributeCoverage).toBeTypeOf('function');
+		if (!api.verifyMeadowEntryLfsAttributeCoverage) return;
+		const runGit = (...args: string[]): string => {
+			const path = args.at(-1)!;
+			return checkedAttributes(
+				path,
+				path === changedPath ? { name: 'filter', value: 'unspecified' } : undefined
+			);
+		};
+
+		expect(() => api.verifyMeadowEntryLfsAttributeCoverage!(runGit)).toThrow(
+			new RegExp(`${label}.*filter`, 'i')
+		);
+	});
+
+	it('executes attribute checks for both asset and proof namespaces', async () => {
+		const api = await verifierApi();
+		const checkedPaths: string[] = [];
+
+		expect(api.verifyMeadowEntryLfsAttributeCoverage).toBeTypeOf('function');
+		if (!api.verifyMeadowEntryLfsAttributeCoverage) return;
+		api.verifyMeadowEntryLfsAttributeCoverage((...args) => {
+			const path = args.at(-1)!;
+			checkedPaths.push(path);
+			return checkedAttributes(path);
+		});
+
+		expect(checkedPaths).toEqual([
+			'artifacts/meadow-entry/hpa-399/lfs-canary.png',
+			'docs/superpowers/reports/img/hpa-399/proofs/lfs-pattern-probe.png'
+		]);
 	});
 });
