@@ -2,7 +2,8 @@ import { describe, expect, it, vi } from 'vitest';
 import {
 	collectMeadowEntrySourceCatalog,
 	meadowEntrySourceKey,
-	resolveMeadowEntrySource
+	resolveMeadowEntrySource,
+	type MeadowEntrySourceType
 } from './meadow-entry-source-catalog';
 
 const meadowEntryModuleId = '$lib/game/content/maps/meadow-entry';
@@ -66,28 +67,38 @@ describe('meadow-entry source catalog', () => {
 		expect(keys).toEqual([...keys].sort((left, right) => left.localeCompare(right)));
 	});
 
-	it('preserves point sources without bounds and classifies visual capability by source kind', () => {
-		expect(
-			resolveMeadowEntrySource({ sourceType: 'transition', sourceId: 'meadow-to-hero-house' })
-		).toMatchObject({ bounds: null, visualCapable: true });
-		expect(
-			resolveMeadowEntrySource({ sourceType: 'pickup', sourceId: 'coast-salve' })
-		).toMatchObject({ bounds: null, visualCapable: true });
-		expect(
-			resolveMeadowEntrySource({ sourceType: 'encounter', sourceId: 'meadow-slime-center' })
-		).toMatchObject({ bounds: null, visualCapable: false });
-		expect(
-			resolveMeadowEntrySource({
-				sourceType: 'combat-bounds',
-				sourceId: 'whispering-cave-combat-pocket'
-			})
-		).toMatchObject({
-			bounds: { left: 5_664, top: 1_408, right: 6_176, bottom: 1_792 },
-			visualCapable: false
-		});
-		expect(
-			resolveMeadowEntrySource({ sourceType: 'discovery', sourceId: 'castle-gate-warning' })
-		).toMatchObject({ bounds: null, visualCapable: true });
+	it('classifies every populated source kind with its visual and bounds contract', () => {
+		const expectedBySourceType = [
+			{ sourceType: 'ground-patch', visualCapable: true, hasBounds: true },
+			{ sourceType: 'blocker', visualCapable: true, hasBounds: true },
+			{ sourceType: 'decor', visualCapable: true, hasBounds: true },
+			{ sourceType: 'fence', visualCapable: true, hasBounds: true },
+			{ sourceType: 'landmark', visualCapable: true, hasBounds: true },
+			{ sourceType: 'transition', visualCapable: true, hasBounds: false },
+			{ sourceType: 'ambient-npc', visualCapable: true, hasBounds: false },
+			{ sourceType: 'pickup', visualCapable: true, hasBounds: false },
+			{ sourceType: 'encounter', visualCapable: false, hasBounds: false },
+			{ sourceType: 'combat-bounds', visualCapable: false, hasBounds: true },
+			{ sourceType: 'discovery', visualCapable: true, hasBounds: false }
+		] satisfies readonly {
+			sourceType: MeadowEntrySourceType;
+			visualCapable: boolean;
+			hasBounds: boolean;
+		}[];
+
+		const catalog = collectMeadowEntrySourceCatalog();
+		for (const expected of expectedBySourceType) {
+			const records = catalog.filter(({ ref }) => ref.sourceType === expected.sourceType);
+			expect(records, expected.sourceType).not.toHaveLength(0);
+			expect(
+				records.every(({ visualCapable }) => visualCapable === expected.visualCapable),
+				expected.sourceType
+			).toBe(true);
+			expect(
+				records.every(({ bounds }) => (bounds !== null) === expected.hasBounds),
+				expected.sourceType
+			).toBe(true);
+		}
 	});
 
 	it('rejects both catalog omissions and map-only assembled sources', async () => {
