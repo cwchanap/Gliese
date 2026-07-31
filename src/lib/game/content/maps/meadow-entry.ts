@@ -17,7 +17,7 @@ import { pathsRegion } from '$lib/game/content/maps/regions/paths';
 
 export const openingMapId = 'meadow-entry';
 
-const meadowBoundsRegion: RegionFragment = {
+export const meadowBoundsRegion: RegionFragment = {
 	blockers: [
 		{ id: 'meadow-north-boundary', x: 3_200, y: 32, width: 6_400, height: 64, kind: 'town-hedge' },
 		{
