@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 6400 6400" width="6400" height="6400">
+  <rect data-id="landmark:blacksmith" x="1498" y="5087" width="236" height="226" fill="#777777"/>
+  <rect data-id="landmark:castle-gate" x="3260" y="2820" width="480" height="320" fill="#777777"/>
+  <rect data-id="landmark:crossroads-waystone" x="3440" y="3925" width="120" height="150" fill="#777777"/>
+  <rect data-id="landmark:ferry-crossing" x="3420" y="5560" width="360" height="320" fill="#777777"/>
+  <rect data-id="landmark:guild-hall-exterior" x="1462" y="4709" width="308" height="278" fill="#777777"/>
+  <rect data-id="landmark:hero-house-exterior" x="506" y="5429" width="236" height="246" fill="#777777"/>
+  <rect data-id="landmark:item-shop-exterior" x="373" y="5018" width="246" height="236" fill="#777777"/>
+  <rect data-id="landmark:shrine-of-aurora" x="1301" y="5385" width="246" height="334" fill="#777777"/>
+  <rect data-id="landmark:silver-shrine-gate" x="2790" y="320" width="420" height="320" fill="#777777"/>
+  <rect data-id="landmark:sundrop-well" x="1033" y="5088" width="142" height="160" fill="#777777"/>
+  <rect data-id="landmark:villager-house-1-exterior" x="415" y="4617" width="226" height="206" fill="#777777"/>
+  <rect data-id="landmark:villager-house-2-exterior" x="999" y="4589" width="338" height="262" fill="#777777"/>
+  <rect data-id="landmark:villager-house-3-exterior" x="724" y="4553" width="184" height="334" fill="#777777"/>
+  <rect data-id="landmark:whispering-cave" x="5832" y="1688" width="256" height="224" fill="#777777"/>
+  <rect data-id="landmark:witchwood-gate" x="1020" y="470" width="360" height="300" fill="#777777"/>
+  <rect data-id="transition:meadow-to-guild-hall" x="1568" y="4992" width="96" height="96" fill="#777777"/>
+  <rect data-id="transition:meadow-to-hero-house" x="576" y="5664" width="96" height="96" fill="#777777"/>
+  <rect data-id="transition:meadow-to-item-shop" x="448" y="5248" width="96" height="96" fill="#777777"/>
+  <rect data-id="transition:meadow-to-shrine-of-aurora" x="1376" y="5696" width="96" height="96" fill="#777777"/>
+  <rect data-id="transition:meadow-to-villager-house-1" x="480" y="4800" width="96" height="96" fill="#777777"/>
+  <rect data-id="transition:meadow-to-villager-house-2" x="1120" y="4832" width="96" height="96" fill="#777777"/>
+  <rect data-id="transition:meadow-to-villager-house-3" x="768" y="4864" width="96" height="96" fill="#777777"/>
+  <rect data-id="transition:meadow-to-whispering-cave-ruins-threshold" x="5912" y="1820" width="96" height="96" fill="#777777"/>
+</svg>

@@ -1,0 +1,3673 @@
+{
+  "crops": [
+    {
+      "id": "sundrop-village-underlay",
+      "derivation": {
+        "mode": "exact-bounds"
+      },
+      "reviewBounds": {
+        "left": 256,
+        "top": 4352,
+        "right": 2048,
+        "bottom": 5888
+      },
+      "coverageAttachments": [],
+      "preClampBounds": {
+        "left": 256,
+        "top": 4352,
+        "right": 2048,
+        "bottom": 5888
+      },
+      "edgeClamp": null,
+      "bounds": {
+        "left": 256,
+        "top": 4352,
+        "right": 2048,
+        "bottom": 5888
+      },
+      "expectedDimensions": {
+        "width": 1792,
+        "height": 1536
+      },
+      "baseFilename": "sundrop-village-underlay-base.png",
+      "foregroundFilename": null,
+      "textureKeys": {
+        "base": "meadow-entry-sundrop-village-underlay-base",
+        "foreground": null
+      },
+      "drawOrder": 0,
+      "sourceRegionIds": [
+        "sundrop-village"
+      ],
+      "neighborIds": [
+        "village-crossroads-connector"
+      ],
+      "overlapIds": [
+        "overlap-sundrop-village-underlay--village-crossroads-connector"
+      ],
+      "alphaPolicy": {
+        "base": "opaque",
+        "foreground": null
+      },
+      "sizeBudgets": {
+        "baseReviewBytes": 4194304,
+        "baseHardBytes": 8388608,
+        "foregroundReviewBytes": null,
+        "foregroundHardBytes": null
+      }
+    },
+    {
+      "id": "outer-boundary-east-forest-lane",
+      "derivation": {
+        "mode": "expanded-review-bounds",
+        "expansionPx": 128
+      },
+      "reviewBounds": {
+        "left": 4960,
+        "top": 1024,
+        "right": 6144,
+        "bottom": 5376
+      },
+      "coverageAttachments": [
+        {
+          "left": 6068,
+          "top": 3200,
+          "right": 6132,
+          "bottom": 5300
+        },
+        {
+          "left": 4968,
+          "top": 3200,
+          "right": 5032,
+          "bottom": 5300
+        },
+        {
+          "left": 5565,
+          "top": 1050,
+          "right": 5635,
+          "bottom": 5350
+        }
+      ],
+      "preClampBounds": {
+        "left": 4832,
+        "top": 896,
+        "right": 6272,
+        "bottom": 5504
+      },
+      "edgeClamp": null,
+      "bounds": {
+        "left": 4832,
+        "top": 896,
+        "right": 6272,
+        "bottom": 5504
+      },
+      "expectedDimensions": {
+        "width": 1440,
+        "height": 4608
+      },
+      "baseFilename": "outer-boundary-east-forest-lane-base.png",
+      "foregroundFilename": null,
+      "textureKeys": {
+        "base": "meadow-entry-outer-boundary-east-forest-lane-base",
+        "foreground": null
+      },
+      "drawOrder": 10,
+      "sourceRegionIds": [
+        "wildwood",
+        "tidewatch-coast"
+      ],
+      "neighborIds": [
+        "tidewatch-coast",
+        "wildwood"
+      ],
+      "overlapIds": [
+        "overlap-outer-boundary-east-forest-lane--tidewatch-coast",
+        "overlap-outer-boundary-east-forest-lane--wildwood"
+      ],
+      "alphaPolicy": {
+        "base": "opaque",
+        "foreground": null
+      },
+      "sizeBudgets": {
+        "baseReviewBytes": 25165824,
+        "baseHardBytes": 37748736,
+        "foregroundReviewBytes": null,
+        "foregroundHardBytes": null
+      }
+    },
+    {
+      "id": "village-crossroads-connector",
+      "derivation": {
+        "mode": "expanded-review-bounds",
+        "expansionPx": 128
+      },
+      "reviewBounds": {
+        "left": 1536,
+        "top": 3840,
+        "right": 3200,
+        "bottom": 4960
+      },
+      "coverageAttachments": [],
+      "preClampBounds": {
+        "left": 1408,
+        "top": 3712,
+        "right": 3328,
+        "bottom": 5088
+      },
+      "edgeClamp": null,
+      "bounds": {
+        "left": 1408,
+        "top": 3712,
+        "right": 3328,
+        "bottom": 5088
+      },
+      "expectedDimensions": {
+        "width": 1920,
+        "height": 1376
+      },
+      "baseFilename": "village-crossroads-connector-base.png",
+      "foregroundFilename": "village-crossroads-connector-foreground.png",
+      "textureKeys": {
+        "base": "meadow-entry-village-crossroads-connector-base",
+        "foreground": "meadow-entry-village-crossroads-connector-foreground"
+      },
+      "drawOrder": 100,
+      "sourceRegionIds": [
+        "connector-village-crossroads"
+      ],
+      "neighborIds": [
+        "sundrop-village-underlay",
+        "crossroads-coast-connector",
+        "crossroads",
+        "tidewatch-coast"
+      ],
+      "overlapIds": [
+        "overlap-sundrop-village-underlay--village-crossroads-connector",
+        "overlap-village-crossroads-connector--crossroads-coast-connector",
+        "overlap-village-crossroads-connector--crossroads",
+        "overlap-village-crossroads-connector--tidewatch-coast"
+      ],
+      "alphaPolicy": {
+        "base": "opaque",
+        "foreground": "sparse-eligible-mask"
+      },
+      "sizeBudgets": {
+        "baseReviewBytes": 8657044,
+        "baseHardBytes": 12985566,
+        "foregroundReviewBytes": 3246392,
+        "foregroundHardBytes": 6492783
+      }
+    },
+    {
+      "id": "crossroads-coast-connector",
+      "derivation": {
+        "mode": "expanded-review-bounds",
+        "expansionPx": 128
+      },
+      "reviewBounds": {
+        "left": 3424,
+        "top": 4544,
+        "right": 4352,
+        "bottom": 5568
+      },
+      "coverageAttachments": [],
+      "preClampBounds": {
+        "left": 3296,
+        "top": 4416,
+        "right": 4480,
+        "bottom": 5696
+      },
+      "edgeClamp": null,
+      "bounds": {
+        "left": 3296,
+        "top": 4416,
+        "right": 4480,
+        "bottom": 5696
+      },
+      "expectedDimensions": {
+        "width": 1184,
+        "height": 1280
+      },
+      "baseFilename": "crossroads-coast-connector-base.png",
+      "foregroundFilename": "crossroads-coast-connector-foreground.png",
+      "textureKeys": {
+        "base": "meadow-entry-crossroads-coast-connector-base",
+        "foreground": "meadow-entry-crossroads-coast-connector-foreground"
+      },
+      "drawOrder": 110,
+      "sourceRegionIds": [
+        "connector-crossroads-coast"
+      ],
+      "neighborIds": [
+        "village-crossroads-connector",
+        "crossroads-wildwood-connector",
+        "crossroads",
+        "tidewatch-coast",
+        "wildwood"
+      ],
+      "overlapIds": [
+        "overlap-village-crossroads-connector--crossroads-coast-connector",
+        "overlap-crossroads-coast-connector--crossroads-wildwood-connector",
+        "overlap-crossroads-coast-connector--crossroads",
+        "overlap-crossroads-coast-connector--tidewatch-coast",
+        "overlap-crossroads-coast-connector--wildwood"
+      ],
+      "alphaPolicy": {
+        "base": "opaque",
+        "foreground": "sparse-eligible-mask"
+      },
+      "sizeBudgets": {
+        "baseReviewBytes": 4966056,
+        "baseHardBytes": 7449084,
+        "foregroundReviewBytes": 1862271,
+        "foregroundHardBytes": 3724542
+      }
+    },
+    {
+      "id": "crossroads-mistfen-connector",
+      "derivation": {
+        "mode": "expanded-review-bounds",
+        "expansionPx": 128
+      },
+      "reviewBounds": {
+        "left": 2304,
+        "top": 2560,
+        "right": 3136,
+        "bottom": 3584
+      },
+      "coverageAttachments": [],
+      "preClampBounds": {
+        "left": 2176,
+        "top": 2432,
+        "right": 3264,
+        "bottom": 3712
+      },
+      "edgeClamp": null,
+      "bounds": {
+        "left": 2176,
+        "top": 2432,
+        "right": 3264,
+        "bottom": 3712
+      },
+      "expectedDimensions": {
+        "width": 1088,
+        "height": 1280
+      },
+      "baseFilename": "crossroads-mistfen-connector-base.png",
+      "foregroundFilename": "crossroads-mistfen-connector-foreground.png",
+      "textureKeys": {
+        "base": "meadow-entry-crossroads-mistfen-connector-base",
+        "foreground": "meadow-entry-crossroads-mistfen-connector-foreground"
+      },
+      "drawOrder": 120,
+      "sourceRegionIds": [
+        "connector-crossroads-mistfen"
+      ],
+      "neighborIds": [
+        "crossroads-silverpine-connector",
+        "crossroads",
+        "mistfen",
+        "silverpine"
+      ],
+      "overlapIds": [
+        "overlap-crossroads-mistfen-connector--crossroads-silverpine-connector",
+        "overlap-crossroads-mistfen-connector--crossroads",
+        "overlap-crossroads-mistfen-connector--mistfen",
+        "overlap-crossroads-mistfen-connector--silverpine"
+      ],
+      "alphaPolicy": {
+        "base": "opaque",
+        "foreground": "sparse-eligible-mask"
+      },
+      "sizeBudgets": {
+        "baseReviewBytes": 4563403,
+        "baseHardBytes": 6845105,
+        "foregroundReviewBytes": 1711277,
+        "foregroundHardBytes": 3422553
+      }
+    },
+    {
+      "id": "crossroads-silverpine-connector",
+      "derivation": {
+        "mode": "expanded-review-bounds",
+        "expansionPx": 128
+      },
+      "reviewBounds": {
+        "left": 3040,
+        "top": 2880,
+        "right": 3584,
+        "bottom": 3104
+      },
+      "coverageAttachments": [],
+      "preClampBounds": {
+        "left": 2912,
+        "top": 2752,
+        "right": 3712,
+        "bottom": 3232
+      },
+      "edgeClamp": null,
+      "bounds": {
+        "left": 2912,
+        "top": 2752,
+        "right": 3712,
+        "bottom": 3232
+      },
+      "expectedDimensions": {
+        "width": 800,
+        "height": 480
+      },
+      "baseFilename": "crossroads-silverpine-connector-base.png",
+      "foregroundFilename": "crossroads-silverpine-connector-foreground.png",
+      "textureKeys": {
+        "base": "meadow-entry-crossroads-silverpine-connector-base",
+        "foreground": "meadow-entry-crossroads-silverpine-connector-foreground"
+      },
+      "drawOrder": 130,
+      "sourceRegionIds": [
+        "connector-crossroads-silverpine"
+      ],
+      "neighborIds": [
+        "crossroads-mistfen-connector",
+        "crossroads",
+        "silverpine"
+      ],
+      "overlapIds": [
+        "overlap-crossroads-mistfen-connector--crossroads-silverpine-connector",
+        "overlap-crossroads-silverpine-connector--crossroads",
+        "overlap-crossroads-silverpine-connector--silverpine"
+      ],
+      "alphaPolicy": {
+        "base": "opaque",
+        "foreground": "sparse-eligible-mask"
+      },
+      "sizeBudgets": {
+        "baseReviewBytes": 1258292,
+        "baseHardBytes": 2097152,
+        "foregroundReviewBytes": 524288,
+        "foregroundHardBytes": 1048576
+      }
+    },
+    {
+      "id": "crossroads-wildwood-connector",
+      "derivation": {
+        "mode": "expanded-review-bounds",
+        "expansionPx": 128
+      },
+      "reviewBounds": {
+        "left": 3968,
+        "top": 3712,
+        "right": 4352,
+        "bottom": 4928
+      },
+      "coverageAttachments": [],
+      "preClampBounds": {
+        "left": 3840,
+        "top": 3584,
+        "right": 4480,
+        "bottom": 5056
+      },
+      "edgeClamp": null,
+      "bounds": {
+        "left": 3840,
+        "top": 3584,
+        "right": 4480,
+        "bottom": 5056
+      },
+      "expectedDimensions": {
+        "width": 640,
+        "height": 1472
+      },
+      "baseFilename": "crossroads-wildwood-connector-base.png",
+      "foregroundFilename": "crossroads-wildwood-connector-foreground.png",
+      "textureKeys": {
+        "base": "meadow-entry-crossroads-wildwood-connector-base",
+        "foreground": "meadow-entry-crossroads-wildwood-connector-foreground"
+      },
+      "drawOrder": 140,
+      "sourceRegionIds": [
+        "connector-crossroads-wildwood"
+      ],
+      "neighborIds": [
+        "crossroads-coast-connector",
+        "crossroads",
+        "tidewatch-coast",
+        "wildwood"
+      ],
+      "overlapIds": [
+        "overlap-crossroads-coast-connector--crossroads-wildwood-connector",
+        "overlap-crossroads-wildwood-connector--crossroads",
+        "overlap-crossroads-wildwood-connector--tidewatch-coast",
+        "overlap-crossroads-wildwood-connector--wildwood"
+      ],
+      "alphaPolicy": {
+        "base": "opaque",
+        "foreground": "sparse-eligible-mask"
+      },
+      "sizeBudgets": {
+        "baseReviewBytes": 3087008,
+        "baseHardBytes": 4630512,
+        "foregroundReviewBytes": 1157628,
+        "foregroundHardBytes": 2315256
+      }
+    },
+    {
+      "id": "crossroads",
+      "derivation": {
+        "mode": "expanded-review-bounds",
+        "expansionPx": 128
+      },
+      "reviewBounds": {
+        "left": 2912,
+        "top": 2624,
+        "right": 4256,
+        "bottom": 4576
+      },
+      "coverageAttachments": [],
+      "preClampBounds": {
+        "left": 2784,
+        "top": 2496,
+        "right": 4384,
+        "bottom": 4704
+      },
+      "edgeClamp": null,
+      "bounds": {
+        "left": 2784,
+        "top": 2496,
+        "right": 4384,
+        "bottom": 4704
+      },
+      "expectedDimensions": {
+        "width": 1600,
+        "height": 2208
+      },
+      "baseFilename": "crossroads-base.png",
+      "foregroundFilename": "crossroads-foreground.png",
+      "textureKeys": {
+        "base": "meadow-entry-crossroads-base",
+        "foreground": "meadow-entry-crossroads-foreground"
+      },
+      "drawOrder": 200,
+      "sourceRegionIds": [
+        "crossroads"
+      ],
+      "neighborIds": [
+        "village-crossroads-connector",
+        "crossroads-coast-connector",
+        "crossroads-mistfen-connector",
+        "crossroads-silverpine-connector",
+        "crossroads-wildwood-connector",
+        "tidewatch-coast",
+        "silverpine",
+        "wildwood"
+      ],
+      "overlapIds": [
+        "overlap-village-crossroads-connector--crossroads",
+        "overlap-crossroads-coast-connector--crossroads",
+        "overlap-crossroads-mistfen-connector--crossroads",
+        "overlap-crossroads-silverpine-connector--crossroads",
+        "overlap-crossroads-wildwood-connector--crossroads",
+        "overlap-crossroads--tidewatch-coast",
+        "overlap-crossroads--silverpine",
+        "overlap-crossroads--wildwood"
+      ],
+      "alphaPolicy": {
+        "base": "opaque",
+        "foreground": "sparse-eligible-mask"
+      },
+      "sizeBudgets": {
+        "baseReviewBytes": 11576280,
+        "baseHardBytes": 17364419,
+        "foregroundReviewBytes": 4341105,
+        "foregroundHardBytes": 8682210
+      }
+    },
+    {
+      "id": "tidewatch-coast",
+      "derivation": {
+        "mode": "expanded-review-bounds",
+        "expansionPx": 128
+      },
+      "reviewBounds": {
+        "left": 2784,
+        "top": 4448,
+        "right": 6400,
+        "bottom": 6400
+      },
+      "coverageAttachments": [
+        {
+          "left": 2800,
+          "top": 5312,
+          "right": 5600,
+          "bottom": 5382
+        },
+        {
+          "left": 5565,
+          "top": 4928,
+          "right": 5635,
+          "bottom": 5350
+        },
+        {
+          "left": 6068,
+          "top": 4928,
+          "right": 6132,
+          "bottom": 5300
+        },
+        {
+          "left": 4968,
+          "top": 4928,
+          "right": 5032,
+          "bottom": 5300
+        },
+        {
+          "left": 4450,
+          "top": 5140,
+          "right": 5550,
+          "bottom": 5260
+        },
+        {
+          "left": 4450,
+          "top": 5440,
+          "right": 5550,
+          "bottom": 5560
+        }
+      ],
+      "preClampBounds": {
+        "left": 2656,
+        "top": 4320,
+        "right": 6528,
+        "bottom": 6528
+      },
+      "edgeClamp": {
+        "sides": [
+          "right",
+          "bottom"
+        ],
+        "reason": "Tidewatch Coast reaches the east and south world edges; only its reviewed 128px expansion is clamped."
+      },
+      "bounds": {
+        "left": 2656,
+        "top": 4320,
+        "right": 6400,
+        "bottom": 6400
+      },
+      "expectedDimensions": {
+        "width": 3744,
+        "height": 2080
+      },
+      "baseFilename": "tidewatch-coast-base.png",
+      "foregroundFilename": "tidewatch-coast-foreground.png",
+      "textureKeys": {
+        "base": "meadow-entry-tidewatch-coast-base",
+        "foreground": "meadow-entry-tidewatch-coast-foreground"
+      },
+      "drawOrder": 210,
+      "sourceRegionIds": [
+        "tidewatch-coast"
+      ],
+      "neighborIds": [
+        "outer-boundary-east-forest-lane",
+        "village-crossroads-connector",
+        "crossroads-coast-connector",
+        "crossroads-wildwood-connector",
+        "crossroads",
+        "wildwood"
+      ],
+      "overlapIds": [
+        "overlap-outer-boundary-east-forest-lane--tidewatch-coast",
+        "overlap-village-crossroads-connector--tidewatch-coast",
+        "overlap-crossroads-coast-connector--tidewatch-coast",
+        "overlap-crossroads-wildwood-connector--tidewatch-coast",
+        "overlap-crossroads--tidewatch-coast",
+        "overlap-tidewatch-coast--wildwood"
+      ],
+      "alphaPolicy": {
+        "base": "opaque",
+        "foreground": "sparse-eligible-mask"
+      },
+      "sizeBudgets": {
+        "baseReviewBytes": 25518146,
+        "baseHardBytes": 38277219,
+        "foregroundReviewBytes": 9569305,
+        "foregroundHardBytes": 19138610
+      }
+    },
+    {
+      "id": "mistfen",
+      "derivation": {
+        "mode": "expanded-review-bounds",
+        "expansionPx": 128
+      },
+      "reviewBounds": {
+        "left": 224,
+        "top": 416,
+        "right": 2560,
+        "bottom": 3104
+      },
+      "coverageAttachments": [],
+      "preClampBounds": {
+        "left": 96,
+        "top": 288,
+        "right": 2688,
+        "bottom": 3232
+      },
+      "edgeClamp": null,
+      "bounds": {
+        "left": 96,
+        "top": 288,
+        "right": 2688,
+        "bottom": 3232
+      },
+      "expectedDimensions": {
+        "width": 2592,
+        "height": 2944
+      },
+      "baseFilename": "mistfen-base.png",
+      "foregroundFilename": "mistfen-foreground.png",
+      "textureKeys": {
+        "base": "meadow-entry-mistfen-base",
+        "foreground": "meadow-entry-mistfen-foreground"
+      },
+      "drawOrder": 220,
+      "sourceRegionIds": [
+        "mistfen"
+      ],
+      "neighborIds": [
+        "crossroads-mistfen-connector",
+        "silverpine"
+      ],
+      "overlapIds": [
+        "overlap-crossroads-mistfen-connector--mistfen",
+        "overlap-mistfen--silverpine"
+      ],
+      "alphaPolicy": {
+        "base": "opaque",
+        "foreground": "sparse-eligible-mask"
+      },
+      "sizeBudgets": {
+        "baseReviewBytes": 25004763,
+        "baseHardBytes": 37507145,
+        "foregroundReviewBytes": 9376787,
+        "foregroundHardBytes": 18753573
+      }
+    },
+    {
+      "id": "silverpine",
+      "derivation": {
+        "mode": "expanded-review-bounds",
+        "expansionPx": 128
+      },
+      "reviewBounds": {
+        "left": 2176,
+        "top": 256,
+        "right": 3808,
+        "bottom": 3008
+      },
+      "coverageAttachments": [],
+      "preClampBounds": {
+        "left": 2048,
+        "top": 128,
+        "right": 3936,
+        "bottom": 3136
+      },
+      "edgeClamp": null,
+      "bounds": {
+        "left": 2048,
+        "top": 128,
+        "right": 3936,
+        "bottom": 3136
+      },
+      "expectedDimensions": {
+        "width": 1888,
+        "height": 3008
+      },
+      "baseFilename": "silverpine-base.png",
+      "foregroundFilename": "silverpine-foreground.png",
+      "textureKeys": {
+        "base": "meadow-entry-silverpine-base",
+        "foreground": "meadow-entry-silverpine-foreground"
+      },
+      "drawOrder": 230,
+      "sourceRegionIds": [
+        "silverpine"
+      ],
+      "neighborIds": [
+        "crossroads-mistfen-connector",
+        "crossroads-silverpine-connector",
+        "crossroads",
+        "mistfen",
+        "wildwood"
+      ],
+      "overlapIds": [
+        "overlap-crossroads-mistfen-connector--silverpine",
+        "overlap-crossroads-silverpine-connector--silverpine",
+        "overlap-crossroads--silverpine",
+        "overlap-mistfen--silverpine",
+        "overlap-silverpine--wildwood"
+      ],
+      "alphaPolicy": {
+        "base": "opaque",
+        "foreground": "sparse-eligible-mask"
+      },
+      "sizeBudgets": {
+        "baseReviewBytes": 18609288,
+        "baseHardBytes": 27913932,
+        "foregroundReviewBytes": 6978483,
+        "foregroundHardBytes": 13956966
+      }
+    },
+    {
+      "id": "wildwood",
+      "derivation": {
+        "mode": "expanded-review-bounds",
+        "expansionPx": 128
+      },
+      "reviewBounds": {
+        "left": 3840,
+        "top": 256,
+        "right": 6400,
+        "bottom": 4928
+      },
+      "coverageAttachments": [],
+      "preClampBounds": {
+        "left": 3712,
+        "top": 128,
+        "right": 6528,
+        "bottom": 5056
+      },
+      "edgeClamp": {
+        "sides": [
+          "right"
+        ],
+        "reason": "Wildwood reaches the east world edge; only its reviewed 128px expansion is clamped."
+      },
+      "bounds": {
+        "left": 3712,
+        "top": 128,
+        "right": 6400,
+        "bottom": 5056
+      },
+      "expectedDimensions": {
+        "width": 2688,
+        "height": 4928
+      },
+      "baseFilename": "wildwood-base.png",
+      "foregroundFilename": "wildwood-foreground.png",
+      "textureKeys": {
+        "base": "meadow-entry-wildwood-base",
+        "foreground": "meadow-entry-wildwood-foreground"
+      },
+      "drawOrder": 240,
+      "sourceRegionIds": [
+        "wildwood"
+      ],
+      "neighborIds": [
+        "outer-boundary-east-forest-lane",
+        "crossroads-coast-connector",
+        "crossroads-wildwood-connector",
+        "crossroads",
+        "tidewatch-coast",
+        "silverpine"
+      ],
+      "overlapIds": [
+        "overlap-outer-boundary-east-forest-lane--wildwood",
+        "overlap-crossroads-coast-connector--wildwood",
+        "overlap-crossroads-wildwood-connector--wildwood",
+        "overlap-crossroads--wildwood",
+        "overlap-tidewatch-coast--wildwood",
+        "overlap-silverpine--wildwood"
+      ],
+      "alphaPolicy": {
+        "base": "opaque",
+        "foreground": "sparse-eligible-mask"
+      },
+      "sizeBudgets": {
+        "baseReviewBytes": 43406014,
+        "baseHardBytes": 65109020,
+        "foregroundReviewBytes": 16277255,
+        "foregroundHardBytes": 32554510
+      }
+    }
+  ],
+  "overlaps": [
+    {
+      "id": "overlap-sundrop-village-underlay--village-crossroads-connector",
+      "firstCropId": "sundrop-village-underlay",
+      "secondCropId": "village-crossroads-connector",
+      "bounds": {
+        "left": 1408,
+        "top": 4352,
+        "right": 2048,
+        "bottom": 5088
+      },
+      "routeMouth": {
+        "sharedAxis": "y",
+        "bounds": {
+          "left": 1408,
+          "top": 4352,
+          "right": 2048,
+          "bottom": 5088
+        }
+      },
+      "minimumSharedPixels": 128,
+      "planePolicy": "base-only",
+      "ownerCropId": "village-crossroads-connector"
+    },
+    {
+      "id": "overlap-outer-boundary-east-forest-lane--tidewatch-coast",
+      "firstCropId": "outer-boundary-east-forest-lane",
+      "secondCropId": "tidewatch-coast",
+      "bounds": {
+        "left": 4832,
+        "top": 4320,
+        "right": 6272,
+        "bottom": 5504
+      },
+      "routeMouth": {
+        "sharedAxis": "x",
+        "bounds": {
+          "left": 4832,
+          "top": 4320,
+          "right": 6272,
+          "bottom": 5504
+        }
+      },
+      "minimumSharedPixels": 128,
+      "planePolicy": "base-only",
+      "ownerCropId": "tidewatch-coast",
+      "cornerGroupId": "corner-meadow-entry-handoff-network"
+    },
+    {
+      "id": "overlap-outer-boundary-east-forest-lane--wildwood",
+      "firstCropId": "outer-boundary-east-forest-lane",
+      "secondCropId": "wildwood",
+      "bounds": {
+        "left": 4832,
+        "top": 896,
+        "right": 6272,
+        "bottom": 5056
+      },
+      "routeMouth": {
+        "sharedAxis": "y",
+        "bounds": {
+          "left": 4832,
+          "top": 896,
+          "right": 6272,
+          "bottom": 5056
+        }
+      },
+      "minimumSharedPixels": 128,
+      "planePolicy": "base-only",
+      "ownerCropId": "wildwood",
+      "cornerGroupId": "corner-meadow-entry-handoff-network"
+    },
+    {
+      "id": "overlap-village-crossroads-connector--crossroads-coast-connector",
+      "firstCropId": "village-crossroads-connector",
+      "secondCropId": "crossroads-coast-connector",
+      "bounds": {
+        "left": 3296,
+        "top": 4416,
+        "right": 3328,
+        "bottom": 5088
+      },
+      "routeMouth": {
+        "sharedAxis": "y",
+        "bounds": {
+          "left": 3296,
+          "top": 4416,
+          "right": 3328,
+          "bottom": 5088
+        }
+      },
+      "minimumSharedPixels": 128,
+      "planePolicy": "base-and-foreground",
+      "ownerCropId": "crossroads-coast-connector",
+      "cornerGroupId": "corner-meadow-entry-handoff-network"
+    },
+    {
+      "id": "overlap-village-crossroads-connector--crossroads",
+      "firstCropId": "village-crossroads-connector",
+      "secondCropId": "crossroads",
+      "bounds": {
+        "left": 2784,
+        "top": 3712,
+        "right": 3328,
+        "bottom": 4704
+      },
+      "routeMouth": {
+        "sharedAxis": "y",
+        "bounds": {
+          "left": 2784,
+          "top": 3712,
+          "right": 3328,
+          "bottom": 4704
+        }
+      },
+      "minimumSharedPixels": 128,
+      "planePolicy": "base-and-foreground",
+      "ownerCropId": "crossroads",
+      "cornerGroupId": "corner-meadow-entry-handoff-network"
+    },
+    {
+      "id": "overlap-village-crossroads-connector--tidewatch-coast",
+      "firstCropId": "village-crossroads-connector",
+      "secondCropId": "tidewatch-coast",
+      "bounds": {
+        "left": 2656,
+        "top": 4320,
+        "right": 3328,
+        "bottom": 5088
+      },
+      "routeMouth": {
+        "sharedAxis": "y",
+        "bounds": {
+          "left": 2656,
+          "top": 4320,
+          "right": 3328,
+          "bottom": 5088
+        }
+      },
+      "minimumSharedPixels": 128,
+      "planePolicy": "base-and-foreground",
+      "ownerCropId": "tidewatch-coast",
+      "cornerGroupId": "corner-meadow-entry-handoff-network"
+    },
+    {
+      "id": "overlap-crossroads-coast-connector--crossroads-wildwood-connector",
+      "firstCropId": "crossroads-coast-connector",
+      "secondCropId": "crossroads-wildwood-connector",
+      "bounds": {
+        "left": 3840,
+        "top": 4416,
+        "right": 4480,
+        "bottom": 5056
+      },
+      "routeMouth": {
+        "sharedAxis": "x",
+        "bounds": {
+          "left": 3840,
+          "top": 4416,
+          "right": 4480,
+          "bottom": 5056
+        }
+      },
+      "minimumSharedPixels": 128,
+      "planePolicy": "base-and-foreground",
+      "ownerCropId": "crossroads-wildwood-connector",
+      "cornerGroupId": "corner-meadow-entry-handoff-network"
+    },
+    {
+      "id": "overlap-crossroads-coast-connector--crossroads",
+      "firstCropId": "crossroads-coast-connector",
+      "secondCropId": "crossroads",
+      "bounds": {
+        "left": 3296,
+        "top": 4416,
+        "right": 4384,
+        "bottom": 4704
+      },
+      "routeMouth": {
+        "sharedAxis": "x",
+        "bounds": {
+          "left": 3296,
+          "top": 4416,
+          "right": 4384,
+          "bottom": 4704
+        }
+      },
+      "minimumSharedPixels": 128,
+      "planePolicy": "base-and-foreground",
+      "ownerCropId": "crossroads",
+      "cornerGroupId": "corner-meadow-entry-handoff-network"
+    },
+    {
+      "id": "overlap-crossroads-coast-connector--tidewatch-coast",
+      "firstCropId": "crossroads-coast-connector",
+      "secondCropId": "tidewatch-coast",
+      "bounds": {
+        "left": 3296,
+        "top": 4416,
+        "right": 4480,
+        "bottom": 5696
+      },
+      "routeMouth": {
+        "sharedAxis": "y",
+        "bounds": {
+          "left": 3296,
+          "top": 4416,
+          "right": 4480,
+          "bottom": 5696
+        }
+      },
+      "minimumSharedPixels": 128,
+      "planePolicy": "base-and-foreground",
+      "ownerCropId": "tidewatch-coast",
+      "cornerGroupId": "corner-meadow-entry-handoff-network"
+    },
+    {
+      "id": "overlap-crossroads-coast-connector--wildwood",
+      "firstCropId": "crossroads-coast-connector",
+      "secondCropId": "wildwood",
+      "bounds": {
+        "left": 3712,
+        "top": 4416,
+        "right": 4480,
+        "bottom": 5056
+      },
+      "routeMouth": {
+        "sharedAxis": "x",
+        "bounds": {
+          "left": 3712,
+          "top": 4416,
+          "right": 4480,
+          "bottom": 5056
+        }
+      },
+      "minimumSharedPixels": 128,
+      "planePolicy": "base-and-foreground",
+      "ownerCropId": "wildwood",
+      "cornerGroupId": "corner-meadow-entry-handoff-network"
+    },
+    {
+      "id": "overlap-crossroads-mistfen-connector--crossroads-silverpine-connector",
+      "firstCropId": "crossroads-mistfen-connector",
+      "secondCropId": "crossroads-silverpine-connector",
+      "bounds": {
+        "left": 2912,
+        "top": 2752,
+        "right": 3264,
+        "bottom": 3232
+      },
+      "routeMouth": {
+        "sharedAxis": "y",
+        "bounds": {
+          "left": 2912,
+          "top": 2752,
+          "right": 3264,
+          "bottom": 3232
+        }
+      },
+      "minimumSharedPixels": 128,
+      "planePolicy": "base-and-foreground",
+      "ownerCropId": "crossroads-silverpine-connector",
+      "cornerGroupId": "corner-meadow-entry-handoff-network"
+    },
+    {
+      "id": "overlap-crossroads-mistfen-connector--crossroads",
+      "firstCropId": "crossroads-mistfen-connector",
+      "secondCropId": "crossroads",
+      "bounds": {
+        "left": 2784,
+        "top": 2496,
+        "right": 3264,
+        "bottom": 3712
+      },
+      "routeMouth": {
+        "sharedAxis": "y",
+        "bounds": {
+          "left": 2784,
+          "top": 2496,
+          "right": 3264,
+          "bottom": 3712
+        }
+      },
+      "minimumSharedPixels": 128,
+      "planePolicy": "base-and-foreground",
+      "ownerCropId": "crossroads",
+      "cornerGroupId": "corner-meadow-entry-handoff-network"
+    },
+    {
+      "id": "overlap-crossroads-mistfen-connector--mistfen",
+      "firstCropId": "crossroads-mistfen-connector",
+      "secondCropId": "mistfen",
+      "bounds": {
+        "left": 2176,
+        "top": 2432,
+        "right": 2688,
+        "bottom": 3232
+      },
+      "routeMouth": {
+        "sharedAxis": "y",
+        "bounds": {
+          "left": 2176,
+          "top": 2432,
+          "right": 2688,
+          "bottom": 3232
+        }
+      },
+      "minimumSharedPixels": 128,
+      "planePolicy": "base-and-foreground",
+      "ownerCropId": "mistfen",
+      "cornerGroupId": "corner-meadow-entry-handoff-network"
+    },
+    {
+      "id": "overlap-crossroads-mistfen-connector--silverpine",
+      "firstCropId": "crossroads-mistfen-connector",
+      "secondCropId": "silverpine",
+      "bounds": {
+        "left": 2176,
+        "top": 2432,
+        "right": 3264,
+        "bottom": 3136
+      },
+      "routeMouth": {
+        "sharedAxis": "x",
+        "bounds": {
+          "left": 2176,
+          "top": 2432,
+          "right": 3264,
+          "bottom": 3136
+        }
+      },
+      "minimumSharedPixels": 128,
+      "planePolicy": "base-and-foreground",
+      "ownerCropId": "silverpine",
+      "cornerGroupId": "corner-meadow-entry-handoff-network"
+    },
+    {
+      "id": "overlap-crossroads-silverpine-connector--crossroads",
+      "firstCropId": "crossroads-silverpine-connector",
+      "secondCropId": "crossroads",
+      "bounds": {
+        "left": 2912,
+        "top": 2752,
+        "right": 3712,
+        "bottom": 3232
+      },
+      "routeMouth": {
+        "sharedAxis": "x",
+        "bounds": {
+          "left": 2912,
+          "top": 2752,
+          "right": 3712,
+          "bottom": 3232
+        }
+      },
+      "minimumSharedPixels": 128,
+      "planePolicy": "base-and-foreground",
+      "ownerCropId": "crossroads",
+      "cornerGroupId": "corner-meadow-entry-handoff-network"
+    },
+    {
+      "id": "overlap-crossroads-silverpine-connector--silverpine",
+      "firstCropId": "crossroads-silverpine-connector",
+      "secondCropId": "silverpine",
+      "bounds": {
+        "left": 2912,
+        "top": 2752,
+        "right": 3712,
+        "bottom": 3136
+      },
+      "routeMouth": {
+        "sharedAxis": "x",
+        "bounds": {
+          "left": 2912,
+          "top": 2752,
+          "right": 3712,
+          "bottom": 3136
+        }
+      },
+      "minimumSharedPixels": 128,
+      "planePolicy": "base-and-foreground",
+      "ownerCropId": "silverpine",
+      "cornerGroupId": "corner-meadow-entry-handoff-network"
+    },
+    {
+      "id": "overlap-crossroads-wildwood-connector--crossroads",
+      "firstCropId": "crossroads-wildwood-connector",
+      "secondCropId": "crossroads",
+      "bounds": {
+        "left": 3840,
+        "top": 3584,
+        "right": 4384,
+        "bottom": 4704
+      },
+      "routeMouth": {
+        "sharedAxis": "y",
+        "bounds": {
+          "left": 3840,
+          "top": 3584,
+          "right": 4384,
+          "bottom": 4704
+        }
+      },
+      "minimumSharedPixels": 128,
+      "planePolicy": "base-and-foreground",
+      "ownerCropId": "crossroads",
+      "cornerGroupId": "corner-meadow-entry-handoff-network"
+    },
+    {
+      "id": "overlap-crossroads-wildwood-connector--tidewatch-coast",
+      "firstCropId": "crossroads-wildwood-connector",
+      "secondCropId": "tidewatch-coast",
+      "bounds": {
+        "left": 3840,
+        "top": 4320,
+        "right": 4480,
+        "bottom": 5056
+      },
+      "routeMouth": {
+        "sharedAxis": "y",
+        "bounds": {
+          "left": 3840,
+          "top": 4320,
+          "right": 4480,
+          "bottom": 5056
+        }
+      },
+      "minimumSharedPixels": 128,
+      "planePolicy": "base-and-foreground",
+      "ownerCropId": "tidewatch-coast",
+      "cornerGroupId": "corner-meadow-entry-handoff-network"
+    },
+    {
+      "id": "overlap-crossroads-wildwood-connector--wildwood",
+      "firstCropId": "crossroads-wildwood-connector",
+      "secondCropId": "wildwood",
+      "bounds": {
+        "left": 3840,
+        "top": 3584,
+        "right": 4480,
+        "bottom": 5056
+      },
+      "routeMouth": {
+        "sharedAxis": "y",
+        "bounds": {
+          "left": 3840,
+          "top": 3584,
+          "right": 4480,
+          "bottom": 5056
+        }
+      },
+      "minimumSharedPixels": 128,
+      "planePolicy": "base-and-foreground",
+      "ownerCropId": "wildwood",
+      "cornerGroupId": "corner-meadow-entry-handoff-network"
+    },
+    {
+      "id": "overlap-crossroads--tidewatch-coast",
+      "firstCropId": "crossroads",
+      "secondCropId": "tidewatch-coast",
+      "bounds": {
+        "left": 2784,
+        "top": 4320,
+        "right": 4384,
+        "bottom": 4704
+      },
+      "routeMouth": {
+        "sharedAxis": "x",
+        "bounds": {
+          "left": 2784,
+          "top": 4320,
+          "right": 4384,
+          "bottom": 4704
+        }
+      },
+      "minimumSharedPixels": 128,
+      "planePolicy": "base-and-foreground",
+      "ownerCropId": "tidewatch-coast",
+      "cornerGroupId": "corner-meadow-entry-handoff-network"
+    },
+    {
+      "id": "overlap-crossroads--silverpine",
+      "firstCropId": "crossroads",
+      "secondCropId": "silverpine",
+      "bounds": {
+        "left": 2784,
+        "top": 2496,
+        "right": 3936,
+        "bottom": 3136
+      },
+      "routeMouth": {
+        "sharedAxis": "x",
+        "bounds": {
+          "left": 2784,
+          "top": 2496,
+          "right": 3936,
+          "bottom": 3136
+        }
+      },
+      "minimumSharedPixels": 128,
+      "planePolicy": "base-and-foreground",
+      "ownerCropId": "silverpine",
+      "cornerGroupId": "corner-meadow-entry-handoff-network"
+    },
+    {
+      "id": "overlap-crossroads--wildwood",
+      "firstCropId": "crossroads",
+      "secondCropId": "wildwood",
+      "bounds": {
+        "left": 3712,
+        "top": 2496,
+        "right": 4384,
+        "bottom": 4704
+      },
+      "routeMouth": {
+        "sharedAxis": "y",
+        "bounds": {
+          "left": 3712,
+          "top": 2496,
+          "right": 4384,
+          "bottom": 4704
+        }
+      },
+      "minimumSharedPixels": 128,
+      "planePolicy": "base-and-foreground",
+      "ownerCropId": "wildwood",
+      "cornerGroupId": "corner-meadow-entry-handoff-network"
+    },
+    {
+      "id": "overlap-tidewatch-coast--wildwood",
+      "firstCropId": "tidewatch-coast",
+      "secondCropId": "wildwood",
+      "bounds": {
+        "left": 3712,
+        "top": 4320,
+        "right": 6400,
+        "bottom": 5056
+      },
+      "routeMouth": {
+        "sharedAxis": "x",
+        "bounds": {
+          "left": 3712,
+          "top": 4320,
+          "right": 6400,
+          "bottom": 5056
+        }
+      },
+      "minimumSharedPixels": 128,
+      "planePolicy": "base-and-foreground",
+      "ownerCropId": "wildwood",
+      "cornerGroupId": "corner-meadow-entry-handoff-network"
+    },
+    {
+      "id": "overlap-mistfen--silverpine",
+      "firstCropId": "mistfen",
+      "secondCropId": "silverpine",
+      "bounds": {
+        "left": 2048,
+        "top": 288,
+        "right": 2688,
+        "bottom": 3136
+      },
+      "routeMouth": {
+        "sharedAxis": "y",
+        "bounds": {
+          "left": 2048,
+          "top": 288,
+          "right": 2688,
+          "bottom": 3136
+        }
+      },
+      "minimumSharedPixels": 128,
+      "planePolicy": "base-and-foreground",
+      "ownerCropId": "silverpine",
+      "cornerGroupId": "corner-meadow-entry-handoff-network"
+    },
+    {
+      "id": "overlap-silverpine--wildwood",
+      "firstCropId": "silverpine",
+      "secondCropId": "wildwood",
+      "bounds": {
+        "left": 3712,
+        "top": 128,
+        "right": 3936,
+        "bottom": 3136
+      },
+      "routeMouth": {
+        "sharedAxis": "y",
+        "bounds": {
+          "left": 3712,
+          "top": 128,
+          "right": 3936,
+          "bottom": 3136
+        }
+      },
+      "minimumSharedPixels": 128,
+      "planePolicy": "base-and-foreground",
+      "ownerCropId": "wildwood",
+      "cornerGroupId": "corner-meadow-entry-handoff-network"
+    }
+  ],
+  "runtimeCoverage": [
+    {
+      "mode": "fallback-tile",
+      "bounds": {
+        "left": 0,
+        "top": 0,
+        "right": 6400,
+        "bottom": 128
+      },
+      "reason": "Existing meadow-entry tile rendering remains the deliberate fallback outside approved baked crop coverage."
+    },
+    {
+      "mode": "fallback-tile",
+      "bounds": {
+        "left": 0,
+        "top": 128,
+        "right": 2048,
+        "bottom": 288
+      },
+      "reason": "Existing meadow-entry tile rendering remains the deliberate fallback outside approved baked crop coverage."
+    },
+    {
+      "mode": "baked",
+      "bounds": {
+        "left": 2048,
+        "top": 128,
+        "right": 3712,
+        "bottom": 288
+      },
+      "cropIds": [
+        "silverpine"
+      ]
+    },
+    {
+      "mode": "baked",
+      "bounds": {
+        "left": 3712,
+        "top": 128,
+        "right": 3936,
+        "bottom": 288
+      },
+      "cropIds": [
+        "silverpine",
+        "wildwood"
+      ]
+    },
+    {
+      "mode": "baked",
+      "bounds": {
+        "left": 3936,
+        "top": 128,
+        "right": 6400,
+        "bottom": 288
+      },
+      "cropIds": [
+        "wildwood"
+      ]
+    },
+    {
+      "mode": "fallback-tile",
+      "bounds": {
+        "left": 0,
+        "top": 288,
+        "right": 96,
+        "bottom": 896
+      },
+      "reason": "Existing meadow-entry tile rendering remains the deliberate fallback outside approved baked crop coverage."
+    },
+    {
+      "mode": "baked",
+      "bounds": {
+        "left": 96,
+        "top": 288,
+        "right": 2048,
+        "bottom": 896
+      },
+      "cropIds": [
+        "mistfen"
+      ]
+    },
+    {
+      "mode": "baked",
+      "bounds": {
+        "left": 2048,
+        "top": 288,
+        "right": 2688,
+        "bottom": 896
+      },
+      "cropIds": [
+        "mistfen",
+        "silverpine"
+      ]
+    },
+    {
+      "mode": "baked",
+      "bounds": {
+        "left": 2688,
+        "top": 288,
+        "right": 3712,
+        "bottom": 896
+      },
+      "cropIds": [
+        "silverpine"
+      ]
+    },
+    {
+      "mode": "baked",
+      "bounds": {
+        "left": 3712,
+        "top": 288,
+        "right": 3936,
+        "bottom": 896
+      },
+      "cropIds": [
+        "silverpine",
+        "wildwood"
+      ]
+    },
+    {
+      "mode": "baked",
+      "bounds": {
+        "left": 3936,
+        "top": 288,
+        "right": 6400,
+        "bottom": 896
+      },
+      "cropIds": [
+        "wildwood"
+      ]
+    },
+    {
+      "mode": "fallback-tile",
+      "bounds": {
+        "left": 0,
+        "top": 896,
+        "right": 96,
+        "bottom": 2432
+      },
+      "reason": "Existing meadow-entry tile rendering remains the deliberate fallback outside approved baked crop coverage."
+    },
+    {
+      "mode": "baked",
+      "bounds": {
+        "left": 96,
+        "top": 896,
+        "right": 2048,
+        "bottom": 2432
+      },
+      "cropIds": [
+        "mistfen"
+      ]
+    },
+    {
+      "mode": "baked",
+      "bounds": {
+        "left": 2048,
+        "top": 896,
+        "right": 2688,
+        "bottom": 2432
+      },
+      "cropIds": [
+        "mistfen",
+        "silverpine"
+      ]
+    },
+    {
+      "mode": "baked",
+      "bounds": {
+        "left": 2688,
+        "top": 896,
+        "right": 3712,
+        "bottom": 2432
+      },
+      "cropIds": [
+        "silverpine"
+      ]
+    },
+    {
+      "mode": "baked",
+      "bounds": {
+        "left": 3712,
+        "top": 896,
+        "right": 3936,
+        "bottom": 2432
+      },
+      "cropIds": [
+        "silverpine",
+        "wildwood"
+      ]
+    },
+    {
+      "mode": "baked",
+      "bounds": {
+        "left": 3936,
+        "top": 896,
+        "right": 4832,
+        "bottom": 2432
+      },
+      "cropIds": [
+        "wildwood"
+      ]
+    },
+    {
+      "mode": "baked",
+      "bounds": {
+        "left": 4832,
+        "top": 896,
+        "right": 6272,
+        "bottom": 2432
+      },
+      "cropIds": [
+        "outer-boundary-east-forest-lane",
+        "wildwood"
+      ]
+    },
+    {
+      "mode": "baked",
+      "bounds": {
+        "left": 6272,
+        "top": 896,
+        "right": 6400,
+        "bottom": 2432
+      },
+      "cropIds": [
+        "wildwood"
+      ]
+    },
+    {
+      "mode": "fallback-tile",
+      "bounds": {
+        "left": 0,
+        "top": 2432,
+        "right": 96,
+        "bottom": 2496
+      },
+      "reason": "Existing meadow-entry tile rendering remains the deliberate fallback outside approved baked crop coverage."
+    },
+    {
+      "mode": "baked",
+      "bounds": {
+        "left": 96,
+        "top": 2432,
+        "right": 2048,
+        "bottom": 2496
+      },
+      "cropIds": [
+        "mistfen"
+      ]
+    },
+    {
+      "mode": "baked",
+      "bounds": {
+        "left": 2048,
+        "top": 2432,
+        "right": 2176,
+        "bottom": 2496
+      },
+      "cropIds": [
+        "mistfen",
+        "silverpine"
+      ]
+    },
+    {
+      "mode": "baked",
+      "bounds": {
+        "left": 2176,
+        "top": 2432,
+        "right": 2688,
+        "bottom": 2496
+      },
+      "cropIds": [
+        "crossroads-mistfen-connector",
+        "mistfen",
+        "silverpine"
+      ]
+    },
+    {
+      "mode": "baked",
+      "bounds": {
+        "left": 2688,
+        "top": 2432,
+        "right": 3264,
+        "bottom": 2496
+      },
+      "cropIds": [
+        "crossroads-mistfen-connector",
+        "silverpine"
+      ]
+    },
+    {
+      "mode": "baked",
+      "bounds": {
+        "left": 3264,
+        "top": 2432,
+        "right": 3712,
+        "bottom": 2496
+      },
+      "cropIds": [
+        "silverpine"
+      ]
+    },
+    {
+      "mode": "baked",
+      "bounds": {
+        "left": 3712,
+        "top": 2432,
+        "right": 3936,
+        "bottom": 2496
+      },
+      "cropIds": [
+        "silverpine",
+        "wildwood"
+      ]
+    },
+    {
+      "mode": "baked",
+      "bounds": {
+        "left": 3936,
+        "top": 2432,
+        "right": 4832,
+        "bottom": 2496
+      },
+      "cropIds": [
+        "wildwood"
+      ]
+    },
+    {
+      "mode": "baked",
+      "bounds": {
+        "left": 4832,
+        "top": 2432,
+        "right": 6272,
+        "bottom": 2496
+      },
+      "cropIds": [
+        "outer-boundary-east-forest-lane",
+        "wildwood"
+      ]
+    },
+    {
+      "mode": "baked",
+      "bounds": {
+        "left": 6272,
+        "top": 2432,
+        "right": 6400,
+        "bottom": 2496
+      },
+      "cropIds": [
+        "wildwood"
+      ]
+    },
+    {
+      "mode": "fallback-tile",
+      "bounds": {
+        "left": 0,
+        "top": 2496,
+        "right": 96,
+        "bottom": 2752
+      },
+      "reason": "Existing meadow-entry tile rendering remains the deliberate fallback outside approved baked crop coverage."
+    },
+    {
+      "mode": "baked",
+      "bounds": {
+        "left": 96,
+        "top": 2496,
+        "right": 2048,
+        "bottom": 2752
+      },
+      "cropIds": [
+        "mistfen"
+      ]
+    },
+    {
+      "mode": "baked",
+      "bounds": {
+        "left": 2048,
+        "top": 2496,
+        "right": 2176,
+        "bottom": 2752
+      },
+      "cropIds": [
+        "mistfen",
+        "silverpine"
+      ]
+    },
+    {
+      "mode": "baked",
+      "bounds": {
+        "left": 2176,
+        "top": 2496,
+        "right": 2688,
+        "bottom": 2752
+      },
+      "cropIds": [
+        "crossroads-mistfen-connector",
+        "mistfen",
+        "silverpine"
+      ]
+    },
+    {
+      "mode": "baked",
+      "bounds": {
+        "left": 2688,
+        "top": 2496,
+        "right": 2784,
+        "bottom": 2752
+      },
+      "cropIds": [
+        "crossroads-mistfen-connector",
+        "silverpine"
+      ]
+    },
+    {
+      "mode": "baked",
+      "bounds": {
+        "left": 2784,
+        "top": 2496,
+        "right": 3264,
+        "bottom": 2752
+      },
+      "cropIds": [
+        "crossroads-mistfen-connector",
+        "crossroads",
+        "silverpine"
+      ]
+    },
+    {
+      "mode": "baked",
+      "bounds": {
+        "left": 3264,
+        "top": 2496,
+        "right": 3712,
+        "bottom": 2752
+      },
+      "cropIds": [
+        "crossroads",
+        "silverpine"
+      ]
+    },
+    {
+      "mode": "baked",
+      "bounds": {
+        "left": 3712,
+        "top": 2496,
+        "right": 3936,
+        "bottom": 2752
+      },
+      "cropIds": [
+        "crossroads",
+        "silverpine",
+        "wildwood"
+      ]
+    },
+    {
+      "mode": "baked",
+      "bounds": {
+        "left": 3936,
+        "top": 2496,
+        "right": 4384,
+        "bottom": 2752
+      },
+      "cropIds": [
+        "crossroads",
+        "wildwood"
+      ]
+    },
+    {
+      "mode": "baked",
+      "bounds": {
+        "left": 4384,
+        "top": 2496,
+        "right": 4832,
+        "bottom": 2752
+      },
+      "cropIds": [
+        "wildwood"
+      ]
+    },
+    {
+      "mode": "baked",
+      "bounds": {
+        "left": 4832,
+        "top": 2496,
+        "right": 6272,
+        "bottom": 2752
+      },
+      "cropIds": [
+        "outer-boundary-east-forest-lane",
+        "wildwood"
+      ]
+    },
+    {
+      "mode": "baked",
+      "bounds": {
+        "left": 6272,
+        "top": 2496,
+        "right": 6400,
+        "bottom": 2752
+      },
+      "cropIds": [
+        "wildwood"
+      ]
+    },
+    {
+      "mode": "fallback-tile",
+      "bounds": {
+        "left": 0,
+        "top": 2752,
+        "right": 96,
+        "bottom": 3136
+      },
+      "reason": "Existing meadow-entry tile rendering remains the deliberate fallback outside approved baked crop coverage."
+    },
+    {
+      "mode": "baked",
+      "bounds": {
+        "left": 96,
+        "top": 2752,
+        "right": 2048,
+        "bottom": 3136
+      },
+      "cropIds": [
+        "mistfen"
+      ]
+    },
+    {
+      "mode": "baked",
+      "bounds": {
+        "left": 2048,
+        "top": 2752,
+        "right": 2176,
+        "bottom": 3136
+      },
+      "cropIds": [
+        "mistfen",
+        "silverpine"
+      ]
+    },
+    {
+      "mode": "baked",
+      "bounds": {
+        "left": 2176,
+        "top": 2752,
+        "right": 2688,
+        "bottom": 3136
+      },
+      "cropIds": [
+        "crossroads-mistfen-connector",
+        "mistfen",
+        "silverpine"
+      ]
+    },
+    {
+      "mode": "baked",
+      "bounds": {
+        "left": 2688,
+        "top": 2752,
+        "right": 2784,
+        "bottom": 3136
+      },
+      "cropIds": [
+        "crossroads-mistfen-connector",
+        "silverpine"
+      ]
+    },
+    {
+      "mode": "baked",
+      "bounds": {
+        "left": 2784,
+        "top": 2752,
+        "right": 2912,
+        "bottom": 3136
+      },
+      "cropIds": [
+        "crossroads-mistfen-connector",
+        "crossroads",
+        "silverpine"
+      ]
+    },
+    {
+      "mode": "baked",
+      "bounds": {
+        "left": 2912,
+        "top": 2752,
+        "right": 3264,
+        "bottom": 3136
+      },
+      "cropIds": [
+        "crossroads-mistfen-connector",
+        "crossroads-silverpine-connector",
+        "crossroads",
+        "silverpine"
+      ]
+    },
+    {
+      "mode": "baked",
+      "bounds": {
+        "left": 3264,
+        "top": 2752,
+        "right": 3712,
+        "bottom": 3136
+      },
+      "cropIds": [
+        "crossroads-silverpine-connector",
+        "crossroads",
+        "silverpine"
+      ]
+    },
+    {
+      "mode": "baked",
+      "bounds": {
+        "left": 3712,
+        "top": 2752,
+        "right": 3936,
+        "bottom": 3136
+      },
+      "cropIds": [
+        "crossroads",
+        "silverpine",
+        "wildwood"
+      ]
+    },
+    {
+      "mode": "baked",
+      "bounds": {
+        "left": 3936,
+        "top": 2752,
+        "right": 4384,
+        "bottom": 3136
+      },
+      "cropIds": [
+        "crossroads",
+        "wildwood"
+      ]
+    },
+    {
+      "mode": "baked",
+      "bounds": {
+        "left": 4384,
+        "top": 2752,
+        "right": 4832,
+        "bottom": 3136
+      },
+      "cropIds": [
+        "wildwood"
+      ]
+    },
+    {
+      "mode": "baked",
+      "bounds": {
+        "left": 4832,
+        "top": 2752,
+        "right": 6272,
+        "bottom": 3136
+      },
+      "cropIds": [
+        "outer-boundary-east-forest-lane",
+        "wildwood"
+      ]
+    },
+    {
+      "mode": "baked",
+      "bounds": {
+        "left": 6272,
+        "top": 2752,
+        "right": 6400,
+        "bottom": 3136
+      },
+      "cropIds": [
+        "wildwood"
+      ]
+    },
+    {
+      "mode": "fallback-tile",
+      "bounds": {
+        "left": 0,
+        "top": 3136,
+        "right": 96,
+        "bottom": 3232
+      },
+      "reason": "Existing meadow-entry tile rendering remains the deliberate fallback outside approved baked crop coverage."
+    },
+    {
+      "mode": "baked",
+      "bounds": {
+        "left": 96,
+        "top": 3136,
+        "right": 2176,
+        "bottom": 3232
+      },
+      "cropIds": [
+        "mistfen"
+      ]
+    },
+    {
+      "mode": "baked",
+      "bounds": {
+        "left": 2176,
+        "top": 3136,
+        "right": 2688,
+        "bottom": 3232
+      },
+      "cropIds": [
+        "crossroads-mistfen-connector",
+        "mistfen"
+      ]
+    },
+    {
+      "mode": "baked",
+      "bounds": {
+        "left": 2688,
+        "top": 3136,
+        "right": 2784,
+        "bottom": 3232
+      },
+      "cropIds": [
+        "crossroads-mistfen-connector"
+      ]
+    },
+    {
+      "mode": "baked",
+      "bounds": {
+        "left": 2784,
+        "top": 3136,
+        "right": 2912,
+        "bottom": 3232
+      },
+      "cropIds": [
+        "crossroads-mistfen-connector",
+        "crossroads"
+      ]
+    },
+    {
+      "mode": "baked",
+      "bounds": {
+        "left": 2912,
+        "top": 3136,
+        "right": 3264,
+        "bottom": 3232
+      },
+      "cropIds": [
+        "crossroads-mistfen-connector",
+        "crossroads-silverpine-connector",
+        "crossroads"
+      ]
+    },
+    {
+      "mode": "baked",
+      "bounds": {
+        "left": 3264,
+        "top": 3136,
+        "right": 3712,
+        "bottom": 3232
+      },
+      "cropIds": [
+        "crossroads-silverpine-connector",
+        "crossroads"
+      ]
+    },
+    {
+      "mode": "baked",
+      "bounds": {
+        "left": 3712,
+        "top": 3136,
+        "right": 4384,
+        "bottom": 3232
+      },
+      "cropIds": [
+        "crossroads",
+        "wildwood"
+      ]
+    },
+    {
+      "mode": "baked",
+      "bounds": {
+        "left": 4384,
+        "top": 3136,
+        "right": 4832,
+        "bottom": 3232
+      },
+      "cropIds": [
+        "wildwood"
+      ]
+    },
+    {
+      "mode": "baked",
+      "bounds": {
+        "left": 4832,
+        "top": 3136,
+        "right": 6272,
+        "bottom": 3232
+      },
+      "cropIds": [
+        "outer-boundary-east-forest-lane",
+        "wildwood"
+      ]
+    },
+    {
+      "mode": "baked",
+      "bounds": {
+        "left": 6272,
+        "top": 3136,
+        "right": 6400,
+        "bottom": 3232
+      },
+      "cropIds": [
+        "wildwood"
+      ]
+    },
+    {
+      "mode": "fallback-tile",
+      "bounds": {
+        "left": 0,
+        "top": 3232,
+        "right": 2176,
+        "bottom": 3584
+      },
+      "reason": "Existing meadow-entry tile rendering remains the deliberate fallback outside approved baked crop coverage."
+    },
+    {
+      "mode": "baked",
+      "bounds": {
+        "left": 2176,
+        "top": 3232,
+        "right": 2784,
+        "bottom": 3584
+      },
+      "cropIds": [
+        "crossroads-mistfen-connector"
+      ]
+    },
+    {
+      "mode": "baked",
+      "bounds": {
+        "left": 2784,
+        "top": 3232,
+        "right": 3264,
+        "bottom": 3584
+      },
+      "cropIds": [
+        "crossroads-mistfen-connector",
+        "crossroads"
+      ]
+    },
+    {
+      "mode": "baked",
+      "bounds": {
+        "left": 3264,
+        "top": 3232,
+        "right": 3712,
+        "bottom": 3584
+      },
+      "cropIds": [
+        "crossroads"
+      ]
+    },
+    {
+      "mode": "baked",
+      "bounds": {
+        "left": 3712,
+        "top": 3232,
+        "right": 4384,
+        "bottom": 3584
+      },
+      "cropIds": [
+        "crossroads",
+        "wildwood"
+      ]
+    },
+    {
+      "mode": "baked",
+      "bounds": {
+        "left": 4384,
+        "top": 3232,
+        "right": 4832,
+        "bottom": 3584
+      },
+      "cropIds": [
+        "wildwood"
+      ]
+    },
+    {
+      "mode": "baked",
+      "bounds": {
+        "left": 4832,
+        "top": 3232,
+        "right": 6272,
+        "bottom": 3584
+      },
+      "cropIds": [
+        "outer-boundary-east-forest-lane",
+        "wildwood"
+      ]
+    },
+    {
+      "mode": "baked",
+      "bounds": {
+        "left": 6272,
+        "top": 3232,
+        "right": 6400,
+        "bottom": 3584
+      },
+      "cropIds": [
+        "wildwood"
+      ]
+    },
+    {
+      "mode": "fallback-tile",
+      "bounds": {
+        "left": 0,
+        "top": 3584,
+        "right": 2176,
+        "bottom": 3712
+      },
+      "reason": "Existing meadow-entry tile rendering remains the deliberate fallback outside approved baked crop coverage."
+    },
+    {
+      "mode": "baked",
+      "bounds": {
+        "left": 2176,
+        "top": 3584,
+        "right": 2784,
+        "bottom": 3712
+      },
+      "cropIds": [
+        "crossroads-mistfen-connector"
+      ]
+    },
+    {
+      "mode": "baked",
+      "bounds": {
+        "left": 2784,
+        "top": 3584,
+        "right": 3264,
+        "bottom": 3712
+      },
+      "cropIds": [
+        "crossroads-mistfen-connector",
+        "crossroads"
+      ]
+    },
+    {
+      "mode": "baked",
+      "bounds": {
+        "left": 3264,
+        "top": 3584,
+        "right": 3712,
+        "bottom": 3712
+      },
+      "cropIds": [
+        "crossroads"
+      ]
+    },
+    {
+      "mode": "baked",
+      "bounds": {
+        "left": 3712,
+        "top": 3584,
+        "right": 3840,
+        "bottom": 3712
+      },
+      "cropIds": [
+        "crossroads",
+        "wildwood"
+      ]
+    },
+    {
+      "mode": "baked",
+      "bounds": {
+        "left": 3840,
+        "top": 3584,
+        "right": 4384,
+        "bottom": 3712
+      },
+      "cropIds": [
+        "crossroads-wildwood-connector",
+        "crossroads",
+        "wildwood"
+      ]
+    },
+    {
+      "mode": "baked",
+      "bounds": {
+        "left": 4384,
+        "top": 3584,
+        "right": 4480,
+        "bottom": 3712
+      },
+      "cropIds": [
+        "crossroads-wildwood-connector",
+        "wildwood"
+      ]
+    },
+    {
+      "mode": "baked",
+      "bounds": {
+        "left": 4480,
+        "top": 3584,
+        "right": 4832,
+        "bottom": 3712
+      },
+      "cropIds": [
+        "wildwood"
+      ]
+    },
+    {
+      "mode": "baked",
+      "bounds": {
+        "left": 4832,
+        "top": 3584,
+        "right": 6272,
+        "bottom": 3712
+      },
+      "cropIds": [
+        "outer-boundary-east-forest-lane",
+        "wildwood"
+      ]
+    },
+    {
+      "mode": "baked",
+      "bounds": {
+        "left": 6272,
+        "top": 3584,
+        "right": 6400,
+        "bottom": 3712
+      },
+      "cropIds": [
+        "wildwood"
+      ]
+    },
+    {
+      "mode": "fallback-tile",
+      "bounds": {
+        "left": 0,
+        "top": 3712,
+        "right": 1408,
+        "bottom": 4320
+      },
+      "reason": "Existing meadow-entry tile rendering remains the deliberate fallback outside approved baked crop coverage."
+    },
+    {
+      "mode": "baked",
+      "bounds": {
+        "left": 1408,
+        "top": 3712,
+        "right": 2784,
+        "bottom": 4320
+      },
+      "cropIds": [
+        "village-crossroads-connector"
+      ]
+    },
+    {
+      "mode": "baked",
+      "bounds": {
+        "left": 2784,
+        "top": 3712,
+        "right": 3328,
+        "bottom": 4320
+      },
+      "cropIds": [
+        "village-crossroads-connector",
+        "crossroads"
+      ]
+    },
+    {
+      "mode": "baked",
+      "bounds": {
+        "left": 3328,
+        "top": 3712,
+        "right": 3712,
+        "bottom": 4320
+      },
+      "cropIds": [
+        "crossroads"
+      ]
+    },
+    {
+      "mode": "baked",
+      "bounds": {
+        "left": 3712,
+        "top": 3712,
+        "right": 3840,
+        "bottom": 4320
+      },
+      "cropIds": [
+        "crossroads",
+        "wildwood"
+      ]
+    },
+    {
+      "mode": "baked",
+      "bounds": {
+        "left": 3840,
+        "top": 3712,
+        "right": 4384,
+        "bottom": 4320
+      },
+      "cropIds": [
+        "crossroads-wildwood-connector",
+        "crossroads",
+        "wildwood"
+      ]
+    },
+    {
+      "mode": "baked",
+      "bounds": {
+        "left": 4384,
+        "top": 3712,
+        "right": 4480,
+        "bottom": 4320
+      },
+      "cropIds": [
+        "crossroads-wildwood-connector",
+        "wildwood"
+      ]
+    },
+    {
+      "mode": "baked",
+      "bounds": {
+        "left": 4480,
+        "top": 3712,
+        "right": 4832,
+        "bottom": 4320
+      },
+      "cropIds": [
+        "wildwood"
+      ]
+    },
+    {
+      "mode": "baked",
+      "bounds": {
+        "left": 4832,
+        "top": 3712,
+        "right": 6272,
+        "bottom": 4320
+      },
+      "cropIds": [
+        "outer-boundary-east-forest-lane",
+        "wildwood"
+      ]
+    },
+    {
+      "mode": "baked",
+      "bounds": {
+        "left": 6272,
+        "top": 3712,
+        "right": 6400,
+        "bottom": 4320
+      },
+      "cropIds": [
+        "wildwood"
+      ]
+    },
+    {
+      "mode": "fallback-tile",
+      "bounds": {
+        "left": 0,
+        "top": 4320,
+        "right": 1408,
+        "bottom": 4352
+      },
+      "reason": "Existing meadow-entry tile rendering remains the deliberate fallback outside approved baked crop coverage."
+    },
+    {
+      "mode": "baked",
+      "bounds": {
+        "left": 1408,
+        "top": 4320,
+        "right": 2656,
+        "bottom": 4352
+      },
+      "cropIds": [
+        "village-crossroads-connector"
+      ]
+    },
+    {
+      "mode": "baked",
+      "bounds": {
+        "left": 2656,
+        "top": 4320,
+        "right": 2784,
+        "bottom": 4352
+      },
+      "cropIds": [
+        "village-crossroads-connector",
+        "tidewatch-coast"
+      ]
+    },
+    {
+      "mode": "baked",
+      "bounds": {
+        "left": 2784,
+        "top": 4320,
+        "right": 3328,
+        "bottom": 4352
+      },
+      "cropIds": [
+        "village-crossroads-connector",
+        "crossroads",
+        "tidewatch-coast"
+      ]
+    },
+    {
+      "mode": "baked",
+      "bounds": {
+        "left": 3328,
+        "top": 4320,
+        "right": 3712,
+        "bottom": 4352
+      },
+      "cropIds": [
+        "crossroads",
+        "tidewatch-coast"
+      ]
+    },
+    {
+      "mode": "baked",
+      "bounds": {
+        "left": 3712,
+        "top": 4320,
+        "right": 3840,
+        "bottom": 4352
+      },
+      "cropIds": [
+        "crossroads",
+        "tidewatch-coast",
+        "wildwood"
+      ]
+    },
+    {
+      "mode": "baked",
+      "bounds": {
+        "left": 3840,
+        "top": 4320,
+        "right": 4384,
+        "bottom": 4352
+      },
+      "cropIds": [
+        "crossroads-wildwood-connector",
+        "crossroads",
+        "tidewatch-coast",
+        "wildwood"
+      ]
+    },
+    {
+      "mode": "baked",
+      "bounds": {
+        "left": 4384,
+        "top": 4320,
+        "right": 4480,
+        "bottom": 4352
+      },
+      "cropIds": [
+        "crossroads-wildwood-connector",
+        "tidewatch-coast",
+        "wildwood"
+      ]
+    },
+    {
+      "mode": "baked",
+      "bounds": {
+        "left": 4480,
+        "top": 4320,
+        "right": 4832,
+        "bottom": 4352
+      },
+      "cropIds": [
+        "tidewatch-coast",
+        "wildwood"
+      ]
+    },
+    {
+      "mode": "baked",
+      "bounds": {
+        "left": 4832,
+        "top": 4320,
+        "right": 6272,
+        "bottom": 4352
+      },
+      "cropIds": [
+        "outer-boundary-east-forest-lane",
+        "tidewatch-coast",
+        "wildwood"
+      ]
+    },
+    {
+      "mode": "baked",
+      "bounds": {
+        "left": 6272,
+        "top": 4320,
+        "right": 6400,
+        "bottom": 4352
+      },
+      "cropIds": [
+        "tidewatch-coast",
+        "wildwood"
+      ]
+    },
+    {
+      "mode": "fallback-tile",
+      "bounds": {
+        "left": 0,
+        "top": 4352,
+        "right": 256,
+        "bottom": 4416
+      },
+      "reason": "Existing meadow-entry tile rendering remains the deliberate fallback outside approved baked crop coverage."
+    },
+    {
+      "mode": "baked",
+      "bounds": {
+        "left": 256,
+        "top": 4352,
+        "right": 1408,
+        "bottom": 4416
+      },
+      "cropIds": [
+        "sundrop-village-underlay"
+      ]
+    },
+    {
+      "mode": "baked",
+      "bounds": {
+        "left": 1408,
+        "top": 4352,
+        "right": 2048,
+        "bottom": 4416
+      },
+      "cropIds": [
+        "sundrop-village-underlay",
+        "village-crossroads-connector"
+      ]
+    },
+    {
+      "mode": "baked",
+      "bounds": {
+        "left": 2048,
+        "top": 4352,
+        "right": 2656,
+        "bottom": 4416
+      },
+      "cropIds": [
+        "village-crossroads-connector"
+      ]
+    },
+    {
+      "mode": "baked",
+      "bounds": {
+        "left": 2656,
+        "top": 4352,
+        "right": 2784,
+        "bottom": 4416
+      },
+      "cropIds": [
+        "village-crossroads-connector",
+        "tidewatch-coast"
+      ]
+    },
+    {
+      "mode": "baked",
+      "bounds": {
+        "left": 2784,
+        "top": 4352,
+        "right": 3328,
+        "bottom": 4416
+      },
+      "cropIds": [
+        "village-crossroads-connector",
+        "crossroads",
+        "tidewatch-coast"
+      ]
+    },
+    {
+      "mode": "baked",
+      "bounds": {
+        "left": 3328,
+        "top": 4352,
+        "right": 3712,
+        "bottom": 4416
+      },
+      "cropIds": [
+        "crossroads",
+        "tidewatch-coast"
+      ]
+    },
+    {
+      "mode": "baked",
+      "bounds": {
+        "left": 3712,
+        "top": 4352,
+        "right": 3840,
+        "bottom": 4416
+      },
+      "cropIds": [
+        "crossroads",
+        "tidewatch-coast",
+        "wildwood"
+      ]
+    },
+    {
+      "mode": "baked",
+      "bounds": {
+        "left": 3840,
+        "top": 4352,
+        "right": 4384,
+        "bottom": 4416
+      },
+      "cropIds": [
+        "crossroads-wildwood-connector",
+        "crossroads",
+        "tidewatch-coast",
+        "wildwood"
+      ]
+    },
+    {
+      "mode": "baked",
+      "bounds": {
+        "left": 4384,
+        "top": 4352,
+        "right": 4480,
+        "bottom": 4416
+      },
+      "cropIds": [
+        "crossroads-wildwood-connector",
+        "tidewatch-coast",
+        "wildwood"
+      ]
+    },
+    {
+      "mode": "baked",
+      "bounds": {
+        "left": 4480,
+        "top": 4352,
+        "right": 4832,
+        "bottom": 4416
+      },
+      "cropIds": [
+        "tidewatch-coast",
+        "wildwood"
+      ]
+    },
+    {
+      "mode": "baked",
+      "bounds": {
+        "left": 4832,
+        "top": 4352,
+        "right": 6272,
+        "bottom": 4416
+      },
+      "cropIds": [
+        "outer-boundary-east-forest-lane",
+        "tidewatch-coast",
+        "wildwood"
+      ]
+    },
+    {
+      "mode": "baked",
+      "bounds": {
+        "left": 6272,
+        "top": 4352,
+        "right": 6400,
+        "bottom": 4416
+      },
+      "cropIds": [
+        "tidewatch-coast",
+        "wildwood"
+      ]
+    },
+    {
+      "mode": "fallback-tile",
+      "bounds": {
+        "left": 0,
+        "top": 4416,
+        "right": 256,
+        "bottom": 4704
+      },
+      "reason": "Existing meadow-entry tile rendering remains the deliberate fallback outside approved baked crop coverage."
+    },
+    {
+      "mode": "baked",
+      "bounds": {
+        "left": 256,
+        "top": 4416,
+        "right": 1408,
+        "bottom": 4704
+      },
+      "cropIds": [
+        "sundrop-village-underlay"
+      ]
+    },
+    {
+      "mode": "baked",
+      "bounds": {
+        "left": 1408,
+        "top": 4416,
+        "right": 2048,
+        "bottom": 4704
+      },
+      "cropIds": [
+        "sundrop-village-underlay",
+        "village-crossroads-connector"
+      ]
+    },
+    {
+      "mode": "baked",
+      "bounds": {
+        "left": 2048,
+        "top": 4416,
+        "right": 2656,
+        "bottom": 4704
+      },
+      "cropIds": [
+        "village-crossroads-connector"
+      ]
+    },
+    {
+      "mode": "baked",
+      "bounds": {
+        "left": 2656,
+        "top": 4416,
+        "right": 2784,
+        "bottom": 4704
+      },
+      "cropIds": [
+        "village-crossroads-connector",
+        "tidewatch-coast"
+      ]
+    },
+    {
+      "mode": "baked",
+      "bounds": {
+        "left": 2784,
+        "top": 4416,
+        "right": 3296,
+        "bottom": 4704
+      },
+      "cropIds": [
+        "village-crossroads-connector",
+        "crossroads",
+        "tidewatch-coast"
+      ]
+    },
+    {
+      "mode": "baked",
+      "bounds": {
+        "left": 3296,
+        "top": 4416,
+        "right": 3328,
+        "bottom": 4704
+      },
+      "cropIds": [
+        "village-crossroads-connector",
+        "crossroads-coast-connector",
+        "crossroads",
+        "tidewatch-coast"
+      ]
+    },
+    {
+      "mode": "baked",
+      "bounds": {
+        "left": 3328,
+        "top": 4416,
+        "right": 3712,
+        "bottom": 4704
+      },
+      "cropIds": [
+        "crossroads-coast-connector",
+        "crossroads",
+        "tidewatch-coast"
+      ]
+    },
+    {
+      "mode": "baked",
+      "bounds": {
+        "left": 3712,
+        "top": 4416,
+        "right": 3840,
+        "bottom": 4704
+      },
+      "cropIds": [
+        "crossroads-coast-connector",
+        "crossroads",
+        "tidewatch-coast",
+        "wildwood"
+      ]
+    },
+    {
+      "mode": "baked",
+      "bounds": {
+        "left": 3840,
+        "top": 4416,
+        "right": 4384,
+        "bottom": 4704
+      },
+      "cropIds": [
+        "crossroads-coast-connector",
+        "crossroads-wildwood-connector",
+        "crossroads",
+        "tidewatch-coast",
+        "wildwood"
+      ]
+    },
+    {
+      "mode": "baked",
+      "bounds": {
+        "left": 4384,
+        "top": 4416,
+        "right": 4480,
+        "bottom": 4704
+      },
+      "cropIds": [
+        "crossroads-coast-connector",
+        "crossroads-wildwood-connector",
+        "tidewatch-coast",
+        "wildwood"
+      ]
+    },
+    {
+      "mode": "baked",
+      "bounds": {
+        "left": 4480,
+        "top": 4416,
+        "right": 4832,
+        "bottom": 4704
+      },
+      "cropIds": [
+        "tidewatch-coast",
+        "wildwood"
+      ]
+    },
+    {
+      "mode": "baked",
+      "bounds": {
+        "left": 4832,
+        "top": 4416,
+        "right": 6272,
+        "bottom": 4704
+      },
+      "cropIds": [
+        "outer-boundary-east-forest-lane",
+        "tidewatch-coast",
+        "wildwood"
+      ]
+    },
+    {
+      "mode": "baked",
+      "bounds": {
+        "left": 6272,
+        "top": 4416,
+        "right": 6400,
+        "bottom": 4704
+      },
+      "cropIds": [
+        "tidewatch-coast",
+        "wildwood"
+      ]
+    },
+    {
+      "mode": "fallback-tile",
+      "bounds": {
+        "left": 0,
+        "top": 4704,
+        "right": 256,
+        "bottom": 5056
+      },
+      "reason": "Existing meadow-entry tile rendering remains the deliberate fallback outside approved baked crop coverage."
+    },
+    {
+      "mode": "baked",
+      "bounds": {
+        "left": 256,
+        "top": 4704,
+        "right": 1408,
+        "bottom": 5056
+      },
+      "cropIds": [
+        "sundrop-village-underlay"
+      ]
+    },
+    {
+      "mode": "baked",
+      "bounds": {
+        "left": 1408,
+        "top": 4704,
+        "right": 2048,
+        "bottom": 5056
+      },
+      "cropIds": [
+        "sundrop-village-underlay",
+        "village-crossroads-connector"
+      ]
+    },
+    {
+      "mode": "baked",
+      "bounds": {
+        "left": 2048,
+        "top": 4704,
+        "right": 2656,
+        "bottom": 5056
+      },
+      "cropIds": [
+        "village-crossroads-connector"
+      ]
+    },
+    {
+      "mode": "baked",
+      "bounds": {
+        "left": 2656,
+        "top": 4704,
+        "right": 3296,
+        "bottom": 5056
+      },
+      "cropIds": [
+        "village-crossroads-connector",
+        "tidewatch-coast"
+      ]
+    },
+    {
+      "mode": "baked",
+      "bounds": {
+        "left": 3296,
+        "top": 4704,
+        "right": 3328,
+        "bottom": 5056
+      },
+      "cropIds": [
+        "village-crossroads-connector",
+        "crossroads-coast-connector",
+        "tidewatch-coast"
+      ]
+    },
+    {
+      "mode": "baked",
+      "bounds": {
+        "left": 3328,
+        "top": 4704,
+        "right": 3712,
+        "bottom": 5056
+      },
+      "cropIds": [
+        "crossroads-coast-connector",
+        "tidewatch-coast"
+      ]
+    },
+    {
+      "mode": "baked",
+      "bounds": {
+        "left": 3712,
+        "top": 4704,
+        "right": 3840,
+        "bottom": 5056
+      },
+      "cropIds": [
+        "crossroads-coast-connector",
+        "tidewatch-coast",
+        "wildwood"
+      ]
+    },
+    {
+      "mode": "baked",
+      "bounds": {
+        "left": 3840,
+        "top": 4704,
+        "right": 4480,
+        "bottom": 5056
+      },
+      "cropIds": [
+        "crossroads-coast-connector",
+        "crossroads-wildwood-connector",
+        "tidewatch-coast",
+        "wildwood"
+      ]
+    },
+    {
+      "mode": "baked",
+      "bounds": {
+        "left": 4480,
+        "top": 4704,
+        "right": 4832,
+        "bottom": 5056
+      },
+      "cropIds": [
+        "tidewatch-coast",
+        "wildwood"
+      ]
+    },
+    {
+      "mode": "baked",
+      "bounds": {
+        "left": 4832,
+        "top": 4704,
+        "right": 6272,
+        "bottom": 5056
+      },
+      "cropIds": [
+        "outer-boundary-east-forest-lane",
+        "tidewatch-coast",
+        "wildwood"
+      ]
+    },
+    {
+      "mode": "baked",
+      "bounds": {
+        "left": 6272,
+        "top": 4704,
+        "right": 6400,
+        "bottom": 5056
+      },
+      "cropIds": [
+        "tidewatch-coast",
+        "wildwood"
+      ]
+    },
+    {
+      "mode": "fallback-tile",
+      "bounds": {
+        "left": 0,
+        "top": 5056,
+        "right": 256,
+        "bottom": 5088
+      },
+      "reason": "Existing meadow-entry tile rendering remains the deliberate fallback outside approved baked crop coverage."
+    },
+    {
+      "mode": "baked",
+      "bounds": {
+        "left": 256,
+        "top": 5056,
+        "right": 1408,
+        "bottom": 5088
+      },
+      "cropIds": [
+        "sundrop-village-underlay"
+      ]
+    },
+    {
+      "mode": "baked",
+      "bounds": {
+        "left": 1408,
+        "top": 5056,
+        "right": 2048,
+        "bottom": 5088
+      },
+      "cropIds": [
+        "sundrop-village-underlay",
+        "village-crossroads-connector"
+      ]
+    },
+    {
+      "mode": "baked",
+      "bounds": {
+        "left": 2048,
+        "top": 5056,
+        "right": 2656,
+        "bottom": 5088
+      },
+      "cropIds": [
+        "village-crossroads-connector"
+      ]
+    },
+    {
+      "mode": "baked",
+      "bounds": {
+        "left": 2656,
+        "top": 5056,
+        "right": 3296,
+        "bottom": 5088
+      },
+      "cropIds": [
+        "village-crossroads-connector",
+        "tidewatch-coast"
+      ]
+    },
+    {
+      "mode": "baked",
+      "bounds": {
+        "left": 3296,
+        "top": 5056,
+        "right": 3328,
+        "bottom": 5088
+      },
+      "cropIds": [
+        "village-crossroads-connector",
+        "crossroads-coast-connector",
+        "tidewatch-coast"
+      ]
+    },
+    {
+      "mode": "baked",
+      "bounds": {
+        "left": 3328,
+        "top": 5056,
+        "right": 4480,
+        "bottom": 5088
+      },
+      "cropIds": [
+        "crossroads-coast-connector",
+        "tidewatch-coast"
+      ]
+    },
+    {
+      "mode": "baked",
+      "bounds": {
+        "left": 4480,
+        "top": 5056,
+        "right": 4832,
+        "bottom": 5088
+      },
+      "cropIds": [
+        "tidewatch-coast"
+      ]
+    },
+    {
+      "mode": "baked",
+      "bounds": {
+        "left": 4832,
+        "top": 5056,
+        "right": 6272,
+        "bottom": 5088
+      },
+      "cropIds": [
+        "outer-boundary-east-forest-lane",
+        "tidewatch-coast"
+      ]
+    },
+    {
+      "mode": "baked",
+      "bounds": {
+        "left": 6272,
+        "top": 5056,
+        "right": 6400,
+        "bottom": 5088
+      },
+      "cropIds": [
+        "tidewatch-coast"
+      ]
+    },
+    {
+      "mode": "fallback-tile",
+      "bounds": {
+        "left": 0,
+        "top": 5088,
+        "right": 256,
+        "bottom": 5504
+      },
+      "reason": "Existing meadow-entry tile rendering remains the deliberate fallback outside approved baked crop coverage."
+    },
+    {
+      "mode": "baked",
+      "bounds": {
+        "left": 256,
+        "top": 5088,
+        "right": 2048,
+        "bottom": 5504
+      },
+      "cropIds": [
+        "sundrop-village-underlay"
+      ]
+    },
+    {
+      "mode": "fallback-tile",
+      "bounds": {
+        "left": 2048,
+        "top": 5088,
+        "right": 2656,
+        "bottom": 5504
+      },
+      "reason": "Existing meadow-entry tile rendering remains the deliberate fallback outside approved baked crop coverage."
+    },
+    {
+      "mode": "baked",
+      "bounds": {
+        "left": 2656,
+        "top": 5088,
+        "right": 3296,
+        "bottom": 5504
+      },
+      "cropIds": [
+        "tidewatch-coast"
+      ]
+    },
+    {
+      "mode": "baked",
+      "bounds": {
+        "left": 3296,
+        "top": 5088,
+        "right": 4480,
+        "bottom": 5504
+      },
+      "cropIds": [
+        "crossroads-coast-connector",
+        "tidewatch-coast"
+      ]
+    },
+    {
+      "mode": "baked",
+      "bounds": {
+        "left": 4480,
+        "top": 5088,
+        "right": 4832,
+        "bottom": 5504
+      },
+      "cropIds": [
+        "tidewatch-coast"
+      ]
+    },
+    {
+      "mode": "baked",
+      "bounds": {
+        "left": 4832,
+        "top": 5088,
+        "right": 6272,
+        "bottom": 5504
+      },
+      "cropIds": [
+        "outer-boundary-east-forest-lane",
+        "tidewatch-coast"
+      ]
+    },
+    {
+      "mode": "baked",
+      "bounds": {
+        "left": 6272,
+        "top": 5088,
+        "right": 6400,
+        "bottom": 5504
+      },
+      "cropIds": [
+        "tidewatch-coast"
+      ]
+    },
+    {
+      "mode": "fallback-tile",
+      "bounds": {
+        "left": 0,
+        "top": 5504,
+        "right": 256,
+        "bottom": 5696
+      },
+      "reason": "Existing meadow-entry tile rendering remains the deliberate fallback outside approved baked crop coverage."
+    },
+    {
+      "mode": "baked",
+      "bounds": {
+        "left": 256,
+        "top": 5504,
+        "right": 2048,
+        "bottom": 5696
+      },
+      "cropIds": [
+        "sundrop-village-underlay"
+      ]
+    },
+    {
+      "mode": "fallback-tile",
+      "bounds": {
+        "left": 2048,
+        "top": 5504,
+        "right": 2656,
+        "bottom": 5696
+      },
+      "reason": "Existing meadow-entry tile rendering remains the deliberate fallback outside approved baked crop coverage."
+    },
+    {
+      "mode": "baked",
+      "bounds": {
+        "left": 2656,
+        "top": 5504,
+        "right": 3296,
+        "bottom": 5696
+      },
+      "cropIds": [
+        "tidewatch-coast"
+      ]
+    },
+    {
+      "mode": "baked",
+      "bounds": {
+        "left": 3296,
+        "top": 5504,
+        "right": 4480,
+        "bottom": 5696
+      },
+      "cropIds": [
+        "crossroads-coast-connector",
+        "tidewatch-coast"
+      ]
+    },
+    {
+      "mode": "baked",
+      "bounds": {
+        "left": 4480,
+        "top": 5504,
+        "right": 6400,
+        "bottom": 5696
+      },
+      "cropIds": [
+        "tidewatch-coast"
+      ]
+    },
+    {
+      "mode": "fallback-tile",
+      "bounds": {
+        "left": 0,
+        "top": 5696,
+        "right": 256,
+        "bottom": 5888
+      },
+      "reason": "Existing meadow-entry tile rendering remains the deliberate fallback outside approved baked crop coverage."
+    },
+    {
+      "mode": "baked",
+      "bounds": {
+        "left": 256,
+        "top": 5696,
+        "right": 2048,
+        "bottom": 5888
+      },
+      "cropIds": [
+        "sundrop-village-underlay"
+      ]
+    },
+    {
+      "mode": "fallback-tile",
+      "bounds": {
+        "left": 2048,
+        "top": 5696,
+        "right": 2656,
+        "bottom": 5888
+      },
+      "reason": "Existing meadow-entry tile rendering remains the deliberate fallback outside approved baked crop coverage."
+    },
+    {
+      "mode": "baked",
+      "bounds": {
+        "left": 2656,
+        "top": 5696,
+        "right": 6400,
+        "bottom": 5888
+      },
+      "cropIds": [
+        "tidewatch-coast"
+      ]
+    },
+    {
+      "mode": "fallback-tile",
+      "bounds": {
+        "left": 0,
+        "top": 5888,
+        "right": 2656,
+        "bottom": 6286
+      },
+      "reason": "Existing meadow-entry tile rendering remains the deliberate fallback outside approved baked crop coverage."
+    },
+    {
+      "mode": "baked",
+      "bounds": {
+        "left": 2656,
+        "top": 5888,
+        "right": 6400,
+        "bottom": 6286
+      },
+      "cropIds": [
+        "tidewatch-coast"
+      ]
+    },
+    {
+      "mode": "fallback-tile",
+      "bounds": {
+        "left": 0,
+        "top": 6286,
+        "right": 64,
+        "bottom": 6336
+      },
+      "reason": "Existing meadow-entry tile rendering remains the deliberate fallback outside approved baked crop coverage."
+    },
+    {
+      "mode": "fallback-tile",
+      "bounds": {
+        "left": 64,
+        "top": 6286,
+        "right": 164,
+        "bottom": 6336
+      },
+      "reason": "Southwest ocean remains fallback tile: the collision-only ocean blocker relies on its paired sea ground patch, and the existing sea tile covers this reviewed margin outside regional crops."
+    },
+    {
+      "mode": "fallback-tile",
+      "bounds": {
+        "left": 164,
+        "top": 6286,
+        "right": 2656,
+        "bottom": 6336
+      },
+      "reason": "Existing meadow-entry tile rendering remains the deliberate fallback outside approved baked crop coverage."
+    },
+    {
+      "mode": "baked",
+      "bounds": {
+        "left": 2656,
+        "top": 6286,
+        "right": 6400,
+        "bottom": 6336
+      },
+      "cropIds": [
+        "tidewatch-coast"
+      ]
+    },
+    {
+      "mode": "fallback-tile",
+      "bounds": {
+        "left": 0,
+        "top": 6336,
+        "right": 2656,
+        "bottom": 6400
+      },
+      "reason": "Existing meadow-entry tile rendering remains the deliberate fallback outside approved baked crop coverage."
+    },
+    {
+      "mode": "baked",
+      "bounds": {
+        "left": 2656,
+        "top": 6336,
+        "right": 6400,
+        "bottom": 6400
+      },
+      "cropIds": [
+        "tidewatch-coast"
+      ]
+    }
+  ],
+  "budgetSummary": {
+    "exportAreaRatio": 1.3218,
+    "overlapArea": 18795520,
+    "aggregateBaseReviewBytes": 176006422,
+    "aggregateBaseHardBytes": 266316498,
+    "aggregateForegroundReviewBytes": 55044791,
+    "aggregateForegroundHardBytes": 110089579
+  }
+}
