@@ -30,6 +30,10 @@ test-results
 # Local playtest screenshots
 docs/superpowers/reports/entry-map-playtest/
 
+# Local Meadow Entry art working files
+artifacts/meadow-entry/hpa-399/candidates/
+artifacts/meadow-entry/hpa-399/work/
+
 # Local git worktrees
 .worktrees/
 
