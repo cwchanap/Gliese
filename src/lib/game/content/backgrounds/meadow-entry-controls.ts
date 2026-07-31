@@ -57,6 +57,42 @@ export interface MeadowEntryRasterMask {
 	alpha: Buffer;
 }
 
+export interface MeadowEntryControlClearance {
+	id: string;
+	kind:
+		| 'spawn'
+		| 'transition'
+		| 'npc'
+		| 'ambient-npc'
+		| 'pickup'
+		| 'encounter'
+		| 'combat-bounds'
+		| 'discovery';
+	bounds: PixelBounds;
+}
+
+export interface MeadowEntryRendererMaskMaterialContract {
+	version: 1;
+	implementationSha256: string;
+	maskDimensionsPx: { width: 6400; height: 6400 };
+	pointExtentsPx: {
+		spawn: { width: 96; height: 96 };
+		transition: { width: 96; height: 96 };
+		npc: { width: 96; height: 87 };
+		ambientNpcDefault: { width: 96; height: 87 };
+		pickup: { width: 48; height: 48 };
+		encounter: { width: 96; height: 96 };
+		discoveryDefaultDiameter: 96;
+	};
+	collisionExpansionPx: 12;
+	walkableRouteExpansionPx: 12;
+	foregroundRule: 'explicit-base-and-foreground-minus-forbidden-and-protected';
+	protectedRule: 'protected-live-source-bounds-plus-reviewed-margins';
+	rasterizationRule: 'raw-center-edges-floor-left-top-ceil-right-bottom';
+	clippingRule: 'half-open-clamp-to-0-6400';
+	materialProfiles: Readonly<Record<MeadowEntryAuthoringRegionId, string>>;
+}
+
 export interface MeadowEntryControlInputs {
 	mapId: 'meadow-entry';
 	worldBounds: PixelBounds;
@@ -75,6 +111,8 @@ export interface MeadowEntryControlInputs {
 	strictCollisionRects: readonly PixelBounds[];
 	landmarkCollisionRects: readonly PixelBounds[];
 	protectedRects: readonly PixelBounds[];
+	controlClearanceRects: readonly MeadowEntryControlClearance[];
+	rendererMaskMaterialContract: MeadowEntryRendererMaskMaterialContract;
 	predecessor: {
 		hpa307ArtifactHashes: Readonly<Record<string, string>>;
 		hpa398ControlFingerprint: string;
@@ -119,12 +157,23 @@ const SOURCE_FILE_PATHS = [
 	'src/lib/game/core/collision.ts'
 ] as const;
 
+const POINT_EXTENTS_PX = {
+	spawn: { width: 96, height: 96 },
+	transition: { width: 96, height: 96 },
+	npc: { width: 96, height: 87 },
+	ambientNpcDefault: { width: 96, height: 87 },
+	pickup: { width: 48, height: 48 },
+	encounter: { width: 96, height: 96 },
+	discoveryDefaultDiameter: 96
+} as const;
+
 interface SvgRect {
 	id: string;
 	bounds: PixelBounds;
 	fill: string;
 	opacity?: number;
 	stroke?: string;
+	attributes?: Readonly<Record<string, string | number>>;
 }
 
 function sha256(value: Uint8Array | string): string {
@@ -197,33 +246,44 @@ function collisionBounds(rect: Pick<MapRect, 'x' | 'y' | 'width' | 'height'>): P
 function pointSourceRect(
 	map: WorldMapDefinition,
 	sourceType: MeadowEntrySourceType,
-	sourceId: string
+	sourceId: string,
+	contract: MeadowEntryRendererMaskMaterialContract
 ): MapRect | null {
 	if (sourceType === 'transition') {
 		const item = map.transitions.find(({ id }) => id === sourceId);
-		return item ? { id: item.id, x: item.x, y: item.y, width: 96, height: 96 } : null;
+		return item
+			? { id: item.id, x: item.x, y: item.y, ...contract.pointExtentsPx.transition }
+			: null;
 	}
 	if (sourceType === 'npc') {
 		const item = map.npcs?.find(({ id }) => id === sourceId);
-		return item ? { id: item.id, x: item.x, y: item.y, width: 96, height: 87 } : null;
+		return item ? { id: item.id, x: item.x, y: item.y, ...contract.pointExtentsPx.npc } : null;
 	}
 	if (sourceType === 'ambient-npc') {
 		const item = map.ambientNpcs?.find(({ id }) => id === sourceId);
 		return item
-			? { id: item.id, x: item.x, y: item.y, width: item.width ?? 96, height: item.height ?? 87 }
+			? {
+					id: item.id,
+					x: item.x,
+					y: item.y,
+					width: item.width ?? contract.pointExtentsPx.ambientNpcDefault.width,
+					height: item.height ?? contract.pointExtentsPx.ambientNpcDefault.height
+				}
 			: null;
 	}
 	if (sourceType === 'pickup') {
 		const item = map.pickups?.find(({ id }) => id === sourceId);
-		return item ? { id: item.id, x: item.x, y: item.y, width: 48, height: 48 } : null;
+		return item ? { id: item.id, x: item.x, y: item.y, ...contract.pointExtentsPx.pickup } : null;
 	}
 	if (sourceType === 'encounter') {
 		const item = map.encounters?.find(({ id }) => id === sourceId);
-		return item ? { id: item.id, x: item.x, y: item.y, width: 96, height: 96 } : null;
+		return item
+			? { id: item.id, x: item.x, y: item.y, ...contract.pointExtentsPx.encounter }
+			: null;
 	}
 	if (sourceType === 'discovery') {
 		const item = map.discoveries?.find(({ id }) => id === sourceId);
-		const radius = item?.radius ?? 48;
+		const radius = item?.radius ?? contract.pointExtentsPx.discoveryDefaultDiameter / 2;
 		return item
 			? { id: item.id, x: item.x, y: item.y, width: radius * 2, height: radius * 2 }
 			: null;
@@ -233,17 +293,19 @@ function pointSourceRect(
 
 function sourceBounds(
 	map: WorldMapDefinition,
-	record: MeadowEntrySourceRecord
+	record: MeadowEntrySourceRecord,
+	contract: MeadowEntryRendererMaskMaterialContract
 ): PixelBounds | null {
 	if (record.bounds !== null) return rasterizeCoverageBounds(record.bounds);
-	const pointRect = pointSourceRect(map, record.ref.sourceType, record.ref.sourceId);
+	const pointRect = pointSourceRect(map, record.ref.sourceType, record.ref.sourceId, contract);
 	return pointRect ? rectBounds(pointRect) : null;
 }
 
 function buildProtectedRects(
 	map: WorldMapDefinition,
 	catalog: readonly MeadowEntrySourceRecord[],
-	ownership: readonly MeadowEntryBakeOwnershipEntry[]
+	ownership: readonly MeadowEntryBakeOwnershipEntry[],
+	contract: MeadowEntryRendererMaskMaterialContract
 ): readonly PixelBounds[] {
 	const catalogByKey = new Map(catalog.map((record) => [meadowEntrySourceKey(record.ref), record]));
 	return ownership.flatMap((entry) => {
@@ -251,7 +313,7 @@ function buildProtectedRects(
 		const key = meadowEntrySourceKey(entry.ref);
 		const record = catalogByKey.get(key);
 		if (!record) throw new Error(`Missing protected meadow-entry source "${key}"`);
-		const bounds = sourceBounds(map, record);
+		const bounds = sourceBounds(map, record, contract);
 		if (!bounds) throw new Error(`Protected meadow-entry source has no raster extent "${key}"`);
 		const expanded = expandBounds(bounds, entry.disposition.protectionMargins);
 		if (!expanded) throw new Error(`Protected meadow-entry source leaves the world "${key}"`);
@@ -270,9 +332,69 @@ function hashFiles(
 	);
 }
 
+function buildRendererMaskMaterialContract(
+	repositoryRoot: string
+): MeadowEntryRendererMaskMaterialContract {
+	return {
+		version: 1,
+		implementationSha256: sha256(
+			readFileSync(
+				join(repositoryRoot, 'src/lib/game/content/backgrounds/meadow-entry-controls.ts')
+			)
+		),
+		maskDimensionsPx: { width: MASK_WIDTH, height: MASK_HEIGHT },
+		pointExtentsPx: POINT_EXTENTS_PX,
+		collisionExpansionPx: PLAYER_COLLISION_RADIUS,
+		walkableRouteExpansionPx: PLAYER_COLLISION_RADIUS,
+		foregroundRule: 'explicit-base-and-foreground-minus-forbidden-and-protected',
+		protectedRule: 'protected-live-source-bounds-plus-reviewed-margins',
+		rasterizationRule: 'raw-center-edges-floor-left-top-ceil-right-bottom',
+		clippingRule: 'half-open-clamp-to-0-6400',
+		materialProfiles: Object.fromEntries(
+			MEADOW_ENTRY_AUTHORING_REGIONS.map(({ id, materialProfile }) => [id, materialProfile])
+		) as Record<MeadowEntryAuthoringRegionId, string>
+	};
+}
+
+function buildControlClearanceRects(
+	map: WorldMapDefinition,
+	catalog: readonly MeadowEntrySourceRecord[],
+	contract: MeadowEntryRendererMaskMaterialContract
+): readonly MeadowEntryControlClearance[] {
+	const controlledTypes = new Set<MeadowEntryControlClearance['kind']>([
+		'transition',
+		'npc',
+		'ambient-npc',
+		'pickup',
+		'encounter',
+		'combat-bounds',
+		'discovery'
+	]);
+	const clearances: MeadowEntryControlClearance[] = [
+		{
+			id: 'spawn:player',
+			kind: 'spawn',
+			bounds: rectBounds({ ...map.spawn, ...contract.pointExtentsPx.spawn })
+		}
+	];
+	for (const record of catalog) {
+		const kind = record.ref.sourceType as MeadowEntryControlClearance['kind'];
+		if (!controlledTypes.has(kind)) continue;
+		const bounds = sourceBounds(map, record, contract);
+		if (!bounds) {
+			throw new Error(
+				`Control clearance source has no raster extent "${meadowEntrySourceKey(record.ref)}"`
+			);
+		}
+		clearances.push({ id: meadowEntrySourceKey(record.ref), kind, bounds });
+	}
+	return clearances.sort((left, right) => left.id.localeCompare(right.id));
+}
+
 export function buildMeadowEntryControlInputs(): MeadowEntryControlInputs {
 	const repositoryRoot = process.cwd();
 	const sourceCatalog = collectMeadowEntrySourceCatalog();
+	const rendererMaskMaterialContract = buildRendererMaskMaterialContract(repositoryRoot);
 	if (MEADOW_ENTRY_FOREGROUND_FRONT_CUTOFF_PX !== 33) {
 		throw new Error('Meadow-entry foreground cutoff has drifted from the reviewed 33px contract');
 	}
@@ -293,7 +415,18 @@ export function buildMeadowEntryControlInputs(): MeadowEntryControlInputs {
 		cropBudgetSummary: MEADOW_ENTRY_CROP_BUDGET_SUMMARY,
 		strictCollisionRects: collectStrictCollisionRects(meadowEntryMap).map(collisionBounds),
 		landmarkCollisionRects: collectLandmarkRects(meadowEntryMap).map(collisionBounds),
-		protectedRects: buildProtectedRects(meadowEntryMap, sourceCatalog, MEADOW_ENTRY_BAKE_OWNERSHIP),
+		protectedRects: buildProtectedRects(
+			meadowEntryMap,
+			sourceCatalog,
+			MEADOW_ENTRY_BAKE_OWNERSHIP,
+			rendererMaskMaterialContract
+		),
+		controlClearanceRects: buildControlClearanceRects(
+			meadowEntryMap,
+			sourceCatalog,
+			rendererMaskMaterialContract
+		),
+		rendererMaskMaterialContract,
 		predecessor: {
 			hpa307ArtifactHashes: hashFiles(
 				repositoryRoot,
@@ -359,6 +492,7 @@ export function computeMeadowEntryGameplaySourceFingerprint(
 			sourceCatalog: sortedSourceCatalog(input),
 			strictCollisionRects: input.strictCollisionRects,
 			landmarkCollisionRects: input.landmarkCollisionRects,
+			controlClearanceRects: input.controlClearanceRects,
 			sourceFileHashes: input.sourceFileHashes
 		})
 	);
@@ -385,6 +519,9 @@ export function computeMeadowEntryAuthoringContractFingerprint(
 			tileSizePx: input.tileSizePx,
 			playerCollisionRadiusPx: input.playerCollisionRadiusPx,
 			foregroundFrontCutoffPx: input.foregroundFrontCutoffPx,
+			protectedRects: input.protectedRects,
+			controlClearanceRects: input.controlClearanceRects,
+			rendererMaskMaterialContract: input.rendererMaskMaterialContract,
 			storage: input.storage
 		})
 	);
@@ -419,7 +556,7 @@ export function buildMeadowEntryProtectedForegroundRasterMask(
 	return { width: MASK_WIDTH, height: MASK_HEIGHT, alpha };
 }
 
-function foregroundEligibleBounds(input: MeadowEntryControlInputs): readonly PixelBounds[] {
+function foregroundEligibleRects(input: MeadowEntryControlInputs): readonly SvgRect[] {
 	const sourceByKey = new Map(
 		input.sourceCatalog.map((record) => [meadowEntrySourceKey(record.ref), record])
 	);
@@ -435,8 +572,27 @@ function foregroundEligibleBounds(input: MeadowEntryControlInputs): readonly Pix
 			...expanded,
 			bottom: Math.min(expanded.bottom, raw.bottom - entry.disposition.frontCutoffPx)
 		});
-		return safe ? [safe] : [];
+		const owner = input.primarySourceOwners[key];
+		if (!owner) throw new Error(`Foreground meadow-entry source has no primary owner "${key}"`);
+		return safe
+			? [
+					{
+						id: `foreground:${key}`,
+						bounds: safe,
+						fill: '#ffffff',
+						attributes: {
+							disposition: entry.disposition.mode,
+							'front-cutoff-px': entry.disposition.frontCutoffPx,
+							'primary-region': owner
+						}
+					}
+				]
+			: [];
 	});
+}
+
+function foregroundEligibleBounds(input: MeadowEntryControlInputs): readonly PixelBounds[] {
+	return foregroundEligibleRects(input).map(({ bounds }) => bounds);
 }
 
 export function buildMeadowEntryForegroundEligibleRasterMask(
@@ -444,7 +600,7 @@ export function buildMeadowEntryForegroundEligibleRasterMask(
 ): MeadowEntryRasterMask {
 	const alpha = Buffer.alloc(MASK_WIDTH * MASK_HEIGHT);
 	for (const bounds of foregroundEligibleBounds(input)) fillMaskBounds(alpha, bounds, 255);
-	for (const bounds of input.protectedRects) fillMaskBounds(alpha, bounds, 0);
+	for (const { bounds } of forbiddenTallRects(input)) fillMaskBounds(alpha, bounds, 0);
 	return { width: MASK_WIDTH, height: MASK_HEIGHT, alpha };
 }
 
@@ -458,10 +614,14 @@ function xmlEscape(value: string): string {
 
 function svgDocument(rects: readonly SvgRect[]): string {
 	const body = rects
-		.map(({ id, bounds, fill, opacity, stroke }) => {
+		.map(({ id, bounds, fill, opacity, stroke, attributes }) => {
 			const width = bounds.right - bounds.left;
 			const height = bounds.bottom - bounds.top;
-			return `  <rect data-id="${xmlEscape(id)}" x="${bounds.left}" y="${bounds.top}" width="${width}" height="${height}" fill="${fill}"${opacity === undefined ? '' : ` opacity="${opacity}"`}${stroke === undefined ? '' : ` stroke="${stroke}"`}/>`;
+			const dataAttributes = Object.entries(attributes ?? {})
+				.sort(([left], [right]) => left.localeCompare(right))
+				.map(([name, value]) => ` data-${name}="${xmlEscape(String(value))}"`)
+				.join('');
+			return `  <rect data-id="${xmlEscape(id)}" x="${bounds.left}" y="${bounds.top}" width="${width}" height="${height}" fill="${fill}"${opacity === undefined ? '' : ` opacity="${opacity}"`}${stroke === undefined ? '' : ` stroke="${stroke}"`}${dataAttributes}/>`;
 		})
 		.join('\n');
 	return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 6400 6400" width="6400" height="6400">\n${body}\n</svg>\n`;
@@ -474,7 +634,7 @@ function sourceSvgRects(
 ): SvgRect[] {
 	return sortedSourceCatalog(input).flatMap((record) => {
 		if (!types.has(record.ref.sourceType)) return [];
-		const bounds = sourceBounds(meadowEntryMap, record);
+		const bounds = sourceBounds(meadowEntryMap, record, input.rendererMaskMaterialContract);
 		return bounds
 			? [
 					{
@@ -495,6 +655,71 @@ function indexedRects(prefix: string, bounds: readonly PixelBounds[], fill: stri
 	}));
 }
 
+function terrainSvgRects(input: MeadowEntryControlInputs): SvgRect[] {
+	const groundPatches = new Map(
+		(meadowEntryMap.groundPatches ?? []).map((patch) => [patch.id, patch])
+	);
+	const ownership = new Map(
+		input.bakeOwnership.map((entry) => [meadowEntrySourceKey(entry.ref), entry])
+	);
+	return sortedSourceCatalog(input).flatMap((record) => {
+		if (record.ref.sourceType !== 'ground-patch' || record.bounds === null) return [];
+		const sourceKey = meadowEntrySourceKey(record.ref);
+		const patch = groundPatches.get(record.ref.sourceId);
+		const owner = input.primarySourceOwners[sourceKey];
+		const bakeEntry = ownership.get(sourceKey);
+		if (!patch || !owner || !bakeEntry) {
+			throw new Error(`Missing terrain control provenance for "${sourceKey}"`);
+		}
+		return [
+			{
+				id: sourceKey,
+				bounds: rasterizeCoverageBounds(record.bounds),
+				fill: '#cabd87',
+				attributes: {
+					tile: patch.tile,
+					'material-profile': input.rendererMaskMaterialContract.materialProfiles[owner],
+					'primary-region': owner,
+					'connector-membership': owner.startsWith('connector-') ? owner : '',
+					disposition: bakeEntry.disposition.mode,
+					'contributing-sources': sourceKey
+				}
+			}
+		];
+	});
+}
+
+function controlClearanceSvgRects(input: MeadowEntryControlInputs): SvgRect[] {
+	return input.controlClearanceRects.map(({ id, bounds, kind }) => ({
+		id,
+		bounds,
+		fill: '#ffffff',
+		attributes: { kind }
+	}));
+}
+
+function forbiddenTallRects(input: MeadowEntryControlInputs): SvgRect[] {
+	const walkableRoutes = sortedSourceCatalog(input).flatMap((record) => {
+		if (record.ref.sourceType !== 'ground-patch' || record.bounds === null) return [];
+		const expanded = expandBounds(rasterizeCoverageBounds(record.bounds), {
+			top: input.rendererMaskMaterialContract.walkableRouteExpansionPx,
+			right: input.rendererMaskMaterialContract.walkableRouteExpansionPx,
+			bottom: input.rendererMaskMaterialContract.walkableRouteExpansionPx,
+			left: input.rendererMaskMaterialContract.walkableRouteExpansionPx
+		});
+		return expanded
+			? [{ id: `walkable:${meadowEntrySourceKey(record.ref)}`, bounds: expanded, fill: '#777777' }]
+			: [];
+	});
+	return [
+		...indexedRects('strict-collision', input.strictCollisionRects, '#ffffff'),
+		...indexedRects('landmark-collision', input.landmarkCollisionRects, '#bdbdbd'),
+		...indexedRects('protected', input.protectedRects, '#ff3366'),
+		...walkableRoutes,
+		...controlClearanceSvgRects(input)
+	];
+}
+
 function regionRects(input: MeadowEntryControlInputs): SvgRect[] {
 	return input.authoringRegions.map((region, index) => ({
 		id: region.id,
@@ -511,8 +736,12 @@ function protectedSvgRects(input: MeadowEntryControlInputs): SvgRect[] {
 
 function foregroundSvgRects(input: MeadowEntryControlInputs): SvgRect[] {
 	return [
-		...indexedRects('foreground-eligible', foregroundEligibleBounds(input), '#ffffff'),
-		...indexedRects('protected-exclusion', input.protectedRects, '#000000')
+		...foregroundEligibleRects(input),
+		...forbiddenTallRects(input).map((rect) => ({
+			...rect,
+			id: `foreground-exclusion:${rect.id}`,
+			fill: '#000000'
+		}))
 	];
 }
 
@@ -551,7 +780,7 @@ export function renderMeadowEntryControls(
 	const gameplaySourceFingerprint = computeMeadowEntryGameplaySourceFingerprint(input);
 	const authoringContractFingerprint = computeMeadowEntryAuthoringContractFingerprint(input);
 	const combinedControlFingerprint = computeMeadowEntryCombinedControlFingerprint(input);
-	const terrain = sourceSvgRects(input, new Set(['ground-patch']), '#cabd87');
+	const terrain = terrainSvgRects(input);
 	const regions = regionRects(input);
 	const collisions = [
 		...indexedRects('strict-collision', input.strictCollisionRects, '#ffffff'),
@@ -561,27 +790,12 @@ export function renderMeadowEntryControls(
 	const entrances = sourceSvgRects(input, new Set(['landmark', 'transition']), '#777777');
 	const encounters = sourceSvgRects(input, new Set(['encounter', 'combat-bounds']), '#ffffff');
 	const rewards = sourceSvgRects(input, new Set(['pickup', 'discovery']), '#ffffff');
-	const anchors = sourceSvgRects(
-		input,
-		new Set([
-			'decor',
-			'landmark',
-			'transition',
-			'npc',
-			'ambient-npc',
-			'pickup',
-			'encounter',
-			'combat-bounds',
-			'discovery'
-		]),
-		'#ffffff'
-	);
-	const protectedLive = protectedSvgRects(input);
-	const forbiddenTall = [
-		...collisions,
-		...protectedLive,
-		...terrain.map((rect) => ({ ...rect, fill: '#777777' }))
+	const anchors = [
+		...sourceSvgRects(input, new Set(['decor', 'landmark']), '#ffffff'),
+		...controlClearanceSvgRects(input)
 	];
+	const protectedLive = protectedSvgRects(input);
+	const forbiddenTall = forbiddenTallRects(input);
 	const foreground = foregroundSvgRects(input);
 	const handoffs = handoffRects(input);
 	const baseCoverage = coverageRects(input, 'baked');
@@ -608,7 +822,9 @@ export function renderMeadowEntryControls(
 			},
 			predecessor: input.predecessor,
 			storage: input.storage,
-			sourceFileHashes: input.sourceFileHashes
+			sourceFileHashes: input.sourceFileHashes,
+			rendererMaskMaterialContract: input.rendererMaskMaterialContract,
+			controlClearanceRects: input.controlClearanceRects
 		}),
 		'meadow-entry-composite-control.svg': svgDocument(composite),
 		'meadow-entry-terrain-path-mask.svg': svgDocument(terrain),
