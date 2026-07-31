@@ -66,6 +66,11 @@ async function main(): Promise<void> {
 		metadata.width === 1 && metadata.height === 1,
 		`${canaryPath} must be a transparent one-pixel PNG, received ${metadata.width}x${metadata.height}`
 	);
+	const rgbaPixel = await sharp(workingTreeBytes).ensureAlpha().raw().toBuffer();
+	assert(
+		rgbaPixel.byteLength === 4 && rgbaPixel[3] === 0,
+		`${canaryPath} must be a transparent RGBA pixel`
+	);
 
 	console.log(`git-lfs=${lfsVersion}`);
 	console.log(`filter=${filterAttribute}`);
@@ -74,6 +79,7 @@ async function main(): Promise<void> {
 	console.log('index=git-lfs-pointer');
 	console.log('working-tree=png-signature');
 	console.log('sharp=1x1');
+	console.log('alpha=zero');
 }
 
 await main().catch((error: unknown) => {
