@@ -75,4 +75,10 @@ describe('meadow-entry authoring geometry', () => {
 		expect(() => snapBoundsOutward({ left: 2, top: 0, right: 1, bottom: 1 })).toThrow();
 		expect(() => boundsArea({ left: 0, top: 0, right: 6401, bottom: 1 })).toThrow();
 	});
+
+	it('rejects zero-area bounds and wholly disjoint clamps', () => {
+		expect(() => rasterizeCoverageBounds({ left: 0, top: 0, right: 0, bottom: 1 })).toThrow();
+		expect(() => boundsArea({ left: 0, top: 0, right: 1, bottom: 0 })).toThrow();
+		expect(() => clampBoundsToWorld({ left: -64, top: 32, right: -32, bottom: 64 })).toThrow();
+	});
 });
