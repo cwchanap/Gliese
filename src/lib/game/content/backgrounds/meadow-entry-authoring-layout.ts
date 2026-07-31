@@ -4,6 +4,7 @@ import {
 	intersectBounds,
 	rasterizeCoverageBounds,
 	unionArea,
+	MEADOW_ENTRY_MIN_HANDOFF_PX,
 	MEADOW_ENTRY_TILE_SIZE_PX,
 	MEADOW_ENTRY_WORLD_BOUNDS
 } from './meadow-entry-authoring-geometry';
@@ -33,6 +34,10 @@ export interface MeadowEntryAuthoringRegion {
 	reviewBounds: PixelBounds;
 	materialProfile: string;
 	neighbors: readonly MeadowEntryAuthoringRegionId[];
+}
+
+interface MeadowEntryAuthoringLayoutValidationOptions {
+	regions?: readonly MeadowEntryAuthoringRegion[];
 }
 
 export interface MeadowEntryCrossRegionCoverage {
@@ -129,6 +134,11 @@ export const MEADOW_ENTRY_AUTHORING_REGIONS: readonly MeadowEntryAuthoringRegion
 	}
 ];
 
+// Independent review seal for the ordered JSON registry above. The test owns
+// the SHA-256 computation so coordinated metadata drift cannot update itself.
+export const MEADOW_ENTRY_REVIEWED_AUTHORING_REGIONS_SHA256 =
+	'a8b56d60dd0de31c3db76375aeb8a66eb8eff6d422be26bacbe5396c4ba8f28c';
+
 const DEFAULT_FRAGMENT_OWNERS = {
 	village: 'sundrop-village',
 	crossroads: 'crossroads',
@@ -196,6 +206,12 @@ export const MEADOW_ENTRY_PRIMARY_SOURCE_OWNERS: Readonly<
 		])
 	)
 );
+
+// Independent review seal for sorted `sourceKey=owner\n` records. This makes a
+// future catalog addition fail review even though default fragment assignment
+// can still build a useful diagnostic owner in memory.
+export const MEADOW_ENTRY_REVIEWED_PRIMARY_SOURCE_OWNERS_SHA256 =
+	'63bf03a986d2755ead9306e4124ecf0cdabb87e7bc99ef9ba447c044c1f00519';
 
 export const MEADOW_ENTRY_CROSS_REGION_COVERAGE: readonly MeadowEntryCrossRegionCoverage[] = [
 	{
@@ -333,24 +349,43 @@ function detectedOutlierKeys(
 	});
 }
 
-export function validateMeadowEntryAuthoringLayout(): void {
+export function validateMeadowEntryAuthoringLayout(
+	options: MeadowEntryAuthoringLayoutValidationOptions = {}
+): void {
 	const catalog = collectMeadowEntrySourceCatalog();
 	const catalogByKey = new Map(catalog.map((record) => [meadowEntrySourceKey(record.ref), record]));
 	const regions = new Map<MeadowEntryAuthoringRegionId, MeadowEntryAuthoringRegion>();
-	for (const region of MEADOW_ENTRY_AUTHORING_REGIONS) {
+	const authoringRegions = options.regions ?? MEADOW_ENTRY_AUTHORING_REGIONS;
+	for (const region of authoringRegions) {
 		if (regions.has(region.id)) throw new Error(`Duplicate authoring region "${region.id}"`);
 		assertRegionBounds(region);
 		regions.set(region.id, region);
 	}
 
-	for (const region of MEADOW_ENTRY_AUTHORING_REGIONS) {
+	for (const region of authoringRegions) {
+		const neighborIds = new Set<MeadowEntryAuthoringRegionId>();
 		for (const neighborId of region.neighbors) {
+			if (neighborId === region.id) {
+				throw new Error(`Authoring region "${region.id}" must not neighbor itself`);
+			}
+			if (neighborIds.has(neighborId)) {
+				throw new Error(`Authoring region "${region.id}" has duplicate neighbor "${neighborId}"`);
+			}
+			neighborIds.add(neighborId);
 			const neighbor = regions.get(neighborId);
 			if (!neighbor)
 				throw new Error(`Unknown neighbor "${neighborId}" on authoring region "${region.id}"`);
 			if (!neighbor.neighbors.includes(region.id)) {
 				throw new Error(
 					`Authoring region neighbor relation must be symmetric: ${region.id}/${neighborId}`
+				);
+			}
+			const handoff = intersectBounds(region.reviewBounds, neighbor.reviewBounds);
+			const sharedWidth = handoff === null ? 0 : handoff.right - handoff.left;
+			const sharedHeight = handoff === null ? 0 : handoff.bottom - handoff.top;
+			if (Math.max(sharedWidth, sharedHeight) < MEADOW_ENTRY_MIN_HANDOFF_PX) {
+				throw new Error(
+					`Authoring region handoff must share at least ${MEADOW_ENTRY_MIN_HANDOFF_PX}px: ${region.id}/${neighborId}`
 				);
 			}
 		}

@@ -69,6 +69,13 @@ const CANDIDATE_REGIONS: readonly CandidateRegion[] = [
 	{ id: 'outer-boundary', reviewBounds: { left: 0, top: 0, right: 6_400, bottom: 6_400 } }
 ];
 
+const REVIEWED_PARTITION_RATIONALES = {
+	crossroads:
+		'The west edge includes the authored west hedge and Mistfen cue without claiming the marsh basin; the north edge includes the castle-gate approach and festival road; the east edge includes the Coast and Wildwood cues; the south edge closes below the plaza and market staging. The 32px-aligned bounds were reviewed against those geographic landmarks. Their equality to the snapped fragment envelope is coincidental and is not used as a derivation rule.',
+	silverpine:
+		'The west edge includes the offering grove and its wall, the north edge preserves the shrine canopy breathing room, the east edge includes the eastern wall and grove dressing, and the south edge closes below the lower approach and wall pair at the Crossroads handoff. The 32px-aligned bounds were reviewed against those geographic landmarks. Their equality to the snapped fragment envelope is coincidental and is not used as a derivation rule.'
+} as const satisfies Partial<Record<CandidateRegionId, string>>;
+
 const MANDATORY_PATH_OWNERS = {
 	'ground-patch:link-village-crossroads': 'connector-village-crossroads',
 	'ground-patch:link-village-crossroads-v': 'connector-village-crossroads',
@@ -197,6 +204,7 @@ const proposal = {
 	worldBounds: { left: 0, top: 0, right: 6_400, bottom: 6_400 },
 	sourceCount: sources.length,
 	candidateRegions: CANDIDATE_REGIONS,
+	reviewedPartitionRationales: REVIEWED_PARTITION_RATIONALES,
 	mandatoryPathOwners: MANDATORY_PATH_OWNERS,
 	fragmentEnvelopes,
 	boundarySources,
