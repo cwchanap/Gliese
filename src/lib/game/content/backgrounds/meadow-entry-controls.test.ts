@@ -3,7 +3,6 @@ import { join } from 'node:path';
 
 import { sundropVillageBackgroundsApproval } from '$lib/game/content/approvals/sundrop-village-backgrounds';
 import { meadowEntryMap } from '$lib/game/content/maps/meadow-entry';
-import { PLAYER_COLLISION_RADIUS } from '$lib/game/core/collision';
 import { collectLandmarkRects, collectStrictCollisionRects } from '$lib/game/save/save-state';
 import { describe, expect, it } from 'vitest';
 
@@ -41,6 +40,29 @@ const EXPECTED_CONTROL_FILENAMES = [
 ] as const;
 
 const SHA256 = /^[0-9a-f]{64}$/;
+const TEST_PLAYER_COLLISION_RADIUS_PX = 12;
+const EXPECTED_UNION_ONLY_COLLISION_TILE_IDS = [
+	'11,157',
+	'11,158',
+	'11,159',
+	'11,160',
+	'11,161',
+	'11,162',
+	'11,163',
+	'16,169',
+	'17,169',
+	'18,169',
+	'19,169',
+	'20,169',
+	'21,169',
+	'22,169',
+	'95,81',
+	'95,82',
+	'95,83',
+	'95,84',
+	'95,85',
+	'95,86'
+] as const;
 
 interface ParsedSvgRect {
 	id: string;
@@ -106,48 +128,24 @@ function containsBounds(rect: TestBounds, bounds: TestBounds): boolean {
 	);
 }
 
-function clippedUnionArea(bounds: TestBounds, rects: readonly TestBounds[]): number {
-	const clipped = rects.flatMap((rect) => {
-		const intersection = {
-			left: Math.max(bounds.left, rect.left),
-			top: Math.max(bounds.top, rect.top),
-			right: Math.min(bounds.right, rect.right),
-			bottom: Math.min(bounds.bottom, rect.bottom)
-		};
-		return intersection.left < intersection.right && intersection.top < intersection.bottom
-			? [intersection]
-			: [];
-	});
-	const xEdges = [...new Set(clipped.flatMap((rect) => [rect.left, rect.right]))].sort(
-		(left, right) => left - right
-	);
-	let area = 0;
-	for (let index = 0; index < xEdges.length - 1; index += 1) {
-		const left = xEdges[index]!;
-		const right = xEdges[index + 1]!;
-		const yIntervals = clipped
-			.filter((rect) => rect.left < right && rect.right > left)
-			.map((rect) => [rect.top, rect.bottom] as const)
-			.sort(([leftTop], [rightTop]) => leftTop - rightTop);
-		let coveredHeight = 0;
-		let activeTop: number | null = null;
-		let activeBottom = 0;
-		for (const [top, bottom] of yIntervals) {
-			if (activeTop === null) {
-				activeTop = top;
-				activeBottom = bottom;
-			} else if (top > activeBottom) {
-				coveredHeight += activeBottom - activeTop;
-				activeTop = top;
-				activeBottom = bottom;
-			} else {
-				activeBottom = Math.max(activeBottom, bottom);
+function collisionPixelsCoverTile(tile: TestBounds, rects: readonly TestBounds[]): boolean {
+	const width = tile.right - tile.left;
+	const height = tile.bottom - tile.top;
+	const occupied = new Uint8Array(width * height);
+
+	for (const rect of rects) {
+		const left = Math.max(tile.left, rect.left);
+		const top = Math.max(tile.top, rect.top);
+		const right = Math.min(tile.right, rect.right);
+		const bottom = Math.min(tile.bottom, rect.bottom);
+		for (let y = top; y < bottom; y += 1) {
+			for (let x = left; x < right; x += 1) {
+				occupied[(y - tile.top) * width + (x - tile.left)] = 1;
 			}
 		}
-		if (activeTop !== null) coveredHeight += activeBottom - activeTop;
-		area += (right - left) * coveredHeight;
 	}
-	return area;
+
+	return occupied.every((pixel) => pixel === 1);
 }
 
 function boundsAround(x: number, y: number, width: number, height: number): TestBounds {
@@ -421,20 +419,20 @@ describe('meadow-entry deterministic authoring controls', () => {
 			...collectLandmarkRects(meadowEntryMap)
 		];
 		const expandedCollisionRects = rawCollisionRects.map((rect) => ({
-			left: Math.max(0, Math.floor(rect.x - rect.width / 2 - PLAYER_COLLISION_RADIUS)),
-			top: Math.max(0, Math.floor(rect.y - rect.height / 2 - PLAYER_COLLISION_RADIUS)),
-			right: Math.min(6_400, Math.ceil(rect.x + rect.width / 2 + PLAYER_COLLISION_RADIUS)),
-			bottom: Math.min(6_400, Math.ceil(rect.y + rect.height / 2 + PLAYER_COLLISION_RADIUS))
+			left: Math.max(0, Math.floor(rect.x - rect.width / 2 - TEST_PLAYER_COLLISION_RADIUS_PX)),
+			top: Math.max(0, Math.floor(rect.y - rect.height / 2 - TEST_PLAYER_COLLISION_RADIUS_PX)),
+			right: Math.min(6_400, Math.ceil(rect.x + rect.width / 2 + TEST_PLAYER_COLLISION_RADIUS_PX)),
+			bottom: Math.min(6_400, Math.ceil(rect.y + rect.height / 2 + TEST_PLAYER_COLLISION_RADIUS_PX))
 		}));
 		const seamTile = { left: 3_040, top: 2_592, right: 3_072, bottom: 2_624 };
-		expect(clippedUnionArea(seamTile, expandedCollisionRects)).toBe(32 * 32);
+		expect(collisionPixelsCoverTile(seamTile, expandedCollisionRects)).toBe(true);
 		expect(expandedCollisionRects.some((rect) => containsBounds(rect, seamTile))).toBe(false);
 		expect(
 			walkableSpaceRects.some((bounds) => containsBounds(bounds, seamTile)),
 			'union-covered seam tile 95,81'
 		).toBe(false);
 
-		let unionOnlyCollisionTileCount = 0;
+		const unionOnlyCollisionTileIds: string[] = [];
 		for (let row = 0; row < meadowEntryMap.height; row += 1) {
 			for (let column = 0; column < meadowEntryMap.width; column += 1) {
 				const tile = {
@@ -443,9 +441,9 @@ describe('meadow-entry deterministic authoring controls', () => {
 					right: column * 32 + 32,
 					bottom: row * 32 + 32
 				};
-				const fullyBlocked = clippedUnionArea(tile, expandedCollisionRects) === 32 * 32;
+				const fullyBlocked = collisionPixelsCoverTile(tile, expandedCollisionRects);
 				if (fullyBlocked && !expandedCollisionRects.some((rect) => containsBounds(rect, tile))) {
-					unionOnlyCollisionTileCount += 1;
+					unionOnlyCollisionTileIds.push(`${column},${row}`);
 				}
 				const representedAsWalkable = walkableSpaceRects.some((bounds) =>
 					containsBounds(bounds, tile)
@@ -453,7 +451,7 @@ describe('meadow-entry deterministic authoring controls', () => {
 				expect(representedAsWalkable, `tile ${column},${row}`).toBe(!fullyBlocked);
 			}
 		}
-		expect(unionOnlyCollisionTileCount).toBe(20);
+		expect(unionOnlyCollisionTileIds.sort()).toEqual(EXPECTED_UNION_ONLY_COLLISION_TILE_IDS);
 
 		const rendered = renderMeadowEntryControls(input);
 		const generatedForbidden = rendered['meadow-entry-forbidden-tall-mask.svg']!;
