@@ -1,34 +1,34 @@
 {
   "schemaVersion": 1,
-  "capturedAtIso": "2026-07-30T05:03:33.347Z",
-  "commit": "513071611d0072aa5052d594d85fe82ca3af265c",
+  "capturedAtIso": "2026-07-30T17:15:43.729Z",
+  "commit": "96e1b35b488b88e34d6b3a9159cef0ba84bab715",
   "sourceBinding": {
-    "sourceCommit": "513071611d0072aa5052d594d85fe82ca3af265c",
+    "sourceCommit": "96e1b35b488b88e34d6b3a9159cef0ba84bab715",
     "productTreeCleanOutsideEvidence": true,
     "build": {
       "command": "rtk bun run build",
-      "startedAtIso": "2026-07-30T05:03:25.396Z",
-      "completedAtIso": "2026-07-30T05:03:27.280Z",
+      "startedAtIso": "2026-07-30T17:15:33.411Z",
+      "completedAtIso": "2026-07-30T17:15:35.305Z",
       "exitCode": 0
     },
     "preview": {
-      "command": "rtk bun run preview -- --host 127.0.0.1 --port 61596 --strictPort",
+      "command": "rtk bun run preview -- --host 127.0.0.1 --port 59140 --strictPort",
       "ownedByRunner": true,
-      "pid": 27545,
-      "baseUrl": "http://127.0.0.1:61596/",
-      "startedAtIso": "2026-07-30T05:03:27.288Z",
-      "readyAtIso": "2026-07-30T05:03:27.711Z",
+      "pid": 67324,
+      "baseUrl": "http://127.0.0.1:59140/",
+      "startedAtIso": "2026-07-30T17:15:35.315Z",
+      "readyAtIso": "2026-07-30T17:15:36.080Z",
       "markerVerified": true
     },
     "servedProductionAssets": [
       {
-        "url": "http://127.0.0.1:61596/game/assets/regions/sundrop-village-base.png",
+        "url": "http://127.0.0.1:59140/game/assets/regions/sundrop-village-base.png",
         "bytes": 7753201,
         "sha256": "f1184b045c27c544ac18937a4f8ccfa12cd386319b1722be5d808aea8048ade6",
         "matchesLocalProductionAsset": true
       },
       {
-        "url": "http://127.0.0.1:61596/game/assets/regions/sundrop-village-foreground.png",
+        "url": "http://127.0.0.1:59140/game/assets/regions/sundrop-village-foreground.png",
         "bytes": 385087,
         "sha256": "2d0a6703de1a404e49c0746f092a4c6f9f113ae17cd8bc35de635b5ec084ce45",
         "matchesLocalProductionAsset": true
@@ -45,7 +45,7 @@
   },
   "mode": "background-off-plus-collision",
   "query": "?regionalBackground=off&mapDebug=collision",
-  "url": "http://127.0.0.1:61596/?regionalBackground=off&mapDebug=collision",
+  "url": "http://127.0.0.1:59140/?regionalBackground=off&mapDebug=collision",
   "productionAsset": {
     "assets": [
       {
@@ -62,8 +62,8 @@
   },
   "screenshot": {
     "path": "docs/superpowers/reports/img/hpa-398/runtime-background-off-collision.png",
-    "bytes": 892539,
-    "sha256": "181b4f0c25fa34456d2b31c2a573c1365cbefe93993492b77d605e13aedc4274"
+    "bytes": 892885,
+    "sha256": "937838d5e8b235d4bd24931fc99907e33cbbd1a2099ca8896a8f82b6ac98317d"
   },
   "assetInterception": null,
   "probe": {
@@ -71,7 +71,7 @@
     "exactRegionalRequestCount": 0,
     "diagnostics": [
       {
-        "receivedAtMs": 357.89999997615814,
+        "receivedAtMs": 387.1999999284744,
         "detail": {
           "renderer": "webgl",
           "maxTextureSize": 16384,
@@ -82,7 +82,7 @@
     ],
     "planeDiagnostics": [
       {
-        "receivedAtMs": 393.60000002384186,
+        "receivedAtMs": 424.1999999284744,
         "detail": {
           "mapId": "meadow-entry",
           "regionalBackgroundsEnabled": false,

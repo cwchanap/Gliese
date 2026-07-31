@@ -9,13 +9,19 @@ Status: accepted for branch completion
 The product and acceptance harness proven by this report are exactly:
 
 ```text
-513071611d0072aa5052d594d85fe82ca3af265c
+96e1b35b488b88e34d6b3a9159cef0ba84bab715
 ```
 
-This refresh supersedes the earlier `3ca8eaf` evidence set. A subsequent
-commit modified production, generation, and test files, invalidating the
-"packaging-only" claim of the prior report. The full validation pipeline
-was rerun from the new HEAD to restore provenance integrity.
+This refresh supersedes the earlier `5130716` evidence set. A subsequent
+commit (`96e1b35`, "chore(hpa-398): remove obsolete hpa-307 profile
+support") modified the executable acceptance harness
+`docs/superpowers/reports/hpa-307-browser-acceptance.mjs`, invalidating
+the "packaging-only" claim of the prior report. The change is
+behavior-preserving for the `hpa-398` profile (it removes the dead
+`hpa-307` branch and makes the `hpa-398` path unconditional), but the
+report's provenance contract is strict about commit identity, not
+behavioral equivalence. The full validation pipeline was rerun from the
+new HEAD to restore provenance integrity.
 
 All runtime JSON, screenshot sidecars, the production-preview build provenance,
 and the raw-evidence hash chain identify that source commit. The commit that
@@ -195,13 +201,9 @@ The client-unit log includes `Error: test error` from the intentional
 GameShell error-boundary fixture; the authoritative summary is 3 files and 71
 tests passed.
 
-During the final `5130716` browser-evidence refresh, two partial attempts
-were discarded before raw aggregate evidence was emitted: the first
-transiently redirected to an external page before the canvas appeared, and
-the second reached a save-handoff inspection with no localStorage save
-present. Only their exact untracked `runtime-*` outputs were removed. The
-unchanged third run completed all three 43-leg routes with zero snags and is
-the sole committed runtime evidence set.
+During the final `96e1b35` browser-evidence refresh, the single full run
+completed all three 43-leg routes with zero snags and is the sole committed
+runtime evidence set.
 
 Earlier diagnostic Tauri attempts encountered the macOS DMG
 Finder/AppleScript boundary. The fresh final exact release command completed
@@ -214,7 +216,7 @@ no-frontend-story-prose assertion, Rust release compilation, and both bundles:
 ## Runtime capture and sidecar inventory
 
 All paths below are relative to the repository root and all runtime sidecars
-identify source commit `513071611d0072aa5052d594d85fe82ca3af265c`.
+identify source commit `96e1b35b488b88e34d6b3a9159cef0ba84bab715`.
 
 ### Renderer and failure states
 
@@ -351,21 +353,21 @@ Raw route and timing evidence:
 - `docs/superpowers/reports/img/hpa-398/runtime-browser-acceptance-summary.json`.
 
 All five carry direct `commit` and `sourceBinding.sourceCommit` fields equal to
-`513071611d0072aa5052d594d85fe82ca3af265c`.
+`96e1b35b488b88e34d6b3a9159cef0ba84bab715`.
 
 The gate and summary cryptographically bind the exact emitted raw bytes:
 
 | Raw artifact | Bytes | SHA-256 |
 | --- | ---: | --- |
-| route acceptance | 293,050 | `7478bbb57568f3b543492f22601309e7c3c063b8e5bfe14325c7f499d5414788` |
-| timing enabled | 445,161 | `b6a3ae59a0a4aac2ffa9daca48d9986f14aef59bbe0715de2534fd2be17dc907` |
-| timing disabled | 437,851 | `f6f9b0c7061e0591acadd91375b1351d532d2d08507d7e04c8cb2b7e5c193586` |
+| route acceptance | 292,196 | `0dd8e03153910ec3609980a2e25ebcc54dd0b911c47676044d02f5ad0633d003` |
+| timing enabled | 442,403 | `a1cdf7b1d3be020cdc563f94b175c6eff814794671be1e34b59406caa5e1a4bd` |
+| timing disabled | 445,754 | `0a9e6b44bb2bcd311c48be64ffd8c47e1e68c3d40480b6e19d93122ae03c7a04` |
 
 The summary also binds the exact named performance gate:
 
 ```text
-33,599 bytes
-8179c5d88aed4ac58a5fa737ed4bf375881b49e5b1c6b9d5d741ffcd172b9828
+33,598 bytes
+c8d20a2b6690f0fd92ddb2cf2df9d5a26af34fcbfb7e3ae5915b3abeef2b4d7b
 ```
 
 An independent post-run verifier re-read every file and recomputed all four
@@ -389,9 +391,9 @@ Final timed evidence:
 | preload completions | 2 | 0 |
 | successful plane descriptors | 2 | 0 (`disabled`) |
 | observed regional `texImage2D` uploads | exactly two `1792×1536` | 0 |
-| frame samples | 6,417 | 6,397 |
-| median frame time | `8.30000000000291ms` | `8.300000000001091ms` |
-| p95 frame time | `9.199999999999818ms` | `9.400000000001455ms` |
+| frame samples | 6,379 | 6,458 |
+| median frame time | `8.300000000001091ms` | `8.30000000000291ms` |
+| p95 frame time | `9.19999999999709ms` | `9.100000000002183ms` |
 | WebGL context loss | 0 | 0 |
 | uncaught page errors | 0 | 0 |
 | console errors | 0 | 0 |
@@ -399,7 +401,7 @@ Final timed evidence:
 
 The enabled upload count remains exactly two after all seven interior round
 trips, so no regional texture re-upload was observed. The p95 delta is
-`-0.2000000000016371ms`, passing the `<=2ms` gate. All 14 named performance predicates pass.
+`0.09999999999490683ms`, passing the `<=2ms` gate. All 14 named performance predicates pass.
 
 ## Limitations and conclusion
 
@@ -411,7 +413,7 @@ fresh command built both the application bundle and DMG. Windows packaging and
 execution were not run on this macOS host and are not claimed by this report.
 
 The accepted HPA-398 contract is therefore proven at source commit
-`513071611d0072aa5052d594d85fe82ca3af265c`: deterministic art and ownership,
+`96e1b35b488b88e34d6b3a9159cef0ba84bab715`: deterministic art and ownership,
 zero normal-state duplication, complete degraded fallback, collision
 independence, live occlusion, continuous traversal/save/minimap behavior,
 clean normal runtime diagnostics, bounded decoded allocation, and a passing
