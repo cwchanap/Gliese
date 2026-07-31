@@ -1,17 +1,4 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 6400 6400" width="6400" height="6400">
-  <rect data-id="ambient-npc:coast-fisher" x="3792" y="5526" width="96" height="88" fill="#ffffff"/>
-  <rect data-id="ambient-npc:crossroads-crier" x="3352" y="3956" width="96" height="88" fill="#ffffff"/>
-  <rect data-id="ambient-npc:crossroads-traveler" x="3652" y="4256" width="96" height="88" fill="#ffffff"/>
-  <rect data-id="ambient-npc:mistfen-forager" x="2352" y="2656" width="96" height="88" fill="#ffffff"/>
-  <rect data-id="ambient-npc:silverpine-pilgrim" x="3072" y="1316" width="96" height="88" fill="#ffffff"/>
-  <rect data-id="ambient-npc:village-crier" x="1152" y="5284" width="96" height="88" fill="#ffffff"/>
-  <rect data-id="ambient-npc:village-pilgrim" x="1184" y="5732" width="96" height="88" fill="#ffffff"/>
-  <rect data-id="ambient-npc:village-wanderer" x="960" y="5220" width="96" height="88" fill="#ffffff"/>
-  <rect data-id="ambient-npc:village-woodcutter" x="608" y="4836" width="96" height="88" fill="#ffffff"/>
-  <rect data-id="ambient-npc:wildwood-woodcutter" x="5292" y="4476" width="96" height="88" fill="#ffffff"/>
-  <rect data-id="combat-bounds:whispering-cave-combat-pocket" x="5664" y="1408" width="512" height="384" fill="#ffffff"/>
-  <rect data-id="combat-bounds:wildwood-crossing-combat-pocket" x="5104" y="1120" width="512" height="320" fill="#ffffff"/>
-  <rect data-id="combat-bounds:wildwood-north-combat-pocket" x="4784" y="768" width="672" height="384" fill="#ffffff"/>
   <rect data-id="decor:castle-gate-sprite" x="3244" y="2770" width="512" height="420" fill="#ffffff"/>
   <rect data-id="decor:coast-approach-net" x="4040" y="5310" width="160" height="140" fill="#ffffff"/>
   <rect data-id="decor:coast-boat" x="5030" y="5790" width="260" height="180" fill="#ffffff"/>
@@ -106,16 +93,6 @@
   <rect data-id="decor:wildwood-threshold-tree-wall-east" x="5790" y="4260" width="220" height="320" fill="#ffffff"/>
   <rect data-id="decor:wildwood-threshold-tree-wall-west" x="5170" y="4260" width="220" height="320" fill="#ffffff"/>
   <rect data-id="decor:witchwood-gate-sprite" x="1008" y="428" width="384" height="384" fill="#ffffff"/>
-  <rect data-id="discovery:castle-gate-warning" x="3452" y="3172" width="96" height="96" fill="#ffffff"/>
-  <rect data-id="discovery:coast-jetty-foreshadow" x="4852" y="6132" width="96" height="96" fill="#ffffff"/>
-  <rect data-id="discovery:crossroads-waystone-sign" x="3552" y="3952" width="96" height="96" fill="#ffffff"/>
-  <rect data-id="discovery:ferry-shrine-lore" x="3552" y="5452" width="96" height="96" fill="#ffffff"/>
-  <rect data-id="discovery:silverpine-amulet-foreshadow" x="2792" y="1072" width="96" height="96" fill="#ffffff"/>
-  <rect data-id="discovery:wildwood-cave-danger" x="5912" y="1872" width="96" height="96" fill="#ffffff"/>
-  <rect data-id="discovery:witchwood-poison-warning" x="1152" y="772" width="96" height="96" fill="#ffffff"/>
-  <rect data-id="encounter:meadow-slime-center" x="5312" y="1232" width="96" height="96" fill="#ffffff"/>
-  <rect data-id="encounter:meadow-slime-east" x="5872" y="1552" width="96" height="96" fill="#ffffff"/>
-  <rect data-id="encounter:meadow-slime-west" x="4880" y="912" width="96" height="96" fill="#ffffff"/>
   <rect data-id="landmark:blacksmith" x="1498" y="5087" width="236" height="226" fill="#ffffff"/>
   <rect data-id="landmark:castle-gate" x="3260" y="2820" width="480" height="320" fill="#ffffff"/>
   <rect data-id="landmark:crossroads-waystone" x="3440" y="3925" width="120" height="150" fill="#ffffff"/>
@@ -131,22 +108,46 @@
   <rect data-id="landmark:villager-house-3-exterior" x="724" y="4553" width="184" height="334" fill="#ffffff"/>
   <rect data-id="landmark:whispering-cave" x="5832" y="1688" width="256" height="224" fill="#ffffff"/>
   <rect data-id="landmark:witchwood-gate" x="1020" y="470" width="360" height="300" fill="#ffffff"/>
-  <rect data-id="pickup:coast-jetty-catch" x="4736" y="6036" width="48" height="48" fill="#ffffff"/>
-  <rect data-id="pickup:coast-salve" x="5416" y="5906" width="48" height="48" fill="#ffffff"/>
-  <rect data-id="pickup:crossroads-cache" x="3976" y="4276" width="48" height="48" fill="#ffffff"/>
-  <rect data-id="pickup:mistfen-cache" x="1896" y="2276" width="48" height="48" fill="#ffffff"/>
-  <rect data-id="pickup:mistfen-salve" x="856" y="2476" width="48" height="48" fill="#ffffff"/>
-  <rect data-id="pickup:silverpine-offering-cache" x="3236" y="696" width="48" height="48" fill="#ffffff"/>
-  <rect data-id="pickup:silverpine-tonic" x="2596" y="1536" width="48" height="48" fill="#ffffff"/>
-  <rect data-id="pickup:village-market-cache" x="760" y="5016" width="48" height="48" fill="#ffffff"/>
-  <rect data-id="pickup:village-shrine-cache" x="1560" y="5752" width="48" height="48" fill="#ffffff"/>
-  <rect data-id="pickup:wildwood-grove-cache" x="4676" y="3626" width="48" height="48" fill="#ffffff"/>
-  <rect data-id="transition:meadow-to-guild-hall" x="1568" y="4992" width="96" height="96" fill="#ffffff"/>
-  <rect data-id="transition:meadow-to-hero-house" x="576" y="5664" width="96" height="96" fill="#ffffff"/>
-  <rect data-id="transition:meadow-to-item-shop" x="448" y="5248" width="96" height="96" fill="#ffffff"/>
-  <rect data-id="transition:meadow-to-shrine-of-aurora" x="1376" y="5696" width="96" height="96" fill="#ffffff"/>
-  <rect data-id="transition:meadow-to-villager-house-1" x="480" y="4800" width="96" height="96" fill="#ffffff"/>
-  <rect data-id="transition:meadow-to-villager-house-2" x="1120" y="4832" width="96" height="96" fill="#ffffff"/>
-  <rect data-id="transition:meadow-to-villager-house-3" x="768" y="4864" width="96" height="96" fill="#ffffff"/>
-  <rect data-id="transition:meadow-to-whispering-cave-ruins-threshold" x="5912" y="1820" width="96" height="96" fill="#ffffff"/>
+  <rect data-id="ambient-npc:coast-fisher" x="3792" y="5526" width="96" height="88" fill="#ffffff" data-kind="ambient-npc"/>
+  <rect data-id="ambient-npc:crossroads-crier" x="3352" y="3956" width="96" height="88" fill="#ffffff" data-kind="ambient-npc"/>
+  <rect data-id="ambient-npc:crossroads-traveler" x="3652" y="4256" width="96" height="88" fill="#ffffff" data-kind="ambient-npc"/>
+  <rect data-id="ambient-npc:mistfen-forager" x="2352" y="2656" width="96" height="88" fill="#ffffff" data-kind="ambient-npc"/>
+  <rect data-id="ambient-npc:silverpine-pilgrim" x="3072" y="1316" width="96" height="88" fill="#ffffff" data-kind="ambient-npc"/>
+  <rect data-id="ambient-npc:village-crier" x="1152" y="5284" width="96" height="88" fill="#ffffff" data-kind="ambient-npc"/>
+  <rect data-id="ambient-npc:village-pilgrim" x="1184" y="5732" width="96" height="88" fill="#ffffff" data-kind="ambient-npc"/>
+  <rect data-id="ambient-npc:village-wanderer" x="960" y="5220" width="96" height="88" fill="#ffffff" data-kind="ambient-npc"/>
+  <rect data-id="ambient-npc:village-woodcutter" x="608" y="4836" width="96" height="88" fill="#ffffff" data-kind="ambient-npc"/>
+  <rect data-id="ambient-npc:wildwood-woodcutter" x="5292" y="4476" width="96" height="88" fill="#ffffff" data-kind="ambient-npc"/>
+  <rect data-id="combat-bounds:whispering-cave-combat-pocket" x="5664" y="1408" width="512" height="384" fill="#ffffff" data-kind="combat-bounds"/>
+  <rect data-id="combat-bounds:wildwood-crossing-combat-pocket" x="5104" y="1120" width="512" height="320" fill="#ffffff" data-kind="combat-bounds"/>
+  <rect data-id="combat-bounds:wildwood-north-combat-pocket" x="4784" y="768" width="672" height="384" fill="#ffffff" data-kind="combat-bounds"/>
+  <rect data-id="discovery:castle-gate-warning" x="3452" y="3172" width="96" height="96" fill="#ffffff" data-kind="discovery"/>
+  <rect data-id="discovery:coast-jetty-foreshadow" x="4852" y="6132" width="96" height="96" fill="#ffffff" data-kind="discovery"/>
+  <rect data-id="discovery:crossroads-waystone-sign" x="3552" y="3952" width="96" height="96" fill="#ffffff" data-kind="discovery"/>
+  <rect data-id="discovery:ferry-shrine-lore" x="3552" y="5452" width="96" height="96" fill="#ffffff" data-kind="discovery"/>
+  <rect data-id="discovery:silverpine-amulet-foreshadow" x="2792" y="1072" width="96" height="96" fill="#ffffff" data-kind="discovery"/>
+  <rect data-id="discovery:wildwood-cave-danger" x="5912" y="1872" width="96" height="96" fill="#ffffff" data-kind="discovery"/>
+  <rect data-id="discovery:witchwood-poison-warning" x="1152" y="772" width="96" height="96" fill="#ffffff" data-kind="discovery"/>
+  <rect data-id="encounter:meadow-slime-center" x="5312" y="1232" width="96" height="96" fill="#ffffff" data-kind="encounter"/>
+  <rect data-id="encounter:meadow-slime-east" x="5872" y="1552" width="96" height="96" fill="#ffffff" data-kind="encounter"/>
+  <rect data-id="encounter:meadow-slime-west" x="4880" y="912" width="96" height="96" fill="#ffffff" data-kind="encounter"/>
+  <rect data-id="pickup:coast-jetty-catch" x="4736" y="6036" width="48" height="48" fill="#ffffff" data-kind="pickup"/>
+  <rect data-id="pickup:coast-salve" x="5416" y="5906" width="48" height="48" fill="#ffffff" data-kind="pickup"/>
+  <rect data-id="pickup:crossroads-cache" x="3976" y="4276" width="48" height="48" fill="#ffffff" data-kind="pickup"/>
+  <rect data-id="pickup:mistfen-cache" x="1896" y="2276" width="48" height="48" fill="#ffffff" data-kind="pickup"/>
+  <rect data-id="pickup:mistfen-salve" x="856" y="2476" width="48" height="48" fill="#ffffff" data-kind="pickup"/>
+  <rect data-id="pickup:silverpine-offering-cache" x="3236" y="696" width="48" height="48" fill="#ffffff" data-kind="pickup"/>
+  <rect data-id="pickup:silverpine-tonic" x="2596" y="1536" width="48" height="48" fill="#ffffff" data-kind="pickup"/>
+  <rect data-id="pickup:village-market-cache" x="760" y="5016" width="48" height="48" fill="#ffffff" data-kind="pickup"/>
+  <rect data-id="pickup:village-shrine-cache" x="1560" y="5752" width="48" height="48" fill="#ffffff" data-kind="pickup"/>
+  <rect data-id="pickup:wildwood-grove-cache" x="4676" y="3626" width="48" height="48" fill="#ffffff" data-kind="pickup"/>
+  <rect data-id="spawn:player" x="576" y="5728" width="96" height="96" fill="#ffffff" data-kind="spawn"/>
+  <rect data-id="transition:meadow-to-guild-hall" x="1568" y="4992" width="96" height="96" fill="#ffffff" data-kind="transition"/>
+  <rect data-id="transition:meadow-to-hero-house" x="576" y="5664" width="96" height="96" fill="#ffffff" data-kind="transition"/>
+  <rect data-id="transition:meadow-to-item-shop" x="448" y="5248" width="96" height="96" fill="#ffffff" data-kind="transition"/>
+  <rect data-id="transition:meadow-to-shrine-of-aurora" x="1376" y="5696" width="96" height="96" fill="#ffffff" data-kind="transition"/>
+  <rect data-id="transition:meadow-to-villager-house-1" x="480" y="4800" width="96" height="96" fill="#ffffff" data-kind="transition"/>
+  <rect data-id="transition:meadow-to-villager-house-2" x="1120" y="4832" width="96" height="96" fill="#ffffff" data-kind="transition"/>
+  <rect data-id="transition:meadow-to-villager-house-3" x="768" y="4864" width="96" height="96" fill="#ffffff" data-kind="transition"/>
+  <rect data-id="transition:meadow-to-whispering-cave-ruins-threshold" x="5912" y="1820" width="96" height="96" fill="#ffffff" data-kind="transition"/>
 </svg>

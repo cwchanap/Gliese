@@ -6,7 +6,6 @@ import {
 	readFileSync,
 	renameSync,
 	rmSync,
-	rmdirSync,
 	writeFileSync
 } from 'node:fs';
 import { basename, dirname, join, relative, resolve } from 'node:path';
@@ -20,12 +19,38 @@ import {
 	renderMeadowEntryControls
 } from '../src/lib/game/content/backgrounds/meadow-entry-controls';
 
-const repositoryRoot = resolve(process.cwd());
-const controlsDirectory = resolve(repositoryRoot, 'docs/superpowers/reports/img/hpa-399/controls');
-const generatedPath = resolve(
-	repositoryRoot,
-	'src/lib/game/content/generated/meadow-entry-art-control.ts'
-);
+export interface MeadowEntryExportPackage {
+	readonly rendered: Readonly<Record<string, string>>;
+	readonly generatedContents: string;
+}
+
+export interface MeadowEntryExportPaths {
+	readonly repositoryRoot: string;
+	readonly controlsDirectory: string;
+	readonly generatedPath: string;
+}
+
+export interface MeadowEntryExportFileSystem {
+	existsSync: typeof existsSync;
+	mkdirSync: typeof mkdirSync;
+	mkdtempSync: typeof mkdtempSync;
+	readdirSync: typeof readdirSync;
+	readFileSync: typeof readFileSync;
+	renameSync: typeof renameSync;
+	rmSync: typeof rmSync;
+	writeFileSync: typeof writeFileSync;
+}
+
+const NODE_FILE_SYSTEM: MeadowEntryExportFileSystem = {
+	existsSync,
+	mkdirSync,
+	mkdtempSync,
+	readdirSync,
+	readFileSync,
+	renameSync,
+	rmSync,
+	writeFileSync
+};
 const allowedControlFilenames = new Set<string>(MEADOW_ENTRY_CONTROL_FILENAMES);
 
 function parseCheckMode(args: readonly string[]): boolean {
@@ -34,8 +59,23 @@ function parseCheckMode(args: readonly string[]): boolean {
 	throw new Error(`Usage: bun tools/export-meadow-entry-art-controls.ts [--check]`);
 }
 
-function assertAllowedDestination(path: string): void {
-	const relativePath = relative(repositoryRoot, path).replaceAll('\\', '/');
+export function meadowEntryExportPaths(repositoryRoot: string): MeadowEntryExportPaths {
+	const resolvedRoot = resolve(repositoryRoot);
+	return {
+		repositoryRoot: resolvedRoot,
+		controlsDirectory: resolve(resolvedRoot, 'docs/superpowers/reports/img/hpa-399/controls'),
+		generatedPath: resolve(
+			resolvedRoot,
+			'src/lib/game/content/generated/meadow-entry-art-control.ts'
+		)
+	};
+}
+
+export function assertAllowedMeadowEntryDestination(
+	paths: MeadowEntryExportPaths,
+	path: string
+): void {
+	const relativePath = relative(paths.repositoryRoot, path).replaceAll('\\', '/');
 	const allowed =
 		relativePath === 'src/lib/game/content/generated/meadow-entry-art-control.ts' ||
 		(relativePath.startsWith('docs/superpowers/reports/img/hpa-399/controls/') &&
@@ -62,8 +102,33 @@ export const MEADOW_ENTRY_COMBINED_CONTROL_FINGERPRINT =
 `;
 }
 
-function assertRenderedInventory(rendered: Readonly<Record<string, string>>): void {
-	const actual = Object.keys(rendered);
+function buildExportPackage(): {
+	packageBytes: MeadowEntryExportPackage;
+	combinedControlFingerprint: string;
+} {
+	const inputs = buildMeadowEntryControlInputs();
+	const rendered = renderMeadowEntryControls(inputs);
+	const gameplaySourceFingerprint = computeMeadowEntryGameplaySourceFingerprint(inputs);
+	const authoringContractFingerprint = computeMeadowEntryAuthoringContractFingerprint(inputs);
+	const combinedControlFingerprint = computeMeadowEntryCombinedControlFingerprint(inputs);
+	return {
+		packageBytes: {
+			rendered,
+			generatedContents: generatedModule(
+				gameplaySourceFingerprint,
+				authoringContractFingerprint,
+				combinedControlFingerprint
+			)
+		},
+		combinedControlFingerprint
+	};
+}
+
+function assertRenderedInventory(
+	packageBytes: MeadowEntryExportPackage,
+	paths: MeadowEntryExportPaths
+): void {
+	const actual = Object.keys(packageBytes.rendered);
 	if (
 		actual.length !== MEADOW_ENTRY_CONTROL_FILENAMES.length ||
 		actual.some((filename, index) => filename !== MEADOW_ENTRY_CONTROL_FILENAMES[index])
@@ -76,14 +141,18 @@ function assertRenderedInventory(rendered: Readonly<Record<string, string>>): vo
 		if (filename !== basename(filename) || filename.includes('..')) {
 			throw new Error(`Refusing nested meadow-entry control path: ${filename}`);
 		}
-		assertAllowedDestination(join(controlsDirectory, filename));
+		assertAllowedMeadowEntryDestination(paths, join(paths.controlsDirectory, filename));
 	}
-	assertAllowedDestination(generatedPath);
+	assertAllowedMeadowEntryDestination(paths, paths.generatedPath);
 }
 
-function checkedInControlFilenames(): readonly string[] {
-	if (!existsSync(controlsDirectory)) return [];
-	return readdirSync(controlsDirectory, { withFileTypes: true })
+function checkedInControlFilenames(
+	paths: MeadowEntryExportPaths,
+	fileSystem: MeadowEntryExportFileSystem
+): readonly string[] {
+	if (!fileSystem.existsSync(paths.controlsDirectory)) return [];
+	return fileSystem
+		.readdirSync(paths.controlsDirectory, { withFileTypes: true })
 		.map((entry) => {
 			if (!entry.isFile()) {
 				throw new Error(`Unexpected non-file in meadow-entry control inventory: ${entry.name}`);
@@ -93,9 +162,12 @@ function checkedInControlFilenames(): readonly string[] {
 		.sort();
 }
 
-function assertNoUnexpectedCheckedInPaths(): void {
+function assertNoUnexpectedCheckedInPaths(
+	paths: MeadowEntryExportPaths,
+	fileSystem: MeadowEntryExportFileSystem
+): void {
 	const expected = [...MEADOW_ENTRY_CONTROL_FILENAMES].sort();
-	const actual = checkedInControlFilenames();
+	const actual = checkedInControlFilenames(paths, fileSystem);
 	if (
 		actual.length !== expected.length ||
 		actual.some((filename, index) => filename !== expected[index])
@@ -106,85 +178,152 @@ function assertNoUnexpectedCheckedInPaths(): void {
 	}
 }
 
-function checkBytes(rendered: Readonly<Record<string, string>>, generatedContents: string): void {
-	assertNoUnexpectedCheckedInPaths();
+export function checkMeadowEntryExportPackage(
+	packageBytes: MeadowEntryExportPackage,
+	paths: MeadowEntryExportPaths,
+	fileSystem: MeadowEntryExportFileSystem = NODE_FILE_SYSTEM
+): void {
+	assertRenderedInventory(packageBytes, paths);
+	assertNoUnexpectedCheckedInPaths(paths, fileSystem);
 	for (const filename of MEADOW_ENTRY_CONTROL_FILENAMES) {
-		const path = join(controlsDirectory, filename);
-		assertAllowedDestination(path);
-		const actual = readFileSync(path);
-		const expected = Buffer.from(rendered[filename] ?? '', 'utf8');
+		const path = join(paths.controlsDirectory, filename);
+		assertAllowedMeadowEntryDestination(paths, path);
+		const actual = fileSystem.readFileSync(path);
+		const expected = Buffer.from(packageBytes.rendered[filename] ?? '', 'utf8');
 		if (!actual.equals(expected)) {
-			throw new Error(`Generated meadow-entry control is stale: ${relative(repositoryRoot, path)}`);
+			throw new Error(
+				`Generated meadow-entry control is stale: ${relative(paths.repositoryRoot, path)}`
+			);
 		}
 	}
-	assertAllowedDestination(generatedPath);
-	if (!existsSync(generatedPath) || readFileSync(generatedPath, 'utf8') !== generatedContents) {
+	assertAllowedMeadowEntryDestination(paths, paths.generatedPath);
+	if (
+		!fileSystem.existsSync(paths.generatedPath) ||
+		fileSystem.readFileSync(paths.generatedPath, 'utf8') !== packageBytes.generatedContents
+	) {
 		throw new Error(
-			`Generated meadow-entry fingerprint module is stale: ${relative(repositoryRoot, generatedPath)}`
+			`Generated meadow-entry fingerprint module is stale: ${relative(paths.repositoryRoot, paths.generatedPath)}`
 		);
 	}
 }
 
-function writeAtomically(
-	rendered: Readonly<Record<string, string>>,
-	generatedContents: string
+function restorePreviousPackage(
+	paths: MeadowEntryExportPaths,
+	fileSystem: MeadowEntryExportFileSystem,
+	backupDirectory: string,
+	state: {
+		controlsBackedUp: boolean;
+		generatedBackedUp: boolean;
+		controlsPublished: boolean;
+		generatedPublished: boolean;
+	}
 ): void {
-	const controlsParent = dirname(controlsDirectory);
-	const generatedParent = dirname(generatedPath);
-	mkdirSync(controlsParent, { recursive: true });
-	mkdirSync(generatedParent, { recursive: true });
-
-	if (existsSync(controlsDirectory)) assertNoUnexpectedCheckedInPaths();
-	const temporaryControls = mkdtempSync(join(controlsParent, '.meadow-entry-controls-'));
-	const generatedTemporary = `${generatedPath}.tmp-${process.pid}`;
-	let controlsBackup: string | null = null;
-	try {
-		for (const filename of MEADOW_ENTRY_CONTROL_FILENAMES) {
-			writeFileSync(join(temporaryControls, filename), rendered[filename] ?? '', {
-				encoding: 'utf8',
-				flag: 'wx'
-			});
-		}
-		writeFileSync(generatedTemporary, generatedContents, { encoding: 'utf8', flag: 'wx' });
-
-		if (existsSync(controlsDirectory)) {
-			controlsBackup = mkdtempSync(join(controlsParent, '.meadow-entry-controls-backup-'));
-			rmdirSync(controlsBackup);
-			renameSync(controlsDirectory, controlsBackup);
-		}
-		renameSync(temporaryControls, controlsDirectory);
-		renameSync(generatedTemporary, generatedPath);
-		if (controlsBackup) rmSync(controlsBackup, { recursive: true });
-	} catch (error) {
-		if (controlsBackup && existsSync(controlsBackup)) {
-			if (existsSync(controlsDirectory)) rmSync(controlsDirectory, { recursive: true });
-			renameSync(controlsBackup, controlsDirectory);
-		}
-		throw error;
-	} finally {
-		if (existsSync(temporaryControls)) rmSync(temporaryControls, { recursive: true });
-		if (existsSync(generatedTemporary)) rmSync(generatedTemporary);
+	if (state.controlsPublished && fileSystem.existsSync(paths.controlsDirectory)) {
+		fileSystem.rmSync(paths.controlsDirectory, { recursive: true });
+	}
+	if (state.generatedPublished && fileSystem.existsSync(paths.generatedPath)) {
+		fileSystem.rmSync(paths.generatedPath);
+	}
+	if (state.controlsBackedUp) {
+		fileSystem.renameSync(join(backupDirectory, 'controls'), paths.controlsDirectory);
+	}
+	if (state.generatedBackedUp) {
+		fileSystem.renameSync(join(backupDirectory, 'generated.ts'), paths.generatedPath);
 	}
 }
 
-const checkMode = parseCheckMode(process.argv.slice(2));
-const inputs = buildMeadowEntryControlInputs();
-const rendered = renderMeadowEntryControls(inputs);
-assertRenderedInventory(rendered);
-const gameplaySourceFingerprint = computeMeadowEntryGameplaySourceFingerprint(inputs);
-const authoringContractFingerprint = computeMeadowEntryAuthoringContractFingerprint(inputs);
-const combinedControlFingerprint = computeMeadowEntryCombinedControlFingerprint(inputs);
-const generatedContents = generatedModule(
-	gameplaySourceFingerprint,
-	authoringContractFingerprint,
-	combinedControlFingerprint
-);
+export function publishMeadowEntryExportPackage(
+	packageBytes: MeadowEntryExportPackage,
+	paths: MeadowEntryExportPaths,
+	fileSystem: MeadowEntryExportFileSystem = NODE_FILE_SYSTEM
+): void {
+	assertRenderedInventory(packageBytes, paths);
+	const controlsParent = dirname(paths.controlsDirectory);
+	const generatedParent = dirname(paths.generatedPath);
+	fileSystem.mkdirSync(controlsParent, { recursive: true });
+	fileSystem.mkdirSync(generatedParent, { recursive: true });
 
-if (checkMode) {
-	checkBytes(rendered, generatedContents);
-	console.log(`meadow-entry controls are current\t${combinedControlFingerprint}`);
-} else {
-	writeAtomically(rendered, generatedContents);
-	console.log(`wrote ${MEADOW_ENTRY_CONTROL_FILENAMES.length} meadow-entry controls`);
-	console.log(`combinedControlFingerprint\t${combinedControlFingerprint}`);
+	const hadControls = fileSystem.existsSync(paths.controlsDirectory);
+	const hadGenerated = fileSystem.existsSync(paths.generatedPath);
+	if (hadControls) assertNoUnexpectedCheckedInPaths(paths, fileSystem);
+
+	const temporaryControls = fileSystem.mkdtempSync(
+		join(controlsParent, '.meadow-entry-package-controls-')
+	);
+	const temporaryGeneratedDirectory = fileSystem.mkdtempSync(
+		join(generatedParent, '.meadow-entry-package-generated-')
+	);
+	const temporaryGenerated = join(temporaryGeneratedDirectory, 'generated.ts');
+	const backupDirectory = fileSystem.mkdtempSync(
+		join(controlsParent, '.meadow-entry-package-backup-')
+	);
+	let packagePublished = false;
+	const state = {
+		controlsBackedUp: false,
+		generatedBackedUp: false,
+		controlsPublished: false,
+		generatedPublished: false
+	};
+	try {
+		for (const filename of MEADOW_ENTRY_CONTROL_FILENAMES) {
+			fileSystem.writeFileSync(
+				join(temporaryControls, filename),
+				packageBytes.rendered[filename] ?? '',
+				{ encoding: 'utf8', flag: 'wx' }
+			);
+		}
+		fileSystem.writeFileSync(temporaryGenerated, packageBytes.generatedContents, {
+			encoding: 'utf8',
+			flag: 'wx'
+		});
+
+		if (hadControls) {
+			fileSystem.renameSync(paths.controlsDirectory, join(backupDirectory, 'controls'));
+			state.controlsBackedUp = true;
+		}
+		if (hadGenerated) {
+			fileSystem.renameSync(paths.generatedPath, join(backupDirectory, 'generated.ts'));
+			state.generatedBackedUp = true;
+		}
+		fileSystem.renameSync(temporaryControls, paths.controlsDirectory);
+		state.controlsPublished = true;
+		fileSystem.renameSync(temporaryGenerated, paths.generatedPath);
+		state.generatedPublished = true;
+		packagePublished = true;
+		fileSystem.rmSync(backupDirectory, { recursive: true });
+	} catch (error) {
+		if (!packagePublished) {
+			restorePreviousPackage(paths, fileSystem, backupDirectory, state);
+			if (fileSystem.existsSync(backupDirectory)) {
+				fileSystem.rmSync(backupDirectory, { recursive: true });
+			}
+		}
+		throw error;
+	} finally {
+		if (fileSystem.existsSync(temporaryControls)) {
+			fileSystem.rmSync(temporaryControls, { recursive: true });
+		}
+		if (fileSystem.existsSync(temporaryGeneratedDirectory)) {
+			fileSystem.rmSync(temporaryGeneratedDirectory, { recursive: true });
+		}
+	}
 }
+
+export function runMeadowEntryArtControlsExporter(
+	args: readonly string[],
+	repositoryRoot = process.cwd()
+): void {
+	const checkMode = parseCheckMode(args);
+	const paths = meadowEntryExportPaths(repositoryRoot);
+	const { packageBytes, combinedControlFingerprint } = buildExportPackage();
+	if (checkMode) {
+		checkMeadowEntryExportPackage(packageBytes, paths);
+		console.log(`meadow-entry controls are current\t${combinedControlFingerprint}`);
+	} else {
+		publishMeadowEntryExportPackage(packageBytes, paths);
+		console.log(`wrote ${MEADOW_ENTRY_CONTROL_FILENAMES.length} meadow-entry controls`);
+		console.log(`combinedControlFingerprint\t${combinedControlFingerprint}`);
+	}
+}
+
+if (import.meta.main) runMeadowEntryArtControlsExporter(process.argv.slice(2));
