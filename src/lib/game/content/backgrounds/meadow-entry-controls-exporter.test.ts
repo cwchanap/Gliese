@@ -148,6 +148,58 @@ describe('meadow-entry exporter package safety', () => {
 		}
 	});
 
+	it('repairs a missing allowlisted control through one complete package publication', async () => {
+		const api = await exporterApi();
+		expect(api.publishMeadowEntryExportPackage).toBeTypeOf('function');
+		if (!api.publishMeadowEntryExportPackage) return;
+		const paths = newPaths();
+		writePackage(packageBytes('old'), paths);
+		rmSync(join(paths.controlsDirectory, MEADOW_ENTRY_CONTROL_FILENAMES[3]));
+		const next = packageBytes('new');
+
+		api.publishMeadowEntryExportPackage(next, paths);
+
+		expect(packageSnapshot(paths)).toEqual({
+			...next.rendered,
+			generated: next.generatedContents
+		});
+	});
+
+	it('atomically restores the same incomplete package if missing-file repair publication fails', async () => {
+		const api = await exporterApi();
+		expect(api.publishMeadowEntryExportPackage).toBeTypeOf('function');
+		if (!api.publishMeadowEntryExportPackage) return;
+		const paths = newPaths();
+		const previous = packageBytes('old');
+		writePackage(previous, paths);
+		const missingFilename = MEADOW_ENTRY_CONTROL_FILENAMES[3];
+		rmSync(join(paths.controlsDirectory, missingFilename));
+		const failingFileSystem: ExportFileSystem = {
+			...NODE_FILE_SYSTEM,
+			renameSync: ((source: string, destination: string) => {
+				if (
+					destination === paths.generatedPath &&
+					source.includes('.meadow-entry-package-generated-')
+				) {
+					throw new Error('injected missing-file repair publish failure');
+				}
+				return renameSync(source, destination);
+			}) as typeof renameSync
+		};
+
+		expect(() =>
+			api.publishMeadowEntryExportPackage!(packageBytes('new'), paths, failingFileSystem)
+		).toThrow('injected missing-file repair publish failure');
+		expect(existsSync(join(paths.controlsDirectory, missingFilename))).toBe(false);
+		for (const filename of MEADOW_ENTRY_CONTROL_FILENAMES) {
+			if (filename === missingFilename) continue;
+			expect(readFileSync(join(paths.controlsDirectory, filename), 'utf8'), filename).toBe(
+				previous.rendered[filename]
+			);
+		}
+		expect(readFileSync(paths.generatedPath, 'utf8')).toBe(previous.generatedContents);
+	});
+
 	it('rejects unexpected inventory, predecessor destinations, and differing bytes', async () => {
 		const api = await exporterApi();
 		expect(api.checkMeadowEntryExportPackage).toBeTypeOf('function');
@@ -159,13 +211,29 @@ describe('meadow-entry exporter package safety', () => {
 		writeFileSync(join(paths.controlsDirectory, 'unexpected.txt'), 'unexpected');
 
 		expect(() => api.checkMeadowEntryExportPackage!(current, paths)).toThrow('fixed allowlist');
+		expect(() => api.publishMeadowEntryExportPackage!(current, paths)).toThrow('fixed allowlist');
 		rmSync(join(paths.controlsDirectory, 'unexpected.txt'));
+		mkdirSync(join(paths.controlsDirectory, 'unexpected-directory'));
+		expect(() => api.publishMeadowEntryExportPackage!(current, paths)).toThrow('non-file');
+		rmSync(join(paths.controlsDirectory, 'unexpected-directory'), { recursive: true });
 		writeFileSync(join(paths.controlsDirectory, MEADOW_ENTRY_CONTROL_FILENAMES[0]), 'different\n');
 		expect(() => api.checkMeadowEntryExportPackage!(current, paths)).toThrow('is stale');
 		expect(() =>
 			api.assertAllowedMeadowEntryDestination!(
 				paths,
 				join(paths.repositoryRoot, 'docs/superpowers/reports/img/hpa-398/forbidden.svg')
+			)
+		).toThrow('Refusing unexpected');
+		expect(() =>
+			api.assertAllowedMeadowEntryDestination!(
+				paths,
+				join(paths.repositoryRoot, 'docs/superpowers/reports/img/hpa-307/forbidden.svg')
+			)
+		).toThrow('Refusing unexpected');
+		expect(() =>
+			api.assertAllowedMeadowEntryDestination!(
+				paths,
+				join(paths.repositoryRoot, '..', 'outside-repository.svg')
 			)
 		).toThrow('Refusing unexpected');
 	});

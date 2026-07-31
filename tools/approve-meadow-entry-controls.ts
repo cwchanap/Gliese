@@ -53,6 +53,10 @@ export interface MeadowEntryApprovalPublicationFileSystem {
 	remove(path: string): void;
 }
 
+function isValidReviewedBy(value: string): boolean {
+	return value === value.trim() && REVIEWER.test(value);
+}
+
 const NODE_PUBLICATION_FILE_SYSTEM: MeadowEntryApprovalPublicationFileSystem = {
 	writeFileExclusive(path, contents) {
 		writeFileSync(path, contents, { encoding: 'utf8', flag: 'wx' });
@@ -100,7 +104,7 @@ export function parseMeadowEntryControlsApprovalArguments(
 	const reviewedBy = values.get('--reviewed-by');
 	const reviewedAt = values.get('--reviewed-at');
 	if (reviewedBy === undefined) throw new Error('Missing required --reviewed-by argument.');
-	if (!REVIEWER.test(reviewedBy)) {
+	if (!isValidReviewedBy(reviewedBy)) {
 		throw new Error(
 			'--reviewed-by must be 1-100 printable identity characters without surrounding whitespace.'
 		);
@@ -244,7 +248,9 @@ export function renderMeadowEntryControlsApprovalModule(
 	review: MeadowEntryControlsApprovalArguments,
 	values: MeadowEntryControlsApprovalValues
 ): string {
-	if (!REVIEWER.test(review.reviewedBy)) throw new Error('Invalid reviewedBy value.');
+	if (!isValidReviewedBy(review.reviewedBy)) {
+		throw new Error('Invalid reviewedBy value: surrounding whitespace is not allowed.');
+	}
 	assertValidReviewedAt(review.reviewedAt);
 	assertApprovalValues(values);
 

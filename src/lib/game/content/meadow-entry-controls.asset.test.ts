@@ -130,7 +130,36 @@ describe('meadow-entry approval tool', () => {
 				'--force'
 			])
 		).toThrow(/unknown/i);
+		for (const reviewedBy of [' reviewer', 'reviewer ']) {
+			expect(() =>
+				parseMeadowEntryControlsApprovalArguments([
+					'--reviewed-by',
+					reviewedBy,
+					'--reviewed-at',
+					'2026-07-31T12:34:56Z'
+				])
+			).toThrow(/surrounding whitespace/i);
+		}
 	});
+
+	it.each([' reviewer', 'reviewer '])(
+		'rejects direct approval rendering for a reviewer with surrounding whitespace: %j',
+		(reviewedBy) => {
+			expect(() =>
+				renderMeadowEntryControlsApprovalModule(
+					{ reviewedBy, reviewedAt: '2026-07-31T12:34:56Z' },
+					{
+						combinedControlFingerprint: '1'.repeat(64),
+						cropManifestSha256: '2'.repeat(64),
+						bakeOwnershipSha256: '3'.repeat(64),
+						storageMode: 'git-lfs',
+						storageConfigurationSha256: '4'.repeat(64),
+						evidencePath: EVIDENCE_PATH
+					}
+				)
+			).toThrow(/reviewedBy/i);
+		}
+	);
 
 	it('renders byte-identical, reviewable approval source for identical inputs', () => {
 		const review = parseMeadowEntryControlsApprovalArguments([
