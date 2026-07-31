@@ -1,10 +1,14 @@
+import { createHash } from 'node:crypto';
 import { describe, expect, it } from 'vitest';
 import { containsBounds, rasterizeCoverageBounds } from './meadow-entry-authoring-geometry';
 import {
 	MEADOW_ENTRY_AUTHORING_REGIONS,
 	MEADOW_ENTRY_OUTLIER_RESOLUTIONS,
 	MEADOW_ENTRY_PRIMARY_SOURCE_OWNERS,
+	MEADOW_ENTRY_REVIEWED_AUTHORING_REGIONS_SHA256,
+	MEADOW_ENTRY_REVIEWED_PRIMARY_SOURCE_OWNERS_SHA256,
 	validateMeadowEntryAuthoringLayout,
+	type MeadowEntryAuthoringRegion,
 	type MeadowEntryAuthoringRegionId
 } from './meadow-entry-authoring-layout';
 import {
@@ -51,6 +55,16 @@ const defaultFragmentOwners = {
 	'outer-boundary': 'outer-boundary'
 } as const satisfies Readonly<Record<string, MeadowEntryAuthoringRegionId>>;
 
+function sha256(value: string): string {
+	return createHash('sha256').update(value).digest('hex');
+}
+
+function replaceRegion(region: MeadowEntryAuthoringRegion): readonly MeadowEntryAuthoringRegion[] {
+	return MEADOW_ENTRY_AUTHORING_REGIONS.map((candidate) =>
+		candidate.id === region.id ? region : candidate
+	);
+}
+
 describe('meadow-entry authoring layout', () => {
 	it('assigns exactly one primary authoring owner to every catalog source', () => {
 		const catalogKeys = collectMeadowEntrySourceCatalog().map(({ ref }) =>
@@ -72,6 +86,67 @@ describe('meadow-entry authoring layout', () => {
 		for (const [sourceKey, expectedOwner] of Object.entries(expectedPathOwners)) {
 			expect(MEADOW_ENTRY_PRIMARY_SOURCE_OWNERS[sourceKey], sourceKey).toBe(expectedOwner);
 		}
+	});
+
+	it('rejects any drift from the independently reviewed primary-owner snapshot', () => {
+		const canonicalOwners = Object.entries(MEADOW_ENTRY_PRIMARY_SOURCE_OWNERS)
+			.sort(([left], [right]) => (left < right ? -1 : left > right ? 1 : 0))
+			.map(([sourceKey, owner]) => `${sourceKey}=${owner}\n`)
+			.join('');
+
+		expect(MEADOW_ENTRY_REVIEWED_PRIMARY_SOURCE_OWNERS_SHA256).toBe(
+			'63bf03a986d2755ead9306e4124ecf0cdabb87e7bc99ef9ba447c044c1f00519'
+		);
+		expect(sha256(canonicalOwners)).toBe(MEADOW_ENTRY_REVIEWED_PRIMARY_SOURCE_OWNERS_SHA256);
+	});
+
+	it('locks the exact ordered region metadata to its independent reviewed snapshot', () => {
+		expect(MEADOW_ENTRY_REVIEWED_AUTHORING_REGIONS_SHA256).toBe(
+			'a8b56d60dd0de31c3db76375aeb8a66eb8eff6d422be26bacbe5396c4ba8f28c'
+		);
+		expect(sha256(JSON.stringify(MEADOW_ENTRY_AUTHORING_REGIONS))).toBe(
+			MEADOW_ENTRY_REVIEWED_AUTHORING_REGIONS_SHA256
+		);
+	});
+
+	it('rejects self-neighbors and repeated neighbor declarations', () => {
+		const crossroads = MEADOW_ENTRY_AUTHORING_REGIONS.find(({ id }) => id === 'crossroads');
+		expect(crossroads).toBeDefined();
+		if (!crossroads) return;
+
+		expect(() =>
+			validateMeadowEntryAuthoringLayout({
+				regions: replaceRegion({
+					...crossroads,
+					neighbors: [...crossroads.neighbors, 'crossroads']
+				})
+			})
+		).toThrow(/must not neighbor itself/);
+		expect(() =>
+			validateMeadowEntryAuthoringLayout({
+				regions: replaceRegion({
+					...crossroads,
+					neighbors: [...crossroads.neighbors, 'connector-village-crossroads']
+				})
+			})
+		).toThrow(/duplicate neighbor "connector-village-crossroads"/);
+	});
+
+	it('rejects every declared neighbor handoff below 128 shared pixels', () => {
+		const connector = MEADOW_ENTRY_AUTHORING_REGIONS.find(
+			({ id }) => id === 'connector-crossroads-coast'
+		);
+		expect(connector).toBeDefined();
+		if (!connector) return;
+
+		expect(() =>
+			validateMeadowEntryAuthoringLayout({
+				regions: replaceRegion({
+					...connector,
+					reviewBounds: { left: 4_192, top: 4_512, right: 4_256, bottom: 4_576 }
+				})
+			})
+		).toThrow(/handoff must share at least 128px/);
 	});
 
 	it('records exactly one typed resolution for every detected spatial outlier', () => {
