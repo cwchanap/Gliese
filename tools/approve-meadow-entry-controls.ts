@@ -1,11 +1,16 @@
-import { createHash } from 'node:crypto';
-import { readFileSync, writeFileSync } from 'node:fs';
-import { join } from 'node:path';
+import { createHash, randomUUID } from 'node:crypto';
+import { readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs';
+import { basename, dirname, join } from 'node:path';
 
 import {
 	MEADOW_ENTRY_ART_STORAGE,
 	validateMeadowEntryStorageContract
 } from '$lib/game/content/backgrounds/meadow-entry-storage';
+import {
+	buildMeadowEntryControlInputs,
+	computeMeadowEntryCombinedControlFingerprint,
+	renderMeadowEntryControls
+} from '$lib/game/content/backgrounds/meadow-entry-controls';
 import { MEADOW_ENTRY_COMBINED_CONTROL_FINGERPRINT } from '$lib/game/content/generated/meadow-entry-art-control';
 
 import { runMeadowEntryArtControlsExporter } from './export-meadow-entry-art-controls';
@@ -31,6 +36,32 @@ export interface MeadowEntryControlsApprovalValues {
 	storageConfigurationSha256: string;
 	evidencePath: typeof EVIDENCE_PATH;
 }
+
+export interface MeadowEntryApprovalArtifactSnapshot {
+	currentCombinedFingerprint: string;
+	checkedInCombinedFingerprint: string;
+	renderedCropManifest: string;
+	checkedInCropManifest: Uint8Array;
+	renderedBakeOwnership: string;
+	checkedInBakeOwnership: Uint8Array;
+	storageConfiguration: Uint8Array;
+}
+
+export interface MeadowEntryApprovalPublicationFileSystem {
+	writeFileExclusive(path: string, contents: string): void;
+	rename(source: string, destination: string): void;
+	remove(path: string): void;
+}
+
+const NODE_PUBLICATION_FILE_SYSTEM: MeadowEntryApprovalPublicationFileSystem = {
+	writeFileExclusive(path, contents) {
+		writeFileSync(path, contents, { encoding: 'utf8', flag: 'wx' });
+	},
+	rename: renameSync,
+	remove(path) {
+		rmSync(path, { force: true });
+	}
+};
 
 function assertValidReviewedAt(value: string): void {
 	if (!UTC_SECONDS.test(value)) {
@@ -84,42 +115,118 @@ function sha256(value: Uint8Array | string): string {
 	return createHash('sha256').update(value).digest('hex');
 }
 
-function canonicalStorageConfiguration(repositoryRoot: string): string {
+function requiredStorageConfigurationLines(): readonly {
+	label: 'asset' | 'proof';
+	line: string;
+}[] {
 	validateMeadowEntryStorageContract(MEADOW_ENTRY_ART_STORAGE);
-	const requiredLines = [
-		`${MEADOW_ENTRY_ART_STORAGE.assetPattern} filter=lfs diff=lfs merge=lfs -text`,
-		`${MEADOW_ENTRY_ART_STORAGE.proofPattern} filter=lfs diff=lfs merge=lfs -text`
+	return [
+		{
+			label: 'asset',
+			line: `${MEADOW_ENTRY_ART_STORAGE.assetPattern} filter=lfs diff=lfs merge=lfs -text`
+		},
+		{
+			label: 'proof',
+			line: `${MEADOW_ENTRY_ART_STORAGE.proofPattern} filter=lfs diff=lfs merge=lfs -text`
+		}
 	];
-	const checkedInLines = readFileSync(join(repositoryRoot, '.gitattributes'), 'utf8').split(
-		/\r?\n/
-	);
-	for (const requiredLine of requiredLines) {
-		if (checkedInLines.filter((line) => line === requiredLine).length !== 1) {
-			throw new Error(
-				`Expected exactly one checked-in Git LFS configuration line: ${requiredLine}`
-			);
+}
+
+function assertStorageConfiguration(storageConfiguration: Uint8Array): void {
+	const text = Buffer.from(storageConfiguration).toString('utf8');
+	if (text.includes('\r') || !text.endsWith('\n')) {
+		throw new Error('Meadow-entry Git LFS configuration must use LF bytes with a final newline.');
+	}
+	const checkedInLines = text.slice(0, -1).split('\n');
+	for (const { label, line } of requiredStorageConfigurationLines()) {
+		if (checkedInLines.filter((checkedInLine) => checkedInLine === line).length !== 1) {
+			throw new Error(`Expected exactly one ${label} Git LFS configuration line: ${line}`);
 		}
 	}
-	return requiredLines.join('\n') + '\n';
+}
+
+export function validateMeadowEntryApprovalArtifacts(
+	snapshot: MeadowEntryApprovalArtifactSnapshot
+): void {
+	if (snapshot.currentCombinedFingerprint !== snapshot.checkedInCombinedFingerprint) {
+		throw new Error(
+			'Current combined control fingerprint does not match the checked-in fingerprint.'
+		);
+	}
+	if (
+		!Buffer.from(snapshot.renderedCropManifest).equals(Buffer.from(snapshot.checkedInCropManifest))
+	) {
+		throw new Error('Checked-in crop manifest bytes do not match the current rendered manifest.');
+	}
+	if (
+		!Buffer.from(snapshot.renderedBakeOwnership).equals(
+			Buffer.from(snapshot.checkedInBakeOwnership)
+		)
+	) {
+		throw new Error('Checked-in bake ownership bytes do not match the current rendered ownership.');
+	}
+	assertStorageConfiguration(snapshot.storageConfiguration);
 }
 
 function readApprovalValues(repositoryRoot: string): MeadowEntryControlsApprovalValues {
+	const inputs = buildMeadowEntryControlInputs();
+	const currentCombinedFingerprint = computeMeadowEntryCombinedControlFingerprint(inputs);
+	const rendered = renderMeadowEntryControls(inputs);
 	const cropManifest = readFileSync(
 		join(repositoryRoot, CONTROLS_DIRECTORY, 'meadow-entry-crop-manifest.json')
 	);
 	const bakeOwnership = readFileSync(
 		join(repositoryRoot, CONTROLS_DIRECTORY, 'meadow-entry-bake-ownership.json')
 	);
-	const storageConfiguration = canonicalStorageConfiguration(repositoryRoot);
+	const storageConfiguration = readFileSync(join(repositoryRoot, '.gitattributes'));
+	validateMeadowEntryApprovalArtifacts({
+		currentCombinedFingerprint,
+		checkedInCombinedFingerprint: MEADOW_ENTRY_COMBINED_CONTROL_FINGERPRINT,
+		renderedCropManifest: rendered['meadow-entry-crop-manifest.json']!,
+		checkedInCropManifest: cropManifest,
+		renderedBakeOwnership: rendered['meadow-entry-bake-ownership.json']!,
+		checkedInBakeOwnership: bakeOwnership,
+		storageConfiguration
+	});
 
 	return {
-		combinedControlFingerprint: MEADOW_ENTRY_COMBINED_CONTROL_FINGERPRINT,
+		combinedControlFingerprint: currentCombinedFingerprint,
 		cropManifestSha256: sha256(cropManifest),
 		bakeOwnershipSha256: sha256(bakeOwnership),
 		storageMode: 'git-lfs',
 		storageConfigurationSha256: sha256(storageConfiguration),
 		evidencePath: EVIDENCE_PATH
 	};
+}
+
+export function publishMeadowEntryControlsApproval(
+	contents: string,
+	approvalPath: string,
+	fileSystem: MeadowEntryApprovalPublicationFileSystem = NODE_PUBLICATION_FILE_SYSTEM,
+	temporaryToken: string = randomUUID()
+): void {
+	if (!/^[A-Za-z0-9-]+$/.test(temporaryToken)) {
+		throw new Error('Invalid meadow-entry approval temporary token.');
+	}
+	const temporaryPath = join(
+		dirname(approvalPath),
+		`.${basename(approvalPath)}.${temporaryToken}.tmp`
+	);
+	try {
+		fileSystem.writeFileExclusive(temporaryPath, contents);
+		fileSystem.rename(temporaryPath, approvalPath);
+	} catch (error) {
+		try {
+			fileSystem.remove(temporaryPath);
+		} catch (cleanupError) {
+			throw new AggregateError(
+				[error, cleanupError],
+				`Failed to publish meadow-entry approval and clean staging file ${temporaryPath}`,
+				{ cause: cleanupError }
+			);
+		}
+		throw error;
+	}
 }
 
 function assertApprovalValues(values: MeadowEntryControlsApprovalValues): void {
@@ -175,7 +282,7 @@ export function approveMeadowEntryControls(
 	runMeadowEntryArtControlsExporter(['--check'], repositoryRoot);
 	const values = readApprovalValues(repositoryRoot);
 	const output = renderMeadowEntryControlsApprovalModule(review, values);
-	writeFileSync(join(repositoryRoot, APPROVAL_PATH), output, 'utf8');
+	publishMeadowEntryControlsApproval(output, join(repositoryRoot, APPROVAL_PATH));
 
 	console.log(`approved meadow-entry controls ${values.combinedControlFingerprint}`);
 	console.log(`reviewedBy ${review.reviewedBy}`);

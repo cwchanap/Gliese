@@ -1,4 +1,7 @@
 import { createHash } from 'node:crypto';
+import { readFileSync } from 'node:fs';
+import { dirname, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 
 import {
@@ -8,6 +11,7 @@ import {
 import { MEADOW_ENTRY_ART_STORAGE } from '$lib/game/content/backgrounds/meadow-entry-storage';
 import {
 	buildMeadowEntryControlInputs,
+	computeMeadowEntryCombinedControlFingerprint,
 	renderMeadowEntryControls
 } from '$lib/game/content/backgrounds/meadow-entry-controls';
 import { MEADOW_ENTRY_COMBINED_CONTROL_FINGERPRINT } from '$lib/game/content/generated/meadow-entry-art-control';
@@ -20,37 +24,59 @@ import {
 const SHA256 = /^[0-9a-f]{64}$/;
 const EVIDENCE_PATH =
 	'docs/superpowers/reports/2026-07-30-hpa-399-controls-crops-storage-validation.md';
+const testDirectory = dirname(fileURLToPath(import.meta.url));
+const repositoryRoot = resolve(testDirectory, '../../../..');
+const controlsDirectory = resolve(repositoryRoot, 'docs/superpowers/reports/img/hpa-399/controls');
 
-function sha256(value: string): string {
+function sha256(value: string | Uint8Array): string {
 	return createHash('sha256').update(value).digest('hex');
 }
 
 describe('meadow-entry reviewed control approval', () => {
 	it('seals current generated controls and independently rendered Task 5/6 manifests', () => {
-		const rendered = renderMeadowEntryControls(buildMeadowEntryControlInputs());
+		const inputs = buildMeadowEntryControlInputs();
+		const currentCombinedFingerprint = computeMeadowEntryCombinedControlFingerprint(inputs);
+		const rendered = renderMeadowEntryControls(inputs);
+		const checkedInCropManifest = readFileSync(
+			resolve(controlsDirectory, 'meadow-entry-crop-manifest.json')
+		);
+		const checkedInBakeOwnership = readFileSync(
+			resolve(controlsDirectory, 'meadow-entry-bake-ownership.json')
+		);
 
-		expect(meadowEntryControlsApproval.combinedControlFingerprint).toBe(
-			MEADOW_ENTRY_COMBINED_CONTROL_FINGERPRINT
+		expect(currentCombinedFingerprint).toBe(MEADOW_ENTRY_COMBINED_CONTROL_FINGERPRINT);
+		expect(currentCombinedFingerprint).toBe(meadowEntryControlsApproval.combinedControlFingerprint);
+		expect(Buffer.from(rendered['meadow-entry-crop-manifest.json']!)).toEqual(
+			checkedInCropManifest
 		);
-		expect(meadowEntryControlsApproval.cropManifestSha256).toBe(
-			sha256(rendered['meadow-entry-crop-manifest.json']!)
+		expect(Buffer.from(rendered['meadow-entry-bake-ownership.json']!)).toEqual(
+			checkedInBakeOwnership
 		);
-		expect(meadowEntryControlsApproval.bakeOwnershipSha256).toBe(
-			sha256(rendered['meadow-entry-bake-ownership.json']!)
-		);
+		expect(meadowEntryControlsApproval.cropManifestSha256).toBe(sha256(checkedInCropManifest));
+		expect(meadowEntryControlsApproval.bakeOwnershipSha256).toBe(sha256(checkedInBakeOwnership));
 		expect(meadowEntryControlsApproval.cropManifestSha256).toMatch(SHA256);
 		expect(meadowEntryControlsApproval.bakeOwnershipSha256).toMatch(SHA256);
 		expect(meadowEntryControlsApproval.evidencePath).toBe(EVIDENCE_PATH);
 	});
 
 	it('seals the exact Git LFS storage configuration independently of the approval tool', () => {
-		const storageConfiguration =
-			[
-				`${MEADOW_ENTRY_ART_STORAGE.assetPattern} filter=lfs diff=lfs merge=lfs -text`,
-				`${MEADOW_ENTRY_ART_STORAGE.proofPattern} filter=lfs diff=lfs merge=lfs -text`
-			].join('\n') + '\n';
+		const storageConfiguration = readFileSync(resolve(repositoryRoot, '.gitattributes'));
+		const storageText = storageConfiguration.toString('utf8');
+		const requiredLines = [
+			`${MEADOW_ENTRY_ART_STORAGE.assetPattern} filter=lfs diff=lfs merge=lfs -text`,
+			`${MEADOW_ENTRY_ART_STORAGE.proofPattern} filter=lfs diff=lfs merge=lfs -text`
+		];
+		const actualLines = storageText.slice(0, -1).split('\n');
 
 		expect(MEADOW_ENTRY_ART_STORAGE.mode).toBe('git-lfs');
+		expect(storageText).not.toContain('\r');
+		expect(storageText.endsWith('\n')).toBe(true);
+		for (const requiredLine of requiredLines) {
+			expect(
+				actualLines.filter((line) => line === requiredLine),
+				requiredLine
+			).toHaveLength(1);
+		}
 		expect(meadowEntryControlsApproval.storageMode).toBe('git-lfs');
 		expect(meadowEntryControlsApproval.storageConfigurationSha256).toBe(
 			sha256(storageConfiguration)
