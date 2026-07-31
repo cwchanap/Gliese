@@ -85,7 +85,8 @@ export interface MeadowEntryRendererMaskMaterialContract {
 		discoveryDefaultDiameter: 96;
 	};
 	collisionExpansionPx: 12;
-	walkableRouteExpansionPx: 12;
+	walkableSpaceTileSizePx: 32;
+	walkableSpaceRule: 'tile-forbidden-unless-one-player-expanded-collision-covers-it';
 	foregroundRule: 'explicit-base-and-foreground-minus-forbidden-and-protected';
 	protectedRule: 'protected-live-source-bounds-plus-reviewed-margins';
 	rasterizationRule: 'raw-center-edges-floor-left-top-ceil-right-bottom';
@@ -110,6 +111,7 @@ export interface MeadowEntryControlInputs {
 	cropBudgetSummary: MeadowEntryCropBudgetSummary;
 	strictCollisionRects: readonly PixelBounds[];
 	landmarkCollisionRects: readonly PixelBounds[];
+	walkableSpaceRects: readonly PixelBounds[];
 	protectedRects: readonly PixelBounds[];
 	controlClearanceRects: readonly MeadowEntryControlClearance[];
 	rendererMaskMaterialContract: MeadowEntryRendererMaskMaterialContract;
@@ -243,6 +245,76 @@ function collisionBounds(rect: Pick<MapRect, 'x' | 'y' | 'width' | 'height'>): P
 	return expanded;
 }
 
+function containsPixelBounds(container: PixelBounds, value: PixelBounds): boolean {
+	return (
+		container.left <= value.left &&
+		container.top <= value.top &&
+		container.right >= value.right &&
+		container.bottom >= value.bottom
+	);
+}
+
+function buildWalkableSpaceRects(
+	worldBounds: PixelBounds,
+	tileSizePx: number,
+	collisionRects: readonly PixelBounds[]
+): readonly PixelBounds[] {
+	const width = worldBounds.right - worldBounds.left;
+	const height = worldBounds.bottom - worldBounds.top;
+	if (width % tileSizePx !== 0 || height % tileSizePx !== 0) {
+		throw new Error('Meadow-entry world bounds must align to the walkable-space tile size');
+	}
+
+	const columnCount = width / tileSizePx;
+	const rowCount = height / tileSizePx;
+	const output: PixelBounds[] = [];
+	let activeRuns = new Map<string, PixelBounds>();
+
+	for (let row = 0; row < rowCount; row += 1) {
+		const top = worldBounds.top + row * tileSizePx;
+		const bottom = top + tileSizePx;
+		const rowRuns: Array<{ left: number; right: number }> = [];
+		let runLeft: number | null = null;
+
+		for (let column = 0; column < columnCount; column += 1) {
+			const left = worldBounds.left + column * tileSizePx;
+			const right = left + tileSizePx;
+			const tile = { left, top, right, bottom };
+			const fullyBlocked = collisionRects.some((collision) => containsPixelBounds(collision, tile));
+
+			if (!fullyBlocked && runLeft === null) runLeft = left;
+			if (fullyBlocked && runLeft !== null) {
+				rowRuns.push({ left: runLeft, right: left });
+				runLeft = null;
+			}
+		}
+		if (runLeft !== null) rowRuns.push({ left: runLeft, right: worldBounds.right });
+
+		const nextRuns = new Map<string, PixelBounds>();
+		for (const run of rowRuns) {
+			const key = `${run.left}:${run.right}`;
+			const active = activeRuns.get(key);
+			if (active?.bottom === top) {
+				active.bottom = bottom;
+				nextRuns.set(key, active);
+				continue;
+			}
+			const created = { left: run.left, top, right: run.right, bottom };
+			output.push(created);
+			nextRuns.set(key, created);
+		}
+		activeRuns = nextRuns;
+	}
+
+	return output.sort(
+		(left, right) =>
+			left.top - right.top ||
+			left.left - right.left ||
+			left.bottom - right.bottom ||
+			left.right - right.right
+	);
+}
+
 function pointSourceRect(
 	map: WorldMapDefinition,
 	sourceType: MeadowEntrySourceType,
@@ -345,7 +417,8 @@ function buildRendererMaskMaterialContract(
 		maskDimensionsPx: { width: MASK_WIDTH, height: MASK_HEIGHT },
 		pointExtentsPx: POINT_EXTENTS_PX,
 		collisionExpansionPx: PLAYER_COLLISION_RADIUS,
-		walkableRouteExpansionPx: PLAYER_COLLISION_RADIUS,
+		walkableSpaceTileSizePx: MEADOW_ENTRY_TILE_SIZE_PX,
+		walkableSpaceRule: 'tile-forbidden-unless-one-player-expanded-collision-covers-it',
 		foregroundRule: 'explicit-base-and-foreground-minus-forbidden-and-protected',
 		protectedRule: 'protected-live-source-bounds-plus-reviewed-margins',
 		rasterizationRule: 'raw-center-edges-floor-left-top-ceil-right-bottom',
@@ -395,6 +468,8 @@ export function buildMeadowEntryControlInputs(): MeadowEntryControlInputs {
 	const repositoryRoot = process.cwd();
 	const sourceCatalog = collectMeadowEntrySourceCatalog();
 	const rendererMaskMaterialContract = buildRendererMaskMaterialContract(repositoryRoot);
+	const strictCollisionRects = collectStrictCollisionRects(meadowEntryMap).map(collisionBounds);
+	const landmarkCollisionRects = collectLandmarkRects(meadowEntryMap).map(collisionBounds);
 	if (MEADOW_ENTRY_FOREGROUND_FRONT_CUTOFF_PX !== 33) {
 		throw new Error('Meadow-entry foreground cutoff has drifted from the reviewed 33px contract');
 	}
@@ -413,8 +488,13 @@ export function buildMeadowEntryControlInputs(): MeadowEntryControlInputs {
 		overlaps: MEADOW_ENTRY_APPROVED_OVERLAPS,
 		runtimeCoverage: MEADOW_ENTRY_RUNTIME_COVERAGE,
 		cropBudgetSummary: MEADOW_ENTRY_CROP_BUDGET_SUMMARY,
-		strictCollisionRects: collectStrictCollisionRects(meadowEntryMap).map(collisionBounds),
-		landmarkCollisionRects: collectLandmarkRects(meadowEntryMap).map(collisionBounds),
+		strictCollisionRects,
+		landmarkCollisionRects,
+		walkableSpaceRects: buildWalkableSpaceRects(
+			MEADOW_ENTRY_WORLD_BOUNDS,
+			MEADOW_ENTRY_TILE_SIZE_PX,
+			[...strictCollisionRects, ...landmarkCollisionRects]
+		),
 		protectedRects: buildProtectedRects(
 			meadowEntryMap,
 			sourceCatalog,
@@ -492,6 +572,7 @@ export function computeMeadowEntryGameplaySourceFingerprint(
 			sourceCatalog: sortedSourceCatalog(input),
 			strictCollisionRects: input.strictCollisionRects,
 			landmarkCollisionRects: input.landmarkCollisionRects,
+			walkableSpaceRects: input.walkableSpaceRects,
 			controlClearanceRects: input.controlClearanceRects,
 			sourceFileHashes: input.sourceFileHashes
 		})
@@ -520,6 +601,7 @@ export function computeMeadowEntryAuthoringContractFingerprint(
 			playerCollisionRadiusPx: input.playerCollisionRadiusPx,
 			foregroundFrontCutoffPx: input.foregroundFrontCutoffPx,
 			protectedRects: input.protectedRects,
+			walkableSpaceRects: input.walkableSpaceRects,
 			controlClearanceRects: input.controlClearanceRects,
 			rendererMaskMaterialContract: input.rendererMaskMaterialContract,
 			storage: input.storage
@@ -699,23 +781,9 @@ function controlClearanceSvgRects(input: MeadowEntryControlInputs): SvgRect[] {
 }
 
 function forbiddenTallRects(input: MeadowEntryControlInputs): SvgRect[] {
-	const walkableRoutes = sortedSourceCatalog(input).flatMap((record) => {
-		if (record.ref.sourceType !== 'ground-patch' || record.bounds === null) return [];
-		const expanded = expandBounds(rasterizeCoverageBounds(record.bounds), {
-			top: input.rendererMaskMaterialContract.walkableRouteExpansionPx,
-			right: input.rendererMaskMaterialContract.walkableRouteExpansionPx,
-			bottom: input.rendererMaskMaterialContract.walkableRouteExpansionPx,
-			left: input.rendererMaskMaterialContract.walkableRouteExpansionPx
-		});
-		return expanded
-			? [{ id: `walkable:${meadowEntrySourceKey(record.ref)}`, bounds: expanded, fill: '#777777' }]
-			: [];
-	});
 	return [
-		...indexedRects('strict-collision', input.strictCollisionRects, '#ffffff'),
-		...indexedRects('landmark-collision', input.landmarkCollisionRects, '#bdbdbd'),
+		...indexedRects('walkable-space', input.walkableSpaceRects, '#777777'),
 		...indexedRects('protected', input.protectedRects, '#ff3366'),
-		...walkableRoutes,
 		...controlClearanceSvgRects(input)
 	];
 }
@@ -824,6 +892,7 @@ export function renderMeadowEntryControls(
 			storage: input.storage,
 			sourceFileHashes: input.sourceFileHashes,
 			rendererMaskMaterialContract: input.rendererMaskMaterialContract,
+			walkableSpaceRects: input.walkableSpaceRects,
 			controlClearanceRects: input.controlClearanceRects
 		}),
 		'meadow-entry-composite-control.svg': svgDocument(composite),

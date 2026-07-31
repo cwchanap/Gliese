@@ -1,5 +1,10 @@
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
+
 import { sundropVillageBackgroundsApproval } from '$lib/game/content/approvals/sundrop-village-backgrounds';
 import { meadowEntryMap } from '$lib/game/content/maps/meadow-entry';
+import { PLAYER_COLLISION_RADIUS } from '$lib/game/core/collision';
+import { collectLandmarkRects, collectStrictCollisionRects } from '$lib/game/save/save-state';
 import { describe, expect, it } from 'vitest';
 
 import {
@@ -45,6 +50,27 @@ interface ParsedSvgRect {
 	bottom: number;
 }
 
+interface TestBounds {
+	left: number;
+	top: number;
+	right: number;
+	bottom: number;
+}
+
+interface ExpectedClearance {
+	id: string;
+	kind:
+		| 'spawn'
+		| 'transition'
+		| 'npc'
+		| 'ambient-npc'
+		| 'pickup'
+		| 'encounter'
+		| 'combat-bounds'
+		| 'discovery';
+	bounds: TestBounds;
+}
+
 function parseSvgRects(svg: string): readonly ParsedSvgRect[] {
 	return [
 		...svg.matchAll(
@@ -65,6 +91,136 @@ function parseSvgRects(svg: string): readonly ParsedSvgRect[] {
 
 function containsPoint(rect: ParsedSvgRect, x: number, y: number): boolean {
 	return x >= rect.left && x < rect.right && y >= rect.top && y < rect.bottom;
+}
+
+function testBoundsContainsPoint(bounds: TestBounds, x: number, y: number): boolean {
+	return x >= bounds.left && x < bounds.right && y >= bounds.top && y < bounds.bottom;
+}
+
+function containsBounds(rect: TestBounds, bounds: TestBounds): boolean {
+	return (
+		rect.left <= bounds.left &&
+		rect.top <= bounds.top &&
+		rect.right >= bounds.right &&
+		rect.bottom >= bounds.bottom
+	);
+}
+
+function boundsAround(x: number, y: number, width: number, height: number): TestBounds {
+	return {
+		left: Math.floor(x - width / 2),
+		top: Math.floor(y - height / 2),
+		right: Math.ceil(x + width / 2),
+		bottom: Math.ceil(y + height / 2)
+	};
+}
+
+function expectedSemanticClearances(): readonly ExpectedClearance[] {
+	return [
+		{
+			id: 'spawn:player',
+			kind: 'spawn' as const,
+			bounds: boundsAround(meadowEntryMap.spawn.x, meadowEntryMap.spawn.y, 96, 96)
+		},
+		...meadowEntryMap.transitions.map(({ id, x, y }) => ({
+			id: `transition:${id}`,
+			kind: 'transition' as const,
+			bounds: boundsAround(x, y, 96, 96)
+		})),
+		...(meadowEntryMap.npcs ?? []).map(({ id, x, y }) => ({
+			id: `npc:${id}`,
+			kind: 'npc' as const,
+			bounds: boundsAround(x, y, 96, 87)
+		})),
+		...(meadowEntryMap.ambientNpcs ?? []).map(({ id, x, y, width, height }) => ({
+			id: `ambient-npc:${id}`,
+			kind: 'ambient-npc' as const,
+			bounds: boundsAround(x, y, width ?? 96, height ?? 87)
+		})),
+		...(meadowEntryMap.pickups ?? []).map(({ id, x, y }) => ({
+			id: `pickup:${id}`,
+			kind: 'pickup' as const,
+			bounds: boundsAround(x, y, 48, 48)
+		})),
+		...(meadowEntryMap.encounters ?? []).map(({ id, x, y }) => ({
+			id: `encounter:${id}`,
+			kind: 'encounter' as const,
+			bounds: boundsAround(x, y, 96, 96)
+		})),
+		...(meadowEntryMap.combatBounds ?? []).map(({ id, x, y, width, height }) => ({
+			id: `combat-bounds:${id}`,
+			kind: 'combat-bounds' as const,
+			bounds: boundsAround(x, y, width, height)
+		})),
+		...(meadowEntryMap.discoveries ?? []).map(({ id, x, y, radius }) => ({
+			id: `discovery:${id}`,
+			kind: 'discovery' as const,
+			bounds: boundsAround(x, y, (radius ?? 48) * 2, (radius ?? 48) * 2)
+		}))
+	].sort((left, right) => left.id.localeCompare(right.id));
+}
+
+function fillTestBounds(alpha: Buffer, bounds: TestBounds, value: number): void {
+	const row = Buffer.alloc(bounds.right - bounds.left, value);
+	for (let y = bounds.top; y < bounds.bottom; y += 1) {
+		row.copy(alpha, y * 6_400 + bounds.left);
+	}
+}
+
+function everyPixelEquals(alpha: Buffer, bounds: TestBounds, value: number): boolean {
+	for (let y = bounds.top; y < bounds.bottom; y += 1) {
+		const row = alpha.subarray(y * 6_400 + bounds.left, y * 6_400 + bounds.right);
+		if (!row.every((pixel) => pixel === value)) return false;
+	}
+	return true;
+}
+
+function expectedProtectedBounds(input: MeadowEntryControlInputs): readonly TestBounds[] {
+	return input.bakeOwnership.flatMap((entry) => {
+		if (entry.disposition.mode !== 'protected-live') return [];
+		const source = input.sourceCatalog.find(
+			(record) =>
+				record.ref.sourceType === entry.ref.sourceType && record.ref.sourceId === entry.ref.sourceId
+		);
+		if (!source)
+			throw new Error(`Missing test source ${entry.ref.sourceType}:${entry.ref.sourceId}`);
+
+		let sourceBounds: TestBounds;
+		if (source.bounds !== null) {
+			sourceBounds = {
+				left: Math.floor(source.bounds.left),
+				top: Math.floor(source.bounds.top),
+				right: Math.ceil(source.bounds.right),
+				bottom: Math.ceil(source.bounds.bottom)
+			};
+		} else if (entry.ref.sourceType === 'ambient-npc') {
+			const npc = meadowEntryMap.ambientNpcs?.find(({ id }) => id === entry.ref.sourceId);
+			if (!npc) throw new Error(`Missing test ambient NPC ${entry.ref.sourceId}`);
+			sourceBounds = boundsAround(npc.x, npc.y, npc.width ?? 96, npc.height ?? 87);
+		} else if (entry.ref.sourceType === 'pickup') {
+			const pickup = meadowEntryMap.pickups?.find(({ id }) => id === entry.ref.sourceId);
+			if (!pickup) throw new Error(`Missing test pickup ${entry.ref.sourceId}`);
+			sourceBounds = boundsAround(pickup.x, pickup.y, 48, 48);
+		} else if (entry.ref.sourceType === 'transition') {
+			const transition = meadowEntryMap.transitions.find(({ id }) => id === entry.ref.sourceId);
+			if (!transition) throw new Error(`Missing test transition ${entry.ref.sourceId}`);
+			sourceBounds = boundsAround(transition.x, transition.y, 96, 96);
+		} else {
+			throw new Error(
+				`Unhandled protected point source ${entry.ref.sourceType}:${entry.ref.sourceId}`
+			);
+		}
+
+		const margins = entry.disposition.protectionMargins;
+		return [
+			{
+				left: Math.max(0, sourceBounds.left - margins.left),
+				top: Math.max(0, sourceBounds.top - margins.top),
+				right: Math.min(6_400, sourceBounds.right + margins.right),
+				bottom: Math.min(6_400, sourceBounds.bottom + margins.bottom)
+			}
+		];
+	});
 }
 
 function maskPixel(alpha: Buffer, x: number, y: number): number {
@@ -134,41 +290,163 @@ describe('meadow-entry deterministic authoring controls', () => {
 		expect(overlappingPixel).toBe(-1);
 	});
 
-	it('excludes spawn, discovery, encounter, and combat clearances from foreground eligibility and marks them forbidden-tall', () => {
+	it('excludes every exact semantic clearance pixel and publishes its independent authoritative bounds', () => {
 		const input = buildMeadowEntryControlInputs();
-		const eligible = buildMeadowEntryForegroundEligibleRasterMask(input).alpha;
+		const expected = expectedSemanticClearances();
 		const rendered = renderMeadowEntryControls(input);
 		const forbidden = parseSvgRects(rendered['meadow-entry-forbidden-tall-mask.svg']!);
-		const foregroundControl = rendered['meadow-entry-foreground-eligible-mask.svg']!;
-		const semanticPoints = [
-			{ id: 'spawn:player', x: 624, y: 5_776 },
-			...(meadowEntryMap.discoveries ?? []).map(({ id, x, y }) => ({
-				id: `discovery:${id}`,
-				x,
-				y
-			})),
-			...(meadowEntryMap.encounters ?? []).map(({ id, x, y }) => ({
-				id: `encounter:${id}`,
-				x,
-				y
-			})),
-			...(meadowEntryMap.combatBounds ?? []).map(({ id, x, y }) => ({
-				id: `combat-bounds:${id}`,
-				x,
-				y
-			}))
-		];
 
-		expect(semanticPoints.length).toBeGreaterThan(4);
-		for (const point of semanticPoints) {
-			expect(maskPixel(eligible, point.x, point.y), point.id).toBe(0);
+		expect(input.controlClearanceRects).toEqual(expected);
+		for (const clearance of expected) {
 			expect(
-				forbidden.some((rect) => rect.id === point.id && containsPoint(rect, point.x, point.y)),
-				point.id
-			).toBe(true);
-			expect(foregroundControl, point.id).toContain(`data-id="foreground-exclusion:${point.id}"`);
+				forbidden.find(({ id }) => id === clearance.id),
+				clearance.id
+			).toEqual({ id: clearance.id, ...clearance.bounds });
 		}
+
+		const eligibleOwner = input.bakeOwnership.find(
+			(entry) => entry.disposition.mode === 'base-and-foreground'
+		);
+		expect(eligibleOwner).toBeDefined();
+		if (!eligibleOwner || eligibleOwner.disposition.mode !== 'base-and-foreground') return;
+		const eligibleKey = `${eligibleOwner.ref.sourceType}:${eligibleOwner.ref.sourceId}`;
+		const isolatedInput = {
+			...input,
+			sourceCatalog: input.sourceCatalog
+				.filter(
+					(record) =>
+						record.ref.sourceType === eligibleOwner.ref.sourceType &&
+						record.ref.sourceId === eligibleOwner.ref.sourceId
+				)
+				.map((record) => ({ ...record, bounds: { left: 0, top: 0, right: 6_400, bottom: 6_400 } })),
+			bakeOwnership: [
+				{
+					...eligibleOwner,
+					disposition: {
+						...eligibleOwner.disposition,
+						foregroundMargins: { top: 0, right: 0, bottom: 0, left: 0 },
+						frontCutoffPx: 0
+					}
+				}
+			],
+			primarySourceOwners: {
+				[eligibleKey]: input.primarySourceOwners[eligibleKey]!
+			},
+			strictCollisionRects: [],
+			landmarkCollisionRects: [],
+			protectedRects: [],
+			walkableSpaceRects: [],
+			controlClearanceRects: expected
+		} as MeadowEntryControlInputs & { walkableSpaceRects: readonly TestBounds[] };
+		const isolatedEligible = buildMeadowEntryForegroundEligibleRasterMask(isolatedInput).alpha;
+		for (const clearance of expected) {
+			expect(everyPixelEquals(isolatedEligible, clearance.bounds, 0), clearance.id).toBe(true);
+			const midX = Math.floor((clearance.bounds.left + clearance.bounds.right) / 2);
+			const midY = Math.floor((clearance.bounds.top + clearance.bounds.bottom) / 2);
+			const exteriorCandidates = [
+				{ x: clearance.bounds.left - 1, y: midY },
+				{ x: clearance.bounds.right, y: midY },
+				{ x: midX, y: clearance.bounds.top - 1 },
+				{ x: midX, y: clearance.bounds.bottom }
+			].filter(
+				({ x, y }) =>
+					x >= 0 &&
+					y >= 0 &&
+					x < 6_400 &&
+					y < 6_400 &&
+					!expected.some((other) => testBoundsContainsPoint(other.bounds, x, y))
+			);
+			for (const point of exteriorCandidates) {
+				expect(maskPixel(isolatedEligible, point.x, point.y), `${clearance.id} exterior`).toBe(255);
+			}
+		}
+		expect(maskPixel(isolatedEligible, 0, 0)).toBe(255);
 		expect(rendered['meadow-entry-semantic-anchor-mask.svg']).toContain('data-id="spawn:player"');
+	});
+
+	it('derives complete conservative walkable-space controls from the assembled map collision model', () => {
+		const input = buildMeadowEntryControlInputs();
+		const walkableSpaceRects = (
+			input as MeadowEntryControlInputs & { walkableSpaceRects?: readonly TestBounds[] }
+		).walkableSpaceRects;
+
+		expect(walkableSpaceRects).toBeDefined();
+		if (!walkableSpaceRects) return;
+		const rawCollisionRects = [
+			...collectStrictCollisionRects(meadowEntryMap),
+			...collectLandmarkRects(meadowEntryMap)
+		];
+		for (let row = 0; row < meadowEntryMap.height; row += 1) {
+			for (let column = 0; column < meadowEntryMap.width; column += 1) {
+				const tile = {
+					left: column * 32,
+					top: row * 32,
+					right: column * 32 + 32,
+					bottom: row * 32 + 32
+				};
+				const fullyBlocked = rawCollisionRects.some((rect) =>
+					containsBounds(
+						{
+							left: Math.max(0, Math.floor(rect.x - rect.width / 2 - PLAYER_COLLISION_RADIUS)),
+							top: Math.max(0, Math.floor(rect.y - rect.height / 2 - PLAYER_COLLISION_RADIUS)),
+							right: Math.min(6_400, Math.ceil(rect.x + rect.width / 2 + PLAYER_COLLISION_RADIUS)),
+							bottom: Math.min(6_400, Math.ceil(rect.y + rect.height / 2 + PLAYER_COLLISION_RADIUS))
+						},
+						tile
+					)
+				);
+				const representedAsWalkable = walkableSpaceRects.some((bounds) =>
+					containsBounds(bounds, tile)
+				);
+				expect(representedAsWalkable, `tile ${column},${row}`).toBe(!fullyBlocked);
+			}
+		}
+
+		const rendered = renderMeadowEntryControls(input);
+		const generatedForbidden = rendered['meadow-entry-forbidden-tall-mask.svg']!;
+		const generatedForeground = rendered['meadow-entry-foreground-eligible-mask.svg']!;
+		const checkedInForbidden = readFileSync(
+			join(
+				process.cwd(),
+				'docs/superpowers/reports/img/hpa-399/controls/meadow-entry-forbidden-tall-mask.svg'
+			),
+			'utf8'
+		);
+		const checkedInForeground = readFileSync(
+			join(
+				process.cwd(),
+				'docs/superpowers/reports/img/hpa-399/controls/meadow-entry-foreground-eligible-mask.svg'
+			),
+			'utf8'
+		);
+		const generatedWalkable = parseSvgRects(generatedForbidden).filter(({ id }) =>
+			id.startsWith('walkable-space-')
+		);
+		const checkedInForegroundWalkable = parseSvgRects(checkedInForeground).filter(({ id }) =>
+			id.startsWith('foreground-exclusion:walkable-space-')
+		);
+
+		expect(generatedWalkable.some((rect) => containsPoint(rect, 256, 256))).toBe(true);
+		expect(
+			(meadowEntryMap.groundPatches ?? []).some((patch) =>
+				containsPoint(
+					{
+						id: patch.id,
+						...boundsAround(patch.x, patch.y, patch.width, patch.height)
+					},
+					256,
+					256
+				)
+			)
+		).toBe(false);
+		expect(
+			generatedWalkable.some((rect) =>
+				containsBounds(rect, { left: 2_784, top: 288, right: 2_816, bottom: 320 })
+			)
+		).toBe(false);
+		expect(checkedInForbidden).toBe(generatedForbidden);
+		expect(checkedInForeground).toBe(generatedForeground);
+		expect(checkedInForegroundWalkable.some((rect) => containsPoint(rect, 256, 256))).toBe(true);
 	});
 
 	it('preserves reviewed terrain material, owner, connector, disposition, and contributor metadata', () => {
@@ -202,31 +480,19 @@ describe('meadow-entry deterministic authoring controls', () => {
 		expect(reviewedBlocker).toContain('data-primary-region="sundrop-village"');
 	});
 
-	it('keeps an authoritative protected-live footprint protected and ineligible', () => {
+	it('matches every protected-live pixel to an independent expected projection and excludes all of them', () => {
 		const input = buildMeadowEntryControlInputs();
-		const protectedEntry = input.bakeOwnership.find(
-			(entry) =>
-				entry.disposition.mode === 'protected-live' &&
-				input.sourceCatalog.find(
-					(record) =>
-						record.ref.sourceType === entry.ref.sourceType &&
-						record.ref.sourceId === entry.ref.sourceId
-				)?.bounds !== null
-		);
-		expect(protectedEntry).toBeDefined();
-		if (!protectedEntry) return;
-		const record = input.sourceCatalog.find(
-			(candidate) =>
-				candidate.ref.sourceType === protectedEntry.ref.sourceType &&
-				candidate.ref.sourceId === protectedEntry.ref.sourceId
-		)!;
-		const x = Math.floor((record.bounds!.left + record.bounds!.right) / 2);
-		const y = Math.floor((record.bounds!.top + record.bounds!.bottom) / 2);
+		const expectedBounds = expectedProtectedBounds(input);
+		const expectedAlpha = Buffer.alloc(6_400 * 6_400);
+		for (const bounds of expectedBounds) fillTestBounds(expectedAlpha, bounds, 255);
 		const protectedMask = buildMeadowEntryProtectedForegroundRasterMask(input).alpha;
 		const eligibleMask = buildMeadowEntryForegroundEligibleRasterMask(input).alpha;
 
-		expect(maskPixel(protectedMask, x, y)).toBe(255);
-		expect(maskPixel(eligibleMask, x, y)).toBe(0);
+		expect(input.protectedRects).toEqual(expectedBounds);
+		expect(protectedMask.equals(expectedAlpha)).toBe(true);
+		for (const bounds of expectedBounds) {
+			expect(everyPixelEquals(eligibleMask, bounds, 0), JSON.stringify(bounds)).toBe(true);
+		}
 	});
 
 	it('fingerprints gameplay, authoring renderer-mask-material, predecessor, and storage domains independently', () => {
