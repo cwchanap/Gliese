@@ -65,7 +65,7 @@ export const MEADOW_ENTRY_FOREGROUND_FRONT_CUTOFF_PX =
 // `sourceKey=owner|JSON(disposition)|runtimeRequirement\n` records. The test
 // owns SHA-256 computation so a catalog or disposition change cannot self-seal.
 export const MEADOW_ENTRY_REVIEWED_BAKE_OWNERSHIP_SHA256 =
-	'4effa2e819e7550d1914311a138d3d4c252d230136282d91c4d281d067423a63';
+	'54b8b40002853b93cf213c5a06f22af485f03191d4cff99bb6495e07bd8dad7c';
 
 const reviewedPolicies: ReviewedBakePolicy[] = [];
 
@@ -378,10 +378,11 @@ addPolicies(
 		'meadow-west-boundary'
 	],
 	{
-		mode: 'control-only',
-		reason: 'World-edge collision stays authoritative and has no baked visual ownership.'
+		mode: 'protected-live',
+		protectionMargins: PROTECTION_MARGINS,
+		reason: 'Runtime renders this town-hedge boundary as live tree-cluster segments.'
 	},
-	'none'
+	'remain-live'
 );
 addPolicy(
 	'blocker',
@@ -389,7 +390,7 @@ addPolicy(
 	{
 		mode: 'runtime-fallback-only',
 		reason:
-			'The reviewed southwest margin is outside every regional runtime crop; the existing ocean blocker visual remains fallback coverage.'
+			'The ocean blocker is collision-only; its paired sea ground patch remains visual fallback outside every regional runtime crop.'
 	},
 	'fallback-tile'
 );
@@ -672,6 +673,39 @@ addPolicies(
 	'none'
 );
 
+function freezeInsets(insets: Insets): Insets {
+	return Object.freeze({ ...insets });
+}
+
+function freezeDisposition(disposition: MeadowEntryBakeDisposition): MeadowEntryBakeDisposition {
+	switch (disposition.mode) {
+		case 'base-underlay':
+			return Object.freeze({ ...disposition });
+		case 'base-static':
+			return Object.freeze({
+				...disposition,
+				margins: freezeInsets(disposition.margins)
+			});
+		case 'base-and-foreground':
+			return Object.freeze({
+				...disposition,
+				baseMargins: freezeInsets(disposition.baseMargins),
+				foregroundMargins: freezeInsets(disposition.foregroundMargins)
+			});
+		case 'protected-live':
+			return Object.freeze({
+				...disposition,
+				protectionMargins: freezeInsets(disposition.protectionMargins)
+			});
+		case 'runtime-fallback-only':
+		case 'control-only':
+			return Object.freeze({ ...disposition });
+		default:
+			disposition satisfies never;
+			throw new Error('Unknown meadow-entry bake disposition');
+	}
+}
+
 function buildMeadowEntryBakeOwnership(): readonly MeadowEntryBakeOwnershipEntry[] {
 	const policiesByKey = new Map<string, ReviewedBakePolicy>();
 	for (const policy of reviewedPolicies) {
@@ -696,7 +730,7 @@ function buildMeadowEntryBakeOwnership(): readonly MeadowEntryBakeOwnershipEntry
 			return Object.freeze({
 				ref: Object.freeze({ ...ref }),
 				primaryRegionId,
-				disposition: Object.freeze({ ...policy.disposition }),
+				disposition: freezeDisposition(policy.disposition),
 				runtimeRequirement: policy.runtimeRequirement
 			});
 		})

@@ -32,6 +32,7 @@ import {
 	getMapBackgroundDepth,
 	shouldRenderBlockerVisual
 } from '$lib/game/content/maps/background-ownership';
+import { getBlockerRuntimeRenderMode } from '$lib/game/content/maps/blocker-rendering';
 import {
 	maps,
 	openingMapId,
@@ -2212,7 +2213,7 @@ export class WorldScene extends Phaser.Scene {
 		const blockers: MapBlocker[] = map.blockers ?? [];
 
 		for (const blocker of blockers) {
-			if (blocker.kind === 'ocean') {
+			if (getBlockerRuntimeRenderMode(blocker.kind) === 'collision-only') {
 				// Collision-only: the seaTile ground tile + shoreline-foam decor provide the visuals.
 				continue;
 			}
@@ -2249,6 +2250,9 @@ export class WorldScene extends Phaser.Scene {
 						this.getBlockerFrameName(blocker)
 					);
 					break;
+
+				case 'ocean':
+					throw new Error('Collision-only ocean blocker reached the live render branch');
 
 				default:
 					blocker.kind satisfies never;
