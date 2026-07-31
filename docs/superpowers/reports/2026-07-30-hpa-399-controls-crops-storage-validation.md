@@ -142,10 +142,15 @@ Budget evidence is metadata approval, not evidence that exports exist:
 - Asset pattern: `artifacts/meadow-entry/hpa-399/**/*.png`.
 - Proof pattern: `docs/superpowers/reports/img/hpa-399/proofs/**/*.png`.
 - Canary: `artifacts/meadow-entry/hpa-399/lfs-canary.png`.
-- Index pointer OID: `sha256:2fe8e6c2a228cc8932b1a02ef77d563dddc0618eb038ea3ea29338b35f37fdc6`.
-- Pointer size: `91` bytes.
-- Local LFS object/working-tree PNG SHA-256:
-  `2fe8e6c2a228cc8932b1a02ef77d563dddc0618eb038ea3ea29338b35f37fdc6`.
+- Checked-in LFS pointer blob SHA-256:
+  `263509ae02962376215083d1177e2bc63477a39b6e5629ad0cf6dd707255bb83`; pointer blob size:
+  `127` bytes.
+- The pointer's `oid` field identifies referenced PNG object
+  `sha256:2fe8e6c2a228cc8932b1a02ef77d563dddc0618eb038ea3ea29338b35f37fdc6`; its `size 91`
+  field declares that referenced object's size, not the pointer blob's size.
+- Referenced/materialized PNG object SHA-256:
+  `2fe8e6c2a228cc8932b1a02ef77d563dddc0618eb038ea3ea29338b35f37fdc6`; object/working-tree
+  size: `91` bytes.
 - Materialized canary: PNG signature, Sharp `1x1`, transparent alpha zero.
 - Independent local result: `git lfs fsck` reported `Git LFS fsck OK`.
 - CI materialization: [GitHub Actions CI run 30657562782](https://github.com/cwchanap/Gliese/actions/runs/30657562782),
