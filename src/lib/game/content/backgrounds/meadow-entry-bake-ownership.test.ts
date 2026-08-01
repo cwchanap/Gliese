@@ -13,7 +13,8 @@ import {
 	MEADOW_ENTRY_BAKE_OWNERSHIP,
 	MEADOW_ENTRY_FOREGROUND_FRONT_CUTOFF_PX,
 	MEADOW_ENTRY_REVIEWED_BAKE_OWNERSHIP_SHA256,
-	validateMeadowEntryBakeOwnership
+	validateMeadowEntryBakeOwnership,
+	type MeadowEntryBakeOwnershipEntry
 } from './meadow-entry-bake-ownership';
 import {
 	collectMeadowEntrySourceCatalog,
@@ -291,5 +292,226 @@ describe('meadow-entry bake ownership', () => {
 				expect(entry.disposition.mode, key).toBe('protected-live');
 			}
 		}
+	});
+});
+
+describe('validateMeadowEntryBakeOwnership error paths', () => {
+	function cloneOwnership(): MeadowEntryBakeOwnershipEntry[] {
+		return MEADOW_ENTRY_BAKE_OWNERSHIP.map((entry) => ({
+			ref: { ...entry.ref },
+			primaryRegionId: entry.primaryRegionId,
+			disposition: { ...entry.disposition } as MeadowEntryBakeOwnershipEntry['disposition'],
+			runtimeRequirement: entry.runtimeRequirement
+		}));
+	}
+
+	it('rejects ownership that does not cover the source catalog', () => {
+		const ownership = cloneOwnership().slice(0, -1);
+		expect(() => validateMeadowEntryBakeOwnership({ ownership })).toThrow(
+			/does not cover the source catalog/
+		);
+	});
+
+	it('rejects bake ownership that is not sorted', () => {
+		const ownership = cloneOwnership();
+		// Swap two adjacent entries.
+		const first = ownership[0]!;
+		ownership[0] = ownership[1]!;
+		ownership[1] = first;
+		expect(() => validateMeadowEntryBakeOwnership({ ownership })).toThrow(/not sorted/);
+	});
+
+	it('rejects bake owner drift', () => {
+		const ownership = cloneOwnership();
+		ownership[0] = {
+			...ownership[0]!,
+			primaryRegionId: 'mistfen' as MeadowEntryBakeOwnershipEntry['primaryRegionId']
+		};
+		expect(() => validateMeadowEntryBakeOwnership({ ownership })).toThrow(/bake owner drift/);
+	});
+
+	it('rejects a base-underlay source with invalid ownership', () => {
+		const ownership = cloneOwnership();
+		const idx = ownership.findIndex((e) => e.disposition.mode === 'base-underlay');
+		expect(idx).toBeGreaterThanOrEqual(0);
+		ownership[idx] = {
+			...ownership[idx]!,
+			runtimeRequirement: 'none' as MeadowEntryBakeOwnershipEntry['runtimeRequirement']
+		};
+		expect(() => validateMeadowEntryBakeOwnership({ ownership })).toThrow(
+			/invalid base-underlay ownership/
+		);
+	});
+
+	it('rejects a runtime-fallback-only source with invalid ownership', () => {
+		const ownership = cloneOwnership();
+		const idx = ownership.findIndex((e) => e.disposition.mode === 'runtime-fallback-only');
+		expect(idx).toBeGreaterThanOrEqual(0);
+		ownership[idx] = {
+			...ownership[idx]!,
+			runtimeRequirement: 'none' as MeadowEntryBakeOwnershipEntry['runtimeRequirement']
+		};
+		expect(() => validateMeadowEntryBakeOwnership({ ownership })).toThrow(
+			/invalid runtime fallback ownership/
+		);
+	});
+
+	it('rejects a protected-live source with invalid runtime requirement', () => {
+		const ownership = cloneOwnership();
+		const idx = ownership.findIndex((e) => e.disposition.mode === 'protected-live');
+		expect(idx).toBeGreaterThanOrEqual(0);
+		ownership[idx] = {
+			...ownership[idx]!,
+			runtimeRequirement: 'none' as MeadowEntryBakeOwnershipEntry['runtimeRequirement']
+		};
+		expect(() => validateMeadowEntryBakeOwnership({ ownership })).toThrow(
+			/protected-live source must remain live/
+		);
+	});
+
+	it('rejects a control-only source with invalid runtime requirement', () => {
+		const ownership = cloneOwnership();
+		const idx = ownership.findIndex((e) => e.disposition.mode === 'control-only');
+		expect(idx).toBeGreaterThanOrEqual(0);
+		ownership[idx] = {
+			...ownership[idx]!,
+			runtimeRequirement: 'fallback-tile' as MeadowEntryBakeOwnershipEntry['runtimeRequirement']
+		};
+		expect(() => validateMeadowEntryBakeOwnership({ ownership })).toThrow(
+			/control-only source must use none/
+		);
+	});
+
+	it('rejects a baked source with invalid runtime requirement', () => {
+		const ownership = cloneOwnership();
+		const idx = ownership.findIndex(
+			(e) => e.disposition.mode === 'base-static' && e.ref.sourceType === 'blocker'
+		);
+		expect(idx).toBeGreaterThanOrEqual(0);
+		ownership[idx] = {
+			...ownership[idx]!,
+			runtimeRequirement: 'none' as MeadowEntryBakeOwnershipEntry['runtimeRequirement']
+		};
+		expect(() => validateMeadowEntryBakeOwnership({ ownership })).toThrow(
+			/invalid baked runtime ownership requirement/
+		);
+	});
+
+	it('rejects a base-static source with invalid margins', () => {
+		const ownership = cloneOwnership();
+		const idx = ownership.findIndex((e) => e.disposition.mode === 'base-static');
+		expect(idx).toBeGreaterThanOrEqual(0);
+		const entry = ownership[idx]!;
+		if (entry.disposition.mode !== 'base-static') return;
+		ownership[idx] = {
+			...entry,
+			disposition: {
+				...entry.disposition,
+				margins: { top: -1, left: 0, right: 0, bottom: 0 }
+			}
+		};
+		expect(() => validateMeadowEntryBakeOwnership({ ownership })).toThrow(/invalid margins/);
+	});
+
+	it('rejects a base-and-foreground source with invalid front cutoff', () => {
+		const ownership = cloneOwnership();
+		const idx = ownership.findIndex((e) => e.disposition.mode === 'base-and-foreground');
+		expect(idx).toBeGreaterThanOrEqual(0);
+		const entry = ownership[idx]!;
+		if (entry.disposition.mode !== 'base-and-foreground') return;
+		ownership[idx] = {
+			...entry,
+			disposition: {
+				...entry.disposition,
+				frontCutoffPx: 9999
+			}
+		};
+		expect(() => validateMeadowEntryBakeOwnership({ ownership })).toThrow(
+			/invalid foreground front cutoff/
+		);
+	});
+
+	it('rejects a base-and-foreground source with empty motif', () => {
+		const ownership = cloneOwnership();
+		const idx = ownership.findIndex((e) => e.disposition.mode === 'base-and-foreground');
+		expect(idx).toBeGreaterThanOrEqual(0);
+		const entry = ownership[idx]!;
+		if (entry.disposition.mode !== 'base-and-foreground') return;
+		ownership[idx] = {
+			...entry,
+			disposition: {
+				...entry.disposition,
+				motif: '  '
+			}
+		};
+		expect(() => validateMeadowEntryBakeOwnership({ ownership })).toThrow(/empty motif/);
+	});
+
+	it('rejects a protected-live source with invalid protection margins', () => {
+		const ownership = cloneOwnership();
+		const idx = ownership.findIndex((e) => e.disposition.mode === 'protected-live');
+		expect(idx).toBeGreaterThanOrEqual(0);
+		const entry = ownership[idx]!;
+		if (entry.disposition.mode !== 'protected-live') return;
+		ownership[idx] = {
+			...entry,
+			disposition: {
+				...entry.disposition,
+				protectionMargins: { top: -1, left: 0, right: 0, bottom: 0 }
+			}
+		};
+		expect(() => validateMeadowEntryBakeOwnership({ ownership })).toThrow(
+			/invalid protectionMargins/
+		);
+	});
+
+	it('rejects a protected-live source with empty reason', () => {
+		const ownership = cloneOwnership();
+		const idx = ownership.findIndex((e) => e.disposition.mode === 'protected-live');
+		expect(idx).toBeGreaterThanOrEqual(0);
+		const entry = ownership[idx]!;
+		if (entry.disposition.mode !== 'protected-live') return;
+		ownership[idx] = {
+			...entry,
+			disposition: {
+				...entry.disposition,
+				reason: '  '
+			}
+		};
+		expect(() => validateMeadowEntryBakeOwnership({ ownership })).toThrow(
+			/empty protection reason/
+		);
+	});
+
+	it('rejects a runtime-fallback-only source with empty reason', () => {
+		const ownership = cloneOwnership();
+		const idx = ownership.findIndex((e) => e.disposition.mode === 'runtime-fallback-only');
+		expect(idx).toBeGreaterThanOrEqual(0);
+		const entry = ownership[idx]!;
+		if (entry.disposition.mode !== 'runtime-fallback-only') return;
+		ownership[idx] = {
+			...entry,
+			disposition: {
+				...entry.disposition,
+				reason: '  '
+			}
+		};
+		expect(() => validateMeadowEntryBakeOwnership({ ownership })).toThrow(/empty fallback reason/);
+	});
+
+	it('rejects a control-only source with empty reason', () => {
+		const ownership = cloneOwnership();
+		const idx = ownership.findIndex((e) => e.disposition.mode === 'control-only');
+		expect(idx).toBeGreaterThanOrEqual(0);
+		const entry = ownership[idx]!;
+		if (entry.disposition.mode !== 'control-only') return;
+		ownership[idx] = {
+			...entry,
+			disposition: {
+				...entry.disposition,
+				reason: '  '
+			}
+		};
+		expect(() => validateMeadowEntryBakeOwnership({ ownership })).toThrow(/empty control reason/);
 	});
 });
