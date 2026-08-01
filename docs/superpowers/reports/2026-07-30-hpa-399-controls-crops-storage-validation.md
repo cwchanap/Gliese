@@ -18,7 +18,8 @@ integration and the recorded decor/fence fallback obligations.
 ## Review and fingerprints
 
 - Reviewer: `chanwaichan`
-- Review time: `2026-08-01T17:47:44Z`
+- Approval review time: `2026-08-01T06:43:07Z` (matches the persisted `meadowEntryControlsApprovalReview.reviewedAt`; the approval source is byte-identical to the previous sealed head)
+- Evidence re-seal time: `2026-08-01T17:47:44Z` (when this report was regenerated at committed head `69753dc`; no approval value changed)
 - Evidence path sealed by the approval:
   `docs/superpowers/reports/2026-07-30-hpa-399-controls-crops-storage-validation.md`
 - Gameplay-source fingerprint:
