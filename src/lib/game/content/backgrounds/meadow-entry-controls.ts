@@ -673,43 +673,6 @@ export function buildMeadowEntryProtectedForegroundRasterMask(
 	return { width: MASK_WIDTH, height: MASK_HEIGHT, alpha };
 }
 
-/**
- * Produces a frozen-control non-target mask for the declared authoring regions.
- * Pixels inside a declared region are zero; every other pixel is non-target.
- */
-export function buildMeadowEntryDeclaredRegionNonTargetRasterMask(
-	input: MeadowEntryControlInputs,
-	regionIds: readonly string[]
-): MeadowEntryRasterMask {
-	const requested = new Set(regionIds);
-	const known = new Set(input.authoringRegions.map((region) => region.id));
-	const productionTargets = new Set(
-		input.bakeOwnership
-			.filter(
-				(entry) =>
-					entry.disposition.mode === 'base-underlay' ||
-					entry.disposition.mode === 'base-static' ||
-					entry.disposition.mode === 'base-and-foreground'
-			)
-			.map((entry) => entry.primaryRegionId)
-	);
-	for (const regionId of requested) {
-		if (!known.has(regionId as MeadowEntryAuthoringRegionId)) {
-			throw new Error(`Unknown Meadow Entry source region "${regionId}"`);
-		}
-		if (!productionTargets.has(regionId as MeadowEntryAuthoringRegionId)) {
-			throw new Error(
-				`Meadow Entry source region "${regionId}" is not an approved production refinement target`
-			);
-		}
-	}
-	const alpha = Buffer.alloc(MASK_WIDTH * MASK_HEIGHT, 255);
-	for (const region of input.authoringRegions) {
-		if (requested.has(region.id)) fillMaskBounds(alpha, region.reviewBounds, 0);
-	}
-	return { width: MASK_WIDTH, height: MASK_HEIGHT, alpha };
-}
-
 function foregroundEligibleRects(input: MeadowEntryControlInputs): readonly SvgRect[] {
 	const sourceByKey = new Map(
 		input.sourceCatalog.map((record) => [meadowEntrySourceKey(record.ref), record])

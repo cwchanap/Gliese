@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'vitest';
 
+import { meadowEntryControlsApproval } from '$lib/game/content/approvals/meadow-entry-controls';
+
 import type { MeadowEntryApprovedCrop } from './meadow-entry-crop-manifest';
+import {
+	buildMeadowEntryControlInputs,
+	computeMeadowEntryCombinedControlFingerprint
+} from './meadow-entry-controls';
 import type { MeadowEntryNormalizationTransform } from './meadow-entry-master-provenance';
 import { decodeMeadowEntryRgba, encodeCanonicalMeadowEntryPng } from './meadow-entry-png';
 import { applyMeadowEntryRefinement } from './meadow-entry-master-refinement';
@@ -239,5 +245,13 @@ describe('Meadow Entry refinement CLI', () => {
 				'outer-boundary'
 			])
 		).rejects.toThrow(/production refinement target/i);
+	});
+});
+
+describe('Meadow Entry refinement control boundary', () => {
+	it('leaves the frozen approved combined control fingerprint current after refinement logic loads', () => {
+		expect(computeMeadowEntryCombinedControlFingerprint(buildMeadowEntryControlInputs())).toBe(
+			meadowEntryControlsApproval.combinedControlFingerprint
+		);
 	});
 });

@@ -1,6 +1,8 @@
 import { createHash } from 'node:crypto';
 
+import type { MeadowEntryControlInputs, MeadowEntryRasterMask } from './meadow-entry-controls';
 import type { MeadowEntryApprovedCrop } from './meadow-entry-crop-manifest';
+import type { MeadowEntryAuthoringRegionId } from './meadow-entry-authoring-layout';
 import { intersectBounds } from './meadow-entry-authoring-geometry';
 import { normalizeMeadowEntryMasterCandidate } from './meadow-entry-master-finalizer';
 import type {
@@ -38,6 +40,47 @@ export interface MeadowEntryApprovedRefinementMasks {
 }
 
 const SHA256 = /^[a-f0-9]{64}$/;
+
+function fillMaskBounds(alpha: Buffer, width: number, bounds: PixelBounds, value: number): void {
+	const row = Buffer.alloc(bounds.right - bounds.left, value);
+	for (let y = bounds.top; y < bounds.bottom; y += 1) {
+		row.copy(alpha, y * width + bounds.left);
+	}
+}
+
+export function buildMeadowEntryRefinementNonTargetRasterMask(
+	input: MeadowEntryControlInputs,
+	regionIds: readonly string[]
+): MeadowEntryRasterMask {
+	const requested = new Set(regionIds);
+	const known = new Set(input.authoringRegions.map((region) => region.id));
+	const productionTargets = new Set(
+		input.bakeOwnership
+			.filter(
+				(entry) =>
+					entry.disposition.mode === 'base-underlay' ||
+					entry.disposition.mode === 'base-static' ||
+					entry.disposition.mode === 'base-and-foreground'
+			)
+			.map((entry) => entry.primaryRegionId)
+	);
+	for (const regionId of requested) {
+		if (!known.has(regionId as MeadowEntryAuthoringRegionId)) {
+			throw new Error(`Unknown Meadow Entry source region "${regionId}"`);
+		}
+		if (!productionTargets.has(regionId as MeadowEntryAuthoringRegionId)) {
+			throw new Error(
+				`Meadow Entry source region "${regionId}" is not an approved production refinement target`
+			);
+		}
+	}
+	const { width, height } = input.rendererMaskMaterialContract.maskDimensionsPx;
+	const alpha = Buffer.alloc(width * height, 255);
+	for (const region of input.authoringRegions) {
+		if (requested.has(region.id)) fillMaskBounds(alpha, width, region.reviewBounds, 0);
+	}
+	return { width, height, alpha };
+}
 
 function sha256(value: Buffer): string {
 	return createHash('sha256').update(value).digest('hex');
