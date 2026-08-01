@@ -281,6 +281,19 @@ export const meadowEntryControlsApproval: MeadowEntryControlsApproval = {
 `;
 }
 
+/**
+ * Orchestrates the full meadow-entry controls approval workflow.
+ *
+ * Verifies Git LFS storage, runs the controls exporter in `--check` mode,
+ * reads the derived approval values, renders the approval module, and
+ * publishes it to the checked-in approval path.
+ *
+ * @param {readonly string[]} args - CLI arguments parsed for reviewer identity
+ *   (`--reviewed-by`) and review timestamp (`--reviewed-at`)
+ * @param {string} [repositoryRoot] - the repository root directory, defaults
+ *   to `process.cwd()`
+ * @returns {Promise<MeadowEntryControlsApprovalValues>} the sealed approval values
+ */
 export async function approveMeadowEntryControls(
 	args: readonly string[],
 	repositoryRoot = process.cwd()
