@@ -184,4 +184,69 @@ describe('meadow-entry approval tool', () => {
 		expect(first).toContain("reviewedAt: '2026-07-31T12:34:56Z'");
 		expect(first).toContain("combinedControlFingerprint: '" + '1'.repeat(64) + "'");
 	});
+
+	it('accepts a leading -- separator and rejects missing values, missing --reviewed-at, and non-UTC-second timestamps', () => {
+		const review = parseMeadowEntryControlsApprovalArguments([
+			'--',
+			'--reviewed-by',
+			'reviewer.example',
+			'--reviewed-at',
+			'2026-07-31T12:34:56Z'
+		]);
+		expect(review).toEqual({ reviewedBy: 'reviewer.example', reviewedAt: '2026-07-31T12:34:56Z' });
+
+		expect(() =>
+			parseMeadowEntryControlsApprovalArguments(['--reviewed-by', 'reviewer', '--reviewed-at'])
+		).toThrow(/Missing value for meadow-entry approval argument: --reviewed-at/);
+		expect(() =>
+			parseMeadowEntryControlsApprovalArguments([
+				'--reviewed-by',
+				'reviewer',
+				'--reviewed-at',
+				'--reviewed-by'
+			])
+		).toThrow(/Missing value for meadow-entry approval argument: --reviewed-at/);
+		expect(() => parseMeadowEntryControlsApprovalArguments(['--reviewed-by', 'reviewer'])).toThrow(
+			/Missing required --reviewed-at argument/
+		);
+		expect(() =>
+			parseMeadowEntryControlsApprovalArguments([
+				'--reviewed-by',
+				'reviewer',
+				'--reviewed-at',
+				'2026-07-31T12:34Z'
+			])
+		).toThrow(/UTC seconds in YYYY-MM-DDTHH:mm:ssZ/);
+	});
+
+	it('rejects approval values with invalid SHA-256 fingerprints, storage mode, and evidence path', () => {
+		const review = { reviewedBy: 'reviewer.example', reviewedAt: '2026-07-31T12:34:56Z' };
+		const baseValues = {
+			combinedControlFingerprint: '1'.repeat(64),
+			cropManifestSha256: '2'.repeat(64),
+			bakeOwnershipSha256: '3'.repeat(64),
+			storageMode: 'git-lfs' as const,
+			storageConfigurationSha256: '4'.repeat(64),
+			evidencePath: EVIDENCE_PATH
+		} as const;
+
+		expect(() =>
+			renderMeadowEntryControlsApprovalModule(review, {
+				...baseValues,
+				combinedControlFingerprint: 'not-a-sha256'
+			})
+		).toThrow(/Invalid approval SHA-256 value for combinedControlFingerprint/);
+		expect(() =>
+			renderMeadowEntryControlsApprovalModule(review, {
+				...baseValues,
+				storageMode: 'local' as 'git-lfs'
+			})
+		).toThrow(/Invalid fixed meadow-entry approval contract value/);
+		expect(() =>
+			renderMeadowEntryControlsApprovalModule(review, {
+				...baseValues,
+				evidencePath: 'docs/other.md' as typeof EVIDENCE_PATH
+			})
+		).toThrow(/Invalid fixed meadow-entry approval contract value/);
+	});
 });

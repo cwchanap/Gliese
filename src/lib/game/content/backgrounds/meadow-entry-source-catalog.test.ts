@@ -157,4 +157,24 @@ describe('meadow-entry source catalog', () => {
 			})
 		).toMatchObject({ fragmentId: 'wildwood' });
 	});
+
+	it('rejects an unknown meadow-entry source ref', () => {
+		expect(() =>
+			resolveMeadowEntrySource({ sourceType: 'ground-patch', sourceId: 'does-not-exist' })
+		).toThrow(/Unknown meadow-entry source "ground-patch:does-not-exist"/);
+	});
+
+	it('rejects a meadowEntryMap with duplicate source ids of the same kind', async () => {
+		await expectFreshCatalogToRejectMapMutation(
+			(map) => ({
+				...map,
+				pickups: [
+					...(map.pickups ?? []),
+					{ id: 'duplicate-pickup', x: 96, y: 96, itemId: 'potion', quantity: 1 },
+					{ id: 'duplicate-pickup', x: 128, y: 128, itemId: 'potion', quantity: 1 }
+				]
+			}),
+			/duplicate pickup source ids/
+		);
+	});
 });

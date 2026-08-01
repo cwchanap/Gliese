@@ -9,10 +9,13 @@ import {
 	statSync,
 	writeFileSync
 } from 'node:fs';
-import { join } from 'node:path';
+import { dirname, join, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { afterEach, describe, expect, it } from 'vitest';
 
 import { MEADOW_ENTRY_CONTROL_FILENAMES } from './meadow-entry-controls';
+
+const testDirectory = dirname(fileURLToPath(import.meta.url));
 
 interface ExportPackage {
 	readonly rendered: Readonly<Record<string, string>>;
@@ -38,6 +41,7 @@ interface ExportFileSystem {
 
 interface ExporterApi {
 	assertAllowedMeadowEntryDestination?: (paths: ExportPaths, path: string) => void;
+	meadowEntryExportPaths?: (repositoryRoot: string) => ExportPaths;
 	checkMeadowEntryExportPackage?: (
 		packageBytes: ExportPackage,
 		paths: ExportPaths,
@@ -48,6 +52,7 @@ interface ExporterApi {
 		paths: ExportPaths,
 		fileSystem?: ExportFileSystem
 	) => void;
+	runMeadowEntryArtControlsExporter?: (args: readonly string[], repositoryRoot?: string) => void;
 }
 
 const temporaryRoots: string[] = [];
@@ -324,5 +329,73 @@ describe('meadow-entry exporter package safety', () => {
 				name.includes('.meadow-entry-package-backup-')
 			)
 		).toBe(true);
+	});
+
+	it('resolves export paths from a repository root', async () => {
+		const api = await exporterApi();
+		expect(api.meadowEntryExportPaths).toBeTypeOf('function');
+		if (!api.meadowEntryExportPaths) return;
+		const paths = api.meadowEntryExportPaths('/repo');
+		expect(paths.controlsDirectory).toBe(
+			resolve('/repo/docs/superpowers/reports/img/hpa-399/controls')
+		);
+		expect(paths.generatedPath).toBe(
+			resolve('/repo/src/lib/game/content/generated/meadow-entry-art-control.ts')
+		);
+	});
+
+	it('rejects an unknown exporter argument with a usage message', async () => {
+		const api = await exporterApi();
+		expect(api.runMeadowEntryArtControlsExporter).toBeTypeOf('function');
+		if (!api.runMeadowEntryArtControlsExporter) return;
+		expect(() => api.runMeadowEntryArtControlsExporter!(['--invalid'])).toThrow(/Usage:/);
+	});
+
+	it('rejects a drifted rendered inventory during check', async () => {
+		const api = await exporterApi();
+		expect(api.checkMeadowEntryExportPackage).toBeTypeOf('function');
+		if (!api.checkMeadowEntryExportPackage) return;
+		const paths = newPaths();
+		const drifted: ExportPackage = {
+			rendered: { 'unexpected-file.json': 'bytes\n' },
+			generatedContents: 'generated\n'
+		};
+		expect(() => api.checkMeadowEntryExportPackage!(drifted, paths)).toThrow(/inventory drifted/);
+	});
+
+	it('rejects a stale generated fingerprint module during check', async () => {
+		const api = await exporterApi();
+		expect(api.checkMeadowEntryExportPackage).toBeTypeOf('function');
+		if (!api.checkMeadowEntryExportPackage) return;
+		const paths = newPaths();
+		const current = packageBytes('current');
+		writePackage(current, paths);
+		writeFileSync(paths.generatedPath, 'stale-generated\n');
+
+		expect(() => api.checkMeadowEntryExportPackage!(current, paths)).toThrow(
+			/fingerprint module is stale/
+		);
+	});
+
+	it('runs the check-mode exporter end-to-end against the real repository controls', async () => {
+		const api = await exporterApi();
+		expect(api.runMeadowEntryArtControlsExporter).toBeTypeOf('function');
+		if (!api.runMeadowEntryArtControlsExporter) return;
+		const repositoryRoot = resolve(testDirectory, '../../../../..');
+		expect(() => api.runMeadowEntryArtControlsExporter!(['--check'], repositoryRoot)).not.toThrow();
+	});
+
+	it('runs the publish-mode exporter into a fresh temporary repository root', async () => {
+		const api = await exporterApi();
+		expect(api.runMeadowEntryArtControlsExporter).toBeTypeOf('function');
+		if (!api.runMeadowEntryArtControlsExporter) return;
+		const paths = newPaths();
+
+		api.runMeadowEntryArtControlsExporter!([], paths.repositoryRoot);
+
+		for (const filename of MEADOW_ENTRY_CONTROL_FILENAMES) {
+			expect(existsSync(join(paths.controlsDirectory, filename))).toBe(true);
+		}
+		expect(existsSync(paths.generatedPath)).toBe(true);
 	});
 });

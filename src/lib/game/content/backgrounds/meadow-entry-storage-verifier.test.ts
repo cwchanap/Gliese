@@ -5,7 +5,8 @@ interface StorageVerifierApi {
 		metadata: { width?: number; height?: number },
 		rgbaPixel: Uint8Array
 	) => void;
-	verifyMeadowEntryLfsAttributeCoverage?: (runGit: (...args: string[]) => string) => void;
+	verifyMeadowEntryLfsAttributeCoverage?: (runGit?: (...args: string[]) => string) => void;
+	verifyMeadowEntryArtStorage?: () => Promise<void>;
 }
 
 async function verifierApi(): Promise<StorageVerifierApi> {
@@ -74,5 +75,19 @@ describe('Meadow Entry art storage verifier', () => {
 			'artifacts/meadow-entry/hpa-399/lfs-canary.png',
 			'docs/superpowers/reports/img/hpa-399/proofs/lfs-pattern-probe.png'
 		]);
+	});
+
+	it('uses the real git runner to verify LFS attributes against the checked-in canary', async () => {
+		const api = await verifierApi();
+		expect(api.verifyMeadowEntryLfsAttributeCoverage).toBeTypeOf('function');
+		if (!api.verifyMeadowEntryLfsAttributeCoverage) return;
+		expect(() => api.verifyMeadowEntryLfsAttributeCoverage!()).not.toThrow();
+	});
+
+	it('verifies the full meadow-entry art storage contract end-to-end', async () => {
+		const api = await verifierApi();
+		expect(api.verifyMeadowEntryArtStorage).toBeTypeOf('function');
+		if (!api.verifyMeadowEntryArtStorage) return;
+		await expect(api.verifyMeadowEntryArtStorage()).resolves.toBeUndefined();
 	});
 });
