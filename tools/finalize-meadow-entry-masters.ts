@@ -1,6 +1,6 @@
 import { createHash, randomUUID } from 'node:crypto';
-import { mkdir, readFile, rename, rm, writeFile } from 'node:fs/promises';
-import { dirname, join, resolve } from 'node:path';
+import { lstat, mkdir, readFile, readdir, rename, rm, writeFile } from 'node:fs/promises';
+import { basename, dirname, join, resolve } from 'node:path';
 
 import { meadowEntryControlsApproval } from '$lib/game/content/approvals/meadow-entry-controls';
 import {
@@ -40,6 +40,34 @@ export interface FinalizeMeadowEntryMasterArguments {
 	outputRoot: string;
 	validateOnly: boolean;
 }
+
+export interface MeadowEntryMasterPublicationFileSystem {
+	mkdir: typeof mkdir;
+	readdir: typeof readdir;
+	rename: typeof rename;
+	rm: typeof rm;
+	writeFile: typeof writeFile;
+}
+
+export interface MeadowEntryMasterFinalizerDependencies {
+	finalizeBase: typeof finalizeMeadowEntryBase;
+	finalizeForeground: typeof finalizeMeadowEntryForeground;
+	finalizeBoth: typeof finalizeMeadowEntryMasters;
+}
+
+const NODE_PUBLICATION_FILE_SYSTEM: MeadowEntryMasterPublicationFileSystem = {
+	mkdir,
+	readdir,
+	rename,
+	rm,
+	writeFile
+};
+
+const DEFAULT_FINALIZERS: MeadowEntryMasterFinalizerDependencies = {
+	finalizeBase: finalizeMeadowEntryBase,
+	finalizeForeground: finalizeMeadowEntryForeground,
+	finalizeBoth: finalizeMeadowEntryMasters
+};
 
 function sha256(value: Buffer): string {
 	return createHash('sha256').update(value).digest('hex');
@@ -225,63 +253,104 @@ async function foregroundInput(
 	};
 }
 
-async function publishApprovedPackage(
-	outputRoot: string,
-	packageBytes: { basePng: Buffer; foregroundPng: Buffer; provenanceJson: Buffer }
-): Promise<void> {
+export interface MeadowEntryApprovedPackagePaths {
+	root: string;
+	masters: string;
+	provenance: string;
+}
+
+export function meadowEntryApprovedPackagePaths(
+	outputRoot: string
+): MeadowEntryApprovedPackagePaths {
 	const root = resolve(outputRoot);
-	const staging = join(dirname(root), `.${randomUUID()}.meadow-entry-finalizing`);
+	return {
+		root,
+		masters: join(root, 'masters'),
+		provenance: join(root, 'provenance')
+	};
+}
+
+async function pathExists(path: string): Promise<boolean> {
+	try {
+		await lstat(path);
+		return true;
+	} catch (error) {
+		if ((error as NodeJS.ErrnoException).code === 'ENOENT') return false;
+		throw error;
+	}
+}
+
+export async function publishApprovedMeadowEntryPackage(
+	outputRoot: string,
+	packageBytes: { basePng: Buffer; foregroundPng: Buffer; provenanceJson: Buffer },
+	fileSystem: MeadowEntryMasterPublicationFileSystem = NODE_PUBLICATION_FILE_SYSTEM
+): Promise<void> {
+	const paths = meadowEntryApprovedPackagePaths(outputRoot);
+	const parent = dirname(paths.root);
+	const token = randomUUID();
+	const stagingRoot = join(parent, `.${basename(paths.root)}.staging-${token}`);
+	const rollbackRoot = join(parent, `.${basename(paths.root)}.rollback-${token}`);
 	const targets = [
-		{ path: join(root, 'masters/meadow-entry-base-master.png'), contents: packageBytes.basePng },
 		{
-			path: join(root, 'masters/meadow-entry-foreground-master.png'),
+			path: join(stagingRoot, 'masters/meadow-entry-base-master.png'),
+			contents: packageBytes.basePng
+		},
+		{
+			path: join(stagingRoot, 'masters/meadow-entry-foreground-master.png'),
 			contents: packageBytes.foregroundPng
 		},
 		{
-			path: join(root, 'provenance/meadow-entry-master-provenance.json'),
+			path: join(stagingRoot, 'provenance/meadow-entry-master-provenance.json'),
 			contents: packageBytes.provenanceJson
 		}
 	];
-	const backups: { target: string; backup: string }[] = [];
-	const installed: string[] = [];
+	let previousPackageMoved = false;
+	const preservedEntries: string[] = [];
 	try {
+		await fileSystem.mkdir(stagingRoot, { recursive: true });
 		for (const target of targets) {
-			const staged = join(staging, target.path.slice(root.length + 1));
-			await mkdir(dirname(staged), { recursive: true });
-			await writeFile(staged, target.contents, { flag: 'wx' });
+			await fileSystem.mkdir(dirname(target.path), { recursive: true });
+			await fileSystem.writeFile(target.path, target.contents, { flag: 'wx' });
 		}
-		for (const target of targets) {
-			await mkdir(dirname(target.path), { recursive: true });
-			const backup = `${target.path}.${randomUUID()}.bak`;
-			try {
-				await rename(target.path, backup);
-				backups.push({ target: target.path, backup });
-			} catch (error) {
-				if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error;
+		if (await pathExists(paths.root)) {
+			await fileSystem.rename(paths.root, rollbackRoot);
+			previousPackageMoved = true;
+			for (const entry of await fileSystem.readdir(rollbackRoot)) {
+				if (entry === 'masters' || entry === 'provenance') continue;
+				await fileSystem.rename(join(rollbackRoot, entry), join(stagingRoot, entry));
+				preservedEntries.push(entry);
 			}
-			await rename(join(staging, target.path.slice(root.length + 1)), target.path);
-			installed.push(target.path);
 		}
-		await Promise.all(backups.map(({ backup }) => rm(backup, { force: true })));
+		// The package is a real directory: this install publishes base, foreground,
+		// and provenance together, so readers can never observe a mixed generation.
+		await fileSystem.rename(stagingRoot, paths.root);
 	} catch (error) {
-		await Promise.all(installed.map((path) => rm(path, { force: true })));
-		await Promise.all(
-			backups.map(({ target, backup }) => rename(backup, target).catch(() => undefined))
-		);
+		if (previousPackageMoved) {
+			for (const entry of [...preservedEntries].reverse()) {
+				await fileSystem
+					.rename(join(stagingRoot, entry), join(rollbackRoot, entry))
+					.catch(() => undefined);
+			}
+			await fileSystem.rename(rollbackRoot, paths.root).catch(() => undefined);
+		}
+		await fileSystem.rm(stagingRoot, { recursive: true, force: true }).catch(() => undefined);
 		throw error;
-	} finally {
-		await rm(staging, { recursive: true, force: true });
 	}
+	// A cleanup failure cannot invalidate an already committed package. Retain the
+	// rollback directory for recovery and let a later maintenance pass remove it.
+	await fileSystem.rm(rollbackRoot, { recursive: true, force: true }).catch(() => undefined);
 }
 
 export async function runFinalizeMeadowEntryMasters(
 	args: readonly string[],
-	repositoryRoot = process.cwd()
+	repositoryRoot = process.cwd(),
+	dependencies: Partial<MeadowEntryMasterFinalizerDependencies> = {}
 ): Promise<void> {
+	const finalizers = { ...DEFAULT_FINALIZERS, ...dependencies };
 	const arguments_ = parseFinalizeMeadowEntryMasterArguments(args);
 	const refinements = await readRefinements(arguments_.refinementManifest);
 	if (arguments_.plane === 'base') {
-		const result = await finalizeMeadowEntryBase(
+		const result = await finalizers.finalizeBase(
 			await baseInput(arguments_, repositoryRoot, refinements)
 		);
 		if (!arguments_.validateOnly) {
@@ -293,7 +362,7 @@ export async function runFinalizeMeadowEntryMasters(
 		return;
 	}
 	if (arguments_.plane === 'foreground') {
-		const result = await finalizeMeadowEntryForeground(
+		const result = await finalizers.finalizeForeground(
 			await foregroundInput(arguments_, repositoryRoot, refinements)
 		);
 		if (!arguments_.validateOnly) {
@@ -307,11 +376,13 @@ export async function runFinalizeMeadowEntryMasters(
 		console.log(`foreground-sha256 ${sha256(result.png)}`);
 		return;
 	}
-	const packageBytes = await finalizeMeadowEntryMasters({
+	const packageBytes = await finalizers.finalizeBoth({
 		base: await baseInput(arguments_, repositoryRoot, refinements),
 		foreground: await foregroundInput(arguments_, repositoryRoot, refinements)
 	});
-	if (!arguments_.validateOnly) await publishApprovedPackage(arguments_.outputRoot, packageBytes);
+	if (!arguments_.validateOnly) {
+		await publishApprovedMeadowEntryPackage(arguments_.outputRoot, packageBytes);
+	}
 	console.log(`base-sha256 ${sha256(packageBytes.basePng)}`);
 	console.log(`foreground-sha256 ${sha256(packageBytes.foregroundPng)}`);
 }
