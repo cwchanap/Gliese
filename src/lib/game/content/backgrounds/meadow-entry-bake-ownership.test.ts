@@ -69,22 +69,22 @@ describe('meadow-entry bake ownership', () => {
 
 		expect(dispositionCounts).toEqual({
 			'base-and-foreground': 85,
-			'base-static': 65,
+			'base-static': 62,
 			'base-underlay': 117,
 			'control-only': 13,
 			'protected-live': 78,
-			'runtime-fallback-only': 2
+			'runtime-fallback-only': 5
 		});
 		expect(runtimeCounts).toEqual({
-			'existing-blocker-fallback': 75,
+			'existing-blocker-fallback': 72,
 			'extend-decor-fallback': 69,
 			'extend-fence-fallback': 6,
-			'fallback-tile': 119,
+			'fallback-tile': 122,
 			none: 13,
 			'remain-live': 78
 		});
 		expect(MEADOW_ENTRY_REVIEWED_BAKE_OWNERSHIP_SHA256).toBe(
-			'54b8b40002853b93cf213c5a06f22af485f03191d4cff99bb6495e07bd8dad7c'
+			'ab6b356e2cc6ef9308dff6d950255c3aa1decffd8de157514ce97d0a7fe0ce79'
 		);
 		expect(createHash('sha256').update(canonicalRegistry).digest('hex')).toBe(
 			MEADOW_ENTRY_REVIEWED_BAKE_OWNERSHIP_SHA256
@@ -208,6 +208,38 @@ describe('meadow-entry bake ownership', () => {
 			expect(ownership.get(`blocker:${boundaryId}`), boundaryId).toMatchObject({
 				disposition: { mode: 'protected-live' },
 				runtimeRequirement: 'remain-live'
+			});
+		}
+	});
+
+	it('keeps every water-edge ocean blocker collision-only with its paired sea ground patch', () => {
+		const blockersById = new Map(
+			(meadowEntryMap.blockers ?? []).map((blocker) => [blocker.id, blocker])
+		);
+		const groundPatchesById = new Map(
+			(meadowEntryMap.groundPatches ?? []).map((patch) => [patch.id, patch])
+		);
+		const ownership = ownershipByKey();
+		const waterEdgePairs = [
+			['coast-sea-wall', 'coast-sea'],
+			['mistfen-pool-east-blocker', 'mistfen-pool-east'],
+			['mistfen-pool-west-blocker', 'mistfen-pool-west']
+		] as const;
+
+		for (const [blockerId, patchId] of waterEdgePairs) {
+			const blocker = blockersById.get(blockerId);
+			const patch = groundPatchesById.get(patchId);
+			expect(blocker?.kind, blockerId).toBe('ocean');
+			expect(blocker && getBlockerRuntimeRenderMode(blocker.kind), blockerId).toBe(
+				'collision-only'
+			);
+			expect(patch?.tile, patchId).toBe('seaTile');
+			expect(ownership.get(`blocker:${blockerId}`), blockerId).toMatchObject({
+				disposition: {
+					mode: 'runtime-fallback-only',
+					reason: expect.stringMatching(/collision-only/i)
+				},
+				runtimeRequirement: 'fallback-tile'
 			});
 		}
 	});
@@ -381,7 +413,7 @@ describe('validateMeadowEntryBakeOwnership error paths', () => {
 		);
 	});
 
-	it('rejects a baked source with invalid runtime requirement', () => {
+	it('rejects a baked blocker with an invalid runtime requirement', () => {
 		const ownership = cloneOwnership();
 		const idx = ownership.findIndex(
 			(e) => e.disposition.mode === 'base-static' && e.ref.sourceType === 'blocker'
@@ -394,6 +426,24 @@ describe('validateMeadowEntryBakeOwnership error paths', () => {
 		expect(() => validateMeadowEntryBakeOwnership({ ownership })).toThrow(
 			/invalid baked runtime ownership requirement/
 		);
+	});
+
+	it('rejects a baked blocker whose runtime render mode is collision-only', () => {
+		const ownership = cloneOwnership();
+		const idx = ownership.findIndex(
+			(e) => meadowEntrySourceKey(e.ref) === 'blocker:coast-sea-wall'
+		);
+		expect(idx).toBeGreaterThanOrEqual(0);
+		ownership[idx] = {
+			...ownership[idx]!,
+			disposition: {
+				mode: 'base-static',
+				margins: { top: 8, right: 8, bottom: 8, left: 8 },
+				motif: 'water-edge'
+			},
+			runtimeRequirement: 'existing-blocker-fallback'
+		};
+		expect(() => validateMeadowEntryBakeOwnership({ ownership })).toThrow(/live blocker/);
 	});
 
 	it('rejects a base-static source with invalid margins', () => {

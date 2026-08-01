@@ -28,9 +28,9 @@
     "meadow-entry-crop-manifest.json"
   ],
   "fingerprints": {
-    "gameplaySource": "d3b669a1a42e3f15a9084bfc4657e5cf16b5bd508841ff48d45660db49213a95",
-    "authoringContract": "249a0c2d4bdeeb88ddbb6285157f26e7e54a6dd3476fd6e1e1d9f9eab4eea4c5",
-    "combinedControl": "f42f7f0c558d40fd60b9b6700bfccaad115641ef77a859891a0ecc0151b0d4be"
+    "gameplaySource": "25a670eb16e6bd19884f76c6df97196551bbd1cd3cf92f5d3b6a1180b8458b60",
+    "authoringContract": "edf2084959761f987093bcd7a8aa33e270eea9426370cef615a791b2db55db4d",
+    "combinedControl": "a877c70797d303dee292582b715d009dfccace19f769ebbef86230b1fd17f26d"
   },
   "predecessor": {
     "hpa307ArtifactHashes": {
@@ -63,12 +63,13 @@
     "src/lib/game/content/maps/regions/coast.ts": "724b131eb3f076c0a5cf17aa5894e034ce119305ef0e126081e10779f9676b01",
     "src/lib/game/content/maps/regions/crossroads.ts": "5fd7898f55b7f8c55c9d489a27291721027972df3451afe9d1dba6f89f39887c",
     "src/lib/game/content/maps/regions/paths.ts": "cdd5ab59707a1e829cc0bb679703f76a265e87279d174418f3bf0ae45ab243f7",
+    "src/lib/game/content/maps/blocker-rendering.ts": "d954110dc507d59656a21ee58bd5a1095304ed0d5b2c9db98fd09f4fc2e38223",
     "src/lib/game/save/save-state.ts": "6198f56bd219f0233d697f103bba548b53f1c40d20ac58b55f7cfbd44025daaa",
     "src/lib/game/core/collision.ts": "18b5cacc81d1ddf568a8bdc966327fd9946831a918104c766fe2a6d0ad8bd13d"
   },
   "rendererMaskMaterialContract": {
     "version": 1,
-    "implementationSha256": "727db3c22940ca1a281206327217144249ee048621f6a047926826c7d7da210d",
+    "implementationSha256": "37a300647354b4c240f63e8787d46b8c64b66657c4e0e4ccbd21fb9f83c447a9",
     "maskDimensionsPx": {
       "width": 6400,
       "height": 6400

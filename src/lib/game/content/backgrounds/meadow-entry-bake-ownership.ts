@@ -1,5 +1,7 @@
 import { getActorAnimationAsset } from '$lib/game/content/assets';
 import { PLAYER_COLLISION_RADIUS } from '$lib/game/core/collision';
+import { getBlockerRuntimeRenderMode } from '$lib/game/content/maps/blocker-rendering';
+import { meadowEntryMap } from '$lib/game/content/maps/meadow-entry';
 
 import type { Insets } from './meadow-entry-authoring-types';
 import {
@@ -65,7 +67,7 @@ export const MEADOW_ENTRY_FOREGROUND_FRONT_CUTOFF_PX =
 // `sourceKey=owner|JSON(disposition)|runtimeRequirement\n` records. The test
 // owns SHA-256 computation so a catalog or disposition change cannot self-seal.
 export const MEADOW_ENTRY_REVIEWED_BAKE_OWNERSHIP_SHA256 =
-	'54b8b40002853b93cf213c5a06f22af485f03191d4cff99bb6495e07bd8dad7c';
+	'ab6b356e2cc6ef9308dff6d950255c3aa1decffd8de157514ce97d0a7fe0ce79';
 
 const reviewedPolicies: ReviewedBakePolicy[] = [];
 
@@ -345,9 +347,35 @@ addBaseStaticBlockers(
 	],
 	'forest-bank'
 );
-addBaseStaticBlockers(
-	['coast-sea-wall', 'mistfen-pool-east-blocker', 'mistfen-pool-west-blocker'],
-	'water-edge'
+addPolicy(
+	'blocker',
+	'coast-sea-wall',
+	{
+		mode: 'runtime-fallback-only',
+		reason:
+			'The ocean blocker is collision-only; its paired coast-sea ground patch remains the visual fallback outside every regional runtime crop.'
+	},
+	'fallback-tile'
+);
+addPolicy(
+	'blocker',
+	'mistfen-pool-east-blocker',
+	{
+		mode: 'runtime-fallback-only',
+		reason:
+			'The ocean blocker is collision-only; its paired mistfen-pool-east ground patch remains the visual fallback outside every regional runtime crop.'
+	},
+	'fallback-tile'
+);
+addPolicy(
+	'blocker',
+	'mistfen-pool-west-blocker',
+	{
+		mode: 'runtime-fallback-only',
+		reason:
+			'The ocean blocker is collision-only; its paired mistfen-pool-west ground patch remains the visual fallback outside every regional runtime crop.'
+	},
+	'fallback-tile'
 );
 addPolicies(
 	'blocker',
@@ -804,6 +832,14 @@ function validateDisposition(entry: MeadowEntryBakeOwnershipEntry): void {
 					: undefined;
 	if (runtimeRequirement !== expectedRequirement) {
 		throw new Error(`${key} has invalid baked runtime ownership requirement`);
+	}
+	if (entry.ref.sourceType === 'blocker') {
+		const blocker = meadowEntryMap.blockers?.find(({ id }) => id === entry.ref.sourceId);
+		if (blocker === undefined || getBlockerRuntimeRenderMode(blocker.kind) !== 'rendered-live') {
+			throw new Error(
+				`${key} claims an existing-blocker fallback but its runtime render mode does not render a live blocker`
+			);
+		}
 	}
 	if (disposition.mode === 'base-static') {
 		assertInsets(disposition.margins, 'margins', key);
