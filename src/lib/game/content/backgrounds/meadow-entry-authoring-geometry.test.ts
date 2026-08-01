@@ -81,4 +81,35 @@ describe('meadow-entry authoring geometry', () => {
 		expect(() => boundsArea({ left: 0, top: 0, right: 1, bottom: 0 })).toThrow();
 		expect(() => clampBoundsToWorld({ left: -64, top: 32, right: -32, bottom: 64 })).toThrow();
 	});
+
+	it('rejects non-positive and non-finite snap grid sizes', () => {
+		expect(() => snapBoundsOutward({ left: 0, top: 0, right: 32, bottom: 32 }, 0)).toThrow(
+			/gridPx must be a positive finite number/
+		);
+		expect(() => snapBoundsOutward({ left: 0, top: 0, right: 32, bottom: 32 }, -32)).toThrow(
+			/gridPx must be a positive finite number/
+		);
+		expect(() => snapBoundsOutward({ left: 0, top: 0, right: 32, bottom: 32 }, Number.NaN)).toThrow(
+			/gridPx must be a positive finite number/
+		);
+	});
+
+	it('rejects non-finite and negative map rectangle dimensions', () => {
+		expect(() =>
+			toRawPixelBounds({ id: 'bad', x: Number.NaN, y: 0, width: 32, height: 32 })
+		).toThrow(/finite non-negative dimensions/);
+		expect(() => toRawPixelBounds({ id: 'bad', x: 0, y: 0, width: -32, height: 32 })).toThrow(
+			/finite non-negative dimensions/
+		);
+		expect(() =>
+			toRawPixelBounds({ id: 'bad', x: 0, y: Number.POSITIVE_INFINITY, width: 32, height: 32 })
+		).toThrow(/finite non-negative dimensions/);
+	});
+
+	it('clamps the top edge when bounds extend above the world origin', () => {
+		expect(clampBoundsToWorld({ left: 0, top: -32, right: 32, bottom: 32 })).toEqual({
+			bounds: { left: 0, top: 0, right: 32, bottom: 32 },
+			clampedSides: ['top']
+		});
+	});
 });
