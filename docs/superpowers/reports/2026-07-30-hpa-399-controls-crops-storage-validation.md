@@ -183,21 +183,6 @@ module changed because the combined fingerprint seals the renderer implementatio
 mask, the crop manifest, bake ownership, predecessor, storage, and gameplay domains are
 byte-identical to the reviewed head.
 
-The gameplay fingerprint also includes these current source-file hashes:
-
-| Source | SHA-256 |
-| --- | --- |
-| `src/lib/game/content/maps/meadow-entry.ts` | `04570276f24ba6c9f86d94dca567826d1dd2eec11eec6cdb758ccf18065cc0fe` |
-| `src/lib/game/content/maps/regions/village.ts` | `906d5cbb498f91ba233c52bdd5bce4006b3d88c39caeaee8772efce290fe8a10` |
-| `src/lib/game/content/maps/regions/wildwood.ts` | `b37d24a7dde2f6c4cb2175034a8419ad69dea0d049ddb46f9395027ebdf8412d` |
-| `src/lib/game/content/maps/regions/mistfen.ts` | `d415e0ef61e3f6fb828f86b3f1b844d0f41c8069e273c4c85331e84336bce7f8` |
-| `src/lib/game/content/maps/regions/silverpine.ts` | `e420c013392e624538a72a9a7073bba2c6ac3ca344c15f8307ad52bd1717596b` |
-| `src/lib/game/content/maps/regions/coast.ts` | `724b131eb3f076c0a5cf17aa5894e034ce119305ef0e126081e10779f9676b01` |
-| `src/lib/game/content/maps/regions/crossroads.ts` | `5fd7898f55b7f8c55c9d489a27291721027972df3451afe9d1dba6f89f39887c` |
-| `src/lib/game/content/maps/regions/paths.ts` | `cdd5ab59707a1e829cc0bb679703f76a265e87279d174418f3bf0ae45ab243f7` |
-| `src/lib/game/save/save-state.ts` | `6198f56bd219f0233d697f103bba548b53f1c40d20ac58b55f7cfbd44025daaa` |
-| `src/lib/game/core/collision.ts` | `18b5cacc81d1ddf568a8bdc966327fd9946831a918104c766fe2a6d0ad8bd13d` |
-
 ## Crop, handoff, and coverage contract
 
 The current generated crop manifest records:

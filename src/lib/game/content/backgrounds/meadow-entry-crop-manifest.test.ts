@@ -917,9 +917,10 @@ describe('validateMeadowEntryCropContract error paths', () => {
 
 	it('rejects a crop that declares an unused edge clamp', () => {
 		const crops = cloneCrops();
-		const sundrop = crops.find((c) => c.id === 'sundrop-village-underlay')!;
-		crops[0] = {
-			...sundrop,
+		const sundropIdx = crops.findIndex((c) => c.id === 'sundrop-village-underlay');
+		expect(sundropIdx).toBeGreaterThanOrEqual(0);
+		crops[sundropIdx] = {
+			...crops[sundropIdx]!,
 			edgeClamp: { sides: ['right'], reason: 'unused' }
 		};
 		expect(() => validateMeadowEntryCropContract({ crops })).toThrow(
@@ -1148,7 +1149,7 @@ describe('validateMeadowEntryCropContract error paths', () => {
 	it('rejects a triple crop intersection that lacks one corner group', () => {
 		// Remove corner group from all overlaps that have one, so any triple intersection will fail.
 		const overlaps = MEADOW_ENTRY_APPROVED_OVERLAPS.map((o) =>
-			o.cornerGroupId !== null ? { ...o, cornerGroupId: undefined } : o
+			o.cornerGroupId !== undefined ? { ...o, cornerGroupId: undefined } : o
 		);
 		expect(() => validateMeadowEntryCropContract({ overlaps })).toThrow(/lacks one corner group/);
 	});
@@ -1166,8 +1167,10 @@ describe('validateMeadowEntryCropContract error paths', () => {
 	});
 
 	it('rejects fallback runtime coverage that overlaps a crop or lacks a reason', () => {
+		const fallbackIdx = MEADOW_ENTRY_RUNTIME_COVERAGE.findIndex((c) => c.mode === 'fallback-tile');
+		expect(fallbackIdx).toBeGreaterThanOrEqual(0);
 		const runtimeCoverage = MEADOW_ENTRY_RUNTIME_COVERAGE.map((c, i) =>
-			i === 0 && c.mode === 'fallback-tile' ? { ...c, reason: '   ' } : c
+			i === fallbackIdx && c.mode === 'fallback-tile' ? { ...c, reason: '   ' } : c
 		);
 		expect(() => validateMeadowEntryCropContract({ runtimeCoverage })).toThrow(
 			/overlaps a crop or lacks a reason/
