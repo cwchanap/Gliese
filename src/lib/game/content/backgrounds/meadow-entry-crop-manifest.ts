@@ -900,15 +900,19 @@ export function validateMeadowEntryCropContract(
 	validateBakedSources(crops);
 	validateRuntimeCoverage(crops, runtimeCoverage);
 	const expectedSummary = buildBudgetSummary(crops);
-	const budgetFields: readonly (keyof MeadowEntryCropBudgetSummary)[] = [
-		'exportAreaRatio',
-		'overlapArea',
-		'aggregateBaseReviewBytes',
-		'aggregateBaseHardBytes',
-		'aggregateForegroundReviewBytes',
-		'aggregateForegroundHardBytes'
-	];
-	if (budgetFields.some((field) => expectedSummary[field] !== budgetSummary[field])) {
-		throw new Error('Aggregate meadow-entry crop budgets do not equal per-crop sums');
+	const expectedKeys = Object.keys(expectedSummary) as (keyof MeadowEntryCropBudgetSummary)[];
+	const actualKeys = Object.keys(budgetSummary);
+	if (
+		expectedKeys.length !== actualKeys.length ||
+		!expectedKeys.every((field) => actualKeys.includes(field))
+	) {
+		throw new Error(
+			'Aggregate meadow-entry crop budget summary shape does not match expected schema'
+		);
+	}
+	for (const field of expectedKeys) {
+		if (expectedSummary[field] !== budgetSummary[field]) {
+			throw new Error('Aggregate meadow-entry crop budgets do not equal per-crop sums');
+		}
 	}
 }
