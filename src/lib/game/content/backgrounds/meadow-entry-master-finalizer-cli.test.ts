@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import { lstat, mkdir, mkdtemp, readFile, readdir, rename, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
@@ -5,8 +6,10 @@ import { join, resolve } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 
 import {
+	meadowEntryApprovedPackagePaths,
 	parseFinalizeMeadowEntryMasterArguments,
 	publishApprovedMeadowEntryPackage,
+	readApprovedMeadowEntryPackageSnapshot,
 	runFinalizeMeadowEntryMasters,
 	type MeadowEntryMasterPublicationFileSystem
 } from '../../../../../tools/finalize-meadow-entry-masters';
@@ -27,10 +30,19 @@ async function temporaryRoot(): Promise<string> {
 }
 
 function packageBytes(label: string) {
+	const basePng = Buffer.from(`base-${label}`);
+	const foregroundPng = Buffer.from(`foreground-${label}`);
+	const sha256 = (value: Buffer) => createHash('sha256').update(value).digest('hex');
 	return {
-		basePng: Buffer.from(`base-${label}`),
-		foregroundPng: Buffer.from(`foreground-${label}`),
-		provenanceJson: Buffer.from(`{"version":"${label}"}\n`)
+		basePng,
+		foregroundPng,
+		provenanceJson: Buffer.from(
+			`${JSON.stringify({
+				version: label,
+				base: { sha256: sha256(basePng) },
+				foreground: { sha256: sha256(foregroundPng) }
+			})}\n`
+		)
 	};
 }
 
@@ -44,7 +56,7 @@ async function approvedBytes(outputRoot: string): Promise<Record<string, Buffer>
 
 function withFailure(
 	failure: (operation: 'write' | 'rename' | 'remove', path: string) => boolean,
-	onPackageInstall?: (destination: string) => Promise<void>
+	onWriterSentinel?: (path: string) => Promise<void>
 ): MeadowEntryMasterPublicationFileSystem {
 	return {
 		mkdir,
@@ -52,13 +64,14 @@ function withFailure(
 		writeFile: async (path, data, options) => {
 			const pathString = String(path);
 			if (failure('write', pathString)) throw new Error(`injected write failure: ${pathString}`);
-			return writeFile(path, data, options);
+			const result = await writeFile(path, data, options);
+			if (onWriterSentinel && pathString.endsWith('.meadow-entry-publication.lock')) {
+				await onWriterSentinel(pathString);
+			}
+			return result;
 		},
 		rename: async (source, destination) => {
 			const destinationPath = String(destination);
-			if (onPackageInstall) {
-				await onPackageInstall(destinationPath);
-			}
 			if (failure('rename', destinationPath))
 				throw new Error(`injected rename failure: ${destinationPath}`);
 			return rename(source, destination);
@@ -81,33 +94,31 @@ describe('finalize-meadow-entry-masters CLI', () => {
 		expect(() => parseFinalizeMeadowEntryMasterArguments(['--plane', 'unknown'])).toThrow(/plane/i);
 	});
 
-	it('commits both master planes and provenance as one staged real-directory package', async () => {
+	it('commits both master planes and provenance as one complete snapshot', async () => {
 		const outputRoot = await temporaryRoot();
 		await publishApprovedMeadowEntryPackage(outputRoot, packageBytes('old'));
 		await mkdir(join(outputRoot, 'candidates'), { recursive: true });
 		await writeFile(join(outputRoot, 'candidates/keep.txt'), 'review source');
-		const readerObservedNoPackage: boolean[] = [];
+		let interruptedConsumerReads = 0;
+		const next = packageBytes('new');
 		const fileSystem = withFailure(
 			() => false,
-			async (destination) => {
-				if (destination === outputRoot) {
-					try {
-						await approvedBytes(outputRoot);
-						readerObservedNoPackage.push(false);
-					} catch {
-						readerObservedNoPackage.push(true);
-					}
-				}
+			async () => {
+				interruptedConsumerReads += 1;
+				await expect(
+					readApprovedMeadowEntryPackageSnapshot(outputRoot, { attempts: 1 })
+				).rejects.toThrow(/publication is in progress/i);
 			}
 		);
 
-		await publishApprovedMeadowEntryPackage(outputRoot, packageBytes('new'), fileSystem);
+		await publishApprovedMeadowEntryPackage(outputRoot, next, fileSystem);
 
-		expect(readerObservedNoPackage).toEqual([true]);
+		expect(interruptedConsumerReads).toBe(1);
+		expect(await readApprovedMeadowEntryPackageSnapshot(outputRoot)).toEqual(next);
 		expect(await approvedBytes(outputRoot)).toEqual({
-			base: Buffer.from('base-new'),
-			foreground: Buffer.from('foreground-new'),
-			provenance: Buffer.from('{"version":"new"}\n')
+			base: next.basePng,
+			foreground: next.foregroundPng,
+			provenance: next.provenanceJson
 		});
 		expect((await lstat(join(outputRoot, 'masters/meadow-entry-base-master.png'))).isFile()).toBe(
 			true
@@ -115,9 +126,10 @@ describe('finalize-meadow-entry-masters CLI', () => {
 		expect(await readFile(join(outputRoot, 'candidates/keep.txt'), 'utf8')).toBe('review source');
 	});
 
-	it('preserves the previous approved package when staging, installation, or cleanup fails', async () => {
+	it('exposes the previous complete snapshot when staging, installation, or commit cleanup fails', async () => {
 		const outputRoot = await temporaryRoot();
-		await publishApprovedMeadowEntryPackage(outputRoot, packageBytes('old'));
+		const oldPackage = packageBytes('old');
+		await publishApprovedMeadowEntryPackage(outputRoot, oldPackage);
 		const old = await approvedBytes(outputRoot);
 
 		await expect(
@@ -138,7 +150,11 @@ describe('finalize-meadow-entry-masters CLI', () => {
 				outputRoot,
 				packageBytes('pointer-failure'),
 				withFailure((operation, path) => {
-					if (operation === 'rename' && path === outputRoot && !installFailed) {
+					if (
+						operation === 'rename' &&
+						path.endsWith('meadow-entry-base-master.png') &&
+						!installFailed
+					) {
 						installFailed = true;
 						return true;
 					}
@@ -148,18 +164,22 @@ describe('finalize-meadow-entry-masters CLI', () => {
 		).rejects.toThrow(/injected rename failure/i);
 		expect(await approvedBytes(outputRoot)).toEqual(old);
 
+		const paths = meadowEntryApprovedPackagePaths(outputRoot);
+		let commitCleanupFailed = false;
 		await expect(
 			publishApprovedMeadowEntryPackage(
 				outputRoot,
 				packageBytes('cleanup-failure'),
-				withFailure((operation, path) => operation === 'remove' && path.includes('.rollback-'))
+				withFailure((operation, path) => {
+					if (operation === 'remove' && path === paths.writerSentinel && !commitCleanupFailed) {
+						commitCleanupFailed = true;
+						return true;
+					}
+					return false;
+				})
 			)
-		).resolves.toBeUndefined();
-		expect(await approvedBytes(outputRoot)).toEqual({
-			base: Buffer.from('base-cleanup-failure'),
-			foreground: Buffer.from('foreground-cleanup-failure'),
-			provenance: Buffer.from('{"version":"cleanup-failure"}\n')
-		});
+		).rejects.toThrow(/injected remove failure/i);
+		expect(await readApprovedMeadowEntryPackageSnapshot(outputRoot)).toEqual(oldPackage);
 	});
 
 	it('keeps validate-only side-effect free and writes a base review output outside the approved package', async () => {
