@@ -850,6 +850,15 @@ function validateRuntimeCoverage(
 	}
 }
 
+/**
+ * Optional overrides for {@link validateMeadowEntryCropContract}.
+ *
+ * Each property defaults to the corresponding sealed source constant:
+ * `crops` → `MEADOW_ENTRY_APPROVED_CROPS`, `overlaps` →
+ * `MEADOW_ENTRY_APPROVED_OVERLAPS`, `runtimeCoverage` →
+ * `MEADOW_ENTRY_RUNTIME_COVERAGE`, `budgetSummary` →
+ * `MEADOW_ENTRY_CROP_BUDGET_SUMMARY`.
+ */
 export interface MeadowEntryCropContractValidationOptions {
 	crops?: readonly MeadowEntryApprovedCrop[];
 	overlaps?: readonly MeadowEntryOverlap[];
@@ -857,6 +866,17 @@ export interface MeadowEntryCropContractValidationOptions {
 	budgetSummary?: MeadowEntryCropBudgetSummary;
 }
 
+/**
+ * Validates the meadow-entry crop contract: crop identity, derivation, metadata,
+ * overlap geometry, baked sources, runtime coverage, and aggregate budget sums.
+ *
+ * Each option defaults to the corresponding sealed source constant when omitted.
+ * Throws an `Error` with a descriptive message on any contract violation.
+ *
+ * @param {MeadowEntryCropContractValidationOptions} [options] - optional overrides
+ *   for the sealed crop, overlap, runtime-coverage, and budget data
+ * @returns {void}
+ */
 export function validateMeadowEntryCropContract(
 	options: MeadowEntryCropContractValidationOptions = {}
 ): void {
@@ -880,7 +900,15 @@ export function validateMeadowEntryCropContract(
 	validateBakedSources(crops);
 	validateRuntimeCoverage(crops, runtimeCoverage);
 	const expectedSummary = buildBudgetSummary(crops);
-	if (JSON.stringify(expectedSummary) !== JSON.stringify(budgetSummary)) {
+	const budgetFields: readonly (keyof MeadowEntryCropBudgetSummary)[] = [
+		'exportAreaRatio',
+		'overlapArea',
+		'aggregateBaseReviewBytes',
+		'aggregateBaseHardBytes',
+		'aggregateForegroundReviewBytes',
+		'aggregateForegroundHardBytes'
+	];
+	if (budgetFields.some((field) => expectedSummary[field] !== budgetSummary[field])) {
 		throw new Error('Aggregate meadow-entry crop budgets do not equal per-crop sums');
 	}
 }

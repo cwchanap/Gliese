@@ -563,23 +563,19 @@ describe('validateMeadowEntryAuthoringLayout error paths', () => {
 	});
 
 	it('rejects a contained outlier outside its primary region', () => {
-		const firstOutlier = MEADOW_ENTRY_OUTLIER_RESOLUTIONS[0]!;
+		const contained = MEADOW_ENTRY_OUTLIER_RESOLUTIONS.find((r) => r.mode === 'contained');
+		expect(contained).toBeDefined();
+		if (!contained) return;
 		expect(() =>
 			validateMeadowEntryAuthoringLayout(
 				options({
 					primarySourceOwners: {
 						...MEADOW_ENTRY_PRIMARY_SOURCE_OWNERS,
-						[firstOutlier.sourceKey]: 'mistfen' as MeadowEntryAuthoringRegionId
-					},
-					outlierResolutions: [
-						...MEADOW_ENTRY_OUTLIER_RESOLUTIONS.filter(
-							(r) => r.sourceKey !== firstOutlier.sourceKey
-						),
-						{ sourceKey: firstOutlier.sourceKey, mode: 'contained' as const }
-					]
+						[contained.sourceKey]: 'mistfen' as MeadowEntryAuthoringRegionId
+					}
 				})
 			)
-		).toThrow(/outside its primary region|Outlier resolution set does not match/);
+		).toThrow(/outside its primary region/);
 	});
 
 	it('rejects a re-owned outlier with a mismatched owner', () => {
@@ -595,16 +591,12 @@ describe('validateMeadowEntryAuthoringLayout error paths', () => {
 					},
 					outlierResolutions: MEADOW_ENTRY_OUTLIER_RESOLUTIONS.map((r) =>
 						r.sourceKey === reowned.sourceKey
-							? {
-									sourceKey: reowned.sourceKey,
-									mode: 're-owned' as const,
-									owner: 'crossroads' as MeadowEntryAuthoringRegionId
-								}
+							? { ...r, owner: 'crossroads' as MeadowEntryAuthoringRegionId }
 							: r
 					)
 				})
 			)
-		).toThrow(/Invalid re-owned resolution|Outlier resolution set does not match/);
+		).toThrow(/Invalid re-owned resolution/);
 	});
 
 	it('rejects an outlier resolution set that does not match detected sources', () => {

@@ -18,6 +18,13 @@ const expectedPngSignature = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a];
 
 export type MeadowEntryStorageGitRunner = (...args: string[]) => string;
 
+/**
+ * Creates a Git runner that executes commands in the given repository root.
+ *
+ * @param {string} root - the repository root directory for Git command execution
+ * @returns {MeadowEntryStorageGitRunner} a function that runs `git` with the given args
+ *   in `root` and returns trimmed stdout, throwing on non-zero exit status
+ */
 function runGitIn(root: string): MeadowEntryStorageGitRunner {
 	return (...args: string[]) => {
 		const result = spawnSync('git', args, {
@@ -38,10 +45,10 @@ function runGitIn(root: string): MeadowEntryStorageGitRunner {
 /**
  * Verifies that a tracked art path carries the expected Git LFS attributes.
  *
- * @param label - the storage role ('asset' or 'proof') used in failure messages
- * @param path - the repository-relative path checked for Git LFS attributes
- * @param git - the Git runner used to query check-attr output
- * @returns void; throws when any expected attribute line is missing or mismatched
+ * @param {string} label - the storage role ('asset' or 'proof') used in failure messages
+ * @param {string} path - the repository-relative path checked for Git LFS attributes
+ * @param {MeadowEntryStorageGitRunner} git - the Git runner used to query check-attr output
+ * @returns {void} throws when any expected attribute line is missing or mismatched
  */
 function verifyLfsAttributes(
 	label: 'asset' | 'proof',
@@ -99,7 +106,7 @@ export function assertTransparentOnePixelCanary(
  * materialized PNG with the expected signature, and via sharp that the canary
  * is a transparent one-pixel RGBA image.
  *
- * @returns a Promise that resolves on success or rejects on any validation failure
+ * @returns {Promise<void>} a Promise that resolves on success or rejects on any validation failure
  */
 export async function verifyMeadowEntryArtStorage(
 	repositoryRoot: string = process.cwd()
