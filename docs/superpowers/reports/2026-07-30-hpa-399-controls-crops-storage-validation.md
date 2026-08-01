@@ -3,8 +3,8 @@
 ## Result
 
 The reviewed HPA-399 Meadow Entry authoring/control/storage contract is validated at source
-commit `12885bc68d6ff7bdcd08c654dad44fea39b69289` with the review-item fix wave below. The
-checked-in controls are current, the approval
+commit `69753dccb8a7d62c3742213571a8f5a2ca7859b4` with the validator-hardening fix wave below.
+The checked-in controls are current, the approval
 matches independently rendered source contracts and checked-in bytes, Git LFS storage is intact,
 runtime coverage has no gap or overlap, and every requested repository gate exits `0` on the
 clean committed head (the `git diff --exit-code` gate now passes, closing the evidence gap from
@@ -18,7 +18,7 @@ integration and the recorded decor/fence fallback obligations.
 ## Review and fingerprints
 
 - Reviewer: `chanwaichan`
-- Review time: `2026-08-01T06:43:07Z`
+- Review time: `2026-08-01T17:47:44Z`
 - Evidence path sealed by the approval:
   `docs/superpowers/reports/2026-07-30-hpa-399-controls-crops-storage-validation.md`
 - Gameplay-source fingerprint:
@@ -54,6 +54,42 @@ Independent hashes sealed in the approval and verified against current checked-i
 | Canonical bake-ownership JSON | `30fed9270eea21bdf28d58f19cd84d5252e1b15d5beceb3b338e8bbc914a7a6a` |
 | Exact `.gitattributes` byte domain | `0cf1316ca427ce34ff4480a8ce9f7d78bcaf9305b40ad7b699b8a4891ce80997` |
 | Persisted approval source | `1ed71d31de81ac856e504a92983a1cf7d5794aa5b7aeb65b5c9d2865071ed142` |
+
+## Validator hardening fix wave
+
+This wave hardens the meadow-entry validators with four additional defensive checks and makes
+the storage verifier's git runner injectable for testing, at committed head
+`69753dccb8a7d62c3742213571a8f5a2ca7859b4`. No control data, crop manifest, bake ownership,
+coverage, fingerprint, or approval value changed; only validation logic and tests changed.
+
+1. **Duplicate cross-region coverage source keys are now rejected.**
+   `validateMeadowEntryAuthoringLayout` tracks seen `sourceKey` values in
+   `crossRegionCoverage` and throws on duplicates, preventing silent overwrite of one
+   coverage record by another.
+2. **Orphan cross-region coverage entries are now rejected.** Every
+   `crossRegionCoverage` entry must be referenced by at least one cross-region resolution;
+   entries not referenced by any resolution are reported as orphans.
+3. **Split resolution bounds must be contained within source bounds.** Each split
+   resolution's `bounds` is now checked against the covered source's own raster bounds via
+   `containsBounds`, rejecting any split that escapes its source.
+4. **Protected-live blocker dispositions now require a live runtime render mode.** A
+   `protected-live` disposition on a `blocker` source now verifies that the blocker's kind
+   resolves to `rendered-live` via `getBlockerRuntimeRenderMode`; `collision-only` blockers
+   can no longer claim a protected-live visual obligation.
+5. **Storage verifier `repositoryRoot` is injectable.**
+   `verifyMeadowEntryArtStorage` now accepts a `repositoryRoot` parameter (defaulting to
+   `process.cwd()`) and threads it through a `runGitIn(root)` closure, and
+   `approveMeadowEntryControls` passes its own `repositoryRoot` through. This enables
+   isolated tests that point at a temporary repository root.
+6. **Test hygiene.** Test cases no longer mutate the shared
+   `MEADOW_ENTRY_CROSS_REGION_COVERAGE` data, preventing cross-test interference.
+
+The focused suite grows from `182` to `187` tests (`11` files) and the full unit suite from
+`1092` to `1097` tests (`70` files). The combined-control fingerprint remains
+`a877c70797d303dee292582b715d009dfccace19f769ebbef86230b1fd17f26d`; the gameplay-source
+fingerprint, authoring-contract fingerprint, renderer implementation SHA-256, all independent
+review seals, all canonical JSON hashes, the crop/coverage/ownership tables, and the approval
+source are byte-identical to the previous sealed head `12885bc…`.
 
 ## Review item fix wave
 
@@ -282,19 +318,19 @@ No HPA-307 or HPA-398 predecessor byte was modified by this task.
 
 ## Validation commands
 
-The gates ran in the required order on the committed review-item fix wave at clean head
-`12885bc68d6ff7bdcd08c654dad44fea39b69289`:
+The gates ran in the required order on the committed validator-hardening fix wave at clean head
+`69753dccb8a7d62c3742213571a8f5a2ca7859b4`:
 
 1. `rtk bun run art:validate:meadow-entry-controls` — exit `0`; Git LFS attributes,
    pointer/materialization/fsck, PNG dimensions/alpha, and read-only exporter passed; `11` test
-   files and `182` tests passed at combined fingerprint `a877c707…`.
+   files and `187` tests passed at combined fingerprint `a877c707…`.
 2. `rtk git diff --exit-code` — exit `0`; the working tree at the head above is clean, closing
    the pending-diff evidence gap from the previous wave.
 3. `rtk git lfs fsck` — exit `0`; `Git LFS fsck OK`.
 4. `rtk bun run check` — exit `0`; `svelte-check` found `0` errors and `0` warnings.
 5. `rtk bun run lint` — exit `0`; Prettier reported all matched files use its style and ESLint
    exited cleanly.
-6. `rtk bun run test:unit -- --run` — exit `0`: `70` files and `1092` tests passed. The browser
+6. `rtk bun run test:unit -- --run` — exit `0`: `70` files and `1097` tests passed. The browser
    suite's intentional console-error fixture was logged; no test failed.
 7. `rtk bun run build` — exit `0`; Vite built `195` modules. The existing Phaser chunk-size
    advisory was non-fatal.
