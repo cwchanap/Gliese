@@ -257,6 +257,7 @@ export interface MeadowEntryApprovedPackagePaths {
 	root: string;
 	masters: string;
 	provenance: string;
+	writerSentinel: string;
 }
 
 export function meadowEntryApprovedPackagePaths(
@@ -266,7 +267,8 @@ export function meadowEntryApprovedPackagePaths(
 	return {
 		root,
 		masters: join(root, 'masters'),
-		provenance: join(root, 'provenance')
+		provenance: join(root, 'provenance'),
+		writerSentinel: join(root, '.meadow-entry-publication.lock')
 	};
 }
 
@@ -280,65 +282,155 @@ async function pathExists(path: string): Promise<boolean> {
 	}
 }
 
+interface ApprovedPackageBytes {
+	basePng: Buffer;
+	foregroundPng: Buffer;
+	provenanceJson: Buffer;
+}
+
+interface ApprovedMasterManifest {
+	base?: { sha256?: unknown };
+	foreground?: { sha256?: unknown };
+}
+
+function snapshotTargetPaths(paths: MeadowEntryApprovedPackagePaths): readonly string[] {
+	return [
+		join(paths.masters, 'meadow-entry-base-master.png'),
+		join(paths.masters, 'meadow-entry-foreground-master.png'),
+		join(paths.provenance, 'meadow-entry-master-provenance.json')
+	];
+}
+
+function assertManifestHashes(
+	provenanceJson: Buffer,
+	basePng: Buffer,
+	foregroundPng: Buffer
+): void {
+	let manifest: ApprovedMasterManifest;
+	try {
+		manifest = JSON.parse(provenanceJson.toString('utf8')) as ApprovedMasterManifest;
+	} catch {
+		throw new Error('Meadow Entry approved package provenance is not valid JSON');
+	}
+	if (
+		manifest.base?.sha256 !== sha256(basePng) ||
+		manifest.foreground?.sha256 !== sha256(foregroundPng)
+	) {
+		throw new Error('Meadow Entry approved package provenance does not match its master bytes');
+	}
+}
+
+export async function readApprovedMeadowEntryPackageSnapshot(
+	outputRoot: string,
+	options: { attempts?: number } = {}
+): Promise<ApprovedPackageBytes> {
+	const paths = meadowEntryApprovedPackagePaths(outputRoot);
+	const attempts = options.attempts ?? 3;
+	let lastError: unknown;
+	for (let attempt = 0; attempt < attempts; attempt += 1) {
+		if (await pathExists(paths.writerSentinel)) {
+			lastError = new Error('Meadow Entry approved package publication is in progress');
+			continue;
+		}
+		try {
+			const [basePng, foregroundPng, provenanceJson] = await Promise.all(
+				snapshotTargetPaths(paths).map((path) => readFile(path))
+			);
+			if (await pathExists(paths.writerSentinel)) {
+				lastError = new Error('Meadow Entry approved package publication is in progress');
+				continue;
+			}
+			assertManifestHashes(provenanceJson, basePng, foregroundPng);
+			const provenanceAfterRead = await readFile(
+				join(paths.provenance, 'meadow-entry-master-provenance.json')
+			);
+			if (!provenanceAfterRead.equals(provenanceJson) || (await pathExists(paths.writerSentinel))) {
+				lastError = new Error('Meadow Entry approved package changed while its snapshot was read');
+				continue;
+			}
+			return { basePng, foregroundPng, provenanceJson };
+		} catch (error) {
+			lastError = error;
+		}
+	}
+	throw lastError instanceof Error
+		? lastError
+		: new Error('Meadow Entry approved package snapshot is unavailable');
+}
+
 export async function publishApprovedMeadowEntryPackage(
 	outputRoot: string,
-	packageBytes: { basePng: Buffer; foregroundPng: Buffer; provenanceJson: Buffer },
+	packageBytes: ApprovedPackageBytes,
 	fileSystem: MeadowEntryMasterPublicationFileSystem = NODE_PUBLICATION_FILE_SYSTEM
 ): Promise<void> {
 	const paths = meadowEntryApprovedPackagePaths(outputRoot);
-	const parent = dirname(paths.root);
 	const token = randomUUID();
-	const stagingRoot = join(parent, `.${basename(paths.root)}.staging-${token}`);
-	const rollbackRoot = join(parent, `.${basename(paths.root)}.rollback-${token}`);
-	const targets = [
-		{
-			path: join(stagingRoot, 'masters/meadow-entry-base-master.png'),
-			contents: packageBytes.basePng
-		},
-		{
-			path: join(stagingRoot, 'masters/meadow-entry-foreground-master.png'),
-			contents: packageBytes.foregroundPng
-		},
-		{
-			path: join(stagingRoot, 'provenance/meadow-entry-master-provenance.json'),
-			contents: packageBytes.provenanceJson
-		}
+	const stagingRoot = join(dirname(paths.root), `.${basename(paths.root)}.staging-${token}`);
+	const stagingTargets = [
+		join(stagingRoot, 'masters/meadow-entry-base-master.png'),
+		join(stagingRoot, 'masters/meadow-entry-foreground-master.png'),
+		join(stagingRoot, 'provenance/meadow-entry-master-provenance.json')
 	];
-	let previousPackageMoved = false;
-	const preservedEntries: string[] = [];
+	const targetPaths = snapshotTargetPaths(paths);
+	const contents = [packageBytes.basePng, packageBytes.foregroundPng, packageBytes.provenanceJson];
+	const backups = targetPaths.map((path) => `${path}.${token}.rollback`);
+	const backedUp: boolean[] = [];
+	const installed: boolean[] = [];
+	let sentinelOwned = false;
 	try {
 		await fileSystem.mkdir(stagingRoot, { recursive: true });
-		for (const target of targets) {
-			await fileSystem.mkdir(dirname(target.path), { recursive: true });
-			await fileSystem.writeFile(target.path, target.contents, { flag: 'wx' });
+		for (let index = 0; index < stagingTargets.length; index += 1) {
+			const path = stagingTargets[index]!;
+			await fileSystem.mkdir(dirname(path), { recursive: true });
+			await fileSystem.writeFile(path, contents[index]!, { flag: 'wx' });
 		}
-		if (await pathExists(paths.root)) {
-			await fileSystem.rename(paths.root, rollbackRoot);
-			previousPackageMoved = true;
-			for (const entry of await fileSystem.readdir(rollbackRoot)) {
-				if (entry === 'masters' || entry === 'provenance') continue;
-				await fileSystem.rename(join(rollbackRoot, entry), join(stagingRoot, entry));
-				preservedEntries.push(entry);
-			}
+		await fileSystem.mkdir(paths.root, { recursive: true });
+		await fileSystem.writeFile(paths.writerSentinel, Buffer.from(`${token}\n`), { flag: 'wx' });
+		sentinelOwned = true;
+		for (let index = 0; index < targetPaths.length; index += 1) {
+			const target = targetPaths[index]!;
+			await fileSystem.mkdir(dirname(target), { recursive: true });
+			const previousExists = await pathExists(target);
+			backedUp[index] = previousExists;
+			if (previousExists) await fileSystem.rename(target, backups[index]!);
+			await fileSystem.rename(stagingTargets[index]!, target);
+			installed[index] = true;
 		}
-		// The package is a real directory: this install publishes base, foreground,
-		// and provenance together, so readers can never observe a mixed generation.
-		await fileSystem.rename(stagingRoot, paths.root);
+		// The sole consumer-visible commit point: before this atomic removal, every
+		// compliant reader rejects the sentinel; after it, all files match the new
+		// provenance generation.
+		await fileSystem.rm(paths.writerSentinel);
+		sentinelOwned = false;
 	} catch (error) {
-		if (previousPackageMoved) {
-			for (const entry of [...preservedEntries].reverse()) {
-				await fileSystem
-					.rename(join(stagingRoot, entry), join(rollbackRoot, entry))
-					.catch(() => undefined);
+		if (sentinelOwned) {
+			let restored = true;
+			for (let index = targetPaths.length - 1; index >= 0; index -= 1) {
+				const target = targetPaths[index]!;
+				if (installed[index]) {
+					try {
+						await fileSystem.rm(target, { force: true });
+					} catch {
+						restored = false;
+					}
+				}
+				if (backedUp[index]) {
+					try {
+						await fileSystem.rename(backups[index]!, target);
+					} catch {
+						restored = false;
+					}
+				}
 			}
-			await fileSystem.rename(rollbackRoot, paths.root).catch(() => undefined);
+			if (restored)
+				await fileSystem.rm(paths.writerSentinel, { force: true }).catch(() => undefined);
 		}
-		await fileSystem.rm(stagingRoot, { recursive: true, force: true }).catch(() => undefined);
 		throw error;
+	} finally {
+		await fileSystem.rm(stagingRoot, { recursive: true, force: true }).catch(() => undefined);
 	}
-	// A cleanup failure cannot invalidate an already committed package. Retain the
-	// rollback directory for recovery and let a later maintenance pass remove it.
-	await fileSystem.rm(rollbackRoot, { recursive: true, force: true }).catch(() => undefined);
+	await Promise.all(
+		backups.map((path) => fileSystem.rm(path, { force: true }).catch(() => undefined))
+	);
 }
 
 export async function runFinalizeMeadowEntryMasters(
