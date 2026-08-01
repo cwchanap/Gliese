@@ -3,7 +3,8 @@
 ## Result
 
 The reviewed HPA-399 Meadow Entry authoring/control/storage contract is validated at source
-commit `69753dccb8a7d62c3742213571a8f5a2ca7859b4` with the validator-hardening fix wave below.
+commit `8d9e23b584e486254156cb06f01f8ab5fdfa34d4` with the budget-comparison exhaustiveness fix
+wave below.
 The checked-in controls are current, the approval
 matches independently rendered source contracts and checked-in bytes, Git LFS storage is intact,
 runtime coverage has no gap or overlap, and every requested repository gate exits `0` on the
@@ -19,7 +20,7 @@ integration and the recorded decor/fence fallback obligations.
 
 - Reviewer: `chanwaichan`
 - Approval review time: `2026-08-01T06:43:07Z` (matches the persisted `meadowEntryControlsApprovalReview.reviewedAt`; the approval source is byte-identical to the previous sealed head)
-- Evidence re-seal time: `2026-08-01T17:47:44Z` (when this report was regenerated at committed head `69753dc`; no approval value changed)
+- Evidence re-seal time: `2026-08-01T21:17:12Z` (when this report was regenerated at committed head `8d9e23b`; no approval value changed)
 - Evidence path sealed by the approval:
   `docs/superpowers/reports/2026-07-30-hpa-399-controls-crops-storage-validation.md`
 - Gameplay-source fingerprint:
@@ -91,6 +92,32 @@ The focused suite grows from `182` to `187` tests (`11` files) and the full unit
 fingerprint, authoring-contract fingerprint, renderer implementation SHA-256, all independent
 review seals, all canonical JSON hashes, the crop/coverage/ownership tables, and the approval
 source are byte-identical to the previous sealed head `12885bc…`.
+
+## Budget comparison exhaustiveness fix wave
+
+This wave closes the schema-drift blind spot in the aggregate budget comparison at committed
+head `8d9e23b584e486254156cb06f01f8ab5fdfa34d4`. No control data, crop manifest, bake
+ownership, coverage, fingerprint, or approval value changed; only validation logic and tests
+changed.
+
+1. **Budget summary comparison is now schema-exhaustive.** The previous manually maintained
+   six-field `budgetFields` array could silently drift from `MeadowEntryCropBudgetSummary`:
+   adding a future field to the interface would not force the list to update, and a mismatch
+   in that new field would pass validation. The comparison now derives its key set from
+   `expectedSummary` (built by `buildBudgetSummary`), verifies the exact key set on the
+   runtime `budgetSummary` input (rejecting both missing and unexpected extra keys), then
+   compares every derived key. The comparison is order-independent and automatically follows
+   future summary fields without a second manually synchronized registry.
+2. **Test coverage for the new shape check.** The budget suite adds a non-default field
+   mismatch case (`overlapArea`) and an unexpected-extra-key case, so the validator is
+   exercised against both value drift and schema drift.
+
+The focused suite grows from `187` to `189` tests (`11` files) and the full unit suite from
+`1097` to `1099` tests (`70` files). The combined-control fingerprint remains
+`a877c70797d303dee292582b715d009dfccace19f769ebbef86230b1fd17f26d`; the gameplay-source
+fingerprint, authoring-contract fingerprint, renderer implementation SHA-256, all independent
+review seals, all canonical JSON hashes, the crop/coverage/ownership tables, and the approval
+source are byte-identical to the previous sealed head `69753dc…`.
 
 ## Review item fix wave
 
@@ -304,19 +331,18 @@ No HPA-307 or HPA-398 predecessor byte was modified by this task.
 
 ## Validation commands
 
-The gates ran in the required order on the committed validator-hardening fix wave at clean head
-`69753dccb8a7d62c3742213571a8f5a2ca7859b4`:
+The gates ran in the required order on the committed budget-comparison exhaustiveness fix wave
+at clean head `8d9e23b584e486254156cb06f01f8ab5fdfa34d4`:
 
 1. `rtk bun run art:validate:meadow-entry-controls` — exit `0`; Git LFS attributes,
    pointer/materialization/fsck, PNG dimensions/alpha, and read-only exporter passed; `11` test
-   files and `187` tests passed at combined fingerprint `a877c707…`.
-2. `rtk git diff --exit-code` — exit `0`; the working tree at the head above is clean, closing
-   the pending-diff evidence gap from the previous wave.
+   files and `189` tests passed at combined fingerprint `a877c707…`.
+2. `rtk git diff --exit-code` — exit `0`; the working tree at the head above is clean.
 3. `rtk git lfs fsck` — exit `0`; `Git LFS fsck OK`.
 4. `rtk bun run check` — exit `0`; `svelte-check` found `0` errors and `0` warnings.
 5. `rtk bun run lint` — exit `0`; Prettier reported all matched files use its style and ESLint
    exited cleanly.
-6. `rtk bun run test:unit -- --run` — exit `0`: `70` files and `1097` tests passed. The browser
+6. `rtk bun run test:unit -- --run` — exit `0`: `70` files and `1099` tests passed. The browser
    suite's intentional console-error fixture was logged; no test failed.
 7. `rtk bun run build` — exit `0`; Vite built `195` modules. The existing Phaser chunk-size
    advisory was non-fatal.
