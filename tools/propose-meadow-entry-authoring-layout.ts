@@ -22,7 +22,8 @@ import {
 	MEADOW_ENTRY_APPROVED_CROPS,
 	MEADOW_ENTRY_APPROVED_OVERLAPS,
 	MEADOW_ENTRY_CROP_BUDGET_SUMMARY,
-	MEADOW_ENTRY_RUNTIME_COVERAGE
+	MEADOW_ENTRY_RUNTIME_COVERAGE,
+	validateMeadowEntryCropContract
 } from '$lib/game/content/backgrounds/meadow-entry-crop-manifest';
 import {
 	collectMeadowEntrySourceCatalog,
@@ -86,6 +87,8 @@ const OUTPUT_DIRECTORY = resolve(
 	import.meta.dir,
 	'../docs/superpowers/reports/img/hpa-399/proposals'
 );
+
+validateMeadowEntryCropContract();
 
 // Deliberately hand-authored candidates. These are review aids, never inputs to
 // production crop derivation. The checked-in layout is frozen separately after
@@ -212,7 +215,9 @@ function projectedBudgets(
 	};
 }
 
-function deriveCropCandidates(): readonly CandidateCrop[] {
+function deriveCropCandidates(
+	catalogByKey: ReadonlyMap<string, MeadowEntrySourceRecord>
+): readonly CandidateCrop[] {
 	const regionalCrops = Object.entries(CROP_BY_REGION).map(([regionId, cropFacts]) => {
 		const region = MEADOW_ENTRY_AUTHORING_REGIONS.find(({ id }) => id === regionId);
 		if (!region) throw new Error(`Missing reviewed region ${regionId}`);
@@ -256,9 +261,7 @@ function deriveCropCandidates(): readonly CandidateCrop[] {
 		'blocker:wildwood-forest-lane-west-bank',
 		'ground-patch:sundrop-forest-road-north'
 	].map((sourceKey) => {
-		const source = collectMeadowEntrySourceCatalog().find(
-			(record) => meadowEntrySourceKey(record.ref) === sourceKey
-		);
+		const source = catalogByKey.get(sourceKey);
 		if (source?.bounds === null || source?.bounds === undefined) {
 			throw new Error(`Missing edge-crop attachment ${sourceKey}`);
 		}
@@ -271,14 +274,15 @@ function deriveCropCandidates(): readonly CandidateCrop[] {
 		right: edgeReviewBounds.right + MEADOW_ENTRY_MIN_HANDOFF_PX,
 		bottom: edgeReviewBounds.bottom + MEADOW_ENTRY_MIN_HANDOFF_PX
 	});
-	const edgeBounds = clampBoundsToWorld(edgePreClampBounds).bounds;
+	const edgeClampResult = clampBoundsToWorld(edgePreClampBounds);
+	const edgeBounds = edgeClampResult.bounds;
 	const edgeCrop: CandidateCrop = {
 		id: 'outer-boundary-east-forest-lane',
 		regionIds: ['wildwood', 'tidewatch-coast'],
 		reviewBounds: edgeReviewBounds,
 		coverageAttachments: edgeAttachments,
 		preClampBounds: edgePreClampBounds,
-		clampedSides: [],
+		clampedSides: edgeClampResult.clampedSides,
 		bounds: edgeBounds,
 		expectedDimensions: {
 			width: edgeBounds.right - edgeBounds.left,
@@ -441,12 +445,7 @@ function envelope(records: readonly MeadowEntrySourceRecord[]): PixelBounds | nu
 		record.bounds === null ? [] : [rasterizeCoverageBounds(record.bounds)]
 	);
 	if (bounds.length === 0) return null;
-	return {
-		left: Math.min(...bounds.map(({ left }) => left)),
-		top: Math.min(...bounds.map(({ top }) => top)),
-		right: Math.max(...bounds.map(({ right }) => right)),
-		bottom: Math.max(...bounds.map(({ bottom }) => bottom))
-	};
+	return envelopeBounds(bounds);
 }
 
 function svgRect(bounds: PixelBounds, attributes: string): string {
@@ -454,6 +453,7 @@ function svgRect(bounds: PixelBounds, attributes: string): string {
 }
 
 const catalog = collectMeadowEntrySourceCatalog();
+const catalogByKey = new Map(catalog.map((record) => [meadowEntrySourceKey(record.ref), record]));
 const pathKeys = catalog
 	.filter(({ fragmentId }) => fragmentId === 'paths')
 	.map(({ ref }) => meadowEntrySourceKey(ref));
@@ -506,7 +506,7 @@ const crossingSources = sources.filter(
 	({ primaryOwner, containedByPrimary, intersectingRegions }) =>
 		!containedByPrimary || intersectingRegions.some((regionId) => regionId !== primaryOwner)
 );
-const cropCandidates = deriveCropCandidates();
+const cropCandidates = deriveCropCandidates(catalogByKey);
 const cropIntersections = cropCandidates.flatMap((firstCrop, firstIndex) =>
 	cropCandidates.slice(firstIndex + 1).flatMap((secondCrop) => {
 		const bounds = intersectBounds(firstCrop.bounds, secondCrop.bounds);
@@ -549,7 +549,6 @@ const tripleIntersections = cropCandidates.flatMap((firstCrop, firstIndex) =>
 		});
 	})
 );
-const catalogByKey = new Map(catalog.map((record) => [meadowEntrySourceKey(record.ref), record]));
 const initialRegionalCropCandidates = cropCandidates.filter(
 	({ id }) => id !== 'outer-boundary-east-forest-lane'
 );

@@ -34,22 +34,22 @@ interface ApprovalValues {
 }
 
 interface ApprovalToolApi {
-	validateMeadowEntryApprovalArtifacts?: (snapshot: ApprovalArtifactSnapshot) => void;
-	publishMeadowEntryControlsApproval?: (
+	validateMeadowEntryApprovalArtifacts: (snapshot: ApprovalArtifactSnapshot) => void;
+	publishMeadowEntryControlsApproval: (
 		contents: string,
 		approvalPath: string,
 		fileSystem: ApprovalPublicationFileSystem,
 		temporaryToken: string
 	) => void;
-	parseMeadowEntryControlsApprovalArguments?: (args: readonly string[]) => ApprovalArguments;
-	renderMeadowEntryControlsApprovalModule?: (
+	parseMeadowEntryControlsApprovalArguments: (args: readonly string[]) => ApprovalArguments;
+	renderMeadowEntryControlsApprovalModule: (
 		review: ApprovalArguments,
 		values: ApprovalValues
 	) => string;
 }
 
 async function approvalApi(): Promise<ApprovalToolApi> {
-	return import('../../../../tools/approve-meadow-entry-controls');
+	return import('../../../../tools/approve-meadow-entry-controls') as Promise<ApprovalToolApi>;
 }
 
 const FINGERPRINT = '1'.repeat(64);

@@ -652,12 +652,10 @@ interface MeadowEntryCropManifestEntry {
   baseFilename: string;
   foregroundFilename: string | null;
   textureKeys: { base: string; foreground: string | null };
-  plane: { base: 'base'; foreground: 'foreground' | null };
   drawOrder: number;
   sourceRegionIds: readonly MeadowEntryAuthoringRegionId[];
   neighborIds: readonly MeadowEntryCropId[];
   overlapIds: readonly string[];
-  sourceControlFingerprint: string;
   alphaPolicy: {
     base: 'opaque';
     foreground: 'sparse-eligible-mask' | null;
@@ -679,7 +677,7 @@ interface MeadowEntryOverlap {
   firstCropId: MeadowEntryCropId;
   secondCropId: MeadowEntryCropId;
   bounds: PixelBounds;
-  minimumWidthOrHeight: typeof MEADOW_ENTRY_MIN_HANDOFF_PX;
+  minimumSharedPixels: typeof MEADOW_ENTRY_MIN_HANDOFF_PX;
   planePolicy: 'base-only' | 'base-and-foreground';
   ownerCropId: MeadowEntryCropId;
   cornerGroupId?: string;

@@ -102,11 +102,11 @@ export const MEADOW_ENTRY_COMBINED_CONTROL_FINGERPRINT =
 `;
 }
 
-function buildExportPackage(): {
+function buildExportPackage(repositoryRoot: string): {
 	packageBytes: MeadowEntryExportPackage;
 	combinedControlFingerprint: string;
 } {
-	const inputs = buildMeadowEntryControlInputs();
+	const inputs = buildMeadowEntryControlInputs(repositoryRoot);
 	const rendered = renderMeadowEntryControls(inputs);
 	const gameplaySourceFingerprint = computeMeadowEntryGameplaySourceFingerprint(inputs);
 	const authoringContractFingerprint = computeMeadowEntryAuthoringContractFingerprint(inputs);
@@ -318,7 +318,7 @@ export function runMeadowEntryArtControlsExporter(
 ): void {
 	const checkMode = parseCheckMode(args);
 	const paths = meadowEntryExportPaths(repositoryRoot);
-	const { packageBytes, combinedControlFingerprint } = buildExportPackage();
+	const { packageBytes, combinedControlFingerprint } = buildExportPackage(repositoryRoot);
 	if (checkMode) {
 		checkMeadowEntryExportPackage(packageBytes, paths);
 		console.log(`meadow-entry controls are current\t${combinedControlFingerprint}`);

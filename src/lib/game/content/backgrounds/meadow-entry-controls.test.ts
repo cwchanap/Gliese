@@ -199,7 +199,7 @@ function expectedSemanticClearances(): readonly ExpectedClearance[] {
 			kind: 'discovery' as const,
 			bounds: boundsAround(x, y, (radius ?? 48) * 2, (radius ?? 48) * 2)
 		}))
-	].sort((left, right) => left.id.localeCompare(right.id));
+	].sort((left, right) => (left.id < right.id ? -1 : left.id > right.id ? 1 : 0));
 }
 
 function fillTestBounds(alpha: Buffer, bounds: TestBounds, value: number): void {
@@ -435,12 +435,7 @@ describe('meadow-entry deterministic authoring controls', () => {
 
 	it('derives complete conservative walkable-space controls from the assembled map collision model', () => {
 		const input = buildMeadowEntryControlInputs();
-		const walkableSpaceRects = (
-			input as MeadowEntryControlInputs & { walkableSpaceRects?: readonly TestBounds[] }
-		).walkableSpaceRects;
-
-		expect(walkableSpaceRects).toBeDefined();
-		if (!walkableSpaceRects) return;
+		const walkableSpaceRects = input.walkableSpaceRects;
 		const rawCollisionRects = [
 			...collectStrictCollisionRects(meadowEntryMap),
 			...collectLandmarkRects(meadowEntryMap)
@@ -580,19 +575,8 @@ describe('meadow-entry deterministic authoring controls', () => {
 			authoring: computeMeadowEntryAuthoringContractFingerprint(input),
 			combined: computeMeadowEntryCombinedControlFingerprint(input)
 		};
-		const rendererContract = (
-			input as MeadowEntryControlInputs & {
-				rendererMaskMaterialContract?: {
-					version: number;
-					implementationSha256?: string;
-					pointExtentsPx: { pickup: { width: number; height: number } };
-					materialProfiles: Readonly<Record<string, string>>;
-				};
-			}
-		).rendererMaskMaterialContract;
+		const rendererContract = input.rendererMaskMaterialContract;
 
-		expect(rendererContract).toBeDefined();
-		if (!rendererContract) return;
 		expect(rendererContract.version).toBe(1);
 		expect(rendererContract.implementationSha256).toMatch(SHA256);
 		expect(rendererContract.materialProfiles['connector-village-crossroads']).toBe(

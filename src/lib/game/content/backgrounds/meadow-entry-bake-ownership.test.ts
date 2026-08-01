@@ -1,6 +1,7 @@
 import { createHash } from 'node:crypto';
 import { describe, expect, it } from 'vitest';
 
+import { getBlockerRuntimeRenderMode } from '$lib/game/content/maps/blocker-rendering';
 import { meadowEntryMap } from '$lib/game/content/maps/meadow-entry';
 
 import { SUNDROP_VILLAGE_FOREGROUND_FRONT_CUTOFF_PX } from './sundrop-village-backgrounds';
@@ -48,17 +49,17 @@ describe('meadow-entry bake ownership', () => {
 
 	it('locks the reviewed disposition and HPA-406 obligation registry', () => {
 		const dispositionCounts = MEADOW_ENTRY_BAKE_OWNERSHIP.reduce<Record<string, number>>(
-			(counts, entry) => ({
-				...counts,
-				[entry.disposition.mode]: (counts[entry.disposition.mode] ?? 0) + 1
-			}),
+			(counts, entry) => {
+				counts[entry.disposition.mode] = (counts[entry.disposition.mode] ?? 0) + 1;
+				return counts;
+			},
 			{}
 		);
 		const runtimeCounts = MEADOW_ENTRY_BAKE_OWNERSHIP.reduce<Record<string, number>>(
-			(counts, entry) => ({
-				...counts,
-				[entry.runtimeRequirement]: (counts[entry.runtimeRequirement] ?? 0) + 1
-			}),
+			(counts, entry) => {
+				counts[entry.runtimeRequirement] = (counts[entry.runtimeRequirement] ?? 0) + 1;
+				return counts;
+			},
 			{}
 		);
 		const canonicalRegistry = MEADOW_ENTRY_BAKE_OWNERSHIP.map(
@@ -179,9 +180,7 @@ describe('meadow-entry bake ownership', () => {
 		});
 	});
 
-	it('matches the blocker renderer contract for ocean collision and live boundaries', async () => {
-		const { getBlockerRuntimeRenderMode } =
-			await import('$lib/game/content/maps/blocker-rendering');
+	it('matches the blocker renderer contract for ocean collision and live boundaries', () => {
 		const blockersById = new Map(
 			(meadowEntryMap.blockers ?? []).map((blocker) => [blocker.id, blocker])
 		);

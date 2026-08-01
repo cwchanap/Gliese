@@ -17,7 +17,8 @@ import {
 } from './meadow-entry-authoring-layout';
 import {
 	collectMeadowEntrySourceCatalog,
-	meadowEntrySourceKey
+	meadowEntrySourceKey,
+	type MeadowEntrySourceRecord
 } from './meadow-entry-source-catalog';
 
 const expectedPathOwners = {
@@ -174,7 +175,7 @@ describe('meadow-entry authoring layout', () => {
 		});
 		const resolutionKeys = MEADOW_ENTRY_OUTLIER_RESOLUTIONS.map(({ sourceKey }) => sourceKey);
 
-		expect(new Set(resolutionKeys)).toHaveLength(resolutionKeys.length);
+		expect(new Set(resolutionKeys).size).toEqual(resolutionKeys.length);
 		expect([...resolutionKeys].sort()).toEqual([...detectedOutlierKeys].sort());
 	});
 
@@ -542,7 +543,7 @@ describe('primaryOwnerFor', () => {
 		const fakeRecord = {
 			...record,
 			ref: { sourceType: 'ground-patch' as const, sourceId: 'nonexistent-fragment-source' },
-			fragmentId: 'unknown-fragment' as string
+			fragmentId: 'unknown-fragment' as MeadowEntrySourceRecord['fragmentId']
 		};
 		expect(() => primaryOwnerFor(fakeRecord)).toThrow(/Missing fragment authoring owner/);
 	});

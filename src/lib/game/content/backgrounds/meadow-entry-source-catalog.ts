@@ -51,13 +51,26 @@ interface IdentifiedSource {
 	id: string;
 }
 
-interface SourceDefinition {
+type RectSource = IdentifiedSource & MapRect;
+
+interface SourceDefinitionBase {
 	sourceType: MeadowEntrySourceType;
 	visualCapable: boolean;
-	hasRectBounds: boolean;
+}
+
+interface RectBoundsSourceDefinition extends SourceDefinitionBase {
+	hasRectBounds: true;
+	items(fragment: RegionFragment): readonly RectSource[];
+	itemsFromMap(map: WorldMapDefinition): readonly RectSource[];
+}
+
+interface PointBoundsSourceDefinition extends SourceDefinitionBase {
+	hasRectBounds: false;
 	items(fragment: RegionFragment): readonly IdentifiedSource[];
 	itemsFromMap(map: WorldMapDefinition): readonly IdentifiedSource[];
 }
+
+type SourceDefinition = RectBoundsSourceDefinition | PointBoundsSourceDefinition;
 
 const meadowEntrySourceDefinitions: readonly SourceDefinition[] = [
 	{
@@ -217,34 +230,53 @@ function assertCatalogResolvesAgainstAssembledMap(
 	}
 }
 
+function freezeSourceRecord(record: MeadowEntrySourceRecord): MeadowEntrySourceRecord {
+	return Object.freeze({
+		ref: Object.freeze({ ...record.ref }),
+		fragmentId: record.fragmentId,
+		bounds: record.bounds === null ? null : Object.freeze({ ...record.bounds }),
+		visualCapable: record.visualCapable
+	});
+}
+
 function buildMeadowEntrySourceCatalog(): readonly MeadowEntrySourceRecord[] {
 	const catalog = meadowEntryFragments.flatMap(({ fragmentId, fragment }) =>
-		meadowEntrySourceDefinitions.flatMap((definition) =>
-			definition.items(fragment).map((source) => ({
+		meadowEntrySourceDefinitions.flatMap((definition): MeadowEntrySourceRecord[] => {
+			if (!definition.hasRectBounds) {
+				return definition.items(fragment).map((source) => ({
+					ref: { sourceType: definition.sourceType, sourceId: source.id },
+					fragmentId,
+					bounds: null,
+					visualCapable: definition.visualCapable
+				}));
+			}
+			return definition.items(fragment).map((source) => ({
 				ref: { sourceType: definition.sourceType, sourceId: source.id },
 				fragmentId,
-				bounds: definition.hasRectBounds ? toRawPixelBounds(source as MapRect) : null,
+				bounds: toRawPixelBounds(source),
 				visualCapable: definition.visualCapable
-			}))
-		)
+			}));
+		})
 	);
 
 	catalog.sort(compareSourceRecords);
 	assertCatalogIsUnique(catalog);
 	assertCatalogResolvesAgainstAssembledMap(catalog);
-	return catalog;
+	return Object.freeze(catalog.map(freezeSourceRecord));
 }
 
 const meadowEntrySourceCatalog = buildMeadowEntrySourceCatalog();
+
+const meadowEntrySourceCatalogByKey = new Map(
+	meadowEntrySourceCatalog.map((record) => [meadowEntrySourceKey(record.ref), record])
+);
 
 export function collectMeadowEntrySourceCatalog(): readonly MeadowEntrySourceRecord[] {
 	return meadowEntrySourceCatalog;
 }
 
 export function resolveMeadowEntrySource(ref: MeadowEntrySourceRef): MeadowEntrySourceRecord {
-	const record = meadowEntrySourceCatalog.find(
-		(candidate) => meadowEntrySourceKey(candidate.ref) === meadowEntrySourceKey(ref)
-	);
+	const record = meadowEntrySourceCatalogByKey.get(meadowEntrySourceKey(ref));
 	if (!record) {
 		throw new Error(`Unknown meadow-entry source "${meadowEntrySourceKey(ref)}"`);
 	}
