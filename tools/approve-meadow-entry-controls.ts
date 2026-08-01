@@ -14,6 +14,7 @@ import {
 import { MEADOW_ENTRY_COMBINED_CONTROL_FINGERPRINT } from '$lib/game/content/generated/meadow-entry-art-control';
 
 import { runMeadowEntryArtControlsExporter } from './export-meadow-entry-art-controls';
+import { verifyMeadowEntryArtStorage } from './verify-meadow-entry-art-storage';
 
 const CONTROLS_DIRECTORY = 'docs/superpowers/reports/img/hpa-399/controls';
 const APPROVAL_PATH = 'src/lib/game/content/approvals/meadow-entry-controls.ts';
@@ -280,11 +281,12 @@ export const meadowEntryControlsApproval: MeadowEntryControlsApproval = {
 `;
 }
 
-export function approveMeadowEntryControls(
+export async function approveMeadowEntryControls(
 	args: readonly string[],
 	repositoryRoot = process.cwd()
-): MeadowEntryControlsApprovalValues {
+): Promise<MeadowEntryControlsApprovalValues> {
 	const review = parseMeadowEntryControlsApprovalArguments(args);
+	await verifyMeadowEntryArtStorage();
 	runMeadowEntryArtControlsExporter(['--check'], repositoryRoot);
 	const values = readApprovalValues(repositoryRoot);
 	const output = renderMeadowEntryControlsApprovalModule(review, values);
@@ -301,7 +303,7 @@ export function approveMeadowEntryControls(
 
 if (import.meta.main) {
 	try {
-		approveMeadowEntryControls(process.argv.slice(2));
+		await approveMeadowEntryControls(process.argv.slice(2));
 	} catch (error) {
 		console.error(error instanceof Error ? error.message : error);
 		process.exitCode = 1;

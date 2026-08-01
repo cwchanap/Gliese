@@ -433,6 +433,7 @@ export function validateMeadowEntryAuthoringLayout(
 			throw new Error(`Cross-region coverage ${index} must declare bounds and secondary regions`);
 		}
 		const owner = primarySourceOwners[coverage.sourceKey];
+		const sourceBounds = rasterBounds(record);
 		for (const bounds of coverage.bounds) {
 			if (!containsBounds(MEADOW_ENTRY_WORLD_BOUNDS, bounds)) {
 				throw new Error(`Cross-region coverage ${index} must remain inside meadow-entry`);
@@ -449,6 +450,22 @@ export function validateMeadowEntryAuthoringLayout(
 		for (const regionId of coverage.secondaryRegions) {
 			if (!regions.has(regionId) || regionId === owner) {
 				throw new Error(`Invalid secondary region "${regionId}" on coverage ${index}`);
+			}
+			const region = regions.get(regionId);
+			if (
+				region !== undefined &&
+				!coverage.bounds.some((bounds) => containsBounds(region.reviewBounds, bounds))
+			) {
+				throw new Error(
+					`Secondary region "${regionId}" on coverage ${index} contains none of the declared bounds`
+				);
+			}
+		}
+		for (const bounds of coverage.bounds) {
+			if (sourceBounds !== null && !containsBounds(sourceBounds, bounds)) {
+				throw new Error(
+					`Cross-region coverage ${index} extends outside its source bounds "${coverage.sourceKey}"`
+				);
 			}
 		}
 	}

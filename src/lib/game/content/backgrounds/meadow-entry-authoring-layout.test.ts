@@ -401,6 +401,43 @@ describe('validateMeadowEntryAuthoringLayout error paths', () => {
 		).toThrow(/not contained by a secondary region/);
 	});
 
+	it('rejects cross-region coverage that extends outside its source bounds', () => {
+		const sourceKey = MEADOW_ENTRY_CROSS_REGION_COVERAGE[0]!.sourceKey;
+		const original = MEADOW_ENTRY_CROSS_REGION_COVERAGE[0]!.bounds[0]!;
+		expect(() =>
+			validateMeadowEntryAuthoringLayout(
+				options({
+					crossRegionCoverage: [
+						...MEADOW_ENTRY_CROSS_REGION_COVERAGE,
+						{
+							sourceKey,
+							bounds: [{ ...original, top: original.top - 32 }, { ...original }],
+							secondaryRegions: ['tidewatch-coast']
+						}
+					]
+				})
+			)
+		).toThrow(/extends outside its source bounds/);
+	});
+
+	it('rejects a secondary region that contains none of the declared bounds', () => {
+		const sourceKey = MEADOW_ENTRY_CROSS_REGION_COVERAGE[0]!.sourceKey;
+		expect(() =>
+			validateMeadowEntryAuthoringLayout(
+				options({
+					crossRegionCoverage: [
+						...MEADOW_ENTRY_CROSS_REGION_COVERAGE,
+						{
+							sourceKey,
+							bounds: [...MEADOW_ENTRY_CROSS_REGION_COVERAGE[0]!.bounds],
+							secondaryRegions: ['tidewatch-coast', 'silverpine']
+						}
+					]
+				})
+			)
+		).toThrow(/contains none of the declared bounds/);
+	});
+
 	it('rejects an invalid secondary region on cross-region coverage', () => {
 		const sourceKey = MEADOW_ENTRY_CROSS_REGION_COVERAGE[0]!.sourceKey;
 		const owner = MEADOW_ENTRY_PRIMARY_SOURCE_OWNERS[sourceKey];

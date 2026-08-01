@@ -1089,6 +1089,55 @@ describe('validateMeadowEntryCropContract error paths', () => {
 		expect(() => validateMeadowEntryCropContract({ overlaps })).toThrow(/undersized route mouth/);
 	});
 
+	it('rejects an overlap whose owner crop is not one of the crop pair', () => {
+		const overlap = MEADOW_ENTRY_APPROVED_OVERLAPS[0]!;
+		const otherCrop = MEADOW_ENTRY_APPROVED_CROPS.find(
+			({ id }) => id !== overlap.firstCropId && id !== overlap.secondCropId
+		);
+		expect(otherCrop).toBeDefined();
+		if (!otherCrop) return;
+		const overlaps = MEADOW_ENTRY_APPROVED_OVERLAPS.map((o, i) =>
+			i === 0 ? { ...o, ownerCropId: otherCrop.id } : o
+		);
+		expect(() => validateMeadowEntryCropContract({ overlaps })).toThrow(/unknown owner crop/);
+	});
+
+	it('rejects an overlap whose owner crop is not the higher draw order crop', () => {
+		const overlaps = MEADOW_ENTRY_APPROVED_OVERLAPS.map((o, i) =>
+			i === 0
+				? {
+						...o,
+						ownerCropId: o.firstCropId === o.ownerCropId ? o.secondCropId : o.firstCropId
+					}
+				: o
+		);
+		expect(() => validateMeadowEntryCropContract({ overlaps })).toThrow(/higher draw order/);
+	});
+
+	it('rejects an overlap that declares foreground planes for a crop without one', () => {
+		const index = MEADOW_ENTRY_APPROVED_OVERLAPS.findIndex((o) => o.planePolicy === 'base-only');
+		expect(index).toBeGreaterThanOrEqual(0);
+		const overlaps = MEADOW_ENTRY_APPROVED_OVERLAPS.map((o, i) =>
+			i === index ? { ...o, planePolicy: 'base-and-foreground' as const } : o
+		);
+		expect(() => validateMeadowEntryCropContract({ overlaps })).toThrow(
+			/foreground planes for a crop without one/
+		);
+	});
+
+	it('rejects an overlap that omits foreground planes for a fully foreground crop pair', () => {
+		const index = MEADOW_ENTRY_APPROVED_OVERLAPS.findIndex(
+			(o) => o.planePolicy === 'base-and-foreground'
+		);
+		expect(index).toBeGreaterThanOrEqual(0);
+		const overlaps = MEADOW_ENTRY_APPROVED_OVERLAPS.map((o, i) =>
+			i === index ? { ...o, planePolicy: 'base-only' as const } : o
+		);
+		expect(() => validateMeadowEntryCropContract({ overlaps })).toThrow(
+			/must declare foreground planes/
+		);
+	});
+
 	it('rejects a crop pair whose overlap accounting has drifted', () => {
 		const overlaps = MEADOW_ENTRY_APPROVED_OVERLAPS.slice(0, -1);
 		expect(() => validateMeadowEntryCropContract({ overlaps })).toThrow(
