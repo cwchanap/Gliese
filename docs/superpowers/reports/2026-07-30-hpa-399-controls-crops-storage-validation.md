@@ -3,7 +3,7 @@
 ## Result
 
 The reviewed HPA-399 Meadow Entry authoring/control/storage contract is validated at source
-commit `3bb02f8fecd5223a601d997483516a0f5bab4e0d`. The checked-in controls are current, the approval
+commit `ad21044be413350af803ce669cfd59f5de8700ed`. The checked-in controls are current, the approval
 matches independently rendered source contracts and checked-in bytes, Git LFS storage is intact,
 runtime coverage has no gap or overlap, and every requested repository gate exits `0`.
 
@@ -15,17 +15,17 @@ integration and the recorded decor/fence fallback obligations.
 ## Review and fingerprints
 
 - Reviewer: `chanwaichan`
-- Review time: `2026-07-31T22:48:53Z`
+- Review time: `2026-07-31T23:56:17Z`
 - Evidence path sealed by the approval:
   `docs/superpowers/reports/2026-07-30-hpa-399-controls-crops-storage-validation.md`
 - Gameplay-source fingerprint:
   `d3b669a1a42e3f15a9084bfc4657e5cf16b5bd508841ff48d45660db49213a95`
 - Authoring-contract fingerprint:
-  `dd49a5f37927fe14073f8e477e938070276cbc4348b6593bb3b1631a303561a8`
+  `b3c569ca84bd2d2673d48d14bec52ef113326fe25c3ad5064cc2c7763c29510a`
 - Combined-control fingerprint:
-  `4c238c40fccfa191345ac4de1fdee63e448f554ec455e024fc4f78bc344f36f7`
+  `1095a1ef644d1e07d14399842f5e2ced92e411c97aa09592db616ca451b24d68`
 - Renderer/mask/material implementation SHA-256:
-  `7d3352c4116d8ac0f12a58a731286cc42d5145af0cb2d3216ea0b48a5b0d000f`
+  `73a91151e7ca15bb923043c1390ed0288cd875d462ba4ee46ef3b2f81fc110d4`
 
 The generated fingerprint module, current source-derived fingerprints, checked-in control
 manifest, and persisted approval all carry the same combined-control fingerprint. The final
@@ -50,7 +50,31 @@ Independent hashes sealed in the approval and verified against current checked-i
 | Canonical crop manifest JSON | `c3ff227bef6206d2677e0bf42aa2c91b647ea6412428451ec5dbcf72975d3cca` |
 | Canonical bake-ownership JSON | `b5a51c65596eb2798d8b88223738b7aae5d596c5c9ce9e50150859e92a87e198` |
 | Exact `.gitattributes` byte domain | `0cf1316ca427ce34ff4480a8ce9f7d78bcaf9305b40ad7b699b8a4891ce80997` |
-| Persisted approval source | `6cb3593d3ec396662d8a710e4826499cfa15b5b99a494df19a556253259a6193` |
+| Persisted approval source | `f29e08c6c6063d60fd5a978535ffc7ee5b0215bba1aa4d808e1eea4289271282` |
+
+## Final review fix wave
+
+The final review hardening uses one explicit Unicode code-point comparator for every canonical
+object-key, source-key, nested SVG-attribute-key, and ID sort in the renderer/fingerprint module.
+The normal exporter may repair missing allowlisted controls through its existing staged package
+swap, while `--check` still requires the complete exact inventory; both modes reject extras and
+non-files, and predecessor/outside destinations remain forbidden. Approval parsing and direct
+module rendering both reject reviewer identities with leading or trailing whitespace.
+
+The `18` controls and generated fingerprint module were regenerated twice. Both resulting
+`19`-file SHA-256 inventories matched exactly. Relative to reviewed head
+`4f9aa53e98ead3bebf44f41f519a5ef5f301169d`, exactly these two generated files changed:
+
+| Generated file | Reviewed SHA-256 | Final SHA-256 |
+| --- | --- | --- |
+| `meadow-entry-control-manifest.json` | `822d1055c65300e9c18afd370c8b0c72691331bb03ea9835e10981f95fbdcb0f` | `49a3a03dc8e16d872b0bb8504960823114f94bd5768b70c0ce145994aae12b98` |
+| `src/lib/game/content/generated/meadow-entry-art-control.ts` | `793a19f383b9cf949345ab538a3237e7294f8949948526501e66b5e0aa12f900` | `30ee9a05c4ecc16e9f704b0032350ec104d594a5d8838404f267b60d06ef61cc` |
+
+The other `17` generated controls are byte-identical to the reviewed head. Thus the production
+artifact ordering did not change for the current lowercase source inventory; the fingerprint
+change comes from sealing the hardened renderer implementation. The gameplay-source fingerprint,
+crop/bake/storage hashes, all predecessor hashes, and all crop/ownership/coverage facts remain
+unchanged.
 
 The gameplay fingerprint also includes these current source-file hashes:
 
@@ -188,22 +212,22 @@ No HPA-307 or HPA-398 predecessor byte was modified by this task.
 
 ## Validation commands
 
-The gates ran in the required order on clean approval head
-`3bb02f8fecd5223a601d997483516a0f5bab4e0d`:
+The gates ran in the required order on clean fix/approval head
+`ad21044be413350af803ce669cfd59f5de8700ed`:
 
 1. `rtk bun run art:validate:meadow-entry-controls` — exit `0`; Git LFS attributes,
    pointer/materialization/fsck, PNG dimensions/alpha, and read-only exporter passed; `10` test
-   files and `68` tests passed at combined fingerprint `4c238c40…`.
+   files and `71` tests passed at combined fingerprint `1095a1ef…`.
 2. `rtk git diff --exit-code` — exit `0`; no output.
 3. `rtk git lfs fsck` — exit `0`; `Git LFS fsck OK`.
 4. `rtk bun run check` — exit `0`; `svelte-check` found `0` errors and `0` warnings.
 5. `rtk bun run lint` — exit `0`; Prettier reported all matched files use its style and ESLint
    exited cleanly.
-6. `rtk bun run test:unit -- --run` — the first sandboxed attempt ran `66` files / `910` tests
+6. `rtk bun run test:unit -- --run` — the first sandboxed attempt ran `66` files / `915` tests
    successfully but exited `1` after the environment denied Vitest's browser listener on
    `::1:63315` with `EPERM`. The exact command was rerun with localhost-listener permission and
-   exited `0`: `69` files and `981` tests passed. Vite emitted a dependency-optimization reload
-   advisory; no test failed.
+   exited `0`: `69` files and `986` tests passed. The browser suite's intentional console-error
+   fixture was logged; no test failed.
 7. `rtk bun run build` — exit `0`; Vite built `195` modules. The existing Phaser chunk-size
    advisory was non-fatal.
 8. `rtk bun run build:tauri` — exit `0`; strict story validation checked `6` beats and compiled
