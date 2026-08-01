@@ -7,6 +7,9 @@ import { applyMeadowEntryRefinement } from '$lib/game/content/backgrounds/meadow
 import type { MeadowEntryNormalizationTransform } from '$lib/game/content/backgrounds/meadow-entry-master-provenance';
 import {
 	buildMeadowEntryControlInputs,
+	buildMeadowEntryDeclaredRegionNonTargetRasterMask,
+	buildMeadowEntryForegroundEligibleRasterMask,
+	buildMeadowEntryProtectedForegroundRasterMask,
 	computeMeadowEntryCombinedControlFingerprint
 } from '$lib/game/content/backgrounds/meadow-entry-controls';
 
@@ -138,6 +141,12 @@ export async function runRefineMeadowEntryMaster(
 		readTransform(arguments_.transform)
 	]);
 	const controls = buildMeadowEntryControlInputs(repositoryRoot);
+	const foregroundEligibility = buildMeadowEntryForegroundEligibleRasterMask(controls);
+	const protectedLive = buildMeadowEntryProtectedForegroundRasterMask(controls);
+	const nonTarget = buildMeadowEntryDeclaredRegionNonTargetRasterMask(
+		controls,
+		arguments_.sourceRegionIds
+	);
 	const result = await applyMeadowEntryRefinement({
 		plane: arguments_.plane,
 		currentMasterPng,
@@ -149,7 +158,14 @@ export async function runRefineMeadowEntryMaster(
 		sourceRegionIds: arguments_.sourceRegionIds,
 		controlFingerprint: computeMeadowEntryCombinedControlFingerprint(controls),
 		approvedControlFingerprint: meadowEntryControlsApproval.combinedControlFingerprint,
-		approvedCrops: MEADOW_ENTRY_APPROVED_CROPS
+		approvedCrops: MEADOW_ENTRY_APPROVED_CROPS,
+		approvedMasks: {
+			width: foregroundEligibility.width,
+			height: foregroundEligibility.height,
+			foregroundEligibleAlpha: foregroundEligibility.alpha,
+			protectedAlpha: protectedLive.alpha,
+			nonTargetAlpha: nonTarget.alpha
+		}
 	});
 	await mkdir(dirname(output.candidate), { recursive: true });
 	await Promise.all([
