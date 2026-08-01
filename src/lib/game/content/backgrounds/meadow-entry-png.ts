@@ -127,6 +127,21 @@ export async function decodeMeadowEntryRgba(png: Buffer): Promise<DecodedMeadowE
 	return { data, width: info.width, height: info.height };
 }
 
+export async function decodeMeadowEntryAlpha(
+	png: Buffer
+): Promise<{ alpha: Buffer; width: number; height: number }> {
+	const { data, info } = await sharp(png)
+		.toColourspace('srgb')
+		.ensureAlpha()
+		.extractChannel(3)
+		.raw()
+		.toBuffer({ resolveWithObject: true });
+	if (info.channels !== 1) {
+		throw new Error(`Meadow Entry PNG alpha extraction produced ${info.channels} channels`);
+	}
+	return { alpha: data, width: info.width, height: info.height };
+}
+
 export async function encodeCanonicalMeadowEntryPng(
 	raw: Buffer,
 	width: number,
