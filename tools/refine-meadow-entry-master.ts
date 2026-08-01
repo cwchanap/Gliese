@@ -3,11 +3,13 @@ import { dirname, join, relative, resolve } from 'node:path';
 
 import { meadowEntryControlsApproval } from '$lib/game/content/approvals/meadow-entry-controls';
 import { MEADOW_ENTRY_APPROVED_CROPS } from '$lib/game/content/backgrounds/meadow-entry-crop-manifest';
-import { applyMeadowEntryRefinement } from '$lib/game/content/backgrounds/meadow-entry-master-refinement';
+import {
+	applyMeadowEntryRefinement,
+	buildMeadowEntryRefinementNonTargetRasterMask
+} from '$lib/game/content/backgrounds/meadow-entry-master-refinement';
 import type { MeadowEntryNormalizationTransform } from '$lib/game/content/backgrounds/meadow-entry-master-provenance';
 import {
 	buildMeadowEntryControlInputs,
-	buildMeadowEntryDeclaredRegionNonTargetRasterMask,
 	buildMeadowEntryForegroundEligibleRasterMask,
 	buildMeadowEntryProtectedForegroundRasterMask,
 	computeMeadowEntryCombinedControlFingerprint
@@ -123,7 +125,7 @@ export async function runRefineMeadowEntryMaster(
 ): Promise<MeadowEntryRefinementWorkPaths> {
 	const arguments_ = parseRefineMeadowEntryMasterArguments(args);
 	const controls = buildMeadowEntryControlInputs(repositoryRoot);
-	const nonTarget = buildMeadowEntryDeclaredRegionNonTargetRasterMask(
+	const nonTarget = buildMeadowEntryRefinementNonTargetRasterMask(
 		controls,
 		arguments_.sourceRegionIds
 	);
