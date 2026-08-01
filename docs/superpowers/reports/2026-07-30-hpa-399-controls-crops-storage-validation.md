@@ -3,10 +3,12 @@
 ## Result
 
 The reviewed HPA-399 Meadow Entry authoring/control/storage contract is validated at source
-commit `337b9a4e8d56e0904b6a9d1ac0fd211cacf9def6` with the review-fix wave below. The checked-in
-controls are current, the approval
+commit `12885bc68d6ff7bdcd08c654dad44fea39b69289` with the review-item fix wave below. The
+checked-in controls are current, the approval
 matches independently rendered source contracts and checked-in bytes, Git LFS storage is intact,
-runtime coverage has no gap or overlap, and every requested repository gate exits `0`.
+runtime coverage has no gap or overlap, and every requested repository gate exits `0` on the
+clean committed head (the `git diff --exit-code` gate now passes, closing the evidence gap from
+the previous wave).
 
 This report records authoring evidence only. It does not approve or include regional master PNGs,
 regional base/foreground exports, native proof PNGs, runtime integration, save changes, map
@@ -16,17 +18,17 @@ integration and the recorded decor/fence fallback obligations.
 ## Review and fingerprints
 
 - Reviewer: `chanwaichan`
-- Review time: `2026-08-01T04:30:44Z`
+- Review time: `2026-08-01T06:43:07Z`
 - Evidence path sealed by the approval:
   `docs/superpowers/reports/2026-07-30-hpa-399-controls-crops-storage-validation.md`
 - Gameplay-source fingerprint:
-  `d3b669a1a42e3f15a9084bfc4657e5cf16b5bd508841ff48d45660db49213a95`
+  `25a670eb16e6bd19884f76c6df97196551bbd1cd3cf92f5d3b6a1180b8458b60`
 - Authoring-contract fingerprint:
-  `249a0c2d4bdeeb88ddbb6285157f26e7e54a6dd3476fd6e1e1d9f9eab4eea4c5`
+  `edf2084959761f987093bcd7a8aa33e270eea9426370cef615a791b2db55db4d`
 - Combined-control fingerprint:
-  `f42f7f0c558d40fd60b9b6700bfccaad115641ef77a859891a0ecc0151b0d4be`
+  `a877c70797d303dee292582b715d009dfccace19f769ebbef86230b1fd17f26d`
 - Renderer/mask/material implementation SHA-256:
-  `727db3c22940ca1a281206327217144249ee048621f6a047926826c7d7da210d`
+  `37a300647354b4c240f63e8787d46b8c64b66657c4e0e4ccbd21fb9f83c447a9`
 
 The generated fingerprint module, current source-derived fingerprints, checked-in control
 manifest, and persisted approval all carry the same combined-control fingerprint. The final
@@ -42,16 +44,68 @@ The independently computed review seals are:
 - sorted primary-source ownership registry:
   `63bf03a986d2755ead9306e4124ecf0cdabb87e7bc99ef9ba447c044c1f00519`;
 - sorted bake-ownership registry:
-  `54b8b40002853b93cf213c5a06f22af485f03191d4cff99bb6495e07bd8dad7c`.
+  `ab6b356e2cc6ef9308dff6d950255c3aa1decffd8de157514ce97d0a7fe0ce79`.
 
 Independent hashes sealed in the approval and verified against current checked-in bytes are:
 
 | Domain | SHA-256 |
 | --- | --- |
 | Canonical crop manifest JSON | `c3ff227bef6206d2677e0bf42aa2c91b647ea6412428451ec5dbcf72975d3cca` |
-| Canonical bake-ownership JSON | `b5a51c65596eb2798d8b88223738b7aae5d596c5c9ce9e50150859e92a87e198` |
+| Canonical bake-ownership JSON | `30fed9270eea21bdf28d58f19cd84d5252e1b15d5beceb3b338e8bbc914a7a6a` |
 | Exact `.gitattributes` byte domain | `0cf1316ca427ce34ff4480a8ce9f7d78bcaf9305b40ad7b699b8a4891ce80997` |
-| Persisted approval source | `ec1a31f873213bcfcfa598da36df9fcae2a6a1ab01e30b0ef9fb65c11c4c5ec7` |
+| Persisted approval source | `1ed71d31de81ac856e504a92983a1cf7d5794aa5b7aeb65b5c9d2865071ed142` |
+
+## Review item fix wave
+
+This wave resolves the five code-review items on PR
+`codex/hpa-399-controls-crops-storage`:
+
+1. **Blocker renderer is now part of the sealed source surface.** The runtime
+   `blocker-rendering.ts` contract (`ocean` → `collision-only`, all other kinds →
+   `rendered-live`) was missing from `MEADOW_ENTRY_CONTROL_SOURCE_FILE_PATHS`; it is now hashed,
+   so the combined-control fingerprint changes whenever the runtime visual/collision contract
+   changes. The gameplay-source fingerprint and the table below therefore include it.
+2. **Water-edge ocean blockers no longer claim a live visual.** `coast-sea-wall`,
+   `mistfen-pool-east-blocker`, and `mistfen-pool-west-blocker` were baked `base-static` with
+   `existing-blocker-fallback`, but their kind is `ocean`, which the runtime renders
+   collision-only (no live blocker visual; WorldScene skips them). They now use
+   `runtime-fallback-only` + `fallback-tile`, matching the `sundrop-southwest-ocean` precedent,
+   and `validateMeadowEntryBakeOwnership` now rejects any baked blocker whose runtime render
+   mode is not `rendered-live`. Runtime obligations move from `75` to `72`
+   `existing-blocker-fallback` and from `119` to `122` `fallback-tile`; the crop manifest,
+   route mouths, and runtime coverage are byte-identical because the paired sea ground patches
+   already carried the visuals.
+3. **Cross-region coverage bounds are now source-bounded.** Every declared bound must remain
+   inside the covered source's own raster bounds (in addition to the world and a secondary
+   region), and every declared secondary region must contain at least one declared bound.
+   All six reviewed records satisfy both contracts; the validators are defensive against drift.
+4. **Overlap owner and plane policies are now semantically pinned.** `validateOverlaps`
+   requires `ownerCropId` to be one of the pair and the higher-`drawOrder` crop, requires
+   `base-and-foreground` exactly when both crops carry foreground planes, and requires
+   `base-only` otherwise. The reviewed table was already derived by this rule; the validator
+   now rejects drift.
+5. **Approval is self-contained and evidence is current.** `approveMeadowEntryControls` now
+   runs `verifyMeadowEntryArtStorage()` (Git LFS attributes, pointer index state,
+   materialized-canary PNG, Sharp 1×1 transparent alpha, `git lfs fsck`) before reading or
+   publishing approval values. The approval and this report are re-sealed at committed head
+   `12885bc68d6ff7bdcd08c654dad44fea39b69289` with a clean `git diff --exit-code`; the
+   fingerprint, counts, and gates below are the current ones.
+
+The gameplay fingerprint now includes these current source-file hashes:
+
+| Source | SHA-256 |
+| --- | --- |
+| `src/lib/game/content/maps/meadow-entry.ts` | `04570276f24ba6c9f86d94dca567826d1dd2eec11eec6cdb758ccf18065cc0fe` |
+| `src/lib/game/content/maps/regions/village.ts` | `906d5cbb498f91ba233c52bdd5bce4006b3d88c39caeaee8772efce290fe8a10` |
+| `src/lib/game/content/maps/regions/wildwood.ts` | `b37d24a7dde2f6c4cb2175034a8419ad69dea0d049ddb46f9395027ebdf8412d` |
+| `src/lib/game/content/maps/regions/mistfen.ts` | `d415e0ef61e3f6fb828f86b3f1b844d0f41c8069e273c4c85331e84336bce7f8` |
+| `src/lib/game/content/maps/regions/silverpine.ts` | `e420c013392e624538a72a9a7073bba2c6ac3ca344c15f8307ad52bd1717596b` |
+| `src/lib/game/content/maps/regions/coast.ts` | `724b131eb3f076c0a5cf17aa5894e034ce119305ef0e126081e10779f9676b01` |
+| `src/lib/game/content/maps/regions/crossroads.ts` | `5fd7898f55b7f8c55c9d489a27291721027972df3451afe9d1dba6f89f39887c` |
+| `src/lib/game/content/maps/regions/paths.ts` | `cdd5ab59707a1e829cc0bb679703f76a265e87279d174418f3bf0ae45ab243f7` |
+| `src/lib/game/content/maps/blocker-rendering.ts` | `d954110dc507d59656a21ee58bd5a1095304ed0d5b2c9db98fd09f4fc2e38223` |
+| `src/lib/game/save/save-state.ts` | `6198f56bd219f0233d697f103bba548b53f1c40d20ac58b55f7cfbd44025daaa` |
+| `src/lib/game/core/collision.ts` | `18b5cacc81d1ddf568a8bdc966327fd9946831a918104c766fe2a6d0ad8bd13d` |
 
 ## Final review fix wave
 
@@ -163,9 +217,9 @@ The two corresponding source-level fallback-only resolutions are:
 - `ground-patch:sundrop-southwest-ocean-patch`: “The reviewed southwest margin is outside every
   regional runtime crop; the existing sea tile remains visible fallback coverage.”
 
-All `360` ownership entries remain explicit. Current HPA-406/runtime obligations are `75`
+All `360` ownership entries remain explicit. Current HPA-406/runtime obligations are `72`
 `existing-blocker-fallback`, `69` `extend-decor-fallback`, `6` `extend-fence-fallback`, `78`
-`remain-live`, `119` `fallback-tile`, and `13` `none`.
+`remain-live`, `122` `fallback-tile`, and `13` `none`.
 
 Budget evidence is metadata approval, not evidence that exports exist:
 
@@ -228,20 +282,19 @@ No HPA-307 or HPA-398 predecessor byte was modified by this task.
 
 ## Validation commands
 
-The gates ran in the required order on the review-fix working tree above clean head
-`337b9a4e8d56e0904b6a9d1ac0fd211cacf9def6`:
+The gates ran in the required order on the committed review-item fix wave at clean head
+`12885bc68d6ff7bdcd08c654dad44fea39b69289`:
 
 1. `rtk bun run art:validate:meadow-entry-controls` — exit `0`; Git LFS attributes,
    pointer/materialization/fsck, PNG dimensions/alpha, and read-only exporter passed; `11` test
-   files and `174` tests passed at combined fingerprint `f42f7f0c…`.
-2. `rtk git diff --exit-code` — pending: the review-fix wave below is uncommitted in the working
-   tree, so the diff is non-empty until the wave is committed; no generated control regressed
-   beyond the two recorded files.
+   files and `182` tests passed at combined fingerprint `a877c707…`.
+2. `rtk git diff --exit-code` — exit `0`; the working tree at the head above is clean, closing
+   the pending-diff evidence gap from the previous wave.
 3. `rtk git lfs fsck` — exit `0`; `Git LFS fsck OK`.
 4. `rtk bun run check` — exit `0`; `svelte-check` found `0` errors and `0` warnings.
 5. `rtk bun run lint` — exit `0`; Prettier reported all matched files use its style and ESLint
    exited cleanly.
-6. `rtk bun run test:unit -- --run` — exit `0`: `70` files and `1084` tests passed. The browser
+6. `rtk bun run test:unit -- --run` — exit `0`: `70` files and `1092` tests passed. The browser
    suite's intentional console-error fixture was logged; no test failed.
 7. `rtk bun run build` — exit `0`; Vite built `195` modules. The existing Phaser chunk-size
    advisory was non-fatal.
