@@ -146,11 +146,11 @@ function assertContext(context: MeadowEntryFinalizerContext): void {
 	);
 }
 
-function assertTransform(
+export function validateMeadowEntryNormalizationTransform(
 	transform: MeadowEntryNormalizationTransform,
-	policy: MeadowEntryMasterPolicy,
 	candidateWidth: number,
-	candidateHeight: number
+	candidateHeight: number,
+	expectedOutput?: { width: number; height: number }
 ): void {
 	const values = [
 		transform.native.width,
@@ -198,8 +198,10 @@ function assertTransform(
 		'Meadow Entry crop must fit native input'
 	);
 	assert(
-		transform.output.width === policy.width && transform.output.height === policy.height,
-		'Meadow Entry transform output dimensions must match the master policy'
+		expectedOutput === undefined ||
+			(transform.output.width === expectedOutput.width &&
+				transform.output.height === expectedOutput.height),
+		'Meadow Entry transform output dimensions must match the required output'
 	);
 	const horizontalScale = transform.output.width / transform.crop.width;
 	const verticalScale = transform.output.height / transform.crop.height;
@@ -209,22 +211,30 @@ function assertTransform(
 	);
 }
 
-async function normalizeCandidate(
+export async function normalizeMeadowEntryMasterCandidate(
 	candidatePng: Buffer,
 	transform: MeadowEntryNormalizationTransform,
-	policy: MeadowEntryMasterPolicy
+	expectedOutput?: { width: number; height: number }
 ): Promise<DecodedMeadowEntryRgba> {
 	const metadata = await sharp(candidatePng).metadata();
 	assert(
 		metadata.width !== undefined && metadata.height !== undefined,
 		'Meadow Entry candidate PNG must include dimensions'
 	);
-	assertTransform(transform, policy, metadata.width, metadata.height);
+	validateMeadowEntryNormalizationTransform(
+		transform,
+		metadata.width,
+		metadata.height,
+		expectedOutput
+	);
 	const { data, info } = await sharp(candidatePng)
 		.toColourspace('srgb')
 		.ensureAlpha()
 		.extract(transform.crop)
-		.resize(policy.width, policy.height, { fit: 'fill', kernel: sharp.kernel.lanczos3 })
+		.resize(transform.output.width, transform.output.height, {
+			fit: 'fill',
+			kernel: sharp.kernel.lanczos3
+		})
 		.raw()
 		.toBuffer({ resolveWithObject: true });
 	assert(
@@ -281,7 +291,11 @@ export async function finalizeMeadowEntryBase(
 	assertContext(input);
 	validateMeadowEntryGenerationProvenance(input.generation);
 	assertRefinements(input.refinements, 'base');
-	const normalized = await normalizeCandidate(input.candidatePng, input.transform, input.policy);
+	const normalized = await normalizeMeadowEntryMasterCandidate(
+		input.candidatePng,
+		input.transform,
+		input.policy
+	);
 	for (let index = 3; index < normalized.data.length; index += 4) normalized.data[index] = 255;
 	const png = await encodeCanonicalMeadowEntryPng(
 		normalized.data,
@@ -302,7 +316,7 @@ export async function finalizeMeadowEntryForeground(
 	validateMeadowEntryGenerationProvenance(input.generation);
 	assertRefinements(input.refinements, 'foreground');
 	const [normalized, eligible, protectedMask] = await Promise.all([
-		normalizeCandidate(input.candidatePng, input.transform, input.policy),
+		normalizeMeadowEntryMasterCandidate(input.candidatePng, input.transform, input.policy),
 		decodeMask(input.eligibleMaskPng, input.policy, 'eligible'),
 		decodeMask(input.protectedMaskPng, input.policy, 'protected')
 	]);
