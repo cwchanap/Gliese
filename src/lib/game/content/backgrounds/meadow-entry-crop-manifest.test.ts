@@ -1015,8 +1015,7 @@ describe('validateMeadowEntryCropContract error paths', () => {
 				routeMouth: { sharedAxis: 'x', bounds: { left: 0, top: 0, right: 128, bottom: 128 } },
 				minimumSharedPixels: 128,
 				planePolicy: 'base-only',
-				ownerCropId: 'sundrop-village-underlay',
-				cornerGroupId: null
+				ownerCropId: 'sundrop-village-underlay'
 			}
 		];
 		expect(() => validateMeadowEntryCropContract({ overlaps })).toThrow(/names an unknown crop/);
@@ -1074,7 +1073,7 @@ describe('validateMeadowEntryCropContract error paths', () => {
 			i === 0
 				? {
 						...o,
-						minimumSharedPixels: 64,
+						minimumSharedPixels: 64 as const,
 						routeMouth: {
 							...o.routeMouth,
 							bounds: {
@@ -1086,7 +1085,7 @@ describe('validateMeadowEntryCropContract error paths', () => {
 						}
 					}
 				: o
-		);
+		) as MeadowEntryOverlap[];
 		expect(() => validateMeadowEntryCropContract({ overlaps })).toThrow(/undersized route mouth/);
 	});
 

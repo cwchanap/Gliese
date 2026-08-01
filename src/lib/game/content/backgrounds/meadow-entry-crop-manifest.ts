@@ -868,5 +868,3 @@ export function validateMeadowEntryCropContract(
 		throw new Error('Aggregate meadow-entry crop budgets do not equal per-crop sums');
 	}
 }
-
-validateMeadowEntryCropContract();

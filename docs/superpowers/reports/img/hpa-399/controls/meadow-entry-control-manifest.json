@@ -29,8 +29,8 @@
   ],
   "fingerprints": {
     "gameplaySource": "d3b669a1a42e3f15a9084bfc4657e5cf16b5bd508841ff48d45660db49213a95",
-    "authoringContract": "b3c569ca84bd2d2673d48d14bec52ef113326fe25c3ad5064cc2c7763c29510a",
-    "combinedControl": "1095a1ef644d1e07d14399842f5e2ced92e411c97aa09592db616ca451b24d68"
+    "authoringContract": "249a0c2d4bdeeb88ddbb6285157f26e7e54a6dd3476fd6e1e1d9f9eab4eea4c5",
+    "combinedControl": "f42f7f0c558d40fd60b9b6700bfccaad115641ef77a859891a0ecc0151b0d4be"
   },
   "predecessor": {
     "hpa307ArtifactHashes": {
@@ -68,7 +68,7 @@
   },
   "rendererMaskMaterialContract": {
     "version": 1,
-    "implementationSha256": "73a91151e7ca15bb923043c1390ed0288cd875d462ba4ee46ef3b2f81fc110d4",
+    "implementationSha256": "727db3c22940ca1a281206327217144249ee048621f6a047926826c7d7da210d",
     "maskDimensionsPx": {
       "width": 6400,
       "height": 6400

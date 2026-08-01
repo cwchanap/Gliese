@@ -173,7 +173,7 @@ export function validateMeadowEntryApprovalArtifacts(
 }
 
 function readApprovalValues(repositoryRoot: string): MeadowEntryControlsApprovalValues {
-	const inputs = buildMeadowEntryControlInputs();
+	const inputs = buildMeadowEntryControlInputs(repositoryRoot);
 	const currentCombinedFingerprint = computeMeadowEntryCombinedControlFingerprint(inputs);
 	const rendered = renderMeadowEntryControls(inputs);
 	const cropManifest = readFileSync(

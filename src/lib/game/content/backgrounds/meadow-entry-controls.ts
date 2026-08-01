@@ -29,6 +29,7 @@ import {
 	MEADOW_ENTRY_APPROVED_OVERLAPS,
 	MEADOW_ENTRY_CROP_BUDGET_SUMMARY,
 	MEADOW_ENTRY_RUNTIME_COVERAGE,
+	validateMeadowEntryCropContract,
 	type MeadowEntryApprovedCrop,
 	type MeadowEntryCropBudgetSummary,
 	type MeadowEntryOverlap,
@@ -149,7 +150,7 @@ export const MEADOW_ENTRY_CONTROL_FILENAMES = [
 	'meadow-entry-crop-manifest.json'
 ] as const;
 
-const SOURCE_FILE_PATHS = [
+export const MEADOW_ENTRY_CONTROL_SOURCE_FILE_PATHS = [
 	'src/lib/game/content/maps/meadow-entry.ts',
 	'src/lib/game/content/maps/regions/village.ts',
 	'src/lib/game/content/maps/regions/wildwood.ts',
@@ -495,8 +496,10 @@ function buildControlClearanceRects(
 	return clearances.sort((left, right) => compareCodePoints(left.id, right.id));
 }
 
-export function buildMeadowEntryControlInputs(): MeadowEntryControlInputs {
-	const repositoryRoot = process.cwd();
+export function buildMeadowEntryControlInputs(
+	repositoryRoot = process.cwd()
+): MeadowEntryControlInputs {
+	validateMeadowEntryCropContract();
 	const sourceCatalog = collectMeadowEntrySourceCatalog();
 	const rendererMaskMaterialContract = buildRendererMaskMaterialContract(repositoryRoot);
 	const strictCollisionRects = collectStrictCollisionRects(meadowEntryMap).map(collisionBounds);
@@ -550,7 +553,7 @@ export function buildMeadowEntryControlInputs(): MeadowEntryControlInputs {
 			hpa398ForegroundSha256: sundropVillageBackgroundsApproval.foreground.approvedPngSha256
 		},
 		storage: MEADOW_ENTRY_ART_STORAGE,
-		sourceFileHashes: hashFiles(repositoryRoot, SOURCE_FILE_PATHS)
+		sourceFileHashes: hashFiles(repositoryRoot, MEADOW_ENTRY_CONTROL_SOURCE_FILE_PATHS)
 	};
 }
 
