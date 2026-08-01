@@ -116,6 +116,28 @@ describe('meadow-entry approval artifact validation', () => {
 			)
 		).toThrow(/proof.*Git LFS configuration/i);
 	});
+
+	it('rejects storage configuration with carriage returns or a missing final newline', async () => {
+		const api = await approvalApi();
+		const validate = api.validateMeadowEntryApprovalArtifacts;
+
+		expect(validate).toBeTypeOf('function');
+		if (!validate) return;
+		expect(() =>
+			validate(
+				artifactSnapshot({
+					storageConfiguration: Buffer.from(ATTRIBUTES.replace(/\n/g, '\r\n'))
+				})
+			)
+		).toThrow(/LF bytes with a final newline/i);
+		expect(() =>
+			validate(
+				artifactSnapshot({
+					storageConfiguration: Buffer.from(ATTRIBUTES.trimEnd())
+				})
+			)
+		).toThrow(/LF bytes with a final newline/i);
+	});
 });
 
 describe('meadow-entry approval atomic publication', () => {
@@ -159,5 +181,57 @@ describe('meadow-entry approval atomic publication', () => {
 		expect(files.get(approvalPath)).toBe('new complete approval');
 		expect(files.has(temporaryPath)).toBe(false);
 		expect([...files.keys()]).toEqual([approvalPath]);
+	});
+
+	it('rejects an invalid temporary publication token before touching the file system', async () => {
+		const api = await approvalApi();
+		const files = new Map([[approvalPath, 'prior approval bytes']]);
+
+		expect(api.publishMeadowEntryControlsApproval).toBeTypeOf('function');
+		if (!api.publishMeadowEntryControlsApproval) return;
+		expect(() =>
+			api.publishMeadowEntryControlsApproval!(
+				'new approval',
+				approvalPath,
+				memoryFileSystem(files),
+				'invalid token!'
+			)
+		).toThrow(/Invalid meadow-entry approval temporary token/);
+		expect(files.get(approvalPath)).toBe('prior approval bytes');
+		expect([...files.keys()]).toEqual([approvalPath]);
+	});
+
+	it('surfaces an aggregate error when staging cleanup also fails after a publish failure', async () => {
+		const api = await approvalApi();
+
+		expect(api.publishMeadowEntryControlsApproval).toBeTypeOf('function');
+		if (!api.publishMeadowEntryControlsApproval) return;
+		const failingFileSystem: ApprovalPublicationFileSystem = {
+			writeFileExclusive() {
+				throw new Error('injected write failure');
+			},
+			rename() {
+				throw new Error('unexpected rename call');
+			},
+			remove() {
+				throw new Error('injected cleanup failure');
+			}
+		};
+
+		let caught: unknown;
+		try {
+			api.publishMeadowEntryControlsApproval(
+				'new approval',
+				approvalPath,
+				failingFileSystem,
+				'test-token'
+			);
+		} catch (error) {
+			caught = error;
+		}
+
+		expect(caught).toBeInstanceOf(AggregateError);
+		expect((caught as AggregateError).message).toMatch(/Failed to publish meadow-entry approval/);
+		expect((caught as AggregateError).errors).toHaveLength(2);
 	});
 });
