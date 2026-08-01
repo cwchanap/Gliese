@@ -61,4 +61,24 @@ describe('meadow-entry generation provenance', () => {
 		};
 		expect(() => validateMeadowEntryGenerationProvenance(invalid)).toThrow(/byte-reproducible/i);
 	});
+
+	it('rejects a byte-reproducibility claim for a seeded provider without a capability declaration', () => {
+		expect(() =>
+			validateMeadowEntryGenerationProvenance({
+				mode: 'generative',
+				provider: 'unsupported-provider',
+				model: 'seeded-model',
+				modelVersion: '2026-07-30',
+				tool: 'image-client',
+				toolVersion: '1.0.0',
+				settings: {},
+				seed: 12345,
+				seedUnavailable: false,
+				prompt: 'orthographic meadow-entry master',
+				promptSha256: 'a'.repeat(64),
+				referenceImageSha256: [],
+				byteReproducibleGeneration: true
+			})
+		).toThrow(/byte-reproducible.*capability/i);
+	});
 });
