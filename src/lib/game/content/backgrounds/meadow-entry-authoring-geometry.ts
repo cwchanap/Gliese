@@ -143,6 +143,15 @@ export function boundsArea(bounds: PixelBounds): number {
 	return (bounds.right - bounds.left) * (bounds.bottom - bounds.top);
 }
 
+/**
+ * Computes the union area of the supplied bounds using a vertical sweep with
+ * merged intervals. For each x-edge slab, the overlapping y-intervals are
+ * merged and summed; the Number.NaN sentinel tracks when no interval is
+ * currently active. Every supplied bound must lie within the world bounds.
+ *
+ * @param bounds - the world-space bounds whose union area is computed
+ * @returns the numeric pixel area covered by at least one of the supplied bounds
+ */
 export function unionArea(bounds: readonly PixelBounds[]): number {
 	for (const bound of bounds) assertWorldBounds(bound, 'union bounds');
 	const xEdges = [...new Set(bounds.flatMap((bound) => [bound.left, bound.right]))].sort(

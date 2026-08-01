@@ -22,17 +22,20 @@ describe('Meadow Entry art storage', () => {
 		expect(() =>
 			validateMeadowEntryStorageContract({
 				...base,
-				assetPattern: 'artifacts/other/**/*.png'
+				assetPattern: 'artifacts/other/**/*.png' as typeof base.assetPattern
 			})
 		).toThrow(/Git LFS contract/);
 		expect(() =>
 			validateMeadowEntryStorageContract({
 				...base,
-				proofPattern: 'docs/other/**/*.png'
+				proofPattern: 'docs/other/**/*.png' as typeof base.proofPattern
 			})
 		).toThrow(/Git LFS contract/);
 		expect(() =>
-			validateMeadowEntryStorageContract({ ...base, canaryPath: 'other/canary.png' })
+			validateMeadowEntryStorageContract({
+				...base,
+				canaryPath: 'other/canary.png' as typeof base.canaryPath
+			})
 		).toThrow(/Git LFS contract/);
 	});
 });

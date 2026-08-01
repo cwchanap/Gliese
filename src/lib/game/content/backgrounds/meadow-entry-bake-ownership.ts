@@ -745,10 +745,19 @@ function assertNonEmpty(value: string, field: string, key: string): void {
 
 function assertInsets(insets: Insets, field: string, key: string): void {
 	for (const [edge, value] of Object.entries(insets)) {
-		if (!Number.isFinite(value) || value < 0) {
+		if (!Number.isFinite(value) || value < 0 || !Number.isInteger(value)) {
 			throw new Error(`${key} has invalid ${field}.${edge}`);
 		}
 	}
+}
+
+function insetsEqual(first: Insets, second: Insets): boolean {
+	return (
+		first.top === second.top &&
+		first.right === second.right &&
+		first.bottom === second.bottom &&
+		first.left === second.left
+	);
 }
 
 function validateDisposition(entry: MeadowEntryBakeOwnershipEntry): void {
@@ -852,13 +861,12 @@ export function validateMeadowEntryBakeOwnership(
 		const matches = predecessor.foregroundMargins
 			? disposition.mode === 'base-and-foreground' &&
 				disposition.motif === predecessor.motif &&
-				JSON.stringify(disposition.baseMargins) === JSON.stringify(predecessor.baseMargins) &&
-				JSON.stringify(disposition.foregroundMargins) ===
-					JSON.stringify(predecessor.foregroundMargins) &&
+				insetsEqual(disposition.baseMargins, predecessor.baseMargins) &&
+				insetsEqual(disposition.foregroundMargins, predecessor.foregroundMargins) &&
 				disposition.frontCutoffPx === MEADOW_ENTRY_FOREGROUND_FRONT_CUTOFF_PX
 			: disposition.mode === 'base-static' &&
 				disposition.motif === predecessor.motif &&
-				JSON.stringify(disposition.margins) === JSON.stringify(predecessor.baseMargins);
+				insetsEqual(disposition.margins, predecessor.baseMargins);
 		if (!matches) throw new Error(`HPA-398 blocker bake facts drifted "${predecessor.blockerId}"`);
 	}
 

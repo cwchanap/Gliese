@@ -10,10 +10,16 @@ import {
 	writeFileSync
 } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
+import { tmpdir } from 'node:os';
 import { fileURLToPath } from 'node:url';
 import { afterEach, describe, expect, it } from 'vitest';
 
-import { MEADOW_ENTRY_CONTROL_FILENAMES } from './meadow-entry-controls';
+import { VILLAGE_ART_CONTROL_FILENAMES } from '$lib/game/content/maps/layered/village-art-controls';
+
+import {
+	MEADOW_ENTRY_CONTROL_FILENAMES,
+	MEADOW_ENTRY_CONTROL_SOURCE_FILE_PATHS
+} from './meadow-entry-controls';
 
 const testDirectory = dirname(fileURLToPath(import.meta.url));
 
@@ -72,7 +78,7 @@ async function exporterApi(): Promise<ExporterApi> {
 }
 
 function newPaths(): ExportPaths {
-	const repositoryRoot = mkdtempSync('/tmp/gliese-meadow-exporter-');
+	const repositoryRoot = mkdtempSync(join(tmpdir(), 'gliese-meadow-exporter-'));
 	temporaryRoots.push(repositoryRoot);
 	return {
 		repositoryRoot,
@@ -82,6 +88,21 @@ function newPaths(): ExportPaths {
 			'src/lib/game/content/generated/meadow-entry-art-control.ts'
 		)
 	};
+}
+
+function seedRepositorySources(repositoryRoot: string): void {
+	const realRoot = resolve(testDirectory, '../../../../..');
+	for (const relative of [
+		'src/lib/game/content/backgrounds/meadow-entry-controls.ts',
+		...MEADOW_ENTRY_CONTROL_SOURCE_FILE_PATHS,
+		...VILLAGE_ART_CONTROL_FILENAMES.map(
+			(filename) => `docs/superpowers/reports/img/hpa-307/${filename}`
+		)
+	]) {
+		const target = join(repositoryRoot, relative);
+		mkdirSync(dirname(target), { recursive: true });
+		writeFileSync(target, readFileSync(join(realRoot, relative)));
+	}
 }
 
 function packageBytes(prefix: string): ExportPackage {
@@ -390,6 +411,7 @@ describe('meadow-entry exporter package safety', () => {
 		expect(api.runMeadowEntryArtControlsExporter).toBeTypeOf('function');
 		if (!api.runMeadowEntryArtControlsExporter) return;
 		const paths = newPaths();
+		seedRepositorySources(paths.repositoryRoot);
 
 		api.runMeadowEntryArtControlsExporter!([], paths.repositoryRoot);
 

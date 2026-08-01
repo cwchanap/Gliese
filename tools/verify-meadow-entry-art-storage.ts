@@ -34,6 +34,14 @@ function runGit(...args: string[]): string {
 	return stdout;
 }
 
+/**
+ * Verifies that a tracked art path carries the expected Git LFS attributes.
+ *
+ * @param label - the storage role ('asset' or 'proof') used in failure messages
+ * @param path - the repository-relative path checked for Git LFS attributes
+ * @param git - the Git runner used to query check-attr output
+ * @returns void; throws when any expected attribute line is missing or mismatched
+ */
 function verifyLfsAttributes(
 	label: 'asset' | 'proof',
 	path: string,
@@ -82,6 +90,16 @@ export function assertTransparentOnePixelCanary(
 	);
 }
 
+/**
+ * Validates the meadow-entry art storage contract end to end.
+ *
+ * Verifies the Git LFS configuration and attribute coverage, that the canary is
+ * tracked as an LFS pointer in the Git index, that the working tree holds a
+ * materialized PNG with the expected signature, and via sharp that the canary
+ * is a transparent one-pixel RGBA image.
+ *
+ * @returns a Promise that resolves on success or rejects on any validation failure
+ */
 export async function verifyMeadowEntryArtStorage(): Promise<void> {
 	validateMeadowEntryStorageContract(MEADOW_ENTRY_ART_STORAGE);
 

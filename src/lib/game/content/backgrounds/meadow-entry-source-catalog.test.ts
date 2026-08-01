@@ -64,7 +64,9 @@ describe('meadow-entry source catalog', () => {
 				'discovery'
 			])
 		);
-		expect(keys).toEqual([...keys].sort((left, right) => left.localeCompare(right)));
+		expect(keys).toEqual(
+			[...keys].sort((left, right) => (left < right ? -1 : left > right ? 1 : 0))
+		);
 	});
 
 	it('classifies every populated source kind with its visual and bounds contract', () => {
