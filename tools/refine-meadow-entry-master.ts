@@ -122,6 +122,13 @@ export async function runRefineMeadowEntryMaster(
 	repositoryRoot = process.cwd()
 ): Promise<MeadowEntryRefinementWorkPaths> {
 	const arguments_ = parseRefineMeadowEntryMasterArguments(args);
+	const controls = buildMeadowEntryControlInputs(repositoryRoot);
+	const nonTarget = buildMeadowEntryDeclaredRegionNonTargetRasterMask(
+		controls,
+		arguments_.sourceRegionIds
+	);
+	const foregroundEligibility = buildMeadowEntryForegroundEligibleRasterMask(controls);
+	const protectedLive = buildMeadowEntryProtectedForegroundRasterMask(controls);
 	const output = meadowEntryRefinementWorkPaths(repositoryRoot, arguments_.plane);
 	assertIgnoredWorkDestination(repositoryRoot, output.candidate);
 	assertIgnoredWorkDestination(repositoryRoot, output.sidecar);
@@ -140,13 +147,6 @@ export async function runRefineMeadowEntryMaster(
 		readFile(arguments_.nonTargetMask),
 		readTransform(arguments_.transform)
 	]);
-	const controls = buildMeadowEntryControlInputs(repositoryRoot);
-	const foregroundEligibility = buildMeadowEntryForegroundEligibleRasterMask(controls);
-	const protectedLive = buildMeadowEntryProtectedForegroundRasterMask(controls);
-	const nonTarget = buildMeadowEntryDeclaredRegionNonTargetRasterMask(
-		controls,
-		arguments_.sourceRegionIds
-	);
 	const result = await applyMeadowEntryRefinement({
 		plane: arguments_.plane,
 		currentMasterPng,

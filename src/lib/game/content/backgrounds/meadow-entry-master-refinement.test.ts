@@ -6,7 +6,8 @@ import { decodeMeadowEntryRgba, encodeCanonicalMeadowEntryPng } from './meadow-e
 import { applyMeadowEntryRefinement } from './meadow-entry-master-refinement';
 import {
 	meadowEntryRefinementWorkPaths,
-	parseRefineMeadowEntryMasterArguments
+	parseRefineMeadowEntryMasterArguments,
+	runRefineMeadowEntryMaster
 } from '../../../../../tools/refine-meadow-entry-master';
 
 const fingerprint = 'a'.repeat(64);
@@ -215,5 +216,28 @@ describe('Meadow Entry refinement CLI', () => {
 				'/repo/artifacts/meadow-entry/hpa-399/work/meadow-entry-base-refinement-candidate.png',
 			sidecar: '/repo/artifacts/meadow-entry/hpa-399/work/meadow-entry-base-refinement.json'
 		});
+	});
+
+	it('rejects outer-boundary before reading inputs or writing a candidate', async () => {
+		await expect(
+			runRefineMeadowEntryMaster([
+				'--plane',
+				'foreground',
+				'--current-master',
+				'/nonexistent/current.png',
+				'--replacement',
+				'/nonexistent/replacement.png',
+				'--edit-mask',
+				'/nonexistent/edit.png',
+				'--protected-mask',
+				'/nonexistent/protected.png',
+				'--non-target-mask',
+				'/nonexistent/non-target.png',
+				'--transform',
+				'/nonexistent/transform.json',
+				'--source-region',
+				'outer-boundary'
+			])
+		).rejects.toThrow(/production refinement target/i);
 	});
 });
