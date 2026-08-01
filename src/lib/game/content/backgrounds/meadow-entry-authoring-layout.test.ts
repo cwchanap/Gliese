@@ -352,13 +352,13 @@ describe('validateMeadowEntryAuthoringLayout error paths', () => {
 	});
 
 	it('rejects cross-region coverage with empty bounds or secondary regions', () => {
-		const sourceKey = MEADOW_ENTRY_CROSS_REGION_COVERAGE[0]!.sourceKey;
+		const first = MEADOW_ENTRY_CROSS_REGION_COVERAGE[0]!;
 		expect(() =>
 			validateMeadowEntryAuthoringLayout(
 				options({
 					crossRegionCoverage: [
-						...MEADOW_ENTRY_CROSS_REGION_COVERAGE,
-						{ sourceKey, bounds: [], secondaryRegions: ['tidewatch-coast'] }
+						{ sourceKey: first.sourceKey, bounds: [], secondaryRegions: ['tidewatch-coast'] },
+						...MEADOW_ENTRY_CROSS_REGION_COVERAGE.slice(1)
 					]
 				})
 			)
@@ -366,17 +366,17 @@ describe('validateMeadowEntryAuthoringLayout error paths', () => {
 	});
 
 	it('rejects cross-region coverage that extends outside meadow-entry', () => {
-		const sourceKey = MEADOW_ENTRY_CROSS_REGION_COVERAGE[0]!.sourceKey;
+		const first = MEADOW_ENTRY_CROSS_REGION_COVERAGE[0]!;
 		expect(() =>
 			validateMeadowEntryAuthoringLayout(
 				options({
 					crossRegionCoverage: [
-						...MEADOW_ENTRY_CROSS_REGION_COVERAGE,
 						{
-							sourceKey,
+							sourceKey: first.sourceKey,
 							bounds: [{ left: -128, top: 5_312, right: 5_600, bottom: 5_382 }],
 							secondaryRegions: ['tidewatch-coast']
-						}
+						},
+						...MEADOW_ENTRY_CROSS_REGION_COVERAGE.slice(1)
 					]
 				})
 			)
@@ -384,17 +384,17 @@ describe('validateMeadowEntryAuthoringLayout error paths', () => {
 	});
 
 	it('rejects cross-region coverage not contained by a secondary region', () => {
-		const sourceKey = MEADOW_ENTRY_CROSS_REGION_COVERAGE[0]!.sourceKey;
+		const first = MEADOW_ENTRY_CROSS_REGION_COVERAGE[0]!;
 		expect(() =>
 			validateMeadowEntryAuthoringLayout(
 				options({
 					crossRegionCoverage: [
-						...MEADOW_ENTRY_CROSS_REGION_COVERAGE,
 						{
-							sourceKey,
+							sourceKey: first.sourceKey,
 							bounds: [{ left: 128, top: 128, right: 256, bottom: 256 }],
 							secondaryRegions: ['tidewatch-coast']
-						}
+						},
+						...MEADOW_ENTRY_CROSS_REGION_COVERAGE.slice(1)
 					]
 				})
 			)
@@ -402,18 +402,18 @@ describe('validateMeadowEntryAuthoringLayout error paths', () => {
 	});
 
 	it('rejects cross-region coverage that extends outside its source bounds', () => {
-		const sourceKey = MEADOW_ENTRY_CROSS_REGION_COVERAGE[0]!.sourceKey;
-		const original = MEADOW_ENTRY_CROSS_REGION_COVERAGE[0]!.bounds[0]!;
+		const first = MEADOW_ENTRY_CROSS_REGION_COVERAGE[0]!;
+		const original = first.bounds[0]!;
 		expect(() =>
 			validateMeadowEntryAuthoringLayout(
 				options({
 					crossRegionCoverage: [
-						...MEADOW_ENTRY_CROSS_REGION_COVERAGE,
 						{
-							sourceKey,
+							sourceKey: first.sourceKey,
 							bounds: [{ ...original, top: original.top - 32 }, { ...original }],
 							secondaryRegions: ['tidewatch-coast']
-						}
+						},
+						...MEADOW_ENTRY_CROSS_REGION_COVERAGE.slice(1)
 					]
 				})
 			)
@@ -421,17 +421,17 @@ describe('validateMeadowEntryAuthoringLayout error paths', () => {
 	});
 
 	it('rejects a secondary region that contains none of the declared bounds', () => {
-		const sourceKey = MEADOW_ENTRY_CROSS_REGION_COVERAGE[0]!.sourceKey;
+		const first = MEADOW_ENTRY_CROSS_REGION_COVERAGE[0]!;
 		expect(() =>
 			validateMeadowEntryAuthoringLayout(
 				options({
 					crossRegionCoverage: [
-						...MEADOW_ENTRY_CROSS_REGION_COVERAGE,
 						{
-							sourceKey,
-							bounds: [...MEADOW_ENTRY_CROSS_REGION_COVERAGE[0]!.bounds],
+							sourceKey: first.sourceKey,
+							bounds: [...first.bounds],
 							secondaryRegions: ['tidewatch-coast', 'silverpine']
-						}
+						},
+						...MEADOW_ENTRY_CROSS_REGION_COVERAGE.slice(1)
 					]
 				})
 			)
@@ -439,8 +439,8 @@ describe('validateMeadowEntryAuthoringLayout error paths', () => {
 	});
 
 	it('rejects an invalid secondary region on cross-region coverage', () => {
-		const sourceKey = MEADOW_ENTRY_CROSS_REGION_COVERAGE[0]!.sourceKey;
-		const owner = MEADOW_ENTRY_PRIMARY_SOURCE_OWNERS[sourceKey];
+		const first = MEADOW_ENTRY_CROSS_REGION_COVERAGE[0]!;
+		const owner = MEADOW_ENTRY_PRIMARY_SOURCE_OWNERS[first.sourceKey];
 		const ownerRegion = MEADOW_ENTRY_AUTHORING_REGIONS.find(({ id }) => id === owner);
 		expect(ownerRegion).toBeDefined();
 		if (!ownerRegion) return;
@@ -448,9 +448,8 @@ describe('validateMeadowEntryAuthoringLayout error paths', () => {
 			validateMeadowEntryAuthoringLayout(
 				options({
 					crossRegionCoverage: [
-						...MEADOW_ENTRY_CROSS_REGION_COVERAGE,
 						{
-							sourceKey,
+							sourceKey: first.sourceKey,
 							bounds: [
 								{
 									left: ownerRegion.reviewBounds.left + 128,
@@ -460,11 +459,68 @@ describe('validateMeadowEntryAuthoringLayout error paths', () => {
 								}
 							],
 							secondaryRegions: [owner as MeadowEntryAuthoringRegionId]
-						}
+						},
+						...MEADOW_ENTRY_CROSS_REGION_COVERAGE.slice(1)
 					]
 				})
 			)
 		).toThrow(/Invalid secondary region/);
+	});
+
+	it('rejects a duplicate cross-region coverage source key', () => {
+		const first = MEADOW_ENTRY_CROSS_REGION_COVERAGE[0]!;
+		expect(() =>
+			validateMeadowEntryAuthoringLayout(
+				options({
+					crossRegionCoverage: [...MEADOW_ENTRY_CROSS_REGION_COVERAGE, { ...first }]
+				})
+			)
+		).toThrow(/Duplicate cross-region coverage source/);
+	});
+
+	it('rejects an orphan cross-region coverage entry not referenced by any resolution', () => {
+		expect(() =>
+			validateMeadowEntryAuthoringLayout(
+				options({
+					outlierResolutions: MEADOW_ENTRY_OUTLIER_RESOLUTIONS.filter(
+						(r) => !(r.mode === 'cross-region' && r.coverageIndex === 0)
+					)
+				})
+			)
+		).toThrow(/not referenced by any cross-region resolution/);
+	});
+
+	it('rejects a split resolution whose bounds extend outside its source bounds', () => {
+		const firstOutlier = MEADOW_ENTRY_OUTLIER_RESOLUTIONS.find((r) => r.mode === 'cross-region');
+		expect(firstOutlier).toBeDefined();
+		if (!firstOutlier) return;
+		const record = collectMeadowEntrySourceCatalog().find(
+			(r) => meadowEntrySourceKey(r.ref) === firstOutlier.sourceKey
+		);
+		expect(record).toBeDefined();
+		if (!record || record.bounds === null) return;
+		const sourceBounds = rasterizeCoverageBounds(record.bounds);
+		const expandedBounds = {
+			left: sourceBounds.left - 32,
+			top: sourceBounds.top,
+			right: sourceBounds.right,
+			bottom: sourceBounds.bottom
+		};
+		expect(() =>
+			validateMeadowEntryAuthoringLayout(
+				options({
+					outlierResolutions: MEADOW_ENTRY_OUTLIER_RESOLUTIONS.map((r) =>
+						r.sourceKey === firstOutlier.sourceKey
+							? {
+									sourceKey: firstOutlier.sourceKey,
+									mode: 'split' as const,
+									bounds: [expandedBounds, { ...sourceBounds, left: sourceBounds.left + 1 }]
+								}
+							: r
+					)
+				})
+			)
+		).toThrow(/Split resolution.*extends outside its source bounds/);
 	});
 
 	it('rejects an unknown outlier resolution source', () => {

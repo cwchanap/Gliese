@@ -9,7 +9,6 @@ import {
 	validateMeadowEntryStorageContract
 } from '$lib/game/content/backgrounds/meadow-entry-storage';
 
-const repositoryRoot = process.cwd();
 const canaryPath = MEADOW_ENTRY_ART_STORAGE.canaryPath;
 const proofProbePath = MEADOW_ENTRY_ART_STORAGE.proofPattern.replace(
 	'**/*.png',
@@ -19,19 +18,21 @@ const expectedPngSignature = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a];
 
 export type MeadowEntryStorageGitRunner = (...args: string[]) => string;
 
-function runGit(...args: string[]): string {
-	const result = spawnSync('git', args, {
-		cwd: repositoryRoot,
-		encoding: 'utf8'
-	});
-	const stdout = result.stdout;
-	const stderr = result.stderr;
+function runGitIn(root: string): MeadowEntryStorageGitRunner {
+	return (...args: string[]) => {
+		const result = spawnSync('git', args, {
+			cwd: root,
+			encoding: 'utf8'
+		});
+		const stdout = result.stdout;
+		const stderr = result.stderr;
 
-	if (result.status !== 0) {
-		throw new Error(`git ${args.join(' ')} failed:\n${stderr || stdout}`);
-	}
+		if (result.status !== 0) {
+			throw new Error(`git ${args.join(' ')} failed:\n${stderr || stdout}`);
+		}
 
-	return stdout;
+		return stdout;
+	};
 }
 
 /**
@@ -64,7 +65,7 @@ function verifyLfsAttributes(
 }
 
 export function verifyMeadowEntryLfsAttributeCoverage(
-	git: MeadowEntryStorageGitRunner = runGit
+	git: MeadowEntryStorageGitRunner = runGitIn(process.cwd())
 ): void {
 	verifyLfsAttributes('asset', canaryPath, git);
 	verifyLfsAttributes('proof', proofProbePath, git);
@@ -100,11 +101,14 @@ export function assertTransparentOnePixelCanary(
  *
  * @returns a Promise that resolves on success or rejects on any validation failure
  */
-export async function verifyMeadowEntryArtStorage(): Promise<void> {
+export async function verifyMeadowEntryArtStorage(
+	repositoryRoot: string = process.cwd()
+): Promise<void> {
 	validateMeadowEntryStorageContract(MEADOW_ENTRY_ART_STORAGE);
 
+	const runGit = runGitIn(repositoryRoot);
 	const lfsVersion = runGit('lfs', 'version').trim();
-	verifyMeadowEntryLfsAttributeCoverage();
+	verifyMeadowEntryLfsAttributeCoverage(runGit);
 
 	const lfsFiles = runGit('lfs', 'ls-files');
 	assert(lfsFiles.includes(canaryPath), `Git LFS does not track ${canaryPath}`);
