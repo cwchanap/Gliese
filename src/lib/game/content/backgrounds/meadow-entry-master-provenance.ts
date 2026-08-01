@@ -36,6 +36,7 @@ export interface MeadowEntryRefinementProvenance {
 }
 
 const SHA256_PATTERN = /^[a-f0-9]{64}$/;
+const BYTE_REPRODUCIBILITY_CAPABILITY_SETTING = 'providerSupportsByteReproducibleGeneration';
 
 function assertNonEmptyString(value: string | null, label: string): asserts value is string {
 	if (typeof value !== 'string' || value.length === 0) {
@@ -90,7 +91,14 @@ export function validateMeadowEntryGenerationProvenance(
 	if (value.seed !== null && value.seedUnavailable) {
 		throw new Error('Seeded Meadow Entry generation provenance cannot declare seedUnavailable');
 	}
-	if (value.byteReproducibleGeneration && (value.seed === null || value.seedUnavailable)) {
-		throw new Error('Seedless Meadow Entry generation cannot claim byte-reproducible output');
+	if (value.byteReproducibleGeneration) {
+		if (value.seed === null || value.seedUnavailable) {
+			throw new Error('Seedless Meadow Entry generation cannot claim byte-reproducible output');
+		}
+		if (value.settings[BYTE_REPRODUCIBILITY_CAPABILITY_SETTING] !== true) {
+			throw new Error(
+				'Meadow Entry generation cannot claim byte-reproducible output without a provider capability declaration'
+			);
+		}
 	}
 }
