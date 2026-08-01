@@ -13,4 +13,26 @@ describe('Meadow Entry art storage', () => {
 			'artifacts/meadow-entry/hpa-399/lfs-canary.png'
 		);
 	});
+
+	it('rejects a storage contract that drifts from the HPA-399 Git LFS configuration', () => {
+		const base = { ...MEADOW_ENTRY_ART_STORAGE };
+		expect(() =>
+			validateMeadowEntryStorageContract({ ...base, mode: 'local' as 'git-lfs' })
+		).toThrow(/Git LFS contract/);
+		expect(() =>
+			validateMeadowEntryStorageContract({
+				...base,
+				assetPattern: 'artifacts/other/**/*.png'
+			})
+		).toThrow(/Git LFS contract/);
+		expect(() =>
+			validateMeadowEntryStorageContract({
+				...base,
+				proofPattern: 'docs/other/**/*.png'
+			})
+		).toThrow(/Git LFS contract/);
+		expect(() =>
+			validateMeadowEntryStorageContract({ ...base, canaryPath: 'other/canary.png' })
+		).toThrow(/Git LFS contract/);
+	});
 });

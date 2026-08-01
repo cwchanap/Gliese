@@ -834,10 +834,23 @@ function validateRuntimeCoverage(
 	}
 }
 
-export function validateMeadowEntryCropContract(): void {
+export interface MeadowEntryCropContractValidationOptions {
+	crops?: readonly MeadowEntryApprovedCrop[];
+	overlaps?: readonly MeadowEntryOverlap[];
+	runtimeCoverage?: readonly MeadowEntryRuntimeCoverage[];
+	budgetSummary?: MeadowEntryCropBudgetSummary;
+}
+
+export function validateMeadowEntryCropContract(
+	options: MeadowEntryCropContractValidationOptions = {}
+): void {
+	const crops = options.crops ?? MEADOW_ENTRY_APPROVED_CROPS;
+	const overlaps = options.overlaps ?? MEADOW_ENTRY_APPROVED_OVERLAPS;
+	const runtimeCoverage = options.runtimeCoverage ?? MEADOW_ENTRY_RUNTIME_COVERAGE;
+	const budgetSummary = options.budgetSummary ?? MEADOW_ENTRY_CROP_BUDGET_SUMMARY;
 	const cropIds = new Set<string>();
 	const drawOrders = new Set<number>();
-	for (const crop of MEADOW_ENTRY_APPROVED_CROPS) {
+	for (const crop of crops) {
 		if (cropIds.has(crop.id)) throw new Error(`Duplicate approved crop "${crop.id}"`);
 		if (drawOrders.has(crop.drawOrder)) {
 			throw new Error(`Duplicate crop draw order ${crop.drawOrder}`);
@@ -847,11 +860,11 @@ export function validateMeadowEntryCropContract(): void {
 		validateCropDerivation(crop);
 		validateCropMetadata(crop);
 	}
-	validateOverlaps(MEADOW_ENTRY_APPROVED_CROPS, MEADOW_ENTRY_APPROVED_OVERLAPS);
-	validateBakedSources(MEADOW_ENTRY_APPROVED_CROPS);
-	validateRuntimeCoverage(MEADOW_ENTRY_APPROVED_CROPS, MEADOW_ENTRY_RUNTIME_COVERAGE);
-	const expectedSummary = buildBudgetSummary(MEADOW_ENTRY_APPROVED_CROPS);
-	if (JSON.stringify(expectedSummary) !== JSON.stringify(MEADOW_ENTRY_CROP_BUDGET_SUMMARY)) {
+	validateOverlaps(crops, overlaps);
+	validateBakedSources(crops);
+	validateRuntimeCoverage(crops, runtimeCoverage);
+	const expectedSummary = buildBudgetSummary(crops);
+	if (JSON.stringify(expectedSummary) !== JSON.stringify(budgetSummary)) {
 		throw new Error('Aggregate meadow-entry crop budgets do not equal per-crop sums');
 	}
 }
