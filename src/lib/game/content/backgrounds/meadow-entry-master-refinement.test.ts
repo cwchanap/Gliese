@@ -51,6 +51,16 @@ async function rgbaPng(raw: number[]): Promise<Buffer> {
 	return encodeCanonicalMeadowEntryPng(Buffer.from(raw), 2, 1);
 }
 
+function approvedMasks(eligible = [255, 0], protectedPixels = [0, 0], nonTargetPixels = [0, 0]) {
+	return {
+		width: 2,
+		height: 1,
+		foregroundEligibleAlpha: Buffer.from(eligible),
+		protectedAlpha: Buffer.from(protectedPixels),
+		nonTargetAlpha: Buffer.from(nonTargetPixels)
+	};
+}
+
 async function input(overrides: Partial<Parameters<typeof applyMeadowEntryRefinement>[0]> = {}) {
 	const opaqueBlack = await rgbaPng([0, 0, 0, 255, 0, 0, 0, 255]);
 	const opaqueRed = await rgbaPng([255, 0, 0, 255, 255, 0, 0, 255]);
@@ -68,6 +78,7 @@ async function input(overrides: Partial<Parameters<typeof applyMeadowEntryRefine
 		controlFingerprint: fingerprint,
 		approvedControlFingerprint: fingerprint,
 		approvedCrops: [crop('first-pixel', 0, 1), crop('spanning', 0, 2), crop('second-pixel', 1, 2)],
+		approvedMasks: approvedMasks(),
 		...overrides
 	};
 }
@@ -93,14 +104,22 @@ describe('Meadow Entry master refinement', () => {
 	it('rejects edits that intersect a protected mask', async () => {
 		const value = await input();
 		await expect(
-			applyMeadowEntryRefinement({ ...value, protectedMaskPng: value.editMaskPng })
+			applyMeadowEntryRefinement({
+				...value,
+				protectedMaskPng: value.editMaskPng,
+				approvedMasks: approvedMasks([255, 0], [255, 0])
+			})
 		).rejects.toThrow(/protected/i);
 	});
 
 	it('rejects edits that intersect a non-target mask', async () => {
 		const value = await input();
 		await expect(
-			applyMeadowEntryRefinement({ ...value, nonTargetMaskPng: value.editMaskPng })
+			applyMeadowEntryRefinement({
+				...value,
+				nonTargetMaskPng: value.editMaskPng,
+				approvedMasks: approvedMasks([255, 0], [0, 0], [255, 0])
+			})
 		).rejects.toThrow(/non-target/i);
 	});
 
@@ -122,6 +141,48 @@ describe('Meadow Entry master refinement', () => {
 		const decoded = await decodeMeadowEntryRgba(result.masterPng);
 		expect(pixel(decoded, 0)).toEqual([0, 0, 0, 0]);
 		expect(pixel(decoded, 1)).toEqual([0, 0, 0, 0]);
+	});
+
+	it('rejects a foreground edit outside approved eligibility despite blank caller masks', async () => {
+		const empty = await rgbaPng([0, 0, 0, 0, 0, 0, 0, 0]);
+		await expect(
+			applyMeadowEntryRefinement(
+				await input({
+					plane: 'foreground',
+					protectedMaskPng: empty,
+					nonTargetMaskPng: empty,
+					approvedMasks: approvedMasks([0, 0])
+				})
+			)
+		).rejects.toThrow(/eligib/i);
+	});
+
+	it('rejects a blank caller protected mask that contradicts approved protected-live controls', async () => {
+		const empty = await rgbaPng([0, 0, 0, 0, 0, 0, 0, 0]);
+		await expect(
+			applyMeadowEntryRefinement(
+				await input({
+					plane: 'foreground',
+					protectedMaskPng: empty,
+					nonTargetMaskPng: empty,
+					approvedMasks: approvedMasks([255, 0], [255, 0])
+				})
+			)
+		).rejects.toThrow(/protected.*approved/i);
+	});
+
+	it('rejects a blank caller non-target mask that contradicts declared source-region controls', async () => {
+		const empty = await rgbaPng([0, 0, 0, 0, 0, 0, 0, 0]);
+		await expect(
+			applyMeadowEntryRefinement(
+				await input({
+					plane: 'foreground',
+					protectedMaskPng: empty,
+					nonTargetMaskPng: empty,
+					approvedMasks: approvedMasks([255, 0], [0, 0], [255, 0])
+				})
+			)
+		).rejects.toThrow(/non-target.*approved/i);
 	});
 });
 

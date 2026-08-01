@@ -7,7 +7,11 @@ import type {
 	MeadowEntryNormalizationTransform,
 	MeadowEntryRefinementProvenance
 } from './meadow-entry-master-provenance';
-import { decodeMeadowEntryRgba, encodeCanonicalMeadowEntryPng } from './meadow-entry-png';
+import {
+	decodeMeadowEntryAlpha,
+	decodeMeadowEntryRgba,
+	encodeCanonicalMeadowEntryPng
+} from './meadow-entry-png';
 import type { PixelBounds } from './meadow-entry-authoring-types';
 
 export interface MeadowEntryRefinementInput {
@@ -22,6 +26,15 @@ export interface MeadowEntryRefinementInput {
 	controlFingerprint: string;
 	approvedControlFingerprint: string;
 	approvedCrops: readonly MeadowEntryApprovedCrop[];
+	approvedMasks: MeadowEntryApprovedRefinementMasks;
+}
+
+export interface MeadowEntryApprovedRefinementMasks {
+	width: number;
+	height: number;
+	foregroundEligibleAlpha: Buffer;
+	protectedAlpha: Buffer;
+	nonTargetAlpha: Buffer;
 }
 
 const SHA256 = /^[a-f0-9]{64}$/;
@@ -52,12 +65,47 @@ async function decodeMask(
 	height: number,
 	label: 'edit' | 'protected' | 'non-target'
 ) {
-	const decoded = await decodeMeadowEntryRgba(png);
+	const decoded = await decodeMeadowEntryAlpha(png);
 	assert(
 		decoded.width === width && decoded.height === height,
 		`Meadow Entry ${label} mask dimensions must match the master`
 	);
 	return decoded;
+}
+
+function assertApprovedMask(
+	mask: MeadowEntryApprovedRefinementMasks,
+	width: number,
+	height: number
+): void {
+	assert(
+		mask.width === width && mask.height === height,
+		'Meadow Entry approved refinement mask dimensions must match the master'
+	);
+	const expectedLength = width * height;
+	for (const [label, alpha] of Object.entries({
+		foregroundEligibility: mask.foregroundEligibleAlpha,
+		protected: mask.protectedAlpha,
+		nonTarget: mask.nonTargetAlpha
+	})) {
+		assert(
+			alpha.byteLength === expectedLength,
+			`Meadow Entry approved ${label} mask length must match the master`
+		);
+	}
+}
+
+function assertMaskMatchesApproved(
+	claimed: Buffer,
+	approved: Buffer,
+	label: 'protected' | 'non-target'
+): void {
+	for (let index = 0; index < approved.length; index += 1) {
+		assert(
+			claimed[index] === approved[index],
+			`Meadow Entry ${label} mask does not match approved controls at pixel ${index}`
+		);
+	}
 }
 
 function changedBounds(before: Buffer, after: Buffer, width: number, height: number): PixelBounds {
@@ -87,8 +135,18 @@ function affectedCropIds(
 		.map((crop) => crop.id);
 }
 
-function assertMaskSafety(editAlpha: number, protectedAlpha: number, nonTargetAlpha: number): void {
+function assertMaskSafety(
+	plane: MeadowEntryRefinementInput['plane'],
+	editAlpha: number,
+	foregroundEligibleAlpha: number,
+	protectedAlpha: number,
+	nonTargetAlpha: number
+): void {
 	if (editAlpha === 0) return;
+	assert(
+		plane !== 'foreground' || foregroundEligibleAlpha !== 0,
+		'Meadow Entry foreground refinement edit is outside approved eligibility'
+	);
 	assert(protectedAlpha === 0, 'Meadow Entry refinement edit intersects a protected mask');
 	assert(nonTargetAlpha === 0, 'Meadow Entry refinement edit intersects a non-target mask');
 }
@@ -99,6 +157,7 @@ export async function applyMeadowEntryRefinement(
 	assertControlFingerprint(input);
 	assert(input.sourceRegionIds.length > 0, 'Meadow Entry refinement requires a source region');
 	const current = await decodeMeadowEntryRgba(input.currentMasterPng);
+	assertApprovedMask(input.approvedMasks, current.width, current.height);
 	const [replacement, editMask, protectedMask, nonTargetMask] = await Promise.all([
 		normalizeMeadowEntryMasterCandidate(input.replacementPng, input.transform, {
 			width: current.width,
@@ -108,14 +167,19 @@ export async function applyMeadowEntryRefinement(
 		decodeMask(input.protectedMaskPng, current.width, current.height, 'protected'),
 		decodeMask(input.nonTargetMaskPng, current.width, current.height, 'non-target')
 	]);
+	assertMaskMatchesApproved(protectedMask.alpha, input.approvedMasks.protectedAlpha, 'protected');
+	assertMaskMatchesApproved(nonTargetMask.alpha, input.approvedMasks.nonTargetAlpha, 'non-target');
 	const output = Buffer.from(current.data);
 	for (let index = 0; index < output.length; index += 4) {
+		const pixelIndex = index / 4;
 		assertMaskSafety(
-			editMask.data[index + 3] ?? 0,
-			protectedMask.data[index + 3] ?? 0,
-			nonTargetMask.data[index + 3] ?? 0
+			input.plane,
+			editMask.alpha[pixelIndex] ?? 0,
+			input.approvedMasks.foregroundEligibleAlpha[pixelIndex] ?? 0,
+			input.approvedMasks.protectedAlpha[pixelIndex] ?? 0,
+			input.approvedMasks.nonTargetAlpha[pixelIndex] ?? 0
 		);
-		if ((editMask.data[index + 3] ?? 0) !== 0) {
+		if ((editMask.alpha[pixelIndex] ?? 0) !== 0) {
 			replacement.data.copy(output, index, index, index + 4);
 		}
 		if (input.plane === 'foreground' && output[index + 3] === 0) {

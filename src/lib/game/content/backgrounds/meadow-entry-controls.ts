@@ -673,6 +673,28 @@ export function buildMeadowEntryProtectedForegroundRasterMask(
 	return { width: MASK_WIDTH, height: MASK_HEIGHT, alpha };
 }
 
+/**
+ * Produces a frozen-control non-target mask for the declared authoring regions.
+ * Pixels inside a declared region are zero; every other pixel is non-target.
+ */
+export function buildMeadowEntryDeclaredRegionNonTargetRasterMask(
+	input: MeadowEntryControlInputs,
+	regionIds: readonly string[]
+): MeadowEntryRasterMask {
+	const requested = new Set(regionIds);
+	const known = new Set(input.authoringRegions.map((region) => region.id));
+	for (const regionId of requested) {
+		if (!known.has(regionId as MeadowEntryAuthoringRegionId)) {
+			throw new Error(`Unknown Meadow Entry source region "${regionId}"`);
+		}
+	}
+	const alpha = Buffer.alloc(MASK_WIDTH * MASK_HEIGHT, 255);
+	for (const region of input.authoringRegions) {
+		if (requested.has(region.id)) fillMaskBounds(alpha, region.reviewBounds, 0);
+	}
+	return { width: MASK_WIDTH, height: MASK_HEIGHT, alpha };
+}
+
 function foregroundEligibleRects(input: MeadowEntryControlInputs): readonly SvgRect[] {
 	const sourceByKey = new Map(
 		input.sourceCatalog.map((record) => [meadowEntrySourceKey(record.ref), record])
