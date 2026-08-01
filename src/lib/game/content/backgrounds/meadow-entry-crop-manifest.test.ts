@@ -21,6 +21,9 @@ import {
 	MEADOW_ENTRY_APPROVED_OVERLAPS,
 	MEADOW_ENTRY_CROP_BUDGET_SUMMARY,
 	MEADOW_ENTRY_RUNTIME_COVERAGE,
+	type MeadowEntryApprovedCrop,
+	type MeadowEntryCropBudgetSummary,
+	type MeadowEntryOverlap,
 	type MeadowEntryRuntimeCoverage,
 	validateMeadowEntryCropContract
 } from './meadow-entry-crop-manifest';
@@ -855,5 +858,288 @@ describe('meadow-entry crop manifest', () => {
 		);
 		expect(MEADOW_ENTRY_CROP_BUDGET_SUMMARY.aggregateForegroundHardBytes).toBe(sums.foregroundHard);
 		expect(validateMeadowEntryCropContract).not.toThrow();
+	});
+});
+
+describe('validateMeadowEntryCropContract error paths', () => {
+	function cloneCrops(): MeadowEntryApprovedCrop[] {
+		return MEADOW_ENTRY_APPROVED_CROPS.map((crop) => ({
+			...crop,
+			derivation: { ...crop.derivation },
+			reviewBounds: { ...crop.reviewBounds },
+			coverageAttachments: crop.coverageAttachments.map((b) => ({ ...b })),
+			preClampBounds: { ...crop.preClampBounds },
+			edgeClamp: crop.edgeClamp ? { ...crop.edgeClamp, sides: [...crop.edgeClamp.sides] } : null,
+			bounds: { ...crop.bounds },
+			expectedDimensions: { ...crop.expectedDimensions },
+			textureKeys: { ...crop.textureKeys },
+			sourceRegionIds: [...crop.sourceRegionIds],
+			neighborIds: [...crop.neighborIds],
+			overlapIds: [...crop.overlapIds],
+			alphaPolicy: { ...crop.alphaPolicy },
+			sizeBudgets: { ...crop.sizeBudgets }
+		}));
+	}
+
+	it('rejects duplicate approved crop ids', () => {
+		const crops = cloneCrops();
+		crops[1] = { ...crops[1]!, id: crops[0]!.id, drawOrder: 999 };
+		expect(() => validateMeadowEntryCropContract({ crops })).toThrow(/Duplicate approved crop/);
+	});
+
+	it('rejects duplicate crop draw orders', () => {
+		const crops = cloneCrops();
+		crops[1] = { ...crops[1]!, id: 'unique-id', drawOrder: crops[0]!.drawOrder };
+		expect(() => validateMeadowEntryCropContract({ crops })).toThrow(/Duplicate crop draw order/);
+	});
+
+	it('rejects a crop whose pre-clamp bounds have drifted', () => {
+		const crops = cloneCrops();
+		crops[0] = {
+			...crops[0]!,
+			preClampBounds: { ...crops[0]!.preClampBounds, left: crops[0]!.preClampBounds.left + 32 }
+		};
+		expect(() => validateMeadowEntryCropContract({ crops })).toThrow(
+			/pre-clamp candidate has drifted/
+		);
+	});
+
+	it('rejects a crop whose approved bounds differ from its post-clamp candidate', () => {
+		const crops = cloneCrops();
+		crops[0] = {
+			...crops[0]!,
+			bounds: { ...crops[0]!.bounds, right: crops[0]!.bounds.right - 32 }
+		};
+		expect(() => validateMeadowEntryCropContract({ crops })).toThrow(
+			/approved bounds differ from its post-clamp candidate/
+		);
+	});
+
+	it('rejects a crop that declares an unused edge clamp', () => {
+		const crops = cloneCrops();
+		const sundrop = crops.find((c) => c.id === 'sundrop-village-underlay')!;
+		crops[0] = {
+			...sundrop,
+			edgeClamp: { sides: ['right'], reason: 'unused' }
+		};
+		expect(() => validateMeadowEntryCropContract({ crops })).toThrow(
+			/declares an unused edge clamp/
+		);
+	});
+
+	it('rejects a crop that silently clips a world edge', () => {
+		const crops = cloneCrops();
+		const idx = crops.findIndex((c) => c.id === 'tidewatch-coast');
+		crops[idx] = { ...crops[idx]!, edgeClamp: null };
+		expect(() => validateMeadowEntryCropContract({ crops })).toThrow(/silently clips a world edge/);
+	});
+
+	it('rejects a crop with an invalid declared edge clamp', () => {
+		const crops = cloneCrops();
+		const idx = crops.findIndex((c) => c.id === 'tidewatch-coast');
+		crops[idx] = {
+			...crops[idx]!,
+			edgeClamp: { sides: ['left'], reason: 'wrong side' }
+		};
+		expect(() => validateMeadowEntryCropContract({ crops })).toThrow(/invalid declared edge clamp/);
+	});
+
+	it('rejects a crop that is not 32px aligned', () => {
+		const crops = cloneCrops();
+		const idx = crops.findIndex((c) => c.id === 'sundrop-village-underlay');
+		crops[idx] = {
+			...crops[idx]!,
+			bounds: { left: 257, top: 4_352, right: 2_048, bottom: 5_888 },
+			preClampBounds: { left: 257, top: 4_352, right: 2_048, bottom: 5_888 },
+			reviewBounds: { left: 257, top: 4_352, right: 2_048, bottom: 5_888 },
+			expectedDimensions: { width: 1_791, height: 1_536 }
+		};
+		expect(() => validateMeadowEntryCropContract({ crops })).toThrow(/not 32px aligned/);
+	});
+
+	it('rejects a crop whose dimensions do not match bounds', () => {
+		const crops = cloneCrops();
+		crops[0] = {
+			...crops[0]!,
+			expectedDimensions: { width: 1_000, height: 1_536 }
+		};
+		expect(() => validateMeadowEntryCropContract({ crops })).toThrow(
+			/dimensions do not match bounds/
+		);
+	});
+
+	it('rejects a crop whose base identity has drifted', () => {
+		const crops = cloneCrops();
+		crops[0] = {
+			...crops[0]!,
+			baseFilename: 'wrong-base.png'
+		};
+		expect(() => validateMeadowEntryCropContract({ crops })).toThrow(/base identity has drifted/);
+	});
+
+	it('rejects a crop whose foreground identity has drifted', () => {
+		const crops = cloneCrops();
+		const idx = crops.findIndex((c) => c.id === 'crossroads');
+		crops[idx] = {
+			...crops[idx]!,
+			foregroundFilename: null,
+			textureKeys: { ...crops[idx]!.textureKeys, foreground: null },
+			sizeBudgets: {
+				...crops[idx]!.sizeBudgets,
+				foregroundReviewBytes: null,
+				foregroundHardBytes: null
+			}
+		};
+		expect(() => validateMeadowEntryCropContract({ crops })).toThrow(
+			/foreground identity has drifted/
+		);
+	});
+
+	it('rejects a crop with invalid size budgets', () => {
+		const crops = cloneCrops();
+		crops[0] = {
+			...crops[0]!,
+			sizeBudgets: { ...crops[0]!.sizeBudgets, baseReviewBytes: 0 }
+		};
+		expect(() => validateMeadowEntryCropContract({ crops })).toThrow(/invalid size budgets/);
+	});
+
+	it('rejects an overlap that names an unknown crop', () => {
+		const overlaps: MeadowEntryOverlap[] = [
+			...MEADOW_ENTRY_APPROVED_OVERLAPS,
+			{
+				id: 'overlap-bogus',
+				firstCropId: 'nonexistent',
+				secondCropId: 'sundrop-village-underlay',
+				bounds: { left: 0, top: 0, right: 128, bottom: 128 },
+				routeMouth: { sharedAxis: 'x', bounds: { left: 0, top: 0, right: 128, bottom: 128 } },
+				minimumSharedPixels: 128,
+				planePolicy: 'base-only',
+				ownerCropId: 'sundrop-village-underlay',
+				cornerGroupId: null
+			}
+		];
+		expect(() => validateMeadowEntryCropContract({ overlaps })).toThrow(/names an unknown crop/);
+	});
+
+	it('rejects a duplicate crop overlap', () => {
+		const overlaps: MeadowEntryOverlap[] = [
+			...MEADOW_ENTRY_APPROVED_OVERLAPS,
+			{ ...MEADOW_ENTRY_APPROVED_OVERLAPS[0]! }
+		];
+		expect(() => validateMeadowEntryCropContract({ overlaps })).toThrow(/Duplicate crop overlap/);
+	});
+
+	it('rejects an overlap that does not equal its exact crop intersection', () => {
+		const overlaps = MEADOW_ENTRY_APPROVED_OVERLAPS.map((o, i) =>
+			i === 0
+				? {
+						...o,
+						bounds: {
+							...o.bounds,
+							right: o.bounds.right + 32
+						}
+					}
+				: o
+		);
+		expect(() => validateMeadowEntryCropContract({ overlaps })).toThrow(
+			/does not equal its exact crop intersection/
+		);
+	});
+
+	it('rejects an overlap whose route mouth leaves its intersection', () => {
+		const overlaps = MEADOW_ENTRY_APPROVED_OVERLAPS.map((o, i) =>
+			i === 0
+				? {
+						...o,
+						routeMouth: {
+							...o.routeMouth,
+							bounds: {
+								left: o.bounds.left - 32,
+								top: o.bounds.top,
+								right: o.bounds.right,
+								bottom: o.bounds.bottom
+							}
+						}
+					}
+				: o
+		);
+		expect(() => validateMeadowEntryCropContract({ overlaps })).toThrow(
+			/route mouth leaves its intersection/
+		);
+	});
+
+	it('rejects an overlap with an undersized route mouth', () => {
+		const overlaps = MEADOW_ENTRY_APPROVED_OVERLAPS.map((o, i) =>
+			i === 0
+				? {
+						...o,
+						minimumSharedPixels: 64,
+						routeMouth: {
+							...o.routeMouth,
+							bounds: {
+								left: o.bounds.left,
+								top: o.bounds.top,
+								right: o.bounds.left + 64,
+								bottom: o.bounds.top + 64
+							}
+						}
+					}
+				: o
+		);
+		expect(() => validateMeadowEntryCropContract({ overlaps })).toThrow(/undersized route mouth/);
+	});
+
+	it('rejects a crop pair whose overlap accounting has drifted', () => {
+		const overlaps = MEADOW_ENTRY_APPROVED_OVERLAPS.slice(0, -1);
+		expect(() => validateMeadowEntryCropContract({ overlaps })).toThrow(
+			/overlap accounting has drifted/
+		);
+	});
+
+	it('rejects a triple crop intersection that lacks one corner group', () => {
+		// Remove corner group from all overlaps that have one, so any triple intersection will fail.
+		const overlaps = MEADOW_ENTRY_APPROVED_OVERLAPS.map((o) =>
+			o.cornerGroupId !== null ? { ...o, cornerGroupId: undefined } : o
+		);
+		expect(() => validateMeadowEntryCropContract({ overlaps })).toThrow(/lacks one corner group/);
+	});
+
+	it('rejects baked runtime coverage with incorrect crop ownership', () => {
+		// Find the first baked coverage entry and corrupt its crop ownership.
+		const idx = MEADOW_ENTRY_RUNTIME_COVERAGE.findIndex((c) => c.mode === 'baked');
+		expect(idx).toBeGreaterThanOrEqual(0);
+		const runtimeCoverage = MEADOW_ENTRY_RUNTIME_COVERAGE.map((c, i) =>
+			i === idx && c.mode === 'baked' ? { ...c, cropIds: [] } : c
+		);
+		expect(() => validateMeadowEntryCropContract({ runtimeCoverage })).toThrow(
+			/incorrect crop ownership/
+		);
+	});
+
+	it('rejects fallback runtime coverage that overlaps a crop or lacks a reason', () => {
+		const runtimeCoverage = MEADOW_ENTRY_RUNTIME_COVERAGE.map((c, i) =>
+			i === 0 && c.mode === 'fallback-tile' ? { ...c, reason: '   ' } : c
+		);
+		expect(() => validateMeadowEntryCropContract({ runtimeCoverage })).toThrow(
+			/overlaps a crop or lacks a reason/
+		);
+	});
+
+	it('rejects runtime coverage with unexplained or overlapping area', () => {
+		const runtimeCoverage = MEADOW_ENTRY_RUNTIME_COVERAGE.slice(0, -1);
+		expect(() => validateMeadowEntryCropContract({ runtimeCoverage })).toThrow(
+			/unexplained or overlapping area/
+		);
+	});
+
+	it('rejects aggregate crop budgets that do not equal per-crop sums', () => {
+		const budgetSummary: MeadowEntryCropBudgetSummary = {
+			...MEADOW_ENTRY_CROP_BUDGET_SUMMARY,
+			aggregateBaseReviewBytes: MEADOW_ENTRY_CROP_BUDGET_SUMMARY.aggregateBaseReviewBytes + 1
+		};
+		expect(() => validateMeadowEntryCropContract({ budgetSummary })).toThrow(
+			/budgets do not equal per-crop sums/
+		);
 	});
 });

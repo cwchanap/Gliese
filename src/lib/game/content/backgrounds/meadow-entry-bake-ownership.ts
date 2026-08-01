@@ -811,18 +811,25 @@ function validateDisposition(entry: MeadowEntryBakeOwnershipEntry): void {
 	}
 }
 
-export function validateMeadowEntryBakeOwnership(): void {
+export interface MeadowEntryBakeOwnershipValidationOptions {
+	ownership?: readonly MeadowEntryBakeOwnershipEntry[];
+}
+
+export function validateMeadowEntryBakeOwnership(
+	options: MeadowEntryBakeOwnershipValidationOptions = {}
+): void {
+	const ownership = options.ownership ?? MEADOW_ENTRY_BAKE_OWNERSHIP;
 	if (MEADOW_ENTRY_FOREGROUND_FRONT_CUTOFF_PX !== SUNDROP_VILLAGE_FOREGROUND_FRONT_CUTOFF_PX) {
 		throw new Error('Meadow-entry foreground cutoff has drifted from HPA-398');
 	}
 	const catalog = collectMeadowEntrySourceCatalog();
-	if (MEADOW_ENTRY_BAKE_OWNERSHIP.length !== catalog.length) {
+	if (ownership.length !== catalog.length) {
 		throw new Error('Meadow-entry bake ownership does not cover the source catalog');
 	}
 
 	const byKey = new Map<string, MeadowEntryBakeOwnershipEntry>();
 	for (let index = 0; index < catalog.length; index += 1) {
-		const entry = MEADOW_ENTRY_BAKE_OWNERSHIP[index];
+		const entry = ownership[index];
 		const expectedKey = meadowEntrySourceKey(catalog[index]!.ref);
 		if (!entry) throw new Error(`Missing meadow-entry bake ownership "${expectedKey}"`);
 		const key = meadowEntrySourceKey(entry.ref);

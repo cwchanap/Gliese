@@ -36,8 +36,11 @@ export interface MeadowEntryAuthoringRegion {
 	neighbors: readonly MeadowEntryAuthoringRegionId[];
 }
 
-interface MeadowEntryAuthoringLayoutValidationOptions {
+export interface MeadowEntryAuthoringLayoutValidationOptions {
 	regions?: readonly MeadowEntryAuthoringRegion[];
+	primarySourceOwners?: Readonly<Record<string, MeadowEntryAuthoringRegionId>>;
+	crossRegionCoverage?: readonly MeadowEntryCrossRegionCoverage[];
+	outlierResolutions?: readonly MeadowEntryOutlierResolution[];
 }
 
 export interface MeadowEntryCrossRegionCoverage {
@@ -182,7 +185,7 @@ const REOWNED_SOURCES = {
 	'blocker:mistfen-entry-bank-east': 'connector-crossroads-mistfen'
 } as const satisfies Readonly<Record<string, MeadowEntryAuthoringRegionId>>;
 
-function primaryOwnerFor(record: MeadowEntrySourceRecord): MeadowEntryAuthoringRegionId {
+export function primaryOwnerFor(record: MeadowEntrySourceRecord): MeadowEntryAuthoringRegionId {
 	const sourceKey = meadowEntrySourceKey(record.ref);
 	const reowned = REOWNED_SOURCES[sourceKey as keyof typeof REOWNED_SOURCES];
 	if (reowned) return reowned;
@@ -329,11 +332,12 @@ function coverageAreaWithinSource(
 
 function detectedOutlierKeys(
 	catalog: readonly MeadowEntrySourceRecord[],
-	regions: ReadonlyMap<MeadowEntryAuthoringRegionId, MeadowEntryAuthoringRegion>
+	regions: ReadonlyMap<MeadowEntryAuthoringRegionId, MeadowEntryAuthoringRegion>,
+	primarySourceOwners: Readonly<Record<string, MeadowEntryAuthoringRegionId>>
 ): readonly string[] {
 	return catalog.flatMap((record) => {
 		const sourceKey = meadowEntrySourceKey(record.ref);
-		const owner = MEADOW_ENTRY_PRIMARY_SOURCE_OWNERS[sourceKey];
+		const owner = primarySourceOwners[sourceKey];
 		const ownerRegion = owner === undefined ? undefined : regions.get(owner);
 		const expectedFragmentOwner =
 			record.fragmentId === 'paths'
@@ -356,6 +360,9 @@ export function validateMeadowEntryAuthoringLayout(
 	const catalogByKey = new Map(catalog.map((record) => [meadowEntrySourceKey(record.ref), record]));
 	const regions = new Map<MeadowEntryAuthoringRegionId, MeadowEntryAuthoringRegion>();
 	const authoringRegions = options.regions ?? MEADOW_ENTRY_AUTHORING_REGIONS;
+	const primarySourceOwners = options.primarySourceOwners ?? MEADOW_ENTRY_PRIMARY_SOURCE_OWNERS;
+	const crossRegionCoverage = options.crossRegionCoverage ?? MEADOW_ENTRY_CROSS_REGION_COVERAGE;
+	const outlierResolutions = options.outlierResolutions ?? MEADOW_ENTRY_OUTLIER_RESOLUTIONS;
 	for (const region of authoringRegions) {
 		if (regions.has(region.id)) throw new Error(`Duplicate authoring region "${region.id}"`);
 		assertRegionBounds(region);
@@ -391,7 +398,7 @@ export function validateMeadowEntryAuthoringLayout(
 		}
 	}
 
-	const ownerKeys = Object.keys(MEADOW_ENTRY_PRIMARY_SOURCE_OWNERS);
+	const ownerKeys = Object.keys(primarySourceOwners);
 	if (ownerKeys.length !== catalog.length) {
 		throw new Error(
 			`Primary owner count ${ownerKeys.length} does not match source count ${catalog.length}`
@@ -400,32 +407,32 @@ export function validateMeadowEntryAuthoringLayout(
 	for (const sourceKey of ownerKeys) {
 		if (!catalogByKey.has(sourceKey))
 			throw new Error(`Unknown primary owner source "${sourceKey}"`);
-		const owner = MEADOW_ENTRY_PRIMARY_SOURCE_OWNERS[sourceKey];
+		const owner = primarySourceOwners[sourceKey];
 		if (owner === undefined || !regions.has(owner)) {
 			throw new Error(`Unknown primary authoring owner for "${sourceKey}"`);
 		}
 	}
 	for (const record of catalog) {
 		const sourceKey = meadowEntrySourceKey(record.ref);
-		if (!Object.hasOwn(MEADOW_ENTRY_PRIMARY_SOURCE_OWNERS, sourceKey)) {
+		if (!Object.hasOwn(primarySourceOwners, sourceKey)) {
 			throw new Error(`Missing primary authoring owner for "${sourceKey}"`);
 		}
 		if (
 			record.fragmentId === 'paths' &&
-			MEADOW_ENTRY_PRIMARY_SOURCE_OWNERS[sourceKey] !==
+			primarySourceOwners[sourceKey] !==
 				EXACT_PATH_OWNERS[sourceKey as keyof typeof EXACT_PATH_OWNERS]
 		) {
 			throw new Error(`Incorrect exact paths.ts authoring owner for "${sourceKey}"`);
 		}
 	}
 
-	for (const [index, coverage] of MEADOW_ENTRY_CROSS_REGION_COVERAGE.entries()) {
+	for (const [index, coverage] of crossRegionCoverage.entries()) {
 		const record = catalogByKey.get(coverage.sourceKey);
 		if (!record) throw new Error(`Unknown cross-region coverage source "${coverage.sourceKey}"`);
 		if (coverage.bounds.length === 0 || coverage.secondaryRegions.length === 0) {
 			throw new Error(`Cross-region coverage ${index} must declare bounds and secondary regions`);
 		}
-		const owner = MEADOW_ENTRY_PRIMARY_SOURCE_OWNERS[coverage.sourceKey];
+		const owner = primarySourceOwners[coverage.sourceKey];
 		for (const bounds of coverage.bounds) {
 			if (!containsBounds(MEADOW_ENTRY_WORLD_BOUNDS, bounds)) {
 				throw new Error(`Cross-region coverage ${index} must remain inside meadow-entry`);
@@ -447,7 +454,7 @@ export function validateMeadowEntryAuthoringLayout(
 	}
 
 	const resolutions = new Map<string, MeadowEntryOutlierResolution>();
-	for (const resolution of MEADOW_ENTRY_OUTLIER_RESOLUTIONS) {
+	for (const resolution of outlierResolutions) {
 		if (!catalogByKey.has(resolution.sourceKey)) {
 			throw new Error(`Unknown outlier resolution source "${resolution.sourceKey}"`);
 		}
@@ -458,7 +465,7 @@ export function validateMeadowEntryAuthoringLayout(
 		const record = catalogByKey.get(resolution.sourceKey);
 		if (!record) continue;
 		const sourceBounds = rasterBounds(record);
-		const owner = MEADOW_ENTRY_PRIMARY_SOURCE_OWNERS[resolution.sourceKey];
+		const owner = primarySourceOwners[resolution.sourceKey];
 		const ownerBounds = owner === undefined ? undefined : regions.get(owner)?.reviewBounds;
 		if (resolution.mode === 'contained') {
 			if (
@@ -470,7 +477,7 @@ export function validateMeadowEntryAuthoringLayout(
 				);
 			}
 		} else if (resolution.mode === 'cross-region') {
-			const coverage = MEADOW_ENTRY_CROSS_REGION_COVERAGE[resolution.coverageIndex];
+			const coverage = crossRegionCoverage[resolution.coverageIndex];
 			if (!coverage || coverage.sourceKey !== resolution.sourceKey || sourceBounds === null) {
 				throw new Error(`Invalid cross-region resolution for "${resolution.sourceKey}"`);
 			}
@@ -504,7 +511,7 @@ export function validateMeadowEntryAuthoringLayout(
 		}
 	}
 
-	const detected = detectedOutlierKeys(catalog, regions);
+	const detected = detectedOutlierKeys(catalog, regions, primarySourceOwners);
 	if (detected.length !== resolutions.size || detected.some((key) => !resolutions.has(key))) {
 		throw new Error(
 			`Outlier resolution set does not match detected sources: detected=${detected.length}, resolved=${resolutions.size}`
