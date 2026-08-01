@@ -241,16 +241,10 @@
       },
       "primaryRegionId": "tidewatch-coast",
       "disposition": {
-        "mode": "base-static",
-        "margins": {
-          "top": 8,
-          "right": 8,
-          "bottom": 8,
-          "left": 8
-        },
-        "motif": "water-edge"
+        "mode": "runtime-fallback-only",
+        "reason": "The ocean blocker is collision-only; its paired coast-sea ground patch remains the visual fallback outside every regional runtime crop."
       },
-      "runtimeRequirement": "existing-blocker-fallback"
+      "runtimeRequirement": "fallback-tile"
     },
     {
       "ref": {
@@ -754,16 +748,10 @@
       },
       "primaryRegionId": "mistfen",
       "disposition": {
-        "mode": "base-static",
-        "margins": {
-          "top": 8,
-          "right": 8,
-          "bottom": 8,
-          "left": 8
-        },
-        "motif": "water-edge"
+        "mode": "runtime-fallback-only",
+        "reason": "The ocean blocker is collision-only; its paired mistfen-pool-east ground patch remains the visual fallback outside every regional runtime crop."
       },
-      "runtimeRequirement": "existing-blocker-fallback"
+      "runtimeRequirement": "fallback-tile"
     },
     {
       "ref": {
@@ -772,16 +760,10 @@
       },
       "primaryRegionId": "mistfen",
       "disposition": {
-        "mode": "base-static",
-        "margins": {
-          "top": 8,
-          "right": 8,
-          "bottom": 8,
-          "left": 8
-        },
-        "motif": "water-edge"
+        "mode": "runtime-fallback-only",
+        "reason": "The ocean blocker is collision-only; its paired mistfen-pool-west ground patch remains the visual fallback outside every regional runtime crop."
       },
-      "runtimeRequirement": "existing-blocker-fallback"
+      "runtimeRequirement": "fallback-tile"
     },
     {
       "ref": {

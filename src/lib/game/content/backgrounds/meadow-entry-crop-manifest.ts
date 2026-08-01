@@ -759,6 +759,22 @@ function validateOverlaps(
 		) {
 			throw new Error(`Overlap "${overlap.id}" has an undersized route mouth`);
 		}
+		const ownerCrop = cropsById.get(overlap.ownerCropId);
+		if (!ownerCrop || (ownerCrop.id !== first.id && ownerCrop.id !== second.id)) {
+			throw new Error(`Overlap "${overlap.id}" names an unknown owner crop`);
+		}
+		const expectedOwner = first.drawOrder > second.drawOrder ? first : second;
+		if (ownerCrop.id !== expectedOwner.id) {
+			throw new Error(`Overlap "${overlap.id}" owner crop must have the higher draw order`);
+		}
+		const pairHasForeground =
+			first.foregroundFilename !== null && second.foregroundFilename !== null;
+		if (overlap.planePolicy === 'base-and-foreground' && !pairHasForeground) {
+			throw new Error(`Overlap "${overlap.id}" declares foreground planes for a crop without one`);
+		}
+		if (overlap.planePolicy === 'base-only' && pairHasForeground) {
+			throw new Error(`Overlap "${overlap.id}" must declare foreground planes for its crop pair`);
+		}
 	}
 
 	for (let firstIndex = 0; firstIndex < crops.length - 1; firstIndex += 1) {
