@@ -1193,4 +1193,24 @@ describe('validateMeadowEntryCropContract error paths', () => {
 			/budgets do not equal per-crop sums/
 		);
 	});
+
+	it('rejects a mismatch in a non-default budget summary field', () => {
+		const budgetSummary: MeadowEntryCropBudgetSummary = {
+			...MEADOW_ENTRY_CROP_BUDGET_SUMMARY,
+			overlapArea: MEADOW_ENTRY_CROP_BUDGET_SUMMARY.overlapArea + 1
+		};
+		expect(() => validateMeadowEntryCropContract({ budgetSummary })).toThrow(
+			/budgets do not equal per-crop sums/
+		);
+	});
+
+	it('rejects a budget summary with an unexpected extra key', () => {
+		const budgetSummary = {
+			...MEADOW_ENTRY_CROP_BUDGET_SUMMARY,
+			extraField: 1
+		} as unknown as MeadowEntryCropBudgetSummary;
+		expect(() => validateMeadowEntryCropContract({ budgetSummary })).toThrow(
+			/budget summary shape does not match expected schema/
+		);
+	});
 });
