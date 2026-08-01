@@ -813,6 +813,14 @@ function validateDisposition(entry: MeadowEntryBakeOwnershipEntry): void {
 		if (runtimeRequirement !== 'remain-live') {
 			throw new Error(`${key} protected-live source must remain live`);
 		}
+		if (entry.ref.sourceType === 'blocker') {
+			const blocker = meadowEntryMap.blockers?.find(({ id }) => id === entry.ref.sourceId);
+			if (blocker === undefined || getBlockerRuntimeRenderMode(blocker.kind) !== 'rendered-live') {
+				throw new Error(
+					`${key} claims protected-live but its runtime render mode does not render a live blocker`
+				);
+			}
+		}
 		return;
 	}
 	if (disposition.mode === 'control-only') {

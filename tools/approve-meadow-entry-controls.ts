@@ -286,7 +286,7 @@ export async function approveMeadowEntryControls(
 	repositoryRoot = process.cwd()
 ): Promise<MeadowEntryControlsApprovalValues> {
 	const review = parseMeadowEntryControlsApprovalArguments(args);
-	await verifyMeadowEntryArtStorage();
+	await verifyMeadowEntryArtStorage(repositoryRoot);
 	runMeadowEntryArtControlsExporter(['--check'], repositoryRoot);
 	const values = readApprovalValues(repositoryRoot);
 	const output = renderMeadowEntryControlsApprovalModule(review, values);

@@ -426,9 +426,14 @@ export function validateMeadowEntryAuthoringLayout(
 		}
 	}
 
+	const coverageSourceKeys = new Set<string>();
 	for (const [index, coverage] of crossRegionCoverage.entries()) {
 		const record = catalogByKey.get(coverage.sourceKey);
 		if (!record) throw new Error(`Unknown cross-region coverage source "${coverage.sourceKey}"`);
+		if (coverageSourceKeys.has(coverage.sourceKey)) {
+			throw new Error(`Duplicate cross-region coverage source "${coverage.sourceKey}"`);
+		}
+		coverageSourceKeys.add(coverage.sourceKey);
 		if (coverage.bounds.length === 0 || coverage.secondaryRegions.length === 0) {
 			throw new Error(`Cross-region coverage ${index} must declare bounds and secondary regions`);
 		}
@@ -471,6 +476,7 @@ export function validateMeadowEntryAuthoringLayout(
 	}
 
 	const resolutions = new Map<string, MeadowEntryOutlierResolution>();
+	const usedCoverageIndices = new Set<number>();
 	for (const resolution of outlierResolutions) {
 		if (!catalogByKey.has(resolution.sourceKey)) {
 			throw new Error(`Unknown outlier resolution source "${resolution.sourceKey}"`);
@@ -498,6 +504,7 @@ export function validateMeadowEntryAuthoringLayout(
 			if (!coverage || coverage.sourceKey !== resolution.sourceKey || sourceBounds === null) {
 				throw new Error(`Invalid cross-region resolution for "${resolution.sourceKey}"`);
 			}
+			usedCoverageIndices.add(resolution.coverageIndex);
 			const primaryIntersection =
 				ownerBounds === undefined ? null : intersectBounds(sourceBounds, ownerBounds);
 			const coverageBounds = [
@@ -515,6 +522,13 @@ export function validateMeadowEntryAuthoringLayout(
 			) {
 				throw new Error(`Split resolution is incomplete for "${resolution.sourceKey}"`);
 			}
+			for (const bounds of resolution.bounds) {
+				if (!containsBounds(sourceBounds, bounds)) {
+					throw new Error(
+						`Split resolution for "${resolution.sourceKey}" extends outside its source bounds`
+					);
+				}
+			}
 		} else if (resolution.mode === 're-owned') {
 			if (
 				owner !== resolution.owner ||
@@ -526,6 +540,15 @@ export function validateMeadowEntryAuthoringLayout(
 		} else if (resolution.reason.trim().length === 0) {
 			throw new Error(`Deferred outlier "${resolution.sourceKey}" must include a reason`);
 		}
+	}
+
+	if (usedCoverageIndices.size !== crossRegionCoverage.length) {
+		const orphanIndices = crossRegionCoverage
+			.map((_, index) => index)
+			.filter((index) => !usedCoverageIndices.has(index));
+		throw new Error(
+			`Cross-region coverage entries ${orphanIndices.join(', ')} are not referenced by any cross-region resolution`
+		);
 	}
 
 	const detected = detectedOutlierKeys(catalog, regions, primarySourceOwners);

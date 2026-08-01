@@ -1,3 +1,6 @@
+import { mkdtempSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 interface StorageVerifierApi {
@@ -6,7 +9,7 @@ interface StorageVerifierApi {
 		rgbaPixel: Uint8Array
 	) => void;
 	verifyMeadowEntryLfsAttributeCoverage?: (runGit?: (...args: string[]) => string) => void;
-	verifyMeadowEntryArtStorage?: () => Promise<void>;
+	verifyMeadowEntryArtStorage?: (repositoryRoot?: string) => Promise<void>;
 }
 
 async function verifierApi(): Promise<StorageVerifierApi> {
@@ -89,5 +92,18 @@ describe('Meadow Entry art storage verifier', () => {
 		expect(api.verifyMeadowEntryArtStorage).toBeTypeOf('function');
 		if (!api.verifyMeadowEntryArtStorage) return;
 		await expect(api.verifyMeadowEntryArtStorage()).resolves.toBeUndefined();
+	});
+
+	it('rejects a repository root that is not a Git LFS checkout', async () => {
+		const api = await verifierApi();
+		expect(api.verifyMeadowEntryArtStorage).toBeTypeOf('function');
+		if (!api.verifyMeadowEntryArtStorage) return;
+
+		const foreignRoot = mkdtempSync(join(tmpdir(), 'gliese-lfs-foreign-'));
+		try {
+			await expect(api.verifyMeadowEntryArtStorage(foreignRoot)).rejects.toThrow(/git .* failed/);
+		} finally {
+			rmSync(foreignRoot, { recursive: true, force: true });
+		}
 	});
 });

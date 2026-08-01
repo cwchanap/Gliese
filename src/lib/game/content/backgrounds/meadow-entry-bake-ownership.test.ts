@@ -446,6 +446,26 @@ describe('validateMeadowEntryBakeOwnership error paths', () => {
 		expect(() => validateMeadowEntryBakeOwnership({ ownership })).toThrow(/live blocker/);
 	});
 
+	it('rejects a protected-live blocker whose runtime render mode is collision-only', () => {
+		const ownership = cloneOwnership();
+		const idx = ownership.findIndex(
+			(e) => meadowEntrySourceKey(e.ref) === 'blocker:coast-sea-wall'
+		);
+		expect(idx).toBeGreaterThanOrEqual(0);
+		ownership[idx] = {
+			...ownership[idx]!,
+			disposition: {
+				mode: 'protected-live',
+				protectionMargins: { top: 32, right: 16, bottom: 16, left: 16 },
+				reason: 'Ocean wall should remain live.'
+			},
+			runtimeRequirement: 'remain-live'
+		};
+		expect(() => validateMeadowEntryBakeOwnership({ ownership })).toThrow(
+			/protected-live.*live blocker/
+		);
+	});
+
 	it('rejects a base-static source with invalid margins', () => {
 		const ownership = cloneOwnership();
 		const idx = ownership.findIndex((e) => e.disposition.mode === 'base-static');
