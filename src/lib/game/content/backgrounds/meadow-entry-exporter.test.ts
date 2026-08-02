@@ -1,4 +1,5 @@
-import { mkdtemp, mkdir, readFile, readdir, rename, rm, writeFile } from 'node:fs/promises';
+import { createHash } from 'node:crypto';
+import { lstat, mkdtemp, mkdir, readFile, readdir, rename, rm, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 
@@ -12,12 +13,75 @@ import {
 	type MeadowEntryDecodedExport
 } from './meadow-entry-exporter';
 import {
+	assertApprovedMasterSnapshot,
 	publishMeadowEntryExportPackage,
 	readPublishedMeadowEntryExportSnapshot,
-	type MeadowEntryExportPublicationFileSystem
+	type MeadowEntryExportPackageBytes,
+	type MeadowEntryExportPublicationFileSystem,
+	type MeadowEntryExportSnapshotFileSystem
 } from '../../../../../tools/export-meadow-entry-regions';
 
 const FINGERPRINT = 'a'.repeat(64);
+
+function sha256(value: Buffer): string {
+	return createHash('sha256').update(value).digest('hex');
+}
+
+function publicationPackage(generation: string): MeadowEntryExportPackageBytes {
+	const filename = 'fixture-base.png';
+	const png = Buffer.from(`${generation}-png`);
+	const masters = {
+		baseSha256: sha256(Buffer.from(`${generation}-base-master`)),
+		foregroundSha256: sha256(Buffer.from(`${generation}-foreground-master`)),
+		provenanceSha256: sha256(Buffer.from(`${generation}-master-provenance`))
+	};
+	return {
+		files: { [filename]: png },
+		provenanceJson: Buffer.from(
+			`${JSON.stringify({
+				version: 1,
+				controls: { fingerprint: FINGERPRINT },
+				masters: {
+					base: { sha256: masters.baseSha256 },
+					foreground: { sha256: masters.foregroundSha256 }
+				},
+				approvedMasterProvenanceSha256: masters.provenanceSha256,
+				inventory: [
+					{ filename, bytes: png.byteLength, sha256: sha256(png), cropId: 'fixture', plane: 'base' }
+				]
+			})}\n`
+		),
+		cropManifestJson: Buffer.from(
+			`${JSON.stringify({
+				version: 1,
+				controlFingerprint: FINGERPRINT,
+				masters,
+				crops: [{ baseFilename: filename, foregroundFilename: null }]
+			})}\n`
+		)
+	};
+}
+
+function approvedMasterFixture() {
+	const basePng = Buffer.from('base-master');
+	const foregroundPng = Buffer.from('foreground-master');
+	const controlFingerprint = FINGERPRINT;
+	const provenance = {
+		controls: { fingerprint: controlFingerprint },
+		base: { sha256: sha256(basePng) },
+		foreground: { sha256: sha256(foregroundPng) }
+	};
+	const provenanceJson = Buffer.from(`${JSON.stringify(provenance)}\n`);
+	return {
+		snapshot: { basePng, foregroundPng, provenanceJson },
+		expected: {
+			baseSha256: sha256(basePng),
+			foregroundSha256: sha256(foregroundPng),
+			provenanceSha256: sha256(provenanceJson),
+			controlFingerprint
+		}
+	};
+}
 
 function crop(
 	id: string,
@@ -309,25 +373,27 @@ describe('meadow-entry export publication', () => {
 		const root = await mkdtemp(join(tmpdir(), 'gliese-export-test-'));
 		await mkdir(join(root, 'exports'), { recursive: true });
 		await writeFile(join(root, 'exports/stale.png'), 'stale');
-		const packageBytes = {
-			files: { 'fixture-base.png': Buffer.from('png') },
-			provenanceJson: Buffer.from('{"version":1}\n'),
-			cropManifestJson: Buffer.from('{"version":1}\n')
-		};
+		const packageBytes = publicationPackage('current');
 
 		await publishMeadowEntryExportPackage(root, packageBytes);
 		expect(await readdir(join(root, 'exports'))).toEqual(['fixture-base.png']);
 		expect(await readPublishedMeadowEntryExportSnapshot(root)).toEqual(packageBytes);
-		expect(await readFile(join(root, 'exports/fixture-base.png'))).toEqual(Buffer.from('png'));
+		expect(await readFile(join(root, 'exports/fixture-base.png'))).toEqual(
+			Buffer.from('current-png')
+		);
+		expect(await readFile(join(root, 'provenance/meadow-entry-crop-manifest.json'))).toEqual(
+			packageBytes.cropManifestJson
+		);
+		expect(
+			await lstat(join(root, 'provenance/meadow-entry-export-crop-manifest.json')).catch(
+				(error: NodeJS.ErrnoException) => error.code
+			)
+		).toBe('ENOENT');
 	});
 
 	it('restores the previous complete snapshot when installation is interrupted', async () => {
 		const root = await mkdtemp(join(tmpdir(), 'gliese-export-failure-test-'));
-		const oldPackage = {
-			files: { 'old-base.png': Buffer.from('old-png') },
-			provenanceJson: Buffer.from('{"generation":"old"}\n'),
-			cropManifestJson: Buffer.from('{"crops":"old"}\n')
-		};
+		const oldPackage = publicationPackage('old');
 		await publishMeadowEntryExportPackage(root, oldPackage);
 		let injected = false;
 		const fileSystem: MeadowEntryExportPublicationFileSystem = {
@@ -344,16 +410,144 @@ describe('meadow-entry export publication', () => {
 		};
 
 		await expect(
-			publishMeadowEntryExportPackage(
-				root,
-				{
-					files: { 'new-base.png': Buffer.from('new-png') },
-					provenanceJson: Buffer.from('{"generation":"new"}\n'),
-					cropManifestJson: Buffer.from('{"crops":"new"}\n')
-				},
-				fileSystem
-			)
+			publishMeadowEntryExportPackage(root, publicationPackage('new'), fileSystem)
 		).rejects.toThrow(/injected publication interruption/i);
 		expect(await readPublishedMeadowEntryExportSnapshot(root)).toEqual(oldPackage);
+	});
+
+	it('retries when a reader spans the complete writer window and never returns a mixed generation', async () => {
+		const root = await mkdtemp(join(tmpdir(), 'gliese-export-race-test-'));
+		const oldPackage = publicationPackage('old');
+		const newPackage = publicationPackage('new');
+		await publishMeadowEntryExportPackage(root, oldPackage);
+		let captured = 0;
+		let releaseGenerationReads!: () => void;
+		const generationReadsReleased = new Promise<void>((resolve) => {
+			releaseGenerationReads = resolve;
+		});
+		let generationCaptured!: () => void;
+		const bothGenerationFilesCaptured = new Promise<void>((resolve) => {
+			generationCaptured = resolve;
+		});
+		const pausedPaths = new Set<string>();
+		const snapshotFileSystem: MeadowEntryExportSnapshotFileSystem = {
+			lstat,
+			readdir,
+			readFile: async (path) => {
+				const bytes = await readFile(path);
+				const pathString = String(path);
+				const generationFile =
+					pathString.endsWith('meadow-entry-export-provenance.json') ||
+					pathString.endsWith('meadow-entry-crop-manifest.json');
+				if (generationFile && !pausedPaths.has(pathString)) {
+					pausedPaths.add(pathString);
+					captured += 1;
+					if (captured === 2) generationCaptured();
+					await generationReadsReleased;
+				}
+				return bytes as Buffer;
+			}
+		};
+
+		const reader = readPublishedMeadowEntryExportSnapshot(root, {
+			attempts: 2,
+			fileSystem: snapshotFileSystem
+		});
+		await bothGenerationFilesCaptured;
+		await publishMeadowEntryExportPackage(root, newPackage);
+		releaseGenerationReads();
+
+		await expect(reader).resolves.toEqual(newPackage);
+	});
+
+	it('leaves the sentinel in place and readers fail closed when rollback is incomplete', async () => {
+		const root = await mkdtemp(join(tmpdir(), 'gliese-export-rollback-test-'));
+		await publishMeadowEntryExportPackage(root, publicationPackage('old'));
+		let installationFailed = false;
+		const fileSystem: MeadowEntryExportPublicationFileSystem = {
+			mkdir,
+			writeFile,
+			rename: async (source, destination) => {
+				if (
+					!installationFailed &&
+					String(destination).endsWith('meadow-entry-export-provenance.json')
+				) {
+					installationFailed = true;
+					throw new Error('injected installation failure');
+				}
+				return rename(source, destination);
+			},
+			rm: async (path, options) => {
+				if (installationFailed && String(path) === join(root, 'exports')) {
+					throw new Error('injected rollback failure');
+				}
+				return rm(path, options);
+			}
+		};
+
+		await expect(
+			publishMeadowEntryExportPackage(root, publicationPackage('new'), fileSystem)
+		).rejects.toThrow(/injected installation failure/i);
+		expect((await lstat(join(root, '.meadow-entry-export-publication.lock'))).isFile()).toBe(true);
+		await expect(readPublishedMeadowEntryExportSnapshot(root, { attempts: 1 })).rejects.toThrow(
+			/publication is in progress/i
+		);
+	});
+});
+
+describe('meadow-entry approved master snapshot guard', () => {
+	it('accepts a fully bound approved snapshot', () => {
+		const fixture = approvedMasterFixture();
+		expect(() => assertApprovedMasterSnapshot(fixture.snapshot, fixture.expected)).not.toThrow();
+	});
+
+	it('rejects altered base bytes', () => {
+		const fixture = approvedMasterFixture();
+		expect(() =>
+			assertApprovedMasterSnapshot(
+				{ ...fixture.snapshot, basePng: Buffer.from('altered-base') },
+				fixture.expected
+			)
+		).toThrow(/base master hash has drifted/i);
+	});
+
+	it('rejects altered foreground bytes', () => {
+		const fixture = approvedMasterFixture();
+		expect(() =>
+			assertApprovedMasterSnapshot(
+				{ ...fixture.snapshot, foregroundPng: Buffer.from('altered-foreground') },
+				fixture.expected
+			)
+		).toThrow(/foreground master hash has drifted/i);
+	});
+
+	it('rejects altered provenance bytes', () => {
+		const fixture = approvedMasterFixture();
+		expect(() =>
+			assertApprovedMasterSnapshot(
+				{
+					...fixture.snapshot,
+					provenanceJson: Buffer.concat([fixture.snapshot.provenanceJson, Buffer.from(' ')])
+				},
+				fixture.expected
+			)
+		).toThrow(/master provenance hash has drifted/i);
+	});
+
+	it('rejects provenance content whose bytes were separately approved', () => {
+		const fixture = approvedMasterFixture();
+		const alteredProvenance = Buffer.from(
+			`${JSON.stringify({
+				controls: { fingerprint: 'b'.repeat(64) },
+				base: { sha256: fixture.expected.baseSha256 },
+				foreground: { sha256: fixture.expected.foregroundSha256 }
+			})}\n`
+		);
+		expect(() =>
+			assertApprovedMasterSnapshot(
+				{ ...fixture.snapshot, provenanceJson: alteredProvenance },
+				{ ...fixture.expected, provenanceSha256: sha256(alteredProvenance) }
+			)
+		).toThrow(/provenance control fingerprint has drifted/i);
 	});
 });
