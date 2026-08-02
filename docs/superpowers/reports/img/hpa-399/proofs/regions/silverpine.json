@@ -1,0 +1,37 @@
+{
+  "version": 1,
+  "proofId": "regions/silverpine",
+  "path": "docs/superpowers/reports/img/hpa-399/proofs/regions/silverpine.png",
+  "sha256": "2ba5e14e4151438f855406604de697b9f008c1aca4056ec2fa3dc1f2fd1d1db5",
+  "bytes": 12186841,
+  "width": 1888,
+  "height": 3008,
+  "masterBounds": {
+    "left": 2048,
+    "top": 128,
+    "right": 3936,
+    "bottom": 3136
+  },
+  "inputs": [
+    {
+      "path": "artifacts/meadow-entry/hpa-399/exports/silverpine-base.png",
+      "sha256": "41f94f45f999b2ee3dd575ae9386f63434c1b52d0491300bb47484133fcba92f"
+    },
+    {
+      "path": "artifacts/meadow-entry/hpa-399/exports/silverpine-foreground.png",
+      "sha256": "0fbcb5d2e0dafc78b7f83e984079ddfdfcbcf77d85d4c37f2d9174a1fd2e3ca6"
+    }
+  ],
+  "inputSha256": [
+    "41f94f45f999b2ee3dd575ae9386f63434c1b52d0491300bb47484133fcba92f",
+    "0fbcb5d2e0dafc78b7f83e984079ddfdfcbcf77d85d4c37f2d9174a1fd2e3ca6"
+  ],
+  "metrics": {
+    "cropId": "silverpine",
+    "textureKeys": {
+      "base": "meadow-entry-silverpine-base",
+      "foreground": "meadow-entry-silverpine-foreground"
+    },
+    "drawOrder": 230
+  }
+}

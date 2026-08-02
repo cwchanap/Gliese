@@ -1,0 +1,48 @@
+{
+  "version": 1,
+  "proofId": "sundrop-feather/left",
+  "path": "docs/superpowers/reports/img/hpa-399/proofs/sundrop-feather/left.png",
+  "sha256": "b7bb13eb81a43e47be06f719b3084e7adc59f3a51f3856df5067b244aa9f5a88",
+  "bytes": 583193,
+  "width": 256,
+  "height": 1536,
+  "masterBounds": {
+    "left": 128,
+    "top": 4352,
+    "right": 384,
+    "bottom": 5888
+  },
+  "inputs": [
+    {
+      "path": "artifacts/meadow-entry/hpa-399/masters/meadow-entry-base-master.png",
+      "sha256": "9a5097eea014d092e57a8953be0dec2a16c1e6d29446f8b293338bf95a93752c"
+    },
+    {
+      "path": "public/game/assets/regions/sundrop-village-base.png",
+      "sha256": "f1184b045c27c544ac18937a4f8ccfa12cd386319b1722be5d808aea8048ade6"
+    },
+    {
+      "path": "artifacts/meadow-entry/hpa-399/masters/meadow-entry-foreground-master.png",
+      "sha256": "c9ffa6e50a8e3c9f9888a642078094e95d9175158df8d262de8ac94b1ab9124e"
+    },
+    {
+      "path": "public/game/assets/regions/sundrop-village-foreground.png",
+      "sha256": "2d0a6703de1a404e49c0746f092a4c6f9f113ae17cd8bc35de635b5ec084ce45"
+    },
+    {
+      "path": "artifacts/meadow-entry/hpa-399/provenance/meadow-entry-crop-manifest.json",
+      "sha256": "6c7cc2f34723e300184355e892fac088d5271c2e74d921c511cea11b42bc4a11"
+    }
+  ],
+  "inputSha256": [
+    "9a5097eea014d092e57a8953be0dec2a16c1e6d29446f8b293338bf95a93752c",
+    "f1184b045c27c544ac18937a4f8ccfa12cd386319b1722be5d808aea8048ade6",
+    "c9ffa6e50a8e3c9f9888a642078094e95d9175158df8d262de8ac94b1ab9124e",
+    "2d0a6703de1a404e49c0746f092a4c6f9f113ae17cd8bc35de635b5ec084ce45",
+    "6c7cc2f34723e300184355e892fac088d5271c2e74d921c511cea11b42bc4a11"
+  ],
+  "metrics": {
+    "edge": "left",
+    "featherReviewBandPx": 128
+  }
+}

@@ -1,0 +1,37 @@
+{
+  "version": 1,
+  "proofId": "connectors/crossroads-mistfen-connector",
+  "path": "docs/superpowers/reports/img/hpa-399/proofs/connectors/crossroads-mistfen-connector.png",
+  "sha256": "b0957181ef17880e5cd0b334967b405ea71fc3a5f95bbe9a28c4ab356922aff4",
+  "bytes": 2846234,
+  "width": 1088,
+  "height": 1280,
+  "masterBounds": {
+    "left": 2176,
+    "top": 2432,
+    "right": 3264,
+    "bottom": 3712
+  },
+  "inputs": [
+    {
+      "path": "artifacts/meadow-entry/hpa-399/exports/crossroads-mistfen-connector-base.png",
+      "sha256": "564036dc1bf04b3af970664d114f8bb0f32072588f90ada73c9835aca608e9ab"
+    },
+    {
+      "path": "artifacts/meadow-entry/hpa-399/exports/crossroads-mistfen-connector-foreground.png",
+      "sha256": "16a0775fc314561d6a99e1e8eff69f555ff415d2e7878fa4d7a793c894401c52"
+    }
+  ],
+  "inputSha256": [
+    "564036dc1bf04b3af970664d114f8bb0f32072588f90ada73c9835aca608e9ab",
+    "16a0775fc314561d6a99e1e8eff69f555ff415d2e7878fa4d7a793c894401c52"
+  ],
+  "metrics": {
+    "cropId": "crossroads-mistfen-connector",
+    "textureKeys": {
+      "base": "meadow-entry-crossroads-mistfen-connector-base",
+      "foreground": "meadow-entry-crossroads-mistfen-connector-foreground"
+    },
+    "drawOrder": 120
+  }
+}

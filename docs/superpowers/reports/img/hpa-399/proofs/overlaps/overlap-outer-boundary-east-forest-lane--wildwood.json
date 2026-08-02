@@ -1,0 +1,39 @@
+{
+  "version": 1,
+  "proofId": "overlaps/overlap-outer-boundary-east-forest-lane--wildwood",
+  "path": "docs/superpowers/reports/img/hpa-399/proofs/overlaps/overlap-outer-boundary-east-forest-lane--wildwood.png",
+  "sha256": "1bcdf1d1e24a1f27d53d91011d42da1b60ae87bc8f142a79735cb653a6d18363",
+  "bytes": 23389,
+  "width": 1440,
+  "height": 4160,
+  "masterBounds": {
+    "left": 4832,
+    "top": 896,
+    "right": 6272,
+    "bottom": 5056
+  },
+  "inputs": [
+    {
+      "path": "artifacts/meadow-entry/hpa-399/exports/outer-boundary-east-forest-lane-base.png",
+      "sha256": "ddbc722719d67ee2e1101c7ebbccb3ab8a78e5374114a23067a99e498e74e2cc"
+    },
+    {
+      "path": "artifacts/meadow-entry/hpa-399/exports/wildwood-base.png",
+      "sha256": "012c88fb4ceea5f06ffcc3b95901c48854449ca3b14223bc916fc2d1e07df08f"
+    }
+  ],
+  "inputSha256": [
+    "ddbc722719d67ee2e1101c7ebbccb3ab8a78e5374114a23067a99e498e74e2cc",
+    "012c88fb4ceea5f06ffcc3b95901c48854449ca3b14223bc916fc2d1e07df08f"
+  ],
+  "metrics": {
+    "planes": {
+      "base": {
+        "differingPixels": 0,
+        "maximumChannelDifference": 0
+      }
+    },
+    "ownerCropId": "wildwood",
+    "cornerGroupId": "corner-meadow-entry-handoff-network"
+  }
+}

@@ -1,0 +1,27 @@
+{
+  "version": 1,
+  "proofId": "full/base-master",
+  "path": "docs/superpowers/reports/img/hpa-399/proofs/full/base-master.png",
+  "sha256": "9a5097eea014d092e57a8953be0dec2a16c1e6d29446f8b293338bf95a93752c",
+  "bytes": 75418273,
+  "width": 6400,
+  "height": 6400,
+  "masterBounds": {
+    "left": 0,
+    "top": 0,
+    "right": 6400,
+    "bottom": 6400
+  },
+  "inputs": [
+    {
+      "path": "artifacts/meadow-entry/hpa-399/masters/meadow-entry-base-master.png",
+      "sha256": "9a5097eea014d092e57a8953be0dec2a16c1e6d29446f8b293338bf95a93752c"
+    }
+  ],
+  "inputSha256": [
+    "9a5097eea014d092e57a8953be0dec2a16c1e6d29446f8b293338bf95a93752c"
+  ],
+  "metrics": {
+    "pixelTransform": "none"
+  }
+}

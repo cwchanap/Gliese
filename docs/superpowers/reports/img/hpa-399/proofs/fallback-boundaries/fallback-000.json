@@ -1,0 +1,34 @@
+{
+  "version": 1,
+  "proofId": "fallback-boundaries/fallback-000",
+  "path": "docs/superpowers/reports/img/hpa-399/proofs/fallback-boundaries/fallback-000.png",
+  "sha256": "385c9a3b44774e93c9666932a68032073595539b0799843f6ce583d2931206c7",
+  "bytes": 25667,
+  "width": 6400,
+  "height": 128,
+  "masterBounds": {
+    "left": 0,
+    "top": 0,
+    "right": 6400,
+    "bottom": 128
+  },
+  "inputs": [
+    {
+      "path": "artifacts/meadow-entry/hpa-399/masters/meadow-entry-base-master.png",
+      "sha256": "9a5097eea014d092e57a8953be0dec2a16c1e6d29446f8b293338bf95a93752c"
+    },
+    {
+      "path": "artifacts/meadow-entry/hpa-399/provenance/meadow-entry-crop-manifest.json",
+      "sha256": "6c7cc2f34723e300184355e892fac088d5271c2e74d921c511cea11b42bc4a11"
+    }
+  ],
+  "inputSha256": [
+    "9a5097eea014d092e57a8953be0dec2a16c1e6d29446f8b293338bf95a93752c",
+    "6c7cc2f34723e300184355e892fac088d5271c2e74d921c511cea11b42bc4a11"
+  ],
+  "metrics": {
+    "coverageIndex": 0,
+    "mode": "fallback-tile",
+    "reason": "Existing meadow-entry tile rendering remains the deliberate fallback outside approved baked crop coverage."
+  }
+}

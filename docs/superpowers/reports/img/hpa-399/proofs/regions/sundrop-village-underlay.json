@@ -1,0 +1,32 @@
+{
+  "version": 1,
+  "proofId": "regions/sundrop-village-underlay",
+  "path": "docs/superpowers/reports/img/hpa-399/proofs/regions/sundrop-village-underlay.png",
+  "sha256": "8367ce51ee8c216e66048eb8279e750962a4ba79a36a1136738ef40867c95115",
+  "bytes": 7497766,
+  "width": 1792,
+  "height": 1536,
+  "masterBounds": {
+    "left": 256,
+    "top": 4352,
+    "right": 2048,
+    "bottom": 5888
+  },
+  "inputs": [
+    {
+      "path": "artifacts/meadow-entry/hpa-399/exports/sundrop-village-underlay-base.png",
+      "sha256": "8367ce51ee8c216e66048eb8279e750962a4ba79a36a1136738ef40867c95115"
+    }
+  ],
+  "inputSha256": [
+    "8367ce51ee8c216e66048eb8279e750962a4ba79a36a1136738ef40867c95115"
+  ],
+  "metrics": {
+    "cropId": "sundrop-village-underlay",
+    "textureKeys": {
+      "base": "meadow-entry-sundrop-village-underlay-base",
+      "foreground": null
+    },
+    "drawOrder": 0
+  }
+}

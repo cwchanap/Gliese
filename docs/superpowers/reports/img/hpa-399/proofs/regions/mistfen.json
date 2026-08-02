@@ -1,0 +1,37 @@
+{
+  "version": 1,
+  "proofId": "regions/mistfen",
+  "path": "docs/superpowers/reports/img/hpa-399/proofs/regions/mistfen.png",
+  "sha256": "93a21d24132692b7276eb949ee349859fdd14df0fbfee62b9e17f1ef25101b60",
+  "bytes": 13463050,
+  "width": 2592,
+  "height": 2944,
+  "masterBounds": {
+    "left": 96,
+    "top": 288,
+    "right": 2688,
+    "bottom": 3232
+  },
+  "inputs": [
+    {
+      "path": "artifacts/meadow-entry/hpa-399/exports/mistfen-base.png",
+      "sha256": "a8e0e7fc1c7d00d7a60f66a010de45e7f1808c0a2e7f2609687d5d5a6b96e8cd"
+    },
+    {
+      "path": "artifacts/meadow-entry/hpa-399/exports/mistfen-foreground.png",
+      "sha256": "f5db7ba6e9e7963a89b5557dc2d44233f28062849af694a5eee8aa55a6803280"
+    }
+  ],
+  "inputSha256": [
+    "a8e0e7fc1c7d00d7a60f66a010de45e7f1808c0a2e7f2609687d5d5a6b96e8cd",
+    "f5db7ba6e9e7963a89b5557dc2d44233f28062849af694a5eee8aa55a6803280"
+  ],
+  "metrics": {
+    "cropId": "mistfen",
+    "textureKeys": {
+      "base": "meadow-entry-mistfen-base",
+      "foreground": "meadow-entry-mistfen-foreground"
+    },
+    "drawOrder": 220
+  }
+}

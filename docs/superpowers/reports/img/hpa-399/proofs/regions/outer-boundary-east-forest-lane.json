@@ -1,0 +1,32 @@
+{
+  "version": 1,
+  "proofId": "regions/outer-boundary-east-forest-lane",
+  "path": "docs/superpowers/reports/img/hpa-399/proofs/regions/outer-boundary-east-forest-lane.png",
+  "sha256": "ddbc722719d67ee2e1101c7ebbccb3ab8a78e5374114a23067a99e498e74e2cc",
+  "bytes": 12196325,
+  "width": 1440,
+  "height": 4608,
+  "masterBounds": {
+    "left": 4832,
+    "top": 896,
+    "right": 6272,
+    "bottom": 5504
+  },
+  "inputs": [
+    {
+      "path": "artifacts/meadow-entry/hpa-399/exports/outer-boundary-east-forest-lane-base.png",
+      "sha256": "ddbc722719d67ee2e1101c7ebbccb3ab8a78e5374114a23067a99e498e74e2cc"
+    }
+  ],
+  "inputSha256": [
+    "ddbc722719d67ee2e1101c7ebbccb3ab8a78e5374114a23067a99e498e74e2cc"
+  ],
+  "metrics": {
+    "cropId": "outer-boundary-east-forest-lane",
+    "textureKeys": {
+      "base": "meadow-entry-outer-boundary-east-forest-lane-base",
+      "foreground": null
+    },
+    "drawOrder": 10
+  }
+}

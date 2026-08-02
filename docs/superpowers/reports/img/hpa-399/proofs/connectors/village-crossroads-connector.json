@@ -1,0 +1,37 @@
+{
+  "version": 1,
+  "proofId": "connectors/village-crossroads-connector",
+  "path": "docs/superpowers/reports/img/hpa-399/proofs/connectors/village-crossroads-connector.png",
+  "sha256": "6f2daf348295d7e6ce80c3437f845223dee1c0404ec5b9806cf1eef6dc43e6c2",
+  "bytes": 5746866,
+  "width": 1920,
+  "height": 1376,
+  "masterBounds": {
+    "left": 1408,
+    "top": 3712,
+    "right": 3328,
+    "bottom": 5088
+  },
+  "inputs": [
+    {
+      "path": "artifacts/meadow-entry/hpa-399/exports/village-crossroads-connector-base.png",
+      "sha256": "1875020048ae66971061ea5e1c4d69f8682c82a6e35c5ef75af1aed8a671dd6b"
+    },
+    {
+      "path": "artifacts/meadow-entry/hpa-399/exports/village-crossroads-connector-foreground.png",
+      "sha256": "21a1ee9d6c354d00782eb0583917dc92b07733ab3e2502da0b9e80934ed352ea"
+    }
+  ],
+  "inputSha256": [
+    "1875020048ae66971061ea5e1c4d69f8682c82a6e35c5ef75af1aed8a671dd6b",
+    "21a1ee9d6c354d00782eb0583917dc92b07733ab3e2502da0b9e80934ed352ea"
+  ],
+  "metrics": {
+    "cropId": "village-crossroads-connector",
+    "textureKeys": {
+      "base": "meadow-entry-village-crossroads-connector-base",
+      "foreground": "meadow-entry-village-crossroads-connector-foreground"
+    },
+    "drawOrder": 100
+  }
+}

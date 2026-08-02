@@ -1,0 +1,60 @@
+{
+  "version": 1,
+  "proofId": "clamps/tidewatch-coast-bottom",
+  "path": "docs/superpowers/reports/img/hpa-399/proofs/clamps/tidewatch-coast-bottom.png",
+  "sha256": "722582b77f3a2be8eaa34f60348ed12e5668e59e253f9bdd6464291d5df7744a",
+  "bytes": 15771421,
+  "width": 3744,
+  "height": 2080,
+  "masterBounds": {
+    "left": 2656,
+    "top": 4320,
+    "right": 6400,
+    "bottom": 6400
+  },
+  "inputs": [
+    {
+      "path": "artifacts/meadow-entry/hpa-399/masters/meadow-entry-base-master.png",
+      "sha256": "9a5097eea014d092e57a8953be0dec2a16c1e6d29446f8b293338bf95a93752c"
+    },
+    {
+      "path": "public/game/assets/regions/sundrop-village-base.png",
+      "sha256": "f1184b045c27c544ac18937a4f8ccfa12cd386319b1722be5d808aea8048ade6"
+    },
+    {
+      "path": "artifacts/meadow-entry/hpa-399/masters/meadow-entry-foreground-master.png",
+      "sha256": "c9ffa6e50a8e3c9f9888a642078094e95d9175158df8d262de8ac94b1ab9124e"
+    },
+    {
+      "path": "public/game/assets/regions/sundrop-village-foreground.png",
+      "sha256": "2d0a6703de1a404e49c0746f092a4c6f9f113ae17cd8bc35de635b5ec084ce45"
+    },
+    {
+      "path": "artifacts/meadow-entry/hpa-399/provenance/meadow-entry-crop-manifest.json",
+      "sha256": "6c7cc2f34723e300184355e892fac088d5271c2e74d921c511cea11b42bc4a11"
+    }
+  ],
+  "inputSha256": [
+    "9a5097eea014d092e57a8953be0dec2a16c1e6d29446f8b293338bf95a93752c",
+    "f1184b045c27c544ac18937a4f8ccfa12cd386319b1722be5d808aea8048ade6",
+    "c9ffa6e50a8e3c9f9888a642078094e95d9175158df8d262de8ac94b1ab9124e",
+    "2d0a6703de1a404e49c0746f092a4c6f9f113ae17cd8bc35de635b5ec084ce45",
+    "6c7cc2f34723e300184355e892fac088d5271c2e74d921c511cea11b42bc4a11"
+  ],
+  "metrics": {
+    "cropId": "tidewatch-coast",
+    "side": "bottom",
+    "preClampBounds": {
+      "left": 2656,
+      "top": 4320,
+      "right": 6528,
+      "bottom": 6528
+    },
+    "approvedBounds": {
+      "left": 2656,
+      "top": 4320,
+      "right": 6400,
+      "bottom": 6400
+    }
+  }
+}

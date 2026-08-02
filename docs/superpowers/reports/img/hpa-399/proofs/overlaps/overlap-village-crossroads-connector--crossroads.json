@@ -1,0 +1,53 @@
+{
+  "version": 1,
+  "proofId": "overlaps/overlap-village-crossroads-connector--crossroads",
+  "path": "docs/superpowers/reports/img/hpa-399/proofs/overlaps/overlap-village-crossroads-connector--crossroads.png",
+  "sha256": "287ae7d3ff23d70b2537d388bf0c5465cb38c42aea4226d8d68f7aac73636d33",
+  "bytes": 2172,
+  "width": 544,
+  "height": 992,
+  "masterBounds": {
+    "left": 2784,
+    "top": 3712,
+    "right": 3328,
+    "bottom": 4704
+  },
+  "inputs": [
+    {
+      "path": "artifacts/meadow-entry/hpa-399/exports/village-crossroads-connector-base.png",
+      "sha256": "1875020048ae66971061ea5e1c4d69f8682c82a6e35c5ef75af1aed8a671dd6b"
+    },
+    {
+      "path": "artifacts/meadow-entry/hpa-399/exports/crossroads-base.png",
+      "sha256": "241671fd530810cc95ec20665eacd3f7080501691e912694f68f2a20963d0949"
+    },
+    {
+      "path": "artifacts/meadow-entry/hpa-399/exports/village-crossroads-connector-foreground.png",
+      "sha256": "21a1ee9d6c354d00782eb0583917dc92b07733ab3e2502da0b9e80934ed352ea"
+    },
+    {
+      "path": "artifacts/meadow-entry/hpa-399/exports/crossroads-foreground.png",
+      "sha256": "ce5656cd0a5b426b7d35742fc02a79f72aa83b262f5bee8a6264fe05f710a26d"
+    }
+  ],
+  "inputSha256": [
+    "1875020048ae66971061ea5e1c4d69f8682c82a6e35c5ef75af1aed8a671dd6b",
+    "241671fd530810cc95ec20665eacd3f7080501691e912694f68f2a20963d0949",
+    "21a1ee9d6c354d00782eb0583917dc92b07733ab3e2502da0b9e80934ed352ea",
+    "ce5656cd0a5b426b7d35742fc02a79f72aa83b262f5bee8a6264fe05f710a26d"
+  ],
+  "metrics": {
+    "planes": {
+      "base": {
+        "differingPixels": 0,
+        "maximumChannelDifference": 0
+      },
+      "foreground": {
+        "differingPixels": 0,
+        "maximumChannelDifference": 0
+      }
+    },
+    "ownerCropId": "crossroads",
+    "cornerGroupId": "corner-meadow-entry-handoff-network"
+  }
+}

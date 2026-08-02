@@ -1,0 +1,39 @@
+{
+  "version": 1,
+  "proofId": "overlaps/overlap-outer-boundary-east-forest-lane--tidewatch-coast",
+  "path": "docs/superpowers/reports/img/hpa-399/proofs/overlaps/overlap-outer-boundary-east-forest-lane--tidewatch-coast.png",
+  "sha256": "7c6545d0c57743b89695fff0a7b7d00b535a4967bebbc7f19af876d25c34f77d",
+  "bytes": 6702,
+  "width": 1440,
+  "height": 1184,
+  "masterBounds": {
+    "left": 4832,
+    "top": 4320,
+    "right": 6272,
+    "bottom": 5504
+  },
+  "inputs": [
+    {
+      "path": "artifacts/meadow-entry/hpa-399/exports/outer-boundary-east-forest-lane-base.png",
+      "sha256": "ddbc722719d67ee2e1101c7ebbccb3ab8a78e5374114a23067a99e498e74e2cc"
+    },
+    {
+      "path": "artifacts/meadow-entry/hpa-399/exports/tidewatch-coast-base.png",
+      "sha256": "9016d3a934da81a97e5fd61d9316ca0d93810d41990e7681d6ae17299f2e52c1"
+    }
+  ],
+  "inputSha256": [
+    "ddbc722719d67ee2e1101c7ebbccb3ab8a78e5374114a23067a99e498e74e2cc",
+    "9016d3a934da81a97e5fd61d9316ca0d93810d41990e7681d6ae17299f2e52c1"
+  ],
+  "metrics": {
+    "planes": {
+      "base": {
+        "differingPixels": 0,
+        "maximumChannelDifference": 0
+      }
+    },
+    "ownerCropId": "tidewatch-coast",
+    "cornerGroupId": "corner-meadow-entry-handoff-network"
+  }
+}

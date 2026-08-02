@@ -1,0 +1,53 @@
+{
+  "version": 1,
+  "proofId": "overlaps/overlap-crossroads-mistfen-connector--mistfen",
+  "path": "docs/superpowers/reports/img/hpa-399/proofs/overlaps/overlap-crossroads-mistfen-connector--mistfen.png",
+  "sha256": "b83bb0fe2db73b454f41c9314be8ff35102a6650624fcf62502c83486ce98f92",
+  "bytes": 1668,
+  "width": 512,
+  "height": 800,
+  "masterBounds": {
+    "left": 2176,
+    "top": 2432,
+    "right": 2688,
+    "bottom": 3232
+  },
+  "inputs": [
+    {
+      "path": "artifacts/meadow-entry/hpa-399/exports/crossroads-mistfen-connector-base.png",
+      "sha256": "564036dc1bf04b3af970664d114f8bb0f32072588f90ada73c9835aca608e9ab"
+    },
+    {
+      "path": "artifacts/meadow-entry/hpa-399/exports/mistfen-base.png",
+      "sha256": "a8e0e7fc1c7d00d7a60f66a010de45e7f1808c0a2e7f2609687d5d5a6b96e8cd"
+    },
+    {
+      "path": "artifacts/meadow-entry/hpa-399/exports/crossroads-mistfen-connector-foreground.png",
+      "sha256": "16a0775fc314561d6a99e1e8eff69f555ff415d2e7878fa4d7a793c894401c52"
+    },
+    {
+      "path": "artifacts/meadow-entry/hpa-399/exports/mistfen-foreground.png",
+      "sha256": "f5db7ba6e9e7963a89b5557dc2d44233f28062849af694a5eee8aa55a6803280"
+    }
+  ],
+  "inputSha256": [
+    "564036dc1bf04b3af970664d114f8bb0f32072588f90ada73c9835aca608e9ab",
+    "a8e0e7fc1c7d00d7a60f66a010de45e7f1808c0a2e7f2609687d5d5a6b96e8cd",
+    "16a0775fc314561d6a99e1e8eff69f555ff415d2e7878fa4d7a793c894401c52",
+    "f5db7ba6e9e7963a89b5557dc2d44233f28062849af694a5eee8aa55a6803280"
+  ],
+  "metrics": {
+    "planes": {
+      "base": {
+        "differingPixels": 0,
+        "maximumChannelDifference": 0
+      },
+      "foreground": {
+        "differingPixels": 0,
+        "maximumChannelDifference": 0
+      }
+    },
+    "ownerCropId": "mistfen",
+    "cornerGroupId": "corner-meadow-entry-handoff-network"
+  }
+}

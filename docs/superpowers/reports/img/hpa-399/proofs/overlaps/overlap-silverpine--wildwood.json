@@ -1,0 +1,53 @@
+{
+  "version": 1,
+  "proofId": "overlaps/overlap-silverpine--wildwood",
+  "path": "docs/superpowers/reports/img/hpa-399/proofs/overlaps/overlap-silverpine--wildwood.png",
+  "sha256": "974b24176499bc28b0048889db1007c0c9c453061f887051245a835572bd715b",
+  "bytes": 2694,
+  "width": 224,
+  "height": 3008,
+  "masterBounds": {
+    "left": 3712,
+    "top": 128,
+    "right": 3936,
+    "bottom": 3136
+  },
+  "inputs": [
+    {
+      "path": "artifacts/meadow-entry/hpa-399/exports/silverpine-base.png",
+      "sha256": "41f94f45f999b2ee3dd575ae9386f63434c1b52d0491300bb47484133fcba92f"
+    },
+    {
+      "path": "artifacts/meadow-entry/hpa-399/exports/wildwood-base.png",
+      "sha256": "012c88fb4ceea5f06ffcc3b95901c48854449ca3b14223bc916fc2d1e07df08f"
+    },
+    {
+      "path": "artifacts/meadow-entry/hpa-399/exports/silverpine-foreground.png",
+      "sha256": "0fbcb5d2e0dafc78b7f83e984079ddfdfcbcf77d85d4c37f2d9174a1fd2e3ca6"
+    },
+    {
+      "path": "artifacts/meadow-entry/hpa-399/exports/wildwood-foreground.png",
+      "sha256": "d1c24a3fbf99ce13aeeb280157dbb95661c545c3f9fd77b86d809ea490609932"
+    }
+  ],
+  "inputSha256": [
+    "41f94f45f999b2ee3dd575ae9386f63434c1b52d0491300bb47484133fcba92f",
+    "012c88fb4ceea5f06ffcc3b95901c48854449ca3b14223bc916fc2d1e07df08f",
+    "0fbcb5d2e0dafc78b7f83e984079ddfdfcbcf77d85d4c37f2d9174a1fd2e3ca6",
+    "d1c24a3fbf99ce13aeeb280157dbb95661c545c3f9fd77b86d809ea490609932"
+  ],
+  "metrics": {
+    "planes": {
+      "base": {
+        "differingPixels": 0,
+        "maximumChannelDifference": 0
+      },
+      "foreground": {
+        "differingPixels": 0,
+        "maximumChannelDifference": 0
+      }
+    },
+    "ownerCropId": "wildwood",
+    "cornerGroupId": "corner-meadow-entry-handoff-network"
+  }
+}

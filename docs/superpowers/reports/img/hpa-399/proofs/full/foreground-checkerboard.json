@@ -1,0 +1,27 @@
+{
+  "version": 1,
+  "proofId": "full/foreground-checkerboard",
+  "path": "docs/superpowers/reports/img/hpa-399/proofs/full/foreground-checkerboard.png",
+  "sha256": "07960cdbcfabbdc37a74d37a4400e975d0ab65443ed520dfb6387fcadf665655",
+  "bytes": 1902519,
+  "width": 6400,
+  "height": 6400,
+  "masterBounds": {
+    "left": 0,
+    "top": 0,
+    "right": 6400,
+    "bottom": 6400
+  },
+  "inputs": [
+    {
+      "path": "artifacts/meadow-entry/hpa-399/masters/meadow-entry-foreground-master.png",
+      "sha256": "c9ffa6e50a8e3c9f9888a642078094e95d9175158df8d262de8ac94b1ab9124e"
+    }
+  ],
+  "inputSha256": [
+    "c9ffa6e50a8e3c9f9888a642078094e95d9175158df8d262de8ac94b1ab9124e"
+  ],
+  "metrics": {
+    "reviewComposite": "64px-checkerboard"
+  }
+}

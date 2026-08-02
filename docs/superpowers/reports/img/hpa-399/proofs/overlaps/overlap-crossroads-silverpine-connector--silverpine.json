@@ -1,0 +1,53 @@
+{
+  "version": 1,
+  "proofId": "overlaps/overlap-crossroads-silverpine-connector--silverpine",
+  "path": "docs/superpowers/reports/img/hpa-399/proofs/overlaps/overlap-crossroads-silverpine-connector--silverpine.png",
+  "sha256": "9fc8e027f904e48b773dbe88c2f02f0652f5848d2b3f9431fc04df4bd3598a45",
+  "bytes": 1271,
+  "width": 800,
+  "height": 384,
+  "masterBounds": {
+    "left": 2912,
+    "top": 2752,
+    "right": 3712,
+    "bottom": 3136
+  },
+  "inputs": [
+    {
+      "path": "artifacts/meadow-entry/hpa-399/exports/crossroads-silverpine-connector-base.png",
+      "sha256": "71cb8b34953b34f57c099c26b1a45961dbeff3ec60b7d07b795672d12f48702d"
+    },
+    {
+      "path": "artifacts/meadow-entry/hpa-399/exports/silverpine-base.png",
+      "sha256": "41f94f45f999b2ee3dd575ae9386f63434c1b52d0491300bb47484133fcba92f"
+    },
+    {
+      "path": "artifacts/meadow-entry/hpa-399/exports/crossroads-silverpine-connector-foreground.png",
+      "sha256": "2cf1cd7763691c40abc007801ea82f49969f87c504733002bc2469d496ef8542"
+    },
+    {
+      "path": "artifacts/meadow-entry/hpa-399/exports/silverpine-foreground.png",
+      "sha256": "0fbcb5d2e0dafc78b7f83e984079ddfdfcbcf77d85d4c37f2d9174a1fd2e3ca6"
+    }
+  ],
+  "inputSha256": [
+    "71cb8b34953b34f57c099c26b1a45961dbeff3ec60b7d07b795672d12f48702d",
+    "41f94f45f999b2ee3dd575ae9386f63434c1b52d0491300bb47484133fcba92f",
+    "2cf1cd7763691c40abc007801ea82f49969f87c504733002bc2469d496ef8542",
+    "0fbcb5d2e0dafc78b7f83e984079ddfdfcbcf77d85d4c37f2d9174a1fd2e3ca6"
+  ],
+  "metrics": {
+    "planes": {
+      "base": {
+        "differingPixels": 0,
+        "maximumChannelDifference": 0
+      },
+      "foreground": {
+        "differingPixels": 0,
+        "maximumChannelDifference": 0
+      }
+    },
+    "ownerCropId": "silverpine",
+    "cornerGroupId": "corner-meadow-entry-handoff-network"
+  }
+}
