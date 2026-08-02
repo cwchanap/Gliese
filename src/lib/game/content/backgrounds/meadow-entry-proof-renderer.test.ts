@@ -135,6 +135,25 @@ async function pixel(rgba: readonly number[]): Promise<Buffer> {
 	return await encodeCanonicalMeadowEntryPng(Buffer.from(rgba), 1, 1);
 }
 
+function sidecarWith(png: Buffer, overrides: Record<string, unknown> = {}): Buffer {
+	return Buffer.from(
+		`${JSON.stringify({
+			version: 1,
+			proofId: 'test/proof',
+			path: 'docs/superpowers/reports/img/hpa-399/proofs/test/proof.png',
+			sha256: sha256(png),
+			bytes: png.byteLength,
+			width: 1,
+			height: 1,
+			masterBounds: { left: 0, top: 0, right: 1, bottom: 1 },
+			inputs: [{ path: 'input.bin', sha256: 'a'.repeat(64) }],
+			inputSha256: ['a'.repeat(64)],
+			metrics: {},
+			...overrides
+		})}\n`
+	);
+}
+
 describe('Meadow Entry proof renderer', () => {
 	it('proves the four-layer Sundrop review-composite truth table', async () => {
 		const transparent = await pixel([0, 0, 0, 0]);
@@ -461,5 +480,364 @@ describe('Meadow Entry proof renderer', () => {
 				expectedInputPaths: () => ['input.bin']
 			})
 		).rejects.toThrow(/dimensions do not match master bounds/);
+	});
+
+	it('rejects mismatched base and foreground master dimensions in the review composite', async () => {
+		const base = await pixel([10, 20, 30, 255]);
+		const foreground = await encodeCanonicalMeadowEntryPng(
+			Buffer.from([70, 80, 90, 255, 100, 110, 120, 255]),
+			2,
+			1
+		);
+		await expect(
+			renderMeadowEntryReviewComposite({
+				baseMasterPng: base,
+				foregroundMasterPng: foreground,
+				sundropBasePng: await pixel([40, 50, 60, 255]),
+				sundropForegroundPng: await pixel([100, 110, 120, 255]),
+				sundropBounds: { left: 0, top: 0, right: 1, bottom: 1 }
+			})
+		).rejects.toThrow(/master dimensions differ/);
+	});
+
+	it('rejects sundrop planes that do not match their approved master bounds', async () => {
+		const base = await encodeCanonicalMeadowEntryPng(
+			Buffer.from([10, 20, 30, 255, 10, 20, 30, 255]),
+			2,
+			1
+		);
+		const foreground = await encodeCanonicalMeadowEntryPng(
+			Buffer.from([70, 80, 90, 255, 70, 80, 90, 255]),
+			2,
+			1
+		);
+		const sundropBase = await encodeCanonicalMeadowEntryPng(
+			Buffer.from([40, 50, 60, 255, 40, 50, 60, 255]),
+			2,
+			1
+		);
+		const sundropForeground = await pixel([100, 110, 120, 255]);
+		await expect(
+			renderMeadowEntryReviewComposite({
+				baseMasterPng: base,
+				foregroundMasterPng: foreground,
+				sundropBasePng: sundropBase,
+				sundropForegroundPng: sundropForeground,
+				sundropBounds: { left: 0, top: 0, right: 1, bottom: 1 }
+			})
+		).rejects.toThrow(/do not match their approved master bounds/);
+	});
+
+	it('rejects overlap inputs with different dimensions', async () => {
+		const first = await pixel([1, 2, 3, 255]);
+		const second = await encodeCanonicalMeadowEntryPng(
+			Buffer.from([4, 5, 6, 255, 7, 8, 9, 255]),
+			2,
+			1
+		);
+		await expect(renderMeadowEntryOverlapDifference(first, second)).rejects.toThrow(
+			/overlap dimensions differ/
+		);
+	});
+
+	it('rejects a proof sidecar that is not valid JSON', async () => {
+		const api = await proofToolApi();
+		const png = await pixel([1, 2, 3, 255]);
+		const descriptor = {
+			proofId: 'test/proof',
+			filename: 'test/proof.png',
+			masterBounds: { left: 0, top: 0, right: 1, bottom: 1 }
+		};
+		await expect(
+			api.readPublishedMeadowEntryProofSnapshot('/repo', {
+				attempts: 1,
+				fileSystem: {
+					pathExists: async () => false,
+					listFiles: async () => ['test/proof.json', 'test/proof.png'],
+					readFile: async (path) => (path.endsWith('.png') ? png : Buffer.from('not json\n'))
+				},
+				descriptors: [descriptor],
+				expectedInputPaths: () => ['input.bin']
+			})
+		).rejects.toThrow(/malformed/);
+	});
+
+	it('rejects a proof sidecar with unexpected fields', async () => {
+		const api = await proofToolApi();
+		const png = await pixel([1, 2, 3, 255]);
+		const descriptor = {
+			proofId: 'test/proof',
+			filename: 'test/proof.png',
+			masterBounds: { left: 0, top: 0, right: 1, bottom: 1 }
+		};
+		await expect(
+			api.readPublishedMeadowEntryProofSnapshot('/repo', {
+				attempts: 1,
+				fileSystem: {
+					pathExists: async () => false,
+					listFiles: async () => ['test/proof.json', 'test/proof.png'],
+					readFile: async (path) =>
+						path.endsWith('.png') ? png : sidecarWith(png, { extra: true })
+				},
+				descriptors: [descriptor],
+				expectedInputPaths: () => ['input.bin']
+			})
+		).rejects.toThrow(/unexpected fields/);
+	});
+
+	it('rejects a proof sidecar with malformed structured fields', async () => {
+		const api = await proofToolApi();
+		const png = await pixel([1, 2, 3, 255]);
+		const descriptor = {
+			proofId: 'test/proof',
+			filename: 'test/proof.png',
+			masterBounds: { left: 0, top: 0, right: 1, bottom: 1 }
+		};
+		await expect(
+			api.readPublishedMeadowEntryProofSnapshot('/repo', {
+				attempts: 1,
+				fileSystem: {
+					pathExists: async () => false,
+					listFiles: async () => ['test/proof.json', 'test/proof.png'],
+					readFile: async (path) =>
+						path.endsWith('.png') ? png : sidecarWith(png, { inputs: 'notarray' })
+				},
+				descriptors: [descriptor],
+				expectedInputPaths: () => ['input.bin']
+			})
+		).rejects.toThrow(/malformed structured fields/);
+	});
+
+	it('rejects a sidecar whose proofId does not bind its PNG/input identity', async () => {
+		const api = await proofToolApi();
+		const png = await pixel([1, 2, 3, 255]);
+		const descriptor = {
+			proofId: 'test/proof',
+			filename: 'test/proof.png',
+			masterBounds: { left: 0, top: 0, right: 1, bottom: 1 }
+		};
+		await expect(
+			api.readPublishedMeadowEntryProofSnapshot('/repo', {
+				attempts: 1,
+				fileSystem: {
+					pathExists: async () => false,
+					listFiles: async () => ['test/proof.json', 'test/proof.png'],
+					readFile: async (path) =>
+						path.endsWith('.png') ? png : sidecarWith(png, { proofId: 'test/wrong' })
+				},
+				descriptors: [descriptor],
+				expectedInputPaths: () => ['input.bin']
+			})
+		).rejects.toThrow(/does not bind its PNG\/input identity/);
+	});
+
+	it('rejects a sidecar whose sha256 does not bind its PNG identity', async () => {
+		const api = await proofToolApi();
+		const png = await pixel([1, 2, 3, 255]);
+		const descriptor = {
+			proofId: 'test/proof',
+			filename: 'test/proof.png',
+			masterBounds: { left: 0, top: 0, right: 1, bottom: 1 }
+		};
+		await expect(
+			api.readPublishedMeadowEntryProofSnapshot('/repo', {
+				attempts: 1,
+				fileSystem: {
+					pathExists: async () => false,
+					listFiles: async () => ['test/proof.json', 'test/proof.png'],
+					readFile: async (path) =>
+						path.endsWith('.png') ? png : sidecarWith(png, { sha256: 'b'.repeat(64) })
+				},
+				descriptors: [descriptor],
+				expectedInputPaths: () => ['input.bin']
+			})
+		).rejects.toThrow(/does not bind/);
+	});
+
+	it('rejects a sidecar with duplicate input identities', async () => {
+		const api = await proofToolApi();
+		const png = await pixel([1, 2, 3, 255]);
+		const descriptor = {
+			proofId: 'test/proof',
+			filename: 'test/proof.png',
+			masterBounds: { left: 0, top: 0, right: 1, bottom: 1 }
+		};
+		const inputSha = 'a'.repeat(64);
+		await expect(
+			api.readPublishedMeadowEntryProofSnapshot('/repo', {
+				attempts: 1,
+				fileSystem: {
+					pathExists: async () => false,
+					listFiles: async () => ['test/proof.json', 'test/proof.png'],
+					readFile: async (path) =>
+						path.endsWith('.png')
+							? png
+							: sidecarWith(png, {
+									inputs: [
+										{ path: 'input.bin', sha256: inputSha },
+										{ path: 'input.bin', sha256: inputSha }
+									],
+									inputSha256: [inputSha, inputSha]
+								})
+				},
+				descriptors: [descriptor],
+				expectedInputPaths: () => ['input.bin', 'input.bin']
+			})
+		).rejects.toThrow(/duplicate input identities/);
+	});
+
+	it('rejects a sidecar with an invalid input identity', async () => {
+		const api = await proofToolApi();
+		const png = await pixel([1, 2, 3, 255]);
+		const descriptor = {
+			proofId: 'test/proof',
+			filename: 'test/proof.png',
+			masterBounds: { left: 0, top: 0, right: 1, bottom: 1 }
+		};
+		await expect(
+			api.readPublishedMeadowEntryProofSnapshot('/repo', {
+				attempts: 1,
+				fileSystem: {
+					pathExists: async () => false,
+					listFiles: async () => ['test/proof.json', 'test/proof.png'],
+					readFile: async (path) =>
+						path.endsWith('.png')
+							? png
+							: sidecarWith(png, {
+									inputs: [{ path: '/input.bin', sha256: 'a'.repeat(64) }],
+									inputSha256: ['a'.repeat(64)]
+								})
+				},
+				descriptors: [descriptor],
+				expectedInputPaths: () => ['/input.bin']
+			})
+		).rejects.toThrow(/invalid input identity/);
+	});
+
+	it('publishes a fresh proof inventory with no prior target', async () => {
+		const api = await proofToolApi();
+		const root = mkdtempSync(join(tmpdir(), 'gliese-proof-fresh-'));
+		const target = join(root, 'docs/superpowers/reports/img/hpa-399/proofs');
+		const staging = join(root, 'docs/superpowers/reports/img/hpa-399/.proofs-staging-test');
+		writeFixedInventory(staging, 'replacement');
+		const phases: string[] = [];
+		try {
+			await api.publishMeadowEntryProofInventory({
+				repositoryRoot: root,
+				stagingRoot: staging,
+				token: 'test',
+				onPhase: (phase) => phases.push(phase)
+			});
+			expect(phases).toContain('sentinel-written');
+			expect(phases).toContain('replacement-installed');
+			expect(phases).toContain('replacement-validated');
+			expect(phases).toContain('sentinel-removed');
+			expect(phases).not.toContain('previous-backed-up');
+			expect(readFileSync(join(target, 'full/base-master.json'), 'utf8')).toBe('replacement');
+		} finally {
+			rmSync(root, { recursive: true, force: true });
+		}
+	});
+
+	it('publishes a replacement proof inventory and backs up the previous target', async () => {
+		const api = await proofToolApi();
+		const root = mkdtempSync(join(tmpdir(), 'gliese-proof-replace-'));
+		const target = join(root, 'docs/superpowers/reports/img/hpa-399/proofs');
+		const staging = join(root, 'docs/superpowers/reports/img/hpa-399/.proofs-staging-test');
+		writeFixedInventory(target, 'previous');
+		writeFixedInventory(staging, 'replacement');
+		const phases: string[] = [];
+		try {
+			await api.publishMeadowEntryProofInventory({
+				repositoryRoot: root,
+				stagingRoot: staging,
+				token: 'test',
+				onPhase: (phase) => phases.push(phase)
+			});
+			expect(phases).toContain('previous-backed-up');
+			expect(readFileSync(join(target, 'full/base-master.json'), 'utf8')).toBe('replacement');
+		} finally {
+			rmSync(root, { recursive: true, force: true });
+		}
+	});
+
+	it('rejects a staging inventory that does not match the fixed proof set', async () => {
+		const api = await proofToolApi();
+		const root = mkdtempSync(join(tmpdir(), 'gliese-proof-bad-staging-'));
+		const staging = join(root, 'docs/superpowers/reports/img/hpa-399/.proofs-staging-test');
+		mkdirSync(staging, { recursive: true });
+		writeFileSync(join(staging, 'only-one.png'), 'fixture');
+		const phases: string[] = [];
+		try {
+			await expect(
+				api.publishMeadowEntryProofInventory({
+					repositoryRoot: root,
+					stagingRoot: staging,
+					token: 'test',
+					onPhase: (phase) => phases.push(phase)
+				})
+			).rejects.toThrow(/inventory differs/);
+			expect(phases).not.toContain('sentinel-written');
+		} finally {
+			rmSync(root, { recursive: true, force: true });
+		}
+	});
+
+	it('exhausts all attempts when the publication sentinel persists', async () => {
+		const api = await proofToolApi();
+		await expect(
+			api.readPublishedMeadowEntryProofSnapshot('/repo', {
+				attempts: 3,
+				retryDelayMs: 0,
+				fileSystem: {
+					pathExists: async () => true,
+					listFiles: async () => [],
+					readFile: async () => Buffer.alloc(0)
+				},
+				descriptors: [],
+				expectedInputPaths: () => []
+			})
+		).rejects.toThrow(/publication is in progress/);
+	});
+
+	it('rejects a non-positive attempts parameter', async () => {
+		const api = await proofToolApi();
+		await expect(
+			api.readPublishedMeadowEntryProofSnapshot('/repo', { attempts: 0 })
+		).rejects.toThrow(/attempts must be positive/);
+		await expect(
+			api.readPublishedMeadowEntryProofSnapshot('/repo', { attempts: -1 })
+		).rejects.toThrow(/attempts must be positive/);
+	});
+
+	it('rejects a negative retry delay', async () => {
+		const api = await proofToolApi();
+		await expect(
+			api.readPublishedMeadowEntryProofSnapshot('/repo', { retryDelayMs: -1 })
+		).rejects.toThrow(/retry delay must be non-negative/);
+	});
+
+	it('succeeds on the first attempt when no sentinel and proofs are valid', async () => {
+		const api = await proofToolApi();
+		const png = await pixel([1, 2, 3, 255]);
+		const descriptor = {
+			proofId: 'test/proof',
+			filename: 'test/proof.png',
+			masterBounds: { left: 0, top: 0, right: 1, bottom: 1 }
+		};
+		const sidecar = proofSidecar({ ...descriptor, png });
+		const snapshot = await api.readPublishedMeadowEntryProofSnapshot('/repo', {
+			attempts: 3,
+			retryDelayMs: 0,
+			fileSystem: {
+				pathExists: async () => false,
+				listFiles: async () => ['test/proof.json', 'test/proof.png'],
+				readFile: async (path) => (path.endsWith('.png') ? png : sidecar)
+			},
+			descriptors: [descriptor],
+			expectedInputPaths: () => ['input.bin']
+		});
+		expect(snapshot.attemptsUsed).toBe(1);
+		expect(snapshot.proofs).toHaveLength(1);
 	});
 });
