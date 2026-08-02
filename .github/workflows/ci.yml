@@ -29,13 +29,8 @@ jobs:
         env:
           PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: '1'
 
-      - name: Diagnose HPA-399 Sharp modes
-        run: |
-          bun tools/diagnose-meadow-entry-sharp-mode.ts default
-          bun tools/diagnose-meadow-entry-sharp-mode.ts simd-off
-          bun tools/diagnose-meadow-entry-sharp-mode.ts concurrency-one
-          bun tools/diagnose-meadow-entry-sharp-mode.ts both
-          exit 1
+      - name: Validate HPA-399 art package
+        run: bun run art:validate:meadow-entry
 
   build-and-lint:
     name: Build & Lint
