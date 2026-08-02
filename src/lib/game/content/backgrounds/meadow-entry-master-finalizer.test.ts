@@ -226,4 +226,43 @@ describe('Meadow Entry master finalizers', () => {
 		const second = await finalizeMeadowEntryMasters({ base, foreground });
 		expect(second).toEqual(first);
 	});
+
+	it('rejects a mixed predecessor snapshot after each plane validates independently', async () => {
+		const baseContext = await context();
+		const foregroundContext = await context();
+		const alternateBasePng = await rgbaPng([
+			1, 0, 0, 255, 0, 0, 0, 255, 0, 0, 0, 255, 0, 0, 0, 255
+		]);
+		const alternateForegroundPng = await rgbaPng([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0]);
+		foregroundContext.predecessor = {
+			basePng: alternateBasePng,
+			foregroundPng: alternateForegroundPng,
+			approvedBaseSha256: sha256(alternateBasePng),
+			approvedForegroundSha256: sha256(alternateForegroundPng)
+		};
+		const candidatePng = await rgbaPng(new Array(16).fill(255));
+		const transparent = await encodeCanonicalMeadowEntryPng(Buffer.alloc(16), 2, 2);
+		const base = {
+			...baseContext,
+			candidatePng,
+			transform: identityTransform(2, 2),
+			generation: manualFixture,
+			refinements: []
+		};
+		const foreground = {
+			...foregroundContext,
+			candidatePng,
+			transform: identityTransform(2, 2),
+			eligibleMaskPng: transparent,
+			protectedMaskPng: transparent,
+			generation: manualFixture,
+			refinements: []
+		};
+
+		await expect(finalizeMeadowEntryBase(base)).resolves.toBeDefined();
+		await expect(finalizeMeadowEntryForeground(foreground)).resolves.toBeDefined();
+		await expect(finalizeMeadowEntryMasters({ base, foreground })).rejects.toThrow(
+			/predecessor.*context.*match/i
+		);
+	});
 });
