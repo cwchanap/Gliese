@@ -8,6 +8,9 @@ import {
 	assertExactPathAllowlist,
 	assertNoActivePublicationSentinels,
 	compareFileTrees,
+	exactObjectKeys,
+	expectedApprovedPngPaths,
+	parseJsonObject,
 	parseLfsPointer,
 	runValidationStages
 } from '../../../../../tools/validate-meadow-entry-art-package';
@@ -230,5 +233,74 @@ describe('Meadow Entry art package validator', () => {
 		} catch (error) {
 			expect((error as Error).cause).toBe(cause);
 		}
+	});
+
+	it('expectedApprovedPngPaths returns a sorted, unique inventory of approved PNG paths', () => {
+		const paths = expectedApprovedPngPaths();
+		expect(paths).toEqual([...paths].sort());
+		expect(new Set(paths).size).toBe(paths.length);
+		expect(paths).toContain('artifacts/meadow-entry/hpa-399/lfs-canary.png');
+		expect(paths).toContain('artifacts/meadow-entry/hpa-399/masters/meadow-entry-base-master.png');
+		expect(
+			paths.includes('artifacts/meadow-entry/hpa-399/masters/meadow-entry-foreground-master.png')
+		).toBe(true);
+		expect(
+			paths.filter((path) => path.startsWith('artifacts/meadow-entry/hpa-399/exports/')).length
+		).toBeGreaterThan(0);
+		expect(
+			paths.filter((path) => path.startsWith('docs/superpowers/reports/img/hpa-399/proofs/')).length
+		).toBeGreaterThan(0);
+	});
+
+	it('exactObjectKeys accepts an object with the expected keys', () => {
+		expect(() =>
+			exactObjectKeys('provenance', { a: 1, b: 2, c: 3 }, ['a', 'b', 'c'])
+		).not.toThrow();
+	});
+
+	it('exactObjectKeys rejects an object with missing keys', () => {
+		expect(() => exactObjectKeys('provenance', { a: 1, b: 2 }, ['a', 'b', 'c'])).toThrow(
+			/provenance schema path allowlist drifted.*missing=c/
+		);
+	});
+
+	it('exactObjectKeys rejects an object with unexpected keys', () => {
+		expect(() =>
+			exactObjectKeys('provenance', { a: 1, b: 2, c: 3, d: 4 }, ['a', 'b', 'c'])
+		).toThrow(/provenance schema path allowlist drifted.*unexpected=d/);
+	});
+
+	it('exactObjectKeys is order-independent', () => {
+		expect(() =>
+			exactObjectKeys('provenance', { c: 3, a: 1, b: 2 }, ['b', 'a', 'c'])
+		).not.toThrow();
+	});
+
+	it('parseJsonObject reads and parses a JSON object from disk', async () => {
+		const root = await temporaryRoot();
+		await writeFile(join(root, 'object.json'), `${JSON.stringify({ hello: 'world' })}\n`);
+		await expect(parseJsonObject(root, 'object.json')).resolves.toEqual({ hello: 'world' });
+	});
+
+	it('parseJsonObject rejects invalid JSON', async () => {
+		const root = await temporaryRoot();
+		await writeFile(join(root, 'broken.json'), 'not json\n');
+		await expect(parseJsonObject(root, 'broken.json')).rejects.toThrow(
+			/broken\.json is not valid JSON/
+		);
+	});
+
+	it('parseJsonObject rejects a JSON array', async () => {
+		const root = await temporaryRoot();
+		await writeFile(join(root, 'array.json'), '[]\n');
+		await expect(parseJsonObject(root, 'array.json')).rejects.toThrow(
+			/array\.json is not an object/
+		);
+	});
+
+	it('parseJsonObject rejects a JSON null', async () => {
+		const root = await temporaryRoot();
+		await writeFile(join(root, 'null.json'), 'null\n');
+		await expect(parseJsonObject(root, 'null.json')).rejects.toThrow(/null\.json is not an object/);
 	});
 });

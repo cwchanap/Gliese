@@ -164,14 +164,14 @@ async function canonicalExtract(png: Buffer, bounds: PixelBounds): Promise<Buffe
 	return await canonicalPipeline(sharp(png).extract(extractOptions(bounds)));
 }
 
-function checkerboardSvg(width: number, height: number): Buffer {
+export function checkerboardSvg(width: number, height: number): Buffer {
 	return Buffer.from(`<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">
   <defs><pattern id="checker" width="64" height="64" patternUnits="userSpaceOnUse"><rect width="64" height="64" fill="#d6d6d6"/><path d="M0 0h32v32H0zm32 32h32v32H32z" fill="#9b9b9b"/></pattern></defs>
   <rect width="${width}" height="${height}" fill="url(#checker)"/>
 </svg>`);
 }
 
-function boundarySvg(
+export function boundarySvg(
 	width: number,
 	height: number,
 	sides: readonly ('top' | 'right' | 'bottom' | 'left')[] = ['top', 'right', 'bottom', 'left']
@@ -190,7 +190,7 @@ function boundarySvg(
 	);
 }
 
-function cornerGroupSvg(
+export function cornerGroupSvg(
 	masterBounds: PixelBounds,
 	overlaps: readonly (typeof MEADOW_ENTRY_APPROVED_OVERLAPS)[number][]
 ): Buffer {
@@ -500,14 +500,14 @@ async function walkFiles(root: string, prefix = ''): Promise<string[]> {
 	return files.sort();
 }
 
-function expectedProofInventory(): string[] {
+export function expectedProofInventory(): string[] {
 	return MEADOW_ENTRY_PROOF_FILENAMES.flatMap((path) => [
 		path,
 		path.replace(/\.png$/, '.json')
 	]).sort();
 }
 
-function expectedProofInventoryFor(
+export function expectedProofInventoryFor(
 	descriptors: readonly MeadowEntryProofDescriptor[]
 ): readonly string[] {
 	return descriptors
@@ -515,7 +515,10 @@ function expectedProofInventoryFor(
 		.sort();
 }
 
-function assertInventoryEquals(expected: readonly string[], actual: readonly string[]): void {
+export function assertInventoryEquals(
+	expected: readonly string[],
+	actual: readonly string[]
+): void {
 	assert(
 		JSON.stringify([...actual].sort()) === JSON.stringify(expected),
 		`Meadow Entry proof inventory differs: expected=${expected.join(',')} actual=${actual.join(',')}`
@@ -537,7 +540,7 @@ const NODE_PROOF_SNAPSHOT_FILE_SYSTEM: MeadowEntryProofSnapshotFileSystem = {
 	readFile
 };
 
-async function assertExactProofInventory(
+export async function assertExactProofInventory(
 	root: string,
 	fileSystem: Pick<
 		MeadowEntryProofPublicationFileSystem,
@@ -641,7 +644,7 @@ export async function publishMeadowEntryProofInventory(input: {
 	await assertExactProofInventory(target, fileSystem);
 }
 
-function proofExportPath(cropId: string, plane: 'base' | 'foreground'): string {
+export function proofExportPath(cropId: string, plane: 'base' | 'foreground'): string {
 	const crop = MEADOW_ENTRY_APPROVED_CROPS.find(({ id }) => id === cropId);
 	assert(crop, `Unknown Meadow Entry proof crop: ${cropId}`);
 	const filename = plane === 'base' ? crop.baseFilename : crop.foregroundFilename;
@@ -649,7 +652,7 @@ function proofExportPath(cropId: string, plane: 'base' | 'foreground'): string {
 	return `${EXPORT_ROOT}/${filename}`;
 }
 
-function expectedProofInputPaths(proofId: string): readonly string[] {
+export function expectedProofInputPaths(proofId: string): readonly string[] {
 	const fourLayers = [BASE_MASTER, SUNDROP_BASE, FOREGROUND_MASTER, SUNDROP_FOREGROUND];
 	if (proofId === 'full/base-master') return [BASE_MASTER];
 	if (proofId === 'full/foreground-checkerboard') return [FOREGROUND_MASTER];
@@ -693,7 +696,7 @@ function expectedProofInputPaths(proofId: string): readonly string[] {
 	throw new Error(`Unknown Meadow Entry proof identity: ${proofId}`);
 }
 
-function parseProofSidecar(bytes: Buffer, path: string): MeadowEntryProofSidecar {
+export function parseProofSidecar(bytes: Buffer, path: string): MeadowEntryProofSidecar {
 	let value: unknown;
 	try {
 		value = JSON.parse(bytes.toString('utf8')) as unknown;
@@ -733,7 +736,7 @@ function parseProofSidecar(bytes: Buffer, path: string): MeadowEntryProofSidecar
 	return sidecar as unknown as MeadowEntryProofSidecar;
 }
 
-function boundsEqual(first: PixelBounds, second: PixelBounds): boolean {
+export function boundsEqual(first: PixelBounds, second: PixelBounds): boolean {
 	return (
 		first.left === second.left &&
 		first.top === second.top &&
