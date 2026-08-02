@@ -79,6 +79,7 @@ const FOCUSED_TEST_FILES = [
 	'src/lib/game/content/backgrounds/meadow-entry-exporter.test.ts',
 	'src/lib/game/content/backgrounds/meadow-entry-proof-renderer.test.ts',
 	'src/lib/game/content/backgrounds/meadow-entry-art-source-snapshot.test.ts',
+	'src/lib/game/content/backgrounds/meadow-entry-art-proofs.test.ts',
 	'src/lib/game/content/backgrounds/art-map-package-adapter.test.ts',
 	'src/lib/game/content/backgrounds/meadow-entry-art-package-validator.test.ts',
 	'src/lib/game/content/meadow-entry-controls.asset.test.ts',
@@ -229,7 +230,7 @@ export async function compareFileTrees(
 	return { files: expected.length, bytes };
 }
 
-function expectedApprovedPngPaths(): string[] {
+export function expectedApprovedPngPaths(): string[] {
 	return [
 		LFS_CANARY,
 		meadowEntryArtPackageApproval.baseMaster.path,
@@ -292,7 +293,7 @@ async function validateLfs(repositoryRoot: string): Promise<void> {
 	}
 }
 
-function exactObjectKeys(
+export function exactObjectKeys(
 	label: string,
 	value: Record<string, unknown>,
 	expected: readonly string[]
@@ -300,7 +301,7 @@ function exactObjectKeys(
 	assertExactPathAllowlist(`${label} schema`, [...expected].sort(), Object.keys(value).sort());
 }
 
-async function parseJsonObject(
+export async function parseJsonObject(
 	repositoryRoot: string,
 	path: string
 ): Promise<Record<string, unknown>> {
