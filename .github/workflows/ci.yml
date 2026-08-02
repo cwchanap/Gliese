@@ -29,8 +29,17 @@ jobs:
         env:
           PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: '1'
 
-      - name: Validate HPA-399 art package
-        run: bun run art:validate:meadow-entry
+      - name: Diagnose HPA-399 proof regeneration
+        run: |
+          bun run art:proof:meadow-entry
+          echo '=== changed proof files ==='
+          git status --short --untracked-files=all -- docs/superpowers/reports/img/hpa-399/proofs
+          echo '=== first failing sidecar diff ==='
+          git diff --no-ext-diff -- docs/superpowers/reports/img/hpa-399/proofs/clamps/tidewatch-coast-bottom.json
+          echo '=== regenerated PNG digest ==='
+          sha256sum docs/superpowers/reports/img/hpa-399/proofs/clamps/tidewatch-coast-bottom.png
+          stat --printf='bytes=%s\n' docs/superpowers/reports/img/hpa-399/proofs/clamps/tidewatch-coast-bottom.png
+          exit 1
 
   build-and-lint:
     name: Build & Lint
