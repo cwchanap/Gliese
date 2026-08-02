@@ -50,14 +50,110 @@ function assertSha256(value: string, label: string): void {
 	}
 }
 
-export function validateMeadowEntryGenerationProvenance(
-	value: MeadowEntryGenerationProvenance
-): void {
-	assertNonEmptyString(value.tool, 'tool');
-	assertNonEmptyString(value.toolVersion, 'tool version');
+function isPlainObject(value: unknown): value is Record<string, unknown> {
+	return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function assertStringOrNull(value: unknown, label: string): asserts value is string | null {
+	if (value !== null && typeof value !== 'string') {
+		throw new Error(`Meadow Entry generation provenance ${label} must be a string or null`);
+	}
+}
+
+function assertStringArray(value: unknown, label: string): asserts value is string[] {
+	if (!Array.isArray(value) || value.some((entry) => typeof entry !== 'string')) {
+		throw new Error(`Meadow Entry generation provenance ${label} must be an array of strings`);
+	}
+}
+
+function assertInteger(value: unknown, label: string): asserts value is number {
+	if (!Number.isInteger(value)) {
+		throw new Error(`Meadow Entry refinement provenance ${label} must be an integer`);
+	}
+}
+
+function assertFiniteNumber(value: unknown, label: string): asserts value is number {
+	if (typeof value !== 'number' || !Number.isFinite(value)) {
+		throw new Error(`Meadow Entry refinement provenance ${label} must be a finite number`);
+	}
+}
+
+function assertPixelBounds(value: unknown, label: string): void {
+	if (!isPlainObject(value)) {
+		throw new Error(`Meadow Entry refinement provenance ${label} must be an object`);
+	}
+	assertInteger(value.left, `${label} left`);
+	assertInteger(value.top, `${label} top`);
+	assertInteger(value.right, `${label} right`);
+	assertInteger(value.bottom, `${label} bottom`);
+}
+
+function assertNormalizationTransformShape(value: unknown, label: string): void {
+	if (!isPlainObject(value)) {
+		throw new Error(`Meadow Entry refinement provenance ${label} must be an object`);
+	}
+	const native = value.native;
+	const crop = value.crop;
+	const output = value.output;
+	if (!isPlainObject(native)) {
+		throw new Error(`Meadow Entry refinement provenance ${label} native must be an object`);
+	}
+	if (!isPlainObject(crop)) {
+		throw new Error(`Meadow Entry refinement provenance ${label} crop must be an object`);
+	}
+	if (!isPlainObject(output)) {
+		throw new Error(`Meadow Entry refinement provenance ${label} output must be an object`);
+	}
+	assertInteger(native.width, `${label} native width`);
+	assertInteger(native.height, `${label} native height`);
+	assertInteger(crop.left, `${label} crop left`);
+	assertInteger(crop.top, `${label} crop top`);
+	assertInteger(crop.width, `${label} crop width`);
+	assertInteger(crop.height, `${label} crop height`);
+	assertInteger(output.width, `${label} output width`);
+	assertInteger(output.height, `${label} output height`);
+	assertFiniteNumber(value.scale, `${label} scale`);
+}
+
+export function validateMeadowEntryGenerationProvenance(value: unknown): void {
+	if (!isPlainObject(value)) {
+		throw new Error('Meadow Entry generation provenance must be an object');
+	}
+	if (value.mode !== 'manual' && value.mode !== 'generative') {
+		throw new Error("Meadow Entry generation provenance mode must be 'manual' or 'generative'");
+	}
+	if (typeof value.tool !== 'string') {
+		throw new Error('Meadow Entry generation provenance tool must be a string');
+	}
+	if (typeof value.toolVersion !== 'string') {
+		throw new Error('Meadow Entry generation provenance tool version must be a string');
+	}
+	if (!isPlainObject(value.settings)) {
+		throw new Error('Meadow Entry generation provenance settings must be an object');
+	}
+	assertStringOrNull(value.provider, 'provider');
+	assertStringOrNull(value.model, 'model');
+	assertStringOrNull(value.modelVersion, 'model version');
+	assertStringOrNull(value.prompt, 'prompt');
+	assertStringOrNull(value.promptSha256, 'prompt hash');
+	if (value.seed !== null && typeof value.seed !== 'number' && typeof value.seed !== 'string') {
+		throw new Error('Meadow Entry generation provenance seed must be a number, string, or null');
+	}
+	if (typeof value.seedUnavailable !== 'boolean') {
+		throw new Error('Meadow Entry generation provenance seedUnavailable must be a boolean');
+	}
+	if (typeof value.byteReproducibleGeneration !== 'boolean') {
+		throw new Error(
+			'Meadow Entry generation provenance byteReproducibleGeneration must be a boolean'
+		);
+	}
+	assertStringArray(value.referenceImageSha256, 'reference image hashes');
 	for (const hash of value.referenceImageSha256) {
 		assertSha256(hash, 'reference image hash');
 	}
+
+	assertNonEmptyString(value.tool, 'tool');
+	assertNonEmptyString(value.toolVersion, 'tool version');
 
 	if (value.mode === 'manual') {
 		if (
@@ -101,4 +197,33 @@ export function validateMeadowEntryGenerationProvenance(
 			);
 		}
 	}
+}
+
+export function validateMeadowEntryRefinementProvenance(value: unknown): void {
+	if (!isPlainObject(value)) {
+		throw new Error('Meadow Entry refinement provenance must be an object');
+	}
+	if (value.plane !== 'base' && value.plane !== 'foreground') {
+		throw new Error("Meadow Entry refinement provenance plane must be 'base' or 'foreground'");
+	}
+	assertStringArray(value.sourceRegionIds, 'source region ids');
+	assertStringArray(value.affectedCropIds, 'affected crop ids');
+	if (typeof value.editMaskSha256 !== 'string') {
+		throw new Error('Meadow Entry refinement provenance editMaskSha256 must be a string');
+	}
+	if (typeof value.replacementSha256 !== 'string') {
+		throw new Error('Meadow Entry refinement provenance replacementSha256 must be a string');
+	}
+	if (typeof value.beforeMasterSha256 !== 'string') {
+		throw new Error('Meadow Entry refinement provenance beforeMasterSha256 must be a string');
+	}
+	if (typeof value.afterMasterSha256 !== 'string') {
+		throw new Error('Meadow Entry refinement provenance afterMasterSha256 must be a string');
+	}
+	assertSha256(value.editMaskSha256, 'edit mask hash');
+	assertSha256(value.replacementSha256, 'replacement hash');
+	assertSha256(value.beforeMasterSha256, 'before master hash');
+	assertSha256(value.afterMasterSha256, 'after master hash');
+	assertPixelBounds(value.changedBounds, 'changed bounds');
+	assertNormalizationTransformShape(value.transform, 'transform');
 }
