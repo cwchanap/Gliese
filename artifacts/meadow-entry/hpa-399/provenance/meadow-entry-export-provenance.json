@@ -1,0 +1,588 @@
+{
+	"version": 1,
+	"controls": { "fingerprint": "a877c70797d303dee292582b715d009dfccace19f769ebbef86230b1fd17f26d" },
+	"masters": {
+		"base": {
+			"sha256": "9a5097eea014d092e57a8953be0dec2a16c1e6d29446f8b293338bf95a93752c",
+			"width": 6400,
+			"height": 6400
+		},
+		"foreground": {
+			"sha256": "c9ffa6e50a8e3c9f9888a642078094e95d9175158df8d262de8ac94b1ab9124e",
+			"width": 6400,
+			"height": 6400
+		}
+	},
+	"policy": {
+		"extraction": "direct-half-open-sharp-extract",
+		"pixelTransform": "none",
+		"foregroundTransparentRgb": "zero",
+		"pngEncoding": "canonical"
+	},
+	"budgets": {
+		"exportAreaRatio": 1.3218,
+		"overlapArea": 18795520,
+		"aggregateBaseReviewBytes": 176006422,
+		"aggregateBaseHardBytes": 266316498,
+		"aggregateForegroundReviewBytes": 55044791,
+		"aggregateForegroundHardBytes": 110089579,
+		"measuredBaseBytes": 107835683,
+		"measuredForegroundBytes": 1674264,
+		"aggregatePackageReviewBytes": 231051213,
+		"aggregatePackageHardBytes": 376406077
+	},
+	"inventory": [
+		{
+			"cropId": "sundrop-village-underlay",
+			"plane": "base",
+			"filename": "sundrop-village-underlay-base.png",
+			"textureKey": "meadow-entry-sundrop-village-underlay-base",
+			"drawOrder": 0,
+			"bounds": { "left": 256, "top": 4352, "right": 2048, "bottom": 5888 },
+			"width": 1792,
+			"height": 1536,
+			"bytes": 7497766,
+			"sha256": "8367ce51ee8c216e66048eb8279e750962a4ba79a36a1136738ef40867c95115",
+			"reviewBytes": 4194304,
+			"hardBytes": 8388608,
+			"reviewTargetExceeded": true
+		},
+		{
+			"cropId": "outer-boundary-east-forest-lane",
+			"plane": "base",
+			"filename": "outer-boundary-east-forest-lane-base.png",
+			"textureKey": "meadow-entry-outer-boundary-east-forest-lane-base",
+			"drawOrder": 10,
+			"bounds": { "left": 4832, "top": 896, "right": 6272, "bottom": 5504 },
+			"width": 1440,
+			"height": 4608,
+			"bytes": 12196325,
+			"sha256": "ddbc722719d67ee2e1101c7ebbccb3ab8a78e5374114a23067a99e498e74e2cc",
+			"reviewBytes": 25165824,
+			"hardBytes": 37748736,
+			"reviewTargetExceeded": false
+		},
+		{
+			"cropId": "village-crossroads-connector",
+			"plane": "base",
+			"filename": "village-crossroads-connector-base.png",
+			"textureKey": "meadow-entry-village-crossroads-connector-base",
+			"drawOrder": 100,
+			"bounds": { "left": 1408, "top": 3712, "right": 3328, "bottom": 5088 },
+			"width": 1920,
+			"height": 1376,
+			"bytes": 5737991,
+			"sha256": "1875020048ae66971061ea5e1c4d69f8682c82a6e35c5ef75af1aed8a671dd6b",
+			"reviewBytes": 8657044,
+			"hardBytes": 12985566,
+			"reviewTargetExceeded": false
+		},
+		{
+			"cropId": "village-crossroads-connector",
+			"plane": "foreground",
+			"filename": "village-crossroads-connector-foreground.png",
+			"textureKey": "meadow-entry-village-crossroads-connector-foreground",
+			"drawOrder": 100,
+			"bounds": { "left": 1408, "top": 3712, "right": 3328, "bottom": 5088 },
+			"width": 1920,
+			"height": 1376,
+			"bytes": 198795,
+			"sha256": "21a1ee9d6c354d00782eb0583917dc92b07733ab3e2502da0b9e80934ed352ea",
+			"reviewBytes": 3246392,
+			"hardBytes": 6492783,
+			"reviewTargetExceeded": false
+		},
+		{
+			"cropId": "crossroads-coast-connector",
+			"plane": "base",
+			"filename": "crossroads-coast-connector-base.png",
+			"textureKey": "meadow-entry-crossroads-coast-connector-base",
+			"drawOrder": 110,
+			"bounds": { "left": 3296, "top": 4416, "right": 4480, "bottom": 5696 },
+			"width": 1184,
+			"height": 1280,
+			"bytes": 3055296,
+			"sha256": "7d7b5ccbd98c928eea4c5c464d849780db59b7b1e6902fd2b0e3ceea8453faac",
+			"reviewBytes": 4966056,
+			"hardBytes": 7449084,
+			"reviewTargetExceeded": false
+		},
+		{
+			"cropId": "crossroads-coast-connector",
+			"plane": "foreground",
+			"filename": "crossroads-coast-connector-foreground.png",
+			"textureKey": "meadow-entry-crossroads-coast-connector-foreground",
+			"drawOrder": 110,
+			"bounds": { "left": 3296, "top": 4416, "right": 4480, "bottom": 5696 },
+			"width": 1184,
+			"height": 1280,
+			"bytes": 114385,
+			"sha256": "75743509b8120ee767c27723b8dfc04cd868c8050c09efab020100c65ffa3727",
+			"reviewBytes": 1862271,
+			"hardBytes": 3724542,
+			"reviewTargetExceeded": false
+		},
+		{
+			"cropId": "crossroads-mistfen-connector",
+			"plane": "base",
+			"filename": "crossroads-mistfen-connector-base.png",
+			"textureKey": "meadow-entry-crossroads-mistfen-connector-base",
+			"drawOrder": 120,
+			"bounds": { "left": 2176, "top": 2432, "right": 3264, "bottom": 3712 },
+			"width": 1088,
+			"height": 1280,
+			"bytes": 2847019,
+			"sha256": "564036dc1bf04b3af970664d114f8bb0f32072588f90ada73c9835aca608e9ab",
+			"reviewBytes": 4563403,
+			"hardBytes": 6845105,
+			"reviewTargetExceeded": false
+		},
+		{
+			"cropId": "crossroads-mistfen-connector",
+			"plane": "foreground",
+			"filename": "crossroads-mistfen-connector-foreground.png",
+			"textureKey": "meadow-entry-crossroads-mistfen-connector-foreground",
+			"drawOrder": 120,
+			"bounds": { "left": 2176, "top": 2432, "right": 3264, "bottom": 3712 },
+			"width": 1088,
+			"height": 1280,
+			"bytes": 23556,
+			"sha256": "16a0775fc314561d6a99e1e8eff69f555ff415d2e7878fa4d7a793c894401c52",
+			"reviewBytes": 1711277,
+			"hardBytes": 3422553,
+			"reviewTargetExceeded": false
+		},
+		{
+			"cropId": "crossroads-silverpine-connector",
+			"plane": "base",
+			"filename": "crossroads-silverpine-connector-base.png",
+			"textureKey": "meadow-entry-crossroads-silverpine-connector-base",
+			"drawOrder": 130,
+			"bounds": { "left": 2912, "top": 2752, "right": 3712, "bottom": 3232 },
+			"width": 800,
+			"height": 480,
+			"bytes": 855497,
+			"sha256": "71cb8b34953b34f57c099c26b1a45961dbeff3ec60b7d07b795672d12f48702d",
+			"reviewBytes": 1258292,
+			"hardBytes": 2097152,
+			"reviewTargetExceeded": false
+		},
+		{
+			"cropId": "crossroads-silverpine-connector",
+			"plane": "foreground",
+			"filename": "crossroads-silverpine-connector-foreground.png",
+			"textureKey": "meadow-entry-crossroads-silverpine-connector-foreground",
+			"drawOrder": 130,
+			"bounds": { "left": 2912, "top": 2752, "right": 3712, "bottom": 3232 },
+			"width": 800,
+			"height": 480,
+			"bytes": 7452,
+			"sha256": "2cf1cd7763691c40abc007801ea82f49969f87c504733002bc2469d496ef8542",
+			"reviewBytes": 524288,
+			"hardBytes": 1048576,
+			"reviewTargetExceeded": false
+		},
+		{
+			"cropId": "crossroads-wildwood-connector",
+			"plane": "base",
+			"filename": "crossroads-wildwood-connector-base.png",
+			"textureKey": "meadow-entry-crossroads-wildwood-connector-base",
+			"drawOrder": 140,
+			"bounds": { "left": 3840, "top": 3584, "right": 4480, "bottom": 5056 },
+			"width": 640,
+			"height": 1472,
+			"bytes": 1907478,
+			"sha256": "c5be6d9e8ea6c9acefa82cac34caac5995aff51117d572ba0e95f94f068991c0",
+			"reviewBytes": 3087008,
+			"hardBytes": 4630512,
+			"reviewTargetExceeded": false
+		},
+		{
+			"cropId": "crossroads-wildwood-connector",
+			"plane": "foreground",
+			"filename": "crossroads-wildwood-connector-foreground.png",
+			"textureKey": "meadow-entry-crossroads-wildwood-connector-foreground",
+			"drawOrder": 140,
+			"bounds": { "left": 3840, "top": 3584, "right": 4480, "bottom": 5056 },
+			"width": 640,
+			"height": 1472,
+			"bytes": 13003,
+			"sha256": "3549f849229c20c892ac66f4f8247cf6d247f64a319d825923d2008e55572fa6",
+			"reviewBytes": 1157628,
+			"hardBytes": 2315256,
+			"reviewTargetExceeded": false
+		},
+		{
+			"cropId": "crossroads",
+			"plane": "base",
+			"filename": "crossroads-base.png",
+			"textureKey": "meadow-entry-crossroads-base",
+			"drawOrder": 200,
+			"bounds": { "left": 2784, "top": 2496, "right": 4384, "bottom": 4704 },
+			"width": 1600,
+			"height": 2208,
+			"bytes": 7589332,
+			"sha256": "241671fd530810cc95ec20665eacd3f7080501691e912694f68f2a20963d0949",
+			"reviewBytes": 11576280,
+			"hardBytes": 17364419,
+			"reviewTargetExceeded": false
+		},
+		{
+			"cropId": "crossroads",
+			"plane": "foreground",
+			"filename": "crossroads-foreground.png",
+			"textureKey": "meadow-entry-crossroads-foreground",
+			"drawOrder": 200,
+			"bounds": { "left": 2784, "top": 2496, "right": 4384, "bottom": 4704 },
+			"width": 1600,
+			"height": 2208,
+			"bytes": 79432,
+			"sha256": "ce5656cd0a5b426b7d35742fc02a79f72aa83b262f5bee8a6264fe05f710a26d",
+			"reviewBytes": 4341105,
+			"hardBytes": 8682210,
+			"reviewTargetExceeded": false
+		},
+		{
+			"cropId": "tidewatch-coast",
+			"plane": "base",
+			"filename": "tidewatch-coast-base.png",
+			"textureKey": "meadow-entry-tidewatch-coast-base",
+			"drawOrder": 210,
+			"bounds": { "left": 2656, "top": 4320, "right": 6400, "bottom": 6400 },
+			"width": 3744,
+			"height": 2080,
+			"bytes": 15781759,
+			"sha256": "9016d3a934da81a97e5fd61d9316ca0d93810d41990e7681d6ae17299f2e52c1",
+			"reviewBytes": 25518146,
+			"hardBytes": 38277219,
+			"reviewTargetExceeded": false
+		},
+		{
+			"cropId": "tidewatch-coast",
+			"plane": "foreground",
+			"filename": "tidewatch-coast-foreground.png",
+			"textureKey": "meadow-entry-tidewatch-coast-foreground",
+			"drawOrder": 210,
+			"bounds": { "left": 2656, "top": 4320, "right": 6400, "bottom": 6400 },
+			"width": 3744,
+			"height": 2080,
+			"bytes": 505712,
+			"sha256": "ea98407147254ccaeaa9a2a07449788f02a81bc19b95478373f4be8630445d82",
+			"reviewBytes": 9569305,
+			"hardBytes": 19138610,
+			"reviewTargetExceeded": false
+		},
+		{
+			"cropId": "mistfen",
+			"plane": "base",
+			"filename": "mistfen-base.png",
+			"textureKey": "meadow-entry-mistfen-base",
+			"drawOrder": 220,
+			"bounds": { "left": 96, "top": 288, "right": 2688, "bottom": 3232 },
+			"width": 2592,
+			"height": 2944,
+			"bytes": 13465246,
+			"sha256": "a8e0e7fc1c7d00d7a60f66a010de45e7f1808c0a2e7f2609687d5d5a6b96e8cd",
+			"reviewBytes": 25004763,
+			"hardBytes": 37507145,
+			"reviewTargetExceeded": false
+		},
+		{
+			"cropId": "mistfen",
+			"plane": "foreground",
+			"filename": "mistfen-foreground.png",
+			"textureKey": "meadow-entry-mistfen-foreground",
+			"drawOrder": 220,
+			"bounds": { "left": 96, "top": 288, "right": 2688, "bottom": 3232 },
+			"width": 2592,
+			"height": 2944,
+			"bytes": 131276,
+			"sha256": "f5db7ba6e9e7963a89b5557dc2d44233f28062849af694a5eee8aa55a6803280",
+			"reviewBytes": 9376787,
+			"hardBytes": 18753573,
+			"reviewTargetExceeded": false
+		},
+		{
+			"cropId": "silverpine",
+			"plane": "base",
+			"filename": "silverpine-base.png",
+			"textureKey": "meadow-entry-silverpine-base",
+			"drawOrder": 230,
+			"bounds": { "left": 2048, "top": 128, "right": 3936, "bottom": 3136 },
+			"width": 1888,
+			"height": 3008,
+			"bytes": 12192835,
+			"sha256": "41f94f45f999b2ee3dd575ae9386f63434c1b52d0491300bb47484133fcba92f",
+			"reviewBytes": 18609288,
+			"hardBytes": 27913932,
+			"reviewTargetExceeded": false
+		},
+		{
+			"cropId": "silverpine",
+			"plane": "foreground",
+			"filename": "silverpine-foreground.png",
+			"textureKey": "meadow-entry-silverpine-foreground",
+			"drawOrder": 230,
+			"bounds": { "left": 2048, "top": 128, "right": 3936, "bottom": 3136 },
+			"width": 1888,
+			"height": 3008,
+			"bytes": 379376,
+			"sha256": "0fbcb5d2e0dafc78b7f83e984079ddfdfcbcf77d85d4c37f2d9174a1fd2e3ca6",
+			"reviewBytes": 6978483,
+			"hardBytes": 13956966,
+			"reviewTargetExceeded": false
+		},
+		{
+			"cropId": "wildwood",
+			"plane": "base",
+			"filename": "wildwood-base.png",
+			"textureKey": "meadow-entry-wildwood-base",
+			"drawOrder": 240,
+			"bounds": { "left": 3712, "top": 128, "right": 6400, "bottom": 5056 },
+			"width": 2688,
+			"height": 4928,
+			"bytes": 24709139,
+			"sha256": "012c88fb4ceea5f06ffcc3b95901c48854449ca3b14223bc916fc2d1e07df08f",
+			"reviewBytes": 43406014,
+			"hardBytes": 65109020,
+			"reviewTargetExceeded": false
+		},
+		{
+			"cropId": "wildwood",
+			"plane": "foreground",
+			"filename": "wildwood-foreground.png",
+			"textureKey": "meadow-entry-wildwood-foreground",
+			"drawOrder": 240,
+			"bounds": { "left": 3712, "top": 128, "right": 6400, "bottom": 5056 },
+			"width": 2688,
+			"height": 4928,
+			"bytes": 221277,
+			"sha256": "d1c24a3fbf99ce13aeeb280157dbb95661c545c3f9fd77b86d809ea490609932",
+			"reviewBytes": 16277255,
+			"hardBytes": 32554510,
+			"reviewTargetExceeded": false
+		}
+	],
+	"overlaps": [
+		{
+			"id": "overlap-sundrop-village-underlay--village-crossroads-connector",
+			"firstCropId": "sundrop-village-underlay",
+			"secondCropId": "village-crossroads-connector",
+			"bounds": { "left": 1408, "top": 4352, "right": 2048, "bottom": 5088 },
+			"planePolicy": "base-only",
+			"result": "identical"
+		},
+		{
+			"id": "overlap-outer-boundary-east-forest-lane--tidewatch-coast",
+			"firstCropId": "outer-boundary-east-forest-lane",
+			"secondCropId": "tidewatch-coast",
+			"bounds": { "left": 4832, "top": 4320, "right": 6272, "bottom": 5504 },
+			"planePolicy": "base-only",
+			"result": "identical"
+		},
+		{
+			"id": "overlap-outer-boundary-east-forest-lane--wildwood",
+			"firstCropId": "outer-boundary-east-forest-lane",
+			"secondCropId": "wildwood",
+			"bounds": { "left": 4832, "top": 896, "right": 6272, "bottom": 5056 },
+			"planePolicy": "base-only",
+			"result": "identical"
+		},
+		{
+			"id": "overlap-village-crossroads-connector--crossroads-coast-connector",
+			"firstCropId": "village-crossroads-connector",
+			"secondCropId": "crossroads-coast-connector",
+			"bounds": { "left": 3296, "top": 4416, "right": 3328, "bottom": 5088 },
+			"planePolicy": "base-and-foreground",
+			"result": "identical"
+		},
+		{
+			"id": "overlap-village-crossroads-connector--crossroads",
+			"firstCropId": "village-crossroads-connector",
+			"secondCropId": "crossroads",
+			"bounds": { "left": 2784, "top": 3712, "right": 3328, "bottom": 4704 },
+			"planePolicy": "base-and-foreground",
+			"result": "identical"
+		},
+		{
+			"id": "overlap-village-crossroads-connector--tidewatch-coast",
+			"firstCropId": "village-crossroads-connector",
+			"secondCropId": "tidewatch-coast",
+			"bounds": { "left": 2656, "top": 4320, "right": 3328, "bottom": 5088 },
+			"planePolicy": "base-and-foreground",
+			"result": "identical"
+		},
+		{
+			"id": "overlap-crossroads-coast-connector--crossroads-wildwood-connector",
+			"firstCropId": "crossroads-coast-connector",
+			"secondCropId": "crossroads-wildwood-connector",
+			"bounds": { "left": 3840, "top": 4416, "right": 4480, "bottom": 5056 },
+			"planePolicy": "base-and-foreground",
+			"result": "identical"
+		},
+		{
+			"id": "overlap-crossroads-coast-connector--crossroads",
+			"firstCropId": "crossroads-coast-connector",
+			"secondCropId": "crossroads",
+			"bounds": { "left": 3296, "top": 4416, "right": 4384, "bottom": 4704 },
+			"planePolicy": "base-and-foreground",
+			"result": "identical"
+		},
+		{
+			"id": "overlap-crossroads-coast-connector--tidewatch-coast",
+			"firstCropId": "crossroads-coast-connector",
+			"secondCropId": "tidewatch-coast",
+			"bounds": { "left": 3296, "top": 4416, "right": 4480, "bottom": 5696 },
+			"planePolicy": "base-and-foreground",
+			"result": "identical"
+		},
+		{
+			"id": "overlap-crossroads-coast-connector--wildwood",
+			"firstCropId": "crossroads-coast-connector",
+			"secondCropId": "wildwood",
+			"bounds": { "left": 3712, "top": 4416, "right": 4480, "bottom": 5056 },
+			"planePolicy": "base-and-foreground",
+			"result": "identical"
+		},
+		{
+			"id": "overlap-crossroads-mistfen-connector--crossroads-silverpine-connector",
+			"firstCropId": "crossroads-mistfen-connector",
+			"secondCropId": "crossroads-silverpine-connector",
+			"bounds": { "left": 2912, "top": 2752, "right": 3264, "bottom": 3232 },
+			"planePolicy": "base-and-foreground",
+			"result": "identical"
+		},
+		{
+			"id": "overlap-crossroads-mistfen-connector--crossroads",
+			"firstCropId": "crossroads-mistfen-connector",
+			"secondCropId": "crossroads",
+			"bounds": { "left": 2784, "top": 2496, "right": 3264, "bottom": 3712 },
+			"planePolicy": "base-and-foreground",
+			"result": "identical"
+		},
+		{
+			"id": "overlap-crossroads-mistfen-connector--mistfen",
+			"firstCropId": "crossroads-mistfen-connector",
+			"secondCropId": "mistfen",
+			"bounds": { "left": 2176, "top": 2432, "right": 2688, "bottom": 3232 },
+			"planePolicy": "base-and-foreground",
+			"result": "identical"
+		},
+		{
+			"id": "overlap-crossroads-mistfen-connector--silverpine",
+			"firstCropId": "crossroads-mistfen-connector",
+			"secondCropId": "silverpine",
+			"bounds": { "left": 2176, "top": 2432, "right": 3264, "bottom": 3136 },
+			"planePolicy": "base-and-foreground",
+			"result": "identical"
+		},
+		{
+			"id": "overlap-crossroads-silverpine-connector--crossroads",
+			"firstCropId": "crossroads-silverpine-connector",
+			"secondCropId": "crossroads",
+			"bounds": { "left": 2912, "top": 2752, "right": 3712, "bottom": 3232 },
+			"planePolicy": "base-and-foreground",
+			"result": "identical"
+		},
+		{
+			"id": "overlap-crossroads-silverpine-connector--silverpine",
+			"firstCropId": "crossroads-silverpine-connector",
+			"secondCropId": "silverpine",
+			"bounds": { "left": 2912, "top": 2752, "right": 3712, "bottom": 3136 },
+			"planePolicy": "base-and-foreground",
+			"result": "identical"
+		},
+		{
+			"id": "overlap-crossroads-wildwood-connector--crossroads",
+			"firstCropId": "crossroads-wildwood-connector",
+			"secondCropId": "crossroads",
+			"bounds": { "left": 3840, "top": 3584, "right": 4384, "bottom": 4704 },
+			"planePolicy": "base-and-foreground",
+			"result": "identical"
+		},
+		{
+			"id": "overlap-crossroads-wildwood-connector--tidewatch-coast",
+			"firstCropId": "crossroads-wildwood-connector",
+			"secondCropId": "tidewatch-coast",
+			"bounds": { "left": 3840, "top": 4320, "right": 4480, "bottom": 5056 },
+			"planePolicy": "base-and-foreground",
+			"result": "identical"
+		},
+		{
+			"id": "overlap-crossroads-wildwood-connector--wildwood",
+			"firstCropId": "crossroads-wildwood-connector",
+			"secondCropId": "wildwood",
+			"bounds": { "left": 3840, "top": 3584, "right": 4480, "bottom": 5056 },
+			"planePolicy": "base-and-foreground",
+			"result": "identical"
+		},
+		{
+			"id": "overlap-crossroads--tidewatch-coast",
+			"firstCropId": "crossroads",
+			"secondCropId": "tidewatch-coast",
+			"bounds": { "left": 2784, "top": 4320, "right": 4384, "bottom": 4704 },
+			"planePolicy": "base-and-foreground",
+			"result": "identical"
+		},
+		{
+			"id": "overlap-crossroads--silverpine",
+			"firstCropId": "crossroads",
+			"secondCropId": "silverpine",
+			"bounds": { "left": 2784, "top": 2496, "right": 3936, "bottom": 3136 },
+			"planePolicy": "base-and-foreground",
+			"result": "identical"
+		},
+		{
+			"id": "overlap-crossroads--wildwood",
+			"firstCropId": "crossroads",
+			"secondCropId": "wildwood",
+			"bounds": { "left": 3712, "top": 2496, "right": 4384, "bottom": 4704 },
+			"planePolicy": "base-and-foreground",
+			"result": "identical"
+		},
+		{
+			"id": "overlap-tidewatch-coast--wildwood",
+			"firstCropId": "tidewatch-coast",
+			"secondCropId": "wildwood",
+			"bounds": { "left": 3712, "top": 4320, "right": 6400, "bottom": 5056 },
+			"planePolicy": "base-and-foreground",
+			"result": "identical"
+		},
+		{
+			"id": "overlap-mistfen--silverpine",
+			"firstCropId": "mistfen",
+			"secondCropId": "silverpine",
+			"bounds": { "left": 2048, "top": 288, "right": 2688, "bottom": 3136 },
+			"planePolicy": "base-and-foreground",
+			"result": "identical"
+		},
+		{
+			"id": "overlap-silverpine--wildwood",
+			"firstCropId": "silverpine",
+			"secondCropId": "wildwood",
+			"bounds": { "left": 3712, "top": 128, "right": 3936, "bottom": 3136 },
+			"planePolicy": "base-and-foreground",
+			"result": "identical"
+		}
+	],
+	"cornerGroups": [
+		{
+			"id": "corner-meadow-entry-handoff-network",
+			"cropIds": [
+				"crossroads",
+				"crossroads-coast-connector",
+				"crossroads-mistfen-connector",
+				"crossroads-silverpine-connector",
+				"crossroads-wildwood-connector",
+				"mistfen",
+				"outer-boundary-east-forest-lane",
+				"silverpine",
+				"tidewatch-coast",
+				"village-crossroads-connector",
+				"wildwood"
+			],
+			"result": "identical"
+		}
+	],
+	"approvedMasterProvenanceSha256": "09f82618ef395402f2ceffa2fb058c4f8ad8b9df5bc1f80c7e711a454c6121cd"
+}
