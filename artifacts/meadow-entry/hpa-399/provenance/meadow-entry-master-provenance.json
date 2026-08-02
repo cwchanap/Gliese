@@ -1,0 +1,343 @@
+{
+	"version": 1,
+	"policy": {
+		"width": 6400,
+		"height": 6400,
+		"baseReviewBytes": 134217728,
+		"baseHardBytes": 201326592,
+		"foregroundReviewBytes": 50331648,
+		"foregroundHardBytes": 100663296
+	},
+	"controls": {
+		"fingerprint": "a877c70797d303dee292582b715d009dfccace19f769ebbef86230b1fd17f26d",
+		"storageConfigurationSha256": "0cf1316ca427ce34ff4480a8ce9f7d78bcaf9305b40ad7b699b8a4891ce80997"
+	},
+	"predecessor": {
+		"baseSha256": "f1184b045c27c544ac18937a4f8ccfa12cd386319b1722be5d808aea8048ade6",
+		"foregroundSha256": "2d0a6703de1a404e49c0746f092a4c6f9f113ae17cd8bc35de635b5ec084ce45"
+	},
+	"base": {
+		"sha256": "9a5097eea014d092e57a8953be0dec2a16c1e6d29446f8b293338bf95a93752c",
+		"bytes": 75418273,
+		"generation": {
+			"mode": "manual",
+			"provider": null,
+			"model": null,
+			"modelVersion": null,
+			"tool": "manual-global-painter",
+			"toolVersion": "8.0.0",
+			"settings": {
+				"algorithm": "aligned-imagegen-global-donor-control-compositor-v8",
+				"canvas": {
+					"width": 6400,
+					"height": 6400,
+					"channels": 4,
+					"opacity": "opaque"
+				},
+				"coordinateSystem": "orthographic-top-down-world-pixels",
+				"lighting": {
+					"direction": "upper-left",
+					"method": "integer-position-gradient"
+				},
+				"textureSampling": {
+					"source": "one aligned full-global imagegen spatial donor plus approved runtime terrain frames",
+					"sourceFrameSize": {
+						"width": 1254,
+						"height": 1254
+					},
+					"runtimeSampleSize": {
+						"width": 32,
+						"height": 32
+					},
+					"alignment": "full 1254px square normalized once to the full 6400px square; exact global modulo-32 sampling retained in fallback cells",
+					"proceduralNoise": "seedless precomputed smooth value-noise fields at 416px, 184px, 157px, 112px, and 26px scales",
+					"composition": "one normalized per-pixel solve over editable baked coverage using the aligned global donor as the macro/material baseline, a separate exact-union route compositor, measured protected/forbidden write exclusions, classifier-only donor-pattern suppression, masked multiscale Sundrop contextual outpaint, immutable Sundrop alpha composition, and exact fallback contracts",
+					"styleDonor": {
+						"path": "artifacts/meadow-entry/hpa-399/work/manual-base-production/sources/v7-imagegen-global-donor.png",
+						"sha256": "fccf3457889c65c2bfb5651e744e0f2dfcfbb4433d5459db6c893d3a2da2afe6",
+						"provider": "imagegen",
+						"model": null,
+						"settings": null,
+						"seed": null,
+						"seedUnavailable": true,
+						"byteReproducibleGeneration": false,
+						"prompt": "Refine this existing top-down landscape map without moving any paths, intersections, coastline, or the lower-left village location. Make the upper-left dark marsh feel organic rather than rectangular: irregular wet ground, shallow pools, mud, roots, soft fog-colored variation, and a naturally feathered boundary. Give the upper-center autumn ground, central crossroads, right forest, and lower coast distinct authored terrain structure while keeping them connected as one world. Add subtle wear, stones, grass, flowers, roots, and edge breakup inside the existing routes so they look like natural roads rather than uniform strips, but keep every route within its current footprint. Enrich the landscape around the lower-left village so its detail density transitions gradually. Remove panel-like rectangles and repeated bars. Preserve the exact square straight-down composition. Ground and low vegetation only; no text, interface, characters, buildings, or tall objects.",
+						"promptSha256": "b23a9b80c68a842b810160cf5116fd175d46a47f56742ca697c9d9ed6d10af6c",
+						"referencePath": "/Users/chanwaichan/.codex/generated_images/019fbf67-3ef1-7942-88e7-59d32002a9c6/exec-0a5edf64-1e80-4650-a053-92b02878681b.png",
+						"referenceSha256": "5fc3c741f63d683c1aad5fae3a83f8061b1345dbb853472193051aa7d9aa08df",
+						"use": "single aligned full-global macro composition and painterly material source over editable baked coverage; no independent per-region source images",
+						"contentCredentials": {
+							"sourceChunk": "caBX",
+							"archivedSourcePreservedByteForByte": true,
+							"propagatedToComposite": false,
+							"handling": "caBX content-credential manifest remains in the byte-identical archived source; resize and compositing produce a new deterministic PNG whose provenance is recorded in sidecars rather than copying the source credential"
+						}
+					},
+					"routeUnionCompositor": {
+						"approvedRouteSourceIds": [
+							"ground-patch:coast-approach-path",
+							"ground-patch:crossroads-festival-road",
+							"ground-patch:link-crossroads-coast",
+							"ground-patch:link-crossroads-coast-v",
+							"ground-patch:link-crossroads-mistfen",
+							"ground-patch:link-crossroads-mistfen-h",
+							"ground-patch:link-crossroads-silverpine",
+							"ground-patch:link-crossroads-wildwood",
+							"ground-patch:link-village-crossroads",
+							"ground-patch:link-village-crossroads-v",
+							"ground-patch:mistfen-approach-path",
+							"ground-patch:mistfen-safe-curve-a",
+							"ground-patch:mistfen-safe-curve-b",
+							"ground-patch:silverpine-bend-east",
+							"ground-patch:silverpine-bend-west",
+							"ground-patch:silverpine-lower-approach",
+							"ground-patch:silverpine-stair-path",
+							"ground-patch:sundrop-forest-road-east",
+							"ground-patch:sundrop-forest-road-north"
+						],
+						"profile": {
+							"mean": [
+								119.27823772545091,
+								103.91766658316634,
+								71.91900676352705
+							],
+							"deviation": [
+								29.19872987826021,
+								24.605781179449597,
+								21.742017560950877
+							],
+							"samples": 159680
+						},
+						"unionAudit": {
+							"unionPixels": 1423828,
+							"eligiblePaintPixels": 1423828,
+							"modifiedPixelsInsideUnion": 1423063,
+							"outputModifiedPixelsOutsideUnion": 0,
+							"writeAttemptsOutsideUnion": 0,
+							"outsideUnionSha256Before": "bb20649d162511ea4799937c02cf3ca622a649838d8d3f8f76bb4de135ec33f7",
+							"outsideUnionSha256After": "bb20649d162511ea4799937c02cf3ca622a649838d8d3f8f76bb4de135ec33f7",
+							"luminance": {
+								"mean": 104.3046503897369,
+								"deviation": 19.702697418233807,
+								"minimum": 37.630599999999994,
+								"maximum": 202.24079999999998
+							},
+							"chroma": {
+								"mean": 66.15787019218614,
+								"deviation": 14.354125023082862,
+								"minimum": 17,
+								"maximum": 114
+							},
+							"texture": {
+								"neighborSamples": 2827221,
+								"meanAbsoluteLuminanceDelta": 2.221997745000543,
+								"deviation": 1.9529011177712217
+							},
+							"edgeBlendDistribution": {
+								"0-0.2": 303453,
+								"0.2-0.4": 175924,
+								"0.4-0.6": 160440,
+								"0.6-0.8": 191561,
+								"0.8-1.0": 592450
+							},
+							"motifPixelCounts": {
+								"wornEarth": 817396,
+								"cobble": 54227,
+								"stone": 9185,
+								"grass": 20300
+							},
+							"motifInstanceCounts": {
+								"cobble": 483,
+								"stone": 202,
+								"grass": 626
+							}
+						},
+						"derivation": "one solve over the exact union of the 19 semantic route masks, with union inside-distance edge decay back to saved local pre-route terrain and one field seed derived from the sorted approved source IDs"
+					},
+					"routeLikeClassifierSuppression": {
+						"classifier": "donor route-profile color and local-luminance heuristic outside approved route eligibility; numeric suppression evidence only, not semantic proof that every false path is absent",
+						"flaggedPixels": 5057605,
+						"suppressedPixels": 5057605,
+						"residualThresholdPixels": 0,
+						"visualReviewRequired": true
+					},
+					"fallbackTransitions": {
+						"bandRadius": 112,
+						"uniqueBandPixels": 1701908,
+						"paintOperations": 1975848,
+						"derivation": "per fallback SVG ID, exact runtime tile phase blended on baked runtime-coverage pixels only; fallback union and exact Sundrop underlay excluded"
+					}
+				},
+				"geometryContracts": {
+					"controlFingerprint": "a877c70797d303dee292582b715d009dfccace19f769ebbef86230b1fd17f26d",
+					"regions": "meadow-entry-region-mask.svg",
+					"terrain": "meadow-entry-terrain-path-mask.svg",
+					"ownership": "meadow-entry-bake-ownership.json plus frozen source catalog bounds",
+					"protected": "meadow-entry-protected-live-mask.svg",
+					"forbiddenTall": "meadow-entry-forbidden-tall-mask.svg",
+					"handoffsAndFallback": "meadow-entry-crop-manifest.json and approved masks"
+				},
+				"sundropSampling": "96px segment palette/deviation/detail statistics, ground-masked high-frequency residual samples, and deterministic flower/stone/grass motifs from 48px immutable edge bands, decayed through a 448px contextual band excluding route/protected/forbidden/fallback pixels; immutable base alpha-composited at crop-derived direct base-only bounds",
+				"obstacleTreatment": "approved base-static and base-and-foreground footprints only; signed-distance low-profile influence inside the normalized solve; candidate intersections and actual write intersections measured separately for protected and forbidden-tall masks",
+				"pngEncoding": {
+					"palette": false,
+					"compressionLevel": 9,
+					"adaptiveFiltering": false,
+					"canonicalChunks": [
+						"IHDR",
+						"IDAT",
+						"IEND"
+					]
+				},
+				"runtime": {
+					"bun": "1.3.14",
+					"node": "v24.3.0",
+					"sharp": "0.35.3",
+					"libvips": "8.18.3"
+				},
+				"candidateSha256": "9a5097eea014d092e57a8953be0dec2a16c1e6d29446f8b293338bf95a93752c"
+			},
+			"seed": null,
+			"seedUnavailable": false,
+			"prompt": null,
+			"promptSha256": null,
+			"referenceImageSha256": [
+				"0fdbde1ea3f8263db1f58c90e7d3f2c6c8ade112e71f4c88c63fd926810ec6da",
+				"1aed92216306a76936e9537276099c64d86096dbbf857b6fce073d35063db91b",
+				"30fed9270eea21bdf28d58f19cd84d5252e1b15d5beceb3b338e8bbc914a7a6a",
+				"5fc3c741f63d683c1aad5fae3a83f8061b1345dbb853472193051aa7d9aa08df",
+				"81f3252a0c2f81cb7a2d0e094169db0d981740eea065e05adc26e2805175ac90",
+				"823890f2dbb3f3659993c831d07020012b77f2af53514bb2f6ef25715e8033a0",
+				"a4fc0b2c18969f0fdd32d64c1cf802194abc2b99058ede9e41fb6e6956c27f4c",
+				"c3ff227bef6206d2677e0bf42aa2c91b647ea6412428451ec5dbcf72975d3cca",
+				"ca074ca3a40c8eee1f837d3ffd37d99d86d87a6360235981895b3e0ec6e58ed5",
+				"d5164aa2a3279e26c5677343c9dd331cc531db7e9f53154d8d6bcffcb3c8a1b9",
+				"f1184b045c27c544ac18937a4f8ccfa12cd386319b1722be5d808aea8048ade6",
+				"f1b823555911c403ce86a513659c7807da320084db95fe9bf31ca2b09fd2f149",
+				"fccf3457889c65c2bfb5651e744e0f2dfcfbb4433d5459db6c893d3a2da2afe6"
+			],
+			"byteReproducibleGeneration": false,
+			"deterministicNormalizationAndCompositing": {
+				"byteReproducible": true,
+				"randomCalls": 0,
+				"inputDonorSha256": "fccf3457889c65c2bfb5651e744e0f2dfcfbb4433d5459db6c893d3a2da2afe6"
+			}
+		},
+		"transform": {
+			"native": {
+				"width": 6400,
+				"height": 6400
+			},
+			"crop": {
+				"left": 0,
+				"top": 0,
+				"width": 6400,
+				"height": 6400
+			},
+			"output": {
+				"width": 6400,
+				"height": 6400
+			},
+			"scale": 1
+		},
+		"refinements": []
+	},
+	"foreground": {
+		"sha256": "c9ffa6e50a8e3c9f9888a642078094e95d9175158df8d262de8ac94b1ab9124e",
+		"bytes": 1498345,
+		"generation": {
+			"mode": "manual",
+			"provider": null,
+			"model": null,
+			"modelVersion": null,
+			"tool": "manual-sparse-foreground-painter",
+			"toolVersion": "5.0.0",
+			"settings": {
+				"algorithm": "control-derived-base-textured-route-clear-organic-sparse-occlusion-v5",
+				"canvas": {
+					"width": 6400,
+					"height": 6400,
+					"channels": 4,
+					"alpha": "sparse"
+				},
+				"coordinateSystem": "orthographic-top-down-world-pixels",
+				"controlFingerprint": "a877c70797d303dee292582b715d009dfccace19f769ebbef86230b1fd17f26d",
+				"allowedMotifs": [
+					"canopy-top",
+					"hedge-top",
+					"stone-wall-front",
+					"wall-front",
+					"reeds",
+					"branches"
+				],
+				"sharedFrontCutoffPx": 33,
+				"eligibilityRule": "white approved foreground rectangles minus every black foreground-exclusion rectangle, protected-live raster union, and exact union of the 19 frozen semantic pathTile route rectangles",
+				"unsupportedEligibleObjects": "left transparent rather than inventing boat, net, stall, lantern, banner, jetty, or waymarker foreground art",
+				"materialTexturing": "68 percent approved base pixel material plus 32 percent region motif palette, with deterministic local detail and softened analytic edges",
+				"sundropComposition": {
+					"sourcePath": "public/game/assets/regions/sundrop-village-foreground.png",
+					"sourceSha256": "2d0a6703de1a404e49c0746f092a4c6f9f113ae17cd8bc35de635b5ec084ce45",
+					"boundsSourceId": "sundrop-village-underlay",
+					"bounds": {
+						"left": 256,
+						"top": 4352,
+						"right": 2048,
+						"bottom": 5888
+					},
+					"method": "byte-identical source RGBA copied at exact crop-derived offset, clipped by effective frozen eligibility, protected-live, and semantic-route masks; all HPA-398 foreground-owned obstacle footprints excluded from procedural repaint"
+				},
+				"pngEncoding": {
+					"palette": false,
+					"compressionLevel": 9,
+					"adaptiveFiltering": false,
+					"canonicalChunks": [
+						"IHDR",
+						"IDAT",
+						"IEND"
+					]
+				},
+				"runtime": {
+					"bun": "1.3.14",
+					"node": "v24.3.0",
+					"sharp": "0.35.3",
+					"libvips": "8.18.3"
+				},
+				"candidateSha256": "c9ffa6e50a8e3c9f9888a642078094e95d9175158df8d262de8ac94b1ab9124e"
+			},
+			"seed": null,
+			"seedUnavailable": false,
+			"prompt": null,
+			"promptSha256": null,
+			"referenceImageSha256": [
+				"0fdbde1ea3f8263db1f58c90e7d3f2c6c8ade112e71f4c88c63fd926810ec6da",
+				"1aed92216306a76936e9537276099c64d86096dbbf857b6fce073d35063db91b",
+				"2d0a6703de1a404e49c0746f092a4c6f9f113ae17cd8bc35de635b5ec084ce45",
+				"2dd858510cecad6fc1ba05bbf651b5b23671f75591fb30ef8a9fe6a215f85ff5",
+				"4a0e0bb19a91db5277ac1843f8672412fe5b931f602f9dd514686acd113fc5e1",
+				"57a2acc0daea59ab06a97e5067389cc0bfc92334686b88d06df9df4704129b5c",
+				"9a5097eea014d092e57a8953be0dec2a16c1e6d29446f8b293338bf95a93752c",
+				"c3ff227bef6206d2677e0bf42aa2c91b647ea6412428451ec5dbcf72975d3cca",
+				"f1b823555911c403ce86a513659c7807da320084db95fe9bf31ca2b09fd2f149"
+			],
+			"byteReproducibleGeneration": true
+		},
+		"transform": {
+			"native": {
+				"width": 6400,
+				"height": 6400
+			},
+			"crop": {
+				"left": 0,
+				"top": 0,
+				"width": 6400,
+				"height": 6400
+			},
+			"output": {
+				"width": 6400,
+				"height": 6400
+			},
+			"scale": 1
+		},
+		"refinements": []
+	}
+}
