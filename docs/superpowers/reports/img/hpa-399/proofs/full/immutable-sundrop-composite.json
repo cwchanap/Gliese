@@ -1,0 +1,47 @@
+{
+  "version": 1,
+  "proofId": "full/immutable-sundrop-composite",
+  "path": "docs/superpowers/reports/img/hpa-399/proofs/full/immutable-sundrop-composite.png",
+  "sha256": "058f9dde7fb0543d6f5731a8caa68411d5ac22d631a547305e0f62258fc9a9d1",
+  "bytes": 75514446,
+  "width": 6400,
+  "height": 6400,
+  "masterBounds": {
+    "left": 0,
+    "top": 0,
+    "right": 6400,
+    "bottom": 6400
+  },
+  "inputs": [
+    {
+      "path": "artifacts/meadow-entry/hpa-399/masters/meadow-entry-base-master.png",
+      "sha256": "9a5097eea014d092e57a8953be0dec2a16c1e6d29446f8b293338bf95a93752c"
+    },
+    {
+      "path": "public/game/assets/regions/sundrop-village-base.png",
+      "sha256": "f1184b045c27c544ac18937a4f8ccfa12cd386319b1722be5d808aea8048ade6"
+    },
+    {
+      "path": "artifacts/meadow-entry/hpa-399/masters/meadow-entry-foreground-master.png",
+      "sha256": "c9ffa6e50a8e3c9f9888a642078094e95d9175158df8d262de8ac94b1ab9124e"
+    },
+    {
+      "path": "public/game/assets/regions/sundrop-village-foreground.png",
+      "sha256": "2d0a6703de1a404e49c0746f092a4c6f9f113ae17cd8bc35de635b5ec084ce45"
+    }
+  ],
+  "inputSha256": [
+    "9a5097eea014d092e57a8953be0dec2a16c1e6d29446f8b293338bf95a93752c",
+    "f1184b045c27c544ac18937a4f8ccfa12cd386319b1722be5d808aea8048ade6",
+    "c9ffa6e50a8e3c9f9888a642078094e95d9175158df8d262de8ac94b1ab9124e",
+    "2d0a6703de1a404e49c0746f092a4c6f9f113ae17cd8bc35de635b5ec084ce45"
+  ],
+  "metrics": {
+    "drawOrder": [
+      "hpa-399-base",
+      "immutable-hpa-398-sundrop-base",
+      "hpa-399-foreground",
+      "immutable-hpa-398-sundrop-foreground"
+    ]
+  }
+}

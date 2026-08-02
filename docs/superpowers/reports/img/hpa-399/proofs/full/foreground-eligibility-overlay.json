@@ -1,0 +1,45 @@
+{
+  "version": 1,
+  "proofId": "full/foreground-eligibility-overlay",
+  "path": "docs/superpowers/reports/img/hpa-399/proofs/full/foreground-eligibility-overlay.png",
+  "sha256": "99d3e53e86c28634f4d6ca2053539737891f48bb634f1f53a42feff2b78f1210",
+  "bytes": 3933003,
+  "width": 6400,
+  "height": 6400,
+  "masterBounds": {
+    "left": 0,
+    "top": 0,
+    "right": 6400,
+    "bottom": 6400
+  },
+  "inputs": [
+    {
+      "path": "artifacts/meadow-entry/hpa-399/masters/meadow-entry-base-master.png",
+      "sha256": "9a5097eea014d092e57a8953be0dec2a16c1e6d29446f8b293338bf95a93752c"
+    },
+    {
+      "path": "public/game/assets/regions/sundrop-village-base.png",
+      "sha256": "f1184b045c27c544ac18937a4f8ccfa12cd386319b1722be5d808aea8048ade6"
+    },
+    {
+      "path": "artifacts/meadow-entry/hpa-399/masters/meadow-entry-foreground-master.png",
+      "sha256": "c9ffa6e50a8e3c9f9888a642078094e95d9175158df8d262de8ac94b1ab9124e"
+    },
+    {
+      "path": "public/game/assets/regions/sundrop-village-foreground.png",
+      "sha256": "2d0a6703de1a404e49c0746f092a4c6f9f113ae17cd8bc35de635b5ec084ce45"
+    },
+    {
+      "path": "docs/superpowers/reports/img/hpa-399/controls/meadow-entry-foreground-eligible-mask.svg",
+      "sha256": "4a0e0bb19a91db5277ac1843f8672412fe5b931f602f9dd514686acd113fc5e1"
+    }
+  ],
+  "inputSha256": [
+    "9a5097eea014d092e57a8953be0dec2a16c1e6d29446f8b293338bf95a93752c",
+    "f1184b045c27c544ac18937a4f8ccfa12cd386319b1722be5d808aea8048ade6",
+    "c9ffa6e50a8e3c9f9888a642078094e95d9175158df8d262de8ac94b1ab9124e",
+    "2d0a6703de1a404e49c0746f092a4c6f9f113ae17cd8bc35de635b5ec084ce45",
+    "4a0e0bb19a91db5277ac1843f8672412fe5b931f602f9dd514686acd113fc5e1"
+  ],
+  "metrics": {}
+}

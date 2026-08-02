@@ -1,0 +1,53 @@
+{
+  "version": 1,
+  "proofId": "overlaps/overlap-mistfen--silverpine",
+  "path": "docs/superpowers/reports/img/hpa-399/proofs/overlaps/overlap-mistfen--silverpine.png",
+  "sha256": "b5b14cf936ae1444d9fce3b50d268b82eb154c8f7512aead8515c0a5ec32bb2d",
+  "bytes": 7160,
+  "width": 640,
+  "height": 2848,
+  "masterBounds": {
+    "left": 2048,
+    "top": 288,
+    "right": 2688,
+    "bottom": 3136
+  },
+  "inputs": [
+    {
+      "path": "artifacts/meadow-entry/hpa-399/exports/mistfen-base.png",
+      "sha256": "a8e0e7fc1c7d00d7a60f66a010de45e7f1808c0a2e7f2609687d5d5a6b96e8cd"
+    },
+    {
+      "path": "artifacts/meadow-entry/hpa-399/exports/silverpine-base.png",
+      "sha256": "41f94f45f999b2ee3dd575ae9386f63434c1b52d0491300bb47484133fcba92f"
+    },
+    {
+      "path": "artifacts/meadow-entry/hpa-399/exports/mistfen-foreground.png",
+      "sha256": "f5db7ba6e9e7963a89b5557dc2d44233f28062849af694a5eee8aa55a6803280"
+    },
+    {
+      "path": "artifacts/meadow-entry/hpa-399/exports/silverpine-foreground.png",
+      "sha256": "0fbcb5d2e0dafc78b7f83e984079ddfdfcbcf77d85d4c37f2d9174a1fd2e3ca6"
+    }
+  ],
+  "inputSha256": [
+    "a8e0e7fc1c7d00d7a60f66a010de45e7f1808c0a2e7f2609687d5d5a6b96e8cd",
+    "41f94f45f999b2ee3dd575ae9386f63434c1b52d0491300bb47484133fcba92f",
+    "f5db7ba6e9e7963a89b5557dc2d44233f28062849af694a5eee8aa55a6803280",
+    "0fbcb5d2e0dafc78b7f83e984079ddfdfcbcf77d85d4c37f2d9174a1fd2e3ca6"
+  ],
+  "metrics": {
+    "planes": {
+      "base": {
+        "differingPixels": 0,
+        "maximumChannelDifference": 0
+      },
+      "foreground": {
+        "differingPixels": 0,
+        "maximumChannelDifference": 0
+      }
+    },
+    "ownerCropId": "silverpine",
+    "cornerGroupId": "corner-meadow-entry-handoff-network"
+  }
+}

@@ -1,0 +1,53 @@
+{
+  "version": 1,
+  "proofId": "overlaps/overlap-crossroads-coast-connector--tidewatch-coast",
+  "path": "docs/superpowers/reports/img/hpa-399/proofs/overlaps/overlap-crossroads-coast-connector--tidewatch-coast.png",
+  "sha256": "517e618727d3c4d53fbe4b8db6dee4376b24616c536cd1fe59943f851ea35cca",
+  "bytes": 5968,
+  "width": 1184,
+  "height": 1280,
+  "masterBounds": {
+    "left": 3296,
+    "top": 4416,
+    "right": 4480,
+    "bottom": 5696
+  },
+  "inputs": [
+    {
+      "path": "artifacts/meadow-entry/hpa-399/exports/crossroads-coast-connector-base.png",
+      "sha256": "7d7b5ccbd98c928eea4c5c464d849780db59b7b1e6902fd2b0e3ceea8453faac"
+    },
+    {
+      "path": "artifacts/meadow-entry/hpa-399/exports/tidewatch-coast-base.png",
+      "sha256": "9016d3a934da81a97e5fd61d9316ca0d93810d41990e7681d6ae17299f2e52c1"
+    },
+    {
+      "path": "artifacts/meadow-entry/hpa-399/exports/crossroads-coast-connector-foreground.png",
+      "sha256": "75743509b8120ee767c27723b8dfc04cd868c8050c09efab020100c65ffa3727"
+    },
+    {
+      "path": "artifacts/meadow-entry/hpa-399/exports/tidewatch-coast-foreground.png",
+      "sha256": "ea98407147254ccaeaa9a2a07449788f02a81bc19b95478373f4be8630445d82"
+    }
+  ],
+  "inputSha256": [
+    "7d7b5ccbd98c928eea4c5c464d849780db59b7b1e6902fd2b0e3ceea8453faac",
+    "9016d3a934da81a97e5fd61d9316ca0d93810d41990e7681d6ae17299f2e52c1",
+    "75743509b8120ee767c27723b8dfc04cd868c8050c09efab020100c65ffa3727",
+    "ea98407147254ccaeaa9a2a07449788f02a81bc19b95478373f4be8630445d82"
+  ],
+  "metrics": {
+    "planes": {
+      "base": {
+        "differingPixels": 0,
+        "maximumChannelDifference": 0
+      },
+      "foreground": {
+        "differingPixels": 0,
+        "maximumChannelDifference": 0
+      }
+    },
+    "ownerCropId": "tidewatch-coast",
+    "cornerGroupId": "corner-meadow-entry-handoff-network"
+  }
+}

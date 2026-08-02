@@ -1,0 +1,37 @@
+{
+  "version": 1,
+  "proofId": "connectors/crossroads-silverpine-connector",
+  "path": "docs/superpowers/reports/img/hpa-399/proofs/connectors/crossroads-silverpine-connector.png",
+  "sha256": "ef1888719452750ec821a495be4662963d7969d95864464a9f19fb3e41eec317",
+  "bytes": 855157,
+  "width": 800,
+  "height": 480,
+  "masterBounds": {
+    "left": 2912,
+    "top": 2752,
+    "right": 3712,
+    "bottom": 3232
+  },
+  "inputs": [
+    {
+      "path": "artifacts/meadow-entry/hpa-399/exports/crossroads-silverpine-connector-base.png",
+      "sha256": "71cb8b34953b34f57c099c26b1a45961dbeff3ec60b7d07b795672d12f48702d"
+    },
+    {
+      "path": "artifacts/meadow-entry/hpa-399/exports/crossroads-silverpine-connector-foreground.png",
+      "sha256": "2cf1cd7763691c40abc007801ea82f49969f87c504733002bc2469d496ef8542"
+    }
+  ],
+  "inputSha256": [
+    "71cb8b34953b34f57c099c26b1a45961dbeff3ec60b7d07b795672d12f48702d",
+    "2cf1cd7763691c40abc007801ea82f49969f87c504733002bc2469d496ef8542"
+  ],
+  "metrics": {
+    "cropId": "crossroads-silverpine-connector",
+    "textureKeys": {
+      "base": "meadow-entry-crossroads-silverpine-connector-base",
+      "foreground": "meadow-entry-crossroads-silverpine-connector-foreground"
+    },
+    "drawOrder": 130
+  }
+}

@@ -1,0 +1,37 @@
+{
+  "version": 1,
+  "proofId": "regions/crossroads",
+  "path": "docs/superpowers/reports/img/hpa-399/proofs/regions/crossroads.png",
+  "sha256": "bb64b398283608a2af6e259d3d2034841fa22b223dc62554f1ea22a9c79788d6",
+  "bytes": 7590361,
+  "width": 1600,
+  "height": 2208,
+  "masterBounds": {
+    "left": 2784,
+    "top": 2496,
+    "right": 4384,
+    "bottom": 4704
+  },
+  "inputs": [
+    {
+      "path": "artifacts/meadow-entry/hpa-399/exports/crossroads-base.png",
+      "sha256": "241671fd530810cc95ec20665eacd3f7080501691e912694f68f2a20963d0949"
+    },
+    {
+      "path": "artifacts/meadow-entry/hpa-399/exports/crossroads-foreground.png",
+      "sha256": "ce5656cd0a5b426b7d35742fc02a79f72aa83b262f5bee8a6264fe05f710a26d"
+    }
+  ],
+  "inputSha256": [
+    "241671fd530810cc95ec20665eacd3f7080501691e912694f68f2a20963d0949",
+    "ce5656cd0a5b426b7d35742fc02a79f72aa83b262f5bee8a6264fe05f710a26d"
+  ],
+  "metrics": {
+    "cropId": "crossroads",
+    "textureKeys": {
+      "base": "meadow-entry-crossroads-base",
+      "foreground": "meadow-entry-crossroads-foreground"
+    },
+    "drawOrder": 200
+  }
+}

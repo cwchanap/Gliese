@@ -1,0 +1,55 @@
+{
+  "version": 1,
+  "proofId": "full/interaction-readability-overlay",
+  "path": "docs/superpowers/reports/img/hpa-399/proofs/full/interaction-readability-overlay.png",
+  "sha256": "4d4bbcbad95f8a3cdfd77bf5d58187d4106f532ac452aca8c5af4d9db19f5429",
+  "bytes": 55779751,
+  "width": 6400,
+  "height": 6400,
+  "masterBounds": {
+    "left": 0,
+    "top": 0,
+    "right": 6400,
+    "bottom": 6400
+  },
+  "inputs": [
+    {
+      "path": "artifacts/meadow-entry/hpa-399/masters/meadow-entry-base-master.png",
+      "sha256": "9a5097eea014d092e57a8953be0dec2a16c1e6d29446f8b293338bf95a93752c"
+    },
+    {
+      "path": "public/game/assets/regions/sundrop-village-base.png",
+      "sha256": "f1184b045c27c544ac18937a4f8ccfa12cd386319b1722be5d808aea8048ade6"
+    },
+    {
+      "path": "artifacts/meadow-entry/hpa-399/masters/meadow-entry-foreground-master.png",
+      "sha256": "c9ffa6e50a8e3c9f9888a642078094e95d9175158df8d262de8ac94b1ab9124e"
+    },
+    {
+      "path": "public/game/assets/regions/sundrop-village-foreground.png",
+      "sha256": "2d0a6703de1a404e49c0746f092a4c6f9f113ae17cd8bc35de635b5ec084ce45"
+    },
+    {
+      "path": "docs/superpowers/reports/img/hpa-399/controls/meadow-entry-semantic-anchor-mask.svg",
+      "sha256": "57a2acc0daea59ab06a97e5067389cc0bfc92334686b88d06df9df4704129b5c"
+    },
+    {
+      "path": "docs/superpowers/reports/img/hpa-399/controls/meadow-entry-entrance-transition-mask.svg",
+      "sha256": "d667339707dfe3871fd9453f9d032465bdc518cadfdd8479606631f7c4c0ea62"
+    },
+    {
+      "path": "docs/superpowers/reports/img/hpa-399/controls/meadow-entry-reward-discovery-mask.svg",
+      "sha256": "ce29ddfb25cc725507aa120bc71af9106dbd1fd2bca92f5d7db4e73d76dfd178"
+    }
+  ],
+  "inputSha256": [
+    "9a5097eea014d092e57a8953be0dec2a16c1e6d29446f8b293338bf95a93752c",
+    "f1184b045c27c544ac18937a4f8ccfa12cd386319b1722be5d808aea8048ade6",
+    "c9ffa6e50a8e3c9f9888a642078094e95d9175158df8d262de8ac94b1ab9124e",
+    "2d0a6703de1a404e49c0746f092a4c6f9f113ae17cd8bc35de635b5ec084ce45",
+    "57a2acc0daea59ab06a97e5067389cc0bfc92334686b88d06df9df4704129b5c",
+    "d667339707dfe3871fd9453f9d032465bdc518cadfdd8479606631f7c4c0ea62",
+    "ce29ddfb25cc725507aa120bc71af9106dbd1fd2bca92f5d7db4e73d76dfd178"
+  ],
+  "metrics": {}
+}

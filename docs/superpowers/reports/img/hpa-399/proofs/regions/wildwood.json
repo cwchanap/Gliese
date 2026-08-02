@@ -1,0 +1,37 @@
+{
+  "version": 1,
+  "proofId": "regions/wildwood",
+  "path": "docs/superpowers/reports/img/hpa-399/proofs/regions/wildwood.png",
+  "sha256": "6dfd93366beb5e4bee85768901d5d3c93f14ba4414389244cd1001dc628d3366",
+  "bytes": 24728754,
+  "width": 2688,
+  "height": 4928,
+  "masterBounds": {
+    "left": 3712,
+    "top": 128,
+    "right": 6400,
+    "bottom": 5056
+  },
+  "inputs": [
+    {
+      "path": "artifacts/meadow-entry/hpa-399/exports/wildwood-base.png",
+      "sha256": "012c88fb4ceea5f06ffcc3b95901c48854449ca3b14223bc916fc2d1e07df08f"
+    },
+    {
+      "path": "artifacts/meadow-entry/hpa-399/exports/wildwood-foreground.png",
+      "sha256": "d1c24a3fbf99ce13aeeb280157dbb95661c545c3f9fd77b86d809ea490609932"
+    }
+  ],
+  "inputSha256": [
+    "012c88fb4ceea5f06ffcc3b95901c48854449ca3b14223bc916fc2d1e07df08f",
+    "d1c24a3fbf99ce13aeeb280157dbb95661c545c3f9fd77b86d809ea490609932"
+  ],
+  "metrics": {
+    "cropId": "wildwood",
+    "textureKeys": {
+      "base": "meadow-entry-wildwood-base",
+      "foreground": "meadow-entry-wildwood-foreground"
+    },
+    "drawOrder": 240
+  }
+}

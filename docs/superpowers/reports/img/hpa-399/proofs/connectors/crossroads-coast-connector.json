@@ -1,0 +1,37 @@
+{
+  "version": 1,
+  "proofId": "connectors/crossroads-coast-connector",
+  "path": "docs/superpowers/reports/img/hpa-399/proofs/connectors/crossroads-coast-connector.png",
+  "sha256": "a403a41ceb162423ed51f138b67d0d9245018d36121256c85269f1b82ed42a2f",
+  "bytes": 3061658,
+  "width": 1184,
+  "height": 1280,
+  "masterBounds": {
+    "left": 3296,
+    "top": 4416,
+    "right": 4480,
+    "bottom": 5696
+  },
+  "inputs": [
+    {
+      "path": "artifacts/meadow-entry/hpa-399/exports/crossroads-coast-connector-base.png",
+      "sha256": "7d7b5ccbd98c928eea4c5c464d849780db59b7b1e6902fd2b0e3ceea8453faac"
+    },
+    {
+      "path": "artifacts/meadow-entry/hpa-399/exports/crossroads-coast-connector-foreground.png",
+      "sha256": "75743509b8120ee767c27723b8dfc04cd868c8050c09efab020100c65ffa3727"
+    }
+  ],
+  "inputSha256": [
+    "7d7b5ccbd98c928eea4c5c464d849780db59b7b1e6902fd2b0e3ceea8453faac",
+    "75743509b8120ee767c27723b8dfc04cd868c8050c09efab020100c65ffa3727"
+  ],
+  "metrics": {
+    "cropId": "crossroads-coast-connector",
+    "textureKeys": {
+      "base": "meadow-entry-crossroads-coast-connector-base",
+      "foreground": "meadow-entry-crossroads-coast-connector-foreground"
+    },
+    "drawOrder": 110
+  }
+}
