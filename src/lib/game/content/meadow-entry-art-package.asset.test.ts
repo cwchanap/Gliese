@@ -12,8 +12,13 @@ import { meadowEntryControlsApproval } from './approvals/meadow-entry-controls';
 import {
 	MEADOW_ENTRY_APPROVED_CROPS,
 	MEADOW_ENTRY_APPROVED_OVERLAPS,
-	MEADOW_ENTRY_RUNTIME_COVERAGE
+	MEADOW_ENTRY_RUNTIME_COVERAGE,
+	type MeadowEntryOverlap
 } from './backgrounds/meadow-entry-crop-manifest';
+import {
+	verifyMeadowEntryOverlapPixels,
+	type MeadowEntryDecodedExport
+} from './backgrounds/meadow-entry-exporter';
 import {
 	MEADOW_ENTRY_PROOF_DESCRIPTORS,
 	MEADOW_ENTRY_PROOF_FILENAMES
@@ -62,6 +67,17 @@ function assertArtifactSnapshot(
 				`Approved Meadow Entry artifact drifted path=${expected.path} field=${key} expected=${expected[key]} actual=${actual[key]}`
 			);
 		}
+	}
+}
+
+function assertProofDimensions(
+	proofId: string,
+	bounds: { left: number; top: number; right: number; bottom: number },
+	width: number,
+	height: number
+): void {
+	if (width !== bounds.right - bounds.left || height !== bounds.bottom - bounds.top) {
+		throw new Error(`Approved Meadow Entry proof dimensions do not match bounds: ${proofId}`);
 	}
 }
 
@@ -194,6 +210,8 @@ describe('approved Meadow Entry art package', () => {
 				metrics: Record<string, unknown>;
 			};
 			const proofId = relativePath.replace(/\.png$/, '');
+			const descriptor = descriptors.get(proofId);
+			expect(descriptor).toBeDefined();
 			expect(sidecar.proofId).toBe(proofId);
 			expect(sidecar.path).toBe(proof.path);
 			expect(sidecar.sha256).toBe(proof.sha256);
@@ -201,7 +219,9 @@ describe('approved Meadow Entry art package', () => {
 			expect(sidecar.width).toBe(proof.width);
 			expect(sidecar.height).toBe(proof.height);
 			expect(sidecar.inputSha256).toEqual(proof.inputSha256);
-			expect(sidecar.masterBounds).toEqual(descriptors.get(proofId)?.masterBounds);
+			expect(sidecar.masterBounds).toEqual(descriptor!.masterBounds);
+			assertProofDimensions(proofId, descriptor!.masterBounds, proof.width, proof.height);
+			assertProofDimensions(proofId, descriptor!.masterBounds, sidecar.width, sidecar.height);
 			expect(sidecar.inputs.map(({ sha256: inputSha256 }) => inputSha256)).toEqual(
 				sidecar.inputSha256
 			);
@@ -221,6 +241,72 @@ describe('approved Meadow Entry art package', () => {
 				}
 			}
 		}
+	});
+
+	it('independently recomputes every export overlap from decoded approved pixels', async () => {
+		const crops = new Map(MEADOW_ENTRY_APPROVED_CROPS.map((crop) => [crop.id, crop]));
+		const decodedExports: MeadowEntryDecodedExport[] = [];
+		for (const artifact of meadowEntryArtPackageApproval.exports) {
+			const crop = crops.get(artifact.cropId)!;
+			const decoded = await decodeMeadowEntryRgba(
+				readFileSync(join(repositoryRoot, artifact.path))
+			);
+			decodedExports.push({
+				cropId: artifact.cropId,
+				plane: artifact.plane,
+				bounds: crop.bounds,
+				width: decoded.width,
+				height: decoded.height,
+				rgba: decoded.data
+			});
+		}
+		expect(() =>
+			verifyMeadowEntryOverlapPixels({
+				decoded: decodedExports,
+				overlaps: MEADOW_ENTRY_APPROVED_OVERLAPS
+			})
+		).not.toThrow();
+
+		const forgedBlankProofMetrics = {
+			planes: { base: { differingPixels: 0, maximumChannelDifference: 0 } }
+		};
+		expect(forgedBlankProofMetrics.planes.base.differingPixels).toBe(0);
+		const overlap = {
+			id: 'forged-blank-proof',
+			firstCropId: 'first',
+			secondCropId: 'second',
+			bounds: { left: 0, top: 0, right: 1, bottom: 1 },
+			routeMouth: {
+				sharedAxis: 'x',
+				bounds: { left: 0, top: 0, right: 1, bottom: 1 }
+			},
+			minimumSharedPixels: 128,
+			planePolicy: 'base-only',
+			ownerCropId: 'second'
+		} satisfies MeadowEntryOverlap;
+		expect(() =>
+			verifyMeadowEntryOverlapPixels({
+				decoded: [
+					{
+						cropId: 'first',
+						plane: 'base',
+						bounds: overlap.bounds,
+						width: 1,
+						height: 1,
+						rgba: Buffer.from([0, 0, 0, 255])
+					},
+					{
+						cropId: 'second',
+						plane: 'base',
+						bounds: overlap.bounds,
+						width: 1,
+						height: 1,
+						rgba: Buffer.from([1, 0, 0, 255])
+					}
+				],
+				overlaps: [overlap]
+			})
+		).toThrow(/overlap mismatch/);
 	});
 
 	it('stores every approved PNG as a Git LFS pointer and every sidecar as ordinary Git', () => {
@@ -327,6 +413,9 @@ describe('approved Meadow Entry art package', () => {
 		expect(() => assertArtifactSnapshot(expected, { ...expected, width: 2 })).toThrow(
 			/field=width/
 		);
+		expect(() =>
+			assertProofDimensions('matching-forgery', { left: 0, top: 0, right: 2, bottom: 1 }, 1, 1)
+		).toThrow(/dimensions do not match bounds/);
 		expect(() => JSON.parse('{malformed')).toThrow();
 	});
 

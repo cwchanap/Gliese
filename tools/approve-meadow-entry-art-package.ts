@@ -1,5 +1,5 @@
 import { createHash, randomUUID } from 'node:crypto';
-import { lstat, mkdir, readFile, readdir, rename, rm, writeFile } from 'node:fs/promises';
+import { mkdir, readFile, rename, rm, writeFile } from 'node:fs/promises';
 import { dirname, join, resolve } from 'node:path';
 
 import { format } from 'prettier';
@@ -11,11 +11,6 @@ import {
 	MEADOW_ENTRY_RUNTIME_COVERAGE
 } from '$lib/game/content/backgrounds/meadow-entry-crop-manifest';
 import {
-	MEADOW_ENTRY_PROOF_DESCRIPTORS,
-	MEADOW_ENTRY_PROOF_FILENAMES,
-	assertAllowedMeadowEntryProofDestination
-} from '$lib/game/content/backgrounds/meadow-entry-proof-renderer';
-import {
 	buildMeadowEntryControlInputs,
 	buildMeadowEntryForegroundEligibleRasterMask,
 	buildMeadowEntryProtectedForegroundRasterMask,
@@ -23,13 +18,21 @@ import {
 } from '$lib/game/content/backgrounds/meadow-entry-controls';
 import {
 	decodeMeadowEntryRgba,
-	validateCanonicalPngChunks
+	validateCanonicalPngChunks,
+	type DecodedMeadowEntryRgba
 } from '$lib/game/content/backgrounds/meadow-entry-png';
+import {
+	verifyMeadowEntryOverlapPixels,
+	type MeadowEntryDecodedExport
+} from '$lib/game/content/backgrounds/meadow-entry-exporter';
+import {
+	readPublishedMeadowEntryProofSnapshot,
+	type MeadowEntryProofSidecar
+} from './render-meadow-entry-art-proofs';
 import { verifyMeadowEntryArtStorage } from './verify-meadow-entry-art-storage';
 
 const PACKAGE_ROOT = 'artifacts/meadow-entry/hpa-399';
 const PROOF_ROOT = 'docs/superpowers/reports/img/hpa-399/proofs';
-const PROOF_SENTINEL = 'docs/superpowers/reports/img/hpa-399/.meadow-entry-proof-publication.lock';
 const APPROVAL_PATH = 'src/lib/game/content/approvals/meadow-entry-art-package.ts';
 const BASE_MASTER = `${PACKAGE_ROOT}/masters/meadow-entry-base-master.png`;
 const FOREGROUND_MASTER = `${PACKAGE_ROOT}/masters/meadow-entry-foreground-master.png`;
@@ -113,36 +116,12 @@ interface ReviewArguments {
 	reviewedAt: string;
 }
 
-interface ProofSidecar {
-	version: number;
-	proofId: string;
-	path: string;
-	sha256: string;
-	bytes: number;
-	width: number;
-	height: number;
-	masterBounds: unknown;
-	inputs: readonly { path: string; sha256: string }[];
-	inputSha256: readonly string[];
-	metrics: unknown;
-}
-
 function sha256(value: Buffer): string {
 	return createHash('sha256').update(value).digest('hex');
 }
 
 function assert(condition: unknown, message: string): asserts condition {
 	if (!condition) throw new Error(message);
-}
-
-async function pathExists(path: string): Promise<boolean> {
-	try {
-		await lstat(path);
-		return true;
-	} catch (error) {
-		if ((error as NodeJS.ErrnoException).code === 'ENOENT') return false;
-		throw error;
-	}
 }
 
 function parseReviewArguments(args: readonly string[]): ReviewArguments {
@@ -189,31 +168,26 @@ async function readJsonObject(path: string, label: string): Promise<Record<strin
 	return value as Record<string, unknown>;
 }
 
-async function inspectPng(repositoryRoot: string, path: string): Promise<ApprovedPngArtifact> {
-	const bytes = await readFile(join(repositoryRoot, path));
+async function inspectPngBytes(
+	path: string,
+	bytes: Buffer
+): Promise<{ artifact: ApprovedPngArtifact; decoded: DecodedMeadowEntryRgba }> {
 	validateCanonicalPngChunks(bytes);
 	const decoded = await decodeMeadowEntryRgba(bytes);
 	return {
-		path,
-		sha256: sha256(bytes),
-		bytes: bytes.byteLength,
-		width: decoded.width,
-		height: decoded.height
+		artifact: {
+			path,
+			sha256: sha256(bytes),
+			bytes: bytes.byteLength,
+			width: decoded.width,
+			height: decoded.height
+		},
+		decoded
 	};
 }
 
-async function walkFiles(root: string, prefix = ''): Promise<string[]> {
-	const entries = await readdir(join(root, prefix), { withFileTypes: true });
-	const result: string[] = [];
-	for (const entry of entries) {
-		const path = prefix ? `${prefix}/${entry.name}` : entry.name;
-		if (entry.isDirectory()) result.push(...(await walkFiles(root, path)));
-		else {
-			assert(entry.isFile(), `Unexpected non-file in Meadow Entry proof package: ${path}`);
-			result.push(path);
-		}
-	}
-	return result.sort();
+async function inspectPng(repositoryRoot: string, path: string): Promise<ApprovedPngArtifact> {
+	return (await inspectPngBytes(path, await readFile(join(repositoryRoot, path)))).artifact;
 }
 
 function jsonEqual(first: unknown, second: unknown): boolean {
@@ -266,7 +240,7 @@ function expectedProofInputPaths(proofId: string): readonly string[] {
 	throw new Error(`Unknown Meadow Entry proof identity: ${proofId}`);
 }
 
-function assertProofMetrics(sidecar: ProofSidecar): void {
+function assertProofMetrics(sidecar: MeadowEntryProofSidecar): void {
 	if (!sidecar.proofId.startsWith('overlaps/')) return;
 	const overlap = MEADOW_ENTRY_APPROVED_OVERLAPS.find(
 		({ id }) => `overlaps/${id}` === sidecar.proofId
@@ -338,8 +312,6 @@ async function assertForegroundAndCoverageAcceptance(
 }
 
 async function buildApproval(repositoryRoot: string): Promise<MeadowEntryArtPackageApproval> {
-	const proofSentinel = join(repositoryRoot, PROOF_SENTINEL);
-	assert(!(await pathExists(proofSentinel)), 'Meadow Entry proof publication is in progress');
 	const controlInputs = buildMeadowEntryControlInputs(repositoryRoot);
 	const currentFingerprint = computeMeadowEntryCombinedControlFingerprint(controlInputs);
 	assert(
@@ -407,12 +379,17 @@ async function buildApproval(repositoryRoot: string): Promise<MeadowEntryArtPack
 			drawOrder: number;
 		}
 	>;
+	const decodedExports: MeadowEntryDecodedExport[] = [];
 	for (const crop of MEADOW_ENTRY_APPROVED_CROPS) {
 		for (const plane of (crop.foregroundFilename === null
 			? ['base']
 			: ['base', 'foreground']) as readonly ('base' | 'foreground')[]) {
 			const filename = plane === 'base' ? crop.baseFilename : crop.foregroundFilename!;
-			const artifact = await inspectPng(repositoryRoot, `${PACKAGE_ROOT}/exports/${filename}`);
+			const path = `${PACKAGE_ROOT}/exports/${filename}`;
+			const { artifact, decoded } = await inspectPngBytes(
+				path,
+				await readFile(join(repositoryRoot, path))
+			);
 			assert(
 				artifact.width === crop.expectedDimensions.width &&
 					artifact.height === crop.expectedDimensions.height,
@@ -425,8 +402,20 @@ async function buildApproval(repositoryRoot: string): Promise<MeadowEntryArtPack
 				textureKey: plane === 'base' ? crop.textureKeys.base : crop.textureKeys.foreground!,
 				drawOrder: crop.drawOrder
 			});
+			decodedExports.push({
+				cropId: crop.id,
+				plane,
+				bounds: crop.bounds,
+				width: decoded.width,
+				height: decoded.height,
+				rgba: decoded.data
+			});
 		}
 	}
+	verifyMeadowEntryOverlapPixels({
+		decoded: decodedExports,
+		overlaps: MEADOW_ENTRY_APPROVED_OVERLAPS
+	});
 	const provenanceInventory = exportProvenance.inventory as readonly Record<string, unknown>[];
 	assert(
 		Array.isArray(provenanceInventory) && provenanceInventory.length === exports.length,
@@ -449,27 +438,19 @@ async function buildApproval(repositoryRoot: string): Promise<MeadowEntryArtPack
 		);
 	}
 
-	const expectedProofFiles = MEADOW_ENTRY_PROOF_FILENAMES.flatMap((path) => [
-		path,
-		path.replace(/\.png$/, '.json')
-	]).sort();
-	const actualProofFiles = await walkFiles(join(repositoryRoot, PROOF_ROOT));
-	assert(
-		jsonEqual(actualProofFiles, expectedProofFiles),
-		`Meadow Entry proof inventory differs: expected=${expectedProofFiles.join(',')} actual=${actualProofFiles.join(',')}`
-	);
+	const proofSnapshot = await readPublishedMeadowEntryProofSnapshot(repositoryRoot);
 	const proofs = [] as Array<
 		ApprovedPngArtifact & { proofId: string; inputSha256: readonly string[] }
 	>;
-	for (const descriptor of MEADOW_ENTRY_PROOF_DESCRIPTORS) {
-		assertAllowedMeadowEntryProofDestination(descriptor.filename);
-		const artifact = await inspectPng(repositoryRoot, `${PROOF_ROOT}/${descriptor.filename}`);
+	for (const published of proofSnapshot.proofs) {
+		const { descriptor, sidecar } = published;
+		const { artifact } = await inspectPngBytes(
+			`${PROOF_ROOT}/${descriptor.filename}`,
+			published.png
+		);
 		const sidecarPath = descriptor.filename.replace(/\.png$/, '.json');
-		assertAllowedMeadowEntryProofDestination(sidecarPath);
-		const sidecar = (await readJsonObject(
-			join(repositoryRoot, PROOF_ROOT, sidecarPath),
-			`proof sidecar ${sidecarPath}`
-		)) as unknown as ProofSidecar;
+		const expectedWidth = descriptor.masterBounds.right - descriptor.masterBounds.left;
+		const expectedHeight = descriptor.masterBounds.bottom - descriptor.masterBounds.top;
 		assert(
 			jsonEqual(Object.keys(sidecar).sort(), [
 				'bytes',
@@ -491,6 +472,8 @@ async function buildApproval(repositoryRoot: string): Promise<MeadowEntryArtPack
 				sidecar.bytes === artifact.bytes &&
 				sidecar.width === artifact.width &&
 				sidecar.height === artifact.height &&
+				artifact.width === expectedWidth &&
+				artifact.height === expectedHeight &&
 				jsonEqual(sidecar.masterBounds, descriptor.masterBounds) &&
 				Array.isArray(sidecar.inputs) &&
 				Array.isArray(sidecar.inputSha256) &&
