@@ -1,0 +1,50 @@
+{
+	"version": 1,
+	"adapterId": "meadow-entry-hpa-399",
+	"mapId": "meadow-entry",
+	"implementation": "meadow-entry-package-v1",
+	"schemas": {
+		"input": "gliese-art-map-package-input-v1",
+		"output": "gliese-art-map-package-output-v1"
+	},
+	"paths": {
+		"packageRoot": "artifacts/meadow-entry/hpa-399",
+		"proofRoot": "docs/superpowers/reports/img/hpa-399/proofs",
+		"controlsRoot": "docs/superpowers/reports/img/hpa-399/controls"
+	},
+	"artifacts": {
+		"baseMaster": "masters/meadow-entry-base-master.png",
+		"foregroundMaster": "masters/meadow-entry-foreground-master.png",
+		"exportsDirectory": "exports"
+	},
+	"manifests": {
+		"controlApproval": "src/lib/game/content/approvals/meadow-entry-controls.ts",
+		"packageApproval": "src/lib/game/content/approvals/meadow-entry-art-package.ts",
+		"productionProvenance": "provenance/meadow-entry-master-provenance.json",
+		"exportProvenance": "provenance/meadow-entry-export-provenance.json",
+		"cropManifest": "provenance/meadow-entry-crop-manifest.json",
+		"validationEvidence": "docs/superpowers/reports/2026-07-30-hpa-399-visual-masters-exports-validation.md"
+	},
+	"versions": {
+		"normalizationTransform": 1,
+		"cropContract": 1,
+		"canonicalPngEncoder": 1,
+		"dependencies": {
+			"sharp": "0.35.3",
+			"runtime": "bun"
+		}
+	},
+	"productionRecord": {
+		"modeField": "base.generation.mode|foreground.generation.mode",
+		"promptField": "base.generation.prompt|foreground.generation.prompt",
+		"manualProductionValue": "manual",
+		"provenanceManifest": "provenance/meadow-entry-master-provenance.json"
+	},
+	"commands": {
+		"finalize": "art:finalize:meadow-entry",
+		"export": "art:export:meadow-entry",
+		"proof": "art:proof:meadow-entry",
+		"approve": "art:approve:meadow-entry",
+		"validate": "art:validate:meadow-entry"
+	}
+}

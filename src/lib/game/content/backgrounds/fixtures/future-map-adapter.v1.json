@@ -1,0 +1,47 @@
+{
+	"version": 1,
+	"adapterId": "future-map-fixture",
+	"mapId": "future-map",
+	"implementation": "future-map-package-v1",
+	"schemas": {
+		"input": "gliese-art-map-package-input-v1",
+		"output": "gliese-art-map-package-output-v1"
+	},
+	"paths": {
+		"packageRoot": "artifacts/future-map/v1",
+		"proofRoot": "docs/reports/future-map/proofs",
+		"controlsRoot": "docs/reports/future-map/controls"
+	},
+	"artifacts": {
+		"baseMaster": "masters/future-map-base.png",
+		"foregroundMaster": "masters/future-map-foreground.png",
+		"exportsDirectory": "exports"
+	},
+	"manifests": {
+		"controlApproval": "src/future-map-control-approval.ts",
+		"packageApproval": "src/future-map-package-approval.ts",
+		"productionProvenance": "provenance/future-map-master.json",
+		"exportProvenance": "provenance/future-map-exports.json",
+		"cropManifest": "provenance/future-map-crops.json",
+		"validationEvidence": "docs/reports/future-map/validation.md"
+	},
+	"versions": {
+		"normalizationTransform": 1,
+		"cropContract": 1,
+		"canonicalPngEncoder": 1,
+		"dependencies": { "sharp": "0.35.3", "runtime": "bun" }
+	},
+	"productionRecord": {
+		"modeField": "generation.mode",
+		"promptField": "generation.prompt",
+		"manualProductionValue": "manual",
+		"provenanceManifest": "provenance/future-map-master.json"
+	},
+	"commands": {
+		"finalize": "art:finalize:future-map",
+		"export": "art:export:future-map",
+		"proof": "art:proof:future-map",
+		"approve": "art:approve:future-map",
+		"validate": "art:validate:future-map"
+	}
+}

@@ -23,6 +23,7 @@ import {
 	encodeCanonicalMeadowEntryPng,
 	validateCanonicalPngChunks
 } from '$lib/game/content/backgrounds/meadow-entry-png';
+import { readCoherentMeadowEntryArtSourceSnapshot } from './read-meadow-entry-art-source-snapshot';
 
 const PROOF_ROOT = 'docs/superpowers/reports/img/hpa-399/proofs';
 const PACKAGE_ROOT = 'artifacts/meadow-entry/hpa-399';
@@ -113,6 +114,7 @@ interface RenderContext {
 	sundropBase: Buffer;
 	sundropForeground: Buffer;
 	reviewComposite: Buffer;
+	packageInputs: ReadonlyMap<string, Buffer>;
 	written: Set<string>;
 	hashCache: Map<string, string>;
 }
@@ -211,10 +213,21 @@ function cornerGroupSvg(
 async function hashInput(context: RenderContext, path: string): Promise<ProofInput> {
 	let value = context.hashCache.get(path);
 	if (!value) {
-		value = sha256(await readFile(join(context.repositoryRoot, path)));
+		const packageBytes = context.packageInputs.get(path);
+		assert(
+			packageBytes !== undefined || !path.startsWith(`${PACKAGE_ROOT}/`),
+			`Meadow Entry coherent package snapshot is missing hash input: ${path}`
+		);
+		value = sha256(packageBytes ?? (await readFile(join(context.repositoryRoot, path))));
 		context.hashCache.set(path, value);
 	}
 	return { path, sha256: value };
+}
+
+function packageInput(context: RenderContext, path: string): Buffer {
+	const bytes = context.packageInputs.get(path);
+	assert(bytes, `Meadow Entry coherent package snapshot is missing input: ${path}`);
+	return bytes;
 }
 
 async function writeProof(
@@ -322,12 +335,12 @@ async function renderCropProofs(context: RenderContext): Promise<void> {
 	for (const crop of MEADOW_ENTRY_APPROVED_CROPS) {
 		const category = crop.id.includes('connector') ? 'connectors' : 'regions';
 		const basePath = `${EXPORT_ROOT}/${crop.baseFilename}`;
-		const base = await readFile(join(context.repositoryRoot, basePath));
+		const base = packageInput(context, basePath);
 		const inputPaths = [basePath];
 		let png: Buffer = base;
 		if (crop.foregroundFilename !== null) {
 			const foregroundPath = `${EXPORT_ROOT}/${crop.foregroundFilename}`;
-			const foreground = await readFile(join(context.repositoryRoot, foregroundPath));
+			const foreground = packageInput(context, foregroundPath);
 			png = await canonicalPipeline(
 				sharp(base).composite([{ input: foreground, left: 0, top: 0 }])
 			);
@@ -342,7 +355,7 @@ async function renderCropProofs(context: RenderContext): Promise<void> {
 }
 
 async function extractExportOverlap(
-	repositoryRoot: string,
+	context: RenderContext,
 	cropId: string,
 	plane: 'base' | 'foreground',
 	bounds: PixelBounds
@@ -350,7 +363,7 @@ async function extractExportOverlap(
 	const crop = MEADOW_ENTRY_APPROVED_CROPS.find(({ id }) => id === cropId)!;
 	const filename = plane === 'base' ? crop.baseFilename : crop.foregroundFilename!;
 	const path = `${EXPORT_ROOT}/${filename}`;
-	const source = await readFile(join(repositoryRoot, path));
+	const source = packageInput(context, path);
 	return {
 		png: await canonicalExtract(source, {
 			left: bounds.left - crop.bounds.left,
@@ -372,8 +385,8 @@ async function renderOverlapProofs(context: RenderContext): Promise<void> {
 		let proofPng: Buffer | undefined;
 		for (const plane of planes) {
 			const [first, second] = await Promise.all([
-				extractExportOverlap(context.repositoryRoot, overlap.firstCropId, plane, overlap.bounds),
-				extractExportOverlap(context.repositoryRoot, overlap.secondCropId, plane, overlap.bounds)
+				extractExportOverlap(context, overlap.firstCropId, plane, overlap.bounds),
+				extractExportOverlap(context, overlap.secondCropId, plane, overlap.bounds)
 			]);
 			inputPaths.push(first.path, second.path);
 			const difference = await renderMeadowEntryOverlapDifference(first.png, second.png);
@@ -863,11 +876,20 @@ export async function renderMeadowEntryArtProofs(repositoryRoot = process.cwd())
 	const stagingRoot = join(dirname(proofRoot), `.proofs-staging-${token}`);
 	await mkdir(stagingRoot, { recursive: false });
 	try {
-		const [baseMaster, foregroundMaster, sundropBase, sundropForeground] = await Promise.all([
-			readFile(join(root, BASE_MASTER)),
-			readFile(join(root, FOREGROUND_MASTER)),
+		const [sourceSnapshot, sundropBase, sundropForeground] = await Promise.all([
+			readCoherentMeadowEntryArtSourceSnapshot(join(root, PACKAGE_ROOT)),
 			readFile(join(root, SUNDROP_BASE)),
 			readFile(join(root, SUNDROP_FOREGROUND))
+		]);
+		const baseMaster = sourceSnapshot.basePng;
+		const foregroundMaster = sourceSnapshot.foregroundPng;
+		const packageInputs = new Map<string, Buffer>([
+			[BASE_MASTER, sourceSnapshot.basePng],
+			[FOREGROUND_MASTER, sourceSnapshot.foregroundPng],
+			[CROP_MANIFEST, sourceSnapshot.exports.cropManifestJson],
+			...Object.entries(sourceSnapshot.exports.files).map(
+				([filename, bytes]) => [`${EXPORT_ROOT}/${filename}`, bytes] as const
+			)
 		]);
 		const sundropBounds = MEADOW_ENTRY_APPROVED_CROPS.find(
 			({ id }) => id === 'sundrop-village-underlay'
@@ -887,6 +909,7 @@ export async function renderMeadowEntryArtProofs(repositoryRoot = process.cwd())
 			sundropBase,
 			sundropForeground,
 			reviewComposite,
+			packageInputs,
 			written: new Set(),
 			hashCache: new Map()
 		};
