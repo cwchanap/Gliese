@@ -30,6 +30,7 @@ const mismatches = Object.fromEntries(Object.keys(formulas).map((name) => [name,
 	number
 >;
 const firstDifferences: Record<string, unknown>[] = [];
+const floorMismatches: Record<string, unknown>[] = [];
 
 for (let offset = 0; offset < expected.data.length; offset += 4) {
 	const alpha = foreground.data[offset + 3]!;
@@ -41,11 +42,28 @@ for (let offset = 0; offset < expected.data.length; offset += 4) {
 		for (const [name, formula] of Object.entries(formulas)) {
 			if (formula(numerator) !== expectedValue) mismatches[name] = (mismatches[name] ?? 0) + 1;
 		}
+		const pixel = offset / 4;
+		if (floorMismatches.length < 20 && formulas.floor!(numerator) !== expectedValue) {
+			floorMismatches.push({
+				x: pixel % expected.width,
+				y: Math.floor(pixel / expected.width),
+				channel,
+				destination,
+				source,
+				alpha,
+				numerator,
+				remainder: numerator % 255,
+				expected: expectedValue,
+				floor: formulas.floor!(numerator),
+				halfUp: formulas.halfUp!(numerator),
+				halfDown: formulas.halfDown!(numerator),
+				ceil: formulas.ceil!(numerator)
+			});
+		}
 		if (
 			firstDifferences.length < 20 &&
 			formulas.floor!(numerator) !== formulas.halfUp!(numerator)
 		) {
-			const pixel = offset / 4;
 			firstDifferences.push({
 				x: pixel % expected.width,
 				y: Math.floor(pixel / expected.width),
@@ -68,4 +86,4 @@ for (let offset = 0; offset < expected.data.length; offset += 4) {
 	}
 }
 
-process.stdout.write(`${JSON.stringify({ mismatches, firstDifferences })}\n`);
+process.stdout.write(`${JSON.stringify({ mismatches, floorMismatches, firstDifferences })}\n`);
