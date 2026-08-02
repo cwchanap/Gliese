@@ -31,7 +31,7 @@ export interface MeadowEntryArtPackageApproval {
 
 export const meadowEntryArtPackageApprovalReview = {
 	reviewedBy: 'chanwaichan',
-	reviewedAt: '2026-08-02T08:15:51Z'
+	reviewedAt: '2026-08-02T08:51:49Z'
 } as const;
 
 export const meadowEntryArtPackageApproval: MeadowEntryArtPackageApproval = {

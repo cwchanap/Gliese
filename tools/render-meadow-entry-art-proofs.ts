@@ -2,7 +2,7 @@ import { createHash, randomUUID } from 'node:crypto';
 import { lstat, mkdir, readFile, readdir, rename, rm, writeFile } from 'node:fs/promises';
 import { dirname, join, resolve } from 'node:path';
 
-import sharp from 'sharp';
+import sharp, { type Sharp } from 'sharp';
 
 import type { PixelBounds } from '$lib/game/content/backgrounds/meadow-entry-authoring-types';
 import {
@@ -53,7 +53,7 @@ interface ProofInput {
 	sha256: string;
 }
 
-interface ProofSidecar {
+export interface MeadowEntryProofSidecar {
 	version: 1;
 	proofId: string;
 	path: string;
@@ -65,6 +65,44 @@ interface ProofSidecar {
 	inputs: readonly ProofInput[];
 	inputSha256: readonly string[];
 	metrics: Readonly<Record<string, unknown>>;
+}
+
+export type MeadowEntryProofPublicationPhase =
+	| 'sentinel-written'
+	| 'previous-backed-up'
+	| 'replacement-installed'
+	| 'replacement-validated'
+	| 'sentinel-removed'
+	| 'rollback-target-removed'
+	| 'rollback-backup-restored'
+	| 'rollback-sentinel-removed'
+	| 'rollback-failed';
+
+export interface MeadowEntryProofPublicationFileSystem {
+	pathExists(path: string): Promise<boolean>;
+	listFiles(root: string): Promise<string[]>;
+	mkdir: typeof mkdir;
+	rename: typeof rename;
+	rm: typeof rm;
+	writeFile: typeof writeFile;
+}
+
+export interface MeadowEntryProofSnapshotFileSystem {
+	pathExists(path: string): Promise<boolean>;
+	listFiles(root: string): Promise<string[]>;
+	readFile(path: string): Promise<Buffer>;
+}
+
+export interface MeadowEntryPublishedProof {
+	descriptor: MeadowEntryProofDescriptor;
+	png: Buffer;
+	sidecar: MeadowEntryProofSidecar;
+	sidecarBytes: Buffer;
+}
+
+export interface MeadowEntryProofSnapshot {
+	attemptsUsed: number;
+	proofs: readonly MeadowEntryPublishedProof[];
 }
 
 interface RenderContext {
@@ -100,7 +138,7 @@ function extractOptions(bounds: PixelBounds): {
 	return { left: bounds.left, top: bounds.top, ...dimensions(bounds) };
 }
 
-async function pathExists(path: string): Promise<boolean> {
+async function nodePathExists(path: string): Promise<boolean> {
 	try {
 		await lstat(path);
 		return true;
@@ -110,7 +148,7 @@ async function pathExists(path: string): Promise<boolean> {
 	}
 }
 
-async function canonicalPipeline(pipeline: sharp.Sharp): Promise<Buffer> {
+async function canonicalPipeline(pipeline: Sharp): Promise<Buffer> {
 	const { data, info } = await pipeline
 		.toColourspace('srgb')
 		.ensureAlpha()
@@ -194,7 +232,7 @@ async function writeProof(
 	validateCanonicalPngChunks(png);
 	const decoded = await decodeMeadowEntryRgba(png);
 	const inputs = await Promise.all(inputPaths.map((path) => hashInput(context, path)));
-	const sidecar: ProofSidecar = {
+	const sidecar: MeadowEntryProofSidecar = {
 		version: 1,
 		proofId: descriptor.proofId,
 		path: `${PROOF_ROOT}/${relativePng}`,
@@ -286,7 +324,7 @@ async function renderCropProofs(context: RenderContext): Promise<void> {
 		const basePath = `${EXPORT_ROOT}/${crop.baseFilename}`;
 		const base = await readFile(join(context.repositoryRoot, basePath));
 		const inputPaths = [basePath];
-		let png = base;
+		let png: Buffer = base;
 		if (crop.foregroundFilename !== null) {
 			const foregroundPath = `${EXPORT_ROOT}/${crop.foregroundFilename}`;
 			const foreground = await readFile(join(context.repositoryRoot, foregroundPath));
@@ -456,53 +494,363 @@ function expectedProofInventory(): string[] {
 	]).sort();
 }
 
-async function assertExactProofInventory(root: string): Promise<void> {
-	const expected = expectedProofInventory();
-	const actual = await walkFiles(root);
+function expectedProofInventoryFor(
+	descriptors: readonly MeadowEntryProofDescriptor[]
+): readonly string[] {
+	return descriptors
+		.flatMap(({ filename }) => [filename, filename.replace(/\.png$/, '.json')])
+		.sort();
+}
+
+function assertInventoryEquals(expected: readonly string[], actual: readonly string[]): void {
 	assert(
-		JSON.stringify(actual) === JSON.stringify(expected),
+		JSON.stringify([...actual].sort()) === JSON.stringify(expected),
 		`Meadow Entry proof inventory differs: expected=${expected.join(',')} actual=${actual.join(',')}`
 	);
+}
+
+const NODE_PROOF_PUBLICATION_FILE_SYSTEM: MeadowEntryProofPublicationFileSystem = {
+	pathExists: nodePathExists,
+	listFiles: walkFiles,
+	mkdir,
+	rename,
+	rm,
+	writeFile
+};
+
+const NODE_PROOF_SNAPSHOT_FILE_SYSTEM: MeadowEntryProofSnapshotFileSystem = {
+	pathExists: nodePathExists,
+	listFiles: walkFiles,
+	readFile
+};
+
+async function assertExactProofInventory(
+	root: string,
+	fileSystem: Pick<
+		MeadowEntryProofPublicationFileSystem,
+		'listFiles'
+	> = NODE_PROOF_PUBLICATION_FILE_SYSTEM
+): Promise<void> {
+	const expected = expectedProofInventory();
+	const actual = await fileSystem.listFiles(root);
+	assertInventoryEquals(expected, actual);
 	for (const path of actual) assertAllowedMeadowEntryProofDestination(path);
 }
 
-async function publishProofInventory(
-	repositoryRoot: string,
-	stagingRoot: string,
-	token: string
-): Promise<void> {
+export async function publishMeadowEntryProofInventory(input: {
+	repositoryRoot: string;
+	stagingRoot: string;
+	token: string;
+	fileSystem?: MeadowEntryProofPublicationFileSystem;
+	onPhase?: (phase: MeadowEntryProofPublicationPhase) => void;
+}): Promise<void> {
+	const { repositoryRoot, stagingRoot, token } = input;
+	const fileSystem = input.fileSystem ?? NODE_PROOF_PUBLICATION_FILE_SYSTEM;
+	const onPhase = input.onPhase ?? (() => undefined);
 	const target = join(repositoryRoot, PROOF_ROOT);
 	const sentinel = join(repositoryRoot, PROOF_SENTINEL);
 	const backup = `${target}.${token}.rollback`;
-	const hadTarget = await pathExists(target);
+	await assertExactProofInventory(stagingRoot, fileSystem);
+	const hadTarget = await fileSystem.pathExists(target);
 	let backedUp = false;
 	let installed = false;
 	let sentinelOwned = false;
 	try {
-		if (hadTarget) await assertExactProofInventory(target);
-		await mkdir(dirname(sentinel), { recursive: true });
-		await writeFile(sentinel, `${token}\n`, { flag: 'wx' });
+		if (hadTarget) await assertExactProofInventory(target, fileSystem);
+		await fileSystem.mkdir(dirname(sentinel), { recursive: true });
+		await fileSystem.writeFile(sentinel, `${token}\n`, { flag: 'wx' });
 		sentinelOwned = true;
+		onPhase('sentinel-written');
 		if (hadTarget) {
-			await rename(target, backup);
+			await fileSystem.rename(target, backup);
 			backedUp = true;
+			onPhase('previous-backed-up');
 		}
-		await rename(stagingRoot, target);
+		await fileSystem.rename(stagingRoot, target);
 		installed = true;
-		await rm(sentinel);
+		onPhase('replacement-installed');
+		await assertExactProofInventory(target, fileSystem);
+		onPhase('replacement-validated');
+		await fileSystem.rm(sentinel);
 		sentinelOwned = false;
+		onPhase('sentinel-removed');
 	} catch (error) {
 		if (sentinelOwned) {
-			if (installed) await rm(target, { recursive: true, force: true }).catch(() => undefined);
-			if (backedUp) await rename(backup, target).catch(() => undefined);
-			await rm(sentinel, { force: true }).catch(() => undefined);
+			const rollbackErrors: unknown[] = [];
+			let targetRemoved = !installed;
+			let backupRestored = !backedUp;
+			if (installed) {
+				try {
+					await fileSystem.rm(target, { recursive: true, force: true });
+					targetRemoved = true;
+					onPhase('rollback-target-removed');
+				} catch (rollbackError) {
+					rollbackErrors.push(rollbackError);
+				}
+			}
+			if (backedUp && targetRemoved) {
+				try {
+					await fileSystem.rename(backup, target);
+					backupRestored = true;
+					onPhase('rollback-backup-restored');
+				} catch (rollbackError) {
+					rollbackErrors.push(rollbackError);
+				}
+			}
+			if (targetRemoved && backupRestored) {
+				try {
+					if (hadTarget) await assertExactProofInventory(target, fileSystem);
+					else assert(!(await fileSystem.pathExists(target)), 'Rollback left a proof target');
+					await fileSystem.rm(sentinel, { force: true });
+					sentinelOwned = false;
+					onPhase('rollback-sentinel-removed');
+				} catch (rollbackError) {
+					rollbackErrors.push(rollbackError);
+				}
+			}
+			if (rollbackErrors.length > 0 || sentinelOwned) {
+				onPhase('rollback-failed');
+				const messages = rollbackErrors
+					.map((item) => (item instanceof Error ? item.message : String(item)))
+					.join('; ');
+				throw new AggregateError(
+					[error, ...rollbackErrors],
+					`Meadow Entry proof publication rollback failed closed: ${messages}`,
+					{ cause: error }
+				);
+			}
 		}
 		throw error;
 	} finally {
-		await rm(stagingRoot, { recursive: true, force: true }).catch(() => undefined);
+		await fileSystem.rm(stagingRoot, { recursive: true, force: true }).catch(() => undefined);
 	}
-	if (backedUp) await rm(backup, { recursive: true, force: true });
-	await assertExactProofInventory(target);
+	if (backedUp) await fileSystem.rm(backup, { recursive: true, force: true });
+	await assertExactProofInventory(target, fileSystem);
+}
+
+function proofExportPath(cropId: string, plane: 'base' | 'foreground'): string {
+	const crop = MEADOW_ENTRY_APPROVED_CROPS.find(({ id }) => id === cropId);
+	assert(crop, `Unknown Meadow Entry proof crop: ${cropId}`);
+	const filename = plane === 'base' ? crop.baseFilename : crop.foregroundFilename;
+	assert(filename !== null, `Missing Meadow Entry proof foreground crop: ${cropId}`);
+	return `${EXPORT_ROOT}/${filename}`;
+}
+
+function expectedProofInputPaths(proofId: string): readonly string[] {
+	const fourLayers = [BASE_MASTER, SUNDROP_BASE, FOREGROUND_MASTER, SUNDROP_FOREGROUND];
+	if (proofId === 'full/base-master') return [BASE_MASTER];
+	if (proofId === 'full/foreground-checkerboard') return [FOREGROUND_MASTER];
+	if (proofId === 'full/immutable-sundrop-composite') return fourLayers;
+	if (proofId === 'full/interaction-readability-overlay') {
+		return [...fourLayers, ...INTERACTION_MASKS];
+	}
+	const fullMask = FULL_MASKS[proofId as keyof typeof FULL_MASKS];
+	if (fullMask) return [...fourLayers, fullMask];
+	if (proofId.startsWith('regions/') || proofId.startsWith('connectors/')) {
+		const cropId = proofId.slice(proofId.indexOf('/') + 1);
+		const crop = MEADOW_ENTRY_APPROVED_CROPS.find(({ id }) => id === cropId);
+		assert(crop, `Unknown Meadow Entry crop proof: ${proofId}`);
+		return [
+			proofExportPath(cropId, 'base'),
+			...(crop.foregroundFilename === null ? [] : [proofExportPath(cropId, 'foreground')])
+		];
+	}
+	if (proofId.startsWith('overlaps/')) {
+		const overlap = MEADOW_ENTRY_APPROVED_OVERLAPS.find(({ id }) => `overlaps/${id}` === proofId);
+		assert(overlap, `Unknown Meadow Entry overlap proof: ${proofId}`);
+		return [
+			proofExportPath(overlap.firstCropId, 'base'),
+			proofExportPath(overlap.secondCropId, 'base'),
+			...(overlap.planePolicy === 'base-and-foreground'
+				? [
+						proofExportPath(overlap.firstCropId, 'foreground'),
+						proofExportPath(overlap.secondCropId, 'foreground')
+					]
+				: [])
+		];
+	}
+	if (proofId.startsWith('fallback-boundaries/')) return [BASE_MASTER, CROP_MANIFEST];
+	if (
+		proofId.startsWith('corners/') ||
+		proofId.startsWith('clamps/') ||
+		proofId.startsWith('sundrop-feather/')
+	) {
+		return [...fourLayers, CROP_MANIFEST];
+	}
+	throw new Error(`Unknown Meadow Entry proof identity: ${proofId}`);
+}
+
+function parseProofSidecar(bytes: Buffer, path: string): MeadowEntryProofSidecar {
+	let value: unknown;
+	try {
+		value = JSON.parse(bytes.toString('utf8')) as unknown;
+	} catch {
+		throw new Error(`Meadow Entry proof sidecar is malformed: ${path}`);
+	}
+	assert(value !== null && typeof value === 'object' && !Array.isArray(value), `Malformed ${path}`);
+	const sidecar = value as Record<string, unknown>;
+	assert(
+		JSON.stringify(Object.keys(sidecar).sort()) ===
+			JSON.stringify([
+				'bytes',
+				'height',
+				'inputSha256',
+				'inputs',
+				'masterBounds',
+				'metrics',
+				'path',
+				'proofId',
+				'sha256',
+				'version',
+				'width'
+			]),
+		`Meadow Entry proof sidecar has unexpected fields: ${path}`
+	);
+	assert(
+		Array.isArray(sidecar.inputs) &&
+			Array.isArray(sidecar.inputSha256) &&
+			sidecar.masterBounds !== null &&
+			typeof sidecar.masterBounds === 'object' &&
+			!Array.isArray(sidecar.masterBounds) &&
+			sidecar.metrics !== null &&
+			typeof sidecar.metrics === 'object' &&
+			!Array.isArray(sidecar.metrics),
+		`Meadow Entry proof sidecar has malformed structured fields: ${path}`
+	);
+	return sidecar as unknown as MeadowEntryProofSidecar;
+}
+
+function boundsEqual(first: PixelBounds, second: PixelBounds): boolean {
+	return (
+		first.left === second.left &&
+		first.top === second.top &&
+		first.right === second.right &&
+		first.bottom === second.bottom
+	);
+}
+
+async function readProofGeneration(
+	repositoryRoot: string,
+	fileSystem: MeadowEntryProofSnapshotFileSystem,
+	descriptors: readonly MeadowEntryProofDescriptor[],
+	inputPathsFor: (proofId: string) => readonly string[]
+): Promise<readonly MeadowEntryPublishedProof[]> {
+	const proofRoot = join(repositoryRoot, PROOF_ROOT);
+	const expectedInventory = expectedProofInventoryFor(descriptors);
+	assertInventoryEquals(expectedInventory, await fileSystem.listFiles(proofRoot));
+	const proofs: MeadowEntryPublishedProof[] = [];
+	for (const descriptor of descriptors) {
+		const relativeJson = descriptor.filename.replace(/\.png$/, '.json');
+		const sidecarPath = join(proofRoot, relativeJson);
+		const pngPath = join(proofRoot, descriptor.filename);
+		const sidecarBytes = await fileSystem.readFile(sidecarPath);
+		const sidecar = parseProofSidecar(sidecarBytes, relativeJson);
+		const png = await fileSystem.readFile(pngPath);
+		validateCanonicalPngChunks(png);
+		const decoded = await decodeMeadowEntryRgba(png);
+		const expectedDimensions = dimensions(descriptor.masterBounds);
+		assert(
+			decoded.width === expectedDimensions.width && decoded.height === expectedDimensions.height,
+			`Meadow Entry proof dimensions do not match master bounds: ${descriptor.proofId}`
+		);
+		assert(
+			sidecar.version === 1 &&
+				sidecar.proofId === descriptor.proofId &&
+				sidecar.path === `${PROOF_ROOT}/${descriptor.filename}` &&
+				sidecar.sha256 === sha256(png) &&
+				sidecar.bytes === png.byteLength &&
+				sidecar.width === decoded.width &&
+				sidecar.height === decoded.height &&
+				boundsEqual(sidecar.masterBounds, descriptor.masterBounds) &&
+				JSON.stringify(sidecar.inputs.map(({ path }) => path)) ===
+					JSON.stringify(inputPathsFor(descriptor.proofId)) &&
+				JSON.stringify(sidecar.inputSha256) ===
+					JSON.stringify(sidecar.inputs.map(({ sha256: inputSha256 }) => inputSha256)),
+			`Meadow Entry proof sidecar does not bind its PNG/input identity: ${descriptor.proofId}`
+		);
+		for (const input of sidecar.inputs) {
+			assert(
+				input !== null &&
+					typeof input === 'object' &&
+					JSON.stringify(Object.keys(input).sort()) === JSON.stringify(['path', 'sha256']) &&
+					/^[a-f0-9]{64}$/.test(input.sha256) &&
+					input.path === input.path.replaceAll('\\', '/') &&
+					!input.path.startsWith('/') &&
+					!input.path.split('/').includes('..'),
+				`Meadow Entry proof has an invalid input identity: ${descriptor.proofId}`
+			);
+		}
+		assert(
+			new Set(sidecar.inputs.map(({ path }) => path)).size === sidecar.inputs.length,
+			`Meadow Entry proof has duplicate input identities: ${descriptor.proofId}`
+		);
+		proofs.push({ descriptor, png, sidecar, sidecarBytes });
+	}
+	return proofs;
+}
+
+export async function readPublishedMeadowEntryProofSnapshot(
+	repositoryRoot: string,
+	options: {
+		attempts?: number;
+		retryDelayMs?: number;
+		fileSystem?: MeadowEntryProofSnapshotFileSystem;
+		descriptors?: readonly MeadowEntryProofDescriptor[];
+		expectedInputPaths?: (proofId: string) => readonly string[];
+	} = {}
+): Promise<MeadowEntryProofSnapshot> {
+	const root = resolve(repositoryRoot);
+	const attempts = options.attempts ?? 3;
+	const retryDelayMs = options.retryDelayMs ?? 25;
+	assert(Number.isInteger(attempts) && attempts > 0, 'Proof snapshot attempts must be positive');
+	assert(
+		Number.isFinite(retryDelayMs) && retryDelayMs >= 0,
+		'Proof snapshot retry delay must be non-negative'
+	);
+	const fileSystem = options.fileSystem ?? NODE_PROOF_SNAPSHOT_FILE_SYSTEM;
+	const descriptors = options.descriptors ?? MEADOW_ENTRY_PROOF_DESCRIPTORS;
+	const inputPathsFor = options.expectedInputPaths ?? expectedProofInputPaths;
+	const sentinel = join(root, PROOF_SENTINEL);
+	const proofRoot = join(root, PROOF_ROOT);
+	let lastError: unknown;
+	for (let attempt = 1; attempt <= attempts; attempt += 1) {
+		if (await fileSystem.pathExists(sentinel)) {
+			lastError = new Error('Meadow Entry proof publication is in progress');
+			if (attempt < attempts && retryDelayMs > 0) {
+				await new Promise((resolveRetry) => setTimeout(resolveRetry, retryDelayMs));
+			}
+			continue;
+		}
+		try {
+			const proofs = await readProofGeneration(root, fileSystem, descriptors, inputPathsFor);
+			for (const proof of proofs) {
+				const reread = await fileSystem.readFile(
+					join(proofRoot, proof.descriptor.filename.replace(/\.png$/, '.json'))
+				);
+				assert(
+					reread.equals(proof.sidecarBytes),
+					`Meadow Entry proof generation changed while reading: ${proof.descriptor.proofId}`
+				);
+			}
+			assertInventoryEquals(
+				expectedProofInventoryFor(descriptors),
+				await fileSystem.listFiles(proofRoot)
+			);
+			assert(
+				!(await fileSystem.pathExists(sentinel)),
+				'Meadow Entry proof publication started while reading'
+			);
+			return { attemptsUsed: attempt, proofs };
+		} catch (error) {
+			lastError = error;
+			if (attempt < attempts && retryDelayMs > 0) {
+				await new Promise((resolveRetry) => setTimeout(resolveRetry, retryDelayMs));
+			}
+		}
+	}
+	throw lastError instanceof Error
+		? lastError
+		: new Error('Meadow Entry proof snapshot is unavailable');
 }
 
 export async function renderMeadowEntryArtProofs(repositoryRoot = process.cwd()): Promise<{
@@ -547,7 +895,7 @@ export async function renderMeadowEntryArtProofs(repositoryRoot = process.cwd())
 		await renderOverlapProofs(context);
 		await renderExtractedBoundaryProofs(context);
 		await assertExactProofInventory(stagingRoot);
-		await publishProofInventory(root, stagingRoot, token);
+		await publishMeadowEntryProofInventory({ repositoryRoot: root, stagingRoot, token });
 		const manifest = Buffer.from(
 			(
 				await Promise.all(
