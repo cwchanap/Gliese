@@ -10,6 +10,28 @@ permissions:
   contents: read
 
 jobs:
+  meadow-entry-art-package:
+    name: Meadow Entry Art Package
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          lfs: true
+          persist-credentials: false
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+        env:
+          PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: '1'
+
+      - name: Validate HPA-399 art package
+        run: bun run art:validate:meadow-entry
+
   build-and-lint:
     name: Build & Lint
     runs-on: ubuntu-latest
