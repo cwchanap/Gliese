@@ -1,5 +1,6 @@
 import { readFile } from 'node:fs/promises';
 import { isAbsolute, join, resolve } from 'node:path';
+import { isDeepStrictEqual } from 'node:util';
 
 export type ArtMapPackageOperation = 'finalize' | 'export' | 'proof' | 'approve' | 'validate';
 
@@ -36,6 +37,54 @@ export interface ArtMapPackageAdapterV1 {
 
 const IDENTIFIER = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 const OPERATIONS = ['finalize', 'export', 'proof', 'approve', 'validate'] as const;
+const MEADOW_ENTRY_PACKAGE_V1_CAPABILITY = {
+	version: 1,
+	adapterId: 'meadow-entry-hpa-399',
+	mapId: 'meadow-entry',
+	implementation: 'meadow-entry-package-v1',
+	schemas: {
+		input: 'gliese-art-map-package-input-v1',
+		output: 'gliese-art-map-package-output-v1'
+	},
+	paths: {
+		packageRoot: 'artifacts/meadow-entry/hpa-399',
+		proofRoot: 'docs/superpowers/reports/img/hpa-399/proofs',
+		controlsRoot: 'docs/superpowers/reports/img/hpa-399/controls'
+	},
+	artifacts: {
+		baseMaster: 'masters/meadow-entry-base-master.png',
+		foregroundMaster: 'masters/meadow-entry-foreground-master.png',
+		exportsDirectory: 'exports'
+	},
+	manifests: {
+		controlApproval: 'src/lib/game/content/approvals/meadow-entry-controls.ts',
+		packageApproval: 'src/lib/game/content/approvals/meadow-entry-art-package.ts',
+		productionProvenance: 'provenance/meadow-entry-master-provenance.json',
+		exportProvenance: 'provenance/meadow-entry-export-provenance.json',
+		cropManifest: 'provenance/meadow-entry-crop-manifest.json',
+		validationEvidence:
+			'docs/superpowers/reports/2026-07-30-hpa-399-visual-masters-exports-validation.md'
+	},
+	versions: {
+		normalizationTransform: 1,
+		cropContract: 1,
+		canonicalPngEncoder: 1,
+		dependencies: { sharp: '0.35.3', runtime: 'bun' }
+	},
+	productionRecord: {
+		modeField: 'base.generation.mode|foreground.generation.mode',
+		promptField: 'base.generation.prompt|foreground.generation.prompt',
+		manualProductionValue: 'manual',
+		provenanceManifest: 'provenance/meadow-entry-master-provenance.json'
+	},
+	commands: {
+		finalize: 'art:finalize:meadow-entry',
+		export: 'art:export:meadow-entry',
+		proof: 'art:proof:meadow-entry',
+		approve: 'art:approve:meadow-entry',
+		validate: 'art:validate:meadow-entry'
+	}
+} satisfies ArtMapPackageAdapterV1;
 
 function assert(condition: unknown, message: string): asserts condition {
 	if (!condition) throw new Error(message);
@@ -175,6 +224,17 @@ function validateAdapter(value: unknown): ArtMapPackageAdapterV1 {
 	return adapter as unknown as ArtMapPackageAdapterV1;
 }
 
+function assertSupportedCapability(adapter: ArtMapPackageAdapterV1): void {
+	assert(
+		adapter.implementation === MEADOW_ENTRY_PACKAGE_V1_CAPABILITY.implementation,
+		`Unsupported art map package adapter implementation "${adapter.implementation}" for adapter "${adapter.adapterId}"`
+	);
+	assert(
+		isDeepStrictEqual(adapter, MEADOW_ENTRY_PACKAGE_V1_CAPABILITY),
+		`Unsupported art map package adapter capability contract for implementation "${adapter.implementation}" and adapter "${adapter.adapterId}"`
+	);
+}
+
 export async function loadArtMapPackageAdapter(
 	repositoryRoot: string,
 	manifestPath: string
@@ -192,7 +252,9 @@ export async function loadArtMapPackageAdapter(
 			});
 		throw error;
 	}
-	return validateAdapter(parsed);
+	const adapter = validateAdapter(parsed);
+	assertSupportedCapability(adapter);
+	return adapter;
 }
 
 function parseArguments(args: readonly string[]): {
@@ -238,10 +300,6 @@ export async function runArtMapPackageCli(
 ): Promise<void> {
 	const parsed = parseArguments(args);
 	const adapter = await loadArtMapPackageAdapter(repositoryRoot, parsed.adapterPath);
-	assert(
-		adapter.implementation === 'meadow-entry-package-v1',
-		`Unsupported art map package adapter implementation "${adapter.implementation}" for adapter "${adapter.adapterId}"`
-	);
 	options.onDispatch?.(parsed.operation);
 	const root = resolve(repositoryRoot);
 	if (parsed.operation === 'finalize') {

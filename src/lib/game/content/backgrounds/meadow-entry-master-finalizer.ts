@@ -354,6 +354,14 @@ function assertCombinedContext(
 			base.approvedStorageConfigurationSha256 === foreground.approvedStorageConfigurationSha256,
 		'Meadow Entry base and foreground finalization contexts must match'
 	);
+	assert(
+		base.predecessor.approvedBaseSha256 === foreground.predecessor.approvedBaseSha256 &&
+			base.predecessor.approvedForegroundSha256 ===
+				foreground.predecessor.approvedForegroundSha256 &&
+			base.predecessor.basePng.equals(foreground.predecessor.basePng) &&
+			base.predecessor.foregroundPng.equals(foreground.predecessor.foregroundPng),
+		'Meadow Entry base and foreground predecessor contexts must match'
+	);
 }
 
 export async function finalizeMeadowEntryMasters(input: {
