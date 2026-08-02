@@ -29,6 +29,7 @@ import {
 	readPublishedMeadowEntryProofSnapshot,
 	type MeadowEntryProofSidecar
 } from './render-meadow-entry-art-proofs';
+import { readCoherentMeadowEntryArtSourceSnapshot } from './read-meadow-entry-art-source-snapshot';
 import { verifyMeadowEntryArtStorage } from './verify-meadow-entry-art-storage';
 
 const PACKAGE_ROOT = 'artifacts/meadow-entry/hpa-399';
@@ -154,20 +155,6 @@ function parseReviewArguments(args: readonly string[]): ReviewArguments {
 	return { reviewedBy, reviewedAt };
 }
 
-async function readJsonObject(path: string, label: string): Promise<Record<string, unknown>> {
-	let value: unknown;
-	try {
-		value = JSON.parse((await readFile(path)).toString('utf8')) as unknown;
-	} catch {
-		throw new Error(`Meadow Entry ${label} is not valid JSON`);
-	}
-	assert(
-		value !== null && typeof value === 'object' && !Array.isArray(value),
-		`${label} is not an object`
-	);
-	return value as Record<string, unknown>;
-}
-
 async function inspectPngBytes(
 	path: string,
 	bytes: Buffer
@@ -184,10 +171,6 @@ async function inspectPngBytes(
 		},
 		decoded
 	};
-}
-
-async function inspectPng(repositoryRoot: string, path: string): Promise<ApprovedPngArtifact> {
-	return (await inspectPngBytes(path, await readFile(join(repositoryRoot, path)))).artifact;
 }
 
 function jsonEqual(first: unknown, second: unknown): boolean {
@@ -259,12 +242,10 @@ function assertProofMetrics(sidecar: MeadowEntryProofSidecar): void {
 }
 
 async function assertForegroundAndCoverageAcceptance(
-	repositoryRoot: string,
+	foregroundPng: Buffer,
 	controlInputs: ReturnType<typeof buildMeadowEntryControlInputs>
 ): Promise<void> {
-	const foreground = await decodeMeadowEntryRgba(
-		await readFile(join(repositoryRoot, FOREGROUND_MASTER))
-	);
+	const foreground = await decodeMeadowEntryRgba(foregroundPng);
 	const eligible = buildMeadowEntryForegroundEligibleRasterMask(controlInputs).alpha;
 	const protectedMask = buildMeadowEntryProtectedForegroundRasterMask(controlInputs).alpha;
 	for (let pixel = 0; pixel < foreground.width * foreground.height; pixel += 1) {
@@ -312,6 +293,19 @@ async function assertForegroundAndCoverageAcceptance(
 }
 
 async function buildApproval(repositoryRoot: string): Promise<MeadowEntryArtPackageApproval> {
+	const sourceSnapshot = await readCoherentMeadowEntryArtSourceSnapshot(
+		join(repositoryRoot, PACKAGE_ROOT)
+	);
+	const packageInputs = new Map<string, Buffer>([
+		[BASE_MASTER, sourceSnapshot.basePng],
+		[FOREGROUND_MASTER, sourceSnapshot.foregroundPng],
+		[MASTER_PROVENANCE, sourceSnapshot.provenanceJson],
+		[EXPORT_PROVENANCE, sourceSnapshot.exports.provenanceJson],
+		[CROP_MANIFEST, sourceSnapshot.exports.cropManifestJson],
+		...Object.entries(sourceSnapshot.exports.files).map(
+			([filename, bytes]) => [`${PACKAGE_ROOT}/exports/${filename}`, bytes] as const
+		)
+	]);
 	const controlInputs = buildMeadowEntryControlInputs(repositoryRoot);
 	const currentFingerprint = computeMeadowEntryCombinedControlFingerprint(controlInputs);
 	assert(
@@ -325,8 +319,10 @@ async function buildApproval(repositoryRoot: string): Promise<MeadowEntryArtPack
 	);
 
 	const [baseMaster, foregroundMaster] = await Promise.all([
-		inspectPng(repositoryRoot, BASE_MASTER),
-		inspectPng(repositoryRoot, FOREGROUND_MASTER)
+		inspectPngBytes(BASE_MASTER, sourceSnapshot.basePng).then(({ artifact }) => artifact),
+		inspectPngBytes(FOREGROUND_MASTER, sourceSnapshot.foregroundPng).then(
+			({ artifact }) => artifact
+		)
 	]);
 	assert(
 		baseMaster.width === 6400 &&
@@ -335,13 +331,13 @@ async function buildApproval(repositoryRoot: string): Promise<MeadowEntryArtPack
 			foregroundMaster.height === 6400,
 		'Meadow Entry approved master dimensions have drifted'
 	);
-	await assertForegroundAndCoverageAcceptance(repositoryRoot, controlInputs);
+	await assertForegroundAndCoverageAcceptance(sourceSnapshot.foregroundPng, controlInputs);
 
-	const [masterProvenance, exportProvenance, cropManifest] = await Promise.all([
-		readJsonObject(join(repositoryRoot, MASTER_PROVENANCE), 'master provenance'),
-		readJsonObject(join(repositoryRoot, EXPORT_PROVENANCE), 'export provenance'),
-		readJsonObject(join(repositoryRoot, CROP_MANIFEST), 'crop manifest')
-	]);
+	const [masterProvenance, exportProvenance, cropManifest] = [
+		JSON.parse(sourceSnapshot.provenanceJson.toString('utf8')) as Record<string, unknown>,
+		JSON.parse(sourceSnapshot.exports.provenanceJson.toString('utf8')) as Record<string, unknown>,
+		JSON.parse(sourceSnapshot.exports.cropManifestJson.toString('utf8')) as Record<string, unknown>
+	];
 	const masterControls = masterProvenance.controls as Record<string, unknown> | undefined;
 	const masterBase = masterProvenance.base as Record<string, unknown> | undefined;
 	const masterForeground = masterProvenance.foreground as Record<string, unknown> | undefined;
@@ -386,10 +382,9 @@ async function buildApproval(repositoryRoot: string): Promise<MeadowEntryArtPack
 			: ['base', 'foreground']) as readonly ('base' | 'foreground')[]) {
 			const filename = plane === 'base' ? crop.baseFilename : crop.foregroundFilename!;
 			const path = `${PACKAGE_ROOT}/exports/${filename}`;
-			const { artifact, decoded } = await inspectPngBytes(
-				path,
-				await readFile(join(repositoryRoot, path))
-			);
+			const bytes = packageInputs.get(path);
+			assert(bytes, `Meadow Entry coherent export snapshot is missing ${filename}`);
+			const { artifact, decoded } = await inspectPngBytes(path, bytes);
 			assert(
 				artifact.width === crop.expectedDimensions.width &&
 					artifact.height === crop.expectedDimensions.height,
@@ -504,7 +499,12 @@ async function buildApproval(repositoryRoot: string): Promise<MeadowEntryArtPack
 				`Meadow Entry proof sidecar has an invalid input: ${sidecarPath}`
 			);
 			seenInputs.add(input.path);
-			const inputBytes = await readFile(join(repositoryRoot, input.path));
+			const packageBytes = packageInputs.get(input.path);
+			assert(
+				packageBytes !== undefined || !input.path.startsWith(`${PACKAGE_ROOT}/`),
+				`Meadow Entry coherent package snapshot is missing proof input: ${input.path}`
+			);
+			const inputBytes = packageBytes ?? (await readFile(join(repositoryRoot, input.path)));
 			assert(
 				sha256(inputBytes) === input.sha256,
 				`Meadow Entry proof input drifted proof=${descriptor.proofId} input=${input.path}`
@@ -524,9 +524,9 @@ async function buildApproval(repositoryRoot: string): Promise<MeadowEntryArtPack
 		storageConfigurationSha256: sha256(storageConfiguration),
 		baseMaster,
 		foregroundMaster,
-		cropManifestSha256: sha256(await readFile(join(repositoryRoot, CROP_MANIFEST))),
-		masterProvenanceSha256: sha256(await readFile(join(repositoryRoot, MASTER_PROVENANCE))),
-		exportProvenanceSha256: sha256(await readFile(join(repositoryRoot, EXPORT_PROVENANCE))),
+		cropManifestSha256: sha256(sourceSnapshot.exports.cropManifestJson),
+		masterProvenanceSha256: sha256(sourceSnapshot.provenanceJson),
+		exportProvenanceSha256: sha256(sourceSnapshot.exports.provenanceJson),
 		exports,
 		proofs,
 		evidencePath: EVIDENCE_PATH

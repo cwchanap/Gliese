@@ -282,7 +282,7 @@ async function pathExists(path: string): Promise<boolean> {
 	}
 }
 
-interface ApprovedPackageBytes {
+export interface ApprovedPackageBytes {
 	basePng: Buffer;
 	foregroundPng: Buffer;
 	provenanceJson: Buffer;
