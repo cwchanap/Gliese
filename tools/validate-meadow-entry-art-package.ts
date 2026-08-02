@@ -22,8 +22,8 @@ import {
 	computeMeadowEntryCombinedControlFingerprint
 } from '$lib/game/content/backgrounds/meadow-entry-controls';
 import {
-	type MeadowEntryGenerationProvenance,
-	validateMeadowEntryGenerationProvenance
+	validateMeadowEntryGenerationProvenance,
+	validateMeadowEntryRefinementProvenance
 } from '$lib/game/content/backgrounds/meadow-entry-master-provenance';
 import {
 	decodeMeadowEntryRgba,
@@ -416,9 +416,13 @@ async function validateApprovedPackage(repositoryRoot: string): Promise<void> {
 	);
 	for (const plane of ['base', 'foreground'] as const) {
 		const record = masterProvenance[plane] as Record<string, unknown>;
-		validateMeadowEntryGenerationProvenance(
-			record.generation as unknown as MeadowEntryGenerationProvenance
-		);
+		validateMeadowEntryGenerationProvenance(record.generation);
+		if (!Array.isArray(record.refinements)) {
+			throw new Error(`Meadow Entry ${plane} provenance refinements must be an array`);
+		}
+		for (const refinement of record.refinements) {
+			validateMeadowEntryRefinementProvenance(refinement);
+		}
 	}
 
 	exactObjectKeys('export provenance', exportProvenance, [

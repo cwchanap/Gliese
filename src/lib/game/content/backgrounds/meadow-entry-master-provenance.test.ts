@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest';
 
-import { validateMeadowEntryGenerationProvenance } from './meadow-entry-master-provenance';
+import {
+	validateMeadowEntryGenerationProvenance,
+	validateMeadowEntryRefinementProvenance
+} from './meadow-entry-master-provenance';
 
 describe('meadow-entry generation provenance', () => {
 	it('accepts a generative record when the provider exposes no seed', () => {
@@ -202,5 +205,109 @@ describe('meadow-entry generation provenance', () => {
 				settings: { providerSupportsByteReproducibleGeneration: true }
 			})
 		).not.toThrow();
+	});
+
+	it('rejects a non-object generation provenance record', () => {
+		expect(() => validateMeadowEntryGenerationProvenance(null)).toThrow(/must be an object/i);
+		expect(() => validateMeadowEntryGenerationProvenance('generative')).toThrow(
+			/must be an object/i
+		);
+	});
+
+	it('rejects an unknown generation mode instead of treating it as generative', () => {
+		expect(() =>
+			validateMeadowEntryGenerationProvenance({ ...baseGenerative, mode: 'imported' })
+		).toThrow(/mode must be 'manual' or 'generative'/i);
+		expect(() =>
+			validateMeadowEntryGenerationProvenance({ ...baseGenerative, mode: undefined })
+		).toThrow(/mode must be 'manual' or 'generative'/i);
+	});
+
+	it('rejects a generation record with a non-string tool', () => {
+		expect(() => validateMeadowEntryGenerationProvenance({ ...baseGenerative, tool: 42 })).toThrow(
+			/tool must be a string/i
+		);
+	});
+
+	it('rejects a generation record with non-array referenceImageSha256', () => {
+		expect(() =>
+			validateMeadowEntryGenerationProvenance({ ...baseGenerative, referenceImageSha256: 'abc' })
+		).toThrow(/reference image hashes must be an array of strings/i);
+	});
+});
+
+describe('meadow-entry refinement provenance', () => {
+	const validRefinement = {
+		plane: 'base',
+		sourceRegionIds: ['crossroads'],
+		editMaskSha256: 'a'.repeat(64),
+		replacementSha256: 'b'.repeat(64),
+		beforeMasterSha256: 'c'.repeat(64),
+		afterMasterSha256: 'd'.repeat(64),
+		changedBounds: { left: 0, top: 0, right: 64, bottom: 64 },
+		affectedCropIds: ['crop-1'],
+		transform: {
+			native: { width: 6400, height: 6400 },
+			crop: { left: 0, top: 0, width: 6400, height: 6400 },
+			output: { width: 6400, height: 6400 },
+			scale: 1
+		}
+	};
+
+	it('accepts a well-formed refinement record', () => {
+		expect(() => validateMeadowEntryRefinementProvenance(validRefinement)).not.toThrow();
+	});
+
+	it('rejects a non-object refinement record', () => {
+		expect(() => validateMeadowEntryRefinementProvenance(null)).toThrow(/must be an object/i);
+		expect(() => validateMeadowEntryRefinementProvenance([])).toThrow(/must be an object/i);
+	});
+
+	it('rejects an unknown plane', () => {
+		expect(() =>
+			validateMeadowEntryRefinementProvenance({ ...validRefinement, plane: 'middle' })
+		).toThrow(/plane must be 'base' or 'foreground'/i);
+	});
+
+	it('rejects a malformed sha256 hash', () => {
+		expect(() =>
+			validateMeadowEntryRefinementProvenance({
+				...validRefinement,
+				afterMasterSha256: 'not-a-hash'
+			})
+		).toThrow(/after master hash must be a lowercase SHA-256/i);
+	});
+
+	it('rejects non-array source region ids', () => {
+		expect(() =>
+			validateMeadowEntryRefinementProvenance({ ...validRefinement, sourceRegionIds: 'crossroads' })
+		).toThrow(/source region ids must be an array of strings/i);
+	});
+
+	it('rejects non-integer changed bounds', () => {
+		expect(() =>
+			validateMeadowEntryRefinementProvenance({
+				...validRefinement,
+				changedBounds: { left: 0.5, top: 0, right: 64, bottom: 64 }
+			})
+		).toThrow(/changed bounds left must be an integer/i);
+	});
+
+	it('rejects a transform with a non-finite scale', () => {
+		expect(() =>
+			validateMeadowEntryRefinementProvenance({
+				...validRefinement,
+				transform: { ...validRefinement.transform, scale: Number.POSITIVE_INFINITY }
+			})
+		).toThrow(/transform scale must be a finite number/i);
+	});
+
+	it('rejects a transform missing the native dimensions object', () => {
+		expect(() =>
+			validateMeadowEntryRefinementProvenance({
+				...validRefinement,
+				transform: { ...validRefinement.transform, native: null }
+			})
+		).toThrow(/transform native must be an object/i);
 	});
 });

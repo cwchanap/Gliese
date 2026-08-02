@@ -12,7 +12,10 @@ import {
 	encodeCanonicalMeadowEntryPng,
 	type DecodedMeadowEntryRgba
 } from './meadow-entry-png';
-import { validateMeadowEntryGenerationProvenance } from './meadow-entry-master-provenance';
+import {
+	validateMeadowEntryGenerationProvenance,
+	validateMeadowEntryRefinementProvenance
+} from './meadow-entry-master-provenance';
 
 const MIB = 1_024 * 1_024;
 const SHA256 = /^[a-f0-9]{64}$/;
@@ -262,6 +265,7 @@ function assertRefinements(
 	plane: 'base' | 'foreground'
 ): void {
 	for (const refinement of refinements) {
+		validateMeadowEntryRefinementProvenance(refinement);
 		assert(
 			refinement.plane === plane,
 			`Meadow Entry ${plane} finalizer received a ${refinement.plane} refinement`

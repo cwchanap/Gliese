@@ -89,9 +89,36 @@ describe('finalize-meadow-entry-masters CLI', () => {
 		expect(parseFinalizeMeadowEntryMasterArguments(['--plane', 'base'])).toMatchObject({
 			plane: 'base',
 			outputRoot: 'artifacts/meadow-entry/hpa-399',
+			outputRootExplicit: false,
 			validateOnly: false
 		});
+		expect(
+			parseFinalizeMeadowEntryMasterArguments(['--plane', 'base', '--output-root', '/tmp'])
+		).toMatchObject({ outputRootExplicit: true });
 		expect(() => parseFinalizeMeadowEntryMasterArguments(['--plane', 'unknown'])).toThrow(/plane/i);
+	});
+
+	it('rejects single-plane finalization without an explicit --output-root', async () => {
+		const finalizers = {
+			finalizeBase: async () => ({ png: Buffer.from('x'), provenance: {} })
+		};
+		await expect(
+			runFinalizeMeadowEntryMasters(['--plane', 'base'], repositoryRoot, finalizers)
+		).rejects.toThrow(/explicit --output-root review\/work destination/i);
+	});
+
+	it('rejects single-plane finalization into the approved package root', async () => {
+		const approvedRoot = join(repositoryRoot, 'artifacts/meadow-entry/hpa-399');
+		const finalizers = {
+			finalizeBase: async () => ({ png: Buffer.from('x'), provenance: {} })
+		};
+		await expect(
+			runFinalizeMeadowEntryMasters(
+				['--plane', 'base', '--output-root', approvedRoot],
+				repositoryRoot,
+				finalizers
+			)
+		).rejects.toThrow(/must not write to the approved package root/i);
 	});
 
 	it('commits both master planes and provenance as one complete snapshot', async () => {

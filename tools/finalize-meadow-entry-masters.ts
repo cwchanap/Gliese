@@ -16,6 +16,7 @@ import type {
 	MeadowEntryNormalizationTransform,
 	MeadowEntryRefinementProvenance
 } from '$lib/game/content/backgrounds/meadow-entry-master-provenance';
+import { validateMeadowEntryRefinementProvenance } from '$lib/game/content/backgrounds/meadow-entry-master-provenance';
 import {
 	buildMeadowEntryControlInputs,
 	computeMeadowEntryCombinedControlFingerprint
@@ -38,6 +39,7 @@ export interface FinalizeMeadowEntryMasterArguments {
 	foregroundProvenance?: string;
 	refinementManifest?: string;
 	outputRoot: string;
+	outputRootExplicit: boolean;
 	validateOnly: boolean;
 }
 
@@ -130,6 +132,7 @@ export function parseFinalizeMeadowEntryMasterArguments(
 		foregroundProvenance: values.get('--foreground-provenance'),
 		refinementManifest: values.get('--refinement-manifest'),
 		outputRoot: values.get('--output-root') ?? DEFAULT_OUTPUT_ROOT,
+		outputRootExplicit: values.has('--output-root'),
 		validateOnly
 	};
 }
@@ -143,17 +146,24 @@ async function readRefinements(
 ): Promise<readonly MeadowEntryRefinementProvenance[]> {
 	if (!path) return [];
 	const manifest = await readJson<unknown>(path);
-	if (Array.isArray(manifest)) return manifest as MeadowEntryRefinementProvenance[];
-	if (
+	let records: unknown[];
+	if (Array.isArray(manifest)) {
+		records = manifest;
+	} else if (
 		typeof manifest === 'object' &&
 		manifest !== null &&
 		Array.isArray((manifest as { refinements?: unknown }).refinements)
 	) {
-		return (manifest as { refinements: MeadowEntryRefinementProvenance[] }).refinements;
+		records = (manifest as { refinements: unknown[] }).refinements;
+	} else {
+		throw new Error(
+			'Meadow Entry refinement manifest must be an array or contain a refinements array.'
+		);
 	}
-	throw new Error(
-		'Meadow Entry refinement manifest must be an array or contain a refinements array.'
-	);
+	for (const record of records) {
+		validateMeadowEntryRefinementProvenance(record);
+	}
+	return records as MeadowEntryRefinementProvenance[];
 }
 
 async function currentContext(repositoryRoot: string) {
@@ -440,6 +450,19 @@ export async function runFinalizeMeadowEntryMasters(
 ): Promise<void> {
 	const finalizers = { ...DEFAULT_FINALIZERS, ...dependencies };
 	const arguments_ = parseFinalizeMeadowEntryMasterArguments(args);
+	if (arguments_.plane !== 'both') {
+		if (!arguments_.outputRootExplicit) {
+			throw new Error(
+				'Single-plane meadow-entry finalization requires an explicit --output-root review/work destination; use --plane both to publish the approved package.'
+			);
+		}
+		const approvedRoot = resolve(repositoryRoot, DEFAULT_OUTPUT_ROOT);
+		if (resolve(arguments_.outputRoot) === approvedRoot) {
+			throw new Error(
+				'Single-plane meadow-entry finalization must not write to the approved package root; use --plane both or a review/work destination.'
+			);
+		}
+	}
 	const refinements = await readRefinements(arguments_.refinementManifest);
 	if (arguments_.plane === 'base') {
 		const result = await finalizers.finalizeBase(
