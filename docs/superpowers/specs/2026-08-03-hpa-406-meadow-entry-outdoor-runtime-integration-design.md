@@ -749,9 +749,18 @@ buildRegionalBackgroundLoadPlan({
 
 `BootScene` queues only assets in the returned plan. Loader diagnostics record both inventory size and planned load size.
 
-HPA-406 must implement the plan boundary even if the accepted final strategy is `eager-map`. This prevents the generated inventory, diagnostics, and ownership contracts from being coupled to one loading policy.
+Load-plan validation requires:
 
-A `streamed` strategy is a supported type-level extension point, not implementation scope unless the safety gate rejects eager loading.
+- every `assetId` exists exactly once in the inventory;
+- every composed map background ID selected for initial rendering has a corresponding planned asset;
+- `eager-map` contains exactly the assets referenced by the composed map, with no unrelated inventory entries;
+- foreground selections include their base dependency;
+- asset order is deterministic by plane, draw order, and ID;
+- disabled mode produces an empty plan without changing the inventory.
+
+HPA-406 must implement the plan boundary even if the accepted final strategy is `eager-map`. This prevents generated inventory, diagnostics, and ownership contracts from being coupled to one loading policy.
+
+A `streamed` strategy is a supported type-level extension point, not implementation scope unless the safety gate rejects eager loading. A future streamed plan may select a dependency-closed subset, but it must preserve the same asset IDs and inventory metadata.
 
 ### 14.2 Full-inventory facts
 
@@ -1015,6 +1024,7 @@ Cover:
 - disabled plan queues zero;
 - enabled completion count equals plan length;
 - checkpoint subset and final map plans select referenced assets deterministically;
+- dependency closure for every foreground selection;
 - full-inventory probe queues every approved asset;
 - load diagnostics report inventory and planned estimates;
 - LFS pointer text is rejected;
@@ -1169,6 +1179,7 @@ HPA-406 is complete when:
 - exactly one HPA-406 PR contains all work;
 - the full approved inventory is generated, validated, and stored deterministically;
 - runtime loading occurs through an explicit accepted load plan rather than direct inventory iteration;
+- every load plan is valid, dependency-closed, and deterministic;
 - Checkpoint 1 records the complete inventory’s compressed size, decoded estimate, load/decode behavior, renderer limits, and explicit eager/streaming decision;
 - if eager loading is rejected, the required streaming ticket is completed before HPA-406 proceeds;
 - every approved non-village descriptor is attached by final state;
