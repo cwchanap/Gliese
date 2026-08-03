@@ -1,5 +1,5 @@
 import { createHash, randomUUID } from 'node:crypto';
-import { lstat, mkdir, readFile, readdir, rename, rm, writeFile } from 'node:fs/promises';
+import { lstat, mkdir, readFile, readdir, realpath, rename, rm, writeFile } from 'node:fs/promises';
 import { basename, dirname, join, resolve } from 'node:path';
 
 import sharp from 'sharp';
@@ -286,6 +286,32 @@ async function pathExists(path: string): Promise<boolean> {
 	}
 }
 
+/**
+ * Canonicalises a filesystem path by resolving symbolic links, so two paths
+ * that refer to the same directory compare equal regardless of how they were
+ * spelled. Non-existent destinations are supported by canonicalising their
+ * nearest existing ancestor and re-appending the non-existent tail.
+ *
+ * @param path - Absolute or relative path to canonicalise.
+ * @returns The canonical absolute path, with symlinks resolved on the
+ * existing portion.
+ */
+async function canonicalizeRoot(path: string): Promise<string> {
+	const resolved = resolve(path);
+	let existingAncestor = resolved;
+	const tail: string[] = [];
+	while (true) {
+		try {
+			const real = await realpath(existingAncestor);
+			return tail.length === 0 ? real : join(real, ...tail.reverse());
+		} catch (error) {
+			if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error;
+			tail.push(basename(existingAncestor));
+			existingAncestor = dirname(existingAncestor);
+		}
+	}
+}
+
 export interface ApprovedPackageBytes {
 	basePng: Buffer;
 	foregroundPng: Buffer;
@@ -324,6 +350,20 @@ function assertManifestHashes(
 	}
 }
 
+/**
+ * Reads a consistent snapshot of the approved Meadow Entry master package
+ * (base PNG, foreground PNG, and provenance JSON) from the configured output
+ * root. Retries while a publication sentinel is present or the package changes
+ * mid-read, and verifies that the provenance manifest hashes match the master
+ * bytes before returning.
+ *
+ * @param outputRoot - Filesystem root of the approved package.
+ * @param options - Optional retry tuning.
+ * @param options.attempts - Maximum number of read attempts. Defaults to `3`.
+ * @param options.retryDelayMs - Milliseconds to wait between retries. Defaults to `0`.
+ * @returns A promise resolving to the approved package bytes
+ * (`{ basePng, foregroundPng, provenanceJson }`).
+ */
 export async function readApprovedMeadowEntryPackageSnapshot(
 	outputRoot: string,
 	options: { attempts?: number; retryDelayMs?: number } = {}
@@ -441,6 +481,22 @@ export async function publishApprovedMeadowEntryPackage(
 	);
 }
 
+/**
+ * Runs the Meadow Entry master finalization CLI flow: parses arguments, guards
+ * single-plane writes away from the approved package root, assembles the
+ * finalizer inputs from the repository context and refinement manifest, and
+ * either writes a single-plane review output, publishes the combined approved
+ * package, or only validates (with `--validate-only`). Finalizer dependencies
+ * can be overridden for testing.
+ *
+ * @param args - CLI argument vector (without the executable name).
+ * @param repositoryRoot - Repository root used to resolve control inputs,
+ * predecessor assets, and the default approved output root. Defaults to
+ * `process.cwd()`.
+ * @param dependencies - Optional overrides for the base, foreground, or both
+ * finalizer implementations.
+ * @returns A promise that resolves when the finalization flow has completed.
+ */
 export async function runFinalizeMeadowEntryMasters(
 	args: readonly string[],
 	repositoryRoot = process.cwd(),
@@ -454,8 +510,8 @@ export async function runFinalizeMeadowEntryMasters(
 				'Single-plane meadow-entry finalization requires an explicit --output-root review/work destination; use --plane both to publish the approved package.'
 			);
 		}
-		const approvedRoot = resolve(repositoryRoot, DEFAULT_OUTPUT_ROOT);
-		if (resolve(arguments_.outputRoot) === approvedRoot) {
+		const approvedRoot = await canonicalizeRoot(resolve(repositoryRoot, DEFAULT_OUTPUT_ROOT));
+		if ((await canonicalizeRoot(arguments_.outputRoot)) === approvedRoot) {
 			throw new Error(
 				'Single-plane meadow-entry finalization must not write to the approved package root; use --plane both or a review/work destination.'
 			);
