@@ -32,6 +32,7 @@ function fakeProvenance(label: string): FinalizedPlaneProvenance {
 	return {
 		sha256: createHash('sha256').update(label).digest('hex'),
 		bytes: Buffer.byteLength(label),
+		preRefinementCandidateSha256: null,
 		generation: {
 			mode: 'manual',
 			provider: null,
@@ -145,6 +146,41 @@ describe('finalize-meadow-entry-masters CLI', () => {
 		await expect(
 			runFinalizeMeadowEntryMasters(['--plane', 'base'], repositoryRoot, finalizers)
 		).rejects.toThrow(/explicit --output-root review\/work destination/i);
+	});
+
+	it('allows single-plane --validate-only without an --output-root', async () => {
+		const inputRoot = await temporaryRoot();
+		const candidate = join(inputRoot, 'candidate.png');
+		const transform = join(inputRoot, 'transform.json');
+		const provenance = join(inputRoot, 'provenance.json');
+		await Promise.all([
+			writeFile(candidate, 'candidate'),
+			writeFile(transform, '{}'),
+			writeFile(provenance, '{}')
+		]);
+		let calls = 0;
+		const finalizers = {
+			finalizeForeground: async () => {
+				calls += 1;
+				return { png: Buffer.from('review-fg'), provenance: fakeProvenance('review-fg') };
+			}
+		};
+		await runFinalizeMeadowEntryMasters(
+			[
+				'--plane',
+				'foreground',
+				'--foreground-candidate',
+				candidate,
+				'--foreground-transform',
+				transform,
+				'--foreground-provenance',
+				provenance,
+				'--validate-only'
+			],
+			repositoryRoot,
+			finalizers
+		);
+		expect(calls).toBe(1);
 	});
 
 	it('rejects single-plane finalization into the approved package root', async () => {

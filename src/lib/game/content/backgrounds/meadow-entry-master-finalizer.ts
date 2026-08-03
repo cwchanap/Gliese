@@ -55,6 +55,7 @@ export interface MeadowEntryFinalizerContext {
 
 export interface FinalizeMeadowEntryBaseInput extends MeadowEntryFinalizerContext {
 	candidatePng: Buffer;
+	preRefinementCandidatePng?: Buffer;
 	transform: MeadowEntryNormalizationTransform;
 	generation: MeadowEntryGenerationProvenance;
 	refinements: readonly MeadowEntryRefinementProvenance[];
@@ -62,6 +63,7 @@ export interface FinalizeMeadowEntryBaseInput extends MeadowEntryFinalizerContex
 
 export interface FinalizeMeadowEntryForegroundInput extends MeadowEntryFinalizerContext {
 	candidatePng: Buffer;
+	preRefinementCandidatePng?: Buffer;
 	transform: MeadowEntryNormalizationTransform;
 	eligibleMaskPng: Buffer;
 	protectedMaskPng: Buffer;
@@ -72,6 +74,7 @@ export interface FinalizeMeadowEntryForegroundInput extends MeadowEntryFinalizer
 export interface FinalizedPlaneProvenance {
 	sha256: string;
 	bytes: number;
+	preRefinementCandidateSha256: string | null;
 	generation: MeadowEntryGenerationProvenance;
 	transform: MeadowEntryNormalizationTransform;
 	refinements: readonly MeadowEntryRefinementProvenance[];
@@ -265,7 +268,7 @@ function assertRefinements(
 	refinements: readonly MeadowEntryRefinementProvenance[],
 	plane: 'base' | 'foreground',
 	candidatePng: Buffer,
-	expectedOriginSha256: string
+	preRefinementCandidatePng: Buffer | undefined
 ): void {
 	for (const refinement of refinements) {
 		validateMeadowEntryRefinementProvenance(refinement);
@@ -276,8 +279,12 @@ function assertRefinements(
 	}
 	if (refinements.length > 0) {
 		assert(
-			refinements[0]!.beforeMasterSha256 === expectedOriginSha256,
-			`Meadow Entry ${plane} first refinement does not start from the approved origin master`
+			preRefinementCandidatePng !== undefined,
+			`Meadow Entry ${plane} refinements require a pre-refinement candidate PNG`
+		);
+		assert(
+			refinements[0]!.beforeMasterSha256 === sha256(preRefinementCandidatePng),
+			`Meadow Entry ${plane} first refinement does not start from the pre-refinement candidate`
 		);
 	}
 	assertMeadowEntryRefinementChain(refinements, plane);
@@ -302,9 +309,18 @@ function planeProvenance(
 	png: Buffer,
 	generation: MeadowEntryGenerationProvenance,
 	transform: MeadowEntryNormalizationTransform,
-	refinements: readonly MeadowEntryRefinementProvenance[]
+	refinements: readonly MeadowEntryRefinementProvenance[],
+	preRefinementCandidatePng: Buffer | undefined
 ): FinalizedPlaneProvenance {
-	return { sha256: sha256(png), bytes: png.byteLength, generation, transform, refinements };
+	return {
+		sha256: sha256(png),
+		bytes: png.byteLength,
+		preRefinementCandidateSha256:
+			preRefinementCandidatePng !== undefined ? sha256(preRefinementCandidatePng) : null,
+		generation,
+		transform,
+		refinements
+	};
 }
 
 export async function finalizeMeadowEntryBase(
@@ -312,12 +328,7 @@ export async function finalizeMeadowEntryBase(
 ): Promise<{ png: Buffer; provenance: FinalizedPlaneProvenance }> {
 	assertContext(input);
 	validateMeadowEntryGenerationProvenance(input.generation);
-	assertRefinements(
-		input.refinements,
-		'base',
-		input.candidatePng,
-		sha256(input.predecessor.basePng)
-	);
+	assertRefinements(input.refinements, 'base', input.candidatePng, input.preRefinementCandidatePng);
 	const normalized = await normalizeMeadowEntryMasterCandidate(
 		input.candidatePng,
 		input.transform,
@@ -332,7 +343,13 @@ export async function finalizeMeadowEntryBase(
 	assertHardBudget(png, input.policy.baseHardBytes, 'base');
 	return {
 		png,
-		provenance: planeProvenance(png, input.generation, input.transform, input.refinements)
+		provenance: planeProvenance(
+			png,
+			input.generation,
+			input.transform,
+			input.refinements,
+			input.preRefinementCandidatePng
+		)
 	};
 }
 
@@ -345,7 +362,7 @@ export async function finalizeMeadowEntryForeground(
 		input.refinements,
 		'foreground',
 		input.candidatePng,
-		sha256(input.predecessor.foregroundPng)
+		input.preRefinementCandidatePng
 	);
 	const [normalized, eligible, protectedMask] = await Promise.all([
 		normalizeMeadowEntryMasterCandidate(input.candidatePng, input.transform, input.policy),
@@ -367,7 +384,13 @@ export async function finalizeMeadowEntryForeground(
 	assertHardBudget(png, input.policy.foregroundHardBytes, 'foreground');
 	return {
 		png,
-		provenance: planeProvenance(png, input.generation, input.transform, input.refinements)
+		provenance: planeProvenance(
+			png,
+			input.generation,
+			input.transform,
+			input.refinements,
+			input.preRefinementCandidatePng
+		)
 	};
 }
 
