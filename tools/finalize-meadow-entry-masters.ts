@@ -39,6 +39,8 @@ export interface FinalizeMeadowEntryMasterArguments {
 	foregroundTransform?: string;
 	baseProvenance?: string;
 	foregroundProvenance?: string;
+	basePreRefinementCandidate?: string;
+	foregroundPreRefinementCandidate?: string;
 	refinementManifest?: string;
 	outputRoot: string;
 	outputRootExplicit: boolean;
@@ -111,6 +113,8 @@ export function parseFinalizeMeadowEntryMasterArguments(
 				'--foreground-transform',
 				'--base-provenance',
 				'--foreground-provenance',
+				'--base-pre-refinement-candidate',
+				'--foreground-pre-refinement-candidate',
 				'--refinement-manifest',
 				'--output-root'
 			].includes(flag)
@@ -137,6 +141,8 @@ export function parseFinalizeMeadowEntryMasterArguments(
 		foregroundTransform: values.get('--foreground-transform'),
 		baseProvenance: values.get('--base-provenance'),
 		foregroundProvenance: values.get('--foreground-provenance'),
+		basePreRefinementCandidate: values.get('--base-pre-refinement-candidate'),
+		foregroundPreRefinementCandidate: values.get('--foreground-pre-refinement-candidate'),
 		refinementManifest: values.get('--refinement-manifest'),
 		outputRoot: values.get('--output-root') ?? DEFAULT_OUTPUT_ROOT,
 		outputRootExplicit: values.has('--output-root'),
@@ -200,21 +206,31 @@ async function baseInput(
 	context: Awaited<ReturnType<typeof currentContext>>,
 	refinements: readonly MeadowEntryRefinementProvenance[]
 ): Promise<FinalizeMeadowEntryBaseInput> {
-	const [candidatePng, transform, generation] = await Promise.all([
+	const baseRefinements = refinements.filter((entry) => entry.plane === 'base');
+	const [candidatePng, transform, generation, preRefinementCandidatePng] = await Promise.all([
 		readFile(requiredArgument(arguments_.baseCandidate, '--base-candidate')),
 		readJson<MeadowEntryNormalizationTransform>(
 			requiredArgument(arguments_.baseTransform, '--base-transform')
 		),
 		readJson<MeadowEntryGenerationProvenance>(
 			requiredArgument(arguments_.baseProvenance, '--base-provenance')
-		)
+		),
+		arguments_.basePreRefinementCandidate
+			? readFile(arguments_.basePreRefinementCandidate)
+			: undefined
 	]);
+	if (baseRefinements.length > 0 && !preRefinementCandidatePng) {
+		throw new Error(
+			'Meadow Entry base refinements require --base-pre-refinement-candidate pointing to the master the first refinement started from.'
+		);
+	}
 	return {
 		...context,
 		candidatePng,
+		preRefinementCandidatePng,
 		transform,
 		generation,
-		refinements: refinements.filter((entry) => entry.plane === 'base')
+		refinements: baseRefinements
 	};
 }
 
@@ -230,30 +246,46 @@ async function foregroundInput(
 	context: Awaited<ReturnType<typeof currentContext>>,
 	refinements: readonly MeadowEntryRefinementProvenance[]
 ): Promise<FinalizeMeadowEntryForegroundInput> {
-	const [candidatePng, transform, generation, eligibleMaskPng, protectedMaskPng] =
-		await Promise.all([
-			readFile(requiredArgument(arguments_.foregroundCandidate, '--foreground-candidate')),
-			readJson<MeadowEntryNormalizationTransform>(
-				requiredArgument(arguments_.foregroundTransform, '--foreground-transform')
-			),
-			readJson<MeadowEntryGenerationProvenance>(
-				requiredArgument(arguments_.foregroundProvenance, '--foreground-provenance')
-			),
-			rasterizeControlMaskSvg(
-				join(repositoryRoot, CONTROLS_ROOT, 'meadow-entry-foreground-eligible-mask.svg')
-			),
-			rasterizeControlMaskSvg(
-				join(repositoryRoot, CONTROLS_ROOT, 'meadow-entry-protected-live-mask.svg')
-			)
-		]);
+	const foregroundRefinements = refinements.filter((entry) => entry.plane === 'foreground');
+	const [
+		candidatePng,
+		transform,
+		generation,
+		eligibleMaskPng,
+		protectedMaskPng,
+		preRefinementCandidatePng
+	] = await Promise.all([
+		readFile(requiredArgument(arguments_.foregroundCandidate, '--foreground-candidate')),
+		readJson<MeadowEntryNormalizationTransform>(
+			requiredArgument(arguments_.foregroundTransform, '--foreground-transform')
+		),
+		readJson<MeadowEntryGenerationProvenance>(
+			requiredArgument(arguments_.foregroundProvenance, '--foreground-provenance')
+		),
+		rasterizeControlMaskSvg(
+			join(repositoryRoot, CONTROLS_ROOT, 'meadow-entry-foreground-eligible-mask.svg')
+		),
+		rasterizeControlMaskSvg(
+			join(repositoryRoot, CONTROLS_ROOT, 'meadow-entry-protected-live-mask.svg')
+		),
+		arguments_.foregroundPreRefinementCandidate
+			? readFile(arguments_.foregroundPreRefinementCandidate)
+			: undefined
+	]);
+	if (foregroundRefinements.length > 0 && !preRefinementCandidatePng) {
+		throw new Error(
+			'Meadow Entry foreground refinements require --foreground-pre-refinement-candidate pointing to the master the first refinement started from.'
+		);
+	}
 	return {
 		...context,
 		candidatePng,
+		preRefinementCandidatePng,
 		transform,
 		eligibleMaskPng,
 		protectedMaskPng,
 		generation,
-		refinements: refinements.filter((entry) => entry.plane === 'foreground')
+		refinements: foregroundRefinements
 	};
 }
 
@@ -504,7 +536,7 @@ export async function runFinalizeMeadowEntryMasters(
 ): Promise<void> {
 	const finalizers = { ...DEFAULT_FINALIZERS, ...dependencies };
 	const arguments_ = parseFinalizeMeadowEntryMasterArguments(args);
-	if (arguments_.plane !== 'both') {
+	if (arguments_.plane !== 'both' && !arguments_.validateOnly) {
 		if (!arguments_.outputRootExplicit) {
 			throw new Error(
 				'Single-plane meadow-entry finalization requires an explicit --output-root review/work destination; use --plane both to publish the approved package.'
