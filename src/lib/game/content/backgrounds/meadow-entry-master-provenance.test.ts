@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import {
 	assertMeadowEntryRefinementChain,
+	assertMeadowEntryRefinementChainTerminal,
 	validateMeadowEntryGenerationProvenance,
 	validateMeadowEntryRefinementProvenance
 } from './meadow-entry-master-provenance';
@@ -835,5 +836,93 @@ describe('meadow-entry refinement chain', () => {
 			refinement('foreground', 'x'.repeat(64), 'e'.repeat(64))
 		];
 		expect(() => assertMeadowEntryRefinementChain(records, 'foreground')).toThrow(/foreground/i);
+	});
+});
+
+describe('meadow-entry refinement chain terminal binding', () => {
+	const chainTransform = {
+		native: { width: 2, height: 2 },
+		crop: { left: 0, top: 0, width: 2, height: 2 },
+		output: { width: 2, height: 2 },
+		scale: 1
+	};
+
+	function refinement(
+		plane: 'base' | 'foreground',
+		before: string,
+		after: string
+	): MeadowEntryRefinementProvenance {
+		return {
+			plane,
+			sourceRegionIds: ['crossroads'],
+			editMaskSha256: 'a'.repeat(64),
+			replacementSha256: 'b'.repeat(64),
+			beforeMasterSha256: before,
+			afterMasterSha256: after,
+			changedBounds: { left: 0, top: 0, right: 1, bottom: 1 },
+			affectedCropIds: ['crop-1'],
+			transform: chainTransform
+		};
+	}
+
+	it('accepts an empty refinement list without checking the master hash', () => {
+		expect(() =>
+			assertMeadowEntryRefinementChainTerminal([], 'base', '0'.repeat(64))
+		).not.toThrow();
+	});
+
+	it('accepts a single refinement whose afterMasterSha256 matches the approved master', () => {
+		const masterSha256 = 'd'.repeat(64);
+		expect(() =>
+			assertMeadowEntryRefinementChainTerminal(
+				[refinement('base', 'c'.repeat(64), masterSha256)],
+				'base',
+				masterSha256
+			)
+		).not.toThrow();
+	});
+
+	it('accepts a multi-record chain whose final afterMasterSha256 matches the approved master', () => {
+		const masterSha256 = 'f'.repeat(64);
+		const records = [
+			refinement('base', 'c'.repeat(64), 'd'.repeat(64)),
+			refinement('base', 'd'.repeat(64), 'e'.repeat(64)),
+			refinement('base', 'e'.repeat(64), masterSha256)
+		];
+		expect(() =>
+			assertMeadowEntryRefinementChainTerminal(records, 'base', masterSha256)
+		).not.toThrow();
+	});
+
+	it('rejects a detached final hash that does not match the approved master', () => {
+		const masterSha256 = 'f'.repeat(64);
+		const detachedAfter = 'e'.repeat(64);
+		const records = [
+			refinement('base', 'c'.repeat(64), 'd'.repeat(64)),
+			refinement('base', 'd'.repeat(64), detachedAfter)
+		];
+		expect(() => assertMeadowEntryRefinementChainTerminal(records, 'base', masterSha256)).toThrow(
+			/base final refinement does not match the approved master/i
+		);
+	});
+
+	it('rejects a single refinement whose afterMasterSha256 does not match the approved master', () => {
+		expect(() =>
+			assertMeadowEntryRefinementChainTerminal(
+				[refinement('base', 'c'.repeat(64), 'd'.repeat(64))],
+				'base',
+				'e'.repeat(64)
+			)
+		).toThrow(/base final refinement does not match the approved master/i);
+	});
+
+	it('includes the foreground plane label in the error message', () => {
+		expect(() =>
+			assertMeadowEntryRefinementChainTerminal(
+				[refinement('foreground', 'c'.repeat(64), 'd'.repeat(64))],
+				'foreground',
+				'e'.repeat(64)
+			)
+		).toThrow(/foreground final refinement does not match the approved master/i);
 	});
 });
