@@ -26,51 +26,13 @@ import {
 	renderMeadowEntryOverlapDifference,
 	renderMeadowEntryReviewComposite
 } from './meadow-entry-proof-renderer';
+import type {
+	MeadowEntryProofPublicationFileSystem,
+	MeadowEntryProofSnapshotFileSystem
+} from '../../../../../tools/render-meadow-entry-art-proofs';
 
-interface ProofPublicationFileSystem {
-	pathExists(path: string): Promise<boolean>;
-	listFiles(root: string): Promise<string[]>;
-	mkdir: typeof mkdir;
-	rename: typeof rename;
-	rm: typeof rm;
-	writeFile: typeof writeFile;
-}
-
-interface ProofSnapshotFileSystem {
-	pathExists(path: string): Promise<boolean>;
-	listFiles(root: string): Promise<string[]>;
-	readFile(path: string): Promise<Buffer>;
-}
-
-interface ProofToolApi {
-	publishMeadowEntryProofInventory(input: {
-		repositoryRoot: string;
-		stagingRoot: string;
-		token: string;
-		fileSystem?: ProofPublicationFileSystem;
-		onPhase?: (phase: string) => void;
-	}): Promise<void>;
-	readPublishedMeadowEntryProofSnapshot(
-		repositoryRoot: string,
-		options?: {
-			attempts?: number;
-			retryDelayMs?: number;
-			fileSystem?: ProofSnapshotFileSystem;
-			descriptors?: readonly {
-				proofId: string;
-				filename: string;
-				masterBounds: { left: number; top: number; right: number; bottom: number };
-			}[];
-			expectedInputPaths?: (proofId: string) => readonly string[];
-		}
-	): Promise<{
-		attemptsUsed: number;
-		proofs: readonly { png: Buffer; sidecar: { proofId: string; sha256: string } }[];
-	}>;
-}
-
-async function proofToolApi(): Promise<ProofToolApi> {
-	return (await import('../../../../../tools/render-meadow-entry-art-proofs')) as unknown as ProofToolApi;
+async function proofToolApi() {
+	return await import('../../../../../tools/render-meadow-entry-art-proofs');
 }
 
 function sha256(bytes: Buffer): string {
@@ -95,8 +57,8 @@ function writeFixedInventory(root: string, marker: string): void {
 }
 
 function publicationFileSystem(
-	overrides: Partial<ProofPublicationFileSystem> = {}
-): ProofPublicationFileSystem {
+	overrides: Partial<MeadowEntryProofPublicationFileSystem> = {}
+): MeadowEntryProofPublicationFileSystem {
 	return {
 		pathExists: async (path) => existsSync(path),
 		listFiles: async (root) => walkFiles(root).sort(),
@@ -407,7 +369,7 @@ describe('Meadow Entry proof renderer', () => {
 		const oldSidecar = proofSidecar({ ...descriptor, png: oldPng });
 		const newSidecar = proofSidecar({ ...descriptor, png: newPng });
 		let generation: 'old' | 'new' = 'old';
-		const fileSystem: ProofSnapshotFileSystem = {
+		const fileSystem: MeadowEntryProofSnapshotFileSystem = {
 			pathExists: async () => false,
 			listFiles: async () => ['test/proof.json', 'test/proof.png'],
 			readFile: async (path) => {

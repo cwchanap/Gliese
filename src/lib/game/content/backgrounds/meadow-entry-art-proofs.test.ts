@@ -369,8 +369,7 @@ describe('Meadow Entry art proof helpers', () => {
 
 		it('boundarySvg draws only the requested sides', () => {
 			const svg = boundarySvg(100, 50, ['top', 'left']).toString('utf8');
-			expect(svg).toContain('y="0" width="100"');
-			expect(svg).toContain('x="0" y="0" width="8" height="50"');
+			expect(svg).toContain('x="0" y="0" width="100" height="8"');
 			expect(svg).toContain('x="0" y="0" width="8" height="50"');
 			expect(svg.match(/<rect/g)?.length).toBe(2);
 		});

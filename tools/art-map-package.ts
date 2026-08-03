@@ -235,6 +235,17 @@ function assertSupportedCapability(adapter: ArtMapPackageAdapterV1): void {
 	);
 }
 
+/**
+ * Loads and validates the art map package adapter manifest.
+ *
+ * @param repositoryRoot - Absolute path to the repository root used to resolve
+ *   the manifest path.
+ * @param manifestPath - Repository-relative JSON manifest path.
+ * @returns The validated adapter contract.
+ * @throws Error - When the manifest path escapes the repository, the file is
+ *   not valid JSON, the adapter fails schema validation, or the capability
+ *   contract is unsupported (fail-closed).
+ */
 export async function loadArtMapPackageAdapter(
 	repositoryRoot: string,
 	manifestPath: string
@@ -293,6 +304,19 @@ function parseArguments(args: readonly string[]): {
 	};
 }
 
+/**
+ * Runs the art map package CLI.
+ *
+ * @param args - CLI arguments: `--adapter <path> --operation <operation> [-- <operation-args>]`.
+ * @param repositoryRoot - Absolute path to the repository root; defaults to the
+ *   current working directory.
+ * @param options - Optional `onDispatch` callback invoked with the parsed
+ *   operation after the adapter loads successfully.
+ * @returns Nothing on success.
+ * @throws Error - For invalid or duplicate CLI arguments, unsupported
+ *   operations, or any failure in the fail-closed capability check or the
+ *   dispatched operation.
+ */
 export async function runArtMapPackageCli(
 	args: readonly string[],
 	repositoryRoot = process.cwd(),

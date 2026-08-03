@@ -2,6 +2,8 @@ import { createHash, randomUUID } from 'node:crypto';
 import { lstat, mkdir, readFile, readdir, rename, rm, writeFile } from 'node:fs/promises';
 import { basename, dirname, join, resolve } from 'node:path';
 
+import sharp from 'sharp';
+
 import { meadowEntryControlsApproval } from '$lib/game/content/approvals/meadow-entry-controls';
 import {
 	MEADOW_ENTRY_MASTER_POLICY,
@@ -77,6 +79,11 @@ function sha256(value: Buffer): string {
 
 function requiredValue(values: Map<string, string>, flag: string): string {
 	const value = values.get(flag);
+	if (!value) throw new Error(`Missing required ${flag} argument.`);
+	return value;
+}
+
+function requiredArgument(value: string | undefined, flag: string): string {
 	if (!value) throw new Error(`Missing required ${flag} argument.`);
 	return value;
 }
@@ -190,29 +197,17 @@ async function currentContext(repositoryRoot: string) {
 
 async function baseInput(
 	arguments_: FinalizeMeadowEntryMasterArguments,
-	repositoryRoot: string,
+	context: Awaited<ReturnType<typeof currentContext>>,
 	refinements: readonly MeadowEntryRefinementProvenance[]
 ): Promise<FinalizeMeadowEntryBaseInput> {
-	const [candidatePng, transform, generation, context] = await Promise.all([
-		readFile(
-			requiredValue(
-				new Map([['--base-candidate', arguments_.baseCandidate ?? '']]),
-				'--base-candidate'
-			)
-		),
+	const [candidatePng, transform, generation] = await Promise.all([
+		readFile(requiredArgument(arguments_.baseCandidate, '--base-candidate')),
 		readJson<MeadowEntryNormalizationTransform>(
-			requiredValue(
-				new Map([['--base-transform', arguments_.baseTransform ?? '']]),
-				'--base-transform'
-			)
+			requiredArgument(arguments_.baseTransform, '--base-transform')
 		),
 		readJson<MeadowEntryGenerationProvenance>(
-			requiredValue(
-				new Map([['--base-provenance', arguments_.baseProvenance ?? '']]),
-				'--base-provenance'
-			)
-		),
-		currentContext(repositoryRoot)
+			requiredArgument(arguments_.baseProvenance, '--base-provenance')
+		)
 	]);
 	return {
 		...context,
@@ -223,34 +218,33 @@ async function baseInput(
 	};
 }
 
+async function rasterizeControlMaskSvg(path: string): Promise<Buffer> {
+	return await sharp(await readFile(path))
+		.png()
+		.toBuffer();
+}
+
 async function foregroundInput(
 	arguments_: FinalizeMeadowEntryMasterArguments,
 	repositoryRoot: string,
+	context: Awaited<ReturnType<typeof currentContext>>,
 	refinements: readonly MeadowEntryRefinementProvenance[]
 ): Promise<FinalizeMeadowEntryForegroundInput> {
-	const [candidatePng, transform, generation, eligibleMaskPng, protectedMaskPng, context] =
+	const [candidatePng, transform, generation, eligibleMaskPng, protectedMaskPng] =
 		await Promise.all([
-			readFile(
-				requiredValue(
-					new Map([['--foreground-candidate', arguments_.foregroundCandidate ?? '']]),
-					'--foreground-candidate'
-				)
-			),
+			readFile(requiredArgument(arguments_.foregroundCandidate, '--foreground-candidate')),
 			readJson<MeadowEntryNormalizationTransform>(
-				requiredValue(
-					new Map([['--foreground-transform', arguments_.foregroundTransform ?? '']]),
-					'--foreground-transform'
-				)
+				requiredArgument(arguments_.foregroundTransform, '--foreground-transform')
 			),
 			readJson<MeadowEntryGenerationProvenance>(
-				requiredValue(
-					new Map([['--foreground-provenance', arguments_.foregroundProvenance ?? '']]),
-					'--foreground-provenance'
-				)
+				requiredArgument(arguments_.foregroundProvenance, '--foreground-provenance')
 			),
-			readFile(join(repositoryRoot, CONTROLS_ROOT, 'meadow-entry-foreground-eligible-mask.svg')),
-			readFile(join(repositoryRoot, CONTROLS_ROOT, 'meadow-entry-protected-live-mask.svg')),
-			currentContext(repositoryRoot)
+			rasterizeControlMaskSvg(
+				join(repositoryRoot, CONTROLS_ROOT, 'meadow-entry-foreground-eligible-mask.svg')
+			),
+			rasterizeControlMaskSvg(
+				join(repositoryRoot, CONTROLS_ROOT, 'meadow-entry-protected-live-mask.svg')
+			)
 		]);
 	return {
 		...context,
@@ -332,12 +326,16 @@ function assertManifestHashes(
 
 export async function readApprovedMeadowEntryPackageSnapshot(
 	outputRoot: string,
-	options: { attempts?: number } = {}
+	options: { attempts?: number; retryDelayMs?: number } = {}
 ): Promise<ApprovedPackageBytes> {
 	const paths = meadowEntryApprovedPackagePaths(outputRoot);
 	const attempts = options.attempts ?? 3;
+	const retryDelayMs = options.retryDelayMs ?? 0;
 	let lastError: unknown;
 	for (let attempt = 0; attempt < attempts; attempt += 1) {
+		if (attempt > 0 && retryDelayMs > 0) {
+			await new Promise((resolve) => setTimeout(resolve, retryDelayMs));
+		}
 		if (await pathExists(paths.writerSentinel)) {
 			lastError = new Error('Meadow Entry approved package publication is in progress');
 			continue;
@@ -464,10 +462,9 @@ export async function runFinalizeMeadowEntryMasters(
 		}
 	}
 	const refinements = await readRefinements(arguments_.refinementManifest);
+	const context = await currentContext(repositoryRoot);
 	if (arguments_.plane === 'base') {
-		const result = await finalizers.finalizeBase(
-			await baseInput(arguments_, repositoryRoot, refinements)
-		);
+		const result = await finalizers.finalizeBase(await baseInput(arguments_, context, refinements));
 		if (!arguments_.validateOnly) {
 			const output = join(resolve(arguments_.outputRoot), 'masters/meadow-entry-base-master.png');
 			await mkdir(dirname(output), { recursive: true });
@@ -478,7 +475,7 @@ export async function runFinalizeMeadowEntryMasters(
 	}
 	if (arguments_.plane === 'foreground') {
 		const result = await finalizers.finalizeForeground(
-			await foregroundInput(arguments_, repositoryRoot, refinements)
+			await foregroundInput(arguments_, repositoryRoot, context, refinements)
 		);
 		if (!arguments_.validateOnly) {
 			const output = join(
@@ -492,8 +489,8 @@ export async function runFinalizeMeadowEntryMasters(
 		return;
 	}
 	const packageBytes = await finalizers.finalizeBoth({
-		base: await baseInput(arguments_, repositoryRoot, refinements),
-		foreground: await foregroundInput(arguments_, repositoryRoot, refinements)
+		base: await baseInput(arguments_, context, refinements),
+		foreground: await foregroundInput(arguments_, repositoryRoot, context, refinements)
 	});
 	if (!arguments_.validateOnly) {
 		await publishApprovedMeadowEntryPackage(arguments_.outputRoot, packageBytes);

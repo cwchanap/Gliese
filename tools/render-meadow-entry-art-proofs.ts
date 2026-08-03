@@ -394,6 +394,11 @@ async function renderOverlapProofs(context: RenderContext): Promise<void> {
 				difference.differingPixels === 0 && difference.maximumChannelDifference === 0,
 				`Meadow Entry overlap proof differs id=${overlap.id} plane=${plane} first=${JSON.stringify(difference.firstDifference)}`
 			);
+			// The published overlap proof PNG always comes from the first plane in
+			// `planes` (base for single-plane and base-and-foreground overlaps); the
+			// foreground difference image is discarded. Every plane is all-zero
+			// (asserted above), so no information is lost — but the sidecar metrics
+			// below are the only record of the other planes.
 			proofPng ??= difference.png;
 			planeMetrics[plane] = {
 				differingPixels: difference.differingPixels,
@@ -640,7 +645,8 @@ export async function publishMeadowEntryProofInventory(input: {
 	} finally {
 		await fileSystem.rm(stagingRoot, { recursive: true, force: true }).catch(() => undefined);
 	}
-	if (backedUp) await fileSystem.rm(backup, { recursive: true, force: true });
+	if (backedUp)
+		await fileSystem.rm(backup, { recursive: true, force: true }).catch(() => undefined);
 	await assertExactProofInventory(target, fileSystem);
 }
 

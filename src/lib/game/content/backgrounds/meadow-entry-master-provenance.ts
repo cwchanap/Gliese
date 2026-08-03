@@ -86,6 +86,14 @@ function assertPixelBounds(value: unknown, label: string): void {
 	assertInteger(value.top, `${label} top`);
 	assertInteger(value.right, `${label} right`);
 	assertInteger(value.bottom, `${label} bottom`);
+	if (value.left < 0 || value.top < 0 || value.right < 0 || value.bottom < 0) {
+		throw new Error(`Meadow Entry refinement provenance ${label} coordinates must be non-negative`);
+	}
+	if (value.right < value.left || value.bottom < value.top) {
+		throw new Error(
+			`Meadow Entry refinement provenance ${label} right/bottom must not precede left/top`
+		);
+	}
 }
 
 function assertNormalizationTransformShape(value: unknown, label: string): void {
@@ -113,8 +121,40 @@ function assertNormalizationTransformShape(value: unknown, label: string): void 
 	assertInteger(output.width, `${label} output width`);
 	assertInteger(output.height, `${label} output height`);
 	assertFiniteNumber(value.scale, `${label} scale`);
+	if (native.width <= 0 || native.height <= 0) {
+		throw new Error(
+			`Meadow Entry refinement provenance ${label} native dimensions must be positive`
+		);
+	}
+	if (crop.left < 0 || crop.top < 0) {
+		throw new Error(
+			`Meadow Entry refinement provenance ${label} crop must begin inside native input`
+		);
+	}
+	if (crop.width <= 0 || crop.height <= 0) {
+		throw new Error(`Meadow Entry refinement provenance ${label} crop dimensions must be positive`);
+	}
+	if (crop.left + crop.width > native.width || crop.top + crop.height > native.height) {
+		throw new Error(`Meadow Entry refinement provenance ${label} crop must fit native input`);
+	}
+	if (output.width <= 0 || output.height <= 0) {
+		throw new Error(
+			`Meadow Entry refinement provenance ${label} output dimensions must be positive`
+		);
+	}
 }
 
+/**
+ * Validates a generation provenance record.
+ *
+ * @param value - The record to validate, typed as `unknown` so callers can
+ *   validate untrusted serialized input before narrowing it.
+ * @returns Nothing. On success the value can be treated as a
+ *   `MeadowEntryGenerationProvenance`.
+ * @throws Error - When the value is not a plain object, a known field has the
+ *   wrong type, a mode-specific field combination is invalid, or a hash is not
+ *   a canonical SHA-256 hex string.
+ */
 export function validateMeadowEntryGenerationProvenance(value: unknown): void {
 	if (!isPlainObject(value)) {
 		throw new Error('Meadow Entry generation provenance must be an object');
@@ -199,6 +239,17 @@ export function validateMeadowEntryGenerationProvenance(value: unknown): void {
 	}
 }
 
+/**
+ * Validates a refinement provenance record.
+ *
+ * @param value - The record to validate, typed as `unknown` so callers can
+ *   validate untrusted serialized input before narrowing it.
+ * @returns Nothing. On success the value can be treated as a
+ *   `MeadowEntryRefinementProvenance`.
+ * @throws Error - When the value is not a plain object, a known field has the
+ *   wrong type, a hash is not a canonical SHA-256 hex string, the changed
+ *   bounds are invalid, or the normalization transform shape is invalid.
+ */
 export function validateMeadowEntryRefinementProvenance(value: unknown): void {
 	if (!isPlainObject(value)) {
 		throw new Error('Meadow Entry refinement provenance must be an object');
@@ -228,10 +279,26 @@ export function validateMeadowEntryRefinementProvenance(value: unknown): void {
 	assertNormalizationTransformShape(value.transform, 'transform');
 }
 
+/**
+ * Asserts that each refinement links to its predecessor by master hash.
+ *
+ * @param refinements - Ordered refinement records for one plane.
+ * @param plane - Plane label used in the error messages.
+ * @returns Nothing.
+ * @throws Error - If any refinement's `plane` does not match, or any
+ *   `beforeMasterSha256` does not match the previous `afterMasterSha256`.
+ */
 export function assertMeadowEntryRefinementChain(
 	refinements: readonly MeadowEntryRefinementProvenance[],
 	plane: 'base' | 'foreground'
 ): void {
+	for (let index = 0; index < refinements.length; index += 1) {
+		if (refinements[index]!.plane !== plane) {
+			throw new Error(
+				`Meadow Entry refinement ${index} declared plane ${refinements[index]!.plane} but expected ${plane}`
+			);
+		}
+	}
 	for (let index = 0; index < refinements.length - 1; index += 1) {
 		const current = refinements[index]!;
 		const next = refinements[index + 1]!;

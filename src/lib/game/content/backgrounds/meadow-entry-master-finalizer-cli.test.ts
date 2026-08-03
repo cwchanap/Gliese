@@ -13,9 +13,39 @@ import {
 	runFinalizeMeadowEntryMasters,
 	type MeadowEntryMasterPublicationFileSystem
 } from '../../../../../tools/finalize-meadow-entry-masters';
+import type { FinalizedPlaneProvenance } from '$lib/game/content/backgrounds/meadow-entry-master-finalizer';
 
 const temporaryRoots: string[] = [];
 const repositoryRoot = resolve(import.meta.dirname, '../../../../..');
+
+function fakeProvenance(label: string): FinalizedPlaneProvenance {
+	return {
+		sha256: createHash('sha256').update(label).digest('hex'),
+		bytes: Buffer.byteLength(label),
+		generation: {
+			mode: 'manual',
+			provider: null,
+			model: null,
+			modelVersion: null,
+			tool: 'test',
+			toolVersion: '1',
+			settings: {},
+			seed: null,
+			seedUnavailable: false,
+			prompt: null,
+			promptSha256: null,
+			referenceImageSha256: [],
+			byteReproducibleGeneration: false
+		},
+		transform: {
+			native: { width: 1, height: 1 },
+			crop: { left: 0, top: 0, width: 1, height: 1 },
+			output: { width: 1, height: 1 },
+			scale: 1
+		},
+		refinements: []
+	};
+}
 
 afterEach(async () => {
 	await Promise.all(
@@ -100,7 +130,7 @@ describe('finalize-meadow-entry-masters CLI', () => {
 
 	it('rejects single-plane finalization without an explicit --output-root', async () => {
 		const finalizers = {
-			finalizeBase: async () => ({ png: Buffer.from('x'), provenance: {} })
+			finalizeBase: async () => ({ png: Buffer.from('x'), provenance: fakeProvenance('x') })
 		};
 		await expect(
 			runFinalizeMeadowEntryMasters(['--plane', 'base'], repositoryRoot, finalizers)
@@ -110,7 +140,7 @@ describe('finalize-meadow-entry-masters CLI', () => {
 	it('rejects single-plane finalization into the approved package root', async () => {
 		const approvedRoot = join(repositoryRoot, 'artifacts/meadow-entry/hpa-399');
 		const finalizers = {
-			finalizeBase: async () => ({ png: Buffer.from('x'), provenance: {} })
+			finalizeBase: async () => ({ png: Buffer.from('x'), provenance: fakeProvenance('x') })
 		};
 		await expect(
 			runFinalizeMeadowEntryMasters(
@@ -236,7 +266,7 @@ describe('finalize-meadow-entry-masters CLI', () => {
 		const finalizers = {
 			finalizeBase: async () => {
 				calls += 1;
-				return { png: Buffer.from('review-base'), provenance: {} };
+				return { png: Buffer.from('review-base'), provenance: fakeProvenance('review-base') };
 			}
 		};
 
@@ -434,7 +464,10 @@ describe('finalize-meadow-entry-masters CLI', () => {
 		]);
 		const outputRoot = join(inputRoot, 'work/fg-review');
 		const finalizers = {
-			finalizeForeground: async () => ({ png: Buffer.from('review-fg'), provenance: {} })
+			finalizeForeground: async () => ({
+				png: Buffer.from('review-fg'),
+				provenance: fakeProvenance('review-fg')
+			})
 		};
 		await runFinalizeMeadowEntryMasters(
 			[
@@ -469,7 +502,10 @@ describe('finalize-meadow-entry-masters CLI', () => {
 		]);
 		const outputRoot = join(inputRoot, 'work/fg-validate');
 		const finalizers = {
-			finalizeForeground: async () => ({ png: Buffer.from('review-fg'), provenance: {} })
+			finalizeForeground: async () => ({
+				png: Buffer.from('review-fg'),
+				provenance: fakeProvenance('review-fg')
+			})
 		};
 		await runFinalizeMeadowEntryMasters(
 			[

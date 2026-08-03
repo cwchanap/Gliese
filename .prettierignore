@@ -11,4 +11,4 @@ worker-configuration.d.ts
 docs/
 
 # Approved generated provenance is byte-stable evidence; validate its schema and hash instead of reflowing it.
-artifacts/meadow-entry/hpa-399/provenance/meadow-entry-master-provenance.json
+artifacts/meadow-entry/hpa-399/provenance/
