@@ -458,4 +458,22 @@ describe('Meadow Entry master finalizers', () => {
 		});
 		expect(result.provenance.preRefinementCandidateSha256).toBeUndefined();
 	});
+
+	it('rejects a pre-refinement candidate PNG when there are no refinements', async () => {
+		const shared = await context();
+		const candidatePng = await rgbaPng([1, 2, 3, 255, 4, 5, 6, 255, 7, 8, 9, 255, 10, 11, 12, 255]);
+		const preRefinementCandidatePng = await rgbaPng([
+			13, 14, 15, 255, 16, 17, 18, 255, 19, 20, 21, 255, 22, 23, 24, 255
+		]);
+		await expect(
+			finalizeMeadowEntryBase({
+				...shared,
+				candidatePng,
+				preRefinementCandidatePng,
+				transform: identityTransform(2, 2),
+				generation: manualFixture,
+				refinements: []
+			})
+		).rejects.toThrow(/pre-refinement candidate PNG/);
+	});
 });
