@@ -267,7 +267,7 @@ describe('Meadow Entry master finalizers', () => {
 		);
 	});
 
-	it('rejects a refinement chain whose final afterMasterSha256 does not match the candidate', async () => {
+	it('rejects a refinement chain whose final afterMasterSha256 does not match the emitted master', async () => {
 		const shared = await context();
 		const candidatePng = await rgbaPng([1, 2, 3, 255, 4, 5, 6, 255, 7, 8, 9, 255, 10, 11, 12, 255]);
 		const preRefinementCandidatePng = await rgbaPng([
@@ -296,7 +296,7 @@ describe('Meadow Entry master finalizers', () => {
 				generation: manualFixture,
 				refinements
 			})
-		).rejects.toThrow(/candidate does not match the final refinement afterMasterSha256/i);
+		).rejects.toThrow(/final refinement does not match the emitted master/i);
 	});
 
 	it('rejects a refinement chain that does not start from the pre-refinement candidate', async () => {
@@ -404,9 +404,10 @@ describe('Meadow Entry master finalizers', () => {
 		);
 	});
 
-	it('accepts a properly chained refinement list whose final afterMasterSha256 matches the candidate', async () => {
+	it('accepts a properly chained refinement list whose final afterMasterSha256 matches the emitted master', async () => {
 		const shared = await context();
-		const candidatePng = await rgbaPng([1, 2, 3, 255, 4, 5, 6, 255, 7, 8, 9, 255, 10, 11, 12, 255]);
+		const candidateRaw = Buffer.from([1, 2, 3, 255, 4, 5, 6, 255, 7, 8, 9, 255, 10, 11, 12, 255]);
+		const candidatePng = await encodeCanonicalMeadowEntryPng(candidateRaw, 2, 2);
 		const candidateSha = sha256(candidatePng);
 		const preRefinementCandidatePng = await rgbaPng([
 			20, 21, 22, 255, 23, 24, 25, 255, 26, 27, 28, 255, 29, 30, 31, 255
@@ -444,6 +445,41 @@ describe('Meadow Entry master finalizers', () => {
 			refinements
 		});
 		expect(result.provenance.preRefinementCandidateSha256).toBe(sha256(preRefinementCandidatePng));
+		expect(result.provenance.sha256).toBe(refinements.at(-1)!.afterMasterSha256);
+		expect(result.provenance.sha256).toBe(candidateSha);
+	});
+
+	it('rejects a refinement chain whose candidate bytes change during finalization', async () => {
+		const shared = await context();
+		const nonCanonicalCandidatePng = await rgbaPng([
+			1, 2, 3, 255, 4, 5, 6, 255, 7, 8, 9, 255, 10, 11, 12, 255
+		]);
+		const preRefinementCandidatePng = await rgbaPng([
+			20, 21, 22, 255, 23, 24, 25, 255, 26, 27, 28, 255, 29, 30, 31, 255
+		]);
+		const refinements: MeadowEntryRefinementProvenance[] = [
+			{
+				plane: 'base',
+				sourceRegionIds: ['crossroads'],
+				editMaskSha256: 'a'.repeat(64),
+				replacementSha256: 'b'.repeat(64),
+				beforeMasterSha256: sha256(preRefinementCandidatePng),
+				afterMasterSha256: sha256(nonCanonicalCandidatePng),
+				changedBounds: { left: 0, top: 0, right: 1, bottom: 1 },
+				affectedCropIds: ['crop-1'],
+				transform: identityTransform(2, 2)
+			}
+		];
+		await expect(
+			finalizeMeadowEntryBase({
+				...shared,
+				candidatePng: nonCanonicalCandidatePng,
+				preRefinementCandidatePng,
+				transform: identityTransform(2, 2),
+				generation: manualFixture,
+				refinements
+			})
+		).rejects.toThrow(/final refinement does not match the emitted master/i);
 	});
 
 	it('omits preRefinementCandidateSha256 when there are no refinements', async () => {
