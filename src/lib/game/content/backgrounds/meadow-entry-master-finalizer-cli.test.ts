@@ -254,4 +254,335 @@ describe('finalize-meadow-entry-masters CLI', () => {
 		);
 		expect(calls).toBe(2);
 	});
+
+	it('parses --validate-only and --output-root flags', () => {
+		expect(
+			parseFinalizeMeadowEntryMasterArguments(['--plane', 'both', '--validate-only'])
+		).toMatchObject({ plane: 'both', validateOnly: true });
+		expect(
+			parseFinalizeMeadowEntryMasterArguments(['--plane', 'both', '--output-root', '/tmp/review'])
+		).toMatchObject({ outputRoot: '/tmp/review', outputRootExplicit: true });
+	});
+
+	it('rejects a duplicate --validate-only flag', () => {
+		expect(() =>
+			parseFinalizeMeadowEntryMasterArguments([
+				'--plane',
+				'both',
+				'--validate-only',
+				'--validate-only'
+			])
+		).toThrow(/Duplicate.*--validate-only/i);
+	});
+
+	it('rejects an unknown flag', () => {
+		expect(() =>
+			parseFinalizeMeadowEntryMasterArguments(['--plane', 'both', '--unknown-flag', 'value'])
+		).toThrow(/Unknown meadow-entry finalizer argument/i);
+	});
+
+	it('rejects a flag with a missing value at the end of args', () => {
+		expect(() =>
+			parseFinalizeMeadowEntryMasterArguments(['--plane', 'both', '--base-candidate'])
+		).toThrow(/Missing value for meadow-entry finalizer argument/i);
+	});
+
+	it('rejects a flag whose value looks like another flag', () => {
+		expect(() => parseFinalizeMeadowEntryMasterArguments(['--plane', '--base-candidate'])).toThrow(
+			/Missing value for meadow-entry finalizer argument/i
+		);
+	});
+
+	it('rejects a duplicate --base-candidate flag', () => {
+		expect(() =>
+			parseFinalizeMeadowEntryMasterArguments([
+				'--plane',
+				'both',
+				'--base-candidate',
+				'/a.png',
+				'--base-candidate',
+				'/b.png'
+			])
+		).toThrow(/Duplicate.*--base-candidate/i);
+	});
+
+	it('rejects an invalid plane value of "all"', () => {
+		expect(() => parseFinalizeMeadowEntryMasterArguments(['--plane', 'all'])).toThrow(
+			/--plane must be base, foreground, or both/i
+		);
+	});
+
+	it('strips a leading -- separator before parsing arguments', () => {
+		expect(parseFinalizeMeadowEntryMasterArguments(['--', '--plane', 'base'])).toMatchObject({
+			plane: 'base'
+		});
+	});
+
+	it('parses all optional flags', () => {
+		const parsed = parseFinalizeMeadowEntryMasterArguments([
+			'--plane',
+			'both',
+			'--base-candidate',
+			'/base.png',
+			'--foreground-candidate',
+			'/fg.png',
+			'--base-transform',
+			'/bt.json',
+			'--foreground-transform',
+			'/ft.json',
+			'--base-provenance',
+			'/bp.json',
+			'--foreground-provenance',
+			'/fp.json',
+			'--refinement-manifest',
+			'/rm.json',
+			'--output-root',
+			'/out'
+		]);
+		expect(parsed).toMatchObject({
+			plane: 'both',
+			baseCandidate: '/base.png',
+			foregroundCandidate: '/fg.png',
+			baseTransform: '/bt.json',
+			foregroundTransform: '/ft.json',
+			baseProvenance: '/bp.json',
+			foregroundProvenance: '/fp.json',
+			refinementManifest: '/rm.json',
+			outputRoot: '/out',
+			outputRootExplicit: true
+		});
+	});
+
+	it('meadowEntryApprovedPackagePaths resolves all expected paths', () => {
+		const paths = meadowEntryApprovedPackagePaths('/tmp/test-root');
+		expect(paths.root).toBe(resolve('/tmp/test-root'));
+		expect(paths.masters).toBe(join(resolve('/tmp/test-root'), 'masters'));
+		expect(paths.provenance).toBe(join(resolve('/tmp/test-root'), 'provenance'));
+		expect(paths.writerSentinel).toBe(
+			join(resolve('/tmp/test-root'), '.meadow-entry-publication.lock')
+		);
+	});
+
+	it('readApprovedMeadowEntryPackageSnapshot fails when all attempts are exhausted', async () => {
+		const outputRoot = await temporaryRoot();
+		await expect(
+			readApprovedMeadowEntryPackageSnapshot(outputRoot, { attempts: 1 })
+		).rejects.toThrow();
+	});
+
+	it('readApprovedMeadowEntryPackageSnapshot fails when the provenance is not valid JSON', async () => {
+		const outputRoot = await temporaryRoot();
+		const paths = meadowEntryApprovedPackagePaths(outputRoot);
+		await mkdir(paths.masters, { recursive: true });
+		await mkdir(paths.provenance, { recursive: true });
+		await writeFile(join(paths.masters, 'meadow-entry-base-master.png'), Buffer.from('base'));
+		await writeFile(
+			join(paths.masters, 'meadow-entry-foreground-master.png'),
+			Buffer.from('foreground')
+		);
+		await writeFile(
+			join(paths.provenance, 'meadow-entry-master-provenance.json'),
+			Buffer.from('not valid json')
+		);
+		await expect(
+			readApprovedMeadowEntryPackageSnapshot(outputRoot, { attempts: 1 })
+		).rejects.toThrow(/not valid JSON/i);
+	});
+
+	it('readApprovedMeadowEntryPackageSnapshot fails when manifest hashes do not match', async () => {
+		const outputRoot = await temporaryRoot();
+		const paths = meadowEntryApprovedPackagePaths(outputRoot);
+		await mkdir(paths.masters, { recursive: true });
+		await mkdir(paths.provenance, { recursive: true });
+		const basePng = Buffer.from('base');
+		const foregroundPng = Buffer.from('foreground');
+		await writeFile(join(paths.masters, 'meadow-entry-base-master.png'), basePng);
+		await writeFile(join(paths.masters, 'meadow-entry-foreground-master.png'), foregroundPng);
+		const sha256 = (value: Buffer) => createHash('sha256').update(value).digest('hex');
+		await writeFile(
+			join(paths.provenance, 'meadow-entry-master-provenance.json'),
+			Buffer.from(
+				JSON.stringify({
+					base: { sha256: 'wrong' },
+					foreground: { sha256: sha256(foregroundPng) }
+				})
+			)
+		);
+		await expect(
+			readApprovedMeadowEntryPackageSnapshot(outputRoot, { attempts: 1 })
+		).rejects.toThrow(/does not match its master bytes/i);
+	});
+
+	it('publishApprovedMeadowEntryPackage overwrites an existing approved package', async () => {
+		const outputRoot = await temporaryRoot();
+		await publishApprovedMeadowEntryPackage(outputRoot, packageBytes('first'));
+		await publishApprovedMeadowEntryPackage(outputRoot, packageBytes('second'));
+		expect(await readApprovedMeadowEntryPackageSnapshot(outputRoot)).toEqual(
+			packageBytes('second')
+		);
+	});
+
+	it('runFinalizeMeadowEntryMasters writes a foreground review output outside the approved package', async () => {
+		const inputRoot = await temporaryRoot();
+		const candidate = join(inputRoot, 'candidate.png');
+		const transform = join(inputRoot, 'transform.json');
+		const provenance = join(inputRoot, 'provenance.json');
+		await Promise.all([
+			writeFile(candidate, 'candidate'),
+			writeFile(transform, '{}'),
+			writeFile(provenance, '{}')
+		]);
+		const outputRoot = join(inputRoot, 'work/fg-review');
+		const finalizers = {
+			finalizeForeground: async () => ({ png: Buffer.from('review-fg'), provenance: {} })
+		};
+		await runFinalizeMeadowEntryMasters(
+			[
+				'--plane',
+				'foreground',
+				'--foreground-candidate',
+				candidate,
+				'--foreground-transform',
+				transform,
+				'--foreground-provenance',
+				provenance,
+				'--output-root',
+				outputRoot
+			],
+			repositoryRoot,
+			finalizers
+		);
+		expect(await readFile(join(outputRoot, 'masters/meadow-entry-foreground-master.png'))).toEqual(
+			Buffer.from('review-fg')
+		);
+	});
+
+	it('runFinalizeMeadowEntryMasters validate-only for foreground does not write', async () => {
+		const inputRoot = await temporaryRoot();
+		const candidate = join(inputRoot, 'candidate.png');
+		const transform = join(inputRoot, 'transform.json');
+		const provenance = join(inputRoot, 'provenance.json');
+		await Promise.all([
+			writeFile(candidate, 'candidate'),
+			writeFile(transform, '{}'),
+			writeFile(provenance, '{}')
+		]);
+		const outputRoot = join(inputRoot, 'work/fg-validate');
+		const finalizers = {
+			finalizeForeground: async () => ({ png: Buffer.from('review-fg'), provenance: {} })
+		};
+		await runFinalizeMeadowEntryMasters(
+			[
+				'--plane',
+				'foreground',
+				'--foreground-candidate',
+				candidate,
+				'--foreground-transform',
+				transform,
+				'--foreground-provenance',
+				provenance,
+				'--output-root',
+				outputRoot,
+				'--validate-only'
+			],
+			repositoryRoot,
+			finalizers
+		);
+		await expect(
+			readFile(join(outputRoot, 'masters/meadow-entry-foreground-master.png'))
+		).rejects.toThrow();
+	});
+
+	it('runFinalizeMeadowEntryMasters publishes both planes via finalizeBoth', async () => {
+		const inputRoot = await temporaryRoot();
+		const outputRoot = await temporaryRoot();
+		const baseCandidate = join(inputRoot, 'base.png');
+		const fgCandidate = join(inputRoot, 'fg.png');
+		const baseTransform = join(inputRoot, 'bt.json');
+		const fgTransform = join(inputRoot, 'ft.json');
+		const baseProvenance = join(inputRoot, 'bp.json');
+		const fgProvenance = join(inputRoot, 'fp.json');
+		await Promise.all([
+			writeFile(baseCandidate, 'base'),
+			writeFile(fgCandidate, 'fg'),
+			writeFile(baseTransform, '{}'),
+			writeFile(fgTransform, '{}'),
+			writeFile(baseProvenance, '{}'),
+			writeFile(fgProvenance, '{}')
+		]);
+		const expectedBytes = packageBytes('both');
+		const finalizers = {
+			finalizeBoth: async () => expectedBytes
+		};
+		await runFinalizeMeadowEntryMasters(
+			[
+				'--plane',
+				'both',
+				'--base-candidate',
+				baseCandidate,
+				'--foreground-candidate',
+				fgCandidate,
+				'--base-transform',
+				baseTransform,
+				'--foreground-transform',
+				fgTransform,
+				'--base-provenance',
+				baseProvenance,
+				'--foreground-provenance',
+				fgProvenance,
+				'--output-root',
+				outputRoot
+			],
+			repositoryRoot,
+			finalizers
+		);
+		expect(await readApprovedMeadowEntryPackageSnapshot(outputRoot)).toEqual(expectedBytes);
+	});
+
+	it('runFinalizeMeadowEntryMasters validate-only for both does not publish', async () => {
+		const inputRoot = await temporaryRoot();
+		const outputRoot = await temporaryRoot();
+		const baseCandidate = join(inputRoot, 'base.png');
+		const fgCandidate = join(inputRoot, 'fg.png');
+		const baseTransform = join(inputRoot, 'bt.json');
+		const fgTransform = join(inputRoot, 'ft.json');
+		const baseProvenance = join(inputRoot, 'bp.json');
+		const fgProvenance = join(inputRoot, 'fp.json');
+		await Promise.all([
+			writeFile(baseCandidate, 'base'),
+			writeFile(fgCandidate, 'fg'),
+			writeFile(baseTransform, '{}'),
+			writeFile(fgTransform, '{}'),
+			writeFile(baseProvenance, '{}'),
+			writeFile(fgProvenance, '{}')
+		]);
+		const expectedBytes = packageBytes('both-validate');
+		const finalizers = {
+			finalizeBoth: async () => expectedBytes
+		};
+		await runFinalizeMeadowEntryMasters(
+			[
+				'--plane',
+				'both',
+				'--base-candidate',
+				baseCandidate,
+				'--foreground-candidate',
+				fgCandidate,
+				'--base-transform',
+				baseTransform,
+				'--foreground-transform',
+				fgTransform,
+				'--base-provenance',
+				baseProvenance,
+				'--foreground-provenance',
+				fgProvenance,
+				'--output-root',
+				outputRoot,
+				'--validate-only'
+			],
+			repositoryRoot,
+			finalizers
+		);
+		await expect(readApprovedMeadowEntryPackageSnapshot(outputRoot)).rejects.toThrow();
+	});
 });

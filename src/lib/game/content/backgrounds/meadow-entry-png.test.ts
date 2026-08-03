@@ -13,6 +13,31 @@ import {
 	writeAtomicMeadowEntryPng
 } from './meadow-entry-png';
 
+const PNG_CRC32_TABLE = Uint32Array.from({ length: 256 }, (_, value) => {
+	let crc = value;
+	for (let bit = 0; bit < 8; bit += 1) {
+		crc = (crc >>> 1) ^ (crc & 1 ? 0xedb88320 : 0);
+	}
+	return crc >>> 0;
+});
+
+function pngCrc32(bytes: Uint8Array): number {
+	let crc = 0xffffffff;
+	for (const byte of bytes) {
+		crc = (PNG_CRC32_TABLE[(crc ^ byte) & 0xff] ?? 0) ^ (crc >>> 8);
+	}
+	return (crc ^ 0xffffffff) >>> 0;
+}
+
+function buildChunk(type: string, data: Buffer): Buffer {
+	const length = Buffer.alloc(4);
+	length.writeUInt32BE(data.length, 0);
+	const typeBuffer = Buffer.from(type, 'ascii');
+	const crc = Buffer.alloc(4);
+	crc.writeUInt32BE(pngCrc32(Buffer.concat([typeBuffer, data])), 0);
+	return Buffer.concat([length, typeBuffer, data, crc]);
+}
+
 describe('meadow-entry PNG contract', () => {
 	it('encodes identical raw pixels byte-identically', async () => {
 		const raw = Buffer.from([1, 2, 3, 255, 4, 5, 6, 0]);
@@ -118,5 +143,76 @@ describe('meadow-entry PNG contract', () => {
 		const { data, width, height } = await decodeMeadowEntryRgba(metadataPng);
 		const canonical = await encodeCanonicalMeadowEntryPng(data, width, height);
 		expect(() => validateCanonicalPngChunks(canonical)).not.toThrow();
+	});
+
+	it('rejects a buffer that is not a PNG (wrong signature)', () => {
+		expect(() => validateCanonicalPngChunks(Buffer.from([0, 1, 2, 3, 4, 5, 6, 7]))).toThrow(
+			/not a valid PNG/i
+		);
+	});
+
+	it('rejects an empty buffer', () => {
+		expect(() => validateCanonicalPngChunks(Buffer.alloc(0))).toThrow(/not a valid PNG/i);
+	});
+
+	it('rejects a PNG with a truncated chunk header (less than 12 bytes after signature)', async () => {
+		const png = await encodeCanonicalMeadowEntryPng(Buffer.from([1, 2, 3, 255]), 1, 1);
+		const truncated = Buffer.concat([png.subarray(0, 8), Buffer.from([0, 0, 0, 1])]);
+		expect(() => validateCanonicalPngChunks(truncated)).toThrow(/truncated chunk/i);
+	});
+
+	it('rejects a PNG whose first chunk is not a 13-byte IHDR', async () => {
+		const png = await encodeCanonicalMeadowEntryPng(Buffer.from([1, 2, 3, 255]), 1, 1);
+		const ihdrData = png.subarray(12, 25);
+		const shortIhdr = buildChunk('IHDR', ihdrData.subarray(0, 12));
+		const idat = png.subarray(33, png.length - 12);
+		const iend = png.subarray(png.length - 12);
+		const corrupted = Buffer.concat([png.subarray(0, 8), shortIhdr, idat, iend]);
+		expect(() => validateCanonicalPngChunks(corrupted)).toThrow(/must begin with a 13-byte IHDR/i);
+	});
+
+	it('rejects a PNG with a second IHDR chunk', async () => {
+		const png = await encodeCanonicalMeadowEntryPng(Buffer.from([1, 2, 3, 255]), 1, 1);
+		const ihdrChunk = png.subarray(8, 33);
+		const idat = png.subarray(33, png.length - 12);
+		const iend = png.subarray(png.length - 12);
+		const withSecondIhdr = Buffer.concat([png.subarray(0, 8), ihdrChunk, ihdrChunk, idat, iend]);
+		expect(() => validateCanonicalPngChunks(withSecondIhdr)).toThrow(/single IHDR/i);
+	});
+
+	it('rejects an IEND chunk with non-zero data length', async () => {
+		const png = await encodeCanonicalMeadowEntryPng(Buffer.from([1, 2, 3, 255]), 1, 1);
+		const ihdr = png.subarray(8, 33);
+		const idat = png.subarray(33, png.length - 12);
+		const badIend = buildChunk('IEND', Buffer.from([0]));
+		const corrupted = Buffer.concat([png.subarray(0, 8), ihdr, idat, badIend]);
+		expect(() => validateCanonicalPngChunks(corrupted)).toThrow(/zero-byte IEND/i);
+	});
+
+	it('rejects a PNG that has only IHDR and IEND with no IDAT', async () => {
+		const png = await encodeCanonicalMeadowEntryPng(Buffer.from([1, 2, 3, 255]), 1, 1);
+		const ihdr = png.subarray(8, 33);
+		const iend = png.subarray(png.length - 12);
+		const noIdat = Buffer.concat([png.subarray(0, 8), ihdr, iend]);
+		expect(() => validateCanonicalPngChunks(noIdat)).toThrow(/IHDR, one or more IDAT/i);
+	});
+
+	it('rejects a PNG with a non-IDAT chunk between IHDR and IEND', async () => {
+		const png = await encodeCanonicalMeadowEntryPng(Buffer.from([1, 2, 3, 255]), 1, 1);
+		const ihdr = png.subarray(8, 33);
+		const idat = png.subarray(33, png.length - 12);
+		const iend = png.subarray(png.length - 12);
+		const tEXtChunk = buildChunk('tEXt', Buffer.from('abcd', 'ascii'));
+		const withNonIdat = Buffer.concat([png.subarray(0, 8), ihdr, idat, tEXtChunk, iend]);
+		expect(() => validateCanonicalPngChunks(withNonIdat)).toThrow(/non-canonical PNG chunk/i);
+	});
+
+	it('decodes RGBA and reports correct channels', async () => {
+		const raw = Buffer.from([10, 20, 30, 255, 40, 50, 60, 128]);
+		const png = await encodeCanonicalMeadowEntryPng(raw, 2, 1);
+		const decoded = await decodeMeadowEntryRgba(png);
+		expect(decoded.width).toBe(2);
+		expect(decoded.height).toBe(1);
+		expect(decoded.data).toEqual(raw);
 	});
 });
