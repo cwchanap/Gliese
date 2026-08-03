@@ -1,6 +1,7 @@
 import { createHash, randomUUID } from 'node:crypto';
 import { mkdir, readFile, rename, rm, writeFile } from 'node:fs/promises';
 import { dirname, join, resolve } from 'node:path';
+import { isDeepStrictEqual } from 'node:util';
 
 import { format } from 'prettier';
 
@@ -126,6 +127,11 @@ function assert(condition: unknown, message: string): asserts condition {
 }
 
 function parseReviewArguments(args: readonly string[]): ReviewArguments {
+	if (args.length % 2 !== 0) {
+		throw new Error(
+			'Usage: bun tools/approve-meadow-entry-art-package.ts --reviewed-by <reviewer> --reviewed-at <UTC-seconds>'
+		);
+	}
 	let reviewedBy: string | undefined;
 	let reviewedAt: string | undefined;
 	for (let index = 0; index < args.length; index += 2) {
@@ -136,8 +142,16 @@ function parseReviewArguments(args: readonly string[]): ReviewArguments {
 				'Usage: bun tools/approve-meadow-entry-art-package.ts --reviewed-by <reviewer> --reviewed-at <UTC-seconds>'
 			);
 		}
-		if (flag === '--reviewed-by') reviewedBy = value;
-		else reviewedAt = value;
+		if (flag === '--reviewed-by') {
+			assert(reviewedBy === undefined, 'Meadow Entry package reviewer flag must not be repeated');
+			reviewedBy = value;
+		} else {
+			assert(
+				reviewedAt === undefined,
+				'Meadow Entry package review time flag must not be repeated'
+			);
+			reviewedAt = value;
+		}
 	}
 	assert(
 		reviewedBy !== undefined && reviewedAt !== undefined,
@@ -148,8 +162,10 @@ function parseReviewArguments(args: readonly string[]): ReviewArguments {
 		'Invalid Meadow Entry package reviewer'
 	);
 	assert(UTC_SECONDS.test(reviewedAt), 'Meadow Entry package review time must use UTC seconds');
+	const reviewInstant = new Date(reviewedAt);
 	assert(
-		new Date(reviewedAt).toISOString().replace('.000Z', 'Z') === reviewedAt,
+		!Number.isNaN(reviewInstant.getTime()) &&
+			reviewInstant.toISOString().replace('.000Z', 'Z') === reviewedAt,
 		'Meadow Entry package review time is not a real UTC instant'
 	);
 	return { reviewedBy, reviewedAt };
@@ -174,7 +190,7 @@ async function inspectPngBytes(
 }
 
 function jsonEqual(first: unknown, second: unknown): boolean {
-	return JSON.stringify(first) === JSON.stringify(second);
+	return isDeepStrictEqual(first, second);
 }
 
 function exportPath(cropId: string, plane: 'base' | 'foreground'): string {

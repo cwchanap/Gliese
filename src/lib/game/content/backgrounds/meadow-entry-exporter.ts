@@ -2,7 +2,7 @@ import { createHash } from 'node:crypto';
 
 import sharp from 'sharp';
 
-import { unionArea } from './meadow-entry-authoring-geometry';
+import { intersectBounds, unionArea } from './meadow-entry-authoring-geometry';
 import type { PixelBounds } from './meadow-entry-authoring-types';
 import type { MeadowEntryApprovedCrop, MeadowEntryOverlap } from './meadow-entry-crop-manifest';
 import {
@@ -49,16 +49,6 @@ function assert(condition: unknown, message: string): asserts condition {
 
 function dimensions(bounds: PixelBounds): { width: number; height: number } {
 	return { width: bounds.right - bounds.left, height: bounds.bottom - bounds.top };
-}
-
-function intersect(first: PixelBounds, second: PixelBounds): PixelBounds | null {
-	const bounds = {
-		left: Math.max(first.left, second.left),
-		top: Math.max(first.top, second.top),
-		right: Math.min(first.right, second.right),
-		bottom: Math.min(first.bottom, second.bottom)
-	};
-	return bounds.left < bounds.right && bounds.top < bounds.bottom ? bounds : null;
 }
 
 function boundsEqual(first: PixelBounds, second: PixelBounds): boolean {
@@ -151,7 +141,7 @@ function validateContract(
 		const first = byId.get(overlap.firstCropId);
 		const second = byId.get(overlap.secondCropId);
 		assert(first && second, `Meadow Entry overlap "${overlap.id}" names an unknown crop`);
-		const actual = intersect(first.bounds, second.bounds);
+		const actual = intersectBounds(first.bounds, second.bounds);
 		assert(
 			actual !== null && boundsEqual(actual, overlap.bounds),
 			`Meadow Entry overlap "${overlap.id}" bounds do not match its crops`
@@ -244,19 +234,23 @@ async function extractPlane(
 	);
 	if (plane === 'base') {
 		for (let offset = 3; offset < data.length; offset += 4) {
-			assert(
-				data[offset] === 255,
-				`Meadow Entry crop "${crop.id}" base is not opaque at master=${crop.bounds.left + (((offset - 3) / 4) % expected.width)},${crop.bounds.top + Math.floor((offset - 3) / 4 / expected.width)}`
-			);
+			if (data[offset] !== 255) {
+				throw new Error(
+					`Meadow Entry crop "${crop.id}" base is not opaque at master=${crop.bounds.left + (((offset - 3) / 4) % expected.width)},${crop.bounds.top + Math.floor((offset - 3) / 4 / expected.width)}`
+				);
+			}
 		}
 	}
 	if (plane === 'foreground') {
 		for (let offset = 0; offset < data.length; offset += 4) {
-			assert(
-				data[offset + 3] !== 0 ||
-					(data[offset] === 0 && data[offset + 1] === 0 && data[offset + 2] === 0),
-				`Meadow Entry crop "${crop.id}" foreground has hidden RGB at local=${(offset / 4) % expected.width},${Math.floor(offset / 4 / expected.width)}`
-			);
+			if (
+				data[offset + 3] === 0 &&
+				(data[offset] !== 0 || data[offset + 1] !== 0 || data[offset + 2] !== 0)
+			) {
+				throw new Error(
+					`Meadow Entry crop "${crop.id}" foreground has hidden RGB at local=${(offset / 4) % expected.width},${Math.floor(offset / 4 / expected.width)}`
+				);
+			}
 		}
 	}
 	const png = await encodeCanonicalMeadowEntryPng(data, expected.width, expected.height);
@@ -269,10 +263,11 @@ async function extractPlane(
 			const masterY = crop.bounds.top + localY;
 			const masterOffset = (masterY * master.width + masterX) * 4;
 			for (let channel = 0; channel < 4; channel += 1) {
-				assert(
-					roundTrip.data[exportOffset + channel] === master.data[masterOffset + channel],
-					`Meadow Entry master/export mismatch crop=${crop.id} plane=${plane} master=${masterX},${masterY} local=${localX},${localY} channel=${channel}`
-				);
+				if (roundTrip.data[exportOffset + channel] !== master.data[masterOffset + channel]) {
+					throw new Error(
+						`Meadow Entry master/export mismatch crop=${crop.id} plane=${plane} master=${masterX},${masterY} local=${localX},${localY} channel=${channel}`
+					);
+				}
 			}
 		}
 	}

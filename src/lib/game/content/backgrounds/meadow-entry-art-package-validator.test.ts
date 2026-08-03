@@ -221,19 +221,7 @@ describe('Meadow Entry art package validator', () => {
 					}
 				}
 			])
-		).rejects.toThrow('failing-stage: underlying failure');
-		try {
-			await runValidationStages([
-				{
-					name: 'failing-stage',
-					run: async () => {
-						throw cause;
-					}
-				}
-			]);
-		} catch (error) {
-			expect((error as Error).cause).toBe(cause);
-		}
+		).rejects.toMatchObject({ message: 'failing-stage: underlying failure', cause });
 	});
 
 	it('expectedApprovedPngPaths returns a sorted, unique inventory of approved PNG paths', () => {

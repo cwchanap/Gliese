@@ -1,7 +1,19 @@
-import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it } from 'vitest';
+
+const temporaryRoots: string[] = [];
+
+function temporaryRoot(prefix: string): string {
+	const root = mkdtempSync(join(tmpdir(), prefix));
+	temporaryRoots.push(root);
+	return root;
+}
+
+afterEach(() => {
+	for (const root of temporaryRoots.splice(0)) rmSync(root, { recursive: true, force: true });
+});
 
 interface ArtMapPackageCliApi {
 	loadArtMapPackageAdapter(
@@ -44,7 +56,7 @@ describe('versioned art map package adapter', () => {
 	});
 
 	it('fails closed for an unsupported future-map adapter without invoking a core script', async () => {
-		const root = mkdtempSync(join(tmpdir(), 'gliese-future-map-adapter-'));
+		const root = temporaryRoot('gliese-future-map-adapter-');
 		const fixture = readFileSync(
 			join(process.cwd(), 'src/lib/game/content/backgrounds/fixtures/future-map-adapter.v1.json')
 		);
@@ -94,7 +106,7 @@ describe('versioned art map package adapter', () => {
 				(adapter.paths.proofRoot = 'docs/reports/other-map/proofs')
 		]
 	])('rejects a mutated supported adapter %s before dispatch', async (_label, mutate) => {
-		const root = mkdtempSync(join(tmpdir(), 'gliese-mutated-meadow-entry-adapter-'));
+		const root = temporaryRoot('gliese-mutated-meadow-entry-adapter-');
 		const supported = JSON.parse(
 			readFileSync(join(process.cwd(), 'art-map-adapters/meadow-entry.v1.json'), 'utf8')
 		) as MutableSupportedAdapter;
@@ -126,7 +138,7 @@ describe('versioned art map package adapter', () => {
 	});
 
 	it('rejects a manifest that is not valid JSON', async () => {
-		const root = mkdtempSync(join(tmpdir(), 'gliese-bad-json-adapter-'));
+		const root = temporaryRoot('gliese-bad-json-adapter-');
 		const manifestPath = join(root, 'art-map-adapters/bad.json');
 		mkdirSync(dirname(manifestPath), { recursive: true });
 		writeFileSync(manifestPath, 'not valid json {{{');
@@ -175,19 +187,19 @@ describe('art map package CLI argument parsing', () => {
 	}
 
 	it('rejects arguments with no flags', async () => {
-		const root = mkdtempSync(join(tmpdir(), 'gliese-art-map-no-flags-'));
+		const root = temporaryRoot('gliese-art-map-no-flags-');
 		const api = await cliApi();
 		await expect(api.runArtMapPackageCli([], root)).rejects.toThrow(/Usage/i);
 	});
 
 	it('rejects arguments with too few flags', async () => {
-		const root = mkdtempSync(join(tmpdir(), 'gliese-art-map-few-flags-'));
+		const root = temporaryRoot('gliese-art-map-few-flags-');
 		const api = await cliApi();
 		await expect(api.runArtMapPackageCli(['--adapter', 'a.json'], root)).rejects.toThrow(/Usage/i);
 	});
 
 	it('rejects arguments with too many flags', async () => {
-		const root = mkdtempSync(join(tmpdir(), 'gliese-art-map-many-flags-'));
+		const root = temporaryRoot('gliese-art-map-many-flags-');
 		const api = await cliApi();
 		await expect(
 			api.runArtMapPackageCli(
@@ -198,7 +210,7 @@ describe('art map package CLI argument parsing', () => {
 	});
 
 	it('rejects an unknown flag', async () => {
-		const root = mkdtempSync(join(tmpdir(), 'gliese-art-map-unknown-flag-'));
+		const root = temporaryRoot('gliese-art-map-unknown-flag-');
 		const api = await cliApi();
 		await expect(
 			api.runArtMapPackageCli(['--adapter', 'a.json', '--unknown', 'validate'], root)
@@ -206,7 +218,7 @@ describe('art map package CLI argument parsing', () => {
 	});
 
 	it('rejects a duplicate --adapter flag', async () => {
-		const root = mkdtempSync(join(tmpdir(), 'gliese-art-map-dup-adapter-'));
+		const root = temporaryRoot('gliese-art-map-dup-adapter-');
 		const api = await cliApi();
 		await expect(
 			api.runArtMapPackageCli(['--adapter', 'a.json', '--adapter', 'b.json'], root)
@@ -214,7 +226,7 @@ describe('art map package CLI argument parsing', () => {
 	});
 
 	it('rejects an unsupported operation', async () => {
-		const root = mkdtempSync(join(tmpdir(), 'gliese-art-map-bad-op-'));
+		const root = temporaryRoot('gliese-art-map-bad-op-');
 		const api = await cliApi();
 		await expect(
 			api.runArtMapPackageCli(['--adapter', 'a.json', '--operation', 'unknown'], root)
@@ -222,7 +234,7 @@ describe('art map package CLI argument parsing', () => {
 	});
 
 	it('dispatches to the finalize operation before the operation runs', async () => {
-		const root = mkdtempSync(join(tmpdir(), 'gliese-art-map-finalize-'));
+		const root = temporaryRoot('gliese-art-map-finalize-');
 		copyAdapterToRoot(root);
 		const result = await cliWithDispatch(
 			[
@@ -292,7 +304,7 @@ describe('art map package CLI argument parsing', () => {
 	});
 
 	it('dispatches to the approve operation before the operation runs', async () => {
-		const root = mkdtempSync(join(tmpdir(), 'gliese-art-map-approve-'));
+		const root = temporaryRoot('gliese-art-map-approve-');
 		copyAdapterToRoot(root);
 		const result = await cliWithDispatch(
 			[
@@ -310,7 +322,7 @@ describe('art map package CLI argument parsing', () => {
 	});
 
 	it('strips a leading -- separator before parsing flags', async () => {
-		const root = mkdtempSync(join(tmpdir(), 'gliese-art-map-leading-sep-'));
+		const root = temporaryRoot('gliese-art-map-leading-sep-');
 		copyAdapterToRoot(root);
 		const result = await cliWithDispatch(
 			[

@@ -19,7 +19,7 @@
 		"art:approve:meadow-entry": "bun tools/approve-meadow-entry-art-package.ts",
 		"art:validate:meadow-entry": "bun tools/validate-meadow-entry-art-package.ts",
 		"art:map-package": "bun tools/art-map-package.ts",
-		"art:validate:meadow-entry-controls": "bun run art:storage:meadow-entry && bun tools/export-meadow-entry-art-controls.ts --check && bun run test:unit -- --run src/lib/game/content/backgrounds/meadow-entry-authoring-geometry.test.ts src/lib/game/content/backgrounds/meadow-entry-storage.test.ts src/lib/game/content/backgrounds/meadow-entry-storage-verifier.test.ts src/lib/game/content/backgrounds/meadow-entry-source-catalog.test.ts src/lib/game/content/backgrounds/meadow-entry-authoring-layout.test.ts src/lib/game/content/backgrounds/meadow-entry-bake-ownership.test.ts src/lib/game/content/backgrounds/meadow-entry-crop-manifest.test.ts src/lib/game/content/backgrounds/meadow-entry-controls.test.ts src/lib/game/content/backgrounds/meadow-entry-controls-exporter.test.ts src/lib/game/content/meadow-entry-controls.asset.test.ts src/lib/game/content/meadow-entry-controls-approval-tool.test.ts",
+		"art:validate:meadow-entry-controls": "bun run art:storage:meadow-entry && bun tools/export-meadow-entry-art-controls.ts --check && bun tools/run-meadow-entry-controls-tests.ts",
 		"art:rasterize:village": "bun tools/rasterize-sundrop-village-art-control.ts",
 		"art:finalize:village-obstacles": "bun tools/finalize-sundrop-village-obstacles.ts",
 		"art:proof:village-obstacles": "bun tools/render-sundrop-village-obstacle-proof.ts",

@@ -33,6 +33,7 @@ import {
 } from '$lib/game/content/backgrounds/meadow-entry-png';
 import { MEADOW_ENTRY_PROOF_FILENAMES } from '$lib/game/content/backgrounds/meadow-entry-proof-renderer';
 import { runExportMeadowEntryRegions } from './export-meadow-entry-regions';
+import { MEADOW_ENTRY_TEST_FILES } from './meadow-entry-art-test-files';
 import { renderMeadowEntryArtProofs } from './render-meadow-entry-art-proofs';
 import { verifyMeadowEntryArtStorage } from './verify-meadow-entry-art-storage';
 
@@ -61,32 +62,6 @@ const PUBLICATION_SENTINELS = [
 		path: 'docs/superpowers/reports/img/hpa-399/.meadow-entry-proof-publication.lock',
 		message: 'Meadow Entry proof publication is in progress'
 	}
-] as const;
-
-const FOCUSED_TEST_FILES = [
-	'src/lib/game/content/backgrounds/meadow-entry-authoring-geometry.test.ts',
-	'src/lib/game/content/backgrounds/meadow-entry-storage.test.ts',
-	'src/lib/game/content/backgrounds/meadow-entry-storage-verifier.test.ts',
-	'src/lib/game/content/backgrounds/meadow-entry-source-catalog.test.ts',
-	'src/lib/game/content/backgrounds/meadow-entry-authoring-layout.test.ts',
-	'src/lib/game/content/backgrounds/meadow-entry-bake-ownership.test.ts',
-	'src/lib/game/content/backgrounds/meadow-entry-crop-manifest.test.ts',
-	'src/lib/game/content/backgrounds/meadow-entry-controls.test.ts',
-	'src/lib/game/content/backgrounds/meadow-entry-controls-exporter.test.ts',
-	'src/lib/game/content/backgrounds/meadow-entry-master-provenance.test.ts',
-	'src/lib/game/content/backgrounds/meadow-entry-png.test.ts',
-	'src/lib/game/content/backgrounds/meadow-entry-master-finalizer.test.ts',
-	'src/lib/game/content/backgrounds/meadow-entry-master-finalizer-cli.test.ts',
-	'src/lib/game/content/backgrounds/meadow-entry-master-refinement.test.ts',
-	'src/lib/game/content/backgrounds/meadow-entry-exporter.test.ts',
-	'src/lib/game/content/backgrounds/meadow-entry-proof-renderer.test.ts',
-	'src/lib/game/content/backgrounds/meadow-entry-art-source-snapshot.test.ts',
-	'src/lib/game/content/backgrounds/meadow-entry-art-proofs.test.ts',
-	'src/lib/game/content/backgrounds/art-map-package-adapter.test.ts',
-	'src/lib/game/content/backgrounds/meadow-entry-art-package-validator.test.ts',
-	'src/lib/game/content/meadow-entry-controls.asset.test.ts',
-	'src/lib/game/content/meadow-entry-controls-approval-tool.test.ts',
-	'src/lib/game/content/meadow-entry-art-package.asset.test.ts'
 ] as const;
 
 const PNG_SIGNATURE = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
@@ -377,27 +352,33 @@ async function validateApprovedPackage(repositoryRoot: string): Promise<void> {
 	const eligible = buildMeadowEntryForegroundEligibleRasterMask(inputs).alpha;
 	const protectedMask = buildMeadowEntryProtectedForegroundRasterMask(inputs).alpha;
 	for (let pixel = 0; pixel < 6400 * 6400; pixel += 1) {
-		assert(base.data[pixel * 4 + 3] === 255, `Base master is not opaque at pixel ${pixel}`);
+		if (base.data[pixel * 4 + 3] !== 255) {
+			throw new Error(`Base master is not opaque at pixel ${pixel}`);
+		}
 		const alpha = foreground.data[pixel * 4 + 3]!;
 		if (alpha === 0) {
-			assert(
-				foreground.data[pixel * 4] === 0 &&
-					foreground.data[pixel * 4 + 1] === 0 &&
-					foreground.data[pixel * 4 + 2] === 0,
-				`Foreground has hidden RGB at pixel ${pixel}`
-			);
+			if (
+				foreground.data[pixel * 4] !== 0 ||
+				foreground.data[pixel * 4 + 1] !== 0 ||
+				foreground.data[pixel * 4 + 2] !== 0
+			) {
+				throw new Error(`Foreground has hidden RGB at pixel ${pixel}`);
+			}
 		} else {
-			assert(eligible[pixel] !== 0, `Foreground is outside the eligibility mask at pixel ${pixel}`);
-			assert(protectedMask[pixel] === 0, `Foreground overlaps a protected mask at pixel ${pixel}`);
+			if (eligible[pixel] === 0) {
+				throw new Error(`Foreground is outside the eligibility mask at pixel ${pixel}`);
+			}
+			if (protectedMask[pixel] !== 0) {
+				throw new Error(`Foreground overlaps a protected mask at pixel ${pixel}`);
+			}
 		}
 	}
 	for (const clearance of inputs.controlClearanceRects) {
 		for (let y = clearance.bounds.top; y < clearance.bounds.bottom; y += 1) {
 			for (let x = clearance.bounds.left; x < clearance.bounds.right; x += 1) {
-				assert(
-					foreground.data[(y * 6400 + x) * 4 + 3] === 0,
-					`Foreground overlaps interaction clearance ${clearance.id}`
-				);
+				if (foreground.data[(y * 6400 + x) * 4 + 3] !== 0) {
+					throw new Error(`Foreground overlaps interaction clearance ${clearance.id}`);
+				}
 			}
 		}
 	}
@@ -597,7 +578,7 @@ async function validateControls(repositoryRoot: string): Promise<void> {
 }
 
 async function runFocusedTests(repositoryRoot: string): Promise<void> {
-	command(repositoryRoot, 'bun', ['run', 'test:unit', '--', '--run', ...FOCUSED_TEST_FILES], {
+	command(repositoryRoot, 'bun', ['run', 'test:unit', '--', '--run', ...MEADOW_ENTRY_TEST_FILES], {
 		echo: true
 	});
 }

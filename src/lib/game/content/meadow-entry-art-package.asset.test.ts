@@ -121,6 +121,14 @@ describe('approved Meadow Entry art package', () => {
 			...meadowEntryArtPackageApproval.proofs
 		]) {
 			const bytes = readFileSync(join(repositoryRoot, artifact.path));
+			if (
+				bytes.byteLength < 130 &&
+				bytes.subarray(0, 46).toString('utf8') === 'version https://git-lfs.github.com/spec/v1'
+			) {
+				throw new Error(
+					`${artifact.path} is a Git LFS pointer; run 'git lfs pull' before running this suite`
+				);
+			}
 			const decoded = await decodeMeadowEntryRgba(bytes);
 			assertArtifactSnapshot(artifact, {
 				path: artifact.path,
@@ -416,7 +424,6 @@ describe('approved Meadow Entry art package', () => {
 		expect(() =>
 			assertProofDimensions('matching-forgery', { left: 0, top: 0, right: 2, bottom: 1 }, 1, 1)
 		).toThrow(/dimensions do not match bounds/);
-		expect(() => JSON.parse('{malformed')).toThrow();
 	});
 
 	it('binds the stable manifests and overlap inventory', () => {

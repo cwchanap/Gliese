@@ -74,29 +74,64 @@ const cornerGroups = [
 	)
 ];
 
+const clampEdge = (value: number, minimum: number, maximum: number): number =>
+	Math.min(maximum, Math.max(minimum, value));
+
 const sundropEdgeBounds = {
 	top: {
 		left: SUNDROP_BOUNDS.left,
-		top: SUNDROP_BOUNDS.top - SUNDROP_EDGE_BAND_PX,
+		top: clampEdge(
+			SUNDROP_BOUNDS.top - SUNDROP_EDGE_BAND_PX,
+			MEADOW_ENTRY_WORLD_BOUNDS.top,
+			MEADOW_ENTRY_WORLD_BOUNDS.bottom
+		),
 		right: SUNDROP_BOUNDS.right,
-		bottom: SUNDROP_BOUNDS.top + SUNDROP_EDGE_BAND_PX
+		bottom: clampEdge(
+			SUNDROP_BOUNDS.top + SUNDROP_EDGE_BAND_PX,
+			MEADOW_ENTRY_WORLD_BOUNDS.top,
+			MEADOW_ENTRY_WORLD_BOUNDS.bottom
+		)
 	},
 	right: {
-		left: SUNDROP_BOUNDS.right - SUNDROP_EDGE_BAND_PX,
+		left: clampEdge(
+			SUNDROP_BOUNDS.right - SUNDROP_EDGE_BAND_PX,
+			MEADOW_ENTRY_WORLD_BOUNDS.left,
+			MEADOW_ENTRY_WORLD_BOUNDS.right
+		),
 		top: SUNDROP_BOUNDS.top,
-		right: SUNDROP_BOUNDS.right + SUNDROP_EDGE_BAND_PX,
+		right: clampEdge(
+			SUNDROP_BOUNDS.right + SUNDROP_EDGE_BAND_PX,
+			MEADOW_ENTRY_WORLD_BOUNDS.left,
+			MEADOW_ENTRY_WORLD_BOUNDS.right
+		),
 		bottom: SUNDROP_BOUNDS.bottom
 	},
 	bottom: {
 		left: SUNDROP_BOUNDS.left,
-		top: SUNDROP_BOUNDS.bottom - SUNDROP_EDGE_BAND_PX,
+		top: clampEdge(
+			SUNDROP_BOUNDS.bottom - SUNDROP_EDGE_BAND_PX,
+			MEADOW_ENTRY_WORLD_BOUNDS.top,
+			MEADOW_ENTRY_WORLD_BOUNDS.bottom
+		),
 		right: SUNDROP_BOUNDS.right,
-		bottom: SUNDROP_BOUNDS.bottom + SUNDROP_EDGE_BAND_PX
+		bottom: clampEdge(
+			SUNDROP_BOUNDS.bottom + SUNDROP_EDGE_BAND_PX,
+			MEADOW_ENTRY_WORLD_BOUNDS.top,
+			MEADOW_ENTRY_WORLD_BOUNDS.bottom
+		)
 	},
 	left: {
-		left: SUNDROP_BOUNDS.left - SUNDROP_EDGE_BAND_PX,
+		left: clampEdge(
+			SUNDROP_BOUNDS.left - SUNDROP_EDGE_BAND_PX,
+			MEADOW_ENTRY_WORLD_BOUNDS.left,
+			MEADOW_ENTRY_WORLD_BOUNDS.right
+		),
 		top: SUNDROP_BOUNDS.top,
-		right: SUNDROP_BOUNDS.left + SUNDROP_EDGE_BAND_PX,
+		right: clampEdge(
+			SUNDROP_BOUNDS.left + SUNDROP_EDGE_BAND_PX,
+			MEADOW_ENTRY_WORLD_BOUNDS.left,
+			MEADOW_ENTRY_WORLD_BOUNDS.right
+		),
 		bottom: SUNDROP_BOUNDS.bottom
 	}
 } as const satisfies Readonly<Record<'top' | 'right' | 'bottom' | 'left', PixelBounds>>;
@@ -183,6 +218,18 @@ function assertBoundsWithinMaster(bounds: PixelBounds, width: number, height: nu
 	}
 }
 
+/**
+ * Renders the review composite: the base master with the Immutable Sundrop
+ * base overlays, the foreground master, and the Immutable Sundrop foreground
+ * overlays composited in draw order.
+ *
+ * @param input - The base and foreground masters plus the Sundrop planes and
+ *   their bounds within the masters.
+ * @returns The canonical PNG encoding of the composite.
+ * @throws Error - When the master dimensions differ, the Sundrop planes do not
+ *   match their bounds, the bounds leave the master, or the composite decode
+ *   drifts from the master dimensions.
+ */
 export async function renderMeadowEntryReviewComposite(input: {
 	baseMasterPng: Buffer;
 	foregroundMasterPng: Buffer;
@@ -235,6 +282,16 @@ export async function renderMeadowEntryReviewComposite(input: {
 	return await encodeCanonicalMeadowEntryPng(data, info.width, info.height);
 }
 
+/**
+ * Renders the pixel difference between two overlapping exports.
+ *
+ * @param firstPng - Canonical PNG of the first plane.
+ * @param secondPng - Canonical PNG of the second plane, decoded at the same
+ *   dimensions.
+ * @returns The difference image plus the differing-pixel count, maximum
+ *   per-channel difference, and first differing pixel position.
+ * @throws Error - When the two planes decode at different dimensions.
+ */
 export async function renderMeadowEntryOverlapDifference(
 	firstPng: Buffer,
 	secondPng: Buffer

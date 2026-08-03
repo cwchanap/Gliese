@@ -1,5 +1,6 @@
-import { mkdir } from 'node:fs/promises';
-import { join, resolve } from 'node:path';
+import { mkdir, writeFile } from 'node:fs/promises';
+import { fileURLToPath } from 'node:url';
+import { dirname, join, resolve } from 'node:path';
 import {
 	boundsArea,
 	clampBoundsToWorld,
@@ -84,7 +85,7 @@ interface CandidateCrop {
 }
 
 const OUTPUT_DIRECTORY = resolve(
-	import.meta.dir,
+	dirname(fileURLToPath(import.meta.url)),
 	'../docs/superpowers/reports/img/hpa-399/proposals'
 );
 
@@ -727,11 +728,11 @@ const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1600" 
 
 await mkdir(OUTPUT_DIRECTORY, { recursive: true });
 await Promise.all([
-	Bun.write(
+	writeFile(
 		join(OUTPUT_DIRECTORY, 'meadow-entry-authoring-layout-proposal.json'),
 		`${JSON.stringify(proposal)}\n`
 	),
-	Bun.write(join(OUTPUT_DIRECTORY, 'meadow-entry-authoring-layout-proposal.svg'), svg)
+	writeFile(join(OUTPUT_DIRECTORY, 'meadow-entry-authoring-layout-proposal.svg'), svg)
 ]);
 
 console.log(

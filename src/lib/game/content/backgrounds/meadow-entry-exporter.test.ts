@@ -3,7 +3,21 @@ import { lstat, mkdtemp, mkdir, readFile, readdir, rename, rm, writeFile } from 
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it } from 'vitest';
+
+const temporaryRoots: string[] = [];
+
+afterEach(async () => {
+	await Promise.all(
+		temporaryRoots.splice(0).map((path) => rm(path, { recursive: true, force: true }))
+	);
+});
+
+async function temporaryRoot(prefix: string): Promise<string> {
+	const root = await mkdtemp(join(tmpdir(), prefix));
+	temporaryRoots.push(root);
+	return root;
+}
 
 import type { MeadowEntryApprovedCrop, MeadowEntryOverlap } from './meadow-entry-crop-manifest';
 import { decodeMeadowEntryRgba, encodeCanonicalMeadowEntryPng } from './meadow-entry-png';
@@ -370,7 +384,7 @@ describe('meadow-entry regional exporter', () => {
 
 describe('meadow-entry export publication', () => {
 	it('atomically replaces the fixed inventory, removes stale files, and exposes one complete snapshot', async () => {
-		const root = await mkdtemp(join(tmpdir(), 'gliese-export-test-'));
+		const root = await temporaryRoot('gliese-export-test-');
 		await mkdir(join(root, 'exports'), { recursive: true });
 		await writeFile(join(root, 'exports/stale.png'), 'stale');
 		const packageBytes = publicationPackage('current');
@@ -392,7 +406,7 @@ describe('meadow-entry export publication', () => {
 	});
 
 	it('restores the previous complete snapshot when installation is interrupted', async () => {
-		const root = await mkdtemp(join(tmpdir(), 'gliese-export-failure-test-'));
+		const root = await temporaryRoot('gliese-export-failure-test-');
 		const oldPackage = publicationPackage('old');
 		await publishMeadowEntryExportPackage(root, oldPackage);
 		let injected = false;
@@ -416,7 +430,7 @@ describe('meadow-entry export publication', () => {
 	});
 
 	it('retries when a reader spans the complete writer window and never returns a mixed generation', async () => {
-		const root = await mkdtemp(join(tmpdir(), 'gliese-export-race-test-'));
+		const root = await temporaryRoot('gliese-export-race-test-');
 		const oldPackage = publicationPackage('old');
 		const newPackage = publicationPackage('new');
 		await publishMeadowEntryExportPackage(root, oldPackage);
@@ -461,7 +475,7 @@ describe('meadow-entry export publication', () => {
 	});
 
 	it('leaves the sentinel in place and readers fail closed when rollback is incomplete', async () => {
-		const root = await mkdtemp(join(tmpdir(), 'gliese-export-rollback-test-'));
+		const root = await temporaryRoot('gliese-export-rollback-test-');
 		await publishMeadowEntryExportPackage(root, publicationPackage('old'));
 		let installationFailed = false;
 		const fileSystem: MeadowEntryExportPublicationFileSystem = {

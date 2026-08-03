@@ -63,7 +63,6 @@
 						"byteReproducibleGeneration": false,
 						"prompt": "Refine this existing top-down landscape map without moving any paths, intersections, coastline, or the lower-left village location. Make the upper-left dark marsh feel organic rather than rectangular: irregular wet ground, shallow pools, mud, roots, soft fog-colored variation, and a naturally feathered boundary. Give the upper-center autumn ground, central crossroads, right forest, and lower coast distinct authored terrain structure while keeping them connected as one world. Add subtle wear, stones, grass, flowers, roots, and edge breakup inside the existing routes so they look like natural roads rather than uniform strips, but keep every route within its current footprint. Enrich the landscape around the lower-left village so its detail density transitions gradually. Remove panel-like rectangles and repeated bars. Preserve the exact square straight-down composition. Ground and low vegetation only; no text, interface, characters, buildings, or tall objects.",
 						"promptSha256": "b23a9b80c68a842b810160cf5116fd175d46a47f56742ca697c9d9ed6d10af6c",
-						"referencePath": "/Users/chanwaichan/.codex/generated_images/019fbf67-3ef1-7942-88e7-59d32002a9c6/exec-0a5edf64-1e80-4650-a053-92b02878681b.png",
 						"referenceSha256": "5fc3c741f63d683c1aad5fae3a83f8061b1345dbb853472193051aa7d9aa08df",
 						"use": "single aligned full-global macro composition and painterly material source over editable baked coverage; no independent per-region source images",
 						"contentCredentials": {

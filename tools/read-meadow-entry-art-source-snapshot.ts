@@ -64,15 +64,36 @@ function assertExportBindsApprovedMaster(
 	const foregroundSha256 = sha256(approved.foregroundPng);
 	const provenanceSha256 = sha256(approved.provenanceJson);
 	assert(
-		provenance.version === 1 &&
-			manifest.version === 1 &&
-			exportMasters?.base?.sha256 === baseSha256 &&
-			exportMasters?.foreground?.sha256 === foregroundSha256 &&
-			provenance.approvedMasterProvenanceSha256 === provenanceSha256 &&
-			manifestMasters?.baseSha256 === baseSha256 &&
-			manifestMasters.foregroundSha256 === foregroundSha256 &&
-			manifestMasters.provenanceSha256 === provenanceSha256,
-		'Meadow Entry export snapshot does not bind the approved master snapshot'
+		provenance.version === 1,
+		`Meadow Entry export provenance version=${String(provenance.version)} expected=1`
+	);
+	assert(
+		manifest.version === 1,
+		`Meadow Entry crop manifest version=${String(manifest.version)} expected=1`
+	);
+	assert(
+		exportMasters?.base?.sha256 === baseSha256,
+		`Meadow Entry export provenance master base sha256=${String(exportMasters?.base?.sha256)} expected=${baseSha256}`
+	);
+	assert(
+		exportMasters?.foreground?.sha256 === foregroundSha256,
+		`Meadow Entry export provenance master foreground sha256=${String(exportMasters?.foreground?.sha256)} expected=${foregroundSha256}`
+	);
+	assert(
+		provenance.approvedMasterProvenanceSha256 === provenanceSha256,
+		`Meadow Entry export provenance approvedMasterProvenanceSha256=${String(provenance.approvedMasterProvenanceSha256)} expected=${provenanceSha256}`
+	);
+	assert(
+		manifestMasters?.baseSha256 === baseSha256,
+		`Meadow Entry crop manifest master baseSha256=${String(manifestMasters?.baseSha256)} expected=${baseSha256}`
+	);
+	assert(
+		manifestMasters.foregroundSha256 === foregroundSha256,
+		`Meadow Entry crop manifest master foregroundSha256=${String(manifestMasters.foregroundSha256)} expected=${foregroundSha256}`
+	);
+	assert(
+		manifestMasters.provenanceSha256 === provenanceSha256,
+		`Meadow Entry crop manifest master provenanceSha256=${String(manifestMasters.provenanceSha256)} expected=${provenanceSha256}`
 	);
 }
 
