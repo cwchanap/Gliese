@@ -147,3 +147,10 @@ For every reusable HPA-495 skill defect found during Checkpoint 1:
 4. record the HPA-495 commit SHA and result in `checkpoint-1-crossroads-connectors.md`.
 
 Do not copy the reusable skill correction into HPA-406. If HPA-495 has already merged, stop and create one new Linear ticket and one PR for that correction before accepting Checkpoint 1.
+
+## Self-review result
+
+- Spec coverage: every design section maps to Tasks 1–13 or one of the amendments above.
+- Placeholder scan: the authoritative evidence step contains a concrete schema and validator; it does not permit committed placeholder values.
+- Type consistency: authored/composed background types, descriptor IDs, visual ownership, load-plan inputs, render statuses, and checkpoint IDs are named consistently across tasks.
+- Dependency order: HPA-514/HPA-495 preflight → model foundations → package/ownership generation → composition/render/load plan → Checkpoints 1–3 → final gate.
