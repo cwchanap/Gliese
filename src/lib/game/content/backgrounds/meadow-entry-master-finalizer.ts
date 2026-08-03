@@ -13,6 +13,7 @@ import {
 	type DecodedMeadowEntryRgba
 } from './meadow-entry-png';
 import {
+	assertMeadowEntryRefinementChain,
 	validateMeadowEntryGenerationProvenance,
 	validateMeadowEntryRefinementProvenance
 } from './meadow-entry-master-provenance';
@@ -262,13 +263,23 @@ async function decodeMask(
 
 function assertRefinements(
 	refinements: readonly MeadowEntryRefinementProvenance[],
-	plane: 'base' | 'foreground'
+	plane: 'base' | 'foreground',
+	candidatePng: Buffer
 ): void {
 	for (const refinement of refinements) {
 		validateMeadowEntryRefinementProvenance(refinement);
 		assert(
 			refinement.plane === plane,
 			`Meadow Entry ${plane} finalizer received a ${refinement.plane} refinement`
+		);
+	}
+	assertMeadowEntryRefinementChain(refinements, plane);
+	if (refinements.length > 0) {
+		const candidateSha256 = sha256(candidatePng);
+		const lastRefinement = refinements.at(-1)!;
+		assert(
+			lastRefinement.afterMasterSha256 === candidateSha256,
+			`Meadow Entry ${plane} candidate does not match the final refinement afterMasterSha256`
 		);
 	}
 }
@@ -294,7 +305,7 @@ export async function finalizeMeadowEntryBase(
 ): Promise<{ png: Buffer; provenance: object }> {
 	assertContext(input);
 	validateMeadowEntryGenerationProvenance(input.generation);
-	assertRefinements(input.refinements, 'base');
+	assertRefinements(input.refinements, 'base', input.candidatePng);
 	const normalized = await normalizeMeadowEntryMasterCandidate(
 		input.candidatePng,
 		input.transform,
@@ -318,7 +329,7 @@ export async function finalizeMeadowEntryForeground(
 ): Promise<{ png: Buffer; provenance: object }> {
 	assertContext(input);
 	validateMeadowEntryGenerationProvenance(input.generation);
-	assertRefinements(input.refinements, 'foreground');
+	assertRefinements(input.refinements, 'foreground', input.candidatePng);
 	const [normalized, eligible, protectedMask] = await Promise.all([
 		normalizeMeadowEntryMasterCandidate(input.candidatePng, input.transform, input.policy),
 		decodeMask(input.eligibleMaskPng, input.policy, 'eligible'),

@@ -5,7 +5,8 @@ import { describe, expect, it } from 'vitest';
 
 import type {
 	MeadowEntryGenerationProvenance,
-	MeadowEntryNormalizationTransform
+	MeadowEntryNormalizationTransform,
+	MeadowEntryRefinementProvenance
 } from './meadow-entry-master-provenance';
 import { decodeMeadowEntryRgba, encodeCanonicalMeadowEntryPng } from './meadow-entry-png';
 import {
@@ -264,5 +265,113 @@ describe('Meadow Entry master finalizers', () => {
 		await expect(finalizeMeadowEntryMasters({ base, foreground })).rejects.toThrow(
 			/predecessor.*context.*match/i
 		);
+	});
+
+	it('rejects a refinement chain whose final afterMasterSha256 does not match the candidate', async () => {
+		const shared = await context();
+		const candidatePng = await rgbaPng([1, 2, 3, 255, 4, 5, 6, 255, 7, 8, 9, 255, 10, 11, 12, 255]);
+		const detachedAfter = 'e'.repeat(64);
+		const refinements: MeadowEntryRefinementProvenance[] = [
+			{
+				plane: 'base',
+				sourceRegionIds: ['crossroads'],
+				editMaskSha256: 'a'.repeat(64),
+				replacementSha256: 'b'.repeat(64),
+				beforeMasterSha256: 'c'.repeat(64),
+				afterMasterSha256: detachedAfter,
+				changedBounds: { left: 0, top: 0, right: 1, bottom: 1 },
+				affectedCropIds: ['crop-1'],
+				transform: identityTransform(2, 2)
+			}
+		];
+		await expect(
+			finalizeMeadowEntryBase({
+				...shared,
+				candidatePng,
+				transform: identityTransform(2, 2),
+				generation: manualFixture,
+				refinements
+			})
+		).rejects.toThrow(/candidate does not match the final refinement afterMasterSha256/i);
+	});
+
+	it('rejects a refinement chain with a broken middle link', async () => {
+		const shared = await context();
+		const candidatePng = await rgbaPng([1, 2, 3, 255, 4, 5, 6, 255, 7, 8, 9, 255, 10, 11, 12, 255]);
+		const candidateSha = sha256(candidatePng);
+		const refinements: MeadowEntryRefinementProvenance[] = [
+			{
+				plane: 'base',
+				sourceRegionIds: ['crossroads'],
+				editMaskSha256: 'a'.repeat(64),
+				replacementSha256: 'b'.repeat(64),
+				beforeMasterSha256: 'c'.repeat(64),
+				afterMasterSha256: 'd'.repeat(64),
+				changedBounds: { left: 0, top: 0, right: 1, bottom: 1 },
+				affectedCropIds: ['crop-1'],
+				transform: identityTransform(2, 2)
+			},
+			{
+				plane: 'base',
+				sourceRegionIds: ['crossroads'],
+				editMaskSha256: 'a'.repeat(64),
+				replacementSha256: 'b'.repeat(64),
+				beforeMasterSha256: '0'.repeat(64),
+				afterMasterSha256: candidateSha,
+				changedBounds: { left: 0, top: 0, right: 1, bottom: 1 },
+				affectedCropIds: ['crop-1'],
+				transform: identityTransform(2, 2)
+			}
+		];
+		await expect(
+			finalizeMeadowEntryBase({
+				...shared,
+				candidatePng,
+				transform: identityTransform(2, 2),
+				generation: manualFixture,
+				refinements
+			})
+		).rejects.toThrow(
+			/refinement 1 beforeMasterSha256 does not match refinement 0 afterMasterSha256/i
+		);
+	});
+
+	it('accepts a properly chained refinement list whose final afterMasterSha256 matches the candidate', async () => {
+		const shared = await context();
+		const candidatePng = await rgbaPng([1, 2, 3, 255, 4, 5, 6, 255, 7, 8, 9, 255, 10, 11, 12, 255]);
+		const candidateSha = sha256(candidatePng);
+		const refinements: MeadowEntryRefinementProvenance[] = [
+			{
+				plane: 'base',
+				sourceRegionIds: ['crossroads'],
+				editMaskSha256: 'a'.repeat(64),
+				replacementSha256: 'b'.repeat(64),
+				beforeMasterSha256: 'c'.repeat(64),
+				afterMasterSha256: 'd'.repeat(64),
+				changedBounds: { left: 0, top: 0, right: 1, bottom: 1 },
+				affectedCropIds: ['crop-1'],
+				transform: identityTransform(2, 2)
+			},
+			{
+				plane: 'base',
+				sourceRegionIds: ['crossroads'],
+				editMaskSha256: 'a'.repeat(64),
+				replacementSha256: 'b'.repeat(64),
+				beforeMasterSha256: 'd'.repeat(64),
+				afterMasterSha256: candidateSha,
+				changedBounds: { left: 0, top: 0, right: 1, bottom: 1 },
+				affectedCropIds: ['crop-1'],
+				transform: identityTransform(2, 2)
+			}
+		];
+		await expect(
+			finalizeMeadowEntryBase({
+				...shared,
+				candidatePng,
+				transform: identityTransform(2, 2),
+				generation: manualFixture,
+				refinements
+			})
+		).resolves.toBeDefined();
 	});
 });
