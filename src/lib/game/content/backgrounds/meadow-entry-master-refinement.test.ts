@@ -257,6 +257,65 @@ describe('Meadow Entry master refinement', () => {
 			applyMeadowEntryRefinement(await input({ editMaskPng: wrongSizedMask }))
 		).rejects.toThrow(/edit mask dimensions must match/i);
 	});
+
+	it('rejects a protected mask whose dimensions do not match the master', async () => {
+		const wrongSizedMask = await encodeCanonicalMeadowEntryPng(Buffer.from([0, 0, 0, 255]), 1, 1);
+		await expect(
+			applyMeadowEntryRefinement(await input({ protectedMaskPng: wrongSizedMask }))
+		).rejects.toThrow(/protected mask dimensions must match/i);
+	});
+
+	it('rejects a non-target mask whose dimensions do not match the master', async () => {
+		const wrongSizedMask = await encodeCanonicalMeadowEntryPng(Buffer.from([0, 0, 0, 255]), 1, 1);
+		await expect(
+			applyMeadowEntryRefinement(await input({ nonTargetMaskPng: wrongSizedMask }))
+		).rejects.toThrow(/non-target mask dimensions must match/i);
+	});
+
+	it('rejects a refinement with no source region ids', async () => {
+		await expect(applyMeadowEntryRefinement(await input({ sourceRegionIds: [] }))).rejects.toThrow(
+			/requires a source region/i
+		);
+	});
+
+	it('composites a foreground edit within approved eligibility', async () => {
+		const transparent = await rgbaPng([0, 0, 0, 0, 0, 0, 0, 0]);
+		const redReplacement = await rgbaPng([255, 0, 0, 255, 255, 0, 0, 255]);
+		const firstPixelEdit = await rgbaPng([0, 0, 0, 255, 0, 0, 0, 0]);
+		const result = await applyMeadowEntryRefinement(
+			await input({
+				plane: 'foreground',
+				currentMasterPng: transparent,
+				replacementPng: redReplacement,
+				editMaskPng: firstPixelEdit,
+				approvedMasks: approvedMasks([255, 0])
+			})
+		);
+		const decoded = await decodeMeadowEntryRgba(result.masterPng);
+		expect(pixel(decoded, 0)).toEqual([255, 0, 0, 255]);
+		expect(pixel(decoded, 1)).toEqual([0, 0, 0, 0]);
+	});
+
+	it('records the transform in the provenance output', async () => {
+		const transform = identityTransform(2, 1);
+		const result = await applyMeadowEntryRefinement(await input({ transform }));
+		expect(result.provenance.transform).toEqual(transform);
+	});
+
+	it('records sha256 hashes of the edit mask, replacement, and masters in provenance', async () => {
+		const value = await input();
+		const result = await applyMeadowEntryRefinement(value);
+		expect(result.provenance.editMaskSha256).toMatch(/^[a-f0-9]{64}$/);
+		expect(result.provenance.replacementSha256).toMatch(/^[a-f0-9]{64}$/);
+		expect(result.provenance.beforeMasterSha256).toMatch(/^[a-f0-9]{64}$/);
+		expect(result.provenance.afterMasterSha256).toMatch(/^[a-f0-9]{64}$/);
+		expect(result.provenance.beforeMasterSha256).not.toBe(result.provenance.afterMasterSha256);
+	});
+
+	it('records the plane in the provenance output', async () => {
+		const result = await applyMeadowEntryRefinement(await input({ plane: 'foreground' }));
+		expect(result.provenance.plane).toBe('foreground');
+	});
 });
 
 describe('Meadow Entry refinement CLI', () => {
@@ -452,6 +511,156 @@ describe('Meadow Entry refinement CLI', () => {
 			sidecar: '/repo/artifacts/meadow-entry/hpa-399/work/meadow-entry-foreground-refinement.json'
 		});
 	});
+
+	it('rejects a missing --replacement argument', () => {
+		expect(() =>
+			parseRefineMeadowEntryMasterArguments([
+				'--plane',
+				'base',
+				'--current-master',
+				'/c.png',
+				'--edit-mask',
+				'/e.png',
+				'--protected-mask',
+				'/p.png',
+				'--non-target-mask',
+				'/n.png',
+				'--transform',
+				'/t.json',
+				'--source-region',
+				'crossroads'
+			])
+		).toThrow(/Missing required --replacement/i);
+	});
+
+	it('rejects a missing --edit-mask argument', () => {
+		expect(() =>
+			parseRefineMeadowEntryMasterArguments([
+				'--plane',
+				'base',
+				'--current-master',
+				'/c.png',
+				'--replacement',
+				'/r.png',
+				'--protected-mask',
+				'/p.png',
+				'--non-target-mask',
+				'/n.png',
+				'--transform',
+				'/t.json',
+				'--source-region',
+				'crossroads'
+			])
+		).toThrow(/Missing required --edit-mask/i);
+	});
+
+	it('rejects a missing --protected-mask argument', () => {
+		expect(() =>
+			parseRefineMeadowEntryMasterArguments([
+				'--plane',
+				'base',
+				'--current-master',
+				'/c.png',
+				'--replacement',
+				'/r.png',
+				'--edit-mask',
+				'/e.png',
+				'--non-target-mask',
+				'/n.png',
+				'--transform',
+				'/t.json',
+				'--source-region',
+				'crossroads'
+			])
+		).toThrow(/Missing required --protected-mask/i);
+	});
+
+	it('rejects a missing --non-target-mask argument', () => {
+		expect(() =>
+			parseRefineMeadowEntryMasterArguments([
+				'--plane',
+				'base',
+				'--current-master',
+				'/c.png',
+				'--replacement',
+				'/r.png',
+				'--edit-mask',
+				'/e.png',
+				'--protected-mask',
+				'/p.png',
+				'--transform',
+				'/t.json',
+				'--source-region',
+				'crossroads'
+			])
+		).toThrow(/Missing required --non-target-mask/i);
+	});
+
+	it('rejects a missing --transform argument', () => {
+		expect(() =>
+			parseRefineMeadowEntryMasterArguments([
+				'--plane',
+				'base',
+				'--current-master',
+				'/c.png',
+				'--replacement',
+				'/r.png',
+				'--edit-mask',
+				'/e.png',
+				'--protected-mask',
+				'/p.png',
+				'--non-target-mask',
+				'/n.png',
+				'--source-region',
+				'crossroads'
+			])
+		).toThrow(/Missing required --transform/i);
+	});
+
+	it('rejects a missing --plane argument', () => {
+		expect(() =>
+			parseRefineMeadowEntryMasterArguments([
+				'--current-master',
+				'/c.png',
+				'--replacement',
+				'/r.png',
+				'--edit-mask',
+				'/e.png',
+				'--protected-mask',
+				'/p.png',
+				'--non-target-mask',
+				'/n.png',
+				'--transform',
+				'/t.json',
+				'--source-region',
+				'crossroads'
+			])
+		).toThrow(/Missing required --plane/i);
+	});
+
+	it('accepts multiple --source-region flags', () => {
+		const parsed = parseRefineMeadowEntryMasterArguments([
+			'--plane',
+			'base',
+			'--current-master',
+			'/c.png',
+			'--replacement',
+			'/r.png',
+			'--edit-mask',
+			'/e.png',
+			'--protected-mask',
+			'/p.png',
+			'--non-target-mask',
+			'/n.png',
+			'--transform',
+			'/t.json',
+			'--source-region',
+			'crossroads',
+			'--source-region',
+			'wildwood'
+		]);
+		expect(parsed.sourceRegionIds).toEqual(['crossroads', 'wildwood']);
+	});
 });
 
 describe('Meadow Entry refinement control boundary', () => {
@@ -475,5 +684,34 @@ describe('Meadow Entry refinement non-target raster mask', () => {
 		expect(() =>
 			buildMeadowEntryRefinementNonTargetRasterMask(controls, ['outer-boundary'])
 		).toThrow(/not an approved production refinement target/i);
+	});
+
+	it('produces a raster mask that carves out the requested region and leaves the rest opaque', () => {
+		const controls = buildMeadowEntryControlInputs();
+		const regionId = controls.authoringRegions.find((region) =>
+			controls.bakeOwnership.some(
+				(entry) =>
+					entry.primaryRegionId === region.id &&
+					(entry.disposition.mode === 'base-underlay' ||
+						entry.disposition.mode === 'base-static' ||
+						entry.disposition.mode === 'base-and-foreground')
+			)
+		)?.id;
+		expect(regionId).toBeDefined();
+		const mask = buildMeadowEntryRefinementNonTargetRasterMask(controls, [regionId!]);
+		expect(mask.width).toBe(controls.rendererMaskMaterialContract.maskDimensionsPx.width);
+		expect(mask.height).toBe(controls.rendererMaskMaterialContract.maskDimensionsPx.height);
+		expect(mask.alpha.length).toBe(mask.width * mask.height);
+		const transparentCount = [...mask.alpha].filter((v) => v === 0).length;
+		const opaqueCount = [...mask.alpha].filter((v) => v === 255).length;
+		expect(transparentCount).toBeGreaterThan(0);
+		expect(opaqueCount).toBeGreaterThan(0);
+		expect(transparentCount + opaqueCount).toBe(mask.alpha.length);
+	});
+
+	it('produces a fully opaque mask when no regions are requested', () => {
+		const controls = buildMeadowEntryControlInputs();
+		const mask = buildMeadowEntryRefinementNonTargetRasterMask(controls, []);
+		expect([...mask.alpha].every((v) => v === 255)).toBe(true);
 	});
 });

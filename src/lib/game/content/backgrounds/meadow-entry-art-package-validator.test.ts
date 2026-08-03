@@ -12,7 +12,8 @@ import {
 	expectedApprovedPngPaths,
 	parseJsonObject,
 	parseLfsPointer,
-	runValidationStages
+	runValidationStages,
+	validateMeadowEntryArtPackage
 } from '../../../../../tools/validate-meadow-entry-art-package';
 
 const temporaryRoots: string[] = [];
@@ -302,5 +303,118 @@ describe('Meadow Entry art package validator', () => {
 		const root = await temporaryRoot();
 		await writeFile(join(root, 'null.json'), 'null\n');
 		await expect(parseJsonObject(root, 'null.json')).rejects.toThrow(/null\.json is not an object/);
+	});
+
+	it('parseJsonObject rejects a JSON string', async () => {
+		const root = await temporaryRoot();
+		await writeFile(join(root, 'string.json'), '"hello"\n');
+		await expect(parseJsonObject(root, 'string.json')).rejects.toThrow(
+			/string\.json is not an object/
+		);
+	});
+
+	it('parseJsonObject rejects a JSON number', async () => {
+		const root = await temporaryRoot();
+		await writeFile(join(root, 'number.json'), '42\n');
+		await expect(parseJsonObject(root, 'number.json')).rejects.toThrow(
+			/number\.json is not an object/
+		);
+	});
+
+	it('parseJsonObject rejects a JSON boolean', async () => {
+		const root = await temporaryRoot();
+		await writeFile(join(root, 'boolean.json'), 'true\n');
+		await expect(parseJsonObject(root, 'boolean.json')).rejects.toThrow(
+			/boolean\.json is not an object/
+		);
+	});
+
+	it('parseJsonObject rejects a missing file', async () => {
+		const root = await temporaryRoot();
+		await expect(parseJsonObject(root, 'missing.json')).rejects.toThrow();
+	});
+
+	it('assertNoActivePublicationSentinels passes when no sentinels exist', async () => {
+		const root = await temporaryRoot();
+		await expect(assertNoActivePublicationSentinels(root)).resolves.toBeUndefined();
+	});
+
+	it('compareFileTrees returns zero files and bytes for two empty trees', async () => {
+		const expectedRoot = await temporaryRoot();
+		const actualRoot = await temporaryRoot();
+		await expect(compareFileTrees('exports', expectedRoot, actualRoot)).resolves.toEqual({
+			files: 0,
+			bytes: 0
+		});
+	});
+
+	it('runValidationStages returns an empty result array for zero stages', async () => {
+		const writeSpy = vi.spyOn(process.stdout, 'write').mockImplementation(() => true);
+		try {
+			const results = await runValidationStages([]);
+			expect(results).toEqual([]);
+		} finally {
+			writeSpy.mockRestore();
+		}
+	});
+
+	it('parseLfsPointer accepts a large safe-integer size', () => {
+		expect(
+			parseLfsPointer(
+				Buffer.from(
+					'version https://git-lfs.github.com/spec/v1\noid sha256:' +
+						'c'.repeat(64) +
+						'\nsize 9007199254740991\n'
+				)
+			)
+		).toEqual({ oid: 'c'.repeat(64), size: 9007199254740991 });
+	});
+
+	it('parseLfsPointer rejects a pointer with a trailing extra line', () => {
+		expect(() =>
+			parseLfsPointer(
+				Buffer.from(
+					'version https://git-lfs.github.com/spec/v1\noid sha256:' +
+						'a'.repeat(64) +
+						'\nsize 123\nextra\n'
+				)
+			)
+		).toThrow(/canonical Git LFS pointer/);
+	});
+
+	it('parseLfsPointer rejects a pointer with a malformed oid prefix', () => {
+		expect(() =>
+			parseLfsPointer(
+				Buffer.from(
+					'version https://git-lfs.github.com/spec/v1\noid sha384:' +
+						'a'.repeat(64) +
+						'\nsize 123\n'
+				)
+			)
+		).toThrow(/canonical Git LFS pointer/);
+	});
+
+	it('validateMeadowEntryArtPackage rejects when run outside a git repository', async () => {
+		const root = await temporaryRoot();
+		await expect(validateMeadowEntryArtPackage(root)).rejects.toThrow(/git status/);
+	});
+
+	it('assertExactPathAllowlist reports both missing and unexpected paths simultaneously', () => {
+		expect(() => assertExactPathAllowlist('proof', ['a.png', 'b.png'], ['b.png', 'c.png'])).toThrow(
+			/proof path allowlist drifted.*missing=a\.png.*unexpected=c\.png/
+		);
+	});
+
+	it('exactObjectKeys rejects an object with both missing and unexpected keys', () => {
+		expect(() => exactObjectKeys('provenance', { a: 1, d: 4 }, ['a', 'b', 'c'])).toThrow(
+			/provenance schema path allowlist drifted.*missing=b,c.*unexpected=d/
+		);
+	});
+
+	it('expectedApprovedPngPaths includes the foreground master path', () => {
+		const paths = expectedApprovedPngPaths();
+		expect(
+			paths.includes('artifacts/meadow-entry/hpa-399/masters/meadow-entry-foreground-master.png')
+		).toBe(true);
 	});
 });

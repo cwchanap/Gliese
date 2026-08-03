@@ -97,4 +97,95 @@ describe('coherent Meadow Entry art source snapshot', () => {
 			})
 		).rejects.toThrow(/export snapshot does not bind the approved master snapshot/i);
 	});
+
+	it('rejects a non-positive attempts count', async () => {
+		const api = await snapshotApi();
+		await expect(
+			api.readCoherentMeadowEntryArtSourceSnapshot('/unused', {
+				attempts: 0,
+				readApprovedSnapshot: async () => generation('x').masters,
+				readExportSnapshot: async () => generation('x').exports
+			})
+		).rejects.toThrow(/attempts must be positive/i);
+	});
+
+	it('rejects a negative attempts count', async () => {
+		const api = await snapshotApi();
+		await expect(
+			api.readCoherentMeadowEntryArtSourceSnapshot('/unused', {
+				attempts: -1,
+				readApprovedSnapshot: async () => generation('x').masters,
+				readExportSnapshot: async () => generation('x').exports
+			})
+		).rejects.toThrow(/attempts must be positive/i);
+	});
+
+	it('rejects a non-integer attempts count', async () => {
+		const api = await snapshotApi();
+		await expect(
+			api.readCoherentMeadowEntryArtSourceSnapshot('/unused', {
+				attempts: 1.5,
+				readApprovedSnapshot: async () => generation('x').masters,
+				readExportSnapshot: async () => generation('x').exports
+			})
+		).rejects.toThrow(/attempts must be positive/i);
+	});
+
+	it('fails when the approved master publication changes between the before and after reads', async () => {
+		const oldGeneration = generation('old');
+		const nextGeneration = generation('next');
+		const api = await snapshotApi();
+		const reads = [oldGeneration.masters, nextGeneration.masters];
+
+		await expect(
+			api.readCoherentMeadowEntryArtSourceSnapshot('/unused', {
+				attempts: 1,
+				readApprovedSnapshot: async () => reads.shift()!,
+				readExportSnapshot: async () => oldGeneration.exports
+			})
+		).rejects.toThrow(/approved master publication changed while reading/i);
+	});
+
+	it('rethrows a non-Error thrown value as a wrapped Error after exhausting attempts', async () => {
+		const api = await snapshotApi();
+		await expect(
+			api.readCoherentMeadowEntryArtSourceSnapshot('/unused', {
+				attempts: 1,
+				readApprovedSnapshot: async () => {
+					throw 'string error';
+				},
+				readExportSnapshot: async () => generation('x').exports
+			})
+		).rejects.toThrow(/coherent art source snapshot is unavailable/i);
+	});
+
+	it('returns a coherent snapshot on the first attempt when reads are consistent', async () => {
+		const gen = generation('consistent');
+		const api = await snapshotApi();
+		const snapshot = await api.readCoherentMeadowEntryArtSourceSnapshot('/unused', {
+			attempts: 3,
+			readApprovedSnapshot: async () => gen.masters,
+			readExportSnapshot: async () => gen.exports
+		});
+		expect(snapshot.basePng).toEqual(gen.masters.basePng);
+		expect(snapshot.foregroundPng).toEqual(gen.masters.foregroundPng);
+		expect(snapshot.provenanceJson).toEqual(gen.masters.provenanceJson);
+		expect(snapshot.exports.provenanceJson).toEqual(gen.exports.provenanceJson);
+	});
+
+	it('retries when the first attempt throws and succeeds on the second', async () => {
+		const gen = generation('retry');
+		const api = await snapshotApi();
+		let attempt = 0;
+		const snapshot = await api.readCoherentMeadowEntryArtSourceSnapshot('/unused', {
+			attempts: 3,
+			readApprovedSnapshot: async () => {
+				attempt++;
+				if (attempt === 1) throw new Error('transient failure');
+				return gen.masters;
+			},
+			readExportSnapshot: async () => gen.exports
+		});
+		expect(snapshot.basePng).toEqual(gen.masters.basePng);
+	});
 });
