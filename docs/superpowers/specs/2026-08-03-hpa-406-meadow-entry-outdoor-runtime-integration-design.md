@@ -186,8 +186,8 @@ The HPA-398 identities remain unchanged:
 
 | Meaning | Background ID | Texture key | Runtime path |
 | --- | --- | --- | --- |
-| Sundrop base | `sundrop-village-base-image` | `sundrop-village-base` | existing HPA-398 path |
-| Sundrop foreground | `sundrop-village-foreground-image` | `sundrop-village-foreground` | existing HPA-398 path |
+| Sundrop base | `sundrop-village-base-image` | `sundrop-village-base` | `/game/assets/regions/sundrop-village-base.png` |
+| Sundrop foreground | `sundrop-village-foreground-image` | `sundrop-village-foreground` | `/game/assets/regions/sundrop-village-foreground.png` |
 
 For every HPA-399 export, use these pure mappings:
 
@@ -251,13 +251,29 @@ The HPA-514 Story Integration Catalog fingerprint belongs to the Area Expansion 
 
 ### 7.5 Coordinate model
 
-Use the existing HPA-399 geometry helpers rather than reimplementing coordinate math:
+Use the existing HPA-399 geometry helpers rather than reimplementing center-to-bounds or containment semantics. Add one shared pure margin helper:
+
+```ts
+function expandRawBoundsByInsets(bounds: RawPixelBounds, insets: Insets): RawPixelBounds {
+  return {
+    left: bounds.left - insets.left,
+    top: bounds.top - insets.top,
+    right: bounds.right + insets.right,
+    bottom: bounds.bottom + insets.bottom
+  };
+}
+```
+
+Owner resolution uses:
 
 ```ts
 sourceBounds = toRawPixelBounds(sourceRect)
-requiredBounds = expandByInsets(sourceBounds, frozenOwnershipMargins)
-eligible = containsBounds(crop.bounds, rasterizeCoverageBounds(requiredBounds))
+requiredRawBounds = expandRawBoundsByInsets(sourceBounds, frozenOwnershipMargins)
+requiredBounds = rasterizeCoverageBounds(requiredRawBounds)
+eligible = containsBounds(crop.bounds, requiredBounds)
 ```
+
+A baked source whose required bounds leave the meadow-entry world is a hard upstream-contract error rather than an implicit clamp.
 
 Crop descriptor coordinates remain:
 
@@ -268,7 +284,7 @@ x      = left + width / 2
 y      = top + height / 2
 ```
 
-The ownership calculation and descriptor calculation must share the same center-based-to-pixel-bounds conversion path. Containment uses inclusive outer edges (`<=`/`>=`), matching HPA-399 `containsBounds`; therefore an object exactly on a crop edge with zero outward margin remains eligible.
+The ownership calculation and descriptor calculation share the same center-based-to-pixel-bounds conversion path. Containment uses inclusive outer edges (`<=`/`>=`), matching HPA-399 `containsBounds`; therefore an object exactly on a crop edge with zero outward margin remains eligible.
 
 Tests must cover half-pixel centers, rasterization, zero-margin edge contact, positive outward margins, and a source that becomes ineligible only after its frozen margin is applied.
 
@@ -611,17 +627,20 @@ These remain live and behaviorally unchanged.
 
 Apply generated data at the assembled `meadowEntryMap` boundary. Region fragments remain authoritative for gameplay objects and collision geometry and must not be mutated.
 
-The composition sequence is:
+The following pseudocode describes the **final PR state**. Intermediate checkpoint commits may pass cumulative generated descriptor subsets to `appendGeneratedBackgrounds`, but no checkpoint selector remains in final code.
 
 ```ts
 const merged = mergeRegions(fragments);
 
 const existingBackgrounds = applyHpa398RuntimeOrdering(
   merged.backgroundImages,
-  HPA398_SUNDROP_OVERLAY_DRAW_ORDER
+  {
+    drawOrder: HPA398_SUNDROP_OVERLAY_DRAW_ORDER,
+    foregroundDependsOn: 'sundrop-village-base-image'
+  }
 );
 
-const backgrounds = appendGeneratedBackgrounds(
+const backgroundImages = appendGeneratedBackgrounds(
   existingBackgrounds,
   meadowEntryRuntimePackage.backgrounds
 );
@@ -646,7 +665,7 @@ const fences = applyGeneratedVisualOwnership(
   { rejectAlreadyOwned: true }
 );
 
-const ownershipSource = { backgrounds, blockers, mapDecor, fences };
+const ownershipSource = { backgroundImages, blockers, mapDecor, fences };
 
 validateMapBackgroundDependencies(ownershipSource);
 validateMapBackgroundOwnership(ownershipSource);
@@ -657,6 +676,7 @@ validateSundropObstacleCoverage(ownershipSource, SUNDROP_VILLAGE_OBSTACLE_OWNERS
 Normative behavior:
 
 - generated backgrounds are appended; they do not replace the HPA-398 pair;
+- `applyHpa398RuntimeOrdering` changes only the two existing descriptors by adding the fixed order and the foreground-to-base dependency while preserving IDs, texture keys, bounds, planes, and paths;
 - the HPA-496 Sundrop underlay is appended as a distinct HPA-399 base crop below the HPA-398 base;
 - `applySundropObstacleOwnership` runs before generated ownership;
 - the generated package must not target an already-owned HPA-398 blocker; that is a hard conflict, not a silent skip or overwrite;
