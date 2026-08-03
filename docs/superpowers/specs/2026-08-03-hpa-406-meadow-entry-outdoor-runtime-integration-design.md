@@ -37,16 +37,18 @@ Do not open a separate PR for a region, checkpoint, runtime foundation, or skill
 
 HPA-514 and HPA-495 each retain their own one-ticket/one-PR delivery.
 
-HPA-406 cannot approve an Area Expansion Packet until the HPA-514 Story Integration Catalog and fingerprint are available. HPA-495 cannot complete until its skills are field-tested by HPA-406 Checkpoint 1. Resolve that dependency as follows:
+HPA-406 cannot approve an Area Expansion Packet until the HPA-514 Story Integration Catalog and fingerprint are available. HPA-495 cannot complete until its skills have production field evidence. Resolve that dependency as follows:
 
 1. Merge the HPA-514 PR.
 2. Open the single HPA-495 PR with the baseline skills, packet template, pressure tests, and repository-tool bindings.
-3. Develop the single HPA-406 PR from the HPA-495 branch, or temporarily target that branch, while Checkpoint 1 field-tests the skills.
-4. Put reusable skill corrections and their failing regression scenarios into the existing HPA-495 PR, not HPA-406.
-5. Merge HPA-495 after the Checkpoint 1 field evidence is accepted.
-6. Rebase or retarget the same HPA-406 PR onto `main` and complete Checkpoints 2 and 3.
+3. Open or develop the single HPA-406 draft PR from the HPA-495 branch, temporarily targeting that branch while the runtime checkpoints field-test the skills.
+4. Execute all three HPA-406 checkpoints while the HPA-495 PR remains open. Put every reusable skill correction and its failing regression scenario into the existing HPA-495 PR, not HPA-406.
+5. Merge HPA-495 after the required field evidence and all reusable skill corrections discovered by HPA-406 are accepted.
+6. Rebase or retarget the same HPA-406 PR onto `main`, rerun the complete validation gate, and move it out of draft only after all checkpoints pass.
 
-This creates one PR per ticket while still satisfying HPA-495's required production field test.
+If HPA-495 must merge before HPA-406 finishes and a later checkpoint discovers a new reusable skill defect, create a new Linear ticket and one new PR for that post-HPA-495 skill correction. Do not open a second PR under HPA-495.
+
+This workflow preserves one PR per ticket while satisfying both field-validation and reusable-gap requirements.
 
 ## 4. Goals
 
@@ -104,6 +106,23 @@ Do not parse proof screenshots or manually maintained duplicate JSON when an aut
 Generate a committed runtime module with only runtime-facing data:
 
 ```ts
+interface RuntimeBackgroundAsset {
+  id: string;
+  cropId: string;
+  plane: 'base' | 'foreground';
+  textureKey: string;
+  path: string;
+  sha256: string;
+  width: number;
+  height: number;
+  drawOrder: number;
+}
+
+interface RuntimeVisualOwner {
+  sourceId: string;
+  ownerBackgroundId: string;
+}
+
 interface MeadowEntryRuntimePackage {
   version: 1;
   controlFingerprint: string;
@@ -128,7 +147,7 @@ public/game/assets/regions/meadow-entry/*.png
 The generator must:
 
 1. verify the approved control fingerprint;
-2. verify every selected export's SHA-256, dimensions, crop ID, plane, texture key, and draw order;
+2. verify every required export's SHA-256, dimensions, crop ID, plane, texture key, and draw order;
 3. calculate world-space descriptors from crop bounds;
 4. materialize the exact approved export bytes in the public runtime namespace;
 5. publish generated data and assets atomically;
@@ -171,18 +190,26 @@ interface MapBackgroundImage extends MapRect {
 }
 ```
 
-The existing Sundrop base and foreground descriptors receive an explicit predecessor draw order of `50`. The approved Sundrop underlay remains `0`; connectors retain `100` through `140`; destination regions retain `200` through `240`.
+Use these orders:
+
+- approved Sundrop underlay: `0`;
+- east forest boundary base: `10`;
+- existing HPA-398 Sundrop base and foreground: `50`;
+- connector crops: `100` through `140`;
+- Crossroads and destination regions: `200` through `240`.
 
 ### 8.2 Depth calculation
 
 Preserve the existing broad depth bands while adding a small deterministic order offset:
 
-```text
-base depth       = BASE_BACKGROUND_DEPTH + drawOrder / BACKGROUND_ORDER_SCALE
-foreground depth = FOREGROUND_BACKGROUND_DEPTH + drawOrder / BACKGROUND_ORDER_SCALE
+```ts
+const BACKGROUND_ORDER_SCALE = 10_000;
+
+baseDepth = BASE_BACKGROUND_DEPTH + drawOrder / BACKGROUND_ORDER_SCALE;
+foregroundDepth = FOREGROUND_BACKGROUND_DEPTH + drawOrder / BACKGROUND_ORDER_SCALE;
 ```
 
-`BACKGROUND_ORDER_SCALE` must be large enough that all approved offsets remain within their current base or foreground band. This keeps base artwork above tile ground but below live gameplay objects, and foreground artwork above the player but below HUD/debug overlays.
+The approved maximum order of `240` produces an offset of `0.024`, keeping all images within their existing base or foreground band. Base artwork remains above tile ground but below live gameplay objects; foreground artwork remains above the player but below HUD/debug overlays.
 
 Tests must prove that each HPA-399 overlap's `ownerCropId` renders above the other crop on every plane allowed by its plane policy. Runtime insertion order must not decide seam ownership accidentally.
 
@@ -199,7 +226,7 @@ Runtime behavior:
 | missing, invalid, or failed | available | suppress foreground; restore base-owned live fallback |
 | disabled | disabled | use existing tile and live fallback presentation |
 
-Add a diagnostic status such as `blocked-by-base` when an otherwise available foreground is deliberately suppressed because its base did not render.
+Use the exact diagnostic status `blocked-by-base` when an otherwise available foreground is deliberately suppressed because its base did not render.
 
 A missing foreground must not disable a valid base, change collision, or restore a complete live obstacle sprite over artwork already present in the base. This prevents floating canopies and duplicate full-height visuals.
 
@@ -225,6 +252,8 @@ Apply it to:
 - `MapFenceSegment`.
 
 Use one shared decision helper for all three render paths. Collision attached to a blocker or decor remains active regardless of visual ownership.
+
+The array shape remains compatible with the existing Sundrop contract, but every new HPA-406 ownership entry resolves to exactly one authoritative base background ID.
 
 ### 10.2 Ownership generation
 
@@ -427,7 +456,7 @@ Each checkpoint report records:
 - decisions, commands, and manifests consumed;
 - human visual approvals;
 - skill gaps, rationalizations, and deviations;
-- regression scenarios added to HPA-495;
+- regression scenarios added to HPA-495 or to an explicitly rescoped follow-up ticket if HPA-495 has already merged;
 - provenance and asset locations;
 - defects routed upstream;
 - residual risks.
@@ -439,7 +468,8 @@ HPA-406 must classify defects rather than correcting upstream sources locally:
 - incorrect crop, overlap, route mouth, ownership, or geometry → HPA-399 contract amendment;
 - incorrect pixels, alpha, lighting, material continuity, export, hash, or provenance → HPA-496 correction;
 - stale or unsupported story, character, location, gate, spoiler, or audio requirement → HPA-514 correction;
-- reusable workflow gap → failing scenario and smallest correction in the single HPA-495 PR;
+- reusable workflow gap while HPA-495 is open → failing scenario and smallest correction in the single HPA-495 PR;
+- reusable workflow gap after HPA-495 merges → new Linear ticket and one PR;
 - runtime registration, ordering, ownership application, diagnostics, fallback, or walkthrough defect → HPA-406.
 
 No region-specific exception should bypass this routing.
@@ -490,7 +520,7 @@ Mitigation: validate HPA-514, HPA-399, and HPA-496 fingerprints before each chec
 
 ### Hidden manual workflow knowledge
 
-Mitigation: execute every checkpoint through HPA-495, record deviations, and fix reusable gaps through regression scenarios in HPA-495's single PR.
+Mitigation: execute every checkpoint through HPA-495, record deviations, and fix reusable gaps through regression scenarios in HPA-495's single PR or an explicitly rescoped follow-up ticket if that PR has already merged.
 
 ## 18. Acceptance criteria
 
@@ -507,6 +537,6 @@ HPA-406 is complete when:
 - enabled, disabled, missing, invalid, render-failed, partial-foreground, collision-overlay, save/reload, and traversal evidence exists for every checkpoint;
 - continuous traversal succeeds from Village through Crossroads to every destination and back;
 - each checkpoint consumed a current HPA-514 fingerprint and approved HPA-495 Area Expansion Packet;
-- every reusable skill gap was corrected through a documented HPA-495 regression scenario rather than a local exception;
+- every reusable skill gap was corrected through a documented regression scenario in the active HPA-495 PR or an explicitly rescoped follow-up ticket;
 - the full command gate passes;
 - HPA-411 can begin without additional regional integration work.
