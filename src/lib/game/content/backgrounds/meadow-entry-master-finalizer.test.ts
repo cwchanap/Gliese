@@ -446,7 +446,7 @@ describe('Meadow Entry master finalizers', () => {
 		expect(result.provenance.preRefinementCandidateSha256).toBe(sha256(preRefinementCandidatePng));
 	});
 
-	it('records null preRefinementCandidateSha256 when there are no refinements', async () => {
+	it('omits preRefinementCandidateSha256 when there are no refinements', async () => {
 		const shared = await context();
 		const candidatePng = await rgbaPng([1, 2, 3, 255, 4, 5, 6, 255, 7, 8, 9, 255, 10, 11, 12, 255]);
 		const result = await finalizeMeadowEntryBase({
@@ -456,6 +456,6 @@ describe('Meadow Entry master finalizers', () => {
 			generation: manualFixture,
 			refinements: []
 		});
-		expect(result.provenance.preRefinementCandidateSha256).toBeNull();
+		expect(result.provenance.preRefinementCandidateSha256).toBeUndefined();
 	});
 });

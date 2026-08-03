@@ -65,6 +65,7 @@ const PUBLICATION_SENTINELS = [
 ] as const;
 
 const PNG_SIGNATURE = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
+const SHA256_PATTERN = /^[a-f0-9]{64}$/;
 export interface ValidationStage {
 	name: string;
 	run(): Promise<void>;
@@ -397,12 +398,33 @@ async function validateApprovedPackage(repositoryRoot: string): Promise<void> {
 			predecessor.foregroundSha256 === inputs.predecessor.hpa398ForegroundSha256,
 		'Immutable HPA-398 predecessor hashes have drifted'
 	);
+	const planeMasterBytes: Record<'base' | 'foreground', Buffer> = {
+		base: baseBytes,
+		foreground: foregroundBytes
+	};
 	for (const plane of ['base', 'foreground'] as const) {
 		const record = masterProvenance[plane] as Record<string, unknown>;
-		validateMeadowEntryGenerationProvenance(record.generation);
 		if (!Array.isArray(record.refinements)) {
 			throw new Error(`Meadow Entry ${plane} provenance refinements must be an array`);
 		}
+		const expectedPlaneKeys = ['bytes', 'generation', 'refinements', 'sha256', 'transform'];
+		if (record.refinements.length > 0) {
+			expectedPlaneKeys.push('preRefinementCandidateSha256');
+		}
+		exactObjectKeys(`master provenance ${plane} plane`, record, expectedPlaneKeys);
+		if (typeof record.sha256 !== 'string' || !SHA256_PATTERN.test(record.sha256)) {
+			throw new Error(`Meadow Entry ${plane} provenance sha256 must be a lowercase SHA-256 hash`);
+		}
+		if (record.sha256 !== sha256(planeMasterBytes[plane])) {
+			throw new Error(`Meadow Entry ${plane} provenance sha256 does not match the master PNG`);
+		}
+		if (typeof record.bytes !== 'number' || !Number.isInteger(record.bytes)) {
+			throw new Error(`Meadow Entry ${plane} provenance bytes must be an integer`);
+		}
+		if (record.bytes !== planeMasterBytes[plane].byteLength) {
+			throw new Error(`Meadow Entry ${plane} provenance bytes do not match the master PNG`);
+		}
+		validateMeadowEntryGenerationProvenance(record.generation);
 		for (const refinement of record.refinements) {
 			validateMeadowEntryRefinementProvenance(refinement);
 		}
@@ -410,6 +432,20 @@ async function validateApprovedPackage(repositoryRoot: string): Promise<void> {
 			record.refinements as MeadowEntryRefinementProvenance[],
 			plane
 		);
+		if (record.refinements.length > 0) {
+			const preRefinementHash = record.preRefinementCandidateSha256;
+			if (typeof preRefinementHash !== 'string' || !SHA256_PATTERN.test(preRefinementHash)) {
+				throw new Error(
+					`Meadow Entry ${plane} preRefinementCandidateSha256 must be a lowercase SHA-256 hash when refinements are present`
+				);
+			}
+			const firstRefinement = record.refinements[0] as MeadowEntryRefinementProvenance;
+			if (preRefinementHash !== firstRefinement.beforeMasterSha256) {
+				throw new Error(
+					`Meadow Entry ${plane} preRefinementCandidateSha256 does not match the first refinement beforeMasterSha256`
+				);
+			}
+		}
 	}
 
 	exactObjectKeys('export provenance', exportProvenance, [

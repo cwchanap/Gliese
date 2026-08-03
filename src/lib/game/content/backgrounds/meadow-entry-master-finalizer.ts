@@ -74,7 +74,7 @@ export interface FinalizeMeadowEntryForegroundInput extends MeadowEntryFinalizer
 export interface FinalizedPlaneProvenance {
 	sha256: string;
 	bytes: number;
-	preRefinementCandidateSha256: string | null;
+	preRefinementCandidateSha256?: string;
 	generation: MeadowEntryGenerationProvenance;
 	transform: MeadowEntryNormalizationTransform;
 	refinements: readonly MeadowEntryRefinementProvenance[];
@@ -312,15 +312,17 @@ function planeProvenance(
 	refinements: readonly MeadowEntryRefinementProvenance[],
 	preRefinementCandidatePng: Buffer | undefined
 ): FinalizedPlaneProvenance {
-	return {
+	const provenance: FinalizedPlaneProvenance = {
 		sha256: sha256(png),
 		bytes: png.byteLength,
-		preRefinementCandidateSha256:
-			preRefinementCandidatePng !== undefined ? sha256(preRefinementCandidatePng) : null,
 		generation,
 		transform,
 		refinements
 	};
+	if (preRefinementCandidatePng !== undefined) {
+		provenance.preRefinementCandidateSha256 = sha256(preRefinementCandidatePng);
+	}
+	return provenance;
 }
 
 export async function finalizeMeadowEntryBase(
