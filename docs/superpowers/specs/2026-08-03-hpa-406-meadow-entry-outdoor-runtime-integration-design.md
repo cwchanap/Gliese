@@ -43,10 +43,10 @@ Resolve the dependency as follows:
 
 1. Merge the HPA-514 PR.
 2. Open the single HPA-495 PR with baseline skills, packet template, pressure tests, and repository-tool bindings.
-3. Open or develop the single HPA-406 draft PR from the HPA-495 branch, temporarily targeting that branch while the runtime checkpoints field-test the skills.
-4. Execute HPA-406 checkpoints while the HPA-495 PR remains open where practical. Put reusable skill corrections and their failing regression scenarios into the existing HPA-495 PR, not HPA-406.
-5. Merge HPA-495 after its required field evidence and reusable corrections are accepted.
-6. Rebase or retarget the same HPA-406 PR onto `main`, rerun the complete validation gate, and move it out of draft only after every checkpoint passes.
+3. Open or develop the single HPA-406 draft PR from the HPA-495 branch, temporarily targeting that branch while the first runtime checkpoint field-tests the skills.
+4. Put reusable skill corrections and their failing regression scenarios into the existing HPA-495 PR, not HPA-406.
+5. Merge HPA-495 after the required Checkpoint 1 field evidence and reusable corrections are accepted.
+6. Rebase or retarget the same HPA-406 PR onto `main`, rerun the complete validation gate, and complete Checkpoints 2 and 3.
 
 If HPA-495 has already merged when a later checkpoint discovers a new reusable skill defect, create a new Linear ticket and one new PR for that correction. Do not open a second PR under HPA-495.
 
