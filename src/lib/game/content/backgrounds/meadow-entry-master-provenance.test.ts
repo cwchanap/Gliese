@@ -1,9 +1,11 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+	assertMeadowEntryRefinementChain,
 	validateMeadowEntryGenerationProvenance,
 	validateMeadowEntryRefinementProvenance
 } from './meadow-entry-master-provenance';
+import type { MeadowEntryRefinementProvenance } from './meadow-entry-master-provenance';
 
 describe('meadow-entry generation provenance', () => {
 	it('accepts a generative record when the provider exposes no seed', () => {
@@ -309,5 +311,81 @@ describe('meadow-entry refinement provenance', () => {
 				transform: { ...validRefinement.transform, native: null }
 			})
 		).toThrow(/transform native must be an object/i);
+	});
+});
+
+describe('meadow-entry refinement chain', () => {
+	const chainTransform = {
+		native: { width: 2, height: 2 },
+		crop: { left: 0, top: 0, width: 2, height: 2 },
+		output: { width: 2, height: 2 },
+		scale: 1
+	};
+
+	function refinement(
+		plane: 'base' | 'foreground',
+		before: string,
+		after: string
+	): MeadowEntryRefinementProvenance {
+		return {
+			plane,
+			sourceRegionIds: ['crossroads'],
+			editMaskSha256: 'a'.repeat(64),
+			replacementSha256: 'b'.repeat(64),
+			beforeMasterSha256: before,
+			afterMasterSha256: after,
+			changedBounds: { left: 0, top: 0, right: 1, bottom: 1 },
+			affectedCropIds: ['crop-1'],
+			transform: chainTransform
+		};
+	}
+
+	it('accepts an empty refinement list', () => {
+		expect(() => assertMeadowEntryRefinementChain([], 'base')).not.toThrow();
+	});
+
+	it('accepts a single refinement record', () => {
+		expect(() =>
+			assertMeadowEntryRefinementChain([refinement('base', 'c'.repeat(64), 'd'.repeat(64))], 'base')
+		).not.toThrow();
+	});
+
+	it('accepts a properly linked multi-record chain', () => {
+		const records = [
+			refinement('base', 'c'.repeat(64), 'd'.repeat(64)),
+			refinement('base', 'd'.repeat(64), 'e'.repeat(64)),
+			refinement('base', 'e'.repeat(64), 'f'.repeat(64))
+		];
+		expect(() => assertMeadowEntryRefinementChain(records, 'base')).not.toThrow();
+	});
+
+	it('rejects a broken middle link', () => {
+		const records = [
+			refinement('base', 'c'.repeat(64), 'd'.repeat(64)),
+			refinement('base', 'x'.repeat(64), 'e'.repeat(64)),
+			refinement('base', 'e'.repeat(64), 'f'.repeat(64))
+		];
+		expect(() => assertMeadowEntryRefinementChain(records, 'base')).toThrow(
+			/refinement 1 beforeMasterSha256 does not match refinement 0 afterMasterSha256/i
+		);
+	});
+
+	it('rejects reordered records', () => {
+		const records = [
+			refinement('base', 'e'.repeat(64), 'f'.repeat(64)),
+			refinement('base', 'c'.repeat(64), 'd'.repeat(64)),
+			refinement('base', 'd'.repeat(64), 'e'.repeat(64))
+		];
+		expect(() => assertMeadowEntryRefinementChain(records, 'base')).toThrow(
+			/refinement 1 beforeMasterSha256 does not match refinement 0 afterMasterSha256/i
+		);
+	});
+
+	it('includes the plane label in the error message', () => {
+		const records = [
+			refinement('foreground', 'c'.repeat(64), 'd'.repeat(64)),
+			refinement('foreground', 'x'.repeat(64), 'e'.repeat(64))
+		];
+		expect(() => assertMeadowEntryRefinementChain(records, 'foreground')).toThrow(/foreground/i);
 	});
 });

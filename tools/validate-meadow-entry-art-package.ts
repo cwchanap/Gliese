@@ -22,9 +22,11 @@ import {
 	computeMeadowEntryCombinedControlFingerprint
 } from '$lib/game/content/backgrounds/meadow-entry-controls';
 import {
+	assertMeadowEntryRefinementChain,
 	validateMeadowEntryGenerationProvenance,
 	validateMeadowEntryRefinementProvenance
 } from '$lib/game/content/backgrounds/meadow-entry-master-provenance';
+import type { MeadowEntryRefinementProvenance } from '$lib/game/content/backgrounds/meadow-entry-master-provenance';
 import {
 	decodeMeadowEntryRgba,
 	validateCanonicalPngChunks
@@ -423,6 +425,10 @@ async function validateApprovedPackage(repositoryRoot: string): Promise<void> {
 		for (const refinement of record.refinements) {
 			validateMeadowEntryRefinementProvenance(refinement);
 		}
+		assertMeadowEntryRefinementChain(
+			record.refinements as MeadowEntryRefinementProvenance[],
+			plane
+		);
 	}
 
 	exactObjectKeys('export provenance', exportProvenance, [

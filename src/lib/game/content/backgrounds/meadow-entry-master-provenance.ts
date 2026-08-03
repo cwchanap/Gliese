@@ -227,3 +227,18 @@ export function validateMeadowEntryRefinementProvenance(value: unknown): void {
 	assertPixelBounds(value.changedBounds, 'changed bounds');
 	assertNormalizationTransformShape(value.transform, 'transform');
 }
+
+export function assertMeadowEntryRefinementChain(
+	refinements: readonly MeadowEntryRefinementProvenance[],
+	plane: 'base' | 'foreground'
+): void {
+	for (let index = 0; index < refinements.length - 1; index += 1) {
+		const current = refinements[index]!;
+		const next = refinements[index + 1]!;
+		if (current.afterMasterSha256 !== next.beforeMasterSha256) {
+			throw new Error(
+				`Meadow Entry ${plane} refinement ${index + 1} beforeMasterSha256 does not match refinement ${index} afterMasterSha256`
+			);
+		}
+	}
+}
