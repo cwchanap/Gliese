@@ -144,10 +144,11 @@ function assertMaskMatchesApproved(
 	label: 'protected' | 'non-target'
 ): void {
 	for (let index = 0; index < approved.length; index += 1) {
-		assert(
-			claimed[index] === approved[index],
-			`Meadow Entry ${label} mask does not match approved controls at pixel ${index}`
-		);
+		if (claimed[index] !== approved[index]) {
+			throw new Error(
+				`Meadow Entry ${label} mask does not match approved controls at pixel ${index}`
+			);
+		}
 	}
 }
 
@@ -157,7 +158,14 @@ function changedBounds(before: Buffer, after: Buffer, width: number, height: num
 	let right = 0;
 	let bottom = 0;
 	for (let index = 0; index < before.length; index += 4) {
-		if (before.subarray(index, index + 4).equals(after.subarray(index, index + 4))) continue;
+		if (
+			before[index] === after[index] &&
+			before[index + 1] === after[index + 1] &&
+			before[index + 2] === after[index + 2] &&
+			before[index + 3] === after[index + 3]
+		) {
+			continue;
+		}
 		const x = (index / 4) % width;
 		const y = Math.floor(index / 4 / width);
 		left = Math.min(left, x);

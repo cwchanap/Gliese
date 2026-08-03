@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import { rename, unlink, writeFile } from 'node:fs/promises';
+import { open, rename, unlink } from 'node:fs/promises';
 import { basename, dirname, resolve } from 'node:path';
 
 import sharp from 'sharp';
@@ -171,7 +171,13 @@ export async function writeAtomicMeadowEntryPng(path: string, png: Buffer): Prom
 		`.${basename(output)}.${process.pid}.${randomUUID()}.tmp`
 	);
 	try {
-		await writeFile(temporary, png, { flag: 'wx' });
+		const handle = await open(temporary, 'wx');
+		try {
+			await handle.writeFile(png);
+			await handle.sync();
+		} finally {
+			await handle.close();
+		}
 		await rename(temporary, output);
 	} catch (error) {
 		await unlink(temporary).catch(() => undefined);

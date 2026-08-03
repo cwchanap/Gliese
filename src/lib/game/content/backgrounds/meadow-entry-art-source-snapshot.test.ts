@@ -1,38 +1,21 @@
 import { createHash } from 'node:crypto';
 import { describe, expect, it } from 'vitest';
 
-interface ApprovedSnapshot {
-	basePng: Buffer;
-	foregroundPng: Buffer;
-	provenanceJson: Buffer;
-}
+import type { MeadowEntryExportPackageBytes } from '../../../../../tools/export-meadow-entry-regions';
+import type { ApprovedPackageBytes } from '../../../../../tools/finalize-meadow-entry-masters';
 
-interface ExportSnapshot {
-	files: Record<string, Buffer>;
-	provenanceJson: Buffer;
-	cropManifestJson: Buffer;
-}
-
-interface SnapshotApi {
-	readCoherentMeadowEntryArtSourceSnapshot(
-		outputRoot: string,
-		options?: {
-			attempts?: number;
-			readApprovedSnapshot?: (outputRoot: string) => Promise<ApprovedSnapshot>;
-			readExportSnapshot?: (outputRoot: string) => Promise<ExportSnapshot>;
-		}
-	): Promise<ApprovedSnapshot & { exports: ExportSnapshot }>;
-}
-
-async function snapshotApi(): Promise<SnapshotApi> {
-	return (await import('../../../../../tools/read-meadow-entry-art-source-snapshot')) as unknown as SnapshotApi;
+async function snapshotApi() {
+	return await import('../../../../../tools/read-meadow-entry-art-source-snapshot');
 }
 
 function sha256(bytes: Buffer): string {
 	return createHash('sha256').update(bytes).digest('hex');
 }
 
-function generation(name: string): { masters: ApprovedSnapshot; exports: ExportSnapshot } {
+function generation(name: string): {
+	masters: ApprovedPackageBytes;
+	exports: MeadowEntryExportPackageBytes;
+} {
 	const basePng = Buffer.from(`${name}-base`);
 	const foregroundPng = Buffer.from(`${name}-foreground`);
 	const provenanceJson = Buffer.from(`${name}-master-provenance`);
@@ -95,7 +78,7 @@ describe('coherent Meadow Entry art source snapshot', () => {
 				readApprovedSnapshot: async () => oldGeneration.masters,
 				readExportSnapshot: async () => nextGeneration.exports
 			})
-		).rejects.toThrow(/export snapshot does not bind the approved master snapshot/i);
+		).rejects.toThrow(/Meadow Entry export provenance master base sha256=/);
 	});
 
 	it('rejects a non-positive attempts count', async () => {

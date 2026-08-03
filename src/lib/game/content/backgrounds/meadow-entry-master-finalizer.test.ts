@@ -277,7 +277,7 @@ describe('Meadow Entry master finalizers', () => {
 				sourceRegionIds: ['crossroads'],
 				editMaskSha256: 'a'.repeat(64),
 				replacementSha256: 'b'.repeat(64),
-				beforeMasterSha256: 'c'.repeat(64),
+				beforeMasterSha256: sha256(shared.predecessor.basePng),
 				afterMasterSha256: detachedAfter,
 				changedBounds: { left: 0, top: 0, right: 1, bottom: 1 },
 				affectedCropIds: ['crop-1'],
@@ -295,7 +295,7 @@ describe('Meadow Entry master finalizers', () => {
 		).rejects.toThrow(/candidate does not match the final refinement afterMasterSha256/i);
 	});
 
-	it('rejects a refinement chain with a broken middle link', async () => {
+	it('rejects a refinement chain that does not start from the approved origin master', async () => {
 		const shared = await context();
 		const candidatePng = await rgbaPng([1, 2, 3, 255, 4, 5, 6, 255, 7, 8, 9, 255, 10, 11, 12, 255]);
 		const candidateSha = sha256(candidatePng);
@@ -306,6 +306,34 @@ describe('Meadow Entry master finalizers', () => {
 				editMaskSha256: 'a'.repeat(64),
 				replacementSha256: 'b'.repeat(64),
 				beforeMasterSha256: 'c'.repeat(64),
+				afterMasterSha256: candidateSha,
+				changedBounds: { left: 0, top: 0, right: 1, bottom: 1 },
+				affectedCropIds: ['crop-1'],
+				transform: identityTransform(2, 2)
+			}
+		];
+		await expect(
+			finalizeMeadowEntryBase({
+				...shared,
+				candidatePng,
+				transform: identityTransform(2, 2),
+				generation: manualFixture,
+				refinements
+			})
+		).rejects.toThrow(/first refinement does not start from the approved origin master/i);
+	});
+
+	it('rejects a refinement chain with a broken middle link', async () => {
+		const shared = await context();
+		const candidatePng = await rgbaPng([1, 2, 3, 255, 4, 5, 6, 255, 7, 8, 9, 255, 10, 11, 12, 255]);
+		const candidateSha = sha256(candidatePng);
+		const refinements: MeadowEntryRefinementProvenance[] = [
+			{
+				plane: 'base',
+				sourceRegionIds: ['crossroads'],
+				editMaskSha256: 'a'.repeat(64),
+				replacementSha256: 'b'.repeat(64),
+				beforeMasterSha256: sha256(shared.predecessor.basePng),
 				afterMasterSha256: 'd'.repeat(64),
 				changedBounds: { left: 0, top: 0, right: 1, bottom: 1 },
 				affectedCropIds: ['crop-1'],
@@ -346,7 +374,7 @@ describe('Meadow Entry master finalizers', () => {
 				sourceRegionIds: ['crossroads'],
 				editMaskSha256: 'a'.repeat(64),
 				replacementSha256: 'b'.repeat(64),
-				beforeMasterSha256: 'c'.repeat(64),
+				beforeMasterSha256: sha256(shared.predecessor.basePng),
 				afterMasterSha256: 'd'.repeat(64),
 				changedBounds: { left: 0, top: 0, right: 1, bottom: 1 },
 				affectedCropIds: ['crop-1'],

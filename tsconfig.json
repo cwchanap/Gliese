@@ -20,11 +20,5 @@
 		},
 		"types": ["vite/client", "node", "@tauri-apps/api"]
 	},
-	"include": [
-		"src/**/*",
-		"tests/**/*",
-		"tools/finalize-meadow-entry-masters.ts",
-		"vite.config.ts",
-		"playwright.config.ts"
-	]
+	"include": ["src/**/*", "tests/**/*", "tools/**/*.ts", "vite.config.ts", "playwright.config.ts"]
 }

@@ -80,19 +80,22 @@ describe('meadow-entry PNG contract', () => {
 		}
 	});
 
-	it('cleans up the temp file and rethrows when the destination is unwritable', async () => {
-		const dir = mkdtempSync(join(tmpdir(), 'meadow-png-fail-'));
-		chmodSync(dir, 0o500);
-		try {
-			const raw = Buffer.from([1, 2, 3, 255]);
-			const png = await encodeCanonicalMeadowEntryPng(raw, 1, 1);
-			const dest = join(dir, 'out.png');
-			await expect(writeAtomicMeadowEntryPng(dest, png)).rejects.toThrow();
-		} finally {
-			chmodSync(dir, 0o700);
-			rmSync(dir, { recursive: true, force: true });
+	it.skipIf(process.getuid?.() === 0)(
+		'cleans up the temp file and rethrows when the destination is unwritable',
+		async () => {
+			const dir = mkdtempSync(join(tmpdir(), 'meadow-png-fail-'));
+			chmodSync(dir, 0o500);
+			try {
+				const raw = Buffer.from([1, 2, 3, 255]);
+				const png = await encodeCanonicalMeadowEntryPng(raw, 1, 1);
+				const dest = join(dir, 'out.png');
+				await expect(writeAtomicMeadowEntryPng(dest, png)).rejects.toThrow();
+			} finally {
+				chmodSync(dir, 0o700);
+				rmSync(dir, { recursive: true, force: true });
+			}
 		}
-	});
+	);
 
 	it('rejects non-positive dimensions', async () => {
 		const raw = Buffer.from([1, 2, 3, 255]);
@@ -163,7 +166,7 @@ describe('meadow-entry PNG contract', () => {
 
 	it('rejects a PNG whose first chunk is not a 13-byte IHDR', async () => {
 		const png = await encodeCanonicalMeadowEntryPng(Buffer.from([1, 2, 3, 255]), 1, 1);
-		const ihdrData = png.subarray(12, 25);
+		const ihdrData = png.subarray(16, 29);
 		const shortIhdr = buildChunk('IHDR', ihdrData.subarray(0, 12));
 		const idat = png.subarray(33, png.length - 12);
 		const iend = png.subarray(png.length - 12);

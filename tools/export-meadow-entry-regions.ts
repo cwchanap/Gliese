@@ -29,7 +29,7 @@ const APPROVED_BASE_SHA256 = '9a5097eea014d092e57a8953be0dec2a16c1e6d29446f8b293
 const APPROVED_FOREGROUND_SHA256 =
 	'c9ffa6e50a8e3c9f9888a642078094e95d9175158df8d262de8ac94b1ab9124e';
 const APPROVED_MASTER_PROVENANCE_SHA256 =
-	'09f82618ef395402f2ceffa2fb058c4f8ad8b9df5bc1f80c7e711a454c6121cd';
+	'3cf4f7bf29659750ba776ba132a702f67a0f4fa3c74c6273102a42d934feffe3';
 
 export interface MeadowEntryExportPackageBytes {
 	files: Readonly<Record<string, Buffer>>;
@@ -182,7 +182,7 @@ export async function publishMeadowEntryExportPackage(
 	}
 	for (let index = 0; index < backups.length; index += 1) {
 		if (backedUp[index]) {
-			await fileSystem.rm(backups[index]!, { recursive: true, force: true });
+			await fileSystem.rm(backups[index]!, { recursive: true, force: true }).catch(() => undefined);
 		}
 	}
 }
@@ -313,7 +313,7 @@ function validateExportSnapshotGeneration(
 	for (const value of provenance.inventory) {
 		assert(
 			typeof value === 'object' && value !== null,
-			'Mead Entry export provenance contains an invalid inventory entry'
+			'Meadow Entry export provenance contains an invalid inventory entry'
 		);
 		const entry = value as Record<string, unknown>;
 		assert(
@@ -364,13 +364,21 @@ async function snapshotPathExists(
 
 export async function readPublishedMeadowEntryExportSnapshot(
 	outputRoot: string,
-	options: { attempts?: number; fileSystem?: MeadowEntryExportSnapshotFileSystem } = {}
+	options: {
+		attempts?: number;
+		retryDelayMs?: number;
+		fileSystem?: MeadowEntryExportSnapshotFileSystem;
+	} = {}
 ): Promise<MeadowEntryExportPackageBytes> {
 	const paths = publicationPaths(outputRoot);
 	const attempts = options.attempts ?? 3;
+	const retryDelayMs = options.retryDelayMs ?? 0;
 	const fileSystem = options.fileSystem ?? NODE_SNAPSHOT_FILE_SYSTEM;
 	let lastError: unknown;
 	for (let attempt = 0; attempt < attempts; attempt += 1) {
+		if (attempt > 0 && retryDelayMs > 0) {
+			await new Promise((resolve) => setTimeout(resolve, retryDelayMs));
+		}
 		if (await snapshotPathExists(fileSystem, paths.writerSentinel)) {
 			lastError = new Error('Meadow Entry export publication is in progress');
 			continue;
