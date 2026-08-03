@@ -32,7 +32,6 @@ function fakeProvenance(label: string): FinalizedPlaneProvenance {
 	return {
 		sha256: createHash('sha256').update(label).digest('hex'),
 		bytes: Buffer.byteLength(label),
-		preRefinementCandidateSha256: null,
 		generation: {
 			mode: 'manual',
 			provider: null,
