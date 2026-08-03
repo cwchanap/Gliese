@@ -23,6 +23,7 @@ import {
 } from '$lib/game/content/backgrounds/meadow-entry-controls';
 import {
 	assertMeadowEntryRefinementChain,
+	assertMeadowEntryRefinementChainTerminal,
 	validateMeadowEntryGenerationProvenance,
 	validateMeadowEntryRefinementProvenance
 } from '$lib/game/content/backgrounds/meadow-entry-master-provenance';
@@ -445,6 +446,11 @@ async function validateApprovedPackage(repositoryRoot: string): Promise<void> {
 					`Meadow Entry ${plane} preRefinementCandidateSha256 does not match the first refinement beforeMasterSha256`
 				);
 			}
+			assertMeadowEntryRefinementChainTerminal(
+				record.refinements as MeadowEntryRefinementProvenance[],
+				plane,
+				record.sha256 as string
+			);
 		}
 	}
 

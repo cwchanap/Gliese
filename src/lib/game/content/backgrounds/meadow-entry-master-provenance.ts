@@ -309,3 +309,33 @@ export function assertMeadowEntryRefinementChain(
 		}
 	}
 }
+
+/**
+ * Asserts that the final refinement's `afterMasterSha256` matches the approved
+ * master hash, binding the tail of the refinement chain to the published plane.
+ *
+ * The chain-link helper {@link assertMeadowEntryRefinementChain} only verifies
+ * adjacency between refinement records; it does not know the approved master
+ * hash. This helper closes the gap so that a hand-edited or independently
+ * assembled provenance chain cannot end at an unrelated hash while still
+ * passing package validation.
+ *
+ * @param refinements - Ordered refinement records for one plane.
+ * @param plane - Plane label used in the error messages.
+ * @param masterSha256 - The approved plane master sha256 that the final
+ *   refinement must produce.
+ * @returns Nothing.
+ * @throws Error - When refinements are present and the last record's
+ *   `afterMasterSha256` does not match `masterSha256`.
+ */
+export function assertMeadowEntryRefinementChainTerminal(
+	refinements: readonly MeadowEntryRefinementProvenance[],
+	plane: 'base' | 'foreground',
+	masterSha256: string
+): void {
+	if (refinements.length === 0) return;
+	const lastRefinement = refinements.at(-1)!;
+	if (lastRefinement.afterMasterSha256 !== masterSha256) {
+		throw new Error(`Meadow Entry ${plane} final refinement does not match the approved master`);
+	}
+}
