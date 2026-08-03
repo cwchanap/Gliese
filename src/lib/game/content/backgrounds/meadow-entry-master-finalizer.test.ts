@@ -270,6 +270,9 @@ describe('Meadow Entry master finalizers', () => {
 	it('rejects a refinement chain whose final afterMasterSha256 does not match the candidate', async () => {
 		const shared = await context();
 		const candidatePng = await rgbaPng([1, 2, 3, 255, 4, 5, 6, 255, 7, 8, 9, 255, 10, 11, 12, 255]);
+		const preRefinementCandidatePng = await rgbaPng([
+			20, 21, 22, 255, 23, 24, 25, 255, 26, 27, 28, 255, 29, 30, 31, 255
+		]);
 		const detachedAfter = 'e'.repeat(64);
 		const refinements: MeadowEntryRefinementProvenance[] = [
 			{
@@ -277,7 +280,7 @@ describe('Meadow Entry master finalizers', () => {
 				sourceRegionIds: ['crossroads'],
 				editMaskSha256: 'a'.repeat(64),
 				replacementSha256: 'b'.repeat(64),
-				beforeMasterSha256: sha256(shared.predecessor.basePng),
+				beforeMasterSha256: sha256(preRefinementCandidatePng),
 				afterMasterSha256: detachedAfter,
 				changedBounds: { left: 0, top: 0, right: 1, bottom: 1 },
 				affectedCropIds: ['crop-1'],
@@ -288,6 +291,7 @@ describe('Meadow Entry master finalizers', () => {
 			finalizeMeadowEntryBase({
 				...shared,
 				candidatePng,
+				preRefinementCandidatePng,
 				transform: identityTransform(2, 2),
 				generation: manualFixture,
 				refinements
@@ -295,7 +299,39 @@ describe('Meadow Entry master finalizers', () => {
 		).rejects.toThrow(/candidate does not match the final refinement afterMasterSha256/i);
 	});
 
-	it('rejects a refinement chain that does not start from the approved origin master', async () => {
+	it('rejects a refinement chain that does not start from the pre-refinement candidate', async () => {
+		const shared = await context();
+		const candidatePng = await rgbaPng([1, 2, 3, 255, 4, 5, 6, 255, 7, 8, 9, 255, 10, 11, 12, 255]);
+		const candidateSha = sha256(candidatePng);
+		const preRefinementCandidatePng = await rgbaPng([
+			20, 21, 22, 255, 23, 24, 25, 255, 26, 27, 28, 255, 29, 30, 31, 255
+		]);
+		const refinements: MeadowEntryRefinementProvenance[] = [
+			{
+				plane: 'base',
+				sourceRegionIds: ['crossroads'],
+				editMaskSha256: 'a'.repeat(64),
+				replacementSha256: 'b'.repeat(64),
+				beforeMasterSha256: 'c'.repeat(64),
+				afterMasterSha256: candidateSha,
+				changedBounds: { left: 0, top: 0, right: 1, bottom: 1 },
+				affectedCropIds: ['crop-1'],
+				transform: identityTransform(2, 2)
+			}
+		];
+		await expect(
+			finalizeMeadowEntryBase({
+				...shared,
+				candidatePng,
+				preRefinementCandidatePng,
+				transform: identityTransform(2, 2),
+				generation: manualFixture,
+				refinements
+			})
+		).rejects.toThrow(/first refinement does not start from the pre-refinement candidate/i);
+	});
+
+	it('rejects refinements without a pre-refinement candidate PNG', async () => {
 		const shared = await context();
 		const candidatePng = await rgbaPng([1, 2, 3, 255, 4, 5, 6, 255, 7, 8, 9, 255, 10, 11, 12, 255]);
 		const candidateSha = sha256(candidatePng);
@@ -320,20 +356,23 @@ describe('Meadow Entry master finalizers', () => {
 				generation: manualFixture,
 				refinements
 			})
-		).rejects.toThrow(/first refinement does not start from the approved origin master/i);
+		).rejects.toThrow(/refinements require a pre-refinement candidate PNG/i);
 	});
 
 	it('rejects a refinement chain with a broken middle link', async () => {
 		const shared = await context();
 		const candidatePng = await rgbaPng([1, 2, 3, 255, 4, 5, 6, 255, 7, 8, 9, 255, 10, 11, 12, 255]);
 		const candidateSha = sha256(candidatePng);
+		const preRefinementCandidatePng = await rgbaPng([
+			20, 21, 22, 255, 23, 24, 25, 255, 26, 27, 28, 255, 29, 30, 31, 255
+		]);
 		const refinements: MeadowEntryRefinementProvenance[] = [
 			{
 				plane: 'base',
 				sourceRegionIds: ['crossroads'],
 				editMaskSha256: 'a'.repeat(64),
 				replacementSha256: 'b'.repeat(64),
-				beforeMasterSha256: sha256(shared.predecessor.basePng),
+				beforeMasterSha256: sha256(preRefinementCandidatePng),
 				afterMasterSha256: 'd'.repeat(64),
 				changedBounds: { left: 0, top: 0, right: 1, bottom: 1 },
 				affectedCropIds: ['crop-1'],
@@ -355,6 +394,7 @@ describe('Meadow Entry master finalizers', () => {
 			finalizeMeadowEntryBase({
 				...shared,
 				candidatePng,
+				preRefinementCandidatePng,
 				transform: identityTransform(2, 2),
 				generation: manualFixture,
 				refinements
@@ -368,13 +408,16 @@ describe('Meadow Entry master finalizers', () => {
 		const shared = await context();
 		const candidatePng = await rgbaPng([1, 2, 3, 255, 4, 5, 6, 255, 7, 8, 9, 255, 10, 11, 12, 255]);
 		const candidateSha = sha256(candidatePng);
+		const preRefinementCandidatePng = await rgbaPng([
+			20, 21, 22, 255, 23, 24, 25, 255, 26, 27, 28, 255, 29, 30, 31, 255
+		]);
 		const refinements: MeadowEntryRefinementProvenance[] = [
 			{
 				plane: 'base',
 				sourceRegionIds: ['crossroads'],
 				editMaskSha256: 'a'.repeat(64),
 				replacementSha256: 'b'.repeat(64),
-				beforeMasterSha256: sha256(shared.predecessor.basePng),
+				beforeMasterSha256: sha256(preRefinementCandidatePng),
 				afterMasterSha256: 'd'.repeat(64),
 				changedBounds: { left: 0, top: 0, right: 1, bottom: 1 },
 				affectedCropIds: ['crop-1'],
@@ -392,14 +435,27 @@ describe('Meadow Entry master finalizers', () => {
 				transform: identityTransform(2, 2)
 			}
 		];
-		await expect(
-			finalizeMeadowEntryBase({
-				...shared,
-				candidatePng,
-				transform: identityTransform(2, 2),
-				generation: manualFixture,
-				refinements
-			})
-		).resolves.toBeDefined();
+		const result = await finalizeMeadowEntryBase({
+			...shared,
+			candidatePng,
+			preRefinementCandidatePng,
+			transform: identityTransform(2, 2),
+			generation: manualFixture,
+			refinements
+		});
+		expect(result.provenance.preRefinementCandidateSha256).toBe(sha256(preRefinementCandidatePng));
+	});
+
+	it('records null preRefinementCandidateSha256 when there are no refinements', async () => {
+		const shared = await context();
+		const candidatePng = await rgbaPng([1, 2, 3, 255, 4, 5, 6, 255, 7, 8, 9, 255, 10, 11, 12, 255]);
+		const result = await finalizeMeadowEntryBase({
+			...shared,
+			candidatePng,
+			transform: identityTransform(2, 2),
+			generation: manualFixture,
+			refinements: []
+		});
+		expect(result.provenance.preRefinementCandidateSha256).toBeNull();
 	});
 });
