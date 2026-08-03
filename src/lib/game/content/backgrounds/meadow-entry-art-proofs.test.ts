@@ -1,8 +1,9 @@
+import { createHash } from 'node:crypto';
 import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import {
 	MEADOW_ENTRY_APPROVED_CROPS,
@@ -11,8 +12,10 @@ import {
 } from './meadow-entry-crop-manifest';
 import {
 	MEADOW_ENTRY_PROOF_DESCRIPTORS,
-	MEADOW_ENTRY_PROOF_FILENAMES
+	MEADOW_ENTRY_PROOF_FILENAMES,
+	type MeadowEntryProofDescriptor
 } from './meadow-entry-proof-renderer';
+import { encodeCanonicalMeadowEntryPng } from './meadow-entry-png';
 import {
 	assertExactProofInventory,
 	assertInventoryEquals,
@@ -25,8 +28,12 @@ import {
 	expectedProofInputPaths,
 	parseProofSidecar,
 	proofExportPath,
+	publishMeadowEntryProofInventory,
+	readPublishedMeadowEntryProofSnapshot,
 	type MeadowEntryProofPublicationFileSystem,
-	type MeadowEntryProofSidecar
+	type MeadowEntryProofPublicationPhase,
+	type MeadowEntryProofSidecar,
+	type MeadowEntryProofSnapshotFileSystem
 } from '../../../../../tools/render-meadow-entry-art-proofs';
 
 const BASE_MASTER = 'artifacts/meadow-entry/hpa-399/masters/meadow-entry-base-master.png';
@@ -49,6 +56,8 @@ const FULL_MASKS: Record<string, string> = {
 	'full/baked-coverage': `${CONTROL_ROOT}/meadow-entry-runtime-base-coverage-mask.svg`,
 	'full/fallback-coverage': `${CONTROL_ROOT}/meadow-entry-runtime-fallback-coverage-mask.svg`
 };
+const PROOF_ROOT = 'docs/superpowers/reports/img/hpa-399/proofs';
+const PROOF_SENTINEL = 'docs/superpowers/reports/img/hpa-399/.meadow-entry-proof-publication.lock';
 
 const fourLayers = [BASE_MASTER, SUNDROP_BASE, FOREGROUND_MASTER, SUNDROP_FOREGROUND];
 
@@ -77,6 +86,42 @@ function sidecarJson(overrides: Record<string, unknown> = {}): Buffer {
 			masterBounds: { left: 0, top: 0, right: 1, bottom: 1 },
 			inputs: [{ path: 'input.bin', sha256: 'a'.repeat(64) }],
 			inputSha256: ['a'.repeat(64)],
+			metrics: {},
+			...overrides
+		})}\n`
+	);
+}
+
+function hashBuffer(value: Buffer): string {
+	return createHash('sha256').update(value).digest('hex');
+}
+
+const fixtureDescriptor: MeadowEntryProofDescriptor = {
+	proofId: 'test/proof',
+	filename: 'test/proof.png',
+	masterBounds: { left: 0, top: 0, right: 1, bottom: 1 }
+};
+
+async function fixtureProofPng(): Promise<Buffer> {
+	const raw = Buffer.alloc(4, 0);
+	return await encodeCanonicalMeadowEntryPng(raw, 1, 1);
+}
+
+function fixtureSidecar(png: Buffer, overrides: Record<string, unknown> = {}): Buffer {
+	const inputPath = 'input.bin';
+	const inputHash = 'a'.repeat(64);
+	return Buffer.from(
+		`${JSON.stringify({
+			version: 1,
+			proofId: fixtureDescriptor.proofId,
+			path: `${PROOF_ROOT}/${fixtureDescriptor.filename}`,
+			sha256: hashBuffer(png),
+			bytes: png.byteLength,
+			width: 1,
+			height: 1,
+			masterBounds: fixtureDescriptor.masterBounds,
+			inputs: [{ path: inputPath, sha256: inputHash }],
+			inputSha256: [inputHash],
 			metrics: {},
 			...overrides
 		})}\n`
@@ -406,6 +451,456 @@ describe('Meadow Entry art proof helpers', () => {
 			const svg = cornerGroupSvg({ left: 0, top: 0, right: 10, bottom: 10 }, []).toString('utf8');
 			expect(svg).toContain('<svg');
 			expect(svg).not.toContain('data-overlap-id');
+		});
+	});
+
+	describe('publishMeadowEntryProofInventory', () => {
+		function publicationFileSystem(
+			overrides: Partial<MeadowEntryProofPublicationFileSystem> = {}
+		): MeadowEntryProofPublicationFileSystem {
+			const inventory = expectedProofInventory();
+			const files = new Map<string, Buffer>();
+			const directories = new Set<string>();
+			return {
+				pathExists: async (path: string) => files.has(path) || directories.has(path),
+				listFiles: async () => [...inventory],
+				mkdir: vi.fn(async () => undefined),
+				rename: vi.fn(async (oldPath: string, newPath: string) => {
+					const data = files.get(oldPath);
+					if (data !== undefined) {
+						files.delete(oldPath);
+						files.set(newPath, data);
+					} else if (directories.has(oldPath)) {
+						directories.delete(oldPath);
+						directories.add(newPath);
+					}
+				}),
+				rm: vi.fn(async (path: string) => {
+					files.delete(path);
+					directories.delete(path);
+				}),
+				writeFile: vi.fn(async (path: string) => {
+					files.set(path, Buffer.from(''));
+				}),
+				...overrides
+			};
+		}
+
+		it('installs a fresh staging tree when no target exists', async () => {
+			const root = temporaryRoot();
+			const stagingRoot = join(root, 'staging');
+			const target = join(root, PROOF_ROOT);
+			const phases: MeadowEntryProofPublicationPhase[] = [];
+			const fs = publicationFileSystem();
+			await publishMeadowEntryProofInventory({
+				repositoryRoot: root,
+				stagingRoot,
+				token: 'token-a',
+				fileSystem: fs,
+				onPhase: (phase) => phases.push(phase)
+			});
+			expect(phases).toEqual([
+				'sentinel-written',
+				'replacement-installed',
+				'replacement-validated',
+				'sentinel-removed'
+			]);
+			expect(fs.rename).toHaveBeenCalledWith(stagingRoot, target);
+		});
+
+		it('backs up and replaces an existing target', async () => {
+			const root = temporaryRoot();
+			const stagingRoot = join(root, 'staging');
+			const target = join(root, PROOF_ROOT);
+			const backup = `${target}.token-b.rollback`;
+			const phases: MeadowEntryProofPublicationPhase[] = [];
+			const fs = publicationFileSystem({
+				pathExists: async (path: string) => path === target
+			});
+			await publishMeadowEntryProofInventory({
+				repositoryRoot: root,
+				stagingRoot,
+				token: 'token-b',
+				fileSystem: fs,
+				onPhase: (phase) => phases.push(phase)
+			});
+			expect(phases).toEqual([
+				'sentinel-written',
+				'previous-backed-up',
+				'replacement-installed',
+				'replacement-validated',
+				'sentinel-removed'
+			]);
+			expect(fs.rename).toHaveBeenCalledWith(target, backup);
+			expect(fs.rename).toHaveBeenCalledWith(stagingRoot, target);
+		});
+
+		it('rolls back when the install rename fails and restores the backup', async () => {
+			const root = temporaryRoot();
+			const stagingRoot = join(root, 'staging');
+			const target = join(root, PROOF_ROOT);
+			const phases: MeadowEntryProofPublicationPhase[] = [];
+			const fs = publicationFileSystem({
+				pathExists: async (path: string) => path === target,
+				rename: vi.fn(async (oldPath: string, newPath: string) => {
+					if (oldPath === stagingRoot && newPath === target) {
+						throw new Error('install-rename-failed');
+					}
+				})
+			});
+			await expect(
+				publishMeadowEntryProofInventory({
+					repositoryRoot: root,
+					stagingRoot,
+					token: 'token-c',
+					fileSystem: fs,
+					onPhase: (phase) => phases.push(phase)
+				})
+			).rejects.toThrow(/install-rename-failed/);
+			expect(phases).toContain('sentinel-written');
+			expect(phases).toContain('previous-backed-up');
+			expect(phases).toContain('rollback-backup-restored');
+			expect(phases).toContain('rollback-sentinel-removed');
+		});
+
+		it('rolls back when sentinel removal fails after a successful install', async () => {
+			const root = temporaryRoot();
+			const stagingRoot = join(root, 'staging');
+			const phases: MeadowEntryProofPublicationPhase[] = [];
+			const fs = publicationFileSystem({
+				rm: vi.fn(async (path: string) => {
+					if (path === join(root, PROOF_SENTINEL)) {
+						throw new Error('sentinel-rm-failed');
+					}
+				})
+			});
+			await expect(
+				publishMeadowEntryProofInventory({
+					repositoryRoot: root,
+					stagingRoot,
+					token: 'token-d',
+					fileSystem: fs,
+					onPhase: (phase) => phases.push(phase)
+				})
+			).rejects.toThrow(/sentinel-rm-failed/);
+			expect(phases).toContain('replacement-validated');
+		});
+
+		it('throws when the staging inventory does not match', async () => {
+			const root = temporaryRoot();
+			const stagingRoot = join(root, 'staging');
+			const fs = publicationFileSystem({
+				listFiles: async () => ['only-one.png', 'only-one.json']
+			});
+			await expect(
+				publishMeadowEntryProofInventory({
+					repositoryRoot: root,
+					stagingRoot,
+					token: 'token-e',
+					fileSystem: fs
+				})
+			).rejects.toThrow(/inventory differs/);
+		});
+
+		it('throws when the existing target inventory does not match', async () => {
+			const root = temporaryRoot();
+			const stagingRoot = join(root, 'staging');
+			const target = join(root, PROOF_ROOT);
+			let listCall = 0;
+			const fs = publicationFileSystem({
+				pathExists: async (path: string) => path === target,
+				listFiles: async () => {
+					listCall += 1;
+					return listCall === 1 ? expectedProofInventory() : ['drift.png', 'drift.json'];
+				}
+			});
+			await expect(
+				publishMeadowEntryProofInventory({
+					repositoryRoot: root,
+					stagingRoot,
+					token: 'token-f',
+					fileSystem: fs
+				})
+			).rejects.toThrow(/inventory differs/);
+		});
+
+		it('rolls back and reports failure when the target cannot be removed during rollback', async () => {
+			const root = temporaryRoot();
+			const stagingRoot = join(root, 'staging');
+			const target = join(root, PROOF_ROOT);
+			const phases: MeadowEntryProofPublicationPhase[] = [];
+			let listCall = 0;
+			const fs = publicationFileSystem({
+				pathExists: async (path: string) => path === target,
+				listFiles: async () => {
+					listCall += 1;
+					if (listCall <= 2) return [...expectedProofInventory()];
+					return ['drift.png', 'drift.json'];
+				},
+				rm: vi.fn(async (path: string) => {
+					if (path === target) {
+						throw new Error('target-rm-failed');
+					}
+				})
+			});
+			await expect(
+				publishMeadowEntryProofInventory({
+					repositoryRoot: root,
+					stagingRoot,
+					token: 'token-g',
+					fileSystem: fs,
+					onPhase: (phase) => phases.push(phase)
+				})
+			).rejects.toThrow(/rollback failed closed/);
+			expect(phases).toContain('replacement-installed');
+			expect(phases).toContain('rollback-failed');
+		});
+
+		it('rolls back and reports failure when restoring the backup fails', async () => {
+			const root = temporaryRoot();
+			const stagingRoot = join(root, 'staging');
+			const target = join(root, PROOF_ROOT);
+			const phases: MeadowEntryProofPublicationPhase[] = [];
+			let listCall = 0;
+			const fs = publicationFileSystem({
+				pathExists: async (path: string) => path === target,
+				listFiles: async () => {
+					listCall += 1;
+					if (listCall <= 2) return [...expectedProofInventory()];
+					return ['drift.png', 'drift.json'];
+				},
+				rename: vi.fn(async (oldPath: string, newPath: string) => {
+					if (oldPath === `${target}.token-h.rollback` && newPath === target) {
+						throw new Error('backup-restore-failed');
+					}
+				})
+			});
+			await expect(
+				publishMeadowEntryProofInventory({
+					repositoryRoot: root,
+					stagingRoot,
+					token: 'token-h',
+					fileSystem: fs,
+					onPhase: (phase) => phases.push(phase)
+				})
+			).rejects.toThrow(/rollback failed closed/);
+			expect(phases).toContain('rollback-target-removed');
+			expect(phases).toContain('rollback-failed');
+		});
+	});
+
+	describe('readPublishedMeadowEntryProofSnapshot', () => {
+		function snapshotFileSystem(
+			descriptors: readonly MeadowEntryProofDescriptor[] = MEADOW_ENTRY_PROOF_DESCRIPTORS,
+			overrides: Partial<MeadowEntryProofSnapshotFileSystem> = {}
+		): MeadowEntryProofSnapshotFileSystem {
+			return {
+				pathExists: async () => false,
+				listFiles: async () => [...expectedProofInventoryFor(descriptors)],
+				readFile: async () => Buffer.from(''),
+				...overrides
+			};
+		}
+
+		it('throws when the writer sentinel is present on every attempt', async () => {
+			const root = temporaryRoot();
+			const sentinel = join(root, PROOF_SENTINEL);
+			const fs = snapshotFileSystem(undefined, {
+				pathExists: async (path: string) => path === sentinel
+			});
+			await expect(
+				readPublishedMeadowEntryProofSnapshot(root, {
+					attempts: 2,
+					retryDelayMs: 0,
+					fileSystem: fs
+				})
+			).rejects.toThrow(/publication is in progress/);
+		});
+
+		it('throws when the proof inventory does not match', async () => {
+			const root = temporaryRoot();
+			const fs = snapshotFileSystem(undefined, {
+				listFiles: async () => ['drift.png', 'drift.json']
+			});
+			await expect(
+				readPublishedMeadowEntryProofSnapshot(root, {
+					attempts: 1,
+					retryDelayMs: 0,
+					fileSystem: fs
+				})
+			).rejects.toThrow(/inventory differs/);
+		});
+
+		it('throws when a sidecar is invalid JSON', async () => {
+			const root = temporaryRoot();
+			const fs = snapshotFileSystem(undefined, {
+				readFile: async (path: string) => {
+					if (path.endsWith('.json')) return Buffer.from('not-json');
+					return Buffer.from('');
+				}
+			});
+			await expect(
+				readPublishedMeadowEntryProofSnapshot(root, {
+					attempts: 1,
+					retryDelayMs: 0,
+					fileSystem: fs
+				})
+			).rejects.toThrow(/malformed/);
+		});
+
+		it('throws when the sidecar version drifts', async () => {
+			const root = temporaryRoot();
+			const png = await fixtureProofPng();
+			const sidecar = fixtureSidecar(png, { version: 2 });
+			const fs = snapshotFileSystem([fixtureDescriptor], {
+				readFile: async (path: string) => {
+					if (path.endsWith('.json')) return sidecar;
+					return png;
+				}
+			});
+			await expect(
+				readPublishedMeadowEntryProofSnapshot(root, {
+					attempts: 1,
+					retryDelayMs: 0,
+					fileSystem: fs,
+					descriptors: [fixtureDescriptor],
+					expectedInputPaths: () => ['input.bin']
+				})
+			).rejects.toThrow(/does not bind its PNG/);
+		});
+
+		it('throws when the sidecar proofId does not match the descriptor', async () => {
+			const root = temporaryRoot();
+			const png = await fixtureProofPng();
+			const sidecar = fixtureSidecar(png, { proofId: 'wrong/proof' });
+			const fs = snapshotFileSystem([fixtureDescriptor], {
+				readFile: async (path: string) => {
+					if (path.endsWith('.json')) return sidecar;
+					return png;
+				}
+			});
+			await expect(
+				readPublishedMeadowEntryProofSnapshot(root, {
+					attempts: 1,
+					retryDelayMs: 0,
+					fileSystem: fs,
+					descriptors: [fixtureDescriptor],
+					expectedInputPaths: () => ['input.bin']
+				})
+			).rejects.toThrow(/does not bind its PNG/);
+		});
+
+		it('throws when the sidecar is missing required fields', async () => {
+			const root = temporaryRoot();
+			const descriptor = MEADOW_ENTRY_PROOF_DESCRIPTORS[0]!;
+			const fs = snapshotFileSystem([descriptor], {
+				readFile: async (path: string) => {
+					if (path.endsWith('.json')) {
+						const sidecar = JSON.parse(sidecarJson().toString('utf8'));
+						delete sidecar.sha256;
+						return Buffer.from(JSON.stringify(sidecar));
+					}
+					return Buffer.from('');
+				}
+			});
+			await expect(
+				readPublishedMeadowEntryProofSnapshot(root, {
+					attempts: 1,
+					retryDelayMs: 0,
+					fileSystem: fs,
+					descriptors: [descriptor]
+				})
+			).rejects.toThrow(/unexpected fields/);
+		});
+
+		it('throws when the sidecar bytes drift between reads', async () => {
+			const root = temporaryRoot();
+			const png = await fixtureProofPng();
+			const fs = snapshotFileSystem([fixtureDescriptor], {
+				readFile: async (path: string) => {
+					if (path.endsWith('.json')) {
+						return fixtureSidecar(png, { sha256: 'b'.repeat(64) });
+					}
+					return png;
+				}
+			});
+			await expect(
+				readPublishedMeadowEntryProofSnapshot(root, {
+					attempts: 1,
+					retryDelayMs: 0,
+					fileSystem: fs,
+					descriptors: [fixtureDescriptor],
+					expectedInputPaths: () => ['input.bin']
+				})
+			).rejects.toThrow();
+		});
+
+		it('throws when the publication sentinel appears during the read', async () => {
+			const root = temporaryRoot();
+			const sentinel = join(root, PROOF_SENTINEL);
+			const png = await fixtureProofPng();
+			const sidecar = fixtureSidecar(png);
+			let sentinelAppeared = false;
+			const fs = snapshotFileSystem([fixtureDescriptor], {
+				pathExists: async (path: string) => {
+					if (path === sentinel && sentinelAppeared) return true;
+					return false;
+				},
+				readFile: async (path: string) => {
+					if (path.endsWith('.json')) {
+						sentinelAppeared = true;
+						return sidecar;
+					}
+					return png;
+				}
+			});
+			await expect(
+				readPublishedMeadowEntryProofSnapshot(root, {
+					attempts: 1,
+					retryDelayMs: 0,
+					fileSystem: fs,
+					descriptors: [fixtureDescriptor],
+					expectedInputPaths: () => ['input.bin']
+				})
+			).rejects.toThrow();
+		});
+
+		it('rethrows a non-Error thrown value as a generic Error', async () => {
+			const root = temporaryRoot();
+			const fs = snapshotFileSystem(undefined, {
+				listFiles: async () => {
+					throw 'string-error';
+				}
+			});
+			await expect(
+				readPublishedMeadowEntryProofSnapshot(root, {
+					attempts: 1,
+					retryDelayMs: 0,
+					fileSystem: fs
+				})
+			).rejects.toThrow(/unavailable/);
+		});
+
+		it('rejects non-positive attempt counts', async () => {
+			const root = temporaryRoot();
+			await expect(
+				readPublishedMeadowEntryProofSnapshot(root, {
+					attempts: 0,
+					retryDelayMs: 0,
+					fileSystem: snapshotFileSystem()
+				})
+			).rejects.toThrow(/attempts must be positive/);
+		});
+
+		it('rejects negative retry delays', async () => {
+			const root = temporaryRoot();
+			await expect(
+				readPublishedMeadowEntryProofSnapshot(root, {
+					attempts: 1,
+					retryDelayMs: -1,
+					fileSystem: snapshotFileSystem()
+				})
+			).rejects.toThrow(/retry delay must be non-negative/);
 		});
 	});
 });
