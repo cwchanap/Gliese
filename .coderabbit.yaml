@@ -1,0 +1,5 @@
+# CodeRabbit configuration
+# https://docs.coderabbit.ai/configuration/path-instructions
+reviews:
+  path_filters:
+    - '!docs/superpowers/reports/**'
