@@ -1,5 +1,15 @@
 import { createHash } from 'node:crypto';
-import { lstat, mkdir, mkdtemp, readFile, readdir, rename, rm, writeFile } from 'node:fs/promises';
+import {
+	lstat,
+	mkdir,
+	mkdtemp,
+	readFile,
+	readdir,
+	rename,
+	rm,
+	symlink,
+	writeFile
+} from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 
@@ -145,6 +155,23 @@ describe('finalize-meadow-entry-masters CLI', () => {
 		await expect(
 			runFinalizeMeadowEntryMasters(
 				['--plane', 'base', '--output-root', approvedRoot],
+				repositoryRoot,
+				finalizers
+			)
+		).rejects.toThrow(/must not write to the approved package root/i);
+	});
+
+	it('rejects single-plane finalization through a symlink that resolves to the approved package root', async () => {
+		const approvedRoot = join(repositoryRoot, 'artifacts/meadow-entry/hpa-399');
+		const workDir = await temporaryRoot();
+		const aliasRoot = join(workDir, 'approved-alias');
+		await symlink(approvedRoot, aliasRoot, 'dir');
+		const finalizers = {
+			finalizeBase: async () => ({ png: Buffer.from('x'), provenance: fakeProvenance('x') })
+		};
+		await expect(
+			runFinalizeMeadowEntryMasters(
+				['--plane', 'base', '--output-root', aliasRoot],
 				repositoryRoot,
 				finalizers
 			)
