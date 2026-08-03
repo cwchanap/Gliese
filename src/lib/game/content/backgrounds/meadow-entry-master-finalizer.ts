@@ -286,6 +286,11 @@ function assertRefinements(
 			refinements[0]!.beforeMasterSha256 === sha256(preRefinementCandidatePng),
 			`Meadow Entry ${plane} first refinement does not start from the pre-refinement candidate`
 		);
+	} else {
+		assert(
+			preRefinementCandidatePng === undefined,
+			`Meadow Entry ${plane} pre-refinement candidate PNG must not be supplied when there are no refinements`
+		);
 	}
 	assertMeadowEntryRefinementChain(refinements, plane);
 	if (refinements.length > 0) {
