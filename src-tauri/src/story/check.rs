@@ -1,4 +1,4 @@
-use std::collections::{BTreeSet, HashSet};
+use std::collections::{BTreeSet, HashMap, HashSet};
 use std::error::Error;
 use std::fmt;
 use std::fs;
@@ -8,7 +8,7 @@ use super::beat::{parse_beat_markdown, StoryBeat, UnsupportedHook};
 use super::codegen::generate_story_catalog_source;
 use super::compiler::compile_catalog;
 use super::manifest::{parse_manifest, validate_manifest, StoryManifest};
-use super::reference::{ENEMY_IDS, MAP_IDS, NPC_IDS, QUEST_IDS, SHOP_IDS};
+use super::reference::{ENEMY_IDS, MAP_IDS, NPC_IDS, NPC_PLACEMENTS, QUEST_IDS, SHOP_IDS};
 use super::types::StoryCatalog;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -203,6 +203,7 @@ fn check_story_package_sources(
     errors.extend(validate_required_content(&manifest));
 
     let mut beats = Vec::new();
+    let mut beat_source_paths = HashMap::new();
     for (path, expected_id, source) in beat_sources {
         match parse_beat_markdown(&source) {
             Ok(beat) => {
@@ -212,6 +213,7 @@ fn check_story_package_sources(
                         path, beat.id, expected_id
                     ));
                 }
+                beat_source_paths.insert(beat.id.clone(), path);
                 beats.push(beat);
             }
             Err(error) => errors.push(format!("{}: {}", path, error)),
@@ -219,7 +221,7 @@ fn check_story_package_sources(
     }
 
     errors.extend(validate_manifest_beat_references(&manifest, &beats));
-    errors.extend(validate_beat_content_references(&beats));
+    errors.extend(validate_beat_content_references(&beats, &beat_source_paths));
 
     if !errors.is_empty() {
         return Err(StoryCheckError::new(format_errors(
@@ -330,22 +332,42 @@ fn validate_manifest_beat_references(manifest: &StoryManifest, beats: &[StoryBea
     errors
 }
 
-fn validate_beat_content_references(beats: &[StoryBeat]) -> Vec<String> {
+fn validate_beat_content_references(
+    beats: &[StoryBeat],
+    source_paths: &HashMap<String, String>,
+) -> Vec<String> {
     let maps = MAP_IDS.iter().copied().collect::<HashSet<_>>();
     let npcs = NPC_IDS.iter().copied().collect::<HashSet<_>>();
+    let placements = NPC_PLACEMENTS.iter().copied().collect::<HashSet<_>>();
     let mut errors = Vec::new();
 
     for beat in beats {
-        if !maps.contains(beat.map_id.as_str()) {
+        let map_known = maps.contains(beat.map_id.as_str());
+        let primary_npc_known = npcs.contains(beat.primary_npc_id.as_str());
+
+        if !map_known {
             errors.push(format!(
                 "beat {} references unknown map {}",
                 beat.id, beat.map_id
             ));
         }
-        if !npcs.contains(beat.primary_npc_id.as_str()) {
+        if !primary_npc_known {
             errors.push(format!(
                 "beat {} references unknown primaryNpc {}",
                 beat.id, beat.primary_npc_id
+            ));
+        }
+        if map_known
+            && primary_npc_known
+            && !placements.contains(&(beat.map_id.as_str(), beat.primary_npc_id.as_str()))
+        {
+            let source_prefix = source_paths
+                .get(&beat.id)
+                .map(|path| format!("{}: ", path))
+                .unwrap_or_default();
+            errors.push(format!(
+                "{}beat {} primaryNpc {} is not placed on map {}",
+                source_prefix, beat.id, beat.primary_npc_id, beat.map_id
             ));
         }
         for dialogue in &beat.dialogues {
@@ -568,6 +590,62 @@ primaryNpc: guild-master
         .unwrap_err();
 
         assert!(error.to_string().contains("does not match manifest id"));
+    }
+
+    #[test]
+    fn rejects_primary_npc_not_placed_on_declared_map() {
+        let manifest_source = r#"
+id: sundrop-ruins
+title: Sundrop Ruins
+entryBeat: prologue.guild-master
+defaultLocale: en
+chapters:
+  - id: prologue
+    title: Prologue
+    beats:
+      - id: prologue.guild-master
+        file: beats/prologue/guild-master.md
+requiredContent:
+  maps: [item-shop]
+  npcs: [guild-master]
+"#
+        .to_string();
+        let beat_source = r#"# Guild Master
+
+::: story
+id: prologue.guild-master
+chapter: prologue
+map: item-shop
+primaryNpc: guild-master
+:::
+
+::: dialogue
+npc: guild-master
+branch: always
+speaker: Guild Master Arlen
+choices: quest
+:::
+
+Take this work.
+"#
+        .to_string();
+
+        let error = check_story_package_sources(
+            CheckMode::Draft,
+            manifest_source,
+            vec![(
+                "beats/prologue/guild-master.md".to_string(),
+                "prologue.guild-master".to_string(),
+                beat_source,
+            )],
+        )
+        .unwrap_err()
+        .to_string();
+
+        assert!(error.contains("beats/prologue/guild-master.md"));
+        assert!(error.contains("beat prologue.guild-master"));
+        assert!(error.contains("primaryNpc guild-master"));
+        assert!(error.contains("not placed on map item-shop"));
     }
 
     #[test]
