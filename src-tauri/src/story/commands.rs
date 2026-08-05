@@ -46,14 +46,18 @@ pub fn get_npc_dialogue_from_catalog(
         return Err(format!("unsupported story locale: {}", request.locale));
     }
 
-    // Task 7 carries map_id as caller context only; NPC placement is enforced later.
-    let _map_id = &request.map_id;
-
     let dialogue = catalog
         .npc_dialogues
         .iter()
         .find(|dialogue| dialogue.npc_id == request.npc_id)
         .ok_or_else(|| format!("unknown story npc: {}", request.npc_id))?;
+
+    if dialogue.map_id != request.map_id {
+        return Err(format!(
+            "story npc {} is not available on map {}",
+            request.npc_id, request.map_id
+        ));
+    }
 
     let (condition, branch) = branch_priority()
         .iter()
@@ -168,18 +172,37 @@ mod tests {
     }
 
     #[test]
-    fn treats_map_id_as_context_only_for_now() {
-        let response = get_npc_dialogue_from_catalog(
+    fn rejects_story_npc_requested_from_the_wrong_map() {
+        let error = get_npc_dialogue_from_catalog(
             &crate::story::generated::story_catalog(),
             StoryDialogueRequest {
                 map_id: "meadow-entry".to_string(),
                 ..request_for_guild_master(no_quest_flags())
             },
         )
-        .expect("dialogue");
+        .expect_err("wrong-map request should fail");
 
-        assert_eq!(response.speaker, "Guild Master Arlen");
-        assert_eq!(response.session_id, "npc:guild-master:always");
+        assert_eq!(
+            error,
+            "story npc guild-master is not available on map meadow-entry"
+        );
+    }
+
+    #[test]
+    fn selects_shopkeeper_mira_on_item_shop_map() {
+        let response = get_npc_dialogue_from_catalog(
+            &crate::story::generated::story_catalog(),
+            StoryDialogueRequest {
+                npc_id: "shopkeeper-mira".to_string(),
+                map_id: "item-shop".to_string(),
+                locale: "en".to_string(),
+                quest: no_quest_flags(),
+            },
+        )
+        .expect("Mira dialogue");
+
+        assert_eq!(response.speaker, "Mira");
+        assert_eq!(response.session_id, "npc:shopkeeper-mira:always");
     }
 
     #[test]
