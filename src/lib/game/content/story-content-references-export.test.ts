@@ -75,6 +75,20 @@ describe('story content reference generation', () => {
 		).toThrow(/duplicate npc placement guild-hall\/guild-master/);
 	});
 
+	it('rejects a dialogue id placed on multiple maps', () => {
+		expect(() =>
+			normalizeStoryContentReferences({
+				...FIXTURE,
+				npcPlacements: [
+					['guild-hall', 'guild-master'],
+					['meadow-entry', 'guild-master']
+				]
+			})
+		).toThrow(
+			/npc guild-master is placed on multiple maps .* the runtime model requires exactly one map per npc/
+		);
+	});
+
 	it('checks exact bytes without writing missing or stale output', () => {
 		const root = mkdtempSync(join(tmpdir(), 'gliese-story-references-'));
 		temporaryRoots.push(root);

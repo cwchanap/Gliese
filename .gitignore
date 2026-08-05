@@ -43,3 +43,5 @@ artifacts/meadow-entry/hpa-399/work/
 src-tauri/target/
 src-tauri/gen/
 dist/
+.husky/_/
+
