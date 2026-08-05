@@ -32,6 +32,8 @@ fn push_npc_dialogue(source: &mut String, dialogue: &NpcStoryDialogue, indent: u
     push_indent(source, indent);
     source.push_str("NpcStoryDialogue {\n");
     push_string_field(source, indent + 4, "npc_id", &dialogue.npc_id);
+    push_string_field(source, indent + 4, "beat_id", &dialogue.beat_id);
+    push_string_field(source, indent + 4, "map_id", &dialogue.map_id);
     push_indent(source, indent + 4);
     source.push_str("branches: vec![\n");
 
@@ -184,6 +186,8 @@ mod tests {
             default_locale: "en".to_string(),
             npc_dialogues: vec![NpcStoryDialogue {
                 npc_id: "guild-master".to_string(),
+                beat_id: "prologue.guild-master".to_string(),
+                map_id: "guild-hall".to_string(),
                 branches: vec![StoryDialogueBranch {
                     condition: StoryBranchCondition::Always,
                     speaker: "Guild Master".to_string(),
@@ -217,6 +221,8 @@ mod tests {
         assert!(source.contains("giver_npc_id: \"guild-master\".to_string(),"));
         assert!(source.contains("shop_id: \"guild-quartermaster\".to_string(),"));
         assert!(source.contains("npc_id: \"guild-master\".to_string(),"));
+        assert!(source.contains("beat_id: \"prologue.guild-master\".to_string(),"));
+        assert!(source.contains("map_id: \"guild-hall\".to_string(),"));
         assert!(!source.contains("giverNpcId"));
         assert!(!source.contains("shopId"));
         assert!(!source.contains("npcId"));

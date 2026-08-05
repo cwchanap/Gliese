@@ -12,6 +12,8 @@ pub fn story_catalog() -> StoryCatalog {
         npc_dialogues: vec![
             NpcStoryDialogue {
                 npc_id: "guild-master".to_string(),
+                beat_id: "prologue.guild-master".to_string(),
+                map_id: "guild-hall".to_string(),
                 branches: vec![
                     StoryDialogueBranch {
                         condition: StoryBranchCondition::MainQuestNeedsGuildBriefing,
@@ -106,6 +108,8 @@ pub fn story_catalog() -> StoryCatalog {
             },
             NpcStoryDialogue {
                 npc_id: "guild-quartermaster".to_string(),
+                beat_id: "prologue.guild-quartermaster".to_string(),
+                map_id: "guild-hall".to_string(),
                 branches: vec![
                     StoryDialogueBranch {
                         condition: StoryBranchCondition::GuildBriefingComplete,
@@ -145,6 +149,8 @@ pub fn story_catalog() -> StoryCatalog {
             },
             NpcStoryDialogue {
                 npc_id: "shopkeeper-mira".to_string(),
+                beat_id: "prologue.shopkeeper-mira".to_string(),
+                map_id: "item-shop".to_string(),
                 branches: vec![
                     StoryDialogueBranch {
                         condition: StoryBranchCondition::GuildBriefingComplete,
@@ -184,6 +190,8 @@ pub fn story_catalog() -> StoryCatalog {
             },
             NpcStoryDialogue {
                 npc_id: "villager-io".to_string(),
+                beat_id: "prologue.villager-io".to_string(),
+                map_id: "villager-house-3".to_string(),
                 branches: vec![
                     StoryDialogueBranch {
                         condition: StoryBranchCondition::Always,
@@ -204,6 +212,8 @@ pub fn story_catalog() -> StoryCatalog {
             },
             NpcStoryDialogue {
                 npc_id: "villager-lynn".to_string(),
+                beat_id: "prologue.villager-lynn".to_string(),
+                map_id: "villager-house-1".to_string(),
                 branches: vec![
                     StoryDialogueBranch {
                         condition: StoryBranchCondition::Always,
@@ -224,6 +234,8 @@ pub fn story_catalog() -> StoryCatalog {
             },
             NpcStoryDialogue {
                 npc_id: "villager-toma".to_string(),
+                beat_id: "prologue.villager-toma".to_string(),
+                map_id: "villager-house-2".to_string(),
                 branches: vec![
                     StoryDialogueBranch {
                         condition: StoryBranchCondition::Always,
