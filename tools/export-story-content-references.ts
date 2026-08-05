@@ -49,6 +49,16 @@ export function normalizeStoryContentReferences(
 			throw new Error(`duplicate npc placement ${mapId}/${dialogueId}`);
 		}
 	}
+	const dialogueIds = npcPlacements.map(([, dialogueId]) => dialogueId).sort();
+	for (let index = 1; index < dialogueIds.length; index += 1) {
+		if (dialogueIds[index] === dialogueIds[index - 1]) {
+			const dialogueId = dialogueIds[index]!;
+			const maps = npcPlacements.filter(([, id]) => id === dialogueId).map(([mapId]) => mapId);
+			throw new Error(
+				`npc ${dialogueId} is placed on multiple maps (${maps.join(', ')}); the runtime model requires exactly one map per npc`
+			);
+		}
+	}
 	return {
 		mapIds: sortedUnique('map id', input.mapIds),
 		npcIds: sortedUnique('npc id', input.npcIds),

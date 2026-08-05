@@ -371,10 +371,24 @@ fn validate_beat_content_references(
             ));
         }
         for dialogue in &beat.dialogues {
-            if !npcs.contains(dialogue.npc_id.as_str()) {
+            let dialogue_npc_known = npcs.contains(dialogue.npc_id.as_str());
+            if !dialogue_npc_known {
                 errors.push(format!(
                     "beat {} dialogue references unknown npc {}",
                     beat.id, dialogue.npc_id
+                ));
+            }
+            if map_known
+                && dialogue_npc_known
+                && !placements.contains(&(beat.map_id.as_str(), dialogue.npc_id.as_str()))
+            {
+                let source_prefix = source_paths
+                    .get(&beat.id)
+                    .map(|path| format!("{}: ", path))
+                    .unwrap_or_default();
+                errors.push(format!(
+                    "{}beat {} dialogue npc {} is not placed on map {}",
+                    source_prefix, beat.id, dialogue.npc_id, beat.map_id
                 ));
             }
         }
@@ -646,6 +660,71 @@ Take this work.
         assert!(error.contains("beat prologue.guild-master"));
         assert!(error.contains("primaryNpc guild-master"));
         assert!(error.contains("not placed on map item-shop"));
+    }
+
+    #[test]
+    fn rejects_secondary_dialogue_npc_not_placed_on_beat_map() {
+        let manifest_source = r#"
+id: sundrop-ruins
+title: Sundrop Ruins
+entryBeat: prologue.guild-master
+defaultLocale: en
+chapters:
+  - id: prologue
+    title: Prologue
+    beats:
+      - id: prologue.guild-master
+        file: beats/prologue/guild-master.md
+requiredContent:
+  maps: [guild-hall, item-shop]
+  npcs: [guild-master, shopkeeper-mira]
+"#
+        .to_string();
+        let beat_source = r#"# Guild Master
+
+::: story
+id: prologue.guild-master
+chapter: prologue
+map: guild-hall
+primaryNpc: guild-master
+:::
+
+::: dialogue
+npc: guild-master
+branch: always
+speaker: Guild Master Arlen
+choices: quest
+:::
+
+Take this work.
+
+::: dialogue
+npc: shopkeeper-mira
+branch: always
+speaker: Mira
+choices: close
+:::
+
+I stopped by.
+"#
+        .to_string();
+
+        let error = check_story_package_sources(
+            CheckMode::Draft,
+            manifest_source,
+            vec![(
+                "beats/prologue/guild-master.md".to_string(),
+                "prologue.guild-master".to_string(),
+                beat_source,
+            )],
+        )
+        .unwrap_err()
+        .to_string();
+
+        assert!(error.contains("beats/prologue/guild-master.md"));
+        assert!(error.contains("beat prologue.guild-master"));
+        assert!(error.contains("dialogue npc shopkeeper-mira"));
+        assert!(error.contains("not placed on map guild-hall"));
     }
 
     #[test]
