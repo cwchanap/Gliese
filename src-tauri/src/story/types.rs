@@ -12,6 +12,8 @@ pub struct StoryCatalog {
 #[serde(rename_all = "camelCase")]
 pub struct NpcStoryDialogue {
     pub npc_id: String,
+    pub beat_id: String,
+    pub map_id: String,
     pub branches: Vec<StoryDialogueBranch>,
 }
 
@@ -76,6 +78,8 @@ mod tests {
             default_locale: "en".to_string(),
             npc_dialogues: vec![NpcStoryDialogue {
                 npc_id: "guild-master".to_string(),
+                beat_id: "prologue.guild-master".to_string(),
+                map_id: "guild-hall".to_string(),
                 branches: vec![StoryDialogueBranch {
                     condition: StoryBranchCondition::MainQuestNeedsGuildBriefing,
                     speaker: "Guild Master".to_string(),
@@ -99,6 +103,8 @@ mod tests {
         assert_eq!(value["packageId"], "gliese-core");
         assert_eq!(value["defaultLocale"], "en");
         assert_eq!(value["npcDialogues"][0]["npcId"], "guild-master");
+        assert_eq!(value["npcDialogues"][0]["beatId"], "prologue.guild-master");
+        assert_eq!(value["npcDialogues"][0]["mapId"], "guild-hall");
         assert_eq!(
             value["npcDialogues"][0]["branches"][0]["condition"],
             "mainQuestNeedsGuildBriefing"

@@ -1,4 +1,4 @@
-use std::collections::BTreeMap;
+use std::collections::{btree_map::Entry, BTreeMap};
 
 use super::beat::{BeatDialogue, StoryBeat};
 use super::reference::{NPC_IDS, SHOP_IDS};
@@ -7,20 +7,45 @@ use super::types::{
     StoryIntent,
 };
 
+struct NpcDialogueAccumulator {
+    beat_id: String,
+    map_id: String,
+    branches: Vec<StoryDialogueBranch>,
+}
+
 pub fn compile_catalog(
     package_id: &str,
     default_locale: &str,
     beats: &[StoryBeat],
 ) -> Result<StoryCatalog, String> {
-    let mut dialogues_by_npc: BTreeMap<String, Vec<StoryDialogueBranch>> = BTreeMap::new();
+    let mut dialogues_by_npc: BTreeMap<String, NpcDialogueAccumulator> = BTreeMap::new();
 
     for beat in beats {
         for dialogue in &beat.dialogues {
             let branch = compile_dialogue(dialogue)?;
-            dialogues_by_npc
-                .entry(dialogue.npc_id.clone())
-                .or_default()
-                .push(branch);
+            match dialogues_by_npc.entry(dialogue.npc_id.clone()) {
+                Entry::Vacant(entry) => {
+                    entry.insert(NpcDialogueAccumulator {
+                        beat_id: beat.id.clone(),
+                        map_id: beat.map_id.clone(),
+                        branches: vec![branch],
+                    });
+                }
+                Entry::Occupied(mut entry) => {
+                    let existing = entry.get_mut();
+                    if existing.beat_id != beat.id || existing.map_id != beat.map_id {
+                        return Err(format!(
+                            "story npc {} appears in multiple beats or maps: {}@{} and {}@{}; multi-beat or multi-map NPC dialogue requires a separate runtime model",
+                            dialogue.npc_id,
+                            existing.beat_id,
+                            existing.map_id,
+                            beat.id,
+                            beat.map_id
+                        ));
+                    }
+                    existing.branches.push(branch);
+                }
+            }
         }
     }
 
@@ -29,7 +54,12 @@ pub fn compile_catalog(
         default_locale: default_locale.to_string(),
         npc_dialogues: dialogues_by_npc
             .into_iter()
-            .map(|(npc_id, branches)| NpcStoryDialogue { npc_id, branches })
+            .map(|(npc_id, dialogue)| NpcStoryDialogue {
+                npc_id,
+                beat_id: dialogue.beat_id,
+                map_id: dialogue.map_id,
+                branches: dialogue.branches,
+            })
             .collect(),
     })
 }
@@ -179,6 +209,8 @@ You made it.
             .unwrap();
         let branch = &guild.branches[0];
 
+        assert_eq!(guild.beat_id, "prologue.guild-master");
+        assert_eq!(guild.map_id, "guild-hall");
         assert_eq!(
             branch.condition,
             StoryBranchCondition::MainQuestNeedsGuildBriefing
@@ -197,6 +229,58 @@ You made it.
                 npc_id: "guild-master".to_string()
             })
         );
+    }
+
+    #[test]
+    fn rejects_one_npc_across_multiple_beats_or_maps() {
+        let first = crate::story::beat::parse_beat_markdown(
+            r#"# First
+
+::: story
+id: prologue.guild-master
+chapter: prologue
+map: guild-hall
+primaryNpc: guild-master
+:::
+
+::: dialogue
+npc: guild-master
+branch: always
+speaker: Guild Master Arlen
+choices: quest
+:::
+
+First.
+"#,
+        )
+        .unwrap();
+        let second = crate::story::beat::parse_beat_markdown(
+            r#"# Second
+
+::: story
+id: prologue.guild-master-followup
+chapter: prologue
+map: item-shop
+primaryNpc: guild-master
+:::
+
+::: dialogue
+npc: guild-master
+branch: guildBriefingComplete
+speaker: Guild Master Arlen
+choices: quest
+:::
+
+Second.
+"#,
+        )
+        .unwrap();
+
+        let error = compile_catalog("sundrop-ruins", "en", &[first, second]).unwrap_err();
+        assert!(error.contains("guild-master"));
+        assert!(error.contains("prologue.guild-master@guild-hall"));
+        assert!(error.contains("prologue.guild-master-followup@item-shop"));
+        assert!(error.contains("separate runtime model"));
     }
 
     #[test]
@@ -361,6 +445,27 @@ choices: quest
 First briefing.
 
 ::: dialogue
+npc: guild-master
+branch: guildBriefingComplete
+speaker: Guild Master Arlen
+choices: quest
+:::
+
+Second briefing.
+"#,
+        )
+        .unwrap();
+        let shopkeeper_mira = crate::story::beat::parse_beat_markdown(
+            r#"# Shopkeeper Mira
+
+::: story
+id: prologue.shopkeeper-mira
+chapter: prologue
+map: item-shop
+primaryNpc: shopkeeper-mira
+:::
+
+::: dialogue
 npc: shopkeeper-mira
 branch: always
 speaker: Mira
@@ -372,29 +477,8 @@ Fresh stock.
 "#,
         )
         .unwrap();
-        let guild_followup = crate::story::beat::parse_beat_markdown(
-            r#"# Guild Followup
 
-::: story
-id: prologue.guild-followup
-chapter: prologue
-map: guild-hall
-primaryNpc: guild-master
-:::
-
-::: dialogue
-npc: guild-master
-branch: guildBriefingComplete
-speaker: Guild Master Arlen
-choices: quest
-:::
-
-Second briefing.
-"#,
-        )
-        .unwrap();
-
-        let catalog = compile_catalog("sundrop-ruins", "en", &[guild_master, guild_followup])
+        let catalog = compile_catalog("sundrop-ruins", "en", &[guild_master, shopkeeper_mira])
             .expect("compile");
 
         assert_eq!(catalog.npc_dialogues[0].npc_id, "guild-master");
