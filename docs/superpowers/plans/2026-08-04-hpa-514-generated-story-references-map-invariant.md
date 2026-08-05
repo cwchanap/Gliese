@@ -102,7 +102,7 @@ pub const NPC_PLACEMENTS: &[(&str, &str)];
 Create `src/lib/game/content/story-content-references-export.test.ts`:
 
 ```ts
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
@@ -145,6 +145,7 @@ describe('story content reference generation', () => {
 		);
 		expect(source).toContain('pub const NPC_PLACEMENTS: &[(&str, &str)] = &[');
 		expect(source.endsWith('\n')).toBe(true);
+		expect(source.endsWith('\n\n')).toBe(false);
 		expect(renderStoryContentReferences(FIXTURE)).toBe(source);
 	});
 
@@ -318,16 +319,23 @@ it('publishes complete output and passes exact-byte check mode', () => {
 	expect(() => syncGeneratedStoryContentReferences(source, destination, true)).not.toThrow();
 });
 
-it('does not replace an existing destination when validation fails', () => {
+it('does not replace an existing destination when publication fails', () => {
 	const root = mkdtempSync(join(tmpdir(), 'gliese-story-references-'));
 	temporaryRoots.push(root);
 	const destination = join(root, 'reference.rs');
-	writeFileSync(destination, 'previous\n');
+	// Make the destination an existing non-empty directory so renameSync fails
+	// with ENOTEMPTY after the temporary file has been written but before the
+	// destination is replaced.
+	mkdirSync(destination);
+	writeFileSync(join(destination, 'marker'), 'previous\n');
+	const source = renderStoryContentReferences(FIXTURE);
 
-	expect(() =>
-		renderStoryContentReferences({ ...FIXTURE, enemyIds: ['same', 'same'] })
-	).toThrow(/duplicate enemy id same/);
-	expect(readFileSync(destination, 'utf8')).toBe('previous\n');
+	expect(() => syncGeneratedStoryContentReferences(source, destination, false)).toThrow();
+
+	// Original destination content is preserved.
+	expect(readFileSync(join(destination, 'marker'), 'utf8')).toBe('previous\n');
+	// The temporary file is cleaned up: no `.tmp` siblings remain under root.
+	expect(readdirSync(root).filter((name) => name.endsWith('.tmp'))).toEqual([]);
 });
 
 it('collects the current authoritative registries', () => {
