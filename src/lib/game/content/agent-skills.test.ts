@@ -21,6 +21,66 @@ function expectSymlinkTo(linkPath: string, targetPath: string): void {
 	expect(realpathSync(absoluteLink)).toBe(realpathSync(absoluteTarget));
 }
 
+interface SkillFrontmatter {
+	name: string;
+	description: string;
+}
+
+const worldExpansionMarkdownFiles = [
+	'.agents/skills/gliese-world-expansion/SKILL.md',
+	'.agents/skills/gliese-world-expansion/references/authoring.md',
+	'.agents/skills/gliese-world-expansion/references/validation.md',
+	'.agents/skills/gliese-world-expansion/templates/expansion-brief.md'
+] as const;
+
+function readSkillFrontmatter(skillPath: string): SkillFrontmatter {
+	const markdown = readRepositoryFile(skillPath);
+	const match = /^---\n([\s\S]*?)\n---(?:\n|$)/.exec(markdown);
+	expect(match, `${skillPath} frontmatter`).not.toBeNull();
+
+	const entries = new Map<string, string>();
+	for (const line of match![1].split('\n')) {
+		const separator = line.indexOf(':');
+		if (separator === -1) continue;
+		entries.set(line.slice(0, separator).trim(), line.slice(separator + 1).trim());
+	}
+
+	return {
+		name: entries.get('name') ?? '',
+		description: entries.get('description') ?? ''
+	};
+}
+
+function worldExpansionMarkdown(): string {
+	return worldExpansionMarkdownFiles.map(readRepositoryFile).join('\n');
+}
+
+function referencedRepositoryPaths(markdown: string): string[] {
+	const codeFragments = [
+		...[...markdown.matchAll(/`([^`\n]+)`/g)].map((match) => match[1]),
+		...[...markdown.matchAll(/```(?:[a-z]+)?\n([\s\S]*?)\n```/g)].flatMap((match) =>
+			match[1].split('\n')
+		)
+	];
+	const pathPattern =
+		/(?:^|[\s('"=])((?:src|story|tools|public|\.agents|\.claude)\/[A-Za-z0-9_.\-/]+)/g;
+	const paths = new Set<string>();
+
+	for (const fragment of codeFragments) {
+		for (const match of fragment.matchAll(pathPattern)) {
+			paths.add(match[1]);
+		}
+	}
+
+	return [...paths].sort();
+}
+
+function referencedPackageScripts(markdown: string): string[] {
+	return [
+		...new Set([...markdown.matchAll(/\bbun run ([a-z0-9:_-]+)/g)].map((match) => match[1]))
+	].sort();
+}
+
 describe('project agent skills', () => {
 	it('keeps 2d-game-asset-workflow in one canonical cross-agent directory', () => {
 		const canonicalRoot = '.agents/skills/2d-game-asset-workflow';
@@ -44,5 +104,39 @@ describe('project agent skills', () => {
 		expect(skill).toContain('.agents/skills/2d-game-asset-workflow/scripts/inspect_png_alpha.py');
 		expect(skill).not.toContain('SvelteKit');
 		expect(skill).not.toContain('static/game/assets/');
+	});
+
+	it('defines the lean gliese-world-expansion skill contract', () => {
+		const canonicalRoot = '.agents/skills/gliese-world-expansion';
+
+		for (const path of worldExpansionMarkdownFiles) {
+			expect(existsSync(repositoryPath(path)), path).toBe(true);
+		}
+
+		const frontmatter = readSkillFrontmatter(`${canonicalRoot}/SKILL.md`);
+		expect(frontmatter.name).toBe('gliese-world-expansion');
+		expect(frontmatter.description.startsWith('Use when ')).toBe(true);
+		expect(frontmatter.description.length).toBeLessThanOrEqual(500);
+		expectSymlinkTo('.claude/skills/gliese-world-expansion', canonicalRoot);
+	});
+
+	it('keeps world-expansion repository paths and bun scripts resolvable', () => {
+		const markdown = worldExpansionMarkdown();
+		const referencedPaths = referencedRepositoryPaths(markdown);
+		const referencedScripts = referencedPackageScripts(markdown);
+		const packageJson = JSON.parse(readRepositoryFile('package.json')) as {
+			scripts?: Record<string, string>;
+		};
+
+		expect(referencedPaths.length).toBeGreaterThan(0);
+		expect(referencedScripts.length).toBeGreaterThan(0);
+
+		for (const path of referencedPaths) {
+			expect(existsSync(repositoryPath(path)), path).toBe(true);
+		}
+
+		for (const script of referencedScripts) {
+			expect(packageJson.scripts?.[script], `package.json script: ${script}`).toBeTypeOf('string');
+		}
 	});
 });
