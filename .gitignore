@@ -45,3 +45,6 @@ src-tauri/gen/
 dist/
 .husky/_/
 
+# Python cache
+__pycache__/
+
