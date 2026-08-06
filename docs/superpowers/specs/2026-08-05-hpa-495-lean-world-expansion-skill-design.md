@@ -1,137 +1,200 @@
 # HPA-495 Lean Gliese World Expansion Skill Design
 
-**Status:** Revised after path-level repository review; ready for implementation planning  
+**Status:** Revised after source-routing review; ready for final design review  
 **Linear:** HPA-495  
 **Repository:** `cwchanap/Gliese`  
 **Date:** 2026-08-05
 
 ## 1. Purpose
 
-Future Gliese content expansion is a first-class project goal. The repository should contain a practical agent skill that helps an agent turn story intent into playable regions, dungeons, settlements, interiors, NPC and encounter content, and integrated environment work without rediscovering repository-specific rules.
+Future Gliese content expansion is a first-class project goal. The repository should contain one practical agent skill that helps an agent turn story intent into playable maps and content without rediscovering repository-specific authoring sources, ownership boundaries, commands, and adjacent skills.
 
-The chosen V1 is one skill:
+The V1 entry point is:
 
 ```text
 .agents/skills/gliese-world-expansion/
 ```
 
-It uses one short Markdown Expansion Brief and four focused reference pages. It is intentionally not a workflow platform, packet database, story-integration system, or suite of specialist skills.
+It uses one short Markdown Expansion Brief and two focused references. It is not a workflow platform, packet database, story-integration system, or suite of specialist skills.
 
 The governing boundary is:
 
 ```text
-The skill decides, routes, and guides.
+The skill classifies, routes, and guides.
 Repository sources and tools remain authoritative.
 ```
 
-The skill is valuable only when it names the correct repository paths, commands, and adjacent skill owners. General principles that merely restate `CLAUDE.md` are insufficient.
+## 2. Chosen scope
 
-## 2. Why this design
+V1 deliberately keeps:
 
-Three alternatives were considered.
+- one skill;
+- one short Markdown brief template;
+- explicit non-invocation for story-only, placement-only, asset-only, and frozen-integration work;
+- source-level routing for the current map authoring patterns;
+- story and art handoffs;
+- collision/live/baked ownership;
+- focused commands and one controller walkthrough;
+- real refinement through HPA-406, HPA-400, and HPA-414 Batch 1.
 
-### 2.1 No reusable skill
+V1 deliberately excludes:
 
-This minimizes immediate work but fails an explicit project goal: future content expansion should become easier and more consistent for agents. It also leaves repository-specific rules scattered across code, old plans, and operator knowledge.
+- a three-skill suite;
+- YAML Area Expansion Packets or packet databases;
+- seven recorded gates or an approval workflow;
+- a Story Integration Catalog, story fingerprint, or stale-consumer protocol;
+- an LLM judge or synthetic scenario corpus;
+- a generic map-art package lifecycle for maps that do not have one;
+- a new interior compiler or `LayeredInteriorSource`;
+- a documentation dashboard, status database, or evidence tree.
 
-### 2.2 Three specialist skills plus a structured packet workflow
+## 3. Verified repository routing
 
-The previous design proposed:
+All current map authoring patterns converge on `WorldMapDefinition`, but they start from three different source locations. The skill must route by **where the content is authored**, not by whether the space is called an interior, region, settlement, or dungeon.
 
-- `gliese-world-expansion`;
-- `gliese-layered-map-designer`;
-- `gliese-environment-art-producer`;
-- a structured Area Expansion Packet;
-- seven recorded workflow gates;
-- packet validation and a broader scenario/evidence program.
+### 3.1 Direct `WorldMapDefinition` literals
 
-That design addressed real concerns but generalized too early. The repository currently has one bespoke Meadow Entry art package and no repeated evidence that three separately routed skills or a packet platform are needed.
-
-### 2.3 One orchestrating skill with references — chosen
-
-One skill gives future agents a stable entry point while keeping V1 small. Reference pages hold concrete outdoor, interior, story/content, art-handoff, and validation navigation without becoming independent routing surfaces.
-
-A specialist skill should be extracted later only when repeated real deliveries show that one reference is independently invoked, large, and error-prone.
-
-## 3. Repository facts that shape V1
-
-### 3.1 Story ownership
-
-Story prose and beat metadata live under:
+Use for current interiors and large hand-authored maps such as the ruins:
 
 ```text
-story/manifest.yaml
-story/beats/**/*.md
+src/lib/game/content/maps.ts
+src/lib/game/content/maps/types.ts
 ```
 
-`gliese-story-writer` remains the only story-authoring skill. `gliese-world-expansion` may identify that a story change is needed, but it must invoke or hand off to `gliese-story-writer` instead of duplicating its format and compiler guidance.
+Examples include:
 
-HPA-514 provides generated content references and map-local dialogue validation through:
+- `heroHouseMap`;
+- `guildHallMap`;
+- `itemShopMap`;
+- `ruinsThresholdMap`;
+- `ruinsCoreMap`.
+
+Interiors and ruins differ in scale and fields used, but not in authoring location or final source shape. Start from the closest existing direct map and extend `WorldMapDefinition` in place.
+
+Do not add an interior compiler, room-graph engine, or dungeon framework until repeated completed maps expose the same concrete defect.
+
+### 3.2 Hand-authored `RegionFragment` composition — default Meadow Entry pattern
+
+Five destination regions and shared paths are hand-authored `RegionFragment` objects:
 
 ```text
-tools/export-story-content-references.ts
-bun run story:check
-bun run story:check:strict
+src/lib/game/content/maps/regions/crossroads.ts
+src/lib/game/content/maps/regions/coast.ts
+src/lib/game/content/maps/regions/mistfen.ts
+src/lib/game/content/maps/regions/silverpine.ts
+src/lib/game/content/maps/regions/wildwood.ts
+src/lib/game/content/maps/regions/paths.ts
+src/lib/game/content/maps/regions/types.ts
 ```
 
-It does not provide a Story Integration Catalog, story-to-world fingerprint, requirement taxonomy, or automatic expansion packet.
+They are registered and composed through:
 
-### 3.2 Three current map authoring patterns
+```text
+src/lib/game/content/maps/meadow-entry.ts
+mergeRegions(...)
+```
 
-All three patterns converge on `WorldMapDefinition`, but agents must start from the correct authoring source.
+This is the default starting pattern for a new Meadow Entry region or connector unless a demonstrated requirement needs tile-level layered authoring.
 
-| Content kind | Current authoring source | V1 routing |
-|---|---|---|
-| Village and multi-zone interiors | Direct `WorldMapDefinition` objects in `src/lib/game/content/maps.ts`, using NPCs, transitions, `interiorProps`, ambient NPCs, shops, collision, and optional backgrounds | Read `interiors.md`; extend the current model in place |
-| Meadow Entry outdoor regions and settlements | `src/lib/game/content/maps/meadow-entry.ts`, `src/lib/game/content/maps/regions/*`, and layered sources compiled through `src/lib/game/content/maps/layered/compile-layered-region.ts` | Read `outdoor-areas.md`; edit the owning source, never a generated or compiled output |
-| Ruins-style dungeons and large one-off maps | Direct large `WorldMapDefinition` objects such as `ruinsThresholdMap` and `ruinsCoreMap` in `src/lib/game/content/maps.ts`, using ground patches, blockers, encounters, pickups, and transitions | Read the thin dungeon/hand-authored-map section in `outdoor-areas.md`; copy the current pattern until a second dungeon proves a helper is needed |
+A new fragment is not active merely because its file exists. It must be imported and included in `mergeRegions(...)`, and its IDs must remain unique across composed fields.
 
-V1 does not invent a fourth authoring model or a `LayeredInteriorSource`. HPA-400 must first prove any missing interior capability through the Guild Hall.
+### 3.3 Layered source plus compiler — village-specific pattern
 
-### 3.3 Background and collision ownership
+Only Sundrop Village currently uses the layered compiler:
 
-Current runtime truth remains in:
+```text
+src/lib/game/content/maps/regions/village-layered.ts
+src/lib/game/content/maps/layered/types.ts
+src/lib/game/content/maps/layered/compile-layered-region.ts
+src/lib/game/content/maps/regions/village.ts
+```
+
+The owning authoring source is `village-layered.ts`. `village.ts` is the thin compilation/background wrapper.
+
+Use this pattern when editing the existing village or when a future real delivery proves that tile-level layered control is worth its larger declaration surface. Do not route a normal new region into the layered compiler by default.
+
+### 3.4 Background and gameplay ownership
+
+Current contracts live in:
 
 ```text
 src/lib/game/content/maps/types.ts
 src/lib/game/content/maps/background-ownership.ts
 ```
 
-HPA-398 established that:
+The skill must preserve these rules:
 
 - collision remains authoritative independently of art;
-- background planes are presentation;
-- `fallback-only` blocker visuals return when their owning background is unavailable;
-- live and stateful objects are not baked into static art.
+- base and foreground backgrounds are presentation;
+- `fallback-only` visuals return when their owning background is unavailable;
+- NPCs, transitions, encounters, pickups, rewards, doors, evidence, gates, and other stateful elements remain live;
+- art defects are fixed or re-exported rather than moving collision to match an accidental image.
 
-The skill must reference these contracts rather than restate or replace them.
+### 3.5 Story and content ownership
 
-### 3.4 Meadow Entry art ownership
+Story prose and beat metadata live in:
 
-HPA-399 and HPA-496 own Meadow Entry controls, crops, masters, exports, and map-specific validation commands.
+```text
+story/manifest.yaml
+story/beats/
+```
 
-The skill may call those commands when Meadow Entry geometry or art actually changes. It must not copy their geometry, crop tables, fingerprints, proof inventory, or adapter assumptions into general guidance for future maps.
+`gliese-story-writer` remains the story-authoring owner.
 
-Current first-stop commands are:
+Runtime content stays in its current registries:
+
+```text
+src/lib/game/content/dialogue.ts
+src/lib/game/content/shops.ts
+src/lib/game/content/quests.ts
+src/lib/game/content/enemies.ts
+src/lib/game/content/maps.ts
+tools/export-story-content-references.ts
+```
+
+Rules:
+
+- `content/dialogue.ts` owns action and intent shells, not prose;
+- NPC placement belongs to the owning map;
+- shops, quests, enemies, encounters, rewards, and discoveries stay in their existing registries;
+- after story or story-referenced content IDs change, run `bun run story:check`;
+- unsupported story behavior uses `::: unsupported-hook` or is recorded against the owning subsystem rather than hidden in coordinates or dialogue text.
+
+### 3.6 Art ownership
+
+Meadow Entry controls, masters, exports, and validation remain map-specific HPA-399/HPA-496 work. First-stop commands are:
 
 ```sh
 bun run art:validate:meadow-entry-controls
 bun run art:validate:meadow-entry
 ```
 
-The current `art:map-package` wrapper is a Meadow Entry compatibility facade, not evidence that every future map has or needs a package adapter.
+The current `art:map-package` wrapper supports the exact Meadow Entry capability. It is not a general promise that every map has a package adapter.
 
-### 3.5 HPA-495 name disambiguation
+Generic props, sprites, sheets, transparency, frame manifests, and Phaser wiring belong to `2d-game-asset-workflow`.
+
+The initial skill PR must make that skill cross-agent:
+
+```text
+.agents/skills/2d-game-asset-workflow/
+.claude/skills/2d-game-asset-workflow
+```
+
+It must correct stale SvelteKit and `static/game/assets/` text to the current Vite/Svelte project and `public/game/assets/` path. Remove the old `.codex` duplicate or replace it with a symlink so there is one authoritative copy.
+
+A new map requesting a reusable art-package lifecycle records the concrete need. It does not clone Meadow Entry’s adapter, crop contract, provenance inventory, or approval machinery by default.
+
+### 3.7 HPA-495 name disambiguation
 
 From this design onward:
 
-- **HPA-495** means this `gliese-world-expansion` skill and its field validation.
-- `docs/superpowers/specs/hpa-495-art-map-package-adapter-v1.md` is a historically HPA-495-labeled Meadow Entry adapter document created before this issue was repurposed.
-- `art-map-adapters/*`, `tools/art-map-package.ts`, and `bun run art:map-package` remain Meadow Entry-specific until another implementation actually exists.
+- **HPA-495** means `gliese-world-expansion` and its field validation.
+- The existing `hpa-495-art-map-package-adapter-v1.md` describes a Meadow Entry compatibility adapter created under an older HPA-495 meaning.
+- `art-map-adapters/*`, `tools/art-map-package.ts`, and `bun run art:map-package` remain Meadow Entry-specific until another real implementation exists.
 
-The implementation plan must rename, footer, or delete the legacy adapter document and stale references so agents are not presented with two peer meanings of “HPA-495.” This cleanup must not block delivery of the minimal skill.
+The legacy adapter document must be renamed, clearly footered, or deleted as part of the initial skill delivery. It is not optional cleanup and must not remain as a peer “HPA-495 design.”
 
-### 3.6 Existing skill convention
+### 3.8 Existing skill convention
 
 Canonical project skills live in:
 
@@ -139,13 +202,13 @@ Canonical project skills live in:
 .agents/skills/<skill-name>/
 ```
 
-Claude discovery uses a repository symlink:
+Claude discovery uses:
 
 ```text
 .claude/skills/<skill-name> -> ../../.agents/skills/<skill-name>
 ```
 
-`CLAUDE.md` should document when to use the new skill and preserve `gliese-story-writer` as the story-only route.
+`CLAUDE.md` must describe the three source patterns accurately and preserve story-only routing to `gliese-story-writer`.
 
 ## 4. V1 file layout
 
@@ -155,113 +218,48 @@ Claude discovery uses a repository symlink:
 ├── templates/
 │   └── expansion-brief.md
 └── references/
-    ├── outdoor-areas.md
-    ├── interiors.md
-    ├── story-npcs-and-encounters.md
+    ├── authoring.md
     └── validation.md
 
 .claude/skills/gliese-world-expansion
   -> ../../.agents/skills/gliese-world-expansion
 ```
 
-No V1 file is a runtime source of truth.
+Two references are enough for V1. Split them later only when real use makes one independently large, frequently loaded, or error-prone.
 
 ### 4.1 `SKILL.md`
 
-`SKILL.md` owns:
+Keep `SKILL.md` concise. It owns:
 
-- concrete trigger and non-trigger descriptions;
+- trigger and non-trigger descriptions;
 - request classification;
-- the short required workflow;
-- reference-page selection;
+- the six-step workflow;
+- the routing table;
+- brief rules;
 - story and art handoffs;
-- the rule that the smallest playable vertical slice comes first;
-- the rule that real consumer gaps may refine the skill.
+- the smallest-playable-slice rule;
+- the learn-from-real-gaps rule.
 
-It should stay short enough to load routinely and point to reference pages for path-level detail.
+It points to references rather than duplicating path tables.
 
-### 4.2 `outdoor-areas.md` required content
+### 4.2 `authoring.md`
 
-V1 outdoor guidance is deliberately thin and navigational because no greenfield outdoor area is required to close V1.
+This is the single first-stop path reference. It contains:
 
-It must point agents first to:
+- the three source patterns from Section 3;
+- `RegionFragment` registration through `mergeRegions(...)`;
+- direct-map guidance for interiors and ruins;
+- the village-only layered source rule;
+- background/collision/live/stateful ownership;
+- story and content registry ownership;
+- Meadow Entry versus generic 2D art routing;
+- clear stopping boundaries for unsupported behavior.
 
-```text
-src/lib/game/content/maps/meadow-entry.ts
-src/lib/game/content/maps/regions/village.ts
-src/lib/game/content/maps/regions/crossroads.ts
-src/lib/game/content/maps/regions/coast.ts
-src/lib/game/content/maps/regions/mistfen.ts
-src/lib/game/content/maps/regions/silverpine.ts
-src/lib/game/content/maps/regions/wildwood.ts
-src/lib/game/content/maps/regions/types.ts
-src/lib/game/content/maps/layered/types.ts
-src/lib/game/content/maps/layered/compile-layered-region.ts
-src/lib/game/content/maps/background-ownership.ts
-```
+It links paths and commands but does not copy registries, algorithms, crop tables, or full asset inventories.
 
-It must cover only:
+### 4.3 `validation.md`
 
-- choosing among a layered source, an existing `RegionFragment`, and a direct large hand-authored map;
-- editing source rather than compiled output;
-- collision-first routes, thresholds, side pockets, gates, encounters, rewards, and handoffs;
-- live, baked, fallback, collision, and stateful ownership;
-- frozen integration: register approved descriptors and assets directly, and route defects back to their geometry or art owner;
-- Meadow Entry-specific validation only when Meadow Entry controls or art actually change;
-- the current ruins maps as the one existing large dungeon example.
-
-It must not include generalized crop tables, proof inventories, adapter schemas, aesthetic doctrine, or a future-map framework. The first real greenfield region or dungeon may thicken this reference from observed gaps.
-
-### 4.3 `interiors.md` required content
-
-It must point agents first to:
-
-```text
-src/lib/game/content/maps.ts
-src/lib/game/content/maps/types.ts
-src/lib/game/content/assets.ts
-src/lib/game/phaser/scenes/WorldScene.ts
-```
-
-It must cover:
-
-- starting from the current `WorldMapDefinition` interior model;
-- player activities and 2–4 functional zones before coordinates;
-- dimensions, entrance/exit placement, interaction approaches, and camera readability;
-- preserving NPC, dialogue, shop, transition, respawn, quest, and save IDs;
-- props, walls, furniture collision, base/foreground art, and stateful ownership;
-- direct migration and deletion of replaced one-room data;
-- HPA-400’s rule: extend in place and extract a helper only after real repetition;
-- no `LayeredInteriorSource`, compiler, or compatibility bridge until Guild Hall demonstrates a concrete need.
-
-### 4.4 `story-npcs-and-encounters.md` required content
-
-It must point agents first to:
-
-```text
-story/manifest.yaml
-story/beats/
-src/lib/game/content/dialogue.ts
-src/lib/game/content/shops.ts
-src/lib/game/content/quests.ts
-src/lib/game/content/enemies.ts
-src/lib/game/content/maps.ts
-tools/export-story-content-references.ts
-```
-
-It must cover:
-
-- prose and beat metadata: invoke `gliese-story-writer`;
-- `content/dialogue.ts`: action and intent shells only, never prose;
-- NPC placement on owning maps;
-- shop, quest, enemy, encounter, reward, discovery, and evidence ownership;
-- preserving existing IDs and runtime semantics;
-- running `bun run story:check` after story or story-referenced content IDs change;
-- using `::: unsupported-hook` or recording the unsupported owning subsystem rather than hiding unsupported behavior in coordinates, art, or dialogue text.
-
-### 4.5 `validation.md` required content
-
-It must name commands rather than say only “run focused checks.” Select commands based on touched scope:
+It names scope-based commands and acceptance behavior:
 
 ```sh
 bun run test:unit -- --run src/lib/game/content/maps.test.ts
@@ -275,42 +273,49 @@ bun run art:validate:meadow-entry-controls
 bun run art:validate:meadow-entry
 ```
 
-It must cover:
+It covers:
 
-- affected map/content tests and scene tests when rendering changes;
-- one concrete controller walkthrough derived from the brief;
+- affected map/content tests;
+- scene tests when rendering changes;
+- one walkthrough derived from the brief;
 - representative save/reload and fallback checks;
-- web and Tauri build expectations based on scope;
-- attributing failures to story, geometry, runtime, art, or asset ownership;
-- no screenshot matrix or new evidence system unless a concrete failure requires it.
+- web/Tauri build selection based on scope;
+- failure attribution to story, map geometry, runtime, art package, or generic asset ownership;
+- no screenshot matrix or evidence system.
 
 ## 5. Routing model
 
-Loading the skill for every content edit would create bureaucracy. V1 must make correct non-invocation explicit.
+Loading the skill for every content edit would create bureaucracy.
 
 | Request | Route |
 |---|---|
 | Story beat, dialogue prose, or manifest metadata only | `gliese-story-writer`; no Expansion Brief |
-| Small bug fix or placement-only move inside approved geometry | Edit the owning source and focused tests; no full brief |
-| Direct integration of already-approved geometry and art | Load `gliese-world-expansion`, classify as frozen integration, skip design and art production |
-| New or substantially revised Meadow Entry outdoor area | Load `gliese-world-expansion`; create an Expansion Brief; read `outdoor-areas.md`; use Meadow Entry-owned commands only as required |
-| New large dungeon or one-off map | Load `gliese-world-expansion`; create an Expansion Brief; use the direct ruins-map pattern until repetition proves a helper |
-| New or substantially revised interior | Load `gliese-world-expansion`; create an Expansion Brief; read `interiors.md` |
-| Coordinated NPC, encounter, reward, or story-location expansion | Load `gliese-world-expansion`; read only relevant references; hand prose changes to `gliese-story-writer` |
-| Meadow Entry control, crop, master, or export change | Use the existing Meadow Entry-owned art commands; load world expansion only when map semantics also change |
-| New prop, sprite, or sprite sheet outside the Meadow Entry package | Use `.codex/skills/2d-game-asset-workflow`; do not duplicate its alpha, frame, import, or Phaser wiring guidance |
-| A new map requests a reusable art-package adapter | Record the concrete need; do not invent a second package lifecycle before a real implementation exists |
-| Unsupported audio, story hook, or runtime behavior | Record the unsupported need and stop at the owning boundary |
+| Small bug fix or placement-only move | Edit the owning source and focused tests; no full brief |
+| Direct integration of approved geometry and art | Load `gliese-world-expansion`, classify `frozen-integration`, skip design and art production |
+| Interior or ruins-style dungeon authored in `maps.ts` | Load the skill for substantial work; use the closest direct `WorldMapDefinition` |
+| New Meadow Entry region or connector | Default to a hand-authored `RegionFragment`; register through `mergeRegions(...)` |
+| Existing village tile-level change | Edit `village-layered.ts`; compile through the existing wrapper |
+| Coordinated NPC, encounter, reward, or story-location expansion | Load the skill; use current registries; hand prose to `gliese-story-writer` |
+| Meadow Entry control, crop, master, or export change | Use Meadow Entry-owned commands; load world expansion only when map semantics also change |
+| New prop, sprite, or sprite sheet | Use shared `2d-game-asset-workflow` |
+| New map asks for a reusable package adapter | Record the need; do not invent another lifecycle before a real implementation exists |
+| Unsupported audio, story hook, or runtime behavior | Record the owning gap and stop at that boundary |
 
-### 5.1 Existing asset-skill correction
+Classifications are:
 
-The current `2d-game-asset-workflow` is the intended owner for sprite, sheet, prop, and transparency work, but its checked-in text contains stale project assumptions such as SvelteKit and `static/game/assets/`.
-
-Before the new skill relies on it, the initial implementation plan must make the smallest correction to the existing asset skill so it matches the current Vite/Svelte project and `public/game/assets/` runtime path. Do not copy the asset workflow into `gliese-world-expansion`.
+```text
+new-content
+revision
+frozen-integration
+story-only
+placement-only
+asset-only
+unsupported
+```
 
 ## 6. Expansion Brief
 
-### 6.1 Location
+Use a brief for genuine multi-concern new content or substantial revision.
 
 Template:
 
@@ -318,225 +323,146 @@ Template:
 .agents/skills/gliese-world-expansion/templates/expansion-brief.md
 ```
 
-Committed briefs:
+Committed briefs reuse the existing design-spec tree and date convention:
 
 ```text
-docs/world-expansion/briefs/<scope>.md
+docs/superpowers/specs/YYYY-MM-DD-<scope>-expansion-brief.md
 ```
 
-Examples:
+Frozen integration and sufficiently small work may record the same decisions in the PR description instead of creating a file.
 
-```text
-docs/world-expansion/briefs/guild-hall.md
-docs/world-expansion/briefs/village-interiors-batch-1.md
-```
-
-Frozen integration may use a concise PR-description record instead of a separate file.
-
-The `docs/world-expansion/` tree remains briefs only. Do not add packet catalogs, indexes, dashboards, status databases, or a parallel documentation platform. The single final validation note described later is the only additional historical artifact.
-
-### 6.2 Required shape
+Required shape:
 
 ```md
 # Expansion Brief
 
 ## Player-facing outcome
-What becomes newly playable or meaningfully improved?
-
 ## Story basis
-Which current beats, characters, mysteries, building functions, or spoiler limits matter?
-
 ## Existing content affected
-Maps, transitions, NPCs, dialogue IDs, shops, quests, encounters, rewards, assets, and saves.
-
 ## Spatial design
-Entrances, exits, critical route, optional route, functional zones, gates, rewards, and encounters.
-
 ## Ownership
-What stays live, what may be baked, what owns collision, and what is stateful?
-
 ## Reuse and genuinely new work
-Which existing sources, helpers, assets, and commands are reused? What new capability is actually required?
-
 ## Non-goals
-What is deliberately not being built?
-
 ## Acceptance walkthrough
-What shortest concrete route proves the expansion works?
 ```
 
-### 6.3 Brief rules
+Rules:
 
-- The brief is planning input reviewed with the PR, not runtime data or a separate approval system.
-- Write or update it before broad map edits or final art for genuine multi-concern work.
-- It references current IDs but does not copy complete registries.
-- It does not copy fingerprints, crop tables, source catalogs, or asset inventories.
-- Empty or unsupported needs remain explicit; the agent must not invent canon or engine behavior.
-- It should be short enough to read in one sitting.
-- A batch may share one brief when the buildings or areas form one delivery and still retain distinct player purposes.
+- the brief is planning input reviewed with the PR, not runtime data or a separate approval gate;
+- write or update it before broad map edits or final art;
+- reference current IDs without copying full registries;
+- do not copy fingerprints, crop tables, source catalogs, or asset inventories;
+- keep unsupported needs explicit;
+- one batch may share one brief when individual player purposes remain distinct.
 
-## 7. Required skill workflow
+Do not create a new brief index, dashboard, packet catalog, or status database.
+
+## 7. Required workflow
 
 ```text
 1. Classify the request.
-2. Read only relevant repository and story context.
-3. Create or confirm the smallest useful Expansion Brief.
-4. Implement the smallest playable vertical slice.
-5. Run focused automated and controller validation.
-6. Feed only reusable observed gaps back into the skill.
+2. Select the owning authoring source.
+3. Read only relevant story, content, map, and asset context.
+4. Create or confirm the smallest useful brief.
+5. Implement the smallest playable vertical slice.
+6. Run focused validation and feed back only reusable observed gaps.
 ```
 
-### 7.1 Classify
+### Missing canon
 
-Choose one:
+Do not infer undeclared canon from the high-level story plan and silently commit it as runtime truth. Route the story decision.
 
-- `new-content`;
-- `revision`;
-- `frozen-integration`;
-- `story-only`;
-- `placement-only`;
-- `asset-only`;
-- `unsupported`.
+### Unsupported runtime behavior
 
-Classification determines whether a brief and which reference pages or adjacent skills are needed.
+Record the need and owning subsystem. Do not hide unsupported behavior in coordinates, art, dialogue prose, or generic fields.
 
-### 7.2 Inspect
+### Frozen input mismatch
 
-Read:
+Route a defect back to its current geometry or art owner. Do not introduce a translation layer or independently regenerate one region.
 
-- `CLAUDE.md`;
-- the authoring source selected from Section 3.2;
-- relevant story beats only;
-- current tests and assets for the affected area;
-- the smallest relevant skill reference pages.
+### Skill refinement
 
-Do not read the full story corpus or every map when the scope is narrower.
+Change the skill only when a real delivery exposes:
 
-### 7.3 Brief
-
-Create or update a brief for genuine multi-concern new content or revision. Frozen integration may record the same decisions in the PR description.
-
-The brief is the planning artifact for the PR. It does not create a separate status, reviewer, or approval gate.
-
-### 7.4 Vertical slice
-
-Prefer one complete route, room sequence, interaction, or encounter loop over a broad framework.
-
-Examples:
-
-- Guild Hall entrance to quartermaster, guild master, records area, and exit;
-- one Crossroads connector with base/foreground/fallback behavior;
-- one dungeon room chain with encounter, reward, and return transition.
-
-### 7.5 Validate
-
-Use the commands relevant to the touched scope and one concrete walkthrough. Do not create exhaustive screenshot or evidence matrices unless a real failure requires them.
-
-### 7.6 Learn
-
-Change the skill only when a real delivery demonstrates:
-
-- missing repository guidance;
 - incorrect routing;
+- missing repository guidance;
 - hidden operator knowledge;
 - repeated avoidable mistakes;
-- unnecessary workflow steps.
+- unnecessary steps.
 
-The correction must be the smallest general change and must not encode one building or region as a universal rule.
+Make the smallest general correction. Do not encode one building or region as a universal rule.
 
-## 8. Boundary and error handling
+## 8. Focused structural verification
 
-### 8.1 Missing canon
+The core deliverable is repository navigation, so renamed paths and commands should fail mechanically.
 
-If the requested expansion depends on undeclared story facts, the skill must ask for or route a story decision. It must not infer canon from a high-level plan and silently commit it as runtime truth.
+Add one focused server-project Vitest check that scans only the world-expansion skill’s Markdown files for:
 
-### 8.2 Unsupported runtime behavior
+- backticked repository paths beginning with approved roots such as `src/`, `story/`, `tools/`, `public/`, `.agents/`, or `.claude/`;
+- fenced `bun run <script>` commands.
 
-Record the need and owning subsystem. Do not hide an unsupported story hook inside map coordinates, art, dialogue text, or a generic field.
+The test asserts:
 
-### 8.3 Geometry and art conflict
+- each referenced path exists as a file or directory;
+- each named script exists in `package.json`;
+- required skill files exist;
+- frontmatter name/description are valid;
+- discovery symlinks resolve to the canonical skill directories.
 
-Collision and gameplay geometry remain authoritative. Art must be corrected or re-exported rather than moving collision to match a visual accident.
+This is not a general Markdown link crawler. Do not validate external URLs, subjective prose quality, or hypothetical scenarios.
 
-### 8.4 Frozen input mismatch
+The test catches renames and stale commands. It does not replace technical review of whether a real but semantically wrong file was selected.
 
-For frozen integration, stop and route the defect to the existing geometry or art owner. Do not create a translation layer or regenerate one region independently.
+## 9. Field validation
 
-### 8.5 Stale references
+### HPA-406 — frozen integration
 
-If a brief references a missing current ID, update the brief or owning content source explicitly. V1 does not add a separate stale-consumer fingerprint protocol.
+Proves that the skill recognizes approved geometry/art, skips unnecessary production workflows, preserves live ownership, and guides direct runtime integration.
 
-### 8.6 Unsupported art lifecycle
+It does not prove greenfield outdoor design.
 
-If a new map needs coherent baked-art production but no supported map-specific lifecycle exists, record that concrete need and deliver only the smallest asset workflow the real map requires. Do not clone Meadow Entry’s adapter, crop contract, or proof inventory by default.
+### HPA-400 — first content-expansion proof
 
-## 9. Field validation plan
+Uses the direct `maps.ts` path to create a larger multi-zone Guild Hall and validates:
 
-### 9.1 HPA-406 — frozen integration
-
-Purpose:
-
-- prove the skill recognizes approved geometry and art;
-- skip outdoor map design and environment-art production;
-- preserve live/stateful ownership;
-- guide a concise acceptance route.
-
-This is routing evidence, not proof of new outdoor-area design.
-
-### 9.2 HPA-400 — first player-facing expansion proof
-
-Use the skill and `interiors.md` to create `guild-hall.md` and deliver the larger multi-zone Guild Hall.
-
-This proves:
-
-- story and building-purpose intake;
 - functional-zone design;
-- preservation of NPC, shop, transition, and save semantics;
-- minimal extension of the current interior model;
-- focused validation and skill refinement.
+- current NPC/shop/transition/save semantics;
+- minimal model extension;
+- generic asset handoff;
+- focused tests and walkthrough.
 
-### 9.3 HPA-414 Batch 1 — second generalization proof
+If HPA-400 naturally changes the exterior door, footprint, or arrival seam, it must edit the actual village owning source and validate the round trip. Do not manufacture an unrelated region edit solely to claim outdoor validation.
 
-Use the revised skill for Hero House, Item Shop, and Shrine of Aurora in one batch brief.
+### HPA-414 Batch 1 — second content-expansion proof
 
-This proves generalization across:
+Uses the revised skill for Hero House, Item Shop, and Shrine of Aurora, proving generalization across residential, commercial, and ceremonial/story-loaded interiors.
 
-- residential use;
-- commercial circulation;
-- ceremonial and story-loaded space;
-- existing respawn, shop, NPC, and transition semantics.
+### Accepted V1 limit
 
-HPA-495 may close after Batch 1 feedback is incorporated and a concise final validation note is committed.
+Greenfield `RegionFragment` and dungeon design remain behaviorally unproven in V1. The skill provides accurate source navigation and thin ownership guidance only. The first real new region or dungeon must update the skill from observed gaps.
 
-### 9.4 Future new outdoor area or dungeon
+HPA-495 may close after HPA-406, HPA-400, and HPA-414 Batch 1 feedback is incorporated because it does not claim proven greenfield outdoor quality.
 
-The first genuinely new future region or dungeon will provide full outdoor-design validation. It is not required to close HPA-495 V1 because outdoor V1 is intentionally limited to path navigation, ownership, frozen-integration routing, and existing examples.
+## 10. Delivery sequence
 
-If that future delivery reveals independent repeated complexity, it may thicken `outdoor-areas.md` or justify extracting one specialist skill.
-
-The accepted V1 risk is explicit: interiors receive two real content-expansion validations; greenfield outdoor design remains unproven and therefore stays thin.
-
-## 10. Delivery shape and implementation-plan constraints
-
-### 10.1 Initial skill PR
+### Initial skill PR
 
 Deliver first:
 
 - concise `SKILL.md`;
-- four thin path-oriented reference pages;
+- `authoring.md` and `validation.md`;
 - Expansion Brief template;
-- `.claude` symlink;
-- concise `CLAUDE.md` routing guidance;
-- the small correction to the existing 2D asset skill;
-- minimal structural verification.
+- `.claude` discovery symlink;
+- correction of `CLAUDE.md` map-source guidance;
+- canonical cross-agent migration and stale-path fix for `2d-game-asset-workflow`;
+- removal of the ambiguous peer HPA-495 adapter-document meaning;
+- the focused path/script/frontmatter/symlink test.
 
-This initial PR must land before HPA-406 runtime integration and HPA-400 broad Guild Hall implementation begin. It should be runnable early rather than waiting for perfect outdoor guidance.
+Do not include runtime map implementation, playable content, generated art, or a synthetic scenario corpus.
 
-Do not include runtime map code, playable content, generated art, or a synthetic scenario corpus.
+### Consumer work
 
-### 10.2 Parallel consumer work
-
-After the minimal skill exists:
+After the minimal skill lands:
 
 ```text
 HPA-406 frozen integration ─┐
@@ -546,69 +472,33 @@ HPA-400 Guild Hall ─────────┘
 HPA-414 Batch 1
 ```
 
-Skill refinements found by one consumer must not stall unrelated work unless the current guidance would cause a concrete incorrect implementation.
+A skill refinement must not stall unrelated work unless current guidance would cause an incorrect implementation.
 
-### 10.3 Consumer PR refinements
+### Final validation note
 
-HPA-406, HPA-400, and HPA-414 consumer PRs may update the skill when they expose a reusable gap.
+After HPA-414 Batch 1, add one concise dated note under `docs/superpowers/specs/` summarizing:
 
-Each PR should state concisely:
-
-- which skill route was used;
-- any concrete gap observed;
-- the smallest correction made;
-- why the correction generalizes.
-
-### 10.4 Final validation note
-
-Commit one concise note after HPA-414 Batch 1 summarizing:
-
-- frozen-integration behavior;
-- Guild Hall observations;
-- Batch 1 observations;
-- skill changes made;
-- remaining known limits.
+- routing exercised;
+- concrete gaps observed;
+- smallest corrections made;
+- remaining greenfield outdoor limits.
 
 No per-scenario evidence tree is required.
 
-## 11. Structural verification
+## 11. Acceptance criteria
 
-V1 uses only objective mechanical checks:
-
-- `SKILL.md` exists and has matching `name` plus a concrete `Use when` description;
-- required reference and template files exist;
-- `.claude/skills/gliese-world-expansion` points to the canonical `.agents` directory.
-
-The current `.codex/scripts/validate_skill.py` requires a Codex-oriented `agents/openai.yaml` and therefore cannot be reused unchanged for the existing `.agents` skill convention. The implementation may either extend an existing focused test or add a tiny dedicated check for file existence, frontmatter, and symlink target.
-
-Do not add a Markdown link crawler, packet validator, workflow engine, LLM evaluator, or scenario harness. Behavioral quality is established through HPA-406, HPA-400, and HPA-414 real use.
-
-## 12. Non-goals
-
-- No three-skill suite in V1.
-- No `gliese-layered-map-designer`, `gliese-environment-art-producer`, or `gliese-interior-designer` yet.
-- No YAML Area Expansion Packet schema or packet database.
-- No seven-gate workflow system or duplicated approval records.
-- No Story Integration Catalog, story fingerprint, stale-consumer report, or automatic canon generation.
-- No standalone NPC or audio skill.
-- No copied Meadow Entry geometry, crop, fingerprint, adapter, or proof logic in prose.
-- No generic scenario runner, LLM judge, or large synthetic pressure-test corpus.
-- No new documentation index, dashboard, or workflow database around Expansion Briefs.
-- No requirement to keep old map or interior authoring formats after migration.
-- No generalized greenfield outdoor doctrine before a real new region or dungeon exists.
-
-## 13. Acceptance criteria
-
-- One discoverable `gliese-world-expansion` skill exists under `.agents/skills/` with the repository discovery symlink.
-- Trigger and non-trigger guidance routes story-only, placement-only, asset-only, frozen-integration, outdoor, dungeon, and interior work correctly.
-- The three current map authoring patterns and their first-stop paths are explicit.
-- The Markdown Expansion Brief is concise enough for routine use and prevents direct story-to-coordinate or story-to-image jumps without creating approval theatre.
-- The four references name concrete repository paths, commands, adjacent skill owners, and stopping boundaries without copying algorithms or registries.
-- HPA-495 world-expansion work is clearly disambiguated from the historically labeled Meadow Entry art adapter.
-- The existing 2D asset skill is corrected and remains the owner of sprite, sheet, prop, alpha, and Phaser wiring guidance.
-- HPA-406 demonstrates correct frozen-integration non-invocation.
-- HPA-400 uses the skill for a real larger Guild Hall and feeds back observed reusable improvements.
-- HPA-414 Batch 1 proves the revised skill across home, shop, and shrine content.
-- No hidden mandatory operator knowledge remains for the demonstrated workflows.
-- A future agent can begin a new region, dungeon, settlement, or interior with a clear player outcome, correct authoring source, ownership model, and acceptance walkthrough.
-- V1 introduces no speculative workflow platform or duplicated source of truth.
+- One discoverable `gliese-world-expansion` skill exists under `.agents/skills/`.
+- The routing table selects the correct owning source among:
+  - direct `maps.ts` `WorldMapDefinition`;
+  - hand-authored `RegionFragment` plus `mergeRegions(...)`;
+  - village layered source plus compiler.
+- Story-only, placement-only, asset-only, frozen-integration, and unsupported work avoid unnecessary skill/process steps.
+- `authoring.md` names concrete paths, registration points, ownership boundaries, and adjacent skill owners without copying their data or algorithms.
+- The brief is concise, uses the existing `docs/superpowers/specs/` convention when committed, and creates no separate approval system.
+- Generic asset work is reachable by Claude and other agents through one canonical skill copy.
+- The stale `CLAUDE.md` layered-overworld claim and ambiguous legacy HPA-495 adapter label are removed.
+- The focused mechanical test catches missing repository paths, missing package scripts, invalid frontmatter, and broken skill symlinks.
+- HPA-406 proves frozen-integration routing.
+- HPA-400 and HPA-414 Batch 1 prove real direct-map content expansion and feed back only reusable changes.
+- Greenfield region/dungeon behavior is explicitly unproven and not represented as accepted V1 evidence.
+- V1 introduces no workflow platform, duplicate runtime truth, specialist skill suite, or speculative map framework.
