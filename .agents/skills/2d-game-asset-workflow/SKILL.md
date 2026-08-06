@@ -1,6 +1,6 @@
 ---
 name: 2d-game-asset-workflow
-description: Use when generating, regenerating, importing, or wiring 2D game art in this project, especially for sprite sheets, tiles, HUD art, transparent PNG requests, Phaser frame manifests, or replacing placeholder visuals in the SvelteKit plus Phaser game.
+description: Use when generating, regenerating, importing, or wiring 2D game art in this Vite, Svelte, and Phaser project, especially for sprite sheets, tiles, HUD art, transparent PNG requests, frame manifests, or replacing placeholder visuals.
 ---
 
 # 2D Game Asset Workflow
@@ -43,7 +43,7 @@ Never assume a generated PNG is actually transparent just because it looks trans
 Inspect every asset that is supposed to have transparency:
 
 ```bash
-python3 .codex/skills/2d-game-asset-workflow/scripts/inspect_png_alpha.py static/game/assets/starter-pack.png
+python3 .agents/skills/2d-game-asset-workflow/scripts/inspect_png_alpha.py public/game/assets/starter-pack.png
 ```
 
 Require all of these before accepting the file:
@@ -60,7 +60,7 @@ If the file is still fully opaque:
 For flat opaque backgrounds around the sheet, use:
 
 ```bash
-python3 .codex/skills/2d-game-asset-workflow/scripts/remove_border_background.py input.png output.png
+python3 .agents/skills/2d-game-asset-workflow/scripts/remove_border_background.py input.png output.png
 ```
 
 This helper removes border-connected pixels whose RGB values stay within a configurable tolerance of the sampled edge colors. Use it for generated art that should have been transparent but arrived as an opaque PNG.
@@ -69,7 +69,7 @@ Do not wire opaque faux-transparent art into Phaser and hope it looks fine later
 
 ### 4. Import into project runtime paths
 
-Place runtime art in `static/game/assets/`.
+Place runtime art in `public/game/assets/`.
 
 Prefer stable, descriptive names:
 
@@ -136,7 +136,7 @@ Prefer making sheet layout easier to integrate over compensating with messy crop
 
 ## Project Conventions
 
-- Keep runtime assets under `static/game/assets/`.
+- Keep runtime assets under `public/game/assets/`.
 - Keep frame definitions centralized in `src/lib/game/content/assets.ts`.
 - Keep Phaser preload in `src/lib/game/phaser/scenes/BootScene.ts`.
 - Keep gameplay-facing image usage in scene modules such as `src/lib/game/phaser/scenes/WorldScene.ts`.
