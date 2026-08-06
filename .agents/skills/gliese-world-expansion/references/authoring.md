@@ -34,7 +34,7 @@ src/lib/game/content/maps/regions/wildwood.ts
 src/lib/game/content/maps/regions/paths.ts
 ```
 
-A new fragment is not active until it is imported and included in `mergeRegions(...)` in `src/lib/game/content/maps/meadow-entry.ts`. IDs must be unique across every merged field.
+A new fragment is not active until it is imported and included in `mergeRegions(...)` in `src/lib/game/content/maps/meadow-entry.ts`. IDs must be unique within each merged field.
 
 Default to this pattern for another Meadow Entry region or connector. Do not choose the larger layered declaration model merely because it exists.
 

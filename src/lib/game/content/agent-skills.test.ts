@@ -33,6 +33,17 @@ const worldExpansionMarkdownFiles = [
 	'.agents/skills/gliese-world-expansion/templates/expansion-brief.md'
 ] as const;
 
+/**
+ * Reads and parses YAML-like frontmatter from a skill Markdown file.
+ *
+ * Frontmatter is delimited by opening and closing `---` lines. Each line in
+ * the frontmatter body is split on the first `:` into a key/value pair; lines
+ * without a separator are skipped. The `name` and `description` keys are
+ * returned, defaulting to an empty string when absent.
+ *
+ * @param skillPath - Repository-relative path to the skill Markdown file.
+ * @returns The parsed `name` and `description` frontmatter values.
+ */
 function readSkillFrontmatter(skillPath: string): SkillFrontmatter {
 	const markdown = readRepositoryFile(skillPath);
 	const match = /^---\n([\s\S]*?)\n---(?:\n|$)/.exec(markdown);
@@ -55,6 +66,18 @@ function worldExpansionMarkdown(): string {
 	return worldExpansionMarkdownFiles.map(readRepositoryFile).join('\n');
 }
 
+/**
+ * Extracts repository-relative paths referenced in Markdown.
+ *
+ * Collects inline code spans (single backticks, single line) and fenced code
+ * block contents (triple backticks), then matches paths beginning with an
+ * approved root (`src`, `story`, `tools`, `public`, `.agents`, or `.claude`)
+ * followed by a `/` and path characters. Returns the unique paths sorted
+ * alphabetically.
+ *
+ * @param markdown - The Markdown text to scan.
+ * @returns Sorted unique repository-relative paths found in code spans/blocks.
+ */
 function referencedRepositoryPaths(markdown: string): string[] {
 	const codeFragments = [
 		...[...markdown.matchAll(/`([^`\n]+)`/g)].map((match) => match[1]),

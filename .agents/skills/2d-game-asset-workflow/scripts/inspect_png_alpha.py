@@ -23,18 +23,19 @@ def inspect_png(path: Path) -> dict[str, object]:
     with Image.open(path) as image:
         rgba = image.convert("RGBA")
         alpha = rgba.getchannel("A")
-        alpha_values = list(alpha.getdata())
+        alpha_min, alpha_max = alpha.getextrema()
+        histogram = alpha.histogram()  # 256 entries; index = alpha value, value = pixel count
 
         return {
             "path": str(path),
             "mode": image.mode,
             "size": list(image.size),
             "has_alpha": "A" in image.getbands(),
-            "alpha_min": min(alpha_values),
-            "alpha_max": max(alpha_values),
-            "transparent_pixels": sum(1 for value in alpha_values if value == 0),
-            "translucent_pixels": sum(1 for value in alpha_values if 0 < value < 255),
-            "opaque_pixels": sum(1 for value in alpha_values if value == 255),
+            "alpha_min": alpha_min,
+            "alpha_max": alpha_max,
+            "transparent_pixels": histogram[0],
+            "translucent_pixels": sum(histogram[1:255]),
+            "opaque_pixels": histogram[255],
         }
 
 

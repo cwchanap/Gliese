@@ -1,6 +1,6 @@
 ---
 name: gliese-world-expansion
-description: Use when adding or substantially revising Gliese maps, regions, dungeons, interiors, settlements, NPC or encounter placements, or integrating approved world art across multiple gameplay systems.
+description: Use when adding or substantially revising Gliese maps, regions, dungeons, interiors, settlements, or approved world art across multiple gameplay systems, or for NPC or encounter placements that are part of substantial multi-concern work. Placement-only edits are excluded and route to their owning source.
 ---
 
 # Gliese World Expansion

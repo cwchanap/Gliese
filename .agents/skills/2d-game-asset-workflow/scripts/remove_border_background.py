@@ -17,6 +17,13 @@ from pathlib import Path
 from PIL import Image
 
 
+def _non_negative_int(value: str) -> int:
+    parsed = int(value)
+    if parsed < 0:
+        raise argparse.ArgumentTypeError(f"{value} is not a non-negative integer")
+    return parsed
+
+
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description="Remove border-connected flat backgrounds from PNG files."
@@ -25,7 +32,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("output", type=Path, help="Output PNG path")
     parser.add_argument(
         "--tolerance",
-        type=int,
+        type=_non_negative_int,
         default=18,
         help="Maximum per-channel RGB distance from sampled border colors (default: 18)",
     )
