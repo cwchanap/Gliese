@@ -1,5 +1,7 @@
 # HPA-495 art map package adapter v1
 
+> **Historical name notice:** this document describes the Meadow Entry art-package compatibility adapter created under an older HPA-495 meaning. Current HPA-495 work is the `gliese-world-expansion` skill. Do not use this document as the world-expansion design or assume this adapter applies to another map.
+
 This repository exposes one stable, repository-relative entry point for the deterministic map-art package lifecycle:
 
 ```sh
@@ -28,4 +30,4 @@ The output schema is the fixed package root with exactly named masters, determin
 
 ## Future-map extension point
 
-HPA-495 can add a new adapter by committing another `art-map-adapters/<map-id>.v1.json` and implementing its declared `implementation` capability in `tools/art-map-package.ts`. Until that implementation exists, the CLI reports the adapter ID and unsupported implementation and performs no lifecycle dispatch. The fixture at `src/lib/game/content/backgrounds/fixtures/future-map-adapter.v1.json` locks this fail-closed behavior without editing any Meadow Entry lifecycle script.
+This adapter supports Meadow Entry only. A future map must not copy this lifecycle merely because the manifest shape exists. Add another implementation only after a real map demonstrates a coherent package lifecycle that cannot be served by its focused asset workflow. Until then, unknown implementations fail closed and perform no lifecycle dispatch.
