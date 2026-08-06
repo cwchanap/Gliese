@@ -24,7 +24,7 @@ Default to a coherent sheet when several related assets ship together. Default t
 
 ### 2. Generate assets deliberately
 
-Use the image generation tool for new art.
+Use the image generation tool for new art. If no image generation tool is available in the current environment, direct the user to run the request in the Codex app.
 
 Write prompts that specify:
 
