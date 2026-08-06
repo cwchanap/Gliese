@@ -4,9 +4,9 @@
 
 **Goal:** Ship one lean, cross-agent `gliese-world-expansion` skill that routes future content work to the correct Gliese authoring source, adjacent skill, and validation command without introducing a second world model or workflow platform.
 
-**Architecture:** Canonical project skills live under `.agents/skills/`; Claude and legacy Codex discovery use symlinks to those canonical directories. `gliese-world-expansion` stays concise and delegates path-heavy guidance to `authoring.md` and command-heavy guidance to `validation.md`. One focused Vitest server test protects named repository paths, package scripts, skill frontmatter, and discovery symlinks from drift.
+**Architecture:** Canonical project skills live under `.agents/skills/`; Claude and legacy Codex discovery use symlinks to those canonical directories. `gliese-world-expansion` stays concise and delegates path-heavy guidance to `authoring.md` and command-heavy guidance to `validation.md`. One focused Vitest server test protects named repository paths, package scripts, skill frontmatter, discovery symlinks, and the top-level `CLAUDE.md` route summary from drift.
 
-**Tech Stack:** Markdown agent skills, Git symlinks, TypeScript 6, Vitest 4 server project, Node.js `fs`/`path`, Bun package scripts, Python helper scripts already owned by `2d-game-asset-workflow`.
+**Tech Stack:** Markdown agent skills, Git symlinks, TypeScript 6, Vitest 4 server project, Node.js `fs`/`path`, Bun package scripts, and the existing Python helpers owned by `2d-game-asset-workflow`.
 
 ## Global Constraints
 
@@ -47,7 +47,7 @@
 
 - `.agents/skills/2d-game-asset-workflow/SKILL.md` — correct SvelteKit and `static/game/assets/` drift and update helper-script paths to the canonical directory.
 - `CLAUDE.md` — correct the false “all regions are layered” claim and document the three source patterns plus project skill routing.
-- PR #24 description — link the implementation plan and replace the statement that the plan is still pending.
+- PR #24 description — link this implementation plan and remove the statement that the plan is pending.
 
 ### Preserve
 
@@ -74,11 +74,11 @@
   - `.codex/skills/2d-game-asset-workflow -> ../../.agents/skills/2d-game-asset-workflow`
   - `.claude/skills/2d-game-asset-workflow -> ../../.agents/skills/2d-game-asset-workflow`
 - Preserves `agents/openai.yaml` and both Python helper scripts inside the canonical directory.
-- Later tasks reference `.agents/skills/2d-game-asset-workflow/SKILL.md` as the single owner of generic 2D asset guidance.
+- Task 2 references `.agents/skills/2d-game-asset-workflow/SKILL.md` as the single owner of generic 2D asset guidance.
 
 - [ ] **Step 1: Write the failing canonical-discovery test**
 
-Create `src/lib/game/content/agent-skills.test.ts` with the repository helpers and the first test:
+Create `src/lib/game/content/agent-skills.test.ts`:
 
 ```ts
 import { existsSync, lstatSync, readFileSync, realpathSync } from 'node:fs';
@@ -122,7 +122,7 @@ describe('project agent skills', () => {
 		expectSymlinkTo('.claude/skills/2d-game-asset-workflow', canonicalRoot);
 
 		const skill = readRepositoryFile(`${canonicalRoot}/SKILL.md`);
-		expect(skill).toContain('Vite + Svelte');
+		expect(skill).toContain('Vite, Svelte, and Phaser');
 		expect(skill).toContain('public/game/assets/');
 		expect(skill).toContain(
 			'.agents/skills/2d-game-asset-workflow/scripts/inspect_png_alpha.py'
@@ -141,7 +141,7 @@ Run:
 bun run test:unit -- --run src/lib/game/content/agent-skills.test.ts -t "keeps 2d-game-asset-workflow"
 ```
 
-Expected: FAIL because `.agents/skills/2d-game-asset-workflow` and the `.claude` symlink do not exist yet.
+Expected: FAIL because `.agents/skills/2d-game-asset-workflow` and the `.claude` discovery link do not exist.
 
 - [ ] **Step 3: Move the asset skill and create discovery symlinks**
 
@@ -154,7 +154,7 @@ ln -s ../../.agents/skills/2d-game-asset-workflow .codex/skills/2d-game-asset-wo
 ln -s ../../.agents/skills/2d-game-asset-workflow .claude/skills/2d-game-asset-workflow
 ```
 
-Verify the tracked shape before editing text:
+Verify:
 
 ```bash
 git status --short
@@ -162,7 +162,7 @@ readlink .codex/skills/2d-game-asset-workflow
 readlink .claude/skills/2d-game-asset-workflow
 ```
 
-Expected symlink target for both links:
+Expected target for both links:
 
 ```text
 ../../.agents/skills/2d-game-asset-workflow
@@ -208,15 +208,10 @@ bun run test:unit -- --run src/lib/game/content/agent-skills.test.ts -t "keeps 2
 python3 -m py_compile \
   .agents/skills/2d-game-asset-workflow/scripts/inspect_png_alpha.py \
   .agents/skills/2d-game-asset-workflow/scripts/remove_border_background.py
-```
-
-Expected: the Vitest case passes and Python compilation exits `0`.
-
-Remove any generated `__pycache__` directory before committing:
-
-```bash
 rm -rf .agents/skills/2d-game-asset-workflow/scripts/__pycache__
 ```
+
+Expected: the Vitest case passes, Python compilation exits `0`, and no generated cache is left tracked.
 
 - [ ] **Step 6: Commit the shared asset-skill migration**
 
@@ -231,13 +226,15 @@ git commit -m "refactor: share the 2D asset skill across agents"
 
 ---
 
-### Task 2: Add the concise world-expansion entry skill and brief template
+### Task 2: Add the complete world-expansion skill, references, template, and drift checks
 
 **Files:**
 
 - Modify: `src/lib/game/content/agent-skills.test.ts`
 - Create: `.agents/skills/gliese-world-expansion/SKILL.md`
 - Create: `.agents/skills/gliese-world-expansion/templates/expansion-brief.md`
+- Create: `.agents/skills/gliese-world-expansion/references/authoring.md`
+- Create: `.agents/skills/gliese-world-expansion/references/validation.md`
 - Create symlink: `.claude/skills/gliese-world-expansion`
 
 **Interfaces:**
@@ -251,20 +248,29 @@ git commit -m "refactor: share the 2D asset skill across agents"
   - `placement-only`
   - `asset-only`
   - `unsupported`
-- Consumes references created in Task 3:
-  - `references/authoring.md`
-  - `references/validation.md`
+- Produces the source-selection contract for:
+  - direct `WorldMapDefinition` literals;
+  - hand-authored `RegionFragment` composition through `mergeRegions(...)`;
+  - village-only layered authoring.
 - Delegates prose to `gliese-story-writer` and generic asset work to `2d-game-asset-workflow`.
+- Produces one exact Expansion Brief format and one scope-based validation reference.
 
-- [ ] **Step 1: Add a failing test for the world-expansion skill contract**
+- [ ] **Step 1: Add failing skill-contract and path/script tests**
 
-Append these helpers above the `describe` block in `src/lib/game/content/agent-skills.test.ts`:
+Add these helpers above the `describe` block in `src/lib/game/content/agent-skills.test.ts`:
 
 ```ts
 interface SkillFrontmatter {
 	name: string;
 	description: string;
 }
+
+const worldExpansionMarkdownFiles = [
+	'.agents/skills/gliese-world-expansion/SKILL.md',
+	'.agents/skills/gliese-world-expansion/references/authoring.md',
+	'.agents/skills/gliese-world-expansion/references/validation.md',
+	'.agents/skills/gliese-world-expansion/templates/expansion-brief.md'
+] as const;
 
 function readSkillFrontmatter(skillPath: string): SkillFrontmatter {
 	const markdown = readRepositoryFile(skillPath);
@@ -283,21 +289,42 @@ function readSkillFrontmatter(skillPath: string): SkillFrontmatter {
 		description: entries.get('description') ?? ''
 	};
 }
+
+function worldExpansionMarkdown(): string {
+	return worldExpansionMarkdownFiles.map(readRepositoryFile).join('\n');
+}
+
+function referencedRepositoryPaths(markdown: string): string[] {
+	const codeFragments = [
+		...[...markdown.matchAll(/`([^`\n]+)`/g)].map((match) => match[1]),
+		...[...markdown.matchAll(/```(?:[a-z]+)?\n([\s\S]*?)\n```/g)].flatMap((match) =>
+			match[1].split('\n')
+		)
+	];
+	const pathPattern = /(?:^|[\s('"=])((?:src|story|tools|public|\.agents|\.claude)\/[A-Za-z0-9_.\-/]+)/g;
+	const paths = new Set<string>();
+
+	for (const fragment of codeFragments) {
+		for (const match of fragment.matchAll(pathPattern)) {
+			paths.add(match[1]);
+		}
+	}
+
+	return [...paths].sort();
+}
+
+function referencedPackageScripts(markdown: string): string[] {
+	return [...new Set([...markdown.matchAll(/\bbun run ([a-z0-9:_-]+)/g)].map((match) => match[1]))].sort();
+}
 ```
 
-Append this test inside `describe('project agent skills', ...)`:
+Add these tests inside `describe('project agent skills', ...)`:
 
 ```ts
-it('defines the lean gliese-world-expansion entry skill', () => {
+it('defines the lean gliese-world-expansion skill contract', () => {
 	const canonicalRoot = '.agents/skills/gliese-world-expansion';
-	const requiredFiles = [
-		`${canonicalRoot}/SKILL.md`,
-		`${canonicalRoot}/templates/expansion-brief.md`,
-		`${canonicalRoot}/references/authoring.md`,
-		`${canonicalRoot}/references/validation.md`
-	];
 
-	for (const path of requiredFiles) {
+	for (const path of worldExpansionMarkdownFiles) {
 		expect(existsSync(repositoryPath(path)), path).toBe(true);
 	}
 
@@ -305,20 +332,39 @@ it('defines the lean gliese-world-expansion entry skill', () => {
 	expect(frontmatter.name).toBe('gliese-world-expansion');
 	expect(frontmatter.description.startsWith('Use when ')).toBe(true);
 	expect(frontmatter.description.length).toBeLessThanOrEqual(500);
-
 	expectSymlinkTo('.claude/skills/gliese-world-expansion', canonicalRoot);
+});
+
+it('keeps world-expansion repository paths and bun scripts resolvable', () => {
+	const markdown = worldExpansionMarkdown();
+	const referencedPaths = referencedRepositoryPaths(markdown);
+	const referencedScripts = referencedPackageScripts(markdown);
+	const packageJson = JSON.parse(readRepositoryFile('package.json')) as {
+		scripts?: Record<string, string>;
+	};
+
+	expect(referencedPaths.length).toBeGreaterThan(0);
+	expect(referencedScripts.length).toBeGreaterThan(0);
+
+	for (const path of referencedPaths) {
+		expect(existsSync(repositoryPath(path)), path).toBe(true);
+	}
+
+	for (const script of referencedScripts) {
+		expect(packageJson.scripts?.[script], `package.json script: ${script}`).toBeTypeOf('string');
+	}
 });
 ```
 
-- [ ] **Step 2: Run the new test and verify it fails**
+- [ ] **Step 2: Run the focused tests and verify they fail**
 
 Run:
 
 ```bash
-bun run test:unit -- --run src/lib/game/content/agent-skills.test.ts -t "defines the lean gliese-world-expansion"
+bun run test:unit -- --run src/lib/game/content/agent-skills.test.ts -t "gliese-world-expansion|world-expansion repository paths"
 ```
 
-Expected: FAIL because the skill files do not exist.
+Expected: FAIL because the world-expansion skill directory and Claude symlink do not exist.
 
 - [ ] **Step 3: Create the skill directory and Claude discovery link**
 
@@ -331,9 +377,9 @@ mkdir -p \
 ln -s ../../.agents/skills/gliese-world-expansion .claude/skills/gliese-world-expansion
 ```
 
-- [ ] **Step 4: Create the exact concise `SKILL.md`**
+- [ ] **Step 4: Create `SKILL.md`**
 
-Create `.agents/skills/gliese-world-expansion/SKILL.md` with:
+Create `.agents/skills/gliese-world-expansion/SKILL.md`:
 
 ```markdown
 ---
@@ -379,9 +425,9 @@ Choose one: `new-content`, `revision`, `frozen-integration`, `story-only`, `plac
 Use `templates/expansion-brief.md`. Committed briefs follow `docs/superpowers/specs/YYYY-MM-DD-<scope>-expansion-brief.md`. Frozen integration and sufficiently small work may use the PR description instead.
 ```
 
-- [ ] **Step 5: Create the exact Expansion Brief template**
+- [ ] **Step 5: Create the Expansion Brief template**
 
-Create `.agents/skills/gliese-world-expansion/templates/expansion-brief.md` with:
+Create `.agents/skills/gliese-world-expansion/templates/expansion-brief.md`:
 
 ```markdown
 # Expansion Brief: <scope>
@@ -419,144 +465,11 @@ List work deliberately excluded from this delivery.
 Write the shortest controller route that proves navigation, interactions, transitions, one representative save/reload, and relevant fallback behavior.
 ```
 
-The literal `<scope>` is intentional template text. Do not commit a filled consumer brief in this task.
+The literal `<scope>` is intentional template syntax, not an unresolved implementation decision.
 
-- [ ] **Step 6: Add temporary reference stubs so the structural contract can pass**
+- [ ] **Step 6: Create `authoring.md`**
 
 Create `.agents/skills/gliese-world-expansion/references/authoring.md`:
-
-```markdown
-# Authoring Reference
-
-This reference is completed in Task 3.
-```
-
-Create `.agents/skills/gliese-world-expansion/references/validation.md`:
-
-```markdown
-# Validation Reference
-
-This reference is completed in Task 3.
-```
-
-These stubs are allowed only inside this task and must be replaced before the Task 3 commit.
-
-- [ ] **Step 7: Run the focused skill-contract test**
-
-Run:
-
-```bash
-bun run test:unit -- --run src/lib/game/content/agent-skills.test.ts -t "defines the lean gliese-world-expansion"
-```
-
-Expected: PASS.
-
-- [ ] **Step 8: Commit the entry skill and template**
-
-```bash
-git add \
-  .agents/skills/gliese-world-expansion \
-  .claude/skills/gliese-world-expansion \
-  src/lib/game/content/agent-skills.test.ts
-git commit -m "feat: add the Gliese world-expansion skill entrypoint"
-```
-
----
-
-### Task 3: Implement source routing, validation guidance, and drift detection
-
-**Files:**
-
-- Modify: `src/lib/game/content/agent-skills.test.ts`
-- Replace: `.agents/skills/gliese-world-expansion/references/authoring.md`
-- Replace: `.agents/skills/gliese-world-expansion/references/validation.md`
-
-**Interfaces:**
-
-- `authoring.md` produces the authoritative navigation contract for:
-  - direct `WorldMapDefinition` authoring in `src/lib/game/content/maps.ts`;
-  - default hand-authored `RegionFragment` composition through `mergeRegions(...)`;
-  - village-only layered authoring through `village-layered.ts`.
-- `validation.md` produces the command-selection and walkthrough contract.
-- The test scans only world-expansion Markdown for exact repository paths and `bun run <script>` commands.
-
-- [ ] **Step 1: Add failing path and package-script checks**
-
-Add these helpers above the `describe` block in `src/lib/game/content/agent-skills.test.ts`:
-
-```ts
-const worldExpansionMarkdownFiles = [
-	'.agents/skills/gliese-world-expansion/SKILL.md',
-	'.agents/skills/gliese-world-expansion/references/authoring.md',
-	'.agents/skills/gliese-world-expansion/references/validation.md',
-	'.agents/skills/gliese-world-expansion/templates/expansion-brief.md'
-] as const;
-
-function worldExpansionMarkdown(): string {
-	return worldExpansionMarkdownFiles.map(readRepositoryFile).join('\n');
-}
-
-function referencedRepositoryPaths(markdown: string): string[] {
-	const codeFragments = [
-		...[...markdown.matchAll(/`([^`\n]+)`/g)].map((match) => match[1]),
-		...[...markdown.matchAll(/```(?:[a-z]+)?\n([\s\S]*?)\n```/g)].flatMap((match) =>
-			match[1].split('\n')
-		)
-	];
-	const pathPattern = /(?:^|[\s('"=])((?:src|story|tools|public|\.agents|\.claude)\/[A-Za-z0-9_.\-/]+)/g;
-	const paths = new Set<string>();
-
-	for (const fragment of codeFragments) {
-		for (const match of fragment.matchAll(pathPattern)) {
-			paths.add(match[1]);
-		}
-	}
-
-	return [...paths].sort();
-}
-
-function referencedPackageScripts(markdown: string): string[] {
-	return [...new Set([...markdown.matchAll(/\bbun run ([a-z0-9:_-]+)/g)].map((match) => match[1]))].sort();
-}
-```
-
-Add this test inside the existing `describe` block:
-
-```ts
-it('keeps world-expansion repository paths and bun scripts resolvable', () => {
-	const markdown = worldExpansionMarkdown();
-	const referencedPaths = referencedRepositoryPaths(markdown);
-	const referencedScripts = referencedPackageScripts(markdown);
-	const packageJson = JSON.parse(readRepositoryFile('package.json')) as {
-		scripts?: Record<string, string>;
-	};
-
-	expect(referencedPaths.length).toBeGreaterThan(0);
-	expect(referencedScripts.length).toBeGreaterThan(0);
-
-	for (const path of referencedPaths) {
-		expect(existsSync(repositoryPath(path)), path).toBe(true);
-	}
-
-	for (const script of referencedScripts) {
-		expect(packageJson.scripts?.[script], `package.json script: ${script}`).toBeTypeOf('string');
-	}
-});
-```
-
-- [ ] **Step 2: Run the new check and verify the reference stubs fail the contract**
-
-Run:
-
-```bash
-bun run test:unit -- --run src/lib/game/content/agent-skills.test.ts -t "keeps world-expansion repository paths"
-```
-
-Expected: FAIL because the stubs name no repository paths or package scripts.
-
-- [ ] **Step 3: Replace `authoring.md` with the exact source-routing reference**
-
-Replace `.agents/skills/gliese-world-expansion/references/authoring.md` with:
 
 ```markdown
 # Gliese World Authoring
@@ -654,9 +567,9 @@ Generic props, sprites, sheets, transparency, frame manifests, and Phaser wiring
 A new map does not inherit Meadow Entry's adapter, crop contract, provenance inventory, or approval machinery. Record the concrete need and build only the smallest asset path the real map requires.
 ```
 
-- [ ] **Step 4: Replace `validation.md` with the exact command and walkthrough reference**
+- [ ] **Step 7: Create `validation.md`**
 
-Replace `.agents/skills/gliese-world-expansion/references/validation.md` with:
+Create `.agents/skills/gliese-world-expansion/references/validation.md`:
 
 ```markdown
 # Gliese World Validation
@@ -728,36 +641,36 @@ Derive one shortest route from the Expansion Brief. Cover only relevant behavior
 Fix the defect at its owner. Do not add a translation layer, duplicate source, or broad framework to hide it.
 ```
 
-- [ ] **Step 5: Run the path/script test and all project-skill tests**
+- [ ] **Step 8: Run the focused world-skill tests**
 
 Run:
 
 ```bash
-bun run test:unit -- --run src/lib/game/content/agent-skills.test.ts -t "keeps world-expansion repository paths"
+bun run test:unit -- --run src/lib/game/content/agent-skills.test.ts -t "gliese-world-expansion|world-expansion repository paths"
 bun run test:unit -- --run src/lib/game/content/agent-skills.test.ts
 ```
 
 Expected: PASS. The path/script test must report at least one referenced path and at least one referenced package script.
 
-- [ ] **Step 6: Commit the routing and validation references**
+- [ ] **Step 9: Commit the complete world-expansion skill**
 
 ```bash
 git add \
-  .agents/skills/gliese-world-expansion/references/authoring.md \
-  .agents/skills/gliese-world-expansion/references/validation.md \
+  .agents/skills/gliese-world-expansion \
+  .claude/skills/gliese-world-expansion \
   src/lib/game/content/agent-skills.test.ts
-git commit -m "docs: encode Gliese world authoring routes"
+git commit -m "feat: add the Gliese world-expansion skill"
 ```
 
 ---
 
-### Task 4: Correct repository guidance and complete verification
+### Task 3: Correct repository guidance and complete verification
 
 **Files:**
 
 - Modify: `CLAUDE.md`
 - Modify: `src/lib/game/content/agent-skills.test.ts`
-- Modify after implementation: PR description only
+- Modify after implementation: implementation PR description only
 
 **Interfaces:**
 
@@ -765,9 +678,9 @@ git commit -m "docs: encode Gliese world authoring routes"
 - `gliese-world-expansion/references/authoring.md` remains the detailed path owner.
 - The regression test prevents the stale all-layered description from returning.
 
-- [ ] **Step 1: Add a failing test for the corrected top-level map guidance**
+- [ ] **Step 1: Add a failing test for corrected top-level guidance**
 
-Append this test inside `describe('project agent skills', ...)`:
+Append inside `describe('project agent skills', ...)`:
 
 ```ts
 it('documents the actual map authoring sources in CLAUDE.md', () => {
@@ -783,7 +696,7 @@ it('documents the actual map authoring sources in CLAUDE.md', () => {
 });
 ```
 
-- [ ] **Step 2: Run the new test and verify it fails against current guidance**
+- [ ] **Step 2: Run the new test and verify it fails**
 
 Run:
 
@@ -791,11 +704,11 @@ Run:
 bun run test:unit -- --run src/lib/game/content/agent-skills.test.ts -t "documents the actual map authoring sources"
 ```
 
-Expected: FAIL because `CLAUDE.md` still describes every outdoor region as layered and does not name the two new/shared skills.
+Expected: FAIL because `CLAUDE.md` still describes every outdoor region as layered and does not name the new/shared skills.
 
 - [ ] **Step 3: Correct the top-level layout description**
 
-Replace this `CLAUDE.md` top-level layout fragment:
+Replace:
 
 ```text
 content/     Static game definitions (assets, dialogue, enemies, items, player, quests, shops)
@@ -812,7 +725,7 @@ content/     Static game definitions (assets, dialogue, enemies, items, player, 
     layered/ the village tile-layer compiler and related authoring helpers
 ```
 
-- [ ] **Step 4: Replace the stale Maps paragraph with source-accurate guidance**
+- [ ] **Step 4: Replace the stale Maps paragraph**
 
 Replace the existing `### Content / Data Model` Maps bullet with:
 
@@ -822,7 +735,7 @@ Replace the existing `### Content / Data Model` Maps bullet with:
 
 - [ ] **Step 5: Add a concise Project Skills section**
 
-Add this section immediately before `### Repo-level docs`:
+Add immediately before `### Repo-level docs`:
 
 ```markdown
 ### Project skills
@@ -832,23 +745,14 @@ Add this section immediately before `### Repo-level docs`:
 - Use `2d-game-asset-workflow` for generic props, sprites, sheets, transparency, frame manifests, and Phaser asset wiring.
 ```
 
-Do not duplicate the full world-expansion routing table in `CLAUDE.md`.
+Do not duplicate the full source-routing table in `CLAUDE.md`.
 
-- [ ] **Step 6: Run the focused guidance test**
+- [ ] **Step 6: Run the guidance test and complete verification**
 
 Run:
 
 ```bash
 bun run test:unit -- --run src/lib/game/content/agent-skills.test.ts -t "documents the actual map authoring sources"
-```
-
-Expected: PASS.
-
-- [ ] **Step 7: Run complete implementation verification**
-
-Run:
-
-```bash
 bun run test:unit -- --run src/lib/game/content/agent-skills.test.ts
 bun run check
 bun run lint
@@ -858,7 +762,7 @@ Expected: all commands pass.
 
 A browser or Tauri build is not required for this initial skill PR because it changes Markdown, symlinks, and a Node-environment test only. Do not claim HPA-406, HPA-400, HPA-414, greenfield outdoor, or dungeon behavior has been validated here.
 
-- [ ] **Step 8: Inspect the final tracked file shape**
+- [ ] **Step 7: Inspect the final tracked file shape**
 
 Run:
 
@@ -879,18 +783,18 @@ Expected:
 - all three symlinks resolve through `../../.agents/skills/...`;
 - no `__pycache__`, copied `.codex` directory, or `docs/world-expansion/` tree.
 
-- [ ] **Step 9: Commit repository guidance and verification**
+- [ ] **Step 8: Commit repository guidance and verification**
 
 ```bash
 git add CLAUDE.md src/lib/game/content/agent-skills.test.ts
 git commit -m "docs: route agents through current Gliese authoring sources"
 ```
 
-- [ ] **Step 10: Open the implementation PR and record exact validation**
+- [ ] **Step 9: Open the implementation PR and record exact validation**
 
 Open a new draft implementation PR from the execution branch to `main`. Do not implement on the design/plan branch.
 
-Use this PR summary structure:
+Use this PR body:
 
 ```markdown
 ## Summary
@@ -943,6 +847,7 @@ Do not create that note during the initial implementation; it must summarize act
 
 - **Spec coverage:** The plan covers the two-reference skill, Expansion Brief template, three authoring-source routes, story and art handoffs, shared asset-skill migration, stale `CLAUDE.md` correction, focused mechanical validation, symlink discovery, and consumer sequencing.
 - **Scope containment:** Runtime content, art generation, generic map infrastructure, and speculative consumer feedback are excluded.
-- **Test strategy:** Every implementation task introduces a failing focused test before the corresponding files or guidance are added, then runs the narrow test to green before committing.
+- **Task boundaries:** Every task ends with production-ready files and passing focused tests; no reference stubs or intermediate placeholder commits remain.
+- **Test strategy:** Every task introduces a failing focused test before the corresponding files or guidance are added, then runs the narrow test to green before committing.
 - **Type consistency:** Test helper names and paths remain consistent across all tasks: `repositoryPath`, `readRepositoryFile`, `expectSymlinkTo`, `readSkillFrontmatter`, `worldExpansionMarkdown`, `referencedRepositoryPaths`, and `referencedPackageScripts`.
-- **No placeholders:** `<scope>` and `YYYY-MM-DD-<scope>` appear only as intentional user-facing template syntax, not as missing implementation decisions.
+- **Intentional template syntax:** `<scope>` and `YYYY-MM-DD-<scope>` appear only as user-facing template syntax, not missing implementation decisions.
