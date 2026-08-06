@@ -192,7 +192,7 @@ From this design onward:
 - The existing `hpa-495-art-map-package-adapter-v1.md` describes a Meadow Entry compatibility adapter created under an older HPA-495 meaning.
 - `art-map-adapters/*`, `tools/art-map-package.ts`, and `bun run art:map-package` remain Meadow Entry-specific until another real implementation exists.
 
-The legacy adapter document must be renamed, clearly footered, or deleted as part of the initial skill delivery. It is not optional cleanup and must not remain as a peer “HPA-495 design.”
+The legacy adapter document is retitled and footered on this design branch. Its remaining file path is historical only and must not be treated as a peer “HPA-495 design.” A later cleanup may rename the file path or remove the compatibility wrapper when HPA-406 confirms no consumer needs it.
 
 ### 3.8 Existing skill convention
 
@@ -455,7 +455,6 @@ Deliver first:
 - `.claude` discovery symlink;
 - correction of `CLAUDE.md` map-source guidance;
 - canonical cross-agent migration and stale-path fix for `2d-game-asset-workflow`;
-- removal of the ambiguous peer HPA-495 adapter-document meaning;
 - the focused path/script/frontmatter/symlink test.
 
 Do not include runtime map implementation, playable content, generated art, or a synthetic scenario corpus.
@@ -496,7 +495,7 @@ No per-scenario evidence tree is required.
 - `authoring.md` names concrete paths, registration points, ownership boundaries, and adjacent skill owners without copying their data or algorithms.
 - The brief is concise, uses the existing `docs/superpowers/specs/` convention when committed, and creates no separate approval system.
 - Generic asset work is reachable by Claude and other agents through one canonical skill copy.
-- The stale `CLAUDE.md` layered-overworld claim and ambiguous legacy HPA-495 adapter label are removed.
+- The stale `CLAUDE.md` layered-overworld claim is removed before the initial skill merges; the legacy adapter document is already disambiguated on this branch.
 - The focused mechanical test catches missing repository paths, missing package scripts, invalid frontmatter, and broken skill symlinks.
 - HPA-406 proves frozen-integration routing.
 - HPA-400 and HPA-414 Batch 1 prove real direct-map content expansion and feed back only reusable changes.
