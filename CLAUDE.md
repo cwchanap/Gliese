@@ -120,7 +120,8 @@ The same `SaveStorage` adapter also backs **non-save** preferences (language: ke
 
 ```
 content/     Static game definitions (assets, dialogue, enemies, items, player, quests, shops)
-  maps/      direct maps in maps.ts plus the meadow-entry composition
+  maps.ts    direct maps (interiors and ruins WorldMapDefinition literals)
+  maps/      the meadow-entry composition
     regions/ hand-authored RegionFragment modules; village.ts alone wraps village-layered.ts
     layered/ the village tile-layer compiler and related authoring helpers
 core/        Pure TS game logic — no Phaser, no DOM

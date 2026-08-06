@@ -96,7 +96,7 @@ mergeRegions(...)
 
 This is the default starting pattern for a new Meadow Entry region or connector unless a demonstrated requirement needs tile-level layered authoring.
 
-A new fragment is not active merely because its file exists. It must be imported and included in `mergeRegions(...)`, and its IDs must remain unique across composed fields.
+A new fragment is not active merely because its file exists. It must be imported and included in `mergeRegions(...)`, and its IDs must remain unique within each merged field.
 
 ### 3.3 Layered source plus compiler — village-specific pattern
 
