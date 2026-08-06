@@ -139,4 +139,18 @@ describe('project agent skills', () => {
 			expect(packageJson.scripts?.[script], `package.json script: ${script}`).toBeTypeOf('string');
 		}
 	});
+
+	it('documents the actual map authoring sources in CLAUDE.md', () => {
+		const guidance = readRepositoryFile('CLAUDE.md');
+
+		expect(guidance).toContain('hand-authored `RegionFragment`');
+		expect(guidance).toContain('`mergeRegions(...)`');
+		expect(guidance).toContain('`village-layered.ts`');
+		expect(guidance).toContain('`gliese-world-expansion`');
+		expect(guidance).toContain('`2d-game-asset-workflow`');
+		expect(guidance).not.toContain('regions/ (layered overworld) built');
+		expect(guidance).not.toContain(
+			'The overworld beyond the hub is authored as **layered regions**'
+		);
+	});
 });

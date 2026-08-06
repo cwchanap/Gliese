@@ -120,8 +120,9 @@ The same `SaveStorage` adapter also backs **non-save** preferences (language: ke
 
 ```
 content/     Static game definitions (assets, dialogue, enemies, items, player, quests, shops)
-  maps/      meadow-entry + interiors (maps.ts), plus regions/ (layered overworld) built
-             through layered/compile-layered-region.ts
+  maps/      direct maps in maps.ts plus the meadow-entry composition
+    regions/ hand-authored RegionFragment modules; village.ts alone wraps village-layered.ts
+    layered/ the village tile-layer compiler and related authoring helpers
 core/        Pure TS game logic — no Phaser, no DOM
              (combat, battle, boss, progression, input, types, inventory, equipment, shop,
               stats, loot, dialogue runtime, quests, area-map, map-exploration)
@@ -155,7 +156,7 @@ Phaser and Svelte communicate exclusively through custom `window` events (define
 
 ### Content / Data Model
 
-- **Maps**: `meadow-entry` is the hub, with interior maps (`hero-house`, `guild-hall`, `item-shop`, `villager-house-1/2/3`, `shrine-of-aurora-interior`) and the dungeon chain `ruins-threshold` → `ruins-core`. A `WorldMapDefinition` may carry transitions, encounters, pickups, NPCs (with optional `shopId` and/or `dialogueId`), and landmark rectangles. The overworld beyond the hub is authored as **layered regions** under `content/maps/regions/` (coast, crossroads, mistfen, silverpine, wildwood, village) — these are declared as tile layers and compiled into `WorldMapDefinition`s by `content/maps/layered/compile-layered-region.ts`, so edit the region source, not a compiled grid.
+- **Maps**: `meadow-entry` is the hub, with interior maps (`hero-house`, `guild-hall`, `item-shop`, `villager-house-1/2/3`, `shrine-of-aurora-interior`) and the dungeon chain `ruins-threshold` → `ruins-core`. Interiors and ruins are direct `WorldMapDefinition` literals in `src/lib/game/content/maps.ts`. Most Meadow Entry destinations and connectors are hand-authored `RegionFragment` modules under `content/maps/regions/` and become active only when imported and included in `mergeRegions(...)` in `content/maps/meadow-entry.ts`. Sundrop Village is the one layered exception: edit `village-layered.ts`; `village.ts` is its thin compiler/background wrapper.
 - **Enemies**: `slime-scout` (normal), `ruins-warden` (boss with a phase-2 enrage at ≤50% HP)
 - **Items / shops**: Items are defined in `content/items.ts` (consumables, equipment with `StatModifiers`, key items). Shops in `content/shops.ts` reference item IDs with per-shop stock and pricing. Wallet/coin state lives in `core/shop.ts`.
 - **Dialogue**: NPC **prose lives in `story/`, not in TypeScript** (see Story Pipeline). `content/dialogue.ts` holds only the per-NPC action/intent definitions and their localized labels. Runtime traversal/state lives in `core/dialogue.ts` and is surfaced to the HUD as `HudState.dialogue` (modes: `conversation`, `choice`, `system`). The HUD drives it with the `dialogue-advance` / `dialogue-close` / `dialogue-choose` commands.
@@ -196,6 +197,12 @@ by `vite build --mode tauri`):
   `dist/` to enforce this.
 
 When writing or editing beats, use the `gliese-story-writer` skill (`.claude/skills/`).
+
+### Project skills
+
+- Use `gliese-world-expansion` for substantial multi-concern map, region, dungeon, interior, NPC/encounter, or approved world-art integration work. It routes by owning source and uses a brief only when the scope warrants one.
+- Use `gliese-story-writer` for story prose and beat metadata.
+- Use `2d-game-asset-workflow` for generic props, sprites, sheets, transparency, frame manifests, and Phaser asset wiring.
 
 ### Repo-level docs
 
