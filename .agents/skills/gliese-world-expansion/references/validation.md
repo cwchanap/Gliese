@@ -10,11 +10,25 @@ Skill routing or references:
 bun run test:unit -- --run src/lib/game/content/agent-skills.test.ts
 ```
 
-Map definitions, transitions, encounters, shops, or content IDs:
+Map definitions, transitions, encounters, or map-owned content IDs:
 
 ```sh
 bun run test:unit -- --run src/lib/game/content/maps.test.ts
 ```
+
+`maps.test.ts` covers map integration only. When a content registry is changed, also
+run that registry's focused test — it owns invariants `maps.test.ts` does not, such as
+shop stock and localization, dialogue action references, and quest objectives and
+rewards. Run each one that matches the touched registry:
+
+```sh
+bun run test:unit -- --run src/lib/game/content/shops.test.ts
+bun run test:unit -- --run src/lib/game/content/dialogue.test.ts
+bun run test:unit -- --run src/lib/game/content/quests.test.ts
+```
+
+Other registries (`enemies.test.ts`, `items.test.ts`, `assets.test.ts`, `player.test.ts`)
+follow the same rule: run the test that owns the changed registry.
 
 Renderer, background planes, preload, or Phaser world behavior:
 
