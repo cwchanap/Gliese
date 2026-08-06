@@ -1,14 +1,14 @@
-# HPA-495 art map package adapter v1
+# Meadow Entry art map package adapter v1
 
-> **Historical name notice:** this document describes the Meadow Entry art-package compatibility adapter created under an older HPA-495 meaning. Current HPA-495 work is the `gliese-world-expansion` skill. Do not use this document as the world-expansion design or assume this adapter applies to another map.
+> **Historical name notice:** this document was originally titled “HPA-495 art map package adapter v1” under an older HPA-495 meaning. Current HPA-495 work is the `gliese-world-expansion` skill. Do not use this document as the world-expansion design or assume this adapter applies to another map.
 
-This repository exposes one stable, repository-relative entry point for the deterministic map-art package lifecycle:
+This repository exposes one stable, repository-relative entry point for the deterministic Meadow Entry map-art package lifecycle:
 
 ```sh
 bun run art:map-package -- --adapter art-map-adapters/meadow-entry.v1.json --operation validate
 ```
 
-The adapter is a versioned dispatch manifest, not a generic art generator. It names a reviewed map package, its fixed input/output schemas, deterministic artifact paths, approval and fingerprint-bearing manifests, production prompt/manual record, provenance, transforms, crop and encoder contract versions, dependency versions, and compatibility commands. Existing Meadow Entry commands remain supported.
+The adapter is a versioned dispatch manifest, not a generic art generator. It names the reviewed Meadow Entry package, its fixed input/output schemas, deterministic artifact paths, approval and fingerprint-bearing manifests, production prompt/manual record, provenance, transforms, crop and encoder contract versions, dependency versions, and compatibility commands. Existing Meadow Entry commands remain supported.
 
 ## Adapter v1 schema
 
