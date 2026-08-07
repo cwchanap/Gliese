@@ -1,7 +1,6 @@
 import type {
 	MapBackgroundImage,
 	MapBackgroundPlane,
-	MapBlocker,
 	MapVisualOwnership,
 	WorldMapDefinition
 } from '$lib/game/content/maps/types';
@@ -176,25 +175,4 @@ export function applyVisualOwnership<T extends { id: string; visual?: MapVisualO
 		}
 		return { ...item, visual: assignment.visual };
 	});
-}
-
-/**
- * Decides whether a blocker's own visual should be rendered given the set
- * of backgrounds that loaded successfully.
- *
- * Blockers with no `visual` or `mode === 'always'` always render. A
- * `fallback-only` blocker renders unless one owner crop has every required
- * background in `successfulBackgroundIds`, so the visual stands in for
- * missing art.
- *
- * @param blocker - The blocker whose visual mode is consulted.
- * @param successfulBackgroundIds - IDs of backgrounds that loaded and
- *   rendered successfully.
- * @returns `true` when the blocker visual should be drawn.
- */
-export function shouldRenderBlockerVisual(
-	blocker: MapBlocker,
-	successfulBackgroundIds: ReadonlySet<string>
-): boolean {
-	return shouldRenderOwnedVisual(blocker.visual, successfulBackgroundIds);
 }
