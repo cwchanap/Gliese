@@ -19,7 +19,6 @@
 		"art:approve:meadow-entry": "bun tools/approve-meadow-entry-art-package.ts",
 		"art:validate:meadow-entry": "bun tools/validate-meadow-entry-art-package.ts",
 		"world:probe:meadow-entry-textures": "bun tools/probe-meadow-entry-texture-safety.ts",
-		"art:map-package": "bun tools/art-map-package.ts",
 		"art:validate:meadow-entry-controls": "bun run art:storage:meadow-entry && bun tools/export-meadow-entry-art-controls.ts --check && bun tools/run-meadow-entry-controls-tests.ts",
 		"art:rasterize:village": "bun tools/rasterize-sundrop-village-art-control.ts",
 		"art:finalize:village-obstacles": "bun tools/finalize-sundrop-village-obstacles.ts",
