@@ -1451,7 +1451,7 @@ describe('opening map content', () => {
 				}
 			])
 		);
-		expect(meadowEntryMap.fences).toEqual([
+		expect(meadowEntryMap.fences).toMatchObject([
 			{ id: 'coast-approach-west-fence', x: 4_020, y: 5_250, width: 32, height: 520 },
 			{ id: 'coast-approach-east-fence', x: 4_380, y: 5_250, width: 32, height: 520 },
 			{ id: 'coast-fork-east-field-fence', x: 4_460, y: 5_660, width: 500, height: 32 },
@@ -1940,8 +1940,38 @@ describe('meadow-entry region integrity', () => {
 		expect(meadowEntryMap.npcs).toEqual([]);
 	});
 
-	it('merges both source-derived Sundrop regional background planes and their ownership', () => {
-		expect(meadowEntryMap.backgroundImages).toEqual([
+	it('composes the 18 PR-1 background descriptors and applies their visual ownership', () => {
+		const backgroundImages = meadowEntryMap.backgroundImages ?? [];
+		const hpa496BackgroundIds = [
+			'meadow-entry-sundrop-village-underlay-base-image',
+			'meadow-entry-outer-boundary-east-forest-lane-base-image',
+			'meadow-entry-village-crossroads-connector-base-image',
+			'meadow-entry-village-crossroads-connector-foreground-image',
+			'meadow-entry-crossroads-coast-connector-base-image',
+			'meadow-entry-crossroads-coast-connector-foreground-image',
+			'meadow-entry-crossroads-mistfen-connector-base-image',
+			'meadow-entry-crossroads-mistfen-connector-foreground-image',
+			'meadow-entry-crossroads-silverpine-connector-base-image',
+			'meadow-entry-crossroads-silverpine-connector-foreground-image',
+			'meadow-entry-crossroads-wildwood-connector-base-image',
+			'meadow-entry-crossroads-wildwood-connector-foreground-image',
+			'meadow-entry-crossroads-base-image',
+			'meadow-entry-crossroads-foreground-image',
+			'meadow-entry-wildwood-base-image',
+			'meadow-entry-wildwood-foreground-image'
+		] as const;
+
+		expect(backgroundImages).toHaveLength(18);
+		for (const id of hpa496BackgroundIds) {
+			expect(backgroundImages.filter((background) => background.id === id)).toHaveLength(1);
+		}
+		expect(
+			backgroundImages.filter((background) =>
+				[SUNDROP_VILLAGE_BASE_BACKGROUND_ID, SUNDROP_VILLAGE_FOREGROUND_BACKGROUND_ID].includes(
+					background.id
+				)
+			)
+		).toEqual([
 			{
 				id: 'sundrop-village-base-image',
 				textureKey: 'sundrop-village-base',
@@ -1967,9 +1997,17 @@ describe('meadow-entry region integrity', () => {
 		const selected = (meadowEntryMap.blockers ?? []).filter(
 			(blocker) => blocker.visual?.mode === 'fallback-only'
 		);
-		expect(selected).toHaveLength(21);
+		const sundropSelected = selected.filter((blocker) => {
+			const visual = blocker.visual;
+			return (
+				visual?.mode === 'fallback-only' &&
+				visual.ownerCrops.some((crop) => crop.cropId === 'sundrop-village-hpa-398')
+			);
+		});
+		expect(selected).toHaveLength(50);
+		expect(sundropSelected).toHaveLength(21);
 		expect(
-			selected.filter(
+			sundropSelected.filter(
 				(blocker) =>
 					blocker.visual?.mode === 'fallback-only' &&
 					blocker.visual.ownerCrops.length === 1 &&
@@ -1977,7 +2015,7 @@ describe('meadow-entry region integrity', () => {
 			)
 		).toHaveLength(14);
 		expect(
-			selected.filter(
+			sundropSelected.filter(
 				(blocker) =>
 					blocker.visual?.mode === 'fallback-only' &&
 					blocker.visual.ownerCrops.length === 1 &&
@@ -2011,6 +2049,12 @@ describe('meadow-entry region integrity', () => {
 				}
 			]
 		});
+		expect(
+			(meadowEntryMap.mapDecor ?? []).filter((decor) => decor.visual?.mode === 'fallback-only')
+		).toHaveLength(32);
+		expect(
+			(meadowEntryMap.fences ?? []).filter((fence) => fence.visual?.mode === 'fallback-only')
+		).toHaveLength(5);
 	});
 
 	it('seals three foreshadow gates with future-gate collision', () => {

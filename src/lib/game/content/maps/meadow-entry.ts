@@ -1,7 +1,14 @@
 import type { WorldMapDefinition } from '$lib/game/content/maps/types';
 import type { RegionFragment } from '$lib/game/content/maps/regions/types';
 import { addEnglishMapText } from '$lib/game/content/maps/text';
-import { validateMapBackgroundOwnership } from '$lib/game/content/maps/background-ownership';
+import {
+	applyVisualOwnership,
+	validateMapBackgroundOwnership
+} from '$lib/game/content/maps/background-ownership';
+import {
+	activeMeadowEntryRuntimeVisualOwners,
+	meadowEntryRuntimeBackgroundImages
+} from '$lib/game/content/backgrounds/meadow-entry-runtime';
 import {
 	applySundropObstacleOwnership,
 	SUNDROP_VILLAGE_OBSTACLE_OWNERSHIP,
@@ -141,10 +148,27 @@ const merged = mergeRegions([
 	meadowBoundsRegion
 ]);
 
-const ownedBlockers = applySundropObstacleOwnership(merged.blockers);
+const backgroundImages = [...merged.backgroundImages, ...meadowEntryRuntimeBackgroundImages];
+const sundropOwnedBlockers = applySundropObstacleOwnership(merged.blockers);
+const runtimeBlockerVisualOwners = activeMeadowEntryRuntimeVisualOwners.filter(
+	(owner) => owner.sourceType === 'blocker'
+);
+const runtimeDecorVisualOwners = activeMeadowEntryRuntimeVisualOwners.filter(
+	(owner) => owner.sourceType === 'decor'
+);
+const runtimeFenceVisualOwners = activeMeadowEntryRuntimeVisualOwners.filter(
+	(owner) => owner.sourceType === 'fence'
+);
+const ownedBlockers = applyVisualOwnership(sundropOwnedBlockers, runtimeBlockerVisualOwners, {
+	rejectExisting: true
+});
+const ownedMapDecor = applyVisualOwnership(merged.mapDecor, runtimeDecorVisualOwners);
+const ownedFences = applyVisualOwnership(merged.fences, runtimeFenceVisualOwners);
 const ownershipSource = {
 	blockers: ownedBlockers,
-	backgroundImages: merged.backgroundImages
+	mapDecor: ownedMapDecor,
+	fences: ownedFences,
+	backgroundImages
 };
 
 validateMapBackgroundOwnership(ownershipSource);
@@ -163,13 +187,13 @@ export const meadowEntryMap: WorldMapDefinition = addEnglishMapText({
 	transitions: merged.transitions,
 	groundPatches: merged.groundPatches,
 	blockers: ownedBlockers,
-	fences: merged.fences,
-	mapDecor: merged.mapDecor,
+	fences: ownedFences,
+	mapDecor: ownedMapDecor,
 	combatBounds: merged.combatBounds,
 	encounters: merged.encounters,
 	npcs: merged.npcs,
 	ambientNpcs: merged.ambientNpcs,
 	pickups: merged.pickups,
 	discoveries: merged.discoveries,
-	backgroundImages: merged.backgroundImages
+	backgroundImages
 });

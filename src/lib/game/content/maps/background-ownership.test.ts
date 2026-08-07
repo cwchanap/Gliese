@@ -3,7 +3,6 @@ import { describe, expect, it } from 'vitest';
 import {
 	applyVisualOwnership,
 	getMapBackgroundDepth,
-	shouldRenderBlockerVisual,
 	shouldRenderOwnedVisual,
 	validateMapBackgroundOwnership
 } from '$lib/game/content/maps/background-ownership';
@@ -141,7 +140,7 @@ describe('map background ownership', () => {
 			...(visual ? { visual } : {})
 		} satisfies MapBlocker;
 
-		expect(shouldRenderBlockerVisual(blocker, new Set(successfulIds))).toBe(expected);
+		expect(shouldRenderOwnedVisual(blocker.visual, new Set(successfulIds))).toBe(expected);
 	});
 
 	it('derives deterministic renderer depth from a background plane and draw order', () => {
