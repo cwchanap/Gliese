@@ -37,6 +37,9 @@ jobs:
       - name: Type check
         run: bun run check
 
+      - name: Verify Meadow Entry runtime data is current
+        run: bun run world:generate:meadow-entry-runtime --check
+
       - name: Verify story content references are current
         run: bun tools/export-story-content-references.ts --check
 
