@@ -269,7 +269,7 @@ This preserves existing Sundrop multi-owner behavior exactly: live fallback is s
 
 This is the critical correctness gate for HPA-406.
 
-HPA-399 already seals, for every source, the tuple:
+HPA-399 already seals, for every source, the tuple represented by:
 
 ```text
 sourceKey = primaryRegionId | disposition | runtimeRequirement
@@ -279,28 +279,19 @@ through `MEADOW_ENTRY_REVIEWED_BAKE_OWNERSHIP_SHA256`. Its design explicitly req
 
 Therefore HPA-406 **must not** select owners by “highest drawOrder crop that happens to contain this geometry.” Crop overlap and PR activation must never change an existing source’s owner.
 
-### 12.1 Stable primary-region → runtime-crop mapping
+### 12.1 Primary-region → runtime-crop projection rule
 
-Define one small reviewed mapping used only to project HPA-399 authoring ownership into runtime crop IDs:
+The projection is mechanical because HPA-399’s crop manifest already carries `sourceRegionIds`. For each HPA-406 fallback obligation:
 
-```ts
-const RUNTIME_CROP_BY_PRIMARY_REGION = {
-	'sundrop-village': 'sundrop-village-underlay',
-	crossroads: 'crossroads',
-	'tidewatch-coast': 'tidewatch-coast',
-	mistfen: 'mistfen',
-	silverpine: 'silverpine',
-	wildwood: 'wildwood',
-	'connector-village-crossroads': 'village-crossroads-connector',
-	'connector-crossroads-coast': 'crossroads-coast-connector',
-	'connector-crossroads-mistfen': 'crossroads-mistfen-connector',
-	'connector-crossroads-silverpine': 'crossroads-silverpine-connector',
-	'connector-crossroads-wildwood': 'crossroads-wildwood-connector',
-	'outer-boundary': null
-} as const;
-```
+1. take its sealed `primaryRegionId` from `MEADOW_ENTRY_BAKE_OWNERSHIP`;
+2. find the **single** approved crop whose `sourceRegionIds` contains exactly that `primaryRegionId`;
+3. require that single crop to exist;
+4. use that crop’s approved base/foreground texture keys to form the owner background IDs;
+5. assert the mapped crop contains the source bounds expanded by HPA-399’s frozen margins.
 
-`outer-boundary` is intentionally `null`: current outer-boundary sources are protected/live or fallback-tile rather than HPA-406-owned baked blocker/decor/fence visuals. If a future HPA-399 fallback obligation has `primaryRegionId: 'outer-boundary'`, validation must fail and the frozen contract must be amended explicitly instead of guessing a crop.
+The current contract has one direct crop for every primary region that owns HPA-406 fallback work: Crossroads, Tidewatch Coast, Mistfen, Silverpine, Wildwood, and the five connector regions. Sundrop blocker ownership stays with the immutable HPA-398 manifest. `outer-boundary` currently owns no HPA-406 blocker/decor/fence fallback requirement; if that changes, validation must fail until HPA-399 explicitly defines the owning runtime crop rather than guessing one.
+
+Step 5 is a **validation diagnostic**, not an alternate selector. If the unique primary-region crop does not contain its source, stop and repair the HPA-399 owner/crop contract; do not switch to a different overlapping crop.
 
 ### 12.2 Full ownership table is fixed before PR 1 activation
 
@@ -328,13 +319,11 @@ Projection rules are deterministic:
 1. start from `MEADOW_ENTRY_BAKE_OWNERSHIP`;
 2. keep only `existing-blocker-fallback`, `extend-decor-fallback`, and `extend-fence-fallback`;
 3. exclude existing HPA-398-owned blockers;
-4. map `primaryRegionId` through `RUNTIME_CROP_BY_PRIMARY_REGION`;
-5. `base-static` → `${cropTextureKey}-base-image`;
-6. `base-and-foreground` → base + foreground IDs for the same mapped crop;
-7. assert the mapped crop contains the source bounds expanded by HPA-399’s frozen margins;
+4. resolve the unique crop from `primaryRegionId` through `MEADOW_ENTRY_APPROVED_CROPS[*].sourceRegionIds`;
+5. `base-static` → that crop’s base background ID;
+6. `base-and-foreground` → base + foreground IDs for the same crop;
+7. assert the crop contains the source bounds expanded by the frozen bake margins;
 8. assert an expected foreground export exists when required.
-
-Step 7 is a **validation diagnostic**, not an alternate selector. If the mapped primary crop does not contain its source, stop and repair the HPA-399 owner/crop contract; do not switch to a different overlapping crop.
 
 A focused test derives the complete expected table independently from the sealed HPA-399 data and deep-compares it to the committed browser-safe table. No second hash is necessary: the HPA-399 ownership seal plus exact projection equality already catches drift.
 
@@ -422,7 +411,7 @@ Automated checks cover:
 - independent base/foreground behavior;
 - one shared blocker/decor/fence visual-ownership decision;
 - full runtime ownership table equals the deterministic projection of HPA-399 `primaryRegionId` + disposition + runtime obligation;
-- every mapped owner crop geometrically contains its expanded source as an assertion, never a selector;
+- the unique primary-region crop geometrically contains its expanded source as an assertion, never a selector;
 - PR 1/PR 2 activation cannot change an existing row’s owner;
 - representative missing-base and missing-foreground fallback;
 - unchanged HPA-398 multi-owner ownership;
@@ -465,7 +454,7 @@ Subjective visual review remains manual; no screenshot permutation matrix is req
 
 | Defect | Owner |
 | --- | --- |
-| `primaryRegionId` / bake disposition / runtime obligation / crop fit | HPA-399 source/contract |
+| `primaryRegionId` / bake disposition / runtime obligation / primary-crop fit | HPA-399 source/contract |
 | PNG pixels/alpha/dimensions/export | HPA-496 art source |
 | Runtime registration/preload/order/render/fallback | HPA-406 runtime |
 | Collision/route geometry | Existing map source |
