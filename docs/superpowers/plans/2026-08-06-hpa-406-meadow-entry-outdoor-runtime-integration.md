@@ -11,19 +11,19 @@
 ## Global Constraints
 
 - HPA-406 is `frozen-integration`; approved geometry and art are inputs, not design work.
-- HPA-399 crop geometry, `primaryRegionId`, bake/fallback ownership, overlap contracts, and draw order are frozen.
+- HPA-399 crop geometry, crop `sourceRegionIds`, `primaryRegionId`, bake/fallback ownership, overlap contracts, and draw order are frozen.
 - HPA-496 filenames, texture keys, dimensions, hashes, planes, and approved PNG pixels are frozen.
 - HPA-398 Sundrop backgrounds and multi-owner fallback behavior remain unchanged except for explicit `drawOrder: 1000`.
 - Collision, buildings, NPCs, pickups, discoveries, encounters, gates, transitions, minimap markers, and saves remain live and authoritative.
 - Base and foreground remain independent; a missing foreground never invalidates a valid base.
-- Runtime owner assignment comes from HPA-399 `primaryRegionId` + disposition. Geometry containment may fail validation but must never select another owner.
+- Runtime owner assignment comes from HPA-399 `primaryRegionId` + the unique approved crop carrying that region in `sourceRegionIds`. Geometry containment may fail validation but must never select another owner.
 - The full HPA-406 visual-owner table is fixed in PR 1; PR 2 must not edit owner rows.
 - Do not add story catalogs/fingerprints, packet schemas, generic art adapters, runtime-package schemas, dependency graphs, streaming/residency managers, load-strategy enums, or new approval layers.
 - Normal PR CI must not rerun the full frozen HPA-496 production-art package.
 
 ## Delivery Shape
 
-PR 1 activates 13 exports: Sundrop underlay base, Village↔Crossroads base/foreground, four Crossroads↔destination connector base/foreground pairs, and Crossroads base/foreground. It also creates the complete runtime seam and final visual-owner table.
+PR 1 activates 13 exports: Sundrop underlay base, Village↔Crossroads base/foreground, four Crossroads↔destination connector base/foreground pairs, and Crossroads base/foreground. It also creates the complete reusable seam and final visual-owner table.
 
 PR 2 appends the remaining 9 exports: Tidewatch Coast, Mistfen, Silverpine, Wildwood base/foreground pairs plus the east-forest outer-boundary base. It must not change ownership assignment.
 
@@ -280,32 +280,39 @@ export function shouldRenderOwnedVisual(
 
 Use `MapVisualOwnership` for blocker/decor/fence visuals. Do not leave two independent implementations. A temporary `shouldRenderBlockerVisual` may remain only as a one-line delegate until Task 6 migrates `WorldScene`; Task 6 then removes it.
 
-- [ ] **Step 3: Define the independent test projection from HPA-399**
+- [ ] **Step 3: Derive the owner crop directly from the sealed crop contract**
 
-In the ownership test, use exactly:
+In `meadow-entry-runtime-ownership.test.ts`, read `MEADOW_ENTRY_BAKE_OWNERSHIP`, `MEADOW_ENTRY_APPROVED_CROPS`, `collectMeadowEntrySourceCatalog()`, and `SUNDROP_VILLAGE_OBSTACLE_OWNERSHIP` **only from tests**.
+
+Keep only runtime requirements:
 
 ```ts
-const RUNTIME_CROP_BY_PRIMARY_REGION = {
-	'sundrop-village': 'sundrop-village-underlay',
-	crossroads: 'crossroads',
-	'tidewatch-coast': 'tidewatch-coast',
-	mistfen: 'mistfen',
-	silverpine: 'silverpine',
-	wildwood: 'wildwood',
-	'connector-village-crossroads': 'village-crossroads-connector',
-	'connector-crossroads-coast': 'crossroads-coast-connector',
-	'connector-crossroads-mistfen': 'crossroads-mistfen-connector',
-	'connector-crossroads-silverpine': 'crossroads-silverpine-connector',
-	'connector-crossroads-wildwood': 'crossroads-wildwood-connector',
-	'outer-boundary': null
-} as const;
+const HPA406_RUNTIME_REQUIREMENTS = new Set([
+	'existing-blocker-fallback',
+	'extend-decor-fallback',
+	'extend-fence-fallback'
+]);
 ```
 
-Read `MEADOW_ENTRY_BAKE_OWNERSHIP`, `MEADOW_ENTRY_APPROVED_CROPS`, `collectMeadowEntrySourceCatalog()`, and `SUNDROP_VILLAGE_OBSTACLE_OWNERSHIP` **only from tests**.
+Exclude blockers already in `SUNDROP_VILLAGE_OBSTACLE_OWNERSHIP`.
 
-Keep only runtime requirements `existing-blocker-fallback`, `extend-decor-fallback`, `extend-fence-fallback`; exclude HPA-398-owned blockers. Map each remaining entry via `primaryRegionId`; never select by `drawOrder`.
+For each remaining entry, resolve the owner crop mechanically:
 
-For containment assertions, expand the source’s raw bounds by the disposition margins with:
+```ts
+const matchingCrops = MEADOW_ENTRY_APPROVED_CROPS.filter((crop) =>
+	crop.sourceRegionIds.includes(entry.primaryRegionId)
+);
+expect(matchingCrops).toHaveLength(1);
+const ownerCrop = matchingCrops[0]!;
+```
+
+This lookup uses `sourceRegionIds`, not crop draw order or geometric multi-containment. If a future fallback obligation has zero or multiple primary-region crops, validation fails and HPA-399 must clarify the contract.
+
+- [ ] **Step 4: Validate crop fit without using geometry as a selector**
+
+Build a source map from `collectMeadowEntrySourceCatalog()` and require each HPA-406 fallback source to have rectangular bounds.
+
+Use this test helper:
 
 ```ts
 function expandBounds(
@@ -319,13 +326,25 @@ function expandBounds(
 		bottom: bounds.bottom + margins.bottom
 	};
 }
+
+function contains(
+	container: { left: number; top: number; right: number; bottom: number },
+	value: { left: number; top: number; right: number; bottom: number }
+) {
+	return (
+		container.left <= value.left &&
+		container.top <= value.top &&
+		container.right >= value.right &&
+		container.bottom >= value.bottom
+	);
+}
 ```
 
-Assert the mapped crop contains the expanded base bounds and, for `base-and-foreground`, the expanded foreground bounds. A containment failure is an HPA-399 defect; do not search another crop.
+For `base-static`, assert the base-margin-expanded source fits `ownerCrop.bounds`. For `base-and-foreground`, assert both base-margin and foreground-margin expansions fit the **same** `ownerCrop`; require `ownerCrop.textureKeys.foreground` to be non-null. A failure stops implementation; never search another overlapping crop.
 
-Build owner IDs from the mapped crop’s approved `textureKeys`: `base-static` gets the base `${textureKey}-image`; `base-and-foreground` gets base and foreground IDs for the same crop. Sort by `sourceType`, then `sourceId`.
+- [ ] **Step 5: Build the independent full expected table**
 
-- [ ] **Step 4: Define the runtime row shape**
+Runtime row type:
 
 ```ts
 export interface MeadowEntryRuntimeVisualOwner {
@@ -336,11 +355,11 @@ export interface MeadowEntryRuntimeVisualOwner {
 }
 ```
 
-The runtime module contains the **complete final table** for all HPA-406 obligations, excluding immutable HPA-398-owned blockers.
+For `base-static`, use `${ownerCrop.textureKeys.base}-image`. For `base-and-foreground`, use base and `${ownerCrop.textureKeys.foreground}-image`. Sort expected rows by `sourceType`, then `sourceId`.
 
-- [ ] **Step 5: Materialize the exact full table once**
+- [ ] **Step 6: Materialize the exact full runtime table once**
 
-Temporarily add this branch to the test-derived `expectedOwners` calculation:
+During authoring only, print `expectedOwners`:
 
 ```ts
 if (process.env.PRINT_MEADOW_ENTRY_RUNTIME_OWNERS === '1') {
@@ -355,15 +374,15 @@ PRINT_MEADOW_ENTRY_RUNTIME_OWNERS=1 \
   bun run test:unit -- --run src/lib/game/content/backgrounds/meadow-entry-runtime-ownership.test.ts
 ```
 
-Use the exact printed sorted rows as the initializer of `MEADOW_ENTRY_RUNTIME_VISUAL_OWNERS`. Remove the temporary print branch before the commit, then require:
+Use the exact printed sorted rows as the initializer of `MEADOW_ENTRY_RUNTIME_VISUAL_OWNERS`. Remove the temporary print branch before committing, then require:
 
 ```ts
 expect(MEADOW_ENTRY_RUNTIME_VISUAL_OWNERS).toEqual(expectedOwners);
 ```
 
-This is the only committed runtime table. Do not add a new ownership hash; HPA-399 already seals the source contract.
+No second ownership hash is added; HPA-399 already seals the source contract.
 
-- [ ] **Step 6: Add stable activation**
+- [ ] **Step 7: Add stable activation**
 
 ```ts
 export function selectActiveMeadowEntryRuntimeVisualOwners(
@@ -374,7 +393,7 @@ export function selectActiveMeadowEntryRuntimeVisualOwners(
 
 Build active crop/background ID sets. Skip a row only when its `ownerCropId` is inactive. If its crop is active, require every `ownerBackgroundIds` target or throw. Return rows unchanged; never recalculate owners.
 
-- [ ] **Step 7: Add pure ownership application**
+- [ ] **Step 8: Add pure ownership application**
 
 ```ts
 export function applyMeadowEntryRuntimeOwnership(
@@ -393,7 +412,7 @@ export function applyMeadowEntryRuntimeOwnership(
 
 For each row, require the source ID to exist, reject an existing `visual` contract, clone only the changed item, and set `fallback-only` with the row’s exact owner IDs.
 
-- [ ] **Step 8: Verify the critical gate and commit**
+- [ ] **Step 9: Verify the critical gate and commit**
 
 ```bash
 bun run test:unit -- --run \
@@ -623,11 +642,11 @@ git commit -m "feat(hpa-406): render crossroads baked backgrounds"
 **Files:**
 - Update PR description only unless acceptance exposes a defect needing a regression test.
 
-- [ ] **Step 1: Walk** `Sundrop → Crossroads → each of the four destination connector mouths → Crossroads → Sundrop`, crossing each changed mouth both directions.
-- [ ] **Step 2: Exercise** one representative existing encounter/reward/discovery on the reachable route.
-- [ ] **Step 3: Verify** backgrounds-disabled, one missing-base case, one missing-foreground case, and one save/reload checkpoint.
-- [ ] **Step 4: Run** `bun run build:tauri`, launch the normal current-platform Tauri acceptance path, and record approximate load/startup plus steady-state frame-time observation. Do not infer another platform’s GPU behavior.
-- [ ] **Step 5: Run full PR-1 gates:**
+- [ ] **Step 1:** Walk `Sundrop → Crossroads → each of the four destination connector mouths → Crossroads → Sundrop`, crossing each changed mouth both directions.
+- [ ] **Step 2:** Exercise one representative existing encounter/reward/discovery on the reachable route.
+- [ ] **Step 3:** Verify backgrounds-disabled, one missing-base case, one missing-foreground case, and one save/reload checkpoint.
+- [ ] **Step 4:** Run `bun run build:tauri`, launch the normal current-platform Tauri acceptance path, and record approximate load/startup plus steady-state frame-time observation. Do not infer another platform’s GPU behavior.
+- [ ] **Step 5:** Run full PR-1 gates:
 
 ```bash
 bun run test:unit -- --run
@@ -658,9 +677,9 @@ Record in the PR description: player-facing outcome, frozen inputs, unchanged ow
 - Extends HPA-496 registry from 13 to 22 records.
 - Activates additional rows from the unchanged PR-1 visual-owner table.
 
-- [ ] **Step 1: Expand the registry test** to require all 22 approved HPA-496 records and exact approval/crop parity.
-- [ ] **Step 2: Verify red** on the missing nine records/files.
-- [ ] **Step 3: Extract remaining approval rows:**
+- [ ] **Step 1:** Expand the registry test to require all 22 approved HPA-496 records and exact approval/crop parity.
+- [ ] **Step 2:** Verify red on the missing nine records/files.
+- [ ] **Step 3:** Extract remaining approval rows:
 
 ```bash
 bun -e "const p=await Bun.file('artifacts/meadow-entry/hpa-399/provenance/meadow-entry-export-provenance.json').json(); const current=new Set(['sundrop-village-underlay','village-crossroads-connector','crossroads-coast-connector','crossroads-mistfen-connector','crossroads-silverpine-connector','crossroads-wildwood-connector','crossroads']); console.log(JSON.stringify(p.inventory.filter((x:any)=>!current.has(x.cropId)), null, 2))"
@@ -668,7 +687,7 @@ bun -e "const p=await Bun.file('artifacts/meadow-entry/hpa-399/provenance/meadow
 
 Append those exact nine records and copy their approved bytes unchanged.
 
-- [ ] **Step 4: Prove ownership remains fixed**
+- [ ] **Step 4:** Prove ownership remains fixed:
 
 ```ts
 expect(
@@ -681,7 +700,7 @@ expect(
 
 If an owner needs reassignment, stop and route the defect to HPA-399 rather than editing the PR-1 table.
 
-- [ ] **Step 5: Verify final map** has 24 descriptors total: 22 HPA-496 + 2 HPA-398.
+- [ ] **Step 5:** Verify final map has 24 descriptors total: 22 HPA-496 + 2 HPA-398.
 
 ```bash
 bun run test:unit -- --run \
@@ -709,7 +728,7 @@ git commit -m "feat(hpa-406): integrate remaining meadow backgrounds"
 - Modify tests only for concrete regressions discovered during acceptance.
 - Update PR description with observed results.
 
-- [ ] **Step 1: Walk the complete route:**
+- [ ] **Step 1:** Walk the complete route:
 
 ```text
 Sundrop Village
@@ -723,11 +742,11 @@ Sundrop Village
 
 Cross every connector mouth both directions.
 
-- [ ] **Step 2: Exercise** one representative existing route/reward/encounter/discovery per destination; confirm live objects and authoritative collision remain intact.
-- [ ] **Step 3: Exercise** one missing-base texture, one missing-foreground texture, and backgrounds-disabled mode; confirm the correct blocker/decor/fence fallback returns.
-- [ ] **Step 4: Save/reload** once at an outdoor checkpoint; verify player position/progression and relevant collected/cleared state.
-- [ ] **Step 5: Run packaged/current-native acceptance** and record approximate startup/background-load plus steady-state frame-time observations. Native failure after Chromium success creates a measured load-management ticket; do not add ad hoc streaming here.
-- [ ] **Step 6: Run final gates:**
+- [ ] **Step 2:** Exercise one representative existing route/reward/encounter/discovery per destination; confirm live objects and authoritative collision remain intact.
+- [ ] **Step 3:** Exercise one missing-base texture, one missing-foreground texture, and backgrounds-disabled mode; confirm the correct blocker/decor/fence fallback returns.
+- [ ] **Step 4:** Save/reload once at an outdoor checkpoint; verify player position/progression and relevant collected/cleared state.
+- [ ] **Step 5:** Run packaged/current-native acceptance and record approximate startup/background-load plus steady-state frame-time observations. Native failure after Chromium success creates a measured load-management ticket; do not add ad hoc streaming here.
+- [ ] **Step 6:** Run final gates:
 
 ```bash
 bun run test:unit -- --run
@@ -738,7 +757,7 @@ bun run build
 bun run build:tauri
 ```
 
-- [ ] **Step 7: Final diff review**: no geometry/art redesign, no adapter/runtime-package/dependency/loading framework, no temporary print/debug code, all 22 exports registered, and `MEADOW_ENTRY_RUNTIME_VISUAL_OWNERS` unchanged from PR 1.
+- [ ] **Step 7:** Final diff review: no geometry/art redesign, no adapter/runtime-package/dependency/loading framework, no temporary print/debug code, all 22 exports registered, and `MEADOW_ENTRY_RUNTIME_VISUAL_OWNERS` unchanged from PR 1.
 
 ---
 
@@ -775,6 +794,6 @@ meadowEntryRuntimeBackgroundAssets
 
 ### Highest-cost gate
 
-Incorrect owner assignment can create duplicated baked+live art or invisible collision. The plan now fixes owners from HPA-399’s sealed `primaryRegionId`/disposition contract before PR-1 texture activation. Geometry can invalidate that projection but cannot choose another crop, and PR 2 cannot change the table.
+Incorrect owner assignment can create duplicated baked+live art or invisible collision. The plan now fixes owners from HPA-399’s sealed `primaryRegionId`/disposition contract and the crop contract’s `sourceRegionIds` before PR-1 texture activation. Geometry can invalidate that projection but cannot choose another crop, and PR 2 cannot change the table.
 
 No task introduces a generic framework for future maps, load strategies, story handoffs, or additional approval machinery.
