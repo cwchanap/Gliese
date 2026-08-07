@@ -20,6 +20,7 @@ import {
 	marshDressingAsset,
 	npcPackAsset,
 	regionalBackgroundAssets,
+	sundropRegionalBackgroundAssets,
 	shrineDressingAsset,
 	starterPackAsset,
 	terrainFrameOrder,
@@ -30,8 +31,10 @@ import {
 	type ActorAnimationKey,
 	type FenceDressingFrameName,
 	type InteriorPropFrameName,
+	type RegionalBackgroundPreloadAsset,
 	type VillageBuildingFrameName
 } from '$lib/game/content/assets';
+import { meadowEntryRuntimeBackgroundAssets } from '$lib/game/content/backgrounds/meadow-entry-runtime';
 import { sundropVillageBackgroundsApproval } from '$lib/game/content/approvals/sundrop-village-backgrounds';
 import {
 	SUNDROP_VILLAGE_BASE_BACKGROUND_PATH,
@@ -151,8 +154,8 @@ describe('battle background asset metadata', () => {
 });
 
 describe('regional background asset metadata', () => {
-	it('registers the approved Sundrop Village background planes in source order', () => {
-		expect(regionalBackgroundAssets).toEqual([
+	it('preserves Sundrop approval metadata separately and appends Meadow Entry preload assets', () => {
+		expect(sundropRegionalBackgroundAssets).toEqual([
 			{
 				key: SUNDROP_VILLAGE_BASE_BACKGROUND_TEXTURE_KEY,
 				path: SUNDROP_VILLAGE_BASE_BACKGROUND_PATH,
@@ -165,6 +168,17 @@ describe('regional background asset metadata', () => {
 				approvedControlFingerprint: sundropVillageBackgroundsApproval.approvedControlFingerprint,
 				approvedPngSha256: sundropVillageBackgroundsApproval.foreground.approvedPngSha256
 			}
+		]);
+
+		const preloadAssets: readonly RegionalBackgroundPreloadAsset[] = regionalBackgroundAssets;
+		expect(preloadAssets).toEqual([
+			...sundropRegionalBackgroundAssets,
+			...meadowEntryRuntimeBackgroundAssets
+		]);
+		expect(preloadAssets).toHaveLength(18);
+		expect(preloadAssets.map(({ key, path }) => ({ key, path }))).toEqual([
+			...sundropRegionalBackgroundAssets.map(({ key, path }) => ({ key, path })),
+			...meadowEntryRuntimeBackgroundAssets
 		]);
 	});
 });
