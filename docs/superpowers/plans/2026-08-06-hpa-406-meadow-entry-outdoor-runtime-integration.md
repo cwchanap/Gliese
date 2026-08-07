@@ -377,9 +377,10 @@ Implementation requirements:
 - duplicate assignment IDs throw;
 - assignment IDs absent from `items` throw;
 - `rejectExisting` rejects overwrites;
-- unchanged and changed records are cloned; inputs are never mutated.
+- assigned records are cloned with `visual`; unassigned records are returned unchanged;
+- source arrays/objects are never mutated.
 
-Write tests for all four behaviors.
+Write tests for duplicate, missing, reject-existing, assigned-clone, and input immutability behavior.
 
 - [ ] **Step 5: Mechanically route Sundrop through the generic helper**
 
@@ -937,7 +938,7 @@ bun run build
 bun run build:tauri
 ```
 
-Record the texture-preflight result and approximate normal load/steady-state observation in the PR description. Do not create a custom evidence schema.
+Record the texture-preflight result and approximate normal load/steady-state observation in the PR description. Mechanical missing-plane injection is already automated in Task 7 and is not repeated manually. Do not create a custom evidence schema.
 
 ---
 
