@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+	getMapBackgroundDepth,
 	shouldRenderBlockerVisual,
 	validateMapBackgroundOwnership
 } from '$lib/game/content/maps/background-ownership';
@@ -18,7 +19,8 @@ function ownershipSource(
 			y: 0,
 			width: 32,
 			height: 32,
-			plane: 'base'
+			plane: 'base',
+			drawOrder: 0
 		})),
 		blockers
 	};
@@ -66,10 +68,46 @@ describe('map background ownership', () => {
 		expect(shouldRenderBlockerVisual(blocker, new Set(successfulIds))).toBe(expected);
 	});
 
+	it('derives deterministic renderer depth from a background plane and draw order', () => {
+		expect(getMapBackgroundDepth({ plane: 'base', drawOrder: 0 })).toBe(-9);
+		expect(getMapBackgroundDepth({ plane: 'base', drawOrder: 240 })).toBe(-8.976);
+		expect(getMapBackgroundDepth({ plane: 'base', drawOrder: 1000 })).toBe(-8.9);
+		expect(getMapBackgroundDepth({ plane: 'foreground', drawOrder: 1000 })).toBe(100.1);
+	});
+
 	it('rejects duplicate background descriptor IDs', () => {
 		expect(() => validateMapBackgroundOwnership(ownershipSource(['base', 'base']))).toThrow(
 			'Duplicate background descriptor ID: base'
 		);
+	});
+
+	it.each([
+		['negative', -1],
+		['non-integer', 0.5],
+		['greater than 1000', 1001]
+	])('rejects a %s background draw order', (_description, drawOrder) => {
+		const background = ownershipSource(['background']).backgroundImages![0]!;
+
+		expect(() =>
+			validateMapBackgroundOwnership({
+				backgroundImages: [{ ...background, drawOrder }],
+				blockers: []
+			})
+		).toThrow();
+	});
+
+	it('rejects two backgrounds occupying the same plane and draw order', () => {
+		const [first, second] = ownershipSource(['first', 'second']).backgroundImages!;
+
+		expect(() =>
+			validateMapBackgroundOwnership({
+				backgroundImages: [
+					{ ...first!, plane: 'base', drawOrder: 240 },
+					{ ...second!, plane: 'base', drawOrder: 240 }
+				],
+				blockers: []
+			})
+		).toThrow();
 	});
 
 	it('rejects a fallback-only blocker with no owners', () => {

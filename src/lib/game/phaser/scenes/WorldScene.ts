@@ -1718,7 +1718,7 @@ export class WorldScene extends Phaser.Scene {
 				image
 					.setOrigin(0.5, 0.5)
 					.setDisplaySize(background.width, background.height)
-					.setDepth(getMapBackgroundDepth(background.plane));
+					.setDepth(getMapBackgroundDepth(background));
 				successfulBackgroundIds.add(background.id);
 				entries.push({
 					id: background.id,

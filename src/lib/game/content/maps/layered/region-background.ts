@@ -11,6 +11,7 @@ export function createLayeredRegionBackground<K extends MapDecor['textureKey']>(
 		id: string;
 		textureKey: string;
 		plane: MapBackgroundPlane;
+		drawOrder: number;
 	}
 ): MapBackgroundImage {
 	const width = source.width * source.tileSize;
@@ -23,6 +24,7 @@ export function createLayeredRegionBackground<K extends MapDecor['textureKey']>(
 		y: source.origin.y + height / 2,
 		width,
 		height,
-		plane: input.plane
+		plane: input.plane,
+		drawOrder: input.drawOrder
 	};
 }

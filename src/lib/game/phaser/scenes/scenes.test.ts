@@ -2550,7 +2550,8 @@ describe('WorldScene', () => {
 					width: 640,
 					height: 320,
 					textureKey: twoPlaneBaseTextureKey,
-					plane: 'base'
+					plane: 'base',
+					drawOrder: 0
 				},
 				{
 					id: 'two-plane-foreground-image',
@@ -2559,7 +2560,8 @@ describe('WorldScene', () => {
 					width: 640,
 					height: 320,
 					textureKey: twoPlaneForegroundTextureKey,
-					plane: 'foreground'
+					plane: 'foreground',
+					drawOrder: 0
 				}
 			],
 			blockers: [
@@ -2716,20 +2718,30 @@ describe('WorldScene', () => {
 	});
 
 	it('renders both Sundrop regional background planes at their source-derived center and semantic depths', async () => {
+		const { getMapBackgroundDepth } = await import('$lib/game/content/maps/background-ownership');
+		const { meadowEntryMap } = await import('$lib/game/content/maps');
 		const { WorldScene } = await import('./WorldScene');
 		const scene = new WorldScene();
+		const backgroundsByTextureKey = new Map(
+			(meadowEntryMap.backgroundImages ?? []).map((background) => [
+				background.textureKey,
+				background
+			])
+		);
 
 		scene.create({ mapId: 'meadow-entry' });
 
-		for (const [textureKey, depth] of [
-			[SUNDROP_VILLAGE_BASE_BACKGROUND_TEXTURE_KEY, -9],
-			[SUNDROP_VILLAGE_FOREGROUND_BACKGROUND_TEXTURE_KEY, 100]
-		] as const) {
+		for (const textureKey of [
+			SUNDROP_VILLAGE_BASE_BACKGROUND_TEXTURE_KEY,
+			SUNDROP_VILLAGE_FOREGROUND_BACKGROUND_TEXTURE_KEY
+		]) {
+			const definition = backgroundsByTextureKey.get(textureKey);
+			expect(definition).toBeDefined();
 			expect(scene.add.image).toHaveBeenCalledWith(1152, 5120, textureKey);
 			const background = phaserState.imageMarkers.find((marker) => marker.texture === textureKey);
 			expect(background?.setOrigin).toHaveBeenCalledWith(0.5, 0.5);
 			expect(background?.setDisplaySize).toHaveBeenCalledWith(1792, 1536);
-			expect(background?.setDepth).toHaveBeenCalledWith(depth);
+			expect(background?.setDepth).toHaveBeenCalledWith(getMapBackgroundDepth(definition!));
 		}
 	});
 
@@ -3199,7 +3211,8 @@ describe('WorldScene', () => {
 				width: 1792,
 				height: 1536,
 				textureKey: SUNDROP_VILLAGE_BASE_BACKGROUND_TEXTURE_KEY,
-				plane: 'base'
+				plane: 'base',
+				drawOrder: 1_000
 			}
 		];
 		maps['scene-support-test']!.mapDecor = [

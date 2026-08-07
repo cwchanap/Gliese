@@ -1946,6 +1946,7 @@ describe('meadow-entry region integrity', () => {
 				id: 'sundrop-village-base-image',
 				textureKey: 'sundrop-village-base',
 				plane: 'base',
+				drawOrder: 1000,
 				x: 1152,
 				y: 5120,
 				width: 1792,
@@ -1955,6 +1956,7 @@ describe('meadow-entry region integrity', () => {
 				id: 'sundrop-village-foreground-image',
 				textureKey: 'sundrop-village-foreground',
 				plane: 'foreground',
+				drawOrder: 1000,
 				x: 1152,
 				y: 5120,
 				width: 1792,
@@ -2043,7 +2045,8 @@ describe('mergeRegions collision guard', () => {
 					y: 100,
 					width: 100,
 					height: 100,
-					plane: 'base'
+					plane: 'base',
+					drawOrder: 0
 				}
 			]
 		};
@@ -2056,7 +2059,8 @@ describe('mergeRegions collision guard', () => {
 					y: 200,
 					width: 200,
 					height: 200,
-					plane: 'foreground'
+					plane: 'foreground',
+					drawOrder: 0
 				}
 			]
 		};

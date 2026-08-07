@@ -13,7 +13,10 @@ import {
 	buildSundropVillageObstacleControlInputs,
 	buildSundropVillageObstacleOcclusionProofCases
 } from '../../src/lib/game/content/backgrounds/sundrop-village-obstacle-controls';
-import { MAP_BACKGROUND_DEPTHS } from '../../src/lib/game/content/maps/background-ownership';
+import {
+	getMapBackgroundDepth,
+	MAP_BACKGROUND_DEPTHS
+} from '../../src/lib/game/content/maps/background-ownership';
 import {
 	REGIONAL_BACKGROUND_RENDERER_DIAGNOSTIC_EVENT,
 	type RegionalBackgroundRendererDiagnostic
@@ -720,10 +723,7 @@ for (const proofCase of SUNDROP_OCCLUSION_PROOF_CASES) {
 					originY: 0.5,
 					displayWidth: background.width,
 					displayHeight: background.height,
-					depth:
-						background.plane === 'base'
-							? MAP_BACKGROUND_DEPTHS.base
-							: MAP_BACKGROUND_DEPTHS.foreground
+					depth: getMapBackgroundDepth(background)
 				});
 			}
 			expect(MAP_BACKGROUND_DEPTHS.base).toBeLessThan(0);
