@@ -438,7 +438,7 @@ In the `src/**` generator test, import:
 import {
 	collectMeadowEntryRuntimeData,
 	renderMeadowEntryRuntimeData
-} from '../../../../tools/generate-meadow-entry-runtime';
+} from '../../../../../tools/generate-meadow-entry-runtime';
 ```
 
 Assert `collectMeadowEntryRuntimeData().backgrounds` has exactly 22 entries.
