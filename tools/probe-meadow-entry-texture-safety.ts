@@ -236,8 +236,9 @@ export async function runMeadowEntryTextureSafetyProbe(
 	repositoryRoot = process.cwd()
 ): Promise<TextureSafetyProbeReport> {
 	const started = performance.now();
-	const server = createAssetServer(repositoryRoot, meadowEntryTextureSafetyAssets);
+	let server: ReturnType<typeof createAssetServer> | undefined;
 	try {
+		server = createAssetServer(repositoryRoot, meadowEntryTextureSafetyAssets);
 		const result = await uploadAssetsInOneContext(
 			`http://127.0.0.1:${server.port}`,
 			meadowEntryTextureSafetyAssets
@@ -291,7 +292,7 @@ export async function runMeadowEntryTextureSafetyProbe(
 		};
 		return report;
 	} finally {
-		server.stop(true);
+		server?.stop(true);
 	}
 }
 
