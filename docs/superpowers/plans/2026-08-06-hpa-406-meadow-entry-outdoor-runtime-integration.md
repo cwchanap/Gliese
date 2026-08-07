@@ -280,7 +280,7 @@ export function shouldRenderOwnedVisual(
 
 Use `MapVisualOwnership` for blocker/decor/fence visuals. Do not leave two independent implementations. A temporary `shouldRenderBlockerVisual` may remain only as a one-line delegate until Task 6 migrates `WorldScene`; Task 6 then removes it.
 
-- [ ] **Step 3: Derive the owner crop directly from the sealed crop contract**
+- [ ] **Step 3: Derive the owner crop directly from HPA-399 crop metadata**
 
 In `meadow-entry-runtime-ownership.test.ts`, read `MEADOW_ENTRY_BAKE_OWNERSHIP`, `MEADOW_ENTRY_APPROVED_CROPS`, `collectMeadowEntrySourceCatalog()`, and `SUNDROP_VILLAGE_OBSTACLE_OWNERSHIP` **only from tests**.
 
@@ -296,7 +296,7 @@ const HPA406_RUNTIME_REQUIREMENTS = new Set([
 
 Exclude blockers already in `SUNDROP_VILLAGE_OBSTACLE_OWNERSHIP`.
 
-For each remaining entry, resolve the owner crop mechanically:
+For each remaining entry, resolve the crop from the sealed authoring relationship:
 
 ```ts
 const matchingCrops = MEADOW_ENTRY_APPROVED_CROPS.filter((crop) =>
@@ -306,13 +306,11 @@ expect(matchingCrops).toHaveLength(1);
 const ownerCrop = matchingCrops[0]!;
 ```
 
-This lookup uses `sourceRegionIds`, not crop draw order or geometric multi-containment. If a future fallback obligation has zero or multiple primary-region crops, validation fails and HPA-399 must clarify the contract.
+No separate region→crop lookup table is authored. Do not select by `drawOrder` or by whichever overlapping crop happens to contain the geometry. Zero/multiple matches fail and require an HPA-399 contract clarification.
 
 - [ ] **Step 4: Validate crop fit without using geometry as a selector**
 
 Build a source map from `collectMeadowEntrySourceCatalog()` and require each HPA-406 fallback source to have rectangular bounds.
-
-Use this test helper:
 
 ```ts
 function expandBounds(
@@ -343,8 +341,6 @@ function contains(
 For `base-static`, assert the base-margin-expanded source fits `ownerCrop.bounds`. For `base-and-foreground`, assert both base-margin and foreground-margin expansions fit the **same** `ownerCrop`; require `ownerCrop.textureKeys.foreground` to be non-null. A failure stops implementation; never search another overlapping crop.
 
 - [ ] **Step 5: Build the independent full expected table**
-
-Runtime row type:
 
 ```ts
 export interface MeadowEntryRuntimeVisualOwner {
@@ -424,7 +420,7 @@ git add src/lib/game/content/maps src/lib/game/content/backgrounds
 git commit -m "feat(hpa-406): seal meadow visual ownership"
 ```
 
-Do not proceed to texture registration if full-table equality or primary-crop containment fails.
+Do not proceed to texture registration if full-table equality, unique primary crop, or containment validation fails.
 
 ---
 
