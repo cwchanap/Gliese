@@ -69,7 +69,7 @@ A small build-time generator for frozen browser-safe data is permitted. It is co
 
 The most expensive failure is suppressing a live obstacle/decor/fence when the baked art that visually replaces it is not actually present. That produces invisible collision. The opposite failure produces duplicated baked + live art.
 
-HPA-399's `primaryRegionId` is an **authoring owner**, not a unique runtime crop owner. Likewise, `sourceRegionIds` on crops is review/provenance metadata and is not unique: an outer-boundary crop can name Wildwood and Tidewatch Coast while those destination crops also name themselves.
+HPA-399 explicitly separates **primary authoring ownership** from cross-region/runtime crop coverage. `primaryRegionId` answers which authoring partition owns a source; it does not identify the one runtime crop that replaces that source. `sourceRegionIds` on crops is likewise review/provenance metadata and is not unique: an outer-boundary crop can name Wildwood and Tidewatch Coast while those destination crops also name themselves.
 
 Therefore HPA-406 must not select one owner crop using:
 
@@ -145,17 +145,15 @@ excluding blockers already owned by the immutable HPA-398 Sundrop manifest:
 
 1. resolve the exact source record from `collectMeadowEntrySourceCatalog()`;
 2. require rectangle bounds for the source;
-3. expand those bounds using the frozen bake margins:
-   - `base-static` → `margins`;
-   - `base-and-foreground` → both `baseMargins` and `foregroundMargins`;
+3. rasterize the source, expand by the frozen bake margins, and clamp to the 6400×6400 world;
 4. consider every `MEADOW_ENTRY_APPROVED_CROPS` entry;
 5. for `base-static`, select every crop whose final `crop.bounds` fully contains the expanded base extent;
-6. for `base-and-foreground`, select every crop that has a foreground export and whose final `crop.bounds` fully contains both expanded extents;
+6. for `base-and-foreground`, select every crop that has a foreground export and whose final `crop.bounds` fully contains both expanded base and foreground extents;
 7. map each selected crop to stable background IDs;
 8. sort deterministically by crop draw order then crop ID;
 9. fail generation if no complete owner crop exists.
 
-Use the existing HPA-399 `containsBounds(...)` helper. Do not create a second geometry algorithm.
+Use the existing HPA-399 `rasterizeCoverageBounds(...)`, `clampBoundsToWorld(...)`, and `containsBounds(...)` helpers. Do not create a second geometry algorithm.
 
 ### Coverage attachments
 
@@ -171,13 +169,13 @@ reviewBounds + coverageAttachments
 → crop.bounds
 ```
 
-HPA-496 then exports exactly `crop.bounds` from the global master. Therefore final `crop.bounds` is the correct runtime containment surface and already incorporates the reviewed attachments.
+HPA-496 then exports exactly `crop.bounds` from the global master. Therefore final `crop.bounds` is the runtime containment surface and already incorporates the reviewed attachments.
 
 ### Runtime-coverage cross-check
 
 `MEADOW_ENTRY_RUNTIME_COVERAGE` already uses the same final crop bounds to attribute each coverage cell to all containing crop IDs. HPA-406 may test consistency against that table, but the runtime does not import the heavy authoring contract.
 
-`primaryRegionId` and `sourceRegionIds` may appear in generator diagnostics. They are not selectors and no uniqueness assertion is allowed.
+`primaryRegionId` and `sourceRegionIds` may appear in generator diagnostics. They are not selectors and no uniqueness assertion is allowed. Making them a hard owner-crop cross-check would incorrectly re-couple runtime coverage to the authoring-partition model that HPA-399 deliberately separated.
 
 ## 8. Reproducible generated runtime data
 
@@ -368,8 +366,8 @@ It must:
 - reject duplicate assignment IDs;
 - reject assignment IDs absent from the target collection;
 - optionally reject overwriting an existing `visual` contract;
-- clone only changed records;
-- never mutate source arrays.
+- clone assigned records and return unassigned records unchanged;
+- never mutate source arrays/objects.
 
 `applySundropObstacleOwnership(...)` remains the HPA-398-specific contract/validation wrapper but delegates its actual attachment work to this helper after mechanically converting its reviewed manifest into the new one-crop runtime form.
 
@@ -544,8 +542,9 @@ Automated checks cover:
 - generator output is current (`--check`);
 - all 22 generated background descriptors exactly match HPA-399/HPA-496 frozen data;
 - every generated fallback source has at least one complete owner crop;
+- `wildwood-forest-lane-west-bank` resolves to the east-boundary crop rather than a same-name region heuristic;
+- `wildwood-north-climb-east-bank` resolves to both Wildwood and east-boundary alternative owners;
 - multi-crop ownership uses alternative crop groups, not a flat conjunction;
-- the Wildwood + east-boundary example exercises more than one owner crop;
 - active runtime PNGs exist and match approved dimensions/hash;
 - draw order produces deterministic depth;
 - base and foreground remain independent;
