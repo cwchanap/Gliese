@@ -2572,7 +2572,15 @@ describe('WorldScene', () => {
 					width: 32,
 					height: 64,
 					kind: 'city-wall',
-					visual: { mode: 'fallback-only', ownerBackgroundIds: ['two-plane-base-image'] }
+					visual: {
+						mode: 'fallback-only',
+						ownerCrops: [
+							{
+								cropId: 'two-plane-base',
+								requiredBackgroundIds: ['two-plane-base-image']
+							}
+						]
+					}
 				},
 				{
 					id: 'two-plane-multi-owner',
@@ -2583,7 +2591,12 @@ describe('WorldScene', () => {
 					kind: 'city-wall',
 					visual: {
 						mode: 'fallback-only',
-						ownerBackgroundIds: ['two-plane-base-image', 'two-plane-foreground-image']
+						ownerCrops: [
+							{
+								cropId: 'two-plane-complete',
+								requiredBackgroundIds: ['two-plane-base-image', 'two-plane-foreground-image']
+							}
+						]
 					}
 				},
 				{
@@ -2987,7 +3000,9 @@ describe('WorldScene', () => {
 		expect(
 			selected.filter(
 				(blocker) =>
-					blocker.visual?.mode === 'fallback-only' && blocker.visual.ownerBackgroundIds.length === 2
+					blocker.visual?.mode === 'fallback-only' &&
+					blocker.visual.ownerCrops.length === 1 &&
+					blocker.visual.ownerCrops[0]?.requiredBackgroundIds.length === 2
 			)
 		).toHaveLength(7);
 		expect(

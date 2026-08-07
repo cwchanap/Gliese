@@ -111,14 +111,22 @@ export type MapBlockerKind =
 	| 'future-gate'
 	| 'ocean';
 
-export type MapBlockerVisual =
+export interface MapVisualOwnerCrop {
+	readonly cropId: string;
+	readonly requiredBackgroundIds: readonly string[];
+}
+
+export type MapVisualOwnership =
 	| { mode: 'always' }
-	| { mode: 'fallback-only'; ownerBackgroundIds: readonly string[] };
+	| { mode: 'fallback-only'; ownerCrops: readonly MapVisualOwnerCrop[] };
+
+/** @deprecated Use `MapVisualOwnership`. */
+export type MapBlockerVisual = MapVisualOwnership;
 
 export interface MapBlocker extends MapRect {
 	kind: MapBlockerKind;
 	label?: string;
-	visual?: MapBlockerVisual;
+	visual?: MapVisualOwnership;
 }
 
 export interface MapCombatBounds extends MapRect {
@@ -127,7 +135,9 @@ export interface MapCombatBounds extends MapRect {
 	leashRadius: number;
 }
 
-export type MapFenceSegment = MapRect;
+export interface MapFenceSegment extends MapRect {
+	visual?: MapVisualOwnership;
+}
 
 export type MapDecorDepth = 'floor' | 'furniture' | 'foreground';
 
@@ -136,6 +146,7 @@ interface MapDecorBase extends MapRect {
 	mode?: 'image' | 'tile';
 	collision?: MapRect;
 	alpha?: number;
+	visual?: MapVisualOwnership;
 }
 
 /**
