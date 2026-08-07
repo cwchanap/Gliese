@@ -150,12 +150,14 @@ describe('sundrop village layered source', () => {
 			createLayeredRegionBackground(sundropVillageLayered, {
 				id: SUNDROP_VILLAGE_BASE_BACKGROUND_ID,
 				textureKey: SUNDROP_VILLAGE_BASE_BACKGROUND_TEXTURE_KEY,
-				plane: 'base'
+				plane: 'base',
+				drawOrder: 1_000
 			}),
 			createLayeredRegionBackground(sundropVillageLayered, {
 				id: SUNDROP_VILLAGE_FOREGROUND_BACKGROUND_ID,
 				textureKey: SUNDROP_VILLAGE_FOREGROUND_BACKGROUND_TEXTURE_KEY,
-				plane: 'foreground'
+				plane: 'foreground',
+				drawOrder: 1_000
 			})
 		];
 
@@ -167,7 +169,8 @@ describe('sundrop village layered source', () => {
 				y: sundropVillageLayered.origin.y + height / 2,
 				width,
 				height,
-				plane: 'base'
+				plane: 'base',
+				drawOrder: 1_000
 			},
 			{
 				id: SUNDROP_VILLAGE_FOREGROUND_BACKGROUND_ID,
@@ -176,7 +179,8 @@ describe('sundrop village layered source', () => {
 				y: sundropVillageLayered.origin.y + height / 2,
 				width,
 				height,
-				plane: 'foreground'
+				plane: 'foreground',
+				drawOrder: 1_000
 			}
 		]);
 		const background = backgrounds[0]!;
@@ -201,6 +205,7 @@ describe('sundrop village layered source', () => {
 			id: SUNDROP_VILLAGE_BASE_BACKGROUND_ID,
 			textureKey: SUNDROP_VILLAGE_BASE_BACKGROUND_TEXTURE_KEY,
 			plane: 'base',
+			drawOrder: 1_000,
 			x: backgrounds[0]!.x,
 			y: backgrounds[0]!.y,
 			width,
@@ -210,6 +215,7 @@ describe('sundrop village layered source', () => {
 			id: SUNDROP_VILLAGE_FOREGROUND_BACKGROUND_ID,
 			textureKey: SUNDROP_VILLAGE_FOREGROUND_BACKGROUND_TEXTURE_KEY,
 			plane: 'foreground',
+			drawOrder: 1_000,
 			x: backgrounds[1]!.x,
 			y: backgrounds[1]!.y,
 			width,

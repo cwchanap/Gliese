@@ -4,7 +4,7 @@ import { join, relative } from 'node:path';
 
 import sharp from 'sharp';
 
-import { MAP_BACKGROUND_DEPTHS } from '$lib/game/content/maps/background-ownership';
+import { getMapBackgroundDepth } from '$lib/game/content/maps/background-ownership';
 import { getActorAnimationAsset } from '$lib/game/content/assets';
 import {
 	buildSundropVillageObstacleControlInputs,
@@ -88,6 +88,10 @@ async function checkerboard(width: number, height: number): Promise<Buffer> {
 
 async function main(): Promise<void> {
 	const controlInputs = buildSundropVillageObstacleControlInputs(root);
+	const [baseBackground, foregroundBackground] = controlInputs.map.backgroundImages ?? [];
+	if (!baseBackground || !foregroundBackground) {
+		throw new Error('Missing Sundrop Village background descriptor for obstacle proof');
+	}
 	const proofCases = buildSundropVillageObstacleOcclusionProofCases(controlInputs);
 	const hedge = proofCases.find((proofCase) => proofCase.motif === 'hedge');
 	const lowWall = proofCases.find((proofCase) => proofCase.motif === 'low-wall');
@@ -207,9 +211,9 @@ async function main(): Promise<void> {
 		},
 		playerDisplaySize: { width: heroDisplayWidth, height: heroDisplayHeight },
 		runtimeLayering: {
-			baseDepth: MAP_BACKGROUND_DEPTHS.base,
+			baseDepth: getMapBackgroundDepth(baseBackground),
 			playerDepth: 0,
-			foregroundDepth: MAP_BACKGROUND_DEPTHS.foreground,
+			foregroundDepth: getMapBackgroundDepth(foregroundBackground),
 			backgrounds: controlInputs.map.backgroundImages
 		},
 		proofCases,

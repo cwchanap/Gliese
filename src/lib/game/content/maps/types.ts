@@ -92,6 +92,7 @@ export type MapBackgroundPlane = 'base' | 'foreground';
 export interface MapBackgroundImage extends MapRect {
 	textureKey: string;
 	plane: MapBackgroundPlane;
+	drawOrder: number;
 }
 
 export type MapTransitionMarker = 'doorway' | 'stair';

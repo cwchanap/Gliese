@@ -28,12 +28,14 @@ export const villageRegion: RegionFragment = {
 		createLayeredRegionBackground(sundropVillageLayered, {
 			id: SUNDROP_VILLAGE_BASE_BACKGROUND_ID,
 			textureKey: SUNDROP_VILLAGE_BASE_BACKGROUND_TEXTURE_KEY,
-			plane: 'base'
+			plane: 'base',
+			drawOrder: 1_000
 		}),
 		createLayeredRegionBackground(sundropVillageLayered, {
 			id: SUNDROP_VILLAGE_FOREGROUND_BACKGROUND_ID,
 			textureKey: SUNDROP_VILLAGE_FOREGROUND_BACKGROUND_TEXTURE_KEY,
-			plane: 'foreground'
+			plane: 'foreground',
+			drawOrder: 1_000
 		})
 	]
 };
