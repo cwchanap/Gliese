@@ -1,4 +1,5 @@
 import type {
+	MapBackgroundImage,
 	MapBackgroundPlane,
 	MapBlocker,
 	WorldMapDefinition
@@ -9,36 +10,60 @@ export const MAP_BACKGROUND_DEPTHS = {
 	foreground: 100
 } as const satisfies Record<MapBackgroundPlane, number>;
 
+const BACKGROUND_ORDER_SCALE = 10_000;
+
 export type MapBackgroundOwnershipSource = Pick<
 	WorldMapDefinition,
 	'backgroundImages' | 'blockers'
 >;
 
-export function getMapBackgroundDepth(plane: MapBackgroundPlane): number {
-	return MAP_BACKGROUND_DEPTHS[plane];
+export function getMapBackgroundDepth(
+	background: Pick<MapBackgroundImage, 'plane' | 'drawOrder'>
+): number {
+	return MAP_BACKGROUND_DEPTHS[background.plane] + background.drawOrder / BACKGROUND_ORDER_SCALE;
 }
 
 /**
  * Validates the background-ownership contract for a map.
  *
- * Ensures every background descriptor ID is unique, and for every blocker
- * using `fallback-only` visual mode, verifies its owner background ID list
- * is non-empty, has no duplicates, and references only descriptor IDs that
- * actually exist on the map.
+ * Ensures every background descriptor ID is unique; every descriptor has a
+ * unique, non-negative integer draw order within its plane in the supported
+ * range; and every `fallback-only` blocker has a non-empty, duplicate-free
+ * owner list that references only descriptor IDs that exist on the map.
  *
  * @param map - A map subset carrying `backgroundImages` and `blockers`.
- * @throws when a background descriptor ID is duplicated, a `fallback-only`
- *   blocker has an empty owner list, a blocker lists a duplicate owner ID,
- *   or a blocker references a missing owner background ID.
+ * @throws when a background descriptor ID or plane/order slot is duplicated,
+ *   a descriptor has an invalid draw order, a `fallback-only` blocker has an
+ *   empty owner list, a blocker lists a duplicate owner ID, or a blocker
+ *   references a missing owner background ID.
  */
 export function validateMapBackgroundOwnership(map: MapBackgroundOwnershipSource): void {
 	const descriptorIds = new Set<string>();
+	const descriptorPlaneOrders = new Set<string>();
 
 	for (const background of map.backgroundImages ?? []) {
 		if (descriptorIds.has(background.id)) {
 			throw new Error(`Duplicate background descriptor ID: ${background.id}`);
 		}
 		descriptorIds.add(background.id);
+
+		if (
+			!Number.isInteger(background.drawOrder) ||
+			background.drawOrder < 0 ||
+			background.drawOrder > 1_000
+		) {
+			throw new Error(
+				`Invalid background descriptor draw order for ${background.id}: ${background.drawOrder}`
+			);
+		}
+
+		const planeOrder = `${background.plane}:${background.drawOrder}`;
+		if (descriptorPlaneOrders.has(planeOrder)) {
+			throw new Error(
+				`Duplicate background descriptor draw order for ${background.plane} plane: ${background.drawOrder}`
+			);
+		}
+		descriptorPlaneOrders.add(planeOrder);
 	}
 
 	for (const blocker of map.blockers ?? []) {
