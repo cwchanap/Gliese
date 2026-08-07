@@ -23,7 +23,6 @@ export const MEADOW_ENTRY_TEST_FILES = [
 	'src/lib/game/content/backgrounds/meadow-entry-proof-renderer.test.ts',
 	'src/lib/game/content/backgrounds/meadow-entry-art-source-snapshot.test.ts',
 	'src/lib/game/content/backgrounds/meadow-entry-art-proofs.test.ts',
-	'src/lib/game/content/backgrounds/art-map-package-adapter.test.ts',
 	'src/lib/game/content/backgrounds/meadow-entry-art-package-validator.test.ts',
 	'src/lib/game/content/meadow-entry-art-package.asset.test.ts'
 ] as const;

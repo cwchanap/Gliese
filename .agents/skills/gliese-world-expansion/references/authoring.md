@@ -90,4 +90,4 @@ bun run art:validate:meadow-entry
 
 Generic props, sprites, sheets, transparency, frame manifests, and Phaser wiring use `.agents/skills/2d-game-asset-workflow/SKILL.md`. Runtime art belongs under `public/game/assets/`; frame metadata belongs in `src/lib/game/content/assets.ts`; Phaser preload and frame use belong in `src/lib/game/phaser/scenes/BootScene.ts` and `src/lib/game/phaser/scenes/WorldScene.ts`.
 
-A new map does not inherit Meadow Entry's adapter, crop contract, provenance inventory, or approval machinery. Record the concrete need and build only the smallest asset path the real map requires.
+A new map does not inherit Meadow Entry's crop contract, provenance inventory, or approval machinery. Record the concrete need and build only the smallest asset path the real map requires.
