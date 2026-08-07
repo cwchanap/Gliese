@@ -1971,13 +1971,17 @@ describe('meadow-entry region integrity', () => {
 		expect(
 			selected.filter(
 				(blocker) =>
-					blocker.visual?.mode === 'fallback-only' && blocker.visual.ownerBackgroundIds.length === 1
+					blocker.visual?.mode === 'fallback-only' &&
+					blocker.visual.ownerCrops.length === 1 &&
+					blocker.visual.ownerCrops[0]?.requiredBackgroundIds.length === 1
 			)
 		).toHaveLength(14);
 		expect(
 			selected.filter(
 				(blocker) =>
-					blocker.visual?.mode === 'fallback-only' && blocker.visual.ownerBackgroundIds.length === 2
+					blocker.visual?.mode === 'fallback-only' &&
+					blocker.visual.ownerCrops.length === 1 &&
+					blocker.visual.ownerCrops[0]?.requiredBackgroundIds.length === 2
 			)
 		).toHaveLength(7);
 		expect(
@@ -1997,9 +2001,14 @@ describe('meadow-entry region integrity', () => {
 		).toContain('village-block-46-2');
 		expect(selected.find((blocker) => blocker.id === 'corridor-wall-2b')?.visual).toEqual({
 			mode: 'fallback-only',
-			ownerBackgroundIds: [
-				SUNDROP_VILLAGE_BASE_BACKGROUND_ID,
-				SUNDROP_VILLAGE_FOREGROUND_BACKGROUND_ID
+			ownerCrops: [
+				{
+					cropId: 'sundrop-village-hpa-398',
+					requiredBackgroundIds: [
+						SUNDROP_VILLAGE_BASE_BACKGROUND_ID,
+						SUNDROP_VILLAGE_FOREGROUND_BACKGROUND_ID
+					]
+				}
 			]
 		});
 	});

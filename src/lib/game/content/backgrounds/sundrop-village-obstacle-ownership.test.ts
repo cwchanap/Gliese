@@ -102,6 +102,22 @@ describe('Sundrop Village obstacle ownership', () => {
 		expect(applied.find((blocker) => blocker.id === 'meadow-west-boundary')?.height).toBe(6_400);
 	});
 
+	it('converts every reviewed Sundrop owner list into one generic owner crop', () => {
+		const applied = applySundropObstacleOwnership(meadowEntryMap.blockers ?? []);
+
+		for (const entry of SUNDROP_VILLAGE_OBSTACLE_OWNERSHIP) {
+			expect(applied.find((blocker) => blocker.id === entry.blockerId)?.visual).toEqual({
+				mode: 'fallback-only',
+				ownerCrops: [
+					{
+						cropId: 'sundrop-village-hpa-398',
+						requiredBackgroundIds: entry.ownerBackgroundIds
+					}
+				]
+			});
+		}
+	});
+
 	it('rejects missing and duplicate ownership entries', () => {
 		expect(() =>
 			applySundropObstacleOwnership(
