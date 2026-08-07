@@ -37,6 +37,8 @@ export interface RegionalBackgroundPlaneRenderDiagnostic {
 	selectedFallbackBlockerIds?: readonly string[];
 	/** Sum of Math.ceil(max(blocker.width, blocker.height) / 48) for selected fallbacks. */
 	selectedFallbackBlockerSegmentCount?: number;
+	selectedFallbackDecorIds: string[];
+	selectedFallbackFenceIds: string[];
 }
 
 export function emitRegionalBackgroundPlaneRenderDiagnostic(

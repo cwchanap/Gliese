@@ -7,7 +7,7 @@ import {
 } from './regional-background-plane-render-diagnostics';
 
 describe('regional background plane render diagnostics', () => {
-	it('preserves descriptor order and sorts successful background IDs before dispatch', () => {
+	it('preserves descriptor order, fallback selections, and sorted successful background IDs', () => {
 		const target = new EventTarget();
 		const diagnostic: RegionalBackgroundPlaneRenderDiagnostic = {
 			mapId: 'two-plane-test',
@@ -30,7 +30,9 @@ describe('regional background plane render diagnostics', () => {
 					status: 'missing-texture'
 				}
 			],
-			successfulBackgroundIds: ['foreground-image', 'base-image']
+			successfulBackgroundIds: ['foreground-image', 'base-image'],
+			selectedFallbackDecorIds: ['decor-b', 'decor-a'],
+			selectedFallbackFenceIds: ['fence-a']
 		};
 		let received: RegionalBackgroundPlaneRenderDiagnostic | undefined;
 
@@ -42,5 +44,7 @@ describe('regional background plane render diagnostics', () => {
 
 		expect(received?.entries.map((entry) => entry.id)).toEqual(['foreground-image', 'base-image']);
 		expect(received?.successfulBackgroundIds).toEqual(['base-image', 'foreground-image']);
+		expect(received?.selectedFallbackDecorIds).toEqual(['decor-b', 'decor-a']);
+		expect(received?.selectedFallbackFenceIds).toEqual(['fence-a']);
 	});
 });
