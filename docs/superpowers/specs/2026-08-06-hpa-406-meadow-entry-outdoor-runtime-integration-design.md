@@ -284,12 +284,12 @@ Therefore HPA-406 **must not** select owners by “highest drawOrder crop that h
 The projection is mechanical because HPA-399’s crop manifest already carries `sourceRegionIds`. For each HPA-406 fallback obligation:
 
 1. take its sealed `primaryRegionId` from `MEADOW_ENTRY_BAKE_OWNERSHIP`;
-2. find the **single** approved crop whose `sourceRegionIds` contains exactly that `primaryRegionId`;
+2. find the **single** approved crop whose `sourceRegionIds` contains that `primaryRegionId`;
 3. require that single crop to exist;
 4. use that crop’s approved base/foreground texture keys to form the owner background IDs;
 5. assert the mapped crop contains the source bounds expanded by HPA-399’s frozen margins.
 
-The current contract has one direct crop for every primary region that owns HPA-406 fallback work: Crossroads, Tidewatch Coast, Mistfen, Silverpine, Wildwood, and the five connector regions. Sundrop blocker ownership stays with the immutable HPA-398 manifest. `outer-boundary` currently owns no HPA-406 blocker/decor/fence fallback requirement; if that changes, validation must fail until HPA-399 explicitly defines the owning runtime crop rather than guessing one.
+This rule is evaluated only for HPA-406 fallback obligations after immutable HPA-398-owned blockers are excluded. The current frozen data must produce exactly one candidate for every remaining obligation; that uniqueness is an implementation gate, not an assumption to bypass.
 
 Step 5 is a **validation diagnostic**, not an alternate selector. If the unique primary-region crop does not contain its source, stop and repair the HPA-399 owner/crop contract; do not switch to a different overlapping crop.
 
