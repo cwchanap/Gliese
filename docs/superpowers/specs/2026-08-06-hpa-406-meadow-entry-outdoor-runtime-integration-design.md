@@ -1,6 +1,6 @@
 # HPA-406 Meadow Entry Outdoor Runtime Integration Design
 
-**Status:** Approved direction for implementation planning  
+**Status:** Revised after review; ownership contract sealed before implementation  
 **Linear:** HPA-406  
 **Repository:** `cwchanap/Gliese`  
 **Date:** 2026-08-06
@@ -11,14 +11,14 @@ Integrate the approved HPA-496 Meadow Entry base/foreground exports into the exi
 
 The player-facing result is the complete opening outdoor map rendered with the approved coherent artwork across Sundrop Village, Crossroads, every connector, Tidewatch Coast, Mistfen, Silverpine, Wildwood, and the reviewed east forest boundary while current gameplay behavior remains authoritative.
 
-HPA-406 is **frozen integration**: geometry and art already exist, so the implementation should be direct registration plus the smallest renderer/fallback changes required by the approved package.
+HPA-406 is **frozen integration**: geometry and art already exist, so the implementation is direct registration plus the smallest renderer/fallback changes required by the approved package.
 
 ## 2. Existing seam
 
 The prerequisites already exist on `main`:
 
 - HPA-398: `MapBackgroundImage`, base/foreground planes, successful-background tracking, blocker fallback ownership, diagnostics, and the proven Sundrop pair.
-- HPA-399: frozen crop geometry, draw orders, source ownership, bake/fallback obligations, overlaps, and runtime coverage.
+- HPA-399: frozen crop geometry, draw orders, `primaryRegionId`, bake dispositions, runtime fallback obligations, overlaps, and runtime coverage.
 - HPA-496: 22 approved runtime exports with exact crop ID, filename, texture key, bounds, dimensions, bytes, hash, plane, and draw order.
 - HPA-495: the lean `gliese-world-expansion` skill, which classifies this work as `frozen-integration`.
 
@@ -32,7 +32,7 @@ src/lib/game/phaser/scenes/BootScene.ts
 src/lib/game/phaser/scenes/WorldScene.ts
 ```
 
-The missing runtime capabilities are only deterministic overlapping background order, direct registration of the approved exports, and fallback ownership for the decor/fence visuals HPA-399 says are baked.
+The missing runtime capabilities are deterministic overlapping background order, direct registration of approved exports, and fallback ownership for the blocker/decor/fence visuals that HPA-399 says are baked.
 
 ## 3. Frozen-integration rules
 
@@ -82,6 +82,8 @@ Decision:
 - one texture/dimension fails → repair/re-export at HPA-399/HPA-496 ownership;
 - only aggregate residency fails → stop and create a measured load-management ticket.
 
+The result applies only to the recorded Chromium/WebGL environment. It is a local stop/go gate against speculative loading architecture, **not** a claim that macOS or Windows Tauri WebViews have identical GPU limits or residency behavior. A later packaged-Tauri failure becomes the evidence for a separate load-management ticket.
+
 A successful preflight is specifically evidence **not** to invent streaming.
 
 ## 6. Deletion-first cleanup
@@ -92,7 +94,7 @@ Delete the dedicated `Meadow Entry Art Package` CI job and the normal-PR `art:st
 
 Normal runtime CI should instead use a cheap focused test over the files under `public/game/assets/regions/meadow-entry/`: existence, dimensions, and approved SHA-256.
 
-### 6.2 Delete the unused generic art-map adapter
+### 6.2 Delete the unused generic art-map adapter completely
 
 After one final search confirms no active runtime/workflow consumer, delete:
 
@@ -106,7 +108,14 @@ docs/superpowers/specs/hpa-495-art-map-package-adapter-v1.md
 
 and remove the `art:map-package` script.
 
-Historical planning documents may still describe that exploration; they do not make it a live consumer and should not trigger a wholesale HPA-399/HPA-496 rewrite.
+Also update the two live references that would otherwise become stale:
+
+- remove `art-map-package-adapter.test.ts` from `MEADOW_ENTRY_TEST_FILES` in `tools/meadow-entry-art-test-files.ts`;
+- remove the obsolete “Meadow Entry adapter” wording from `.agents/skills/gliese-world-expansion/references/authoring.md` while preserving its map-specific crop/provenance guidance.
+
+Run `bun run art:validate:meadow-entry` once after the cleanup to prove the retained manual production validator still works. This one-time validation does not restore the command to normal every-PR CI.
+
+Historical HPA-399/HPA-495/HPA-496 planning documents may still describe the old exploration; they do not make it a live consumer and should not trigger a wholesale documentation rewrite.
 
 ## 7. Minimal background ordering
 
@@ -152,7 +161,7 @@ src/lib/game/content/backgrounds/meadow-entry-runtime-backgrounds.ts
 with one small runtime record type:
 
 ```ts
-type MeadowEntryRuntimeBackgroundDefinition = MapBackgroundImage & {
+export type MeadowEntryRuntimeBackgroundDefinition = MapBackgroundImage & {
 	cropId: string;
 	path: string;
 };
@@ -173,6 +182,19 @@ export const meadowEntryRuntimeBackgroundAssets = MEADOW_ENTRY_RUNTIME_BACKGROUN
 Do not duplicate hashes, provenance, overlap graphs, source catalogs, or approvals into browser runtime data.
 
 A focused test may import HPA-399/HPA-496 authoring contracts and prove every active runtime record exactly matches the approved inventory. The runtime module itself must not import those heavy authoring modules.
+
+### Preload contract
+
+`BootScene` depends only on structural preload metadata:
+
+```ts
+type RegionalBackgroundPreloadAsset = {
+	readonly key: string;
+	readonly path: string;
+};
+```
+
+Existing Sundrop entries may retain their Sundrop-only `approvedControlFingerprint` / `approvedPngSha256` metadata. HPA-496 entries remain `{ key, path }`. No implementation should manufacture HPA-398 approval metadata merely to homogenize the array.
 
 ## 9. Runtime asset copies
 
@@ -219,11 +241,7 @@ Generalize the proven HPA-398 blocker model rather than inventing separate decor
 export type MapVisualOwnership =
 	| { mode: 'always' }
 	| { mode: 'fallback-only'; ownerBackgroundIds: readonly string[] };
-```
 
-Use it on blockers, decor, and fence segments with one decision helper:
-
-```ts
 export function shouldRenderOwnedVisual(
 	visual: MapVisualOwnership | undefined,
 	successfulBackgroundIds: ReadonlySet<string>
@@ -233,29 +251,100 @@ export function shouldRenderOwnedVisual(
 }
 ```
 
+Use `MapVisualOwnership` on blockers, decor, and fence segments.
+
+Do not leave a second independent implementation of the old blocker-only rule. Either remove `shouldRenderBlockerVisual` and update all callers/tests in the same change, or temporarily retain it only as a one-line delegate:
+
+```ts
+return shouldRenderOwnedVisual(blocker.visual, successfulBackgroundIds);
+```
+
+The end state has one semantic decision function.
+
 This preserves existing Sundrop multi-owner behavior exactly: live fallback is suppressed only when every required baked owner rendered successfully.
 
-## 12. Explicit Meadow Entry ownership manifest
+`validateMapBackgroundOwnership(...)` should validate background references for blocker, decor, and fence visual contracts through one shared validation path.
 
-Add:
+## 12. Sealed Meadow Entry runtime ownership projection
+
+This is the critical correctness gate for HPA-406.
+
+HPA-399 already seals, for every source, the tuple:
+
+```text
+sourceKey = primaryRegionId | disposition | runtimeRequirement
+```
+
+through `MEADOW_ENTRY_REVIEWED_BAKE_OWNERSHIP_SHA256`. Its design explicitly requires HPA-406 to consume those fingerprinted dispositions rather than invent another ownership policy.
+
+Therefore HPA-406 **must not** select owners by “highest drawOrder crop that happens to contain this geometry.” Crop overlap and PR activation must never change an existing source’s owner.
+
+### 12.1 Stable primary-region → runtime-crop mapping
+
+Define one small reviewed mapping used only to project HPA-399 authoring ownership into runtime crop IDs:
+
+```ts
+const RUNTIME_CROP_BY_PRIMARY_REGION = {
+	'sundrop-village': 'sundrop-village-underlay',
+	crossroads: 'crossroads',
+	'tidewatch-coast': 'tidewatch-coast',
+	mistfen: 'mistfen',
+	silverpine: 'silverpine',
+	wildwood: 'wildwood',
+	'connector-village-crossroads': 'village-crossroads-connector',
+	'connector-crossroads-coast': 'crossroads-coast-connector',
+	'connector-crossroads-mistfen': 'crossroads-mistfen-connector',
+	'connector-crossroads-silverpine': 'crossroads-silverpine-connector',
+	'connector-crossroads-wildwood': 'crossroads-wildwood-connector',
+	'outer-boundary': null
+} as const;
+```
+
+`outer-boundary` is intentionally `null`: current outer-boundary sources are protected/live or fallback-tile rather than HPA-406-owned baked blocker/decor/fence visuals. If a future HPA-399 fallback obligation has `primaryRegionId: 'outer-boundary'`, validation must fail and the frozen contract must be amended explicitly instead of guessing a crop.
+
+### 12.2 Full ownership table is fixed before PR 1 activation
+
+Add one browser-safe full table:
 
 ```text
 src/lib/game/content/backgrounds/meadow-entry-runtime-ownership.ts
 ```
 
-Runtime ownership is explicit and small; browser code does not calculate geometry ownership dynamically. Tests derive expected ownership from frozen HPA-399 geometry/bake contracts and compare it to the explicit manifest.
+Each row contains:
 
-Rules:
+```ts
+export interface MeadowEntryRuntimeVisualOwner {
+	sourceType: 'blocker' | 'decor' | 'fence';
+	sourceId: string;
+	ownerCropId: string;
+	ownerBackgroundIds: readonly string[];
+}
+```
 
-- `base-static` → owning base background ID;
-- `base-and-foreground` → owning base and foreground IDs;
-- existing HPA-398-owned blockers retain existing ownership and are never overwritten;
-- protected/live/fallback-tile/control-only/stateful sources remain live;
-- expected owner crop is the highest-draw-order approved base crop that fully contains the source bounds expanded by frozen margins.
+The table contains **all** HPA-406 fallback obligations for the final 22-texture package, excluding blockers already owned by the immutable HPA-398 Sundrop manifest.
 
-**Delivery sequencing:** the explicit manifest contains only entries whose selected owner crop is active in the current implementation PR. PR 1 therefore covers Crossroads/connector-owned visuals only; when PR 2 activates the remaining region crops, the same derivation test expands the expected manifest to the complete HPA-399 runtime obligations. This prevents PR 1 from referencing background IDs that do not exist yet.
+Projection rules are deterministic:
 
-The containment calculation is test/authoring validation only, never runtime behavior.
+1. start from `MEADOW_ENTRY_BAKE_OWNERSHIP`;
+2. keep only `existing-blocker-fallback`, `extend-decor-fallback`, and `extend-fence-fallback`;
+3. exclude existing HPA-398-owned blockers;
+4. map `primaryRegionId` through `RUNTIME_CROP_BY_PRIMARY_REGION`;
+5. `base-static` → `${cropTextureKey}-base-image`;
+6. `base-and-foreground` → base + foreground IDs for the same mapped crop;
+7. assert the mapped crop contains the source bounds expanded by HPA-399’s frozen margins;
+8. assert an expected foreground export exists when required.
+
+Step 7 is a **validation diagnostic**, not an alternate selector. If the mapped primary crop does not contain its source, stop and repair the HPA-399 owner/crop contract; do not switch to a different overlapping crop.
+
+A focused test derives the complete expected table independently from the sealed HPA-399 data and deep-compares it to the committed browser-safe table. No second hash is necessary: the HPA-399 ownership seal plus exact projection equality already catches drift.
+
+### 12.3 PR activation never rewrites ownership
+
+PR 1 and PR 2 use the same full ownership table.
+
+An ownership row becomes active only when its `ownerCropId` is active in `MEADOW_ENTRY_RUNTIME_BACKGROUNDS`. If the crop is active, every `ownerBackgroundIds` target required by that row must exist; missing base/foreground is an error, not a reason to silently drop the row.
+
+PR 1 therefore activates the Crossroads/connector subset of the already-fixed table. PR 2 appends nine textures and automatically activates more existing rows. **No row is reassigned and no owner changes between PRs.**
 
 ## 13. Renderer behavior
 
@@ -267,7 +356,7 @@ Minimal renderer changes:
 
 1. call `getMapBackgroundDepth(background)` so draw order affects depth;
 2. pass the final `successfulBackgroundIds` into decor and fence rendering, as blocker rendering already receives it;
-3. skip live decor/fence when `shouldRenderOwnedVisual(...)` says all baked owners succeeded;
+3. use the single `shouldRenderOwnedVisual(...)` semantic for blockers, decor, and fences;
 4. optionally extend the existing diagnostic with selected fallback decor/fence IDs for focused tests.
 
 Collision creation remains unconditional.
@@ -280,6 +369,8 @@ After a passing preflight, extend `regionalBackgroundAssets` with the active dir
 
 - regional backgrounds enabled → preload registered regional backgrounds;
 - disabled → queue none.
+
+`BootScene` reads only `{ key, path }`; Sundrop-only approval fields are not part of the preload contract.
 
 The opening outdoor world is one `meadow-entry` map, so streaming adds no demonstrated value here.
 
@@ -294,7 +385,18 @@ Activate 13 HPA-496 textures:
 - four Crossroads↔destination connector base/foreground pairs;
 - Crossroads base/foreground.
 
-PR 1 also owns the preflight, deletion cleanup, draw order, direct registry, runtime copies, shared visual ownership, renderer support, and cheap runtime asset test.
+PR 1 also owns:
+
+- texture preflight;
+- deletion cleanup, including `MEADOW_ENTRY_TEST_FILES` and live skill wording;
+- draw order;
+- the **complete sealed runtime ownership table** and active-row selector;
+- direct registry and runtime copies;
+- shared visual ownership/helper migration;
+- renderer support;
+- cheap runtime asset tests.
+
+Ownership projection must be green before the 13 textures are accepted as a runtime slice.
 
 ### PR 2 — Remaining regions and final acceptance
 
@@ -306,7 +408,9 @@ Append the remaining 9 textures:
 - Wildwood base/foreground;
 - east forest outer-boundary base.
 
-PR 2 should be mostly data activation plus final acceptance. Requiring another framework is a signal to fix PR 1's seam or route a concrete defect upstream.
+PR 2 does not recalculate or rewrite ownership. It only activates additional rows from the PR-1 sealed table because their owner crops now exist.
+
+PR 2 should be mostly data activation plus final acceptance. Requiring another framework is a signal to fix PR 1’s seam or route a concrete defect upstream.
 
 ## 16. Validation
 
@@ -316,23 +420,28 @@ Automated checks cover:
 - runtime PNG existence, dimensions, and approved hash;
 - deterministic draw depth;
 - independent base/foreground behavior;
+- one shared blocker/decor/fence visual-ownership decision;
+- full runtime ownership table equals the deterministic projection of HPA-399 `primaryRegionId` + disposition + runtime obligation;
+- every mapped owner crop geometrically contains its expanded source as an assertion, never a selector;
+- PR 1/PR 2 activation cannot change an existing row’s owner;
 - representative missing-base and missing-foreground fallback;
-- active blocker/decor/fence ownership against HPA-399 obligations;
 - unchanged HPA-398 multi-owner ownership;
-- existing map, transition, encounter, reward/discovery, save, and scene invariants.
+- existing map, transition, encounter, reward/discovery, save, and scene invariants;
+- retained manual `art:validate:meadow-entry` succeeds after adapter deletion.
 
 Use focused existing commands plus new focused tests:
 
 ```bash
 bun run test:unit -- --run src/lib/game/content/maps.test.ts
 bun run test:unit -- --run src/lib/game/phaser/scenes/scenes.test.ts
+bun run test:unit -- --run src/lib/game/content/agent-skills.test.ts
 bun run check
 bun run lint
 bun run build
 bun run build:tauri
 ```
 
-Do not rerun the full HPA-496 production-art validator in normal every-PR CI.
+Do not restore the full HPA-496 production-art validator to normal every-PR CI.
 
 ## 17. Manual acceptance
 
@@ -356,47 +465,56 @@ Subjective visual review remains manual; no screenshot permutation matrix is req
 
 | Defect | Owner |
 | --- | --- |
-| Crop/overlap/route-mouth/bake ownership | HPA-399 source/contract |
+| `primaryRegionId` / bake disposition / runtime obligation / crop fit | HPA-399 source/contract |
 | PNG pixels/alpha/dimensions/export | HPA-496 art source |
-| Registration/preload/order/render/fallback | HPA-406 runtime |
+| Runtime registration/preload/order/render/fallback | HPA-406 runtime |
 | Collision/route geometry | Existing map source |
 | NPC/encounter/reward/discovery/transition/gate/save | Existing live gameplay source |
 | Reusable routing guidance | HPA-495 skill |
 
 Do not hide upstream defects with HPA-406 translation layers.
 
-## 19. Acceptance criteria
+## 19. Highest-cost risk
+
+The highest-cost HPA-406 failure is **incorrect visual owner assignment**, because it can produce either duplicated baked+live obstacles or invisible collision when the wrong live visual is suppressed.
+
+That is why owner assignment is fixed from HPA-399’s sealed `primaryRegionId`/disposition contract before PR 1 texture activation. Draw-order math and byte copying are secondary risks and must not be allowed to define ownership implicitly.
+
+## 20. Acceptance criteria
 
 HPA-406 is complete when:
 
 - HPA-495 classifies it as frozen integration and unnecessary design/art workflows are skipped;
 - the texture preflight passes or a measured failure is routed before architecture expands;
+- the full runtime visual-owner table is a fixed projection of HPA-399 and never changes owner between PRs;
 - all 22 HPA-496 exports are eventually registered at approved coordinates, dimensions, plane, and draw order;
 - HPA-398 Sundrop backgrounds remain the top village overlay on their planes;
 - walked routes have no seam, double-darkening, transparent hole, duplicated baked/live visual, or invisible collision;
 - missing base/foreground states preserve readable fallback and authoritative collision;
 - live/stateful gameplay and saves remain functional;
-- zero-consumer adapter/process scaffolding encountered by the work is deleted rather than extended;
+- zero-consumer adapter/process scaffolding encountered by the work is deleted completely enough that the retained manual validator and current world-expansion skill remain valid;
 - normal PR CI no longer reruns the frozen production package;
 - focused tests, web/Tauri builds, and continuous controller walkthrough pass;
 - outdoor acceptance finishes in HPA-406 without a separate whole-map certification ticket.
 
-## 20. Resulting architecture
+## 21. Resulting architecture
 
 ```text
-HPA-399/HPA-496 frozen contracts
+HPA-399 sealed primaryRegionId + dispositions
         │
-        │ focused tests only
-        ▼
-meadow-entry-runtime-backgrounds.ts
-        │
-        ├── background images ──► meadow-entry.ts
-        └── preload assets ─────► BootScene
-                                  │
-                                  ▼
-                         existing WorldScene renderer
-                                  │
-                                  └── shared blocker/decor/fence fallback
+        ├── test-time exact projection ──► full MEADOW_ENTRY_RUNTIME_VISUAL_OWNERS
+        │                                      │
+HPA-496 approved crops/exports                 │ active iff owner crop registered
+        │                                      ▼
+        └──────────────► meadow-entry-runtime-backgrounds.ts
+                               │
+                               ├── images ──► meadow-entry.ts
+                               └── assets ──► regionalBackgroundAssets → BootScene
+                                                    │
+                                                    ▼
+                                           existing WorldScene renderer
+                                                    │
+                                                    └── one shared blocker/decor/fence fallback rule
 ```
 
-The core decision is intentionally modest: **approved images become one direct map-specific runtime registry consumed by the existing renderer.**
+The core decision remains modest: **approved images become one direct map-specific runtime registry, while HPA-399’s already-sealed source ownership is projected once into a fixed browser-safe fallback table.**
