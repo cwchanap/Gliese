@@ -171,9 +171,9 @@ reviewBounds + coverageAttachments
 
 HPA-496 then exports exactly `crop.bounds` from the global master. Therefore final `crop.bounds` is the runtime containment surface and already incorporates the reviewed attachments.
 
-### Runtime-coverage cross-check
+### Runtime-coverage relationship
 
-`MEADOW_ENTRY_RUNTIME_COVERAGE` already uses the same final crop bounds to attribute each coverage cell to all containing crop IDs. HPA-406 may test consistency against that table, but the runtime does not import the heavy authoring contract.
+`MEADOW_ENTRY_RUNTIME_COVERAGE` already uses the same final crop bounds to attribute each coverage cell to all containing crop IDs. HPA-406 deliberately reuses the same `containsBounds(...)` primitive for whole-source replacement because fallback suppression needs one complete crop to cover the whole live visual; the runtime coverage table itself may be satisfied by a union of crops.
 
 `primaryRegionId` and `sourceRegionIds` may appear in generator diagnostics. They are not selectors and no uniqueness assertion is allowed. Making them a hard owner-crop cross-check would incorrectly re-couple runtime coverage to the authoring-partition model that HPA-399 deliberately separated.
 
