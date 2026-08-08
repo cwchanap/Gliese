@@ -44,7 +44,7 @@ Preserve these runtime identities and semantics:
 - exterior return arrival: `{ x: 1656, y: 5040, facing: 'down' }`;
 - current quest/dialogue/shop IDs and save schema.
 
-The interior coordinates may change. There is no backward-compatibility requirement for the old 16×12 layout or its prop coordinates.
+The interior coordinates may change. There is no backward-compatibility requirement for the old 16×12 layout or its prop coordinates. Tests that exercise Guild Hall behavior must follow the new coordinates rather than accidentally treating the old NPC positions as part of the identity contract.
 
 ## Current source audit
 
@@ -55,7 +55,9 @@ The current implementation already has the pieces needed for the player-facing r
 - `interiorProps` already support floor/furniture/foreground depth and per-prop collision;
 - non-opening maps automatically receive the current interior/ruins floor plus an outer stone border from `WorldScene`;
 - the existing interior prop sheet includes tables, benches, bookshelves, a shop counter, notice board, rug, crates, barrels, shelves, papers, weapon racks, lamps, and plants;
-- the village-side `meadow-to-guild-hall` transition is owned by `src/lib/game/content/maps/regions/village-layered.ts`.
+- the village-side `meadow-to-guild-hall` transition is owned by `src/lib/game/content/maps/regions/village-layered.ts`;
+- interactive `map.npcs` participate in movement collision, while `ambientNpcs` are presentation-only sprites and do not participate in movement collision;
+- existing `maps.test.ts`, `scenes.test.ts`, and the Guild quest E2E fixture contain old Guild Hall coordinate assumptions that must move with the layout.
 
 No missing representation requires `LayeredInteriorSource`, a compiler, a room graph, or a new renderer.
 
@@ -102,7 +104,7 @@ Move the Guild Hall's interior door to the bottom-center of the larger map:
 - outbound transition anchor: `{ x: 384, y: 528 }`;
 - spawn / inbound arrival: `{ x: 384, y: 480, facing: 'up' }`.
 
-Keep a central circulation spine around `x = 384` readable from the entrance into the building. Furniture may make the player bend around a local feature, but there should be no hidden doorway or one-tile choke point.
+Keep a central circulation spine around `x = 384` readable from the entrance into the building. The implementation plan publishes a concrete route that branches at `y = 384`, west via `x = 192`, and east via `x = 560`; its furniture baseline must be pre-checked against those corridors rather than relying on ad-hoc coordinate repair during implementation.
 
 The exterior Guild Hall door, building footprint, and exterior return arrival do not need to move. Only the village transition's interior arrival changes to the new spawn.
 
@@ -112,11 +114,11 @@ Use the southern third as the first readable Guild function. Reuse the notice bo
 
 ### Common / meeting area
 
-Place a rug, table, and seating off the central spine. It should read as a place Guild members gather without becoming an obstacle maze.
+Place a rug, table, and seating off the central spine. A floor-depth rug may intentionally share the table's anchor because it is visual dressing beneath the table. Collidable furniture must remain outside the published circulation corridors.
 
 ### Guild Master office / alcove
 
-Place `guild-master` in the northwest side with a desk plus records/bookshelf dressing. Keep a collision-free approach point roughly one tile away so dialogue and quest actions remain comfortable.
+Place `guild-master` in the northwest side with a desk plus records/bookshelf dressing. Use `{ x: 208, y: 176 }` as the planned player approach point for the baseline NPC position `{ x: 176, y: 176 }`. The 32 px separation is outside the NPC body-collision radius and inside the runtime interaction threshold.
 
 ### Records / training area
 
@@ -124,7 +126,9 @@ Use the north-center band for papers/bookshelves and a weapon-rack/training cue.
 
 ### Quartermaster counter
 
-Place `guild-quartermaster` in the northeast/east side. Use the existing `shopCounter`, weapon rack/crates, or equivalent existing props while deliberately leaving a customer approach gap. A player should be able to stand roughly one tile from Vale without overlapping counter collision and open the existing shop normally.
+Place `guild-quartermaster` in the northeast/east side. Use the existing `shopCounter`, weapon rack/crates, or equivalent existing props while deliberately leaving a customer approach gap. Use `{ x: 560, y: 176 }` as the planned approach point for the baseline NPC position `{ x: 592, y: 176 }`.
+
+The implementation tests may enforce a stricter 36 px content-design budget for these approaches even though the runtime accepts interaction within `PLAYER_COLLISION_RADIUS + npcInteractionRadius = 48` px.
 
 ## Transition and save behavior
 
@@ -139,6 +143,8 @@ This behavior is useful for HPA-414 as its interiors move furniture later.
 - `maps.ts` owns Guild Hall dimensions, props, NPC placement, collision, spawn, and outbound transition.
 - `village-layered.ts` owns the village-side transition and its arrival into the Guild Hall.
 - `save-state.ts` owns generic loaded-position normalization.
+- `scenes.test.ts` owns scene-level Guild NPC rendering, collision, interaction, shop, and quest-flow expectations.
+- `tests/e2e/game.e2e.ts` owns the browser fixture that must start from a valid near-Guild-Master position after the layout moves.
 - NPCs, dialogue, shop state, quest state, transitions, and collision remain live runtime data.
 - Existing prop sprites remain live rendered furniture.
 - No Guild Hall base/foreground background is added in this slice, so regional-background fallback ownership is not part of HPA-400 acceptance.
@@ -151,13 +157,14 @@ Reuse:
 - existing `interiorPropAsset` frames;
 - current `WorldScene` interior prop renderer and collision behavior;
 - current village layered transition source;
-- existing map and save-state tests.
+- existing map, scene, E2E, and save-state tests.
 
 Genuinely new work:
 
 1. the larger Guild Hall content layout;
 2. the updated interior arrival for `meadow-to-guild-hall`;
-3. a small save-normalization correction so collidable interior props participate in loaded-position rescue.
+3. a small save-normalization correction so collidable interior props participate in loaded-position rescue;
+4. updates to existing Guild Hall coordinate fixtures so they continue testing behavior against the new layout rather than the removed 16×12 coordinates.
 
 No new art is required by the design. If the existing prop set is visually imperfect, accept that for this vertical slice rather than manufacturing an asset pipeline requirement. A later concrete art deficiency can use `2d-game-asset-workflow`.
 
@@ -175,6 +182,7 @@ During implementation, update HPA-495 only if the real consumer work exposes a r
 - No new Guild Hall background package or mandatory new pixel art.
 - No Meadow Entry crop/provenance/approval machinery for an interior.
 - No compatibility path for old 16×12 coordinates.
+- No collision semantics for ambient NPCs; keep their current presentation-only behavior.
 - No migration of Hero House, Item Shop, Shrine, or villager houses; HPA-414 owns them.
 - No exterior village redesign unless implementation reveals an actual round-trip defect.
 
@@ -183,9 +191,12 @@ During implementation, update HPA-495 only if the real consumer work exposes a r
 Focused tests should prove:
 
 - `guild-hall` is 24×18 with the new bottom-center entry/spawn;
-- the village inbound transition arrives at that spawn and the outbound transition still returns to `{ x: 1656, y: 5040, facing: 'down' }`;
-- representative routes from the entrance to reception, the Guild Master, records/training, the Quartermaster, and back to the exit are free of interior-prop collision;
-- `guild-master` and `guild-quartermaster` keep their IDs, dialogue/shop semantics, and have collision-free interaction approach points;
+- the six unmoved village interiors remain 16×12 rather than keeping Guild Hall inside a blanket compact-interior assertion;
+- the village inbound transition arrives at the new spawn and the outbound transition still returns to `{ x: 1656, y: 5040, facing: 'down' }`;
+- representative routes from the entrance to reception, the Guild Master, records/training, the Quartermaster, and back to the exit are free of interior-prop collision using the published baseline coordinates;
+- `guild-master` and `guild-quartermaster` keep their IDs, dialogue/shop semantics, role, frame, and have collision-free interaction approach points; their x/y coordinates are intentionally updated;
+- scene-level Guild NPC rendering, NPC-body collision tests, dialogue/quest interaction tests, and shop tests use the new map positions or explicit new approach points rather than old raw coordinates;
+- the Guild quest E2E fixture starts near the new Guild Master position and still opens the quest flow;
 - the existing shop registry resolves `guild-quartermaster`;
 - a serialized save located inside a collidable Guild Hall prop is normalized to a walkable position on load;
 - existing village-interior registration/bounds tests continue to pass.
