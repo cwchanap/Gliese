@@ -10,11 +10,11 @@ export interface MeadowEntryControlsApproval {
 
 export const meadowEntryControlsApprovalReview = {
 	reviewedBy: 'chanwaichan',
-	reviewedAt: '2026-08-08T00:56:10Z'
+	reviewedAt: '2026-08-08T06:29:46Z'
 } as const;
 
 export const meadowEntryControlsApproval: MeadowEntryControlsApproval = {
-	combinedControlFingerprint: 'b3d90db52954ae79ea8f224bbdcf11c29294f3a6488c9e4ea6eef48aa0668269',
+	combinedControlFingerprint: '03b4ccf5fc969afe2f3b8f74f3f4da35528fd3cae03c0aa86c9ca2e4436ece5a',
 	cropManifestSha256: 'c3ff227bef6206d2677e0bf42aa2c91b647ea6412428451ec5dbcf72975d3cca',
 	bakeOwnershipSha256: '30fed9270eea21bdf28d58f19cd84d5252e1b15d5beceb3b338e8bbc914a7a6a',
 	storageMode: 'git-lfs',
