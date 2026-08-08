@@ -320,12 +320,14 @@ export function buildSundropVillageObstacleControlInputs(
 	const base = createLayeredRegionBackground(source, {
 		id: SUNDROP_VILLAGE_BASE_BACKGROUND_ID,
 		textureKey: SUNDROP_VILLAGE_BASE_BACKGROUND_TEXTURE_KEY,
-		plane: 'base'
+		plane: 'base',
+		drawOrder: 1_000
 	});
 	const foreground = createLayeredRegionBackground(source, {
 		id: SUNDROP_VILLAGE_FOREGROUND_BACKGROUND_ID,
 		textureKey: SUNDROP_VILLAGE_FOREGROUND_BACKGROUND_TEXTURE_KEY,
-		plane: 'foreground'
+		plane: 'foreground',
+		drawOrder: 1_000
 	});
 	const crop = {
 		x: base.x - base.width / 2,

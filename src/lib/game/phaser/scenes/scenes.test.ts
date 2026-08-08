@@ -1,10 +1,19 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { battleBackgroundAssets, villageHedgeAsset } from '$lib/game/content/assets';
 import {
+	battleBackgroundAssets,
+	environmentDressingAsset,
+	fenceDressingAsset,
+	forestDressingAsset,
+	villageHedgeAsset
+} from '$lib/game/content/assets';
+import {
+	SUNDROP_VILLAGE_BASE_BACKGROUND_ID,
 	SUNDROP_VILLAGE_BASE_BACKGROUND_TEXTURE_KEY,
+	SUNDROP_VILLAGE_FOREGROUND_BACKGROUND_ID,
 	SUNDROP_VILLAGE_FOREGROUND_BACKGROUND_TEXTURE_KEY
 } from '$lib/game/content/backgrounds/sundrop-village-backgrounds';
+import { meadowEntryRuntimeBackgroundImages } from '$lib/game/content/backgrounds/meadow-entry-runtime';
 import { maps } from '$lib/game/content/maps';
 import type { RegionalBackgroundRendererDiagnostic } from '$lib/game/phaser/renderer-diagnostics';
 import type { RegionalBackgroundPlaneRenderDiagnostic } from '$lib/game/phaser/regional-background-plane-render-diagnostics';
@@ -2406,6 +2415,10 @@ describe('BattleScene', () => {
 describe('WorldScene', () => {
 	const twoPlaneBaseTextureKey = 'two-plane-base';
 	const twoPlaneForegroundTextureKey = 'two-plane-foreground';
+	const sundropBackgroundIds = new Set([
+		SUNDROP_VILLAGE_BASE_BACKGROUND_ID,
+		SUNDROP_VILLAGE_FOREGROUND_BACKGROUND_ID
+	]);
 	const sundropVillageBounds = {
 		left: 256,
 		right: 2_048,
@@ -2450,6 +2463,11 @@ describe('WorldScene', () => {
 	] as const;
 	function selectedSundropBlockers(ids: readonly string[]) {
 		return (maps['meadow-entry']?.blockers ?? []).filter((blocker) => ids.includes(blocker.id));
+	}
+	function sundropPlaneStatuses(diagnostic: RegionalBackgroundPlaneRenderDiagnostic | undefined) {
+		return (diagnostic?.entries ?? [])
+			.filter((entry) => sundropBackgroundIds.has(entry.id))
+			.map((entry) => entry.status);
 	}
 	function renderedSundropSegmentCount(ids: readonly string[]) {
 		return selectedSundropBlockers(ids)
@@ -2550,7 +2568,8 @@ describe('WorldScene', () => {
 					width: 640,
 					height: 320,
 					textureKey: twoPlaneBaseTextureKey,
-					plane: 'base'
+					plane: 'base',
+					drawOrder: 10
 				},
 				{
 					id: 'two-plane-foreground-image',
@@ -2559,7 +2578,8 @@ describe('WorldScene', () => {
 					width: 640,
 					height: 320,
 					textureKey: twoPlaneForegroundTextureKey,
-					plane: 'foreground'
+					plane: 'foreground',
+					drawOrder: 20
 				}
 			],
 			blockers: [
@@ -2570,7 +2590,15 @@ describe('WorldScene', () => {
 					width: 32,
 					height: 64,
 					kind: 'city-wall',
-					visual: { mode: 'fallback-only', ownerBackgroundIds: ['two-plane-base-image'] }
+					visual: {
+						mode: 'fallback-only',
+						ownerCrops: [
+							{
+								cropId: 'two-plane-base',
+								requiredBackgroundIds: ['two-plane-base-image']
+							}
+						]
+					}
 				},
 				{
 					id: 'two-plane-multi-owner',
@@ -2581,7 +2609,12 @@ describe('WorldScene', () => {
 					kind: 'city-wall',
 					visual: {
 						mode: 'fallback-only',
-						ownerBackgroundIds: ['two-plane-base-image', 'two-plane-foreground-image']
+						ownerCrops: [
+							{
+								cropId: 'two-plane-complete',
+								requiredBackgroundIds: ['two-plane-base-image', 'two-plane-foreground-image']
+							}
+						]
 					}
 				},
 				{
@@ -2600,6 +2633,78 @@ describe('WorldScene', () => {
 					height: 64,
 					kind: 'city-wall',
 					visual: { mode: 'always' }
+				}
+			],
+			mapDecor: [
+				{
+					id: 'two-plane-base-only-decor',
+					x: 224,
+					y: 160,
+					width: 32,
+					height: 32,
+					textureKey: forestDressingAsset.key,
+					frameName: 'brush',
+					visual: {
+						mode: 'fallback-only',
+						ownerCrops: [
+							{
+								cropId: 'two-plane-base',
+								requiredBackgroundIds: ['two-plane-base-image']
+							}
+						]
+					}
+				},
+				{
+					id: 'two-plane-complete-decor',
+					x: 256,
+					y: 160,
+					width: 32,
+					height: 32,
+					textureKey: forestDressingAsset.key,
+					frameName: 'brush',
+					visual: {
+						mode: 'fallback-only',
+						ownerCrops: [
+							{
+								cropId: 'two-plane-complete',
+								requiredBackgroundIds: ['two-plane-base-image', 'two-plane-foreground-image']
+							}
+						]
+					}
+				}
+			],
+			fences: [
+				{
+					id: 'two-plane-base-only-fence',
+					x: 288,
+					y: 160,
+					width: 32,
+					height: 32,
+					visual: {
+						mode: 'fallback-only',
+						ownerCrops: [
+							{
+								cropId: 'two-plane-base',
+								requiredBackgroundIds: ['two-plane-base-image']
+							}
+						]
+					}
+				},
+				{
+					id: 'two-plane-complete-fence',
+					x: 320,
+					y: 160,
+					width: 32,
+					height: 32,
+					visual: {
+						mode: 'fallback-only',
+						ownerCrops: [
+							{
+								cropId: 'two-plane-complete',
+								requiredBackgroundIds: ['two-plane-base-image', 'two-plane-foreground-image']
+							}
+						]
+					}
 				}
 			]
 		};
@@ -2622,6 +2727,150 @@ describe('WorldScene', () => {
 	const twoPlaneBlockerMarkers = () =>
 		phaserState.imageMarkers.filter(
 			(marker) => marker.texture === 'environment-dressing' && marker.frame === 'townWallVertical'
+		);
+	const twoPlaneOwnedDecorMarkers = () =>
+		phaserState.imageMarkers.filter(
+			(marker) =>
+				marker.texture === forestDressingAsset.key &&
+				marker.frame === 'brush' &&
+				[224, 256].includes(marker.x)
+		);
+	const twoPlaneOwnedFenceMarkers = () =>
+		phaserState.imageMarkers.filter(
+			(marker) => marker.texture === fenceDressingAsset.key && [288, 320].includes(marker.x)
+		);
+	const alternativeEastBoundaryTextureKey = 'alternative-east-boundary';
+	const alternativeWildwoodBaseTextureKey = 'alternative-wildwood-base';
+	const alternativeWildwoodForegroundTextureKey = 'alternative-wildwood-foreground';
+
+	function registerAlternativeOwnerBackgroundTestMap() {
+		const eastBoundaryBackgroundId = 'alternative-east-boundary-base-image';
+		const wildwoodBaseBackgroundId = 'alternative-wildwood-base-image';
+		const wildwoodForegroundBackgroundId = 'alternative-wildwood-foreground-image';
+		const alternativeVisual = {
+			mode: 'fallback-only' as const,
+			ownerCrops: [
+				{
+					cropId: 'outer-boundary-east-forest-lane',
+					requiredBackgroundIds: [eastBoundaryBackgroundId]
+				},
+				{
+					cropId: 'wildwood',
+					requiredBackgroundIds: [wildwoodBaseBackgroundId, wildwoodForegroundBackgroundId]
+				}
+			]
+		};
+
+		maps['scene-support-test'] = {
+			id: 'scene-support-test',
+			width: 20,
+			height: 20,
+			spawnDirection: 'right',
+			spawn: { x: 96, y: 96 },
+			transitions: [],
+			backgroundImages: [
+				{
+					id: eastBoundaryBackgroundId,
+					x: 320,
+					y: 160,
+					width: 640,
+					height: 320,
+					textureKey: alternativeEastBoundaryTextureKey,
+					plane: 'base',
+					drawOrder: 10
+				},
+				{
+					id: wildwoodBaseBackgroundId,
+					x: 352,
+					y: 192,
+					width: 640,
+					height: 320,
+					textureKey: alternativeWildwoodBaseTextureKey,
+					plane: 'base',
+					drawOrder: 20
+				},
+				{
+					id: wildwoodForegroundBackgroundId,
+					x: 384,
+					y: 224,
+					width: 640,
+					height: 320,
+					textureKey: alternativeWildwoodForegroundTextureKey,
+					plane: 'foreground',
+					drawOrder: 20
+				}
+			],
+			blockers: [
+				{
+					id: 'alternative-owner-blocker',
+					x: 96,
+					y: 160,
+					width: 32,
+					height: 64,
+					kind: 'city-wall',
+					visual: alternativeVisual
+				}
+			],
+			mapDecor: [
+				{
+					id: 'alternative-owner-decor',
+					x: 160,
+					y: 160,
+					width: 32,
+					height: 32,
+					textureKey: forestDressingAsset.key,
+					frameName: 'brush',
+					visual: alternativeVisual
+				}
+			],
+			fences: [
+				{
+					id: 'alternative-owner-fence',
+					x: 224,
+					y: 160,
+					width: 32,
+					height: 32,
+					visual: alternativeVisual
+				}
+			]
+		};
+
+		for (const textureKey of [
+			alternativeEastBoundaryTextureKey,
+			alternativeWildwoodBaseTextureKey,
+			alternativeWildwoodForegroundTextureKey
+		]) {
+			phaserState.regionalBackgroundTextureMocks.set(textureKey, {
+				key: textureKey,
+				source: [{ width: 640, height: 320 }],
+				get: vi.fn(() => ({ cutWidth: 640, cutHeight: 320 }))
+			});
+		}
+	}
+
+	const alternativeOwnedBlockerMarkers = () =>
+		phaserState.imageMarkers.filter(
+			(marker) =>
+				marker.texture === environmentDressingAsset.key &&
+				marker.frame === 'townWallVertical' &&
+				marker.x === 96
+		);
+	const alternativeOwnedDecorMarkers = () =>
+		phaserState.imageMarkers.filter(
+			(marker) =>
+				marker.texture === forestDressingAsset.key && marker.frame === 'brush' && marker.x === 160
+		);
+	const alternativeOwnedFenceMarkers = () =>
+		phaserState.imageMarkers.filter(
+			(marker) => marker.texture === fenceDressingAsset.key && marker.x === 224
+		);
+	const alternativeBackgroundMarkers = () =>
+		phaserState.imageMarkers.filter((marker) =>
+			[
+				alternativeEastBoundaryTextureKey,
+				alternativeWildwoodBaseTextureKey,
+				alternativeWildwoodForegroundTextureKey
+			].includes(marker.texture)
 		);
 
 	function installPlaneDiagnosticListener() {
@@ -2656,6 +2905,13 @@ describe('WorldScene', () => {
 		localeState.activeLocale = 'en';
 		vi.clearAllMocks();
 		phaserState.reset();
+		for (const background of meadowEntryRuntimeBackgroundImages) {
+			phaserState.regionalBackgroundTextureMocks.set(background.textureKey, {
+				key: background.textureKey,
+				source: [{ width: background.width, height: background.height }],
+				get: vi.fn(() => ({ cutWidth: background.width, cutHeight: background.height }))
+			});
+		}
 		Object.assign(phaserState.cursorKeys.left, { isDown: false });
 		Object.assign(phaserState.cursorKeys.right, { isDown: false });
 		Object.assign(phaserState.cursorKeys.up, { isDown: false });
@@ -2716,20 +2972,30 @@ describe('WorldScene', () => {
 	});
 
 	it('renders both Sundrop regional background planes at their source-derived center and semantic depths', async () => {
+		const { getMapBackgroundDepth } = await import('$lib/game/content/maps/background-ownership');
+		const { meadowEntryMap } = await import('$lib/game/content/maps');
 		const { WorldScene } = await import('./WorldScene');
 		const scene = new WorldScene();
+		const backgroundsByTextureKey = new Map(
+			(meadowEntryMap.backgroundImages ?? []).map((background) => [
+				background.textureKey,
+				background
+			])
+		);
 
 		scene.create({ mapId: 'meadow-entry' });
 
-		for (const [textureKey, depth] of [
-			[SUNDROP_VILLAGE_BASE_BACKGROUND_TEXTURE_KEY, -9],
-			[SUNDROP_VILLAGE_FOREGROUND_BACKGROUND_TEXTURE_KEY, 100]
-		] as const) {
+		for (const textureKey of [
+			SUNDROP_VILLAGE_BASE_BACKGROUND_TEXTURE_KEY,
+			SUNDROP_VILLAGE_FOREGROUND_BACKGROUND_TEXTURE_KEY
+		]) {
+			const definition = backgroundsByTextureKey.get(textureKey);
+			expect(definition).toBeDefined();
 			expect(scene.add.image).toHaveBeenCalledWith(1152, 5120, textureKey);
 			const background = phaserState.imageMarkers.find((marker) => marker.texture === textureKey);
 			expect(background?.setOrigin).toHaveBeenCalledWith(0.5, 0.5);
 			expect(background?.setDisplaySize).toHaveBeenCalledWith(1792, 1536);
-			expect(background?.setDepth).toHaveBeenCalledWith(depth);
+			expect(background?.setDepth).toHaveBeenCalledWith(getMapBackgroundDepth(definition!));
 		}
 	});
 
@@ -2749,14 +3015,14 @@ describe('WorldScene', () => {
 				texture: twoPlaneBaseTextureKey
 			});
 			expect(twoPlaneBackgroundMarkers()[0]?.setDisplaySize).toHaveBeenCalledWith(640, 320);
-			expect(twoPlaneBackgroundMarkers()[0]?.setDepth).toHaveBeenCalledWith(-9);
+			expect(twoPlaneBackgroundMarkers()[0]?.setDepth).toHaveBeenCalledWith(-8.999);
 			expect(twoPlaneBackgroundMarkers()[1]).toMatchObject({
 				x: 352,
 				y: 192,
 				texture: twoPlaneForegroundTextureKey
 			});
 			expect(twoPlaneBackgroundMarkers()[1]?.setDisplaySize).toHaveBeenCalledWith(640, 320);
-			expect(twoPlaneBackgroundMarkers()[1]?.setDepth).toHaveBeenCalledWith(100);
+			expect(twoPlaneBackgroundMarkers()[1]?.setDepth).toHaveBeenCalledWith(100.002);
 			expect(twoPlaneBlockerMarkers()).toHaveLength(4);
 			expect(target.diagnostics).toHaveLength(1);
 			expect(target.diagnostics[0]?.entries.map((entry) => entry.status)).toEqual([
@@ -2772,7 +3038,33 @@ describe('WorldScene', () => {
 		}
 	});
 
-	it('records ordered disabled plane diagnostics and retains every live blocker visual', async () => {
+	it('uses draw order and complete owner crops to suppress blockers, decor, and fences', async () => {
+		registerTwoPlaneBackgroundTestMap();
+		const target = installPlaneDiagnosticListener();
+		const { WorldScene } = await import('./WorldScene');
+		const scene = new WorldScene();
+
+		try {
+			scene.create({ mapId: 'scene-support-test' });
+
+			expect(twoPlaneBackgroundMarkers()[0]?.setDepth).toHaveBeenCalledWith(-8.999);
+			expect(twoPlaneBackgroundMarkers()[1]?.setDepth).toHaveBeenCalledWith(100.002);
+			expect(twoPlaneBlockerMarkers()).toHaveLength(4);
+			expect(twoPlaneOwnedDecorMarkers()).toHaveLength(0);
+			expect(twoPlaneOwnedFenceMarkers()).toHaveLength(0);
+			expect(target.diagnostics[0]?.successfulBackgroundIds).toEqual([
+				'two-plane-base-image',
+				'two-plane-foreground-image'
+			]);
+			expect(target.diagnostics[0]?.selectedFallbackBlockerIds).toEqual([]);
+			expect(target.diagnostics[0]?.selectedFallbackDecorIds).toEqual([]);
+			expect(target.diagnostics[0]?.selectedFallbackFenceIds).toEqual([]);
+		} finally {
+			target.restore();
+		}
+	});
+
+	it('disabling regional backgrounds restores every owned visual', async () => {
 		registerTwoPlaneBackgroundTestMap();
 		const target = installPlaneDiagnosticListener();
 		const restoreLocation = installLocationSearch('?regionalBackground=off');
@@ -2784,11 +3076,25 @@ describe('WorldScene', () => {
 
 			expect(twoPlaneBackgroundMarkers()).toHaveLength(0);
 			expect(twoPlaneBlockerMarkers()).toHaveLength(8);
+			expect(twoPlaneOwnedDecorMarkers()).toHaveLength(2);
+			expect(twoPlaneOwnedFenceMarkers()).toHaveLength(2);
 			expect(target.diagnostics[0]?.entries.map((entry) => entry.status)).toEqual([
 				'disabled',
 				'disabled'
 			]);
 			expect(target.diagnostics[0]?.successfulBackgroundIds).toEqual([]);
+			expect(target.diagnostics[0]?.selectedFallbackBlockerIds).toEqual([
+				'two-plane-base-only',
+				'two-plane-multi-owner'
+			]);
+			expect(target.diagnostics[0]?.selectedFallbackDecorIds).toEqual([
+				'two-plane-base-only-decor',
+				'two-plane-complete-decor'
+			]);
+			expect(target.diagnostics[0]?.selectedFallbackFenceIds).toEqual([
+				'two-plane-base-only-fence',
+				'two-plane-complete-fence'
+			]);
 		} finally {
 			restoreLocation();
 			target.restore();
@@ -2859,6 +3165,158 @@ describe('WorldScene', () => {
 						?.destroy
 				).toHaveBeenCalledOnce();
 			}
+		} finally {
+			target.restore();
+		}
+	});
+
+	it('keeps a rendered base successful while base-and-foreground owners remain live', async () => {
+		registerTwoPlaneBackgroundTestMap();
+		const target = installPlaneDiagnosticListener();
+		phaserState.missingTextureKeys.add(twoPlaneForegroundTextureKey);
+		const { WorldScene } = await import('./WorldScene');
+		const scene = new WorldScene();
+
+		try {
+			scene.create({ mapId: 'scene-support-test' });
+
+			expect(twoPlaneBackgroundMarkers().map((marker) => marker.texture)).toEqual([
+				twoPlaneBaseTextureKey
+			]);
+			expect(twoPlaneBlockerMarkers()).toHaveLength(6);
+			expect(twoPlaneOwnedDecorMarkers().map((marker) => marker.x)).toEqual([256]);
+			expect(twoPlaneOwnedFenceMarkers().map((marker) => marker.x)).toEqual([320]);
+			expect(target.diagnostics[0]?.entries.map((entry) => entry.status)).toEqual([
+				'rendered',
+				'missing-texture'
+			]);
+			expect(target.diagnostics[0]?.successfulBackgroundIds).toEqual(['two-plane-base-image']);
+			expect(target.diagnostics[0]?.selectedFallbackBlockerIds).toEqual(['two-plane-multi-owner']);
+			expect(target.diagnostics[0]?.selectedFallbackDecorIds).toEqual(['two-plane-complete-decor']);
+			expect(target.diagnostics[0]?.selectedFallbackFenceIds).toEqual(['two-plane-complete-fence']);
+		} finally {
+			target.restore();
+		}
+	});
+
+	it('returns every two-plane live fallback only when no owner crop is complete', async () => {
+		registerTwoPlaneBackgroundTestMap();
+		const target = installPlaneDiagnosticListener();
+		phaserState.missingTextureKeys.add(twoPlaneBaseTextureKey);
+		const { WorldScene } = await import('./WorldScene');
+		const scene = new WorldScene();
+
+		try {
+			scene.create({ mapId: 'scene-support-test' });
+
+			expect(twoPlaneBackgroundMarkers().map((marker) => marker.texture)).toEqual([
+				twoPlaneForegroundTextureKey
+			]);
+			expect(twoPlaneBlockerMarkers()).toHaveLength(8);
+			expect(twoPlaneOwnedDecorMarkers().map((marker) => marker.x)).toEqual([224, 256]);
+			expect(twoPlaneOwnedFenceMarkers().map((marker) => marker.x)).toEqual([288, 320]);
+			expect(target.diagnostics[0]?.successfulBackgroundIds).toEqual([
+				'two-plane-foreground-image'
+			]);
+			expect(target.diagnostics[0]?.selectedFallbackBlockerIds).toEqual([
+				'two-plane-base-only',
+				'two-plane-multi-owner'
+			]);
+			expect(target.diagnostics[0]?.selectedFallbackDecorIds).toEqual([
+				'two-plane-base-only-decor',
+				'two-plane-complete-decor'
+			]);
+			expect(target.diagnostics[0]?.selectedFallbackFenceIds).toEqual([
+				'two-plane-base-only-fence',
+				'two-plane-complete-fence'
+			]);
+		} finally {
+			target.restore();
+		}
+	});
+
+	it('suppresses a multi-crop owned visual when Wildwood alone is complete', async () => {
+		registerAlternativeOwnerBackgroundTestMap();
+		const target = installPlaneDiagnosticListener();
+		phaserState.missingTextureKeys.add(alternativeEastBoundaryTextureKey);
+		const { WorldScene } = await import('./WorldScene');
+		const scene = new WorldScene();
+
+		try {
+			scene.create({ mapId: 'scene-support-test' });
+
+			expect(alternativeBackgroundMarkers().map((marker) => marker.texture)).toEqual([
+				alternativeWildwoodBaseTextureKey,
+				alternativeWildwoodForegroundTextureKey
+			]);
+			expect(alternativeOwnedBlockerMarkers()).toHaveLength(0);
+			expect(alternativeOwnedDecorMarkers()).toHaveLength(0);
+			expect(alternativeOwnedFenceMarkers()).toHaveLength(0);
+			expect(target.diagnostics[0]?.successfulBackgroundIds).toEqual([
+				'alternative-wildwood-base-image',
+				'alternative-wildwood-foreground-image'
+			]);
+			expect(target.diagnostics[0]?.selectedFallbackBlockerIds).toEqual([]);
+			expect(target.diagnostics[0]?.selectedFallbackDecorIds).toEqual([]);
+			expect(target.diagnostics[0]?.selectedFallbackFenceIds).toEqual([]);
+		} finally {
+			target.restore();
+		}
+	});
+
+	it('suppresses the same multi-crop owned visual when the east-boundary crop alone is complete', async () => {
+		registerAlternativeOwnerBackgroundTestMap();
+		const target = installPlaneDiagnosticListener();
+		phaserState.missingTextureKeys.add(alternativeWildwoodBaseTextureKey);
+		phaserState.missingTextureKeys.add(alternativeWildwoodForegroundTextureKey);
+		const { WorldScene } = await import('./WorldScene');
+		const scene = new WorldScene();
+
+		try {
+			scene.create({ mapId: 'scene-support-test' });
+
+			expect(alternativeBackgroundMarkers().map((marker) => marker.texture)).toEqual([
+				alternativeEastBoundaryTextureKey
+			]);
+			expect(alternativeOwnedBlockerMarkers()).toHaveLength(0);
+			expect(alternativeOwnedDecorMarkers()).toHaveLength(0);
+			expect(alternativeOwnedFenceMarkers()).toHaveLength(0);
+			expect(target.diagnostics[0]?.successfulBackgroundIds).toEqual([
+				'alternative-east-boundary-base-image'
+			]);
+			expect(target.diagnostics[0]?.selectedFallbackBlockerIds).toEqual([]);
+			expect(target.diagnostics[0]?.selectedFallbackDecorIds).toEqual([]);
+			expect(target.diagnostics[0]?.selectedFallbackFenceIds).toEqual([]);
+		} finally {
+			target.restore();
+		}
+	});
+
+	it('draws a multi-crop fallback only when no owner crop is complete', async () => {
+		registerAlternativeOwnerBackgroundTestMap();
+		const target = installPlaneDiagnosticListener();
+		phaserState.missingTextureKeys.add(alternativeEastBoundaryTextureKey);
+		phaserState.missingTextureKeys.add(alternativeWildwoodForegroundTextureKey);
+		const { WorldScene } = await import('./WorldScene');
+		const scene = new WorldScene();
+
+		try {
+			scene.create({ mapId: 'scene-support-test' });
+
+			expect(alternativeBackgroundMarkers().map((marker) => marker.texture)).toEqual([
+				alternativeWildwoodBaseTextureKey
+			]);
+			expect(alternativeOwnedBlockerMarkers()).toHaveLength(2);
+			expect(alternativeOwnedDecorMarkers()).toHaveLength(1);
+			expect(alternativeOwnedFenceMarkers()).toHaveLength(1);
+			expect(target.diagnostics[0]?.successfulBackgroundIds).toEqual([
+				'alternative-wildwood-base-image'
+			]);
+			expect(target.diagnostics[0]?.selectedFallbackBlockerIds).toEqual([
+				'alternative-owner-blocker'
+			]);
+			expect(target.diagnostics[0]?.selectedFallbackDecorIds).toEqual(['alternative-owner-decor']);
+			expect(target.diagnostics[0]?.selectedFallbackFenceIds).toEqual(['alternative-owner-fence']);
 		} finally {
 			target.restore();
 		}
@@ -2969,13 +3427,17 @@ describe('WorldScene', () => {
 		scene.create({ mapId: meadowEntryMap.id });
 
 		const selected = (meadowEntryMap.blockers ?? []).filter(
-			(blocker) => blocker.visual?.mode === 'fallback-only'
+			(blocker) =>
+				blocker.visual?.mode === 'fallback-only' &&
+				blocker.visual.ownerCrops.some((crop) => crop.cropId === 'sundrop-village-hpa-398')
 		);
 		expect(selected).toHaveLength(21);
 		expect(
 			selected.filter(
 				(blocker) =>
-					blocker.visual?.mode === 'fallback-only' && blocker.visual.ownerBackgroundIds.length === 2
+					blocker.visual?.mode === 'fallback-only' &&
+					blocker.visual.ownerCrops.length === 1 &&
+					blocker.visual.ownerCrops[0]?.requiredBackgroundIds.length === 2
 			)
 		).toHaveLength(7);
 		expect(
@@ -3029,7 +3491,7 @@ describe('WorldScene', () => {
 			try {
 				scene.create({ mapId: 'meadow-entry' });
 
-				expect(target.diagnostics[0]?.entries.map((entry) => entry.status)).toEqual(statuses);
+				expect(sundropPlaneStatuses(target.diagnostics[0])).toEqual(statuses);
 				expect(target.diagnostics[0]?.selectedFallbackBlockerIds).toEqual(ids);
 				expect(target.diagnostics[0]?.selectedFallbackBlockerSegmentCount).toBe(segments);
 				expect(renderedSundropSegmentCount(ids)).toBe(segments);
@@ -3039,7 +3501,7 @@ describe('WorldScene', () => {
 		}
 	);
 
-	it('skips a missing regional texture with one targeted warning and keeps fallback visuals', async () => {
+	it('keeps only the affected crop fallback visuals when a regional texture is missing', async () => {
 		const { WorldScene } = await import('./WorldScene');
 		const scene = new WorldScene();
 		const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
@@ -3062,7 +3524,7 @@ describe('WorldScene', () => {
 			expect(villageHedgeMarkers().filter(isInsideSundropVillage).length).toBeGreaterThan(0);
 			expect(
 				villageHedgeMarkers().filter((marker) => !isInsideSundropVillage(marker))
-			).toHaveLength(101);
+			).toHaveLength(0);
 			expect(warn).toHaveBeenCalledTimes(1);
 			expect(warn).toHaveBeenCalledWith(
 				'[WorldScene] regional background unavailable: id="sundrop-village-base-image" textureKey="sundrop-village-base" plane="base" mapId="meadow-entry"'
@@ -3199,7 +3661,8 @@ describe('WorldScene', () => {
 				width: 1792,
 				height: 1536,
 				textureKey: SUNDROP_VILLAGE_BASE_BACKGROUND_TEXTURE_KEY,
-				plane: 'base'
+				plane: 'base',
+				drawOrder: 1_000
 			}
 		];
 		maps['scene-support-test']!.mapDecor = [
@@ -3960,7 +4423,7 @@ describe('WorldScene', () => {
 		});
 	});
 
-	it('registers and renders meadow forest dressing before actors', async () => {
+	it('suppresses baked-crop forest dressing while keeping unowned ambient foliage', async () => {
 		const { forestDressingAsset } = await import('$lib/game/content/assets');
 		const { meadowEntryMap } = await import('$lib/game/content/maps');
 		const { WorldScene } = await import('./WorldScene');
@@ -3980,7 +4443,7 @@ describe('WorldScene', () => {
 			);
 		}
 
-		expect(scene.add.tileSprite).toHaveBeenCalledWith(
+		expect(scene.add.tileSprite).not.toHaveBeenCalledWith(
 			5_360,
 			360,
 			960,
@@ -3988,7 +4451,7 @@ describe('WorldScene', () => {
 			'forest-dressing',
 			'treeCluster'
 		);
-		expect(scene.add.tileSprite).toHaveBeenCalledWith(
+		expect(scene.add.tileSprite).not.toHaveBeenCalledWith(
 			6_120,
 			1_020,
 			160,
@@ -3996,7 +4459,7 @@ describe('WorldScene', () => {
 			'forest-dressing',
 			'treeCluster'
 		);
-		expect(scene.add.tileSprite).toHaveBeenCalledWith(
+		expect(scene.add.tileSprite).not.toHaveBeenCalledWith(
 			5_000,
 			5_200,
 			1_100,
@@ -4004,7 +4467,7 @@ describe('WorldScene', () => {
 			'forest-dressing',
 			'treeCluster'
 		);
-		expect(scene.add.tileSprite).toHaveBeenCalledWith(
+		expect(scene.add.tileSprite).not.toHaveBeenCalledWith(
 			5_000,
 			5_500,
 			1_100,
@@ -4014,30 +4477,13 @@ describe('WorldScene', () => {
 		);
 		expect(
 			phaserState.tileSpriteMarkers.filter((marker) => marker.frame === 'treeCluster')
-		).toHaveLength(4);
+		).toHaveLength(0);
 		expect(phaserState.tileSpriteMarkers.filter((marker) => marker.frame === 'brush')).toHaveLength(
 			0
 		);
-
-		const firstForestCallIndex = vi
-			.mocked(scene.add.tileSprite)
-			.mock.calls.findIndex(
-				([x, y, width, height, texture, frame]) =>
-					x === 5_360 &&
-					y === 360 &&
-					width === 960 &&
-					height === 160 &&
-					texture === 'forest-dressing' &&
-					frame === 'treeCluster'
-			);
-		const firstHeroCallOrder = vi.mocked(scene.add.sprite).mock.invocationCallOrder[0];
-		const firstForestCallOrder = vi.mocked(scene.add.tileSprite).mock.invocationCallOrder[
-			firstForestCallIndex
-		];
-		expect(firstForestCallOrder).toBeLessThan(firstHeroCallOrder);
 	});
 
-	it('registers and renders fence segments with generated fence art', async () => {
+	it('registers generated fence art while baked crops suppress its owned segments', async () => {
 		const { fenceDressingAsset } = await import('$lib/game/content/assets');
 		const { meadowEntryMap } = await import('$lib/game/content/maps');
 		const { WorldScene } = await import('./WorldScene');
@@ -4056,16 +4502,18 @@ describe('WorldScene', () => {
 				frame.h
 			);
 		}
-		expect(scene.add.image).toHaveBeenCalledWith(3_344, 4_510, 'fence-dressing', 'horizontalFence');
-		expect(scene.add.image).toHaveBeenCalledWith(4_020, 4_994, 'fence-dressing', 'verticalFence');
-		const horizontalFence = phaserState.imageMarkers.find(
-			(marker) => marker.x === 3_344 && marker.y === 4_510 && marker.frame === 'horizontalFence'
+		expect(scene.add.image).not.toHaveBeenCalledWith(
+			3_344,
+			4_510,
+			'fence-dressing',
+			'horizontalFence'
 		);
-		const verticalFence = phaserState.imageMarkers.find(
-			(marker) => marker.x === 4_020 && marker.y === 4_994 && marker.frame === 'verticalFence'
+		expect(scene.add.image).not.toHaveBeenCalledWith(
+			4_020,
+			4_994,
+			'fence-dressing',
+			'verticalFence'
 		);
-		expect(horizontalFence?.setDisplaySize).toHaveBeenCalledWith(64, 32);
-		expect(verticalFence?.setDisplaySize).toHaveBeenCalledWith(32, 64);
 	});
 
 	it('registers animation pack frames and creates animated hero and enemy sprites', async () => {

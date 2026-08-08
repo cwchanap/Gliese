@@ -10,10 +10,17 @@ import {
 	SUNDROP_VILLAGE_FOREGROUND_BACKGROUND_TEXTURE_KEY
 } from '../../src/lib/game/content/backgrounds/sundrop-village-backgrounds';
 import {
+	activeMeadowEntryRuntimeVisualOwners,
+	meadowEntryRuntimeBackgrounds
+} from '../../src/lib/game/content/backgrounds/meadow-entry-runtime';
+import {
 	buildSundropVillageObstacleControlInputs,
 	buildSundropVillageObstacleOcclusionProofCases
 } from '../../src/lib/game/content/backgrounds/sundrop-village-obstacle-controls';
-import { MAP_BACKGROUND_DEPTHS } from '../../src/lib/game/content/maps/background-ownership';
+import {
+	getMapBackgroundDepth,
+	MAP_BACKGROUND_DEPTHS
+} from '../../src/lib/game/content/maps/background-ownership';
 import {
 	REGIONAL_BACKGROUND_RENDERER_DIAGNOSTIC_EVENT,
 	type RegionalBackgroundRendererDiagnostic
@@ -43,7 +50,7 @@ type RegionalBackgroundEvidenceCase = {
 	name: string;
 	screenshotName: string;
 	url: string;
-	/** Expected regional background load completions; defaults to 2 when omitted. */
+	/** Expected regional background load completions; defaults to all 24 PR-1 descriptors. */
 	expectedLoadCompletions?: number;
 };
 
@@ -83,6 +90,183 @@ const SUNDROP_FOREGROUND_FALLBACK_IDS = [
 	'village-block-19-30',
 	'corridor-wall-2b'
 ] as const;
+type RegionalBackgroundPlaneStatus =
+	RegionalBackgroundPlaneRenderDiagnostic['entries'][number]['status'];
+type RegionalBackgroundDescriptor = Pick<
+	RegionalBackgroundPlaneRenderDiagnostic['entries'][number],
+	'id' | 'textureKey' | 'plane'
+>;
+
+const PR1_BACKGROUND_IDS = [
+	SUNDROP_VILLAGE_BASE_BACKGROUND_ID,
+	SUNDROP_VILLAGE_FOREGROUND_BACKGROUND_ID,
+	'meadow-entry-sundrop-village-underlay-base-image',
+	'meadow-entry-outer-boundary-east-forest-lane-base-image',
+	'meadow-entry-village-crossroads-connector-base-image',
+	'meadow-entry-village-crossroads-connector-foreground-image',
+	'meadow-entry-crossroads-coast-connector-base-image',
+	'meadow-entry-crossroads-coast-connector-foreground-image',
+	'meadow-entry-crossroads-mistfen-connector-base-image',
+	'meadow-entry-crossroads-mistfen-connector-foreground-image',
+	'meadow-entry-crossroads-silverpine-connector-base-image',
+	'meadow-entry-crossroads-silverpine-connector-foreground-image',
+	'meadow-entry-crossroads-wildwood-connector-base-image',
+	'meadow-entry-crossroads-wildwood-connector-foreground-image',
+	'meadow-entry-crossroads-base-image',
+	'meadow-entry-crossroads-foreground-image',
+	'meadow-entry-tidewatch-coast-base-image',
+	'meadow-entry-tidewatch-coast-foreground-image',
+	'meadow-entry-mistfen-base-image',
+	'meadow-entry-mistfen-foreground-image',
+	'meadow-entry-silverpine-base-image',
+	'meadow-entry-silverpine-foreground-image',
+	'meadow-entry-wildwood-base-image',
+	'meadow-entry-wildwood-foreground-image'
+] as const;
+const PR1_BACKGROUND_DESCRIPTORS: readonly RegionalBackgroundDescriptor[] = [
+	{
+		id: SUNDROP_VILLAGE_BASE_BACKGROUND_ID,
+		textureKey: SUNDROP_VILLAGE_BASE_BACKGROUND_TEXTURE_KEY,
+		plane: 'base'
+	},
+	{
+		id: SUNDROP_VILLAGE_FOREGROUND_BACKGROUND_ID,
+		textureKey: SUNDROP_VILLAGE_FOREGROUND_BACKGROUND_TEXTURE_KEY,
+		plane: 'foreground'
+	},
+	...meadowEntryRuntimeBackgrounds.map(({ id, textureKey, plane }) => ({ id, textureKey, plane }))
+];
+const PR1_REGIONAL_BACKGROUND_COUNT = PR1_BACKGROUND_DESCRIPTORS.length;
+const ACTIVE_RUNTIME_FALLBACK_BLOCKER_COUNT = activeMeadowEntryRuntimeVisualOwners.filter(
+	(owner) => owner.sourceType === 'blocker'
+).length;
+const OUTER_BOUNDARY_EAST_FOREST_LANE_BASE_BACKGROUND_ID =
+	'meadow-entry-outer-boundary-east-forest-lane-base-image';
+const OUTER_BOUNDARY_EAST_FOREST_LANE_BASE_BACKGROUND_PATH =
+	'/game/assets/regions/meadow-entry/outer-boundary-east-forest-lane-base.png';
+
+const DISABLED_RUNTIME_FALLBACK_BLOCKER_IDS = [
+	'wildwood-forest-lane-west-bank',
+	'wildwood-forest-lane-east-bank',
+	'wildwood-north-climb-west-bank',
+	'wildwood-north-climb-east-bank',
+	'mistfen-entry-bank-east',
+	'silverpine-wall-A-west',
+	'silverpine-wall-A-east',
+	'silverpine-wall-B-north',
+	'silverpine-wall-B-south',
+	'silverpine-wall-C-west',
+	'silverpine-wall-C-east',
+	'coast-crossroads-mouth-bank',
+	'crossroads-west-hedge',
+	'crossroads-east-hedge',
+	'corridor-wall-2a',
+	'corridor-wall-3a',
+	'corridor-wall-3b',
+	'corridor-wall-4a',
+	'corridor-wall-4b',
+	'corridor-wall-5a',
+	'corridor-wall-5b',
+	'corridor-wall-6a',
+	'corridor-wall-6b',
+	'corridor-wall-7a',
+	'corridor-wall-7b',
+	'corridor-wall-8a',
+	'corridor-wall-8b',
+	'corridor-wall-9a',
+	'corridor-wall-10b'
+] as const;
+const DISABLED_RUNTIME_FALLBACK_DECOR_IDS = [
+	'wildwood-north-canopy',
+	'wildwood-east-canopy',
+	'wildwood-grove-tree-1',
+	'wildwood-grove-tree-2',
+	'wildwood-grove-brush-1',
+	'wildwood-threshold-floor',
+	'wildwood-forest-lane-north-wall',
+	'wildwood-forest-lane-south-wall',
+	'wildwood-threshold-tree-wall-west',
+	'wildwood-threshold-tree-wall-east',
+	'wildwood-threshold-brush-left',
+	'wildwood-threshold-brush-right',
+	'wildwood-cache-brush-screen',
+	'wildwood-cache-tree-cover',
+	'wildwood-grove-maple-1',
+	'wildwood-grove-floor-1',
+	'wildwood-staging-brush',
+	'wildwood-combat-pocket-wall-west',
+	'wildwood-combat-pocket-wall-east',
+	'mistfen-dead-tree-west',
+	'mistfen-dead-tree-east',
+	'mistfen-toxic-bloom',
+	'mistfen-reed-wall-east',
+	'mistfen-reed-wall-west',
+	'mistfen-reed-wall-north',
+	'mistfen-reed-wall-south',
+	'mistfen-deadfall-bend',
+	'mistfen-reeds-1',
+	'mistfen-marsh-rock',
+	'mistfen-bloom-trail-1',
+	'mistfen-bloom-trail-2',
+	'mistfen-gate-reed-wall-east',
+	'silverpine-lantern-west',
+	'silverpine-lantern-east',
+	'silverpine-side-grove-maple',
+	'silverpine-side-grove-pine',
+	'silverpine-tree-1',
+	'silverpine-maple-1',
+	'silverpine-maple-2',
+	'silverpine-lantern-mid',
+	'silverpine-lower-wall-west',
+	'silverpine-lower-wall-east',
+	'silverpine-switchback-west',
+	'silverpine-switchback-east',
+	'silverpine-offering-grove-wall',
+	'silverpine-terrace-boundary',
+	'coast-boat',
+	'coast-net',
+	'coast-tidepool',
+	'coast-driftwood',
+	'coast-jetty',
+	'coast-foam',
+	'coast-approach-net',
+	'coast-fork-west-driftwood-wall',
+	'coast-shrine-pocket-boundary',
+	'coast-tidepool-rock-wall',
+	'coast-jetty-neck',
+	'crossroads-lantern-west',
+	'crossroads-lantern-east',
+	'crossroads-banner',
+	'crossroads-stall',
+	'crossroads-flowers',
+	'crossroads-coast-cue-net',
+	'crossroads-mistfen-cue-reeds',
+	'crossroads-silverpine-cue-lantern',
+	'crossroads-wildwood-cue-floor',
+	'crossroads-wildwood-cue-brush',
+	'crossroads-hanging-lantern',
+	'village-corridor-waymarker'
+] as const;
+const DISABLED_RUNTIME_FALLBACK_FENCE_IDS = [
+	'coast-approach-west-fence',
+	'coast-approach-east-fence',
+	'coast-fork-east-field-fence',
+	'crossroads-south-market-fence',
+	'crossroads-north-festival-barrier',
+	'crossroads-north-festival-barrier-east'
+] as const;
+
+function regionalBackgroundStatuses(
+	defaultStatus: RegionalBackgroundPlaneStatus = 'rendered',
+	overrides: Readonly<
+		Partial<Record<(typeof PR1_BACKGROUND_IDS)[number], RegionalBackgroundPlaneStatus>>
+	> = {}
+): RegionalBackgroundPlaneStatus[] {
+	return PR1_BACKGROUND_DESCRIPTORS.map(
+		({ id }) => overrides[id as (typeof PR1_BACKGROUND_IDS)[number]] ?? defaultStatus
+	);
+}
+
 const SUNDROP_OCCLUSION_CONTROL_INPUTS = buildSundropVillageObstacleControlInputs(process.cwd());
 const SUNDROP_OCCLUSION_PROOF_CASES = buildSundropVillageObstacleOcclusionProofCases(
 	SUNDROP_OCCLUSION_CONTROL_INPUTS
@@ -421,45 +605,78 @@ async function assertAndAttachRendererDiagnostic(
 
 async function assertPlaneDiagnostics(
 	diagnostics: RegionalBackgroundPlaneRenderDiagnostic[],
-	statuses: readonly RegionalBackgroundPlaneRenderDiagnostic['entries'][number]['status'][]
+	statuses: readonly RegionalBackgroundPlaneStatus[],
+	expectedFallback?: {
+		readonly blockerIds?: readonly string[];
+		readonly blockerSegmentCount?: number;
+		readonly decorIds?: readonly string[];
+		readonly fenceIds?: readonly string[];
+	}
 ) {
 	await expect.poll(() => diagnostics.length).toBe(1);
-	expect(diagnostics[0]?.mapId).toBe('meadow-entry');
-	expect(diagnostics[0]?.entries.map((entry) => entry.status)).toEqual(statuses);
-	expect(diagnostics[0]?.entries).toEqual(
-		[
-			{
-				id: SUNDROP_VILLAGE_BASE_BACKGROUND_ID,
-				textureKey: SUNDROP_VILLAGE_BASE_BACKGROUND_TEXTURE_KEY,
-				plane: 'base'
-			},
-			{
-				id: SUNDROP_VILLAGE_FOREGROUND_BACKGROUND_ID,
-				textureKey: SUNDROP_VILLAGE_FOREGROUND_BACKGROUND_TEXTURE_KEY,
-				plane: 'foreground'
-			}
-		].map((expected, index) => expect.objectContaining({ ...expected, status: statuses[index] }))
+	const diagnostic = diagnostics[0];
+	expect(diagnostic?.mapId).toBe('meadow-entry');
+	expect(statuses).toHaveLength(PR1_REGIONAL_BACKGROUND_COUNT);
+	expect(PR1_BACKGROUND_DESCRIPTORS.map(({ id }) => id)).toEqual(PR1_BACKGROUND_IDS);
+	expect(diagnostic?.entries.map((entry) => entry.status)).toEqual(statuses);
+	expect(diagnostic?.entries).toEqual(
+		PR1_BACKGROUND_DESCRIPTORS.map((expected, index) =>
+			expect.objectContaining({ ...expected, status: statuses[index] })
+		)
 	);
-	const expectedFallback =
-		statuses[0] === 'rendered' && statuses[1] === 'rendered'
-			? { ids: [], segments: 0 }
-			: statuses[0] === 'rendered'
-				? { ids: SUNDROP_FOREGROUND_FALLBACK_IDS, segments: 82 }
-				: { ids: SUNDROP_SELECTED_FALLBACK_IDS, segments: 190 };
-	expect(diagnostics[0]?.selectedFallbackBlockerIds).toEqual(expectedFallback.ids);
-	expect(diagnostics[0]?.selectedFallbackBlockerSegmentCount).toBe(expectedFallback.segments);
+	expect(diagnostic?.successfulBackgroundIds).toEqual(
+		PR1_BACKGROUND_DESCRIPTORS.filter((_, index) => statuses[index] === 'rendered')
+			.map(({ id }) => id)
+			.sort()
+	);
+
+	const fallback =
+		expectedFallback ??
+		(statuses.every((status) => status === 'rendered')
+			? { blockerIds: [], blockerSegmentCount: 0, decorIds: [], fenceIds: [] }
+			: undefined);
+	if (!fallback) return;
+	if (fallback.blockerIds !== undefined) {
+		expect(diagnostic?.selectedFallbackBlockerIds).toEqual(fallback.blockerIds);
+	}
+	if (fallback.blockerSegmentCount !== undefined) {
+		expect(diagnostic?.selectedFallbackBlockerSegmentCount).toBe(fallback.blockerSegmentCount);
+	}
+	if (fallback.decorIds !== undefined) {
+		expect(diagnostic?.selectedFallbackDecorIds).toEqual(fallback.decorIds);
+	}
+	if (fallback.fenceIds !== undefined) {
+		expect(diagnostic?.selectedFallbackFenceIds).toEqual(fallback.fenceIds);
+	}
 }
 
 async function assertAndAttachPlaneDiagnostic(
 	diagnostics: RegionalBackgroundPlaneRenderDiagnostic[],
-	statuses: readonly RegionalBackgroundPlaneRenderDiagnostic['entries'][number]['status'][],
+	statuses: readonly RegionalBackgroundPlaneStatus[],
 	attachmentName: string,
-	testInfo: TestInfo
+	testInfo: TestInfo,
+	expectedFallback?: Parameters<typeof assertPlaneDiagnostics>[2]
 ) {
-	await assertPlaneDiagnostics(diagnostics, statuses);
+	await assertPlaneDiagnostics(diagnostics, statuses, expectedFallback);
 	const outputPath = testInfo.outputPath(attachmentName);
 	await writeFile(outputPath, `${JSON.stringify(diagnostics[0], null, 2)}\n`, 'utf8');
 	await testInfo.attach(attachmentName, { path: outputPath, contentType: 'application/json' });
+}
+
+function assertDisabledFallbackSelections(
+	diagnostic: RegionalBackgroundPlaneRenderDiagnostic | undefined
+) {
+	expect(diagnostic?.selectedFallbackBlockerIds).toHaveLength(
+		SUNDROP_SELECTED_FALLBACK_IDS.length + ACTIVE_RUNTIME_FALLBACK_BLOCKER_COUNT
+	);
+	expect(diagnostic?.selectedFallbackBlockerIds).toEqual(
+		expect.arrayContaining([
+			...SUNDROP_SELECTED_FALLBACK_IDS,
+			...DISABLED_RUNTIME_FALLBACK_BLOCKER_IDS
+		])
+	);
+	expect(diagnostic?.selectedFallbackDecorIds).toEqual(DISABLED_RUNTIME_FALLBACK_DECOR_IDS);
+	expect(diagnostic?.selectedFallbackFenceIds).toEqual(DISABLED_RUNTIME_FALLBACK_FENCE_IDS);
 }
 
 async function resumeAndAssertSundropBlockerStopsPlayer(
@@ -519,7 +736,7 @@ test('regional background load failure keeps fallback gameplay ready with scoped
 	await expectGameReady(page);
 	await assertAndAttachRendererDiagnostic(
 		diagnostics,
-		1,
+		PR1_REGIONAL_BACKGROUND_COUNT - 1,
 		'runtime-background-load-failure.renderer.json',
 		testInfo
 	);
@@ -547,7 +764,18 @@ test('regional background load failure keeps fallback gameplay ready with scoped
 		.toEqual([expectedWorldWarning]);
 	const targetedWorldWarnings = findTargetedWorldWarnings();
 	expect(targetedWorldWarnings.map((entry) => entry.text)).toEqual([expectedWorldWarning]);
-	await assertPlaneDiagnostics(diagnostics.planeDiagnostics, ['missing-texture', 'rendered']);
+	await assertPlaneDiagnostics(
+		diagnostics.planeDiagnostics,
+		regionalBackgroundStatuses('rendered', {
+			[SUNDROP_VILLAGE_BASE_BACKGROUND_ID]: 'missing-texture'
+		}),
+		{
+			blockerIds: SUNDROP_SELECTED_FALLBACK_IDS,
+			blockerSegmentCount: 190,
+			decorIds: [],
+			fenceIds: []
+		}
+	);
 	await resumeAndAssertSundropBlockerStopsPlayer(page, diagnostics.movementDiagnostics);
 
 	const toleratedChromiumFailures = consoleEntries.filter((entry) => {
@@ -598,23 +826,47 @@ for (const failureCase of [
 	{
 		name: 'missing foreground',
 		path: SUNDROP_VILLAGE_FOREGROUND_BACKGROUND_PATH,
-		statuses: ['rendered', 'missing-texture'] as const,
-		loadCompletions: 1,
+		statuses: regionalBackgroundStatuses('rendered', {
+			[SUNDROP_VILLAGE_FOREGROUND_BACKGROUND_ID]: 'missing-texture'
+		}),
+		loadCompletions: PR1_REGIONAL_BACKGROUND_COUNT - 1,
+		fallback: {
+			blockerIds: SUNDROP_FOREGROUND_FALLBACK_IDS,
+			blockerSegmentCount: 82,
+			decorIds: [],
+			fenceIds: []
+		},
 		intercept: (route: import('@playwright/test').Route) => route.abort('failed')
 	},
 	{
 		name: 'wrong-sized base',
 		path: SUNDROP_VILLAGE_BASE_BACKGROUND_PATH,
-		statuses: ['invalid-dimensions', 'rendered'] as const,
-		loadCompletions: 2,
+		statuses: regionalBackgroundStatuses('rendered', {
+			[SUNDROP_VILLAGE_BASE_BACKGROUND_ID]: 'invalid-dimensions'
+		}),
+		loadCompletions: PR1_REGIONAL_BACKGROUND_COUNT,
+		fallback: {
+			blockerIds: SUNDROP_SELECTED_FALLBACK_IDS,
+			blockerSegmentCount: 190,
+			decorIds: [],
+			fenceIds: []
+		},
 		intercept: (route: import('@playwright/test').Route) =>
 			route.fulfill({ contentType: 'image/png', body: ONE_PIXEL_PNG })
 	},
 	{
 		name: 'wrong-sized foreground',
 		path: SUNDROP_VILLAGE_FOREGROUND_BACKGROUND_PATH,
-		statuses: ['rendered', 'invalid-dimensions'] as const,
-		loadCompletions: 2,
+		statuses: regionalBackgroundStatuses('rendered', {
+			[SUNDROP_VILLAGE_FOREGROUND_BACKGROUND_ID]: 'invalid-dimensions'
+		}),
+		loadCompletions: PR1_REGIONAL_BACKGROUND_COUNT,
+		fallback: {
+			blockerIds: SUNDROP_FOREGROUND_FALLBACK_IDS,
+			blockerSegmentCount: 82,
+			decorIds: [],
+			fenceIds: []
+		},
 		intercept: (route: import('@playwright/test').Route) =>
 			route.fulfill({ contentType: 'image/png', body: ONE_PIXEL_PNG })
 	}
@@ -635,7 +887,11 @@ for (const failureCase of [
 			`runtime-background-${failureCase.name.replaceAll(' ', '-')}.renderer.json`,
 			testInfo
 		);
-		await assertPlaneDiagnostics(diagnostics.planeDiagnostics, failureCase.statuses);
+		await assertPlaneDiagnostics(
+			diagnostics.planeDiagnostics,
+			failureCase.statuses,
+			failureCase.fallback
+		);
 		await resumeAndAssertSundropBlockerStopsPlayer(page, diagnostics.movementDiagnostics);
 		await captureRuntimeScreenshot(
 			page,
@@ -645,16 +901,64 @@ for (const failureCase of [
 	});
 }
 
+test('regional background alternative ownership keeps Wildwood-owned visuals suppressed', async ({
+	page
+}, testInfo) => {
+	const diagnostics = await prepareRegionalBackgroundEvidencePage(page);
+	await page.route(`**${OUTER_BOUNDARY_EAST_FOREST_LANE_BASE_BACKGROUND_PATH}`, (route) =>
+		route.abort('failed')
+	);
+	await page.goto('/');
+	await expectGameReady(page);
+	await assertAndAttachRendererDiagnostic(
+		diagnostics,
+		PR1_REGIONAL_BACKGROUND_COUNT - 1,
+		'runtime-background-alternative-owner.renderer.json',
+		testInfo
+	);
+	await assertPlaneDiagnostics(
+		diagnostics.planeDiagnostics,
+		regionalBackgroundStatuses('rendered', {
+			[OUTER_BOUNDARY_EAST_FOREST_LANE_BASE_BACKGROUND_ID]: 'missing-texture'
+		}),
+		{
+			blockerIds: ['wildwood-forest-lane-west-bank', 'wildwood-forest-lane-east-bank'],
+			decorIds: [],
+			fenceIds: []
+		}
+	);
+	expect(diagnostics.planeDiagnostics[0]?.selectedFallbackBlockerIds).not.toContain(
+		'wildwood-north-climb-east-bank'
+	);
+	await captureRuntimeScreenshot(page, testInfo, 'runtime-background-alternative-owner.png');
+});
+
 for (const renderFault of [
 	{
 		name: 'base render failure',
 		url: `/?regionalBackgroundFault=${SUNDROP_VILLAGE_BASE_BACKGROUND_ID}:render&movementDiagnostics=on`,
-		statuses: ['render-failed', 'rendered'] as const
+		statuses: regionalBackgroundStatuses('rendered', {
+			[SUNDROP_VILLAGE_BASE_BACKGROUND_ID]: 'render-failed'
+		}),
+		fallback: {
+			blockerIds: SUNDROP_SELECTED_FALLBACK_IDS,
+			blockerSegmentCount: 190,
+			decorIds: [],
+			fenceIds: []
+		}
 	},
 	{
 		name: 'foreground render failure',
 		url: `/?regionalBackgroundFault=${SUNDROP_VILLAGE_FOREGROUND_BACKGROUND_ID}:render&movementDiagnostics=on`,
-		statuses: ['rendered', 'render-failed'] as const
+		statuses: regionalBackgroundStatuses('rendered', {
+			[SUNDROP_VILLAGE_FOREGROUND_BACKGROUND_ID]: 'render-failed'
+		}),
+		fallback: {
+			blockerIds: SUNDROP_FOREGROUND_FALLBACK_IDS,
+			blockerSegmentCount: 82,
+			decorIds: [],
+			fenceIds: []
+		}
 	}
 ] as const) {
 	test(`regional background ${renderFault.name} keeps the other plane visible`, async ({
@@ -669,7 +973,7 @@ for (const renderFault of [
 		const artifactStem = `runtime-background-${renderFault.name.replaceAll(' ', '-')}`;
 		await assertAndAttachRendererDiagnostic(
 			diagnostics,
-			2,
+			PR1_REGIONAL_BACKGROUND_COUNT,
 			`${artifactStem}.renderer.json`,
 			testInfo
 		);
@@ -677,7 +981,8 @@ for (const renderFault of [
 			diagnostics.planeDiagnostics,
 			renderFault.statuses,
 			`${artifactStem}.planes.json`,
-			testInfo
+			testInfo,
+			renderFault.fallback
 		);
 		await resumeAndAssertSundropBlockerStopsPlayer(page, diagnostics.movementDiagnostics);
 		await captureRuntimeScreenshot(page, testInfo, `${artifactStem}.png`);
@@ -707,7 +1012,7 @@ for (const proofCase of SUNDROP_OCCLUSION_PROOF_CASES) {
 			);
 			await page.goto('/');
 			await expectGameReady(page);
-			await assertPlaneDiagnostics(diagnostics.planeDiagnostics, ['rendered', 'rendered']);
+			await assertPlaneDiagnostics(diagnostics.planeDiagnostics, regionalBackgroundStatuses());
 			const planeEntries = diagnostics.planeDiagnostics[0]!.entries;
 			for (const [
 				index,
@@ -720,10 +1025,7 @@ for (const proofCase of SUNDROP_OCCLUSION_PROOF_CASES) {
 					originY: 0.5,
 					displayWidth: background.width,
 					displayHeight: background.height,
-					depth:
-						background.plane === 'base'
-							? MAP_BACKGROUND_DEPTHS.base
-							: MAP_BACKGROUND_DEPTHS.foreground
+					depth: getMapBackgroundDepth(background)
 				});
 			}
 			expect(MAP_BACKGROUND_DEPTHS.base).toBeLessThan(0);
@@ -791,17 +1093,20 @@ for (const evidenceCase of regionalBackgroundEvidenceCases) {
 		await expectGameReady(page);
 		await assertAndAttachRendererDiagnostic(
 			diagnostics,
-			evidenceCase.expectedLoadCompletions ?? 2,
+			evidenceCase.expectedLoadCompletions ?? PR1_REGIONAL_BACKGROUND_COUNT,
 			evidenceCase.screenshotName.replace(/\.png$/, '.renderer.json'),
 			testInfo,
 			evidenceCase.expectedLoadCompletions === 0 ? 'null' : 'non-negative'
 		);
 		await assertPlaneDiagnostics(
 			diagnostics.planeDiagnostics,
-			evidenceCase.expectedLoadCompletions === 0
-				? ['disabled', 'disabled']
-				: ['rendered', 'rendered']
+			regionalBackgroundStatuses(
+				evidenceCase.expectedLoadCompletions === 0 ? 'disabled' : 'rendered'
+			)
 		);
+		if (evidenceCase.expectedLoadCompletions === 0) {
+			assertDisabledFallbackSelections(diagnostics.planeDiagnostics[0]);
+		}
 		await captureRuntimeScreenshot(page, testInfo, evidenceCase.screenshotName);
 	});
 }

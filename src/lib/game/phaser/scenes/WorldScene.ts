@@ -30,7 +30,7 @@ import {
 import { enemies, type EnemyCombatDefinition } from '$lib/game/content/enemies';
 import {
 	getMapBackgroundDepth,
-	shouldRenderBlockerVisual
+	shouldRenderOwnedVisual
 } from '$lib/game/content/maps/background-ownership';
 import { getBlockerRuntimeRenderMode } from '$lib/game/content/maps/blocker-rendering';
 import {
@@ -493,8 +493,8 @@ export class WorldScene extends Phaser.Scene {
 		this.ensureTerrainTilesetTexture();
 		this.renderGround(map);
 		const successfulBackgroundIds = this.renderRegionalBackgrounds(map);
-		this.renderMapDecor(map, ['floor', 'furniture']);
-		this.renderFences(map);
+		this.renderMapDecor(map, ['floor', 'furniture'], successfulBackgroundIds);
+		this.renderFences(map, successfulBackgroundIds);
 		this.renderBlockers(map, successfulBackgroundIds);
 		this.renderLandmarks(map);
 		this.renderInteriorProps(map, ['floor', 'furniture']);
@@ -519,7 +519,7 @@ export class WorldScene extends Phaser.Scene {
 		this.renderNpcs(map);
 		this.renderAmbientNpcs(map);
 		this.renderInteriorProps(map, ['foreground']);
-		this.renderMapDecor(map, ['foreground']);
+		this.renderMapDecor(map, ['foreground'], successfulBackgroundIds);
 		this.renderCollisionDebugOverlay(map);
 
 		this.cameras.main.setBackgroundColor('#1a1f2b');
@@ -1627,8 +1627,8 @@ export class WorldScene extends Phaser.Scene {
 	 *
 	 * @param map - The WorldMapDefinition whose `backgroundImages` are rendered.
 	 * @returns The set of background IDs that loaded and rendered
-	 * successfully; used to decide which `fallback-only` blockers draw their
-	 * own visual. Emits a plane-render diagnostic as a side effect.
+	 * successfully; used to decide which `fallback-only` visual sources draw
+	 * their own live art. Emits a plane-render diagnostic as a side effect.
 	 */
 	private renderRegionalBackgrounds(map: WorldMapDefinition): ReadonlySet<string> {
 		const successfulBackgroundIds = new Set<string>();
@@ -1718,7 +1718,7 @@ export class WorldScene extends Phaser.Scene {
 				image
 					.setOrigin(0.5, 0.5)
 					.setDisplaySize(background.width, background.height)
-					.setDepth(getMapBackgroundDepth(background.plane));
+					.setDepth(getMapBackgroundDepth(background));
 				successfulBackgroundIds.add(background.id);
 				entries.push({
 					id: background.id,
@@ -1754,7 +1754,17 @@ export class WorldScene extends Phaser.Scene {
 		const selectedFallbackBlockers = (map.blockers ?? []).filter(
 			(blocker) =>
 				blocker.visual?.mode === 'fallback-only' &&
-				shouldRenderBlockerVisual(blocker, successfulBackgroundIds)
+				shouldRenderOwnedVisual(blocker.visual, successfulBackgroundIds)
+		);
+		const selectedFallbackDecor = (map.mapDecor ?? []).filter(
+			(decor) =>
+				decor.visual?.mode === 'fallback-only' &&
+				shouldRenderOwnedVisual(decor.visual, successfulBackgroundIds)
+		);
+		const selectedFallbackFences = (map.fences ?? []).filter(
+			(fence) =>
+				fence.visual?.mode === 'fallback-only' &&
+				shouldRenderOwnedVisual(fence.visual, successfulBackgroundIds)
 		);
 		emitRegionalBackgroundPlaneRenderDiagnostic({
 			mapId: map.id,
@@ -1765,7 +1775,9 @@ export class WorldScene extends Phaser.Scene {
 			selectedFallbackBlockerSegmentCount: selectedFallbackBlockers.reduce(
 				(total, blocker) => total + Math.ceil(Math.max(blocker.width, blocker.height) / 48),
 				0
-			)
+			),
+			selectedFallbackDecorIds: selectedFallbackDecor.map((decor) => decor.id),
+			selectedFallbackFenceIds: selectedFallbackFences.map((fence) => fence.id)
 		});
 		return successfulBackgroundIds;
 	}
@@ -2173,11 +2185,18 @@ export class WorldScene extends Phaser.Scene {
 		}
 	}
 
-	private renderMapDecor(map: WorldMapDefinition, depths: Array<MapDecorDepth>) {
+	private renderMapDecor(
+		map: WorldMapDefinition,
+		depths: Array<MapDecorDepth>,
+		successfulBackgroundIds: ReadonlySet<string>
+	) {
 		for (const decor of map.mapDecor ?? []) {
 			const depth = decor.depth ?? 'furniture';
 
 			if (!depths.includes(depth)) {
+				continue;
+			}
+			if (!shouldRenderOwnedVisual(decor.visual, successfulBackgroundIds)) {
 				continue;
 			}
 
@@ -2201,10 +2220,13 @@ export class WorldScene extends Phaser.Scene {
 		}
 	}
 
-	private renderFences(map: WorldMapDefinition) {
+	private renderFences(map: WorldMapDefinition, successfulBackgroundIds: ReadonlySet<string>) {
 		const fences: MapFenceSegment[] = map.fences ?? [];
 
 		for (const fence of fences) {
+			if (!shouldRenderOwnedVisual(fence.visual, successfulBackgroundIds)) {
+				continue;
+			}
 			this.renderFenceSegment(fence);
 		}
 	}
@@ -2218,7 +2240,7 @@ export class WorldScene extends Phaser.Scene {
 				continue;
 			}
 
-			if (!shouldRenderBlockerVisual(blocker, successfulBackgroundIds)) {
+			if (!shouldRenderOwnedVisual(blocker.visual, successfulBackgroundIds)) {
 				continue;
 			}
 

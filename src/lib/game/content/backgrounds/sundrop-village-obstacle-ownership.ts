@@ -1,4 +1,8 @@
-import type { MapBackgroundOwnershipSource } from '$lib/game/content/maps/background-ownership';
+import {
+	applyVisualOwnership,
+	type MapBackgroundOwnershipSource,
+	type VisualOwnershipAssignment
+} from '$lib/game/content/maps/background-ownership';
 import type { MapBlocker } from '$lib/game/content/maps/types';
 
 import {
@@ -144,8 +148,9 @@ function assertManifestBlockersExist(
 
 /**
  * Applies the reviewed Sundrop obstacle ownership manifest to a blocker list,
- * marking each manifest entry's blocker as `fallback-only` with its approved
- * owner background IDs. Blockers not in the manifest are returned unchanged.
+ * marking each manifest entry's blocker as `fallback-only` with one owner crop
+ * carrying its approved background IDs. Blockers not in the manifest are
+ * returned unchanged.
  *
  * @param blockers - Assembled blockers to tag.
  * @param manifest - Ownership manifest; defaults to the reviewed
@@ -162,14 +167,20 @@ export function applySundropObstacleOwnership(
 	const blockersById = indexBlockers(blockers);
 	assertManifestBlockersExist(blockersById, manifestById);
 
-	return blockers.map((blocker) => {
-		const entry = manifestById.get(blocker.id);
-		if (!entry) return { ...blocker };
-		return {
-			...blocker,
-			visual: { mode: 'fallback-only', ownerBackgroundIds: [...entry.ownerBackgroundIds] }
-		};
-	});
+	const assignments: VisualOwnershipAssignment[] = manifest.map((entry) => ({
+		sourceId: entry.blockerId,
+		visual: {
+			mode: 'fallback-only',
+			ownerCrops: [
+				{
+					cropId: 'sundrop-village-hpa-398',
+					requiredBackgroundIds: [...entry.ownerBackgroundIds]
+				}
+			]
+		}
+	}));
+
+	return applyVisualOwnership(blockers, assignments);
 }
 
 function assertExpandedBlockerFitsOwner(

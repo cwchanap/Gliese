@@ -28,9 +28,9 @@
     "meadow-entry-crop-manifest.json"
   ],
   "fingerprints": {
-    "gameplaySource": "25a670eb16e6bd19884f76c6df97196551bbd1cd3cf92f5d3b6a1180b8458b60",
+    "gameplaySource": "e1b952c8f0471709486509a701936e0ec20eb71da57737f24e43afa3b98986b3",
     "authoringContract": "edf2084959761f987093bcd7a8aa33e270eea9426370cef615a791b2db55db4d",
-    "combinedControl": "a877c70797d303dee292582b715d009dfccace19f769ebbef86230b1fd17f26d"
+    "combinedControl": "03b4ccf5fc969afe2f3b8f74f3f4da35528fd3cae03c0aa86c9ca2e4436ece5a"
   },
   "predecessor": {
     "hpa307ArtifactHashes": {
@@ -55,8 +55,8 @@
     "canaryPath": "artifacts/meadow-entry/hpa-399/lfs-canary.png"
   },
   "sourceFileHashes": {
-    "src/lib/game/content/maps/meadow-entry.ts": "04570276f24ba6c9f86d94dca567826d1dd2eec11eec6cdb758ccf18065cc0fe",
-    "src/lib/game/content/maps/regions/village.ts": "906d5cbb498f91ba233c52bdd5bce4006b3d88c39caeaee8772efce290fe8a10",
+    "src/lib/game/content/maps/meadow-entry.ts": "f3419523c696c12e009daf9a9b322754a44bc73ec7a429e51024d0b3128e3c7f",
+    "src/lib/game/content/maps/regions/village.ts": "a961b51b9d595285d2105c9819d5862d719e9fab6d7002990d143a2a67e44d73",
     "src/lib/game/content/maps/regions/wildwood.ts": "b37d24a7dde2f6c4cb2175034a8419ad69dea0d049ddb46f9395027ebdf8412d",
     "src/lib/game/content/maps/regions/mistfen.ts": "d415e0ef61e3f6fb828f86b3f1b844d0f41c8069e273c4c85331e84336bce7f8",
     "src/lib/game/content/maps/regions/silverpine.ts": "e420c013392e624538a72a9a7073bba2c6ac3ca344c15f8307ad52bd1717596b",

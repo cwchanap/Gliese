@@ -5,6 +5,7 @@ import {
 	SUNDROP_VILLAGE_FOREGROUND_BACKGROUND_PATH,
 	SUNDROP_VILLAGE_FOREGROUND_BACKGROUND_TEXTURE_KEY
 } from '$lib/game/content/backgrounds/sundrop-village-backgrounds';
+import { meadowEntryRuntimeBackgroundAssets } from '$lib/game/content/backgrounds/meadow-entry-runtime';
 
 export const starterPackAsset = {
 	key: 'starter-pack',
@@ -85,7 +86,12 @@ export const battleBackgroundAssets = {
 	}
 } as const;
 
-export const regionalBackgroundAssets = [
+export interface RegionalBackgroundPreloadAsset {
+	readonly key: string;
+	readonly path: string;
+}
+
+export const sundropRegionalBackgroundAssets = [
 	{
 		key: SUNDROP_VILLAGE_BASE_BACKGROUND_TEXTURE_KEY,
 		path: SUNDROP_VILLAGE_BASE_BACKGROUND_PATH,
@@ -99,6 +105,11 @@ export const regionalBackgroundAssets = [
 		approvedPngSha256: sundropVillageBackgroundsApproval.foreground.approvedPngSha256
 	}
 ] as const;
+
+export const regionalBackgroundAssets: readonly RegionalBackgroundPreloadAsset[] = [
+	...sundropRegionalBackgroundAssets,
+	...meadowEntryRuntimeBackgroundAssets
+];
 
 export type BattleEnvironmentId = keyof typeof battleBackgroundAssets;
 
