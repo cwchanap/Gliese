@@ -197,7 +197,7 @@ describe('Meadow Entry PR-1 runtime PNG assets', () => {
 			const approved = meadowEntryArtPackageApproval.exports.find(
 				({ textureKey }) => textureKey === background.textureKey
 			);
-			expect(approved, `missing HPA-496 approval for ${background.textureKey}`).toMatchObject({
+			expect(approved, `missing HPA-406 approval for ${background.textureKey}`).toMatchObject({
 				path: `artifacts/meadow-entry/hpa-399/exports/${expected.filename}`,
 				sha256: expected.sha256,
 				width: expected.width,

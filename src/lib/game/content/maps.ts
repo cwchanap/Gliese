@@ -17,7 +17,6 @@ export type {
 	MapGroundPatch,
 	MapBlockerKind,
 	MapBlocker,
-	MapBlockerVisual,
 	MapCombatBounds,
 	MapFenceSegment,
 	MapInteriorPropDepth,

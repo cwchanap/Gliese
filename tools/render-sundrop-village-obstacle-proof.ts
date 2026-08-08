@@ -88,7 +88,11 @@ async function checkerboard(width: number, height: number): Promise<Buffer> {
 
 async function main(): Promise<void> {
 	const controlInputs = buildSundropVillageObstacleControlInputs(root);
-	const [baseBackground, foregroundBackground] = controlInputs.map.backgroundImages ?? [];
+	const backgroundImages = controlInputs.map.backgroundImages ?? [];
+	const baseBackground = backgroundImages.find((background) => background.plane === 'base');
+	const foregroundBackground = backgroundImages.find(
+		(background) => background.plane === 'foreground'
+	);
 	if (!baseBackground || !foregroundBackground) {
 		throw new Error('Missing Sundrop Village background descriptor for obstacle proof');
 	}

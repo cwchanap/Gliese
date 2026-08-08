@@ -62,6 +62,8 @@ interface BrowserProbeResult {
 	retainedTextures: number;
 }
 
+export const EXPECTED_MEADOW_ENTRY_EXPORT_COUNT = 22;
+
 export const meadowEntryTextureSafetyAssets: readonly TextureSafetyAsset[] =
 	meadowEntryArtPackageApproval.exports.map((asset) => ({
 		id: `${asset.cropId}:${asset.plane}`,
@@ -70,8 +72,10 @@ export const meadowEntryTextureSafetyAssets: readonly TextureSafetyAsset[] =
 		height: asset.height
 	}));
 
-if (meadowEntryTextureSafetyAssets.length !== 22) {
-	throw new Error(`Expected 22 exports, found ${meadowEntryTextureSafetyAssets.length}`);
+if (meadowEntryTextureSafetyAssets.length !== EXPECTED_MEADOW_ENTRY_EXPORT_COUNT) {
+	throw new Error(
+		`Expected ${EXPECTED_MEADOW_ENTRY_EXPORT_COUNT} exports, found ${meadowEntryTextureSafetyAssets.length}`
+	);
 }
 
 export function decideTextureSafety(
@@ -80,9 +84,9 @@ export function decideTextureSafety(
 		'assetCount' | 'successfulUploads' | 'retainedTextures' | 'contextLost'
 	>
 ): 'proceed' | 'stop' {
-	return report.assetCount === 22 &&
-		report.successfulUploads === 22 &&
-		report.retainedTextures === 22 &&
+	return report.assetCount === EXPECTED_MEADOW_ENTRY_EXPORT_COUNT &&
+		report.successfulUploads === EXPECTED_MEADOW_ENTRY_EXPORT_COUNT &&
+		report.retainedTextures === EXPECTED_MEADOW_ENTRY_EXPORT_COUNT &&
 		report.contextLost === false
 		? 'proceed'
 		: 'stop';
@@ -212,7 +216,16 @@ async function uploadAssetsInOneContext(
 					}
 				}
 
-				await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+				await new Promise<void>((resolve) => {
+					let settled = false;
+					const settle = () => {
+						if (settled) return;
+						settled = true;
+						resolve();
+					};
+					requestAnimationFrame(settle);
+					setTimeout(settle, 500);
+				});
 				return {
 					webglAvailable: true,
 					maxTextureSize,
@@ -232,6 +245,17 @@ async function uploadAssetsInOneContext(
 	}
 }
 
+/**
+ * Runs the Meadow Entry WebGL texture-safety preflight: uploads every approved
+ * export into a single Chromium WebGL context and reports whether all textures
+ * were retained without context loss.
+ *
+ * @param repositoryRoot - Repository root used to resolve asset paths; defaults
+ *   to the current working directory.
+ * @returns A {@link TextureSafetyProbeReport}. The probe never throws: any
+ *   setup or browser failure is captured as a structured `stop` report with a
+ *   `probeFailure`/`failureScope` diagnosis.
+ */
 export async function runMeadowEntryTextureSafetyProbe(
 	repositoryRoot = process.cwd()
 ): Promise<TextureSafetyProbeReport> {
