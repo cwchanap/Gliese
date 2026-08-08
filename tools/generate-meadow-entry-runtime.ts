@@ -329,7 +329,7 @@ export function syncGeneratedMeadowEntryRuntimeData(
 	}
 }
 
-function parseCheckMode(args: readonly string[]): boolean {
+export function parseCheckMode(args: readonly string[]): boolean {
 	if (args.length === 0) return false;
 	if (args.length === 1 && args[0] === '--check') return true;
 	throw new Error('Usage: bun tools/generate-meadow-entry-runtime.ts [--check]');
