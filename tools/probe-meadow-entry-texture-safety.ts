@@ -92,7 +92,7 @@ export function decideTextureSafety(
 		: 'stop';
 }
 
-function classifyFailureScope(
+export function classifyFailureScope(
 	report: Pick<TextureSafetyProbeReport, 'assets' | 'contextLost' | 'probeFailure'>
 ): TextureSafetyProbeReport['failureScope'] {
 	if (report.probeFailure) return 'probe-setup';
@@ -101,11 +101,11 @@ function classifyFailureScope(
 	return null;
 }
 
-function message(error: unknown): string {
+export function message(error: unknown): string {
 	return error instanceof Error ? error.message : String(error);
 }
 
-function createAssetServer(repositoryRoot: string, assets: readonly TextureSafetyAsset[]) {
+export function createAssetServer(repositoryRoot: string, assets: readonly TextureSafetyAsset[]) {
 	const paths = new Map(
 		assets.map((asset) => [`/${asset.path}`, resolve(repositoryRoot, asset.path)])
 	);

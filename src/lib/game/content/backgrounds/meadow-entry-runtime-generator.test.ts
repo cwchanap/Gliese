@@ -1,4 +1,4 @@
-import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
@@ -10,8 +10,11 @@ import { MEADOW_ENTRY_APPROVED_CROPS } from '$lib/game/content/backgrounds/meado
 import { SUNDROP_VILLAGE_OBSTACLE_OWNERSHIP } from '$lib/game/content/backgrounds/sundrop-village-obstacle-ownership';
 
 import {
+	type MeadowEntryRuntimeData,
 	collectMeadowEntryRuntimeData,
+	parseCheckMode,
 	renderMeadowEntryRuntimeData,
+	runMeadowEntryRuntimeGenerator,
 	syncGeneratedMeadowEntryRuntimeData
 } from '../../../../../tools/generate-meadow-entry-runtime';
 
@@ -108,5 +111,146 @@ describe('meadow-entry runtime data generation', () => {
 			'outer-boundary-east-forest-lane',
 			'wildwood'
 		]);
+	});
+});
+
+describe('parseCheckMode', () => {
+	it('returns false when no arguments are provided', () => {
+		expect(parseCheckMode([])).toBe(false);
+	});
+
+	it('returns true when --check is the sole argument', () => {
+		expect(parseCheckMode(['--check'])).toBe(true);
+	});
+
+	it('throws when an unknown argument is provided', () => {
+		expect(() => parseCheckMode(['--unknown'])).toThrow(/Usage:/);
+	});
+
+	it('throws when --check is combined with extra arguments', () => {
+		expect(() => parseCheckMode(['--check', '--extra'])).toThrow(/Usage:/);
+	});
+});
+
+describe('runMeadowEntryRuntimeGenerator', () => {
+	it('writes the generated runtime data file in default mode', () => {
+		const root = mkdtempSync(join(tmpdir(), 'gliese-meadow-runtime-write-'));
+		temporaryRoots.push(root);
+
+		runMeadowEntryRuntimeGenerator([], root);
+
+		const destination = join(root, 'src/lib/game/content/generated/meadow-entry-runtime.ts');
+		expect(existsSync(destination)).toBe(true);
+
+		const expected = renderMeadowEntryRuntimeData(collectMeadowEntryRuntimeData());
+		expect(readFileSync(destination, 'utf8')).toBe(expected);
+	});
+
+	it('passes when --check matches the current generated data', () => {
+		const root = mkdtempSync(join(tmpdir(), 'gliese-meadow-runtime-check-ok-'));
+		temporaryRoots.push(root);
+
+		runMeadowEntryRuntimeGenerator([], root);
+		expect(() => runMeadowEntryRuntimeGenerator(['--check'], root)).not.toThrow();
+	});
+
+	it('throws when --check finds a stale generated file', () => {
+		const root = mkdtempSync(join(tmpdir(), 'gliese-meadow-runtime-check-stale-'));
+		temporaryRoots.push(root);
+		const destination = join(root, 'src/lib/game/content/generated/meadow-entry-runtime.ts');
+
+		runMeadowEntryRuntimeGenerator([], root);
+		writeFileSync(destination, 'stale content');
+
+		expect(() => runMeadowEntryRuntimeGenerator(['--check'], root)).toThrow(/stale/);
+	});
+
+	it('throws when --check finds the generated file missing', () => {
+		const root = mkdtempSync(join(tmpdir(), 'gliese-meadow-runtime-check-missing-'));
+		temporaryRoots.push(root);
+
+		expect(() => runMeadowEntryRuntimeGenerator(['--check'], root)).toThrow(/missing/);
+	});
+});
+
+describe('syncGeneratedMeadowEntryRuntimeData write path', () => {
+	it('atomically writes the source to the destination path', () => {
+		const root = mkdtempSync(join(tmpdir(), 'gliese-meadow-sync-write-'));
+		temporaryRoots.push(root);
+		const destination = join(root, 'output.ts');
+
+		syncGeneratedMeadowEntryRuntimeData('hello world', destination, false);
+
+		expect(existsSync(destination)).toBe(true);
+		expect(readFileSync(destination, 'utf8')).toBe('hello world');
+	});
+
+	it('creates parent directories as needed', () => {
+		const root = mkdtempSync(join(tmpdir(), 'gliese-meadow-sync-mkdir-'));
+		temporaryRoots.push(root);
+		const destination = join(root, 'nested', 'dir', 'output.ts');
+
+		syncGeneratedMeadowEntryRuntimeData('content', destination, false);
+
+		expect(existsSync(destination)).toBe(true);
+		expect(readFileSync(destination, 'utf8')).toBe('content');
+	});
+
+	it('overwrites an existing destination file', () => {
+		const root = mkdtempSync(join(tmpdir(), 'gliese-meadow-sync-overwrite-'));
+		temporaryRoots.push(root);
+		const destination = join(root, 'output.ts');
+		writeFileSync(destination, 'old content');
+
+		syncGeneratedMeadowEntryRuntimeData('new content', destination, false);
+
+		expect(readFileSync(destination, 'utf8')).toBe('new content');
+	});
+});
+
+describe('renderMeadowEntryRuntimeData inline string-array path', () => {
+	it('renders requiredBackgroundIds inline when the line fits within 100 chars', () => {
+		const inlineData: MeadowEntryRuntimeData = {
+			backgrounds: [],
+			visualOwners: [
+				{
+					sourceType: 'blocker',
+					sourceId: 'x',
+					ownerCrops: [
+						{
+							cropId: 'a',
+							requiredBackgroundIds: ['b-image']
+						}
+					]
+				}
+			]
+		};
+
+		const rendered = renderMeadowEntryRuntimeData(inlineData);
+		expect(rendered).toContain("requiredBackgroundIds: ['b-image']");
+	});
+
+	it('renders requiredBackgroundIds across multiple lines when the inline form exceeds 100 chars', () => {
+		const longId = `meadow-entry-${'x'.repeat(60)}-base-image`;
+		const multilineData: MeadowEntryRuntimeData = {
+			backgrounds: [],
+			visualOwners: [
+				{
+					sourceType: 'decor',
+					sourceId: 'y',
+					ownerCrops: [
+						{
+							cropId: 'c',
+							requiredBackgroundIds: [longId]
+						}
+					]
+				}
+			]
+		};
+
+		const rendered = renderMeadowEntryRuntimeData(multilineData);
+		expect(rendered).not.toContain(`requiredBackgroundIds: ['${longId}']`);
+		expect(rendered).toContain('requiredBackgroundIds: [');
+		expect(rendered).toContain(`'${longId}'`);
 	});
 });
