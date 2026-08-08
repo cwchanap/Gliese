@@ -12,7 +12,10 @@ export const MEADOW_ENTRY_ACTIVE_CROP_IDS = [
 	'crossroads-wildwood-connector',
 	'crossroads',
 	'wildwood',
-	'outer-boundary-east-forest-lane'
+	'outer-boundary-east-forest-lane',
+	'tidewatch-coast',
+	'mistfen',
+	'silverpine'
 ] as const;
 
 const activeCropIds = new Set<string>(MEADOW_ENTRY_ACTIVE_CROP_IDS);
