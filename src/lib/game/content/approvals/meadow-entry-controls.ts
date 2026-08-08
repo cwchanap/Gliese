@@ -10,14 +10,14 @@ export interface MeadowEntryControlsApproval {
 
 export const meadowEntryControlsApprovalReview = {
 	reviewedBy: 'chanwaichan',
-	reviewedAt: '2026-08-01T06:43:07Z'
+	reviewedAt: '2026-08-08T00:56:10Z'
 } as const;
 
 export const meadowEntryControlsApproval: MeadowEntryControlsApproval = {
-	combinedControlFingerprint: 'a877c70797d303dee292582b715d009dfccace19f769ebbef86230b1fd17f26d',
+	combinedControlFingerprint: 'b3d90db52954ae79ea8f224bbdcf11c29294f3a6488c9e4ea6eef48aa0668269',
 	cropManifestSha256: 'c3ff227bef6206d2677e0bf42aa2c91b647ea6412428451ec5dbcf72975d3cca',
 	bakeOwnershipSha256: '30fed9270eea21bdf28d58f19cd84d5252e1b15d5beceb3b338e8bbc914a7a6a',
 	storageMode: 'git-lfs',
-	storageConfigurationSha256: '0cf1316ca427ce34ff4480a8ce9f7d78bcaf9305b40ad7b699b8a4891ce80997',
+	storageConfigurationSha256: '60610b0c2e41561bd3bbbab75d86429859e43c25477628d976a3e3a357a59412',
 	evidencePath: 'docs/superpowers/reports/2026-07-30-hpa-399-controls-crops-storage-validation.md'
 };

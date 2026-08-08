@@ -9,8 +9,8 @@
 		"foregroundHardBytes": 100663296
 	},
 	"controls": {
-		"fingerprint": "a877c70797d303dee292582b715d009dfccace19f769ebbef86230b1fd17f26d",
-		"storageConfigurationSha256": "0cf1316ca427ce34ff4480a8ce9f7d78bcaf9305b40ad7b699b8a4891ce80997"
+		"fingerprint": "b3d90db52954ae79ea8f224bbdcf11c29294f3a6488c9e4ea6eef48aa0668269",
+		"storageConfigurationSha256": "60610b0c2e41561bd3bbbab75d86429859e43c25477628d976a3e3a357a59412"
 	},
 	"predecessor": {
 		"baseSha256": "f1184b045c27c544ac18937a4f8ccfa12cd386319b1722be5d808aea8048ade6",
