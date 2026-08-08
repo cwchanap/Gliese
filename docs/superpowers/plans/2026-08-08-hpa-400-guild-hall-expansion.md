@@ -240,27 +240,27 @@ y: 528,
 
 while keeping `id: 'guild-hall-to-meadow'`, `toMapId: openingMapId`, and exterior arrival `{ x: 1656, y: 5040, facing: 'down' }`.
 
-Use this concrete placement baseline. Small coordinate adjustments are allowed only to satisfy the route/interaction assertions without changing the 24×18 zone model.
+Use the following placement baseline. If one coordinate must move after the failing route test or controller walkthrough, keep the same prop ID, zone, and 24×18 layout and move only that prop.
 
-| Purpose | ID / item | Position | Notes |
+| Purpose | ID | Position | Frame / collision |
 | --- | --- | ---: | --- |
-| Guild Master | `guild-master` | 176,176 | Preserve all dialogue/role/frame fields |
-| Quartermaster | `guild-quartermaster` | 592,176 | Preserve dialogue, role, frame, `shopId` |
-| Reception board | `guild-hall-notice-board` | 240,432 | Existing notice-board frame; keep approach open |
-| Reception bench | `guild-hall-east-bench` | 528,432 | Reuse bench frame/collision |
-| Common rug | new/reused Guild Hall rug ID | 256,304 | `rug`, floor depth, no collision |
-| Common table | `guild-hall-west-desk` or a clearer replacement ID | 256,304 | `table`; collision stays west of central spine |
-| Common bench | `guild-hall-west-bench` | 256,352 | Keep meeting area off main spine |
-| Master bookshelf | new/reused Guild Hall bookshelf ID | 80,96 | `bookshelf` with collision |
-| Master records | `guild-hall-records` | 240,96 | `papers` with collision |
-| Records shelf | new Guild Hall records-shelf ID | 352,96 | `bookshelf` with collision |
-| Training rack | `guild-hall-weapon-rack` | 480,96 | Existing weapon-rack frame/collision |
-| Quartermaster counter | `guild-hall-east-desk` or clearer replacement ID | 656,176 | Prefer `shopCounter`; shift collision right so the NPC approach at x=560 stays clear |
-| Quartermaster crates | new/reused Guild Hall crate ID | 688,272 | Existing `crateStack` frame/collision |
-| Ambient west member | `guild-hall-member-west` | 288,416 | Preserve ID/role; keep central spine clear |
-| Ambient east member | `guild-hall-member-east` | 512,336 | Preserve ID/role; keep NPC approaches clear |
+| Guild Master | `guild-master` | 176,176 | Preserve current NPC fields |
+| Quartermaster | `guild-quartermaster` | 592,176 | Preserve current NPC fields and `shopId` |
+| Reception board | `guild-hall-notice-board` | 240,432 | `noticeBoard`, 112×72; collision 240,432,96×34 |
+| Reception bench | `guild-hall-east-bench` | 528,432 | `bench`, 96×34; collision 528,432,86×26 |
+| Common rug | `guild-hall-common-rug` | 256,304 | `rug`, 192×112, `depth: 'floor'`, no collision |
+| Common table | `guild-hall-common-table` | 256,304 | `table`, 96×54; collision 256,304,88×44 |
+| Common bench | `guild-hall-west-bench` | 256,352 | `bench`, 96×34; collision 256,352,86×26 |
+| Master bookshelf | `guild-hall-master-bookshelf` | 80,96 | `bookshelf`, 64×96; collision 80,96,56×86 |
+| Master records | `guild-hall-records` | 240,96 | `papers`, 52×64; collision 240,96,42×44 |
+| Records shelf | `guild-hall-records-shelf` | 352,96 | `bookshelf`, 64×96; collision 352,96,56×86 |
+| Training rack | `guild-hall-weapon-rack` | 480,96 | `weaponRack`, 56×86; collision 480,96,44×72 |
+| Quartermaster counter | `guild-hall-quartermaster-counter` | 656,176 | `shopCounter`, 128×58; collision 672,176,96×48 so the west customer approach stays open |
+| Quartermaster crates | `guild-hall-quartermaster-crates` | 688,272 | `crateStack`, 58×58; collision 688,272,48×48 |
+| Ambient west member | `guild-hall-member-west` | 288,416 | Preserve frame/role |
+| Ambient east member | `guild-hall-member-east` | 512,336 | Preserve frame/role |
 
-Keep `x = 384` mostly open from the entrance to the north-center junction. The purpose of the table is functional zoning, not exact visual micromanagement; route tests and in-game readability are the deciding constraints.
+Delete superseded Guild Hall prop literals that are not part of this table rather than keeping duplicate old-room furniture. Keep `x = 384` mostly open from the entrance to the north-center junction.
 
 Do not add `blockers` merely to simulate interior walls. Do not add backgrounds.
 
