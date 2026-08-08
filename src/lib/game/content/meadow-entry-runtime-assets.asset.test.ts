@@ -115,6 +115,48 @@ const EXPECTED_ACTIVE_RUNTIME_ASSETS = [
 		sha256: 'ce5656cd0a5b426b7d35742fc02a79f72aa83b262f5bee8a6264fe05f710a26d'
 	},
 	{
+		textureKey: 'meadow-entry-tidewatch-coast-base',
+		filename: 'tidewatch-coast-base.png',
+		width: 3744,
+		height: 2080,
+		sha256: '9016d3a934da81a97e5fd61d9316ca0d93810d41990e7681d6ae17299f2e52c1'
+	},
+	{
+		textureKey: 'meadow-entry-tidewatch-coast-foreground',
+		filename: 'tidewatch-coast-foreground.png',
+		width: 3744,
+		height: 2080,
+		sha256: 'ea98407147254ccaeaa9a2a07449788f02a81bc19b95478373f4be8630445d82'
+	},
+	{
+		textureKey: 'meadow-entry-mistfen-base',
+		filename: 'mistfen-base.png',
+		width: 2592,
+		height: 2944,
+		sha256: 'a8e0e7fc1c7d00d7a60f66a010de45e7f1808c0a2e7f2609687d5d5a6b96e8cd'
+	},
+	{
+		textureKey: 'meadow-entry-mistfen-foreground',
+		filename: 'mistfen-foreground.png',
+		width: 2592,
+		height: 2944,
+		sha256: 'f5db7ba6e9e7963a89b5557dc2d44233f28062849af694a5eee8aa55a6803280'
+	},
+	{
+		textureKey: 'meadow-entry-silverpine-base',
+		filename: 'silverpine-base.png',
+		width: 1888,
+		height: 3008,
+		sha256: '41f94f45f999b2ee3dd575ae9386f63434c1b52d0491300bb47484133fcba92f'
+	},
+	{
+		textureKey: 'meadow-entry-silverpine-foreground',
+		filename: 'silverpine-foreground.png',
+		width: 1888,
+		height: 3008,
+		sha256: '0fbcb5d2e0dafc78b7f83e984079ddfdfcbcf77d85d4c37f2d9174a1fd2e3ca6'
+	},
+	{
 		textureKey: 'meadow-entry-wildwood-base',
 		filename: 'wildwood-base.png',
 		width: 2688,

@@ -4456,7 +4456,7 @@ describe('WorldScene', () => {
 			'forest-dressing',
 			'treeCluster'
 		);
-		expect(scene.add.tileSprite).toHaveBeenCalledWith(
+		expect(scene.add.tileSprite).not.toHaveBeenCalledWith(
 			5_000,
 			5_200,
 			1_100,
@@ -4464,7 +4464,7 @@ describe('WorldScene', () => {
 			'forest-dressing',
 			'treeCluster'
 		);
-		expect(scene.add.tileSprite).toHaveBeenCalledWith(
+		expect(scene.add.tileSprite).not.toHaveBeenCalledWith(
 			5_000,
 			5_500,
 			1_100,
@@ -4474,7 +4474,7 @@ describe('WorldScene', () => {
 		);
 		expect(
 			phaserState.tileSpriteMarkers.filter((marker) => marker.frame === 'treeCluster')
-		).toHaveLength(2);
+		).toHaveLength(0);
 		expect(phaserState.tileSpriteMarkers.filter((marker) => marker.frame === 'brush')).toHaveLength(
 			0
 		);
