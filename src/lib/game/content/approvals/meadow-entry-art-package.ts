@@ -31,13 +31,13 @@ export interface MeadowEntryArtPackageApproval {
 
 export const meadowEntryArtPackageApprovalReview = {
 	reviewedBy: 'chanwaichan',
-	reviewedAt: '2026-08-02T08:51:49Z'
+	reviewedAt: '2026-08-08T00:56:10Z'
 } as const;
 
 export const meadowEntryArtPackageApproval: MeadowEntryArtPackageApproval = {
-	combinedControlFingerprint: 'a877c70797d303dee292582b715d009dfccace19f769ebbef86230b1fd17f26d',
+	combinedControlFingerprint: 'b3d90db52954ae79ea8f224bbdcf11c29294f3a6488c9e4ea6eef48aa0668269',
 	storageMode: 'git-lfs',
-	storageConfigurationSha256: '0cf1316ca427ce34ff4480a8ce9f7d78bcaf9305b40ad7b699b8a4891ce80997',
+	storageConfigurationSha256: '60610b0c2e41561bd3bbbab75d86429859e43c25477628d976a3e3a357a59412',
 	baseMaster: {
 		path: 'artifacts/meadow-entry/hpa-399/masters/meadow-entry-base-master.png',
 		sha256: '9a5097eea014d092e57a8953be0dec2a16c1e6d29446f8b293338bf95a93752c',
@@ -52,9 +52,9 @@ export const meadowEntryArtPackageApproval: MeadowEntryArtPackageApproval = {
 		width: 6400,
 		height: 6400
 	},
-	cropManifestSha256: '9a8b7ee79c37a507236de9bacf553af708bcd8292cb1d5949febbda71d7dc7ab',
-	masterProvenanceSha256: '3cf4f7bf29659750ba776ba132a702f67a0f4fa3c74c6273102a42d934feffe3',
-	exportProvenanceSha256: '8dfb2ee0578efd0fe6d036817d8c5a95ca04ca9603447663281d0d5a65936be8',
+	cropManifestSha256: 'f6c47b5935baa090750b27e0e2163b1f5595e9fffe82e1834b03aaf3ddd78701',
+	masterProvenanceSha256: 'de19f64eda199af92883a200bf431357fbf155e82fcf468ebbddc6a5d7d50206',
+	exportProvenanceSha256: 'a0d389b10f3174bdbbd40c76362bc695e15f1edb6308a685a9322e22cfa418c4',
 	exports: [
 		{
 			path: 'artifacts/meadow-entry/hpa-399/exports/sundrop-village-underlay-base.png',
@@ -918,7 +918,7 @@ export const meadowEntryArtPackageApproval: MeadowEntryArtPackageApproval = {
 				'f1184b045c27c544ac18937a4f8ccfa12cd386319b1722be5d808aea8048ade6',
 				'c9ffa6e50a8e3c9f9888a642078094e95d9175158df8d262de8ac94b1ab9124e',
 				'2d0a6703de1a404e49c0746f092a4c6f9f113ae17cd8bc35de635b5ec084ce45',
-				'9a8b7ee79c37a507236de9bacf553af708bcd8292cb1d5949febbda71d7dc7ab'
+				'f6c47b5935baa090750b27e0e2163b1f5595e9fffe82e1834b03aaf3ddd78701'
 			]
 		},
 		{
@@ -933,7 +933,7 @@ export const meadowEntryArtPackageApproval: MeadowEntryArtPackageApproval = {
 				'f1184b045c27c544ac18937a4f8ccfa12cd386319b1722be5d808aea8048ade6',
 				'c9ffa6e50a8e3c9f9888a642078094e95d9175158df8d262de8ac94b1ab9124e',
 				'2d0a6703de1a404e49c0746f092a4c6f9f113ae17cd8bc35de635b5ec084ce45',
-				'9a8b7ee79c37a507236de9bacf553af708bcd8292cb1d5949febbda71d7dc7ab'
+				'f6c47b5935baa090750b27e0e2163b1f5595e9fffe82e1834b03aaf3ddd78701'
 			]
 		},
 		{
@@ -948,7 +948,7 @@ export const meadowEntryArtPackageApproval: MeadowEntryArtPackageApproval = {
 				'f1184b045c27c544ac18937a4f8ccfa12cd386319b1722be5d808aea8048ade6',
 				'c9ffa6e50a8e3c9f9888a642078094e95d9175158df8d262de8ac94b1ab9124e',
 				'2d0a6703de1a404e49c0746f092a4c6f9f113ae17cd8bc35de635b5ec084ce45',
-				'9a8b7ee79c37a507236de9bacf553af708bcd8292cb1d5949febbda71d7dc7ab'
+				'f6c47b5935baa090750b27e0e2163b1f5595e9fffe82e1834b03aaf3ddd78701'
 			]
 		},
 		{
@@ -963,7 +963,7 @@ export const meadowEntryArtPackageApproval: MeadowEntryArtPackageApproval = {
 				'f1184b045c27c544ac18937a4f8ccfa12cd386319b1722be5d808aea8048ade6',
 				'c9ffa6e50a8e3c9f9888a642078094e95d9175158df8d262de8ac94b1ab9124e',
 				'2d0a6703de1a404e49c0746f092a4c6f9f113ae17cd8bc35de635b5ec084ce45',
-				'9a8b7ee79c37a507236de9bacf553af708bcd8292cb1d5949febbda71d7dc7ab'
+				'f6c47b5935baa090750b27e0e2163b1f5595e9fffe82e1834b03aaf3ddd78701'
 			]
 		},
 		{
@@ -975,7 +975,7 @@ export const meadowEntryArtPackageApproval: MeadowEntryArtPackageApproval = {
 			proofId: 'fallback-boundaries/fallback-000',
 			inputSha256: [
 				'9a5097eea014d092e57a8953be0dec2a16c1e6d29446f8b293338bf95a93752c',
-				'9a8b7ee79c37a507236de9bacf553af708bcd8292cb1d5949febbda71d7dc7ab'
+				'f6c47b5935baa090750b27e0e2163b1f5595e9fffe82e1834b03aaf3ddd78701'
 			]
 		},
 		{
@@ -987,7 +987,7 @@ export const meadowEntryArtPackageApproval: MeadowEntryArtPackageApproval = {
 			proofId: 'fallback-boundaries/fallback-001',
 			inputSha256: [
 				'9a5097eea014d092e57a8953be0dec2a16c1e6d29446f8b293338bf95a93752c',
-				'9a8b7ee79c37a507236de9bacf553af708bcd8292cb1d5949febbda71d7dc7ab'
+				'f6c47b5935baa090750b27e0e2163b1f5595e9fffe82e1834b03aaf3ddd78701'
 			]
 		},
 		{
@@ -999,7 +999,7 @@ export const meadowEntryArtPackageApproval: MeadowEntryArtPackageApproval = {
 			proofId: 'fallback-boundaries/fallback-005',
 			inputSha256: [
 				'9a5097eea014d092e57a8953be0dec2a16c1e6d29446f8b293338bf95a93752c',
-				'9a8b7ee79c37a507236de9bacf553af708bcd8292cb1d5949febbda71d7dc7ab'
+				'f6c47b5935baa090750b27e0e2163b1f5595e9fffe82e1834b03aaf3ddd78701'
 			]
 		},
 		{
@@ -1011,7 +1011,7 @@ export const meadowEntryArtPackageApproval: MeadowEntryArtPackageApproval = {
 			proofId: 'fallback-boundaries/fallback-011',
 			inputSha256: [
 				'9a5097eea014d092e57a8953be0dec2a16c1e6d29446f8b293338bf95a93752c',
-				'9a8b7ee79c37a507236de9bacf553af708bcd8292cb1d5949febbda71d7dc7ab'
+				'f6c47b5935baa090750b27e0e2163b1f5595e9fffe82e1834b03aaf3ddd78701'
 			]
 		},
 		{
@@ -1023,7 +1023,7 @@ export const meadowEntryArtPackageApproval: MeadowEntryArtPackageApproval = {
 			proofId: 'fallback-boundaries/fallback-019',
 			inputSha256: [
 				'9a5097eea014d092e57a8953be0dec2a16c1e6d29446f8b293338bf95a93752c',
-				'9a8b7ee79c37a507236de9bacf553af708bcd8292cb1d5949febbda71d7dc7ab'
+				'f6c47b5935baa090750b27e0e2163b1f5595e9fffe82e1834b03aaf3ddd78701'
 			]
 		},
 		{
@@ -1035,7 +1035,7 @@ export const meadowEntryArtPackageApproval: MeadowEntryArtPackageApproval = {
 			proofId: 'fallback-boundaries/fallback-029',
 			inputSha256: [
 				'9a5097eea014d092e57a8953be0dec2a16c1e6d29446f8b293338bf95a93752c',
-				'9a8b7ee79c37a507236de9bacf553af708bcd8292cb1d5949febbda71d7dc7ab'
+				'f6c47b5935baa090750b27e0e2163b1f5595e9fffe82e1834b03aaf3ddd78701'
 			]
 		},
 		{
@@ -1047,7 +1047,7 @@ export const meadowEntryArtPackageApproval: MeadowEntryArtPackageApproval = {
 			proofId: 'fallback-boundaries/fallback-041',
 			inputSha256: [
 				'9a5097eea014d092e57a8953be0dec2a16c1e6d29446f8b293338bf95a93752c',
-				'9a8b7ee79c37a507236de9bacf553af708bcd8292cb1d5949febbda71d7dc7ab'
+				'f6c47b5935baa090750b27e0e2163b1f5595e9fffe82e1834b03aaf3ddd78701'
 			]
 		},
 		{
@@ -1059,7 +1059,7 @@ export const meadowEntryArtPackageApproval: MeadowEntryArtPackageApproval = {
 			proofId: 'fallback-boundaries/fallback-054',
 			inputSha256: [
 				'9a5097eea014d092e57a8953be0dec2a16c1e6d29446f8b293338bf95a93752c',
-				'9a8b7ee79c37a507236de9bacf553af708bcd8292cb1d5949febbda71d7dc7ab'
+				'f6c47b5935baa090750b27e0e2163b1f5595e9fffe82e1834b03aaf3ddd78701'
 			]
 		},
 		{
@@ -1071,7 +1071,7 @@ export const meadowEntryArtPackageApproval: MeadowEntryArtPackageApproval = {
 			proofId: 'fallback-boundaries/fallback-065',
 			inputSha256: [
 				'9a5097eea014d092e57a8953be0dec2a16c1e6d29446f8b293338bf95a93752c',
-				'9a8b7ee79c37a507236de9bacf553af708bcd8292cb1d5949febbda71d7dc7ab'
+				'f6c47b5935baa090750b27e0e2163b1f5595e9fffe82e1834b03aaf3ddd78701'
 			]
 		},
 		{
@@ -1083,7 +1083,7 @@ export const meadowEntryArtPackageApproval: MeadowEntryArtPackageApproval = {
 			proofId: 'fallback-boundaries/fallback-073',
 			inputSha256: [
 				'9a5097eea014d092e57a8953be0dec2a16c1e6d29446f8b293338bf95a93752c',
-				'9a8b7ee79c37a507236de9bacf553af708bcd8292cb1d5949febbda71d7dc7ab'
+				'f6c47b5935baa090750b27e0e2163b1f5595e9fffe82e1834b03aaf3ddd78701'
 			]
 		},
 		{
@@ -1095,7 +1095,7 @@ export const meadowEntryArtPackageApproval: MeadowEntryArtPackageApproval = {
 			proofId: 'fallback-boundaries/fallback-083',
 			inputSha256: [
 				'9a5097eea014d092e57a8953be0dec2a16c1e6d29446f8b293338bf95a93752c',
-				'9a8b7ee79c37a507236de9bacf553af708bcd8292cb1d5949febbda71d7dc7ab'
+				'f6c47b5935baa090750b27e0e2163b1f5595e9fffe82e1834b03aaf3ddd78701'
 			]
 		},
 		{
@@ -1107,7 +1107,7 @@ export const meadowEntryArtPackageApproval: MeadowEntryArtPackageApproval = {
 			proofId: 'fallback-boundaries/fallback-093',
 			inputSha256: [
 				'9a5097eea014d092e57a8953be0dec2a16c1e6d29446f8b293338bf95a93752c',
-				'9a8b7ee79c37a507236de9bacf553af708bcd8292cb1d5949febbda71d7dc7ab'
+				'f6c47b5935baa090750b27e0e2163b1f5595e9fffe82e1834b03aaf3ddd78701'
 			]
 		},
 		{
@@ -1119,7 +1119,7 @@ export const meadowEntryArtPackageApproval: MeadowEntryArtPackageApproval = {
 			proofId: 'fallback-boundaries/fallback-104',
 			inputSha256: [
 				'9a5097eea014d092e57a8953be0dec2a16c1e6d29446f8b293338bf95a93752c',
-				'9a8b7ee79c37a507236de9bacf553af708bcd8292cb1d5949febbda71d7dc7ab'
+				'f6c47b5935baa090750b27e0e2163b1f5595e9fffe82e1834b03aaf3ddd78701'
 			]
 		},
 		{
@@ -1131,7 +1131,7 @@ export const meadowEntryArtPackageApproval: MeadowEntryArtPackageApproval = {
 			proofId: 'fallback-boundaries/fallback-117',
 			inputSha256: [
 				'9a5097eea014d092e57a8953be0dec2a16c1e6d29446f8b293338bf95a93752c',
-				'9a8b7ee79c37a507236de9bacf553af708bcd8292cb1d5949febbda71d7dc7ab'
+				'f6c47b5935baa090750b27e0e2163b1f5595e9fffe82e1834b03aaf3ddd78701'
 			]
 		},
 		{
@@ -1143,7 +1143,7 @@ export const meadowEntryArtPackageApproval: MeadowEntryArtPackageApproval = {
 			proofId: 'fallback-boundaries/fallback-131',
 			inputSha256: [
 				'9a5097eea014d092e57a8953be0dec2a16c1e6d29446f8b293338bf95a93752c',
-				'9a8b7ee79c37a507236de9bacf553af708bcd8292cb1d5949febbda71d7dc7ab'
+				'f6c47b5935baa090750b27e0e2163b1f5595e9fffe82e1834b03aaf3ddd78701'
 			]
 		},
 		{
@@ -1155,7 +1155,7 @@ export const meadowEntryArtPackageApproval: MeadowEntryArtPackageApproval = {
 			proofId: 'fallback-boundaries/fallback-143',
 			inputSha256: [
 				'9a5097eea014d092e57a8953be0dec2a16c1e6d29446f8b293338bf95a93752c',
-				'9a8b7ee79c37a507236de9bacf553af708bcd8292cb1d5949febbda71d7dc7ab'
+				'f6c47b5935baa090750b27e0e2163b1f5595e9fffe82e1834b03aaf3ddd78701'
 			]
 		},
 		{
@@ -1167,7 +1167,7 @@ export const meadowEntryArtPackageApproval: MeadowEntryArtPackageApproval = {
 			proofId: 'fallback-boundaries/fallback-153',
 			inputSha256: [
 				'9a5097eea014d092e57a8953be0dec2a16c1e6d29446f8b293338bf95a93752c',
-				'9a8b7ee79c37a507236de9bacf553af708bcd8292cb1d5949febbda71d7dc7ab'
+				'f6c47b5935baa090750b27e0e2163b1f5595e9fffe82e1834b03aaf3ddd78701'
 			]
 		},
 		{
@@ -1179,7 +1179,7 @@ export const meadowEntryArtPackageApproval: MeadowEntryArtPackageApproval = {
 			proofId: 'fallback-boundaries/fallback-155',
 			inputSha256: [
 				'9a5097eea014d092e57a8953be0dec2a16c1e6d29446f8b293338bf95a93752c',
-				'9a8b7ee79c37a507236de9bacf553af708bcd8292cb1d5949febbda71d7dc7ab'
+				'f6c47b5935baa090750b27e0e2163b1f5595e9fffe82e1834b03aaf3ddd78701'
 			]
 		},
 		{
@@ -1191,7 +1191,7 @@ export const meadowEntryArtPackageApproval: MeadowEntryArtPackageApproval = {
 			proofId: 'fallback-boundaries/fallback-161',
 			inputSha256: [
 				'9a5097eea014d092e57a8953be0dec2a16c1e6d29446f8b293338bf95a93752c',
-				'9a8b7ee79c37a507236de9bacf553af708bcd8292cb1d5949febbda71d7dc7ab'
+				'f6c47b5935baa090750b27e0e2163b1f5595e9fffe82e1834b03aaf3ddd78701'
 			]
 		},
 		{
@@ -1203,7 +1203,7 @@ export const meadowEntryArtPackageApproval: MeadowEntryArtPackageApproval = {
 			proofId: 'fallback-boundaries/fallback-163',
 			inputSha256: [
 				'9a5097eea014d092e57a8953be0dec2a16c1e6d29446f8b293338bf95a93752c',
-				'9a8b7ee79c37a507236de9bacf553af708bcd8292cb1d5949febbda71d7dc7ab'
+				'f6c47b5935baa090750b27e0e2163b1f5595e9fffe82e1834b03aaf3ddd78701'
 			]
 		},
 		{
@@ -1215,7 +1215,7 @@ export const meadowEntryArtPackageApproval: MeadowEntryArtPackageApproval = {
 			proofId: 'fallback-boundaries/fallback-167',
 			inputSha256: [
 				'9a5097eea014d092e57a8953be0dec2a16c1e6d29446f8b293338bf95a93752c',
-				'9a8b7ee79c37a507236de9bacf553af708bcd8292cb1d5949febbda71d7dc7ab'
+				'f6c47b5935baa090750b27e0e2163b1f5595e9fffe82e1834b03aaf3ddd78701'
 			]
 		},
 		{
@@ -1227,7 +1227,7 @@ export const meadowEntryArtPackageApproval: MeadowEntryArtPackageApproval = {
 			proofId: 'fallback-boundaries/fallback-169',
 			inputSha256: [
 				'9a5097eea014d092e57a8953be0dec2a16c1e6d29446f8b293338bf95a93752c',
-				'9a8b7ee79c37a507236de9bacf553af708bcd8292cb1d5949febbda71d7dc7ab'
+				'f6c47b5935baa090750b27e0e2163b1f5595e9fffe82e1834b03aaf3ddd78701'
 			]
 		},
 		{
@@ -1239,7 +1239,7 @@ export const meadowEntryArtPackageApproval: MeadowEntryArtPackageApproval = {
 			proofId: 'fallback-boundaries/fallback-171',
 			inputSha256: [
 				'9a5097eea014d092e57a8953be0dec2a16c1e6d29446f8b293338bf95a93752c',
-				'9a8b7ee79c37a507236de9bacf553af708bcd8292cb1d5949febbda71d7dc7ab'
+				'f6c47b5935baa090750b27e0e2163b1f5595e9fffe82e1834b03aaf3ddd78701'
 			]
 		},
 		{
@@ -1251,7 +1251,7 @@ export const meadowEntryArtPackageApproval: MeadowEntryArtPackageApproval = {
 			proofId: 'fallback-boundaries/fallback-173',
 			inputSha256: [
 				'9a5097eea014d092e57a8953be0dec2a16c1e6d29446f8b293338bf95a93752c',
-				'9a8b7ee79c37a507236de9bacf553af708bcd8292cb1d5949febbda71d7dc7ab'
+				'f6c47b5935baa090750b27e0e2163b1f5595e9fffe82e1834b03aaf3ddd78701'
 			]
 		},
 		{
@@ -1263,7 +1263,7 @@ export const meadowEntryArtPackageApproval: MeadowEntryArtPackageApproval = {
 			proofId: 'fallback-boundaries/fallback-174',
 			inputSha256: [
 				'9a5097eea014d092e57a8953be0dec2a16c1e6d29446f8b293338bf95a93752c',
-				'9a8b7ee79c37a507236de9bacf553af708bcd8292cb1d5949febbda71d7dc7ab'
+				'f6c47b5935baa090750b27e0e2163b1f5595e9fffe82e1834b03aaf3ddd78701'
 			]
 		},
 		{
@@ -1275,7 +1275,7 @@ export const meadowEntryArtPackageApproval: MeadowEntryArtPackageApproval = {
 			proofId: 'fallback-boundaries/fallback-175',
 			inputSha256: [
 				'9a5097eea014d092e57a8953be0dec2a16c1e6d29446f8b293338bf95a93752c',
-				'9a8b7ee79c37a507236de9bacf553af708bcd8292cb1d5949febbda71d7dc7ab'
+				'f6c47b5935baa090750b27e0e2163b1f5595e9fffe82e1834b03aaf3ddd78701'
 			]
 		},
 		{
@@ -1287,7 +1287,7 @@ export const meadowEntryArtPackageApproval: MeadowEntryArtPackageApproval = {
 			proofId: 'fallback-boundaries/fallback-177',
 			inputSha256: [
 				'9a5097eea014d092e57a8953be0dec2a16c1e6d29446f8b293338bf95a93752c',
-				'9a8b7ee79c37a507236de9bacf553af708bcd8292cb1d5949febbda71d7dc7ab'
+				'f6c47b5935baa090750b27e0e2163b1f5595e9fffe82e1834b03aaf3ddd78701'
 			]
 		},
 		{
@@ -1302,7 +1302,7 @@ export const meadowEntryArtPackageApproval: MeadowEntryArtPackageApproval = {
 				'f1184b045c27c544ac18937a4f8ccfa12cd386319b1722be5d808aea8048ade6',
 				'c9ffa6e50a8e3c9f9888a642078094e95d9175158df8d262de8ac94b1ab9124e',
 				'2d0a6703de1a404e49c0746f092a4c6f9f113ae17cd8bc35de635b5ec084ce45',
-				'9a8b7ee79c37a507236de9bacf553af708bcd8292cb1d5949febbda71d7dc7ab'
+				'f6c47b5935baa090750b27e0e2163b1f5595e9fffe82e1834b03aaf3ddd78701'
 			]
 		},
 		{
@@ -1317,7 +1317,7 @@ export const meadowEntryArtPackageApproval: MeadowEntryArtPackageApproval = {
 				'f1184b045c27c544ac18937a4f8ccfa12cd386319b1722be5d808aea8048ade6',
 				'c9ffa6e50a8e3c9f9888a642078094e95d9175158df8d262de8ac94b1ab9124e',
 				'2d0a6703de1a404e49c0746f092a4c6f9f113ae17cd8bc35de635b5ec084ce45',
-				'9a8b7ee79c37a507236de9bacf553af708bcd8292cb1d5949febbda71d7dc7ab'
+				'f6c47b5935baa090750b27e0e2163b1f5595e9fffe82e1834b03aaf3ddd78701'
 			]
 		},
 		{
@@ -1332,7 +1332,7 @@ export const meadowEntryArtPackageApproval: MeadowEntryArtPackageApproval = {
 				'f1184b045c27c544ac18937a4f8ccfa12cd386319b1722be5d808aea8048ade6',
 				'c9ffa6e50a8e3c9f9888a642078094e95d9175158df8d262de8ac94b1ab9124e',
 				'2d0a6703de1a404e49c0746f092a4c6f9f113ae17cd8bc35de635b5ec084ce45',
-				'9a8b7ee79c37a507236de9bacf553af708bcd8292cb1d5949febbda71d7dc7ab'
+				'f6c47b5935baa090750b27e0e2163b1f5595e9fffe82e1834b03aaf3ddd78701'
 			]
 		},
 		{
@@ -1347,7 +1347,7 @@ export const meadowEntryArtPackageApproval: MeadowEntryArtPackageApproval = {
 				'f1184b045c27c544ac18937a4f8ccfa12cd386319b1722be5d808aea8048ade6',
 				'c9ffa6e50a8e3c9f9888a642078094e95d9175158df8d262de8ac94b1ab9124e',
 				'2d0a6703de1a404e49c0746f092a4c6f9f113ae17cd8bc35de635b5ec084ce45',
-				'9a8b7ee79c37a507236de9bacf553af708bcd8292cb1d5949febbda71d7dc7ab'
+				'f6c47b5935baa090750b27e0e2163b1f5595e9fffe82e1834b03aaf3ddd78701'
 			]
 		}
 	],

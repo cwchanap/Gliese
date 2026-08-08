@@ -9,11 +9,20 @@ import {
 	SUNDROP_VILLAGE_OBSTACLE_OWNERSHIP,
 	validateSundropObstacleCoverage
 } from './sundrop-village-obstacle-ownership';
-import { meadowEntryMap, mergeRegions } from '$lib/game/content/maps/meadow-entry';
+import {
+	meadowBoundsRegion,
+	meadowEntryMap,
+	mergeRegions
+} from '$lib/game/content/maps/meadow-entry';
 import { createLayeredRegionBackground } from '$lib/game/content/maps/layered/region-background';
+import { coastRegion } from '$lib/game/content/maps/regions/coast';
+import { crossroadsRegion } from '$lib/game/content/maps/regions/crossroads';
+import { mistfenRegion } from '$lib/game/content/maps/regions/mistfen';
 import { pathsRegion } from '$lib/game/content/maps/regions/paths';
+import { silverpineRegion } from '$lib/game/content/maps/regions/silverpine';
 import { villageRegion } from '$lib/game/content/maps/regions/village';
 import { sundropVillageLayered } from '$lib/game/content/maps/regions/village-layered';
+import { wildwoodRegion } from '$lib/game/content/maps/regions/wildwood';
 import {
 	SUNDROP_VILLAGE_BASE_BACKGROUND_TEXTURE_KEY,
 	SUNDROP_VILLAGE_FOREGROUND_BACKGROUND_TEXTURE_KEY
@@ -87,10 +96,19 @@ describe('Sundrop Village obstacle ownership', () => {
 		expect(villageRegion.blockers?.some((blocker) => blocker.id === 'corridor-wall-2b')).toBe(
 			false
 		);
-		const merged = mergeRegions([villageRegion, pathsRegion]);
+		const merged = mergeRegions([
+			villageRegion,
+			wildwoodRegion,
+			mistfenRegion,
+			silverpineRegion,
+			coastRegion,
+			crossroadsRegion,
+			pathsRegion,
+			meadowBoundsRegion
+		]);
 		expect(merged.blockers.some((blocker) => blocker.id === 'corridor-wall-2b')).toBe(true);
 
-		const applied = applySundropObstacleOwnership(meadowEntryMap.blockers ?? []);
+		const applied = applySundropObstacleOwnership(merged.blockers);
 		const selectedIds = new Set(SUNDROP_VILLAGE_OBSTACLE_OWNERSHIP.map((entry) => entry.blockerId));
 		for (const blocker of applied) {
 			if (selectedIds.has(blocker.id)) {
