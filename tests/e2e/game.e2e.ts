@@ -9,7 +9,10 @@ import {
 	SUNDROP_VILLAGE_FOREGROUND_BACKGROUND_PATH,
 	SUNDROP_VILLAGE_FOREGROUND_BACKGROUND_TEXTURE_KEY
 } from '../../src/lib/game/content/backgrounds/sundrop-village-backgrounds';
-import { meadowEntryRuntimeBackgrounds } from '../../src/lib/game/content/backgrounds/meadow-entry-runtime';
+import {
+	activeMeadowEntryRuntimeVisualOwners,
+	meadowEntryRuntimeBackgrounds
+} from '../../src/lib/game/content/backgrounds/meadow-entry-runtime';
 import {
 	buildSundropVillageObstacleControlInputs,
 	buildSundropVillageObstacleOcclusionProofCases
@@ -134,6 +137,9 @@ const PR1_BACKGROUND_DESCRIPTORS: readonly RegionalBackgroundDescriptor[] = [
 	...meadowEntryRuntimeBackgrounds.map(({ id, textureKey, plane }) => ({ id, textureKey, plane }))
 ];
 const PR1_REGIONAL_BACKGROUND_COUNT = PR1_BACKGROUND_DESCRIPTORS.length;
+const ACTIVE_RUNTIME_FALLBACK_BLOCKER_COUNT = activeMeadowEntryRuntimeVisualOwners.filter(
+	(owner) => owner.sourceType === 'blocker'
+).length;
 const OUTER_BOUNDARY_EAST_FOREST_LANE_BASE_BACKGROUND_ID =
 	'meadow-entry-outer-boundary-east-forest-lane-base-image';
 const OUTER_BOUNDARY_EAST_FOREST_LANE_BASE_BACKGROUND_PATH =
@@ -661,7 +667,7 @@ function assertDisabledFallbackSelections(
 	diagnostic: RegionalBackgroundPlaneRenderDiagnostic | undefined
 ) {
 	expect(diagnostic?.selectedFallbackBlockerIds).toHaveLength(
-		SUNDROP_SELECTED_FALLBACK_IDS.length + DISABLED_RUNTIME_FALLBACK_BLOCKER_IDS.length
+		SUNDROP_SELECTED_FALLBACK_IDS.length + ACTIVE_RUNTIME_FALLBACK_BLOCKER_COUNT
 	);
 	expect(diagnostic?.selectedFallbackBlockerIds).toEqual(
 		expect.arrayContaining([
