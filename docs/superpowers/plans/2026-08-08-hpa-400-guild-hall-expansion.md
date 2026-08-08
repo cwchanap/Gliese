@@ -6,18 +6,20 @@
 
 **Architecture:** Keep `guild-hall` as a direct `WorldMapDefinition`. Reuse existing interior props and collision to create readable connected zones, update only the village-side interior arrival that depends on the moved entrance, and extend existing save normalization to reject positions embedded in collidable interior props. Do not add a new interior source model, renderer contract, background package, or compatibility layer.
 
-**Tech Stack:** TypeScript, SvelteKit game content, Phaser, Vitest, Tauri.
+**Tech Stack:** TypeScript, Svelte 5 + Vite, Phaser, Vitest, Playwright, Tauri.
 
 ## Global Constraints
 
 - Keep `guild-hall` authored directly in `src/lib/game/content/maps.ts`.
 - Target a 24×18 Guild Hall with entry transition `{ x: 384, y: 528 }` and spawn/inbound arrival `{ x: 384, y: 480, facing: 'up' }`.
 - Preserve `guild-master`, `guild-quartermaster`, their dialogue IDs, shop `guild-quartermaster`, `guild-hall-to-meadow`, `meadow-to-guild-hall`, and exterior return `{ x: 1656, y: 5040, facing: 'down' }`.
+- Preserve NPC identity fields (`id`, `dialogueId`, `role`, `shopId`, `frameName`) while intentionally updating Guild Hall NPC `x`/`y` coordinates.
 - Keep story prose, quest definitions, and shop inventory unchanged.
 - Reuse the existing `interiorPropAsset`; do not add art or backgrounds in this delivery.
 - Do not add `LayeredInteriorSource`, a compiler, room graph, interior framework, or separate interior skill.
 - Do not bump the save version or keep old 16×12 coordinate compatibility data.
 - Only edit `village-layered.ts` for the Guild Hall transition's new interior arrival; do not redesign the exterior.
+- Ambient NPCs remain presentation-only; do not invent collision semantics for them.
 - Any reusable HPA-495 guidance change must be justified by a concrete implementation failure, not by prediction.
 
 ---
@@ -100,7 +102,10 @@ const collisionRects = [
 ];
 ```
 
-Update the nearby comments so they explicitly state that escape-aware landmarks and interior props are included to prevent loaded visual embedding, even though movement outward would otherwise be possible.
+Update the existing `normalizePlayerPosition(...)` comment block as well as the nearby collector comment so they explicitly state:
+
+- blockers, fences, and collidable map decor are strict movement collision;
+- landmarks and collidable interior props are escape-aware at runtime but are still invalid loaded positions because they visually embed the player in opaque geometry.
 
 Do not change `SaveState.version`, migrations, or storage keys.
 
@@ -123,22 +128,41 @@ git commit -m "fix(save): normalize interior prop positions"
 
 ---
 
-### Task 2: Re-author the Guild Hall as the direct-map vertical slice
+### Task 2: Re-author the Guild Hall and update its real coordinate consumers
 
 **Files:**
 - Modify: `src/lib/game/content/maps.ts`
 - Modify: `src/lib/game/content/maps/regions/village-layered.ts`
 - Modify: `src/lib/game/content/maps.test.ts`
+- Modify: `src/lib/game/phaser/scenes/scenes.test.ts`
+- Modify: `tests/e2e/game.e2e.ts`
 
 **Interfaces:**
-- Consumes: existing `WorldMapDefinition`, `interiorPropAsset` frame names, the existing main-NPC and ambient-NPC IDs, and the village transition compiler.
-- Produces: a 24×18 `guildHallMap` with five readable connected functions and a synchronized village-to-interior arrival.
+- Consumes: existing `WorldMapDefinition`, `interiorPropAsset` frame names, the existing main-NPC and ambient-NPC IDs, village transition compiler, scene behavior tests, and Guild quest E2E fixture.
+- Produces: a 24×18 `guildHallMap` with five readable connected functions, synchronized exterior/interior arrival, and behavior tests that no longer depend on removed 16×12 coordinates.
 
-- [ ] **Step 1: Write the failing Guild Hall shape and seam assertions**
+- [ ] **Step 1: Write the failing Guild Hall shape, compact-interior split, seam, and identity assertions**
 
-In `src/lib/game/content/maps.test.ts`, update the tests whose wording currently assumes every village interior is compact, then add a focused HPA-400 test with these exact structural expectations:
+In `src/lib/game/content/maps.test.ts`, replace the blanket “all compact village interiors are 16×12” assertion with two explicit contracts:
 
 ```ts
+const compactInteriors = [
+	heroHouseMap,
+	itemShopMap,
+	villagerHouse1Map,
+	villagerHouse2Map,
+	villagerHouse3Map,
+	shrineOfAuroraInteriorMap
+];
+
+for (const map of compactInteriors) {
+	expect(map.width).toBe(16);
+	expect(map.height).toBe(12);
+	expect(map.transitions).toHaveLength(1);
+	expect(map.transitions[0].toMapId).toBe('meadow-entry');
+}
+
+expect(maps['guild-hall']).toBe(guildHallMap);
 expect(guildHallMap.width).toBe(24);
 expect(guildHallMap.height).toBe(18);
 expect(guildHallMap.spawnDirection).toBe('up');
@@ -155,9 +179,33 @@ const inbound = meadowEntryMap.transitions.find((transition) => transition.id ==
 expect(inbound?.arrival).toEqual({ x: 384, y: 480, facing: 'up' });
 ```
 
-Also preserve the existing assertions for the two main NPC IDs and shop/dialogue bindings.
+Update the existing Guild Hall NPC expectation to preserve identity/behavior fields while changing only the intended placement:
 
-- [ ] **Step 2: Add a small test-only route sampler**
+```ts
+expect(guildHallMap.npcs).toMatchObject([
+	{
+		id: 'guild-master',
+		x: 176,
+		y: 176,
+		nameKey: 'content.maps.npcs.guild-master.name',
+		dialogueId: 'guild-master',
+		role: 'guild',
+		frameName: 'guildMasterNpc'
+	},
+	{
+		id: 'guild-quartermaster',
+		x: 592,
+		y: 176,
+		nameKey: 'content.maps.npcs.guild-quartermaster.name',
+		dialogueId: 'guild-quartermaster',
+		role: 'shopkeeper',
+		frameName: 'quartermasterNpc',
+		shopId: 'guild-quartermaster'
+	}
+]);
+```
+
+- [ ] **Step 2: Add a test-only route sampler using a pre-checked baseline**
 
 Keep reachability validation local to `maps.test.ts`; do not add a runtime graph abstraction. Add a helper that accepts axis-aligned waypoints, samples every 16 px, and reuses `expectPointClearOfInteriorPropCollisions(...)`.
 
@@ -189,26 +237,51 @@ function expectInteriorRouteClear(
 }
 ```
 
-Use it to prove the intended circulation rather than trying to certify every pixel:
+Use these routes. They are chosen to clear the published prop rectangles rather than crossing the common table/bench:
 
 ```ts
-expectInteriorRouteClear(guildHallMap, [{ x: 384, y: 480 }, { x: 384, y: 320 }], 'entrance-to-hub');
+const entrance = { x: 384, y: 480 };
+const hub = { x: 384, y: 384 };
+const guildMasterApproach = { x: 208, y: 176 };
+const quartermasterApproach = { x: 560, y: 176 };
+
+expectInteriorRouteClear(guildHallMap, [entrance, hub], 'entrance-to-hub');
 expectInteriorRouteClear(
 	guildHallMap,
-	[{ x: 384, y: 320 }, { x: 208, y: 320 }, { x: 208, y: 176 }],
+	[
+		hub,
+		{ x: 192, y: 384 },
+		{ x: 192, y: 208 },
+		{ x: 208, y: 208 },
+		guildMasterApproach
+	],
 	'hub-to-guild-master'
 );
-expectInteriorRouteClear(guildHallMap, [{ x: 384, y: 320 }, { x: 384, y: 208 }], 'hub-to-records');
+expectInteriorRouteClear(guildHallMap, [hub, { x: 384, y: 208 }], 'hub-to-records');
 expectInteriorRouteClear(
 	guildHallMap,
-	[{ x: 384, y: 320 }, { x: 560, y: 320 }, { x: 560, y: 176 }],
+	[hub, { x: 560, y: 384 }, quartermasterApproach],
 	'hub-to-quartermaster'
 );
 ```
 
-Assert the interaction approach points `{ x: 208, y: 176 }` and `{ x: 560, y: 176 }` are no more than 36 px from `guild-master` and `guild-quartermaster` respectively and are not inside prop collision.
+Then assert the two approach points:
 
-- [ ] **Step 3: Run the focused map test and verify it fails on the old 16×12 room**
+```ts
+const guildMaster = guildHallMap.npcs!.find((npc) => npc.id === 'guild-master')!;
+const quartermaster = guildHallMap.npcs!.find((npc) => npc.id === 'guild-quartermaster')!;
+
+expect(Math.hypot(guildMasterApproach.x - guildMaster.x, guildMasterApproach.y - guildMaster.y)).toBeLessThanOrEqual(36);
+expect(Math.hypot(quartermasterApproach.x - quartermaster.x, quartermasterApproach.y - quartermaster.y)).toBeLessThanOrEqual(36);
+expectPointClearOfInteriorPropCollisions(guildHallMap, guildMasterApproach, 'guild-master-approach');
+expectPointClearOfInteriorPropCollisions(guildHallMap, quartermasterApproach, 'quartermaster-approach');
+```
+
+The 36 px assertion is deliberately stricter than the runtime interaction threshold of `PLAYER_COLLISION_RADIUS + npcInteractionRadius = 48` px. Both planned approaches are 32 px from their NPCs and remain outside the NPC-pack body collision radius (`PLAYER_COLLISION_RADIUS + npcPackCollisionRadius = 29` px).
+
+Do **not** add collision assertions for `ambientNpcs`: `WorldScene` renders them as ambient sprites and movement collision iterates `map.npcs`, not `map.ambientNpcs`.
+
+- [ ] **Step 3: Run the focused map test and verify it fails on the old room**
 
 Run:
 
@@ -216,9 +289,9 @@ Run:
 bun run test:unit -- --run src/lib/game/content/maps.test.ts
 ```
 
-Expected before the map rewrite: the 24×18 dimension, entry/spawn, inbound arrival, and new route assertions fail.
+Expected before the map rewrite: the 24×18 dimension, entry/spawn, inbound arrival, NPC placement, and new route assertions fail.
 
-- [ ] **Step 4: Replace only the Guild Hall direct-map data**
+- [ ] **Step 4: Replace only the Guild Hall direct-map data with the pre-checked placement baseline**
 
 In `src/lib/game/content/maps.ts`, leave the shared `interiorDoor` constant in place for the other compact interiors. Give Guild Hall its own larger entry coordinates instead of changing the shared constant.
 
@@ -240,15 +313,15 @@ y: 528,
 
 while keeping `id: 'guild-hall-to-meadow'`, `toMapId: openingMapId`, and exterior arrival `{ x: 1656, y: 5040, facing: 'down' }`.
 
-Use the following placement baseline. If one coordinate must move after the failing route test or controller walkthrough, keep the same prop ID, zone, and 24×18 layout and move only that prop.
+Use this placement baseline:
 
 | Purpose | ID | Position | Frame / collision |
 | --- | --- | ---: | --- |
-| Guild Master | `guild-master` | 176,176 | Preserve current NPC fields |
-| Quartermaster | `guild-quartermaster` | 592,176 | Preserve current NPC fields and `shopId` |
+| Guild Master | `guild-master` | 176,176 | Preserve current identity/dialogue/role/frame fields |
+| Quartermaster | `guild-quartermaster` | 592,176 | Preserve identity/dialogue/role/frame/`shopId` fields |
 | Reception board | `guild-hall-notice-board` | 240,432 | `noticeBoard`, 112×72; collision 240,432,96×34 |
 | Reception bench | `guild-hall-east-bench` | 528,432 | `bench`, 96×34; collision 528,432,86×26 |
-| Common rug | `guild-hall-common-rug` | 256,304 | `rug`, 192×112, `depth: 'floor'`, no collision |
+| Common rug | `guild-hall-common-rug` | 256,304 | `rug`, 192×112, `depth: 'floor'`, no collision; intentionally underneath common table |
 | Common table | `guild-hall-common-table` | 256,304 | `table`, 96×54; collision 256,304,88×44 |
 | Common bench | `guild-hall-west-bench` | 256,352 | `bench`, 96×34; collision 256,352,86×26 |
 | Master bookshelf | `guild-hall-master-bookshelf` | 80,96 | `bookshelf`, 64×96; collision 80,96,56×86 |
@@ -257,10 +330,12 @@ Use the following placement baseline. If one coordinate must move after the fail
 | Training rack | `guild-hall-weapon-rack` | 480,96 | `weaponRack`, 56×86; collision 480,96,44×72 |
 | Quartermaster counter | `guild-hall-quartermaster-counter` | 656,176 | `shopCounter`, 128×58; collision 672,176,96×48 so the west customer approach stays open |
 | Quartermaster crates | `guild-hall-quartermaster-crates` | 688,272 | `crateStack`, 58×58; collision 688,272,48×48 |
-| Ambient west member | `guild-hall-member-west` | 288,416 | Preserve frame/role |
-| Ambient east member | `guild-hall-member-east` | 512,336 | Preserve frame/role |
+| Ambient west member | `guild-hall-member-west` | 288,416 | Preserve frame/role; presentation-only |
+| Ambient east member | `guild-hall-member-east` | 512,336 | Preserve frame/role; presentation-only |
 
-Delete superseded Guild Hall prop literals that are not part of this table rather than keeping duplicate old-room furniture. Keep `x = 384` mostly open from the entrance to the north-center junction.
+The published route intentionally branches at `y = 384`, not `y = 320`: that keeps the west/east corridor south of the common table and bench. The west branch uses `x = 192` until `y = 208` before moving to the Guild Master approach, keeping the route clear of both common-area props and the Guild Master's NPC body. The east branch uses `x = 560`, which stays west of the Quartermaster counter and 32 px from the Quartermaster at its final approach.
+
+Delete superseded Guild Hall prop literals that are not part of this table rather than keeping duplicate old-room furniture. Keep `x = 384` open from the entrance through the north-center junction.
 
 Do not add `blockers` merely to simulate interior walls. Do not add backgrounds.
 
@@ -274,18 +349,67 @@ arrival: { x: 384, y: 480, facing: 'up' }
 
 Keep its exterior `col`, `row`, ID, target map, and marker behavior unchanged.
 
-- [ ] **Step 6: Run focused map and save tests**
+- [ ] **Step 6: Update scene tests that consume Guild Hall coordinates**
+
+In `src/lib/game/phaser/scenes/scenes.test.ts`, update every test that creates `guild-hall` and depends on the old `(192,144)` Guild Master or `(352,144)` Quartermaster positions.
+
+First, update the render assertion to the new data positions:
+
+```ts
+expect(scene.add.image).toHaveBeenCalledWith(176, 176, 'npc-pack', 'guildMasterNpc');
+expect(scene.add.image).toHaveBeenCalledWith(592, 176, 'npc-pack', 'quartermasterNpc');
+```
+
+For dialogue, quest, and shop tests, use the explicit valid approach points rather than standing inside the NPC body:
+
+```ts
+const guildMasterApproach = { x: 208, y: 176 };
+const quartermasterApproach = { x: 560, y: 176 };
+```
+
+Use `guildMasterApproach` wherever a Guild Hall test needs `findNearbyNpc()` to resolve `guild-master`, including briefing, side-quest, and stale-out-of-range setup. Use `quartermasterApproach` for Quartermaster dialogue/shop setup.
+
+For the existing generic NPC-body movement tests that use the Quartermaster as their fixture, preserve their relative offsets around the new Quartermaster position `{ x: 592, y: 176 }`:
+
+```text
+old 352,185  → new 592,217  (41 px south; move toward NPC)
+old 316,180  → new 556,212  (36 px west/south; diagonal slide case)
+old 352,150  → new 592,182  (6 px south; move away from overlap)
+old 352,174  → new 592,206  (30 px south; fast-movement tunneling case)
+```
+
+Use a repository search before finishing this step so no old Guild Hall fixture remains accidentally:
+
+```bash
+rg -n "guild-hall|192, y: 144|352, y: 144" src/lib/game/phaser/scenes/scenes.test.ts
+```
+
+Do not rewrite unrelated item-shop or villager fixtures that happen to use similar numbers.
+
+- [ ] **Step 7: Update the Guild quest E2E fixture**
+
+In `tests/e2e/game.e2e.ts`, update only the `quest log shows main quest and accepts Guild side quests` save fixture from the removed Guild Master coordinate to the new approach point:
+
+```ts
+player: { level: 1, xp: 0, hp: 20, attack: 3, x: 208, y: 176, facing: 'up' }
+```
+
+Keep the existing E2E flow unchanged: resume the save, verify Guild Master proximity, interact, and exercise the quest log / side-quest behavior.
+
+- [ ] **Step 8: Run focused map, save, scene, and Guild E2E tests**
 
 Run:
 
 ```bash
 bun run test:unit -- --run src/lib/game/content/maps.test.ts
 bun run test:unit -- --run src/lib/game/save/save-state.test.ts
+bun run test:unit -- --run src/lib/game/phaser/scenes/scenes.test.ts
+bun run test:e2e -- --grep "quest log shows main quest and accepts Guild side quests"
 ```
 
-Expected: PASS. If a route fails, move the offending Guild Hall prop rather than adding a new collision or room abstraction.
+Expected: PASS. If a route test fails, fix the conflicting Guild Hall prop coordinate while keeping the published zone model; do not weaken the route assertion or add a new collision abstraction.
 
-- [ ] **Step 7: Verify story and shop semantics without editing those registries**
+- [ ] **Step 9: Verify story and registry semantics without editing those registries**
 
 Run:
 
@@ -298,10 +422,15 @@ bun run test:unit -- --run src/lib/game/content/quests.test.ts
 
 Expected: PASS with no changes required to story, shops, dialogue, or quests.
 
-- [ ] **Step 8: Commit the player-facing vertical slice**
+- [ ] **Step 10: Commit the player-facing vertical slice and its coordinate consumers**
 
 ```bash
-git add src/lib/game/content/maps.ts src/lib/game/content/maps/regions/village-layered.ts src/lib/game/content/maps.test.ts
+git add \
+  src/lib/game/content/maps.ts \
+  src/lib/game/content/maps/regions/village-layered.ts \
+  src/lib/game/content/maps.test.ts \
+  src/lib/game/phaser/scenes/scenes.test.ts \
+  tests/e2e/game.e2e.ts
 git commit -m "feat(hpa-400): expand Guild Hall headquarters"
 ```
 
@@ -309,11 +438,25 @@ git commit -m "feat(hpa-400): expand Guild Hall headquarters"
 
 ## Final verification
 
-- [ ] Run repository checks:
+- [ ] Run the focused behavioral set once more after both commits:
+
+```bash
+bun run test:unit -- --run src/lib/game/save/save-state.test.ts
+bun run test:unit -- --run src/lib/game/content/maps.test.ts
+bun run test:unit -- --run src/lib/game/phaser/scenes/scenes.test.ts
+bun run test:unit -- --run src/lib/game/content/shops.test.ts
+bun run test:unit -- --run src/lib/game/content/dialogue.test.ts
+bun run test:unit -- --run src/lib/game/content/quests.test.ts
+bun run test:e2e -- --grep "quest log shows main quest and accepts Guild side quests"
+bun run story:check
+```
+
+- [ ] Run repository-wide TypeScript/unit verification so another hardcoded Guild Hall coordinate cannot remain hidden in a different unit test:
 
 ```bash
 bun run check
 bun run lint
+bun run test:unit -- --run
 bun run build
 bun run build:tauri
 ```
@@ -332,7 +475,7 @@ bun run build:tauri
 
 - [ ] Inspect the actual implementation for an HPA-495 guidance gap. If the current skill correctly led to direct-map authoring and no unnecessary workflow, record that fact in the implementation PR description and do not edit the skill.
 
-- [ ] Confirm the final diff contains no new interior framework, background package, story prose, or unrelated village redesign.
+- [ ] Confirm the final diff contains no new interior framework, background package, story prose, ambient-NPC collision behavior, or unrelated village redesign.
 
 ## Expected implementation PR shape
 
@@ -340,5 +483,7 @@ Prefer one implementation PR containing the two commits above:
 
 1. `fix(save): normalize interior prop positions`
 2. `feat(hpa-400): expand Guild Hall headquarters`
+
+The second commit includes the direct-map content, village arrival seam, scene coordinate consumers, and the one Guild quest E2E fixture because those all move atomically with the new Guild Hall layout.
 
 The implementation PR should summarize the concrete HPA-495 field validation: direct-map routing was correct, existing prop art was sufficient, and the only reusable code gap discovered was loaded-position normalization for collidable interior furniture.
