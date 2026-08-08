@@ -2,12 +2,15 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import {
 	battleBackgroundAssets,
+	environmentDressingAsset,
 	fenceDressingAsset,
 	forestDressingAsset,
 	villageHedgeAsset
 } from '$lib/game/content/assets';
 import {
+	SUNDROP_VILLAGE_BASE_BACKGROUND_ID,
 	SUNDROP_VILLAGE_BASE_BACKGROUND_TEXTURE_KEY,
+	SUNDROP_VILLAGE_FOREGROUND_BACKGROUND_ID,
 	SUNDROP_VILLAGE_FOREGROUND_BACKGROUND_TEXTURE_KEY
 } from '$lib/game/content/backgrounds/sundrop-village-backgrounds';
 import { meadowEntryRuntimeBackgroundImages } from '$lib/game/content/backgrounds/meadow-entry-runtime';
@@ -2413,8 +2416,8 @@ describe('WorldScene', () => {
 	const twoPlaneBaseTextureKey = 'two-plane-base';
 	const twoPlaneForegroundTextureKey = 'two-plane-foreground';
 	const sundropBackgroundIds = new Set([
-		'sundrop-village-base-image',
-		'sundrop-village-foreground-image'
+		SUNDROP_VILLAGE_BASE_BACKGROUND_ID,
+		SUNDROP_VILLAGE_FOREGROUND_BACKGROUND_ID
 	]);
 	const sundropVillageBounds = {
 		left: 256,
@@ -2848,7 +2851,7 @@ describe('WorldScene', () => {
 	const alternativeOwnedBlockerMarkers = () =>
 		phaserState.imageMarkers.filter(
 			(marker) =>
-				marker.texture === 'environment-dressing' &&
+				marker.texture === environmentDressingAsset.key &&
 				marker.frame === 'townWallVertical' &&
 				marker.x === 96
 		);

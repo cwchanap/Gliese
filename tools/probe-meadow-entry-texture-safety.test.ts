@@ -1,19 +1,28 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { runMeadowEntryTextureSafetyProbe } from './probe-meadow-entry-texture-safety';
+import {
+	EXPECTED_MEADOW_ENTRY_EXPORT_COUNT,
+	runMeadowEntryTextureSafetyProbe
+} from './probe-meadow-entry-texture-safety';
 
-const bunRuntime = globalThis as typeof globalThis & {
-	Bun: {
-		serve: (...arguments_: unknown[]) => unknown;
-	};
+type BunServe = (...arguments_: unknown[]) => unknown;
+
+const bunLike = globalThis as typeof globalThis & {
+	Bun?: { serve?: BunServe };
 };
 
-test('returns a structured stop report when temporary Bun server setup fails', async () => {
-	const originalServe = bunRuntime.Bun.serve;
-	bunRuntime.Bun.serve = () => {
+test('returns a structured stop report when temporary Bun server setup fails', async (t) => {
+	const bun = bunLike.Bun;
+	if (!bun || typeof bun.serve !== 'function') {
+		t.skip('globalThis.Bun.serve is unavailable; run this suite under bun');
+		return;
+	}
+
+	const originalServe = bun.serve;
+	bun.serve = (() => {
 		throw new Error('forced temporary Bun server setup failure');
-	};
+	}) as BunServe;
 
 	try {
 		let report: Awaited<ReturnType<typeof runMeadowEntryTextureSafetyProbe>> | undefined;
@@ -46,7 +55,7 @@ test('returns a structured stop report when temporary Bun server setup fails', a
 				decision: report.decision
 			},
 			{
-				assetCount: 22,
+				assetCount: EXPECTED_MEADOW_ENTRY_EXPORT_COUNT,
 				successfulUploads: 0,
 				retainedTextures: 0,
 				maxTextureSize: null,
@@ -59,6 +68,6 @@ test('returns a structured stop report when temporary Bun server setup fails', a
 			}
 		);
 	} finally {
-		bunRuntime.Bun.serve = originalServe;
+		bun.serve = originalServe;
 	}
 });

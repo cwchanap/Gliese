@@ -20,6 +20,16 @@ export const MEADOW_ENTRY_ACTIVE_CROP_IDS = [
 
 const activeCropIds = new Set<string>(MEADOW_ENTRY_ACTIVE_CROP_IDS);
 
+const cropIdsWithoutBackground = MEADOW_ENTRY_ACTIVE_CROP_IDS.filter(
+	(cropId) =>
+		!MEADOW_ENTRY_APPROVED_RUNTIME_BACKGROUNDS.some((background) => background.cropId === cropId)
+);
+if (cropIdsWithoutBackground.length > 0) {
+	throw new Error(
+		`MEADOW_ENTRY_ACTIVE_CROP_IDS reference crop(s) with no generated background: ${cropIdsWithoutBackground.join(', ')}`
+	);
+}
+
 export const meadowEntryRuntimeBackgrounds = MEADOW_ENTRY_APPROVED_RUNTIME_BACKGROUNDS.filter(
 	(background) => activeCropIds.has(background.cropId)
 );
