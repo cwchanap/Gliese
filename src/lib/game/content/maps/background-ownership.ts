@@ -146,6 +146,13 @@ export interface VisualOwnershipAssignment {
 /**
  * Returns a new item list with ownership metadata attached to selected source
  * IDs. Unassigned records retain their original identity.
+ *
+ * @param items - Source records to attach ownership to; matched by `id`.
+ * @param assignments - Ownership visuals keyed by the source `id` they target.
+ * @param options - When `rejectExisting` is set, throws if a targeted record
+ *   already carries a visual.
+ * @returns A new array; assigned records are shallow-cloned with the visual
+ *   attached, unassigned records are returned by reference.
  */
 export function applyVisualOwnership<T extends { id: string; visual?: MapVisualOwnership }>(
 	items: readonly T[],

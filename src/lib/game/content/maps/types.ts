@@ -120,9 +120,6 @@ export type MapVisualOwnership =
 	| { mode: 'always' }
 	| { mode: 'fallback-only'; ownerCrops: readonly MapVisualOwnerCrop[] };
 
-/** @deprecated Use `MapVisualOwnership`. */
-export type MapBlockerVisual = MapVisualOwnership;
-
 export interface MapBlocker extends MapRect {
 	kind: MapBlockerKind;
 	label?: string;

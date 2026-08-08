@@ -133,7 +133,7 @@ const PR1_BACKGROUND_DESCRIPTORS: readonly RegionalBackgroundDescriptor[] = [
 	},
 	...meadowEntryRuntimeBackgrounds.map(({ id, textureKey, plane }) => ({ id, textureKey, plane }))
 ];
-const PR1_REGIONAL_BACKGROUND_COUNT = 24;
+const PR1_REGIONAL_BACKGROUND_COUNT = PR1_BACKGROUND_DESCRIPTORS.length;
 const OUTER_BOUNDARY_EAST_FOREST_LANE_BASE_BACKGROUND_ID =
 	'meadow-entry-outer-boundary-east-forest-lane-base-image';
 const OUTER_BOUNDARY_EAST_FOREST_LANE_BASE_BACKGROUND_PATH =
@@ -252,9 +252,13 @@ const DISABLED_RUNTIME_FALLBACK_FENCE_IDS = [
 
 function regionalBackgroundStatuses(
 	defaultStatus: RegionalBackgroundPlaneStatus = 'rendered',
-	overrides: Readonly<Partial<Record<string, RegionalBackgroundPlaneStatus>>> = {}
+	overrides: Readonly<
+		Partial<Record<(typeof PR1_BACKGROUND_IDS)[number], RegionalBackgroundPlaneStatus>>
+	> = {}
 ): RegionalBackgroundPlaneStatus[] {
-	return PR1_BACKGROUND_DESCRIPTORS.map(({ id }) => overrides[id] ?? defaultStatus);
+	return PR1_BACKGROUND_DESCRIPTORS.map(
+		({ id }) => overrides[id as (typeof PR1_BACKGROUND_IDS)[number]] ?? defaultStatus
+	);
 }
 
 const SUNDROP_OCCLUSION_CONTROL_INPUTS = buildSundropVillageObstacleControlInputs(process.cwd());
@@ -656,7 +660,9 @@ async function assertAndAttachPlaneDiagnostic(
 function assertDisabledFallbackSelections(
 	diagnostic: RegionalBackgroundPlaneRenderDiagnostic | undefined
 ) {
-	expect(diagnostic?.selectedFallbackBlockerIds).toHaveLength(72);
+	expect(diagnostic?.selectedFallbackBlockerIds).toHaveLength(
+		SUNDROP_SELECTED_FALLBACK_IDS.length + DISABLED_RUNTIME_FALLBACK_BLOCKER_IDS.length
+	);
 	expect(diagnostic?.selectedFallbackBlockerIds).toEqual(
 		expect.arrayContaining([
 			...SUNDROP_SELECTED_FALLBACK_IDS,

@@ -168,7 +168,7 @@ describe('map background ownership', () => {
 				backgroundImages: [{ ...background, drawOrder }],
 				blockers: []
 			})
-		).toThrow();
+		).toThrow(`Invalid background descriptor draw order for background: ${drawOrder}`);
 	});
 
 	it('rejects two backgrounds occupying the same plane and draw order', () => {
@@ -182,7 +182,7 @@ describe('map background ownership', () => {
 				],
 				blockers: []
 			})
-		).toThrow();
+		).toThrow('Duplicate background descriptor draw order for base plane: 240');
 	});
 
 	it.each([
