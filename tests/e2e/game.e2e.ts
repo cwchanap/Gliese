@@ -47,7 +47,7 @@ type RegionalBackgroundEvidenceCase = {
 	name: string;
 	screenshotName: string;
 	url: string;
-	/** Expected regional background load completions; defaults to all 18 PR-1 descriptors. */
+	/** Expected regional background load completions; defaults to all 24 PR-1 descriptors. */
 	expectedLoadCompletions?: number;
 };
 
@@ -111,6 +111,12 @@ const PR1_BACKGROUND_IDS = [
 	'meadow-entry-crossroads-wildwood-connector-foreground-image',
 	'meadow-entry-crossroads-base-image',
 	'meadow-entry-crossroads-foreground-image',
+	'meadow-entry-tidewatch-coast-base-image',
+	'meadow-entry-tidewatch-coast-foreground-image',
+	'meadow-entry-mistfen-base-image',
+	'meadow-entry-mistfen-foreground-image',
+	'meadow-entry-silverpine-base-image',
+	'meadow-entry-silverpine-foreground-image',
 	'meadow-entry-wildwood-base-image',
 	'meadow-entry-wildwood-foreground-image'
 ] as const;
@@ -127,7 +133,7 @@ const PR1_BACKGROUND_DESCRIPTORS: readonly RegionalBackgroundDescriptor[] = [
 	},
 	...meadowEntryRuntimeBackgrounds.map(({ id, textureKey, plane }) => ({ id, textureKey, plane }))
 ];
-const PR1_REGIONAL_BACKGROUND_COUNT = 18;
+const PR1_REGIONAL_BACKGROUND_COUNT = 24;
 const OUTER_BOUNDARY_EAST_FOREST_LANE_BASE_BACKGROUND_ID =
 	'meadow-entry-outer-boundary-east-forest-lane-base-image';
 const OUTER_BOUNDARY_EAST_FOREST_LANE_BASE_BACKGROUND_PATH =
@@ -171,6 +177,8 @@ const DISABLED_RUNTIME_FALLBACK_DECOR_IDS = [
 	'wildwood-grove-tree-2',
 	'wildwood-grove-brush-1',
 	'wildwood-threshold-floor',
+	'wildwood-forest-lane-north-wall',
+	'wildwood-forest-lane-south-wall',
 	'wildwood-threshold-tree-wall-west',
 	'wildwood-threshold-tree-wall-east',
 	'wildwood-threshold-brush-left',
@@ -182,9 +190,44 @@ const DISABLED_RUNTIME_FALLBACK_DECOR_IDS = [
 	'wildwood-staging-brush',
 	'wildwood-combat-pocket-wall-west',
 	'wildwood-combat-pocket-wall-east',
+	'mistfen-dead-tree-west',
+	'mistfen-dead-tree-east',
+	'mistfen-toxic-bloom',
+	'mistfen-reed-wall-east',
+	'mistfen-reed-wall-west',
+	'mistfen-reed-wall-north',
+	'mistfen-reed-wall-south',
+	'mistfen-deadfall-bend',
+	'mistfen-reeds-1',
+	'mistfen-marsh-rock',
+	'mistfen-bloom-trail-1',
+	'mistfen-bloom-trail-2',
+	'mistfen-gate-reed-wall-east',
+	'silverpine-lantern-west',
+	'silverpine-lantern-east',
+	'silverpine-side-grove-maple',
+	'silverpine-side-grove-pine',
+	'silverpine-tree-1',
+	'silverpine-maple-1',
+	'silverpine-maple-2',
+	'silverpine-lantern-mid',
+	'silverpine-lower-wall-west',
+	'silverpine-lower-wall-east',
+	'silverpine-switchback-west',
+	'silverpine-switchback-east',
+	'silverpine-offering-grove-wall',
+	'silverpine-terrace-boundary',
+	'coast-boat',
+	'coast-net',
+	'coast-tidepool',
 	'coast-driftwood',
+	'coast-jetty',
+	'coast-foam',
 	'coast-approach-net',
 	'coast-fork-west-driftwood-wall',
+	'coast-shrine-pocket-boundary',
+	'coast-tidepool-rock-wall',
+	'coast-jetty-neck',
 	'crossroads-lantern-west',
 	'crossroads-lantern-east',
 	'crossroads-banner',
@@ -201,6 +244,7 @@ const DISABLED_RUNTIME_FALLBACK_DECOR_IDS = [
 const DISABLED_RUNTIME_FALLBACK_FENCE_IDS = [
 	'coast-approach-west-fence',
 	'coast-approach-east-fence',
+	'coast-fork-east-field-fence',
 	'crossroads-south-market-fence',
 	'crossroads-north-festival-barrier',
 	'crossroads-north-festival-barrier-east'
@@ -612,9 +656,7 @@ async function assertAndAttachPlaneDiagnostic(
 function assertDisabledFallbackSelections(
 	diagnostic: RegionalBackgroundPlaneRenderDiagnostic | undefined
 ) {
-	expect(diagnostic?.selectedFallbackBlockerIds).toHaveLength(
-		SUNDROP_SELECTED_FALLBACK_IDS.length + DISABLED_RUNTIME_FALLBACK_BLOCKER_IDS.length
-	);
+	expect(diagnostic?.selectedFallbackBlockerIds).toHaveLength(72);
 	expect(diagnostic?.selectedFallbackBlockerIds).toEqual(
 		expect.arrayContaining([
 			...SUNDROP_SELECTED_FALLBACK_IDS,

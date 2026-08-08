@@ -1961,7 +1961,7 @@ describe('meadow-entry region integrity', () => {
 			'meadow-entry-wildwood-foreground-image'
 		] as const;
 
-		expect(backgroundImages).toHaveLength(18);
+		expect(backgroundImages).toHaveLength(24);
 		for (const id of hpa496BackgroundIds) {
 			expect(backgroundImages.filter((background) => background.id === id)).toHaveLength(1);
 		}
@@ -2004,7 +2004,7 @@ describe('meadow-entry region integrity', () => {
 				visual.ownerCrops.some((crop) => crop.cropId === 'sundrop-village-hpa-398')
 			);
 		});
-		expect(selected).toHaveLength(50);
+		expect(selected).toHaveLength(72);
 		expect(sundropSelected).toHaveLength(21);
 		expect(
 			sundropSelected.filter(
@@ -2051,10 +2051,10 @@ describe('meadow-entry region integrity', () => {
 		});
 		expect(
 			(meadowEntryMap.mapDecor ?? []).filter((decor) => decor.visual?.mode === 'fallback-only')
-		).toHaveLength(32);
+		).toHaveLength(69);
 		expect(
 			(meadowEntryMap.fences ?? []).filter((fence) => fence.visual?.mode === 'fallback-only')
-		).toHaveLength(5);
+		).toHaveLength(6);
 	});
 
 	it('seals three foreshadow gates with future-gate collision', () => {
