@@ -28,9 +28,9 @@
     "meadow-entry-crop-manifest.json"
   ],
   "fingerprints": {
-    "gameplaySource": "dfeadd46a6470e1f75da7f4c1cb1e5852f1a5df1bf39b53fe97a962a55411258",
+    "gameplaySource": "e1b952c8f0471709486509a701936e0ec20eb71da57737f24e43afa3b98986b3",
     "authoringContract": "edf2084959761f987093bcd7a8aa33e270eea9426370cef615a791b2db55db4d",
-    "combinedControl": "b3d90db52954ae79ea8f224bbdcf11c29294f3a6488c9e4ea6eef48aa0668269"
+    "combinedControl": "03b4ccf5fc969afe2f3b8f74f3f4da35528fd3cae03c0aa86c9ca2e4436ece5a"
   },
   "predecessor": {
     "hpa307ArtifactHashes": {
