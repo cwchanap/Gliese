@@ -175,7 +175,7 @@ describe('regional background asset metadata', () => {
 			...sundropRegionalBackgroundAssets,
 			...meadowEntryRuntimeBackgroundAssets
 		]);
-		expect(preloadAssets).toHaveLength(18);
+		expect(preloadAssets).toHaveLength(24);
 		expect(preloadAssets.map(({ key, path }) => ({ key, path }))).toEqual([
 			...sundropRegionalBackgroundAssets.map(({ key, path }) => ({ key, path })),
 			...meadowEntryRuntimeBackgroundAssets
