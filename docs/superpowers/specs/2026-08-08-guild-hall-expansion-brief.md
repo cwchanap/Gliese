@@ -60,6 +60,8 @@ The current implementation already has the pieces needed for the player-facing r
 - the village-side `meadow-to-guild-hall` transition is owned by `src/lib/game/content/maps/regions/village-layered.ts`;
 - interactive `map.npcs` participate in movement collision, while `ambientNpcs` are presentation-only sprites and do not participate in movement collision;
 - `maps.test.ts` already has a route-clearance helper and a generic transition-arrival loop; HPA-400 should strengthen those instead of adding Guild-Hall-only equivalents;
+- the exhaustive Meadow Entry transition snapshot pins the Guild Hall inbound arrival and must move with the seam;
+- the existing explicit arrival test does not currently pin Guild Hall, so HPA-400 should extend it with a generic interior-arrival-equals-spawn invariant rather than inventing another one-map literal;
 - existing `maps.test.ts`, `scenes.test.ts`, and the Guild quest E2E fixture contain old Guild Hall coordinate assumptions that must move with the layout.
 
 No missing representation requires `LayeredInteriorSource`, a compiler, a room graph, or a new renderer.
