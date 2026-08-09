@@ -23,6 +23,9 @@ import {
 } from '$lib/game/phaser/player-movement-diagnostics';
 import { HUD_COMMAND_EVENT, type HudCommand } from '$lib/game/ui-bridge/events';
 
+const guildMasterApproach = { x: 208, y: 176 };
+const quartermasterApproach = { x: 560, y: 176 };
+
 const localeState = vi.hoisted(() => ({
 	activeLocale: 'en' as 'en' | 'ja' | 'zh-Hant'
 }));
@@ -4868,13 +4871,13 @@ describe('WorldScene', () => {
 		const scene = new WorldScene();
 
 		scene.create({ mapId: 'guild-hall' });
-		Object.assign(phaserState.playerMarker, { x: 352, y: 185 });
+		Object.assign(phaserState.playerMarker, { x: 592, y: 217 });
 		phaserState.cursorKeys.up.isDown = true;
 
 		scene.update(0, 250);
 
-		expect(phaserState.playerMarker.x).toBe(352);
-		expect(phaserState.playerMarker.y).toBe(185);
+		expect(phaserState.playerMarker.x).toBe(592);
+		expect(phaserState.playerMarker.y).toBe(217);
 	});
 
 	it('slides along an NPC when only one movement axis is blocked', async () => {
@@ -4882,14 +4885,14 @@ describe('WorldScene', () => {
 		const scene = new WorldScene();
 
 		scene.create({ mapId: 'guild-hall' });
-		Object.assign(phaserState.playerMarker, { x: 316, y: 180 });
+		Object.assign(phaserState.playerMarker, { x: 556, y: 212 });
 		phaserState.cursorKeys.right.isDown = true;
 		phaserState.cursorKeys.up.isDown = true;
 
 		scene.update(0, 250);
 
-		expect(phaserState.playerMarker.x).toBeGreaterThan(316);
-		expect(phaserState.playerMarker.y).toBe(180);
+		expect(phaserState.playerMarker.x).toBeGreaterThan(556);
+		expect(phaserState.playerMarker.y).toBe(212);
 	});
 
 	it('allows player movement away from an existing NPC collision overlap', async () => {
@@ -4897,13 +4900,13 @@ describe('WorldScene', () => {
 		const scene = new WorldScene();
 
 		scene.create({ mapId: 'guild-hall' });
-		Object.assign(phaserState.playerMarker, { x: 352, y: 150 });
+		Object.assign(phaserState.playerMarker, { x: 592, y: 182 });
 		phaserState.cursorKeys.down.isDown = true;
 
 		scene.update(0, 50);
 
-		expect(phaserState.playerMarker.x).toBe(352);
-		expect(phaserState.playerMarker.y).toBeGreaterThan(150);
+		expect(phaserState.playerMarker.x).toBe(592);
+		expect(phaserState.playerMarker.y).toBeGreaterThan(182);
 	});
 
 	it('blocks fast movement from tunneling through an NPC collision body', async () => {
@@ -4911,13 +4914,13 @@ describe('WorldScene', () => {
 		const scene = new WorldScene();
 
 		scene.create({ mapId: 'guild-hall' });
-		Object.assign(phaserState.playerMarker, { x: 352, y: 174 });
+		Object.assign(phaserState.playerMarker, { x: 592, y: 206 });
 		phaserState.cursorKeys.up.isDown = true;
 
 		scene.update(0, 250);
 
-		expect(phaserState.playerMarker.x).toBe(352);
-		expect(phaserState.playerMarker.y).toBe(174);
+		expect(phaserState.playerMarker.x).toBe(592);
+		expect(phaserState.playerMarker.y).toBe(206);
 	});
 
 	it('blocks player movement through village building bodies', async () => {
@@ -5662,19 +5665,19 @@ describe('WorldScene', () => {
 
 		expect(scene.add.image).not.toHaveBeenCalledWith(256, 144, 'starter-pack', 'titleBadge');
 		expect(scene.add.image).not.toHaveBeenCalledWith(256, 144, 'npc-pack', 'miraItemShopNpc');
-		expect(scene.add.image).toHaveBeenCalledWith(192, 144, 'npc-pack', 'guildMasterNpc');
-		expect(scene.add.image).toHaveBeenCalledWith(352, 144, 'npc-pack', 'quartermasterNpc');
+		expect(scene.add.image).toHaveBeenCalledWith(176, 176, 'npc-pack', 'guildMasterNpc');
+		expect(scene.add.image).toHaveBeenCalledWith(592, 176, 'npc-pack', 'quartermasterNpc');
 		const npcMarkers = phaserState.imageMarkers.filter(
 			(marker) => marker.x === 256 && marker.y === 144 && marker.frame === 'miraItemShopNpc'
 		);
 		expect(npcMarkers).toHaveLength(0);
 		const guildMasterMarkers = phaserState.imageMarkers.filter(
-			(marker) => marker.x === 192 && marker.y === 144 && marker.frame === 'guildMasterNpc'
+			(marker) => marker.x === 176 && marker.y === 176 && marker.frame === 'guildMasterNpc'
 		);
 		expect(guildMasterMarkers).toHaveLength(1);
 		expect(guildMasterMarkers[0]!.setDisplaySize).toHaveBeenCalledWith(96, 87);
 		const quartermasterMarkers = phaserState.imageMarkers.filter(
-			(marker) => marker.x === 352 && marker.y === 144 && marker.frame === 'quartermasterNpc'
+			(marker) => marker.x === 592 && marker.y === 176 && marker.frame === 'quartermasterNpc'
 		);
 		expect(quartermasterMarkers).toHaveLength(1);
 		expect(quartermasterMarkers[0]!.setDisplaySize).toHaveBeenCalledWith(96, 87);
@@ -5807,15 +5810,22 @@ describe('WorldScene', () => {
 		).toBe(false);
 	});
 
-	it('publishes nearby NPC status once when the hero enters proximity', async () => {
+	it('publishes nearby NPC status once while the hero remains in proximity', async () => {
 		const events = await import('$lib/game/ui-bridge/events');
 		const emitHudStateSpy = vi.spyOn(events, 'emitHudState');
+		const { createNewSaveState } = await import('$lib/game/save/save-state');
 		const { WorldScene } = await import('./WorldScene');
 		const scene = new WorldScene();
+		const save = createNewSaveState();
 
-		scene.create({ mapId: 'guild-hall' });
+		scene.create({
+			saveState: {
+				...save,
+				mapId: 'guild-hall',
+				player: { ...save.player, ...quartermasterApproach }
+			}
+		});
 		emitHudStateSpy.mockClear();
-		Object.assign(phaserState.playerMarker, { x: 352, y: 144 });
 
 		scene.update(0, 16);
 		scene.update(16, 16);
@@ -5986,10 +5996,10 @@ describe('WorldScene', () => {
 			saveState: {
 				...save,
 				mapId: 'guild-hall',
-				player: { ...save.player, x: 192, y: 144 }
+				player: { ...save.player, ...guildMasterApproach }
 			}
 		});
-		Object.assign(phaserState.playerMarker, { x: 192, y: 144 });
+		Object.assign(phaserState.playerMarker, guildMasterApproach);
 		emitHudStateSpy.mockClear();
 
 		scene.update(0, 16);
@@ -6098,7 +6108,7 @@ describe('WorldScene', () => {
 		const scene = new WorldScene();
 
 		scene.create({ mapId: 'guild-hall' });
-		Object.assign(phaserState.playerMarker, { x: 192, y: 144 });
+		Object.assign(phaserState.playerMarker, guildMasterApproach);
 		scene.update(0, 16);
 		emitHudStateSpy.mockClear();
 
@@ -6134,7 +6144,7 @@ describe('WorldScene', () => {
 		const scene = new WorldScene();
 
 		scene.create({ mapId: 'guild-hall' });
-		Object.assign(phaserState.playerMarker, { x: 192, y: 144 });
+		Object.assign(phaserState.playerMarker, guildMasterApproach);
 		scene.update(0, 16);
 		emitHudStateSpy.mockClear();
 
@@ -6168,7 +6178,7 @@ describe('WorldScene', () => {
 		const scene = new WorldScene();
 
 		scene.create({ mapId: 'guild-hall' });
-		Object.assign(phaserState.playerMarker, { x: 192, y: 144 });
+		Object.assign(phaserState.playerMarker, guildMasterApproach);
 		scene.update(0, 16);
 		emitHudStateSpy.mockClear();
 
@@ -6278,7 +6288,7 @@ describe('WorldScene', () => {
 			})
 		);
 
-		Object.assign(phaserState.playerMarker, { x: 192, y: 144 });
+		Object.assign(phaserState.playerMarker, guildMasterApproach);
 		scene.update(16, 16);
 		emitHudStateSpy.mockClear();
 
@@ -6338,7 +6348,7 @@ describe('WorldScene', () => {
 		};
 
 		scene.create({ mapId: 'guild-hall' });
-		Object.assign(phaserState.playerMarker, { x: 192, y: 144 });
+		Object.assign(phaserState.playerMarker, guildMasterApproach);
 		phaserState.interactKeys.e.justDown = true;
 		scene.update(16, 16);
 		await flushStoryDialogue();
@@ -6368,7 +6378,7 @@ describe('WorldScene', () => {
 		};
 
 		scene.create({ mapId: 'guild-hall' });
-		Object.assign(phaserState.playerMarker, { x: 192, y: 144 });
+		Object.assign(phaserState.playerMarker, guildMasterApproach);
 		phaserState.interactKeys.e.justDown = true;
 		scene.update(16, 16);
 		await flushStoryDialogue();
@@ -6402,7 +6412,7 @@ describe('WorldScene', () => {
 			saveState: {
 				...unlockedSave,
 				mapId: 'guild-hall',
-				player: { ...unlockedSave.player, x: 192, y: 144 },
+				player: { ...unlockedSave.player, ...guildMasterApproach },
 				quests: {
 					entries: {
 						'investigate-the-ruins': {
@@ -6417,7 +6427,7 @@ describe('WorldScene', () => {
 				}
 			}
 		});
-		Object.assign(phaserState.playerMarker, { x: 192, y: 144 });
+		Object.assign(phaserState.playerMarker, guildMasterApproach);
 		phaserState.interactKeys.e.justDown = true;
 		scene.update(16, 16);
 		await flushStoryDialogue();
@@ -6442,7 +6452,7 @@ describe('WorldScene', () => {
 		const scene = new WorldScene();
 
 		scene.create({ mapId: 'guild-hall' });
-		Object.assign(phaserState.playerMarker, { x: 352, y: 144 });
+		Object.assign(phaserState.playerMarker, quartermasterApproach);
 		phaserState.interactKeys.e.justDown = true;
 		scene.update(16, 16);
 		await flushStoryDialogue();
@@ -6474,7 +6484,7 @@ describe('WorldScene', () => {
 		};
 
 		scene.create({ mapId: 'guild-hall' });
-		Object.assign(phaserState.playerMarker, { x: 192, y: 144 });
+		Object.assign(phaserState.playerMarker, guildMasterApproach);
 		scene.update(0, 16);
 		emitHudStateSpy.mockClear();
 
@@ -6521,7 +6531,7 @@ describe('WorldScene', () => {
 			saveState: {
 				...unlockedSave,
 				mapId: 'guild-hall',
-				player: { ...unlockedSave.player, x: 192, y: 144 },
+				player: { ...unlockedSave.player, ...guildMasterApproach },
 				flags: {
 					...unlockedSave.flags,
 					clearedEncounters: ['meadow-slime-west', 'meadow-slime-center']
@@ -6556,7 +6566,7 @@ describe('WorldScene', () => {
 		const scene = new WorldScene();
 
 		scene.create({ mapId: 'guild-hall' });
-		Object.assign(phaserState.playerMarker, { x: 352, y: 144 });
+		Object.assign(phaserState.playerMarker, quartermasterApproach);
 		scene.update(0, 16);
 		emitHudStateSpy.mockClear();
 
@@ -6659,7 +6669,7 @@ describe('WorldScene', () => {
 			saveState: {
 				...unlockedSave,
 				mapId: 'guild-hall',
-				player: { ...unlockedSave.player, x: 192, y: 144 },
+				player: { ...unlockedSave.player, ...guildMasterApproach },
 				quests: {
 					entries: {
 						'investigate-the-ruins': {
@@ -6674,7 +6684,7 @@ describe('WorldScene', () => {
 				}
 			}
 		});
-		Object.assign(phaserState.playerMarker, { x: 192, y: 144 });
+		Object.assign(phaserState.playerMarker, guildMasterApproach);
 		phaserState.interactKeys.e.justDown = true;
 		scene.update(16, 16);
 		await flushStoryDialogue();
@@ -6734,7 +6744,7 @@ describe('WorldScene', () => {
 		const scene = new WorldScene();
 
 		scene.create({ mapId: 'guild-hall' });
-		Object.assign(phaserState.playerMarker, { x: 352, y: 144 });
+		Object.assign(phaserState.playerMarker, quartermasterApproach);
 		scene.update(0, 16);
 		emitHudStateSpy.mockClear();
 
@@ -6764,7 +6774,6 @@ describe('WorldScene', () => {
 		const scene = new WorldScene();
 
 		scene.create({ mapId: 'guild-hall' });
-		Object.assign(phaserState.playerMarker, { x: 64, y: 64 });
 		emitHudStateSpy.mockClear();
 
 		phaserState.interactKeys.enter.justDown = true;
@@ -6791,8 +6800,7 @@ describe('WorldScene', () => {
 		},
 		{
 			mapId: 'guild-hall',
-			x: 352,
-			y: 144,
+			...quartermasterApproach,
 			nearbyShop: {
 				shopId: 'guild-quartermaster',
 				name: 'Guild Quartermaster',
@@ -6869,11 +6877,11 @@ describe('WorldScene', () => {
 			saveState: {
 				...save,
 				mapId: 'guild-hall',
-				player: { ...save.player, x: 352, y: 144 },
+				player: { ...save.player, ...quartermasterApproach },
 				wallet: { coins: 40 }
 			}
 		});
-		Object.assign(phaserState.playerMarker, { x: 352, y: 144 });
+		Object.assign(phaserState.playerMarker, quartermasterApproach);
 		scene.update(0, 16);
 		emitHudStateSpy.mockClear();
 

@@ -100,14 +100,15 @@ export const heroHouseMap: WorldMapDefinition = {
 
 export const guildHallMap: WorldMapDefinition = addEnglishMapText({
 	id: 'guild-hall',
-	width: 16,
-	height: 12,
+	width: 24,
+	height: 18,
 	spawnDirection: 'up',
-	spawn: { x: 256, y: 288 },
+	spawn: { x: 384, y: 480 },
 	transitions: [
 		{
 			id: 'guild-hall-to-meadow',
-			...interiorDoor,
+			x: 384,
+			y: 528,
 			toMapId: openingMapId,
 			// Door is at village-layered.ts col 42 row 21. The arrival sits 40px
 			// EAST rather than south: the v2 redesign moved the blacksmith into
@@ -122,8 +123,8 @@ export const guildHallMap: WorldMapDefinition = addEnglishMapText({
 	npcs: [
 		{
 			id: 'guild-master',
-			x: 192,
-			y: 144,
+			x: 176,
+			y: 176,
 			nameKey: 'content.maps.npcs.guild-master.name',
 			dialogueId: 'guild-master',
 			role: 'guild',
@@ -131,8 +132,8 @@ export const guildHallMap: WorldMapDefinition = addEnglishMapText({
 		},
 		{
 			id: 'guild-quartermaster',
-			x: 352,
-			y: 144,
+			x: 592,
+			y: 176,
 			nameKey: 'content.maps.npcs.guild-quartermaster.name',
 			dialogueId: 'guild-quartermaster',
 			role: 'shopkeeper',
@@ -143,80 +144,176 @@ export const guildHallMap: WorldMapDefinition = addEnglishMapText({
 	interiorProps: [
 		{
 			id: 'guild-hall-notice-board',
-			x: 256,
-			y: 64,
+			x: 240,
+			y: 432,
 			width: 112,
 			height: 72,
 			frameName: 'noticeBoard',
-			collision: { id: 'guild-hall-notice-board-collision', x: 256, y: 64, width: 96, height: 34 }
-		},
-		{
-			id: 'guild-hall-west-desk',
-			x: 128,
-			y: 152,
-			width: 96,
-			height: 54,
-			frameName: 'table',
-			collision: { id: 'guild-hall-west-desk-collision', x: 128, y: 152, width: 88, height: 44 }
-		},
-		{
-			id: 'guild-hall-east-desk',
-			x: 384,
-			y: 152,
-			width: 96,
-			height: 54,
-			frameName: 'table',
-			collision: { id: 'guild-hall-east-desk-collision', x: 400, y: 152, width: 56, height: 44 } // left gap intentional — quartermaster NPC stands at x≈352
-		},
-		{
-			id: 'guild-hall-west-bench',
-			x: 128,
-			y: 256,
-			width: 96,
-			height: 34,
-			frameName: 'bench',
-			collision: { id: 'guild-hall-west-bench-collision', x: 128, y: 256, width: 86, height: 26 }
+			collision: {
+				id: 'guild-hall-notice-board-collision',
+				x: 240,
+				y: 432,
+				width: 96,
+				height: 34
+			}
 		},
 		{
 			id: 'guild-hall-east-bench',
-			x: 384,
-			y: 256,
+			x: 528,
+			y: 432,
 			width: 96,
 			height: 34,
 			frameName: 'bench',
-			collision: { id: 'guild-hall-east-bench-collision', x: 384, y: 256, width: 86, height: 26 }
+			collision: {
+				id: 'guild-hall-east-bench-collision',
+				x: 528,
+				y: 432,
+				width: 86,
+				height: 26
+			}
+		},
+		{
+			id: 'guild-hall-common-rug',
+			x: 256,
+			y: 304,
+			width: 192,
+			height: 112,
+			frameName: 'rug',
+			depth: 'floor'
+		},
+		{
+			id: 'guild-hall-common-table',
+			x: 256,
+			y: 304,
+			width: 96,
+			height: 54,
+			frameName: 'table',
+			collision: {
+				id: 'guild-hall-common-table-collision',
+				x: 256,
+				y: 304,
+				width: 88,
+				height: 44
+			}
+		},
+		{
+			id: 'guild-hall-west-bench',
+			x: 256,
+			y: 352,
+			width: 96,
+			height: 34,
+			frameName: 'bench',
+			collision: {
+				id: 'guild-hall-west-bench-collision',
+				x: 256,
+				y: 352,
+				width: 86,
+				height: 26
+			}
+		},
+		{
+			id: 'guild-hall-master-bookshelf',
+			x: 80,
+			y: 96,
+			width: 64,
+			height: 96,
+			frameName: 'bookshelf',
+			collision: {
+				id: 'guild-hall-master-bookshelf-collision',
+				x: 80,
+				y: 96,
+				width: 56,
+				height: 86
+			}
 		},
 		{
 			id: 'guild-hall-records',
-			x: 64,
+			x: 240,
 			y: 96,
 			width: 52,
 			height: 64,
 			frameName: 'papers',
-			collision: { id: 'guild-hall-records-collision', x: 64, y: 96, width: 42, height: 44 }
+			collision: {
+				id: 'guild-hall-records-collision',
+				x: 240,
+				y: 96,
+				width: 42,
+				height: 44
+			}
+		},
+		{
+			id: 'guild-hall-records-shelf',
+			x: 352,
+			y: 96,
+			width: 64,
+			height: 96,
+			frameName: 'bookshelf',
+			collision: {
+				id: 'guild-hall-records-shelf-collision',
+				x: 352,
+				y: 96,
+				width: 56,
+				height: 86
+			}
 		},
 		{
 			id: 'guild-hall-weapon-rack',
-			x: 448,
+			x: 480,
 			y: 96,
 			width: 56,
 			height: 86,
 			frameName: 'weaponRack',
-			collision: { id: 'guild-hall-weapon-rack-collision', x: 448, y: 96, width: 44, height: 72 }
+			collision: {
+				id: 'guild-hall-weapon-rack-collision',
+				x: 480,
+				y: 96,
+				width: 44,
+				height: 72
+			}
+		},
+		{
+			id: 'guild-hall-quartermaster-counter',
+			x: 656,
+			y: 176,
+			width: 128,
+			height: 58,
+			frameName: 'shopCounter',
+			collision: {
+				id: 'guild-hall-quartermaster-counter-collision',
+				x: 672,
+				y: 176,
+				width: 96,
+				height: 48
+			}
+		},
+		{
+			id: 'guild-hall-quartermaster-crates',
+			x: 688,
+			y: 272,
+			width: 58,
+			height: 58,
+			frameName: 'crateStack',
+			collision: {
+				id: 'guild-hall-quartermaster-crates-collision',
+				x: 688,
+				y: 272,
+				width: 48,
+				height: 48
+			}
 		}
 	],
 	ambientNpcs: [
 		{
 			id: 'guild-hall-member-west',
-			x: 96,
-			y: 208,
+			x: 128,
+			y: 416,
 			frameName: 'quartermasterNpc',
 			role: 'guild-member'
 		},
 		{
 			id: 'guild-hall-member-east',
-			x: 416,
-			y: 208,
+			x: 512,
+			y: 336,
 			frameName: 'miraItemShopNpc',
 			role: 'guild-member'
 		}

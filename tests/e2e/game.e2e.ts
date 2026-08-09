@@ -1514,7 +1514,7 @@ test('interact key shop purchase appears in inventory', async ({ page }) => {
 test('quest log shows main quest and accepts Guild side quests', async ({ page }) => {
 	const save = createSaveFixture({
 		mapId: 'guild-hall',
-		player: { level: 1, xp: 0, hp: 20, attack: 3, x: 192, y: 144, facing: 'up' }
+		player: { level: 1, xp: 0, hp: 20, attack: 3, x: 208, y: 176, facing: 'up' }
 	});
 
 	await page.addInitScript(

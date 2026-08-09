@@ -519,7 +519,7 @@ export const sundropVillageLayered: LayeredRegionSource<(typeof villageDressingA
 				row: 21,
 				toMapId: 'guild-hall',
 				showMarker: false,
-				arrival: { x: 256, y: 288, facing: 'up' }
+				arrival: { x: 384, y: 480, facing: 'up' }
 			},
 			{
 				// Lifted one tile north (row 44 -> 43) to track the shrine's north
