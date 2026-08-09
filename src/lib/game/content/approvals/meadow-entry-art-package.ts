@@ -31,11 +31,11 @@ export interface MeadowEntryArtPackageApproval {
 
 export const meadowEntryArtPackageApprovalReview = {
 	reviewedBy: 'chanwaichan',
-	reviewedAt: '2026-08-09T05:03:19Z'
+	reviewedAt: '2026-08-09T05:50:50Z'
 } as const;
 
 export const meadowEntryArtPackageApproval: MeadowEntryArtPackageApproval = {
-	combinedControlFingerprint: '76968d88f8443e2c42f465c63895924895d62ddb6691b85588d02e8756f50da8',
+	combinedControlFingerprint: 'a8b6222c2a829f58c9a4c2226907826c16fba7036bbd848f73533997e1b26fe1',
 	storageMode: 'git-lfs',
 	storageConfigurationSha256: '60610b0c2e41561bd3bbbab75d86429859e43c25477628d976a3e3a357a59412',
 	baseMaster: {
@@ -52,9 +52,9 @@ export const meadowEntryArtPackageApproval: MeadowEntryArtPackageApproval = {
 		width: 6400,
 		height: 6400
 	},
-	cropManifestSha256: 'fc3dc1527fe518b9d9e51c207c2a696fc29b3af6e15ba0bec1a94301228d49d5',
-	masterProvenanceSha256: 'ed1814a4952b5465d35b3a5d25e7b7435d7511f26598a9a2a2ff0ff19e63cd7b',
-	exportProvenanceSha256: '0a02eddbb99ed6219e66f2d53b9d11585a25055823b63ea3eb1bd8d0abc77631',
+	cropManifestSha256: '5a0a1ad0198e7d255c0c9b12fd0eb8703c93e4af32e10a8757f5d3bc0f50f996',
+	masterProvenanceSha256: '41a5c52455f3688bb2be6b1554ff49e46f950ff5112d3739d32e377225fa074e',
+	exportProvenanceSha256: 'b0b63d4a8e09e8a038d10d3e0b247cbc2e77c26fd1135d0f8dd01c7f645785ca',
 	exports: [
 		{
 			path: 'artifacts/meadow-entry/hpa-399/exports/sundrop-village-underlay-base.png',
@@ -918,7 +918,7 @@ export const meadowEntryArtPackageApproval: MeadowEntryArtPackageApproval = {
 				'f1184b045c27c544ac18937a4f8ccfa12cd386319b1722be5d808aea8048ade6',
 				'c9ffa6e50a8e3c9f9888a642078094e95d9175158df8d262de8ac94b1ab9124e',
 				'2d0a6703de1a404e49c0746f092a4c6f9f113ae17cd8bc35de635b5ec084ce45',
-				'fc3dc1527fe518b9d9e51c207c2a696fc29b3af6e15ba0bec1a94301228d49d5'
+				'5a0a1ad0198e7d255c0c9b12fd0eb8703c93e4af32e10a8757f5d3bc0f50f996'
 			]
 		},
 		{
@@ -933,7 +933,7 @@ export const meadowEntryArtPackageApproval: MeadowEntryArtPackageApproval = {
 				'f1184b045c27c544ac18937a4f8ccfa12cd386319b1722be5d808aea8048ade6',
 				'c9ffa6e50a8e3c9f9888a642078094e95d9175158df8d262de8ac94b1ab9124e',
 				'2d0a6703de1a404e49c0746f092a4c6f9f113ae17cd8bc35de635b5ec084ce45',
-				'fc3dc1527fe518b9d9e51c207c2a696fc29b3af6e15ba0bec1a94301228d49d5'
+				'5a0a1ad0198e7d255c0c9b12fd0eb8703c93e4af32e10a8757f5d3bc0f50f996'
 			]
 		},
 		{
@@ -948,7 +948,7 @@ export const meadowEntryArtPackageApproval: MeadowEntryArtPackageApproval = {
 				'f1184b045c27c544ac18937a4f8ccfa12cd386319b1722be5d808aea8048ade6',
 				'c9ffa6e50a8e3c9f9888a642078094e95d9175158df8d262de8ac94b1ab9124e',
 				'2d0a6703de1a404e49c0746f092a4c6f9f113ae17cd8bc35de635b5ec084ce45',
-				'fc3dc1527fe518b9d9e51c207c2a696fc29b3af6e15ba0bec1a94301228d49d5'
+				'5a0a1ad0198e7d255c0c9b12fd0eb8703c93e4af32e10a8757f5d3bc0f50f996'
 			]
 		},
 		{
@@ -963,7 +963,7 @@ export const meadowEntryArtPackageApproval: MeadowEntryArtPackageApproval = {
 				'f1184b045c27c544ac18937a4f8ccfa12cd386319b1722be5d808aea8048ade6',
 				'c9ffa6e50a8e3c9f9888a642078094e95d9175158df8d262de8ac94b1ab9124e',
 				'2d0a6703de1a404e49c0746f092a4c6f9f113ae17cd8bc35de635b5ec084ce45',
-				'fc3dc1527fe518b9d9e51c207c2a696fc29b3af6e15ba0bec1a94301228d49d5'
+				'5a0a1ad0198e7d255c0c9b12fd0eb8703c93e4af32e10a8757f5d3bc0f50f996'
 			]
 		},
 		{
@@ -975,7 +975,7 @@ export const meadowEntryArtPackageApproval: MeadowEntryArtPackageApproval = {
 			proofId: 'fallback-boundaries/fallback-000',
 			inputSha256: [
 				'9a5097eea014d092e57a8953be0dec2a16c1e6d29446f8b293338bf95a93752c',
-				'fc3dc1527fe518b9d9e51c207c2a696fc29b3af6e15ba0bec1a94301228d49d5'
+				'5a0a1ad0198e7d255c0c9b12fd0eb8703c93e4af32e10a8757f5d3bc0f50f996'
 			]
 		},
 		{
@@ -987,7 +987,7 @@ export const meadowEntryArtPackageApproval: MeadowEntryArtPackageApproval = {
 			proofId: 'fallback-boundaries/fallback-001',
 			inputSha256: [
 				'9a5097eea014d092e57a8953be0dec2a16c1e6d29446f8b293338bf95a93752c',
-				'fc3dc1527fe518b9d9e51c207c2a696fc29b3af6e15ba0bec1a94301228d49d5'
+				'5a0a1ad0198e7d255c0c9b12fd0eb8703c93e4af32e10a8757f5d3bc0f50f996'
 			]
 		},
 		{
@@ -999,7 +999,7 @@ export const meadowEntryArtPackageApproval: MeadowEntryArtPackageApproval = {
 			proofId: 'fallback-boundaries/fallback-005',
 			inputSha256: [
 				'9a5097eea014d092e57a8953be0dec2a16c1e6d29446f8b293338bf95a93752c',
-				'fc3dc1527fe518b9d9e51c207c2a696fc29b3af6e15ba0bec1a94301228d49d5'
+				'5a0a1ad0198e7d255c0c9b12fd0eb8703c93e4af32e10a8757f5d3bc0f50f996'
 			]
 		},
 		{
@@ -1011,7 +1011,7 @@ export const meadowEntryArtPackageApproval: MeadowEntryArtPackageApproval = {
 			proofId: 'fallback-boundaries/fallback-011',
 			inputSha256: [
 				'9a5097eea014d092e57a8953be0dec2a16c1e6d29446f8b293338bf95a93752c',
-				'fc3dc1527fe518b9d9e51c207c2a696fc29b3af6e15ba0bec1a94301228d49d5'
+				'5a0a1ad0198e7d255c0c9b12fd0eb8703c93e4af32e10a8757f5d3bc0f50f996'
 			]
 		},
 		{
@@ -1023,7 +1023,7 @@ export const meadowEntryArtPackageApproval: MeadowEntryArtPackageApproval = {
 			proofId: 'fallback-boundaries/fallback-019',
 			inputSha256: [
 				'9a5097eea014d092e57a8953be0dec2a16c1e6d29446f8b293338bf95a93752c',
-				'fc3dc1527fe518b9d9e51c207c2a696fc29b3af6e15ba0bec1a94301228d49d5'
+				'5a0a1ad0198e7d255c0c9b12fd0eb8703c93e4af32e10a8757f5d3bc0f50f996'
 			]
 		},
 		{
@@ -1035,7 +1035,7 @@ export const meadowEntryArtPackageApproval: MeadowEntryArtPackageApproval = {
 			proofId: 'fallback-boundaries/fallback-029',
 			inputSha256: [
 				'9a5097eea014d092e57a8953be0dec2a16c1e6d29446f8b293338bf95a93752c',
-				'fc3dc1527fe518b9d9e51c207c2a696fc29b3af6e15ba0bec1a94301228d49d5'
+				'5a0a1ad0198e7d255c0c9b12fd0eb8703c93e4af32e10a8757f5d3bc0f50f996'
 			]
 		},
 		{
@@ -1047,7 +1047,7 @@ export const meadowEntryArtPackageApproval: MeadowEntryArtPackageApproval = {
 			proofId: 'fallback-boundaries/fallback-041',
 			inputSha256: [
 				'9a5097eea014d092e57a8953be0dec2a16c1e6d29446f8b293338bf95a93752c',
-				'fc3dc1527fe518b9d9e51c207c2a696fc29b3af6e15ba0bec1a94301228d49d5'
+				'5a0a1ad0198e7d255c0c9b12fd0eb8703c93e4af32e10a8757f5d3bc0f50f996'
 			]
 		},
 		{
@@ -1059,7 +1059,7 @@ export const meadowEntryArtPackageApproval: MeadowEntryArtPackageApproval = {
 			proofId: 'fallback-boundaries/fallback-054',
 			inputSha256: [
 				'9a5097eea014d092e57a8953be0dec2a16c1e6d29446f8b293338bf95a93752c',
-				'fc3dc1527fe518b9d9e51c207c2a696fc29b3af6e15ba0bec1a94301228d49d5'
+				'5a0a1ad0198e7d255c0c9b12fd0eb8703c93e4af32e10a8757f5d3bc0f50f996'
 			]
 		},
 		{
@@ -1071,7 +1071,7 @@ export const meadowEntryArtPackageApproval: MeadowEntryArtPackageApproval = {
 			proofId: 'fallback-boundaries/fallback-065',
 			inputSha256: [
 				'9a5097eea014d092e57a8953be0dec2a16c1e6d29446f8b293338bf95a93752c',
-				'fc3dc1527fe518b9d9e51c207c2a696fc29b3af6e15ba0bec1a94301228d49d5'
+				'5a0a1ad0198e7d255c0c9b12fd0eb8703c93e4af32e10a8757f5d3bc0f50f996'
 			]
 		},
 		{
@@ -1083,7 +1083,7 @@ export const meadowEntryArtPackageApproval: MeadowEntryArtPackageApproval = {
 			proofId: 'fallback-boundaries/fallback-073',
 			inputSha256: [
 				'9a5097eea014d092e57a8953be0dec2a16c1e6d29446f8b293338bf95a93752c',
-				'fc3dc1527fe518b9d9e51c207c2a696fc29b3af6e15ba0bec1a94301228d49d5'
+				'5a0a1ad0198e7d255c0c9b12fd0eb8703c93e4af32e10a8757f5d3bc0f50f996'
 			]
 		},
 		{
@@ -1095,7 +1095,7 @@ export const meadowEntryArtPackageApproval: MeadowEntryArtPackageApproval = {
 			proofId: 'fallback-boundaries/fallback-083',
 			inputSha256: [
 				'9a5097eea014d092e57a8953be0dec2a16c1e6d29446f8b293338bf95a93752c',
-				'fc3dc1527fe518b9d9e51c207c2a696fc29b3af6e15ba0bec1a94301228d49d5'
+				'5a0a1ad0198e7d255c0c9b12fd0eb8703c93e4af32e10a8757f5d3bc0f50f996'
 			]
 		},
 		{
@@ -1107,7 +1107,7 @@ export const meadowEntryArtPackageApproval: MeadowEntryArtPackageApproval = {
 			proofId: 'fallback-boundaries/fallback-093',
 			inputSha256: [
 				'9a5097eea014d092e57a8953be0dec2a16c1e6d29446f8b293338bf95a93752c',
-				'fc3dc1527fe518b9d9e51c207c2a696fc29b3af6e15ba0bec1a94301228d49d5'
+				'5a0a1ad0198e7d255c0c9b12fd0eb8703c93e4af32e10a8757f5d3bc0f50f996'
 			]
 		},
 		{
@@ -1119,7 +1119,7 @@ export const meadowEntryArtPackageApproval: MeadowEntryArtPackageApproval = {
 			proofId: 'fallback-boundaries/fallback-104',
 			inputSha256: [
 				'9a5097eea014d092e57a8953be0dec2a16c1e6d29446f8b293338bf95a93752c',
-				'fc3dc1527fe518b9d9e51c207c2a696fc29b3af6e15ba0bec1a94301228d49d5'
+				'5a0a1ad0198e7d255c0c9b12fd0eb8703c93e4af32e10a8757f5d3bc0f50f996'
 			]
 		},
 		{
@@ -1131,7 +1131,7 @@ export const meadowEntryArtPackageApproval: MeadowEntryArtPackageApproval = {
 			proofId: 'fallback-boundaries/fallback-117',
 			inputSha256: [
 				'9a5097eea014d092e57a8953be0dec2a16c1e6d29446f8b293338bf95a93752c',
-				'fc3dc1527fe518b9d9e51c207c2a696fc29b3af6e15ba0bec1a94301228d49d5'
+				'5a0a1ad0198e7d255c0c9b12fd0eb8703c93e4af32e10a8757f5d3bc0f50f996'
 			]
 		},
 		{
@@ -1143,7 +1143,7 @@ export const meadowEntryArtPackageApproval: MeadowEntryArtPackageApproval = {
 			proofId: 'fallback-boundaries/fallback-131',
 			inputSha256: [
 				'9a5097eea014d092e57a8953be0dec2a16c1e6d29446f8b293338bf95a93752c',
-				'fc3dc1527fe518b9d9e51c207c2a696fc29b3af6e15ba0bec1a94301228d49d5'
+				'5a0a1ad0198e7d255c0c9b12fd0eb8703c93e4af32e10a8757f5d3bc0f50f996'
 			]
 		},
 		{
@@ -1155,7 +1155,7 @@ export const meadowEntryArtPackageApproval: MeadowEntryArtPackageApproval = {
 			proofId: 'fallback-boundaries/fallback-143',
 			inputSha256: [
 				'9a5097eea014d092e57a8953be0dec2a16c1e6d29446f8b293338bf95a93752c',
-				'fc3dc1527fe518b9d9e51c207c2a696fc29b3af6e15ba0bec1a94301228d49d5'
+				'5a0a1ad0198e7d255c0c9b12fd0eb8703c93e4af32e10a8757f5d3bc0f50f996'
 			]
 		},
 		{
@@ -1167,7 +1167,7 @@ export const meadowEntryArtPackageApproval: MeadowEntryArtPackageApproval = {
 			proofId: 'fallback-boundaries/fallback-153',
 			inputSha256: [
 				'9a5097eea014d092e57a8953be0dec2a16c1e6d29446f8b293338bf95a93752c',
-				'fc3dc1527fe518b9d9e51c207c2a696fc29b3af6e15ba0bec1a94301228d49d5'
+				'5a0a1ad0198e7d255c0c9b12fd0eb8703c93e4af32e10a8757f5d3bc0f50f996'
 			]
 		},
 		{
@@ -1179,7 +1179,7 @@ export const meadowEntryArtPackageApproval: MeadowEntryArtPackageApproval = {
 			proofId: 'fallback-boundaries/fallback-155',
 			inputSha256: [
 				'9a5097eea014d092e57a8953be0dec2a16c1e6d29446f8b293338bf95a93752c',
-				'fc3dc1527fe518b9d9e51c207c2a696fc29b3af6e15ba0bec1a94301228d49d5'
+				'5a0a1ad0198e7d255c0c9b12fd0eb8703c93e4af32e10a8757f5d3bc0f50f996'
 			]
 		},
 		{
@@ -1191,7 +1191,7 @@ export const meadowEntryArtPackageApproval: MeadowEntryArtPackageApproval = {
 			proofId: 'fallback-boundaries/fallback-161',
 			inputSha256: [
 				'9a5097eea014d092e57a8953be0dec2a16c1e6d29446f8b293338bf95a93752c',
-				'fc3dc1527fe518b9d9e51c207c2a696fc29b3af6e15ba0bec1a94301228d49d5'
+				'5a0a1ad0198e7d255c0c9b12fd0eb8703c93e4af32e10a8757f5d3bc0f50f996'
 			]
 		},
 		{
@@ -1203,7 +1203,7 @@ export const meadowEntryArtPackageApproval: MeadowEntryArtPackageApproval = {
 			proofId: 'fallback-boundaries/fallback-163',
 			inputSha256: [
 				'9a5097eea014d092e57a8953be0dec2a16c1e6d29446f8b293338bf95a93752c',
-				'fc3dc1527fe518b9d9e51c207c2a696fc29b3af6e15ba0bec1a94301228d49d5'
+				'5a0a1ad0198e7d255c0c9b12fd0eb8703c93e4af32e10a8757f5d3bc0f50f996'
 			]
 		},
 		{
@@ -1215,7 +1215,7 @@ export const meadowEntryArtPackageApproval: MeadowEntryArtPackageApproval = {
 			proofId: 'fallback-boundaries/fallback-167',
 			inputSha256: [
 				'9a5097eea014d092e57a8953be0dec2a16c1e6d29446f8b293338bf95a93752c',
-				'fc3dc1527fe518b9d9e51c207c2a696fc29b3af6e15ba0bec1a94301228d49d5'
+				'5a0a1ad0198e7d255c0c9b12fd0eb8703c93e4af32e10a8757f5d3bc0f50f996'
 			]
 		},
 		{
@@ -1227,7 +1227,7 @@ export const meadowEntryArtPackageApproval: MeadowEntryArtPackageApproval = {
 			proofId: 'fallback-boundaries/fallback-169',
 			inputSha256: [
 				'9a5097eea014d092e57a8953be0dec2a16c1e6d29446f8b293338bf95a93752c',
-				'fc3dc1527fe518b9d9e51c207c2a696fc29b3af6e15ba0bec1a94301228d49d5'
+				'5a0a1ad0198e7d255c0c9b12fd0eb8703c93e4af32e10a8757f5d3bc0f50f996'
 			]
 		},
 		{
@@ -1239,7 +1239,7 @@ export const meadowEntryArtPackageApproval: MeadowEntryArtPackageApproval = {
 			proofId: 'fallback-boundaries/fallback-171',
 			inputSha256: [
 				'9a5097eea014d092e57a8953be0dec2a16c1e6d29446f8b293338bf95a93752c',
-				'fc3dc1527fe518b9d9e51c207c2a696fc29b3af6e15ba0bec1a94301228d49d5'
+				'5a0a1ad0198e7d255c0c9b12fd0eb8703c93e4af32e10a8757f5d3bc0f50f996'
 			]
 		},
 		{
@@ -1251,7 +1251,7 @@ export const meadowEntryArtPackageApproval: MeadowEntryArtPackageApproval = {
 			proofId: 'fallback-boundaries/fallback-173',
 			inputSha256: [
 				'9a5097eea014d092e57a8953be0dec2a16c1e6d29446f8b293338bf95a93752c',
-				'fc3dc1527fe518b9d9e51c207c2a696fc29b3af6e15ba0bec1a94301228d49d5'
+				'5a0a1ad0198e7d255c0c9b12fd0eb8703c93e4af32e10a8757f5d3bc0f50f996'
 			]
 		},
 		{
@@ -1263,7 +1263,7 @@ export const meadowEntryArtPackageApproval: MeadowEntryArtPackageApproval = {
 			proofId: 'fallback-boundaries/fallback-174',
 			inputSha256: [
 				'9a5097eea014d092e57a8953be0dec2a16c1e6d29446f8b293338bf95a93752c',
-				'fc3dc1527fe518b9d9e51c207c2a696fc29b3af6e15ba0bec1a94301228d49d5'
+				'5a0a1ad0198e7d255c0c9b12fd0eb8703c93e4af32e10a8757f5d3bc0f50f996'
 			]
 		},
 		{
@@ -1275,7 +1275,7 @@ export const meadowEntryArtPackageApproval: MeadowEntryArtPackageApproval = {
 			proofId: 'fallback-boundaries/fallback-175',
 			inputSha256: [
 				'9a5097eea014d092e57a8953be0dec2a16c1e6d29446f8b293338bf95a93752c',
-				'fc3dc1527fe518b9d9e51c207c2a696fc29b3af6e15ba0bec1a94301228d49d5'
+				'5a0a1ad0198e7d255c0c9b12fd0eb8703c93e4af32e10a8757f5d3bc0f50f996'
 			]
 		},
 		{
@@ -1287,7 +1287,7 @@ export const meadowEntryArtPackageApproval: MeadowEntryArtPackageApproval = {
 			proofId: 'fallback-boundaries/fallback-177',
 			inputSha256: [
 				'9a5097eea014d092e57a8953be0dec2a16c1e6d29446f8b293338bf95a93752c',
-				'fc3dc1527fe518b9d9e51c207c2a696fc29b3af6e15ba0bec1a94301228d49d5'
+				'5a0a1ad0198e7d255c0c9b12fd0eb8703c93e4af32e10a8757f5d3bc0f50f996'
 			]
 		},
 		{
@@ -1302,7 +1302,7 @@ export const meadowEntryArtPackageApproval: MeadowEntryArtPackageApproval = {
 				'f1184b045c27c544ac18937a4f8ccfa12cd386319b1722be5d808aea8048ade6',
 				'c9ffa6e50a8e3c9f9888a642078094e95d9175158df8d262de8ac94b1ab9124e',
 				'2d0a6703de1a404e49c0746f092a4c6f9f113ae17cd8bc35de635b5ec084ce45',
-				'fc3dc1527fe518b9d9e51c207c2a696fc29b3af6e15ba0bec1a94301228d49d5'
+				'5a0a1ad0198e7d255c0c9b12fd0eb8703c93e4af32e10a8757f5d3bc0f50f996'
 			]
 		},
 		{
@@ -1317,7 +1317,7 @@ export const meadowEntryArtPackageApproval: MeadowEntryArtPackageApproval = {
 				'f1184b045c27c544ac18937a4f8ccfa12cd386319b1722be5d808aea8048ade6',
 				'c9ffa6e50a8e3c9f9888a642078094e95d9175158df8d262de8ac94b1ab9124e',
 				'2d0a6703de1a404e49c0746f092a4c6f9f113ae17cd8bc35de635b5ec084ce45',
-				'fc3dc1527fe518b9d9e51c207c2a696fc29b3af6e15ba0bec1a94301228d49d5'
+				'5a0a1ad0198e7d255c0c9b12fd0eb8703c93e4af32e10a8757f5d3bc0f50f996'
 			]
 		},
 		{
@@ -1332,7 +1332,7 @@ export const meadowEntryArtPackageApproval: MeadowEntryArtPackageApproval = {
 				'f1184b045c27c544ac18937a4f8ccfa12cd386319b1722be5d808aea8048ade6',
 				'c9ffa6e50a8e3c9f9888a642078094e95d9175158df8d262de8ac94b1ab9124e',
 				'2d0a6703de1a404e49c0746f092a4c6f9f113ae17cd8bc35de635b5ec084ce45',
-				'fc3dc1527fe518b9d9e51c207c2a696fc29b3af6e15ba0bec1a94301228d49d5'
+				'5a0a1ad0198e7d255c0c9b12fd0eb8703c93e4af32e10a8757f5d3bc0f50f996'
 			]
 		},
 		{
@@ -1347,7 +1347,7 @@ export const meadowEntryArtPackageApproval: MeadowEntryArtPackageApproval = {
 				'f1184b045c27c544ac18937a4f8ccfa12cd386319b1722be5d808aea8048ade6',
 				'c9ffa6e50a8e3c9f9888a642078094e95d9175158df8d262de8ac94b1ab9124e',
 				'2d0a6703de1a404e49c0746f092a4c6f9f113ae17cd8bc35de635b5ec084ce45',
-				'fc3dc1527fe518b9d9e51c207c2a696fc29b3af6e15ba0bec1a94301228d49d5'
+				'5a0a1ad0198e7d255c0c9b12fd0eb8703c93e4af32e10a8757f5d3bc0f50f996'
 			]
 		}
 	],
