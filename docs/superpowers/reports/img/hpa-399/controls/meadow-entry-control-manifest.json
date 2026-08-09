@@ -28,9 +28,9 @@
     "meadow-entry-crop-manifest.json"
   ],
   "fingerprints": {
-    "gameplaySource": "e1b952c8f0471709486509a701936e0ec20eb71da57737f24e43afa3b98986b3",
+    "gameplaySource": "d02dd7291f7fece244f85e35de66b1288e5090e32edf3e032322e0aaed7fe2a1",
     "authoringContract": "edf2084959761f987093bcd7a8aa33e270eea9426370cef615a791b2db55db4d",
-    "combinedControl": "03b4ccf5fc969afe2f3b8f74f3f4da35528fd3cae03c0aa86c9ca2e4436ece5a"
+    "combinedControl": "76968d88f8443e2c42f465c63895924895d62ddb6691b85588d02e8756f50da8"
   },
   "predecessor": {
     "hpa307ArtifactHashes": {
@@ -64,8 +64,8 @@
     "src/lib/game/content/maps/regions/crossroads.ts": "5fd7898f55b7f8c55c9d489a27291721027972df3451afe9d1dba6f89f39887c",
     "src/lib/game/content/maps/regions/paths.ts": "cdd5ab59707a1e829cc0bb679703f76a265e87279d174418f3bf0ae45ab243f7",
     "src/lib/game/content/maps/blocker-rendering.ts": "d954110dc507d59656a21ee58bd5a1095304ed0d5b2c9db98fd09f4fc2e38223",
-    "src/lib/game/save/save-state.ts": "6198f56bd219f0233d697f103bba548b53f1c40d20ac58b55f7cfbd44025daaa",
-    "src/lib/game/core/collision.ts": "18b5cacc81d1ddf568a8bdc966327fd9946831a918104c766fe2a6d0ad8bd13d"
+    "src/lib/game/save/save-state.ts": "0208c30db08f620cd92eda454af4fe04be84e5525221eb9e50144fa621caffc0",
+    "src/lib/game/core/collision.ts": "5f487c10b01a6b10f4a1ad676d04f2a8c1c1f48e84d02d9ef270b98745a09e24"
   },
   "rendererMaskMaterialContract": {
     "version": 1,
