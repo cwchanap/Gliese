@@ -373,7 +373,7 @@ function expectRouteClear(
 }
 ```
 
-This remains test-only geometry. It models the three movement constraints relevant to these routes—map bounds, blockers, collidable interior furniture, and interactive NPC bodies—without creating pathfinding or a runtime room graph.
+This remains test-only geometry. It models the four movement constraints relevant to these routes—map bounds, blockers, collidable interior furniture, and interactive NPC bodies—without creating pathfinding or a runtime room graph.
 
 Update the existing ruins route assertions to call `expectRouteClear(map, [from, to], label)` so there is one route contract in the file.
 
