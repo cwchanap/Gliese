@@ -4,3 +4,6 @@
  * The value 12 is the radius the collision geometry requires.
  */
 export const PLAYER_COLLISION_RADIUS = 12;
+export const NPC_PACK_COLLISION_RADIUS = 17;
+export const STARTER_NPC_COLLISION_RADIUS = 11;
+export const NPC_INTERACTION_RADIUS = 36;
