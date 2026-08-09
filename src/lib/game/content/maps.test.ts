@@ -24,6 +24,12 @@ import {
 } from '$lib/game/content/assets';
 import { getItem } from '$lib/game/content/items';
 import { getShop } from '$lib/game/content/shops';
+import {
+	NPC_INTERACTION_RADIUS,
+	NPC_PACK_COLLISION_RADIUS,
+	PLAYER_COLLISION_RADIUS,
+	STARTER_NPC_COLLISION_RADIUS
+} from '$lib/game/core/collision';
 import { t } from '$lib/game/i18n/translate';
 import {
 	guildHallMap,
@@ -43,6 +49,7 @@ import { sundropVillageLayered } from '$lib/game/content/maps/regions/village-la
 import {
 	collectLandmarkRects,
 	collectStrictCollisionRects,
+	isInsideCollisionRect,
 	isInsideAnyCollisionRect
 } from '$lib/game/save/save-state';
 
@@ -95,16 +102,6 @@ function isPointInsideRect(point: { x: number; y: number }, rect: CenterRect) {
 	);
 }
 
-function expectRectClearOfRect(rect: CenterRect, blocker: CenterRect, message: string) {
-	const overlaps =
-		rect.x - rect.width / 2 < blocker.x + blocker.width / 2 &&
-		rect.x + rect.width / 2 > blocker.x - blocker.width / 2 &&
-		rect.y - rect.height / 2 < blocker.y + blocker.height / 2 &&
-		rect.y + rect.height / 2 > blocker.y - blocker.height / 2;
-
-	expect(overlaps, message).toBe(false);
-}
-
 /**
  * Two center-based rects are "contiguous" when they share an edge or overlap —
  * the geometric definition of a connected path network. Inclusive bounds so an
@@ -145,42 +142,62 @@ function expectPointClearOfInteriorPropCollisions(
 	point: { x: number; y: number },
 	label: string
 ) {
-	const pointRect = { x: point.x, y: point.y, width: 24, height: 24 };
-
 	for (const prop of map.interiorProps ?? []) {
-		if (!prop.collision) {
-			continue;
-		}
-
-		expectRectClearOfRect(pointRect, prop.collision, `${map.id}:${label} blocked by ${prop.id}`);
+		if (!prop.collision) continue;
+		expect(
+			isInsideCollisionRect(point.x, point.y, prop.collision, PLAYER_COLLISION_RADIUS),
+			`${map.id}:${label} blocked by ${prop.id}`
+		).toBe(false);
 	}
 }
 
-function expectHorizontalRouteClear(
+function getTestNpcBodyRadius(npc: NonNullable<WorldMapDefinition['npcs']>[number]) {
+	return (
+		PLAYER_COLLISION_RADIUS +
+		(isNpcPackFrameName(npc.frameName) ? NPC_PACK_COLLISION_RADIUS : STARTER_NPC_COLLISION_RADIUS)
+	);
+}
+
+function expectRouteClear(
 	map: WorldMapDefinition,
-	route: { id: string; from: { x: number; y: number }; to: { x: number; y: number } }
+	waypoints: Array<{ x: number; y: number }>,
+	label: string
 ) {
-	expect(route.from.y).toBe(route.to.y);
+	for (let index = 1; index < waypoints.length; index += 1) {
+		const from = waypoints[index - 1]!;
+		const to = waypoints[index]!;
+		expect(from.x === to.x || from.y === to.y, `${label} must be axis-aligned`).toBe(true);
 
-	const startX = Math.min(route.from.x, route.to.x);
-	const endX = Math.max(route.from.x, route.to.x);
-	const sampleXs = new Set<number>();
+		const distance = Math.max(Math.abs(to.x - from.x), Math.abs(to.y - from.y));
+		const steps = Math.max(1, Math.ceil(distance / 16));
+		for (let step = 0; step <= steps; step += 1) {
+			const ratio = step / steps;
+			const point = {
+				x: from.x + (to.x - from.x) * ratio,
+				y: from.y + (to.y - from.y) * ratio
+			};
 
-	for (let x = startX; x <= endX; x += 32) {
-		sampleXs.add(x);
-	}
-	sampleXs.add(endX);
+			expect(point.x).toBeGreaterThanOrEqual(PLAYER_COLLISION_RADIUS);
+			expect(point.y).toBeGreaterThanOrEqual(PLAYER_COLLISION_RADIUS);
+			expect(point.x).toBeLessThanOrEqual(map.width * 32 - PLAYER_COLLISION_RADIUS);
+			expect(point.y).toBeLessThanOrEqual(map.height * 32 - PLAYER_COLLISION_RADIUS);
 
-	for (const x of [...sampleXs].sort((left, right) => left - right)) {
-		const point = { x, y: route.from.y };
-		const overlappingBlocker = (map.blockers ?? []).find((blocker) =>
-			isPointInsideRect(point, blocker)
-		);
+			for (const blocker of map.blockers ?? []) {
+				expect(
+					isInsideCollisionRect(point.x, point.y, blocker, PLAYER_COLLISION_RADIUS),
+					`${map.id}:${label} blocked by ${blocker.id}`
+				).toBe(false);
+			}
 
-		expect(
-			overlappingBlocker,
-			`${map.id}:${route.id} blocked at (${point.x}, ${point.y})`
-		).toBeUndefined();
+			expectPointClearOfInteriorPropCollisions(map, point, label);
+
+			for (const npc of map.npcs ?? []) {
+				expect(
+					Math.hypot(point.x - npc.x, point.y - npc.y),
+					`${map.id}:${label} crosses NPC ${npc.id}`
+				).toBeGreaterThanOrEqual(getTestNpcBodyRadius(npc));
+			}
+		}
 	}
 }
 
@@ -314,7 +331,7 @@ describe('opening map content', () => {
 				y: 5_040,
 				toMapId: 'guild-hall',
 				showMarker: false,
-				arrival: { x: 256, y: 288, facing: 'up' }
+				arrival: { x: 384, y: 480, facing: 'up' }
 			},
 			{
 				id: 'meadow-to-shrine-of-aurora',
@@ -398,6 +415,26 @@ describe('opening map content', () => {
 				arrival: { x: 624, y: 5_752, facing: 'down' }
 			}
 		]);
+		const villageInteriors = [
+			heroHouseMap,
+			guildHallMap,
+			itemShopMap,
+			villagerHouse1Map,
+			villagerHouse2Map,
+			villagerHouse3Map,
+			shrineOfAuroraInteriorMap
+		];
+
+		for (const interior of villageInteriors) {
+			const inbound = meadowEntryMap.transitions.find(
+				(transition) => transition.toMapId === interior.id
+			);
+			expect(inbound).toBeDefined();
+			expect(inbound!.arrival).toEqual({
+				...interior.spawn,
+				facing: interior.spawnDirection
+			});
+		}
 		expect(
 			meadowEntryMap.transitions.find((transition) =>
 				transition.id.includes('whispering-cave-ruins-threshold')
@@ -755,21 +792,63 @@ describe('opening map content', () => {
 					overlappingBlocker,
 					`${map.id}:${transition.id} arrival overlaps ${targetMap.id} blocker`
 				).toBeUndefined();
+				expectPointClearOfInteriorPropCollisions(
+					targetMap,
+					transition.arrival,
+					`${map.id}:${transition.id} arrival`
+				);
 			}
 		}
 	});
 
-	it('keeps required ruin progression corridors clear of blockers', () => {
-		expectHorizontalRouteClear(ruinsThresholdMap, {
-			id: 'meadow-arrival-to-core-stair',
-			from: { x: 512, y: 3_200 },
-			to: { x: 5_888, y: 3_200 }
-		});
-		expectHorizontalRouteClear(ruinsCoreMap, {
-			id: 'core-arrival-to-warden',
-			from: { x: 512, y: 3_200 },
-			to: { x: 4_992, y: 3_200 }
-		});
+	it('keeps required ruin progression corridors and Guild Hall routes clear', () => {
+		expectRouteClear(
+			ruinsThresholdMap,
+			[
+				{ x: 512, y: 3_200 },
+				{ x: 5_888, y: 3_200 }
+			],
+			'meadow-arrival-to-core-stair'
+		);
+		expectRouteClear(
+			ruinsCoreMap,
+			[
+				{ x: 512, y: 3_200 },
+				{ x: 4_992, y: 3_200 }
+			],
+			'core-arrival-to-warden'
+		);
+
+		const entrance = { x: 384, y: 480 };
+		const hub = { x: 384, y: 384 };
+		const guildMasterApproach = { x: 208, y: 176 };
+		const quartermasterApproach = { x: 560, y: 176 };
+
+		expectRouteClear(guildHallMap, [entrance, hub], 'entrance-to-hub');
+		expectRouteClear(
+			guildHallMap,
+			[hub, { x: 192, y: 384 }, { x: 192, y: 208 }, { x: 208, y: 208 }, guildMasterApproach],
+			'hub-to-guild-master'
+		);
+		expectRouteClear(guildHallMap, [hub, { x: 384, y: 208 }], 'hub-to-records');
+		expectRouteClear(
+			guildHallMap,
+			[hub, { x: 560, y: 384 }, quartermasterApproach],
+			'hub-to-quartermaster'
+		);
+
+		const guildMaster = guildHallMap.npcs!.find((npc) => npc.id === 'guild-master')!;
+		const quartermaster = guildHallMap.npcs!.find((npc) => npc.id === 'guild-quartermaster')!;
+
+		for (const [npc, approach] of [
+			[guildMaster, guildMasterApproach],
+			[quartermaster, quartermasterApproach]
+		] as const) {
+			const distance = Math.hypot(approach.x - npc.x, approach.y - npc.y);
+			expect(distance).toBeGreaterThan(getTestNpcBodyRadius(npc));
+			expect(distance).toBeLessThanOrEqual(PLAYER_COLLISION_RADIUS + NPC_INTERACTION_RADIUS);
+			expectPointClearOfInteriorPropCollisions(guildHallMap, approach, `${npc.id}-approach`);
+		}
 	});
 
 	it('keeps every authored outdoor layout primitive inside map bounds', () => {
@@ -827,10 +906,9 @@ describe('opening map content', () => {
 		}
 	});
 
-	it('registers all compact village interiors', () => {
-		const interiors = [
+	it('registers compact village interiors and the expanded Guild Hall', () => {
+		const compactInteriors = [
 			heroHouseMap,
-			guildHallMap,
 			itemShopMap,
 			villagerHouse1Map,
 			villagerHouse2Map,
@@ -839,19 +917,31 @@ describe('opening map content', () => {
 		];
 
 		expect(maps['hero-house']).toBe(heroHouseMap);
-		expect(maps['guild-hall']).toBe(guildHallMap);
 		expect(maps['item-shop']).toBe(itemShopMap);
 		expect(maps['villager-house-1']).toBe(villagerHouse1Map);
 		expect(maps['villager-house-2']).toBe(villagerHouse2Map);
 		expect(maps['villager-house-3']).toBe(villagerHouse3Map);
 		expect(maps['shrine-of-aurora-interior']).toBe(shrineOfAuroraInteriorMap);
 
-		for (const map of interiors) {
+		for (const map of compactInteriors) {
 			expect(map.width).toBe(16);
 			expect(map.height).toBe(12);
 			expect(map.transitions).toHaveLength(1);
 			expect(map.transitions[0].toMapId).toBe('meadow-entry');
 		}
+
+		expect(maps['guild-hall']).toBe(guildHallMap);
+		expect(guildHallMap.width).toBe(24);
+		expect(guildHallMap.height).toBe(18);
+		expect(guildHallMap.spawnDirection).toBe('up');
+		expect(guildHallMap.spawn).toEqual({ x: 384, y: 480 });
+		expect(guildHallMap.transitions[0]).toMatchObject({
+			id: 'guild-hall-to-meadow',
+			x: 384,
+			y: 528,
+			toMapId: 'meadow-entry',
+			arrival: { x: 1656, y: 5040, facing: 'down' }
+		});
 	});
 
 	it('decorates compact village interiors with bounded props and ambient NPCs', () => {
@@ -927,10 +1017,6 @@ describe('opening map content', () => {
 
 			expectPointClearOfInteriorPropCollisions(map, map.spawn, 'spawn');
 			expectPointClearOfInteriorPropCollisions(map, map.transitions[0], 'exit');
-
-			for (const npc of map.npcs ?? []) {
-				expectPointClearOfInteriorPropCollisions(map, npc, npc.id);
-			}
 		}
 	});
 
@@ -1031,8 +1117,8 @@ describe('opening map content', () => {
 		expect(guildHallMap.npcs).toMatchObject([
 			{
 				id: 'guild-master',
-				x: 192,
-				y: 144,
+				x: 176,
+				y: 176,
 				nameKey: 'content.maps.npcs.guild-master.name',
 				dialogueId: 'guild-master',
 				role: 'guild',
@@ -1040,8 +1126,8 @@ describe('opening map content', () => {
 			},
 			{
 				id: 'guild-quartermaster',
-				x: 352,
-				y: 144,
+				x: 592,
+				y: 176,
 				nameKey: 'content.maps.npcs.guild-quartermaster.name',
 				dialogueId: 'guild-quartermaster',
 				role: 'shopkeeper',
