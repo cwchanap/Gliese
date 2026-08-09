@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { meadowEntryMap } from '$lib/game/content/maps';
+import { guildHallMap, meadowEntryMap } from '$lib/game/content/maps';
 import { startingPlayer } from '$lib/game/content/player';
 import { mainQuestId } from '$lib/game/content/quests';
 import { PLAYER_COLLISION_RADIUS } from '$lib/game/core/collision';
@@ -235,6 +235,34 @@ describe('save state', () => {
 			PLAYER_COLLISION_RADIUS
 		);
 	}
+
+	it('normalizes loaded guild hall positions out of interior prop collision', () => {
+		const collision = guildHallMap.interiorProps?.find((prop) => prop.collision)?.collision;
+		expect(collision).toBeDefined();
+
+		const save = createNewSaveState();
+		save.mapId = guildHallMap.id;
+		save.player = {
+			...save.player,
+			x: collision!.x,
+			y: collision!.y
+		};
+
+		const parsed = parseSaveState(serializeSaveState(save));
+		expect(parsed).not.toBeNull();
+
+		const interiorCollisions = (guildHallMap.interiorProps ?? []).flatMap((prop) =>
+			prop.collision ? [prop.collision] : []
+		);
+		expect(
+			isInsideAnyCollisionRect(
+				parsed!.player.x,
+				parsed!.player.y,
+				interiorCollisions,
+				PLAYER_COLLISION_RADIUS
+			)
+		).toBe(false);
+	});
 
 	it('nudges a saved position inside a wall blocker to the nearest walkable tile', () => {
 		// (700, 5430) is inside village-block-30-13 (garden-hedge at (688, 5408), 32x192)

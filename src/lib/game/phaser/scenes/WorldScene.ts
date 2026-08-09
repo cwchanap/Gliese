@@ -69,7 +69,12 @@ import {
 	type BattleResult
 } from '$lib/game/core/battle';
 import { canReceiveHit } from '$lib/game/core/combat';
-import { PLAYER_COLLISION_RADIUS } from '$lib/game/core/collision';
+import {
+	NPC_INTERACTION_RADIUS,
+	NPC_PACK_COLLISION_RADIUS,
+	PLAYER_COLLISION_RADIUS,
+	STARTER_NPC_COLLISION_RADIUS
+} from '$lib/game/core/collision';
 import { equipItem, unequipSlot } from '$lib/game/core/equipment';
 import { resolveMovementVector } from '$lib/game/core/input';
 import { addItem, consumeStackItem } from '$lib/game/core/inventory';
@@ -281,9 +286,6 @@ export class WorldScene extends Phaser.Scene {
 	private static readonly hitImpactSparkTint = 0xfff7d6;
 	private static readonly maxMovementDeltaMs = 250;
 	private static readonly landmarkDoorwayClearanceWidth = 56;
-	private static readonly npcPackCollisionRadius = 17;
-	private static readonly starterNpcCollisionRadius = 11;
-	private static readonly npcInteractionRadius = 36;
 	private static readonly npcPackDisplaySize = { width: 96, height: 87 };
 	private static readonly playerRadius = PLAYER_COLLISION_RADIUS;
 	private static readonly starterNpcDisplaySize = { width: 60, height: 54 };
@@ -2568,8 +2570,8 @@ export class WorldScene extends Phaser.Scene {
 
 	private getNpcCollisionRadius(npc: MapNpc): number {
 		return isNpcPackFrameName(npc.frameName)
-			? WorldScene.npcPackCollisionRadius
-			: WorldScene.starterNpcCollisionRadius;
+			? NPC_PACK_COLLISION_RADIUS
+			: STARTER_NPC_COLLISION_RADIUS;
 	}
 
 	private isPlayerMovementBlockedByInteriorProp(
@@ -3342,9 +3344,7 @@ export class WorldScene extends Phaser.Scene {
 				npc,
 				distance: Phaser.Math.Distance.Between(this.player!.x, this.player!.y, npc.x, npc.y)
 			}))
-			.filter(
-				({ distance }) => distance <= WorldScene.playerRadius + WorldScene.npcInteractionRadius
-			)
+			.filter(({ distance }) => distance <= PLAYER_COLLISION_RADIUS + NPC_INTERACTION_RADIUS)
 			.sort((left, right) => left.distance - right.distance)[0]?.npc;
 	}
 

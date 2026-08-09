@@ -381,17 +381,21 @@ function normalizePlayerPosition(mapId: string, player: SaveState['player']): Sa
 	const x = clamp(player.x, 0, map.width * 32);
 	const y = clamp(player.y, 0, map.height * 32);
 
-	// After bounds clamping, check if the position is inside any strict-rect
-	// collision (blockers, fences, decor collision) or any landmark bounds.
-	// Strict-rect collision uses isMovementBlockedByStrictRect in WorldScene,
-	// which traps the player — every small step keeps the target inside the
-	// padded rect, so no movement is possible. Landmarks use escape-aware
-	// collision (allows moving outward from inside), so they are not soft-locks,
-	// but placing the player inside an opaque building is still wrong — the
-	// player would appear embedded in the wall sprite. Nudge to the nearest
-	// walkable tile center outside both strict collision and landmark bounds to
-	// prevent soft-locks and visual embedding after map layout changes.
-	const collisionRects = [...collectStrictCollisionRects(map), ...collectLandmarkRects(map)];
+	// After bounds clamping, check whether the position is inside strict movement
+	// collision (blockers, fences, and collidable map decor), or escape-aware
+	// runtime collision (landmarks and collidable interior props). Strict-rect
+	// collision uses isMovementBlockedByStrictRect in WorldScene, which traps the
+	// player because every small step keeps the target inside the padded rect.
+	// Landmarks and collidable interior props allow moving outward at runtime, but
+	// are still invalid loaded positions because they visually embed the player in
+	// opaque geometry. Nudge to the nearest walkable tile center outside all of
+	// these collision rects to prevent soft-locks and visual embedding after map
+	// layout changes.
+	const collisionRects = [
+		...collectStrictCollisionRects(map),
+		...collectInteriorPropCollisionRects(map),
+		...collectLandmarkRects(map)
+	];
 	if (!isInsideAnyCollisionRect(x, y, collisionRects, PLAYER_COLLISION_RADIUS)) {
 		return { ...player, x, y };
 	}
@@ -420,6 +424,7 @@ interface CollisionRect {
 }
 
 export function collectStrictCollisionRects(map: WorldMapDefinition): CollisionRect[] {
+	// Blockers, fences, and collidable map decor use strict movement collision at runtime.
 	const rects: CollisionRect[] = [];
 	for (const blocker of map.blockers ?? []) {
 		rects.push(blocker);
@@ -435,7 +440,15 @@ export function collectStrictCollisionRects(map: WorldMapDefinition): CollisionR
 	return rects;
 }
 
+function collectInteriorPropCollisionRects(map: WorldMapDefinition): CollisionRect[] {
+	// Collidable interior props use escape-aware runtime collision, but saved positions inside
+	// their opaque geometry must still be rescued to a visibly walkable tile.
+	return (map.interiorProps ?? []).flatMap((prop) => (prop.collision ? [prop.collision] : []));
+}
+
 export function collectLandmarkRects(map: WorldMapDefinition): CollisionRect[] {
+	// Landmarks use escape-aware runtime collision, but remain invalid loaded positions when
+	// they would visually embed the player in opaque geometry.
 	const rects: CollisionRect[] = [];
 	for (const landmark of map.landmarks ?? []) {
 		const bounds = {
@@ -525,13 +538,13 @@ export function isInsideCollisionRect(
  * Searches outward from the tile containing (x, y) for the nearest tile
  * whose center is not inside any padded collision rect. Used by
  * {@link normalizePlayerPosition} to rescue saves that land inside a
- * wall, fence, or decor collision rect.
+ * wall, fence, collidable map decor, landmark, or collidable interior prop.
  *
  * @param x - World-space x coordinate of the position to search from.
  * @param y - World-space y coordinate of the position to search from.
  * @param mapWidth - Map width in tiles; bounds the search horizontally.
  * @param mapHeight - Map height in tiles; bounds the search vertically.
- * @param rects - Strict collision rects (blockers, fences, decor) to avoid.
+ * @param rects - Collision rects to avoid while rescuing the loaded position.
  * @param padding - Pixels to expand each rect by when testing containment
  *   (matches the player radius so padded-trapped positions are rejected).
  * @returns The world-space center of the nearest walkable tile, or `null`
