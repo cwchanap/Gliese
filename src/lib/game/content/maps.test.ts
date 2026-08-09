@@ -158,6 +158,24 @@ function getTestNpcBodyRadius(npc: NonNullable<WorldMapDefinition['npcs']>[numbe
 	);
 }
 
+/**
+ * Asserts that an axis-aligned waypoint route through `map` is walkable.
+ *
+ * Walks each consecutive waypoint pair in 16px increments and, at every
+ * sampled point, asserts the point stays inside the map bounds (with the
+ * player collision radius as margin), is not inside any `map.blockers`
+ * collision rect, is not blocked by any collidable `map.interiorProps`,
+ * and keeps clear of every `map.npcs` body radius. Consecutive waypoints
+ * must share an x or y coordinate (axis-aligned segments).
+ *
+ * @param map - The `WorldMapDefinition` whose blockers, interior props,
+ *   NPCs, and tile dimensions bound the route.
+ * @param waypoints - Ordered `Array<{ x: number; y: number }>` of route
+ *   points; each adjacent pair must be axis-aligned.
+ * @param label - Human-readable `string` used in failure messages to
+ *   identify which route segment was blocked.
+ * @returns void - this helper performs assertions only and returns nothing.
+ */
 function expectRouteClear(
 	map: WorldMapDefinition,
 	waypoints: Array<{ x: number; y: number }>,
