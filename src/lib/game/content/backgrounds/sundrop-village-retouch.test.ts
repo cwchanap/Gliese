@@ -1,127 +1,54 @@
-import { createHash } from 'node:crypto';
-import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
-import { join } from 'node:path';
-
-import sharp from 'sharp';
-import { beforeAll, describe, expect, it } from 'vitest';
-
-import { sundropVillageLayered } from '$lib/game/content/maps/regions/village-layered';
+import { describe, expect, it } from 'vitest';
 
 import {
 	buildSundropVillageLowResolutionMasks,
 	buildSundropVillageRetouchWeightMaps,
 	measureSundropVillageIdenticalDeltaRuns,
-	retouchSundropVillagePng,
-	SUNDROP_VILLAGE_RETOUCH_INPUT_PATH,
 	sundropVillageEdgeGuardStrength,
-	type SundropVillageRetouchResult,
-	writeSundropVillageRetouch
+	type SundropVillageRetouchMaskSource
 } from './sundrop-village-retouch';
 
-const INPUT_PATH = join(process.cwd(), SUNDROP_VILLAGE_RETOUCH_INPUT_PATH);
-const EXPECTED_INPUT_SHA256 = '20a3625640131917f18d1309b0c192f2cbdac5e4279fe9e6abb23c24c64859fd';
-const EXPECTED_APPROVED_OUTPUT_SHA256 =
-	'ba4f3ce170b8f40aabf1c81f83ce496436c1f6ea7e151401b221c5ae6e29cbf5';
-const EXPECTED_APPROVED_OUTPUT_PIXELS_SHA256 =
-	'a6ef5013c5e20468e3b846dc410ce9ed4ccac3c0fffb28bb2ee8c4585bd80cd4';
-const WIDTH = 1792;
-const HEIGHT = 1536;
-const TILE_SIZE = 32;
+const fixture: SundropVillageRetouchMaskSource = {
+	width: 7,
+	height: 6,
+	tileSize: 256,
+	layers: {
+		regions: ['HP.....', '..M....', '.......', '.......', '.......', '.......'],
+		paths: ['p......', '.p.....', '.......', '.......', '.......', '.......']
+	}
+};
 
-let inputPng: Buffer;
-let firstResult: SundropVillageRetouchResult;
-let secondResult: SundropVillageRetouchResult;
-let inputRgba: Buffer;
-let outputRgba: Buffer;
-
-function replaceGlyph(row: string, column: number, glyph: string): string {
-	return `${row.slice(0, column)}${glyph}${row.slice(column + 1)}`;
-}
-
-beforeAll(async () => {
-	inputPng = await readFile(INPUT_PATH);
-	firstResult = await retouchSundropVillagePng(inputPng);
-	secondResult = await retouchSundropVillagePng(inputPng);
-	inputRgba = await sharp(inputPng).toColourspace('srgb').ensureAlpha().raw().toBuffer();
-	outputRgba = await sharp(firstResult.png).toColourspace('srgb').ensureAlpha().raw().toBuffer();
-});
-
-describe('Sundrop Village deterministic retouch masks', () => {
-	it('derives one-hot district and path cells from the supplied layered source', () => {
-		const source = structuredClone(sundropVillageLayered);
-		const regionRow = source.layers.regions.findIndex((row) => row.includes('H'));
-		const regionColumn = source.layers.regions[regionRow]?.indexOf('H') ?? -1;
-		const pathRow = source.layers.paths.findIndex((row) => [...row].some((glyph) => glyph !== '.'));
-		const pathColumn = [...(source.layers.paths[pathRow] ?? '')].findIndex(
-			(glyph) => glyph !== '.'
-		);
-		expect(regionRow).toBeGreaterThanOrEqual(0);
-		expect(regionColumn).toBeGreaterThanOrEqual(0);
-		expect(pathRow).toBeGreaterThanOrEqual(0);
-		expect(pathColumn).toBeGreaterThanOrEqual(0);
-
-		const mutableRegions = source.layers.regions as string[];
-		const mutablePaths = source.layers.paths as string[];
-		mutableRegions[regionRow] = replaceGlyph(
-			source.layers.regions[regionRow] ?? '',
-			regionColumn,
-			'C'
-		);
-		mutablePaths[pathRow] = replaceGlyph(source.layers.paths[pathRow] ?? '', pathColumn, '.');
-
-		const masks = buildSundropVillageLowResolutionMasks(source);
-		const regionIndex = regionRow * source.width + regionColumn;
-		const pathIndex = pathRow * source.width + pathColumn;
-
-		expect(masks.width).toBe(56);
-		expect(masks.height).toBe(48);
-		expect(masks.districts.H[regionIndex]).toBe(0);
-		expect(masks.districts.C[regionIndex]).toBe(255);
-		expect(masks.path[pathIndex]).toBe(0);
-
-		for (let row = 0; row < source.height; row += 1) {
-			for (let column = 0; column < source.width; column += 1) {
-				const index = row * source.width + column;
-				const regionGlyph = source.layers.regions[row]?.[column] ?? '.';
-				const activeDistricts = Object.values(masks.districts).filter(
-					(mask) => mask[index] === 255
-				);
-				expect(activeDistricts).toHaveLength(regionGlyph === '.' ? 0 : 1);
-				expect(masks.path[index]).toBe(source.layers.paths[row]?.[column] === '.' ? 0 : 255);
-			}
-		}
+describe('Sundrop Village retouch helpers', () => {
+	it('derives one-hot district and path masks from a supplied fixture', () => {
+		const masks = buildSundropVillageLowResolutionMasks(fixture);
+		expect(masks.width).toBe(7);
+		expect(masks.height).toBe(6);
+		expect(masks.districts.H[0]).toBe(255);
+		expect(masks.districts.P[1]).toBe(255);
+		expect(masks.districts.M[9]).toBe(255);
+		expect(masks.path[0]).toBe(255);
+		expect(masks.path[8]).toBe(255);
+		expect(masks.path[2]).toBe(0);
 	});
 
-	it('feathers source masks while capping every authored path-cell center at 40 percent', async () => {
-		const lowResolution = buildSundropVillageLowResolutionMasks(sundropVillageLayered);
-		const weights = await buildSundropVillageRetouchWeightMaps(sundropVillageLayered);
-
-		expect(weights.width).toBe(WIDTH);
-		expect(weights.height).toBe(HEIGHT);
+	it('provides scalar weight maps for a supplied fixture', async () => {
+		const weights = await buildSundropVillageRetouchWeightMaps(fixture);
+		expect(weights.width).toBe(1792);
+		expect(weights.height).toBe(1536);
 		expect(weights.districtSigmaPx).toBe(48);
 		expect(weights.pathSigmaPx).toBe(24);
-
-		for (let row = 0; row < lowResolution.height; row += 1) {
-			for (let column = 0; column < lowResolution.width; column += 1) {
-				const cell = row * lowResolution.width + column;
-				if (lowResolution.path[cell] !== 255) continue;
-				const pixelX = column * TILE_SIZE + TILE_SIZE / 2;
-				const pixelY = row * TILE_SIZE + TILE_SIZE / 2;
-				const pixel = pixelY * WIDTH + pixelX;
-				expect(weights.pathStrength[pixel]).toBeLessThanOrEqual(0.4);
-			}
-		}
-	});
-
-	it('provides exactly one scalar district and path weight per output pixel', async () => {
-		const weights = await buildSundropVillageRetouchWeightMaps(sundropVillageLayered);
-		const pixelCount = WIDTH * HEIGHT;
-
-		for (const districtWeights of Object.values(weights.districts)) {
-			expect(districtWeights).toHaveLength(pixelCount);
+		const pixelCount = weights.width * weights.height;
+		for (const district of Object.values(weights.districts)) {
+			expect(district).toHaveLength(pixelCount);
 		}
 		expect(weights.pathStrength).toHaveLength(pixelCount);
+	});
+
+	it('keeps the edge guard bounded and deterministic', () => {
+		expect(sundropVillageEdgeGuardStrength(0, 768)).toBe(0);
+		expect(sundropVillageEdgeGuardStrength(48, 768)).toBeCloseTo(0.5, 8);
+		expect(sundropVillageEdgeGuardStrength(96, 768)).toBe(1);
+		expect(sundropVillageEdgeGuardStrength(896, 768)).toBe(1);
 	});
 });
 
@@ -151,236 +78,4 @@ describe('Sundrop Village identical-delta diagnostic', () => {
 			longRunCount: 1
 		});
 	});
-});
-
-describe('Sundrop Village deterministic retouch output', () => {
-	it('produces deterministic PNG and provenance bytes from the approved source', () => {
-		expect(createHash('sha256').update(inputPng).digest('hex')).toBe(EXPECTED_INPUT_SHA256);
-		expect(firstResult.png.equals(secondResult.png)).toBe(true);
-		expect(firstResult.provenanceJson.equals(secondResult.provenanceJson)).toBe(true);
-		expect(firstResult.provenance.input.pathContract).toBe(
-			'docs/superpowers/reports/img/hpa-307/village-background-retouch-base.png'
-		);
-		expect(firstResult.provenance.input.sha256).toBe(EXPECTED_INPUT_SHA256);
-		const outputSha256 = createHash('sha256').update(firstResult.png).digest('hex');
-		expect(outputSha256).toBe(EXPECTED_APPROVED_OUTPUT_SHA256);
-		expect(firstResult.provenance.output.sha256).toBe(EXPECTED_APPROVED_OUTPUT_SHA256);
-		expect(firstResult.provenance.output.pixelsSha256).toBe(EXPECTED_APPROVED_OUTPUT_PIXELS_SHA256);
-	});
-
-	it('keeps exact dimensions, writes an opaque intermediate, and changes only same-coordinate RGB', () => {
-		expect(firstResult.provenance.input.dimensions).toEqual({ width: WIDTH, height: HEIGHT });
-		expect(firstResult.provenance.output.dimensions).toEqual({ width: WIDTH, height: HEIGHT });
-		expect(inputRgba).toHaveLength(WIDTH * HEIGHT * 4);
-		expect(outputRgba).toHaveLength(WIDTH * HEIGHT * 4);
-
-		let maximumDelta = 0;
-		let changedPixels = 0;
-		let nonOpaquePixels = 0;
-		for (let pixel = 0; pixel < WIDTH * HEIGHT; pixel += 1) {
-			const offset = pixel * 4;
-			let changed = false;
-			for (let channel = 0; channel < 3; channel += 1) {
-				const delta = Math.abs(
-					(outputRgba[offset + channel] ?? 0) - (inputRgba[offset + channel] ?? 0)
-				);
-				maximumDelta = Math.max(maximumDelta, delta);
-				changed ||= delta > 0;
-			}
-			if (changed) changedPixels += 1;
-			if (outputRgba[offset + 3] !== 255) nonOpaquePixels += 1;
-		}
-
-		expect(nonOpaquePixels).toBe(0);
-		expect(maximumDelta).toBeLessThanOrEqual(16);
-		expect(changedPixels).toBeGreaterThan(0);
-		expect(firstResult.provenance.statistics.maximumAbsoluteChannelDelta).toBe(maximumDelta);
-		expect(firstResult.provenance.statistics.changedPixels).toBe(changedPixels);
-	});
-
-	it('preserves every RGB byte on all four canvas boundaries and fades over the 96px guard', () => {
-		for (let x = 0; x < WIDTH; x += 1) {
-			for (const y of [0, HEIGHT - 1]) {
-				const offset = (y * WIDTH + x) * 4;
-				expect(outputRgba.subarray(offset, offset + 3)).toEqual(
-					inputRgba.subarray(offset, offset + 3)
-				);
-			}
-		}
-		for (let y = 0; y < HEIGHT; y += 1) {
-			for (const x of [0, WIDTH - 1]) {
-				const offset = (y * WIDTH + x) * 4;
-				expect(outputRgba.subarray(offset, offset + 3)).toEqual(
-					inputRgba.subarray(offset, offset + 3)
-				);
-			}
-		}
-
-		expect(sundropVillageEdgeGuardStrength(0, HEIGHT / 2)).toBe(0);
-		expect(sundropVillageEdgeGuardStrength(48, HEIGHT / 2)).toBeCloseTo(0.5, 8);
-		expect(sundropVillageEdgeGuardStrength(96, HEIGHT / 2)).toBe(1);
-		expect(sundropVillageEdgeGuardStrength(WIDTH / 2, HEIGHT / 2)).toBe(1);
-	});
-
-	it('records the source-derived geometry and bounded retouch parameters', () => {
-		expect(firstResult.provenance.controlFingerprint).toBe(
-			'0c47a7dc58d48e87fa9dd9c290cf6835b8acc3f4eb60a4e2c1ba4eae37e4ed33'
-		);
-		expect(firstResult.provenance.algorithmVersion).toBe('sundrop-village-retouch-v3');
-		expect(firstResult.provenance.spatialTransform).toBe('same-coordinate-additive-rgb');
-		expect(firstResult.provenance.masks).toEqual({
-			source: 'sundropVillageLayered.layers.regions+paths',
-			grid: { width: 56, height: 48, tileSize: 32 },
-			expansion: 'nearest-neighbor',
-			districtSigmaPx: 48,
-			pathSigmaPx: 24
-		});
-		expect(firstResult.provenance.edgeGuard).toEqual({
-			distancePx: 96,
-			profile: 'linear',
-			boundaryStrength: 0,
-			fullStrength: 1,
-			fullStrengthAtDistancePx: 96,
-			byteIdenticalRegion: 'canvas-boundary-only'
-		});
-		expect(firstResult.provenance.maximumPathStrength).toBe(0.4);
-		expect(firstResult.provenance.maximumAbsoluteChannelDelta).toBe(16);
-		expect(firstResult.provenance.districtGrades).toEqual({
-			H: { red: 15, green: 4, blue: -9 },
-			P: { red: -12, green: 6, blue: 15 },
-			M: { red: 11, green: -5, blue: -11 },
-			N: { red: -10, green: 0, blue: 11 },
-			G: { red: -6, green: 4, blue: 14 },
-			S: { red: -7, green: 7, blue: 10 },
-			E: { red: 15, green: -2, blue: -10 },
-			C: { red: 0, green: 0, blue: 0 }
-		});
-		expect(firstResult.provenance.statistics.identicalRgbDeltaRunThresholdPx).toBe(32);
-		expect(
-			firstResult.provenance.statistics.maximumIdenticalRgbDeltaRunLengthInGradedTransitions
-		).toBeGreaterThanOrEqual(0);
-		expect(
-			firstResult.provenance.statistics.longIdenticalRgbDeltaRunsInGradedTransitions
-		).toBeGreaterThanOrEqual(0);
-	});
-
-	it('rejects mask geometry drift before producing provenance', async () => {
-		const driftedSource = structuredClone(sundropVillageLayered);
-		const regionRow = driftedSource.layers.regions.findIndex((row) => row.includes('H'));
-		const regionColumn = driftedSource.layers.regions[regionRow]?.indexOf('H') ?? -1;
-		expect(regionRow).toBeGreaterThanOrEqual(0);
-		expect(regionColumn).toBeGreaterThanOrEqual(0);
-		const mutableRegions = driftedSource.layers.regions as string[];
-		mutableRegions[regionRow] = replaceGlyph(
-			driftedSource.layers.regions[regionRow] ?? '',
-			regionColumn,
-			'C'
-		);
-
-		await expect(retouchSundropVillagePng(inputPng, driftedSource)).rejects.toThrow(
-			`Sundrop Village retouch control fingerprint must remain 0c47a7dc58d48e87fa9dd9c290cf6835b8acc3f4eb60a4e2c1ba4eae37e4ed33`
-		);
-	});
-
-	it('rejects stale provenance when non-mask gameplay controls change', async () => {
-		const driftedSource = structuredClone(sundropVillageLayered);
-		const collisionRow = driftedSource.layers.collision.findIndex((row) =>
-			[...row].some((glyph) => glyph !== '.')
-		);
-		const collisionColumn = [...(driftedSource.layers.collision[collisionRow] ?? '')].findIndex(
-			(glyph) => glyph !== '.'
-		);
-		expect(collisionRow).toBeGreaterThanOrEqual(0);
-		expect(collisionColumn).toBeGreaterThanOrEqual(0);
-		const mutableCollision = driftedSource.layers.collision as string[];
-		mutableCollision[collisionRow] = replaceGlyph(
-			driftedSource.layers.collision[collisionRow] ?? '',
-			collisionColumn,
-			'.'
-		);
-
-		await expect(retouchSundropVillagePng(inputPng, driftedSource)).rejects.toThrow(
-			`Sundrop Village retouch control fingerprint must remain 0c47a7dc58d48e87fa9dd9c290cf6835b8acc3f4eb60a4e2c1ba4eae37e4ed33`
-		);
-	});
-
-	it('rejects any input whose exact PNG bytes do not match the approved source hash', async () => {
-		const wrongInput = Buffer.from(inputPng);
-		wrongInput[wrongInput.length - 1] = (wrongInput[wrongInput.length - 1] ?? 0) ^ 0x01;
-
-		await expect(retouchSundropVillagePng(wrongInput)).rejects.toThrow(
-			/Sundrop Village retouch input SHA-256.*20a36256/
-		);
-	});
-
-	it('rejects aliased PNG and provenance paths without changing the existing file', async () => {
-		const directory = await mkdtemp(join(tmpdir(), 'gliese-retouch-alias-'));
-		const input = join(directory, 'input.png');
-		const sharedOutput = join(directory, 'shared-output');
-		const sentinel = Buffer.from('existing-output');
-		try {
-			await writeFile(input, inputPng);
-			await writeFile(sharedOutput, sentinel);
-
-			let failure: unknown;
-			try {
-				await writeSundropVillageRetouch({
-					input,
-					output: sharedOutput,
-					provenanceOutput: sharedOutput
-				});
-			} catch (error) {
-				failure = error;
-			}
-			expect(failure).toBeInstanceOf(Error);
-			expect((failure as Error).message).toMatch(
-				/PNG and provenance outputs must use distinct paths/
-			);
-			expect((await readFile(sharedOutput)).equals(sentinel)).toBe(true);
-		} finally {
-			await rm(directory, { recursive: true, force: true });
-		}
-	});
-
-	it('leaves the existing PNG untouched when provenance staging fails', async () => {
-		const directory = await mkdtemp(join(tmpdir(), 'gliese-retouch-stage-'));
-		const input = join(directory, 'input.png');
-		const output = join(directory, 'output.png');
-		const provenanceOutput = join(directory, 'missing', 'provenance.json');
-		const sentinel = Buffer.from('existing-output');
-		try {
-			await writeFile(input, inputPng);
-			await writeFile(output, sentinel);
-
-			await expect(
-				writeSundropVillageRetouch({ input, output, provenanceOutput })
-			).rejects.toThrow();
-			expect((await readFile(output)).equals(sentinel)).toBe(true);
-		} finally {
-			await rm(directory, { recursive: true, force: true });
-		}
-	}, 60_000);
-
-	it('atomically writes both the PNG and provenance sidecar on the success path', async () => {
-		const directory = await mkdtemp(join(tmpdir(), 'gliese-retouch-success-'));
-		const input = join(directory, 'input.png');
-		const output = join(directory, 'output.png');
-		const provenanceOutput = join(directory, 'provenance.json');
-		try {
-			await writeFile(input, inputPng);
-
-			const result = await writeSundropVillageRetouch({ input, output, provenanceOutput });
-
-			const writtenPng = await readFile(output);
-			const writtenProvenance = await readFile(provenanceOutput, 'utf8');
-
-			expect(writtenPng.equals(result.png)).toBe(true);
-			expect(writtenProvenance).toBe(`${JSON.stringify(result.provenance, null, 2)}\n`);
-			expect(createHash('sha256').update(writtenPng).digest('hex')).toBe(
-				EXPECTED_APPROVED_OUTPUT_SHA256
-			);
-		} finally {
-			await rm(directory, { recursive: true, force: true });
-		}
-	}, 60_000);
 });

@@ -157,7 +157,23 @@ Phaser and Svelte communicate exclusively through custom `window` events (define
 
 ### Content / Data Model
 
-- **Maps**: `meadow-entry` is the hub, with interior maps (`hero-house`, `guild-hall`, `item-shop`, `villager-house-1/2/3`, `shrine-of-aurora-interior`) and the dungeon chain `ruins-threshold` → `ruins-core`. Interiors and ruins are direct `WorldMapDefinition` literals in `src/lib/game/content/maps.ts`. Most Meadow Entry destinations and connectors are hand-authored `RegionFragment` modules under `content/maps/regions/` and become active only when imported and included in `mergeRegions(...)` in `content/maps/meadow-entry.ts`. Sundrop Village is the one layered exception: edit `village-layered.ts`; `village.ts` is its thin compiler/background wrapper.
+- **Maps**: `meadow-entry` is the hub, with interior maps (`hero-house`, `guild-hall`, `item-shop`, `villager-house-1/2/3`, `shrine-of-aurora-interior`) and the dungeon chain `ruins-threshold` → `ruins-core`. Interiors and ruins are direct `WorldMapDefinition` literals in `src/lib/game/content/maps.ts`. Most Meadow Entry destinations and connectors are hand-authored `RegionFragment` modules under `content/maps/regions/` and become active only when imported and included in `mergeRegions(...)` in `content/maps/meadow-entry.ts`. Sundrop Village is the one layered exception: `village-layered.ts` owns terrain, path, collision, neutral region-label, and tile-decor grids; `village.ts` composes those with pixel-positioned landmarks, transitions, pickups, ambient NPCs, and eventual background planes from shared coordinate constants. Do not force pixel-positioned objects through the layered compiler's tile-centre object contract.
+
+## Sundrop Village Ownership
+
+`village-layered.ts` owns Sundrop terrain, path, collision, neutral region-label,
+and tile-decor grids. `village.ts` composes the resulting fragment with
+pixel-positioned landmarks, transitions, pickups, ambient NPCs, and eventual
+background planes from shared coordinate constants. Do not force pixel-positioned
+objects through the layered compiler's tile-centre object contract.
+
+## Structure Before Art
+
+For a substantial spatial revision, define and review functional bounds, lots,
+rooms, corridors, walls, doors, routes, transition approaches, and NPC approaches
+before generating final art or placing decorative content. Prove the geometry with
+a walkable graybox first.
+
 - **Enemies**: `slime-scout` (normal), `ruins-warden` (boss with a phase-2 enrage at ≤50% HP)
 - **Items / shops**: Items are defined in `content/items.ts` (consumables, equipment with `StatModifiers`, key items). Shops in `content/shops.ts` reference item IDs with per-shop stock and pricing. Wallet/coin state lives in `core/shop.ts`.
 - **Dialogue**: NPC **prose lives in `story/`, not in TypeScript** (see Story Pipeline). `content/dialogue.ts` holds only the per-NPC action/intent definitions and their localized labels. Runtime traversal/state lives in `core/dialogue.ts` and is surfaced to the HUD as `HudState.dialogue` (modes: `conversation`, `choice`, `system`). The HUD drives it with the `dialogue-advance` / `dialogue-close` / `dialogue-choose` commands.

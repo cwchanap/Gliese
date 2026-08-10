@@ -48,7 +48,20 @@ src/lib/game/content/maps/layered/compile-layered-region.ts
 src/lib/game/content/maps/regions/village.ts
 ```
 
-Edit `village-layered.ts` for village tile-level geometry. `village.ts` is the thin compiler/background wrapper. Use this path for a future region only after a real delivery demonstrates that tile-level layers are worth the larger source surface.
+## Sundrop Village Ownership
+
+`village-layered.ts` owns Sundrop terrain, path, collision, neutral region-label,
+and tile-decor grids. `village.ts` composes the resulting fragment with
+pixel-positioned landmarks, transitions, pickups, ambient NPCs, and eventual
+background planes from shared coordinate constants. Do not force pixel-positioned
+objects through the layered compiler's tile-centre object contract.
+
+## Structure Before Art
+
+For a substantial spatial revision, define and review functional bounds, lots,
+rooms, corridors, walls, doors, routes, transition approaches, and NPC approaches
+before generating final art or placing decorative content. Prove the geometry with
+a walkable graybox first.
 
 ## Gameplay and Background Ownership
 

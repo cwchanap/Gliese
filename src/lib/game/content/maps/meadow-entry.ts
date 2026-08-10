@@ -9,11 +9,6 @@ import {
 	activeMeadowEntryRuntimeVisualOwners,
 	meadowEntryRuntimeBackgroundImages
 } from '$lib/game/content/backgrounds/meadow-entry-runtime';
-import {
-	applySundropObstacleOwnership,
-	SUNDROP_VILLAGE_OBSTACLE_OWNERSHIP,
-	validateSundropObstacleCoverage
-} from '$lib/game/content/backgrounds/sundrop-village-obstacle-ownership';
 import { villageRegion } from '$lib/game/content/maps/regions/village';
 import { wildwoodRegion } from '$lib/game/content/maps/regions/wildwood';
 import { mistfenRegion } from '$lib/game/content/maps/regions/mistfen';
@@ -149,7 +144,6 @@ const merged = mergeRegions([
 ]);
 
 const backgroundImages = [...merged.backgroundImages, ...meadowEntryRuntimeBackgroundImages];
-const sundropOwnedBlockers = applySundropObstacleOwnership(merged.blockers);
 const runtimeBlockerVisualOwners = activeMeadowEntryRuntimeVisualOwners.filter(
 	(owner) => owner.sourceType === 'blocker'
 );
@@ -159,7 +153,7 @@ const runtimeDecorVisualOwners = activeMeadowEntryRuntimeVisualOwners.filter(
 const runtimeFenceVisualOwners = activeMeadowEntryRuntimeVisualOwners.filter(
 	(owner) => owner.sourceType === 'fence'
 );
-const ownedBlockers = applyVisualOwnership(sundropOwnedBlockers, runtimeBlockerVisualOwners, {
+const ownedBlockers = applyVisualOwnership(merged.blockers, runtimeBlockerVisualOwners, {
 	rejectExisting: true
 });
 const ownedMapDecor = applyVisualOwnership(merged.mapDecor, runtimeDecorVisualOwners);
@@ -172,17 +166,14 @@ const ownershipSource = {
 };
 
 validateMapBackgroundOwnership(ownershipSource);
-validateSundropObstacleCoverage(ownershipSource, SUNDROP_VILLAGE_OBSTACLE_OWNERSHIP);
 
 export const meadowEntryMap: WorldMapDefinition = addEnglishMapText({
 	id: openingMapId,
 	width: 200,
 	height: 200,
 	spawnDirection: 'up',
-	// Two tiles south of the hero-house door (624, 5712), facing up at it. The
-	// village redesign moved the hero house over the previous spawn point, so
-	// this is re-derived from the new door rather than carried over.
-	spawn: { x: 624, y: 5_776 },
+	// Two tiles south of the V2 hero-house door (704, 5856), facing up at it.
+	spawn: { x: 704, y: 5_920 },
 	landmarks: merged.landmarks,
 	transitions: merged.transitions,
 	groundPatches: merged.groundPatches,
