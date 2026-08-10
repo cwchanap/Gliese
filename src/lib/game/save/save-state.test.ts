@@ -265,44 +265,63 @@ describe('save state', () => {
 	});
 
 	it('nudges a saved position inside a wall blocker to the nearest walkable tile', () => {
-		// (700, 5430) is inside village-block-30-13 (garden-hedge at (688, 5408), 32x192)
-		// and inside the hero-house-exterior landmark (235×246 at (720, 5424)). This was
-		// the old hero-house landmark center — a valid save position before the layered
-		// village refactor moved the walls. The rescue must place the player outside
-		// both the blocker and the landmark building.
+		// The V2 corridor wall is strict movement collision: its padded bounds trap
+		// the player, so a loaded position at the wall center must be rescued.
+		const blockedPosition = { x: 1_775, y: 4_510 };
+		expect(
+			isInsideAnyCollisionRect(
+				blockedPosition.x,
+				blockedPosition.y,
+				collectStrictCollisionRects(meadowEntryMap),
+				PLAYER_COLLISION_RADIUS
+			)
+		).toBe(true);
 		const blockedSave = {
 			...createNewSaveState(),
 			player: {
 				...createNewSaveState().player,
-				x: 700,
-				y: 5430
+				x: blockedPosition.x,
+				y: blockedPosition.y
 			}
 		};
 
 		const parsed = parseSaveState(JSON.stringify(blockedSave));
 		expect(parsed).not.toBeNull();
 		expect(isPositionWalkable(parsed!.player.x, parsed!.player.y)).toBe(true);
-		// The nearest tile outside both the blocker and the landmark is ~140px away
-		// (the landmark is 235px wide, so clearing it requires moving several tiles).
-		expect(Math.abs(parsed!.player.x - 700)).toBeLessThanOrEqual(160);
-		expect(Math.abs(parsed!.player.y - 5430)).toBeLessThanOrEqual(160);
+		expect(parsed!.player.x !== blockedPosition.x || parsed!.player.y !== blockedPosition.y).toBe(
+			true
+		);
+		expect(Math.abs(parsed!.player.x - blockedPosition.x)).toBeLessThanOrEqual(96);
+		expect(Math.abs(parsed!.player.y - blockedPosition.y)).toBeLessThanOrEqual(96);
 	});
 
 	it('does not rescue a saved position into a landmark building', () => {
-		// (700, 5430) was the old hero-house landmark center. The rescue must
-		// not place the player inside any landmark (opaque building), even
-		// though landmark collision is escape-aware in WorldScene.
+		// The V2 Hero House center is opaque landmark geometry. Landmark collision
+		// is escape-aware during movement, but a loaded position there is invalid.
+		const blockedPosition = { x: 704, y: 5_712 };
+		expect(
+			isInsideAnyCollisionRect(
+				blockedPosition.x,
+				blockedPosition.y,
+				collectLandmarkRects(meadowEntryMap),
+				PLAYER_COLLISION_RADIUS
+			)
+		).toBe(true);
 		const blockedSave = {
 			...createNewSaveState(),
 			player: {
 				...createNewSaveState().player,
-				x: 700,
-				y: 5430
+				x: blockedPosition.x,
+				y: blockedPosition.y
 			}
 		};
 
 		const parsed = parseSaveState(JSON.stringify(blockedSave));
 		expect(parsed).not.toBeNull();
+		expect(isPositionWalkable(parsed!.player.x, parsed!.player.y)).toBe(true);
+		expect(parsed!.player.x !== blockedPosition.x || parsed!.player.y !== blockedPosition.y).toBe(
+			true
+		);
 		for (const landmark of meadowEntryMap.landmarks ?? []) {
 			const left = landmark.x - landmark.width / 2;
 			const right = landmark.x + landmark.width / 2;
@@ -354,47 +373,68 @@ describe('save state', () => {
 	});
 
 	it('nudges a saved position inside a decor collision rect to the nearest walkable tile', () => {
-		// (1776, 4502) is inside village-decor-2-47 collision (50x60 at (1776, 4502)).
+		// This V2 pole-lantern anchor compiles to a strict collision rect.
+		const blockedPosition = { x: 1_072, y: 4_950 };
+		expect(
+			isInsideAnyCollisionRect(
+				blockedPosition.x,
+				blockedPosition.y,
+				collectStrictCollisionRects(meadowEntryMap),
+				PLAYER_COLLISION_RADIUS
+			)
+		).toBe(true);
 		const blockedSave = {
 			...createNewSaveState(),
 			player: {
 				...createNewSaveState().player,
-				x: 1776,
-				y: 4502
+				x: blockedPosition.x,
+				y: blockedPosition.y
 			}
 		};
 
 		const parsed = parseSaveState(JSON.stringify(blockedSave));
 		expect(parsed).not.toBeNull();
 		expect(isPositionWalkable(parsed!.player.x, parsed!.player.y)).toBe(true);
-		expect(Math.abs(parsed!.player.x - 1776)).toBeLessThanOrEqual(96);
-		expect(Math.abs(parsed!.player.y - 4502)).toBeLessThanOrEqual(96);
+		expect(parsed!.player.x !== blockedPosition.x || parsed!.player.y !== blockedPosition.y).toBe(
+			true
+		);
+		expect(Math.abs(parsed!.player.x - blockedPosition.x)).toBeLessThanOrEqual(96);
+		expect(Math.abs(parsed!.player.y - blockedPosition.y)).toBeLessThanOrEqual(96);
 	});
 
 	it('nudges a saved position to a tile center outside the padded collision bounds', () => {
-		// (1664, 4480) is inside village-block-3-43. The nearest tile center
-		// outside the *raw* rect is (1680, 4496), but that point is still inside
-		// the *padded* bounds of corridor-wall-2b (170x64 at (1775, 4510)):
-		// WorldScene.isMovementBlockedByStrictRect expands the rect by
-		// playerRadius (12px), so the player would be trapped in every
-		// direction. The normalizer must reject padded-trapped tile centers
-		// and keep searching outward.
+		// This V2 point is outside the raw corridor-wall-2b rect but inside its
+		// player-radius padding. The normalizer must reject the padded-trapped
+		// position and keep searching outward.
+		const blockedPosition = { x: 1_680, y: 4_480 };
+		const wall = meadowEntryMap.blockers?.find((rect) => rect.id === 'corridor-wall-2b');
+		expect(wall).toBeDefined();
+		expect(isInsideAnyCollisionRect(blockedPosition.x, blockedPosition.y, [wall!], 0)).toBe(false);
+		expect(
+			isInsideAnyCollisionRect(
+				blockedPosition.x,
+				blockedPosition.y,
+				[wall!],
+				PLAYER_COLLISION_RADIUS
+			)
+		).toBe(true);
 		const blockedSave = {
 			...createNewSaveState(),
 			player: {
 				...createNewSaveState().player,
-				x: 1664,
-				y: 4480
+				x: blockedPosition.x,
+				y: blockedPosition.y
 			}
 		};
 
 		const parsed = parseSaveState(JSON.stringify(blockedSave));
 		expect(parsed).not.toBeNull();
 		expect(isPositionWalkable(parsed!.player.x, parsed!.player.y)).toBe(true);
-		// Must not be the padded-trapped tile center (1680, 4496).
-		expect(parsed!.player.x === 1680 && parsed!.player.y === 4496).toBe(false);
-		expect(Math.abs(parsed!.player.x - 1664)).toBeLessThanOrEqual(128);
-		expect(Math.abs(parsed!.player.y - 4480)).toBeLessThanOrEqual(128);
+		expect(parsed!.player.x !== blockedPosition.x || parsed!.player.y !== blockedPosition.y).toBe(
+			true
+		);
+		expect(Math.abs(parsed!.player.x - blockedPosition.x)).toBeLessThanOrEqual(128);
+		expect(Math.abs(parsed!.player.y - blockedPosition.y)).toBeLessThanOrEqual(128);
 	});
 
 	it('leaves a walkable saved position unchanged', () => {

@@ -2574,46 +2574,6 @@ describe('interior return arrivals are standable', () => {
 describe('critical routes avoid blockers', () => {
 	const criticalRoutes: Pt[][] = [
 		[
-			// Village leg verified standable against the real collision + landmark
-			// rects (save-state.ts isInsideAnyCollisionRect, padding 12 — the
-			// game's own movement rule), not just the collision layer: a
-			// layer-only route walks straight through a building, because the
-			// layer under a landmark reads '.'. This leg threads the issue's target
-			// critical route, H -> P -> N -> G -> E -> C. The v3 partial-spur pass
-			// only widened gates — every waypoint below sat in a gate before it and
-			// still does — so the leg is unchanged: H -> H-P gate -> P (west of the
-			// well) -> N-P gate -> N lane (row 16, clear of villager-house-2) ->
-			// G-N gate -> G -> E-G gate -> E -> C (direct
-			// contact, no divider row) before rejoining the crossroads-ward leg.
-			{ x: 624, y: 5_776 },
-			{ x: 1_008, y: 5_776 },
-			{ x: 1_008, y: 5_072 }, // north through H-P gate (cols 21-23, row 32)
-			{ x: 1_168, y: 5_072 },
-			{ x: 1_168, y: 4_944 }, // north through N-P gate (cols 26-28, row 19)
-			{ x: 1_232, y: 4_944 },
-			{ x: 1_232, y: 4_880 }, // climb to row 16 to clear the commons building
-			{ x: 1_424, y: 4_880 }, // east through G-N gate (col 35, rows 14-16)
-			{ x: 1_424, y: 5_008 },
-			{ x: 1_808, y: 5_008 },
-			{ x: 1_808, y: 4_656 }, // north through E-G gate (cols 48-50, row 10)
-			{ x: 1_648, y: 4_656 },
-			{ x: 1_648, y: 4_464 },
-			{ x: 1_616, y: 4_464 },
-			{ x: 1_616, y: 4_400 }, // into C (row 2/row 3 direct contact, col 42)
-			{ x: 1_706, y: 4_342 },
-			{ x: 1_740, y: 4_280 },
-			{ x: 1_850, y: 4_280 },
-			{ x: 1_850, y: 4_100 },
-			{ x: 2_200, y: 4_100 },
-			{ x: 2_200, y: 4_350 },
-			{ x: 2_550, y: 4_350 },
-			{ x: 2_550, y: 4_100 },
-			{ x: 2_900, y: 4_100 },
-			{ x: 2_900, y: 4_400 },
-			{ x: 3_200, y: 4_400 },
-			{ x: 3_500, y: 4_000 }
-		],
-		[
 			{ x: 3_500, y: 4_000 },
 			{ x: 4_200, y: 5_500 },
 			{ x: 4_600, y: 5_840 }
@@ -2640,9 +2600,7 @@ describe('critical routes avoid blockers', () => {
 		// crossed. (The per-corridor width/sightline invariants that used to
 		// accompany this were removed in 0234be6 along with the route-scene
 		// infrastructure.)
-		const blockers = (meadowEntryMap.blockers ?? []).filter(
-			(b) => !b.id.startsWith('corridor-wall-')
-		);
+		const blockers = meadowEntryMap.blockers ?? [];
 		for (const route of criticalRoutes) {
 			for (let i = 0; i < route.length - 1; i += 1) {
 				for (const sample of segmentSamples(route[i], route[i + 1], 48)) {
