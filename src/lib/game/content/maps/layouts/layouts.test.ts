@@ -40,10 +40,54 @@ function expectStructuralGrid(value: { x: number; y: number; width: number; heig
 	}
 }
 
-function expectStructuralSize(value: { width: number; height: number }) {
-	expect(value.width % 32, `width=${value.width}`).toBe(0);
-	expect(value.height % 32, `height=${value.height}`).toBe(0);
-}
+const APPROVED_HALF_TILE_DOORS = {
+	'guild-hall:recordsToSpine': { x: 416, y: 144, width: 32, height: 96 },
+	'guild-hall:masterToSpine': { x: 576, y: 112, width: 32, height: 96 },
+	'item-shop:stockroom': { x: 320, y: 112, width: 32, height: 64 },
+	'item-shop:office': { x: 480, y: 112, width: 32, height: 64 }
+} as const;
+
+const APPROVED_NON_GRID_WALLS = {
+	'guild-hall:guild-hall-records-spine-north': { x: 416, y: 64, width: 32, height: 80 },
+	'guild-hall:guild-hall-records-spine-south': { x: 416, y: 240, width: 32, height: 80 },
+	'guild-hall:guild-hall-office-spine-north': { x: 576, y: 64, width: 32, height: 48 },
+	'guild-hall:guild-hall-office-spine-south': { x: 576, y: 208, width: 32, height: 48 },
+	'item-shop:item-shop-stockroom-divider-north': { x: 320, y: 64, width: 32, height: 48 },
+	'item-shop:item-shop-stockroom-divider-south': { x: 320, y: 176, width: 32, height: 48 },
+	'item-shop:item-shop-office-divider-north': { x: 480, y: 64, width: 32, height: 48 },
+	'item-shop:item-shop-office-divider-south': { x: 480, y: 176, width: 32, height: 48 }
+} as const;
+
+const SHRINE_SERVICE_WALLS = [
+	{
+		id: 'shrine-of-aurora-west-mid-service-pocket',
+		x: 64,
+		y: 224,
+		width: 160,
+		height: 32
+	},
+	{
+		id: 'shrine-of-aurora-east-mid-service-pocket',
+		x: 544,
+		y: 224,
+		width: 160,
+		height: 32
+	},
+	{
+		id: 'shrine-of-aurora-west-entrance-service-pocket',
+		x: 64,
+		y: 576,
+		width: 192,
+		height: 96
+	},
+	{
+		id: 'shrine-of-aurora-east-entrance-service-pocket',
+		x: 512,
+		y: 576,
+		width: 192,
+		height: 96
+	}
+] as const;
 
 function interiorWalkableRects(layout: VillageInteriorLayout) {
 	return [
@@ -87,6 +131,10 @@ function reachableInteriorSamples(layout: VillageInteriorLayout) {
 	)[0];
 	expect(start, 'spawn must sit beside authored walkable geometry').toBeDefined();
 	if (!start) return new Set<string>();
+	expect(
+		Math.hypot(start.x - layout.spawn.x, start.y - layout.spawn.y),
+		'spawn root must be adjacent to the authored spawn'
+	).toBeLessThanOrEqual(sampleStep);
 
 	const reachable = new Set<string>([`${start.x}:${start.y}`]);
 	const queue = [start];
@@ -105,6 +153,17 @@ function reachableInteriorSamples(layout: VillageInteriorLayout) {
 		}
 	}
 	return reachable;
+}
+
+function reachableInteriorPoint(
+	reachable: ReadonlySet<string>,
+	candidate: { x: number; y: number },
+	maxDistance = 8
+) {
+	return [...reachable].some((key) => {
+		const [x, y] = key.split(':').map(Number);
+		return Math.hypot(x - candidate.x, y - candidate.y) <= maxDistance;
+	});
 }
 
 function normalizedInteriorSignature(layout: VillageInteriorLayout) {
@@ -264,6 +323,13 @@ describe('outdoor layout coordinate contracts', () => {
 });
 
 describe('village interior layout coordinate contracts', () => {
+	it('seals every Shrine service pocket with an explicit inert wall', () => {
+		const shrine = VILLAGE_INTERIOR_LAYOUTS['shrine-of-aurora-interior'];
+		for (const wall of SHRINE_SERVICE_WALLS) {
+			expect(shrine.walls).toContainEqual(wall);
+		}
+	});
+
 	it('keeps every interior rectangle in bounds and every approach clear', () => {
 		const minimumApproach = PLAYER_COLLISION_RADIUS + NPC_PACK_COLLISION_RADIUS;
 		const maximumApproach = PLAYER_COLLISION_RADIUS + NPC_INTERACTION_RADIUS;
@@ -286,10 +352,23 @@ describe('village interior layout coordinate contracts', () => {
 			for (const group of [layout.rooms, layout.corridors]) {
 				for (const value of Object.values(group)) expectStructuralGrid(value);
 			}
-			for (const value of Object.values(layout.doors)) expectStructuralSize(value);
+			for (const [doorId, value] of Object.entries(layout.doors)) {
+				const approvedDoor =
+					APPROVED_HALF_TILE_DOORS[`${mapId}:${doorId}` as keyof typeof APPROVED_HALF_TILE_DOORS];
+				if (approvedDoor) {
+					expect(value).toEqual(approvedDoor);
+				} else {
+					expectStructuralGrid(value);
+				}
+			}
 			for (const wall of layout.walls) {
-				expect(wall.x).toBeGreaterThanOrEqual(0);
-				expect(wall.y).toBeGreaterThanOrEqual(0);
+				const approvedWall =
+					APPROVED_NON_GRID_WALLS[`${mapId}:${wall.id}` as keyof typeof APPROVED_NON_GRID_WALLS];
+				if (approvedWall) {
+					expect(wall).toMatchObject(approvedWall);
+				} else {
+					expectStructuralGrid(wall);
+				}
 			}
 
 			for (const opening of Object.values(layout.doors)) {
@@ -329,9 +408,20 @@ describe('village interior layout coordinate contracts', () => {
 						expandedLayoutRectContainsPoint(collision, approach, PLAYER_COLLISION_RADIUS)
 					).toBe(false);
 				}
+				expect(isInteriorWalkable(layout, npc), `${mapId} NPC is not wall/prop clear`).toBe(true);
+				expect(
+					isInteriorWalkable(layout, approach),
+					`${mapId} approach is not authored-walkable`
+				).toBe(true);
 			}
 
 			const reachable = reachableInteriorSamples(layout);
+			for (const [npcId, { approach }] of Object.entries(layout.npcApproaches)) {
+				expect(
+					reachableInteriorPoint(reachable, approach),
+					`${mapId}:${npcId} approach is disconnected from the spawn root`
+				).toBe(true);
+			}
 			for (const [roomId, room] of Object.entries(layout.rooms)) {
 				const roomReachable = [...reachable].some((key) => {
 					const [x, y] = key.split(':').map(Number);
