@@ -199,7 +199,7 @@ function expectRouteClear(
 			for (const [collisionIndex, collisionRect] of routeCollisionRects.entries()) {
 				expect(
 					isInsideCollisionRect(point.x, point.y, collisionRect, PLAYER_COLLISION_RADIUS),
-					`${map.id}:${label} blocked by collision rect ${collisionIndex}`
+					`${map.id}:${label} blocked by collision rect ${collisionIndex} at (${collisionRect.x},${collisionRect.y},${collisionRect.width},${collisionRect.height})`
 				).toBe(false);
 			}
 
@@ -2276,12 +2276,14 @@ const V2_FULL_ROUTE_POINTS = {
 		...V2_ROUTE_POINTS.crossroadsToMistfen,
 		{ x: 2_320, y: 2_750 },
 		{ x: 2_150, y: 2_750 },
-		{ x: 1_760, y: 2_750 },
+		{ x: 2_260, y: 2_750 },
+		{ x: 2_260, y: 2_540 },
 		{ x: 1_760, y: 2_540 },
 		{ x: 1_400, y: 2_540 },
 		{ x: 1_400, y: 2_030 },
-		{ x: 1_400, y: 620 },
-		{ x: 1_200, y: 620 }
+		{ x: 1_380, y: 2_030 },
+		{ x: 1_380, y: 820 },
+		{ x: 1_060, y: 820 }
 	],
 	crossroadsToSilverpine: [
 		...V2_ROUTE_POINTS.crossroadsToSilverpine,
@@ -2292,20 +2294,22 @@ const V2_FULL_ROUTE_POINTS = {
 		{ x: 2_900, y: 2_200 },
 		{ x: 4_000, y: 2_200 },
 		{ x: 4_000, y: 520 },
-		{ x: 3_000, y: 520 }
+		{ x: 4_000, y: 680 },
+		{ x: 3_000, y: 680 }
 	],
 	crossroadsToWildwood: [
 		...V2_ROUTE_POINTS.crossroadsToWildwood,
-		{ x: 4_800, y: 5_347 },
+		{ x: 4_420, y: 3_808 },
+		{ x: 4_420, y: 5_347 },
 		{ x: 5_600, y: 5_347 },
 		{ x: 5_600, y: 3_200 },
-		{ x: 5_600, y: 1_800 },
-		{ x: 5_960, y: 1_800 }
+		{ x: 5_600, y: 2_100 },
+		{ x: 5_960, y: 2_100 }
 	],
 	crossroadsToCoast: [
 		...V2_ROUTE_POINTS.crossroadsToCoast,
-		{ x: 4_224, y: 5_680 },
-		{ x: 4_600, y: 5_680 },
+		{ x: 4_184, y: 5_520 },
+		{ x: 4_184, y: 5_840 },
 		{ x: 4_600, y: 5_840 }
 	]
 } as const satisfies Readonly<Record<string, readonly Pt[]>>;
@@ -2668,7 +2672,7 @@ describe('interior return arrivals are standable', () => {
 	});
 });
 
-describe('critical routes avoid blockers', () => {
+describe('critical routes stay runtime-clear', () => {
 	const criticalRoutes: readonly (readonly Pt[])[] = [
 		V2_FULL_ROUTE_POINTS.crossroadsToCoast,
 		V2_FULL_ROUTE_POINTS.crossroadsToSilverpine,
@@ -2676,24 +2680,9 @@ describe('critical routes avoid blockers', () => {
 		V2_FULL_ROUTE_POINTS.crossroadsToWildwood
 	];
 
-	it('keeps every critical-route sample outside blockers', () => {
-		// Corridor-path walls define the winding route; the critical-route check
-		// is for map-level blockers (perimeter, landmarks) that should never be
-		// crossed. (The per-corridor width/sightline invariants that used to
-		// accompany this were removed in 0234be6 along with the route-scene
-		// infrastructure.)
-		const blockers = meadowEntryMap.blockers ?? [];
-		for (const route of criticalRoutes) {
-			for (let i = 0; i < route.length - 1; i += 1) {
-				for (const sample of segmentSamples(route[i], route[i + 1], 48)) {
-					for (const blocker of blockers) {
-						expect(
-							pointInsideRect(sample, blocker),
-							`route sample (${Math.round(sample.x)},${Math.round(sample.y)}) is inside blocker ${blocker.id}`
-						).toBe(false);
-					}
-				}
-			}
+	it('keeps every critical-route sample outside runtime collisions', () => {
+		for (const [index, route] of criticalRoutes.entries()) {
+			expectRouteClear(meadowEntryMap, route, `critical route ${index + 1}`);
 		}
 	});
 });
