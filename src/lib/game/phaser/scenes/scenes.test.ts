@@ -9,10 +9,6 @@ import {
 import { maps } from '$lib/game/content/maps';
 import type { RegionalBackgroundRendererDiagnostic } from '$lib/game/phaser/renderer-diagnostics';
 import type { RegionalBackgroundPlaneRenderDiagnostic } from '$lib/game/phaser/regional-background-plane-render-diagnostics';
-import {
-	PLAYER_MOVEMENT_DIAGNOSTIC_EVENT,
-	type PlayerMovementDiagnostic
-} from '$lib/game/phaser/player-movement-diagnostics';
 import { HUD_COMMAND_EVENT, type HudCommand } from '$lib/game/ui-bridge/events';
 
 const guildMasterApproach = { x: 800, y: 184 };
@@ -3600,7 +3596,7 @@ describe('WorldScene', () => {
 		}
 	});
 
-	it('draws the item-shop counter player-center exclusion envelope at (152, 72, 208, 72)', async () => {
+	it('draws the rebuilt item-shop counter player-center exclusion envelope at (212, 324, 408, 32)', async () => {
 		const restoreLocation = installLocationSearch('?mapDebug=collision');
 		const { WorldScene } = await import('./WorldScene');
 		const scene = new WorldScene();
@@ -3610,10 +3606,10 @@ describe('WorldScene', () => {
 
 			expect(phaserState.graphicsMarkers[0]!.commands).toContainEqual({
 				kind: 'fillRect',
-				x: 152,
-				y: 72,
-				width: 208,
-				height: 72,
+				x: 212,
+				y: 324,
+				width: 408,
+				height: 32,
 				color: 0xff3355,
 				alpha: 0.18
 			});
@@ -3635,8 +3631,8 @@ describe('WorldScene', () => {
 			);
 			expect(circles).toContainEqual({
 				kind: 'strokeCircle',
-				x: 256,
-				y: 144,
+				x: 416,
+				y: 320,
 				radius: 29,
 				color: 0xc084fc,
 				alpha: 0.95,
@@ -3645,8 +3641,8 @@ describe('WorldScene', () => {
 			expect(circles).not.toContainEqual(
 				expect.objectContaining({
 					kind: 'strokeCircle',
-					x: 176,
-					y: 232
+					x: 224,
+					y: 480
 				})
 			);
 		} finally {
@@ -3760,8 +3756,8 @@ describe('WorldScene', () => {
 					kind: 'strokeRect',
 					x: 0,
 					y: 0,
-					width: 512,
-					height: 384
+					width: 832,
+					height: 640
 				})
 			);
 			expect(interiorGraphics.commands).toContainEqual(
@@ -3769,8 +3765,8 @@ describe('WorldScene', () => {
 					kind: 'strokeRect',
 					x: 12,
 					y: 12,
-					width: 488,
-					height: 360
+					width: 808,
+					height: 616
 				})
 			);
 		} finally {
@@ -4219,7 +4215,7 @@ describe('WorldScene', () => {
 		]);
 	});
 
-	it('centers compact interior maps inside larger camera viewports', async () => {
+	it('centers rebuilt interior maps inside larger camera viewports', async () => {
 		const { WorldScene } = await import('./WorldScene');
 		const { heroHouseMap } = await import('$lib/game/content/maps');
 		const scene = new WorldScene();
@@ -4228,9 +4224,9 @@ describe('WorldScene', () => {
 
 		scene.create({ mapId: heroHouseMap.id });
 
-		expect(heroHouseMap.width).toBe(16);
-		expect(heroHouseMap.height).toBe(12);
-		expect(scene.cameras.main.setBounds).toHaveBeenCalledWith(-144, -108, 800, 600);
+		expect(heroHouseMap.width).toBe(22);
+		expect(heroHouseMap.height).toBe(18);
+		expect(scene.cameras.main.setBounds).toHaveBeenCalledWith(-48, -12, 800, 600);
 	});
 
 	it('moves the player marker using the current input state', async () => {
@@ -4444,7 +4440,8 @@ describe('WorldScene', () => {
 		const { WorldScene } = await import('./WorldScene');
 		const scene = new WorldScene();
 
-		scene.create({ mapId: 'hero-house' });
+		registerSceneSupportTestMap();
+		scene.create({ mapId: 'scene-support-test' });
 		Object.assign(phaserState.playerMarker, { x: 13, y: 13 });
 		phaserState.cursorKeys.left.isDown = true;
 		phaserState.cursorKeys.up.isDown = true;
@@ -4662,8 +4659,8 @@ describe('WorldScene', () => {
 			saveState: expect.objectContaining({
 				mapId: 'hero-house',
 				player: expect.objectContaining({
-					x: 256,
-					y: 224,
+					x: 352,
+					y: 480,
 					facing: 'up'
 				})
 			})
@@ -5240,7 +5237,7 @@ describe('WorldScene', () => {
 		expect(quartermasterMarkers[0]!.setDisplaySize).toHaveBeenCalledWith(96, 87);
 	});
 
-	it('registers and renders interior props for compact interiors', async () => {
+	it('registers and renders rebuilt interior props', async () => {
 		const { interiorPropAsset } = await import('$lib/game/content/assets');
 		const { WorldScene } = await import('./WorldScene');
 		const scene = new WorldScene();
@@ -5259,13 +5256,14 @@ describe('WorldScene', () => {
 			);
 		}
 
-		expect(scene.add.image).toHaveBeenCalledWith(256, 252, 'interior-props', 'rug');
-		expect(scene.add.image).toHaveBeenCalledWith(112, 112, 'interior-props', 'bed');
-		expect(scene.add.image).toHaveBeenCalledWith(256, 144, 'interior-props', 'table');
+		expect(scene.add.image).toHaveBeenCalledWith(160, 144, 'interior-props', 'bed');
+		expect(scene.add.image).toHaveBeenCalledWith(544, 160, 'interior-props', 'bookshelf');
+		expect(scene.add.image).toHaveBeenCalledWith(304, 400, 'interior-props', 'table');
+		expect(scene.add.image).toHaveBeenCalledWith(544, 416, 'interior-props', 'crateStack');
 		const bedMarker = phaserState.imageMarkers.find(
-			(marker) => marker.x === 112 && marker.y === 112 && marker.frame === 'bed'
+			(marker) => marker.x === 160 && marker.y === 144 && marker.frame === 'bed'
 		);
-		expect(bedMarker?.setDisplaySize).toHaveBeenCalledWith(96, 72);
+		expect(bedMarker?.setDisplaySize).toHaveBeenCalledWith(128, 96);
 	});
 
 	it('renders ambient NPCs without treating them as interactable NPCs', async () => {
@@ -5275,8 +5273,8 @@ describe('WorldScene', () => {
 
 		scene.create({ mapId: 'item-shop' });
 
-		expect(scene.add.image).toHaveBeenCalledWith(176, 232, 'npc-pack', 'guildMasterNpc');
-		Object.assign(phaserState.playerMarker, { x: 176, y: 232 });
+		expect(scene.add.image).toHaveBeenCalledWith(224, 480, 'npc-pack', 'guildMasterNpc');
+		Object.assign(phaserState.playerMarker, { x: 224, y: 480 });
 		scene.update(0, 16);
 		Object.assign(phaserState.interactKeys.e, { justDown: true });
 		scene.update(16, 16);
@@ -5286,40 +5284,17 @@ describe('WorldScene', () => {
 		);
 	});
 
-	it('blocks movement through solid interior furniture but not floor props', async () => {
-		const target = installHudCommandTarget();
-		const restoreLocation = installLocationSearch('?movementDiagnostics=on');
-		const movementDiagnostics: PlayerMovementDiagnostic[] = [];
-		target.target.addEventListener(PLAYER_MOVEMENT_DIAGNOSTIC_EVENT, (event) => {
-			movementDiagnostics.push((event as CustomEvent<PlayerMovementDiagnostic>).detail);
-		});
+	it('allows movement through Hero House props without invented collisions', async () => {
 		const { WorldScene } = await import('./WorldScene');
 		const scene = new WorldScene();
 
 		scene.create({ mapId: 'hero-house' });
-		Object.assign(phaserState.playerMarker, { x: 112, y: 178 });
-		phaserState.cursorKeys.up.isDown = true;
-		scene.update(0, 250);
+		Object.assign(phaserState.playerMarker, { x: 160, y: 144 });
+		phaserState.cursorKeys.down.isDown = true;
+		scene.update(0, 50);
 
-		expect(phaserState.playerMarker.x).toBe(112);
-		expect(phaserState.playerMarker.y).toBe(178);
-		expect(movementDiagnostics).toContainEqual({
-			mapId: 'hero-house',
-			previousPosition: { x: 112, y: 178 },
-			requestedPosition: { x: 112, y: 118 },
-			resolvedPosition: { x: 112, y: 178 },
-			blocked: true
-		});
-
-		phaserState.cursorKeys.up.isDown = false;
-		Object.assign(phaserState.playerMarker, { x: 256, y: 300 });
-		phaserState.cursorKeys.up.isDown = true;
-		scene.update(250, 250);
-
-		expect(phaserState.playerMarker.x).toBe(256);
-		expect(phaserState.playerMarker.y).toBeLessThan(300);
-		restoreLocation();
-		target.restore();
+		expect(phaserState.playerMarker.x).toBe(160);
+		expect(phaserState.playerMarker.y).toBeGreaterThan(144);
 	});
 
 	it('allows player movement away from an existing furniture overlap', async () => {
@@ -5327,12 +5302,12 @@ describe('WorldScene', () => {
 		const scene = new WorldScene();
 
 		scene.create({ mapId: 'hero-house' });
-		Object.assign(phaserState.playerMarker, { x: 112, y: 112 });
+		Object.assign(phaserState.playerMarker, { x: 160, y: 144 });
 		phaserState.cursorKeys.down.isDown = true;
 		scene.update(0, 50);
 
-		expect(phaserState.playerMarker.x).toBe(112);
-		expect(phaserState.playerMarker.y).toBeGreaterThan(112);
+		expect(phaserState.playerMarker.x).toBe(160);
+		expect(phaserState.playerMarker.y).toBeGreaterThan(144);
 	});
 
 	it('renders Mira with item shop NPC art', async () => {
@@ -5341,9 +5316,9 @@ describe('WorldScene', () => {
 
 		scene.create({ mapId: 'item-shop' });
 
-		expect(scene.add.image).toHaveBeenCalledWith(256, 144, 'npc-pack', 'miraItemShopNpc');
+		expect(scene.add.image).toHaveBeenCalledWith(416, 320, 'npc-pack', 'miraItemShopNpc');
 		const miraMarkers = phaserState.imageMarkers.filter(
-			(marker) => marker.x === 256 && marker.y === 144 && marker.frame === 'miraItemShopNpc'
+			(marker) => marker.x === 416 && marker.y === 320 && marker.frame === 'miraItemShopNpc'
 		);
 		expect(miraMarkers).toHaveLength(1);
 		expect(miraMarkers[0]!.setDisplaySize).toHaveBeenCalledWith(96, 87);
@@ -5437,14 +5412,14 @@ describe('WorldScene', () => {
 			saveState: {
 				...save,
 				mapId: 'item-shop',
-				player: { ...save.player, x: 256, y: 144 },
+				player: { ...save.player, x: 416, y: 320 },
 				inventory: {
 					stacks: [{ itemId: 'field-potion', quantity: 2 }],
 					equipment: []
 				}
 			}
 		});
-		Object.assign(phaserState.playerMarker, { x: 256, y: 144 });
+		Object.assign(phaserState.playerMarker, { x: 416, y: 320 });
 		emitHudStateSpy.mockClear();
 
 		scene.update(0, 16);
@@ -5639,13 +5614,13 @@ describe('WorldScene', () => {
 		const scene = new WorldScene();
 
 		scene.create({ mapId: 'item-shop' });
-		emitHudStateSpy.mockClear();
 
-		Object.assign(phaserState.playerMarker, { x: 256, y: 144 });
+		Object.assign(phaserState.playerMarker, { x: 416, y: 360 });
 		scene.update(0, 16);
+		emitHudStateSpy.mockClear();
 		Object.assign(phaserState.playerMarker, { x: 64, y: 64 });
 		scene.update(16, 16);
-		Object.assign(phaserState.playerMarker, { x: 256, y: 144 });
+		Object.assign(phaserState.playerMarker, { x: 416, y: 360 });
 		scene.update(32, 16);
 
 		expect(emitHudStateSpy).toHaveBeenCalledTimes(3);
@@ -5788,7 +5763,7 @@ describe('WorldScene', () => {
 		};
 
 		scene.create({ mapId: 'item-shop' });
-		Object.assign(phaserState.playerMarker, { x: 256, y: 144 });
+		Object.assign(phaserState.playerMarker, { x: 416, y: 320 });
 		scene.update(0, 16);
 		emitHudStateSpy.mockClear();
 
@@ -6187,7 +6162,7 @@ describe('WorldScene', () => {
 		};
 
 		scene.create({ mapId: 'item-shop' });
-		Object.assign(phaserState.playerMarker, { x: 256, y: 144 });
+		Object.assign(phaserState.playerMarker, { x: 416, y: 320 });
 		phaserState.interactKeys.e.justDown = true;
 		scene.update(16, 16);
 		await flushStoryDialogue();
@@ -6275,7 +6250,7 @@ describe('WorldScene', () => {
 		const scene = new WorldScene();
 
 		scene.create({ mapId: 'item-shop' });
-		Object.assign(phaserState.playerMarker, { x: 256, y: 144 });
+		Object.assign(phaserState.playerMarker, { x: 416, y: 320 });
 		scene.update(0, 16);
 		emitHudStateSpy.mockClear();
 
@@ -6347,8 +6322,8 @@ describe('WorldScene', () => {
 	it.each([
 		{
 			mapId: 'item-shop',
-			x: 256,
-			y: 144,
+			x: 416,
+			y: 320,
 			nearbyShop: {
 				shopId: 'miras-item-shop',
 				name: "Mira's Item Shop",
@@ -6396,7 +6371,7 @@ describe('WorldScene', () => {
 		};
 
 		scene.create({ mapId: 'item-shop' });
-		Object.assign(phaserState.playerMarker, { x: 256, y: 144 });
+		Object.assign(phaserState.playerMarker, { x: 416, y: 320 });
 		scene.update(0, 16);
 		emitHudStateSpy.mockClear();
 
@@ -6487,7 +6462,7 @@ describe('WorldScene', () => {
 			saveState: {
 				...save,
 				mapId: 'item-shop',
-				player: { ...save.player, x: 256, y: 144 },
+				player: { ...save.player, x: 416, y: 320 },
 				inventory: {
 					stacks: [{ itemId: 'field-potion', quantity: 2 }],
 					equipment: ['training-sword', 'iron-cap']
@@ -6496,7 +6471,7 @@ describe('WorldScene', () => {
 				wallet: { coins: 0 }
 			}
 		});
-		Object.assign(phaserState.playerMarker, { x: 256, y: 144 });
+		Object.assign(phaserState.playerMarker, { x: 416, y: 320 });
 		scene.update(0, 16);
 		emitHudStateSpy.mockClear();
 
@@ -7263,8 +7238,8 @@ describe('WorldScene', () => {
 			saveState: expect.objectContaining({
 				mapId: 'hero-house',
 				player: expect.objectContaining({
-					x: 256,
-					y: 224,
+					x: 352,
+					y: 480,
 					facing: 'up'
 				})
 			})
@@ -7282,7 +7257,7 @@ describe('WorldScene', () => {
 				mapId: 'hero-house'
 			}
 		});
-		Object.assign(phaserState.playerMarker, { x: 256, y: 336 });
+		Object.assign(phaserState.playerMarker, { x: 352, y: 560 });
 
 		scene.update(0, 16);
 

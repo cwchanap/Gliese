@@ -315,7 +315,7 @@ describe('opening map content', () => {
 					y: 5_856,
 					toMapId: 'hero-house',
 					showMarker: false,
-					arrival: { x: 256, y: 224, facing: 'up' }
+					arrival: { x: 352, y: 480, facing: 'up' }
 				},
 				{
 					id: 'meadow-to-item-shop',
@@ -323,7 +323,7 @@ describe('opening map content', () => {
 					y: 5_184,
 					toMapId: 'item-shop',
 					showMarker: false,
-					arrival: { x: 256, y: 288, facing: 'up' }
+					arrival: { x: 416, y: 544, facing: 'up' }
 				},
 				{
 					id: 'meadow-to-villager-house-1',
@@ -436,13 +436,13 @@ describe('opening map content', () => {
 			meadowEntryMap.transitions.find((transition) => transition.id === 'meadow-to-hero-house')
 		).toMatchObject({
 			toMapId: 'hero-house',
-			arrival: { x: 256, y: 224, facing: 'up' }
+			arrival: { x: 352, y: 480, facing: 'up' }
 		});
 		expect(heroHouseMap.transitions).toEqual([
 			{
 				id: 'hero-house-to-meadow',
-				x: 256,
-				y: 336,
+				x: 352,
+				y: 560,
 				toMapId: 'meadow-entry',
 				arrival: { x: 704, y: 5_920, facing: 'down' }
 			}
@@ -955,7 +955,7 @@ describe('opening map content', () => {
 		}
 	});
 
-	it('registers compact village interiors and the expanded Guild Hall', () => {
+	it('registers village interiors and the expanded Guild Hall', () => {
 		const compactInteriors = [
 			heroHouseMap,
 			itemShopMap,
@@ -972,12 +972,16 @@ describe('opening map content', () => {
 		expect(maps['villager-house-3']).toBe(villagerHouse3Map);
 		expect(maps['shrine-of-aurora-interior']).toBe(shrineOfAuroraInteriorMap);
 
-		for (const map of compactInteriors) {
+		for (const map of compactInteriors.slice(2)) {
 			expect(map.width).toBe(16);
 			expect(map.height).toBe(12);
 			expect(map.transitions).toHaveLength(1);
 			expect(map.transitions[0].toMapId).toBe('meadow-entry');
 		}
+		expect(heroHouseMap.width).toBe(22);
+		expect(heroHouseMap.height).toBe(18);
+		expect(itemShopMap.width).toBe(26);
+		expect(itemShopMap.height).toBe(20);
 
 		expect(maps['guild-hall']).toBe(guildHallMap);
 		expect(guildHallMap.width).toBe(32);
@@ -1044,6 +1048,243 @@ describe('opening map content', () => {
 		});
 	});
 
+	it('uses the approved Hero House and Item Shop floor, wall, and arrival contracts', () => {
+		expect(heroHouseMap.spawnDirection).toBe('up');
+		expect(heroHouseMap.spawn).toEqual({ x: 352, y: 480 });
+		expect(heroHouseMap.transitions).toEqual([
+			{
+				id: 'hero-house-to-meadow',
+				x: 352,
+				y: 560,
+				toMapId: 'meadow-entry',
+				arrival: { x: 704, y: 5_920, facing: 'down' }
+			}
+		]);
+		expect(heroHouseMap.groundPatches).toEqual([
+			{
+				id: 'hero-house-full-floor',
+				x: 352,
+				y: 288,
+				width: 704,
+				height: 576,
+				tile: 'cobblestoneTile'
+			},
+			{
+				id: 'hero-house-room-bedroom',
+				x: 160,
+				y: 160,
+				width: 192,
+				height: 192,
+				tile: 'plazaStoneTile'
+			},
+			{
+				id: 'hero-house-room-study',
+				x: 544,
+				y: 160,
+				width: 192,
+				height: 192,
+				tile: 'plazaStoneTile'
+			},
+			{
+				id: 'hero-house-room-living-kitchen',
+				x: 352,
+				y: 416,
+				width: 576,
+				height: 256,
+				tile: 'plazaStoneTile'
+			},
+			{ id: 'hero-house-corridor-hall', x: 352, y: 176, width: 128, height: 224, tile: 'pathTile' }
+		]);
+		expect(heroHouseMap.blockers).toEqual(
+			[
+				['hero-house-wall-north', 352, 32, 704, 64],
+				['hero-house-wall-west', 32, 304, 64, 480],
+				['hero-house-wall-east', 672, 304, 64, 480],
+				['hero-house-wall-south-west', 160, 560, 320, 32],
+				['hero-house-wall-south-east', 544, 560, 320, 32],
+				['hero-house-bedroom-divider-north', 272, 96, 32, 64],
+				['hero-house-bedroom-divider-south', 272, 224, 32, 64],
+				['hero-house-study-divider-north', 432, 96, 32, 64],
+				['hero-house-study-divider-south', 432, 224, 32, 64],
+				['hero-house-hall-living-divider-west', 176, 272, 224, 32],
+				['hero-house-hall-living-divider-east', 528, 272, 224, 32]
+			].map(([id, x, y, width, height]) => ({ id, x, y, width, height, kind: 'ruin-wall' }))
+		);
+
+		expect(itemShopMap.spawnDirection).toBe('up');
+		expect(itemShopMap.spawn).toEqual({ x: 416, y: 544 });
+		expect(itemShopMap.transitions).toEqual([
+			{
+				id: 'item-shop-to-meadow',
+				x: 416,
+				y: 624,
+				toMapId: 'meadow-entry',
+				arrival: { x: 704, y: 5_248, facing: 'down' }
+			}
+		]);
+		expect(itemShopMap.groundPatches).toEqual([
+			{
+				id: 'item-shop-full-floor',
+				x: 416,
+				y: 320,
+				width: 832,
+				height: 640,
+				tile: 'cobblestoneTile'
+			},
+			{
+				id: 'item-shop-room-stockroom',
+				x: 192,
+				y: 144,
+				width: 256,
+				height: 160,
+				tile: 'plazaStoneTile'
+			},
+			{
+				id: 'item-shop-room-office',
+				x: 640,
+				y: 144,
+				width: 256,
+				height: 160,
+				tile: 'plazaStoneTile'
+			},
+			{
+				id: 'item-shop-room-sales-floor',
+				x: 416,
+				y: 432,
+				width: 704,
+				height: 352,
+				tile: 'plazaStoneTile'
+			},
+			{
+				id: 'item-shop-corridor-service',
+				x: 416,
+				y: 160,
+				width: 128,
+				height: 192,
+				tile: 'pathTile'
+			}
+		]);
+		expect(itemShopMap.blockers).toEqual(
+			[
+				['item-shop-wall-north', 416, 32, 832, 64],
+				['item-shop-wall-west', 32, 336, 64, 544],
+				['item-shop-wall-east', 800, 336, 64, 544],
+				['item-shop-wall-south-west', 192, 624, 384, 32],
+				['item-shop-wall-south-east', 640, 624, 384, 32],
+				['item-shop-stockroom-divider-north', 336, 88, 32, 48],
+				['item-shop-stockroom-divider-south', 336, 200, 32, 48],
+				['item-shop-office-divider-north', 496, 88, 32, 48],
+				['item-shop-office-divider-south', 496, 200, 32, 48],
+				['item-shop-stockroom-sales-divider', 192, 240, 256, 32],
+				['item-shop-office-sales-divider', 640, 240, 256, 32],
+				['item-shop-service-west-lower-divider', 336, 240, 32, 32],
+				['item-shop-service-east-lower-divider', 496, 240, 32, 32]
+			].map(([id, x, y, width, height]) => ({ id, x, y, width, height, kind: 'ruin-wall' }))
+		);
+	});
+
+	it('keeps Hero House and Item Shop authored door routes clear', () => {
+		expectRouteClear(
+			heroHouseMap,
+			[heroHouseMap.spawn, { x: 352, y: 320 }, { x: 352, y: 160 }, { x: 160, y: 160 }],
+			'hero-spawn-to-bedroom'
+		);
+		expectRouteClear(
+			heroHouseMap,
+			[heroHouseMap.spawn, { x: 352, y: 160 }, { x: 544, y: 160 }],
+			'hero-spawn-to-study'
+		);
+		expectRouteClear(heroHouseMap, [heroHouseMap.spawn, { x: 544, y: 480 }], 'hero-living-kitchen');
+		expectRouteClear(
+			heroHouseMap,
+			[heroHouseMap.spawn, heroHouseMap.transitions[0]],
+			'hero-spawn-to-exit'
+		);
+
+		const mira = itemShopMap.npcs!.find((npc) => npc.id === 'shopkeeper-mira')!;
+		const miraApproach = { x: 416, y: 360 };
+		expectRouteClear(itemShopMap, [itemShopMap.spawn, miraApproach], 'shop-spawn-to-mira');
+		expectRouteClear(
+			itemShopMap,
+			[
+				itemShopMap.spawn,
+				{ x: 640, y: 544 },
+				{ x: 640, y: 300 },
+				{ x: 448, y: 300 },
+				{ x: 448, y: 160 },
+				{ x: 192, y: 160 }
+			],
+			'shop-stockroom'
+		);
+		expectRouteClear(
+			itemShopMap,
+			[
+				itemShopMap.spawn,
+				{ x: 640, y: 544 },
+				{ x: 640, y: 300 },
+				{ x: 448, y: 300 },
+				{ x: 448, y: 160 },
+				{ x: 608, y: 160 }
+			],
+			'shop-office'
+		);
+		expectRouteClear(
+			itemShopMap,
+			[itemShopMap.spawn, { x: 192, y: 544 }, { x: 192, y: 448 }],
+			'shop-west-display'
+		);
+		expectRouteClear(
+			itemShopMap,
+			[itemShopMap.spawn, { x: 640, y: 544 }, { x: 640, y: 448 }],
+			'shop-east-display'
+		);
+		expectRouteClear(
+			itemShopMap,
+			[itemShopMap.spawn, itemShopMap.transitions[0]],
+			'shop-spawn-to-exit'
+		);
+		expect(Math.hypot(miraApproach.x - mira.x, miraApproach.y - mira.y)).toBe(40);
+	});
+
+	it('keeps Mira, counter clearance, and minimal interior props exact', () => {
+		const mira = itemShopMap.npcs!.find((npc) => npc.id === 'shopkeeper-mira');
+		expect(mira).toMatchObject({
+			id: 'shopkeeper-mira',
+			x: 416,
+			y: 320,
+			dialogueId: 'shopkeeper-mira',
+			role: 'shopkeeper',
+			frameName: 'miraItemShopNpc',
+			shopId: 'miras-item-shop'
+		});
+		expect(mira).toBeDefined();
+		for (const point of [mira!, { x: 416, y: 360 }]) {
+			expectPointClearOfInteriorPropCollisions(itemShopMap, point, 'mira-counter-clearance');
+		}
+		expect(itemShopMap.interiorProps?.map((prop) => prop.id)).toEqual([
+			'item-shop-counter',
+			'item-shop-west-display',
+			'item-shop-east-display',
+			'item-shop-stock-shelves',
+			'item-shop-office-desk'
+		]);
+		expect(
+			itemShopMap.interiorProps?.find((prop) => prop.id === 'item-shop-counter')?.collision
+		).toEqual({ id: 'item-shop-counter-collision', x: 416, y: 340, width: 384, height: 8 });
+		expect(itemShopMap.ambientNpcs).toEqual([
+			{ id: 'item-shop-customer', x: 224, y: 480, frameName: 'guildMasterNpc', role: 'shopper' }
+		]);
+		expect(heroHouseMap.interiorProps?.map((prop) => prop.id)).toEqual([
+			'hero-house-bed',
+			'hero-house-study-storage',
+			'hero-house-living-table',
+			'hero-house-kitchen-storage'
+		]);
+		expect(heroHouseMap.interiorProps?.every((prop) => !prop.collision)).toBe(true);
+		expect(heroHouseMap.backgroundImages).toBeUndefined();
+		expect(itemShopMap.backgroundImages).toBeUndefined();
+	});
+
 	it('decorates compact village interiors with bounded props and ambient NPCs', () => {
 		const interiors = [
 			heroHouseMap,
@@ -1057,12 +1298,10 @@ describe('opening map content', () => {
 		const allAmbientNpcIds = new Set<string>();
 
 		expect(heroHouseMap.interiorProps?.map((prop) => prop.id)).toEqual([
-			'hero-house-rug',
 			'hero-house-bed',
-			'hero-house-table',
-			'hero-house-bookshelf',
-			'hero-house-crates',
-			'hero-house-plant'
+			'hero-house-study-storage',
+			'hero-house-living-table',
+			'hero-house-kitchen-storage'
 		]);
 		expect(guildHallMap.interiorProps?.map((prop) => prop.id)).toContain('guild-hall-notice-board');
 		expect(itemShopMap.interiorProps?.map((prop) => prop.id)).toContain('item-shop-counter');
@@ -1235,8 +1474,8 @@ describe('opening map content', () => {
 		expect(itemShopMap.npcs).toMatchObject([
 			{
 				id: 'shopkeeper-mira',
-				x: 256,
-				y: 144,
+				x: 416,
+				y: 320,
 				nameKey: 'content.maps.npcs.shopkeeper-mira.name',
 				dialogueId: 'shopkeeper-mira',
 				role: 'shopkeeper',
