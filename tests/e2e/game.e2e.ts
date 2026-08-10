@@ -1,12 +1,39 @@
 import { expect, test, type Page } from '@playwright/test';
 
 type HudStateSnapshot = {
+	ready?: boolean;
+	mapId?: string;
 	status?: string;
+	areaMap?: { player?: { x?: number; y?: number } };
 	nearbyShop?: { shopId?: string; merchantName?: string } | null;
+	inventory?: {
+		consumables?: Array<{ itemId?: string; quantity?: number }>;
+	};
+};
+
+type PlayerMovementDiagnostic = {
+	mapId: string;
+	previousPosition: { x: number; y: number };
+	requestedPosition: { x: number; y: number };
+	resolvedPosition: { x: number; y: number };
+	blocked: boolean;
+};
+
+type RegionalBackgroundPlaneRenderDiagnostic = {
+	mapId: string;
+	regionalBackgroundsEnabled: boolean;
+	entries: unknown[];
+	successfulBackgroundIds: string[];
+	selectedFallbackBlockerIds?: string[];
+	selectedFallbackDecorIds: string[];
+	selectedFallbackFenceIds: string[];
 };
 
 type GlieseProbeWindow = Window & {
 	__glieseLastHudState?: HudStateSnapshot;
+	__glieseMovementDiagnostics?: PlayerMovementDiagnostic[];
+	__glieseLastMovementDiagnostic?: PlayerMovementDiagnostic;
+	__glieseRegionalBackgroundDiagnostics?: RegionalBackgroundPlaneRenderDiagnostic[];
 };
 
 function commandBox(page: Page, name = 'Command') {
@@ -55,7 +82,11 @@ type SaveFixtureOverrides = Partial<{
 		accessory: string | null;
 	};
 	wallet: { coins: number };
-}>;
+}> & {
+	clearedEncounters?: string[];
+	collectedPickups?: string[];
+	seenDiscoveries?: string[];
+};
 
 // Single source of truth for the save schema version/storage key in this e2e
 // suite. Mirrors SAVE_STORAGE_KEY / SaveState.version in src/lib/game/save —
@@ -84,9 +115,9 @@ function createSaveFixture(overrides: SaveFixtureOverrides = {}) {
 			facing: 'down'
 		},
 		flags: {
-			clearedEncounters: [],
+			clearedEncounters: overrides.clearedEncounters ?? [],
 			clearedEncounterUnitCounts: {},
-			collectedPickups: [],
+			collectedPickups: overrides.collectedPickups ?? [],
 			resolvedEncounterDrops: {}
 		},
 		inventory: overrides.inventory ?? {
@@ -111,7 +142,7 @@ function createSaveFixture(overrides: SaveFixtureOverrides = {}) {
 			}
 		},
 		quests: createQuestFixture(),
-		seenDiscoveries: []
+		seenDiscoveries: overrides.seenDiscoveries ?? []
 	};
 }
 
@@ -123,6 +154,367 @@ function injectSave(page: Page, save: ReturnType<typeof createSaveFixture>) {
 		{ encoded: JSON.stringify(save), key: SAVE_STORAGE_KEY }
 	);
 }
+
+function installRuntimeProbes(page: Page) {
+	return page.addInitScript(() => {
+		const probeWindow = window as GlieseProbeWindow;
+		probeWindow.__glieseLastHudState = undefined;
+		probeWindow.__glieseMovementDiagnostics = [];
+		probeWindow.__glieseLastMovementDiagnostic = undefined;
+		probeWindow.__glieseRegionalBackgroundDiagnostics = [];
+		window.addEventListener('gliese:hud-state', (event) => {
+			probeWindow.__glieseLastHudState = (event as CustomEvent<HudStateSnapshot>).detail;
+		});
+		window.addEventListener('gliese:player-movement-diagnostic', (event) => {
+			const detail = (event as CustomEvent<PlayerMovementDiagnostic>).detail;
+			probeWindow.__glieseMovementDiagnostics?.push(detail);
+			probeWindow.__glieseLastMovementDiagnostic = detail;
+		});
+		window.addEventListener('gliese:regional-background-plane-render-diagnostic', (event) => {
+			probeWindow.__glieseRegionalBackgroundDiagnostics?.push(
+				(event as CustomEvent<RegionalBackgroundPlaneRenderDiagnostic>).detail
+			);
+		});
+	});
+}
+
+type Point = { x: number; y: number };
+type Axis = 'x' | 'y';
+
+async function latestMovement(page: Page): Promise<PlayerMovementDiagnostic | null> {
+	return page.evaluate(() => (window as GlieseProbeWindow).__glieseLastMovementDiagnostic ?? null);
+}
+
+async function moveAxisTo(
+	page: Page,
+	axis: Axis,
+	current: number,
+	target: number
+): Promise<number> {
+	if (Math.abs(target - current) <= 24) return current;
+
+	const direction = target > current ? 1 : -1;
+	const key =
+		axis === 'x'
+			? direction > 0
+				? 'ArrowRight'
+				: 'ArrowLeft'
+			: direction > 0
+				? 'ArrowDown'
+				: 'ArrowUp';
+	const timeout = Math.max(3_000, (Math.abs(target - current) / 240) * 1_000 + 2_500);
+
+	await page.keyboard.down(key);
+	try {
+		await page.waitForFunction(
+			({ axis: requestedAxis, target: requestedTarget, direction: requestedDirection }) => {
+				const diagnostic = (window as GlieseProbeWindow).__glieseLastMovementDiagnostic;
+				if (!diagnostic) return false;
+				const value = diagnostic.resolvedPosition[requestedAxis];
+				return requestedDirection > 0
+					? value >= requestedTarget - 18
+					: value <= requestedTarget + 18;
+			},
+			{ axis, target, direction },
+			{ timeout }
+		);
+	} finally {
+		await page.keyboard.up(key);
+	}
+	await page.waitForTimeout(80);
+	const diagnostic = await latestMovement(page);
+	return diagnostic?.resolvedPosition[axis] ?? target;
+}
+
+async function moveRoute(page: Page, points: readonly Point[]): Promise<Point> {
+	let current = points[0] ?? { x: 0, y: 0 };
+	for (const target of points.slice(1)) {
+		if (target.x !== current.x) {
+			current = {
+				x: await moveAxisTo(page, 'x', current.x, target.x),
+				y: current.y
+			};
+		}
+		if (target.y !== current.y) {
+			current = {
+				x: current.x,
+				y: await moveAxisTo(page, 'y', current.y, target.y)
+			};
+		}
+	}
+	return current;
+}
+
+async function moveAndResolveBattle(
+	page: Page,
+	key: 'ArrowUp' | 'ArrowDown' | 'ArrowLeft' | 'ArrowRight'
+) {
+	await page.keyboard.down(key);
+	await page.waitForTimeout(2_000);
+	await page.keyboard.up(key);
+
+	const battleSummary = page.getByRole('dialog', { name: /battle summary/i });
+	await expect(battleSummary).toBeVisible({ timeout: 30_000 });
+	await expect(battleSummary.getByText(/Enemies defeated: (?:[1-9]|10)/i)).toBeVisible();
+	await battleSummary.getByRole('button', { name: /continue/i }).click();
+	await expect(battleSummary).toHaveCount(0);
+}
+
+const HERO_HOUSE_TO_CROSSROADS = [
+	{ x: 704, y: 5_920 },
+	{ x: 704, y: 6_080 },
+	{ x: 320, y: 6_080 },
+	{ x: 320, y: 5_920 },
+	{ x: 320, y: 4_688 },
+	{ x: 3_264, y: 4_688 },
+	{ x: 3_776, y: 4_688 },
+	{ x: 3_776, y: 4_480 }
+] as const;
+
+const CROSSROADS_TO_MISTFEN = [
+	{ x: 3_776, y: 4_480 },
+	{ x: 3_648, y: 4_480 },
+	{ x: 3_648, y: 4_064 },
+	{ x: 3_776, y: 4_064 },
+	{ x: 3_776, y: 3_136 },
+	{ x: 3_072, y: 3_136 },
+	{ x: 2_320, y: 3_136 },
+	{ x: 2_320, y: 2_784 }
+] as const;
+
+const CROSSROADS_TO_SILVERPINE = [
+	{ x: 3_776, y: 4_480 },
+	{ x: 3_648, y: 4_480 },
+	{ x: 3_648, y: 4_064 },
+	{ x: 3_776, y: 4_064 },
+	{ x: 3_776, y: 2_432 },
+	{ x: 3_440, y: 2_432 }
+] as const;
+
+const CROSSROADS_TO_WILDWOOD = [
+	{ x: 3_776, y: 4_480 },
+	{ x: 4_288, y: 4_480 },
+	{ x: 4_288, y: 4_224 },
+	{ x: 4_800, y: 4_224 },
+	{ x: 4_800, y: 3_808 }
+] as const;
+
+const CROSSROADS_TO_COAST = [
+	{ x: 3_776, y: 4_480 },
+	{ x: 4_224, y: 4_480 },
+	{ x: 4_224, y: 5_520 },
+	{ x: 4_184, y: 5_520 },
+	{ x: 4_184, y: 5_840 },
+	{ x: 4_600, y: 5_840 }
+] as const;
+
+test('Meadow Entry starts as the active zero-background graybox and accepts movement', async ({
+	page
+}) => {
+	await installRuntimeProbes(page);
+	await page.goto('/?movementDiagnostics=on');
+	await expect(page.locator('canvas')).toBeVisible();
+	await expect(page.getByRole('button', { name: 'Menu' })).toBeVisible();
+
+	await page.waitForFunction(() => {
+		const diagnostics = (window as GlieseProbeWindow).__glieseRegionalBackgroundDiagnostics ?? [];
+		return diagnostics.some((diagnostic) => diagnostic.mapId === 'meadow-entry');
+	});
+	const rendererDiagnostics = await page.evaluate(
+		() => (window as GlieseProbeWindow).__glieseRegionalBackgroundDiagnostics ?? []
+	);
+	const meadowDiagnostics = rendererDiagnostics.filter(
+		(diagnostic) => diagnostic.mapId === 'meadow-entry'
+	);
+	expect(meadowDiagnostics).toHaveLength(1);
+	expect(meadowDiagnostics[0]).toEqual(
+		expect.objectContaining({
+			mapId: 'meadow-entry',
+			entries: [],
+			successfulBackgroundIds: [],
+			selectedFallbackBlockerIds: [],
+			selectedFallbackDecorIds: [],
+			selectedFallbackFenceIds: []
+		})
+	);
+
+	await expect(page.getByTestId('hud-location-panel')).toBeVisible();
+	await expect(page.getByTestId('hud-party-panel')).toBeVisible();
+	await expect(fieldStatus(page)).toBeVisible();
+	await page.locator('canvas').click();
+	await moveRoute(page, [
+		{ x: 704, y: 5_920 },
+		{ x: 640, y: 5_920 }
+	]);
+
+	const movementDiagnostics = await page.evaluate(
+		() => (window as GlieseProbeWindow).__glieseMovementDiagnostics ?? []
+	);
+	expect(movementDiagnostics[0]?.mapId).toBe('meadow-entry');
+	expect(movementDiagnostics[0]?.previousPosition).toEqual({ x: 704, y: 5_920 });
+	expect(movementDiagnostics.at(-1)?.resolvedPosition.x).toBeLessThan(704);
+	expect(movementDiagnostics.at(-1)?.blocked).toBe(false);
+});
+
+test('Meadow Entry supports the continuous outdoor route and persists its proof state', async ({
+	page
+}) => {
+	// The proof traverses every authored Meadow Entry seam and includes a battle;
+	// allow the browser route enough wall-clock budget while each movement helper
+	// retains its own collision timeout.
+	test.setTimeout(360_000);
+	await installRuntimeProbes(page);
+	await injectSave(
+		page,
+		createSaveFixture({
+			clearedEncounters: ['meadow-slime-west', 'meadow-slime-center'],
+			player: {
+				level: 1,
+				xp: 0,
+				hp: 200,
+				attack: 50,
+				x: 704,
+				y: 5_920,
+				facing: 'down'
+			}
+		})
+	);
+	await page.goto('/?movementDiagnostics=on');
+	await expect(page.locator('canvas')).toBeVisible();
+	await page.getByRole('button', { name: 'Menu' }).click();
+	await commandBox(page).getByRole('button', { name: 'Resume Save' }).click();
+	await expect(fieldStatus(page)).toContainText('Save resumed');
+	await page.locator('canvas').click();
+
+	// Hero House frontage → west village lane → Main Street. The short side trip
+	// to the market cache keeps a real pickup in the same continuous run.
+	await moveRoute(page, HERO_HOUSE_TO_CROSSROADS.slice(0, 5));
+	await moveRoute(page, [
+		{ x: 320, y: 4_688 },
+		{ x: 912, y: 4_688 },
+		{ x: 912, y: 5_072 }
+	]);
+	await expect(fieldStatus(page)).toContainText('Found');
+	await moveRoute(page, [
+		{ x: 912, y: 5_072 },
+		{ x: 912, y: 4_688 },
+		{ x: 3_264, y: 4_688 },
+		{ x: 3_776, y: 4_688 },
+		{ x: 3_776, y: 4_480 }
+	]);
+
+	// Crossroads payoff: collect one plaza pickup and read one waystone discovery.
+	await moveRoute(page, [
+		{ x: 3_776, y: 4_480 },
+		{ x: 4_032, y: 4_480 }
+	]);
+	await expect(fieldStatus(page)).toContainText('Found');
+	await moveRoute(page, [
+		{ x: 4_032, y: 4_480 },
+		{ x: 4_032, y: 4_224 },
+		{ x: 3_904, y: 4_224 }
+	]);
+	// Give Phaser one settled frame after the final movement correction, then hold
+	// the interaction key long enough for JustDown to be observed deterministically.
+	await page.waitForTimeout(120);
+	await page.keyboard.press('e', { delay: 50 });
+	const discoveryDialog = page.getByRole('dialog');
+	await expect(discoveryDialog).toBeVisible();
+	await discoveryDialog.getByRole('button', { name: 'Close' }).click();
+
+	// Crossroads → Mistfen seam → Crossroads.
+	await moveRoute(page, [
+		{ x: 3_904, y: 4_224 },
+		// The waystone collision owns the direct west edge of the discovery;
+		// return around its north-east corner before rejoining the plaza route.
+		{ x: 4_160, y: 4_224 },
+		{ x: 4_160, y: 4_480 },
+		{ x: 3_776, y: 4_480 },
+		...CROSSROADS_TO_MISTFEN.slice(1)
+	]);
+	await moveRoute(page, [...CROSSROADS_TO_MISTFEN].reverse());
+
+	// Crossroads → Silverpine seam → Crossroads.
+	await moveRoute(page, CROSSROADS_TO_SILVERPINE);
+	await moveRoute(page, [...CROSSROADS_TO_SILVERPINE].reverse());
+
+	// Crossroads → Wildwood seam. Continue up the live forest road to the one
+	// remaining encounter, then return to the gated cave transition.
+	await moveRoute(page, CROSSROADS_TO_WILDWOOD);
+	await moveRoute(page, [
+		{ x: 4_800, y: 3_808 },
+		{ x: 4_420, y: 3_808 },
+		{ x: 4_420, y: 5_347 },
+		{ x: 5_600, y: 5_347 },
+		{ x: 5_600, y: 3_200 },
+		{ x: 5_600, y: 2_100 },
+		{ x: 5_600, y: 1_600 }
+	]);
+	await moveAndResolveBattle(page, 'ArrowRight');
+	await expect(fieldStatus(page)).toContainText('Returned from battle');
+	await moveRoute(page, [
+		{ x: 5_920, y: 1_664 },
+		{ x: 5_600, y: 1_664 },
+		{ x: 5_600, y: 2_100 },
+		{ x: 5_960, y: 2_100 },
+		{ x: 5_960, y: 1_868 }
+	]);
+	await expect(fieldStatus(page)).toContainText('Report to the Guild Master first');
+
+	// Return to Crossroads, then take the Tidewatch Coast seam and return.
+	await moveRoute(page, [
+		{ x: 5_960, y: 1_868 },
+		{ x: 5_960, y: 2_100 },
+		{ x: 5_600, y: 2_100 },
+		{ x: 5_600, y: 3_200 },
+		{ x: 5_600, y: 3_808 },
+		// The authored forest road is one-way around this hedge bank at y=3808;
+		// drop to the southern lane before crossing back west.
+		{ x: 5_600, y: 5_347 },
+		{ x: 4_420, y: 5_347 },
+		{ x: 4_420, y: 3_808 },
+		{ x: 4_800, y: 3_808 },
+		{ x: 4_800, y: 4_224 },
+		{ x: 4_288, y: 4_224 },
+		{ x: 4_288, y: 4_480 },
+		{ x: 3_776, y: 4_480 }
+	]);
+	await moveRoute(page, CROSSROADS_TO_COAST);
+	await moveRoute(page, [...CROSSROADS_TO_COAST].reverse());
+
+	// Crossroads → Sundrop Village, ending on the authored village main street.
+	await moveRoute(page, [
+		{ x: 3_776, y: 4_480 },
+		{ x: 3_264, y: 4_688 },
+		{ x: 320, y: 4_688 },
+		{ x: 1_152, y: 4_800 }
+	]);
+	await expect(page.getByTestId('hud-location-panel')).toContainText('Sundrop Meadows');
+
+	await page.getByRole('button', { name: 'Menu' }).click();
+	await commandBox(page).getByRole('button', { name: 'Save Game' }).click();
+	await expect(fieldStatus(page)).toContainText('Saved');
+	const persisted = await page.evaluate(
+		(key) => JSON.parse(localStorage.getItem(key) ?? 'null'),
+		SAVE_STORAGE_KEY
+	);
+	expect(persisted.mapId).toBe('meadow-entry');
+	expect(persisted.flags.collectedPickups).toEqual(
+		expect.arrayContaining(['village-market-cache', 'crossroads-cache'])
+	);
+	expect(persisted.seenDiscoveries).toContain('crossroads-waystone-sign');
+	expect(persisted.flags.clearedEncounters).toContain('meadow-slime-east');
+
+	await page.reload();
+	await expect(page.locator('canvas')).toBeVisible();
+	await page.getByRole('button', { name: 'Menu' }).click();
+	await commandBox(page).getByRole('button', { name: 'Resume Save' }).click();
+	await page.waitForFunction(() => {
+		const state = (window as GlieseProbeWindow).__glieseLastHudState;
+		return state?.ready === true && state.mapId === 'meadow-entry';
+	});
+	await expect(fieldStatus(page)).toContainText('Save resumed');
+});
 
 test('entry map boots with no game console errors', async ({ page }) => {
 	// Collect console errors emitted during boot. Phaser logs missing-texture and
