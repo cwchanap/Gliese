@@ -2270,6 +2270,46 @@ const V2_ROUTE_POINTS = {
 	]
 } as const satisfies Readonly<Record<string, readonly Pt[]>>;
 
+const V2_FULL_ROUTE_POINTS = {
+	heroHouseToCrossroads: V2_ROUTE_POINTS.heroHouseToCrossroads,
+	crossroadsToMistfen: [
+		...V2_ROUTE_POINTS.crossroadsToMistfen,
+		{ x: 2_320, y: 2_750 },
+		{ x: 2_150, y: 2_750 },
+		{ x: 1_760, y: 2_750 },
+		{ x: 1_760, y: 2_540 },
+		{ x: 1_400, y: 2_540 },
+		{ x: 1_400, y: 2_030 },
+		{ x: 1_400, y: 620 },
+		{ x: 1_200, y: 620 }
+	],
+	crossroadsToSilverpine: [
+		...V2_ROUTE_POINTS.crossroadsToSilverpine,
+		{ x: 3_440, y: 2_360 },
+		{ x: 3_180, y: 2_360 },
+		{ x: 2_900, y: 2_360 },
+		{ x: 2_900, y: 1_820 },
+		{ x: 2_900, y: 2_200 },
+		{ x: 4_000, y: 2_200 },
+		{ x: 4_000, y: 520 },
+		{ x: 3_000, y: 520 }
+	],
+	crossroadsToWildwood: [
+		...V2_ROUTE_POINTS.crossroadsToWildwood,
+		{ x: 4_800, y: 5_347 },
+		{ x: 5_600, y: 5_347 },
+		{ x: 5_600, y: 3_200 },
+		{ x: 5_600, y: 1_800 },
+		{ x: 5_960, y: 1_800 }
+	],
+	crossroadsToCoast: [
+		...V2_ROUTE_POINTS.crossroadsToCoast,
+		{ x: 4_224, y: 5_680 },
+		{ x: 4_600, y: 5_680 },
+		{ x: 4_600, y: 5_840 }
+	]
+} as const satisfies Readonly<Record<string, readonly Pt[]>>;
+
 function collectEntityIds(map: WorldMapDefinition): Set<string> {
 	const ids = new Set<string>();
 	const lists = [
@@ -2485,7 +2525,7 @@ describe('runtime-faithful Meadow Entry routes', () => {
 // no one prop is load-bearing there. That redundancy is by design, not a gap in the test.
 describe('route: spawn → crossroads', () => {
 	it('has no empty stretch longer than the gap tolerance', () => {
-		expectRouteHasNoEmptyStretch('spawn → crossroads', V2_ROUTE_POINTS.heroHouseToCrossroads);
+		expectRouteHasNoEmptyStretch('spawn → crossroads', V2_FULL_ROUTE_POINTS.heroHouseToCrossroads);
 	});
 });
 
@@ -2510,7 +2550,7 @@ describe('crossroads hub', () => {
 
 describe('route: crossroads → coast', () => {
 	it('has no empty stretch longer than the gap tolerance', () => {
-		expectRouteHasNoEmptyStretch('crossroads → coast', V2_ROUTE_POINTS.crossroadsToCoast);
+		expectRouteHasNoEmptyStretch('crossroads → coast', V2_FULL_ROUTE_POINTS.crossroadsToCoast);
 	});
 });
 
@@ -2522,7 +2562,7 @@ describe('dead end: coast jetty', () => {
 
 describe('route: crossroads → mistfen', () => {
 	it('has no empty stretch longer than the gap tolerance', () => {
-		expectRouteHasNoEmptyStretch('crossroads → mistfen', V2_ROUTE_POINTS.crossroadsToMistfen);
+		expectRouteHasNoEmptyStretch('crossroads → mistfen', V2_FULL_ROUTE_POINTS.crossroadsToMistfen);
 	});
 });
 
@@ -2540,7 +2580,10 @@ describe('dead end: witchwood gate', () => {
 
 describe('route: crossroads → silverpine', () => {
 	it('has no empty stretch longer than the gap tolerance', () => {
-		expectRouteHasNoEmptyStretch('crossroads → silverpine', V2_ROUTE_POINTS.crossroadsToSilverpine);
+		expectRouteHasNoEmptyStretch(
+			'crossroads → silverpine',
+			V2_FULL_ROUTE_POINTS.crossroadsToSilverpine
+		);
 	});
 });
 
@@ -2560,7 +2603,7 @@ describe('route: crossroads → wildwood cave', () => {
 	it('has no empty stretch longer than the gap tolerance', () => {
 		expectRouteHasNoEmptyStretch(
 			'crossroads → wildwood cave',
-			V2_ROUTE_POINTS.crossroadsToWildwood
+			V2_FULL_ROUTE_POINTS.crossroadsToWildwood
 		);
 	});
 
@@ -2627,10 +2670,10 @@ describe('interior return arrivals are standable', () => {
 
 describe('critical routes avoid blockers', () => {
 	const criticalRoutes: readonly (readonly Pt[])[] = [
-		V2_ROUTE_POINTS.crossroadsToCoast,
-		V2_ROUTE_POINTS.crossroadsToSilverpine,
-		V2_ROUTE_POINTS.crossroadsToMistfen,
-		V2_ROUTE_POINTS.crossroadsToWildwood
+		V2_FULL_ROUTE_POINTS.crossroadsToCoast,
+		V2_FULL_ROUTE_POINTS.crossroadsToSilverpine,
+		V2_FULL_ROUTE_POINTS.crossroadsToMistfen,
+		V2_FULL_ROUTE_POINTS.crossroadsToWildwood
 	];
 
 	it('keeps every critical-route sample outside blockers', () => {
