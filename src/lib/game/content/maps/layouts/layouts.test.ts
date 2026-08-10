@@ -1,7 +1,11 @@
 import { describe, expect, it } from 'vitest';
 
 import { getVillageBuildingFrameName, villageBuildingAsset } from '$lib/game/content/assets';
-import { PLAYER_COLLISION_RADIUS } from '$lib/game/core/collision';
+import {
+	NPC_INTERACTION_RADIUS,
+	NPC_PACK_COLLISION_RADIUS,
+	PLAYER_COLLISION_RADIUS
+} from '$lib/game/core/collision';
 import { NORMALIZE_TRANSITION_RADIUS } from '$lib/game/save/save-state';
 import {
 	MEADOW_ENTRY_V2_ROUTE_PATCHES,
@@ -14,6 +18,7 @@ import {
 	VILLAGE_INTERIOR_EXTERIORS
 } from './meadow-entry-v2';
 import {
+	expandedLayoutRectContainsPoint,
 	layoutRectContainsPoint,
 	rect,
 	rectClearance,
@@ -21,12 +26,98 @@ import {
 	rectsConnect,
 	rectsOverlap
 } from './layout-rects';
+import { VILLAGE_INTERIOR_LAYOUTS, type VillageInteriorLayout } from './village-interiors-v2';
 
 function expectStructuralGrid(value: { x: number; y: number; width: number; height: number }) {
-	for (const [name, number] of Object.entries(value)) {
+	for (const [name, number] of Object.entries({
+		x: value.x,
+		y: value.y,
+		width: value.width,
+		height: value.height
+	})) {
 		expect(number, name).toBeGreaterThanOrEqual(0);
 		expect(number % 32, `${name}=${number}`).toBe(0);
 	}
+}
+
+function expectStructuralSize(value: { width: number; height: number }) {
+	expect(value.width % 32, `width=${value.width}`).toBe(0);
+	expect(value.height % 32, `height=${value.height}`).toBe(0);
+}
+
+function interiorWalkableRects(layout: VillageInteriorLayout) {
+	return [
+		...Object.values(layout.rooms),
+		...Object.values(layout.corridors),
+		...Object.values(layout.doors)
+	];
+}
+
+function isInteriorWalkable(layout: VillageInteriorLayout, candidate: { x: number; y: number }) {
+	const authoredFloor = interiorWalkableRects(layout).some((value) =>
+		layoutRectContainsPoint(value, candidate)
+	);
+	if (!authoredFloor) return false;
+	if (
+		layout.walls.some((wall) =>
+			expandedLayoutRectContainsPoint(wall, candidate, PLAYER_COLLISION_RADIUS)
+		)
+	)
+		return false;
+	return !Object.values(layout.propCollisions).some((collision) =>
+		expandedLayoutRectContainsPoint(collision, candidate, PLAYER_COLLISION_RADIUS)
+	);
+}
+
+function reachableInteriorSamples(layout: VillageInteriorLayout) {
+	const sampleStep = 8;
+	const width = layout.widthTiles * 32;
+	const height = layout.heightTiles * 32;
+	const samples = new Map<string, { x: number; y: number }>();
+	for (let y = sampleStep / 2; y < height; y += sampleStep) {
+		for (let x = sampleStep / 2; x < width; x += sampleStep) {
+			if (isInteriorWalkable(layout, { x, y })) samples.set(`${x}:${y}`, { x, y });
+		}
+	}
+
+	const start = [...samples.values()].sort(
+		(left, right) =>
+			Math.hypot(left.x - layout.spawn.x, left.y - layout.spawn.y) -
+			Math.hypot(right.x - layout.spawn.x, right.y - layout.spawn.y)
+	)[0];
+	expect(start, 'spawn must sit beside authored walkable geometry').toBeDefined();
+	if (!start) return new Set<string>();
+
+	const reachable = new Set<string>([`${start.x}:${start.y}`]);
+	const queue = [start];
+	while (queue.length > 0) {
+		const current = queue.shift()!;
+		for (const neighbor of [
+			{ x: current.x - sampleStep, y: current.y },
+			{ x: current.x + sampleStep, y: current.y },
+			{ x: current.x, y: current.y - sampleStep },
+			{ x: current.x, y: current.y + sampleStep }
+		]) {
+			const key = `${neighbor.x}:${neighbor.y}`;
+			if (!samples.has(key) || reachable.has(key)) continue;
+			reachable.add(key);
+			queue.push(neighbor);
+		}
+	}
+	return reachable;
+}
+
+function normalizedInteriorSignature(layout: VillageInteriorLayout) {
+	const width = layout.widthTiles * 32;
+	const height = layout.heightTiles * 32;
+	const normalize = (value: { x: number; y: number; width: number; height: number }) =>
+		[value.x / width, value.y / height, value.width / width, value.height / height]
+			.map((number) => number.toFixed(6))
+			.join(',');
+	return JSON.stringify({
+		rooms: Object.values(layout.rooms).map(normalize).sort(),
+		walls: layout.walls.map(normalize).sort()
+	});
 }
 
 describe('outdoor layout coordinate contracts', () => {
@@ -169,5 +260,99 @@ describe('outdoor layout coordinate contracts', () => {
 				)
 			).toBeGreaterThan(triggerClearance);
 		}
+	});
+});
+
+describe('village interior layout coordinate contracts', () => {
+	it('keeps every interior rectangle in bounds and every approach clear', () => {
+		const minimumApproach = PLAYER_COLLISION_RADIUS + NPC_PACK_COLLISION_RADIUS;
+		const maximumApproach = PLAYER_COLLISION_RADIUS + NPC_INTERACTION_RADIUS;
+
+		for (const [mapId, layout] of Object.entries(VILLAGE_INTERIOR_LAYOUTS)) {
+			const bounds = rect(0, 0, layout.widthTiles * 32, layout.heightTiles * 32);
+			expect(layout.fullFloor).toEqual(bounds);
+			for (const value of Object.values(layout.rooms))
+				expect(rectContains(bounds, value)).toBe(true);
+			for (const value of Object.values(layout.corridors))
+				expect(rectContains(bounds, value)).toBe(true);
+			for (const value of Object.values(layout.doors))
+				expect(rectContains(bounds, value)).toBe(true);
+			for (const value of Object.values(layout.propZones))
+				expect(rectContains(bounds, value)).toBe(true);
+			for (const value of Object.values(layout.propCollisions))
+				expect(rectContains(bounds, value)).toBe(true);
+			for (const wall of layout.walls) expect(rectContains(bounds, wall)).toBe(true);
+
+			for (const group of [layout.rooms, layout.corridors]) {
+				for (const value of Object.values(group)) expectStructuralGrid(value);
+			}
+			for (const value of Object.values(layout.doors)) expectStructuralSize(value);
+			for (const wall of layout.walls) {
+				expect(wall.x).toBeGreaterThanOrEqual(0);
+				expect(wall.y).toBeGreaterThanOrEqual(0);
+			}
+
+			for (const opening of Object.values(layout.doors)) {
+				for (const wall of layout.walls) {
+					expect(rectsOverlap(wall, opening), `${wall.id} overlaps a door`).toBe(false);
+				}
+			}
+
+			for (const anchor of [layout.spawn, layout.exit]) {
+				expect(layoutRectContainsPoint(bounds, anchor)).toBe(true);
+				for (const wall of layout.walls) {
+					expect(
+						expandedLayoutRectContainsPoint(wall, anchor, PLAYER_COLLISION_RADIUS),
+						`anchor (${anchor.x},${anchor.y}) is embedded in ${wall.id}`
+					).toBe(false);
+				}
+				for (const collision of Object.values(layout.propCollisions)) {
+					expect(
+						expandedLayoutRectContainsPoint(collision, anchor, PLAYER_COLLISION_RADIUS),
+						`anchor (${anchor.x},${anchor.y}) is embedded in a prop collision`
+					).toBe(false);
+				}
+			}
+
+			for (const { npc, approach } of Object.values(layout.npcApproaches)) {
+				const distance = Math.hypot(npc.x - approach.x, npc.y - approach.y);
+				expect(distance).toBeGreaterThanOrEqual(minimumApproach);
+				expect(distance).toBeLessThanOrEqual(maximumApproach);
+				for (const zone of Object.values(layout.propZones)) {
+					expect(layoutRectContainsPoint(zone, approach)).toBe(false);
+				}
+				for (const collision of Object.values(layout.propCollisions)) {
+					expect(expandedLayoutRectContainsPoint(collision, npc, PLAYER_COLLISION_RADIUS)).toBe(
+						false
+					);
+					expect(
+						expandedLayoutRectContainsPoint(collision, approach, PLAYER_COLLISION_RADIUS)
+					).toBe(false);
+				}
+			}
+
+			const reachable = reachableInteriorSamples(layout);
+			for (const [roomId, room] of Object.entries(layout.rooms)) {
+				const roomReachable = [...reachable].some((key) => {
+					const [x, y] = key.split(':').map(Number);
+					return layoutRectContainsPoint(room, { x, y });
+				});
+				expect(roomReachable, `${roomId} is disconnected from the entrance`).toBe(true);
+			}
+			const exitReachable = [...reachable].some((key) => {
+				const [x, y] = key.split(':').map(Number);
+				return Math.hypot(x - layout.exit.x, y - layout.exit.y) <= 8;
+			});
+			expect(exitReachable, `${mapId} exit is disconnected from the entrance`).toBe(true);
+		}
+	});
+
+	it('keeps the three villager homes architecturally distinct', () => {
+		const signatures = [
+			VILLAGE_INTERIOR_LAYOUTS['villager-house-1'],
+			VILLAGE_INTERIOR_LAYOUTS['villager-house-2'],
+			VILLAGE_INTERIOR_LAYOUTS['villager-house-3']
+		].map(normalizedInteriorSignature);
+		expect(new Set(signatures).size).toBe(3);
 	});
 });
