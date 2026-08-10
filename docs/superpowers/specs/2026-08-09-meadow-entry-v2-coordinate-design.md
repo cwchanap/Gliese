@@ -71,9 +71,10 @@ All tables in this document use top-left rectangles:
 ```
 
 - `x` and `y` identify the top-left edge.
-- Rectangle edges align to the existing 32 px tile grid.
+- Structural rectangle edges and dimensions—world bounds, region envelopes, roads, lots, footprints, rooms, corridors, walls, doors, and building approaches—align to the existing 32 px tile grid.
+- Prop visuals and narrow prop collision strips may use 8 px increments after structural geometry is accepted.
 - A one-tile wall is 32 px thick.
-- A door or point may have a half-tile centre because it is centred inside a 32 px wall opening.
+- A door or landmark anchor may have a half-tile centre when an even-sized footprint requires it.
 - Outdoor coordinates are world coordinates.
 - Interior coordinates are local to that map.
 
@@ -248,24 +249,28 @@ The layout is intentionally sparse. The central green is open, the blacksmith re
 | Structure | Rectangle `[x, y, w, h]` |
 |---|---:|
 | Main Street | `[256, 4608, 2560, 160]` |
+| West village lane | `[256, 4768, 128, 1248]` |
+| East village lane | `[2688, 4768, 128, 1248]` |
 | South Lane | `[256, 5376, 2560, 128]` |
 | Southern Meadow Lane | `[256, 6016, 2560, 128]` |
 | Village Green | `[1152, 4800, 704, 512]` |
+| Green north step | `[1344, 4768, 320, 32]` |
+| Green south step | `[1344, 5312, 320, 64]` |
 | Well footprint | `[1408, 4960, 192, 192]` |
 
-Main Street is the single strong east-west axis. North and south lots connect through explicit approach paths rather than a network of full-height hedge compartments.
+Main Street is the single strong east-west axis. West and east lanes join Main Street, South Lane, and Southern Meadow Lane into one visible route network. The green’s two short steps connect it to Main Street and South Lane. North and south lots connect through explicit approach paths rather than full-height hedge compartments.
 
 ## 4.4 Lots, footprints, doors, and approaches
 
 | Structure | Lot `[x, y, w, h]` | Building footprint `[x, y, w, h]` | Door centre | Approach path `[x, y, w, h]` |
 |---|---:|---:|---:|---:|
-| Villager House 1 | `[384, 4064, 576, 448]` | `[512, 4128, 320, 224]` | `(672, 4352)` | `[624, 4352, 96, 256]` |
-| Villager House 2 | `[1088, 4064, 576, 448]` | `[1216, 4128, 320, 224]` | `(1376, 4352)` | `[1328, 4352, 96, 256]` |
+| Villager House 1 | `[384, 4064, 576, 448]` | `[512, 4128, 320, 224]` | `(672, 4352)` | `[608, 4352, 128, 256]` |
+| Villager House 2 | `[1088, 4064, 576, 448]` | `[1216, 4128, 320, 224]` | `(1376, 4352)` | `[1312, 4352, 128, 256]` |
 | Guild Hall | `[1888, 4032, 800, 480]` | `[1984, 4096, 576, 288]` | `(2272, 4384)` | `[2208, 4384, 128, 224]` |
-| Item Shop | `[384, 4832, 704, 448]` | `[480, 4896, 448, 256]` | `(704, 5152)` | `[656, 5152, 96, 224]` |
-| Blacksmith | `[1952, 4832, 736, 448]` | `[2048, 4896, 416, 256]` | `(2256, 5152)` | `[2208, 5152, 96, 224]` |
-| Hero House | `[384, 5536, 704, 416]` | `[480, 5600, 448, 224]` | `(704, 5824)` | `[656, 5824, 96, 192]` |
-| Villager House 3 | `[1184, 5536, 576, 416]` | `[1312, 5600, 320, 224]` | `(1472, 5824)` | `[1424, 5824, 96, 192]` |
+| Item Shop | `[384, 4832, 704, 448]` | `[480, 4896, 448, 256]` | `(704, 5152)` | `[640, 5152, 128, 224]` |
+| Blacksmith | `[1952, 4832, 736, 448]` | `[2048, 4896, 416, 256]` | `(2272, 5152)` | `[2208, 5152, 128, 224]` |
+| Hero House | `[384, 5536, 704, 416]` | `[480, 5600, 448, 224]` | `(704, 5824)` | `[640, 5824, 128, 192]` |
+| Villager House 3 | `[1184, 5536, 576, 416]` | `[1312, 5600, 320, 224]` | `(1472, 5824)` | `[1408, 5824, 128, 192]` |
 | Shrine of Aurora | `[1888, 5504, 800, 448]` | `[2080, 5568, 384, 256]` | `(2272, 5824)` | `[2208, 5824, 128, 192]` |
 
 ### Secondary outdoor zones
@@ -759,8 +764,8 @@ Theme: reader and amateur archivist.
 
 For every interior:
 
-1. the map edge is a 32 px wall band except at the exterior door;
-2. the 32 px gaps between named rooms are walls except at listed openings;
+1. the map edge is a structural wall band except at the exterior door;
+2. the gaps between named rooms are walls except at listed openings;
 3. unused pockets outside the named rooms are blocked as solid service/structure space;
 4. wall blockers use explicit IDs and top-left rectangles;
 5. no wall rectangle is inferred from furniture;
@@ -837,19 +842,20 @@ Screenshots are review aids, not a permanent evidence database.
 
 ## 17.1 Coordinate contracts
 
-- All rectangle edges align to 32 px.
+- All structural rectangle edges and dimensions align to 32 px.
 - Every rectangle has positive dimensions.
 - Every rectangle is inside its map or world bounds.
 - The four base chunks are pairwise non-overlapping and their area equals 6400×6400.
 - Village lots do not overlap.
 - Every footprint is inside its lot.
-- Every approach connects a door to a road.
+- Every approach connects a door to a public road.
 - Exterior return arrivals are on their approach paths and clear of building collision.
 
 ## 17.2 Outdoor playability
 
 - New-run spawn is valid.
 - Main Street reaches Crossroads.
+- West and east village lanes connect all three horizontal road bands.
 - Crossroads reaches all four destination mouths.
 - Existing destination transitions, encounters, pickups, discoveries, and landmarks remain registered.
 - Every changed connector mouth is walkable in both directions.
@@ -875,12 +881,13 @@ Screenshots are review aids, not a permanent evidence database.
 
 1. Start outside Hero House.
 2. Walk the southern lane and inspect the increased spacing.
-3. Enter the village green and confirm the well reads as the central anchor.
-4. Walk Main Street from its west end to the east gate.
-5. Cross the village-to-Crossroads connector in both directions.
-6. From Crossroads, reach Mistfen, Silverpine, Wildwood, and Tidewatch Coast and return.
-7. Exercise one encounter, pickup, discovery, and gated transition representative of the preserved regions.
-8. Save and reload in Wildwood or Crossroads.
+3. Follow the west lane to South Lane and Main Street.
+4. Enter the village green and confirm the well reads as the central anchor.
+5. Walk Main Street from its west end to the east gate.
+6. Cross the village-to-Crossroads connector in both directions.
+7. From Crossroads, reach Mistfen, Silverpine, Wildwood, and Tidewatch Coast and return.
+8. Exercise one encounter, pickup, discovery, and gated transition representative of the preserved regions.
+9. Save and reload in Wildwood or Crossroads.
 
 ## Interiors
 
