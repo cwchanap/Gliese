@@ -37,6 +37,7 @@ type GlieseProbeWindow = Window & {
 	__glieseLastMovementDiagnostic?: PlayerMovementDiagnostic;
 	__glieseLastMovementAt?: number;
 	__glieseCharacterizationMovementCount?: number;
+	__glieseCharacterizationSyntheticPhase?: boolean;
 	__glieseRegionalBackgroundDiagnostics?: RegionalBackgroundPlaneRenderDiagnostic[];
 	__glieseRouteVisibilityState?: string;
 	__glieseRouteHasFocus?: boolean;
@@ -243,6 +244,7 @@ function installRuntimeProbes(page: Page) {
 			lastMovementAt: number | null;
 			correctionTaps: number;
 			noProgressDiagnostics: number;
+			settledAxes: { x: boolean; y: boolean };
 		};
 		let routeState: InternalRouteState | null = null;
 		let keyLeaseFrame: number | null = null;
@@ -364,34 +366,47 @@ function installRuntimeProbes(page: Page) {
 			return diagnosticPosition ? { ...diagnosticPosition } : null;
 		};
 		const beginNextAxis = () => {
-			if (!routeState || routeState.status !== 'running' || !routeState.position) return;
+			let contractAdvanced = false;
+			if (!routeState || routeState.status !== 'running' || !routeState.position) {
+				return contractAdvanced;
+			}
 			while (routeState.pointIndex < routeState.points.length) {
 				const target = routeState.points[routeState.pointIndex]!;
 				const deltaX = target.x - routeState.position.x;
-				if (Math.abs(deltaX) > routeState.settleTolerance) {
+				if (!routeState.settledAxes.x && Math.abs(deltaX) > routeState.settleTolerance) {
 					routeState.axis = 'x';
 					routeState.target = { ...target };
 					routeState.correctionTaps = 0;
 					routeState.noProgressDiagnostics = 0;
 					pressKey(axisKey('x', deltaX));
-					return;
+					return contractAdvanced;
+				}
+				if (!routeState.settledAxes.x) {
+					routeState.settledAxes.x = true;
+					contractAdvanced = true;
 				}
 				const deltaY = target.y - routeState.position.y;
-				if (Math.abs(deltaY) > routeState.settleTolerance) {
+				if (!routeState.settledAxes.y && Math.abs(deltaY) > routeState.settleTolerance) {
 					routeState.axis = 'y';
 					routeState.target = { ...target };
 					routeState.correctionTaps = 0;
 					routeState.noProgressDiagnostics = 0;
 					pressKey(axisKey('y', deltaY));
-					return;
+					return contractAdvanced;
+				}
+				if (!routeState.settledAxes.y) {
+					routeState.settledAxes.y = true;
 				}
 				routeState.pointIndex += 1;
+				routeState.settledAxes = { x: false, y: false };
+				contractAdvanced = true;
 			}
 			routeState.axis = null;
 			routeState.target = null;
 			releaseKey();
 			routeState.status = 'done';
 			cancelKeyLease();
+			return contractAdvanced;
 		};
 		const onMovementDiagnostic = (event: Event) => {
 			if (!routeState || routeState.status !== 'running') return;
@@ -399,7 +414,6 @@ function installRuntimeProbes(page: Page) {
 			const movementAt = performance.now();
 			routeState.movementCount += 1;
 			routeState.lastMovementAt = movementAt;
-			routeState.lastProgressAt = movementAt;
 			const axis = routeState.axis;
 			const target = routeState.target;
 			if (!axis || !target || !routeState.position) return;
@@ -409,15 +423,25 @@ function installRuntimeProbes(page: Page) {
 			const previous = diagnostic.previousPosition[axis];
 			const targetValue = target[axis];
 			const direction = targetValue > previous ? 1 : -1;
+			const previousDistance = Math.abs(targetValue - previous);
 			const distance = Math.abs(targetValue - value);
+			const distanceDecreased = distance < previousDistance;
 			const reached =
 				direction > 0
 					? value >= targetValue - routeState.reachTolerance
 					: value <= targetValue + routeState.reachTolerance;
 			if (diagnostic.blocked && previous === value) {
 				if (distance <= routeState.blockedTolerance) {
-					routeState.pointIndex += 1;
-					beginNextAxis();
+					routeState.noProgressDiagnostics = 0;
+					let contractAdvanced = false;
+					if (!routeState.settledAxes[axis]) {
+						routeState.settledAxes[axis] = true;
+						contractAdvanced = true;
+					}
+					contractAdvanced = beginNextAxis() || contractAdvanced;
+					if (distanceDecreased || contractAdvanced) {
+						routeState.lastProgressAt = movementAt;
+					}
 				} else {
 					failRoute(
 						`blocked at point ${routeState.pointIndex} axis ${axis} target ${JSON.stringify(target)}`
@@ -426,6 +450,7 @@ function installRuntimeProbes(page: Page) {
 				return;
 			}
 			if (!reached) {
+				if (distanceDecreased) routeState.lastProgressAt = movementAt;
 				if (previous === value) routeState.noProgressDiagnostics += 1;
 				else routeState.noProgressDiagnostics = 0;
 				if (routeState.noProgressDiagnostics >= 32) {
@@ -438,11 +463,30 @@ function installRuntimeProbes(page: Page) {
 			routeState.noProgressDiagnostics = 0;
 			if (distance <= routeState.settleTolerance) {
 				releaseKey();
-				if (axis === 'y') routeState.pointIndex += 1;
-				beginNextAxis();
+				let contractAdvanced = false;
+				if (!routeState.settledAxes[axis]) {
+					routeState.settledAxes[axis] = true;
+					contractAdvanced = true;
+				}
+				contractAdvanced = beginNextAxis() || contractAdvanced;
+				if (distanceDecreased || contractAdvanced) {
+					routeState.lastProgressAt = movementAt;
+				}
 				return;
 			}
+			if (distanceDecreased) routeState.lastProgressAt = movementAt;
 			if (routeState.correctionTaps >= routeState.maxCorrectionTaps) {
+				if (!diagnostic.blocked && distance <= routeState.reachTolerance) {
+					releaseKey();
+					let contractAdvanced = false;
+					if (!routeState.settledAxes[axis]) {
+						routeState.settledAxes[axis] = true;
+						contractAdvanced = true;
+					}
+					contractAdvanced = beginNextAxis() || contractAdvanced;
+					if (contractAdvanced) routeState.lastProgressAt = movementAt;
+					return;
+				}
 				failRoute(
 					`correction limit at point ${routeState.pointIndex} axis ${axis} target ${JSON.stringify(target)}`
 				);
@@ -480,7 +524,8 @@ function installRuntimeProbes(page: Page) {
 					movementCount: 0,
 					lastMovementAt: null,
 					correctionTaps: 0,
-					noProgressDiagnostics: 0
+					noProgressDiagnostics: 0,
+					settledAxes: { x: false, y: false }
 				};
 				if (points.length < 1) {
 					failRoute('route requires at least one point');
@@ -679,7 +724,16 @@ async function runBrowserRoute(
 	if (!result || result.status !== 'done') {
 		throw new Error(describeBrowserRouteResult(result, token));
 	}
-	previousRouteSettleTolerance = settleTolerance;
+	const finalPoint = points.at(-1);
+	if (result.position && finalPoint) {
+		previousRouteSettleTolerance = Math.max(
+			settleTolerance,
+			Math.abs(result.position.x - finalPoint.x),
+			Math.abs(result.position.y - finalPoint.y)
+		);
+	} else {
+		previousRouteSettleTolerance = settleTolerance;
+	}
 	return result;
 }
 
@@ -834,8 +888,10 @@ test('browser-local route steering acknowledges a plan and continues through Pha
 	await page.addInitScript(() => {
 		const probeWindow = window as GlieseProbeWindow;
 		probeWindow.__glieseCharacterizationMovementCount = 0;
+		probeWindow.__glieseCharacterizationSyntheticPhase = false;
 		let interrupted = false;
 		window.addEventListener('gliese:player-movement-diagnostic', () => {
+			if (probeWindow.__glieseCharacterizationSyntheticPhase) return;
 			probeWindow.__glieseCharacterizationMovementCount =
 				(probeWindow.__glieseCharacterizationMovementCount ?? 0) + 1;
 			if (interrupted) return;
@@ -868,6 +924,232 @@ test('browser-local route steering acknowledges a plan and continues through Pha
 			: null;
 	});
 	expect(initial).not.toBeNull();
+	const stateMachineEvidence = await page.evaluate(async (initialPoint) => {
+		const probeWindow = window as GlieseProbeWindow;
+		const runner = probeWindow.__glieseRouteRunner;
+		if (!runner) return null;
+		const dispatchDiagnostic = (detail: PlayerMovementDiagnostic) => {
+			window.dispatchEvent(
+				new CustomEvent<PlayerMovementDiagnostic>('gliese:player-movement-diagnostic', {
+					detail
+				})
+			);
+		};
+		const resetMovementProbe = () => {
+			probeWindow.__glieseLastMovementDiagnostic = undefined;
+			probeWindow.__glieseLastMovementAt = 0;
+			probeWindow.__glieseMovementDiagnostics = [];
+		};
+
+		probeWindow.__glieseCharacterizationSyntheticPhase = true;
+		const blockedToken = `characterization-blocked-${Date.now()}`;
+		const blockedStart = runner.start({
+			token: blockedToken,
+			points: [
+				{ x: initialPoint.x, y: initialPoint.y },
+				{ x: initialPoint.x + 16, y: initialPoint.y + 64 }
+			],
+			settleTolerance: 12,
+			reachTolerance: 18,
+			maxCorrectionTaps: 8,
+			blockedTolerance: 18
+		});
+		dispatchDiagnostic({
+			mapId: 'meadow-entry',
+			previousPosition: { ...initialPoint },
+			requestedPosition: { x: initialPoint.x + 8, y: initialPoint.y + 16 },
+			resolvedPosition: { x: initialPoint.x, y: initialPoint.y + 16 },
+			blocked: true
+		});
+		const blockedAfter = runner.get(blockedToken);
+		const blockedCancel = runner.cancel(blockedToken, 'synthetic blocked-axis cleanup');
+
+		resetMovementProbe();
+		const wrongDirectionToken = `characterization-wrong-direction-${Date.now()}`;
+		const wrongDirectionStart = runner.start({
+			token: wrongDirectionToken,
+			points: [
+				{ x: initialPoint.x, y: initialPoint.y },
+				{ x: initialPoint.x + 1_000, y: initialPoint.y }
+			],
+			settleTolerance: 12,
+			reachTolerance: 18,
+			maxCorrectionTaps: 8,
+			blockedTolerance: 12
+		});
+		const wrongDirectionBefore = runner.get(wrongDirectionToken);
+		const wrongDirectionPosition = wrongDirectionBefore?.position ?? initialPoint;
+		await new Promise((resolve) => setTimeout(resolve, 5));
+		const wrongDirectionSnapshot = runner.get(wrongDirectionToken);
+		const wrongDirectionPrevious = wrongDirectionSnapshot?.position ?? wrongDirectionPosition;
+		const wrongDirectionLastProgressAt = wrongDirectionSnapshot?.lastProgressAt ?? null;
+		dispatchDiagnostic({
+			mapId: 'meadow-entry',
+			previousPosition: { ...wrongDirectionPrevious },
+			requestedPosition: { x: wrongDirectionPrevious.x - 8, y: wrongDirectionPrevious.y },
+			resolvedPosition: { x: wrongDirectionPrevious.x - 8, y: wrongDirectionPrevious.y },
+			blocked: false
+		});
+		const wrongDirectionAfter = runner.get(wrongDirectionToken);
+		const wrongDirectionCancel = runner.cancel(
+			wrongDirectionToken,
+			'synthetic wrong-direction cleanup'
+		);
+
+		resetMovementProbe();
+		const correctionToken = `characterization-correction-${Date.now()}`;
+		const correctionTarget = { x: initialPoint.x + 64, y: initialPoint.y + 64 };
+		const correctionStart = runner.start({
+			token: correctionToken,
+			points: [{ ...initialPoint }, correctionTarget],
+			settleTolerance: 12,
+			reachTolerance: 18,
+			maxCorrectionTaps: 8,
+			blockedTolerance: 12
+		});
+		let correctionPosition = { ...initialPoint };
+		for (let attempt = 0; attempt < 9; attempt += 1) {
+			const offset = attempt % 2 === 0 ? 16.8016 : -15.992;
+			const resolvedPosition = {
+				x: correctionTarget.x + offset,
+				y: initialPoint.y
+			};
+			dispatchDiagnostic({
+				mapId: 'meadow-entry',
+				previousPosition: { ...correctionPosition },
+				requestedPosition: { ...resolvedPosition },
+				resolvedPosition: { ...resolvedPosition },
+				blocked: false
+			});
+			correctionPosition = resolvedPosition;
+		}
+		const correctionAfterX = runner.get(correctionToken);
+		dispatchDiagnostic({
+			mapId: 'meadow-entry',
+			previousPosition: { ...correctionPosition },
+			requestedPosition: { x: correctionPosition.x, y: correctionTarget.y },
+			resolvedPosition: { x: correctionPosition.x, y: correctionTarget.y },
+			blocked: false
+		});
+		const correctionAfterY = runner.get(correctionToken);
+
+		resetMovementProbe();
+		const exhaustedFarToken = `characterization-correction-far-${Date.now()}`;
+		const exhaustedFarStart = runner.start({
+			token: exhaustedFarToken,
+			points: [{ ...initialPoint }, correctionTarget],
+			settleTolerance: 12,
+			reachTolerance: 18,
+			maxCorrectionTaps: 0,
+			blockedTolerance: 12
+		});
+		const exhaustedFarPosition = {
+			x: correctionTarget.x + 18.01,
+			y: initialPoint.y
+		};
+		dispatchDiagnostic({
+			mapId: 'meadow-entry',
+			previousPosition: { ...initialPoint },
+			requestedPosition: { ...exhaustedFarPosition },
+			resolvedPosition: { ...exhaustedFarPosition },
+			blocked: false
+		});
+		const exhaustedFarAfter = runner.get(exhaustedFarToken);
+		const exhaustedFarCancel = runner.cancel(exhaustedFarToken, 'synthetic far correction cleanup');
+
+		resetMovementProbe();
+		const blockedExhaustedToken = `characterization-correction-blocked-${Date.now()}`;
+		const blockedExhaustedStart = runner.start({
+			token: blockedExhaustedToken,
+			points: [{ ...initialPoint }, correctionTarget],
+			settleTolerance: 12,
+			reachTolerance: 18,
+			maxCorrectionTaps: 0,
+			blockedTolerance: 12
+		});
+		const blockedExhaustedPosition = {
+			x: correctionTarget.x + 16,
+			y: initialPoint.y
+		};
+		dispatchDiagnostic({
+			mapId: 'meadow-entry',
+			previousPosition: { ...blockedExhaustedPosition },
+			requestedPosition: { ...blockedExhaustedPosition },
+			resolvedPosition: { ...blockedExhaustedPosition },
+			blocked: true
+		});
+		const blockedExhaustedAfter = runner.get(blockedExhaustedToken);
+		const blockedExhaustedCancel = runner.cancel(
+			blockedExhaustedToken,
+			'synthetic blocked correction cleanup'
+		);
+
+		probeWindow.__glieseCharacterizationSyntheticPhase = false;
+		resetMovementProbe();
+		return {
+			blockedStart,
+			blockedAfter,
+			blockedCancel,
+			wrongDirectionStart,
+			wrongDirectionLastProgressAt,
+			wrongDirectionAfter,
+			wrongDirectionCancel,
+			correctionStart,
+			correctionAfterX,
+			correctionAfterY,
+			exhaustedFarStart,
+			exhaustedFarAfter,
+			exhaustedFarCancel,
+			blockedExhaustedStart,
+			blockedExhaustedAfter,
+			blockedExhaustedCancel
+		};
+	}, initial!);
+	expect(stateMachineEvidence).not.toBeNull();
+	const evidence = stateMachineEvidence!;
+	const wrongDirectionStart = evidence.wrongDirectionStart!;
+	const wrongDirectionAfter = evidence.wrongDirectionAfter!;
+	const blockedStart = evidence.blockedStart!;
+	const blockedAfter = evidence.blockedAfter!;
+	const blockedCancel = evidence.blockedCancel!;
+	const correctionStart = evidence.correctionStart!;
+	const correctionAfterX = evidence.correctionAfterX!;
+	const correctionAfterY = evidence.correctionAfterY!;
+	const exhaustedFarStart = evidence.exhaustedFarStart!;
+	const exhaustedFarAfter = evidence.exhaustedFarAfter!;
+	const exhaustedFarCancel = evidence.exhaustedFarCancel!;
+	const blockedExhaustedStart = evidence.blockedExhaustedStart!;
+	const blockedExhaustedAfter = evidence.blockedExhaustedAfter!;
+	const blockedExhaustedCancel = evidence.blockedExhaustedCancel!;
+	expect(wrongDirectionStart.status).toBe('running');
+	expect(wrongDirectionAfter.status).toBe('running');
+	expect(wrongDirectionAfter.lastProgressAt).toBe(evidence.wrongDirectionLastProgressAt);
+	expect(blockedStart.status).toBe('running');
+	expect(blockedAfter.status).toBe('running');
+	expect(blockedAfter.pointIndex).toBe(1);
+	expect(blockedAfter.axis).toBe('y');
+	expect(blockedAfter.target).toEqual({
+		x: initial!.x + 16,
+		y: initial!.y + 64
+	});
+	expect(blockedCancel.status).toBe('error');
+	expect(correctionStart.status).toBe('running');
+	expect(correctionAfterX.status).toBe('running');
+	expect(correctionAfterX.pointIndex).toBe(1);
+	expect(correctionAfterX.axis).toBe('y');
+	expect(correctionAfterX.target).toEqual({
+		x: initial!.x + 64,
+		y: initial!.y + 64
+	});
+	expect(correctionAfterY.status).toBe('done');
+	expect(exhaustedFarStart.status).toBe('running');
+	expect(exhaustedFarAfter.status).toBe('error');
+	expect(exhaustedFarAfter.error).toContain('correction limit');
+	expect(exhaustedFarCancel.status).toBe('error');
+	expect(blockedExhaustedStart.status).toBe('running');
+	expect(blockedExhaustedAfter.status).toBe('error');
+	expect(blockedExhaustedAfter.error).toContain('blocked');
+	expect(blockedExhaustedCancel.status).toBe('error');
 	const token = `characterization-${Date.now()}`;
 	const ack = await page.evaluate(
 		({
