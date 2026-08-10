@@ -6,7 +6,14 @@ import {
 	fenceDressingAsset,
 	forestDressingAsset
 } from '$lib/game/content/assets';
-import { heroHouseMap, maps } from '$lib/game/content/maps';
+import {
+	heroHouseMap,
+	maps,
+	shrineOfAuroraInteriorMap,
+	villagerHouse1Map,
+	villagerHouse2Map,
+	villagerHouse3Map
+} from '$lib/game/content/maps';
 import { PLAYER_COLLISION_RADIUS } from '$lib/game/core/collision';
 import type { RegionalBackgroundRendererDiagnostic } from '$lib/game/phaser/renderer-diagnostics';
 import type { RegionalBackgroundPlaneRenderDiagnostic } from '$lib/game/phaser/regional-background-plane-render-diagnostics';
@@ -2888,6 +2895,82 @@ describe('WorldScene', () => {
 		expect(scene.cameras.main.setBackgroundColor).toHaveBeenCalledWith('#1a1f2b');
 	});
 
+	it('renders the rebuilt Shrine and villager house contracts in the live scene', async () => {
+		const restoreLocation = installLocationSearch('?mapDebug=collision');
+		const { WorldScene } = await import('./WorldScene');
+
+		try {
+			for (const map of [
+				shrineOfAuroraInteriorMap,
+				villagerHouse1Map,
+				villagerHouse2Map,
+				villagerHouse3Map
+			]) {
+				vi.clearAllMocks();
+				phaserState.reset();
+				const scene = new WorldScene();
+				scene.create({ mapId: map.id });
+				expect(phaserState.playerMarker.x).toBe(map.spawn.x);
+				expect(phaserState.playerMarker.y).toBe(map.spawn.y);
+
+				const tilemapCall = vi.mocked(scene.make.tilemap).mock.calls[0]![0]!;
+				const tilemapData = tilemapCall.data as number[][];
+				expect(tilemapData).toHaveLength(map.height);
+				expect(tilemapData[0]).toHaveLength(map.width);
+				for (const patch of map.groundPatches ?? []) {
+					const row = Math.floor(patch.y / 32);
+					const column = Math.floor(patch.x / 32);
+					expect(tilemapData[row]?.[column], `${map.id}:${patch.id}`).toBeGreaterThan(0);
+				}
+
+				for (const blocker of map.blockers ?? []) {
+					expect(scene.add.tileSprite).toHaveBeenCalledWith(
+						blocker.x,
+						blocker.y,
+						blocker.width,
+						blocker.height,
+						'environment-dressing',
+						'ruinWall'
+					);
+				}
+				for (const prop of map.interiorProps ?? []) {
+					expect(scene.add.image).toHaveBeenCalledWith(
+						prop.x,
+						prop.y,
+						'interior-props',
+						prop.frameName
+					);
+				}
+				for (const npc of [...(map.npcs ?? []), ...(map.ambientNpcs ?? [])]) {
+					expect(scene.add.image).toHaveBeenCalledWith(npc.x, npc.y, 'npc-pack', npc.frameName);
+				}
+				expect(scene.add.image).toHaveBeenCalledWith(
+					map.transitions[0]!.x,
+					map.transitions[0]!.y,
+					'starter-pack',
+					'doorwayTile'
+				);
+
+				const commands = phaserState.graphicsMarkers[0]?.commands ?? [];
+				for (const collision of (map.interiorProps ?? []).flatMap((prop) =>
+					prop.collision ? [prop.collision] : []
+				)) {
+					expect(commands).toContainEqual(
+						expect.objectContaining({
+							kind: 'fillRect',
+							x: collision.x - collision.width / 2 - PLAYER_COLLISION_RADIUS,
+							y: collision.y - collision.height / 2 - PLAYER_COLLISION_RADIUS,
+							width: collision.width + PLAYER_COLLISION_RADIUS * 2,
+							height: collision.height + PLAYER_COLLISION_RADIUS * 2
+						})
+					);
+				}
+			}
+		} finally {
+			restoreLocation();
+		}
+	});
+
 	it('renders independent base and foreground planes at their semantic depths', async () => {
 		registerTwoPlaneBackgroundTestMap();
 		const target = installPlaneDiagnosticListener();
@@ -4953,13 +5036,13 @@ describe('WorldScene', () => {
 				scene as unknown as { buildSaveState: () => ReturnType<typeof createNewSaveState> }
 			).buildSaveState();
 			expect(builtSave.mapId).toBe('shrine-of-aurora-interior');
-			expect(builtSave.player).toMatchObject({ hp: 1, x: 256, y: 288, facing: 'up' });
+			expect(builtSave.player).toMatchObject({ hp: 1, x: 384, y: 608, facing: 'up' });
 			expect(builtSave.wallet.coins).toBe(9);
 			expect(builtSave.flags.clearedEncounters).toEqual([]);
 			expect(parseSaveState(storedSaves.at(-1)!)).toMatchObject({
 				mapId: 'shrine-of-aurora-interior',
 				flags: expect.objectContaining({ clearedEncounters: [] }),
-				player: expect.objectContaining({ hp: 1, x: 256, y: 288, facing: 'up' }),
+				player: expect.objectContaining({ hp: 1, x: 384, y: 608, facing: 'up' }),
 				wallet: { coins: 9 }
 			});
 		} finally {
@@ -5358,14 +5441,11 @@ describe('WorldScene', () => {
 
 		scene.create({ mapId: 'villager-house-1' });
 
-		expect(scene.add.image).not.toHaveBeenCalledWith(256, 144, 'starter-pack', 'titleBadge');
-		expect(scene.add.image).not.toHaveBeenCalledWith(256, 144, 'npc-pack', 'miraItemShopNpc');
+		expect(scene.add.image).not.toHaveBeenCalledWith(160, 416, 'starter-pack', 'titleBadge');
+		expect(scene.add.image).toHaveBeenCalledWith(160, 416, 'npc-pack', 'miraItemShopNpc');
 		expect(
 			phaserState.imageMarkers.some(
-				(marker) =>
-					marker.x === 256 &&
-					marker.y === 144 &&
-					(marker.frame === 'titleBadge' || marker.frame === 'miraItemShopNpc')
+				(marker) => marker.x === 160 && marker.y === 416 && marker.frame === 'titleBadge'
 			)
 		).toBe(false);
 	});
@@ -6154,7 +6234,7 @@ describe('WorldScene', () => {
 		const scene = new WorldScene();
 
 		scene.create({ mapId: 'villager-house-1' });
-		Object.assign(phaserState.playerMarker, { x: 160, y: 224 });
+		Object.assign(phaserState.playerMarker, { x: 200, y: 416 });
 		scene.update(0, 16);
 		emitHudStateSpy.mockClear();
 		Object.assign(phaserState.interactKeys.e, { justDown: true });
@@ -7328,7 +7408,7 @@ describe('WorldScene', () => {
 			reason: 'transition',
 			saveState: expect.objectContaining({
 				mapId: 'shrine-of-aurora-interior',
-				player: expect.objectContaining({ x: 256, y: 288, facing: 'up' })
+				player: expect.objectContaining({ x: 384, y: 608, facing: 'up' })
 			})
 		});
 
@@ -7340,7 +7420,7 @@ describe('WorldScene', () => {
 				mapId: 'shrine-of-aurora-interior'
 			}
 		});
-		Object.assign(phaserState.playerMarker, { x: 256, y: 336 });
+		Object.assign(phaserState.playerMarker, { x: 384, y: 688 });
 		shrineScene.update(0, 16);
 
 		expect(shrineScene.scene.restart).toHaveBeenCalledWith({
