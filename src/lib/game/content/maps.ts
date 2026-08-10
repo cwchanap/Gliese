@@ -35,8 +35,6 @@ import type { WorldMapDefinition } from '$lib/game/content/maps/types';
 
 export { meadowEntryMap, openingMapId };
 
-const interiorDoor = { x: 256, y: 336 } as const;
-
 const returnArrival = (mapId: keyof typeof VILLAGE_INTERIOR_EXTERIORS) =>
 	VILLAGE_INTERIOR_EXTERIORS[mapId].returnArrival;
 
@@ -320,6 +318,347 @@ const itemShopBlockers = [
 	}
 ];
 
+const shrineOfAuroraLayout = VILLAGE_INTERIOR_LAYOUTS['shrine-of-aurora-interior'];
+
+const shrineOfAuroraGroundPatches = [
+	{
+		...toMapRect('shrine-of-aurora-full-floor', shrineOfAuroraLayout.fullFloor),
+		tile: 'cobblestoneTile' as const
+	},
+	{
+		...toMapRect('shrine-of-aurora-room-inner-sanctum', shrineOfAuroraLayout.rooms.innerSanctum),
+		tile: 'plazaStoneTile' as const
+	},
+	{
+		...toMapRect(
+			'shrine-of-aurora-room-west-preparation',
+			shrineOfAuroraLayout.rooms.westPreparation
+		),
+		tile: 'plazaStoneTile' as const
+	},
+	{
+		...toMapRect('shrine-of-aurora-room-east-archive', shrineOfAuroraLayout.rooms.eastArchive),
+		tile: 'plazaStoneTile' as const
+	},
+	{
+		...toMapRect('shrine-of-aurora-corridor-nave', shrineOfAuroraLayout.corridors.nave),
+		tile: 'pathTile' as const
+	},
+	{
+		...toMapRect(
+			'shrine-of-aurora-corridor-entrance-hall',
+			shrineOfAuroraLayout.corridors.entranceHall
+		),
+		tile: 'pathTile' as const
+	}
+];
+
+const shrineOfAuroraBlockers = [
+	{
+		...toMapRect(shrineOfAuroraLayout.walls[0]!.id, shrineOfAuroraLayout.walls[0]!),
+		kind: 'ruin-wall' as const
+	},
+	{
+		...toMapRect(shrineOfAuroraLayout.walls[1]!.id, shrineOfAuroraLayout.walls[1]!),
+		kind: 'ruin-wall' as const
+	},
+	{
+		...toMapRect(shrineOfAuroraLayout.walls[2]!.id, shrineOfAuroraLayout.walls[2]!),
+		kind: 'ruin-wall' as const
+	},
+	{
+		...toMapRect(shrineOfAuroraLayout.walls[3]!.id, shrineOfAuroraLayout.walls[3]!),
+		kind: 'ruin-wall' as const
+	},
+	{
+		...toMapRect(shrineOfAuroraLayout.walls[4]!.id, shrineOfAuroraLayout.walls[4]!),
+		kind: 'ruin-wall' as const
+	},
+	{
+		...toMapRect(shrineOfAuroraLayout.walls[5]!.id, shrineOfAuroraLayout.walls[5]!),
+		kind: 'ruin-wall' as const
+	},
+	{
+		...toMapRect(shrineOfAuroraLayout.walls[6]!.id, shrineOfAuroraLayout.walls[6]!),
+		kind: 'ruin-wall' as const
+	},
+	{
+		...toMapRect(shrineOfAuroraLayout.walls[7]!.id, shrineOfAuroraLayout.walls[7]!),
+		kind: 'ruin-wall' as const
+	},
+	{
+		...toMapRect(shrineOfAuroraLayout.walls[8]!.id, shrineOfAuroraLayout.walls[8]!),
+		kind: 'ruin-wall' as const
+	},
+	{
+		...toMapRect(shrineOfAuroraLayout.walls[9]!.id, shrineOfAuroraLayout.walls[9]!),
+		kind: 'ruin-wall' as const
+	},
+	{
+		...toMapRect(shrineOfAuroraLayout.walls[10]!.id, shrineOfAuroraLayout.walls[10]!),
+		kind: 'ruin-wall' as const
+	},
+	{
+		...toMapRect(shrineOfAuroraLayout.walls[11]!.id, shrineOfAuroraLayout.walls[11]!),
+		kind: 'ruin-wall' as const
+	},
+	{
+		...toMapRect(shrineOfAuroraLayout.walls[12]!.id, shrineOfAuroraLayout.walls[12]!),
+		kind: 'ruin-wall' as const
+	},
+	{
+		...toMapRect(shrineOfAuroraLayout.walls[13]!.id, shrineOfAuroraLayout.walls[13]!),
+		kind: 'ruin-wall' as const
+	},
+	{
+		...toMapRect(shrineOfAuroraLayout.walls[14]!.id, shrineOfAuroraLayout.walls[14]!),
+		kind: 'ruin-wall' as const
+	},
+	{
+		...toMapRect(shrineOfAuroraLayout.walls[15]!.id, shrineOfAuroraLayout.walls[15]!),
+		kind: 'ruin-wall' as const
+	},
+	{
+		...toMapRect(shrineOfAuroraLayout.walls[16]!.id, shrineOfAuroraLayout.walls[16]!),
+		kind: 'ruin-wall' as const
+	},
+	{
+		...toMapRect(shrineOfAuroraLayout.walls[17]!.id, shrineOfAuroraLayout.walls[17]!),
+		kind: 'ruin-wall' as const
+	},
+	{
+		...toMapRect(shrineOfAuroraLayout.walls[18]!.id, shrineOfAuroraLayout.walls[18]!),
+		kind: 'ruin-wall' as const
+	},
+	{
+		...toMapRect(shrineOfAuroraLayout.walls[19]!.id, shrineOfAuroraLayout.walls[19]!),
+		kind: 'ruin-wall' as const
+	},
+	{
+		...toMapRect(shrineOfAuroraLayout.walls[20]!.id, shrineOfAuroraLayout.walls[20]!),
+		kind: 'ruin-wall' as const
+	}
+];
+
+const villagerHouse1Layout = VILLAGE_INTERIOR_LAYOUTS['villager-house-1'];
+
+const villagerHouse1GroundPatches = [
+	{
+		...toMapRect('villager-house-1-full-floor', villagerHouse1Layout.fullFloor),
+		tile: 'cobblestoneTile' as const
+	},
+	{
+		...toMapRect('villager-house-1-room-bedroom', villagerHouse1Layout.rooms.bedroom),
+		tile: 'plazaStoneTile' as const
+	},
+	{
+		...toMapRect('villager-house-1-room-storage', villagerHouse1Layout.rooms.storage),
+		tile: 'plazaStoneTile' as const
+	},
+	{
+		...toMapRect('villager-house-1-room-living-kitchen', villagerHouse1Layout.rooms.livingKitchen),
+		tile: 'plazaStoneTile' as const
+	},
+	{
+		...toMapRect('villager-house-1-corridor-hall', villagerHouse1Layout.corridors.hall),
+		tile: 'pathTile' as const
+	}
+];
+
+const villagerHouse1Blockers = [
+	{
+		...toMapRect(villagerHouse1Layout.walls[0]!.id, villagerHouse1Layout.walls[0]!),
+		kind: 'ruin-wall' as const
+	},
+	{
+		...toMapRect(villagerHouse1Layout.walls[1]!.id, villagerHouse1Layout.walls[1]!),
+		kind: 'ruin-wall' as const
+	},
+	{
+		...toMapRect(villagerHouse1Layout.walls[2]!.id, villagerHouse1Layout.walls[2]!),
+		kind: 'ruin-wall' as const
+	},
+	{
+		...toMapRect(villagerHouse1Layout.walls[3]!.id, villagerHouse1Layout.walls[3]!),
+		kind: 'ruin-wall' as const
+	},
+	{
+		...toMapRect(villagerHouse1Layout.walls[4]!.id, villagerHouse1Layout.walls[4]!),
+		kind: 'ruin-wall' as const
+	},
+	{
+		...toMapRect(villagerHouse1Layout.walls[5]!.id, villagerHouse1Layout.walls[5]!),
+		kind: 'ruin-wall' as const
+	},
+	{
+		...toMapRect(villagerHouse1Layout.walls[6]!.id, villagerHouse1Layout.walls[6]!),
+		kind: 'ruin-wall' as const
+	},
+	{
+		...toMapRect(villagerHouse1Layout.walls[7]!.id, villagerHouse1Layout.walls[7]!),
+		kind: 'ruin-wall' as const
+	},
+	{
+		...toMapRect(villagerHouse1Layout.walls[8]!.id, villagerHouse1Layout.walls[8]!),
+		kind: 'ruin-wall' as const
+	},
+	{
+		...toMapRect(villagerHouse1Layout.walls[9]!.id, villagerHouse1Layout.walls[9]!),
+		kind: 'ruin-wall' as const
+	},
+	{
+		...toMapRect(villagerHouse1Layout.walls[10]!.id, villagerHouse1Layout.walls[10]!),
+		kind: 'ruin-wall' as const
+	}
+];
+
+const villagerHouse2Layout = VILLAGE_INTERIOR_LAYOUTS['villager-house-2'];
+
+const villagerHouse2GroundPatches = [
+	{
+		...toMapRect('villager-house-2-full-floor', villagerHouse2Layout.fullFloor),
+		tile: 'cobblestoneTile' as const
+	},
+	{
+		...toMapRect('villager-house-2-room-workshop', villagerHouse2Layout.rooms.workshop),
+		tile: 'plazaStoneTile' as const
+	},
+	{
+		...toMapRect('villager-house-2-room-bedroom', villagerHouse2Layout.rooms.bedroom),
+		tile: 'plazaStoneTile' as const
+	},
+	{
+		...toMapRect('villager-house-2-room-living-area', villagerHouse2Layout.rooms.livingArea),
+		tile: 'plazaStoneTile' as const
+	},
+	{
+		...toMapRect('villager-house-2-corridor-hall', villagerHouse2Layout.corridors.hall),
+		tile: 'pathTile' as const
+	}
+];
+
+const villagerHouse2Blockers = [
+	{
+		...toMapRect(villagerHouse2Layout.walls[0]!.id, villagerHouse2Layout.walls[0]!),
+		kind: 'ruin-wall' as const
+	},
+	{
+		...toMapRect(villagerHouse2Layout.walls[1]!.id, villagerHouse2Layout.walls[1]!),
+		kind: 'ruin-wall' as const
+	},
+	{
+		...toMapRect(villagerHouse2Layout.walls[2]!.id, villagerHouse2Layout.walls[2]!),
+		kind: 'ruin-wall' as const
+	},
+	{
+		...toMapRect(villagerHouse2Layout.walls[3]!.id, villagerHouse2Layout.walls[3]!),
+		kind: 'ruin-wall' as const
+	},
+	{
+		...toMapRect(villagerHouse2Layout.walls[4]!.id, villagerHouse2Layout.walls[4]!),
+		kind: 'ruin-wall' as const
+	},
+	{
+		...toMapRect(villagerHouse2Layout.walls[5]!.id, villagerHouse2Layout.walls[5]!),
+		kind: 'ruin-wall' as const
+	},
+	{
+		...toMapRect(villagerHouse2Layout.walls[6]!.id, villagerHouse2Layout.walls[6]!),
+		kind: 'ruin-wall' as const
+	},
+	{
+		...toMapRect(villagerHouse2Layout.walls[7]!.id, villagerHouse2Layout.walls[7]!),
+		kind: 'ruin-wall' as const
+	},
+	{
+		...toMapRect(villagerHouse2Layout.walls[8]!.id, villagerHouse2Layout.walls[8]!),
+		kind: 'ruin-wall' as const
+	},
+	{
+		...toMapRect(villagerHouse2Layout.walls[9]!.id, villagerHouse2Layout.walls[9]!),
+		kind: 'ruin-wall' as const
+	},
+	{
+		...toMapRect(villagerHouse2Layout.walls[10]!.id, villagerHouse2Layout.walls[10]!),
+		kind: 'ruin-wall' as const
+	}
+];
+
+const villagerHouse3Layout = VILLAGE_INTERIOR_LAYOUTS['villager-house-3'];
+
+const villagerHouse3GroundPatches = [
+	{
+		...toMapRect('villager-house-3-full-floor', villagerHouse3Layout.fullFloor),
+		tile: 'cobblestoneTile' as const
+	},
+	{
+		...toMapRect('villager-house-3-room-archive-study', villagerHouse3Layout.rooms.archiveStudy),
+		tile: 'plazaStoneTile' as const
+	},
+	{
+		...toMapRect(
+			'villager-house-3-room-bedroom-storage',
+			villagerHouse3Layout.rooms.bedroomStorage
+		),
+		tile: 'plazaStoneTile' as const
+	},
+	{
+		...toMapRect('villager-house-3-room-sitting-room', villagerHouse3Layout.rooms.sittingRoom),
+		tile: 'plazaStoneTile' as const
+	},
+	{
+		...toMapRect('villager-house-3-corridor-hall', villagerHouse3Layout.corridors.hall),
+		tile: 'pathTile' as const
+	}
+];
+
+const villagerHouse3Blockers = [
+	{
+		...toMapRect(villagerHouse3Layout.walls[0]!.id, villagerHouse3Layout.walls[0]!),
+		kind: 'ruin-wall' as const
+	},
+	{
+		...toMapRect(villagerHouse3Layout.walls[1]!.id, villagerHouse3Layout.walls[1]!),
+		kind: 'ruin-wall' as const
+	},
+	{
+		...toMapRect(villagerHouse3Layout.walls[2]!.id, villagerHouse3Layout.walls[2]!),
+		kind: 'ruin-wall' as const
+	},
+	{
+		...toMapRect(villagerHouse3Layout.walls[3]!.id, villagerHouse3Layout.walls[3]!),
+		kind: 'ruin-wall' as const
+	},
+	{
+		...toMapRect(villagerHouse3Layout.walls[4]!.id, villagerHouse3Layout.walls[4]!),
+		kind: 'ruin-wall' as const
+	},
+	{
+		...toMapRect(villagerHouse3Layout.walls[5]!.id, villagerHouse3Layout.walls[5]!),
+		kind: 'ruin-wall' as const
+	},
+	{
+		...toMapRect(villagerHouse3Layout.walls[6]!.id, villagerHouse3Layout.walls[6]!),
+		kind: 'ruin-wall' as const
+	},
+	{
+		...toMapRect(villagerHouse3Layout.walls[7]!.id, villagerHouse3Layout.walls[7]!),
+		kind: 'ruin-wall' as const
+	},
+	{
+		...toMapRect(villagerHouse3Layout.walls[8]!.id, villagerHouse3Layout.walls[8]!),
+		kind: 'ruin-wall' as const
+	},
+	{
+		...toMapRect(villagerHouse3Layout.walls[9]!.id, villagerHouse3Layout.walls[9]!),
+		kind: 'ruin-wall' as const
+	},
+	{
+		...toMapRect(villagerHouse3Layout.walls[10]!.id, villagerHouse3Layout.walls[10]!),
+		kind: 'ruin-wall' as const
+	}
+];
+
 export const heroHouseMap: WorldMapDefinition = {
 	id: 'hero-house',
 	width: heroHouseLayout.widthTiles,
@@ -514,82 +853,42 @@ export const itemShopMap: WorldMapDefinition = addEnglishMapText({
 
 export const villagerHouse1Map: WorldMapDefinition = addEnglishMapText({
 	id: 'villager-house-1',
-	width: 16,
-	height: 12,
+	width: villagerHouse1Layout.widthTiles,
+	height: villagerHouse1Layout.heightTiles,
 	spawnDirection: 'up',
-	spawn: { x: 256, y: 288 },
+	spawn: { ...villagerHouse1Layout.spawn },
+	groundPatches: villagerHouse1GroundPatches,
+	blockers: villagerHouse1Blockers,
 	transitions: [
 		{
 			id: 'villager-house-1-to-meadow',
-			...interiorDoor,
+			...villagerHouse1Layout.exit,
 			toMapId: openingMapId,
 			arrival: returnArrival('villager-house-1')
 		}
 	],
 	interiorProps: [
 		{
-			id: 'villager-house-1-rug',
-			x: 256,
-			y: 252,
-			width: 118,
-			height: 70,
-			frameName: 'rug',
-			depth: 'floor'
+			...toMapRect('villager-house-1-bed', villagerHouse1Layout.propZones.bed),
+			frameName: 'bed'
 		},
 		{
-			id: 'villager-house-1-family-table',
-			x: 256,
-			y: 152,
-			width: 82,
-			height: 56,
-			frameName: 'table',
-			collision: {
-				id: 'villager-house-1-family-table-collision',
-				x: 256,
-				y: 152,
-				width: 72,
-				height: 46
-			}
+			...toMapRect('villager-house-1-family-table', villagerHouse1Layout.propZones.familyTable),
+			frameName: 'table'
 		},
 		{
-			id: 'villager-house-1-bed',
-			x: 104,
-			y: 112,
-			width: 90,
-			height: 66,
-			frameName: 'bed',
-			collision: { id: 'villager-house-1-bed-collision', x: 104, y: 112, width: 82, height: 56 }
+			...toMapRect('villager-house-1-kitchen', villagerHouse1Layout.propZones.kitchen),
+			frameName: 'crateStack'
 		},
 		{
-			id: 'villager-house-1-bench',
-			x: 384,
-			y: 176,
-			width: 82,
-			height: 34,
-			frameName: 'bench',
-			collision: { id: 'villager-house-1-bench-collision', x: 384, y: 176, width: 72, height: 26 }
-		},
-		{
-			id: 'villager-house-1-crates',
-			x: 416,
-			y: 264,
-			width: 54,
-			height: 54,
-			frameName: 'crateStack',
-			collision: {
-				id: 'villager-house-1-crates-collision',
-				x: 416,
-				y: 264,
-				width: 44,
-				height: 44
-			}
+			...toMapRect('villager-house-1-storage', villagerHouse1Layout.propZones.storage),
+			frameName: 'bookshelf'
 		}
 	],
 	npcs: [
 		{
 			id: 'villager-lynn',
-			x: 160,
-			y: 224,
+			...villagerHouse1Layout.npcApproaches.lynn.npc,
 			nameKey: 'content.maps.npcs.villager-lynn.name',
 			dialogueId: 'villager-lynn',
 			role: 'villager',
@@ -597,74 +896,57 @@ export const villagerHouse1Map: WorldMapDefinition = addEnglishMapText({
 		}
 	],
 	ambientNpcs: [
-		{ id: 'villager-house-1-family', x: 336, y: 224, frameName: 'miraItemShopNpc', role: 'family' }
+		{ id: 'villager-house-1-family', x: 480, y: 416, frameName: 'miraItemShopNpc', role: 'family' }
 	]
 });
 
 export const villagerHouse2Map: WorldMapDefinition = addEnglishMapText({
 	id: 'villager-house-2',
-	width: 16,
-	height: 12,
+	width: villagerHouse2Layout.widthTiles,
+	height: villagerHouse2Layout.heightTiles,
 	spawnDirection: 'up',
-	spawn: { x: 256, y: 288 },
+	spawn: { ...villagerHouse2Layout.spawn },
+	groundPatches: villagerHouse2GroundPatches,
+	blockers: villagerHouse2Blockers,
 	transitions: [
 		{
 			id: 'villager-house-2-to-meadow',
-			...interiorDoor,
+			...villagerHouse2Layout.exit,
 			toMapId: openingMapId,
 			arrival: returnArrival('villager-house-2')
 		}
 	],
 	interiorProps: [
 		{
-			id: 'villager-house-2-work-table',
-			x: 160,
-			y: 144,
-			width: 92,
-			height: 58,
+			...toMapRect('villager-house-2-workbench', villagerHouse2Layout.propZones.workbench),
 			frameName: 'table',
 			collision: {
-				id: 'villager-house-2-work-table-collision',
-				x: 160,
-				y: 144,
-				width: 82,
-				height: 48
+				...toMapRect(
+					'villager-house-2-workbench-collision',
+					villagerHouse2Layout.propCollisions.tomaWorkbench
+				)
 			}
 		},
 		{
-			id: 'villager-house-2-shelf',
-			x: 400,
-			y: 112,
-			width: 62,
-			height: 96,
-			frameName: 'bookshelf',
-			collision: { id: 'villager-house-2-shelf-collision', x: 400, y: 112, width: 52, height: 84 }
+			...toMapRect(
+				'villager-house-2-workshop-storage',
+				villagerHouse2Layout.propZones.workshopStorage
+			),
+			frameName: 'crateStack'
 		},
 		{
-			id: 'villager-house-2-crates',
-			x: 96,
-			y: 256,
-			width: 58,
-			height: 58,
-			frameName: 'crateStack',
-			collision: { id: 'villager-house-2-crates-collision', x: 96, y: 256, width: 48, height: 48 }
+			...toMapRect('villager-house-2-bedroom', villagerHouse2Layout.propZones.bedroom),
+			frameName: 'bed'
 		},
 		{
-			id: 'villager-house-2-papers',
-			x: 280,
-			y: 196,
-			width: 54,
-			height: 38,
-			frameName: 'papers',
-			depth: 'floor'
-		},
-		{ id: 'villager-house-2-plant', x: 416, y: 256, width: 36, height: 48, frameName: 'plant' }
+			...toMapRect('villager-house-2-living-table', villagerHouse2Layout.propZones.livingTable),
+			frameName: 'table'
+		}
 	],
 	npcs: [
 		{
 			id: 'villager-toma',
-			x: 224,
-			y: 224,
+			...villagerHouse2Layout.npcApproaches.toma.npc,
 			nameKey: 'content.maps.npcs.villager-toma.name',
 			dialogueId: 'villager-toma',
 			role: 'villager',
@@ -674,8 +956,8 @@ export const villagerHouse2Map: WorldMapDefinition = addEnglishMapText({
 	ambientNpcs: [
 		{
 			id: 'villager-house-2-neighbor',
-			x: 320,
-			y: 224,
+			x: 512,
+			y: 416,
 			frameName: 'guildMasterNpc',
 			role: 'neighbor'
 		}
@@ -684,82 +966,51 @@ export const villagerHouse2Map: WorldMapDefinition = addEnglishMapText({
 
 export const villagerHouse3Map: WorldMapDefinition = addEnglishMapText({
 	id: 'villager-house-3',
-	width: 16,
-	height: 12,
+	width: villagerHouse3Layout.widthTiles,
+	height: villagerHouse3Layout.heightTiles,
 	spawnDirection: 'up',
-	spawn: { x: 256, y: 288 },
+	spawn: { ...villagerHouse3Layout.spawn },
+	groundPatches: villagerHouse3GroundPatches,
+	blockers: villagerHouse3Blockers,
 	transitions: [
 		{
 			id: 'villager-house-3-to-meadow',
-			...interiorDoor,
+			...villagerHouse3Layout.exit,
 			toMapId: openingMapId,
 			arrival: returnArrival('villager-house-3')
 		}
 	],
 	interiorProps: [
 		{
-			id: 'villager-house-3-bookshelf',
-			x: 112,
-			y: 112,
-			width: 68,
-			height: 104,
+			...toMapRect(
+				'villager-house-3-west-archive-shelves',
+				villagerHouse3Layout.propZones.westArchiveShelves
+			),
 			frameName: 'bookshelf',
 			collision: {
-				id: 'villager-house-3-bookshelf-collision',
-				x: 112,
-				y: 112,
-				width: 58,
-				height: 92
+				...toMapRect(
+					'villager-house-3-west-archive-shelves-collision',
+					villagerHouse3Layout.propCollisions.ioWestArchiveShelves
+				)
 			}
 		},
 		{
-			id: 'villager-house-3-east-bookshelf',
-			x: 400,
-			y: 112,
-			width: 68,
-			height: 104,
-			frameName: 'bookshelf',
-			collision: {
-				id: 'villager-house-3-east-bookshelf-collision',
-				x: 400,
-				y: 112,
-				width: 58,
-				height: 92
-			}
+			...toMapRect('villager-house-3-reading-table', villagerHouse3Layout.propZones.readingTable),
+			frameName: 'table'
 		},
 		{
-			id: 'villager-house-3-rug',
-			x: 256,
-			y: 252,
-			width: 118,
-			height: 70,
-			frameName: 'rug',
-			depth: 'floor'
+			...toMapRect('villager-house-3-bedroom', villagerHouse3Layout.propZones.bedroom),
+			frameName: 'bed'
 		},
 		{
-			id: 'villager-house-3-papers',
-			x: 256,
-			y: 156,
-			width: 58,
-			height: 40,
-			frameName: 'papers',
-			depth: 'floor'
-		},
-		{
-			id: 'villager-house-3-lamp',
-			x: 416,
-			y: 256,
-			width: 46,
-			height: 56,
-			frameName: 'hearthLamp',
-			collision: { id: 'villager-house-3-lamp-collision', x: 416, y: 256, width: 36, height: 42 }
+			...toMapRect('villager-house-3-sitting', villagerHouse3Layout.propZones.sitting),
+			frameName: 'rug'
 		}
 	],
 	npcs: [
 		{
 			id: 'villager-io',
-			x: 320,
-			y: 224,
+			...villagerHouse3Layout.npcApproaches.io.npc,
 			nameKey: 'content.maps.npcs.villager-io.name',
 			dialogueId: 'villager-io',
 			role: 'villager',
@@ -769,8 +1020,8 @@ export const villagerHouse3Map: WorldMapDefinition = addEnglishMapText({
 	ambientNpcs: [
 		{
 			id: 'villager-house-3-neighbor',
-			x: 176,
-			y: 224,
+			x: 480,
+			y: 480,
 			frameName: 'quartermasterNpc',
 			role: 'neighbor'
 		}
@@ -779,119 +1030,40 @@ export const villagerHouse3Map: WorldMapDefinition = addEnglishMapText({
 
 export const shrineOfAuroraInteriorMap: WorldMapDefinition = {
 	id: 'shrine-of-aurora-interior',
-	width: 16,
-	height: 12,
+	width: shrineOfAuroraLayout.widthTiles,
+	height: shrineOfAuroraLayout.heightTiles,
 	spawnDirection: 'up',
-	spawn: { x: 256, y: 288 },
+	spawn: { ...shrineOfAuroraLayout.spawn },
+	groundPatches: shrineOfAuroraGroundPatches,
+	blockers: shrineOfAuroraBlockers,
 	transitions: [
 		{
 			id: 'shrine-of-aurora-to-meadow',
-			...interiorDoor,
+			...shrineOfAuroraLayout.exit,
 			toMapId: openingMapId,
 			arrival: returnArrival('shrine-of-aurora-interior')
 		}
 	],
 	interiorProps: [
 		{
-			id: 'shrine-of-aurora-rug',
-			x: 256,
-			y: 248,
-			width: 132,
-			height: 76,
-			frameName: 'rug',
-			depth: 'floor'
+			...toMapRect('shrine-of-aurora-altar', shrineOfAuroraLayout.propZones.altar),
+			frameName: 'table'
 		},
 		{
-			id: 'shrine-of-aurora-west-lamp',
-			x: 176,
-			y: 128,
-			width: 46,
-			height: 56,
-			frameName: 'hearthLamp',
-			collision: {
-				id: 'shrine-of-aurora-west-lamp-collision',
-				x: 176,
-				y: 128,
-				width: 36,
-				height: 42
-			}
+			...toMapRect('shrine-of-aurora-nave-benches', shrineOfAuroraLayout.propZones.naveBenches),
+			frameName: 'bench'
 		},
 		{
-			id: 'shrine-of-aurora-east-lamp',
-			x: 336,
-			y: 128,
-			width: 46,
-			height: 56,
-			frameName: 'hearthLamp',
-			collision: {
-				id: 'shrine-of-aurora-east-lamp-collision',
-				x: 336,
-				y: 128,
-				width: 36,
-				height: 42
-			}
+			...toMapRect('shrine-of-aurora-preparation', shrineOfAuroraLayout.propZones.preparation),
+			frameName: 'crateStack'
 		},
 		{
-			id: 'shrine-of-aurora-west-bench',
-			x: 128,
-			y: 224,
-			width: 86,
-			height: 34,
-			frameName: 'bench',
-			collision: {
-				id: 'shrine-of-aurora-west-bench-collision',
-				x: 128,
-				y: 224,
-				width: 76,
-				height: 26
-			}
+			...toMapRect('shrine-of-aurora-archive', shrineOfAuroraLayout.propZones.archive),
+			frameName: 'bookshelf'
 		},
 		{
-			id: 'shrine-of-aurora-east-bench',
-			x: 384,
-			y: 224,
-			width: 86,
-			height: 34,
-			frameName: 'bench',
-			collision: {
-				id: 'shrine-of-aurora-east-bench-collision',
-				x: 384,
-				y: 224,
-				width: 76,
-				height: 26
-			}
-		},
-		{
-			id: 'shrine-of-aurora-offerings',
-			x: 256,
-			y: 144,
-			width: 58,
-			height: 40,
-			frameName: 'papers',
-			depth: 'floor'
-		},
-		{
-			id: 'shrine-of-aurora-plant',
-			x: 432,
-			y: 256,
-			width: 36,
-			height: 48,
-			frameName: 'plant'
-		},
-		{
-			id: 'shrine-of-aurora-bookshelf',
-			x: 64,
-			y: 96,
-			width: 56,
-			height: 86,
-			frameName: 'bookshelf',
-			collision: {
-				id: 'shrine-of-aurora-bookshelf-collision',
-				x: 64,
-				y: 96,
-				width: 48,
-				height: 72
-			}
+			...toMapRect('shrine-of-aurora-entrance-lamps', shrineOfAuroraLayout.propZones.entranceLamps),
+			frameName: 'hearthLamp'
 		}
 	]
 };

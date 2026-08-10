@@ -4,6 +4,7 @@ import { getDialogue } from '$lib/game/content/dialogue';
 import { mergeRegions } from '$lib/game/content/maps/meadow-entry';
 import { STEPS } from '$lib/game/content/maps/layered/geometry';
 import { VILLAGE_INTERIOR_EXTERIORS } from '$lib/game/content/maps/layouts/meadow-entry-v2';
+import { toMapRect } from '$lib/game/content/maps/layouts/layout-rects';
 import { VILLAGE_INTERIOR_LAYOUTS } from '$lib/game/content/maps/layouts/village-interiors-v2';
 import type { RegionFragment } from '$lib/game/content/maps/regions/types';
 import { en } from '$lib/game/i18n/messages/en';
@@ -147,11 +148,77 @@ function expectPointClearOfInteriorPropCollisions(
 	}
 }
 
+function expectPointClearOfStrictBlockers(
+	map: WorldMapDefinition,
+	point: { x: number; y: number },
+	label: string
+) {
+	for (const blocker of map.blockers ?? []) {
+		expect(
+			isInsideCollisionRect(point.x, point.y, blocker, PLAYER_COLLISION_RADIUS),
+			`${map.id}:${label} blocked by ${blocker.id}`
+		).toBe(false);
+	}
+}
+
 function getTestNpcBodyRadius(npc: NonNullable<WorldMapDefinition['npcs']>[number]) {
 	return (
 		PLAYER_COLLISION_RADIUS +
 		(isNpcPackFrameName(npc.frameName) ? NPC_PACK_COLLISION_RADIUS : STARTER_NPC_COLLISION_RADIUS)
 	);
+}
+
+function expectAcceptedInteriorGeometry(
+	map: WorldMapDefinition,
+	layout: (typeof VILLAGE_INTERIOR_LAYOUTS)[keyof typeof VILLAGE_INTERIOR_LAYOUTS],
+	prefix: string
+) {
+	const kebabName = (name: string) =>
+		name.replace(/[A-Z]/g, (letter) => `-${letter.toLowerCase()}`);
+	expect(map.groundPatches).toEqual([
+		{
+			...toMapRect(`${prefix}-full-floor`, layout.fullFloor),
+			tile: 'cobblestoneTile'
+		},
+		...Object.entries(layout.rooms).map(([name, value]) => ({
+			...toMapRect(`${prefix}-room-${kebabName(name)}`, value),
+			tile: 'plazaStoneTile'
+		})),
+		...Object.entries(layout.corridors).map(([name, value]) => ({
+			...toMapRect(`${prefix}-corridor-${kebabName(name)}`, value),
+			tile: 'pathTile'
+		}))
+	]);
+	expect(map.blockers).toEqual(
+		layout.walls.map((wall) => ({ ...toMapRect(wall.id, wall), kind: 'ruin-wall' }))
+	);
+}
+
+function normalizedHouseSignature(map: WorldMapDefinition) {
+	const normalizeId = (id: string) => id.replace(/^villager-house-[123]-/, '');
+	return JSON.stringify({
+		roomsAndCorridors: (map.groundPatches ?? [])
+			.filter((patch) => patch.id.includes('-room-') || patch.id.includes('-corridor-'))
+			.map((patch) => [
+				normalizeId(patch.id),
+				patch.x,
+				patch.y,
+				patch.width,
+				patch.height,
+				patch.tile
+			])
+			.sort(),
+		walls: (map.blockers ?? [])
+			.map((blocker) => [
+				normalizeId(blocker.id),
+				blocker.x,
+				blocker.y,
+				blocker.width,
+				blocker.height,
+				blocker.kind
+			])
+			.sort()
+	});
 }
 
 /**
@@ -331,7 +398,7 @@ describe('opening map content', () => {
 					y: 4_384,
 					toMapId: 'villager-house-1',
 					showMarker: false,
-					arrival: { x: 256, y: 288, facing: 'up' }
+					arrival: { x: 320, y: 480, facing: 'up' }
 				},
 				{
 					id: 'meadow-to-villager-house-2',
@@ -339,7 +406,7 @@ describe('opening map content', () => {
 					y: 4_384,
 					toMapId: 'villager-house-2',
 					showMarker: false,
-					arrival: { x: 256, y: 288, facing: 'up' }
+					arrival: { x: 352, y: 480, facing: 'up' }
 				},
 				{
 					id: 'meadow-to-guild-hall',
@@ -355,7 +422,7 @@ describe('opening map content', () => {
 					y: 5_856,
 					toMapId: 'shrine-of-aurora-interior',
 					showMarker: false,
-					arrival: { x: 256, y: 288, facing: 'up' }
+					arrival: { x: 384, y: 608, facing: 'up' }
 				},
 				{
 					id: 'meadow-to-villager-house-3',
@@ -363,7 +430,7 @@ describe('opening map content', () => {
 					y: 5_856,
 					toMapId: 'villager-house-3',
 					showMarker: false,
-					arrival: { x: 256, y: 288, facing: 'up' }
+					arrival: { x: 320, y: 544, facing: 'up' }
 				},
 				{
 					id: 'meadow-to-whispering-cave-ruins-threshold',
@@ -956,7 +1023,7 @@ describe('opening map content', () => {
 	});
 
 	it('registers village interiors and the expanded Guild Hall', () => {
-		const compactInteriors = [
+		const rebuiltInteriors = [
 			heroHouseMap,
 			itemShopMap,
 			villagerHouse1Map,
@@ -972,9 +1039,16 @@ describe('opening map content', () => {
 		expect(maps['villager-house-3']).toBe(villagerHouse3Map);
 		expect(maps['shrine-of-aurora-interior']).toBe(shrineOfAuroraInteriorMap);
 
-		for (const map of compactInteriors.slice(2)) {
-			expect(map.width).toBe(16);
-			expect(map.height).toBe(12);
+		expect(villagerHouse1Map.width).toBe(20);
+		expect(villagerHouse1Map.height).toBe(18);
+		expect(villagerHouse2Map.width).toBe(22);
+		expect(villagerHouse2Map.height).toBe(18);
+		expect(villagerHouse3Map.width).toBe(20);
+		expect(villagerHouse3Map.height).toBe(20);
+		expect(shrineOfAuroraInteriorMap.width).toBe(24);
+		expect(shrineOfAuroraInteriorMap.height).toBe(22);
+
+		for (const map of rebuiltInteriors.slice(2)) {
 			expect(map.transitions).toHaveLength(1);
 			expect(map.transitions[0].toMapId).toBe('meadow-entry');
 		}
@@ -1246,6 +1320,305 @@ describe('opening map content', () => {
 		expect(Math.hypot(miraApproach.x - mira.x, miraApproach.y - mira.y)).toBe(40);
 	});
 
+	it('rebuilds Shrine and all three villager houses from the accepted layouts', () => {
+		const shrineLayout = VILLAGE_INTERIOR_LAYOUTS['shrine-of-aurora-interior'];
+		const house1Layout = VILLAGE_INTERIOR_LAYOUTS['villager-house-1'];
+		const house2Layout = VILLAGE_INTERIOR_LAYOUTS['villager-house-2'];
+		const house3Layout = VILLAGE_INTERIOR_LAYOUTS['villager-house-3'];
+
+		for (const [map, layout, prefix] of [
+			[shrineOfAuroraInteriorMap, shrineLayout, 'shrine-of-aurora'],
+			[villagerHouse1Map, house1Layout, 'villager-house-1'],
+			[villagerHouse2Map, house2Layout, 'villager-house-2'],
+			[villagerHouse3Map, house3Layout, 'villager-house-3']
+		] as const) {
+			expect(map.backgroundImages).toBeUndefined();
+			expect(map.width).toBe(layout.widthTiles);
+			expect(map.height).toBe(layout.heightTiles);
+			expect(map.spawnDirection).toBe('up');
+			expect(map.spawn).toEqual(layout.spawn);
+			expect(map.transitions).toHaveLength(1);
+			expect(map.transitions[0]).toMatchObject({
+				toMapId: 'meadow-entry',
+				...layout.exit,
+				arrival:
+					VILLAGE_INTERIOR_EXTERIORS[map.id as keyof typeof VILLAGE_INTERIOR_EXTERIORS]
+						.returnArrival
+			});
+			expectAcceptedInteriorGeometry(map, layout, prefix);
+		}
+
+		expect(shrineOfAuroraInteriorMap.transitions[0]).toMatchObject({
+			id: 'shrine-of-aurora-to-meadow',
+			x: 384,
+			y: 688,
+			toMapId: 'meadow-entry',
+			arrival: { x: 2_272, y: 5_920, facing: 'down' }
+		});
+		expect(shrineOfAuroraInteriorMap.interiorProps).toEqual([
+			{ ...toMapRect('shrine-of-aurora-altar', shrineLayout.propZones.altar), frameName: 'table' },
+			{
+				...toMapRect('shrine-of-aurora-nave-benches', shrineLayout.propZones.naveBenches),
+				frameName: 'bench'
+			},
+			{
+				...toMapRect('shrine-of-aurora-preparation', shrineLayout.propZones.preparation),
+				frameName: 'crateStack'
+			},
+			{
+				...toMapRect('shrine-of-aurora-archive', shrineLayout.propZones.archive),
+				frameName: 'bookshelf'
+			},
+			{
+				...toMapRect('shrine-of-aurora-entrance-lamps', shrineLayout.propZones.entranceLamps),
+				frameName: 'hearthLamp'
+			}
+		]);
+		expect(shrineOfAuroraInteriorMap.npcs ?? []).toEqual([]);
+		expect(shrineOfAuroraInteriorMap.ambientNpcs ?? []).toEqual([]);
+
+		expect(villagerHouse1Map.interiorProps).toEqual([
+			{ ...toMapRect('villager-house-1-bed', house1Layout.propZones.bed), frameName: 'bed' },
+			{
+				...toMapRect('villager-house-1-family-table', house1Layout.propZones.familyTable),
+				frameName: 'table'
+			},
+			{
+				...toMapRect('villager-house-1-kitchen', house1Layout.propZones.kitchen),
+				frameName: 'crateStack'
+			},
+			{
+				...toMapRect('villager-house-1-storage', house1Layout.propZones.storage),
+				frameName: 'bookshelf'
+			}
+		]);
+		expect(villagerHouse1Map.npcs).toEqual([
+			expect.objectContaining({
+				id: 'villager-lynn',
+				x: 160,
+				y: 416,
+				nameKey: 'content.maps.npcs.villager-lynn.name',
+				dialogueId: 'villager-lynn',
+				role: 'villager',
+				frameName: 'miraItemShopNpc'
+			})
+		]);
+		expect(villagerHouse1Map.ambientNpcs).toEqual([
+			{
+				id: 'villager-house-1-family',
+				x: 480,
+				y: 416,
+				frameName: 'miraItemShopNpc',
+				role: 'family'
+			}
+		]);
+
+		expect(villagerHouse2Map.interiorProps).toEqual([
+			{
+				...toMapRect('villager-house-2-workbench', house2Layout.propZones.workbench),
+				frameName: 'table',
+				collision: toMapRect(
+					'villager-house-2-workbench-collision',
+					house2Layout.propCollisions.tomaWorkbench
+				)
+			},
+			{
+				...toMapRect('villager-house-2-workshop-storage', house2Layout.propZones.workshopStorage),
+				frameName: 'crateStack'
+			},
+			{
+				...toMapRect('villager-house-2-bedroom', house2Layout.propZones.bedroom),
+				frameName: 'bed'
+			},
+			{
+				...toMapRect('villager-house-2-living-table', house2Layout.propZones.livingTable),
+				frameName: 'table'
+			}
+		]);
+		expect(villagerHouse2Map.npcs).toEqual([
+			expect.objectContaining({
+				id: 'villager-toma',
+				x: 192,
+				y: 192,
+				nameKey: 'content.maps.npcs.villager-toma.name',
+				dialogueId: 'villager-toma',
+				role: 'villager',
+				frameName: 'quartermasterNpc'
+			})
+		]);
+		expect(villagerHouse2Map.ambientNpcs).toEqual([
+			{
+				id: 'villager-house-2-neighbor',
+				x: 512,
+				y: 416,
+				frameName: 'guildMasterNpc',
+				role: 'neighbor'
+			}
+		]);
+
+		expect(villagerHouse3Map.interiorProps).toEqual([
+			{
+				...toMapRect(
+					'villager-house-3-west-archive-shelves',
+					house3Layout.propZones.westArchiveShelves
+				),
+				frameName: 'bookshelf',
+				collision: toMapRect(
+					'villager-house-3-west-archive-shelves-collision',
+					house3Layout.propCollisions.ioWestArchiveShelves
+				)
+			},
+			{
+				...toMapRect('villager-house-3-reading-table', house3Layout.propZones.readingTable),
+				frameName: 'table'
+			},
+			{
+				...toMapRect('villager-house-3-bedroom', house3Layout.propZones.bedroom),
+				frameName: 'bed'
+			},
+			{
+				...toMapRect('villager-house-3-sitting', house3Layout.propZones.sitting),
+				frameName: 'rug'
+			}
+		]);
+		expect(villagerHouse3Map.npcs).toEqual([
+			expect.objectContaining({
+				id: 'villager-io',
+				x: 160,
+				y: 192,
+				nameKey: 'content.maps.npcs.villager-io.name',
+				dialogueId: 'villager-io',
+				role: 'villager',
+				frameName: 'guildMasterNpc'
+			})
+		]);
+		expect(villagerHouse3Map.ambientNpcs).toEqual([
+			{
+				id: 'villager-house-3-neighbor',
+				x: 480,
+				y: 480,
+				frameName: 'quartermasterNpc',
+				role: 'neighbor'
+			}
+		]);
+
+		for (const [map, approach, route] of [
+			[
+				villagerHouse1Map,
+				house1Layout.npcApproaches.lynn,
+				[villagerHouse1Map.spawn, { x: 320, y: 320 }, { x: 200, y: 320 }, { x: 200, y: 416 }]
+			],
+			[
+				villagerHouse2Map,
+				house2Layout.npcApproaches.toma,
+				[
+					villagerHouse2Map.spawn,
+					{ x: 400, y: 480 },
+					{ x: 400, y: 304 },
+					{ x: 400, y: 192 },
+					{ x: 232, y: 192 }
+				]
+			],
+			[
+				villagerHouse3Map,
+				house3Layout.npcApproaches.io,
+				[villagerHouse3Map.spawn, { x: 320, y: 192 }, { x: 200, y: 192 }]
+			]
+		] as const) {
+			expect(map.backgroundImages).toBeUndefined();
+			expectPointClearOfInteriorPropCollisions(map, approach.npc, `${map.id}-npc`);
+			expectPointClearOfInteriorPropCollisions(map, approach.approach, `${map.id}-approach`);
+			expectPointClearOfStrictBlockers(map, approach.npc, `${map.id}-npc`);
+			expectPointClearOfStrictBlockers(map, approach.approach, `${map.id}-approach`);
+			expectRouteClear(map, route, `${map.id}-spawn-to-npc`);
+			expectRouteClear(map, [map.spawn, map.transitions[0]!], `${map.id}-spawn-to-exit`);
+		}
+		expectRouteClear(
+			villagerHouse1Map,
+			[villagerHouse1Map.spawn, { x: 320, y: 320 }, { x: 320, y: 160 }],
+			'villager-house-1-spawn-to-hall'
+		);
+		expectRouteClear(
+			villagerHouse1Map,
+			[villagerHouse1Map.spawn, { x: 320, y: 320 }, { x: 320, y: 160 }, { x: 200, y: 160 }],
+			'villager-house-1-spawn-to-bedroom'
+		);
+		expectRouteClear(
+			villagerHouse1Map,
+			[
+				villagerHouse1Map.spawn,
+				{ x: 320, y: 320 },
+				{ x: 320, y: 160 },
+				{ x: 520, y: 160 },
+				{ x: 520, y: 208 }
+			],
+			'villager-house-1-spawn-to-storage'
+		);
+		expectRouteClear(
+			villagerHouse1Map,
+			[villagerHouse1Map.spawn, { x: 520, y: 480 }],
+			'villager-house-1-spawn-to-living-kitchen'
+		);
+		expectRouteClear(
+			villagerHouse2Map,
+			[villagerHouse2Map.spawn, { x: 400, y: 480 }, { x: 400, y: 200 }],
+			'villager-house-2-spawn-to-hall'
+		);
+		expectRouteClear(
+			villagerHouse2Map,
+			[villagerHouse2Map.spawn, { x: 400, y: 480 }, { x: 400, y: 200 }, { x: 512, y: 200 }],
+			'villager-house-2-spawn-to-bedroom'
+		);
+		expectRouteClear(
+			villagerHouse2Map,
+			[villagerHouse2Map.spawn, { x: 560, y: 480 }],
+			'villager-house-2-spawn-to-living-area'
+		);
+		expectRouteClear(
+			villagerHouse3Map,
+			[villagerHouse3Map.spawn, { x: 320, y: 192 }],
+			'villager-house-3-spawn-to-hall'
+		);
+		expectRouteClear(
+			villagerHouse3Map,
+			[villagerHouse3Map.spawn, { x: 320, y: 192 }, { x: 512, y: 192 }],
+			'villager-house-3-spawn-to-bedroom-storage'
+		);
+		expectRouteClear(
+			villagerHouse3Map,
+			[villagerHouse3Map.spawn, { x: 512, y: 544 }],
+			'villager-house-3-spawn-to-sitting-room'
+		);
+		expectRouteClear(
+			shrineOfAuroraInteriorMap,
+			[shrineOfAuroraInteriorMap.spawn, { x: 384, y: 400 }, { x: 200, y: 400 }],
+			'shrine-spawn-to-preparation'
+		);
+		expectRouteClear(
+			shrineOfAuroraInteriorMap,
+			[shrineOfAuroraInteriorMap.spawn, { x: 384, y: 400 }, { x: 640, y: 400 }],
+			'shrine-spawn-to-archive'
+		);
+		expectRouteClear(
+			shrineOfAuroraInteriorMap,
+			[shrineOfAuroraInteriorMap.spawn, { x: 384, y: 200 }],
+			'shrine-spawn-to-sanctum'
+		);
+		expectRouteClear(
+			shrineOfAuroraInteriorMap,
+			[shrineOfAuroraInteriorMap.spawn, shrineOfAuroraInteriorMap.transitions[0]!],
+			'shrine-spawn-to-exit'
+		);
+
+		const houses = [villagerHouse1Map, villagerHouse2Map, villagerHouse3Map];
+		const signatures = houses.map(normalizedHouseSignature);
+		for (let left = 0; left < signatures.length; left += 1) {
+			for (let right = left + 1; right < signatures.length; right += 1) {
+				expect(signatures[left]).not.toBe(signatures[right]);
+			}
+		}
+	});
+
 	it('keeps Mira, counter clearance, and minimal interior props exact', () => {
 		const mira = itemShopMap.npcs!.find((npc) => npc.id === 'shopkeeper-mira');
 		expect(mira).toMatchObject({
@@ -1285,7 +1658,7 @@ describe('opening map content', () => {
 		expect(itemShopMap.backgroundImages).toBeUndefined();
 	});
 
-	it('decorates compact village interiors with bounded props and ambient NPCs', () => {
+	it('decorates rebuilt village interiors with bounded props and ambient NPCs', () => {
 		const interiors = [
 			heroHouseMap,
 			guildHallMap,
@@ -1309,20 +1682,17 @@ describe('opening map content', () => {
 			'villager-house-1-family-table'
 		);
 		expect(villagerHouse2Map.interiorProps?.map((prop) => prop.id)).toContain(
-			'villager-house-2-work-table'
+			'villager-house-2-workbench'
 		);
 		expect(villagerHouse3Map.interiorProps?.map((prop) => prop.id)).toContain(
-			'villager-house-3-bookshelf'
+			'villager-house-3-west-archive-shelves'
 		);
 		expect(shrineOfAuroraInteriorMap.interiorProps?.map((prop) => prop.id)).toEqual([
-			'shrine-of-aurora-rug',
-			'shrine-of-aurora-west-lamp',
-			'shrine-of-aurora-east-lamp',
-			'shrine-of-aurora-west-bench',
-			'shrine-of-aurora-east-bench',
-			'shrine-of-aurora-offerings',
-			'shrine-of-aurora-plant',
-			'shrine-of-aurora-bookshelf'
+			'shrine-of-aurora-altar',
+			'shrine-of-aurora-nave-benches',
+			'shrine-of-aurora-preparation',
+			'shrine-of-aurora-archive',
+			'shrine-of-aurora-entrance-lamps'
 		]);
 		expect(guildHallMap.ambientNpcs?.map((npc) => npc.id)).toEqual([
 			'guild-hall-member-west',
@@ -1487,7 +1857,7 @@ describe('opening map content', () => {
 			{
 				id: 'villager-lynn',
 				x: 160,
-				y: 224,
+				y: 416,
 				nameKey: 'content.maps.npcs.villager-lynn.name',
 				dialogueId: 'villager-lynn',
 				role: 'villager',
@@ -1497,8 +1867,8 @@ describe('opening map content', () => {
 		expect(villagerHouse2Map.npcs).toMatchObject([
 			{
 				id: 'villager-toma',
-				x: 224,
-				y: 224,
+				x: 192,
+				y: 192,
 				nameKey: 'content.maps.npcs.villager-toma.name',
 				dialogueId: 'villager-toma',
 				role: 'villager',
@@ -1508,8 +1878,8 @@ describe('opening map content', () => {
 		expect(villagerHouse3Map.npcs).toMatchObject([
 			{
 				id: 'villager-io',
-				x: 320,
-				y: 224,
+				x: 160,
+				y: 192,
 				nameKey: 'content.maps.npcs.villager-io.name',
 				dialogueId: 'villager-io',
 				role: 'villager',
