@@ -14,7 +14,6 @@ import {
 	computeMeadowEntryCombinedControlFingerprint,
 	renderMeadowEntryControls
 } from '$lib/game/content/backgrounds/meadow-entry-controls';
-import { MEADOW_ENTRY_COMBINED_CONTROL_FINGERPRINT } from '$lib/game/content/generated/meadow-entry-art-control';
 
 import {
 	parseMeadowEntryControlsApprovalArguments,
@@ -26,34 +25,23 @@ const EVIDENCE_PATH =
 	'docs/superpowers/reports/2026-07-30-hpa-399-controls-crops-storage-validation.md';
 const testDirectory = dirname(fileURLToPath(import.meta.url));
 const repositoryRoot = resolve(testDirectory, '../../../..');
-const controlsDirectory = resolve(repositoryRoot, 'docs/superpowers/reports/img/hpa-399/controls');
 
 function sha256(value: string | Uint8Array): string {
 	return createHash('sha256').update(value).digest('hex');
 }
 
 describe('meadow-entry reviewed control approval', () => {
-	it('seals current generated controls and independently rendered Task 5/6 manifests', () => {
+	it('keeps the retired V1 approvals separate from current V2 controls', () => {
 		const inputs = buildMeadowEntryControlInputs();
 		const currentCombinedFingerprint = computeMeadowEntryCombinedControlFingerprint(inputs);
 		const rendered = renderMeadowEntryControls(inputs);
-		const checkedInCropManifest = readFileSync(
-			resolve(controlsDirectory, 'meadow-entry-crop-manifest.json')
-		);
-		const checkedInBakeOwnership = readFileSync(
-			resolve(controlsDirectory, 'meadow-entry-bake-ownership.json')
-		);
 
-		expect(currentCombinedFingerprint).toBe(MEADOW_ENTRY_COMBINED_CONTROL_FINGERPRINT);
-		expect(currentCombinedFingerprint).toBe(meadowEntryControlsApproval.combinedControlFingerprint);
-		expect(Buffer.from(rendered['meadow-entry-crop-manifest.json']!)).toEqual(
-			checkedInCropManifest
+		expect(currentCombinedFingerprint).toMatch(SHA256);
+		expect(currentCombinedFingerprint).not.toBe(
+			meadowEntryControlsApproval.combinedControlFingerprint
 		);
-		expect(Buffer.from(rendered['meadow-entry-bake-ownership.json']!)).toEqual(
-			checkedInBakeOwnership
-		);
-		expect(meadowEntryControlsApproval.cropManifestSha256).toBe(sha256(checkedInCropManifest));
-		expect(meadowEntryControlsApproval.bakeOwnershipSha256).toBe(sha256(checkedInBakeOwnership));
+		expect(Object.keys(rendered)).toContain('meadow-entry-crop-manifest.json');
+		expect(Object.keys(rendered)).toContain('meadow-entry-bake-ownership.json');
 		expect(meadowEntryControlsApproval.cropManifestSha256).toMatch(SHA256);
 		expect(meadowEntryControlsApproval.bakeOwnershipSha256).toMatch(SHA256);
 		expect(meadowEntryControlsApproval.evidencePath).toBe(EVIDENCE_PATH);

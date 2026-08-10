@@ -398,12 +398,14 @@ describe('meadow-entry exporter package safety', () => {
 		);
 	});
 
-	it('runs the check-mode exporter end-to-end against the real repository controls', async () => {
+	it('reports the retired V1 package as stale against the V2 graybox controls', async () => {
 		const api = await exporterApi();
 		expect(api.runMeadowEntryArtControlsExporter).toBeTypeOf('function');
 		if (!api.runMeadowEntryArtControlsExporter) return;
 		const repositoryRoot = resolve(testDirectory, '../../../../..');
-		expect(() => api.runMeadowEntryArtControlsExporter!(['--check'], repositoryRoot)).not.toThrow();
+		expect(() => api.runMeadowEntryArtControlsExporter!(['--check'], repositoryRoot)).toThrow(
+			/stale/
+		);
 	});
 
 	it('runs the publish-mode exporter into a fresh temporary repository root', async () => {

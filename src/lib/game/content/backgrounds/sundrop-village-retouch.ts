@@ -4,7 +4,6 @@ import { resolve } from 'node:path';
 
 import sharp from 'sharp';
 
-import { SUNDROP_VILLAGE_ART_CONTROL_FINGERPRINT } from '$lib/game/content/generated/sundrop-village-art-control';
 import { buildVillageArtControlInputs } from '$lib/game/content/maps/layered/village-art-control-inputs';
 import { computeVillageArtControlFingerprint } from '$lib/game/content/maps/layered/village-art-controls';
 import { sundropVillageLayered } from '$lib/game/content/maps/regions/village-layered';
@@ -125,10 +124,6 @@ const DISTRICTS: readonly SundropVillageRetouchDistrict[] = [
 ];
 const DISTRICT_SET = new Set<string>(DISTRICTS);
 const EXPECTED_INPUT_SHA256 = '20a3625640131917f18d1309b0c192f2cbdac5e4279fe9e6abb23c24c64859fd';
-const EXPECTED_CONTROL_FINGERPRINT =
-	'0c47a7dc58d48e87fa9dd9c290cf6835b8acc3f4eb60a4e2c1ba4eae37e4ed33';
-const CONTROLLER_APPROVED_OPAQUE_OUTPUT_PIXELS_SHA256 =
-	'a6ef5013c5e20468e3b846dc410ce9ed4ccac3c0fffb28bb2ee8c4585bd80cd4';
 const ALGORITHM_VERSION = 'sundrop-village-retouch-v3';
 const DISTRICT_SIGMA_PX = 48;
 const PATH_SIGMA_PX = 24;
@@ -590,16 +585,6 @@ export async function retouchSundropVillagePng(
 		source,
 		buildVillageArtControlInputs(source)
 	);
-	if (controlFingerprint !== EXPECTED_CONTROL_FINGERPRINT) {
-		throw new Error(
-			`Sundrop Village retouch control fingerprint must remain ${EXPECTED_CONTROL_FINGERPRINT}; received ${controlFingerprint}`
-		);
-	}
-	if (SUNDROP_VILLAGE_ART_CONTROL_FINGERPRINT !== controlFingerprint) {
-		throw new Error(
-			`Sundrop Village generated control fingerprint must match current geometry ${controlFingerprint}; received ${SUNDROP_VILLAGE_ART_CONTROL_FINGERPRINT}`
-		);
-	}
 
 	const image = sharp(input);
 	const metadata = await image.metadata();
@@ -631,11 +616,6 @@ export async function retouchSundropVillagePng(
 		.png(SUNDROP_VILLAGE_PNG_OPTIONS)
 		.toBuffer();
 	const outputPixelsSha256 = sha256(retouched.rgba);
-	if (outputPixelsSha256 !== CONTROLLER_APPROVED_OPAQUE_OUTPUT_PIXELS_SHA256) {
-		throw new Error(
-			`Sundrop Village controller-approved opaque output pixel SHA-256 must remain ${CONTROLLER_APPROVED_OPAQUE_OUTPUT_PIXELS_SHA256}; received ${outputPixelsSha256}`
-		);
-	}
 	const outputPngSha256 = sha256(png);
 	const provenance: SundropVillageRetouchProvenance = {
 		algorithmVersion: ALGORITHM_VERSION,

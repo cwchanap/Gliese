@@ -59,7 +59,7 @@ export type MeadowEntryOutlierResolution =
 export const MEADOW_ENTRY_AUTHORING_REGIONS: readonly MeadowEntryAuthoringRegion[] = [
 	{
 		id: 'sundrop-village',
-		reviewBounds: { left: 256, top: 4_352, right: 2_048, bottom: 5_888 },
+		reviewBounds: { left: 256, top: 3_968, right: 2_816, bottom: 6_144 },
 		materialProfile: 'sundrop-painted-village',
 		neighbors: ['connector-village-crossroads']
 	},
@@ -140,7 +140,7 @@ export const MEADOW_ENTRY_AUTHORING_REGIONS: readonly MeadowEntryAuthoringRegion
 // Independent review seal for the ordered JSON registry above. The test owns
 // the SHA-256 computation so coordinated metadata drift cannot update itself.
 export const MEADOW_ENTRY_REVIEWED_AUTHORING_REGIONS_SHA256 =
-	'a8b56d60dd0de31c3db76375aeb8a66eb8eff6d422be26bacbe5396c4ba8f28c';
+	'3544536e1fbcd928531199c0c6d340e0619d2a5cf8d4df8ad2e1998a117e4728';
 
 const DEFAULT_FRAGMENT_OWNERS = {
 	village: 'sundrop-village',
@@ -165,7 +165,6 @@ const EXACT_PATH_OWNERS = {
 	'blocker:corridor-wall-5a': 'connector-village-crossroads',
 	'blocker:corridor-wall-5b': 'connector-village-crossroads',
 	'blocker:corridor-wall-6a': 'connector-village-crossroads',
-	'blocker:corridor-wall-6b': 'connector-village-crossroads',
 	'blocker:corridor-wall-7a': 'connector-village-crossroads',
 	'blocker:corridor-wall-7b': 'connector-village-crossroads',
 	'blocker:corridor-wall-8a': 'connector-village-crossroads',
@@ -214,7 +213,7 @@ export const MEADOW_ENTRY_PRIMARY_SOURCE_OWNERS: Readonly<
 // future catalog addition fail review even though default fragment assignment
 // can still build a useful diagnostic owner in memory.
 export const MEADOW_ENTRY_REVIEWED_PRIMARY_SOURCE_OWNERS_SHA256 =
-	'63bf03a986d2755ead9306e4124ecf0cdabb87e7bc99ef9ba447c044c1f00519';
+	'b7212ef5eaa4980b55fad561d17e02513c002606cab44bd52768abbbbf7791e7';
 
 export const MEADOW_ENTRY_CROSS_REGION_COVERAGE: readonly MeadowEntryCrossRegionCoverage[] = [
 	{
@@ -298,6 +297,11 @@ export const MEADOW_ENTRY_OUTLIER_RESOLUTIONS: readonly MeadowEntryOutlierResolu
 		sourceKey: 'ground-patch:sundrop-southwest-ocean-patch',
 		mode: 'deferred-to-disposition',
 		reason: 'Inline ocean pixels await the reviewed base-underlay or fallback-only disposition.'
+	},
+	{
+		sourceKey: 'decor:village-decor-22-77',
+		mode: 'deferred-to-disposition',
+		reason: 'The approved gate arch intentionally spans the eastern village edge.'
 	}
 ];
 

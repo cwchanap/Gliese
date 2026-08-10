@@ -36,12 +36,6 @@ function isPaintedRoadCell(col: number, row: number): boolean {
 	return !isInsideAnyCollisionRect(point.x, point.y, composedCollision, PLAYER_COLLISION_RADIUS);
 }
 
-function isWalkableCell(col: number, row: number): boolean {
-	if (col < 0 || row < 0 || col >= DIMS.width || row >= DIMS.height) return false;
-	const point = center({ col, row });
-	return !isInsideAnyCollisionRect(point.x, point.y, composedCollision, PLAYER_COLLISION_RADIUS);
-}
-
 function expectRectDisjoint(
 	left: { x: number; y: number; width: number; height: number },
 	right: { x: number; y: number; width: number; height: number },
@@ -168,7 +162,7 @@ describe('Sundrop Village V2 layered graybox', () => {
 		for (const [name, building] of Object.entries(SUNDROP_VILLAGE_V2_BUILDINGS)) {
 			const goal = approachCells(building)[0];
 			expect(goal, `${name} has no painted approach cell`).toBeDefined();
-			const path = bfsPath(hero!, goal!, isWalkableCell, DIMS);
+			const path = bfsPath(hero!, goal!, isPaintedRoadCell, DIMS);
 			expect(path, `${name} approach is unreachable`).not.toBeNull();
 			const approach = center(goal!);
 			expect(
@@ -212,7 +206,36 @@ describe('Sundrop Village V2 layered graybox', () => {
 		const lanterns = villageDecor.filter((decor) => decor.frameName === 'poleLantern');
 		expect(lanterns).toHaveLength(2);
 		expect(lanterns.every((decor) => decor.collision)).toBe(true);
-		expectRectDisjoint(lanterns[0]!, lanterns[1]!, 'pole-lantern sprites overlap');
+		for (let leftIndex = 0; leftIndex < villageDecor.length; leftIndex += 1) {
+			for (let rightIndex = leftIndex + 1; rightIndex < villageDecor.length; rightIndex += 1) {
+				expectRectDisjoint(
+					villageDecor[leftIndex]!,
+					villageDecor[rightIndex]!,
+					`decor sprites ${leftIndex}/${rightIndex} overlap`
+				);
+			}
+		}
+		const routeRects = [
+			SUNDROP_VILLAGE_V2_PUBLIC_SPACES.mainStreet,
+			SUNDROP_VILLAGE_V2_PUBLIC_SPACES.westLane,
+			SUNDROP_VILLAGE_V2_PUBLIC_SPACES.eastLane,
+			SUNDROP_VILLAGE_V2_PUBLIC_SPACES.southLane,
+			SUNDROP_VILLAGE_V2_PUBLIC_SPACES.southernMeadowLane
+		].map((route) => ({
+			x: route.x + route.width / 2,
+			y: route.y + route.height / 2,
+			width: route.width,
+			height: route.height
+		}));
+		for (const [index, lantern] of lanterns.entries()) {
+			for (const route of routeRects) {
+				expectRectDisjoint(
+					lantern.collision!,
+					route,
+					`pole lantern ${index} collision overlaps a required route`
+				);
+			}
+		}
 		const villageGreen = SUNDROP_VILLAGE_V2_PUBLIC_SPACES.villageGreen;
 		const villageGreenCenter = {
 			x: villageGreen.x + villageGreen.width / 2,
