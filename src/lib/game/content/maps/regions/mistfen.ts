@@ -1,8 +1,11 @@
 import { marshDressingAsset } from '$lib/game/content/assets';
+import { rect, toMapRect } from '$lib/game/content/maps/layouts/layout-rects';
 import type { RegionFragment } from '$lib/game/content/maps/regions/types';
 
 export const mistfenRegion: RegionFragment = {
 	groundPatches: [
+		{ ...toMapRect('mistfen-seam-horizontal', rect(2_400, 3_072, 672, 160)), tile: 'pathTile' },
+		{ ...toMapRect('mistfen-seam-vertical', rect(2_240, 2_752, 160, 480)), tile: 'pathTile' },
 		{ id: 'mistfen-basin', x: 1_250, y: 1_750, width: 2_000, height: 2_300, tile: 'marshMudTile' },
 		{ id: 'mistfen-pool-west', x: 800, y: 1_400, width: 420, height: 300, tile: 'seaTile' },
 		{ id: 'mistfen-pool-east', x: 1_700, y: 2_100, width: 360, height: 280, tile: 'seaTile' },

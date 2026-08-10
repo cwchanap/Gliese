@@ -206,8 +206,8 @@ export const coastRegion: RegionFragment = {
 		// left/right boundary where it leaves the hub.
 		{
 			id: 'coast-crossroads-mouth-bank',
-			x: 3_500,
-			y: 4_650,
+			x: 3_200,
+			y: 5_100,
 			width: 64,
 			height: 400,
 			kind: 'town-hedge'

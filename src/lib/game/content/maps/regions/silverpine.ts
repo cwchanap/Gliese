@@ -1,8 +1,10 @@
 import { shrineDressingAsset } from '$lib/game/content/assets';
+import { rect, toMapRect } from '$lib/game/content/maps/layouts/layout-rects';
 import type { RegionFragment } from '$lib/game/content/maps/regions/types';
 
 export const silverpineRegion: RegionFragment = {
 	groundPatches: [
+		{ ...toMapRect('silverpine-seam', rect(3_424, 2_336, 352, 192)), tile: 'pathTile' },
 		{ id: 'silverpine-stair-path', x: 3_100, y: 1_600, width: 70, height: 2_400, tile: 'pathTile' },
 		{
 			id: 'silverpine-lower-approach',
@@ -228,14 +230,14 @@ export const silverpineRegion: RegionFragment = {
 			textureKey: shrineDressingAsset.key,
 			frameName: 'silverpine',
 			x: 3_440,
-			y: 2_340,
+			y: 2_600,
 			width: 220,
 			height: 300,
 			mode: 'image',
 			collision: {
 				id: 'silverpine-lower-wall-east-collision',
 				x: 3_440,
-				y: 2_440,
+				y: 2_700,
 				width: 90,
 				height: 100
 			}

@@ -4,16 +4,8 @@ import {
 	battleBackgroundAssets,
 	environmentDressingAsset,
 	fenceDressingAsset,
-	forestDressingAsset,
-	villageHedgeAsset
+	forestDressingAsset
 } from '$lib/game/content/assets';
-import {
-	SUNDROP_VILLAGE_BASE_BACKGROUND_ID,
-	SUNDROP_VILLAGE_BASE_BACKGROUND_TEXTURE_KEY,
-	SUNDROP_VILLAGE_FOREGROUND_BACKGROUND_ID,
-	SUNDROP_VILLAGE_FOREGROUND_BACKGROUND_TEXTURE_KEY
-} from '$lib/game/content/backgrounds/sundrop-village-backgrounds';
-import { meadowEntryRuntimeBackgroundImages } from '$lib/game/content/backgrounds/meadow-entry-runtime';
 import { maps } from '$lib/game/content/maps';
 import type { RegionalBackgroundRendererDiagnostic } from '$lib/game/phaser/renderer-diagnostics';
 import type { RegionalBackgroundPlaneRenderDiagnostic } from '$lib/game/phaser/regional-background-plane-render-diagnostics';
@@ -2418,80 +2410,6 @@ describe('BattleScene', () => {
 describe('WorldScene', () => {
 	const twoPlaneBaseTextureKey = 'two-plane-base';
 	const twoPlaneForegroundTextureKey = 'two-plane-foreground';
-	const sundropBackgroundIds = new Set([
-		SUNDROP_VILLAGE_BASE_BACKGROUND_ID,
-		SUNDROP_VILLAGE_FOREGROUND_BACKGROUND_ID
-	]);
-	const sundropVillageBounds = {
-		left: 256,
-		right: 2_048,
-		top: 4_352,
-		bottom: 5_888
-	} as const;
-	const villageHedgeMarkers = () =>
-		phaserState.imageMarkers.filter(
-			(marker) => marker.texture === villageHedgeAsset.key && marker.frame === 'hedgeSegment'
-		);
-	const sundropSelectedFallbackIds = [
-		'village-block-2-2',
-		'village-block-2-49',
-		'village-block-33-49',
-		'village-block-3-2',
-		'village-block-3-51',
-		'village-block-4-2',
-		'village-block-32-2',
-		'village-block-4-35',
-		'village-block-11-35',
-		'village-block-10-35',
-		'village-block-19-2',
-		'village-block-19-30',
-		'village-block-20-2',
-		'village-block-20-34',
-		'village-block-25-20',
-		'village-block-32-8',
-		'village-block-32-24',
-		'village-block-32-33',
-		'village-block-33-24',
-		'village-block-41-24',
-		'corridor-wall-2b'
-	] as const;
-	const sundropForegroundFallbackIds = [
-		'village-block-2-2',
-		'village-block-2-49',
-		'village-block-3-2',
-		'village-block-10-35',
-		'village-block-19-2',
-		'village-block-19-30',
-		'corridor-wall-2b'
-	] as const;
-	function selectedSundropBlockers(ids: readonly string[]) {
-		return (maps['meadow-entry']?.blockers ?? []).filter((blocker) => ids.includes(blocker.id));
-	}
-	function sundropPlaneStatuses(diagnostic: RegionalBackgroundPlaneRenderDiagnostic | undefined) {
-		return (diagnostic?.entries ?? [])
-			.filter((entry) => sundropBackgroundIds.has(entry.id))
-			.map((entry) => entry.status);
-	}
-	function renderedSundropSegmentCount(ids: readonly string[]) {
-		return selectedSundropBlockers(ids)
-			.flatMap((blocker) => {
-				const horizontal = blocker.width >= blocker.height;
-				const count = Math.ceil(Math.max(blocker.width, blocker.height) / 48);
-				const firstOffset = -((count - 1) * 48) / 2;
-				return Array.from({ length: count }, (_, index) => ({
-					x: blocker.x + (horizontal ? firstOffset + index * 48 : 0),
-					y: blocker.y + (horizontal ? 0 : firstOffset + index * 48)
-				}));
-			})
-			.filter((expected) =>
-				villageHedgeMarkers().some((marker) => marker.x === expected.x && marker.y === expected.y)
-			).length;
-	}
-	const isInsideSundropVillage = (marker: (typeof phaserState.imageMarkers)[number]) =>
-		marker.x >= sundropVillageBounds.left &&
-		marker.x <= sundropVillageBounds.right &&
-		marker.y >= sundropVillageBounds.top &&
-		marker.y <= sundropVillageBounds.bottom;
 
 	async function flushStoryDialogue() {
 		await Promise.resolve();
@@ -2908,13 +2826,6 @@ describe('WorldScene', () => {
 		localeState.activeLocale = 'en';
 		vi.clearAllMocks();
 		phaserState.reset();
-		for (const background of meadowEntryRuntimeBackgroundImages) {
-			phaserState.regionalBackgroundTextureMocks.set(background.textureKey, {
-				key: background.textureKey,
-				source: [{ width: background.width, height: background.height }],
-				get: vi.fn(() => ({ cutWidth: background.width, cutHeight: background.height }))
-			});
-		}
 		Object.assign(phaserState.cursorKeys.left, { isDown: false });
 		Object.assign(phaserState.cursorKeys.right, { isDown: false });
 		Object.assign(phaserState.cursorKeys.up, { isDown: false });
@@ -2954,8 +2865,9 @@ describe('WorldScene', () => {
 		expect(phaserState.tilemap.createLayer).toHaveBeenCalledWith(0, expect.anything(), 0, 0);
 		expect(phaserState.tilemapLayer.setDepth).toHaveBeenCalledWith(-10);
 		expect(tilemapData[0][0]).toBe(0);
-		expect(tilemapData[159][31]).toBe(8);
-		expect(tilemapData[173][21]).toBe(1);
+		const tileAt = (x: number, y: number) => tilemapData[Math.floor(y / 32)]?.[Math.floor(x / 32)];
+		expect(tileAt(3_040, 4_688)).toBeGreaterThan(0);
+		expect(tileAt(3_776, 4_224)).toBeGreaterThan(0);
 		expect(scene.add.sprite).toHaveBeenCalledWith(
 			meadowEntryMap.spawn.x,
 			meadowEntryMap.spawn.y,
@@ -2972,34 +2884,6 @@ describe('WorldScene', () => {
 			'stoneStair'
 		);
 		expect(scene.cameras.main.setBackgroundColor).toHaveBeenCalledWith('#1a1f2b');
-	});
-
-	it('renders both Sundrop regional background planes at their source-derived center and semantic depths', async () => {
-		const { getMapBackgroundDepth } = await import('$lib/game/content/maps/background-ownership');
-		const { meadowEntryMap } = await import('$lib/game/content/maps');
-		const { WorldScene } = await import('./WorldScene');
-		const scene = new WorldScene();
-		const backgroundsByTextureKey = new Map(
-			(meadowEntryMap.backgroundImages ?? []).map((background) => [
-				background.textureKey,
-				background
-			])
-		);
-
-		scene.create({ mapId: 'meadow-entry' });
-
-		for (const textureKey of [
-			SUNDROP_VILLAGE_BASE_BACKGROUND_TEXTURE_KEY,
-			SUNDROP_VILLAGE_FOREGROUND_BACKGROUND_TEXTURE_KEY
-		]) {
-			const definition = backgroundsByTextureKey.get(textureKey);
-			expect(definition).toBeDefined();
-			expect(scene.add.image).toHaveBeenCalledWith(1152, 5120, textureKey);
-			const background = phaserState.imageMarkers.find((marker) => marker.texture === textureKey);
-			expect(background?.setOrigin).toHaveBeenCalledWith(0.5, 0.5);
-			expect(background?.setDisplaySize).toHaveBeenCalledWith(1792, 1536);
-			expect(background?.setDepth).toHaveBeenCalledWith(getMapBackgroundDepth(definition!));
-		}
 	});
 
 	it('renders independent base and foreground planes at their semantic depths', async () => {
@@ -3422,240 +3306,35 @@ describe('WorldScene', () => {
 		}
 	});
 
-	it('suppresses exactly the 21 selected Sundrop blockers only when both planes render', async () => {
+	it('emits no regional background entries or fallback visuals for the active Meadow Entry map', async () => {
+		const target = installPlaneDiagnosticListener();
 		const { meadowEntryMap } = await import('$lib/game/content/maps');
 		const { WorldScene } = await import('./WorldScene');
 		const scene = new WorldScene();
 
-		scene.create({ mapId: meadowEntryMap.id });
-
-		const selected = (meadowEntryMap.blockers ?? []).filter(
-			(blocker) =>
-				blocker.visual?.mode === 'fallback-only' &&
-				blocker.visual.ownerCrops.some((crop) => crop.cropId === 'sundrop-village-hpa-398')
-		);
-		expect(selected).toHaveLength(21);
-		expect(
-			selected.filter(
-				(blocker) =>
-					blocker.visual?.mode === 'fallback-only' &&
-					blocker.visual.ownerCrops.length === 1 &&
-					blocker.visual.ownerCrops[0]?.requiredBackgroundIds.length === 2
-			)
-		).toHaveLength(7);
-		expect(
-			(meadowEntryMap.blockers ?? []).filter(
-				(blocker) =>
-					['village-block-0-37', 'village-block-0-49', 'village-block-46-2'].includes(blocker.id) &&
-					(blocker.visual?.mode ?? 'always') === 'always'
-			).length
-		).toBe(3);
-		const segmentTotal = (blockers: typeof selected) =>
-			blockers.reduce(
-				(total, blocker) => total + Math.ceil(Math.max(blocker.width, blocker.height) / 48),
-				0
-			);
-		expect(segmentTotal(selected)).toBeGreaterThan(21);
-		expect(villageHedgeMarkers().filter(isInsideSundropVillage).length).toBeLessThan(228);
-	});
-
-	it.each([
-		{
-			name: 'both planes render',
-			arrange: () => undefined,
-			statuses: ['rendered', 'rendered'] as const,
-			ids: [] as readonly string[],
-			segments: 0
-		},
-		{
-			name: 'only the base plane renders',
-			arrange: () =>
-				phaserState.missingTextureKeys.add(SUNDROP_VILLAGE_FOREGROUND_BACKGROUND_TEXTURE_KEY),
-			statuses: ['rendered', 'missing-texture'] as const,
-			ids: sundropForegroundFallbackIds,
-			segments: 82
-		},
-		{
-			name: 'the base plane is missing',
-			arrange: () =>
-				phaserState.missingTextureKeys.add(SUNDROP_VILLAGE_BASE_BACKGROUND_TEXTURE_KEY),
-			statuses: ['missing-texture', 'rendered'] as const,
-			ids: sundropSelectedFallbackIds,
-			segments: 190
-		}
-	])(
-		'renders exact Sundrop fallback decisions and 48px segments when $name',
-		async ({ arrange, statuses, ids, segments }) => {
-			const target = installPlaneDiagnosticListener();
-			const { WorldScene } = await import('./WorldScene');
-			const scene = new WorldScene();
-			arrange();
-
-			try {
-				scene.create({ mapId: 'meadow-entry' });
-
-				expect(sundropPlaneStatuses(target.diagnostics[0])).toEqual(statuses);
-				expect(target.diagnostics[0]?.selectedFallbackBlockerIds).toEqual(ids);
-				expect(target.diagnostics[0]?.selectedFallbackBlockerSegmentCount).toBe(segments);
-				expect(renderedSundropSegmentCount(ids)).toBe(segments);
-			} finally {
-				target.restore();
-			}
-		}
-	);
-
-	it('keeps only the affected crop fallback visuals when a regional texture is missing', async () => {
-		const { WorldScene } = await import('./WorldScene');
-		const scene = new WorldScene();
-		const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
-		phaserState.missingTextureKeys.add(SUNDROP_VILLAGE_BASE_BACKGROUND_TEXTURE_KEY);
-
 		try {
-			scene.create({ mapId: 'meadow-entry' });
+			scene.create({ mapId: meadowEntryMap.id });
 
-			expect(
-				phaserState.imageMarkers.some(
-					(marker) => marker.texture === SUNDROP_VILLAGE_BASE_BACKGROUND_TEXTURE_KEY
-				)
-			).toBe(false);
-			expect(
-				phaserState.imageMarkers.some(
-					(marker) => marker.texture === SUNDROP_VILLAGE_FOREGROUND_BACKGROUND_TEXTURE_KEY
-				)
-			).toBe(true);
-			expect(phaserState.tilemapLayer.setDepth).toHaveBeenCalledWith(-10);
-			expect(villageHedgeMarkers().filter(isInsideSundropVillage).length).toBeGreaterThan(0);
-			expect(
-				villageHedgeMarkers().filter((marker) => !isInsideSundropVillage(marker))
-			).toHaveLength(0);
-			expect(warn).toHaveBeenCalledTimes(1);
-			expect(warn).toHaveBeenCalledWith(
-				'[WorldScene] regional background unavailable: id="sundrop-village-base-image" textureKey="sundrop-village-base" plane="base" mapId="meadow-entry"'
-			);
+			expect(meadowEntryMap.backgroundImages ?? []).toEqual([]);
+			expect(target.diagnostics).toHaveLength(1);
+			expect(target.diagnostics[0]?.entries).toEqual([]);
+			expect(target.diagnostics[0]?.successfulBackgroundIds).toEqual([]);
+			expect(target.diagnostics[0]?.selectedFallbackBlockerIds).toEqual([]);
+			expect(target.diagnostics[0]?.selectedFallbackDecorIds).toEqual([]);
+			expect(target.diagnostics[0]?.selectedFallbackFenceIds).toEqual([]);
 		} finally {
-			warn.mockRestore();
-		}
-	});
-
-	it('skips a wrong-sized regional texture with one expected/actual dimension warning', async () => {
-		const { WorldScene } = await import('./WorldScene');
-		const scene = new WorldScene();
-		const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
-		phaserState.regionalBackgroundTextureMock.source[0] = { width: 1700, height: 1400 };
-
-		try {
-			scene.create({ mapId: 'meadow-entry' });
-
-			expect(
-				phaserState.imageMarkers.some(
-					(marker) => marker.texture === SUNDROP_VILLAGE_BASE_BACKGROUND_TEXTURE_KEY
-				)
-			).toBe(false);
-			expect(
-				phaserState.imageMarkers.some(
-					(marker) => marker.texture === SUNDROP_VILLAGE_FOREGROUND_BACKGROUND_TEXTURE_KEY
-				)
-			).toBe(true);
-			expect(phaserState.tilemapLayer.setDepth).toHaveBeenCalledWith(-10);
-			expect(villageHedgeMarkers().filter(isInsideSundropVillage).length).toBeGreaterThan(0);
-			expect(warn).toHaveBeenCalledTimes(1);
-			expect(warn).toHaveBeenCalledWith(
-				'[WorldScene] regional background dimensions mismatch: id="sundrop-village-base-image" textureKey="sundrop-village-base" plane="base" mapId="meadow-entry" expected=1792x1536 actual=1700x1400'
-			);
-		} finally {
-			warn.mockRestore();
-		}
-	});
-
-	it('keeps fallback ground and live hedge visuals when the URL disables backgrounds', async () => {
-		const previousLocation = Object.getOwnPropertyDescriptor(globalThis, 'location');
-		let searchReads = 0;
-		Object.defineProperty(globalThis, 'location', {
-			configurable: true,
-			value: {
-				get search() {
-					searchReads += 1;
-					return '?regionalBackground=off';
-				}
-			}
-		});
-
-		try {
-			const { WorldScene } = await import('./WorldScene');
-			const scene = new WorldScene();
-
-			scene.create({ mapId: 'meadow-entry' });
-
-			expect(
-				phaserState.imageMarkers.some(
-					(marker) =>
-						marker.texture === SUNDROP_VILLAGE_BASE_BACKGROUND_TEXTURE_KEY ||
-						marker.texture === SUNDROP_VILLAGE_FOREGROUND_BACKGROUND_TEXTURE_KEY
-				)
-			).toBe(false);
-			expect(phaserState.tilemapLayer.setDepth).toHaveBeenCalledWith(-10);
-			expect(villageHedgeMarkers().filter(isInsideSundropVillage).length).toBeGreaterThan(0);
-			expect(searchReads).toBe(1);
-		} finally {
-			if (previousLocation) {
-				Object.defineProperty(globalThis, 'location', previousLocation);
-			} else {
-				Reflect.deleteProperty(globalThis, 'location');
-			}
-		}
-	});
-
-	it('keeps authored village collision active alongside live hedge visuals', async () => {
-		const { WorldScene } = await import('./WorldScene');
-		const scene = new WorldScene();
-
-		scene.create({ mapId: 'meadow-entry' });
-		Object.assign(phaserState.playerMarker, { x: 1_136, y: 5_800 });
-		phaserState.cursorKeys.down.isDown = true;
-
-		scene.update(0, 250);
-
-		expect(phaserState.playerMarker.x).toBe(1_136);
-		expect(phaserState.playerMarker.y).toBe(5_800);
-	});
-
-	it('accepts matching immutable base-frame dimensions when source dimensions are absent', async () => {
-		const { WorldScene } = await import('./WorldScene');
-		const scene = new WorldScene();
-		phaserState.regionalBackgroundTextureMock.source = [];
-
-		scene.create({ mapId: 'meadow-entry' });
-
-		expect(
-			phaserState.imageMarkers.some(
-				(marker) => marker.texture === SUNDROP_VILLAGE_BASE_BACKGROUND_TEXTURE_KEY
-			)
-		).toBe(true);
-		expect(phaserState.regionalBackgroundTextureMock.get).toHaveBeenCalledOnce();
-	});
-
-	it('never renders Phaser’s missing-texture placeholder', async () => {
-		const { WorldScene } = await import('./WorldScene');
-		const scene = new WorldScene();
-		const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
-		phaserState.regionalBackgroundTextureMock.key = '__MISSING';
-
-		try {
-			scene.create({ mapId: 'meadow-entry' });
-
-			expect(
-				phaserState.imageMarkers.some(
-					(marker) => marker.texture === SUNDROP_VILLAGE_BASE_BACKGROUND_TEXTURE_KEY
-				)
-			).toBe(false);
-			expect(warn).toHaveBeenCalledTimes(1);
-		} finally {
-			warn.mockRestore();
+			target.restore();
 		}
 	});
 
 	it('renders regional backgrounds after fallback ground and before floor decor', async () => {
 		registerSceneSupportTestMap();
+		const backgroundTextureKey = 'scene-support-background-texture';
+		phaserState.regionalBackgroundTextureMocks.set(backgroundTextureKey, {
+			key: backgroundTextureKey,
+			source: [{ width: 1_792, height: 1_536 }],
+			get: vi.fn(() => ({ cutWidth: 1_792, cutHeight: 1_536 }))
+		});
 		maps['scene-support-test']!.backgroundImages = [
 			{
 				id: 'scene-support-background',
@@ -3663,7 +3342,7 @@ describe('WorldScene', () => {
 				y: 320,
 				width: 1792,
 				height: 1536,
-				textureKey: SUNDROP_VILLAGE_BASE_BACKGROUND_TEXTURE_KEY,
+				textureKey: backgroundTextureKey,
 				plane: 'base',
 				drawOrder: 1_000
 			}
@@ -3687,7 +3366,7 @@ describe('WorldScene', () => {
 
 		const imageCalls = vi.mocked(scene.add.image).mock.calls;
 		const backgroundCallIndex = imageCalls.findIndex(
-			([, , texture]) => texture === SUNDROP_VILLAGE_BASE_BACKGROUND_TEXTURE_KEY
+			([, , texture]) => texture === backgroundTextureKey
 		);
 		const floorDecorCallIndex = imageCalls.findIndex(
 			([, , texture, frame]) => texture === 'forest-dressing' && frame === 'brush'
@@ -4320,21 +3999,26 @@ describe('WorldScene', () => {
 			);
 		}
 
-		expect(scene.add.image).toHaveBeenCalledWith(624, 5_552, 'village-buildings', 'heroHouse');
-		expect(scene.add.image).toHaveBeenCalledWith(1_616, 4_848, 'village-buildings', 'guildHall');
-		expect(scene.add.image).toHaveBeenCalledWith(496, 5_136, 'village-buildings', 'itemShop');
-		expect(scene.add.image).toHaveBeenCalledWith(528, 4_720, 'village-buildings', 'villagerHouse');
+		expect(scene.add.image).toHaveBeenCalledWith(704, 5_712, 'village-buildings', 'heroHouse');
+		expect(scene.add.image).toHaveBeenCalledWith(2_272, 4_224, 'village-buildings', 'guildHall');
+		expect(scene.add.image).toHaveBeenCalledWith(704, 5_024, 'village-buildings', 'itemShop');
+		expect(scene.add.image).toHaveBeenCalledWith(672, 4_240, 'village-buildings', 'villagerHouse');
 		expect(scene.add.image).toHaveBeenCalledWith(
-			1_168,
-			4_720,
+			1_376,
+			4_240,
 			'village-buildings',
 			'villagerHouse'
 		);
-		expect(scene.add.image).toHaveBeenCalledWith(816, 4_720, 'village-buildings', 'villagerHouse');
-		expect(scene.add.image).toHaveBeenCalledWith(1_616, 5_200, 'village-buildings', 'blacksmith');
 		expect(scene.add.image).toHaveBeenCalledWith(
-			1_424,
-			5_552,
+			1_472,
+			5_712,
+			'village-buildings',
+			'villagerHouse'
+		);
+		expect(scene.add.image).toHaveBeenCalledWith(2_272, 5_024, 'village-buildings', 'blacksmith');
+		expect(scene.add.image).toHaveBeenCalledWith(
+			2_272,
+			5_696,
 			'village-buildings',
 			'shrineOfAurora'
 		);
@@ -4344,13 +4028,11 @@ describe('WorldScene', () => {
 			'village-buildings',
 			'whisperingCave'
 		);
-		expect(scene.add.image).toHaveBeenCalledWith(1_104, 5_168, 'village-buildings', 'sundropWell');
-		expect(scene.add.rectangle).not.toHaveBeenCalledWith(624, 5_552, 235, 246, 0x5b4636, 0.9);
-		expect(scene.add.rectangle).not.toHaveBeenCalledWith(1_616, 5_200, 235, 226, 0x5b4636, 0.9);
-		expect(scene.add.rectangle).not.toHaveBeenCalledWith(1_424, 5_552, 246, 333, 0x5b4636, 0.9);
+		expect(scene.add.rectangle).not.toHaveBeenCalledWith(704, 5_712, 235, 246, 0x5b4636, 0.9);
+		expect(scene.add.rectangle).not.toHaveBeenCalledWith(2_272, 5_024, 235, 226, 0x5b4636, 0.9);
+		expect(scene.add.rectangle).not.toHaveBeenCalledWith(2_272, 5_696, 246, 333, 0x5b4636, 0.9);
 		expect(scene.add.rectangle).not.toHaveBeenCalledWith(5_960, 1_800, 256, 224, 0x5b4636, 0.9);
-		expect(scene.add.rectangle).not.toHaveBeenCalledWith(1_104, 5_168, 141, 160, 0x5b4636, 0.9);
-		expect(scene.add.text).toHaveBeenCalledWith(624, 5_433, "Hero's House", {
+		expect(scene.add.text).toHaveBeenCalledWith(704, 5_572, "Hero's House", {
 			color: '#f8fafc',
 			fontSize: '12px'
 		});
@@ -4359,36 +4041,36 @@ describe('WorldScene', () => {
 		).toHaveLength(0);
 
 		const heroHouseMarker = phaserState.imageMarkers.find(
-			(marker) => marker.x === 624 && marker.y === 5_552 && marker.frame === 'heroHouse'
+			(marker) => marker.x === 704 && marker.y === 5_712 && marker.frame === 'heroHouse'
 		);
 		const guildHallMarker = phaserState.imageMarkers.find(
-			(marker) => marker.x === 1_616 && marker.y === 4_848 && marker.frame === 'guildHall'
+			(marker) => marker.x === 2_272 && marker.y === 4_224 && marker.frame === 'guildHall'
 		);
 		const itemShopMarker = phaserState.imageMarkers.find(
-			(marker) => marker.x === 496 && marker.y === 5_136 && marker.frame === 'itemShop'
+			(marker) => marker.x === 704 && marker.y === 5_024 && marker.frame === 'itemShop'
 		);
 		const villagerHouseMarkers = phaserState.imageMarkers.filter(
 			(marker) => marker.frame === 'villagerHouse'
 		);
-		expect(heroHouseMarker?.setDisplaySize).toHaveBeenCalledWith(235, 246);
-		expect(guildHallMarker?.setDisplaySize).toHaveBeenCalledWith(307, 277);
-		expect(itemShopMarker?.setDisplaySize).toHaveBeenCalledWith(246, 235);
+		expect(heroHouseMarker?.setDisplaySize).toHaveBeenCalledWith(256, 288);
+		expect(guildHallMarker?.setDisplaySize).toHaveBeenCalledWith(448, 384);
+		expect(itemShopMarker?.setDisplaySize).toHaveBeenCalledWith(320, 320);
 		expect(villagerHouseMarkers).toHaveLength(3);
 		expect(
 			villagerHouseMarkers.every((marker) =>
-				[226, 338, 184].includes(marker.setDisplaySize.mock.calls[0]![0] as number)
+				[256].includes(marker.setDisplaySize.mock.calls[0]![0] as number)
 			)
 		).toBe(true);
 		expect(
 			villagerHouseMarkers.every((marker) =>
-				[205, 261, 333].includes(marker.setDisplaySize.mock.calls[0]![1] as number)
+				[288].includes(marker.setDisplaySize.mock.calls[0]![1] as number)
 			)
 		).toBe(true);
 
 		const imageCalls = vi.mocked(scene.add.image).mock.calls;
 		const firstLandmarkCallIndex = imageCalls.findIndex(
 			([x, y, texture, frame]) =>
-				x === 624 && y === 5_552 && texture === 'village-buildings' && frame === 'heroHouse'
+				x === 704 && y === 5_712 && texture === 'village-buildings' && frame === 'heroHouse'
 		);
 		const firstLandmarkCallOrder = vi.mocked(scene.add.image).mock.invocationCallOrder[
 			firstLandmarkCallIndex
@@ -4407,116 +4089,23 @@ describe('WorldScene', () => {
 
 		// Decor-backed landmarks (no village building frame, but a paired sprite
 		// at the same anchor) must not draw the opaque placeholder rectangle…
-		expect(scene.add.rectangle).not.toHaveBeenCalledWith(3_500, 2_980, 480, 320, 0x5b4636, 0.9);
+		expect(scene.add.rectangle).not.toHaveBeenCalledWith(4_176, 2_976, 480, 320, 0x5b4636, 0.9);
 		expect(scene.add.rectangle).not.toHaveBeenCalledWith(1_200, 620, 360, 300, 0x5b4636, 0.9);
 		expect(scene.add.rectangle).not.toHaveBeenCalledWith(3_000, 480, 420, 320, 0x5b4636, 0.9);
 		expect(scene.add.rectangle).not.toHaveBeenCalledWith(3_600, 5_720, 360, 320, 0x5b4636, 0.9);
 
 		// …while their artwork is still emitted by renderMapDecor.
 		expect(scene.add.image).toHaveBeenCalledWith(
-			3_500,
-			2_980,
+			4_176,
+			2_976,
 			crossroadsDressingAsset.key,
 			'castleGate'
 		);
 		// The label is still rendered for every landmark.
-		expect(scene.add.text).toHaveBeenCalledWith(3_500, 2_980 - 320 / 2 + 4, expect.any(String), {
+		expect(scene.add.text).toHaveBeenCalledWith(4_176, 2_976 - 320 / 2 + 4, expect.any(String), {
 			color: '#f8fafc',
 			fontSize: '12px'
 		});
-	});
-
-	it('suppresses baked-crop forest dressing while keeping unowned ambient foliage', async () => {
-		const { forestDressingAsset } = await import('$lib/game/content/assets');
-		const { meadowEntryMap } = await import('$lib/game/content/maps');
-		const { WorldScene } = await import('./WorldScene');
-		const scene = new WorldScene();
-
-		scene.create({ mapId: meadowEntryMap.id });
-
-		expect(scene.textures.get).toHaveBeenCalledWith(forestDressingAsset.key);
-		for (const [frameName, frame] of Object.entries(forestDressingAsset.frames)) {
-			expect(phaserState.textureMock.add).toHaveBeenCalledWith(
-				frameName,
-				0,
-				frame.x,
-				frame.y,
-				frame.w,
-				frame.h
-			);
-		}
-
-		expect(scene.add.tileSprite).not.toHaveBeenCalledWith(
-			5_360,
-			360,
-			960,
-			160,
-			'forest-dressing',
-			'treeCluster'
-		);
-		expect(scene.add.tileSprite).not.toHaveBeenCalledWith(
-			6_120,
-			1_020,
-			160,
-			900,
-			'forest-dressing',
-			'treeCluster'
-		);
-		expect(scene.add.tileSprite).not.toHaveBeenCalledWith(
-			5_000,
-			5_200,
-			1_100,
-			120,
-			'forest-dressing',
-			'treeCluster'
-		);
-		expect(scene.add.tileSprite).not.toHaveBeenCalledWith(
-			5_000,
-			5_500,
-			1_100,
-			120,
-			'forest-dressing',
-			'treeCluster'
-		);
-		expect(
-			phaserState.tileSpriteMarkers.filter((marker) => marker.frame === 'treeCluster')
-		).toHaveLength(0);
-		expect(phaserState.tileSpriteMarkers.filter((marker) => marker.frame === 'brush')).toHaveLength(
-			0
-		);
-	});
-
-	it('registers generated fence art while baked crops suppress its owned segments', async () => {
-		const { fenceDressingAsset } = await import('$lib/game/content/assets');
-		const { meadowEntryMap } = await import('$lib/game/content/maps');
-		const { WorldScene } = await import('./WorldScene');
-		const scene = new WorldScene();
-
-		scene.create({ mapId: meadowEntryMap.id });
-
-		expect(scene.textures.get).toHaveBeenCalledWith(fenceDressingAsset.key);
-		for (const [frameName, frame] of Object.entries(fenceDressingAsset.frames)) {
-			expect(phaserState.textureMock.add).toHaveBeenCalledWith(
-				frameName,
-				0,
-				frame.x,
-				frame.y,
-				frame.w,
-				frame.h
-			);
-		}
-		expect(scene.add.image).not.toHaveBeenCalledWith(
-			3_344,
-			4_510,
-			'fence-dressing',
-			'horizontalFence'
-		);
-		expect(scene.add.image).not.toHaveBeenCalledWith(
-			4_020,
-			4_994,
-			'fence-dressing',
-			'verticalFence'
-		);
 	});
 
 	it('registers animation pack frames and creates animated hero and enemy sprites', async () => {
@@ -4928,13 +4517,13 @@ describe('WorldScene', () => {
 		const scene = new WorldScene();
 
 		scene.create({ mapId: 'meadow-entry' });
-		Object.assign(phaserState.playerMarker, { x: 792, y: 4_464 });
+		Object.assign(phaserState.playerMarker, { x: 520, y: 4_240 });
 		phaserState.cursorKeys.right.isDown = true;
 
 		scene.update(0, 250);
 
-		expect(phaserState.playerMarker.x).toBe(792);
-		expect(phaserState.playerMarker.y).toBe(4_464);
+		expect(phaserState.playerMarker.x).toBe(520);
+		expect(phaserState.playerMarker.y).toBe(4_240);
 	});
 
 	it('blocks player movement through village building side windows', async () => {
@@ -4942,13 +4531,13 @@ describe('WorldScene', () => {
 		const scene = new WorldScene();
 
 		scene.create({ mapId: 'meadow-entry' });
-		Object.assign(phaserState.playerMarker, { x: 586, y: 5_442 });
+		Object.assign(phaserState.playerMarker, { x: 560, y: 5_740 });
 		phaserState.cursorKeys.right.isDown = true;
 
 		scene.update(0, 50);
 
-		expect(phaserState.playerMarker.x).toBe(586);
-		expect(phaserState.playerMarker.y).toBe(5_442);
+		expect(phaserState.playerMarker.x).toBe(560);
+		expect(phaserState.playerMarker.y).toBe(5_740);
 	});
 
 	it('blocks player movement through coast approach fence segments', async () => {
@@ -4963,20 +4552,6 @@ describe('WorldScene', () => {
 
 		expect(phaserState.playerMarker.x).toBe(3_990);
 		expect(phaserState.playerMarker.y).toBe(5_250);
-	});
-
-	it('blocks movement across the lower padded edge of crossroads fence segments', async () => {
-		const { WorldScene } = await import('./WorldScene');
-		const scene = new WorldScene();
-
-		scene.create({ mapId: 'meadow-entry' });
-		Object.assign(phaserState.playerMarker, { x: 3_160, y: 3_340 });
-		phaserState.cursorKeys.down.isDown = true;
-
-		scene.update(0, 250);
-
-		expect(phaserState.playerMarker.x).toBe(3_160);
-		expect(phaserState.playerMarker.y).toBe(3_340);
 	});
 
 	it('blocks player movement through outskirts tree clusters', async () => {
@@ -5036,11 +4611,8 @@ describe('WorldScene', () => {
 		expect(phaserState.playerMarker.x).toBe(6_320);
 		expect(phaserState.playerMarker.y).toBe(1_024);
 
-		// Village-lane-usability check moved into the plaza interior: the hedge maze
-		// now fills the old (1300,5700) point. (1250,5250) sits in room P, east of the
-		// sundrop-well footprint (x 1033.5-1174.5 at its new (1104,5168) position) and
-		// well south of the P/N boundary hedge (village-block-19-29, y 4960-4992), so
-		// there is open lane to move up into.
+		// Village-lane-usability check remains in the open south lane, away from
+		// authored building footprints and route seams.
 		Object.assign(phaserState.playerMarker, { x: 1_250, y: 5_250 });
 		phaserState.cursorKeys.right.isDown = false;
 		phaserState.cursorKeys.up.isDown = true;
@@ -5074,29 +4646,14 @@ describe('WorldScene', () => {
 		expect(phaserState.playerMarker.y).toBe(2_816);
 	});
 
-	it('blocks downward movement through the crossroads south market fence', async () => {
-		const { WorldScene } = await import('./WorldScene');
-		const scene = new WorldScene();
-
-		scene.create({ mapId: 'meadow-entry' });
-		Object.assign(phaserState.playerMarker, { x: 3_600, y: 4_470 });
-		phaserState.cursorKeys.down.isDown = true;
-
-		scene.update(0, 250);
-
-		expect(phaserState.playerMarker.x).toBe(3_600);
-		expect(phaserState.playerMarker.y).toBe(4_470);
-	});
-
 	it('keeps the hero house exterior doorway reachable in the plaza village', async () => {
 		const { WorldScene } = await import('./WorldScene');
 		const scene = new WorldScene();
 
 		scene.create({ mapId: 'meadow-entry' });
-		// meadow-to-hero-house door is now at (624, 5712); (604, 5733) keeps the same
-		// (-20, +21) offset used before the redesign, within playerRadius (12) +
-		// transitionRadius (18) = 30px of the door.
-		Object.assign(phaserState.playerMarker, { x: 604, y: 5_733 });
+		// Approach the authored hero-house doorway from the south-west within
+		// playerRadius (12) + transitionRadius (18) = 30px of the door.
+		Object.assign(phaserState.playerMarker, { x: 684, y: 5_877 });
 
 		scene.update(0, 80);
 
@@ -7695,9 +7252,9 @@ describe('WorldScene', () => {
 				}
 			}
 		});
-		// meadow-to-hero-house door is now at (624, 5712); (604, 5733) keeps the same
-		// (-20, +21) offset used before the redesign, within the 30px trigger radius.
-		Object.assign(phaserState.playerMarker, { x: 604, y: 5_733 });
+		// Approach the authored hero-house doorway from the south-west within the
+		// runtime transition radius while leaving the building footprint untouched.
+		Object.assign(phaserState.playerMarker, { x: 684, y: 5_877 });
 
 		scene.update(0, 16);
 
@@ -7734,8 +7291,8 @@ describe('WorldScene', () => {
 			saveState: expect.objectContaining({
 				mapId: 'meadow-entry',
 				player: expect.objectContaining({
-					x: 624,
-					y: 5_752,
+					x: 704,
+					y: 5_920,
 					facing: 'down'
 				})
 			})
@@ -7759,10 +7316,9 @@ describe('WorldScene', () => {
 				}
 			}
 		});
-		// meadow-to-shrine-of-aurora door is now at (1424, 5744) after the shrine
-		// was pushed north (HPA-238 walkthrough gate); (1404, 5760) keeps the same
-		// (-20, +16) offset used before the redesign, within the 30px trigger radius.
-		Object.assign(phaserState.playerMarker, { x: 1_404, y: 5_760 });
+		// Approach the authored Shrine doorway from the south-west within the
+		// runtime transition radius.
+		Object.assign(phaserState.playerMarker, { x: 2_252, y: 5_872 });
 		scene.update(0, 16);
 
 		expect(scene.scene.restart).toHaveBeenCalledWith({
@@ -7788,7 +7344,7 @@ describe('WorldScene', () => {
 			reason: 'transition',
 			saveState: expect.objectContaining({
 				mapId: 'meadow-entry',
-				player: expect.objectContaining({ x: 1_464, y: 5_788, facing: 'down' })
+				player: expect.objectContaining({ x: 2_272, y: 5_920, facing: 'down' })
 			})
 		});
 	});

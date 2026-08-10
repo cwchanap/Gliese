@@ -265,9 +265,10 @@ describe('save state', () => {
 	});
 
 	it('nudges a saved position inside a wall blocker to the nearest walkable tile', () => {
-		// The V2 corridor wall is strict movement collision: its padded bounds trap
-		// the player, so a loaded position at the wall center must be rescued.
-		const blockedPosition = { x: 1_775, y: 4_510 };
+		// The reauthored Crossroads gate is strict movement collision: its padded
+		// bounds trap the player, so a loaded position at the gate center must be
+		// rescued.
+		const blockedPosition = { x: 4_176, y: 2_836 };
 		expect(
 			isInsideAnyCollisionRect(
 				blockedPosition.x,
@@ -403,11 +404,11 @@ describe('save state', () => {
 	});
 
 	it('nudges a saved position to a tile center outside the padded collision bounds', () => {
-		// This V2 point is outside the raw corridor-wall-2b rect but inside its
+		// This point is outside the raw Crossroads gate blocker but inside its
 		// player-radius padding. The normalizer must reject the padded-trapped
 		// position and keep searching outward.
-		const blockedPosition = { x: 1_680, y: 4_480 };
-		const wall = meadowEntryMap.blockers?.find((rect) => rect.id === 'corridor-wall-2b');
+		const blockedPosition = { x: 3_928, y: 2_836 };
+		const wall = meadowEntryMap.blockers?.find((rect) => rect.id === 'castle-gate-block');
 		expect(wall).toBeDefined();
 		expect(isInsideAnyCollisionRect(blockedPosition.x, blockedPosition.y, [wall!], 0)).toBe(false);
 		expect(

@@ -84,7 +84,7 @@ describe('meadow-entry bake ownership', () => {
 			'remain-live': expect.any(Number)
 		});
 		expect(MEADOW_ENTRY_REVIEWED_BAKE_OWNERSHIP_SHA256).toBe(
-			'80baf7c4dc891c4279673b10465e3ca65d9b44a7347aab6d5c90d9684d39edc4'
+			'9b5c24995010179caa00e081b929e25cc6a20a0d85258788707225c939033271'
 		);
 		expect(createHash('sha256').update(canonicalRegistry).digest('hex')).toBe(
 			MEADOW_ENTRY_REVIEWED_BAKE_OWNERSHIP_SHA256
@@ -253,7 +253,7 @@ describe('meadow-entry bake ownership', () => {
 			({ ref }) => meadowEntrySourceKey(ref) === 'decor:coast-foam'
 		);
 		const second = MEADOW_ENTRY_BAKE_OWNERSHIP.find(
-			({ ref }) => meadowEntrySourceKey(ref) === 'decor:crossroads-flowers'
+			({ ref }) => meadowEntrySourceKey(ref) === 'decor:coast-tidepool'
 		);
 		expect(first?.disposition.mode).toBe('base-static');
 		expect(second?.disposition.mode).toBe('base-static');
