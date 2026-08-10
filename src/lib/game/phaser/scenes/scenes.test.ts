@@ -6,9 +6,15 @@ import {
 	fenceDressingAsset,
 	forestDressingAsset
 } from '$lib/game/content/assets';
-import { maps } from '$lib/game/content/maps';
+import { heroHouseMap, maps } from '$lib/game/content/maps';
+import { PLAYER_COLLISION_RADIUS } from '$lib/game/core/collision';
 import type { RegionalBackgroundRendererDiagnostic } from '$lib/game/phaser/renderer-diagnostics';
 import type { RegionalBackgroundPlaneRenderDiagnostic } from '$lib/game/phaser/regional-background-plane-render-diagnostics';
+import {
+	collectLandmarkRects,
+	collectStrictCollisionRects,
+	isInsideAnyCollisionRect
+} from '$lib/game/save/save-state';
 import { HUD_COMMAND_EVENT, type HudCommand } from '$lib/game/ui-bridge/events';
 
 const guildMasterApproach = { x: 800, y: 184 };
@@ -2426,7 +2432,7 @@ describe('WorldScene', () => {
 					y: 96,
 					toMapId: 'hero-house',
 					marker: 'stair',
-					arrival: { x: 256, y: 224, facing: 'up' }
+					arrival: { x: 352, y: 480, facing: 'up' }
 				}
 			],
 			groundPatches: [
@@ -4406,11 +4412,33 @@ describe('WorldScene', () => {
 
 			const restartPayload = vi.mocked(scene.scene.restart).mock.calls.at(-1)?.[0];
 			if (!restartPayload) throw new Error('Expected transition restart payload');
+			const transitionSaveState = (
+				restartPayload as unknown as {
+					saveState: {
+						mapId: string;
+						player: { x: number; y: number; facing: string };
+					};
+				}
+			).saveState;
+			expect(transitionSaveState.mapId).toBe('hero-house');
+			const heroHouseArrival = transitionSaveState.player;
+			expect(heroHouseArrival.x).toBe(352);
+			expect(heroHouseArrival.y).toBe(480);
+			expect(heroHouseArrival.facing).toBe('up');
+			expect(
+				isInsideAnyCollisionRect(
+					heroHouseArrival.x,
+					heroHouseArrival.y,
+					[...collectStrictCollisionRects(heroHouseMap), ...collectLandmarkRects(heroHouseMap)],
+					PLAYER_COLLISION_RADIUS
+				)
+			).toBe(false);
 			memoryStorage.setItem.mockClear();
 			phaserState.reset();
 
 			const arrivalScene = new WorldScene();
 			arrivalScene.create(restartPayload);
+			expect(phaserState.playerMarker).toMatchObject({ x: 352, y: 480 });
 
 			expect(memoryStorage.setItem).not.toHaveBeenCalled();
 		} finally {
