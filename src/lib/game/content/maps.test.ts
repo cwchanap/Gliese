@@ -173,7 +173,7 @@ function getTestNpcBodyRadius(npc: NonNullable<WorldMapDefinition['npcs']>[numbe
  */
 function expectRouteClear(
 	map: WorldMapDefinition,
-	waypoints: Array<{ x: number; y: number }>,
+	waypoints: readonly { x: number; y: number }[],
 	label: string
 ) {
 	const routeCollisionRects = [...collectStrictCollisionRects(map), ...collectLandmarkRects(map)];
@@ -2227,6 +2227,49 @@ describe('MapDecor compile-time frame safety', () => {
 
 type Pt = { x: number; y: number };
 
+const V2_ROUTE_POINTS = {
+	heroHouseToCrossroads: [
+		{ x: 704, y: 5_920 },
+		{ x: 704, y: 6_080 },
+		{ x: 320, y: 6_080 },
+		{ x: 320, y: 5_920 },
+		{ x: 320, y: 4_688 },
+		{ x: 3_264, y: 4_688 },
+		{ x: 3_776, y: 4_688 },
+		{ x: 3_776, y: 4_480 }
+	],
+	crossroadsToMistfen: [
+		{ x: 3_776, y: 4_480 },
+		{ x: 3_648, y: 4_480 },
+		{ x: 3_648, y: 4_064 },
+		{ x: 3_776, y: 4_064 },
+		{ x: 3_776, y: 3_136 },
+		{ x: 3_072, y: 3_136 },
+		{ x: 2_320, y: 3_136 },
+		{ x: 2_320, y: 2_784 }
+	],
+	crossroadsToSilverpine: [
+		{ x: 3_776, y: 4_480 },
+		{ x: 3_648, y: 4_480 },
+		{ x: 3_648, y: 4_064 },
+		{ x: 3_776, y: 4_064 },
+		{ x: 3_776, y: 2_432 },
+		{ x: 3_440, y: 2_432 }
+	],
+	crossroadsToWildwood: [
+		{ x: 3_776, y: 4_480 },
+		{ x: 4_288, y: 4_480 },
+		{ x: 4_288, y: 4_224 },
+		{ x: 4_800, y: 4_224 },
+		{ x: 4_800, y: 3_808 }
+	],
+	crossroadsToCoast: [
+		{ x: 3_776, y: 4_480 },
+		{ x: 4_224, y: 4_480 },
+		{ x: 4_224, y: 5_520 }
+	]
+} as const satisfies Readonly<Record<string, readonly Pt[]>>;
+
 function collectEntityIds(map: WorldMapDefinition): Set<string> {
 	const ids = new Set<string>();
 	const lists = [
@@ -2311,7 +2354,7 @@ const ROUTE_STEP_PX = 256;
 const ROUTE_INTEREST_RADIUS = 650;
 const ROUTE_MAX_EMPTY_GAP = 700;
 
-function expectRouteHasNoEmptyStretch(label: string, route: Pt[]): void {
+function expectRouteHasNoEmptyStretch(label: string, route: readonly Pt[]): void {
 	const points = interestPoints(meadowEntryMap);
 	for (let i = 0; i < route.length - 1; i += 1) {
 		const { gap, at } = worstEmptyGapAlongSegment(
@@ -2395,16 +2438,7 @@ describe('runtime-faithful Meadow Entry routes', () => {
 	it('keeps the hero house approach clear to the Crossroads', () => {
 		expectRouteClear(
 			meadowEntryMap,
-			[
-				{ x: 704, y: 5_920 },
-				{ x: 704, y: 6_080 },
-				{ x: 320, y: 6_080 },
-				{ x: 320, y: 5_920 },
-				{ x: 320, y: 4_688 },
-				{ x: 3_264, y: 4_688 },
-				{ x: 3_776, y: 4_688 },
-				{ x: 3_776, y: 4_480 }
-			],
+			V2_ROUTE_POINTS.heroHouseToCrossroads,
 			'hero house to crossroads'
 		);
 	});
@@ -2412,16 +2446,7 @@ describe('runtime-faithful Meadow Entry routes', () => {
 	it('keeps the Crossroads to Mistfen seam clear', () => {
 		expectRouteClear(
 			meadowEntryMap,
-			[
-				{ x: 3_776, y: 4_480 },
-				{ x: 3_648, y: 4_480 },
-				{ x: 3_648, y: 4_064 },
-				{ x: 3_776, y: 4_064 },
-				{ x: 3_776, y: 3_136 },
-				{ x: 3_072, y: 3_136 },
-				{ x: 2_320, y: 3_136 },
-				{ x: 2_320, y: 2_784 }
-			],
+			V2_ROUTE_POINTS.crossroadsToMistfen,
 			'crossroads to Mistfen seam'
 		);
 	});
@@ -2429,14 +2454,7 @@ describe('runtime-faithful Meadow Entry routes', () => {
 	it('keeps the Crossroads to Silverpine seam clear', () => {
 		expectRouteClear(
 			meadowEntryMap,
-			[
-				{ x: 3_776, y: 4_480 },
-				{ x: 3_648, y: 4_480 },
-				{ x: 3_648, y: 4_064 },
-				{ x: 3_776, y: 4_064 },
-				{ x: 3_776, y: 2_432 },
-				{ x: 3_440, y: 2_432 }
-			],
+			V2_ROUTE_POINTS.crossroadsToSilverpine,
 			'crossroads to Silverpine seam'
 		);
 	});
@@ -2444,13 +2462,7 @@ describe('runtime-faithful Meadow Entry routes', () => {
 	it('keeps the Crossroads to Wildwood seam clear', () => {
 		expectRouteClear(
 			meadowEntryMap,
-			[
-				{ x: 3_776, y: 4_480 },
-				{ x: 4_288, y: 4_480 },
-				{ x: 4_288, y: 4_224 },
-				{ x: 4_800, y: 4_224 },
-				{ x: 4_800, y: 3_808 }
-			],
+			V2_ROUTE_POINTS.crossroadsToWildwood,
 			'crossroads to Wildwood seam'
 		);
 	});
@@ -2458,11 +2470,7 @@ describe('runtime-faithful Meadow Entry routes', () => {
 	it('keeps the Crossroads to Tidewatch Coast seam clear', () => {
 		expectRouteClear(
 			meadowEntryMap,
-			[
-				{ x: 3_776, y: 4_480 },
-				{ x: 4_224, y: 4_480 },
-				{ x: 4_224, y: 5_520 }
-			],
+			V2_ROUTE_POINTS.crossroadsToCoast,
 			'crossroads to Tidewatch Coast seam'
 		);
 	});
@@ -2477,14 +2485,7 @@ describe('runtime-faithful Meadow Entry routes', () => {
 // no one prop is load-bearing there. That redundancy is by design, not a gap in the test.
 describe('route: spawn → crossroads', () => {
 	it('has no empty stretch longer than the gap tolerance', () => {
-		expectRouteHasNoEmptyStretch('spawn → crossroads', [
-			{ x: 704, y: 5_920 },
-			{ x: 704, y: 5_376 },
-			{ x: 704, y: 4_608 },
-			{ x: 2_816, y: 4_608 },
-			{ x: 3_200, y: 4_400 },
-			{ x: 3_500, y: 4_000 }
-		]);
+		expectRouteHasNoEmptyStretch('spawn → crossroads', V2_ROUTE_POINTS.heroHouseToCrossroads);
 	});
 });
 
@@ -2509,12 +2510,7 @@ describe('crossroads hub', () => {
 
 describe('route: crossroads → coast', () => {
 	it('has no empty stretch longer than the gap tolerance', () => {
-		expectRouteHasNoEmptyStretch('crossroads → coast', [
-			{ x: 3_500, y: 4_000 },
-			{ x: 3_900, y: 4_700 },
-			{ x: 4_200, y: 5_500 },
-			{ x: 4_600, y: 5_840 }
-		]);
+		expectRouteHasNoEmptyStretch('crossroads → coast', V2_ROUTE_POINTS.crossroadsToCoast);
 	});
 });
 
@@ -2526,13 +2522,7 @@ describe('dead end: coast jetty', () => {
 
 describe('route: crossroads → mistfen', () => {
 	it('has no empty stretch longer than the gap tolerance', () => {
-		expectRouteHasNoEmptyStretch('crossroads → mistfen', [
-			{ x: 3_050, y: 3_150 },
-			{ x: 2_690, y: 2_750 },
-			{ x: 2_150, y: 2_750 },
-			{ x: 1_250, y: 1_750 },
-			{ x: 1_200, y: 620 }
-		]);
+		expectRouteHasNoEmptyStretch('crossroads → mistfen', V2_ROUTE_POINTS.crossroadsToMistfen);
 	});
 });
 
@@ -2550,12 +2540,7 @@ describe('dead end: witchwood gate', () => {
 
 describe('route: crossroads → silverpine', () => {
 	it('has no empty stretch longer than the gap tolerance', () => {
-		expectRouteHasNoEmptyStretch('crossroads → silverpine', [
-			{ x: 3_500, y: 3_000 },
-			{ x: 3_300, y: 2_950 },
-			{ x: 3_100, y: 1_600 },
-			{ x: 3_000, y: 520 }
-		]);
+		expectRouteHasNoEmptyStretch('crossroads → silverpine', V2_ROUTE_POINTS.crossroadsToSilverpine);
 	});
 });
 
@@ -2573,13 +2558,10 @@ describe('dead end: silver shrine gate', () => {
 
 describe('route: crossroads → wildwood cave', () => {
 	it('has no empty stretch longer than the gap tolerance', () => {
-		expectRouteHasNoEmptyStretch('crossroads → wildwood cave', [
-			{ x: 4_000, y: 4_300 },
-			{ x: 4_200, y: 5_347 },
-			{ x: 5_600, y: 5_347 },
-			{ x: 5_600, y: 3_200 },
-			{ x: 5_960, y: 1_800 }
-		]);
+		expectRouteHasNoEmptyStretch(
+			'crossroads → wildwood cave',
+			V2_ROUTE_POINTS.crossroadsToWildwood
+		);
 	});
 
 	it('preserves the slime encounters and the ruins transition', () => {
@@ -2644,26 +2626,11 @@ describe('interior return arrivals are standable', () => {
 });
 
 describe('critical routes avoid blockers', () => {
-	const criticalRoutes: Pt[][] = [
-		[
-			{ x: 3_500, y: 4_000 },
-			{ x: 4_200, y: 5_500 },
-			{ x: 4_600, y: 5_840 }
-		],
-		[
-			{ x: 3_500, y: 4_000 },
-			{ x: 3_500, y: 3_000 }
-		],
-		[
-			{ x: 3_050, y: 3_150 },
-			{ x: 2_150, y: 2_750 }
-		],
-		[
-			{ x: 4_000, y: 4_300 },
-			{ x: 4_200, y: 5_347 },
-			{ x: 5_600, y: 5_347 },
-			{ x: 5_600, y: 3_200 }
-		]
+	const criticalRoutes: readonly (readonly Pt[])[] = [
+		V2_ROUTE_POINTS.crossroadsToCoast,
+		V2_ROUTE_POINTS.crossroadsToSilverpine,
+		V2_ROUTE_POINTS.crossroadsToMistfen,
+		V2_ROUTE_POINTS.crossroadsToWildwood
 	];
 
 	it('keeps every critical-route sample outside blockers', () => {

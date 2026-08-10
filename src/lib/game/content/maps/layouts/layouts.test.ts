@@ -4,6 +4,7 @@ import { getVillageBuildingFrameName, villageBuildingAsset } from '$lib/game/con
 import { PLAYER_COLLISION_RADIUS } from '$lib/game/core/collision';
 import { NORMALIZE_TRANSITION_RADIUS } from '$lib/game/save/save-state';
 import {
+	MEADOW_ENTRY_V2_ROUTE_PATCHES,
 	MEADOW_ENTRY_V2_ROUTES,
 	MEADOW_ENTRY_V2_WORLD,
 	SUNDROP_VILLAGE_APPROACH_ROADS,
@@ -105,6 +106,56 @@ describe('outdoor layout coordinate contracts', () => {
 		expect(rectsConnect(routes.crossroadsNorthTrunk, routes.crossroadsToSilverpine)).toBe(true);
 		expect(rectsConnect(routes.crossroadsPlaza, routes.crossroadsToWildwood)).toBe(true);
 		expect(rectsConnect(routes.crossroadsPlaza, routes.crossroadsToCoast)).toBe(true);
+	});
+
+	it('keeps the ordered semantic route/seam source registry exact', () => {
+		expect(MEADOW_ENTRY_V2_ROUTE_PATCHES).toEqual([
+			{
+				id: 'village-to-crossroads',
+				owner: 'paths',
+				rect: { x: 2_816, y: 4_608, width: 448, height: 160 }
+			},
+			{
+				id: 'crossroads-to-mistfen',
+				owner: 'paths',
+				rect: { x: 3_072, y: 3_072, width: 608, height: 160 }
+			},
+			{
+				id: 'crossroads-to-silverpine',
+				owner: 'paths',
+				rect: { x: 3_680, y: 2_432, width: 192, height: 384 }
+			},
+			{
+				id: 'crossroads-to-wildwood',
+				owner: 'paths',
+				rect: { x: 4_288, y: 4_144, width: 704, height: 160 }
+			},
+			{
+				id: 'crossroads-to-coast',
+				owner: 'paths',
+				rect: { x: 4_128, y: 4_768, width: 192, height: 800 }
+			},
+			{
+				id: 'mistfen-seam-horizontal',
+				owner: 'mistfen',
+				rect: { x: 2_400, y: 3_072, width: 672, height: 160 }
+			},
+			{
+				id: 'mistfen-seam-vertical',
+				owner: 'mistfen',
+				rect: { x: 2_240, y: 2_752, width: 160, height: 480 }
+			},
+			{
+				id: 'silverpine-seam',
+				owner: 'silverpine',
+				rect: { x: 3_424, y: 2_336, width: 352, height: 192 }
+			},
+			{
+				id: 'wildwood-seam',
+				owner: 'wildwood',
+				rect: { x: 4_704, y: 3_776, width: 192, height: 384 }
+			}
+		]);
 	});
 
 	it('keeps every return outside its footprint and beyond the re-trigger envelope', () => {

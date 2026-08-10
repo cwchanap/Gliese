@@ -33,15 +33,59 @@ export const MEADOW_ENTRY_V2_REGION_ENVELOPES = {
 	sundropVillage: rect(256, 3968, 2560, 2176)
 } as const;
 
+export type MeadowEntryV2RoutePatchOwner = 'paths' | 'mistfen' | 'silverpine' | 'wildwood';
+
+export interface MeadowEntryV2RoutePatch {
+	readonly id: string;
+	readonly owner: MeadowEntryV2RoutePatchOwner;
+	readonly rect: LayoutRect;
+}
+
+/**
+ * Ordered top-left rectangles for the shared outdoor connectors and destination
+ * seams. Region fragments consume only the records assigned to their owner;
+ * keeping this inventory here prevents proof coordinates from drifting away
+ * from the authored map geometry.
+ */
+export const MEADOW_ENTRY_V2_ROUTE_PATCHES = [
+	{ id: 'village-to-crossroads', owner: 'paths', rect: rect(2_816, 4_608, 448, 160) },
+	{ id: 'crossroads-to-mistfen', owner: 'paths', rect: rect(3_072, 3_072, 608, 160) },
+	{ id: 'crossroads-to-silverpine', owner: 'paths', rect: rect(3_680, 2_432, 192, 384) },
+	{ id: 'crossroads-to-wildwood', owner: 'paths', rect: rect(4_288, 4_144, 704, 160) },
+	{ id: 'crossroads-to-coast', owner: 'paths', rect: rect(4_128, 4_768, 192, 800) },
+	{
+		id: 'mistfen-seam-horizontal',
+		owner: 'mistfen',
+		rect: rect(2_400, 3_072, 672, 160)
+	},
+	{ id: 'mistfen-seam-vertical', owner: 'mistfen', rect: rect(2_240, 2_752, 160, 480) },
+	{ id: 'silverpine-seam', owner: 'silverpine', rect: rect(3_424, 2_336, 352, 192) },
+	{ id: 'wildwood-seam', owner: 'wildwood', rect: rect(4_704, 3_776, 192, 384) }
+] as const satisfies readonly MeadowEntryV2RoutePatch[];
+
+export type MeadowEntryV2RoutePatchId = (typeof MEADOW_ENTRY_V2_ROUTE_PATCHES)[number]['id'];
+
+export function meadowEntryV2RoutePatchesFor(
+	owner: MeadowEntryV2RoutePatchOwner
+): readonly MeadowEntryV2RoutePatch[] {
+	return MEADOW_ENTRY_V2_ROUTE_PATCHES.filter((patch) => patch.owner === owner);
+}
+
+function meadowEntryV2RoutePatchRect(id: MeadowEntryV2RoutePatchId): LayoutRect {
+	const patch = MEADOW_ENTRY_V2_ROUTE_PATCHES.find((candidate) => candidate.id === id);
+	if (!patch) throw new Error(`Unknown Meadow Entry V2 route patch: ${id}`);
+	return patch.rect;
+}
+
 export const MEADOW_ENTRY_V2_ROUTES = {
 	villageMainStreet: rect(256, 4608, 2560, 160),
-	villageToCrossroads: rect(2816, 4608, 448, 160),
+	villageToCrossroads: meadowEntryV2RoutePatchRect('village-to-crossroads'),
 	crossroadsPlaza: rect(3264, 3680, 1024, 1088),
 	crossroadsNorthTrunk: rect(3680, 2816, 192, 864),
-	crossroadsToMistfen: rect(3072, 3072, 608, 160),
-	crossroadsToSilverpine: rect(3680, 2432, 192, 384),
-	crossroadsToWildwood: rect(4288, 4144, 704, 160),
-	crossroadsToCoast: rect(4128, 4768, 192, 800)
+	crossroadsToMistfen: meadowEntryV2RoutePatchRect('crossroads-to-mistfen'),
+	crossroadsToSilverpine: meadowEntryV2RoutePatchRect('crossroads-to-silverpine'),
+	crossroadsToWildwood: meadowEntryV2RoutePatchRect('crossroads-to-wildwood'),
+	crossroadsToCoast: meadowEntryV2RoutePatchRect('crossroads-to-coast')
 } as const;
 
 export const SUNDROP_VILLAGE_V2 = {
