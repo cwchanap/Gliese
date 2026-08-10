@@ -176,6 +176,7 @@ function expectRouteClear(
 	waypoints: Array<{ x: number; y: number }>,
 	label: string
 ) {
+	const routeCollisionRects = [...collectStrictCollisionRects(map), ...collectLandmarkRects(map)];
 	for (let index = 1; index < waypoints.length; index += 1) {
 		const from = waypoints[index - 1]!;
 		const to = waypoints[index]!;
@@ -195,10 +196,10 @@ function expectRouteClear(
 			expect(point.x).toBeLessThanOrEqual(map.width * 32 - PLAYER_COLLISION_RADIUS);
 			expect(point.y).toBeLessThanOrEqual(map.height * 32 - PLAYER_COLLISION_RADIUS);
 
-			for (const blocker of map.blockers ?? []) {
+			for (const [collisionIndex, collisionRect] of routeCollisionRects.entries()) {
 				expect(
-					isInsideCollisionRect(point.x, point.y, blocker, PLAYER_COLLISION_RADIUS),
-					`${map.id}:${label} blocked by ${blocker.id}`
+					isInsideCollisionRect(point.x, point.y, collisionRect, PLAYER_COLLISION_RADIUS),
+					`${map.id}:${label} blocked by collision rect ${collisionIndex}`
 				).toBe(false);
 			}
 
@@ -1521,10 +1522,7 @@ describe('opening map content', () => {
 		expect(meadowEntryMap.fences).toMatchObject([
 			{ id: 'coast-approach-west-fence', x: 4_020, y: 5_250, width: 32, height: 520 },
 			{ id: 'coast-approach-east-fence', x: 4_380, y: 5_250, width: 32, height: 520 },
-			{ id: 'coast-fork-east-field-fence', x: 4_460, y: 5_660, width: 500, height: 32 },
-			{ id: 'crossroads-south-market-fence', x: 3_600, y: 4_510, width: 520, height: 32 },
-			{ id: 'crossroads-north-festival-barrier', x: 3_160, y: 3_370, width: 280, height: 32 },
-			{ id: 'crossroads-north-festival-barrier-east', x: 3_840, y: 3_370, width: 280, height: 32 }
+			{ id: 'coast-fork-east-field-fence', x: 4_460, y: 5_660, width: 500, height: 32 }
 		]);
 		const ids = [
 			...(meadowEntryMap.groundPatches ?? []).map((patch) => patch.id),
@@ -1662,7 +1660,10 @@ describe('meadow-entry region integrity', () => {
 		// share the same sprite (e.g. corridorWaymarker) must match so identical
 		// poleLanterns don't collide 10px apart in the merged map.
 		const lanterns = (meadowEntryMap.mapDecor ?? []).filter(
-			(d) => d.textureKey === villageDressingAsset.key && d.frameName === 'poleLantern'
+			(d) =>
+				d.textureKey === villageDressingAsset.key &&
+				d.frameName === 'poleLantern' &&
+				d.collision !== undefined
 		);
 		expect(lanterns.length).toBeGreaterThan(0);
 		for (const decor of lanterns) {
@@ -1897,10 +1898,17 @@ describe('meadow-entry region integrity', () => {
 		// empty grass — is the regression this guards. The ground network spans all
 		// tiles (paths AND cobblestone plazas), since links legitimately bridge onto
 		// plazas. Flood-fills contiguity outward from the region-authored ground
-		// patches and asserts every `link-*` patch is reachable through that network.
+		// patches and asserts every shared connector patch is reachable through that network.
 		const groundPatches = meadowEntryMap.groundPatches ?? [];
-		const links = groundPatches.filter((patch) => patch.id.startsWith('link-'));
-		const regionGround = groundPatches.filter((patch) => !patch.id.startsWith('link-'));
+		const linkIds = new Set([
+			'village-to-crossroads',
+			'crossroads-to-mistfen',
+			'crossroads-to-silverpine',
+			'crossroads-to-wildwood',
+			'crossroads-to-coast'
+		]);
+		const links = groundPatches.filter((patch) => linkIds.has(patch.id));
+		const regionGround = groundPatches.filter((patch) => !linkIds.has(patch.id));
 		expect(links.length, 'expected authored inter-region link patches').toBeGreaterThan(0);
 		expect(
 			regionGround.length,
@@ -1929,6 +1937,31 @@ describe('meadow-entry region integrity', () => {
 				connected.has(link.id),
 				`${link.id} is not contiguous with the region ground network (orphaned link)`
 			).toBe(true);
+		}
+	});
+
+	it('preserves the semantic V2 connector and destination-seam rectangles', () => {
+		const expected = {
+			'village-to-crossroads': { x: 3_040, y: 4_688, width: 448, height: 160 },
+			'crossroads-to-mistfen': { x: 3_376, y: 3_152, width: 608, height: 160 },
+			'crossroads-to-silverpine': { x: 3_776, y: 2_624, width: 192, height: 384 },
+			'crossroads-to-wildwood': { x: 4_640, y: 4_224, width: 704, height: 160 },
+			'crossroads-to-coast': { x: 4_224, y: 5_168, width: 192, height: 800 },
+			'mistfen-seam-horizontal': { x: 2_736, y: 3_152, width: 672, height: 160 },
+			'mistfen-seam-vertical': { x: 2_320, y: 2_992, width: 160, height: 480 },
+			'silverpine-seam': { x: 3_600, y: 2_432, width: 352, height: 192 },
+			'wildwood-seam': { x: 4_800, y: 3_968, width: 192, height: 384 }
+		} as const;
+		const groundPatchesById = new Map(
+			(meadowEntryMap.groundPatches ?? []).map((patch) => [patch.id, patch])
+		);
+
+		expect([...groundPatchesById.keys()].filter((id) => id in expected)).toHaveLength(9);
+		for (const [id, rectangle] of Object.entries(expected)) {
+			expect(groundPatchesById.get(id), id).toMatchObject({
+				...rectangle,
+				tile: 'pathTile'
+			});
 		}
 	});
 
@@ -2007,52 +2040,14 @@ describe('meadow-entry region integrity', () => {
 		expect(meadowEntryMap.npcs).toEqual([]);
 	});
 
-	it('keeps shared background ownership while leaving Sundrop Village source-independent', () => {
-		const backgroundImages = meadowEntryMap.backgroundImages ?? [];
-		const hpa496BackgroundIds = [
-			'meadow-entry-sundrop-village-underlay-base-image',
-			'meadow-entry-outer-boundary-east-forest-lane-base-image',
-			'meadow-entry-village-crossroads-connector-base-image',
-			'meadow-entry-village-crossroads-connector-foreground-image',
-			'meadow-entry-crossroads-coast-connector-base-image',
-			'meadow-entry-crossroads-coast-connector-foreground-image',
-			'meadow-entry-crossroads-mistfen-connector-base-image',
-			'meadow-entry-crossroads-mistfen-connector-foreground-image',
-			'meadow-entry-crossroads-silverpine-connector-base-image',
-			'meadow-entry-crossroads-silverpine-connector-foreground-image',
-			'meadow-entry-crossroads-wildwood-connector-base-image',
-			'meadow-entry-crossroads-wildwood-connector-foreground-image',
-			'meadow-entry-crossroads-base-image',
-			'meadow-entry-crossroads-foreground-image',
-			'meadow-entry-wildwood-base-image',
-			'meadow-entry-wildwood-foreground-image'
-		] as const;
-
-		expect(backgroundImages).toHaveLength(22);
-		for (const id of hpa496BackgroundIds) {
-			expect(backgroundImages.filter((background) => background.id === id)).toHaveLength(1);
-		}
-		expect(
-			backgroundImages.some((background) => background.id === 'sundrop-village-base-image')
-		).toBe(false);
-		expect(
-			backgroundImages.some((background) => background.id === 'sundrop-village-foreground-image')
-		).toBe(false);
-
-		const selected = (meadowEntryMap.blockers ?? []).filter(
-			(blocker) => blocker.visual?.mode === 'fallback-only'
-		);
-		const sundropSelected = selected.filter((blocker) => {
-			const visual = blocker.visual;
-			return (
-				visual?.mode === 'fallback-only' &&
-				visual.ownerCrops.some((crop) => crop.cropId === 'sundrop-village-hpa-398')
-			);
-		});
-		expect(sundropSelected).toEqual([]);
-		expect(selected.length).toBeGreaterThan(0);
-		for (const blocker of selected) {
-			expect(blocker.visual?.mode).toBe('fallback-only');
+	it('uses the live V2 graybox instead of the V1 semantic package', () => {
+		expect(meadowEntryMap.backgroundImages ?? []).toEqual([]);
+		for (const visual of [
+			...(meadowEntryMap.blockers ?? []),
+			...(meadowEntryMap.mapDecor ?? []),
+			...(meadowEntryMap.fences ?? [])
+		]) {
+			expect(visual.visual?.mode).not.toBe('fallback-only');
 		}
 	});
 
@@ -2396,6 +2391,83 @@ describe('exploration test helpers', () => {
 	});
 });
 
+describe('runtime-faithful Meadow Entry routes', () => {
+	it('keeps the hero house approach clear to the Crossroads', () => {
+		expectRouteClear(
+			meadowEntryMap,
+			[
+				{ x: 704, y: 5_920 },
+				{ x: 704, y: 6_080 },
+				{ x: 320, y: 6_080 },
+				{ x: 320, y: 5_920 },
+				{ x: 320, y: 4_688 },
+				{ x: 3_264, y: 4_688 },
+				{ x: 3_776, y: 4_688 },
+				{ x: 3_776, y: 4_480 }
+			],
+			'hero house to crossroads'
+		);
+	});
+
+	it('keeps the Crossroads to Mistfen seam clear', () => {
+		expectRouteClear(
+			meadowEntryMap,
+			[
+				{ x: 3_776, y: 4_480 },
+				{ x: 3_648, y: 4_480 },
+				{ x: 3_648, y: 4_064 },
+				{ x: 3_776, y: 4_064 },
+				{ x: 3_776, y: 3_136 },
+				{ x: 3_072, y: 3_136 },
+				{ x: 2_320, y: 3_136 },
+				{ x: 2_320, y: 2_784 }
+			],
+			'crossroads to Mistfen seam'
+		);
+	});
+
+	it('keeps the Crossroads to Silverpine seam clear', () => {
+		expectRouteClear(
+			meadowEntryMap,
+			[
+				{ x: 3_776, y: 4_480 },
+				{ x: 3_648, y: 4_480 },
+				{ x: 3_648, y: 4_064 },
+				{ x: 3_776, y: 4_064 },
+				{ x: 3_776, y: 2_432 },
+				{ x: 3_440, y: 2_432 }
+			],
+			'crossroads to Silverpine seam'
+		);
+	});
+
+	it('keeps the Crossroads to Wildwood seam clear', () => {
+		expectRouteClear(
+			meadowEntryMap,
+			[
+				{ x: 3_776, y: 4_480 },
+				{ x: 4_288, y: 4_480 },
+				{ x: 4_288, y: 4_224 },
+				{ x: 4_800, y: 4_224 },
+				{ x: 4_800, y: 3_808 }
+			],
+			'crossroads to Wildwood seam'
+		);
+	});
+
+	it('keeps the Crossroads to Tidewatch Coast seam clear', () => {
+		expectRouteClear(
+			meadowEntryMap,
+			[
+				{ x: 3_776, y: 4_480 },
+				{ x: 4_224, y: 4_480 },
+				{ x: 4_224, y: 5_520 }
+			],
+			'crossroads to Tidewatch Coast seam'
+		);
+	});
+});
+
 // Route-interest guard: each route below must have no walkable stretch longer than
 // ROUTE_MAX_EMPTY_GAP without something interesting within ROUTE_INTEREST_RADIUS. These
 // bite — removing wildwood-staging-brush reopens a 1536px dead stretch on the wildwood
@@ -2418,11 +2490,11 @@ describe('route: spawn → crossroads', () => {
 
 describe('dead end: castle gate', () => {
 	it('has a payoff and a story-facing element beyond the blocker', () => {
-		const endpoint = { x: 3_500, y: 2_980 };
+		const endpoint = { x: 4_176, y: 2_976 };
 		expect(payoffsNear(meadowEntryMap, endpoint, 360).length).toBeGreaterThan(0);
 		expect(storyFacingNear(meadowEntryMap, endpoint, 360).length).toBeGreaterThan(0);
 		expect(
-			nonLandmarkPayoffsNear(meadowEntryMap, { x: 3_500, y: 2_980 }, 360).length,
+			nonLandmarkPayoffsNear(meadowEntryMap, endpoint, 360).length,
 			'castle gate dead end needs a non-landmark payoff (warning discovery)'
 		).toBeGreaterThan(0);
 	});

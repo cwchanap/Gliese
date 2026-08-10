@@ -67,7 +67,7 @@ export const MEADOW_ENTRY_FOREGROUND_FRONT_CUTOFF_PX =
 // `sourceKey=owner|JSON(disposition)|runtimeRequirement\n` records. The test
 // owns SHA-256 computation so a catalog or disposition change cannot self-seal.
 export const MEADOW_ENTRY_REVIEWED_BAKE_OWNERSHIP_SHA256 =
-	'80baf7c4dc891c4279673b10465e3ca65d9b44a7347aab6d5c90d9684d39edc4';
+	'9b5c24995010179caa00e081b929e25cc6a20a0d85258788707225c939033271';
 
 const reviewedPolicies: ReviewedBakePolicy[] = [];
 
@@ -148,7 +148,6 @@ addPolicies(
 		'crossroads-gate-terrace',
 		'crossroads-mistfen-cue-mud',
 		'crossroads-nook',
-		'crossroads-plaza',
 		'crossroads-silverpine-cue-leaves',
 		'crossroads-white-line',
 		'link-crossroads-coast',

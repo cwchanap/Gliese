@@ -1,14 +1,6 @@
 import type { WorldMapDefinition } from '$lib/game/content/maps/types';
 import type { RegionFragment } from '$lib/game/content/maps/regions/types';
 import { addEnglishMapText } from '$lib/game/content/maps/text';
-import {
-	applyVisualOwnership,
-	validateMapBackgroundOwnership
-} from '$lib/game/content/maps/background-ownership';
-import {
-	activeMeadowEntryRuntimeVisualOwners,
-	meadowEntryRuntimeBackgroundImages
-} from '$lib/game/content/backgrounds/meadow-entry-runtime';
 import { villageRegion } from '$lib/game/content/maps/regions/village';
 import { wildwoodRegion } from '$lib/game/content/maps/regions/wildwood';
 import { mistfenRegion } from '$lib/game/content/maps/regions/mistfen';
@@ -143,32 +135,6 @@ const merged = mergeRegions([
 	meadowBoundsRegion
 ]);
 
-const backgroundImages = [...merged.backgroundImages, ...meadowEntryRuntimeBackgroundImages];
-const runtimeBlockerVisualOwners = activeMeadowEntryRuntimeVisualOwners.filter(
-	(owner) =>
-		owner.sourceType === 'blocker' &&
-		merged.blockers.some((blocker) => blocker.id === owner.sourceId)
-);
-const runtimeDecorVisualOwners = activeMeadowEntryRuntimeVisualOwners.filter(
-	(owner) => owner.sourceType === 'decor'
-);
-const runtimeFenceVisualOwners = activeMeadowEntryRuntimeVisualOwners.filter(
-	(owner) => owner.sourceType === 'fence'
-);
-const ownedBlockers = applyVisualOwnership(merged.blockers, runtimeBlockerVisualOwners, {
-	rejectExisting: true
-});
-const ownedMapDecor = applyVisualOwnership(merged.mapDecor, runtimeDecorVisualOwners);
-const ownedFences = applyVisualOwnership(merged.fences, runtimeFenceVisualOwners);
-const ownershipSource = {
-	blockers: ownedBlockers,
-	mapDecor: ownedMapDecor,
-	fences: ownedFences,
-	backgroundImages
-};
-
-validateMapBackgroundOwnership(ownershipSource);
-
 export const meadowEntryMap: WorldMapDefinition = addEnglishMapText({
 	id: openingMapId,
 	width: 200,
@@ -179,14 +145,14 @@ export const meadowEntryMap: WorldMapDefinition = addEnglishMapText({
 	landmarks: merged.landmarks,
 	transitions: merged.transitions,
 	groundPatches: merged.groundPatches,
-	blockers: ownedBlockers,
-	fences: ownedFences,
-	mapDecor: ownedMapDecor,
+	blockers: merged.blockers,
+	fences: merged.fences,
+	mapDecor: merged.mapDecor,
 	combatBounds: merged.combatBounds,
 	encounters: merged.encounters,
 	npcs: merged.npcs,
 	ambientNpcs: merged.ambientNpcs,
 	pickups: merged.pickups,
 	discoveries: merged.discoveries,
-	backgroundImages
+	backgroundImages: merged.backgroundImages
 });

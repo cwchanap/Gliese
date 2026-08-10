@@ -22,31 +22,19 @@ import {
 } from './meadow-entry-source-catalog';
 
 const expectedPathOwners = {
-	'ground-patch:link-village-crossroads': 'connector-village-crossroads',
-	'ground-patch:link-village-crossroads-v': 'connector-village-crossroads',
-	'ground-patch:village-crossroads-nook': 'connector-village-crossroads',
-	'blocker:corridor-wall-2a': 'connector-village-crossroads',
-	'blocker:corridor-wall-2b': 'connector-village-crossroads',
-	'blocker:corridor-wall-3a': 'connector-village-crossroads',
-	'blocker:corridor-wall-3b': 'connector-village-crossroads',
-	'blocker:corridor-wall-4a': 'connector-village-crossroads',
-	'blocker:corridor-wall-4b': 'connector-village-crossroads',
-	'blocker:corridor-wall-5a': 'connector-village-crossroads',
-	'blocker:corridor-wall-5b': 'connector-village-crossroads',
-	'blocker:corridor-wall-6a': 'connector-village-crossroads',
-	'blocker:corridor-wall-7a': 'connector-village-crossroads',
-	'blocker:corridor-wall-7b': 'connector-village-crossroads',
-	'blocker:corridor-wall-8a': 'connector-village-crossroads',
-	'blocker:corridor-wall-8b': 'connector-village-crossroads',
-	'blocker:corridor-wall-9a': 'connector-village-crossroads',
-	'blocker:corridor-wall-10b': 'connector-village-crossroads',
 	'decor:village-corridor-waymarker': 'connector-village-crossroads',
-	'ground-patch:link-crossroads-coast': 'connector-crossroads-coast',
-	'ground-patch:link-crossroads-coast-v': 'connector-crossroads-coast',
-	'ground-patch:link-crossroads-mistfen': 'connector-crossroads-mistfen',
-	'ground-patch:link-crossroads-mistfen-h': 'connector-crossroads-mistfen',
-	'ground-patch:link-crossroads-silverpine': 'connector-crossroads-silverpine',
-	'ground-patch:link-crossroads-wildwood': 'connector-crossroads-wildwood'
+	'ground-patch:crossroads-to-coast': 'connector-crossroads-coast',
+	'ground-patch:crossroads-to-mistfen': 'connector-crossroads-mistfen',
+	'ground-patch:crossroads-to-silverpine': 'connector-crossroads-silverpine',
+	'ground-patch:crossroads-to-wildwood': 'connector-crossroads-wildwood',
+	'ground-patch:village-to-crossroads': 'connector-village-crossroads'
+} as const satisfies Readonly<Record<string, MeadowEntryAuthoringRegionId>>;
+
+const expectedDestinationSeamOwners = {
+	'ground-patch:mistfen-seam-horizontal': 'connector-crossroads-mistfen',
+	'ground-patch:mistfen-seam-vertical': 'connector-crossroads-mistfen',
+	'ground-patch:silverpine-seam': 'connector-crossroads-silverpine',
+	'ground-patch:wildwood-seam': 'connector-crossroads-wildwood'
 } as const satisfies Readonly<Record<string, MeadowEntryAuthoringRegionId>>;
 
 const defaultFragmentOwners = {
@@ -92,6 +80,12 @@ describe('meadow-entry authoring layout', () => {
 		}
 	});
 
+	it('keeps destination-authored V2 seams on their exact connector owners', () => {
+		for (const [sourceKey, expectedOwner] of Object.entries(expectedDestinationSeamOwners)) {
+			expect(MEADOW_ENTRY_PRIMARY_SOURCE_OWNERS[sourceKey], sourceKey).toBe(expectedOwner);
+		}
+	});
+
 	it('rejects any drift from the independently reviewed primary-owner snapshot', () => {
 		const canonicalOwners = Object.entries(MEADOW_ENTRY_PRIMARY_SOURCE_OWNERS)
 			.sort(([left], [right]) => (left < right ? -1 : left > right ? 1 : 0))
@@ -99,14 +93,14 @@ describe('meadow-entry authoring layout', () => {
 			.join('');
 
 		expect(MEADOW_ENTRY_REVIEWED_PRIMARY_SOURCE_OWNERS_SHA256).toBe(
-			'b7212ef5eaa4980b55fad561d17e02513c002606cab44bd52768abbbbf7791e7'
+			'8d626660a869b4e23e2c5d7799cfd5785c8fc78edcf9eced63f7523db4cbd169'
 		);
 		expect(sha256(canonicalOwners)).toBe(MEADOW_ENTRY_REVIEWED_PRIMARY_SOURCE_OWNERS_SHA256);
 	});
 
 	it('locks the exact ordered region metadata to its independent reviewed snapshot', () => {
 		expect(MEADOW_ENTRY_REVIEWED_AUTHORING_REGIONS_SHA256).toBe(
-			'3544536e1fbcd928531199c0c6d340e0619d2a5cf8d4df8ad2e1998a117e4728'
+			'608d7a8ea681783f2d918fe21c7c01f7eaaec8c547a28a752f0b4651823cc38f'
 		);
 		expect(sha256(JSON.stringify(MEADOW_ENTRY_AUTHORING_REGIONS))).toBe(
 			MEADOW_ENTRY_REVIEWED_AUTHORING_REGIONS_SHA256
@@ -161,7 +155,9 @@ describe('meadow-entry authoring layout', () => {
 			const sourceKey = meadowEntrySourceKey(record.ref);
 			const owner = MEADOW_ENTRY_PRIMARY_SOURCE_OWNERS[sourceKey];
 			const reviewBounds = owner === undefined ? undefined : regions.get(owner);
+			const hasExactConnectorOwner = Object.hasOwn(expectedDestinationSeamOwners, sourceKey);
 			const hasReownedFragment =
+				!hasExactConnectorOwner &&
 				record.fragmentId !== 'paths' &&
 				owner !== defaultFragmentOwners[record.fragmentId as keyof typeof defaultFragmentOwners];
 			const isOutsidePrimary =

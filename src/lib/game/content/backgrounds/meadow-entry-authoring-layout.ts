@@ -65,7 +65,7 @@ export const MEADOW_ENTRY_AUTHORING_REGIONS: readonly MeadowEntryAuthoringRegion
 	},
 	{
 		id: 'crossroads',
-		reviewBounds: { left: 2_912, top: 2_624, right: 4_256, bottom: 4_576 },
+		reviewBounds: { left: 2_912, top: 2_624, right: 4_416, bottom: 4_768 },
 		materialProfile: 'crossroads-cobblestone-festival',
 		neighbors: [
 			'connector-village-crossroads',
@@ -101,7 +101,7 @@ export const MEADOW_ENTRY_AUTHORING_REGIONS: readonly MeadowEntryAuthoringRegion
 	},
 	{
 		id: 'connector-village-crossroads',
-		reviewBounds: { left: 1_536, top: 3_840, right: 3_200, bottom: 4_960 },
+		reviewBounds: { left: 1_536, top: 3_840, right: 3_264, bottom: 4_960 },
 		materialProfile: 'village-crossroads-handoff',
 		neighbors: ['sundrop-village', 'crossroads']
 	},
@@ -113,19 +113,19 @@ export const MEADOW_ENTRY_AUTHORING_REGIONS: readonly MeadowEntryAuthoringRegion
 	},
 	{
 		id: 'connector-crossroads-mistfen',
-		reviewBounds: { left: 2_304, top: 2_560, right: 3_136, bottom: 3_584 },
+		reviewBounds: { left: 2_240, top: 2_560, right: 3_680, bottom: 3_584 },
 		materialProfile: 'crossroads-mistfen-handoff',
 		neighbors: ['crossroads', 'mistfen']
 	},
 	{
 		id: 'connector-crossroads-silverpine',
-		reviewBounds: { left: 3_040, top: 2_880, right: 3_584, bottom: 3_104 },
+		reviewBounds: { left: 3_040, top: 2_336, right: 3_872, bottom: 3_104 },
 		materialProfile: 'crossroads-silverpine-handoff',
 		neighbors: ['crossroads', 'silverpine']
 	},
 	{
 		id: 'connector-crossroads-wildwood',
-		reviewBounds: { left: 3_968, top: 3_712, right: 4_352, bottom: 4_928 },
+		reviewBounds: { left: 3_968, top: 3_712, right: 4_992, bottom: 4_928 },
 		materialProfile: 'crossroads-wildwood-handoff',
 		neighbors: ['crossroads', 'wildwood']
 	},
@@ -140,7 +140,7 @@ export const MEADOW_ENTRY_AUTHORING_REGIONS: readonly MeadowEntryAuthoringRegion
 // Independent review seal for the ordered JSON registry above. The test owns
 // the SHA-256 computation so coordinated metadata drift cannot update itself.
 export const MEADOW_ENTRY_REVIEWED_AUTHORING_REGIONS_SHA256 =
-	'3544536e1fbcd928531199c0c6d340e0619d2a5cf8d4df8ad2e1998a117e4728';
+	'608d7a8ea681783f2d918fe21c7c01f7eaaec8c547a28a752f0b4651823cc38f';
 
 const DEFAULT_FRAGMENT_OWNERS = {
 	village: 'sundrop-village',
@@ -153,31 +153,16 @@ const DEFAULT_FRAGMENT_OWNERS = {
 } as const satisfies Readonly<Record<string, MeadowEntryAuthoringRegionId>>;
 
 const EXACT_PATH_OWNERS = {
-	'ground-patch:link-village-crossroads': 'connector-village-crossroads',
-	'ground-patch:link-village-crossroads-v': 'connector-village-crossroads',
-	'ground-patch:village-crossroads-nook': 'connector-village-crossroads',
-	'blocker:corridor-wall-2a': 'connector-village-crossroads',
-	'blocker:corridor-wall-2b': 'connector-village-crossroads',
-	'blocker:corridor-wall-3a': 'connector-village-crossroads',
-	'blocker:corridor-wall-3b': 'connector-village-crossroads',
-	'blocker:corridor-wall-4a': 'connector-village-crossroads',
-	'blocker:corridor-wall-4b': 'connector-village-crossroads',
-	'blocker:corridor-wall-5a': 'connector-village-crossroads',
-	'blocker:corridor-wall-5b': 'connector-village-crossroads',
-	'blocker:corridor-wall-6a': 'connector-village-crossroads',
-	'blocker:corridor-wall-7a': 'connector-village-crossroads',
-	'blocker:corridor-wall-7b': 'connector-village-crossroads',
-	'blocker:corridor-wall-8a': 'connector-village-crossroads',
-	'blocker:corridor-wall-8b': 'connector-village-crossroads',
-	'blocker:corridor-wall-9a': 'connector-village-crossroads',
-	'blocker:corridor-wall-10b': 'connector-village-crossroads',
+	'ground-patch:village-to-crossroads': 'connector-village-crossroads',
 	'decor:village-corridor-waymarker': 'connector-village-crossroads',
-	'ground-patch:link-crossroads-coast': 'connector-crossroads-coast',
-	'ground-patch:link-crossroads-coast-v': 'connector-crossroads-coast',
-	'ground-patch:link-crossroads-mistfen': 'connector-crossroads-mistfen',
-	'ground-patch:link-crossroads-mistfen-h': 'connector-crossroads-mistfen',
-	'ground-patch:link-crossroads-silverpine': 'connector-crossroads-silverpine',
-	'ground-patch:link-crossroads-wildwood': 'connector-crossroads-wildwood'
+	'ground-patch:crossroads-to-coast': 'connector-crossroads-coast',
+	'ground-patch:crossroads-to-mistfen': 'connector-crossroads-mistfen',
+	'ground-patch:crossroads-to-silverpine': 'connector-crossroads-silverpine',
+	'ground-patch:crossroads-to-wildwood': 'connector-crossroads-wildwood',
+	'ground-patch:mistfen-seam-horizontal': 'connector-crossroads-mistfen',
+	'ground-patch:mistfen-seam-vertical': 'connector-crossroads-mistfen',
+	'ground-patch:silverpine-seam': 'connector-crossroads-silverpine',
+	'ground-patch:wildwood-seam': 'connector-crossroads-wildwood'
 } as const satisfies Readonly<Record<string, MeadowEntryAuthoringRegionId>>;
 
 const REOWNED_SOURCES = {
@@ -188,6 +173,8 @@ export function primaryOwnerFor(record: MeadowEntrySourceRecord): MeadowEntryAut
 	const sourceKey = meadowEntrySourceKey(record.ref);
 	const reowned = REOWNED_SOURCES[sourceKey as keyof typeof REOWNED_SOURCES];
 	if (reowned) return reowned;
+	const exactOwner = EXACT_PATH_OWNERS[sourceKey as keyof typeof EXACT_PATH_OWNERS];
+	if (exactOwner) return exactOwner;
 	if (record.fragmentId === 'paths') {
 		const owner = EXACT_PATH_OWNERS[sourceKey as keyof typeof EXACT_PATH_OWNERS];
 		if (!owner) throw new Error(`Missing exact paths.ts authoring owner for "${sourceKey}"`);
@@ -213,7 +200,7 @@ export const MEADOW_ENTRY_PRIMARY_SOURCE_OWNERS: Readonly<
 // future catalog addition fail review even though default fragment assignment
 // can still build a useful diagnostic owner in memory.
 export const MEADOW_ENTRY_REVIEWED_PRIMARY_SOURCE_OWNERS_SHA256 =
-	'b7212ef5eaa4980b55fad561d17e02513c002606cab44bd52768abbbbf7791e7';
+	'8d626660a869b4e23e2c5d7799cfd5785c8fc78edcf9eced63f7523db4cbd169';
 
 export const MEADOW_ENTRY_CROSS_REGION_COVERAGE: readonly MeadowEntryCrossRegionCoverage[] = [
 	{
@@ -343,10 +330,12 @@ function detectedOutlierKeys(
 		const sourceKey = meadowEntrySourceKey(record.ref);
 		const owner = primarySourceOwners[sourceKey];
 		const ownerRegion = owner === undefined ? undefined : regions.get(owner);
+		const exactOwner = EXACT_PATH_OWNERS[sourceKey as keyof typeof EXACT_PATH_OWNERS];
 		const expectedFragmentOwner =
-			record.fragmentId === 'paths'
+			exactOwner ??
+			(record.fragmentId === 'paths'
 				? undefined
-				: DEFAULT_FRAGMENT_OWNERS[record.fragmentId as keyof typeof DEFAULT_FRAGMENT_OWNERS];
+				: DEFAULT_FRAGMENT_OWNERS[record.fragmentId as keyof typeof DEFAULT_FRAGMENT_OWNERS]);
 		const isReowned = expectedFragmentOwner !== undefined && owner !== expectedFragmentOwner;
 		const bounds = rasterBounds(record);
 		const isOutsideOwner =
@@ -421,11 +410,8 @@ export function validateMeadowEntryAuthoringLayout(
 		if (!Object.hasOwn(primarySourceOwners, sourceKey)) {
 			throw new Error(`Missing primary authoring owner for "${sourceKey}"`);
 		}
-		if (
-			record.fragmentId === 'paths' &&
-			primarySourceOwners[sourceKey] !==
-				EXACT_PATH_OWNERS[sourceKey as keyof typeof EXACT_PATH_OWNERS]
-		) {
+		const exactOwner = EXACT_PATH_OWNERS[sourceKey as keyof typeof EXACT_PATH_OWNERS];
+		if (exactOwner !== undefined && primarySourceOwners[sourceKey] !== exactOwner) {
 			throw new Error(`Incorrect exact paths.ts authoring owner for "${sourceKey}"`);
 		}
 	}

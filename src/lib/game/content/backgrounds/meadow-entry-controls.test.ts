@@ -487,14 +487,14 @@ describe('meadow-entry deterministic authoring controls', () => {
 		]!;
 		const connector = terrain
 			.split('\n')
-			.find((line) => line.includes('data-id="ground-patch:link-village-crossroads"'));
+			.find((line) => line.includes('data-id="ground-patch:village-to-crossroads"'));
 
 		expect(connector).toContain('data-tile="pathTile"');
 		expect(connector).toContain('data-material-profile="village-crossroads-handoff"');
 		expect(connector).toContain('data-primary-region="connector-village-crossroads"');
 		expect(connector).toContain('data-connector-membership="connector-village-crossroads"');
-		expect(connector).toContain('data-disposition="base-underlay"');
-		expect(connector).toContain('data-contributing-sources="ground-patch:link-village-crossroads"');
+		expect(connector).toContain('data-disposition="runtime-fallback-only"');
+		expect(connector).toContain('data-contributing-sources="ground-patch:village-to-crossroads"');
 	});
 
 	it('labels explicit foreground ownership and the reviewed 33px front cutoff', () => {

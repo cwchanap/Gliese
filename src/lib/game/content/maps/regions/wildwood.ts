@@ -1,4 +1,5 @@
 import { forestDressingAsset, shrineDressingAsset } from '$lib/game/content/assets';
+import { rect, toMapRect } from '$lib/game/content/maps/layouts/layout-rects';
 import type { RegionFragment } from '$lib/game/content/maps/regions/types';
 
 /**
@@ -37,6 +38,7 @@ export const wildwoodRegion: RegionFragment = {
 		}
 	],
 	groundPatches: [
+		{ ...toMapRect('wildwood-seam', rect(4_704, 3_776, 192, 384)), tile: 'pathTile' },
 		{
 			id: 'sundrop-forest-road-east',
 			x: 4_200,
