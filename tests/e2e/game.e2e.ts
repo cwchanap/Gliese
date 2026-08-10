@@ -32,9 +32,21 @@ type RegionalBackgroundPlaneRenderDiagnostic = {
 
 type GlieseProbeWindow = Window & {
 	__glieseLastHudState?: HudStateSnapshot;
+	__glieseLastHudAt?: number;
 	__glieseMovementDiagnostics?: PlayerMovementDiagnostic[];
 	__glieseLastMovementDiagnostic?: PlayerMovementDiagnostic;
+	__glieseLastMovementAt?: number;
+	__glieseCharacterizationMovementCount?: number;
 	__glieseRegionalBackgroundDiagnostics?: RegionalBackgroundPlaneRenderDiagnostic[];
+	__glieseRouteVisibilityState?: string;
+	__glieseRouteHasFocus?: boolean;
+	__glieseRouteBlurAt?: number;
+	__glieseRouteFocusAt?: number;
+	__glieseRouteRunner?: {
+		start: (plan: BrowserRoutePlan) => BrowserRouteResult;
+		get: (token: string) => BrowserRouteResult | null;
+		cancel: (token: string, reason: string) => BrowserRouteResult | null;
+	};
 };
 
 function commandBox(page: Page, name = 'Command') {
@@ -168,21 +180,344 @@ function installRuntimeProbes(page: Page) {
 	return page.addInitScript(() => {
 		const probeWindow = window as GlieseProbeWindow;
 		probeWindow.__glieseLastHudState = undefined;
+		probeWindow.__glieseLastHudAt = 0;
 		probeWindow.__glieseMovementDiagnostics = [];
 		probeWindow.__glieseLastMovementDiagnostic = undefined;
+		probeWindow.__glieseLastMovementAt = 0;
 		probeWindow.__glieseRegionalBackgroundDiagnostics = [];
+		probeWindow.__glieseRouteVisibilityState = document.visibilityState;
+		probeWindow.__glieseRouteHasFocus = document.hasFocus();
+		probeWindow.__glieseRouteBlurAt = undefined;
+		probeWindow.__glieseRouteFocusAt = undefined;
 		window.addEventListener('gliese:hud-state', (event) => {
 			probeWindow.__glieseLastHudState = (event as CustomEvent<HudStateSnapshot>).detail;
+			probeWindow.__glieseLastHudAt = performance.now();
 		});
 		window.addEventListener('gliese:player-movement-diagnostic', (event) => {
 			const detail = (event as CustomEvent<PlayerMovementDiagnostic>).detail;
 			probeWindow.__glieseMovementDiagnostics?.push(detail);
 			probeWindow.__glieseLastMovementDiagnostic = detail;
+			probeWindow.__glieseLastMovementAt = performance.now();
 		});
 		window.addEventListener('gliese:regional-background-plane-render-diagnostic', (event) => {
 			probeWindow.__glieseRegionalBackgroundDiagnostics?.push(
 				(event as CustomEvent<RegionalBackgroundPlaneRenderDiagnostic>).detail
 			);
+		});
+		const recordRouteFocus = () => {
+			probeWindow.__glieseRouteVisibilityState = document.visibilityState;
+			probeWindow.__glieseRouteHasFocus = document.hasFocus();
+			probeWindow.__glieseRouteFocusAt = performance.now();
+		};
+		const recordRouteBlur = () => {
+			probeWindow.__glieseRouteVisibilityState = document.visibilityState;
+			probeWindow.__glieseRouteHasFocus = document.hasFocus();
+			probeWindow.__glieseRouteBlurAt = performance.now();
+		};
+		window.addEventListener('focus', recordRouteFocus);
+		window.addEventListener('blur', recordRouteBlur);
+		document.addEventListener('visibilitychange', () => {
+			probeWindow.__glieseRouteVisibilityState = document.visibilityState;
+			probeWindow.__glieseRouteHasFocus = document.hasFocus();
+		});
+
+		type ArrowKey = 'ArrowDown' | 'ArrowLeft' | 'ArrowRight' | 'ArrowUp';
+		const keyCodes: Record<ArrowKey, number> = {
+			ArrowDown: 40,
+			ArrowLeft: 37,
+			ArrowRight: 39,
+			ArrowUp: 38
+		};
+		type InternalRouteState = BrowserRouteResult & {
+			points: Point[];
+			settleTolerance: number;
+			reachTolerance: number;
+			maxCorrectionTaps: number;
+			blockedTolerance: number;
+			activeKey: ArrowKey | null;
+			startedAt: number;
+			lastProgressAt: number;
+			leaseFrameCount: number;
+			lastLeaseAt: number | null;
+			movementCount: number;
+			lastMovementAt: number | null;
+			correctionTaps: number;
+			noProgressDiagnostics: number;
+		};
+		let routeState: InternalRouteState | null = null;
+		let keyLeaseFrame: number | null = null;
+
+		const cloneDiagnostic = (diagnostic: PlayerMovementDiagnostic | null) =>
+			diagnostic
+				? {
+						mapId: diagnostic.mapId,
+						previousPosition: { ...diagnostic.previousPosition },
+						requestedPosition: { ...diagnostic.requestedPosition },
+						resolvedPosition: { ...diagnostic.resolvedPosition },
+						blocked: diagnostic.blocked
+					}
+				: null;
+		const snapshot = (): BrowserRouteResult | null => {
+			if (!routeState) return null;
+			return {
+				token: routeState.token,
+				status: routeState.status,
+				pointIndex: routeState.pointIndex,
+				axis: routeState.axis,
+				position: routeState.position ? { ...routeState.position } : null,
+				target: routeState.target ? { ...routeState.target } : null,
+				lastDiagnostic: cloneDiagnostic(routeState.lastDiagnostic),
+				activeKey: routeState.activeKey,
+				startedAt: routeState.startedAt,
+				lastProgressAt: routeState.lastProgressAt,
+				leaseFrameCount: routeState.leaseFrameCount,
+				lastLeaseAt: routeState.lastLeaseAt,
+				movementCount: routeState.movementCount,
+				lastMovementAt: routeState.lastMovementAt,
+				visibilityState: probeWindow.__glieseRouteVisibilityState ?? document.visibilityState,
+				hasFocus: probeWindow.__glieseRouteHasFocus ?? document.hasFocus(),
+				blurAt: probeWindow.__glieseRouteBlurAt,
+				focusAt: probeWindow.__glieseRouteFocusAt,
+				error: routeState.error
+			};
+		};
+		const dispatchSyntheticKey = (type: 'keydown' | 'keyup', key: ArrowKey) => {
+			const keyCode = keyCodes[key];
+			const event = new KeyboardEvent(type, {
+				bubbles: true,
+				cancelable: true,
+				code: key,
+				key,
+				location: 0,
+				repeat: false
+			});
+			// KeyboardEventInit does not expose keyCode/which, while Phaser's keyboard
+			// manager intentionally reads both legacy fields from the DOM event.
+			for (const field of ['keyCode', 'which'] as const) {
+				try {
+					Object.defineProperty(event, field, { configurable: true, value: keyCode });
+				} catch {
+					// Chromium exposes these as configurable accessors; retain the native
+					// event if another browser makes the legacy field non-configurable.
+				}
+			}
+			window.dispatchEvent(event);
+		};
+		const cancelKeyLease = () => {
+			if (keyLeaseFrame === null) return;
+			cancelAnimationFrame(keyLeaseFrame);
+			keyLeaseFrame = null;
+		};
+		const runKeyLeaseFrame = () => {
+			keyLeaseFrame = null;
+			if (!routeState || routeState.status !== 'running' || !routeState.activeKey) return;
+			routeState.leaseFrameCount += 1;
+			routeState.lastLeaseAt = performance.now();
+			dispatchSyntheticKey('keydown', routeState.activeKey);
+			keyLeaseFrame = requestAnimationFrame(runKeyLeaseFrame);
+		};
+		const startKeyLease = () => {
+			if (keyLeaseFrame !== null) return;
+			keyLeaseFrame = requestAnimationFrame(runKeyLeaseFrame);
+		};
+		const releaseKey = () => {
+			if (!routeState?.activeKey) return;
+			const key = routeState.activeKey;
+			routeState.activeKey = null;
+			dispatchSyntheticKey('keyup', key);
+		};
+		const pressKey = (key: ArrowKey) => {
+			if (routeState?.activeKey === key) return;
+			releaseKey();
+			dispatchSyntheticKey('keydown', key);
+			if (routeState) routeState.activeKey = key;
+		};
+		const failRoute = (message: string) => {
+			cancelKeyLease();
+			releaseKey();
+			if (!routeState) return;
+			routeState.status = 'error';
+			routeState.error = message;
+		};
+		const axisKey = (axis: Axis, direction: number): ArrowKey => {
+			if (axis === 'x') return direction > 0 ? 'ArrowRight' : 'ArrowLeft';
+			return direction > 0 ? 'ArrowDown' : 'ArrowUp';
+		};
+		const actualPosition = (): Point | null => {
+			const diagnostic = probeWindow.__glieseLastMovementDiagnostic;
+			const movementAt = probeWindow.__glieseLastMovementAt ?? 0;
+			const hudState = probeWindow.__glieseLastHudState;
+			const hudPlayer = hudState?.areaMap?.player;
+			const hudAt = probeWindow.__glieseLastHudAt ?? 0;
+			const diagnosticPosition = diagnostic?.resolvedPosition;
+			if (
+				diagnosticPosition &&
+				typeof diagnosticPosition.x === 'number' &&
+				typeof diagnosticPosition.y === 'number' &&
+				movementAt >= hudAt
+			) {
+				return { ...diagnosticPosition };
+			}
+			if (typeof hudPlayer?.x === 'number' && typeof hudPlayer.y === 'number') {
+				return { x: hudPlayer.x, y: hudPlayer.y };
+			}
+			return diagnosticPosition ? { ...diagnosticPosition } : null;
+		};
+		const beginNextAxis = () => {
+			if (!routeState || routeState.status !== 'running' || !routeState.position) return;
+			while (routeState.pointIndex < routeState.points.length) {
+				const target = routeState.points[routeState.pointIndex]!;
+				const deltaX = target.x - routeState.position.x;
+				if (Math.abs(deltaX) > routeState.settleTolerance) {
+					routeState.axis = 'x';
+					routeState.target = { ...target };
+					routeState.correctionTaps = 0;
+					routeState.noProgressDiagnostics = 0;
+					pressKey(axisKey('x', deltaX));
+					return;
+				}
+				const deltaY = target.y - routeState.position.y;
+				if (Math.abs(deltaY) > routeState.settleTolerance) {
+					routeState.axis = 'y';
+					routeState.target = { ...target };
+					routeState.correctionTaps = 0;
+					routeState.noProgressDiagnostics = 0;
+					pressKey(axisKey('y', deltaY));
+					return;
+				}
+				routeState.pointIndex += 1;
+			}
+			routeState.axis = null;
+			routeState.target = null;
+			releaseKey();
+			routeState.status = 'done';
+			cancelKeyLease();
+		};
+		const onMovementDiagnostic = (event: Event) => {
+			if (!routeState || routeState.status !== 'running') return;
+			const diagnostic = (event as CustomEvent<PlayerMovementDiagnostic>).detail;
+			const movementAt = performance.now();
+			routeState.movementCount += 1;
+			routeState.lastMovementAt = movementAt;
+			routeState.lastProgressAt = movementAt;
+			const axis = routeState.axis;
+			const target = routeState.target;
+			if (!axis || !target || !routeState.position) return;
+			routeState.lastDiagnostic = diagnostic;
+			routeState.position = { ...diagnostic.resolvedPosition };
+			const value = diagnostic.resolvedPosition[axis];
+			const previous = diagnostic.previousPosition[axis];
+			const targetValue = target[axis];
+			const direction = targetValue > previous ? 1 : -1;
+			const distance = Math.abs(targetValue - value);
+			const reached =
+				direction > 0
+					? value >= targetValue - routeState.reachTolerance
+					: value <= targetValue + routeState.reachTolerance;
+			if (diagnostic.blocked && previous === value) {
+				if (distance <= routeState.blockedTolerance) {
+					routeState.pointIndex += 1;
+					beginNextAxis();
+				} else {
+					failRoute(
+						`blocked at point ${routeState.pointIndex} axis ${axis} target ${JSON.stringify(target)}`
+					);
+				}
+				return;
+			}
+			if (!reached) {
+				if (previous === value) routeState.noProgressDiagnostics += 1;
+				else routeState.noProgressDiagnostics = 0;
+				if (routeState.noProgressDiagnostics >= 32) {
+					failRoute(
+						`stalled at point ${routeState.pointIndex} axis ${axis} target ${JSON.stringify(target)}`
+					);
+				}
+				return;
+			}
+			routeState.noProgressDiagnostics = 0;
+			if (distance <= routeState.settleTolerance) {
+				releaseKey();
+				if (axis === 'y') routeState.pointIndex += 1;
+				beginNextAxis();
+				return;
+			}
+			if (routeState.correctionTaps >= routeState.maxCorrectionTaps) {
+				failRoute(
+					`correction limit at point ${routeState.pointIndex} axis ${axis} target ${JSON.stringify(target)}`
+				);
+				return;
+			}
+			routeState.correctionTaps += 1;
+			pressKey(axisKey(axis, targetValue - value));
+		};
+		window.addEventListener('gliese:player-movement-diagnostic', onMovementDiagnostic);
+		const routeRunner: NonNullable<GlieseProbeWindow['__glieseRouteRunner']> = {
+			start: (plan) => {
+				if (routeState?.status === 'running') {
+					failRoute(`route ${routeState.token} was still active`);
+				}
+				const points = plan.points.map((point) => ({ x: point.x, y: point.y }));
+				const startedAt = performance.now();
+				routeState = {
+					token: plan.token,
+					status: 'running',
+					pointIndex: 1,
+					axis: null,
+					position: actualPosition(),
+					target: null,
+					lastDiagnostic: null,
+					points,
+					settleTolerance: plan.settleTolerance,
+					reachTolerance: plan.reachTolerance,
+					maxCorrectionTaps: plan.maxCorrectionTaps,
+					blockedTolerance: plan.blockedTolerance ?? plan.settleTolerance,
+					activeKey: null,
+					startedAt,
+					lastProgressAt: startedAt,
+					leaseFrameCount: 0,
+					lastLeaseAt: null,
+					movementCount: 0,
+					lastMovementAt: null,
+					correctionTaps: 0,
+					noProgressDiagnostics: 0
+				};
+				if (points.length < 1) {
+					failRoute('route requires at least one point');
+					return snapshot()!;
+				}
+				if (!routeState.position) {
+					failRoute('missing HUD/diagnostic player position at route start');
+					return snapshot()!;
+				}
+				const first = points[0]!;
+				const startTolerance = plan.startTolerance ?? plan.settleTolerance;
+				if (
+					Math.abs(routeState.position.x - first.x) > startTolerance ||
+					Math.abs(routeState.position.y - first.y) > startTolerance
+				) {
+					failRoute(
+						`route start position ${JSON.stringify(routeState.position)} did not match point 0 ${JSON.stringify(first)}`
+					);
+					return snapshot()!;
+				}
+				beginNextAxis();
+				startKeyLease();
+				return snapshot()!;
+			},
+			get: (token) => (routeState?.token === token ? snapshot() : null),
+			cancel: (token, reason) => {
+				if (routeState?.token !== token) return null;
+				if (routeState.status === 'running') failRoute(reason);
+				return snapshot();
+			}
+		};
+		probeWindow.__glieseRouteRunner = routeRunner;
+		window.addEventListener('pagehide', () => {
+			cancelKeyLease();
+			if (routeState?.status === 'running') {
+				failRoute('page unloaded while route was active');
+			}
 		});
 	});
 }
@@ -190,137 +525,177 @@ function installRuntimeProbes(page: Page) {
 type Point = { x: number; y: number };
 type Axis = 'x' | 'y';
 
+type BrowserRoutePlan = {
+	token: string;
+	points: readonly Point[];
+	settleTolerance: number;
+	startTolerance?: number;
+	reachTolerance: number;
+	maxCorrectionTaps: number;
+	blockedTolerance?: number;
+};
+
+type BrowserRouteResult = {
+	token: string;
+	status: 'running' | 'done' | 'error';
+	pointIndex: number;
+	axis: Axis | null;
+	position: Point | null;
+	target: Point | null;
+	lastDiagnostic: PlayerMovementDiagnostic | null;
+	activeKey?: 'ArrowDown' | 'ArrowLeft' | 'ArrowRight' | 'ArrowUp' | null;
+	startedAt?: number;
+	lastProgressAt?: number;
+	leaseFrameCount?: number;
+	lastLeaseAt?: number | null;
+	movementCount?: number;
+	lastMovementAt?: number | null;
+	visibilityState?: string;
+	hasFocus?: boolean;
+	blurAt?: number;
+	focusAt?: number;
+	error?: string;
+};
+
 const AXIS_SETTLE_TOLERANCE = 12;
-const COAST_TURN_X_CLEARANCE = 4_180;
-const COAST_TURN_SETTLE_TOLERANCE = 4;
+const COAST_SAFE_X_MIN = 4_160;
+const COAST_SAFE_X_MAX = 4_186;
+const COAST_SAFE_X_CENTER = (COAST_SAFE_X_MIN + COAST_SAFE_X_MAX) / 2;
+const COAST_SAFE_X_TOLERANCE = (COAST_SAFE_X_MAX - COAST_SAFE_X_MIN) / 2;
 const COAST_CONTINUATION_SETTLE_TOLERANCE = 24;
 const AXIS_REACH_TOLERANCE = 18;
 const MAX_AXIS_CORRECTION_TAPS = 8;
+const ROUTE_NO_PROGRESS_WATCHDOG_MS = 15_000;
 
 async function latestMovement(page: Page): Promise<PlayerMovementDiagnostic | null> {
 	return page.evaluate(() => (window as GlieseProbeWindow).__glieseLastMovementDiagnostic ?? null);
 }
 
-async function moveAxisTo(
+let routeTokenSequence = 0;
+let previousRouteSettleTolerance = AXIS_SETTLE_TOLERANCE;
+
+function describeBrowserRouteResult(result: BrowserRouteResult | null, token: string): string {
+	if (!result) return `route ${token} returned no browser state`;
+	return [
+		`route ${token} ${result.status}`,
+		`point=${result.pointIndex}`,
+		`axis=${result.axis ?? 'none'}`,
+		`target=${JSON.stringify(result.target)}`,
+		`position=${JSON.stringify(result.position)}`,
+		`diagnostic=${JSON.stringify(result.lastDiagnostic)}`,
+		`telemetry=${JSON.stringify({
+			startedAt: result.startedAt,
+			lastProgressAt: result.lastProgressAt,
+			activeKey: result.activeKey,
+			leaseFrameCount: result.leaseFrameCount,
+			lastLeaseAt: result.lastLeaseAt,
+			movementCount: result.movementCount,
+			lastMovementAt: result.lastMovementAt,
+			visibilityState: result.visibilityState,
+			hasFocus: result.hasFocus,
+			blurAt: result.blurAt,
+			focusAt: result.focusAt
+		})}`,
+		result.error ? `error=${result.error}` : null
+	]
+		.filter((part): part is string => part !== null)
+		.join('; ');
+}
+
+async function runBrowserRoute(
 	page: Page,
-	axis: Axis,
-	current: number,
-	target: number,
-	settleTolerance = AXIS_SETTLE_TOLERANCE
-): Promise<number> {
-	let resolved = current;
-	if (Math.abs(target - resolved) <= settleTolerance) return resolved;
-
-	const direction = target > resolved ? 1 : -1;
-	const key =
-		axis === 'x'
-			? direction > 0
-				? 'ArrowRight'
-				: 'ArrowLeft'
-			: direction > 0
-				? 'ArrowDown'
-				: 'ArrowUp';
-	const timeout = Math.max(3_000, (Math.abs(target - resolved) / 240) * 1_000 + 2_500);
-
-	await page.evaluate(() => {
-		(window as GlieseProbeWindow).__glieseLastMovementDiagnostic = undefined;
-	});
-	await page.keyboard.down(key);
+	points: readonly Point[],
+	settleTolerance: number,
+	blockedTolerance = settleTolerance
+): Promise<BrowserRouteResult> {
+	const token = `route-${Date.now()}-${routeTokenSequence++}`;
+	const started = await page.evaluate(
+		(plan) => (window as GlieseProbeWindow).__glieseRouteRunner?.start(plan) ?? null,
+		{
+			token,
+			points,
+			settleTolerance,
+			startTolerance: Math.max(settleTolerance, previousRouteSettleTolerance),
+			reachTolerance: AXIS_REACH_TOLERANCE,
+			maxCorrectionTaps: MAX_AXIS_CORRECTION_TAPS,
+			blockedTolerance
+		}
+	);
+	if (!started) {
+		throw new Error(`Browser route runner unavailable for ${token}`);
+	}
+	if (started.status === 'error') {
+		throw new Error(describeBrowserRouteResult(started, token));
+	}
 	try {
 		await page.waitForFunction(
-			({
-				axis: requestedAxis,
-				target: requestedTarget,
-				direction: requestedDirection,
-				tolerance: requestedTolerance
-			}) => {
-				const diagnostic = (window as GlieseProbeWindow).__glieseLastMovementDiagnostic;
-				if (!diagnostic) return false;
-				const value = diagnostic.resolvedPosition[requestedAxis];
-				const reached =
-					requestedDirection > 0
-						? value >= requestedTarget - requestedTolerance
-						: value <= requestedTarget + requestedTolerance;
-				const stalled = diagnostic.blocked && diagnostic.previousPosition[requestedAxis] === value;
-				return reached || stalled;
+			({ requestedToken, noProgressWatchdogMs }) => {
+				const state = (window as GlieseProbeWindow).__glieseRouteRunner?.get(requestedToken);
+				if (!state) return false;
+				if (state.status === 'done' || state.status === 'error') return true;
+				const lastProgressAt = state.lastProgressAt ?? state.startedAt ?? performance.now();
+				return performance.now() - lastProgressAt >= noProgressWatchdogMs;
 			},
-			{ axis, target, direction, tolerance: AXIS_REACH_TOLERANCE },
-			{ timeout }
+			{ requestedToken: token, noProgressWatchdogMs: ROUTE_NO_PROGRESS_WATCHDOG_MS },
+			{ timeout: 0 }
 		);
-	} finally {
-		await page.keyboard.up(key);
+	} catch (error) {
+		const timedOutState = await page.evaluate(
+			(requestedToken) =>
+				(window as GlieseProbeWindow).__glieseRouteRunner?.get(requestedToken) ?? null,
+			token
+		);
+		const canceledState = await page.evaluate(
+			(requestedToken) =>
+				(window as GlieseProbeWindow).__glieseRouteRunner?.cancel(
+					requestedToken,
+					'route wait interrupted'
+				) ?? null,
+			token
+		);
+		throw new Error(
+			`${describeBrowserRouteResult(timedOutState, token)}; wait interrupted; cleanup=${describeBrowserRouteResult(canceledState, token)}`,
+			{ cause: error }
+		);
 	}
-	await page.waitForTimeout(80);
-
-	let diagnostic = await latestMovement(page);
-	if (!diagnostic) {
-		throw new Error(`Missing movement diagnostic while moving ${axis} to ${target}`);
-	}
-	resolved = diagnostic.resolvedPosition[axis];
-	if (diagnostic.blocked && diagnostic.previousPosition[axis] === resolved) {
-		if (Math.abs(target - resolved) <= settleTolerance) return resolved;
-		throw new Error(`Movement blocked while moving ${axis}: ${resolved} → ${target}`);
-	}
-
-	for (let tap = 0; tap < MAX_AXIS_CORRECTION_TAPS; tap += 1) {
-		if (Math.abs(target - resolved) <= settleTolerance) return resolved;
-
-		const correctionDirection = target > resolved ? 1 : -1;
-		const correctionKey =
-			axis === 'x'
-				? correctionDirection > 0
-					? 'ArrowRight'
-					: 'ArrowLeft'
-				: correctionDirection > 0
-					? 'ArrowDown'
-					: 'ArrowUp';
-		await page.evaluate(() => {
-			(window as GlieseProbeWindow).__glieseLastMovementDiagnostic = undefined;
-		});
-		await page.keyboard.down(correctionKey);
-		await page.waitForTimeout(16);
-		await page.keyboard.up(correctionKey);
-		await page.waitForTimeout(20);
-
-		diagnostic = await latestMovement(page);
-		if (!diagnostic) {
-			throw new Error(`Missing correction diagnostic while settling ${axis} to ${target}`);
-		}
-		resolved = diagnostic.resolvedPosition[axis];
-		if (diagnostic.blocked && diagnostic.previousPosition[axis] === resolved) {
-			if (Math.abs(target - resolved) <= settleTolerance) return resolved;
-			throw new Error(
-				`Movement blocked while settling ${axis}: ${resolved} → ${target} (tap ${tap + 1})`
-			);
-		}
-	}
-
-	throw new Error(
-		`Could not settle ${axis} at ${target}; resolved ${resolved}; diff=${Math.abs(target - resolved)}; tolerance=${settleTolerance}`
+	const result = await page.evaluate(
+		(requestedToken) =>
+			(window as GlieseProbeWindow).__glieseRouteRunner?.get(requestedToken) ?? null,
+		token
 	);
+	if (result?.status === 'running') {
+		const canceledState = await page.evaluate(
+			(requestedToken) =>
+				(window as GlieseProbeWindow).__glieseRouteRunner?.cancel(
+					requestedToken,
+					'route no-progress watchdog'
+				) ?? null,
+			token
+		);
+		throw new Error(
+			`${describeBrowserRouteResult(result, token)}; no-progress watchdog=${ROUTE_NO_PROGRESS_WATCHDOG_MS}ms; cleanup=${describeBrowserRouteResult(canceledState, token)}`
+		);
+	}
+	if (!result || result.status !== 'done') {
+		throw new Error(describeBrowserRouteResult(result, token));
+	}
+	previousRouteSettleTolerance = settleTolerance;
+	return result;
 }
 
 async function moveRoute(
 	page: Page,
 	points: readonly Point[],
-	settleTolerance = AXIS_SETTLE_TOLERANCE
+	settleTolerance = AXIS_SETTLE_TOLERANCE,
+	blockedTolerance = settleTolerance
 ): Promise<Point> {
-	let current = points[0] ?? { x: 0, y: 0 };
-	for (const target of points.slice(1)) {
-		if (target.x !== current.x) {
-			current = {
-				x: await moveAxisTo(page, 'x', current.x, target.x, settleTolerance),
-				y: current.y
-			};
-		}
-		if (target.y !== current.y) {
-			current = {
-				x: current.x,
-				y: await moveAxisTo(page, 'y', current.y, target.y, settleTolerance)
-			};
-		}
+	const result = await runBrowserRoute(page, points, settleTolerance, blockedTolerance);
+	if (!result.position) {
+		throw new Error(
+			`Browser route returned no final position: ${describeBrowserRouteResult(result, result.token)}`
+		);
 	}
-	return current;
+	return result.position;
 }
 
 async function moveAndResolveBattle(
@@ -420,10 +795,25 @@ test('Meadow Entry starts as the active zero-background graybox and accepts move
 	await expect(page.getByTestId('hud-party-panel')).toBeVisible();
 	await expect(fieldStatus(page)).toBeVisible();
 	await page.locator('canvas').click();
-	await moveRoute(page, [
-		{ x: 704, y: 5_920 },
-		{ x: 640, y: 5_920 }
-	]);
+	await page.keyboard.down('ArrowLeft');
+	try {
+		await page.waitForFunction(
+			() => {
+				const diagnostics = (window as GlieseProbeWindow).__glieseMovementDiagnostics ?? [];
+				return diagnostics.some(
+					(diagnostic) =>
+						diagnostic.mapId === 'meadow-entry' &&
+						diagnostic.previousPosition.x === 704 &&
+						diagnostic.previousPosition.y === 5_920 &&
+						diagnostic.resolvedPosition.x < 704
+				);
+			},
+			undefined,
+			{ timeout: 5_000 }
+		);
+	} finally {
+		await page.keyboard.up('ArrowLeft');
+	}
 
 	const movementDiagnostics = await page.evaluate(
 		() => (window as GlieseProbeWindow).__glieseMovementDiagnostics ?? []
@@ -432,6 +822,116 @@ test('Meadow Entry starts as the active zero-background graybox and accepts move
 	expect(movementDiagnostics[0]?.previousPosition).toEqual({ x: 704, y: 5_920 });
 	expect(movementDiagnostics.at(-1)?.resolvedPosition.x).toBeLessThan(704);
 	expect(movementDiagnostics.at(-1)?.blocked).toBe(false);
+});
+
+test('browser-local route steering acknowledges a plan and continues through Phaser movement', async ({
+	page
+}) => {
+	await installRuntimeProbes(page);
+	// This listener is registered after the runner listener above. It models the
+	// browser losing a held key after the first diagnostic; the lease must restore
+	// the runner's desired direction without another host round-trip.
+	await page.addInitScript(() => {
+		const probeWindow = window as GlieseProbeWindow;
+		probeWindow.__glieseCharacterizationMovementCount = 0;
+		let interrupted = false;
+		window.addEventListener('gliese:player-movement-diagnostic', () => {
+			probeWindow.__glieseCharacterizationMovementCount =
+				(probeWindow.__glieseCharacterizationMovementCount ?? 0) + 1;
+			if (interrupted) return;
+			interrupted = true;
+			const event = new KeyboardEvent('keyup', {
+				bubbles: true,
+				cancelable: true,
+				code: 'ArrowRight',
+				key: 'ArrowRight',
+				location: 0,
+				repeat: false
+			});
+			for (const field of ['keyCode', 'which'] as const) {
+				Object.defineProperty(event, field, { configurable: true, value: 39 });
+			}
+			window.dispatchEvent(event);
+		});
+	});
+	await page.goto('/?movementDiagnostics=on');
+	await expect(page.locator('canvas')).toBeVisible();
+	await page.waitForFunction(() => {
+		const state = (window as GlieseProbeWindow).__glieseLastHudState;
+		return state?.ready === true && state.mapId === 'meadow-entry';
+	});
+
+	const initial = await page.evaluate(() => {
+		const player = (window as GlieseProbeWindow).__glieseLastHudState?.areaMap?.player;
+		return player && typeof player.x === 'number' && typeof player.y === 'number'
+			? { x: player.x, y: player.y }
+			: null;
+	});
+	expect(initial).not.toBeNull();
+	const token = `characterization-${Date.now()}`;
+	const ack = await page.evaluate(
+		({
+			token: requestedToken,
+			initialPoint,
+			settleTolerance,
+			reachTolerance,
+			maxCorrectionTaps
+		}) => {
+			const runner = (window as GlieseProbeWindow).__glieseRouteRunner;
+			return (
+				runner?.start({
+					token: requestedToken,
+					points: [
+						{ x: initialPoint.x, y: initialPoint.y },
+						{ x: initialPoint.x + 64, y: initialPoint.y + 64 }
+					],
+					settleTolerance,
+					reachTolerance,
+					maxCorrectionTaps
+				}) ?? null
+			);
+		},
+		{
+			token,
+			initialPoint: initial!,
+			settleTolerance: AXIS_SETTLE_TOLERANCE,
+			reachTolerance: AXIS_REACH_TOLERANCE,
+			maxCorrectionTaps: MAX_AXIS_CORRECTION_TAPS
+		}
+	);
+	expect(ack?.status).toBe('running');
+
+	try {
+		await page.waitForFunction(
+			(requestedToken) => {
+				const state = (window as GlieseProbeWindow).__glieseRouteRunner?.get(requestedToken);
+				return state?.status === 'done';
+			},
+			token,
+			{ timeout: 4_000 }
+		);
+	} catch (error) {
+		const evidence = await page.evaluate(
+			(requestedToken) => ({
+				state: (window as GlieseProbeWindow).__glieseRouteRunner?.get(requestedToken) ?? null,
+				movementCount: (window as GlieseProbeWindow).__glieseCharacterizationMovementCount ?? 0
+			}),
+			token
+		);
+		throw new Error(`Characterization route did not finish: ${JSON.stringify(evidence)}`, {
+			cause: error
+		});
+	}
+	const result = await page.evaluate(
+		(requestedToken) =>
+			(window as GlieseProbeWindow).__glieseRouteRunner?.get(requestedToken) ?? null,
+		token
+	);
+	expect(result?.status).toBe('done');
+	expect(result?.position?.x).toBeGreaterThan(initial!.x);
+	expect(result?.position?.y).toBeGreaterThan(initial!.y);
+	expect(result?.lastDiagnostic?.mapId).toBe('meadow-entry');
+	expect(result?.lastDiagnostic?.blocked).toBe(false);
 });
 
 test('Meadow Entry supports the continuous outdoor route and persists its proof state', async ({
@@ -534,9 +1034,21 @@ test('Meadow Entry supports the continuous outdoor route and persists its proof 
 		{ x: 5_920, y: 1_664 },
 		{ x: 5_600, y: 1_664 },
 		{ x: 5_600, y: 2_100 },
-		{ x: 5_960, y: 2_100 },
-		{ x: 5_960, y: 1_868 }
+		{ x: 5_960, y: 2_100 }
 	]);
+	// The authored cave transition point sits inside the landmark body. Keep
+	// this final approach isolated and allow only the existing reach tolerance
+	// for its collision edge; all other blocked stalls remain strict settle
+	// failures, and the gated status is asserted immediately afterward.
+	await moveRoute(
+		page,
+		[
+			{ x: 5_960, y: 2_100 },
+			{ x: 5_960, y: 1_868 }
+		],
+		AXIS_SETTLE_TOLERANCE,
+		AXIS_REACH_TOLERANCE
+	);
 	await expect(fieldStatus(page)).toContainText('Report to the Guild Master first');
 
 	// Return to Crossroads, then take the Tidewatch Coast seam and return.
@@ -557,43 +1069,57 @@ test('Meadow Entry supports the continuous outdoor route and persists its proof 
 		{ x: 4_288, y: 4_480 },
 		{ x: 3_776, y: 4_480 }
 	]);
-	const coastOutboundCurrent = await moveRoute(page, CROSSROADS_TO_COAST.slice(0, 4));
-	// Keep the authored x=4,184 waypoint above; settle four pixels farther west so
-	// delayed key-up frames cannot leave the player inside the fence's expanded edge.
-	await moveAxisTo(
+	// A keyboard-only Phaser step is legally anywhere from 0 to 60px, so the
+	// numerical x=4,180 ± 4 fine-tune cannot be guaranteed. The collision-safe
+	// band asserted below is authoritative; carry the actual safe x through each
+	// vertical leg before rejoining the authored route.
+	const coastOutboundPrefix = await moveRoute(page, CROSSROADS_TO_COAST.slice(0, 4));
+	const coastOutboundCurrent = await moveRoute(
 		page,
-		'x',
-		coastOutboundCurrent.x,
-		COAST_TURN_X_CLEARANCE,
-		COAST_TURN_SETTLE_TOLERANCE
+		[coastOutboundPrefix, { x: COAST_SAFE_X_CENTER, y: coastOutboundPrefix.y }],
+		COAST_SAFE_X_TOLERANCE
 	);
 	const coastOutboundTurn = await latestMovement(page);
-	expect(coastOutboundTurn?.resolvedPosition.x).toBeLessThanOrEqual(4_186);
-	expect(coastOutboundTurn?.resolvedPosition.x).toBeGreaterThanOrEqual(4_160);
+	expect(coastOutboundCurrent.x).toBeGreaterThanOrEqual(COAST_SAFE_X_MIN);
+	expect(coastOutboundCurrent.x).toBeLessThanOrEqual(COAST_SAFE_X_MAX);
+	expect(coastOutboundCurrent.y).toBeGreaterThanOrEqual(5_508);
+	expect(coastOutboundCurrent.y).toBeLessThanOrEqual(5_532);
+	expect(coastOutboundTurn?.resolvedPosition.x).toBeLessThanOrEqual(COAST_SAFE_X_MAX);
+	expect(coastOutboundTurn?.resolvedPosition.x).toBeGreaterThanOrEqual(COAST_SAFE_X_MIN);
 	expect(coastOutboundTurn?.resolvedPosition.y).toBeGreaterThanOrEqual(5_508);
 	expect(coastOutboundTurn?.resolvedPosition.y).toBeLessThanOrEqual(5_532);
 	expect(coastOutboundTurn?.blocked).toBe(false);
-	await moveRoute(page, CROSSROADS_TO_COAST.slice(3));
-	const coastReverseCurrent = await moveRoute(page, [...CROSSROADS_TO_COAST].reverse().slice(0, 2));
-	await moveAxisTo(
+	await moveRoute(page, [
+		coastOutboundCurrent,
+		{ x: coastOutboundCurrent.x, y: CROSSROADS_TO_COAST[4].y },
+		...CROSSROADS_TO_COAST.slice(5)
+	]);
+	const coastReversePath = [...CROSSROADS_TO_COAST].reverse();
+	const coastReversePrefix = await moveRoute(page, coastReversePath.slice(0, 2));
+	const coastReverseCurrent = await moveRoute(
 		page,
-		'x',
-		coastReverseCurrent.x,
-		COAST_TURN_X_CLEARANCE,
-		COAST_TURN_SETTLE_TOLERANCE
+		[coastReversePrefix, { x: COAST_SAFE_X_CENTER, y: coastReversePrefix.y }],
+		COAST_SAFE_X_TOLERANCE
 	);
 	const coastReverseTurn = await latestMovement(page);
-	expect(coastReverseTurn?.resolvedPosition.x).toBeLessThanOrEqual(4_186);
-	expect(coastReverseTurn?.resolvedPosition.x).toBeGreaterThanOrEqual(4_160);
+	expect(coastReverseCurrent.x).toBeGreaterThanOrEqual(COAST_SAFE_X_MIN);
+	expect(coastReverseCurrent.x).toBeLessThanOrEqual(COAST_SAFE_X_MAX);
+	expect(coastReverseCurrent.y).toBeGreaterThanOrEqual(5_828);
+	expect(coastReverseCurrent.y).toBeLessThanOrEqual(5_852);
+	expect(coastReverseTurn?.resolvedPosition.x).toBeLessThanOrEqual(COAST_SAFE_X_MAX);
+	expect(coastReverseTurn?.resolvedPosition.x).toBeGreaterThanOrEqual(COAST_SAFE_X_MIN);
 	expect(coastReverseTurn?.resolvedPosition.y).toBeGreaterThanOrEqual(5_828);
 	expect(coastReverseTurn?.resolvedPosition.y).toBeLessThanOrEqual(5_852);
 	expect(coastReverseTurn?.blocked).toBe(false);
-	// The continuation starts above the east-fence crossbar. A delayed key-up can
-	// leave the x=4,224 authored point about 24px short; the following y leg proves
-	// that this safe-side settling is clear before the route returns to Crossroads.
+	// The continuation starts above the east-fence crossbar. Preserve the safe x
+	// while moving north, then rejoin the authored x=4,224 crossbar point.
 	await moveRoute(
 		page,
-		[...CROSSROADS_TO_COAST].reverse().slice(1),
+		[
+			coastReverseCurrent,
+			{ x: coastReverseCurrent.x, y: coastReversePath[2].y },
+			...coastReversePath.slice(3)
+		],
 		COAST_CONTINUATION_SETTLE_TOLERANCE
 	);
 
