@@ -15,8 +15,8 @@ import {
 } from '$lib/game/phaser/player-movement-diagnostics';
 import { HUD_COMMAND_EVENT, type HudCommand } from '$lib/game/ui-bridge/events';
 
-const guildMasterApproach = { x: 208, y: 176 };
-const quartermasterApproach = { x: 560, y: 176 };
+const guildMasterApproach = { x: 800, y: 184 };
+const quartermasterApproach = { x: 816, y: 568 };
 
 const localeState = vi.hoisted(() => ({
 	activeLocale: 'en' as 'en' | 'ja' | 'zh-Hant'
@@ -4460,13 +4460,13 @@ describe('WorldScene', () => {
 		const scene = new WorldScene();
 
 		scene.create({ mapId: 'guild-hall' });
-		Object.assign(phaserState.playerMarker, { x: 592, y: 217 });
+		Object.assign(phaserState.playerMarker, { x: 816, y: 569 });
 		phaserState.cursorKeys.up.isDown = true;
 
 		scene.update(0, 250);
 
-		expect(phaserState.playerMarker.x).toBe(592);
-		expect(phaserState.playerMarker.y).toBe(217);
+		expect(phaserState.playerMarker.x).toBe(816);
+		expect(phaserState.playerMarker.y).toBe(569);
 	});
 
 	it('slides along an NPC when only one movement axis is blocked', async () => {
@@ -4474,14 +4474,14 @@ describe('WorldScene', () => {
 		const scene = new WorldScene();
 
 		scene.create({ mapId: 'guild-hall' });
-		Object.assign(phaserState.playerMarker, { x: 556, y: 212 });
+		Object.assign(phaserState.playerMarker, { x: 776, y: 184 });
 		phaserState.cursorKeys.right.isDown = true;
 		phaserState.cursorKeys.up.isDown = true;
 
 		scene.update(0, 250);
 
-		expect(phaserState.playerMarker.x).toBeGreaterThan(556);
-		expect(phaserState.playerMarker.y).toBe(212);
+		expect(phaserState.playerMarker.x).toBeGreaterThan(776);
+		expect(phaserState.playerMarker.y).toBe(184);
 	});
 
 	it('allows player movement away from an existing NPC collision overlap', async () => {
@@ -4489,13 +4489,13 @@ describe('WorldScene', () => {
 		const scene = new WorldScene();
 
 		scene.create({ mapId: 'guild-hall' });
-		Object.assign(phaserState.playerMarker, { x: 592, y: 182 });
+		Object.assign(phaserState.playerMarker, { x: 816, y: 550 });
 		phaserState.cursorKeys.down.isDown = true;
 
 		scene.update(0, 50);
 
-		expect(phaserState.playerMarker.x).toBe(592);
-		expect(phaserState.playerMarker.y).toBeGreaterThan(182);
+		expect(phaserState.playerMarker.x).toBe(816);
+		expect(phaserState.playerMarker.y).toBeGreaterThan(550);
 	});
 
 	it('blocks fast movement from tunneling through an NPC collision body', async () => {
@@ -4503,13 +4503,13 @@ describe('WorldScene', () => {
 		const scene = new WorldScene();
 
 		scene.create({ mapId: 'guild-hall' });
-		Object.assign(phaserState.playerMarker, { x: 592, y: 206 });
+		Object.assign(phaserState.playerMarker, { x: 816, y: 550 });
 		phaserState.cursorKeys.up.isDown = true;
 
 		scene.update(0, 250);
 
-		expect(phaserState.playerMarker.x).toBe(592);
-		expect(phaserState.playerMarker.y).toBe(206);
+		expect(phaserState.playerMarker.x).toBe(816);
+		expect(phaserState.playerMarker.y).toBe(550);
 	});
 
 	it('blocks player movement through village building bodies', async () => {
@@ -5222,19 +5222,19 @@ describe('WorldScene', () => {
 
 		expect(scene.add.image).not.toHaveBeenCalledWith(256, 144, 'starter-pack', 'titleBadge');
 		expect(scene.add.image).not.toHaveBeenCalledWith(256, 144, 'npc-pack', 'miraItemShopNpc');
-		expect(scene.add.image).toHaveBeenCalledWith(176, 176, 'npc-pack', 'guildMasterNpc');
-		expect(scene.add.image).toHaveBeenCalledWith(592, 176, 'npc-pack', 'quartermasterNpc');
+		expect(scene.add.image).toHaveBeenCalledWith(800, 144, 'npc-pack', 'guildMasterNpc');
+		expect(scene.add.image).toHaveBeenCalledWith(816, 528, 'npc-pack', 'quartermasterNpc');
 		const npcMarkers = phaserState.imageMarkers.filter(
 			(marker) => marker.x === 256 && marker.y === 144 && marker.frame === 'miraItemShopNpc'
 		);
 		expect(npcMarkers).toHaveLength(0);
 		const guildMasterMarkers = phaserState.imageMarkers.filter(
-			(marker) => marker.x === 176 && marker.y === 176 && marker.frame === 'guildMasterNpc'
+			(marker) => marker.x === 800 && marker.y === 144 && marker.frame === 'guildMasterNpc'
 		);
 		expect(guildMasterMarkers).toHaveLength(1);
 		expect(guildMasterMarkers[0]!.setDisplaySize).toHaveBeenCalledWith(96, 87);
 		const quartermasterMarkers = phaserState.imageMarkers.filter(
-			(marker) => marker.x === 592 && marker.y === 176 && marker.frame === 'quartermasterNpc'
+			(marker) => marker.x === 816 && marker.y === 528 && marker.frame === 'quartermasterNpc'
 		);
 		expect(quartermasterMarkers).toHaveLength(1);
 		expect(quartermasterMarkers[0]!.setDisplaySize).toHaveBeenCalledWith(96, 87);

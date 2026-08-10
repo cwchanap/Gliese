@@ -237,7 +237,9 @@ describe('save state', () => {
 	}
 
 	it('normalizes loaded guild hall positions out of interior prop collision', () => {
-		const collision = guildHallMap.interiorProps?.find((prop) => prop.collision)?.collision;
+		const collision = guildHallMap.interiorProps?.find(
+			(prop) => prop.id === 'guild-hall-master-desk'
+		)?.collision;
 		expect(collision).toBeDefined();
 
 		const save = createNewSaveState();
