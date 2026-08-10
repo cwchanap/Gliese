@@ -92,7 +92,7 @@ Repository `MapRect` values are centre-based. A design rectangle converts as:
 
 The implementation may use one tiny conversion helper so authors keep writing top-left architectural rectangles. It must not infer rooms, walls, doors, or routes.
 
-## 1.3 Circulation widths
+## 1.3 Circulation and interaction widths
 
 | Structure | Minimum clear width |
 |---|---:|
@@ -103,6 +103,8 @@ The implementation may use one tiny conversion helper so authors keep writing to
 | Other interior corridor | 96 px |
 | Interior doorway | 64 px |
 | NPC interaction approach | 64×64 px clear square |
+
+For current NPC-pack actors, a named player approach point must be at least 29 px from the NPC centre to clear body collision and no more than 48 px away to remain interactable. This design uses 40 px separation for all changed interactive NPCs.
 
 A decorative sprite may visually overhang a route only when its collision and opaque body do not reduce the required clear width.
 
@@ -462,9 +464,9 @@ SOUTH
 | Spawn / inbound arrival | `(512, 736)`, facing up |
 | Outbound transition | `(512, 816)` |
 | Guild Master | `(800, 144)` |
-| Guild Master approach | `(800, 208)` |
+| Guild Master approach | `(800, 184)` |
 | Quartermaster | `(816, 528)` |
-| Quartermaster approach | `(816, 592)` |
+| Quartermaster approach | `(816, 568)` |
 | West ambient member | `(160, 544)` |
 | East ambient member | `(704, 368)` |
 
@@ -475,12 +477,12 @@ SOUTH
 | Records shelves | `[80, 80, 112, 176]` |
 | Quest board / records desk | `[224, 80, 160, 96]` |
 | Common table and seating | `[128, 416, 224, 128]` |
-| Guild Master desk | `[704, 80, 192, 96]` |
+| Guild Master station | `[704, 80, 192, 112]` |
 | Training equipment | `[704, 320, 192, 96]` |
-| Quartermaster counter | `[672, 512, 224, 96]` |
+| Quartermaster station | `[672, 504, 224, 80]` |
 | Lobby notice / benches | `[384, 704, 256, 64]` |
 
-Furniture remains inside these zones and outside the named approach points and doors.
+Furniture remains inside these zones and outside the named approach points, door openings, and required routes. Counter and desk collision must be narrower than their visual sprites when necessary to preserve the 40 px interaction approach.
 
 ---
 
@@ -573,16 +575,17 @@ Furniture remains inside these zones and outside the named approach points and d
 |---|---:|
 | Spawn | `(416, 544)`, facing up |
 | Exit | `(416, 624)` |
-| Shopkeeper Mira | `(416, 288)` |
-| Customer approach | `(416, 416)` |
-| Counter zone | `[224, 320, 384, 64]` |
-| West display zone | `[96, 352, 96, 160]` |
-| East display zone | `[640, 352, 96, 160]` |
+| Shopkeeper Mira | `(416, 320)` |
+| Customer approach | `(416, 360)` |
+| Counter visual zone | `[224, 312, 384, 48]` |
+| Counter collision strip | `[224, 336, 384, 8]` |
+| West display zone | `[96, 384, 96, 128]` |
+| East display zone | `[640, 384, 96, 128]` |
 | Stock shelves | `[96, 96, 192, 96]` |
 | Office desk | `[560, 96, 160, 96]` |
 | Ambient customer | `(224, 480)` |
 
-The counter leaves at least 160 px of circulation on both sides.
+The counter’s thin collision strip visually separates Mira and the customer while leaving the named approach outside player-radius-expanded collision and within the 48 px interaction limit.
 
 ---
 
@@ -667,7 +670,7 @@ Theme: family home.
 | Spawn | `(320, 480)`, facing up |
 | Exit | `(320, 560)` |
 | Villager Lynn | `(160, 416)` |
-| Lynn approach | `(224, 416)` |
+| Lynn approach | `(200, 416)` |
 | Family ambient NPC | `(480, 416)` |
 | Bed zone | `[80, 96, 144, 96]` |
 | Family table zone | `[224, 352, 192, 96]` |
@@ -705,7 +708,7 @@ Theme: craft worker’s home.
 | Spawn | `(352, 480)`, facing up |
 | Exit | `(352, 560)` |
 | Villager Toma | `(192, 192)` |
-| Toma approach | `(256, 192)` |
+| Toma approach | `(232, 192)` |
 | Neighbor ambient NPC | `(512, 416)` |
 | Work table zone | `[96, 112, 160, 96]` |
 | Workshop storage | `[96, 224, 192, 48]` |
@@ -743,7 +746,7 @@ Theme: reader and amateur archivist.
 | Spawn | `(320, 544)`, facing up |
 | Exit | `(320, 624)` |
 | Villager Io | `(160, 192)` |
-| Io approach | `(224, 192)` |
+| Io approach | `(200, 192)` |
 | Neighbor ambient NPC | `(480, 480)` |
 | Archive shelves | `[80, 96, 144, 192]` |
 | Reading table | `[96, 384, 160, 96]` |
