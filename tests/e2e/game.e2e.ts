@@ -8,6 +8,7 @@ type HudStateSnapshot = {
 	nearbyShop?: { shopId?: string; merchantName?: string } | null;
 	inventory?: {
 		consumables?: Array<{ itemId?: string; quantity?: number }>;
+		keyItems?: Array<{ itemId?: string; quantity?: number }>;
 	};
 };
 
@@ -97,8 +98,10 @@ const SAVE_VERSION = 8;
 const SAVE_STORAGE_KEY = 'gliese.save.v8';
 
 // addInitScript serializes its callback to the browser and accepts only one
-// arg, so the save JSON and the storage key are bundled into a single object.
+// arg, so the save JSON and storage key are bundled into a single object.
 type SaveInitPayload = { encoded: string; key: string };
+type SaveSeedInitPayload = SaveInitPayload & { marker: string };
+const SAVE_SEED_MARKER = '__gliese_e2e_save_seeded_v1';
 
 function createSaveFixture(overrides: SaveFixtureOverrides = {}) {
 	return {
@@ -148,10 +151,16 @@ function createSaveFixture(overrides: SaveFixtureOverrides = {}) {
 
 function injectSave(page: Page, save: ReturnType<typeof createSaveFixture>) {
 	return page.addInitScript(
-		(payload: SaveInitPayload) => {
+		(payload: SaveSeedInitPayload) => {
+			// The fixture is intentionally seeded once per page session. A reload
+			// must exercise the save written by the game; checking localStorage
+			// alone would allow an app-side removal to silently re-seed the stale
+			// fixture and mask persistence regressions.
+			if (window.sessionStorage.getItem(payload.marker) === '1') return;
 			window.localStorage.setItem(payload.key, payload.encoded);
+			window.sessionStorage.setItem(payload.marker, '1');
 		},
-		{ encoded: JSON.stringify(save), key: SAVE_STORAGE_KEY }
+		{ encoded: JSON.stringify(save), key: SAVE_STORAGE_KEY, marker: SAVE_SEED_MARKER }
 	);
 }
 
@@ -181,6 +190,13 @@ function installRuntimeProbes(page: Page) {
 type Point = { x: number; y: number };
 type Axis = 'x' | 'y';
 
+const AXIS_SETTLE_TOLERANCE = 12;
+const COAST_TURN_X_CLEARANCE = 4_180;
+const COAST_TURN_SETTLE_TOLERANCE = 4;
+const COAST_CONTINUATION_SETTLE_TOLERANCE = 24;
+const AXIS_REACH_TOLERANCE = 18;
+const MAX_AXIS_CORRECTION_TAPS = 8;
+
 async function latestMovement(page: Page): Promise<PlayerMovementDiagnostic | null> {
 	return page.evaluate(() => (window as GlieseProbeWindow).__glieseLastMovementDiagnostic ?? null);
 }
@@ -189,11 +205,13 @@ async function moveAxisTo(
 	page: Page,
 	axis: Axis,
 	current: number,
-	target: number
+	target: number,
+	settleTolerance = AXIS_SETTLE_TOLERANCE
 ): Promise<number> {
-	if (Math.abs(target - current) <= 24) return current;
+	let resolved = current;
+	if (Math.abs(target - resolved) <= settleTolerance) return resolved;
 
-	const direction = target > current ? 1 : -1;
+	const direction = target > resolved ? 1 : -1;
 	const key =
 		axis === 'x'
 			? direction > 0
@@ -202,43 +220,103 @@ async function moveAxisTo(
 			: direction > 0
 				? 'ArrowDown'
 				: 'ArrowUp';
-	const timeout = Math.max(3_000, (Math.abs(target - current) / 240) * 1_000 + 2_500);
+	const timeout = Math.max(3_000, (Math.abs(target - resolved) / 240) * 1_000 + 2_500);
 
+	await page.evaluate(() => {
+		(window as GlieseProbeWindow).__glieseLastMovementDiagnostic = undefined;
+	});
 	await page.keyboard.down(key);
 	try {
 		await page.waitForFunction(
-			({ axis: requestedAxis, target: requestedTarget, direction: requestedDirection }) => {
+			({
+				axis: requestedAxis,
+				target: requestedTarget,
+				direction: requestedDirection,
+				tolerance: requestedTolerance
+			}) => {
 				const diagnostic = (window as GlieseProbeWindow).__glieseLastMovementDiagnostic;
 				if (!diagnostic) return false;
 				const value = diagnostic.resolvedPosition[requestedAxis];
-				return requestedDirection > 0
-					? value >= requestedTarget - 18
-					: value <= requestedTarget + 18;
+				const reached =
+					requestedDirection > 0
+						? value >= requestedTarget - requestedTolerance
+						: value <= requestedTarget + requestedTolerance;
+				const stalled = diagnostic.blocked && diagnostic.previousPosition[requestedAxis] === value;
+				return reached || stalled;
 			},
-			{ axis, target, direction },
+			{ axis, target, direction, tolerance: AXIS_REACH_TOLERANCE },
 			{ timeout }
 		);
 	} finally {
 		await page.keyboard.up(key);
 	}
 	await page.waitForTimeout(80);
-	const diagnostic = await latestMovement(page);
-	return diagnostic?.resolvedPosition[axis] ?? target;
+
+	let diagnostic = await latestMovement(page);
+	if (!diagnostic) {
+		throw new Error(`Missing movement diagnostic while moving ${axis} to ${target}`);
+	}
+	resolved = diagnostic.resolvedPosition[axis];
+	if (diagnostic.blocked && diagnostic.previousPosition[axis] === resolved) {
+		if (Math.abs(target - resolved) <= settleTolerance) return resolved;
+		throw new Error(`Movement blocked while moving ${axis}: ${resolved} → ${target}`);
+	}
+
+	for (let tap = 0; tap < MAX_AXIS_CORRECTION_TAPS; tap += 1) {
+		if (Math.abs(target - resolved) <= settleTolerance) return resolved;
+
+		const correctionDirection = target > resolved ? 1 : -1;
+		const correctionKey =
+			axis === 'x'
+				? correctionDirection > 0
+					? 'ArrowRight'
+					: 'ArrowLeft'
+				: correctionDirection > 0
+					? 'ArrowDown'
+					: 'ArrowUp';
+		await page.evaluate(() => {
+			(window as GlieseProbeWindow).__glieseLastMovementDiagnostic = undefined;
+		});
+		await page.keyboard.down(correctionKey);
+		await page.waitForTimeout(16);
+		await page.keyboard.up(correctionKey);
+		await page.waitForTimeout(20);
+
+		diagnostic = await latestMovement(page);
+		if (!diagnostic) {
+			throw new Error(`Missing correction diagnostic while settling ${axis} to ${target}`);
+		}
+		resolved = diagnostic.resolvedPosition[axis];
+		if (diagnostic.blocked && diagnostic.previousPosition[axis] === resolved) {
+			if (Math.abs(target - resolved) <= settleTolerance) return resolved;
+			throw new Error(
+				`Movement blocked while settling ${axis}: ${resolved} → ${target} (tap ${tap + 1})`
+			);
+		}
+	}
+
+	throw new Error(
+		`Could not settle ${axis} at ${target}; resolved ${resolved}; diff=${Math.abs(target - resolved)}; tolerance=${settleTolerance}`
+	);
 }
 
-async function moveRoute(page: Page, points: readonly Point[]): Promise<Point> {
+async function moveRoute(
+	page: Page,
+	points: readonly Point[],
+	settleTolerance = AXIS_SETTLE_TOLERANCE
+): Promise<Point> {
 	let current = points[0] ?? { x: 0, y: 0 };
 	for (const target of points.slice(1)) {
 		if (target.x !== current.x) {
 			current = {
-				x: await moveAxisTo(page, 'x', current.x, target.x),
+				x: await moveAxisTo(page, 'x', current.x, target.x, settleTolerance),
 				y: current.y
 			};
 		}
 		if (target.y !== current.y) {
 			current = {
 				x: current.x,
-				y: await moveAxisTo(page, 'y', current.y, target.y)
+				y: await moveAxisTo(page, 'y', current.y, target.y, settleTolerance)
 			};
 		}
 	}
@@ -479,8 +557,45 @@ test('Meadow Entry supports the continuous outdoor route and persists its proof 
 		{ x: 4_288, y: 4_480 },
 		{ x: 3_776, y: 4_480 }
 	]);
-	await moveRoute(page, CROSSROADS_TO_COAST);
-	await moveRoute(page, [...CROSSROADS_TO_COAST].reverse());
+	const coastOutboundCurrent = await moveRoute(page, CROSSROADS_TO_COAST.slice(0, 4));
+	// Keep the authored x=4,184 waypoint above; settle four pixels farther west so
+	// delayed key-up frames cannot leave the player inside the fence's expanded edge.
+	await moveAxisTo(
+		page,
+		'x',
+		coastOutboundCurrent.x,
+		COAST_TURN_X_CLEARANCE,
+		COAST_TURN_SETTLE_TOLERANCE
+	);
+	const coastOutboundTurn = await latestMovement(page);
+	expect(coastOutboundTurn?.resolvedPosition.x).toBeLessThanOrEqual(4_186);
+	expect(coastOutboundTurn?.resolvedPosition.x).toBeGreaterThanOrEqual(4_160);
+	expect(coastOutboundTurn?.resolvedPosition.y).toBeGreaterThanOrEqual(5_508);
+	expect(coastOutboundTurn?.resolvedPosition.y).toBeLessThanOrEqual(5_532);
+	expect(coastOutboundTurn?.blocked).toBe(false);
+	await moveRoute(page, CROSSROADS_TO_COAST.slice(3));
+	const coastReverseCurrent = await moveRoute(page, [...CROSSROADS_TO_COAST].reverse().slice(0, 2));
+	await moveAxisTo(
+		page,
+		'x',
+		coastReverseCurrent.x,
+		COAST_TURN_X_CLEARANCE,
+		COAST_TURN_SETTLE_TOLERANCE
+	);
+	const coastReverseTurn = await latestMovement(page);
+	expect(coastReverseTurn?.resolvedPosition.x).toBeLessThanOrEqual(4_186);
+	expect(coastReverseTurn?.resolvedPosition.x).toBeGreaterThanOrEqual(4_160);
+	expect(coastReverseTurn?.resolvedPosition.y).toBeGreaterThanOrEqual(5_828);
+	expect(coastReverseTurn?.resolvedPosition.y).toBeLessThanOrEqual(5_852);
+	expect(coastReverseTurn?.blocked).toBe(false);
+	// The continuation starts above the east-fence crossbar. A delayed key-up can
+	// leave the x=4,224 authored point about 24px short; the following y leg proves
+	// that this safe-side settling is clear before the route returns to Crossroads.
+	await moveRoute(
+		page,
+		[...CROSSROADS_TO_COAST].reverse().slice(1),
+		COAST_CONTINUATION_SETTLE_TOLERANCE
+	);
 
 	// Crossroads → Sundrop Village, ending on the authored village main street.
 	await moveRoute(page, [
@@ -499,6 +614,10 @@ test('Meadow Entry supports the continuous outdoor route and persists its proof 
 		SAVE_STORAGE_KEY
 	);
 	expect(persisted.mapId).toBe('meadow-entry');
+	expect(persisted.player.x).toBeGreaterThanOrEqual(1_140);
+	expect(persisted.player.x).toBeLessThanOrEqual(1_164);
+	expect(persisted.player.y).toBeGreaterThanOrEqual(4_788);
+	expect(persisted.player.y).toBeLessThanOrEqual(4_812);
 	expect(persisted.flags.collectedPickups).toEqual(
 		expect.arrayContaining(['village-market-cache', 'crossroads-cache'])
 	);
@@ -507,13 +626,56 @@ test('Meadow Entry supports the continuous outdoor route and persists its proof 
 
 	await page.reload();
 	await expect(page.locator('canvas')).toBeVisible();
-	await page.getByRole('button', { name: 'Menu' }).click();
-	await commandBox(page).getByRole('button', { name: 'Resume Save' }).click();
 	await page.waitForFunction(() => {
 		const state = (window as GlieseProbeWindow).__glieseLastHudState;
 		return state?.ready === true && state.mapId === 'meadow-entry';
 	});
+	await page.getByRole('button', { name: 'Menu' }).click();
+	await commandBox(page).getByRole('button', { name: 'Resume Save' }).click();
+	try {
+		await page.waitForFunction(
+			({ x, y, tolerance }) => {
+				const state = (window as GlieseProbeWindow).__glieseLastHudState;
+				const player = state?.areaMap?.player;
+				return (
+					state?.ready === true &&
+					state.mapId === 'meadow-entry' &&
+					typeof player?.x === 'number' &&
+					typeof player?.y === 'number' &&
+					Math.abs(player.x - x) <= tolerance &&
+					Math.abs(player.y - y) <= tolerance
+				);
+			},
+			{ x: persisted.player.x, y: persisted.player.y, tolerance: AXIS_SETTLE_TOLERANCE },
+			{ timeout: 30_000 }
+		);
+	} catch (error) {
+		const resumedState = await page.evaluate(
+			() => (window as GlieseProbeWindow).__glieseLastHudState ?? null
+		);
+		throw new Error(
+			`Resumed HUD did not restore saved player position: ${JSON.stringify({
+				persisted: persisted.player,
+				resumed: resumedState?.areaMap?.player,
+				mapId: resumedState?.mapId,
+				ready: resumedState?.ready
+			})}; ${error instanceof Error ? error.message : String(error)}`,
+			{ cause: error }
+		);
+	}
 	await expect(fieldStatus(page)).toContainText('Save resumed');
+	const resumedHud = await page.evaluate(
+		() => (window as GlieseProbeWindow).__glieseLastHudState ?? null
+	);
+	expect(resumedHud?.areaMap?.player?.x).toBeCloseTo(persisted.player.x, 0);
+	expect(resumedHud?.areaMap?.player?.y).toBeCloseTo(persisted.player.y, 0);
+	const resumedConsumables = resumedHud?.inventory?.consumables ?? [];
+	expect(
+		resumedConsumables.find((item) => item.itemId === 'field-potion')?.quantity
+	).toBeGreaterThanOrEqual(2);
+	expect(
+		resumedConsumables.find((item) => item.itemId === 'sunleaf-salve')?.quantity
+	).toBeGreaterThanOrEqual(1);
 });
 
 test('entry map boots with no game console errors', async ({ page }) => {
