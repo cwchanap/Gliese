@@ -4,7 +4,7 @@
 
 **Goal:** Replace the current object-first Meadow Entry and village interiors with an approved coordinate-first outdoor and interior graybox while preserving all existing gameplay identities and behavior.
 
-**Architecture:** Keep Meadow Entry as the existing composition of `RegionFragment` sources, keep Sundrop’s terrain/path/decor grid in the existing layered source, and keep village interiors as direct `WorldMapDefinition` values. Add two small coordinate modules plus a top-left-to-centre conversion helper. `village-layered.ts` remains the tile-layer owner; `village.ts` composes landmarks, transitions, pickups, and ambient NPCs directly from the approved pixel coordinates so the design is not forced onto the layered compiler’s tile-centre object constraint. Deliver Tasks 1–4 as the outdoor graybox PR, merge it, then deliver Tasks 5–9 as the interior graybox PR. Do not generate final art in either PR.
+**Architecture:** Keep Meadow Entry as the existing composition of `RegionFragment` sources, keep Sundrop terrain/path/decor grids in the existing layered source, and keep village interiors as direct `WorldMapDefinition` values. Add two small coordinate modules plus a top-left-to-centre conversion helper. `village-layered.ts` remains the tile-layer owner; `village.ts` composes pixel-positioned landmarks, transitions, pickups, and ambient NPCs from approved coordinates so the design is not forced through the layered compiler's tile-centre object contract. Deliver Tasks 1–4 as the outdoor graybox PR, merge it, then deliver Tasks 5–9 as the interior graybox PR. Final art is outside both PRs.
 
 **Tech Stack:** TypeScript, Svelte 5 + Vite, Phaser, Vitest, Playwright, Tauri.
 
@@ -14,16 +14,29 @@
 - Expand Sundrop Village to exactly `80 × 68` tiles at origin `{ x: 256, y: 3968 }`.
 - Preserve current map IDs, NPC IDs, dialogue IDs, shop IDs, transition IDs, encounter IDs, pickup IDs, discovery IDs, quest behavior, and save schema.
 - Treat HPA-400 as the functional baseline; do not reopen or revert its collision constants or save-position normalization.
-- Use top-left `[x, y, width, height]` for design constants and convert to the repository’s centre-based `MapRect` only at the map-owner boundary.
-- Structural rectangles align to the 32 px grid. Prop visuals and narrow collision strips may use 8 px increments after structural geometry is accepted.
+- Use top-left `[x, y, width, height]` for design constants and convert to the repository's centre-based `MapRect` only at the map-owner boundary.
+- Structural rectangles align to the 32 px grid. Prop visuals and narrow prop collision strips may use 8 px increments after structural geometry is accepted.
 - Use the current `WorldMapDefinition`, `RegionFragment`, `LayeredRegionSource`, `groundPatches`, `blockers`, `interiorProps`, and transition contracts.
 - Do not extend `LayeredRegionSource` or `compileLayeredRegion(...)` merely to represent pixel-positioned village objects.
 - Do not add `LayeredInteriorSource`, a room compiler, a procedural map generator, an editor integration, or a compatibility layer.
 - Do not add final Meadow Entry PNGs or final interior art.
-- Keep HPA-406/HPA-496 files in the repository, but remove their images and fallback ownership from the active Meadow Entry graybox composition.
-- The future base-art contract remains four `3200 × 3200` chunks covering the exact world; HPA-586 validates the coordinate contract but does not create the PNGs.
-- Interactive NPC approaches must be at least `29` px and at most `48` px from NPC centre; all new approaches use `40` px.
+- Keep HPA-406/HPA-496 assets and generated files in repository history, but remove their images and fallback ownership from the active Meadow Entry graybox composition.
+- The future base-art contract remains four `3200 × 3200` chunks covering the exact world; HPA-586 validates the coordinate contract but does not create those PNGs.
+- Interactive NPC approaches use shared runtime radii; do not restate `29` and `48` as unexplained literals in tests.
 - Do not create final-art follow-up tickets until both graybox PRs are manually accepted.
+
+## Review Corrections Incorporated
+
+The outdoor PR is larger than the map-coordinate edits alone because V1 backgrounds are wired into active composition tests, renderer tests, E2E failure-injection proofs, village retouch controls, preview tooling, and old district-graph tests. The implementation must migrate that surface intentionally rather than discover it after the map rewrite.
+
+The approved decisions are:
+
+1. **V2 `regions` is neutral during graybox.** Keep all cells `.`. Do not introduce the proposed `A/B/G/M/P/K/H/C/S` lot glyph set. Lots and functional regions live in `layouts/meadow-entry-v2.ts`; the old `H/P/M/N/G/S/E/C` district contract belongs to the superseded V1 art workflow.
+2. **V1 active-map proofs are retired, not adapted to V2.** Keep static generated V1 projection tests and generic renderer/background-ownership fixtures. Remove tests and package commands whose only purpose is to prove the obsolete 56×48 live village or its active background package.
+3. **Pure layout tests own pure geometry failures.** Approach-to-road connectivity, lane continuity, footprint clearance, route-rectangle continuity, and door/return trigger clearance fail before an 80×68 grid is authored.
+4. **Authoring guidance changes in the outdoor PR.** The ownership split and structure-before-art rule must be canonical before the interior PR begins.
+5. **Graybox emptiness is allowed.** Outside named roads and retained destination fragments, open live floor is expected. Review rejects blocked routes, active blurred V1 bases, compressed building placement, broken doors/returns, and unreadable seams; it does not judge final biome richness.
+6. **No room compiler.** Explicit wall arrays remain intentionally repetitive and reviewable for seven maps.
 
 ## Delivery Branches
 
@@ -34,7 +47,7 @@ Tasks 1–4: agent/hpa-586-outdoor-graybox
 Tasks 5–9: agent/hpa-586-interior-graybox
 ```
 
-Create the interior branch from `main` only after the outdoor PR is merged, because it consumes the shared exterior-door constants introduced by Task 1.
+Create the interior branch from `main` only after the outdoor PR is merged, because it consumes the shared exterior-door constants and revised village ownership introduced by Tasks 1–4.
 
 ---
 
@@ -51,43 +64,65 @@ src/lib/game/content/maps/layouts/layouts.test.ts
 
 Responsibilities:
 
-- `geometry.ts`: immutable point/rectangle types and explicit top-left-to-centre conversion only.
-- `meadow-entry-v2.ts`: world bounds, base chunks, region envelopes, route rectangles, village bounds, lots, footprints, doors, return arrivals, and public-space rectangles.
+- `geometry.ts`: immutable point/rectangle types, explicit top-left-to-centre conversion, rectangle touch/overlap, containment, and minimum-clearance calculations only.
+- `meadow-entry-v2.ts`: world bounds, base chunks, region envelopes, route rectangles, village bounds, public spaces, lots, footprints, doors, return arrivals, and building-to-road ownership.
 - `village-interiors-v2.ts`: exact bounds, rooms, corridors, doors, wall rectangles, spawns, exits, NPC approaches, and prop zones for seven direct interiors.
-- `layouts.test.ts`: pure coordinate invariants independent of Phaser.
+- `layouts.test.ts`: pure coordinate invariants independent of Phaser and map compilation.
 
-### Existing files changed by outdoor PR
+### Outdoor PR files
 
 ```text
+src/lib/game/content/maps/layouts/geometry.ts
+src/lib/game/content/maps/layouts/meadow-entry-v2.ts
+src/lib/game/content/maps/layouts/layouts.test.ts
 src/lib/game/content/maps/regions/village-layered.ts
 src/lib/game/content/maps/regions/village-layered.test.ts
 src/lib/game/content/maps/regions/village.ts
 src/lib/game/content/maps/regions/paths.ts
 src/lib/game/content/maps/regions/crossroads.ts
+src/lib/game/content/maps/regions/soft-maze.test.ts
+src/lib/game/content/maps/layered/preview.test.ts
 src/lib/game/content/maps/meadow-entry.ts
 src/lib/game/content/maps.test.ts
 src/lib/game/content/maps.ts
 src/lib/game/phaser/scenes/scenes.test.ts
 tests/e2e/game.e2e.ts
+package.json
+.agents/skills/gliese-world-expansion/references/authoring.md
 ```
 
-### Existing files changed by interior PR
+The outdoor PR also removes V1-only geometry-bound test files after confirming they do not test a reusable runtime primitive:
 
 ```text
+src/lib/game/content/backgrounds/sundrop-village-png.test.ts
+src/lib/game/content/backgrounds/sundrop-village-retouch.test.ts
+src/lib/game/content/backgrounds/sundrop-village-obstacle-ownership.test.ts
+src/lib/game/content/backgrounds/sundrop-village-obstacle-controls.test.ts
+src/lib/game/content/backgrounds/sundrop-village-obstacle-composite.test.ts
+src/lib/game/content/maps/layered/village-art-controls.test.ts
+src/lib/game/content/sundrop-village-obstacle-assets.test.ts
+```
+
+Do not delete V1 PNGs, generated modules, approval records, or captured proof artifacts in HPA-586. Their remaining source/tool cleanup belongs to the final V1 cleanup ticket after V2 art is live.
+
+### Interior PR files
+
+```text
+src/lib/game/content/maps/layouts/village-interiors-v2.ts
+src/lib/game/content/maps/layouts/layouts.test.ts
 src/lib/game/content/maps.ts
 src/lib/game/content/maps/regions/village.ts
 src/lib/game/content/maps.test.ts
 src/lib/game/phaser/scenes/scenes.test.ts
 src/lib/game/save/save-state.test.ts
 tests/e2e/game.e2e.ts
-.agents/skills/gliese-world-expansion/references/authoring.md
 ```
 
 ---
 
 # Outdoor Graybox PR
 
-### Task 1: Add explicit layout primitives and Meadow Entry V2 coordinate contracts
+### Task 1: Add explicit layout primitives and complete pure geometry contracts
 
 **Files:**
 - Create: `src/lib/game/content/maps/layouts/geometry.ts`
@@ -95,29 +130,40 @@ tests/e2e/game.e2e.ts
 - Create: `src/lib/game/content/maps/layouts/layouts.test.ts`
 
 **Interfaces:**
-- Consumes: existing centre-based `MapRect` from `src/lib/game/content/maps/types.ts`.
-- Produces: `LayoutPoint`, `LayoutRect`, `NamedLayoutRect`, `point(...)`, `rect(...)`, `namedRect(...)`, `toMapRect(...)`, `rectContains(...)`, `rectsOverlap(...)`, `MEADOW_ENTRY_V2_WORLD`, `MEADOW_ENTRY_V2_BASE_CHUNKS`, `MEADOW_ENTRY_V2_ROUTES`, `SUNDROP_VILLAGE_V2`, `SUNDROP_VILLAGE_V2_PUBLIC_SPACES`, `SUNDROP_VILLAGE_V2_BUILDINGS`, and `VILLAGE_INTERIOR_EXTERIORS`.
+- Consumes: centre-based `MapRect`, `PLAYER_COLLISION_RADIUS`, and `NORMALIZE_TRANSITION_RADIUS`.
+- Produces: `LayoutPoint`, `LayoutRect`, `NamedLayoutRect`, `point(...)`, `rect(...)`, `namedRect(...)`, `toMapRect(...)`, `rectContains(...)`, `rectsTouchOrOverlap(...)`, `rectClearance(...)`, `pointInsideRect(...)`, `MEADOW_ENTRY_V2_WORLD`, `MEADOW_ENTRY_V2_BASE_CHUNKS`, `MEADOW_ENTRY_V2_ROUTES`, `SUNDROP_VILLAGE_V2`, `SUNDROP_VILLAGE_V2_PUBLIC_SPACES`, `SUNDROP_VILLAGE_V2_BUILDINGS`, `SUNDROP_VILLAGE_APPROACH_ROADS`, and `VILLAGE_INTERIOR_EXTERIORS`.
 
-- [ ] **Step 1: Write the pure coordinate tests first**
+- [ ] **Step 1: Write the failing pure-coordinate tests**
 
 Create `src/lib/game/content/maps/layouts/layouts.test.ts`:
 
 ```ts
 import { describe, expect, it } from 'vitest';
 
+import { PLAYER_COLLISION_RADIUS } from '$lib/game/core/collision';
+import { NORMALIZE_TRANSITION_RADIUS } from '$lib/game/save/save-state';
 import {
 	MEADOW_ENTRY_V2_BASE_CHUNKS,
+	MEADOW_ENTRY_V2_ROUTES,
 	MEADOW_ENTRY_V2_WORLD,
+	SUNDROP_VILLAGE_APPROACH_ROADS,
 	SUNDROP_VILLAGE_V2,
 	SUNDROP_VILLAGE_V2_BUILDINGS,
+	SUNDROP_VILLAGE_V2_PUBLIC_SPACES,
 	VILLAGE_INTERIOR_EXTERIORS
 } from './meadow-entry-v2';
-import { rectContains, rectsOverlap } from './geometry';
+import {
+	pointInsideRect,
+	rectClearance,
+	rectContains,
+	rectsOverlap,
+	rectsTouchOrOverlap
+} from './geometry';
 
-function expectStructuralGrid(rect: { x: number; y: number; width: number; height: number }) {
-	for (const [name, value] of Object.entries(rect)) {
-		expect(value, name).toBeGreaterThanOrEqual(0);
-		expect(value % 32, `${name}=${value}`).toBe(0);
+function expectStructuralGrid(value: { x: number; y: number; width: number; height: number }) {
+	for (const [name, number] of Object.entries(value)) {
+		expect(number, name).toBeGreaterThanOrEqual(0);
+		expect(number % 32, `${name}=${number}`).toBe(0);
 	}
 }
 
@@ -151,7 +197,7 @@ describe('HPA-586 Meadow Entry V2 layout', () => {
 		).toBe(MEADOW_ENTRY_V2_WORLD.width * MEADOW_ENTRY_V2_WORLD.height);
 	});
 
-	it('keeps each building footprint inside a non-overlapping lot', () => {
+	it('keeps footprints inside non-overlapping lots with at least 96 px between footprints', () => {
 		const buildings = Object.values(SUNDROP_VILLAGE_V2_BUILDINGS);
 		for (const building of buildings) {
 			expectStructuralGrid(building.lot);
@@ -164,7 +210,51 @@ describe('HPA-586 Meadow Entry V2 layout', () => {
 		for (let left = 0; left < buildings.length; left += 1) {
 			for (let right = left + 1; right < buildings.length; right += 1) {
 				expect(rectsOverlap(buildings[left]!.lot, buildings[right]!.lot)).toBe(false);
+				expect(rectClearance(buildings[left]!.footprint, buildings[right]!.footprint)).toBeGreaterThanOrEqual(96);
 			}
+		}
+	});
+
+	it('connects every building approach to its named public road', () => {
+		for (const [buildingKey, roadKey] of Object.entries(SUNDROP_VILLAGE_APPROACH_ROADS)) {
+			const building = SUNDROP_VILLAGE_V2_BUILDINGS[buildingKey as keyof typeof SUNDROP_VILLAGE_V2_BUILDINGS];
+			const road = SUNDROP_VILLAGE_V2_PUBLIC_SPACES[roadKey];
+			expect(rectsTouchOrOverlap(building.approach, road), buildingKey).toBe(true);
+		}
+	});
+
+	it('runs both side lanes from Main Street to Southern Meadow Lane and through South Lane', () => {
+		const { mainStreet, southLane, southernMeadowLane, westLane, eastLane } = SUNDROP_VILLAGE_V2_PUBLIC_SPACES;
+		for (const lane of [westLane, eastLane]) {
+			expect(lane.y).toBe(mainStreet.y + mainStreet.height);
+			expect(lane.y + lane.height).toBe(southernMeadowLane.y);
+			expect(rectsTouchOrOverlap(lane, mainStreet)).toBe(true);
+			expect(rectsTouchOrOverlap(lane, southLane)).toBe(true);
+			expect(rectsTouchOrOverlap(lane, southernMeadowLane)).toBe(true);
+		}
+	});
+
+	it('connects the village, Crossroads, and all four destination mouths as rectangles', () => {
+		const routes = MEADOW_ENTRY_V2_ROUTES;
+		expect(rectsTouchOrOverlap(routes.villageMainStreet, routes.villageToCrossroads)).toBe(true);
+		expect(rectsTouchOrOverlap(routes.villageToCrossroads, routes.crossroadsPlaza)).toBe(true);
+		expect(rectsTouchOrOverlap(routes.crossroadsPlaza, routes.crossroadsNorthTrunk)).toBe(true);
+		expect(rectsTouchOrOverlap(routes.crossroadsNorthTrunk, routes.crossroadsToMistfen)).toBe(true);
+		expect(rectsTouchOrOverlap(routes.crossroadsNorthTrunk, routes.crossroadsToSilverpine)).toBe(true);
+		expect(rectsTouchOrOverlap(routes.crossroadsPlaza, routes.crossroadsToWildwood)).toBe(true);
+		expect(rectsTouchOrOverlap(routes.crossroadsPlaza, routes.crossroadsToCoast)).toBe(true);
+	});
+
+	it('keeps every return outside its footprint and beyond the transition re-trigger envelope', () => {
+		const triggerClearance = PLAYER_COLLISION_RADIUS + NORMALIZE_TRANSITION_RADIUS;
+		for (const exterior of Object.values(VILLAGE_INTERIOR_EXTERIORS)) {
+			expect(pointInsideRect(exterior.returnArrival, exterior.footprint)).toBe(false);
+			expect(
+				Math.hypot(
+					exterior.returnArrival.x - exterior.door.x,
+					exterior.returnArrival.y - exterior.door.y
+				)
+			).toBeGreaterThan(triggerClearance);
 		}
 	});
 
@@ -182,15 +272,15 @@ describe('HPA-586 Meadow Entry V2 layout', () => {
 });
 ```
 
-- [ ] **Step 2: Run the coordinate test and verify module resolution fails**
+- [ ] **Step 2: Run the test and verify module-resolution failure**
 
 ```bash
 bun run test:unit -- --run src/lib/game/content/maps/layouts/layouts.test.ts
 ```
 
-Expected: FAIL because `geometry.ts` and `meadow-entry-v2.ts` do not exist.
+Expected: FAIL because the layout modules do not exist.
 
-- [ ] **Step 3: Implement the geometry primitives**
+- [ ] **Step 3: Implement geometry primitives**
 
 Create `src/lib/game/content/maps/layouts/geometry.ts`:
 
@@ -219,13 +309,7 @@ export function rect(x: number, y: number, width: number, height: number): Layou
 	return { x, y, width, height };
 }
 
-export function namedRect(
-	id: string,
-	x: number,
-	y: number,
-	width: number,
-	height: number
-): NamedLayoutRect {
+export function namedRect(id: string, x: number, y: number, width: number, height: number): NamedLayoutRect {
 	return { id, x, y, width, height };
 }
 
@@ -256,17 +340,39 @@ export function rectsOverlap(left: LayoutRect, right: LayoutRect): boolean {
 		left.y + left.height > right.y
 	);
 }
+
+export function rectsTouchOrOverlap(left: LayoutRect, right: LayoutRect): boolean {
+	return (
+		left.x <= right.x + right.width &&
+		left.x + left.width >= right.x &&
+		left.y <= right.y + right.height &&
+		left.y + left.height >= right.y
+	);
+}
+
+export function rectClearance(left: LayoutRect, right: LayoutRect): number {
+	const gapX = Math.max(left.x - (right.x + right.width), right.x - (left.x + left.width), 0);
+	const gapY = Math.max(left.y - (right.y + right.height), right.y - (left.y + left.height), 0);
+	return Math.hypot(gapX, gapY);
+}
+
+export function pointInsideRect(point: LayoutPoint, value: LayoutRect): boolean {
+	return (
+		point.x >= value.x &&
+		point.x <= value.x + value.width &&
+		point.y >= value.y &&
+		point.y <= value.y + value.height
+	);
+}
 ```
 
-Do not add clipping, inference, room generation, object placement, or grid painting to this module.
+Do not add clipping, room inference, route generation, object placement, or grid painting.
 
 - [ ] **Step 4: Implement the outdoor coordinate constants**
 
-Create `src/lib/game/content/maps/layouts/meadow-entry-v2.ts` with these exact values:
+Create `src/lib/game/content/maps/layouts/meadow-entry-v2.ts` with the exact values in the coordinate spec. At minimum, expose these records without deriving or guessing values:
 
 ```ts
-import { point, rect } from './geometry';
-
 export const MEADOW_ENTRY_V2_WORLD = rect(0, 0, 6400, 6400);
 
 export const MEADOW_ENTRY_V2_BASE_CHUNKS = [
@@ -283,17 +389,6 @@ export const MEADOW_ENTRY_V2_REGION_ENVELOPES = {
 	wildwood: rect(4320, 256, 1824, 5312),
 	coast: rect(3328, 4768, 2816, 1376),
 	village: rect(256, 3968, 2560, 2176)
-} as const;
-
-export const MEADOW_ENTRY_V2_ROUTE_ANCHORS = {
-	villageEastGate: point(2816, 4688),
-	crossroadsWestMouth: point(3264, 4688),
-	crossroadsCenter: point(3776, 4224),
-	crossroadsNorthJunction: point(3776, 3136),
-	mistfenMouth: point(3072, 3136),
-	silverpineMouth: point(3776, 2432),
-	wildwoodMouth: point(4992, 4224),
-	coastMouth: point(4224, 5568)
 } as const;
 
 export const MEADOW_ENTRY_V2_ROUTES = {
@@ -325,110 +420,39 @@ export const SUNDROP_VILLAGE_V2_PUBLIC_SPACES = {
 	greenSouthStep: rect(1344, 5312, 320, 64),
 	well: rect(1408, 4960, 192, 192)
 } as const;
+```
 
-export const SUNDROP_VILLAGE_V2_BUILDINGS = {
-	villagerHouse1: {
-		mapId: 'villager-house-1',
-		transitionId: 'meadow-to-villager-house-1',
-		landmarkId: 'villager-house-1-exterior',
-		labelKey: 'content.maps.landmarks.villager-house-1-exterior.label',
-		lot: rect(384, 4064, 576, 448),
-		footprint: rect(512, 4128, 320, 224),
-		door: point(672, 4352),
-		approach: rect(608, 4352, 128, 256),
-		returnArrival: { ...point(672, 4416), facing: 'down' as const }
-	},
-	villagerHouse2: {
-		mapId: 'villager-house-2',
-		transitionId: 'meadow-to-villager-house-2',
-		landmarkId: 'villager-house-2-exterior',
-		labelKey: 'content.maps.landmarks.villager-house-2-exterior.label',
-		lot: rect(1088, 4064, 576, 448),
-		footprint: rect(1216, 4128, 320, 224),
-		door: point(1376, 4352),
-		approach: rect(1312, 4352, 128, 256),
-		returnArrival: { ...point(1376, 4416), facing: 'down' as const }
-	},
-	guildHall: {
-		mapId: 'guild-hall',
-		transitionId: 'meadow-to-guild-hall',
-		landmarkId: 'guild-hall-exterior',
-		labelKey: 'content.maps.landmarks.guild-hall-exterior.label',
-		lot: rect(1888, 4032, 800, 480),
-		footprint: rect(1984, 4096, 576, 288),
-		door: point(2272, 4384),
-		approach: rect(2208, 4384, 128, 224),
-		returnArrival: { ...point(2272, 4448), facing: 'down' as const }
-	},
-	itemShop: {
-		mapId: 'item-shop',
-		transitionId: 'meadow-to-item-shop',
-		landmarkId: 'item-shop-exterior',
-		labelKey: 'content.maps.landmarks.item-shop-exterior.label',
-		lot: rect(384, 4832, 704, 448),
-		footprint: rect(480, 4896, 448, 256),
-		door: point(704, 5152),
-		approach: rect(640, 5152, 128, 224),
-		returnArrival: { ...point(704, 5216), facing: 'down' as const }
-	},
-	blacksmith: {
-		mapId: null,
-		transitionId: null,
-		landmarkId: 'blacksmith',
-		labelKey: 'content.maps.landmarks.blacksmith.label',
-		lot: rect(1952, 4832, 736, 448),
-		footprint: rect(2048, 4896, 416, 256),
-		door: point(2272, 5152),
-		approach: rect(2208, 5152, 128, 224),
-		returnArrival: null
-	},
-	heroHouse: {
-		mapId: 'hero-house',
-		transitionId: 'meadow-to-hero-house',
-		landmarkId: 'hero-house-exterior',
-		labelKey: 'content.maps.landmarks.hero-house-exterior.label',
-		lot: rect(384, 5536, 704, 416),
-		footprint: rect(480, 5600, 448, 224),
-		door: point(704, 5824),
-		approach: rect(640, 5824, 128, 192),
-		returnArrival: { ...point(704, 5888), facing: 'down' as const }
-	},
-	villagerHouse3: {
-		mapId: 'villager-house-3',
-		transitionId: 'meadow-to-villager-house-3',
-		landmarkId: 'villager-house-3-exterior',
-		labelKey: 'content.maps.landmarks.villager-house-3-exterior.label',
-		lot: rect(1184, 5536, 576, 416),
-		footprint: rect(1312, 5600, 320, 224),
-		door: point(1472, 5824),
-		approach: rect(1408, 5824, 128, 192),
-		returnArrival: { ...point(1472, 5888), facing: 'down' as const }
-	},
-	shrine: {
-		mapId: 'shrine-of-aurora-interior',
-		transitionId: 'meadow-to-shrine-of-aurora',
-		landmarkId: 'shrine-of-aurora',
-		labelKey: 'content.maps.landmarks.shrine-of-aurora.label',
-		lot: rect(1888, 5504, 800, 448),
-		footprint: rect(2080, 5568, 384, 256),
-		door: point(2272, 5824),
-		approach: rect(2208, 5824, 128, 192),
-		returnArrival: { ...point(2272, 5888), facing: 'down' as const }
-	}
-} as const;
+Use this exact building table:
 
-export const VILLAGE_INTERIOR_EXTERIORS = {
-	'hero-house': SUNDROP_VILLAGE_V2_BUILDINGS.heroHouse,
-	'guild-hall': SUNDROP_VILLAGE_V2_BUILDINGS.guildHall,
-	'item-shop': SUNDROP_VILLAGE_V2_BUILDINGS.itemShop,
-	'villager-house-1': SUNDROP_VILLAGE_V2_BUILDINGS.villagerHouse1,
-	'villager-house-2': SUNDROP_VILLAGE_V2_BUILDINGS.villagerHouse2,
-	'villager-house-3': SUNDROP_VILLAGE_V2_BUILDINGS.villagerHouse3,
-	'shrine-of-aurora-interior': SUNDROP_VILLAGE_V2_BUILDINGS.shrine
+| Key | Lot | Footprint | Door | Approach | Return |
+|---|---|---|---|---|---|
+| `villagerHouse1` | `[384,4064,576,448]` | `[512,4128,320,224]` | `(672,4352)` | `[608,4352,128,256]` | `(672,4416,down)` |
+| `villagerHouse2` | `[1088,4064,576,448]` | `[1216,4128,320,224]` | `(1376,4352)` | `[1312,4352,128,256]` | `(1376,4416,down)` |
+| `guildHall` | `[1888,4032,800,480]` | `[1984,4096,576,288]` | `(2272,4384)` | `[2208,4384,128,224]` | `(2272,4448,down)` |
+| `itemShop` | `[384,4832,704,448]` | `[480,4896,448,256]` | `(704,5152)` | `[640,5152,128,224]` | `(704,5216,down)` |
+| `blacksmith` | `[1952,4832,736,448]` | `[2048,4896,416,256]` | `(2272,5152)` | `[2208,5152,128,224]` | no interior |
+| `heroHouse` | `[384,5536,704,416]` | `[480,5600,448,224]` | `(704,5824)` | `[640,5824,128,192]` | `(704,5888,down)` |
+| `villagerHouse3` | `[1184,5536,576,416]` | `[1312,5600,320,224]` | `(1472,5824)` | `[1408,5824,128,192]` | `(1472,5888,down)` |
+| `shrine` | `[1888,5504,800,448]` | `[2080,5568,384,256]` | `(2272,5824)` | `[2208,5824,128,192]` | `(2272,5888,down)` |
+
+Add:
+
+```ts
+export const SUNDROP_VILLAGE_APPROACH_ROADS = {
+	villagerHouse1: 'mainStreet',
+	villagerHouse2: 'mainStreet',
+	guildHall: 'mainStreet',
+	itemShop: 'southLane',
+	blacksmith: 'southLane',
+	heroHouse: 'southernMeadowLane',
+	villagerHouse3: 'southernMeadowLane',
+	shrine: 'southernMeadowLane'
 } as const;
 ```
 
-- [ ] **Step 5: Run and pass the pure coordinate tests**
+`VILLAGE_INTERIOR_EXTERIORS` contains only the seven maps with interiors and carries each map's footprint, door, and return arrival from the same building record.
+
+- [ ] **Step 5: Run and pass the pure coordinate suite**
 
 ```bash
 bun run test:unit -- --run src/lib/game/content/maps/layouts/layouts.test.ts
@@ -445,23 +469,54 @@ git commit -m "test(layout): add HPA-586 coordinate contracts"
 
 ---
 
-### Task 2: Rebuild Sundrop Village as an 80×68 sparse layered graybox
+### Task 2: Rebuild Sundrop Village and retire V1 live-source contracts
 
 **Files:**
 - Modify: `src/lib/game/content/maps/regions/village-layered.ts`
 - Modify: `src/lib/game/content/maps/regions/village-layered.test.ts`
 - Modify: `src/lib/game/content/maps/regions/village.ts`
+- Modify: `src/lib/game/content/maps/regions/soft-maze.test.ts`
+- Modify: `src/lib/game/content/maps/layered/preview.test.ts`
 - Modify: `src/lib/game/content/maps.ts`
 - Modify: `src/lib/game/content/maps/meadow-entry.ts`
 - Modify: `src/lib/game/content/maps.test.ts`
+- Modify: `package.json`
+- Modify: `.agents/skills/gliese-world-expansion/references/authoring.md`
+- Delete: the seven V1-only geometry-bound test files listed under File Structure.
 
 **Interfaces:**
-- Consumes: Task 1 layout constants and existing `compileLayeredRegion(...)` for terrain/path/collision/decor only.
-- Produces: an 80×68 layered ground/decor source, directly composed pixel-positioned village objects, new-run spawn `{ x: 704, y: 5888 }`, and exterior returns derived from one coordinate source.
+- Consumes: Task 1 layout constants and `compileLayeredRegion(...)` for terrain/path/collision/decor only.
+- Produces: an 80×68 layered path/decor source with neutral region labels, directly composed pixel-positioned village objects, new-run spawn `{ x: 704, y: 5888 }`, exterior returns derived from one coordinate source, and canonical authoring guidance that matches the new ownership split.
 
-- [ ] **Step 1: Replace old room-graph assertions with V2 structural assertions**
+- [ ] **Step 1: Inventory every V1/live-source dependency before editing**
 
-In `village-layered.test.ts`, remove assertions tied to the old `H/P/M/N/G/S/E/C` graph, old 56×48 dimensions, old exact background rectangle, and old decor. Add:
+Run:
+
+```bash
+rg -l \
+  'sundropVillageLayered|SUNDROP_VILLAGE_(BASE|FOREGROUND)|SUNDROP_OCCLUSION|PR1_BACKGROUND|fallback-only' \
+  src tests tools package.json
+```
+
+Classify every result into exactly one group:
+
+1. **Active V2 consumer to rewrite:** `village.ts`, `village-layered.test.ts`, `maps.test.ts`, `soft-maze.test.ts`, `scenes.test.ts`, `game.e2e.ts`, preview tests.
+2. **Reusable generic test to keep:** `background-ownership.test.ts`, synthetic two-plane/alternative-owner scene tests, generic preview rendering tests rewritten to local fixtures.
+3. **Historical static projection to keep:** generated HPA-406 arrays and `meadow-entry-runtime.test.ts`.
+4. **V1-only live-geometry proof to remove:** exact retouch hashes, exact 56×48 control fingerprints, obstacle composite/ownership tests, active-map Sundrop background fault and occlusion cases.
+
+Do not begin the 80×68 rewrite until every search result is classified in the outdoor PR notes.
+
+- [ ] **Step 2: Replace old district/graph tests with V2 structural tests**
+
+In `village-layered.test.ts`, remove assertions tied to:
+
+- `H/P/M/N/G/S/E/C` room adjacency;
+- exact 56×48 dimensions;
+- exact V1 base/foreground rectangles;
+- V1 object coordinates and decor fingerprints.
+
+Add:
 
 ```ts
 it('uses the approved 80 × 68 V2 bounds', () => {
@@ -479,24 +534,33 @@ it('keeps every layer dimensionally complete', () => {
 	}
 });
 
+it('uses no district glyph contract during the V2 graybox', () => {
+	expect(sundropVillageLayered.layers.regions).toEqual(Array.from({ length: 68 }, () => '.'.repeat(80)));
+});
+
 it('keeps pixel-positioned objects out of the tile-centre compiler contract', () => {
 	expect(sundropVillageLayered.objects).toEqual({});
 });
 ```
 
-In `maps.test.ts`, import `villageRegion` and assert every shared building layout produces the exact landmark and door position in the composed fragment.
+In `soft-maze.test.ts`, delete village assertions that derive room bounds from old region glyphs. Replace village-specific shortcut/lane expectations with the Task 1 route constants and `expectRouteClear(...)` coverage in `maps.test.ts`. Keep non-village shortcut tests that still express current gameplay intent.
 
-- [ ] **Step 2: Run focused tests and verify they fail against the old source**
+In `preview.test.ts`, stop using the live village as the fixture for static region-colour coverage. Use a tiny local `LayeredRegionSource` fixture containing the known legacy glyphs so `REGION_FILL` and unknown-magenta behavior remain generically tested while the live V2 `regions` layer stays neutral.
+
+- [ ] **Step 3: Run the focused tests and verify failure against the old source**
 
 ```bash
 bun run test:unit -- --run \
+  src/lib/game/content/maps/layouts/layouts.test.ts \
   src/lib/game/content/maps/regions/village-layered.test.ts \
+  src/lib/game/content/maps/regions/soft-maze.test.ts \
+  src/lib/game/content/maps/layered/preview.test.ts \
   src/lib/game/content/maps.test.ts
 ```
 
-Expected: FAIL on origin, dimensions, object ownership, landmarks, and transition anchors.
+Expected: FAIL on origin, dimensions, neutral regions, object ownership, landmarks, and transition anchors.
 
-- [ ] **Step 3: Replace the village layer dimensions and authoring ranges**
+- [ ] **Step 4: Replace the village layer dimensions and path ranges**
 
 In `village-layered.ts` set:
 
@@ -506,61 +570,34 @@ width: 80,
 height: 68,
 ```
 
-Author five 80-character × 68-row layers. Use these exact inclusive zero-based ranges:
+Author five 80-character × 68-row layers. Keep `terrain`, `collision`, and `regions` entirely `.` for the first graybox. Use these inclusive zero-based path ranges:
 
-| Layer | Glyph | Rows | Columns |
-|---|---|---:|---:|
-| `paths` | `p` | `20–24` | `0–79` |
-| `paths` | `p` | `25–63` | `0–3` |
-| `paths` | `p` | `25–63` | `76–79` |
-| `paths` | `p` | `44–47` | `0–79` |
-| `paths` | `p` | `64–67` | `0–79` |
-| `paths` | `p` | `12–19` | `11–14` |
-| `paths` | `p` | `12–19` | `33–36` |
-| `paths` | `p` | `13–19` | `61–64` |
-| `paths` | `p` | `37–43` | `12–15` |
-| `paths` | `p` | `37–43` | `61–64` |
-| `paths` | `p` | `58–63` | `12–15` |
-| `paths` | `p` | `58–63` | `36–39` |
-| `paths` | `p` | `58–63` | `61–64` |
-| `paths` | `c` | `26–41` | `28–49` |
-| `paths` | `c` | `25` | `34–43` |
-| `paths` | `c` | `42–43` | `34–43` |
+| Glyph | Rows | Columns |
+|---|---:|---:|
+| `p` | `20–24` | `0–79` |
+| `p` | `25–63` | `0–3` |
+| `p` | `25–63` | `76–79` |
+| `p` | `44–47` | `0–79` |
+| `p` | `64–67` | `0–79` |
+| `p` | `12–19` | `11–14` |
+| `p` | `12–19` | `33–36` |
+| `p` | `13–19` | `61–64` |
+| `p` | `37–43` | `12–15` |
+| `p` | `37–43` | `61–64` |
+| `p` | `58–63` | `12–15` |
+| `p` | `58–63` | `36–39` |
+| `p` | `58–63` | `61–64` |
+| `c` | `26–41` | `28–49` |
+| `c` | `25` | `34–43` |
+| `c` | `42–43` | `34–43` |
 
-Keep all other `paths` cells `.`. Keep `terrain` and `collision` entirely `.` in the first graybox; building landmarks supply collision and the road network remains deliberately open.
+Add only four non-colliding graybox decor anchors: gate arch `A` at `(77,22)`, pole lantern `l` at `(31,34)` and `(46,34)`, and flower bed `f` at `(9,53)`. Keep `objects: {}`.
 
-Add only four non-colliding graybox decor anchors: gate arch `A` at `(77,22)`, pole lantern `l` at `(31,34)` and `(46,34)`, and flower bed `f` at `(9,53)`. Keep every other `decor` cell `.`.
+- [ ] **Step 5: Compose village objects directly in `village.ts`**
 
-Use these authoring-aid region ranges:
-
-| Zone | Glyph | Rows | Columns |
-|---|---|---:|---:|
-| Villager House 1 lot | `A` | `3–16` | `4–21` |
-| Villager House 2 lot | `B` | `3–16` | `26–43` |
-| Guild lot | `G` | `2–16` | `51–75` |
-| Item Shop lot | `M` | `27–40` | `4–25` |
-| Village Green | `P` | `26–41` | `28–49` |
-| Blacksmith lot | `K` | `27–40` | `53–75` |
-| Hero House lot | `H` | `49–61` | `4–25` |
-| Villager House 3 lot | `C` | `49–61` | `29–46` |
-| Shrine lot | `S` | `48–61` | `51–75` |
-
-Set `objects: {}`. The `regions` layer remains an authoring aid only.
-
-- [ ] **Step 4: Compose village objects directly in `village.ts`**
-
-Replace the background-wrapper implementation with:
+Compile the layered source once, then override pixel-positioned fields from Task 1 constants:
 
 ```ts
-import { compileLayeredRegion } from '$lib/game/content/maps/layered/compile-layered-region';
-import { toMapRect } from '$lib/game/content/maps/layouts/geometry';
-import {
-	SUNDROP_VILLAGE_V2_BUILDINGS,
-	SUNDROP_VILLAGE_V2_PUBLIC_SPACES
-} from '$lib/game/content/maps/layouts/meadow-entry-v2';
-import { sundropVillageLayered } from '$lib/game/content/maps/regions/village-layered';
-import type { RegionFragment } from '$lib/game/content/maps/regions/types';
-
 const layered = compileLayeredRegion(sundropVillageLayered);
 const buildings = SUNDROP_VILLAGE_V2_BUILDINGS;
 
@@ -590,13 +627,13 @@ export const villageRegion: RegionFragment = {
 		}
 	],
 	transitions: [
-		{ id: buildings.heroHouse.transitionId, ...buildings.heroHouse.door, toMapId: buildings.heroHouse.mapId, showMarker: false, arrival: { x: 256, y: 224, facing: 'up' } },
-		{ id: buildings.itemShop.transitionId, ...buildings.itemShop.door, toMapId: buildings.itemShop.mapId, showMarker: false, arrival: { x: 256, y: 288, facing: 'up' } },
-		{ id: buildings.villagerHouse1.transitionId, ...buildings.villagerHouse1.door, toMapId: buildings.villagerHouse1.mapId, showMarker: false, arrival: { x: 256, y: 288, facing: 'up' } },
-		{ id: buildings.villagerHouse2.transitionId, ...buildings.villagerHouse2.door, toMapId: buildings.villagerHouse2.mapId, showMarker: false, arrival: { x: 256, y: 288, facing: 'up' } },
-		{ id: buildings.guildHall.transitionId, ...buildings.guildHall.door, toMapId: buildings.guildHall.mapId, showMarker: false, arrival: { x: 384, y: 480, facing: 'up' } },
-		{ id: buildings.shrine.transitionId, ...buildings.shrine.door, toMapId: buildings.shrine.mapId, showMarker: false, arrival: { x: 256, y: 288, facing: 'up' } },
-		{ id: buildings.villagerHouse3.transitionId, ...buildings.villagerHouse3.door, toMapId: buildings.villagerHouse3.mapId, showMarker: false, arrival: { x: 256, y: 288, facing: 'up' } }
+		{ id: buildings.heroHouse.transitionId, ...buildings.heroHouse.door, toMapId: 'hero-house', showMarker: false, arrival: { x: 256, y: 224, facing: 'up' } },
+		{ id: buildings.itemShop.transitionId, ...buildings.itemShop.door, toMapId: 'item-shop', showMarker: false, arrival: { x: 256, y: 288, facing: 'up' } },
+		{ id: buildings.villagerHouse1.transitionId, ...buildings.villagerHouse1.door, toMapId: 'villager-house-1', showMarker: false, arrival: { x: 256, y: 288, facing: 'up' } },
+		{ id: buildings.villagerHouse2.transitionId, ...buildings.villagerHouse2.door, toMapId: 'villager-house-2', showMarker: false, arrival: { x: 256, y: 288, facing: 'up' } },
+		{ id: buildings.guildHall.transitionId, ...buildings.guildHall.door, toMapId: 'guild-hall', showMarker: false, arrival: { x: 384, y: 480, facing: 'up' } },
+		{ id: buildings.shrine.transitionId, ...buildings.shrine.door, toMapId: 'shrine-of-aurora-interior', showMarker: false, arrival: { x: 256, y: 288, facing: 'up' } },
+		{ id: buildings.villagerHouse3.transitionId, ...buildings.villagerHouse3.door, toMapId: 'villager-house-3', showMarker: false, arrival: { x: 256, y: 288, facing: 'up' } }
 	],
 	pickups: [
 		{ id: 'village-market-cache', x: 1040, y: 5104, itemId: 'field-potion', quantity: 1 },
@@ -611,11 +648,13 @@ export const villageRegion: RegionFragment = {
 };
 ```
 
-Do not import interior maps into `village.ts`; the explicit inbound arrivals avoid a circular dependency and are synchronized by generic map tests.
+Do not import direct interior maps into `village.ts`; generic map tests synchronize inbound arrivals.
 
-- [ ] **Step 5: Derive new-run spawn and exterior returns from Task 1**
+The compact inbound arrivals shown above are intentional for the outdoor PR. Do not update them to the future interior-blueprint spawns until Tasks 6–8. Note this explicitly in the commit body so a reviewer does not “correct” them early.
 
-In `maps.ts`, import `VILLAGE_INTERIOR_EXTERIORS`. Replace each interior outbound transition’s `arrival` with the corresponding shared `returnArrival`.
+- [ ] **Step 6: Derive new-run spawn and exterior returns from Task 1**
+
+In `maps.ts`, replace each interior outbound transition's exterior `arrival` with the corresponding shared `returnArrival`.
 
 In `meadow-entry.ts`, set:
 
@@ -624,45 +663,73 @@ spawn: { x: 704, y: 5888 },
 spawnDirection: 'up',
 ```
 
-Do not change interior dimensions or the inbound arrivals in `village.ts` during the outdoor PR.
+- [ ] **Step 7: Retire V1 live-geometry proof contracts**
 
-- [ ] **Step 6: Add composed-object assertions**
+Delete the seven V1-only test files listed under File Structure. Remove `art:validate:village` from `package.json`; it selects those obsolete tests and would otherwise advertise a broken live-V1 validation path. Leave generic renderer/background tests, generated V1 projection tests, V1 source files, PNGs, and proof artifacts intact.
 
-In `maps.test.ts`, for each `VILLAGE_INTERIOR_EXTERIORS` value assert:
+Update `maps.test.ts` to replace the exact 24-background/72-blocker/69-decor/6-fence composition assertion with the V2 active-map contract introduced in Task 3.
 
-- `villageRegion.landmarks` has exact centre, width, height, ID, and label key;
-- `villageRegion.transitions` has exact door coordinates, ID, and target map;
-- the target interior outbound return equals `returnArrival`;
-- every return point is clear of landmark collision and more than the transition re-trigger radius from its door.
+Do not create a 56×48 compatibility source, district snapshot, feature flag, or dual runtime map.
 
-- [ ] **Step 7: Run focused tests**
+- [ ] **Step 8: Update canonical world-expansion guidance now**
+
+In `.agents/skills/gliese-world-expansion/references/authoring.md`, replace the claim that `village.ts` is only a thin compiler/background wrapper with:
+
+```md
+## Sundrop Village Ownership
+
+`village-layered.ts` owns Sundrop terrain, path, collision, neutral region-label,
+and tile-decor grids. `village.ts` composes the resulting fragment with
+pixel-positioned landmarks, transitions, pickups, ambient NPCs, and background
+planes from shared coordinate constants. Do not force pixel-positioned objects
+through the layered compiler's tile-centre object contract.
+
+## Structure Before Art
+
+For a substantial spatial revision, define and review functional bounds, lots,
+rooms, corridors, walls, doors, routes, transition approaches, and NPC
+approaches before generating final art or placing decorative content. Prove the
+geometry with a walkable graybox first. Final art conforms to accepted collision
+and route geometry; do not move authoritative geometry merely to fit an
+accidental image.
+```
+
+Do not create another skill, template, schema, or approval workflow.
+
+- [ ] **Step 9: Run all village/source tests, not only the new layout test**
 
 ```bash
 bun run test:unit -- --run \
+  src/lib/game/content/agent-skills.test.ts \
   src/lib/game/content/maps/layouts/layouts.test.ts \
   src/lib/game/content/maps/regions/village-layered.test.ts \
+  src/lib/game/content/maps/regions/soft-maze.test.ts \
+  src/lib/game/content/maps/layered/preview.test.ts \
   src/lib/game/content/maps.test.ts
 ```
 
-Expected: PASS after replacing old coordinate snapshots.
+Expected: PASS after old district and V1 active-map assumptions are removed.
 
-- [ ] **Step 8: Commit the sparse village graybox**
+- [ ] **Step 10: Commit the sparse village and ownership migration**
 
 ```bash
-git add \
+git add -A \
   src/lib/game/content/maps/layouts \
-  src/lib/game/content/maps/regions/village-layered.ts \
-  src/lib/game/content/maps/regions/village-layered.test.ts \
-  src/lib/game/content/maps/regions/village.ts \
+  src/lib/game/content/maps/regions \
+  src/lib/game/content/maps/layered/preview.test.ts \
+  src/lib/game/content/backgrounds \
+  src/lib/game/content/sundrop-village-obstacle-assets.test.ts \
   src/lib/game/content/maps.ts \
   src/lib/game/content/maps/meadow-entry.ts \
-  src/lib/game/content/maps.test.ts
-git commit -m "feat(world): rebuild Sundrop Village graybox"
+  src/lib/game/content/maps.test.ts \
+  package.json \
+  .agents/skills/gliese-world-expansion/references/authoring.md
+git commit -m "feat(world): rebuild Sundrop Village graybox" -m "Keep current compact interior arrivals until the interior graybox PR."
 ```
 
 ---
 
-### Task 3: Re-author the Crossroads route network and deactivate V1 baked visuals
+### Task 3: Re-author routes and migrate the complete active-background test surface
 
 **Files:**
 - Modify: `src/lib/game/content/maps/regions/paths.ts`
@@ -670,14 +737,15 @@ git commit -m "feat(world): rebuild Sundrop Village graybox"
 - Modify: `src/lib/game/content/maps/meadow-entry.ts`
 - Modify: `src/lib/game/content/maps.test.ts`
 - Modify: `src/lib/game/phaser/scenes/scenes.test.ts`
+- Modify: `tests/e2e/game.e2e.ts`
 
 **Interfaces:**
-- Consumes: Task 1 route constants, existing destination fragments, and current renderer fallback behavior.
-- Produces: one readable route network, clean seams into existing destination paths, an active map with no V1 baked backgrounds, and live visual ownership for blockers/decor/fences.
+- Consumes: Task 1 route constants, existing destination fragments, generic renderer/background-ownership fixtures, and the V1 dependency inventory from Task 2.
+- Produces: one readable route network, clean seams into retained destinations, an active Meadow map with zero V1 backgrounds, live blockers/decor/fences, and test coverage that distinguishes historical V1 modules from the playable V2 composition.
 
 - [ ] **Step 1: Add failing active-composition assertions**
 
-In `maps.test.ts`, add:
+In `maps.test.ts` add:
 
 ```ts
 it('uses the V2 live graybox instead of the V1 semantic background package', () => {
@@ -692,17 +760,20 @@ it('uses the V2 live graybox instead of the V1 semantic background package', () 
 });
 ```
 
-Add exact route assertions for the eight V2 route rectangles by converting them through `toMapRect(...)` and locating matching `groundPatches`.
+Replace the old exact V1 composition test rather than keeping both contracts.
 
-- [ ] **Step 2: Run map and scene tests and verify V1 composition still fails**
+Add exact route-patch assertions for all eight `MEADOW_ENTRY_V2_ROUTES` values after converting them through `toMapRect(...)`.
+
+- [ ] **Step 2: Run map, scene, and E2E collection to expose the full blast radius**
 
 ```bash
 bun run test:unit -- --run \
   src/lib/game/content/maps.test.ts \
   src/lib/game/phaser/scenes/scenes.test.ts
+bun run test:e2e -- --list
 ```
 
-Expected: FAIL because V1 images and fallback ownership remain active.
+Expected before migration: map and live-Sundrop scene assertions fail, and the E2E list still contains V1 load-failure, dimension-fault, render-fault, alternative-owner, occlusion, and evidence cases.
 
 - [ ] **Step 3: Replace the shared path fragment**
 
@@ -728,25 +799,29 @@ In `crossroads.ts`:
 
 - add `crossroads-plaza` from `[3264, 3680, 1024, 1088]` using `cobblestoneTile`;
 - add `crossroads-north-trunk` from `[3680, 2816, 192, 864]` using `pathTile`;
-- keep the waystone ID at `{ x: 3776, y: 4224, width: 120, height: 150 }`;
-- move `castle-gate` and its sprite to `{ x: 4176, y: 2976, width: 480, height: 320 }`, east of the north trunk;
+- keep `crossroads-waystone` at `{ x: 3776, y: 4224, width: 120, height: 150 }`;
+- move `castle-gate` and its sprite to `{ x: 4176, y: 2976, width: 480, height: 320 }`;
 - move `crossroads-waystone-sign` to `{ x: 3904, y: 4224 }`;
 - move `castle-gate-warning` to `{ x: 4176, y: 3200 }`;
 - move `crossroads-cache` to `{ x: 4032, y: 4480 }`;
 - move `crossroads-crier` to `{ x: 3584, y: 4384 }`;
 - move `crossroads-traveler` to `{ x: 4032, y: 4384 }`;
-- remove the old plaza hedges and fences for the graybox;
-- retain IDs and localized label keys.
+- remove old plaza hedges and fences for the graybox;
+- retain IDs and localized keys;
+- keep only castle gate, waystone, and non-colliding lanterns at `{ x: 3488, y: 3904 }` and `{ x: 4064, y: 3904 }`.
 
-Keep only the castle gate, waystone, and two non-colliding lanterns as Crossroads decor. Place lanterns at `{ x: 3488, y: 3904 }` and `{ x: 4064, y: 3904 }`.
+- [ ] **Step 5: Remove V1 backgrounds and ownership from active composition**
 
-- [ ] **Step 5: Remove V1 backgrounds and fallback ownership from active composition**
+In `meadow-entry.ts` remove active imports/calls for:
 
-In `meadow-entry.ts`:
+- `applyVisualOwnership`;
+- `validateMapBackgroundOwnership`;
+- `activeMeadowEntryRuntimeVisualOwners`;
+- `meadowEntryRuntimeBackgroundImages`;
+- `applySundropObstacleOwnership`;
+- `validateSundropObstacleCoverage`.
 
-1. remove imports of `applyVisualOwnership`, `validateMapBackgroundOwnership`, `activeMeadowEntryRuntimeVisualOwners`, `meadowEntryRuntimeBackgroundImages`, `applySundropObstacleOwnership`, and the Sundrop obstacle ownership validator;
-2. keep `mergeRegions(...)` and the existing fragment list;
-3. assign direct merged arrays:
+Compose direct merged arrays:
 
 ```ts
 export const meadowEntryMap: WorldMapDefinition = addEnglishMapText({
@@ -771,11 +846,70 @@ export const meadowEntryMap: WorldMapDefinition = addEnglishMapText({
 });
 ```
 
-Because `village.ts` no longer adds backgrounds and no other active fragment owns one, `merged.backgroundImages` is empty. Leave generated runtime modules, old assets, approval files, and preloads untouched.
+`village.ts` contributes no background and no other active fragment owns one, so `merged.backgroundImages` is empty.
 
-- [ ] **Step 6: Extend route tests through preserved destination seams**
+- [ ] **Step 6: Migrate scene tests by ownership, not by blanket deletion**
 
-Use the existing `expectRouteClear(...)` helper:
+In `scenes.test.ts`:
+
+Keep:
+
+- synthetic `registerTwoPlaneBackgroundTestMap()` tests;
+- synthetic alternative-owner tests;
+- generic missing texture, wrong dimensions, render-failure, draw-order, and fallback-selection behavior;
+- generic renderer diagnostics.
+
+Remove or replace live-Sundrop expectations for:
+
+- exact V1 village bounds `256..2048 × 4352..5888`;
+- exact Sundrop texture keys and display size `1792×1536`;
+- exact selected fallback IDs and segment counts;
+- exact V1 background transform ordering.
+
+Add one active-map test:
+
+```ts
+it('renders the Meadow Entry V2 graybox with no regional background planes', async () => {
+	const target = installPlaneDiagnosticListener();
+	const { WorldScene } = await import('./WorldScene');
+	const scene = new WorldScene();
+	try {
+		scene.create({ mapId: 'meadow-entry' });
+		expect(target.diagnostics).toHaveLength(1);
+		expect(target.diagnostics[0]).toMatchObject({
+			mapId: 'meadow-entry',
+			entries: [],
+			successfulBackgroundIds: [],
+			selectedFallbackBlockerIds: [],
+			selectedFallbackDecorIds: [],
+			selectedFallbackFenceIds: []
+		});
+	} finally {
+		target.restore();
+	}
+});
+```
+
+- [ ] **Step 7: Remove V1 active-map E2E proof cases**
+
+In `tests/e2e/game.e2e.ts`, remove imports/constants/helpers and tests whose only subject is the active V1 Meadow package:
+
+- `SUNDROP_OCCLUSION_CONTROL_INPUTS` and `SUNDROP_OCCLUSION_PROOF_CASES`;
+- PR1 background descriptor/status tables;
+- Sundrop base/foreground load-abort cases;
+- wrong-dimension base/foreground cases;
+- V1 render-fault cases;
+- alternative-owner active-Wildwood case;
+- V1 foreground occlusion loop;
+- V1 enabled/disabled evidence screenshot matrix.
+
+Do not remove generic boot, movement diagnostics, transition, encounter, shop, save, HUD, or map tests.
+
+Keep `meadow-entry-runtime.test.ts` unchanged; it verifies the historical static generated projection module, not active playable composition.
+
+- [ ] **Step 8: Extend route tests through retained destination seams**
+
+Use the existing `expectRouteClear(...)` helper for these exact routes:
 
 ```ts
 expectRouteClear(meadowEntryMap, [
@@ -814,21 +948,17 @@ expectRouteClear(meadowEntryMap, [
 ], 'crossroads to Tidewatch Coast seam');
 ```
 
-If a retained destination object blocks one exact route, move that object within its existing functional area; do not move a route to preserve accidental V1 art coordinates.
+If a retained destination object blocks one route, move that object within its existing functional area; do not bend a route to preserve accidental V1 art coordinates.
 
-- [ ] **Step 7: Run focused tests**
+- [ ] **Step 9: Run the full unit suite after the migration**
 
 ```bash
-bun run test:unit -- --run \
-  src/lib/game/content/maps/layouts/layouts.test.ts \
-  src/lib/game/content/maps/regions/village-layered.test.ts \
-  src/lib/game/content/maps.test.ts \
-  src/lib/game/phaser/scenes/scenes.test.ts
+bun run test:unit -- --run
 ```
 
-Expected: PASS. `meadow-entry-runtime.test.ts` remains unchanged and continues validating the historical V1 projection module even though that module is no longer active in `meadowEntryMap`.
+Expected: PASS. This full run is required because the V1 coupling crossed map, background, preview, art-control, scene, and save test areas.
 
-- [ ] **Step 8: Commit the outdoor route and active-composition change**
+- [ ] **Step 10: Commit the route and active-composition migration**
 
 ```bash
 git add \
@@ -836,7 +966,8 @@ git add \
   src/lib/game/content/maps/regions/crossroads.ts \
   src/lib/game/content/maps/meadow-entry.ts \
   src/lib/game/content/maps.test.ts \
-  src/lib/game/phaser/scenes/scenes.test.ts
+  src/lib/game/phaser/scenes/scenes.test.ts \
+  tests/e2e/game.e2e.ts
 git commit -m "feat(world): rework Meadow Entry route graybox"
 ```
 
@@ -854,17 +985,28 @@ git commit -m "feat(world): rework Meadow Entry route graybox"
 
 **Interfaces:**
 - Consumes: completed outdoor graybox and current Playwright save/position fixtures.
-- Produces: a browser-tested continuous route and native-scale screenshots for human approval.
+- Produces: a browser-tested continuous route, zero-background active-map diagnostics, native-scale screenshots, and a written human-approval boundary.
 
-- [ ] **Step 1: Update E2E starting coordinates and background expectation**
+- [ ] **Step 1: Add the active-map zero-background E2E**
 
-Replace fixtures that assume the old Hero House exterior or 22 rendered Meadow background planes. Assert the active Meadow map emits a regional-background diagnostic with zero entries and zero successful IDs, while the world remains playable from `{ x: 704, y: 5888 }`.
+Start from `{ x: 704, y: 5888 }`, capture the regional-background plane diagnostic, and assert:
 
-Keep historical runtime-projection unit tests unchanged.
+```ts
+expect(diagnostic).toMatchObject({
+	mapId: 'meadow-entry',
+	entries: [],
+	successfulBackgroundIds: [],
+	selectedFallbackBlockerIds: [],
+	selectedFallbackDecorIds: [],
+	selectedFallbackFenceIds: []
+});
+```
+
+Also assert the canvas and field HUD are ready and movement from the new spawn succeeds.
 
 - [ ] **Step 2: Add one continuous outdoor route E2E**
 
-Use direct test positioning only to begin at the new spawn. Drive real input for:
+Use direct save injection only to start at the new spawn. Drive real input through:
 
 ```text
 Hero House frontage
@@ -882,30 +1024,38 @@ Hero House frontage
 → Sundrop Village
 ```
 
-At each seam assert movement diagnostics do not report a blocked request for the intended direction. Retain one pickup, one discovery, one encounter, and one save/reload assertion from the existing HPA-406 route.
+At each seam assert movement diagnostics do not report a blocked request for the intended direction. Retain one pickup, one discovery, one encounter, one gated transition, and one save/reload assertion from the existing HPA-406 route.
 
-- [ ] **Step 3: Run the browser route**
+- [ ] **Step 3: Run all browser tests**
 
 ```bash
 bun run test:e2e
 ```
 
-Expected: all Playwright tests pass.
+Expected: PASS after V1-only cases are removed and V2 route coverage is added.
 
 - [ ] **Step 4: Run repository validation**
 
 ```bash
+bun run test:unit -- --run
 bun run check
 bun run lint
 bun run build
 bun run build:tauri
 ```
 
-Expected: all commands pass. Do not run or refresh Meadow art approval commands because no approved art input is being changed.
+Expected: all commands pass. Do not run or refresh Meadow or V1 village art approval commands because no approved art input is being changed.
 
-- [ ] **Step 5: Capture the five native-scale review screenshots**
+- [ ] **Step 5: Capture native-scale screenshots with the explicit graybox bar**
 
-Run the normal web build with `?mapDebug=collision` only for the collision image. Capture at 100% browser scale. The Wildwood image must show live crisp decor rather than the blurred V1 background.
+Capture the five named images at 100% browser scale. Use `?mapDebug=collision` only for `outdoor-collision.png`.
+
+Human acceptance rules:
+
+- Open floor outside named roads and retained destination fragments is expected during graybox.
+- Reject blocked routes, active V1 blurred bases, compressed village placement, broken doors/returns, overlapping lots/footprints, and unreadable connector seams.
+- `wildwood-live-graybox.png` proves retained destination decor still renders and the stretched V1 base is absent; it is not a finished-biome review.
+- Do not reject this PR for missing final grass variation, canopy richness, forest density, shoreline polish, or regional blending. Those belong to the V2 final-art ticket.
 
 - [ ] **Step 6: Perform the packaged Tauri outdoor walkthrough**
 
@@ -913,7 +1063,7 @@ Run the normal web build with `?mapDebug=collision` only for the collision image
 bun run tauri dev
 ```
 
-Walk the same route and verify input, transitions, save/reload, and live visual fallback. Record the result in the outdoor PR body; do not add a separate evidence ledger.
+Walk the same route and verify input, transitions, save/reload, and live geometry. Record the result in the outdoor PR body; do not add a separate evidence ledger.
 
 - [ ] **Step 7: Commit E2E and review artifacts**
 
@@ -935,17 +1085,25 @@ Open the outdoor implementation PR as a draft and obtain layout approval before 
 - Modify: `src/lib/game/content/maps/layouts/layouts.test.ts`
 
 **Interfaces:**
-- Consumes: Task 1 geometry primitives.
-- Produces: `VillageInteriorLayout`, `VILLAGE_INTERIOR_LAYOUTS`, exact wall arrays, exact NPC approaches, and prop zones. This module is coordinate data only; it does not compile a map.
+- Consumes: Task 1 geometry primitives and shared runtime NPC radii.
+- Produces: `VillageInteriorLayout`, `VILLAGE_INTERIOR_LAYOUTS`, exact wall arrays, exact NPC approaches, and prop zones. This module is coordinate data only; it does not compile maps.
 
-- [ ] **Step 1: Add failing interior-layout invariants**
+- [ ] **Step 1: Add failing interior-layout invariants using shared radii**
 
 Append to `layouts.test.ts`:
 
 ```ts
+import {
+	NPC_INTERACTION_RADIUS,
+	NPC_PACK_COLLISION_RADIUS,
+	PLAYER_COLLISION_RADIUS
+} from '$lib/game/core/collision';
 import { VILLAGE_INTERIOR_LAYOUTS } from './village-interiors-v2';
 
 it('keeps every interior rectangle inside its map and every approach valid', () => {
+	const minimumApproach = PLAYER_COLLISION_RADIUS + NPC_PACK_COLLISION_RADIUS;
+	const maximumApproach = PLAYER_COLLISION_RADIUS + NPC_INTERACTION_RADIUS;
+
 	for (const layout of Object.values(VILLAGE_INTERIOR_LAYOUTS)) {
 		const bounds = { x: 0, y: 0, width: layout.widthTiles * 32, height: layout.heightTiles * 32 };
 		expect(layout.fullFloor).toEqual(bounds);
@@ -959,8 +1117,8 @@ it('keeps every interior rectangle inside its map and every approach valid', () 
 		}
 		for (const { npc, approach } of Object.values(layout.npcApproaches)) {
 			const distance = Math.hypot(npc.x - approach.x, npc.y - approach.y);
-			expect(distance).toBeGreaterThanOrEqual(29);
-			expect(distance).toBeLessThanOrEqual(48);
+			expect(distance).toBeGreaterThanOrEqual(minimumApproach);
+			expect(distance).toBeLessThanOrEqual(maximumApproach);
 		}
 	}
 });
@@ -980,7 +1138,6 @@ Create `village-interiors-v2.ts`:
 
 ```ts
 import type { LayoutPoint, LayoutRect, NamedLayoutRect } from './geometry';
-import { namedRect, point, rect } from './geometry';
 
 export interface VillageInteriorLayout {
 	readonly widthTiles: number;
@@ -999,12 +1156,26 @@ export interface VillageInteriorLayout {
 }
 ```
 
-- [ ] **Step 4: Add the exact Guild Hall layout and walls**
+- [ ] **Step 4: Populate exact room, door, spawn, approach, and prop-zone records**
 
-Use the room, corridor, door, spawn, exit, NPC, and prop values from the coordinate spec. Use these walls:
+Use these exact map contracts from the coordinate spec:
+
+| Map | Tiles | Spawn | Exit | Interactive NPC / approach |
+|---|---:|---:|---:|---|
+| `guild-hall` | `32×26` | `(512,736)` | `(512,816)` | Master `(800,144)/(800,184)`; Quartermaster `(816,528)/(816,568)` |
+| `hero-house` | `22×18` | `(352,480)` | `(352,560)` | none |
+| `item-shop` | `26×20` | `(416,544)` | `(416,624)` | Mira `(416,320)/(416,360)` |
+| `shrine-of-aurora-interior` | `24×22` | `(384,608)` | `(384,688)` | none |
+| `villager-house-1` | `20×18` | `(320,480)` | `(320,560)` | Lynn `(160,416)/(200,416)` |
+| `villager-house-2` | `22×18` | `(352,480)` | `(352,560)` | Toma `(192,192)/(232,192)` |
+| `villager-house-3` | `20×20` | `(320,544)` | `(320,624)` | Io `(160,192)/(200,192)` |
+
+Copy the exact room, corridor, opening, and prop-zone rectangles from sections 7–13 of `docs/superpowers/specs/2026-08-09-meadow-entry-v2-coordinate-design.md` without renaming keys or changing values.
+
+Use explicit wall arrays. The Guild Hall walls are:
 
 ```ts
-walls: [
+[
 	namedRect('guild-hall-wall-north', 0, 0, 1024, 64),
 	namedRect('guild-hall-wall-west', 0, 64, 64, 736),
 	namedRect('guild-hall-wall-east', 960, 64, 64, 736),
@@ -1030,123 +1201,19 @@ walls: [
 ]
 ```
 
-NPC approaches:
+The remaining six wall arrays remain explicit literals following the same rule: outer wall bands, named divider segments, and only the openings listed in the spec. Do not generate them from rooms.
 
-```ts
-npcApproaches: {
-	'guild-master': { npc: point(800, 144), approach: point(800, 184) },
-	'guild-quartermaster': { npc: point(816, 528), approach: point(816, 568) }
-}
-```
+- [ ] **Step 5: Add wall/opening and map-uniqueness tests**
 
-- [ ] **Step 5: Add the other six exact wall arrays**
+For each layout:
 
-```ts
-const heroHouseWalls = [
-	namedRect('hero-house-wall-north', 0, 0, 704, 64),
-	namedRect('hero-house-wall-west', 0, 64, 64, 480),
-	namedRect('hero-house-wall-east', 640, 64, 64, 480),
-	namedRect('hero-house-wall-south-west', 0, 544, 320, 32),
-	namedRect('hero-house-wall-south-east', 384, 544, 320, 32),
-	namedRect('hero-house-bedroom-hall-north', 272, 64, 32, 64),
-	namedRect('hero-house-bedroom-hall-south', 272, 192, 32, 64),
-	namedRect('hero-house-study-hall-north', 400, 64, 32, 64),
-	namedRect('hero-house-study-hall-south', 400, 192, 32, 64),
-	namedRect('hero-house-living-divider-west', 64, 256, 240, 32),
-	namedRect('hero-house-living-divider-east', 400, 256, 240, 32)
-] as const;
+- every wall is inside bounds;
+- no wall overlaps an opening rectangle;
+- spawn and exit are outside wall rectangles with player-radius padding;
+- each named room is connected to the entrance through listed corridors/openings;
+- the three villager houses have unequal normalized room and wall signatures.
 
-const itemShopWalls = [
-	namedRect('item-shop-wall-north', 0, 0, 832, 64),
-	namedRect('item-shop-wall-west', 0, 64, 64, 544),
-	namedRect('item-shop-wall-east', 768, 64, 64, 544),
-	namedRect('item-shop-wall-south-west', 0, 608, 384, 32),
-	namedRect('item-shop-wall-south-east', 448, 608, 384, 32),
-	namedRect('item-shop-stock-corridor-north', 320, 64, 32, 48),
-	namedRect('item-shop-stock-corridor-south', 320, 176, 32, 48),
-	namedRect('item-shop-office-corridor-north', 480, 64, 32, 48),
-	namedRect('item-shop-office-corridor-south', 480, 176, 32, 48),
-	namedRect('item-shop-sales-divider-west', 64, 224, 288, 32),
-	namedRect('item-shop-sales-divider-east', 480, 224, 288, 32)
-] as const;
-
-const shrineWalls = [
-	namedRect('shrine-wall-north', 0, 0, 768, 64),
-	namedRect('shrine-wall-west', 0, 64, 64, 608),
-	namedRect('shrine-wall-east', 704, 64, 64, 608),
-	namedRect('shrine-wall-south-west', 0, 672, 352, 32),
-	namedRect('shrine-wall-south-east', 416, 672, 352, 32),
-	namedRect('shrine-top-west-service', 64, 64, 160, 192),
-	namedRect('shrine-top-east-service', 544, 64, 160, 192),
-	namedRect('shrine-sanctum-divider-west', 224, 224, 96, 32),
-	namedRect('shrine-sanctum-divider-east', 448, 224, 96, 32),
-	namedRect('shrine-preparation-divider-north', 192, 256, 32, 96),
-	namedRect('shrine-preparation-divider-south', 192, 448, 32, 64),
-	namedRect('shrine-archive-divider-north', 544, 256, 32, 96),
-	namedRect('shrine-archive-divider-south', 544, 448, 32, 64),
-	namedRect('shrine-nave-lobby-west', 224, 544, 96, 32),
-	namedRect('shrine-nave-lobby-east', 448, 544, 96, 32),
-	namedRect('shrine-lower-west-service', 64, 512, 160, 160),
-	namedRect('shrine-lobby-west-service', 224, 576, 32, 96),
-	namedRect('shrine-lower-east-service', 544, 512, 160, 160),
-	namedRect('shrine-lobby-east-service', 512, 576, 32, 96)
-] as const;
-
-const villagerHouse1Walls = [
-	namedRect('villager-house-1-wall-north', 0, 0, 640, 64),
-	namedRect('villager-house-1-wall-west', 0, 64, 64, 480),
-	namedRect('villager-house-1-wall-east', 576, 64, 64, 480),
-	namedRect('villager-house-1-wall-south-west', 0, 544, 288, 32),
-	namedRect('villager-house-1-wall-south-east', 352, 544, 288, 32),
-	namedRect('villager-house-1-bedroom-hall-north', 256, 64, 32, 64),
-	namedRect('villager-house-1-bedroom-hall-south', 256, 192, 32, 64),
-	namedRect('villager-house-1-storage-hall-north', 384, 64, 32, 64),
-	namedRect('villager-house-1-storage-hall-south', 384, 192, 32, 64),
-	namedRect('villager-house-1-living-divider-west', 64, 256, 224, 32),
-	namedRect('villager-house-1-living-divider-east', 384, 256, 192, 32)
-] as const;
-
-const villagerHouse2Walls = [
-	namedRect('villager-house-2-wall-north', 0, 0, 704, 64),
-	namedRect('villager-house-2-wall-west', 0, 64, 64, 480),
-	namedRect('villager-house-2-wall-east', 640, 64, 64, 480),
-	namedRect('villager-house-2-wall-south-west', 0, 544, 320, 32),
-	namedRect('villager-house-2-wall-south-east', 384, 544, 320, 32),
-	namedRect('villager-house-2-workshop-hall-north', 320, 64, 32, 64),
-	namedRect('villager-house-2-workshop-hall-south', 320, 224, 32, 64),
-	namedRect('villager-house-2-bedroom-hall-north', 448, 64, 32, 64),
-	namedRect('villager-house-2-bedroom-hall-south', 448, 224, 32, 64),
-	namedRect('villager-house-2-living-divider-west', 64, 288, 288, 32),
-	namedRect('villager-house-2-living-divider-east', 448, 288, 192, 32)
-] as const;
-
-const villagerHouse3Walls = [
-	namedRect('villager-house-3-wall-north', 0, 0, 640, 64),
-	namedRect('villager-house-3-wall-west', 0, 64, 64, 544),
-	namedRect('villager-house-3-wall-east', 576, 64, 64, 544),
-	namedRect('villager-house-3-wall-south-west', 0, 608, 288, 32),
-	namedRect('villager-house-3-wall-south-east', 352, 608, 288, 32),
-	namedRect('villager-house-3-archive-hall-north', 256, 64, 32, 64),
-	namedRect('villager-house-3-archive-hall-south', 256, 224, 32, 96),
-	namedRect('villager-house-3-bedroom-hall-north', 384, 64, 32, 64),
-	namedRect('villager-house-3-bedroom-hall-south', 384, 224, 32, 96),
-	namedRect('villager-house-3-sitting-divider-west', 64, 320, 224, 32),
-	namedRect('villager-house-3-sitting-divider-east', 384, 320, 192, 32)
-] as const;
-```
-
-Populate `VILLAGE_INTERIOR_LAYOUTS` with the exact room, corridor, door, spawn, exit, approach, and prop-zone values in the coordinate spec. Use these changed NPC pairs:
-
-```ts
-'item-shop': { 'shopkeeper-mira': { npc: point(416, 320), approach: point(416, 360) } }
-'villager-house-1': { 'villager-lynn': { npc: point(160, 416), approach: point(200, 416) } }
-'villager-house-2': { 'villager-toma': { npc: point(192, 192), approach: point(232, 192) } }
-'villager-house-3': { 'villager-io': { npc: point(160, 192), approach: point(200, 192) } }
-```
-
-Hero House and Shrine use empty `npcApproaches` objects.
-
-- [ ] **Step 6: Run and pass the pure layout suite**
+- [ ] **Step 6: Run and pass pure layout tests**
 
 ```bash
 bun run test:unit -- --run src/lib/game/content/maps/layouts/layouts.test.ts
@@ -1179,7 +1246,7 @@ git commit -m "feat(world): add village interior blueprints"
 
 - [ ] **Step 1: Write failing Guild Hall contracts**
 
-In `maps.test.ts` assert:
+Assert dimensions, spawn, exit, exterior return, NPC identity, full floor, every wall ID, and inbound arrival:
 
 ```ts
 expect(guildHallMap).toMatchObject({
@@ -1194,102 +1261,53 @@ expect(guildHallMap.transitions[0]).toMatchObject({
 	y: 816,
 	arrival: { x: 2272, y: 4448, facing: 'down' }
 });
-expect(guildHallMap.groundPatches?.find(({ id }) => id === 'guild-hall-graybox-floor')).toEqual({
-	id: 'guild-hall-graybox-floor',
-	x: 512,
-	y: 416,
-	width: 1024,
-	height: 832,
-	tile: 'cobblestoneTile'
-});
 ```
 
-Assert every layout wall appears as a `ruin-wall` blocker with the centre-based equivalent rectangle.
-
-- [ ] **Step 2: Run the map test and verify HPA-400 layout fails**
+- [ ] **Step 2: Run the focused map test and verify failure**
 
 ```bash
 bun run test:unit -- --run src/lib/game/content/maps.test.ts
 ```
 
-Expected: FAIL on dimensions, spawn, transition, floor, and walls.
+Expected: FAIL against the HPA-400 24×18 connected-zone map.
 
-- [ ] **Step 3: Re-author the direct map from explicit layout data**
+- [ ] **Step 3: Re-author Guild Hall directly in `maps.ts`**
 
-In `maps.ts`:
+Use:
 
-- set dimensions, spawn, and transition from the layout;
-- add the full floor first;
-- add room/corridor floor patches after it using `pathTile`, `plazaStoneTile`, and `sandTile`;
-- map every `layout.walls` entry through `toMapRect(...)` and add `kind: 'ruin-wall'`;
-- set Guild Master `{ x: 800, y: 144 }` and Quartermaster `{ x: 816, y: 528 }` while preserving identity fields;
-- set ambient members at `{ x: 160, y: 544 }` and `{ x: 704, y: 368 }`.
+- one full `cobblestoneTile` patch covering 1024×832;
+- room/corridor patches from the layout constants;
+- every explicit wall converted to a `ruin-wall` blocker;
+- spawn `(512,736)` and exit `(512,816)`;
+- Guild Master `(800,144)`, approach `(800,184)`;
+- Quartermaster `(816,528)`, approach `(816,568)`;
+- exterior return `(2272,4448,down)`;
+- preserved NPC/dialogue/shop/transition IDs;
+- only function-identifying props inside approved prop zones.
 
-Use only these essential graybox props:
+- [ ] **Step 4: Synchronize the village inbound arrival**
 
-```ts
-[
-	{ id: 'guild-hall-records-shelf', x: 128, y: 144, width: 64, height: 128, frameName: 'bookshelf', collision: { id: 'guild-hall-records-shelf-collision', x: 128, y: 144, width: 56, height: 112 } },
-	{ id: 'guild-hall-quest-board', x: 320, y: 112, width: 112, height: 72, frameName: 'noticeBoard', collision: { id: 'guild-hall-quest-board-collision', x: 320, y: 128, width: 96, height: 32 } },
-	{ id: 'guild-hall-common-rug', x: 240, y: 496, width: 224, height: 128, frameName: 'rug', depth: 'floor' },
-	{ id: 'guild-hall-common-table', x: 240, y: 496, width: 96, height: 54, frameName: 'table', collision: { id: 'guild-hall-common-table-collision', x: 240, y: 496, width: 88, height: 44 } },
-	{ id: 'guild-hall-master-desk', x: 800, y: 164, width: 160, height: 48, frameName: 'table', collision: { id: 'guild-hall-master-desk-collision', x: 800, y: 164, width: 144, height: 8 } },
-	{ id: 'guild-hall-training-rack', x: 864, y: 368, width: 56, height: 96, frameName: 'weaponRack', collision: { id: 'guild-hall-training-rack-collision', x: 864, y: 368, width: 44, height: 80 } },
-	{ id: 'guild-hall-quartermaster-counter', x: 816, y: 548, width: 192, height: 48, frameName: 'shopCounter', collision: { id: 'guild-hall-quartermaster-counter-collision', x: 816, y: 548, width: 176, height: 8 } },
-	{ id: 'guild-hall-lobby-bench', x: 448, y: 736, width: 96, height: 34, frameName: 'bench', collision: { id: 'guild-hall-lobby-bench-collision', x: 448, y: 736, width: 86, height: 26 } }
-]
+In `village.ts`, set `meadow-to-guild-hall` arrival to `{ x: 512, y: 736, facing: 'up' }` while preserving its exterior door coordinate and ID.
+
+- [ ] **Step 5: Add route and interaction assertions**
+
+Use `expectRouteClear(...)` from spawn to:
+
+```text
+Guild Master approach: (800,184)
+Quartermaster approach: (816,568)
+Records Hall: (320,192)
+Training Hall: (704,368)
+Exit: (512,816)
 ```
 
-- [ ] **Step 4: Update the village inbound arrival**
-
-In `village.ts`, set the existing `meadow-to-guild-hall` arrival to:
-
-```ts
-arrival: { x: 512, y: 736, facing: 'up' }
-```
-
-Preserve its ID and exterior door coordinate.
-
-- [ ] **Step 5: Add exact Guild routes and approach assertions**
-
-```ts
-expectRouteClear(guildHallMap, [
-	{ x: 512, y: 736 },
-	{ x: 512, y: 184 },
-	{ x: 800, y: 184 }
-], 'Guild Master office');
-
-expectRouteClear(guildHallMap, [
-	{ x: 512, y: 736 },
-	{ x: 512, y: 568 },
-	{ x: 816, y: 568 }
-], 'Quartermaster room');
-
-expectRouteClear(guildHallMap, [
-	{ x: 512, y: 736 },
-	{ x: 512, y: 192 },
-	{ x: 320, y: 192 }
-], 'records hall');
-
-expectRouteClear(guildHallMap, [
-	{ x: 512, y: 736 },
-	{ x: 512, y: 368 },
-	{ x: 704, y: 368 }
-], 'training hall');
-
-expectRouteClear(guildHallMap, [
-	{ x: 512, y: 736 },
-	{ x: 512, y: 816 }
-], 'Guild Hall exit');
-```
-
-Assert each NPC approach distance is between the shared collision and interaction radii.
+Assert NPC approach distances using shared radii, not literal bounds.
 
 - [ ] **Step 6: Update scene, save, and E2E fixtures**
 
-- Scene tests use `{ x: 800, y: 184 }` for Guild Master and `{ x: 816, y: 568 }` for Quartermaster interactions.
-- Save-state test serializes a point inside `guild-hall-common-table-collision` and asserts normalization moves it outside all wall and prop collisions.
-- E2E Guild quest fixture starts at `{ x: 800, y: 184 }`.
+- Scene tests use the new two NPC approach points.
+- Save-state test serializes a point inside a collidable Guild prop and asserts normalization moves it outside all wall/prop collisions.
+- Guild quest E2E starts at `(800,184)`.
 
 - [ ] **Step 7: Run Guild-focused validation**
 
@@ -1328,7 +1346,7 @@ git commit -m "feat(world): rebuild Guild Hall architecture"
 - Modify: `src/lib/game/phaser/scenes/scenes.test.ts`
 
 **Interfaces:**
-- Consumes: Hero House and Item Shop layouts, current identity fields, and Task 6 explicit map pattern.
+- Consumes: Hero House and Item Shop layouts and Task 6 direct-map pattern.
 - Produces: a three-zone home, a four-zone shop, complete floors, explicit walls, preserved Mira shop behavior, and synchronized inbound arrivals.
 
 - [ ] **Step 1: Add failing map contracts**
@@ -1340,9 +1358,9 @@ hero-house: 22×18, spawn (352,480), exit (352,560)
 item-shop: 26×20, spawn (416,544), exit (416,624)
 ```
 
-Assert Mira remains `shopkeeper-mira` with dialogue `shopkeeper-mira` and shop `miras-item-shop` at `{ x: 416, y: 320 }`.
+Assert Mira remains `shopkeeper-mira` with dialogue `shopkeeper-mira` and shop `miras-item-shop` at `(416,320)` with approach `(416,360)`.
 
-- [ ] **Step 2: Run `maps.test.ts` and verify both compact maps fail**
+- [ ] **Step 2: Run `maps.test.ts` and verify both maps fail**
 
 ```bash
 bun run test:unit -- --run src/lib/game/content/maps.test.ts
@@ -1352,41 +1370,22 @@ Expected: FAIL.
 
 - [ ] **Step 3: Re-author Hero House**
 
-Use the exact layout. Add:
-
-- full `cobblestoneTile` patch;
-- hall `pathTile` patch;
-- bedroom and study `plazaStoneTile` patches;
-- every wall as `ruin-wall`;
-- existing transition ID with exit `{ x: 352, y: 560 }` and exterior return `{ x: 704, y: 5888, facing: 'down' }`;
-- bed at `{ x: 160, y: 144 }`, desk at `{ x: 544, y: 144 }`, table at `{ x: 304, y: 416 }`, and crates at `{ x: 544, y: 416 }`.
+Use the exact rooms/walls from the layout module, full authored floor, hall/room patches, existing transition ID, exterior return `(704,5888,down)`, and minimal bed/study/living/kitchen props inside approved zones.
 
 - [ ] **Step 4: Re-author Item Shop**
 
-Use the exact layout. Add:
+Use the exact rooms/walls, full floor, service corridor, sales floor, Mira and customer approach, counter visual/collision, display shelves, stock shelves, office desk, ambient customer, existing dialogue/shop IDs, and exterior return `(704,5216,down)`.
 
-- full floor and room/corridor patches;
-- every wall as `ruin-wall`;
-- transition exit `{ x: 416, y: 624 }` and exterior return `{ x: 704, y: 5216, facing: 'down' }`;
-- Mira at `{ x: 416, y: 320 }` and customer approach `{ x: 416, y: 360 }`;
-- counter visual `{ x: 416, y: 336, width: 384, height: 48 }` with collision `{ x: 416, y: 340, width: 384, height: 8 }`;
-- west and east shelves at `{ x: 144, y: 448 }` and `{ x: 688, y: 448 }`;
-- stockroom shelf at `{ x: 192, y: 144 }`;
-- office desk at `{ x: 640, y: 144 }`;
-- ambient customer at `{ x: 224, y: 480 }`.
-
-- [ ] **Step 5: Synchronize inbound arrivals in `village.ts`**
+- [ ] **Step 5: Synchronize inbound arrivals**
 
 ```text
 meadow-to-hero-house: (352,480), facing up
 meadow-to-item-shop:  (416,544), facing up
 ```
 
-- [ ] **Step 6: Add route and interaction tests**
+- [ ] **Step 6: Add routes and interaction tests**
 
-Hero routes: spawn to bedroom centre, study centre, living centre, and exit.
-
-Item routes: spawn to customer approach, stockroom centre, office centre, both display aisles, and exit. Assert Mira approach distance is exactly `40` and clear of counter collision with player-radius padding.
+Hero routes reach bedroom, study, living area, and exit. Item routes reach Mira's approach, stockroom, office, both display aisles, and exit. Assert the counter collision leaves the shared-radius interaction point clear.
 
 - [ ] **Step 7: Run focused tests**
 
@@ -1412,7 +1411,7 @@ git commit -m "feat(world): rebuild home and shop interiors"
 
 ---
 
-### Task 8: Rebuild Shrine and the three distinct villager houses
+### Task 8: Rebuild Shrine and three distinct villager houses
 
 **Files:**
 - Modify: `src/lib/game/content/maps.ts`
@@ -1422,7 +1421,7 @@ git commit -m "feat(world): rebuild home and shop interiors"
 
 **Interfaces:**
 - Consumes: the four remaining interior layouts and existing NPC/dialogue IDs.
-- Produces: a ceremonial Shrine and three structurally distinct homes with complete floors, walls, doors, and interaction approaches.
+- Produces: a ceremonial Shrine and three structurally distinct homes with complete floors, explicit walls/doors, preserved interactions, and synchronized arrivals.
 
 - [ ] **Step 1: Add failing dimension and floor contracts**
 
@@ -1435,9 +1434,9 @@ villager-house-2:           22×18, spawn (352,480), exit (352,560)
 villager-house-3:           20×20, spawn (320,544), exit (320,624)
 ```
 
-Assert all four full-floor IDs and that the three house room/wall coordinate signatures are unequal.
+Assert the three house room/wall signatures are unequal.
 
-- [ ] **Step 2: Run map test and verify failure**
+- [ ] **Step 2: Run map tests and verify failure**
 
 ```bash
 bun run test:unit -- --run src/lib/game/content/maps.test.ts
@@ -1447,23 +1446,23 @@ Expected: FAIL.
 
 - [ ] **Step 3: Re-author Shrine of Aurora**
 
-Use the exact layout and walls. Add only altar/offerings, two nave bench rows, one lamp in each side room, an archive shelf, and complete room/lobby floor patches. Preserve exterior return `{ x: 2272, y: 5888, facing: 'down' }`.
+Use exact layout/walls and complete floor. Add only altar/offerings, nave benches, side-room lamps, archive shelf, and entrance treatment. Preserve exterior return `(2272,5888,down)`.
 
 - [ ] **Step 4: Re-author Villager House 1 as a family home**
 
-Keep `villager-lynn` at `{ x: 160, y: 416 }` with approach `{ x: 200, y: 416 }`. Use bed, family table, kitchen shelf, and storage crates. Preserve family ambient NPC ID at `{ x: 480, y: 416 }`.
+Keep `villager-lynn` at `(160,416)` with approach `(200,416)`. Use bed, family table, kitchen shelf, and storage crates. Preserve family ambient NPC ID at `(480,416)` and exterior return `(672,4416,down)`.
 
 - [ ] **Step 5: Re-author Villager House 2 as a craft home**
 
-Keep `villager-toma` at `{ x: 192, y: 192 }` with approach `{ x: 232, y: 192 }`. Use a workshop table and storage in the west room, a bed in the east room, and a living table below. Preserve neighbor ambient NPC ID at `{ x: 512, y: 416 }`.
+Keep `villager-toma` at `(192,192)` with approach `(232,192)`. Use workshop table/storage, bedroom, and living table. Preserve neighbor ambient NPC ID at `(512,416)` and exterior return `(1376,4416,down)`.
 
 - [ ] **Step 6: Re-author Villager House 3 as an archive home**
 
-Keep `villager-io` at `{ x: 160, y: 192 }` with approach `{ x: 200, y: 192 }`. Use shelves in the archive, a reading table in the sitting room, and bed/storage in the east room. Preserve neighbor ambient NPC ID at `{ x: 480, y: 480 }`.
+Keep `villager-io` at `(160,192)` with approach `(200,192)`. Use archive shelves, reading table, bedroom/storage, and sitting room. Preserve neighbor ambient NPC ID at `(480,480)` and exterior return `(1472,5888,down)`.
 
-- [ ] **Step 7: Synchronize inbound arrivals in `village.ts`**
+- [ ] **Step 7: Synchronize inbound arrivals**
 
-Set the four arrivals to the exact spawns above while preserving transition IDs.
+Set all four village transitions to the exact interior spawns above while preserving IDs and exterior coordinates.
 
 - [ ] **Step 8: Add route and uniqueness tests**
 
@@ -1493,10 +1492,9 @@ git commit -m "feat(world): rebuild shrine and village houses"
 
 ---
 
-### Task 9: Close the structure-first validation loop
+### Task 9: Close the graybox validation loop
 
 **Files:**
-- Modify: `.agents/skills/gliese-world-expansion/references/authoring.md`
 - Modify: `tests/e2e/game.e2e.ts`
 - Create during review: `docs/superpowers/reports/img/hpa-586/guild-hall.png`
 - Create during review: `docs/superpowers/reports/img/hpa-586/hero-house.png`
@@ -1506,49 +1504,27 @@ git commit -m "feat(world): rebuild shrine and village houses"
 - Create during review: `docs/superpowers/reports/img/hpa-586/interior-collision.png`
 
 **Interfaces:**
-- Consumes: all seven accepted graybox maps and the existing world-expansion skill.
-- Produces: one reusable structure-before-art instruction, complete browser/Tauri walkthroughs, and final HPA-586 approval evidence.
+- Consumes: all seven graybox maps and the authoring correction already merged in the outdoor PR.
+- Produces: complete browser/Tauri walkthroughs and final HPA-586 approval evidence. No new skill or authoring decision remains in this task.
 
-- [ ] **Step 1: Add the smallest reusable authoring correction**
+- [ ] **Step 1: Extend E2E coverage across all seven interiors**
 
-Under `Direct Maps` and `Sundrop Village Layered Source` in `authoring.md`, add:
+Use one parameterized table. For each building:
 
-```md
-## Structure Before Art
+1. start outside at the shared door/return contract;
+2. enter with real input;
+3. reach every named room;
+4. interact with every changed NPC;
+5. open and close Quartermaster and Item Shop interfaces where applicable;
+6. exit to the exact exterior return;
+7. verify first movement does not immediately re-enter.
 
-For a substantial spatial revision, define and review the functional bounds, lots,
-rooms, corridors, walls, doors, routes, transition approaches, and NPC approaches
-before generating final art or placing decorative content. Prove the geometry with
-a walkable graybox first. Final art conforms to accepted collision and route
-geometry; do not move authoritative geometry merely to fit an accidental image.
-```
+Perform one Guild Hall save/reload.
 
-Do not create another skill, template, approval stage, or schema.
-
-- [ ] **Step 2: Extend E2E coverage across all seven interiors**
-
-Use existing save-state injection to start outside each building, then real input to:
-
-1. enter;
-2. reach each room;
-3. interact with each changed NPC;
-4. open and close Quartermaster and Item Shop interfaces;
-5. exit to the exact exterior return;
-6. verify first movement does not immediately re-enter;
-7. perform one Guild Hall save/reload.
-
-Keep one parameterized test table rather than seven copied test bodies.
-
-- [ ] **Step 3: Run all focused and repository tests**
+- [ ] **Step 2: Run all focused and repository tests**
 
 ```bash
-bun run test:unit -- --run \
-  src/lib/game/content/agent-skills.test.ts \
-  src/lib/game/content/maps/layouts/layouts.test.ts \
-  src/lib/game/content/maps/regions/village-layered.test.ts \
-  src/lib/game/content/maps.test.ts \
-  src/lib/game/phaser/scenes/scenes.test.ts \
-  src/lib/game/save/save-state.test.ts
+bun run test:unit -- --run
 bun run test:e2e
 bun run check
 bun run lint
@@ -1556,17 +1532,17 @@ bun run build
 bun run build:tauri
 ```
 
-Expected: all pass.
+Expected: all commands pass.
 
-- [ ] **Step 4: Capture native-scale interior screenshots**
+- [ ] **Step 3: Capture native-scale interior screenshots**
 
 Capture the six named images at 100% scale. Use collision debug only for `interior-collision.png`; all other images show normal graybox presentation.
 
-- [ ] **Step 5: Perform the combined web walkthrough**
+- [ ] **Step 4: Perform the combined web walkthrough**
 
-Walk the full outdoor route and every interior in one normal browser session. Verify no V1 background renders, no default-only interior cell is visible, every room is readable before final furniture, all shops/dialogues work, and every round trip is stable.
+Walk the full outdoor route and every interior in one normal browser session. Verify no V1 background renders, no playable interior cell relies only on the implicit fallback floor, every room is readable before final dressing, all shops/dialogues work, and every round trip is stable.
 
-- [ ] **Step 6: Perform the combined packaged Tauri walkthrough**
+- [ ] **Step 5: Perform the combined packaged Tauri walkthrough**
 
 ```bash
 bun run tauri dev
@@ -1574,27 +1550,25 @@ bun run tauri dev
 
 Repeat the combined happy path with controller input and one save/reload.
 
-- [ ] **Step 7: Self-review HPA-586 completion**
+- [ ] **Step 6: Self-review HPA-586 completion**
 
 Confirm:
 
-- no placeholder or provisional coordinate remains in the coordinate modules;
+- no placeholder or provisional coordinate remains in layout modules;
 - outdoor and interior geometry match the coordinate spec;
-- all V1 background files remain historical but inactive;
-- no new framework or compatibility layer was introduced;
+- V1 assets remain historical but inactive;
+- V1-only active-map proof tests are gone while generic renderer and static projection tests remain;
+- no new framework, compatibility source, or compiler was introduced;
 - final-art ticket boundaries are concrete.
 
-- [ ] **Step 8: Commit final validation and skill correction**
+- [ ] **Step 7: Commit final validation**
 
 ```bash
-git add \
-  .agents/skills/gliese-world-expansion/references/authoring.md \
-  tests/e2e/game.e2e.ts \
-  docs/superpowers/reports/img/hpa-586
-git commit -m "docs(skill): require structure-first map revisions"
+git add tests/e2e/game.e2e.ts docs/superpowers/reports/img/hpa-586
+git commit -m "test(world): validate HPA-586 grayboxes"
 ```
 
-Open the interior implementation PR as a draft. HPA-586 may move to Done only after both graybox PRs are merged and native-scale screenshots are accepted.
+Open the interior implementation PR as a draft. HPA-586 may move to Done only after both graybox PRs are merged and the native-scale screenshots are accepted.
 
 ---
 
@@ -1602,7 +1576,9 @@ Open the interior implementation PR as a draft. HPA-586 may move to Done only af
 
 Create these only after graybox acceptance:
 
-1. **Meadow Entry V2 final base and foreground art** — produce the mandatory full-world base partition, region overlays, texture preflight, runtime registration, and replacement-art cleanup.
-2. **Guild Hall final interior treatment** — replace graybox tiles/walls with final surfaces and furniture without moving accepted geometry.
+1. **Meadow Entry V2 final base and foreground art** — produce the mandatory full-world base partition, optional region overlays, texture preflight, runtime registration, and native-scale acceptance.
+2. **Guild Hall final interior treatment** — replace graybox surfaces and minimal props without moving accepted geometry.
 3. **Remaining village interior final treatment** — finish Hero House, Item Shop, Shrine, and three houses from accepted plans.
-4. **V1 runtime cleanup** — remove superseded HPA-406 preloads, generated active-crop projection, and obsolete fallback ownership only after V2 art is live.
+4. **V1 runtime/tool cleanup** — remove superseded HPA-406 preloads, generated activation, inactive V1 village art tools/source, and obsolete ownership only after V2 art is live.
+
+Final art conforms to accepted geometry. Authoritative collision, routes, doors, and interaction approaches must not be moved merely to fit an accidental generated image.
