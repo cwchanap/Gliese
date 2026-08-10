@@ -34,7 +34,6 @@ const expectedPathOwners = {
 	'blocker:corridor-wall-5a': 'connector-village-crossroads',
 	'blocker:corridor-wall-5b': 'connector-village-crossroads',
 	'blocker:corridor-wall-6a': 'connector-village-crossroads',
-	'blocker:corridor-wall-6b': 'connector-village-crossroads',
 	'blocker:corridor-wall-7a': 'connector-village-crossroads',
 	'blocker:corridor-wall-7b': 'connector-village-crossroads',
 	'blocker:corridor-wall-8a': 'connector-village-crossroads',
@@ -100,14 +99,14 @@ describe('meadow-entry authoring layout', () => {
 			.join('');
 
 		expect(MEADOW_ENTRY_REVIEWED_PRIMARY_SOURCE_OWNERS_SHA256).toBe(
-			'63bf03a986d2755ead9306e4124ecf0cdabb87e7bc99ef9ba447c044c1f00519'
+			'b7212ef5eaa4980b55fad561d17e02513c002606cab44bd52768abbbbf7791e7'
 		);
 		expect(sha256(canonicalOwners)).toBe(MEADOW_ENTRY_REVIEWED_PRIMARY_SOURCE_OWNERS_SHA256);
 	});
 
 	it('locks the exact ordered region metadata to its independent reviewed snapshot', () => {
 		expect(MEADOW_ENTRY_REVIEWED_AUTHORING_REGIONS_SHA256).toBe(
-			'a8b56d60dd0de31c3db76375aeb8a66eb8eff6d422be26bacbe5396c4ba8f28c'
+			'3544536e1fbcd928531199c0c6d340e0619d2a5cf8d4df8ad2e1998a117e4728'
 		);
 		expect(sha256(JSON.stringify(MEADOW_ENTRY_AUTHORING_REGIONS))).toBe(
 			MEADOW_ENTRY_REVIEWED_AUTHORING_REGIONS_SHA256

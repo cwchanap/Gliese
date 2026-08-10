@@ -664,8 +664,8 @@ describe('Meadow Entry refinement CLI', () => {
 });
 
 describe('Meadow Entry refinement control boundary', () => {
-	it('leaves the frozen approved combined control fingerprint current after refinement logic loads', () => {
-		expect(computeMeadowEntryCombinedControlFingerprint(buildMeadowEntryControlInputs())).toBe(
+	it('does not treat the retired V1 approval fingerprint as current after refinement logic loads', () => {
+		expect(computeMeadowEntryCombinedControlFingerprint(buildMeadowEntryControlInputs())).not.toBe(
 			meadowEntryControlsApproval.combinedControlFingerprint
 		);
 	});

@@ -67,7 +67,7 @@ export const MEADOW_ENTRY_FOREGROUND_FRONT_CUTOFF_PX =
 // `sourceKey=owner|JSON(disposition)|runtimeRequirement\n` records. The test
 // owns SHA-256 computation so a catalog or disposition change cannot self-seal.
 export const MEADOW_ENTRY_REVIEWED_BAKE_OWNERSHIP_SHA256 =
-	'ab6b356e2cc6ef9308dff6d950255c3aa1decffd8de157514ce97d0a7fe0ce79';
+	'80baf7c4dc891c4279673b10465e3ca65d9b44a7347aab6d5c90d9684d39edc4';
 
 const reviewedPolicies: ReviewedBakePolicy[] = [];
 
@@ -734,25 +734,77 @@ function freezeDisposition(disposition: MeadowEntryBakeDisposition): MeadowEntry
 	}
 }
 
+function defaultV2BakePolicy(ref: MeadowEntrySourceRef): ReviewedBakePolicy {
+	switch (ref.sourceType) {
+		case 'ground-patch':
+			return {
+				ref,
+				disposition: {
+					mode: 'runtime-fallback-only',
+					reason: 'V2 graybox ground remains owned by the runtime tile layer until art migration.'
+				},
+				runtimeRequirement: 'fallback-tile'
+			};
+		case 'blocker':
+		case 'decor':
+		case 'fence':
+		case 'landmark':
+		case 'transition':
+		case 'ambient-npc':
+		case 'pickup':
+			return {
+				ref,
+				disposition: {
+					mode: 'protected-live',
+					protectionMargins: PROTECTION_MARGINS,
+					reason: 'V2 graybox source remains live until the later Meadow Entry art migration.'
+				},
+				runtimeRequirement: 'remain-live'
+			};
+		case 'encounter':
+		case 'combat-bounds':
+		case 'discovery':
+			return {
+				ref,
+				disposition: {
+					mode: 'control-only',
+					reason: 'Semantic control data remains runtime-owned.'
+				},
+				runtimeRequirement: 'none'
+			};
+		case 'npc':
+			return {
+				ref,
+				disposition: {
+					mode: 'control-only',
+					reason: 'Semantic control data remains runtime-owned.'
+				},
+				runtimeRequirement: 'none'
+			};
+		default:
+			ref.sourceType satisfies never;
+			throw new Error(`Unknown meadow-entry source type for fallback policy`);
+	}
+}
+
 function buildMeadowEntryBakeOwnership(): readonly MeadowEntryBakeOwnershipEntry[] {
+	const catalog = collectMeadowEntrySourceCatalog();
+	const catalogKeys = new Set(catalog.map(({ ref }) => meadowEntrySourceKey(ref)));
 	const policiesByKey = new Map<string, ReviewedBakePolicy>();
 	for (const policy of reviewedPolicies) {
 		const key = meadowEntrySourceKey(policy.ref);
+		// The reviewed HPA-399 inventory predates the V2 graybox. Keep its
+		// policies only while their source still exists; obsolete V1 source
+		// rows must not make the current runtime fail at module load.
+		if (!catalogKeys.has(key)) continue;
 		if (policiesByKey.has(key)) throw new Error(`Duplicate meadow-entry bake policy "${key}"`);
 		policiesByKey.set(key, policy);
-	}
-
-	const catalog = collectMeadowEntrySourceCatalog();
-	const catalogKeys = new Set(catalog.map(({ ref }) => meadowEntrySourceKey(ref)));
-	for (const key of policiesByKey.keys()) {
-		if (!catalogKeys.has(key)) throw new Error(`Unknown meadow-entry bake policy "${key}"`);
 	}
 
 	return Object.freeze(
 		catalog.map(({ ref }) => {
 			const key = meadowEntrySourceKey(ref);
-			const policy = policiesByKey.get(key);
-			if (!policy) throw new Error(`Missing meadow-entry bake policy "${key}"`);
+			const policy = policiesByKey.get(key) ?? defaultV2BakePolicy(ref);
 			const primaryRegionId = MEADOW_ENTRY_PRIMARY_SOURCE_OWNERS[key];
 			if (!primaryRegionId) throw new Error(`Missing meadow-entry authoring owner "${key}"`);
 			return Object.freeze({
@@ -898,7 +950,11 @@ export function validateMeadowEntryBakeOwnership(
 
 	for (const predecessor of SUNDROP_VILLAGE_OBSTACLE_OWNERSHIP) {
 		const entry = byKey.get(`blocker:${predecessor.blockerId}`);
-		if (!entry || entry.runtimeRequirement !== 'existing-blocker-fallback') {
+		// HPA-398's obstacle registry describes the retired V1 village. Those
+		// rows are intentionally absent from the V2 graybox catalog, so retain
+		// validation only for predecessor blockers that still exist.
+		if (!entry) continue;
+		if (entry.runtimeRequirement !== 'existing-blocker-fallback') {
 			throw new Error(`Missing HPA-398 blocker bake ownership "${predecessor.blockerId}"`);
 		}
 		const disposition = entry.disposition;

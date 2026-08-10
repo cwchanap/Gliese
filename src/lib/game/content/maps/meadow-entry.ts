@@ -145,7 +145,9 @@ const merged = mergeRegions([
 
 const backgroundImages = [...merged.backgroundImages, ...meadowEntryRuntimeBackgroundImages];
 const runtimeBlockerVisualOwners = activeMeadowEntryRuntimeVisualOwners.filter(
-	(owner) => owner.sourceType === 'blocker'
+	(owner) =>
+		owner.sourceType === 'blocker' &&
+		merged.blockers.some((blocker) => blocker.id === owner.sourceId)
 );
 const runtimeDecorVisualOwners = activeMeadowEntryRuntimeVisualOwners.filter(
 	(owner) => owner.sourceType === 'decor'

@@ -336,26 +336,21 @@ describe('save state', () => {
 	});
 
 	it('preserves a saved position at a landmark doorway opening', () => {
-		// (1424, 5744) is the shrine-of-aurora doorway transition position
-		// (village origin (256, 4352) + col 36/row 43 * 32px + 16px centre).
-		// The shrine landmark (246×333 at (1424, 5552)) spans bounds
-		// (1301–1547, 5385.5–5718.5); the transition sits just south of the
-		// landmark's bottom edge (clearing it, with the 12px normalize
-		// padding, by 13.5px), so it is walkable on its own without needing
-		// a carved doorway opening. Normalization must leave it untouched.
+		// The V2 Shrine of Aurora return arrival is two tiles below its exterior
+		// doorway and outside the landmark's padded collision bounds.
 		const doorwaySave = {
 			...createNewSaveState(),
 			player: {
 				...createNewSaveState().player,
-				x: 1424,
-				y: 5744
+				x: 2272,
+				y: 5920
 			}
 		};
 
 		const parsed = parseSaveState(JSON.stringify(doorwaySave));
 		expect(parsed).not.toBeNull();
-		expect(parsed!.player.x).toBe(1424);
-		expect(parsed!.player.y).toBe(5744);
+		expect(parsed!.player.x).toBe(2272);
+		expect(parsed!.player.y).toBe(5920);
 	});
 
 	it('nudges a saved position inside a decor collision rect to the nearest walkable tile', () => {

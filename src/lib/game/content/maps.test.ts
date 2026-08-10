@@ -44,6 +44,7 @@ import {
 import type { MapDecor, WorldMapDefinition } from '$lib/game/content/maps';
 import {
 	collectLandmarkRects,
+	collectStrictCollisionRects,
 	isInsideCollisionRect,
 	isInsideAnyCollisionRect
 } from '$lib/game/save/save-state';
@@ -814,15 +815,13 @@ describe('opening map content', () => {
 				expect(transition.arrival.y).toBeGreaterThanOrEqual(0);
 				expect(transition.arrival.x).toBeLessThan(targetMap.width * 32);
 				expect(transition.arrival.y).toBeLessThan(targetMap.height * 32);
-				if (targetMap.id !== 'meadow-entry') {
-					const overlappingBlocker = (targetMap.blockers ?? []).find((blocker) =>
-						isPointInsideRect(transition.arrival!, blocker)
-					);
-					expect(
-						overlappingBlocker,
-						`${map.id}:${transition.id} arrival overlaps ${targetMap.id} blocker`
-					).toBeUndefined();
-				}
+				const overlappingBlocker = (targetMap.blockers ?? []).find((blocker) =>
+					isPointInsideRect(transition.arrival!, blocker)
+				);
+				expect(
+					overlappingBlocker,
+					`${map.id}:${transition.id} arrival overlaps ${targetMap.id} blocker`
+				).toBeUndefined();
 				expectPointClearOfInteriorPropCollisions(
 					targetMap,
 					transition.arrival,
@@ -1130,6 +1129,11 @@ describe('opening map content', () => {
 					.returnArrival
 			);
 		}
+		expect(guildHallMap.transitions[0].arrival).toEqual({
+			x: 2_272,
+			y: 4_480,
+			facing: 'down'
+		});
 	});
 
 	it('defines village NPCs with stable ids and bounded coordinates', () => {
@@ -2533,7 +2537,10 @@ describe('interior return arrivals are standable', () => {
 	//     step after arriving re-enters the interior the player just left.
 	const PLAYER_RADIUS = 12;
 	const TRANSITION_TRIGGER = 30;
-	const rects = collectLandmarkRects(meadowEntryMap);
+	const rects = [
+		...collectStrictCollisionRects(meadowEntryMap),
+		...collectLandmarkRects(meadowEntryMap)
+	];
 	const returns = Object.values(maps).flatMap((map) =>
 		(map.transitions ?? [])
 			.filter((transition) => transition.toMapId === meadowEntryMap.id && transition.arrival)

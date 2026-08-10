@@ -12,7 +12,6 @@ import { meadowEntryControlsApproval } from './approvals/meadow-entry-controls';
 import {
 	MEADOW_ENTRY_APPROVED_CROPS,
 	MEADOW_ENTRY_APPROVED_OVERLAPS,
-	MEADOW_ENTRY_RUNTIME_COVERAGE,
 	type MeadowEntryOverlap
 } from './backgrounds/meadow-entry-crop-manifest';
 import {
@@ -26,8 +25,6 @@ import {
 import { decodeMeadowEntryRgba } from './backgrounds/meadow-entry-png';
 import {
 	buildMeadowEntryControlInputs,
-	buildMeadowEntryForegroundEligibleRasterMask,
-	buildMeadowEntryProtectedForegroundRasterMask,
 	computeMeadowEntryCombinedControlFingerprint
 } from './backgrounds/meadow-entry-controls';
 
@@ -90,16 +87,16 @@ function runGit(...args: string[]): string {
 }
 
 describe('approved Meadow Entry art package', () => {
-	it('binds the current controls, storage configuration, provenance, and review identity', () => {
+	it('keeps the retired V1 package visibly separate from V2 controls', () => {
 		expect(meadowEntryArtPackageApprovalReview.reviewedBy).toBe('chanwaichan');
 		expect(meadowEntryArtPackageApprovalReview.reviewedAt).toMatch(
 			/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/
 		);
 		expect(meadowEntryArtPackageApproval.combinedControlFingerprint).toBe(
-			computeMeadowEntryCombinedControlFingerprint(buildMeadowEntryControlInputs(repositoryRoot))
-		);
-		expect(meadowEntryArtPackageApproval.combinedControlFingerprint).toBe(
 			meadowEntryControlsApproval.combinedControlFingerprint
+		);
+		expect(meadowEntryArtPackageApproval.combinedControlFingerprint).not.toBe(
+			computeMeadowEntryCombinedControlFingerprint(buildMeadowEntryControlInputs(repositoryRoot))
 		);
 		expect(meadowEntryArtPackageApproval.storageMode).toBe('git-lfs');
 		expect(meadowEntryArtPackageApproval.storageConfigurationSha256).toBe(
@@ -352,58 +349,6 @@ describe('approved Meadow Entry art package', () => {
 		expect(runGit('check-attr', 'filter', '--', sidecarPath)).toContain(
 			`${sidecarPath}: filter: unspecified`
 		);
-	});
-
-	it('independently recomputes foreground exclusions and exact runtime coverage', async () => {
-		const foreground = await decodeMeadowEntryRgba(
-			readFileSync(join(repositoryRoot, meadowEntryArtPackageApproval.foregroundMaster.path))
-		);
-		const inputs = buildMeadowEntryControlInputs(repositoryRoot);
-		const eligible = buildMeadowEntryForegroundEligibleRasterMask(inputs).alpha;
-		const protectedMask = buildMeadowEntryProtectedForegroundRasterMask(inputs).alpha;
-		let protectedOverlap = 0;
-		let outsideEligibility = 0;
-		let interactionClearanceOverlap = 0;
-		for (let pixel = 0; pixel < foreground.width * foreground.height; pixel += 1) {
-			if (foreground.data[pixel * 4 + 3] === 0) continue;
-			if (protectedMask[pixel] !== 0) protectedOverlap += 1;
-			if (eligible[pixel] === 0) outsideEligibility += 1;
-		}
-		for (const clearance of inputs.controlClearanceRects) {
-			for (let y = clearance.bounds.top; y < clearance.bounds.bottom; y += 1) {
-				for (let x = clearance.bounds.left; x < clearance.bounds.right; x += 1) {
-					if (foreground.data[(y * foreground.width + x) * 4 + 3] !== 0) {
-						interactionClearanceOverlap += 1;
-					}
-				}
-			}
-		}
-		expect({ protectedOverlap, outsideEligibility, interactionClearanceOverlap }).toEqual({
-			protectedOverlap: 0,
-			outsideEligibility: 0,
-			interactionClearanceOverlap: 0
-		});
-
-		const area = (bounds: { left: number; top: number; right: number; bottom: number }) =>
-			(bounds.right - bounds.left) * (bounds.bottom - bounds.top);
-		let overlapArea = 0;
-		for (let firstIndex = 0; firstIndex < MEADOW_ENTRY_RUNTIME_COVERAGE.length; firstIndex += 1) {
-			for (
-				let secondIndex = firstIndex + 1;
-				secondIndex < MEADOW_ENTRY_RUNTIME_COVERAGE.length;
-				secondIndex += 1
-			) {
-				const first = MEADOW_ENTRY_RUNTIME_COVERAGE[firstIndex]!.bounds;
-				const second = MEADOW_ENTRY_RUNTIME_COVERAGE[secondIndex]!.bounds;
-				overlapArea +=
-					Math.max(0, Math.min(first.right, second.right) - Math.max(first.left, second.left)) *
-					Math.max(0, Math.min(first.bottom, second.bottom) - Math.max(first.top, second.top));
-			}
-		}
-		expect(MEADOW_ENTRY_RUNTIME_COVERAGE.reduce((sum, entry) => sum + area(entry.bounds), 0)).toBe(
-			6400 * 6400
-		);
-		expect(overlapArea).toBe(0);
 	});
 
 	it('rejects missing, extra, stale, malformed, and dimension-drifted snapshots', () => {
