@@ -4,7 +4,7 @@ import { getDialogue } from '$lib/game/content/dialogue';
 import { mergeRegions } from '$lib/game/content/maps/meadow-entry';
 import { STEPS } from '$lib/game/content/maps/layered/geometry';
 import { VILLAGE_INTERIOR_EXTERIORS } from '$lib/game/content/maps/layouts/meadow-entry-v2';
-import { toMapRect } from '$lib/game/content/maps/layouts/layout-rects';
+import { layoutRectContainsPoint, toMapRect } from '$lib/game/content/maps/layouts/layout-rects';
 import { VILLAGE_INTERIOR_LAYOUTS } from '$lib/game/content/maps/layouts/village-interiors-v2';
 import type { RegionFragment } from '$lib/game/content/maps/regions/types';
 import { en } from '$lib/game/i18n/messages/en';
@@ -1589,9 +1589,13 @@ describe('opening map content', () => {
 			[villagerHouse3Map.spawn, { x: 512, y: 544 }],
 			'villager-house-3-spawn-to-sitting-room'
 		);
+		const westPreparationRouteTarget = { x: 160, y: 400 };
+		expect(
+			layoutRectContainsPoint(shrineLayout.rooms.westPreparation, westPreparationRouteTarget)
+		).toBe(true);
 		expectRouteClear(
 			shrineOfAuroraInteriorMap,
-			[shrineOfAuroraInteriorMap.spawn, { x: 384, y: 400 }, { x: 200, y: 400 }],
+			[shrineOfAuroraInteriorMap.spawn, { x: 384, y: 400 }, westPreparationRouteTarget],
 			'shrine-spawn-to-preparation'
 		);
 		expectRouteClear(
