@@ -32,7 +32,7 @@ The outdoor PR is larger than the map-coordinate edits alone because V1 backgrou
 The approved decisions are:
 
 1. **V2 `regions` is neutral during graybox.** Keep all cells `.`. Do not introduce the proposed `A/B/G/M/P/K/H/C/S` lot glyph set. Lots and functional regions live in `layouts/meadow-entry-v2.ts`; the old `H/P/M/N/G/S/E/C` district contract belongs to the superseded V1 art workflow.
-2. **V1 active-map proofs are retired, not adapted to V2.** Keep static generated V1 projection tests and generic renderer/background-ownership fixtures. Remove tests and package commands whose only purpose is to prove the obsolete 56×48 live village or its active background package.
+2. **V1 active-map proofs are retired, not adapted to V2.** Keep static generated V1 projection tests and generic renderer/background/PNG/compositing fixtures. Remove or rewrite tests and package commands whose only purpose is to prove the obsolete 56×48 live village or its active background package.
 3. **Pure layout tests own pure geometry failures.** Approach-to-road connectivity, lane continuity, footprint clearance, route-rectangle continuity, and door/return trigger clearance fail before an 80×68 grid is authored.
 4. **Authoring guidance changes in the outdoor PR.** The ownership split and structure-before-art rule must be canonical before the interior PR begins.
 5. **Graybox emptiness is allowed.** Outside named roads and retained destination fragments, open live floor is expected. Review rejects blocked routes, active blurred V1 bases, compressed building placement, broken doors/returns, and unreadable seams; it does not judge final biome richness.
@@ -85,23 +85,23 @@ src/lib/game/content/maps/layered/preview.test.ts
 src/lib/game/content/maps/meadow-entry.ts
 src/lib/game/content/maps.test.ts
 src/lib/game/content/maps.ts
+src/lib/game/content/backgrounds/sundrop-village-retouch.test.ts
 src/lib/game/phaser/scenes/scenes.test.ts
 tests/e2e/game.e2e.ts
 package.json
 .agents/skills/gliese-world-expansion/references/authoring.md
 ```
 
-The outdoor PR also removes V1-only geometry-bound test files after confirming they do not test a reusable runtime primitive:
+The outdoor PR removes only V1 tests whose subject is the obsolete live 56×48 geometry/package:
 
 ```text
-src/lib/game/content/backgrounds/sundrop-village-png.test.ts
-src/lib/game/content/backgrounds/sundrop-village-retouch.test.ts
 src/lib/game/content/backgrounds/sundrop-village-obstacle-ownership.test.ts
 src/lib/game/content/backgrounds/sundrop-village-obstacle-controls.test.ts
-src/lib/game/content/backgrounds/sundrop-village-obstacle-composite.test.ts
 src/lib/game/content/maps/layered/village-art-controls.test.ts
 src/lib/game/content/sundrop-village-obstacle-assets.test.ts
 ```
+
+Keep `sundrop-village-png.test.ts` and `sundrop-village-obstacle-composite.test.ts`: they exercise reusable PNG validation/compositing with synthetic inputs and do not depend on the live V2 source. Rewrite `sundrop-village-retouch.test.ts` to retain only source-independent helper tests and remove V1 source/hash/fingerprint assertions.
 
 Do not delete V1 PNGs, generated modules, approval records, or captured proof artifacts in HPA-586. Their remaining source/tool cleanup belongs to the final V1 cleanup ticket after V2 art is live.
 
@@ -218,7 +218,9 @@ describe('HPA-586 Meadow Entry V2 layout', () => {
 	it('connects every building approach to its named public road', () => {
 		for (const [buildingKey, roadKey] of Object.entries(SUNDROP_VILLAGE_APPROACH_ROADS)) {
 			const building = SUNDROP_VILLAGE_V2_BUILDINGS[buildingKey as keyof typeof SUNDROP_VILLAGE_V2_BUILDINGS];
-			const road = SUNDROP_VILLAGE_V2_PUBLIC_SPACES[roadKey];
+			const road = SUNDROP_VILLAGE_V2_PUBLIC_SPACES[
+				roadKey as keyof typeof SUNDROP_VILLAGE_V2_PUBLIC_SPACES
+			];
 			expect(rectsTouchOrOverlap(building.approach, road), buildingKey).toBe(true);
 		}
 	});
@@ -435,6 +437,8 @@ Use this exact building table:
 | `villagerHouse3` | `[1184,5536,576,416]` | `[1312,5600,320,224]` | `(1472,5824)` | `[1408,5824,128,192]` | `(1472,5888,down)` |
 | `shrine` | `[1888,5504,800,448]` | `[2080,5568,384,256]` | `(2272,5824)` | `[2208,5824,128,192]` | `(2272,5888,down)` |
 
+Each building record includes its existing `landmarkId`, existing transition ID where applicable, label key, map ID, lot, footprint, door, approach, and return arrival. `blacksmith` has no map ID, transition ID, or return arrival.
+
 Add:
 
 ```ts
@@ -480,9 +484,10 @@ git commit -m "test(layout): add HPA-586 coordinate contracts"
 - Modify: `src/lib/game/content/maps.ts`
 - Modify: `src/lib/game/content/maps/meadow-entry.ts`
 - Modify: `src/lib/game/content/maps.test.ts`
+- Modify: `src/lib/game/content/backgrounds/sundrop-village-retouch.test.ts`
 - Modify: `package.json`
 - Modify: `.agents/skills/gliese-world-expansion/references/authoring.md`
-- Delete: the seven V1-only geometry-bound test files listed under File Structure.
+- Delete: the four V1-only live-geometry test files listed under File Structure.
 
 **Interfaces:**
 - Consumes: Task 1 layout constants and `compileLayeredRegion(...)` for terrain/path/collision/decor only.
@@ -501,9 +506,9 @@ rg -l \
 Classify every result into exactly one group:
 
 1. **Active V2 consumer to rewrite:** `village.ts`, `village-layered.test.ts`, `maps.test.ts`, `soft-maze.test.ts`, `scenes.test.ts`, `game.e2e.ts`, preview tests.
-2. **Reusable generic test to keep:** `background-ownership.test.ts`, synthetic two-plane/alternative-owner scene tests, generic preview rendering tests rewritten to local fixtures.
+2. **Reusable generic test to keep:** `background-ownership.test.ts`, `sundrop-village-png.test.ts`, `sundrop-village-obstacle-composite.test.ts`, synthetic two-plane/alternative-owner scene tests, generic preview rendering tests, and source-independent retouch helper tests.
 3. **Historical static projection to keep:** generated HPA-406 arrays and `meadow-entry-runtime.test.ts`.
-4. **V1-only live-geometry proof to remove:** exact retouch hashes, exact 56×48 control fingerprints, obstacle composite/ownership tests, active-map Sundrop background fault and occlusion cases.
+4. **V1-only live-geometry proof to remove or rewrite:** exact retouch hashes/fingerprints, exact 56×48 control fingerprints, obstacle ownership/control/asset proofs, active-map Sundrop background fault and occlusion cases.
 
 Do not begin the 80×68 rewrite until every search result is classified in the outdoor PR notes.
 
@@ -595,7 +600,7 @@ Add only four non-colliding graybox decor anchors: gate arch `A` at `(77,22)`, p
 
 - [ ] **Step 5: Compose village objects directly in `village.ts`**
 
-Compile the layered source once, then override pixel-positioned fields from Task 1 constants:
+Remove the V1 Sundrop background imports and `createLayeredRegionBackground(...)` calls. Compile the layered source once, then override pixel-positioned fields from Task 1 constants:
 
 ```ts
 const layered = compileLayeredRegion(sundropVillageLayered);
@@ -663,9 +668,37 @@ spawn: { x: 704, y: 5888 },
 spawnDirection: 'up',
 ```
 
-- [ ] **Step 7: Retire V1 live-geometry proof contracts**
+- [ ] **Step 7: Retire V1 live-geometry proof contracts without deleting reusable utility tests**
 
-Delete the seven V1-only test files listed under File Structure. Remove `art:validate:village` from `package.json`; it selects those obsolete tests and would otherwise advertise a broken live-V1 validation path. Leave generic renderer/background tests, generated V1 projection tests, V1 source files, PNGs, and proof artifacts intact.
+Delete:
+
+```text
+src/lib/game/content/backgrounds/sundrop-village-obstacle-ownership.test.ts
+src/lib/game/content/backgrounds/sundrop-village-obstacle-controls.test.ts
+src/lib/game/content/maps/layered/village-art-controls.test.ts
+src/lib/game/content/sundrop-village-obstacle-assets.test.ts
+```
+
+Rewrite `sundrop-village-retouch.test.ts` so it no longer imports the live `sundropVillageLayered`, runs the 1792×1536 approved-image `beforeAll`, or asserts V1 fingerprints/hashes. Retain focused synthetic tests for:
+
+- `measureSundropVillageIdenticalDeltaRuns(...)`;
+- `sundropVillageEdgeGuardStrength(...)`;
+- any other helper whose inputs are supplied entirely by the test.
+
+Keep `sundrop-village-png.test.ts` and `sundrop-village-obstacle-composite.test.ts` unchanged; their synthetic inputs still validate reusable PNG/compositing behavior.
+
+Remove these V1 package-script entrypoints from `package.json` so the inactive pipeline is not advertised against the live V2 source:
+
+```text
+art:controls:village
+art:controls:village-obstacles
+art:rasterize:village
+art:finalize:village-obstacles
+art:proof:village-obstacles
+art:validate:village
+```
+
+Keep `preview:village`; it remains a valid live path/collision preview even though the V2 region-label layer is neutral.
 
 Update `maps.test.ts` to replace the exact 24-background/72-blocker/69-decor/6-fence composition assertion with the V2 active-map contract introduced in Task 3.
 
@@ -705,10 +738,13 @@ bun run test:unit -- --run \
   src/lib/game/content/maps/regions/village-layered.test.ts \
   src/lib/game/content/maps/regions/soft-maze.test.ts \
   src/lib/game/content/maps/layered/preview.test.ts \
+  src/lib/game/content/backgrounds/sundrop-village-png.test.ts \
+  src/lib/game/content/backgrounds/sundrop-village-retouch.test.ts \
+  src/lib/game/content/backgrounds/sundrop-village-obstacle-composite.test.ts \
   src/lib/game/content/maps.test.ts
 ```
 
-Expected: PASS after old district and V1 active-map assumptions are removed.
+Expected: PASS after old district and V1 active-map assumptions are removed while reusable utilities remain covered.
 
 - [ ] **Step 10: Commit the sparse village and ownership migration**
 
@@ -1557,7 +1593,7 @@ Confirm:
 - no placeholder or provisional coordinate remains in layout modules;
 - outdoor and interior geometry match the coordinate spec;
 - V1 assets remain historical but inactive;
-- V1-only active-map proof tests are gone while generic renderer and static projection tests remain;
+- V1-only active-map proof tests are gone while generic renderer, PNG/compositing, and static projection tests remain;
 - no new framework, compatibility source, or compiler was introduced;
 - final-art ticket boundaries are concrete.
 
