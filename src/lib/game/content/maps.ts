@@ -168,67 +168,191 @@ const guildHallBlockers = [
 	}
 ];
 
+const heroHouseLayout = VILLAGE_INTERIOR_LAYOUTS['hero-house'];
+
+const heroHouseGroundPatches = [
+	{
+		...toMapRect('hero-house-full-floor', heroHouseLayout.fullFloor),
+		tile: 'cobblestoneTile' as const
+	},
+	{
+		...toMapRect('hero-house-room-bedroom', heroHouseLayout.rooms.bedroom),
+		tile: 'plazaStoneTile' as const
+	},
+	{
+		...toMapRect('hero-house-room-study', heroHouseLayout.rooms.study),
+		tile: 'plazaStoneTile' as const
+	},
+	{
+		...toMapRect('hero-house-room-living-kitchen', heroHouseLayout.rooms.livingKitchen),
+		tile: 'plazaStoneTile' as const
+	},
+	{
+		...toMapRect('hero-house-corridor-hall', heroHouseLayout.corridors.hall),
+		tile: 'pathTile' as const
+	}
+];
+
+const heroHouseBlockers = [
+	{
+		...toMapRect(heroHouseLayout.walls[0]!.id, heroHouseLayout.walls[0]!),
+		kind: 'ruin-wall' as const
+	},
+	{
+		...toMapRect(heroHouseLayout.walls[1]!.id, heroHouseLayout.walls[1]!),
+		kind: 'ruin-wall' as const
+	},
+	{
+		...toMapRect(heroHouseLayout.walls[2]!.id, heroHouseLayout.walls[2]!),
+		kind: 'ruin-wall' as const
+	},
+	{
+		...toMapRect(heroHouseLayout.walls[3]!.id, heroHouseLayout.walls[3]!),
+		kind: 'ruin-wall' as const
+	},
+	{
+		...toMapRect(heroHouseLayout.walls[4]!.id, heroHouseLayout.walls[4]!),
+		kind: 'ruin-wall' as const
+	},
+	{
+		...toMapRect(heroHouseLayout.walls[5]!.id, heroHouseLayout.walls[5]!),
+		kind: 'ruin-wall' as const
+	},
+	{
+		...toMapRect(heroHouseLayout.walls[6]!.id, heroHouseLayout.walls[6]!),
+		kind: 'ruin-wall' as const
+	},
+	{
+		...toMapRect(heroHouseLayout.walls[7]!.id, heroHouseLayout.walls[7]!),
+		kind: 'ruin-wall' as const
+	},
+	{
+		...toMapRect(heroHouseLayout.walls[8]!.id, heroHouseLayout.walls[8]!),
+		kind: 'ruin-wall' as const
+	},
+	{
+		...toMapRect(heroHouseLayout.walls[9]!.id, heroHouseLayout.walls[9]!),
+		kind: 'ruin-wall' as const
+	},
+	{
+		...toMapRect(heroHouseLayout.walls[10]!.id, heroHouseLayout.walls[10]!),
+		kind: 'ruin-wall' as const
+	}
+];
+
+const itemShopLayout = VILLAGE_INTERIOR_LAYOUTS['item-shop'];
+
+const itemShopGroundPatches = [
+	{
+		...toMapRect('item-shop-full-floor', itemShopLayout.fullFloor),
+		tile: 'cobblestoneTile' as const
+	},
+	{
+		...toMapRect('item-shop-room-stockroom', itemShopLayout.rooms.stockroom),
+		tile: 'plazaStoneTile' as const
+	},
+	{
+		...toMapRect('item-shop-room-office', itemShopLayout.rooms.office),
+		tile: 'plazaStoneTile' as const
+	},
+	{
+		...toMapRect('item-shop-room-sales-floor', itemShopLayout.rooms.salesFloor),
+		tile: 'plazaStoneTile' as const
+	},
+	{
+		...toMapRect('item-shop-corridor-service', itemShopLayout.corridors.serviceCorridor),
+		tile: 'pathTile' as const
+	}
+];
+
+const itemShopBlockers = [
+	{
+		...toMapRect(itemShopLayout.walls[0]!.id, itemShopLayout.walls[0]!),
+		kind: 'ruin-wall' as const
+	},
+	{
+		...toMapRect(itemShopLayout.walls[1]!.id, itemShopLayout.walls[1]!),
+		kind: 'ruin-wall' as const
+	},
+	{
+		...toMapRect(itemShopLayout.walls[2]!.id, itemShopLayout.walls[2]!),
+		kind: 'ruin-wall' as const
+	},
+	{
+		...toMapRect(itemShopLayout.walls[3]!.id, itemShopLayout.walls[3]!),
+		kind: 'ruin-wall' as const
+	},
+	{
+		...toMapRect(itemShopLayout.walls[4]!.id, itemShopLayout.walls[4]!),
+		kind: 'ruin-wall' as const
+	},
+	{
+		...toMapRect(itemShopLayout.walls[5]!.id, itemShopLayout.walls[5]!),
+		kind: 'ruin-wall' as const
+	},
+	{
+		...toMapRect(itemShopLayout.walls[6]!.id, itemShopLayout.walls[6]!),
+		kind: 'ruin-wall' as const
+	},
+	{
+		...toMapRect(itemShopLayout.walls[7]!.id, itemShopLayout.walls[7]!),
+		kind: 'ruin-wall' as const
+	},
+	{
+		...toMapRect(itemShopLayout.walls[8]!.id, itemShopLayout.walls[8]!),
+		kind: 'ruin-wall' as const
+	},
+	{
+		...toMapRect(itemShopLayout.walls[9]!.id, itemShopLayout.walls[9]!),
+		kind: 'ruin-wall' as const
+	},
+	{
+		...toMapRect(itemShopLayout.walls[10]!.id, itemShopLayout.walls[10]!),
+		kind: 'ruin-wall' as const
+	},
+	{
+		...toMapRect(itemShopLayout.walls[11]!.id, itemShopLayout.walls[11]!),
+		kind: 'ruin-wall' as const
+	},
+	{
+		...toMapRect(itemShopLayout.walls[12]!.id, itemShopLayout.walls[12]!),
+		kind: 'ruin-wall' as const
+	}
+];
+
 export const heroHouseMap: WorldMapDefinition = {
 	id: 'hero-house',
-	width: 16,
-	height: 12,
+	width: heroHouseLayout.widthTiles,
+	height: heroHouseLayout.heightTiles,
 	spawnDirection: 'up',
-	spawn: { x: 256, y: 224 },
+	spawn: { ...heroHouseLayout.spawn },
+	groundPatches: heroHouseGroundPatches,
+	blockers: heroHouseBlockers,
 	transitions: [
 		{
 			id: 'hero-house-to-meadow',
-			...interiorDoor,
+			...heroHouseLayout.exit,
 			toMapId: openingMapId,
 			arrival: returnArrival('hero-house')
 		}
 	],
 	interiorProps: [
 		{
-			id: 'hero-house-rug',
-			x: 256,
-			y: 252,
-			width: 128,
-			height: 72,
-			frameName: 'rug',
-			depth: 'floor'
+			...toMapRect('hero-house-bed', heroHouseLayout.propZones.bed),
+			frameName: 'bed'
 		},
 		{
-			id: 'hero-house-bed',
-			x: 112,
-			y: 112,
-			width: 96,
-			height: 72,
-			frameName: 'bed',
-			collision: { id: 'hero-house-bed-collision', x: 112, y: 112, width: 92, height: 62 }
+			...toMapRect('hero-house-study-storage', heroHouseLayout.propZones.studyStorage),
+			frameName: 'bookshelf'
 		},
 		{
-			id: 'hero-house-table',
-			x: 256,
-			y: 144,
-			width: 76,
-			height: 54,
-			frameName: 'table',
-			collision: { id: 'hero-house-table-collision', x: 256, y: 144, width: 70, height: 46 }
+			...toMapRect('hero-house-living-table', heroHouseLayout.propZones.livingTable),
+			frameName: 'table'
 		},
 		{
-			id: 'hero-house-bookshelf',
-			x: 400,
-			y: 112,
-			width: 64,
-			height: 96,
-			frameName: 'bookshelf',
-			collision: { id: 'hero-house-bookshelf-collision', x: 400, y: 112, width: 56, height: 86 }
-		},
-		{
-			id: 'hero-house-crates',
-			x: 416,
-			y: 248,
-			width: 58,
-			height: 58,
-			frameName: 'crateStack',
-			collision: { id: 'hero-house-crates-collision', x: 416, y: 248, width: 48, height: 48 }
-		},
-		{ id: 'hero-house-plant', x: 96, y: 248, width: 36, height: 48, frameName: 'plant' }
+			...toMapRect('hero-house-kitchen-storage', heroHouseLayout.propZones.kitchenStorage),
+			frameName: 'crateStack'
+		}
 	]
 };
 
@@ -333,14 +457,16 @@ export const guildHallMap: WorldMapDefinition = addEnglishMapText({
 
 export const itemShopMap: WorldMapDefinition = addEnglishMapText({
 	id: 'item-shop',
-	width: 16,
-	height: 12,
+	width: itemShopLayout.widthTiles,
+	height: itemShopLayout.heightTiles,
 	spawnDirection: 'up',
-	spawn: { x: 256, y: 288 },
+	spawn: { ...itemShopLayout.spawn },
+	groundPatches: itemShopGroundPatches,
+	blockers: itemShopBlockers,
 	transitions: [
 		{
 			id: 'item-shop-to-meadow',
-			...interiorDoor,
+			...itemShopLayout.exit,
 			toMapId: openingMapId,
 			arrival: returnArrival('item-shop')
 		}
@@ -348,8 +474,7 @@ export const itemShopMap: WorldMapDefinition = addEnglishMapText({
 	npcs: [
 		{
 			id: 'shopkeeper-mira',
-			x: 256,
-			y: 144,
+			...itemShopLayout.npcApproaches.mira.npc,
 			nameKey: 'content.maps.npcs.shopkeeper-mira.name',
 			dialogueId: 'shopkeeper-mira',
 			role: 'shopkeeper',
@@ -359,62 +484,31 @@ export const itemShopMap: WorldMapDefinition = addEnglishMapText({
 	],
 	interiorProps: [
 		{
-			id: 'item-shop-counter',
-			x: 256,
-			y: 132,
-			width: 192,
-			height: 58,
+			...toMapRect('item-shop-counter', itemShopLayout.propZones.counter),
 			frameName: 'shopCounter',
-			collision: { id: 'item-shop-counter-collision', x: 256, y: 108, width: 184, height: 48 }
+			collision: {
+				...toMapRect('item-shop-counter-collision', itemShopLayout.propCollisions.miraCounter)
+			}
 		},
 		{
-			id: 'item-shop-west-shelf',
-			x: 80,
-			y: 128,
-			width: 62,
-			height: 104,
-			frameName: 'displayShelf',
-			collision: { id: 'item-shop-west-shelf-collision', x: 80, y: 128, width: 50, height: 92 }
+			...toMapRect('item-shop-west-display', itemShopLayout.propZones.westDisplay),
+			frameName: 'displayShelf'
 		},
 		{
-			id: 'item-shop-east-shelf',
-			x: 432,
-			y: 128,
-			width: 62,
-			height: 104,
-			frameName: 'displayShelf',
-			collision: { id: 'item-shop-east-shelf-collision', x: 432, y: 128, width: 50, height: 92 }
+			...toMapRect('item-shop-east-display', itemShopLayout.propZones.eastDisplay),
+			frameName: 'displayShelf'
 		},
 		{
-			id: 'item-shop-rug',
-			x: 256,
-			y: 252,
-			width: 118,
-			height: 70,
-			frameName: 'rug',
-			depth: 'floor'
+			...toMapRect('item-shop-stock-shelves', itemShopLayout.propZones.stockShelves),
+			frameName: 'bookshelf'
 		},
 		{
-			id: 'item-shop-crates',
-			x: 416,
-			y: 260,
-			width: 58,
-			height: 58,
-			frameName: 'crateStack',
-			collision: { id: 'item-shop-crates-collision', x: 416, y: 260, width: 48, height: 48 }
-		},
-		{
-			id: 'item-shop-barrel',
-			x: 96,
-			y: 260,
-			width: 46,
-			height: 52,
-			frameName: 'barrel',
-			collision: { id: 'item-shop-barrel-collision', x: 96, y: 260, width: 38, height: 42 }
+			...toMapRect('item-shop-office-desk', itemShopLayout.propZones.officeDesk),
+			frameName: 'table'
 		}
 	],
 	ambientNpcs: [
-		{ id: 'item-shop-customer', x: 176, y: 232, frameName: 'guildMasterNpc', role: 'shopper' }
+		{ id: 'item-shop-customer', x: 224, y: 480, frameName: 'guildMasterNpc', role: 'shopper' }
 	]
 });
 
