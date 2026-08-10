@@ -87,6 +87,8 @@ const shrineOfAuroraWalls: readonly NamedLayoutRect[] = [
 	namedRect('shrine-of-aurora-wall-south-east', 416, 672, 352, 32),
 	namedRect('shrine-of-aurora-west-upper-service', 64, 64, 160, 160),
 	namedRect('shrine-of-aurora-east-upper-service', 544, 64, 160, 160),
+	namedRect('shrine-of-aurora-west-mid-service-pocket', 64, 224, 160, 32),
+	namedRect('shrine-of-aurora-east-mid-service-pocket', 544, 224, 160, 32),
 	namedRect('shrine-of-aurora-sanctum-opening-west', 224, 224, 96, 32),
 	namedRect('shrine-of-aurora-sanctum-opening-east', 448, 224, 96, 32),
 	namedRect('shrine-of-aurora-west-room-opening-north', 192, 256, 32, 96),
@@ -95,6 +97,8 @@ const shrineOfAuroraWalls: readonly NamedLayoutRect[] = [
 	namedRect('shrine-of-aurora-east-room-opening-south', 544, 448, 32, 64),
 	namedRect('shrine-of-aurora-west-lower-service', 64, 512, 160, 64),
 	namedRect('shrine-of-aurora-east-lower-service', 544, 512, 160, 64),
+	namedRect('shrine-of-aurora-west-entrance-service-pocket', 64, 576, 192, 96),
+	namedRect('shrine-of-aurora-east-entrance-service-pocket', 512, 576, 192, 96),
 	namedRect('shrine-of-aurora-nave-entrance-divider-west', 224, 544, 96, 32),
 	namedRect('shrine-of-aurora-nave-entrance-divider-east', 448, 544, 96, 32)
 ];
