@@ -1,41 +1,52 @@
-import {
-	SUNDROP_VILLAGE_BASE_BACKGROUND_ID,
-	SUNDROP_VILLAGE_BASE_BACKGROUND_TEXTURE_KEY,
-	SUNDROP_VILLAGE_FOREGROUND_BACKGROUND_ID,
-	SUNDROP_VILLAGE_FOREGROUND_BACKGROUND_TEXTURE_KEY
-} from '$lib/game/content/backgrounds/sundrop-village-backgrounds';
 import { compileLayeredRegion } from '$lib/game/content/maps/layered/compile-layered-region';
-import { createLayeredRegionBackground } from '$lib/game/content/maps/layered/region-background';
+import { toMapRect } from '$lib/game/content/maps/layouts/layout-rects';
+import { SUNDROP_VILLAGE_V2_BUILDINGS } from '$lib/game/content/maps/layouts/meadow-entry-v2';
 import { sundropVillageLayered } from '$lib/game/content/maps/regions/village-layered';
 import type { RegionFragment } from '$lib/game/content/maps/regions/types';
 
-/**
- * Village region — the bottom-left (SW) settlement of Sundrop. An authored
- * JRPG miniature: home yard → well plaza → market lane / north residences /
- * shrine garden / east gate. Every pixel region has a job.
- *
- * The layout is compiled from the layered tile source
- * (village-layered.ts) by compileLayeredRegion; no hand-authored pixel
- * coordinates, blockers, groundPatches, or mapDecor remain in this file.
- * Buildings form a C-shape around the central well plaza, which acts as the
- * navigation anchor. Four routes radiate from the plaza: west (market/
- * blacksmith), north (residences/guild), southeast (shrine garden + hidden
- * pocket), and northeast (east gate → crossroads).
- */
+const compiledVillage = compileLayeredRegion(sundropVillageLayered);
+
+const villageLandmarks = Object.values(SUNDROP_VILLAGE_V2_BUILDINGS).map((building) => ({
+	...toMapRect(building.landmarkId, building.footprint),
+	labelKey: building.labelKey
+}));
+
+const compactInteriorArrivals = {
+	'hero-house': { x: 256, y: 224, facing: 'up' },
+	'item-shop': { x: 256, y: 288, facing: 'up' },
+	'villager-house-1': { x: 256, y: 288, facing: 'up' },
+	'villager-house-2': { x: 256, y: 288, facing: 'up' },
+	'guild-hall': { x: 384, y: 480, facing: 'up' },
+	'shrine-of-aurora-interior': { x: 256, y: 288, facing: 'up' },
+	'villager-house-3': { x: 256, y: 288, facing: 'up' }
+} as const;
+
+const villageTransitions = Object.values(SUNDROP_VILLAGE_V2_BUILDINGS).flatMap((building) => {
+	if (!('mapId' in building) || !('transitionId' in building)) return [];
+	return [
+		{
+			id: building.transitionId,
+			x: building.door.x,
+			y: building.door.y,
+			toMapId: building.mapId,
+			showMarker: false,
+			arrival: compactInteriorArrivals[building.mapId as keyof typeof compactInteriorArrivals]
+		}
+	];
+});
+
 export const villageRegion: RegionFragment = {
-	...compileLayeredRegion(sundropVillageLayered),
-	backgroundImages: [
-		createLayeredRegionBackground(sundropVillageLayered, {
-			id: SUNDROP_VILLAGE_BASE_BACKGROUND_ID,
-			textureKey: SUNDROP_VILLAGE_BASE_BACKGROUND_TEXTURE_KEY,
-			plane: 'base',
-			drawOrder: 1_000
-		}),
-		createLayeredRegionBackground(sundropVillageLayered, {
-			id: SUNDROP_VILLAGE_FOREGROUND_BACKGROUND_ID,
-			textureKey: SUNDROP_VILLAGE_FOREGROUND_BACKGROUND_TEXTURE_KEY,
-			plane: 'foreground',
-			drawOrder: 1_000
-		})
+	...compiledVillage,
+	landmarks: villageLandmarks,
+	transitions: villageTransitions,
+	pickups: [
+		{ id: 'village-market-cache', x: 912, y: 5072, itemId: 'field-potion', quantity: 1 },
+		{ id: 'village-shrine-cache', x: 2512, y: 5744, itemId: 'sunleaf-salve', quantity: 1 }
+	],
+	ambientNpcs: [
+		{ id: 'village-wanderer', x: 944, y: 4880, frameName: 'travelerNpc' },
+		{ id: 'village-woodcutter', x: 1264, y: 4528, frameName: 'woodcutterNpc' },
+		{ id: 'village-pilgrim', x: 1744, y: 5712, frameName: 'pilgrimNpc' },
+		{ id: 'village-crier', x: 2032, y: 5008, frameName: 'crierNpc' }
 	]
 };

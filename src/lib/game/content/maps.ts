@@ -1,5 +1,6 @@
 import type { DefinitionRegistry } from '$lib/game/core/types';
 import { meadowEntryMap, openingMapId } from '$lib/game/content/maps/meadow-entry';
+import { VILLAGE_INTERIOR_EXTERIORS } from '$lib/game/content/maps/layouts/meadow-entry-v2';
 import { addEnglishMapText } from '$lib/game/content/maps/text';
 
 export type {
@@ -34,6 +35,9 @@ export { meadowEntryMap, openingMapId };
 
 const interiorDoor = { x: 256, y: 336 } as const;
 
+const returnArrival = (mapId: keyof typeof VILLAGE_INTERIOR_EXTERIORS) =>
+	VILLAGE_INTERIOR_EXTERIORS[mapId].returnArrival;
+
 export const heroHouseMap: WorldMapDefinition = {
 	id: 'hero-house',
 	width: 16,
@@ -45,7 +49,7 @@ export const heroHouseMap: WorldMapDefinition = {
 			id: 'hero-house-to-meadow',
 			...interiorDoor,
 			toMapId: openingMapId,
-			arrival: { x: 624, y: 5_752, facing: 'down' }
+			arrival: returnArrival('hero-house')
 		}
 	],
 	interiorProps: [
@@ -110,14 +114,7 @@ export const guildHallMap: WorldMapDefinition = addEnglishMapText({
 			x: 384,
 			y: 528,
 			toMapId: openingMapId,
-			// Door is at village-layered.ts col 42 row 21. The arrival sits 40px
-			// EAST rather than south: the v2 redesign moved the blacksmith into
-			// the guild ward's open bottom, and its padded footprint starts at
-			// y 5075, so the old 40px-south point (y 5080) was inside it and the
-			// player arrived unable to move. East keeps the 40px separation the
-			// transition radius needs (30px) while staying in the open band
-			// between guild-hall-exterior (padded to y 4999) and the blacksmith.
-			arrival: { x: 1_656, y: 5_040, facing: 'down' }
+			arrival: returnArrival('guild-hall')
 		}
 	],
 	npcs: [
@@ -331,10 +328,7 @@ export const itemShopMap: WorldMapDefinition = addEnglishMapText({
 			id: 'item-shop-to-meadow',
 			...interiorDoor,
 			toMapId: openingMapId,
-			// x matches the meadow-to-item-shop door (village-layered.ts, col 7
-			// row 29); y is 40px south of the door, inside room M and clear of
-			// item-shop-exterior's footprint.
-			arrival: { x: 496, y: 5_336, facing: 'down' }
+			arrival: returnArrival('item-shop')
 		}
 	],
 	npcs: [
@@ -421,7 +415,7 @@ export const villagerHouse1Map: WorldMapDefinition = addEnglishMapText({
 			id: 'villager-house-1-to-meadow',
 			...interiorDoor,
 			toMapId: openingMapId,
-			arrival: { x: 528, y: 4_888, facing: 'down' }
+			arrival: returnArrival('villager-house-1')
 		}
 	],
 	interiorProps: [
@@ -510,7 +504,7 @@ export const villagerHouse2Map: WorldMapDefinition = addEnglishMapText({
 			id: 'villager-house-2-to-meadow',
 			...interiorDoor,
 			toMapId: openingMapId,
-			arrival: { x: 1_168, y: 4_920, facing: 'down' }
+			arrival: returnArrival('villager-house-2')
 		}
 	],
 	interiorProps: [
@@ -591,14 +585,7 @@ export const villagerHouse3Map: WorldMapDefinition = addEnglishMapText({
 			id: 'villager-house-3-to-meadow',
 			...interiorDoor,
 			toMapId: openingMapId,
-			// Door is at village-layered.ts col 17 row 17 (relocated to the north
-			// residential lane in the v2 redesign). The standable band here is only
-			// ~49px tall — villager-house-3-exterior pads down to y 4899 and the
-			// row-19 spur wall pads up to y 4948 — so the old 40px-south point
-			// (y 4952) was inside the wall. Offset east instead, centred in the
-			// band, keeping >30px from the door so the first step out does not
-			// re-trigger the transition.
-			arrival: { x: 856, y: 4_920, facing: 'down' }
+			arrival: returnArrival('villager-house-3')
 		}
 	],
 	interiorProps: [
@@ -693,14 +680,7 @@ export const shrineOfAuroraInteriorMap: WorldMapDefinition = {
 			id: 'shrine-of-aurora-to-meadow',
 			...interiorDoor,
 			toMapId: openingMapId,
-			// Door is at village-layered.ts col 36 row 44. The standable band is
-			// only ~50px tall — shrine-of-aurora pads down to y 5762 and the south
-			// perimeter wall (row 46) pads up to y 5812 — so the old 40px-south
-			// point (y 5816) was inside the perimeter and the player arrived hard
-			// stuck, unable to move in any direction. Offset east instead, centred
-			// in the band, keeping >30px from the door so the first step out does
-			// not re-trigger the transition.
-			arrival: { x: 1_464, y: 5_788, facing: 'down' }
+			arrival: returnArrival('shrine-of-aurora-interior')
 		}
 	],
 	interiorProps: [
