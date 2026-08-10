@@ -1,6 +1,8 @@
 import type { DefinitionRegistry } from '$lib/game/core/types';
 import { meadowEntryMap, openingMapId } from '$lib/game/content/maps/meadow-entry';
 import { VILLAGE_INTERIOR_EXTERIORS } from '$lib/game/content/maps/layouts/meadow-entry-v2';
+import { toMapRect } from '$lib/game/content/maps/layouts/layout-rects';
+import { VILLAGE_INTERIOR_LAYOUTS } from '$lib/game/content/maps/layouts/village-interiors-v2';
 import { addEnglishMapText } from '$lib/game/content/maps/text';
 
 export type {
@@ -37,6 +39,134 @@ const interiorDoor = { x: 256, y: 336 } as const;
 
 const returnArrival = (mapId: keyof typeof VILLAGE_INTERIOR_EXTERIORS) =>
 	VILLAGE_INTERIOR_EXTERIORS[mapId].returnArrival;
+
+const guildHallLayout = VILLAGE_INTERIOR_LAYOUTS['guild-hall'];
+
+const guildHallGroundPatches = [
+	{
+		...toMapRect('guild-hall-full-floor', guildHallLayout.fullFloor),
+		tile: 'cobblestoneTile' as const
+	},
+	{
+		...toMapRect('guild-hall-room-records', guildHallLayout.rooms.recordsHall),
+		tile: 'plazaStoneTile' as const
+	},
+	{
+		...toMapRect('guild-hall-room-common', guildHallLayout.rooms.commonHall),
+		tile: 'plazaStoneTile' as const
+	},
+	{
+		...toMapRect('guild-hall-room-master-office', guildHallLayout.rooms.guildMasterOffice),
+		tile: 'plazaStoneTile' as const
+	},
+	{
+		...toMapRect('guild-hall-room-training', guildHallLayout.rooms.trainingHall),
+		tile: 'plazaStoneTile' as const
+	},
+	{
+		...toMapRect('guild-hall-room-quartermaster', guildHallLayout.rooms.quartermasterRoom),
+		tile: 'plazaStoneTile' as const
+	},
+	{
+		...toMapRect('guild-hall-corridor-spine', guildHallLayout.corridors.mainSpine),
+		tile: 'pathTile' as const
+	},
+	{
+		...toMapRect('guild-hall-corridor-lobby', guildHallLayout.corridors.entranceLobby),
+		tile: 'pathTile' as const
+	}
+];
+
+const guildHallBlockers = [
+	{
+		...toMapRect(guildHallLayout.walls[0]!.id, guildHallLayout.walls[0]!),
+		kind: 'ruin-wall' as const
+	},
+	{
+		...toMapRect(guildHallLayout.walls[1]!.id, guildHallLayout.walls[1]!),
+		kind: 'ruin-wall' as const
+	},
+	{
+		...toMapRect(guildHallLayout.walls[2]!.id, guildHallLayout.walls[2]!),
+		kind: 'ruin-wall' as const
+	},
+	{
+		...toMapRect(guildHallLayout.walls[3]!.id, guildHallLayout.walls[3]!),
+		kind: 'ruin-wall' as const
+	},
+	{
+		...toMapRect(guildHallLayout.walls[4]!.id, guildHallLayout.walls[4]!),
+		kind: 'ruin-wall' as const
+	},
+	{
+		...toMapRect(guildHallLayout.walls[5]!.id, guildHallLayout.walls[5]!),
+		kind: 'ruin-wall' as const
+	},
+	{
+		...toMapRect(guildHallLayout.walls[6]!.id, guildHallLayout.walls[6]!),
+		kind: 'ruin-wall' as const
+	},
+	{
+		...toMapRect(guildHallLayout.walls[7]!.id, guildHallLayout.walls[7]!),
+		kind: 'ruin-wall' as const
+	},
+	{
+		...toMapRect(guildHallLayout.walls[8]!.id, guildHallLayout.walls[8]!),
+		kind: 'ruin-wall' as const
+	},
+	{
+		...toMapRect(guildHallLayout.walls[9]!.id, guildHallLayout.walls[9]!),
+		kind: 'ruin-wall' as const
+	},
+	{
+		...toMapRect(guildHallLayout.walls[10]!.id, guildHallLayout.walls[10]!),
+		kind: 'ruin-wall' as const
+	},
+	{
+		...toMapRect(guildHallLayout.walls[11]!.id, guildHallLayout.walls[11]!),
+		kind: 'ruin-wall' as const
+	},
+	{
+		...toMapRect(guildHallLayout.walls[12]!.id, guildHallLayout.walls[12]!),
+		kind: 'ruin-wall' as const
+	},
+	{
+		...toMapRect(guildHallLayout.walls[13]!.id, guildHallLayout.walls[13]!),
+		kind: 'ruin-wall' as const
+	},
+	{
+		...toMapRect(guildHallLayout.walls[14]!.id, guildHallLayout.walls[14]!),
+		kind: 'ruin-wall' as const
+	},
+	{
+		...toMapRect(guildHallLayout.walls[15]!.id, guildHallLayout.walls[15]!),
+		kind: 'ruin-wall' as const
+	},
+	{
+		...toMapRect(guildHallLayout.walls[16]!.id, guildHallLayout.walls[16]!),
+		kind: 'ruin-wall' as const
+	},
+	{
+		...toMapRect(guildHallLayout.walls[17]!.id, guildHallLayout.walls[17]!),
+		kind: 'ruin-wall' as const
+	},
+	{
+		...toMapRect(guildHallLayout.walls[18]!.id, guildHallLayout.walls[18]!),
+		kind: 'ruin-wall' as const
+	},
+	{
+		...toMapRect(guildHallLayout.walls[19]!.id, guildHallLayout.walls[19]!),
+		kind: 'ruin-wall' as const
+	},
+	{
+		...toMapRect(guildHallLayout.walls[20]!.id, guildHallLayout.walls[20]!),
+		kind: 'ruin-wall' as const
+	},
+	{
+		...toMapRect(guildHallLayout.walls[21]!.id, guildHallLayout.walls[21]!),
+		kind: 'ruin-wall' as const
+	}
+];
 
 export const heroHouseMap: WorldMapDefinition = {
 	id: 'hero-house',
@@ -104,15 +234,16 @@ export const heroHouseMap: WorldMapDefinition = {
 
 export const guildHallMap: WorldMapDefinition = addEnglishMapText({
 	id: 'guild-hall',
-	width: 24,
-	height: 18,
+	width: guildHallLayout.widthTiles,
+	height: guildHallLayout.heightTiles,
 	spawnDirection: 'up',
-	spawn: { x: 384, y: 480 },
+	spawn: { ...guildHallLayout.spawn },
+	groundPatches: guildHallGroundPatches,
+	blockers: guildHallBlockers,
 	transitions: [
 		{
 			id: 'guild-hall-to-meadow',
-			x: 384,
-			y: 528,
+			...guildHallLayout.exit,
 			toMapId: openingMapId,
 			arrival: returnArrival('guild-hall')
 		}
@@ -120,8 +251,7 @@ export const guildHallMap: WorldMapDefinition = addEnglishMapText({
 	npcs: [
 		{
 			id: 'guild-master',
-			x: 176,
-			y: 176,
+			...guildHallLayout.npcApproaches.guildMaster.npc,
 			nameKey: 'content.maps.npcs.guild-master.name',
 			dialogueId: 'guild-master',
 			role: 'guild',
@@ -129,8 +259,7 @@ export const guildHallMap: WorldMapDefinition = addEnglishMapText({
 		},
 		{
 			id: 'guild-quartermaster',
-			x: 592,
-			y: 176,
+			...guildHallLayout.npcApproaches.quartermaster.npc,
 			nameKey: 'content.maps.npcs.guild-quartermaster.name',
 			dialogueId: 'guild-quartermaster',
 			role: 'shopkeeper',
@@ -140,177 +269,62 @@ export const guildHallMap: WorldMapDefinition = addEnglishMapText({
 	],
 	interiorProps: [
 		{
-			id: 'guild-hall-notice-board',
-			x: 240,
-			y: 432,
-			width: 112,
-			height: 72,
-			frameName: 'noticeBoard',
-			collision: {
-				id: 'guild-hall-notice-board-collision',
-				x: 240,
-				y: 432,
-				width: 96,
-				height: 34
-			}
+			...toMapRect('guild-hall-records-shelves', guildHallLayout.propZones.recordsShelves),
+			frameName: 'bookshelf'
 		},
 		{
-			id: 'guild-hall-east-bench',
-			x: 528,
-			y: 432,
-			width: 96,
-			height: 34,
-			frameName: 'bench',
-			collision: {
-				id: 'guild-hall-east-bench-collision',
-				x: 528,
-				y: 432,
-				width: 86,
-				height: 26
-			}
+			...toMapRect('guild-hall-notice-board', guildHallLayout.propZones.questBoardRecordsDesk),
+			frameName: 'noticeBoard'
 		},
 		{
-			id: 'guild-hall-common-rug',
-			x: 256,
-			y: 304,
-			width: 192,
-			height: 112,
-			frameName: 'rug',
-			depth: 'floor'
-		},
-		{
-			id: 'guild-hall-common-table',
-			x: 256,
-			y: 304,
-			width: 96,
-			height: 54,
+			...toMapRect('guild-hall-common-table', guildHallLayout.propZones.commonTableSeating),
 			frameName: 'table',
-			collision: {
-				id: 'guild-hall-common-table-collision',
-				x: 256,
-				y: 304,
-				width: 88,
-				height: 44
-			}
+			depth: 'furniture'
 		},
 		{
-			id: 'guild-hall-west-bench',
-			x: 256,
-			y: 352,
-			width: 96,
-			height: 34,
-			frameName: 'bench',
-			collision: {
-				id: 'guild-hall-west-bench-collision',
-				x: 256,
-				y: 352,
-				width: 86,
-				height: 26
-			}
-		},
-		{
-			id: 'guild-hall-master-bookshelf',
-			x: 80,
-			y: 96,
-			width: 64,
-			height: 96,
-			frameName: 'bookshelf',
-			collision: {
-				id: 'guild-hall-master-bookshelf-collision',
-				x: 80,
-				y: 96,
-				width: 56,
-				height: 86
-			}
-		},
-		{
-			id: 'guild-hall-records',
-			x: 240,
-			y: 96,
-			width: 52,
-			height: 64,
-			frameName: 'papers',
-			collision: {
-				id: 'guild-hall-records-collision',
-				x: 240,
-				y: 96,
-				width: 42,
-				height: 44
-			}
-		},
-		{
-			id: 'guild-hall-records-shelf',
-			x: 352,
-			y: 96,
-			width: 64,
-			height: 96,
-			frameName: 'bookshelf',
-			collision: {
-				id: 'guild-hall-records-shelf-collision',
-				x: 352,
-				y: 96,
-				width: 56,
-				height: 86
-			}
-		},
-		{
-			id: 'guild-hall-weapon-rack',
-			x: 480,
-			y: 96,
-			width: 56,
-			height: 86,
-			frameName: 'weaponRack',
-			collision: {
-				id: 'guild-hall-weapon-rack-collision',
-				x: 480,
-				y: 96,
-				width: 44,
-				height: 72
-			}
-		},
-		{
-			id: 'guild-hall-quartermaster-counter',
-			x: 656,
-			y: 176,
-			width: 128,
-			height: 58,
+			...toMapRect('guild-hall-master-desk', guildHallLayout.propZones.guildMasterStation),
 			frameName: 'shopCounter',
 			collision: {
-				id: 'guild-hall-quartermaster-counter-collision',
-				x: 672,
-				y: 176,
-				width: 96,
-				height: 48
+				...toMapRect(
+					'guild-hall-master-desk-collision',
+					guildHallLayout.propCollisions.guildMasterDesk
+				)
 			}
 		},
 		{
-			id: 'guild-hall-quartermaster-crates',
-			x: 688,
-			y: 272,
-			width: 58,
-			height: 58,
-			frameName: 'crateStack',
+			...toMapRect('guild-hall-training-equipment', guildHallLayout.propZones.trainingEquipment),
+			frameName: 'weaponRack'
+		},
+		{
+			...toMapRect(
+				'guild-hall-quartermaster-counter',
+				guildHallLayout.propZones.quartermasterStation
+			),
+			frameName: 'shopCounter',
 			collision: {
-				id: 'guild-hall-quartermaster-crates-collision',
-				x: 688,
-				y: 272,
-				width: 48,
-				height: 48
+				...toMapRect(
+					'guild-hall-quartermaster-counter-collision',
+					guildHallLayout.propCollisions.quartermasterCounter
+				)
 			}
+		},
+		{
+			...toMapRect('guild-hall-lobby-benches', guildHallLayout.propZones.lobbyNoticeBenches),
+			frameName: 'bench'
 		}
 	],
 	ambientNpcs: [
 		{
 			id: 'guild-hall-member-west',
-			x: 128,
-			y: 416,
+			x: 160,
+			y: 544,
 			frameName: 'quartermasterNpc',
 			role: 'guild-member'
 		},
 		{
 			id: 'guild-hall-member-east',
-			x: 512,
-			y: 336,
+			x: 704,
+			y: 368,
 			frameName: 'miraItemShopNpc',
 			role: 'guild-member'
 		}

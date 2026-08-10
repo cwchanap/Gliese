@@ -4,6 +4,7 @@ import { getDialogue } from '$lib/game/content/dialogue';
 import { mergeRegions } from '$lib/game/content/maps/meadow-entry';
 import { STEPS } from '$lib/game/content/maps/layered/geometry';
 import { VILLAGE_INTERIOR_EXTERIORS } from '$lib/game/content/maps/layouts/meadow-entry-v2';
+import { VILLAGE_INTERIOR_LAYOUTS } from '$lib/game/content/maps/layouts/village-interiors-v2';
 import type { RegionFragment } from '$lib/game/content/maps/regions/types';
 import { en } from '$lib/game/i18n/messages/en';
 import { ja } from '$lib/game/i18n/messages/ja';
@@ -346,7 +347,7 @@ describe('opening map content', () => {
 					y: 4_416,
 					toMapId: 'guild-hall',
 					showMarker: false,
-					arrival: { x: 384, y: 480, facing: 'up' }
+					arrival: { x: 512, y: 736, facing: 'up' }
 				},
 				{
 					id: 'meadow-to-shrine-of-aurora',
@@ -850,23 +851,33 @@ describe('opening map content', () => {
 			'core-arrival-to-warden'
 		);
 
-		const entrance = { x: 384, y: 480 };
-		const hub = { x: 384, y: 384 };
-		const guildMasterApproach = { x: 208, y: 176 };
-		const quartermasterApproach = { x: 560, y: 176 };
+		const spawn = { x: 512, y: 736 };
+		const spineLobby = { x: 512, y: 672 };
+		const guildMasterApproach = { x: 800, y: 184 };
+		const quartermasterApproach = { x: 816, y: 568 };
 
-		expectRouteClear(guildHallMap, [entrance, hub], 'entrance-to-hub');
+		expectRouteClear(guildHallMap, [spawn, spineLobby], 'guild-spawn-to-spine');
 		expectRouteClear(
 			guildHallMap,
-			[hub, { x: 192, y: 384 }, { x: 192, y: 208 }, { x: 208, y: 208 }, guildMasterApproach],
-			'hub-to-guild-master'
+			[spineLobby, { x: 512, y: 184 }, guildMasterApproach],
+			'spine-to-guild-master'
 		);
-		expectRouteClear(guildHallMap, [hub, { x: 384, y: 208 }], 'hub-to-records');
 		expectRouteClear(
 			guildHallMap,
-			[hub, { x: 560, y: 384 }, quartermasterApproach],
-			'hub-to-quartermaster'
+			[spineLobby, { x: 512, y: 208 }, { x: 192, y: 208 }],
+			'spine-to-records-hall'
 		);
+		expectRouteClear(
+			guildHallMap,
+			[spineLobby, { x: 512, y: 368 }, { x: 800, y: 368 }],
+			'spine-to-training-hall'
+		);
+		expectRouteClear(
+			guildHallMap,
+			[spineLobby, { x: 512, y: 568 }, quartermasterApproach],
+			'spine-to-quartermaster'
+		);
+		expectRouteClear(guildHallMap, [spawn, { x: 512, y: 816 }], 'guild-spawn-to-exit');
 
 		const guildMaster = guildHallMap.npcs!.find((npc) => npc.id === 'guild-master')!;
 		const quartermaster = guildHallMap.npcs!.find((npc) => npc.id === 'guild-quartermaster')!;
@@ -879,6 +890,13 @@ describe('opening map content', () => {
 			expect(distance).toBeGreaterThan(getTestNpcBodyRadius(npc));
 			expect(distance).toBeLessThanOrEqual(PLAYER_COLLISION_RADIUS + NPC_INTERACTION_RADIUS);
 			expectPointClearOfInteriorPropCollisions(guildHallMap, approach, `${npc.id}-approach`);
+			for (const prop of guildHallMap.interiorProps ?? []) {
+				if (!prop.collision) continue;
+				expect(
+					isInsideCollisionRect(npc.x, npc.y, prop.collision, PLAYER_COLLISION_RADIUS),
+					`${npc.id} overlaps ${prop.id}`
+				).toBe(false);
+			}
 		}
 	});
 
@@ -962,16 +980,67 @@ describe('opening map content', () => {
 		}
 
 		expect(maps['guild-hall']).toBe(guildHallMap);
-		expect(guildHallMap.width).toBe(24);
-		expect(guildHallMap.height).toBe(18);
+		expect(guildHallMap.width).toBe(32);
+		expect(guildHallMap.height).toBe(26);
 		expect(guildHallMap.spawnDirection).toBe('up');
-		expect(guildHallMap.spawn).toEqual({ x: 384, y: 480 });
+		expect(guildHallMap.spawn).toEqual({ x: 512, y: 736 });
 		expect(guildHallMap.transitions[0]).toMatchObject({
 			id: 'guild-hall-to-meadow',
-			x: 384,
-			y: 528,
+			x: 512,
+			y: 816,
 			toMapId: 'meadow-entry',
 			arrival: { x: 2272, y: 4480, facing: 'down' }
+		});
+	});
+
+	it('uses the approved Guild Hall floor, wall, and identity contracts', () => {
+		const layout = VILLAGE_INTERIOR_LAYOUTS['guild-hall'];
+		const fullFloor = guildHallMap.groundPatches?.find(
+			(patch) => patch.id === 'guild-hall-full-floor'
+		);
+
+		expect(fullFloor).toMatchObject({
+			x: 512,
+			y: 416,
+			width: 1024,
+			height: 832,
+			tile: 'cobblestoneTile'
+		});
+		expect(guildHallMap.blockers?.map((blocker) => blocker.id)).toEqual(
+			layout.walls.map((wall) => wall.id)
+		);
+		expect(guildHallMap.blockers?.every((blocker) => blocker.kind === 'ruin-wall')).toBe(true);
+		expect(
+			guildHallMap.interiorProps?.find((prop) => prop.id === 'guild-hall-master-desk')?.collision
+		).toMatchObject({ x: 800, y: 164, width: 144, height: 8 });
+		expect(
+			guildHallMap.interiorProps?.find((prop) => prop.id === 'guild-hall-quartermaster-counter')
+				?.collision
+		).toMatchObject({ x: 784, y: 548, width: 176, height: 8 });
+		expect(guildHallMap.npcs).toEqual(
+			expect.arrayContaining([
+				expect.objectContaining({
+					id: 'guild-master',
+					x: 800,
+					y: 144,
+					dialogueId: 'guild-master',
+					role: 'guild'
+				}),
+				expect.objectContaining({
+					id: 'guild-quartermaster',
+					x: 816,
+					y: 528,
+					dialogueId: 'guild-quartermaster',
+					role: 'shopkeeper',
+					shopId: 'guild-quartermaster'
+				})
+			])
+		);
+		expect(getShop('guild-quartermaster')).toBeDefined();
+		expect(guildHallMap.transitions[0].arrival).toEqual({
+			x: 2_272,
+			y: 4_480,
+			facing: 'down'
 		});
 	});
 
@@ -1145,8 +1214,8 @@ describe('opening map content', () => {
 		expect(guildHallMap.npcs).toMatchObject([
 			{
 				id: 'guild-master',
-				x: 176,
-				y: 176,
+				x: 800,
+				y: 144,
 				nameKey: 'content.maps.npcs.guild-master.name',
 				dialogueId: 'guild-master',
 				role: 'guild',
@@ -1154,8 +1223,8 @@ describe('opening map content', () => {
 			},
 			{
 				id: 'guild-quartermaster',
-				x: 592,
-				y: 176,
+				x: 816,
+				y: 528,
 				nameKey: 'content.maps.npcs.guild-quartermaster.name',
 				dialogueId: 'guild-quartermaster',
 				role: 'shopkeeper',

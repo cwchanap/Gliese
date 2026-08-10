@@ -1,6 +1,7 @@
 import { compileLayeredRegion } from '$lib/game/content/maps/layered/compile-layered-region';
 import { toMapRect } from '$lib/game/content/maps/layouts/layout-rects';
 import { SUNDROP_VILLAGE_V2_BUILDINGS } from '$lib/game/content/maps/layouts/meadow-entry-v2';
+import { VILLAGE_INTERIOR_LAYOUTS } from '$lib/game/content/maps/layouts/village-interiors-v2';
 import { sundropVillageLayered } from '$lib/game/content/maps/regions/village-layered';
 import type { RegionFragment } from '$lib/game/content/maps/regions/types';
 
@@ -16,7 +17,7 @@ const compactInteriorArrivals = {
 	'item-shop': { x: 256, y: 288, facing: 'up' },
 	'villager-house-1': { x: 256, y: 288, facing: 'up' },
 	'villager-house-2': { x: 256, y: 288, facing: 'up' },
-	'guild-hall': { x: 384, y: 480, facing: 'up' },
+	'guild-hall': { ...VILLAGE_INTERIOR_LAYOUTS['guild-hall'].spawn, facing: 'up' },
 	'shrine-of-aurora-interior': { x: 256, y: 288, facing: 'up' },
 	'villager-house-3': { x: 256, y: 288, facing: 'up' }
 } as const;
