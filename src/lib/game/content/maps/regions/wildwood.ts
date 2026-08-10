@@ -1,6 +1,11 @@
 import { forestDressingAsset, shrineDressingAsset } from '$lib/game/content/assets';
-import { rect, toMapRect } from '$lib/game/content/maps/layouts/layout-rects';
+import { meadowEntryV2RoutePatchesFor } from '$lib/game/content/maps/layouts/meadow-entry-v2';
+import { toMapRect } from '$lib/game/content/maps/layouts/layout-rects';
 import type { RegionFragment } from '$lib/game/content/maps/regions/types';
+
+const wildwoodRoutePatches = meadowEntryV2RoutePatchesFor('wildwood').map(
+	({ id, rect: layoutRect }) => ({ ...toMapRect(id, layoutRect), tile: 'pathTile' as const })
+);
 
 /**
  * Wildwood region — the top-right (NE) forest road leading to the Whispering
@@ -38,7 +43,7 @@ export const wildwoodRegion: RegionFragment = {
 		}
 	],
 	groundPatches: [
-		{ ...toMapRect('wildwood-seam', rect(4_704, 3_776, 192, 384)), tile: 'pathTile' },
+		...wildwoodRoutePatches,
 		{
 			id: 'sundrop-forest-road-east',
 			x: 4_200,

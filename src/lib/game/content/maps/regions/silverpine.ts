@@ -1,10 +1,15 @@
 import { shrineDressingAsset } from '$lib/game/content/assets';
-import { rect, toMapRect } from '$lib/game/content/maps/layouts/layout-rects';
+import { meadowEntryV2RoutePatchesFor } from '$lib/game/content/maps/layouts/meadow-entry-v2';
+import { toMapRect } from '$lib/game/content/maps/layouts/layout-rects';
 import type { RegionFragment } from '$lib/game/content/maps/regions/types';
+
+const silverpineRoutePatches = meadowEntryV2RoutePatchesFor('silverpine').map(
+	({ id, rect: layoutRect }) => ({ ...toMapRect(id, layoutRect), tile: 'pathTile' as const })
+);
 
 export const silverpineRegion: RegionFragment = {
 	groundPatches: [
-		{ ...toMapRect('silverpine-seam', rect(3_424, 2_336, 352, 192)), tile: 'pathTile' },
+		...silverpineRoutePatches,
 		{ id: 'silverpine-stair-path', x: 3_100, y: 1_600, width: 70, height: 2_400, tile: 'pathTile' },
 		{
 			id: 'silverpine-lower-approach',
