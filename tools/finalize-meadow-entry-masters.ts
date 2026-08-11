@@ -4,7 +4,7 @@ import { basename, dirname, join, resolve } from 'node:path';
 
 import sharp from 'sharp';
 
-import { meadowEntryControlsApproval } from '$lib/game/content/approvals/meadow-entry-controls';
+import { meadowEntryControlsApproval } from '$lib/game/content/approvals/meadow-entry-painted-v2-controls';
 import {
 	MEADOW_ENTRY_MASTER_POLICY,
 	finalizeMeadowEntryBase,
@@ -24,8 +24,8 @@ import {
 	computeMeadowEntryCombinedControlFingerprint
 } from '$lib/game/content/backgrounds/meadow-entry-controls';
 
-const DEFAULT_OUTPUT_ROOT = 'artifacts/meadow-entry/hpa-399';
-const CONTROLS_ROOT = 'docs/superpowers/reports/img/hpa-399/controls';
+const DEFAULT_OUTPUT_ROOT = 'artifacts/meadow-entry/painted-v2';
+const CONTROLS_ROOT = 'artifacts/meadow-entry/painted-v2/controls';
 const PREDECESSOR_BASE = 'public/game/assets/regions/sundrop-village-base.png';
 const PREDECESSOR_FOREGROUND = 'public/game/assets/regions/sundrop-village-foreground.png';
 
@@ -45,6 +45,7 @@ export interface FinalizeMeadowEntryMasterArguments {
 	outputRoot: string;
 	outputRootExplicit: boolean;
 	validateOnly: boolean;
+	check: boolean;
 }
 
 export interface MeadowEntryMasterPublicationFileSystem {
@@ -95,8 +96,14 @@ export function parseFinalizeMeadowEntryMasterArguments(
 ): FinalizeMeadowEntryMasterArguments {
 	const values = new Map<string, string>();
 	let validateOnly = false;
+	let check = false;
 	for (let index = args[0] === '--' ? 1 : 0; index < args.length; index += 1) {
 		const flag = args[index];
+		if (flag === '--check') {
+			if (check) throw new Error('Duplicate meadow-entry finalizer argument: --check');
+			check = true;
+			continue;
+		}
 		if (flag === '--validate-only') {
 			if (validateOnly)
 				throw new Error('Duplicate meadow-entry finalizer argument: --validate-only');
@@ -133,6 +140,9 @@ export function parseFinalizeMeadowEntryMasterArguments(
 	if (plane !== 'base' && plane !== 'foreground' && plane !== 'both') {
 		throw new Error('--plane must be base, foreground, or both.');
 	}
+	if (check && validateOnly) {
+		throw new Error('Meadow Entry finalizer cannot combine --check with --validate-only.');
+	}
 	return {
 		plane,
 		baseCandidate: values.get('--base-candidate'),
@@ -146,7 +156,8 @@ export function parseFinalizeMeadowEntryMasterArguments(
 		refinementManifest: values.get('--refinement-manifest'),
 		outputRoot: values.get('--output-root') ?? DEFAULT_OUTPUT_ROOT,
 		outputRootExplicit: values.has('--output-root'),
-		validateOnly
+		validateOnly,
+		check
 	};
 }
 
@@ -181,9 +192,21 @@ async function readRefinements(
 
 async function currentContext(repositoryRoot: string) {
 	const inputs = buildMeadowEntryControlInputs(repositoryRoot);
+	const readHistoricalPredecessor = async (path: string): Promise<Buffer> => {
+		try {
+			return await readFile(join(repositoryRoot, path));
+		} catch (error) {
+			if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error;
+			// Task 1 intentionally removed the retired public predecessor copies. The
+			// active painted-v2 writer keeps their reviewed hashes in the control
+			// contract; tests and --check can therefore proceed without recreating
+			// historical PNGs in the working tree.
+			return Buffer.alloc(0);
+		}
+	};
 	const [basePng, foregroundPng, storageConfiguration] = await Promise.all([
-		readFile(join(repositoryRoot, PREDECESSOR_BASE)),
-		readFile(join(repositoryRoot, PREDECESSOR_FOREGROUND)),
+		readHistoricalPredecessor(PREDECESSOR_BASE),
+		readHistoricalPredecessor(PREDECESSOR_FOREGROUND),
 		readFile(join(repositoryRoot, '.gitattributes'))
 	]);
 	return {
@@ -513,6 +536,54 @@ export async function publishApprovedMeadowEntryPackage(
 	);
 }
 
+async function assertCheckedInPlane(
+	outputRoot: string,
+	relativePath: string,
+	expected: Buffer,
+	label: string
+): Promise<void> {
+	let actual: Buffer;
+	try {
+		actual = await readFile(join(resolve(outputRoot), relativePath));
+	} catch (error) {
+		if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
+			throw new Error(`Meadow Entry ${label} check output is missing: ${relativePath}`, {
+				cause: error
+			});
+		}
+		throw error;
+	}
+	if (!actual.equals(expected)) {
+		throw new Error(
+			`Meadow Entry ${label} check output is stale: ${relativePath} expected=${sha256(expected)} actual=${sha256(actual)}`
+		);
+	}
+}
+
+async function assertCheckedInPackage(
+	outputRoot: string,
+	packageBytes: ApprovedPackageBytes
+): Promise<void> {
+	await assertCheckedInPlane(
+		outputRoot,
+		'masters/meadow-entry-base-master.png',
+		packageBytes.basePng,
+		'base master'
+	);
+	await assertCheckedInPlane(
+		outputRoot,
+		'masters/meadow-entry-foreground-master.png',
+		packageBytes.foregroundPng,
+		'foreground master'
+	);
+	await assertCheckedInPlane(
+		outputRoot,
+		'provenance/meadow-entry-master-provenance.json',
+		packageBytes.provenanceJson,
+		'master provenance'
+	);
+}
+
 /**
  * Runs the Meadow Entry master finalization CLI flow: parses arguments, guards
  * single-plane writes away from the approved package root, assembles the
@@ -536,7 +607,7 @@ export async function runFinalizeMeadowEntryMasters(
 ): Promise<void> {
 	const finalizers = { ...DEFAULT_FINALIZERS, ...dependencies };
 	const arguments_ = parseFinalizeMeadowEntryMasterArguments(args);
-	if (arguments_.plane !== 'both' && !arguments_.validateOnly) {
+	if (arguments_.plane !== 'both' && !arguments_.validateOnly && !arguments_.check) {
 		if (!arguments_.outputRootExplicit) {
 			throw new Error(
 				'Single-plane meadow-entry finalization requires an explicit --output-root review/work destination; use --plane both to publish the approved package.'
@@ -553,7 +624,14 @@ export async function runFinalizeMeadowEntryMasters(
 	const context = await currentContext(repositoryRoot);
 	if (arguments_.plane === 'base') {
 		const result = await finalizers.finalizeBase(await baseInput(arguments_, context, refinements));
-		if (!arguments_.validateOnly) {
+		if (arguments_.check) {
+			await assertCheckedInPlane(
+				arguments_.outputRoot,
+				'masters/meadow-entry-base-master.png',
+				result.png,
+				'base master'
+			);
+		} else if (!arguments_.validateOnly) {
 			const output = join(resolve(arguments_.outputRoot), 'masters/meadow-entry-base-master.png');
 			await mkdir(dirname(output), { recursive: true });
 			await writeFile(output, result.png);
@@ -565,7 +643,14 @@ export async function runFinalizeMeadowEntryMasters(
 		const result = await finalizers.finalizeForeground(
 			await foregroundInput(arguments_, repositoryRoot, context, refinements)
 		);
-		if (!arguments_.validateOnly) {
+		if (arguments_.check) {
+			await assertCheckedInPlane(
+				arguments_.outputRoot,
+				'masters/meadow-entry-foreground-master.png',
+				result.png,
+				'foreground master'
+			);
+		} else if (!arguments_.validateOnly) {
 			const output = join(
 				resolve(arguments_.outputRoot),
 				'masters/meadow-entry-foreground-master.png'
@@ -580,7 +665,9 @@ export async function runFinalizeMeadowEntryMasters(
 		base: await baseInput(arguments_, context, refinements),
 		foreground: await foregroundInput(arguments_, repositoryRoot, context, refinements)
 	});
-	if (!arguments_.validateOnly) {
+	if (arguments_.check) {
+		await assertCheckedInPackage(arguments_.outputRoot, packageBytes);
+	} else if (!arguments_.validateOnly) {
 		await publishApprovedMeadowEntryPackage(arguments_.outputRoot, packageBytes);
 	}
 	console.log(`base-sha256 ${sha256(packageBytes.basePng)}`);

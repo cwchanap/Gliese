@@ -7,6 +7,8 @@ import { afterEach, describe, expect, it } from 'vitest';
 
 import {
 	assertApprovedMasterSnapshot,
+	checkMeadowEntryExportPackage,
+	parseMeadowEntryExportArguments,
 	publishMeadowEntryExportPackage,
 	readPublishedMeadowEntryExportSnapshot,
 	type MeadowEntryApprovedMasterIdentities,
@@ -170,6 +172,34 @@ function approvedMasterFixture() {
 }
 
 describe('publishMeadowEntryExportPackage error branches', () => {
+	it('parses painted-v2 check mode and rejects publication-only flags', () => {
+		expect(parseMeadowEntryExportArguments([])).toEqual({ check: false, outputRoot: undefined });
+		expect(parseMeadowEntryExportArguments(['--check'])).toEqual({
+			check: true,
+			outputRoot: undefined
+		});
+		expect(() => parseMeadowEntryExportArguments(['--check', '--publish-runtime'])).toThrow(
+			/cannot combine.*--check.*--publish-runtime/i
+		);
+	});
+
+	it('checks a matching artifact/runtime snapshot without writes and rejects stale bytes', async () => {
+		const root = await temporaryRoot();
+		const runtimeRoot = await temporaryRoot();
+		const pkg = validPackage();
+		await publishMeadowEntryExportPackage(root, pkg);
+		await mkdir(runtimeRoot, { recursive: true });
+		for (const [filename, bytes] of Object.entries(pkg.files)) {
+			await writeFile(join(runtimeRoot, filename), bytes);
+		}
+
+		await expect(checkMeadowEntryExportPackage(root, runtimeRoot, pkg)).resolves.toBeUndefined();
+		await writeFile(join(runtimeRoot, 'a-base.png'), Buffer.from('stale'));
+		await expect(checkMeadowEntryExportPackage(root, runtimeRoot, pkg)).rejects.toThrow(
+			/stale|drift/i
+		);
+	});
+
 	it('restores the previous snapshot when a staging write fails', async () => {
 		const root = await temporaryRoot();
 		const oldPackage = validPackage();

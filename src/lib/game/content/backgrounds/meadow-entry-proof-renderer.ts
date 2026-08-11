@@ -7,6 +7,10 @@ import {
 	MEADOW_ENTRY_APPROVED_OVERLAPS,
 	MEADOW_ENTRY_RUNTIME_COVERAGE
 } from './meadow-entry-crop-manifest';
+import {
+	MEADOW_ENTRY_PAINTED_V2_PILOT_CROPS,
+	MEADOW_ENTRY_PAINTED_V2_PILOT_OVERLAPS
+} from './meadow-entry-painted-v2-crop-manifest';
 import { decodeMeadowEntryRgba, encodeCanonicalMeadowEntryPng } from './meadow-entry-png';
 
 export interface MeadowEntryProofDescriptor {
@@ -181,11 +185,41 @@ export const MEADOW_ENTRY_PROOF_FILENAMES: readonly string[] = Object.freeze(
 	MEADOW_ENTRY_PROOF_DESCRIPTORS.map(({ filename }) => filename)
 );
 
+const PAINTED_V2_PROOF_IDS = [
+	'pilot-assembly-master-transparency',
+	'pilot-assembly-base-coverage',
+	'pilot-assembly-protected-live',
+	'pilot-assembly-ownership',
+	'pilot-assembly-overlap-sundrop-connector',
+	'pilot-assembly-overlap-connector-crossroads'
+] as const;
+
+const paintedV2CropEnvelope = envelope(
+	MEADOW_ENTRY_PAINTED_V2_PILOT_CROPS.map(({ bounds }) => bounds)
+);
+
+const paintedV2ProofBounds: Readonly<Record<(typeof PAINTED_V2_PROOF_IDS)[number], PixelBounds>> = {
+	'pilot-assembly-master-transparency': MEADOW_ENTRY_WORLD_BOUNDS,
+	'pilot-assembly-base-coverage': paintedV2CropEnvelope,
+	'pilot-assembly-protected-live': MEADOW_ENTRY_WORLD_BOUNDS,
+	'pilot-assembly-ownership': MEADOW_ENTRY_WORLD_BOUNDS,
+	'pilot-assembly-overlap-sundrop-connector': MEADOW_ENTRY_PAINTED_V2_PILOT_OVERLAPS[0]!.bounds,
+	'pilot-assembly-overlap-connector-crossroads': MEADOW_ENTRY_PAINTED_V2_PILOT_OVERLAPS[1]!.bounds
+};
+
+export const MEADOW_ENTRY_PAINTED_V2_PROOF_DESCRIPTORS: readonly MeadowEntryProofDescriptor[] =
+	Object.freeze(
+		PAINTED_V2_PROOF_IDS.map((proofId) => descriptor(proofId, paintedV2ProofBounds[proofId]))
+	);
+
+export const MEADOW_ENTRY_PAINTED_V2_PROOF_FILENAMES: readonly string[] = Object.freeze(
+	MEADOW_ENTRY_PAINTED_V2_PROOF_DESCRIPTORS.map(({ filename }) => filename)
+);
+
 const allowedProofPaths = new Set(
-	MEADOW_ENTRY_PROOF_FILENAMES.flatMap((filename) => [
-		filename,
-		filename.replace(/\.png$/, '.json')
-	])
+	[...MEADOW_ENTRY_PROOF_FILENAMES, ...MEADOW_ENTRY_PAINTED_V2_PROOF_FILENAMES].flatMap(
+		(filename) => [filename, filename.replace(/\.png$/, '.json')]
+	)
 );
 
 export function assertAllowedMeadowEntryProofDestination(relativePath: string): void {

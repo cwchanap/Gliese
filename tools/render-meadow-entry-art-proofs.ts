@@ -11,6 +11,13 @@ import {
 	MEADOW_ENTRY_RUNTIME_COVERAGE
 } from '$lib/game/content/backgrounds/meadow-entry-crop-manifest';
 import {
+	MEADOW_ENTRY_PAINTED_V2_PILOT_CROPS,
+	MEADOW_ENTRY_PAINTED_V2_PILOT_OVERLAPS
+} from '$lib/game/content/backgrounds/meadow-entry-painted-v2-crop-manifest';
+import { MEADOW_ENTRY_REVIEWED_PAINTED_V2_BAKE_OWNERSHIP_SHA256 } from '$lib/game/content/backgrounds/meadow-entry-bake-ownership';
+import {
+	MEADOW_ENTRY_PAINTED_V2_PROOF_DESCRIPTORS,
+	MEADOW_ENTRY_PAINTED_V2_PROOF_FILENAMES,
 	MEADOW_ENTRY_PROOF_DESCRIPTORS,
 	MEADOW_ENTRY_PROOF_FILENAMES,
 	assertAllowedMeadowEntryProofDestination,
@@ -35,6 +42,15 @@ const SUNDROP_BASE = 'public/game/assets/regions/sundrop-village-base.png';
 const SUNDROP_FOREGROUND = 'public/game/assets/regions/sundrop-village-foreground.png';
 const CONTROL_ROOT = 'docs/superpowers/reports/img/hpa-399/controls';
 const PROOF_SENTINEL = 'docs/superpowers/reports/img/hpa-399/.meadow-entry-proof-publication.lock';
+export const MEADOW_ENTRY_PAINTED_V2_PROOF_ROOT = 'artifacts/meadow-entry/painted-v2/proofs';
+const PAINTED_V2_BASE_MASTER =
+	'artifacts/meadow-entry/painted-v2/masters/meadow-entry-painted-v2-pilot-base-master.png';
+const PAINTED_V2_CROP_MANIFEST =
+	'artifacts/meadow-entry/painted-v2/controls/meadow-entry-crop-manifest.json';
+const PAINTED_V2_OWNERSHIP =
+	'artifacts/meadow-entry/painted-v2/controls/meadow-entry-bake-ownership.json';
+const PAINTED_V2_EXPORT_ROOT = 'artifacts/meadow-entry/painted-v2/exports';
+const PAINTED_V2_CONTROL_ROOT = 'artifacts/meadow-entry/painted-v2/controls';
 
 const FULL_MASKS = {
 	'full/protected-live-overlay': `${CONTROL_ROOT}/meadow-entry-protected-live-mask.svg`,
@@ -875,7 +891,9 @@ export async function readPublishedMeadowEntryProofSnapshot(
 		: new Error('Meadow Entry proof snapshot is unavailable');
 }
 
-export async function renderMeadowEntryArtProofs(repositoryRoot = process.cwd()): Promise<{
+export async function renderHistoricalMeadowEntryArtProofs(
+	repositoryRoot = process.cwd()
+): Promise<{
 	proofCount: number;
 	inventorySha256: string;
 }> {
@@ -945,7 +963,338 @@ export async function renderMeadowEntryArtProofs(repositoryRoot = process.cwd())
 	}
 }
 
+export interface MeadowEntryPaintedV2ProofPackage {
+	files: Readonly<Record<string, Buffer>>;
+	inventorySha256: string;
+}
+
+export interface MeadowEntryArtProofArguments {
+	check: boolean;
+}
+
+/**
+ * Return the fixed active painted-v2 proof inventory.  This deliberately does
+ * not include the historical HPA-399 descriptors: those remain available to
+ * the immutable package validator but are not active writer defaults.
+ */
+export function expectedPaintedV2ProofInventory(): string[] {
+	return MEADOW_ENTRY_PAINTED_V2_PROOF_FILENAMES.flatMap((filename) => [
+		filename,
+		filename.replace(/\.png$/, '.json')
+	]).sort();
+}
+
+function paintedV2ExportPath(filename: string): string {
+	return `${PAINTED_V2_EXPORT_ROOT}/${filename}`;
+}
+
+/** Return the exact source identity list bound into an active proof sidecar. */
+export function paintedV2ProofInputPaths(proofId: string): readonly string[] {
+	if (proofId === 'pilot-assembly-master-transparency') return [PAINTED_V2_BASE_MASTER];
+	if (proofId === 'pilot-assembly-base-coverage') {
+		return [PAINTED_V2_BASE_MASTER, PAINTED_V2_CROP_MANIFEST];
+	}
+	if (proofId === 'pilot-assembly-protected-live') {
+		return [
+			PAINTED_V2_BASE_MASTER,
+			`${PAINTED_V2_CONTROL_ROOT}/meadow-entry-protected-live-mask.svg`
+		];
+	}
+	if (proofId === 'pilot-assembly-ownership') {
+		return [
+			PAINTED_V2_BASE_MASTER,
+			`${PAINTED_V2_CONTROL_ROOT}/meadow-entry-region-mask.svg`,
+			PAINTED_V2_OWNERSHIP
+		];
+	}
+	const overlap = MEADOW_ENTRY_PAINTED_V2_PILOT_OVERLAPS.find(
+		({ id }) => `pilot-assembly-overlap-${id.replace(/^painted-v2-overlap-/, '')}` === proofId
+	);
+	if (overlap) {
+		const first = MEADOW_ENTRY_PAINTED_V2_PILOT_CROPS.find(({ id }) => id === overlap.firstCropId)!;
+		const second = MEADOW_ENTRY_PAINTED_V2_PILOT_CROPS.find(
+			({ id }) => id === overlap.secondCropId
+		)!;
+		return [paintedV2ExportPath(first.baseFilename), paintedV2ExportPath(second.baseFilename)];
+	}
+	throw new Error(`Unknown painted-v2 Meadow Entry proof identity: ${proofId}`);
+}
+
+function paintedV2Descriptor(proofId: string): MeadowEntryProofDescriptor {
+	const descriptor = MEADOW_ENTRY_PAINTED_V2_PROOF_DESCRIPTORS.find(
+		({ proofId: candidate }) => candidate === proofId
+	);
+	assert(descriptor, `Unknown painted-v2 Meadow Entry proof identity: ${proofId}`);
+	return descriptor;
+}
+
+async function readPaintedV2ProofInput(
+	repositoryRoot: string,
+	path: string,
+	cache: Map<string, Buffer>
+): Promise<Buffer> {
+	const cached = cache.get(path);
+	if (cached) return cached;
+	const bytes = await readFile(join(repositoryRoot, path));
+	cache.set(path, bytes);
+	return bytes;
+}
+
+async function activeProofSidecar(
+	repositoryRoot: string,
+	descriptor: MeadowEntryProofDescriptor,
+	png: Buffer,
+	inputPaths: readonly string[],
+	cache: Map<string, Buffer>,
+	metrics: Readonly<Record<string, unknown>> = {}
+): Promise<Buffer> {
+	validateCanonicalPngChunks(png);
+	const decoded = await decodeMeadowEntryRgba(png);
+	const inputs = await Promise.all(
+		inputPaths.map(async (path) => ({
+			path,
+			sha256: sha256(await readPaintedV2ProofInput(repositoryRoot, path, cache))
+		}))
+	);
+	const sidecar: MeadowEntryProofSidecar = {
+		version: 1,
+		proofId: descriptor.proofId,
+		path: `${MEADOW_ENTRY_PAINTED_V2_PROOF_ROOT}/${descriptor.filename}`,
+		sha256: sha256(png),
+		bytes: png.byteLength,
+		width: decoded.width,
+		height: decoded.height,
+		masterBounds: descriptor.masterBounds,
+		inputs,
+		inputSha256: inputs.map(({ sha256: inputSha256 }) => inputSha256),
+		metrics
+	};
+	return Buffer.from(`${JSON.stringify(sidecar, null, 2)}\n`);
+}
+
+async function renderPaintedV2Proof(
+	repositoryRoot: string,
+	proofId: string,
+	baseMaster: Buffer,
+	cache: Map<string, Buffer>
+): Promise<{ png: Buffer; metrics: Readonly<Record<string, unknown>> }> {
+	const descriptor = paintedV2Descriptor(proofId);
+	const inputPaths = paintedV2ProofInputPaths(proofId);
+	if (proofId === 'pilot-assembly-master-transparency') {
+		return { png: baseMaster, metrics: { pixelTransform: 'none' } };
+	}
+	if (proofId === 'pilot-assembly-base-coverage') {
+		const png = await canonicalExtract(baseMaster, descriptor.masterBounds);
+		return {
+			png,
+			metrics: {
+				cropIds: MEADOW_ENTRY_PAINTED_V2_PILOT_CROPS.map(({ id }) => id),
+				coverageMode: 'partial'
+			}
+		};
+	}
+	if (proofId === 'pilot-assembly-protected-live' || proofId === 'pilot-assembly-ownership') {
+		const maskPath = inputPaths.find((path) => path.endsWith('.svg'));
+		assert(maskPath, `Painted-v2 proof mask input is missing: ${proofId}`);
+		const mask = await readPaintedV2ProofInput(repositoryRoot, maskPath, cache);
+		const png = await canonicalPipeline(
+			sharp(baseMaster).composite([{ input: mask, left: 0, top: 0 }])
+		);
+		return {
+			png,
+			metrics: {
+				overlay:
+					proofId === 'pilot-assembly-protected-live' ? 'protected-live-mask' : 'region-mask',
+				ownership:
+					proofId === 'pilot-assembly-ownership'
+						? MEADOW_ENTRY_REVIEWED_PAINTED_V2_BAKE_OWNERSHIP_SHA256
+						: undefined
+			}
+		};
+	}
+	const overlap = MEADOW_ENTRY_PAINTED_V2_PILOT_OVERLAPS.find(
+		({ id }) => `pilot-assembly-overlap-${id.replace(/^painted-v2-overlap-/, '')}` === proofId
+	);
+	assert(overlap, `Unknown painted-v2 overlap proof identity: ${proofId}`);
+	const firstCrop = MEADOW_ENTRY_PAINTED_V2_PILOT_CROPS.find(
+		({ id }) => id === overlap.firstCropId
+	)!;
+	const secondCrop = MEADOW_ENTRY_PAINTED_V2_PILOT_CROPS.find(
+		({ id }) => id === overlap.secondCropId
+	)!;
+	const first = await canonicalExtract(
+		await readPaintedV2ProofInput(
+			repositoryRoot,
+			paintedV2ExportPath(firstCrop.baseFilename),
+			cache
+		),
+		{
+			left: overlap.bounds.left - firstCrop.bounds.left,
+			top: overlap.bounds.top - firstCrop.bounds.top,
+			right: overlap.bounds.right - firstCrop.bounds.left,
+			bottom: overlap.bounds.bottom - firstCrop.bounds.top
+		}
+	);
+	const second = await canonicalExtract(
+		await readPaintedV2ProofInput(
+			repositoryRoot,
+			paintedV2ExportPath(secondCrop.baseFilename),
+			cache
+		),
+		{
+			left: overlap.bounds.left - secondCrop.bounds.left,
+			top: overlap.bounds.top - secondCrop.bounds.top,
+			right: overlap.bounds.right - secondCrop.bounds.left,
+			bottom: overlap.bounds.bottom - secondCrop.bounds.top
+		}
+	);
+	const difference = await renderMeadowEntryOverlapDifference(first, second);
+	assert(
+		difference.differingPixels === 0 && difference.maximumChannelDifference === 0,
+		`Painted-v2 overlap proof differs id=${overlap.id}`
+	);
+	return {
+		png: difference.png,
+		metrics: {
+			planes: {
+				base: {
+					differingPixels: difference.differingPixels,
+					maximumChannelDifference: difference.maximumChannelDifference
+				}
+			},
+			ownerCropId: overlap.ownerCropId,
+			minimumSharedPixels: overlap.minimumSharedPixels
+		}
+	};
+}
+
+/** Recompute the active six-proof package without writing any filesystem state. */
+export async function buildPaintedV2ProofPackage(
+	repositoryRoot = process.cwd()
+): Promise<MeadowEntryPaintedV2ProofPackage> {
+	const root = resolve(repositoryRoot);
+	const cache = new Map<string, Buffer>();
+	const baseMaster = await readPaintedV2ProofInput(root, PAINTED_V2_BASE_MASTER, cache);
+	const files: Record<string, Buffer> = {};
+	for (const descriptor of MEADOW_ENTRY_PAINTED_V2_PROOF_DESCRIPTORS) {
+		const { png, metrics } = await renderPaintedV2Proof(
+			root,
+			descriptor.proofId,
+			baseMaster,
+			cache
+		);
+		const sidecar = await activeProofSidecar(
+			root,
+			descriptor,
+			png,
+			paintedV2ProofInputPaths(descriptor.proofId),
+			cache,
+			metrics
+		);
+		files[descriptor.filename] = png;
+		files[descriptor.filename.replace(/\.png$/, '.json')] = sidecar;
+	}
+	const manifest = Buffer.from(
+		Object.keys(files)
+			.sort()
+			.map((path) => `${sha256(files[path]!)}  ${path}\n`)
+			.join('')
+	);
+	return { files, inventorySha256: sha256(manifest) };
+}
+
+/** Compare the checked-in active proof package to a recomputed package, without writes. */
+export async function checkMeadowEntryPaintedV2Proofs(
+	repositoryRoot = process.cwd(),
+	expected?: MeadowEntryPaintedV2ProofPackage
+): Promise<void> {
+	const root = resolve(repositoryRoot);
+	const packageBytes = expected ?? (await buildPaintedV2ProofPackage(root));
+	const proofRoot = join(root, MEADOW_ENTRY_PAINTED_V2_PROOF_ROOT);
+	let actual: string[];
+	try {
+		actual = await walkFiles(proofRoot);
+	} catch (error) {
+		if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
+			throw new Error(
+				`Meadow Entry painted-v2 proof package is missing: ${MEADOW_ENTRY_PAINTED_V2_PROOF_ROOT}`,
+				{ cause: error }
+			);
+		}
+		throw error;
+	}
+	assertInventoryEquals(expectedPaintedV2ProofInventory(), actual);
+	for (const path of expectedPaintedV2ProofInventory()) {
+		const bytes = await readFile(join(proofRoot, path));
+		assert(
+			bytes.equals(packageBytes.files[path]!),
+			`Meadow Entry painted-v2 proof is stale: ${path}`
+		);
+	}
+}
+
+async function publishPaintedV2ProofPackage(
+	repositoryRoot: string,
+	packageBytes: MeadowEntryPaintedV2ProofPackage
+): Promise<void> {
+	const root = resolve(repositoryRoot);
+	const target = join(root, MEADOW_ENTRY_PAINTED_V2_PROOF_ROOT);
+	const token = randomUUID();
+	const staging = `${target}.staging-${token}`;
+	const backup = `${target}.${token}.rollback`;
+	await mkdir(staging, { recursive: false });
+	try {
+		for (const path of expectedPaintedV2ProofInventory()) {
+			assertAllowedMeadowEntryProofDestination(path);
+			const destination = join(staging, path);
+			await mkdir(dirname(destination), { recursive: true });
+			await writeFile(destination, packageBytes.files[path]!, { flag: 'wx' });
+		}
+		const hadTarget = await nodePathExists(target);
+		if (hadTarget) await rename(target, backup);
+		await rename(staging, target);
+		if (hadTarget) await rm(backup, { recursive: true, force: true });
+	} finally {
+		await rm(staging, { recursive: true, force: true }).catch(() => undefined);
+		await rm(backup, { recursive: true, force: true }).catch(() => undefined);
+	}
+}
+
+export function parseMeadowEntryArtProofArguments(
+	args: readonly string[]
+): MeadowEntryArtProofArguments {
+	let check = false;
+	for (let index = args[0] === '--' ? 1 : 0; index < args.length; index += 1) {
+		const flag = args[index];
+		if (flag === '--check') {
+			if (check) throw new Error('Duplicate Meadow Entry proof argument: --check');
+			check = true;
+			continue;
+		}
+		throw new Error(`Unknown Meadow Entry proof argument: ${flag ?? '<missing>'}`);
+	}
+	return { check };
+}
+
+/** Active CLI defaults to painted-v2; historical proof generation is explicit and test-only. */
+export async function renderMeadowEntryArtProofs(
+	repositoryRoot = process.cwd(),
+	options: { check?: boolean } = {}
+): Promise<{ proofCount: number; inventorySha256: string }> {
+	const packageBytes = await buildPaintedV2ProofPackage(repositoryRoot);
+	if (options.check) {
+		await checkMeadowEntryPaintedV2Proofs(repositoryRoot, packageBytes);
+	} else {
+		await publishPaintedV2ProofPackage(repositoryRoot, packageBytes);
+	}
+	return {
+		proofCount: MEADOW_ENTRY_PAINTED_V2_PROOF_FILENAMES.length,
+		inventorySha256: packageBytes.inventorySha256
+	};
+}
+
 if (import.meta.main) {
-	const result = await renderMeadowEntryArtProofs();
+	const parsed = parseMeadowEntryArtProofArguments(process.argv.slice(2));
+	const result = await renderMeadowEntryArtProofs(process.cwd(), parsed);
 	process.stdout.write(`${JSON.stringify(result)}\n`);
 }

@@ -203,6 +203,34 @@ describe('meadow-entry regional exporter', () => {
 		]);
 	});
 
+	it('does not require a foreground master when every crop is base-only', async () => {
+		const { baseMasterPng } = await masters(Buffer.from([255, 0, 0, 255]));
+		const result = await exportMeadowEntryRegions({
+			baseMasterPng,
+			foregroundMasterPng: undefined,
+			controlFingerprint: FINGERPRINT,
+			approvedControlFingerprint: FINGERPRINT,
+			crops: [crop('base-only', 0, 1)],
+			overlaps: []
+		});
+
+		expect(Object.keys(result.files)).toEqual(['base-only-base.png']);
+	});
+
+	it('requires a foreground master when a crop declares a foreground plane', async () => {
+		const { baseMasterPng } = await masters(Buffer.from([255, 0, 0, 255]));
+		await expect(
+			exportMeadowEntryRegions({
+				baseMasterPng,
+				foregroundMasterPng: undefined,
+				controlFingerprint: FINGERPRINT,
+				approvedControlFingerprint: FINGERPRINT,
+				crops: [crop('with-foreground', 0, 1, { foreground: true })],
+				overlaps: []
+			})
+		).rejects.toThrow(/foreground master is required/i);
+	});
+
 	it('emits a canonical all-transparent foreground with zero RGB when policy requires it', async () => {
 		const input = await masters(Buffer.from([12, 34, 56, 255, 78, 90, 12, 255]));
 		const result = await exportMeadowEntryRegions({

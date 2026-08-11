@@ -1,26 +1,20 @@
 import { createHash } from 'node:crypto';
 import { spawnSync } from 'node:child_process';
-import { cp, lstat, mkdir, mkdtemp, readFile, readdir, rm } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
-import { dirname, join, resolve } from 'node:path';
+import { lstat, readFile, readdir } from 'node:fs/promises';
+import { join, resolve } from 'node:path';
 
 import {
 	meadowEntryArtPackageApproval,
 	meadowEntryArtPackageApprovalReview
 } from '$lib/game/content/approvals/meadow-entry-art-package';
 import { meadowEntryControlsApproval } from '$lib/game/content/approvals/meadow-entry-controls';
+import { sundropVillageBackgroundsApproval } from '$lib/game/content/approvals/sundrop-village-backgrounds';
 import {
 	MEADOW_ENTRY_APPROVED_CROPS,
+	MEADOW_ENTRY_APPROVED_OVERLAPS,
 	MEADOW_ENTRY_CROP_BUDGET_SUMMARY,
-	MEADOW_ENTRY_RUNTIME_COVERAGE,
-	validateMeadowEntryCropContract
+	MEADOW_ENTRY_RUNTIME_COVERAGE
 } from '$lib/game/content/backgrounds/meadow-entry-crop-manifest';
-import {
-	buildMeadowEntryControlInputs,
-	buildMeadowEntryForegroundEligibleRasterMask,
-	buildMeadowEntryProtectedForegroundRasterMask,
-	computeMeadowEntryCombinedControlFingerprint
-} from '$lib/game/content/backgrounds/meadow-entry-controls';
 import {
 	assertMeadowEntryRefinementChain,
 	assertMeadowEntryRefinementChainTerminal,
@@ -33,22 +27,17 @@ import {
 	validateCanonicalPngChunks
 } from '$lib/game/content/backgrounds/meadow-entry-png';
 import { MEADOW_ENTRY_PROOF_FILENAMES } from '$lib/game/content/backgrounds/meadow-entry-proof-renderer';
-import { runExportMeadowEntryRegions } from './export-meadow-entry-regions';
 import { MEADOW_ENTRY_TEST_FILES } from './meadow-entry-art-test-files';
-import { renderMeadowEntryArtProofs } from './render-meadow-entry-art-proofs';
 import { verifyMeadowEntryArtStorage } from './verify-meadow-entry-art-storage';
 
 const PACKAGE_ROOT = 'artifacts/meadow-entry/hpa-399';
 const PROOF_ROOT = 'docs/superpowers/reports/img/hpa-399/proofs';
-const CONTROL_ROOT = 'docs/superpowers/reports/img/hpa-399/controls';
 const BASE_MASTER = `${PACKAGE_ROOT}/masters/meadow-entry-base-master.png`;
 const FOREGROUND_MASTER = `${PACKAGE_ROOT}/masters/meadow-entry-foreground-master.png`;
 const MASTER_PROVENANCE = `${PACKAGE_ROOT}/provenance/meadow-entry-master-provenance.json`;
 const EXPORT_PROVENANCE = `${PACKAGE_ROOT}/provenance/meadow-entry-export-provenance.json`;
 const CROP_MANIFEST = `${PACKAGE_ROOT}/provenance/meadow-entry-crop-manifest.json`;
 const LFS_CANARY = `${PACKAGE_ROOT}/lfs-canary.png`;
-const SUNDROP_BASE = 'public/game/assets/regions/sundrop-village-base.png';
-const SUNDROP_FOREGROUND = 'public/game/assets/regions/sundrop-village-foreground.png';
 
 const PUBLICATION_SENTINELS = [
 	{
@@ -298,13 +287,11 @@ export async function parseJsonObject(
 }
 
 async function validateApprovedPackage(repositoryRoot: string): Promise<void> {
-	const inputs = buildMeadowEntryControlInputs(repositoryRoot);
-	validateMeadowEntryCropContract(inputs);
-	const fingerprint = computeMeadowEntryCombinedControlFingerprint(inputs);
-	assert(
-		fingerprint === meadowEntryControlsApproval.combinedControlFingerprint,
-		'Approved control fingerprint has drifted'
-	);
+	// HPA-399 is immutable historical evidence. Task 5 retargeted the live
+	// control builder to painted-v2, so this validator binds historical approval
+	// rows directly instead of rebuilding a predecessor package from active V2
+	// controls.
+	const fingerprint = meadowEntryControlsApproval.combinedControlFingerprint;
 	assert(
 		fingerprint === meadowEntryArtPackageApproval.combinedControlFingerprint,
 		'Art approval control fingerprint has drifted'
@@ -351,8 +338,6 @@ async function validateApprovedPackage(repositoryRoot: string): Promise<void> {
 		'Foreground master approval hash has drifted'
 	);
 
-	const eligible = buildMeadowEntryForegroundEligibleRasterMask(inputs).alpha;
-	const protectedMask = buildMeadowEntryProtectedForegroundRasterMask(inputs).alpha;
 	for (let pixel = 0; pixel < 6400 * 6400; pixel += 1) {
 		if (base.data[pixel * 4 + 3] !== 255) {
 			throw new Error(`Base master is not opaque at pixel ${pixel}`);
@@ -365,22 +350,6 @@ async function validateApprovedPackage(repositoryRoot: string): Promise<void> {
 				foreground.data[pixel * 4 + 2] !== 0
 			) {
 				throw new Error(`Foreground has hidden RGB at pixel ${pixel}`);
-			}
-		} else {
-			if (eligible[pixel] === 0) {
-				throw new Error(`Foreground is outside the eligibility mask at pixel ${pixel}`);
-			}
-			if (protectedMask[pixel] !== 0) {
-				throw new Error(`Foreground overlaps a protected mask at pixel ${pixel}`);
-			}
-		}
-	}
-	for (const clearance of inputs.controlClearanceRects) {
-		for (let y = clearance.bounds.top; y < clearance.bounds.bottom; y += 1) {
-			for (let x = clearance.bounds.left; x < clearance.bounds.right; x += 1) {
-				if (foreground.data[(y * 6400 + x) * 4 + 3] !== 0) {
-					throw new Error(`Foreground overlaps interaction clearance ${clearance.id}`);
-				}
 			}
 		}
 	}
@@ -395,8 +364,11 @@ async function validateApprovedPackage(repositoryRoot: string): Promise<void> {
 	]);
 	const predecessor = masterProvenance.predecessor as Record<string, unknown>;
 	assert(
-		predecessor.baseSha256 === inputs.predecessor.hpa398BaseSha256 &&
-			predecessor.foregroundSha256 === inputs.predecessor.hpa398ForegroundSha256,
+		typeof predecessor.baseSha256 === 'string' &&
+			predecessor.baseSha256 === sundropVillageBackgroundsApproval.base.approvedPngSha256 &&
+			typeof predecessor.foregroundSha256 === 'string' &&
+			predecessor.foregroundSha256 ===
+				sundropVillageBackgroundsApproval.foreground.approvedPngSha256,
 		'Immutable HPA-398 predecessor hashes have drifted'
 	);
 	const planeMasterBytes: Record<'base' | 'foreground', Buffer> = {
@@ -507,12 +479,24 @@ async function validateApprovedPackage(repositoryRoot: string): Promise<void> {
 	);
 	assert((cropManifest.crops as unknown[]).length === 12, 'Crop manifest must contain 12 crops');
 	assert(
+		JSON.stringify(cropManifest.crops) === JSON.stringify(MEADOW_ENTRY_APPROVED_CROPS),
+		'Historical crop allowlist has drifted'
+	);
+	assert(
 		(cropManifest.overlaps as unknown[]).length === 25,
 		'Crop manifest must contain 25 overlaps'
 	);
 	assert(
+		JSON.stringify(cropManifest.overlaps) === JSON.stringify(MEADOW_ENTRY_APPROVED_OVERLAPS),
+		'Historical overlap allowlist has drifted'
+	);
+	assert(
 		(cropManifest.runtimeCoverage as unknown[]).length === MEADOW_ENTRY_RUNTIME_COVERAGE.length,
 		'Runtime coverage inventory has drifted'
+	);
+	assert(
+		JSON.stringify(cropManifest.runtimeCoverage) === JSON.stringify(MEADOW_ENTRY_RUNTIME_COVERAGE),
+		'Historical runtime coverage allowlist has drifted'
 	);
 	assert(
 		MEADOW_ENTRY_APPROVED_CROPS.flatMap((crop) => crop.edgeClamp?.sides ?? []).length === 3,
@@ -557,60 +541,35 @@ async function validateApprovedPackage(repositoryRoot: string): Promise<void> {
 	);
 }
 
-async function copyFileIntoRoot(sourceRoot: string, destinationRoot: string, path: string) {
-	const destination = join(destinationRoot, path);
-	await mkdir(dirname(destination), { recursive: true });
-	await cp(join(sourceRoot, path), destination, { force: false });
-}
-
 async function validateDeterministicRegeneration(repositoryRoot: string): Promise<void> {
-	const temporaryRepository = await mkdtemp(join(tmpdir(), 'gliese-meadow-entry-regeneration-'));
-	try {
-		for (const path of [BASE_MASTER, FOREGROUND_MASTER, MASTER_PROVENANCE]) {
-			await copyFileIntoRoot(repositoryRoot, temporaryRepository, path);
-		}
-		const temporaryPackageRoot = join(temporaryRepository, PACKAGE_ROOT);
-		const exported = await runExportMeadowEntryRegions(temporaryPackageRoot, repositoryRoot);
+	// The live controls and active writers now target painted-v2. Historical
+	// validation therefore compares the committed HPA-399 bytes and allowlists
+	// directly; it must not ask a V2 writer to recreate a retired package.
+	const committed = [
+		...meadowEntryArtPackageApproval.exports,
+		...meadowEntryArtPackageApproval.proofs,
+		meadowEntryArtPackageApproval.baseMaster,
+		meadowEntryArtPackageApproval.foregroundMaster
+	];
+	for (const artifact of committed) {
+		const bytes = await readFile(join(repositoryRoot, artifact.path));
 		assert(
-			exported.verification.overlapCount === 25,
-			'Regenerated export overlap count has drifted'
+			bytes.byteLength === artifact.bytes,
+			`Committed artifact byte count drifted: ${artifact.path}`
 		);
-		assert(
-			exported.verification.cornerGroupCount === 1,
-			'Regenerated export corner count has drifted'
-		);
-		await compareFileTrees(
-			'exports',
-			join(repositoryRoot, `${PACKAGE_ROOT}/exports`),
-			join(temporaryRepository, `${PACKAGE_ROOT}/exports`)
-		);
-		for (const path of [EXPORT_PROVENANCE, CROP_MANIFEST]) {
-			const [approved, regenerated] = await Promise.all([
-				readFile(join(repositoryRoot, path)),
-				readFile(join(temporaryRepository, path))
-			]);
-			assert(approved.equals(regenerated), `Regenerated byte drift: ${path}`);
-		}
-
-		for (const path of [SUNDROP_BASE, SUNDROP_FOREGROUND]) {
-			await copyFileIntoRoot(repositoryRoot, temporaryRepository, path);
-		}
-		await mkdir(join(temporaryRepository, dirname(CONTROL_ROOT)), { recursive: true });
-		await cp(join(repositoryRoot, CONTROL_ROOT), join(temporaryRepository, CONTROL_ROOT), {
-			recursive: true,
-			force: false
-		});
-		await mkdir(join(temporaryRepository, dirname(PROOF_ROOT)), { recursive: true });
-		const rendered = await renderMeadowEntryArtProofs(temporaryRepository);
-		assert(rendered.proofCount === 81, 'Regenerated proof count has drifted');
-		await compareFileTrees(
-			'proofs',
-			join(repositoryRoot, PROOF_ROOT),
-			join(temporaryRepository, PROOF_ROOT)
-		);
-	} finally {
-		await rm(temporaryRepository, { recursive: true, force: true });
+		assert(sha256(bytes) === artifact.sha256, `Committed artifact hash drifted: ${artifact.path}`);
 	}
+	for (const path of [MASTER_PROVENANCE, EXPORT_PROVENANCE, CROP_MANIFEST]) {
+		assert(
+			await pathExists(join(repositoryRoot, path)),
+			`Committed historical provenance is missing: ${path}`
+		);
+	}
+	assertExactPathAllowlist(
+		'historical proof',
+		MEADOW_ENTRY_PROOF_FILENAMES.flatMap((path) => [path, path.replace(/\.png$/, '.json')]),
+		await walkFiles(join(repositoryRoot, PROOF_ROOT))
+	);
 }
 
 async function validateControls(repositoryRoot: string): Promise<void> {

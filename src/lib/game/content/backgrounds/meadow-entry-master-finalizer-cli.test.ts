@@ -128,14 +128,30 @@ describe('finalize-meadow-entry-masters CLI', () => {
 	it('parses the required plane and default output root', () => {
 		expect(parseFinalizeMeadowEntryMasterArguments(['--plane', 'base'])).toMatchObject({
 			plane: 'base',
-			outputRoot: 'artifacts/meadow-entry/hpa-399',
+			outputRoot: 'artifacts/meadow-entry/painted-v2',
 			outputRootExplicit: false,
-			validateOnly: false
+			validateOnly: false,
+			check: false
 		});
 		expect(
 			parseFinalizeMeadowEntryMasterArguments(['--plane', 'base', '--output-root', '/tmp'])
 		).toMatchObject({ outputRootExplicit: true });
 		expect(() => parseFinalizeMeadowEntryMasterArguments(['--plane', 'unknown'])).toThrow(/plane/i);
+	});
+
+	it('parses --check without changing the active output root', () => {
+		expect(parseFinalizeMeadowEntryMasterArguments(['--plane', 'both', '--check'])).toMatchObject({
+			plane: 'both',
+			outputRoot: 'artifacts/meadow-entry/painted-v2',
+			check: true,
+			validateOnly: false
+		});
+	});
+
+	it('rejects --check combined with publication-only review flags', () => {
+		expect(() =>
+			parseFinalizeMeadowEntryMasterArguments(['--plane', 'both', '--check', '--validate-only'])
+		).toThrow(/cannot combine.*--check.*--validate-only/i);
 	});
 
 	it('rejects single-plane finalization without an explicit --output-root', async () => {
@@ -183,7 +199,7 @@ describe('finalize-meadow-entry-masters CLI', () => {
 	});
 
 	it('rejects single-plane finalization into the approved package root', async () => {
-		const approvedRoot = join(repositoryRoot, 'artifacts/meadow-entry/hpa-399');
+		const approvedRoot = join(repositoryRoot, 'artifacts/meadow-entry/painted-v2');
 		const finalizers = {
 			finalizeBase: async () => ({ png: Buffer.from('x'), provenance: fakeProvenance('x') })
 		};
@@ -197,7 +213,7 @@ describe('finalize-meadow-entry-masters CLI', () => {
 	});
 
 	it('rejects single-plane finalization through a symlink that resolves to the approved package root', async () => {
-		const approvedRoot = join(repositoryRoot, 'artifacts/meadow-entry/hpa-399');
+		const approvedRoot = join(repositoryRoot, 'artifacts/meadow-entry/painted-v2');
 		const workDir = await temporaryRoot();
 		const aliasRoot = join(workDir, 'approved-alias');
 		await symlink(approvedRoot, aliasRoot, 'dir');
@@ -682,5 +698,54 @@ describe('finalize-meadow-entry-masters CLI', () => {
 			finalizers
 		);
 		await expect(readApprovedMeadowEntryPackageSnapshot(outputRoot)).rejects.toThrow();
+	});
+
+	it('checks a matching painted-v2 package without mutating it and rejects stale bytes', async () => {
+		const inputRoot = await temporaryRoot();
+		const outputRoot = await temporaryRoot();
+		const baseCandidate = join(inputRoot, 'base.png');
+		const fgCandidate = join(inputRoot, 'fg.png');
+		const baseTransform = join(inputRoot, 'bt.json');
+		const fgTransform = join(inputRoot, 'ft.json');
+		const baseProvenance = join(inputRoot, 'bp.json');
+		const fgProvenance = join(inputRoot, 'fp.json');
+		await Promise.all([
+			writeFile(baseCandidate, 'base'),
+			writeFile(fgCandidate, 'fg'),
+			writeFile(baseTransform, '{}'),
+			writeFile(fgTransform, '{}'),
+			writeFile(baseProvenance, '{}'),
+			writeFile(fgProvenance, '{}')
+		]);
+		const expectedBytes = packageBytes('painted-v2-check');
+		await publishApprovedMeadowEntryPackage(outputRoot, expectedBytes);
+		const finalizers = { finalizeBoth: async () => expectedBytes };
+		const args = [
+			'--plane',
+			'both',
+			'--check',
+			'--base-candidate',
+			baseCandidate,
+			'--foreground-candidate',
+			fgCandidate,
+			'--base-transform',
+			baseTransform,
+			'--foreground-transform',
+			fgTransform,
+			'--base-provenance',
+			baseProvenance,
+			'--foreground-provenance',
+			fgProvenance,
+			'--output-root',
+			outputRoot
+		] as const;
+		const before = await approvedBytes(outputRoot);
+		await runFinalizeMeadowEntryMasters(args, repositoryRoot, finalizers);
+		expect(await approvedBytes(outputRoot)).toEqual(before);
+
+		await writeFile(join(outputRoot, 'masters/meadow-entry-base-master.png'), Buffer.from('stale'));
+		await expect(runFinalizeMeadowEntryMasters(args, repositoryRoot, finalizers)).rejects.toThrow(
+			/stale|drift/i
+		);
 	});
 });

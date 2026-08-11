@@ -1,4 +1,4 @@
-import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
@@ -10,6 +10,8 @@ import {
 	MEADOW_ENTRY_RUNTIME_COVERAGE
 } from './meadow-entry-crop-manifest';
 import {
+	MEADOW_ENTRY_PAINTED_V2_PROOF_DESCRIPTORS,
+	MEADOW_ENTRY_PAINTED_V2_PROOF_FILENAMES,
 	MEADOW_ENTRY_PROOF_DESCRIPTORS,
 	MEADOW_ENTRY_PROOF_FILENAMES
 } from './meadow-entry-proof-renderer';
@@ -18,13 +20,17 @@ import {
 	assertInventoryEquals,
 	boundsEqual,
 	boundarySvg,
+	checkMeadowEntryPaintedV2Proofs,
 	checkerboardSvg,
 	cornerGroupSvg,
 	expectedProofInventory,
 	expectedProofInventoryFor,
 	expectedProofInputPaths,
+	MEADOW_ENTRY_PAINTED_V2_PROOF_ROOT,
+	paintedV2ProofInputPaths,
 	parseProofSidecar,
 	proofExportPath,
+	expectedPaintedV2ProofInventory,
 	type MeadowEntryProofPublicationFileSystem,
 	type MeadowEntryProofSidecar
 } from '../../../../../tools/render-meadow-entry-art-proofs';
@@ -84,6 +90,62 @@ function sidecarJson(overrides: Record<string, unknown> = {}): Buffer {
 }
 
 describe('Meadow Entry art proof helpers', () => {
+	it('keeps the active painted-v2 proof inventory to the six approved IDs', () => {
+		expect(MEADOW_ENTRY_PAINTED_V2_PROOF_DESCRIPTORS.map(({ proofId }) => proofId)).toEqual([
+			'pilot-assembly-master-transparency',
+			'pilot-assembly-base-coverage',
+			'pilot-assembly-protected-live',
+			'pilot-assembly-ownership',
+			'pilot-assembly-overlap-sundrop-connector',
+			'pilot-assembly-overlap-connector-crossroads'
+		]);
+		expect(MEADOW_ENTRY_PAINTED_V2_PROOF_FILENAMES).toEqual(
+			MEADOW_ENTRY_PAINTED_V2_PROOF_DESCRIPTORS.map(({ filename }) => filename)
+		);
+		expect(expectedPaintedV2ProofInventory()).toEqual(
+			MEADOW_ENTRY_PAINTED_V2_PROOF_FILENAMES.flatMap((filename) => [
+				filename,
+				filename.replace(/\.png$/, '.json')
+			]).sort()
+		);
+		expect(expectedPaintedV2ProofInventory().some((path) => path.includes('hpa-399'))).toBe(false);
+		expect(MEADOW_ENTRY_PAINTED_V2_PROOF_ROOT).toBe('artifacts/meadow-entry/painted-v2/proofs');
+		expect(paintedV2ProofInputPaths('pilot-assembly-master-transparency')).not.toEqual(
+			expect.arrayContaining([
+				'public/game/assets/regions/sundrop-village-base.png',
+				'public/game/assets/regions/sundrop-village-foreground.png'
+			])
+		);
+	});
+
+	it('checks a matching painted-v2 proof snapshot without writes and rejects stale bytes', async () => {
+		const root = temporaryRoot();
+		const files = Object.fromEntries(
+			expectedPaintedV2ProofInventory().map((path) => [path, Buffer.from(`fixture:${path}`)])
+		);
+		for (const [path, bytes] of Object.entries(files)) {
+			const output = join(root, MEADOW_ENTRY_PAINTED_V2_PROOF_ROOT, path);
+			mkdirSync(join(output, '..'), { recursive: true });
+			writeFileSync(output, bytes);
+		}
+		const expected = { files, inventorySha256: 'fixture' };
+		await expect(checkMeadowEntryPaintedV2Proofs(root, expected)).resolves.toBeUndefined();
+		const before = Object.fromEntries(
+			expectedPaintedV2ProofInventory().map((path) => [
+				path,
+				readFileSync(join(root, MEADOW_ENTRY_PAINTED_V2_PROOF_ROOT, path)).toString()
+			])
+		);
+		expect(before).toEqual(
+			Object.fromEntries(expectedPaintedV2ProofInventory().map((path) => [path, `fixture:${path}`]))
+		);
+		writeFileSync(
+			join(root, MEADOW_ENTRY_PAINTED_V2_PROOF_ROOT, MEADOW_ENTRY_PAINTED_V2_PROOF_FILENAMES[0]!),
+			Buffer.from('stale')
+		);
+		await expect(checkMeadowEntryPaintedV2Proofs(root, expected)).rejects.toThrow(/stale|drift/i);
+	});
+
 	describe('expectedProofInputPaths', () => {
 		it('returns the base master only for the base-master proof', () => {
 			expect(expectedProofInputPaths('full/base-master')).toEqual([BASE_MASTER]);

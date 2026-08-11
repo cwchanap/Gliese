@@ -1,7 +1,7 @@
 import { dirname, join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
-import { MEADOW_ENTRY_ART_STORAGE } from '$lib/game/content/backgrounds/meadow-entry-storage';
+import { MEADOW_ENTRY_PAINTED_V2_ART_STORAGE } from '$lib/game/content/backgrounds/meadow-entry-storage';
 
 interface ApprovalArtifactSnapshot {
 	currentCombinedFingerprint: string;
@@ -53,9 +53,10 @@ async function approvalApi(): Promise<ApprovalToolApi> {
 }
 
 const FINGERPRINT = '1'.repeat(64);
-const ATTRIBUTES = `${MEADOW_ENTRY_ART_STORAGE.assetPattern} filter=lfs diff=lfs merge=lfs -text
-${MEADOW_ENTRY_ART_STORAGE.proofPattern} filter=lfs diff=lfs merge=lfs -text
+const ATTRIBUTES = `${MEADOW_ENTRY_PAINTED_V2_ART_STORAGE.sourcePattern} filter=lfs diff=lfs merge=lfs -text
+${MEADOW_ENTRY_PAINTED_V2_ART_STORAGE.runtimePattern} filter=lfs diff=lfs merge=lfs -text
 `;
+const EVIDENCE_PATH = 'docs/superpowers/reports/2026-08-11-painted-v2-controls.md';
 
 function artifactSnapshot(
 	overrides: Partial<ApprovalArtifactSnapshot> = {}
@@ -129,11 +130,11 @@ describe('meadow-entry approval artifact validation', () => {
 			validate(
 				artifactSnapshot({
 					storageConfiguration: Buffer.from(
-						`${MEADOW_ENTRY_ART_STORAGE.assetPattern} filter=lfs diff=lfs merge=lfs -text\n`
+						`${MEADOW_ENTRY_PAINTED_V2_ART_STORAGE.runtimePattern} filter=lfs diff=lfs merge=lfs -text\n`
 					)
 				})
 			)
-		).toThrow(/proof.*Git LFS configuration/i);
+		).toThrow(/source.*Git LFS configuration/i);
 	});
 
 	it('rejects storage configuration with carriage returns or a missing final newline', async () => {
@@ -378,7 +379,7 @@ describe('meadow-entry approval module rendering', () => {
 		bakeOwnershipSha256: 'c'.repeat(64),
 		storageMode: 'git-lfs',
 		storageConfigurationSha256: 'd'.repeat(64),
-		evidencePath: 'docs/superpowers/reports/2026-07-30-hpa-399-controls-crops-storage-validation.md'
+		evidencePath: EVIDENCE_PATH
 	};
 
 	it('renders a valid approval module with reviewed metadata and SHA-256 values', async () => {

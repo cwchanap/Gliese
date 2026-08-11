@@ -8,7 +8,11 @@ import {
 	meadowEntryControlsApproval,
 	meadowEntryControlsApprovalReview
 } from '$lib/game/content/approvals/meadow-entry-controls';
-import { MEADOW_ENTRY_ART_STORAGE } from '$lib/game/content/backgrounds/meadow-entry-storage';
+import { meadowEntryControlsApproval as meadowEntryPaintedV2ControlsApproval } from '$lib/game/content/approvals/meadow-entry-painted-v2-controls';
+import {
+	MEADOW_ENTRY_ART_STORAGE,
+	MEADOW_ENTRY_PAINTED_V2_ART_STORAGE
+} from '$lib/game/content/backgrounds/meadow-entry-storage';
 import {
 	buildMeadowEntryControlInputs,
 	computeMeadowEntryCombinedControlFingerprint,
@@ -21,8 +25,11 @@ import {
 } from '../../../../tools/approve-meadow-entry-controls';
 
 const SHA256 = /^[0-9a-f]{64}$/;
-const EVIDENCE_PATH =
+const HISTORICAL_EVIDENCE_PATH =
 	'docs/superpowers/reports/2026-07-30-hpa-399-controls-crops-storage-validation.md';
+const EVIDENCE_PATH = 'docs/superpowers/reports/2026-08-11-painted-v2-controls.md';
+const HISTORICAL_STORAGE_CONFIGURATION_SHA256 =
+	'60610b0c2e41561bd3bbbab75d86429859e43c25477628d976a3e3a357a59412';
 const testDirectory = dirname(fileURLToPath(import.meta.url));
 const repositoryRoot = resolve(testDirectory, '../../../..');
 
@@ -44,7 +51,7 @@ describe('meadow-entry reviewed control approval', () => {
 		expect(Object.keys(rendered)).toContain('meadow-entry-bake-ownership.json');
 		expect(meadowEntryControlsApproval.cropManifestSha256).toMatch(SHA256);
 		expect(meadowEntryControlsApproval.bakeOwnershipSha256).toMatch(SHA256);
-		expect(meadowEntryControlsApproval.evidencePath).toBe(EVIDENCE_PATH);
+		expect(meadowEntryControlsApproval.evidencePath).toBe(HISTORICAL_EVIDENCE_PATH);
 	});
 
 	it('seals the exact Git LFS storage configuration independently of the approval tool', () => {
@@ -67,7 +74,16 @@ describe('meadow-entry reviewed control approval', () => {
 		}
 		expect(meadowEntryControlsApproval.storageMode).toBe('git-lfs');
 		expect(meadowEntryControlsApproval.storageConfigurationSha256).toBe(
+			HISTORICAL_STORAGE_CONFIGURATION_SHA256
+		);
+		expect(meadowEntryPaintedV2ControlsApproval.storageConfigurationSha256).toBe(
 			sha256(storageConfiguration)
+		);
+		expect(storageText).toContain(
+			`${MEADOW_ENTRY_PAINTED_V2_ART_STORAGE.sourcePattern} filter=lfs diff=lfs merge=lfs -text`
+		);
+		expect(storageText).toContain(
+			`${MEADOW_ENTRY_PAINTED_V2_ART_STORAGE.runtimePattern} filter=lfs diff=lfs merge=lfs -text`
 		);
 		expect(meadowEntryControlsApproval.storageConfigurationSha256).toMatch(SHA256);
 	});

@@ -6,6 +6,7 @@ import { isDeepStrictEqual } from 'node:util';
 import { format } from 'prettier';
 
 import { meadowEntryControlsApproval } from '$lib/game/content/approvals/meadow-entry-controls';
+import { meadowEntryControlsApproval as meadowEntryPaintedV2ControlsApproval } from '$lib/game/content/approvals/meadow-entry-painted-v2-controls';
 import {
 	MEADOW_ENTRY_APPROVED_CROPS,
 	MEADOW_ENTRY_APPROVED_OVERLAPS,
@@ -28,8 +29,13 @@ import {
 } from '$lib/game/content/backgrounds/meadow-entry-exporter';
 import {
 	readPublishedMeadowEntryProofSnapshot,
+	buildPaintedV2ProofPackage,
+	checkMeadowEntryPaintedV2Proofs,
+	expectedPaintedV2ProofInventory,
+	MEADOW_ENTRY_PAINTED_V2_PROOF_ROOT,
 	type MeadowEntryProofSidecar
 } from './render-meadow-entry-art-proofs';
+import { readPublishedMeadowEntryExportSnapshot } from './export-meadow-entry-regions';
 import { readCoherentMeadowEntryArtSourceSnapshot } from './read-meadow-entry-art-source-snapshot';
 import { verifyMeadowEntryArtStorage } from './verify-meadow-entry-art-storage';
 
@@ -51,6 +57,15 @@ const SHA256 = /^[a-f0-9]{64}$/;
 const REVIEWER = /^[A-Za-z0-9][A-Za-z0-9._@+ -]{0,99}$/;
 const UTC_SECONDS = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/;
 const FOUR_LAYER_INPUTS = [BASE_MASTER, SUNDROP_BASE, FOREGROUND_MASTER, SUNDROP_FOREGROUND];
+export const MEADOW_ENTRY_PAINTED_V2_APPROVAL_PATH =
+	'src/lib/game/content/approvals/meadow-entry-painted-v2-art-package.ts';
+const PAINTED_V2_PACKAGE_ROOT = 'artifacts/meadow-entry/painted-v2';
+const PAINTED_V2_MASTER_ROOT = `${PAINTED_V2_PACKAGE_ROOT}/masters`;
+const PAINTED_V2_PROVENANCE_ROOT = `${PAINTED_V2_PACKAGE_ROOT}/provenance`;
+const PAINTED_V2_EXPORT_ROOT = `${PAINTED_V2_PACKAGE_ROOT}/exports`;
+const PAINTED_V2_BASE_MASTER = `${PAINTED_V2_MASTER_ROOT}/meadow-entry-painted-v2-pilot-base-master.png`;
+const PAINTED_V2_FOREGROUND_MASTER = `${PAINTED_V2_MASTER_ROOT}/meadow-entry-painted-v2-pilot-foreground-master.png`;
+const PAINTED_V2_MASTER_PROVENANCE = `${PAINTED_V2_PROVENANCE_ROOT}/meadow-entry-master-provenance.json`;
 const FULL_PROOF_INPUTS: Readonly<Record<string, readonly string[]>> = {
 	'full/base-master': [BASE_MASTER],
 	'full/foreground-checkerboard': [FOREGROUND_MASTER],
@@ -611,7 +626,7 @@ async function publishApproval(repositoryRoot: string, contents: string): Promis
 	}
 }
 
-export async function approveMeadowEntryArtPackage(
+export async function approveHistoricalMeadowEntryArtPackage(
 	args: readonly string[],
 	repositoryRoot = process.cwd()
 ): Promise<MeadowEntryArtPackageApproval> {
@@ -624,6 +639,246 @@ export async function approveMeadowEntryArtPackage(
 		`${JSON.stringify({ reviewedBy: review.reviewedBy, reviewedAt: review.reviewedAt, baseSha256: approval.baseMaster.sha256, foregroundSha256: approval.foregroundMaster.sha256, exports: approval.exports.length, proofs: approval.proofs.length })}\n`
 	);
 	return approval;
+}
+
+export interface MeadowEntryPaintedV2ArtPackageApproval {
+	version: 1;
+	combinedControlFingerprint: string;
+	storageMode: 'git-lfs';
+	storageConfigurationSha256: string;
+	baseMaster: ApprovedPngArtifact;
+	foregroundMaster: ApprovedPngArtifact | null;
+	cropManifestSha256: string;
+	masterProvenanceSha256: string;
+	exportProvenanceSha256: string;
+	exports: readonly (ApprovedPngArtifact & {
+		cropId: string;
+		plane: 'base' | 'foreground';
+		textureKey: string | null;
+		drawOrder: number;
+	})[];
+	proofs: readonly (ApprovedPngArtifact & {
+		proofId: string;
+		inputSha256: readonly string[];
+	})[];
+	evidencePath: string;
+}
+
+export interface MeadowEntryArtPackageArguments {
+	check: boolean;
+	reviewedBy?: string;
+	reviewedAt?: string;
+}
+
+export function parseMeadowEntryArtPackageArguments(
+	args: readonly string[]
+): MeadowEntryArtPackageArguments {
+	let check = false;
+	const reviewArgs: string[] = [];
+	for (let index = args[0] === '--' ? 1 : 0; index < args.length; index += 1) {
+		const flag = args[index];
+		if (flag === '--check') {
+			if (check) throw new Error('Duplicate Meadow Entry package argument: --check');
+			check = true;
+			continue;
+		}
+		if (flag === '--reviewed-by' || flag === '--reviewed-at') {
+			const value = args[index + 1];
+			if (!value) throw new Error(`Missing value for Meadow Entry package argument: ${flag}`);
+			reviewArgs.push(flag, value);
+			index += 1;
+			continue;
+		}
+		throw new Error(`Unknown Meadow Entry package argument: ${flag ?? '<missing>'}`);
+	}
+	if (check && reviewArgs.length > 0) {
+		throw new Error('Meadow Entry package cannot combine --check with review metadata.');
+	}
+	if (check) return { check: true, reviewedBy: undefined, reviewedAt: undefined };
+	const review = parseReviewArguments(reviewArgs);
+	return { check: false, ...review };
+}
+
+function paintedV2ExportMetadata(
+	manifest: Record<string, unknown>,
+	filename: string
+): { cropId: string; plane: 'base' | 'foreground'; textureKey: string | null; drawOrder: number } {
+	const crops = manifest.crops;
+	assert(Array.isArray(crops), 'Painted-v2 crop manifest is missing crops');
+	const crop = crops.find(
+		(value): value is Record<string, unknown> =>
+			typeof value === 'object' && value !== null && value.baseFilename === filename
+	);
+	if (crop) {
+		const textureKeys = crop.textureKeys as Record<string, unknown> | undefined;
+		return {
+			cropId: String(crop.id),
+			plane: 'base',
+			textureKey: typeof textureKeys?.base === 'string' ? textureKeys.base : null,
+			drawOrder: Number(crop.drawOrder)
+		};
+	}
+	const foregroundCrop = crops.find(
+		(value): value is Record<string, unknown> =>
+			typeof value === 'object' && value !== null && value.foregroundFilename === filename
+	);
+	assert(foregroundCrop, `Painted-v2 crop manifest does not name export ${filename}`);
+	const textureKeys = foregroundCrop.textureKeys as Record<string, unknown> | undefined;
+	return {
+		cropId: String(foregroundCrop.id),
+		plane: 'foreground',
+		textureKey: typeof textureKeys?.foreground === 'string' ? textureKeys.foreground : null,
+		drawOrder: Number(foregroundCrop.drawOrder)
+	};
+}
+
+async function inspectPaintedV2Artifact(
+	repositoryRoot: string,
+	path: string,
+	bytes: Buffer
+): Promise<ApprovedPngArtifact> {
+	const { artifact } = await inspectPngBytes(path, bytes);
+	return artifact;
+}
+
+async function buildPaintedV2Approval(repositoryRoot: string): Promise<{
+	approval: MeadowEntryPaintedV2ArtPackageApproval;
+	module: string;
+}> {
+	const root = resolve(repositoryRoot);
+	const controlInputs = buildMeadowEntryControlInputs(root);
+	const currentControlFingerprint = computeMeadowEntryCombinedControlFingerprint(controlInputs);
+	assert(
+		currentControlFingerprint === meadowEntryPaintedV2ControlsApproval.combinedControlFingerprint,
+		'Painted-v2 control fingerprint is stale'
+	);
+	const baseBytes = await readFile(join(root, PAINTED_V2_BASE_MASTER));
+	let foregroundBytes: Buffer | undefined;
+	try {
+		foregroundBytes = await readFile(join(root, PAINTED_V2_FOREGROUND_MASTER));
+	} catch (error) {
+		if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error;
+	}
+	const masterProvenance = await readFile(join(root, PAINTED_V2_MASTER_PROVENANCE));
+	const storageConfiguration = await readFile(join(root, STORAGE_CONFIGURATION));
+	const exportSnapshot = await readPublishedMeadowEntryExportSnapshot(
+		join(root, PAINTED_V2_PACKAGE_ROOT)
+	);
+	await checkMeadowEntryPaintedV2Proofs(root);
+	const proofPackage = await buildPaintedV2ProofPackage(root);
+	const cropManifest = JSON.parse(exportSnapshot.cropManifestJson.toString('utf8')) as Record<
+		string,
+		unknown
+	>;
+	const baseMaster = await inspectPaintedV2Artifact(root, PAINTED_V2_BASE_MASTER, baseBytes);
+	const foregroundMaster = foregroundBytes
+		? await inspectPaintedV2Artifact(root, PAINTED_V2_FOREGROUND_MASTER, foregroundBytes)
+		: null;
+	const exports = await Promise.all(
+		Object.keys(exportSnapshot.files)
+			.sort()
+			.map(async (filename) => ({
+				...(await inspectPaintedV2Artifact(
+					root,
+					`${PAINTED_V2_EXPORT_ROOT}/${filename}`,
+					exportSnapshot.files[filename]!
+				)),
+				...paintedV2ExportMetadata(cropManifest, filename)
+			}))
+	);
+	const proofs = await Promise.all(
+		expectedPaintedV2ProofInventory()
+			.filter((path) => path.endsWith('.png'))
+			.map(async (filename) => {
+				const png = proofPackage.files[filename]!;
+				const sidecarPath = filename.replace(/\.png$/, '.json');
+				const sidecar = JSON.parse(
+					proofPackage.files[sidecarPath]!.toString('utf8')
+				) as MeadowEntryProofSidecar;
+				const artifact = await inspectPaintedV2Artifact(
+					root,
+					`${MEADOW_ENTRY_PAINTED_V2_PROOF_ROOT}/${filename}`,
+					png
+				);
+				return { ...artifact, proofId: sidecar.proofId, inputSha256: sidecar.inputSha256 };
+			})
+	);
+	const approval: MeadowEntryPaintedV2ArtPackageApproval = {
+		version: 1,
+		combinedControlFingerprint: meadowEntryPaintedV2ControlsApproval.combinedControlFingerprint,
+		storageMode: 'git-lfs',
+		storageConfigurationSha256: sha256(storageConfiguration),
+		baseMaster,
+		foregroundMaster,
+		cropManifestSha256: sha256(exportSnapshot.cropManifestJson),
+		masterProvenanceSha256: sha256(masterProvenance),
+		exportProvenanceSha256: sha256(exportSnapshot.provenanceJson),
+		exports,
+		proofs,
+		evidencePath: meadowEntryPaintedV2ControlsApproval.evidencePath
+	};
+	const module = await format(
+		`/** Generated by tools/approve-meadow-entry-art-package.ts for painted-v2. */\nexport const meadowEntryPaintedV2ArtPackageApproval = ${JSON.stringify(approval)} as const;\n`,
+		{
+			parser: 'typescript',
+			useTabs: true,
+			singleQuote: true,
+			trailingComma: 'none',
+			printWidth: 100
+		}
+	);
+	return { approval, module };
+}
+
+export async function checkMeadowEntryPaintedV2Approval(
+	repositoryRoot: string,
+	expectedContents: string
+): Promise<void> {
+	const target = join(resolve(repositoryRoot), MEADOW_ENTRY_PAINTED_V2_APPROVAL_PATH);
+	let actual: string;
+	try {
+		actual = await readFile(target, 'utf8');
+	} catch (error) {
+		if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
+			throw new Error(
+				`Meadow Entry painted-v2 approval is missing: ${MEADOW_ENTRY_PAINTED_V2_APPROVAL_PATH}`,
+				{ cause: error }
+			);
+		}
+		throw error;
+	}
+	assert(actual === expectedContents, 'Meadow Entry painted-v2 approval is stale');
+}
+
+async function publishPaintedV2Approval(repositoryRoot: string, contents: string): Promise<void> {
+	const target = join(resolve(repositoryRoot), MEADOW_ENTRY_PAINTED_V2_APPROVAL_PATH);
+	const temporary = join(dirname(target), `.meadow-entry-painted-v2-approval.${randomUUID()}.tmp`);
+	await mkdir(dirname(target), { recursive: true });
+	try {
+		await writeFile(temporary, contents, { flag: 'wx' });
+		await rename(temporary, target);
+	} finally {
+		await rm(temporary, { force: true }).catch(() => undefined);
+	}
+}
+
+export async function approveMeadowEntryArtPackage(
+	args: readonly string[],
+	repositoryRoot = process.cwd()
+): Promise<MeadowEntryPaintedV2ArtPackageApproval> {
+	const parsed = parseMeadowEntryArtPackageArguments(args);
+	const built = await buildPaintedV2Approval(repositoryRoot);
+	if (parsed.check) {
+		await checkMeadowEntryPaintedV2Approval(repositoryRoot, built.module);
+	} else {
+		await publishPaintedV2Approval(repositoryRoot, built.module);
+	}
+	if (!parsed.check) {
+		process.stdout.write(
+			`${JSON.stringify({ reviewedBy: parsed.reviewedBy, reviewedAt: parsed.reviewedAt, baseSha256: built.approval.baseMaster.sha256, exports: built.approval.exports.length, proofs: built.approval.proofs.length })}\n`
+		);
+	}
+	return built.approval;
 }
 
 if (import.meta.main) {

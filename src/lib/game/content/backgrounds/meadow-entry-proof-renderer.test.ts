@@ -20,6 +20,8 @@ import {
 } from './meadow-entry-crop-manifest';
 import { encodeCanonicalMeadowEntryPng, decodeMeadowEntryRgba } from './meadow-entry-png';
 import {
+	MEADOW_ENTRY_PAINTED_V2_PROOF_DESCRIPTORS,
+	MEADOW_ENTRY_PAINTED_V2_PROOF_FILENAMES,
 	MEADOW_ENTRY_PROOF_DESCRIPTORS,
 	MEADOW_ENTRY_PROOF_FILENAMES,
 	assertAllowedMeadowEntryProofDestination,
@@ -117,6 +119,15 @@ function sidecarWith(png: Buffer, overrides: Record<string, unknown> = {}): Buff
 }
 
 describe('Meadow Entry proof renderer', () => {
+	it('exports painted-v2 descriptors separately from the frozen HPA-399 inventory', () => {
+		expect(MEADOW_ENTRY_PAINTED_V2_PROOF_DESCRIPTORS).toHaveLength(6);
+		expect(MEADOW_ENTRY_PAINTED_V2_PROOF_FILENAMES).toHaveLength(6);
+		expect(MEADOW_ENTRY_PAINTED_V2_PROOF_FILENAMES.every((path) => !path.includes('hpa-399'))).toBe(
+			true
+		);
+		expect(MEADOW_ENTRY_PROOF_DESCRIPTORS).not.toBe(MEADOW_ENTRY_PAINTED_V2_PROOF_DESCRIPTORS);
+	});
+
 	it('proves the four-layer Sundrop review-composite truth table', async () => {
 		const transparent = await pixel([0, 0, 0, 0]);
 		const hpaBase = await pixel([10, 20, 30, 255]);

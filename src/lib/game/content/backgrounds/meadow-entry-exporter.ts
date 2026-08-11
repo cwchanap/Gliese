@@ -286,7 +286,7 @@ async function extractPlane(
 
 export async function exportMeadowEntryRegions(input: {
 	baseMasterPng: Buffer;
-	foregroundMasterPng: Buffer;
+	foregroundMasterPng?: Buffer;
 	controlFingerprint: string;
 	approvedControlFingerprint: string;
 	crops: readonly MeadowEntryApprovedCrop[];
@@ -305,14 +305,21 @@ export async function exportMeadowEntryRegions(input: {
 		input.controlFingerprint === input.approvedControlFingerprint,
 		'Meadow Entry control fingerprint is stale'
 	);
-	const [baseMaster, foregroundMaster] = await Promise.all([
-		decodeMeadowEntryRgba(input.baseMasterPng),
-		decodeMeadowEntryRgba(input.foregroundMasterPng)
-	]);
+	const baseMaster = await decodeMeadowEntryRgba(input.baseMasterPng);
+	const hasForeground = input.crops.some((crop) => crop.alphaPolicy.foreground !== null);
 	assert(
-		baseMaster.width === foregroundMaster.width && baseMaster.height === foregroundMaster.height,
-		'Meadow Entry master plane dimensions differ'
+		!hasForeground || input.foregroundMasterPng !== undefined,
+		'Meadow Entry foreground master is required when a crop declares a foreground plane'
 	);
+	const foregroundMaster = input.foregroundMasterPng
+		? await decodeMeadowEntryRgba(input.foregroundMasterPng)
+		: undefined;
+	if (foregroundMaster !== undefined) {
+		assert(
+			baseMaster.width === foregroundMaster.width && baseMaster.height === foregroundMaster.height,
+			'Meadow Entry master plane dimensions differ'
+		);
+	}
 	validateContract(input.crops, input.overlaps, baseMaster);
 
 	const files: Record<string, Buffer> = {};
@@ -334,8 +341,8 @@ export async function exportMeadowEntryRegions(input: {
 			const hardBytes =
 				plane === 'base' ? crop.sizeBudgets.baseHardBytes : crop.sizeBudgets.foregroundHardBytes!;
 			const result = await extractPlane(
-				plane === 'base' ? input.baseMasterPng : input.foregroundMasterPng,
-				plane === 'base' ? baseMaster : foregroundMaster,
+				plane === 'base' ? input.baseMasterPng : input.foregroundMasterPng!,
+				plane === 'base' ? baseMaster : foregroundMaster!,
 				crop,
 				plane
 			);
@@ -421,11 +428,14 @@ export async function exportMeadowEntryRegions(input: {
 				width: baseMaster.width,
 				height: baseMaster.height
 			},
-			foreground: {
-				sha256: sha256(input.foregroundMasterPng),
-				width: foregroundMaster.width,
-				height: foregroundMaster.height
-			}
+			foreground:
+				input.foregroundMasterPng === undefined || foregroundMaster === undefined
+					? null
+					: {
+							sha256: sha256(input.foregroundMasterPng),
+							width: foregroundMaster.width,
+							height: foregroundMaster.height
+						}
 		},
 		policy: {
 			extraction: 'direct-half-open-sharp-extract',

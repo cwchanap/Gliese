@@ -5,13 +5,13 @@ import { basename, dirname, join, resolve } from 'node:path';
 import sharp from 'sharp';
 import { format } from 'prettier';
 
-import { meadowEntryControlsApproval } from '$lib/game/content/approvals/meadow-entry-controls';
+import { meadowEntryControlsApproval } from '$lib/game/content/approvals/meadow-entry-painted-v2-controls';
 import {
-	MEADOW_ENTRY_APPROVED_CROPS,
-	MEADOW_ENTRY_APPROVED_OVERLAPS,
-	MEADOW_ENTRY_CROP_BUDGET_SUMMARY,
-	MEADOW_ENTRY_RUNTIME_COVERAGE
-} from '$lib/game/content/backgrounds/meadow-entry-crop-manifest';
+	MEADOW_ENTRY_PAINTED_V2_PILOT_BUDGET_SUMMARY,
+	MEADOW_ENTRY_PAINTED_V2_PILOT_CROPS,
+	MEADOW_ENTRY_PAINTED_V2_PILOT_OVERLAPS,
+	MEADOW_ENTRY_PAINTED_V2_PILOT_RUNTIME_COVERAGE
+} from '$lib/game/content/backgrounds/meadow-entry-painted-v2-crop-manifest';
 import {
 	exportMeadowEntryRegions,
 	verifyMeadowEntryOverlapPixels,
@@ -22,14 +22,20 @@ import {
 	buildMeadowEntryControlInputs,
 	computeMeadowEntryCombinedControlFingerprint
 } from '$lib/game/content/backgrounds/meadow-entry-controls';
-import { readApprovedMeadowEntryPackageSnapshot } from './finalize-meadow-entry-masters';
 
-const DEFAULT_OUTPUT_ROOT = 'artifacts/meadow-entry/hpa-399';
-const APPROVED_BASE_SHA256 = '9a5097eea014d092e57a8953be0dec2a16c1e6d29446f8b293338bf95a93752c';
-const APPROVED_FOREGROUND_SHA256 =
-	'c9ffa6e50a8e3c9f9888a642078094e95d9175158df8d262de8ac94b1ab9124e';
-const APPROVED_MASTER_PROVENANCE_SHA256 =
-	'41a5c52455f3688bb2be6b1554ff49e46f950ff5112d3739d32e377225fa074e';
+const DEFAULT_OUTPUT_ROOT = 'artifacts/meadow-entry/painted-v2';
+const PAINTED_V2_RUNTIME_ROOT = 'public/game/assets/regions/meadow-entry-painted-v2';
+const PAINTED_V2_BASE_MASTER =
+	'artifacts/meadow-entry/painted-v2/masters/meadow-entry-painted-v2-pilot-base-master.png';
+const PAINTED_V2_FOREGROUND_MASTER =
+	'artifacts/meadow-entry/painted-v2/masters/meadow-entry-painted-v2-pilot-foreground-master.png';
+const PAINTED_V2_MASTER_PROVENANCE =
+	'artifacts/meadow-entry/painted-v2/provenance/meadow-entry-master-provenance.json';
+
+const MEADOW_ENTRY_APPROVED_CROPS = MEADOW_ENTRY_PAINTED_V2_PILOT_CROPS;
+const MEADOW_ENTRY_APPROVED_OVERLAPS = MEADOW_ENTRY_PAINTED_V2_PILOT_OVERLAPS;
+const MEADOW_ENTRY_CROP_BUDGET_SUMMARY = MEADOW_ENTRY_PAINTED_V2_PILOT_BUDGET_SUMMARY;
+const MEADOW_ENTRY_RUNTIME_COVERAGE = MEADOW_ENTRY_PAINTED_V2_PILOT_RUNTIME_COVERAGE;
 
 export interface MeadowEntryExportPackageBytes {
 	files: Readonly<Record<string, Buffer>>;
@@ -77,6 +83,50 @@ const NODE_SNAPSHOT_FILE_SYSTEM: MeadowEntryExportSnapshotFileSystem = {
 	readFile: async (path) => await readFile(path),
 	readdir: async (path) => await readdir(path)
 };
+
+export interface MeadowEntryExportArguments {
+	check: boolean;
+	outputRoot?: string;
+}
+
+export function parseMeadowEntryExportArguments(
+	args: readonly string[]
+): MeadowEntryExportArguments {
+	let check = false;
+	let outputRoot: string | undefined;
+	let publishRuntime = false;
+	for (let index = args[0] === '--' ? 1 : 0; index < args.length; index += 1) {
+		const flag = args[index];
+		if (flag === '--check') {
+			if (check) throw new Error('Duplicate meadow-entry export argument: --check');
+			check = true;
+			continue;
+		}
+		if (flag === '--publish-runtime') {
+			if (publishRuntime)
+				throw new Error('Duplicate meadow-entry export argument: --publish-runtime');
+			publishRuntime = true;
+			continue;
+		}
+		if (flag === '--output-root') {
+			const value = args[index + 1];
+			if (!value || value.startsWith('--')) {
+				throw new Error('Missing value for meadow-entry export argument: --output-root');
+			}
+			if (outputRoot !== undefined) {
+				throw new Error('Duplicate meadow-entry export argument: --output-root');
+			}
+			outputRoot = value;
+			index += 1;
+			continue;
+		}
+		throw new Error(`Unknown meadow-entry export argument: ${flag ?? '<missing>'}`);
+	}
+	if (check && publishRuntime) {
+		throw new Error('Meadow Entry export cannot combine --check with --publish-runtime.');
+	}
+	return { check, outputRoot };
+}
 
 function sha256(value: Buffer): string {
 	return createHash('sha256').update(value).digest('hex');
@@ -258,11 +308,12 @@ function validateExportSnapshotGeneration(
 		'sha256',
 		'export provenance base master'
 	);
-	const provenanceForegroundSha256 = stringProperty(
-		(provenance.masters as Record<string, unknown> | undefined)?.foreground,
-		'sha256',
-		'export provenance foreground master'
-	);
+	const provenanceForeground = (provenance.masters as Record<string, unknown> | undefined)
+		?.foreground;
+	const provenanceForegroundSha256 =
+		provenanceForeground === null
+			? null
+			: stringProperty(provenanceForeground, 'sha256', 'export provenance foreground master');
 	const masterProvenanceSha256 = stringProperty(
 		provenance,
 		'approvedMasterProvenanceSha256',
@@ -270,17 +321,21 @@ function validateExportSnapshotGeneration(
 	);
 	for (const [label, value] of [
 		['base master hash', provenanceBaseSha256],
-		['foreground master hash', provenanceForegroundSha256],
 		['master provenance hash', masterProvenanceSha256]
 	] as const) {
 		assertSha256(value, label);
 	}
+	if (provenanceForegroundSha256 !== null)
+		assertSha256(provenanceForegroundSha256, 'foreground master hash');
 	const manifestMasters = manifest.masters;
+	const manifestForegroundSha256 =
+		manifestMasters !== null && typeof manifestMasters === 'object'
+			? ((manifestMasters as Record<string, unknown>).foregroundSha256 ?? null)
+			: null;
 	assert(
 		stringProperty(manifestMasters, 'baseSha256', 'crop manifest masters') ===
 			provenanceBaseSha256 &&
-			stringProperty(manifestMasters, 'foregroundSha256', 'crop manifest masters') ===
-				provenanceForegroundSha256 &&
+			manifestForegroundSha256 === provenanceForegroundSha256 &&
 			stringProperty(manifestMasters, 'provenanceSha256', 'crop manifest masters') ===
 				masterProvenanceSha256,
 		'Meadow Entry export provenance and crop manifest master identities differ'
@@ -427,6 +482,86 @@ export async function readPublishedMeadowEntryExportSnapshot(
 		: new Error('Meadow Entry published export snapshot is unavailable');
 }
 
+export async function checkMeadowEntryExportPackage(
+	outputRoot: string,
+	runtimeRoot: string | undefined,
+	expected: MeadowEntryExportPackageBytes
+): Promise<void> {
+	const actual = await readPublishedMeadowEntryExportSnapshot(outputRoot);
+	assert(
+		JSON.stringify(Object.keys(actual.files).sort()) ===
+			JSON.stringify(Object.keys(expected.files).sort()),
+		'Meadow Entry painted-v2 export inventory is stale'
+	);
+	for (const [filename, bytes] of Object.entries(expected.files)) {
+		assert(
+			actual.files[filename]?.equals(bytes),
+			`Meadow Entry painted-v2 export is stale: ${filename}`
+		);
+	}
+	assert(
+		actual.provenanceJson.equals(expected.provenanceJson),
+		'Meadow Entry export provenance is stale'
+	);
+	assert(
+		actual.cropManifestJson.equals(expected.cropManifestJson),
+		'Meadow Entry crop manifest is stale'
+	);
+	if (runtimeRoot === undefined) return;
+	let actualRuntime: string[];
+	try {
+		actualRuntime = (await readdir(resolve(runtimeRoot))).sort();
+	} catch (error) {
+		if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
+			throw new Error(`Meadow Entry painted-v2 runtime export is missing: ${runtimeRoot}`, {
+				cause: error
+			});
+		}
+		throw error;
+	}
+	const expectedRuntime = Object.keys(expected.files).sort();
+	assert(
+		JSON.stringify(actualRuntime) === JSON.stringify(expectedRuntime),
+		`Meadow Entry painted-v2 runtime export inventory is stale: expected=${expectedRuntime.join(',')} actual=${actualRuntime.join(',')}`
+	);
+	for (const filename of expectedRuntime) {
+		const bytes = await readFile(join(resolve(runtimeRoot), filename));
+		assert(
+			bytes.equals(expected.files[filename]!),
+			`Meadow Entry painted-v2 runtime export is stale: ${filename}`
+		);
+	}
+}
+
+async function publishPaintedV2RuntimeExports(
+	runtimeRoot: string,
+	files: Readonly<Record<string, Buffer>>
+): Promise<void> {
+	const target = resolve(runtimeRoot);
+	const token = randomUUID();
+	const staging = `${target}.staging-${token}`;
+	const backup = `${target}.${token}.rollback`;
+	await mkdir(staging, { recursive: false });
+	let hadTarget = false;
+	try {
+		for (const filename of Object.keys(files).sort()) {
+			await writeFile(join(staging, filename), files[filename]!, { flag: 'wx' });
+		}
+		hadTarget = await pathExists(target);
+		if (hadTarget) await rename(target, backup);
+		await rename(staging, target);
+		if (hadTarget) await rm(backup, { recursive: true, force: true });
+	} catch (error) {
+		if (hadTarget && !(await pathExists(target)) && (await pathExists(backup))) {
+			await rename(backup, target).catch(() => undefined);
+		}
+		throw error;
+	} finally {
+		await rm(staging, { recursive: true, force: true }).catch(() => undefined);
+		await rm(backup, { recursive: true, force: true }).catch(() => undefined);
+	}
+}
+
 async function canonicalJson(value: unknown): Promise<Buffer> {
 	return Buffer.from(
 		await format(JSON.stringify(value), {
@@ -441,7 +576,7 @@ async function canonicalJson(value: unknown): Promise<Buffer> {
 
 async function buildCropManifest(
 	controlFingerprint: string,
-	masters: { baseSha256: string; foregroundSha256: string; provenanceSha256: string }
+	masters: { baseSha256: string; foregroundSha256: string | null; provenanceSha256: string }
 ): Promise<Buffer> {
 	return await canonicalJson({
 		version: 1,
@@ -463,7 +598,7 @@ function firstDifferentByte(first: Buffer, second: Buffer): number {
 }
 
 async function verifyExportPixelsIndependently(
-	approved: Awaited<ReturnType<typeof readApprovedMeadowEntryPackageSnapshot>>,
+	approved: { basePng: Buffer; foregroundPng?: Buffer },
 	published: MeadowEntryExportPackageBytes
 ): Promise<MeadowEntryExportVerification> {
 	const expectedFilenames = MEADOW_ENTRY_APPROVED_CROPS.flatMap((crop) => [
@@ -486,6 +621,7 @@ async function verifyExportPixelsIndependently(
 			const filename = plane === 'base' ? crop.baseFilename : crop.foregroundFilename!;
 			const png = published.files[filename]!;
 			const masterPng = plane === 'base' ? approved.basePng : approved.foregroundPng;
+			assert(masterPng !== undefined, `Meadow Entry independent master is missing plane=${plane}`);
 			const expectedWidth = crop.bounds.right - crop.bounds.left;
 			const expectedHeight = crop.bounds.bottom - crop.bounds.top;
 			const [exported, masterExtract] = await Promise.all([
@@ -635,7 +771,8 @@ export function assertApprovedMasterSnapshot(
 
 export async function runExportMeadowEntryRegions(
 	outputRoot = DEFAULT_OUTPUT_ROOT,
-	repositoryRoot = process.cwd()
+	repositoryRoot = process.cwd(),
+	options: { check?: boolean } = {}
 ): Promise<MeadowEntryExportRunResult> {
 	const inputs = buildMeadowEntryControlInputs(repositoryRoot);
 	const currentControlFingerprint = computeMeadowEntryCombinedControlFingerprint(inputs);
@@ -644,16 +781,21 @@ export async function runExportMeadowEntryRegions(
 		'Meadow Entry control fingerprint is stale'
 	);
 	const packageRoot = resolve(repositoryRoot, outputRoot);
-	const approved = await readApprovedMeadowEntryPackageSnapshot(packageRoot);
-	assertApprovedMasterSnapshot(approved, {
-		baseSha256: APPROVED_BASE_SHA256,
-		foregroundSha256: APPROVED_FOREGROUND_SHA256,
-		provenanceSha256: APPROVED_MASTER_PROVENANCE_SHA256,
-		controlFingerprint: currentControlFingerprint
-	});
+	const basePng = await readFile(join(repositoryRoot, PAINTED_V2_BASE_MASTER));
+	let foregroundPng: Buffer | undefined;
+	try {
+		foregroundPng = await readFile(join(repositoryRoot, PAINTED_V2_FOREGROUND_MASTER));
+	} catch (error) {
+		if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error;
+	}
+	const masterProvenance = await readFile(join(repositoryRoot, PAINTED_V2_MASTER_PROVENANCE));
+	const approved = { basePng, foregroundPng, provenanceJson: masterProvenance };
+	const approvedBaseSha256 = sha256(basePng);
+	const approvedForegroundSha256 = foregroundPng === undefined ? null : sha256(foregroundPng);
+	const approvedMasterProvenanceSha256 = sha256(masterProvenance);
 	const exported = await exportMeadowEntryRegions({
-		baseMasterPng: approved.basePng,
-		foregroundMasterPng: approved.foregroundPng,
+		baseMasterPng: basePng,
+		foregroundMasterPng: foregroundPng,
 		controlFingerprint: currentControlFingerprint,
 		approvedControlFingerprint: meadowEntryControlsApproval.combinedControlFingerprint,
 		crops: MEADOW_ENTRY_APPROVED_CROPS,
@@ -667,15 +809,25 @@ export async function runExportMeadowEntryRegions(
 		files: exported.files,
 		provenanceJson: await canonicalJson({
 			...provenance,
-			approvedMasterProvenanceSha256: APPROVED_MASTER_PROVENANCE_SHA256
+			approvedMasterProvenanceSha256
 		}),
 		cropManifestJson: await buildCropManifest(currentControlFingerprint, {
-			baseSha256: APPROVED_BASE_SHA256,
-			foregroundSha256: APPROVED_FOREGROUND_SHA256,
-			provenanceSha256: APPROVED_MASTER_PROVENANCE_SHA256
+			baseSha256: approvedBaseSha256,
+			foregroundSha256: approvedForegroundSha256,
+			provenanceSha256: approvedMasterProvenanceSha256
 		})
 	};
-	await publishMeadowEntryExportPackage(packageRoot, packageBytes);
+	const runtimeRoot =
+		outputRoot === DEFAULT_OUTPUT_ROOT
+			? resolve(repositoryRoot, PAINTED_V2_RUNTIME_ROOT)
+			: undefined;
+	if (options.check) {
+		await checkMeadowEntryExportPackage(packageRoot, runtimeRoot, packageBytes);
+	} else {
+		await publishMeadowEntryExportPackage(packageRoot, packageBytes);
+		if (runtimeRoot !== undefined)
+			await publishPaintedV2RuntimeExports(runtimeRoot, packageBytes.files);
+	}
 	const published = await readPublishedMeadowEntryExportSnapshot(packageRoot);
 	assert(
 		Object.keys(published.files).length === Object.keys(packageBytes.files).length &&
@@ -691,7 +843,12 @@ export async function runExportMeadowEntryRegions(
 }
 
 if (import.meta.main) {
-	const packageBytes = await runExportMeadowEntryRegions();
+	const parsed = parseMeadowEntryExportArguments(process.argv.slice(2));
+	const packageBytes = await runExportMeadowEntryRegions(
+		parsed.outputRoot ?? DEFAULT_OUTPUT_ROOT,
+		process.cwd(),
+		{ check: parsed.check }
+	);
 	process.stdout.write(
 		`${JSON.stringify({ ...packageBytes.verification, bytes: Object.values(packageBytes.files).reduce((sum, value) => sum + value.byteLength, 0), provenanceSha256: sha256(packageBytes.provenanceJson), cropManifestSha256: sha256(packageBytes.cropManifestJson) })}\n`
 	);
