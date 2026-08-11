@@ -32,6 +32,7 @@ type RegionalBackgroundPlaneRenderDiagnostic = {
 
 type GlieseProbeWindow = Window & {
 	__glieseLastHudState?: HudStateSnapshot;
+	__glieseLastPlayerFacing?: string;
 	__glieseLastHudAt?: number;
 	__glieseMovementDiagnostics?: PlayerMovementDiagnostic[];
 	__glieseLastMovementDiagnostic?: PlayerMovementDiagnostic;
@@ -177,10 +178,31 @@ function injectSave(page: Page, save: ReturnType<typeof createSaveFixture>) {
 	);
 }
 
-function installRuntimeProbes(page: Page) {
+async function installRuntimeProbes(page: Page, options: { captureFacing?: boolean } = {}) {
+	// WorldScene keeps its live facing private and the HUD intentionally omits it.
+	// Instrument only the browser-served test chunk so the E2E can observe the
+	// scene-create transition payload without adding a production diagnostic hook
+	// or mutating any game state. The replacement is limited to the existing
+	// authored `create()` assignment and records the value after it is applied.
+	if (options.captureFacing) {
+		await page.route('**/assets/WorldScene-*.js', async (route) => {
+			const response = await route.fetch();
+			const body = await response.text();
+			const marker = 'this.facing=r?.player.facing??i.spawnDirection';
+			if (!body.includes(marker)) {
+				throw new Error('WorldScene facing probe marker was not found in the served test chunk');
+			}
+			await route.fulfill({
+				response,
+				body: body.replace(marker, `${marker},globalThis.__glieseLastPlayerFacing=this.facing`)
+			});
+		});
+	}
+
 	return page.addInitScript(() => {
 		const probeWindow = window as GlieseProbeWindow;
 		probeWindow.__glieseLastHudState = undefined;
+		probeWindow.__glieseLastPlayerFacing = undefined;
 		probeWindow.__glieseLastHudAt = 0;
 		probeWindow.__glieseMovementDiagnostics = [];
 		probeWindow.__glieseLastMovementDiagnostic = undefined;
@@ -968,6 +990,25 @@ async function waitForHudPosition(page: Page, mapId: string, point: Point) {
 	);
 }
 
+async function waitForExactHudPosition(page: Page, mapId: string, point: Point) {
+	await page.waitForFunction(
+		({ requestedMapId, requestedPoint }) => {
+			const state = (window as GlieseProbeWindow).__glieseLastHudState;
+			const player = state?.areaMap?.player;
+			return (
+				state?.ready === true &&
+				state.mapId === requestedMapId &&
+				typeof player?.x === 'number' &&
+				typeof player?.y === 'number' &&
+				player.x === requestedPoint.x &&
+				player.y === requestedPoint.y
+			);
+		},
+		{ requestedMapId: mapId, requestedPoint: point },
+		{ timeout: 30_000 }
+	);
+}
+
 async function assertInteriorCheckpoint(page: Page, interior: InteriorGrayboxCase, point: Point) {
 	await waitForHudPosition(page, interior.mapId, point);
 	const state = await page.evaluate(
@@ -1128,18 +1169,17 @@ async function exitInteriorWithTrustedKeyboard(page: Page, interior: InteriorGra
 	} finally {
 		await page.keyboard.up('ArrowDown');
 	}
-	await waitForHudPosition(page, 'meadow-entry', interior.returnArrival);
+	await waitForExactHudPosition(page, 'meadow-entry', interior.returnArrival);
 	const state = await page.evaluate(
 		() => (window as GlieseProbeWindow).__glieseLastHudState ?? null
 	);
 	expect(state?.mapId).toBe('meadow-entry');
 	const player = state?.areaMap?.player;
-	expect(Math.abs((player?.x ?? 0) - interior.returnArrival.x)).toBeLessThanOrEqual(
-		AXIS_REACH_TOLERANCE
+	expect({ x: player?.x, y: player?.y }).toEqual(interior.returnArrival);
+	const arrivalFacing = await page.evaluate(
+		() => (window as GlieseProbeWindow).__glieseLastPlayerFacing ?? null
 	);
-	expect(Math.abs((player?.y ?? 0) - interior.returnArrival.y)).toBeLessThanOrEqual(
-		AXIS_REACH_TOLERANCE
-	);
+	expect(arrivalFacing).toBe('down');
 
 	await page.evaluate(() => {
 		const probeWindow = window as GlieseProbeWindow;
@@ -2322,7 +2362,7 @@ test('interact key shop purchase appears in inventory', async ({ page }) => {
 for (const interiorCase of INTERIOR_GRAYBOX_CASES) {
 	test(`HPA-586 interior graybox: ${interiorCase.mapId}`, async ({ page }) => {
 		test.setTimeout(180_000);
-		await installRuntimeProbes(page);
+		await installRuntimeProbes(page, { captureFacing: true });
 		await injectSave(
 			page,
 			createSaveFixture({
