@@ -63,10 +63,10 @@ export function meadowEntryExportPaths(repositoryRoot: string): MeadowEntryExpor
 	const resolvedRoot = resolve(repositoryRoot);
 	return {
 		repositoryRoot: resolvedRoot,
-		controlsDirectory: resolve(resolvedRoot, 'docs/superpowers/reports/img/hpa-399/controls'),
+		controlsDirectory: resolve(resolvedRoot, 'artifacts/meadow-entry/painted-v2/controls'),
 		generatedPath: resolve(
 			resolvedRoot,
-			'src/lib/game/content/generated/meadow-entry-art-control.ts'
+			'src/lib/game/content/generated/meadow-entry-painted-v2-art-control.ts'
 		)
 	};
 }
@@ -77,10 +77,10 @@ export function assertAllowedMeadowEntryDestination(
 ): void {
 	const relativePath = relative(paths.repositoryRoot, path).replaceAll('\\', '/');
 	const allowed =
-		relativePath === 'src/lib/game/content/generated/meadow-entry-art-control.ts' ||
-		(relativePath.startsWith('docs/superpowers/reports/img/hpa-399/controls/') &&
+		relativePath === 'src/lib/game/content/generated/meadow-entry-painted-v2-art-control.ts' ||
+		(relativePath.startsWith('artifacts/meadow-entry/painted-v2/controls/') &&
 			allowedControlFilenames.has(
-				relativePath.slice('docs/superpowers/reports/img/hpa-399/controls/'.length)
+				relativePath.slice('artifacts/meadow-entry/painted-v2/controls/'.length)
 			));
 	if (!allowed || relativePath.includes('/hpa-307/') || relativePath.includes('/hpa-398/')) {
 		throw new Error(`Refusing unexpected meadow-entry control destination: ${relativePath}`);

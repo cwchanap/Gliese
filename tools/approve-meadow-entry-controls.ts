@@ -3,23 +3,22 @@ import { readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs';
 import { basename, dirname, join } from 'node:path';
 
 import {
-	MEADOW_ENTRY_ART_STORAGE,
-	validateMeadowEntryStorageContract
+	MEADOW_ENTRY_PAINTED_V2_ART_STORAGE,
+	validateMeadowEntryPaintedV2StorageContract
 } from '$lib/game/content/backgrounds/meadow-entry-storage';
 import {
 	buildMeadowEntryControlInputs,
 	computeMeadowEntryCombinedControlFingerprint,
 	renderMeadowEntryControls
 } from '$lib/game/content/backgrounds/meadow-entry-controls';
-import { MEADOW_ENTRY_COMBINED_CONTROL_FINGERPRINT } from '$lib/game/content/generated/meadow-entry-art-control';
+import { MEADOW_ENTRY_COMBINED_CONTROL_FINGERPRINT } from '$lib/game/content/generated/meadow-entry-painted-v2-art-control';
 
 import { runMeadowEntryArtControlsExporter } from './export-meadow-entry-art-controls';
 import { verifyMeadowEntryArtStorage } from './verify-meadow-entry-art-storage';
 
-const CONTROLS_DIRECTORY = 'docs/superpowers/reports/img/hpa-399/controls';
-const APPROVAL_PATH = 'src/lib/game/content/approvals/meadow-entry-controls.ts';
-const EVIDENCE_PATH =
-	'docs/superpowers/reports/2026-07-30-hpa-399-controls-crops-storage-validation.md' as const;
+const CONTROLS_DIRECTORY = 'artifacts/meadow-entry/painted-v2/controls';
+const APPROVAL_PATH = 'src/lib/game/content/approvals/meadow-entry-painted-v2-controls.ts';
+const EVIDENCE_PATH = 'docs/superpowers/reports/2026-08-11-painted-v2-controls.md' as const;
 const UTC_SECONDS = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/;
 const REVIEWER = /^[A-Za-z0-9][A-Za-z0-9._@+ -]{0,99}$/;
 const SHA256 = /^[0-9a-f]{64}$/;
@@ -35,7 +34,7 @@ export interface MeadowEntryControlsApprovalValues {
 	bakeOwnershipSha256: string;
 	storageMode: 'git-lfs';
 	storageConfigurationSha256: string;
-	evidencePath: typeof EVIDENCE_PATH;
+	evidencePath: string;
 }
 
 export interface MeadowEntryApprovalArtifactSnapshot {
@@ -121,18 +120,18 @@ function sha256(value: Uint8Array | string): string {
 }
 
 function requiredStorageConfigurationLines(): readonly {
-	label: 'asset' | 'proof';
+	label: 'source' | 'runtime';
 	line: string;
 }[] {
-	validateMeadowEntryStorageContract(MEADOW_ENTRY_ART_STORAGE);
+	validateMeadowEntryPaintedV2StorageContract(MEADOW_ENTRY_PAINTED_V2_ART_STORAGE);
 	return [
 		{
-			label: 'asset',
-			line: `${MEADOW_ENTRY_ART_STORAGE.assetPattern} filter=lfs diff=lfs merge=lfs -text`
+			label: 'source',
+			line: `${MEADOW_ENTRY_PAINTED_V2_ART_STORAGE.sourcePattern} filter=lfs diff=lfs merge=lfs -text`
 		},
 		{
-			label: 'proof',
-			line: `${MEADOW_ENTRY_ART_STORAGE.proofPattern} filter=lfs diff=lfs merge=lfs -text`
+			label: 'runtime',
+			line: `${MEADOW_ENTRY_PAINTED_V2_ART_STORAGE.runtimePattern} filter=lfs diff=lfs merge=lfs -text`
 		}
 	];
 }
@@ -143,7 +142,12 @@ function assertStorageConfiguration(storageConfiguration: Uint8Array): void {
 		throw new Error('Meadow-entry Git LFS configuration must use LF bytes with a final newline.');
 	}
 	const checkedInLines = text.slice(0, -1).split('\n');
-	for (const { label, line } of requiredStorageConfigurationLines()) {
+	const activeLines = requiredStorageConfigurationLines();
+	const activeMatches = activeLines.every(
+		({ line }) => checkedInLines.filter((checkedInLine) => checkedInLine === line).length === 1
+	);
+	if (activeMatches) return;
+	for (const { label, line } of activeLines) {
 		if (checkedInLines.filter((checkedInLine) => checkedInLine === line).length !== 1) {
 			throw new Error(`Expected exactly one ${label} Git LFS configuration line: ${line}`);
 		}
@@ -314,9 +318,59 @@ export async function approveMeadowEntryControls(
 	return values;
 }
 
+function readCheckedInApprovalValues(repositoryRoot: string): MeadowEntryControlsApprovalValues {
+	const source = readFileSync(join(repositoryRoot, APPROVAL_PATH), 'utf8');
+	const value = (field: string): string => {
+		const match = source.match(new RegExp(`${field}: '([^']+)'`));
+		if (!match) throw new Error(`Checked-in painted-v2 approval is missing ${field}.`);
+		return match[1]!;
+	};
+	const storageMode = value('storageMode');
+	if (storageMode !== 'git-lfs')
+		throw new Error('Checked-in painted-v2 approval storage mode drifted.');
+	const evidencePath = value('evidencePath');
+	if (evidencePath !== EVIDENCE_PATH)
+		throw new Error('Checked-in painted-v2 approval evidence path drifted.');
+	return {
+		combinedControlFingerprint: value('combinedControlFingerprint'),
+		cropManifestSha256: value('cropManifestSha256'),
+		bakeOwnershipSha256: value('bakeOwnershipSha256'),
+		storageMode: 'git-lfs',
+		storageConfigurationSha256: value('storageConfigurationSha256'),
+		evidencePath: EVIDENCE_PATH
+	};
+}
+
+/** Recomputes the active payload and compares it without writing any file. */
+export async function checkMeadowEntryControlsApproval(
+	repositoryRoot = process.cwd()
+): Promise<MeadowEntryControlsApprovalValues> {
+	await verifyMeadowEntryArtStorage(repositoryRoot);
+	runMeadowEntryArtControlsExporter(['--check'], repositoryRoot);
+	const current = readApprovalValues(repositoryRoot);
+	const checkedIn = readCheckedInApprovalValues(repositoryRoot);
+	if (
+		current.combinedControlFingerprint !== checkedIn.combinedControlFingerprint ||
+		current.cropManifestSha256 !== checkedIn.cropManifestSha256 ||
+		current.bakeOwnershipSha256 !== checkedIn.bakeOwnershipSha256 ||
+		current.storageMode !== checkedIn.storageMode ||
+		current.storageConfigurationSha256 !== checkedIn.storageConfigurationSha256 ||
+		current.evidencePath !== checkedIn.evidencePath
+	) {
+		throw new Error('Checked-in painted-v2 controls approval payload is stale.');
+	}
+	console.log(`painted-v2 controls approval is current\t${current.combinedControlFingerprint}`);
+	return current;
+}
+
 if (import.meta.main) {
 	try {
-		await approveMeadowEntryControls(process.argv.slice(2));
+		const args = process.argv.slice(2);
+		if (args.length === 1 && args[0] === '--check') {
+			await checkMeadowEntryControlsApproval();
+		} else {
+			await approveMeadowEntryControls(args);
+		}
 	} catch (error) {
 		console.error(error instanceof Error ? error.message : error);
 		process.exitCode = 1;

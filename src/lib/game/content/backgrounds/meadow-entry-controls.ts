@@ -20,21 +20,25 @@ import {
 } from './meadow-entry-authoring-layout';
 import type { PixelBounds } from './meadow-entry-authoring-types';
 import {
-	MEADOW_ENTRY_BAKE_OWNERSHIP,
+	MEADOW_ENTRY_PAINTED_V2_BAKE_OWNERSHIP,
 	MEADOW_ENTRY_FOREGROUND_FRONT_CUTOFF_PX,
 	type MeadowEntryBakeOwnershipEntry
 } from './meadow-entry-bake-ownership';
 import {
-	MEADOW_ENTRY_APPROVED_CROPS,
-	MEADOW_ENTRY_APPROVED_OVERLAPS,
-	MEADOW_ENTRY_CROP_BUDGET_SUMMARY,
-	MEADOW_ENTRY_RUNTIME_COVERAGE,
 	validateMeadowEntryCropContract,
 	type MeadowEntryApprovedCrop,
 	type MeadowEntryCropBudgetSummary,
 	type MeadowEntryOverlap,
 	type MeadowEntryRuntimeCoverage
 } from './meadow-entry-crop-manifest';
+import {
+	MEADOW_ENTRY_PAINTED_V2_PILOT_BUDGET_SUMMARY,
+	MEADOW_ENTRY_PAINTED_V2_PILOT_CROPS,
+	MEADOW_ENTRY_PAINTED_V2_PILOT_OVERLAPS,
+	MEADOW_ENTRY_PAINTED_V2_PILOT_RUNTIME_COVERAGE,
+	MEADOW_ENTRY_PAINTED_V2_PILOT_FALLBACK_REQUIREMENTS
+} from './meadow-entry-painted-v2-crop-manifest';
+import { MEADOW_ENTRY_PAINTED_V2_ART_STORAGE } from './meadow-entry-storage';
 import {
 	MEADOW_ENTRY_MIN_HANDOFF_PX,
 	MEADOW_ENTRY_TILE_SIZE_PX,
@@ -50,7 +54,6 @@ import {
 	type MeadowEntrySourceRecord,
 	type MeadowEntrySourceType
 } from './meadow-entry-source-catalog';
-import { MEADOW_ENTRY_ART_STORAGE } from './meadow-entry-storage';
 
 const MASK_WIDTH = 6_400 as const;
 const MASK_HEIGHT = 6_400 as const;
@@ -125,7 +128,7 @@ export interface MeadowEntryControlInputs {
 		hpa398BaseSha256: string;
 		hpa398ForegroundSha256: string;
 	};
-	storage: typeof MEADOW_ENTRY_ART_STORAGE;
+	storage: typeof MEADOW_ENTRY_PAINTED_V2_ART_STORAGE;
 	sourceFileHashes: Readonly<Record<string, string>>;
 }
 
@@ -500,7 +503,15 @@ function buildControlClearanceRects(
 export function buildMeadowEntryControlInputs(
 	repositoryRoot = process.cwd()
 ): MeadowEntryControlInputs {
-	validateMeadowEntryCropContract();
+	validateMeadowEntryCropContract({
+		crops: MEADOW_ENTRY_PAINTED_V2_PILOT_CROPS,
+		overlaps: MEADOW_ENTRY_PAINTED_V2_PILOT_OVERLAPS,
+		runtimeCoverage: MEADOW_ENTRY_PAINTED_V2_PILOT_RUNTIME_COVERAGE,
+		budgetSummary: MEADOW_ENTRY_PAINTED_V2_PILOT_BUDGET_SUMMARY,
+		bakeOwnership: MEADOW_ENTRY_PAINTED_V2_BAKE_OWNERSHIP,
+		requiredFallbacks: MEADOW_ENTRY_PAINTED_V2_PILOT_FALLBACK_REQUIREMENTS,
+		coverageMode: 'partial'
+	});
 	const sourceCatalog = collectMeadowEntrySourceCatalog();
 	const rendererMaskMaterialContract = buildRendererMaskMaterialContract(repositoryRoot);
 	const strictCollisionRects = collectStrictCollisionRects(meadowEntryMap).map(collisionBounds);
@@ -518,11 +529,11 @@ export function buildMeadowEntryControlInputs(
 		authoringRegions: MEADOW_ENTRY_AUTHORING_REGIONS,
 		primarySourceOwners: MEADOW_ENTRY_PRIMARY_SOURCE_OWNERS,
 		outlierResolutions: MEADOW_ENTRY_OUTLIER_RESOLUTIONS,
-		bakeOwnership: MEADOW_ENTRY_BAKE_OWNERSHIP,
-		crops: MEADOW_ENTRY_APPROVED_CROPS,
-		overlaps: MEADOW_ENTRY_APPROVED_OVERLAPS,
-		runtimeCoverage: MEADOW_ENTRY_RUNTIME_COVERAGE,
-		cropBudgetSummary: MEADOW_ENTRY_CROP_BUDGET_SUMMARY,
+		bakeOwnership: MEADOW_ENTRY_PAINTED_V2_BAKE_OWNERSHIP,
+		crops: MEADOW_ENTRY_PAINTED_V2_PILOT_CROPS,
+		overlaps: MEADOW_ENTRY_PAINTED_V2_PILOT_OVERLAPS,
+		runtimeCoverage: MEADOW_ENTRY_PAINTED_V2_PILOT_RUNTIME_COVERAGE,
+		cropBudgetSummary: MEADOW_ENTRY_PAINTED_V2_PILOT_BUDGET_SUMMARY,
 		strictCollisionRects,
 		landmarkCollisionRects,
 		walkableSpaceRects: buildWalkableSpaceRects(
@@ -533,7 +544,7 @@ export function buildMeadowEntryControlInputs(
 		protectedRects: buildProtectedRects(
 			meadowEntryMap,
 			sourceCatalog,
-			MEADOW_ENTRY_BAKE_OWNERSHIP,
+			MEADOW_ENTRY_PAINTED_V2_BAKE_OWNERSHIP,
 			rendererMaskMaterialContract
 		),
 		controlClearanceRects: buildControlClearanceRects(
@@ -553,7 +564,7 @@ export function buildMeadowEntryControlInputs(
 			hpa398BaseSha256: sundropVillageBackgroundsApproval.base.approvedPngSha256,
 			hpa398ForegroundSha256: sundropVillageBackgroundsApproval.foreground.approvedPngSha256
 		},
-		storage: MEADOW_ENTRY_ART_STORAGE,
+		storage: MEADOW_ENTRY_PAINTED_V2_ART_STORAGE,
 		sourceFileHashes: hashFiles(repositoryRoot, MEADOW_ENTRY_CONTROL_SOURCE_FILE_PATHS)
 	};
 }

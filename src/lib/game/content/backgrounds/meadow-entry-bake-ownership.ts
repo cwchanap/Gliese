@@ -2,6 +2,7 @@ import { getActorAnimationAsset } from '$lib/game/content/assets';
 import { PLAYER_COLLISION_RADIUS } from '$lib/game/core/collision';
 import { getBlockerRuntimeRenderMode } from '$lib/game/content/maps/blocker-rendering';
 import { meadowEntryMap } from '$lib/game/content/maps/meadow-entry';
+import { createHash } from 'node:crypto';
 
 import type { Insets } from './meadow-entry-authoring-types';
 import {
@@ -818,6 +819,375 @@ function buildMeadowEntryBakeOwnership(): readonly MeadowEntryBakeOwnershipEntry
 
 export const MEADOW_ENTRY_BAKE_OWNERSHIP = buildMeadowEntryBakeOwnership();
 
+/**
+ * Painted-v2 is a separate review of the current HPA-586 catalog. These
+ * source-key lists are the reviewed literal inputs; no disposition is derived
+ * from crop geometry at module load. The catalog key seal makes additions or
+ * removals fail closed before a control package can be built.
+ */
+const PAINTED_V2_REVIEWED_SOURCE_CATALOG_KEYS_SHA256 =
+	'ef04f4c2cb46ced2aad35f81dd8912fd5309a59f8e9a6793cfcf1be0d4b8c17f';
+
+const PAINTED_V2_BASE_UNDERLAY_SOURCE_KEYS = [
+	'ground-patch:crossroads-north-trunk',
+	'ground-patch:crossroads-plaza',
+	'ground-patch:crossroads-to-mistfen',
+	'ground-patch:village-ground-13-11',
+	'ground-patch:village-ground-13-33',
+	'ground-patch:village-ground-14-11',
+	'ground-patch:village-ground-14-33',
+	'ground-patch:village-ground-14-61',
+	'ground-patch:village-ground-15-11',
+	'ground-patch:village-ground-15-33',
+	'ground-patch:village-ground-15-61',
+	'ground-patch:village-ground-16-11',
+	'ground-patch:village-ground-16-33',
+	'ground-patch:village-ground-16-61',
+	'ground-patch:village-ground-17-11',
+	'ground-patch:village-ground-17-33',
+	'ground-patch:village-ground-17-61',
+	'ground-patch:village-ground-18-11',
+	'ground-patch:village-ground-18-33',
+	'ground-patch:village-ground-18-61',
+	'ground-patch:village-ground-19-11',
+	'ground-patch:village-ground-19-33',
+	'ground-patch:village-ground-19-61',
+	'ground-patch:village-ground-20-0',
+	'ground-patch:village-ground-21-0',
+	'ground-patch:village-ground-22-0',
+	'ground-patch:village-ground-23-0',
+	'ground-patch:village-ground-24-0',
+	'ground-patch:village-ground-25-0',
+	'ground-patch:village-ground-25-34',
+	'ground-patch:village-ground-25-76',
+	'ground-patch:village-ground-26-0',
+	'ground-patch:village-ground-26-28',
+	'ground-patch:village-ground-26-76',
+	'ground-patch:village-ground-27-0',
+	'ground-patch:village-ground-27-28',
+	'ground-patch:village-ground-27-76',
+	'ground-patch:village-ground-28-0',
+	'ground-patch:village-ground-28-28',
+	'ground-patch:village-ground-28-76',
+	'ground-patch:village-ground-29-0',
+	'ground-patch:village-ground-29-28',
+	'ground-patch:village-ground-29-76',
+	'ground-patch:village-ground-30-0',
+	'ground-patch:village-ground-30-28',
+	'ground-patch:village-ground-30-76',
+	'ground-patch:village-ground-31-0',
+	'ground-patch:village-ground-31-28',
+	'ground-patch:village-ground-31-76',
+	'ground-patch:village-ground-32-0',
+	'ground-patch:village-ground-32-28',
+	'ground-patch:village-ground-32-76',
+	'ground-patch:village-ground-33-0',
+	'ground-patch:village-ground-33-28',
+	'ground-patch:village-ground-33-76',
+	'ground-patch:village-ground-34-0',
+	'ground-patch:village-ground-34-28',
+	'ground-patch:village-ground-34-76',
+	'ground-patch:village-ground-35-0',
+	'ground-patch:village-ground-35-28',
+	'ground-patch:village-ground-35-76',
+	'ground-patch:village-ground-36-0',
+	'ground-patch:village-ground-36-28',
+	'ground-patch:village-ground-36-76',
+	'ground-patch:village-ground-37-0',
+	'ground-patch:village-ground-37-28',
+	'ground-patch:village-ground-37-76',
+	'ground-patch:village-ground-38-0',
+	'ground-patch:village-ground-38-12',
+	'ground-patch:village-ground-38-28',
+	'ground-patch:village-ground-38-61',
+	'ground-patch:village-ground-38-76',
+	'ground-patch:village-ground-39-0',
+	'ground-patch:village-ground-39-12',
+	'ground-patch:village-ground-39-28',
+	'ground-patch:village-ground-39-61',
+	'ground-patch:village-ground-39-76',
+	'ground-patch:village-ground-40-0',
+	'ground-patch:village-ground-40-12',
+	'ground-patch:village-ground-40-28',
+	'ground-patch:village-ground-40-61',
+	'ground-patch:village-ground-40-76',
+	'ground-patch:village-ground-41-0',
+	'ground-patch:village-ground-41-12',
+	'ground-patch:village-ground-41-28',
+	'ground-patch:village-ground-41-61',
+	'ground-patch:village-ground-41-76',
+	'ground-patch:village-ground-42-0',
+	'ground-patch:village-ground-42-12',
+	'ground-patch:village-ground-42-34',
+	'ground-patch:village-ground-42-61',
+	'ground-patch:village-ground-42-76',
+	'ground-patch:village-ground-43-0',
+	'ground-patch:village-ground-43-12',
+	'ground-patch:village-ground-43-34',
+	'ground-patch:village-ground-43-61',
+	'ground-patch:village-ground-43-76',
+	'ground-patch:village-ground-44-0',
+	'ground-patch:village-ground-45-0',
+	'ground-patch:village-ground-46-0',
+	'ground-patch:village-ground-47-0',
+	'ground-patch:village-ground-48-0',
+	'ground-patch:village-ground-48-76',
+	'ground-patch:village-ground-49-0',
+	'ground-patch:village-ground-49-76',
+	'ground-patch:village-ground-50-0',
+	'ground-patch:village-ground-50-76',
+	'ground-patch:village-ground-51-0',
+	'ground-patch:village-ground-51-76',
+	'ground-patch:village-ground-52-0',
+	'ground-patch:village-ground-52-76',
+	'ground-patch:village-ground-53-0',
+	'ground-patch:village-ground-53-76',
+	'ground-patch:village-ground-54-0',
+	'ground-patch:village-ground-54-76',
+	'ground-patch:village-ground-55-0',
+	'ground-patch:village-ground-55-76',
+	'ground-patch:village-ground-56-0',
+	'ground-patch:village-ground-56-76',
+	'ground-patch:village-ground-57-0',
+	'ground-patch:village-ground-57-76',
+	'ground-patch:village-ground-58-0',
+	'ground-patch:village-ground-58-76',
+	'ground-patch:village-ground-59-0',
+	'ground-patch:village-ground-59-12',
+	'ground-patch:village-ground-59-36',
+	'ground-patch:village-ground-59-61',
+	'ground-patch:village-ground-59-76',
+	'ground-patch:village-ground-60-0',
+	'ground-patch:village-ground-60-12',
+	'ground-patch:village-ground-60-36',
+	'ground-patch:village-ground-60-61',
+	'ground-patch:village-ground-60-76',
+	'ground-patch:village-ground-61-0',
+	'ground-patch:village-ground-61-12',
+	'ground-patch:village-ground-61-36',
+	'ground-patch:village-ground-61-61',
+	'ground-patch:village-ground-61-76',
+	'ground-patch:village-ground-62-0',
+	'ground-patch:village-ground-62-12',
+	'ground-patch:village-ground-62-36',
+	'ground-patch:village-ground-62-61',
+	'ground-patch:village-ground-62-76',
+	'ground-patch:village-ground-63-0',
+	'ground-patch:village-ground-63-12',
+	'ground-patch:village-ground-63-36',
+	'ground-patch:village-ground-63-61',
+	'ground-patch:village-ground-63-76',
+	'ground-patch:village-ground-64-0',
+	'ground-patch:village-ground-65-0',
+	'ground-patch:village-ground-66-0',
+	'ground-patch:village-ground-67-0',
+	'ground-patch:village-to-crossroads'
+] as const;
+
+const PAINTED_V2_RUNTIME_FALLBACK_SOURCE_KEYS = [
+	'ground-patch:coast-approach-path',
+	'ground-patch:coast-ferry-fork',
+	'ground-patch:coast-sand',
+	'ground-patch:coast-sea',
+	'ground-patch:coast-shrine-landing',
+	'ground-patch:coast-tidepool-pocket',
+	'ground-patch:crossroads-to-coast',
+	'ground-patch:crossroads-to-silverpine',
+	'ground-patch:crossroads-to-wildwood',
+	'ground-patch:mistfen-approach-path',
+	'ground-patch:mistfen-basin',
+	'ground-patch:mistfen-hidden-pool-pocket',
+	'ground-patch:mistfen-pool-east',
+	'ground-patch:mistfen-pool-west',
+	'ground-patch:mistfen-safe-curve-a',
+	'ground-patch:mistfen-safe-curve-b',
+	'ground-patch:mistfen-seam-horizontal',
+	'ground-patch:mistfen-seam-vertical',
+	'ground-patch:silverpine-bend-east',
+	'ground-patch:silverpine-bend-west',
+	'ground-patch:silverpine-grove-floor',
+	'ground-patch:silverpine-lower-approach',
+	'ground-patch:silverpine-seam',
+	'ground-patch:silverpine-shrine-terrace',
+	'ground-patch:silverpine-side-grove-floor',
+	'ground-patch:silverpine-stair-path',
+	'ground-patch:silverpine-terrace-landing',
+	'ground-patch:sundrop-cave-pocket',
+	'ground-patch:sundrop-forest-road-east',
+	'ground-patch:sundrop-forest-road-north',
+	'ground-patch:sundrop-southwest-ocean-patch',
+	'ground-patch:whispering-cave-combat-pocket',
+	'ground-patch:wildwood-cave-branch',
+	'ground-patch:wildwood-crossing-combat-pocket',
+	'ground-patch:wildwood-north-combat-pocket',
+	'ground-patch:wildwood-seam',
+	'ground-patch:wildwood-side-clearing'
+] as const;
+
+const PAINTED_V2_COLLISION_FALLBACK_SOURCE_KEYS = [
+	'blocker:coast-sea-wall',
+	'blocker:mistfen-pool-east-blocker',
+	'blocker:mistfen-pool-west-blocker',
+	'blocker:sundrop-southwest-ocean'
+] as const;
+
+const PAINTED_V2_CONTROL_SOURCE_KEYS = [
+	'combat-bounds:whispering-cave-combat-pocket',
+	'combat-bounds:wildwood-crossing-combat-pocket',
+	'combat-bounds:wildwood-north-combat-pocket',
+	'discovery:castle-gate-warning',
+	'discovery:coast-jetty-foreshadow',
+	'discovery:crossroads-waystone-sign',
+	'discovery:ferry-shrine-lore',
+	'discovery:silverpine-amulet-foreshadow',
+	'discovery:wildwood-cave-danger',
+	'discovery:witchwood-poison-warning',
+	'encounter:meadow-slime-center',
+	'encounter:meadow-slime-east',
+	'encounter:meadow-slime-west'
+] as const;
+
+const PAINTED_V2_BASE_STATIC_POLICIES = {
+	'blocker:silverpine-wall-B-south': {
+		disposition: { mode: 'base-static', margins: BASE_MARGINS, motif: 'painted-stone-wall' },
+		runtimeRequirement: 'existing-blocker-fallback'
+	},
+	'decor:village-decor-22-77': {
+		disposition: { mode: 'base-static', margins: BASE_MARGINS, motif: 'painted-low-profile-decor' },
+		runtimeRequirement: 'extend-decor-fallback'
+	},
+	'decor:village-decor-28-25': {
+		disposition: { mode: 'base-static', margins: BASE_MARGINS, motif: 'painted-low-profile-decor' },
+		runtimeRequirement: 'extend-decor-fallback'
+	},
+	'decor:village-decor-28-53': {
+		disposition: { mode: 'base-static', margins: BASE_MARGINS, motif: 'painted-low-profile-decor' },
+		runtimeRequirement: 'extend-decor-fallback'
+	},
+	'decor:village-decor-53-22': {
+		disposition: { mode: 'base-static', margins: BASE_MARGINS, motif: 'painted-low-profile-decor' },
+		runtimeRequirement: 'extend-decor-fallback'
+	}
+} as const;
+
+interface PaintedV2ReviewedPolicy {
+	disposition: MeadowEntryBakeDisposition;
+	runtimeRequirement: MeadowEntryRuntimeOwnershipRequirement;
+}
+
+function paintedV2ProtectedPolicy(ref: MeadowEntrySourceRef): PaintedV2ReviewedPolicy {
+	if (
+		[
+			'blocker',
+			'decor',
+			'fence',
+			'landmark',
+			'transition',
+			'npc',
+			'ambient-npc',
+			'pickup'
+		].includes(ref.sourceType)
+	) {
+		return {
+			disposition: {
+				mode: 'protected-live',
+				protectionMargins: PROTECTION_MARGINS,
+				reason: 'Painted-v2 pilot does not own this live visual or stateful source.'
+			},
+			runtimeRequirement: 'remain-live'
+		};
+	}
+	if (['encounter', 'combat-bounds', 'discovery'].includes(ref.sourceType)) {
+		return {
+			disposition: {
+				mode: 'control-only',
+				reason: 'Semantic control data remains runtime-owned.'
+			},
+			runtimeRequirement: 'none'
+		};
+	}
+	throw new Error(`Missing painted-v2 reviewed policy for "${meadowEntrySourceKey(ref)}"`);
+}
+
+function buildMeadowEntryPaintedV2BakeOwnership(): readonly MeadowEntryBakeOwnershipEntry[] {
+	const catalog = collectMeadowEntrySourceCatalog();
+	const catalogKeys = catalog.map(({ ref }) => meadowEntrySourceKey(ref));
+	const catalogSeal = createHash('sha256')
+		.update(catalogKeys.map((key) => `${key}\n`).join(''))
+		.digest('hex');
+	if (catalogSeal !== PAINTED_V2_REVIEWED_SOURCE_CATALOG_KEYS_SHA256) {
+		throw new Error('Painted-v2 reviewed source catalog has drifted');
+	}
+
+	const policies = new Map<string, PaintedV2ReviewedPolicy>();
+	const add = (sourceKey: string, policy: PaintedV2ReviewedPolicy): void => {
+		if (policies.has(sourceKey)) throw new Error(`Duplicate painted-v2 policy "${sourceKey}"`);
+		policies.set(sourceKey, policy);
+	};
+	for (const sourceKey of PAINTED_V2_BASE_UNDERLAY_SOURCE_KEYS) {
+		add(sourceKey, { disposition: { mode: 'base-underlay' }, runtimeRequirement: 'fallback-tile' });
+	}
+	for (const sourceKey of PAINTED_V2_RUNTIME_FALLBACK_SOURCE_KEYS) {
+		add(sourceKey, {
+			disposition: {
+				mode: 'runtime-fallback-only',
+				reason: 'The pilot crop does not own this source; the existing tile layer remains fallback.'
+			},
+			runtimeRequirement: 'fallback-tile'
+		});
+	}
+	for (const sourceKey of PAINTED_V2_COLLISION_FALLBACK_SOURCE_KEYS) {
+		add(sourceKey, {
+			disposition: {
+				mode: 'runtime-fallback-only',
+				reason: 'Collision-only water edge remains visible through its paired tile fallback.'
+			},
+			runtimeRequirement: 'fallback-tile'
+		});
+	}
+	for (const [sourceKey, policy] of Object.entries(PAINTED_V2_BASE_STATIC_POLICIES)) {
+		add(sourceKey, policy);
+	}
+	for (const sourceKey of PAINTED_V2_CONTROL_SOURCE_KEYS) {
+		add(sourceKey, {
+			disposition: { mode: 'control-only', reason: 'Semantic control data remains runtime-owned.' },
+			runtimeRequirement: 'none'
+		});
+	}
+	for (const record of catalog) {
+		const sourceKey = meadowEntrySourceKey(record.ref);
+		if (!policies.has(sourceKey)) add(sourceKey, paintedV2ProtectedPolicy(record.ref));
+	}
+	if (policies.size !== catalog.length) {
+		throw new Error('Painted-v2 reviewed ownership does not cover the source catalog');
+	}
+	for (const sourceKey of policies.keys()) {
+		if (!catalogKeys.includes(sourceKey)) {
+			throw new Error(`Painted-v2 reviewed ownership names an unknown source "${sourceKey}"`);
+		}
+	}
+
+	return Object.freeze(
+		catalog.map(({ ref }) => {
+			const sourceKey = meadowEntrySourceKey(ref);
+			const policy = policies.get(sourceKey);
+			if (!policy) throw new Error(`Missing painted-v2 policy "${sourceKey}"`);
+			const primaryRegionId = MEADOW_ENTRY_PRIMARY_SOURCE_OWNERS[sourceKey];
+			if (!primaryRegionId) throw new Error(`Missing meadow-entry authoring owner "${sourceKey}"`);
+			return Object.freeze({
+				ref: Object.freeze({ ...ref }),
+				primaryRegionId,
+				disposition: freezeDisposition(policy.disposition),
+				runtimeRequirement: policy.runtimeRequirement
+			});
+		})
+	);
+}
+
+export const MEADOW_ENTRY_REVIEWED_PAINTED_V2_BAKE_OWNERSHIP_SHA256 =
+	'ffdf72ea5650624735e0622ecd92620456c278a2ae139daf99cf31514bf6ff71';
+export const MEADOW_ENTRY_PAINTED_V2_BAKE_OWNERSHIP = buildMeadowEntryPaintedV2BakeOwnership();
+
 function assertNonEmpty(value: string, field: string, key: string): void {
 	if (value.trim().length === 0) throw new Error(`${key} has empty ${field}`);
 }
@@ -947,26 +1317,29 @@ export function validateMeadowEntryBakeOwnership(
 		validateDisposition(entry);
 	}
 
-	for (const predecessor of SUNDROP_VILLAGE_OBSTACLE_OWNERSHIP) {
-		const entry = byKey.get(`blocker:${predecessor.blockerId}`);
-		// HPA-398's obstacle registry describes the retired V1 village. Those
-		// rows are intentionally absent from the V2 graybox catalog, so retain
-		// validation only for predecessor blockers that still exist.
-		if (!entry) continue;
-		if (entry.runtimeRequirement !== 'existing-blocker-fallback') {
-			throw new Error(`Missing HPA-398 blocker bake ownership "${predecessor.blockerId}"`);
+	if (ownership !== MEADOW_ENTRY_PAINTED_V2_BAKE_OWNERSHIP) {
+		for (const predecessor of SUNDROP_VILLAGE_OBSTACLE_OWNERSHIP) {
+			const entry = byKey.get(`blocker:${predecessor.blockerId}`);
+			// HPA-398's obstacle registry describes the retired V1 village. Those
+			// rows are intentionally absent from the V2 graybox catalog, so retain
+			// validation only for predecessor blockers that still exist.
+			if (!entry) continue;
+			if (entry.runtimeRequirement !== 'existing-blocker-fallback') {
+				throw new Error(`Missing HPA-398 blocker bake ownership "${predecessor.blockerId}"`);
+			}
+			const disposition = entry.disposition;
+			const matches = predecessor.foregroundMargins
+				? disposition.mode === 'base-and-foreground' &&
+					disposition.motif === predecessor.motif &&
+					insetsEqual(disposition.baseMargins, predecessor.baseMargins) &&
+					insetsEqual(disposition.foregroundMargins, predecessor.foregroundMargins) &&
+					disposition.frontCutoffPx === MEADOW_ENTRY_FOREGROUND_FRONT_CUTOFF_PX
+				: disposition.mode === 'base-static' &&
+					disposition.motif === predecessor.motif &&
+					insetsEqual(disposition.margins, predecessor.baseMargins);
+			if (!matches)
+				throw new Error(`HPA-398 blocker bake facts drifted "${predecessor.blockerId}"`);
 		}
-		const disposition = entry.disposition;
-		const matches = predecessor.foregroundMargins
-			? disposition.mode === 'base-and-foreground' &&
-				disposition.motif === predecessor.motif &&
-				insetsEqual(disposition.baseMargins, predecessor.baseMargins) &&
-				insetsEqual(disposition.foregroundMargins, predecessor.foregroundMargins) &&
-				disposition.frontCutoffPx === MEADOW_ENTRY_FOREGROUND_FRONT_CUTOFF_PX
-			: disposition.mode === 'base-static' &&
-				disposition.motif === predecessor.motif &&
-				insetsEqual(disposition.margins, predecessor.baseMargins);
-		if (!matches) throw new Error(`HPA-398 blocker bake facts drifted "${predecessor.blockerId}"`);
 	}
 
 	for (const resolution of MEADOW_ENTRY_OUTLIER_RESOLUTIONS) {

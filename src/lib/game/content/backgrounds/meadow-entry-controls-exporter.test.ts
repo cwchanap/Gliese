@@ -82,10 +82,10 @@ function newPaths(): ExportPaths {
 	temporaryRoots.push(repositoryRoot);
 	return {
 		repositoryRoot,
-		controlsDirectory: join(repositoryRoot, 'docs/superpowers/reports/img/hpa-399/controls'),
+		controlsDirectory: join(repositoryRoot, 'artifacts/meadow-entry/painted-v2/controls'),
 		generatedPath: join(
 			repositoryRoot,
-			'src/lib/game/content/generated/meadow-entry-art-control.ts'
+			'src/lib/game/content/generated/meadow-entry-painted-v2-art-control.ts'
 		)
 	};
 }
@@ -346,7 +346,7 @@ describe('meadow-entry exporter package safety', () => {
 			generated: next.generatedContents
 		});
 		expect(
-			readdirSync(join(paths.repositoryRoot, 'docs/superpowers/reports/img/hpa-399')).some((name) =>
+			readdirSync(dirname(paths.controlsDirectory)).some((name) =>
 				name.includes('.meadow-entry-package-backup-')
 			)
 		).toBe(true);
@@ -358,10 +358,10 @@ describe('meadow-entry exporter package safety', () => {
 		if (!api.meadowEntryExportPaths) return;
 		const paths = api.meadowEntryExportPaths('/repo');
 		expect(paths.controlsDirectory).toBe(
-			resolve('/repo/docs/superpowers/reports/img/hpa-399/controls')
+			resolve('/repo/artifacts/meadow-entry/painted-v2/controls')
 		);
 		expect(paths.generatedPath).toBe(
-			resolve('/repo/src/lib/game/content/generated/meadow-entry-art-control.ts')
+			resolve('/repo/src/lib/game/content/generated/meadow-entry-painted-v2-art-control.ts')
 		);
 	});
 
@@ -398,14 +398,12 @@ describe('meadow-entry exporter package safety', () => {
 		);
 	});
 
-	it('reports the retired V1 package as stale against the V2 graybox controls', async () => {
+	it('checks the active painted-v2 package at its direct destination', async () => {
 		const api = await exporterApi();
 		expect(api.runMeadowEntryArtControlsExporter).toBeTypeOf('function');
 		if (!api.runMeadowEntryArtControlsExporter) return;
 		const repositoryRoot = resolve(testDirectory, '../../../../..');
-		expect(() => api.runMeadowEntryArtControlsExporter!(['--check'], repositoryRoot)).toThrow(
-			/stale/
-		);
+		expect(() => api.runMeadowEntryArtControlsExporter!(['--check'], repositoryRoot)).not.toThrow();
 	});
 
 	it('runs the publish-mode exporter into a fresh temporary repository root', async () => {

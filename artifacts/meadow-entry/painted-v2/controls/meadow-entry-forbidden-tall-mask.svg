@@ -1,0 +1,439 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 6400 6400" width="6400" height="6400">
+  <rect data-id="walkable-space-0000" x="64" y="64" width="6272" height="224" fill="#777777"/>
+  <rect data-id="walkable-space-0001" x="64" y="288" width="2720" height="128" fill="#777777"/>
+  <rect data-id="walkable-space-0002" x="3200" y="288" width="1696" height="160" fill="#777777"/>
+  <rect data-id="walkable-space-0003" x="5824" y="288" width="512" height="160" fill="#777777"/>
+  <rect data-id="walkable-space-0004" x="64" y="416" width="960" height="352" fill="#777777"/>
+  <rect data-id="walkable-space-0005" x="1376" y="416" width="1408" height="224" fill="#777777"/>
+  <rect data-id="walkable-space-0006" x="3200" y="448" width="3136" height="128" fill="#777777"/>
+  <rect data-id="walkable-space-0007" x="3200" y="576" width="2848" height="64" fill="#777777"/>
+  <rect data-id="walkable-space-0008" x="6208" y="576" width="128" height="896" fill="#777777"/>
+  <rect data-id="walkable-space-0009" x="1376" y="640" width="4672" height="64" fill="#777777"/>
+  <rect data-id="walkable-space-0010" x="1376" y="704" width="32" height="64" fill="#777777"/>
+  <rect data-id="walkable-space-0011" x="1536" y="704" width="4512" height="96" fill="#777777"/>
+  <rect data-id="walkable-space-0012" x="64" y="768" width="1344" height="32" fill="#777777"/>
+  <rect data-id="walkable-space-0013" x="64" y="800" width="832" height="352" fill="#777777"/>
+  <rect data-id="walkable-space-0014" x="1024" y="800" width="384" height="640" fill="#777777"/>
+  <rect data-id="walkable-space-0015" x="1536" y="800" width="1120" height="64" fill="#777777"/>
+  <rect data-id="walkable-space-0016" x="2720" y="800" width="256" height="64" fill="#777777"/>
+  <rect data-id="walkable-space-0017" x="3136" y="800" width="128" height="64" fill="#777777"/>
+  <rect data-id="walkable-space-0018" x="3328" y="800" width="2720" height="64" fill="#777777"/>
+  <rect data-id="walkable-space-0019" x="1536" y="864" width="4512" height="32" fill="#777777"/>
+  <rect data-id="walkable-space-0020" x="1536" y="896" width="928" height="96" fill="#777777"/>
+  <rect data-id="walkable-space-0021" x="2656" y="896" width="3392" height="32" fill="#777777"/>
+  <rect data-id="walkable-space-0022" x="2656" y="928" width="160" height="64" fill="#777777"/>
+  <rect data-id="walkable-space-0023" x="2880" y="928" width="256" height="32" fill="#777777"/>
+  <rect data-id="walkable-space-0024" x="3200" y="928" width="2848" height="32" fill="#777777"/>
+  <rect data-id="walkable-space-0025" x="2880" y="960" width="32" height="96" fill="#777777"/>
+  <rect data-id="walkable-space-0026" x="2976" y="960" width="160" height="96" fill="#777777"/>
+  <rect data-id="walkable-space-0027" x="3200" y="960" width="32" height="96" fill="#777777"/>
+  <rect data-id="walkable-space-0028" x="3296" y="960" width="2752" height="128" fill="#777777"/>
+  <rect data-id="walkable-space-0029" x="1536" y="992" width="1280" height="64" fill="#777777"/>
+  <rect data-id="walkable-space-0030" x="1536" y="1056" width="1376" height="224" fill="#777777"/>
+  <rect data-id="walkable-space-0031" x="2976" y="1056" width="256" height="64" fill="#777777"/>
+  <rect data-id="walkable-space-0032" x="3296" y="1088" width="256" height="64" fill="#777777"/>
+  <rect data-id="walkable-space-0033" x="3616" y="1088" width="2432" height="256" fill="#777777"/>
+  <rect data-id="walkable-space-0034" x="64" y="1152" width="512" height="64" fill="#777777"/>
+  <rect data-id="walkable-space-0035" x="672" y="1152" width="224" height="64" fill="#777777"/>
+  <rect data-id="walkable-space-0036" x="2976" y="1184" width="256" height="96" fill="#777777"/>
+  <rect data-id="walkable-space-0037" x="64" y="1216" width="832" height="32" fill="#777777"/>
+  <rect data-id="walkable-space-0038" x="3296" y="1216" width="256" height="64" fill="#777777"/>
+  <rect data-id="walkable-space-0039" x="64" y="1248" width="544" height="288" fill="#777777"/>
+  <rect data-id="walkable-space-0040" x="1536" y="1280" width="800" height="192" fill="#777777"/>
+  <rect data-id="walkable-space-0041" x="2976" y="1280" width="64" height="64" fill="#777777"/>
+  <rect data-id="walkable-space-0042" x="3104" y="1280" width="128" height="64" fill="#777777"/>
+  <rect data-id="walkable-space-0043" x="3296" y="1280" width="64" height="64" fill="#777777"/>
+  <rect data-id="walkable-space-0044" x="3424" y="1280" width="128" height="128" fill="#777777"/>
+  <rect data-id="walkable-space-0045" x="2400" y="1344" width="640" height="32" fill="#777777"/>
+  <rect data-id="walkable-space-0046" x="3104" y="1344" width="256" height="32" fill="#777777"/>
+  <rect data-id="walkable-space-0047" x="3616" y="1344" width="1376" height="96" fill="#777777"/>
+  <rect data-id="walkable-space-0048" x="5088" y="1344" width="544" height="96" fill="#777777"/>
+  <rect data-id="walkable-space-0049" x="5728" y="1344" width="320" height="96" fill="#777777"/>
+  <rect data-id="walkable-space-0050" x="2400" y="1376" width="96" height="64" fill="#777777"/>
+  <rect data-id="walkable-space-0051" x="2592" y="1376" width="256" height="32" fill="#777777"/>
+  <rect data-id="walkable-space-0052" x="3264" y="1376" width="96" height="32" fill="#777777"/>
+  <rect data-id="walkable-space-0053" x="2592" y="1408" width="192" height="32" fill="#777777"/>
+  <rect data-id="walkable-space-0054" x="3264" y="1408" width="32" height="64" fill="#777777"/>
+  <rect data-id="walkable-space-0055" x="1024" y="1440" width="32" height="128" fill="#777777"/>
+  <rect data-id="walkable-space-0056" x="1120" y="1440" width="288" height="32" fill="#777777"/>
+  <rect data-id="walkable-space-0057" x="2400" y="1440" width="384" height="64" fill="#777777"/>
+  <rect data-id="walkable-space-0058" x="2848" y="1440" width="192" height="64" fill="#777777"/>
+  <rect data-id="walkable-space-0059" x="3616" y="1440" width="2432" height="32" fill="#777777"/>
+  <rect data-id="walkable-space-0060" x="1120" y="1472" width="1216" height="64" fill="#777777"/>
+  <rect data-id="walkable-space-0061" x="3264" y="1472" width="96" height="32" fill="#777777"/>
+  <rect data-id="walkable-space-0062" x="3424" y="1472" width="160" height="64" fill="#777777"/>
+  <rect data-id="walkable-space-0063" x="3680" y="1472" width="2656" height="64" fill="#777777"/>
+  <rect data-id="walkable-space-0064" x="2400" y="1504" width="640" height="64" fill="#777777"/>
+  <rect data-id="walkable-space-0065" x="3104" y="1504" width="256" height="96" fill="#777777"/>
+  <rect data-id="walkable-space-0066" x="64" y="1536" width="832" height="32" fill="#777777"/>
+  <rect data-id="walkable-space-0067" x="1120" y="1536" width="736" height="64" fill="#777777"/>
+  <rect data-id="walkable-space-0068" x="1952" y="1536" width="384" height="64" fill="#777777"/>
+  <rect data-id="walkable-space-0069" x="3424" y="1536" width="2912" height="32" fill="#777777"/>
+  <rect data-id="walkable-space-0070" x="64" y="1568" width="992" height="480" fill="#777777"/>
+  <rect data-id="walkable-space-0071" x="2464" y="1568" width="576" height="32" fill="#777777"/>
+  <rect data-id="walkable-space-0072" x="3424" y="1568" width="64" height="32" fill="#777777"/>
+  <rect data-id="walkable-space-0073" x="3552" y="1568" width="2784" height="96" fill="#777777"/>
+  <rect data-id="walkable-space-0074" x="1120" y="1600" width="1216" height="64" fill="#777777"/>
+  <rect data-id="walkable-space-0075" x="2464" y="1600" width="1024" height="64" fill="#777777"/>
+  <rect data-id="walkable-space-0076" x="1120" y="1664" width="1152" height="32" fill="#777777"/>
+  <rect data-id="walkable-space-0077" x="2400" y="1664" width="3936" height="32" fill="#777777"/>
+  <rect data-id="walkable-space-0078" x="1120" y="1696" width="320" height="64" fill="#777777"/>
+  <rect data-id="walkable-space-0079" x="1504" y="1696" width="768" height="64" fill="#777777"/>
+  <rect data-id="walkable-space-0080" x="2400" y="1696" width="448" height="64" fill="#777777"/>
+  <rect data-id="walkable-space-0081" x="3264" y="1696" width="2560" height="64" fill="#777777"/>
+  <rect data-id="walkable-space-0082" x="6080" y="1696" width="256" height="224" fill="#777777"/>
+  <rect data-id="walkable-space-0083" x="1120" y="1760" width="1216" height="64" fill="#777777"/>
+  <rect data-id="walkable-space-0084" x="2400" y="1760" width="3424" height="32" fill="#777777"/>
+  <rect data-id="walkable-space-0085" x="2848" y="1792" width="192" height="64" fill="#777777"/>
+  <rect data-id="walkable-space-0086" x="3104" y="1792" width="2720" height="128" fill="#777777"/>
+  <rect data-id="walkable-space-0087" x="1120" y="1824" width="1248" height="32" fill="#777777"/>
+  <rect data-id="walkable-space-0088" x="1120" y="1856" width="1472" height="64" fill="#777777"/>
+  <rect data-id="walkable-space-0089" x="2656" y="1856" width="64" height="64" fill="#777777"/>
+  <rect data-id="walkable-space-0090" x="2784" y="1856" width="256" height="320" fill="#777777"/>
+  <rect data-id="walkable-space-0091" x="5920" y="1856" width="64" height="64" fill="#777777"/>
+  <rect data-id="walkable-space-0092" x="1120" y="1920" width="1600" height="32" fill="#777777"/>
+  <rect data-id="walkable-space-0093" x="3104" y="1920" width="3232" height="32" fill="#777777"/>
+  <rect data-id="walkable-space-0094" x="1120" y="1952" width="416" height="64" fill="#777777"/>
+  <rect data-id="walkable-space-0095" x="1888" y="1952" width="768" height="96" fill="#777777"/>
+  <rect data-id="walkable-space-0096" x="3104" y="1952" width="2272" height="224" fill="#777777"/>
+  <rect data-id="walkable-space-0097" x="5440" y="1952" width="896" height="32" fill="#777777"/>
+  <rect data-id="walkable-space-0098" x="5440" y="1984" width="288" height="64" fill="#777777"/>
+  <rect data-id="walkable-space-0099" x="5792" y="1984" width="544" height="64" fill="#777777"/>
+  <rect data-id="walkable-space-0100" x="1120" y="2016" width="32" height="32" fill="#777777"/>
+  <rect data-id="walkable-space-0101" x="1280" y="2016" width="256" height="192" fill="#777777"/>
+  <rect data-id="walkable-space-0102" x="64" y="2048" width="1088" height="160" fill="#777777"/>
+  <rect data-id="walkable-space-0103" x="1888" y="2048" width="832" height="128" fill="#777777"/>
+  <rect data-id="walkable-space-0104" x="5440" y="2048" width="896" height="96" fill="#777777"/>
+  <rect data-id="walkable-space-0105" x="5440" y="2144" width="224" height="64" fill="#777777"/>
+  <rect data-id="walkable-space-0106" x="5728" y="2144" width="608" height="64" fill="#777777"/>
+  <rect data-id="walkable-space-0107" x="1888" y="2176" width="3488" height="224" fill="#777777"/>
+  <rect data-id="walkable-space-0108" x="64" y="2208" width="1472" height="32" fill="#777777"/>
+  <rect data-id="walkable-space-0109" x="5440" y="2208" width="512" height="64" fill="#777777"/>
+  <rect data-id="walkable-space-0110" x="6016" y="2208" width="160" height="64" fill="#777777"/>
+  <rect data-id="walkable-space-0111" x="6240" y="2208" width="96" height="1088" fill="#777777"/>
+  <rect data-id="walkable-space-0112" x="64" y="2240" width="1728" height="32" fill="#777777"/>
+  <rect data-id="walkable-space-0113" x="64" y="2272" width="608" height="96" fill="#777777"/>
+  <rect data-id="walkable-space-0114" x="768" y="2272" width="1024" height="96" fill="#777777"/>
+  <rect data-id="walkable-space-0115" x="5440" y="2272" width="736" height="768" fill="#777777"/>
+  <rect data-id="walkable-space-0116" x="64" y="2368" width="1728" height="32" fill="#777777"/>
+  <rect data-id="walkable-space-0117" x="64" y="2400" width="2816" height="96" fill="#777777"/>
+  <rect data-id="walkable-space-0118" x="2976" y="2400" width="2400" height="96" fill="#777777"/>
+  <rect data-id="walkable-space-0119" x="64" y="2496" width="5312" height="32" fill="#777777"/>
+  <rect data-id="walkable-space-0120" x="64" y="2528" width="2912" height="64" fill="#777777"/>
+  <rect data-id="walkable-space-0121" x="3040" y="2528" width="256" height="32" fill="#777777"/>
+  <rect data-id="walkable-space-0122" x="3360" y="2528" width="2016" height="32" fill="#777777"/>
+  <rect data-id="walkable-space-0123" x="3040" y="2560" width="96" height="32" fill="#777777"/>
+  <rect data-id="walkable-space-0124" x="3520" y="2560" width="1856" height="64" fill="#777777"/>
+  <rect data-id="walkable-space-0125" x="64" y="2592" width="1408" height="96" fill="#777777"/>
+  <rect data-id="walkable-space-0126" x="2240" y="2592" width="736" height="96" fill="#777777"/>
+  <rect data-id="walkable-space-0127" x="3136" y="2624" width="160" height="256" fill="#777777"/>
+  <rect data-id="walkable-space-0128" x="3360" y="2624" width="2016" height="32" fill="#777777"/>
+  <rect data-id="walkable-space-0129" x="3488" y="2656" width="1888" height="32" fill="#777777"/>
+  <rect data-id="walkable-space-0130" x="64" y="2688" width="2912" height="96" fill="#777777"/>
+  <rect data-id="walkable-space-0131" x="3488" y="2688" width="128" height="64" fill="#777777"/>
+  <rect data-id="walkable-space-0132" x="3680" y="2688" width="1696" height="96" fill="#777777"/>
+  <rect data-id="walkable-space-0133" x="3360" y="2752" width="256" height="128" fill="#777777"/>
+  <rect data-id="walkable-space-0134" x="64" y="2784" width="3008" height="64" fill="#777777"/>
+  <rect data-id="walkable-space-0135" x="3680" y="2784" width="256" height="224" fill="#777777"/>
+  <rect data-id="walkable-space-0136" x="4416" y="2784" width="960" height="256" fill="#777777"/>
+  <rect data-id="walkable-space-0137" x="64" y="2848" width="1408" height="96" fill="#777777"/>
+  <rect data-id="walkable-space-0138" x="2240" y="2848" width="832" height="96" fill="#777777"/>
+  <rect data-id="walkable-space-0139" x="3520" y="2880" width="96" height="64" fill="#777777"/>
+  <rect data-id="walkable-space-0140" x="64" y="2944" width="3008" height="160" fill="#777777"/>
+  <rect data-id="walkable-space-0141" x="3136" y="2944" width="160" height="64" fill="#777777"/>
+  <rect data-id="walkable-space-0142" x="3360" y="2944" width="256" height="64" fill="#777777"/>
+  <rect data-id="walkable-space-0143" x="3136" y="3008" width="800" height="96" fill="#777777"/>
+  <rect data-id="walkable-space-0144" x="4416" y="3040" width="1760" height="32" fill="#777777"/>
+  <rect data-id="walkable-space-0145" x="4448" y="3072" width="1728" height="64" fill="#777777"/>
+  <rect data-id="walkable-space-0146" x="64" y="3104" width="3872" height="32" fill="#777777"/>
+  <rect data-id="walkable-space-0147" x="64" y="3136" width="6112" height="64" fill="#777777"/>
+  <rect data-id="walkable-space-0148" x="64" y="3200" width="4896" height="288" fill="#777777"/>
+  <rect data-id="walkable-space-0149" x="5024" y="3200" width="1056" height="1280" fill="#777777"/>
+  <rect data-id="walkable-space-0150" x="6144" y="3200" width="32" height="96" fill="#777777"/>
+  <rect data-id="walkable-space-0151" x="6144" y="3296" width="192" height="2016" fill="#777777"/>
+  <rect data-id="walkable-space-0152" x="64" y="3488" width="4384" height="64" fill="#777777"/>
+  <rect data-id="walkable-space-0153" x="4512" y="3488" width="448" height="64" fill="#777777"/>
+  <rect data-id="walkable-space-0154" x="64" y="3552" width="4896" height="480" fill="#777777"/>
+  <rect data-id="walkable-space-0155" x="64" y="4032" width="1984" height="64" fill="#777777"/>
+  <rect data-id="walkable-space-0156" x="2496" y="4032" width="2464" height="128" fill="#777777"/>
+  <rect data-id="walkable-space-0157" x="64" y="4096" width="480" height="288" fill="#777777"/>
+  <rect data-id="walkable-space-0158" x="800" y="4096" width="448" height="288" fill="#777777"/>
+  <rect data-id="walkable-space-0159" x="1504" y="4096" width="544" height="288" fill="#777777"/>
+  <rect data-id="walkable-space-0160" x="2496" y="4160" width="1216" height="128" fill="#777777"/>
+  <rect data-id="walkable-space-0161" x="3840" y="4160" width="1120" height="128" fill="#777777"/>
+  <rect data-id="walkable-space-0162" x="2496" y="4288" width="2464" height="64" fill="#777777"/>
+  <rect data-id="walkable-space-0163" x="640" y="4352" width="64" height="32" fill="#777777"/>
+  <rect data-id="walkable-space-0164" x="1344" y="4352" width="64" height="32" fill="#777777"/>
+  <rect data-id="walkable-space-0165" x="2496" y="4352" width="2368" height="64" fill="#777777"/>
+  <rect data-id="walkable-space-0166" x="4928" y="4352" width="32" height="64" fill="#777777"/>
+  <rect data-id="walkable-space-0167" x="64" y="4384" width="1984" height="32" fill="#777777"/>
+  <rect data-id="walkable-space-0168" x="2240" y="4384" width="64" height="32" fill="#777777"/>
+  <rect data-id="walkable-space-0169" x="64" y="4416" width="4896" height="384" fill="#777777"/>
+  <rect data-id="walkable-space-0170" x="5024" y="4480" width="224" height="96" fill="#777777"/>
+  <rect data-id="walkable-space-0171" x="5312" y="4480" width="544" height="96" fill="#777777"/>
+  <rect data-id="walkable-space-0172" x="5952" y="4480" width="128" height="96" fill="#777777"/>
+  <rect data-id="walkable-space-0173" x="5024" y="4576" width="1056" height="576" fill="#777777"/>
+  <rect data-id="walkable-space-0174" x="64" y="4800" width="4384" height="64" fill="#777777"/>
+  <rect data-id="walkable-space-0175" x="4544" y="4800" width="416" height="96" fill="#777777"/>
+  <rect data-id="walkable-space-0176" x="64" y="4864" width="480" height="320" fill="#777777"/>
+  <rect data-id="walkable-space-0177" x="864" y="4864" width="1248" height="64" fill="#777777"/>
+  <rect data-id="walkable-space-0178" x="2432" y="4864" width="2016" height="32" fill="#777777"/>
+  <rect data-id="walkable-space-0179" x="2432" y="4896" width="736" height="288" fill="#777777"/>
+  <rect data-id="walkable-space-0180" x="3232" y="4896" width="1728" height="96" fill="#777777"/>
+  <rect data-id="walkable-space-0181" x="864" y="4928" width="192" height="64" fill="#777777"/>
+  <rect data-id="walkable-space-0182" x="1088" y="4928" width="864" height="64" fill="#777777"/>
+  <rect data-id="walkable-space-0183" x="1984" y="4928" width="128" height="64" fill="#777777"/>
+  <rect data-id="walkable-space-0184" x="864" y="4992" width="1248" height="192" fill="#777777"/>
+  <rect data-id="walkable-space-0185" x="3232" y="4992" width="768" height="320" fill="#777777"/>
+  <rect data-id="walkable-space-0186" x="4032" y="4992" width="320" height="512" fill="#777777"/>
+  <rect data-id="walkable-space-0187" x="4384" y="4992" width="576" height="160" fill="#777777"/>
+  <rect data-id="walkable-space-0188" x="672" y="5152" width="64" height="32" fill="#777777"/>
+  <rect data-id="walkable-space-0189" x="4384" y="5152" width="64" height="96" fill="#777777"/>
+  <rect data-id="walkable-space-0190" x="5536" y="5152" width="544" height="96" fill="#777777"/>
+  <rect data-id="walkable-space-0191" x="64" y="5184" width="3104" height="128" fill="#777777"/>
+  <rect data-id="walkable-space-0192" x="4384" y="5248" width="576" height="64" fill="#777777"/>
+  <rect data-id="walkable-space-0193" x="5024" y="5248" width="1056" height="64" fill="#777777"/>
+  <rect data-id="walkable-space-0194" x="64" y="5312" width="3936" height="64" fill="#777777"/>
+  <rect data-id="walkable-space-0195" x="4384" y="5312" width="1952" height="128" fill="#777777"/>
+  <rect data-id="walkable-space-0196" x="64" y="5376" width="3648" height="64" fill="#777777"/>
+  <rect data-id="walkable-space-0197" x="3968" y="5376" width="32" height="64" fill="#777777"/>
+  <rect data-id="walkable-space-0198" x="64" y="5440" width="3936" height="64" fill="#777777"/>
+  <rect data-id="walkable-space-0199" x="4384" y="5440" width="64" height="64" fill="#777777"/>
+  <rect data-id="walkable-space-0200" x="5536" y="5440" width="800" height="96" fill="#777777"/>
+  <rect data-id="walkable-space-0201" x="64" y="5504" width="4384" height="32" fill="#777777"/>
+  <rect data-id="walkable-space-0202" x="64" y="5536" width="2048" height="32" fill="#777777"/>
+  <rect data-id="walkable-space-0203" x="2432" y="5536" width="3904" height="32" fill="#777777"/>
+  <rect data-id="walkable-space-0204" x="64" y="5568" width="512" height="288" fill="#777777"/>
+  <rect data-id="walkable-space-0205" x="832" y="5568" width="512" height="288" fill="#777777"/>
+  <rect data-id="walkable-space-0206" x="1600" y="5568" width="512" height="288" fill="#777777"/>
+  <rect data-id="walkable-space-0207" x="2432" y="5568" width="992" height="32" fill="#777777"/>
+  <rect data-id="walkable-space-0208" x="3776" y="5568" width="2560" height="64" fill="#777777"/>
+  <rect data-id="walkable-space-0209" x="2432" y="5600" width="896" height="96" fill="#777777"/>
+  <rect data-id="walkable-space-0210" x="3776" y="5632" width="448" height="32" fill="#777777"/>
+  <rect data-id="walkable-space-0211" x="4704" y="5632" width="1632" height="32" fill="#777777"/>
+  <rect data-id="walkable-space-0212" x="3776" y="5664" width="2560" height="64" fill="#777777"/>
+  <rect data-id="walkable-space-0213" x="2432" y="5696" width="992" height="160" fill="#777777"/>
+  <rect data-id="walkable-space-0214" x="3776" y="5728" width="288" height="160" fill="#777777"/>
+  <rect data-id="walkable-space-0215" x="4096" y="5728" width="2240" height="64" fill="#777777"/>
+  <rect data-id="walkable-space-0216" x="4096" y="5792" width="1440" height="32" fill="#777777"/>
+  <rect data-id="walkable-space-0217" x="5760" y="5792" width="576" height="64" fill="#777777"/>
+  <rect data-id="walkable-space-0218" x="672" y="5824" width="64" height="32" fill="#777777"/>
+  <rect data-id="walkable-space-0219" x="1440" y="5824" width="64" height="32" fill="#777777"/>
+  <rect data-id="walkable-space-0220" x="2240" y="5824" width="64" height="32" fill="#777777"/>
+  <rect data-id="walkable-space-0221" x="4096" y="5824" width="960" height="128" fill="#777777"/>
+  <rect data-id="walkable-space-0222" x="5248" y="5824" width="288" height="32" fill="#777777"/>
+  <rect data-id="walkable-space-0223" x="64" y="5856" width="3360" height="32" fill="#777777"/>
+  <rect data-id="walkable-space-0224" x="5248" y="5856" width="1088" height="96" fill="#777777"/>
+  <rect data-id="walkable-space-0225" x="64" y="5888" width="4000" height="288" fill="#777777"/>
+  <rect data-id="walkable-space-0226" x="4096" y="5952" width="864" height="96" fill="#777777"/>
+  <rect data-id="walkable-space-0227" x="5152" y="5952" width="1184" height="96" fill="#777777"/>
+  <rect data-id="walkable-space-0228" x="4096" y="6048" width="2240" height="128" fill="#777777"/>
+  <rect data-id="walkable-space-0229" x="64" y="6176" width="6272" height="96" fill="#777777"/>
+  <rect data-id="walkable-space-0230" x="64" y="6272" width="3040" height="32" fill="#777777"/>
+  <rect data-id="walkable-space-0231" x="6112" y="6272" width="224" height="64" fill="#777777"/>
+  <rect data-id="walkable-space-0232" x="160" y="6304" width="2944" height="32" fill="#777777"/>
+  <rect data-id="protected-0000" x="3776" y="5494" width="128" height="136" fill="#ff3366"/>
+  <rect data-id="protected-0001" x="3520" y="4308" width="128" height="136" fill="#ff3366"/>
+  <rect data-id="protected-0002" x="3968" y="4308" width="128" height="136" fill="#ff3366"/>
+  <rect data-id="protected-0003" x="2336" y="2624" width="128" height="136" fill="#ff3366"/>
+  <rect data-id="protected-0004" x="3056" y="1284" width="128" height="136" fill="#ff3366"/>
+  <rect data-id="protected-0005" x="1968" y="4932" width="128" height="136" fill="#ff3366"/>
+  <rect data-id="protected-0006" x="1680" y="5636" width="128" height="136" fill="#ff3366"/>
+  <rect data-id="protected-0007" x="880" y="4804" width="128" height="136" fill="#ff3366"/>
+  <rect data-id="protected-0008" x="1200" y="4452" width="128" height="136" fill="#ff3366"/>
+  <rect data-id="protected-0009" x="5276" y="4444" width="128" height="136" fill="#ff3366"/>
+  <rect data-id="protected-0010" x="3920" y="2756" width="512" height="144" fill="#ff3366"/>
+  <rect data-id="protected-0011" x="4032" y="5693" width="96" height="498" fill="#ff3366"/>
+  <rect data-id="protected-0012" x="3152" y="4868" width="96" height="448" fill="#ff3366"/>
+  <rect data-id="protected-0013" x="6320" y="0" width="80" height="6400" fill="#ff3366"/>
+  <rect data-id="protected-0014" x="0" y="0" width="6400" height="80" fill="#ff3366"/>
+  <rect data-id="protected-0015" x="0" y="6304" width="6400" height="96" fill="#ff3366"/>
+  <rect data-id="protected-0016" x="0" y="0" width="80" height="6400" fill="#ff3366"/>
+  <rect data-id="protected-0017" x="3052" y="2568" width="96" height="548" fill="#ff3366"/>
+  <rect data-id="protected-0018" x="1032" y="1418" width="96" height="648" fill="#ff3366"/>
+  <rect data-id="protected-0019" x="2774" y="260" width="452" height="144" fill="#ff3366"/>
+  <rect data-id="protected-0020" x="2324" y="1236" width="592" height="112" fill="#ff3366"/>
+  <rect data-id="protected-0021" x="2344" y="1756" width="512" height="112" fill="#ff3366"/>
+  <rect data-id="protected-0022" x="2312" y="1268" width="96" height="568" fill="#ff3366"/>
+  <rect data-id="protected-0023" x="3532" y="1068" width="96" height="428" fill="#ff3366"/>
+  <rect data-id="protected-0024" x="3284" y="1126" width="352" height="112" fill="#ff3366"/>
+  <rect data-id="protected-0025" x="3284" y="1386" width="352" height="112" fill="#ff3366"/>
+  <rect data-id="protected-0026" x="3612" y="2668" width="96" height="348" fill="#ff3366"/>
+  <rect data-id="protected-0027" x="3292" y="2668" width="96" height="348" fill="#ff3366"/>
+  <rect data-id="protected-0028" x="3132" y="2526" width="416" height="112" fill="#ff3366"/>
+  <rect data-id="protected-0029" x="3292" y="2508" width="96" height="288" fill="#ff3366"/>
+  <rect data-id="protected-0030" x="2972" y="2508" width="96" height="288" fill="#ff3366"/>
+  <rect data-id="protected-0031" x="3012" y="1768" width="96" height="418" fill="#ff3366"/>
+  <rect data-id="protected-0032" x="2692" y="1768" width="96" height="418" fill="#ff3366"/>
+  <rect data-id="protected-0033" x="2844" y="1356" width="432" height="112" fill="#ff3366"/>
+  <rect data-id="protected-0034" x="2844" y="1676" width="432" height="112" fill="#ff3366"/>
+  <rect data-id="protected-0035" x="3332" y="1258" width="96" height="368" fill="#ff3366"/>
+  <rect data-id="protected-0036" x="3012" y="1258" width="96" height="368" fill="#ff3366"/>
+  <rect data-id="protected-0037" x="3044" y="1096" width="232" height="112" fill="#ff3366"/>
+  <rect data-id="protected-0038" x="3044" y="1416" width="232" height="112" fill="#ff3366"/>
+  <rect data-id="protected-0039" x="3212" y="938" width="96" height="428" fill="#ff3366"/>
+  <rect data-id="protected-0040" x="2892" y="938" width="96" height="428" fill="#ff3366"/>
+  <rect data-id="protected-0041" x="2952" y="776" width="196" height="112" fill="#ff3366"/>
+  <rect data-id="protected-0042" x="2952" y="1096" width="196" height="112" fill="#ff3366"/>
+  <rect data-id="protected-0043" x="3112" y="908" width="96" height="168" fill="#ff3366"/>
+  <rect data-id="protected-0044" x="2792" y="908" width="96" height="168" fill="#ff3366"/>
+  <rect data-id="protected-0045" x="6052" y="3168" width="96" height="2148" fill="#ff3366"/>
+  <rect data-id="protected-0046" x="4952" y="3168" width="96" height="2148" fill="#ff3366"/>
+  <rect data-id="protected-0047" x="6152" y="2168" width="96" height="1148" fill="#ff3366"/>
+  <rect data-id="protected-0048" x="5352" y="1918" width="96" height="1148" fill="#ff3366"/>
+  <rect data-id="protected-0049" x="992" y="390" width="416" height="144" fill="#ff3366"/>
+  <rect data-id="protected-0050" x="3920" y="2784" width="512" height="368" fill="#ff3366"/>
+  <rect data-id="protected-0051" x="4024" y="5278" width="192" height="188" fill="#ff3366"/>
+  <rect data-id="protected-0052" x="5014" y="5758" width="292" height="228" fill="#ff3366"/>
+  <rect data-id="protected-0053" x="3804" y="5423" width="232" height="178" fill="#ff3366"/>
+  <rect data-id="protected-0054" x="3424" y="5538" width="352" height="348" fill="#ff3366"/>
+  <rect data-id="protected-0055" x="3084" y="5928" width="3032" height="128" fill="#ff3366"/>
+  <rect data-id="protected-0056" x="3664" y="5303" width="332" height="178" fill="#ff3366"/>
+  <rect data-id="protected-0057" x="4774" y="5988" width="252" height="368" fill="#ff3366"/>
+  <rect data-id="protected-0058" x="4934" y="5903" width="252" height="178" fill="#ff3366"/>
+  <rect data-id="protected-0059" x="5134" y="5848" width="212" height="208" fill="#ff3366"/>
+  <rect data-id="protected-0060" x="3294" y="5553" width="252" height="178" fill="#ff3366"/>
+  <rect data-id="protected-0061" x="5314" y="5908" width="252" height="208" fill="#ff3366"/>
+  <rect data-id="protected-0062" x="5504" y="5723" width="292" height="178" fill="#ff3366"/>
+  <rect data-id="protected-0063" x="4064" y="5868" width="352" height="408" fill="#ff3366"/>
+  <rect data-id="protected-0064" x="3993" y="3762" width="142" height="268" fill="#ff3366"/>
+  <rect data-id="protected-0065" x="3417" y="3762" width="142" height="268" fill="#ff3366"/>
+  <rect data-id="protected-0066" x="3690" y="4102" width="172" height="228" fill="#ff3366"/>
+  <rect data-id="protected-0067" x="1129" y="1073" width="182" height="198" fill="#ff3366"/>
+  <rect data-id="protected-0068" x="1609" y="2093" width="182" height="198" fill="#ff3366"/>
+  <rect data-id="protected-0069" x="1784" y="1348" width="232" height="288" fill="#ff3366"/>
+  <rect data-id="protected-0070" x="504" y="968" width="232" height="288" fill="#ff3366"/>
+  <rect data-id="protected-0071" x="1349" y="1503" width="242" height="298" fill="#ff3366"/>
+  <rect data-id="protected-0072" x="234" y="568" width="2032" height="2348" fill="#ff3366"/>
+  <rect data-id="protected-0073" x="1674" y="2338" width="752" height="468" fill="#ff3366"/>
+  <rect data-id="protected-0074" x="714" y="438" width="932" height="748" fill="#ff3366"/>
+  <rect data-id="protected-0075" x="864" y="1298" width="1132" height="948" fill="#ff3366"/>
+  <rect data-id="protected-0076" x="854" y="698" width="212" height="948" fill="#ff3366"/>
+  <rect data-id="protected-0077" x="1374" y="638" width="192" height="868" fill="#ff3366"/>
+  <rect data-id="protected-0078" x="619" y="2198" width="202" height="188" fill="#ff3366"/>
+  <rect data-id="protected-0079" x="1614" y="2158" width="292" height="268" fill="#ff3366"/>
+  <rect data-id="protected-0080" x="1454" y="2538" width="792" height="168" fill="#ff3366"/>
+  <rect data-id="protected-0081" x="1454" y="2798" width="792" height="168" fill="#ff3366"/>
+  <rect data-id="protected-0082" x="1074" y="1978" width="292" height="268" fill="#ff3366"/>
+  <rect data-id="protected-0083" x="1364" y="1168" width="272" height="248" fill="#ff3366"/>
+  <rect data-id="protected-0084" x="949" y="1893" width="182" height="198" fill="#ff3366"/>
+  <rect data-id="protected-0085" x="2774" y="238" width="452" height="468" fill="#ff3366"/>
+  <rect data-id="protected-0086" x="2744" y="1003" width="192" height="218" fill="#ff3366"/>
+  <rect data-id="protected-0087" x="3224" y="638" width="152" height="228" fill="#ff3366"/>
+  <rect data-id="protected-0088" x="3004" y="958" width="152" height="228" fill="#ff3366"/>
+  <rect data-id="protected-0089" x="2624" y="638" width="152" height="228" fill="#ff3366"/>
+  <rect data-id="protected-0090" x="3314" y="2418" width="252" height="348" fill="#ff3366"/>
+  <rect data-id="protected-0091" x="2794" y="2158" width="252" height="348" fill="#ff3366"/>
+  <rect data-id="protected-0092" x="3504" y="1218" width="272" height="348" fill="#ff3366"/>
+  <rect data-id="protected-0093" x="2564" y="1718" width="272" height="348" fill="#ff3366"/>
+  <rect data-id="protected-0094" x="2909" y="613" width="182" height="198" fill="#ff3366"/>
+  <rect data-id="protected-0095" x="2164" y="1438" width="272" height="348" fill="#ff3366"/>
+  <rect data-id="protected-0096" x="2289" y="1343" width="262" height="338" fill="#ff3366"/>
+  <rect data-id="protected-0097" x="2694" y="1178" width="252" height="348" fill="#ff3366"/>
+  <rect data-id="protected-0098" x="3394" y="1338" width="252" height="348" fill="#ff3366"/>
+  <rect data-id="protected-0099" x="2484" y="1598" width="272" height="348" fill="#ff3366"/>
+  <rect data-id="protected-0100" x="2424" y="823" width="272" height="218" fill="#ff3366"/>
+  <rect data-id="protected-0101" x="2414" y="1118" width="252" height="348" fill="#ff3366"/>
+  <rect data-id="protected-0102" x="2974" y="4412" width="132" height="248" fill="#ff3366"/>
+  <rect data-id="protected-0103" x="4659" y="3423" width="242" height="218" fill="#ff3366"/>
+  <rect data-id="protected-0104" x="4344" y="3238" width="272" height="348" fill="#ff3366"/>
+  <rect data-id="protected-0105" x="5584" y="1938" width="232" height="308" fill="#ff3366"/>
+  <rect data-id="protected-0106" x="5834" y="1928" width="292" height="368" fill="#ff3366"/>
+  <rect data-id="protected-0107" x="5634" y="1748" width="252" height="328" fill="#ff3366"/>
+  <rect data-id="protected-0108" x="5674" y="1578" width="452" height="348" fill="#ff3366"/>
+  <rect data-id="protected-0109" x="5554" y="1068" width="252" height="408" fill="#ff3366"/>
+  <rect data-id="protected-0110" x="4914" y="1068" width="252" height="408" fill="#ff3366"/>
+  <rect data-id="protected-0111" x="6024" y="538" width="192" height="948" fill="#ff3366"/>
+  <rect data-id="protected-0112" x="4434" y="5108" width="1132" height="168" fill="#ff3366"/>
+  <rect data-id="protected-0113" x="4434" y="5408" width="1132" height="168" fill="#ff3366"/>
+  <rect data-id="protected-0114" x="4544" y="3543" width="212" height="198" fill="#ff3366"/>
+  <rect data-id="protected-0115" x="4624" y="3858" width="352" height="368" fill="#ff3366"/>
+  <rect data-id="protected-0116" x="4364" y="4568" width="272" height="348" fill="#ff3366"/>
+  <rect data-id="protected-0117" x="4274" y="2828" width="252" height="328" fill="#ff3366"/>
+  <rect data-id="protected-0118" x="4774" y="4128" width="252" height="328" fill="#ff3366"/>
+  <rect data-id="protected-0119" x="4864" y="248" width="992" height="208" fill="#ff3366"/>
+  <rect data-id="protected-0120" x="5494" y="4093" width="212" height="198" fill="#ff3366"/>
+  <rect data-id="protected-0121" x="5254" y="4273" width="212" height="198" fill="#ff3366"/>
+  <rect data-id="protected-0122" x="5714" y="4273" width="212" height="198" fill="#ff3366"/>
+  <rect data-id="protected-0123" x="5244" y="4208" width="552" height="408" fill="#ff3366"/>
+  <rect data-id="protected-0124" x="5774" y="4228" width="252" height="368" fill="#ff3366"/>
+  <rect data-id="protected-0125" x="5154" y="4228" width="252" height="368" fill="#ff3366"/>
+  <rect data-id="protected-0126" x="992" y="396" width="416" height="432" fill="#ff3366"/>
+  <rect data-id="protected-0127" x="4348" y="4958" width="64" height="568" fill="#ff3366"/>
+  <rect data-id="protected-0128" x="3988" y="4958" width="64" height="568" fill="#ff3366"/>
+  <rect data-id="protected-0129" x="4194" y="5612" width="532" height="80" fill="#ff3366"/>
+  <rect data-id="protected-0130" x="2096" y="4832" width="352" height="368" fill="#ff3366"/>
+  <rect data-id="protected-0131" x="3920" y="2784" width="512" height="368" fill="#ff3366"/>
+  <rect data-id="protected-0132" x="3700" y="4117" width="152" height="198" fill="#ff3366"/>
+  <rect data-id="protected-0133" x="3404" y="5528" width="392" height="368" fill="#ff3366"/>
+  <rect data-id="protected-0134" x="2032" y="4000" width="480" height="432" fill="#ff3366"/>
+  <rect data-id="protected-0135" x="560" y="5536" width="288" height="336" fill="#ff3366"/>
+  <rect data-id="protected-0136" x="528" y="4832" width="352" height="368" fill="#ff3366"/>
+  <rect data-id="protected-0137" x="2096" y="5504" width="352" height="368" fill="#ff3366"/>
+  <rect data-id="protected-0138" x="2774" y="288" width="452" height="368" fill="#ff3366"/>
+  <rect data-id="protected-0139" x="528" y="4064" width="288" height="336" fill="#ff3366"/>
+  <rect data-id="protected-0140" x="1232" y="4064" width="288" height="336" fill="#ff3366"/>
+  <rect data-id="protected-0141" x="1328" y="5536" width="288" height="336" fill="#ff3366"/>
+  <rect data-id="protected-0142" x="5816" y="1656" width="288" height="272" fill="#ff3366"/>
+  <rect data-id="protected-0143" x="1004" y="438" width="392" height="348" fill="#ff3366"/>
+  <rect data-id="protected-0144" x="4720" y="6004" width="80" height="96" fill="#ff3366"/>
+  <rect data-id="protected-0145" x="5400" y="5874" width="80" height="96" fill="#ff3366"/>
+  <rect data-id="protected-0146" x="3992" y="4424" width="80" height="96" fill="#ff3366"/>
+  <rect data-id="protected-0147" x="1880" y="2244" width="80" height="96" fill="#ff3366"/>
+  <rect data-id="protected-0148" x="840" y="2444" width="80" height="96" fill="#ff3366"/>
+  <rect data-id="protected-0149" x="3220" y="664" width="80" height="96" fill="#ff3366"/>
+  <rect data-id="protected-0150" x="2580" y="1504" width="80" height="96" fill="#ff3366"/>
+  <rect data-id="protected-0151" x="872" y="5016" width="80" height="96" fill="#ff3366"/>
+  <rect data-id="protected-0152" x="2472" y="5688" width="80" height="96" fill="#ff3366"/>
+  <rect data-id="protected-0153" x="4660" y="3594" width="80" height="96" fill="#ff3366"/>
+  <rect data-id="protected-0154" x="2208" y="4336" width="128" height="144" fill="#ff3366"/>
+  <rect data-id="protected-0155" x="640" y="5776" width="128" height="144" fill="#ff3366"/>
+  <rect data-id="protected-0156" x="640" y="5104" width="128" height="144" fill="#ff3366"/>
+  <rect data-id="protected-0157" x="2208" y="5776" width="128" height="144" fill="#ff3366"/>
+  <rect data-id="protected-0158" x="608" y="4304" width="128" height="144" fill="#ff3366"/>
+  <rect data-id="protected-0159" x="1312" y="4304" width="128" height="144" fill="#ff3366"/>
+  <rect data-id="protected-0160" x="1408" y="5776" width="128" height="144" fill="#ff3366"/>
+  <rect data-id="protected-0161" x="5896" y="1788" width="128" height="144" fill="#ff3366"/>
+  <rect data-id="ambient-npc:coast-fisher" x="3792" y="5526" width="96" height="88" fill="#ffffff" data-kind="ambient-npc"/>
+  <rect data-id="ambient-npc:crossroads-crier" x="3536" y="4340" width="96" height="88" fill="#ffffff" data-kind="ambient-npc"/>
+  <rect data-id="ambient-npc:crossroads-traveler" x="3984" y="4340" width="96" height="88" fill="#ffffff" data-kind="ambient-npc"/>
+  <rect data-id="ambient-npc:mistfen-forager" x="2352" y="2656" width="96" height="88" fill="#ffffff" data-kind="ambient-npc"/>
+  <rect data-id="ambient-npc:silverpine-pilgrim" x="3072" y="1316" width="96" height="88" fill="#ffffff" data-kind="ambient-npc"/>
+  <rect data-id="ambient-npc:village-crier" x="1984" y="4964" width="96" height="88" fill="#ffffff" data-kind="ambient-npc"/>
+  <rect data-id="ambient-npc:village-pilgrim" x="1696" y="5668" width="96" height="88" fill="#ffffff" data-kind="ambient-npc"/>
+  <rect data-id="ambient-npc:village-wanderer" x="896" y="4836" width="96" height="88" fill="#ffffff" data-kind="ambient-npc"/>
+  <rect data-id="ambient-npc:village-woodcutter" x="1216" y="4484" width="96" height="88" fill="#ffffff" data-kind="ambient-npc"/>
+  <rect data-id="ambient-npc:wildwood-woodcutter" x="5292" y="4476" width="96" height="88" fill="#ffffff" data-kind="ambient-npc"/>
+  <rect data-id="combat-bounds:whispering-cave-combat-pocket" x="5664" y="1408" width="512" height="384" fill="#ffffff" data-kind="combat-bounds"/>
+  <rect data-id="combat-bounds:wildwood-crossing-combat-pocket" x="5104" y="1120" width="512" height="320" fill="#ffffff" data-kind="combat-bounds"/>
+  <rect data-id="combat-bounds:wildwood-north-combat-pocket" x="4784" y="768" width="672" height="384" fill="#ffffff" data-kind="combat-bounds"/>
+  <rect data-id="discovery:castle-gate-warning" x="4128" y="3152" width="96" height="96" fill="#ffffff" data-kind="discovery"/>
+  <rect data-id="discovery:coast-jetty-foreshadow" x="4852" y="6132" width="96" height="96" fill="#ffffff" data-kind="discovery"/>
+  <rect data-id="discovery:crossroads-waystone-sign" x="3856" y="4176" width="96" height="96" fill="#ffffff" data-kind="discovery"/>
+  <rect data-id="discovery:ferry-shrine-lore" x="3552" y="5452" width="96" height="96" fill="#ffffff" data-kind="discovery"/>
+  <rect data-id="discovery:silverpine-amulet-foreshadow" x="2792" y="1072" width="96" height="96" fill="#ffffff" data-kind="discovery"/>
+  <rect data-id="discovery:wildwood-cave-danger" x="5912" y="1872" width="96" height="96" fill="#ffffff" data-kind="discovery"/>
+  <rect data-id="discovery:witchwood-poison-warning" x="1152" y="772" width="96" height="96" fill="#ffffff" data-kind="discovery"/>
+  <rect data-id="encounter:meadow-slime-center" x="5312" y="1232" width="96" height="96" fill="#ffffff" data-kind="encounter"/>
+  <rect data-id="encounter:meadow-slime-east" x="5872" y="1552" width="96" height="96" fill="#ffffff" data-kind="encounter"/>
+  <rect data-id="encounter:meadow-slime-west" x="4880" y="912" width="96" height="96" fill="#ffffff" data-kind="encounter"/>
+  <rect data-id="pickup:coast-jetty-catch" x="4736" y="6036" width="48" height="48" fill="#ffffff" data-kind="pickup"/>
+  <rect data-id="pickup:coast-salve" x="5416" y="5906" width="48" height="48" fill="#ffffff" data-kind="pickup"/>
+  <rect data-id="pickup:crossroads-cache" x="4008" y="4456" width="48" height="48" fill="#ffffff" data-kind="pickup"/>
+  <rect data-id="pickup:mistfen-cache" x="1896" y="2276" width="48" height="48" fill="#ffffff" data-kind="pickup"/>
+  <rect data-id="pickup:mistfen-salve" x="856" y="2476" width="48" height="48" fill="#ffffff" data-kind="pickup"/>
+  <rect data-id="pickup:silverpine-offering-cache" x="3236" y="696" width="48" height="48" fill="#ffffff" data-kind="pickup"/>
+  <rect data-id="pickup:silverpine-tonic" x="2596" y="1536" width="48" height="48" fill="#ffffff" data-kind="pickup"/>
+  <rect data-id="pickup:village-market-cache" x="888" y="5048" width="48" height="48" fill="#ffffff" data-kind="pickup"/>
+  <rect data-id="pickup:village-shrine-cache" x="2488" y="5720" width="48" height="48" fill="#ffffff" data-kind="pickup"/>
+  <rect data-id="pickup:wildwood-grove-cache" x="4676" y="3626" width="48" height="48" fill="#ffffff" data-kind="pickup"/>
+  <rect data-id="spawn:player" x="656" y="5872" width="96" height="96" fill="#ffffff" data-kind="spawn"/>
+  <rect data-id="transition:meadow-to-guild-hall" x="2224" y="4368" width="96" height="96" fill="#ffffff" data-kind="transition"/>
+  <rect data-id="transition:meadow-to-hero-house" x="656" y="5808" width="96" height="96" fill="#ffffff" data-kind="transition"/>
+  <rect data-id="transition:meadow-to-item-shop" x="656" y="5136" width="96" height="96" fill="#ffffff" data-kind="transition"/>
+  <rect data-id="transition:meadow-to-shrine-of-aurora" x="2224" y="5808" width="96" height="96" fill="#ffffff" data-kind="transition"/>
+  <rect data-id="transition:meadow-to-villager-house-1" x="624" y="4336" width="96" height="96" fill="#ffffff" data-kind="transition"/>
+  <rect data-id="transition:meadow-to-villager-house-2" x="1328" y="4336" width="96" height="96" fill="#ffffff" data-kind="transition"/>
+  <rect data-id="transition:meadow-to-villager-house-3" x="1424" y="5808" width="96" height="96" fill="#ffffff" data-kind="transition"/>
+  <rect data-id="transition:meadow-to-whispering-cave-ruins-threshold" x="5912" y="1820" width="96" height="96" fill="#ffffff" data-kind="transition"/>
+</svg>

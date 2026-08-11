@@ -1,0 +1,139 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 6400 6400" width="6400" height="6400">
+  <rect data-id="decor:castle-gate-sprite" x="3936" y="2816" width="480" height="320" fill="#ffffff"/>
+  <rect data-id="decor:coast-approach-net" x="4040" y="5310" width="160" height="140" fill="#ffffff"/>
+  <rect data-id="decor:coast-boat" x="5030" y="5790" width="260" height="180" fill="#ffffff"/>
+  <rect data-id="decor:coast-driftwood" x="3820" y="5455" width="200" height="130" fill="#ffffff"/>
+  <rect data-id="decor:coast-ferry-shrine" x="3440" y="5570" width="320" height="300" fill="#ffffff"/>
+  <rect data-id="decor:coast-foam" x="3100" y="5960" width="3000" height="80" fill="#ffffff"/>
+  <rect data-id="decor:coast-fork-west-driftwood-wall" x="3680" y="5335" width="300" height="130" fill="#ffffff"/>
+  <rect data-id="decor:coast-jetty" x="4790" y="6020" width="220" height="320" fill="#ffffff"/>
+  <rect data-id="decor:coast-jetty-neck" x="4950" y="5935" width="220" height="130" fill="#ffffff"/>
+  <rect data-id="decor:coast-net" x="5150" y="5880" width="180" height="160" fill="#ffffff"/>
+  <rect data-id="decor:coast-shrine-pocket-boundary" x="3310" y="5585" width="220" height="130" fill="#ffffff"/>
+  <rect data-id="decor:coast-tidepool" x="5330" y="5940" width="220" height="160" fill="#ffffff"/>
+  <rect data-id="decor:coast-tidepool-rock-wall" x="5520" y="5755" width="260" height="130" fill="#ffffff"/>
+  <rect data-id="decor:coast-torii" x="4080" y="5900" width="320" height="360" fill="#ffffff"/>
+  <rect data-id="decor:crossroads-lantern-east" x="4009" y="3794" width="110" height="220" fill="#ffffff"/>
+  <rect data-id="decor:crossroads-lantern-west" x="3433" y="3794" width="110" height="220" fill="#ffffff"/>
+  <rect data-id="decor:crossroads-waystone-sprite" x="3706" y="4134" width="140" height="180" fill="#ffffff"/>
+  <rect data-id="decor:mistfen-bloom-trail-1" x="1145" y="1105" width="150" height="150" fill="#ffffff"/>
+  <rect data-id="decor:mistfen-bloom-trail-2" x="1625" y="2125" width="150" height="150" fill="#ffffff"/>
+  <rect data-id="decor:mistfen-dead-tree-east" x="1800" y="1380" width="200" height="240" fill="#ffffff"/>
+  <rect data-id="decor:mistfen-dead-tree-west" x="520" y="1000" width="200" height="240" fill="#ffffff"/>
+  <rect data-id="decor:mistfen-deadfall-bend" x="1365" y="1535" width="210" height="250" fill="#ffffff"/>
+  <rect data-id="decor:mistfen-fog" x="250" y="600" width="2000" height="2300" fill="#ffffff"/>
+  <rect data-id="decor:mistfen-fog-entry" x="1690" y="2370" width="720" height="420" fill="#ffffff"/>
+  <rect data-id="decor:mistfen-fog-gate" x="730" y="470" width="900" height="700" fill="#ffffff"/>
+  <rect data-id="decor:mistfen-fog-middle" x="880" y="1330" width="1100" height="900" fill="#ffffff"/>
+  <rect data-id="decor:mistfen-gate-fog-wall" x="870" y="730" width="180" height="900" fill="#ffffff"/>
+  <rect data-id="decor:mistfen-gate-reed-wall-east" x="1390" y="670" width="160" height="820" fill="#ffffff"/>
+  <rect data-id="decor:mistfen-marsh-rock" x="635" y="2230" width="170" height="140" fill="#ffffff"/>
+  <rect data-id="decor:mistfen-reed-wall-east" x="1630" y="2190" width="260" height="220" fill="#ffffff"/>
+  <rect data-id="decor:mistfen-reed-wall-north" x="1470" y="2570" width="760" height="120" fill="#ffffff"/>
+  <rect data-id="decor:mistfen-reed-wall-south" x="1470" y="2830" width="760" height="120" fill="#ffffff"/>
+  <rect data-id="decor:mistfen-reed-wall-west" x="1090" y="2010" width="260" height="220" fill="#ffffff"/>
+  <rect data-id="decor:mistfen-reeds-1" x="1380" y="1200" width="240" height="200" fill="#ffffff"/>
+  <rect data-id="decor:mistfen-toxic-bloom" x="965" y="1925" width="150" height="150" fill="#ffffff"/>
+  <rect data-id="decor:silver-shrine-gate-sprite" x="2790" y="270" width="420" height="420" fill="#ffffff"/>
+  <rect data-id="decor:silverpine-amulet-rack" x="2760" y="1035" width="160" height="170" fill="#ffffff"/>
+  <rect data-id="decor:silverpine-lantern-east" x="3240" y="670" width="120" height="180" fill="#ffffff"/>
+  <rect data-id="decor:silverpine-lantern-mid" x="3020" y="990" width="120" height="180" fill="#ffffff"/>
+  <rect data-id="decor:silverpine-lantern-west" x="2640" y="670" width="120" height="180" fill="#ffffff"/>
+  <rect data-id="decor:silverpine-lower-wall-east" x="3330" y="2450" width="220" height="300" fill="#ffffff"/>
+  <rect data-id="decor:silverpine-lower-wall-west" x="2810" y="2190" width="220" height="300" fill="#ffffff"/>
+  <rect data-id="decor:silverpine-maple-1" x="3520" y="1250" width="240" height="300" fill="#ffffff"/>
+  <rect data-id="decor:silverpine-maple-2" x="2580" y="1750" width="240" height="300" fill="#ffffff"/>
+  <rect data-id="decor:silverpine-offering" x="2925" y="645" width="150" height="150" fill="#ffffff"/>
+  <rect data-id="decor:silverpine-offering-grove-wall" x="2180" y="1470" width="240" height="300" fill="#ffffff"/>
+  <rect data-id="decor:silverpine-side-grove-maple" x="2305" y="1375" width="230" height="290" fill="#ffffff"/>
+  <rect data-id="decor:silverpine-side-grove-pine" x="2710" y="1210" width="220" height="300" fill="#ffffff"/>
+  <rect data-id="decor:silverpine-switchback-east" x="3410" y="1370" width="220" height="300" fill="#ffffff"/>
+  <rect data-id="decor:silverpine-switchback-west" x="2500" y="1630" width="240" height="300" fill="#ffffff"/>
+  <rect data-id="decor:silverpine-terrace-boundary" x="2440" y="855" width="240" height="170" fill="#ffffff"/>
+  <rect data-id="decor:silverpine-tree-1" x="2430" y="1150" width="220" height="300" fill="#ffffff"/>
+  <rect data-id="decor:village-corridor-waymarker" x="2990" y="4444" width="100" height="200" fill="#ffffff"/>
+  <rect data-id="decor:village-decor-22-77" x="2626" y="4588" width="220" height="200" fill="#ffffff"/>
+  <rect data-id="decor:village-decor-28-25" x="1022" y="4780" width="100" height="200" fill="#ffffff"/>
+  <rect data-id="decor:village-decor-28-53" x="1918" y="4780" width="100" height="200" fill="#ffffff"/>
+  <rect data-id="decor:village-decor-53-22" x="901" y="5620" width="150" height="120" fill="#ffffff"/>
+  <rect data-id="decor:wildwood-cache-brush-screen" x="4675" y="3455" width="210" height="170" fill="#ffffff"/>
+  <rect data-id="decor:wildwood-cache-tree-cover" x="4360" y="3270" width="240" height="300" fill="#ffffff"/>
+  <rect data-id="decor:wildwood-cave-canopy" x="5600" y="1970" width="200" height="260" fill="#ffffff"/>
+  <rect data-id="decor:wildwood-cave-canopy-heavy" x="5850" y="1960" width="260" height="320" fill="#ffffff"/>
+  <rect data-id="decor:wildwood-cave-canopy-neck" x="5650" y="1780" width="220" height="280" fill="#ffffff"/>
+  <rect data-id="decor:wildwood-cave-warning-floor" x="5690" y="1610" width="420" height="300" fill="#ffffff"/>
+  <rect data-id="decor:wildwood-combat-pocket-wall-east" x="5570" y="1100" width="220" height="360" fill="#ffffff"/>
+  <rect data-id="decor:wildwood-combat-pocket-wall-west" x="4930" y="1100" width="220" height="360" fill="#ffffff"/>
+  <rect data-id="decor:wildwood-east-canopy" x="6040" y="570" width="160" height="900" fill="#ffffff"/>
+  <rect data-id="decor:wildwood-forest-lane-north-wall" x="4450" y="5140" width="1100" height="120" fill="#ffffff"/>
+  <rect data-id="decor:wildwood-forest-lane-south-wall" x="4450" y="5440" width="1100" height="120" fill="#ffffff"/>
+  <rect data-id="decor:wildwood-grove-brush-1" x="4560" y="3575" width="180" height="150" fill="#ffffff"/>
+  <rect data-id="decor:wildwood-grove-floor-1" x="4640" y="3890" width="320" height="320" fill="#ffffff"/>
+  <rect data-id="decor:wildwood-grove-maple-1" x="4380" y="4600" width="240" height="300" fill="#ffffff"/>
+  <rect data-id="decor:wildwood-grove-tree-1" x="4290" y="2860" width="220" height="280" fill="#ffffff"/>
+  <rect data-id="decor:wildwood-grove-tree-2" x="4790" y="4160" width="220" height="280" fill="#ffffff"/>
+  <rect data-id="decor:wildwood-north-canopy" x="4880" y="280" width="960" height="160" fill="#ffffff"/>
+  <rect data-id="decor:wildwood-staging-brush" x="5510" y="4125" width="180" height="150" fill="#ffffff"/>
+  <rect data-id="decor:wildwood-threshold-brush-left" x="5270" y="4305" width="180" height="150" fill="#ffffff"/>
+  <rect data-id="decor:wildwood-threshold-brush-right" x="5730" y="4305" width="180" height="150" fill="#ffffff"/>
+  <rect data-id="decor:wildwood-threshold-floor" x="5260" y="4240" width="520" height="360" fill="#ffffff"/>
+  <rect data-id="decor:wildwood-threshold-tree-wall-east" x="5790" y="4260" width="220" height="320" fill="#ffffff"/>
+  <rect data-id="decor:wildwood-threshold-tree-wall-west" x="5170" y="4260" width="220" height="320" fill="#ffffff"/>
+  <rect data-id="decor:witchwood-gate-sprite" x="1008" y="428" width="384" height="384" fill="#ffffff"/>
+  <rect data-id="landmark:blacksmith" x="2112" y="4864" width="320" height="320" fill="#ffffff"/>
+  <rect data-id="landmark:castle-gate" x="3936" y="2816" width="480" height="320" fill="#ffffff"/>
+  <rect data-id="landmark:crossroads-waystone" x="3716" y="4149" width="120" height="150" fill="#ffffff"/>
+  <rect data-id="landmark:ferry-crossing" x="3420" y="5560" width="360" height="320" fill="#ffffff"/>
+  <rect data-id="landmark:guild-hall-exterior" x="2048" y="4032" width="448" height="384" fill="#ffffff"/>
+  <rect data-id="landmark:hero-house-exterior" x="576" y="5568" width="256" height="288" fill="#ffffff"/>
+  <rect data-id="landmark:item-shop-exterior" x="544" y="4864" width="320" height="320" fill="#ffffff"/>
+  <rect data-id="landmark:shrine-of-aurora" x="2112" y="5536" width="320" height="320" fill="#ffffff"/>
+  <rect data-id="landmark:silver-shrine-gate" x="2790" y="320" width="420" height="320" fill="#ffffff"/>
+  <rect data-id="landmark:villager-house-1-exterior" x="544" y="4096" width="256" height="288" fill="#ffffff"/>
+  <rect data-id="landmark:villager-house-2-exterior" x="1248" y="4096" width="256" height="288" fill="#ffffff"/>
+  <rect data-id="landmark:villager-house-3-exterior" x="1344" y="5568" width="256" height="288" fill="#ffffff"/>
+  <rect data-id="landmark:whispering-cave" x="5832" y="1688" width="256" height="224" fill="#ffffff"/>
+  <rect data-id="landmark:witchwood-gate" x="1020" y="470" width="360" height="300" fill="#ffffff"/>
+  <rect data-id="ambient-npc:coast-fisher" x="3792" y="5526" width="96" height="88" fill="#ffffff" data-kind="ambient-npc"/>
+  <rect data-id="ambient-npc:crossroads-crier" x="3536" y="4340" width="96" height="88" fill="#ffffff" data-kind="ambient-npc"/>
+  <rect data-id="ambient-npc:crossroads-traveler" x="3984" y="4340" width="96" height="88" fill="#ffffff" data-kind="ambient-npc"/>
+  <rect data-id="ambient-npc:mistfen-forager" x="2352" y="2656" width="96" height="88" fill="#ffffff" data-kind="ambient-npc"/>
+  <rect data-id="ambient-npc:silverpine-pilgrim" x="3072" y="1316" width="96" height="88" fill="#ffffff" data-kind="ambient-npc"/>
+  <rect data-id="ambient-npc:village-crier" x="1984" y="4964" width="96" height="88" fill="#ffffff" data-kind="ambient-npc"/>
+  <rect data-id="ambient-npc:village-pilgrim" x="1696" y="5668" width="96" height="88" fill="#ffffff" data-kind="ambient-npc"/>
+  <rect data-id="ambient-npc:village-wanderer" x="896" y="4836" width="96" height="88" fill="#ffffff" data-kind="ambient-npc"/>
+  <rect data-id="ambient-npc:village-woodcutter" x="1216" y="4484" width="96" height="88" fill="#ffffff" data-kind="ambient-npc"/>
+  <rect data-id="ambient-npc:wildwood-woodcutter" x="5292" y="4476" width="96" height="88" fill="#ffffff" data-kind="ambient-npc"/>
+  <rect data-id="combat-bounds:whispering-cave-combat-pocket" x="5664" y="1408" width="512" height="384" fill="#ffffff" data-kind="combat-bounds"/>
+  <rect data-id="combat-bounds:wildwood-crossing-combat-pocket" x="5104" y="1120" width="512" height="320" fill="#ffffff" data-kind="combat-bounds"/>
+  <rect data-id="combat-bounds:wildwood-north-combat-pocket" x="4784" y="768" width="672" height="384" fill="#ffffff" data-kind="combat-bounds"/>
+  <rect data-id="discovery:castle-gate-warning" x="4128" y="3152" width="96" height="96" fill="#ffffff" data-kind="discovery"/>
+  <rect data-id="discovery:coast-jetty-foreshadow" x="4852" y="6132" width="96" height="96" fill="#ffffff" data-kind="discovery"/>
+  <rect data-id="discovery:crossroads-waystone-sign" x="3856" y="4176" width="96" height="96" fill="#ffffff" data-kind="discovery"/>
+  <rect data-id="discovery:ferry-shrine-lore" x="3552" y="5452" width="96" height="96" fill="#ffffff" data-kind="discovery"/>
+  <rect data-id="discovery:silverpine-amulet-foreshadow" x="2792" y="1072" width="96" height="96" fill="#ffffff" data-kind="discovery"/>
+  <rect data-id="discovery:wildwood-cave-danger" x="5912" y="1872" width="96" height="96" fill="#ffffff" data-kind="discovery"/>
+  <rect data-id="discovery:witchwood-poison-warning" x="1152" y="772" width="96" height="96" fill="#ffffff" data-kind="discovery"/>
+  <rect data-id="encounter:meadow-slime-center" x="5312" y="1232" width="96" height="96" fill="#ffffff" data-kind="encounter"/>
+  <rect data-id="encounter:meadow-slime-east" x="5872" y="1552" width="96" height="96" fill="#ffffff" data-kind="encounter"/>
+  <rect data-id="encounter:meadow-slime-west" x="4880" y="912" width="96" height="96" fill="#ffffff" data-kind="encounter"/>
+  <rect data-id="pickup:coast-jetty-catch" x="4736" y="6036" width="48" height="48" fill="#ffffff" data-kind="pickup"/>
+  <rect data-id="pickup:coast-salve" x="5416" y="5906" width="48" height="48" fill="#ffffff" data-kind="pickup"/>
+  <rect data-id="pickup:crossroads-cache" x="4008" y="4456" width="48" height="48" fill="#ffffff" data-kind="pickup"/>
+  <rect data-id="pickup:mistfen-cache" x="1896" y="2276" width="48" height="48" fill="#ffffff" data-kind="pickup"/>
+  <rect data-id="pickup:mistfen-salve" x="856" y="2476" width="48" height="48" fill="#ffffff" data-kind="pickup"/>
+  <rect data-id="pickup:silverpine-offering-cache" x="3236" y="696" width="48" height="48" fill="#ffffff" data-kind="pickup"/>
+  <rect data-id="pickup:silverpine-tonic" x="2596" y="1536" width="48" height="48" fill="#ffffff" data-kind="pickup"/>
+  <rect data-id="pickup:village-market-cache" x="888" y="5048" width="48" height="48" fill="#ffffff" data-kind="pickup"/>
+  <rect data-id="pickup:village-shrine-cache" x="2488" y="5720" width="48" height="48" fill="#ffffff" data-kind="pickup"/>
+  <rect data-id="pickup:wildwood-grove-cache" x="4676" y="3626" width="48" height="48" fill="#ffffff" data-kind="pickup"/>
+  <rect data-id="spawn:player" x="656" y="5872" width="96" height="96" fill="#ffffff" data-kind="spawn"/>
+  <rect data-id="transition:meadow-to-guild-hall" x="2224" y="4368" width="96" height="96" fill="#ffffff" data-kind="transition"/>
+  <rect data-id="transition:meadow-to-hero-house" x="656" y="5808" width="96" height="96" fill="#ffffff" data-kind="transition"/>
+  <rect data-id="transition:meadow-to-item-shop" x="656" y="5136" width="96" height="96" fill="#ffffff" data-kind="transition"/>
+  <rect data-id="transition:meadow-to-shrine-of-aurora" x="2224" y="5808" width="96" height="96" fill="#ffffff" data-kind="transition"/>
+  <rect data-id="transition:meadow-to-villager-house-1" x="624" y="4336" width="96" height="96" fill="#ffffff" data-kind="transition"/>
+  <rect data-id="transition:meadow-to-villager-house-2" x="1328" y="4336" width="96" height="96" fill="#ffffff" data-kind="transition"/>
+  <rect data-id="transition:meadow-to-villager-house-3" x="1424" y="5808" width="96" height="96" fill="#ffffff" data-kind="transition"/>
+  <rect data-id="transition:meadow-to-whispering-cave-ruins-threshold" x="5912" y="1820" width="96" height="96" fill="#ffffff" data-kind="transition"/>
+</svg>

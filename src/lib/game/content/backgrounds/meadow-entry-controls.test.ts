@@ -14,6 +14,13 @@ import {
 	renderMeadowEntryControls,
 	type MeadowEntryControlInputs
 } from './meadow-entry-controls';
+import { MEADOW_ENTRY_PAINTED_V2_BAKE_OWNERSHIP } from './meadow-entry-bake-ownership';
+import {
+	MEADOW_ENTRY_PAINTED_V2_PILOT_CROPS,
+	MEADOW_ENTRY_PAINTED_V2_PILOT_OVERLAPS,
+	MEADOW_ENTRY_PAINTED_V2_PILOT_RUNTIME_COVERAGE
+} from './meadow-entry-painted-v2-crop-manifest';
+import { MEADOW_ENTRY_PAINTED_V2_ART_STORAGE } from './meadow-entry-storage';
 
 const EXPECTED_CONTROL_FILENAMES = [
 	'meadow-entry-control-manifest.json',
@@ -257,6 +264,15 @@ describe('meadow-entry deterministic authoring controls', () => {
 		}
 	});
 
+	it('builds controls directly from the reviewed painted-v2 contract', () => {
+		const input = buildMeadowEntryControlInputs();
+		expect(input.bakeOwnership).toBe(MEADOW_ENTRY_PAINTED_V2_BAKE_OWNERSHIP);
+		expect(input.crops).toBe(MEADOW_ENTRY_PAINTED_V2_PILOT_CROPS);
+		expect(input.overlaps).toBe(MEADOW_ENTRY_PAINTED_V2_PILOT_OVERLAPS);
+		expect(input.runtimeCoverage).toBe(MEADOW_ENTRY_PAINTED_V2_PILOT_RUNTIME_COVERAGE);
+		expect(input.storage).toBe(MEADOW_ENTRY_PAINTED_V2_ART_STORAGE);
+	});
+
 	it('orders canonical source IDs by Unicode code point instead of host locale collation', () => {
 		const input: MeadowEntryControlInputs = {
 			...buildMeadowEntryControlInputs(),
@@ -321,7 +337,7 @@ describe('meadow-entry deterministic authoring controls', () => {
 		expect(eligibleMask.height).toBe(6_400);
 		expect(eligibleMask.alpha).toHaveLength(6_400 * 6_400);
 		expect(protectedMask.alpha.includes(255)).toBe(true);
-		expect(eligibleMask.alpha.includes(255)).toBe(true);
+		expect(eligibleMask.alpha.includes(255)).toBe(false);
 
 		let overlappingPixel = -1;
 		for (let index = 0; index < protectedMask.alpha.length; index += 1) {
@@ -350,7 +366,7 @@ describe('meadow-entry deterministic authoring controls', () => {
 		const eligibleOwner = input.bakeOwnership.find(
 			(entry) => entry.disposition.mode === 'base-and-foreground'
 		);
-		expect(eligibleOwner).toBeDefined();
+		expect(eligibleOwner).toBeUndefined();
 		if (!eligibleOwner || eligibleOwner.disposition.mode !== 'base-and-foreground') return;
 		const eligibleKey = `${eligibleOwner.ref.sourceType}:${eligibleOwner.ref.sourceId}`;
 		const isolatedInput = {
@@ -493,27 +509,17 @@ describe('meadow-entry deterministic authoring controls', () => {
 		expect(connector).toContain('data-material-profile="village-crossroads-handoff"');
 		expect(connector).toContain('data-primary-region="connector-village-crossroads"');
 		expect(connector).toContain('data-connector-membership="connector-village-crossroads"');
-		expect(connector).toContain('data-disposition="runtime-fallback-only"');
+		expect(connector).toContain('data-disposition="base-underlay"');
 		expect(connector).toContain('data-contributing-sources="ground-patch:village-to-crossroads"');
 	});
 
-	it('labels explicit foreground ownership and the reviewed 33px front cutoff', () => {
+	it('does not invent a foreground plane for the base-only painted-v2 pilot', () => {
 		const foreground = renderMeadowEntryControls(buildMeadowEntryControlInputs())[
 			'meadow-entry-foreground-eligible-mask.svg'
 		]!;
-		const reviewedBlocker = foreground
-			.split('\n')
-			.find(
-				(line) =>
-					line.includes('data-id="foreground:blocker:') &&
-					line.includes('data-disposition="base-and-foreground"')
-			);
-
-		expect(reviewedBlocker).toBeDefined();
-		if (!reviewedBlocker) return;
-		expect(reviewedBlocker).toContain('data-disposition="base-and-foreground"');
-		expect(reviewedBlocker).toContain('data-front-cutoff-px="33"');
-		expect(reviewedBlocker).toContain('data-primary-region=');
+		expect(foreground).not.toContain('data-id="foreground:blocker:');
+		expect(foreground).not.toContain('data-id="foreground:decor:');
+		expect(foreground).toContain('data-id="foreground-exclusion:');
 	});
 
 	it('matches every protected-live pixel to an independent expected projection and excludes all of them', () => {
@@ -569,7 +575,10 @@ describe('meadow-entry deterministic authoring controls', () => {
 		};
 		const storageMutation = {
 			...input,
-			storage: { ...input.storage, canaryPath: 'artifacts/meadow-entry/hpa-399/other.png' }
+			storage: {
+				...input.storage,
+				canaryPath: 'artifacts/meadow-entry/painted-v2/other.png'
+			}
 		} as unknown as MeadowEntryControlInputs;
 
 		expect(computeMeadowEntryGameplaySourceFingerprint(gameplayMutation)).not.toBe(

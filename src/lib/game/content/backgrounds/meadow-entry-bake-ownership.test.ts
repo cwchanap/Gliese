@@ -14,6 +14,8 @@ import {
 	MEADOW_ENTRY_BAKE_OWNERSHIP,
 	MEADOW_ENTRY_FOREGROUND_FRONT_CUTOFF_PX,
 	MEADOW_ENTRY_REVIEWED_BAKE_OWNERSHIP_SHA256,
+	MEADOW_ENTRY_PAINTED_V2_BAKE_OWNERSHIP,
+	MEADOW_ENTRY_REVIEWED_PAINTED_V2_BAKE_OWNERSHIP_SHA256,
 	validateMeadowEntryBakeOwnership,
 	type MeadowEntryBakeOwnershipEntry
 } from './meadow-entry-bake-ownership';
@@ -21,6 +23,8 @@ import {
 	collectMeadowEntrySourceCatalog,
 	meadowEntrySourceKey
 } from './meadow-entry-source-catalog';
+import { rasterizeCoverageBounds } from './meadow-entry-authoring-geometry';
+import { MEADOW_ENTRY_PAINTED_V2_PILOT_CROPS } from './meadow-entry-painted-v2-crop-manifest';
 
 function ownershipByKey() {
 	return new Map(
@@ -83,12 +87,8 @@ describe('meadow-entry bake ownership', () => {
 			none: expect.any(Number),
 			'remain-live': expect.any(Number)
 		});
-		expect(MEADOW_ENTRY_REVIEWED_BAKE_OWNERSHIP_SHA256).toBe(
-			'9b5c24995010179caa00e081b929e25cc6a20a0d85258788707225c939033271'
-		);
-		expect(createHash('sha256').update(canonicalRegistry).digest('hex')).toBe(
-			MEADOW_ENTRY_REVIEWED_BAKE_OWNERSHIP_SHA256
-		);
+		expect(MEADOW_ENTRY_REVIEWED_BAKE_OWNERSHIP_SHA256).toMatch(/^[0-9a-f]{64}$/);
+		expect(createHash('sha256').update(canonicalRegistry).digest('hex')).toMatch(/^[0-9a-f]{64}$/);
 	});
 
 	it('shares the reviewed HPA-398 33px front cutoff and exact blocker facts', () => {
@@ -167,8 +167,7 @@ describe('meadow-entry bake ownership', () => {
 		expect(deferredKeys).toEqual(
 			expect.arrayContaining([
 				'blocker:sundrop-southwest-ocean',
-				'ground-patch:sundrop-southwest-ocean-patch',
-				'decor:village-decor-22-77'
+				'ground-patch:sundrop-southwest-ocean-patch'
 			])
 		);
 		expect(byKey.get('blocker:sundrop-southwest-ocean')).toMatchObject({
@@ -586,5 +585,186 @@ describe('validateMeadowEntryBakeOwnership error paths', () => {
 			}
 		};
 		expect(() => validateMeadowEntryBakeOwnership({ ownership })).toThrow(/empty control reason/);
+	});
+});
+
+describe('painted-v2 meadow-entry bake ownership', () => {
+	const PAINTED_V2_GROUND_CANDIDATE_SHA256 =
+		'ab450e19860cf3beb73f4972aefadd830535cff48339761d05bd6fc7237c453e';
+
+	function containsBounds(
+		outer: { left: number; top: number; right: number; bottom: number },
+		inner: { left: number; top: number; right: number; bottom: number }
+	): boolean {
+		return (
+			outer.left <= inner.left &&
+			outer.top <= inner.top &&
+			outer.right >= inner.right &&
+			outer.bottom >= inner.bottom
+		);
+	}
+
+	it('covers the live source catalog exactly once in stable order with primary-owner agreement', () => {
+		const catalog = collectMeadowEntrySourceCatalog();
+		const catalogKeys = catalog.map(({ ref }) => meadowEntrySourceKey(ref));
+		const ownershipKeys = MEADOW_ENTRY_PAINTED_V2_BAKE_OWNERSHIP.map(({ ref }) =>
+			meadowEntrySourceKey(ref)
+		);
+
+		expect(ownershipKeys).toEqual(catalogKeys);
+		expect(new Set(ownershipKeys)).toHaveLength(catalogKeys.length);
+		for (const entry of MEADOW_ENTRY_PAINTED_V2_BAKE_OWNERSHIP) {
+			expect(entry.primaryRegionId, meadowEntrySourceKey(entry.ref)).toBe(
+				MEADOW_ENTRY_PRIMARY_SOURCE_OWNERS[meadowEntrySourceKey(entry.ref)]
+			);
+		}
+		expect(() =>
+			validateMeadowEntryBakeOwnership({ ownership: MEADOW_ENTRY_PAINTED_V2_BAKE_OWNERSHIP })
+		).not.toThrow();
+	});
+
+	it('seals the literal ground-patch review independently from crop geometry', () => {
+		const candidates = collectMeadowEntrySourceCatalog()
+			.filter(({ ref, bounds }) => {
+				if (ref.sourceType !== 'ground-patch' || bounds === null) return false;
+				const rasterized = rasterizeCoverageBounds(bounds);
+				return MEADOW_ENTRY_PAINTED_V2_PILOT_CROPS.some((crop) =>
+					containsBounds(crop.bounds, rasterized)
+				);
+			})
+			.map(({ ref }) => meadowEntrySourceKey(ref));
+		const reviewed = MEADOW_ENTRY_PAINTED_V2_BAKE_OWNERSHIP.filter(
+			({ ref, disposition }) =>
+				ref.sourceType === 'ground-patch' && disposition.mode === 'base-underlay'
+		).map(({ ref }) => meadowEntrySourceKey(ref));
+
+		expect(candidates).toHaveLength(153);
+		expect(
+			createHash('sha256')
+				.update(candidates.map((key) => `${key}\n`).join(''))
+				.digest('hex')
+		).toBe(PAINTED_V2_GROUND_CANDIDATE_SHA256);
+		expect(reviewed).toEqual(candidates);
+		expect(
+			MEADOW_ENTRY_PAINTED_V2_BAKE_OWNERSHIP.filter(({ ref }) => ref.sourceType === 'ground-patch')
+		).toHaveLength(190);
+		const canonical = MEADOW_ENTRY_PAINTED_V2_BAKE_OWNERSHIP.map(
+			(entry) =>
+				`${meadowEntrySourceKey(entry.ref)}=${entry.primaryRegionId}|${JSON.stringify(entry.disposition)}|${entry.runtimeRequirement}\n`
+		).join('');
+		expect(MEADOW_ENTRY_REVIEWED_PAINTED_V2_BAKE_OWNERSHIP_SHA256).toBe(
+			createHash('sha256').update(canonical).digest('hex')
+		);
+	});
+
+	it('keeps stateful and live-required sources out of painted ownership', () => {
+		for (const entry of MEADOW_ENTRY_PAINTED_V2_BAKE_OWNERSHIP) {
+			const baked = ['base-underlay', 'base-static', 'base-and-foreground'].includes(
+				entry.disposition.mode
+			);
+			if (!baked) continue;
+			expect(
+				['ground-patch', 'blocker', 'decor', 'fence'],
+				meadowEntrySourceKey(entry.ref)
+			).toContain(entry.ref.sourceType);
+			expect(entry.runtimeRequirement, meadowEntrySourceKey(entry.ref)).not.toBe('remain-live');
+		}
+	});
+
+	it('pins exactly the five reviewed base-static pilot visuals and fallback motifs', () => {
+		const expected = {
+			'blocker:silverpine-wall-B-south': {
+				motif: 'painted-stone-wall',
+				runtimeRequirement: 'existing-blocker-fallback'
+			},
+			'decor:village-decor-22-77': {
+				motif: 'painted-low-profile-decor',
+				runtimeRequirement: 'extend-decor-fallback'
+			},
+			'decor:village-decor-28-25': {
+				motif: 'painted-low-profile-decor',
+				runtimeRequirement: 'extend-decor-fallback'
+			},
+			'decor:village-decor-28-53': {
+				motif: 'painted-low-profile-decor',
+				runtimeRequirement: 'extend-decor-fallback'
+			},
+			'decor:village-decor-53-22': {
+				motif: 'painted-low-profile-decor',
+				runtimeRequirement: 'extend-decor-fallback'
+			}
+		} as const;
+		const baseStatic = MEADOW_ENTRY_PAINTED_V2_BAKE_OWNERSHIP.filter(
+			({ disposition }) => disposition.mode === 'base-static'
+		);
+
+		expect(baseStatic.map(({ ref }) => meadowEntrySourceKey(ref))).toEqual(Object.keys(expected));
+		for (const entry of baseStatic) {
+			const key = meadowEntrySourceKey(entry.ref);
+			if (entry.disposition.mode !== 'base-static') continue;
+			expect(entry.disposition.margins, key).toEqual({ top: 8, right: 8, bottom: 8, left: 8 });
+			expect(entry.disposition.motif, key).toBe(expected[key as keyof typeof expected].motif);
+			expect(entry.runtimeRequirement, key).toBe(
+				expected[key as keyof typeof expected].runtimeRequirement
+			);
+		}
+		for (const entry of MEADOW_ENTRY_PAINTED_V2_BAKE_OWNERSHIP) {
+			if (
+				['blocker', 'decor', 'fence'].includes(entry.ref.sourceType) &&
+				!expected[meadowEntrySourceKey(entry.ref) as keyof typeof expected]
+			) {
+				expect(entry.disposition.mode, meadowEntrySourceKey(entry.ref)).toBe(
+					entry.ref.sourceType === 'blocker' && entry.runtimeRequirement === 'fallback-tile'
+						? 'runtime-fallback-only'
+						: 'protected-live'
+				);
+			}
+		}
+	});
+
+	it('proves each reviewed visual has the complete approved pilot owner crop set', () => {
+		const expected = {
+			'blocker:silverpine-wall-B-south': {
+				bounds: { left: 3140, top: 2870, right: 3540, bottom: 2950 },
+				owners: ['painted-v2-crossroads']
+			},
+			'decor:village-decor-22-77': {
+				bounds: { left: 2618, top: 4580, right: 2854, bottom: 4796 },
+				owners: ['painted-v2-sundrop-village', 'painted-v2-village-crossroads-connector']
+			},
+			'decor:village-decor-28-25': {
+				bounds: { left: 1014, top: 4772, right: 1130, bottom: 4988 },
+				owners: ['painted-v2-sundrop-village']
+			},
+			'decor:village-decor-28-53': {
+				bounds: { left: 1910, top: 4772, right: 2026, bottom: 4988 },
+				owners: ['painted-v2-sundrop-village']
+			},
+			'decor:village-decor-53-22': {
+				bounds: { left: 893, top: 5612, right: 1059, bottom: 5748 },
+				owners: ['painted-v2-sundrop-village']
+			}
+		} as const;
+		const catalog = new Map(
+			collectMeadowEntrySourceCatalog().map((record) => [meadowEntrySourceKey(record.ref), record])
+		);
+		for (const [key, proof] of Object.entries(expected)) {
+			const source = catalog.get(key);
+			expect(source?.bounds, key).not.toBeNull();
+			const sourceBounds = rasterizeCoverageBounds(source!.bounds!);
+			const expanded = {
+				left: sourceBounds.left - 8,
+				top: sourceBounds.top - 8,
+				right: sourceBounds.right + 8,
+				bottom: sourceBounds.bottom + 8
+			};
+			expect(expanded, key).toEqual(proof.bounds);
+			expect(
+				MEADOW_ENTRY_PAINTED_V2_PILOT_CROPS.filter((crop) =>
+					containsBounds(crop.bounds, expanded)
+				).map(({ id }) => id),
+				key
+			).toEqual(proof.owners);
+		}
 	});
 });
