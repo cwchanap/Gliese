@@ -12,10 +12,7 @@ vi.mock('playwright', () => ({
 	}
 }));
 
-import {
-	EXPECTED_MEADOW_ENTRY_EXPORT_COUNT,
-	runMeadowEntryTextureSafetyProbe
-} from '../../../../tools/probe-meadow-entry-texture-safety';
+import { runMeadowEntryTextureSafetyProbe } from '../../../../tools/probe-meadow-entry-texture-safety';
 import type { TextureSafetyProbeReport } from '../../../../tools/probe-meadow-entry-texture-safety';
 
 type BunServe = (options: {
@@ -56,7 +53,7 @@ function setBrowserResult(overrides: Partial<TextureSafetyProbeReport> = {}): vo
 		renderer: 'Mock WebGL Renderer',
 		userAgent: 'MockAgent/1.0',
 		assets: [] as TextureSafetyProbeReport['assets'],
-		retainedTextures: EXPECTED_MEADOW_ENTRY_EXPORT_COUNT
+		retainedTextures: 0
 	};
 	mocks.evaluate.mockResolvedValue({ ...base, ...overrides });
 }
@@ -95,22 +92,63 @@ function makeSuccessfulAssets(count: number) {
 	}));
 }
 
+const cleanBaseline = {
+	label: 'painted-v2-clean-baseline',
+	assets: [],
+	expectedRetainedTextures: 0
+} as const;
+
+const candidateAssets = [
+	{
+		id: 'candidate-a:base',
+		path: 'candidate-a.png',
+		width: 256,
+		height: 256
+	},
+	{
+		id: 'candidate-b:base',
+		path: 'candidate-b.png',
+		width: 512,
+		height: 512
+	}
+];
+
 describe('runMeadowEntryTextureSafetyProbe orchestration', () => {
+	it('builds a proceed report for an injected zero-asset baseline', async () => {
+		setBrowserResult({ assets: [], retainedTextures: 0, contextLost: false });
+
+		const report = await runMeadowEntryTextureSafetyProbe(cleanBaseline);
+
+		expect(report.label).toBe(cleanBaseline.label);
+		expect(report.expectedRetainedTextures).toBe(0);
+		expect(report.assetCount).toBe(0);
+		expect(report.successfulUploads).toBe(0);
+		expect(report.retainedTextures).toBe(0);
+		expect(report.decision).toBe('proceed');
+		expect(report.failureScope).toBeNull();
+	});
+
 	it('builds a proceed report when all assets upload and retain without context loss', async () => {
 		setBrowserResult({
-			assets: makeSuccessfulAssets(EXPECTED_MEADOW_ENTRY_EXPORT_COUNT),
-			retainedTextures: EXPECTED_MEADOW_ENTRY_EXPORT_COUNT,
+			assets: makeSuccessfulAssets(candidateAssets.length),
+			retainedTextures: candidateAssets.length,
 			contextLost: false
 		});
 
-		const report = await runMeadowEntryTextureSafetyProbe();
+		const report = await runMeadowEntryTextureSafetyProbe({
+			label: 'painted-v2-candidate',
+			assets: candidateAssets,
+			expectedRetainedTextures: candidateAssets.length
+		});
 
 		expect(report.decision).toBe('proceed');
 		expect(report.failureScope).toBeNull();
 		expect(report.probeFailure).toBeNull();
-		expect(report.assetCount).toBe(EXPECTED_MEADOW_ENTRY_EXPORT_COUNT);
-		expect(report.successfulUploads).toBe(EXPECTED_MEADOW_ENTRY_EXPORT_COUNT);
-		expect(report.retainedTextures).toBe(EXPECTED_MEADOW_ENTRY_EXPORT_COUNT);
+		expect(report.label).toBe('painted-v2-candidate');
+		expect(report.expectedRetainedTextures).toBe(candidateAssets.length);
+		expect(report.assetCount).toBe(candidateAssets.length);
+		expect(report.successfulUploads).toBe(candidateAssets.length);
+		expect(report.retainedTextures).toBe(candidateAssets.length);
 		expect(report.contextLost).toBe(false);
 		expect(report.webglAvailable).toBe(true);
 		expect(report.maxTextureSize).toBe(16384);
@@ -118,7 +156,8 @@ describe('runMeadowEntryTextureSafetyProbe orchestration', () => {
 		expect(report.browser.version).toBe('MockBrowser/1.0');
 		expect(report.browser.userAgent).toBe('MockAgent/1.0');
 		expect(report.browser.renderer).toBe('Mock WebGL Renderer');
-		expect(report.assets).toHaveLength(EXPECTED_MEADOW_ENTRY_EXPORT_COUNT);
+		expect(report.assets).toHaveLength(candidateAssets.length);
+		expect(new Set(report.assets.map(({ id }) => id)).size).toBe(candidateAssets.length);
 		expect(report.totalDurationMs).toBeGreaterThanOrEqual(0);
 		expect(mocks.close).toHaveBeenCalled();
 	});
@@ -149,7 +188,11 @@ describe('runMeadowEntryTextureSafetyProbe orchestration', () => {
 			contextLost: false
 		});
 
-		const report = await runMeadowEntryTextureSafetyProbe();
+		const report = await runMeadowEntryTextureSafetyProbe({
+			label: 'painted-v2-candidate',
+			assets: candidateAssets,
+			expectedRetainedTextures: candidateAssets.length
+		});
 
 		expect(report.decision).toBe('stop');
 		expect(report.failureScope).toBe('individual-asset');
@@ -159,23 +202,27 @@ describe('runMeadowEntryTextureSafetyProbe orchestration', () => {
 
 	it('builds a stop report with aggregate-only scope when context is lost', async () => {
 		setBrowserResult({
-			assets: makeSuccessfulAssets(EXPECTED_MEADOW_ENTRY_EXPORT_COUNT),
-			retainedTextures: EXPECTED_MEADOW_ENTRY_EXPORT_COUNT,
+			assets: makeSuccessfulAssets(candidateAssets.length),
+			retainedTextures: candidateAssets.length,
 			contextLost: true
 		});
 
-		const report = await runMeadowEntryTextureSafetyProbe();
+		const report = await runMeadowEntryTextureSafetyProbe({
+			label: 'painted-v2-candidate',
+			assets: candidateAssets,
+			expectedRetainedTextures: candidateAssets.length
+		});
 
 		expect(report.decision).toBe('stop');
 		expect(report.failureScope).toBe('aggregate-only');
 		expect(report.contextLost).toBe(true);
-		expect(report.successfulUploads).toBe(EXPECTED_MEADOW_ENTRY_EXPORT_COUNT);
+		expect(report.successfulUploads).toBe(candidateAssets.length);
 	});
 
 	it('builds a stop report with probe-setup scope when browser launch throws', async () => {
 		mocks.launch.mockRejectedValue(new Error('browser launch failed'));
 
-		const report = await runMeadowEntryTextureSafetyProbe();
+		const report = await runMeadowEntryTextureSafetyProbe(cleanBaseline);
 
 		expect(report.decision).toBe('stop');
 		expect(report.failureScope).toBe('probe-setup');
@@ -184,7 +231,7 @@ describe('runMeadowEntryTextureSafetyProbe orchestration', () => {
 		expect(report.successfulUploads).toBe(0);
 		expect(report.retainedTextures).toBe(0);
 		expect(report.assets).toEqual([]);
-		expect(report.assetCount).toBe(EXPECTED_MEADOW_ENTRY_EXPORT_COUNT);
+		expect(report.assetCount).toBe(0);
 	});
 
 	it('builds a stop report with probe-setup scope when Bun.serve throws', async () => {
@@ -195,7 +242,7 @@ describe('runMeadowEntryTextureSafetyProbe orchestration', () => {
 		}) as BunServe;
 
 		try {
-			const report = await runMeadowEntryTextureSafetyProbe();
+			const report = await runMeadowEntryTextureSafetyProbe(cleanBaseline);
 
 			expect(report.decision).toBe('stop');
 			expect(report.failureScope).toBe('probe-setup');
@@ -210,7 +257,7 @@ describe('runMeadowEntryTextureSafetyProbe orchestration', () => {
 	it('includes platform and scope metadata in the report', async () => {
 		setBrowserResult();
 
-		const report = await runMeadowEntryTextureSafetyProbe();
+		const report = await runMeadowEntryTextureSafetyProbe(cleanBaseline);
 
 		expect(report.scope).toBe('chromium-webgl-only');
 		expect(report.platform).toBe(process.platform);

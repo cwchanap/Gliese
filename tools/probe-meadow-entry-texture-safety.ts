@@ -3,8 +3,6 @@ import { resolve } from 'node:path';
 
 import { chromium } from 'playwright';
 
-import { meadowEntryArtPackageApproval } from '../src/lib/game/content/approvals/meadow-entry-art-package';
-
 declare const Bun: {
 	serve(options: {
 		hostname: string;
@@ -17,10 +15,16 @@ declare const Bun: {
 };
 
 export interface TextureSafetyAsset {
-	id: string;
-	path: string;
-	width: number;
-	height: number;
+	readonly id: string;
+	readonly path: string;
+	readonly width: number;
+	readonly height: number;
+}
+
+export interface TextureSafetyProbeInput {
+	readonly label: string;
+	readonly assets: readonly TextureSafetyAsset[];
+	readonly expectedRetainedTextures: number;
 }
 
 export interface TextureSafetyAssetResult extends TextureSafetyAsset {
@@ -30,6 +34,8 @@ export interface TextureSafetyAssetResult extends TextureSafetyAsset {
 }
 
 export interface TextureSafetyProbeReport {
+	label: string;
+	expectedRetainedTextures: number;
 	scope: 'chromium-webgl-only';
 	assetCount: number;
 	successfulUploads: number;
@@ -62,31 +68,32 @@ interface BrowserProbeResult {
 	retainedTextures: number;
 }
 
-export const EXPECTED_MEADOW_ENTRY_EXPORT_COUNT = 22;
-
-export const meadowEntryTextureSafetyAssets: readonly TextureSafetyAsset[] =
-	meadowEntryArtPackageApproval.exports.map((asset) => ({
-		id: `${asset.cropId}:${asset.plane}`,
-		path: asset.path,
-		width: asset.width,
-		height: asset.height
-	}));
-
-if (meadowEntryTextureSafetyAssets.length !== EXPECTED_MEADOW_ENTRY_EXPORT_COUNT) {
-	throw new Error(
-		`Expected ${EXPECTED_MEADOW_ENTRY_EXPORT_COUNT} exports, found ${meadowEntryTextureSafetyAssets.length}`
-	);
-}
+export const paintedV2CleanBaselineTextureSafetyInput: TextureSafetyProbeInput = {
+	label: 'painted-v2-clean-baseline',
+	assets: [],
+	expectedRetainedTextures: 0
+};
 
 export function decideTextureSafety(
+	input: Pick<TextureSafetyProbeInput, 'label' | 'assets' | 'expectedRetainedTextures'>,
 	report: Pick<
 		TextureSafetyProbeReport,
 		'assetCount' | 'successfulUploads' | 'retainedTextures' | 'contextLost'
 	>
 ): 'proceed' | 'stop' {
-	return report.assetCount === EXPECTED_MEADOW_ENTRY_EXPORT_COUNT &&
-		report.successfulUploads === EXPECTED_MEADOW_ENTRY_EXPORT_COUNT &&
-		report.retainedTextures === EXPECTED_MEADOW_ENTRY_EXPORT_COUNT &&
+	const expectedAssetCount = input.assets.length;
+	const ids = new Set(input.assets.map((asset) => asset.id));
+	const zeroAssetBaseline =
+		expectedAssetCount === 0 &&
+		input.label === 'painted-v2-clean-baseline' &&
+		input.expectedRetainedTextures === 0;
+	const candidateInput = expectedAssetCount > 0;
+
+	return (zeroAssetBaseline || candidateInput) &&
+		ids.size === expectedAssetCount &&
+		report.assetCount === expectedAssetCount &&
+		report.successfulUploads === expectedAssetCount &&
+		report.retainedTextures === input.expectedRetainedTextures &&
 		report.contextLost === false
 		? 'proceed'
 		: 'stop';
@@ -246,10 +253,11 @@ async function uploadAssetsInOneContext(
 }
 
 /**
- * Runs the Meadow Entry WebGL texture-safety preflight: uploads every approved
- * export into a single Chromium WebGL context and reports whether all textures
- * were retained without context loss.
+ * Runs the Meadow Entry WebGL texture-safety preflight: uploads every injected
+ * asset into a single Chromium WebGL context and reports whether the expected
+ * textures were retained without context loss.
  *
+ * @param input - Label, assets, and expected retention count for this probe.
  * @param repositoryRoot - Repository root used to resolve asset paths; defaults
  *   to the current working directory.
  * @returns A {@link TextureSafetyProbeReport}. The probe never throws: any
@@ -257,20 +265,20 @@ async function uploadAssetsInOneContext(
  *   `probeFailure`/`failureScope` diagnosis.
  */
 export async function runMeadowEntryTextureSafetyProbe(
+	input: TextureSafetyProbeInput,
 	repositoryRoot = process.cwd()
 ): Promise<TextureSafetyProbeReport> {
 	const started = performance.now();
 	let server: ReturnType<typeof createAssetServer> | undefined;
 	try {
-		server = createAssetServer(repositoryRoot, meadowEntryTextureSafetyAssets);
-		const result = await uploadAssetsInOneContext(
-			`http://127.0.0.1:${server.port}`,
-			meadowEntryTextureSafetyAssets
-		);
+		server = createAssetServer(repositoryRoot, input.assets);
+		const result = await uploadAssetsInOneContext(`http://127.0.0.1:${server.port}`, input.assets);
 		const successfulUploads = result.assets.filter((asset) => asset.success).length;
 		const report: TextureSafetyProbeReport = {
+			label: input.label,
+			expectedRetainedTextures: input.expectedRetainedTextures,
 			scope: 'chromium-webgl-only',
-			assetCount: meadowEntryTextureSafetyAssets.length,
+			assetCount: input.assets.length,
 			successfulUploads,
 			retainedTextures: result.retainedTextures,
 			maxTextureSize: result.maxTextureSize,
@@ -290,12 +298,14 @@ export async function runMeadowEntryTextureSafetyProbe(
 			decision: 'stop'
 		};
 		report.failureScope = classifyFailureScope(report);
-		report.decision = decideTextureSafety(report);
+		report.decision = decideTextureSafety(input, report);
 		return report;
 	} catch (error) {
 		const report: TextureSafetyProbeReport = {
+			label: input.label,
+			expectedRetainedTextures: input.expectedRetainedTextures,
 			scope: 'chromium-webgl-only',
-			assetCount: meadowEntryTextureSafetyAssets.length,
+			assetCount: input.assets.length,
 			successfulUploads: 0,
 			retainedTextures: 0,
 			maxTextureSize: null,
@@ -321,7 +331,7 @@ export async function runMeadowEntryTextureSafetyProbe(
 }
 
 if (import.meta.main) {
-	const report = await runMeadowEntryTextureSafetyProbe();
+	const report = await runMeadowEntryTextureSafetyProbe(paintedV2CleanBaselineTextureSafetyInput);
 	process.stdout.write(`${JSON.stringify(report, null, 2)}\n`);
 	if (report.decision === 'stop') process.exitCode = 1;
 }

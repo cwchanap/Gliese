@@ -1,10 +1,8 @@
 import { describe, expect, it } from 'vitest';
 
 import {
-	EXPECTED_MEADOW_ENTRY_EXPORT_COUNT,
 	classifyFailureScope,
 	decideTextureSafety,
-	meadowEntryTextureSafetyAssets,
 	message
 } from '../../../../tools/probe-meadow-entry-texture-safety';
 import type {
@@ -36,87 +34,193 @@ function report(
 	};
 }
 
-describe('meadowEntryTextureSafetyAssets', () => {
-	it('maps every approved export to a texture-safety asset with an id:plane key', () => {
-		expect(meadowEntryTextureSafetyAssets).toHaveLength(EXPECTED_MEADOW_ENTRY_EXPORT_COUNT);
-		for (const asset of meadowEntryTextureSafetyAssets) {
-			expect(asset.id).toMatch(/^.+:(base|foreground)$/);
-			expect(asset.path).toBeTruthy();
-			expect(asset.width).toBeGreaterThan(0);
-			expect(asset.height).toBeGreaterThan(0);
-		}
+const cleanBaseline = {
+	label: 'painted-v2-clean-baseline',
+	assets: [],
+	expectedRetainedTextures: 0
+} as const;
+
+const candidateAssets = [
+	{
+		id: 'painted-v2-crossroads:base',
+		path: 'game/assets/regions/meadow-entry-painted-v2/crossroads-base.png',
+		width: 3200,
+		height: 3200
+	},
+	{
+		id: 'painted-v2-sundrop-village:base',
+		path: 'game/assets/regions/meadow-entry-painted-v2/sundrop-village-base.png',
+		width: 3200,
+		height: 3200
+	}
+];
+
+describe('texture safety probe inputs', () => {
+	it('accepts an injected zero-asset baseline', () => {
+		expect(cleanBaseline.assets).toHaveLength(0);
+		expect(cleanBaseline.label).toBe('painted-v2-clean-baseline');
+		expect(cleanBaseline.expectedRetainedTextures).toBe(0);
 	});
 
-	it('produces unique ids across all assets', () => {
-		const ids = new Set(meadowEntryTextureSafetyAssets.map(({ id }) => id));
-		expect(ids.size).toBe(meadowEntryTextureSafetyAssets.length);
+	it('keeps injected candidate asset ids unique', () => {
+		const ids = new Set(candidateAssets.map(({ id }) => id));
+		expect(ids.size).toBe(candidateAssets.length);
 	});
 });
 
 describe('decideTextureSafety', () => {
-	it('returns proceed when all assets uploaded and retained without context loss', () => {
+	it('returns proceed for the cleaned zero-texture baseline', () => {
 		expect(
-			decideTextureSafety({
-				assetCount: EXPECTED_MEADOW_ENTRY_EXPORT_COUNT,
-				successfulUploads: EXPECTED_MEADOW_ENTRY_EXPORT_COUNT,
-				retainedTextures: EXPECTED_MEADOW_ENTRY_EXPORT_COUNT,
+			decideTextureSafety(cleanBaseline, {
+				assetCount: 0,
+				successfulUploads: 0,
+				retainedTextures: 0,
 				contextLost: false
 			})
 		).toBe('proceed');
 	});
 
-	it('returns stop when asset count does not match expected', () => {
+	it('returns proceed for an injected candidate with exact expected retention', () => {
+		const input = {
+			label: 'painted-v2-candidate',
+			assets: candidateAssets,
+			expectedRetainedTextures: candidateAssets.length
+		};
 		expect(
-			decideTextureSafety({
-				assetCount: EXPECTED_MEADOW_ENTRY_EXPORT_COUNT - 1,
-				successfulUploads: EXPECTED_MEADOW_ENTRY_EXPORT_COUNT,
-				retainedTextures: EXPECTED_MEADOW_ENTRY_EXPORT_COUNT,
+			decideTextureSafety(input, {
+				assetCount: candidateAssets.length,
+				successfulUploads: candidateAssets.length,
+				retainedTextures: candidateAssets.length,
 				contextLost: false
 			})
+		).toBe('proceed');
+	});
+
+	it('returns stop when retention does not match the injected expectation', () => {
+		expect(
+			decideTextureSafety(
+				{
+					...cleanBaseline,
+					label: 'painted-v2-candidate',
+					assets: candidateAssets,
+					expectedRetainedTextures: 1
+				},
+				{
+					assetCount: candidateAssets.length,
+					successfulUploads: candidateAssets.length,
+					retainedTextures: candidateAssets.length,
+					contextLost: false
+				}
+			)
+		).toBe('stop');
+	});
+
+	it('returns stop when zero assets use a non-baseline label', () => {
+		expect(
+			decideTextureSafety(
+				{ ...cleanBaseline, label: 'painted-v2-candidate' },
+				{
+					assetCount: 0,
+					successfulUploads: 0,
+					retainedTextures: 0,
+					contextLost: false
+				}
+			)
+		).toBe('stop');
+	});
+
+	it('returns stop when asset count does not match injected assets', () => {
+		expect(
+			decideTextureSafety(
+				{
+					...cleanBaseline,
+					label: 'painted-v2-candidate',
+					assets: candidateAssets,
+					expectedRetainedTextures: 2
+				},
+				{
+					assetCount: candidateAssets.length - 1,
+					successfulUploads: candidateAssets.length,
+					retainedTextures: candidateAssets.length,
+					contextLost: false
+				}
+			)
 		).toBe('stop');
 	});
 
 	it('returns stop when not all uploads succeeded', () => {
 		expect(
-			decideTextureSafety({
-				assetCount: EXPECTED_MEADOW_ENTRY_EXPORT_COUNT,
-				successfulUploads: EXPECTED_MEADOW_ENTRY_EXPORT_COUNT - 1,
-				retainedTextures: EXPECTED_MEADOW_ENTRY_EXPORT_COUNT,
-				contextLost: false
-			})
+			decideTextureSafety(
+				{
+					...cleanBaseline,
+					label: 'painted-v2-candidate',
+					assets: candidateAssets,
+					expectedRetainedTextures: 2
+				},
+				{
+					assetCount: candidateAssets.length,
+					successfulUploads: candidateAssets.length - 1,
+					retainedTextures: candidateAssets.length,
+					contextLost: false
+				}
+			)
 		).toBe('stop');
 	});
 
 	it('returns stop when not all textures were retained', () => {
 		expect(
-			decideTextureSafety({
-				assetCount: EXPECTED_MEADOW_ENTRY_EXPORT_COUNT,
-				successfulUploads: EXPECTED_MEADOW_ENTRY_EXPORT_COUNT,
-				retainedTextures: EXPECTED_MEADOW_ENTRY_EXPORT_COUNT - 1,
-				contextLost: false
-			})
+			decideTextureSafety(
+				{
+					...cleanBaseline,
+					label: 'painted-v2-candidate',
+					assets: candidateAssets,
+					expectedRetainedTextures: 2
+				},
+				{
+					assetCount: candidateAssets.length,
+					successfulUploads: candidateAssets.length,
+					retainedTextures: candidateAssets.length - 1,
+					contextLost: false
+				}
+			)
 		).toBe('stop');
 	});
 
 	it('returns stop when context was lost', () => {
 		expect(
-			decideTextureSafety({
-				assetCount: EXPECTED_MEADOW_ENTRY_EXPORT_COUNT,
-				successfulUploads: EXPECTED_MEADOW_ENTRY_EXPORT_COUNT,
-				retainedTextures: EXPECTED_MEADOW_ENTRY_EXPORT_COUNT,
-				contextLost: true
-			})
+			decideTextureSafety(
+				{
+					...cleanBaseline,
+					label: 'painted-v2-candidate',
+					assets: candidateAssets,
+					expectedRetainedTextures: 2
+				},
+				{
+					assetCount: candidateAssets.length,
+					successfulUploads: candidateAssets.length,
+					retainedTextures: candidateAssets.length,
+					contextLost: true
+				}
+			)
 		).toBe('stop');
 	});
 
 	it('returns stop when contextLost is null (unknown)', () => {
 		expect(
-			decideTextureSafety({
-				assetCount: EXPECTED_MEADOW_ENTRY_EXPORT_COUNT,
-				successfulUploads: EXPECTED_MEADOW_ENTRY_EXPORT_COUNT,
-				retainedTextures: EXPECTED_MEADOW_ENTRY_EXPORT_COUNT,
-				contextLost: null
-			})
+			decideTextureSafety(
+				{
+					...cleanBaseline,
+					label: 'painted-v2-candidate',
+					assets: candidateAssets,
+					expectedRetainedTextures: 2
+				},
+				{
+					assetCount: candidateAssets.length,
+					successfulUploads: candidateAssets.length,
+					retainedTextures: candidateAssets.length,
+					contextLost: null
+				}
+			)
 		).toBe('stop');
 	});
 });

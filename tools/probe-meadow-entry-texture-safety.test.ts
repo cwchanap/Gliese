@@ -1,10 +1,9 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import {
-	EXPECTED_MEADOW_ENTRY_EXPORT_COUNT,
-	runMeadowEntryTextureSafetyProbe
-} from './probe-meadow-entry-texture-safety';
+import { readFileSync } from 'node:fs';
+
+import { runMeadowEntryTextureSafetyProbe } from './probe-meadow-entry-texture-safety';
 
 type BunServe = (...arguments_: unknown[]) => unknown;
 
@@ -25,10 +24,15 @@ test('returns a structured stop report when temporary Bun server setup fails', a
 	}) as BunServe;
 
 	try {
+		const input = {
+			label: 'painted-v2-clean-baseline',
+			assets: [],
+			expectedRetainedTextures: 0
+		} as const;
 		let report: Awaited<ReturnType<typeof runMeadowEntryTextureSafetyProbe>> | undefined;
 		let thrown: unknown;
 		try {
-			report = await runMeadowEntryTextureSafetyProbe();
+			report = await runMeadowEntryTextureSafetyProbe(input);
 		} catch (error) {
 			thrown = error;
 		}
@@ -43,6 +47,8 @@ test('returns a structured stop report when temporary Bun server setup fails', a
 		assert.ok(report);
 		assert.deepEqual(
 			{
+				label: report.label,
+				expectedRetainedTextures: report.expectedRetainedTextures,
 				assetCount: report.assetCount,
 				successfulUploads: report.successfulUploads,
 				retainedTextures: report.retainedTextures,
@@ -55,7 +61,9 @@ test('returns a structured stop report when temporary Bun server setup fails', a
 				decision: report.decision
 			},
 			{
-				assetCount: EXPECTED_MEADOW_ENTRY_EXPORT_COUNT,
+				label: 'painted-v2-clean-baseline',
+				expectedRetainedTextures: 0,
+				assetCount: 0,
 				successfulUploads: 0,
 				retainedTextures: 0,
 				maxTextureSize: null,
@@ -70,4 +78,12 @@ test('returns a structured stop report when temporary Bun server setup fails', a
 	} finally {
 		bun.serve = originalServe;
 	}
+});
+
+test('does not depend on the historical Meadow Entry approval module', () => {
+	const source = readFileSync(
+		new URL('./probe-meadow-entry-texture-safety.ts', import.meta.url),
+		'utf8'
+	);
+	assert.doesNotMatch(source, /meadowEntryArtPackageApproval/);
 });
