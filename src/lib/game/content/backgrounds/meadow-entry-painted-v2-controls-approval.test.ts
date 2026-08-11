@@ -19,6 +19,7 @@ import {
 	MEADOW_ENTRY_PAINTED_V2_PILOT_OVERLAPS,
 	MEADOW_ENTRY_PAINTED_V2_PILOT_RUNTIME_COVERAGE
 } from './meadow-entry-painted-v2-crop-manifest';
+import { parseCheckedInMeadowEntryControlsApproval } from '../../../../../tools/approve-meadow-entry-controls';
 
 const SHA256 = /^[0-9a-f]{64}$/;
 const EVIDENCE_PATH = 'docs/superpowers/reports/2026-08-11-painted-v2-controls.md' as const;
@@ -58,5 +59,40 @@ describe('painted-v2 meadow-entry controls approval', () => {
 		expect(meadowEntryControlsApproval.storageConfigurationSha256).toBe(
 			'36737b6905cfc7c62fdf1bcdd48850bc574f20d7f4bfb63ab1aa8c727bc51de2'
 		);
+	});
+
+	it('rejects stale evidence and storage values from the exported approval object', () => {
+		const approvalSource = (overrides: { storageMode: string; evidencePath: string }) => `
+export interface MeadowEntryControlsApproval {
+	storageMode: 'git-lfs';
+	evidencePath: '${EVIDENCE_PATH}';
+}
+export const meadowEntryControlsApproval: MeadowEntryControlsApproval = {
+	combinedControlFingerprint: '${'1'.repeat(64)}',
+	cropManifestSha256: '${'2'.repeat(64)}',
+	bakeOwnershipSha256: '${'3'.repeat(64)}',
+	storageMode: '${overrides.storageMode}',
+	storageConfigurationSha256: '${'4'.repeat(64)}',
+	evidencePath: '${overrides.evidencePath}'
+};
+`;
+
+		expect(() =>
+			parseCheckedInMeadowEntryControlsApproval(
+				approvalSource({
+					storageMode: 'git-lfs',
+					evidencePath:
+						'docs/superpowers/reports/2026-07-30-hpa-399-controls-crops-storage-validation.md'
+				})
+			)
+		).toThrow(/evidence path drifted/i);
+		expect(() =>
+			parseCheckedInMeadowEntryControlsApproval(
+				approvalSource({
+					storageMode: 'local',
+					evidencePath: EVIDENCE_PATH
+				})
+			)
+		).toThrow(/storage mode drifted/i);
 	});
 });

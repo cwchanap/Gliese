@@ -318,10 +318,18 @@ export async function approveMeadowEntryControls(
 	return values;
 }
 
-function readCheckedInApprovalValues(repositoryRoot: string): MeadowEntryControlsApprovalValues {
-	const source = readFileSync(join(repositoryRoot, APPROVAL_PATH), 'utf8');
+export function parseCheckedInMeadowEntryControlsApproval(
+	source: string
+): MeadowEntryControlsApprovalValues {
+	const objectMatch = source.match(
+		/export const meadowEntryControlsApproval\s*:\s*MeadowEntryControlsApproval\s*=\s*\{([\s\S]*?)^\};/m
+	);
+	if (!objectMatch) {
+		throw new Error('Checked-in painted-v2 approval object is missing.');
+	}
+	const objectSource = objectMatch[1]!;
 	const value = (field: string): string => {
-		const match = source.match(new RegExp(`${field}: '([^']+)'`));
+		const match = objectSource.match(new RegExp(`^[\\t ]*${field}: '([^']+)',?[\\t ]*$`, 'm'));
 		if (!match) throw new Error(`Checked-in painted-v2 approval is missing ${field}.`);
 		return match[1]!;
 	};
@@ -339,6 +347,12 @@ function readCheckedInApprovalValues(repositoryRoot: string): MeadowEntryControl
 		storageConfigurationSha256: value('storageConfigurationSha256'),
 		evidencePath: EVIDENCE_PATH
 	};
+}
+
+function readCheckedInApprovalValues(repositoryRoot: string): MeadowEntryControlsApprovalValues {
+	return parseCheckedInMeadowEntryControlsApproval(
+		readFileSync(join(repositoryRoot, APPROVAL_PATH), 'utf8')
+	);
 }
 
 /** Recomputes the active payload and compares it without writing any file. */
