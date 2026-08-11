@@ -284,6 +284,12 @@ function expectRouteClear(
 }
 
 describe('opening map content', () => {
+	it('keeps every registered map without active background images', () => {
+		expect(Object.values(maps).every((map) => (map.backgroundImages ?? []).length === 0)).toBe(
+			true
+		);
+	});
+
 	it('supports authored ground patches, blockers, stair markers, and route combat bounds', () => {
 		const modelTestMap: WorldMapDefinition = {
 			id: 'model-test',

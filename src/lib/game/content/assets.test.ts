@@ -20,7 +20,6 @@ import {
 	marshDressingAsset,
 	npcPackAsset,
 	regionalBackgroundAssets,
-	sundropRegionalBackgroundAssets,
 	shrineDressingAsset,
 	starterPackAsset,
 	terrainFrameOrder,
@@ -31,17 +30,8 @@ import {
 	type ActorAnimationKey,
 	type FenceDressingFrameName,
 	type InteriorPropFrameName,
-	type RegionalBackgroundPreloadAsset,
 	type VillageBuildingFrameName
 } from '$lib/game/content/assets';
-import { meadowEntryRuntimeBackgroundAssets } from '$lib/game/content/backgrounds/meadow-entry-runtime';
-import { sundropVillageBackgroundsApproval } from '$lib/game/content/approvals/sundrop-village-backgrounds';
-import {
-	SUNDROP_VILLAGE_BASE_BACKGROUND_PATH,
-	SUNDROP_VILLAGE_BASE_BACKGROUND_TEXTURE_KEY,
-	SUNDROP_VILLAGE_FOREGROUND_BACKGROUND_PATH,
-	SUNDROP_VILLAGE_FOREGROUND_BACKGROUND_TEXTURE_KEY
-} from '$lib/game/content/backgrounds/sundrop-village-backgrounds';
 import { meadowEntryMap } from '$lib/game/content/maps';
 
 const requiredActors: ActorAnimationId[] = ['hero', 'slimeScout', 'ruinsWarden'];
@@ -154,32 +144,8 @@ describe('battle background asset metadata', () => {
 });
 
 describe('regional background asset metadata', () => {
-	it('preserves Sundrop approval metadata separately and appends Meadow Entry preload assets', () => {
-		expect(sundropRegionalBackgroundAssets).toEqual([
-			{
-				key: SUNDROP_VILLAGE_BASE_BACKGROUND_TEXTURE_KEY,
-				path: SUNDROP_VILLAGE_BASE_BACKGROUND_PATH,
-				approvedControlFingerprint: sundropVillageBackgroundsApproval.approvedControlFingerprint,
-				approvedPngSha256: sundropVillageBackgroundsApproval.base.approvedPngSha256
-			},
-			{
-				key: SUNDROP_VILLAGE_FOREGROUND_BACKGROUND_TEXTURE_KEY,
-				path: SUNDROP_VILLAGE_FOREGROUND_BACKGROUND_PATH,
-				approvedControlFingerprint: sundropVillageBackgroundsApproval.approvedControlFingerprint,
-				approvedPngSha256: sundropVillageBackgroundsApproval.foreground.approvedPngSha256
-			}
-		]);
-
-		const preloadAssets: readonly RegionalBackgroundPreloadAsset[] = regionalBackgroundAssets;
-		expect(preloadAssets).toEqual([
-			...sundropRegionalBackgroundAssets,
-			...meadowEntryRuntimeBackgroundAssets
-		]);
-		expect(preloadAssets).toHaveLength(24);
-		expect(preloadAssets.map(({ key, path }) => ({ key, path }))).toEqual([
-			...sundropRegionalBackgroundAssets.map(({ key, path }) => ({ key, path })),
-			...meadowEntryRuntimeBackgroundAssets
-		]);
+	it('keeps the generic regional preload seam empty until PR2b selects a mode', () => {
+		expect(regionalBackgroundAssets).toEqual([]);
 	});
 });
 

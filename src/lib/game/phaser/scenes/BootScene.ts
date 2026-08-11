@@ -114,9 +114,8 @@ export class BootScene extends Phaser.Scene {
 		for (const asset of Object.values(battleBackgroundAssets)) {
 			this.load.image(asset.key, asset.path);
 		}
-		// Resolve the URL option before queueing so `?regionalBackground=off` skips the
-		// 7.6 MB download/decode entirely, not just the draw. The diagnostic completion
-		// count then reflects zero regional loads in off-mode.
+		// PR2a has no selected regional assets; PR2b will supply a mode selection before
+		// any regional background is queued.
 		const renderOptions = resolveWorldRenderOptions();
 		if (renderOptions.regionalBackgrounds) {
 			for (const asset of regionalBackgroundAssets) {

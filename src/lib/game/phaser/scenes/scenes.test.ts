@@ -980,13 +980,20 @@ describe('BootScene', () => {
 		const {
 			animationPackAsset,
 			battleBackgroundAssets,
+			coastDressingAsset,
+			crossroadsDressingAsset,
 			environmentDressingAsset,
 			fenceDressingAsset,
 			forestDressingAsset,
 			interiorPropAsset,
+			marshDressingAsset,
 			npcPackAsset,
+			shrineDressingAsset,
 			starterPackAsset,
-			villageBuildingAsset
+			terrainTilesAsset,
+			villageBuildingAsset,
+			villageDressingAsset,
+			villageHedgeAsset
 		} = await import('$lib/game/content/assets');
 		const { BootScene } = await import('./BootScene');
 		const scene = new BootScene();
@@ -1011,25 +1018,44 @@ describe('BootScene', () => {
 			environmentDressingAsset.key,
 			environmentDressingAsset.path
 		);
+		expect(scene.load.image).toHaveBeenCalledWith(terrainTilesAsset.key, terrainTilesAsset.path);
+		expect(scene.load.image).toHaveBeenCalledWith(coastDressingAsset.key, coastDressingAsset.path);
+		expect(scene.load.image).toHaveBeenCalledWith(
+			shrineDressingAsset.key,
+			shrineDressingAsset.path
+		);
+		expect(scene.load.image).toHaveBeenCalledWith(marshDressingAsset.key, marshDressingAsset.path);
+		expect(scene.load.image).toHaveBeenCalledWith(
+			crossroadsDressingAsset.key,
+			crossroadsDressingAsset.path
+		);
+		expect(scene.load.image).toHaveBeenCalledWith(
+			villageDressingAsset.key,
+			villageDressingAsset.path
+		);
+		expect(scene.load.image).toHaveBeenCalledWith(villageHedgeAsset.key, villageHedgeAsset.path);
 		for (const asset of Object.values(battleBackgroundAssets)) {
 			expect(scene.load.image).toHaveBeenCalledWith(asset.key, asset.path);
 		}
+		expect(scene.load.image).not.toHaveBeenCalledWith(
+			expect.anything(),
+			expect.stringContaining('/game/assets/regions/')
+		);
 	});
 
-	it('preloads every registered regional background', async () => {
-		const { regionalBackgroundAssets } = await import('$lib/game/content/assets');
+	it('does not preload regional backgrounds by default', async () => {
 		const { BootScene } = await import('./BootScene');
 		const scene = new BootScene();
 
 		scene.preload();
 
-		for (const asset of regionalBackgroundAssets) {
-			expect(scene.load.image).toHaveBeenCalledWith(asset.key, asset.path);
-		}
+		expect(scene.load.image).not.toHaveBeenCalledWith(
+			expect.anything(),
+			expect.stringContaining('/game/assets/regions/')
+		);
 	});
 
 	it('emits WebGL renderer evidence with one maximum-texture-size query', async () => {
-		const { regionalBackgroundAssets } = await import('$lib/game/content/assets');
 		const { REGIONAL_BACKGROUND_RENDERER_DIAGNOSTIC_EVENT } =
 			await import('$lib/game/phaser/renderer-diagnostics');
 		const { BootScene } = await import('./BootScene');
@@ -1044,7 +1070,6 @@ describe('BootScene', () => {
 
 		try {
 			scene.preload();
-			scene.load.emit('filecomplete', regionalBackgroundAssets[0]!.key, 'image', {});
 			scene.load.emit('complete');
 
 			expect(phaserState.gl.getParameter).toHaveBeenCalledOnce();
@@ -1053,8 +1078,8 @@ describe('BootScene', () => {
 				{
 					renderer: 'webgl',
 					maxTextureSize: 4096,
-					regionalBackgroundLoadMs: 15,
-					regionalBackgroundLoadCompletions: 1
+					regionalBackgroundLoadMs: null,
+					regionalBackgroundLoadCompletions: 0
 				}
 			]);
 		} finally {
@@ -1064,7 +1089,6 @@ describe('BootScene', () => {
 	});
 
 	it('reports null maxTextureSize when the WebGL query throws', async () => {
-		const { regionalBackgroundAssets } = await import('$lib/game/content/assets');
 		const { REGIONAL_BACKGROUND_RENDERER_DIAGNOSTIC_EVENT } =
 			await import('$lib/game/phaser/renderer-diagnostics');
 		const { BootScene } = await import('./BootScene');
@@ -1082,15 +1106,14 @@ describe('BootScene', () => {
 
 		try {
 			scene.preload();
-			scene.load.emit('filecomplete', regionalBackgroundAssets[0]!.key, 'image', {});
 			scene.load.emit('complete');
 
 			expect(diagnostics).toEqual([
 				{
 					renderer: 'webgl',
 					maxTextureSize: null,
-					regionalBackgroundLoadMs: 15,
-					regionalBackgroundLoadCompletions: 1
+					regionalBackgroundLoadMs: null,
+					regionalBackgroundLoadCompletions: 0
 				}
 			]);
 		} finally {
@@ -1101,7 +1124,6 @@ describe('BootScene', () => {
 	});
 
 	it('reports Canvas with no texture limit without touching WebGL', async () => {
-		const { regionalBackgroundAssets } = await import('$lib/game/content/assets');
 		const { REGIONAL_BACKGROUND_RENDERER_DIAGNOSTIC_EVENT } =
 			await import('$lib/game/phaser/renderer-diagnostics');
 		const { BootScene } = await import('./BootScene');
@@ -1117,7 +1139,6 @@ describe('BootScene', () => {
 
 		try {
 			scene.preload();
-			scene.load.emit('filecomplete', regionalBackgroundAssets[0]!.key, 'image', {});
 			scene.load.emit('complete');
 
 			expect(phaserState.gl.getParameter).not.toHaveBeenCalled();
@@ -1125,8 +1146,8 @@ describe('BootScene', () => {
 				{
 					renderer: 'canvas',
 					maxTextureSize: null,
-					regionalBackgroundLoadMs: 4,
-					regionalBackgroundLoadCompletions: 1
+					regionalBackgroundLoadMs: null,
+					regionalBackgroundLoadCompletions: 0
 				}
 			]);
 		} finally {
@@ -1136,31 +1157,32 @@ describe('BootScene', () => {
 		}
 	});
 
-	it('counts only unique successful image completions from the regional catalog', async () => {
-		const { regionalBackgroundAssets } = await import('$lib/game/content/assets');
+	it('reports zero regional completions when the catalog is empty', async () => {
 		const { REGIONAL_BACKGROUND_RENDERER_DIAGNOSTIC_EVENT } =
 			await import('$lib/game/phaser/renderer-diagnostics');
 		const { BootScene } = await import('./BootScene');
 		const target = installHudCommandTarget();
 		const now = vi.spyOn(performance, 'now');
-		now.mockReturnValueOnce(2).mockReturnValueOnce(8);
 		const diagnostics: RegionalBackgroundRendererDiagnostic[] = [];
 		target.target.addEventListener(REGIONAL_BACKGROUND_RENDERER_DIAGNOSTIC_EVENT, (event) => {
 			diagnostics.push((event as CustomEvent<RegionalBackgroundRendererDiagnostic>).detail);
 		});
 		phaserState.renderer.type = 2;
 		const scene = new BootScene();
-		const regionalKey = regionalBackgroundAssets[0]!.key;
 
 		try {
 			scene.preload();
-			scene.load.emit('filecomplete', regionalKey, 'image', {});
-			scene.load.emit('filecomplete', regionalKey, 'image', {});
 			scene.load.emit('filecomplete', 'unrelated-image', 'image', {});
-			scene.load.emit('filecomplete', regionalKey, 'json', {});
 			scene.load.emit('complete');
 
-			expect(diagnostics[0]?.regionalBackgroundLoadCompletions).toBe(1);
+			expect(diagnostics).toEqual([
+				{
+					renderer: 'webgl',
+					maxTextureSize: 4096,
+					regionalBackgroundLoadMs: null,
+					regionalBackgroundLoadCompletions: 0
+				}
+			]);
 		} finally {
 			now.mockRestore();
 			target.restore();
@@ -1194,8 +1216,7 @@ describe('BootScene', () => {
 		}
 	});
 
-	it('reports a failed registered background as zero successful completions with a preload window', async () => {
-		const { regionalBackgroundAssets } = await import('$lib/game/content/assets');
+	it('keeps regional timing null when no active background fails', async () => {
 		const { REGIONAL_BACKGROUND_RENDERER_DIAGNOSTIC_EVENT } =
 			await import('$lib/game/phaser/renderer-diagnostics');
 		const { BootScene } = await import('./BootScene');
@@ -1211,13 +1232,9 @@ describe('BootScene', () => {
 
 		try {
 			scene.preload();
-			scene.load.emit('loaderror', {
-				key: regionalBackgroundAssets[0]!.key,
-				src: regionalBackgroundAssets[0]!.path
-			});
 			scene.load.emit('complete');
 
-			expect(diagnostics[0]?.regionalBackgroundLoadMs).toBe(20);
+			expect(diagnostics[0]?.regionalBackgroundLoadMs).toBeNull();
 			expect(diagnostics[0]?.regionalBackgroundLoadCompletions).toBe(0);
 		} finally {
 			error.mockRestore();
@@ -1260,7 +1277,6 @@ describe('BootScene', () => {
 	});
 
 	it('skips queueing regional backgrounds when the URL disables them', async () => {
-		const { regionalBackgroundAssets } = await import('$lib/game/content/assets');
 		const { BootScene } = await import('./BootScene');
 		const previousLocation = Object.getOwnPropertyDescriptor(globalThis, 'location');
 		Object.defineProperty(globalThis, 'location', {
@@ -1273,9 +1289,10 @@ describe('BootScene', () => {
 
 			scene.preload();
 
-			for (const asset of regionalBackgroundAssets) {
-				expect(scene.load.image).not.toHaveBeenCalledWith(asset.key, asset.path);
-			}
+			expect(scene.load.image).not.toHaveBeenCalledWith(
+				expect.anything(),
+				expect.stringContaining('/game/assets/regions/')
+			);
 		} finally {
 			if (previousLocation) {
 				Object.defineProperty(globalThis, 'location', previousLocation);
