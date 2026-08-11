@@ -1,5 +1,4 @@
 import { createHash } from 'node:crypto';
-import { spawnSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 import {
 	lstat,
@@ -157,7 +156,20 @@ function withFailure(
 	};
 }
 
-describe('finalize-meadow-entry-masters CLI', () => {
+describe('historical finalize-meadow-entry-masters utilities', () => {
+	it('keeps the full-world finalizer out of the active package scripts and executable entry', () => {
+		const packageJson = JSON.parse(readFileSync(join(repositoryRoot, 'package.json'), 'utf8')) as {
+			scripts?: Record<string, string>;
+		};
+		const source = readFileSync(
+			join(repositoryRoot, 'tools/finalize-meadow-entry-masters.ts'),
+			'utf8'
+		);
+		expect(packageJson.scripts?.['art:finalize:meadow-entry']).toBeUndefined();
+		expect(packageJson.scripts?.['art:check:meadow-entry-finalize']).toBeUndefined();
+		expect(source).not.toContain('if (import.meta.main)');
+	});
+
 	it('parses the required plane and default output root', () => {
 		expect(parseFinalizeMeadowEntryMasterArguments(['--plane', 'base'])).toMatchObject({
 			plane: 'base',
@@ -172,29 +184,13 @@ describe('finalize-meadow-entry-masters CLI', () => {
 		expect(() => parseFinalizeMeadowEntryMasterArguments(['--plane', 'unknown'])).toThrow(/plane/i);
 	});
 
-	it('parses --check without changing the active output root', () => {
+	it('parses --check without changing the historical utility output root', () => {
 		expect(parseFinalizeMeadowEntryMasterArguments(['--plane', 'both', '--check'])).toMatchObject({
 			plane: 'both',
 			outputRoot: 'artifacts/meadow-entry/painted-v2',
 			check: true,
 			validateOnly: false
 		});
-	});
-
-	it('package check script supplies --plane base and reaches the missing-candidate boundary', () => {
-		const packageJson = JSON.parse(readFileSync(join(repositoryRoot, 'package.json'), 'utf8')) as {
-			scripts?: Record<string, string>;
-		};
-		const script = packageJson.scripts?.['art:check:meadow-entry-finalize'];
-		expect(script).toContain('--plane base');
-		const result = spawnSync('bun', ['run', 'art:check:meadow-entry-finalize'], {
-			cwd: repositoryRoot,
-			encoding: 'utf8'
-		});
-		const output = `${result.stdout ?? ''}${result.stderr ?? ''}`;
-		expect(result.status).not.toBe(0);
-		expect(output).not.toMatch(/Missing required --plane/i);
-		expect(output).toMatch(/Missing required --base-candidate|ENOENT/i);
 	});
 
 	it('rejects --check combined with publication-only review flags', () => {
@@ -278,7 +274,7 @@ describe('finalize-meadow-entry-masters CLI', () => {
 		).rejects.toThrow(/must not write to the approved package root/i);
 	});
 
-	it('commits both master planes and provenance as one complete snapshot', async () => {
+	it('retains the exported historical complete-snapshot publication utility', async () => {
 		const outputRoot = await temporaryRoot();
 		await publishApprovedMeadowEntryPackage(outputRoot, packageBytes('old'));
 		await mkdir(join(outputRoot, 'candidates'), { recursive: true });
@@ -745,7 +741,7 @@ describe('finalize-meadow-entry-masters CLI', () => {
 		await expect(readApprovedMeadowEntryPackageSnapshot(outputRoot)).rejects.toThrow();
 	});
 
-	it('checks a matching painted-v2 package without mutating it and rejects stale bytes', async () => {
+	it('checks a matching complete package without mutating it and rejects stale bytes', async () => {
 		const inputRoot = await temporaryRoot();
 		const outputRoot = await temporaryRoot();
 		const baseCandidate = join(inputRoot, 'base.png');
@@ -762,7 +758,7 @@ describe('finalize-meadow-entry-masters CLI', () => {
 			writeFile(baseProvenance, '{}'),
 			writeFile(fgProvenance, '{}')
 		]);
-		const expectedBytes = packageBytes('painted-v2-check');
+		const expectedBytes = packageBytes('historical-check');
 		await publishApprovedMeadowEntryPackage(outputRoot, expectedBytes);
 		const finalizers = { finalizeBoth: async () => expectedBytes };
 		const args = [
@@ -823,7 +819,7 @@ describe('finalize-meadow-entry-masters CLI', () => {
 		expect(Object.values(staleMutators).every((spy) => spy.mock.calls.length === 0)).toBe(true);
 	});
 
-	it('fails closed when production predecessor paths are absent without an injected reader', async () => {
+	it('fails closed when historical predecessor paths are absent without an injected reader', async () => {
 		const inputRoot = await temporaryRoot();
 		const candidate = join(inputRoot, 'candidate.png');
 		const transform = join(inputRoot, 'transform.json');
@@ -858,7 +854,7 @@ describe('finalize-meadow-entry-masters CLI', () => {
 		).rejects.toThrow(/predecessor bytes are missing/i);
 	});
 
-	it('runs a real HPA-399 candidate through core finalization before check and stale detection', async () => {
+	it('runs a real historical candidate through core finalization before check and stale detection', async () => {
 		const outputRoot = await temporaryRoot();
 		const candidate = join(
 			repositoryRoot,

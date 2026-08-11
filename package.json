@@ -11,8 +11,6 @@
 		"preview:village": "bun tools/preview-layered-region.ts",
 		"art:controls:meadow-entry": "bun tools/export-meadow-entry-art-controls.ts",
 		"art:approve:meadow-entry-controls": "bun tools/approve-meadow-entry-controls.ts",
-		"art:finalize:meadow-entry": "bun tools/finalize-meadow-entry-masters.ts",
-		"art:check:meadow-entry-finalize": "bun tools/finalize-meadow-entry-masters.ts --check --plane base",
 		"art:export:meadow-entry": "bun tools/export-meadow-entry-regions.ts",
 		"art:check:meadow-entry-export": "bun tools/export-meadow-entry-regions.ts --check",
 		"art:proof:meadow-entry": "bun tools/render-meadow-entry-art-proofs.ts",

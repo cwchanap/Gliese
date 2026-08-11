@@ -174,14 +174,14 @@ function approvedMasterFixture() {
 }
 
 describe('publishMeadowEntryExportPackage error branches', () => {
-	it('parses painted-v2 check mode and rejects publication-only flags', () => {
+	it('parses painted-v2 check mode and rejects retired publication flags', () => {
 		expect(parseMeadowEntryExportArguments([])).toEqual({ check: false, outputRoot: undefined });
 		expect(parseMeadowEntryExportArguments(['--check'])).toEqual({
 			check: true,
 			outputRoot: undefined
 		});
 		expect(() => parseMeadowEntryExportArguments(['--check', '--publish-runtime'])).toThrow(
-			/cannot combine.*--check.*--publish-runtime/i
+			/Unknown meadow-entry export argument.*--publish-runtime/i
 		);
 	});
 

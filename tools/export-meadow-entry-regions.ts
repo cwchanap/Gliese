@@ -109,18 +109,11 @@ export function parseMeadowEntryExportArguments(
 ): MeadowEntryExportArguments {
 	let check = false;
 	let outputRoot: string | undefined;
-	let publishRuntime = false;
 	for (let index = args[0] === '--' ? 1 : 0; index < args.length; index += 1) {
 		const flag = args[index];
 		if (flag === '--check') {
 			if (check) throw new Error('Duplicate meadow-entry export argument: --check');
 			check = true;
-			continue;
-		}
-		if (flag === '--publish-runtime') {
-			if (publishRuntime)
-				throw new Error('Duplicate meadow-entry export argument: --publish-runtime');
-			publishRuntime = true;
 			continue;
 		}
 		if (flag === '--output-root') {
@@ -136,9 +129,6 @@ export function parseMeadowEntryExportArguments(
 			continue;
 		}
 		throw new Error(`Unknown meadow-entry export argument: ${flag ?? '<missing>'}`);
-	}
-	if (check && publishRuntime) {
-		throw new Error('Meadow Entry export cannot combine --check with --publish-runtime.');
 	}
 	return { check, outputRoot };
 }

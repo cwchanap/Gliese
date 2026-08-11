@@ -719,10 +719,3 @@ export async function runFinalizeMeadowEntryMasters(
 	console.log(`base-sha256 ${sha256(packageBytes.basePng)}`);
 	console.log(`foreground-sha256 ${sha256(packageBytes.foregroundPng)}`);
 }
-
-if (import.meta.main) {
-	await runFinalizeMeadowEntryMasters(process.argv.slice(2)).catch((error: unknown) => {
-		console.error(error instanceof Error ? error.message : error);
-		process.exitCode = 1;
-	});
-}
