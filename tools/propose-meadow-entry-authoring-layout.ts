@@ -84,10 +84,13 @@ interface CandidateCrop {
 	};
 }
 
-const OUTPUT_DIRECTORY = resolve(
-	dirname(fileURLToPath(import.meta.url)),
-	'../docs/superpowers/reports/img/painted-v2/proposals'
-);
+const outputRootOverride = process.env.GLIESE_MEADOW_ENTRY_PROPOSAL_OUTPUT_ROOT;
+const OUTPUT_DIRECTORY = outputRootOverride
+	? resolve(outputRootOverride)
+	: resolve(
+			dirname(fileURLToPath(import.meta.url)),
+			'../docs/superpowers/reports/img/painted-v2/proposals'
+		);
 
 validateMeadowEntryCropContract();
 
@@ -391,32 +394,12 @@ function uncoveredBakedSourceKeys(
 }
 
 const MANDATORY_PATH_OWNERS = {
-	'ground-patch:link-village-crossroads': 'connector-village-crossroads',
-	'ground-patch:link-village-crossroads-v': 'connector-village-crossroads',
-	'ground-patch:village-crossroads-nook': 'connector-village-crossroads',
-	'blocker:corridor-wall-2a': 'connector-village-crossroads',
-	'blocker:corridor-wall-2b': 'connector-village-crossroads',
-	'blocker:corridor-wall-3a': 'connector-village-crossroads',
-	'blocker:corridor-wall-3b': 'connector-village-crossroads',
-	'blocker:corridor-wall-4a': 'connector-village-crossroads',
-	'blocker:corridor-wall-4b': 'connector-village-crossroads',
-	'blocker:corridor-wall-5a': 'connector-village-crossroads',
-	'blocker:corridor-wall-5b': 'connector-village-crossroads',
-	'blocker:corridor-wall-6a': 'connector-village-crossroads',
-	'blocker:corridor-wall-6b': 'connector-village-crossroads',
-	'blocker:corridor-wall-7a': 'connector-village-crossroads',
-	'blocker:corridor-wall-7b': 'connector-village-crossroads',
-	'blocker:corridor-wall-8a': 'connector-village-crossroads',
-	'blocker:corridor-wall-8b': 'connector-village-crossroads',
-	'blocker:corridor-wall-9a': 'connector-village-crossroads',
-	'blocker:corridor-wall-10b': 'connector-village-crossroads',
 	'decor:village-corridor-waymarker': 'connector-village-crossroads',
-	'ground-patch:link-crossroads-coast': 'connector-crossroads-coast',
-	'ground-patch:link-crossroads-coast-v': 'connector-crossroads-coast',
-	'ground-patch:link-crossroads-mistfen': 'connector-crossroads-mistfen',
-	'ground-patch:link-crossroads-mistfen-h': 'connector-crossroads-mistfen',
-	'ground-patch:link-crossroads-silverpine': 'connector-crossroads-silverpine',
-	'ground-patch:link-crossroads-wildwood': 'connector-crossroads-wildwood'
+	'ground-patch:crossroads-to-coast': 'connector-crossroads-coast',
+	'ground-patch:crossroads-to-mistfen': 'connector-crossroads-mistfen',
+	'ground-patch:crossroads-to-silverpine': 'connector-crossroads-silverpine',
+	'ground-patch:crossroads-to-wildwood': 'connector-crossroads-wildwood',
+	'ground-patch:village-to-crossroads': 'connector-village-crossroads'
 } as const satisfies Readonly<Record<string, CandidateRegionId>>;
 
 const FRAGMENT_REGION = {
