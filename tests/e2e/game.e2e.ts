@@ -752,6 +752,439 @@ async function moveRoute(
 	return result.position;
 }
 
+type InteriorGrayboxInteraction = {
+	speaker: string;
+	shopName?: string;
+};
+
+type InteriorGrayboxStep = {
+	label: string;
+	point: Point;
+	interaction?: InteriorGrayboxInteraction;
+};
+
+type InteriorGrayboxCase = {
+	mapId: string;
+	returnArrival: Point;
+	exteriorDoor: Point;
+	spawn: Point;
+	exit: Point;
+	steps: readonly InteriorGrayboxStep[];
+	persistAfterStep?: string;
+};
+
+const INTERIOR_GRAYBOX_CASES: readonly InteriorGrayboxCase[] = [
+	{
+		mapId: 'guild-hall',
+		returnArrival: { x: 2_272, y: 4_480 },
+		exteriorDoor: { x: 2_272, y: 4_416 },
+		spawn: { x: 512, y: 736 },
+		exit: { x: 512, y: 816 },
+		persistAfterStep: 'quartermaster-approach',
+		steps: [
+			{ label: 'entrance-lobby-spine', point: { x: 512, y: 656 } },
+			{ label: 'common-hall-spine', point: { x: 512, y: 512 } },
+			{ label: 'common-hall-west', point: { x: 400, y: 512 } },
+			{ label: 'common-hall-room', point: { x: 192, y: 512 } },
+			{ label: 'records-hall-spine', point: { x: 512, y: 512 } },
+			{ label: 'records-hall-north', point: { x: 512, y: 208 } },
+			{ label: 'records-hall-west', point: { x: 400, y: 208 } },
+			{ label: 'records-hall-room', point: { x: 192, y: 208 } },
+			{ label: 'guild-master-spine', point: { x: 400, y: 208 } },
+			{ label: 'guild-master-north', point: { x: 512, y: 208 } },
+			{ label: 'guild-master-approach-spine', point: { x: 512, y: 184 } },
+			{
+				label: 'guild-master-approach',
+				point: { x: 800, y: 184 },
+				interaction: { speaker: 'Guild Master Arlen' }
+			},
+			{ label: 'training-hall-spine', point: { x: 512, y: 184 } },
+			{ label: 'training-hall-south', point: { x: 512, y: 368 } },
+			{ label: 'training-hall-room', point: { x: 800, y: 368 } },
+			{ label: 'quartermaster-spine', point: { x: 512, y: 368 } },
+			{ label: 'quartermaster-south', point: { x: 512, y: 568 } },
+			{
+				label: 'quartermaster-approach',
+				point: { x: 816, y: 568 },
+				interaction: { speaker: 'Quartermaster Vale', shopName: 'Guild Quartermaster' }
+			},
+			{ label: 'lobby-return-spine', point: { x: 512, y: 568 } },
+			{ label: 'lobby-return', point: { x: 512, y: 736 } }
+		]
+	},
+	{
+		mapId: 'hero-house',
+		returnArrival: { x: 704, y: 5_920 },
+		exteriorDoor: { x: 704, y: 5_856 },
+		spawn: { x: 352, y: 480 },
+		exit: { x: 352, y: 560 },
+		steps: [
+			{ label: 'living-kitchen', point: { x: 544, y: 480 } },
+			{ label: 'hall-south', point: { x: 352, y: 320 } },
+			{ label: 'hall-north', point: { x: 352, y: 160 } },
+			{ label: 'bedroom', point: { x: 160, y: 160 } },
+			{ label: 'study-door', point: { x: 352, y: 160 } },
+			{ label: 'study', point: { x: 544, y: 160 } },
+			{ label: 'study-hall-door', point: { x: 352, y: 160 } },
+			{ label: 'spawn-return', point: { x: 352, y: 480 } }
+		]
+	},
+	{
+		mapId: 'item-shop',
+		returnArrival: { x: 704, y: 5_248 },
+		exteriorDoor: { x: 704, y: 5_184 },
+		spawn: { x: 416, y: 544 },
+		exit: { x: 416, y: 624 },
+		steps: [
+			{ label: 'sales-west-aisle', point: { x: 192, y: 544 } },
+			{ label: 'sales-west-shelf', point: { x: 192, y: 448 } },
+			{ label: 'mira-cross-aisle', point: { x: 416, y: 448 } },
+			{
+				label: 'mira-approach',
+				point: { x: 416, y: 360 },
+				interaction: { speaker: 'Mira', shopName: "Mira's Item Shop" }
+			},
+			{ label: 'east-aisle-crossing', point: { x: 416, y: 448 } },
+			{ label: 'east-aisle', point: { x: 640, y: 448 } },
+			{ label: 'service-corridor-south', point: { x: 640, y: 544 } },
+			{ label: 'service-corridor-north', point: { x: 640, y: 300 } },
+			{ label: 'service-corridor-west', point: { x: 448, y: 300 } },
+			{ label: 'stockroom-entry', point: { x: 448, y: 160 } },
+			{ label: 'stockroom', point: { x: 192, y: 160 } },
+			{ label: 'office-door', point: { x: 448, y: 160 } },
+			{ label: 'office', point: { x: 608, y: 160 } },
+			{ label: 'service-return-east', point: { x: 448, y: 160 } },
+			{ label: 'service-return-west', point: { x: 448, y: 300 } },
+			{ label: 'service-return-south', point: { x: 640, y: 300 } },
+			{ label: 'spawn-return-corridor', point: { x: 640, y: 544 } },
+			{ label: 'spawn-return', point: { x: 416, y: 544 } }
+		]
+	},
+	{
+		mapId: 'shrine-of-aurora-interior',
+		returnArrival: { x: 2_272, y: 5_920 },
+		exteriorDoor: { x: 2_272, y: 5_856 },
+		spawn: { x: 384, y: 608 },
+		exit: { x: 384, y: 688 },
+		steps: [
+			{ label: 'nave', point: { x: 384, y: 400 } },
+			{ label: 'west-preparation', point: { x: 160, y: 400 } },
+			{ label: 'nave-return', point: { x: 384, y: 400 } },
+			{ label: 'east-archive', point: { x: 640, y: 400 } },
+			{ label: 'nave-east-return', point: { x: 384, y: 400 } },
+			{ label: 'inner-sanctum', point: { x: 384, y: 200 } },
+			{ label: 'spawn-return', point: { x: 384, y: 608 } }
+		]
+	},
+	{
+		mapId: 'villager-house-1',
+		returnArrival: { x: 672, y: 4_448 },
+		exteriorDoor: { x: 672, y: 4_384 },
+		spawn: { x: 320, y: 480 },
+		exit: { x: 320, y: 560 },
+		steps: [
+			{ label: 'hall-living', point: { x: 320, y: 320 } },
+			{ label: 'living-west', point: { x: 200, y: 320 } },
+			{ label: 'lynn-approach', point: { x: 200, y: 416 }, interaction: { speaker: 'Lynn' } },
+			{ label: 'bedroom-door', point: { x: 200, y: 320 } },
+			{ label: 'hall-return', point: { x: 320, y: 320 } },
+			{ label: 'bedroom-hall', point: { x: 320, y: 160 } },
+			{ label: 'bedroom', point: { x: 200, y: 160 } },
+			{ label: 'storage-door', point: { x: 320, y: 160 } },
+			{ label: 'storage', point: { x: 520, y: 160 } },
+			{ label: 'storage-south', point: { x: 520, y: 208 } },
+			{ label: 'living-kitchen-door', point: { x: 320, y: 160 } },
+			{ label: 'living-kitchen', point: { x: 320, y: 320 } },
+			{ label: 'living-kitchen-room', point: { x: 520, y: 480 } },
+			{ label: 'spawn-return', point: { x: 320, y: 480 } }
+		]
+	},
+	{
+		mapId: 'villager-house-2',
+		returnArrival: { x: 1_376, y: 4_448 },
+		exteriorDoor: { x: 1_376, y: 4_384 },
+		spawn: { x: 352, y: 480 },
+		exit: { x: 352, y: 560 },
+		steps: [
+			{ label: 'living-area', point: { x: 560, y: 480 } },
+			{ label: 'hall-workshop', point: { x: 400, y: 480 } },
+			{ label: 'workshop-south', point: { x: 400, y: 304 } },
+			{ label: 'workshop-north', point: { x: 400, y: 192 } },
+			{ label: 'toma-approach', point: { x: 232, y: 192 }, interaction: { speaker: 'Toma' } },
+			{ label: 'bedroom-door', point: { x: 400, y: 192 } },
+			{ label: 'bedroom', point: { x: 512, y: 192 } },
+			{ label: 'hall-return', point: { x: 400, y: 192 } },
+			{ label: 'living-return', point: { x: 400, y: 480 } },
+			{ label: 'spawn-return', point: { x: 352, y: 480 } }
+		]
+	},
+	{
+		mapId: 'villager-house-3',
+		returnArrival: { x: 1_472, y: 5_920 },
+		exteriorDoor: { x: 1_472, y: 5_856 },
+		spawn: { x: 320, y: 544 },
+		exit: { x: 320, y: 624 },
+		steps: [
+			{ label: 'sitting-room', point: { x: 512, y: 544 } },
+			{ label: 'hall-archive', point: { x: 320, y: 544 } },
+			{ label: 'archive-study', point: { x: 320, y: 192 } },
+			{ label: 'io-approach', point: { x: 200, y: 192 }, interaction: { speaker: 'Io' } },
+			{ label: 'bedroom-door', point: { x: 320, y: 192 } },
+			{ label: 'bedroom-storage', point: { x: 512, y: 192 } },
+			{ label: 'hall-return', point: { x: 320, y: 192 } },
+			{ label: 'spawn-return-hall', point: { x: 320, y: 544 } },
+			{ label: 'spawn-return', point: { x: 320, y: 544 } }
+		]
+	}
+];
+
+const NPC_APPROACH_SETTLE_TOLERANCE = 4;
+const INTERIOR_ROUTE_SETTLE_TOLERANCE = 4;
+
+function interiorRoutePoints(currentPoint: Point, targetPoint: Point): Point[] {
+	return currentPoint.y !== targetPoint.y
+		? [currentPoint, { x: currentPoint.x, y: targetPoint.y }, targetPoint]
+		: [currentPoint, targetPoint];
+}
+
+async function waitForHudPosition(page: Page, mapId: string, point: Point) {
+	await page.waitForFunction(
+		({ requestedMapId, requestedPoint, tolerance }) => {
+			const state = (window as GlieseProbeWindow).__glieseLastHudState;
+			const diagnostic = (window as GlieseProbeWindow).__glieseLastMovementDiagnostic;
+			const player =
+				diagnostic?.mapId === requestedMapId ? diagnostic.resolvedPosition : state?.areaMap?.player;
+			return (
+				state?.ready === true &&
+				state.mapId === requestedMapId &&
+				typeof player?.x === 'number' &&
+				typeof player?.y === 'number' &&
+				Math.abs(player.x - requestedPoint.x) <= tolerance &&
+				Math.abs(player.y - requestedPoint.y) <= tolerance
+			);
+		},
+		{ requestedMapId: mapId, requestedPoint: point, tolerance: AXIS_REACH_TOLERANCE },
+		{ timeout: 30_000 }
+	);
+}
+
+async function assertInteriorCheckpoint(page: Page, interior: InteriorGrayboxCase, point: Point) {
+	await waitForHudPosition(page, interior.mapId, point);
+	const state = await page.evaluate(
+		() => (window as GlieseProbeWindow).__glieseLastHudState ?? null
+	);
+	expect(state?.mapId).toBe(interior.mapId);
+	const player = await page.evaluate(() => {
+		const probeWindow = window as GlieseProbeWindow;
+		const diagnostic = probeWindow.__glieseLastMovementDiagnostic;
+		if (diagnostic && diagnostic.mapId === probeWindow.__glieseLastHudState?.mapId) {
+			return diagnostic.resolvedPosition;
+		}
+		return probeWindow.__glieseLastHudState?.areaMap?.player ?? null;
+	});
+	expect(player).toBeDefined();
+	expect(Math.abs((player?.x ?? 0) - point.x)).toBeLessThanOrEqual(AXIS_REACH_TOLERANCE);
+	expect(Math.abs((player?.y ?? 0) - point.y)).toBeLessThanOrEqual(AXIS_REACH_TOLERANCE);
+	const diagnostic = await latestMovement(page);
+	if (diagnostic?.mapId === interior.mapId) {
+		expect(diagnostic.blocked).toBe(false);
+	}
+}
+
+async function interactWithInteriorNpc(page: Page, interaction: InteriorGrayboxInteraction) {
+	try {
+		await page.waitForFunction(
+			(requestedSpeaker) =>
+				(window as GlieseProbeWindow).__glieseLastHudState?.status?.includes(
+					`${requestedSpeaker} nearby`
+				) === true,
+			interaction.speaker,
+			{ timeout: 30_000 }
+		);
+	} catch (error) {
+		const evidence = await page.evaluate(() => {
+			const probeWindow = window as GlieseProbeWindow;
+			return {
+				state: probeWindow.__glieseLastHudState ?? null,
+				diagnostic: probeWindow.__glieseLastMovementDiagnostic ?? null
+			};
+		});
+		throw new Error(`NPC proximity did not settle: ${JSON.stringify(evidence)}`, { cause: error });
+	}
+	await page.locator('canvas').click();
+	await page.keyboard.press('e', { delay: 50 });
+	const dialogue = page.getByRole('dialog', { name: interaction.speaker });
+	await expect(dialogue).toBeVisible();
+
+	if (interaction.shopName) {
+		await dialogue.getByRole('button', { name: 'Shop' }).click();
+		const shopDialog = page.getByRole('dialog', { name: interaction.shopName });
+		await expect(shopDialog).toBeVisible();
+		await shopDialog.getByRole('button', { name: 'Close' }).click();
+		await expect(shopDialog).toHaveCount(0);
+		await expect(dialogue).toHaveCount(0);
+		return;
+	}
+
+	await dialogue.getByRole('button', { name: 'Close' }).first().click();
+	await expect(dialogue).toHaveCount(0);
+}
+
+async function saveGuildCheckpointAndReload(page: Page, point: Point): Promise<Point> {
+	await page.getByRole('button', { name: 'Menu' }).click();
+	await commandBox(page).getByRole('button', { name: 'Save Game' }).click();
+	await expect(fieldStatus(page)).toContainText('Saved');
+	const persisted = await page.evaluate(
+		(key) => JSON.parse(localStorage.getItem(key) ?? 'null'),
+		SAVE_STORAGE_KEY
+	);
+	expect(persisted?.mapId).toBe('guild-hall');
+	expect(Math.abs(persisted?.player?.x - point.x)).toBeLessThanOrEqual(AXIS_REACH_TOLERANCE);
+	expect(Math.abs(persisted?.player?.y - point.y)).toBeLessThanOrEqual(AXIS_REACH_TOLERANCE);
+
+	await page.reload();
+	await expect(page.locator('canvas')).toBeVisible();
+	await expect(page.getByRole('button', { name: 'Menu' })).toBeVisible();
+	await page.getByRole('button', { name: 'Menu' }).click();
+	await commandBox(page).getByRole('button', { name: 'Resume Save' }).click();
+	await waitForHudPosition(page, 'guild-hall', point);
+	const resumed = await page.evaluate(
+		() => (window as GlieseProbeWindow).__glieseLastHudState ?? null
+	);
+	expect(resumed?.mapId).toBe('guild-hall');
+	expect(Math.abs((resumed?.areaMap?.player?.x ?? 0) - point.x)).toBeLessThanOrEqual(
+		AXIS_REACH_TOLERANCE
+	);
+	expect(Math.abs((resumed?.areaMap?.player?.y ?? 0) - point.y)).toBeLessThanOrEqual(
+		AXIS_REACH_TOLERANCE
+	);
+	return {
+		x: resumed?.areaMap?.player?.x ?? point.x,
+		y: resumed?.areaMap?.player?.y ?? point.y
+	};
+}
+
+async function enterInteriorWithTrustedKeyboard(page: Page, interior: InteriorGrayboxCase) {
+	const exteriorState = await page.evaluate(
+		() => (window as GlieseProbeWindow).__glieseLastHudState ?? null
+	);
+	expect(exteriorState?.mapId).toBe('meadow-entry');
+	expect(exteriorState?.areaMap?.player?.x).toBe(interior.returnArrival.x);
+	expect(exteriorState?.areaMap?.player?.y).toBe(interior.returnArrival.y);
+	expect(interior.exteriorDoor.x).toBe(interior.returnArrival.x);
+	expect(interior.exteriorDoor.y).toBeLessThan(interior.returnArrival.y);
+	await page.locator('canvas').click();
+	await page.keyboard.down('ArrowUp');
+	try {
+		await page.waitForFunction(
+			({ requestedMapId, door }) => {
+				const state = (window as GlieseProbeWindow).__glieseLastHudState;
+				const diagnostics = (window as GlieseProbeWindow).__glieseMovementDiagnostics ?? [];
+				return (
+					state?.mapId === requestedMapId &&
+					diagnostics.some(
+						(diagnostic) =>
+							diagnostic.mapId === 'meadow-entry' && diagnostic.requestedPosition.y <= door.y + 48
+					)
+				);
+			},
+			{ requestedMapId: interior.mapId, door: interior.exteriorDoor },
+			{ timeout: 30_000 }
+		);
+	} finally {
+		await page.keyboard.up('ArrowUp');
+	}
+	await waitForHudPosition(page, interior.mapId, interior.spawn);
+	previousRouteSettleTolerance = AXIS_SETTLE_TOLERANCE;
+	await page.evaluate(() => {
+		const probeWindow = window as GlieseProbeWindow;
+		probeWindow.__glieseMovementDiagnostics = [];
+		probeWindow.__glieseLastMovementDiagnostic = undefined;
+		probeWindow.__glieseLastMovementAt = 0;
+	});
+}
+
+async function exitInteriorWithTrustedKeyboard(page: Page, interior: InteriorGrayboxCase) {
+	expect(interior.exit.x).toBe(interior.spawn.x);
+	expect(interior.exit.y).toBeGreaterThan(interior.spawn.y);
+	await page.locator('canvas').click();
+	await page.keyboard.down('ArrowDown');
+	try {
+		await page.waitForFunction(
+			({ requestedMapId, interiorMapId, exit }) => {
+				const state = (window as GlieseProbeWindow).__glieseLastHudState;
+				const diagnostics = (window as GlieseProbeWindow).__glieseMovementDiagnostics ?? [];
+				return (
+					state?.mapId === requestedMapId &&
+					diagnostics.some(
+						(diagnostic) =>
+							diagnostic.mapId === interiorMapId && diagnostic.requestedPosition.y >= exit.y - 64
+					)
+				);
+			},
+			{ requestedMapId: 'meadow-entry', interiorMapId: interior.mapId, exit: interior.exit },
+			{ timeout: 30_000 }
+		);
+	} finally {
+		await page.keyboard.up('ArrowDown');
+	}
+	await waitForHudPosition(page, 'meadow-entry', interior.returnArrival);
+	const state = await page.evaluate(
+		() => (window as GlieseProbeWindow).__glieseLastHudState ?? null
+	);
+	expect(state?.mapId).toBe('meadow-entry');
+	const player = state?.areaMap?.player;
+	expect(Math.abs((player?.x ?? 0) - interior.returnArrival.x)).toBeLessThanOrEqual(
+		AXIS_REACH_TOLERANCE
+	);
+	expect(Math.abs((player?.y ?? 0) - interior.returnArrival.y)).toBeLessThanOrEqual(
+		AXIS_REACH_TOLERANCE
+	);
+
+	await page.evaluate(() => {
+		const probeWindow = window as GlieseProbeWindow;
+		probeWindow.__glieseMovementDiagnostics = [];
+		probeWindow.__glieseLastMovementDiagnostic = undefined;
+		probeWindow.__glieseLastMovementAt = 0;
+	});
+	const before = {
+		x: typeof player?.x === 'number' ? player.x : interior.returnArrival.x,
+		y: typeof player?.y === 'number' ? player.y : interior.returnArrival.y
+	};
+	await page.locator('canvas').click();
+	await page.keyboard.down('ArrowDown');
+	try {
+		await page.waitForFunction(
+			(previous) => {
+				const state = (window as GlieseProbeWindow).__glieseLastHudState;
+				const current = (window as GlieseProbeWindow).__glieseLastMovementDiagnostic
+					?.resolvedPosition;
+				return (
+					state?.mapId === 'meadow-entry' &&
+					typeof current?.x === 'number' &&
+					typeof current.y === 'number' &&
+					current.y > previous.y
+				);
+			},
+			before,
+			{ timeout: 5_000 }
+		);
+	} finally {
+		await page.keyboard.up('ArrowDown');
+	}
+	const moved = await page.evaluate(() => {
+		const probeWindow = window as GlieseProbeWindow;
+		return {
+			state: probeWindow.__glieseLastHudState ?? null,
+			diagnostic: probeWindow.__glieseLastMovementDiagnostic ?? null
+		};
+	});
+	expect(moved.state?.mapId).toBe('meadow-entry');
+	expect(moved.diagnostic?.mapId).toBe('meadow-entry');
+	expect(moved.diagnostic?.resolvedPosition.y).toBeGreaterThan(before.y);
+	expect(moved.diagnostic?.blocked).toBe(false);
+}
+
 async function moveAndResolveBattle(
 	page: Page,
 	key: 'ArrowUp' | 'ArrowDown' | 'ArrowLeft' | 'ArrowRight'
@@ -1763,7 +2196,7 @@ test('double-clicking unequipped equipment equips it from inventory', async ({ p
 test('shop overlay opens near a merchant and supports buying and selling', async ({ page }) => {
 	const save = createSaveFixture({
 		mapId: 'item-shop',
-		player: { level: 1, xp: 0, hp: 20, attack: 3, x: 256, y: 144, facing: 'up' }
+		player: { level: 1, xp: 0, hp: 20, attack: 3, x: 416, y: 360, facing: 'up' }
 	});
 
 	await page.addInitScript(
@@ -1834,7 +2267,7 @@ test('shop overlay opens near a merchant and supports buying and selling', async
 test('interact key shop purchase appears in inventory', async ({ page }) => {
 	const save = createSaveFixture({
 		mapId: 'item-shop',
-		player: { level: 1, xp: 0, hp: 20, attack: 3, x: 256, y: 144, facing: 'up' }
+		player: { level: 1, xp: 0, hp: 20, attack: 3, x: 416, y: 360, facing: 'up' }
 	});
 
 	await page.addInitScript(
@@ -1885,6 +2318,62 @@ test('interact key shop purchase appears in inventory', async ({ page }) => {
 	await expect(fieldPotionSlot).toBeVisible();
 	await expect(fieldPotionSlot.getByText('x2')).toBeVisible();
 });
+
+for (const interiorCase of INTERIOR_GRAYBOX_CASES) {
+	test(`HPA-586 interior graybox: ${interiorCase.mapId}`, async ({ page }) => {
+		test.setTimeout(180_000);
+		await installRuntimeProbes(page);
+		await injectSave(
+			page,
+			createSaveFixture({
+				mapId: 'meadow-entry',
+				player: {
+					level: 1,
+					xp: 0,
+					hp: 20,
+					attack: 3,
+					x: interiorCase.returnArrival.x,
+					y: interiorCase.returnArrival.y,
+					facing: 'up'
+				}
+			})
+		);
+		await page.goto('/?movementDiagnostics=on');
+		await expect(page.locator('canvas')).toBeVisible();
+		await expect(page.getByRole('button', { name: 'Menu' })).toBeVisible();
+		await page.getByRole('button', { name: 'Menu' }).click();
+		await commandBox(page).getByRole('button', { name: 'Resume Save' }).click();
+		await waitForHudPosition(page, 'meadow-entry', interiorCase.returnArrival);
+		await enterInteriorWithTrustedKeyboard(page, interiorCase);
+
+		let currentPoint = interiorCase.spawn;
+		for (const step of interiorCase.steps) {
+			if (currentPoint.x !== step.point.x || currentPoint.y !== step.point.y) {
+				const routePoints = interiorRoutePoints(currentPoint, step.point);
+				currentPoint = await moveRoute(
+					page,
+					routePoints,
+					step.interaction ? NPC_APPROACH_SETTLE_TOLERANCE : INTERIOR_ROUTE_SETTLE_TOLERANCE
+				);
+			}
+			await assertInteriorCheckpoint(page, interiorCase, step.point);
+			if (step.interaction) {
+				await interactWithInteriorNpc(page, step.interaction);
+			}
+			if (interiorCase.persistAfterStep === step.label) {
+				currentPoint = await saveGuildCheckpointAndReload(page, step.point);
+			}
+		}
+
+		expect(Math.abs(currentPoint.x - interiorCase.spawn.x)).toBeLessThanOrEqual(
+			AXIS_REACH_TOLERANCE
+		);
+		expect(Math.abs(currentPoint.y - interiorCase.spawn.y)).toBeLessThanOrEqual(
+			AXIS_REACH_TOLERANCE
+		);
+		await exitInteriorWithTrustedKeyboard(page, interiorCase);
+	});
+}
 
 test('quest log shows main quest and accepts Guild side quests', async ({ page }) => {
 	const save = createSaveFixture({
