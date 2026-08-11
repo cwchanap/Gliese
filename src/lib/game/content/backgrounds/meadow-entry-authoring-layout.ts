@@ -14,6 +14,10 @@ import {
 	type MeadowEntrySourceRecord
 } from './meadow-entry-source-catalog';
 import type { PixelBounds } from './meadow-entry-authoring-types';
+import {
+	MEADOW_ENTRY_V2_REGION_ENVELOPES,
+	MEADOW_ENTRY_V2_ROUTE_PATCHES
+} from '$lib/game/content/maps/layouts/meadow-entry-v2';
 
 export type MeadowEntryAuthoringRegionId =
 	| 'sundrop-village'
@@ -49,6 +53,47 @@ export interface MeadowEntryCrossRegionCoverage {
 	secondaryRegions: readonly MeadowEntryAuthoringRegionId[];
 }
 
+const V2_CONNECTOR_ROUTE_PATCH_IDS = {
+	'connector-village-crossroads': ['village-to-crossroads'],
+	'connector-crossroads-coast': ['crossroads-to-coast'],
+	'connector-crossroads-mistfen': [
+		'crossroads-to-mistfen',
+		'mistfen-seam-horizontal',
+		'mistfen-seam-vertical'
+	],
+	'connector-crossroads-silverpine': ['crossroads-to-silverpine', 'silverpine-seam'],
+	'connector-crossroads-wildwood': ['crossroads-to-wildwood', 'wildwood-seam']
+} as const;
+
+function pixelBoundsFromLayoutRect(rect: {
+	readonly x: number;
+	readonly y: number;
+	readonly width: number;
+	readonly height: number;
+}): PixelBounds {
+	return { left: rect.x, top: rect.y, right: rect.x + rect.width, bottom: rect.y + rect.height };
+}
+
+function connectorBoundsFromV2RoutePatches(patchIds: readonly string[]): PixelBounds {
+	const patches = MEADOW_ENTRY_V2_ROUTE_PATCHES.filter(({ id }) => patchIds.includes(id));
+	if (patches.length === 0) throw new Error('V2 connector must own at least one route patch');
+	const envelope = {
+		left: Math.min(...patches.map(({ rect }) => rect.x)),
+		top: Math.min(...patches.map(({ rect }) => rect.y)),
+		right: Math.max(...patches.map(({ rect }) => rect.x + rect.width)),
+		bottom: Math.max(...patches.map(({ rect }) => rect.y + rect.height))
+	};
+	return {
+		left: Math.max(MEADOW_ENTRY_WORLD_BOUNDS.left, envelope.left - MEADOW_ENTRY_MIN_HANDOFF_PX),
+		top: Math.max(MEADOW_ENTRY_WORLD_BOUNDS.top, envelope.top - MEADOW_ENTRY_MIN_HANDOFF_PX),
+		right: Math.min(MEADOW_ENTRY_WORLD_BOUNDS.right, envelope.right + MEADOW_ENTRY_MIN_HANDOFF_PX),
+		bottom: Math.min(
+			MEADOW_ENTRY_WORLD_BOUNDS.bottom,
+			envelope.bottom + MEADOW_ENTRY_MIN_HANDOFF_PX
+		)
+	};
+}
+
 export type MeadowEntryOutlierResolution =
 	| { sourceKey: string; mode: 'contained' }
 	| { sourceKey: string; mode: 'cross-region'; coverageIndex: number }
@@ -59,13 +104,13 @@ export type MeadowEntryOutlierResolution =
 export const MEADOW_ENTRY_AUTHORING_REGIONS: readonly MeadowEntryAuthoringRegion[] = [
 	{
 		id: 'sundrop-village',
-		reviewBounds: { left: 256, top: 3_968, right: 2_816, bottom: 6_144 },
+		reviewBounds: pixelBoundsFromLayoutRect(MEADOW_ENTRY_V2_REGION_ENVELOPES.sundropVillage),
 		materialProfile: 'sundrop-painted-village',
 		neighbors: ['connector-village-crossroads']
 	},
 	{
 		id: 'crossroads',
-		reviewBounds: { left: 2_912, top: 2_624, right: 4_416, bottom: 4_768 },
+		reviewBounds: pixelBoundsFromLayoutRect(MEADOW_ENTRY_V2_REGION_ENVELOPES.crossroads),
 		materialProfile: 'crossroads-cobblestone-festival',
 		neighbors: [
 			'connector-village-crossroads',
@@ -77,55 +122,65 @@ export const MEADOW_ENTRY_AUTHORING_REGIONS: readonly MeadowEntryAuthoringRegion
 	},
 	{
 		id: 'tidewatch-coast',
-		reviewBounds: { left: 2_784, top: 4_448, right: 6_400, bottom: 6_400 },
+		reviewBounds: pixelBoundsFromLayoutRect(MEADOW_ENTRY_V2_REGION_ENVELOPES.tidewatchCoast),
 		materialProfile: 'tidewatch-sand-and-sea',
 		neighbors: ['connector-crossroads-coast', 'wildwood', 'outer-boundary']
 	},
 	{
 		id: 'mistfen',
-		reviewBounds: { left: 224, top: 416, right: 2_560, bottom: 3_104 },
+		reviewBounds: pixelBoundsFromLayoutRect(MEADOW_ENTRY_V2_REGION_ENVELOPES.mistfen),
 		materialProfile: 'mistfen-marsh-and-fog',
 		neighbors: ['connector-crossroads-mistfen', 'outer-boundary']
 	},
 	{
 		id: 'silverpine',
-		reviewBounds: { left: 2_176, top: 256, right: 3_808, bottom: 3_008 },
+		reviewBounds: pixelBoundsFromLayoutRect(MEADOW_ENTRY_V2_REGION_ENVELOPES.silverpine),
 		materialProfile: 'silverpine-autumn-shrine',
 		neighbors: ['connector-crossroads-silverpine']
 	},
 	{
 		id: 'wildwood',
-		reviewBounds: { left: 3_840, top: 256, right: 6_400, bottom: 4_928 },
+		reviewBounds: pixelBoundsFromLayoutRect(MEADOW_ENTRY_V2_REGION_ENVELOPES.wildwood),
 		materialProfile: 'wildwood-forest-and-ruins',
 		neighbors: ['connector-crossroads-wildwood', 'tidewatch-coast', 'outer-boundary']
 	},
 	{
 		id: 'connector-village-crossroads',
-		reviewBounds: { left: 1_536, top: 3_840, right: 3_264, bottom: 4_960 },
+		reviewBounds: connectorBoundsFromV2RoutePatches(
+			V2_CONNECTOR_ROUTE_PATCH_IDS['connector-village-crossroads']
+		),
 		materialProfile: 'village-crossroads-handoff',
 		neighbors: ['sundrop-village', 'crossroads']
 	},
 	{
 		id: 'connector-crossroads-coast',
-		reviewBounds: { left: 3_424, top: 4_544, right: 4_352, bottom: 5_568 },
+		reviewBounds: connectorBoundsFromV2RoutePatches(
+			V2_CONNECTOR_ROUTE_PATCH_IDS['connector-crossroads-coast']
+		),
 		materialProfile: 'crossroads-coast-handoff',
 		neighbors: ['crossroads', 'tidewatch-coast']
 	},
 	{
 		id: 'connector-crossroads-mistfen',
-		reviewBounds: { left: 2_240, top: 2_560, right: 3_680, bottom: 3_584 },
+		reviewBounds: connectorBoundsFromV2RoutePatches(
+			V2_CONNECTOR_ROUTE_PATCH_IDS['connector-crossroads-mistfen']
+		),
 		materialProfile: 'crossroads-mistfen-handoff',
 		neighbors: ['crossroads', 'mistfen']
 	},
 	{
 		id: 'connector-crossroads-silverpine',
-		reviewBounds: { left: 3_040, top: 2_336, right: 3_872, bottom: 3_104 },
+		reviewBounds: connectorBoundsFromV2RoutePatches(
+			V2_CONNECTOR_ROUTE_PATCH_IDS['connector-crossroads-silverpine']
+		),
 		materialProfile: 'crossroads-silverpine-handoff',
 		neighbors: ['crossroads', 'silverpine']
 	},
 	{
 		id: 'connector-crossroads-wildwood',
-		reviewBounds: { left: 3_968, top: 3_712, right: 4_992, bottom: 4_928 },
+		reviewBounds: connectorBoundsFromV2RoutePatches(
+			V2_CONNECTOR_ROUTE_PATCH_IDS['connector-crossroads-wildwood']
+		),
 		materialProfile: 'crossroads-wildwood-handoff',
 		neighbors: ['crossroads', 'wildwood']
 	},
@@ -140,7 +195,7 @@ export const MEADOW_ENTRY_AUTHORING_REGIONS: readonly MeadowEntryAuthoringRegion
 // Independent review seal for the ordered JSON registry above. The test owns
 // the SHA-256 computation so coordinated metadata drift cannot update itself.
 export const MEADOW_ENTRY_REVIEWED_AUTHORING_REGIONS_SHA256 =
-	'608d7a8ea681783f2d918fe21c7c01f7eaaec8c547a28a752f0b4651823cc38f';
+	'6e4f185f2d2725263e6129a556f23e9f960035c2bc1d056573afd6799868f022';
 
 const DEFAULT_FRAGMENT_OWNERS = {
 	village: 'sundrop-village',
@@ -165,14 +220,8 @@ const EXACT_PATH_OWNERS = {
 	'ground-patch:wildwood-seam': 'connector-crossroads-wildwood'
 } as const satisfies Readonly<Record<string, MeadowEntryAuthoringRegionId>>;
 
-const REOWNED_SOURCES = {
-	'blocker:mistfen-entry-bank-east': 'connector-crossroads-mistfen'
-} as const satisfies Readonly<Record<string, MeadowEntryAuthoringRegionId>>;
-
 export function primaryOwnerFor(record: MeadowEntrySourceRecord): MeadowEntryAuthoringRegionId {
 	const sourceKey = meadowEntrySourceKey(record.ref);
-	const reowned = REOWNED_SOURCES[sourceKey as keyof typeof REOWNED_SOURCES];
-	if (reowned) return reowned;
 	const exactOwner = EXACT_PATH_OWNERS[sourceKey as keyof typeof EXACT_PATH_OWNERS];
 	if (exactOwner) return exactOwner;
 	if (record.fragmentId === 'paths') {
@@ -200,76 +249,266 @@ export const MEADOW_ENTRY_PRIMARY_SOURCE_OWNERS: Readonly<
 // future catalog addition fail review even though default fragment assignment
 // can still build a useful diagnostic owner in memory.
 export const MEADOW_ENTRY_REVIEWED_PRIMARY_SOURCE_OWNERS_SHA256 =
-	'8d626660a869b4e23e2c5d7799cfd5785c8fc78edcf9eced63f7523db4cbd169';
+	'a2db7151d8f73d0afaf978e5b7dc0d65b20a11eb70b6fd7bbaecf06365fb8fe5';
 
 export const MEADOW_ENTRY_CROSS_REGION_COVERAGE: readonly MeadowEntryCrossRegionCoverage[] = [
 	{
-		sourceKey: 'ground-patch:sundrop-forest-road-east',
-		bounds: [{ left: 2_800, top: 5_312, right: 5_600, bottom: 5_382 }],
-		secondaryRegions: ['tidewatch-coast']
+		sourceKey: 'blocker:castle-gate-block',
+		bounds: [{ left: 3_936, top: 2_788, right: 4_416, bottom: 2_816 }],
+		secondaryRegions: ['silverpine']
 	},
 	{
-		sourceKey: 'ground-patch:sundrop-forest-road-north',
-		bounds: [{ left: 5_565, top: 4_928, right: 5_635, bottom: 5_350 }],
-		secondaryRegions: ['tidewatch-coast']
+		sourceKey: 'blocker:silverpine-grove-pocket-wall-north',
+		bounds: [{ left: 2_340, top: 1_268, right: 2_900, bottom: 1_332 }],
+		secondaryRegions: ['mistfen']
 	},
 	{
-		sourceKey: 'blocker:wildwood-forest-lane-east-bank',
-		bounds: [{ left: 6_068, top: 4_928, right: 6_132, bottom: 5_300 }],
-		secondaryRegions: ['tidewatch-coast']
+		sourceKey: 'blocker:silverpine-grove-pocket-wall-south',
+		bounds: [{ left: 2_360, top: 1_788, right: 2_840, bottom: 1_852 }],
+		secondaryRegions: ['mistfen']
 	},
 	{
-		sourceKey: 'blocker:wildwood-forest-lane-west-bank',
-		bounds: [{ left: 4_968, top: 4_928, right: 5_032, bottom: 5_300 }],
-		secondaryRegions: ['tidewatch-coast']
+		sourceKey: 'blocker:silverpine-grove-pocket-wall-west',
+		bounds: [{ left: 2_328, top: 1_300, right: 2_392, bottom: 1_820 }],
+		secondaryRegions: ['mistfen']
 	},
 	{
-		sourceKey: 'decor:wildwood-forest-lane-north-wall',
-		bounds: [{ left: 4_450, top: 5_140, right: 5_550, bottom: 5_260 }],
-		secondaryRegions: ['tidewatch-coast']
+		sourceKey: 'blocker:silverpine-wall-A-east',
+		bounds: [{ left: 3_628, top: 2_816, right: 3_692, bottom: 3_000 }],
+		secondaryRegions: ['crossroads']
 	},
 	{
-		sourceKey: 'decor:wildwood-forest-lane-south-wall',
-		bounds: [{ left: 4_450, top: 5_440, right: 5_550, bottom: 5_560 }],
-		secondaryRegions: ['tidewatch-coast']
+		sourceKey: 'blocker:silverpine-wall-A-west',
+		bounds: [{ left: 3_308, top: 2_816, right: 3_372, bottom: 3_000 }],
+		secondaryRegions: ['crossroads']
+	},
+	{
+		sourceKey: 'blocker:silverpine-wall-B-south',
+		bounds: [{ left: 3_148, top: 2_878, right: 3_532, bottom: 2_942 }],
+		secondaryRegions: ['crossroads']
+	},
+	{
+		sourceKey: 'decor:silverpine-offering-grove-wall',
+		bounds: [{ left: 2_180, top: 1_470, right: 2_420, bottom: 1_770 }],
+		secondaryRegions: ['mistfen']
+	},
+	{
+		sourceKey: 'decor:silverpine-side-grove-maple',
+		bounds: [{ left: 2_305, top: 1_375, right: 2_535, bottom: 1_665 }],
+		secondaryRegions: ['mistfen']
+	},
+	{
+		sourceKey: 'decor:silverpine-tree-1',
+		bounds: [{ left: 2_430, top: 1_150, right: 2_650, bottom: 1_450 }],
+		secondaryRegions: ['mistfen']
+	},
+	{
+		sourceKey: 'decor:village-corridor-waymarker',
+		bounds: [{ left: 2_990, top: 4_444, right: 3_090, bottom: 4_644 }],
+		secondaryRegions: ['crossroads']
+	},
+	{
+		sourceKey: 'decor:village-decor-22-77',
+		bounds: [{ left: 2_688, top: 4_588, right: 2_846, bottom: 4_788 }],
+		secondaryRegions: ['connector-village-crossroads']
+	},
+	{
+		sourceKey: 'decor:wildwood-grove-tree-1',
+		bounds: [{ left: 4_290, top: 2_860, right: 4_510, bottom: 3_140 }],
+		secondaryRegions: ['crossroads']
+	},
+	{
+		sourceKey: 'ground-patch:silverpine-grove-floor',
+		bounds: [{ left: 2_400, top: 400, right: 3_200, bottom: 1_400 }],
+		secondaryRegions: ['mistfen']
+	},
+	{
+		sourceKey: 'ground-patch:silverpine-side-grove-floor',
+		bounds: [{ left: 2_370, top: 1_350, right: 2_870, bottom: 1_770 }],
+		secondaryRegions: ['mistfen']
 	}
 ];
 
 export const MEADOW_ENTRY_OUTLIER_RESOLUTIONS: readonly MeadowEntryOutlierResolution[] = [
 	{
-		sourceKey: 'ground-patch:sundrop-forest-road-east',
+		sourceKey: 'blocker:castle-gate-block',
 		mode: 'cross-region',
 		coverageIndex: 0
 	},
 	{
-		sourceKey: 'ground-patch:sundrop-forest-road-north',
+		sourceKey: 'blocker:silverpine-grove-pocket-wall-north',
 		mode: 'cross-region',
 		coverageIndex: 1
 	},
 	{
-		sourceKey: 'blocker:wildwood-forest-lane-east-bank',
+		sourceKey: 'blocker:silverpine-grove-pocket-wall-south',
 		mode: 'cross-region',
 		coverageIndex: 2
 	},
 	{
-		sourceKey: 'blocker:wildwood-forest-lane-west-bank',
+		sourceKey: 'blocker:silverpine-grove-pocket-wall-west',
 		mode: 'cross-region',
 		coverageIndex: 3
 	},
 	{
-		sourceKey: 'decor:wildwood-forest-lane-north-wall',
+		sourceKey: 'blocker:silverpine-wall-A-east',
 		mode: 'cross-region',
 		coverageIndex: 4
 	},
 	{
-		sourceKey: 'decor:wildwood-forest-lane-south-wall',
+		sourceKey: 'blocker:silverpine-wall-A-west',
 		mode: 'cross-region',
 		coverageIndex: 5
 	},
 	{
-		sourceKey: 'blocker:mistfen-entry-bank-east',
-		mode: 're-owned',
-		owner: 'connector-crossroads-mistfen'
+		sourceKey: 'blocker:silverpine-wall-B-south',
+		mode: 'cross-region',
+		coverageIndex: 6
+	},
+	{
+		sourceKey: 'decor:silverpine-offering-grove-wall',
+		mode: 'cross-region',
+		coverageIndex: 7
+	},
+	{
+		sourceKey: 'decor:silverpine-side-grove-maple',
+		mode: 'cross-region',
+		coverageIndex: 8
+	},
+	{
+		sourceKey: 'decor:silverpine-tree-1',
+		mode: 'cross-region',
+		coverageIndex: 9
+	},
+	{
+		sourceKey: 'decor:village-corridor-waymarker',
+		mode: 'cross-region',
+		coverageIndex: 10
+	},
+	{
+		sourceKey: 'decor:village-decor-22-77',
+		mode: 'cross-region',
+		coverageIndex: 11
+	},
+	{
+		sourceKey: 'decor:wildwood-grove-tree-1',
+		mode: 'cross-region',
+		coverageIndex: 12
+	},
+	{
+		sourceKey: 'ground-patch:silverpine-grove-floor',
+		mode: 'cross-region',
+		coverageIndex: 13
+	},
+	{
+		sourceKey: 'ground-patch:silverpine-side-grove-floor',
+		mode: 'cross-region',
+		coverageIndex: 14
+	},
+	{
+		sourceKey: 'blocker:coast-approach-west-bank',
+		mode: 'deferred-to-disposition',
+		reason: 'The coast approach blocker extends outside the V2 Tidewatch authoring envelope.'
+	},
+	{
+		sourceKey: 'blocker:coast-crossroads-mouth-bank',
+		mode: 'deferred-to-disposition',
+		reason: 'The coast mouth blocker sits outside the V2 Tidewatch and connector envelopes.'
+	},
+	{
+		sourceKey: 'blocker:coast-sea-wall',
+		mode: 'deferred-to-disposition',
+		reason: 'The coast sea wall remains outside the V2 Tidewatch authoring envelope.'
+	},
+	{
+		sourceKey: 'blocker:silver-shrine-gate-block',
+		mode: 'deferred-to-disposition',
+		reason: 'The upper Silverpine gate blocker extends beyond the V2 biome envelopes.'
+	},
+	{
+		sourceKey: 'blocker:wildwood-north-climb-east-bank',
+		mode: 'deferred-to-disposition',
+		reason: 'The eastern Wildwood climb bank exceeds the V2 Wildwood right edge.'
+	},
+	{
+		sourceKey: 'combat-bounds:whispering-cave-combat-pocket',
+		mode: 'deferred-to-disposition',
+		reason: 'The Whispering Cave combat pocket remains live outside the V2 art envelope.'
+	},
+	{
+		sourceKey: 'decor:coast-foam',
+		mode: 'deferred-to-disposition',
+		reason: 'The coast foam spans the V2 Tidewatch left boundary and remains live.'
+	},
+	{
+		sourceKey: 'decor:coast-jetty',
+		mode: 'deferred-to-disposition',
+		reason: 'The coast jetty reaches beyond the V2 Tidewatch lower boundary.'
+	},
+	{
+		sourceKey: 'decor:coast-shrine-pocket-boundary',
+		mode: 'deferred-to-disposition',
+		reason: 'The coast shrine pocket crosses outside the V2 Tidewatch left edge.'
+	},
+	{
+		sourceKey: 'decor:coast-torii',
+		mode: 'deferred-to-disposition',
+		reason: 'The coast torii reaches below the V2 Tidewatch envelope.'
+	},
+	{
+		sourceKey: 'decor:mistfen-fog',
+		mode: 'deferred-to-disposition',
+		reason: 'The fog veil extends west of the V2 Mistfen envelope.'
+	},
+	{
+		sourceKey: 'decor:silver-shrine-gate-sprite',
+		mode: 'deferred-to-disposition',
+		reason: 'The upper Silverpine gate sprite extends above the V2 envelopes.'
+	},
+	{
+		sourceKey: 'decor:wildwood-east-canopy',
+		mode: 'deferred-to-disposition',
+		reason: 'The eastern Wildwood canopy exceeds the V2 Wildwood right edge.'
+	},
+	{
+		sourceKey: 'ground-patch:coast-sand',
+		mode: 'deferred-to-disposition',
+		reason: 'The coast sand extends west of the V2 Tidewatch envelope.'
+	},
+	{
+		sourceKey: 'ground-patch:coast-sea',
+		mode: 'deferred-to-disposition',
+		reason: 'The coast sea extends west of the V2 Tidewatch envelope.'
+	},
+	{
+		sourceKey: 'ground-patch:mistfen-basin',
+		mode: 'deferred-to-disposition',
+		reason: 'The Mistfen basin extends west of the V2 Mistfen envelope.'
+	},
+	{
+		sourceKey: 'ground-patch:silverpine-shrine-terrace',
+		mode: 'deferred-to-disposition',
+		reason: 'The Silverpine shrine terrace extends above the V2 Silverpine envelope.'
+	},
+	{
+		sourceKey: 'ground-patch:sundrop-forest-road-east',
+		mode: 'deferred-to-disposition',
+		reason: 'The forest road crosses a V2 gap between Sundrop Village and Tidewatch.'
+	},
+	{
+		sourceKey: 'ground-patch:sundrop-southwest-ocean-patch',
+		mode: 'deferred-to-disposition',
+		reason: 'Inline ocean pixels await the reviewed base-underlay or fallback-only disposition.'
+	},
+	{
+		sourceKey: 'ground-patch:whispering-cave-combat-pocket',
+		mode: 'deferred-to-disposition',
+		reason: 'The Whispering Cave combat pocket remains live outside the V2 art envelope.'
+	},
+	{
+		sourceKey: 'landmark:silver-shrine-gate',
+		mode: 'deferred-to-disposition',
+		reason: 'The Silverpine shrine gate extends above the V2 Silverpine envelope.'
 	},
 	{ sourceKey: 'blocker:meadow-east-boundary', mode: 'contained' },
 	{ sourceKey: 'blocker:meadow-north-boundary', mode: 'contained' },
@@ -279,16 +518,6 @@ export const MEADOW_ENTRY_OUTLIER_RESOLUTIONS: readonly MeadowEntryOutlierResolu
 		sourceKey: 'blocker:sundrop-southwest-ocean',
 		mode: 'deferred-to-disposition',
 		reason: 'Inline ocean collision awaits the reviewed base-underlay or fallback-only disposition.'
-	},
-	{
-		sourceKey: 'ground-patch:sundrop-southwest-ocean-patch',
-		mode: 'deferred-to-disposition',
-		reason: 'Inline ocean pixels await the reviewed base-underlay or fallback-only disposition.'
-	},
-	{
-		sourceKey: 'decor:village-decor-22-77',
-		mode: 'deferred-to-disposition',
-		reason: 'The approved gate arch intentionally spans the eastern village edge.'
 	}
 ];
 
@@ -298,9 +527,14 @@ function assertRegionBounds(region: MeadowEntryAuthoringRegion): void {
 			`Authoring region "${region.id}" review bounds must remain inside meadow-entry`
 		);
 	}
+	const alignmentPx = region.id.startsWith('connector-')
+		? MEADOW_ENTRY_TILE_SIZE_PX / 2
+		: MEADOW_ENTRY_TILE_SIZE_PX;
 	for (const edge of Object.values(region.reviewBounds)) {
-		if (edge % MEADOW_ENTRY_TILE_SIZE_PX !== 0) {
-			throw new Error(`Authoring region "${region.id}" review bounds must be 32px aligned`);
+		if (edge % alignmentPx !== 0) {
+			throw new Error(
+				`Authoring region "${region.id}" review bounds must be ${alignmentPx}px aligned`
+			);
 		}
 	}
 }

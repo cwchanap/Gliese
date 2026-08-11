@@ -20,6 +20,11 @@ import {
 	meadowEntrySourceKey,
 	type MeadowEntrySourceRecord
 } from './meadow-entry-source-catalog';
+import {
+	MEADOW_ENTRY_V2_REGION_ENVELOPES,
+	MEADOW_ENTRY_V2_ROUTE_PATCHES,
+	MEADOW_ENTRY_V2_WORLD
+} from '$lib/game/content/maps/layouts/meadow-entry-v2';
 
 const expectedPathOwners = {
 	'decor:village-corridor-waymarker': 'connector-village-crossroads',
@@ -57,7 +62,96 @@ function replaceRegion(region: MeadowEntryAuthoringRegion): readonly MeadowEntry
 	);
 }
 
+const expectedV2PrincipalBounds = {
+	mistfen: { left: 384, top: 384, right: 3_200, bottom: 4_096 },
+	silverpine: { left: 2_432, top: 384, right: 4_480, bottom: 2_816 },
+	crossroads: { left: 2_880, top: 2_816, right: 4_608, bottom: 4_768 },
+	wildwood: { left: 4_320, top: 256, right: 6_144, bottom: 5_568 },
+	'tidewatch-coast': { left: 3_328, top: 4_768, right: 6_144, bottom: 6_144 },
+	'sundrop-village': { left: 256, top: 3_968, right: 2_816, bottom: 6_144 }
+} as const satisfies Readonly<
+	Record<string, { left: number; top: number; right: number; bottom: number }>
+>;
+
+const expectedV2ConnectorBounds = {
+	'connector-village-crossroads': { left: 2_688, top: 4_480, right: 3_392, bottom: 4_896 },
+	'connector-crossroads-coast': { left: 4_000, top: 4_640, right: 4_448, bottom: 5_696 },
+	'connector-crossroads-mistfen': { left: 2_112, top: 2_624, right: 3_808, bottom: 3_360 },
+	'connector-crossroads-silverpine': { left: 3_296, top: 2_208, right: 4_000, bottom: 2_944 },
+	'connector-crossroads-wildwood': { left: 4_160, top: 3_648, right: 5_120, bottom: 4_432 }
+} as const satisfies Readonly<
+	Record<string, { left: number; top: number; right: number; bottom: number }>
+>;
+
+const connectorPatchIds = {
+	'connector-village-crossroads': ['village-to-crossroads'],
+	'connector-crossroads-coast': ['crossroads-to-coast'],
+	'connector-crossroads-mistfen': [
+		'crossroads-to-mistfen',
+		'mistfen-seam-horizontal',
+		'mistfen-seam-vertical'
+	],
+	'connector-crossroads-silverpine': ['crossroads-to-silverpine', 'silverpine-seam'],
+	'connector-crossroads-wildwood': ['crossroads-to-wildwood', 'wildwood-seam']
+} as const satisfies Readonly<Record<keyof typeof expectedV2ConnectorBounds, readonly string[]>>;
+
+function boundsFromV2Rect(rect: { x: number; y: number; width: number; height: number }) {
+	return { left: rect.x, top: rect.y, right: rect.x + rect.width, bottom: rect.y + rect.height };
+}
+
+function expandedPatchEnvelope(patchIds: readonly string[]) {
+	const patches = MEADOW_ENTRY_V2_ROUTE_PATCHES.filter(({ id }) => patchIds.includes(id));
+	const envelope = {
+		left: Math.min(...patches.map(({ rect }) => rect.x)),
+		top: Math.min(...patches.map(({ rect }) => rect.y)),
+		right: Math.max(...patches.map(({ rect }) => rect.x + rect.width)),
+		bottom: Math.max(...patches.map(({ rect }) => rect.y + rect.height))
+	};
+	return {
+		left: Math.max(MEADOW_ENTRY_V2_WORLD.x, envelope.left - 128),
+		top: Math.max(MEADOW_ENTRY_V2_WORLD.y, envelope.top - 128),
+		right: Math.min(MEADOW_ENTRY_V2_WORLD.x + MEADOW_ENTRY_V2_WORLD.width, envelope.right + 128),
+		bottom: Math.min(MEADOW_ENTRY_V2_WORLD.y + MEADOW_ENTRY_V2_WORLD.height, envelope.bottom + 128)
+	};
+}
+
 describe('meadow-entry authoring layout', () => {
+	it('uses the exact V2 principal envelopes and connector handoff bounds', () => {
+		const principalBounds = Object.fromEntries(
+			Object.entries(MEADOW_ENTRY_V2_REGION_ENVELOPES).map(([id, rect]) => [
+				id === 'tidewatchCoast'
+					? 'tidewatch-coast'
+					: id === 'sundropVillage'
+						? 'sundrop-village'
+						: id,
+				boundsFromV2Rect(rect)
+			])
+		);
+		for (const [regionId, expectedBounds] of Object.entries(expectedV2PrincipalBounds)) {
+			expect(principalBounds[regionId], regionId).toEqual(expectedBounds);
+			expect(
+				MEADOW_ENTRY_AUTHORING_REGIONS.find(({ id }) => id === regionId)?.reviewBounds,
+				regionId
+			).toEqual(expectedBounds);
+		}
+
+		for (const connectorId of Object.keys(expectedV2ConnectorBounds) as Array<
+			keyof typeof expectedV2ConnectorBounds
+		>) {
+			const patchIds = connectorPatchIds[connectorId];
+			const region = MEADOW_ENTRY_AUTHORING_REGIONS.find(({ id }) => id === connectorId);
+			expect(region?.reviewBounds, connectorId).toEqual(expectedV2ConnectorBounds[connectorId]);
+			expect(region?.reviewBounds, connectorId).toEqual(expandedPatchEnvelope(patchIds));
+			for (const patch of MEADOW_ENTRY_V2_ROUTE_PATCHES.filter(({ id }) =>
+				(patchIds as readonly string[]).includes(id)
+			)) {
+				expect(containsBounds(region!.reviewBounds, boundsFromV2Rect(patch.rect)), patch.id).toBe(
+					true
+				);
+			}
+		}
+	});
+
 	it('assigns exactly one primary authoring owner to every catalog source', () => {
 		const catalogKeys = collectMeadowEntrySourceCatalog().map(({ ref }) =>
 			meadowEntrySourceKey(ref)
@@ -93,14 +187,14 @@ describe('meadow-entry authoring layout', () => {
 			.join('');
 
 		expect(MEADOW_ENTRY_REVIEWED_PRIMARY_SOURCE_OWNERS_SHA256).toBe(
-			'8d626660a869b4e23e2c5d7799cfd5785c8fc78edcf9eced63f7523db4cbd169'
+			'a2db7151d8f73d0afaf978e5b7dc0d65b20a11eb70b6fd7bbaecf06365fb8fe5'
 		);
 		expect(sha256(canonicalOwners)).toBe(MEADOW_ENTRY_REVIEWED_PRIMARY_SOURCE_OWNERS_SHA256);
 	});
 
 	it('locks the exact ordered region metadata to its independent reviewed snapshot', () => {
 		expect(MEADOW_ENTRY_REVIEWED_AUTHORING_REGIONS_SHA256).toBe(
-			'608d7a8ea681783f2d918fe21c7c01f7eaaec8c547a28a752f0b4651823cc38f'
+			'6e4f185f2d2725263e6129a556f23e9f960035c2bc1d056573afd6799868f022'
 		);
 		expect(sha256(JSON.stringify(MEADOW_ENTRY_AUTHORING_REGIONS))).toBe(
 			MEADOW_ENTRY_REVIEWED_AUTHORING_REGIONS_SHA256
@@ -179,11 +273,15 @@ describe('meadow-entry authoring layout', () => {
 			MEADOW_ENTRY_OUTLIER_RESOLUTIONS.find(
 				({ sourceKey }) => sourceKey === 'ground-patch:sundrop-forest-road-east'
 			)
-		).toEqual({
+		).toMatchObject({
 			sourceKey: 'ground-patch:sundrop-forest-road-east',
-			mode: 'cross-region',
-			coverageIndex: 0
+			mode: 'deferred-to-disposition'
 		});
+		expect(
+			MEADOW_ENTRY_OUTLIER_RESOLUTIONS.find(
+				({ sourceKey }) => sourceKey === 'ground-patch:sundrop-forest-road-east'
+			)
+		).toHaveProperty('reason');
 		const southwestOcean = MEADOW_ENTRY_OUTLIER_RESOLUTIONS.find(
 			({ sourceKey }) => sourceKey === 'ground-patch:sundrop-southwest-ocean-patch'
 		);
@@ -405,8 +503,8 @@ describe('validateMeadowEntryAuthoringLayout error paths', () => {
 					crossRegionCoverage: [
 						{
 							sourceKey: first.sourceKey,
-							bounds: [{ ...original, top: original.top - 32 }, { ...original }],
-							secondaryRegions: ['tidewatch-coast']
+							bounds: [{ ...original, left: original.left - 32 }, { ...original }],
+							secondaryRegions: ['silverpine']
 						},
 						...MEADOW_ENTRY_CROSS_REGION_COVERAGE.slice(1)
 					]
@@ -424,7 +522,7 @@ describe('validateMeadowEntryAuthoringLayout error paths', () => {
 						{
 							sourceKey: first.sourceKey,
 							bounds: [...first.bounds],
-							secondaryRegions: ['tidewatch-coast', 'silverpine']
+							secondaryRegions: ['silverpine', 'tidewatch-coast']
 						},
 						...MEADOW_ENTRY_CROSS_REGION_COVERAGE.slice(1)
 					]
@@ -574,21 +672,18 @@ describe('validateMeadowEntryAuthoringLayout error paths', () => {
 	});
 
 	it('rejects a re-owned outlier with a mismatched owner', () => {
-		const reowned = MEADOW_ENTRY_OUTLIER_RESOLUTIONS.find((r) => r.mode === 're-owned');
-		expect(reowned).toBeDefined();
-		if (!reowned) return;
+		const sourceKey = 'blocker:mistfen-entry-bank-east';
 		expect(() =>
 			validateMeadowEntryAuthoringLayout(
 				options({
-					primarySourceOwners: {
-						...MEADOW_ENTRY_PRIMARY_SOURCE_OWNERS,
-						[reowned.sourceKey]: 'mistfen' as MeadowEntryAuthoringRegionId
-					},
-					outlierResolutions: MEADOW_ENTRY_OUTLIER_RESOLUTIONS.map((r) =>
-						r.sourceKey === reowned.sourceKey
-							? { ...r, owner: 'crossroads' as MeadowEntryAuthoringRegionId }
-							: r
-					)
+					outlierResolutions: [
+						...MEADOW_ENTRY_OUTLIER_RESOLUTIONS,
+						{
+							sourceKey,
+							mode: 're-owned' as const,
+							owner: 'crossroads' as MeadowEntryAuthoringRegionId
+						}
+					]
 				})
 			)
 		).toThrow(/Invalid re-owned resolution/);

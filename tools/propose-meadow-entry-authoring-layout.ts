@@ -86,7 +86,7 @@ interface CandidateCrop {
 
 const OUTPUT_DIRECTORY = resolve(
 	dirname(fileURLToPath(import.meta.url)),
-	'../docs/superpowers/reports/img/hpa-399/proposals'
+	'../docs/superpowers/reports/img/painted-v2/proposals'
 );
 
 validateMeadowEntryCropContract();
@@ -95,40 +95,40 @@ validateMeadowEntryCropContract();
 // production crop derivation. The checked-in layout is frozen separately after
 // the proposal has been reviewed.
 const CANDIDATE_REGIONS: readonly CandidateRegion[] = [
-	{ id: 'sundrop-village', reviewBounds: { left: 256, top: 4_352, right: 2_048, bottom: 5_888 } },
-	{ id: 'crossroads', reviewBounds: { left: 2_912, top: 2_624, right: 4_256, bottom: 4_576 } },
-	{ id: 'tidewatch-coast', reviewBounds: { left: 2_784, top: 4_448, right: 6_400, bottom: 6_400 } },
-	{ id: 'mistfen', reviewBounds: { left: 224, top: 416, right: 2_560, bottom: 3_104 } },
-	{ id: 'silverpine', reviewBounds: { left: 2_176, top: 256, right: 3_808, bottom: 3_008 } },
-	{ id: 'wildwood', reviewBounds: { left: 3_840, top: 256, right: 6_400, bottom: 4_928 } },
+	{ id: 'sundrop-village', reviewBounds: { left: 256, top: 3_968, right: 2_816, bottom: 6_144 } },
+	{ id: 'crossroads', reviewBounds: { left: 2_880, top: 2_816, right: 4_608, bottom: 4_768 } },
+	{ id: 'tidewatch-coast', reviewBounds: { left: 3_328, top: 4_768, right: 6_144, bottom: 6_144 } },
+	{ id: 'mistfen', reviewBounds: { left: 384, top: 384, right: 3_200, bottom: 4_096 } },
+	{ id: 'silverpine', reviewBounds: { left: 2_432, top: 384, right: 4_480, bottom: 2_816 } },
+	{ id: 'wildwood', reviewBounds: { left: 4_320, top: 256, right: 6_144, bottom: 5_568 } },
 	{
 		id: 'connector-village-crossroads',
-		reviewBounds: { left: 1_536, top: 3_840, right: 3_200, bottom: 4_960 }
+		reviewBounds: { left: 2_688, top: 4_480, right: 3_392, bottom: 4_896 }
 	},
 	{
 		id: 'connector-crossroads-coast',
-		reviewBounds: { left: 3_424, top: 4_544, right: 4_352, bottom: 5_568 }
+		reviewBounds: { left: 4_000, top: 4_640, right: 4_448, bottom: 5_696 }
 	},
 	{
 		id: 'connector-crossroads-mistfen',
-		reviewBounds: { left: 2_304, top: 2_560, right: 3_136, bottom: 3_584 }
+		reviewBounds: { left: 2_112, top: 2_624, right: 3_808, bottom: 3_360 }
 	},
 	{
 		id: 'connector-crossroads-silverpine',
-		reviewBounds: { left: 3_040, top: 2_880, right: 3_584, bottom: 3_104 }
+		reviewBounds: { left: 3_296, top: 2_208, right: 4_000, bottom: 2_944 }
 	},
 	{
 		id: 'connector-crossroads-wildwood',
-		reviewBounds: { left: 3_968, top: 3_712, right: 4_352, bottom: 4_928 }
+		reviewBounds: { left: 4_160, top: 3_648, right: 5_120, bottom: 4_432 }
 	},
 	{ id: 'outer-boundary', reviewBounds: { left: 0, top: 0, right: 6_400, bottom: 6_400 } }
 ];
 
 const REVIEWED_PARTITION_RATIONALES = {
 	crossroads:
-		'The west edge includes the authored west hedge and Mistfen cue without claiming the marsh basin; the north edge includes the castle-gate approach and festival road; the east edge includes the Coast and Wildwood cues; the south edge closes below the plaza and market staging. The 32px-aligned bounds were reviewed against those geographic landmarks. Their equality to the snapped fragment envelope is coincidental and is not used as a derivation rule.',
+		'The V2 envelope includes the authored west hedge and Mistfen cue without claiming the marsh basin; the north edge includes the castle-gate approach and festival road; the east edge includes the Coast and Wildwood cues; the south edge closes below the plaza and market staging. These fixed bounds were reviewed against those geographic landmarks and are not derived from the proposal crop.',
 	silverpine:
-		'The west edge includes the offering grove and its wall, the north edge preserves the shrine canopy breathing room, the east edge includes the eastern wall and grove dressing, and the south edge closes below the lower approach and wall pair at the Crossroads handoff. The 32px-aligned bounds were reviewed against those geographic landmarks. Their equality to the snapped fragment envelope is coincidental and is not used as a derivation rule.'
+		'The V2 envelope includes the offering grove and its wall, preserves shrine canopy breathing room, includes the eastern wall and grove dressing, and closes below the lower approach and wall pair at the Crossroads handoff. These fixed bounds were reviewed against those geographic landmarks and are not derived from the proposal crop.'
 } as const satisfies Partial<Record<CandidateRegionId, string>>;
 
 const CROP_BY_REGION = {
@@ -625,7 +625,7 @@ const approvedOverlapComparisons = cropIntersections.map((candidate) => {
 });
 
 const proposal = {
-	format: 'meadow-entry-authoring-layout-proposal-v1',
+	format: 'meadow-entry-authoring-layout-proposal-painted-v2',
 	diagnosticOnly: true,
 	worldBounds: { left: 0, top: 0, right: 6_400, bottom: 6_400 },
 	sourceCount: sources.length,
