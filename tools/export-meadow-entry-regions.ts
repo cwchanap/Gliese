@@ -789,15 +789,50 @@ export function assertApprovedMasterSnapshot(
 export async function runExportMeadowEntryRegions(
 	outputRoot = DEFAULT_OUTPUT_ROOT,
 	repositoryRoot = process.cwd(),
-	options: { check?: boolean } = {}
+	options: {
+		check?: boolean;
+		fileSystem?: MeadowEntryExportCheckFileSystem;
+		/** Test seam for command-level snapshot checks; production always recomputes bytes. */
+		packageBytes?: MeadowEntryExportPackageBytes;
+	} = {}
 ): Promise<MeadowEntryExportRunResult> {
+	const packageRoot = resolve(repositoryRoot, outputRoot);
+	const runtimeRoot =
+		outputRoot === DEFAULT_OUTPUT_ROOT
+			? resolve(repositoryRoot, PAINTED_V2_RUNTIME_ROOT)
+			: undefined;
+	if (options.packageBytes !== undefined) {
+		assert(options.check, 'Injected Meadow Entry export package bytes are check-only');
+		await checkMeadowEntryExportPackage(packageRoot, runtimeRoot, options.packageBytes, {
+			fileSystem: options.fileSystem
+		});
+		return {
+			...options.packageBytes,
+			verification: {
+				cropCount: MEADOW_ENTRY_APPROVED_CROPS.length,
+				exportCount: Object.keys(options.packageBytes.files).length,
+				baseExportCount: MEADOW_ENTRY_APPROVED_CROPS.length,
+				foregroundExportCount: 0,
+				overlapCount: MEADOW_ENTRY_APPROVED_OVERLAPS.length,
+				cornerGroupCount: new Set(
+					MEADOW_ENTRY_APPROVED_OVERLAPS.flatMap((overlap) => overlap.cornerGroupId ?? [])
+				).size,
+				overlapPlanePixelsCompared: 0,
+				exportAreaRatio: 0,
+				measuredBaseBytes: 0,
+				measuredForegroundBytes: 0,
+				aggregateBaseHardBytes: MEADOW_ENTRY_CROP_BUDGET_SUMMARY.aggregateBaseHardBytes,
+				aggregateForegroundHardBytes: MEADOW_ENTRY_CROP_BUDGET_SUMMARY.aggregateForegroundHardBytes,
+				reviewTargetExceptions: []
+			}
+		};
+	}
 	const inputs = buildMeadowEntryControlInputs(repositoryRoot);
 	const currentControlFingerprint = computeMeadowEntryCombinedControlFingerprint(inputs);
 	assert(
 		currentControlFingerprint === meadowEntryControlsApproval.combinedControlFingerprint,
 		'Meadow Entry control fingerprint is stale'
 	);
-	const packageRoot = resolve(repositoryRoot, outputRoot);
 	const basePng = await readFile(join(repositoryRoot, PAINTED_V2_BASE_MASTER));
 	let foregroundPng: Buffer | undefined;
 	try {
@@ -834,18 +869,18 @@ export async function runExportMeadowEntryRegions(
 			provenanceSha256: approvedMasterProvenanceSha256
 		})
 	};
-	const runtimeRoot =
-		outputRoot === DEFAULT_OUTPUT_ROOT
-			? resolve(repositoryRoot, PAINTED_V2_RUNTIME_ROOT)
-			: undefined;
 	if (options.check) {
-		await checkMeadowEntryExportPackage(packageRoot, runtimeRoot, packageBytes);
+		await checkMeadowEntryExportPackage(packageRoot, runtimeRoot, packageBytes, {
+			fileSystem: options.fileSystem
+		});
 	} else {
 		await publishMeadowEntryExportPackage(packageRoot, packageBytes);
 		if (runtimeRoot !== undefined)
 			await publishPaintedV2RuntimeExports(runtimeRoot, packageBytes.files);
 	}
-	const published = await readPublishedMeadowEntryExportSnapshot(packageRoot);
+	const published = await readPublishedMeadowEntryExportSnapshot(packageRoot, {
+		fileSystem: options.fileSystem
+	});
 	assert(
 		Object.keys(published.files).length === Object.keys(packageBytes.files).length &&
 			Object.entries(packageBytes.files).every(([filename, bytes]) =>

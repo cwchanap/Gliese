@@ -6,8 +6,10 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import {
 	MEADOW_ENTRY_PAINTED_V2_APPROVAL_PATH,
+	approveMeadowEntryArtPackage,
 	checkMeadowEntryPaintedV2Approval,
-	parseMeadowEntryArtPackageArguments
+	parseMeadowEntryArtPackageArguments,
+	type MeadowEntryPaintedV2ArtPackageApproval
 } from '../../../../../tools/approve-meadow-entry-art-package';
 
 const temporaryRoots: string[] = [];
@@ -77,6 +79,57 @@ describe('painted-v2 approval CLI', () => {
 			checkMeadowEntryPaintedV2Approval(root, expected, { fileSystem: staleCheckFileSystem })
 		).rejects.toThrow(/stale|drift/i);
 		expect(staleReads).toBeGreaterThan(0);
+		expect(Object.values(staleMutators).every((spy) => spy.mock.calls.length === 0)).toBe(true);
+	});
+
+	it('runs the parsed --check approval command with zero filesystem mutations on matching and stale contents', async () => {
+		const root = await mkdtemp(join(tmpdir(), 'gliese-painted-v2-approval-command-'));
+		temporaryRoots.push(root);
+		const expected =
+			'export const meadowEntryPaintedV2ArtPackageApproval = { version: 1 } as const;\n';
+		const target = join(root, MEADOW_ENTRY_PAINTED_V2_APPROVAL_PATH);
+		await mkdir(dirname(target), { recursive: true });
+		await writeFile(target, expected, { flag: 'w' });
+		const parsed = parseMeadowEntryArtPackageArguments(['--check']);
+		expect(parsed.check).toBe(true);
+		const successMutators = { mkdir: vi.fn(), writeFile: vi.fn(), rename: vi.fn(), rm: vi.fn() };
+		let successReads = 0;
+		const successFileSystem = {
+			...successMutators,
+			readFile: async (path: string) => {
+				successReads += 1;
+				return await readFile(path, 'utf8');
+			}
+		};
+		await expect(
+			approveMeadowEntryArtPackage(['--check'], root, {
+				...parsed,
+				built: {
+					approval: {} as MeadowEntryPaintedV2ArtPackageApproval,
+					module: expected
+				},
+				fileSystem: successFileSystem
+			})
+		).resolves.toBeDefined();
+		expect(successReads).toBeGreaterThan(0);
+		expect(Object.values(successMutators).every((spy) => spy.mock.calls.length === 0)).toBe(true);
+
+		await writeFile(target, `${expected}stale\n`);
+		const staleMutators = { mkdir: vi.fn(), writeFile: vi.fn(), rename: vi.fn(), rm: vi.fn() };
+		const staleFileSystem = {
+			...staleMutators,
+			readFile: async (path: string) => await readFile(path, 'utf8')
+		};
+		await expect(
+			approveMeadowEntryArtPackage(['--check'], root, {
+				...parsed,
+				built: {
+					approval: {} as MeadowEntryPaintedV2ArtPackageApproval,
+					module: expected
+				},
+				fileSystem: staleFileSystem
+			})
+		).rejects.toThrow(/stale|drift/i);
 		expect(Object.values(staleMutators).every((spy) => spy.mock.calls.length === 0)).toBe(true);
 	});
 });

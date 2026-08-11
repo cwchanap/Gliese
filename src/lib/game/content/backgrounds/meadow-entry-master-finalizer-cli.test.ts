@@ -30,21 +30,22 @@ import type { FinalizedPlaneProvenance } from '$lib/game/content/backgrounds/mea
 
 const temporaryRoots: string[] = [];
 const repositoryRoot = resolve(import.meta.dirname, '../../../../..');
-const historicalPredecessorCommit = '37ab6409e59b9aabff4f164bb0cc0029fd77961f';
+const syntheticPredecessors = {
+	base: Buffer.from('synthetic immutable predecessor base bytes'),
+	foreground: Buffer.from('synthetic immutable predecessor foreground bytes')
+};
+const syntheticPredecessorHashes = {
+	baseSha256: createHash('sha256').update(syntheticPredecessors.base).digest('hex'),
+	foregroundSha256: createHash('sha256').update(syntheticPredecessors.foreground).digest('hex')
+};
 
-async function readHistoricalPredecessorForTest(
+async function readSyntheticPredecessorForTest(
 	_repositoryRoot: string,
 	path: string
 ): Promise<Buffer> {
-	const result = spawnSync('git', ['show', `${historicalPredecessorCommit}:${path}`], {
-		cwd: repositoryRoot,
-		encoding: null,
-		maxBuffer: 64 * 1024 * 1024
-	});
-	if (result.status !== 0 || !Buffer.isBuffer(result.stdout)) {
-		throw new Error(`Unable to load immutable predecessor fixture: ${path}`);
-	}
-	return result.stdout;
+	return path.includes('foreground')
+		? syntheticPredecessors.foreground
+		: syntheticPredecessors.base;
 }
 
 async function runFinalizeForTest(
@@ -53,7 +54,8 @@ async function runFinalizeForTest(
 	dependencies: Partial<MeadowEntryMasterFinalizerDependencies> = {}
 ): Promise<void> {
 	return await runFinalizeMeadowEntryMasters(args, root, {
-		readPredecessor: readHistoricalPredecessorForTest,
+		readPredecessor: readSyntheticPredecessorForTest,
+		predecessorHashes: syntheticPredecessorHashes,
 		...dependencies
 	});
 }
@@ -782,6 +784,7 @@ describe('finalize-meadow-entry-masters CLI', () => {
 			'--output-root',
 			outputRoot
 		] as const;
+		expect(parseFinalizeMeadowEntryMasterArguments(args).check).toBe(true);
 		const before = await approvedBytes(outputRoot);
 		const successMutators = { mkdir: vi.fn(), writeFile: vi.fn(), rename: vi.fn(), rm: vi.fn() };
 		let successReads = 0;
@@ -818,6 +821,41 @@ describe('finalize-meadow-entry-masters CLI', () => {
 		).rejects.toThrow(/stale|drift/i);
 		expect(staleReads).toBeGreaterThan(0);
 		expect(Object.values(staleMutators).every((spy) => spy.mock.calls.length === 0)).toBe(true);
+	});
+
+	it('fails closed when production predecessor paths are absent without an injected reader', async () => {
+		const inputRoot = await temporaryRoot();
+		const candidate = join(inputRoot, 'candidate.png');
+		const transform = join(inputRoot, 'transform.json');
+		const provenance = join(inputRoot, 'provenance.json');
+		await Promise.all([
+			writeFile(candidate, 'candidate'),
+			writeFile(transform, '{}'),
+			writeFile(provenance, '{}')
+		]);
+		await expect(
+			runFinalizeMeadowEntryMasters(
+				[
+					'--plane',
+					'base',
+					'--base-candidate',
+					candidate,
+					'--base-transform',
+					transform,
+					'--base-provenance',
+					provenance,
+					'--output-root',
+					join(inputRoot, 'out')
+				],
+				repositoryRoot,
+				{
+					finalizeBase: async () => ({
+						png: Buffer.from('unused'),
+						provenance: fakeProvenance('unused')
+					})
+				}
+			)
+		).rejects.toThrow(/predecessor bytes are missing/i);
 	});
 
 	it('runs a real HPA-399 candidate through core finalization before check and stale detection', async () => {

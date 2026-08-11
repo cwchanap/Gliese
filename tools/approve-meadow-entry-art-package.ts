@@ -882,12 +882,22 @@ async function publishPaintedV2Approval(repositoryRoot: string, contents: string
 
 export async function approveMeadowEntryArtPackage(
 	args: readonly string[],
-	repositoryRoot = process.cwd()
+	repositoryRoot = process.cwd(),
+	options: {
+		fileSystem?: MeadowEntryApprovalCheckFileSystem;
+		/** Test seam for command-level snapshot checks; production always rebuilds approval. */
+		built?: {
+			approval: MeadowEntryPaintedV2ArtPackageApproval;
+			module: string;
+		};
+	} = {}
 ): Promise<MeadowEntryPaintedV2ArtPackageApproval> {
 	const parsed = parseMeadowEntryArtPackageArguments(args);
-	const built = await buildPaintedV2Approval(repositoryRoot);
+	const built = options.built ?? (await buildPaintedV2Approval(repositoryRoot));
 	if (parsed.check) {
-		await checkMeadowEntryPaintedV2Approval(repositoryRoot, built.module);
+		await checkMeadowEntryPaintedV2Approval(repositoryRoot, built.module, {
+			fileSystem: options.fileSystem
+		});
 	} else {
 		await publishPaintedV2Approval(repositoryRoot, built.module);
 	}

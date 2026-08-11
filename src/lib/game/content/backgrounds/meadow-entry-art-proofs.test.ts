@@ -31,6 +31,8 @@ import {
 	parseProofSidecar,
 	proofExportPath,
 	expectedPaintedV2ProofInventory,
+	parseMeadowEntryArtProofArguments,
+	renderMeadowEntryArtProofs,
 	type MeadowEntryProofPublicationFileSystem,
 	type MeadowEntryProofSidecar
 } from '../../../../../tools/render-meadow-entry-art-proofs';
@@ -174,6 +176,61 @@ describe('Meadow Entry art proof helpers', () => {
 			checkMeadowEntryPaintedV2Proofs(root, expected, { fileSystem: staleCheckFileSystem })
 		).rejects.toThrow(/stale|drift/i);
 		expect(staleReads).toBeGreaterThan(0);
+		expect(Object.values(staleMutators).every((spy) => spy.mock.calls.length === 0)).toBe(true);
+	});
+
+	it('runs the parsed --check proof command with zero filesystem mutations on matching and stale snapshots', async () => {
+		const root = temporaryRoot();
+		const files = Object.fromEntries(
+			expectedPaintedV2ProofInventory().map((path) => [path, Buffer.from(`fixture:${path}`)])
+		);
+		for (const [path, bytes] of Object.entries(files)) {
+			const output = join(root, MEADOW_ENTRY_PAINTED_V2_PROOF_ROOT, path);
+			mkdirSync(join(output, '..'), { recursive: true });
+			writeFileSync(output, bytes);
+		}
+		const expected = { files, inventorySha256: 'fixture' };
+		const parsed = parseMeadowEntryArtProofArguments(['--check']);
+		expect(parsed.check).toBe(true);
+		const successMutators = { mkdir: vi.fn(), writeFile: vi.fn(), rename: vi.fn(), rm: vi.fn() };
+		let successReads = 0;
+		const successFileSystem = {
+			...successMutators,
+			pathExists: async (path: string) => existsSync(path),
+			listFiles: async () => expectedPaintedV2ProofInventory(),
+			readFile: async (path: string) => {
+				successReads += 1;
+				return readFileSync(path);
+			}
+		};
+		await expect(
+			renderMeadowEntryArtProofs(root, {
+				...parsed,
+				packageBytes: expected,
+				fileSystem: successFileSystem
+			})
+		).resolves.toMatchObject({ proofCount: 6 });
+		expect(successReads).toBeGreaterThan(0);
+		expect(Object.values(successMutators).every((spy) => spy.mock.calls.length === 0)).toBe(true);
+
+		writeFileSync(
+			join(root, MEADOW_ENTRY_PAINTED_V2_PROOF_ROOT, MEADOW_ENTRY_PAINTED_V2_PROOF_FILENAMES[0]!),
+			Buffer.from('stale')
+		);
+		const staleMutators = { mkdir: vi.fn(), writeFile: vi.fn(), rename: vi.fn(), rm: vi.fn() };
+		const staleFileSystem = {
+			...staleMutators,
+			pathExists: async (path: string) => existsSync(path),
+			listFiles: async () => expectedPaintedV2ProofInventory(),
+			readFile: async (path: string) => readFileSync(path)
+		};
+		await expect(
+			renderMeadowEntryArtProofs(root, {
+				...parsed,
+				packageBytes: expected,
+				fileSystem: staleFileSystem
+			})
+		).rejects.toThrow(/stale|drift/i);
 		expect(Object.values(staleMutators).every((spy) => spy.mock.calls.length === 0)).toBe(true);
 	});
 

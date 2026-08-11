@@ -62,6 +62,10 @@ export interface MeadowEntryMasterFinalizerDependencies {
 	finalizeBoth: typeof finalizeMeadowEntryMasters;
 	checkFileSystem?: MeadowEntryMasterCheckFileSystem;
 	readPredecessor?: (repositoryRoot: string, path: string) => Promise<Buffer>;
+	predecessorHashes?: {
+		baseSha256: string;
+		foregroundSha256: string;
+	};
 }
 
 export interface MeadowEntryMasterCheckFileSystem {
@@ -210,7 +214,8 @@ async function readRefinements(
 
 async function currentContext(
 	repositoryRoot: string,
-	readPredecessor?: (repositoryRoot: string, path: string) => Promise<Buffer>
+	readPredecessor?: (repositoryRoot: string, path: string) => Promise<Buffer>,
+	predecessorHashes?: MeadowEntryMasterFinalizerDependencies['predecessorHashes']
 ) {
 	const inputs = buildMeadowEntryControlInputs(repositoryRoot);
 	const readHistoricalPredecessor = async (path: string): Promise<Buffer> => {
@@ -243,8 +248,9 @@ async function currentContext(
 		predecessor: {
 			basePng,
 			foregroundPng,
-			approvedBaseSha256: inputs.predecessor.hpa398BaseSha256,
-			approvedForegroundSha256: inputs.predecessor.hpa398ForegroundSha256
+			approvedBaseSha256: predecessorHashes?.baseSha256 ?? inputs.predecessor.hpa398BaseSha256,
+			approvedForegroundSha256:
+				predecessorHashes?.foregroundSha256 ?? inputs.predecessor.hpa398ForegroundSha256
 		}
 	};
 }
@@ -655,7 +661,11 @@ export async function runFinalizeMeadowEntryMasters(
 		throw new Error('Missing required --base-candidate argument.');
 	}
 	const refinements = await readRefinements(arguments_.refinementManifest);
-	const context = await currentContext(repositoryRoot, dependencies.readPredecessor);
+	const context = await currentContext(
+		repositoryRoot,
+		dependencies.readPredecessor,
+		dependencies.predecessorHashes
+	);
 	if (arguments_.plane === 'base') {
 		const result = await finalizers.finalizeBase(await baseInput(arguments_, context, refinements));
 		if (arguments_.check) {

@@ -1296,11 +1296,18 @@ export function parseMeadowEntryArtProofArguments(
 /** Active CLI defaults to painted-v2; historical proof generation is explicit and test-only. */
 export async function renderMeadowEntryArtProofs(
 	repositoryRoot = process.cwd(),
-	options: { check?: boolean } = {}
+	options: {
+		check?: boolean;
+		fileSystem?: MeadowEntryProofCheckFileSystem;
+		/** Test seam for command-level snapshot checks; production always recomputes proofs. */
+		packageBytes?: MeadowEntryPaintedV2ProofPackage;
+	} = {}
 ): Promise<{ proofCount: number; inventorySha256: string }> {
-	const packageBytes = await buildPaintedV2ProofPackage(repositoryRoot);
+	const packageBytes = options.packageBytes ?? (await buildPaintedV2ProofPackage(repositoryRoot));
 	if (options.check) {
-		await checkMeadowEntryPaintedV2Proofs(repositoryRoot, packageBytes);
+		await checkMeadowEntryPaintedV2Proofs(repositoryRoot, packageBytes, {
+			fileSystem: options.fileSystem
+		});
 	} else {
 		await publishPaintedV2ProofPackage(repositoryRoot, packageBytes);
 	}

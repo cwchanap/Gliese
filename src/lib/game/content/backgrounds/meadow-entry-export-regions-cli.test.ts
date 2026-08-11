@@ -11,6 +11,7 @@ import {
 	parseMeadowEntryExportArguments,
 	publishMeadowEntryExportPackage,
 	readPublishedMeadowEntryExportSnapshot,
+	runExportMeadowEntryRegions,
 	type MeadowEntryApprovedMasterIdentities,
 	type MeadowEntryExportPackageBytes,
 	type MeadowEntryExportPublicationFileSystem,
@@ -182,6 +183,61 @@ describe('publishMeadowEntryExportPackage error branches', () => {
 		expect(() => parseMeadowEntryExportArguments(['--check', '--publish-runtime'])).toThrow(
 			/cannot combine.*--check.*--publish-runtime/i
 		);
+	});
+
+	it('runs the parsed --check command with zero filesystem mutations on matching and stale snapshots', async () => {
+		const root = await temporaryRoot();
+		const pkg = validPackage();
+		await publishMeadowEntryExportPackage(root, pkg);
+		const parsed = parseMeadowEntryExportArguments(['--check', '--output-root', root]);
+		expect(parsed.check).toBe(true);
+		const successMutators = {
+			mkdir: vi.fn(),
+			writeFile: vi.fn(),
+			rename: vi.fn(),
+			rm: vi.fn()
+		};
+		let successReads = 0;
+		const successFileSystem = {
+			...successMutators,
+			lstat: async (path: string) => await lstat(path),
+			readFile: async (path: string) => {
+				successReads += 1;
+				return await readFile(path);
+			},
+			readdir: async (path: string) => await readdir(path)
+		};
+		await expect(
+			runExportMeadowEntryRegions(parsed.outputRoot!, root, {
+				...parsed,
+				packageBytes: pkg,
+				fileSystem: successFileSystem
+			})
+		).resolves.toBeDefined();
+		expect(successReads).toBeGreaterThan(0);
+		expect(Object.values(successMutators).every((spy) => spy.mock.calls.length === 0)).toBe(true);
+
+		await writeFile(join(root, 'exports/a-base.png'), Buffer.from('stale'));
+		const staleMutators = {
+			mkdir: vi.fn(),
+			writeFile: vi.fn(),
+			rename: vi.fn(),
+			rm: vi.fn()
+		};
+		const staleFileSystem = {
+			...staleMutators,
+			lstat: async (path: string) => await lstat(path),
+			readFile: async (path: string) => await readFile(path),
+			readdir: async (path: string) => await readdir(path)
+		};
+		await expect(
+			runExportMeadowEntryRegions(parsed.outputRoot!, root, {
+				...parsed,
+				packageBytes: pkg,
+				fileSystem: staleFileSystem
+			})
+		).rejects.toThrow(/stale|drift/i);
+		expect(Object.values(staleMutators).every((spy) => spy.mock.calls.length === 0)).toBe(true);
 	});
 
 	it('checks a matching artifact/runtime snapshot without writes and rejects stale bytes', async () => {
