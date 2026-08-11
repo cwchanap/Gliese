@@ -1,4 +1,6 @@
 import { createHash } from 'node:crypto';
+import { spawnSync } from 'node:child_process';
+import { readFileSync } from 'node:fs';
 import {
 	lstat,
 	mkdir,
@@ -13,7 +15,7 @@ import {
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import {
 	meadowEntryApprovedPackagePaths,
@@ -21,12 +23,40 @@ import {
 	publishApprovedMeadowEntryPackage,
 	readApprovedMeadowEntryPackageSnapshot,
 	runFinalizeMeadowEntryMasters,
+	type MeadowEntryMasterFinalizerDependencies,
 	type MeadowEntryMasterPublicationFileSystem
 } from '../../../../../tools/finalize-meadow-entry-masters';
 import type { FinalizedPlaneProvenance } from '$lib/game/content/backgrounds/meadow-entry-master-finalizer';
 
 const temporaryRoots: string[] = [];
 const repositoryRoot = resolve(import.meta.dirname, '../../../../..');
+const historicalPredecessorCommit = '37ab6409e59b9aabff4f164bb0cc0029fd77961f';
+
+async function readHistoricalPredecessorForTest(
+	_repositoryRoot: string,
+	path: string
+): Promise<Buffer> {
+	const result = spawnSync('git', ['show', `${historicalPredecessorCommit}:${path}`], {
+		cwd: repositoryRoot,
+		encoding: null,
+		maxBuffer: 64 * 1024 * 1024
+	});
+	if (result.status !== 0 || !Buffer.isBuffer(result.stdout)) {
+		throw new Error(`Unable to load immutable predecessor fixture: ${path}`);
+	}
+	return result.stdout;
+}
+
+async function runFinalizeForTest(
+	args: readonly string[],
+	root = repositoryRoot,
+	dependencies: Partial<MeadowEntryMasterFinalizerDependencies> = {}
+): Promise<void> {
+	return await runFinalizeMeadowEntryMasters(args, root, {
+		readPredecessor: readHistoricalPredecessorForTest,
+		...dependencies
+	});
+}
 
 function fakeProvenance(label: string): FinalizedPlaneProvenance {
 	return {
@@ -58,6 +88,7 @@ function fakeProvenance(label: string): FinalizedPlaneProvenance {
 }
 
 afterEach(async () => {
+	vi.restoreAllMocks();
 	await Promise.all(
 		temporaryRoots.splice(0).map((path) => rm(path, { recursive: true, force: true }))
 	);
@@ -148,6 +179,22 @@ describe('finalize-meadow-entry-masters CLI', () => {
 		});
 	});
 
+	it('package check script supplies --plane base and reaches the missing-candidate boundary', () => {
+		const packageJson = JSON.parse(readFileSync(join(repositoryRoot, 'package.json'), 'utf8')) as {
+			scripts?: Record<string, string>;
+		};
+		const script = packageJson.scripts?.['art:check:meadow-entry-finalize'];
+		expect(script).toContain('--plane base');
+		const result = spawnSync('bun', ['run', 'art:check:meadow-entry-finalize'], {
+			cwd: repositoryRoot,
+			encoding: 'utf8'
+		});
+		const output = `${result.stdout ?? ''}${result.stderr ?? ''}`;
+		expect(result.status).not.toBe(0);
+		expect(output).not.toMatch(/Missing required --plane/i);
+		expect(output).toMatch(/Missing required --base-candidate|ENOENT/i);
+	});
+
 	it('rejects --check combined with publication-only review flags', () => {
 		expect(() =>
 			parseFinalizeMeadowEntryMasterArguments(['--plane', 'both', '--check', '--validate-only'])
@@ -159,7 +206,7 @@ describe('finalize-meadow-entry-masters CLI', () => {
 			finalizeBase: async () => ({ png: Buffer.from('x'), provenance: fakeProvenance('x') })
 		};
 		await expect(
-			runFinalizeMeadowEntryMasters(['--plane', 'base'], repositoryRoot, finalizers)
+			runFinalizeForTest(['--plane', 'base'], repositoryRoot, finalizers)
 		).rejects.toThrow(/explicit --output-root review\/work destination/i);
 	});
 
@@ -180,7 +227,7 @@ describe('finalize-meadow-entry-masters CLI', () => {
 				return { png: Buffer.from('review-fg'), provenance: fakeProvenance('review-fg') };
 			}
 		};
-		await runFinalizeMeadowEntryMasters(
+		await runFinalizeForTest(
 			[
 				'--plane',
 				'foreground',
@@ -204,7 +251,7 @@ describe('finalize-meadow-entry-masters CLI', () => {
 			finalizeBase: async () => ({ png: Buffer.from('x'), provenance: fakeProvenance('x') })
 		};
 		await expect(
-			runFinalizeMeadowEntryMasters(
+			runFinalizeForTest(
 				['--plane', 'base', '--output-root', approvedRoot],
 				repositoryRoot,
 				finalizers
@@ -221,7 +268,7 @@ describe('finalize-meadow-entry-masters CLI', () => {
 			finalizeBase: async () => ({ png: Buffer.from('x'), provenance: fakeProvenance('x') })
 		};
 		await expect(
-			runFinalizeMeadowEntryMasters(
+			runFinalizeForTest(
 				['--plane', 'base', '--output-root', aliasRoot],
 				repositoryRoot,
 				finalizers
@@ -348,15 +395,11 @@ describe('finalize-meadow-entry-masters CLI', () => {
 			}
 		};
 
-		await runFinalizeMeadowEntryMasters(
-			[...arguments_, '--validate-only'],
-			repositoryRoot,
-			finalizers
-		);
+		await runFinalizeForTest([...arguments_, '--validate-only'], repositoryRoot, finalizers);
 		await expect(
 			readFile(join(outputRoot, 'masters/meadow-entry-base-master.png'))
 		).rejects.toThrow();
-		await runFinalizeMeadowEntryMasters(arguments_, repositoryRoot, finalizers);
+		await runFinalizeForTest(arguments_, repositoryRoot, finalizers);
 		expect(await readFile(join(outputRoot, 'masters/meadow-entry-base-master.png'))).toEqual(
 			Buffer.from('review-base')
 		);
@@ -547,7 +590,7 @@ describe('finalize-meadow-entry-masters CLI', () => {
 				provenance: fakeProvenance('review-fg')
 			})
 		};
-		await runFinalizeMeadowEntryMasters(
+		await runFinalizeForTest(
 			[
 				'--plane',
 				'foreground',
@@ -585,7 +628,7 @@ describe('finalize-meadow-entry-masters CLI', () => {
 				provenance: fakeProvenance('review-fg')
 			})
 		};
-		await runFinalizeMeadowEntryMasters(
+		await runFinalizeForTest(
 			[
 				'--plane',
 				'foreground',
@@ -628,7 +671,7 @@ describe('finalize-meadow-entry-masters CLI', () => {
 		const finalizers = {
 			finalizeBoth: async () => expectedBytes
 		};
-		await runFinalizeMeadowEntryMasters(
+		await runFinalizeForTest(
 			[
 				'--plane',
 				'both',
@@ -674,7 +717,7 @@ describe('finalize-meadow-entry-masters CLI', () => {
 		const finalizers = {
 			finalizeBoth: async () => expectedBytes
 		};
-		await runFinalizeMeadowEntryMasters(
+		await runFinalizeForTest(
 			[
 				'--plane',
 				'both',
@@ -740,11 +783,85 @@ describe('finalize-meadow-entry-masters CLI', () => {
 			outputRoot
 		] as const;
 		const before = await approvedBytes(outputRoot);
-		await runFinalizeMeadowEntryMasters(args, repositoryRoot, finalizers);
+		const successMutators = { mkdir: vi.fn(), writeFile: vi.fn(), rename: vi.fn(), rm: vi.fn() };
+		let successReads = 0;
+		const checkFileSystem = {
+			...successMutators,
+			readFile: async (path: string) => {
+				successReads += 1;
+				return await readFile(path);
+			}
+		};
+		await runFinalizeForTest(args, repositoryRoot, {
+			...finalizers,
+			checkFileSystem
+		});
+		expect(successReads).toBeGreaterThan(0);
+		expect(Object.values(successMutators).every((spy) => spy.mock.calls.length === 0)).toBe(true);
 		expect(await approvedBytes(outputRoot)).toEqual(before);
 
 		await writeFile(join(outputRoot, 'masters/meadow-entry-base-master.png'), Buffer.from('stale'));
-		await expect(runFinalizeMeadowEntryMasters(args, repositoryRoot, finalizers)).rejects.toThrow(
+		const staleMutators = { mkdir: vi.fn(), writeFile: vi.fn(), rename: vi.fn(), rm: vi.fn() };
+		let staleReads = 0;
+		const staleCheckFileSystem = {
+			...staleMutators,
+			readFile: async (path: string) => {
+				staleReads += 1;
+				return await readFile(path);
+			}
+		};
+		await expect(
+			runFinalizeForTest(args, repositoryRoot, {
+				...finalizers,
+				checkFileSystem: staleCheckFileSystem
+			})
+		).rejects.toThrow(/stale|drift/i);
+		expect(staleReads).toBeGreaterThan(0);
+		expect(Object.values(staleMutators).every((spy) => spy.mock.calls.length === 0)).toBe(true);
+	});
+
+	it('runs a real HPA-399 candidate through core finalization before check and stale detection', async () => {
+		const outputRoot = await temporaryRoot();
+		const candidate = join(
+			repositoryRoot,
+			'artifacts/meadow-entry/hpa-399/masters/meadow-entry-base-master.png'
+		);
+		const historicalProvenance = JSON.parse(
+			await readFile(
+				join(
+					repositoryRoot,
+					'artifacts/meadow-entry/hpa-399/provenance/meadow-entry-master-provenance.json'
+				),
+				'utf8'
+			)
+		) as { base: { transform: unknown; generation: unknown } };
+		const transform = join(outputRoot, 'base-transform.json');
+		const provenance = join(outputRoot, 'base-provenance.json');
+		await Promise.all([
+			writeFile(transform, JSON.stringify(historicalProvenance.base.transform)),
+			writeFile(provenance, JSON.stringify(historicalProvenance.base.generation))
+		]);
+		const args = [
+			'--plane',
+			'base',
+			'--base-candidate',
+			candidate,
+			'--base-transform',
+			transform,
+			'--base-provenance',
+			provenance,
+			'--output-root',
+			outputRoot
+		] as const;
+
+		await runFinalizeForTest(args, repositoryRoot);
+		const output = join(outputRoot, 'masters/meadow-entry-base-master.png');
+		const expected = await readFile(output);
+		await runFinalizeForTest([...args, '--check'], repositoryRoot);
+		const stale = Buffer.from(expected);
+		stale[stale.length - 1] = stale[stale.length - 1]! ^ 0xff;
+		await writeFile(output, stale);
+		await expect(runFinalizeForTest([...args, '--check'], repositoryRoot)).rejects.toThrow(
 			/stale|drift/i
 		);
 	});

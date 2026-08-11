@@ -110,6 +110,13 @@ export interface MeadowEntryProofSnapshotFileSystem {
 	readFile(path: string): Promise<Buffer>;
 }
 
+export interface MeadowEntryProofCheckFileSystem extends MeadowEntryProofSnapshotFileSystem {
+	mkdir: typeof mkdir;
+	writeFile: typeof writeFile;
+	rename: typeof rename;
+	rm: typeof rm;
+}
+
 export interface MeadowEntryPublishedProof {
 	descriptor: MeadowEntryProofDescriptor;
 	png: Buffer;
@@ -559,6 +566,14 @@ const NODE_PROOF_SNAPSHOT_FILE_SYSTEM: MeadowEntryProofSnapshotFileSystem = {
 	pathExists: nodePathExists,
 	listFiles: walkFiles,
 	readFile
+};
+
+const NODE_PROOF_CHECK_FILE_SYSTEM: MeadowEntryProofCheckFileSystem = {
+	...NODE_PROOF_SNAPSHOT_FILE_SYSTEM,
+	mkdir,
+	writeFile,
+	rename,
+	rm
 };
 
 export async function assertExactProofInventory(
@@ -1206,14 +1221,16 @@ export async function buildPaintedV2ProofPackage(
 /** Compare the checked-in active proof package to a recomputed package, without writes. */
 export async function checkMeadowEntryPaintedV2Proofs(
 	repositoryRoot = process.cwd(),
-	expected?: MeadowEntryPaintedV2ProofPackage
+	expected?: MeadowEntryPaintedV2ProofPackage,
+	options: { fileSystem?: MeadowEntryProofCheckFileSystem } = {}
 ): Promise<void> {
 	const root = resolve(repositoryRoot);
+	const fileSystem = options.fileSystem ?? NODE_PROOF_CHECK_FILE_SYSTEM;
 	const packageBytes = expected ?? (await buildPaintedV2ProofPackage(root));
 	const proofRoot = join(root, MEADOW_ENTRY_PAINTED_V2_PROOF_ROOT);
 	let actual: string[];
 	try {
-		actual = await walkFiles(proofRoot);
+		actual = await fileSystem.listFiles(proofRoot);
 	} catch (error) {
 		if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
 			throw new Error(
@@ -1225,7 +1242,7 @@ export async function checkMeadowEntryPaintedV2Proofs(
 	}
 	assertInventoryEquals(expectedPaintedV2ProofInventory(), actual);
 	for (const path of expectedPaintedV2ProofInventory()) {
-		const bytes = await readFile(join(proofRoot, path));
+		const bytes = await fileSystem.readFile(join(proofRoot, path));
 		assert(
 			bytes.equals(packageBytes.files[path]!),
 			`Meadow Entry painted-v2 proof is stale: ${path}`

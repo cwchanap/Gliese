@@ -60,6 +60,16 @@ export interface MeadowEntryMasterFinalizerDependencies {
 	finalizeBase: typeof finalizeMeadowEntryBase;
 	finalizeForeground: typeof finalizeMeadowEntryForeground;
 	finalizeBoth: typeof finalizeMeadowEntryMasters;
+	checkFileSystem?: MeadowEntryMasterCheckFileSystem;
+	readPredecessor?: (repositoryRoot: string, path: string) => Promise<Buffer>;
+}
+
+export interface MeadowEntryMasterCheckFileSystem {
+	readFile(path: string): Promise<Buffer>;
+	mkdir: typeof mkdir;
+	writeFile: typeof writeFile;
+	rename: typeof rename;
+	rm: typeof rm;
 }
 
 const NODE_PUBLICATION_FILE_SYSTEM: MeadowEntryMasterPublicationFileSystem = {
@@ -74,6 +84,14 @@ const DEFAULT_FINALIZERS: MeadowEntryMasterFinalizerDependencies = {
 	finalizeBase: finalizeMeadowEntryBase,
 	finalizeForeground: finalizeMeadowEntryForeground,
 	finalizeBoth: finalizeMeadowEntryMasters
+};
+
+const NODE_CHECK_FILE_SYSTEM: MeadowEntryMasterCheckFileSystem = {
+	readFile,
+	mkdir,
+	writeFile,
+	rename,
+	rm
 };
 
 function sha256(value: Buffer): string {
@@ -190,23 +208,30 @@ async function readRefinements(
 	return records as MeadowEntryRefinementProvenance[];
 }
 
-async function currentContext(repositoryRoot: string) {
+async function currentContext(
+	repositoryRoot: string,
+	readPredecessor?: (repositoryRoot: string, path: string) => Promise<Buffer>
+) {
 	const inputs = buildMeadowEntryControlInputs(repositoryRoot);
 	const readHistoricalPredecessor = async (path: string): Promise<Buffer> => {
 		try {
 			return await readFile(join(repositoryRoot, path));
 		} catch (error) {
 			if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error;
-			// Task 1 intentionally removed the retired public predecessor copies. The
-			// active painted-v2 writer keeps their reviewed hashes in the control
-			// contract; tests and --check can therefore proceed without recreating
-			// historical PNGs in the working tree.
-			return Buffer.alloc(0);
+			throw new Error(
+				`Meadow Entry predecessor bytes are missing: ${path}; provide an immutable predecessor-byte reader`,
+				{ cause: error }
+			);
 		}
 	};
+	const predecessorReader =
+		readPredecessor ??
+		(async (_repositoryRoot: string, path: string) => {
+			return await readHistoricalPredecessor(path);
+		});
 	const [basePng, foregroundPng, storageConfiguration] = await Promise.all([
-		readHistoricalPredecessor(PREDECESSOR_BASE),
-		readHistoricalPredecessor(PREDECESSOR_FOREGROUND),
+		predecessorReader(repositoryRoot, PREDECESSOR_BASE),
+		predecessorReader(repositoryRoot, PREDECESSOR_FOREGROUND),
 		readFile(join(repositoryRoot, '.gitattributes'))
 	]);
 	return {
@@ -540,11 +565,12 @@ async function assertCheckedInPlane(
 	outputRoot: string,
 	relativePath: string,
 	expected: Buffer,
-	label: string
+	label: string,
+	fileSystem: Pick<MeadowEntryMasterCheckFileSystem, 'readFile'> = NODE_CHECK_FILE_SYSTEM
 ): Promise<void> {
 	let actual: Buffer;
 	try {
-		actual = await readFile(join(resolve(outputRoot), relativePath));
+		actual = await fileSystem.readFile(join(resolve(outputRoot), relativePath));
 	} catch (error) {
 		if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
 			throw new Error(`Meadow Entry ${label} check output is missing: ${relativePath}`, {
@@ -562,25 +588,29 @@ async function assertCheckedInPlane(
 
 async function assertCheckedInPackage(
 	outputRoot: string,
-	packageBytes: ApprovedPackageBytes
+	packageBytes: ApprovedPackageBytes,
+	fileSystem: Pick<MeadowEntryMasterCheckFileSystem, 'readFile'> = NODE_CHECK_FILE_SYSTEM
 ): Promise<void> {
 	await assertCheckedInPlane(
 		outputRoot,
 		'masters/meadow-entry-base-master.png',
 		packageBytes.basePng,
-		'base master'
+		'base master',
+		fileSystem
 	);
 	await assertCheckedInPlane(
 		outputRoot,
 		'masters/meadow-entry-foreground-master.png',
 		packageBytes.foregroundPng,
-		'foreground master'
+		'foreground master',
+		fileSystem
 	);
 	await assertCheckedInPlane(
 		outputRoot,
 		'provenance/meadow-entry-master-provenance.json',
 		packageBytes.provenanceJson,
-		'master provenance'
+		'master provenance',
+		fileSystem
 	);
 }
 
@@ -606,6 +636,7 @@ export async function runFinalizeMeadowEntryMasters(
 	dependencies: Partial<MeadowEntryMasterFinalizerDependencies> = {}
 ): Promise<void> {
 	const finalizers = { ...DEFAULT_FINALIZERS, ...dependencies };
+	const checkFileSystem = dependencies.checkFileSystem ?? NODE_CHECK_FILE_SYSTEM;
 	const arguments_ = parseFinalizeMeadowEntryMasterArguments(args);
 	if (arguments_.plane !== 'both' && !arguments_.validateOnly && !arguments_.check) {
 		if (!arguments_.outputRootExplicit) {
@@ -620,8 +651,11 @@ export async function runFinalizeMeadowEntryMasters(
 			);
 		}
 	}
+	if (arguments_.plane === 'base' && !arguments_.baseCandidate) {
+		throw new Error('Missing required --base-candidate argument.');
+	}
 	const refinements = await readRefinements(arguments_.refinementManifest);
-	const context = await currentContext(repositoryRoot);
+	const context = await currentContext(repositoryRoot, dependencies.readPredecessor);
 	if (arguments_.plane === 'base') {
 		const result = await finalizers.finalizeBase(await baseInput(arguments_, context, refinements));
 		if (arguments_.check) {
@@ -629,7 +663,8 @@ export async function runFinalizeMeadowEntryMasters(
 				arguments_.outputRoot,
 				'masters/meadow-entry-base-master.png',
 				result.png,
-				'base master'
+				'base master',
+				checkFileSystem
 			);
 		} else if (!arguments_.validateOnly) {
 			const output = join(resolve(arguments_.outputRoot), 'masters/meadow-entry-base-master.png');
@@ -648,7 +683,8 @@ export async function runFinalizeMeadowEntryMasters(
 				arguments_.outputRoot,
 				'masters/meadow-entry-foreground-master.png',
 				result.png,
-				'foreground master'
+				'foreground master',
+				checkFileSystem
 			);
 		} else if (!arguments_.validateOnly) {
 			const output = join(
@@ -666,7 +702,7 @@ export async function runFinalizeMeadowEntryMasters(
 		foreground: await foregroundInput(arguments_, repositoryRoot, context, refinements)
 	});
 	if (arguments_.check) {
-		await assertCheckedInPackage(arguments_.outputRoot, packageBytes);
+		await assertCheckedInPackage(arguments_.outputRoot, packageBytes, checkFileSystem);
 	} else if (!arguments_.validateOnly) {
 		await publishApprovedMeadowEntryPackage(arguments_.outputRoot, packageBytes);
 	}

@@ -3,7 +3,7 @@ import { lstat, mkdir, mkdtemp, readFile, readdir, rename, rm, writeFile } from 
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import {
 	assertApprovedMasterSnapshot,
@@ -20,6 +20,7 @@ import {
 const temporaryRoots: string[] = [];
 
 afterEach(async () => {
+	vi.restoreAllMocks();
 	await Promise.all(
 		temporaryRoots.splice(0).map((path) => rm(path, { recursive: true, force: true }))
 	);
@@ -193,11 +194,39 @@ describe('publishMeadowEntryExportPackage error branches', () => {
 			await writeFile(join(runtimeRoot, filename), bytes);
 		}
 
-		await expect(checkMeadowEntryExportPackage(root, runtimeRoot, pkg)).resolves.toBeUndefined();
+		const successMutators = { mkdir: vi.fn(), writeFile: vi.fn(), rename: vi.fn(), rm: vi.fn() };
+		let successReads = 0;
+		const checkFileSystem = {
+			...successMutators,
+			lstat: async (path: string) => await lstat(path),
+			readFile: async (path: string) => {
+				successReads += 1;
+				return await readFile(path);
+			},
+			readdir: async (path: string) => await readdir(path)
+		};
+		await expect(
+			checkMeadowEntryExportPackage(root, runtimeRoot, pkg, { fileSystem: checkFileSystem })
+		).resolves.toBeUndefined();
+		expect(successReads).toBeGreaterThan(0);
+		expect(Object.values(successMutators).every((spy) => spy.mock.calls.length === 0)).toBe(true);
 		await writeFile(join(runtimeRoot, 'a-base.png'), Buffer.from('stale'));
-		await expect(checkMeadowEntryExportPackage(root, runtimeRoot, pkg)).rejects.toThrow(
-			/stale|drift/i
-		);
+		const staleMutators = { mkdir: vi.fn(), writeFile: vi.fn(), rename: vi.fn(), rm: vi.fn() };
+		let staleReads = 0;
+		const staleCheckFileSystem = {
+			...staleMutators,
+			lstat: async (path: string) => await lstat(path),
+			readFile: async (path: string) => {
+				staleReads += 1;
+				return await readFile(path);
+			},
+			readdir: async (path: string) => await readdir(path)
+		};
+		await expect(
+			checkMeadowEntryExportPackage(root, runtimeRoot, pkg, { fileSystem: staleCheckFileSystem })
+		).rejects.toThrow(/stale|drift/i);
+		expect(staleReads).toBeGreaterThan(0);
+		expect(Object.values(staleMutators).every((spy) => spy.mock.calls.length === 0)).toBe(true);
 	});
 
 	it('restores the previous snapshot when a staging write fails', async () => {

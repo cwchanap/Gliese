@@ -128,6 +128,22 @@ export interface MeadowEntryArtPackageApproval {
 	evidencePath: typeof EVIDENCE_PATH;
 }
 
+export interface MeadowEntryApprovalCheckFileSystem {
+	readFile(path: string, encoding: 'utf8'): Promise<string>;
+	mkdir: typeof mkdir;
+	writeFile: typeof writeFile;
+	rename: typeof rename;
+	rm: typeof rm;
+}
+
+const NODE_APPROVAL_CHECK_FILE_SYSTEM: MeadowEntryApprovalCheckFileSystem = {
+	readFile: async (path, encoding) => await readFile(path, encoding),
+	mkdir,
+	writeFile,
+	rename,
+	rm
+};
+
 interface ReviewArguments {
 	reviewedBy: string;
 	reviewedAt: string;
@@ -832,12 +848,14 @@ async function buildPaintedV2Approval(repositoryRoot: string): Promise<{
 
 export async function checkMeadowEntryPaintedV2Approval(
 	repositoryRoot: string,
-	expectedContents: string
+	expectedContents: string,
+	options: { fileSystem?: MeadowEntryApprovalCheckFileSystem } = {}
 ): Promise<void> {
 	const target = join(resolve(repositoryRoot), MEADOW_ENTRY_PAINTED_V2_APPROVAL_PATH);
+	const fileSystem = options.fileSystem ?? NODE_APPROVAL_CHECK_FILE_SYSTEM;
 	let actual: string;
 	try {
-		actual = await readFile(target, 'utf8');
+		actual = await fileSystem.readFile(target, 'utf8');
 	} catch (error) {
 		if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
 			throw new Error(

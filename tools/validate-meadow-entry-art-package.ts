@@ -74,6 +74,27 @@ function sha256(bytes: Buffer): string {
 	return createHash('sha256').update(bytes).digest('hex');
 }
 
+export interface HistoricalProvenanceBytes {
+	masterProvenance: Buffer;
+	exportProvenance: Buffer;
+	cropManifest: Buffer;
+}
+
+export function assertHistoricalProvenanceHashes(bytes: HistoricalProvenanceBytes): void {
+	assert(
+		sha256(bytes.masterProvenance) === meadowEntryArtPackageApproval.masterProvenanceSha256,
+		'Historical master provenance hash drifted'
+	);
+	assert(
+		sha256(bytes.exportProvenance) === meadowEntryArtPackageApproval.exportProvenanceSha256,
+		'Historical export provenance hash drifted'
+	);
+	assert(
+		sha256(bytes.cropManifest) === meadowEntryArtPackageApproval.cropManifestSha256,
+		'Historical crop manifest hash drifted'
+	);
+}
+
 async function pathExists(path: string): Promise<boolean> {
 	try {
 		await lstat(path);
@@ -273,9 +294,13 @@ export async function parseJsonObject(
 	repositoryRoot: string,
 	path: string
 ): Promise<Record<string, unknown>> {
+	return parseJsonObjectBytes(path, await readFile(join(repositoryRoot, path)));
+}
+
+function parseJsonObjectBytes(path: string, bytes: Buffer): Record<string, unknown> {
 	let parsed: unknown;
 	try {
-		parsed = JSON.parse((await readFile(join(repositoryRoot, path))).toString('utf8'));
+		parsed = JSON.parse(bytes.toString('utf8'));
 	} catch {
 		throw new Error(`${path} is not valid JSON`);
 	}
@@ -305,14 +330,27 @@ async function validateApprovedPackage(repositoryRoot: string): Promise<void> {
 		'Art package review time is invalid'
 	);
 
-	const [baseBytes, foregroundBytes, masterProvenance, exportProvenance, cropManifest] =
-		await Promise.all([
-			readFile(join(repositoryRoot, BASE_MASTER)),
-			readFile(join(repositoryRoot, FOREGROUND_MASTER)),
-			parseJsonObject(repositoryRoot, MASTER_PROVENANCE),
-			parseJsonObject(repositoryRoot, EXPORT_PROVENANCE),
-			parseJsonObject(repositoryRoot, CROP_MANIFEST)
-		]);
+	const [
+		baseBytes,
+		foregroundBytes,
+		masterProvenanceBytes,
+		exportProvenanceBytes,
+		cropManifestBytes
+	] = await Promise.all([
+		readFile(join(repositoryRoot, BASE_MASTER)),
+		readFile(join(repositoryRoot, FOREGROUND_MASTER)),
+		readFile(join(repositoryRoot, MASTER_PROVENANCE)),
+		readFile(join(repositoryRoot, EXPORT_PROVENANCE)),
+		readFile(join(repositoryRoot, CROP_MANIFEST))
+	]);
+	assertHistoricalProvenanceHashes({
+		masterProvenance: masterProvenanceBytes,
+		exportProvenance: exportProvenanceBytes,
+		cropManifest: cropManifestBytes
+	});
+	const masterProvenance = parseJsonObjectBytes(MASTER_PROVENANCE, masterProvenanceBytes);
+	const exportProvenance = parseJsonObjectBytes(EXPORT_PROVENANCE, exportProvenanceBytes);
+	const cropManifest = parseJsonObjectBytes(CROP_MANIFEST, cropManifestBytes);
 	validateCanonicalPngChunks(baseBytes);
 	validateCanonicalPngChunks(foregroundBytes);
 	const [base, foreground] = await Promise.all([

@@ -2,7 +2,7 @@ import { dirname, join } from 'node:path';
 import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import {
 	MEADOW_ENTRY_PAINTED_V2_APPROVAL_PATH,
@@ -13,6 +13,7 @@ import {
 const temporaryRoots: string[] = [];
 
 afterEach(async () => {
+	vi.restoreAllMocks();
 	await Promise.all(
 		temporaryRoots.splice(0).map((root) => rm(root, { recursive: true, force: true }))
 	);
@@ -47,9 +48,35 @@ describe('painted-v2 approval CLI', () => {
 		const target = join(root, MEADOW_ENTRY_PAINTED_V2_APPROVAL_PATH);
 		await mkdir(dirname(target), { recursive: true });
 		await writeFile(target, expected, { flag: 'w' });
-		await expect(checkMeadowEntryPaintedV2Approval(root, expected)).resolves.toBeUndefined();
+		const successMutators = { mkdir: vi.fn(), writeFile: vi.fn(), rename: vi.fn(), rm: vi.fn() };
+		let successReads = 0;
+		const checkFileSystem = {
+			...successMutators,
+			readFile: async (path: string) => {
+				successReads += 1;
+				return await readFile(path, 'utf8');
+			}
+		};
+		await expect(
+			checkMeadowEntryPaintedV2Approval(root, expected, { fileSystem: checkFileSystem })
+		).resolves.toBeUndefined();
+		expect(successReads).toBeGreaterThan(0);
+		expect(Object.values(successMutators).every((spy) => spy.mock.calls.length === 0)).toBe(true);
 		expect(await readFile(target, 'utf8')).toBe(expected);
 		await writeFile(target, `${expected}stale\n`);
-		await expect(checkMeadowEntryPaintedV2Approval(root, expected)).rejects.toThrow(/stale|drift/i);
+		const staleMutators = { mkdir: vi.fn(), writeFile: vi.fn(), rename: vi.fn(), rm: vi.fn() };
+		let staleReads = 0;
+		const staleCheckFileSystem = {
+			...staleMutators,
+			readFile: async (path: string) => {
+				staleReads += 1;
+				return await readFile(path, 'utf8');
+			}
+		};
+		await expect(
+			checkMeadowEntryPaintedV2Approval(root, expected, { fileSystem: staleCheckFileSystem })
+		).rejects.toThrow(/stale|drift/i);
+		expect(staleReads).toBeGreaterThan(0);
+		expect(Object.values(staleMutators).every((spy) => spy.mock.calls.length === 0)).toBe(true);
 	});
 });

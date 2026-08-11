@@ -1,12 +1,13 @@
-import { mkdtemp, mkdir, rm, writeFile } from 'node:fs/promises';
+import { mkdtemp, mkdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { join, resolve } from 'node:path';
 
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import {
 	assertExactPathAllowlist,
 	assertNoActivePublicationSentinels,
+	assertHistoricalProvenanceHashes,
 	compareFileTrees,
 	exactObjectKeys,
 	expectedApprovedPngPaths,
@@ -17,6 +18,7 @@ import {
 } from '../../../../../tools/validate-meadow-entry-art-package';
 
 const temporaryRoots: string[] = [];
+const repositoryRoot = resolve(import.meta.dirname, '../../../../..');
 
 async function temporaryRoot(): Promise<string> {
 	const root = await mkdtemp(join(tmpdir(), 'gliese-meadow-entry-validator-'));
@@ -404,5 +406,59 @@ describe('Meadow Entry art package validator', () => {
 		expect(
 			paths.includes('artifacts/meadow-entry/hpa-399/masters/meadow-entry-foreground-master.png')
 		).toBe(true);
+	});
+
+	it('rejects schema-valid but stale historical provenance bytes for every committed file', async () => {
+		const [masterProvenance, exportProvenance, cropManifest] = await Promise.all([
+			readFile(
+				join(
+					repositoryRoot,
+					'artifacts/meadow-entry/hpa-399/provenance/meadow-entry-master-provenance.json'
+				)
+			),
+			readFile(
+				join(
+					repositoryRoot,
+					'artifacts/meadow-entry/hpa-399/provenance/meadow-entry-export-provenance.json'
+				)
+			),
+			readFile(
+				join(
+					repositoryRoot,
+					'artifacts/meadow-entry/hpa-399/provenance/meadow-entry-crop-manifest.json'
+				)
+			)
+		]);
+		const fixtures = [
+			{
+				label: 'master provenance',
+				bytes: {
+					masterProvenance: Buffer.concat([masterProvenance, Buffer.from('\n')]),
+					exportProvenance,
+					cropManifest
+				}
+			},
+			{
+				label: 'export provenance',
+				bytes: {
+					masterProvenance,
+					exportProvenance: Buffer.concat([exportProvenance, Buffer.from('\n')]),
+					cropManifest
+				}
+			},
+			{
+				label: 'crop manifest',
+				bytes: {
+					masterProvenance,
+					exportProvenance,
+					cropManifest: Buffer.concat([cropManifest, Buffer.from('\n')])
+				}
+			}
+		] as const;
+		for (const fixture of fixtures) {
+			expect(() => assertHistoricalProvenanceHashes(fixture.bytes)).toThrow(
+				new RegExp(`${fixture.label} hash drifted`, 'i')
+			);
+		}
 	});
 });

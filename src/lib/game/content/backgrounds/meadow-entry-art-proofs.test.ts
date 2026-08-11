@@ -1,8 +1,8 @@
-import { mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import {
 	MEADOW_ENTRY_APPROVED_CROPS,
@@ -61,6 +61,7 @@ const fourLayers = [BASE_MASTER, SUNDROP_BASE, FOREGROUND_MASTER, SUNDROP_FOREGR
 const temporaryRoots: string[] = [];
 
 afterEach(() => {
+	vi.restoreAllMocks();
 	for (const root of temporaryRoots.splice(0)) rmSync(root, { recursive: true, force: true });
 });
 
@@ -129,7 +130,22 @@ describe('Meadow Entry art proof helpers', () => {
 			writeFileSync(output, bytes);
 		}
 		const expected = { files, inventorySha256: 'fixture' };
-		await expect(checkMeadowEntryPaintedV2Proofs(root, expected)).resolves.toBeUndefined();
+		const successMutators = { mkdir: vi.fn(), writeFile: vi.fn(), rename: vi.fn(), rm: vi.fn() };
+		let successReads = 0;
+		const checkFileSystem = {
+			...successMutators,
+			pathExists: async (path: string) => existsSync(path),
+			listFiles: async () => expectedPaintedV2ProofInventory(),
+			readFile: async (path: string) => {
+				successReads += 1;
+				return readFileSync(path);
+			}
+		};
+		await expect(
+			checkMeadowEntryPaintedV2Proofs(root, expected, { fileSystem: checkFileSystem })
+		).resolves.toBeUndefined();
+		expect(successReads).toBeGreaterThan(0);
+		expect(Object.values(successMutators).every((spy) => spy.mock.calls.length === 0)).toBe(true);
 		const before = Object.fromEntries(
 			expectedPaintedV2ProofInventory().map((path) => [
 				path,
@@ -143,7 +159,22 @@ describe('Meadow Entry art proof helpers', () => {
 			join(root, MEADOW_ENTRY_PAINTED_V2_PROOF_ROOT, MEADOW_ENTRY_PAINTED_V2_PROOF_FILENAMES[0]!),
 			Buffer.from('stale')
 		);
-		await expect(checkMeadowEntryPaintedV2Proofs(root, expected)).rejects.toThrow(/stale|drift/i);
+		const staleMutators = { mkdir: vi.fn(), writeFile: vi.fn(), rename: vi.fn(), rm: vi.fn() };
+		let staleReads = 0;
+		const staleCheckFileSystem = {
+			...staleMutators,
+			pathExists: async (path: string) => existsSync(path),
+			listFiles: async () => expectedPaintedV2ProofInventory(),
+			readFile: async (path: string) => {
+				staleReads += 1;
+				return readFileSync(path);
+			}
+		};
+		await expect(
+			checkMeadowEntryPaintedV2Proofs(root, expected, { fileSystem: staleCheckFileSystem })
+		).rejects.toThrow(/stale|drift/i);
+		expect(staleReads).toBeGreaterThan(0);
+		expect(Object.values(staleMutators).every((spy) => spy.mock.calls.length === 0)).toBe(true);
 	});
 
 	describe('expectedProofInputPaths', () => {

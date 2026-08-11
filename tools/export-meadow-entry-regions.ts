@@ -78,10 +78,25 @@ export interface MeadowEntryExportSnapshotFileSystem {
 	readdir(path: string): Promise<string[]>;
 }
 
+export interface MeadowEntryExportCheckFileSystem extends MeadowEntryExportSnapshotFileSystem {
+	mkdir: typeof mkdir;
+	writeFile: typeof writeFile;
+	rename: typeof rename;
+	rm: typeof rm;
+}
+
 const NODE_SNAPSHOT_FILE_SYSTEM: MeadowEntryExportSnapshotFileSystem = {
 	lstat: async (path) => await lstat(path),
 	readFile: async (path) => await readFile(path),
 	readdir: async (path) => await readdir(path)
+};
+
+const NODE_CHECK_FILE_SYSTEM: MeadowEntryExportCheckFileSystem = {
+	...NODE_SNAPSHOT_FILE_SYSTEM,
+	mkdir,
+	writeFile,
+	rename,
+	rm
 };
 
 export interface MeadowEntryExportArguments {
@@ -485,9 +500,11 @@ export async function readPublishedMeadowEntryExportSnapshot(
 export async function checkMeadowEntryExportPackage(
 	outputRoot: string,
 	runtimeRoot: string | undefined,
-	expected: MeadowEntryExportPackageBytes
+	expected: MeadowEntryExportPackageBytes,
+	options: { fileSystem?: MeadowEntryExportCheckFileSystem } = {}
 ): Promise<void> {
-	const actual = await readPublishedMeadowEntryExportSnapshot(outputRoot);
+	const fileSystem = options.fileSystem ?? NODE_CHECK_FILE_SYSTEM;
+	const actual = await readPublishedMeadowEntryExportSnapshot(outputRoot, { fileSystem });
 	assert(
 		JSON.stringify(Object.keys(actual.files).sort()) ===
 			JSON.stringify(Object.keys(expected.files).sort()),
@@ -510,7 +527,7 @@ export async function checkMeadowEntryExportPackage(
 	if (runtimeRoot === undefined) return;
 	let actualRuntime: string[];
 	try {
-		actualRuntime = (await readdir(resolve(runtimeRoot))).sort();
+		actualRuntime = (await fileSystem.readdir(resolve(runtimeRoot))).sort();
 	} catch (error) {
 		if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
 			throw new Error(`Meadow Entry painted-v2 runtime export is missing: ${runtimeRoot}`, {
@@ -525,7 +542,7 @@ export async function checkMeadowEntryExportPackage(
 		`Meadow Entry painted-v2 runtime export inventory is stale: expected=${expectedRuntime.join(',')} actual=${actualRuntime.join(',')}`
 	);
 	for (const filename of expectedRuntime) {
-		const bytes = await readFile(join(resolve(runtimeRoot), filename));
+		const bytes = await fileSystem.readFile(join(resolve(runtimeRoot), filename));
 		assert(
 			bytes.equals(expected.files[filename]!),
 			`Meadow Entry painted-v2 runtime export is stale: ${filename}`
