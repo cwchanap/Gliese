@@ -1214,3 +1214,72 @@ describe('validateMeadowEntryCropContract error paths', () => {
 		);
 	});
 });
+
+describe('validateMeadowEntryCropContract dependency injection', () => {
+	it('uses supplied ownership rows instead of the sealed V1 ownership table', async () => {
+		const {
+			MEADOW_ENTRY_PAINTED_V2_PILOT_BUDGET_SUMMARY,
+			MEADOW_ENTRY_PAINTED_V2_PILOT_CROPS,
+			MEADOW_ENTRY_PAINTED_V2_PILOT_OVERLAPS,
+			MEADOW_ENTRY_PAINTED_V2_PILOT_RUNTIME_COVERAGE
+		} = await import('./meadow-entry-painted-v2-crop-manifest');
+		const pilotOptions = {
+			crops: MEADOW_ENTRY_PAINTED_V2_PILOT_CROPS,
+			overlaps: MEADOW_ENTRY_PAINTED_V2_PILOT_OVERLAPS,
+			runtimeCoverage: MEADOW_ENTRY_PAINTED_V2_PILOT_RUNTIME_COVERAGE,
+			budgetSummary: MEADOW_ENTRY_PAINTED_V2_PILOT_BUDGET_SUMMARY,
+			coverageMode: 'partial' as const,
+			requiredFallbacks: [] as const
+		};
+		const syntheticOwnership: MeadowEntryBakeOwnershipEntry[] = [
+			{
+				ref: { sourceType: 'ground-patch', sourceId: 'crossroads-plaza' },
+				primaryRegionId: 'crossroads',
+				disposition: { mode: 'base-underlay' },
+				runtimeRequirement: 'fallback-tile'
+			}
+		];
+
+		expect(() => validateMeadowEntryCropContract(pilotOptions)).toThrow(
+			/Baked source .* is not contained by a runtime base crop/
+		);
+		expect(() =>
+			validateMeadowEntryCropContract({ ...pilotOptions, bakeOwnership: syntheticOwnership })
+		).not.toThrow();
+	});
+
+	it('validates supplied fallback requirements and allows partial pilots with none', async () => {
+		const {
+			MEADOW_ENTRY_PAINTED_V2_PILOT_BUDGET_SUMMARY,
+			MEADOW_ENTRY_PAINTED_V2_PILOT_CROPS,
+			MEADOW_ENTRY_PAINTED_V2_PILOT_FALLBACK_REQUIREMENTS,
+			MEADOW_ENTRY_PAINTED_V2_PILOT_OVERLAPS,
+			MEADOW_ENTRY_PAINTED_V2_PILOT_RUNTIME_COVERAGE
+		} = await import('./meadow-entry-painted-v2-crop-manifest');
+		const options = {
+			crops: MEADOW_ENTRY_PAINTED_V2_PILOT_CROPS,
+			overlaps: MEADOW_ENTRY_PAINTED_V2_PILOT_OVERLAPS,
+			runtimeCoverage: MEADOW_ENTRY_PAINTED_V2_PILOT_RUNTIME_COVERAGE,
+			budgetSummary: MEADOW_ENTRY_PAINTED_V2_PILOT_BUDGET_SUMMARY,
+			bakeOwnership: [] as MeadowEntryBakeOwnershipEntry[],
+			coverageMode: 'partial' as const,
+			requiredFallbacks: MEADOW_ENTRY_PAINTED_V2_PILOT_FALLBACK_REQUIREMENTS
+		};
+
+		expect(() => validateMeadowEntryCropContract(options)).not.toThrow();
+		expect(() =>
+			validateMeadowEntryCropContract({
+				...options,
+				requiredFallbacks: [
+					{ bounds: { left: 0, top: 0, right: 1, bottom: 1 }, reason: 'fallback' }
+				]
+			})
+		).toThrow(/fallback requirement/i);
+		expect(() =>
+			validateMeadowEntryCropContract({
+				...options,
+				requiredFallbacks: [{ bounds: MEADOW_ENTRY_WORLD_BOUNDS, reason: '   ' }]
+			})
+		).toThrow(/fallback requirement/i);
+	});
+});

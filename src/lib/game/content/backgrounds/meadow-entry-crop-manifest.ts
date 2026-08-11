@@ -11,7 +11,10 @@ import {
 } from './meadow-entry-authoring-geometry';
 import type { PixelBounds, WorldEdge } from './meadow-entry-authoring-types';
 import type { MeadowEntryAuthoringRegionId } from './meadow-entry-authoring-layout';
-import { MEADOW_ENTRY_BAKE_OWNERSHIP } from './meadow-entry-bake-ownership';
+import {
+	MEADOW_ENTRY_BAKE_OWNERSHIP,
+	type MeadowEntryBakeOwnershipEntry
+} from './meadow-entry-bake-ownership';
 import {
 	collectMeadowEntrySourceCatalog,
 	meadowEntrySourceKey
@@ -92,6 +95,12 @@ const GENERAL_FALLBACK_REASON =
 const SOUTHWEST_OCEAN_FALLBACK_REASON =
 	'Southwest ocean remains fallback tile: the collision-only ocean blocker relies on its paired sea ground patch, and the existing sea tile covers this reviewed margin outside regional crops.';
 const CORNER_GROUP_ID = 'corner-meadow-entry-handoff-network';
+const DEFAULT_FALLBACK_REQUIREMENTS: readonly MeadowEntryFallbackRequirement[] = Object.freeze([
+	Object.freeze({
+		bounds: Object.freeze({ left: 64, top: 6_286, right: 164, bottom: 6_336 }),
+		reason: SOUTHWEST_OCEAN_FALLBACK_REASON
+	})
+]);
 
 function freezeBounds(bounds: PixelBounds): PixelBounds {
 	return Object.freeze({ ...bounds });
@@ -707,11 +716,14 @@ function validateCropMetadata(crop: MeadowEntryApprovedCrop): void {
 	}
 }
 
-function validateBakedSources(crops: readonly MeadowEntryApprovedCrop[]): void {
+function validateBakedSources(
+	crops: readonly MeadowEntryApprovedCrop[],
+	bakeOwnership: readonly MeadowEntryBakeOwnershipEntry[]
+): void {
 	const sources = new Map(
 		collectMeadowEntrySourceCatalog().map((record) => [meadowEntrySourceKey(record.ref), record])
 	);
-	for (const ownership of MEADOW_ENTRY_BAKE_OWNERSHIP) {
+	for (const ownership of bakeOwnership) {
 		const baked =
 			ownership.disposition.mode === 'base-underlay' ||
 			ownership.disposition.mode === 'base-static' ||
@@ -815,7 +827,9 @@ function validateOverlaps(
 
 function validateRuntimeCoverage(
 	crops: readonly MeadowEntryApprovedCrop[],
-	coverage: readonly MeadowEntryRuntimeCoverage[]
+	coverage: readonly MeadowEntryRuntimeCoverage[],
+	coverageMode: MeadowEntryCoverageMode,
+	requiredFallbacks: readonly MeadowEntryFallbackRequirement[]
 ): void {
 	let summedArea = 0;
 	for (const entry of coverage) {
@@ -832,21 +846,29 @@ function validateRuntimeCoverage(
 		}
 	}
 	const coveredArea = unionArea(coverage.map(({ bounds }) => bounds));
-	if (coveredArea !== MASTER_AREA || summedArea !== MASTER_AREA) {
+	const expectedArea =
+		coverageMode === 'partial' ? unionArea(crops.map(({ bounds }) => bounds)) : MASTER_AREA;
+	if (coveredArea !== expectedArea || summedArea !== expectedArea) {
 		throw new Error(
-			`Runtime coverage has unexplained or overlapping area: union=${coveredArea}, sum=${summedArea}`
+			`Runtime coverage has unexplained or overlapping area: union=${coveredArea}, sum=${summedArea}, expected=${expectedArea}`
 		);
 	}
-	const southwestFallback = coverage.find(
-		(entry) =>
-			entry.mode === 'fallback-tile' &&
-			boundsEqual(entry.bounds, { left: 64, top: 6_286, right: 164, bottom: 6_336 })
-	);
-	if (
-		southwestFallback?.mode !== 'fallback-tile' ||
-		southwestFallback.reason !== SOUTHWEST_OCEAN_FALLBACK_REASON
-	) {
-		throw new Error('Southwest-ocean fallback coverage is not explicit');
+	for (const requirement of requiredFallbacks) {
+		if (requirement.reason.trim().length === 0) {
+			throw new Error('Fallback requirement must have a non-empty reason');
+		}
+		const matchingFallback = coverage.find(
+			(entry) =>
+				entry.mode === 'fallback-tile' &&
+				boundsEqual(entry.bounds, requirement.bounds) &&
+				entry.reason === requirement.reason
+		);
+		if (matchingFallback === undefined) {
+			if (requiredFallbacks === DEFAULT_FALLBACK_REQUIREMENTS) {
+				throw new Error('Southwest-ocean fallback coverage is not explicit');
+			}
+			throw new Error('Runtime fallback requirement is not represented by coverage');
+		}
 	}
 }
 
@@ -857,13 +879,26 @@ function validateRuntimeCoverage(
  * `crops` → `MEADOW_ENTRY_APPROVED_CROPS`, `overlaps` →
  * `MEADOW_ENTRY_APPROVED_OVERLAPS`, `runtimeCoverage` →
  * `MEADOW_ENTRY_RUNTIME_COVERAGE`, `budgetSummary` →
- * `MEADOW_ENTRY_CROP_BUDGET_SUMMARY`.
+ * `MEADOW_ENTRY_CROP_BUDGET_SUMMARY`, `bakeOwnership` →
+ * `MEADOW_ENTRY_BAKE_OWNERSHIP`, `requiredFallbacks` → the historical southwest
+ * ocean fallback requirement for full-world coverage (none is assumed for partial
+ * coverage), and `coverageMode` → `'full-world'`.
  */
+export type MeadowEntryCoverageMode = 'full-world' | 'partial';
+
+export interface MeadowEntryFallbackRequirement {
+	readonly bounds: PixelBounds;
+	readonly reason: string;
+}
+
 export interface MeadowEntryCropContractValidationOptions {
-	crops?: readonly MeadowEntryApprovedCrop[];
-	overlaps?: readonly MeadowEntryOverlap[];
-	runtimeCoverage?: readonly MeadowEntryRuntimeCoverage[];
-	budgetSummary?: MeadowEntryCropBudgetSummary;
+	readonly crops?: readonly MeadowEntryApprovedCrop[];
+	readonly overlaps?: readonly MeadowEntryOverlap[];
+	readonly runtimeCoverage?: readonly MeadowEntryRuntimeCoverage[];
+	readonly budgetSummary?: MeadowEntryCropBudgetSummary;
+	readonly bakeOwnership?: readonly MeadowEntryBakeOwnershipEntry[];
+	readonly requiredFallbacks?: readonly MeadowEntryFallbackRequirement[];
+	readonly coverageMode?: MeadowEntryCoverageMode;
 }
 
 /**
@@ -874,7 +909,7 @@ export interface MeadowEntryCropContractValidationOptions {
  * Throws an `Error` with a descriptive message on any contract violation.
  *
  * @param {MeadowEntryCropContractValidationOptions} [options] - optional overrides
- *   for the sealed crop, overlap, runtime-coverage, and budget data
+ *   for the sealed crop, overlap, runtime-coverage, budget, ownership, and fallback data
  * @returns {void}
  */
 export function validateMeadowEntryCropContract(
@@ -884,6 +919,10 @@ export function validateMeadowEntryCropContract(
 	const overlaps = options.overlaps ?? MEADOW_ENTRY_APPROVED_OVERLAPS;
 	const runtimeCoverage = options.runtimeCoverage ?? MEADOW_ENTRY_RUNTIME_COVERAGE;
 	const budgetSummary = options.budgetSummary ?? MEADOW_ENTRY_CROP_BUDGET_SUMMARY;
+	const bakeOwnership = options.bakeOwnership ?? MEADOW_ENTRY_BAKE_OWNERSHIP;
+	const coverageMode = options.coverageMode ?? 'full-world';
+	const requiredFallbacks =
+		options.requiredFallbacks ?? (coverageMode === 'partial' ? [] : DEFAULT_FALLBACK_REQUIREMENTS);
 	const cropIds = new Set<string>();
 	const drawOrders = new Set<number>();
 	for (const crop of crops) {
@@ -897,8 +936,8 @@ export function validateMeadowEntryCropContract(
 		validateCropMetadata(crop);
 	}
 	validateOverlaps(crops, overlaps);
-	validateBakedSources(crops);
-	validateRuntimeCoverage(crops, runtimeCoverage);
+	validateBakedSources(crops, bakeOwnership);
+	validateRuntimeCoverage(crops, runtimeCoverage, coverageMode, requiredFallbacks);
 	const expectedSummary = buildBudgetSummary(crops);
 	const expectedKeys = Object.keys(expectedSummary) as (keyof MeadowEntryCropBudgetSummary)[];
 	const actualKeys = Object.keys(budgetSummary);
