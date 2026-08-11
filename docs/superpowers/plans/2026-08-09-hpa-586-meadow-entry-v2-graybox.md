@@ -1378,7 +1378,7 @@ git commit -m "feat(world): rebuild shrine and village houses"
 - Create during review: `docs/superpowers/reports/img/hpa-586/villager-house-2.png`
 - Create during review: `docs/superpowers/reports/img/hpa-586/interior-collision.png`
 
-- [ ] **Step 1: Extend E2E across all seven interiors**
+- [x] **Step 1: Extend E2E across all seven interiors**
 
 Use one parameterized table. For each building:
 
@@ -1392,7 +1392,7 @@ Use one parameterized table. For each building:
 
 Perform one Guild Hall save/reload.
 
-- [ ] **Step 2: Run complete validation**
+- [x] **Step 2: Run complete validation**
 
 ```bash
 bun run test:unit -- --run
@@ -1403,11 +1403,11 @@ bun run build
 bun run build:tauri
 ```
 
-- [ ] **Step 3: Capture native-scale interior screenshots**
+- [x] **Step 3: Capture native-scale interior screenshots**
 
 Capture the six named images at 100% scale. Use collision debug only for `interior-collision.png`.
 
-- [ ] **Step 4: Perform combined web and Tauri walkthroughs**
+- [x] **Step 4: Perform combined web and Tauri walkthroughs**
 
 Verify:
 
@@ -1424,7 +1424,12 @@ Run the same happy path under:
 bun run tauri dev
 ```
 
-- [ ] **Step 5: Self-review HPA-586 completion**
+Result: the complete web walkthrough passed, the release `.app` and DMG were built, and the
+exact packaged executable opened an on-screen native window. The native route/input/save-reload
+walkthrough remains **BLOCKED** because this environment cannot safely isolate the user's Tauri
+save or control the native window; no native walkthrough pass is claimed.
+
+- [x] **Step 5: Self-review HPA-586 completion**
 
 Confirm:
 
@@ -1436,7 +1441,7 @@ Confirm:
 - no room compiler, compatibility source, or executable art-partition config was introduced;
 - final-art ticket boundaries are concrete.
 
-- [ ] **Step 6: Commit final validation**
+- [x] **Step 6: Commit final validation**
 
 ```bash
 git add tests/e2e/game.e2e.ts docs/superpowers/reports/img/hpa-586
