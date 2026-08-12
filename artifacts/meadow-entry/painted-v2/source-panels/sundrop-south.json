@@ -1,0 +1,189 @@
+{
+	"version": 2,
+	"id": "sundrop-south",
+	"bounds": {
+		"left": 256,
+		"top": 4928,
+		"right": 2880,
+		"bottom": 6144
+	},
+	"assemblyPriority": 20,
+	"expectedDimensions": {
+		"width": 2624,
+		"height": 1216
+	},
+	"generation": {
+		"tool": "image_gen (built-in)",
+		"provider": "OpenAI",
+		"model": "gpt-image-2",
+		"modelVersion": "2.0",
+		"outputPath": "/Users/chanwaichan/.codex/generated_images/019ff4d8-318a-77d1-ae67-bdcc40ab0e8b/exec-6caed67f-6ced-4094-8f46-d0d5e7a16cee.png",
+		"outputSha256": "01231456ed9b785ce2002b541bfff668b9edec1e6c5d73233878cf56b5626669",
+		"prompt": "Use case: stylized-concept.\nAsset type: native-detail opaque painted game background source panel, Sundrop Village south.\nInput images: Image 1 is the single authoritative exact-coordinate control crop (geometry, terrain/path, region, building/transition/protected/semantic/handoff masks stacked). Image 2 is secondary color/composition guidance only from the approved concept crop; do not copy its softness or any objects.\nPrimary request: paint a crisp hand-painted 2D JRPG top-down ground-only environment panel for fixed Meadow master-coordinate bounds x=256..2880, y=4928..6144, exact output aspect 2624x1216 (native bounded panel; no border). Preserve Image 1 exactly: live building lots and door approaches, quiet interaction pads, the long village lanes, all route mouths, and the exact 128px shared overlap with Sundrop north. Use warm cultivated Sundrop ground: varied green meadow, golden packed-earth paths, irregular worn path edges, subtle low field-row color bands away from live pads, shallow drainage traces, tiny flat flowers, low stones and leaf litter, and restrained painted foundation-contact wear around live footprints.\nComposition/framing: orthographic top-down ground plane only; no scene objects. Keep hero-house frontage and every NPC/pickup/discovery/transition/encounter/spawn clearance flat, dry, open, and navigable. Make the top 128px overlap visually continuous with the north panel's cultivated grass and soil; use the same material vocabulary at the overlap.\nLighting/mood: warm late-morning upper-left light, crisp native-detail brushwork, clear grass/soil value hierarchy, no blur.\nConstraints: opaque sRGB/RGBA raster; exact fixed panel framing; no baked buildings, roofs, architecture, doors, windows, false doorways, walls, fences, actors, NPCs, enemies, pickups, labels, text, UI, icons, bridges, props, or tall objects. All live building and transition pads are quiet low ground; never put field rows, flowers, stones, drainage, or object-like marks inside reserved pads. Broad live environmental/corridor masks retain natural biome ground and no duplicate visual or false blocker. No repeated grid, tile seams, perspective, watermark.\nAvoid: camera tilt, isometric structures, hard rectangular islands, repeated motifs, blur, generator seams, blocked approaches, false collision cues, or any upright object.",
+		"promptSha256": "14baeaf8a0653b30f8b86beaac89c2d470a852847f93f1310081d77cd075774a",
+		"attempt": 1,
+		"result": "accepted",
+		"rejected": false
+	},
+	"raw": {
+		"path": "artifacts/meadow-entry/painted-v2/source-panels/raw/sundrop-south.png",
+		"sha256": "01231456ed9b785ce2002b541bfff668b9edec1e6c5d73233878cf56b5626669",
+		"bytes": 2961126,
+		"dimensions": {
+			"width": 1842,
+			"height": 854
+		}
+	},
+	"normalized": {
+		"path": "artifacts/meadow-entry/painted-v2/source-panels/sundrop-south.png",
+		"sha256": "b3bb18292cd23556d58f2ac7720f95037392ef60b26e9f208206e1f270fd672f",
+		"bytes": 8355861,
+		"dimensions": {
+			"width": 2624,
+			"height": 1216
+		},
+		"colourspace": "sRGB",
+		"channels": 4
+	},
+	"normalizationTransform": {
+		"native": {
+			"width": 1842,
+			"height": 854
+		},
+		"scaledRaster": {
+			"width": 2624,
+			"height": 1217
+		},
+		"scaledCrop": {
+			"left": 0,
+			"top": 0,
+			"width": 2624,
+			"height": 1216
+		},
+		"output": {
+			"width": 2624,
+			"height": 1216
+		},
+		"scaleX": 1.4245385450597177,
+		"scaleY": 1.4245385450597177,
+		"scale": 1.4245385450597177,
+		"uniform": true,
+		"scaleExceedsTwoX": false,
+		"operation": "cover-scale-crop-to-fixed-panel"
+	},
+	"prompt": "Use case: stylized-concept.\nAsset type: native-detail opaque painted game background source panel, Sundrop Village south.\nInput images: Image 1 is the single authoritative exact-coordinate control crop (geometry, terrain/path, region, building/transition/protected/semantic/handoff masks stacked). Image 2 is secondary color/composition guidance only from the approved concept crop; do not copy its softness or any objects.\nPrimary request: paint a crisp hand-painted 2D JRPG top-down ground-only environment panel for fixed Meadow master-coordinate bounds x=256..2880, y=4928..6144, exact output aspect 2624x1216 (native bounded panel; no border). Preserve Image 1 exactly: live building lots and door approaches, quiet interaction pads, the long village lanes, all route mouths, and the exact 128px shared overlap with Sundrop north. Use warm cultivated Sundrop ground: varied green meadow, golden packed-earth paths, irregular worn path edges, subtle low field-row color bands away from live pads, shallow drainage traces, tiny flat flowers, low stones and leaf litter, and restrained painted foundation-contact wear around live footprints.\nComposition/framing: orthographic top-down ground plane only; no scene objects. Keep hero-house frontage and every NPC/pickup/discovery/transition/encounter/spawn clearance flat, dry, open, and navigable. Make the top 128px overlap visually continuous with the north panel's cultivated grass and soil; use the same material vocabulary at the overlap.\nLighting/mood: warm late-morning upper-left light, crisp native-detail brushwork, clear grass/soil value hierarchy, no blur.\nConstraints: opaque sRGB/RGBA raster; exact fixed panel framing; no baked buildings, roofs, architecture, doors, windows, false doorways, walls, fences, actors, NPCs, enemies, pickups, labels, text, UI, icons, bridges, props, or tall objects. All live building and transition pads are quiet low ground; never put field rows, flowers, stones, drainage, or object-like marks inside reserved pads. Broad live environmental/corridor masks retain natural biome ground and no duplicate visual or false blocker. No repeated grid, tile seams, perspective, watermark.\nAvoid: camera tilt, isometric structures, hard rectangular islands, repeated motifs, blur, generator seams, blocked approaches, false collision cues, or any upright object.",
+	"promptSha256": "14baeaf8a0653b30f8b86beaac89c2d470a852847f93f1310081d77cd075774a",
+	"references": {
+		"controlCropPath": "/private/tmp/gliese-hpa586-panel-refs/sundrop-south/control-crop.png",
+		"controlCropSha256": "bde8c948eadc678289d5fa3a2d910bd4aaf1307167b932fee7ae0cdcb52f5682",
+		"conceptCropPath": "/private/tmp/gliese-hpa586-panel-refs/sundrop-south/concept-crop.png",
+		"conceptCropSha256": "1a6c4339bb812b15f040791c29630636517df4e74d3beb5220cf436f3756a3d0",
+		"approvedControlFingerprint": "35177cdb1bff05299ad1bd0b6759513cf2aa3bfbb87c368bfc749b2743fed4e4",
+		"controls": [
+			{
+				"path": "artifacts/meadow-entry/painted-v2/controls/meadow-entry-composite-control.svg",
+				"role": "geometry/composition",
+				"sha256": "0e81a426331b2e4c578a0ef04f83051e2e890f5cd959d7ae870ae55320a850f2",
+				"dimensions": {
+					"width": 6400,
+					"height": 6400
+				}
+			},
+			{
+				"path": "artifacts/meadow-entry/painted-v2/controls/meadow-entry-terrain-path-mask.svg",
+				"role": "terrain/routes",
+				"sha256": "17f5e461469eb1beafb6fe60d140f2515809739c156a7a647ed18c17ceaad176",
+				"dimensions": {
+					"width": 6400,
+					"height": 6400
+				}
+			},
+			{
+				"path": "artifacts/meadow-entry/painted-v2/controls/meadow-entry-region-mask.svg",
+				"role": "biome regions",
+				"sha256": "4c84852b79f1dc03e8b67e6c1ad3d1fca827afc8f167ec99512fe3098a9fd77c",
+				"dimensions": {
+					"width": 6400,
+					"height": 6400
+				}
+			},
+			{
+				"path": "artifacts/meadow-entry/painted-v2/controls/meadow-entry-collision-mask.svg",
+				"role": "live collision",
+				"sha256": "ce4de36f6eb7b657a4305c4ead33061dc81412051390439c7c3655252f8525f8",
+				"dimensions": {
+					"width": 6400,
+					"height": 6400
+				}
+			},
+			{
+				"path": "artifacts/meadow-entry/painted-v2/controls/meadow-entry-building-footprint-mask.svg",
+				"role": "building footprints",
+				"sha256": "521d24524769aed2bfab4032a31f285eaecb4f86973fd7d1d4868aa2e01c6930",
+				"dimensions": {
+					"width": 6400,
+					"height": 6400
+				}
+			},
+			{
+				"path": "artifacts/meadow-entry/painted-v2/controls/meadow-entry-entrance-transition-mask.svg",
+				"role": "entrance transitions",
+				"sha256": "a5a383b27ecf2adc4238564fe6afdafb5d61d9cff60d19604f0ed3f7f3f65529",
+				"dimensions": {
+					"width": 6400,
+					"height": 6400
+				}
+			},
+			{
+				"path": "artifacts/meadow-entry/painted-v2/controls/meadow-entry-protected-live-mask.svg",
+				"role": "protected live ownership",
+				"sha256": "2ca64d6a06198b48472349ad8055e538498b4199a5c1dcecd77868ba1ec193e1",
+				"dimensions": {
+					"width": 6400,
+					"height": 6400
+				}
+			},
+			{
+				"path": "artifacts/meadow-entry/painted-v2/controls/meadow-entry-semantic-anchor-mask.svg",
+				"role": "NPC/pickup/discovery/encounter/spawn anchors",
+				"sha256": "a4ef054b0beb204c4e9f1d8ba3d9126b0d7d577500e8541ab4a38c6883999ba1",
+				"dimensions": {
+					"width": 6400,
+					"height": 6400
+				}
+			},
+			{
+				"path": "artifacts/meadow-entry/painted-v2/controls/meadow-entry-forbidden-tall-mask.svg",
+				"role": "forbidden tall content",
+				"sha256": "c96fcbf93983a48d412e7bf565f8a457d7386c2ac82de1f28c737b88b4871b50",
+				"dimensions": {
+					"width": 6400,
+					"height": 6400
+				}
+			},
+			{
+				"path": "artifacts/meadow-entry/painted-v2/controls/meadow-entry-handoff-mask.svg",
+				"role": "neighbor handoffs",
+				"sha256": "a7124aa5b1dd9a1272b5477d2fd33aba22deb93fdfae8eb6989d3d145647c131",
+				"dimensions": {
+					"width": 6400,
+					"height": 6400
+				}
+			}
+		]
+	},
+	"cleanup": {
+		"operationCount": 0,
+		"operations": [],
+		"beforeSha256": "b3bb18292cd23556d58f2ac7720f95037392ef60b26e9f208206e1f270fd672f",
+		"afterSha256": "b3bb18292cd23556d58f2ac7720f95037392ef60b26e9f208206e1f270fd672f"
+	},
+	"nativeDetailReview": {
+		"inspectedAtOriginalResolution": true,
+		"inspectedNormalizedAt100Percent": true,
+		"controlComparisonEvidencePath": "docs/superpowers/reports/img/hpa-586-painted-v2-pilot/panel-review-sundrop-south-control-overlay.png",
+		"accepted": true,
+		"findings": "No baked buildings, doors, actors, labels, false walls, blocked approaches, obvious generator seams, or protected-pad object cues observed."
+	},
+	"stage": "native-detail-source-panel-accepted"
+}

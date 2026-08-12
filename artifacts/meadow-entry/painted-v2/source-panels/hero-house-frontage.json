@@ -1,0 +1,189 @@
+{
+	"version": 2,
+	"id": "hero-house-frontage",
+	"bounds": {
+		"left": 384,
+		"top": 5312,
+		"right": 1280,
+		"bottom": 6144
+	},
+	"assemblyPriority": 30,
+	"expectedDimensions": {
+		"width": 896,
+		"height": 832
+	},
+	"generation": {
+		"tool": "image_gen (built-in)",
+		"provider": "OpenAI",
+		"model": "gpt-image-2",
+		"modelVersion": "2.0",
+		"outputPath": "/Users/chanwaichan/.codex/generated_images/019ff4d8-318a-77d1-ae67-bdcc40ab0e8b/exec-c1f14988-93a5-4a4e-a994-49313df12b59.png",
+		"outputSha256": "50fc866503a2ba03db79aff06720fe9fef305f429ed1ccd737f6403533414178",
+		"prompt": "Use case: stylized-concept.\nAsset type: native-detail opaque painted game background source panel, Hero House frontage.\nInput images: Image 1 is the single authoritative exact-coordinate control crop; it is geometry and live-pad ownership, not a picture to copy. Image 2 is secondary Sundrop color/composition guidance only from the approved concept crop.\nPrimary request: paint a crisp hand-painted 2D JRPG top-down ground-only environment panel for fixed Meadow master-coordinate bounds x=384..1280, y=5312..6144, exact output aspect 896x832. Create a welcoming warm Sundrop garden clearing with a calm, unmistakable spawn-to-door route and foundation-wear contact shadow that fits the live hero-house footprint and approach from Image 1. Use warm green meadow, golden packed soil, a lightly worn narrow approach, subtle low flowers and scattered tiny stones only outside protected pads, and gentle low edge wear around the footprint.\nComposition/framing: orthographic top-down ground plane only. Preserve exact live geometry and keep hero-house footprint, doorway/transition pad, spawn/anchor/NPC/pickup/encounter clearances flat, quiet, dry, empty, and navigable. The live house itself is not painted; leave an intentional empty low-ground foundation clearing with no doorway cue. Preserve open margins to all panel edges.\nLighting/mood: warm late-morning upper-left, clean readable values, crisp native-detail brushwork, controlled microtexture.\nConstraints: opaque sRGB/RGBA raster; exact fixed framing; no baked house, roof, architecture, windows, doors, stairs, walls, fences, actors, NPCs, enemies, pickups, labels, text, UI, icons, bridges, props, lanterns, tall objects, or false walls. Only low ground color and restrained foundation contact wear; no object-like silhouette. Do not place flowers, stones, drainage, or path texture inside protected interaction/door/spawn pads. No tile seams, blur, repeated motifs, perspective distortion, watermark.\nAvoid: false doorway, blocked approach, hard rectangular island, visible generator seam, isometric or three-quarter structure.",
+		"promptSha256": "241754000a34a95b13b2ecba08311f94e5508e3c0e542a80b392b359b9e6e8c7",
+		"attempt": 1,
+		"result": "accepted",
+		"rejected": false
+	},
+	"raw": {
+		"path": "artifacts/meadow-entry/painted-v2/source-panels/raw/hero-house-frontage.png",
+		"sha256": "50fc866503a2ba03db79aff06720fe9fef305f429ed1ccd737f6403533414178",
+		"bytes": 2605661,
+		"dimensions": {
+			"width": 1302,
+			"height": 1208
+		}
+	},
+	"normalized": {
+		"path": "artifacts/meadow-entry/painted-v2/source-panels/hero-house-frontage.png",
+		"sha256": "9809baf80d939eee485ee0876d3e907e60e04a8185b774f1a14a418a9cd8205b",
+		"bytes": 1934578,
+		"dimensions": {
+			"width": 896,
+			"height": 832
+		},
+		"colourspace": "sRGB",
+		"channels": 4
+	},
+	"normalizationTransform": {
+		"native": {
+			"width": 1302,
+			"height": 1208
+		},
+		"scaledRaster": {
+			"width": 897,
+			"height": 832
+		},
+		"scaledCrop": {
+			"left": 0,
+			"top": 0,
+			"width": 896,
+			"height": 832
+		},
+		"output": {
+			"width": 896,
+			"height": 832
+		},
+		"scaleX": 0.6887417218543046,
+		"scaleY": 0.6887417218543046,
+		"scale": 0.6887417218543046,
+		"uniform": true,
+		"scaleExceedsTwoX": false,
+		"operation": "cover-scale-crop-to-fixed-panel"
+	},
+	"prompt": "Use case: stylized-concept.\nAsset type: native-detail opaque painted game background source panel, Hero House frontage.\nInput images: Image 1 is the single authoritative exact-coordinate control crop; it is geometry and live-pad ownership, not a picture to copy. Image 2 is secondary Sundrop color/composition guidance only from the approved concept crop.\nPrimary request: paint a crisp hand-painted 2D JRPG top-down ground-only environment panel for fixed Meadow master-coordinate bounds x=384..1280, y=5312..6144, exact output aspect 896x832. Create a welcoming warm Sundrop garden clearing with a calm, unmistakable spawn-to-door route and foundation-wear contact shadow that fits the live hero-house footprint and approach from Image 1. Use warm green meadow, golden packed soil, a lightly worn narrow approach, subtle low flowers and scattered tiny stones only outside protected pads, and gentle low edge wear around the footprint.\nComposition/framing: orthographic top-down ground plane only. Preserve exact live geometry and keep hero-house footprint, doorway/transition pad, spawn/anchor/NPC/pickup/encounter clearances flat, quiet, dry, empty, and navigable. The live house itself is not painted; leave an intentional empty low-ground foundation clearing with no doorway cue. Preserve open margins to all panel edges.\nLighting/mood: warm late-morning upper-left, clean readable values, crisp native-detail brushwork, controlled microtexture.\nConstraints: opaque sRGB/RGBA raster; exact fixed framing; no baked house, roof, architecture, windows, doors, stairs, walls, fences, actors, NPCs, enemies, pickups, labels, text, UI, icons, bridges, props, lanterns, tall objects, or false walls. Only low ground color and restrained foundation contact wear; no object-like silhouette. Do not place flowers, stones, drainage, or path texture inside protected interaction/door/spawn pads. No tile seams, blur, repeated motifs, perspective distortion, watermark.\nAvoid: false doorway, blocked approach, hard rectangular island, visible generator seam, isometric or three-quarter structure.",
+	"promptSha256": "241754000a34a95b13b2ecba08311f94e5508e3c0e542a80b392b359b9e6e8c7",
+	"references": {
+		"controlCropPath": "/private/tmp/gliese-hpa586-panel-refs/hero-house-frontage/control-crop.png",
+		"controlCropSha256": "8f61c4071720d27131c7041587c233aed65990aa84258f733c010eca14ad4be3",
+		"conceptCropPath": "/private/tmp/gliese-hpa586-panel-refs/hero-house-frontage/concept-crop.png",
+		"conceptCropSha256": "1a00b16af038aff072de0652f6851afc0d5da08f469d016e33f9c7c883087402",
+		"approvedControlFingerprint": "35177cdb1bff05299ad1bd0b6759513cf2aa3bfbb87c368bfc749b2743fed4e4",
+		"controls": [
+			{
+				"path": "artifacts/meadow-entry/painted-v2/controls/meadow-entry-composite-control.svg",
+				"role": "geometry/composition",
+				"sha256": "0e81a426331b2e4c578a0ef04f83051e2e890f5cd959d7ae870ae55320a850f2",
+				"dimensions": {
+					"width": 6400,
+					"height": 6400
+				}
+			},
+			{
+				"path": "artifacts/meadow-entry/painted-v2/controls/meadow-entry-terrain-path-mask.svg",
+				"role": "terrain/routes",
+				"sha256": "17f5e461469eb1beafb6fe60d140f2515809739c156a7a647ed18c17ceaad176",
+				"dimensions": {
+					"width": 6400,
+					"height": 6400
+				}
+			},
+			{
+				"path": "artifacts/meadow-entry/painted-v2/controls/meadow-entry-region-mask.svg",
+				"role": "biome regions",
+				"sha256": "4c84852b79f1dc03e8b67e6c1ad3d1fca827afc8f167ec99512fe3098a9fd77c",
+				"dimensions": {
+					"width": 6400,
+					"height": 6400
+				}
+			},
+			{
+				"path": "artifacts/meadow-entry/painted-v2/controls/meadow-entry-collision-mask.svg",
+				"role": "live collision",
+				"sha256": "ce4de36f6eb7b657a4305c4ead33061dc81412051390439c7c3655252f8525f8",
+				"dimensions": {
+					"width": 6400,
+					"height": 6400
+				}
+			},
+			{
+				"path": "artifacts/meadow-entry/painted-v2/controls/meadow-entry-building-footprint-mask.svg",
+				"role": "building footprints",
+				"sha256": "521d24524769aed2bfab4032a31f285eaecb4f86973fd7d1d4868aa2e01c6930",
+				"dimensions": {
+					"width": 6400,
+					"height": 6400
+				}
+			},
+			{
+				"path": "artifacts/meadow-entry/painted-v2/controls/meadow-entry-entrance-transition-mask.svg",
+				"role": "entrance transitions",
+				"sha256": "a5a383b27ecf2adc4238564fe6afdafb5d61d9cff60d19604f0ed3f7f3f65529",
+				"dimensions": {
+					"width": 6400,
+					"height": 6400
+				}
+			},
+			{
+				"path": "artifacts/meadow-entry/painted-v2/controls/meadow-entry-protected-live-mask.svg",
+				"role": "protected live ownership",
+				"sha256": "2ca64d6a06198b48472349ad8055e538498b4199a5c1dcecd77868ba1ec193e1",
+				"dimensions": {
+					"width": 6400,
+					"height": 6400
+				}
+			},
+			{
+				"path": "artifacts/meadow-entry/painted-v2/controls/meadow-entry-semantic-anchor-mask.svg",
+				"role": "NPC/pickup/discovery/encounter/spawn anchors",
+				"sha256": "a4ef054b0beb204c4e9f1d8ba3d9126b0d7d577500e8541ab4a38c6883999ba1",
+				"dimensions": {
+					"width": 6400,
+					"height": 6400
+				}
+			},
+			{
+				"path": "artifacts/meadow-entry/painted-v2/controls/meadow-entry-forbidden-tall-mask.svg",
+				"role": "forbidden tall content",
+				"sha256": "c96fcbf93983a48d412e7bf565f8a457d7386c2ac82de1f28c737b88b4871b50",
+				"dimensions": {
+					"width": 6400,
+					"height": 6400
+				}
+			},
+			{
+				"path": "artifacts/meadow-entry/painted-v2/controls/meadow-entry-handoff-mask.svg",
+				"role": "neighbor handoffs",
+				"sha256": "a7124aa5b1dd9a1272b5477d2fd33aba22deb93fdfae8eb6989d3d145647c131",
+				"dimensions": {
+					"width": 6400,
+					"height": 6400
+				}
+			}
+		]
+	},
+	"cleanup": {
+		"operationCount": 0,
+		"operations": [],
+		"beforeSha256": "9809baf80d939eee485ee0876d3e907e60e04a8185b774f1a14a418a9cd8205b",
+		"afterSha256": "9809baf80d939eee485ee0876d3e907e60e04a8185b774f1a14a418a9cd8205b"
+	},
+	"nativeDetailReview": {
+		"inspectedAtOriginalResolution": true,
+		"inspectedNormalizedAt100Percent": true,
+		"controlComparisonEvidencePath": "docs/superpowers/reports/img/hpa-586-painted-v2-pilot/panel-review-hero-house-frontage-control-overlay.png",
+		"accepted": true,
+		"findings": "No baked buildings, doors, actors, labels, false walls, blocked approaches, obvious generator seams, or protected-pad object cues observed."
+	},
+	"stage": "native-detail-source-panel-accepted"
+}
