@@ -10,9 +10,10 @@
 		"tool": "image_gen",
 		"toolVersion": "built-in",
 		"settings": {
+			"useCase": "stylized-concept",
 			"outputMode": "square raster concept",
 			"referenceLimit": 5,
-			"referenceInputCount": 4,
+			"referenceInputCount": 5,
 			"coordinateSystem": "6400x6400 orthographic-top-down-world-pixels",
 			"requestedOutputDimensions": { "width": 6400, "height": 6400 },
 			"sourceOutputDimensions": { "width": 1254, "height": 1254 },
@@ -20,186 +21,462 @@
 		},
 		"seed": null,
 		"seedUnavailable": true,
-		"prompt": "Use case: stylized-concept.\nAsset type: composition-evidence-only whole-world map concept for a 6400x6400 painted JRPG background; never a runtime asset.\nPrimary request: Generate one coherent square whole-world Meadow Entry concept, using the attached painted-v2 control images as strict geometry and ownership references. Preserve their 6400x6400 master-coordinate composition exactly: region extents, all connected route centerlines and mouths, junctions, open-space widths, interaction clearances, edge handoffs, collision boundaries, and every protected/live, building/transition, and semantic-anchor footprint. The colored geometry masks are instructions only; translate them into clean, readable painted terrain and ground materials, never copy the mask colors or overlay shapes.\nInput images: Image 1 is the composite control; Image 2 is the terrain/path mask; Image 3 is the region mask; Image 4 is a temporary combined boundary reference containing the collision mask, building-footprint mask, entrance-transition mask, protected-live mask, and semantic-anchor mask. Treat all of them as geometry controls, not as art.\nScene/backdrop: one continuous orthographic top-down / very slight three-quarter JRPG world map with six readable connected biome masses: cultivated Sundrop Village in the southwest; cobble-and-packed-earth Crossroads at center; cool wet Mistfen marsh in the northwest; autumn Silverpine shrine woods in the north; deep Wildwood forest in the east; bright Tidewatch coast, sand, and sea along the southeast. Keep the whole map visually continuous where regions meet while retaining distinct biome identity.\nStyle/medium: crisp hand-painted 2D JRPG environment concept, production-game clarity, clean orthographic map readability, crisp shapes and controlled texture; no oil-paint blur, photorealism, or muddy painterly smearing.\nComposition/framing: full square world-map view, all outer edges visible, clear route hierarchy at a glance; primary paths are continuous and legible through every region and connector, secondary paths and clearings are calm enough for live NPCs and interactions. Honor the exact control geometry even where it is sparse or abstract.\nLighting/mood: warm late-morning daylight from the upper left, consistent direction across the entire map, gentle contact shading only beneath terrain relief and low dressing; no dramatic cast shadows that imply walls or block routes.\nColor palette/materials: Sundrop is warm cultivated greens and golden soil; Crossroads is neutral warm cobble and earth; Mistfen is cool blue-green wet ground with restrained marsh variation; Silverpine is russet, amber, and pine green autumn woodland; Wildwood is deep layered green with subtle forest-floor variation; Tidewatch is bright sunlit sand, turquoise water, and pale coastal accents. Maintain a clear value hierarchy: routes and interaction clearances remain readable against surrounding biome masses.\nConstraints: control geometry and live ownership are authoritative; leave every building/transition footprint, protected-live mask area, collision mask area, and semantic-anchor mask area as quiet, flat, unobstructed ground reserved for live runtime objects. Terrain variation may be low and flat around them but cannot create a false wall, curb, doorway, cliff, tall prop, or collision cue. Keep the route mouths and edge handoffs open and calm. Add only low, sparse environmental dressing outside protected/live and anchor areas, with no gameplay-significant object.\nAvoid: any baked buildings, roofs, houses, castle gate, Waystone, doors, doorways, lanterns, bridges, shrines, boats, characters, NPCs, enemies, pickups, treasure, discoveries, props at semantic anchors, tall trees blocking paths, false walls, fences, cliffs across routes, labels, lettering, icons, UI, arrows, grid lines, overlays, mask colors, watermarks, logos, repeated tile grids, visible seams, perspective distortion, hard shadows that change gameplay geometry.",
-		"promptSha256": "3a2ac26ea01bd2a6302a983685add4733e291c5bdc9d6ffd3fb9d8c0a5174190",
-		"referenceImageSha256": [
-			"2974ca0bb7bd93347a7a9f716c537030bdee9c6544e60f64ea0b7cf1493a0354",
-			"1fe5e2208e0a807a6250d37aaa69c2c455712e5ef7074ffb97c97700f031e50e",
-			"b6dc1bab17020ab821eb0b49c9a5100eaf4b1a4b6fa07a813ad00d53df635012",
-			"73ed93bdcdb64ecb5c31dd0171f3d4047ead7c90cf79cefec66b4614ee3c05fa"
-		],
+		"prompt": "Use case: stylized-concept.\nAsset type: correction attempt 3 for a composition-evidence-only whole-world Meadow Entry map concept, intended for later uniform normalization to a 6400x6400 master; never a runtime asset.\nPrimary request: Generate one coherent square whole-world painted ground-material map that follows the five attached painted-v2 controls at the same exact master-coordinate alignment. This is a correction of two rejected candidates. Make it a deliberately restrained GROUND-ONLY environment concept: use painted ground color, fine non-object microtexture, and flat worn routes to distinguish the world. Do not add discrete scenic dressing anywhere in the world. No trees, shrubs, flowers, reeds, crops, rocks, stones, fences, walls, ruins, columns, gates, buildings, bridges, boats, signs, characters, or upright objects anywhere. This world-wide ground-only restriction is intentional so every live rectangle remains safe.\nExact meanings of the attached images:\nImage 1 is the approved composite geometry control: preserve the whole-world composition, region extents, route network, route mouths, junctions, clearances, and edge handoffs.\nImage 2 is the approved terrain/path control: preserve all primary and secondary route shapes and make them continuous, flat, unobstructed, and immediately legible.\nImage 3 is the approved region control: preserve the six biome masses and their exact placement.\nImage 4 is a high-contrast exact-coordinate BUILDING AND TRANSITION EMPTY-PAD overlay derived only from the approved building-footprint and entrance-transition SVG controls. Black means surrounding world. Yellow/magenta means strict reserved ground. Every colored pixel must become quiet, flat, empty ground matching the adjacent biome; do not reproduce yellow or magenta.\nImage 5 is a high-contrast exact-coordinate PROTECTED, SEMANTIC, AND COLLISION EMPTY-PAD overlay derived only from the approved protected-live, semantic-anchor, and collision SVG controls. Black means surrounding world. White/cyan/red means strict reserved ground. Every colored pixel must become quiet, flat, empty ground matching the adjacent biome; do not reproduce white, cyan, or red. Do not let any texture boundary, water edge, or scenic cue encroach into a colored area.\nThe earlier failures that must not recur: an upright gate/stone in the Silverpine gate pad; crop rows in village building pads; wet marsh water/reeds/rocks in the Witchwood gate pad; forest/route texture inside the castle-gate pad; rocks/vegetation inside the Crossroads waystone pad; and dense forest inside the Whispering Cave pad. Treat every colored area in Images 4 and 5 with equal strictness, including tiny rectangles.\nNamed building/landmark reserved rectangles in 6400x6400 master coordinates, all intentionally empty flat ground:\nblacksmith (2112,4864,320,320);\ncastle-gate (3936,2816,480,320);\ncrossroads-waystone (3716,4149,120,150);\nferry-crossing (3420,5560,360,320);\nguild-hall-exterior (2048,4032,448,384);\nhero-house-exterior (576,5568,256,288);\nitem-shop-exterior (544,4864,320,320);\nshrine-of-aurora (2112,5536,320,320);\nsilver-shrine-gate (2790,320,420,320);\nvillager-house-1-exterior (544,4096,256,288);\nvillager-house-2-exterior (1248,4096,256,288);\nvillager-house-3-exterior (1344,5568,256,288);\nwhispering-cave (5832,1688,256,224);\nwitchwood-gate (1020,470,360,300).\nEvery one must read as a quiet foundation/interaction clearing with only low ground color and microtexture. No route enters a pad unless shown by the route control; when it does, it is only a flat worn-ground continuation.\nWorld composition: one continuous orthographic top-down / very slight three-quarter square JRPG landscape with all outer edges visible and six connected, clearly differentiated biome masses: warm-green Sundrop Village southwest; neutral warm cobble-and-earth Crossroads center; cool blue-green Mistfen northwest; russet/amber autumn Silverpine north; deep-green Wildwood east; bright sand/turquoise Tidewatch southeast.\nPreserve the approved broad art direction: crisp hand-painted 2D JRPG environment, clean production-game readability, controlled texture, crisp continuous route shapes, and a clear value hierarchy. Preserve warm late-morning light from the upper left with no cast shadows or object shadows.\nHow to depict biomes while remaining ground-only:\nSundrop uses warm cultivated meadow greens and golden packed soil as broad painted color bands, but absolutely no crop rows, furrows, cultivated plants, or fences.\nCrossroads uses neutral warm packed earth with subtle flat cobble-color mottling, but no individual raised cobbles, stones, curbs, walls, or waystones.\nMistfen uses cool blue-green damp mud and soft turquoise ground-color washes, but no open water/pools, reeds, rocks, roots, or plants.\nSilverpine uses russet/amber/pine-green forest-floor color washes, but no trees, trunks, stumps, stones, leaves-as-objects, gates, or shrines.\nWildwood uses deep layered green forest-floor color washes, but no trees, bushes, roots, rocks, caves, or props.\nTidewatch uses bright sand and turquoise coastal color washes, but no open water edge crossing reserved pads, no waves-as-obstacles, rocks, boats, bridges, or docks.\nAbsolute forbidden content everywhere: buildings, roofs, architecture, gates, shrines, waystones, caves, doors, stairs, walls, fences, cliffs, curbs, bridges, boats, trees, bushes, flowers, grass clumps, crop rows, plants, reeds, roots, rocks, stones, ruins, pillars, signs, lanterns, characters, NPCs, enemies, pickups, props, labels, lettering, icons, UI, arrows, grid lines, visible overlays, mask colors, watermarks, logos, tile seams, false collision cues, route obstruction, and perspective distortion.\nOutput only the painted ground-only whole-world concept, with no legend or annotation.",
+		"promptSha256": "d52ea28405fb27182fcdffa24bca7331a877a84d62675a0d18c645493e82666f",
 		"byteReproducibleGeneration": false
 	},
 	"references": {
 		"controlFingerprint": "35177cdb1bff05299ad1bd0b6759513cf2aa3bfbb87c368bfc749b2743fed4e4",
+		"thirdPartyReferencesUsed": false,
+		"hpa399PixelsUsed": false,
 		"trackedControls": [
 			{
 				"path": "artifacts/meadow-entry/painted-v2/controls/meadow-entry-composite-control.svg",
 				"sha256": "0e81a426331b2e4c578a0ef04f83051e2e890f5cd959d7ae870ae55320a850f2",
-				"dimensions": { "width": 6400, "height": 6400 },
+				"width": 6400,
+				"height": 6400,
 				"role": "composite geometry control"
 			},
 			{
 				"path": "artifacts/meadow-entry/painted-v2/controls/meadow-entry-terrain-path-mask.svg",
 				"sha256": "17f5e461469eb1beafb6fe60d140f2515809739c156a7a647ed18c17ceaad176",
-				"dimensions": { "width": 6400, "height": 6400 },
+				"width": 6400,
+				"height": 6400,
 				"role": "terrain and route control"
 			},
 			{
 				"path": "artifacts/meadow-entry/painted-v2/controls/meadow-entry-region-mask.svg",
 				"sha256": "4c84852b79f1dc03e8b67e6c1ad3d1fca827afc8f167ec99512fe3098a9fd77c",
-				"dimensions": { "width": 6400, "height": 6400 },
+				"width": 6400,
+				"height": 6400,
 				"role": "biome-region control"
 			},
 			{
 				"path": "artifacts/meadow-entry/painted-v2/controls/meadow-entry-collision-mask.svg",
 				"sha256": "ce4de36f6eb7b657a4305c4ead33061dc81412051390439c7c3655252f8525f8",
-				"dimensions": { "width": 6400, "height": 6400 },
-				"role": "collision boundary control"
+				"width": 6400,
+				"height": 6400,
+				"role": "live collision geometry control"
 			},
 			{
 				"path": "artifacts/meadow-entry/painted-v2/controls/meadow-entry-building-footprint-mask.svg",
 				"sha256": "521d24524769aed2bfab4032a31f285eaecb4f86973fd7d1d4868aa2e01c6930",
-				"dimensions": { "width": 6400, "height": 6400 },
-				"role": "live building footprint control"
+				"width": 6400,
+				"height": 6400,
+				"role": "building and landmark footprint control"
 			},
 			{
 				"path": "artifacts/meadow-entry/painted-v2/controls/meadow-entry-entrance-transition-mask.svg",
 				"sha256": "a5a383b27ecf2adc4238564fe6afdafb5d61d9cff60d19604f0ed3f7f3f65529",
-				"dimensions": { "width": 6400, "height": 6400 },
-				"role": "live entrance and transition control"
+				"width": 6400,
+				"height": 6400,
+				"role": "entrance and transition control"
 			},
 			{
 				"path": "artifacts/meadow-entry/painted-v2/controls/meadow-entry-protected-live-mask.svg",
 				"sha256": "2ca64d6a06198b48472349ad8055e538498b4199a5c1dcecd77868ba1ec193e1",
-				"dimensions": { "width": 6400, "height": 6400 },
-				"role": "protected-live exclusion control"
+				"width": 6400,
+				"height": 6400,
+				"role": "protected-live ownership control"
 			},
 			{
 				"path": "artifacts/meadow-entry/painted-v2/controls/meadow-entry-semantic-anchor-mask.svg",
 				"sha256": "a4ef054b0beb204c4e9f1d8ba3d9126b0d7d577500e8541ab4a38c6883999ba1",
-				"dimensions": { "width": 6400, "height": 6400 },
-				"role": "semantic-anchor exclusion control"
+				"width": 6400,
+				"height": 6400,
+				"role": "semantic-anchor ownership control"
 			}
 		],
 		"imagegenInputs": [
 			{
-				"path": "/private/tmp/gliese-hpa-586-concept-refs.zLb3qJ/meadow-entry-composite-control.png",
+				"path": "/private/tmp/gliese-hpa-586-concept-correction.PqYkz6/meadow-entry-composite-control.png",
 				"sha256": "2974ca0bb7bd93347a7a9f716c537030bdee9c6544e60f64ea0b7cf1493a0354",
-				"dimensions": { "width": 6400, "height": 6400 },
-				"role": "temporary raster of composite control"
+				"bytes": 184778,
+				"width": 6400,
+				"height": 6400,
+				"role": "temporary raster of approved composite control"
 			},
 			{
-				"path": "/private/tmp/gliese-hpa-586-concept-refs.zLb3qJ/meadow-entry-terrain-path-mask.png",
+				"path": "/private/tmp/gliese-hpa-586-concept-correction.PqYkz6/meadow-entry-terrain-path-mask.png",
 				"sha256": "1fe5e2208e0a807a6250d37aaa69c2c455712e5ef7074ffb97c97700f031e50e",
-				"dimensions": { "width": 6400, "height": 6400 },
-				"role": "temporary raster of terrain/path mask"
+				"bytes": 175658,
+				"width": 6400,
+				"height": 6400,
+				"role": "temporary raster of approved terrain/path mask"
 			},
 			{
-				"path": "/private/tmp/gliese-hpa-586-concept-refs.zLb3qJ/meadow-entry-region-mask.png",
+				"path": "/private/tmp/gliese-hpa-586-concept-correction.PqYkz6/meadow-entry-region-mask.png",
 				"sha256": "b6dc1bab17020ab821eb0b49c9a5100eaf4b1a4b6fa07a813ad00d53df635012",
-				"dimensions": { "width": 6400, "height": 6400 },
-				"role": "temporary raster of region mask"
+				"bytes": 178075,
+				"width": 6400,
+				"height": 6400,
+				"role": "temporary raster of approved region mask"
 			},
 			{
-				"path": "/private/tmp/gliese-hpa-586-concept-refs.zLb3qJ/meadow-entry-live-boundary-masks.png",
-				"sha256": "73ed93bdcdb64ecb5c31dd0171f3d4047ead7c90cf79cefec66b4614ee3c05fa",
-				"dimensions": { "width": 6400, "height": 6400 },
-				"role": "temporary combined raster of collision, building/transition, protected-live, and semantic-anchor masks",
-				"derivedFrom": [
-					"meadow-entry-collision-mask.svg",
-					"meadow-entry-building-footprint-mask.svg",
-					"meadow-entry-entrance-transition-mask.svg",
-					"meadow-entry-protected-live-mask.svg",
-					"meadow-entry-semantic-anchor-mask.svg"
-				]
+				"path": "/private/tmp/gliese-hpa-586-concept-correction.PqYkz6/meadow-entry-building-transition-empty-pad-overlay-v2.png",
+				"sha256": "2d4551c9ab8e32d641f70fe3184935cbca63b34a9bfd8e50df2543ab90fb6833",
+				"bytes": 189075,
+				"width": 6400,
+				"height": 6400,
+				"role": "temporary exact-coordinate building and transition overlay derived only from the approved masks"
+			},
+			{
+				"path": "/private/tmp/gliese-hpa-586-concept-correction.PqYkz6/meadow-entry-protected-semantic-collision-empty-pad-overlay-v3.png",
+				"sha256": "e1a50f204aa1f74408ca7115c0332bb9e2b9ec190502f8e0808287dc8bd68acf",
+				"bytes": 345793,
+				"width": 6400,
+				"height": 6400,
+				"role": "temporary exact-coordinate protected, semantic, and collision overlay derived only from the approved masks"
 			}
 		]
 	},
 	"attempts": [
 		{
 			"id": "attempt-1",
-			"tool": "image_gen",
 			"resultPath": "/Users/chanwaichan/.codex/generated_images/019ff3af-04d2-7fe2-a811-de6cdedc0419/exec-4dc8b124-e4eb-478a-9f46-2a5d82228790.png",
-			"stagedRawPath": "/private/tmp/gliese-hpa-586-concept-refs.zLb3qJ/raw-attempt-1.png",
 			"raw": {
 				"width": 1254,
 				"height": 1254,
 				"bytes": 3204393,
 				"sha256": "30e9920e939e0370d97218bb691b3db56e150ac849788a171172b231793958b5"
 			},
-			"result": "accepted for visual review gate",
-			"notes": "An initial tool call with eight separate references was rejected before generation because the built-in tool accepts at most five references. The successful attempt used four temporary raster inputs; all eight approved tracked controls are recorded above and the boundary raster is lossless 6400x6400 RGBA."
+			"normalized": {
+				"width": 6400,
+				"height": 6400,
+				"bytes": 97804818,
+				"sha256": "70a3b36d2fad5b0254db616796288da397af5f00dde0c07610575c2a69decf79"
+			},
+			"result": "rejected-by-task-review",
+			"reason": "Silverpine gate contained a baked upright stone/gate-like object; village building footprints overlapped crop rows; Witchwood gate contained marsh water, reeds, and rocks. The original visual review also failed to inspect every protected overlay."
+		},
+		{
+			"id": "attempt-2",
+			"resultPath": "/Users/chanwaichan/.codex/generated_images/019ff3af-04d2-7fe2-a811-de6cdedc0419/exec-e9f59d0d-02d9-45e0-9dc1-372049b32ac6.png",
+			"raw": {
+				"width": 1254,
+				"height": 1254,
+				"bytes": 3172210,
+				"sha256": "a9bc9ea8075821ba2ac918da1463d4fa3bd30540e2dd43c5a6efda0d305a2d44"
+			},
+			"normalized": {
+				"width": 6400,
+				"height": 6400,
+				"bytes": 94427037,
+				"sha256": "43a282a1c6b8555c9150ba44e217564ff744f17f8313f7238f9cad22fbf69f2f"
+			},
+			"result": "rejected-during-native-detail-qa",
+			"reason": "Castle gate retained forest/route texture, the Crossroads waystone retained rocks/vegetation, Whispering Cave retained dense forest, and Witchwood gate retained wet/reed texture."
+		},
+		{
+			"id": "attempt-3",
+			"resultPath": "/Users/chanwaichan/.codex/generated_images/019ff3af-04d2-7fe2-a811-de6cdedc0419/exec-f2e712be-baa5-4217-9f3b-5ebaecd50392.png",
+			"raw": {
+				"width": 1254,
+				"height": 1254,
+				"colourspace": "sRGB",
+				"channels": 3,
+				"bytes": 2791960,
+				"sha256": "f4a8f91abf6cfc2eaf71bd47bbff43219741a366e9fb70fe96953e2071f69091"
+			},
+			"rawInspection": "Inspected at original detail before normalization: ground-only composition preserved all six biomes, route hierarchy, upper-left light, and contained no baked building, gate, character, pickup, label, UI, or other upright object.",
+			"normalizedBeforeCleanup": {
+				"width": 6400,
+				"height": 6400,
+				"bytes": 79816417,
+				"sha256": "4380070a245a1a35391048497e9291095c93a5b62e37e4c86a14e10cdd1aad14"
+			},
+			"result": "selected-after-bounded-deterministic-cleanup",
+			"reason": "The real ferry pad contained water and the blacksmith, item-shop building pad, and item-shop transition retained cultivated texture. The user-approved owning-source interpretation allowed broad environmental extents to remain natural and limited correction to these four objective real-pad failures."
 		}
 	],
 	"normalizationTransform": {
 		"native": { "width": 1254, "height": 1254 },
 		"crop": { "left": 0, "top": 0, "width": 1254, "height": 1254 },
 		"output": { "width": 6400, "height": 6400 },
+		"scaleX": 5.103668261562999,
+		"scaleY": 5.103668261562999,
 		"scale": 5.103668261562999,
 		"method": "normalizeMeadowEntryMasterCandidate + encodeCanonicalMeadowEntryPng",
 		"uniform": true,
+		"nonUniformScalingRejected": true,
 		"scaleExceedsTwoX": true
 	},
 	"rawCandidate": {
-		"path": "/Users/chanwaichan/.codex/generated_images/019ff3af-04d2-7fe2-a811-de6cdedc0419/exec-4dc8b124-e4eb-478a-9f46-2a5d82228790.png",
-		"stagedPath": "/private/tmp/gliese-hpa-586-concept-refs.zLb3qJ/raw-attempt-1.png",
+		"path": "/Users/chanwaichan/.codex/generated_images/019ff3af-04d2-7fe2-a811-de6cdedc0419/exec-f2e712be-baa5-4217-9f3b-5ebaecd50392.png",
 		"width": 1254,
 		"height": 1254,
-		"bytes": 3204393,
-		"sha256": "30e9920e939e0370d97218bb691b3db56e150ac849788a171172b231793958b5"
+		"colourspace": "sRGB",
+		"channels": 3,
+		"bytes": 2791960,
+		"sha256": "f4a8f91abf6cfc2eaf71bd47bbff43219741a366e9fb70fe96953e2071f69091"
 	},
+	"normalizedBeforeCleanup": {
+		"path": "/private/tmp/gliese-hpa-586-concept-correction.PqYkz6/normalized-attempt-3.png",
+		"width": 6400,
+		"height": 6400,
+		"bytes": 79816417,
+		"sha256": "4380070a245a1a35391048497e9291095c93a5b62e37e4c86a14e10cdd1aad14"
+	},
+	"manualCleanup": {
+		"operation": "deterministic-minimal-biome-matched-source-patch-cleanup",
+		"algorithm": {
+			"sourceSampling": "same normalized attempt-3 candidate; verified quiet ground in the same biome",
+			"sourceTransform": "Lanczos3 resize to target blend bounds",
+			"targetSafetyExpansionPx": 12,
+			"featherWidthPx": 24,
+			"featherFunction": "radial rectangular-distance smoothstep outside the full-strength safety expansion",
+			"alphaInsideTargetAndSafetyExpansion": 1,
+			"encoding": "canonical RGBA sRGB PNG; palette=false; compressionLevel=9; adaptiveFiltering=false"
+		},
+		"inputSha256": "4380070a245a1a35391048497e9291095c93a5b62e37e4c86a14e10cdd1aad14",
+		"outputSha256BeforeCanonicalChunkStrip": "fc997e987686cd430735b1462baf5b2abec159e453a1332a7c54f3c8b98320cd",
+		"outputSha256": "3c08e40249af015a5574acbd310486bdae594c64167d6d5c0042184a2647b312",
+		"uniqueChangedPixels": 469144,
+		"exactRgbDifferences": 469144,
+		"broadEnvironmentalMaskCleanupOperations": 0,
+		"postEncodingCleanup": {
+			"operation": "strip ancillary pHYs chunk; retain only IHDR, one or more IDAT chunks, and IEND",
+			"changedPixels": 0,
+			"removedBytes": 21,
+			"sha256Before": "fc997e987686cd430735b1462baf5b2abec159e453a1332a7c54f3c8b98320cd",
+			"sha256After": "3c08e40249af015a5574acbd310486bdae594c64167d6d5c0042184a2647b312"
+		},
+		"operations": [
+			{
+				"id": "landmark:blacksmith",
+				"target": { "x": 2112, "y": 4864, "width": 320, "height": 320 },
+				"source": { "x": 2096, "y": 4100, "width": 352, "height": 280 },
+				"blendBounds": { "x": 2076, "y": 4828, "width": 392, "height": 392 },
+				"reason": "replace cultivated yellow-green texture with verified dry Sundrop building-pad ground",
+				"changedPixelsThisOperation": 148721,
+				"changedPixelsInsideTarget": 102400,
+				"targetRgbSha256Before": "32ef69763d95aaa79f09786440723330f3dc5d5fda2fe2a67b112670d0ea9934",
+				"targetRgbSha256After": "cb0c6effb98902e42a44cac8cf7912a8133bdd2a9063c381ba619697e4809241"
+			},
+			{
+				"id": "landmark:item-shop-exterior",
+				"target": { "x": 544, "y": 4864, "width": 320, "height": 320 },
+				"source": { "x": 2096, "y": 4100, "width": 352, "height": 280 },
+				"blendBounds": { "x": 508, "y": 4828, "width": 392, "height": 392 },
+				"reason": "replace cultivated yellow-green texture with verified dry Sundrop building-pad ground",
+				"changedPixelsThisOperation": 148869,
+				"changedPixelsInsideTarget": 102400,
+				"targetRgbSha256Before": "5f6f0a16fa7509e83070720b993be24152cf769cb7e19e89d3eae67317051f49",
+				"targetRgbSha256After": "bf2af4e1cb9bf089c56aec44e80edf7a1509f38e93b883f6fba6f007eef2d942"
+			},
+			{
+				"id": "transition:meadow-to-item-shop",
+				"target": { "x": 656, "y": 5136, "width": 96, "height": 96 },
+				"source": { "x": 2096, "y": 4100, "width": 352, "height": 280 },
+				"blendBounds": { "x": 620, "y": 5100, "width": 168, "height": 168 },
+				"reason": "replace cultivated yellow-green approach texture with verified dry Sundrop transition ground",
+				"changedPixelsThisOperation": 25537,
+				"changedPixelsInsideTarget": 9216,
+				"targetRgbSha256Before": "b63c60d19e4865d03b852cc6e61da0e5e864d28ef5aded26b8e0d82ba047999d",
+				"targetRgbSha256After": "6d93c61d68c2d1b03c18798f122f1c667f096de24a776cb57188580aaccdd33e"
+			},
+			{
+				"id": "landmark:ferry-crossing",
+				"target": { "x": 3420, "y": 5560, "width": 360, "height": 320 },
+				"source": { "x": 4064, "y": 5868, "width": 352, "height": 408 },
+				"blendBounds": { "x": 3384, "y": 5524, "width": 432, "height": 392 },
+				"reason": "replace water intrusion with verified dry Tidewatch sand while retaining the surrounding coast and sea",
+				"changedPixelsThisOperation": 164210,
+				"changedPixelsInsideTarget": 115200,
+				"targetRgbSha256Before": "f3be04267df5453df6d39c34f12a2d02535dbc4e8b840caa87d013bc3dc3a610",
+				"targetRgbSha256After": "1cedb82f82d45ce31931d90cc45e51030b18d82cb1677867936358009fb61125"
+			}
+		],
+		"evidencePath": "/private/tmp/gliese-hpa-586-concept-correction.PqYkz6/minimal-real-pad-cleanup-evidence.json",
+		"evidenceSha256": "19c1093dd8b1992ad85be59a1acd8de9f9dec12e6d91e8c67fabd4e9bb3fc554"
+	},
+	"rejectedCleanupDrafts": [
+		{
+			"sha256": "d649c199e992e32806dc90a2c54414b44df97751031071ea80c8542b84958bf6",
+			"bytes": 61387569,
+			"reason": "broad low-pass union cleanup flattened natural biome extents"
+		},
+		{
+			"sha256": "17eaedeece6affedd5fab05652d33779bd3f4c806fa0b9d7bd9f47ed961c588b",
+			"bytes": 79041147,
+			"reason": "all-mask cleanup produced blocky Mistfen and Tidewatch regions"
+		},
+		{
+			"sha256": "d2ea01dd6512b58f152b9f26e29dcedcb4465cc6e9ccc696289a8077ec393355",
+			"bytes": 77447139,
+			"reason": "selective rectangle pool produced visible rectangular bars"
+		},
+		{
+			"sha256": "0baf8ff7d3433a26b7a4062609e3ad6c2a6886706f98c7f5d338d503395681a4",
+			"bytes": 76155260,
+			"reason": "nearest-fill variant damaged overview continuity"
+		},
+		{
+			"sha256": "93d479fd207dc97bf36e85c944e696fafcc1cd5d97e9a9e70e58c6bc08ca5150",
+			"bytes": 80522903,
+			"reason": "nearest-fill variant left conspicuous pads"
+		},
+		{
+			"sha256": "f203e2fb3626e4d452b19b41c517207a85869000fd1d0328a1d36d142efcc3e8",
+			"bytes": 83972446,
+			"reason": "nearest-fill variant left conspicuous pads"
+		},
+		{
+			"sha256": "aae84133459d7edbf3dfe9e5857a0006fe12370126606d2bf1168ba1eed0fcf8",
+			"bytes": 61075614,
+			"reason": "four source patches inherited the broad low-pass flattening"
+		},
+		{
+			"sha256": "0aadf4b36ffcd1274cf7e4327c3259638ebccfa8d5a2a397978fb66fe673bcd5",
+			"bytes": 79574885,
+			"reason": "six-operation minimal draft made two unnecessary Mistfen pickup edits with visible halos"
+		}
+	],
 	"normalizedCandidate": {
 		"path": "artifacts/meadow-entry/painted-v2/concept/meadow-entry-painted-v2-concept.png",
 		"width": 6400,
 		"height": 6400,
-		"bytes": 97804818,
-		"sha256": "70a3b36d2fad5b0254db616796288da397af5f00dde0c07610575c2a69decf79",
+		"colourspace": "sRGB",
+		"channels": 4,
+		"bytes": 79514382,
+		"sha256": "3c08e40249af015a5574acbd310486bdae594c64167d6d5c0042184a2647b312",
 		"encoding": {
-			"colourspace": "sRGB",
-			"channels": 4,
 			"palette": false,
 			"compressionLevel": 9,
 			"adaptiveFiltering": false,
 			"canonicalChunks": ["IHDR", "IDAT", "IEND"]
 		}
 	},
-	"manualCleanup": {
-		"operations": [],
-		"changedPixels": 0,
-		"note": "No manual cleanup or retouching was performed before approval."
+	"sourceSemanticRuling": {
+		"status": "user-approved-interpretation",
+		"recordedAtUtc": "2026-08-12T06:24:59Z",
+		"rule": "Actual building and landmark footprints, transitions, point-source anchors, and interaction clearances must be quiet, flat, dry or navigable as appropriate, and unobstructed. Broad live environmental and corridor extents retain natural biome terrain, but must not contain a baked duplicate of the live visual or a false blocking/collision cue.",
+		"auditedMappings": [
+			{
+				"protectedId": "protected-0045",
+				"source": "blocker:wildwood-forest-lane-east-bank",
+				"masterRect": { "x": 6052, "y": 3168, "width": 96, "height": 2148 },
+				"requiredTreatment": "natural deep-forest corridor terrain; no discrete bank duplicate or false wall"
+			},
+			{
+				"protectedId": "protected-0055",
+				"source": "decor:coast-foam",
+				"masterRect": { "x": 3084, "y": 5928, "width": 3032, "height": 128 },
+				"requiredTreatment": "natural coast water/sand transition; no baked foam stripe or wave obstacle"
+			},
+			{
+				"protectedId": "protected-0072",
+				"source": "decor:mistfen-fog",
+				"masterRect": { "x": 234, "y": 568, "width": 2032, "height": 2348 },
+				"requiredTreatment": "natural wet Mistfen terrain; no baked fog overlay or false blocker"
+			}
+		],
+		"broadEnvironmentalExtentsFlattened": 0
 	},
 	"visualInspection": {
-		"rawInspectedAtOriginalDetail": true,
+		"rawInspectedAtOriginalDetailBeforeNormalization": true,
 		"fullMapView": {
 			"path": "docs/superpowers/reports/img/hpa-586-painted-v2-pilot/concept-overview.png",
 			"width": 1600,
 			"height": 1600,
-			"sha256": "08e318e412f006097b38a0deae42555a89369b40ee5d935afc302dbfbdfe246a"
+			"bytes": 6858429,
+			"sha256": "42ee95416c3388feb654bc33f7ca0d53e1f7c52debbeebcf4412f028dbe101a5"
 		},
-		"nativeDetailViews": [
-			"Sundrop crop 256,3968,2624x2176",
-			"Crossroads crop 2880,2816,1728x1952",
-			"Tidewatch crop 3328,4768,2816x1376"
+		"overviewPostEncodingCleanup": {
+			"operation": "strip ancillary pHYs chunk; retain only IHDR, one or more IDAT chunks, and IEND",
+			"changedPixels": 0,
+			"removedBytes": 21,
+			"sha256Before": "421e5f16655d5d79ae25a26719f12375c139c5a9de25eb449fc37d56a2dd4d4e",
+			"sha256After": "42ee95416c3388feb654bc33f7ca0d53e1f7c52debbeebcf4412f028dbe101a5"
+		},
+		"nativeDetailEvidence": {
+			"root": "/private/tmp/gliese-hpa-586-concept-correction.PqYkz6",
+			"inventoryPath": "/private/tmp/gliese-hpa-586-concept-correction.PqYkz6/review-sheet-inventory-attempt-3-minimal-final-v2.json",
+			"inventorySha256": "c45bd6ad1069c1dce7c49f8fe2cf9e5474ced5fbd075ca55c77e8637e8ac1bcf",
+			"sheetCount": 30,
+			"sheets": {
+				"buildingFootprints": 2,
+				"entranceTransitions": 2,
+				"protectedLive": 14,
+				"semanticAnchors": 12
+			},
+			"inventoryCounts": {
+				"buildingFootprints": 14,
+				"entranceTransitions": 22,
+				"protectedLive": 162,
+				"semanticAnchors": 137,
+				"collision": 126
+			},
+			"semanticSourceCounts": {
+				"decorOrBroadEnvironment": 81,
+				"landmarks": 14,
+				"ambientNpcs": 10,
+				"combatBounds": 3,
+				"discoveries": 7,
+				"encounters": 3,
+				"pickups": 10,
+				"playerSpawn": 1,
+				"transitions": 8
+			},
+			"biomeCrops": [
+				"mistfen-northwest",
+				"silverpine-north",
+				"wildwood-east",
+				"sundrop-village-southwest",
+				"crossroads-center",
+				"tidewatch-southeast"
+			]
+		},
+		"objectiveChecks": {
+			"fullMapAndSixBiomes": "PASS: all six required biome masses remain distinct and connected; routes stay legible; upper-left late-morning light is consistent; Tidewatch keeps bright sand/sea and Mistfen keeps wet identity; no cleanup seam or halo is visible at overview scale.",
+			"buildingAndLandmarkFootprints": "PASS: all 14 exact interiors are quiet, flat, dry/navigable as appropriate, and contain no water, crop rows, trees, rocks, walls, or upright/baked objects.",
+			"entrancesAndTransitions": "PASS: all 22 exact interiors are open and unobstructed; the item-shop transition is now dry quiet approach ground.",
+			"pointSourceClearances": "PASS: all NPC, pickup, discovery, encounter, spawn, landmark, and transition semantic clearances were inspected at native detail and contain no baked duplicate or obstruction. Mistfen points retain damp but navigable ground under the approved ruling.",
+			"broadEnvironmentalAndCorridorExtents": "PASS: all protected, decor/environment, and collision evidence sheets were inspected under owning-source semantics; natural marsh, coast, and forest texture remains, with no duplicate live fog/foam/bank object and no false blocking cue.",
+			"noBakedObjects": "PASS: no building, gate, boat, character, pickup, UI, label, or semantic-anchor prop is baked into the selected concept."
+		},
+		"verdict": "APPROVED: corrected replacement concept pixels and the exact concept-only normalization exception were explicitly approved after exhaustive native-detail review."
+	},
+	"temporaryReferenceCleanup": {
+		"performed": true,
+		"removedAtUtc": "2026-08-12T06:24:59Z",
+		"operation": "Removed all 13 temporary painted-v2 raster control/reference PNGs by explicit path after recording hashes; retained only raw/normalized QA, cleanup evidence, and review sheets in temporary storage pending the fresh gate.",
+		"removedPaths": [
+			"/private/tmp/gliese-hpa-586-concept-correction.PqYkz6/meadow-entry-building-footprint-mask.png",
+			"/private/tmp/gliese-hpa-586-concept-correction.PqYkz6/meadow-entry-building-transition-empty-pad-overlay-v2.png",
+			"/private/tmp/gliese-hpa-586-concept-correction.PqYkz6/meadow-entry-collision-empty-pad-overlay.png",
+			"/private/tmp/gliese-hpa-586-concept-correction.PqYkz6/meadow-entry-collision-mask.png",
+			"/private/tmp/gliese-hpa-586-concept-correction.PqYkz6/meadow-entry-composite-control.png",
+			"/private/tmp/gliese-hpa-586-concept-correction.PqYkz6/meadow-entry-entrance-transition-mask.png",
+			"/private/tmp/gliese-hpa-586-concept-correction.PqYkz6/meadow-entry-live-empty-pad-overlay.png",
+			"/private/tmp/gliese-hpa-586-concept-correction.PqYkz6/meadow-entry-protected-live-mask.png",
+			"/private/tmp/gliese-hpa-586-concept-correction.PqYkz6/meadow-entry-protected-semantic-collision-empty-pad-overlay-v3.png",
+			"/private/tmp/gliese-hpa-586-concept-correction.PqYkz6/meadow-entry-protected-semantic-empty-pad-overlay-v2.png",
+			"/private/tmp/gliese-hpa-586-concept-correction.PqYkz6/meadow-entry-region-mask.png",
+			"/private/tmp/gliese-hpa-586-concept-correction.PqYkz6/meadow-entry-semantic-anchor-mask.png",
+			"/private/tmp/gliese-hpa-586-concept-correction.PqYkz6/meadow-entry-terrain-path-mask.png"
 		],
-		"verdict": "Approved by user for the painted direction and the exact concept-only normalization exception.",
-		"findings": [
-			"All six required biome masses are legible with the requested palette separation.",
-			"Primary route hierarchy, junctions, and interaction clearings read clearly at full-map view; village farm lanes and the central Crossroads remain open.",
-			"Upper-left late-morning lighting is consistent and value hierarchy keeps routes readable.",
-			"No baked buildings, characters, doors, labels, UI, enemies, pickups, or semantic-anchor props were observed in the inspected views.",
-			"Native detail is intentionally painterly/soft at the generated resolution; it is composition evidence only and not a source panel or runtime master."
-		],
-		"concerns": [
-			"The required uniform normalization scale is 5.103668261562999x (>2x); user explicitly approved this exception for the concept-only asset."
-		]
+		"remainingRasterReferenceCopies": 0
+	},
+	"supersededUserApproval": {
+		"status": "SUPERSEDED_BY_REVIEW",
+		"answer": "Yes",
+		"approvedAtUtc": "2026-08-12T03:03:10Z",
+		"scope": "painted visual direction and exact 5.103668261562999x concept-only normalization exception for attempt-1 pixels",
+		"supersededReason": "Task 2 review found protected/live footprint violations in the committed attempt-1 candidate; the broad direction was retained but the old answer does not approve the replacement pixels or its scale exception."
 	},
 	"userApproval": {
 		"status": "APPROVED",
 		"answer": "Yes",
-		"approvedAtUtc": "2026-08-12T03:03:10Z",
-		"scope": "painted visual direction and exact 5.103668261562999x concept-only normalization exception",
+		"approvedAtUtc": "2026-08-12T07:06:39Z",
+		"scope": [
+			"corrected replacement concept pixels shown by docs/superpowers/reports/img/hpa-586-painted-v2-pilot/concept-overview.png",
+			"exact uniform 5.103668261562999x normalization as a concept-only exception"
+		],
+		"owningSourceRulingPreserved": "Real building/landmark footprints, transitions, point-source anchors, and interaction clearances remain quiet, flat, dry/navigable as appropriate, and unobstructed. Broad live fog, foam, forest, and corridor extents retain natural biome terrain but contain no baked duplicate live visual or false blocker.",
+		"runtimePermission": false,
+		"runtimeRestriction": "Approval does not permit this 6400x6400 concept to be used as runtime or native-detail art.",
 		"sourcePanelsGenerated": false,
-		"nextStep": "Task 3 remains separate; do not begin it as part of this Task 2 commit."
+		"nextStep": "Task 2 may be committed. Task 3 remains separate and must not begin in this task."
 	}
 }
