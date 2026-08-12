@@ -1,0 +1,258 @@
+import { describe, expect, it } from 'vitest';
+
+import {
+	meadowEntryPaintedV2ArtPackageApproval,
+	meadowEntryPaintedV2ArtPackageApprovalReview
+} from '$lib/game/content/approvals/meadow-entry-painted-v2-art-package';
+
+describe('painted-v2 reviewed approval artifact', () => {
+	it('seals the exact approved reviewer and valid UTC instant', () => {
+		expect(meadowEntryPaintedV2ArtPackageApprovalReview).toStrictEqual({
+			reviewedBy: 'chanwaichan',
+			reviewedAt: '2026-08-12T10:33:06Z'
+		});
+		expect(meadowEntryPaintedV2ArtPackageApprovalReview.reviewedAt).toMatch(
+			/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/
+		);
+	});
+
+	it('pins every reviewed package artifact and provenance value as literals', () => {
+		expect(meadowEntryPaintedV2ArtPackageApproval).toStrictEqual({
+			version: 1,
+			combinedControlFingerprint:
+				'35177cdb1bff05299ad1bd0b6759513cf2aa3bfbb87c368bfc749b2743fed4e4',
+			storageMode: 'git-lfs',
+			storageConfigurationSha256:
+				'36737b6905cfc7c62fdf1bcdd48850bc574f20d7f4bfb63ab1aa8c727bc51de2',
+			provenanceSha256: '53fb0444a49ab4f6e686570c3a4433af4f96c7434668f2dd27a8aa885cc55328',
+			concept: {
+				path: 'artifacts/meadow-entry/painted-v2/concept/meadow-entry-painted-v2-concept.png',
+				sha256: '3c08e40249af015a5574acbd310486bdae594c64167d6d5c0042184a2647b312',
+				bytes: 79514382,
+				width: 6400,
+				height: 6400,
+				provenancePath:
+					'artifacts/meadow-entry/painted-v2/concept/meadow-entry-painted-v2-concept-provenance.json',
+				provenanceSha256: 'aa534c8494d37882c44781ad1bc0fdda13fa14533a24ca5150b84ab5591f1b66'
+			},
+			sourcePanels: [
+				{
+					path: 'artifacts/meadow-entry/painted-v2/source-panels/sundrop-north.png',
+					sha256: '3c7fe6063b8043578464ae68e5ec38505ae6a866afcd72fe2ff2293bf912a4e9',
+					bytes: 6901740,
+					width: 2624,
+					height: 1088,
+					id: 'sundrop-north',
+					raw: {
+						path: 'artifacts/meadow-entry/painted-v2/source-panels/raw/sundrop-north.png',
+						sha256: '98471a8459c46c4aa18a0b497c65497f86c7bfe702dc7730bfe0ca9bafe316dd',
+						bytes: 2555816,
+						width: 1947,
+						height: 808
+					},
+					provenancePath: 'artifacts/meadow-entry/painted-v2/source-panels/sundrop-north.json',
+					provenanceSha256: '2321a5caeaa241bceab4d823eb94271f7fae4afd660d9f1c64e1cedc65b22749',
+					assemblyPriority: 10,
+					bounds: { left: 256, top: 3968, right: 2880, bottom: 5056 }
+				},
+				{
+					path: 'artifacts/meadow-entry/painted-v2/source-panels/sundrop-south.png',
+					sha256: 'b3bb18292cd23556d58f2ac7720f95037392ef60b26e9f208206e1f270fd672f',
+					bytes: 8355861,
+					width: 2624,
+					height: 1216,
+					id: 'sundrop-south',
+					raw: {
+						path: 'artifacts/meadow-entry/painted-v2/source-panels/raw/sundrop-south.png',
+						sha256: '01231456ed9b785ce2002b541bfff668b9edec1e6c5d73233878cf56b5626669',
+						bytes: 2961126,
+						width: 1842,
+						height: 854
+					},
+					provenancePath: 'artifacts/meadow-entry/painted-v2/source-panels/sundrop-south.json',
+					provenanceSha256: 'dd0d423a46f269f29922f2ee2366fdaa7784a71bf3b3137bfe1c2b4e25bd6424',
+					assemblyPriority: 20,
+					bounds: { left: 256, top: 4928, right: 2880, bottom: 6144 }
+				},
+				{
+					path: 'artifacts/meadow-entry/painted-v2/source-panels/hero-house-frontage.png',
+					sha256: '9809baf80d939eee485ee0876d3e907e60e04a8185b774f1a14a418a9cd8205b',
+					bytes: 1934578,
+					width: 896,
+					height: 832,
+					id: 'hero-house-frontage',
+					raw: {
+						path: 'artifacts/meadow-entry/painted-v2/source-panels/raw/hero-house-frontage.png',
+						sha256: '50fc866503a2ba03db79aff06720fe9fef305f429ed1ccd737f6403533414178',
+						bytes: 2605661,
+						width: 1302,
+						height: 1208
+					},
+					provenancePath:
+						'artifacts/meadow-entry/painted-v2/source-panels/hero-house-frontage.json',
+					provenanceSha256: 'b3679ed0c19078896e2e32b1741ce3a0dcc384e93e8d63f49361ae2a38929894',
+					assemblyPriority: 30,
+					bounds: { left: 384, top: 5312, right: 1280, bottom: 6144 }
+				},
+				{
+					path: 'artifacts/meadow-entry/painted-v2/source-panels/village-crossroads-connector.png',
+					sha256: '6866f90802dfcd73d3828b41b237c8c1239ee130c9d8c8af3ac10d20c193e8b2',
+					bytes: 888497,
+					width: 800,
+					height: 416,
+					id: 'village-crossroads-connector',
+					raw: {
+						path: 'artifacts/meadow-entry/painted-v2/source-panels/raw/village-crossroads-connector.png',
+						sha256: 'b01f14ada4a29cc47af9d31e58545346fb5a9ce93f347c209c72d2f95ea5f2e6',
+						bytes: 2318631,
+						width: 1739,
+						height: 904
+					},
+					provenancePath:
+						'artifacts/meadow-entry/painted-v2/source-panels/village-crossroads-connector.json',
+					provenanceSha256: 'c68f7cdacca6c91ce6f69196381776a515e7e0cdf0c1b4550f3c8208996159ab',
+					assemblyPriority: 40,
+					bounds: { left: 2592, top: 4480, right: 3392, bottom: 4896 }
+				},
+				{
+					path: 'artifacts/meadow-entry/painted-v2/source-panels/crossroads.png',
+					sha256: '1534062581775261bfcfd8a26eb5de5a730adf658d9b6ef9abb65413bbe4ae34',
+					bytes: 9127338,
+					width: 1728,
+					height: 1952,
+					id: 'crossroads',
+					raw: {
+						path: 'artifacts/meadow-entry/painted-v2/source-panels/raw/crossroads.png',
+						sha256: 'a443043caba03ae2d38d4d18e6795f86a4f4cb6636f4b779f653071cfb71328a',
+						bytes: 2941971,
+						width: 1180,
+						height: 1333
+					},
+					provenancePath: 'artifacts/meadow-entry/painted-v2/source-panels/crossroads.json',
+					provenanceSha256: 'e43d304c455212b9458a0f75bc75fc88f7cf05d487f0a6f4df92756ea99116d1',
+					assemblyPriority: 50,
+					bounds: { left: 2880, top: 2816, right: 4608, bottom: 4768 }
+				}
+			],
+			baseMaster: {
+				path: 'artifacts/meadow-entry/painted-v2/masters/meadow-entry-painted-v2-pilot-base-master.png',
+				sha256: '8f27680ad922ae4215476ae347b549c03143b120a94ed4064c64d96f6e2e5dbd',
+				bytes: 25880043,
+				width: 6400,
+				height: 6400
+			},
+			foregroundMaster: null,
+			cropManifestSha256: '7f6c4c6fb4d86f7416c93190159730c46b40a101fa06f30a281d9ff32fe3bbb9',
+			masterProvenanceSha256: 'a6519968e17a831e1c3c4526499e5dac8dde182ef5faeb0aef25eaa8cd4e0ede',
+			exportProvenanceSha256: 'ee0207c4af024e2a3894945edc1f3a10a85135765efb3f8239f09cfe3d1cb1d0',
+			exports: [
+				{
+					path: 'artifacts/meadow-entry/painted-v2/exports/painted-v2-crossroads-base.png',
+					sha256: '1534062581775261bfcfd8a26eb5de5a730adf658d9b6ef9abb65413bbe4ae34',
+					bytes: 9127338,
+					width: 1728,
+					height: 1952,
+					cropId: 'painted-v2-crossroads',
+					plane: 'base',
+					textureKey: 'meadow-entry-painted-v2-crossroads-base',
+					drawOrder: 20
+				},
+				{
+					path: 'artifacts/meadow-entry/painted-v2/exports/painted-v2-sundrop-village-base.png',
+					sha256: '0d1340681fb2911a370a7744c5e3970195c4a991f01ed081298eed5b1b38a02e',
+					bytes: 14671076,
+					width: 2624,
+					height: 2176,
+					cropId: 'painted-v2-sundrop-village',
+					plane: 'base',
+					textureKey: 'meadow-entry-painted-v2-sundrop-village-base',
+					drawOrder: 0
+				},
+				{
+					path: 'artifacts/meadow-entry/painted-v2/exports/painted-v2-village-crossroads-connector-base.png',
+					sha256: '754c2d4b93c6a44f8f21c0574586d53e387a58719d6492e3934c6df5b4d0e7b2',
+					bytes: 895034,
+					width: 800,
+					height: 416,
+					cropId: 'painted-v2-village-crossroads-connector',
+					plane: 'base',
+					textureKey: 'meadow-entry-painted-v2-village-crossroads-connector-base',
+					drawOrder: 10
+				}
+			],
+			proofs: [
+				{
+					path: 'artifacts/meadow-entry/painted-v2/proofs/pilot-assembly-base-coverage.png',
+					sha256: '3b2c0178f861001d4ea9e94a6c47b308a6db1bf0581b40197d4c74361271d838',
+					bytes: 25497421,
+					width: 4352,
+					height: 3328,
+					proofId: 'pilot-assembly-base-coverage',
+					inputSha256: [
+						'8f27680ad922ae4215476ae347b549c03143b120a94ed4064c64d96f6e2e5dbd',
+						'dc21a27bc8eea55e7054d2c23dd339e5673b2e44fb0e0ed8c9423fd3a2c25d04'
+					]
+				},
+				{
+					path: 'artifacts/meadow-entry/painted-v2/proofs/pilot-assembly-master-transparency.png',
+					sha256: '8f27680ad922ae4215476ae347b549c03143b120a94ed4064c64d96f6e2e5dbd',
+					bytes: 25880043,
+					width: 6400,
+					height: 6400,
+					proofId: 'pilot-assembly-master-transparency',
+					inputSha256: ['8f27680ad922ae4215476ae347b549c03143b120a94ed4064c64d96f6e2e5dbd']
+				},
+				{
+					path: 'artifacts/meadow-entry/painted-v2/proofs/pilot-assembly-overlap-connector-crossroads.png',
+					sha256: '6dac28c7f182626638c0dad56b1b41c37ca9d967e77f976758cc666b71809f41',
+					bytes: 652,
+					width: 512,
+					height: 288,
+					proofId: 'pilot-assembly-overlap-connector-crossroads',
+					inputSha256: [
+						'754c2d4b93c6a44f8f21c0574586d53e387a58719d6492e3934c6df5b4d0e7b2',
+						'1534062581775261bfcfd8a26eb5de5a730adf658d9b6ef9abb65413bbe4ae34'
+					]
+				},
+				{
+					path: 'artifacts/meadow-entry/painted-v2/proofs/pilot-assembly-overlap-sundrop-connector.png',
+					sha256: 'b3ccad0e5fa5f3d724d8ec31e53ff74d98c2887da85d7c111b4e1c50d7d52e00',
+					bytes: 545,
+					width: 288,
+					height: 416,
+					proofId: 'pilot-assembly-overlap-sundrop-connector',
+					inputSha256: [
+						'0d1340681fb2911a370a7744c5e3970195c4a991f01ed081298eed5b1b38a02e',
+						'754c2d4b93c6a44f8f21c0574586d53e387a58719d6492e3934c6df5b4d0e7b2'
+					]
+				},
+				{
+					path: 'artifacts/meadow-entry/painted-v2/proofs/pilot-assembly-ownership.png',
+					sha256: '7c39e00a472d0bbe1cceff413ec832ad0d5a817b0d7e620b10390f07de8b6183',
+					bytes: 20658595,
+					width: 6400,
+					height: 6400,
+					proofId: 'pilot-assembly-ownership',
+					inputSha256: [
+						'8f27680ad922ae4215476ae347b549c03143b120a94ed4064c64d96f6e2e5dbd',
+						'4c84852b79f1dc03e8b67e6c1ad3d1fca827afc8f167ec99512fe3098a9fd77c',
+						'bd9624b2b761e2071d9d45c1c556e71c05c3298cec8439db3220aa8eb2ed3e8e'
+					]
+				},
+				{
+					path: 'artifacts/meadow-entry/painted-v2/proofs/pilot-assembly-protected-live.png',
+					sha256: 'f8a40fa064d1939e8e81e8d323989e7eabd90e5f45b3418f4f3daf1fb7386d0a',
+					bytes: 21488614,
+					width: 6400,
+					height: 6400,
+					proofId: 'pilot-assembly-protected-live',
+					inputSha256: [
+						'8f27680ad922ae4215476ae347b549c03143b120a94ed4064c64d96f6e2e5dbd',
+						'2ca64d6a06198b48472349ad8055e538498b4199a5c1dcecd77868ba1ec193e1'
+					]
+				}
+			],
+			evidencePath: 'docs/superpowers/reports/2026-08-11-painted-v2-controls.md'
+		});
+	});
+});
