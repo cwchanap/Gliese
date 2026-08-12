@@ -17,8 +17,7 @@ import type { PixelBounds } from './meadow-entry-authoring-types';
 
 const SHA256 = /^[a-f0-9]{64}$/;
 
-/** A small injectable panel contract used by pure tests and review tooling. */
-export interface MeadowEntryPaintedV2PilotPanelSpec {
+interface MeadowEntryPaintedV2PilotPanelSpec {
 	readonly id: string;
 	readonly bounds: PixelBounds;
 	readonly expectedDimensions: { readonly width: number; readonly height: number };
@@ -30,8 +29,6 @@ export interface MeadowEntryPaintedV2PilotAssemblyInput {
 	readonly panelProvenance: Readonly<Record<string, MeadowEntryGenerationProvenance>>;
 	readonly controlFingerprint: string;
 	readonly approvedControlFingerprint: string;
-	/** Optional contract override for small synthetic fixtures; production uses the sealed rows. */
-	readonly panelSpecs?: readonly MeadowEntryPaintedV2PilotPanelSpec[];
 }
 
 export interface MeadowEntryPaintedV2PilotAssemblyResult {
@@ -343,7 +340,7 @@ export async function assembleMeadowEntryPaintedV2Pilot(
 	input: MeadowEntryPaintedV2PilotAssemblyInput
 ): Promise<MeadowEntryPaintedV2PilotAssemblyResult> {
 	assertControlFingerprint(input);
-	const specs = input.panelSpecs ?? MEADOW_ENTRY_PAINTED_V2_SOURCE_PANELS;
+	const specs = MEADOW_ENTRY_PAINTED_V2_SOURCE_PANELS;
 	validatePanelSpecs(specs);
 	assertInputKeys(input, specs);
 	const panels = await decodePanels(input, specs);
@@ -351,7 +348,7 @@ export async function assembleMeadowEntryPaintedV2Pilot(
 		MEADOW_ENTRY_MASTER_POLICY.width * MEADOW_ENTRY_MASTER_POLICY.height * 4
 	);
 	for (const panel of panels) copyPanelIntoMaster(master, panel);
-	if (input.panelSpecs === undefined) assertRuntimeCropOpacity(master);
+	assertRuntimeCropOpacity(master);
 	assertOutsidePilotTransparent(master, specs);
 	const metrics = alphaMetrics(master);
 	const masterPng = await encodeCanonicalMeadowEntryPng(

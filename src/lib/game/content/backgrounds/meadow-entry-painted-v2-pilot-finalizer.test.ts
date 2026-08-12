@@ -1,4 +1,6 @@
 import { createHash } from 'node:crypto';
+import { readFile } from 'node:fs/promises';
+import { join, resolve } from 'node:path';
 
 import { describe, expect, it } from 'vitest';
 
@@ -8,109 +10,108 @@ import {
 } from './meadow-entry-painted-v2-crop-manifest';
 import {
 	assembleMeadowEntryPaintedV2Pilot,
-	type MeadowEntryPaintedV2PilotAssemblyInput,
-	type MeadowEntryPaintedV2PilotPanelSpec
+	type MeadowEntryPaintedV2PilotAssemblyInput
 } from './meadow-entry-painted-v2-pilot-finalizer';
-import { decodeMeadowEntryRgba, encodeCanonicalMeadowEntryPng } from './meadow-entry-png';
+import { decodeMeadowEntryRgba } from './meadow-entry-png';
+import { MEADOW_ENTRY_PAINTED_V2_SOURCE_PANELS } from './meadow-entry-painted-v2-pilot';
 import type { MeadowEntryGenerationProvenance } from './meadow-entry-master-provenance';
 
-const FINGERPRINT = 'a'.repeat(64);
-
-const generation = (id: string, bytes: Buffer): MeadowEntryGenerationProvenance => ({
-	mode: 'manual',
-	provider: null,
-	model: null,
-	modelVersion: null,
-	tool: 'test',
-	toolVersion: '1',
-	settings: {
-		normalizedSha256: createHash('sha256').update(bytes).digest('hex'),
-		normalizedDimensions: { width: 2, height: 2 },
-		normalizedBytes: bytes.byteLength,
-		panelId: id
-	},
-	seed: null,
-	seedUnavailable: false,
-	prompt: null,
-	promptSha256: null,
-	referenceImageSha256: [],
-	byteReproducibleGeneration: false
-});
-
-const rgbaPanel = async (red: number, green: number, blue: number): Promise<Buffer> => {
-	const raw = Buffer.alloc(2 * 2 * 4);
-	for (let offset = 0; offset < raw.length; offset += 4) {
-		raw[offset] = red;
-		raw[offset + 1] = green;
-		raw[offset + 2] = blue;
-		raw[offset + 3] = 255;
-	}
-	return await encodeCanonicalMeadowEntryPng(raw, 2, 2);
-};
-
-const specs: readonly MeadowEntryPaintedV2PilotPanelSpec[] = [
-	{
-		id: 'low',
-		bounds: { left: 100, top: 100, right: 102, bottom: 102 },
-		expectedDimensions: { width: 2, height: 2 },
-		assemblyPriority: 10
-	},
-	{
-		id: 'high',
-		bounds: { left: 101, top: 101, right: 103, bottom: 103 },
-		expectedDimensions: { width: 2, height: 2 },
-		assemblyPriority: 20
-	}
-];
+const repositoryRoot = resolve(import.meta.dirname, '../../../../..');
 
 async function fixture(): Promise<MeadowEntryPaintedV2PilotAssemblyInput> {
-	const low = await rgbaPanel(220, 30, 30);
-	const high = await rgbaPanel(30, 30, 220);
+	const provenance = JSON.parse(
+		await readFile(
+			join(
+				repositoryRoot,
+				'artifacts/meadow-entry/painted-v2/provenance/meadow-entry-master-provenance.json'
+			),
+			'utf8'
+		)
+	) as {
+		controls: { fingerprint: string };
+		panels: readonly { id: string; generation: MeadowEntryGenerationProvenance }[];
+	};
 	return {
-		panels: { low, high },
-		panelProvenance: { low: generation('low', low), high: generation('high', high) },
-		controlFingerprint: FINGERPRINT,
-		approvedControlFingerprint: FINGERPRINT,
-		panelSpecs: specs
+		panels: Object.fromEntries(
+			await Promise.all(
+				MEADOW_ENTRY_PAINTED_V2_SOURCE_PANELS.map(async (panel) => [
+					panel.id,
+					await readFile(join(repositoryRoot, panel.normalizedPath))
+				])
+			)
+		),
+		panelProvenance: Object.fromEntries(
+			provenance.panels.map(({ id, generation }) => [id, generation])
+		),
+		controlFingerprint: provenance.controls.fingerprint,
+		approvedControlFingerprint: provenance.controls.fingerprint
 	};
 }
 
 describe('painted-v2 pilot partial master assembler', () => {
-	it('assembles in priority order and leaves outside-pilot pixels transparent', async () => {
+	it('ignores force-cast caller rows and keeps the sealed priority contract', async () => {
+		const input = await fixture();
+		const forgedInput: MeadowEntryPaintedV2PilotAssemblyInput = {
+			...input,
+			// @ts-expect-error The public assembly contract deliberately rejects caller-owned rows.
+			panelSpecs: [...MEADOW_ENTRY_PAINTED_V2_SOURCE_PANELS].reverse().map((panel, index) => ({
+				...panel,
+				assemblyPriority: (index + 1) * 10
+			}))
+		};
+		const result = await assembleMeadowEntryPaintedV2Pilot(forgedInput);
+		expect(createHash('sha256').update(result.masterPng).digest('hex')).toBe(
+			'8f27680ad922ae4215476ae347b549c03143b120a94ed4064c64d96f6e2e5dbd'
+		);
+	});
+
+	it('assembles the sealed panel priorities and leaves outside-pilot pixels transparent', async () => {
 		const result = await assembleMeadowEntryPaintedV2Pilot(await fixture());
 		const decoded = await decodeMeadowEntryRgba(result.masterPng);
-		const overlapOffset = (101 * decoded.width + 101) * 4;
+		const crossroads = await decodeMeadowEntryRgba(
+			await readFile(
+				join(repositoryRoot, 'artifacts/meadow-entry/painted-v2/source-panels/crossroads.png')
+			)
+		);
+		const masterX = 3000;
+		const masterY = 4600;
+		const overlapOffset = (masterY * decoded.width + masterX) * 4;
+		const crossroadsOffset = ((masterY - 2816) * crossroads.width + (masterX - 2880)) * 4;
 		expect([...decoded.data.subarray(overlapOffset, overlapOffset + 4)]).toEqual([
-			30, 30, 220, 255
+			...crossroads.data.subarray(crossroadsOffset, crossroadsOffset + 4)
 		]);
-		const outsideOffset = (200 * decoded.width + 200) * 4;
+		const outsideOffset = (100 * decoded.width + 100) * 4;
 		expect([...decoded.data.subarray(outsideOffset, outsideOffset + 4)]).toEqual([0, 0, 0, 0]);
 	});
 
 	it('fails closed when a panel dimensions or normalized hash drifts', async () => {
 		const input = await fixture();
-		const wrongDimensions = {
+		const panelId = MEADOW_ENTRY_PAINTED_V2_SOURCE_PANELS[0]!.id;
+		const wrongDimensions: MeadowEntryPaintedV2PilotAssemblyInput = {
 			...input,
 			panelProvenance: {
 				...input.panelProvenance,
-				low: {
-					...input.panelProvenance.low!,
+				[panelId]: {
+					...input.panelProvenance[panelId]!,
 					settings: {
-						...input.panelProvenance.low!.settings,
-						normalizedDimensions: { width: 3, height: 2 }
+						...input.panelProvenance[panelId]!.settings,
+						normalizedDimensions: { width: 2625, height: 1088 }
 					}
 				}
 			}
 		};
 		await expect(assembleMeadowEntryPaintedV2Pilot(wrongDimensions)).rejects.toThrow(/dimension/i);
 
-		const wrongHash = {
+		const wrongHash: MeadowEntryPaintedV2PilotAssemblyInput = {
 			...input,
 			panelProvenance: {
 				...input.panelProvenance,
-				high: {
-					...input.panelProvenance.high!,
-					settings: { ...input.panelProvenance.high!.settings, normalizedSha256: 'b'.repeat(64) }
+				[panelId]: {
+					...input.panelProvenance[panelId]!,
+					settings: {
+						...input.panelProvenance[panelId]!.settings,
+						normalizedSha256: 'b'.repeat(64)
+					}
 				}
 			}
 		};
