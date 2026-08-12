@@ -20,14 +20,30 @@ type PlayerMovementDiagnostic = {
 	blocked: boolean;
 };
 
+type RegionalBackgroundPlaneRenderDiagnosticEntry = {
+	id: string;
+	status: string;
+	expectedDimensions: { width: number; height: number };
+	observedDimensions: { width: number; height: number } | null;
+};
+
 type RegionalBackgroundPlaneRenderDiagnostic = {
 	mapId: string;
 	regionalBackgroundsEnabled: boolean;
-	entries: unknown[];
+	paintedMode: 'fallback' | 'pilot' | 'production';
+	entries: RegionalBackgroundPlaneRenderDiagnosticEntry[];
 	successfulBackgroundIds: string[];
 	selectedFallbackBlockerIds?: string[];
 	selectedFallbackDecorIds: string[];
 	selectedFallbackFenceIds: string[];
+};
+
+type RegionalBackgroundRendererDiagnostic = {
+	renderer: 'webgl' | 'canvas';
+	paintedMode: 'fallback' | 'pilot' | 'production';
+	maxTextureSize: number | null;
+	regionalBackgroundLoadMs: number | null;
+	regionalBackgroundLoadCompletions: number;
 };
 
 type GlieseProbeWindow = Window & {
@@ -40,6 +56,7 @@ type GlieseProbeWindow = Window & {
 	__glieseCharacterizationMovementCount?: number;
 	__glieseCharacterizationSyntheticPhase?: boolean;
 	__glieseRegionalBackgroundDiagnostics?: RegionalBackgroundPlaneRenderDiagnostic[];
+	__glieseRegionalBackgroundRendererDiagnostics?: RegionalBackgroundRendererDiagnostic[];
 	__glieseRouteVisibilityState?: string;
 	__glieseRouteHasFocus?: boolean;
 	__glieseRouteBlurAt?: number;
@@ -208,6 +225,7 @@ async function installRuntimeProbes(page: Page, options: { captureFacing?: boole
 		probeWindow.__glieseLastMovementDiagnostic = undefined;
 		probeWindow.__glieseLastMovementAt = 0;
 		probeWindow.__glieseRegionalBackgroundDiagnostics = [];
+		probeWindow.__glieseRegionalBackgroundRendererDiagnostics = [];
 		probeWindow.__glieseRouteVisibilityState = document.visibilityState;
 		probeWindow.__glieseRouteHasFocus = document.hasFocus();
 		probeWindow.__glieseRouteBlurAt = undefined;
@@ -225,6 +243,11 @@ async function installRuntimeProbes(page: Page, options: { captureFacing?: boole
 		window.addEventListener('gliese:regional-background-plane-render-diagnostic', (event) => {
 			probeWindow.__glieseRegionalBackgroundDiagnostics?.push(
 				(event as CustomEvent<RegionalBackgroundPlaneRenderDiagnostic>).detail
+			);
+		});
+		window.addEventListener('gliese:regional-background-renderer-diagnostic', (event) => {
+			probeWindow.__glieseRegionalBackgroundRendererDiagnostics?.push(
+				(event as CustomEvent<RegionalBackgroundRendererDiagnostic>).detail
 			);
 		});
 		const recordRouteFocus = () => {
@@ -1009,6 +1032,29 @@ async function waitForExactHudPosition(page: Page, mapId: string, point: Point) 
 	);
 }
 
+async function currentHudPlayerPoint(page: Page, mapId = 'meadow-entry'): Promise<Point> {
+	const evidence = await page.evaluate(() => {
+		const probeWindow = window as GlieseProbeWindow;
+		return {
+			state: probeWindow.__glieseLastHudState ?? null,
+			diagnostic: probeWindow.__glieseLastMovementDiagnostic ?? null
+		};
+	});
+	const state = evidence.state;
+	const livePlayer =
+		evidence.diagnostic?.mapId === mapId
+			? evidence.diagnostic.resolvedPosition
+			: state?.areaMap?.player;
+	if (
+		state?.mapId !== mapId ||
+		typeof livePlayer?.x !== 'number' ||
+		typeof livePlayer.y !== 'number'
+	) {
+		throw new Error(`Missing live player point for ${mapId}: ${JSON.stringify(evidence)}`);
+	}
+	return { x: livePlayer.x, y: livePlayer.y };
+}
+
 async function assertInteriorCheckpoint(page: Page, interior: InteriorGrayboxCase, point: Point) {
 	await waitForHudPosition(page, interior.mapId, point);
 	const state = await page.evaluate(
@@ -1105,13 +1151,30 @@ async function saveGuildCheckpointAndReload(page: Page, point: Point): Promise<P
 	};
 }
 
-async function enterInteriorWithTrustedKeyboard(page: Page, interior: InteriorGrayboxCase) {
+async function enterInteriorWithTrustedKeyboard(
+	page: Page,
+	interior: InteriorGrayboxCase,
+	options: { allowLiveFrontage?: boolean } = {}
+) {
 	const exteriorState = await page.evaluate(
 		() => (window as GlieseProbeWindow).__glieseLastHudState ?? null
 	);
 	expect(exteriorState?.mapId).toBe('meadow-entry');
-	expect(exteriorState?.areaMap?.player?.x).toBe(interior.returnArrival.x);
-	expect(exteriorState?.areaMap?.player?.y).toBe(interior.returnArrival.y);
+	if (options.allowLiveFrontage) {
+		// Movement diagnostics are the authoritative live position. HUD updates
+		// are event-driven and may still reflect the prior frame immediately after
+		// the trusted route runner settles at the frontage.
+		const exteriorPlayer = await currentHudPlayerPoint(page);
+		expect(Math.abs(exteriorPlayer.x - interior.returnArrival.x)).toBeLessThanOrEqual(
+			AXIS_REACH_TOLERANCE
+		);
+		expect(Math.abs(exteriorPlayer.y - interior.returnArrival.y)).toBeLessThanOrEqual(
+			AXIS_REACH_TOLERANCE
+		);
+	} else {
+		expect(exteriorState?.areaMap?.player?.x).toBe(interior.returnArrival.x);
+		expect(exteriorState?.areaMap?.player?.y).toBe(interior.returnArrival.y);
+	}
 	expect(interior.exteriorDoor.x).toBe(interior.returnArrival.x);
 	expect(interior.exteriorDoor.y).toBeLessThan(interior.returnArrival.y);
 	await page.locator('canvas').click();
@@ -1287,6 +1350,468 @@ const CROSSROADS_TO_COAST = [
 	{ x: 4_184, y: 5_840 },
 	{ x: 4_600, y: 5_840 }
 ] as const;
+
+const PAINTED_PILOT_BACKGROUND_IDS = [
+	'meadow-entry-painted-v2-sundrop-village-base-image',
+	'meadow-entry-painted-v2-village-crossroads-connector-base-image',
+	'meadow-entry-painted-v2-crossroads-base-image'
+] as const;
+
+const PAINTED_PILOT_BACKGROUND_DIMENSIONS = {
+	'meadow-entry-painted-v2-sundrop-village-base-image': { width: 2_624, height: 2_176 },
+	'meadow-entry-painted-v2-village-crossroads-connector-base-image': {
+		width: 800,
+		height: 416
+	},
+	'meadow-entry-painted-v2-crossroads-base-image': { width: 1_728, height: 1_952 }
+} as const;
+
+const PAINTED_PILOT_CROSSROADS_TEXTURE = 'meadow-entry-painted-v2-crossroads-base-image';
+const PAINTED_PILOT_SUNDROP_TEXTURE = 'meadow-entry-painted-v2-sundrop-village-base-image';
+
+async function waitForMeadowPlaneDiagnostic(page: Page) {
+	await page.waitForFunction(
+		() =>
+			(window as GlieseProbeWindow).__glieseRegionalBackgroundDiagnostics?.some(
+				(diagnostic) => diagnostic.mapId === 'meadow-entry'
+			) === true,
+		undefined,
+		{ timeout: 30_000 }
+	);
+	const diagnostics = await page.evaluate(
+		() => (window as GlieseProbeWindow).__glieseRegionalBackgroundDiagnostics ?? []
+	);
+	const diagnostic = diagnostics.find((entry) => entry.mapId === 'meadow-entry');
+	if (!diagnostic)
+		throw new Error(`Missing Meadow Entry plane diagnostic: ${JSON.stringify(diagnostics)}`);
+	return diagnostic;
+}
+
+async function waitForMeadowRendererDiagnostic(page: Page) {
+	await page.waitForFunction(
+		() => (window as GlieseProbeWindow).__glieseRegionalBackgroundRendererDiagnostics?.length === 1,
+		undefined,
+		{ timeout: 30_000 }
+	);
+	const diagnostics = await page.evaluate(
+		() => (window as GlieseProbeWindow).__glieseRegionalBackgroundRendererDiagnostics ?? []
+	);
+	const diagnostic = diagnostics[0];
+	if (!diagnostic) {
+		throw new Error(`Missing Meadow Entry preload diagnostic: ${JSON.stringify(diagnostics)}`);
+	}
+	return diagnostic;
+}
+
+function assertPaintedPilotPlaneDiagnostic(
+	diagnostic: RegionalBackgroundPlaneRenderDiagnostic,
+	expectedSuccessfulIds: readonly string[]
+) {
+	expect(diagnostic).toMatchObject({
+		mapId: 'meadow-entry',
+		regionalBackgroundsEnabled: true,
+		paintedMode: 'pilot'
+	});
+	expect(diagnostic.successfulBackgroundIds).toEqual([...expectedSuccessfulIds].sort());
+	for (const entry of diagnostic.entries) {
+		if (!(entry.id in PAINTED_PILOT_BACKGROUND_DIMENSIONS)) continue;
+		expect(entry.status, entry.id).toBe('rendered');
+		expect(entry.expectedDimensions, entry.id).toEqual(
+			PAINTED_PILOT_BACKGROUND_DIMENSIONS[
+				entry.id as keyof typeof PAINTED_PILOT_BACKGROUND_DIMENSIONS
+			]
+		);
+		expect(entry.observedDimensions, entry.id).toEqual(entry.expectedDimensions);
+	}
+}
+
+function assertCollisionDiagnosticsAreFaithful(diagnostics: readonly PlayerMovementDiagnostic[]) {
+	expect(diagnostics.length).toBeGreaterThan(0);
+	for (const diagnostic of diagnostics) {
+		expect(diagnostic.mapId).toBe('meadow-entry');
+		for (const position of [
+			diagnostic.previousPosition,
+			diagnostic.requestedPosition,
+			diagnostic.resolvedPosition
+		]) {
+			expect(Number.isFinite(position.x)).toBe(true);
+			expect(Number.isFinite(position.y)).toBe(true);
+		}
+		if (diagnostic.blocked) {
+			expect(
+				diagnostic.resolvedPosition.x !== diagnostic.requestedPosition.x ||
+					diagnostic.resolvedPosition.y !== diagnostic.requestedPosition.y
+			).toBe(true);
+		} else {
+			expect(diagnostic.resolvedPosition).toEqual(diagnostic.requestedPosition);
+		}
+	}
+}
+
+test('Meadow painted pilot selects only approved planes and preserves live fallbacks', async ({
+	page
+}) => {
+	test.setTimeout(180_000);
+	await installRuntimeProbes(page);
+	const paintedRequests: string[] = [];
+	page.on('request', (request) => {
+		if (request.url().includes('/game/assets/regions/meadow-entry-painted-v2/')) {
+			paintedRequests.push(request.url());
+		}
+	});
+
+	await page.goto('/?meadowPaintedPilot=on&movementDiagnostics=on');
+	await expect(page.locator('canvas')).toBeVisible();
+	await expect(page.getByRole('button', { name: 'Menu' })).toBeVisible();
+
+	const pilotPlaneDiagnostic = await waitForMeadowPlaneDiagnostic(page);
+	const pilotRendererDiagnostic = await waitForMeadowRendererDiagnostic(page);
+	expect(pilotPlaneDiagnostic.entries).toHaveLength(3);
+	expect(pilotPlaneDiagnostic.entries.map((entry) => entry.id)).toEqual(
+		PAINTED_PILOT_BACKGROUND_IDS
+	);
+	assertPaintedPilotPlaneDiagnostic(pilotPlaneDiagnostic, PAINTED_PILOT_BACKGROUND_IDS);
+	expect(pilotPlaneDiagnostic.selectedFallbackBlockerIds).toEqual([]);
+	expect(pilotPlaneDiagnostic.selectedFallbackDecorIds).toEqual([]);
+	expect(pilotPlaneDiagnostic.selectedFallbackFenceIds).toEqual([]);
+	expect(pilotRendererDiagnostic).toMatchObject({
+		paintedMode: 'pilot',
+		regionalBackgroundLoadCompletions: 3
+	});
+	expect(pilotRendererDiagnostic.regionalBackgroundLoadMs).not.toBeNull();
+	expect(paintedRequests.map((url) => new URL(url).pathname).sort()).toEqual([
+		'/game/assets/regions/meadow-entry-painted-v2/painted-v2-crossroads-base.png',
+		'/game/assets/regions/meadow-entry-painted-v2/painted-v2-sundrop-village-base.png',
+		'/game/assets/regions/meadow-entry-painted-v2/painted-v2-village-crossroads-connector-base.png'
+	]);
+
+	paintedRequests.length = 0;
+	await page.goto('/?regionalBackground=off&meadowPaintedPilot=on&movementDiagnostics=on');
+	await expect(page.locator('canvas')).toBeVisible();
+	const offPlaneDiagnostic = await waitForMeadowPlaneDiagnostic(page);
+	const offRendererDiagnostic = await waitForMeadowRendererDiagnostic(page);
+	expect(offPlaneDiagnostic).toMatchObject({
+		mapId: 'meadow-entry',
+		regionalBackgroundsEnabled: false,
+		paintedMode: 'fallback',
+		entries: [],
+		successfulBackgroundIds: [],
+		selectedFallbackBlockerIds: [],
+		selectedFallbackDecorIds: [],
+		selectedFallbackFenceIds: []
+	});
+	expect(offRendererDiagnostic).toMatchObject({
+		paintedMode: 'fallback',
+		regionalBackgroundLoadMs: null,
+		regionalBackgroundLoadCompletions: 0
+	});
+	expect(paintedRequests).toEqual([]);
+	expect(offPlaneDiagnostic.entries).not.toEqual(
+		expect.arrayContaining([
+			expect.objectContaining({ status: 'missing-texture' }),
+			expect.objectContaining({ status: 'render-failed' })
+		])
+	);
+
+	await page.route(
+		'**/game/assets/regions/meadow-entry-painted-v2/painted-v2-crossroads-base.png',
+		(route) => route.abort()
+	);
+	await page.goto('/?meadowPaintedPilot=on&movementDiagnostics=on&mapDebug=collision');
+	await expect(page.locator('canvas')).toBeVisible();
+	const missingCrossroadsPlaneDiagnostic = await waitForMeadowPlaneDiagnostic(page);
+	const missingCrossroadsRendererDiagnostic = await waitForMeadowRendererDiagnostic(page);
+	expect(missingCrossroadsRendererDiagnostic).toMatchObject({
+		paintedMode: 'pilot',
+		regionalBackgroundLoadCompletions: 2
+	});
+	expect(missingCrossroadsPlaneDiagnostic.successfulBackgroundIds).toEqual(
+		[PAINTED_PILOT_BACKGROUND_IDS[0], PAINTED_PILOT_BACKGROUND_IDS[1]].sort()
+	);
+	expect(
+		missingCrossroadsPlaneDiagnostic.entries.find(
+			(entry) => entry.id === PAINTED_PILOT_CROSSROADS_TEXTURE
+		)
+	).toEqual(
+		expect.objectContaining({
+			status: 'missing-texture',
+			expectedDimensions: PAINTED_PILOT_BACKGROUND_DIMENSIONS[PAINTED_PILOT_CROSSROADS_TEXTURE],
+			observedDimensions: null
+		})
+	);
+	expect(missingCrossroadsPlaneDiagnostic.selectedFallbackBlockerIds).toContain(
+		'silverpine-wall-B-south'
+	);
+	expect(missingCrossroadsPlaneDiagnostic.selectedFallbackDecorIds).not.toContain(
+		'village-decor-22-77'
+	);
+
+	// The restored Silverpine wall is still authoritative collision. Reach its
+	// south face with real keyboard input and require the collision diagnostic to
+	// resolve short of the requested point.
+	previousRouteSettleTolerance = AXIS_SETTLE_TOLERANCE;
+	await page.locator('canvas').click();
+	await moveRoute(page, HERO_HOUSE_TO_CROSSROADS);
+	const silverpineArrival = await moveRoute(page, CROSSROADS_TO_SILVERPINE);
+	await moveRoute(page, [
+		silverpineArrival,
+		{ x: 3_776, y: silverpineArrival.y },
+		{ x: 3_776, y: 2_640 },
+		{ x: 3_600, y: 2_640 },
+		{ x: 3_600, y: 2_900 }
+	]);
+	await page.locator('canvas').click();
+	await page.keyboard.down('ArrowLeft');
+	try {
+		await page.waitForFunction(
+			() => {
+				const diagnostic = (window as GlieseProbeWindow).__glieseLastMovementDiagnostic;
+				return diagnostic?.mapId === 'meadow-entry' && diagnostic.blocked;
+			},
+			undefined,
+			{ timeout: 5_000 }
+		);
+	} finally {
+		await page.keyboard.up('ArrowLeft');
+	}
+	const wallCollisionDiagnostic = await latestMovement(page);
+	expect(wallCollisionDiagnostic?.mapId).toBe('meadow-entry');
+	expect(wallCollisionDiagnostic?.blocked).toBe(true);
+	expect(wallCollisionDiagnostic?.resolvedPosition.x).toBeGreaterThan(
+		wallCollisionDiagnostic?.requestedPosition.x ?? Number.POSITIVE_INFINITY
+	);
+
+	await page.unroute(
+		'**/game/assets/regions/meadow-entry-painted-v2/painted-v2-crossroads-base.png'
+	);
+	await page.goto(
+		`/?meadowPaintedPilot=on&movementDiagnostics=on&regionalBackgroundFault=${PAINTED_PILOT_SUNDROP_TEXTURE}:render`
+	);
+	await expect(page.locator('canvas')).toBeVisible();
+	const sundropFaultPlaneDiagnostic = await waitForMeadowPlaneDiagnostic(page);
+	const sundropFaultRendererDiagnostic = await waitForMeadowRendererDiagnostic(page);
+	expect(sundropFaultRendererDiagnostic).toMatchObject({
+		paintedMode: 'pilot',
+		regionalBackgroundLoadCompletions: 3
+	});
+	expect(sundropFaultPlaneDiagnostic.successfulBackgroundIds).toEqual(
+		[PAINTED_PILOT_BACKGROUND_IDS[1], PAINTED_PILOT_BACKGROUND_IDS[2]].sort()
+	);
+	expect(
+		sundropFaultPlaneDiagnostic.entries.find((entry) => entry.id === PAINTED_PILOT_SUNDROP_TEXTURE)
+	).toEqual(
+		expect.objectContaining({
+			status: 'render-failed',
+			expectedDimensions: PAINTED_PILOT_BACKGROUND_DIMENSIONS[PAINTED_PILOT_SUNDROP_TEXTURE],
+			observedDimensions: PAINTED_PILOT_BACKGROUND_DIMENSIONS[PAINTED_PILOT_SUNDROP_TEXTURE]
+		})
+	);
+	expect(sundropFaultPlaneDiagnostic.selectedFallbackDecorIds).toEqual([
+		'village-decor-28-25',
+		'village-decor-28-53',
+		'village-decor-53-22'
+	]);
+	// The boundary decor owns both Sundrop and connector crops; the complete
+	// connector crop keeps it suppressed even while Sundrop is faulted.
+	expect(sundropFaultPlaneDiagnostic.selectedFallbackDecorIds).not.toContain('village-decor-22-77');
+});
+
+test('Meadow painted pilot preserves the village Crossroads gameplay loop', async ({ page }) => {
+	test.setTimeout(360_000);
+	await installRuntimeProbes(page, { captureFacing: true });
+	await injectSave(
+		page,
+		createSaveFixture({
+			mapId: 'meadow-entry',
+			player: {
+				level: 1,
+				xp: 0,
+				hp: 20,
+				attack: 3,
+				x: 704,
+				y: 5_920,
+				facing: 'up'
+			}
+		})
+	);
+	await page.goto('/?meadowPaintedPilot=on&movementDiagnostics=on');
+	await expect(page.locator('canvas')).toBeVisible();
+	await expect(page.getByRole('button', { name: 'Menu' })).toBeVisible();
+	await page.getByRole('button', { name: 'Menu' }).click();
+	await commandBox(page).getByRole('button', { name: 'Resume Save' }).click();
+	await waitForExactHudPosition(page, 'meadow-entry', { x: 704, y: 5_920 });
+
+	// The only coordinate seed is the normal Meadow spawn. All subsequent
+	// positions come from real keyboard input through the browser route runner.
+	const initialSeed = await page.evaluate((key) => {
+		const encoded = localStorage.getItem(key);
+		const save = encoded ? JSON.parse(encoded) : null;
+		return {
+			marker: sessionStorage.getItem('__gliese_e2e_save_seeded_v1'),
+			mapId: save?.mapId,
+			player: save?.player ? { x: save.player.x, y: save.player.y } : null
+		};
+	}, SAVE_STORAGE_KEY);
+	expect(initialSeed).toEqual({
+		marker: '1',
+		mapId: 'meadow-entry',
+		player: { x: 704, y: 5_920 }
+	});
+
+	const heroHouse = INTERIOR_GRAYBOX_CASES.find((interior) => interior.mapId === 'hero-house');
+	const itemShop = INTERIOR_GRAYBOX_CASES.find((interior) => interior.mapId === 'item-shop');
+	expect(heroHouse).toBeDefined();
+	expect(itemShop).toBeDefined();
+	if (!heroHouse || !itemShop)
+		throw new Error('HPA-586 route constants missing Hero House or Item Shop');
+
+	// Hero House frontage and door, both directions, use the existing trusted
+	// keyboard transition helper rather than mutating the scene position.
+	await enterInteriorWithTrustedKeyboard(page, heroHouse, { allowLiveFrontage: true });
+	await exitInteriorWithTrustedKeyboard(page, heroHouse);
+	const afterHeroHouse = await currentHudPlayerPoint(page);
+
+	// Main street route to the market cache. The pickup is collected by the live
+	// scene while the route runner holds real arrow-key input.
+	previousRouteSettleTolerance = AXIS_SETTLE_TOLERANCE;
+	await page.locator('canvas').click();
+	await moveRoute(page, [
+		afterHeroHouse,
+		{ x: afterHeroHouse.x, y: 6_080 },
+		{ x: 320, y: 6_080 },
+		{ x: 320, y: 4_688 },
+		{ x: 912, y: 4_688 },
+		{ x: 912, y: 5_072 }
+	]);
+	await expect(fieldStatus(page)).toContainText('Found');
+	const afterPickup = await currentHudPlayerPoint(page);
+
+	// Visit a live village NPC on the same authored village route. Item-shop is
+	// reached from the southern lane so the approach stops outside its door.
+	await moveRoute(page, [
+		afterPickup,
+		{ x: 912, y: 5_376 },
+		{ x: 704, y: 5_376 },
+		{ x: 704, y: 5_248 }
+	]);
+	await enterInteriorWithTrustedKeyboard(page, itemShop, { allowLiveFrontage: true });
+
+	let itemShopPoint = itemShop.spawn;
+	for (const step of itemShop.steps.slice(0, 4)) {
+		itemShopPoint = await moveRoute(
+			page,
+			interiorRoutePoints(itemShopPoint, step.point),
+			step.interaction ? NPC_APPROACH_SETTLE_TOLERANCE : INTERIOR_ROUTE_SETTLE_TOLERANCE
+		);
+		await assertInteriorCheckpoint(page, itemShop, step.point);
+		if (step.interaction) await interactWithInteriorNpc(page, step.interaction);
+	}
+	itemShopPoint = await moveRoute(
+		page,
+		[itemShopPoint, { x: 416, y: 448 }, { x: 640, y: 448 }, { x: 640, y: 544 }, { x: 416, y: 544 }],
+		INTERIOR_ROUTE_SETTLE_TOLERANCE
+	);
+	await assertInteriorCheckpoint(page, itemShop, itemShopPoint);
+	await exitInteriorWithTrustedKeyboard(page, itemShop);
+	const afterItemShop = await currentHudPlayerPoint(page);
+
+	// Village → connector → Crossroads. Keep the route on the current
+	// HPA-586 constants so painted coverage cannot hide a geometry regression.
+	await moveRoute(page, [
+		afterItemShop,
+		{ x: afterItemShop.x, y: 5_376 },
+		{ x: 320, y: 5_376 },
+		{ x: 320, y: 4_688 },
+		{ x: 3_264, y: 4_688 },
+		{ x: 3_776, y: 4_480 }
+	]);
+	// Crossroads is a region within the persistent Meadow Entry map (the HUD
+	// location label intentionally remains Sundrop Meadows). The live point at
+	// the authored plaza handoff, followed by Waystone interaction below, is the
+	// route proof rather than a map-id change.
+	const crossroadsPoint = await currentHudPlayerPoint(page);
+	expect(Math.abs(crossroadsPoint.x - 3_776)).toBeLessThanOrEqual(AXIS_REACH_TOLERANCE);
+	expect(Math.abs(crossroadsPoint.y - 4_480)).toBeLessThanOrEqual(AXIS_REACH_TOLERANCE);
+
+	// Crossroads Waystone discovery. The authored approach goes around the
+	// waystone collision and deliberately uses real interaction input.
+	await moveRoute(page, [
+		{ x: 3_776, y: 4_480 },
+		{ x: 4_032, y: 4_480 },
+		{ x: 4_032, y: 4_224 },
+		{ x: 3_904, y: 4_224 }
+	]);
+	await page.waitForFunction(() => {
+		const movementAt = (window as GlieseProbeWindow).__glieseLastMovementAt ?? 0;
+		return movementAt > 0 && performance.now() - movementAt >= 50;
+	});
+	await page.keyboard.press('e', { delay: 50 });
+	const discoveryDialog = page.getByRole('dialog');
+	await expect(discoveryDialog).toBeVisible();
+	await expect(discoveryDialog).toContainText(/Waystone|Crossroads/i);
+	await discoveryDialog.getByRole('button', { name: 'Close' }).click();
+
+	// Connector → village return, ending on the main street before the save.
+	await moveRoute(page, [
+		{ x: 3_904, y: 4_224 },
+		{ x: 4_160, y: 4_224 },
+		{ x: 4_160, y: 4_480 },
+		{ x: 3_776, y: 4_480 },
+		{ x: 3_264, y: 4_688 },
+		{ x: 320, y: 4_688 },
+		{ x: 1_152, y: 4_800 }
+	]);
+	await expect(page.getByTestId('hud-location-panel')).toContainText('Sundrop Meadows');
+	const movementDiagnosticsBeforeSave = await page.evaluate(
+		() => (window as GlieseProbeWindow).__glieseMovementDiagnostics ?? []
+	);
+	assertCollisionDiagnosticsAreFaithful(movementDiagnosticsBeforeSave);
+
+	const savedHudState = await page.evaluate(
+		() => (window as GlieseProbeWindow).__glieseLastHudState ?? null
+	);
+	const savedPlayer = await currentHudPlayerPoint(page);
+	expect(savedHudState?.mapId).toBe('meadow-entry');
+
+	await page.getByRole('button', { name: 'Menu' }).click();
+	await commandBox(page).getByRole('button', { name: 'Save Game' }).click();
+	await expect(fieldStatus(page)).toContainText('Saved');
+	const persisted = await page.evaluate(
+		(key) => JSON.parse(localStorage.getItem(key) ?? 'null'),
+		SAVE_STORAGE_KEY
+	);
+	expect({
+		mapId: persisted?.mapId,
+		player: { x: persisted?.player?.x, y: persisted?.player?.y }
+	}).toEqual({
+		mapId: 'meadow-entry',
+		player: savedPlayer
+	});
+	expect(persisted?.flags?.collectedPickups).toContain('village-market-cache');
+	expect(persisted?.seenDiscoveries).toContain('crossroads-waystone-sign');
+
+	await page.reload();
+	await expect(page.locator('canvas')).toBeVisible();
+	await page.getByRole('button', { name: 'Menu' }).click();
+	await commandBox(page).getByRole('button', { name: 'Resume Save' }).click();
+	await waitForExactHudPosition(page, 'meadow-entry', savedPlayer);
+	const resumedHudState = await page.evaluate(
+		() => (window as GlieseProbeWindow).__glieseLastHudState ?? null
+	);
+	expect({
+		mapId: resumedHudState?.mapId,
+		player: resumedHudState?.areaMap?.player
+	}).toEqual({
+		mapId: persisted.mapId,
+		player: persisted.player && { x: persisted.player.x, y: persisted.player.y }
+	});
+	expect(resumedHudState?.inventory?.consumables).toEqual(
+		expect.arrayContaining([expect.objectContaining({ itemId: 'field-potion', quantity: 2 })])
+	);
+	expect(await page.evaluate(() => sessionStorage.getItem('__gliese_e2e_save_seeded_v1'))).toBe(
+		'1'
+	);
+});
 
 test('Meadow Entry starts as the active zero-background graybox and accepts movement', async ({
 	page
