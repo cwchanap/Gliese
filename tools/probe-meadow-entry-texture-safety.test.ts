@@ -3,7 +3,18 @@ import test from 'node:test';
 
 import { readFileSync } from 'node:fs';
 
-import { runMeadowEntryTextureSafetyProbe } from './probe-meadow-entry-texture-safety';
+import { createHash } from 'node:crypto';
+
+import {
+	PAINTED_V2_TEXTURE_PROBE_INPUTS,
+	paintedV2TextureProbeInput,
+	paintedV2TextureProbeRepresentativePaths,
+	runMeadowEntryTextureSafetyProbe
+} from './probe-meadow-entry-texture-safety';
+import {
+	decodeMeadowEntryRgba,
+	validateCanonicalPngChunks
+} from '$lib/game/content/backgrounds/meadow-entry-png';
 
 type BunServe = (...arguments_: unknown[]) => unknown;
 
@@ -86,4 +97,79 @@ test('does not depend on the historical Meadow Entry approval module', () => {
 		'utf8'
 	);
 	assert.doesNotMatch(source, /meadowEntryArtPackageApproval/);
+});
+
+test('defines fixed 2x2 and 4x4 candidate sets with exact retention contracts', () => {
+	const twoByTwo = PAINTED_V2_TEXTURE_PROBE_INPUTS['painted-v2-2x2'];
+	const fourByFour = PAINTED_V2_TEXTURE_PROBE_INPUTS['painted-v2-4x4'];
+
+	assert.equal(twoByTwo.assets.length, 4);
+	assert.equal(fourByFour.assets.length, 16);
+	assert.equal(twoByTwo.expectedRetainedTextures, 4);
+	assert.equal(fourByFour.expectedRetainedTextures, 16);
+	assert.equal(twoByTwo.label, 'painted-v2-2x2');
+	assert.equal(fourByFour.label, 'painted-v2-4x4');
+	assert.equal(new Set(twoByTwo.assets.map(({ id }) => id)).size, 4);
+	assert.equal(new Set(fourByFour.assets.map(({ id }) => id)).size, 16);
+	assert.deepEqual(
+		new Set(twoByTwo.assets.map(({ path }) => path)),
+		new Set([paintedV2TextureProbeRepresentativePaths['3200']])
+	);
+	assert.deepEqual(
+		new Set(fourByFour.assets.map(({ path }) => path)),
+		new Set([paintedV2TextureProbeRepresentativePaths['1600']])
+	);
+	for (const asset of [...twoByTwo.assets, ...fourByFour.assets]) {
+		assert.ok(asset.encodedBytes !== undefined && asset.encodedBytes > 0);
+		assert.equal(asset.width, asset.height);
+	}
+	for (const asset of twoByTwo.assets) {
+		assert.equal(asset.width, 3200);
+		assert.equal(asset.height, 3200);
+	}
+	for (const asset of fourByFour.assets) {
+		assert.equal(asset.width, 1600);
+		assert.equal(asset.height, 1600);
+	}
+});
+
+test('exposes both fixed candidate sets through the named input helper', () => {
+	assert.deepEqual(Object.keys(PAINTED_V2_TEXTURE_PROBE_INPUTS).sort(), [
+		'painted-v2-2x2',
+		'painted-v2-4x4'
+	]);
+	assert.equal(paintedV2TextureProbeInput('painted-v2-2x2').assets.length, 4);
+	assert.equal(paintedV2TextureProbeInput('painted-v2-4x4').assets.length, 16);
+});
+
+test('pins deterministic representative dimensions, hashes, canonical chunks, and opacity', async () => {
+	const expected = [
+		{
+			path: paintedV2TextureProbeRepresentativePaths['3200'],
+			width: 3200,
+			height: 3200,
+			bytes: 25_311_015,
+			sha256: '6e5cf00e3c1e8eb161faf3e4c44cc762d1934e4a35578188d3f00ae354fffa3c'
+		},
+		{
+			path: paintedV2TextureProbeRepresentativePaths['1600'],
+			width: 1600,
+			height: 1600,
+			bytes: 6_479_247,
+			sha256: '2d6decfe86bf6df706e5fbf2390236a40fab70fe776af73c8e6cfb42531a50f5'
+		}
+	] as const;
+
+	for (const candidate of expected) {
+		const bytes = readFileSync(candidate.path);
+		assert.equal(bytes.byteLength, candidate.bytes);
+		assert.equal(createHash('sha256').update(bytes).digest('hex'), candidate.sha256);
+		validateCanonicalPngChunks(bytes);
+		const decoded = await decodeMeadowEntryRgba(bytes);
+		assert.equal(decoded.width, candidate.width);
+		assert.equal(decoded.height, candidate.height);
+		for (let offset = 3; offset < decoded.data.length; offset += 4) {
+			assert.equal(decoded.data[offset], 255);
+		}
+	}
 });
