@@ -1,8 +1,11 @@
+import type { MeadowEntryPaintedMode } from '$lib/game/content/backgrounds/meadow-entry-painted-v2-runtime';
+
 export const REGIONAL_BACKGROUND_RENDERER_DIAGNOSTIC_EVENT =
 	'gliese:regional-background-renderer-diagnostic';
 
 export interface RegionalBackgroundRendererDiagnostic {
 	renderer: 'webgl' | 'canvas';
+	paintedMode: MeadowEntryPaintedMode;
 	maxTextureSize: number | null;
 	regionalBackgroundLoadMs: number | null;
 	regionalBackgroundLoadCompletions: number;
@@ -10,6 +13,7 @@ export interface RegionalBackgroundRendererDiagnostic {
 
 export interface RegionalBackgroundRendererDiagnosticInput {
 	renderer: 'webgl' | 'canvas';
+	paintedMode: MeadowEntryPaintedMode;
 	maxTextureSize: number | null;
 	loadStartedAtMs: number | null;
 	loadCompletedAtMs: number | null;
@@ -47,6 +51,7 @@ export function buildRegionalBackgroundRendererDiagnostic(
 
 	return {
 		renderer: input.renderer,
+		paintedMode: input.paintedMode,
 		maxTextureSize,
 		regionalBackgroundLoadMs: hasFiniteTimestamps
 			? Math.max(0, input.loadCompletedAtMs! - input.loadStartedAtMs!)

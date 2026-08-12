@@ -33,6 +33,7 @@ import {
 	shouldRenderOwnedVisual
 } from '$lib/game/content/maps/background-ownership';
 import { getBlockerRuntimeRenderMode } from '$lib/game/content/maps/blocker-rendering';
+import { applyMeadowEntryPaintedBackgrounds } from '$lib/game/content/maps/meadow-entry-painted-backgrounds';
 import {
 	maps,
 	openingMapId,
@@ -139,6 +140,7 @@ import {
 	resolveWorldRenderOptions,
 	type WorldRenderOptions
 } from '$lib/game/phaser/world-render-options';
+import { resolveMeadowEntryPaintedSelection } from '$lib/game/content/backgrounds/meadow-entry-painted-v2-runtime';
 import { BattleScene } from './BattleScene';
 
 interface WorldSceneData {
@@ -1634,6 +1636,7 @@ export class WorldScene extends Phaser.Scene {
 	 */
 	private renderRegionalBackgrounds(map: WorldMapDefinition): ReadonlySet<string> {
 		const successfulBackgroundIds = new Set<string>();
+		const paintedSelection = resolveMeadowEntryPaintedSelection(this.renderOptions);
 		const entries: RegionalBackgroundPlaneRenderDiagnosticEntry[] = [];
 		const textureManager = this.textures as typeof this.textures & {
 			exists?: (key: string) => boolean;
@@ -1771,6 +1774,7 @@ export class WorldScene extends Phaser.Scene {
 		emitRegionalBackgroundPlaneRenderDiagnostic({
 			mapId: map.id,
 			regionalBackgroundsEnabled: this.renderOptions.regionalBackgrounds,
+			paintedMode: paintedSelection.mode,
 			entries,
 			successfulBackgroundIds: [...successfulBackgroundIds],
 			selectedFallbackBlockerIds: selectedFallbackBlockers.map((blocker) => blocker.id),
@@ -2905,7 +2909,10 @@ export class WorldScene extends Phaser.Scene {
 	}
 
 	private resolveMap(mapId?: string): WorldMapDefinition {
-		return maps[mapId ?? openingMapId] ?? maps[openingMapId];
+		const source = maps[mapId ?? openingMapId] ?? maps[openingMapId];
+		return applyMeadowEntryPaintedBackgrounds(source, {
+			selection: resolveMeadowEntryPaintedSelection(this.renderOptions)
+		});
 	}
 
 	private revealCurrentMapArea(): boolean {

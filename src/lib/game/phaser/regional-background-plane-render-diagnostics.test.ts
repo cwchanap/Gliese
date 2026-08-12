@@ -12,6 +12,7 @@ describe('regional background plane render diagnostics', () => {
 		const diagnostic: RegionalBackgroundPlaneRenderDiagnostic = {
 			mapId: 'two-plane-test',
 			regionalBackgroundsEnabled: true,
+			paintedMode: 'pilot',
 			entries: [
 				{
 					id: 'foreground-image',
@@ -44,6 +45,7 @@ describe('regional background plane render diagnostics', () => {
 
 		expect(received?.entries.map((entry) => entry.id)).toEqual(['foreground-image', 'base-image']);
 		expect(received?.successfulBackgroundIds).toEqual(['base-image', 'foreground-image']);
+		expect(received?.paintedMode).toBe('pilot');
 		expect(received?.selectedFallbackDecorIds).toEqual(['decor-b', 'decor-a']);
 		expect(received?.selectedFallbackFenceIds).toEqual(['fence-a']);
 	});

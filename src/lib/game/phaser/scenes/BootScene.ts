@@ -10,7 +10,6 @@ import {
 	interiorPropAsset,
 	marshDressingAsset,
 	npcPackAsset,
-	regionalBackgroundAssets,
 	shrineDressingAsset,
 	starterPackAsset,
 	terrainTilesAsset,
@@ -23,6 +22,7 @@ import {
 	buildRegionalBackgroundRendererDiagnostic,
 	emitRegionalBackgroundRendererDiagnostic
 } from '$lib/game/phaser/renderer-diagnostics';
+import { resolveMeadowEntryPaintedSelection } from '$lib/game/content/backgrounds/meadow-entry-painted-v2-runtime';
 import { resolveWorldRenderOptions } from '$lib/game/phaser/world-render-options';
 import { WorldScene } from './WorldScene';
 
@@ -54,8 +54,10 @@ export class BootScene extends Phaser.Scene {
 		// `emitRegionalBackgroundRendererDiagnostic` and consumed by the
 		// Playwright e2e suite (`installRegionalBackgroundDiagnosticListener`
 		// in `tests/e2e/game.e2e.ts`).
+		const renderOptions = resolveWorldRenderOptions();
+		const paintedSelection = resolveMeadowEntryPaintedSelection(renderOptions);
 		const regionalBackgroundKeys = new Set(
-			regionalBackgroundAssets.map((asset) => asset.key as string)
+			paintedSelection.assets.map((asset) => asset.key as string)
 		);
 		const completedRegionalBackgroundKeys = new Set<string>();
 		let regionalBackgroundLoadStartedAtMs: number | null = null;
@@ -89,6 +91,7 @@ export class BootScene extends Phaser.Scene {
 			emitRegionalBackgroundRendererDiagnostic(
 				buildRegionalBackgroundRendererDiagnostic({
 					renderer,
+					paintedMode: paintedSelection.mode,
 					maxTextureSize,
 					loadStartedAtMs: regionalBackgroundLoadStartedAtMs,
 					loadCompletedAtMs: regionalBackgroundLoadCompletedAtMs,
@@ -114,11 +117,8 @@ export class BootScene extends Phaser.Scene {
 		for (const asset of Object.values(battleBackgroundAssets)) {
 			this.load.image(asset.key, asset.path);
 		}
-		// PR2a has no selected regional assets; PR2b will supply a mode selection before
-		// any regional background is queued.
-		const renderOptions = resolveWorldRenderOptions();
-		if (renderOptions.regionalBackgrounds) {
-			for (const asset of regionalBackgroundAssets) {
+		if (paintedSelection.assets.length > 0) {
+			for (const asset of paintedSelection.assets) {
 				if (regionalBackgroundLoadStartedAtMs === null) {
 					// This duration spans from the first regional queue operation through the
 					// loader's overall completion callback. It is not isolated network latency

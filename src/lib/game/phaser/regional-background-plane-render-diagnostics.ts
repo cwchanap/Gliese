@@ -1,4 +1,5 @@
 import type { MapBackgroundPlane } from '$lib/game/content/maps/types';
+import type { MeadowEntryPaintedMode } from '$lib/game/content/backgrounds/meadow-entry-painted-v2-runtime';
 
 export const REGIONAL_BACKGROUND_PLANE_RENDER_DIAGNOSTIC_EVENT =
 	'gliese:regional-background-plane-render-diagnostic';
@@ -31,6 +32,7 @@ export interface RegionalBackgroundPlaneRenderDiagnosticEntry {
 export interface RegionalBackgroundPlaneRenderDiagnostic {
 	mapId: string;
 	regionalBackgroundsEnabled: boolean;
+	paintedMode: MeadowEntryPaintedMode;
 	entries: readonly RegionalBackgroundPlaneRenderDiagnosticEntry[];
 	successfulBackgroundIds: readonly string[];
 	/** Fallback-only blocker IDs drawn live after applying this exact plane-success set. */

@@ -1055,6 +1055,79 @@ describe('BootScene', () => {
 		);
 	});
 
+	it('preloads exactly the selected painted pilot assets and counts only those completions', async () => {
+		const restoreLocation = installLocationSearch('?meadowPaintedPilot=on');
+		const target = installHudCommandTarget();
+		const diagnostics: RegionalBackgroundRendererDiagnostic[] = [];
+		const { REGIONAL_BACKGROUND_RENDERER_DIAGNOSTIC_EVENT } =
+			await import('$lib/game/phaser/renderer-diagnostics');
+		const { MEADOW_ENTRY_PAINTED_MODE_PILOT } =
+			await import('$lib/game/content/backgrounds/meadow-entry-painted-v2-runtime');
+		target.target.addEventListener(REGIONAL_BACKGROUND_RENDERER_DIAGNOSTIC_EVENT, (event) => {
+			diagnostics.push((event as CustomEvent<RegionalBackgroundRendererDiagnostic>).detail);
+		});
+		const now = vi.spyOn(performance, 'now');
+		now.mockReturnValueOnce(10).mockReturnValueOnce(25);
+		const scene = new (await import('./BootScene')).BootScene();
+
+		try {
+			scene.preload();
+
+			expect(
+				vi
+					.mocked(scene.load.image)
+					.mock.calls.filter(([, path]) => String(path).includes('/game/assets/regions/'))
+			).toEqual(MEADOW_ENTRY_PAINTED_MODE_PILOT.assets.map(({ key, path }) => [key, path]));
+
+			for (const asset of MEADOW_ENTRY_PAINTED_MODE_PILOT.assets) {
+				scene.load.emit('filecomplete', asset.key, 'image', {});
+			}
+			scene.load.emit('filecomplete', 'unselected-regional-background', 'image', {});
+			scene.load.emit('complete');
+
+			expect(diagnostics[0]).toMatchObject({
+				paintedMode: 'pilot',
+				regionalBackgroundLoadMs: 15,
+				regionalBackgroundLoadCompletions: 3
+			});
+		} finally {
+			now.mockRestore();
+			target.restore();
+			restoreLocation();
+		}
+	});
+
+	it('gives regional-background off priority over pilot preload and emits a deliberate zero completion', async () => {
+		const restoreLocation = installLocationSearch('?meadowPaintedPilot=on&regionalBackground=off');
+		const target = installHudCommandTarget();
+		const diagnostics: RegionalBackgroundRendererDiagnostic[] = [];
+		const { REGIONAL_BACKGROUND_RENDERER_DIAGNOSTIC_EVENT } =
+			await import('$lib/game/phaser/renderer-diagnostics');
+		target.target.addEventListener(REGIONAL_BACKGROUND_RENDERER_DIAGNOSTIC_EVENT, (event) => {
+			diagnostics.push((event as CustomEvent<RegionalBackgroundRendererDiagnostic>).detail);
+		});
+		const scene = new (await import('./BootScene')).BootScene();
+
+		try {
+			scene.preload();
+			scene.load.emit('filecomplete', 'meadow-entry-painted-v2-crossroads-base', 'image', {});
+			scene.load.emit('complete');
+
+			expect(scene.load.image).not.toHaveBeenCalledWith(
+				expect.anything(),
+				expect.stringContaining('/game/assets/regions/')
+			);
+			expect(diagnostics[0]).toMatchObject({
+				paintedMode: 'fallback',
+				regionalBackgroundLoadMs: null,
+				regionalBackgroundLoadCompletions: 0
+			});
+		} finally {
+			target.restore();
+			restoreLocation();
+		}
+	});
+
 	it('emits WebGL renderer evidence with one maximum-texture-size query', async () => {
 		const { REGIONAL_BACKGROUND_RENDERER_DIAGNOSTIC_EVENT } =
 			await import('$lib/game/phaser/renderer-diagnostics');
@@ -1077,6 +1150,7 @@ describe('BootScene', () => {
 			expect(diagnostics).toEqual([
 				{
 					renderer: 'webgl',
+					paintedMode: 'fallback',
 					maxTextureSize: 4096,
 					regionalBackgroundLoadMs: null,
 					regionalBackgroundLoadCompletions: 0
@@ -1111,6 +1185,7 @@ describe('BootScene', () => {
 			expect(diagnostics).toEqual([
 				{
 					renderer: 'webgl',
+					paintedMode: 'fallback',
 					maxTextureSize: null,
 					regionalBackgroundLoadMs: null,
 					regionalBackgroundLoadCompletions: 0
@@ -1145,6 +1220,7 @@ describe('BootScene', () => {
 			expect(diagnostics).toEqual([
 				{
 					renderer: 'canvas',
+					paintedMode: 'fallback',
 					maxTextureSize: null,
 					regionalBackgroundLoadMs: null,
 					regionalBackgroundLoadCompletions: 0
@@ -1178,6 +1254,7 @@ describe('BootScene', () => {
 			expect(diagnostics).toEqual([
 				{
 					renderer: 'webgl',
+					paintedMode: 'fallback',
 					maxTextureSize: 4096,
 					regionalBackgroundLoadMs: null,
 					regionalBackgroundLoadCompletions: 0
@@ -2832,6 +2909,53 @@ describe('WorldScene', () => {
 		return { ...target, diagnostics };
 	}
 
+	async function registerPaintedPilotBackgroundMocks() {
+		const { MEADOW_ENTRY_PAINTED_MODE_PILOT } =
+			await import('$lib/game/content/backgrounds/meadow-entry-painted-v2-runtime');
+		for (const background of MEADOW_ENTRY_PAINTED_MODE_PILOT.backgrounds) {
+			phaserState.regionalBackgroundTextureMocks.set(background.textureKey, {
+				key: background.textureKey,
+				source: [{ width: background.width, height: background.height }],
+				get: vi.fn(() => ({ cutWidth: background.width, cutHeight: background.height }))
+			});
+		}
+		return MEADOW_ENTRY_PAINTED_MODE_PILOT;
+	}
+
+	function findPaintedFallbackMarkers(id: string) {
+		const markerBounds: Record<string, { x: number; y: number; texture: string; frame: string }> = {
+			'silverpine-wall-B-south': {
+				x: 3_340,
+				y: 2_910,
+				texture: forestDressingAsset.key,
+				frame: 'treeCluster'
+			},
+			'village-decor-28-25': {
+				x: 1_072,
+				y: 4_880,
+				texture: 'village-dressing',
+				frame: 'poleLantern'
+			},
+			'village-decor-22-77': {
+				x: 2_736,
+				y: 4_688,
+				texture: 'village-dressing',
+				frame: 'gateArch'
+			}
+		};
+		const bounds = markerBounds[id];
+		if (!bounds) throw new Error(`Unknown painted fallback marker: ${id}`);
+		return phaserState.imageMarkers.filter(
+			(marker) =>
+				marker.texture === bounds.texture &&
+				marker.frame === bounds.frame &&
+				marker.y === bounds.y &&
+				(id !== 'silverpine-wall-B-south'
+					? marker.x === bounds.x
+					: Math.abs(marker.x - bounds.x) <= 200)
+		);
+	}
+
 	function registerAreaMapRevealTestMap() {
 		maps['area-map-reveal-test'] = {
 			id: 'area-map-reveal-test',
@@ -3428,6 +3552,220 @@ describe('WorldScene', () => {
 			target.restore();
 		}
 	});
+
+	it('resolves the pilot descriptors through the generic renderer and suppresses complete live owners', async () => {
+		const restoreLocation = installLocationSearch('?meadowPaintedPilot=on');
+		const target = installPlaneDiagnosticListener();
+		const selection = await registerPaintedPilotBackgroundMocks();
+		const { meadowEntryMap } = await import('$lib/game/content/maps');
+		const { WorldScene } = await import('./WorldScene');
+		const scene = new WorldScene();
+
+		try {
+			scene.create({ mapId: meadowEntryMap.id });
+
+			expect(
+				phaserState.imageMarkers
+					.filter((marker) =>
+						selection.backgrounds.some(({ textureKey }) => textureKey === marker.texture)
+					)
+					.map((marker) => marker.texture)
+			).toEqual(selection.backgrounds.map(({ textureKey }) => textureKey));
+			expect(target.diagnostics[0]?.paintedMode).toBe('pilot');
+			expect(target.diagnostics[0]?.entries.map((entry) => entry.status)).toEqual([
+				'rendered',
+				'rendered',
+				'rendered'
+			]);
+			expect(target.diagnostics[0]?.successfulBackgroundIds).toEqual(
+				selection.backgrounds.map(({ id }) => id).sort()
+			);
+			expect(findPaintedFallbackMarkers('silverpine-wall-B-south')).toHaveLength(0);
+			expect(findPaintedFallbackMarkers('village-decor-28-25')).toHaveLength(0);
+			expect(findPaintedFallbackMarkers('village-decor-22-77')).toHaveLength(0);
+		} finally {
+			target.restore();
+			restoreLocation();
+		}
+	});
+
+	it('keeps non-Meadow maps on the registry source while pilot mode is enabled', async () => {
+		registerSceneSupportTestMap();
+		const restoreLocation = installLocationSearch('?meadowPaintedPilot=on');
+		const target = installPlaneDiagnosticListener();
+		const { WorldScene } = await import('./WorldScene');
+		const scene = new WorldScene();
+
+		try {
+			scene.create({ mapId: 'scene-support-test' });
+
+			expect(target.diagnostics[0]).toMatchObject({
+				mapId: 'scene-support-test',
+				paintedMode: 'pilot',
+				entries: [],
+				successfulBackgroundIds: []
+			});
+		} finally {
+			target.restore();
+			restoreLocation();
+		}
+	});
+
+	it.each([
+		[
+			'missing texture',
+			(key: string) => phaserState.missingTextureKeys.add(key),
+			'missing-texture',
+			false
+		],
+		[
+			'wrong dimensions',
+			(key: string) => {
+				phaserState.regionalBackgroundTextureMocks.get(key)!.source[0] = {
+					width: 1,
+					height: 1
+				};
+			},
+			'invalid-dimensions',
+			false
+		],
+		['injected render failure', () => {}, 'render-failed', true]
+	] as const)(
+		'restores the Crossroads blocker for a pilot %s',
+		async (_label, arrange, status, fault) => {
+			const selection = await registerPaintedPilotBackgroundMocks();
+			const crossroads = selection.backgrounds.find((background) =>
+				background.id.includes('crossroads-base-image')
+			)!;
+			const search = fault
+				? `?meadowPaintedPilot=on&mapDebug=collision&regionalBackgroundFault=${crossroads.id}:render`
+				: '?meadowPaintedPilot=on&mapDebug=collision';
+			const restoreLocation = installLocationSearch(search);
+			arrange(crossroads.textureKey);
+			const target = installPlaneDiagnosticListener();
+			const { meadowEntryMap } = await import('$lib/game/content/maps');
+			const { WorldScene } = await import('./WorldScene');
+			const scene = new WorldScene();
+
+			try {
+				scene.create({ mapId: meadowEntryMap.id });
+
+				expect(findPaintedFallbackMarkers('silverpine-wall-B-south')).toHaveLength(8);
+				expect(target.diagnostics[0]?.paintedMode).toBe('pilot');
+				expect(target.diagnostics[0]?.entries.find(({ id }) => id === crossroads.id)?.status).toBe(
+					status
+				);
+				expect(target.diagnostics[0]?.selectedFallbackBlockerIds).toContain(
+					'silverpine-wall-B-south'
+				);
+				expect(phaserState.graphicsMarkers[0]?.commands).toContainEqual({
+					kind: 'fillRect',
+					x: 3_136,
+					y: 2_866,
+					width: 408,
+					height: 88,
+					color: 0xff3355,
+					alpha: 0.18
+				});
+			} finally {
+				target.restore();
+				restoreLocation();
+			}
+		}
+	);
+
+	it.each([
+		[
+			'missing texture',
+			(key: string) => phaserState.missingTextureKeys.add(key),
+			'missing-texture',
+			false
+		],
+		[
+			'wrong dimensions',
+			(key: string) => {
+				phaserState.regionalBackgroundTextureMocks.get(key)!.source[0] = {
+					width: 1,
+					height: 1
+				};
+			},
+			'invalid-dimensions',
+			false
+		],
+		['injected render failure', () => {}, 'render-failed', true]
+	] as const)(
+		'restores the Sundrop decor for a pilot %s',
+		async (_label, arrange, status, fault) => {
+			const selection = await registerPaintedPilotBackgroundMocks();
+			const sundrop = selection.backgrounds.find((background) =>
+				background.id.includes('sundrop-village-base-image')
+			)!;
+			const search = fault
+				? `?meadowPaintedPilot=on&regionalBackgroundFault=${sundrop.id}:render`
+				: '?meadowPaintedPilot=on';
+			const restoreLocation = installLocationSearch(search);
+			arrange(sundrop.textureKey);
+			const target = installPlaneDiagnosticListener();
+			const { meadowEntryMap } = await import('$lib/game/content/maps');
+			const { WorldScene } = await import('./WorldScene');
+			const scene = new WorldScene();
+
+			try {
+				scene.create({ mapId: meadowEntryMap.id });
+
+				expect(findPaintedFallbackMarkers('village-decor-28-25')).toHaveLength(1);
+				expect(target.diagnostics[0]?.paintedMode).toBe('pilot');
+				expect(target.diagnostics[0]?.entries.find(({ id }) => id === sundrop.id)?.status).toBe(
+					status
+				);
+				expect(target.diagnostics[0]?.selectedFallbackDecorIds).toContain('village-decor-28-25');
+			} finally {
+				target.restore();
+				restoreLocation();
+			}
+		}
+	);
+
+	it.each([
+		['Sundrop crop succeeds', ['meadow-entry-painted-v2-village-crossroads-connector-base'], 0],
+		['connector crop succeeds', ['meadow-entry-painted-v2-sundrop-village-base'], 0],
+		[
+			'both overlap crops fail',
+			[
+				'meadow-entry-painted-v2-village-crossroads-connector-base',
+				'meadow-entry-painted-v2-sundrop-village-base'
+			],
+			1
+		]
+	] as const)(
+		'uses any complete overlap crop for the two-crop village decor owner: %s',
+		async (_label, missingKeys, expectedCount) => {
+			await registerPaintedPilotBackgroundMocks();
+			for (const key of missingKeys) phaserState.missingTextureKeys.add(key);
+			const restoreLocation = installLocationSearch('?meadowPaintedPilot=on');
+			const target = installPlaneDiagnosticListener();
+			const { meadowEntryMap } = await import('$lib/game/content/maps');
+			const { WorldScene } = await import('./WorldScene');
+			const scene = new WorldScene();
+
+			try {
+				scene.create({ mapId: meadowEntryMap.id });
+
+				expect(findPaintedFallbackMarkers('village-decor-22-77')).toHaveLength(expectedCount);
+				expect(target.diagnostics[0]?.paintedMode).toBe('pilot');
+				if (expectedCount === 1) {
+					expect(target.diagnostics[0]?.selectedFallbackDecorIds).toContain('village-decor-22-77');
+				} else {
+					expect(target.diagnostics[0]?.selectedFallbackDecorIds).not.toContain(
+						'village-decor-22-77'
+					);
+				}
+			} finally {
+				target.restore();
+				restoreLocation();
+			}
+		}
+	);
 
 	it('renders regional backgrounds after fallback ground and before floor decor', async () => {
 		registerSceneSupportTestMap();

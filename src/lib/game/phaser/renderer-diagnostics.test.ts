@@ -12,6 +12,7 @@ describe('regional background renderer diagnostics', () => {
 		expect(
 			buildRegionalBackgroundRendererDiagnostic({
 				renderer: 'webgl',
+				paintedMode: 'pilot',
 				maxTextureSize: 4096,
 				loadStartedAtMs: 120.25,
 				loadCompletedAtMs: 145.75,
@@ -22,6 +23,7 @@ describe('regional background renderer diagnostics', () => {
 		expect(
 			buildRegionalBackgroundRendererDiagnostic({
 				renderer: 'webgl',
+				paintedMode: 'pilot',
 				maxTextureSize: 4096,
 				loadStartedAtMs: 145.75,
 				loadCompletedAtMs: 120.25,
@@ -39,6 +41,7 @@ describe('regional background renderer diagnostics', () => {
 		expect(
 			buildRegionalBackgroundRendererDiagnostic({
 				renderer: 'webgl',
+				paintedMode: 'fallback',
 				maxTextureSize: 4096,
 				...timestamps,
 				regionalBackgroundLoadCompletions: 1
@@ -50,6 +53,7 @@ describe('regional background renderer diagnostics', () => {
 		expect(
 			buildRegionalBackgroundRendererDiagnostic({
 				renderer: 'canvas',
+				paintedMode: 'fallback',
 				maxTextureSize: 8192,
 				loadStartedAtMs: 1,
 				loadCompletedAtMs: 2,
@@ -69,6 +73,7 @@ describe('regional background renderer diagnostics', () => {
 		expect(
 			buildRegionalBackgroundRendererDiagnostic({
 				renderer: 'webgl',
+				paintedMode: 'fallback',
 				maxTextureSize: input,
 				loadStartedAtMs: 1,
 				loadCompletedAtMs: 2,
@@ -86,6 +91,7 @@ describe('regional background renderer diagnostics', () => {
 		expect(
 			buildRegionalBackgroundRendererDiagnostic({
 				renderer: 'canvas',
+				paintedMode: 'fallback',
 				maxTextureSize: null,
 				loadStartedAtMs: 1,
 				loadCompletedAtMs: 2,
@@ -98,6 +104,7 @@ describe('regional background renderer diagnostics', () => {
 		const target = new EventTarget();
 		const detail: RegionalBackgroundRendererDiagnostic = {
 			renderer: 'webgl',
+			paintedMode: 'pilot',
 			maxTextureSize: 4096,
 			regionalBackgroundLoadMs: 12.5,
 			regionalBackgroundLoadCompletions: 1
@@ -124,6 +131,7 @@ describe('regional background renderer diagnostics', () => {
 			expect(() =>
 				emitRegionalBackgroundRendererDiagnostic({
 					renderer: 'canvas',
+					paintedMode: 'fallback',
 					maxTextureSize: null,
 					regionalBackgroundLoadMs: null,
 					regionalBackgroundLoadCompletions: 0
