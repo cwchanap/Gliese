@@ -1,5 +1,5 @@
 {
-	"version": 2,
+	"version": 3,
 	"id": "village-crossroads-connector",
 	"bounds": {
 		"left": 2592,
@@ -17,27 +17,33 @@
 		"provider": "OpenAI",
 		"model": "gpt-image-2",
 		"modelVersion": "2.0",
-		"outputPath": "/Users/chanwaichan/.codex/generated_images/019ff4d8-318a-77d1-ae67-bdcc40ab0e8b/exec-a8ebea4b-ffeb-4cdf-a0f1-884e4d2cced1.png",
-		"outputSha256": "f5910250f2fccdf56d64220e5b93d7e32b3fe14b1ffd5682cfc63a7c258a75b2",
-		"prompt": "Use case: stylized-concept.\nAsset type: native-detail opaque painted game background source panel, Sundrop Village to Crossroads connector.\nInput images: Image 1 is the single authoritative exact-coordinate control crop for the connector and its live handoff pads. Image 2 is only secondary color/composition guidance from the approved concept.\nPrimary request: paint a crisp hand-painted 2D JRPG top-down ground-only connector panel for fixed Meadow master-coordinate bounds x=2592..3392, y=4480..4896, exact output aspect 800x416. Preserve the control geometry and both neighbor handoffs exactly. Depict a scenic narrowing from warm cultivated village ground into neutral Crossroads packed earth: thinning cultivated grass, a gently worn packed-earth path aligned to the village-to-crossroads route, subtle ground flowers and leaf litter at edges, and very low lantern-footing contact shadows only as flat ground stains with no lanterns or posts.\nComposition/framing: orthographic top-down ground plane only; the route is the hero. Keep the route mouth continuous and unobstructed through the full panel, preserve the 128px overlap context with Sundrop, and preserve the connector/Crossroads shared handoff at the east edge. Match the concept's warm late-morning palette but render crisp native-detail, not blur.\nConstraints: opaque sRGB/RGBA raster; exact fixed framing; no buildings, roofs, doors, walls, fences, actors, NPCs, enemies, pickups, labels, text, UI, icons, lanterns, posts, bridges, props, rocks that read as blockers, or any tall object. All actual interaction/transition/anchor/encounter/spawn pads and collision clearances are quiet, low, flat ground; broad corridor masks retain natural terrain with no duplicate baked visual or false blocker. No false walls, no blocked route, no tile seams, no repeated grid, no watermark.\nAvoid: perspective/isometric camera, hard rectangular biome bands, visual seam at either handoff, generator blur, repeated motifs, or object silhouettes.",
-		"promptSha256": "044b19e30a905e61284ce6538342cb4987e33669a32f464e9b28e4a67384da42",
-		"attempt": 1,
-		"result": "accepted",
-		"rejected": false
+		"outputPath": "/Users/chanwaichan/.codex/generated_images/019ff4d8-318a-77d1-ae67-bdcc40ab0e8b/exec-f60fcbd5-0c2f-449a-bd84-4e288e8bb55c.png",
+		"outputSha256": "b01f14ada4a29cc47af9d31e58545346fb5a9ce93f347c209c72d2f95ea5f2e6",
+		"prompt": "Use case: stylized-concept.\nAsset type: native-detail opaque painted game background source panel correction, Sundrop Village to Crossroads connector, fixed final frame 800×416.\nInput images: Image 1 is the single authoritative exact-coordinate 800×416 control crop. Preserve its geometry, route, live pads, and handoffs exactly; it is not style art. Image 2 is the actual accepted Sundrop artwork for the exact world-coordinate intersection x=2592..2880, y=4480..4896; it must control the LEFT 288×416 of the output for value, hue, sharpness, brush scale, grass microdetail, and packed-earth treatment. Image 3 is the actual accepted Crossroads artwork for the exact world-coordinate intersection x=2880..3392, y=4480..4768; it must control the RIGHT 512×288 of the output for value, hue, sharpness, brush scale, grass/cobble detail density, and packed-earth route treatment.\nPrimary request: regenerate one crisp hand-painted orthographic top-down GROUND-ONLY connector for fixed Meadow master bounds x=2592..3392, y=4480..4896 at exact output aspect 800×416. The result must be seamless when overlaid at master coordinates. Match Image 2 exactly across the entire left shared area, then transition continuously through the connector into Image 3 across the right shared area. Preserve the Image 1 route and all quiet live pads. Use the same bright warm late-morning value range, crisp native-detail edge definition, microtexture frequency, golden packed earth, small irregular cobbles, cultivated grass, and tiny flat flowers visible in Images 2 and 3. The route must remain broad, continuous, and unobstructed.\nComposition/framing: exact 800×416 landscape frame, orthographic top-down ground plane only. Image 2 maps to output x=0..288, y=0..416. Image 3 maps to output x=288..800, y=0..288. The remaining lower-right 512×128 must extend the same Crossroads-adjacent ground naturally without a band or seam. Match both shared areas at 100% viewing, including brightness, contrast, detail density, brush sharpness, and route edge shape.\nLighting/mood: bright warm late-morning upper-left illumination matching both actual-art references; no dark veil, murky green cast, softness, blur, or low-frequency smearing.\nConstraints: opaque sRGB/RGBA raster; prefer native output at or near 800×416; no stretch; no buildings, roofs, architecture, doors, windows, walls, fences, lanterns, posts, actors, NPCs, enemies, pickups, labels, text, UI, icons, bridges, props, large rocks, blockers, or tall objects. Actual interaction, transition, anchor, encounter, pickup, discovery, spawn, and collision clearances stay quiet, flat, dry, open, and unobstructed. Broad live corridor terrain stays natural with no baked duplicate or false blocker. No repeated grid, tile seams, watermark, or generator seam.\nAvoid: the rejected attempt’s dark/soft/granular connector appearance; any value jump at x=288; any sharpness/detail-density jump; isometric perspective; hard biome bands; blocked route mouths; object silhouettes.",
+		"promptSha256": "2b9646cb81ca3a51ab2ee12f35b142a77604d613fddb8ade5b3506a761aed6c0",
+		"attempt": 2,
+		"result": "accepted-after-independent-review-fix",
+		"rejected": false,
+		"nativeSizeRequested": {
+			"width": 800,
+			"height": 416
+		},
+		"nativeSizeRequestHonored": false,
+		"nativeDetailQualityAcceptedAt100Percent": true
 	},
 	"raw": {
 		"path": "artifacts/meadow-entry/painted-v2/source-panels/raw/village-crossroads-connector.png",
-		"sha256": "f5910250f2fccdf56d64220e5b93d7e32b3fe14b1ffd5682cfc63a7c258a75b2",
-		"bytes": 2500508,
+		"sha256": "b01f14ada4a29cc47af9d31e58545346fb5a9ce93f347c209c72d2f95ea5f2e6",
+		"bytes": 2318631,
 		"dimensions": {
 			"width": 1739,
 			"height": 904
 		}
 	},
 	"normalized": {
-		"path": "artifacts/meadow-entry/painted-v2/source-panels/village-crossroads-connector.png",
-		"sha256": "49a365a727c2ef47a9bb2509b73dab0474de455d136767e5fe79b376ffbb10e7",
-		"bytes": 858221,
+		"path": "artifacts/meadow-entry/painted-v2/source-panels/village-crossroads-connector.png at Task 3 commit 1ef5d87d69283550bc81f1221f214f184b55f890; superseded in the working tree by attempt 2",
+		"sha256": "6866f90802dfcd73d3828b41b237c8c1239ee130c9d8c8af3ac10d20c193e8b2",
+		"bytes": 888497,
 		"dimensions": {
 			"width": 800,
 			"height": 416
@@ -71,8 +77,8 @@
 		"scaleExceedsTwoX": false,
 		"operation": "cover-scale-crop-to-fixed-panel"
 	},
-	"prompt": "Use case: stylized-concept.\nAsset type: native-detail opaque painted game background source panel, Sundrop Village to Crossroads connector.\nInput images: Image 1 is the single authoritative exact-coordinate control crop for the connector and its live handoff pads. Image 2 is only secondary color/composition guidance from the approved concept.\nPrimary request: paint a crisp hand-painted 2D JRPG top-down ground-only connector panel for fixed Meadow master-coordinate bounds x=2592..3392, y=4480..4896, exact output aspect 800x416. Preserve the control geometry and both neighbor handoffs exactly. Depict a scenic narrowing from warm cultivated village ground into neutral Crossroads packed earth: thinning cultivated grass, a gently worn packed-earth path aligned to the village-to-crossroads route, subtle ground flowers and leaf litter at edges, and very low lantern-footing contact shadows only as flat ground stains with no lanterns or posts.\nComposition/framing: orthographic top-down ground plane only; the route is the hero. Keep the route mouth continuous and unobstructed through the full panel, preserve the 128px overlap context with Sundrop, and preserve the connector/Crossroads shared handoff at the east edge. Match the concept's warm late-morning palette but render crisp native-detail, not blur.\nConstraints: opaque sRGB/RGBA raster; exact fixed framing; no buildings, roofs, doors, walls, fences, actors, NPCs, enemies, pickups, labels, text, UI, icons, lanterns, posts, bridges, props, rocks that read as blockers, or any tall object. All actual interaction/transition/anchor/encounter/spawn pads and collision clearances are quiet, low, flat ground; broad corridor masks retain natural terrain with no duplicate baked visual or false blocker. No false walls, no blocked route, no tile seams, no repeated grid, no watermark.\nAvoid: perspective/isometric camera, hard rectangular biome bands, visual seam at either handoff, generator blur, repeated motifs, or object silhouettes.",
-	"promptSha256": "044b19e30a905e61284ce6538342cb4987e33669a32f464e9b28e4a67384da42",
+	"prompt": "Use case: stylized-concept.\nAsset type: native-detail opaque painted game background source panel correction, Sundrop Village to Crossroads connector, fixed final frame 800×416.\nInput images: Image 1 is the single authoritative exact-coordinate 800×416 control crop. Preserve its geometry, route, live pads, and handoffs exactly; it is not style art. Image 2 is the actual accepted Sundrop artwork for the exact world-coordinate intersection x=2592..2880, y=4480..4896; it must control the LEFT 288×416 of the output for value, hue, sharpness, brush scale, grass microdetail, and packed-earth treatment. Image 3 is the actual accepted Crossroads artwork for the exact world-coordinate intersection x=2880..3392, y=4480..4768; it must control the RIGHT 512×288 of the output for value, hue, sharpness, brush scale, grass/cobble detail density, and packed-earth route treatment.\nPrimary request: regenerate one crisp hand-painted orthographic top-down GROUND-ONLY connector for fixed Meadow master bounds x=2592..3392, y=4480..4896 at exact output aspect 800×416. The result must be seamless when overlaid at master coordinates. Match Image 2 exactly across the entire left shared area, then transition continuously through the connector into Image 3 across the right shared area. Preserve the Image 1 route and all quiet live pads. Use the same bright warm late-morning value range, crisp native-detail edge definition, microtexture frequency, golden packed earth, small irregular cobbles, cultivated grass, and tiny flat flowers visible in Images 2 and 3. The route must remain broad, continuous, and unobstructed.\nComposition/framing: exact 800×416 landscape frame, orthographic top-down ground plane only. Image 2 maps to output x=0..288, y=0..416. Image 3 maps to output x=288..800, y=0..288. The remaining lower-right 512×128 must extend the same Crossroads-adjacent ground naturally without a band or seam. Match both shared areas at 100% viewing, including brightness, contrast, detail density, brush sharpness, and route edge shape.\nLighting/mood: bright warm late-morning upper-left illumination matching both actual-art references; no dark veil, murky green cast, softness, blur, or low-frequency smearing.\nConstraints: opaque sRGB/RGBA raster; prefer native output at or near 800×416; no stretch; no buildings, roofs, architecture, doors, windows, walls, fences, lanterns, posts, actors, NPCs, enemies, pickups, labels, text, UI, icons, bridges, props, large rocks, blockers, or tall objects. Actual interaction, transition, anchor, encounter, pickup, discovery, spawn, and collision clearances stay quiet, flat, dry, open, and unobstructed. Broad live corridor terrain stays natural with no baked duplicate or false blocker. No repeated grid, tile seams, watermark, or generator seam.\nAvoid: the rejected attempt’s dark/soft/granular connector appearance; any value jump at x=288; any sharpness/detail-density jump; isometric perspective; hard biome bands; blocked route mouths; object silhouettes.",
+	"promptSha256": "2b9646cb81ca3a51ab2ee12f35b142a77604d613fddb8ade5b3506a761aed6c0",
 	"references": {
 		"controlCropPath": "/private/tmp/gliese-hpa586-panel-refs/village-crossroads-connector/control-crop.png",
 		"controlCropSha256": "e7f57d178bb672a1c28f5e5512cbe7c8a00cb8b0b60703b69f300eceee25886a",
@@ -170,20 +176,137 @@
 					"height": 6400
 				}
 			}
+		],
+		"actualArtContinuityReferences": [
+			{
+				"role": "Sundrop actual-art exact shared intersection x=2592..2880, y=4480..4896; maps to connector local x=0..288, y=0..416",
+				"path": "/private/tmp/gliese-hpa586-connector-fix-round-1/sundrop-connector-shared-art.png",
+				"sha256": "5c4cd7742550a06cc70522fa63878db2e4c3ecfaada778edda2b6440aca4d587",
+				"dimensions": {
+					"width": 288,
+					"height": 416
+				}
+			},
+			{
+				"role": "Crossroads actual-art exact shared intersection x=2880..3392, y=4480..4768; maps to connector local x=288..800, y=0..288",
+				"path": "/private/tmp/gliese-hpa586-connector-fix-round-1/connector-crossroads-shared-art.png",
+				"sha256": "e0618810d6f6a17b54761be8d08b2efa3d6d1188ff2984a18d0d1c9e23ae8044",
+				"dimensions": {
+					"width": 512,
+					"height": 288
+				}
+			}
 		]
 	},
 	"cleanup": {
 		"operationCount": 0,
 		"operations": [],
-		"beforeSha256": "49a365a727c2ef47a9bb2509b73dab0474de455d136767e5fe79b376ffbb10e7",
-		"afterSha256": "49a365a727c2ef47a9bb2509b73dab0474de455d136767e5fe79b376ffbb10e7"
+		"beforeSha256": "6866f90802dfcd73d3828b41b237c8c1239ee130c9d8c8af3ac10d20c193e8b2",
+		"afterSha256": "6866f90802dfcd73d3828b41b237c8c1239ee130c9d8c8af3ac10d20c193e8b2"
 	},
 	"nativeDetailReview": {
 		"inspectedAtOriginalResolution": true,
 		"inspectedNormalizedAt100Percent": true,
 		"controlComparisonEvidencePath": "docs/superpowers/reports/img/hpa-586-painted-v2-pilot/panel-review-village-crossroads-connector-control-overlay.png",
+		"actualArtOverlapEvidencePath": "docs/superpowers/reports/img/hpa-586-painted-v2-pilot/panel-review-sundrop-connector-overlap.png",
+		"crossroadsHandoffEvidencePath": "docs/superpowers/reports/img/hpa-586-painted-v2-pilot/panel-review-connector-crossroads-handoff.png",
+		"visiblePriorityAssemblyEvidencePath": "docs/superpowers/reports/img/hpa-586-painted-v2-pilot/panel-review-connector-priority-assembly.png",
 		"accepted": true,
-		"findings": "No baked buildings, doors, actors, labels, false walls, blocked approaches, obvious generator seams, or protected-pad object cues observed."
+		"findings": "Fresh candidate removes the rejected dark/soft/granular seam. Shared actual-art comparisons retain continuous warm values and comparable native-detail density; route and protected pads remain low, open ground with no false blocker."
 	},
-	"stage": "native-detail-source-panel-accepted"
+	"stage": "native-detail-source-panel-accepted-after-seam-fix",
+	"generationHistory": [
+		{
+			"attempt": 1,
+			"status": "rejected-by-independent-review",
+			"reason": "Dark, soft, granular connector caused a stark value/material/detail discontinuity with Crossroads and missed native-detail quality.",
+			"generation": {
+				"tool": "image_gen (built-in)",
+				"provider": "OpenAI",
+				"model": "gpt-image-2",
+				"modelVersion": "2.0",
+				"outputPath": "/Users/chanwaichan/.codex/generated_images/019ff4d8-318a-77d1-ae67-bdcc40ab0e8b/exec-a8ebea4b-ffeb-4cdf-a0f1-884e4d2cced1.png",
+				"outputSha256": "f5910250f2fccdf56d64220e5b93d7e32b3fe14b1ffd5682cfc63a7c258a75b2",
+				"prompt": "Use case: stylized-concept.\nAsset type: native-detail opaque painted game background source panel, Sundrop Village to Crossroads connector.\nInput images: Image 1 is the single authoritative exact-coordinate control crop for the connector and its live handoff pads. Image 2 is only secondary color/composition guidance from the approved concept.\nPrimary request: paint a crisp hand-painted 2D JRPG top-down ground-only connector panel for fixed Meadow master-coordinate bounds x=2592..3392, y=4480..4896, exact output aspect 800x416. Preserve the control geometry and both neighbor handoffs exactly. Depict a scenic narrowing from warm cultivated village ground into neutral Crossroads packed earth: thinning cultivated grass, a gently worn packed-earth path aligned to the village-to-crossroads route, subtle ground flowers and leaf litter at edges, and very low lantern-footing contact shadows only as flat ground stains with no lanterns or posts.\nComposition/framing: orthographic top-down ground plane only; the route is the hero. Keep the route mouth continuous and unobstructed through the full panel, preserve the 128px overlap context with Sundrop, and preserve the connector/Crossroads shared handoff at the east edge. Match the concept's warm late-morning palette but render crisp native-detail, not blur.\nConstraints: opaque sRGB/RGBA raster; exact fixed framing; no buildings, roofs, doors, walls, fences, actors, NPCs, enemies, pickups, labels, text, UI, icons, lanterns, posts, bridges, props, rocks that read as blockers, or any tall object. All actual interaction/transition/anchor/encounter/spawn pads and collision clearances are quiet, low, flat ground; broad corridor masks retain natural terrain with no duplicate baked visual or false blocker. No false walls, no blocked route, no tile seams, no repeated grid, no watermark.\nAvoid: perspective/isometric camera, hard rectangular biome bands, visual seam at either handoff, generator blur, repeated motifs, or object silhouettes.",
+				"promptSha256": "044b19e30a905e61284ce6538342cb4987e33669a32f464e9b28e4a67384da42",
+				"attempt": 1,
+				"result": "rejected-by-independent-review",
+				"initialResult": "accepted-in-task-3",
+				"rejected": true
+			},
+			"raw": {
+				"path": "artifacts/meadow-entry/painted-v2/source-panels/raw/village-crossroads-connector-attempt-1.png",
+				"sha256": "f5910250f2fccdf56d64220e5b93d7e32b3fe14b1ffd5682cfc63a7c258a75b2",
+				"bytes": 2500508,
+				"dimensions": {
+					"width": 1739,
+					"height": 904
+				}
+			},
+			"normalized": {
+				"path": "artifacts/meadow-entry/painted-v2/source-panels/village-crossroads-connector.png",
+				"sha256": "49a365a727c2ef47a9bb2509b73dab0474de455d136767e5fe79b376ffbb10e7",
+				"bytes": 858221,
+				"dimensions": {
+					"width": 800,
+					"height": 416
+				},
+				"colourspace": "sRGB",
+				"channels": 4
+			},
+			"normalizationTransform": {
+				"native": {
+					"width": 1739,
+					"height": 904
+				},
+				"scaledRaster": {
+					"width": 801,
+					"height": 416
+				},
+				"scaledCrop": {
+					"left": 0,
+					"top": 0,
+					"width": 800,
+					"height": 416
+				},
+				"output": {
+					"width": 800,
+					"height": 416
+				},
+				"scaleX": 0.46017699115044247,
+				"scaleY": 0.46017699115044247,
+				"scale": 0.46017699115044247,
+				"uniform": true,
+				"scaleExceedsTwoX": false,
+				"operation": "cover-scale-crop-to-fixed-panel"
+			},
+			"reviewEvidencePath": "docs/superpowers/reports/img/hpa-586-painted-v2-pilot/panel-review-connector-crossroads-handoff-rejected-attempt-1.png"
+		}
+	],
+	"seamMetrics": {
+		"sharedArea": {
+			"sundropActual": {
+				"meanLuma": 139.7635299813034,
+				"meanAdjacentLumaDelta": 4.075375033485132
+			},
+			"connectorAtSundrop": {
+				"meanLuma": 137.8189937232906,
+				"meanAdjacentLumaDelta": 5.010116695687115
+			},
+			"connectorAtCrossroads": {
+				"meanLuma": 145.20297580295139,
+				"meanAdjacentLumaDelta": 7.8606755249700795
+			},
+			"crossroadsActual": {
+				"meanLuma": 156.16277398003473,
+				"meanAdjacentLumaDelta": 6.025269285170276
+			}
+		},
+		"visiblePriorityEdges": {
+			"crossroadsBottom8MeanLuma": 136.13427734375,
+			"connectorBelow8MeanLuma": 122.502197265625,
+			"sundropWest8MeanLuma": 130.23888221153845,
+			"connectorEast8MeanLuma": 116.13461538461539
+		}
+	}
 }
