@@ -1,0 +1,39 @@
+{
+  "version": 1,
+  "proofId": "pilot-assembly-overlap-connector-crossroads",
+  "path": "artifacts/meadow-entry/painted-v2/proofs/pilot-assembly-overlap-connector-crossroads.png",
+  "sha256": "6dac28c7f182626638c0dad56b1b41c37ca9d967e77f976758cc666b71809f41",
+  "bytes": 652,
+  "width": 512,
+  "height": 288,
+  "masterBounds": {
+    "left": 2880,
+    "top": 4480,
+    "right": 3392,
+    "bottom": 4768
+  },
+  "inputs": [
+    {
+      "path": "artifacts/meadow-entry/painted-v2/exports/painted-v2-village-crossroads-connector-base.png",
+      "sha256": "754c2d4b93c6a44f8f21c0574586d53e387a58719d6492e3934c6df5b4d0e7b2"
+    },
+    {
+      "path": "artifacts/meadow-entry/painted-v2/exports/painted-v2-crossroads-base.png",
+      "sha256": "1534062581775261bfcfd8a26eb5de5a730adf658d9b6ef9abb65413bbe4ae34"
+    }
+  ],
+  "inputSha256": [
+    "754c2d4b93c6a44f8f21c0574586d53e387a58719d6492e3934c6df5b4d0e7b2",
+    "1534062581775261bfcfd8a26eb5de5a730adf658d9b6ef9abb65413bbe4ae34"
+  ],
+  "metrics": {
+    "planes": {
+      "base": {
+        "differingPixels": 0,
+        "maximumChannelDifference": 0
+      }
+    },
+    "ownerCropId": "painted-v2-crossroads",
+    "minimumSharedPixels": 128
+  }
+}

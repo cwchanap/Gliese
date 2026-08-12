@@ -1,0 +1,37 @@
+{
+  "version": 1,
+  "proofId": "pilot-assembly-base-coverage",
+  "path": "artifacts/meadow-entry/painted-v2/proofs/pilot-assembly-base-coverage.png",
+  "sha256": "3b2c0178f861001d4ea9e94a6c47b308a6db1bf0581b40197d4c74361271d838",
+  "bytes": 25497421,
+  "width": 4352,
+  "height": 3328,
+  "masterBounds": {
+    "left": 256,
+    "top": 2816,
+    "right": 4608,
+    "bottom": 6144
+  },
+  "inputs": [
+    {
+      "path": "artifacts/meadow-entry/painted-v2/masters/meadow-entry-painted-v2-pilot-base-master.png",
+      "sha256": "8f27680ad922ae4215476ae347b549c03143b120a94ed4064c64d96f6e2e5dbd"
+    },
+    {
+      "path": "artifacts/meadow-entry/painted-v2/controls/meadow-entry-crop-manifest.json",
+      "sha256": "dc21a27bc8eea55e7054d2c23dd339e5673b2e44fb0e0ed8c9423fd3a2c25d04"
+    }
+  ],
+  "inputSha256": [
+    "8f27680ad922ae4215476ae347b549c03143b120a94ed4064c64d96f6e2e5dbd",
+    "dc21a27bc8eea55e7054d2c23dd339e5673b2e44fb0e0ed8c9423fd3a2c25d04"
+  ],
+  "metrics": {
+    "cropIds": [
+      "painted-v2-sundrop-village",
+      "painted-v2-village-crossroads-connector",
+      "painted-v2-crossroads"
+    ],
+    "coverageMode": "partial"
+  }
+}

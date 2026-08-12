@@ -1,0 +1,32 @@
+{
+  "version": 1,
+  "proofId": "pilot-assembly-protected-live",
+  "path": "artifacts/meadow-entry/painted-v2/proofs/pilot-assembly-protected-live.png",
+  "sha256": "f8a40fa064d1939e8e81e8d323989e7eabd90e5f45b3418f4f3daf1fb7386d0a",
+  "bytes": 21488614,
+  "width": 6400,
+  "height": 6400,
+  "masterBounds": {
+    "left": 0,
+    "top": 0,
+    "right": 6400,
+    "bottom": 6400
+  },
+  "inputs": [
+    {
+      "path": "artifacts/meadow-entry/painted-v2/masters/meadow-entry-painted-v2-pilot-base-master.png",
+      "sha256": "8f27680ad922ae4215476ae347b549c03143b120a94ed4064c64d96f6e2e5dbd"
+    },
+    {
+      "path": "artifacts/meadow-entry/painted-v2/controls/meadow-entry-protected-live-mask.svg",
+      "sha256": "2ca64d6a06198b48472349ad8055e538498b4199a5c1dcecd77868ba1ec193e1"
+    }
+  ],
+  "inputSha256": [
+    "8f27680ad922ae4215476ae347b549c03143b120a94ed4064c64d96f6e2e5dbd",
+    "2ca64d6a06198b48472349ad8055e538498b4199a5c1dcecd77868ba1ec193e1"
+  ],
+  "metrics": {
+    "overlay": "protected-live-mask"
+  }
+}
