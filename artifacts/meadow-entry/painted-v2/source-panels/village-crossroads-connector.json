@@ -41,7 +41,7 @@
 		}
 	},
 	"normalized": {
-		"path": "artifacts/meadow-entry/painted-v2/source-panels/village-crossroads-connector.png at Task 3 commit 1ef5d87d69283550bc81f1221f214f184b55f890; superseded in the working tree by attempt 2",
+		"path": "artifacts/meadow-entry/painted-v2/source-panels/village-crossroads-connector.png",
 		"sha256": "6866f90802dfcd73d3828b41b237c8c1239ee130c9d8c8af3ac10d20c193e8b2",
 		"bytes": 888497,
 		"dimensions": {

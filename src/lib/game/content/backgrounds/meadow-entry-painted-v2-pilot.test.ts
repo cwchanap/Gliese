@@ -1,3 +1,6 @@
+import { existsSync, readFileSync } from 'node:fs';
+import { isAbsolute, normalize } from 'node:path';
+
 import { describe, expect, it } from 'vitest';
 
 import type { PixelBounds } from './meadow-entry-authoring-types';
@@ -50,6 +53,16 @@ function boundsOverlap(first: PixelBounds, second: PixelBounds): boolean {
 	return intersectBounds(first, second) !== null;
 }
 
+interface SourcePanelProvenanceRecord {
+	id: string;
+	raw: { path: string };
+	normalized: { path: string };
+}
+
+function readJson<T>(path: string): T {
+	return JSON.parse(readFileSync(path, 'utf8')) as T;
+}
+
 /**
  * Rectangles have integer edges, so testing every cell in the edge partition
  * proves coverage for every integer pixel without iterating millions of cells.
@@ -100,6 +113,35 @@ function everyPixelCoveredByPanel(crop: PixelBounds): boolean {
 }
 
 describe('painted-v2 pilot source-panel contract', () => {
+	it('keeps every active provenance source path exact, repo-relative, and usable', () => {
+		const packageProvenance = readJson<{
+			sourcePanels: { panels: SourcePanelProvenanceRecord[] };
+		}>('artifacts/meadow-entry/painted-v2/provenance.json');
+
+		for (const panel of MEADOW_ENTRY_PAINTED_V2_SOURCE_PANELS) {
+			const manifest = readJson<SourcePanelProvenanceRecord>(panel.provenancePath);
+			const packagePanel = packageProvenance.sourcePanels.panels.find(({ id }) => id === panel.id);
+			expect(packagePanel, `${panel.id} package provenance`).toBeDefined();
+
+			for (const [label, provenance] of [
+				['panel manifest', manifest],
+				['package provenance', packagePanel!]
+			] as const) {
+				expect(provenance.id, label).toBe(panel.id);
+				expect(provenance.raw.path, `${panel.id} ${label} raw path`).toBe(panel.rawPath);
+				expect(provenance.normalized.path, `${panel.id} ${label} normalized path`).toBe(
+					panel.normalizedPath
+				);
+
+				for (const path of [provenance.raw.path, provenance.normalized.path]) {
+					expect(isAbsolute(path), `${panel.id} ${label} ${path}`).toBe(false);
+					expect(normalize(path), `${panel.id} ${label} ${path}`).toBe(path);
+					expect(existsSync(path), `${panel.id} ${label} ${path}`).toBe(true);
+				}
+			}
+		}
+	});
+
 	it('locks the five native-detail rows and immutable package paths', () => {
 		expect(MEADOW_ENTRY_PAINTED_V2_SOURCE_PANELS).toEqual([
 			{
