@@ -22,6 +22,7 @@
 		"world:generate:meadow-entry-runtime": "bun tools/generate-meadow-entry-runtime.ts",
 		"art:validate:meadow-entry-controls": "bun run art:storage:meadow-entry && bun tools/export-meadow-entry-art-controls.ts --check && bun tools/run-meadow-entry-controls-tests.ts",
 		"art:storage:meadow-entry": "bun tools/verify-meadow-entry-art-storage.ts",
+		"world:generate:meadow-entry-painted-v2-runtime": "bun tools/generate-meadow-entry-runtime.ts",
 		"prepare": "playwright install || echo '' && husky",
 		"check": "svelte-check --tsconfig ./tsconfig.json",
 		"check:watch": "svelte-check --tsconfig ./tsconfig.json --watch",

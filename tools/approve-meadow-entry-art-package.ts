@@ -8,6 +8,10 @@ import { format } from 'prettier';
 import { meadowEntryControlsApproval } from '$lib/game/content/approvals/meadow-entry-controls';
 import { meadowEntryControlsApproval as meadowEntryPaintedV2ControlsApproval } from '$lib/game/content/approvals/meadow-entry-painted-v2-controls';
 import {
+	MEADOW_ENTRY_PAINTED_V2_PILOT_MASTER_PATH,
+	MEADOW_ENTRY_PAINTED_V2_SOURCE_PANELS
+} from '$lib/game/content/backgrounds/meadow-entry-painted-v2-pilot';
+import {
 	MEADOW_ENTRY_APPROVED_CROPS,
 	MEADOW_ENTRY_APPROVED_OVERLAPS,
 	MEADOW_ENTRY_RUNTIME_COVERAGE
@@ -63,9 +67,12 @@ const PAINTED_V2_PACKAGE_ROOT = 'artifacts/meadow-entry/painted-v2';
 const PAINTED_V2_MASTER_ROOT = `${PAINTED_V2_PACKAGE_ROOT}/masters`;
 const PAINTED_V2_PROVENANCE_ROOT = `${PAINTED_V2_PACKAGE_ROOT}/provenance`;
 const PAINTED_V2_EXPORT_ROOT = `${PAINTED_V2_PACKAGE_ROOT}/exports`;
-const PAINTED_V2_BASE_MASTER = `${PAINTED_V2_MASTER_ROOT}/meadow-entry-painted-v2-pilot-base-master.png`;
+const PAINTED_V2_BASE_MASTER = MEADOW_ENTRY_PAINTED_V2_PILOT_MASTER_PATH;
 const PAINTED_V2_FOREGROUND_MASTER = `${PAINTED_V2_MASTER_ROOT}/meadow-entry-painted-v2-pilot-foreground-master.png`;
 const PAINTED_V2_MASTER_PROVENANCE = `${PAINTED_V2_PROVENANCE_ROOT}/meadow-entry-master-provenance.json`;
+const PAINTED_V2_PACKAGE_PROVENANCE = `${PAINTED_V2_PACKAGE_ROOT}/provenance.json`;
+const PAINTED_V2_CONCEPT = `${PAINTED_V2_PACKAGE_ROOT}/concept/meadow-entry-painted-v2-concept.png`;
+const PAINTED_V2_CONCEPT_PROVENANCE = `${PAINTED_V2_PACKAGE_ROOT}/concept/meadow-entry-painted-v2-concept-provenance.json`;
 const FULL_PROOF_INPUTS: Readonly<Record<string, readonly string[]>> = {
 	'full/base-master': [BASE_MASTER],
 	'full/foreground-checkerboard': [FOREGROUND_MASTER],
@@ -662,6 +669,19 @@ export interface MeadowEntryPaintedV2ArtPackageApproval {
 	combinedControlFingerprint: string;
 	storageMode: 'git-lfs';
 	storageConfigurationSha256: string;
+	provenanceSha256: string;
+	concept: ApprovedPngArtifact & {
+		provenancePath: string;
+		provenanceSha256: string;
+	};
+	sourcePanels: readonly (ApprovedPngArtifact & {
+		id: string;
+		raw: ApprovedPngArtifact;
+		provenancePath: string;
+		provenanceSha256: string;
+		assemblyPriority: number;
+		bounds: { left: number; top: number; right: number; bottom: number };
+	})[];
 	baseMaster: ApprovedPngArtifact;
 	foregroundMaster: ApprovedPngArtifact | null;
 	cropManifestSha256: string;
@@ -757,7 +777,171 @@ async function inspectPaintedV2Artifact(
 	return artifact;
 }
 
-async function buildPaintedV2Approval(repositoryRoot: string): Promise<{
+async function inspectPaintedV2SourceArtifact(
+	path: string,
+	bytes: Buffer
+): Promise<ApprovedPngArtifact> {
+	const decoded = await decodeMeadowEntryRgba(bytes);
+	return {
+		path,
+		sha256: sha256(bytes),
+		bytes: bytes.byteLength,
+		width: decoded.width,
+		height: decoded.height
+	};
+}
+
+function parseObject(value: Buffer, label: string): Record<string, unknown> {
+	let parsed: unknown;
+	try {
+		parsed = JSON.parse(value.toString('utf8')) as unknown;
+	} catch (error) {
+		throw new Error(`Painted-v2 ${label} is not valid JSON`, { cause: error });
+	}
+	assert(
+		parsed !== null && typeof parsed === 'object' && !Array.isArray(parsed),
+		`Painted-v2 ${label} must be an object`
+	);
+	return parsed as Record<string, unknown>;
+}
+
+function dimensionsEqual(
+	value: unknown,
+	expected: { width: number; height: number },
+	label: string
+): void {
+	assert(
+		value !== null && typeof value === 'object' && !Array.isArray(value),
+		`Painted-v2 ${label} dimensions are malformed`
+	);
+	const dimensions = value as Record<string, unknown>;
+	assert(
+		dimensions.width === expected.width && dimensions.height === expected.height,
+		`Painted-v2 ${label} dimensions drifted`
+	);
+}
+
+async function buildPaintedV2SourceInventory(repositoryRoot: string): Promise<{
+	concept: MeadowEntryPaintedV2ArtPackageApproval['concept'];
+	sourcePanels: MeadowEntryPaintedV2ArtPackageApproval['sourcePanels'];
+	provenanceSha256: string;
+}> {
+	const root = resolve(repositoryRoot);
+	const packageProvenanceBytes = await readFile(join(root, PAINTED_V2_PACKAGE_PROVENANCE));
+	const packageProvenance = parseObject(packageProvenanceBytes, 'package provenance');
+	const conceptPath = PAINTED_V2_CONCEPT;
+	const conceptProvenancePath = PAINTED_V2_CONCEPT_PROVENANCE;
+	const [conceptBytes, conceptProvenanceBytes] = await Promise.all([
+		readFile(join(root, conceptPath)),
+		readFile(join(root, conceptProvenancePath))
+	]);
+	const concept = await inspectPaintedV2Artifact(root, conceptPath, conceptBytes);
+	const conceptProvenance = parseObject(conceptProvenanceBytes, 'concept provenance');
+	const normalizedCandidate = conceptProvenance.normalizedCandidate as
+		| Record<string, unknown>
+		| undefined;
+	assert(
+		normalizedCandidate !== undefined,
+		'Painted-v2 concept provenance has no normalized candidate'
+	);
+	assert(
+		normalizedCandidate.path === conceptPath &&
+			normalizedCandidate.sha256 === concept.sha256 &&
+			normalizedCandidate.bytes === concept.bytes,
+		'Painted-v2 concept provenance does not bind the approved concept'
+	);
+	dimensionsEqual(normalizedCandidate, concept, 'concept');
+	const conceptApproval = {
+		...concept,
+		provenancePath: conceptProvenancePath,
+		provenanceSha256: sha256(conceptProvenanceBytes)
+	};
+
+	const sourcePanels = await Promise.all(
+		MEADOW_ENTRY_PAINTED_V2_SOURCE_PANELS.map(async (panel) => {
+			const [normalizedBytes, rawBytes, provenanceBytes] = await Promise.all([
+				readFile(join(root, panel.normalizedPath)),
+				readFile(join(root, panel.rawPath)),
+				readFile(join(root, panel.provenancePath))
+			]);
+			const normalized = await inspectPaintedV2Artifact(
+				root,
+				panel.normalizedPath,
+				normalizedBytes
+			);
+			const raw = await inspectPaintedV2SourceArtifact(panel.rawPath, rawBytes);
+			const provenance = parseObject(provenanceBytes, `source panel ${panel.id} provenance`);
+			const normalizedRecord = provenance.normalized as Record<string, unknown> | undefined;
+			const rawRecord = provenance.raw as Record<string, unknown> | undefined;
+			assert(provenance.id === panel.id, `Painted-v2 source panel id drifted: ${panel.id}`);
+			assert(
+				provenance.assemblyPriority === panel.assemblyPriority,
+				`Painted-v2 source panel priority drifted: ${panel.id}`
+			);
+			assert(
+				jsonEqual(provenance.bounds, panel.bounds) &&
+					jsonEqual(provenance.expectedDimensions, panel.expectedDimensions),
+				`Painted-v2 source panel geometry drifted: ${panel.id}`
+			);
+			assert(
+				normalizedRecord !== undefined && rawRecord !== undefined,
+				`Painted-v2 source panel provenance is incomplete: ${panel.id}`
+			);
+			assert(
+				normalizedRecord.path === panel.normalizedPath &&
+					normalizedRecord.sha256 === normalized.sha256 &&
+					normalizedRecord.bytes === normalized.bytes,
+				`Painted-v2 normalized source panel provenance does not bind ${panel.id}`
+			);
+			dimensionsEqual(normalizedRecord.dimensions, normalized, `source panel ${panel.id}`);
+			assert(
+				rawRecord.path === panel.rawPath &&
+					rawRecord.sha256 === raw.sha256 &&
+					rawRecord.bytes === raw.bytes,
+				`Painted-v2 raw source panel provenance does not bind ${panel.id}`
+			);
+			dimensionsEqual(rawRecord.dimensions, raw, `raw source panel ${panel.id}`);
+			return {
+				...normalized,
+				id: panel.id,
+				raw,
+				provenancePath: panel.provenancePath,
+				provenanceSha256: sha256(provenanceBytes),
+				assemblyPriority: panel.assemblyPriority,
+				bounds: panel.bounds
+			};
+		})
+	);
+
+	const requiredInventory = [
+		conceptPath,
+		conceptProvenancePath,
+		PAINTED_V2_PACKAGE_PROVENANCE,
+		...MEADOW_ENTRY_PAINTED_V2_SOURCE_PANELS.flatMap(
+			({ rawPath, normalizedPath, provenancePath }) => [rawPath, normalizedPath, provenancePath]
+		)
+	];
+	const inventory = packageProvenance.inventory;
+	assert(Array.isArray(inventory), 'Painted-v2 package provenance inventory is missing');
+	for (const path of requiredInventory) {
+		assert(inventory.includes(path), `Painted-v2 package provenance inventory is missing ${path}`);
+	}
+	assert(
+		packageProvenance.controlFingerprint ===
+			meadowEntryPaintedV2ControlsApproval.combinedControlFingerprint,
+		'Painted-v2 package provenance control fingerprint is stale'
+	);
+	return {
+		concept: conceptApproval,
+		sourcePanels,
+		provenanceSha256: sha256(packageProvenanceBytes)
+	};
+}
+
+async function buildPaintedV2Approval(
+	repositoryRoot: string,
+	review: ReviewArguments
+): Promise<{
 	approval: MeadowEntryPaintedV2ArtPackageApproval;
 	module: string;
 }> {
@@ -782,6 +966,7 @@ async function buildPaintedV2Approval(repositoryRoot: string): Promise<{
 	);
 	await checkMeadowEntryPaintedV2Proofs(root);
 	const proofPackage = await buildPaintedV2ProofPackage(root);
+	const sourceInventory = await buildPaintedV2SourceInventory(root);
 	const cropManifest = JSON.parse(exportSnapshot.cropManifestJson.toString('utf8')) as Record<
 		string,
 		unknown
@@ -824,6 +1009,9 @@ async function buildPaintedV2Approval(repositoryRoot: string): Promise<{
 		combinedControlFingerprint: meadowEntryPaintedV2ControlsApproval.combinedControlFingerprint,
 		storageMode: 'git-lfs',
 		storageConfigurationSha256: sha256(storageConfiguration),
+		provenanceSha256: sourceInventory.provenanceSha256,
+		concept: sourceInventory.concept,
+		sourcePanels: sourceInventory.sourcePanels,
 		baseMaster,
 		foregroundMaster,
 		cropManifestSha256: sha256(exportSnapshot.cropManifestJson),
@@ -834,7 +1022,11 @@ async function buildPaintedV2Approval(repositoryRoot: string): Promise<{
 		evidencePath: meadowEntryPaintedV2ControlsApproval.evidencePath
 	};
 	const module = await format(
-		`/** Generated by tools/approve-meadow-entry-art-package.ts for painted-v2. */\nexport const meadowEntryPaintedV2ArtPackageApproval = ${JSON.stringify(approval)} as const;\n`,
+		`/** Generated by tools/approve-meadow-entry-art-package.ts for painted-v2. */
+export const meadowEntryPaintedV2ArtPackageApprovalReview = ${JSON.stringify(review)} as const;
+
+export const meadowEntryPaintedV2ArtPackageApproval = ${JSON.stringify(approval)} as const;
+`,
 		{
 			parser: 'typescript',
 			useTabs: true,
@@ -844,6 +1036,34 @@ async function buildPaintedV2Approval(repositoryRoot: string): Promise<{
 		}
 	);
 	return { approval, module };
+}
+
+async function readPaintedV2ApprovalReview(repositoryRoot: string): Promise<ReviewArguments> {
+	const target = join(resolve(repositoryRoot), MEADOW_ENTRY_PAINTED_V2_APPROVAL_PATH);
+	let source: string;
+	try {
+		source = await readFile(target, 'utf8');
+	} catch (error) {
+		if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
+			throw new Error(
+				`Meadow Entry painted-v2 approval is missing: ${MEADOW_ENTRY_PAINTED_V2_APPROVAL_PATH}`,
+				{ cause: error }
+			);
+		}
+		throw error;
+	}
+	const reviewMatch = source.match(
+		/export const meadowEntryPaintedV2ArtPackageApprovalReview\s*=\s*\{([\s\S]*?)\}\s+as const;/
+	);
+	if (!reviewMatch) {
+		throw new Error('Meadow Entry painted-v2 approval review metadata is missing');
+	}
+	const reviewedBy = reviewMatch[1]!.match(/reviewedBy:\s*'([^']+)'/)?.[1];
+	const reviewedAt = reviewMatch[1]!.match(/reviewedAt:\s*'([^']+)'/)?.[1];
+	if (!reviewedBy || !reviewedAt) {
+		throw new Error('Meadow Entry painted-v2 approval review metadata is malformed');
+	}
+	return parseReviewArguments(['--reviewed-by', reviewedBy, '--reviewed-at', reviewedAt]);
 }
 
 export async function checkMeadowEntryPaintedV2Approval(
@@ -893,7 +1113,14 @@ export async function approveMeadowEntryArtPackage(
 	} = {}
 ): Promise<MeadowEntryPaintedV2ArtPackageApproval> {
 	const parsed = parseMeadowEntryArtPackageArguments(args);
-	const built = options.built ?? (await buildPaintedV2Approval(repositoryRoot));
+	const built =
+		options.built ??
+		(await buildPaintedV2Approval(
+			repositoryRoot,
+			parsed.check
+				? await readPaintedV2ApprovalReview(repositoryRoot)
+				: { reviewedBy: parsed.reviewedBy!, reviewedAt: parsed.reviewedAt! }
+		));
 	if (parsed.check) {
 		await checkMeadowEntryPaintedV2Approval(repositoryRoot, built.module, {
 			fileSystem: options.fileSystem

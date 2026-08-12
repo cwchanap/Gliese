@@ -7,7 +7,8 @@ const mockData = vi.hoisted(() => ({
 }));
 
 vi.mock('$lib/game/content/backgrounds/meadow-entry-bake-ownership', () => ({
-	MEADOW_ENTRY_BAKE_OWNERSHIP: mockData.bakeOwnership
+	MEADOW_ENTRY_BAKE_OWNERSHIP: mockData.bakeOwnership,
+	MEADOW_ENTRY_PAINTED_V2_BAKE_OWNERSHIP: []
 }));
 
 vi.mock('$lib/game/content/backgrounds/meadow-entry-source-catalog', () => ({
@@ -21,6 +22,21 @@ vi.mock('$lib/game/content/backgrounds/sundrop-village-obstacle-ownership', () =
 }));
 
 import { collectMeadowEntryRuntimeData } from '../../../../../tools/generate-meadow-entry-runtime';
+import { MEADOW_ENTRY_PAINTED_V2_PILOT_CROPS } from './meadow-entry-painted-v2-crop-manifest';
+
+function input(): {
+	crops: typeof MEADOW_ENTRY_PAINTED_V2_PILOT_CROPS;
+	bakeOwnership: readonly never[];
+	approvedExports: readonly never[];
+	runtimeRoot: string;
+} {
+	return {
+		crops: MEADOW_ENTRY_PAINTED_V2_PILOT_CROPS,
+		bakeOwnership: mockData.bakeOwnership as never,
+		approvedExports: [],
+		runtimeRoot: 'public/game/assets/regions/meadow-entry-painted-v2'
+	};
+}
 
 function makeSourceCatalogEntry(
 	sourceType: string,
@@ -65,7 +81,7 @@ describe('collectMeadowEntryRuntimeData error guards', () => {
 			})
 		);
 
-		expect(() => collectMeadowEntryRuntimeData()).toThrow(
+		expect(() => collectMeadowEntryRuntimeData(input())).toThrow(
 			/Unsupported runtime ownership disposition/
 		);
 	});
@@ -80,7 +96,9 @@ describe('collectMeadowEntryRuntimeData error guards', () => {
 		mockData.sundropObstacleOwnership.length = 0;
 		mockData.sourceCatalog.length = 0;
 
-		expect(() => collectMeadowEntryRuntimeData()).toThrow(/Unsupported runtime ownership source/);
+		expect(() => collectMeadowEntryRuntimeData(input())).toThrow(
+			/Unsupported runtime ownership source/
+		);
 	});
 
 	it('throws when a runtime owner source has null bounds', () => {
@@ -90,7 +108,7 @@ describe('collectMeadowEntryRuntimeData error guards', () => {
 		mockData.sourceCatalog.length = 0;
 		mockData.sourceCatalog.push(makeSourceCatalogEntry('blocker', 'test-entry', null));
 
-		expect(() => collectMeadowEntryRuntimeData()).toThrow(
+		expect(() => collectMeadowEntryRuntimeData(input())).toThrow(
 			/Missing bounds for Meadow Entry runtime owner/
 		);
 	});
@@ -101,7 +119,7 @@ describe('collectMeadowEntryRuntimeData error guards', () => {
 		mockData.sundropObstacleOwnership.length = 0;
 		mockData.sourceCatalog.length = 0;
 
-		expect(() => collectMeadowEntryRuntimeData()).toThrow(
+		expect(() => collectMeadowEntryRuntimeData(input())).toThrow(
 			/Missing bounds for Meadow Entry runtime owner/
 		);
 	});
@@ -128,6 +146,8 @@ describe('collectMeadowEntryRuntimeData error guards', () => {
 			})
 		);
 
-		expect(() => collectMeadowEntryRuntimeData()).toThrow(/No complete Meadow Entry owner crop/);
+		expect(() => collectMeadowEntryRuntimeData(input())).toThrow(
+			/No complete Meadow Entry owner crop/
+		);
 	});
 });

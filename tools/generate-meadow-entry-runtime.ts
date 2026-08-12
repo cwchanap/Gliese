@@ -2,7 +2,6 @@ import { randomUUID } from 'node:crypto';
 import { existsSync, mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 
-import { meadowEntryArtPackageApproval } from '$lib/game/content/approvals/meadow-entry-art-package';
 import {
 	clampBoundsToWorld,
 	containsBounds,
@@ -14,19 +13,21 @@ import type {
 	RawPixelBounds
 } from '$lib/game/content/backgrounds/meadow-entry-authoring-types';
 import {
-	MEADOW_ENTRY_BAKE_OWNERSHIP,
+	MEADOW_ENTRY_PAINTED_V2_BAKE_OWNERSHIP,
 	type MeadowEntryBakeOwnershipEntry
 } from '$lib/game/content/backgrounds/meadow-entry-bake-ownership';
-import {
-	MEADOW_ENTRY_APPROVED_CROPS,
-	type MeadowEntryApprovedCrop
-} from '$lib/game/content/backgrounds/meadow-entry-crop-manifest';
+import { MEADOW_ENTRY_PAINTED_V2_PILOT_CROPS } from '$lib/game/content/backgrounds/meadow-entry-painted-v2-crop-manifest';
+import type { MeadowEntryApprovedCrop } from '$lib/game/content/backgrounds/meadow-entry-crop-manifest';
 import {
 	collectMeadowEntrySourceCatalog,
 	meadowEntrySourceKey
 } from '$lib/game/content/backgrounds/meadow-entry-source-catalog';
-import { SUNDROP_VILLAGE_OBSTACLE_OWNERSHIP } from '$lib/game/content/backgrounds/sundrop-village-obstacle-ownership';
-import type { MapBackgroundImage, MapVisualOwnerCrop } from '$lib/game/content/maps/types';
+import { meadowEntryPaintedV2ArtPackageApproval } from '$lib/game/content/approvals/meadow-entry-painted-v2-art-package';
+import type {
+	MapBackgroundImage,
+	MapBackgroundPlane,
+	MapVisualOwnerCrop
+} from '$lib/game/content/maps/types';
 
 export interface MeadowEntryRuntimeBackground extends MapBackgroundImage {
 	readonly cropId: string;
@@ -44,15 +45,54 @@ export interface MeadowEntryRuntimeData {
 	readonly visualOwners: readonly MeadowEntryRuntimeVisualOwner[];
 }
 
+export interface MeadowEntryRuntimeGenerationInput {
+	readonly crops: readonly MeadowEntryApprovedCrop[];
+	readonly bakeOwnership: readonly MeadowEntryBakeOwnershipEntry[];
+	readonly approvedExports: readonly {
+		readonly cropId: string;
+		readonly path: string;
+		readonly width: number;
+		readonly height: number;
+		readonly plane: MapBackgroundPlane;
+		readonly textureKey: string;
+		readonly drawOrder: number;
+	}[];
+	readonly runtimeRoot: string;
+}
+
+function asApprovedExports(
+	approval: typeof meadowEntryPaintedV2ArtPackageApproval
+): MeadowEntryRuntimeGenerationInput['approvedExports'] {
+	return approval.exports.map((approved) => {
+		const textureKey = approved.textureKey as string | null;
+		if (textureKey === null) {
+			throw new Error(`Painted-v2 runtime export has no texture key: ${approved.cropId}`);
+		}
+		return {
+			cropId: approved.cropId,
+			path: approved.path,
+			width: approved.width,
+			height: approved.height,
+			plane: approved.plane,
+			textureKey,
+			drawOrder: approved.drawOrder
+		};
+	});
+}
+
+export const MEADOW_ENTRY_PAINTED_V2_RUNTIME_GENERATION_INPUT: MeadowEntryRuntimeGenerationInput =
+	Object.freeze({
+		crops: MEADOW_ENTRY_PAINTED_V2_PILOT_CROPS,
+		bakeOwnership: MEADOW_ENTRY_PAINTED_V2_BAKE_OWNERSHIP,
+		approvedExports: Object.freeze(asApprovedExports(meadowEntryPaintedV2ArtPackageApproval)),
+		runtimeRoot: 'public/game/assets/regions/meadow-entry-painted-v2'
+	});
+
 const RUNTIME_REQUIREMENTS = new Set([
 	'existing-blocker-fallback',
 	'extend-decor-fallback',
 	'extend-fence-fallback'
 ]);
-
-const SUNDROP_BLOCKER_IDS = new Set(
-	SUNDROP_VILLAGE_OBSTACLE_OWNERSHIP.map(({ blockerId }) => blockerId)
-);
 
 function compareStrings(left: string, right: string): number {
 	return left < right ? -1 : left > right ? 1 : 0;
@@ -107,13 +147,14 @@ function requireCompleteCrops(
 
 function collectOwnerCrops(
 	entry: MeadowEntryBakeOwnershipEntry,
-	bounds: RawPixelBounds
+	bounds: RawPixelBounds,
+	crops: readonly MeadowEntryApprovedCrop[]
 ): readonly MapVisualOwnerCrop[] {
 	if (entry.disposition.mode === 'base-static') {
 		const baseRequiredBounds = expandRequiredBounds(bounds, entry.disposition.margins);
 		return requireCompleteCrops(
 			entry,
-			MEADOW_ENTRY_APPROVED_CROPS.filter((crop) => containsBounds(crop.bounds, baseRequiredBounds))
+			crops.filter((crop) => containsBounds(crop.bounds, baseRequiredBounds))
 		).map((crop) => ({
 			cropId: crop.id,
 			requiredBackgroundIds: [`${crop.textureKeys.base}-image`]
@@ -128,7 +169,7 @@ function collectOwnerCrops(
 		);
 		return requireCompleteCrops(
 			entry,
-			MEADOW_ENTRY_APPROVED_CROPS.filter(
+			crops.filter(
 				(crop) =>
 					crop.textureKeys.foreground !== null &&
 					containsBounds(crop.bounds, baseRequiredBounds) &&
@@ -149,9 +190,24 @@ function collectOwnerCrops(
 	throw new Error(`Unsupported runtime ownership disposition for ${sourceLabel(entry)}`);
 }
 
-function collectRuntimeBackgrounds(): readonly MeadowEntryRuntimeBackground[] {
-	const cropsById = new Map(MEADOW_ENTRY_APPROVED_CROPS.map((crop) => [crop.id, crop]));
-	return meadowEntryArtPackageApproval.exports
+function runtimeAssetPath(runtimeRoot: string, filename: string): string {
+	const normalizedRoot = runtimeRoot.replaceAll('\\', '/').replace(/\/+$/, '');
+	if (normalizedRoot.length === 0 || normalizedRoot.split('/').includes('..')) {
+		throw new Error(`Invalid Meadow Entry runtime root: ${runtimeRoot}`);
+	}
+	const browserRoot = normalizedRoot.startsWith('public/')
+		? normalizedRoot.slice('public'.length)
+		: normalizedRoot.startsWith('/')
+			? normalizedRoot
+			: `/${normalizedRoot}`;
+	return `${browserRoot}/${filename}`;
+}
+
+function collectRuntimeBackgrounds(
+	input: MeadowEntryRuntimeGenerationInput
+): readonly MeadowEntryRuntimeBackground[] {
+	const cropsById = new Map(input.crops.map((crop) => [crop.id, crop]));
+	return input.approvedExports
 		.map((approved) => {
 			const crop = cropsById.get(approved.cropId);
 			if (!crop) throw new Error(`Approved export references unknown crop ${approved.cropId}`);
@@ -161,7 +217,7 @@ function collectRuntimeBackgrounds(): readonly MeadowEntryRuntimeBackground[] {
 				cropId: approved.cropId,
 				id: `${approved.textureKey}-image`,
 				textureKey: approved.textureKey,
-				path: `/game/assets/regions/meadow-entry/${filename}`,
+				path: runtimeAssetPath(input.runtimeRoot, filename),
 				x: (crop.bounds.left + crop.bounds.right) / 2,
 				y: (crop.bounds.top + crop.bounds.bottom) / 2,
 				width: approved.width,
@@ -173,15 +229,15 @@ function collectRuntimeBackgrounds(): readonly MeadowEntryRuntimeBackground[] {
 		.sort(compareBackgrounds);
 }
 
-function collectRuntimeVisualOwners(): readonly MeadowEntryRuntimeVisualOwner[] {
+function collectRuntimeVisualOwners(
+	input: MeadowEntryRuntimeGenerationInput
+): readonly MeadowEntryRuntimeVisualOwner[] {
 	const sourcesByKey = new Map(
 		collectMeadowEntrySourceCatalog().map((source) => [meadowEntrySourceKey(source.ref), source])
 	);
 
-	return MEADOW_ENTRY_BAKE_OWNERSHIP.filter(({ runtimeRequirement }) =>
-		RUNTIME_REQUIREMENTS.has(runtimeRequirement)
-	)
-		.filter(({ ref }) => ref.sourceType !== 'blocker' || !SUNDROP_BLOCKER_IDS.has(ref.sourceId))
+	return input.bakeOwnership
+		.filter(({ runtimeRequirement }) => RUNTIME_REQUIREMENTS.has(runtimeRequirement))
 		.map((entry) => {
 			const { sourceType, sourceId } = entry.ref;
 			if (sourceType !== 'blocker' && sourceType !== 'decor' && sourceType !== 'fence') {
@@ -194,16 +250,18 @@ function collectRuntimeVisualOwners(): readonly MeadowEntryRuntimeVisualOwner[] 
 			return {
 				sourceType,
 				sourceId,
-				ownerCrops: collectOwnerCrops(entry, source.bounds)
+				ownerCrops: collectOwnerCrops(entry, source.bounds, input.crops)
 			};
 		})
 		.sort(compareVisualOwners);
 }
 
-export function collectMeadowEntryRuntimeData(): MeadowEntryRuntimeData {
+export function collectMeadowEntryRuntimeData(
+	input: MeadowEntryRuntimeGenerationInput
+): MeadowEntryRuntimeData {
 	return {
-		backgrounds: collectRuntimeBackgrounds(),
-		visualOwners: collectRuntimeVisualOwners()
+		backgrounds: collectRuntimeBackgrounds(input),
+		visualOwners: collectRuntimeVisualOwners(input)
 	};
 }
 
@@ -293,11 +351,11 @@ export function renderMeadowEntryRuntimeData(data: MeadowEntryRuntimeData): stri
 		'\treadonly ownerCrops: readonly MapVisualOwnerCrop[];',
 		'}',
 		'',
-		'export const MEADOW_ENTRY_APPROVED_RUNTIME_BACKGROUNDS = [',
+		'export const MEADOW_ENTRY_PAINTED_V2_APPROVED_RUNTIME_BACKGROUNDS = [',
 		data.backgrounds.map(renderBackground).join(',\n'),
 		'] as const satisfies readonly GeneratedMeadowEntryBackground[];',
 		'',
-		'export const MEADOW_ENTRY_RUNTIME_VISUAL_OWNERS = [',
+		'export const MEADOW_ENTRY_PAINTED_V2_RUNTIME_VISUAL_OWNERS = [',
 		data.visualOwners.map(renderVisualOwner).join(',\n'),
 		'] as const satisfies readonly GeneratedMeadowEntryVisualOwner[];',
 		''
@@ -342,9 +400,11 @@ export function runMeadowEntryRuntimeGenerator(
 	const check = parseCheckMode(args);
 	const destination = resolve(
 		repositoryRoot,
-		'src/lib/game/content/generated/meadow-entry-runtime.ts'
+		'src/lib/game/content/backgrounds/meadow-entry-painted-v2.generated.ts'
 	);
-	const source = renderMeadowEntryRuntimeData(collectMeadowEntryRuntimeData());
+	const source = renderMeadowEntryRuntimeData(
+		collectMeadowEntryRuntimeData(MEADOW_ENTRY_PAINTED_V2_RUNTIME_GENERATION_INPUT)
+	);
 	syncGeneratedMeadowEntryRuntimeData(source, destination, check);
 	console.log(check ? 'meadow-entry runtime data is current' : 'wrote meadow-entry runtime data');
 }
