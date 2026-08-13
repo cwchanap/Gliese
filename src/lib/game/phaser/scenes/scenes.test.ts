@@ -3758,8 +3758,8 @@ describe('WorldScene', () => {
 	);
 
 	it.each([
-		['Sundrop crop succeeds', ['meadow-entry-painted-v2-sundrop-camera-base'], 0],
-		['Crossroads crop succeeds', ['meadow-entry-painted-v2-crossroads-camera-base'], 0],
+		['Crossroads crop succeeds', ['meadow-entry-painted-v2-sundrop-camera-base'], 0],
+		['Sundrop crop succeeds', ['meadow-entry-painted-v2-crossroads-camera-base'], 0],
 		[
 			'both overlap crops fail',
 			[
