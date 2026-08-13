@@ -682,10 +682,11 @@ function validateCropMetadata(crop: MeadowEntryApprovedCrop): void {
 	) {
 		throw new Error(`Crop "${crop.id}" dimensions do not match bounds`);
 	}
-	if (
-		crop.baseFilename !== `${crop.id}-base.png` ||
-		crop.textureKeys.base !== `meadow-entry-${crop.id}-base`
-	) {
+	const baseStem = crop.id.endsWith('-base') ? crop.id : `${crop.id}-base`;
+	const expectedBaseTextureKey = crop.id.endsWith('-base')
+		? `meadow-entry-${crop.id}`
+		: `meadow-entry-${crop.id}-base`;
+	if (crop.baseFilename !== `${baseStem}.png` || crop.textureKeys.base !== expectedBaseTextureKey) {
 		throw new Error(`Crop "${crop.id}" base identity has drifted`);
 	}
 	const baseOnly = crop.alphaPolicy.foreground === null;

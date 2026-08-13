@@ -1,6 +1,4 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 6400 6400" width="6400" height="6400">
-  <rect data-id="painted-v2-overlap-sundrop-connector" x="2592" y="4480" width="288" height="416" fill="#ffcc33" opacity="0.35"/>
-  <rect data-id="painted-v2-overlap-sundrop-connector:route-mouth" x="2816" y="4608" width="64" height="160" fill="#ff6600" opacity="0.8"/>
-  <rect data-id="painted-v2-overlap-connector-crossroads" x="2880" y="4480" width="512" height="288" fill="#ffcc33" opacity="0.35"/>
-  <rect data-id="painted-v2-overlap-connector-crossroads:route-mouth" x="2880" y="4608" width="384" height="160" fill="#ff6600" opacity="0.8"/>
+  <rect data-id="painted-v2-overlap-camera-bases" x="2368" y="3200" width="832" height="2240" fill="#ffcc33" opacity="0.35"/>
+  <rect data-id="painted-v2-overlap-camera-bases:route-mouth" x="3072" y="4608" width="128" height="160" fill="#ff6600" opacity="0.8"/>
 </svg>

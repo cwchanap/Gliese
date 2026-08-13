@@ -22,7 +22,8 @@ import {
 import { parseCheckedInMeadowEntryControlsApproval } from '../../../../../tools/approve-meadow-entry-controls';
 
 const SHA256 = /^[0-9a-f]{64}$/;
-const EVIDENCE_PATH = 'docs/superpowers/reports/2026-08-11-painted-v2-controls.md' as const;
+const EVIDENCE_PATH =
+	'docs/superpowers/reports/2026-08-12-meadow-entry-painted-camera-safe-controls.md' as const;
 
 describe('painted-v2 meadow-entry controls approval', () => {
 	it('binds active controls to the painted-v2 storage, crop, coverage, and ownership seals', () => {

@@ -1,180 +1,119 @@
 {
   "crops": [
     {
-      "id": "painted-v2-sundrop-village",
+      "id": "painted-v2-sundrop-camera-base",
       "derivation": {
         "mode": "exact-bounds"
       },
       "reviewBounds": {
-        "left": 256,
-        "top": 3968,
-        "right": 2880,
-        "bottom": 6144
+        "left": 0,
+        "top": 3200,
+        "right": 3200,
+        "bottom": 6400
       },
       "coverageAttachments": [],
       "preClampBounds": {
-        "left": 256,
-        "top": 3968,
-        "right": 2880,
-        "bottom": 6144
+        "left": 0,
+        "top": 3200,
+        "right": 3200,
+        "bottom": 6400
       },
       "edgeClamp": null,
       "bounds": {
-        "left": 256,
-        "top": 3968,
-        "right": 2880,
-        "bottom": 6144
+        "left": 0,
+        "top": 3200,
+        "right": 3200,
+        "bottom": 6400
       },
       "expectedDimensions": {
-        "width": 2624,
-        "height": 2176
+        "width": 3200,
+        "height": 3200
       },
-      "baseFilename": "painted-v2-sundrop-village-base.png",
+      "baseFilename": "painted-v2-sundrop-camera-base.png",
       "foregroundFilename": null,
       "textureKeys": {
-        "base": "meadow-entry-painted-v2-sundrop-village-base",
+        "base": "meadow-entry-painted-v2-sundrop-camera-base",
         "foreground": null
       },
       "drawOrder": 0,
       "sourceRegionIds": [
         "connector-village-crossroads",
-        "sundrop-village",
-        "wildwood"
+        "sundrop-village"
       ],
       "neighborIds": [
-        "painted-v2-village-crossroads-connector"
+        "painted-v2-crossroads-camera-base"
       ],
       "overlapIds": [
-        "painted-v2-overlap-sundrop-connector"
+        "painted-v2-overlap-camera-bases"
       ],
       "alphaPolicy": {
         "base": "opaque",
         "foreground": null
       },
       "sizeBudgets": {
-        "baseReviewBytes": 20971520,
+        "baseReviewBytes": 33554432,
         "baseHardBytes": 33554432,
         "foregroundReviewBytes": null,
         "foregroundHardBytes": null
       }
     },
     {
-      "id": "painted-v2-village-crossroads-connector",
+      "id": "painted-v2-crossroads-camera-base",
       "derivation": {
         "mode": "exact-bounds"
       },
       "reviewBounds": {
-        "left": 2592,
-        "top": 4480,
-        "right": 3392,
-        "bottom": 4896
+        "left": 2368,
+        "top": 2240,
+        "right": 5568,
+        "bottom": 5440
       },
       "coverageAttachments": [],
       "preClampBounds": {
-        "left": 2592,
-        "top": 4480,
-        "right": 3392,
-        "bottom": 4896
+        "left": 2368,
+        "top": 2240,
+        "right": 5568,
+        "bottom": 5440
       },
       "edgeClamp": null,
       "bounds": {
-        "left": 2592,
-        "top": 4480,
-        "right": 3392,
-        "bottom": 4896
+        "left": 2368,
+        "top": 2240,
+        "right": 5568,
+        "bottom": 5440
       },
       "expectedDimensions": {
-        "width": 800,
-        "height": 416
+        "width": 3200,
+        "height": 3200
       },
-      "baseFilename": "painted-v2-village-crossroads-connector-base.png",
+      "baseFilename": "painted-v2-crossroads-camera-base.png",
       "foregroundFilename": null,
       "textureKeys": {
-        "base": "meadow-entry-painted-v2-village-crossroads-connector-base",
+        "base": "meadow-entry-painted-v2-crossroads-camera-base",
         "foreground": null
       },
       "drawOrder": 10,
       "sourceRegionIds": [
         "connector-village-crossroads",
         "crossroads",
-        "sundrop-village"
-      ],
-      "neighborIds": [
-        "painted-v2-sundrop-village",
-        "painted-v2-crossroads"
-      ],
-      "overlapIds": [
-        "painted-v2-overlap-sundrop-connector",
-        "painted-v2-overlap-connector-crossroads"
-      ],
-      "alphaPolicy": {
-        "base": "opaque",
-        "foreground": null
-      },
-      "sizeBudgets": {
-        "baseReviewBytes": 4194304,
-        "baseHardBytes": 8388608,
-        "foregroundReviewBytes": null,
-        "foregroundHardBytes": null
-      }
-    },
-    {
-      "id": "painted-v2-crossroads",
-      "derivation": {
-        "mode": "exact-bounds"
-      },
-      "reviewBounds": {
-        "left": 2880,
-        "top": 2816,
-        "right": 4608,
-        "bottom": 4768
-      },
-      "coverageAttachments": [],
-      "preClampBounds": {
-        "left": 2880,
-        "top": 2816,
-        "right": 4608,
-        "bottom": 4768
-      },
-      "edgeClamp": null,
-      "bounds": {
-        "left": 2880,
-        "top": 2816,
-        "right": 4608,
-        "bottom": 4768
-      },
-      "expectedDimensions": {
-        "width": 1728,
-        "height": 1952
-      },
-      "baseFilename": "painted-v2-crossroads-base.png",
-      "foregroundFilename": null,
-      "textureKeys": {
-        "base": "meadow-entry-painted-v2-crossroads-base",
-        "foreground": null
-      },
-      "drawOrder": 20,
-      "sourceRegionIds": [
-        "connector-crossroads-mistfen",
-        "connector-crossroads-wildwood",
-        "connector-village-crossroads",
-        "crossroads",
+        "mistfen",
         "silverpine",
+        "tidewatch-coast",
         "wildwood"
       ],
       "neighborIds": [
-        "painted-v2-village-crossroads-connector"
+        "painted-v2-sundrop-camera-base"
       ],
       "overlapIds": [
-        "painted-v2-overlap-connector-crossroads"
+        "painted-v2-overlap-camera-bases"
       ],
       "alphaPolicy": {
         "base": "opaque",
         "foreground": null
       },
       "sizeBudgets": {
-        "baseReviewBytes": 16777216,
-        "baseHardBytes": 25165824,
+        "baseReviewBytes": 33554432,
+        "baseHardBytes": 33554432,
         "foregroundReviewBytes": null,
         "foregroundHardBytes": null
       }
@@ -182,156 +121,96 @@
   ],
   "overlaps": [
     {
-      "id": "painted-v2-overlap-sundrop-connector",
-      "firstCropId": "painted-v2-sundrop-village",
-      "secondCropId": "painted-v2-village-crossroads-connector",
+      "id": "painted-v2-overlap-camera-bases",
+      "firstCropId": "painted-v2-sundrop-camera-base",
+      "secondCropId": "painted-v2-crossroads-camera-base",
       "bounds": {
-        "left": 2592,
-        "top": 4480,
-        "right": 2880,
-        "bottom": 4896
-      },
-      "routeMouth": {
-        "sharedAxis": "y",
-        "bounds": {
-          "left": 2816,
-          "top": 4608,
-          "right": 2880,
-          "bottom": 4768
-        }
-      },
-      "minimumSharedPixels": 128,
-      "planePolicy": "base-only",
-      "ownerCropId": "painted-v2-village-crossroads-connector"
-    },
-    {
-      "id": "painted-v2-overlap-connector-crossroads",
-      "firstCropId": "painted-v2-village-crossroads-connector",
-      "secondCropId": "painted-v2-crossroads",
-      "bounds": {
-        "left": 2880,
-        "top": 4480,
-        "right": 3392,
-        "bottom": 4768
+        "left": 2368,
+        "top": 3200,
+        "right": 3200,
+        "bottom": 5440
       },
       "routeMouth": {
         "sharedAxis": "x",
         "bounds": {
-          "left": 2880,
+          "left": 3072,
           "top": 4608,
-          "right": 3264,
+          "right": 3200,
           "bottom": 4768
         }
       },
       "minimumSharedPixels": 128,
       "planePolicy": "base-only",
-      "ownerCropId": "painted-v2-crossroads"
+      "ownerCropId": "painted-v2-crossroads-camera-base"
     }
   ],
   "runtimeCoverage": [
     {
       "mode": "baked",
       "bounds": {
-        "left": 2880,
-        "top": 2816,
-        "right": 4608,
-        "bottom": 4480
+        "left": 2368,
+        "top": 2240,
+        "right": 5568,
+        "bottom": 3200
       },
       "cropIds": [
-        "painted-v2-crossroads"
+        "painted-v2-crossroads-camera-base"
       ]
     },
     {
       "mode": "baked",
       "bounds": {
-        "left": 256,
-        "top": 3968,
-        "right": 2880,
-        "bottom": 4480
+        "left": 0,
+        "top": 3200,
+        "right": 2368,
+        "bottom": 5440
       },
       "cropIds": [
-        "painted-v2-sundrop-village"
+        "painted-v2-sundrop-camera-base"
       ]
     },
     {
       "mode": "baked",
       "bounds": {
-        "left": 256,
-        "top": 4480,
-        "right": 2592,
-        "bottom": 4896
+        "left": 2368,
+        "top": 3200,
+        "right": 3200,
+        "bottom": 5440
       },
       "cropIds": [
-        "painted-v2-sundrop-village"
+        "painted-v2-sundrop-camera-base",
+        "painted-v2-crossroads-camera-base"
       ]
     },
     {
       "mode": "baked",
       "bounds": {
-        "left": 2592,
-        "top": 4480,
-        "right": 2880,
-        "bottom": 4896
+        "left": 3200,
+        "top": 3200,
+        "right": 5568,
+        "bottom": 5440
       },
       "cropIds": [
-        "painted-v2-sundrop-village",
-        "painted-v2-village-crossroads-connector"
+        "painted-v2-crossroads-camera-base"
       ]
     },
     {
       "mode": "baked",
       "bounds": {
-        "left": 2880,
-        "top": 4480,
-        "right": 3392,
-        "bottom": 4768
+        "left": 0,
+        "top": 5440,
+        "right": 3200,
+        "bottom": 6400
       },
       "cropIds": [
-        "painted-v2-village-crossroads-connector",
-        "painted-v2-crossroads"
-      ]
-    },
-    {
-      "mode": "baked",
-      "bounds": {
-        "left": 3392,
-        "top": 4480,
-        "right": 4608,
-        "bottom": 4768
-      },
-      "cropIds": [
-        "painted-v2-crossroads"
-      ]
-    },
-    {
-      "mode": "baked",
-      "bounds": {
-        "left": 2880,
-        "top": 4768,
-        "right": 3392,
-        "bottom": 4896
-      },
-      "cropIds": [
-        "painted-v2-village-crossroads-connector"
-      ]
-    },
-    {
-      "mode": "baked",
-      "bounds": {
-        "left": 256,
-        "top": 4896,
-        "right": 2880,
-        "bottom": 6144
-      },
-      "cropIds": [
-        "painted-v2-sundrop-village"
+        "painted-v2-sundrop-camera-base"
       ]
     }
   ],
   "budgetSummary": {
-    "exportAreaRatio": 0.229875,
-    "overlapArea": 267264,
-    "aggregateBaseReviewBytes": 41943040,
+    "exportAreaRatio": 0.5,
+    "overlapArea": 1863680,
+    "aggregateBaseReviewBytes": 67108864,
     "aggregateBaseHardBytes": 67108864,
     "aggregateForegroundReviewBytes": 0,
     "aggregateForegroundHardBytes": 0

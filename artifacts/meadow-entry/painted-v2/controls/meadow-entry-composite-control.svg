@@ -764,10 +764,8 @@
   <rect data-id="foreground-exclusion:transition:meadow-to-villager-house-2" x="1328" y="4336" width="96" height="96" fill="#000000" opacity="0.35" data-kind="transition"/>
   <rect data-id="foreground-exclusion:transition:meadow-to-villager-house-3" x="1424" y="5808" width="96" height="96" fill="#000000" opacity="0.35" data-kind="transition"/>
   <rect data-id="foreground-exclusion:transition:meadow-to-whispering-cave-ruins-threshold" x="5912" y="1820" width="96" height="96" fill="#000000" opacity="0.35" data-kind="transition"/>
-  <rect data-id="painted-v2-overlap-sundrop-connector" x="2592" y="4480" width="288" height="416" fill="#ffcc33" opacity="0.35"/>
-  <rect data-id="painted-v2-overlap-sundrop-connector:route-mouth" x="2816" y="4608" width="64" height="160" fill="#ff6600" opacity="0.8"/>
-  <rect data-id="painted-v2-overlap-connector-crossroads" x="2880" y="4480" width="512" height="288" fill="#ffcc33" opacity="0.35"/>
-  <rect data-id="painted-v2-overlap-connector-crossroads:route-mouth" x="2880" y="4608" width="384" height="160" fill="#ff6600" opacity="0.8"/>
+  <rect data-id="painted-v2-overlap-camera-bases" x="2368" y="3200" width="832" height="2240" fill="#ffcc33" opacity="0.35"/>
+  <rect data-id="painted-v2-overlap-camera-bases:route-mouth" x="3072" y="4608" width="128" height="160" fill="#ff6600" opacity="0.8"/>
   <rect data-id="protected-0000" x="3776" y="5494" width="128" height="136" fill="#ff3366"/>
   <rect data-id="protected-0001" x="3520" y="4308" width="128" height="136" fill="#ff3366"/>
   <rect data-id="protected-0002" x="3968" y="4308" width="128" height="136" fill="#ff3366"/>

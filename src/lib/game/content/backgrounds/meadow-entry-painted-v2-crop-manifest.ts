@@ -40,89 +40,62 @@ function freezeCrop(crop: MeadowEntryApprovedCrop): MeadowEntryApprovedCrop {
 
 const RAW_PILOT_CROPS = [
 	{
-		id: 'painted-v2-sundrop-village',
+		id: 'painted-v2-sundrop-camera-base',
 		derivation: { mode: 'exact-bounds' },
-		reviewBounds: { left: 256, top: 3968, right: 2880, bottom: 6144 },
+		reviewBounds: { left: 0, top: 3200, right: 3200, bottom: 6400 },
 		coverageAttachments: [],
-		preClampBounds: { left: 256, top: 3968, right: 2880, bottom: 6144 },
+		preClampBounds: { left: 0, top: 3200, right: 3200, bottom: 6400 },
 		edgeClamp: null,
-		bounds: { left: 256, top: 3968, right: 2880, bottom: 6144 },
-		expectedDimensions: { width: 2624, height: 2176 },
-		baseFilename: 'painted-v2-sundrop-village-base.png',
+		bounds: { left: 0, top: 3200, right: 3200, bottom: 6400 },
+		expectedDimensions: { width: 3200, height: 3200 },
+		baseFilename: 'painted-v2-sundrop-camera-base.png',
 		foregroundFilename: null,
 		textureKeys: {
-			base: 'meadow-entry-painted-v2-sundrop-village-base',
+			base: 'meadow-entry-painted-v2-sundrop-camera-base',
 			foreground: null
 		},
 		drawOrder: 0,
-		sourceRegionIds: ['connector-village-crossroads', 'sundrop-village', 'wildwood'],
-		neighborIds: ['painted-v2-village-crossroads-connector'],
-		overlapIds: ['painted-v2-overlap-sundrop-connector'],
+		sourceRegionIds: ['connector-village-crossroads', 'sundrop-village'],
+		neighborIds: ['painted-v2-crossroads-camera-base'],
+		overlapIds: ['painted-v2-overlap-camera-bases'],
 		alphaPolicy: { base: 'opaque', foreground: null },
 		sizeBudgets: {
-			baseReviewBytes: 20 * MIB,
+			baseReviewBytes: 32 * MIB,
 			baseHardBytes: 32 * MIB,
 			foregroundReviewBytes: null,
 			foregroundHardBytes: null
 		}
 	},
 	{
-		id: 'painted-v2-village-crossroads-connector',
+		id: 'painted-v2-crossroads-camera-base',
 		derivation: { mode: 'exact-bounds' },
-		reviewBounds: { left: 2592, top: 4480, right: 3392, bottom: 4896 },
+		reviewBounds: { left: 2368, top: 2240, right: 5568, bottom: 5440 },
 		coverageAttachments: [],
-		preClampBounds: { left: 2592, top: 4480, right: 3392, bottom: 4896 },
+		preClampBounds: { left: 2368, top: 2240, right: 5568, bottom: 5440 },
 		edgeClamp: null,
-		bounds: { left: 2592, top: 4480, right: 3392, bottom: 4896 },
-		expectedDimensions: { width: 800, height: 416 },
-		baseFilename: 'painted-v2-village-crossroads-connector-base.png',
+		bounds: { left: 2368, top: 2240, right: 5568, bottom: 5440 },
+		expectedDimensions: { width: 3200, height: 3200 },
+		baseFilename: 'painted-v2-crossroads-camera-base.png',
 		foregroundFilename: null,
 		textureKeys: {
-			base: 'meadow-entry-painted-v2-village-crossroads-connector-base',
+			base: 'meadow-entry-painted-v2-crossroads-camera-base',
 			foreground: null
 		},
 		drawOrder: 10,
-		sourceRegionIds: ['connector-village-crossroads', 'crossroads', 'sundrop-village'],
-		neighborIds: ['painted-v2-sundrop-village', 'painted-v2-crossroads'],
-		overlapIds: ['painted-v2-overlap-sundrop-connector', 'painted-v2-overlap-connector-crossroads'],
-		alphaPolicy: { base: 'opaque', foreground: null },
-		sizeBudgets: {
-			baseReviewBytes: 4 * MIB,
-			baseHardBytes: 8 * MIB,
-			foregroundReviewBytes: null,
-			foregroundHardBytes: null
-		}
-	},
-	{
-		id: 'painted-v2-crossroads',
-		derivation: { mode: 'exact-bounds' },
-		reviewBounds: { left: 2880, top: 2816, right: 4608, bottom: 4768 },
-		coverageAttachments: [],
-		preClampBounds: { left: 2880, top: 2816, right: 4608, bottom: 4768 },
-		edgeClamp: null,
-		bounds: { left: 2880, top: 2816, right: 4608, bottom: 4768 },
-		expectedDimensions: { width: 1728, height: 1952 },
-		baseFilename: 'painted-v2-crossroads-base.png',
-		foregroundFilename: null,
-		textureKeys: {
-			base: 'meadow-entry-painted-v2-crossroads-base',
-			foreground: null
-		},
-		drawOrder: 20,
 		sourceRegionIds: [
-			'connector-crossroads-mistfen',
-			'connector-crossroads-wildwood',
 			'connector-village-crossroads',
 			'crossroads',
+			'mistfen',
 			'silverpine',
+			'tidewatch-coast',
 			'wildwood'
 		],
-		neighborIds: ['painted-v2-village-crossroads-connector'],
-		overlapIds: ['painted-v2-overlap-connector-crossroads'],
+		neighborIds: ['painted-v2-sundrop-camera-base'],
+		overlapIds: ['painted-v2-overlap-camera-bases'],
 		alphaPolicy: { base: 'opaque', foreground: null },
 		sizeBudgets: {
-			baseReviewBytes: 16 * MIB,
-			baseHardBytes: 24 * MIB,
+			baseReviewBytes: 32 * MIB,
+			baseHardBytes: 32 * MIB,
 			foregroundReviewBytes: null,
 			foregroundHardBytes: null
 		}
@@ -145,30 +118,17 @@ function freezeOverlap(overlap: MeadowEntryOverlap): MeadowEntryOverlap {
 
 const RAW_PILOT_OVERLAPS = [
 	{
-		id: 'painted-v2-overlap-sundrop-connector',
-		firstCropId: 'painted-v2-sundrop-village',
-		secondCropId: 'painted-v2-village-crossroads-connector',
-		bounds: { left: 2592, top: 4480, right: 2880, bottom: 4896 },
-		routeMouth: {
-			sharedAxis: 'y',
-			bounds: { left: 2816, top: 4608, right: 2880, bottom: 4768 }
-		},
-		minimumSharedPixels: 128,
-		planePolicy: 'base-only',
-		ownerCropId: 'painted-v2-village-crossroads-connector'
-	},
-	{
-		id: 'painted-v2-overlap-connector-crossroads',
-		firstCropId: 'painted-v2-village-crossroads-connector',
-		secondCropId: 'painted-v2-crossroads',
-		bounds: { left: 2880, top: 4480, right: 3392, bottom: 4768 },
+		id: 'painted-v2-overlap-camera-bases',
+		firstCropId: 'painted-v2-sundrop-camera-base',
+		secondCropId: 'painted-v2-crossroads-camera-base',
+		bounds: { left: 2368, top: 3200, right: 3200, bottom: 5440 },
 		routeMouth: {
 			sharedAxis: 'x',
-			bounds: { left: 2880, top: 4608, right: 3264, bottom: 4768 }
+			bounds: { left: 3072, top: 4608, right: 3200, bottom: 4768 }
 		},
 		minimumSharedPixels: 128,
 		planePolicy: 'base-only',
-		ownerCropId: 'painted-v2-crossroads'
+		ownerCropId: 'painted-v2-crossroads-camera-base'
 	}
 ] satisfies readonly MeadowEntryOverlap[];
 
@@ -193,43 +153,28 @@ function freezeRuntimeCoverage(entry: MeadowEntryRuntimeCoverage): MeadowEntryRu
 const RAW_PILOT_RUNTIME_COVERAGE = [
 	{
 		mode: 'baked',
-		bounds: { left: 2880, top: 2816, right: 4608, bottom: 4480 },
-		cropIds: ['painted-v2-crossroads']
+		bounds: { left: 2368, top: 2240, right: 5568, bottom: 3200 },
+		cropIds: ['painted-v2-crossroads-camera-base']
 	},
 	{
 		mode: 'baked',
-		bounds: { left: 256, top: 3968, right: 2880, bottom: 4480 },
-		cropIds: ['painted-v2-sundrop-village']
+		bounds: { left: 0, top: 3200, right: 2368, bottom: 5440 },
+		cropIds: ['painted-v2-sundrop-camera-base']
 	},
 	{
 		mode: 'baked',
-		bounds: { left: 256, top: 4480, right: 2592, bottom: 4896 },
-		cropIds: ['painted-v2-sundrop-village']
+		bounds: { left: 2368, top: 3200, right: 3200, bottom: 5440 },
+		cropIds: ['painted-v2-sundrop-camera-base', 'painted-v2-crossroads-camera-base']
 	},
 	{
 		mode: 'baked',
-		bounds: { left: 2592, top: 4480, right: 2880, bottom: 4896 },
-		cropIds: ['painted-v2-sundrop-village', 'painted-v2-village-crossroads-connector']
+		bounds: { left: 3200, top: 3200, right: 5568, bottom: 5440 },
+		cropIds: ['painted-v2-crossroads-camera-base']
 	},
 	{
 		mode: 'baked',
-		bounds: { left: 2880, top: 4480, right: 3392, bottom: 4768 },
-		cropIds: ['painted-v2-village-crossroads-connector', 'painted-v2-crossroads']
-	},
-	{
-		mode: 'baked',
-		bounds: { left: 3392, top: 4480, right: 4608, bottom: 4768 },
-		cropIds: ['painted-v2-crossroads']
-	},
-	{
-		mode: 'baked',
-		bounds: { left: 2880, top: 4768, right: 3392, bottom: 4896 },
-		cropIds: ['painted-v2-village-crossroads-connector']
-	},
-	{
-		mode: 'baked',
-		bounds: { left: 256, top: 4896, right: 2880, bottom: 6144 },
-		cropIds: ['painted-v2-sundrop-village']
+		bounds: { left: 0, top: 5440, right: 3200, bottom: 6400 },
+		cropIds: ['painted-v2-sundrop-camera-base']
 	}
 ] satisfies readonly MeadowEntryRuntimeCoverage[];
 
@@ -241,9 +186,9 @@ export const MEADOW_ENTRY_PAINTED_V2_PILOT_FALLBACK_REQUIREMENTS: readonly Meado
 
 export const MEADOW_ENTRY_PAINTED_V2_PILOT_BUDGET_SUMMARY: MeadowEntryCropBudgetSummary =
 	Object.freeze({
-		exportAreaRatio: 0.229875,
-		overlapArea: 267_264,
-		aggregateBaseReviewBytes: 40 * MIB,
+		exportAreaRatio: 0.5,
+		overlapArea: 1_863_680,
+		aggregateBaseReviewBytes: 64 * MIB,
 		aggregateBaseHardBytes: 64 * MIB,
 		aggregateForegroundReviewBytes: 0,
 		aggregateForegroundHardBytes: 0

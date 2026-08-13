@@ -5,19 +5,19 @@ export interface MeadowEntryControlsApproval {
 	bakeOwnershipSha256: string;
 	storageMode: 'git-lfs';
 	storageConfigurationSha256: string;
-	evidencePath: 'docs/superpowers/reports/2026-08-11-painted-v2-controls.md';
+	evidencePath: 'docs/superpowers/reports/2026-08-12-meadow-entry-painted-camera-safe-controls.md';
 }
 
 export const meadowEntryControlsApprovalReview = {
 	reviewedBy: 'chanwaichan',
-	reviewedAt: '2026-08-11T19:11:08Z'
+	reviewedAt: '2026-08-13T02:10:09Z'
 } as const;
 
 export const meadowEntryControlsApproval: MeadowEntryControlsApproval = {
-	combinedControlFingerprint: '35177cdb1bff05299ad1bd0b6759513cf2aa3bfbb87c368bfc749b2743fed4e4',
-	cropManifestSha256: 'dc21a27bc8eea55e7054d2c23dd339e5673b2e44fb0e0ed8c9423fd3a2c25d04',
+	combinedControlFingerprint: 'a9fa2657a3dbb44c8e0857ddd5ed51802fb7b5d1c3bc8f2fc4c753006255e4fe',
+	cropManifestSha256: '42231698cc24ef78c5bf007b81bb446db655ab770377b205d40c82fa98086a47',
 	bakeOwnershipSha256: 'bd9624b2b761e2071d9d45c1c556e71c05c3298cec8439db3220aa8eb2ed3e8e',
 	storageMode: 'git-lfs',
 	storageConfigurationSha256: '36737b6905cfc7c62fdf1bcdd48850bc574f20d7f4bfb63ab1aa8c727bc51de2',
-	evidencePath: 'docs/superpowers/reports/2026-08-11-painted-v2-controls.md'
+	evidencePath: 'docs/superpowers/reports/2026-08-12-meadow-entry-painted-camera-safe-controls.md'
 };

@@ -18,7 +18,8 @@ import { verifyMeadowEntryArtStorage } from './verify-meadow-entry-art-storage';
 
 const CONTROLS_DIRECTORY = 'artifacts/meadow-entry/painted-v2/controls';
 const APPROVAL_PATH = 'src/lib/game/content/approvals/meadow-entry-painted-v2-controls.ts';
-const EVIDENCE_PATH = 'docs/superpowers/reports/2026-08-11-painted-v2-controls.md' as const;
+const EVIDENCE_PATH =
+	'docs/superpowers/reports/2026-08-12-meadow-entry-painted-camera-safe-controls.md' as const;
 const UTC_SECONDS = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/;
 const REVIEWER = /^[A-Za-z0-9][A-Za-z0-9._@+ -]{0,99}$/;
 const SHA256 = /^[0-9a-f]{64}$/;

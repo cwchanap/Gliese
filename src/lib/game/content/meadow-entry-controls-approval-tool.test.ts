@@ -56,7 +56,8 @@ const FINGERPRINT = '1'.repeat(64);
 const ATTRIBUTES = `${MEADOW_ENTRY_PAINTED_V2_ART_STORAGE.sourcePattern} filter=lfs diff=lfs merge=lfs -text
 ${MEADOW_ENTRY_PAINTED_V2_ART_STORAGE.runtimePattern} filter=lfs diff=lfs merge=lfs -text
 `;
-const EVIDENCE_PATH = 'docs/superpowers/reports/2026-08-11-painted-v2-controls.md';
+const EVIDENCE_PATH =
+	'docs/superpowers/reports/2026-08-12-meadow-entry-painted-camera-safe-controls.md';
 
 function artifactSnapshot(
 	overrides: Partial<ApprovalArtifactSnapshot> = {}
