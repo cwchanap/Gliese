@@ -7,9 +7,11 @@ camera-safe `3200×3200` crops while preserving the five accepted detail panels 
 semantics.
 
 **Architecture:** Four new quiet terrain panels form a deterministic underlay in the partial
-`6400×6400` master. The existing five detail panels overwrite that underlay unchanged. Two opaque
-runtime crops are cut from the flattened master; a pure swept-camera contract proves their union
-covers the approved Hero House → Sundrop → connector → Waystone route.
+`6400×6400` master. The existing five byte-immutable detail sources composite above it in ascending
+priority with a deterministic `128px` inward smoothstep feather, retaining exact source pixels at
+and beyond inset index `127` while eliminating hard derived rectangles. Two opaque runtime crops
+are cut from the flattened master; a pure swept-camera contract proves their union covers the
+approved Hero House → Sundrop → connector → Waystone route.
 
 **Tech Stack:** TypeScript, Vitest, Bun, Sharp, canonical PNG helpers, Phaser 4, Playwright,
 Git LFS, built-in image generation.
@@ -37,6 +39,9 @@ Git LFS, built-in image generation.
   - `hero-house-frontage`: `9809baf80d939eee485ee0876d3e907e60e04a8185b774f1a14a418a9cd8205b`
   - `village-crossroads-connector`: `6866f90802dfcd73d3828b41b237c8c1239ee130c9d8c8af3ac10d20c193e8b2`
   - `crossroads`: `1534062581775261bfcfd8a26eb5de5a730adf658d9b6ef9abb65413bbe4ae34`
+- Composite those detail sources only with the approved policy
+  `ascending-priority-source-over-current-master-with-128px-inset-smoothstep-feather`; perimeter
+  index `0` equals the current master and inset index `127` equals the detail source.
 - Generate each underlay panel in a distinct image-generation call; normalization is uniform,
   never stretched, and no greater than `2×`.
 - Keep the aggregate encoded base hard cap at `64 MiB`; exceeding it stops publication.
@@ -580,6 +585,8 @@ git commit -m "art(world): paint Meadow camera underlay"
 - Modify: `src/lib/game/content/backgrounds/meadow-entry-painted-v2-pilot-finalizer.ts`
 - Modify: `src/lib/game/content/backgrounds/meadow-entry-painted-v2-pilot-finalizer.test.ts`
 - Modify: `src/lib/game/content/backgrounds/meadow-entry-painted-v2-pilot-finalizer-cli.test.ts`
+- Modify: `src/lib/game/content/backgrounds/meadow-entry-master-provenance.ts`
+- Modify: `src/lib/game/content/backgrounds/meadow-entry-master-provenance.test.ts`
 - Modify: `tools/finalize-meadow-entry-painted-v2-pilot.ts`
 - Regenerate: `artifacts/meadow-entry/painted-v2/masters/meadow-entry-painted-v2-pilot-base-master.png`
 - Regenerate: `artifacts/meadow-entry/painted-v2/provenance/meadow-entry-master-provenance.json`
@@ -595,15 +602,29 @@ git commit -m "art(world): paint Meadow camera underlay"
   `MeadowEntryUnderlayAssemblyInput = { readonly width: number; readonly height: number; readonly panels: readonly MeadowEntryUnderlayDecodedPanel[]; readonly northSouthPairs: readonly { readonly northId: string; readonly southId: string; readonly bounds: PixelBounds }[]; readonly familyHandoff: { readonly sundropPanelIds: readonly string[]; readonly crossroadsPanelIds: readonly string[]; readonly bounds: PixelBounds } }`.
 - Produces:
   `assembleMeadowEntryPaintedV2Underlay(input: MeadowEntryUnderlayAssemblyInput): DecodedMeadowEntryRgba`.
+- Produces: `MEADOW_ENTRY_PAINTED_V2_DETAIL_FEATHER_WIDTH_PX: 128`.
+- Produces: `MEADOW_ENTRY_PAINTED_V2_DETAIL_FEATHER_LAST_INSET_INDEX: 127`.
+- Produces:
+  `meadowEntryDetailFeatherWeight(edgeDistance: number, lastInsetIndex?: number): number`.
+- Produces:
+  `blendMeadowEntryDetailChannel(current: number, detail: number, weight: number): number`.
+- Produces:
+  `compositeMeadowEntryDetailPanel(target: DecodedMeadowEntryRgba, panel: MeadowEntryUnderlayDecodedPanel, lastInsetIndex?: number): void`.
 - Keeps `assembleMeadowEntryPaintedV2Pilot(input)` as the public sealed finalizer entry point.
 - The generic pure assembler is injectable for small synthetic tests, but the public finalizer
   constructs its input only from the sealed four underlay registry rows. No caller-supplied panel
   spec may bypass the registered production geometry.
 - Changes master alpha policy to opaque inside the two-crop union and transparent elsewhere.
 
-- [ ] **Step 1: Write failing synthetic blend tests**
+- [ ] **Step 1: Preserve the rejected hard-copy baseline and write correction RED tests**
 
-Pin endpoints and rounding:
+Before replacing the current failed master, assert its SHA-256 is
+`c6ce56d67ebab7edc0744b8b8f3321401530c80664cafa3245f7dd468154b137`. Compute the per-edge mean,
+p95, comparison-band mean/p95, and excess with the exact sampling definition in the design. Record
+the table in the ignored Task 3 report. Later-priority coverage is excluded from earlier edges.
+
+Keep the already captured missing-assembler RED in the report. Add new tests that fail against the
+current hard-copy finalizer. Pin underlay blend endpoints and feather endpoints/rounding:
 
 ```ts
 expect(blendMeadowEntryOpaqueChannel(10, 210, 0, 127)).toBe(10);
@@ -611,10 +632,20 @@ expect(blendMeadowEntryOpaqueChannel(10, 210, 127, 127)).toBe(210);
 expect(blendMeadowEntryOpaqueChannel(0, 255, 63, 127)).toBe(126);
 expect(() => blendMeadowEntryOpaqueChannel(0, 255, 1, 0)).toThrow(/lastIndex/);
 expect(() => blendMeadowEntryOpaqueChannel(-1, 255, 1, 127)).toThrow(/channel/);
+
+expect(meadowEntryDetailFeatherWeight(0)).toBe(0);
+expect(meadowEntryDetailFeatherWeight(63)).toBe(126);
+expect(meadowEntryDetailFeatherWeight(127)).toBe(255);
+expect(meadowEntryDetailFeatherWeight(128)).toBe(255);
+expect(blendMeadowEntryDetailChannel(10, 210, 126)).toBe(109);
+expect(() => meadowEntryDetailFeatherWeight(-1)).toThrow(/edgeDistance/);
 ```
 
 Add a `4×4` synthetic panel assembly that proves north/south blending happens before east/west
-blending and every output alpha is 255.
+blending and every output alpha is 255. Add a `255×255` detail panel over a distinct target and
+assert its perimeter equals the target, distance `127` equals the detail source, and source/target
+buffers are otherwise not aliased. With injected `lastInsetIndex=1`, composite two overlapping
+`3×3` details and prove the later panel feathers over the already-composed lower-priority result.
 
 - [ ] **Step 2: Write failing sealed-finalizer integration tests**
 
@@ -629,11 +660,19 @@ expect(provenance.base.alpha).toEqual({
 expect(await hashFile(existingDetail.normalizedPath)).toBe(existingDetail.expectedSha256);
 ```
 
-Assert a one-byte change in any detail panel or underlay provenance fails before publication.
+Assert all five immutable detail hashes literally match Global Constraints. Assert a one-byte
+change in any detail panel or underlay provenance fails before publication.
 Assert the merged root `provenance.json` top-level `controlFingerprint` and nested
 `assembly.controls.fingerprint` both equal the approved current fingerprint; a stale top-level
 fingerprint must fail `--check`.
 Assert `--check` performs reads only and returns stale when the committed master differs.
+
+Add focused generation-provenance tests for the four approved attempt-3 underlays. A generative
+record may omit `prompt` and `promptSha256` only when `settings.promptUnavailable === true`; in
+that case both fields must be `null`. Reject `promptUnavailable=true` with either prompt field
+present and reject null prompt fields without that explicit setting. This is a truthful validation
+exception for the already-approved attempt-3 records, not permission to infer or fabricate the
+missing prompt.
 
 - [ ] **Step 3: Run focused RED**
 
@@ -642,12 +681,13 @@ Run:
 ```bash
 bun run test:unit -- --run \
   src/lib/game/content/backgrounds/meadow-entry-painted-v2-underlay-assembly.test.ts \
+  src/lib/game/content/backgrounds/meadow-entry-master-provenance.test.ts \
   src/lib/game/content/backgrounds/meadow-entry-painted-v2-pilot-finalizer.test.ts \
   src/lib/game/content/backgrounds/meadow-entry-painted-v2-pilot-finalizer-cli.test.ts
 ```
 
-Expected: FAIL because the underlay assembler is missing and the current finalizer only uses
-last-owner-wins panel copies.
+Expected after the original underlay RED has been implemented: FAIL only on the new detail-feather
+contract because the current finalizer still hard-copies detail rectangles.
 
 - [ ] **Step 4: Implement byte-exact blending**
 
@@ -672,9 +712,41 @@ export function blendMeadowEntryOpaqueChannel(
 The generic assembler derives `lastIndex` as `overlapHeight - 1` for north/south pairs and
 `overlapWidth - 1` for the family handoff; this is what makes the `4×4` synthetic contract useful.
 The sealed production adapter separately asserts exact overlap sizes `128×3200` and `832×2240`,
-therefore production uses `lastIndex=127` and `lastIndex=831`. Assemble the Sundrop and Crossroads
-families first, then blend families, then copy the five detail panels in their unchanged ascending
-priorities.
+therefore production uses `lastIndex=127` and `lastIndex=831`.
+
+Implement the approved detail functions exactly:
+
+```ts
+export function meadowEntryDetailFeatherWeight(
+  edgeDistance: number,
+  lastInsetIndex = MEADOW_ENTRY_PAINTED_V2_DETAIL_FEATHER_LAST_INSET_INDEX
+): number {
+  assertIntegerAtLeast(edgeDistance, 0, 'edgeDistance');
+  assertIntegerAtLeast(lastInsetIndex, 1, 'lastInsetIndex');
+  const q = Math.min(edgeDistance, lastInsetIndex);
+  const numerator = q * q * (3 * lastInsetIndex - 2 * q);
+  const denominator = lastInsetIndex * lastInsetIndex * lastInsetIndex;
+  return Math.floor((255 * numerator + Math.floor(denominator / 2)) / denominator);
+}
+
+export function blendMeadowEntryDetailChannel(
+  current: number,
+  detail: number,
+  weight: number
+): number {
+  assertByte(current);
+  assertByte(detail);
+  assertByte(weight, 'weight');
+  return Math.floor((current * (255 - weight) + detail * weight + 127) / 255);
+}
+```
+
+For each panel pixel, derive
+`edgeDistance = min(localX, width - 1 - localX, localY, height - 1 - localY)`. Require both panel
+dimensions to be at least `255px`. Assemble the Sundrop and Crossroads families first, blend the
+families, then call `compositeMeadowEntryDetailPanel` for the five detail rows in unchanged
+ascending priority. The helper mutates only the derived target buffer; it never mutates or rewrites
+the registered source panel bytes.
 
 - [ ] **Step 5: Update master validation and provenance**
 
@@ -696,7 +768,13 @@ Provenance must record:
     "northSouthLastIndex": 127,
     "familyHandoffLastIndex": 831,
     "rounding": "floor-half-up-positive-integers",
-    "detailPolicy": "ascending-priority-last-owner-wins"
+    "detailPolicy": "ascending-priority-source-over-current-master-with-128px-inset-smoothstep-feather",
+    "detailFeatherWidthPx": 128,
+    "detailFeatherLastInsetIndex": 127,
+    "detailFeatherWeight": "floor((255*q^2*(3*127-2*q)+floor(127^3/2))/127^3),q=clamp(edgeDistance,0,127)",
+    "detailBlend": "floor((current*(255-weight)+detail*weight+127)/255)",
+    "detailSourceBytes": "immutable",
+    "detailCore": "source-exact-at-edge-distance-gte-127-unless-later-priority-composites"
   }
 }
 ```
@@ -719,6 +797,13 @@ Inspect the master at original detail across both 128px seams, the 832px family 
 detail boundaries, Hero House, main street, connector, and Waystone. Reject visible seams before
 continuing.
 
+Run the deterministic boundary measurement against the recorded hard-copy table. For every
+visible detail perimeter require at least `75%` reduction in boundary-gradient excess and edge p95
+no greater than `1.25×` its `32px` comparison-band p95. Also assert every visible outer-edge pixel
+equals the pre-detail underlay/composite pixel, both assembly runs produce the same SHA-256, the
+five source hashes remain unchanged, and alpha counts remain `18_616_320` opaque /
+`22_343_680` transparent. Numeric success cannot override a visible native-resolution rectangle.
+
 - [ ] **Step 7: Run focused GREEN and no-write checks**
 
 Run:
@@ -726,6 +811,7 @@ Run:
 ```bash
 bun run test:unit -- --run \
   src/lib/game/content/backgrounds/meadow-entry-painted-v2-underlay-assembly.test.ts \
+  src/lib/game/content/backgrounds/meadow-entry-master-provenance.test.ts \
   src/lib/game/content/backgrounds/meadow-entry-painted-v2-pilot-finalizer.test.ts \
   src/lib/game/content/backgrounds/meadow-entry-painted-v2-pilot-finalizer-cli.test.ts
 bun run check
@@ -744,6 +830,8 @@ git add \
   src/lib/game/content/backgrounds/meadow-entry-painted-v2-pilot-finalizer.ts \
   src/lib/game/content/backgrounds/meadow-entry-painted-v2-pilot-finalizer.test.ts \
   src/lib/game/content/backgrounds/meadow-entry-painted-v2-pilot-finalizer-cli.test.ts \
+  src/lib/game/content/backgrounds/meadow-entry-master-provenance.ts \
+  src/lib/game/content/backgrounds/meadow-entry-master-provenance.test.ts \
   tools/finalize-meadow-entry-painted-v2-pilot.ts \
   artifacts/meadow-entry/painted-v2/masters/meadow-entry-painted-v2-pilot-base-master.png \
   artifacts/meadow-entry/painted-v2/provenance/meadow-entry-master-provenance.json \

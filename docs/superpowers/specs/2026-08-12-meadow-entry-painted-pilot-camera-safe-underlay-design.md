@@ -2,7 +2,7 @@
 
 **Date:** 2026-08-12
 
-**Status:** Approved camera-underlay design; detail-feather correction pending written-spec review
+**Status:** Approved camera-underlay design and detail-feather correction; implementation pending
 
 **Amends:** `2026-08-10-meadow-entry-painted-background-pilot-design.md` and
 `2026-08-11-meadow-entry-painted-background-pr2b-pilot-art.md`
