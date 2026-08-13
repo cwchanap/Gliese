@@ -68,6 +68,8 @@ depth `-10`, below the current base backgrounds at depths `-9`, `-8.999`, and `-
   House 1 → village–Crossroads connector → Crossroads Waystone → return journey.
 - All nine Task 10 browser review positions.
 - A continuous painted presentation beneath the five existing detailed pilot panels.
+- Region-aware safe-fill terrain throughout the full rectangular crop union, including the crop
+  margins that intersect Mistfen, Silverpine, Wildwood, and Tidewatch outside the approved route.
 - Two final runtime base crops, their overlap, provenance, approval, ownership, diagnostics, and
   fault behavior.
 
@@ -80,8 +82,11 @@ depth `-10`, below the current base backgrounds at depths `-9`, `-8.999`, and `-
 - Foreground planes, new live props, new collision, new NPCs, or gameplay-coordinate changes.
 - PR3 production activation.
 
-Uncovered world areas remain deliberate fallback and must not be described as camera-safe pilot
-coverage.
+World areas outside the two-crop union remain deliberate fallback and must not be described as
+camera-safe pilot coverage. Off-route areas inside the rectangular crop union are painted
+safe-fill margins: they are not approved camera-route coverage, but they must preserve the owning
+region's material identity and live visual semantics because pilot-mode players can still enter
+them.
 
 ## Runtime crop contract
 
@@ -118,16 +123,22 @@ already-proven journey points. It includes:
 - the north/east Waystone approach and return path.
 
 For each segment, the validator sweeps a `1920×1080`, zoom-1 camera rectangle along the segment.
-It expands the player path by half a viewport (`960px` horizontally and `540px` vertically), then
-applies the same `6400×6400` world-edge clamping used by Phaser. The union of the two approved
-runtime crops must contain every resulting camera rectangle.
+It expands the player segment by half a viewport (`960px` horizontally and `540px` vertically),
+applies the same `6400×6400` world-edge clamping used by Phaser, then expands only non-clamped
+camera edges by the browser route driver's existing `18px` reach residual. The union of the two
+approved runtime crops must contain every resulting camera rectangle. The route includes the
+complete westbound return and save position, not only the outbound Waystone leg.
 
-This is a segment-envelope proof, not a list of screenshot centers. It covers camera-follow lag
-between consecutive route points because the lagged center remains on the swept segment. The
-contract must fail when:
+This pure contract is a conservative geometric proof for the authored keyboard route and its
+allowed settle residual; it is not a proof of Phaser's transient smooth-follow state. With
+`startFollow(..., 0.14, 0.14)`, camera x/y can lag different route legs at a corner and therefore
+need not lie on the current segment. The browser journey must separately sample the live camera
+world view throughout Meadow traversal and prove every sampled `1920×1080` rectangle is contained
+by the same crop union. The contract must fail when:
 
 - either crop is removed or narrowed;
-- a route segment or review center escapes the crop union;
+- a route segment, its `18px` reach residual, a live camera sample, or a review center escapes the
+  crop union;
 - the viewport is enlarged without a corresponding coverage review;
 - a caller attempts to label an excluded biome exit as pilot-camera-safe.
 
@@ -144,6 +155,13 @@ Four quiet terrain panels establish the continuous underlay:
 
 The two Sundrop panels overlap vertically by `128px`; the two Crossroads panels do the same. The
 two panel families overlap by `832px` horizontally throughout their shared y range.
+
+“Sundrop” and “Crossroads” name crop/assembly families, not a license to paint each rectangle as
+one biome. Their broad bounds intersect neighboring region envelopes. Within those margins the
+panels follow the exact region and connector masks: Mistfen stays wet and muted, Silverpine keeps
+its autumn/shrine ground language, Wildwood remains forest floor, and Tidewatch remains coastal
+sand/sea-edge terrain. The panels may simplify detail, but may not replace those margins with
+Sundrop grass or Crossroads cobble.
 
 The existing detail panels remain byte-immutable assembly inputs:
 
@@ -165,19 +183,21 @@ The new panels use the already approved painted-v2 visual direction:
 - warm late-morning light from the upper left;
 - cultivated Sundrop greens, compacted earth, and readable route wear;
 - a gradual transition toward the brighter Crossroads cobble and packed earth;
+- region-correct Mistfen, Silverpine, Wildwood, and Tidewatch materials in off-route crop margins;
 - broad material zones with quiet live-content clearances;
 - no repeated tile motif at `1920×1080`;
 - no baked buildings, actors, pickups, labels, doors, collision props, or stateful content;
 - no water, tall vegetation, or false wall cues inside live route and interaction clearances.
 
 Generation uses the approved concept, exact control overlays, protected/live masks, route masks,
-and neighboring accepted panel pixels as references. Each panel is generated in a distinct
-built-in image-generation call. Raw outputs, prompts, reference hashes, native dimensions,
-normalization transforms, and final hashes are recorded separately.
+region/connector masks, and neighboring accepted panel pixels as references. Each panel is
+generated in a distinct built-in image-generation call. Raw outputs, prompts, reference hashes,
+native dimensions, normalization transforms, and final hashes are recorded separately.
 
-Normalization is uniform and never stretched. A scale greater than `2×` is rejected by default;
-the panel must be regenerated or split. No exception is inherited from the earlier concept-only
-approval.
+Normalization is uniform and never stretched. A scale greater than `2×` is rejected; the panel
+must be regenerated. Splitting a panel changes the sealed four-panel contract and therefore
+requires a design amendment rather than an implementation-time exception. No exception is
+inherited from the earlier concept-only approval.
 
 ## Deterministic underlay assembly
 
@@ -248,7 +268,13 @@ envelope.
 ## Publication and provenance
 
 The artifact pipeline remains controls → source panels → master → exports → proofs → approval →
-generated runtime data. Every stage retains its no-write `--check` mode.
+generated runtime data. Every stage retains its no-write `--check` mode. Crop review budgets need
+one explicit stabilization pass because they depend on the new encoded exports: a temporary-root
+preflight measures both crops under the provisional controls; the manifest is then updated to the
+measured whole-MiB ceilings, controls are regenerated and reapproved, and the finalizer is rerun
+so master provenance binds the final control fingerprint. Only then may the package publish to
+the tracked export/runtime roots. This is a bounded two-pass sequence, not an export/reapproval
+loop.
 
 Publication is fail-closed:
 
@@ -279,10 +305,11 @@ The final two exported files must be probed together in the real browser. Accept
 - hashes and encoded byte counts match the approved exports;
 - no upload or WebGL error is reported.
 
-The package keeps an aggregate encoded hard cap of `64 MiB`. After the actual exports exist, each
-crop's review threshold is set to the smallest whole MiB above its measured encoded size; the two
-review thresholds and exact bytes are recorded in the manifest and report. The hard cap is not
-raised automatically. Exceeding it stops the amendment for repartitioning or art optimization.
+The package keeps an aggregate encoded hard cap of `64 MiB`. After temporary-root preflight
+exports exist, each crop's review threshold is set to the smallest whole-MiB ceiling at or above
+its measured encoded size (`ceil(bytes / MiB) × MiB`); the two review thresholds and exact bytes
+are recorded in the manifest and report. The hard cap is not raised automatically. Exceeding it
+stops the amendment for repartitioning or art optimization.
 
 The unstable sixteen-texture `1600×1600` candidate remains rejected evidence and is not used as a
 fallback partition.
@@ -298,7 +325,8 @@ Initial failing tests pin:
 - four exact underlay panel rows and five immutable detail-panel rows;
 - two exact runtime crops and their single overlap;
 - deterministic north/south and east/west blend results on synthetic pixels;
-- the full swept camera-envelope containment contract and negative cases;
+- the complete route, its `18px` reach residual, the static swept camera-envelope containment
+  contract, and negative cases;
 - master opacity inside both crops and transparency outside their union;
 - exact export dimensions, extraction equality, overlap equality, and budgets;
 - exact approval, provenance, proof, and generated-runtime inventories;
@@ -328,6 +356,11 @@ asset inventory changes from three to two. It must still prove:
 - return, save, reload, exact return position, and facing;
 - collision under deliberate crop failure.
 
+The same browser test records the live Phaser camera world view during every Meadow movement
+frame. It rejects any non-`1920×1080` sample or any sampled rectangle that leaves the approved
+two-crop union. This runtime sample is the smooth-follow/corner-lag proof; the pure envelope test
+does not claim that responsibility.
+
 The focused pilot journeys must pass individually and with the existing bounded repeat evidence.
 Full unit, E2E, check, lint, browser build, Tauri frontend build, storage/LFS, and diff checks run
 before visual approval.
@@ -340,6 +373,7 @@ Before runtime publication, original-resolution proof artifacts show:
 - both `128px` north/south source seams;
 - the full `832px` Sundrop/Crossroads material transition;
 - every boundary where an existing detail panel overwrites the underlay;
+- every intersected region/connector material boundary, including all off-route safe-fill margins;
 - protected/live-content overlays;
 - collision/control overlays;
 - the flattened master across every approved camera rectangle;
@@ -390,7 +424,8 @@ The amendment is complete only when:
 - the four new underlay panels and five immutable detail panels assemble deterministically;
 - the flattened master is opaque throughout both runtime crops and transparent elsewhere;
 - the two `3200×3200` exports have exact, byte-identical overlap pixels;
-- the swept `1920×1080` route-camera envelope is fully contained by the crop union;
+- the static `1920×1080` route envelope (including the `18px` reach residual) and every sampled
+  live smooth-follow camera rectangle are fully contained by the crop union;
 - controls, ownership, provenance, approval, proofs, generated data, and runtime copies agree;
 - both exact runtime textures retain in a fresh browser probe without context loss;
 - the stabilized real-input gameplay journey and deliberate failure cases pass;

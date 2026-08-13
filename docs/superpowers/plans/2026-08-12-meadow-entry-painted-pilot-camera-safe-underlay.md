@@ -29,6 +29,8 @@ Git LFS, built-in image generation.
 - Runtime crops are `(0,3200,3200,6400)` and `(2368,2240,5568,5440)`, both `3200×3200`.
 - Runtime overlap is `(2368,3200,3200,5440)` and must contain zero differing pixels.
 - Route-mouth proof is `(3072,4608,3200,4768)` and the Crossroads crop owns the overlap.
+- Static camera-envelope proof includes the existing browser route driver's `18px` reach residual;
+  transient Phaser smooth-follow rectangles are sampled separately by Task 6.
 - Keep the five normalized detail-panel bytes immutable at these SHA-256 values:
   - `sundrop-north`: `3c7fe6063b8043578464ae68e5ec38505ae6a866afcd72fe2ff2293bf912a4e9`
   - `sundrop-south`: `b3bb18292cd23556d58f2ac7720f95037392ef60b26e9f208206e1f270fd672f`
@@ -56,22 +58,30 @@ Git LFS, built-in image generation.
 - Modify: `src/lib/game/content/backgrounds/meadow-entry-painted-v2-crop-manifest.ts`
 - Modify: `src/lib/game/content/backgrounds/meadow-entry-painted-v2-crop-manifest.test.ts`
 - Modify: `src/lib/game/content/backgrounds/meadow-entry-painted-v2-controls-approval.test.ts`
+- Modify: `src/lib/game/content/meadow-entry-controls-approval-tool.test.ts`
+- Modify: `tools/approve-meadow-entry-controls.ts`
 - Regenerate: `artifacts/meadow-entry/painted-v2/controls/`
+- Regenerate: `src/lib/game/content/generated/meadow-entry-painted-v2-art-control.ts`
 - Regenerate: `src/lib/game/content/approvals/meadow-entry-painted-v2-controls.ts`
 - Create: `docs/superpowers/reports/2026-08-12-meadow-entry-painted-camera-safe-controls.md`
 - Report: `.superpowers/sdd/2026-08-12-meadow-entry-painted-pilot-camera-safe-underlay/task-1-report.md` (ignored)
 
 **Interfaces:**
 - Produces:
+  `PaintedV2CameraRoutePoint = { readonly id: string; readonly x: number; readonly y: number }`.
+- Produces:
   `MEADOW_ENTRY_PAINTED_V2_CAMERA_VIEWPORT: { width: 1920; height: 1080 }`.
+- Produces: `MEADOW_ENTRY_PAINTED_V2_CAMERA_ROUTE_REACH_PX: 18`.
 - Produces:
   `MEADOW_ENTRY_PAINTED_V2_CAMERA_SAFE_ROUTE: readonly PaintedV2CameraRoutePoint[]`.
 - Produces:
-  `cameraBoundsAtMeadowEntryPoint(point, viewport?): PixelBounds`.
+  `cameraBoundsAtMeadowEntryPoint(point: { readonly x: number; readonly y: number }, viewport?: { readonly width: number; readonly height: number }): PixelBounds`.
 - Produces:
-  `collectMeadowEntryPaintedV2CameraEnvelopes(route?, viewport?): readonly PixelBounds[]`.
+  `collectMeadowEntryPaintedV2CameraEnvelopes(route?: readonly PaintedV2CameraRoutePoint[], viewport?: { readonly width: number; readonly height: number }, routeReachPx?: number): readonly PixelBounds[]`.
 - Produces:
-  `assertMeadowEntryPaintedV2CameraEnvelopeCovered(crops, route?, viewport?): void`.
+  `assertMeadowEntryPaintedV2CameraBoundsCovered(crops: readonly PixelBounds[], bounds: PixelBounds, label: string): void`.
+- Produces:
+  `assertMeadowEntryPaintedV2CameraEnvelopeCovered(crops: readonly PixelBounds[], route?: readonly PaintedV2CameraRoutePoint[], viewport?: { readonly width: number; readonly height: number }, routeReachPx?: number): void`.
 - Replaces the current three manifest crop rows with two exact rows and one overlap.
 - Produces a freshly reviewed control fingerprint and approval bound to the two-crop manifest
   before Task 2 image generation.
@@ -104,6 +114,12 @@ expect(() =>
     { left: 0, top: 3_200, right: 3_200, bottom: 6_400 }
   ])
 ).toThrow(/camera envelope segment/);
+expect(envelopeBounds(collectMeadowEntryPaintedV2CameraEnvelopes())).toEqual({
+  left: 0,
+  top: 3_666,
+  right: 5_138,
+  bottom: 6_400
+});
 ```
 
 The route table must use axis-aligned points matching the stabilized Task 8 journey:
@@ -117,6 +133,7 @@ The route table must use axis-aligned points matching the stabilized Task 8 jour
   { id: 'pickup-lane', x: 912, y: 4_688 },
   { id: 'market-pickup', x: 912, y: 5_072 },
   { id: 'market-return', x: 912, y: 4_688 },
+  { id: 'villager-house-1-approach', x: 660, y: 4_688 },
   { id: 'villager-house-1-lane', x: 672, y: 4_688 },
   { id: 'villager-house-1', x: 672, y: 4_448 },
   { id: 'villager-house-1-return', x: 672, y: 4_688 },
@@ -127,7 +144,12 @@ The route table must use axis-aligned points matching the stabilized Task 8 jour
   { id: 'waystone', x: 3_904, y: 4_224 },
   { id: 'waystone-return-east', x: 4_160, y: 4_224 },
   { id: 'waystone-return-south', x: 4_160, y: 4_480 },
-  { id: 'crossroads-return', x: 3_776, y: 4_480 }
+  { id: 'crossroads-return', x: 3_776, y: 4_480 },
+  { id: 'connector-return-east', x: 3_264, y: 4_480 },
+  { id: 'connector-return-lane', x: 3_264, y: 4_688 },
+  { id: 'west-lane-return', x: 320, y: 4_688 },
+  { id: 'save-lane', x: 1_152, y: 4_688 },
+  { id: 'save-point', x: 1_152, y: 4_800 }
 ]
 ```
 
@@ -167,11 +189,50 @@ expect(MEADOW_ENTRY_PAINTED_V2_PILOT_OVERLAPS).toContainEqual({
   ownerCropId: 'painted-v2-crossroads-camera-base'
 });
 expect(MEADOW_ENTRY_PAINTED_V2_PILOT_BUDGET_SUMMARY).toMatchObject({
-  exportAreaRatio: 0.4545,
+  exportAreaRatio: 0.5,
   overlapArea: 1_863_680,
   aggregateBaseHardBytes: 64 * 1_024 * 1_024
 });
+expect(
+  unionArea(MEADOW_ENTRY_PAINTED_V2_PILOT_CROPS.map(({ bounds }) => bounds))
+).toBe(18_616_320);
 ```
+
+`exportAreaRatio` is the sum of both export areas divided by the `6400×6400` master, so it is
+`20_480_000 / 40_960_000 = 0.5`. The distinct crop-union ratio is
+`18_616_320 / 40_960_000 = 0.4545`; do not substitute it for the exported-area metric.
+
+For both crop rows, use `derivation: { mode: 'exact-bounds' }`, set `reviewBounds`,
+`preClampBounds`, and `bounds` to the same exact crop bounds, use `coverageAttachments: []` and
+`edgeClamp: null`, and pin this metadata:
+
+```ts
+{
+  id: 'painted-v2-sundrop-camera-base',
+  sourceRegionIds: ['connector-village-crossroads', 'sundrop-village'],
+  neighborIds: ['painted-v2-crossroads-camera-base'],
+  overlapIds: ['painted-v2-overlap-camera-bases'],
+  drawOrder: 0
+}
+{
+  id: 'painted-v2-crossroads-camera-base',
+  sourceRegionIds: [
+    'connector-village-crossroads',
+    'crossroads',
+    'mistfen',
+    'silverpine',
+    'tidewatch-coast',
+    'wildwood'
+  ],
+  neighborIds: ['painted-v2-sundrop-camera-base'],
+  overlapIds: ['painted-v2-overlap-camera-bases'],
+  drawOrder: 10
+}
+```
+
+The source-region lists are the sorted unique primary owners of current baked sources completely
+contained by each new crop. Pin them literally; do not infer them from broad region-envelope
+intersection, which would incorrectly include environmental regions with no contained baked row.
 
 The exact coverage partition is:
 
@@ -200,7 +261,10 @@ three narrow crops.
 
 - [ ] **Step 4: Implement the pure envelope functions**
 
-Use `intersectBounds`, `boundsArea`, and `unionArea`. For each consecutive axis-aligned route pair:
+Use `intersectBounds`, `boundsArea`, `unionArea`, and `clampBoundsToWorld`. For each consecutive
+axis-aligned route pair, form the endpoint camera envelope, preserve edges already clamped to the
+world, expand only the remaining edges by `routeReachPx` (default `18`), clamp once more, and then
+test coverage:
 
 ```ts
 const first = cameraBoundsAtMeadowEntryPoint(route[index]!);
@@ -211,13 +275,31 @@ const envelope = {
   right: Math.max(first.right, second.right),
   bottom: Math.max(first.bottom, second.bottom)
 };
+const clampedEnvelope = clampBoundsToWorld({
+  left: envelope.left === MEADOW_ENTRY_WORLD_BOUNDS.left
+    ? envelope.left
+    : envelope.left - routeReachPx,
+  top: envelope.top === MEADOW_ENTRY_WORLD_BOUNDS.top
+    ? envelope.top
+    : envelope.top - routeReachPx,
+  right: envelope.right === MEADOW_ENTRY_WORLD_BOUNDS.right
+    ? envelope.right
+    : envelope.right + routeReachPx,
+  bottom: envelope.bottom === MEADOW_ENTRY_WORLD_BOUNDS.bottom
+    ? envelope.bottom
+    : envelope.bottom + routeReachPx
+}).bounds;
 const covered = crops
-  .map((crop) => intersectBounds(crop, envelope))
+  .map((crop) => intersectBounds(crop, clampedEnvelope))
   .filter((value): value is PixelBounds => value !== null);
-if (unionArea(covered) !== boundsArea(envelope)) {
+if (unionArea(covered) !== boundsArea(clampedEnvelope)) {
   throw new Error(`Painted-v2 camera envelope segment ${index} is not covered`);
 }
 ```
+
+Put the intersection/union-area comparison in
+`assertMeadowEntryPaintedV2CameraBoundsCovered`; the route-envelope function calls that helper for
+each segment, and Task 6 reuses the same helper for captured live camera rectangles.
 
 Reject diagonal route pairs, non-positive viewport dimensions, out-of-world points, and viewport
 dimensions larger than the world.
@@ -242,8 +324,8 @@ Use filenames and texture keys:
 ```
 
 Set each provisional `baseReviewBytes` to `32 MiB` and each `baseHardBytes` to `32 MiB`. Task 4
-replaces the review thresholds with the smallest whole MiB above the measured export sizes while
-retaining the aggregate `64 MiB` hard cap.
+replaces the review thresholds with the smallest whole-MiB ceiling at or above the measured export
+sizes while retaining the aggregate `64 MiB` hard cap.
 
 - [ ] **Step 6: Run focused GREEN and static checks**
 
@@ -256,7 +338,10 @@ bun tools/export-meadow-entry-art-controls.ts
 Inspect all 18 controls, especially runtime base coverage, crop manifest, handoff mask,
 protected-live mask, and composite control. Write the controls report with exact source/catalog,
 authoring, ownership, crop-manifest, storage, and combined fingerprints. Capture a UTC-second and
-publish the approval:
+publish the approval. First change `EVIDENCE_PATH` in `tools/approve-meadow-entry-controls.ts`
+and both controls-approval tests to the new report path
+`docs/superpowers/reports/2026-08-12-meadow-entry-painted-camera-safe-controls.md`; otherwise the
+new approval would falsely cite the superseded 2026-08-11 report.
 
 ```bash
 MEADOW_CAMERA_CONTROLS_REVIEWED_AT="$(date -u '+%Y-%m-%dT%H:%M:%SZ')"
@@ -275,7 +360,8 @@ bun run test:unit -- --run \
   src/lib/game/content/backgrounds/meadow-entry-painted-v2-crop-manifest.test.ts \
   src/lib/game/content/backgrounds/meadow-entry-source-catalog.test.ts \
   src/lib/game/content/backgrounds/meadow-entry-controls.test.ts \
-  src/lib/game/content/backgrounds/meadow-entry-painted-v2-controls-approval.test.ts
+  src/lib/game/content/backgrounds/meadow-entry-painted-v2-controls-approval.test.ts \
+  src/lib/game/content/meadow-entry-controls-approval-tool.test.ts
 bun run check
 bun run lint
 git diff --check
@@ -292,6 +378,9 @@ git add \
   src/lib/game/content/backgrounds/meadow-entry-painted-v2-crop-manifest.ts \
   src/lib/game/content/backgrounds/meadow-entry-painted-v2-crop-manifest.test.ts \
   src/lib/game/content/backgrounds/meadow-entry-painted-v2-controls-approval.test.ts \
+  src/lib/game/content/meadow-entry-controls-approval-tool.test.ts \
+  tools/approve-meadow-entry-controls.ts \
+  src/lib/game/content/generated/meadow-entry-painted-v2-art-control.ts \
   src/lib/game/content/approvals/meadow-entry-painted-v2-controls.ts \
   artifacts/meadow-entry/painted-v2/controls \
   docs/superpowers/reports/2026-08-12-meadow-entry-painted-camera-safe-controls.md
@@ -311,7 +400,13 @@ git commit -m "feat(world): define camera-safe Meadow controls"
 - Create: `artifacts/meadow-entry/painted-v2/source-panels/raw/camera-underlay-crossroads-south.png`
 - Create: normalized PNG and JSON provenance with the same four basenames under
   `artifacts/meadow-entry/painted-v2/source-panels/`
-- Create: `docs/superpowers/reports/img/hpa-586-painted-v2-camera-underlay/underlay-*.png`
+- Create these review images under
+  `docs/superpowers/reports/img/hpa-586-painted-v2-camera-underlay/`:
+  `sundrop-north.png`, `sundrop-south.png`, `crossroads-north.png`,
+  `crossroads-south.png`, `sundrop-north-south-seam.png`,
+  `crossroads-north-south-seam.png`, `family-handoff.png`,
+  `detail-panel-handoffs.png`, and `protected-live-overlay.png`
+- Create: `docs/superpowers/reports/img/hpa-586-painted-v2-camera-underlay/region-material-overlay.png`
 - Modify: `artifacts/meadow-entry/painted-v2/provenance.json`
 - Report: `.superpowers/sdd/2026-08-12-meadow-entry-painted-pilot-camera-safe-underlay/task-2-report.md` (ignored)
 
@@ -361,6 +456,7 @@ For each underlay crop, rasterize only the relevant portions of:
 - composite control;
 - terrain/path mask;
 - region mask;
+- connector mask;
 - protected-live mask;
 - entrance/transition mask;
 - building footprint mask;
@@ -375,20 +471,26 @@ Use the `imagegen` skill and built-in image-generation tool. Each prompt must in
 
 ```text
 Paint only quiet orthographic terrain for this exact Meadow Entry underlay crop. Preserve the
-approved warm upper-left lighting and region materials. Keep every live/protected/transition
-clearance flat, navigable, and object-free. No buildings, actors, pickups, labels, doors, tall
-foliage, water in live clearances, false walls, tile grid, border, or frame. Match the supplied
-accepted detail-panel edges in palette, value, and detail frequency. Return one continuous panel,
-not a map mockup or UI composition.
+approved warm upper-left lighting and every masked region material. “Sundrop” and “Crossroads” in
+the panel ID name crop families, not a single-biome fill: retain Mistfen wet/muted ground,
+Silverpine autumn/shrine ground, Wildwood forest floor, and Tidewatch coast material wherever
+their supplied masks intersect this rectangle. Keep every live/protected/transition clearance
+flat, navigable, and object-free. No buildings, actors, pickups, labels, doors, tall foliage,
+water in live clearances, false walls, tile grid, border, or frame. Match the supplied accepted
+detail-panel edges in palette, value, and detail frequency. Return one continuous panel, not a map
+mockup or UI composition.
 ```
 
 Do not batch the four panels into one generated sheet.
 
 - [ ] **Step 6: Normalize and validate each candidate**
 
-Use the existing canonical PNG utilities or a small Task-local script invoking those utilities.
-Uniformly scale and center-crop without stretching. Reject any candidate requiring more than `2×`
-scaling. Require:
+For each accepted raw candidate, construct an exact `MeadowEntryNormalizationTransform` and call
+`normalizeMeadowEntryMasterCandidate(raw, transform, spec.expectedDimensions)` from
+`meadow-entry-master-finalizer.ts`, followed by
+`encodeCanonicalMeadowEntryPng(decoded.data, decoded.width, decoded.height)` from
+`meadow-entry-png.ts`. Uniformly scale and center-crop without stretching. Reject any candidate
+requiring more than `2×` scaling; splitting the sealed panel requires a design amendment. Require:
 
 ```text
 width and height equal the registry dimensions
@@ -400,7 +502,10 @@ canonical PNG chunks only
 
 Write provenance with complete prompt, reference hashes, raw dimensions, crop rectangle, uniform
 scale, cleanup operations, normalized hash, normalized bytes, and `byteReproducibleGeneration:
-false` when the provider supplies no seed.
+false` when the provider supplies no seed. Update root `provenance.json.sourcePanels` to the exact
+nine-row inventory and set its top-level `controlFingerprint` to the approved Task 1 fingerprint;
+preserve unrelated concept, semantic-ruling, and superseded-approval fields byte-for-byte at the
+JSON-value level.
 
 - [ ] **Step 7: Perform native-detail visual QA**
 
@@ -410,6 +515,8 @@ Inspect all four panels at original resolution plus:
 - Crossroads north/south 128px overlap;
 - Sundrop/Crossroads 832px shared region;
 - every protected/live mask overlay;
+- every region/connector material overlay, including off-route Mistfen, Silverpine, Wildwood, and
+  Tidewatch crop margins;
 - edge comparisons with all five accepted detail panels.
 
 Reject on a visible tile motif, frame, object cue, macro-rectangle, false blocker, live-clearance
@@ -450,7 +557,16 @@ git add \
   artifacts/meadow-entry/painted-v2/source-panels/camera-underlay-*.png \
   artifacts/meadow-entry/painted-v2/source-panels/camera-underlay-*.json \
   artifacts/meadow-entry/painted-v2/provenance.json \
-  docs/superpowers/reports/img/hpa-586-painted-v2-camera-underlay
+  docs/superpowers/reports/img/hpa-586-painted-v2-camera-underlay/sundrop-north.png \
+  docs/superpowers/reports/img/hpa-586-painted-v2-camera-underlay/sundrop-south.png \
+  docs/superpowers/reports/img/hpa-586-painted-v2-camera-underlay/crossroads-north.png \
+  docs/superpowers/reports/img/hpa-586-painted-v2-camera-underlay/crossroads-south.png \
+  docs/superpowers/reports/img/hpa-586-painted-v2-camera-underlay/sundrop-north-south-seam.png \
+  docs/superpowers/reports/img/hpa-586-painted-v2-camera-underlay/crossroads-north-south-seam.png \
+  docs/superpowers/reports/img/hpa-586-painted-v2-camera-underlay/family-handoff.png \
+  docs/superpowers/reports/img/hpa-586-painted-v2-camera-underlay/detail-panel-handoffs.png \
+  docs/superpowers/reports/img/hpa-586-painted-v2-camera-underlay/protected-live-overlay.png \
+  docs/superpowers/reports/img/hpa-586-painted-v2-camera-underlay/region-material-overlay.png
 git commit -m "art(world): paint Meadow camera underlay"
 ```
 
@@ -474,8 +590,15 @@ git commit -m "art(world): paint Meadow camera underlay"
 - Produces:
   `blendMeadowEntryOpaqueChannel(first, second, index, lastIndex): number`.
 - Produces:
-  `assembleMeadowEntryPaintedV2Underlay(panels): Buffer` for sealed production panel rows.
+  `MeadowEntryUnderlayDecodedPanel = { readonly id: string; readonly bounds: PixelBounds; readonly rgba: DecodedMeadowEntryRgba }`.
+- Produces:
+  `MeadowEntryUnderlayAssemblyInput = { readonly width: number; readonly height: number; readonly panels: readonly MeadowEntryUnderlayDecodedPanel[]; readonly northSouthPairs: readonly { readonly northId: string; readonly southId: string; readonly bounds: PixelBounds }[]; readonly familyHandoff: { readonly sundropPanelIds: readonly string[]; readonly crossroadsPanelIds: readonly string[]; readonly bounds: PixelBounds } }`.
+- Produces:
+  `assembleMeadowEntryPaintedV2Underlay(input: MeadowEntryUnderlayAssemblyInput): DecodedMeadowEntryRgba`.
 - Keeps `assembleMeadowEntryPaintedV2Pilot(input)` as the public sealed finalizer entry point.
+- The generic pure assembler is injectable for small synthetic tests, but the public finalizer
+  constructs its input only from the sealed four underlay registry rows. No caller-supplied panel
+  spec may bypass the registered production geometry.
 - Changes master alpha policy to opaque inside the two-crop union and transparent elsewhere.
 
 - [ ] **Step 1: Write failing synthetic blend tests**
@@ -498,12 +621,18 @@ blending and every output alpha is 255.
 Use the nine real registered panel inputs. Assert:
 
 ```ts
-expect(decoded.alpha.opaquePixels).toBe(18_616_320);
-expect(decoded.alpha.transparentPixels).toBe(40_960_000 - 18_616_320);
+const provenance = JSON.parse(result.provenanceJson.toString('utf8'));
+expect(provenance.base.alpha).toEqual({
+  opaquePixels: 18_616_320,
+  transparentPixels: 22_343_680
+});
 expect(await hashFile(existingDetail.normalizedPath)).toBe(existingDetail.expectedSha256);
 ```
 
 Assert a one-byte change in any detail panel or underlay provenance fails before publication.
+Assert the merged root `provenance.json` top-level `controlFingerprint` and nested
+`assembly.controls.fingerprint` both equal the approved current fingerprint; a stale top-level
+fingerprint must fail `--check`.
 Assert `--check` performs reads only and returns stale when the committed master differs.
 
 - [ ] **Step 3: Run focused RED**
@@ -540,9 +669,12 @@ export function blendMeadowEntryOpaqueChannel(
 }
 ```
 
-Use `lastIndex=127` for north/south shared rows and `lastIndex=831` for the family handoff. Assemble
-the Sundrop and Crossroads families first, then blend families, then copy the five detail panels in
-their unchanged ascending priorities.
+The generic assembler derives `lastIndex` as `overlapHeight - 1` for north/south pairs and
+`overlapWidth - 1` for the family handoff; this is what makes the `4×4` synthetic contract useful.
+The sealed production adapter separately asserts exact overlap sizes `128×3200` and `832×2240`,
+therefore production uses `lastIndex=127` and `lastIndex=831`. Assemble the Sundrop and Crossroads
+families first, then blend families, then copy the five detail panels in their unchanged ascending
+priorities.
 
 - [ ] **Step 5: Update master validation and provenance**
 
@@ -569,6 +701,11 @@ Provenance must record:
 }
 ```
 
+Update `mergedPackageProvenance` so it replaces both `assembly` and the root
+`controlFingerprint` from the validated assembly provenance. Preserve every unrelated root field.
+This synchronization is required again when Task 4 finalizes measured budgets and reapproves the
+controls.
+
 - [ ] **Step 6: Regenerate and inspect the master**
 
 Run:
@@ -584,8 +721,19 @@ continuing.
 
 - [ ] **Step 7: Run focused GREEN and no-write checks**
 
-Run the three focused test files, `bun run check`, `bun run lint`, and `git diff --check`. Record
-master SHA-256, encoded bytes, exact alpha counts, and unchanged five detail hashes.
+Run:
+
+```bash
+bun run test:unit -- --run \
+  src/lib/game/content/backgrounds/meadow-entry-painted-v2-underlay-assembly.test.ts \
+  src/lib/game/content/backgrounds/meadow-entry-painted-v2-pilot-finalizer.test.ts \
+  src/lib/game/content/backgrounds/meadow-entry-painted-v2-pilot-finalizer-cli.test.ts
+bun run check
+bun run lint
+git diff --check
+```
+
+Record master SHA-256, encoded bytes, exact alpha counts, and unchanged five detail hashes.
 
 - [ ] **Step 8: Commit Task 3**
 
@@ -597,7 +745,7 @@ git add \
   src/lib/game/content/backgrounds/meadow-entry-painted-v2-pilot-finalizer.test.ts \
   src/lib/game/content/backgrounds/meadow-entry-painted-v2-pilot-finalizer-cli.test.ts \
   tools/finalize-meadow-entry-painted-v2-pilot.ts \
-  artifacts/meadow-entry/painted-v2/masters \
+  artifacts/meadow-entry/painted-v2/masters/meadow-entry-painted-v2-pilot-base-master.png \
   artifacts/meadow-entry/painted-v2/provenance/meadow-entry-master-provenance.json \
   artifacts/meadow-entry/painted-v2/provenance.json
 git commit -m "feat(art): assemble camera-safe Meadow master"
@@ -614,6 +762,7 @@ git commit -m "feat(art): assemble camera-safe Meadow master"
 - Modify: `src/lib/game/content/backgrounds/meadow-entry-exporter.test.ts`
 - Modify: `src/lib/game/content/backgrounds/meadow-entry-painted-v2-pilot-export-integration.test.ts`
 - Modify: `tools/render-meadow-entry-art-proofs.ts`
+- Modify: `src/lib/game/content/backgrounds/meadow-entry-proof-renderer.ts`
 - Modify: `src/lib/game/content/backgrounds/meadow-entry-art-proofs.test.ts`
 - Modify: `src/lib/game/content/backgrounds/meadow-entry-proof-renderer.test.ts`
 - Modify: `tools/approve-meadow-entry-art-package.ts`
@@ -621,6 +770,14 @@ git commit -m "feat(art): assemble camera-safe Meadow master"
 - Modify: `src/lib/game/content/backgrounds/meadow-entry-painted-v2-approval-artifact.test.ts`
 - Modify: `tools/generate-meadow-entry-runtime.ts`
 - Modify: `src/lib/game/content/backgrounds/meadow-entry-painted-v2-runtime-generator.test.ts`
+- Modify: `src/lib/game/content/backgrounds/meadow-entry-painted-v2-controls-approval.test.ts`
+- Modify: `src/lib/game/content/meadow-entry-controls-approval-tool.test.ts`
+- Regenerate: `artifacts/meadow-entry/painted-v2/controls/`
+- Regenerate: `src/lib/game/content/generated/meadow-entry-painted-v2-art-control.ts`
+- Regenerate: `src/lib/game/content/approvals/meadow-entry-painted-v2-controls.ts`
+- Update: `docs/superpowers/reports/2026-08-12-meadow-entry-painted-camera-safe-controls.md`
+- Regenerate: `artifacts/meadow-entry/painted-v2/masters/meadow-entry-painted-v2-pilot-base-master.png`
+- Regenerate: `artifacts/meadow-entry/painted-v2/provenance/meadow-entry-master-provenance.json`
 - Regenerate: `artifacts/meadow-entry/painted-v2/exports/`
 - Regenerate: `public/game/assets/regions/meadow-entry-painted-v2/`
 - Regenerate: `artifacts/meadow-entry/painted-v2/proofs/`
@@ -630,6 +787,11 @@ git commit -m "feat(art): assemble camera-safe Meadow master"
 - Report: `.superpowers/sdd/2026-08-12-meadow-entry-painted-pilot-camera-safe-underlay/task-4-report.md` (ignored)
 
 **Interfaces:**
+- Uses one temporary-root export to measure encoded bytes without modifying tracked export/runtime
+  roots.
+- Finalizes the two literal review budgets, regenerates/reapproves controls, and reruns the sealed
+  finalizer before tracked publication. The Task 3 master PNG must remain byte-identical while its
+  provenance is rebound to the final control fingerprint.
 - Publishes exactly two export/runtime PNGs and one overlap.
 - Publishes ten proof IDs:
   `pilot-camera-envelope`, `pilot-underlay-sundrop-seam`,
@@ -681,40 +843,87 @@ bun run test:unit -- --run \
   src/lib/game/content/backgrounds/meadow-entry-painted-v2-runtime-generator.test.ts
 ```
 
-Expected: FAIL only on the new inventory, proof, and measured-budget assertions.
+Expected: FAIL only on the new two-export, ten-proof, approval, and runtime inventories. Measured
+budget literals are introduced after the read-only preflight in Step 4.
 
-- [ ] **Step 4: Export the two exact crops**
+- [ ] **Step 4: Measure both encodings in an isolated output root**
 
-Update the exporter to delete retired three-crop files during publication, reject them during
-`--check`, cut the two new files from the master, and verify all `1_863_680` overlap pixels. Run:
+First implement the minimal exporter/proof/approval/runtime inventory changes required by the RED
+tests: the exporter must cut the two manifest crops, delete retired filenames in any target root,
+and verify all `1_863_680` overlap pixels; the proof renderer must implement the ten literal proof
+IDs and their exact input bindings; the approval/runtime tools must consume those literal
+inventories generically. Keep the approval and generated runtime artifacts stale until Steps 8–9.
+Do not publish to tracked roots yet. Capture tracked status, create one validated temporary root,
+and run:
 
 ```bash
-bun tools/export-meadow-entry-regions.ts
-bun tools/export-meadow-entry-regions.ts --check
+MEADOW_CAMERA_MEASURE_ROOT="$(mktemp -d /private/tmp/gliese-meadow-camera-export.XXXXXX)"
+bun tools/export-meadow-entry-regions.ts --output-root "$MEADOW_CAMERA_MEASURE_ROOT"
 ```
 
-Compute actual encoded sizes. Set each `baseReviewBytes` to
-`Math.ceil(measuredBytes / MiB) * MiB`; rerun manifest tests and export until `--check` is stable.
-Do not change either `32 MiB` per-crop hard limit or the `64 MiB` aggregate hard cap.
+Record the two exact encoded byte counts from the command JSON and confirm tracked status is
+unchanged. Compute each review ceiling as
+`Math.ceil(measuredBytes / (1_024 * 1_024)) * 1_024 * 1_024`. After recording the values and
+validating that `MEADOW_CAMERA_MEASURE_ROOT` begins with
+`/private/tmp/gliese-meadow-camera-export.`, remove only that temporary root.
 
-- [ ] **Step 5: Render and inspect all ten proofs**
+- [ ] **Step 5: Capture the measured-budget RED**
+
+Copy the two computed integer ceilings literally into the crop-manifest test before changing the
+manifest. Also assert each ceiling is at least its corresponding measured temporary export bytes,
+each hard limit remains `32 * MiB`, and the aggregate hard limit remains `64 * MiB`. Run the crop
+manifest, controls, and controls-approval tests. Expected: the crop-manifest test FAILS on the two
+new literal ceilings while unchanged control/approval tests may still pass; this is the genuine
+measured-budget RED before the manifest and its dependent fingerprint are regenerated.
+
+- [ ] **Step 6: Stabilize budgets, controls, and master provenance**
+
+Replace only the two provisional `baseReviewBytes` values with the measured literal ceilings.
+Regenerate all 18 controls, inspect every changed control, update the camera-safe controls report,
+and publish a new explicit controls approval:
+
+```bash
+bun tools/export-meadow-entry-art-controls.ts
+MEADOW_CAMERA_CONTROLS_REVIEWED_AT="$(date -u '+%Y-%m-%dT%H:%M:%SZ')"
+bun tools/approve-meadow-entry-controls.ts \
+  --reviewed-by chanwaichan \
+  --reviewed-at "$MEADOW_CAMERA_CONTROLS_REVIEWED_AT"
+bun tools/export-meadow-entry-art-controls.ts --check
+bun tools/approve-meadow-entry-controls.ts --check
+```
+
+Replace both controls-approval tests' stale literals with the exact reviewed object. Then rerun
+the sealed finalizer so master provenance binds the final fingerprint:
+
+```bash
+bun tools/finalize-meadow-entry-painted-v2-pilot.ts
+bun tools/finalize-meadow-entry-painted-v2-pilot.ts --check
+```
+
+Assert the master PNG SHA-256 is byte-identical to Task 3, the master provenance and both root
+provenance fingerprint fields equal the final approval, and no unrelated root provenance field
+changed. This closes the fingerprint dependency before tracked export publication.
+
+- [ ] **Step 7: Publish exports and render all ten proofs**
 
 Run:
 
 ```bash
+bun tools/export-meadow-entry-regions.ts
+bun tools/export-meadow-entry-regions.ts --check
 bun tools/render-meadow-entry-art-proofs.ts
 bun tools/render-meadow-entry-art-proofs.ts --check
 ```
 
 Inspect every proof at original detail. The three seam/handoff proofs must include labeled source
-bounds outside the art, not baked labels inside it. The camera-envelope proof must draw the route
-and swept rectangles over the flattened master.
+bounds outside the art, not baked labels inside it. The camera-envelope proof must draw the full
+outbound-and-return route and `18px`-expanded swept rectangles over the flattened master.
 
-- [ ] **Step 6: Publish the reviewed approval**
+- [ ] **Step 8: Publish the reviewed package approval**
 
 Run the approval publisher with the existing explicit review interface. Record reviewer,
 `reviewedAt`, master/export/proof/provenance hashes, measured bytes, storage configuration, and
-controls fingerprint. Use:
+the final controls fingerprint. Use:
 
 ```bash
 MEADOW_CAMERA_PACKAGE_REVIEWED_AT="$(date -u '+%Y-%m-%dT%H:%M:%SZ')"
@@ -727,7 +936,7 @@ bun tools/approve-meadow-entry-art-package.ts --check
 Replace the intentional stale literal in the approval artifact test with the exact reviewed
 object. Never derive expected approval values dynamically in that test.
 
-- [ ] **Step 7: Generate runtime data and verify public equality**
+- [ ] **Step 9: Generate runtime data and verify public equality**
 
 Run:
 
@@ -740,12 +949,25 @@ Assert each public runtime file equals its artifact export byte-for-byte and ret
 are absent. Assert generated descriptors use centered positions `(1600,4800)` and `(3968,3840)`,
 dimensions `3200×3200`, base draw orders `0` and `10`.
 
-- [ ] **Step 8: Run focused GREEN and package no-write gates**
+- [ ] **Step 10: Run focused GREEN and package no-write gates**
 
-Run the seven test files from Step 3 plus:
+Run:
 
 ```bash
+bun run test:unit -- --run \
+  src/lib/game/content/backgrounds/meadow-entry-exporter.test.ts \
+  src/lib/game/content/backgrounds/meadow-entry-painted-v2-pilot-export-integration.test.ts \
+  src/lib/game/content/backgrounds/meadow-entry-art-proofs.test.ts \
+  src/lib/game/content/backgrounds/meadow-entry-proof-renderer.test.ts \
+  src/lib/game/content/backgrounds/meadow-entry-painted-v2-approval-cli.test.ts \
+  src/lib/game/content/backgrounds/meadow-entry-painted-v2-approval-artifact.test.ts \
+  src/lib/game/content/backgrounds/meadow-entry-painted-v2-runtime-generator.test.ts \
+  src/lib/game/content/backgrounds/meadow-entry-painted-v2-crop-manifest.test.ts \
+  src/lib/game/content/backgrounds/meadow-entry-painted-v2-controls-approval.test.ts \
+  src/lib/game/content/meadow-entry-controls-approval-tool.test.ts
 bun tools/finalize-meadow-entry-painted-v2-pilot.ts --check
+bun tools/export-meadow-entry-art-controls.ts --check
+bun tools/approve-meadow-entry-controls.ts --check
 bun tools/export-meadow-entry-regions.ts --check
 bun tools/render-meadow-entry-art-proofs.ts --check
 bun tools/approve-meadow-entry-art-package.ts --check
@@ -759,11 +981,11 @@ git diff --check
 
 Capture status before and after; no-write checks must leave it identical.
 
-- [ ] **Step 9: Commit Task 4**
+- [ ] **Step 11: Commit Task 4**
 
 Stage only publication code/tests and the complete new package inventory. Confirm the retired six
-PNG paths (three exports and three runtime copies) appear as deletions and only two replacements
-exist.
+PNG paths (three artifact exports and three public runtime copies) appear as deletions and exactly
+four replacement PNGs appear as additions (two artifact exports and two public runtime copies).
 
 ```bash
 git add \
@@ -771,6 +993,7 @@ git add \
   tools/render-meadow-entry-art-proofs.ts \
   tools/approve-meadow-entry-art-package.ts \
   tools/generate-meadow-entry-runtime.ts \
+  src/lib/game/content/backgrounds/meadow-entry-proof-renderer.ts \
   src/lib/game/content/backgrounds/meadow-entry-painted-v2-crop-manifest.ts \
   src/lib/game/content/backgrounds/meadow-entry-painted-v2-crop-manifest.test.ts \
   src/lib/game/content/backgrounds/meadow-entry-exporter.test.ts \
@@ -780,12 +1003,20 @@ git add \
   src/lib/game/content/backgrounds/meadow-entry-painted-v2-approval-cli.test.ts \
   src/lib/game/content/backgrounds/meadow-entry-painted-v2-approval-artifact.test.ts \
   src/lib/game/content/backgrounds/meadow-entry-painted-v2-runtime-generator.test.ts \
+  src/lib/game/content/backgrounds/meadow-entry-painted-v2-controls-approval.test.ts \
+  src/lib/game/content/meadow-entry-controls-approval-tool.test.ts \
+  src/lib/game/content/generated/meadow-entry-painted-v2-art-control.ts \
   src/lib/game/content/backgrounds/meadow-entry-painted-v2.generated.ts \
+  src/lib/game/content/approvals/meadow-entry-painted-v2-controls.ts \
   src/lib/game/content/approvals/meadow-entry-painted-v2-art-package.ts \
+  artifacts/meadow-entry/painted-v2/controls \
+  artifacts/meadow-entry/painted-v2/masters/meadow-entry-painted-v2-pilot-base-master.png \
+  artifacts/meadow-entry/painted-v2/provenance/meadow-entry-master-provenance.json \
   artifacts/meadow-entry/painted-v2/exports \
   artifacts/meadow-entry/painted-v2/proofs \
   artifacts/meadow-entry/painted-v2/provenance \
   artifacts/meadow-entry/painted-v2/provenance.json \
+  docs/superpowers/reports/2026-08-12-meadow-entry-painted-camera-safe-controls.md \
   public/game/assets/regions/meadow-entry-painted-v2
 git commit -m "feat(art): publish camera-safe Meadow package"
 ```
@@ -858,7 +1089,21 @@ shows an actual hardcoded three-asset assumption.
 
 - [ ] **Step 5: Run focused GREEN and static gates**
 
-Run the seven files from Step 3, then `bun run check`, `bun run lint`, and `git diff --check`.
+Run:
+
+```bash
+bun run test:unit -- --run \
+  src/lib/game/content/backgrounds/meadow-entry-painted-v2-runtime.test.ts \
+  src/lib/game/content/assets.test.ts \
+  src/lib/game/content/maps/meadow-entry-painted-backgrounds.test.ts \
+  src/lib/game/content/maps/background-ownership.test.ts \
+  src/lib/game/phaser/renderer-diagnostics.test.ts \
+  src/lib/game/phaser/regional-background-plane-render-diagnostics.test.ts \
+  src/lib/game/phaser/scenes/scenes.test.ts
+bun run check
+bun run lint
+git diff --check
+```
 
 - [ ] **Step 6: Commit Task 5**
 
@@ -889,6 +1134,10 @@ Include runtime/Boot production files in the commit only when Step 4 demonstrate
 - Keeps the exact two test titles beginning `Meadow painted pilot`.
 - Changes only the painted asset IDs, dimensions, request paths, completion counts, and ownership
   restoration expectations.
+- Adds a test-local `__glieseCameraSamples` probe containing
+  `{ mapId: string; routeToken: string; pointIndex: number; left: number; top: number; right: number; bottom: number; width: number; height: number }`.
+- Sets the gameplay journey viewport to exact `1920×1080` before navigation and proves every live
+  Meadow camera sample is contained by the two-crop union.
 - Keeps the stabilized keyboard route, transition helper, collision tolerances, save/reload, and
   facing assertions frozen.
 
@@ -917,6 +1166,25 @@ const PAINTED_PILOT_BACKGROUND_IDS = [
 Both expected dimensions are `{ width: 3_200, height: 3_200 }`; pilot renderer completion count is
 `2`. Update request paths to the two new public filenames. Fault each crop separately.
 
+Before the gameplay test calls `page.goto`, run:
+
+```ts
+await page.setViewportSize({ width: 1_920, height: 1_080 });
+```
+
+Extend the existing test-local served-`WorldScene` chunk instrumentation used for facing capture.
+Expose the active scene camera immediately after its existing `startFollow` call, fail if that
+served-chunk marker is absent, and use an init-script `requestAnimationFrame` sampler to copy
+`camera.worldView` plus the active route token/point index into `__glieseCameraSamples` only while
+the route runner is active. Do not add a production diagnostic or game-state mutation. After the
+return/save proof, require at least one sample for every exterior route token (retain `pointIndex`
+for traceability; do not require a frame for a point that settles between animation frames),
+require every Meadow sample to be exactly `1920×1080`, and
+pass each half-open sample bounds plus the two runtime crop bounds to
+`assertMeadowEntryPaintedV2CameraBoundsCovered`. Import that pure relative module directly in the
+Playwright worker; it has no DOM, Phaser, or `$lib` dependency. Keep the static pure envelope and
+this live smooth-follow probe as separate assertions.
+
 - [ ] **Step 3: Make only evidence-backed expectation corrections**
 
 Do not add waypoints, coordinate seeding, retries, tolerance widening, or player mutation. If a
@@ -925,14 +1193,17 @@ this task.
 
 - [ ] **Step 4: Run individual and bounded-repeat GREEN**
 
-Run each title once, then:
+Run each title once, then the bounded repeat:
 
 ```bash
+bun run test:e2e -- --grep "^Meadow painted pilot selects only approved planes and preserves live fallbacks$"
+bun run test:e2e -- --grep "^Meadow painted pilot preserves the village Crossroads gameplay loop$"
 bun run test:e2e -- --grep "Meadow painted pilot" --repeat-each=2
 ```
 
 Expected: four passes. Record per-test times and total duration. Update the browser report with the
-new exact IDs, dimensions, healthy/failed ownership behavior, and superseded three-crop evidence.
+new exact IDs, dimensions, healthy/failed ownership behavior, live camera-sample count and extrema,
+and superseded three-crop evidence.
 
 - [ ] **Step 5: Run static checks and commit Task 6**
 
@@ -1005,9 +1276,19 @@ other outcome is a fail-closed `stop`; do not chase green.
 - [ ] **Step 5: Write the report and run checks**
 
 Record renderer, Chromium, `MAX_TEXTURE_SIZE`, encoded aggregate, decoded aggregate
-`81,920,000`, per-upload duration, aggregate duration, context status, and decision. Run focused
-Vitest orchestration tests, Bun tests, `bun run check`, `bun run lint`, `git diff --check`, and
-`git lfs fsck`.
+`81,920,000`, per-upload duration, aggregate duration, context status, and decision. Run:
+
+```bash
+bun run test:unit -- --run \
+  src/lib/game/content/meadow-entry-texture-safety-probe-orchestration.test.ts \
+  src/lib/game/content/meadow-entry-texture-safety-probe-unit.test.ts \
+  src/lib/game/content/meadow-entry-texture-safety-probe.test.ts
+bun test tools/probe-meadow-entry-texture-safety.test.ts
+bun run check
+bun run lint
+git diff --check
+git lfs fsck
+```
 
 - [ ] **Step 6: Commit only on `proceed`**
 
@@ -1092,7 +1373,15 @@ approval timestamp, then:
 
 ```bash
 git add \
-  docs/superpowers/reports/img/hpa-586-painted-v2-pilot \
+  docs/superpowers/reports/img/hpa-586-painted-v2-pilot/hero-house-frontage.png \
+  docs/superpowers/reports/img/hpa-586-painted-v2-pilot/sundrop-main-street.png \
+  docs/superpowers/reports/img/hpa-586-painted-v2-pilot/connector-village-mouth.png \
+  docs/superpowers/reports/img/hpa-586-painted-v2-pilot/connector-midpoint.png \
+  docs/superpowers/reports/img/hpa-586-painted-v2-pilot/connector-crossroads-mouth.png \
+  docs/superpowers/reports/img/hpa-586-painted-v2-pilot/crossroads-waystone.png \
+  docs/superpowers/reports/img/hpa-586-painted-v2-pilot/collision-boundary.png \
+  docs/superpowers/reports/img/hpa-586-painted-v2-pilot/fallback-matched-camera.png \
+  docs/superpowers/reports/img/hpa-586-painted-v2-pilot/missing-plane-fallback.png \
   docs/superpowers/reports/2026-08-11-meadow-entry-painted-pilot-visual-review.md
 git commit -m "docs(art): approve camera-safe Meadow pilot"
 ```
@@ -1130,9 +1419,41 @@ Expected: every command passes and status is identical.
 
 - [ ] **Step 2: Run focused camera-safe suites**
 
-Run all Task 1–7 test files together, including camera envelope, crop manifest, panel registry,
-underlay assembly, finalizer, exporter, proof, approval, generated runtime, selection, ownership,
-Boot/scene, and texture probe tests. Record exact file/test counts.
+Run the complete deduplicated Task 1–7 unit inventory and the Bun-owned probe test:
+
+```bash
+bun run test:unit -- --run \
+  src/lib/game/content/backgrounds/meadow-entry-painted-v2-camera-envelope.test.ts \
+  src/lib/game/content/backgrounds/meadow-entry-painted-v2-crop-manifest.test.ts \
+  src/lib/game/content/backgrounds/meadow-entry-source-catalog.test.ts \
+  src/lib/game/content/backgrounds/meadow-entry-controls.test.ts \
+  src/lib/game/content/backgrounds/meadow-entry-painted-v2-controls-approval.test.ts \
+  src/lib/game/content/meadow-entry-controls-approval-tool.test.ts \
+  src/lib/game/content/backgrounds/meadow-entry-painted-v2-pilot.test.ts \
+  src/lib/game/content/backgrounds/meadow-entry-painted-v2-underlay-assembly.test.ts \
+  src/lib/game/content/backgrounds/meadow-entry-painted-v2-pilot-finalizer.test.ts \
+  src/lib/game/content/backgrounds/meadow-entry-painted-v2-pilot-finalizer-cli.test.ts \
+  src/lib/game/content/backgrounds/meadow-entry-exporter.test.ts \
+  src/lib/game/content/backgrounds/meadow-entry-painted-v2-pilot-export-integration.test.ts \
+  src/lib/game/content/backgrounds/meadow-entry-art-proofs.test.ts \
+  src/lib/game/content/backgrounds/meadow-entry-proof-renderer.test.ts \
+  src/lib/game/content/backgrounds/meadow-entry-painted-v2-approval-cli.test.ts \
+  src/lib/game/content/backgrounds/meadow-entry-painted-v2-approval-artifact.test.ts \
+  src/lib/game/content/backgrounds/meadow-entry-painted-v2-runtime-generator.test.ts \
+  src/lib/game/content/backgrounds/meadow-entry-painted-v2-runtime.test.ts \
+  src/lib/game/content/assets.test.ts \
+  src/lib/game/content/maps/meadow-entry-painted-backgrounds.test.ts \
+  src/lib/game/content/maps/background-ownership.test.ts \
+  src/lib/game/phaser/renderer-diagnostics.test.ts \
+  src/lib/game/phaser/regional-background-plane-render-diagnostics.test.ts \
+  src/lib/game/phaser/scenes/scenes.test.ts \
+  src/lib/game/content/meadow-entry-texture-safety-probe-orchestration.test.ts \
+  src/lib/game/content/meadow-entry-texture-safety-probe-unit.test.ts \
+  src/lib/game/content/meadow-entry-texture-safety-probe.test.ts
+bun test tools/probe-meadow-entry-texture-safety.test.ts
+```
+
+Record exact file/test counts from both commands.
 
 - [ ] **Step 3: Run full automated gates**
 
@@ -1158,6 +1479,8 @@ Verify:
 - master alpha counts equal `18_616_320` opaque and `22_343_680` transparent pixels;
 - two exports equal two runtime copies byte-for-byte;
 - overlap difference count is zero across `1_863_680` pixels;
+- the static route includes its `18px` reach residual and the complete return/save leg, while the
+  Task 6 report contains nonzero exact-`1920×1080` live camera samples with zero crop-union escapes;
 - approval, provenance, proof, generated descriptor, and public inventories agree;
 - retired three-crop runtime/export paths are absent;
 - concept art is absent from runtime assets;
