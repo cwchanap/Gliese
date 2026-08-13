@@ -1,4 +1,6 @@
 import { expect, test, type Page } from '@playwright/test';
+import { assertMeadowEntryPaintedV2CameraBoundsCovered } from '../../src/lib/game/content/backgrounds/meadow-entry-painted-v2-camera-envelope';
+import { MEADOW_ENTRY_PAINTED_V2_APPROVED_RUNTIME_BACKGROUNDS } from '../../src/lib/game/content/backgrounds/meadow-entry-painted-v2.generated';
 
 type HudStateSnapshot = {
 	ready?: boolean;
@@ -46,6 +48,31 @@ type RegionalBackgroundRendererDiagnostic = {
 	regionalBackgroundLoadCompletions: number;
 };
 
+type MeadowCameraSample = {
+	mapId: string;
+	routeToken: string;
+	pointIndex: number;
+	left: number;
+	top: number;
+	right: number;
+	bottom: number;
+	width: number;
+	height: number;
+};
+
+type MeadowSceneCamera = {
+	worldView?: {
+		x?: number;
+		y?: number;
+		left?: number;
+		top?: number;
+		right?: number;
+		bottom?: number;
+		width?: number;
+		height?: number;
+	};
+};
+
 type GlieseProbeWindow = Window & {
 	__glieseLastHudState?: HudStateSnapshot;
 	__glieseLastPlayerFacing?: string;
@@ -57,6 +84,9 @@ type GlieseProbeWindow = Window & {
 	__glieseCharacterizationSyntheticPhase?: boolean;
 	__glieseRegionalBackgroundDiagnostics?: RegionalBackgroundPlaneRenderDiagnostic[];
 	__glieseRegionalBackgroundRendererDiagnostics?: RegionalBackgroundRendererDiagnostic[];
+	__glieseActiveSceneCamera?: MeadowSceneCamera;
+	__glieseCameraSamples?: MeadowCameraSample[];
+	__glieseExteriorRouteTokens?: string[];
 	__glieseRouteVisibilityState?: string;
 	__glieseRouteHasFocus?: boolean;
 	__glieseRouteBlurAt?: number;
@@ -65,6 +95,7 @@ type GlieseProbeWindow = Window & {
 		start: (plan: BrowserRoutePlan) => BrowserRouteResult;
 		get: (token: string) => BrowserRouteResult | null;
 		cancel: (token: string, reason: string) => BrowserRouteResult | null;
+		active: () => BrowserRouteResult | null;
 	};
 };
 
@@ -206,12 +237,24 @@ async function installRuntimeProbes(page: Page, options: { captureFacing?: boole
 			const response = await route.fetch();
 			const body = await response.text();
 			const marker = 'this.facing=r?.player.facing??i.spawnDirection';
+			const cameraMarker =
+				'this.cameras.main.startFollow(this.player,!0,n.cameraFollowLerp,n.cameraFollowLerp),';
 			if (!body.includes(marker)) {
 				throw new Error('WorldScene facing probe marker was not found in the served test chunk');
 			}
+			if (!body.includes(cameraMarker)) {
+				throw new Error('WorldScene camera probe marker was not found in the served test chunk');
+			}
+			const facingBody = body.replace(
+				marker,
+				`${marker},globalThis.__glieseLastPlayerFacing=this.facing`
+			);
 			await route.fulfill({
 				response,
-				body: body.replace(marker, `${marker},globalThis.__glieseLastPlayerFacing=this.facing`)
+				body: facingBody.replace(
+					cameraMarker,
+					`${cameraMarker}globalThis.__glieseActiveSceneCamera=this.cameras.main,`
+				)
 			});
 		});
 	}
@@ -226,6 +269,9 @@ async function installRuntimeProbes(page: Page, options: { captureFacing?: boole
 		probeWindow.__glieseLastMovementAt = 0;
 		probeWindow.__glieseRegionalBackgroundDiagnostics = [];
 		probeWindow.__glieseRegionalBackgroundRendererDiagnostics = [];
+		probeWindow.__glieseActiveSceneCamera = undefined;
+		probeWindow.__glieseCameraSamples = [];
+		probeWindow.__glieseExteriorRouteTokens = [];
 		probeWindow.__glieseRouteVisibilityState = document.visibilityState;
 		probeWindow.__glieseRouteHasFocus = document.hasFocus();
 		probeWindow.__glieseRouteBlurAt = undefined;
@@ -276,6 +322,7 @@ async function installRuntimeProbes(page: Page, options: { captureFacing?: boole
 		};
 		type InternalRouteState = BrowserRouteResult & {
 			points: Point[];
+			mapId: string;
 			settleTolerance: number;
 			reachTolerance: number;
 			maxCorrectionTaps: number;
@@ -308,6 +355,7 @@ async function installRuntimeProbes(page: Page, options: { captureFacing?: boole
 			if (!routeState) return null;
 			return {
 				token: routeState.token,
+				mapId: routeState.mapId,
 				status: routeState.status,
 				pointIndex: routeState.pointIndex,
 				axis: routeState.axis,
@@ -506,7 +554,13 @@ async function installRuntimeProbes(page: Page, options: { captureFacing?: boole
 				return;
 			}
 			routeState.noProgressDiagnostics = 0;
-			if (distance <= routeState.settleTolerance) {
+			if (
+				distance <= routeState.settleTolerance ||
+				(routeState.correctionTaps > 0 &&
+					!diagnostic.blocked &&
+					reached &&
+					distance <= routeState.reachTolerance)
+			) {
 				releaseKey();
 				let contractAdvanced = false;
 				if (!routeState.settledAxes[axis]) {
@@ -521,17 +575,6 @@ async function installRuntimeProbes(page: Page, options: { captureFacing?: boole
 			}
 			if (distanceDecreased) routeState.lastProgressAt = movementAt;
 			if (routeState.correctionTaps >= routeState.maxCorrectionTaps) {
-				if (!diagnostic.blocked && distance <= routeState.reachTolerance) {
-					releaseKey();
-					let contractAdvanced = false;
-					if (!routeState.settledAxes[axis]) {
-						routeState.settledAxes[axis] = true;
-						contractAdvanced = true;
-					}
-					contractAdvanced = beginNextAxis() || contractAdvanced;
-					if (contractAdvanced) routeState.lastProgressAt = movementAt;
-					return;
-				}
 				failRoute(
 					`correction limit at point ${routeState.pointIndex} axis ${axis} target ${JSON.stringify(target)}`
 				);
@@ -541,6 +584,41 @@ async function installRuntimeProbes(page: Page, options: { captureFacing?: boole
 			pressKey(axisKey(axis, targetValue - value));
 		};
 		window.addEventListener('gliese:player-movement-diagnostic', onMovementDiagnostic);
+		const sampleCamera = () => {
+			const activeRoute = probeWindow.__glieseRouteRunner?.active();
+			const view = probeWindow.__glieseActiveSceneCamera?.worldView;
+			const mapId = activeRoute?.mapId;
+			const left = typeof view?.left === 'number' ? view.left : view?.x;
+			const top = typeof view?.top === 'number' ? view.top : view?.y;
+			const width = view?.width;
+			const height = view?.height;
+			const right = typeof view?.right === 'number' ? view.right : undefined;
+			const bottom = typeof view?.bottom === 'number' ? view.bottom : undefined;
+			if (
+				activeRoute?.status === 'running' &&
+				typeof mapId === 'string' &&
+				typeof left === 'number' &&
+				typeof top === 'number' &&
+				typeof width === 'number' &&
+				typeof height === 'number' &&
+				typeof right === 'number' &&
+				typeof bottom === 'number'
+			) {
+				probeWindow.__glieseCameraSamples?.push({
+					mapId,
+					routeToken: activeRoute.token,
+					pointIndex: activeRoute.pointIndex,
+					left,
+					top,
+					right,
+					bottom,
+					width,
+					height
+				});
+			}
+			requestAnimationFrame(sampleCamera);
+		};
+		requestAnimationFrame(sampleCamera);
 		const routeRunner: NonNullable<GlieseProbeWindow['__glieseRouteRunner']> = {
 			start: (plan) => {
 				if (routeState?.status === 'running') {
@@ -550,6 +628,7 @@ async function installRuntimeProbes(page: Page, options: { captureFacing?: boole
 				const startedAt = performance.now();
 				routeState = {
 					token: plan.token,
+					mapId: probeWindow.__glieseLastHudState?.mapId ?? '',
 					status: 'running',
 					pointIndex: 1,
 					axis: null,
@@ -572,6 +651,9 @@ async function installRuntimeProbes(page: Page, options: { captureFacing?: boole
 					noProgressDiagnostics: 0,
 					settledAxes: { x: false, y: false }
 				};
+				if (routeState.mapId === 'meadow-entry') {
+					probeWindow.__glieseExteriorRouteTokens?.push(plan.token);
+				}
 				if (points.length < 1) {
 					failRoute('route requires at least one point');
 					return snapshot()!;
@@ -596,6 +678,7 @@ async function installRuntimeProbes(page: Page, options: { captureFacing?: boole
 				return snapshot()!;
 			},
 			get: (token) => (routeState?.token === token ? snapshot() : null),
+			active: () => (routeState?.status === 'running' ? snapshot() : null),
 			cancel: (token, reason) => {
 				if (routeState?.token !== token) return null;
 				if (routeState.status === 'running') failRoute(reason);
@@ -627,6 +710,7 @@ type BrowserRoutePlan = {
 
 type BrowserRouteResult = {
 	token: string;
+	mapId: string;
 	status: 'running' | 'done' | 'error';
 	pointIndex: number;
 	axis: Axis | null;
@@ -1363,22 +1447,74 @@ const CROSSROADS_TO_COAST = [
 ] as const;
 
 const PAINTED_PILOT_BACKGROUND_IDS = [
-	'meadow-entry-painted-v2-sundrop-village-base-image',
-	'meadow-entry-painted-v2-village-crossroads-connector-base-image',
-	'meadow-entry-painted-v2-crossroads-base-image'
+	'meadow-entry-painted-v2-sundrop-camera-base-image',
+	'meadow-entry-painted-v2-crossroads-camera-base-image'
 ] as const;
 
 const PAINTED_PILOT_BACKGROUND_DIMENSIONS = {
-	'meadow-entry-painted-v2-sundrop-village-base-image': { width: 2_624, height: 2_176 },
-	'meadow-entry-painted-v2-village-crossroads-connector-base-image': {
-		width: 800,
-		height: 416
-	},
-	'meadow-entry-painted-v2-crossroads-base-image': { width: 1_728, height: 1_952 }
+	'meadow-entry-painted-v2-sundrop-camera-base-image': { width: 3_200, height: 3_200 },
+	'meadow-entry-painted-v2-crossroads-camera-base-image': { width: 3_200, height: 3_200 }
 } as const;
 
-const PAINTED_PILOT_CROSSROADS_TEXTURE = 'meadow-entry-painted-v2-crossroads-base-image';
-const PAINTED_PILOT_SUNDROP_TEXTURE = 'meadow-entry-painted-v2-sundrop-village-base-image';
+const PAINTED_PILOT_CROSSROADS_TEXTURE = 'meadow-entry-painted-v2-crossroads-camera-base-image';
+const PAINTED_PILOT_SUNDROP_TEXTURE = 'meadow-entry-painted-v2-sundrop-camera-base-image';
+
+const PAINTED_PILOT_RUNTIME_CROP_BOUNDS = MEADOW_ENTRY_PAINTED_V2_APPROVED_RUNTIME_BACKGROUNDS.map(
+	({ x, y, width, height }) => ({
+		left: x - width / 2,
+		top: y - height / 2,
+		right: x + width / 2,
+		bottom: y + height / 2
+	})
+) satisfies readonly { left: number; top: number; right: number; bottom: number }[];
+
+function assertLiveMeadowCameraCoverage(
+	samples: readonly MeadowCameraSample[],
+	exteriorRouteTokens: readonly string[]
+) {
+	const meadowSamples = samples.filter((sample) => sample.mapId === 'meadow-entry');
+	expect(exteriorRouteTokens.length).toBeGreaterThan(0);
+	expect(meadowSamples.length).toBeGreaterThan(0);
+	const sampledTokens = new Set(meadowSamples.map((sample) => sample.routeToken));
+	for (const token of exteriorRouteTokens) {
+		expect(sampledTokens, `missing Meadow camera sample for ${token}`).toContain(token);
+	}
+	for (const sample of meadowSamples) {
+		expect(
+			[sample.left, sample.top, sample.right, sample.bottom, sample.width, sample.height].every(
+				Number.isFinite
+			)
+		).toBe(true);
+		expect({ width: sample.width, height: sample.height }).toEqual({
+			width: 1_920,
+			height: 1_080
+		});
+		expect(sample.right).toBe(sample.left + sample.width);
+		expect(sample.bottom).toBe(sample.top + sample.height);
+		try {
+			// Phaser follows at subpixel precision. The pure envelope helper computes
+			// exact half-open pixel union area, so rasterize outward for the live
+			// assertion while retaining the original fractional sample in evidence.
+			const sampledBounds = {
+				left: Math.floor(sample.left),
+				top: Math.floor(sample.top),
+				right: Math.ceil(sample.right),
+				bottom: Math.ceil(sample.bottom)
+			};
+			expect(sampledBounds.left).toBeLessThanOrEqual(sample.left);
+			expect(sampledBounds.top).toBeLessThanOrEqual(sample.top);
+			expect(sampledBounds.right).toBeGreaterThanOrEqual(sample.right);
+			expect(sampledBounds.bottom).toBeGreaterThanOrEqual(sample.bottom);
+			assertMeadowEntryPaintedV2CameraBoundsCovered(
+				PAINTED_PILOT_RUNTIME_CROP_BOUNDS,
+				sampledBounds,
+				`live camera sample ${sample.routeToken} point ${sample.pointIndex}`
+			);
+		} catch (error) {
+			throw new Error(`${String(error)} sample=${JSON.stringify(sample)}`, { cause: error });
+		}
+	}
+}
 
 async function waitForMeadowPlaneDiagnostic(page: Page) {
 	await page.waitForFunction(
@@ -1477,7 +1613,7 @@ test('Meadow painted pilot selects only approved planes and preserves live fallb
 
 	const pilotPlaneDiagnostic = await waitForMeadowPlaneDiagnostic(page);
 	const pilotRendererDiagnostic = await waitForMeadowRendererDiagnostic(page);
-	expect(pilotPlaneDiagnostic.entries).toHaveLength(3);
+	expect(pilotPlaneDiagnostic.entries).toHaveLength(2);
 	expect(pilotPlaneDiagnostic.entries.map((entry) => entry.id)).toEqual(
 		PAINTED_PILOT_BACKGROUND_IDS
 	);
@@ -1487,13 +1623,12 @@ test('Meadow painted pilot selects only approved planes and preserves live fallb
 	expect(pilotPlaneDiagnostic.selectedFallbackFenceIds).toEqual([]);
 	expect(pilotRendererDiagnostic).toMatchObject({
 		paintedMode: 'pilot',
-		regionalBackgroundLoadCompletions: 3
+		regionalBackgroundLoadCompletions: 2
 	});
 	expect(pilotRendererDiagnostic.regionalBackgroundLoadMs).not.toBeNull();
 	expect(paintedRequests.map((url) => new URL(url).pathname).sort()).toEqual([
-		'/game/assets/regions/meadow-entry-painted-v2/painted-v2-crossroads-base.png',
-		'/game/assets/regions/meadow-entry-painted-v2/painted-v2-sundrop-village-base.png',
-		'/game/assets/regions/meadow-entry-painted-v2/painted-v2-village-crossroads-connector-base.png'
+		'/game/assets/regions/meadow-entry-painted-v2/painted-v2-crossroads-camera-base.png',
+		'/game/assets/regions/meadow-entry-painted-v2/painted-v2-sundrop-camera-base.png'
 	]);
 
 	paintedRequests.length = 0;
@@ -1525,7 +1660,7 @@ test('Meadow painted pilot selects only approved planes and preserves live fallb
 	);
 
 	await page.route(
-		'**/game/assets/regions/meadow-entry-painted-v2/painted-v2-crossroads-base.png',
+		'**/game/assets/regions/meadow-entry-painted-v2/painted-v2-crossroads-camera-base.png',
 		(route) => route.abort()
 	);
 	await page.goto('/?meadowPaintedPilot=on&movementDiagnostics=on&mapDebug=collision');
@@ -1534,10 +1669,10 @@ test('Meadow painted pilot selects only approved planes and preserves live fallb
 	const missingCrossroadsRendererDiagnostic = await waitForMeadowRendererDiagnostic(page);
 	expect(missingCrossroadsRendererDiagnostic).toMatchObject({
 		paintedMode: 'pilot',
-		regionalBackgroundLoadCompletions: 2
+		regionalBackgroundLoadCompletions: 1
 	});
 	expect(missingCrossroadsPlaneDiagnostic.successfulBackgroundIds).toEqual(
-		[PAINTED_PILOT_BACKGROUND_IDS[0], PAINTED_PILOT_BACKGROUND_IDS[1]].sort()
+		[PAINTED_PILOT_BACKGROUND_IDS[0]].sort()
 	);
 	expect(
 		missingCrossroadsPlaneDiagnostic.entries.find(
@@ -1605,7 +1740,7 @@ test('Meadow painted pilot selects only approved planes and preserves live fallb
 	);
 
 	await page.unroute(
-		'**/game/assets/regions/meadow-entry-painted-v2/painted-v2-crossroads-base.png'
+		'**/game/assets/regions/meadow-entry-painted-v2/painted-v2-crossroads-camera-base.png'
 	);
 	await page.goto(
 		`/?meadowPaintedPilot=on&movementDiagnostics=on&regionalBackgroundFault=${PAINTED_PILOT_SUNDROP_TEXTURE}:render`
@@ -1615,10 +1750,10 @@ test('Meadow painted pilot selects only approved planes and preserves live fallb
 	const sundropFaultRendererDiagnostic = await waitForMeadowRendererDiagnostic(page);
 	expect(sundropFaultRendererDiagnostic).toMatchObject({
 		paintedMode: 'pilot',
-		regionalBackgroundLoadCompletions: 3
+		regionalBackgroundLoadCompletions: 2
 	});
 	expect(sundropFaultPlaneDiagnostic.successfulBackgroundIds).toEqual(
-		[PAINTED_PILOT_BACKGROUND_IDS[1], PAINTED_PILOT_BACKGROUND_IDS[2]].sort()
+		[PAINTED_PILOT_BACKGROUND_IDS[1]].sort()
 	);
 	expect(
 		sundropFaultPlaneDiagnostic.entries.find((entry) => entry.id === PAINTED_PILOT_SUNDROP_TEXTURE)
@@ -1657,6 +1792,7 @@ test('Meadow painted pilot preserves the village Crossroads gameplay loop', asyn
 			}
 		})
 	);
+	await page.setViewportSize({ width: 1_920, height: 1_080 });
 	await page.goto('/?meadowPaintedPilot=on&movementDiagnostics=on');
 	await expect(page.locator('canvas')).toBeVisible();
 	await expect(page.getByRole('button', { name: 'Menu' })).toBeVisible();
@@ -1847,6 +1983,13 @@ test('Meadow painted pilot preserves the village Crossroads gameplay loop', asyn
 	});
 	expect(persisted?.flags?.collectedPickups).toContain('village-market-cache');
 	expect(persisted?.seenDiscoveries).toContain('crossroads-waystone-sign');
+	const cameraEvidence = await page.evaluate(() => {
+		const probeWindow = window as GlieseProbeWindow;
+		return {
+			samples: probeWindow.__glieseCameraSamples ?? [],
+			exteriorRouteTokens: probeWindow.__glieseExteriorRouteTokens ?? []
+		};
+	});
 
 	await page.reload();
 	await expect(page.locator('canvas')).toBeVisible();
@@ -1869,6 +2012,7 @@ test('Meadow painted pilot preserves the village Crossroads gameplay loop', asyn
 	expect(await page.evaluate(() => sessionStorage.getItem('__gliese_e2e_save_seeded_v1'))).toBe(
 		'1'
 	);
+	assertLiveMeadowCameraCoverage(cameraEvidence.samples, cameraEvidence.exteriorRouteTokens);
 });
 
 test('Meadow Entry starts as the active zero-background graybox and accepts movement', async ({
@@ -2063,22 +2207,29 @@ test('browser-local route steering acknowledges a plan and continues through Pha
 			maxCorrectionTaps: 8,
 			blockedTolerance: 12
 		});
-		let correctionPosition = { ...initialPoint };
-		for (let attempt = 0; attempt < 9; attempt += 1) {
-			const offset = attempt % 2 === 0 ? 16.8016 : -15.992;
-			const resolvedPosition = {
-				x: correctionTarget.x + offset,
-				y: initialPoint.y
-			};
-			dispatchDiagnostic({
-				mapId: 'meadow-entry',
-				previousPosition: { ...correctionPosition },
-				requestedPosition: { ...resolvedPosition },
-				resolvedPosition: { ...resolvedPosition },
-				blocked: false
-			});
-			correctionPosition = resolvedPosition;
-		}
+		const firstCorrectionPosition = {
+			x: correctionTarget.x + 16.8016,
+			y: initialPoint.y
+		};
+		dispatchDiagnostic({
+			mapId: 'meadow-entry',
+			previousPosition: { ...initialPoint },
+			requestedPosition: { ...firstCorrectionPosition },
+			resolvedPosition: { ...firstCorrectionPosition },
+			blocked: false
+		});
+		const correctionBeforeCorrection = runner.get(correctionToken);
+		const correctionPosition = {
+			x: correctionTarget.x - 15.992,
+			y: initialPoint.y
+		};
+		dispatchDiagnostic({
+			mapId: 'meadow-entry',
+			previousPosition: { ...firstCorrectionPosition },
+			requestedPosition: { ...correctionPosition },
+			resolvedPosition: { ...correctionPosition },
+			blocked: false
+		});
 		const correctionAfterX = runner.get(correctionToken);
 		dispatchDiagnostic({
 			mapId: 'meadow-entry',
@@ -2151,6 +2302,7 @@ test('browser-local route steering acknowledges a plan and continues through Pha
 			wrongDirectionAfter,
 			wrongDirectionCancel,
 			correctionStart,
+			correctionBeforeCorrection,
 			correctionAfterX,
 			correctionAfterY,
 			exhaustedFarStart,
@@ -2169,6 +2321,7 @@ test('browser-local route steering acknowledges a plan and continues through Pha
 	const blockedAfter = evidence.blockedAfter!;
 	const blockedCancel = evidence.blockedCancel!;
 	const correctionStart = evidence.correctionStart!;
+	const correctionBeforeCorrection = evidence.correctionBeforeCorrection!;
 	const correctionAfterX = evidence.correctionAfterX!;
 	const correctionAfterY = evidence.correctionAfterY!;
 	const exhaustedFarStart = evidence.exhaustedFarStart!;
@@ -2190,6 +2343,13 @@ test('browser-local route steering acknowledges a plan and continues through Pha
 	});
 	expect(blockedCancel.status).toBe('error');
 	expect(correctionStart.status).toBe('running');
+	expect(correctionBeforeCorrection.status).toBe('running');
+	expect(correctionBeforeCorrection.pointIndex).toBe(1);
+	expect(correctionBeforeCorrection.axis).toBe('x');
+	expect(correctionBeforeCorrection.position).toEqual({
+		x: initial!.x + 64 + 16.8016,
+		y: initial!.y
+	});
 	expect(correctionAfterX.status).toBe('running');
 	expect(correctionAfterX.pointIndex).toBe(1);
 	expect(correctionAfterX.axis).toBe('y');
