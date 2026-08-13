@@ -99,7 +99,11 @@ function parseJson(buffer: Buffer, label: string): Record<string, unknown> {
 }
 
 function canonicalJson(value: unknown): Buffer {
-	return Buffer.from(`${JSON.stringify(value, null, '\t')}\n`);
+	const json = JSON.stringify(value, null, '\t').replace(
+		/"canonicalPngChunks": \[\s*"IHDR",\s*"IDAT",\s*"IEND"\s*\]/g,
+		'"canonicalPngChunks": ["IHDR", "IDAT", "IEND"]'
+	);
+	return Buffer.from(`${json}\n`);
 }
 
 function stringProperty(value: unknown, property: string, label: string): string {
@@ -163,9 +167,20 @@ function buildPanelGeneration(
 	const provider = stringProperty(generation, 'provider', `${panel.id} generation`);
 	const model = stringProperty(generation, 'model', `${panel.id} generation`);
 	const modelVersion = stringProperty(generation, 'modelVersion', `${panel.id} generation`);
-	const prompt = stringProperty(generation, 'prompt', `${panel.id} generation`);
-	const promptSha256 = stringProperty(generation, 'promptSha256', `${panel.id} generation`);
-	assertSha256(promptSha256, `${panel.id} prompt hash`);
+	const promptUnavailable = generation.promptUnavailable === true;
+	if (promptUnavailable) {
+		assert(
+			generation.prompt === null && generation.promptSha256 === null,
+			`${panel.id} generation promptUnavailable requires null prompt and prompt hash`
+		);
+	}
+	const prompt = promptUnavailable
+		? null
+		: stringProperty(generation, 'prompt', `${panel.id} generation`);
+	const promptSha256 = promptUnavailable
+		? null
+		: stringProperty(generation, 'promptSha256', `${panel.id} generation`);
+	if (promptSha256 !== null) assertSha256(promptSha256, `${panel.id} prompt hash`);
 	const normalizedSha256 = stringProperty(normalized, 'sha256', `${panel.id} normalized`);
 	assertSha256(normalizedSha256, `${panel.id} normalized hash`);
 	const normalizedDimensions = objectProperty(normalized, 'dimensions', `${panel.id} normalized`);
@@ -205,7 +220,8 @@ function buildPanelGeneration(
 			normalizedBytes,
 			normalizedDimensions,
 			rawSha256: objectProperty(manifest, 'raw', `${panel.id} panel manifest`).sha256 ?? null,
-			referenceImageSha256: referenceHashes(manifest)
+			referenceImageSha256: referenceHashes(manifest),
+			promptUnavailable
 		},
 		seed: null,
 		seedUnavailable: true,
@@ -268,7 +284,14 @@ async function loadAssemblyInput(
 
 function mergedPackageProvenance(existing: Buffer, assembly: Buffer): Buffer {
 	const packageProvenance = parseJson(existing, 'painted-v2 package provenance');
-	packageProvenance.assembly = parseJson(assembly, 'painted-v2 assembly provenance');
+	const assemblyProvenance = parseJson(assembly, 'painted-v2 assembly provenance');
+	packageProvenance.assembly = assemblyProvenance;
+	const controls = objectProperty(assemblyProvenance, 'controls', 'painted-v2 assembly provenance');
+	packageProvenance.controlFingerprint = stringProperty(
+		controls,
+		'fingerprint',
+		'painted-v2 assembly controls'
+	);
 	return canonicalJson(packageProvenance);
 }
 

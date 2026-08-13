@@ -62,4 +62,29 @@ describe('painted-v2 pilot finalizer CLI', () => {
 		).rejects.toThrow(/stale|drift/i);
 		expect(Object.values(staleMutators).every((spy) => spy.mock.calls.length === 0)).toBe(true);
 	});
+
+	it('keeps --check no-write and rejects a stale merged root fingerprint', async () => {
+		const staleMutators = { mkdir: vi.fn(), writeFile: vi.fn(), rename: vi.fn(), rm: vi.fn() };
+		const staleReadFile = (async (path: Parameters<typeof readFile>[0]) => {
+			if (String(path).endsWith('artifacts/meadow-entry/painted-v2/provenance.json')) {
+				const value = JSON.parse((await readFile(path)).toString('utf8')) as {
+					controlFingerprint: string;
+				};
+				value.controlFingerprint = '0'.repeat(64);
+				return Buffer.from(`${JSON.stringify(value, null, '\t')}\n`);
+			}
+			return readFile(path);
+		}) as MeadowEntryPaintedV2PilotFinalizerFileSystem['readFile'];
+		const staleFileSystem: MeadowEntryPaintedV2PilotFinalizerFileSystem = {
+			readFile: staleReadFile,
+			...staleMutators
+		};
+		await expect(
+			runFinalizeMeadowEntryPaintedV2Pilot(repositoryRoot, {
+				check: true,
+				fileSystem: staleFileSystem
+			})
+		).rejects.toThrow(/package provenance.*stale/i);
+		expect(Object.values(staleMutators).every((spy) => spy.mock.calls.length === 0)).toBe(true);
+	});
 });

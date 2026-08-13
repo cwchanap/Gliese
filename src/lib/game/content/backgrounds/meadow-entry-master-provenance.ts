@@ -215,17 +215,25 @@ export function validateMeadowEntryGenerationProvenance(value: unknown): void {
 	assertNonEmptyString(value.provider, 'provider');
 	assertNonEmptyString(value.model, 'model');
 	assertNonEmptyString(value.modelVersion, 'model version');
-	assertNonEmptyString(value.prompt, 'prompt');
-	if (value.promptSha256 === null) {
-		throw new Error('Meadow Entry generation provenance requires a prompt hash');
-	}
-	assertSha256(value.promptSha256, 'prompt hash');
-
 	if (value.seed === null && !value.seedUnavailable) {
 		throw new Error('Seedless Meadow Entry generation provenance must declare seedUnavailable');
 	}
 	if (value.seed !== null && value.seedUnavailable) {
 		throw new Error('Seeded Meadow Entry generation provenance cannot declare seedUnavailable');
+	}
+	const promptUnavailable = value.settings.promptUnavailable === true;
+	if (promptUnavailable) {
+		if (value.prompt !== null || value.promptSha256 !== null) {
+			throw new Error(
+				'Meadow Entry generation provenance marked promptUnavailable must omit prompt and prompt hash'
+			);
+		}
+	} else {
+		assertNonEmptyString(value.prompt, 'prompt');
+		if (value.promptSha256 === null) {
+			throw new Error('Meadow Entry generation provenance requires a prompt hash');
+		}
+		assertSha256(value.promptSha256, 'prompt hash');
 	}
 	if (value.byteReproducibleGeneration) {
 		if (value.seed === null || value.seedUnavailable) {

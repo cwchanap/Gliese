@@ -29,6 +29,46 @@ describe('meadow-entry generation provenance', () => {
 		).not.toThrow();
 	});
 
+	it('accepts prompt-unavailable generation only with an explicit null-prompt declaration', () => {
+		expect(() =>
+			validateMeadowEntryGenerationProvenance({
+				...baseGenerative,
+				settings: { promptUnavailable: true },
+				prompt: null,
+				promptSha256: null
+			})
+		).not.toThrow();
+	});
+
+	it('rejects prompt-unavailable generation when either prompt field is present', () => {
+		expect(() =>
+			validateMeadowEntryGenerationProvenance({
+				...baseGenerative,
+				settings: { promptUnavailable: true },
+				prompt: 'inferred prompt',
+				promptSha256: null
+			})
+		).toThrow(/promptUnavailable.*omit prompt/i);
+		expect(() =>
+			validateMeadowEntryGenerationProvenance({
+				...baseGenerative,
+				settings: { promptUnavailable: true },
+				prompt: null,
+				promptSha256: 'a'.repeat(64)
+			})
+		).toThrow(/promptUnavailable.*omit prompt/i);
+	});
+
+	it('rejects null prompt fields without explicit promptUnavailable provenance', () => {
+		expect(() =>
+			validateMeadowEntryGenerationProvenance({
+				...baseGenerative,
+				prompt: null,
+				promptSha256: null
+			})
+		).toThrow(/requires prompt/i);
+	});
+
 	it('accepts manual production with no seed semantics', () => {
 		expect(() =>
 			validateMeadowEntryGenerationProvenance({

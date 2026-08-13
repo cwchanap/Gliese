@@ -11,14 +11,23 @@ import {
 	MEADOW_ENTRY_PAINTED_V2_PILOT_CROPS,
 	MEADOW_ENTRY_PAINTED_V2_PILOT_OVERLAPS
 } from './meadow-entry-painted-v2-crop-manifest';
-import { MEADOW_ENTRY_PAINTED_V2_SOURCE_PANELS } from './meadow-entry-painted-v2-pilot';
+import {
+	MEADOW_ENTRY_PAINTED_V2_SOURCE_PANELS,
+	type MeadowEntryPaintedV2SourcePanel
+} from './meadow-entry-painted-v2-pilot';
 import { MEADOW_ENTRY_MASTER_POLICY } from './meadow-entry-master-finalizer';
 import type { PixelBounds } from './meadow-entry-authoring-types';
+import {
+	assembleMeadowEntryPaintedV2Underlay,
+	compositeMeadowEntryDetailPanel,
+	type MeadowEntryUnderlayDecodedPanel
+} from './meadow-entry-painted-v2-underlay-assembly';
 
 const SHA256 = /^[a-f0-9]{64}$/;
 
 interface MeadowEntryPaintedV2PilotPanelSpec {
 	readonly id: string;
+	readonly role: MeadowEntryPaintedV2SourcePanel['role'];
 	readonly bounds: PixelBounds;
 	readonly expectedDimensions: { readonly width: number; readonly height: number };
 	readonly assemblyPriority: number;
@@ -149,6 +158,12 @@ function validatePanelSpecs(specs: readonly MeadowEntryPaintedV2PilotPanelSpec[]
 				spec.expectedDimensions.height === expected.height,
 			`Meadow Entry pilot panel ${spec.id} dimensions do not match bounds`
 		);
+		if (spec.role === 'detail') {
+			assert(
+				expected.width >= 255 && expected.height >= 255,
+				`Meadow Entry detail panel ${spec.id} must be at least 255px on each axis`
+			);
+		}
 	}
 }
 
@@ -226,15 +241,48 @@ async function decodePanels(
 	return decoded;
 }
 
-function copyPanelIntoMaster(master: Buffer, panel: DecodedPanel): void {
-	for (let localY = 0; localY < panel.height; localY += 1) {
-		const masterOffset =
-			((panel.spec.bounds.top + localY) * MEADOW_ENTRY_MASTER_POLICY.width +
-				panel.spec.bounds.left) *
-			4;
-		const panelOffset = localY * panel.width * 4;
-		panel.bytes.copy(master, masterOffset, panelOffset, panelOffset + panel.width * 4);
-	}
+function underlayInput(decoded: readonly DecodedPanel[]) {
+	const underlays = decoded.filter((panel) => panel.spec.role === 'underlay');
+	const byId = new Map(underlays.map((panel) => [panel.spec.id, panel]));
+	const requiredIds = [
+		'camera-underlay-sundrop-north',
+		'camera-underlay-sundrop-south',
+		'camera-underlay-crossroads-north',
+		'camera-underlay-crossroads-south'
+	] as const;
+	assert(underlays.length === requiredIds.length, 'Meadow Entry underlay registry is not sealed');
+	for (const id of requiredIds)
+		assert(byId.has(id), `Meadow Entry underlay panel is missing: ${id}`);
+	const asPanel = (id: (typeof requiredIds)[number]): MeadowEntryUnderlayDecodedPanel => {
+		const panel = byId.get(id)!;
+		return {
+			id,
+			bounds: panel.spec.bounds,
+			rgba: { data: panel.bytes, width: panel.width, height: panel.height }
+		};
+	};
+	return {
+		width: MEADOW_ENTRY_MASTER_POLICY.width,
+		height: MEADOW_ENTRY_MASTER_POLICY.height,
+		panels: requiredIds.map(asPanel),
+		northSouthPairs: [
+			{
+				northId: 'camera-underlay-sundrop-north',
+				southId: 'camera-underlay-sundrop-south',
+				bounds: { left: 0, top: 4736, right: 3200, bottom: 4864 }
+			},
+			{
+				northId: 'camera-underlay-crossroads-north',
+				southId: 'camera-underlay-crossroads-south',
+				bounds: { left: 2368, top: 3776, right: 5568, bottom: 3904 }
+			}
+		],
+		familyHandoff: {
+			sundropPanelIds: ['camera-underlay-sundrop-north', 'camera-underlay-sundrop-south'],
+			crossroadsPanelIds: ['camera-underlay-crossroads-north', 'camera-underlay-crossroads-south'],
+			bounds: { left: 2368, top: 3200, right: 3200, bottom: 5440 }
+		}
+	} as const;
 }
 
 function assertRuntimeCropOpacity(master: Buffer): void {
@@ -263,13 +311,10 @@ function alphaMetrics(master: Buffer): { transparentPixels: number; opaquePixels
 	return { transparentPixels, opaquePixels };
 }
 
-function assertOutsidePilotTransparent(
-	master: Buffer,
-	specs: readonly MeadowEntryPaintedV2PilotPanelSpec[]
-): void {
+function assertOutsidePilotTransparent(master: Buffer): void {
 	for (let y = 0; y < MEADOW_ENTRY_MASTER_POLICY.height; y += 1) {
 		for (let x = 0; x < MEADOW_ENTRY_MASTER_POLICY.width; x += 1) {
-			const inside = specs.some(
+			const inside = MEADOW_ENTRY_PAINTED_V2_PILOT_CROPS.some(
 				({ bounds }) => x >= bounds.left && x < bounds.right && y >= bounds.top && y < bounds.bottom
 			);
 			if (!inside) {
@@ -281,6 +326,13 @@ function assertOutsidePilotTransparent(
 			}
 		}
 	}
+}
+
+function runtimeUnionPixelCount(): number {
+	const [first, second] = MEADOW_ENTRY_PAINTED_V2_PILOT_CROPS;
+	const overlap = MEADOW_ENTRY_PAINTED_V2_PILOT_OVERLAPS[0]!.bounds;
+	const area = (bounds: PixelBounds) => (bounds.right - bounds.left) * (bounds.bottom - bounds.top);
+	return area(first!.bounds) + area(second!.bounds) - area(overlap);
 }
 
 function assemblyProvenance(
@@ -297,8 +349,28 @@ function assemblyProvenance(
 		policy: {
 			width: MEADOW_ENTRY_MASTER_POLICY.width,
 			height: MEADOW_ENTRY_MASTER_POLICY.height,
-			alpha: 'transparent-outside-pilot',
-			assembly: 'ascending-priority-last-owner-wins',
+			alpha: 'opaque-inside-camera-safe-crop-union',
+			assembly:
+				'underlay-families-then-ascending-priority-source-over-current-master-with-128px-inset-smoothstep-feather',
+			underlayAssembly: {
+				northSouthLastIndex: 127,
+				familyHandoffLastIndex: 831,
+				rounding: 'floor-half-up-positive-integers',
+				detailPolicy:
+					'ascending-priority-source-over-current-master-with-128px-inset-smoothstep-feather',
+				detailFeatherWidthPx: 128,
+				detailFeatherLastInsetIndex: 127,
+				detailFeatherWeight:
+					'floor((255*q^2*(3*127-2*q)+floor(127^3/2))/127^3),q=clamp(edgeDistance,0,127)',
+				detailBlend: 'floor((current*(255-weight)+detail*weight+127)/255)',
+				detailSourceBytes: 'immutable',
+				detailCore: 'source-exact-at-edge-distance-gte-127-unless-later-priority-composites',
+				blendBounds: {
+					sundropNorthSouth: { left: 0, top: 4736, right: 3200, bottom: 4864 },
+					crossroadsNorthSouth: { left: 2368, top: 3776, right: 5568, bottom: 3904 },
+					familyHandoff: { left: 2368, top: 3200, right: 3200, bottom: 5440 }
+				}
+			},
 			pngEncoding: 'canonical'
 		},
 		base: {
@@ -319,6 +391,16 @@ function assemblyProvenance(
 			decodedRgbaBytes: panel.bytes.byteLength,
 			generation: panel.provenance
 		})),
+		underlayInputs: panels
+			.filter((panel) => panel.spec.role === 'underlay')
+			.map((panel) => ({
+				id: panel.spec.id,
+				bounds: panel.spec.bounds,
+				sha256: panel.sha256
+			})),
+		assemblyOrder: panels.map((panel) => panel.spec.id),
+		detailSourcePolicy:
+			'ascending-priority-source-over-current-master-with-128px-inset-smoothstep-feather',
 		runtimeCrops: MEADOW_ENTRY_PAINTED_V2_PILOT_CROPS.map((crop) => ({
 			id: crop.id,
 			bounds: crop.bounds,
@@ -344,13 +426,22 @@ export async function assembleMeadowEntryPaintedV2Pilot(
 	validatePanelSpecs(specs);
 	assertInputKeys(input, specs);
 	const panels = await decodePanels(input, specs);
-	const master = Buffer.alloc(
-		MEADOW_ENTRY_MASTER_POLICY.width * MEADOW_ENTRY_MASTER_POLICY.height * 4
-	);
-	for (const panel of panels) copyPanelIntoMaster(master, panel);
+	const underlay = await assembleMeadowEntryPaintedV2Underlay(underlayInput(panels));
+	for (const panel of panels.filter((value) => value.spec.role === 'detail')) {
+		compositeMeadowEntryDetailPanel(underlay, {
+			id: panel.spec.id,
+			bounds: panel.spec.bounds,
+			rgba: { data: panel.bytes, width: panel.width, height: panel.height }
+		});
+	}
+	const master = underlay.data;
 	assertRuntimeCropOpacity(master);
-	assertOutsidePilotTransparent(master, specs);
+	assertOutsidePilotTransparent(master);
 	const metrics = alphaMetrics(master);
+	assert(
+		metrics.opaquePixels === runtimeUnionPixelCount(),
+		`Meadow Entry pilot master opaque pixel count drifted: ${metrics.opaquePixels}`
+	);
 	const masterPng = await encodeCanonicalMeadowEntryPng(
 		master,
 		MEADOW_ENTRY_MASTER_POLICY.width,

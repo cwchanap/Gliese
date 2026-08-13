@@ -12,6 +12,11 @@ import {
 	assembleMeadowEntryPaintedV2Pilot,
 	type MeadowEntryPaintedV2PilotAssemblyInput
 } from './meadow-entry-painted-v2-pilot-finalizer';
+import {
+	assembleMeadowEntryPaintedV2Underlay,
+	compositeMeadowEntryDetailPanel,
+	type MeadowEntryUnderlayDecodedPanel
+} from './meadow-entry-painted-v2-underlay-assembly';
 import { decodeMeadowEntryRgba } from './meadow-entry-png';
 import { MEADOW_ENTRY_PAINTED_V2_SOURCE_PANELS } from './meadow-entry-painted-v2-pilot';
 import type { MeadowEntryGenerationProvenance } from './meadow-entry-master-provenance';
@@ -19,18 +24,59 @@ import type { MeadowEntryGenerationProvenance } from './meadow-entry-master-prov
 const repositoryRoot = resolve(import.meta.dirname, '../../../../..');
 
 async function fixture(): Promise<MeadowEntryPaintedV2PilotAssemblyInput> {
-	const provenance = JSON.parse(
+	const packageProvenance = JSON.parse(
 		await readFile(
-			join(
-				repositoryRoot,
-				'artifacts/meadow-entry/painted-v2/provenance/meadow-entry-master-provenance.json'
-			),
+			join(repositoryRoot, 'artifacts/meadow-entry/painted-v2/provenance.json'),
 			'utf8'
 		)
-	) as {
-		controls: { fingerprint: string };
-		panels: readonly { id: string; generation: MeadowEntryGenerationProvenance }[];
-	};
+	) as { controlFingerprint: string };
+	const panelProvenance = await Promise.all(
+		MEADOW_ENTRY_PAINTED_V2_SOURCE_PANELS.map(async (panel) => {
+			const manifest = JSON.parse(
+				await readFile(join(repositoryRoot, panel.provenancePath), 'utf8')
+			) as {
+				generation: {
+					mode?: 'generative' | 'manual';
+					provider?: string | null;
+					model?: string | null;
+					modelVersion?: string | null;
+					tool?: string;
+					prompt?: string | null;
+					promptSha256?: string | null;
+					seed?: number | string | null;
+					seedUnavailable?: boolean;
+					promptUnavailable?: boolean;
+				};
+				normalized: {
+					sha256: string;
+					bytes: number;
+					dimensions: { width: number; height: number };
+				};
+			};
+			const generation = manifest.generation;
+			const provenance: MeadowEntryGenerationProvenance = {
+				mode: generation.mode ?? 'generative',
+				provider: generation.provider ?? null,
+				model: generation.model ?? null,
+				modelVersion: generation.modelVersion ?? null,
+				tool: generation.tool ?? 'fixture',
+				toolVersion: generation.modelVersion ?? 'fixture',
+				settings: {
+					normalizedSha256: manifest.normalized.sha256,
+					normalizedBytes: manifest.normalized.bytes,
+					normalizedDimensions: manifest.normalized.dimensions,
+					promptUnavailable: generation.promptUnavailable ?? false
+				},
+				seed: generation.seed ?? null,
+				seedUnavailable: generation.seedUnavailable ?? true,
+				prompt: generation.prompt ?? null,
+				promptSha256: generation.promptSha256 ?? null,
+				referenceImageSha256: [],
+				byteReproducibleGeneration: false
+			};
+			return [panel.id, provenance] as const;
+		})
+	);
 	return {
 		panels: Object.fromEntries(
 			await Promise.all(
@@ -40,11 +86,9 @@ async function fixture(): Promise<MeadowEntryPaintedV2PilotAssemblyInput> {
 				])
 			)
 		),
-		panelProvenance: Object.fromEntries(
-			provenance.panels.map(({ id, generation }) => [id, generation])
-		),
-		controlFingerprint: provenance.controls.fingerprint,
-		approvedControlFingerprint: provenance.controls.fingerprint
+		panelProvenance: Object.fromEntries(panelProvenance),
+		controlFingerprint: packageProvenance.controlFingerprint,
+		approvedControlFingerprint: packageProvenance.controlFingerprint
 	};
 }
 
@@ -61,7 +105,7 @@ describe('painted-v2 pilot partial master assembler', () => {
 		};
 		const result = await assembleMeadowEntryPaintedV2Pilot(forgedInput);
 		expect(createHash('sha256').update(result.masterPng).digest('hex')).toBe(
-			'8f27680ad922ae4215476ae347b549c03143b120a94ed4064c64d96f6e2e5dbd'
+			'8de845c8d06727c199b8dcb0f09c6db9b2d85ed936e8de5db985800032d047ac'
 		);
 	});
 
@@ -116,6 +160,14 @@ describe('painted-v2 pilot partial master assembler', () => {
 			}
 		};
 		await expect(assembleMeadowEntryPaintedV2Pilot(wrongHash)).rejects.toThrow(/hash/i);
+
+		const changedBytes = Buffer.from(input.panels[panelId]!);
+		changedBytes[changedBytes.length - 1] = changedBytes[changedBytes.length - 1]! ^ 1;
+		const wrongBytes: MeadowEntryPaintedV2PilotAssemblyInput = {
+			...input,
+			panels: { ...input.panels, [panelId]: changedBytes }
+		};
+		await expect(assembleMeadowEntryPaintedV2Pilot(wrongBytes)).rejects.toThrow(/hash|drift/i);
 	});
 
 	it('emits byte-identical master and provenance on repeat runs', async () => {
@@ -126,8 +178,117 @@ describe('painted-v2 pilot partial master assembler', () => {
 		expect(second.provenanceJson.equals(first.provenanceJson)).toBe(true);
 	});
 
+	it('keeps every visible registered detail perimeter equal to the pre-detail composite', async () => {
+		const input = await fixture();
+		const result = await assembleMeadowEntryPaintedV2Pilot(input);
+		const decodedMaster = await decodeMeadowEntryRgba(result.masterPng);
+		const decodedPanels = await Promise.all(
+			MEADOW_ENTRY_PAINTED_V2_SOURCE_PANELS.map(async (panel) => ({
+				panel,
+				rgba: await decodeMeadowEntryRgba(input.panels[panel.id]!)
+			}))
+		);
+		const underlays = decodedPanels.filter(({ panel }) => panel.role === 'underlay');
+		const underlay = await assembleMeadowEntryPaintedV2Underlay({
+			width: 6400,
+			height: 6400,
+			panels: underlays.map(({ panel, rgba }) => ({
+				id: panel.id,
+				bounds: panel.bounds,
+				rgba
+			})),
+			northSouthPairs: [
+				{
+					northId: 'camera-underlay-sundrop-north',
+					southId: 'camera-underlay-sundrop-south',
+					bounds: { left: 0, top: 4736, right: 3200, bottom: 4864 }
+				},
+				{
+					northId: 'camera-underlay-crossroads-north',
+					southId: 'camera-underlay-crossroads-south',
+					bounds: { left: 2368, top: 3776, right: 5568, bottom: 3904 }
+				}
+			],
+			familyHandoff: {
+				sundropPanelIds: ['camera-underlay-sundrop-north', 'camera-underlay-sundrop-south'],
+				crossroadsPanelIds: [
+					'camera-underlay-crossroads-north',
+					'camera-underlay-crossroads-south'
+				],
+				bounds: { left: 2368, top: 3200, right: 3200, bottom: 5440 }
+			}
+		});
+		const details = decodedPanels
+			.filter(({ panel }) => panel.role === 'detail')
+			.sort((a, b) => a.panel.assemblyPriority - b.panel.assemblyPriority);
+		for (const { panel, rgba } of details) {
+			const detail: MeadowEntryUnderlayDecodedPanel = { id: panel.id, bounds: panel.bounds, rgba };
+			for (let y = panel.bounds.top; y < panel.bounds.bottom; y += 1) {
+				for (let x = panel.bounds.left; x < panel.bounds.right; x += 1) {
+					const perimeter =
+						x === panel.bounds.left ||
+						x === panel.bounds.right - 1 ||
+						y === panel.bounds.top ||
+						y === panel.bounds.bottom - 1;
+					if (!perimeter) continue;
+					const coveredLater = details.some(
+						({ panel: later }) =>
+							later.assemblyPriority > panel.assemblyPriority &&
+							x >= later.bounds.left &&
+							x < later.bounds.right &&
+							y >= later.bounds.top &&
+							y < later.bounds.bottom
+					);
+					if (coveredLater) continue;
+					const offset = (y * decodedMaster.width + x) * 4;
+					expect(decodedMaster.data.subarray(offset, offset + 4), `${panel.id}:${x},${y}`).toEqual(
+						underlay.data.subarray(offset, offset + 4)
+					);
+				}
+			}
+			compositeMeadowEntryDetailPanel(underlay, detail);
+		}
+	});
+
 	it('keeps the approved overlap contract available for runtime proof checks', () => {
-		expect(MEADOW_ENTRY_PAINTED_V2_PILOT_CROPS).toHaveLength(3);
-		expect(MEADOW_ENTRY_PAINTED_V2_PILOT_OVERLAPS).toHaveLength(2);
+		expect(MEADOW_ENTRY_PAINTED_V2_PILOT_CROPS).toHaveLength(2);
+		expect(MEADOW_ENTRY_PAINTED_V2_PILOT_OVERLAPS).toHaveLength(1);
+	});
+
+	it('records camera-safe alpha metrics and the sealed blend policy', async () => {
+		const input = await fixture();
+		const result = await assembleMeadowEntryPaintedV2Pilot(input);
+		const provenance = JSON.parse(result.provenanceJson.toString('utf8')) as {
+			controls: { fingerprint: string };
+			base: {
+				alpha: { opaquePixels: number; transparentPixels: number };
+			};
+			policy: {
+				alpha: string;
+				underlayAssembly: {
+					northSouthLastIndex: number;
+					familyHandoffLastIndex: number;
+					detailPolicy: string;
+					detailFeatherWidthPx: number;
+					detailFeatherLastInsetIndex: number;
+					detailSourceBytes: string;
+				};
+			};
+		};
+		expect(provenance.controls.fingerprint).toBe(input.controlFingerprint);
+		expect(provenance.base.alpha).toEqual({
+			opaquePixels: 18_616_320,
+			transparentPixels: 22_343_680
+		});
+		expect(provenance.policy.alpha).toBe('opaque-inside-camera-safe-crop-union');
+		expect(provenance.policy.underlayAssembly).toMatchObject({
+			northSouthLastIndex: 127,
+			familyHandoffLastIndex: 831,
+			detailPolicy:
+				'ascending-priority-source-over-current-master-with-128px-inset-smoothstep-feather',
+			detailFeatherWidthPx: 128,
+			detailFeatherLastInsetIndex: 127,
+			detailSourceBytes: 'immutable'
+		});
 	});
 });
