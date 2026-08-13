@@ -12,14 +12,18 @@ import {
 	assembleMeadowEntryPaintedV2Pilot,
 	type MeadowEntryPaintedV2PilotAssemblyInput
 } from './meadow-entry-painted-v2-pilot-finalizer';
+import { measureMeadowEntryDetailBoundaryMetrics } from './meadow-entry-detail-boundary-metrics';
 import {
 	assembleMeadowEntryPaintedV2Underlay,
 	compositeMeadowEntryDetailPanel,
 	type MeadowEntryUnderlayDecodedPanel
 } from './meadow-entry-painted-v2-underlay-assembly';
-import { decodeMeadowEntryRgba } from './meadow-entry-png';
+import { decodeMeadowEntryRgba, encodeCanonicalMeadowEntryPng } from './meadow-entry-png';
 import { MEADOW_ENTRY_PAINTED_V2_SOURCE_PANELS } from './meadow-entry-painted-v2-pilot';
-import type { MeadowEntryGenerationProvenance } from './meadow-entry-master-provenance';
+import {
+	validateMeadowEntryGenerationProvenance,
+	type MeadowEntryGenerationProvenance
+} from './meadow-entry-master-provenance';
 
 const repositoryRoot = resolve(import.meta.dirname, '../../../../..');
 
@@ -90,6 +94,47 @@ async function fixture(): Promise<MeadowEntryPaintedV2PilotAssemblyInput> {
 		controlFingerprint: packageProvenance.controlFingerprint,
 		approvedControlFingerprint: packageProvenance.controlFingerprint
 	};
+}
+
+async function decodedFixturePanels(input: MeadowEntryPaintedV2PilotAssemblyInput) {
+	return Promise.all(
+		MEADOW_ENTRY_PAINTED_V2_SOURCE_PANELS.map(async (panel) => ({
+			panel,
+			rgba: await decodeMeadowEntryRgba(input.panels[panel.id]!)
+		}))
+	);
+}
+
+async function assembleFixtureUnderlay(
+	decodedPanels: Awaited<ReturnType<typeof decodedFixturePanels>>
+) {
+	const underlays = decodedPanels.filter(({ panel }) => panel.role === 'underlay');
+	return assembleMeadowEntryPaintedV2Underlay({
+		width: 6400,
+		height: 6400,
+		panels: underlays.map(({ panel, rgba }) => ({
+			id: panel.id,
+			bounds: panel.bounds,
+			rgba
+		})),
+		northSouthPairs: [
+			{
+				northId: 'camera-underlay-sundrop-north',
+				southId: 'camera-underlay-sundrop-south',
+				bounds: { left: 0, top: 4736, right: 3200, bottom: 4864 }
+			},
+			{
+				northId: 'camera-underlay-crossroads-north',
+				southId: 'camera-underlay-crossroads-south',
+				bounds: { left: 2368, top: 3776, right: 5568, bottom: 3904 }
+			}
+		],
+		familyHandoff: {
+			sundropPanelIds: ['camera-underlay-sundrop-north', 'camera-underlay-sundrop-south'],
+			crossroadsPanelIds: ['camera-underlay-crossroads-north', 'camera-underlay-crossroads-south'],
+			bounds: { left: 2368, top: 3200, right: 3200, bottom: 5440 }
+		}
+	});
 }
 
 describe('painted-v2 pilot partial master assembler', () => {
@@ -182,42 +227,8 @@ describe('painted-v2 pilot partial master assembler', () => {
 		const input = await fixture();
 		const result = await assembleMeadowEntryPaintedV2Pilot(input);
 		const decodedMaster = await decodeMeadowEntryRgba(result.masterPng);
-		const decodedPanels = await Promise.all(
-			MEADOW_ENTRY_PAINTED_V2_SOURCE_PANELS.map(async (panel) => ({
-				panel,
-				rgba: await decodeMeadowEntryRgba(input.panels[panel.id]!)
-			}))
-		);
-		const underlays = decodedPanels.filter(({ panel }) => panel.role === 'underlay');
-		const underlay = await assembleMeadowEntryPaintedV2Underlay({
-			width: 6400,
-			height: 6400,
-			panels: underlays.map(({ panel, rgba }) => ({
-				id: panel.id,
-				bounds: panel.bounds,
-				rgba
-			})),
-			northSouthPairs: [
-				{
-					northId: 'camera-underlay-sundrop-north',
-					southId: 'camera-underlay-sundrop-south',
-					bounds: { left: 0, top: 4736, right: 3200, bottom: 4864 }
-				},
-				{
-					northId: 'camera-underlay-crossroads-north',
-					southId: 'camera-underlay-crossroads-south',
-					bounds: { left: 2368, top: 3776, right: 5568, bottom: 3904 }
-				}
-			],
-			familyHandoff: {
-				sundropPanelIds: ['camera-underlay-sundrop-north', 'camera-underlay-sundrop-south'],
-				crossroadsPanelIds: [
-					'camera-underlay-crossroads-north',
-					'camera-underlay-crossroads-south'
-				],
-				bounds: { left: 2368, top: 3200, right: 3200, bottom: 5440 }
-			}
-		});
+		const decodedPanels = await decodedFixturePanels(input);
+		const underlay = await assembleFixtureUnderlay(decodedPanels);
 		const details = decodedPanels
 			.filter(({ panel }) => panel.role === 'detail')
 			.sort((a, b) => a.panel.assemblyPriority - b.panel.assemblyPriority);
@@ -247,6 +258,104 @@ describe('painted-v2 pilot partial master assembler', () => {
 				}
 			}
 			compositeMeadowEntryDetailPanel(underlay, detail);
+		}
+	});
+
+	it('strictly attributes every visible boundary improvement to the feathered compositor', async () => {
+		const input = await fixture();
+		const result = await assembleMeadowEntryPaintedV2Pilot(input);
+		const corrected = await decodeMeadowEntryRgba(result.masterPng);
+		const decodedPanels = await decodedFixturePanels(input);
+		const baseline = await assembleFixtureUnderlay(decodedPanels);
+		const details = decodedPanels
+			.filter(({ panel }) => panel.role === 'detail')
+			.sort((first, second) => first.panel.assemblyPriority - second.panel.assemblyPriority);
+		for (const { panel, rgba } of details) {
+			for (let y = panel.bounds.top; y < panel.bounds.bottom; y += 1) {
+				const sourceStart = (y - panel.bounds.top) * rgba.width * 4;
+				const targetStart = (y * baseline.width + panel.bounds.left) * 4;
+				rgba.data.copy(baseline.data, targetStart, sourceStart, sourceStart + rgba.width * 4);
+			}
+		}
+		const baselinePng = await encodeCanonicalMeadowEntryPng(
+			baseline.data,
+			baseline.width,
+			baseline.height
+		);
+		expect(createHash('sha256').update(baselinePng).digest('hex')).toBe(
+			'c6ce56d67ebab7edc0744b8b8f3321401530c80664cafa3245f7dd468154b137'
+		);
+
+		const metricPanels = details.map(({ panel }) => ({
+			id: panel.id,
+			bounds: panel.bounds,
+			assemblyPriority: panel.assemblyPriority
+		}));
+		const baselineMetrics = measureMeadowEntryDetailBoundaryMetrics(baseline, metricPanels);
+		const correctedMetrics = measureMeadowEntryDetailBoundaryMetrics(corrected, metricPanels);
+		expect(correctedMetrics).toHaveLength(19);
+		expect(
+			correctedMetrics.map(({ panelId, edge, samples, comparisonSamples }) => ({
+				panelId,
+				edge,
+				samples,
+				comparisonSamples
+			}))
+		).toContainEqual({
+			panelId: 'sundrop-north',
+			edge: 'right',
+			samples: 544,
+			comparisonSamples: 18_432
+		});
+		expect(
+			correctedMetrics.map(({ panelId, edge, samples, comparisonSamples }) => ({
+				panelId,
+				edge,
+				samples,
+				comparisonSamples
+			}))
+		).toContainEqual({
+			panelId: 'village-crossroads-connector',
+			edge: 'right',
+			samples: 128,
+			comparisonSamples: 8_192
+		});
+		for (const [index, correctedMetric] of correctedMetrics.entries()) {
+			const baselineMetric = baselineMetrics[index]!;
+			expect(
+				{ panelId: correctedMetric.panelId, edge: correctedMetric.edge },
+				`metric order ${index}`
+			).toEqual({ panelId: baselineMetric.panelId, edge: baselineMetric.edge });
+			expect(
+				correctedMetric.excess,
+				`${correctedMetric.panelId}/${correctedMetric.edge} boundary excess`
+			).toBeLessThanOrEqual(baselineMetric.excess * 0.25);
+		}
+		const heroTop = correctedMetrics.find(
+			(metric) => metric.panelId === 'hero-house-frontage' && metric.edge === 'top'
+		)!;
+		expect(heroTop.edgeP95).toBeCloseTo(17.666666666666668, 12);
+		expect(heroTop.comparisonP95).toBe(14);
+		expect(heroTop.p95Ratio).toBeGreaterThan(1.25);
+	});
+
+	it('validates prompt-unavailable provenance only for the four approved attempt-3 underlays', async () => {
+		const input = await fixture();
+		const promptUnavailableIds = Object.entries(input.panelProvenance)
+			.filter(([, provenance]) => provenance.settings['promptUnavailable'] === true)
+			.map(([id]) => id)
+			.sort();
+		expect(promptUnavailableIds).toEqual([
+			'camera-underlay-crossroads-north',
+			'camera-underlay-crossroads-south',
+			'camera-underlay-sundrop-north',
+			'camera-underlay-sundrop-south'
+		]);
+		for (const id of promptUnavailableIds) {
+			const provenance = input.panelProvenance[id]!;
+			expect(provenance.prompt, id).toBeNull();
+			expect(provenance.promptSha256, id).toBeNull();
+			expect(() => validateMeadowEntryGenerationProvenance(provenance), id).not.toThrow();
 		}
 	});
 
