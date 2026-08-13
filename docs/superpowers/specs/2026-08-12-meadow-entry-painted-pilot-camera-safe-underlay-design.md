@@ -2,10 +2,16 @@
 
 **Date:** 2026-08-12
 
-**Status:** Approved design amendment; implementation not started
+**Status:** Approved camera-underlay design; detail-feather correction pending written-spec review
 
 **Amends:** `2026-08-10-meadow-entry-painted-background-pilot-design.md` and
 `2026-08-11-meadow-entry-painted-background-pr2b-pilot-art.md`
+
+**2026-08-13 correction:** Native-resolution Task 3 inspection proved that hard-copying the five
+detail panels recreates visible rectangular boundaries over the continuous underlay. The approved
+correction keeps every detail source file immutable while compositing a deterministic `128px`
+inward feather at each derived detail-panel perimeter. The exact contract appears under
+“Detail-panel precedence.”
 
 ## Purpose
 
@@ -173,7 +179,9 @@ The existing detail panels remain byte-immutable assembly inputs:
 
 Their hashes, normalized bytes, dimensions, and provenance remain pinned. They continue to paint
 above the underlay so the accepted building frontage, street, connector, and Waystone detail is
-preserved.
+preserved. Immutability applies to those source artifacts. It does not require every derived
+master pixel at a detail-panel perimeter to equal its source pixel: the perimeter is deliberately
+composited by the deterministic feather below, while the inset core remains exact.
 
 ## Art direction for the underlay
 
@@ -201,7 +209,8 @@ inherited from the earlier concept-only approval.
 
 ## Deterministic underlay assembly
 
-Underlay composition is a separate deterministic phase before existing detail panels are copied.
+Underlay composition is a separate deterministic phase before existing detail panels are
+composited.
 It uses decoded RGBA bytes and integer weight math so the same inputs always produce identical
 master pixels.
 
@@ -231,15 +240,40 @@ assembled Crossroads family are blended linearly by world x:
 - output alpha remains 255.
 
 The full `832px` handoff is reviewed as a material transition, not merely as a hash-equal runtime
-overlap. The existing connector detail panel then overwrites its current bounds at its current
-priority.
+overlap. The existing connector detail panel is then composited within its current bounds at its
+current priority using the same detail-edge policy as every other detail panel.
 
 ### Detail-panel precedence
 
-After the underlay is complete, the five existing detail panels are copied using their current
-ascending-priority, last-owner-wins behavior. Underlay panel order cannot change their bytes. The
-finalizer records underlay inputs, blend policy, blend bounds, detail inputs, and assembly order in
-master provenance.
+After the underlay is complete, the five existing detail panels are processed in their unchanged
+ascending-priority order. Each panel uses a `128px` inward smoothstep feather. Let `d` be the
+minimum integer distance from a panel pixel to any of the panel's four inclusive perimeter edges,
+and let `D = 127`:
+
+- `q = clamp(d, 0, D)`;
+- `n = q² × (3D - 2q)`;
+- `w = floor((255n + floor(D³ / 2)) / D³)`;
+- for each RGB channel,
+  `out = floor((current × (255-w) + detail × w + 127) / 255)`;
+- output alpha is `255` throughout the approved crop union.
+
+This gives exact, testable endpoints: a perimeter pixel has `w=0` and therefore equals the
+already-composed master; an inset pixel at distance `127` has `w=255` and therefore equals the
+immutable detail source. Pixels farther inward also equal the source. “`128px` feather” therefore
+names the inclusive distance indices `0…127`, not a `128px` semi-transparent border outside the
+panel.
+
+Later-priority detail panels feather over the current master, which already includes every
+lower-priority panel. This preserves deterministic priority without a hard last-owner rectangle.
+The source PNGs are never mutated. In an overlap, an exact later-panel core still wins; its feather
+retains the composed lower-priority result according to the same integer weight.
+
+Master provenance records the exact policy string
+`ascending-priority-source-over-current-master-with-128px-inset-smoothstep-feather`, feather width
+`128`, last inset index `127`, the integer formula, ordered detail IDs and hashes, underlay inputs,
+blend bounds, and assembly order. It states separately that source bytes are immutable, derived
+edge pixels are blended, and detail pixels are exact where edge distance is at least `127` unless
+an even later detail panel composites over them.
 
 ## Visual ownership and failure behavior
 
@@ -280,6 +314,8 @@ Publication is fail-closed:
 
 - all four new panel provenance records must validate;
 - all five existing detail hashes must match their current approvals;
+- every detail panel must fit its registered bounds and be at least `255px` on each axis so the
+  `0…127` feather endpoints exist;
 - the final master must pass camera-crop opacity and outside-union transparency;
 - both exports must match exact master extractions;
 - the runtime overlap must contain zero differing pixels;
@@ -325,6 +361,13 @@ Initial failing tests pin:
 - four exact underlay panel rows and five immutable detail-panel rows;
 - two exact runtime crops and their single overlap;
 - deterministic north/south and east/west blend results on synthetic pixels;
+- detail-feather endpoint behavior: perimeter pixels equal the pre-detail master, distance `127`
+  pixels equal the detail source, and a midpoint equals the specified integer formula;
+- overlap behavior in which a later-priority detail panel composites over the already-composed
+  lower-priority result;
+- unchanged hashes for all five detail source PNGs, unchanged master alpha counts, and identical
+  master bytes across two assemblies from identical inputs;
+- structural boundary samples proving every detail-panel outer edge equals the pre-detail master;
 - the complete route, its `18px` reach residual, the static swept camera-envelope containment
   contract, and negative cases;
 - master opacity inside both crops and transparency outside their union;
@@ -372,7 +415,8 @@ Before runtime publication, original-resolution proof artifacts show:
 - all four new underlay panels;
 - both `128px` north/south source seams;
 - the full `832px` Sundrop/Crossroads material transition;
-- every boundary where an existing detail panel overwrites the underlay;
+- every boundary where an existing detail panel feathers into the underlay or a lower-priority
+  detail composite;
 - every intersected region/connector material boundary, including all off-route safe-fill margins;
 - protected/live-content overlays;
 - collision/control overlays;
@@ -381,6 +425,23 @@ Before runtime publication, original-resolution proof artifacts show:
 
 Any visible seam, macro-rectangle, blur mismatch, duplicate live object, false wall, transparent
 hole, or ambiguous route clearance rejects the package before browser wiring.
+
+The rejected hard-copy master hash
+`c6ce56d67ebab7edc0744b8b8f3321401530c80664cafa3245f7dd468154b137` and its per-edge metric table
+are recorded in the ignored Task 3 report before replacement. For one boundary sample, RGB step is
+the arithmetic mean of the three absolute channel differences across adjacent pixels normal to
+the registered edge. The edge mean and p95 use all visible boundary samples after excluding
+segments covered by a later-priority detail panel. The comparison distribution uses same-direction
+adjacent-pixel steps whose midpoints lie `1…32px` on either side of those same visible segments,
+excluding the registered edge itself and any later-priority detail coverage. Boundary-gradient
+excess is `max(0, edge mean - comparison mean)`.
+
+For every detail perimeter with visible samples, the corrected master must reduce that excess by
+at least `75%` relative to the recorded hard-copy baseline, and its edge p95 may not exceed `1.25×`
+the p95 of its comparison distribution. A perimeter wholly covered by later-priority art has no
+final-master metric and is covered instead by the ordered-composition unit test. These metrics are
+regression guards, not substitutes for original-detail inspection; a visible rectangle still
+rejects the package even when the numeric gate passes.
 
 ## Task 10 replacement visual gate
 
@@ -422,6 +483,8 @@ painted mode by default and does not begin PR3 automatically.
 The amendment is complete only when:
 
 - the four new underlay panels and five immutable detail panels assemble deterministically;
+- detail sources retain their approved hashes, their inset cores remain exact, and their derived
+  `128px` perimeters satisfy the smoothstep contract without visible rectangles;
 - the flattened master is opaque throughout both runtime crops and transparent elsewhere;
 - the two `3200×3200` exports have exact, byte-identical overlap pixels;
 - the static `1920×1080` route envelope (including the `18px` reach residual) and every sampled
