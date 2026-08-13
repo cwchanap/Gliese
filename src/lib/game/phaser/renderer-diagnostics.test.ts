@@ -32,6 +32,23 @@ describe('regional background renderer diagnostics', () => {
 		).toBe(0);
 	});
 
+	it('records both camera-safe pilot texture completions', () => {
+		expect(
+			buildRegionalBackgroundRendererDiagnostic({
+				renderer: 'webgl',
+				paintedMode: 'pilot',
+				maxTextureSize: 4096,
+				loadStartedAtMs: 10,
+				loadCompletedAtMs: 25,
+				regionalBackgroundLoadCompletions: 2
+			})
+		).toMatchObject({
+			paintedMode: 'pilot',
+			regionalBackgroundLoadMs: 15,
+			regionalBackgroundLoadCompletions: 2
+		});
+	});
+
 	it.each([
 		{ loadStartedAtMs: null, loadCompletedAtMs: 10 },
 		{ loadStartedAtMs: 10, loadCompletedAtMs: null },

@@ -23,7 +23,7 @@ describe('painted-v2 runtime selection', () => {
 		});
 	});
 
-	it('selects exactly the three pilot assets when the pilot flag is enabled', () => {
+	it('selects exactly the two camera-safe pilot assets when the pilot flag is enabled', () => {
 		const selection = resolveMeadowEntryPaintedSelection({
 			regionalBackgrounds: true,
 			meadowPaintedPilot: true
@@ -31,20 +31,47 @@ describe('painted-v2 runtime selection', () => {
 		expect(selection.mode).toBe('pilot');
 		expect(selection.assets).toEqual([
 			{
-				key: 'meadow-entry-painted-v2-sundrop-village-base',
-				path: '/game/assets/regions/meadow-entry-painted-v2/painted-v2-sundrop-village-base.png'
+				key: 'meadow-entry-painted-v2-sundrop-camera-base',
+				path: '/game/assets/regions/meadow-entry-painted-v2/painted-v2-sundrop-camera-base.png'
 			},
 			{
-				key: 'meadow-entry-painted-v2-village-crossroads-connector-base',
-				path: '/game/assets/regions/meadow-entry-painted-v2/painted-v2-village-crossroads-connector-base.png'
-			},
-			{
-				key: 'meadow-entry-painted-v2-crossroads-base',
-				path: '/game/assets/regions/meadow-entry-painted-v2/painted-v2-crossroads-base.png'
+				key: 'meadow-entry-painted-v2-crossroads-camera-base',
+				path: '/game/assets/regions/meadow-entry-painted-v2/painted-v2-crossroads-camera-base.png'
 			}
 		]);
-		expect(selection.backgrounds).toHaveLength(3);
+		expect(selection.backgrounds).toEqual([
+			{
+				id: 'meadow-entry-painted-v2-sundrop-camera-base-image',
+				x: 1_600,
+				y: 4_800,
+				width: 3_200,
+				height: 3_200,
+				textureKey: 'meadow-entry-painted-v2-sundrop-camera-base',
+				plane: 'base',
+				drawOrder: 0
+			},
+			{
+				id: 'meadow-entry-painted-v2-crossroads-camera-base-image',
+				x: 3_968,
+				y: 3_840,
+				width: 3_200,
+				height: 3_200,
+				textureKey: 'meadow-entry-painted-v2-crossroads-camera-base',
+				plane: 'base',
+				drawOrder: 10
+			}
+		]);
+		expect(selection.backgrounds).toHaveLength(2);
 		expect(selection.visualOwners).toHaveLength(5);
+		expect(
+			selection.visualOwners.map(({ sourceType, sourceId }) => `${sourceType}:${sourceId}`)
+		).toEqual([
+			'blocker:silverpine-wall-B-south',
+			'decor:village-decor-22-77',
+			'decor:village-decor-28-25',
+			'decor:village-decor-28-53',
+			'decor:village-decor-53-22'
+		]);
 	});
 
 	it('gives regional-backgrounds off priority over the pilot flag', () => {
@@ -73,6 +100,12 @@ describe('painted-v2 runtime selection', () => {
 		expect(Object.isFrozen(MEADOW_ENTRY_PAINTED_MODE_PILOT.assets)).toBe(true);
 		expect(Object.isFrozen(MEADOW_ENTRY_PAINTED_MODE_PILOT.backgrounds)).toBe(true);
 		expect(Object.isFrozen(MEADOW_ENTRY_PAINTED_MODE_PILOT.visualOwners)).toBe(true);
+		expect(Object.isFrozen(MEADOW_ENTRY_PAINTED_MODE_PILOT.backgrounds[0])).toBe(true);
+		expect(Object.isFrozen(MEADOW_ENTRY_PAINTED_MODE_PILOT.visualOwners[0])).toBe(true);
+		expect(Object.isFrozen(MEADOW_ENTRY_PAINTED_MODE_PILOT.visualOwners[0]?.ownerCrops)).toBe(true);
+		expect(Object.isFrozen(MEADOW_ENTRY_PAINTED_MODE_PILOT.visualOwners[0]?.ownerCrops[0])).toBe(
+			true
+		);
 		expect(() => {
 			(MEADOW_ENTRY_PAINTED_MODE_PILOT.assets as unknown as Array<unknown>).push({});
 		}).toThrow();

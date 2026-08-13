@@ -32,6 +32,8 @@ describe('regional background plane render diagnostics', () => {
 				}
 			],
 			successfulBackgroundIds: ['foreground-image', 'base-image'],
+			selectedFallbackBlockerIds: ['blocker-a'],
+			selectedFallbackBlockerSegmentCount: 2,
 			selectedFallbackDecorIds: ['decor-b', 'decor-a'],
 			selectedFallbackFenceIds: ['fence-a']
 		};
@@ -46,6 +48,8 @@ describe('regional background plane render diagnostics', () => {
 		expect(received?.entries.map((entry) => entry.id)).toEqual(['foreground-image', 'base-image']);
 		expect(received?.successfulBackgroundIds).toEqual(['base-image', 'foreground-image']);
 		expect(received?.paintedMode).toBe('pilot');
+		expect(received?.selectedFallbackBlockerIds).toEqual(['blocker-a']);
+		expect(received?.selectedFallbackBlockerSegmentCount).toBe(2);
 		expect(received?.selectedFallbackDecorIds).toEqual(['decor-b', 'decor-a']);
 		expect(received?.selectedFallbackFenceIds).toEqual(['fence-a']);
 	});

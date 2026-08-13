@@ -156,6 +156,11 @@ describe('Meadow Entry painted background transform', () => {
 		);
 
 		expect(transformed.backgroundImages).toEqual(MEADOW_ENTRY_PAINTED_MODE_PILOT.backgrounds);
+		expect(transformed.backgroundImages).toHaveLength(2);
+		expect(transformed.backgroundImages?.map(({ width, height }) => ({ width, height }))).toEqual([
+			{ width: 3_200, height: 3_200 },
+			{ width: 3_200, height: 3_200 }
+		]);
 		expect(
 			transformed.blockers?.find(({ id }) => id === 'silverpine-wall-B-south')?.visual
 		).toEqual({
@@ -171,6 +176,30 @@ describe('Meadow Entry painted background transform', () => {
 				ownerCrops: ownerRow.ownerCrops
 			});
 		}
+	});
+
+	it('keeps authored blocker geometry and collision semantics independent of painted ownership', () => {
+		const transformed = applyMeadowEntryPaintedBackgrounds(meadowEntryMap, {
+			selection: MEADOW_ENTRY_PAINTED_MODE_PILOT
+		});
+		const sourceBlocker = meadowEntryMap.blockers?.find(
+			({ id }) => id === 'silverpine-wall-B-south'
+		);
+		const transformedBlocker = transformed.blockers?.find(
+			({ id }) => id === 'silverpine-wall-B-south'
+		);
+
+		expect(sourceBlocker).toBeDefined();
+		expect(transformedBlocker).toMatchObject({
+			id: 'silverpine-wall-B-south',
+			x: sourceBlocker?.x,
+			y: sourceBlocker?.y,
+			width: sourceBlocker?.width,
+			height: sourceBlocker?.height,
+			kind: sourceBlocker?.kind
+		});
+		expect(transformedBlocker?.visual).toMatchObject({ mode: 'fallback-only' });
+		expect(transformed.blockers).toHaveLength(meadowEntryMap.blockers?.length ?? 0);
 	});
 
 	it('does not mutate the source map or any nested source arrays', () => {

@@ -33,6 +33,7 @@ import {
 	type VillageBuildingFrameName
 } from '$lib/game/content/assets';
 import { meadowEntryMap } from '$lib/game/content/maps';
+import { MEADOW_ENTRY_PAINTED_MODE_PILOT } from '$lib/game/content/backgrounds/meadow-entry-painted-v2-runtime';
 
 const requiredActors: ActorAnimationId[] = ['hero', 'slimeScout', 'ruinsWarden'];
 const requiredClips: ActorAnimationKey[] = ['idle', 'walk', 'attack', 'dead'];
@@ -146,6 +147,35 @@ describe('battle background asset metadata', () => {
 describe('regional background asset metadata', () => {
 	it('keeps the generic regional preload seam empty until PR2b selects a mode', () => {
 		expect(regionalBackgroundAssets).toEqual([]);
+	});
+
+	it('keeps the camera-safe pilot inventory separate from the generic preload seam', () => {
+		expect(MEADOW_ENTRY_PAINTED_MODE_PILOT.assets).toEqual([
+			{
+				key: 'meadow-entry-painted-v2-sundrop-camera-base',
+				path: '/game/assets/regions/meadow-entry-painted-v2/painted-v2-sundrop-camera-base.png'
+			},
+			{
+				key: 'meadow-entry-painted-v2-crossroads-camera-base',
+				path: '/game/assets/regions/meadow-entry-painted-v2/painted-v2-crossroads-camera-base.png'
+			}
+		]);
+		expect(MEADOW_ENTRY_PAINTED_MODE_PILOT.backgrounds).toEqual([
+			expect.objectContaining({
+				id: 'meadow-entry-painted-v2-sundrop-camera-base-image',
+				width: 3_200,
+				height: 3_200,
+				plane: 'base',
+				drawOrder: 0
+			}),
+			expect.objectContaining({
+				id: 'meadow-entry-painted-v2-crossroads-camera-base-image',
+				width: 3_200,
+				height: 3_200,
+				plane: 'base',
+				drawOrder: 10
+			})
+		]);
 	});
 });
 

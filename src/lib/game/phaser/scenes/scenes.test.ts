@@ -1088,7 +1088,7 @@ describe('BootScene', () => {
 			expect(diagnostics[0]).toMatchObject({
 				paintedMode: 'pilot',
 				regionalBackgroundLoadMs: 15,
-				regionalBackgroundLoadCompletions: 3
+				regionalBackgroundLoadCompletions: 2
 			});
 		} finally {
 			now.mockRestore();
@@ -1110,7 +1110,12 @@ describe('BootScene', () => {
 
 		try {
 			scene.preload();
-			scene.load.emit('filecomplete', 'meadow-entry-painted-v2-crossroads-base', 'image', {});
+			scene.load.emit(
+				'filecomplete',
+				'meadow-entry-painted-v2-crossroads-camera-base',
+				'image',
+				{}
+			);
 			scene.load.emit('complete');
 
 			expect(scene.load.image).not.toHaveBeenCalledWith(
@@ -3574,7 +3579,6 @@ describe('WorldScene', () => {
 			expect(target.diagnostics[0]?.paintedMode).toBe('pilot');
 			expect(target.diagnostics[0]?.entries.map((entry) => entry.status)).toEqual([
 				'rendered',
-				'rendered',
 				'rendered'
 			]);
 			expect(target.diagnostics[0]?.successfulBackgroundIds).toEqual(
@@ -3635,7 +3639,7 @@ describe('WorldScene', () => {
 		async (_label, arrange, status, fault) => {
 			const selection = await registerPaintedPilotBackgroundMocks();
 			const crossroads = selection.backgrounds.find((background) =>
-				background.id.includes('crossroads-base-image')
+				background.id.includes('crossroads-camera-base-image')
 			)!;
 			const search = fault
 				? `?meadowPaintedPilot=on&mapDebug=collision&regionalBackgroundFault=${crossroads.id}:render`
@@ -3655,6 +3659,13 @@ describe('WorldScene', () => {
 				expect(target.diagnostics[0]?.entries.find(({ id }) => id === crossroads.id)?.status).toBe(
 					status
 				);
+				expect(target.diagnostics[0]?.entries.map((entry) => entry.status)).toEqual([
+					'rendered',
+					status
+				]);
+				expect(target.diagnostics[0]?.successfulBackgroundIds).toEqual([
+					selection.backgrounds[0]!.id
+				]);
 				expect(target.diagnostics[0]?.selectedFallbackBlockerIds).toContain(
 					'silverpine-wall-B-south'
 				);
@@ -3667,6 +3678,19 @@ describe('WorldScene', () => {
 					color: 0xff3355,
 					alpha: 0.18
 				});
+				const playerLeftOfBlocker = meadowEntryMap.blockers?.find(
+					({ id }) => id === 'silverpine-wall-B-south'
+				);
+				expect(playerLeftOfBlocker).toBeDefined();
+				Object.assign(phaserState.playerMarker, {
+					x: playerLeftOfBlocker!.x - playerLeftOfBlocker!.width / 2 - PLAYER_COLLISION_RADIUS - 1,
+					y: playerLeftOfBlocker!.y
+				});
+				phaserState.cursorKeys.right.isDown = true;
+				scene.update(0, 1_000);
+				expect(phaserState.playerMarker.x).toBe(
+					playerLeftOfBlocker!.x - playerLeftOfBlocker!.width / 2 - PLAYER_COLLISION_RADIUS - 1
+				);
 			} finally {
 				target.restore();
 				restoreLocation();
@@ -3698,7 +3722,7 @@ describe('WorldScene', () => {
 		async (_label, arrange, status, fault) => {
 			const selection = await registerPaintedPilotBackgroundMocks();
 			const sundrop = selection.backgrounds.find((background) =>
-				background.id.includes('sundrop-village-base-image')
+				background.id.includes('sundrop-camera-base-image')
 			)!;
 			const search = fault
 				? `?meadowPaintedPilot=on&regionalBackgroundFault=${sundrop.id}:render`
@@ -3718,6 +3742,13 @@ describe('WorldScene', () => {
 				expect(target.diagnostics[0]?.entries.find(({ id }) => id === sundrop.id)?.status).toBe(
 					status
 				);
+				expect(target.diagnostics[0]?.entries.map((entry) => entry.status)).toEqual([
+					status,
+					'rendered'
+				]);
+				expect(target.diagnostics[0]?.successfulBackgroundIds).toEqual([
+					selection.backgrounds[1]!.id
+				]);
 				expect(target.diagnostics[0]?.selectedFallbackDecorIds).toContain('village-decor-28-25');
 			} finally {
 				target.restore();
@@ -3727,13 +3758,13 @@ describe('WorldScene', () => {
 	);
 
 	it.each([
-		['Sundrop crop succeeds', ['meadow-entry-painted-v2-village-crossroads-connector-base'], 0],
-		['connector crop succeeds', ['meadow-entry-painted-v2-sundrop-village-base'], 0],
+		['Sundrop crop succeeds', ['meadow-entry-painted-v2-sundrop-camera-base'], 0],
+		['Crossroads crop succeeds', ['meadow-entry-painted-v2-crossroads-camera-base'], 0],
 		[
 			'both overlap crops fail',
 			[
-				'meadow-entry-painted-v2-village-crossroads-connector-base',
-				'meadow-entry-painted-v2-sundrop-village-base'
+				'meadow-entry-painted-v2-sundrop-camera-base',
+				'meadow-entry-painted-v2-crossroads-camera-base'
 			],
 			1
 		]

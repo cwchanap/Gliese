@@ -78,6 +78,61 @@ describe('map background ownership', () => {
 		expect(shouldRenderOwnedVisual(alternatives, new Set(['b-base']))).toBe(false);
 	});
 
+	it('keeps the camera overlap owner suppressed when either complete crop is healthy', () => {
+		const overlapOwner = {
+			mode: 'fallback-only' as const,
+			ownerCrops: [
+				{
+					cropId: 'painted-v2-sundrop-camera-base',
+					requiredBackgroundIds: ['meadow-entry-painted-v2-sundrop-camera-base-image']
+				},
+				{
+					cropId: 'painted-v2-crossroads-camera-base',
+					requiredBackgroundIds: ['meadow-entry-painted-v2-crossroads-camera-base-image']
+				}
+			]
+		};
+
+		expect(
+			shouldRenderOwnedVisual(
+				overlapOwner,
+				new Set(['meadow-entry-painted-v2-sundrop-camera-base-image'])
+			)
+		).toBe(false);
+		expect(
+			shouldRenderOwnedVisual(
+				overlapOwner,
+				new Set(['meadow-entry-painted-v2-crossroads-camera-base-image'])
+			)
+		).toBe(false);
+		expect(shouldRenderOwnedVisual(overlapOwner, new Set())).toBe(true);
+	});
+
+	it('keeps a unique visual live when its only camera crop fails', () => {
+		const uniqueOwner = {
+			mode: 'fallback-only' as const,
+			ownerCrops: [
+				{
+					cropId: 'painted-v2-crossroads-camera-base',
+					requiredBackgroundIds: ['meadow-entry-painted-v2-crossroads-camera-base-image']
+				}
+			]
+		};
+
+		expect(
+			shouldRenderOwnedVisual(
+				uniqueOwner,
+				new Set(['meadow-entry-painted-v2-sundrop-camera-base-image'])
+			)
+		).toBe(true);
+		expect(
+			shouldRenderOwnedVisual(
+				uniqueOwner,
+				new Set(['meadow-entry-painted-v2-crossroads-camera-base-image'])
+			)
+		).toBe(false);
+	});
+
 	it('keeps fallback visible until every plane in one crop succeeds', () => {
 		const baseAndForeground = {
 			mode: 'fallback-only' as const,
