@@ -1064,8 +1064,7 @@ export function paintedV2ProofInputPaths(proofId: string): readonly string[] {
 		];
 	}
 	if (proofId === 'pilot-base-coverage') return common;
-	if (proofId === 'pilot-master-transparency')
-		return [PAINTED_V2_BASE_MASTER, PAINTED_V2_MASTER_PROVENANCE, PAINTED_V2_CROP_MANIFEST];
+	if (proofId === 'pilot-master-transparency') return common;
 	if (proofId === 'pilot-runtime-overlap') {
 		const overlap = MEADOW_ENTRY_PAINTED_V2_PILOT_OVERLAPS[0]!;
 		const first = MEADOW_ENTRY_PAINTED_V2_PILOT_CROPS.find(({ id }) => id === overlap.firstCropId)!;
