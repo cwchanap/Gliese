@@ -412,6 +412,15 @@ frame. It rejects any non-`1920×1080` sample or any sampled rectangle that leav
 two-crop union. This runtime sample is the smooth-follow/corner-lag proof; the pure envelope test
 does not claim that responsibility.
 
+The browser-local real-input route runner retains its existing `12px` exterior settle, `4px`
+interior settle, and `18px` reach tolerances. A correction may cross a target by one Phaser
+movement frame, so after at least one correction has been issued the runner accepts an unblocked,
+directionally reached position within the existing `18px` reach tolerance. This is not a retry or
+tolerance increase: the first pass still seeks the tighter settle tolerance, while post-correction
+acceptance prevents a position already valid under the established reach contract from oscillating
+past the target. Positions beyond `18px`, blocked corrections, wrong-direction movement, stalls,
+and correction exhaustion outside the reach contract remain failures.
+
 The focused pilot journeys must pass individually and with the existing bounded repeat evidence.
 Full unit, E2E, check, lint, browser build, Tauri frontend build, storage/LFS, and diff checks run
 before visual approval.
@@ -512,6 +521,8 @@ The amendment is complete only when:
 - controls, ownership, provenance, approval, proofs, generated data, and runtime copies agree;
 - both exact runtime textures retain in a fresh browser probe without context loss;
 - the stabilized real-input gameplay journey and deliberate failure cases pass;
+- the test-local route runner accepts a post-correction unblocked position inside the existing
+  `18px` reach contract and still rejects `18.01px`, blocked, wrong-direction, and stalled cases;
 - all automated, storage, browser, and Tauri frontend gates pass;
 - all replacement Task 10 normal captures show continuous painted terrain with no exposed crop
   boundary or fallback grid;

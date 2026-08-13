@@ -1247,6 +1247,9 @@ Include runtime/Boot production files in the commit only when Step 4 demonstrate
   Meadow camera sample is contained by the two-crop union.
 - Keeps the stabilized keyboard route, transition helper, collision tolerances, save/reload, and
   facing assertions frozen.
+- Preserves all existing route coordinates and tolerances. After at least one correction, the
+  test-local route runner may advance an axis when an unblocked diagnostic has directionally
+  reached the target and is within the existing `18px` reach tolerance.
 
 - [ ] **Step 1: Run unchanged focused E2E for genuine RED**
 
@@ -1258,6 +1261,31 @@ bun run test:e2e -- --grep "Meadow painted pilot"
 
 Expected: FAIL on the committed three-asset IDs/counts against the Task 5 two-crop runtime. The
 stabilized route assertions must not be the failure source.
+
+The baseline run on 2026-08-13 additionally exposed a nondeterministic Villager House 1 correction
+oscillation: an unblocked correction moved from `x=526.9016` (`6.9016px` from target, already
+inside the existing `18px` reach contract) to `x=500.8784` (`19.1216px` away) and exhausted the
+correction limit. An unchanged individual rerun passed. The user approved the narrow test-runner
+amendment below at `2026-08-13T18:31:58Z`; no route, tolerance, retry, player, or production change
+is authorized.
+
+- [ ] **Step 1a: Add the route-runner correction RED and minimal GREEN**
+
+In the existing browser-local route-steering characterization, add a synthetic unblocked
+correction sequence that first crosses the target outside the tight settle tolerance but inside
+the existing reach tolerance. Require the corrected axis to advance after at least one correction.
+Confirm genuine RED because the current runner continues correcting instead.
+
+Then reuse the existing axis-settle branch when all of these are true:
+
+- at least one correction has been issued;
+- the diagnostic is not blocked;
+- the movement has directionally reached the target;
+- the remaining distance is at most the existing `reachTolerance`.
+
+Retain the existing `18.01px` rejection, blocked-at-exhaustion, wrong-direction/no-progress, stall,
+and correction-limit assertions. Run the route-steering characterization and the dedicated
+Villager House 1 graybox case before resuming the two-asset E2E edits.
 
 - [ ] **Step 2: Write the two-asset E2E expectations**
 
@@ -1294,9 +1322,10 @@ this live smooth-follow probe as separate assertions.
 
 - [ ] **Step 3: Make only evidence-backed expectation corrections**
 
-Do not add waypoints, coordinate seeding, retries, tolerance widening, or player mutation. If a
-route fails independently of inventory, stop and report the regression instead of tuning it in
-this task.
+Do not add waypoints, coordinate seeding, retries, tolerance widening, or player mutation. The
+only approved route-runner change is Step 1a's post-correction use of the existing reach contract.
+If another route fails independently of inventory, stop and report the regression instead of
+tuning it in this task.
 
 - [ ] **Step 4: Run individual and bounded-repeat GREEN**
 
