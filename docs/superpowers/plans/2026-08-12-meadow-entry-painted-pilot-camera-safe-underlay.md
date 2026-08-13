@@ -13,6 +13,11 @@ and beyond inset index `127` while eliminating hard derived rectangles. Two opaq
 are cut from the flattened master; a pure swept-camera contract proves their union covers the
 approved Hero House → Sundrop → connector → Waystone route.
 
+**2026-08-13 Task 3 review amendment:** Seam acceptance is attributed to the compositor. Exact
+visible perimeter equality to the pre-detail composite, at least `75%` hard-copy excess reduction
+under strict per-step later-coverage filtering, and original-detail inspection are blocking. The
+local `1.25x` p95 ratio remains recorded as a diagnostic and is not a publication blocker.
+
 **Tech Stack:** TypeScript, Vitest, Bun, Sharp, canonical PNG helpers, Phaser 4, Playwright,
 Git LFS, built-in image generation.
 
@@ -580,6 +585,8 @@ git commit -m "art(world): paint Meadow camera underlay"
 ### Task 3: Assemble the deterministic camera-safe master
 
 **Files:**
+- Create: `src/lib/game/content/backgrounds/meadow-entry-detail-boundary-metrics.ts`
+- Create: `src/lib/game/content/backgrounds/meadow-entry-detail-boundary-metrics.test.ts`
 - Create: `src/lib/game/content/backgrounds/meadow-entry-painted-v2-underlay-assembly.ts`
 - Create: `src/lib/game/content/backgrounds/meadow-entry-painted-v2-underlay-assembly.test.ts`
 - Modify: `src/lib/game/content/backgrounds/meadow-entry-painted-v2-pilot-finalizer.ts`
@@ -594,6 +601,10 @@ git commit -m "art(world): paint Meadow camera underlay"
 - Report: `.superpowers/sdd/2026-08-12-meadow-entry-painted-pilot-camera-safe-underlay/task-3-report.md` (ignored)
 
 **Interfaces:**
+- Produces a pure detail-boundary sampler that reports per-panel/per-edge visible sample counts,
+  edge mean/nearest-rank p95, strictly filtered comparison count/mean/p95, excess, and p95 ratio.
+- Filters every comparison step independently when either endpoint is covered by later-priority
+  detail art; it never pools opposite parallel edges.
 - Produces:
   `blendMeadowEntryOpaqueChannel(first, second, index, lastIndex): number`.
 - Produces:
@@ -621,7 +632,10 @@ git commit -m "art(world): paint Meadow camera underlay"
 Before replacing the current failed master, assert its SHA-256 is
 `c6ce56d67ebab7edc0744b8b8f3321401530c80664cafa3245f7dd468154b137`. Compute the per-edge mean,
 p95, comparison-band mean/p95, and excess with the exact sampling definition in the design. Record
-the table in the ignored Task 3 report. Later-priority coverage is excluded from earlier edges.
+the table in the ignored Task 3 report. Later-priority coverage is excluded from earlier edges,
+and every comparison step is filtered independently when either of its two pixels is covered.
+Write a synthetic regression that fails if an edge reuses the opposite edge's comparison band or
+retains comparison steps hidden by later-priority art.
 
 Keep the already captured missing-assembler RED in the report. Add new tests that fail against the
 current hard-copy finalizer. Pin underlay blend endpoints and feather endpoints/rounding:
@@ -797,12 +811,14 @@ Inspect the master at original detail across both 128px seams, the 832px family 
 detail boundaries, Hero House, main street, connector, and Waystone. Reject visible seams before
 continuing.
 
-Run the deterministic boundary measurement against the recorded hard-copy table. For every
-visible detail perimeter require at least `75%` reduction in boundary-gradient excess and edge p95
-no greater than `1.25×` its `32px` comparison-band p95. Also assert every visible outer-edge pixel
-equals the pre-detail underlay/composite pixel, both assembly runs produce the same SHA-256, the
-five source hashes remain unchanged, and alpha counts remain `18_616_320` opaque /
-`22_343_680` transparent. Numeric success cannot override a visible native-resolution rectangle.
+Run the deterministic boundary measurement against a strictly recomputed hard-copy table. For
+every visible detail perimeter require at least `75%` reduction in boundary-gradient excess and
+exact equality between every visible corrected outer-edge pixel and the pre-detail composite pixel
+immediately before that panel is applied. Record edge p95, `32px` comparison-band p95, and their
+ratio for diagnosis; do not make the `1.25x` ratio blocking. Also assert both assembly runs produce
+the same SHA-256, the five source hashes remain unchanged, and alpha counts remain `18_616_320`
+opaque / `22_343_680` transparent. Numeric success cannot override a visible native-resolution
+rectangle.
 
 - [ ] **Step 7: Run focused GREEN and no-write checks**
 
@@ -810,6 +826,7 @@ Run:
 
 ```bash
 bun run test:unit -- --run \
+  src/lib/game/content/backgrounds/meadow-entry-detail-boundary-metrics.test.ts \
   src/lib/game/content/backgrounds/meadow-entry-painted-v2-underlay-assembly.test.ts \
   src/lib/game/content/backgrounds/meadow-entry-master-provenance.test.ts \
   src/lib/game/content/backgrounds/meadow-entry-painted-v2-pilot-finalizer.test.ts \
@@ -825,6 +842,8 @@ Record master SHA-256, encoded bytes, exact alpha counts, and unchanged five det
 
 ```bash
 git add \
+  src/lib/game/content/backgrounds/meadow-entry-detail-boundary-metrics.ts \
+  src/lib/game/content/backgrounds/meadow-entry-detail-boundary-metrics.test.ts \
   src/lib/game/content/backgrounds/meadow-entry-painted-v2-underlay-assembly.ts \
   src/lib/game/content/backgrounds/meadow-entry-painted-v2-underlay-assembly.test.ts \
   src/lib/game/content/backgrounds/meadow-entry-painted-v2-pilot-finalizer.ts \
@@ -1518,6 +1537,7 @@ bun run test:unit -- --run \
   src/lib/game/content/backgrounds/meadow-entry-painted-v2-controls-approval.test.ts \
   src/lib/game/content/meadow-entry-controls-approval-tool.test.ts \
   src/lib/game/content/backgrounds/meadow-entry-painted-v2-pilot.test.ts \
+  src/lib/game/content/backgrounds/meadow-entry-detail-boundary-metrics.test.ts \
   src/lib/game/content/backgrounds/meadow-entry-painted-v2-underlay-assembly.test.ts \
   src/lib/game/content/backgrounds/meadow-entry-painted-v2-pilot-finalizer.test.ts \
   src/lib/game/content/backgrounds/meadow-entry-painted-v2-pilot-finalizer-cli.test.ts \

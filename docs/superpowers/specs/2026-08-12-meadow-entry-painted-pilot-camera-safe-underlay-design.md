@@ -2,7 +2,7 @@
 
 **Date:** 2026-08-12
 
-**Status:** Approved camera-underlay design and detail-feather correction; implementation pending
+**Status:** Approved camera-underlay design, detail-feather correction, and seam-attribution metric
 
 **Amends:** `2026-08-10-meadow-entry-painted-background-pilot-design.md` and
 `2026-08-11-meadow-entry-painted-background-pr2b-pilot-art.md`
@@ -12,6 +12,14 @@ detail panels recreates visible rectangular boundaries over the continuous under
 correction keeps every detail source file immutable while compositing a deterministic `128px`
 inward feather at each derived detail-panel perimeter. The exact contract appears under
 “Detail-panel precedence.”
+
+**2026-08-13 metric correction:** Task 3 review proved that the original absolute local-p95 gate
+can reject natural terrain variation that the detail compositor did not introduce. It also found
+that the first report pooled comparison steps hidden by later-priority details. The corrected gate
+attributes seams to composition: visible perimeter pixels must exactly equal the pre-detail
+composite, boundary-gradient excess must improve by at least `75%` over the hard-copy baseline,
+and native-detail inspection remains authoritative. The local `1.25x` p95 ratio is retained as a
+reported diagnostic, not a blocking threshold.
 
 ## Purpose
 
@@ -430,18 +438,30 @@ The rejected hard-copy master hash
 `c6ce56d67ebab7edc0744b8b8f3321401530c80664cafa3245f7dd468154b137` and its per-edge metric table
 are recorded in the ignored Task 3 report before replacement. For one boundary sample, RGB step is
 the arithmetic mean of the three absolute channel differences across adjacent pixels normal to
-the registered edge. The edge mean and p95 use all visible boundary samples after excluding
-segments covered by a later-priority detail panel. The comparison distribution uses same-direction
-adjacent-pixel steps whose midpoints lie `1…32px` on either side of those same visible segments,
-excluding the registered edge itself and any later-priority detail coverage. Boundary-gradient
-excess is `max(0, edge mean - comparison mean)`.
+the registered edge. A boundary sample is visible when that panel's perimeter pixel is not covered
+by a later-priority detail panel. The edge mean and nearest-rank p95 use those visible samples. For
+each visible boundary coordinate, the comparison distribution uses same-direction adjacent-pixel
+steps whose midpoints lie `1…32px` on either side of the registered edge, excluding the registered
+edge itself. Each comparison step is filtered independently: exclude it when either endpoint is
+covered by a later-priority detail panel. Do not pool an edge with the opposite parallel edge or
+reuse a comparison distribution whose visible coordinates differ. Nearest-rank p95 is the sorted
+sample at index `ceil(0.95 * count) - 1`. Boundary-gradient excess is
+`max(0, edge mean - comparison mean)`.
 
-For every detail perimeter with visible samples, the corrected master must reduce that excess by
-at least `75%` relative to the recorded hard-copy baseline, and its edge p95 may not exceed `1.25×`
-the p95 of its comparison distribution. A perimeter wholly covered by later-priority art has no
-final-master metric and is covered instead by the ordered-composition unit test. These metrics are
-regression guards, not substitutes for original-detail inspection; a visible rectangle still
-rejects the package even when the numeric gate passes.
+For every detail perimeter with visible samples, all of these blocking gates apply:
+
+- each visible outer-edge pixel in the corrected master exactly equals the pre-detail composite
+  immediately before that panel is applied in ascending priority;
+- the corrected boundary-gradient excess is at most `25%` of the strictly recomputed hard-copy
+  baseline excess, which is at least a `75%` reduction;
+- original-detail inspection finds no visible rectangle, seam, double-darkening, material jump,
+  transparent hole, or lost central detail.
+
+The corrected edge p95, comparison-band p95, and their ratio remain mandatory report fields. A
+ratio above `1.25x` is diagnostic rather than blocking because an unchanged pre-detail terrain
+step can exceed that local ratio without being introduced by the compositor. A perimeter wholly
+covered by later-priority art has no final-master metric and is covered instead by the
+ordered-composition unit test. Numeric success cannot override a visible native-resolution defect.
 
 ## Task 10 replacement visual gate
 
