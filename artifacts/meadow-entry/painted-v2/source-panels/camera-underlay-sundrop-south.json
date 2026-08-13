@@ -1,0 +1,280 @@
+{
+	"version": 3,
+	"id": "camera-underlay-sundrop-south",
+	"role": "underlay",
+	"bounds": {
+		"left": 0,
+		"top": 4736,
+		"right": 3200,
+		"bottom": 6400
+	},
+	"expectedDimensions": {
+		"width": 3200,
+		"height": 1664
+	},
+	"assemblyPriority": 1,
+	"generation": {
+		"mode": "generative",
+		"provider": "OpenAI",
+		"model": "gpt-image-2",
+		"modelVersion": "2.0",
+		"tool": "image_gen (built-in)",
+		"toolVersion": "2026-08-13",
+		"seed": null,
+		"seedUnavailable": true,
+		"byteReproducibleGeneration": false,
+		"prompt": "Use case: targeted correction of a native-detail painted game background source panel. This is correction attempt 2 for camera-underlay-sundrop-south, Meadow master bounds x=0..3200 y=4736..6400, output aspect 3200x1664. Image 1 is the rejected attempt-1 candidate. Image 2 is the approved concept crop for palette and warm upper-left light only. Image 3 is an accepted-detail handoff sheet for edge palette, value, brush scale, and native detail frequency. Image 4 is a terrain/path semantic reference; use it only to retain real route direction and natural route wear. All control masks are semantic constraints, never artwork: do not trace their outlines, do not copy any square or rectangular shape, and do not turn protected/building/transition geometry into visible pads or roads. Regenerate one continuous quiet orthographic ground-plane underlay. Remove every diagram-like artifact from attempt 1: pale square building pads, orthogonal grid/path lines, empty mask-shaped rectangles, repeated checker bands, frames, and hard macro-rectangles. Make the entire panel read as one naturally painted navigable meadow, with low-frequency organic grass/soil variation and irregular broad route wear only where a real terrain path exists. Live/protected/transition clearances must be visually indistinguishable from surrounding ground except for the absence of obstacles: no bright clearing, outline, border, shadow frame, or special texture. Preserve mixed region material wherever applicable, but never create biome bands from mask geometry. Use crisp hand-painted JRPG native-detail texture, no blur, no objects or object cues, no buildings, actors, pickups, labels, doors, tall foliage, water in live clearances, false walls, tile grid, border, frame, UI, or map mockup. Return only one organic ground-plane panel with no annotation, legend, or watermark.",
+		"promptSha256": "2a76b60e41fec040acc64c4315e6cefa960b3ddc44552914b7e5b2c20c51d3ca",
+		"outputPath": "/Users/chanwaichan/.codex/generated_images/019ff8ed-5ad6-7563-beb6-e422fbf714bf/exec-2184bd87-d1c8-4a3c-ab05-66d8978fba13.png",
+		"outputSha256": "1ecf6d7e1bfbb1393e202f9203e12101e7b9cdd27beb9db8210f1e98960fa594",
+		"attempt": 2,
+		"result": "approved",
+		"rejected": false
+	},
+	"raw": {
+		"path": "artifacts/meadow-entry/painted-v2/source-panels/raw/camera-underlay-sundrop-south.png",
+		"sha256": "1ecf6d7e1bfbb1393e202f9203e12101e7b9cdd27beb9db8210f1e98960fa594",
+		"bytes": 2932153,
+		"dimensions": {
+			"width": 1740,
+			"height": 904
+		}
+	},
+	"normalized": {
+		"path": "artifacts/meadow-entry/painted-v2/source-panels/camera-underlay-sundrop-south.png",
+		"sha256": "c4a411595dc8385c2de9f73c147de510497d52883b1390b683b76ba8bf8456c2",
+		"bytes": 13957769,
+		"dimensions": {
+			"width": 3200,
+			"height": 1664
+		},
+		"colorSpace": "sRGB",
+		"channels": 4,
+		"alphaMinimum": 255,
+		"alphaMaximum": 255,
+		"canonicalPngChunks": ["IHDR", "IDAT", "IEND"]
+	},
+	"normalizationTransform": {
+		"native": {
+			"width": 1740,
+			"height": 904
+		},
+		"crop": {
+			"width": 1725,
+			"height": 897,
+			"left": 7,
+			"top": 3
+		},
+		"output": {
+			"width": 3200,
+			"height": 1664
+		},
+		"scale": 1.855072463768116,
+		"uniform": true,
+		"scaleExceedsTwoX": false,
+		"operation": "cover-scale-crop-to-fixed-panel"
+	},
+	"references": {
+		"crops": [
+			{
+				"path": "/private/tmp/gliese-hpa586-camera-underlay-refs/camera-underlay-sundrop-south/concept-crop.png",
+				"sha256": "dc24e3945e0bfaaeb9094a3ba22b589e7c1abd36378fcd491a60aef73a010997"
+			},
+			{
+				"path": "/private/tmp/gliese-hpa586-camera-underlay-refs/camera-underlay-sundrop-south/geometry-terrain.png",
+				"sha256": "9594d01b76d3f87c833ddde3d41bb1132e418d7dfc6b0bdbf76d987cf4aa253c"
+			},
+			{
+				"path": "/private/tmp/gliese-hpa586-camera-underlay-refs/camera-underlay-sundrop-south/region-connector.png",
+				"sha256": "dc712f50a6b3b785b4bf439aaaaffc984336a8fb23bd2770ba05d00c6bb046e3"
+			},
+			{
+				"path": "/private/tmp/gliese-hpa586-camera-underlay-refs/camera-underlay-sundrop-south/clearance.png",
+				"sha256": "d626e129155cac0b477965f6726477b6e9ba04a6675c58e5801e45a13289cfd8"
+			},
+			{
+				"path": "/private/tmp/gliese-hpa586-camera-underlay-refs/camera-underlay-sundrop-south/adjacent-detail-panels.png",
+				"sha256": "2346d7b45853418f93e67b1900dc553c36a55415c20eb3ecff8756e9f1a4073c"
+			}
+		],
+		"controls": [
+			{
+				"path": "artifacts/meadow-entry/painted-v2/controls/meadow-entry-composite-control.svg",
+				"role": "geometry/composition",
+				"sha256": "2d2c55de74f05e01ee011f383407923068f346250c9acc25a0c3561f591c07d9",
+				"dimensions": {
+					"width": 6400,
+					"height": 6400
+				}
+			},
+			{
+				"path": "artifacts/meadow-entry/painted-v2/controls/meadow-entry-terrain-path-mask.svg",
+				"role": "terrain/routes",
+				"sha256": "17f5e461469eb1beafb6fe60d140f2515809739c156a7a647ed18c17ceaad176",
+				"dimensions": {
+					"width": 6400,
+					"height": 6400
+				}
+			},
+			{
+				"path": "artifacts/meadow-entry/painted-v2/controls/meadow-entry-region-mask.svg",
+				"role": "biome regions",
+				"sha256": "4c84852b79f1dc03e8b67e6c1ad3d1fca827afc8f167ec99512fe3098a9fd77c",
+				"dimensions": {
+					"width": 6400,
+					"height": 6400
+				}
+			},
+			{
+				"path": "artifacts/meadow-entry/painted-v2/controls/meadow-entry-handoff-mask.svg",
+				"role": "connector/handoff",
+				"sha256": "b9698e67686fcee11d031e444dd8f36aa5ada39a81be00a89bc4a00ef75b0139",
+				"dimensions": {
+					"width": 6400,
+					"height": 6400
+				}
+			},
+			{
+				"path": "artifacts/meadow-entry/painted-v2/controls/meadow-entry-protected-live-mask.svg",
+				"role": "protected live ownership",
+				"sha256": "2ca64d6a06198b48472349ad8055e538498b4199a5c1dcecd77868ba1ec193e1",
+				"dimensions": {
+					"width": 6400,
+					"height": 6400
+				}
+			},
+			{
+				"path": "artifacts/meadow-entry/painted-v2/controls/meadow-entry-entrance-transition-mask.svg",
+				"role": "entrance transitions",
+				"sha256": "a5a383b27ecf2adc4238564fe6afdafb5d61d9cff60d19604f0ed3f7f3f65529",
+				"dimensions": {
+					"width": 6400,
+					"height": 6400
+				}
+			},
+			{
+				"path": "artifacts/meadow-entry/painted-v2/controls/meadow-entry-building-footprint-mask.svg",
+				"role": "building footprints",
+				"sha256": "521d24524769aed2bfab4032a31f285eaecb4f86973fd7d1d4868aa2e01c6930",
+				"dimensions": {
+					"width": 6400,
+					"height": 6400
+				}
+			}
+		],
+		"acceptedDetailPanels": {
+			"sundrop-north.png": {
+				"path": "/Users/chanwaichan/workspace/Gliese/.worktrees/hpa-586-interior-graybox/artifacts/meadow-entry/painted-v2/source-panels/sundrop-north.png",
+				"sha256": "3c7fe6063b8043578464ae68e5ec38505ae6a866afcd72fe2ff2293bf912a4e9"
+			},
+			"sundrop-south.png": {
+				"path": "/Users/chanwaichan/workspace/Gliese/.worktrees/hpa-586-interior-graybox/artifacts/meadow-entry/painted-v2/source-panels/sundrop-south.png",
+				"sha256": "b3bb18292cd23556d58f2ac7720f95037392ef60b26e9f208206e1f270fd672f"
+			},
+			"hero-house-frontage.png": {
+				"path": "/Users/chanwaichan/workspace/Gliese/.worktrees/hpa-586-interior-graybox/artifacts/meadow-entry/painted-v2/source-panels/hero-house-frontage.png",
+				"sha256": "9809baf80d939eee485ee0876d3e907e60e04a8185b774f1a14a418a9cd8205b"
+			},
+			"village-crossroads-connector.png": {
+				"path": "/Users/chanwaichan/workspace/Gliese/.worktrees/hpa-586-interior-graybox/artifacts/meadow-entry/painted-v2/source-panels/village-crossroads-connector.png",
+				"sha256": "6866f90802dfcd73d3828b41b237c8c1239ee130c9d8c8af3ac10d20c193e8b2"
+			},
+			"crossroads.png": {
+				"path": "/Users/chanwaichan/workspace/Gliese/.worktrees/hpa-586-interior-graybox/artifacts/meadow-entry/painted-v2/source-panels/crossroads.png",
+				"sha256": "1534062581775261bfcfd8a26eb5de5a730adf658d9b6ef9abb65413bbe4ae34"
+			}
+		}
+	},
+	"cleanup": {
+		"operationCount": 1,
+		"operations": [
+			{
+				"algorithm": "nearest-outside-rgba-fill-v1",
+				"masks": [
+					"artifacts/meadow-entry/painted-v2/controls/meadow-entry-building-footprint-mask.svg",
+					"artifacts/meadow-entry/painted-v2/controls/meadow-entry-entrance-transition-mask.svg"
+				],
+				"maskedPixels": 88064,
+				"changedPixels": 88003,
+				"maximumAbsoluteChannelDelta": 135
+			}
+		],
+		"beforeSha256": "1ecf6d7e1bfbb1393e202f9203e12101e7b9cdd27beb9db8210f1e98960fa594",
+		"afterSha256": "c4a411595dc8385c2de9f73c147de510497d52883b1390b683b76ba8bf8456c2"
+	},
+	"nativeDetailReview": {
+		"inspectedAtOriginalResolution": true,
+		"inspectedNormalizedAt100Percent": true,
+		"controlComparisonEvidencePath": "docs/superpowers/reports/img/hpa-586-painted-v2-camera-underlay/sundrop-south.png",
+		"accepted": true,
+		"findings": "Correction attempt removes the prior pale square pads, orthogonal grid/path lines, mask-shaped rectangles, frames, and macro-rectangles. Ground-only panel; natural routes remain broad and live/protected/transition clearances are visually indistinguishable from surrounding navigable ground. Objective native-detail QA passed; fresh user art gate remains pending. Explicitly approved by user answer yes at 2026-08-13T03:18:51Z."
+	},
+	"review": {
+		"status": "APPROVED",
+		"reviewPaths": [
+			"docs/superpowers/reports/img/hpa-586-painted-v2-camera-underlay/crossroads-north-south-seam.png",
+			"docs/superpowers/reports/img/hpa-586-painted-v2-camera-underlay/crossroads-north.png",
+			"docs/superpowers/reports/img/hpa-586-painted-v2-camera-underlay/crossroads-south.png",
+			"docs/superpowers/reports/img/hpa-586-painted-v2-camera-underlay/detail-panel-handoffs.png",
+			"docs/superpowers/reports/img/hpa-586-painted-v2-camera-underlay/family-handoff.png",
+			"docs/superpowers/reports/img/hpa-586-painted-v2-camera-underlay/protected-live-overlay.png",
+			"docs/superpowers/reports/img/hpa-586-painted-v2-camera-underlay/region-material-overlay.png",
+			"docs/superpowers/reports/img/hpa-586-painted-v2-camera-underlay/sundrop-north-south-seam.png",
+			"docs/superpowers/reports/img/hpa-586-painted-v2-camera-underlay/sundrop-north.png",
+			"docs/superpowers/reports/img/hpa-586-painted-v2-camera-underlay/sundrop-south.png"
+		],
+		"reviewHashes": [
+			{
+				"path": "docs/superpowers/reports/img/hpa-586-painted-v2-camera-underlay/crossroads-north-south-seam.png",
+				"sha256": "c1ca239d198b8829ae2e3b5a3ed9d1e8b3c641374be533b3256c15629e8901f3"
+			},
+			{
+				"path": "docs/superpowers/reports/img/hpa-586-painted-v2-camera-underlay/crossroads-north.png",
+				"sha256": "b0237bc97ad6171f9269bd10039b7548e03a66c362172877d804ec201f449c0b"
+			},
+			{
+				"path": "docs/superpowers/reports/img/hpa-586-painted-v2-camera-underlay/crossroads-south.png",
+				"sha256": "c15c9cf1ee7adfd788617c6b7395b49196f0bdf6c9574204ed8b1453b99ab0df"
+			},
+			{
+				"path": "docs/superpowers/reports/img/hpa-586-painted-v2-camera-underlay/detail-panel-handoffs.png",
+				"sha256": "7af581b62cdd1a416df16d3672fa964fef6d60961a752dc7e16af129429372b9"
+			},
+			{
+				"path": "docs/superpowers/reports/img/hpa-586-painted-v2-camera-underlay/family-handoff.png",
+				"sha256": "0b827b385d219589ba896df9af14f29b84a1e7fa32e62ce588fc2795c2932eb3"
+			},
+			{
+				"path": "docs/superpowers/reports/img/hpa-586-painted-v2-camera-underlay/protected-live-overlay.png",
+				"sha256": "72ff826b9951f9b088c3a9da3dc84d1868f3dea1451615bc3a962c30c0670d99"
+			},
+			{
+				"path": "docs/superpowers/reports/img/hpa-586-painted-v2-camera-underlay/region-material-overlay.png",
+				"sha256": "d4072ad04e485abcb619a5ba41b53867b155aea907652f55b6318203791228e5"
+			},
+			{
+				"path": "docs/superpowers/reports/img/hpa-586-painted-v2-camera-underlay/sundrop-north-south-seam.png",
+				"sha256": "77b701c8c7463272a9a592bfa2b6086f74b65b6e6ace681ef12b15ca8ad8d5fb"
+			},
+			{
+				"path": "docs/superpowers/reports/img/hpa-586-painted-v2-camera-underlay/sundrop-north.png",
+				"sha256": "f91229934f52261c46ee05fe902944b9040096930dad6df9025a52899e6aeb60"
+			},
+			{
+				"path": "docs/superpowers/reports/img/hpa-586-painted-v2-camera-underlay/sundrop-south.png",
+				"sha256": "f502c157c435a74dfc8f9cdb3707c6478d6fb1d424ce129192baeb2d99e8e5df"
+			}
+		],
+		"approvalRecorded": true,
+		"approvedAtUtc": "2026-08-13T03:18:51Z",
+		"answer": "yes"
+	},
+	"freshArtGate": {
+		"status": "APPROVED",
+		"answer": "yes",
+		"approvedAtUtc": "2026-08-13T03:18:51Z",
+		"scope": "corrected attempt-2 underlay source panels and ten review images",
+		"runtimePermission": false,
+		"nextTask": "Task 3 remains separate and must not begin in this Task 2 task"
+	}
+}

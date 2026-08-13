@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import { existsSync, readFileSync } from 'node:fs';
 import { isAbsolute, normalize } from 'node:path';
 
@@ -14,7 +15,6 @@ import {
 	MEADOW_ENTRY_PAINTED_V2_SOURCE_PANELS
 } from './meadow-entry-painted-v2-pilot';
 import {
-	MEADOW_ENTRY_V2_REGION_ENVELOPES,
 	MEADOW_ENTRY_V2_ROUTES,
 	MEADOW_ENTRY_V2_WORLD
 } from '$lib/game/content/maps/layouts/meadow-entry-v2';
@@ -58,6 +58,15 @@ interface SourcePanelProvenanceRecord {
 	raw: { path: string };
 	normalized: { path: string };
 }
+
+const IMMUTABLE_DETAIL_HASHES = {
+	'sundrop-north': '3c7fe6063b8043578464ae68e5ec38505ae6a866afcd72fe2ff2293bf912a4e9',
+	'sundrop-south': 'b3bb18292cd23556d58f2ac7720f95037392ef60b26e9f208206e1f270fd672f',
+	'hero-house-frontage': '9809baf80d939eee485ee0876d3e907e60e04a8185b774f1a14a418a9cd8205b',
+	'village-crossroads-connector':
+		'6866f90802dfcd73d3828b41b237c8c1239ee130c9d8c8af3ac10d20c193e8b2',
+	crossroads: '1534062581775261bfcfd8a26eb5de5a730adf658d9b6ef9abb65413bbe4ae34'
+} as const;
 
 function readJson<T>(path: string): T {
 	return JSON.parse(readFileSync(path, 'utf8')) as T;
@@ -146,6 +155,7 @@ describe('painted-v2 pilot source-panel contract', () => {
 		expect(MEADOW_ENTRY_PAINTED_V2_SOURCE_PANELS).toEqual([
 			{
 				id: 'sundrop-north',
+				role: 'detail',
 				bounds: { left: 256, top: 3968, right: 2880, bottom: 5056 },
 				expectedDimensions: { width: 2624, height: 1088 },
 				assemblyPriority: 10,
@@ -155,6 +165,7 @@ describe('painted-v2 pilot source-panel contract', () => {
 			},
 			{
 				id: 'sundrop-south',
+				role: 'detail',
 				bounds: { left: 256, top: 4928, right: 2880, bottom: 6144 },
 				expectedDimensions: { width: 2624, height: 1216 },
 				assemblyPriority: 20,
@@ -164,6 +175,7 @@ describe('painted-v2 pilot source-panel contract', () => {
 			},
 			{
 				id: 'hero-house-frontage',
+				role: 'detail',
 				bounds: { left: 384, top: 5312, right: 1280, bottom: 6144 },
 				expectedDimensions: { width: 896, height: 832 },
 				assemblyPriority: 30,
@@ -173,6 +185,7 @@ describe('painted-v2 pilot source-panel contract', () => {
 			},
 			{
 				id: 'village-crossroads-connector',
+				role: 'detail',
 				bounds: { left: 2592, top: 4480, right: 3392, bottom: 4896 },
 				expectedDimensions: { width: 800, height: 416 },
 				assemblyPriority: 40,
@@ -185,12 +198,65 @@ describe('painted-v2 pilot source-panel contract', () => {
 			},
 			{
 				id: 'crossroads',
+				role: 'detail',
 				bounds: { left: 2880, top: 2816, right: 4608, bottom: 4768 },
 				expectedDimensions: { width: 1728, height: 1952 },
 				assemblyPriority: 50,
 				rawPath: 'artifacts/meadow-entry/painted-v2/source-panels/raw/crossroads.png',
 				normalizedPath: 'artifacts/meadow-entry/painted-v2/source-panels/crossroads.png',
 				provenancePath: 'artifacts/meadow-entry/painted-v2/source-panels/crossroads.json'
+			},
+			{
+				id: 'camera-underlay-sundrop-north',
+				role: 'underlay',
+				bounds: { left: 0, top: 3200, right: 3200, bottom: 4864 },
+				expectedDimensions: { width: 3200, height: 1664 },
+				assemblyPriority: 0,
+				rawPath:
+					'artifacts/meadow-entry/painted-v2/source-panels/raw/camera-underlay-sundrop-north.png',
+				normalizedPath:
+					'artifacts/meadow-entry/painted-v2/source-panels/camera-underlay-sundrop-north.png',
+				provenancePath:
+					'artifacts/meadow-entry/painted-v2/source-panels/camera-underlay-sundrop-north.json'
+			},
+			{
+				id: 'camera-underlay-sundrop-south',
+				role: 'underlay',
+				bounds: { left: 0, top: 4736, right: 3200, bottom: 6400 },
+				expectedDimensions: { width: 3200, height: 1664 },
+				assemblyPriority: 1,
+				rawPath:
+					'artifacts/meadow-entry/painted-v2/source-panels/raw/camera-underlay-sundrop-south.png',
+				normalizedPath:
+					'artifacts/meadow-entry/painted-v2/source-panels/camera-underlay-sundrop-south.png',
+				provenancePath:
+					'artifacts/meadow-entry/painted-v2/source-panels/camera-underlay-sundrop-south.json'
+			},
+			{
+				id: 'camera-underlay-crossroads-north',
+				role: 'underlay',
+				bounds: { left: 2368, top: 2240, right: 5568, bottom: 3904 },
+				expectedDimensions: { width: 3200, height: 1664 },
+				assemblyPriority: 2,
+				rawPath:
+					'artifacts/meadow-entry/painted-v2/source-panels/raw/camera-underlay-crossroads-north.png',
+				normalizedPath:
+					'artifacts/meadow-entry/painted-v2/source-panels/camera-underlay-crossroads-north.png',
+				provenancePath:
+					'artifacts/meadow-entry/painted-v2/source-panels/camera-underlay-crossroads-north.json'
+			},
+			{
+				id: 'camera-underlay-crossroads-south',
+				role: 'underlay',
+				bounds: { left: 2368, top: 3776, right: 5568, bottom: 5440 },
+				expectedDimensions: { width: 3200, height: 1664 },
+				assemblyPriority: 3,
+				rawPath:
+					'artifacts/meadow-entry/painted-v2/source-panels/raw/camera-underlay-crossroads-south.png',
+				normalizedPath:
+					'artifacts/meadow-entry/painted-v2/source-panels/camera-underlay-crossroads-south.png',
+				provenancePath:
+					'artifacts/meadow-entry/painted-v2/source-panels/camera-underlay-crossroads-south.json'
 			}
 		]);
 		expect(MEADOW_ENTRY_PAINTED_V2_PILOT_MASTER_PATH).toBe(
@@ -218,6 +284,18 @@ describe('painted-v2 pilot source-panel contract', () => {
 		expect(Object.isFrozen(MEADOW_ENTRY_PAINTED_V2_SOURCE_PANELS)).toBe(true);
 	});
 
+	it('keeps every accepted detail panel normalized hash byte-immutable', () => {
+		for (const panel of MEADOW_ENTRY_PAINTED_V2_SOURCE_PANELS.filter(
+			({ role }) => role === 'detail'
+		)) {
+			const normalized = readFileSync(panel.normalizedPath);
+			expect(
+				createHash('sha256').update(normalized).digest('hex'),
+				`${panel.id} normalized hash`
+			).toBe(IMMUTABLE_DETAIL_HASHES[panel.id as keyof typeof IMMUTABLE_DETAIL_HASHES]);
+		}
+	});
+
 	it('keeps panel dimensions, handoff overlap, frontage containment, and crop coverage exact', () => {
 		for (const panel of MEADOW_ENTRY_PAINTED_V2_SOURCE_PANELS) {
 			expect(panel.expectedDimensions).toEqual({
@@ -236,7 +314,7 @@ describe('painted-v2 pilot source-panel contract', () => {
 			({ id }) => id === 'hero-house-frontage'
 		)!;
 		const sundropCrop = MEADOW_ENTRY_PAINTED_V2_PILOT_CROPS.find(
-			({ id }) => id === 'painted-v2-sundrop-village'
+			({ id }) => id === 'painted-v2-sundrop-camera-base'
 		)!;
 		expect(containsBounds(sundropCrop.bounds, hero.bounds)).toBe(true);
 
@@ -255,23 +333,17 @@ describe('painted-v2 pilot source-panel contract', () => {
 		}
 
 		const crossroads = MEADOW_ENTRY_PAINTED_V2_PILOT_CROPS.find(
-			({ id }) => id === 'painted-v2-crossroads'
+			({ id }) => id === 'painted-v2-crossroads-camera-base'
 		)!;
-		expect(crossroads.bounds).toEqual(toPixelBounds(MEADOW_ENTRY_V2_REGION_ENVELOPES.crossroads));
+		expect(crossroads.bounds).toEqual({ left: 2368, top: 2240, right: 5568, bottom: 5440 });
 
 		const sundrop = MEADOW_ENTRY_PAINTED_V2_PILOT_CROPS.find(
-			({ id }) => id === 'painted-v2-sundrop-village'
+			({ id }) => id === 'painted-v2-sundrop-camera-base'
 		)!;
-		const activeSundrop = toPixelBounds(MEADOW_ENTRY_V2_REGION_ENVELOPES.sundropVillage);
-		expect(sundrop.bounds).toEqual({
-			left: activeSundrop.left,
-			top: activeSundrop.top,
-			right: activeSundrop.right + 64,
-			bottom: activeSundrop.bottom
-		});
+		expect(sundrop.bounds).toEqual({ left: 0, top: 3200, right: 3200, bottom: 6400 });
 
 		const connector = MEADOW_ENTRY_PAINTED_V2_PILOT_CROPS.find(
-			({ id }) => id === 'painted-v2-village-crossroads-connector'
+			({ id }) => id === 'painted-v2-crossroads-camera-base'
 		)!;
 		const route = toPixelBounds(MEADOW_ENTRY_V2_ROUTES.villageToCrossroads);
 		expect(containsBounds(connector.bounds, route)).toBe(true);
@@ -282,6 +354,6 @@ describe('painted-v2 pilot source-panel contract', () => {
 		expect(containsBounds(sundrop.bounds, villageDecorWithMargin)).toBe(true);
 		expect(containsBounds(connector.bounds, villageDecorWithMargin)).toBe(true);
 
-		expect(MEADOW_ENTRY_PAINTED_V2_PILOT_RUNTIME_COVERAGE).toHaveLength(8);
+		expect(MEADOW_ENTRY_PAINTED_V2_PILOT_RUNTIME_COVERAGE).toHaveLength(5);
 	});
 });

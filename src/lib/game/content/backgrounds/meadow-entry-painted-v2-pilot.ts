@@ -2,6 +2,7 @@ import type { PixelBounds } from './meadow-entry-authoring-types';
 
 export interface MeadowEntryPaintedV2SourcePanel {
 	readonly id: string;
+	readonly role: 'underlay' | 'detail';
 	readonly bounds: PixelBounds;
 	readonly expectedDimensions: { readonly width: number; readonly height: number };
 	readonly assemblyPriority: number;
@@ -31,6 +32,7 @@ function freezePanel(panel: MeadowEntryPaintedV2SourcePanel): MeadowEntryPainted
 const RAW_SOURCE_PANELS = [
 	{
 		id: 'sundrop-north',
+		role: 'detail',
 		bounds: { left: 256, top: 3968, right: 2880, bottom: 5056 },
 		expectedDimensions: { width: 2624, height: 1088 },
 		assemblyPriority: 10,
@@ -40,6 +42,7 @@ const RAW_SOURCE_PANELS = [
 	},
 	{
 		id: 'sundrop-south',
+		role: 'detail',
 		bounds: { left: 256, top: 4928, right: 2880, bottom: 6144 },
 		expectedDimensions: { width: 2624, height: 1216 },
 		assemblyPriority: 20,
@@ -49,6 +52,7 @@ const RAW_SOURCE_PANELS = [
 	},
 	{
 		id: 'hero-house-frontage',
+		role: 'detail',
 		bounds: { left: 384, top: 5312, right: 1280, bottom: 6144 },
 		expectedDimensions: { width: 896, height: 832 },
 		assemblyPriority: 30,
@@ -58,6 +62,7 @@ const RAW_SOURCE_PANELS = [
 	},
 	{
 		id: 'village-crossroads-connector',
+		role: 'detail',
 		bounds: { left: 2592, top: 4480, right: 3392, bottom: 4896 },
 		expectedDimensions: { width: 800, height: 416 },
 		assemblyPriority: 40,
@@ -69,12 +74,65 @@ const RAW_SOURCE_PANELS = [
 	},
 	{
 		id: 'crossroads',
+		role: 'detail',
 		bounds: { left: 2880, top: 2816, right: 4608, bottom: 4768 },
 		expectedDimensions: { width: 1728, height: 1952 },
 		assemblyPriority: 50,
 		rawPath: 'artifacts/meadow-entry/painted-v2/source-panels/raw/crossroads.png',
 		normalizedPath: 'artifacts/meadow-entry/painted-v2/source-panels/crossroads.png',
 		provenancePath: 'artifacts/meadow-entry/painted-v2/source-panels/crossroads.json'
+	},
+	{
+		id: 'camera-underlay-sundrop-north',
+		role: 'underlay',
+		bounds: { left: 0, top: 3200, right: 3200, bottom: 4864 },
+		expectedDimensions: { width: 3200, height: 1664 },
+		assemblyPriority: 0,
+		rawPath:
+			'artifacts/meadow-entry/painted-v2/source-panels/raw/camera-underlay-sundrop-north.png',
+		normalizedPath:
+			'artifacts/meadow-entry/painted-v2/source-panels/camera-underlay-sundrop-north.png',
+		provenancePath:
+			'artifacts/meadow-entry/painted-v2/source-panels/camera-underlay-sundrop-north.json'
+	},
+	{
+		id: 'camera-underlay-sundrop-south',
+		role: 'underlay',
+		bounds: { left: 0, top: 4736, right: 3200, bottom: 6400 },
+		expectedDimensions: { width: 3200, height: 1664 },
+		assemblyPriority: 1,
+		rawPath:
+			'artifacts/meadow-entry/painted-v2/source-panels/raw/camera-underlay-sundrop-south.png',
+		normalizedPath:
+			'artifacts/meadow-entry/painted-v2/source-panels/camera-underlay-sundrop-south.png',
+		provenancePath:
+			'artifacts/meadow-entry/painted-v2/source-panels/camera-underlay-sundrop-south.json'
+	},
+	{
+		id: 'camera-underlay-crossroads-north',
+		role: 'underlay',
+		bounds: { left: 2368, top: 2240, right: 5568, bottom: 3904 },
+		expectedDimensions: { width: 3200, height: 1664 },
+		assemblyPriority: 2,
+		rawPath:
+			'artifacts/meadow-entry/painted-v2/source-panels/raw/camera-underlay-crossroads-north.png',
+		normalizedPath:
+			'artifacts/meadow-entry/painted-v2/source-panels/camera-underlay-crossroads-north.png',
+		provenancePath:
+			'artifacts/meadow-entry/painted-v2/source-panels/camera-underlay-crossroads-north.json'
+	},
+	{
+		id: 'camera-underlay-crossroads-south',
+		role: 'underlay',
+		bounds: { left: 2368, top: 3776, right: 5568, bottom: 5440 },
+		expectedDimensions: { width: 3200, height: 1664 },
+		assemblyPriority: 3,
+		rawPath:
+			'artifacts/meadow-entry/painted-v2/source-panels/raw/camera-underlay-crossroads-south.png',
+		normalizedPath:
+			'artifacts/meadow-entry/painted-v2/source-panels/camera-underlay-crossroads-south.png',
+		provenancePath:
+			'artifacts/meadow-entry/painted-v2/source-panels/camera-underlay-crossroads-south.json'
 	}
 ] as const satisfies readonly MeadowEntryPaintedV2SourcePanel[];
 
