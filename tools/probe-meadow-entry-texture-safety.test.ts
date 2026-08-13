@@ -11,6 +11,7 @@ import {
 	paintedV2TextureProbeRepresentativePaths,
 	runMeadowEntryTextureSafetyProbe
 } from './probe-meadow-entry-texture-safety';
+import { meadowEntryPaintedV2ArtPackageApproval } from '$lib/game/content/approvals/meadow-entry-painted-v2-art-package';
 import {
 	decodeMeadowEntryRgba,
 	validateCanonicalPngChunks
@@ -133,13 +134,62 @@ test('defines fixed 2x2 and 4x4 candidate sets with exact retention contracts', 
 	}
 });
 
+test('defines the exact two-texture camera-safe pilot candidate from Task 4 approval', async () => {
+	const candidate = PAINTED_V2_TEXTURE_PROBE_INPUTS['painted-v2-camera-safe-pilot'];
+	const expected = [
+		{
+			id: 'sundrop-camera-base',
+			path: 'artifacts/meadow-entry/painted-v2/exports/painted-v2-sundrop-camera-base.png',
+			width: 3200,
+			height: 3200,
+			encodedBytes: 26_114_768,
+			encodedSha256: 'fbf564358f64a486979c3c5ffbed9bbc8784ec4b106f9f72341b46dda720aa5e'
+		},
+		{
+			id: 'crossroads-camera-base',
+			path: 'artifacts/meadow-entry/painted-v2/exports/painted-v2-crossroads-camera-base.png',
+			width: 3200,
+			height: 3200,
+			encodedBytes: 27_604_984,
+			encodedSha256: 'ab819e538f41ea30a0cb8b0a310a6d6211ca553d8e4d9ef3f8d8094475243d4b'
+		}
+	] as const;
+
+	assert.equal(candidate.label, 'painted-v2-camera-safe-pilot');
+	assert.equal(candidate.expectedRetainedTextures, 2);
+	assert.equal(candidate.assets.length, 2);
+	assert.equal(new Set(candidate.assets.map(({ id }) => id)).size, 2);
+	assert.deepEqual(candidate.assets, expected);
+
+	for (const asset of expected) {
+		const approved = meadowEntryPaintedV2ArtPackageApproval.exports.find(
+			({ path }) => path === asset.path
+		);
+		assert.ok(approved, `Task 4 approval is missing ${asset.path}`);
+		assert.equal(approved.bytes, asset.encodedBytes);
+		assert.equal(approved.sha256, asset.encodedSha256);
+
+		const bytes = readFileSync(asset.path);
+		assert.equal(bytes.byteLength, asset.encodedBytes);
+		assert.equal(createHash('sha256').update(bytes).digest('hex'), asset.encodedSha256);
+		validateCanonicalPngChunks(bytes);
+		const decoded = await decodeMeadowEntryRgba(bytes);
+		assert.deepEqual(
+			{ width: decoded.width, height: decoded.height },
+			{ width: asset.width, height: asset.height }
+		);
+	}
+});
+
 test('exposes both fixed candidate sets through the named input helper', () => {
 	assert.deepEqual(Object.keys(PAINTED_V2_TEXTURE_PROBE_INPUTS).sort(), [
 		'painted-v2-2x2',
-		'painted-v2-4x4'
+		'painted-v2-4x4',
+		'painted-v2-camera-safe-pilot'
 	]);
 	assert.equal(paintedV2TextureProbeInput('painted-v2-2x2').assets.length, 4);
 	assert.equal(paintedV2TextureProbeInput('painted-v2-4x4').assets.length, 16);
+	assert.equal(paintedV2TextureProbeInput('painted-v2-camera-safe-pilot').assets.length, 2);
 });
 
 test('pins deterministic representative dimensions, hashes, canonical chunks, and opacity', async () => {

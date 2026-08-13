@@ -1,0 +1,47 @@
+{
+  "label": "painted-v2-camera-safe-pilot",
+  "expectedRetainedTextures": 2,
+  "scope": "chromium-webgl-only",
+  "assetCount": 2,
+  "successfulUploads": 2,
+  "retainedTextures": 2,
+  "maxTextureSize": 8192,
+  "contextLost": false,
+  "webglAvailable": true,
+  "assets": [
+    {
+      "id": "sundrop-camera-base",
+      "path": "artifacts/meadow-entry/painted-v2/exports/painted-v2-sundrop-camera-base.png",
+      "width": 3200,
+      "height": 3200,
+      "encodedBytes": 26114768,
+      "encodedSha256": "fbf564358f64a486979c3c5ffbed9bbc8784ec4b106f9f72341b46dda720aa5e",
+      "durationMs": 173,
+      "success": true,
+      "failure": null
+    },
+    {
+      "id": "crossroads-camera-base",
+      "path": "artifacts/meadow-entry/painted-v2/exports/painted-v2-crossroads-camera-base.png",
+      "width": 3200,
+      "height": 3200,
+      "encodedBytes": 27604984,
+      "encodedSha256": "ab819e538f41ea30a0cb8b0a310a6d6211ca553d8e4d9ef3f8d8094475243d4b",
+      "durationMs": 159,
+      "success": true,
+      "failure": null
+    }
+  ],
+  "totalDurationMs": 836,
+  "browser": {
+    "engine": "chromium",
+    "version": "147.0.7727.15",
+    "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/147.0.7727.15 Safari/537.36",
+    "renderer": "WebKit WebGL"
+  },
+  "platform": "darwin",
+  "probeFailure": null,
+  "failureScope": null,
+  "encodedBytesTotal": 53719752,
+  "decision": "proceed"
+}

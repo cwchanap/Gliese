@@ -104,7 +104,7 @@ export interface MeadowEntryTextureProbeRepresentative {
 	readonly tiling: 'mirrored';
 }
 
-type TextureProbeCandidate = 'painted-v2-2x2' | 'painted-v2-4x4';
+type TextureProbeCandidate = 'painted-v2-2x2' | 'painted-v2-4x4' | 'painted-v2-camera-safe-pilot';
 
 const REPRESENTATIVE_METADATA: Readonly<
 	Record<1600 | 3200, MeadowEntryTextureProbeRepresentative>
@@ -170,6 +170,28 @@ export const PAINTED_V2_TEXTURE_PROBE_INPUTS: Readonly<
 		label: 'painted-v2-4x4',
 		assets: candidateAssets('painted-v2-4x4', 16, REPRESENTATIVE_METADATA[1600]),
 		expectedRetainedTextures: 16
+	}),
+	'painted-v2-camera-safe-pilot': Object.freeze({
+		label: 'painted-v2-camera-safe-pilot',
+		assets: Object.freeze([
+			Object.freeze({
+				id: 'sundrop-camera-base',
+				path: 'artifacts/meadow-entry/painted-v2/exports/painted-v2-sundrop-camera-base.png',
+				width: 3200,
+				height: 3200,
+				encodedBytes: 26_114_768,
+				encodedSha256: 'fbf564358f64a486979c3c5ffbed9bbc8784ec4b106f9f72341b46dda720aa5e'
+			}),
+			Object.freeze({
+				id: 'crossroads-camera-base',
+				path: 'artifacts/meadow-entry/painted-v2/exports/painted-v2-crossroads-camera-base.png',
+				width: 3200,
+				height: 3200,
+				encodedBytes: 27_604_984,
+				encodedSha256: 'ab819e538f41ea30a0cb8b0a310a6d6211ca553d8e4d9ef3f8d8094475243d4b'
+			})
+		]),
+		expectedRetainedTextures: 2
 	})
 });
 
@@ -547,14 +569,24 @@ function parseCandidateArgument(args: readonly string[]): TextureProbeCandidate 
 	if (args.length === 0) return null;
 	if (args.length !== 2 || args[0] !== '--candidate') {
 		throw new Error(
-			'Usage: bun tools/probe-meadow-entry-texture-safety.ts [--candidate painted-v2-2x2|painted-v2-4x4]'
+			'Usage: bun tools/probe-meadow-entry-texture-safety.ts [--candidate painted-v2-2x2|painted-v2-4x4|painted-v2-camera-safe-pilot]'
 		);
 	}
 	const candidate = args[1];
-	if (candidate !== 'painted-v2-2x2' && candidate !== 'painted-v2-4x4') {
+	if (
+		candidate !== 'painted-v2-2x2' &&
+		candidate !== 'painted-v2-4x4' &&
+		candidate !== 'painted-v2-camera-safe-pilot'
+	) {
 		throw new Error(`Unknown Meadow Entry texture probe candidate: ${candidate}`);
 	}
 	return candidate;
+}
+
+function reportFilename(candidate: TextureProbeCandidate): string {
+	if (candidate === 'painted-v2-2x2') return 'browser-3200.json';
+	if (candidate === 'painted-v2-4x4') return 'browser-1600.json';
+	return 'browser-camera-safe-pilot.json';
 }
 
 if (import.meta.main) {
@@ -565,10 +597,7 @@ if (import.meta.main) {
 			: paintedV2CleanBaselineTextureSafetyInput;
 		const report = await runMeadowEntryTextureSafetyProbe(input);
 		if (candidate) {
-			const outputPath = resolve(
-				TEXTURE_PROBE_ROOT,
-				candidate === 'painted-v2-2x2' ? 'browser-3200.json' : 'browser-1600.json'
-			);
+			const outputPath = resolve(TEXTURE_PROBE_ROOT, reportFilename(candidate));
 			await mkdir(dirname(outputPath), { recursive: true });
 			await writeFile(outputPath, `${JSON.stringify(report, null, 2)}\n`);
 		}
