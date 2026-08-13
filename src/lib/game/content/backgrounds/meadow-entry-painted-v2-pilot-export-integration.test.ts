@@ -39,9 +39,18 @@ describe('sealed painted-v2 pilot assembly export integration', () => {
 			overlaps: MEADOW_ENTRY_PAINTED_V2_PILOT_OVERLAPS
 		});
 
-		expect(Object.keys(exported.files).sort()).toEqual(
-			MEADOW_ENTRY_PAINTED_V2_PILOT_CROPS.map(({ baseFilename }) => baseFilename).sort()
-		);
+		expect(Object.keys(exported.files).sort()).toEqual([
+			'painted-v2-crossroads-camera-base.png',
+			'painted-v2-sundrop-camera-base.png'
+		]);
+		expect(exported.verification).toMatchObject({
+			cropCount: 2,
+			exportCount: 2,
+			baseExportCount: 2,
+			foregroundExportCount: 0,
+			overlapCount: 1,
+			overlapPlanePixelsCompared: 1_863_680
+		});
 		for (const crop of MEADOW_ENTRY_PAINTED_V2_PILOT_CROPS) {
 			const bytes = exported.files[crop.baseFilename]!;
 			const decoded = await decodeMeadowEntryRgba(bytes);

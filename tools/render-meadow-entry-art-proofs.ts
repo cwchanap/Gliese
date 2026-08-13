@@ -26,6 +26,11 @@ import {
 	type MeadowEntryProofDescriptor
 } from '$lib/game/content/backgrounds/meadow-entry-proof-renderer';
 import {
+	MEADOW_ENTRY_PAINTED_V2_CAMERA_SAFE_ROUTE,
+	collectMeadowEntryPaintedV2CameraEnvelopes
+} from '$lib/game/content/backgrounds/meadow-entry-painted-v2-camera-envelope';
+import { MEADOW_ENTRY_PAINTED_V2_SOURCE_PANELS } from '$lib/game/content/backgrounds/meadow-entry-painted-v2-pilot';
+import {
 	decodeMeadowEntryRgba,
 	encodeCanonicalMeadowEntryPng,
 	validateCanonicalPngChunks
@@ -46,11 +51,26 @@ export const MEADOW_ENTRY_PAINTED_V2_PROOF_ROOT = 'artifacts/meadow-entry/painte
 const PAINTED_V2_BASE_MASTER =
 	'artifacts/meadow-entry/painted-v2/masters/meadow-entry-painted-v2-pilot-base-master.png';
 const PAINTED_V2_CROP_MANIFEST =
-	'artifacts/meadow-entry/painted-v2/controls/meadow-entry-crop-manifest.json';
+	'artifacts/meadow-entry/painted-v2/provenance/meadow-entry-crop-manifest.json';
+const PAINTED_V2_MASTER_PROVENANCE =
+	'artifacts/meadow-entry/painted-v2/provenance/meadow-entry-master-provenance.json';
+const PAINTED_V2_CONTROL_MANIFEST =
+	'artifacts/meadow-entry/painted-v2/controls/meadow-entry-control-manifest.json';
 const PAINTED_V2_OWNERSHIP =
 	'artifacts/meadow-entry/painted-v2/controls/meadow-entry-bake-ownership.json';
 const PAINTED_V2_EXPORT_ROOT = 'artifacts/meadow-entry/painted-v2/exports';
 const PAINTED_V2_CONTROL_ROOT = 'artifacts/meadow-entry/painted-v2/controls';
+
+const PAINTED_V2_SOURCE_PANEL_PATHS = MEADOW_ENTRY_PAINTED_V2_SOURCE_PANELS.map(
+	({ normalizedPath }) => normalizedPath
+);
+const PAINTED_V2_COMMON_PROOF_INPUTS = Object.freeze([
+	PAINTED_V2_BASE_MASTER,
+	PAINTED_V2_MASTER_PROVENANCE,
+	PAINTED_V2_CONTROL_MANIFEST,
+	PAINTED_V2_CROP_MANIFEST,
+	...PAINTED_V2_SOURCE_PANEL_PATHS
+]);
 
 const FULL_MASKS = {
 	'full/protected-live-overlay': `${CONTROL_ROOT}/meadow-entry-protected-live-mask.svg`,
@@ -1005,32 +1025,68 @@ function paintedV2ExportPath(filename: string): string {
 
 /** Return the exact source identity list bound into an active proof sidecar. */
 export function paintedV2ProofInputPaths(proofId: string): readonly string[] {
-	if (proofId === 'pilot-assembly-master-transparency') return [PAINTED_V2_BASE_MASTER];
-	if (proofId === 'pilot-assembly-base-coverage') {
-		return [PAINTED_V2_BASE_MASTER, PAINTED_V2_CROP_MANIFEST];
+	const common = [...PAINTED_V2_COMMON_PROOF_INPUTS];
+	if (proofId === 'pilot-camera-envelope') {
+		return [...common, `${PAINTED_V2_CONTROL_ROOT}/meadow-entry-handoff-mask.svg`];
 	}
-	if (proofId === 'pilot-assembly-protected-live') {
+	if (proofId === 'pilot-underlay-sundrop-seam') {
 		return [
-			PAINTED_V2_BASE_MASTER,
-			`${PAINTED_V2_CONTROL_ROOT}/meadow-entry-protected-live-mask.svg`
+			...common,
+			`${PAINTED_V2_CONTROL_ROOT}/meadow-entry-terrain-path-mask.svg`,
+			'artifacts/meadow-entry/painted-v2/source-panels/camera-underlay-sundrop-north.png',
+			'artifacts/meadow-entry/painted-v2/source-panels/camera-underlay-sundrop-south.png'
 		];
 	}
-	if (proofId === 'pilot-assembly-ownership') {
+	if (proofId === 'pilot-underlay-crossroads-seam') {
 		return [
-			PAINTED_V2_BASE_MASTER,
-			`${PAINTED_V2_CONTROL_ROOT}/meadow-entry-region-mask.svg`,
-			PAINTED_V2_OWNERSHIP
+			...common,
+			`${PAINTED_V2_CONTROL_ROOT}/meadow-entry-terrain-path-mask.svg`,
+			'artifacts/meadow-entry/painted-v2/source-panels/camera-underlay-crossroads-north.png',
+			'artifacts/meadow-entry/painted-v2/source-panels/camera-underlay-crossroads-south.png'
 		];
 	}
-	const overlap = MEADOW_ENTRY_PAINTED_V2_PILOT_OVERLAPS.find(
-		({ id }) => `pilot-assembly-overlap-${id.replace(/^painted-v2-overlap-/, '')}` === proofId
-	);
-	if (overlap) {
+	if (proofId === 'pilot-underlay-family-handoff') {
+		return [
+			...common,
+			`${PAINTED_V2_CONTROL_ROOT}/meadow-entry-handoff-mask.svg`,
+			'artifacts/meadow-entry/painted-v2/source-panels/camera-underlay-sundrop-north.png',
+			'artifacts/meadow-entry/painted-v2/source-panels/camera-underlay-sundrop-south.png',
+			'artifacts/meadow-entry/painted-v2/source-panels/camera-underlay-crossroads-north.png',
+			'artifacts/meadow-entry/painted-v2/source-panels/camera-underlay-crossroads-south.png'
+		];
+	}
+	if (proofId === 'pilot-detail-panel-handoffs') {
+		return [
+			...common,
+			...MEADOW_ENTRY_PAINTED_V2_SOURCE_PANELS.filter(({ role }) => role === 'detail').map(
+				({ normalizedPath }) => normalizedPath
+			)
+		];
+	}
+	if (proofId === 'pilot-base-coverage') return common;
+	if (proofId === 'pilot-master-transparency')
+		return [PAINTED_V2_BASE_MASTER, PAINTED_V2_MASTER_PROVENANCE, PAINTED_V2_CROP_MANIFEST];
+	if (proofId === 'pilot-runtime-overlap') {
+		const overlap = MEADOW_ENTRY_PAINTED_V2_PILOT_OVERLAPS[0]!;
 		const first = MEADOW_ENTRY_PAINTED_V2_PILOT_CROPS.find(({ id }) => id === overlap.firstCropId)!;
 		const second = MEADOW_ENTRY_PAINTED_V2_PILOT_CROPS.find(
 			({ id }) => id === overlap.secondCropId
 		)!;
-		return [paintedV2ExportPath(first.baseFilename), paintedV2ExportPath(second.baseFilename)];
+		return [
+			...common,
+			paintedV2ExportPath(first.baseFilename),
+			paintedV2ExportPath(second.baseFilename)
+		];
+	}
+	if (proofId === 'pilot-protected-live') {
+		return [...common, `${PAINTED_V2_CONTROL_ROOT}/meadow-entry-protected-live-mask.svg`];
+	}
+	if (proofId === 'pilot-ownership') {
+		return [
+			...common,
+			`${PAINTED_V2_CONTROL_ROOT}/meadow-entry-region-mask.svg`,
+			PAINTED_V2_OWNERSHIP
+		];
 	}
 	throw new Error(`Unknown painted-v2 Meadow Entry proof identity: ${proofId}`);
 }
@@ -1087,6 +1143,52 @@ async function activeProofSidecar(
 	return Buffer.from(`${JSON.stringify(sidecar, null, 2)}\n`);
 }
 
+function svgOverlay(width: number, height: number, body: string): Buffer {
+	return Buffer.from(
+		`<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">${body}</svg>`
+	);
+}
+
+function escapeSvgText(value: string): string {
+	return value.replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;');
+}
+
+function boundsDimensions(bounds: PixelBounds): { width: number; height: number } {
+	return { width: bounds.right - bounds.left, height: bounds.bottom - bounds.top };
+}
+
+async function renderLabeledMasterRegion(
+	baseMaster: Buffer,
+	descriptorBounds: PixelBounds,
+	artBounds: PixelBounds,
+	label: string
+): Promise<Buffer> {
+	const art = await canonicalExtract(baseMaster, artBounds);
+	const insets = {
+		left: artBounds.left - descriptorBounds.left,
+		top: artBounds.top - descriptorBounds.top,
+		right: descriptorBounds.right - artBounds.right,
+		bottom: descriptorBounds.bottom - artBounds.bottom
+	};
+	const { width, height } = boundsDimensions(descriptorBounds);
+	const labelX = Math.max(8, insets.left + 8);
+	const labelY = insets.top >= 24 ? 24 : height - Math.max(8, insets.bottom - 8);
+	const artRect = `<rect x="${insets.left}" y="${insets.top}" width="${artBounds.right - artBounds.left}" height="${artBounds.bottom - artBounds.top}" fill="none" stroke="#00e5ff" stroke-width="6"/>`;
+	const labelPlate = `<rect x="${Math.max(0, labelX - 6)}" y="${Math.max(0, labelY - 18)}" width="${Math.min(width - Math.max(0, labelX - 6), Math.max(96, label.length * 9 + 18))}" height="24" fill="#08141b" fill-opacity="0.9"/>`;
+	const body = `${labelPlate}<text x="${labelX}" y="${labelY}" fill="#d9fbff" font-family="monospace" font-size="16">${escapeSvgText(label)}</text>${artRect}`;
+	return await canonicalPipeline(
+		sharp(art)
+			.extend({
+				top: insets.top,
+				bottom: insets.bottom,
+				left: insets.left,
+				right: insets.right,
+				background: { r: 8, g: 20, b: 27, alpha: 1 }
+			})
+			.composite([{ input: svgOverlay(width, height, body), left: 0, top: 0 }])
+	);
+}
+
 async function renderPaintedV2Proof(
 	repositoryRoot: string,
 	proofId: string,
@@ -1094,23 +1196,120 @@ async function renderPaintedV2Proof(
 	cache: Map<string, Buffer>
 ): Promise<{ png: Buffer; metrics: Readonly<Record<string, unknown>> }> {
 	const descriptor = paintedV2Descriptor(proofId);
-	const inputPaths = paintedV2ProofInputPaths(proofId);
-	if (proofId === 'pilot-assembly-master-transparency') {
-		return { png: baseMaster, metrics: { pixelTransform: 'none' } };
+	if (proofId === 'pilot-master-transparency') {
+		return { png: baseMaster, metrics: { pixelTransform: 'none', alphaPolicy: 'union-opaque' } };
 	}
-	if (proofId === 'pilot-assembly-base-coverage') {
+	if (proofId === 'pilot-base-coverage') {
 		const png = await canonicalExtract(baseMaster, descriptor.masterBounds);
 		return {
 			png,
 			metrics: {
 				cropIds: MEADOW_ENTRY_PAINTED_V2_PILOT_CROPS.map(({ id }) => id),
-				coverageMode: 'partial'
+				coverageMode: 'partial',
+				opaqueBounds: MEADOW_ENTRY_PAINTED_V2_PILOT_CROPS.map(({ bounds }) => bounds)
 			}
 		};
 	}
-	if (proofId === 'pilot-assembly-protected-live' || proofId === 'pilot-assembly-ownership') {
-		const maskPath = inputPaths.find((path) => path.endsWith('.svg'));
-		assert(maskPath, `Painted-v2 proof mask input is missing: ${proofId}`);
+	if (proofId === 'pilot-camera-envelope') {
+		const envelopes = collectMeadowEntryPaintedV2CameraEnvelopes();
+		const route = MEADOW_ENTRY_PAINTED_V2_CAMERA_SAFE_ROUTE;
+		const routeBounds = descriptor.masterBounds;
+		const rectangles = envelopes
+			.map(
+				(bounds, index) =>
+					`<rect x="${bounds.left - routeBounds.left}" y="${bounds.top - routeBounds.top}" width="${bounds.right - bounds.left}" height="${bounds.bottom - bounds.top}" fill="none" stroke="#ff385c" stroke-width="8" stroke-opacity="0.7" data-segment="${index}"/>`
+			)
+			.join('');
+		const points = route
+			.map(({ x, y }) => `${x - routeBounds.left},${y - routeBounds.top}`)
+			.join(' ');
+		const body = `${rectangles}<polyline points="${points}" fill="none" stroke="#20e6ff" stroke-width="18" stroke-linecap="round" stroke-linejoin="round"/><text x="32" y="48" fill="#20e6ff" font-family="monospace" font-size="32">approved route + 18px swept camera envelope</text>`;
+		return {
+			png: await canonicalPipeline(
+				sharp(baseMaster)
+					.extract({
+						left: routeBounds.left,
+						top: routeBounds.top,
+						...boundsDimensions(routeBounds)
+					})
+					.composite([
+						{
+							input: svgOverlay(
+								routeBounds.right - routeBounds.left,
+								routeBounds.bottom - routeBounds.top,
+								body
+							),
+							left: 0,
+							top: 0
+						}
+					])
+			),
+			metrics: { routePointCount: route.length, segmentCount: envelopes.length, routeReachPx: 18 }
+		};
+	}
+	if (proofId === 'pilot-underlay-sundrop-seam') {
+		const artBounds = { left: 0, top: 4736, right: 3200, bottom: 4864 };
+		return {
+			png: await renderLabeledMasterRegion(
+				baseMaster,
+				descriptor.masterBounds,
+				artBounds,
+				'Sundrop north/south source seam'
+			),
+			metrics: { artBounds, labelPlacement: 'outside-art-margin', overlapPx: 128 }
+		};
+	}
+	if (proofId === 'pilot-underlay-crossroads-seam') {
+		const artBounds = { left: 2368, top: 3776, right: 5568, bottom: 3904 };
+		return {
+			png: await renderLabeledMasterRegion(
+				baseMaster,
+				descriptor.masterBounds,
+				artBounds,
+				'Crossroads north/south source seam'
+			),
+			metrics: { artBounds, labelPlacement: 'outside-art-margin', overlapPx: 128 }
+		};
+	}
+	if (proofId === 'pilot-underlay-family-handoff') {
+		const artBounds = { left: 2368, top: 3200, right: 3200, bottom: 5440 };
+		return {
+			png: await renderLabeledMasterRegion(
+				baseMaster,
+				descriptor.masterBounds,
+				artBounds,
+				'Sundrop / Crossroads family handoff'
+			),
+			metrics: { artBounds, labelPlacement: 'outside-art-margin', widthPx: 832 }
+		};
+	}
+	if (proofId === 'pilot-detail-panel-handoffs') {
+		const detailPanels = MEADOW_ENTRY_PAINTED_V2_SOURCE_PANELS.filter(
+			({ role }) => role === 'detail'
+		);
+		const { width, height } = boundsDimensions(descriptor.masterBounds);
+		const panelRects = detailPanels
+			.map(
+				(panel) =>
+					`<rect x="${panel.bounds.left - descriptor.masterBounds.left}" y="${panel.bounds.top - descriptor.masterBounds.top}" width="${panel.bounds.right - panel.bounds.left}" height="${panel.bounds.bottom - panel.bounds.top}" fill="none" stroke="#ffd166" stroke-width="8" stroke-opacity="0.9" data-panel="${panel.id}"/>`
+			)
+			.join('');
+		const label = `<text x="16" y="32" fill="#ffd166" font-family="monospace" font-size="22">detail-panel feather handoffs (128px)</text>`;
+		const extracted = await canonicalExtract(baseMaster, descriptor.masterBounds);
+		return {
+			png: await canonicalPipeline(
+				sharp(extracted).composite([
+					{ input: svgOverlay(width, height, `${panelRects}${label}`), left: 0, top: 0 }
+				])
+			),
+			metrics: { detailPanelIds: detailPanels.map(({ id }) => id), featherWidthPx: 128 }
+		};
+	}
+	if (proofId === 'pilot-protected-live' || proofId === 'pilot-ownership') {
+		const maskPath =
+			proofId === 'pilot-protected-live'
+				? `${PAINTED_V2_CONTROL_ROOT}/meadow-entry-protected-live-mask.svg`
+				: `${PAINTED_V2_CONTROL_ROOT}/meadow-entry-region-mask.svg`;
 		const mask = await readPaintedV2ProofInput(repositoryRoot, maskPath, cache);
 		const png = await canonicalPipeline(
 			sharp(baseMaster).composite([{ input: mask, left: 0, top: 0 }])
@@ -1118,72 +1317,71 @@ async function renderPaintedV2Proof(
 		return {
 			png,
 			metrics: {
-				overlay:
-					proofId === 'pilot-assembly-protected-live' ? 'protected-live-mask' : 'region-mask',
+				overlay: proofId === 'pilot-protected-live' ? 'protected-live-mask' : 'region-mask',
 				ownership:
-					proofId === 'pilot-assembly-ownership'
+					proofId === 'pilot-ownership'
 						? MEADOW_ENTRY_REVIEWED_PAINTED_V2_BAKE_OWNERSHIP_SHA256
 						: undefined
 			}
 		};
 	}
-	const overlap = MEADOW_ENTRY_PAINTED_V2_PILOT_OVERLAPS.find(
-		({ id }) => `pilot-assembly-overlap-${id.replace(/^painted-v2-overlap-/, '')}` === proofId
-	);
-	assert(overlap, `Unknown painted-v2 overlap proof identity: ${proofId}`);
-	const firstCrop = MEADOW_ENTRY_PAINTED_V2_PILOT_CROPS.find(
-		({ id }) => id === overlap.firstCropId
-	)!;
-	const secondCrop = MEADOW_ENTRY_PAINTED_V2_PILOT_CROPS.find(
-		({ id }) => id === overlap.secondCropId
-	)!;
-	const first = await canonicalExtract(
-		await readPaintedV2ProofInput(
-			repositoryRoot,
-			paintedV2ExportPath(firstCrop.baseFilename),
-			cache
-		),
-		{
-			left: overlap.bounds.left - firstCrop.bounds.left,
-			top: overlap.bounds.top - firstCrop.bounds.top,
-			right: overlap.bounds.right - firstCrop.bounds.left,
-			bottom: overlap.bounds.bottom - firstCrop.bounds.top
-		}
-	);
-	const second = await canonicalExtract(
-		await readPaintedV2ProofInput(
-			repositoryRoot,
-			paintedV2ExportPath(secondCrop.baseFilename),
-			cache
-		),
-		{
-			left: overlap.bounds.left - secondCrop.bounds.left,
-			top: overlap.bounds.top - secondCrop.bounds.top,
-			right: overlap.bounds.right - secondCrop.bounds.left,
-			bottom: overlap.bounds.bottom - secondCrop.bounds.top
-		}
-	);
-	const difference = await renderMeadowEntryOverlapDifference(first, second);
-	assert(
-		difference.differingPixels === 0 && difference.maximumChannelDifference === 0,
-		`Painted-v2 overlap proof differs id=${overlap.id}`
-	);
-	return {
-		png: difference.png,
-		metrics: {
-			planes: {
-				base: {
-					differingPixels: difference.differingPixels,
-					maximumChannelDifference: difference.maximumChannelDifference
-				}
-			},
-			ownerCropId: overlap.ownerCropId,
-			minimumSharedPixels: overlap.minimumSharedPixels
-		}
-	};
+	if (proofId === 'pilot-runtime-overlap') {
+		const overlap = MEADOW_ENTRY_PAINTED_V2_PILOT_OVERLAPS[0]!;
+		const firstCrop = MEADOW_ENTRY_PAINTED_V2_PILOT_CROPS.find(
+			({ id }) => id === overlap.firstCropId
+		)!;
+		const secondCrop = MEADOW_ENTRY_PAINTED_V2_PILOT_CROPS.find(
+			({ id }) => id === overlap.secondCropId
+		)!;
+		const first = await canonicalExtract(
+			await readPaintedV2ProofInput(
+				repositoryRoot,
+				paintedV2ExportPath(firstCrop.baseFilename),
+				cache
+			),
+			{
+				left: overlap.bounds.left - firstCrop.bounds.left,
+				top: overlap.bounds.top - firstCrop.bounds.top,
+				right: overlap.bounds.right - firstCrop.bounds.left,
+				bottom: overlap.bounds.bottom - firstCrop.bounds.top
+			}
+		);
+		const second = await canonicalExtract(
+			await readPaintedV2ProofInput(
+				repositoryRoot,
+				paintedV2ExportPath(secondCrop.baseFilename),
+				cache
+			),
+			{
+				left: overlap.bounds.left - secondCrop.bounds.left,
+				top: overlap.bounds.top - secondCrop.bounds.top,
+				right: overlap.bounds.right - secondCrop.bounds.left,
+				bottom: overlap.bounds.bottom - secondCrop.bounds.top
+			}
+		);
+		const difference = await renderMeadowEntryOverlapDifference(first, second);
+		assert(
+			difference.differingPixels === 0 && difference.maximumChannelDifference === 0,
+			`Painted-v2 overlap proof differs id=${overlap.id}`
+		);
+		return {
+			png: difference.png,
+			metrics: {
+				planes: {
+					base: {
+						differingPixels: difference.differingPixels,
+						maximumChannelDifference: difference.maximumChannelDifference
+					}
+				},
+				ownerCropId: overlap.ownerCropId,
+				minimumSharedPixels: overlap.minimumSharedPixels
+			}
+		};
+	}
+	throw new Error(`Unknown painted-v2 Meadow Entry proof identity: ${proofId}`);
 }
 
-/** Recompute the active six-proof package without writing any filesystem state. */
+/** Recompute the active ten-proof package without writing any filesystem state. */
 export async function buildPaintedV2ProofPackage(
 	repositoryRoot = process.cwd()
 ): Promise<MeadowEntryPaintedV2ProofPackage> {

@@ -21,6 +21,22 @@ export interface MeadowEntryDecodedExport {
 	rgba: Buffer;
 }
 
+export interface MeadowEntryExportVerification {
+	cropCount: number;
+	exportCount: number;
+	baseExportCount: number;
+	foregroundExportCount: number;
+	overlapCount: number;
+	cornerGroupCount: number;
+	overlapPlanePixelsCompared: number;
+	exportAreaRatio: number;
+	measuredBaseBytes: number;
+	measuredForegroundBytes: number;
+	aggregateBaseHardBytes: number;
+	aggregateForegroundHardBytes: number;
+	reviewTargetExceptions: readonly string[];
+}
+
 interface ExportInventoryEntry {
 	cropId: string;
 	plane: 'base' | 'foreground';
@@ -76,9 +92,10 @@ function validateCrop(crop: MeadowEntryApprovedCrop, master: DecodedMeadowEntryR
 			crop.expectedDimensions.height === expected.height,
 		`Meadow Entry crop "${crop.id}" dimensions do not match bounds`
 	);
+	const baseStem = crop.baseFilename.replace(/\.png$/, '');
 	assert(
-		crop.baseFilename === `${crop.id}-base.png` &&
-			crop.textureKeys.base === `meadow-entry-${crop.id}-base`,
+		(baseStem === crop.id || baseStem === `${crop.id}-base`) &&
+			crop.textureKeys.base === `meadow-entry-${baseStem}`,
 		`Meadow Entry crop "${crop.id}" base identity has drifted`
 	);
 	assert(
@@ -90,10 +107,11 @@ function validateCrop(crop: MeadowEntryApprovedCrop, master: DecodedMeadowEntryR
 		crop.alphaPolicy.base === 'opaque',
 		`Meadow Entry crop "${crop.id}" base plane policy drifted`
 	);
+	const foregroundStem = crop.foregroundFilename?.replace(/\.png$/, '');
 	assert(
 		foreground
-			? crop.foregroundFilename === `${crop.id}-foreground.png` &&
-					crop.textureKeys.foreground === `meadow-entry-${crop.id}-foreground` &&
+			? (foregroundStem === crop.id || foregroundStem === `${crop.id}-foreground`) &&
+					crop.textureKeys.foreground === `meadow-entry-${foregroundStem}` &&
 					crop.sizeBudgets.foregroundReviewBytes !== null &&
 					crop.sizeBudgets.foregroundHardBytes !== null
 			: crop.foregroundFilename === null &&
@@ -295,6 +313,7 @@ export async function exportMeadowEntryRegions(input: {
 	files: Readonly<Record<string, Buffer>>;
 	decoded: readonly MeadowEntryDecodedExport[];
 	provenanceJson: Buffer;
+	verification: MeadowEntryExportVerification;
 }> {
 	assert(SHA256.test(input.controlFingerprint), 'Meadow Entry control fingerprint is invalid');
 	assert(
@@ -416,6 +435,14 @@ export async function exportMeadowEntryRegions(input: {
 	);
 
 	verifyMeadowEntryOverlapPixels({ decoded, overlaps: input.overlaps });
+	const overlapPlanePixelsCompared = input.overlaps.reduce(
+		(sum, overlap) =>
+			sum +
+			(overlap.bounds.right - overlap.bounds.left) *
+				(overlap.bounds.bottom - overlap.bounds.top) *
+				(overlap.planePolicy === 'base-and-foreground' ? 2 : 1),
+		0
+	);
 	const cornerGroups = [...new Set(input.overlaps.flatMap((item) => item.cornerGroupId ?? []))]
 		.sort()
 		.map((id) => ({ id, cropIds: cornerParticipants(input.overlaps, id), result: 'identical' }));
@@ -458,6 +485,24 @@ export async function exportMeadowEntryRegions(input: {
 	return {
 		files: Object.freeze(files),
 		decoded: Object.freeze(decoded),
-		provenanceJson: Buffer.from(`${JSON.stringify(provenance, null, 2)}\n`)
+		provenanceJson: Buffer.from(`${JSON.stringify(provenance, null, 2)}\n`),
+		verification: {
+			cropCount: input.crops.length,
+			exportCount: inventory.length,
+			baseExportCount: inventory.filter((entry) => entry.plane === 'base').length,
+			foregroundExportCount: inventory.filter((entry) => entry.plane === 'foreground').length,
+			overlapCount: input.overlaps.length,
+			cornerGroupCount: new Set(input.overlaps.flatMap((overlap) => overlap.cornerGroupId ?? []))
+				.size,
+			overlapPlanePixelsCompared,
+			exportAreaRatio: cropArea / masterArea,
+			measuredBaseBytes: budgets.measuredBaseBytes,
+			measuredForegroundBytes: budgets.measuredForegroundBytes,
+			aggregateBaseHardBytes: budgets.aggregateBaseHardBytes,
+			aggregateForegroundHardBytes: budgets.aggregateForegroundHardBytes,
+			reviewTargetExceptions: inventory
+				.filter((entry) => entry.reviewTargetExceeded)
+				.map((entry) => `${entry.cropId}:${entry.plane}`)
+		}
 	};
 }

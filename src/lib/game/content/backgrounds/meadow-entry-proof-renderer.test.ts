@@ -119,9 +119,9 @@ function sidecarWith(png: Buffer, overrides: Record<string, unknown> = {}): Buff
 }
 
 describe('Meadow Entry proof renderer', () => {
-	it('exports painted-v2 descriptors separately from the frozen HPA-399 inventory', () => {
-		expect(MEADOW_ENTRY_PAINTED_V2_PROOF_DESCRIPTORS).toHaveLength(6);
-		expect(MEADOW_ENTRY_PAINTED_V2_PROOF_FILENAMES).toHaveLength(6);
+	it('exports the ten painted-v2 descriptors separately from the frozen HPA-399 inventory', () => {
+		expect(MEADOW_ENTRY_PAINTED_V2_PROOF_DESCRIPTORS).toHaveLength(10);
+		expect(MEADOW_ENTRY_PAINTED_V2_PROOF_FILENAMES).toHaveLength(10);
 		expect(MEADOW_ENTRY_PAINTED_V2_PROOF_FILENAMES.every((path) => !path.includes('hpa-399'))).toBe(
 			true
 		);

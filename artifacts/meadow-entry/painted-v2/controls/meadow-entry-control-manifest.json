@@ -29,8 +29,8 @@
   ],
   "fingerprints": {
     "gameplaySource": "0e9a3a361e8013de2df298b7fe239ed2cf45457789d55df3ac6a11e86c9f61be",
-    "authoringContract": "95c7ec482510970022a04fd28111f22de2e43e330ab20eea00128d8d076b4cc4",
-    "combinedControl": "a9fa2657a3dbb44c8e0857ddd5ed51802fb7b5d1c3bc8f2fc4c753006255e4fe"
+    "authoringContract": "e2c7400ca43afff3bad2c98d7c128df42651c19492f2783365485c3131519c37",
+    "combinedControl": "0916ae390990efcc7fc5ec6df5045b07c9b472cc54cb58625293bcb8445ca6cf"
   },
   "predecessor": {
     "hpa307ArtifactHashes": {

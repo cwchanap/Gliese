@@ -23,46 +23,34 @@ afterEach(() => {
 });
 
 describe('painted-v2 runtime data generation', () => {
-	it('emits the three fixed opaque runtime descriptors from the approved export inventory', () => {
+	it('emits the two fixed opaque runtime descriptors from the approved export inventory', () => {
 		const data = collectMeadowEntryRuntimeData(MEADOW_ENTRY_PAINTED_V2_RUNTIME_GENERATION_INPUT);
 
-		expect(data.backgrounds).toHaveLength(3);
+		expect(data.backgrounds).toHaveLength(2);
 		expect(data.backgrounds).toEqual([
 			{
-				cropId: 'painted-v2-sundrop-village',
-				id: 'meadow-entry-painted-v2-sundrop-village-base-image',
-				textureKey: 'meadow-entry-painted-v2-sundrop-village-base',
-				path: '/game/assets/regions/meadow-entry-painted-v2/painted-v2-sundrop-village-base.png',
-				x: 1568,
-				y: 5056,
-				width: 2624,
-				height: 2176,
+				cropId: 'painted-v2-sundrop-camera-base',
+				id: 'meadow-entry-painted-v2-sundrop-camera-base-image',
+				textureKey: 'meadow-entry-painted-v2-sundrop-camera-base',
+				path: '/game/assets/regions/meadow-entry-painted-v2/painted-v2-sundrop-camera-base.png',
+				x: 1600,
+				y: 4800,
+				width: 3200,
+				height: 3200,
 				plane: 'base',
 				drawOrder: 0
 			},
 			{
-				cropId: 'painted-v2-village-crossroads-connector',
-				id: 'meadow-entry-painted-v2-village-crossroads-connector-base-image',
-				textureKey: 'meadow-entry-painted-v2-village-crossroads-connector-base',
-				path: '/game/assets/regions/meadow-entry-painted-v2/painted-v2-village-crossroads-connector-base.png',
-				x: 2992,
-				y: 4688,
-				width: 800,
-				height: 416,
+				cropId: 'painted-v2-crossroads-camera-base',
+				id: 'meadow-entry-painted-v2-crossroads-camera-base-image',
+				textureKey: 'meadow-entry-painted-v2-crossroads-camera-base',
+				path: '/game/assets/regions/meadow-entry-painted-v2/painted-v2-crossroads-camera-base.png',
+				x: 3968,
+				y: 3840,
+				width: 3200,
+				height: 3200,
 				plane: 'base',
 				drawOrder: 10
-			},
-			{
-				cropId: 'painted-v2-crossroads',
-				id: 'meadow-entry-painted-v2-crossroads-base-image',
-				textureKey: 'meadow-entry-painted-v2-crossroads-base',
-				path: '/game/assets/regions/meadow-entry-painted-v2/painted-v2-crossroads-base.png',
-				x: 3744,
-				y: 3792,
-				width: 1728,
-				height: 1952,
-				plane: 'base',
-				drawOrder: 20
 			}
 		]);
 		for (const row of data.backgrounds) {
@@ -85,8 +73,8 @@ describe('painted-v2 runtime data generation', () => {
 				sourceId: 'silverpine-wall-B-south',
 				ownerCrops: [
 					{
-						cropId: 'painted-v2-crossroads',
-						requiredBackgroundIds: ['meadow-entry-painted-v2-crossroads-base-image']
+						cropId: 'painted-v2-crossroads-camera-base',
+						requiredBackgroundIds: ['meadow-entry-painted-v2-crossroads-camera-base-image']
 					}
 				]
 			},
@@ -95,14 +83,12 @@ describe('painted-v2 runtime data generation', () => {
 				sourceId: 'village-decor-22-77',
 				ownerCrops: [
 					{
-						cropId: 'painted-v2-sundrop-village',
-						requiredBackgroundIds: ['meadow-entry-painted-v2-sundrop-village-base-image']
+						cropId: 'painted-v2-sundrop-camera-base',
+						requiredBackgroundIds: ['meadow-entry-painted-v2-sundrop-camera-base-image']
 					},
 					{
-						cropId: 'painted-v2-village-crossroads-connector',
-						requiredBackgroundIds: [
-							'meadow-entry-painted-v2-village-crossroads-connector-base-image'
-						]
+						cropId: 'painted-v2-crossroads-camera-base',
+						requiredBackgroundIds: ['meadow-entry-painted-v2-crossroads-camera-base-image']
 					}
 				]
 			},
@@ -111,8 +97,8 @@ describe('painted-v2 runtime data generation', () => {
 				sourceId: 'village-decor-28-25',
 				ownerCrops: [
 					{
-						cropId: 'painted-v2-sundrop-village',
-						requiredBackgroundIds: ['meadow-entry-painted-v2-sundrop-village-base-image']
+						cropId: 'painted-v2-sundrop-camera-base',
+						requiredBackgroundIds: ['meadow-entry-painted-v2-sundrop-camera-base-image']
 					}
 				]
 			},
@@ -121,8 +107,8 @@ describe('painted-v2 runtime data generation', () => {
 				sourceId: 'village-decor-28-53',
 				ownerCrops: [
 					{
-						cropId: 'painted-v2-sundrop-village',
-						requiredBackgroundIds: ['meadow-entry-painted-v2-sundrop-village-base-image']
+						cropId: 'painted-v2-sundrop-camera-base',
+						requiredBackgroundIds: ['meadow-entry-painted-v2-sundrop-camera-base-image']
 					}
 				]
 			},
@@ -131,14 +117,14 @@ describe('painted-v2 runtime data generation', () => {
 				sourceId: 'village-decor-53-22',
 				ownerCrops: [
 					{
-						cropId: 'painted-v2-sundrop-village',
-						requiredBackgroundIds: ['meadow-entry-painted-v2-sundrop-village-base-image']
+						cropId: 'painted-v2-sundrop-camera-base',
+						requiredBackgroundIds: ['meadow-entry-painted-v2-sundrop-camera-base-image']
 					}
 				]
 			}
 		]);
 		expect(MEADOW_ENTRY_PAINTED_V2_BAKE_OWNERSHIP).toHaveLength(374);
-		expect(MEADOW_ENTRY_PAINTED_V2_PILOT_CROPS).toHaveLength(3);
+		expect(MEADOW_ENTRY_PAINTED_V2_PILOT_CROPS).toHaveLength(2);
 	});
 
 	it('renders deterministic generated source without historical runtime imports', () => {

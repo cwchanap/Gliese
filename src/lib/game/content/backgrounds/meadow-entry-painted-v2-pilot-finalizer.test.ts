@@ -1,4 +1,5 @@
 import { createHash } from 'node:crypto';
+import { readFileSync } from 'node:fs';
 import { readFile } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
 
@@ -24,8 +25,31 @@ import {
 	validateMeadowEntryGenerationProvenance,
 	type MeadowEntryGenerationProvenance
 } from './meadow-entry-master-provenance';
+import { mergeMeadowEntryPaintedV2PackageProvenance } from '../../../../../tools/finalize-meadow-entry-painted-v2-pilot';
 
 const repositoryRoot = resolve(import.meta.dirname, '../../../../..');
+
+it('preserves the exact nine-row root source-panel provenance while rebinding assembly', () => {
+	const existing = JSON.parse(
+		readFileSync(join(repositoryRoot, 'artifacts/meadow-entry/painted-v2/provenance.json'), 'utf8')
+	) as Record<string, unknown>;
+	const assembly = Buffer.from(
+		JSON.stringify({ controls: { fingerprint: 'f'.repeat(64) }, kind: 'test-assembly' })
+	);
+	const merged = JSON.parse(
+		mergeMeadowEntryPaintedV2PackageProvenance(
+			Buffer.from(JSON.stringify(existing)),
+			assembly
+		).toString('utf8')
+	) as Record<string, unknown>;
+	expect(merged.sourcePanels).toStrictEqual(existing.sourcePanels);
+	expect(merged.inventory).toStrictEqual(existing.inventory);
+	expect(merged.assembly).toStrictEqual({
+		controls: { fingerprint: 'f'.repeat(64) },
+		kind: 'test-assembly'
+	});
+	expect(merged.controlFingerprint).toBe('f'.repeat(64));
+});
 
 async function fixture(): Promise<MeadowEntryPaintedV2PilotAssemblyInput> {
 	const packageProvenance = JSON.parse(

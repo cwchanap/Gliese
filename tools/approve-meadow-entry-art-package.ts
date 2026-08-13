@@ -37,6 +37,7 @@ import {
 	checkMeadowEntryPaintedV2Proofs,
 	expectedPaintedV2ProofInventory,
 	MEADOW_ENTRY_PAINTED_V2_PROOF_ROOT,
+	paintedV2ProofInputPaths,
 	type MeadowEntryProofSidecar
 } from './render-meadow-entry-art-proofs';
 import { readPublishedMeadowEntryExportSnapshot } from './export-meadow-entry-regions';
@@ -240,6 +241,7 @@ function exportPath(cropId: string, plane: 'base' | 'foreground'): string {
 }
 
 function expectedProofInputPaths(proofId: string): readonly string[] {
+	if (proofId.startsWith('pilot-')) return paintedV2ProofInputPaths(proofId);
 	const full = FULL_PROOF_INPUTS[proofId];
 	if (full) return full;
 	if (proofId.startsWith('regions/') || proofId.startsWith('connectors/')) {

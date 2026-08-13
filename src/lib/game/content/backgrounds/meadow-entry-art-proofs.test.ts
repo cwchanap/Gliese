@@ -93,14 +93,18 @@ function sidecarJson(overrides: Record<string, unknown> = {}): Buffer {
 }
 
 describe('Meadow Entry art proof helpers', () => {
-	it('keeps the active painted-v2 proof inventory to the six approved IDs', () => {
+	it('keeps the active painted-v2 proof inventory to the ten approved IDs', () => {
 		expect(MEADOW_ENTRY_PAINTED_V2_PROOF_DESCRIPTORS.map(({ proofId }) => proofId)).toEqual([
-			'pilot-assembly-master-transparency',
-			'pilot-assembly-base-coverage',
-			'pilot-assembly-protected-live',
-			'pilot-assembly-ownership',
-			'pilot-assembly-overlap-sundrop-connector',
-			'pilot-assembly-overlap-connector-crossroads'
+			'pilot-camera-envelope',
+			'pilot-underlay-sundrop-seam',
+			'pilot-underlay-crossroads-seam',
+			'pilot-underlay-family-handoff',
+			'pilot-detail-panel-handoffs',
+			'pilot-base-coverage',
+			'pilot-master-transparency',
+			'pilot-runtime-overlap',
+			'pilot-protected-live',
+			'pilot-ownership'
 		]);
 		expect(MEADOW_ENTRY_PAINTED_V2_PROOF_FILENAMES).toEqual(
 			MEADOW_ENTRY_PAINTED_V2_PROOF_DESCRIPTORS.map(({ filename }) => filename)
@@ -113,7 +117,7 @@ describe('Meadow Entry art proof helpers', () => {
 		);
 		expect(expectedPaintedV2ProofInventory().some((path) => path.includes('hpa-399'))).toBe(false);
 		expect(MEADOW_ENTRY_PAINTED_V2_PROOF_ROOT).toBe('artifacts/meadow-entry/painted-v2/proofs');
-		expect(paintedV2ProofInputPaths('pilot-assembly-master-transparency')).not.toEqual(
+		expect(paintedV2ProofInputPaths('pilot-master-transparency')).not.toEqual(
 			expect.arrayContaining([
 				'public/game/assets/regions/sundrop-village-base.png',
 				'public/game/assets/regions/sundrop-village-foreground.png'
@@ -209,7 +213,7 @@ describe('Meadow Entry art proof helpers', () => {
 				packageBytes: expected,
 				fileSystem: successFileSystem
 			})
-		).resolves.toMatchObject({ proofCount: 6 });
+		).resolves.toMatchObject({ proofCount: 10 });
 		expect(successReads).toBeGreaterThan(0);
 		expect(Object.values(successMutators).every((spy) => spy.mock.calls.length === 0)).toBe(true);
 

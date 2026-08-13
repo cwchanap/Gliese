@@ -12,6 +12,8 @@ import {
 } from './meadow-entry-painted-v2-crop-manifest';
 
 const MIB = 1_024 * 1_024;
+const MEASURED_SUNDROP_BASE_BYTES = 26_114_768;
+const MEASURED_CROSSROADS_BASE_BYTES = 27_604_984;
 
 const syntheticOwnership: MeadowEntryBakeOwnershipEntry[] = [
 	{
@@ -66,7 +68,7 @@ describe('painted-v2 pilot crop contract', () => {
 				overlapIds: ['painted-v2-overlap-camera-bases'],
 				alphaPolicy: { base: 'opaque', foreground: null },
 				sizeBudgets: {
-					baseReviewBytes: 32 * MIB,
+					baseReviewBytes: 26_214_400,
 					baseHardBytes: 32 * MIB,
 					foregroundReviewBytes: null,
 					foregroundHardBytes: null
@@ -100,7 +102,7 @@ describe('painted-v2 pilot crop contract', () => {
 				overlapIds: ['painted-v2-overlap-camera-bases'],
 				alphaPolicy: { base: 'opaque', foreground: null },
 				sizeBudgets: {
-					baseReviewBytes: 32 * MIB,
+					baseReviewBytes: 28_311_552,
 					baseHardBytes: 32 * MIB,
 					foregroundReviewBytes: null,
 					foregroundHardBytes: null
@@ -173,7 +175,7 @@ describe('painted-v2 pilot crop contract', () => {
 		expect(MEADOW_ENTRY_PAINTED_V2_PILOT_BUDGET_SUMMARY).toEqual({
 			exportAreaRatio: 0.5,
 			overlapArea: 1_863_680,
-			aggregateBaseReviewBytes: 64 * MIB,
+			aggregateBaseReviewBytes: 54_525_952,
 			aggregateBaseHardBytes: 64 * MIB,
 			aggregateForegroundReviewBytes: 0,
 			aggregateForegroundHardBytes: 0
@@ -191,5 +193,16 @@ describe('painted-v2 pilot crop contract', () => {
 		expect(() =>
 			validateMeadowEntryCropContract({ ...options, bakeOwnership: syntheticOwnership })
 		).not.toThrow();
+	});
+
+	it('keeps measured export bytes below the approved ceilings', () => {
+		const [sundrop, crossroads] = MEADOW_ENTRY_PAINTED_V2_PILOT_CROPS;
+		expect(sundrop.sizeBudgets.baseReviewBytes).toBeGreaterThanOrEqual(MEASURED_SUNDROP_BASE_BYTES);
+		expect(crossroads.sizeBudgets.baseReviewBytes).toBeGreaterThanOrEqual(
+			MEASURED_CROSSROADS_BASE_BYTES
+		);
+		expect(sundrop.sizeBudgets.baseHardBytes).toBe(32 * MIB);
+		expect(crossroads.sizeBudgets.baseHardBytes).toBe(32 * MIB);
+		expect(MEADOW_ENTRY_PAINTED_V2_PILOT_BUDGET_SUMMARY.aggregateBaseHardBytes).toBe(64 * MIB);
 	});
 });

@@ -186,25 +186,47 @@ export const MEADOW_ENTRY_PROOF_FILENAMES: readonly string[] = Object.freeze(
 );
 
 const PAINTED_V2_PROOF_IDS = [
-	'pilot-assembly-master-transparency',
-	'pilot-assembly-base-coverage',
-	'pilot-assembly-protected-live',
-	'pilot-assembly-ownership',
-	'pilot-assembly-overlap-sundrop-connector',
-	'pilot-assembly-overlap-connector-crossroads'
+	'pilot-camera-envelope',
+	'pilot-underlay-sundrop-seam',
+	'pilot-underlay-crossroads-seam',
+	'pilot-underlay-family-handoff',
+	'pilot-detail-panel-handoffs',
+	'pilot-base-coverage',
+	'pilot-master-transparency',
+	'pilot-runtime-overlap',
+	'pilot-protected-live',
+	'pilot-ownership'
 ] as const;
 
 const paintedV2CropEnvelope = envelope(
 	MEADOW_ENTRY_PAINTED_V2_PILOT_CROPS.map(({ bounds }) => bounds)
 );
+const PAINTED_V2_LABEL_MARGIN_PX = 64;
+
+function expandedProofBounds(bounds: PixelBounds): PixelBounds {
+	return {
+		left: Math.max(MEADOW_ENTRY_WORLD_BOUNDS.left, bounds.left - PAINTED_V2_LABEL_MARGIN_PX),
+		top: Math.max(MEADOW_ENTRY_WORLD_BOUNDS.top, bounds.top - PAINTED_V2_LABEL_MARGIN_PX),
+		right: Math.min(MEADOW_ENTRY_WORLD_BOUNDS.right, bounds.right + PAINTED_V2_LABEL_MARGIN_PX),
+		bottom: Math.min(MEADOW_ENTRY_WORLD_BOUNDS.bottom, bounds.bottom + PAINTED_V2_LABEL_MARGIN_PX)
+	};
+}
+
+const sundropSeamBounds = { left: 0, top: 4736, right: 3200, bottom: 4864 } as const;
+const crossroadsSeamBounds = { left: 2368, top: 3776, right: 5568, bottom: 3904 } as const;
+const familyHandoffBounds = { left: 2368, top: 3200, right: 3200, bottom: 5440 } as const;
 
 const paintedV2ProofBounds: Readonly<Record<(typeof PAINTED_V2_PROOF_IDS)[number], PixelBounds>> = {
-	'pilot-assembly-master-transparency': MEADOW_ENTRY_WORLD_BOUNDS,
-	'pilot-assembly-base-coverage': paintedV2CropEnvelope,
-	'pilot-assembly-protected-live': MEADOW_ENTRY_WORLD_BOUNDS,
-	'pilot-assembly-ownership': MEADOW_ENTRY_WORLD_BOUNDS,
-	'pilot-assembly-overlap-sundrop-connector': MEADOW_ENTRY_PAINTED_V2_PILOT_OVERLAPS[0]!.bounds,
-	'pilot-assembly-overlap-connector-crossroads': MEADOW_ENTRY_PAINTED_V2_PILOT_OVERLAPS[1]!.bounds
+	'pilot-camera-envelope': MEADOW_ENTRY_WORLD_BOUNDS,
+	'pilot-underlay-sundrop-seam': expandedProofBounds(sundropSeamBounds),
+	'pilot-underlay-crossroads-seam': expandedProofBounds(crossroadsSeamBounds),
+	'pilot-underlay-family-handoff': expandedProofBounds(familyHandoffBounds),
+	'pilot-detail-panel-handoffs': expandedProofBounds(paintedV2CropEnvelope),
+	'pilot-base-coverage': paintedV2CropEnvelope,
+	'pilot-master-transparency': MEADOW_ENTRY_WORLD_BOUNDS,
+	'pilot-runtime-overlap': MEADOW_ENTRY_PAINTED_V2_PILOT_OVERLAPS[0]!.bounds,
+	'pilot-protected-live': MEADOW_ENTRY_WORLD_BOUNDS,
+	'pilot-ownership': MEADOW_ENTRY_WORLD_BOUNDS
 };
 
 export const MEADOW_ENTRY_PAINTED_V2_PROOF_DESCRIPTORS: readonly MeadowEntryProofDescriptor[] =

@@ -1,0 +1,38 @@
+{
+  "version": 1,
+  "proofId": "pilot-master-transparency",
+  "path": "artifacts/meadow-entry/painted-v2/proofs/pilot-master-transparency.png",
+  "sha256": "8de845c8d06727c199b8dcb0f09c6db9b2d85ed936e8de5db985800032d047ac",
+  "bytes": 50509688,
+  "width": 6400,
+  "height": 6400,
+  "masterBounds": {
+    "left": 0,
+    "top": 0,
+    "right": 6400,
+    "bottom": 6400
+  },
+  "inputs": [
+    {
+      "path": "artifacts/meadow-entry/painted-v2/masters/meadow-entry-painted-v2-pilot-base-master.png",
+      "sha256": "8de845c8d06727c199b8dcb0f09c6db9b2d85ed936e8de5db985800032d047ac"
+    },
+    {
+      "path": "artifacts/meadow-entry/painted-v2/provenance/meadow-entry-master-provenance.json",
+      "sha256": "a9ec4b53cacf20221dea987f4b409dc29763d7665cdeafce151c78457130f08b"
+    },
+    {
+      "path": "artifacts/meadow-entry/painted-v2/provenance/meadow-entry-crop-manifest.json",
+      "sha256": "9e9b299e0000c9f8265031a827a3c8f9e38e783dfbca872be20727027b984e87"
+    }
+  ],
+  "inputSha256": [
+    "8de845c8d06727c199b8dcb0f09c6db9b2d85ed936e8de5db985800032d047ac",
+    "a9ec4b53cacf20221dea987f4b409dc29763d7665cdeafce151c78457130f08b",
+    "9e9b299e0000c9f8265031a827a3c8f9e38e783dfbca872be20727027b984e87"
+  ],
+  "metrics": {
+    "pixelTransform": "none",
+    "alphaPolicy": "union-opaque"
+  }
+}

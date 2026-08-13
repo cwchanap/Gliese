@@ -282,15 +282,29 @@ async function loadAssemblyInput(
 	};
 }
 
-function mergedPackageProvenance(existing: Buffer, assembly: Buffer): Buffer {
+export function mergeMeadowEntryPaintedV2PackageProvenance(
+	existing: Buffer,
+	assembly: Buffer
+): Buffer {
 	const packageProvenance = parseJson(existing, 'painted-v2 package provenance');
 	const assemblyProvenance = parseJson(assembly, 'painted-v2 assembly provenance');
+	const existingSourcePanels = packageProvenance.sourcePanels;
+	assert(
+		typeof existingSourcePanels === 'object' &&
+			existingSourcePanels !== null &&
+			!Array.isArray(existingSourcePanels),
+		'Painted-v2 package provenance sourcePanels must be preserved as an object'
+	);
 	packageProvenance.assembly = assemblyProvenance;
 	const controls = objectProperty(assemblyProvenance, 'controls', 'painted-v2 assembly provenance');
 	packageProvenance.controlFingerprint = stringProperty(
 		controls,
 		'fingerprint',
 		'painted-v2 assembly controls'
+	);
+	assert(
+		packageProvenance.sourcePanels === existingSourcePanels,
+		'Painted-v2 package provenance sourcePanels changed during finalization'
 	);
 	return canonicalJson(packageProvenance);
 }
@@ -353,7 +367,7 @@ export async function runFinalizeMeadowEntryPaintedV2Pilot(
 		packageProvenancePath,
 		'package provenance'
 	);
-	const packageProvenanceJson = mergedPackageProvenance(
+	const packageProvenanceJson = mergeMeadowEntryPaintedV2PackageProvenance(
 		packageProvenance,
 		assembled.provenanceJson
 	);

@@ -15,40 +15,28 @@ export interface GeneratedMeadowEntryVisualOwner {
 
 export const MEADOW_ENTRY_PAINTED_V2_APPROVED_RUNTIME_BACKGROUNDS = [
 	{
-		cropId: 'painted-v2-sundrop-village',
-		id: 'meadow-entry-painted-v2-sundrop-village-base-image',
-		textureKey: 'meadow-entry-painted-v2-sundrop-village-base',
-		path: '/game/assets/regions/meadow-entry-painted-v2/painted-v2-sundrop-village-base.png',
-		x: 1568,
-		y: 5056,
-		width: 2624,
-		height: 2176,
+		cropId: 'painted-v2-sundrop-camera-base',
+		id: 'meadow-entry-painted-v2-sundrop-camera-base-image',
+		textureKey: 'meadow-entry-painted-v2-sundrop-camera-base',
+		path: '/game/assets/regions/meadow-entry-painted-v2/painted-v2-sundrop-camera-base.png',
+		x: 1600,
+		y: 4800,
+		width: 3200,
+		height: 3200,
 		plane: 'base',
 		drawOrder: 0
 	},
 	{
-		cropId: 'painted-v2-village-crossroads-connector',
-		id: 'meadow-entry-painted-v2-village-crossroads-connector-base-image',
-		textureKey: 'meadow-entry-painted-v2-village-crossroads-connector-base',
-		path: '/game/assets/regions/meadow-entry-painted-v2/painted-v2-village-crossroads-connector-base.png',
-		x: 2992,
-		y: 4688,
-		width: 800,
-		height: 416,
+		cropId: 'painted-v2-crossroads-camera-base',
+		id: 'meadow-entry-painted-v2-crossroads-camera-base-image',
+		textureKey: 'meadow-entry-painted-v2-crossroads-camera-base',
+		path: '/game/assets/regions/meadow-entry-painted-v2/painted-v2-crossroads-camera-base.png',
+		x: 3968,
+		y: 3840,
+		width: 3200,
+		height: 3200,
 		plane: 'base',
 		drawOrder: 10
-	},
-	{
-		cropId: 'painted-v2-crossroads',
-		id: 'meadow-entry-painted-v2-crossroads-base-image',
-		textureKey: 'meadow-entry-painted-v2-crossroads-base',
-		path: '/game/assets/regions/meadow-entry-painted-v2/painted-v2-crossroads-base.png',
-		x: 3744,
-		y: 3792,
-		width: 1728,
-		height: 1952,
-		plane: 'base',
-		drawOrder: 20
 	}
 ] as const satisfies readonly GeneratedMeadowEntryBackground[];
 
@@ -58,8 +46,8 @@ export const MEADOW_ENTRY_PAINTED_V2_RUNTIME_VISUAL_OWNERS = [
 		sourceId: 'silverpine-wall-B-south',
 		ownerCrops: [
 			{
-				cropId: 'painted-v2-crossroads',
-				requiredBackgroundIds: ['meadow-entry-painted-v2-crossroads-base-image']
+				cropId: 'painted-v2-crossroads-camera-base',
+				requiredBackgroundIds: ['meadow-entry-painted-v2-crossroads-camera-base-image']
 			}
 		]
 	},
@@ -68,12 +56,12 @@ export const MEADOW_ENTRY_PAINTED_V2_RUNTIME_VISUAL_OWNERS = [
 		sourceId: 'village-decor-22-77',
 		ownerCrops: [
 			{
-				cropId: 'painted-v2-sundrop-village',
-				requiredBackgroundIds: ['meadow-entry-painted-v2-sundrop-village-base-image']
+				cropId: 'painted-v2-sundrop-camera-base',
+				requiredBackgroundIds: ['meadow-entry-painted-v2-sundrop-camera-base-image']
 			},
 			{
-				cropId: 'painted-v2-village-crossroads-connector',
-				requiredBackgroundIds: ['meadow-entry-painted-v2-village-crossroads-connector-base-image']
+				cropId: 'painted-v2-crossroads-camera-base',
+				requiredBackgroundIds: ['meadow-entry-painted-v2-crossroads-camera-base-image']
 			}
 		]
 	},
@@ -82,8 +70,8 @@ export const MEADOW_ENTRY_PAINTED_V2_RUNTIME_VISUAL_OWNERS = [
 		sourceId: 'village-decor-28-25',
 		ownerCrops: [
 			{
-				cropId: 'painted-v2-sundrop-village',
-				requiredBackgroundIds: ['meadow-entry-painted-v2-sundrop-village-base-image']
+				cropId: 'painted-v2-sundrop-camera-base',
+				requiredBackgroundIds: ['meadow-entry-painted-v2-sundrop-camera-base-image']
 			}
 		]
 	},
@@ -92,8 +80,8 @@ export const MEADOW_ENTRY_PAINTED_V2_RUNTIME_VISUAL_OWNERS = [
 		sourceId: 'village-decor-28-53',
 		ownerCrops: [
 			{
-				cropId: 'painted-v2-sundrop-village',
-				requiredBackgroundIds: ['meadow-entry-painted-v2-sundrop-village-base-image']
+				cropId: 'painted-v2-sundrop-camera-base',
+				requiredBackgroundIds: ['meadow-entry-painted-v2-sundrop-camera-base-image']
 			}
 		]
 	},
@@ -102,8 +90,8 @@ export const MEADOW_ENTRY_PAINTED_V2_RUNTIME_VISUAL_OWNERS = [
 		sourceId: 'village-decor-53-22',
 		ownerCrops: [
 			{
-				cropId: 'painted-v2-sundrop-village',
-				requiredBackgroundIds: ['meadow-entry-painted-v2-sundrop-village-base-image']
+				cropId: 'painted-v2-sundrop-camera-base',
+				requiredBackgroundIds: ['meadow-entry-painted-v2-sundrop-camera-base-image']
 			}
 		]
 	}

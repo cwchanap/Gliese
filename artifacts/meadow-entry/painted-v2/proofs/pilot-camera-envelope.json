@@ -1,0 +1,94 @@
+{
+  "version": 1,
+  "proofId": "pilot-camera-envelope",
+  "path": "artifacts/meadow-entry/painted-v2/proofs/pilot-camera-envelope.png",
+  "sha256": "0d138972b872e4a1f263ac9e9450158b9f002dbd9508ff6d9c5cdcedc84107bd",
+  "bytes": 49508454,
+  "width": 6400,
+  "height": 6400,
+  "masterBounds": {
+    "left": 0,
+    "top": 0,
+    "right": 6400,
+    "bottom": 6400
+  },
+  "inputs": [
+    {
+      "path": "artifacts/meadow-entry/painted-v2/masters/meadow-entry-painted-v2-pilot-base-master.png",
+      "sha256": "8de845c8d06727c199b8dcb0f09c6db9b2d85ed936e8de5db985800032d047ac"
+    },
+    {
+      "path": "artifacts/meadow-entry/painted-v2/provenance/meadow-entry-master-provenance.json",
+      "sha256": "a9ec4b53cacf20221dea987f4b409dc29763d7665cdeafce151c78457130f08b"
+    },
+    {
+      "path": "artifacts/meadow-entry/painted-v2/controls/meadow-entry-control-manifest.json",
+      "sha256": "77bf248610558f47249de79e1cb399bf2f287296d671a2de7ec6db86b988a116"
+    },
+    {
+      "path": "artifacts/meadow-entry/painted-v2/provenance/meadow-entry-crop-manifest.json",
+      "sha256": "9e9b299e0000c9f8265031a827a3c8f9e38e783dfbca872be20727027b984e87"
+    },
+    {
+      "path": "artifacts/meadow-entry/painted-v2/source-panels/sundrop-north.png",
+      "sha256": "3c7fe6063b8043578464ae68e5ec38505ae6a866afcd72fe2ff2293bf912a4e9"
+    },
+    {
+      "path": "artifacts/meadow-entry/painted-v2/source-panels/sundrop-south.png",
+      "sha256": "b3bb18292cd23556d58f2ac7720f95037392ef60b26e9f208206e1f270fd672f"
+    },
+    {
+      "path": "artifacts/meadow-entry/painted-v2/source-panels/hero-house-frontage.png",
+      "sha256": "9809baf80d939eee485ee0876d3e907e60e04a8185b774f1a14a418a9cd8205b"
+    },
+    {
+      "path": "artifacts/meadow-entry/painted-v2/source-panels/village-crossroads-connector.png",
+      "sha256": "6866f90802dfcd73d3828b41b237c8c1239ee130c9d8c8af3ac10d20c193e8b2"
+    },
+    {
+      "path": "artifacts/meadow-entry/painted-v2/source-panels/crossroads.png",
+      "sha256": "1534062581775261bfcfd8a26eb5de5a730adf658d9b6ef9abb65413bbe4ae34"
+    },
+    {
+      "path": "artifacts/meadow-entry/painted-v2/source-panels/camera-underlay-sundrop-north.png",
+      "sha256": "6c1c08de57b73463cc5b126cb9069bfd8306262e8608fa822e34da49c86a7a89"
+    },
+    {
+      "path": "artifacts/meadow-entry/painted-v2/source-panels/camera-underlay-sundrop-south.png",
+      "sha256": "94be6dda1447e24fb769f19bad4e4ef7bf261605a36a2287ae01e589015c29a4"
+    },
+    {
+      "path": "artifacts/meadow-entry/painted-v2/source-panels/camera-underlay-crossroads-north.png",
+      "sha256": "4879be0e81e6182132c2233b58b9b8a12b660e2505793eda916377e77509b8c1"
+    },
+    {
+      "path": "artifacts/meadow-entry/painted-v2/source-panels/camera-underlay-crossroads-south.png",
+      "sha256": "fe28ee5172107f3bdb58f52a7e07832b8fe2d9a483f4be47e012ac9aa556b748"
+    },
+    {
+      "path": "artifacts/meadow-entry/painted-v2/controls/meadow-entry-handoff-mask.svg",
+      "sha256": "b9698e67686fcee11d031e444dd8f36aa5ada39a81be00a89bc4a00ef75b0139"
+    }
+  ],
+  "inputSha256": [
+    "8de845c8d06727c199b8dcb0f09c6db9b2d85ed936e8de5db985800032d047ac",
+    "a9ec4b53cacf20221dea987f4b409dc29763d7665cdeafce151c78457130f08b",
+    "77bf248610558f47249de79e1cb399bf2f287296d671a2de7ec6db86b988a116",
+    "9e9b299e0000c9f8265031a827a3c8f9e38e783dfbca872be20727027b984e87",
+    "3c7fe6063b8043578464ae68e5ec38505ae6a866afcd72fe2ff2293bf912a4e9",
+    "b3bb18292cd23556d58f2ac7720f95037392ef60b26e9f208206e1f270fd672f",
+    "9809baf80d939eee485ee0876d3e907e60e04a8185b774f1a14a418a9cd8205b",
+    "6866f90802dfcd73d3828b41b237c8c1239ee130c9d8c8af3ac10d20c193e8b2",
+    "1534062581775261bfcfd8a26eb5de5a730adf658d9b6ef9abb65413bbe4ae34",
+    "6c1c08de57b73463cc5b126cb9069bfd8306262e8608fa822e34da49c86a7a89",
+    "94be6dda1447e24fb769f19bad4e4ef7bf261605a36a2287ae01e589015c29a4",
+    "4879be0e81e6182132c2233b58b9b8a12b660e2505793eda916377e77509b8c1",
+    "fe28ee5172107f3bdb58f52a7e07832b8fe2d9a483f4be47e012ac9aa556b748",
+    "b9698e67686fcee11d031e444dd8f36aa5ada39a81be00a89bc4a00ef75b0139"
+  ],
+  "metrics": {
+    "routePointCount": 24,
+    "segmentCount": 23,
+    "routeReachPx": 18
+  }
+}
