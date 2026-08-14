@@ -6,11 +6,20 @@
 
 **Amends:** `2026-08-12-meadow-entry-painted-pilot-camera-safe-underlay-design.md`
 
-**2026-08-13 review correction:** The first written draft proposed axis-blending two independently
+**2026-08-13 review corrections:** The first written draft proposed axis-blending two independently
 feathered composites. Source review proved that recipe would wash the `128px` Sundrop overlap toward
-the underlay. The corrected contract blends normalized pair source pixels directly with the
-existing linear helper, exempts only sealed shared edges from perimeter equality, removes the stale
-immutable-source boundary baseline, and requires synthetic compositor GREEN before generation.
+the underlay. A first correction then proposed a full-strength source overwrite; review proved that
+would replace the midpoint wash with hard seams around the intersection rectangle and would exempt
+the failing pixels from perimeter equality.
+
+The final contract keeps the ordinary, continuous feathered composite as its base and applies an
+in-place, edge-feathered pair correction immediately after the second member of each declared pair.
+The correction is zero on all four intersection edges and full-strength at the center. This differs
+from the suggested `max(featherA, featherB)` weight: with a `128px` overlap and the existing `127px`
+inset index, that expression reaches only `129/255` at the Sundrop midpoint and therefore retains
+about half of the wash it is meant to remove. The corrected formula below preserves exact perimeter
+equality, restores a pure pair-source midpoint, retains the fresh relative boundary-excess gate,
+and requires synthetic compositor GREEN before generation.
 
 ## Purpose
 
@@ -119,12 +128,33 @@ allowing low-profile decoration on eligible path shoulders. The derived raster, 
 and the derivation policy are recorded in review metadata, but it is not added to the control
 inventory.
 
-Within each reviewed `512×512` tile that contains at least 50% eligible area, a human native-detail
-reviewer must identify at least two visually distinct microdetail cluster types. This is not an
-image-analysis score. Only qualifying tiles are rendered, in row-major order, across numbered
-contact sheets capped at 96 tiles total and 16 tiles per sheet. Exceeding the cap is a stale-design
-failure, not permission to truncate evidence. Repeated grids, regular stamp spacing, one repeated
-dominant motif, or large empty eligible fields fail the gate.
+The eligibility inventory is computed before generation on a world-aligned `512×512` grid. A tile
+qualifies when eligible pixels occupy at least 50% of the crop-union pixels clipped into that tile.
+The current frozen controls, crop union, route-core derivation, and protection margins produce
+exactly **60 qualifying tiles** in row-major order. Their world bounds, clipped crop-union pixel
+counts, eligible pixel counts, and rejected-master texture-energy values are pinned before any art
+call. Evidence is therefore exactly four numbered contact sheets at 16 tiles per sheet, with 12
+tiles on the last sheet; there is no guessed cap or truncation path.
+
+Each qualifying tile has an inexpensive objective floor before human review. Over eligible pixels,
+the check reuses the existing `rgbStep` definition—the mean absolute RGB difference divided by
+three—for every rightward and downward neighbor pair whose two pixels are eligible. The rejected
+master's 60-tile baseline has minimum `1.5571045952962603` and median
+`2.8948296408243195`. A candidate fails before visual review when any tile's mean step is below
+`1.5`, or when the 60-tile median is below `3.1843126049067515` (110% of the rejected baseline
+median). The full per-tile baseline remains in the pinned fixture and report so the calculation is
+auditable. This metric is only a floor against flat fields; it does not approve noise, repeated
+stamps, or visual richness.
+
+After that floor passes, a human native-detail reviewer must identify at least two visually distinct
+microdetail cluster types in every qualifying tile. Repeated grids, regular stamp spacing, one
+repeated dominant motif, noisy texture added only to satisfy the metric, or large empty eligible
+fields fail the human gate.
+
+The 60-tile human pass is run only for a complete candidate set that has cleared the objective
+floor. A later single-source correction rerenders and reinspects the qualifying tiles intersecting
+that source plus its seam evidence; the final promoted set still receives one complete 60-tile
+pass. Failed low-energy attempts never consume a full subjective review.
 
 Route shoulders may contain subtle ground-level wear and sparse vegetation outside the existing and
 derived exclusions, but path centers and every live approach remain flat, readable, and
@@ -172,70 +202,109 @@ The underlay blend policy remains unchanged. The generic `128px` detail perimete
 unchanged for the pinned Hero House detail and for non-overlapping portions of the regenerated
 details.
 
-Final assembly declares two sealed paired-detail policies:
+Final assembly declares two pair rows:
 
-| Pair | Intersection | Blend axis | Direction |
+| First ID | Second ID | Intersection | Axis |
 | --- | --- | --- | --- |
-| Sundrop north/south | `(256,4928)–(2880,5056)` (`2624×128`) | `y` | north to south |
-| connector/Crossroads | `(2880,4480)–(3392,4768)` (`512×288`) | `x` | west to east |
+| `sundrop-north` | `sundrop-south` | `(256,4928)–(2880,5056)` (`2624×128`) | `y` |
+| `village-crossroads-connector` | `crossroads` | `(2880,4480)–(3392,4768)` (`512×288`) | `x` |
 
-The ordinary compositor first processes the detail panels with the existing feather. It then
-overwrites only the two declared intersections with direct source-pixel blends. Shared edges do not
-receive the generic perimeter feather: blending two already-faded surfaces across the `128px`
-Sundrop intersection would wash the midpoint toward the underlay.
+The sealed configuration stores only `{ firstId, secondId, bounds, axis }`. Direction follows the
+ordered IDs, and `lastIndex` is derived as intersection height minus one for `y` or width minus one
+for `x`; neither derived value is duplicated as configuration data. A single generic axis-pair
+helper owns this derivation and the linear color calculation. The existing underlay north/south
+blend, the existing underlay family handoff, and this detail-pair correction all call that helper
+instead of maintaining three near-identical blend loops.
 
-Both policies reuse `blendMeadowEntryOpaqueChannel` with a sealed linear axis formula:
-
-```text
-floor((first * (lastIndex - index) + second * index + floor(lastIndex / 2)) / lastIndex)
-```
-
-For Sundrop, `index = y - 4928` and `lastIndex = 127`. For connector/Crossroads,
-`index = x - 2880` and `lastIndex = 511`. Each RGB channel is blended directly from the two
-normalized source pixels and alpha is written as 255. The exact provenance policy ID is
-`paired-detail-source-linear-axis-v1`.
-
-The first endpoint equals the first panel's source pixel exactly, the second endpoint equals the
-second panel's source pixel exactly, weights are monotonic, the midpoint is a mix of the two detail
-sources rather than the underlay, and pixels outside the intersections are unaffected. No full
-master clone and no runtime layer is added.
-
-Assembly provenance replaces the stale immutable-detail claims with these exact policy values:
+Detail panels are still processed in ascending priority with the ordinary `128px` perimeter
+feather. Immediately after the second participant of a pair is composited, the assembler revisits
+only that pair's intersection. Its current pixels are the continuous ordinary composite. For each
+intersection pixel, it calculates the pair-source color with the shared axis helper and blends that
+color over the current pixel with one correction weight:
 
 ```text
-policy.assembly = underlay-families-then-detail-feather-with-paired-source-linear-axis-v1
-policy.underlayAssembly.detailPolicy = ascending-priority-128px-detail-feather-except-sealed-paired-source-linear-axis-v1
-policy.underlayAssembly.detailSourceBytes = approval-bound-by-sha256
+axisPair(first, second, index, lastIndex)
+  = floor((first * (lastIndex - index) + second * index + floor(lastIndex / 2)) / lastIndex)
+
+correctionLastInsetIndex
+  = min(127, floor((min(intersectionWidth, intersectionHeight) - 1) / 2))
+
+correctionEdgeDistance
+  = min(x - left, right - 1 - x, y - top, bottom - 1 - y)
+
+correctionWeight
+  = meadowEntryDetailFeatherWeight(correctionEdgeDistance, correctionLastInsetIndex)
+
+out
+  = blendMeadowEntryDetailChannel(ordinaryComposite, axisPair, correctionWeight)
 ```
 
-`policy.underlayAssembly.pairedDetails` contains the two exact sealed rows from the table above,
-including IDs, bounds, axis, direction, and last index. Finalization and `--check` fail when any
-string or row is missing or stale.
+For Sundrop, `index = y - 4928`, derived `lastIndex = 127`, and derived
+`correctionLastInsetIndex = 63`; the center therefore reaches correction weight 255 instead of the
+129 produced by `max(featherA, featherB)`. For connector/Crossroads, `index = x - 2880`, derived
+`lastIndex = 511`, and derived `correctionLastInsetIndex = 127`. Alpha remains 255.
 
-The prior visible-perimeter contract is amended: every visible detail perimeter segment outside a
-declared paired intersection must still equal the pre-detail surface. Shared perimeter segments
-inside a paired intersection are owned by `paired-detail-source-linear-axis-v1` and are exempt from
-that equality assertion. The old global `75%` hard-copy boundary-excess gate and its fixed baseline
-hash are removed because eight source byte sets are deliberately superseded. Boundary metrics may
-still be reported as diagnostics, while native-detail inspection and the structural pair tests are
-blocking.
+The pair source's first endpoint equals the first panel source and its second endpoint equals the
+second panel source. The correction weight is exactly zero around all four intersection edges, so
+the already-continuous ordinary composite and every visible panel perimeter remain byte-identical
+there. It reaches 255 at the narrow Sundrop center and in the connector/Crossroads center, making
+the midpoint a pure two-source mix rather than a washed mix with the underlay. Pixels outside the
+intersections are unaffected. The operation is in-place after the ordinary composite, so no full
+master clone, intersection snapshot, or runtime layer is required.
+
+The third detail intersection remains intentionally undeclared:
+
+```text
+village-crossroads-connector ∩ sundrop-north
+= (2592,4480)–(2880,5056)
+```
+
+There the target already contains full Sundrop detail and the ordinary connector feather performs
+a detail-to-detail transition without underlay wash. Adding a third pair would overwrite correct
+priority behavior.
+
+Assembly provenance remains self-describing rather than relying on a version-token name. It stores
+the two exact configuration rows plus the `axisPair`, `correctionLastInsetIndex`,
+`correctionEdgeDistance`, `correctionWeight`, and `out` formulas above; it continues to bind all
+source bytes by SHA-256. Direction and last index appear only as derived review values. Finalization
+and `--check` fail when a row, formula, derivation, or source binding is missing or stale.
+
+Every visible detail perimeter segment, including every segment inside either declared
+intersection, must still equal the ordinary pre-correction surface exactly. There is no pair
+exemption. The fixed historical hard-copy master hash and stale absolute Hero House metric literals
+are removed because eight source byte sets change. The fresh relative gate remains blocking for
+every visible perimeter:
+
+```text
+correctedExcess <= freshHardCopyExcess * 0.25
+comparisonP95 == 0 ? edgeP95 == 0 : p95Ratio <= 1.30
+```
+
+The fresh hard-copy comparison is assembled in the test from the current accepted bytes, so source
+replacement does not invalidate it. The `1.30` p95 ceiling preserves the known pinned Hero House
+top value of `1.261905` while preventing a larger localized spike. In addition, all four sides of
+both pair intersections are measured explicitly rather than relying on later-priority perimeter
+filtering, and correction-edge pixels are byte-equal before and after the correction.
 
 ## Compositor-first TDD gate
 
-No image-generation call may start until the sealed pair table and direct source-pixel compositor
-pass synthetic RED-to-GREEN tests. A synthetic `128px` Sundrop fixture is mandatory because it is
-the narrow case that exposes underlay wash-out.
+No image-generation call may start until the pair table and edge-feathered pair correction pass
+synthetic RED-to-GREEN tests. A synthetic `128px` Sundrop fixture is mandatory because it is the
+narrow case that exposes both underlay wash-out and a false midpoint claim from the rejected
+`max(featherA, featherB)` proposal.
 
 Tests pin:
 
-- exact pair IDs, bounds, axes, directions, last indices, and policy ID;
-- first- and second-endpoint source equality;
-- monotonic linear weights;
-- midpoint RGB composed only from the two source colors and unequal to a distinct underlay color;
+- exact pair IDs, bounds, and axes, with direction and last indices derived and asserted;
+- the one shared axis helper used by both underlay transitions and paired details;
+- first- and second-endpoint pair-source equality and monotonic linear axis weights;
+- correction weight zero along every intersection edge and 255 at the synthetic Sundrop midpoint;
+- byte equality between the ordinary composite and corrected output along all four edges;
+- midpoint RGB composed only from the two source colors and unequal to the ordinary washed color;
 - alpha 255;
 - no mutation outside the declared intersection;
 - deterministic repeated output;
-- rejection of stale, missing, overlapping, or dimensionally invalid policies.
+- rejection of stale, missing, overlapping, or dimensionally invalid pair rows or formulas.
 
 If this synthetic fixture cannot pass, generation stops for a design correction. Art correction
 rounds must not be spent compensating for a defective compositor, and the Sundrop pair policy must
@@ -256,6 +325,18 @@ route geometry, and clearance information. High-contrast rectangular control atl
 presented as literal scenery references; masks remain authoritative for QA and may be converted to
 soft annotations for generation. Every used reference path and SHA-256 is recorded.
 
+After the four underlays and Sundrop north/south details—the first six revised sources—pass their
+source checks, work pauses at an interim assembled checkpoint. A temporary-root assembly uses those
+six candidates with the still-pinned Hero House, connector, and Crossroads bytes. It produces the
+two temporary crops, native crops for all four Sundrop intersection sides and all four Hero House
+edges, and one normal `1920×1080`, DPR-1, zoom-1 Sundrop browser capture. The seventh and eighth
+generation calls do not begin until that assembled evidence has an explicit user verdict.
+
+The interim checkpoint does not rerun the GPU texture probe. It retains the same two `3200×3200`
+decoded textures and therefore cannot exercise a different retention or maximum-texture-size
+contract; final encoded bytes and decode/upload timing are not yet stable. The existing probe is
+rerun once against the final two exports, where it provides actionable evidence.
+
 Normalization remains uniform scale plus deterministic center crop with no stretch. Any candidate
 requiring more than `2×` uniform upscaling is rejected. Accepted files must have exact registry
 dimensions, four channels, alpha 255 everywhere, and canonical PNG chunks. Broad deterministic
@@ -272,8 +353,10 @@ The source-art gate contains:
 - the `832px` family handoff;
 - the complete `2624×128` Sundrop detail intersection and enlarged west/center/east crops;
 - the complete `512×288` connector/Crossroads intersection and enlarged west/middle/east crops;
+- all four sides and all four corners of each paired-detail intersection at native resolution;
+- all four Hero House frontage edges against the regenerated Sundrop south surround;
 - a protected/live clearance atlas;
-- up to six numbered `512×512` decoration-density contact sheets covering all qualifying tiles;
+- exactly four numbered `512×512` decoration-density contact sheets covering the pinned 60 tiles;
 - region-material and route-centerline overlays shown separately from clean art.
 
 Control-colored overlays are diagnostic and cannot substitute for clean native art. The source
@@ -285,13 +368,18 @@ Tests must establish genuine RED before production changes and then cover:
 
 - the eight superseded hashes and the still-pinned Hero House detail hash;
 - exact dimensions, canonical encoding, opacity, provenance, and normalization limits;
-- both sealed transition bounds, axes, directions, last indices, participating IDs, and exact
-  `paired-detail-source-linear-axis-v1` provenance;
-- direct source-pixel endpoint equality, monotonic linear weights, an underlay-independent midpoint,
-  non-mutation outside each intersection, opacity, determinism, and stale-policy rejection;
+- both transition bounds, axes, participating IDs, derived directions/last indices, and
+  self-describing formula provenance;
+- shared axis-helper endpoint equality, monotonic linear weights, an ordinary-surface-independent
+  midpoint, zero correction on all four intersection edges, non-mutation outside each
+  intersection, opacity, determinism, and stale-row/formula rejection;
 - unchanged underlay overlap behavior and unchanged generic detail feather behavior;
-- pre-detail perimeter equality outside paired intersections and pair-policy ownership inside them;
-- removal of the superseded fixed hard-copy baseline and global `75%` excess assertion;
+- exact ordinary-composite perimeter equality everywhere, including paired intersections;
+- fresh relative `75%` excess reduction, the zero-comparison rule or `p95Ratio <= 1.30`, explicit
+  four-side pair metrics, and all four pinned Hero House edge metrics, while removing only the
+  superseded fixed hard-copy hash and stale absolute Hero literals;
+- the exact 60-tile eligibility inventory, four-sheet partition, per-tile `1.5` energy floor, and
+  median `3.1843126049067515` floor;
 - unchanged gameplay control fingerprint and exact two-crop manifest;
 - rebuilt master alpha coverage, exports, overlap equality, proof bindings, approval inventory,
   runtime descriptors, storage policy, and LFS integrity;
@@ -331,10 +419,11 @@ runtime evidence pass every gate. Rejected candidates and screenshots are retain
 are not published as approvals. A failed source is regenerated only after the synthetic compositor
 gate is green; the compositor, masks, geometry, or tolerances are not weakened to make it pass.
 
-The art phase permits at most five bounded correction rounds across the eight-source batch. If
-either revised detail pair still cannot achieve a natural handoff, or the decoration contract still
-fails, the task stops for a new design decision. It must not add a bridge plane, live decoration,
-runtime texture, coordinate change, or undocumented exception.
+Each revised source permits at most five bounded generation attempts, recorded independently so one
+stubborn panel cannot consume or conceal another panel's correction history. If a source reaches
+that limit, either revised detail pair still cannot achieve a natural handoff, or the decoration
+contract still fails, the task stops for a new design decision. It must not add a bridge plane,
+live decoration, runtime texture, coordinate change, or undocumented exception.
 
 ## Out of scope
 
@@ -350,7 +439,8 @@ runtime texture, coordinate change, or undocumented exception.
 The revision is ready to replace the current package only when:
 
 1. the eight new sources satisfy the decoration, clearance, and continuity contracts;
-2. the special intersection blend and all unchanged assembly contracts pass deterministic tests;
+2. the edge-feathered pair correction, exact perimeter and boundary metrics, density floors, and all
+   unchanged assembly contracts pass deterministic tests;
 3. package generation, approval, storage, static, build, E2E, and texture gates pass;
 4. fresh normal browser views are richer and both paired-detail handoffs read as one continuous
    landscape at native detail; and
