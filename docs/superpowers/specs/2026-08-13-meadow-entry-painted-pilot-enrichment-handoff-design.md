@@ -131,17 +131,20 @@ inventory.
 The eligibility inventory is computed before generation on a world-aligned `512×512` grid. A tile
 qualifies when eligible pixels occupy at least 50% of the crop-union pixels clipped into that tile.
 The current frozen controls, crop union, route-core derivation, and protection margins produce
-exactly **60 qualifying tiles** in row-major order. Their world bounds, clipped crop-union pixel
-counts, eligible pixel counts, and rejected-master texture-energy values are pinned before any art
-call. Evidence is therefore exactly four numbered contact sheets at 16 tiles per sheet, with 12
-tiles on the last sheet; there is no guessed cap or truncation path.
+exactly **67 qualifying tiles** in row-major order. The source-derived row counts are
+`7 + 6 + 10 + 9 + 5 + 10 + 8 + 6 + 6`; 83 crop-union grid cells are inspected and 16 fail the
+50% threshold. Their world bounds, clipped crop-union pixel counts, eligible pixel counts, and
+rejected-master texture-energy values are pinned before any art call. Evidence is therefore
+exactly five numbered contact sheets with `16 + 16 + 16 + 16 + 3` tiles; there is no guessed cap or
+truncation path. This corrects the superseded 60-tile arithmetic after an independent
+current-source audit and explicit user approval.
 
 Each qualifying tile has an inexpensive objective floor before human review. Over eligible pixels,
 the check reuses the existing `rgbStep` definition—the mean absolute RGB difference divided by
 three—for every rightward and downward neighbor pair whose two pixels are eligible. The rejected
-master's 60-tile baseline has minimum `1.5571045952962603` and median
+master's 67-tile baseline has minimum `1.5571045952962603` and median
 `2.8948296408243195`. A candidate fails before visual review when any tile's mean step is below
-`1.5`, or when the 60-tile median is below `3.1843126049067515` (110% of the rejected baseline
+`1.5`, or when the 67-tile median is below `3.1843126049067515` (110% of the rejected baseline
 median). The full per-tile baseline remains in the pinned fixture and report so the calculation is
 auditable. This metric is only a floor against flat fields; it does not approve noise, repeated
 stamps, or visual richness.
@@ -151,9 +154,9 @@ microdetail cluster types in every qualifying tile. Repeated grids, regular stam
 repeated dominant motif, noisy texture added only to satisfy the metric, or large empty eligible
 fields fail the human gate.
 
-The 60-tile human pass is run only for a complete candidate set that has cleared the objective
+The 67-tile human pass is run only for a complete candidate set that has cleared the objective
 floor. A later single-source correction rerenders and reinspects the qualifying tiles intersecting
-that source plus its seam evidence; the final promoted set still receives one complete 60-tile
+that source plus its seam evidence; the final promoted set still receives one complete 67-tile
 pass. Failed low-energy attempts never consume a full subjective review.
 
 Route shoulders may contain subtle ground-level wear and sparse vegetation outside the existing and
@@ -356,7 +359,7 @@ The source-art gate contains:
 - all four sides and all four corners of each paired-detail intersection at native resolution;
 - all four Hero House frontage edges against the regenerated Sundrop south surround;
 - a protected/live clearance atlas;
-- exactly four numbered `512×512` decoration-density contact sheets covering the pinned 60 tiles;
+- exactly five numbered `512×512` decoration-density contact sheets covering the pinned 67 tiles;
 - region-material and route-centerline overlays shown separately from clean art.
 
 Control-colored overlays are diagnostic and cannot substitute for clean native art. The source
@@ -378,7 +381,7 @@ Tests must establish genuine RED before production changes and then cover:
 - fresh relative `75%` excess reduction, the zero-comparison rule or `p95Ratio <= 1.30`, explicit
   four-side pair metrics, and all four pinned Hero House edge metrics, while removing only the
   superseded fixed hard-copy hash and stale absolute Hero literals;
-- the exact 60-tile eligibility inventory, four-sheet partition, per-tile `1.5` energy floor, and
+- the exact 67-tile eligibility inventory, five-sheet partition, per-tile `1.5` energy floor, and
   median `3.1843126049067515` floor;
 - unchanged gameplay control fingerprint and exact two-crop manifest;
 - rebuilt master alpha coverage, exports, overlap equality, proof bindings, approval inventory,

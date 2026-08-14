@@ -11,7 +11,7 @@ runtime, camera envelope, gameplay, or pinned Hero House frontage source.
 **Architecture:** A compositor-first change seals one axis-pair helper and an edge-feathered
 pair-correction pass. The same helper owns the existing underlay north/south and family blends.
 Before generation, a deterministic review tool derives decoration eligibility from the existing
-controls and pins the exact 60-tile texture-energy baseline. Eight separately generated source
+controls and pins the exact 67-tile texture-energy baseline. Eight separately generated source
 panels then pass two explicit user gates. The finalizer applies ordinary detail feathering in
 priority order and corrects each declared pair immediately after its second member. Existing
 publication, probe, E2E, and two-crop runtime paths are regenerated rather than redesigned.
@@ -60,9 +60,12 @@ Phaser 4, Playwright, Git LFS.
 - Reuse the existing control SVGs and export the existing protection margins. Do not add a control
   SVG, duplicate the margin values, or change the approved control fingerprint merely to create
   review evidence.
-- Decoration review uses the exact 60 qualifying world-aligned `512×512` tiles, four sheets
-  (`16 + 16 + 16 + 12`), minimum per-tile RGB step `1.5`, and median floor
+- Decoration review uses the exact 67 qualifying world-aligned `512×512` tiles, five sheets
+  (`16 + 16 + 16 + 16 + 3`), minimum per-tile RGB step `1.5`, and median floor
   `3.1843126049067515`.
+- The 67-row inventory is the user-approved current-source correction to the superseded 60-row
+  arithmetic: 83 crop-union cells are inspected, 16 fail the 50% threshold, and qualifying row
+  counts are `7 + 6 + 10 + 9 + 5 + 10 + 8 + 6 + 6`. Do not truncate or invent exclusions.
 - Every qualifying tile must show at least two distinct low-profile microdetail cluster types after
   the objective floor passes. Repeated grids, regular stamps, noise-only texture, and broad empty
   eligible fields fail.
@@ -320,7 +323,7 @@ rtk git commit -m "feat(art): seal Meadow pair correction"
 
 ---
 
-### Task 2: Seal decoration eligibility and the 60-tile baseline
+### Task 2: Seal decoration eligibility and the 67-tile baseline
 
 **Files:**
 - Modify: `src/lib/game/content/backgrounds/meadow-entry-bake-ownership.ts`
@@ -346,20 +349,20 @@ rtk git commit -m "feat(art): seal Meadow pair correction"
 - Produces:
   `assertMeadowEntryPaintedV2DecorationEnergy(result): void`.
 - The tool reads the existing rendered SVG controls, derives route-core exclusion in memory,
-  renders four numbered contact sheets on demand, and supports `--check`, `--master`,
+  renders five numbered contact sheets on demand, and supports `--check`, `--master`,
   `--mode baseline|candidate`, `--contact-sheets`, `--source-review`, and `--output-root` without
   publishing runtime files. Baseline mode writes only `decoration-baseline.json`; candidate mode
-  writes `decoration-candidate.json`, writes the four sheets only with `--contact-sheets`, and
+  writes `decoration-candidate.json`, writes the five sheets only with `--contact-sheets`, and
   writes the sealed native review inventory only with `--source-review`.
 - The tool also supports `--assemble-sources`: it reads the nine fixed registry paths, builds the
   underlay with `assembleMeadowEntryPaintedV2Underlay`, applies the pure
   `compositeMeadowEntryDetailPanels` helper, validates two-crop opacity, and writes a review-only
   master and two crops beneath `--output-root`.
-- Pins the rejected-master 60-row baseline before any image-generation call.
+- Pins the rejected-master 67-row baseline before any image-generation call.
 - Produces `MEADOW_ENTRY_PAINTED_V2_ENRICHMENT_REVIEW_FILENAMES`, a frozen exact inventory for:
   one five-crop quadrant/center sheet per replacement panel; three underlay seams; complete and
   west/center/east crops for each detail pair; one sides/corners sheet per detail pair; Hero House
-  edges; protected-live atlas; region/material overlay; route-centerline overlay; four density
+  edges; protected-live atlas; region/material overlay; route-centerline overlay; five density
   sheets; and candidate JSON. The candidate JSON binds the eight normalized source paths/hashes and
   records full-panel original-detail inspection; the tool does not duplicate those large PNG bytes
   into the report tree.
@@ -372,6 +375,7 @@ decoration-density-01.png
 decoration-density-02.png
 decoration-density-03.png
 decoration-density-04.png
+decoration-density-05.png
 panel-camera-underlay-sundrop-north-quadrants-center.png
 panel-camera-underlay-sundrop-south-quadrants-center.png
 panel-camera-underlay-crossroads-north-quadrants-center.png
@@ -430,7 +434,7 @@ Use small raster masks to prove:
   discarded;
 - no second dilation is applied;
 - a tile qualifies at exactly 50% and fails one pixel below 50%;
-- row-major ordering and `16 + 16 + 16 + 12` partitioning are deterministic;
+- row-major ordering and `16 + 16 + 16 + 16 + 3` partitioning are deterministic;
 - `rgbStep` averages absolute RGB differences over three channels for right/down eligible pairs;
 - pairs with either endpoint ineligible are excluded;
 - minimum and nearest-rank median gates fail independently;
@@ -448,8 +452,8 @@ Use literal assertions:
 ```ts
 expect(summary).toMatchObject({
   tileSizePx: 512,
-  qualifyingTileCount: 60,
-  sheetTileCounts: [16, 16, 16, 12],
+  qualifyingTileCount: 67,
+  sheetTileCounts: [16, 16, 16, 16, 3],
   candidateMinimumFloor: 1.5,
   candidateMedianFloor: 3.1843126049067515
 });
@@ -502,7 +506,7 @@ rgbStep = (
 ) / 3;
 ```
 
-The candidate assertion requires all 60 rows, minimum `>= 1.5`, and median
+The candidate assertion requires all 67 rows, minimum `>= 1.5`, and median
 `>= 3.1843126049067515`. It does not score semantic richness or approve a candidate.
 
 - [ ] **Step 6: Pin the rejected-master baseline before generation**
@@ -521,7 +525,7 @@ rtk bun tools/render-meadow-entry-painted-v2-enrichment-review.ts \
   --check
 ```
 
-Pin the exact 60 rows, their bounds and counts, baseline minimum
+Pin the exact 67 rows, their bounds and counts, baseline minimum
 `1.5571045952962603`, and baseline median `2.8948296408243195`. The baseline is descriptive and may
 fall below the candidate median floor; `--check` validates reproducibility rather than treating the
 rejected master as a candidate pass.
@@ -693,7 +697,7 @@ Hero House, connector, and Crossroads panels. Write only to a fresh temporary ro
 - all four Hero House edges against regenerated Sundrop south;
 - both underlay north/south seams and the family handoff;
 - protected/live and region/route overlays separate from clean art;
-- four numbered 60-tile contact sheets;
+- five numbered 67-tile contact sheets;
 - one normal Sundrop browser capture at `1920×1080`, DPR 1, zoom 1.
 
 Run the review assembly first:
@@ -727,10 +731,10 @@ rtk bun tools/render-meadow-entry-painted-v2-enrichment-review.ts \
   --check
 ```
 
-Record the resulting `MEADOW_ENRICHMENT_REVIEW_ROOT` path in the task report. Require all 60 energy
+Record the resulting `MEADOW_ENRICHMENT_REVIEW_ROOT` path in the task report. Require all 67 energy
 rows to pass. At native detail, identify at least two distinct microdetail cluster types in every
 qualifying tile. If one source is corrected, rerender its intersecting tiles and seam evidence; run
-the full 60-tile pass again on the promoted interim set.
+the full 67-tile pass again on the promoted interim set.
 
 - [ ] **Step 8: Present the interim user gate**
 
@@ -848,7 +852,7 @@ Using all eight new sources plus pinned Hero House, produce the complete design 
 - complete connector/Crossroads pair plus west/middle/east and all sides/corners;
 - all four pinned Hero House edges;
 - protected/live atlas;
-- four numbered density sheets covering all 60 tiles;
+- five numbered density sheets covering all 67 tiles;
 - region/material and route-centerline overlays separate from clean art.
 
 Build and measure the final review-only assembly with concrete temporary and tracked review roots:
@@ -873,8 +877,8 @@ rtk bun tools/render-meadow-entry-painted-v2-enrichment-review.ts \
   --check
 ```
 
-Run the objective floors and the complete 60-tile human review. A corrected source reruns affected
-tiles/seams, followed by one final complete 60-tile pass.
+Run the objective floors and the complete 67-tile human review. A corrected source reruns affected
+tiles/seams, followed by one final complete 67-tile pass.
 
 - [ ] **Step 5: Present the final source-art user gate**
 
@@ -1577,7 +1581,7 @@ Verify:
 - alpha counts remain `18_616_320` opaque / `22_343_680` transparent;
 - exactly two exports equal exactly two public runtime copies byte-for-byte;
 - overlap difference is zero across `1_863_680` pixels;
-- the 60-tile inventory and all candidate energy/human-review results are complete;
+- the 67-tile inventory and all candidate energy/human-review results are complete;
 - controls fingerprint and two-crop manifest remain exact unless Task 6 documented a necessary
   review-budget-only reapproval;
 - default Boot selection is zero, pilot selection is exactly two, and per-crop fallback ownership
@@ -1598,7 +1602,7 @@ Review the exact `72d93c6..HEAD` implementation range for:
 
 - approved design compliance and runtime freeze;
 - shared axis-helper math, correction ordering, four-side equality, relative excess, and p95 gates;
-- 60-tile eligibility/energy truthfulness and human evidence;
+- 67-tile eligibility/energy truthfulness and human evidence;
 - Hero House byte pin and eight-source provenance histories;
 - package/approval/proof/runtime inventory integrity;
 - ownership, fallback, collision, texture, and E2E correctness;
