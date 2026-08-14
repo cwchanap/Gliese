@@ -84,6 +84,11 @@ interface ControlContext {
 	combinedControlFingerprint: string;
 }
 
+interface ReviewArtifact {
+	readonly relativePath: string;
+	readonly bytes: Buffer;
+}
+
 interface ReviewPayload {
 	readonly version: 1;
 	readonly mode: 'baseline' | 'candidate';
@@ -265,6 +270,7 @@ function energyWithMode(
 
 function payload(
 	mode: CliOptions['mode'],
+	sourceReview: boolean,
 	masterPath: string,
 	master: Buffer,
 	decoded: DecodedMeadowEntryRgba,
@@ -272,7 +278,7 @@ function payload(
 	energy: MeadowEntryPaintedV2DecorationEnergy
 ): ReviewPayload {
 	const sourcePanels =
-		mode === 'candidate'
+		mode === 'candidate' && sourceReview
 			? MEADOW_ENTRY_PAINTED_V2_SOURCE_PANELS.filter(({ id }) => id !== 'hero-house-frontage').map(
 					(panel) => ({
 						id: panel.id,
@@ -310,7 +316,7 @@ function payload(
 		energy,
 		tiles: controls.tiles,
 		...(sourcePanels ? { sourcePanels } : {}),
-		...(mode === 'candidate' ? { fullPanelOriginalDetailInspection: true } : {})
+		...(mode === 'candidate' && sourceReview ? { fullPanelOriginalDetailInspection: true } : {})
 	} satisfies ReviewPayload;
 	return result;
 }
@@ -351,39 +357,35 @@ async function cropPng(decoded: DecodedMeadowEntryRgba, bounds: PixelBounds): Pr
 	return encodeCanonicalMeadowEntryPng(raw, bounds.right - bounds.left, bounds.bottom - bounds.top);
 }
 
-async function writeFileIfAllowed(path: string, bytes: Uint8Array): Promise<void> {
-	await mkdir(dirname(path), { recursive: true });
-	await writeFile(path, bytes);
-}
-
-async function writeReviewMaster(
-	outputRoot: string,
+async function reviewMasterArtifacts(
 	decoded: DecodedMeadowEntryRgba
-): Promise<void> {
+): Promise<readonly ReviewArtifact[]> {
 	const masterPng = await encodeCanonicalMeadowEntryPng(
 		decoded.data,
 		decoded.width,
 		decoded.height
 	);
-	await writeFileIfAllowed(join(outputRoot, REVIEW_MASTER), masterPng);
-	await writeFileIfAllowed(
-		join(outputRoot, REVIEW_SUNDROP_CROP),
-		await cropPng(decoded, MEADOW_ENTRY_PAINTED_V2_PILOT_CROPS[0]!.bounds)
-	);
-	await writeFileIfAllowed(
-		join(outputRoot, REVIEW_CROSSROADS_CROP),
-		await cropPng(decoded, MEADOW_ENTRY_PAINTED_V2_PILOT_CROPS[1]!.bounds)
-	);
+	return [
+		{ relativePath: REVIEW_MASTER, bytes: masterPng },
+		{
+			relativePath: REVIEW_SUNDROP_CROP,
+			bytes: await cropPng(decoded, MEADOW_ENTRY_PAINTED_V2_PILOT_CROPS[0]!.bounds)
+		},
+		{
+			relativePath: REVIEW_CROSSROADS_CROP,
+			bytes: await cropPng(decoded, MEADOW_ENTRY_PAINTED_V2_PILOT_CROPS[1]!.bounds)
+		}
+	];
 }
 
 async function writeDensitySheets(
-	outputRoot: string,
 	decoded: DecodedMeadowEntryRgba,
 	tiles: readonly MeadowEntryPaintedV2DecorationTile[]
-): Promise<void> {
+): Promise<readonly ReviewArtifact[]> {
 	const sheetSize = 4;
 	const cellSize = 512;
 	const sheetWidth = sheetSize * cellSize;
+	const artifacts: ReviewArtifact[] = [];
 	for (let sheetIndex = 0; sheetIndex < 5; sheetIndex += 1) {
 		const tileList = tiles.filter(({ sheetIndex: value }) => value === sheetIndex);
 		const raw = Buffer.alloc(sheetWidth * sheetWidth * 4);
@@ -400,41 +402,106 @@ async function writeDensitySheets(
 				tileRaw.copy(raw, targetOffset, sourceOffset, sourceOffset + width * 4);
 			}
 		}
-		await writeFileIfAllowed(
-			join(outputRoot, `decoration-density-${(sheetIndex + 1).toString().padStart(2, '0')}.png`),
-			await encodeCanonicalMeadowEntryPng(raw, sheetWidth, sheetWidth)
-		);
+		artifacts.push({
+			relativePath: `decoration-density-${(sheetIndex + 1).toString().padStart(2, '0')}.png`,
+			bytes: await encodeCanonicalMeadowEntryPng(raw, sheetWidth, sheetWidth)
+		});
 	}
+	return artifacts;
 }
 
-async function reviewImageForPanel(
+function reviewPatchBounds(
+	width: number,
+	height: number,
+	anchor:
+		| 'top-left'
+		| 'top-center'
+		| 'top-right'
+		| 'middle-left'
+		| 'middle-center'
+		| 'middle-right'
+		| 'bottom-left'
+		| 'bottom-center'
+		| 'bottom-right'
+): PixelBounds {
+	const size = Math.min(512, width, height);
+	const left = anchor.endsWith('left')
+		? 0
+		: anchor.endsWith('right')
+			? width - size
+			: Math.floor((width - size) / 2);
+	const top = anchor.startsWith('top')
+		? 0
+		: anchor.startsWith('bottom')
+			? height - size
+			: Math.floor((height - size) / 2);
+	return { left, top, right: left + size, bottom: top + size };
+}
+
+async function composeContactSheet(
 	decoded: DecodedMeadowEntryRgba,
-	panel: MeadowEntryPaintedV2SourcePanel
+	patches: readonly PixelBounds[],
+	columns: number
 ): Promise<Buffer> {
-	const bounds = panel.bounds;
-	const width = Math.min(768, bounds.right - bounds.left);
-	const height = Math.min(768, bounds.bottom - bounds.top);
-	const source = await cropPng(decoded, {
-		left: bounds.left,
-		top: bounds.top,
-		right: Math.min(bounds.right, bounds.left + width),
-		bottom: Math.min(bounds.bottom, bounds.top + height)
-	});
-	return sharp(source)
-		.resize(1_024, 1_024, { fit: 'contain', background: { r: 0, g: 0, b: 0, alpha: 0 } })
-		.png()
-		.toBuffer();
+	const cellSize = 512;
+	const rows = Math.ceil(patches.length / columns);
+	const raw = Buffer.alloc(columns * cellSize * rows * cellSize * 4);
+	for (let index = 0; index < patches.length; index += 1) {
+		const patch = await cropPng(decoded, patches[index]!);
+		const resized = await sharp(patch)
+			.resize(cellSize, cellSize, { fit: 'fill' })
+			.ensureAlpha()
+			.raw()
+			.toBuffer();
+		const cellX = (index % columns) * cellSize;
+		const cellY = Math.floor(index / columns) * cellSize;
+		for (let y = 0; y < cellSize; y += 1) {
+			const sourceOffset = y * cellSize * 4;
+			const targetOffset = ((cellY + y) * columns * cellSize + cellX) * 4;
+			resized.copy(raw, targetOffset, sourceOffset, sourceOffset + cellSize * 4);
+		}
+	}
+	return encodeCanonicalMeadowEntryPng(raw, columns * cellSize, rows * cellSize);
 }
 
-async function writeNativeReviewInventory(
-	outputRoot: string,
+async function readNativePanel(
+	repositoryRoot: string,
+	panel: MeadowEntryPaintedV2SourcePanel
+): Promise<DecodedMeadowEntryRgba> {
+	const bytes = await readFile(join(repositoryRoot, panel.normalizedPath));
+	const decoded = await decodeMeadowEntryRgba(bytes);
+	assert(
+		decoded.width === panel.expectedDimensions.width &&
+			decoded.height === panel.expectedDimensions.height,
+		`Source panel dimensions drifted during review: ${panel.id}`
+	);
+	return decoded;
+}
+
+async function nativeReviewArtifacts(
+	repositoryRoot: string,
 	decoded: DecodedMeadowEntryRgba,
 	controls: ControlContext
-): Promise<void> {
+): Promise<readonly ReviewArtifact[]> {
+	const artifacts: ReviewArtifact[] = [];
 	for (const panel of MEADOW_ENTRY_PAINTED_V2_SOURCE_PANELS) {
 		if (!SOURCE_REVIEW_PANEL_IDS.has(panel.id)) continue;
-		const filename = `panel-${panel.id}-quadrants-center.png`;
-		await writeFileIfAllowed(join(outputRoot, filename), await reviewImageForPanel(decoded, panel));
+		const nativePanel = await readNativePanel(repositoryRoot, panel);
+		const anchors = [
+			'top-left',
+			'top-right',
+			'bottom-left',
+			'bottom-right',
+			'middle-center'
+		] as const;
+		artifacts.push({
+			relativePath: `panel-${panel.id}-quadrants-center.png`,
+			bytes: await composeContactSheet(
+				nativePanel,
+				anchors.map((anchor) => reviewPatchBounds(nativePanel.width, nativePanel.height, anchor)),
+				3
+			)
+		});
 	}
 	const extracts: Readonly<Record<string, PixelBounds>> = {
 		'underlay-sundrop-north-south.png': { left: 0, top: 4736, right: 3200, bottom: 4864 },
@@ -463,7 +530,47 @@ async function writeNativeReviewInventory(
 		'hero-house-edges.png': { left: 384, top: 5312, right: 1280, bottom: 6144 }
 	};
 	for (const [filename, bounds] of Object.entries(extracts)) {
-		await writeFileIfAllowed(join(outputRoot, filename), await cropPng(decoded, bounds));
+		if (filename.endsWith('sides-corners.png')) {
+			const anchors: readonly (
+				| 'top-left'
+				| 'top-center'
+				| 'top-right'
+				| 'middle-left'
+				| 'middle-right'
+				| 'bottom-left'
+				| 'bottom-center'
+				| 'bottom-right'
+			)[] = [
+				'top-left',
+				'top-center',
+				'top-right',
+				'middle-left',
+				'middle-right',
+				'bottom-left',
+				'bottom-center',
+				'bottom-right'
+			];
+			const sheet = await composeContactSheet(
+				decoded,
+				anchors.map((anchor) => {
+					const patch = reviewPatchBounds(
+						bounds.right - bounds.left,
+						bounds.bottom - bounds.top,
+						anchor
+					);
+					return {
+						left: bounds.left + patch.left,
+						top: bounds.top + patch.top,
+						right: bounds.left + patch.right,
+						bottom: bounds.top + patch.bottom
+					};
+				}),
+				4
+			);
+			artifacts.push({ relativePath: filename, bytes: sheet });
+		} else {
+			artifacts.push({ relativePath: filename, bytes: await cropPng(decoded, bounds) });
+		}
 	}
 	const overlayFiles = {
 		'protected-live-atlas.png': CONTROL_MASK_FILENAMES.protectedLive,
@@ -472,11 +579,12 @@ async function writeNativeReviewInventory(
 	} as const;
 	for (const [filename, controlFilename] of Object.entries(overlayFiles)) {
 		const svg = Buffer.from(controls.controls[controlFilename] ?? '');
-		await writeFileIfAllowed(
-			join(outputRoot, filename),
-			await sharp(svg).resize(1_600, 1_600, { fit: 'fill' }).png().toBuffer()
-		);
+		artifacts.push({
+			relativePath: filename,
+			bytes: await sharp(svg).resize(1_600, 1_600, { fit: 'fill' }).png().toBuffer()
+		});
 	}
+	return artifacts;
 }
 
 async function listFiles(root: string): Promise<readonly string[]> {
@@ -491,26 +599,17 @@ async function listFiles(root: string): Promise<readonly string[]> {
 	return result.sort();
 }
 
-async function assertNoStaleReviewFiles(
-	outputRoot: string,
-	mode: CliOptions['mode'],
-	flags: CliOptions
-): Promise<void> {
+async function assertNoStaleReviewFiles(outputRoot: string): Promise<void> {
 	const files = await listFiles(outputRoot);
 	const expected = new Set<string>([
-		mode === 'baseline' ? 'decoration-baseline.json' : 'decoration-candidate.json',
-		mode === 'baseline' ? 'decoration-candidate.json' : 'decoration-baseline.json'
+		'decoration-baseline.json',
+		'decoration-candidate.json',
+		...MEADOW_ENTRY_PAINTED_V2_ENRICHMENT_REVIEW_FILENAMES,
+		REVIEW_MASTER,
+		REVIEW_SUNDROP_CROP,
+		REVIEW_CROSSROADS_CROP
 	]);
-	if (mode === 'candidate' && flags.contactSheets) {
-		for (let index = 1; index <= 5; index += 1)
-			expected.add(`decoration-density-${index.toString().padStart(2, '0')}.png`);
-	}
-	if (mode === 'candidate' && flags.sourceReview) {
-		for (const filename of MEADOW_ENTRY_PAINTED_V2_ENRICHMENT_REVIEW_FILENAMES)
-			expected.add(filename);
-	}
 	for (const file of files) {
-		if (file.startsWith('masters/') || file.startsWith('exports/')) continue;
 		assert(expected.has(file), `Unlisted Meadow Entry review artifact: ${file}`);
 	}
 }
@@ -523,14 +622,35 @@ async function compareOrWrite(path: string, bytes: Buffer, check: boolean): Prom
 		assert(actual.equals(bytes), `Meadow Entry review artifact is stale: ${path}`);
 		return;
 	}
-	await writeFileIfAllowed(path, bytes);
+	await mkdir(dirname(path), { recursive: true });
+	await writeFile(path, bytes);
 }
 
-async function assembleSources(
-	repositoryRoot: string,
+async function compareOrWriteArtifacts(
 	outputRoot: string,
+	artifacts: readonly ReviewArtifact[],
 	check: boolean
-): Promise<DecodedMeadowEntryRgba> {
+): Promise<void> {
+	const paths = new Set<string>();
+	for (const artifact of artifacts) {
+		assert(
+			!paths.has(artifact.relativePath),
+			`Duplicate Meadow Entry review artifact: ${artifact.relativePath}`
+		);
+		paths.add(artifact.relativePath);
+		await compareOrWrite(join(outputRoot, artifact.relativePath), artifact.bytes, check);
+	}
+}
+
+async function assertReviewOutputRootExists(outputRoot: string): Promise<void> {
+	try {
+		await readdir(outputRoot, { withFileTypes: true });
+	} catch (error) {
+		throw new Error(`Meadow Entry review output root is missing: ${outputRoot}`, { cause: error });
+	}
+}
+
+async function assembleSources(repositoryRoot: string): Promise<readonly ReviewArtifact[]> {
 	const decodedPanels = await Promise.all(
 		MEADOW_ENTRY_PAINTED_V2_SOURCE_PANELS.map(async (spec) => {
 			const bytes = await readFile(join(repositoryRoot, spec.normalizedPath));
@@ -594,8 +714,7 @@ async function assembleSources(
 			}
 		}
 	}
-	if (!check) await writeReviewMaster(outputRoot, underlay);
-	return underlay;
+	return reviewMasterArtifacts(underlay);
 }
 
 async function main(): Promise<void> {
@@ -603,8 +722,10 @@ async function main(): Promise<void> {
 	const repositoryRoot = resolve(dirname(new URL(import.meta.url).pathname), '..');
 	const outputRoot = resolve(repositoryRoot, options.outputRoot);
 	ensureReviewRoot(repositoryRoot, outputRoot);
-	await mkdir(outputRoot, { recursive: true });
-	if (options.assembleSources) await assembleSources(repositoryRoot, outputRoot, options.check);
+	if (options.check) await assertReviewOutputRootExists(outputRoot);
+	else await mkdir(outputRoot, { recursive: true });
+	const artifacts: ReviewArtifact[] = [];
+	if (options.assembleSources) artifacts.push(...(await assembleSources(repositoryRoot)));
 	const masterPath = resolve(repositoryRoot, options.master);
 	const master = await readFile(masterPath);
 	const decoded = await decodeMeadowEntryRgba(master);
@@ -618,6 +739,7 @@ async function main(): Promise<void> {
 	if (options.mode === 'candidate') assertMeadowEntryPaintedV2DecorationEnergy(measured);
 	let result = payload(
 		options.mode,
+		options.sourceReview,
 		relative(repositoryRoot, masterPath),
 		master,
 		decoded,
@@ -627,12 +749,13 @@ async function main(): Promise<void> {
 	result = await patchCandidateSourceHashes(result, repositoryRoot);
 	const jsonName =
 		options.mode === 'baseline' ? 'decoration-baseline.json' : 'decoration-candidate.json';
-	await compareOrWrite(join(outputRoot, jsonName), stableJson(result), options.check);
-	if (options.mode === 'candidate' && !options.check) {
-		if (options.contactSheets) await writeDensitySheets(outputRoot, decoded, controls.tiles);
-		if (options.sourceReview) await writeNativeReviewInventory(outputRoot, decoded, controls);
-	}
-	if (options.check) await assertNoStaleReviewFiles(outputRoot, options.mode, options);
+	artifacts.push({ relativePath: jsonName, bytes: stableJson(result) });
+	if (options.mode === 'candidate' && options.contactSheets)
+		artifacts.push(...(await writeDensitySheets(decoded, controls.tiles)));
+	if (options.mode === 'candidate' && options.sourceReview)
+		artifacts.push(...(await nativeReviewArtifacts(repositoryRoot, decoded, controls)));
+	await compareOrWriteArtifacts(outputRoot, artifacts, options.check);
+	await assertNoStaleReviewFiles(outputRoot);
 	console.log(
 		`${options.mode} decoration review: ${controls.tiles.length} qualifying tiles, minimum=${energy.minimumRgbStep}, median=${energy.medianRgbStep}`
 	);

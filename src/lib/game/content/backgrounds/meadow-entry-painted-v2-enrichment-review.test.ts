@@ -64,14 +64,14 @@ describe('Meadow Entry painted-v2 decoration eligibility', () => {
 		};
 		masks.protectedLive.alpha[0] = 255;
 		masks.buildingFootprint.alpha[1] = 255;
-		masks.entranceTransition.alpha[2] = 255;
-		masks.rewardDiscovery.alpha[3] = 255;
-		masks.semanticAnchor.alpha[4] = 255;
+		masks.entranceTransition.alpha[8 + 2] = 255;
+		masks.rewardDiscovery.alpha[8 + 3] = 255;
+		masks.semanticAnchor.alpha[8 + 4] = 255;
 		const eligibility = buildMeadowEntryPaintedV2DecorationEligibility(
 			input({
 				cropUnion: [
 					{ left: 0, top: 0, right: 2, bottom: 1 },
-					{ left: 2, top: 1, right: 4, bottom: 2 }
+					{ left: 2, top: 1, right: 5, bottom: 2 }
 				],
 				masks
 			})
@@ -81,8 +81,12 @@ describe('Meadow Entry painted-v2 decoration eligibility', () => {
 		expect(eligibility.insideCropUnion[1]).toBe(1);
 		expect(eligibility.insideCropUnion[2]).toBe(0);
 		expect(eligibility.insideCropUnion[8 + 2]).toBe(1);
-		expect(eligibility.insideCropUnion[8 + 4]).toBe(0);
-		for (let index = 0; index < 5; index += 1) expect(eligibility.eligible[index]).toBe(0);
+		expect(eligibility.insideCropUnion[8 + 5]).toBe(0);
+		expect(eligibility.eligible[0]).toBe(0);
+		expect(eligibility.eligible[1]).toBe(0);
+		expect(eligibility.eligible[8 + 2]).toBe(0);
+		expect(eligibility.eligible[8 + 3]).toBe(0);
+		expect(eligibility.eligible[8 + 4]).toBe(0);
 	});
 
 	it('insets terrain rectangles once with the exported protection margins', () => {
