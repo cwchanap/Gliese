@@ -2,7 +2,7 @@
 
 **Date:** 2026-08-13
 
-**Status:** Approved for implementation planning on 2026-08-13 (America/Vancouver)
+**Status:** Forest-enrichment amendment direction approved on 2026-08-14; written amendment awaiting user review
 
 **Amends:** `2026-08-12-meadow-entry-painted-pilot-camera-safe-underlay-design.md`
 
@@ -21,6 +21,14 @@ about half of the wash it is meant to remove. The corrected formula below preser
 equality, restores a pure pair-source midpoint, retains the fresh relative boundary-excess gate,
 and requires synthetic compositor GREEN before generation.
 
+**2026-08-14 forest-enrichment amendment:** The first six-source interim candidate cleared the
+objective texture-energy floor but was rejected because the background still read as a broad grass
+field with insufficient environmental structure. The replacement art may therefore bake richer
+tree and forest scenery into the same two base textures. Forest scenery is confined to authored
+blocked scenery belts; traversable fields, routes, approaches, and live clearances retain
+ground-level detail only. No runtime prop, collision shape, ownership rule, texture plane, or crop
+changes as part of this amendment.
+
 ## Purpose
 
 The camera-safe painted Meadow pilot now covers its approved browser journey without exposing
@@ -32,9 +40,9 @@ show two presentation defects:
 2. the Sundrop connector and Crossroads materials meet too abruptly even though the underlying
    crop and panel overlaps are structurally covered.
 
-This revision enriches the painted ground with non-interactive regional microdetail and repairs the
-connector-to-Crossroads handoff at the source-art and assembly levels. It does not change gameplay
-geometry or add runtime planes.
+This revision enriches the painted background with non-interactive regional microdetail, layered
+forest-edge scenery, and a repaired connector-to-Crossroads handoff at the source-art and assembly
+levels. It does not change gameplay geometry or add runtime planes.
 
 ## Scope classification
 
@@ -101,16 +109,49 @@ hashes, and fresh approval state.
 
 ## Decoration contract
 
-All new decoration is baked, low-profile, and non-interactive. It enriches terrain without
-claiming collision, interaction, ownership, or state.
+All new decoration is baked and non-interactive. Ground-detail decoration remains low-profile.
+Tree and forest masses are permitted only in the scenery-belt contract below, where authored
+collision already prevents traversal. The background never creates a new claim about collision,
+interaction, ownership, or state.
 
 Region language is:
 
-- **Sundrop:** clover, small flowers, scattered pebbles, varied grass, and worn path shoulders;
+- **Sundrop:** clover, small flowers, scattered pebbles, varied grass, worn path shoulders, and
+  orchard-like hedge or treeline depth along blocked village edges;
 - **connector:** wheel-rut wear, compacted-soil variation, small stones, and sparse wildflowers;
-- **Crossroads:** mixed gravel and cobble, weeds between stones, dry grass, and edge flowers;
+- **Crossroads:** mixed gravel and cobble, weeds between stones, dry grass, edge flowers, and
+  restrained woodland cues at the Wildwood-facing blocked edge;
 - **neighboring margins:** the existing region-correct marsh ground, leaf litter, forest-floor
-  texture, fern texture, coastal sand, or coastal gravel where the owning masks require it.
+  texture, fern texture, roots, shrubs, layered canopy shadow, coastal sand, or coastal gravel where
+  the owning masks require it.
+
+### Two-layer decoration model
+
+The background uses two distinct review layers:
+
+1. **Ground-detail field.** The existing 67-tile eligibility inventory remains the contract for
+   grass, flowers, pebbles, leaf litter, roots, ferns, low shrubs, path wear, and material variation.
+   It continues to subtract protected/live, building, transition, reward/discovery, semantic-anchor,
+   and route-core pixels.
+2. **Blocked scenery belts.** A second review-only raster permits treelines, visible trunks,
+   clustered canopy, dense shrubs, roots, ferns, forest-floor shadow, and woodland depth only within
+   current non-navigable forest/hedge blocker footprints. The source inventory is a sorted,
+   fail-closed selection from the existing reviewed Meadow Entry bake-ownership catalog: current
+   blockers whose reviewed visual language is `hedge`, `tree-wall`, or `forest-bank`. It is
+   intersected with the unchanged two-crop union and clipped to the exact blocker rectangles with
+   no outward dilation. This selection does not amend painted-v2 runtime ownership.
+
+The scenery-belt inventory and its source hashes are emitted in review metadata, not added to the
+runtime ownership table or gameplay controls. A catalog or bounds change makes the review fixture
+stale and stops generation. Protected live decor—including authored individual tree, gate, sign,
+pickup, actor, and landmark sprites—remains excluded.
+
+Inside a scenery belt, trunks, dark canopy interiors, and other high-contrast collision cues must
+remain inside the exact blocked footprint. Softer leaf litter, grass blending, and canopy shadow may
+blend into otherwise eligible ground, but cannot narrow a route or suggest an additional blocker.
+The art may imply a continuous forest behind live tree sprites, but must not reproduce an authored
+sprite's exact silhouette, position, or landmark identity. Existing live visuals remain distinct
+and render unchanged above the background.
 
 Decoration eligibility reuses the existing control SVGs. It subtracts the rendered protected-live,
 building-footprint, entrance-transition, reward-discovery, and semantic-anchor masks from the
@@ -161,9 +202,9 @@ pass. Failed low-energy attempts never consume a full subjective review.
 
 Route shoulders may contain subtle ground-level wear and sparse vegetation outside the existing and
 derived exclusions, but path centers and every live approach remain flat, readable, and
-unobstructed. The art must not bake lamps, fences, signs, crates, barrels, buildings, trees, gates,
-doors, pickups, actors, labels, tall vegetation, water, or any other cue that could imply live state
-or collision.
+unobstructed. Outside the blocked scenery-belt raster, the art must not bake lamps, fences, signs,
+crates, barrels, buildings, trees, gates, doors, pickups, actors, labels, tall vegetation, water, or
+any other cue that could imply live state or collision.
 
 ## Paired-detail continuity contracts
 
@@ -324,9 +365,18 @@ image-generation call. Calls are ordered as:
 4. connector detail, then Crossroads detail using the accepted connector overlap.
 
 Reference packs include the approved concept, region palette, actual neighboring panel pixels,
-route geometry, and clearance information. High-contrast rectangular control atlases must not be
-presented as literal scenery references; masks remain authoritative for QA and may be converted to
-soft annotations for generation. Every used reference path and SHA-256 is recorded.
+route geometry, clearance information, and a softly annotated blocked-scenery-belt guide. That
+guide distinguishes forest depth from traversable ground without exposing literal rectangles as
+scenery. High-contrast rectangular control atlases must not be presented as literal scenery
+references; masks remain authoritative for QA and may be converted to soft annotations for
+generation. Every used reference path and SHA-256 is recorded.
+
+Prompts require layered, non-repeating forest structure inside the annotated belts: irregular
+treelines, varied canopy scale, visible trunk rhythm, undergrowth, roots, ferns, leaf litter, and
+soft depth shadow. They also require quiet route cores, open approaches, no isolated trees on
+walkable ground, no duplicate landmark or live-prop silhouette, no rectangular hedge row, and no
+regular forest stamp grid. A source that clears the texture-energy floor but still reads as one
+broad grass field fails the human gate.
 
 After the four underlays and Sundrop north/south details—the first six revised sources—pass their
 source checks, work pauses at an interim assembled checkpoint. A temporary-root assembly uses those
@@ -359,11 +409,15 @@ The source-art gate contains:
 - all four sides and all four corners of each paired-detail intersection at native resolution;
 - all four Hero House frontage edges against the regenerated Sundrop south surround;
 - a protected/live clearance atlas;
+- a blocked-scenery-belt inventory and overlay with every selected blocker source ID and bounds;
+- native-detail crops for every scenery-belt component intersecting a reviewed panel edge or route;
 - exactly five numbered `512×512` decoration-density contact sheets covering the pinned 67 tiles;
 - region-material and route-centerline overlays shown separately from clean art.
 
 Control-colored overlays are diagnostic and cannot substitute for clean native art. The source
-gate requires explicit user approval before master publication.
+gate requires explicit user approval before master publication. Human review rejects any full
+panel dominated by undifferentiated grass, any forest belt that becomes a repeated row of identical
+trees, any tree or trunk outside its allowed belt, or any visual narrowing of an authored route.
 
 ## Deterministic verification
 
@@ -383,6 +437,11 @@ Tests must establish genuine RED before production changes and then cover:
   superseded fixed hard-copy hash and stale absolute Hero literals;
 - the exact 67-tile eligibility inventory, five-sheet partition, per-tile `1.5` energy floor, and
   median `3.1843126049067515` floor;
+- the exact fail-closed blocked-scenery-belt source inventory, bounds, crop intersections, and
+  review-mask hash, with no change to gameplay controls or runtime ownership rows;
+- rejection when the scenery-belt derivation extends beyond its exact blocker/crop intersection or
+  admits a protected-live decor source; tree/trunk placement outside the belt remains a mandatory
+  native-detail human-review failure rather than an unreliable semantic-pixel classifier;
 - unchanged gameplay control fingerprint and exact two-crop manifest;
 - rebuilt master alpha coverage, exports, overlap equality, proof bindings, approval inventory,
   runtime descriptors, storage policy, and LFS integrity;
@@ -408,8 +467,12 @@ fallback ownership assertions remain exact.
 The browser visual gate replaces all nine rejected captures and adds native-detail connector
 handoff crops to the report. Normal views must show no source rectangle, material jump,
 double-darkening, fallback exposure, blur mismatch, repeated stamp, false collision cue, clearance
-ambiguity, debug overlay, or incorrect review bar. Diagnostic views must remain explicitly
-labelled and truthful.
+ambiguity, debug overlay, or incorrect review bar. Hero House frontage, Sundrop main street,
+connector village mouth, connector midpoint, connector Crossroads mouth, and Crossroads Waystone
+must each show deliberate regional layering rather than a single grass texture. Where a scenery
+belt enters the camera, it must read as a natural forest edge with at least two distinguishable
+depth layers—for example canopy plus trunks/undergrowth—while the traversable route remains
+unambiguous. Diagnostic views must remain explicitly labelled and truthful.
 
 The replacement report records exact hashes, dimensions, capture settings, source/package
 approvals, texture decision, and the user's explicit verdict with a UTC-second timestamp. No
@@ -441,7 +504,8 @@ live decoration, runtime texture, coordinate change, or undocumented exception.
 
 The revision is ready to replace the current package only when:
 
-1. the eight new sources satisfy the decoration, clearance, and continuity contracts;
+1. the eight new sources satisfy the ground-detail, blocked-forest-belt, clearance, and continuity
+   contracts;
 2. the edge-feathered pair correction, exact perimeter and boundary metrics, density floors, and all
    unchanged assembly contracts pass deterministic tests;
 3. package generation, approval, storage, static, build, E2E, and texture gates pass;
