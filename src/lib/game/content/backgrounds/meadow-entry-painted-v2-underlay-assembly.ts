@@ -1,11 +1,22 @@
 import type { PixelBounds } from './meadow-entry-authoring-types';
 import type { DecodedMeadowEntryRgba } from './meadow-entry-png';
+import {
+	MEADOW_ENTRY_PAINTED_V2_DETAIL_PAIRS,
+	MEADOW_ENTRY_PAINTED_V2_DETAIL_PAIR_FORMULAS,
+	type MeadowEntryPaintedV2BlendAxis,
+	type MeadowEntryPaintedV2DetailPair,
+	validateMeadowEntryPaintedV2DetailPairContract
+} from './meadow-entry-painted-v2-pilot';
 
 export interface MeadowEntryUnderlayDecodedPanel {
 	readonly id: string;
 	readonly bounds: PixelBounds;
 	readonly rgba: DecodedMeadowEntryRgba;
 }
+
+export type MeadowEntryDetailDecodedPanel = MeadowEntryUnderlayDecodedPanel & {
+	readonly assemblyPriority: number;
+};
 
 export interface MeadowEntryUnderlayAssemblyInput {
 	readonly width: number;
@@ -98,22 +109,36 @@ function copyPanel(
 	}
 }
 
-function blendPixel(
-	target: Buffer,
-	width: number,
-	x: number,
-	y: number,
+export function blendMeadowEntryAxisPairPixel(
 	first: readonly number[],
 	second: readonly number[],
-	index: number,
-	lastIndex: number
-): void {
-	writePixel(target, width, x, y, [
+	bounds: PixelBounds,
+	axis: MeadowEntryPaintedV2BlendAxis,
+	x: number,
+	y: number
+): readonly [number, number, number, 255] {
+	assert(
+		Number.isInteger(bounds.left) &&
+			Number.isInteger(bounds.top) &&
+			Number.isInteger(bounds.right) &&
+			Number.isInteger(bounds.bottom) &&
+			bounds.right > bounds.left &&
+			bounds.bottom > bounds.top,
+		'Meadow Entry axis-pair bounds are invalid'
+	);
+	assert(axis === 'x' || axis === 'y', `Meadow Entry axis-pair axis is invalid: ${axis}`);
+	assert(
+		x >= bounds.left && x < bounds.right && y >= bounds.top && y < bounds.bottom,
+		'Meadow Entry axis-pair pixel is outside bounds'
+	);
+	const index = axis === 'x' ? x - bounds.left : y - bounds.top;
+	const lastIndex = axis === 'x' ? bounds.right - bounds.left - 1 : bounds.bottom - bounds.top - 1;
+	return [
 		blendMeadowEntryOpaqueChannel(first[0]!, second[0]!, index, lastIndex),
 		blendMeadowEntryOpaqueChannel(first[1]!, second[1]!, index, lastIndex),
 		blendMeadowEntryOpaqueChannel(first[2]!, second[2]!, index, lastIndex),
 		255
-	]);
+	];
 }
 
 export function blendMeadowEntryOpaqueChannel(
@@ -148,6 +173,22 @@ export function meadowEntryDetailFeatherWeight(
 	const numerator = q * q * (3 * lastInsetIndex - 2 * q);
 	const denominator = lastInsetIndex * lastInsetIndex * lastInsetIndex;
 	return Math.floor((255 * numerator + Math.floor(denominator / 2)) / denominator);
+}
+
+export function meadowEntryDetailPairCorrectionLastInsetIndex(bounds: PixelBounds): number {
+	assert(
+		Number.isInteger(bounds.left) &&
+			Number.isInteger(bounds.top) &&
+			Number.isInteger(bounds.right) &&
+			Number.isInteger(bounds.bottom) &&
+			bounds.right > bounds.left &&
+			bounds.bottom > bounds.top,
+		'Meadow Entry detail pair correction bounds are invalid'
+	);
+	return Math.min(
+		MEADOW_ENTRY_PAINTED_V2_DETAIL_FEATHER_LAST_INSET_INDEX,
+		Math.floor((Math.min(bounds.right - bounds.left, bounds.bottom - bounds.top) - 1) / 2)
+	);
 }
 
 export function blendMeadowEntryDetailChannel(
@@ -217,6 +258,169 @@ export function compositeMeadowEntryDetailPanel(
 	}
 }
 
+function intersectBounds(first: PixelBounds, second: PixelBounds): PixelBounds | null {
+	const result = {
+		left: Math.max(first.left, second.left),
+		top: Math.max(first.top, second.top),
+		right: Math.min(first.right, second.right),
+		bottom: Math.min(first.bottom, second.bottom)
+	};
+	return result.left < result.right && result.top < result.bottom ? result : null;
+}
+
+function assertDecodedPanel(panel: MeadowEntryUnderlayDecodedPanel, label: string): void {
+	const width = boundsWidth(panel.bounds);
+	const height = boundsHeight(panel.bounds);
+	assert(width > 0 && height > 0, `Meadow Entry ${label} bounds are invalid`);
+	assert(
+		panel.rgba.width === width &&
+			panel.rgba.height === height &&
+			panel.rgba.data.byteLength === width * height * 4,
+		`Meadow Entry ${label} dimensions are invalid`
+	);
+	for (let offset = 3; offset < panel.rgba.data.length; offset += 4) {
+		assert(panel.rgba.data[offset] === 255, `Meadow Entry ${label} is not opaque`);
+	}
+}
+
+export function compositeMeadowEntryDetailPairCorrection(
+	target: DecodedMeadowEntryRgba,
+	first: MeadowEntryUnderlayDecodedPanel,
+	second: MeadowEntryUnderlayDecodedPanel,
+	pair: MeadowEntryPaintedV2DetailPair
+): void {
+	assert(
+		Number.isInteger(target.width) &&
+			target.width > 0 &&
+			Number.isInteger(target.height) &&
+			target.height > 0,
+		'Meadow Entry detail pair target dimensions are invalid'
+	);
+	assert(
+		target.data.byteLength === target.width * target.height * 4,
+		'Meadow Entry detail pair target RGBA dimensions are invalid'
+	);
+	assert(
+		first.id === pair.firstId,
+		`Meadow Entry detail pair first panel id is stale: ${first.id}`
+	);
+	assert(
+		second.id === pair.secondId,
+		`Meadow Entry detail pair second panel id is stale: ${second.id}`
+	);
+	assertDecodedPanel(first, `detail pair first panel ${first.id}`);
+	assertDecodedPanel(second, `detail pair second panel ${second.id}`);
+	const overlap = intersectBounds(first.bounds, second.bounds);
+	assert(overlap !== null, 'Meadow Entry detail pair panels do not intersect');
+	assert(
+		overlap.left === pair.bounds.left &&
+			overlap.top === pair.bounds.top &&
+			overlap.right === pair.bounds.right &&
+			overlap.bottom === pair.bounds.bottom,
+		'Meadow Entry detail pair bounds do not match the panel intersection'
+	);
+	assert(
+		pair.bounds.left >= 0 &&
+			pair.bounds.top >= 0 &&
+			pair.bounds.right <= target.width &&
+			pair.bounds.bottom <= target.height,
+		'Meadow Entry detail pair bounds are outside the target'
+	);
+	const correctionLastInsetIndex = meadowEntryDetailPairCorrectionLastInsetIndex(pair.bounds);
+	assert(
+		correctionLastInsetIndex >= 1,
+		'Meadow Entry detail pair correction intersection is too narrow'
+	);
+	for (let y = pair.bounds.top; y < pair.bounds.bottom; y += 1) {
+		for (let x = pair.bounds.left; x < pair.bounds.right; x += 1) {
+			const targetOffset = (y * target.width + x) * 4;
+			const firstPixel = panelPixel(first, x, y);
+			const secondPixel = panelPixel(second, x, y);
+			const pairPixel = blendMeadowEntryAxisPairPixel(
+				firstPixel,
+				secondPixel,
+				pair.bounds,
+				pair.axis,
+				x,
+				y
+			);
+			const edgeDistance = Math.min(
+				x - pair.bounds.left,
+				pair.bounds.right - 1 - x,
+				y - pair.bounds.top,
+				pair.bounds.bottom - 1 - y
+			);
+			const correctionWeight = meadowEntryDetailFeatherWeight(
+				edgeDistance,
+				correctionLastInsetIndex
+			);
+			target.data[targetOffset] = blendMeadowEntryDetailChannel(
+				target.data[targetOffset]!,
+				pairPixel[0],
+				correctionWeight
+			);
+			target.data[targetOffset + 1] = blendMeadowEntryDetailChannel(
+				target.data[targetOffset + 1]!,
+				pairPixel[1],
+				correctionWeight
+			);
+			target.data[targetOffset + 2] = blendMeadowEntryDetailChannel(
+				target.data[targetOffset + 2]!,
+				pairPixel[2],
+				correctionWeight
+			);
+			target.data[targetOffset + 3] = 255;
+		}
+	}
+}
+
+export function compositeMeadowEntryDetailPanels(
+	target: DecodedMeadowEntryRgba,
+	panels: readonly MeadowEntryDetailDecodedPanel[],
+	pairs: readonly MeadowEntryPaintedV2DetailPair[] = MEADOW_ENTRY_PAINTED_V2_DETAIL_PAIRS
+): void {
+	validateMeadowEntryPaintedV2DetailPairContract(
+		panels,
+		pairs,
+		MEADOW_ENTRY_PAINTED_V2_DETAIL_PAIR_FORMULAS
+	);
+	const priorities = new Set<number>();
+	for (const panel of panels) {
+		assert(
+			Number.isInteger(panel.assemblyPriority) && panel.assemblyPriority >= 0,
+			`Meadow Entry detail panel ${panel.id} assembly priority is invalid`
+		);
+		assert(
+			!priorities.has(panel.assemblyPriority),
+			`Duplicate Meadow Entry detail panel assembly priority: ${panel.assemblyPriority}`
+		);
+		priorities.add(panel.assemblyPriority);
+	}
+	const byId = new Map(panels.map((panel) => [panel.id, panel]));
+	const processed = new Set<string>();
+	const ordered = [...panels].sort(
+		(first, second) =>
+			first.assemblyPriority - second.assemblyPriority || first.id.localeCompare(second.id)
+	);
+	for (const panel of ordered) {
+		compositeMeadowEntryDetailPanel(target, panel);
+		processed.add(panel.id);
+		for (const pair of pairs) {
+			if (pair.secondId !== panel.id) continue;
+			assert(
+				processed.has(pair.firstId),
+				`Meadow Entry detail pair first panel was not processed before second: ${pair.firstId}->${pair.secondId}`
+			);
+			const first = byId.get(pair.firstId);
+			assert(
+				first !== undefined,
+				`Meadow Entry detail pair first panel is missing: ${pair.firstId}`
+			);
+			compositeMeadowEntryDetailPairCorrection(target, first, panel, pair);
+		}
+	}
+}
+
 function findPanel(
 	panels: readonly MeadowEntryUnderlayDecodedPanel[],
 	id: string,
@@ -237,19 +441,17 @@ function blendNorthSouth(
 	const overlapWidth = boundsWidth(pair.bounds);
 	const overlapHeight = boundsHeight(pair.bounds);
 	assert(overlapWidth > 0 && overlapHeight > 1, 'Meadow Entry north/south overlap is invalid');
-	const lastIndex = overlapHeight - 1;
 	for (let y = pair.bounds.top; y < pair.bounds.bottom; y += 1) {
 		for (let x = pair.bounds.left; x < pair.bounds.right; x += 1) {
-			blendPixel(
-				output,
-				input.width,
-				x,
-				y,
+			const pixel = blendMeadowEntryAxisPairPixel(
 				panelPixel(north, x, y),
 				panelPixel(south, x, y),
-				y - pair.bounds.top,
-				lastIndex
+				pair.bounds,
+				'y',
+				x,
+				y
 			);
+			writePixel(output, input.width, x, y, pixel);
 		}
 	}
 }
@@ -259,7 +461,7 @@ function familyPixel(
 	ids: readonly string[],
 	x: number,
 	y: number
-): number[] | null {
+): readonly number[] | null {
 	const matching = input.panels.filter(
 		(panel) =>
 			ids.includes(panel.id) &&
@@ -280,14 +482,7 @@ function familyPixel(
 	const south = findPanel(input.panels, pair.southId, 'north/south pair');
 	const northPixel = panelPixel(north, x, y);
 	const southPixel = panelPixel(south, x, y);
-	const index = y - pair.bounds.top;
-	const lastIndex = boundsHeight(pair.bounds) - 1;
-	return [
-		blendMeadowEntryOpaqueChannel(northPixel[0]!, southPixel[0]!, index, lastIndex),
-		blendMeadowEntryOpaqueChannel(northPixel[1]!, southPixel[1]!, index, lastIndex),
-		blendMeadowEntryOpaqueChannel(northPixel[2]!, southPixel[2]!, index, lastIndex),
-		255
-	];
+	return blendMeadowEntryAxisPairPixel(northPixel, southPixel, pair.bounds, 'y', x, y);
 }
 
 function blendFamilies(input: MeadowEntryUnderlayAssemblyInput, output: Buffer): void {
@@ -295,7 +490,6 @@ function blendFamilies(input: MeadowEntryUnderlayAssemblyInput, output: Buffer):
 	const overlapWidth = boundsWidth(bounds);
 	const overlapHeight = boundsHeight(bounds);
 	assert(overlapWidth > 1 && overlapHeight > 0, 'Meadow Entry family handoff bounds are invalid');
-	const lastIndex = overlapWidth - 1;
 	for (let y = bounds.top; y < bounds.bottom; y += 1) {
 		for (let x = bounds.left; x < bounds.right; x += 1) {
 			const sundropPixel = familyPixel(input, input.familyHandoff.sundropPanelIds, x, y);
@@ -304,15 +498,12 @@ function blendFamilies(input: MeadowEntryUnderlayAssemblyInput, output: Buffer):
 				sundropPixel !== null && crossroadsPixel !== null,
 				'Meadow Entry family handoff is uncovered'
 			);
-			blendPixel(
+			writePixel(
 				output,
 				input.width,
 				x,
 				y,
-				sundropPixel,
-				crossroadsPixel,
-				x - bounds.left,
-				lastIndex
+				blendMeadowEntryAxisPairPixel(sundropPixel, crossroadsPixel, bounds, 'x', x, y)
 			);
 		}
 	}

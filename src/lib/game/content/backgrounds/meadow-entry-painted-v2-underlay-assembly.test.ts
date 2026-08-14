@@ -1,15 +1,25 @@
+import { createHash } from 'node:crypto';
+import { readFile } from 'node:fs/promises';
+
 import { describe, expect, it } from 'vitest';
 
 import type { PixelBounds } from './meadow-entry-authoring-types';
 import {
 	assembleMeadowEntryPaintedV2Underlay,
+	blendMeadowEntryAxisPairPixel,
 	blendMeadowEntryOpaqueChannel,
 	blendMeadowEntryDetailChannel,
+	compositeMeadowEntryDetailPairCorrection,
 	compositeMeadowEntryDetailPanel,
+	compositeMeadowEntryDetailPanels,
 	meadowEntryDetailFeatherWeight,
+	meadowEntryDetailPairCorrectionLastInsetIndex,
 	type MeadowEntryUnderlayDecodedPanel,
 	type MeadowEntryUnderlayAssemblyInput
 } from './meadow-entry-painted-v2-underlay-assembly';
+import { decodeMeadowEntryRgba } from './meadow-entry-png';
+
+import { MEADOW_ENTRY_PAINTED_V2_SOURCE_PANELS } from './meadow-entry-painted-v2-pilot';
 
 function panel(id: string, bounds: PixelBounds, colour: number): MeadowEntryUnderlayDecodedPanel {
 	const width = bounds.right - bounds.left;
@@ -24,12 +34,69 @@ function panel(id: string, bounds: PixelBounds, colour: number): MeadowEntryUnde
 	return { id, bounds, rgba: { data, width, height } };
 }
 
+function rgbPanel(
+	id: string,
+	bounds: PixelBounds,
+	rgb: readonly [number, number, number]
+): MeadowEntryUnderlayDecodedPanel {
+	const width = bounds.right - bounds.left;
+	const height = bounds.bottom - bounds.top;
+	const data = Buffer.alloc(width * height * 4);
+	for (let offset = 0; offset < data.length; offset += 4) {
+		data[offset] = rgb[0];
+		data[offset + 1] = rgb[1];
+		data[offset + 2] = rgb[2];
+		data[offset + 3] = 255;
+	}
+	return { id, bounds, rgba: { data, width, height } };
+}
+
 function pixel(decoded: { data: Buffer; width: number }, x: number, y: number): number[] {
 	const offset = (y * decoded.width + x) * 4;
 	return [...decoded.data.subarray(offset, offset + 4)];
 }
 
 describe('Meadow Entry camera-safe underlay assembly', () => {
+	it('pins the decoded RGBA bytes from the four checked-in underlay panels', async () => {
+		const underlays = await Promise.all(
+			MEADOW_ENTRY_PAINTED_V2_SOURCE_PANELS.filter(({ role }) => role === 'underlay').map(
+				async (source) => ({
+					id: source.id,
+					bounds: source.bounds,
+					rgba: await decodeMeadowEntryRgba(await readFile(source.normalizedPath))
+				})
+			)
+		);
+		const result = await assembleMeadowEntryPaintedV2Underlay({
+			width: 6400,
+			height: 6400,
+			panels: underlays,
+			northSouthPairs: [
+				{
+					northId: 'camera-underlay-sundrop-north',
+					southId: 'camera-underlay-sundrop-south',
+					bounds: { left: 0, top: 4736, right: 3200, bottom: 4864 }
+				},
+				{
+					northId: 'camera-underlay-crossroads-north',
+					southId: 'camera-underlay-crossroads-south',
+					bounds: { left: 2368, top: 3776, right: 5568, bottom: 3904 }
+				}
+			],
+			familyHandoff: {
+				sundropPanelIds: ['camera-underlay-sundrop-north', 'camera-underlay-sundrop-south'],
+				crossroadsPanelIds: [
+					'camera-underlay-crossroads-north',
+					'camera-underlay-crossroads-south'
+				],
+				bounds: { left: 2368, top: 3200, right: 3200, bottom: 5440 }
+			}
+		});
+		expect(createHash('sha256').update(result.data).digest('hex')).toBe(
+			'9b6ff9c9b333297096442f42dd49efb9669c7b04044ff398b053a5d11a9d3f42'
+		);
+	});
+
 	it('uses endpoint-preserving half-up integer blend rounding', () => {
 		expect(blendMeadowEntryOpaqueChannel(10, 210, 0, 127)).toBe(10);
 		expect(blendMeadowEntryOpaqueChannel(10, 210, 127, 127)).toBe(210);
@@ -101,6 +168,133 @@ describe('Meadow Entry camera-safe underlay assembly', () => {
 		compositeMeadowEntryDetailPanel(target, second, 1);
 		expect(pixel(target, 1, 1)).toEqual(currentAtSecondPerimeter);
 		expect(pixel(target, 2, 2)).toEqual([200, 200, 200, 255]);
+	});
+
+	it('corrects a narrow axis pair without washing its midpoint or mutating sources', () => {
+		const pairBounds = { left: 1, top: 1, right: 2625, bottom: 129 };
+		const first = rgbPanel('sundrop-north', pairBounds, [10, 20, 30]);
+		const second = rgbPanel('sundrop-south', pairBounds, [210, 220, 230]);
+		const width = 2626;
+		const height = 130;
+		const targetData = Buffer.alloc(width * height * 4);
+		for (let offset = 0; offset < targetData.length; offset += 4) {
+			targetData[offset] = 7;
+			targetData[offset + 1] = 8;
+			targetData[offset + 2] = 9;
+			targetData[offset + 3] = 10;
+		}
+		for (let y = pairBounds.top; y < pairBounds.bottom; y += 1) {
+			for (let x = pairBounds.left; x < pairBounds.right; x += 1) {
+				const offset = (y * width + x) * 4;
+				targetData[offset] = 129;
+				targetData[offset + 1] = 129;
+				targetData[offset + 2] = 129;
+				targetData[offset + 3] = 255;
+			}
+		}
+		const beforeSources = [Buffer.from(first.rgba.data), Buffer.from(second.rgba.data)];
+		const before = Buffer.from(targetData);
+		const pair = {
+			firstId: 'sundrop-north',
+			secondId: 'sundrop-south',
+			bounds: pairBounds,
+			axis: 'y' as const
+		};
+		expect(meadowEntryDetailPairCorrectionLastInsetIndex(pairBounds)).toBe(63);
+		expect(meadowEntryDetailFeatherWeight(0, 63)).toBe(0);
+		expect(meadowEntryDetailFeatherWeight(63, 63)).toBe(255);
+		const ordinaryWashedMidpoint = [129, 129, 129, 255];
+		const target = { data: targetData, width, height };
+		compositeMeadowEntryDetailPairCorrection(target, first, second, pair);
+
+		for (let x = pairBounds.left; x < pairBounds.right; x += 1) {
+			expect(pixel(target, x, pairBounds.top), `top edge ${x}`).toEqual(
+				pixel({ data: before, width }, x, pairBounds.top)
+			);
+			expect(pixel(target, x, pairBounds.bottom - 1), `bottom edge ${x}`).toEqual(
+				pixel({ data: before, width }, x, pairBounds.bottom - 1)
+			);
+		}
+		for (let y = pairBounds.top; y < pairBounds.bottom; y += 1) {
+			expect(pixel(target, pairBounds.left, y), `left edge ${y}`).toEqual(
+				pixel({ data: before, width }, pairBounds.left, y)
+			);
+			expect(pixel(target, pairBounds.right - 1, y), `right edge ${y}`).toEqual(
+				pixel({ data: before, width }, pairBounds.right - 1, y)
+			);
+		}
+		const midpoint = pixel(target, 1313, 64);
+		expect(midpoint).toEqual([109, 119, 129, 255]);
+		expect(midpoint).not.toEqual(ordinaryWashedMidpoint);
+		for (let y = 0; y < height; y += 1) {
+			for (let x = 0; x < width; x += 1) {
+				if (
+					x >= pairBounds.left &&
+					x < pairBounds.right &&
+					y >= pairBounds.top &&
+					y < pairBounds.bottom
+				)
+					continue;
+				expect(pixel(target, x, y), `outside ${x},${y}`).toEqual(
+					pixel({ data: before, width }, x, y)
+				);
+			}
+		}
+		for (let y = pairBounds.top; y < pairBounds.bottom; y += 1) {
+			for (let x = pairBounds.left; x < pairBounds.right; x += 1) {
+				expect(pixel(target, x, y)[3]).toBe(255);
+			}
+		}
+		expect(first.rgba.data).toEqual(beforeSources[0]);
+		expect(second.rgba.data).toEqual(beforeSources[1]);
+
+		const repeat = { data: Buffer.from(before), width, height };
+		compositeMeadowEntryDetailPairCorrection(repeat, first, second, pair);
+		expect(repeat.data).toEqual(target.data);
+	});
+
+	it('derives axis-pair endpoints with the shared helper', () => {
+		expect(
+			blendMeadowEntryAxisPairPixel(
+				[10, 20, 30, 255],
+				[210, 220, 230, 255],
+				{ left: 0, top: 0, right: 4, bottom: 4 },
+				'x',
+				0,
+				2
+			)
+		).toEqual([10, 20, 30, 255]);
+		expect(
+			blendMeadowEntryAxisPairPixel(
+				[10, 20, 30, 255],
+				[210, 220, 230, 255],
+				{ left: 0, top: 0, right: 4, bottom: 4 },
+				'x',
+				3,
+				2
+			)
+		).toEqual([210, 220, 230, 255]);
+	});
+
+	it('sorts ordinary detail panels by priority and rejects duplicate priorities', () => {
+		const bounds = { left: 0, top: 0, right: 300, bottom: 300 };
+		const panels = [
+			{ ...panel('late', bounds, 50), assemblyPriority: 50 },
+			{ ...panel('early', bounds, 10), assemblyPriority: 10 }
+		];
+		const target = { data: Buffer.alloc(300 * 300 * 4, 255), width: 300, height: 300 };
+		compositeMeadowEntryDetailPanels(target, panels, []);
+		expect(pixel(target, 150, 150)).toEqual([50, 50, 50, 255]);
+		expect(() =>
+			compositeMeadowEntryDetailPanels(
+				{ data: Buffer.alloc(300 * 300 * 4, 255), width: 300, height: 300 },
+				[
+					{ ...panel('first', bounds, 10), assemblyPriority: 10 },
+					{ ...panel('second', bounds, 20), assemblyPriority: 10 }
+				],
+				[]
+			)
+		).toThrow(/priority/i);
 	});
 
 	it('blends north/south family seams before the east/west handoff', async () => {

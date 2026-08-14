@@ -10,9 +10,12 @@ import {
 	MEADOW_ENTRY_PAINTED_V2_PILOT_RUNTIME_COVERAGE
 } from './meadow-entry-painted-v2-crop-manifest';
 import {
+	MEADOW_ENTRY_PAINTED_V2_DETAIL_PAIRS,
+	MEADOW_ENTRY_PAINTED_V2_DETAIL_PAIR_FORMULAS,
 	MEADOW_ENTRY_PAINTED_V2_PILOT_MASTER_PATH,
 	MEADOW_ENTRY_PAINTED_V2_RUNTIME_ROOT,
-	MEADOW_ENTRY_PAINTED_V2_SOURCE_PANELS
+	MEADOW_ENTRY_PAINTED_V2_SOURCE_PANELS,
+	validateMeadowEntryPaintedV2DetailPairContract
 } from './meadow-entry-painted-v2-pilot';
 import {
 	MEADOW_ENTRY_V2_ROUTES,
@@ -122,6 +125,111 @@ function everyPixelCoveredByPanel(crop: PixelBounds): boolean {
 }
 
 describe('painted-v2 pilot source-panel contract', () => {
+	it('freezes the declared detail pair table and self-describing formulas', () => {
+		expect(MEADOW_ENTRY_PAINTED_V2_DETAIL_PAIRS).toEqual([
+			{
+				firstId: 'sundrop-north',
+				secondId: 'sundrop-south',
+				bounds: { left: 256, top: 4928, right: 2880, bottom: 5056 },
+				axis: 'y'
+			},
+			{
+				firstId: 'village-crossroads-connector',
+				secondId: 'crossroads',
+				bounds: { left: 2880, top: 4480, right: 3392, bottom: 4768 },
+				axis: 'x'
+			}
+		]);
+		expect(MEADOW_ENTRY_PAINTED_V2_DETAIL_PAIRS).not.toContainEqual(
+			expect.objectContaining({
+				firstId: 'village-crossroads-connector',
+				secondId: 'sundrop-north'
+			})
+		);
+		expect(MEADOW_ENTRY_PAINTED_V2_DETAIL_PAIR_FORMULAS).toEqual({
+			axisPair: 'floor((first*(lastIndex-index)+second*index+floor(lastIndex/2))/lastIndex)',
+			correctionLastInsetIndex: 'min(127,floor((min(intersectionWidth,intersectionHeight)-1)/2))',
+			correctionEdgeDistance: 'min(x-left,right-1-x,y-top,bottom-1-y)',
+			correctionWeight:
+				'meadowEntryDetailFeatherWeight(correctionEdgeDistance,correctionLastInsetIndex)',
+			out: 'blendMeadowEntryDetailChannel(ordinaryComposite,axisPair,correctionWeight)'
+		});
+		expect(Object.isFrozen(MEADOW_ENTRY_PAINTED_V2_DETAIL_PAIRS)).toBe(true);
+		for (const pair of MEADOW_ENTRY_PAINTED_V2_DETAIL_PAIRS) {
+			expect(Object.isFrozen(pair)).toBe(true);
+			expect(Object.isFrozen(pair.bounds)).toBe(true);
+		}
+		expect(Object.isFrozen(MEADOW_ENTRY_PAINTED_V2_DETAIL_PAIR_FORMULAS)).toBe(true);
+	});
+
+	it('rejects stale, malformed, or conflicting detail pair contracts', () => {
+		const details = MEADOW_ENTRY_PAINTED_V2_SOURCE_PANELS.filter(({ role }) => role === 'detail');
+		const validPairs = MEADOW_ENTRY_PAINTED_V2_DETAIL_PAIRS;
+		const formulas = MEADOW_ENTRY_PAINTED_V2_DETAIL_PAIR_FORMULAS;
+
+		expect(() =>
+			validateMeadowEntryPaintedV2DetailPairContract(
+				details,
+				[...validPairs, validPairs[0]!],
+				formulas
+			)
+		).toThrow(/duplicate|table/i);
+		expect(() =>
+			validateMeadowEntryPaintedV2DetailPairContract(
+				details,
+				[{ ...validPairs[0]!, firstId: 'stale' }, validPairs[1]!],
+				formulas
+			)
+		).toThrow(/missing|stale|panel/i);
+		expect(() =>
+			validateMeadowEntryPaintedV2DetailPairContract(
+				details.filter(({ id }) => id !== 'sundrop-south'),
+				validPairs,
+				formulas
+			)
+		).toThrow(/missing|participant/i);
+		expect(() =>
+			validateMeadowEntryPaintedV2DetailPairContract(
+				details,
+				[
+					{ ...validPairs[0]!, bounds: { left: 255, top: 4928, right: 2880, bottom: 5056 } },
+					validPairs[1]!
+				],
+				formulas
+			)
+		).toThrow(/bounds|outside/i);
+		expect(() =>
+			validateMeadowEntryPaintedV2DetailPairContract(
+				details,
+				[
+					{ ...validPairs[0]!, bounds: { left: 256, top: 4929, right: 2880, bottom: 5056 } },
+					validPairs[1]!
+				],
+				formulas
+			)
+		).toThrow(/bounds|intersection/i);
+		expect(() =>
+			validateMeadowEntryPaintedV2DetailPairContract(
+				details,
+				[{ ...validPairs[0]!, axis: 'z' as 'x' }, validPairs[1]!],
+				formulas
+			)
+		).toThrow(/axis/i);
+		expect(() =>
+			validateMeadowEntryPaintedV2DetailPairContract(
+				details,
+				[validPairs[0]!, { ...validPairs[1]!, firstId: 'sundrop-north', secondId: 'crossroads' }],
+				formulas
+			)
+		).toThrow(/duplicate|second|ownership|overlap/i);
+		expect(() =>
+			validateMeadowEntryPaintedV2DetailPairContract(details, validPairs, {
+				...formulas,
+				axisPair: 'stale'
+			})
+		).toThrow(/formula/i);
+	});
+
 	it('keeps every active provenance source path exact, repo-relative, and usable', () => {
 		const packageProvenance = readJson<{
 			sourcePanels: { panels: SourcePanelProvenanceRecord[] };
