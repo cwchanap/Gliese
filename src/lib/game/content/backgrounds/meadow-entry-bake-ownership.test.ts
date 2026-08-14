@@ -13,6 +13,7 @@ import {
 import {
 	MEADOW_ENTRY_BAKE_OWNERSHIP,
 	MEADOW_ENTRY_FOREGROUND_FRONT_CUTOFF_PX,
+	MEADOW_ENTRY_PROTECTION_MARGINS,
 	MEADOW_ENTRY_REVIEWED_BAKE_OWNERSHIP_SHA256,
 	MEADOW_ENTRY_PAINTED_V2_BAKE_OWNERSHIP,
 	MEADOW_ENTRY_REVIEWED_PAINTED_V2_BAKE_OWNERSHIP_SHA256,
@@ -33,6 +34,24 @@ function ownershipByKey() {
 }
 
 describe('meadow-entry bake ownership', () => {
+	it('exports the frozen protection margins used by every protected-live policy', () => {
+		expect(MEADOW_ENTRY_PROTECTION_MARGINS).toEqual({
+			top: 32,
+			right: 16,
+			bottom: 16,
+			left: 16
+		});
+		expect(Object.isFrozen(MEADOW_ENTRY_PROTECTION_MARGINS)).toBe(true);
+		const protectedEntries = MEADOW_ENTRY_BAKE_OWNERSHIP.filter(
+			(entry) => entry.disposition.mode === 'protected-live'
+		);
+		expect(protectedEntries.length).toBeGreaterThan(0);
+		for (const entry of protectedEntries) {
+			if (entry.disposition.mode !== 'protected-live') continue;
+			expect(entry.disposition.protectionMargins).toBe(MEADOW_ENTRY_PROTECTION_MARGINS);
+		}
+	});
+
 	it('classifies every catalog source exactly once in stable source-key order', () => {
 		const catalogKeys = collectMeadowEntrySourceCatalog().map(({ ref }) =>
 			meadowEntrySourceKey(ref)
@@ -624,12 +643,21 @@ describe('painted-v2 meadow-entry bake ownership', () => {
 	});
 
 	it('seals the literal ground-patch review independently from crop geometry', () => {
+		const reviewedGroundPatchKeys = new Set(
+			MEADOW_ENTRY_PAINTED_V2_BAKE_OWNERSHIP.filter(
+				({ ref, disposition }) =>
+					ref.sourceType === 'ground-patch' && disposition.mode === 'base-underlay'
+			).map(({ ref }) => meadowEntrySourceKey(ref))
+		);
 		const candidates = collectMeadowEntrySourceCatalog()
 			.filter(({ ref, bounds }) => {
 				if (ref.sourceType !== 'ground-patch' || bounds === null) return false;
 				const rasterized = rasterizeCoverageBounds(bounds);
-				return MEADOW_ENTRY_PAINTED_V2_PILOT_CROPS.some((crop) =>
-					containsBounds(crop.bounds, rasterized)
+				return (
+					reviewedGroundPatchKeys.has(meadowEntrySourceKey(ref)) &&
+					MEADOW_ENTRY_PAINTED_V2_PILOT_CROPS.some((crop) =>
+						containsBounds(crop.bounds, rasterized)
+					)
 				);
 			})
 			.map(({ ref }) => meadowEntrySourceKey(ref));
@@ -726,23 +754,23 @@ describe('painted-v2 meadow-entry bake ownership', () => {
 		const expected = {
 			'blocker:silverpine-wall-B-south': {
 				bounds: { left: 3140, top: 2870, right: 3540, bottom: 2950 },
-				owners: ['painted-v2-crossroads']
+				owners: ['painted-v2-crossroads-camera-base']
 			},
 			'decor:village-decor-22-77': {
 				bounds: { left: 2618, top: 4580, right: 2854, bottom: 4796 },
-				owners: ['painted-v2-sundrop-village', 'painted-v2-village-crossroads-connector']
+				owners: ['painted-v2-sundrop-camera-base', 'painted-v2-crossroads-camera-base']
 			},
 			'decor:village-decor-28-25': {
 				bounds: { left: 1014, top: 4772, right: 1130, bottom: 4988 },
-				owners: ['painted-v2-sundrop-village']
+				owners: ['painted-v2-sundrop-camera-base']
 			},
 			'decor:village-decor-28-53': {
 				bounds: { left: 1910, top: 4772, right: 2026, bottom: 4988 },
-				owners: ['painted-v2-sundrop-village']
+				owners: ['painted-v2-sundrop-camera-base']
 			},
 			'decor:village-decor-53-22': {
 				bounds: { left: 893, top: 5612, right: 1059, bottom: 5748 },
-				owners: ['painted-v2-sundrop-village']
+				owners: ['painted-v2-sundrop-camera-base']
 			}
 		} as const;
 		const catalog = new Map(

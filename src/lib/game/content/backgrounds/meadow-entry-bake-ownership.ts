@@ -32,7 +32,7 @@ export type MeadowEntryBakeDisposition =
 			frontCutoffPx: number;
 			motif: string;
 	  }
-	| { mode: 'protected-live'; protectionMargins: Insets; reason: string }
+	| { mode: 'protected-live'; protectionMargins: Readonly<Insets>; reason: string }
 	| { mode: 'runtime-fallback-only'; reason: string }
 	| { mode: 'control-only'; reason: string };
 
@@ -59,7 +59,12 @@ interface ReviewedBakePolicy {
 
 const BASE_MARGINS = { top: 8, right: 8, bottom: 8, left: 8 } as const;
 const FOREGROUND_MARGINS = { top: 32, right: 8, bottom: 0, left: 8 } as const;
-const PROTECTION_MARGINS = { top: 32, right: 16, bottom: 16, left: 16 } as const;
+export const MEADOW_ENTRY_PROTECTION_MARGINS: Readonly<Insets> = Object.freeze({
+	top: 32,
+	right: 16,
+	bottom: 16,
+	left: 16
+});
 
 export const MEADOW_ENTRY_FOREGROUND_FRONT_CUTOFF_PX =
 	getActorAnimationAsset('hero').displaySize.height / 2 - PLAYER_COLLISION_RADIUS;
@@ -382,7 +387,7 @@ addPolicies(
 	['castle-gate-block', 'silver-shrine-gate-block', 'witchwood-gate-block'],
 	{
 		mode: 'protected-live',
-		protectionMargins: PROTECTION_MARGINS,
+		protectionMargins: MEADOW_ENTRY_PROTECTION_MARGINS,
 		reason: 'Story-gate collision and visual state remain live.'
 	},
 	'remain-live'
@@ -392,7 +397,7 @@ addPolicies(
 	['village-block-0-37', 'village-block-0-49', 'village-block-46-2'],
 	{
 		mode: 'protected-live',
-		protectionMargins: PROTECTION_MARGINS,
+		protectionMargins: MEADOW_ENTRY_PROTECTION_MARGINS,
 		reason: 'This HPA-398 feather-band blocker was deliberately excluded from baked ownership.'
 	},
 	'remain-live'
@@ -407,7 +412,7 @@ addPolicies(
 	],
 	{
 		mode: 'protected-live',
-		protectionMargins: PROTECTION_MARGINS,
+		protectionMargins: MEADOW_ENTRY_PROTECTION_MARGINS,
 		reason: 'Runtime renders this town-hedge boundary as live tree-cluster segments.'
 	},
 	'remain-live'
@@ -538,7 +543,7 @@ addPolicies(
 	],
 	{
 		mode: 'protected-live',
-		protectionMargins: PROTECTION_MARGINS,
+		protectionMargins: MEADOW_ENTRY_PROTECTION_MARGINS,
 		reason: 'Narrative, cave, landmark, or predecessor-owned decor remains live.'
 	},
 	'remain-live'
@@ -554,7 +559,7 @@ addPolicies(
 	],
 	{
 		mode: 'protected-live',
-		protectionMargins: PROTECTION_MARGINS,
+		protectionMargins: MEADOW_ENTRY_PROTECTION_MARGINS,
 		reason: 'Translucent Mistfen fog remains a live foreground effect.'
 	},
 	'remain-live'
@@ -601,7 +606,7 @@ addPolicies(
 	],
 	{
 		mode: 'protected-live',
-		protectionMargins: PROTECTION_MARGINS,
+		protectionMargins: MEADOW_ENTRY_PROTECTION_MARGINS,
 		reason: 'Landmark and doorway approach remain live and readable.'
 	},
 	'remain-live'
@@ -620,7 +625,7 @@ addPolicies(
 	],
 	{
 		mode: 'protected-live',
-		protectionMargins: PROTECTION_MARGINS,
+		protectionMargins: MEADOW_ENTRY_PROTECTION_MARGINS,
 		reason: 'Stateful transition and doorway marker remain live.'
 	},
 	'remain-live'
@@ -641,7 +646,7 @@ addPolicies(
 	],
 	{
 		mode: 'protected-live',
-		protectionMargins: PROTECTION_MARGINS,
+		protectionMargins: MEADOW_ENTRY_PROTECTION_MARGINS,
 		reason: 'Animated ambient character remains live.'
 	},
 	'remain-live'
@@ -662,7 +667,7 @@ addPolicies(
 	],
 	{
 		mode: 'protected-live',
-		protectionMargins: PROTECTION_MARGINS,
+		protectionMargins: MEADOW_ENTRY_PROTECTION_MARGINS,
 		reason: 'Collectible presence and save-state visibility remain live.'
 	},
 	'remain-live'
@@ -723,7 +728,7 @@ function freezeDisposition(disposition: MeadowEntryBakeDisposition): MeadowEntry
 		case 'protected-live':
 			return Object.freeze({
 				...disposition,
-				protectionMargins: freezeInsets(disposition.protectionMargins)
+				protectionMargins: MEADOW_ENTRY_PROTECTION_MARGINS
 			});
 		case 'runtime-fallback-only':
 		case 'control-only':
@@ -756,7 +761,7 @@ function defaultV2BakePolicy(ref: MeadowEntrySourceRef): ReviewedBakePolicy {
 				ref,
 				disposition: {
 					mode: 'protected-live',
-					protectionMargins: PROTECTION_MARGINS,
+					protectionMargins: MEADOW_ENTRY_PROTECTION_MARGINS,
 					reason: 'V2 graybox source remains live until the later Meadow Entry art migration.'
 				},
 				runtimeRequirement: 'remain-live'
@@ -1091,7 +1096,7 @@ function paintedV2ProtectedPolicy(ref: MeadowEntrySourceRef): PaintedV2ReviewedP
 		return {
 			disposition: {
 				mode: 'protected-live',
-				protectionMargins: PROTECTION_MARGINS,
+				protectionMargins: MEADOW_ENTRY_PROTECTION_MARGINS,
 				reason: 'Painted-v2 pilot does not own this live visual or stateful source.'
 			},
 			runtimeRequirement: 'remain-live'
