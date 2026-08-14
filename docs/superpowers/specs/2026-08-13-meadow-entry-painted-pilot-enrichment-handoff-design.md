@@ -2,7 +2,7 @@
 
 **Date:** 2026-08-13
 
-**Status:** Design sections approved; written-spec review pending
+**Status:** Approved for implementation planning on 2026-08-13 (America/Vancouver)
 
 **Amends:** `2026-08-12-meadow-entry-painted-pilot-camera-safe-underlay-design.md`
 
