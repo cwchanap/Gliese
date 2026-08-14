@@ -203,6 +203,12 @@ describe('Meadow Entry camera-safe underlay assembly', () => {
 		expect(meadowEntryDetailPairCorrectionLastInsetIndex(pairBounds)).toBe(63);
 		expect(meadowEntryDetailFeatherWeight(0, 63)).toBe(0);
 		expect(meadowEntryDetailFeatherWeight(63, 63)).toBe(255);
+		const rejectedMaxOfTwoPanelFeathersAtSundropMidpoint = blendMeadowEntryDetailChannel(
+			255,
+			0,
+			Math.max(126, 126)
+		);
+		expect(rejectedMaxOfTwoPanelFeathersAtSundropMidpoint).toBe(129);
 		const ordinaryWashedMidpoint = [129, 129, 129, 255];
 		const target = { data: targetData, width, height };
 		compositeMeadowEntryDetailPairCorrection(target, first, second, pair);
@@ -295,6 +301,40 @@ describe('Meadow Entry camera-safe underlay assembly', () => {
 				[]
 			)
 		).toThrow(/priority/i);
+	});
+
+	it('applies each pair correction immediately after its second member', () => {
+		const first = panel('first', { left: 0, top: 0, right: 300, bottom: 300 }, 10);
+		const second = panel('second', { left: 0, top: 100, right: 300, bottom: 400 }, 200);
+		const later = panel('later', { left: 0, top: 100, right: 300, bottom: 400 }, 50);
+		const pair = {
+			firstId: 'first',
+			secondId: 'second',
+			bounds: { left: 0, top: 100, right: 300, bottom: 300 },
+			axis: 'y' as const
+		};
+		const panels = [
+			{ ...first, assemblyPriority: 10 },
+			{ ...second, assemblyPriority: 20 },
+			{ ...later, assemblyPriority: 30 }
+		];
+		const initial = Buffer.alloc(300 * 400 * 4, 255);
+		const expectedImmediate = { data: Buffer.from(initial), width: 300, height: 400 };
+		compositeMeadowEntryDetailPanel(expectedImmediate, first);
+		compositeMeadowEntryDetailPanel(expectedImmediate, second);
+		compositeMeadowEntryDetailPairCorrection(expectedImmediate, first, second, pair);
+		compositeMeadowEntryDetailPanel(expectedImmediate, later);
+
+		const delayed = { data: Buffer.from(initial), width: 300, height: 400 };
+		compositeMeadowEntryDetailPanel(delayed, first);
+		compositeMeadowEntryDetailPanel(delayed, second);
+		compositeMeadowEntryDetailPanel(delayed, later);
+		compositeMeadowEntryDetailPairCorrection(delayed, first, second, pair);
+
+		const actual = { data: Buffer.from(initial), width: 300, height: 400 };
+		compositeMeadowEntryDetailPanels(actual, panels, [pair]);
+		expect(actual.data).toEqual(expectedImmediate.data);
+		expect(actual.data).not.toEqual(delayed.data);
 	});
 
 	it('blends north/south family seams before the east/west handoff', async () => {

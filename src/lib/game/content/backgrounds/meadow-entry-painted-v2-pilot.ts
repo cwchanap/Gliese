@@ -214,9 +214,7 @@ export function validateMeadowEntryPaintedV2DetailPairContract(
 		panels.length === canonicalDetails.length &&
 		canonicalDetails.every((canonical) => {
 			const panel = panelById.get(canonical.id);
-			return (
-				panel !== undefined && panel.role === 'detail' && sameBounds(panel.bounds, canonical.bounds)
-			);
+			return panel !== undefined && sameBounds(panel.bounds, canonical.bounds);
 		});
 	if (
 		canonicalPanelSet &&

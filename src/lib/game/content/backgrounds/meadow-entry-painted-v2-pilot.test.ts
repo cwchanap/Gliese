@@ -230,6 +230,59 @@ describe('painted-v2 pilot source-panel contract', () => {
 		).toThrow(/formula/i);
 	});
 
+	it('rejects a non-exact table for canonical decoded panels without role metadata', () => {
+		const decodedPanels = MEADOW_ENTRY_PAINTED_V2_SOURCE_PANELS.filter(
+			({ role }) => role === 'detail'
+		).map(({ id, bounds }) => ({ id, bounds }));
+
+		expect(() =>
+			validateMeadowEntryPaintedV2DetailPairContract(
+				decodedPanels,
+				[],
+				MEADOW_ENTRY_PAINTED_V2_DETAIL_PAIR_FORMULAS
+			)
+		).toThrow(/table|pair/i);
+	});
+
+	it('rejects a pair whose declared axis has no blend length', () => {
+		expect(() =>
+			validateMeadowEntryPaintedV2DetailPairContract(
+				[
+					{ id: 'first', bounds: { left: 0, top: 0, right: 4, bottom: 4 } },
+					{ id: 'second', bounds: { left: 0, top: 0, right: 4, bottom: 1 } }
+				],
+				[
+					{
+						firstId: 'first',
+						secondId: 'second',
+						bounds: { left: 0, top: 0, right: 4, bottom: 1 },
+						axis: 'y'
+					}
+				],
+				MEADOW_ENTRY_PAINTED_V2_DETAIL_PAIR_FORMULAS
+			)
+		).toThrow(/zero length|axis/i);
+	});
+
+	it('rejects actual duplicate ownership of a second pair member', () => {
+		const details = MEADOW_ENTRY_PAINTED_V2_SOURCE_PANELS.filter(({ role }) => role === 'detail');
+		expect(() =>
+			validateMeadowEntryPaintedV2DetailPairContract(
+				details,
+				[
+					MEADOW_ENTRY_PAINTED_V2_DETAIL_PAIRS[0]!,
+					{
+						firstId: 'hero-house-frontage',
+						secondId: 'sundrop-south',
+						bounds: { left: 384, top: 5312, right: 1280, bottom: 6144 },
+						axis: 'x'
+					}
+				],
+				MEADOW_ENTRY_PAINTED_V2_DETAIL_PAIR_FORMULAS
+			)
+		).toThrow(/second member|ownership|overlap/i);
+	});
+
 	it('keeps every active provenance source path exact, repo-relative, and usable', () => {
 		const packageProvenance = readJson<{
 			sourcePanels: { panels: SourcePanelProvenanceRecord[] };
