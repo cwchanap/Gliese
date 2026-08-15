@@ -164,6 +164,16 @@ test(
 				tiles: { index: number; id: string }[];
 				evidence: Record<string, { sha256: string; bytes: number; width: number; height: number }>;
 			};
+			const maskInventory = JSON.parse(
+				readFileSync(join(outputRoot, 'mask-inventory.json'), 'utf8')
+			) as { masks: Record<string, unknown> };
+			assert.deepEqual(Object.keys(maskInventory.masks).sort(), [
+				'groundAllowed',
+				'hedgeAllowed',
+				'otherProtected',
+				'sceneryAllowed',
+				'woodlandAllowed'
+			]);
 			assert.equal(payload.energy.qualifyingTileCount, 67);
 			assert.deepEqual(payload.energy.sheetTileCounts, [16, 16, 16, 16, 3]);
 			assert.deepEqual(

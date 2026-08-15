@@ -22,7 +22,7 @@ export interface MeadowEntryDetailBoundaryMetric {
 	readonly p95Ratio: number | null;
 }
 
-interface PixelPoint {
+export interface PixelPoint {
 	readonly x: number;
 	readonly y: number;
 }
@@ -51,7 +51,11 @@ function insideImage(decoded: DecodedMeadowEntryRgba, point: PixelPoint): boolea
 	return point.x >= 0 && point.x < decoded.width && point.y >= 0 && point.y < decoded.height;
 }
 
-function rgbStep(decoded: DecodedMeadowEntryRgba, first: PixelPoint, second: PixelPoint): number {
+export function rgbStep(
+	decoded: DecodedMeadowEntryRgba,
+	first: PixelPoint,
+	second: PixelPoint
+): number {
 	const firstOffset = (first.y * decoded.width + first.x) * 4;
 	const secondOffset = (second.y * decoded.width + second.x) * 4;
 	return (
@@ -66,9 +70,14 @@ function mean(values: readonly number[]): number {
 	return values.reduce((sum, value) => sum + value, 0) / values.length;
 }
 
-function nearestRankP95(values: readonly number[]): number {
+export function meadowEntryNearestRank(values: readonly number[], percentile: number): number {
+	if (values.length === 0) return 0;
+	assert(
+		Number.isFinite(percentile) && percentile > 0 && percentile <= 1,
+		'Meadow Entry nearest-rank percentile is invalid'
+	);
 	const sorted = [...values].sort((first, second) => first - second);
-	return sorted[Math.ceil(sorted.length * 0.95) - 1]!;
+	return sorted[Math.ceil(sorted.length * percentile) - 1]!;
 }
 
 function edgeSamples(
@@ -194,9 +203,9 @@ export function measureMeadowEntryDetailBoundaryMetrics(
 				`Meadow Entry detail boundary ${panel.id}/${edge} has no comparison samples`
 			);
 			const edgeMean = mean(boundarySteps);
-			const edgeP95 = nearestRankP95(boundarySteps);
+			const edgeP95 = meadowEntryNearestRank(boundarySteps, 0.95);
 			const comparisonMean = mean(comparisonSteps);
-			const comparisonP95 = nearestRankP95(comparisonSteps);
+			const comparisonP95 = meadowEntryNearestRank(comparisonSteps, 0.95);
 			metrics.push({
 				panelId: panel.id,
 				edge,

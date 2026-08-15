@@ -13,13 +13,15 @@ import {
 } from './meadow-entry-painted-v2-crop-manifest';
 import {
 	MEADOW_ENTRY_PAINTED_V2_SOURCE_PANELS,
+	MEADOW_ENTRY_PAINTED_V2_DETAIL_PAIRS,
+	MEADOW_ENTRY_PAINTED_V2_DETAIL_PAIR_FORMULAS,
 	type MeadowEntryPaintedV2SourcePanel
 } from './meadow-entry-painted-v2-pilot';
 import { MEADOW_ENTRY_MASTER_POLICY } from './meadow-entry-master-finalizer';
 import type { PixelBounds } from './meadow-entry-authoring-types';
 import {
 	assembleMeadowEntryPaintedV2Underlay,
-	compositeMeadowEntryDetailPanel,
+	compositeMeadowEntryDetailPanels,
 	type MeadowEntryUnderlayDecodedPanel
 } from './meadow-entry-painted-v2-underlay-assembly';
 
@@ -357,14 +359,20 @@ function assemblyProvenance(
 				familyHandoffLastIndex: 831,
 				rounding: 'floor-half-up-positive-integers',
 				detailPolicy:
-					'ascending-priority-source-over-current-master-with-128px-inset-smoothstep-feather',
+					'ascending-priority-source-over-current-master-with-128px-inset-smoothstep-feather-and-immediate-pair-corrections',
 				detailFeatherWidthPx: 128,
 				detailFeatherLastInsetIndex: 127,
 				detailFeatherWeight:
 					'floor((255*q^2*(3*127-2*q)+floor(127^3/2))/127^3),q=clamp(edgeDistance,0,127)',
 				detailBlend: 'floor((current*(255-weight)+detail*weight+127)/255)',
 				detailSourceBytes: 'immutable',
-				detailCore: 'source-exact-at-edge-distance-gte-127-unless-later-priority-composites',
+				detailCore:
+					'source-exact-at-edge-distance-gte-127-unless-later-priority-or-pair-correction-composites',
+				detailPairCorrections: {
+					stage: 'immediately-after-second-member',
+					formulas: MEADOW_ENTRY_PAINTED_V2_DETAIL_PAIR_FORMULAS,
+					pairs: MEADOW_ENTRY_PAINTED_V2_DETAIL_PAIRS
+				},
 				blendBounds: {
 					sundropNorthSouth: { left: 0, top: 4736, right: 3200, bottom: 4864 },
 					crossroadsNorthSouth: { left: 2368, top: 3776, right: 5568, bottom: 3904 },
@@ -400,7 +408,12 @@ function assemblyProvenance(
 			})),
 		assemblyOrder: panels.map((panel) => panel.spec.id),
 		detailSourcePolicy:
-			'ascending-priority-source-over-current-master-with-128px-inset-smoothstep-feather',
+			'ascending-priority-source-over-current-master-with-128px-inset-smoothstep-feather-and-immediate-pair-corrections',
+		detailPairCorrections: {
+			stage: 'immediately-after-second-member',
+			formulas: MEADOW_ENTRY_PAINTED_V2_DETAIL_PAIR_FORMULAS,
+			pairs: MEADOW_ENTRY_PAINTED_V2_DETAIL_PAIRS
+		},
 		runtimeCrops: MEADOW_ENTRY_PAINTED_V2_PILOT_CROPS.map((crop) => ({
 			id: crop.id,
 			bounds: crop.bounds,
@@ -427,13 +440,15 @@ export async function assembleMeadowEntryPaintedV2Pilot(
 	assertInputKeys(input, specs);
 	const panels = await decodePanels(input, specs);
 	const underlay = await assembleMeadowEntryPaintedV2Underlay(underlayInput(panels));
-	for (const panel of panels.filter((value) => value.spec.role === 'detail')) {
-		compositeMeadowEntryDetailPanel(underlay, {
+	const detailPanels = panels
+		.filter((value) => value.spec.role === 'detail')
+		.map((panel) => ({
 			id: panel.spec.id,
 			bounds: panel.spec.bounds,
-			rgba: { data: panel.bytes, width: panel.width, height: panel.height }
-		});
-	}
+			rgba: { data: panel.bytes, width: panel.width, height: panel.height },
+			assemblyPriority: panel.spec.assemblyPriority
+		}));
+	compositeMeadowEntryDetailPanels(underlay, detailPanels, MEADOW_ENTRY_PAINTED_V2_DETAIL_PAIRS);
 	const master = underlay.data;
 	assertRuntimeCropOpacity(master);
 	assertOutsidePilotTransparent(master);

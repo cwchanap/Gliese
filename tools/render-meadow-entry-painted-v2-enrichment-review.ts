@@ -23,7 +23,6 @@ import {
 	type MeadowEntryUnderlayDecodedPanel
 } from '$lib/game/content/backgrounds/meadow-entry-painted-v2-underlay-assembly';
 import {
-	decodeMeadowEntryAlpha,
 	decodeMeadowEntryRgba,
 	encodeCanonicalMeadowEntryPng,
 	type DecodedMeadowEntryRgba
@@ -35,13 +34,13 @@ import {
 	buildMeadowEntryPaintedV2DecorationEligibility,
 	collectMeadowEntryPaintedV2DecorationTiles,
 	measureMeadowEntryPaintedV2DecorationEnergy,
-	type MeadowEntryPaintedV2DecodedAlphaMask,
 	type MeadowEntryPaintedV2DecorationEnergy,
 	type MeadowEntryPaintedV2DecorationEligibility,
 	type MeadowEntryPaintedV2DecorationTile
 } from '$lib/game/content/backgrounds/meadow-entry-painted-v2-enrichment-review';
 import {
 	buildMeadowEntryPaintedV2SceneryMaskSet,
+	buildMeadowEntryPaintedV2SceneryMaskSetFromControls,
 	enrichMeadowEntryPaintedV2Sources,
 	type DecodedMeadowEntryPaintedV2SceneryInsert,
 	type MeadowEntryPaintedV2SceneryMaskSet
@@ -60,14 +59,6 @@ const REVIEW_SUNDROP_CROP = 'exports/painted-v2-sundrop-camera-base.png';
 const REVIEW_CROSSROADS_CROP = 'exports/painted-v2-crossroads-camera-base.png';
 const REVIEW_OVERVIEW = 'forest-overview.png';
 const INSERT_ARTIFACT_ROOT = 'artifacts/meadow-entry/painted-v2/source-inserts';
-const CONTROL_MASK_FILENAMES = {
-	protectedLive: 'meadow-entry-protected-live-mask.svg',
-	buildingFootprint: 'meadow-entry-building-footprint-mask.svg',
-	entranceTransition: 'meadow-entry-entrance-transition-mask.svg',
-	rewardDiscovery: 'meadow-entry-reward-discovery-mask.svg',
-	semanticAnchor: 'meadow-entry-semantic-anchor-mask.svg'
-} as const;
-const TERRAIN_FILENAME = 'meadow-entry-terrain-path-mask.svg';
 const SOURCE_REVIEW_PANEL_IDS = new Set([
 	'camera-underlay-sundrop-north',
 	'camera-underlay-sundrop-south',
@@ -145,7 +136,6 @@ interface ReviewPayload {
 		readonly sheetTileCounts: readonly number[];
 		readonly cropUnion: readonly PixelBounds[];
 		readonly protectionMargins: Readonly<Record<string, number>>;
-		readonly routeCoreRectCount: number;
 	};
 	readonly energy: MeadowEntryPaintedV2DecorationEnergy;
 	readonly tiles: readonly MeadowEntryPaintedV2DecorationTile[];
@@ -221,31 +211,6 @@ function ensureReviewRoot(repositoryRoot: string, outputRoot: string): void {
 	);
 }
 
-function parseSvgAttributes(source: string): readonly Record<string, string>[] {
-	const rects: Record<string, string>[] = [];
-	for (const match of source.matchAll(/<rect\b([^>]*)\/>/g)) {
-		const attrs: Record<string, string> = {};
-		for (const attr of match[1]!.matchAll(/([:\w-]+)="([^"]*)"/g)) attrs[attr[1]!] = attr[2]!;
-		rects.push(attrs);
-	}
-	return rects;
-}
-
-function parseTerrainRects(svg: string): readonly PixelBounds[] {
-	return parseSvgAttributes(svg).flatMap((attrs, index) => {
-		if (!attrs['data-id']?.startsWith('ground-patch:')) return [];
-		const x = Number(attrs.x);
-		const y = Number(attrs.y);
-		const width = Number(attrs.width);
-		const height = Number(attrs.height);
-		assert(
-			[x, y, width, height].every(Number.isInteger) && width > 0 && height > 0,
-			`Terrain SVG rectangle ${index} is invalid`
-		);
-		return [{ left: x, top: y, right: x + width, bottom: y + height }];
-	});
-}
-
 async function readRenderedControls(repositoryRoot: string): Promise<ControlContext> {
 	const input = buildMeadowEntryControlInputs(repositoryRoot);
 	const rendered = renderMeadowEntryControls(input);
@@ -259,31 +224,19 @@ async function readRenderedControls(repositoryRoot: string): Promise<ControlCont
 		controlBytes[filename] = checkedIn;
 		controlHashes[filename] = sha256(checkedIn);
 	}
-	const alphaMask = async (filename: string): Promise<MeadowEntryPaintedV2DecodedAlphaMask> => {
-		const decoded = await decodeMeadowEntryAlpha(controlBytes[filename]!);
-		return { width: decoded.width, height: decoded.height, alpha: decoded.alpha };
-	};
-	const [protectedLive, buildingFootprint, entranceTransition, rewardDiscovery, semanticAnchor] =
-		await Promise.all(Object.values(CONTROL_MASK_FILENAMES).map(alphaMask));
-	const terrainSvg = Buffer.from(controlBytes[TERRAIN_FILENAME]!);
-	const terrainRects = parseTerrainRects(terrainSvg.toString('utf8'));
+	const sceneryMasks = buildMeadowEntryPaintedV2SceneryMaskSetFromControls(input, {
+		...controlHashes,
+		'control-fingerprint': computeMeadowEntryCombinedControlFingerprint(input)
+	});
 	const eligibility = buildMeadowEntryPaintedV2DecorationEligibility({
 		width: input.worldBounds.right - input.worldBounds.left,
 		height: input.worldBounds.bottom - input.worldBounds.top,
 		tileSizePx: 512,
 		cropUnion: MEADOW_ENTRY_PAINTED_V2_PILOT_CROPS.map(({ bounds }) => bounds),
-		masks: {
-			protectedLive,
-			buildingFootprint,
-			entranceTransition,
-			rewardDiscovery,
-			semanticAnchor
-		},
-		terrainRects,
+		sceneryMasks,
 		metadata: {
 			controlSvgHashes: controlHashes,
-			parserPolicy: 'rect-data-id-ground-patch-x-y-width-height-in-document-order',
-			sourceRectangleBounds: terrainRects,
+			parserPolicy: 'builder-control-inputs-only',
 			combinedControlFingerprint: computeMeadowEntryCombinedControlFingerprint(input)
 		}
 	});
@@ -340,15 +293,14 @@ function payload(
 		controls: {
 			combinedControlFingerprint: controls.combinedControlFingerprint,
 			sourceHashes: controls.controlHashes,
-			parserPolicy: 'rect-data-id-ground-patch-x-y-width-height-in-document-order'
+			parserPolicy: 'builder-control-inputs-only'
 		},
 		eligibility: {
 			tileSizePx: controls.eligibility.tileSizePx,
 			qualifyingTileCount: controls.tiles.length,
 			sheetTileCounts: energy.sheetTileCounts,
 			cropUnion: controls.eligibility.cropUnion,
-			protectionMargins: controls.eligibility.protectionMargins,
-			routeCoreRectCount: controls.eligibility.routeCoreRects.length
+			protectionMargins: controls.eligibility.protectionMargins
 		},
 		energy,
 		tiles: controls.tiles,
@@ -1071,13 +1023,11 @@ function maskInventoryArtifact(
 ): ReviewArtifact {
 	const maskEntries = Object.fromEntries(
 		Object.entries({
-			selectedBlockers: masks.selectedBlockers,
 			otherProtected: masks.otherProtected,
 			groundAllowed: masks.groundAllowed,
 			sceneryAllowed: masks.sceneryAllowed,
 			hedgeAllowed: masks.hedgeAllowed,
-			woodlandAllowed: masks.woodlandAllowed,
-			decorationAllowed: masks.decorationAllowed
+			woodlandAllowed: masks.woodlandAllowed
 		}).map(([name, mask]) => [
 			name,
 			{ sha256: sha256(mask), pixels: maskCount(mask), width: masks.width, height: masks.height }

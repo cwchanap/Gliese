@@ -108,11 +108,11 @@ const RAW_SCENERY_INSERTS = [
 		owningSourceId: 'camera-underlay-sundrop-south',
 		owningSourcePriority: 1,
 		rawPath:
-			'artifacts/meadow-entry/painted-v2/source-panels/raw/camera-underlay-sundrop-south.png',
+			'artifacts/meadow-entry/painted-v2/source-inserts/raw/camera-underlay-sundrop-south-blocked-hedge.png',
 		normalizedPath:
-			'artifacts/meadow-entry/painted-v2/source-panels/camera-underlay-sundrop-south.png',
+			'artifacts/meadow-entry/painted-v2/source-inserts/camera-underlay-sundrop-south-blocked-hedge.png',
 		provenancePath:
-			'artifacts/meadow-entry/painted-v2/source-panels/camera-underlay-sundrop-south.json'
+			'artifacts/meadow-entry/painted-v2/source-inserts/camera-underlay-sundrop-south-blocked-hedge.json'
 	},
 	{
 		id: 'camera-underlay-crossroads-north-blocked-hedge',
@@ -121,11 +121,11 @@ const RAW_SCENERY_INSERTS = [
 		owningSourceId: 'camera-underlay-crossroads-north',
 		owningSourcePriority: 2,
 		rawPath:
-			'artifacts/meadow-entry/painted-v2/source-panels/raw/camera-underlay-crossroads-north.png',
+			'artifacts/meadow-entry/painted-v2/source-inserts/raw/camera-underlay-crossroads-north-blocked-hedge.png',
 		normalizedPath:
-			'artifacts/meadow-entry/painted-v2/source-panels/camera-underlay-crossroads-north.png',
+			'artifacts/meadow-entry/painted-v2/source-inserts/camera-underlay-crossroads-north-blocked-hedge.png',
 		provenancePath:
-			'artifacts/meadow-entry/painted-v2/source-panels/camera-underlay-crossroads-north.json'
+			'artifacts/meadow-entry/painted-v2/source-inserts/camera-underlay-crossroads-north-blocked-hedge.json'
 	},
 	{
 		id: 'camera-underlay-crossroads-south-blocked-hedge',
@@ -134,11 +134,11 @@ const RAW_SCENERY_INSERTS = [
 		owningSourceId: 'camera-underlay-crossroads-south',
 		owningSourcePriority: 3,
 		rawPath:
-			'artifacts/meadow-entry/painted-v2/source-panels/raw/camera-underlay-crossroads-south.png',
+			'artifacts/meadow-entry/painted-v2/source-inserts/raw/camera-underlay-crossroads-south-blocked-hedge.png',
 		normalizedPath:
-			'artifacts/meadow-entry/painted-v2/source-panels/camera-underlay-crossroads-south.png',
+			'artifacts/meadow-entry/painted-v2/source-inserts/camera-underlay-crossroads-south-blocked-hedge.png',
 		provenancePath:
-			'artifacts/meadow-entry/painted-v2/source-panels/camera-underlay-crossroads-south.json'
+			'artifacts/meadow-entry/painted-v2/source-inserts/camera-underlay-crossroads-south-blocked-hedge.json'
 	},
 	{
 		id: 'camera-underlay-crossroads-north-blocked-woodland',
@@ -147,11 +147,11 @@ const RAW_SCENERY_INSERTS = [
 		owningSourceId: 'camera-underlay-crossroads-north',
 		owningSourcePriority: 2,
 		rawPath:
-			'artifacts/meadow-entry/painted-v2/source-panels/raw/camera-underlay-crossroads-north.png',
+			'artifacts/meadow-entry/painted-v2/source-inserts/raw/camera-underlay-crossroads-north-blocked-woodland.png',
 		normalizedPath:
-			'artifacts/meadow-entry/painted-v2/source-panels/camera-underlay-crossroads-north.png',
+			'artifacts/meadow-entry/painted-v2/source-inserts/camera-underlay-crossroads-north-blocked-woodland.png',
 		provenancePath:
-			'artifacts/meadow-entry/painted-v2/source-panels/camera-underlay-crossroads-north.json'
+			'artifacts/meadow-entry/painted-v2/source-inserts/camera-underlay-crossroads-north-blocked-woodland.json'
 	},
 	{
 		id: 'camera-underlay-crossroads-south-blocked-woodland',
@@ -160,11 +160,11 @@ const RAW_SCENERY_INSERTS = [
 		owningSourceId: 'camera-underlay-crossroads-south',
 		owningSourcePriority: 3,
 		rawPath:
-			'artifacts/meadow-entry/painted-v2/source-panels/raw/camera-underlay-crossroads-south.png',
+			'artifacts/meadow-entry/painted-v2/source-inserts/raw/camera-underlay-crossroads-south-blocked-woodland.png',
 		normalizedPath:
-			'artifacts/meadow-entry/painted-v2/source-panels/camera-underlay-crossroads-south.png',
+			'artifacts/meadow-entry/painted-v2/source-inserts/camera-underlay-crossroads-south-blocked-woodland.png',
 		provenancePath:
-			'artifacts/meadow-entry/painted-v2/source-panels/camera-underlay-crossroads-south.json'
+			'artifacts/meadow-entry/painted-v2/source-inserts/camera-underlay-crossroads-south-blocked-woodland.json'
 	},
 	{
 		id: 'crossroads-blocked-hedge',
@@ -172,9 +172,9 @@ const RAW_SCENERY_INSERTS = [
 		bounds: { left: 2880, top: 2816, right: 4608, bottom: 4768 },
 		owningSourceId: 'crossroads',
 		owningSourcePriority: 50,
-		rawPath: 'artifacts/meadow-entry/painted-v2/source-panels/raw/crossroads.png',
-		normalizedPath: 'artifacts/meadow-entry/painted-v2/source-panels/crossroads.png',
-		provenancePath: 'artifacts/meadow-entry/painted-v2/source-panels/crossroads.json'
+		rawPath: 'artifacts/meadow-entry/painted-v2/source-inserts/raw/crossroads-blocked-hedge.png',
+		normalizedPath: 'artifacts/meadow-entry/painted-v2/source-inserts/crossroads-blocked-hedge.png',
+		provenancePath: 'artifacts/meadow-entry/painted-v2/source-inserts/crossroads-blocked-hedge.json'
 	},
 	{
 		id: 'crossroads-blocked-woodland',
@@ -182,9 +182,11 @@ const RAW_SCENERY_INSERTS = [
 		bounds: { left: 2880, top: 2816, right: 4608, bottom: 4768 },
 		owningSourceId: 'crossroads',
 		owningSourcePriority: 50,
-		rawPath: 'artifacts/meadow-entry/painted-v2/source-panels/raw/crossroads.png',
-		normalizedPath: 'artifacts/meadow-entry/painted-v2/source-panels/crossroads.png',
-		provenancePath: 'artifacts/meadow-entry/painted-v2/source-panels/crossroads.json'
+		rawPath: 'artifacts/meadow-entry/painted-v2/source-inserts/raw/crossroads-blocked-woodland.png',
+		normalizedPath:
+			'artifacts/meadow-entry/painted-v2/source-inserts/crossroads-blocked-woodland.png',
+		provenancePath:
+			'artifacts/meadow-entry/painted-v2/source-inserts/crossroads-blocked-woodland.json'
 	}
 ] as const satisfies readonly MeadowEntryPaintedV2SceneryInsert[];
 

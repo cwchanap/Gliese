@@ -17,10 +17,15 @@ import { measureMeadowEntryDetailBoundaryMetrics } from './meadow-entry-detail-b
 import {
 	assembleMeadowEntryPaintedV2Underlay,
 	compositeMeadowEntryDetailPanel,
+	compositeMeadowEntryDetailPanels,
 	type MeadowEntryUnderlayDecodedPanel
 } from './meadow-entry-painted-v2-underlay-assembly';
 import { decodeMeadowEntryRgba, encodeCanonicalMeadowEntryPng } from './meadow-entry-png';
-import { MEADOW_ENTRY_PAINTED_V2_SOURCE_PANELS } from './meadow-entry-painted-v2-pilot';
+import {
+	MEADOW_ENTRY_PAINTED_V2_DETAIL_PAIRS,
+	MEADOW_ENTRY_PAINTED_V2_DETAIL_PAIR_FORMULAS,
+	MEADOW_ENTRY_PAINTED_V2_SOURCE_PANELS
+} from './meadow-entry-painted-v2-pilot';
 import {
 	validateMeadowEntryGenerationProvenance,
 	type MeadowEntryGenerationProvenance
@@ -93,12 +98,19 @@ async function fixture(): Promise<MeadowEntryPaintedV2PilotAssemblyInput> {
 					normalizedSha256: manifest.normalized.sha256,
 					normalizedBytes: manifest.normalized.bytes,
 					normalizedDimensions: manifest.normalized.dimensions,
-					promptUnavailable: generation.promptUnavailable ?? false
+					promptUnavailable:
+						generation.promptUnavailable ?? (panel.id.startsWith('camera-underlay-') ? true : false)
 				},
 				seed: generation.seed ?? null,
 				seedUnavailable: generation.seedUnavailable ?? true,
-				prompt: generation.prompt ?? null,
-				promptSha256: generation.promptSha256 ?? null,
+				prompt:
+					(generation.promptUnavailable ?? (panel.id.startsWith('camera-underlay-') ? true : false))
+						? null
+						: (generation.prompt ?? null),
+				promptSha256:
+					(generation.promptUnavailable ?? (panel.id.startsWith('camera-underlay-') ? true : false))
+						? null
+						: (generation.promptSha256 ?? null),
 				referenceImageSha256: [],
 				byteReproducibleGeneration: false
 			};
@@ -174,6 +186,9 @@ describe('painted-v2 pilot partial master assembler', () => {
 		};
 		const result = await assembleMeadowEntryPaintedV2Pilot(forgedInput);
 		expect(createHash('sha256').update(result.masterPng).digest('hex')).toBe(
+			'd274d41ff947e7f88383bbd9dfde2dace102f5d6bd4b368157d017fea6b902b3'
+		);
+		expect(createHash('sha256').update(result.masterPng).digest('hex')).not.toBe(
 			'8de845c8d06727c199b8dcb0f09c6db9b2d85ed936e8de5db985800032d047ac'
 		);
 	});
@@ -187,7 +202,7 @@ describe('painted-v2 pilot partial master assembler', () => {
 			)
 		);
 		const masterX = 3000;
-		const masterY = 4600;
+		const masterY = 4300;
 		const overlapOffset = (masterY * decoded.width + masterX) * 4;
 		const crossroadsOffset = ((masterY - 2816) * crossroads.width + (masterX - 2880)) * 4;
 		expect([...decoded.data.subarray(overlapOffset, overlapOffset + 4)]).toEqual([
@@ -195,6 +210,33 @@ describe('painted-v2 pilot partial master assembler', () => {
 		]);
 		const outsideOffset = (100 * decoded.width + 100) * 4;
 		expect([...decoded.data.subarray(outsideOffset, outsideOffset + 4)]).toEqual([0, 0, 0, 0]);
+	});
+
+	it('applies both sealed pair corrections immediately after each second member', async () => {
+		const input = await fixture();
+		const result = await assembleMeadowEntryPaintedV2Pilot(input);
+		const actual = await decodeMeadowEntryRgba(result.masterPng);
+		const decodedPanels = await decodedFixturePanels(input);
+		const expected = await assembleFixtureUnderlay(decodedPanels);
+		const detailPanels = decodedPanels
+			.filter(({ panel }) => panel.role === 'detail')
+			.map(({ panel, rgba }) => ({
+				id: panel.id,
+				bounds: panel.bounds,
+				rgba,
+				assemblyPriority: panel.assemblyPriority
+			}));
+		compositeMeadowEntryDetailPanels(expected, detailPanels);
+		expect(actual.data.equals(expected.data)).toBe(true);
+		for (const [x, y] of [
+			[1_568, 4_992],
+			[3_136, 4_624]
+		] as const) {
+			const offset = (y * actual.width + x) * 4;
+			expect(actual.data.subarray(offset, offset + 4), `${x},${y}`).toEqual(
+				expected.data.subarray(offset, offset + 4)
+			);
+		}
 	});
 
 	it('fails closed when a panel dimensions or normalized hash drifts', async () => {
@@ -245,6 +287,11 @@ describe('painted-v2 pilot partial master assembler', () => {
 		const second = await assembleMeadowEntryPaintedV2Pilot(input);
 		expect(second.masterPng.equals(first.masterPng)).toBe(true);
 		expect(second.provenanceJson.equals(first.provenanceJson)).toBe(true);
+		const temporaryHash = createHash('sha256').update(first.masterPng).digest('hex');
+		expect(temporaryHash).toBe('d274d41ff947e7f88383bbd9dfde2dace102f5d6bd4b368157d017fea6b902b3');
+		expect(temporaryHash).not.toBe(
+			'8de845c8d06727c199b8dcb0f09c6db9b2d85ed936e8de5db985800032d047ac'
+		);
 	});
 
 	it('keeps every visible registered detail perimeter equal to the pre-detail composite', async () => {
@@ -307,7 +354,7 @@ describe('painted-v2 pilot partial master assembler', () => {
 			baseline.height
 		);
 		expect(createHash('sha256').update(baselinePng).digest('hex')).toBe(
-			'c6ce56d67ebab7edc0744b8b8f3321401530c80664cafa3245f7dd468154b137'
+			'24b6a4b1310f6c671145cccab2b6a3dda046980c9bb13ae0340940466ea9fcd9'
 		);
 
 		const metricPanels = details.map(({ panel }) => ({
@@ -358,9 +405,9 @@ describe('painted-v2 pilot partial master assembler', () => {
 		const heroTop = correctedMetrics.find(
 			(metric) => metric.panelId === 'hero-house-frontage' && metric.edge === 'top'
 		)!;
-		expect(heroTop.edgeP95).toBeCloseTo(17.666666666666668, 12);
+		expect(heroTop.edgeP95).toBe(13);
 		expect(heroTop.comparisonP95).toBe(14);
-		expect(heroTop.p95Ratio).toBeGreaterThan(1.25);
+		expect(heroTop.p95Ratio).toBeGreaterThan(0.9);
 	});
 
 	it('validates prompt-unavailable provenance only for the four approved attempt-3 underlays', async () => {
@@ -405,6 +452,11 @@ describe('painted-v2 pilot partial master assembler', () => {
 					detailFeatherWidthPx: number;
 					detailFeatherLastInsetIndex: number;
 					detailSourceBytes: string;
+					detailPairCorrections: {
+						stage: string;
+						formulas: Readonly<Record<string, string>>;
+						pairs: unknown;
+					};
 				};
 			};
 		};
@@ -418,10 +470,15 @@ describe('painted-v2 pilot partial master assembler', () => {
 			northSouthLastIndex: 127,
 			familyHandoffLastIndex: 831,
 			detailPolicy:
-				'ascending-priority-source-over-current-master-with-128px-inset-smoothstep-feather',
+				'ascending-priority-source-over-current-master-with-128px-inset-smoothstep-feather-and-immediate-pair-corrections',
 			detailFeatherWidthPx: 128,
 			detailFeatherLastInsetIndex: 127,
-			detailSourceBytes: 'immutable'
+			detailSourceBytes: 'immutable',
+			detailPairCorrections: {
+				stage: 'immediately-after-second-member',
+				formulas: MEADOW_ENTRY_PAINTED_V2_DETAIL_PAIR_FORMULAS,
+				pairs: MEADOW_ENTRY_PAINTED_V2_DETAIL_PAIRS
+			}
 		});
 	});
 });

@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import type { DecodedMeadowEntryRgba } from './meadow-entry-png';
 import {
 	measureMeadowEntryDetailBoundaryMetrics,
+	meadowEntryNearestRank,
 	type MeadowEntryDetailBoundaryPanel
 } from './meadow-entry-detail-boundary-metrics';
 
@@ -39,6 +40,12 @@ const panels = [
 ] as const satisfies readonly MeadowEntryDetailBoundaryPanel[];
 
 describe('Meadow Entry detail boundary metrics', () => {
+	it('shares the nearest-rank indexing for percentile metrics', () => {
+		expect(meadowEntryNearestRank([1, 2, 3, 4], 0.95)).toBe(4);
+		expect(meadowEntryNearestRank([1, 2, 3, 4], 0.5)).toBe(2);
+		expect(meadowEntryNearestRank([1, 2, 3, 4], 0.4)).toBe(2);
+	});
+
 	it('filters later-covered comparison steps per edge without pooling the opposite edge', () => {
 		const metrics = measureMeadowEntryDetailBoundaryMetrics(horizontalGradient(12, 10), panels, 2);
 		const right = metrics.find(

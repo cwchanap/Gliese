@@ -7,35 +7,33 @@ import {
 	buildMeadowEntryPaintedV2DecorationEligibility,
 	collectMeadowEntryPaintedV2DecorationTiles,
 	measureMeadowEntryPaintedV2DecorationEnergy,
-	type MeadowEntryPaintedV2DecodedAlphaMask,
 	type MeadowEntryPaintedV2DecorationEnergy,
 	type MeadowEntryPaintedV2DecorationEligibilityInput
 } from './meadow-entry-painted-v2-enrichment-review';
 import type { MeadowEntryPaintedV2SceneryMaskSet } from './meadow-entry-painted-v2-scenery-bake';
-
-function mask(width: number, height: number, fill = 0): MeadowEntryPaintedV2DecodedAlphaMask {
-	return { width, height, alpha: Buffer.alloc(width * height, fill) };
-}
 
 function input(
 	overrides: Partial<MeadowEntryPaintedV2DecorationEligibilityInput> = {}
 ): MeadowEntryPaintedV2DecorationEligibilityInput {
 	const width = overrides.width ?? 8;
 	const height = overrides.height ?? 8;
-	const empty = mask(width, height);
+	const pixels = width * height;
+	const empty = new Uint8Array(pixels);
 	return {
 		width,
 		height,
 		tileSizePx: overrides.tileSizePx ?? 4,
 		cropUnion: overrides.cropUnion ?? [{ left: 0, top: 0, right: width, bottom: height }],
-		masks: overrides.masks ?? {
-			protectedLive: empty,
-			buildingFootprint: empty,
-			entranceTransition: empty,
-			rewardDiscovery: empty,
-			semanticAnchor: empty
+		sceneryMasks: overrides.sceneryMasks ?? {
+			width: width as 6400,
+			height: height as 6400,
+			otherProtected: empty,
+			groundAllowed: new Uint8Array(pixels).fill(1),
+			sceneryAllowed: new Uint8Array(pixels),
+			hedgeAllowed: new Uint8Array(pixels),
+			woodlandAllowed: new Uint8Array(pixels),
+			sourceHashes: { synthetic: 'a'.repeat(64) }
 		},
-		terrainRects: overrides.terrainRects ?? [],
 		...overrides
 	};
 }
@@ -60,48 +58,63 @@ function sceneryMasks(width: number, height: number): MeadowEntryPaintedV2Scener
 	const sceneryAllowed = new Uint8Array(pixels);
 	const hedgeAllowed = new Uint8Array(pixels);
 	const woodlandAllowed = new Uint8Array(pixels);
-	const decorationAllowed = new Uint8Array(pixels);
 	for (let index = 0; index < pixels; index += 1) {
 		sceneryAllowed[index] = index % 2;
 		hedgeAllowed[index] = index % 2;
 		woodlandAllowed[index] = 0;
-		decorationAllowed[index] = groundAllowed[index] === 1 || sceneryAllowed[index] === 1 ? 1 : 0;
 	}
 	return {
 		width: width as 6400,
 		height: height as 6400,
-		selectedBlockers: new Uint8Array(pixels),
 		otherProtected: new Uint8Array(pixels),
 		groundAllowed,
 		sceneryAllowed,
 		hedgeAllowed,
 		woodlandAllowed,
-		decorationAllowed,
 		sourceHashes: { synthetic: 'a'.repeat(64) }
 	} as MeadowEntryPaintedV2SceneryMaskSet;
 }
 
 describe('Meadow Entry painted-v2 decoration eligibility', () => {
-	it('clips crop union with half-open bounds and subtracts every control alpha', () => {
+	it('uses the catalog mask ground raster as eligible without retaining a union mask', () => {
+		const pixels = 8 * 8;
+		const groundAllowed = new Uint8Array(pixels).fill(1);
+		const sceneryAllowed = new Uint8Array(pixels);
+		const hedgeAllowed = new Uint8Array(pixels);
+		const woodlandAllowed = new Uint8Array(pixels);
+		const otherProtected = new Uint8Array(pixels);
 		const masks = {
-			protectedLive: mask(8, 8),
-			buildingFootprint: mask(8, 8),
-			entranceTransition: mask(8, 8),
-			rewardDiscovery: mask(8, 8),
-			semanticAnchor: mask(8, 8)
-		};
-		masks.protectedLive.alpha[0] = 255;
-		masks.buildingFootprint.alpha[1] = 255;
-		masks.entranceTransition.alpha[8 + 2] = 255;
-		masks.rewardDiscovery.alpha[8 + 3] = 255;
-		masks.semanticAnchor.alpha[8 + 4] = 255;
+			width: 8 as 6400,
+			height: 8 as 6400,
+			otherProtected,
+			groundAllowed,
+			sceneryAllowed,
+			hedgeAllowed,
+			woodlandAllowed,
+			sourceHashes: { synthetic: 'a'.repeat(64) }
+		} as MeadowEntryPaintedV2SceneryMaskSet;
+		const eligibility = buildMeadowEntryPaintedV2DecorationEligibility(
+			input({ sceneryMasks: masks })
+		);
+
+		expect(eligibility.eligible).toBe(groundAllowed);
+		expect('selectedBlockers' in eligibility).toBe(false);
+		expect('decorationAllowed' in eligibility).toBe(false);
+	});
+
+	it('clips crop union with half-open bounds and uses the catalog ground raster verbatim', () => {
+		const groundAllowed = new Uint8Array(8 * 8).fill(1);
+		groundAllowed[0] = 0;
 		const eligibility = buildMeadowEntryPaintedV2DecorationEligibility(
 			input({
 				cropUnion: [
 					{ left: 0, top: 0, right: 2, bottom: 1 },
 					{ left: 2, top: 1, right: 5, bottom: 2 }
 				],
-				masks
+				sceneryMasks: {
+					...sceneryMasks(8, 8),
+					groundAllowed
+				}
 			})
 		);
 
@@ -111,29 +124,8 @@ describe('Meadow Entry painted-v2 decoration eligibility', () => {
 		expect(eligibility.insideCropUnion[8 + 2]).toBe(1);
 		expect(eligibility.insideCropUnion[8 + 5]).toBe(0);
 		expect(eligibility.eligible[0]).toBe(0);
-		expect(eligibility.eligible[1]).toBe(0);
-		expect(eligibility.eligible[8 + 2]).toBe(0);
-		expect(eligibility.eligible[8 + 3]).toBe(0);
-		expect(eligibility.eligible[8 + 4]).toBe(0);
-	});
-
-	it('insets terrain rectangles once with the exported protection margins', () => {
-		const eligibility = buildMeadowEntryPaintedV2DecorationEligibility(
-			input({
-				width: 100,
-				height: 100,
-				cropUnion: [{ left: 0, top: 0, right: 100, bottom: 100 }],
-				terrainRects: [
-					{ left: 0, top: 0, right: 100, bottom: 100 },
-					{ left: 0, top: 0, right: 48, bottom: 48 }
-				]
-			})
-		);
-
-		expect(eligibility.routeCoreRects).toEqual([{ left: 16, top: 32, right: 84, bottom: 84 }]);
-		expect(eligibility.routeCore[32 * 100 + 16]).toBe(1);
-		expect(eligibility.routeCore[31 * 100 + 16]).toBe(0);
-		expect(eligibility.routeCore[32 * 100 + 15]).toBe(0);
+		expect(eligibility.eligible).toBe(groundAllowed);
+		expect(eligibility.eligible[0]).toBe(0);
 	});
 
 	it('retains a tile at exactly 50 percent and rejects one pixel below', () => {
@@ -141,12 +133,9 @@ describe('Meadow Entry painted-v2 decoration eligibility', () => {
 			input({
 				width: 4,
 				height: 4,
-				masks: {
-					protectedLive: mask(4, 4),
-					buildingFootprint: mask(4, 4),
-					entranceTransition: mask(4, 4),
-					rewardDiscovery: mask(4, 4),
-					semanticAnchor: mask(4, 4)
+				sceneryMasks: {
+					...sceneryMasks(4, 4),
+					groundAllowed: new Uint8Array(16).fill(1)
 				}
 			})
 		);
@@ -263,12 +252,10 @@ describe('Meadow Entry painted-v2 decoration eligibility', () => {
 		);
 
 		expect(eligibility.groundAllowed).toEqual(eligibility.eligible);
-		expect(eligibility.selectedBlockers).toEqual(named.selectedBlockers);
 		expect(eligibility.otherProtected).toEqual(named.otherProtected);
 		expect(eligibility.hedgeAllowed).toEqual(named.hedgeAllowed);
 		expect(eligibility.woodlandAllowed).toEqual(named.woodlandAllowed);
 		expect(eligibility.sceneryAllowed).toEqual(named.sceneryAllowed);
-		expect(eligibility.decorationAllowed).toEqual(named.decorationAllowed);
 		expect(eligibility.sourceHashes).toEqual(named.sourceHashes);
 		expect(tiles.map(({ bounds }) => bounds)).toEqual(
 			collectMeadowEntryPaintedV2DecorationTiles(

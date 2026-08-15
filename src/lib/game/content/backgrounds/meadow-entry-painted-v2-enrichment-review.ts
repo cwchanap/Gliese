@@ -1,6 +1,7 @@
 import type { DecodedMeadowEntryRgba } from './meadow-entry-png';
 import { MEADOW_ENTRY_PROTECTION_MARGINS } from './meadow-entry-bake-ownership';
 import type { Insets, PixelBounds } from './meadow-entry-authoring-types';
+import { meadowEntryNearestRank } from './meadow-entry-detail-boundary-metrics';
 import type { MeadowEntryPaintedV2SceneryMaskSet } from './meadow-entry-painted-v2-scenery-bake';
 
 export const MEADOW_ENTRY_PAINTED_V2_DECORATION_TILE_SIZE_PX = 512;
@@ -44,28 +45,12 @@ export const MEADOW_ENTRY_PAINTED_V2_ENRICHMENT_REVIEW_FILENAMES = Object.freeze
 	'route-centerline-overlay.png'
 ] as const);
 
-export interface MeadowEntryPaintedV2DecodedAlphaMask {
-	readonly width: number;
-	readonly height: number;
-	readonly alpha: Uint8Array;
-}
-
-export interface MeadowEntryPaintedV2DecorationMasks {
-	readonly protectedLive: MeadowEntryPaintedV2DecodedAlphaMask;
-	readonly buildingFootprint: MeadowEntryPaintedV2DecodedAlphaMask;
-	readonly entranceTransition: MeadowEntryPaintedV2DecodedAlphaMask;
-	readonly rewardDiscovery: MeadowEntryPaintedV2DecodedAlphaMask;
-	readonly semanticAnchor: MeadowEntryPaintedV2DecodedAlphaMask;
-}
-
 export interface MeadowEntryPaintedV2DecorationEligibilityInput {
 	readonly width: number;
 	readonly height: number;
 	readonly tileSizePx?: number;
 	readonly cropUnion: readonly PixelBounds[];
-	readonly masks: MeadowEntryPaintedV2DecorationMasks;
-	readonly sceneryMasks?: MeadowEntryPaintedV2SceneryMaskSet;
-	readonly terrainRects: readonly PixelBounds[];
+	readonly sceneryMasks: MeadowEntryPaintedV2SceneryMaskSet;
 	readonly metadata?: Readonly<Record<string, unknown>>;
 }
 
@@ -75,21 +60,12 @@ export interface MeadowEntryPaintedV2DecorationEligibility {
 	readonly tileSizePx: number;
 	readonly cropUnion: readonly PixelBounds[];
 	readonly insideCropUnion: Uint8Array;
-	readonly protectedLive: Uint8Array;
-	readonly selectedBlockers: Uint8Array;
 	readonly otherProtected: Uint8Array;
-	readonly buildingFootprint: Uint8Array;
-	readonly entranceTransition: Uint8Array;
-	readonly rewardDiscovery: Uint8Array;
-	readonly semanticAnchor: Uint8Array;
-	readonly routeCore: Uint8Array;
 	readonly groundAllowed: Uint8Array;
 	readonly sceneryAllowed: Uint8Array;
 	readonly hedgeAllowed: Uint8Array;
 	readonly woodlandAllowed: Uint8Array;
-	readonly decorationAllowed: Uint8Array;
 	readonly sourceHashes: Readonly<Record<string, string>>;
-	readonly routeCoreRects: readonly PixelBounds[];
 	readonly eligible: Uint8Array;
 	readonly protectionMargins: Readonly<Insets>;
 	readonly metadata: Readonly<Record<string, unknown>>;
@@ -158,34 +134,6 @@ function assertBounds(bounds: PixelBounds, width: number, height: number, label:
 	);
 }
 
-function assertMask(
-	mask: MeadowEntryPaintedV2DecodedAlphaMask,
-	width: number,
-	height: number,
-	label: string
-): void {
-	assertDimensions(mask.width, mask.height, label);
-	assert(
-		mask.width === width && mask.height === height,
-		`${label} dimensions do not match eligibility`
-	);
-	assert(mask.alpha.byteLength === width * height, `${label} alpha dimensions are invalid`);
-}
-
-function maskAt(mask: MeadowEntryPaintedV2DecodedAlphaMask, offset: number): number {
-	return mask.alpha[offset] ?? 0;
-}
-
-function insetTerrainRect(bounds: PixelBounds): PixelBounds | null {
-	const inset = {
-		left: bounds.left + MEADOW_ENTRY_PROTECTION_MARGINS.left,
-		top: bounds.top + MEADOW_ENTRY_PROTECTION_MARGINS.top,
-		right: bounds.right - MEADOW_ENTRY_PROTECTION_MARGINS.right,
-		bottom: bounds.bottom - MEADOW_ENTRY_PROTECTION_MARGINS.bottom
-	};
-	return inset.left < inset.right && inset.top < inset.bottom ? inset : null;
-}
-
 function fillRect(mask: Uint8Array, width: number, bounds: PixelBounds): void {
 	for (let y = bounds.top; y < bounds.bottom; y += 1) {
 		let offset = y * width + bounds.left;
@@ -208,13 +156,11 @@ function validateNamedSceneryMasks(
 	);
 	const pixels = width * height;
 	for (const [label, mask] of [
-		['selectedBlockers', named.selectedBlockers],
 		['otherProtected', named.otherProtected],
 		['groundAllowed', named.groundAllowed],
 		['sceneryAllowed', named.sceneryAllowed],
 		['hedgeAllowed', named.hedgeAllowed],
-		['woodlandAllowed', named.woodlandAllowed],
-		['decorationAllowed', named.decorationAllowed]
+		['woodlandAllowed', named.woodlandAllowed]
 	] as const) {
 		assert(mask.byteLength === pixels, `${label} named mask dimensions are invalid`);
 		for (const value of mask)
@@ -228,11 +174,6 @@ function validateNamedSceneryMasks(
 		assert(
 			!(named.hedgeAllowed[offset] === 1 && named.woodlandAllowed[offset] === 1),
 			`Named hedge and woodland masks overlap at pixel ${offset}`
-		);
-		assert(
-			named.decorationAllowed[offset] ===
-				(named.groundAllowed[offset] === 1 || named.sceneryAllowed[offset] === 1 ? 1 : 0),
-			`Named decoration mask is not the ground/scenery union at pixel ${offset}`
 		);
 	}
 }
@@ -249,90 +190,34 @@ export function buildMeadowEntryPaintedV2DecorationEligibility(
 	for (const [index, bounds] of input.cropUnion.entries()) {
 		assertBounds(bounds, input.width, input.height, `Meadow Entry crop union ${index}`);
 	}
-	const masks = input.masks;
-	assertMask(masks.protectedLive, input.width, input.height, 'protected-live mask');
-	assertMask(masks.buildingFootprint, input.width, input.height, 'building-footprint mask');
-	assertMask(masks.entranceTransition, input.width, input.height, 'entrance-transition mask');
-	assertMask(masks.rewardDiscovery, input.width, input.height, 'reward-discovery mask');
-	assertMask(masks.semanticAnchor, input.width, input.height, 'semantic-anchor mask');
-	const routeCoreRects = input.terrainRects.flatMap((bounds, index) => {
-		assertBounds(bounds, input.width, input.height, `terrain rectangle ${index}`);
-		const inset = insetTerrainRect(bounds);
-		return inset === null ? [] : [inset];
-	});
 	const pixels = input.width * input.height;
 	const insideCropUnion = new Uint8Array(pixels);
-	const routeCore = new Uint8Array(pixels);
-	const eligible = new Uint8Array(pixels);
-	const protectedLive = new Uint8Array(pixels);
-	const buildingFootprint = new Uint8Array(pixels);
-	const entranceTransition = new Uint8Array(pixels);
-	const rewardDiscovery = new Uint8Array(pixels);
-	const semanticAnchor = new Uint8Array(pixels);
 	for (const bounds of input.cropUnion) fillRect(insideCropUnion, input.width, bounds);
-	for (const bounds of routeCoreRects) fillRect(routeCore, input.width, bounds);
-	for (let offset = 0; offset < pixels; offset += 1) {
-		protectedLive[offset] = maskAt(masks.protectedLive, offset) > 0 ? 1 : 0;
-		buildingFootprint[offset] = maskAt(masks.buildingFootprint, offset) > 0 ? 1 : 0;
-		entranceTransition[offset] = maskAt(masks.entranceTransition, offset) > 0 ? 1 : 0;
-		rewardDiscovery[offset] = maskAt(masks.rewardDiscovery, offset) > 0 ? 1 : 0;
-		semanticAnchor[offset] = maskAt(masks.semanticAnchor, offset) > 0 ? 1 : 0;
-		eligible[offset] =
-			insideCropUnion[offset] !== 0 &&
-			protectedLive[offset] === 0 &&
-			buildingFootprint[offset] === 0 &&
-			entranceTransition[offset] === 0 &&
-			rewardDiscovery[offset] === 0 &&
-			semanticAnchor[offset] === 0 &&
-			routeCore[offset] === 0
-				? 1
-				: 0;
-	}
 	const named = input.sceneryMasks;
-	const groundAllowed = eligible;
-	const sceneryAllowed = named?.sceneryAllowed ?? new Uint8Array(pixels);
-	const hedgeAllowed = named?.hedgeAllowed ?? new Uint8Array(pixels);
-	const woodlandAllowed = named?.woodlandAllowed ?? new Uint8Array(pixels);
-	const selectedBlockers = named?.selectedBlockers ?? new Uint8Array(pixels);
-	const otherProtected = named?.otherProtected ?? new Uint8Array(pixels);
-	if (named !== undefined)
-		validateNamedSceneryMasks(named, input.width, input.height, groundAllowed);
-	const decorationAllowed = new Uint8Array(pixels);
-	for (let offset = 0; offset < pixels; offset += 1) {
-		decorationAllowed[offset] = groundAllowed[offset] === 1 || sceneryAllowed[offset] === 1 ? 1 : 0;
-	}
+	assert(
+		named.width === input.width && named.height === input.height,
+		'Named Meadow Entry scenery mask dimensions do not match eligibility'
+	);
+	const groundAllowed = named.groundAllowed;
+	validateNamedSceneryMasks(named, input.width, input.height, groundAllowed);
 	return {
 		width: input.width,
 		height: input.height,
 		tileSizePx,
 		cropUnion: input.cropUnion.map((bounds) => ({ ...bounds })),
 		insideCropUnion,
-		protectedLive,
-		selectedBlockers,
-		otherProtected,
-		buildingFootprint,
-		entranceTransition,
-		rewardDiscovery,
-		semanticAnchor,
-		routeCore,
+		otherProtected: named.otherProtected,
 		groundAllowed,
-		sceneryAllowed,
-		hedgeAllowed,
-		woodlandAllowed,
-		decorationAllowed,
-		sourceHashes:
-			named?.sourceHashes ??
-			(input.metadata?.controlSvgHashes as Readonly<Record<string, string>> | undefined) ??
-			Object.freeze({}),
-		routeCoreRects,
-		eligible,
+		sceneryAllowed: named.sceneryAllowed,
+		hedgeAllowed: named.hedgeAllowed,
+		woodlandAllowed: named.woodlandAllowed,
+		sourceHashes: named.sourceHashes,
+		eligible: groundAllowed,
 		protectionMargins: MEADOW_ENTRY_PROTECTION_MARGINS,
 		metadata: Object.freeze({
 			...(input.metadata ?? {}),
 			protectionMargins: MEADOW_ENTRY_PROTECTION_MARGINS,
-			routeCoreDerivation: 'terrain-rect-inset-once-by-protection-margins',
-			eligibilityPredicate:
-				'insideCropUnion&&!protectedLive&&!buildingFootprint&&!entranceTransition&&!rewardDiscovery&&!semanticAnchor&&!derivedRouteCore'
+			eligibilityPredicate: 'groundAllowed'
 		})
 	};
 }
@@ -399,12 +284,6 @@ function imagePixel(
 	return [image.data[offset] ?? 0, image.data[offset + 1] ?? 0, image.data[offset + 2] ?? 0];
 }
 
-function nearestRankMedian(values: readonly number[]): number {
-	if (values.length === 0) return 0;
-	const sorted = [...values].sort((first, second) => first - second);
-	return sorted[Math.max(0, Math.ceil(sorted.length / 2) - 1)] ?? 0;
-}
-
 export function measureMeadowEntryPaintedV2DecorationEnergy(
 	image: MeadowEntryPaintedV2DecodedImage | DecodedMeadowEntryRgba,
 	eligibility: MeadowEntryPaintedV2DecorationEligibility,
@@ -467,7 +346,7 @@ export function measureMeadowEntryPaintedV2DecorationEnergy(
 		candidateMinimumFloor: MEADOW_ENTRY_PAINTED_V2_DECORATION_CANDIDATE_MINIMUM_FLOOR,
 		candidateMedianFloor: MEADOW_ENTRY_PAINTED_V2_DECORATION_CANDIDATE_MEDIAN_FLOOR,
 		minimumRgbStep: steps.length === 0 ? 0 : Math.min(...steps),
-		medianRgbStep: nearestRankMedian(steps),
+		medianRgbStep: meadowEntryNearestRank(steps, 0.5),
 		tiles: measured
 	};
 }
