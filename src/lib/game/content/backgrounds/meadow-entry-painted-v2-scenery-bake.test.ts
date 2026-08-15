@@ -3,14 +3,23 @@ import { createHash } from 'node:crypto';
 import { describe, expect, it } from 'vitest';
 
 import type { PixelBounds } from './meadow-entry-authoring-types';
+import { buildMeadowEntryControlInputs } from './meadow-entry-controls';
+import type { MeadowEntryPaintedV2DetailPair } from './meadow-entry-painted-v2-pilot';
 import {
+	assembleMeadowEntryPaintedV2Underlay,
+	blendMeadowEntryAxisPairPixel,
 	blendMeadowEntryDetailChannel,
+	compositeMeadowEntryDetailPanels,
 	meadowEntryDetailFeatherWeight,
-	type MeadowEntryDetailDecodedPanel,
-	type MeadowEntryUnderlayDecodedPanel
+	meadowEntryDetailPairCorrectionLastInsetIndex,
+	type MeadowEntryDetailDecodedPanel
 } from './meadow-entry-painted-v2-underlay-assembly';
-import { MEADOW_ENTRY_PAINTED_V2_SCENERY_INSERTS } from './meadow-entry-painted-v2-scenery';
 import {
+	MEADOW_ENTRY_PAINTED_V2_SCENERY_BLOCKERS,
+	MEADOW_ENTRY_PAINTED_V2_SCENERY_INSERTS
+} from './meadow-entry-painted-v2-scenery';
+import {
+	buildMeadowEntryPaintedV2SceneryMaskSet,
 	erodeMeadowEntryMask8,
 	enrichMeadowEntryPaintedV2Sources,
 	meadowEntrySceneryInsetDistances,
@@ -47,11 +56,22 @@ function panel(
 	height: number,
 	rgb: readonly [number, number, number]
 ): MeadowEntryDetailDecodedPanel {
+	return panelWithBounds(id, bounds(0, 0, width, height), rgb);
+}
+
+function panelWithBounds(
+	id: string,
+	panelBounds: PixelBounds,
+	rgb: readonly [number, number, number],
+	assemblyPriority = id === 'crossroads' ? 50 : id.startsWith('camera-underlay') ? 1 : 10
+): MeadowEntryDetailDecodedPanel {
+	const width = panelBounds.right - panelBounds.left;
+	const height = panelBounds.bottom - panelBounds.top;
 	return {
 		id,
-		bounds: bounds(0, 0, width, height),
+		bounds: panelBounds,
 		rgba: { width, height, data: filledRgba(width, height, rgb) },
-		assemblyPriority: id === 'crossroads' ? 50 : id.startsWith('camera-underlay') ? 1 : 10
+		assemblyPriority
 	};
 }
 
@@ -144,6 +164,212 @@ function clonePanels(
 	}));
 }
 
+function paintBounds(mask: Uint8Array, width: number, panelBounds: PixelBounds): void {
+	for (let y = panelBounds.top; y < panelBounds.bottom; y += 1) {
+		for (let x = panelBounds.left; x < panelBounds.right; x += 1) {
+			mask[offset(width, x, y)] = 1;
+		}
+	}
+}
+
+function panelPixel(
+	panelValue: MeadowEntryDetailDecodedPanel,
+	x: number,
+	y: number
+): readonly [number, number, number, number] {
+	const localX = x - panelValue.bounds.left;
+	const localY = y - panelValue.bounds.top;
+	const at = (localY * panelValue.rgba.width + localX) * 4;
+	return [
+		panelValue.rgba.data[at]!,
+		panelValue.rgba.data[at + 1]!,
+		panelValue.rgba.data[at + 2]!,
+		panelValue.rgba.data[at + 3]!
+	];
+}
+
+function rgbaPixel(
+	data: Buffer,
+	width: number,
+	x: number,
+	y: number
+): readonly [number, number, number, number] {
+	const at = rgbaOffset(width, x, y);
+	return [data[at]!, data[at + 1]!, data[at + 2]!, data[at + 3]!];
+}
+
+function assemblyMasks(width: number, height: number): MeadowEntryPaintedV2SceneryMaskSet {
+	const result = syntheticMasks(width, height);
+	result.sceneryAllowed.fill(0);
+	result.hedgeAllowed.fill(0);
+	result.woodlandAllowed.fill(0);
+	paintBounds(result.sceneryAllowed, width, bounds(208, 208, 304, 304));
+	paintBounds(result.hedgeAllowed, width, bounds(208, 208, 304, 304));
+	for (let index = 0; index < result.decorationAllowed.length; index += 1) {
+		result.decorationAllowed[index] =
+			result.groundAllowed[index] === 1 || result.sceneryAllowed[index] === 1 ? 1 : 0;
+	}
+	return result;
+}
+
+interface AssemblyFixture {
+	readonly masks: MeadowEntryPaintedV2SceneryMaskSet;
+	readonly panels: MeadowEntryDetailDecodedPanel[];
+	readonly inserts: DecodedMeadowEntryPaintedV2SceneryInsert[];
+	readonly underlayPairs: readonly {
+		readonly northId: string;
+		readonly southId: string;
+		readonly bounds: PixelBounds;
+	}[];
+	readonly familyHandoff: {
+		readonly sundropPanelIds: readonly string[];
+		readonly crossroadsPanelIds: readonly string[];
+		readonly bounds: PixelBounds;
+	};
+	readonly detailPairs: readonly MeadowEntryPaintedV2DetailPair[];
+}
+
+function assemblyFixture(): AssemblyFixture {
+	const panels = [
+		panelWithBounds('camera-underlay-sundrop-north', bounds(0, 0, 320, 320), [5, 15, 25], 0),
+		panelWithBounds('camera-underlay-sundrop-south', bounds(0, 192, 320, 512), [10, 20, 30], 1),
+		panelWithBounds('camera-underlay-crossroads-north', bounds(192, 0, 512, 320), [40, 50, 60], 2),
+		panelWithBounds(
+			'camera-underlay-crossroads-south',
+			bounds(192, 192, 512, 512),
+			[70, 80, 90],
+			3
+		),
+		panelWithBounds('sundrop-north', bounds(0, 0, 320, 384), [100, 110, 120], 10),
+		panelWithBounds('sundrop-south', bounds(0, 128, 320, 512), [130, 140, 150], 20),
+		panelWithBounds('village-crossroads-connector', bounds(64, 192, 448, 448), [160, 170, 180], 40),
+		panelWithBounds('crossroads', bounds(192, 128, 512, 448), [190, 200, 210], 50)
+	];
+	const inserts = MEADOW_ENTRY_PAINTED_V2_SCENERY_INSERTS.map((insert, index) => {
+		const owner = panels.find((panelValue) => panelValue.id === insert.owningSourceId);
+		if (!owner) throw new Error(`Missing synthetic scenery owner ${insert.owningSourceId}`);
+		const width = owner.bounds.right - owner.bounds.left;
+		const height = owner.bounds.bottom - owner.bounds.top;
+		return {
+			id: insert.id,
+			sceneryClass: insert.sceneryClass,
+			owningSourceId: insert.owningSourceId,
+			bounds: { ...owner.bounds },
+			rgba: {
+				width,
+				height,
+				data:
+					insert.sceneryClass === 'hedge'
+						? filledRgba(width, height, [240 - index, 40 + index, 30])
+						: filledRgba(width, height, [30, 70 + index, 230 - index])
+			}
+		};
+	});
+	return {
+		masks: assemblyMasks(512, 512),
+		panels,
+		inserts,
+		underlayPairs: [
+			{
+				northId: 'camera-underlay-sundrop-north',
+				southId: 'camera-underlay-sundrop-south',
+				bounds: bounds(0, 192, 320, 320)
+			},
+			{
+				northId: 'camera-underlay-crossroads-north',
+				southId: 'camera-underlay-crossroads-south',
+				bounds: bounds(192, 192, 512, 320)
+			}
+		],
+		familyHandoff: {
+			sundropPanelIds: ['camera-underlay-sundrop-north', 'camera-underlay-sundrop-south'],
+			crossroadsPanelIds: ['camera-underlay-crossroads-north', 'camera-underlay-crossroads-south'],
+			bounds: bounds(192, 192, 320, 320)
+		},
+		detailPairs: [
+			{
+				firstId: 'sundrop-north',
+				secondId: 'sundrop-south',
+				bounds: bounds(0, 128, 320, 384),
+				axis: 'y'
+			},
+			{
+				firstId: 'village-crossroads-connector',
+				secondId: 'crossroads',
+				bounds: bounds(192, 192, 448, 448),
+				axis: 'x'
+			}
+		]
+	};
+}
+
+function underlayInput(fixture: AssemblyFixture, panels: readonly MeadowEntryDetailDecodedPanel[]) {
+	const underlayIds = new Set(
+		fixture.underlayPairs.flatMap(({ northId, southId }) => [northId, southId])
+	);
+	return {
+		width: 512,
+		height: 512,
+		panels: panels.filter(({ id }) => underlayIds.has(id)),
+		northSouthPairs: fixture.underlayPairs,
+		familyHandoff: fixture.familyHandoff
+	};
+}
+
+async function composeAssembly(
+	fixture: AssemblyFixture,
+	panels: readonly MeadowEntryDetailDecodedPanel[],
+	pairs: readonly MeadowEntryPaintedV2DetailPair[] = fixture.detailPairs
+) {
+	const output = await assembleMeadowEntryPaintedV2Underlay(underlayInput(fixture, panels));
+	const detailIds = new Set([
+		'sundrop-north',
+		'sundrop-south',
+		'village-crossroads-connector',
+		'crossroads'
+	]);
+	compositeMeadowEntryDetailPanels(
+		output,
+		panels.filter(({ id }) => detailIds.has(id)),
+		pairs
+	);
+	return output;
+}
+
+function expectedPairCorrection(
+	ordinary: readonly number[],
+	first: MeadowEntryDetailDecodedPanel,
+	second: MeadowEntryDetailDecodedPanel,
+	pair: MeadowEntryPaintedV2DetailPair,
+	x: number,
+	y: number
+): readonly [number, number, number, 255] {
+	const axisPair = blendMeadowEntryAxisPairPixel(
+		panelPixel(first, x, y),
+		panelPixel(second, x, y),
+		pair.bounds,
+		pair.axis,
+		x,
+		y
+	);
+	const edgeDistance = Math.min(
+		x - pair.bounds.left,
+		pair.bounds.right - 1 - x,
+		y - pair.bounds.top,
+		pair.bounds.bottom - 1 - y
+	);
+	const weight = meadowEntryDetailFeatherWeight(
+		edgeDistance,
+		meadowEntryDetailPairCorrectionLastInsetIndex(pair.bounds)
+	);
+	return [
+		blendMeadowEntryDetailChannel(ordinary[0]!, axisPair[0], weight),
+		blendMeadowEntryDetailChannel(ordinary[1]!, axisPair[1], weight),
+		blendMeadowEntryDetailChannel(ordinary[2]!, axisPair[2], weight),
+		255
+	];
+}
+
 describe('Meadow Entry painted-v2 scenery bake primitives', () => {
 	it('performs exact repeated 8-neighbor erosion without mutating the source', () => {
 		const width = 9;
@@ -176,6 +402,52 @@ describe('Meadow Entry painted-v2 scenery bake primitives', () => {
 				}
 			}
 		}
+	});
+
+	it('uses the expanded control rectangles for protected-live and other-protected masks', () => {
+		const input = buildMeadowEntryControlInputs(process.cwd());
+		const masks = buildMeadowEntryPaintedV2SceneryMaskSet(process.cwd());
+		const protectedEntries = input.bakeOwnership.filter(
+			(entry) => entry.disposition.mode === 'protected-live'
+		);
+		const selectedBlockerIds = new Set(
+			MEADOW_ENTRY_PAINTED_V2_SCENERY_BLOCKERS.map(({ sourceId }) => sourceId)
+		);
+		const expectedLive = mask(6400, 6400);
+		const expectedOther = mask(6400, 6400);
+		expect(input.protectedRects).toHaveLength(protectedEntries.length);
+		for (const [index, protectedBounds] of input.protectedRects.entries()) {
+			paintBounds(expectedLive, 6400, protectedBounds);
+			if (!selectedBlockerIds.has(protectedEntries[index]!.ref.sourceId)) {
+				paintBounds(expectedOther, 6400, protectedBounds);
+			}
+		}
+		let expectedLivePixels = 0;
+		let expectedOtherPixels = 0;
+		let maskOtherPixels = 0;
+		let groundOverlap = 0;
+		let sceneryOverlap = 0;
+		for (let index = 0; index < expectedLive.length; index += 1) {
+			if (expectedLive[index] === 1) expectedLivePixels += 1;
+			if (expectedOther[index] === 1) expectedOtherPixels += 1;
+			if (masks.otherProtected[index] === 1) maskOtherPixels += 1;
+			if (expectedLive[index] === 1 && masks.groundAllowed[index] === 1) groundOverlap += 1;
+			if (expectedOther[index] === 1 && masks.sceneryAllowed[index] === 1) sceneryOverlap += 1;
+		}
+
+		expect({
+			expectedLivePixels,
+			expectedOtherPixels,
+			maskOtherPixels,
+			groundOverlap,
+			sceneryOverlap
+		}).toEqual({
+			expectedLivePixels: 14_287_348,
+			expectedOtherPixels: 13_818_312,
+			maskOtherPixels: 13_818_312,
+			groundOverlap: 0,
+			sceneryOverlap: 0
+		});
 	});
 
 	it('reports zero at outer and hole edges, caps at fifteen, and shares the feather formula', () => {
@@ -317,44 +589,211 @@ describe('Meadow Entry painted-v2 scenery bake primitives', () => {
 		for (const key of maskKeys) expect(masks[key]).toEqual(maskBytes[key]);
 	});
 
-	it('keeps the existing underlay assembly as the downstream owner of boundaries', async () => {
-		const width = 8;
-		const height = 8;
-		const panels = affectedPanels(width, height);
-		const masks = syntheticMasks(width, height);
+	it('preserves every full underlay/detail boundary through the four-owner assembly', async () => {
+		const fixture = assemblyFixture();
+		const before = clonePanels(fixture.panels);
 		const enriched = enrichMeadowEntryPaintedV2Sources(
-			panels,
-			decodedInserts(width, height),
-			masks
+			fixture.panels,
+			fixture.inserts,
+			fixture.masks
 		);
-		const { assembleMeadowEntryPaintedV2Underlay } =
-			await import('./meadow-entry-painted-v2-underlay-assembly');
-		const input = (sourcePanels: readonly MeadowEntryUnderlayDecodedPanel[]) => ({
-			width,
-			height,
-			panels: sourcePanels,
-			northSouthPairs: [
-				{
-					northId: 'camera-underlay-sundrop-south',
-					southId: 'camera-underlay-crossroads-north',
-					bounds: bounds(0, 0, width, height)
-				},
-				{
-					northId: 'camera-underlay-crossroads-north',
-					southId: 'camera-underlay-crossroads-south',
-					bounds: bounds(0, 0, width, height)
+		const plain = await composeAssembly(fixture, before);
+		const baked = await composeAssembly(fixture, enriched.panels);
+		const bakedUnderlay = await assembleMeadowEntryPaintedV2Underlay(
+			underlayInput(fixture, enriched.panels)
+		);
+		const plainWithoutPairs = await composeAssembly(fixture, before, []);
+		const bakedWithoutPairs = await composeAssembly(fixture, enriched.panels, []);
+		const plainWithSunPair = await composeAssembly(fixture, before, [fixture.detailPairs[0]!]);
+		const bakedWithSunPair = await composeAssembly(fixture, enriched.panels, [
+			fixture.detailPairs[0]!
+		]);
+		const plainWithCrossroadsPair = await composeAssembly(fixture, before, [
+			fixture.detailPairs[1]!
+		]);
+		const bakedWithCrossroadsPair = await composeAssembly(fixture, enriched.panels, [
+			fixture.detailPairs[1]!
+		]);
+		const affectedOwnerIds = [
+			'camera-underlay-sundrop-south',
+			'camera-underlay-crossroads-north',
+			'camera-underlay-crossroads-south',
+			'crossroads'
+		] as const;
+
+		for (const ownerId of affectedOwnerIds) {
+			const original = before.find(({ id }) => id === ownerId)!;
+			const result = enriched.panels.find(({ id }) => id === ownerId)!;
+			expect(result.rgba.data).not.toEqual(original.rgba.data);
+			for (let y = result.bounds.top; y < result.bounds.bottom; y += 1) {
+				for (let x = result.bounds.left; x < result.bounds.right; x += 1) {
+					if (fixture.masks.sceneryAllowed[offset(512, x, y)] === 1) continue;
+					const at = rgbaOffset(result.rgba.width, x - result.bounds.left, y - result.bounds.top);
+					expect(result.rgba.data.subarray(at, at + 4)).toEqual(
+						original.rgba.data.subarray(at, at + 4)
+					);
 				}
-			],
-			familyHandoff: {
-				sundropPanelIds: ['camera-underlay-sundrop-south'],
-				crossroadsPanelIds: ['camera-underlay-crossroads-north'],
-				bounds: bounds(0, 0, width, height)
 			}
-		});
-		const plain = await assembleMeadowEntryPaintedV2Underlay(input(panels));
-		const baked = await assembleMeadowEntryPaintedV2Underlay(
-			input(enriched.panels.filter(({ id }) => id.startsWith('camera-underlay')))
+		}
+
+		let outsideSceneryDifferences = 0;
+		let insideSceneryDifferences = 0;
+		for (let y = 0; y < 512; y += 1) {
+			for (let x = 0; x < 512; x += 1) {
+				const at = rgbaOffset(512, x, y);
+				if (plain.data.subarray(at, at + 4).equals(baked.data.subarray(at, at + 4))) continue;
+				if (fixture.masks.sceneryAllowed[offset(512, x, y)] === 1) insideSceneryDifferences += 1;
+				else outsideSceneryDifferences += 1;
+			}
+		}
+		expect(outsideSceneryDifferences).toBe(0);
+		expect(insideSceneryDifferences).toBeGreaterThan(0);
+
+		const sunNorth = before.find(({ id }) => id === 'camera-underlay-sundrop-north')!;
+		const sunSouth = before.find(({ id }) => id === 'camera-underlay-sundrop-south')!;
+		const crossNorth = before.find(({ id }) => id === 'camera-underlay-crossroads-north')!;
+		const crossSouth = before.find(({ id }) => id === 'camera-underlay-crossroads-south')!;
+		const sunPair = fixture.underlayPairs[0]!;
+		const crossPair = fixture.underlayPairs[1]!;
+		expect(rgbaPixel(bakedUnderlay.data, 512, 32, 192)).toEqual(panelPixel(sunNorth, 32, 192));
+		expect(rgbaPixel(bakedUnderlay.data, 512, 32, 319)).toEqual(panelPixel(sunSouth, 32, 319));
+		expect(rgbaPixel(bakedUnderlay.data, 512, 400, 192)).toEqual(panelPixel(crossNorth, 400, 192));
+		expect(rgbaPixel(bakedUnderlay.data, 512, 400, 319)).toEqual(panelPixel(crossSouth, 400, 319));
+
+		const sunAtFamilyLeft = blendMeadowEntryAxisPairPixel(
+			panelPixel(sunNorth, 192, 256),
+			panelPixel(sunSouth, 192, 256),
+			sunPair.bounds,
+			'y',
+			192,
+			256
 		);
-		expect(baked.data.some((value, index) => value !== plain.data[index])).toBe(true);
+		const crossAtFamilyLeft = blendMeadowEntryAxisPairPixel(
+			panelPixel(crossNorth, 192, 256),
+			panelPixel(crossSouth, 192, 256),
+			crossPair.bounds,
+			'y',
+			192,
+			256
+		);
+		const sunAtFamilyRight = blendMeadowEntryAxisPairPixel(
+			panelPixel(sunNorth, 319, 256),
+			panelPixel(sunSouth, 319, 256),
+			sunPair.bounds,
+			'y',
+			319,
+			256
+		);
+		const crossAtFamilyRight = blendMeadowEntryAxisPairPixel(
+			panelPixel(crossNorth, 319, 256),
+			panelPixel(crossSouth, 319, 256),
+			crossPair.bounds,
+			'y',
+			319,
+			256
+		);
+		expect(rgbaPixel(bakedUnderlay.data, 512, 192, 256)).toEqual(
+			blendMeadowEntryAxisPairPixel(
+				sunAtFamilyLeft,
+				crossAtFamilyLeft,
+				fixture.familyHandoff.bounds,
+				'x',
+				192,
+				256
+			)
+		);
+		expect(rgbaPixel(bakedUnderlay.data, 512, 319, 256)).toEqual(
+			blendMeadowEntryAxisPairPixel(
+				sunAtFamilyRight,
+				crossAtFamilyRight,
+				fixture.familyHandoff.bounds,
+				'x',
+				319,
+				256
+			)
+		);
+
+		const sunDetailNorth = before.find(({ id }) => id === 'sundrop-north')!;
+		const sunDetailSouth = before.find(({ id }) => id === 'sundrop-south')!;
+		const connector = before.find(({ id }) => id === 'village-crossroads-connector')!;
+		const crossroads = before.find(({ id }) => id === 'crossroads')!;
+		const sunDetailPair = fixture.detailPairs[0]!;
+		const crossroadsDetailPair = fixture.detailPairs[1]!;
+		expect(rgbaPixel(plain.data, 512, 32, 256)).toEqual(
+			expectedPairCorrection(
+				rgbaPixel(plainWithoutPairs.data, 512, 32, 256),
+				sunDetailNorth,
+				sunDetailSouth,
+				sunDetailPair,
+				32,
+				256
+			)
+		);
+		expect(rgbaPixel(baked.data, 512, 320, 320)).toEqual(
+			expectedPairCorrection(
+				rgbaPixel(bakedWithoutPairs.data, 512, 320, 320),
+				connector,
+				crossroads,
+				crossroadsDetailPair,
+				320,
+				320
+			)
+		);
+
+		const assertPairPerimeterIsOrdinary = (
+			withPair: Buffer,
+			withoutPair: Buffer,
+			pair: MeadowEntryPaintedV2DetailPair
+		): void => {
+			for (let x = pair.bounds.left; x < pair.bounds.right; x += 1) {
+				for (const y of [pair.bounds.top, pair.bounds.bottom - 1]) {
+					expect(rgbaPixel(withPair, 512, x, y)).toEqual(rgbaPixel(withoutPair, 512, x, y));
+				}
+			}
+			for (let y = pair.bounds.top + 1; y < pair.bounds.bottom - 1; y += 1) {
+				for (const x of [pair.bounds.left, pair.bounds.right - 1]) {
+					expect(rgbaPixel(withPair, 512, x, y)).toEqual(rgbaPixel(withoutPair, 512, x, y));
+				}
+			}
+		};
+		assertPairPerimeterIsOrdinary(plainWithSunPair.data, plainWithoutPairs.data, sunDetailPair);
+		assertPairPerimeterIsOrdinary(bakedWithSunPair.data, bakedWithoutPairs.data, sunDetailPair);
+		assertPairPerimeterIsOrdinary(
+			plainWithCrossroadsPair.data,
+			plainWithoutPairs.data,
+			crossroadsDetailPair
+		);
+		assertPairPerimeterIsOrdinary(
+			bakedWithCrossroadsPair.data,
+			bakedWithoutPairs.data,
+			crossroadsDetailPair
+		);
+
+		const edgeOwner = enriched.panels.find(({ id }) => id === 'camera-underlay-crossroads-south')!;
+		const edgeOriginal = before.find(({ id }) => id === edgeOwner.id)!;
+		const edgeInsert = fixture.inserts.find(
+			({ owningSourceId, sceneryClass }) =>
+				owningSourceId === edgeOwner.id && sceneryClass === 'hedge'
+		)!;
+		const edgeDistances = meadowEntrySceneryInsetDistances(fixture.masks.hedgeAllowed, 512, 512);
+		const edgePixel = panelPixel(edgeOwner, 208, 208);
+		const originalEdgePixel = panelPixel(edgeOriginal, 208, 208);
+		expect(edgePixel).toEqual(originalEdgePixel);
+		const innerPixel = panelPixel(edgeOwner, 209, 209);
+		const originalInnerPixel = panelPixel(edgeOriginal, 209, 209);
+		const insertInnerPixel = rgbaPixel(
+			edgeInsert.rgba.data,
+			edgeInsert.rgba.width,
+			209 - edgeInsert.bounds.left,
+			209 - edgeInsert.bounds.top
+		);
+		const edgeWeight = meadowEntryDetailFeatherWeight(edgeDistances[offset(512, 209, 209)]!, 15);
+		expect(innerPixel).toEqual([
+			blendMeadowEntryDetailChannel(originalInnerPixel[0], insertInnerPixel[0], edgeWeight),
+			blendMeadowEntryDetailChannel(originalInnerPixel[1], insertInnerPixel[1], edgeWeight),
+			blendMeadowEntryDetailChannel(originalInnerPixel[2], insertInnerPixel[2], edgeWeight),
+			255
+		]);
+		expect(innerPixel).not.toEqual(insertInnerPixel);
 	});
 });

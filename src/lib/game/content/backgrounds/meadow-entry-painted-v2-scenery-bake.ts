@@ -272,15 +272,18 @@ function buildGroundAndSceneryMasks(
 	for (const blocker of MEADOW_ENTRY_PAINTED_V2_SCENERY_BLOCKERS)
 		fillBounds(selectedBlockers, width, blocker.bounds);
 
-	for (const entry of input.bakeOwnership) {
-		if (entry.disposition.mode !== 'protected-live') continue;
-		const key = meadowEntrySourceKey(entry.ref);
-		const bounds = sourceBoundsMap.get(key);
-		if (!bounds) throw new Error(`Missing protected Meadow Entry source bounds "${key}"`);
-		const expanded = insetBounds(bounds);
-		if (expanded === null) continue;
-		fillBounds(protectedLive, width, expanded);
-		if (!selectedBlockerIds.has(entry.ref.sourceId)) fillBounds(otherProtected, width, expanded);
+	const protectedEntries = input.bakeOwnership.filter(
+		(entry) => entry.disposition.mode === 'protected-live'
+	);
+	assert(
+		input.protectedRects.length === protectedEntries.length,
+		'Meadow Entry protected control rectangles are out of sync with protected ownership'
+	);
+	for (const [index, bounds] of input.protectedRects.entries()) {
+		assertBounds(bounds, width, height, 'Meadow Entry protected control');
+		fillBounds(protectedLive, width, bounds);
+		const entry = protectedEntries[index]!;
+		if (!selectedBlockerIds.has(entry.ref.sourceId)) fillBounds(otherProtected, width, bounds);
 	}
 
 	fillOwnedSourceMask(building, input, ['landmark'], sourceBoundsMap);
