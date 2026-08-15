@@ -160,13 +160,17 @@ test(
 			const payload = JSON.parse(
 				readFileSync(join(outputRoot, 'decoration-candidate.json'), 'utf8')
 			) as {
+				controls: { sourceHashes: Record<string, string> };
 				energy: { qualifyingTileCount: number; sheetTileCounts: number[] };
 				tiles: { index: number; id: string }[];
 				evidence: Record<string, { sha256: string; bytes: number; width: number; height: number }>;
 			};
 			const maskInventory = JSON.parse(
 				readFileSync(join(outputRoot, 'mask-inventory.json'), 'utf8')
-			) as { masks: Record<string, unknown> };
+			) as {
+				masks: Record<string, unknown>;
+				sourceHashes: Record<string, string>;
+			};
 			assert.deepEqual(Object.keys(maskInventory.masks).sort(), [
 				'groundAllowed',
 				'hedgeAllowed',
@@ -174,6 +178,13 @@ test(
 				'sceneryAllowed',
 				'woodlandAllowed'
 			]);
+			assert.deepEqual(maskInventory.sourceHashes, payload.controls.sourceHashes);
+			for (const key of [
+				'derivation:inside-crop-union',
+				'derivation:route-core',
+				'derivation:mask-authority'
+			])
+				assert.match(maskInventory.sourceHashes[key] ?? '', /^[a-f0-9]{64}$/);
 			assert.equal(payload.energy.qualifyingTileCount, 67);
 			assert.deepEqual(payload.energy.sheetTileCounts, [16, 16, 16, 16, 3]);
 			assert.deepEqual(

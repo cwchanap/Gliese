@@ -1148,7 +1148,7 @@ export function enrichMeadowEntryPaintedV2Sources(
 			eligible,
 			(index) => weights.get(index) ?? 0,
 			(index) =>
-				weights.has(index)
+				eligible.has(index)
 					? meadowEntryDetailFeatherWeight(
 							Math.min(distance[index] ?? 0, MAX_SCENERY_DISTANCE),
 							MAX_SCENERY_DISTANCE

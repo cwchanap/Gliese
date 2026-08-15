@@ -509,6 +509,49 @@ describe('Meadow Entry painted-v2 scenery bake primitives', () => {
 		}
 	});
 
+	it('records a zero-organic tree stripe as an evaluable but unweighted slice', () => {
+		const width = 320;
+		const height = 320;
+		const panels = affectedPanels(width, height);
+		const otherProtected = mask(width, height);
+		const groundAllowed = mask(width, height, 1);
+		const sceneryAllowed = mask(width, height, 1);
+		const hedgeAllowed = mask(width, height);
+		const woodlandAllowed = mask(width, height);
+		for (let y = 1; y < height - 1; y += 1)
+			for (let x = 1; x < width - 1; x += 1)
+				(y < height / 2 ? hedgeAllowed : woodlandAllowed)[offset(width, x, y)] = 1;
+		const masks: MeadowEntryPaintedV2SceneryMaskSet = {
+			width: width as 6400,
+			height: height as 6400,
+			otherProtected,
+			groundAllowed,
+			sceneryAllowed,
+			hedgeAllowed,
+			woodlandAllowed,
+			sourceHashes: { synthetic: createHash('sha256').update('stripe').digest('hex') }
+		};
+		const inserts = decodedInserts(width, height).map((insert) => {
+			if (insert.sceneryClass !== 'woodland') return insert;
+			const data = Buffer.from(insert.rgba.data);
+			for (let y = 0; y < height; y += 1) {
+				for (let x = 90; x < 230; x += 1) {
+					const at = rgbaOffset(width, x, y);
+					data[at] = 100;
+					data[at + 1] = 100;
+					data[at + 2] = 100;
+					data[at + 3] = 255;
+				}
+			}
+			return { ...insert, rgba: { ...insert.rgba, data } };
+		});
+		const result = enrichMeadowEntryPaintedV2Sources(panels, inserts, masks);
+		const treeRows = result.rows.filter((row) => row.language === 'tree-wall');
+		expect(treeRows).toHaveLength(6);
+		expect(treeRows[0]!.evaluableSliceCount).toBe(310);
+		expect(treeRows.some((row) => row.evaluableSliceCount > row.weightedSliceCount)).toBe(true);
+	});
+
 	it('uses the expanded control rectangles for protected-live and other-protected masks', () => {
 		const input = buildMeadowEntryControlInputs(process.cwd());
 		const masks = buildMeadowEntryPaintedV2SceneryMaskSet(process.cwd());

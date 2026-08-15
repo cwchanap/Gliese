@@ -92,6 +92,7 @@ interface ControlContext {
 	tiles: readonly MeadowEntryPaintedV2DecorationTile[];
 	controls: Readonly<Record<string, string>>;
 	controlHashes: Readonly<Record<string, string>>;
+	sourceHashes: Readonly<Record<string, string>>;
 	combinedControlFingerprint: string;
 }
 
@@ -211,7 +212,10 @@ function ensureReviewRoot(repositoryRoot: string, outputRoot: string): void {
 	);
 }
 
-async function readRenderedControls(repositoryRoot: string): Promise<ControlContext> {
+async function readRenderedControls(
+	repositoryRoot: string,
+	providedSceneryMasks?: MeadowEntryPaintedV2SceneryMaskSet
+): Promise<ControlContext> {
 	const input = buildMeadowEntryControlInputs(repositoryRoot);
 	const rendered = renderMeadowEntryControls(input);
 	const controlHashes: Record<string, string> = {};
@@ -224,10 +228,12 @@ async function readRenderedControls(repositoryRoot: string): Promise<ControlCont
 		controlBytes[filename] = checkedIn;
 		controlHashes[filename] = sha256(checkedIn);
 	}
-	const sceneryMasks = buildMeadowEntryPaintedV2SceneryMaskSetFromControls(input, {
-		...controlHashes,
-		'control-fingerprint': computeMeadowEntryCombinedControlFingerprint(input)
-	});
+	const sceneryMasks =
+		providedSceneryMasks ??
+		buildMeadowEntryPaintedV2SceneryMaskSetFromControls(input, {
+			...controlHashes,
+			'control-fingerprint': computeMeadowEntryCombinedControlFingerprint(input)
+		});
 	const eligibility = buildMeadowEntryPaintedV2DecorationEligibility({
 		width: input.worldBounds.right - input.worldBounds.left,
 		height: input.worldBounds.bottom - input.worldBounds.top,
@@ -246,6 +252,7 @@ async function readRenderedControls(repositoryRoot: string): Promise<ControlCont
 		tiles,
 		controls: rendered,
 		controlHashes,
+		sourceHashes: sceneryMasks.sourceHashes,
 		combinedControlFingerprint: computeMeadowEntryCombinedControlFingerprint(input)
 	};
 }
@@ -292,7 +299,7 @@ function payload(
 		},
 		controls: {
 			combinedControlFingerprint: controls.combinedControlFingerprint,
-			sourceHashes: controls.controlHashes,
+			sourceHashes: controls.sourceHashes,
 			parserPolicy: 'builder-control-inputs-only'
 		},
 		eligibility: {
@@ -1040,6 +1047,7 @@ function maskInventoryArtifact(
 			width: masks.width,
 			height: masks.height,
 			combinedControlFingerprint: controls.combinedControlFingerprint,
+			sourceHashes: masks.sourceHashes,
 			masks: maskEntries,
 			insertIds: inserts.map(({ id }) => id),
 			generatedInsertIds: INSERT_REVIEW_IDS,
@@ -1097,7 +1105,7 @@ async function main(): Promise<void> {
 		: resolve(repositoryRoot, options.master);
 	const master = assembledMaster?.bytes ?? (await readFile(masterPath));
 	const decoded = await decodeMeadowEntryRgba(master);
-	const controls = await readRenderedControls(repositoryRoot);
+	const controls = await readRenderedControls(repositoryRoot, assembly?.masks);
 	const energy = measureMeadowEntryPaintedV2DecorationEnergy(
 		decoded,
 		controls.eligibility,
