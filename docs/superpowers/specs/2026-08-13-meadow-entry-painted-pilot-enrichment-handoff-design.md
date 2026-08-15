@@ -2,7 +2,7 @@
 
 **Date:** 2026-08-13
 
-**Status:** Forest-enrichment amendment direction approved on 2026-08-14; written amendment awaiting user review
+**Status:** Forest-enrichment direction approved on 2026-08-14; corrected written amendment awaiting user review
 
 **Amends:** `2026-08-12-meadow-entry-painted-pilot-camera-safe-underlay-design.md`
 
@@ -23,11 +23,13 @@ and requires synthetic compositor GREEN before generation.
 
 **2026-08-14 forest-enrichment amendment:** The first six-source interim candidate cleared the
 objective texture-energy floor but was rejected because the background still read as a broad grass
-field with insufficient environmental structure. The replacement art may therefore bake richer
-tree and forest scenery into the same two base textures. Forest scenery is confined to authored
-blocked scenery belts; traversable fields, routes, approaches, and live clearances retain
-ground-level detail only. No runtime prop, collision shape, ownership rule, texture plane, or crop
-changes as part of this amendment.
+field with insufficient environmental structure. The replacement art therefore adds two baked
+layers to the same two base textures: richer ground-level decoration across eligible traversable
+terrain, plus mask-scoped forest/hedge inserts inside a sealed inventory of existing blocker belts.
+The inserts are deterministic preassembly source composites, not runtime planes. The unchanged
+underlay, detail-feather, and pair-correction stages therefore remain the final owners of panel
+boundaries. No runtime prop, collision shape, ownership rule, texture plane, or crop changes as
+part of this amendment.
 
 ## Purpose
 
@@ -116,9 +118,11 @@ interaction, ownership, or state.
 
 Region language is:
 
-- **Sundrop:** clover, small flowers, scattered pebbles, varied grass, worn path shoulders, and
-  orchard-like hedge or treeline depth along blocked village edges;
-- **connector:** wheel-rut wear, compacted-soil variation, small stones, and sparse wildflowers;
+- **Sundrop:** clover, clustered small flowers, scattered pebbles, varied grass, low scrub, fallen
+  leaves, and worn path shoulders; Sundrop has no approved tree-belt footprint inside the crop and
+  therefore receives no baked tree or trunk;
+- **connector:** wheel-rut wear, compacted-soil variation, small stones, low scrub, fallen leaves,
+  and sparse wildflowers;
 - **Crossroads:** mixed gravel and cobble, weeds between stones, dry grass, edge flowers, and
   restrained woodland cues at the Wildwood-facing blocked edge;
 - **neighboring margins:** the existing region-correct marsh ground, leaf litter, forest-floor
@@ -133,25 +137,65 @@ The background uses two distinct review layers:
    grass, flowers, pebbles, leaf litter, roots, ferns, low shrubs, path wear, and material variation.
    It continues to subtract protected/live, building, transition, reward/discovery, semantic-anchor,
    and route-core pixels.
-2. **Blocked scenery belts.** A second review-only raster permits treelines, visible trunks,
-   clustered canopy, dense shrubs, roots, ferns, forest-floor shadow, and woodland depth only within
-   current non-navigable forest/hedge blocker footprints. The source inventory is a sorted,
-   fail-closed selection from the existing reviewed Meadow Entry bake-ownership catalog: current
-   blockers whose reviewed visual language is `hedge`, `tree-wall`, or `forest-bank`. It is
-   intersected with the unchanged two-crop union and clipped to the exact blocker rectangles with
-   no outward dilation. This selection does not amend painted-v2 runtime ownership.
+2. **Blocked scenery belts.** A second art-assembly raster permits dense shrubs, roots, ferns,
+   forest-floor shadow, and woodland depth inside a sealed set of current non-navigable blocker
+   footprints. Rows reviewed as `tree-wall` or `forest-bank` may also receive varied trunk rhythm
+   and dark canopy-interior texture. Rows reviewed as `hedge` remain region-correct low brush or
+   reeds and do not become a forest.
 
-The scenery-belt inventory and its source hashes are emitted in review metadata, not added to the
-runtime ownership table or gameplay controls. A catalog or bounds change makes the review fixture
-stale and stops generation. Protected live decor—including authored individual tree, gate, sign,
-pickup, actor, and landmark sprites—remains excluded.
+The exact in-crop scenery inventory is:
 
-Inside a scenery belt, trunks, dark canopy interiors, and other high-contrast collision cues must
-remain inside the exact blocked footprint. Softer leaf litter, grass blending, and canopy shadow may
-blend into otherwise eligible ground, but cannot narrow a route or suggest an additional blocker.
-The art may imply a continuous forest behind live tree sprites, but must not reproduce an authored
-sprite's exact silhouette, position, or landmark identity. Existing live visuals remain distinct
-and render unchanged above the background.
+| Source ID | Exact source bounds | Reviewed language |
+| --- | --- | --- |
+| `coast-crossroads-mouth-bank` | `(3168,4900)–(3232,5300)` | `hedge` |
+| `mistfen-entry-bank-east` | `(3068,2600)–(3132,3100)` | `hedge` |
+| `silverpine-wall-A-east` | `(3628,2700)–(3692,3000)` | `tree-wall` |
+| `silverpine-wall-A-west` | `(3308,2700)–(3372,3000)` | `tree-wall` |
+| `silverpine-wall-B-north` | `(3148,2558)–(3532,2622)` | `tree-wall` |
+| `silverpine-wall-B-south` | `(3148,2878)–(3532,2942)` | `tree-wall` |
+| `silverpine-wall-C-east` | `(3308,2540)–(3372,2780)` | `tree-wall` |
+| `silverpine-wall-C-west` | `(2988,2540)–(3052,2780)` | `tree-wall` |
+| `wildwood-forest-lane-west-bank` | `(4968,3200)–(5032,5300)` | `forest-bank` |
+| `wildwood-north-climb-west-bank` | `(5368,1950)–(5432,3050)` | `forest-bank` |
+
+These ten literal rows are resolved through the existing Meadow Entry source catalog, intersected
+with the unchanged two-crop union, and clipped to their exact blocker rectangles with no outward
+dilation. The fixture pins the sorted IDs, reviewed languages, resolved bounds, source-catalog hash,
+and mask hash. Any row, bounds, or catalog change fails closed. The inventory does not amend
+painted-v2 runtime ownership. It intentionally contains no Sundrop or connector tree belt; those
+views become richer through the ground-detail field instead of false visual blockers.
+
+The scenery-belt inventory and its source hashes are emitted in art provenance and review metadata,
+not added to the runtime ownership table or gameplay controls. Protected live decor—including
+authored individual tree, gate, sign, pickup, actor, and landmark sprites—remains excluded.
+
+Inside a tree-wall or forest-bank belt, trunks, dark canopy interiors, and other high-contrast
+collision cues remain inside the exact blocked footprint. The deterministic inward feather reaches
+zero at every blocker edge, so the surrounding ground remains unchanged and no rectangular strip is
+exposed. The art may imply a continuous forest behind live tree sprites, but must not reproduce an
+authored sprite's exact silhouette, position, or landmark identity. Existing live visuals remain
+distinct and render unchanged above the background.
+
+Mask precedence is exact. Let `selectedBlockers` be the rasterized union of the ten literal rows.
+Let `otherProtected` be the protected/live sources rerendered from the ownership catalog while
+omitting only those ten blocker IDs; overlapping protected decor, landmarks, buildings, transitions,
+rewards/discoveries, semantic anchors, and route-core pixels remain present. Then:
+
+```text
+groundAllowed = cropUnion & !protectedLive & !building & !transition
+                & !rewardDiscovery & !semanticAnchor & !routeCore
+
+sceneryAllowed = cropUnion & selectedBlockers & !otherProtected & !building & !transition
+                 & !rewardDiscovery & !semanticAnchor & !routeCore
+
+decorationAllowed = groundAllowed | sceneryAllowed
+```
+
+The selected blocker omission is the only protected-mask exception. Every overlapping non-selected
+source still wins. `groundAllowed` and `decorationAllowed` own ground-richness review;
+`sceneryAllowed` also owns the deterministic insert bake. All three rasters and their source hashes
+are art-package provenance only: they do not enter the gameplay control fingerprint or runtime
+ownership table.
 
 Decoration eligibility reuses the existing control SVGs. It subtracts the rendered protected-live,
 building-footprint, entrance-transition, reward-discovery, and semantic-anchor masks from the
@@ -162,7 +206,7 @@ and no new control SVG is introduced.
 Implementation exposes that existing margin constant as a read-only exported contract and reuses
 it directly; it must not copy the four numbers into a second decoration-only constant.
 
-The route-core exclusion is a review-only raster derived in memory from
+The route-core exclusion is an art-review/assembly raster derived in memory from
 `meadow-entry-terrain-path-mask.svg`. Each terrain rectangle is inset by the same existing
 `PROTECTION_MARGINS`, and non-positive results are discarded. This leaves the path core quiet while
 allowing low-profile decoration on eligible path shoulders. The derived raster, its source hashes,
@@ -332,9 +376,9 @@ filtering, and correction-edge pixels are byte-equal before and after the correc
 
 ## Compositor-first TDD gate
 
-No image-generation call may start until the pair table and edge-feathered pair correction pass
-synthetic RED-to-GREEN tests. A synthetic `128px` Sundrop fixture is mandatory because it is the
-narrow case that exposes both underlay wash-out and a false midpoint claim from the rejected
+No image-generation call may start until both the paired-detail correction and the blocked-scenery
+bake pass synthetic RED-to-GREEN tests. A synthetic `128px` Sundrop fixture is mandatory because it
+is the narrow case that exposes both underlay wash-out and a false midpoint claim from the rejected
 `max(featherA, featherB)` proposal.
 
 Tests pin:
@@ -350,40 +394,157 @@ Tests pin:
 - deterministic repeated output;
 - rejection of stale, missing, overlapping, or dimensionally invalid pair rows or formulas.
 
-If this synthetic fixture cannot pass, generation stops for a design correction. Art correction
-rounds must not be spent compensating for a defective compositor, and the Sundrop pair policy must
-not be silently removed.
+A separate synthetic scenery fixture pins:
+
+- the seven literal insert rows, two exact classes, sealed source bounds, and owning priorities;
+- a complete matrix from every selected blocker/source-panel intersection to exactly one matching
+  class insert, with rejection of a missing or extra source/class intersection;
+- source-local mask blending before assembly, with no mutation outside the matching class mask;
+- unchanged Crossroads north/south and Sundrop/Crossroads underlay blends after source enrichment;
+- unchanged ordinary `128px` detail perimeter and paired-detail corrections after source
+  enrichment;
+- disjoint hedge/woodland row masks and rejection of a cross-class overlap;
+- repeated 8-neighbor erosion around both an outer blocker edge and an irregular protected hole;
+- mask weight zero at either boundary, 255 at inward depth `15`, opacity, and no mutation outside
+  the matching class mask;
+- deterministic repeated output and rejection of a stale row, mask, class, overlap bound, helper
+  formula, or source binding.
+
+If either synthetic fixture cannot pass, generation stops for a design correction. Art correction
+rounds must not be spent compensating for a defective compositor or scenery mask, and neither the
+Sundrop pair policy nor the scenery-boundary policy may be silently removed.
 
 ## Generation and normalization
 
-Only after the compositor-first gate passes, each of the eight sources uses a distinct built-in
-image-generation call. Calls are ordered as:
+Only after the compositor-first gate passes, each of the eight final presentation sources uses a
+distinct built-in image-generation call. Seven supplementary blocked-scenery inserts use seven more
+distinct calls, for exactly fifteen calls in a complete first attempt. They are approval-bound
+assembly inputs, not registry panels or runtime textures.
+
+The final source calls are ordered as:
 
 1. Sundrop north underlay, then Sundrop south underlay using the accepted north overlap;
 2. Crossroads north underlay, then Crossroads south underlay using the accepted north overlap;
 3. Sundrop north detail, then Sundrop south detail using the accepted north overlap;
 4. connector detail, then Crossroads detail using the accepted connector overlap.
 
-Reference packs include the approved concept, region palette, actual neighboring panel pixels,
-route geometry, clearance information, and a softly annotated blocked-scenery-belt guide. That
-guide distinguishes forest depth from traversable ground without exposing literal rectangles as
-scenery. High-contrast rectangular control atlases must not be presented as literal scenery
-references; masks remain authoritative for QA and may be converted to soft annotations for
-generation. Every used reference path and SHA-256 is recorded.
+The supplementary inserts are:
 
-Prompts require layered, non-repeating forest structure inside the annotated belts: irregular
-treelines, varied canopy scale, visible trunk rhythm, undergrowth, roots, ferns, leaf litter, and
-soft depth shadow. They also require quiet route cores, open approaches, no isolated trees on
-walkable ground, no duplicate landmark or live-prop silhouette, no rectangular hedge row, and no
-regular forest stamp grid. A source that clears the texture-energy floor but still reads as one
-broad grass field fails the human gate.
+| Insert ID | Class | Exact world bounds | Owning source / priority | Generated before |
+| --- | --- | --- | --- | --- |
+| `camera-underlay-sundrop-south-blocked-hedge` | `hedge` | `(0,4736)–(3200,6400)` | `camera-underlay-sundrop-south` / `1` | interim gate |
+| `camera-underlay-crossroads-north-blocked-hedge` | `hedge` | `(2368,2240)–(5568,3904)` | `camera-underlay-crossroads-north` / `2` | interim gate |
+| `camera-underlay-crossroads-south-blocked-hedge` | `hedge` | `(2368,3776)–(5568,5440)` | `camera-underlay-crossroads-south` / `3` | interim gate |
+| `camera-underlay-crossroads-north-blocked-woodland` | `woodland` | `(2368,2240)–(5568,3904)` | `camera-underlay-crossroads-north` / `2` | interim gate |
+| `camera-underlay-crossroads-south-blocked-woodland` | `woodland` | `(2368,3776)–(5568,5440)` | `camera-underlay-crossroads-south` / `3` | interim gate |
+| `crossroads-blocked-hedge` | `hedge` | `(2880,2816)–(4608,4768)` | `crossroads` / `50` | final gate, after final Crossroads detail |
+| `crossroads-blocked-woodland` | `woodland` | `(2880,2816)–(4608,4768)` | `crossroads` / `50` | final gate, after final Crossroads detail |
 
-After the four underlays and Sundrop north/south details—the first six revised sources—pass their
-source checks, work pauses at an interim assembled checkpoint. A temporary-root assembly uses those
-six candidates with the still-pinned Hero House, connector, and Crossroads bytes. It produces the
-two temporary crops, native crops for all four Sundrop intersection sides and all four Hero House
-edges, and one normal `1920×1080`, DPR-1, zoom-1 Sundrop browser capture. The seventh and eighth
-generation calls do not begin until that assembled evidence has an explicit user verdict.
+The exact sixteen blocker/source-panel intersections collapse to those seven unique insert rows:
+
+- Sundrop-south hedge → `coast-crossroads-mouth-bank`;
+- Crossroads-north hedge → `mistfen-entry-bank-east`;
+- Crossroads-south hedge → `coast-crossroads-mouth-bank`;
+- Crossroads-north woodland → all six selected Silverpine rows plus both selected Wildwood rows
+  listed above;
+- Crossroads-south woodland → `wildwood-forest-lane-west-bank`;
+- Crossroads-detail hedge → `mistfen-entry-bank-east`;
+- Crossroads-detail woodland → `silverpine-wall-A-east`, `silverpine-wall-A-west`, and
+  `silverpine-wall-B-south`.
+
+Each insert is generated as an organic, continuous regional surface without literal mask
+rectangles, paths, buildings, props, labels, or landmarks. A `hedge` insert contains low
+region-correct brush or reeds and explicitly excludes trunks and canopy masses. A `woodland` insert
+contains varied tree rhythm, undergrowth, roots, ferns, leaf litter, irregular value masses, and
+soft depth shadow. Crossroads-family woodland surfaces evolve from Silverpine conifer language in
+the north toward Wildwood broadleaf language in the south without a straight material boundary.
+Uniform normalization produces the exact row dimensions with the same `<=2x`, opaque canonical
+RGBA contract as a panel. An insert may contain its scenery class across its full temporary canvas
+because deterministic assembly exposes it only through the matching class mask.
+
+The seven inserts use stable, package-owned paths:
+
+```text
+artifacts/meadow-entry/painted-v2/source-inserts/raw/<insert-id>.png
+artifacts/meadow-entry/painted-v2/source-inserts/<insert-id>.png
+artifacts/meadow-entry/painted-v2/source-inserts/<insert-id>.json
+```
+
+Their raw and normalized bytes, prompt, references, transform, exact class, owning source and
+priority, mask hash, attempt history, and approval state are stored as seven literal rows in root
+provenance under `blockedSceneryInserts`. They are included in package approval and storage checks
+but are not registered in `MEADOW_ENTRY_PAINTED_V2_SOURCE_PANELS`, exported as runtime textures, or
+copied into `public/`.
+
+The in-memory enriched source bytes are not written back over the eight normalized presentation
+PNGs. Root assembly provenance instead records a `blockedSceneryBake` section containing the exact
+coverage matrix, class-mask hashes, erosion and blend formulas, helper identifiers, and decoded-RGBA
+SHA-256 for each of the four affected owning sources before ordinary assembly. This keeps the
+ground-only presentation candidates independently reviewable while making the final master fully
+reproducible.
+
+Image-generation references are art-only: the approved concept, region palette, the current source
+panel as a composition reference, actual neighboring panel pixels, and accepted painted detail.
+Route coordinates and clearance requirements are stated in the prompt and verified afterward, but
+control SVGs, mask rasters, rectangular atlases, and blocked-scenery overlays are not supplied as
+image references. This prevents guide geometry from becoming visible grid or rectangle artifacts.
+Those controls remain authoritative deterministic QA and assembly inputs. Every reference actually
+supplied to a call is recorded by path and SHA-256.
+
+Final-panel prompts remain ground-only: quiet route cores, open approaches, no trees or tall objects
+on walkable ground, no duplicate landmark or live-prop silhouette, no rectangular hedge row, and no
+regular stamp grid. Insert prompts use their exact class contract above. A complete candidate that
+clears the texture-energy floor but still reads as one broad grass field fails the human gate.
+
+### Deterministic blocked-scenery bake
+
+The bake runs on decoded source-panel bytes before ordinary nine-panel assembly. `hedgeAllowed`
+contains the two `hedge` rows, while `woodlandAllowed` contains the six `tree-wall` and two
+`forest-bank` rows. For either class, mask feathering uses exact repeated 8-neighbor erosion:
+
+```text
+E0 = classAllowed
+E(k+1) = { p in E(k) | every pixel in p's 3x3 neighborhood is in E(k) }
+sceneryInsetDistance(p) = max k such that p is in E(k)
+sceneryWeight = meadowEntryDetailFeatherWeight(min(sceneryInsetDistance(p), 15), 15)
+enrichedSource = blendMeadowEntryDetailChannel(originalSource, insertSource, sceneryWeight)
+```
+
+This makes the weight zero not only at each blocker perimeter but also around every hole made by a
+higher-precedence live/protected mask. It reaches 255 wherever the final class mask has at least 15
+pixels of inward depth. Each insert is sampled in the local coordinates of its exact owning source;
+its bounds and dimensions are identical to that source. A source pixel is enriched only when its
+world pixel belongs to the matching class mask. Hedge and woodland masks are disjoint, so their
+application order cannot change the output.
+
+A sealed coverage matrix is derived from the ten blocker rows and all nine panel bounds. Every
+non-empty selected-blocker/source-panel intersection must have exactly one insert with the same
+source bounds and matching class. The seven-row table above is the only valid result. This is why no
+Sundrop-north, Sundrop-detail, Hero House, or connector insert exists: current source geometry
+produces no matching scenery intersection for those sources. Missing, extra, or cross-class rows
+fail before reading image bytes.
+
+Only after those seven in-memory source composites are complete does the existing ordinary assembly
+run. The unchanged Crossroads north/south `128px` axis blend and Sundrop/Crossroads `832px` family
+blend join enriched underlays; the unchanged `128px` detail feather composites enriched Crossroads;
+and the two paired-detail corrections run last. No insert rectangle is ever copied directly into the
+master. Pixels outside `sceneryAllowed` are therefore byte-identical to an assembly of the same
+eight replacement sources without inserts, and all existing panel-boundary guarantees remain
+applicable to the final master. Alpha remains 255 wherever the base master is opaque.
+
+The bake reuses the existing canonical PNG, `blendMeadowEntryAxisPairPixel`,
+`compositeMeadowEntryDetailPanel`, `meadowEntryDetailFeatherWeight`, and
+`blendMeadowEntryDetailChannel` paths and adds no generic authoring framework, cleanup rectangle,
+runtime plane, or mutable gameplay data.
+
+After the four underlays, Sundrop north/south details, and the five underlay-owned class inserts pass
+their source checks, work pauses at an interim assembled checkpoint. A temporary-root assembly uses
+those six panel candidates and five inserts with the still-pinned Hero House, connector, and
+Crossroads bytes. It produces the two temporary crops, a full-master overview, native crops for all
+four Sundrop intersection sides and all four Hero House edges, one matched Sundrop ground-richness
+view, and one Wildwood forest-lane view proving that the masked bake is visible. The seventh and
+eighth final-panel calls and the two Crossroads detail inserts do not begin until that assembled
+evidence has an explicit user verdict.
 
 The interim checkpoint does not rerun the GPU texture probe. It retains the same two `3200×3200`
 decoded textures and therefore cannot exercise a different retention or maximum-texture-size
@@ -393,8 +554,9 @@ rerun once against the final two exports, where it provides actionable evidence.
 Normalization remains uniform scale plus deterministic center crop with no stretch. Any candidate
 requiring more than `2×` uniform upscaling is rejected. Accepted files must have exact registry
 dimensions, four channels, alpha 255 everywhere, and canonical PNG chunks. Broad deterministic
-cleanup rectangles, semantic-pad flattening, or unrecorded pixel patching are forbidden. A failed
-candidate is regenerated instead.
+cleanup rectangles, semantic-pad flattening, or unrecorded pixel patching are forbidden. The exact
+blocked-scenery bake above is the sole mask-scoped composition exception. A failed candidate is
+regenerated instead.
 
 ## Review evidence
 
@@ -402,6 +564,9 @@ The source-art gate contains:
 
 - eight full-panel native-resolution reviews;
 - five native crops per panel: four quadrants plus center;
+- seven full native-resolution blocked-scenery-insert reviews and five native crops per insert;
+- four native-resolution enriched-source previews for Sundrop south underlay, Crossroads north
+  underlay, Crossroads south underlay, and Crossroads detail;
 - both `128px` north/south underlay intersections;
 - the `832px` family handoff;
 - the complete `2624×128` Sundrop detail intersection and enlarged west/center/east crops;
@@ -409,22 +574,33 @@ The source-art gate contains:
 - all four sides and all four corners of each paired-detail intersection at native resolution;
 - all four Hero House frontage edges against the regenerated Sundrop south surround;
 - a protected/live clearance atlas;
-- a blocked-scenery-belt inventory and overlay with every selected blocker source ID and bounds;
-- native-detail crops for every scenery-belt component intersecting a reviewed panel edge or route;
+- a literal ten-row blocked-scenery inventory with reviewed language, resolved bounds, applicable
+  insert IDs/classes, source-catalog hash, and mask hash;
+- one labelled blocked-scenery overlay plus one clean before/after native crop for each of the ten
+  exact blocker rows;
+- a clean full-master overview proving that the seven inserts do not appear as source rectangles;
+- matched before/after native views at identical world coordinates for Sundrop main street,
+  connector midpoint, a Silverpine tree wall, and the Wildwood forest lane;
 - exactly five numbered `512×512` decoration-density contact sheets covering the pinned 67 tiles;
 - region-material and route-centerline overlays shown separately from clean art.
 
 Control-colored overlays are diagnostic and cannot substitute for clean native art. The source
-gate requires explicit user approval before master publication. Human review rejects any full
-panel dominated by undifferentiated grass, any forest belt that becomes a repeated row of identical
-trees, any tree or trunk outside its allowed belt, or any visual narrowing of an authored route.
+gate requires explicit user approval before master publication. In the clean evidence, Sundrop main
+street and the connector midpoint must each show at least three of their declared regional
+ground-motif families without obscuring the route. All six `tree-wall` rows and both `forest-bank`
+rows must read as organic woodland depth rather than a repeated line of identical trees. The two
+`hedge` rows must remain low Coast/Mistfen brush or reeds rather than trees. Human review rejects any
+full panel dominated by undifferentiated grass, a regular stamp grid, an exposed insert rectangle,
+duplicated live-prop silhouette, or visual narrowing of an authored route.
 
 ## Deterministic verification
 
 Tests must establish genuine RED before production changes and then cover:
 
-- the eight superseded hashes and the still-pinned Hero House detail hash;
-- exact dimensions, canonical encoding, opacity, provenance, and normalization limits;
+- the eight superseded presentation hashes, seven new insert rows and hashes, and the still-pinned
+  Hero House detail hash;
+- exact dimensions, canonical encoding, opacity, provenance, and `<=2x` normalization limits for
+  all eight presentation sources and seven inserts;
 - both transition bounds, axes, participating IDs, derived directions/last indices, and
   self-describing formula provenance;
 - shared axis-helper endpoint equality, monotonic linear weights, an ordinary-surface-independent
@@ -437,14 +613,37 @@ Tests must establish genuine RED before production changes and then cover:
   superseded fixed hard-copy hash and stale absolute Hero literals;
 - the exact 67-tile eligibility inventory, five-sheet partition, per-tile `1.5` energy floor, and
   median `3.1843126049067515` floor;
-- the exact fail-closed blocked-scenery-belt source inventory, bounds, crop intersections, and
-  review-mask hash, with no change to gameplay controls or runtime ownership rows;
-- rejection when the scenery-belt derivation extends beyond its exact blocker/crop intersection or
-  admits a protected-live decor source; tree/trunk placement outside the belt remains a mandatory
-  native-detail human-review failure rather than an unreliable semantic-pixel classifier;
+- the exact literal ten-row blocked-scenery inventory, reviewed language, resolved bounds, crop
+  intersections, source-catalog hash, and mask hash;
+- the exact seven insert IDs, classes, paths, bounds, owning source priorities, attempt histories,
+  and root `blockedSceneryInserts` provenance rows, with missing, duplicate, reordered, or renamed
+  rows rejected;
+- the exact four affected-source decoded-RGBA hashes and complete `blockedSceneryBake` provenance,
+  while the normalized presentation PNGs remain byte-identical to their approved ground-only rows;
+- exact derivation of `selectedBlockers`, `otherProtected`, `groundAllowed`, `sceneryAllowed`, and
+  `decorationAllowed`, including overlap fixtures proving that every non-selected protected/live,
+  building, transition, reward/discovery, semantic-anchor, and route-core pixel still wins;
+- rejection when a scenery row extends beyond its exact blocker/crop intersection or when any
+  protected omission other than the ten sealed blocker IDs is requested;
+- the exact sixteen blocker/source-panel intersections and their seven unique source/class insert
+  rows, source-local preassembly blend, disjoint hedge/woodland masks, and rejection of a missing,
+  extra, cross-class, or bounds-mismatched insert;
+- unchanged north/south and family axis blends, ordinary Crossroads detail feathering, both
+  paired-detail corrections, and final perimeter metrics after enriched sources enter assembly;
+- exact repeated 8-neighbor erosion, zero class-mask boundary weight, full weight at inward depth
+  `15`, alpha preservation, deterministic repeated output, and byte non-mutation outside
+  `sceneryAllowed`;
+- exact reuse of the existing canonical PNG, `blendMeadowEntryAxisPairPixel`,
+  `compositeMeadowEntryDetailPanel`, `meadowEntryDetailFeatherWeight`, and
+  `blendMeadowEntryDetailChannel` helpers rather than copied formulas;
+- unchanged nine-row source-panel registry and proof that no insert becomes a source-panel row,
+  runtime descriptor, runtime/public asset, foreground plane, or gameplay ownership row;
 - unchanged gameplay control fingerprint and exact two-crop manifest;
 - rebuilt master alpha coverage, exports, overlap equality, proof bindings, approval inventory,
-  runtime descriptors, storage policy, and LFS integrity;
+  runtime descriptors, storage policy, and LFS integrity, with package approval binding all seven
+  insert raw/normalized/provenance triples;
+- all ten proof PNG/JSON pairs binding the current master, controls, crop manifest, all nine
+  presentation panels, all seven inserts, and `blockedSceneryBake` provenance;
 - no-write `--check` behavior for every active art writer.
 
 The relevant focused art suites, `bun run check`, changed-file Prettier and ESLint, `bun run build`,
@@ -464,15 +663,23 @@ The existing painted-pilot E2E journey is rerun at `1920×1080`, DPR 1. Every sa
 camera rectangle must remain covered by the unchanged crop union, and the healthy and per-crop
 fallback ownership assertions remain exact.
 
-The browser visual gate replaces all nine rejected captures and adds native-detail connector
-handoff crops to the report. Normal views must show no source rectangle, material jump,
-double-darkening, fallback exposure, blur mismatch, repeated stamp, false collision cue, clearance
-ambiguity, debug overlay, or incorrect review bar. Hero House frontage, Sundrop main street,
-connector village mouth, connector midpoint, connector Crossroads mouth, and Crossroads Waystone
-must each show deliberate regional layering rather than a single grass texture. Where a scenery
-belt enters the camera, it must read as a natural forest edge with at least two distinguishable
-depth layers—for example canopy plus trunks/undergrowth—while the traversable route remains
-unambiguous. Diagnostic views must remain explicitly labelled and truthful.
+The browser visual gate replaces all nine rejected captures, adds normal Silverpine tree-wall and
+Wildwood forest-lane captures, and adds native-detail handoff crops and a full-master overview to
+the report. Normal views must show no source rectangle, material jump, double-darkening, fallback
+exposure, blur mismatch, repeated stamp, false collision cue, clearance ambiguity, debug overlay,
+or incorrect review bar. Hero House frontage, Sundrop main street, connector village mouth,
+connector midpoint, connector Crossroads mouth, and Crossroads Waystone must each show deliberate
+regional layering rather than a single grass texture. Sundrop and connector views prove ground
+richness and must not contain a baked tree or trunk. The Silverpine and Wildwood views must show a
+natural forest edge with at least two distinguishable depth cues—for example canopy interior plus
+varied trunks/undergrowth—while the traversable route remains unambiguous. Coast and Mistfen hedge
+rows are verified in their clean native master crops. The collision-only, matched-fallback, and
+deliberate render-fault diagnostic views are recaptured and remain explicitly labelled and truthful.
+
+At least four matched before/after browser captures use identical save state, camera center,
+viewport, DPR, zoom, and review-bar placement: Sundrop main street, connector midpoint, Silverpine
+tree wall, and Wildwood forest lane. These comparisons are presentation evidence only; the rejected
+baseline remains unapproved and the new result still requires a fresh user verdict.
 
 The replacement report records exact hashes, dimensions, capture settings, source/package
 approvals, texture decision, and the user's explicit verdict with a UTC-second timestamp. No
@@ -485,30 +692,47 @@ runtime evidence pass every gate. Rejected candidates and screenshots are retain
 are not published as approvals. A failed source is regenerated only after the synthetic compositor
 gate is green; the compositor, masks, geometry, or tolerances are not weakened to make it pass.
 
-Each revised source permits at most five bounded generation attempts, recorded independently so one
-stubborn panel cannot consume or conceal another panel's correction history. If a source reaches
-that limit, either revised detail pair still cannot achieve a natural handoff, or the decoration
-contract still fails, the task stops for a new design decision. It must not add a bridge plane,
-live decoration, runtime texture, coordinate change, or undocumented exception.
+Each of the eight revised presentation sources and seven blocked-scenery inserts permits at most five
+bounded generation attempts, recorded independently so one stubborn input cannot consume or conceal
+another input's correction history. A failed ground panel is regenerated without changing its
+geometry. A repeated, flat, or regionally wrong forest surface regenerates only its owning insert.
+If deterministic tests reveal pixels outside `sceneryAllowed`, the bake implementation is corrected
+and retested; art is not used to conceal a mask/compositor defect.
+
+If any input reaches its limit, either revised detail pair still cannot achieve a natural handoff,
+or the exact belts cannot produce convincing forest depth, the task stops for a new design decision.
+It must not widen a blocker mask, admit a new blocker, add trees to open Sundrop/connector ground,
+add a bridge plane, introduce live decoration or another runtime texture, move coordinates, or add
+an undocumented exception.
 
 ## Out of scope
 
 - live decorative props or new collision;
+- baked trees or trunks on Sundrop or connector traversable ground;
 - buildings, NPCs, pickups, discoveries, encounters, transitions, or save changes;
 - camera-safe expansion beyond the approved route and two-crop union;
 - a full-world PR3 master or default painted-mode activation;
-- new art-generation, authoring, or runtime frameworks;
+- any new runtime texture, foreground layer, source-panel registry row, or public asset for the seven
+  blocked-scenery inserts;
+- a generic art-generation, cleanup, authoring, or runtime framework beyond the bounded seven-insert
+  bake defined here;
 - changes to the pinned Hero House detail source.
 
 ## Acceptance summary
 
 The revision is ready to replace the current package only when:
 
-1. the eight new sources satisfy the ground-detail, blocked-forest-belt, clearance, and continuity
-   contracts;
-2. the edge-feathered pair correction, exact perimeter and boundary metrics, density floors, and all
-   unchanged assembly contracts pass deterministic tests;
-3. package generation, approval, storage, static, build, E2E, and texture gates pass;
-4. fresh normal browser views are richer and both paired-detail handoffs read as one continuous
-   landscape at native detail; and
-5. the user explicitly approves the final evidence.
+1. the eight replacement presentation sources satisfy the ground-detail, clearance, and continuity
+   contracts, including three visible motif families in the representative Sundrop and connector
+   views;
+2. the seven approval-bound inserts produce organic tree/forest depth in all eight woodland rows and
+   region-correct low brush/reeds in both hedge rows, with no visible insert rectangle or mutation
+   outside `sceneryAllowed`;
+3. the edge-feathered pair correction, scenery bake, exact perimeter and boundary metrics, density
+   floors, mask precedence, and all unchanged assembly contracts pass deterministic tests;
+4. package generation, approval, storage, static, build, E2E, and two-texture probe gates pass with
+   the runtime and gameplay contracts frozen;
+5. fresh normal and matched before/after browser views are visibly richer, both paired-detail
+   handoffs read as one continuous landscape, and Silverpine/Wildwood read as forest rather than a
+   stamped border; and
+6. the user explicitly approves the final evidence.
