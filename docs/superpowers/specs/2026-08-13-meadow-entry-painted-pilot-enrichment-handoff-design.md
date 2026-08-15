@@ -405,8 +405,10 @@ A separate synthetic scenery fixture pins:
   enrichment;
 - disjoint hedge/woodland row masks and rejection of a cross-class overlap;
 - repeated 8-neighbor erosion around both an outer blocker edge and an irregular protected hole;
-- mask weight zero at either boundary, 255 at inward depth `15`, opacity, and no mutation outside
-  the matching class mask;
+- edge-envelope weight zero at either boundary and `255` at inward depth `15`; separately, exact
+  owner-relative detail limiting, organic percentile/smoothstep weight, final multiplicative weight
+  that may remain below `255` at that depth, opacity, and no mutation outside the matching class
+  mask;
 - deterministic repeated output and rejection of a stale row, mask, class, overlap bound, helper
   formula, or source binding.
 
@@ -500,22 +502,88 @@ clears the texture-energy floor but still reads as one broad grass field fails t
 
 The bake runs on decoded source-panel bytes before ordinary nine-panel assembly. `hedgeAllowed`
 contains the two `hedge` rows, while `woodlandAllowed` contains the six `tree-wall` and two
-`forest-bank` rows. For either class, mask feathering uses exact repeated 8-neighbor erosion:
+`forest-bank` rows. The original source gate proved that a full-surface insert behind a rectilinear
+blocker mask can still read as a dark bar even when the mask perimeter has a `15px` feather. The
+corrected contract therefore keeps the gameplay-derived masks as immutable eligibility bounds but
+adds two deterministic visual operations inside them: owner-relative tone matching and an
+art-derived organic clump field. It does not widen, move, or otherwise mutate a blocker.
+
+All local means use an odd square window clipped to the insert bounds. A channel or luma mean is the
+integer half-up mean of the included samples. Luma is exact integer sRGB luma:
+
+```text
+luma(r, g, b) = floor((54*r + 183*g + 19*b + 128) / 256)
+boxMean(source, p, radius) = halfUpMean(source[q] for q in clipped square p +/- radius)
+```
+
+For each insert pixel and RGB channel, broad source value is removed before blending. Hedge detail
+is capped at `32` channel steps; woodland detail is capped at `48`:
+
+```text
+detailLimit(hedge) = 32
+detailLimit(woodland) = 48
+insertMeanC(p) = boxMean(insertC, p, 31)
+insertDetailC(p) = clamp(insertC(p) - insertMeanC(p), -detailLimit(class), detailLimit(class))
+toneMatchedInsertC(p) = clamp(originalSourceC(p) + insertDetailC(p), 0, 255)
+```
+
+The organic field is derived from the accepted insert art rather than random noise or a hand-painted
+mask. For every exact blocker/source-panel intersection, compute:
+
+```text
+nearLuma(p) = boxMean(insertLuma, p, 15)
+farLuma(p) = boxMean(insertLuma, p, 63)
+organicSignal(p) = abs(nearLuma(p) - farLuma(p))
+```
+
+The sample set for an intersection is its exact blocker bounds intersected with its owning source
+bounds, then filtered by the matching class mask and all higher-precedence exclusions. `q40` and
+`q80` use nearest-rank percentiles over the sorted integer signal values, with zero-based index
+`ceil(percentile * sampleCount) - 1`. An intersection with fewer than `64` samples or `q40 == q80`
+fails before composition; it is not rescued with coordinate noise. Between those thresholds, the
+organic clump weight uses an integer half-up cubic smoothstep:
+
+```text
+t(p) = clamp(halfUp(255 * (organicSignal(p) - q40) / (q80 - q40)), 0, 255)
+organicWeight(p) = halfUp(t(p)^2 * (765 - 2*t(p)) / 65025)
+```
+
+When blocker intersections overlap for the same insert, their organic weights combine with `max`,
+making the result independent of blocker-row order. The unchanged repeated 8-neighbor erosion then
+supplies the outer eligibility feather:
 
 ```text
 E0 = classAllowed
 E(k+1) = { p in E(k) | every pixel in p's 3x3 neighborhood is in E(k) }
 sceneryInsetDistance(p) = max k such that p is in E(k)
-sceneryWeight = meadowEntryDetailFeatherWeight(min(sceneryInsetDistance(p), 15), 15)
-enrichedSource = blendMeadowEntryDetailChannel(originalSource, insertSource, sceneryWeight)
+edgeWeight(p) = meadowEntryDetailFeatherWeight(min(sceneryInsetDistance(p), 15), 15)
+sceneryWeight(p) = halfUp(edgeWeight(p) * organicWeight(p) / 255)
+enrichedSourceC(p) = blendMeadowEntryDetailChannel(
+  originalSourceC(p),
+  toneMatchedInsertC(p),
+  sceneryWeight(p)
+)
 ```
 
-This makes the weight zero not only at each blocker perimeter but also around every hole made by a
-higher-precedence live/protected mask. It reaches 255 wherever the final class mask has at least 15
-pixels of inward depth. Each insert is sampled in the local coordinates of its exact owning source;
-its bounds and dimensions are identical to that source. A source pixel is enriched only when its
-world pixel belongs to the matching class mask. Hedge and woodland masks are disjoint, so their
-application order cannot change the output.
+The edge envelope remains zero at the outer boundary of each class-mask union and around every hole
+made by a higher-precedence live/protected mask. Where two same-class blocker rows cross, their union
+is intentionally continuous. The envelope can reach `255` at inward depth `15`, but the final weight
+reaches `255` only in an organic clump core. Each insert is sampled in local coordinates of its exact
+owning source; its bounds and dimensions remain identical to that source. A source pixel is enriched
+only when its world pixel belongs to the matching class mask. Hedge and woodland masks remain
+disjoint, so their application order cannot change the output.
+
+The writer records percentile thresholds and a weight-raster SHA-256 for every blocker/source
+intersection. It also constructs one diagnostic world-space weight raster per literal blocker row by
+taking the `max` of its matching intersection weights. In each row raster, pixels with final weight
+at least `32` must cover between `25%` and `70%` of the eligible, non-protected row area. Orientation
+is the longer bounds axis. For every one-pixel transverse slice across the short axis, compute the
+longest contiguous run at weight `>=32` along the unexcluded long-axis samples, divided by that
+slice's unexcluded sample count. Slices with fewer than `64` unexcluded samples fail. The
+nearest-rank p95 of those run ratios must be at most `0.30`, and the absolute maximum must be at most
+`0.50`. This catches a full-length strip anywhere in the row interior rather than checking only its
+outer edges. These bounds reject an empty belt and a continuous mask-shaped bar; native-detail
+review remains authoritative for whether the resulting clumps read as hedge or forest.
 
 A sealed coverage matrix is derived from the ten blocker rows and all nine panel bounds. Every
 non-empty selected-blocker/source-panel intersection must have exactly one insert with the same
@@ -534,8 +602,9 @@ applicable to the final master. Alpha remains 255 wherever the base master is op
 
 The bake reuses the existing canonical PNG, `blendMeadowEntryAxisPairPixel`,
 `compositeMeadowEntryDetailPanel`, `meadowEntryDetailFeatherWeight`, and
-`blendMeadowEntryDetailChannel` paths and adds no generic authoring framework, cleanup rectangle,
-runtime plane, or mutable gameplay data.
+`blendMeadowEntryDetailChannel` paths. Its bounded local-mean, percentile, smoothstep, and structural
+metric helpers are specific to this seven-insert contract; it adds no generic authoring framework,
+cleanup rectangle, runtime plane, random field, or mutable gameplay data.
 
 After the four underlays, Sundrop north/south details, and the five underlay-owned class inserts pass
 their source checks, work pauses at an interim assembled checkpoint. A temporary-root assembly uses
@@ -619,7 +688,9 @@ Tests must establish genuine RED before production changes and then cover:
   and root `blockedSceneryInserts` provenance rows, with missing, duplicate, reordered, or renamed
   rows rejected;
 - the exact four affected-source decoded-RGBA hashes and complete `blockedSceneryBake` provenance,
-  while the normalized presentation PNGs remain byte-identical to their approved ground-only rows;
+  including local-mean radii, class detail limits, percentile thresholds, smoothstep formula,
+  per-intersection weight-raster hashes and structural metrics, while the normalized presentation
+  PNGs remain byte-identical to their approved ground-only rows;
 - exact derivation of `selectedBlockers`, `otherProtected`, `groundAllowed`, `sceneryAllowed`, and
   `decorationAllowed`, including overlap fixtures proving that every non-selected protected/live,
   building, transition, reward/discovery, semantic-anchor, and route-core pixel still wins;
@@ -630,9 +701,11 @@ Tests must establish genuine RED before production changes and then cover:
   extra, cross-class, or bounds-mismatched insert;
 - unchanged north/south and family axis blends, ordinary Crossroads detail feathering, both
   paired-detail corrections, and final perimeter metrics after enriched sources enter assembly;
-- exact repeated 8-neighbor erosion, zero class-mask boundary weight, full weight at inward depth
-  `15`, alpha preservation, deterministic repeated output, and byte non-mutation outside
-  `sceneryAllowed`;
+- exact clipped half-up box means, integer luma, owner-relative detail caps, nearest-rank `q40` and
+  `q80`, tie/undersized-intersection rejection, integer cubic smoothstep, order-independent `max`
+  aggregation, repeated 8-neighbor erosion, zero class-mask boundary weight, edge-envelope reach at
+  inward depth `15`, per-row coverage and longest-run limits, alpha preservation, deterministic
+  repeated output, and byte non-mutation outside `sceneryAllowed`;
 - exact reuse of the existing canonical PNG, `blendMeadowEntryAxisPairPixel`,
   `compositeMeadowEntryDetailPanel`, `meadowEntryDetailFeatherWeight`, and
   `blendMeadowEntryDetailChannel` helpers rather than copied formulas;
@@ -689,8 +762,11 @@ approval is inferred, and no Task 9 or PR3 work begins before that verdict.
 
 The currently published package remains the comparison baseline until the replacement package and
 runtime evidence pass every gate. Rejected candidates and screenshots are retained as evidence but
-are not published as approvals. A failed source is regenerated only after the synthetic compositor
-gate is green; the compositor, masks, geometry, or tolerances are not weakened to make it pass.
+are not published as approvals. The first approved interim candidate and its source-only correction
+are explicitly superseded because both exposed the literal blocker shape. Further source generation
+resumes only after the corrected organic-clump compositor gate is green. The eligibility masks,
+gameplay geometry, protected precedence, energy floors, and runtime tolerances are not weakened to
+make it pass.
 
 Each of the eight revised presentation sources and seven blocked-scenery inserts permits at most five
 bounded generation attempts, recorded independently so one stubborn input cannot consume or conceal
