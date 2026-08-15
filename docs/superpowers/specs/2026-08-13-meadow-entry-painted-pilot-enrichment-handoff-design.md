@@ -2,7 +2,7 @@
 
 **Date:** 2026-08-13
 
-**Status:** Corrected forest-enrichment amendment approved on 2026-08-14
+**Status:** Corrected execution-order amendment approved on 2026-08-15
 
 **Amends:** `2026-08-12-meadow-entry-painted-pilot-camera-safe-underlay-design.md`
 
@@ -26,10 +26,21 @@ objective texture-energy floor but was rejected because the background still rea
 field with insufficient environmental structure. The replacement art therefore adds two baked
 layers to the same two base textures: richer ground-level decoration across eligible traversable
 terrain, plus mask-scoped forest/hedge inserts inside a sealed inventory of existing blocker belts.
-The inserts are deterministic preassembly source composites, not runtime planes. The unchanged
-underlay, detail-feather, and pair-correction stages therefore remain the final owners of panel
-boundaries. No runtime prop, collision shape, ownership rule, texture plane, or crop changes as
-part of this amendment.
+The inserts are deterministic preassembly source composites, not runtime planes. The underlay,
+detail-feather, and pair-correction stages therefore remain the final owners of panel boundaries.
+No runtime prop, collision shape, ownership rule, texture plane, or crop changes as part of this
+amendment.
+
+**2026-08-15 execution-order amendment:** Review found that the review writer already used the
+sealed pair-corrected priority stack while the production finalizer still called the singular
+detail compositor. The production finalizer must switch to the same priority-stack helper and pass
+synthetic parity tests before any further image generation or human art gate. This code-only change
+temporarily makes the branch non-publishable because checked-in master/export/runtime bytes remain
+the comparison baseline until the approved scenery bake is published. Review therefore uses a
+temporary-root production-equivalent assembly, and every pre-publication task proves the checked-in
+package stayed byte-identical. The amendment also removes the unused full-canvas decoration union,
+limits the public mask result to five retained rasters, and replaces the unsuitable tree-wall
+clump-gap metric with a continuous but non-uniform contour-profile gate.
 
 ## Purpose
 
@@ -187,26 +198,31 @@ groundAllowed = cropUnion & !protectedLive & !building & !transition
 
 sceneryAllowed = cropUnion & selectedBlockers & !otherProtected & !building & !transition
                  & !rewardDiscovery & !semanticAnchor & !routeCore
-
-decorationAllowed = groundAllowed | sceneryAllowed
 ```
 
 The selected blocker omission is the only protected-mask exception. Every overlapping non-selected
 source still wins. `groundAllowed` alone owns the exact 67-tile inventory, the per-tile and median
 energy floors, and the open-ground motif-family review. `sceneryAllowed` owns only the deterministic
-insert bake plus the ten blocker-row and Wildwood reviews. `decorationAllowed` is a diagnostic union
-for overlays and provenance; it never selects richness tiles or contributes energy samples. All
-three rasters and their source hashes are art-package provenance only: they do not enter the gameplay
-control fingerprint or runtime ownership table.
+insert bake plus the ten blocker-row and Wildwood reviews. These art-package masks and their source
+hashes do not enter the gameplay control fingerprint or runtime ownership table. A diagnostic
+overlay that needs their union computes `groundAllowed | sceneryAllowed` while rendering and does
+not retain or provenance-bind another full-canvas raster.
 
-One catalog-backed builder owns `insideCropUnion`, `protectedLive`, `selectedBlockers`,
-`otherProtected`, `buildingFootprint`, `entranceTransition`, `rewardDiscovery`, `semanticAnchor`,
-`routeCore`, `groundAllowed`, `sceneryAllowed`, both class masks, and `decorationAllowed`. It consumes
-`buildMeadowEntryControlInputs()` and the exported `MEADOW_ENTRY_PROTECTION_MARGINS`; it does not
-parse a rendered SVG. Decoration eligibility consumes that builder's `groundAllowed` byte-for-byte
-as `eligible` and copies its diagnostic masks rather than independently deriving terrain insets.
-Control SVGs remain rendered evidence of the same catalog input, not a second raster authority. No
-second uniform dilation and no new control SVG is introduced.
+One catalog-backed builder consumes `buildMeadowEntryControlInputs()` once and owns the derivation
+of `insideCropUnion`, `protectedLive`, `selectedBlockers`, `otherProtected`, `buildingFootprint`,
+`entranceTransition`, `rewardDiscovery`, `semanticAnchor`, `routeCore`, `groundAllowed`,
+`sceneryAllowed`, and both class masks. Its public result retains only these five `6400×6400`
+rasters plus `sourceHashes`: `otherProtected`, `groundAllowed`, `sceneryAllowed`, `hedgeAllowed`, and
+`woodlandAllowed`. Builder-local intermediates are created through one reusable scratch
+raster/accumulator path: each is derived, hashed into `sourceHashes`, applied to the retained output
+accumulators, then discarded or reused. Tests prove precedence at sealed source-backed coordinates
+and through final outputs rather than retaining eight additional full-resolution arrays.
+
+The builder reuses the exported `MEADOW_ENTRY_PROTECTION_MARGINS`; it does not parse a rendered SVG.
+Decoration eligibility consumes that builder's `groundAllowed` byte-for-byte as `eligible` and
+copies only the retained diagnostic masks it actually needs rather than independently deriving
+terrain insets. Control SVGs remain rendered evidence of the same catalog input, not a second raster
+authority. No second uniform dilation and no new control SVG is introduced.
 
 Implementation exposes that existing margin constant as a read-only exported contract and reuses
 it directly; it must not copy the four numbers into a second decoration-only constant.
@@ -421,21 +437,37 @@ If either synthetic fixture cannot pass, generation stops for a design correctio
 rounds must not be spent compensating for a defective compositor or scenery mask, and neither the
 Sundrop pair policy nor the scenery-boundary policy may be silently removed.
 
+The gate also covers the real assembly call sites. Before generation, the production finalizer's
+manual singular-detail loop is replaced by the sealed `compositeMeadowEntryDetailPanels`
+priority-stack helper already used by review assembly. A temporary-root assembly of the same current
+source bytes must produce the same decoded master and identical pair-stage configuration/formula
+provenance through both call paths, including both pair corrections. The checked-in master, exports,
+approval module, generated runtime module, package textures, and public textures remain byte-frozen
+at this stage. Because the new finalizer source intentionally describes pixels not yet published,
+ordinary production `--check` is expected to report a stale master until final publication; this
+intermediate branch state is explicitly non-publishable and every pre-publication task uses scoped
+no-write checks against those frozen paths. A temporary staged-state test pins both the frozen
+published hash and the differing pair-corrected future hash; final publication removes that
+inequality assertion and restores normal master/`--check` equality.
+
 ## Generation and normalization
 
-Only after the compositor-first gate passes, each of the eight final presentation sources uses a
-distinct built-in image-generation call. Seven supplementary blocked-scenery inserts use seven more
-distinct calls, for exactly fifteen calls in a complete first attempt. They are approval-bound
-assembly inputs, not registry panels or runtime textures.
+Only after the compositor-first gate and production/review parity gate pass, the latest preserved
+bytes are evaluated through the corrected assembly. A presentation source or supplementary
+blocked-scenery insert receives a distinct built-in image-generation call only when its corrected
+native or assembled evidence still fails. A complete all-source replacement would require fifteen
+distinct calls, but the implementation must not spend a cosmetic call on a preserved source that
+already passes. Every changed input remains an approval-bound assembly input with its own monotonic
+attempt history; inserts never become registry panels or runtime textures.
 
-The final source calls are ordered as:
+When regeneration is required, presentation calls are ordered as:
 
 1. Sundrop north underlay, then Sundrop south underlay using the accepted north overlap;
 2. Crossroads north underlay, then Crossroads south underlay using the accepted north overlap;
 3. Sundrop north detail, then Sundrop south detail using the accepted north overlap;
 4. connector detail, then Crossroads detail using the accepted connector overlap.
 
-The supplementary inserts are:
+The supplementary insert inventory is:
 
 | Insert ID | Class | Exact world bounds | Owning source / priority | Generated before |
 | --- | --- | --- | --- | --- |
@@ -586,20 +618,44 @@ disjoint, so their application order cannot change the output.
 
 The writer records percentile thresholds and a weight-raster SHA-256 for every blocker/source
 intersection. It also constructs one diagnostic world-space weight raster per literal blocker row by
-taking the `max` of its matching intersection weights. In each row raster, pixels with final weight
+taking the `max` of its matching intersection weights. In every row raster, pixels with final weight
 at least `32` must cover between `25%` and `70%` of the eligible, non-protected row area. Orientation
-is the longer bounds axis. For every one-pixel transverse slice across the short axis, compute the
-longest contiguous run at weight `>=32` along the unexcluded long-axis samples, divided by that
-slice's unexcluded sample count. Slices with fewer than `64` unexcluded samples fail. The
-nearest-rank p95 of those run ratios must be at most `0.30`, and the absolute maximum must be at most
-`0.50`. This catches a full-length strip anywhere in the row interior rather than checking only its
-outer edges. These bounds reject an empty belt and a continuous mask-shaped bar; native-detail
-review remains authoritative for whether the resulting clumps read as hedge or forest.
+is the longer bounds axis. Structural metrics then depend on the row language:
+
+- `hedge` and `forest-bank` rows use the sparse-clump gate. For every one-pixel transverse slice
+  across the short axis, compute the longest contiguous run at weight `>=32` along the unexcluded
+  long-axis samples, divided by that slice's unexcluded sample count. Slices with fewer than `64`
+  unexcluded samples fail. The nearest-rank p95 of those run ratios must be at most `0.30`, and the
+  absolute maximum must be at most `0.50`.
+- `tree-wall` rows use a continuous-contour gate because gameplay owns a continuous impassable wall.
+  For each long-axis slice, compute the maximum edge-envelope weight over its eligible,
+  non-protected pixels. A slice is evaluable only when that maximum is at least `32`; under the
+  sealed 15px smoothstep this begins at inward depth `4` (`edgeWeight=45`), so the mandatory
+  zero/low-weight end feather is excluded rather than declared a false gap. Every evaluable slice
+  must contain at least one pixel with final weight `>=32`; therefore
+  `weightedSliceCount === evaluableSliceCount`. A non-evaluable slice is a deterministic
+  mask/envelope fact, not an organic gap; it may occur at an outer feather or inside a frozen
+  same-class/protected-mask intersection and is recorded explicitly. For each evaluable slice,
+  record the nearest and farthest thresholded depth along the short axis as one `(nearDepth,
+  farDepth)` contour pair. The profile stores `null` for each non-evaluable slice, so identical-pair
+  runs reset across those gaps. Across evaluable slices the profile must contain more than one
+  distinct pair, and the longest run of an identical contour pair divided by the total evaluable
+  slice count must be at most `0.50`. The ordered nullable profile receives its own SHA-256.
+
+The first gate prevents hedges and forest banks from becoming full-length bars. The second preserves
+the visual continuity of a collision wall while rejecting a uniform inserted rectangle. It does not
+ban every straight path-side edge because the sealed blocker geometry is intentionally axis-aligned.
+Native-detail review remains authoritative for natural hedge, bank, and forest-wall readability.
 
 `enrichMeadowEntryPaintedV2Sources` returns those thresholds, intersection weight-raster hashes,
-per-row coverage, p95 and maximum longitudinal-run ratios, formula identifiers, changed-pixel counts,
-class counts, and enriched-source hashes. Tests consume this returned provenance directly; they do
-not reimplement percentile or run-ratio calculations to make assertions.
+formula identifiers, changed-pixel counts, class counts, enriched-source hashes, and a discriminated
+row-metric result. Every row includes blocker ID, language/class, eligible/weighted counts, coverage,
+and weight hash. `hedge`/`forest-bank` rows return `metricKind: 'clump-runs'`, transverse-slice count,
+p95 ratio, and maximum ratio. `tree-wall` rows return `metricKind: 'continuous-contour'`,
+evaluable/non-evaluable/weighted slice counts, evaluable-segment count, distinct contour-pair count, longest
+constant-contour-run ratio, and nullable contour-profile hash. Tests consume this returned
+provenance directly; they do not reimplement the percentile, run-ratio, or contour-profile
+calculations to make assertions.
 
 A sealed coverage matrix is derived from the ten blocker rows and all nine panel bounds. Every
 non-empty selected-blocker/source-panel intersection must have exactly one insert with the same
@@ -608,13 +664,16 @@ Sundrop-north, Sundrop-detail, Hero House, or connector insert exists: current s
 produces no matching scenery intersection for those sources. Missing, extra, or cross-class rows
 fail before reading image bytes.
 
-Only after those seven in-memory source composites are complete does the existing ordinary assembly
-run. The unchanged Crossroads north/south `128px` axis blend and Sundrop/Crossroads `832px` family
-blend join enriched underlays; the unchanged `128px` detail feather composites enriched Crossroads;
-and the two paired-detail corrections run last. No insert rectangle is ever copied directly into the
-master. Pixels outside `sceneryAllowed` are therefore byte-identical to an assembly of the same
-eight replacement sources without inserts, and all existing panel-boundary guarantees remain
-applicable to the final master. Alpha remains 255 wherever the base master is opaque.
+Only after those seven in-memory source composites are complete does the ordinary assembly run. The
+Crossroads north/south `128px` axis blend and Sundrop/Crossroads `832px` family blend join enriched
+underlays; the `128px` detail feather composites enriched Crossroads; and the two paired-detail
+corrections run immediately after their respective second-priority members. Before any image gate,
+both the review writer and production finalizer must use this same sealed priority-stack helper and
+prove byte-identical results for the same decoded inputs. No insert rectangle is ever copied
+directly into the master. Pixels outside `sceneryAllowed` are therefore byte-identical to an
+assembly of the same eight replacement sources without inserts, and all existing panel-boundary
+guarantees remain applicable to the final master. Alpha remains 255 wherever the base master is
+opaque.
 
 The bake reuses the existing canonical PNG, `blendMeadowEntryAxisPairPixel`,
 `compositeMeadowEntryDetailPanel`, `meadowEntryDetailFeatherWeight`, and
@@ -623,13 +682,15 @@ metric helpers are specific to this seven-insert contract; it adds no generic au
 cleanup rectangle, runtime plane, random field, or mutable gameplay data.
 
 After the four underlays, Sundrop north/south details, and the five underlay-owned class inserts pass
-their source checks, work pauses at an interim assembled checkpoint. A temporary-root assembly uses
-those six panel candidates and five inserts with the still-pinned Hero House, connector, and
-Crossroads bytes. It produces the two temporary crops, a full-master overview, native crops for all
-four Sundrop intersection sides and all four Hero House edges, one matched Sundrop ground-richness
-view, and one Wildwood forest-lane view proving that the masked bake is visible. The seventh and
-eighth final-panel calls and the two Crossroads detail inserts do not begin until that assembled
-evidence has an explicit user verdict.
+their source checks, work pauses at an interim assembled checkpoint. First, the latest preserved
+bytes are re-evaluated through the corrected compositor; only sources that still fail are
+regenerated, each with its own bounded attempt history. A temporary-root production-equivalent
+assembly then uses those six panel candidates and five inserts with the still-pinned Hero House,
+connector, and Crossroads bytes. It produces the two temporary crops, a full-master overview, native
+crops for all four Sundrop intersection sides and all four Hero House edges, one matched Sundrop
+ground-richness view, and one Wildwood forest-lane view proving that the masked bake is visible. The
+seventh and eighth final-panel calls and the two Crossroads detail inserts do not begin until that
+assembled evidence has an explicit user verdict.
 
 The interim checkpoint does not rerun the GPU texture probe. It retains the same two `3200×3200`
 decoded textures and therefore cannot exercise a different retention or maximum-texture-size
@@ -707,9 +768,12 @@ Tests must establish genuine RED before production changes and then cover:
   including local-mean radii, class detail limits, percentile thresholds, smoothstep formula,
   per-intersection weight-raster hashes and structural metrics, while the normalized presentation
   PNGs remain byte-identical to their approved ground-only rows;
-- exact derivation of `selectedBlockers`, `otherProtected`, `groundAllowed`, `sceneryAllowed`, and
-  `decorationAllowed`, including overlap fixtures proving that every non-selected protected/live,
-  building, transition, reward/discovery, semantic-anchor, and route-core pixel still wins;
+- exact derivation of `selectedBlockers`, `otherProtected`, `groundAllowed`, `sceneryAllowed`,
+  `hedgeAllowed`, and `woodlandAllowed`, including builder-local intermediate hashes and overlap
+  fixtures proving that every non-selected protected/live, building, transition,
+  reward/discovery, semantic-anchor, and route-core pixel still wins;
+- a public mask result containing exactly the five retained rasters plus source hashes, with any
+  diagnostic ground/scenery union derived only at its rendering call site;
 - rejection when a scenery row extends beyond its exact blocker/crop intersection or when any
   protected omission other than the ten sealed blocker IDs is requested;
 - the exact sixteen blocker/source-panel intersections and their seven unique source/class insert
@@ -722,12 +786,18 @@ Tests must establish genuine RED before production changes and then cover:
   `q80`, tie/undersized-intersection rejection, `meadowEntryDetailFeatherWeight(t, 255)` for organic
   smoothstep, order-independent `max`
   aggregation, repeated 8-neighbor erosion, zero class-mask boundary weight, edge-envelope reach at
-  inward depth `15`, per-row coverage and longest-run limits, alpha preservation, deterministic
-  repeated output, and byte non-mutation outside `sceneryAllowed`;
+  inward depth `15`, the common `25%`–`70%` coverage gate, hedge/forest-bank clump-run limits,
+  tree-wall envelope-threshold evaluability, explicit mask-caused non-evaluable slices, complete
+  weighting of every evaluable slice, and non-uniform nullable contour-profile limits, alpha preservation,
+  deterministic repeated output, and byte non-mutation outside `sceneryAllowed`;
 - exact reuse of the existing canonical PNG, exported `rgbStep`, shared nearest-rank,
   `blendMeadowEntryAxisPairPixel`, `compositeMeadowEntryDetailPanel`,
+  `compositeMeadowEntryDetailPanels`,
   `meadowEntryDetailFeatherWeight`, and `blendMeadowEntryDetailChannel` helpers rather than copied
   formulas;
+- production-finalizer/review-writer parity on the sealed priority-stack assembly before any image
+  gate, with the pre-publication temporary result pinned and all checked-in package/runtime paths
+  proven unchanged;
 - unchanged nine-row source-panel registry and proof that no insert becomes a source-panel row,
   runtime descriptor, runtime/public asset, foreground plane, or gameplay ownership row;
 - unchanged gameplay control fingerprint and exact two-crop manifest;
@@ -823,8 +893,10 @@ The revision is ready to replace the current package only when:
 2. the seven approval-bound inserts produce organic tree/forest depth in all eight woodland rows and
    region-correct low brush/reeds in both hedge rows, with no visible insert rectangle or mutation
    outside `sceneryAllowed`;
-3. the edge-feathered pair correction, scenery bake, exact perimeter and boundary metrics, density
-   floors, mask precedence, and all unchanged assembly contracts pass deterministic tests;
+3. the edge-feathered pair correction, production/review assembly parity, scenery bake, exact
+   perimeter and boundary metrics, density floors, mask precedence, hedge/forest-bank clump gates,
+   tree-wall continuous-contour gates, and all unchanged assembly contracts pass deterministic
+   tests;
 4. package generation, approval, storage, static, build, E2E, and two-texture probe gates pass with
    the runtime and gameplay contracts frozen;
 5. fresh normal and matched before/after browser views are visibly richer, both paired-detail
