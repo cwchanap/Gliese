@@ -1,28 +1,63 @@
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import { spawnSync } from 'node:child_process';
-import { existsSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
+import {
+	existsSync,
+	mkdtempSync,
+	readFileSync,
+	readdirSync,
+	rmSync,
+	unlinkSync,
+	writeFileSync
+} from 'node:fs';
 import { tmpdir } from 'node:os';
-import { dirname, join, resolve } from 'node:path';
+import { dirname, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import sharp from 'sharp';
 import test from 'node:test';
 
+const PRESENTATION_IDS = [
+	'camera-underlay-sundrop-north',
+	'camera-underlay-sundrop-south',
+	'camera-underlay-crossroads-north',
+	'camera-underlay-crossroads-south',
+	'sundrop-north',
+	'sundrop-south'
+] as const;
+
+const INSERT_IDS = [
+	'camera-underlay-sundrop-south-blocked-hedge',
+	'camera-underlay-crossroads-north-blocked-hedge',
+	'camera-underlay-crossroads-south-blocked-hedge',
+	'camera-underlay-crossroads-north-blocked-woodland',
+	'camera-underlay-crossroads-south-blocked-woodland'
+] as const;
+
 const EXPECTED_CANDIDATE_INVENTORY = [
 	'decoration-candidate.json',
+	'evidence-manifest.json',
+	'mask-inventory.json',
+	'forest-overview.png',
+	'masters/meadow-entry-painted-v2-pilot-base-master.png',
+	'exports/painted-v2-sundrop-camera-base.png',
+	'exports/painted-v2-crossroads-camera-base.png',
 	'decoration-density-01.png',
 	'decoration-density-02.png',
 	'decoration-density-03.png',
 	'decoration-density-04.png',
 	'decoration-density-05.png',
-	'panel-camera-underlay-sundrop-north-quadrants-center.png',
-	'panel-camera-underlay-sundrop-south-quadrants-center.png',
-	'panel-camera-underlay-crossroads-north-quadrants-center.png',
-	'panel-camera-underlay-crossroads-south-quadrants-center.png',
-	'panel-sundrop-north-quadrants-center.png',
-	'panel-sundrop-south-quadrants-center.png',
-	'panel-village-crossroads-connector-quadrants-center.png',
-	'panel-crossroads-quadrants-center.png',
+	...PRESENTATION_IDS.map((id) => `panel-${id}-original.png`),
+	...INSERT_IDS.flatMap((id) => [
+		`insert-${id}-review.png`,
+		...Array.from(
+			{ length: 5 },
+			(_, index) => `insert-${id}-crop-${(index + 1).toString().padStart(2, '0')}.png`
+		)
+	]),
+	'enriched-owner-camera-underlay-sundrop-south.png',
+	'enriched-owner-camera-underlay-crossroads-north.png',
+	'enriched-owner-camera-underlay-crossroads-south.png',
+	'enriched-owner-crossroads.png',
 	'underlay-sundrop-north-south.png',
 	'underlay-crossroads-north-south.png',
 	'underlay-family-handoff.png',
@@ -31,16 +66,26 @@ const EXPECTED_CANDIDATE_INVENTORY = [
 	'detail-sundrop-center.png',
 	'detail-sundrop-east.png',
 	'detail-sundrop-sides-corners.png',
-	'detail-connector-crossroads-intersection.png',
-	'detail-connector-crossroads-west.png',
-	'detail-connector-crossroads-middle.png',
-	'detail-connector-crossroads-east.png',
-	'detail-connector-crossroads-sides-corners.png',
-	'hero-house-edges.png',
-	'protected-live-atlas.png',
-	'region-material-overlay.png',
-	'route-centerline-overlay.png'
+	'hero-house-edge-north.png',
+	'hero-house-edge-east.png',
+	'hero-house-edge-south.png',
+	'hero-house-edge-west.png',
+	'matched-sundrop-richness.png',
+	'wildwood-forest-lane.png',
+	...Array.from(
+		{ length: 10 },
+		(_, index) => `blocker-row-${(index + 1).toString().padStart(2, '0')}.png`
+	)
 ] as const;
+
+function recursiveFiles(root: string): string[] {
+	const entries = readdirSync(root, { withFileTypes: true });
+	return entries.flatMap((entry) => {
+		const path = join(root, entry.name);
+		if (entry.isDirectory()) return recursiveFiles(path).map((nested) => join(entry.name, nested));
+		return [relative(root, path)];
+	});
+}
 
 async function writeCheckerMaster(path: string): Promise<void> {
 	const checker = Buffer.alloc(512 * 512 * 4);
@@ -86,7 +131,7 @@ async function cellDigests(
 
 test(
 	'candidate contact-sheet/source review inventory includes all five sheets and the final three tiles',
-	{ timeout: 60_000 },
+	{ timeout: 600_000 },
 	async () => {
 		const repositoryRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 		const tempRoot = mkdtempSync(join(tmpdir(), 'gliese-meadow-enrichment-review-'));
@@ -99,6 +144,7 @@ test(
 				'candidate',
 				'--master',
 				masterPath,
+				'--assemble-sources',
 				'--contact-sheets',
 				'--source-review',
 				'--output-root',
@@ -116,9 +162,24 @@ test(
 			) as {
 				energy: { qualifyingTileCount: number; sheetTileCounts: number[] };
 				tiles: { index: number; id: string }[];
+				evidence: Record<string, { sha256: string; bytes: number; width: number; height: number }>;
 			};
 			assert.equal(payload.energy.qualifyingTileCount, 67);
 			assert.deepEqual(payload.energy.sheetTileCounts, [16, 16, 16, 16, 3]);
+			assert.deepEqual(
+				Object.keys(payload.evidence).sort(),
+				[...EXPECTED_CANDIDATE_INVENTORY].filter((path) => path.endsWith('.png')).sort()
+			);
+			for (const [relativePath, descriptor] of Object.entries(payload.evidence)) {
+				const bytes = readFileSync(join(outputRoot, relativePath));
+				assert.equal(descriptor.sha256, createHash('sha256').update(bytes).digest('hex'));
+				assert.equal(descriptor.bytes, bytes.byteLength);
+				const metadata = await sharp(bytes).metadata();
+				assert.deepEqual(
+					{ width: descriptor.width, height: descriptor.height },
+					{ width: metadata.width, height: metadata.height }
+				);
+			}
 			assert.deepEqual(
 				payload.tiles.slice(-3).map(({ index, id }) => [index, id]),
 				[
@@ -127,25 +188,28 @@ test(
 					[66, 'decoration-66']
 				]
 			);
-			assert.deepEqual(
-				readdirSync(outputRoot)
-					.filter((name) => name !== 'candidate-master.png')
-					.sort(),
-				[...EXPECTED_CANDIDATE_INVENTORY].sort()
-			);
+			assert.deepEqual(recursiveFiles(outputRoot).sort(), [...EXPECTED_CANDIDATE_INVENTORY].sort());
 			assert.equal(
 				existsSync(join(repositoryRoot, 'public/game/assets/regions/meadow-entry-painted-v2')),
 				true
 			);
-			assert.equal(
+			const panelPath = join(outputRoot, 'panel-camera-underlay-sundrop-north-original.png');
+			const panelMetadata = await sharp(panelPath).metadata();
+			assert.deepEqual(
+				{ width: panelMetadata.width, height: panelMetadata.height },
+				{ width: 3200, height: 1664 }
+			);
+			const panelSample = await sharp(panelPath)
+				.resize(3, 2, { fit: 'fill' })
+				.ensureAlpha()
+				.raw()
+				.toBuffer();
+			assert(
 				new Set(
-					await cellDigests(
-						join(outputRoot, 'panel-camera-underlay-sundrop-north-quadrants-center.png'),
-						3,
-						2
+					Array.from({ length: 6 }, (_, index) =>
+						panelSample.subarray(index * 4, index * 4 + 4).toString('hex')
 					)
-				).size >= 4,
-				true
+				).size >= 4
 			);
 			assert.equal(
 				new Set(await cellDigests(join(outputRoot, 'detail-sundrop-sides-corners.png'), 4, 2))
@@ -156,6 +220,20 @@ test(
 				readFileSync(join(outputRoot, 'detail-sundrop-sides-corners.png')),
 				readFileSync(join(outputRoot, 'detail-sundrop-intersection.png'))
 			);
+
+			const requiredInsertReview = join(outputRoot, `insert-${INSERT_IDS[0]}-review.png`);
+			const requiredInsertReviewBytes = readFileSync(requiredInsertReview);
+			unlinkSync(requiredInsertReview);
+			const missingInsertCheck = spawnSync(process.execPath, [...candidateArgs, '--check'], {
+				cwd: repositoryRoot,
+				encoding: 'utf8'
+			});
+			assert.notEqual(missingInsertCheck.status, 0);
+			assert.match(
+				`${missingInsertCheck.stdout}\n${missingInsertCheck.stderr}`,
+				/review artifact is missing/
+			);
+			writeFileSync(requiredInsertReview, requiredInsertReviewBytes);
 
 			const candidateJsonPath = join(outputRoot, 'decoration-candidate.json');
 			const candidateJsonBeforeBaseline = readFileSync(candidateJsonPath);
@@ -293,6 +371,67 @@ test(
 					{ width: 3_200, height: 3_200 }
 				);
 			}
+		} finally {
+			rmSync(outputRoot, { recursive: true, force: true });
+		}
+	}
+);
+
+test(
+	'candidate assembly measures the newly assembled master and check never rewrites stale outputs',
+	{ timeout: 180_000 },
+	async () => {
+		const repositoryRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
+		const outputRoot = mkdtempSync(join(tmpdir(), 'gliese-meadow-enrichment-candidate-assembly-'));
+		try {
+			const args = [
+				join(repositoryRoot, 'tools/render-meadow-entry-painted-v2-enrichment-review.ts'),
+				'--mode',
+				'candidate',
+				'--assemble-sources',
+				'--output-root',
+				outputRoot
+			];
+			const generate = spawnSync(process.execPath, args, {
+				cwd: repositoryRoot,
+				encoding: 'utf8'
+			});
+			assert.equal(generate.status, 0, `${generate.stdout}\n${generate.stderr}`);
+
+			const masterPath = join(outputRoot, 'masters/meadow-entry-painted-v2-pilot-base-master.png');
+			const candidateJsonPath = join(outputRoot, 'decoration-candidate.json');
+			const assembledMaster = readFileSync(masterPath);
+			const payload = JSON.parse(readFileSync(candidateJsonPath, 'utf8')) as {
+				master: { sha256: string; path: string };
+				energy: { qualifyingTileCount: number; sheetTileCounts: number[] };
+			};
+			assert.equal(
+				payload.master.sha256,
+				createHash('sha256').update(assembledMaster).digest('hex')
+			);
+			assert.equal(payload.master.path, relative(repositoryRoot, masterPath));
+			assert.equal(payload.energy.qualifyingTileCount, 67);
+			assert.deepEqual(payload.energy.sheetTileCounts, [16, 16, 16, 16, 3]);
+
+			const candidateBeforeCheck = readFileSync(candidateJsonPath);
+			const masterBeforeCheck = readFileSync(masterPath);
+			const check = spawnSync(process.execPath, [...args, '--check'], {
+				cwd: repositoryRoot,
+				encoding: 'utf8'
+			});
+			assert.equal(check.status, 0, `${check.stdout}\n${check.stderr}`);
+			assert.deepEqual(readFileSync(candidateJsonPath), candidateBeforeCheck);
+			assert.deepEqual(readFileSync(masterPath), masterBeforeCheck);
+
+			const staleMaster = Buffer.from('stale assembled master evidence\n');
+			writeFileSync(masterPath, staleMaster);
+			const staleCheck = spawnSync(process.execPath, [...args, '--check'], {
+				cwd: repositoryRoot,
+				encoding: 'utf8'
+			});
+			assert.notEqual(staleCheck.status, 0);
+			assert.match(`${staleCheck.stdout}\n${staleCheck.stderr}`, /review artifact is stale/);
+			assert.deepEqual(readFileSync(masterPath), staleMaster);
 		} finally {
 			rmSync(outputRoot, { recursive: true, force: true });
 		}

@@ -1,18 +1,15 @@
 {
-	"version": 4,
-	"id": "camera-underlay-crossroads-north",
-	"role": "underlay",
+	"version": 1,
+	"id": "camera-underlay-crossroads-north-blocked-woodland",
+	"sceneryClass": "woodland",
 	"bounds": {
 		"left": 2368,
 		"top": 2240,
 		"right": 5568,
 		"bottom": 3904
 	},
-	"expectedDimensions": {
-		"width": 3200,
-		"height": 1664
-	},
-	"assemblyPriority": 2,
+	"owningSourceId": "camera-underlay-crossroads-north",
+	"owningSourcePriority": 2,
 	"generation": {
 		"mode": "generative",
 		"provider": "OpenAI",
@@ -23,36 +20,35 @@
 		"seed": null,
 		"seedUnavailable": true,
 		"byteReproducibleGeneration": false,
-		"prompt": "A full-bleed wide top-down painted ground texture in a cool northern woodland-edge meadow. Use layered moss-green and blue-green grass, irregular pale soil wear, small silver-white flower clusters, low fern-like leaf fans and scattered rounded stones. Keep the central routes and open clearances quiet and navigable. No trees, trunks, structures, characters, props, symbols, text, straight bars, repeated stamps, or rectangular patches.",
-		"promptSha256": "9be3e50519d04a63898c3962d62eedaff32f36526ed2d42e728d660c7fcbc1de",
-		"outputPath": "/Users/chanwaichan/.codex/generated_images/01a00371-f8b6-7372-bdd6-312a21945886/exec-db3db803-3a8f-4b15-a0fc-4caa24cfa40c.png",
-		"outputSha256": "269d91fbe8fb7277e122e0df0fd8c2a5ceb0de5139362864d6e006aabf308ec7",
-		"attempt": 3,
-		"callOrder": 6,
+		"prompt": "A full-bleed wide top-down painted woodland-underlay texture for a northern Silverpine forest bank. Show at least two depth cues: layered dark understory pockets plus overlapping blue-green conifer bough tips and needle clusters, with moss, pale ground flecks and irregular leaf litter beneath. Organic forest depth, cool conifer character, no literal mask shape. No buildings, paths, landmarks, characters, props, symbols, text, straight bars, repeated tree stamps, or hard rectangular shapes.",
+		"promptSha256": "e40560ef3c04c2e978fdb288627c7b7dc668c29fda7b049c4749311763227be4",
+		"outputPath": "/Users/chanwaichan/.codex/generated_images/01a00371-f8b6-7372-bdd6-312a21945886/exec-23dcfcf7-c988-494a-a4f5-c2c4e2a5afca.png",
+		"outputSha256": "33183e2bdf04b1f2835844b98b2e47ffa92ccbc8d0e4538b410dcf3973ef523e",
+		"attempt": 1,
+		"callOrder": 13,
 		"result": "accepted-approved-interim-gate",
 		"rejected": false,
-		"priorAttempt": 2,
 		"attemptHistory": [
 			{
-				"attempt": 3,
+				"attempt": 1,
 				"result": "accepted-approved-interim-gate",
 				"rawInspectedAtOriginalResolution": true
 			}
 		]
 	},
 	"raw": {
-		"path": "artifacts/meadow-entry/painted-v2/source-panels/raw/camera-underlay-crossroads-north.png",
-		"sha256": "269d91fbe8fb7277e122e0df0fd8c2a5ceb0de5139362864d6e006aabf308ec7",
-		"bytes": 3169787,
+		"path": "artifacts/meadow-entry/painted-v2/source-inserts/raw/camera-underlay-crossroads-north-blocked-woodland.png",
+		"sha256": "33183e2bdf04b1f2835844b98b2e47ffa92ccbc8d0e4538b410dcf3973ef523e",
+		"bytes": 3025772,
 		"dimensions": {
 			"width": 1739,
 			"height": 904
 		}
 	},
 	"normalized": {
-		"path": "artifacts/meadow-entry/painted-v2/source-panels/camera-underlay-crossroads-north.png",
-		"sha256": "ad209bf0c84f47f12adcee89eeb18266a1686299bc38cda65880a7ab81a14848",
-		"bytes": 15134903,
+		"path": "artifacts/meadow-entry/painted-v2/source-inserts/camera-underlay-crossroads-north-blocked-woodland.png",
+		"sha256": "1a2d983e7d35b4d5b66439cdb017e1fe8a1254bb95f8350c1a92a31ed0caf5c0",
+		"bytes": 14268474,
 		"dimensions": {
 			"width": 3200,
 			"height": 1664
@@ -96,10 +92,12 @@
 	],
 	"review": {
 		"rawInspectedAtOriginalResolution": true,
-		"noBakedTreesOrTrunks": true,
-		"noGridOrRectangle": true,
-		"routeAndClearanceQuiet": true,
-		"humanRichness": true,
+		"gridLikeUpperBand": false,
+		"visibleInsertRectangle": false,
+		"protectedOverlapPixels": 0,
+		"depthCues": ["dark understory pockets", "overlapping blue-green conifer bough tips"],
+		"regionalCharacter": "Silverpine conifer north",
+		"noLiteralMaskShape": true,
 		"approval": "approved-explicit-interim-gate",
 		"userAnswer": "Looks good",
 		"approvedAtUtc": "2026-08-15T04:39:01Z",

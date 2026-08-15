@@ -1,0 +1,105 @@
+{
+	"version": 1,
+	"id": "camera-underlay-sundrop-south-blocked-hedge",
+	"sceneryClass": "hedge",
+	"bounds": {
+		"left": 0,
+		"top": 4736,
+		"right": 3200,
+		"bottom": 6400
+	},
+	"owningSourceId": "camera-underlay-sundrop-south",
+	"owningSourcePriority": 1,
+	"generation": {
+		"mode": "generative",
+		"provider": "OpenAI",
+		"model": "gpt-image-2",
+		"modelVersion": "2.0",
+		"tool": "image_gen (built-in)",
+		"toolVersion": "2026-08-14",
+		"seed": null,
+		"seedUnavailable": true,
+		"byteReproducibleGeneration": false,
+		"prompt": "A full-bleed wide top-down painted hedge-underlay texture for a warm cultivated southern village meadow. Organic low hedge language only: layered leaf clusters, soft grass banks, tiny flowers and soil variation with an irregular natural surface. Keep it low and ground-hugging, with no trunks, canopy, tall trees, buildings, paths, characters, props, symbols, text, straight hedge bars, repeated stamps, landmark silhouettes, or hard rectangular shapes.",
+		"promptSha256": "9ce55b2a32e2096c5a12b633c7b30e8b522bc15ff209132b1abad8eac614a1c0",
+		"outputPath": "/Users/chanwaichan/.codex/generated_images/01a00371-f8b6-7372-bdd6-312a21945886/exec-4e36003d-5ee2-414b-a1ec-911529635e1c.png",
+		"outputSha256": "a2e2d1750a937ab23e73be796ddf5e193d51d01af6e5cff6f499489c6133d8dc",
+		"attempt": 1,
+		"callOrder": 10,
+		"result": "accepted-approved-interim-gate",
+		"rejected": false,
+		"attemptHistory": [
+			{
+				"attempt": 1,
+				"result": "accepted-approved-interim-gate",
+				"rawInspectedAtOriginalResolution": true
+			}
+		]
+	},
+	"raw": {
+		"path": "artifacts/meadow-entry/painted-v2/source-inserts/raw/camera-underlay-sundrop-south-blocked-hedge.png",
+		"sha256": "a2e2d1750a937ab23e73be796ddf5e193d51d01af6e5cff6f499489c6133d8dc",
+		"bytes": 2844689,
+		"dimensions": {
+			"width": 1740,
+			"height": 904
+		}
+	},
+	"normalized": {
+		"path": "artifacts/meadow-entry/painted-v2/source-inserts/camera-underlay-sundrop-south-blocked-hedge.png",
+		"sha256": "46959e9a73bf8f954dfa764715890039176a55a530cd2b4ab94520ae7453943c",
+		"bytes": 13509633,
+		"dimensions": {
+			"width": 3200,
+			"height": 1664
+		},
+		"colorSpace": "sRGB",
+		"channels": 4,
+		"alphaMinimum": 255,
+		"alphaMaximum": 255,
+		"canonicalPngChunks": ["IHDR", "IDAT", "IEND"]
+	},
+	"normalizationTransform": {
+		"native": {
+			"width": 1740,
+			"height": 904
+		},
+		"resize": {
+			"width": 3203,
+			"height": 1664
+		},
+		"crop": {
+			"left": 1,
+			"top": 0,
+			"width": 3200,
+			"height": 1664
+		},
+		"scale": 1.8407079646017699,
+		"scaleX": 1.8407079646017699,
+		"scaleY": 1.8407079646017699,
+		"uniform": true,
+		"scaleExceedsTwoX": false,
+		"operation": "cover-scale-crop-to-fixed-panel",
+		"kernel": "lanczos3"
+	},
+	"references": [
+		{
+			"path": "/private/tmp/gliese-hpa586-task3-art-refs/current-camera-underlay-sundrop-south.png",
+			"role": "current art-only panel",
+			"sha256": "01b420b5ebcdcdbba3a32218fa56b238895b947feb4c9ae8b3420cb1413c6980",
+			"bytes": 14312189
+		}
+	],
+	"review": {
+		"rawInspectedAtOriginalResolution": true,
+		"gridLikeUpperBand": false,
+		"visibleInsertRectangle": false,
+		"protectedOverlapPixels": 0,
+		"organicIrregularSurface": true,
+		"noTrunksOrCanopy": true,
+		"approval": "approved-explicit-interim-gate",
+		"userAnswer": "Looks good",
+		"approvedAtUtc": "2026-08-15T04:39:01Z",
+		"approvalScope": "Task 3 interim forest presentation sources and deterministic blocked-scenery inserts only; no production publication or runtime permission"
+	}
+}

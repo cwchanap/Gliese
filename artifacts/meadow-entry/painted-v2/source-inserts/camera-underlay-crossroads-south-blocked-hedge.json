@@ -1,0 +1,105 @@
+{
+	"version": 1,
+	"id": "camera-underlay-crossroads-south-blocked-hedge",
+	"sceneryClass": "hedge",
+	"bounds": {
+		"left": 2368,
+		"top": 3776,
+		"right": 5568,
+		"bottom": 5440
+	},
+	"owningSourceId": "camera-underlay-crossroads-south",
+	"owningSourcePriority": 3,
+	"generation": {
+		"mode": "generative",
+		"provider": "OpenAI",
+		"model": "gpt-image-2",
+		"modelVersion": "2.0",
+		"tool": "image_gen (built-in)",
+		"toolVersion": "2026-08-14",
+		"seed": null,
+		"seedUnavailable": true,
+		"byteReproducibleGeneration": false,
+		"prompt": "A full-bleed wide top-down painted hedge-underlay texture for a cool southern Crossroads meadow. Organic low hedge language only: layered blue-green leaf clusters, mossy grass banks, small pale and blue flowers, low fern-like leaves and soft soil variation. Keep it low and ground-hugging, with no trunks, canopy, tall trees, buildings, paths, characters, props, symbols, text, straight hedge bars, repeated stamps, landmark silhouettes, or hard rectangular shapes.",
+		"promptSha256": "9945617bdeadae04775f0d01d41ce07c0a864dc4c579040b34953376a3f884de",
+		"outputPath": "/Users/chanwaichan/.codex/generated_images/01a00371-f8b6-7372-bdd6-312a21945886/exec-2407143e-7124-4190-b4b6-aefe8fe0fc69.png",
+		"outputSha256": "80ed90b063d2dec9019fe8d777be6e92b4513aa5d0ad50cfb95a6f55548ff137",
+		"attempt": 1,
+		"callOrder": 12,
+		"result": "accepted-approved-interim-gate",
+		"rejected": false,
+		"attemptHistory": [
+			{
+				"attempt": 1,
+				"result": "accepted-approved-interim-gate",
+				"rawInspectedAtOriginalResolution": true
+			}
+		]
+	},
+	"raw": {
+		"path": "artifacts/meadow-entry/painted-v2/source-inserts/raw/camera-underlay-crossroads-south-blocked-hedge.png",
+		"sha256": "80ed90b063d2dec9019fe8d777be6e92b4513aa5d0ad50cfb95a6f55548ff137",
+		"bytes": 3132330,
+		"dimensions": {
+			"width": 1740,
+			"height": 904
+		}
+	},
+	"normalized": {
+		"path": "artifacts/meadow-entry/painted-v2/source-inserts/camera-underlay-crossroads-south-blocked-hedge.png",
+		"sha256": "bc12e6b34181e43cd2e8107bf0a2a58bb7ea90fb421211feeb3c9aed9ef7b8fd",
+		"bytes": 14793253,
+		"dimensions": {
+			"width": 3200,
+			"height": 1664
+		},
+		"colorSpace": "sRGB",
+		"channels": 4,
+		"alphaMinimum": 255,
+		"alphaMaximum": 255,
+		"canonicalPngChunks": ["IHDR", "IDAT", "IEND"]
+	},
+	"normalizationTransform": {
+		"native": {
+			"width": 1740,
+			"height": 904
+		},
+		"resize": {
+			"width": 3203,
+			"height": 1664
+		},
+		"crop": {
+			"left": 1,
+			"top": 0,
+			"width": 3200,
+			"height": 1664
+		},
+		"scale": 1.8407079646017699,
+		"scaleX": 1.8407079646017699,
+		"scaleY": 1.8407079646017699,
+		"uniform": true,
+		"scaleExceedsTwoX": false,
+		"operation": "cover-scale-crop-to-fixed-panel",
+		"kernel": "lanczos3"
+	},
+	"references": [
+		{
+			"path": "/private/tmp/gliese-hpa586-task3-art-refs/current-camera-underlay-crossroads-south.png",
+			"role": "current art-only panel",
+			"sha256": "cff66e641d65ebd37acbae0cb172ed4fcf2d116285cc30674fabf5d494b6ebc1",
+			"bytes": 15130793
+		}
+	],
+	"review": {
+		"rawInspectedAtOriginalResolution": true,
+		"gridLikeUpperBand": false,
+		"visibleInsertRectangle": false,
+		"protectedOverlapPixels": 0,
+		"organicIrregularSurface": true,
+		"noTrunksOrCanopy": true,
+		"approval": "approved-explicit-interim-gate",
+		"userAnswer": "Looks good",
+		"approvedAtUtc": "2026-08-15T04:39:01Z",
+		"approvalScope": "Task 3 interim forest presentation sources and deterministic blocked-scenery inserts only; no production publication or runtime permission"
+	}
+}

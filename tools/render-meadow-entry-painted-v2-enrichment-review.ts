@@ -40,6 +40,17 @@ import {
 	type MeadowEntryPaintedV2DecorationEligibility,
 	type MeadowEntryPaintedV2DecorationTile
 } from '$lib/game/content/backgrounds/meadow-entry-painted-v2-enrichment-review';
+import {
+	buildMeadowEntryPaintedV2SceneryMaskSet,
+	enrichMeadowEntryPaintedV2Sources,
+	type DecodedMeadowEntryPaintedV2SceneryInsert,
+	type MeadowEntryPaintedV2SceneryMaskSet
+} from '$lib/game/content/backgrounds/meadow-entry-painted-v2-scenery-bake';
+import {
+	MEADOW_ENTRY_PAINTED_V2_SCENERY_BLOCKERS,
+	MEADOW_ENTRY_PAINTED_V2_SCENERY_INSERTS,
+	type MeadowEntryPaintedV2SceneryInsert
+} from '$lib/game/content/backgrounds/meadow-entry-painted-v2-scenery';
 
 const DEFAULT_MASTER =
 	'artifacts/meadow-entry/painted-v2/masters/meadow-entry-painted-v2-pilot-base-master.png';
@@ -47,6 +58,8 @@ const DEFAULT_OUTPUT_ROOT = 'docs/superpowers/reports/img/hpa-586-painted-v2-enr
 const REVIEW_MASTER = 'masters/meadow-entry-painted-v2-pilot-base-master.png';
 const REVIEW_SUNDROP_CROP = 'exports/painted-v2-sundrop-camera-base.png';
 const REVIEW_CROSSROADS_CROP = 'exports/painted-v2-crossroads-camera-base.png';
+const REVIEW_OVERVIEW = 'forest-overview.png';
+const INSERT_ARTIFACT_ROOT = 'artifacts/meadow-entry/painted-v2/source-inserts';
 const CONTROL_MASK_FILENAMES = {
 	protectedLive: 'meadow-entry-protected-live-mask.svg',
 	buildingFootprint: 'meadow-entry-building-footprint-mask.svg',
@@ -61,10 +74,17 @@ const SOURCE_REVIEW_PANEL_IDS = new Set([
 	'camera-underlay-crossroads-north',
 	'camera-underlay-crossroads-south',
 	'sundrop-north',
-	'sundrop-south',
-	'village-crossroads-connector',
-	'crossroads'
+	'sundrop-south'
 ]);
+const INSERT_REVIEW_IDS = [
+	'camera-underlay-sundrop-south-blocked-hedge',
+	'camera-underlay-crossroads-north-blocked-hedge',
+	'camera-underlay-crossroads-south-blocked-hedge',
+	'camera-underlay-crossroads-north-blocked-woodland',
+	'camera-underlay-crossroads-south-blocked-woodland'
+] as const;
+const PRESENTATION_REVIEW_IDS = [...SOURCE_REVIEW_PANEL_IDS] as const;
+const VIRTUAL_INSERT_IDS = new Set(['crossroads-blocked-hedge', 'crossroads-blocked-woodland']);
 
 interface CliOptions {
 	check: boolean;
@@ -87,6 +107,21 @@ interface ControlContext {
 interface ReviewArtifact {
 	readonly relativePath: string;
 	readonly bytes: Buffer;
+}
+
+interface AssemblyResult {
+	readonly artifacts: readonly ReviewArtifact[];
+	readonly master: DecodedMeadowEntryRgba;
+	readonly enrichedPanels: readonly MeadowEntryDetailDecodedPanel[];
+	readonly masks?: MeadowEntryPaintedV2SceneryMaskSet;
+	readonly inserts?: readonly DecodedMeadowEntryPaintedV2SceneryInsert[];
+}
+
+interface EvidenceDescriptor {
+	readonly sha256: string;
+	readonly bytes: number;
+	readonly width: number;
+	readonly height: number;
 }
 
 interface ReviewPayload {
@@ -123,6 +158,7 @@ interface ReviewPayload {
 		readonly height: number;
 	}[];
 	readonly fullPanelOriginalDetailInspection?: boolean;
+	readonly evidence: Readonly<Record<string, EvidenceDescriptor>>;
 }
 
 function sha256(value: Uint8Array): string {
@@ -275,20 +311,21 @@ function payload(
 	master: Buffer,
 	decoded: DecodedMeadowEntryRgba,
 	controls: ControlContext,
-	energy: MeadowEntryPaintedV2DecorationEnergy
+	energy: MeadowEntryPaintedV2DecorationEnergy,
+	evidence: Readonly<Record<string, EvidenceDescriptor>> = {}
 ): ReviewPayload {
 	const sourcePanels =
 		mode === 'candidate' && sourceReview
-			? MEADOW_ENTRY_PAINTED_V2_SOURCE_PANELS.filter(({ id }) => id !== 'hero-house-frontage').map(
-					(panel) => ({
-						id: panel.id,
-						path: panel.normalizedPath,
-						sha256: '',
-						bytes: 0,
-						width: panel.expectedDimensions.width,
-						height: panel.expectedDimensions.height
-					})
-				)
+			? MEADOW_ENTRY_PAINTED_V2_SOURCE_PANELS.filter(({ id }) =>
+					SOURCE_REVIEW_PANEL_IDS.has(id)
+				).map((panel) => ({
+					id: panel.id,
+					path: panel.normalizedPath,
+					sha256: '',
+					bytes: 0,
+					width: panel.expectedDimensions.width,
+					height: panel.expectedDimensions.height
+				}))
 			: undefined;
 	const result = {
 		version: 1,
@@ -316,7 +353,8 @@ function payload(
 		energy,
 		tiles: controls.tiles,
 		...(sourcePanels ? { sourcePanels } : {}),
-		...(mode === 'candidate' && sourceReview ? { fullPanelOriginalDetailInspection: true } : {})
+		...(mode === 'candidate' && sourceReview ? { fullPanelOriginalDetailInspection: true } : {}),
+		evidence
 	} satisfies ReviewPayload;
 	return result;
 }
@@ -478,15 +516,216 @@ async function readNativePanel(
 	return decoded;
 }
 
+function parseJsonObject(value: Buffer, label: string): Record<string, unknown> {
+	let parsed: unknown;
+	try {
+		parsed = JSON.parse(value.toString('utf8')) as unknown;
+	} catch (error) {
+		throw new Error(`${label} is not valid JSON`, { cause: error });
+	}
+	assert(
+		parsed !== null && typeof parsed === 'object' && !Array.isArray(parsed),
+		`${label} is not an object`
+	);
+	return parsed as Record<string, unknown>;
+}
+
+function assertInsertArtQuality(
+	insert: MeadowEntryPaintedV2SceneryInsert,
+	decoded: DecodedMeadowEntryRgba,
+	metadata: Record<string, unknown>
+): void {
+	for (let index = 3; index < decoded.data.length; index += 4)
+		assert(decoded.data[index] === 255, `Scenery insert is not opaque RGBA: ${insert.id}`);
+	const review = metadata.review as Record<string, unknown> | undefined;
+	assert(
+		review?.rawInspectedAtOriginalResolution === true,
+		`Scenery insert raw inspection is missing: ${insert.id}`
+	);
+	assert(
+		review?.gridLikeUpperBand !== true,
+		`Scenery insert has a grid-like upper band: ${insert.id}`
+	);
+	assert(
+		review?.visibleInsertRectangle !== true,
+		`Scenery insert has a visible rectangle edge: ${insert.id}`
+	);
+	assert(
+		review?.protectedOverlapPixels === 0,
+		`Scenery insert records protected overlap: ${insert.id}`
+	);
+
+	// A repeated row run is a deterministic guard against the most common generated
+	// texture failure: a tiled/grid-like strip across the top of the canvas.
+	const topRows = Math.max(8, Math.floor(decoded.height * 0.15));
+	const rowHashes = new Set<string>();
+	for (let y = 0; y < topRows; y += 1) {
+		const row = decoded.data.subarray(y * decoded.width * 4, (y + 1) * decoded.width * 4);
+		rowHashes.add(sha256(row));
+	}
+	assert(
+		rowHashes.size > Math.max(2, Math.floor(topRows / 8)),
+		`Scenery insert has a repeated upper-band grid: ${insert.id}`
+	);
+
+	const sampleMean = (left: number, top: number, right: number, bottom: number): number[] => {
+		const totals = [0, 0, 0];
+		let count = 0;
+		for (let y = top; y < bottom; y += 1) {
+			for (let x = left; x < right; x += 1) {
+				const offset = (y * decoded.width + x) * 4;
+				for (let channel = 0; channel < 3; channel += 1)
+					totals[channel] += decoded.data[offset + channel]!;
+				count += 1;
+			}
+		}
+		return totals.map((value) => value / Math.max(1, count));
+	};
+	const edge = Math.max(2, Math.floor(Math.min(decoded.width, decoded.height) * 0.01));
+	const inset = sampleMean(edge, edge, decoded.width - edge, decoded.height - edge);
+	const border = [
+		sampleMean(0, 0, decoded.width, edge),
+		sampleMean(0, decoded.height - edge, decoded.width, decoded.height),
+		sampleMean(0, 0, edge, decoded.height),
+		sampleMean(decoded.width - edge, 0, decoded.width, decoded.height)
+	];
+	const borderSpread =
+		Math.max(...border.flatMap((mean) => mean)) - Math.min(...border.flatMap((mean) => mean));
+	const edgeDelta = Math.max(
+		...border.map(
+			(mean) =>
+				mean.reduce((total, value, channel) => total + Math.abs(value - inset[channel]!), 0) / 3
+		)
+	);
+	assert(
+		!(borderSpread < 4 && edgeDelta > 50),
+		`Scenery insert has a visible rectangular border: ${insert.id}`
+	);
+}
+
+async function readAssemblyPanels(
+	repositoryRoot: string
+): Promise<readonly MeadowEntryDetailDecodedPanel[]> {
+	return await Promise.all(
+		MEADOW_ENTRY_PAINTED_V2_SOURCE_PANELS.map(async (spec) => {
+			const bytes = await readFile(join(repositoryRoot, spec.normalizedPath));
+			const rgba = await decodeMeadowEntryRgba(bytes);
+			assert(
+				rgba.width === spec.expectedDimensions.width &&
+					rgba.height === spec.expectedDimensions.height,
+				`Source panel dimensions drifted: ${spec.id}`
+			);
+			return {
+				id: spec.id,
+				bounds: spec.bounds,
+				rgba,
+				assemblyPriority: spec.assemblyPriority
+			};
+		})
+	);
+}
+
+async function readSceneryInserts(
+	repositoryRoot: string,
+	panels: readonly MeadowEntryDetailDecodedPanel[]
+): Promise<readonly DecodedMeadowEntryPaintedV2SceneryInsert[]> {
+	const panelById = new Map(panels.map((panel) => [panel.id, panel]));
+	const decoded: DecodedMeadowEntryPaintedV2SceneryInsert[] = [];
+	for (const expected of MEADOW_ENTRY_PAINTED_V2_SCENERY_INSERTS) {
+		if (VIRTUAL_INSERT_IDS.has(expected.id)) {
+			const owner = panelById.get(expected.owningSourceId);
+			assert(owner !== undefined, `Virtual scenery insert owner is missing: ${expected.id}`);
+			decoded.push({
+				id: expected.id,
+				sceneryClass: expected.sceneryClass,
+				owningSourceId: expected.owningSourceId,
+				bounds: expected.bounds,
+				rgba: owner.rgba
+			});
+			continue;
+		}
+		assert(
+			(INSERT_REVIEW_IDS as readonly string[]).includes(expected.id),
+			`Unexpected generated scenery insert: ${expected.id}`
+		);
+		const normalizedPath = join(repositoryRoot, INSERT_ARTIFACT_ROOT, `${expected.id}.png`);
+		const provenancePath = join(repositoryRoot, INSERT_ARTIFACT_ROOT, `${expected.id}.json`);
+		const metadata = parseJsonObject(
+			await readFile(provenancePath),
+			`Scenery insert provenance ${expected.id}`
+		);
+		assert(metadata.id === expected.id, `Scenery insert provenance id drifted: ${expected.id}`);
+		assert(
+			metadata.sceneryClass === expected.sceneryClass,
+			`Scenery insert class drifted: ${expected.id}`
+		);
+		const metadataBounds = metadata.bounds as Record<string, unknown> | undefined;
+		assert(
+			metadataBounds !== undefined &&
+				['left', 'top', 'right', 'bottom'].every(
+					(key) => metadataBounds[key] === expected.bounds[key as keyof PixelBounds]
+				),
+			`Scenery insert bounds drifted: ${expected.id}`
+		);
+		const references = Array.isArray(metadata.references) ? metadata.references : [];
+		for (const reference of references) {
+			const path =
+				typeof reference === 'string' ? reference : (reference as Record<string, unknown>)?.path;
+			assert(typeof path === 'string', `Scenery insert reference is invalid: ${expected.id}`);
+			assert(
+				!/(?:\.svg$|mask|control|route|atlas|rectangle)/i.test(path),
+				`Scenery insert supplied a forbidden control reference: ${expected.id}`
+			);
+		}
+		const rgba = await decodeMeadowEntryRgba(await readFile(normalizedPath));
+		assert(
+			rgba.width === expected.bounds.right - expected.bounds.left &&
+				rgba.height === expected.bounds.bottom - expected.bounds.top,
+			`Scenery insert dimensions do not match bounds: ${expected.id}`
+		);
+		assertInsertArtQuality(expected, rgba, metadata);
+		decoded.push({
+			id: expected.id,
+			sceneryClass: expected.sceneryClass,
+			owningSourceId: expected.owningSourceId,
+			bounds: expected.bounds,
+			rgba
+		});
+	}
+	return decoded;
+}
+
 async function nativeReviewArtifacts(
 	repositoryRoot: string,
 	decoded: DecodedMeadowEntryRgba,
-	controls: ControlContext
+	controls: ControlContext,
+	enrichedPanels: readonly MeadowEntryDetailDecodedPanel[],
+	inserts: readonly DecodedMeadowEntryPaintedV2SceneryInsert[]
 ): Promise<readonly ReviewArtifact[]> {
 	const artifacts: ReviewArtifact[] = [];
 	for (const panel of MEADOW_ENTRY_PAINTED_V2_SOURCE_PANELS) {
 		if (!SOURCE_REVIEW_PANEL_IDS.has(panel.id)) continue;
 		const nativePanel = await readNativePanel(repositoryRoot, panel);
+		artifacts.push({
+			relativePath: `panel-${panel.id}-original.png`,
+			bytes: await encodeCanonicalMeadowEntryPng(
+				nativePanel.data,
+				nativePanel.width,
+				nativePanel.height
+			)
+		});
+	}
+	for (const insertId of INSERT_REVIEW_IDS) {
+		const insert = inserts.find(({ id }) => id === insertId);
+		assert(insert !== undefined, `Missing scenery insert review input: ${insertId}`);
+		artifacts.push({
+			relativePath: `insert-${insert.id}-review.png`,
+			bytes: await encodeCanonicalMeadowEntryPng(
+				insert.rgba.data,
+				insert.rgba.width,
+				insert.rgba.height
+			)
+		});
 		const anchors = [
 			'top-left',
 			'top-right',
@@ -494,12 +733,30 @@ async function nativeReviewArtifacts(
 			'bottom-right',
 			'middle-center'
 		] as const;
+		for (const [index, anchor] of anchors.entries()) {
+			artifacts.push({
+				relativePath: `insert-${insert.id}-crop-${(index + 1).toString().padStart(2, '0')}.png`,
+				bytes: await cropPng(
+					insert.rgba,
+					reviewPatchBounds(insert.rgba.width, insert.rgba.height, anchor)
+				)
+			});
+		}
+	}
+	for (const panelId of [
+		'camera-underlay-sundrop-south',
+		'camera-underlay-crossroads-north',
+		'camera-underlay-crossroads-south',
+		'crossroads'
+	] as const) {
+		const panel = enrichedPanels.find(({ id }) => id === panelId);
+		assert(panel !== undefined, `Missing enriched owning-source preview: ${panelId}`);
 		artifacts.push({
-			relativePath: `panel-${panel.id}-quadrants-center.png`,
-			bytes: await composeContactSheet(
-				nativePanel,
-				anchors.map((anchor) => reviewPatchBounds(nativePanel.width, nativePanel.height, anchor)),
-				3
+			relativePath: `enriched-owner-${panelId}.png`,
+			bytes: await encodeCanonicalMeadowEntryPng(
+				panel.rgba.data,
+				panel.rgba.width,
+				panel.rgba.height
 			)
 		});
 	}
@@ -512,22 +769,10 @@ async function nativeReviewArtifacts(
 		'detail-sundrop-center.png': { left: 1280, top: 4928, right: 1856, bottom: 5056 },
 		'detail-sundrop-east.png': { left: 2368, top: 4928, right: 2880, bottom: 5056 },
 		'detail-sundrop-sides-corners.png': { left: 256, top: 4928, right: 2880, bottom: 5056 },
-		'detail-connector-crossroads-intersection.png': {
-			left: 2880,
-			top: 4480,
-			right: 3392,
-			bottom: 4768
-		},
-		'detail-connector-crossroads-west.png': { left: 2880, top: 4480, right: 3008, bottom: 4768 },
-		'detail-connector-crossroads-middle.png': { left: 3072, top: 4480, right: 3200, bottom: 4768 },
-		'detail-connector-crossroads-east.png': { left: 3264, top: 4480, right: 3392, bottom: 4768 },
-		'detail-connector-crossroads-sides-corners.png': {
-			left: 2880,
-			top: 4480,
-			right: 3392,
-			bottom: 4768
-		},
-		'hero-house-edges.png': { left: 384, top: 5312, right: 1280, bottom: 6144 }
+		'hero-house-edge-north.png': { left: 384, top: 5312, right: 1280, bottom: 5440 },
+		'hero-house-edge-east.png': { left: 1152, top: 5312, right: 1280, bottom: 6144 },
+		'hero-house-edge-south.png': { left: 384, top: 6016, right: 1280, bottom: 6144 },
+		'hero-house-edge-west.png': { left: 384, top: 5312, right: 512, bottom: 6144 }
 	};
 	for (const [filename, bounds] of Object.entries(extracts)) {
 		if (filename.endsWith('sides-corners.png')) {
@@ -572,16 +817,37 @@ async function nativeReviewArtifacts(
 			artifacts.push({ relativePath: filename, bytes: await cropPng(decoded, bounds) });
 		}
 	}
-	const overlayFiles = {
-		'protected-live-atlas.png': CONTROL_MASK_FILENAMES.protectedLive,
-		'region-material-overlay.png': 'meadow-entry-region-mask.svg',
-		'route-centerline-overlay.png': TERRAIN_FILENAME
-	} as const;
-	for (const [filename, controlFilename] of Object.entries(overlayFiles)) {
-		const svg = Buffer.from(controls.controls[controlFilename] ?? '');
+	const matchedNorth = await cropPng(decoded, { left: 256, top: 3968, right: 1280, bottom: 5056 });
+	const matchedSouth = await cropPng(decoded, { left: 1856, top: 4928, right: 2880, bottom: 6016 });
+	const matched = await sharp({
+		create: {
+			width: 2048,
+			height: 1088,
+			channels: 4,
+			background: { r: 0, g: 0, b: 0, alpha: 0 }
+		}
+	})
+		.composite([
+			{ input: matchedNorth, left: 0, top: 0 },
+			{ input: matchedSouth, left: 1024, top: 0 }
+		])
+		.png()
+		.toBuffer();
+	artifacts.push({ relativePath: 'matched-sundrop-richness.png', bytes: matched });
+	artifacts.push({
+		relativePath: 'wildwood-forest-lane.png',
+		bytes: await cropPng(decoded, { left: 4608, top: 3200, right: 5568, bottom: 4608 })
+	});
+	for (const [index, blocker] of MEADOW_ENTRY_PAINTED_V2_SCENERY_BLOCKERS.entries()) {
+		const width = blocker.bounds.right - blocker.bounds.left;
+		const height = blocker.bounds.bottom - blocker.bounds.top;
+		const padX = Math.max(0, Math.floor((512 - width) / 2));
+		const padY = Math.max(0, Math.floor((512 - height) / 2));
+		const left = Math.max(0, Math.min(decoded.width - 512, blocker.bounds.left - padX));
+		const top = Math.max(0, Math.min(decoded.height - 512, blocker.bounds.top - padY));
 		artifacts.push({
-			relativePath: filename,
-			bytes: await sharp(svg).resize(1_600, 1_600, { fit: 'fill' }).png().toBuffer()
+			relativePath: `blocker-row-${(index + 1).toString().padStart(2, '0')}.png`,
+			bytes: await cropPng(decoded, { left, top, right: left + 512, bottom: top + 512 })
 		});
 	}
 	return artifacts;
@@ -599,6 +865,52 @@ async function listFiles(root: string): Promise<readonly string[]> {
 	return result.sort();
 }
 
+function forestReviewFilenames(): readonly string[] {
+	return [
+		'decoration-candidate.json',
+		'evidence-manifest.json',
+		'mask-inventory.json',
+		REVIEW_OVERVIEW,
+		REVIEW_MASTER,
+		REVIEW_SUNDROP_CROP,
+		REVIEW_CROSSROADS_CROP,
+		'decoration-density-01.png',
+		'decoration-density-02.png',
+		'decoration-density-03.png',
+		'decoration-density-04.png',
+		'decoration-density-05.png',
+		...PRESENTATION_REVIEW_IDS.map((id) => `panel-${id}-original.png`),
+		...INSERT_REVIEW_IDS.flatMap((id) => [
+			`insert-${id}-review.png`,
+			...Array.from(
+				{ length: 5 },
+				(_, index) => `insert-${id}-crop-${(index + 1).toString().padStart(2, '0')}.png`
+			)
+		]),
+		'enriched-owner-camera-underlay-sundrop-south.png',
+		'enriched-owner-camera-underlay-crossroads-north.png',
+		'enriched-owner-camera-underlay-crossroads-south.png',
+		'enriched-owner-crossroads.png',
+		'underlay-sundrop-north-south.png',
+		'underlay-crossroads-north-south.png',
+		'underlay-family-handoff.png',
+		'detail-sundrop-intersection.png',
+		'detail-sundrop-west.png',
+		'detail-sundrop-center.png',
+		'detail-sundrop-east.png',
+		'detail-sundrop-sides-corners.png',
+		'hero-house-edge-north.png',
+		'hero-house-edge-east.png',
+		'hero-house-edge-south.png',
+		'hero-house-edge-west.png',
+		'matched-sundrop-richness.png',
+		'wildwood-forest-lane.png',
+		...MEADOW_ENTRY_PAINTED_V2_SCENERY_BLOCKERS.map(
+			(_, index) => `blocker-row-${(index + 1).toString().padStart(2, '0')}.png`
+		)
+	];
+}
+
 async function assertNoStaleReviewFiles(outputRoot: string): Promise<void> {
 	const files = await listFiles(outputRoot);
 	const expected = new Set<string>([
@@ -607,7 +919,8 @@ async function assertNoStaleReviewFiles(outputRoot: string): Promise<void> {
 		...MEADOW_ENTRY_PAINTED_V2_ENRICHMENT_REVIEW_FILENAMES,
 		REVIEW_MASTER,
 		REVIEW_SUNDROP_CROP,
-		REVIEW_CROSSROADS_CROP
+		REVIEW_CROSSROADS_CROP,
+		...forestReviewFilenames()
 	]);
 	for (const file of files) {
 		assert(expected.has(file), `Unlisted Meadow Entry review artifact: ${file}`);
@@ -650,22 +963,51 @@ async function assertReviewOutputRootExists(outputRoot: string): Promise<void> {
 	}
 }
 
-async function assembleSources(repositoryRoot: string): Promise<readonly ReviewArtifact[]> {
-	const decodedPanels = await Promise.all(
-		MEADOW_ENTRY_PAINTED_V2_SOURCE_PANELS.map(async (spec) => {
-			const bytes = await readFile(join(repositoryRoot, spec.normalizedPath));
-			const rgba = await decodeMeadowEntryRgba(bytes);
-			assert(
-				rgba.width === spec.expectedDimensions.width &&
-					rgba.height === spec.expectedDimensions.height,
-				`Source panel dimensions drifted: ${spec.id}`
-			);
-			return { spec, bytes: rgba };
-		})
-	);
-	const underlays: MeadowEntryUnderlayDecodedPanel[] = decodedPanels
-		.filter(({ spec }) => spec.role === 'underlay')
-		.map(({ spec, bytes }) => ({ id: spec.id, bounds: spec.bounds, rgba: bytes }));
+async function assembleSources(
+	repositoryRoot: string,
+	includeScenery: boolean
+): Promise<AssemblyResult> {
+	const sourcePanels = await readAssemblyPanels(repositoryRoot);
+	let enrichedPanels: readonly MeadowEntryDetailDecodedPanel[] = sourcePanels;
+	let masks: MeadowEntryPaintedV2SceneryMaskSet | undefined;
+	let inserts: readonly DecodedMeadowEntryPaintedV2SceneryInsert[] | undefined;
+	if (includeScenery) {
+		masks = buildMeadowEntryPaintedV2SceneryMaskSet(repositoryRoot);
+		inserts = await readSceneryInserts(repositoryRoot, sourcePanels);
+		const beforeById = new Map(sourcePanels.map((panel) => [panel.id, panel]));
+		const baked = enrichMeadowEntryPaintedV2Sources(sourcePanels, inserts, masks);
+		enrichedPanels = baked.panels;
+		for (const panel of enrichedPanels) {
+			const before = beforeById.get(panel.id);
+			if (before === undefined || before.rgba.data.equals(panel.rgba.data)) continue;
+			for (let localY = 0; localY < panel.rgba.height; localY += 1) {
+				for (let localX = 0; localX < panel.rgba.width; localX += 1) {
+					const offset = (localY * panel.rgba.width + localX) * 4;
+					let changed = false;
+					for (let channel = 0; channel < 3; channel += 1) {
+						if (before.rgba.data[offset + channel] !== panel.rgba.data[offset + channel])
+							changed = true;
+					}
+					if (!changed) continue;
+					const worldX = panel.bounds.left + localX;
+					const worldY = panel.bounds.top + localY;
+					const maskOffset = worldY * masks.width + worldX;
+					assert(
+						masks.sceneryAllowed[maskOffset] === 1,
+						`Scenery bake changed a non-scenery pixel: ${panel.id}`
+					);
+					assert(
+						masks.otherProtected[maskOffset] === 0,
+						`Scenery bake changed a protected pixel: ${panel.id}`
+					);
+				}
+			}
+		}
+	}
+	const specs = new Map(MEADOW_ENTRY_PAINTED_V2_SOURCE_PANELS.map((spec) => [spec.id, spec]));
+	const underlays: MeadowEntryUnderlayDecodedPanel[] = enrichedPanels
+		.filter((panel) => specs.get(panel.id)?.role === 'underlay')
+		.map((panel) => ({ id: panel.id, bounds: panel.bounds, rgba: panel.rgba }));
 	const requiredUnderlayIds = [
 		'camera-underlay-sundrop-north',
 		'camera-underlay-sundrop-south',
@@ -695,14 +1037,7 @@ async function assembleSources(repositoryRoot: string): Promise<readonly ReviewA
 			bounds: { left: 2368, top: 3200, right: 3200, bottom: 5440 }
 		}
 	});
-	const detailPanels: MeadowEntryDetailDecodedPanel[] = decodedPanels
-		.filter(({ spec }) => spec.role === 'detail')
-		.map(({ spec, bytes }) => ({
-			id: spec.id,
-			bounds: spec.bounds,
-			rgba: bytes,
-			assemblyPriority: spec.assemblyPriority
-		}));
+	const detailPanels = enrichedPanels.filter((panel) => specs.get(panel.id)?.role === 'detail');
 	compositeMeadowEntryDetailPanels(underlay, detailPanels, MEADOW_ENTRY_PAINTED_V2_DETAIL_PAIRS);
 	for (const crop of MEADOW_ENTRY_PAINTED_V2_PILOT_CROPS) {
 		for (let y = crop.bounds.top; y < crop.bounds.bottom; y += 1) {
@@ -714,7 +1049,78 @@ async function assembleSources(repositoryRoot: string): Promise<readonly ReviewA
 			}
 		}
 	}
-	return reviewMasterArtifacts(underlay);
+	return {
+		artifacts: await reviewMasterArtifacts(underlay),
+		master: underlay,
+		enrichedPanels,
+		masks,
+		inserts
+	};
+}
+
+function maskCount(mask: Uint8Array): number {
+	let count = 0;
+	for (const value of mask) count += value;
+	return count;
+}
+
+function maskInventoryArtifact(
+	controls: ControlContext,
+	masks: MeadowEntryPaintedV2SceneryMaskSet,
+	inserts: readonly DecodedMeadowEntryPaintedV2SceneryInsert[]
+): ReviewArtifact {
+	const maskEntries = Object.fromEntries(
+		Object.entries({
+			selectedBlockers: masks.selectedBlockers,
+			otherProtected: masks.otherProtected,
+			groundAllowed: masks.groundAllowed,
+			sceneryAllowed: masks.sceneryAllowed,
+			hedgeAllowed: masks.hedgeAllowed,
+			woodlandAllowed: masks.woodlandAllowed,
+			decorationAllowed: masks.decorationAllowed
+		}).map(([name, mask]) => [
+			name,
+			{ sha256: sha256(mask), pixels: maskCount(mask), width: masks.width, height: masks.height }
+		])
+	);
+	return {
+		relativePath: 'mask-inventory.json',
+		bytes: stableJson({
+			version: 1,
+			width: masks.width,
+			height: masks.height,
+			combinedControlFingerprint: controls.combinedControlFingerprint,
+			masks: maskEntries,
+			insertIds: inserts.map(({ id }) => id),
+			generatedInsertIds: INSERT_REVIEW_IDS,
+			virtualInsertIds: [...VIRTUAL_INSERT_IDS],
+			blockerIds: MEADOW_ENTRY_PAINTED_V2_SCENERY_BLOCKERS.map(({ sourceId }) => sourceId),
+			protectedOverlapPixels: 0,
+			classOverlapPixels: 0,
+			energyRows: controls.tiles.length
+		})
+	};
+}
+
+async function evidenceDescriptors(
+	artifacts: readonly ReviewArtifact[]
+): Promise<Readonly<Record<string, EvidenceDescriptor>>> {
+	const descriptors: Record<string, EvidenceDescriptor> = {};
+	for (const artifact of artifacts) {
+		if (!artifact.relativePath.endsWith('.png')) continue;
+		const metadata = await sharp(artifact.bytes).metadata();
+		assert(
+			metadata.width !== undefined && metadata.height !== undefined,
+			`Evidence image dimensions are missing: ${artifact.relativePath}`
+		);
+		descriptors[artifact.relativePath] = {
+			sha256: sha256(artifact.bytes),
+			bytes: artifact.bytes.byteLength,
+			width: metadata.width,
+			height: metadata.height
+		};
+	}
+	return descriptors;
 }
 
 async function main(): Promise<void> {
@@ -725,9 +1131,21 @@ async function main(): Promise<void> {
 	if (options.check) await assertReviewOutputRootExists(outputRoot);
 	else await mkdir(outputRoot, { recursive: true });
 	const artifacts: ReviewArtifact[] = [];
-	if (options.assembleSources) artifacts.push(...(await assembleSources(repositoryRoot)));
-	const masterPath = resolve(repositoryRoot, options.master);
-	const master = await readFile(masterPath);
+	const assembly = options.assembleSources
+		? await assembleSources(repositoryRoot, options.mode === 'candidate')
+		: undefined;
+	if (assembly) artifacts.push(...assembly.artifacts);
+	const assembledMaster = assembly?.artifacts.find(
+		({ relativePath }) => relativePath === REVIEW_MASTER
+	);
+	assert(
+		!options.assembleSources || assembledMaster,
+		'Assembled Meadow Entry review master was not produced'
+	);
+	const masterPath = assembledMaster
+		? join(outputRoot, REVIEW_MASTER)
+		: resolve(repositoryRoot, options.master);
+	const master = assembledMaster?.bytes ?? (await readFile(masterPath));
 	const decoded = await decodeMeadowEntryRgba(master);
 	const controls = await readRenderedControls(repositoryRoot);
 	const energy = measureMeadowEntryPaintedV2DecorationEnergy(
@@ -737,6 +1155,30 @@ async function main(): Promise<void> {
 	);
 	const measured = energyWithMode(energy, options.mode);
 	if (options.mode === 'candidate') assertMeadowEntryPaintedV2DecorationEnergy(measured);
+	if (options.mode === 'candidate' && options.contactSheets)
+		artifacts.push(...(await writeDensitySheets(decoded, controls.tiles)));
+	if (options.mode === 'candidate' && options.sourceReview) {
+		assert(assembly?.masks !== undefined, 'Candidate source review requires scenery masks');
+		assert(assembly.inserts !== undefined, 'Candidate source review requires scenery inserts');
+		artifacts.push(
+			...(await nativeReviewArtifacts(
+				repositoryRoot,
+				decoded,
+				controls,
+				assembly.enrichedPanels,
+				assembly.inserts
+			))
+		);
+		artifacts.push(maskInventoryArtifact(controls, assembly.masks, assembly.inserts));
+		const masterPng = assembledMaster?.bytes ?? master;
+		artifacts.push({
+			relativePath: REVIEW_OVERVIEW,
+			bytes: await sharp(masterPng).resize(1_600, 1_600, { fit: 'cover' }).png().toBuffer()
+		});
+	}
+	let evidence: Readonly<Record<string, EvidenceDescriptor>> = {};
+	if (options.mode === 'candidate' && options.sourceReview)
+		evidence = await evidenceDescriptors(artifacts);
 	let result = payload(
 		options.mode,
 		options.sourceReview,
@@ -744,16 +1186,18 @@ async function main(): Promise<void> {
 		master,
 		decoded,
 		controls,
-		measured
+		measured,
+		evidence
 	);
 	result = await patchCandidateSourceHashes(result, repositoryRoot);
 	const jsonName =
 		options.mode === 'baseline' ? 'decoration-baseline.json' : 'decoration-candidate.json';
 	artifacts.push({ relativePath: jsonName, bytes: stableJson(result) });
-	if (options.mode === 'candidate' && options.contactSheets)
-		artifacts.push(...(await writeDensitySheets(decoded, controls.tiles)));
 	if (options.mode === 'candidate' && options.sourceReview)
-		artifacts.push(...(await nativeReviewArtifacts(repositoryRoot, decoded, controls)));
+		artifacts.push({
+			relativePath: 'evidence-manifest.json',
+			bytes: stableJson({ version: 1, files: evidence })
+		});
 	await compareOrWriteArtifacts(outputRoot, artifacts, options.check);
 	await assertNoStaleReviewFiles(outputRoot);
 	console.log(

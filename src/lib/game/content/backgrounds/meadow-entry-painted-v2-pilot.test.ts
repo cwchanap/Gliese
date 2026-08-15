@@ -62,9 +62,20 @@ interface SourcePanelProvenanceRecord {
 	normalized: { path: string };
 }
 
-const IMMUTABLE_DETAIL_HASHES = {
-	'sundrop-north': '3c7fe6063b8043578464ae68e5ec38505ae6a866afcd72fe2ff2293bf912a4e9',
-	'sundrop-south': 'b3bb18292cd23556d58f2ac7720f95037392ef60b26e9f208206e1f270fd672f',
+const APPROVED_FOREST_INTERIM_HASHES = {
+	'camera-underlay-sundrop-north':
+		'bec9a64a5ee9563a22227afaa3da12c1778795ddd732f592348eb9f591eb6bdd',
+	'camera-underlay-sundrop-south':
+		'0c50b1481cf7bdf7d6e4a1eb61d6bf54ba26c0407a55218dea38831fa7f9a298',
+	'camera-underlay-crossroads-north':
+		'ad209bf0c84f47f12adcee89eeb18266a1686299bc38cda65880a7ab81a14848',
+	'camera-underlay-crossroads-south':
+		'd27ac3e76a3444af5bfcc0add96949513a9afcca787ddb7f4cb9c7754edc069c',
+	'sundrop-north': '48ea9abcb7afe69aa3b35ecae3a46e5cb850ad68527a5c172f7a08ba18153df2',
+	'sundrop-south': '711a0794348fb32f11f81b7e567b1baf8c337e259315141edc8f83a4503146cd'
+} as const;
+
+const IMMUTABLE_PINNED_DETAIL_HASHES = {
 	'hero-house-frontage': '9809baf80d939eee485ee0876d3e907e60e04a8185b774f1a14a418a9cd8205b',
 	'village-crossroads-connector':
 		'6866f90802dfcd73d3828b41b237c8c1239ee130c9d8c8af3ac10d20c193e8b2',
@@ -445,15 +456,29 @@ describe('painted-v2 pilot source-panel contract', () => {
 		expect(Object.isFrozen(MEADOW_ENTRY_PAINTED_V2_SOURCE_PANELS)).toBe(true);
 	});
 
-	it('keeps every accepted detail panel normalized hash byte-immutable', () => {
+	it('pins the six approved forest-interim sources and three unchanged detail panels', () => {
 		for (const panel of MEADOW_ENTRY_PAINTED_V2_SOURCE_PANELS.filter(
-			({ role }) => role === 'detail'
+			({ id }) => id in APPROVED_FOREST_INTERIM_HASHES
 		)) {
 			const normalized = readFileSync(panel.normalizedPath);
 			expect(
 				createHash('sha256').update(normalized).digest('hex'),
 				`${panel.id} normalized hash`
-			).toBe(IMMUTABLE_DETAIL_HASHES[panel.id as keyof typeof IMMUTABLE_DETAIL_HASHES]);
+			).toBe(
+				APPROVED_FOREST_INTERIM_HASHES[panel.id as keyof typeof APPROVED_FOREST_INTERIM_HASHES]
+			);
+		}
+
+		for (const panel of MEADOW_ENTRY_PAINTED_V2_SOURCE_PANELS.filter(
+			({ id }) => id in IMMUTABLE_PINNED_DETAIL_HASHES
+		)) {
+			const normalized = readFileSync(panel.normalizedPath);
+			expect(
+				createHash('sha256').update(normalized).digest('hex'),
+				`${panel.id} normalized hash`
+			).toBe(
+				IMMUTABLE_PINNED_DETAIL_HASHES[panel.id as keyof typeof IMMUTABLE_PINNED_DETAIL_HASHES]
+			);
 		}
 	});
 
