@@ -171,10 +171,10 @@ authored individual tree, gate, sign, pickup, actor, and landmark sprites—rema
 
 Inside a tree-wall or forest-bank belt, trunks, dark canopy interiors, and other high-contrast
 collision cues remain inside the exact blocked footprint. The deterministic inward feather reaches
-zero at every blocker edge, so the surrounding ground remains unchanged and no rectangular strip is
-exposed. The art may imply a continuous forest behind live tree sprites, but must not reproduce an
-authored sprite's exact silhouette, position, or landmark identity. Existing live visuals remain
-distinct and render unchanged above the background.
+zero at the outer boundary of each class-mask union, so the surrounding ground remains unchanged and
+no rectangular strip is exposed. The art may imply a continuous forest behind live tree sprites,
+but must not reproduce an authored sprite's exact silhouette, position, or landmark identity.
+Existing live visuals remain distinct and render unchanged above the background.
 
 Mask precedence is exact. Let `selectedBlockers` be the rasterized union of the ten literal rows.
 Let `otherProtected` be the protected/live sources rerendered from the ownership catalog while
@@ -192,26 +192,31 @@ decorationAllowed = groundAllowed | sceneryAllowed
 ```
 
 The selected blocker omission is the only protected-mask exception. Every overlapping non-selected
-source still wins. `groundAllowed` and `decorationAllowed` own ground-richness review;
-`sceneryAllowed` also owns the deterministic insert bake. All three rasters and their source hashes
-are art-package provenance only: they do not enter the gameplay control fingerprint or runtime
-ownership table.
+source still wins. `groundAllowed` alone owns the exact 67-tile inventory, the per-tile and median
+energy floors, and the open-ground motif-family review. `sceneryAllowed` owns only the deterministic
+insert bake plus the ten blocker-row and Wildwood reviews. `decorationAllowed` is a diagnostic union
+for overlays and provenance; it never selects richness tiles or contributes energy samples. All
+three rasters and their source hashes are art-package provenance only: they do not enter the gameplay
+control fingerprint or runtime ownership table.
 
-Decoration eligibility reuses the existing control SVGs. It subtracts the rendered protected-live,
-building-footprint, entrance-transition, reward-discovery, and semantic-anchor masks from the
-two-crop union. Those controls already encode the approved ownership clearances and
-`PROTECTION_MARGINS` (`top: 32`, `right: 16`, `bottom: 16`, `left: 16`); no second uniform dilation
-and no new control SVG is introduced.
+One catalog-backed builder owns `insideCropUnion`, `protectedLive`, `selectedBlockers`,
+`otherProtected`, `buildingFootprint`, `entranceTransition`, `rewardDiscovery`, `semanticAnchor`,
+`routeCore`, `groundAllowed`, `sceneryAllowed`, both class masks, and `decorationAllowed`. It consumes
+`buildMeadowEntryControlInputs()` and the exported `MEADOW_ENTRY_PROTECTION_MARGINS`; it does not
+parse a rendered SVG. Decoration eligibility consumes that builder's `groundAllowed` byte-for-byte
+as `eligible` and copies its diagnostic masks rather than independently deriving terrain insets.
+Control SVGs remain rendered evidence of the same catalog input, not a second raster authority. No
+second uniform dilation and no new control SVG is introduced.
 
 Implementation exposes that existing margin constant as a read-only exported contract and reuses
 it directly; it must not copy the four numbers into a second decoration-only constant.
 
-The route-core exclusion is an art-review/assembly raster derived in memory from
-`meadow-entry-terrain-path-mask.svg`. Each terrain rectangle is inset by the same existing
-`PROTECTION_MARGINS`, and non-positive results are discarded. This leaves the path core quiet while
-allowing low-profile decoration on eligible path shoulders. The derived raster, its source hashes,
-and the derivation policy are recorded in review metadata, but it is not added to the control
-inventory.
+The route-core exclusion is derived in memory by that same builder from the `ground-patch` records
+already present in `buildMeadowEntryControlInputs().sourceCatalog`. Each catalog-backed source bound
+is inset by the exported `MEADOW_ENTRY_PROTECTION_MARGINS`, and non-positive results are discarded.
+This leaves the path core quiet while allowing low-profile decoration on eligible path shoulders.
+The catalog/source hashes and derivation policy are recorded in review metadata. The rendered
+`meadow-entry-terrain-path-mask.svg` is downstream evidence only and is never parsed as input.
 
 The eligibility inventory is computed before generation on a world-aligned `512×512` grid. A tile
 qualifies when eligible pixels occupy at least 50% of the crop-union pixels clipped into that tile.
@@ -472,6 +477,10 @@ artifacts/meadow-entry/painted-v2/source-inserts/<insert-id>.png
 artifacts/meadow-entry/painted-v2/source-inserts/<insert-id>.json
 ```
 
+The sealed `RAW_SCENERY_INSERTS` registry uses those three `source-inserts/` paths literally for
+every row. Tests reject any alias to an owning presentation source under `source-panels/`, even when
+the aliased image has matching bounds or dimensions.
+
 Their raw and normalized bytes, prompt, references, transform, exact class, owning source and
 priority, mask hash, attempt history, and approval state are stored as seven literal rows in root
 provenance under `blockedSceneryInserts`. They are included in package approval and storage checks
@@ -516,8 +525,10 @@ luma(r, g, b) = floor((54*r + 183*g + 19*b + 128) / 256)
 boxMean(source, p, radius) = halfUpMean(source[q] for q in clipped square p +/- radius)
 ```
 
-For each insert pixel and RGB channel, broad source value is removed before blending. Hedge detail
-is capped at `32` channel steps; woodland detail is capped at `48`:
+For each eligible sample pixel and RGB channel, broad source value is removed before blending. Hedge
+detail is capped at `32` channel steps; woodland detail is capped at `48`. Implementations may build
+prefix sums over a whole source once, but they evaluate local means and write output only for the
+sealed blocker/source sample sets:
 
 ```text
 detailLimit(hedge) = 32
@@ -545,7 +556,7 @@ organic clump weight uses an integer half-up cubic smoothstep:
 
 ```text
 t(p) = clamp(halfUp(255 * (organicSignal(p) - q40) / (q80 - q40)), 0, 255)
-organicWeight(p) = halfUp(t(p)^2 * (765 - 2*t(p)) / 65025)
+organicWeight(p) = meadowEntryDetailFeatherWeight(t(p), 255)
 ```
 
 When blocker intersections overlap for the same insert, their organic weights combine with `max`,
@@ -584,6 +595,11 @@ nearest-rank p95 of those run ratios must be at most `0.30`, and the absolute ma
 `0.50`. This catches a full-length strip anywhere in the row interior rather than checking only its
 outer edges. These bounds reject an empty belt and a continuous mask-shaped bar; native-detail
 review remains authoritative for whether the resulting clumps read as hedge or forest.
+
+`enrichMeadowEntryPaintedV2Sources` returns those thresholds, intersection weight-raster hashes,
+per-row coverage, p95 and maximum longitudinal-run ratios, formula identifiers, changed-pixel counts,
+class counts, and enriched-source hashes. Tests consume this returned provenance directly; they do
+not reimplement percentile or run-ratio calculations to make assertions.
 
 A sealed coverage matrix is derived from the ten blocker rows and all nine panel bounds. Every
 non-empty selected-blocker/source-panel intersection must have exactly one insert with the same
@@ -701,14 +717,17 @@ Tests must establish genuine RED before production changes and then cover:
   extra, cross-class, or bounds-mismatched insert;
 - unchanged north/south and family axis blends, ordinary Crossroads detail feathering, both
   paired-detail corrections, and final perimeter metrics after enriched sources enter assembly;
-- exact clipped half-up box means, integer luma, owner-relative detail caps, nearest-rank `q40` and
-  `q80`, tie/undersized-intersection rejection, integer cubic smoothstep, order-independent `max`
+- exact clipped half-up box means evaluated only for eligible sample pixels, integer luma,
+  owner-relative detail caps, the shared exported nearest-rank helper for median, p95, `q40`, and
+  `q80`, tie/undersized-intersection rejection, `meadowEntryDetailFeatherWeight(t, 255)` for organic
+  smoothstep, order-independent `max`
   aggregation, repeated 8-neighbor erosion, zero class-mask boundary weight, edge-envelope reach at
   inward depth `15`, per-row coverage and longest-run limits, alpha preservation, deterministic
   repeated output, and byte non-mutation outside `sceneryAllowed`;
-- exact reuse of the existing canonical PNG, `blendMeadowEntryAxisPairPixel`,
-  `compositeMeadowEntryDetailPanel`, `meadowEntryDetailFeatherWeight`, and
-  `blendMeadowEntryDetailChannel` helpers rather than copied formulas;
+- exact reuse of the existing canonical PNG, exported `rgbStep`, shared nearest-rank,
+  `blendMeadowEntryAxisPairPixel`, `compositeMeadowEntryDetailPanel`,
+  `meadowEntryDetailFeatherWeight`, and `blendMeadowEntryDetailChannel` helpers rather than copied
+  formulas;
 - unchanged nine-row source-panel registry and proof that no insert becomes a source-panel row,
   runtime descriptor, runtime/public asset, foreground plane, or gameplay ownership row;
 - unchanged gameplay control fingerprint and exact two-crop manifest;
