@@ -19,6 +19,13 @@ publication, probe, E2E, and two-crop runtime paths are regenerated rather than 
 **Tech Stack:** TypeScript, Vitest, Bun, Sharp, canonical PNG helpers, built-in image generation,
 Phaser 4, Playwright, Git LFS.
 
+> **2026-08-14 continuation note:** Tasks 1 and 2 below are completed prerequisites and remain
+> authoritative. The first Task 3 candidate was rejected for insufficient forest structure. Tasks
+> 3 through 9 are superseded by
+> `docs/superpowers/plans/2026-08-14-meadow-entry-painted-pilot-forest-enrichment.md`, which
+> implements the approved blocked-scenery amendment without changing the completed compositor or
+> 67-tile eligibility contracts.
+
 ## Global Constraints
 
 - Implement the approved design at

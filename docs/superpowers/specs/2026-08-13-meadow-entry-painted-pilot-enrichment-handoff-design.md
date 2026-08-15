@@ -2,7 +2,7 @@
 
 **Date:** 2026-08-13
 
-**Status:** Forest-enrichment direction approved on 2026-08-14; corrected written amendment awaiting user review
+**Status:** Corrected forest-enrichment amendment approved on 2026-08-14
 
 **Amends:** `2026-08-12-meadow-entry-painted-pilot-camera-safe-underlay-design.md`
 
