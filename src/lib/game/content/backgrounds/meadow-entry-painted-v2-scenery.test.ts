@@ -304,6 +304,12 @@ function cloneCatalog(): MeadowEntrySourceRecord[] {
 }
 
 describe('painted-v2 blocked-scenery source contract', () => {
+	it('keeps the sealed inventory independent of the preassembly bake', () => {
+		expect(MEADOW_ENTRY_PAINTED_V2_SCENERY_BLOCKERS).toHaveLength(10);
+		expect(MEADOW_ENTRY_PAINTED_V2_SCENERY_INSERTS).toHaveLength(7);
+		expect(validateMeadowEntryPaintedV2SceneryContract()).toHaveLength(16);
+	});
+
 	it('freezes the exact ten blocker rows and maps language to class', () => {
 		expect(MEADOW_ENTRY_PAINTED_V2_SCENERY_BLOCKERS).toEqual(EXPECTED_BLOCKERS);
 		expect(Object.isFrozen(MEADOW_ENTRY_PAINTED_V2_SCENERY_BLOCKERS)).toBe(true);

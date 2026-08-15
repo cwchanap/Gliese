@@ -1,6 +1,7 @@
 import type { DecodedMeadowEntryRgba } from './meadow-entry-png';
 import { MEADOW_ENTRY_PROTECTION_MARGINS } from './meadow-entry-bake-ownership';
 import type { Insets, PixelBounds } from './meadow-entry-authoring-types';
+import type { MeadowEntryPaintedV2SceneryMaskSet } from './meadow-entry-painted-v2-scenery-bake';
 
 export const MEADOW_ENTRY_PAINTED_V2_DECORATION_TILE_SIZE_PX = 512;
 export const MEADOW_ENTRY_PAINTED_V2_DECORATION_ELIGIBILITY_RATIO = 0.5;
@@ -63,6 +64,7 @@ export interface MeadowEntryPaintedV2DecorationEligibilityInput {
 	readonly tileSizePx?: number;
 	readonly cropUnion: readonly PixelBounds[];
 	readonly masks: MeadowEntryPaintedV2DecorationMasks;
+	readonly sceneryMasks?: MeadowEntryPaintedV2SceneryMaskSet;
 	readonly terrainRects: readonly PixelBounds[];
 	readonly metadata?: Readonly<Record<string, unknown>>;
 }
@@ -74,11 +76,19 @@ export interface MeadowEntryPaintedV2DecorationEligibility {
 	readonly cropUnion: readonly PixelBounds[];
 	readonly insideCropUnion: Uint8Array;
 	readonly protectedLive: Uint8Array;
+	readonly selectedBlockers: Uint8Array;
+	readonly otherProtected: Uint8Array;
 	readonly buildingFootprint: Uint8Array;
 	readonly entranceTransition: Uint8Array;
 	readonly rewardDiscovery: Uint8Array;
 	readonly semanticAnchor: Uint8Array;
 	readonly routeCore: Uint8Array;
+	readonly groundAllowed: Uint8Array;
+	readonly sceneryAllowed: Uint8Array;
+	readonly hedgeAllowed: Uint8Array;
+	readonly woodlandAllowed: Uint8Array;
+	readonly decorationAllowed: Uint8Array;
+	readonly sourceHashes: Readonly<Record<string, string>>;
 	readonly routeCoreRects: readonly PixelBounds[];
 	readonly eligible: Uint8Array;
 	readonly protectionMargins: Readonly<Insets>;
@@ -186,6 +196,47 @@ function fillRect(mask: Uint8Array, width: number, bounds: PixelBounds): void {
 	}
 }
 
+function validateNamedSceneryMasks(
+	named: MeadowEntryPaintedV2SceneryMaskSet,
+	width: number,
+	height: number,
+	groundAllowed: Uint8Array
+): void {
+	assert(
+		named.width === width && named.height === height,
+		'Named Meadow Entry scenery mask dimensions do not match eligibility'
+	);
+	const pixels = width * height;
+	for (const [label, mask] of [
+		['selectedBlockers', named.selectedBlockers],
+		['otherProtected', named.otherProtected],
+		['groundAllowed', named.groundAllowed],
+		['sceneryAllowed', named.sceneryAllowed],
+		['hedgeAllowed', named.hedgeAllowed],
+		['woodlandAllowed', named.woodlandAllowed],
+		['decorationAllowed', named.decorationAllowed]
+	] as const) {
+		assert(mask.byteLength === pixels, `${label} named mask dimensions are invalid`);
+		for (const value of mask)
+			assert(value === 0 || value === 1, `${label} named mask must be binary`);
+	}
+	for (let offset = 0; offset < pixels; offset += 1) {
+		assert(
+			named.groundAllowed[offset] === groundAllowed[offset],
+			`Named ground-allowed mask drifted at pixel ${offset}`
+		);
+		assert(
+			!(named.hedgeAllowed[offset] === 1 && named.woodlandAllowed[offset] === 1),
+			`Named hedge and woodland masks overlap at pixel ${offset}`
+		);
+		assert(
+			named.decorationAllowed[offset] ===
+				(named.groundAllowed[offset] === 1 || named.sceneryAllowed[offset] === 1 ? 1 : 0),
+			`Named decoration mask is not the ground/scenery union at pixel ${offset}`
+		);
+	}
+}
+
 export function buildMeadowEntryPaintedV2DecorationEligibility(
 	input: MeadowEntryPaintedV2DecorationEligibilityInput
 ): MeadowEntryPaintedV2DecorationEligibility {
@@ -237,6 +288,19 @@ export function buildMeadowEntryPaintedV2DecorationEligibility(
 				? 1
 				: 0;
 	}
+	const named = input.sceneryMasks;
+	const groundAllowed = eligible;
+	const sceneryAllowed = named?.sceneryAllowed ?? new Uint8Array(pixels);
+	const hedgeAllowed = named?.hedgeAllowed ?? new Uint8Array(pixels);
+	const woodlandAllowed = named?.woodlandAllowed ?? new Uint8Array(pixels);
+	const selectedBlockers = named?.selectedBlockers ?? new Uint8Array(pixels);
+	const otherProtected = named?.otherProtected ?? new Uint8Array(pixels);
+	if (named !== undefined)
+		validateNamedSceneryMasks(named, input.width, input.height, groundAllowed);
+	const decorationAllowed = new Uint8Array(pixels);
+	for (let offset = 0; offset < pixels; offset += 1) {
+		decorationAllowed[offset] = groundAllowed[offset] === 1 || sceneryAllowed[offset] === 1 ? 1 : 0;
+	}
 	return {
 		width: input.width,
 		height: input.height,
@@ -244,11 +308,22 @@ export function buildMeadowEntryPaintedV2DecorationEligibility(
 		cropUnion: input.cropUnion.map((bounds) => ({ ...bounds })),
 		insideCropUnion,
 		protectedLive,
+		selectedBlockers,
+		otherProtected,
 		buildingFootprint,
 		entranceTransition,
 		rewardDiscovery,
 		semanticAnchor,
 		routeCore,
+		groundAllowed,
+		sceneryAllowed,
+		hedgeAllowed,
+		woodlandAllowed,
+		decorationAllowed,
+		sourceHashes:
+			named?.sourceHashes ??
+			(input.metadata?.controlSvgHashes as Readonly<Record<string, string>> | undefined) ??
+			Object.freeze({}),
 		routeCoreRects,
 		eligible,
 		protectionMargins: MEADOW_ENTRY_PROTECTION_MARGINS,

@@ -11,6 +11,7 @@ import {
 	type MeadowEntryPaintedV2DecorationEnergy,
 	type MeadowEntryPaintedV2DecorationEligibilityInput
 } from './meadow-entry-painted-v2-enrichment-review';
+import type { MeadowEntryPaintedV2SceneryMaskSet } from './meadow-entry-painted-v2-scenery-bake';
 
 function mask(width: number, height: number, fill = 0): MeadowEntryPaintedV2DecodedAlphaMask {
 	return { width, height, alpha: Buffer.alloc(width * height, fill) };
@@ -51,6 +52,33 @@ function energyResult(overrides: Partial<MeadowEntryPaintedV2DecorationEnergy> =
 		tiles: [],
 		...overrides
 	} satisfies MeadowEntryPaintedV2DecorationEnergy;
+}
+
+function sceneryMasks(width: number, height: number): MeadowEntryPaintedV2SceneryMaskSet {
+	const pixels = width * height;
+	const groundAllowed = new Uint8Array(pixels).fill(1);
+	const sceneryAllowed = new Uint8Array(pixels);
+	const hedgeAllowed = new Uint8Array(pixels);
+	const woodlandAllowed = new Uint8Array(pixels);
+	const decorationAllowed = new Uint8Array(pixels);
+	for (let index = 0; index < pixels; index += 1) {
+		sceneryAllowed[index] = index % 2;
+		hedgeAllowed[index] = index % 2;
+		woodlandAllowed[index] = 0;
+		decorationAllowed[index] = groundAllowed[index] === 1 || sceneryAllowed[index] === 1 ? 1 : 0;
+	}
+	return {
+		width: width as 6400,
+		height: height as 6400,
+		selectedBlockers: new Uint8Array(pixels),
+		otherProtected: new Uint8Array(pixels),
+		groundAllowed,
+		sceneryAllowed,
+		hedgeAllowed,
+		woodlandAllowed,
+		decorationAllowed,
+		sourceHashes: { synthetic: 'a'.repeat(64) }
+	} as MeadowEntryPaintedV2SceneryMaskSet;
 }
 
 describe('Meadow Entry painted-v2 decoration eligibility', () => {
@@ -216,5 +244,37 @@ describe('Meadow Entry painted-v2 decoration eligibility', () => {
 			};
 		};
 		expect(JSON.stringify(build())).toBe(JSON.stringify(build()));
+	});
+
+	it('exposes named scenery masks and hashes without changing the 67-row energy contract', () => {
+		const named = sceneryMasks(8, 8);
+		const eligibility = buildMeadowEntryPaintedV2DecorationEligibility(
+			input({ sceneryMasks: named })
+		);
+		const tiles = collectMeadowEntryPaintedV2DecorationTiles(eligibility);
+		const energy = measureMeadowEntryPaintedV2DecorationEnergy(
+			{
+				width: 8,
+				height: 8,
+				data: Buffer.alloc(8 * 8 * 4, 255)
+			},
+			eligibility,
+			tiles
+		);
+
+		expect(eligibility.groundAllowed).toEqual(eligibility.eligible);
+		expect(eligibility.selectedBlockers).toEqual(named.selectedBlockers);
+		expect(eligibility.otherProtected).toEqual(named.otherProtected);
+		expect(eligibility.hedgeAllowed).toEqual(named.hedgeAllowed);
+		expect(eligibility.woodlandAllowed).toEqual(named.woodlandAllowed);
+		expect(eligibility.sceneryAllowed).toEqual(named.sceneryAllowed);
+		expect(eligibility.decorationAllowed).toEqual(named.decorationAllowed);
+		expect(eligibility.sourceHashes).toEqual(named.sourceHashes);
+		expect(tiles.map(({ bounds }) => bounds)).toEqual(
+			collectMeadowEntryPaintedV2DecorationTiles(
+				buildMeadowEntryPaintedV2DecorationEligibility(input())
+			).map(({ bounds }) => bounds)
+		);
+		expect(energy.qualifyingTileCount).toBe(4);
 	});
 });
