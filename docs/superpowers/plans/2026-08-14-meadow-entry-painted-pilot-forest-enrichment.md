@@ -1008,8 +1008,14 @@ rtk git diff --exit-code -- \
 - [ ] **Step 6: After approval, bind metadata and commit Task 4**
 
 Record answer and UTC timestamp in two panel manifests, two insert manifests, root provenance,
-report, and ledger. Run focused source/review/scenery tests, storage, LFS, check, targeted
-Prettier/ESLint, and diff-check. Repeat the Step 5 protected-package diff command before staging.
+report, and ledger. Preserve the approval target as the pre-binding `approvalCandidateSha256`, and
+record the post-binding candidate SHA under a `two-phase-source-manifest-binding` identity
+(`identityVersion: 1`). Root provenance must include the exact before/after SHA-256 deltas for only
+the two panel manifests, the evidence manifest hash/count, `runtimePermission: false`, and a
+reconstruction proof that removing those approval fields recovers the approved pre-binding
+candidate identity. Do not add the two insert triples to candidate `sourceHashes` for this metadata
+binding. Run focused source/review/scenery tests, storage, LFS, check, targeted Prettier/ESLint, and
+diff-check. Repeat the Step 5 protected-package diff command before staging.
 Commit only final-source files and evidence:
 
 ```bash

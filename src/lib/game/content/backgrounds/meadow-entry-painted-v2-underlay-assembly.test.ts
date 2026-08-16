@@ -93,7 +93,7 @@ describe('Meadow Entry camera-safe underlay assembly', () => {
 			}
 		});
 		expect(createHash('sha256').update(result.data).digest('hex')).toBe(
-			'9b6ff9c9b333297096442f42dd49efb9669c7b04044ff398b053a5d11a9d3f42'
+			'228968c373f8a3bd56ac264ca2b6d228c41d465c67581a0cee6d1073b74a705b'
 		);
 	});
 

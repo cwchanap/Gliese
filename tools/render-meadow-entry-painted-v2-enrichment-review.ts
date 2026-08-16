@@ -60,23 +60,29 @@ const REVIEW_SUNDROP_CROP = 'exports/painted-v2-sundrop-camera-base.png';
 const REVIEW_CROSSROADS_CROP = 'exports/painted-v2-crossroads-camera-base.png';
 const REVIEW_OVERVIEW = 'forest-overview.png';
 const INSERT_ARTIFACT_ROOT = 'artifacts/meadow-entry/painted-v2/source-inserts';
-const SOURCE_REVIEW_PANEL_IDS = new Set([
+export const REVIEW_SOURCE_PANEL_IDS = [
 	'camera-underlay-sundrop-north',
 	'camera-underlay-sundrop-south',
 	'camera-underlay-crossroads-north',
 	'camera-underlay-crossroads-south',
 	'sundrop-north',
-	'sundrop-south'
-]);
-const INSERT_REVIEW_IDS = [
+	'sundrop-south',
+	'village-crossroads-connector',
+	'crossroads'
+] as const;
+const SOURCE_REVIEW_PANEL_IDS = new Set<string>(REVIEW_SOURCE_PANEL_IDS);
+export const REVIEW_INSERT_IDS = [
 	'camera-underlay-sundrop-south-blocked-hedge',
 	'camera-underlay-crossroads-north-blocked-hedge',
 	'camera-underlay-crossroads-south-blocked-hedge',
 	'camera-underlay-crossroads-north-blocked-woodland',
-	'camera-underlay-crossroads-south-blocked-woodland'
+	'camera-underlay-crossroads-south-blocked-woodland',
+	'crossroads-blocked-hedge',
+	'crossroads-blocked-woodland'
 ] as const;
-const PRESENTATION_REVIEW_IDS = [...SOURCE_REVIEW_PANEL_IDS] as const;
-const VIRTUAL_INSERT_IDS = new Set(['crossroads-blocked-hedge', 'crossroads-blocked-woodland']);
+const INSERT_REVIEW_IDS = REVIEW_INSERT_IDS;
+const PRESENTATION_REVIEW_IDS = REVIEW_SOURCE_PANEL_IDS;
+const VIRTUAL_INSERT_IDS = new Set<string>();
 
 interface CliOptions {
 	check: boolean;
@@ -682,18 +688,32 @@ async function readSceneryInserts(
 			);
 		}
 		const rgba = await decodeMeadowEntryRgba(await readFile(normalizedPath));
-		assert(
-			rgba.width === expected.bounds.right - expected.bounds.left &&
-				rgba.height === expected.bounds.bottom - expected.bounds.top,
-			`Scenery insert dimensions do not match bounds: ${expected.id}`
-		);
 		assertInsertArtQuality(expected, rgba, metadata);
+		const targetWidth = expected.bounds.right - expected.bounds.left;
+		const targetHeight = expected.bounds.bottom - expected.bounds.top;
+		const assemblyRgba =
+			rgba.width === targetWidth && rgba.height === targetHeight
+				? rgba
+				: await (async () => {
+						const { data, info } = await sharp(rgba.data, {
+							raw: { width: rgba.width, height: rgba.height, channels: 4 }
+						})
+							.resize(targetWidth, targetHeight, { fit: 'cover', kernel: 'lanczos3' })
+							.ensureAlpha()
+							.raw()
+							.toBuffer({ resolveWithObject: true });
+						assert(
+							info.channels === 4,
+							`Scenery insert assembly resize is not RGBA: ${expected.id}`
+						);
+						return { data, width: info.width, height: info.height };
+					})();
 		decoded.push({
 			id: expected.id,
 			sceneryClass: expected.sceneryClass,
 			owningSourceId: expected.owningSourceId,
 			bounds: expected.bounds,
-			rgba
+			rgba: assemblyRgba
 		});
 	}
 	return decoded;

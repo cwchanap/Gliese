@@ -847,6 +847,26 @@ rows must read as organic woodland depth rather than a repeated line of identica
 full panel dominated by undifferentiated grass, a regular stamp grid, an exposed insert rectangle,
 duplicated live-prop silhouette, or visual narrowing of an authored route.
 
+### Two-phase source-manifest identity
+
+Approval binds the visual candidate before final-source approval metadata is written. The two final
+panel manifests then receive the explicit answer, UTC-second timestamp, and approval scope; those
+manifest bytes are also deterministic review inputs. The review package therefore records two
+identities without changing renderer hashing semantics:
+
+- `approvalCandidateSha256` is the pre-binding candidate identity and remains the explicit user
+  approval target.
+- `postBindingCandidateSha256` is the candidate identity after approval metadata is bound to the
+  two final panel manifests.
+- Root provenance records `identityMode: "two-phase-source-manifest-binding"`,
+  `identityVersion: 1`, the evidence manifest hash/count, and exact before/after SHA-256 deltas
+  for only `village-crossroads-connector.json` and `crossroads.json`.
+- Removing the approval fields from those two panel manifests, or equivalently replacing only
+  their post-binding source hashes with the recorded before hashes, must reconstruct the approved
+  pre-binding candidate identity.
+- `runtimePermission` remains `false`, and the two final insert triples are not added to the
+  candidate `sourceHashes` solely because approval metadata was bound.
+
 ## Deterministic verification
 
 Tests must establish genuine RED before production changes and then cover:

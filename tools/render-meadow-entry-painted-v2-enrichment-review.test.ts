@@ -16,7 +16,7 @@ import { fileURLToPath } from 'node:url';
 import sharp from 'sharp';
 import test from 'node:test';
 
-const PRESENTATION_IDS = [
+const TASK3_PRESENTATION_IDS = [
 	'camera-underlay-sundrop-north',
 	'camera-underlay-sundrop-south',
 	'camera-underlay-crossroads-north',
@@ -25,12 +25,46 @@ const PRESENTATION_IDS = [
 	'sundrop-south'
 ] as const;
 
-const INSERT_IDS = [
+const TASK3_INSERT_IDS = [
 	'camera-underlay-sundrop-south-blocked-hedge',
 	'camera-underlay-crossroads-north-blocked-hedge',
 	'camera-underlay-crossroads-south-blocked-hedge',
 	'camera-underlay-crossroads-north-blocked-woodland',
 	'camera-underlay-crossroads-south-blocked-woodland'
+] as const;
+
+const PRESENTATION_IDS = [
+	...TASK3_PRESENTATION_IDS,
+	'village-crossroads-connector',
+	'crossroads'
+] as const;
+
+const INSERT_IDS = [
+	...TASK3_INSERT_IDS,
+	'crossroads-blocked-hedge',
+	'crossroads-blocked-woodland'
+] as const;
+
+const TASK4_APPROVAL_CANDIDATE_SHA256 =
+	'6d419b9f52213b70061588baf63e0ef2316f971981a9e66d30e2892ac119c6a4';
+const TASK4_POST_BINDING_CANDIDATE_SHA256 =
+	'e95080508cae8b5fe3a1819c2c08a8a03a18cdea0046c55507c98a4a27119529';
+const TASK4_EVIDENCE_MANIFEST_SHA256 =
+	'cd905da7d47c938622df80d7d637ce41078918b37143043b7e9c97bf8df4c6f2';
+const TASK4_APPROVED_AT_UTC = '2026-08-16T16:41:54Z';
+const TASK4_PANEL_MANIFEST_HASH_DELTAS = [
+	{
+		id: 'village-crossroads-connector',
+		path: 'artifacts/meadow-entry/painted-v2/source-panels/village-crossroads-connector.json',
+		beforeSha256: 'c9952b82cf35889e1c59ea891a1baff7112c38e01f170681ec01c0b8197bd534',
+		afterSha256: '0c438c153cb90a1416b563f842a39e774e105933a6c8289d40d7dede37be372c'
+	},
+	{
+		id: 'crossroads',
+		path: 'artifacts/meadow-entry/painted-v2/source-panels/crossroads.json',
+		beforeSha256: '288ac4c1e76adfab879471d2beb910ae45341f3afe29d1eab7d19ed4cdbb4a5a',
+		afterSha256: '83cbcdc0b40fd3350deb5c03dfbd345977661aac7960f97106027b1a74b57b39'
+	}
 ] as const;
 
 type SyntheticSourceManifest = Readonly<{
@@ -141,6 +175,15 @@ test('candidate source review rejects the two recorded invalid-scale attempt-3 m
 	);
 });
 
+test('Task 4 source review inventory includes eight presentation panels and seven inserts', async () => {
+	const review = (await import('./render-meadow-entry-painted-v2-enrichment-review')) as {
+		REVIEW_SOURCE_PANEL_IDS?: readonly string[];
+		REVIEW_INSERT_IDS?: readonly string[];
+	};
+	assert.deepEqual(review.REVIEW_SOURCE_PANEL_IDS, PRESENTATION_IDS);
+	assert.deepEqual(review.REVIEW_INSERT_IDS, INSERT_IDS);
+});
+
 type ProvenanceDimensions = Readonly<{ width: number; height: number }>;
 type ProvenanceCrop = Readonly<{
 	left: number;
@@ -235,7 +278,7 @@ test('root provenance binds current accepted inserts, call inventory, bytes, and
 		)
 	);
 	const insertManifests = new Map<string, ProvenanceManifest>();
-	for (const id of INSERT_IDS) {
+	for (const id of TASK3_INSERT_IDS) {
 		insertManifests.set(
 			id,
 			readJson<ProvenanceManifest>(
@@ -244,7 +287,7 @@ test('root provenance binds current accepted inserts, call inventory, bytes, and
 		);
 	}
 	const sourcePanelManifests = new Map<string, ProvenanceManifest>();
-	for (const id of PRESENTATION_IDS) {
+	for (const id of TASK3_PRESENTATION_IDS) {
 		sourcePanelManifests.set(
 			id,
 			readJson<ProvenanceManifest>(
@@ -326,6 +369,152 @@ test('root provenance binds current accepted inserts, call inventory, bytes, and
 		Number(evidenceScope?.match(/\d+/)?.[0]),
 		evidenceCount,
 		'approval scope evidence count must match evidence-manifest entry count'
+	);
+});
+
+test('Task 4 records the two-phase source-manifest identity contract', () => {
+	const repositoryRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
+	const provenance = readJson<{
+		task4PendingSourceGate: {
+			status: string;
+			evidenceDirectory: string;
+			presentationSourceIds: readonly string[];
+			insertIds: readonly string[];
+			callInventory: readonly {
+				id: string;
+				kind: string;
+				attempt: number;
+				callOrder: number;
+				result: string;
+			}[];
+			runtimePublication: boolean;
+			approval: {
+				status: string;
+				answer: string;
+				approvedAtUtc: string;
+				runtimePermission: boolean;
+				candidateSha256: string;
+				evidenceManifestSha256: string;
+				evidenceFileCount: number;
+				scope: string;
+			};
+			postBindingIdentity?: {
+				mode: string;
+				version: number;
+				preBindingCandidateSha256: string;
+				postBindingCandidateSha256: string;
+				evidenceManifestSha256: string;
+				evidenceFileCount: number;
+				runtimePermission: boolean;
+				panelManifestHashDeltas: readonly (typeof TASK4_PANEL_MANIFEST_HASH_DELTAS)[number][];
+			};
+		};
+	}>(join(repositoryRoot, 'artifacts/meadow-entry/painted-v2/provenance.json'));
+	const gate = provenance.task4PendingSourceGate;
+
+	assert.equal(gate.status, 'pending-final-source-gate');
+	assert.equal(gate.runtimePublication, false);
+	assert.equal(gate.approval.status, 'APPROVED');
+	assert.equal(gate.approval.answer, 'yes');
+	assert.equal(gate.approval.approvedAtUtc, TASK4_APPROVED_AT_UTC);
+	assert.equal(gate.approval.runtimePermission, false);
+	assert.equal(gate.approval.candidateSha256, TASK4_APPROVAL_CANDIDATE_SHA256);
+	assert.equal(gate.approval.evidenceManifestSha256, TASK4_EVIDENCE_MANIFEST_SHA256);
+	assert.equal(gate.approval.evidenceFileCount, 87);
+
+	assert.deepEqual(gate.presentationSourceIds.slice(-2), [
+		'village-crossroads-connector',
+		'crossroads'
+	]);
+	assert.deepEqual(gate.insertIds.slice(-2), [
+		'crossroads-blocked-hedge',
+		'crossroads-blocked-woodland'
+	]);
+	assert.deepEqual(
+		gate.callInventory.map((call) => [call.id, call.attempt, call.callOrder, call.result]),
+		[
+			['village-crossroads-connector', 1, 27, 'raw-passed-native-review'],
+			['crossroads', 1, 28, 'raw-passed-native-review'],
+			['crossroads-blocked-hedge', 1, 29, 'rejected-by-native-review'],
+			['crossroads-blocked-hedge', 2, 30, 'raw-passed-native-and-scale-preflight'],
+			['crossroads-blocked-woodland', 1, 31, 'raw-passed-native-and-scale-preflight']
+		]
+	);
+
+	const evidencePath = join(repositoryRoot, gate.evidenceDirectory, 'evidence-manifest.json');
+	const evidenceBytes = readFileSync(evidencePath);
+	const evidenceManifest = JSON.parse(evidenceBytes.toString('utf8')) as {
+		files: Record<string, unknown>;
+	};
+	assert.equal(
+		createHash('sha256').update(evidenceBytes).digest('hex'),
+		TASK4_EVIDENCE_MANIFEST_SHA256
+	);
+	assert.equal(Object.keys(evidenceManifest.files).length, 87);
+
+	const identity = gate.postBindingIdentity;
+	assert.ok(identity, 'Task 4 must record post-binding identity metadata');
+	assert.equal(identity?.mode, 'two-phase-source-manifest-binding');
+	assert.equal(identity?.version, 1);
+	assert.equal(identity?.preBindingCandidateSha256, TASK4_APPROVAL_CANDIDATE_SHA256);
+	assert.equal(identity?.postBindingCandidateSha256, TASK4_POST_BINDING_CANDIDATE_SHA256);
+	assert.equal(identity?.evidenceManifestSha256, TASK4_EVIDENCE_MANIFEST_SHA256);
+	assert.equal(identity?.evidenceFileCount, 87);
+	assert.equal(identity?.runtimePermission, false);
+	assert.deepEqual(identity?.panelManifestHashDeltas, TASK4_PANEL_MANIFEST_HASH_DELTAS);
+
+	for (const delta of TASK4_PANEL_MANIFEST_HASH_DELTAS) {
+		const panelBytes = readFileSync(join(repositoryRoot, delta.path));
+		assert.equal(
+			createHash('sha256').update(panelBytes).digest('hex'),
+			delta.afterSha256,
+			`${delta.id} post-binding panel manifest hash must match its recorded delta`
+		);
+		const panel = JSON.parse(panelBytes.toString('utf8')) as {
+			nativeDetailReview?: Record<string, unknown>;
+		};
+		assert.equal(panel.nativeDetailReview?.approval, 'approved-explicit-final-source-gate');
+		assert.equal(panel.nativeDetailReview?.userAnswer, 'yes');
+		assert.equal(panel.nativeDetailReview?.approvedAtUtc, TASK4_APPROVED_AT_UTC);
+		assert.equal(
+			panel.nativeDetailReview?.approvalCandidateSha256,
+			TASK4_APPROVAL_CANDIDATE_SHA256
+		);
+		assert.equal(
+			panel.nativeDetailReview?.approvalEvidenceManifestSha256,
+			TASK4_EVIDENCE_MANIFEST_SHA256
+		);
+	}
+
+	for (const id of ['crossroads-blocked-hedge', 'crossroads-blocked-woodland']) {
+		const insert = readJson<{ review?: Record<string, unknown> }>(
+			join(repositoryRoot, `artifacts/meadow-entry/painted-v2/source-inserts/${id}.json`)
+		);
+		assert.equal(insert.review?.approval, 'approved-explicit-final-source-gate');
+		assert.equal(insert.review?.userAnswer, 'yes');
+		assert.equal(insert.review?.approvedAtUtc, TASK4_APPROVED_AT_UTC);
+		assert.equal(insert.review?.approvalCandidateSha256, TASK4_APPROVAL_CANDIDATE_SHA256);
+		assert.equal(insert.review?.approvalEvidenceManifestSha256, TASK4_EVIDENCE_MANIFEST_SHA256);
+	}
+
+	const candidatePath = join(repositoryRoot, gate.evidenceDirectory, 'decoration-candidate.json');
+	const candidateBytes = readFileSync(candidatePath, 'utf8');
+	assert.equal(
+		createHash('sha256').update(candidateBytes).digest('hex'),
+		TASK4_POST_BINDING_CANDIDATE_SHA256
+	);
+	let reconstructedPreBindingCandidate = candidateBytes;
+	for (const delta of TASK4_PANEL_MANIFEST_HASH_DELTAS) {
+		const sourceHashKey = `raster:${delta.path}`;
+		reconstructedPreBindingCandidate = reconstructedPreBindingCandidate.replace(
+			`"${sourceHashKey}": "${delta.afterSha256}"`,
+			`"${sourceHashKey}": "${delta.beforeSha256}"`
+		);
+	}
+	assert.equal(
+		createHash('sha256').update(reconstructedPreBindingCandidate).digest('hex'),
+		gate.approval.candidateSha256,
+		'removing the two approval-bound panel hashes reconstructs the approved pre-binding candidate identity'
 	);
 });
 
@@ -810,7 +999,7 @@ test(
 
 test(
 	'candidate assembly measures the newly assembled master and check never rewrites stale outputs',
-	{ timeout: 180_000 },
+	{ timeout: 240_000 },
 	async () => {
 		const repositoryRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 		const outputRoot = mkdtempSync(join(tmpdir(), 'gliese-meadow-enrichment-candidate-assembly-'));
@@ -897,7 +1086,7 @@ test('--check does not create a missing output root', () => {
 
 test(
 	'--check detects stale assembled outputs without rewriting them',
-	{ timeout: 60_000 },
+	{ timeout: 90_000 },
 	async () => {
 		const repositoryRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 		const outputRoot = mkdtempSync(join(tmpdir(), 'gliese-meadow-enrichment-assembly-check-'));

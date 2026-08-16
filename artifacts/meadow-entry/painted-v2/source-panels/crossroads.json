@@ -1,189 +1,100 @@
 {
-	"version": 2,
+	"version": 3,
 	"id": "crossroads",
-	"bounds": {
-		"left": 2880,
-		"top": 2816,
-		"right": 4608,
-		"bottom": 4768
-	},
+	"bounds": { "left": 2880, "top": 2816, "right": 4608, "bottom": 4768 },
 	"assemblyPriority": 50,
-	"expectedDimensions": {
-		"width": 1728,
-		"height": 1952
-	},
+	"expectedDimensions": { "width": 1728, "height": 1952 },
 	"generation": {
 		"tool": "image_gen (built-in)",
 		"provider": "OpenAI",
 		"model": "gpt-image-2",
 		"modelVersion": "2.0",
-		"outputPath": "/Users/chanwaichan/.codex/generated_images/019ff4d8-318a-77d1-ae67-bdcc40ab0e8b/exec-333977a0-f8e8-405b-b18c-ebf53a9f9a11.png",
-		"outputSha256": "a443043caba03ae2d38d4d18e6795f86a4f4cb6636f4b779f653071cfb71328a",
-		"prompt": "Use case: stylized-concept.\nAsset type: native-detail opaque painted game background source panel, Meadow Entry Crossroads.\nInput images: Image 1 is the single authoritative exact-coordinate control crop for Crossroads: route geometry, biome mouths, building/transition/protected/semantic masks, and live handoff pads. Image 2 is secondary color/composition guidance only from the approved concept crop.\nPrimary request: paint a crisp hand-painted 2D JRPG top-down ground-only environment panel for fixed Meadow master-coordinate bounds x=2880..4608, y=2816..4768, exact output aspect 1728x1952. Build a neutral warm cobble-and-packed-earth plaza centered around an EMPTY live Waystone footprint; show clear radial route wear from the plaza, subtle low cobble color-mottling and packed-earth variation, and restrained biome cues at the route mouths (cool mistfen tint, russet silverpine tint, deep wildwood green, warm Sundrop handoff). Use painted ground-plane variation only, with a calm NPC/interaction space.\nComposition/framing: orthographic top-down ground only; preserve every route and handoff in Image 1, especially the village connector along the south and open approach throats. The exact center waystone/anchor/interaction pad must be a quiet flat empty plaza patch—no waystone, stone, statue, marker, or false obstacle. Keep all buildings, doors, transitions, NPC/encounter/pickup/discovery/spawn pads, collision clearances, and corridor masks unobstructed and navigable. Side edges must hand off without hard seams to their live neighboring regions.\nLighting/mood: warm late-morning upper-left, readable value hierarchy, crisp native-detail painted texture, no blur.\nConstraints: opaque sRGB/RGBA raster; exact fixed framing; no buildings, roofs, architecture, doors, windows, walls, fences, actors, NPCs, enemies, pickups, signs, text, labels, UI, icons, waystones, statues, boulders, bridges, props, tall objects, false walls, false collision cues, or baked duplicate live visuals. No repeated grid, tile seams, perspective distortion, watermark.\nAvoid: isometric/three-quarter structures, hard rectangular biome bands, blocked route mouths, object silhouettes, obvious generator seams, excessive cobble detail inside the live waystone pad.",
-		"promptSha256": "dc9abe458aba85a7f426c7f3df44b0e787268550936938c5ded064dac60f0bdd",
+		"outputPath": "/Users/chanwaichan/.codex/generated_images/01a00a4a-dae6-7b43-851d-040dd44bad68/exec-cb37f1fe-e073-42d4-8b87-0927e6318cc5.png",
+		"outputSha256": "465c6c74f7a4350d034a7edf23c2148cbcce00acde864186102655240e98609e",
+		"prompt": "Create a wide full-bleed hand-painted JRPG environment texture for the Meadow Entry Crossroads. Paint a ground-only plaza and route network with warm packed earth, pale gravel, sparse low cobbles, and restrained grass edging. Use the attached new connector output as the southern overlap reference and the accepted Crossroads art as regional detail reference. Keep the live Waystone footprint completely quiet and empty, with no stone or object there, and leave route mouths and handoffs clear. No structures, buildings, characters, signs, props, tall content, text, symbols, diagram marks, hard border, grid, or visible frame. Opaque sRGB landscape raster, crisp native-detail, continuous ground plane, no seam or false blocker.",
+		"promptSha256": "ed3665353e4c112d253090cabed88a8726c0b112b816e19951a24ae9ae176261",
 		"attempt": 1,
-		"result": "accepted",
-		"rejected": false
+		"callOrder": 28,
+		"result": "raw-passed-native-review",
+		"rejected": false,
+		"nativeSizeRequested": { "width": 2048, "height": 1152 },
+		"nativeSizeRequestHonored": false,
+		"nativeDetailQualityAcceptedAt100Percent": true,
+		"attemptHistory": [
+			{
+				"attempt": 1,
+				"callOrder": 28,
+				"result": "raw-passed-native-review",
+				"rawInspectedAtOriginalResolution": true
+			}
+		]
 	},
 	"raw": {
 		"path": "artifacts/meadow-entry/painted-v2/source-panels/raw/crossroads.png",
-		"sha256": "a443043caba03ae2d38d4d18e6795f86a4f4cb6636f4b779f653071cfb71328a",
-		"bytes": 2941971,
-		"dimensions": {
-			"width": 1180,
-			"height": 1333
-		}
+		"sha256": "465c6c74f7a4350d034a7edf23c2148cbcce00acde864186102655240e98609e",
+		"bytes": 2769790,
+		"dimensions": { "width": 1023, "height": 1537 }
 	},
 	"normalized": {
 		"path": "artifacts/meadow-entry/painted-v2/source-panels/crossroads.png",
-		"sha256": "1534062581775261bfcfd8a26eb5de5a730adf658d9b6ef9abb65413bbe4ae34",
-		"bytes": 9127338,
-		"dimensions": {
-			"width": 1728,
-			"height": 1952
-		},
+		"sha256": "b67f13a410d953909f2400c6689e5dc418bcd4968a4cbe0a1cf81a5d74d82f30",
+		"bytes": 9121902,
+		"dimensions": { "width": 1728, "height": 1952 },
 		"colourspace": "sRGB",
 		"channels": 4
 	},
 	"normalizationTransform": {
-		"native": {
-			"width": 1180,
-			"height": 1333
-		},
-		"scaledRaster": {
-			"width": 1728,
-			"height": 1953
-		},
-		"scaledCrop": {
-			"left": 0,
-			"top": 0,
-			"width": 1728,
-			"height": 1952
-		},
-		"output": {
-			"width": 1728,
-			"height": 1952
-		},
-		"scaleX": 1.464406779661017,
-		"scaleY": 1.464406779661017,
-		"scale": 1.464406779661017,
+		"native": { "width": 1023, "height": 1537 },
+		"scaledRaster": { "width": 1728, "height": 2596 },
+		"scaledCrop": { "left": 0, "top": 322, "width": 1728, "height": 1952 },
+		"output": { "width": 1728, "height": 1952 },
+		"scaleX": 1.689149560117302,
+		"scaleY": 1.689149560117302,
+		"scale": 1.689149560117302,
 		"uniform": true,
 		"scaleExceedsTwoX": false,
-		"operation": "cover-scale-crop-to-fixed-panel"
+		"operation": "cover-scale-crop-to-fixed-panel",
+		"kernel": "lanczos3"
 	},
-	"prompt": "Use case: stylized-concept.\nAsset type: native-detail opaque painted game background source panel, Meadow Entry Crossroads.\nInput images: Image 1 is the single authoritative exact-coordinate control crop for Crossroads: route geometry, biome mouths, building/transition/protected/semantic masks, and live handoff pads. Image 2 is secondary color/composition guidance only from the approved concept crop.\nPrimary request: paint a crisp hand-painted 2D JRPG top-down ground-only environment panel for fixed Meadow master-coordinate bounds x=2880..4608, y=2816..4768, exact output aspect 1728x1952. Build a neutral warm cobble-and-packed-earth plaza centered around an EMPTY live Waystone footprint; show clear radial route wear from the plaza, subtle low cobble color-mottling and packed-earth variation, and restrained biome cues at the route mouths (cool mistfen tint, russet silverpine tint, deep wildwood green, warm Sundrop handoff). Use painted ground-plane variation only, with a calm NPC/interaction space.\nComposition/framing: orthographic top-down ground only; preserve every route and handoff in Image 1, especially the village connector along the south and open approach throats. The exact center waystone/anchor/interaction pad must be a quiet flat empty plaza patch—no waystone, stone, statue, marker, or false obstacle. Keep all buildings, doors, transitions, NPC/encounter/pickup/discovery/spawn pads, collision clearances, and corridor masks unobstructed and navigable. Side edges must hand off without hard seams to their live neighboring regions.\nLighting/mood: warm late-morning upper-left, readable value hierarchy, crisp native-detail painted texture, no blur.\nConstraints: opaque sRGB/RGBA raster; exact fixed framing; no buildings, roofs, architecture, doors, windows, walls, fences, actors, NPCs, enemies, pickups, signs, text, labels, UI, icons, waystones, statues, boulders, bridges, props, tall objects, false walls, false collision cues, or baked duplicate live visuals. No repeated grid, tile seams, perspective distortion, watermark.\nAvoid: isometric/three-quarter structures, hard rectangular biome bands, blocked route mouths, object silhouettes, obvious generator seams, excessive cobble detail inside the live waystone pad.",
-	"promptSha256": "dc9abe458aba85a7f426c7f3df44b0e787268550936938c5ded064dac60f0bdd",
-	"references": {
-		"controlCropPath": "/private/tmp/gliese-hpa586-panel-refs/crossroads/control-crop.png",
-		"controlCropSha256": "5df3b3a1ffd5f417bfe30803f0fe8f508fee44ba048656c025617ebf8c70658e",
-		"conceptCropPath": "/private/tmp/gliese-hpa586-panel-refs/crossroads/concept-crop.png",
-		"conceptCropSha256": "9c09c266df08bc31ef47e2e0ed9e1c6545ccf499e01049004f5dfe642c0dfa88",
-		"approvedControlFingerprint": "35177cdb1bff05299ad1bd0b6759513cf2aa3bfbb87c368bfc749b2743fed4e4",
-		"controls": [
-			{
-				"path": "artifacts/meadow-entry/painted-v2/controls/meadow-entry-composite-control.svg",
-				"role": "geometry/composition",
-				"sha256": "0e81a426331b2e4c578a0ef04f83051e2e890f5cd959d7ae870ae55320a850f2",
-				"dimensions": {
-					"width": 6400,
-					"height": 6400
-				}
-			},
-			{
-				"path": "artifacts/meadow-entry/painted-v2/controls/meadow-entry-terrain-path-mask.svg",
-				"role": "terrain/routes",
-				"sha256": "17f5e461469eb1beafb6fe60d140f2515809739c156a7a647ed18c17ceaad176",
-				"dimensions": {
-					"width": 6400,
-					"height": 6400
-				}
-			},
-			{
-				"path": "artifacts/meadow-entry/painted-v2/controls/meadow-entry-region-mask.svg",
-				"role": "biome regions",
-				"sha256": "4c84852b79f1dc03e8b67e6c1ad3d1fca827afc8f167ec99512fe3098a9fd77c",
-				"dimensions": {
-					"width": 6400,
-					"height": 6400
-				}
-			},
-			{
-				"path": "artifacts/meadow-entry/painted-v2/controls/meadow-entry-collision-mask.svg",
-				"role": "live collision",
-				"sha256": "ce4de36f6eb7b657a4305c4ead33061dc81412051390439c7c3655252f8525f8",
-				"dimensions": {
-					"width": 6400,
-					"height": 6400
-				}
-			},
-			{
-				"path": "artifacts/meadow-entry/painted-v2/controls/meadow-entry-building-footprint-mask.svg",
-				"role": "building footprints",
-				"sha256": "521d24524769aed2bfab4032a31f285eaecb4f86973fd7d1d4868aa2e01c6930",
-				"dimensions": {
-					"width": 6400,
-					"height": 6400
-				}
-			},
-			{
-				"path": "artifacts/meadow-entry/painted-v2/controls/meadow-entry-entrance-transition-mask.svg",
-				"role": "entrance transitions",
-				"sha256": "a5a383b27ecf2adc4238564fe6afdafb5d61d9cff60d19604f0ed3f7f3f65529",
-				"dimensions": {
-					"width": 6400,
-					"height": 6400
-				}
-			},
-			{
-				"path": "artifacts/meadow-entry/painted-v2/controls/meadow-entry-protected-live-mask.svg",
-				"role": "protected live ownership",
-				"sha256": "2ca64d6a06198b48472349ad8055e538498b4199a5c1dcecd77868ba1ec193e1",
-				"dimensions": {
-					"width": 6400,
-					"height": 6400
-				}
-			},
-			{
-				"path": "artifacts/meadow-entry/painted-v2/controls/meadow-entry-semantic-anchor-mask.svg",
-				"role": "NPC/pickup/discovery/encounter/spawn anchors",
-				"sha256": "a4ef054b0beb204c4e9f1d8ba3d9126b0d7d577500e8541ab4a38c6883999ba1",
-				"dimensions": {
-					"width": 6400,
-					"height": 6400
-				}
-			},
-			{
-				"path": "artifacts/meadow-entry/painted-v2/controls/meadow-entry-forbidden-tall-mask.svg",
-				"role": "forbidden tall content",
-				"sha256": "c96fcbf93983a48d412e7bf565f8a457d7386c2ac82de1f28c737b88b4871b50",
-				"dimensions": {
-					"width": 6400,
-					"height": 6400
-				}
-			},
-			{
-				"path": "artifacts/meadow-entry/painted-v2/controls/meadow-entry-handoff-mask.svg",
-				"role": "neighbor handoffs",
-				"sha256": "a7124aa5b1dd9a1272b5477d2fd33aba22deb93fdfae8eb6989d3d145647c131",
-				"dimensions": {
-					"width": 6400,
-					"height": 6400
-				}
-			}
-		]
-	},
+	"prompt": "Create a wide full-bleed hand-painted JRPG environment texture for the Meadow Entry Crossroads. Paint a ground-only plaza and route network with warm packed earth, pale gravel, sparse low cobbles, and restrained grass edging. Use the attached new connector output as the southern overlap reference and the accepted Crossroads art as regional detail reference. Keep the live Waystone footprint completely quiet and empty, with no stone or object there, and leave route mouths and handoffs clear. No structures, buildings, characters, signs, props, tall content, text, symbols, diagram marks, hard border, grid, or visible frame. Opaque sRGB landscape raster, crisp native-detail, continuous ground plane, no seam or false blocker.",
+	"promptSha256": "ed3665353e4c112d253090cabed88a8726c0b112b816e19951a24ae9ae176261",
+	"references": [
+		{
+			"path": "/Users/chanwaichan/.codex/generated_images/01a00a4a-dae6-7b43-851d-040dd44bad68/exec-4df979e2-eea1-48a9-9afa-459b34001c90.png",
+			"role": "new connector actual-art overlap reference",
+			"sha256": "e740964475f6e5a74d8cf3e83c68d645d08558b392d86ba1ddcc4a0b5ca9217c",
+			"bytes": 2684896,
+			"dimensions": { "width": 1740, "height": 904 }
+		},
+		{
+			"path": "/private/tmp/gliese-hpa586-task3-art-refs/accepted-crossroads.png",
+			"role": "accepted Crossroads actual-art regional reference",
+			"sha256": "1534062581775261bfcfd8a26eb5de5a730adf658d9b6ef9abb65413bbe4ae34",
+			"bytes": 9127338,
+			"dimensions": { "width": 1728, "height": 1952 }
+		}
+	],
 	"cleanup": {
 		"operationCount": 0,
 		"operations": [],
 		"beforeSha256": "1534062581775261bfcfd8a26eb5de5a730adf658d9b6ef9abb65413bbe4ae34",
-		"afterSha256": "1534062581775261bfcfd8a26eb5de5a730adf658d9b6ef9abb65413bbe4ae34"
+		"afterSha256": "b67f13a410d953909f2400c6689e5dc418bcd4968a4cbe0a1cf81a5d74d82f30"
 	},
 	"nativeDetailReview": {
 		"inspectedAtOriginalResolution": true,
 		"inspectedNormalizedAt100Percent": true,
-		"controlComparisonEvidencePath": "docs/superpowers/reports/img/hpa-586-painted-v2-pilot/panel-review-crossroads-control-overlay.png",
 		"accepted": true,
-		"findings": "No baked buildings, doors, actors, labels, false walls, blocked approaches, obvious generator seams, or protected-pad object cues observed."
+		"findings": "Ground-only warm cobble and packed-earth surface with a quiet central plaza, low grass margins, open route mouths, and no visible Waystone, structures, tall content, hard frame, or false blocker. Southern connector handoff is retained for paired source review.",
+		"approval": "approved-explicit-final-source-gate",
+		"userAnswer": "yes",
+		"approvedAtUtc": "2026-08-16T16:41:54Z",
+		"approvalScope": "Task 4 final-source forest enrichment only; no production publication, runtime permission, Task 5, probes, or master replacement",
+		"approvalCandidateSha256": "6d419b9f52213b70061588baf63e0ef2316f971981a9e66d30e2892ac119c6a4",
+		"approvalEvidenceManifestSha256": "cd905da7d47c938622df80d7d637ce41078918b37143043b7e9c97bf8df4c6f2"
 	},
-	"stage": "native-detail-source-panel-accepted"
+	"supersededTask3Source": {
+		"rawSha256": "a443043caba03ae2d38d4d18e6795f86a4f4cb6636f4b779f653071cfb71328a",
+		"normalizedSha256": "1534062581775261bfcfd8a26eb5de5a730adf658d9b6ef9abb65413bbe4ae34"
+	},
+	"stage": "pending-final-source-gate"
 }
