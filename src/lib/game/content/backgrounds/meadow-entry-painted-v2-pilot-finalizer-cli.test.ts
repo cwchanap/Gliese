@@ -87,4 +87,25 @@ describe('painted-v2 pilot finalizer CLI', () => {
 		).rejects.toThrow(/package provenance.*stale/i);
 		expect(Object.values(staleMutators).every((spy) => spy.mock.calls.length === 0)).toBe(true);
 	});
+
+	it('fails before assembly when an approved scenery insert package is stale', async () => {
+		const staleMutators = { mkdir: vi.fn(), writeFile: vi.fn(), rename: vi.fn(), rm: vi.fn() };
+		const staleReadFile = (async (path: Parameters<typeof readFile>[0]) => {
+			if (String(path).endsWith('source-inserts/crossroads-blocked-hedge.json')) {
+				const manifest = JSON.parse((await readFile(path)).toString('utf8')) as {
+					review: { approval: string };
+				};
+				manifest.review.approval = 'pending-fresh-final-source-gate';
+				return Buffer.from(`${JSON.stringify(manifest, null, '\t')}\n`);
+			}
+			return readFile(path);
+		}) as MeadowEntryPaintedV2PilotFinalizerFileSystem['readFile'];
+		await expect(
+			runFinalizeMeadowEntryPaintedV2Pilot(repositoryRoot, {
+				check: true,
+				fileSystem: { readFile: staleReadFile, ...staleMutators }
+			})
+		).rejects.toThrow(/scenery insert.*approval|not approved|stale/i);
+		expect(Object.values(staleMutators).every((spy) => spy.mock.calls.length === 0)).toBe(true);
+	});
 });

@@ -14,6 +14,11 @@ import {
 	type MeadowEntryPaintedV2PilotAssemblyResult
 } from '$lib/game/content/backgrounds/meadow-entry-painted-v2-pilot-finalizer';
 import { MEADOW_ENTRY_PAINTED_V2_SOURCE_PANELS } from '$lib/game/content/backgrounds/meadow-entry-painted-v2-pilot';
+import {
+	MEADOW_ENTRY_PAINTED_V2_SCENERY_INSERTS,
+	type MeadowEntryPaintedV2SceneryInsert
+} from '$lib/game/content/backgrounds/meadow-entry-painted-v2-scenery';
+import { buildMeadowEntryPaintedV2SceneryMaskSet } from '$lib/game/content/backgrounds/meadow-entry-painted-v2-scenery-bake';
 
 export const PAINTED_V2_PILOT_OUTPUT_ROOT = 'artifacts/meadow-entry/painted-v2';
 export const PAINTED_V2_PILOT_MASTER_PATH =
@@ -232,6 +237,141 @@ function buildPanelGeneration(
 	};
 }
 
+function insertReferenceHashes(manifest: Record<string, unknown>): string[] {
+	const references = manifest.references;
+	if (!Array.isArray(references)) return [];
+	return references
+		.map((reference) =>
+			typeof reference === 'object' && reference !== null && !Array.isArray(reference)
+				? (reference as Record<string, unknown>).sha256
+				: undefined
+		)
+		.filter((value): value is string => typeof value === 'string' && SHA256.test(value))
+		.sort();
+}
+
+function buildSceneryInsertGeneration(
+	manifest: Record<string, unknown>,
+	manifestBytes: Buffer,
+	insert: MeadowEntryPaintedV2SceneryInsert
+): MeadowEntryGenerationProvenance {
+	const generation = objectProperty(manifest, 'generation', `${insert.id} insert manifest`);
+	const normalized = objectProperty(manifest, 'normalized', `${insert.id} insert manifest`);
+	const raw = objectProperty(manifest, 'raw', `${insert.id} insert manifest`);
+	const review = objectProperty(manifest, 'review', `${insert.id} insert manifest`);
+	const promptUnavailable = generation.promptUnavailable === true;
+	const prompt = promptUnavailable
+		? null
+		: stringProperty(generation, 'prompt', `${insert.id} generation`);
+	const promptSha256 = promptUnavailable
+		? null
+		: stringProperty(generation, 'promptSha256', `${insert.id} generation`);
+	if (promptSha256 !== null) assertSha256(promptSha256, `${insert.id} prompt hash`);
+	const normalizedSha256 = stringProperty(normalized, 'sha256', `${insert.id} normalized`);
+	const normalizedBytes = numberProperty(normalized, 'bytes', `${insert.id} normalized`);
+	const normalizedDimensions = objectProperty(normalized, 'dimensions', `${insert.id} normalized`);
+	const rawSha256 = stringProperty(raw, 'sha256', `${insert.id} raw`);
+	const rawBytes = numberProperty(raw, 'bytes', `${insert.id} raw`);
+	const rawDimensions = objectProperty(raw, 'dimensions', `${insert.id} raw`);
+	assertSha256(normalizedSha256, `${insert.id} normalized hash`);
+	assertSha256(rawSha256, `${insert.id} raw hash`);
+	const approvalStatus = stringProperty(review, 'approval', `${insert.id} review`);
+	const approvalAnswer = stringProperty(review, 'userAnswer', `${insert.id} review`);
+	const approvedAtUtc = stringProperty(review, 'approvedAtUtc', `${insert.id} review`);
+	const approvalScope = stringProperty(review, 'approvalScope', `${insert.id} review`);
+	const approvalCandidateSha256 = stringProperty(
+		review,
+		'approvalCandidateSha256',
+		`${insert.id} review`
+	);
+	const approvalEvidenceManifestSha256 = stringProperty(
+		review,
+		'approvalEvidenceManifestSha256',
+		`${insert.id} review`
+	);
+	assertSha256(approvalCandidateSha256, `${insert.id} approval candidate hash`);
+	assertSha256(approvalEvidenceManifestSha256, `${insert.id} approval evidence hash`);
+	const evidenceFileCount =
+		review.approvalEvidenceFileCount === undefined
+			? null
+			: numberProperty(review, 'approvalEvidenceFileCount', `${insert.id} review`);
+	const generationMode = generation.mode === 'manual' ? 'manual' : 'generative';
+	const provider =
+		generation.provider === null
+			? null
+			: stringProperty(generation, 'provider', `${insert.id} generation`);
+	const model =
+		generation.model === null
+			? null
+			: stringProperty(generation, 'model', `${insert.id} generation`);
+	const modelVersion =
+		generation.modelVersion === null
+			? null
+			: stringProperty(generation, 'modelVersion', `${insert.id} generation`);
+	const seed =
+		generation.seed === null ||
+		typeof generation.seed === 'number' ||
+		typeof generation.seed === 'string'
+			? ((generation.seed as number | string | null | undefined) ?? null)
+			: null;
+	const attempt = numberProperty(generation, 'attempt', `${insert.id} generation`);
+	const attemptHistory = Array.isArray(generation.attemptHistory) ? generation.attemptHistory : [];
+	const normalizedWidth = numberProperty(normalizedDimensions, 'width', `${insert.id} dimensions`);
+	const normalizedHeight = numberProperty(
+		normalizedDimensions,
+		'height',
+		`${insert.id} dimensions`
+	);
+	const rawWidth = numberProperty(rawDimensions, 'width', `${insert.id} raw dimensions`);
+	const rawHeight = numberProperty(rawDimensions, 'height', `${insert.id} raw dimensions`);
+	return {
+		mode: generationMode,
+		provider: generationMode === 'manual' ? null : provider,
+		model: generationMode === 'manual' ? null : model,
+		modelVersion: generationMode === 'manual' ? null : modelVersion,
+		tool: stringProperty(generation, 'tool', `${insert.id} generation`),
+		toolVersion:
+			generation.modelVersion === undefined ? 'unknown' : String(generation.modelVersion),
+		settings: {
+			insertId: insert.id,
+			sceneryClass: insert.sceneryClass,
+			owningSourceId: insert.owningSourceId,
+			owningSourcePriority: insert.owningSourcePriority,
+			bounds: insert.bounds,
+			attempt,
+			attemptHistory,
+			result: generation.result ?? null,
+			rejected: generation.rejected ?? false,
+			rawSha256,
+			rawBytes,
+			rawDimensions: { width: rawWidth, height: rawHeight },
+			normalizedSha256,
+			normalizedBytes,
+			normalizedDimensions: { width: normalizedWidth, height: normalizedHeight },
+			provenanceSha256: sha256(manifestBytes),
+			referenceImageSha256: insertReferenceHashes(manifest),
+			promptUnavailable,
+			approval: {
+				status: approvalStatus,
+				answer: approvalAnswer,
+				reviewer: typeof review.reviewer === 'string' ? review.reviewer : null,
+				approvedAtUtc,
+				scope: approvalScope,
+				candidateSha256: approvalCandidateSha256,
+				evidenceManifestSha256: approvalEvidenceManifestSha256,
+				evidenceFileCount,
+				runtimePermission: review.runtimePermission ?? false
+			}
+		},
+		seed,
+		seedUnavailable: generation.seedUnavailable === true || seed === null,
+		prompt,
+		promptSha256,
+		referenceImageSha256: insertReferenceHashes(manifest),
+		byteReproducibleGeneration: false
+	};
+}
+
 async function loadAssemblyInput(
 	repositoryRoot: string,
 	fileSystem: MeadowEntryPaintedV2PilotFinalizerFileSystem
@@ -274,9 +414,60 @@ async function loadAssemblyInput(
 		panels[panel.id] = bytes;
 		panelProvenance[panel.id] = buildPanelGeneration(manifest, panel);
 	}
+	const insertBuffers: Record<string, Buffer> = {};
+	const insertProvenance: Record<string, MeadowEntryGenerationProvenance> = {};
+	for (const insert of MEADOW_ENTRY_PAINTED_V2_SCENERY_INSERTS) {
+		const normalizedPath = join(repositoryRoot, insert.normalizedPath);
+		const manifestPath = join(repositoryRoot, insert.provenancePath);
+		const [bytes, manifestBytes] = await Promise.all([
+			fileSystem.readFile(normalizedPath),
+			fileSystem.readFile(manifestPath)
+		]);
+		const manifest = parseJson(manifestBytes, `${insert.id} insert manifest`);
+		assert(
+			manifest.id === insert.id,
+			`Meadow Entry scenery insert manifest id drifted: ${insert.id}`
+		);
+		assert(
+			manifest.sceneryClass === insert.sceneryClass,
+			`Meadow Entry scenery insert class drifted: ${insert.id}`
+		);
+		const manifestBounds = objectProperty(manifest, 'bounds', `${insert.id} insert manifest`);
+		assert(
+			boundsEqual(manifestBounds as never, insert.bounds),
+			`Meadow Entry scenery insert bounds drifted: ${insert.id}`
+		);
+		assert(
+			stringProperty(manifest, 'owningSourceId', `${insert.id} insert manifest`) ===
+				insert.owningSourceId,
+			`Meadow Entry scenery insert owner drifted: ${insert.id}`
+		);
+		assert(
+			numberProperty(manifest, 'owningSourcePriority', `${insert.id} insert manifest`) ===
+				insert.owningSourcePriority,
+			`Meadow Entry scenery insert priority drifted: ${insert.id}`
+		);
+		const raw = objectProperty(manifest, 'raw', `${insert.id} insert manifest`);
+		const normalized = objectProperty(manifest, 'normalized', `${insert.id} insert manifest`);
+		assert(
+			stringProperty(raw, 'path', `${insert.id} raw`) === insert.rawPath,
+			`Meadow Entry scenery insert raw path drifted: ${insert.id}`
+		);
+		assert(
+			stringProperty(normalized, 'path', `${insert.id} normalized`) === insert.normalizedPath,
+			`Meadow Entry scenery insert normalized path drifted: ${insert.id}`
+		);
+		insertBuffers[insert.id] = bytes;
+		insertProvenance[insert.id] = buildSceneryInsertGeneration(manifest, manifestBytes, insert);
+	}
 	return {
 		panels,
 		panelProvenance,
+		blockedScenery: {
+			inserts: insertBuffers,
+			insertProvenance,
+			masks: buildMeadowEntryPaintedV2SceneryMaskSet(repositoryRoot)
+		},
 		controlFingerprint,
 		approvedControlFingerprint: meadowEntryControlsApproval.combinedControlFingerprint
 	};
@@ -296,6 +487,10 @@ export function mergeMeadowEntryPaintedV2PackageProvenance(
 		'Painted-v2 package provenance sourcePanels must be preserved as an object'
 	);
 	packageProvenance.assembly = assemblyProvenance;
+	if (assemblyProvenance.blockedSceneryInserts !== undefined)
+		packageProvenance.blockedSceneryInserts = assemblyProvenance.blockedSceneryInserts;
+	if (assemblyProvenance.blockedSceneryBake !== undefined)
+		packageProvenance.blockedSceneryBake = assemblyProvenance.blockedSceneryBake;
 	const controls = objectProperty(assemblyProvenance, 'controls', 'painted-v2 assembly provenance');
 	packageProvenance.controlFingerprint = stringProperty(
 		controls,

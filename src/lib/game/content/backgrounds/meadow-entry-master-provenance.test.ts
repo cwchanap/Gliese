@@ -4,6 +4,7 @@ import {
 	assertMeadowEntryRefinementChain,
 	assertMeadowEntryRefinementChainTerminal,
 	validateMeadowEntryGenerationProvenance,
+	validateMeadowEntryPaintedV2SceneryInsertGenerationProvenance,
 	validateMeadowEntryRefinementProvenance
 } from './meadow-entry-master-provenance';
 import type { MeadowEntryRefinementProvenance } from './meadow-entry-master-provenance';
@@ -143,6 +144,55 @@ describe('meadow-entry generation provenance', () => {
 		referenceImageSha256: [] as readonly string[],
 		byteReproducibleGeneration: false
 	};
+
+	it('binds scenery insert generation to its approved registry row and gate', () => {
+		const valid = {
+			...baseGenerative,
+			settings: {
+				insertId: 'forest-insert',
+				sceneryClass: 'woodland',
+				owningSourceId: 'crossroads',
+				owningSourcePriority: 50,
+				bounds: { left: 0, top: 0, right: 64, bottom: 64 },
+				rawSha256: 'b'.repeat(64),
+				rawBytes: 100,
+				rawDimensions: { width: 32, height: 32 },
+				normalizedSha256: 'c'.repeat(64),
+				normalizedBytes: 200,
+				normalizedDimensions: { width: 64, height: 64 },
+				provenanceSha256: 'd'.repeat(64),
+				attempt: 1,
+				attemptHistory: [],
+				approval: {
+					status: 'approved-explicit-final-source-gate',
+					answer: 'yes',
+					reviewer: null,
+					approvedAtUtc: '2026-08-16T21:37:44Z',
+					scope: 'test gate',
+					candidateSha256: 'e'.repeat(64),
+					evidenceManifestSha256: 'f'.repeat(64),
+					evidenceFileCount: 1,
+					runtimePermission: false
+				}
+			}
+		};
+		const expected = {
+			id: 'forest-insert',
+			sceneryClass: 'woodland' as const,
+			owningSourceId: 'crossroads',
+			owningSourcePriority: 50,
+			bounds: { left: 0, top: 0, right: 64, bottom: 64 }
+		};
+		expect(() =>
+			validateMeadowEntryPaintedV2SceneryInsertGenerationProvenance(valid, expected)
+		).not.toThrow();
+		expect(() =>
+			validateMeadowEntryPaintedV2SceneryInsertGenerationProvenance(
+				{ ...valid, settings: { ...valid.settings, sceneryClass: 'hedge' } },
+				expected
+			)
+		).toThrow(/class drifted/i);
+	});
 
 	it('rejects a generative record missing a tool', () => {
 		expect(() => validateMeadowEntryGenerationProvenance({ ...baseGenerative, tool: '' })).toThrow(

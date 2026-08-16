@@ -16,6 +16,14 @@ export interface MeadowEntryGenerationProvenance {
 	byteReproducibleGeneration: boolean;
 }
 
+export interface MeadowEntryPaintedV2SceneryInsertGenerationExpectation {
+	readonly id: string;
+	readonly sceneryClass: 'hedge' | 'woodland';
+	readonly owningSourceId: string;
+	readonly owningSourcePriority: number;
+	readonly bounds: PixelBounds;
+}
+
 export interface MeadowEntryNormalizationTransform {
 	native: { width: number; height: number };
 	crop: { left: number; top: number; width: number; height: number };
@@ -75,6 +83,25 @@ function assertInteger(value: unknown, label: string): asserts value is number {
 function assertFiniteNumber(value: unknown, label: string): asserts value is number {
 	if (typeof value !== 'number' || !Number.isFinite(value)) {
 		throw new Error(`Meadow Entry refinement provenance ${label} must be a finite number`);
+	}
+}
+
+function assertPositiveInteger(value: unknown, label: string): asserts value is number {
+	if (typeof value !== 'number' || !Number.isInteger(value) || value <= 0) {
+		throw new Error(`Meadow Entry scenery insert provenance ${label} must be a positive integer`);
+	}
+}
+
+function assertSceneryInsertBounds(value: unknown, expected: PixelBounds, label: string): void {
+	if (!isPlainObject(value)) {
+		throw new Error(`Meadow Entry scenery insert provenance ${label} bounds must be an object`);
+	}
+	for (const key of ['left', 'top', 'right', 'bottom'] as const) {
+		if (value[key] !== expected[key]) {
+			throw new Error(
+				`Meadow Entry scenery insert provenance ${label} bounds do not match the sealed contract`
+			);
+		}
 	}
 }
 
@@ -244,6 +271,90 @@ export function validateMeadowEntryGenerationProvenance(value: unknown): void {
 				'Meadow Entry generation cannot claim byte-reproducible output without a provider capability declaration'
 			);
 		}
+	}
+}
+
+/**
+ * Validates the provenance binding that lets the production forest bake trust
+ * an insert as the exact approved row from the scenery registry.
+ */
+export function validateMeadowEntryPaintedV2SceneryInsertGenerationProvenance(
+	value: unknown,
+	expected: MeadowEntryPaintedV2SceneryInsertGenerationExpectation
+): void {
+	validateMeadowEntryGenerationProvenance(value);
+	if (!isPlainObject(value))
+		throw new Error('Meadow Entry scenery insert provenance must be an object');
+	const settings = value.settings;
+	if (!isPlainObject(settings)) {
+		throw new Error('Meadow Entry scenery insert provenance settings must be an object');
+	}
+	if (settings.insertId !== expected.id) {
+		throw new Error(`Meadow Entry scenery insert provenance id drifted: ${expected.id}`);
+	}
+	if (settings.sceneryClass !== expected.sceneryClass) {
+		throw new Error(`Meadow Entry scenery insert class drifted: ${expected.id}`);
+	}
+	if (settings.owningSourceId !== expected.owningSourceId) {
+		throw new Error(`Meadow Entry scenery insert owner drifted: ${expected.id}`);
+	}
+	if (settings.owningSourcePriority !== expected.owningSourcePriority) {
+		throw new Error(`Meadow Entry scenery insert priority drifted: ${expected.id}`);
+	}
+	assertSceneryInsertBounds(settings.bounds, expected.bounds, expected.id);
+	for (const key of ['rawSha256', 'normalizedSha256', 'provenanceSha256'] as const) {
+		if (typeof settings[key] !== 'string') {
+			throw new Error(`Meadow Entry scenery insert ${expected.id} requires ${key}`);
+		}
+		assertSha256(settings[key] as string, `${expected.id} ${key}`);
+	}
+	assertPositiveInteger(settings.rawBytes, `${expected.id} rawBytes`);
+	assertPositiveInteger(settings.normalizedBytes, `${expected.id} normalizedBytes`);
+	if (!isPlainObject(settings.rawDimensions) || !isPlainObject(settings.normalizedDimensions)) {
+		throw new Error(`Meadow Entry scenery insert ${expected.id} dimensions are invalid`);
+	}
+	assertPositiveInteger(settings.rawDimensions.width, `${expected.id} raw width`);
+	assertPositiveInteger(settings.rawDimensions.height, `${expected.id} raw height`);
+	assertPositiveInteger(settings.normalizedDimensions.width, `${expected.id} normalized width`);
+	assertPositiveInteger(settings.normalizedDimensions.height, `${expected.id} normalized height`);
+	assertPositiveInteger(settings.attempt, `${expected.id} attempt`);
+	if (!Array.isArray(settings.attemptHistory)) {
+		throw new Error(`Meadow Entry scenery insert ${expected.id} attempt history is invalid`);
+	}
+	const approval = settings.approval;
+	if (!isPlainObject(approval)) {
+		throw new Error(`Meadow Entry scenery insert ${expected.id} approval is missing`);
+	}
+	if (
+		approval.status !== 'approved-explicit-interim-gate' &&
+		approval.status !== 'approved-explicit-final-source-gate'
+	) {
+		throw new Error(`Meadow Entry scenery insert ${expected.id} approval is not approved`);
+	}
+	if (approval.answer !== 'yes') {
+		throw new Error(`Meadow Entry scenery insert ${expected.id} approval answer is not yes`);
+	}
+	assertNonEmptyString(approval.approvedAtUtc as string, `${expected.id} approval timestamp`);
+	assertNonEmptyString(approval.scope as string, `${expected.id} approval scope`);
+	for (const key of ['candidateSha256', 'evidenceManifestSha256'] as const) {
+		if (typeof approval[key] !== 'string') {
+			throw new Error(`Meadow Entry scenery insert ${expected.id} approval requires ${key}`);
+		}
+		assertSha256(approval[key] as string, `${expected.id} approval ${key}`);
+	}
+	if (
+		approval.evidenceFileCount !== null &&
+		(!Number.isInteger(approval.evidenceFileCount) || (approval.evidenceFileCount as number) < 0)
+	) {
+		throw new Error(
+			`Meadow Entry scenery insert ${expected.id} approval evidence count is invalid`
+		);
+	}
+	if (approval.reviewer !== null && typeof approval.reviewer !== 'string') {
+		throw new Error(`Meadow Entry scenery insert ${expected.id} reviewer is invalid`);
+	}
+	if (approval.runtimePermission !== false) {
+		throw new Error(`Meadow Entry scenery insert ${expected.id} has runtime permission`);
 	}
 }
 

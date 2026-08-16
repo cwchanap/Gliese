@@ -26,6 +26,11 @@ import {
 	MEADOW_ENTRY_PAINTED_V2_DETAIL_PAIR_FORMULAS,
 	MEADOW_ENTRY_PAINTED_V2_SOURCE_PANELS
 } from './meadow-entry-painted-v2-pilot';
+import { MEADOW_ENTRY_PAINTED_V2_SCENERY_INSERTS } from './meadow-entry-painted-v2-scenery';
+import {
+	buildMeadowEntryPaintedV2SceneryMaskSet,
+	enrichMeadowEntryPaintedV2Sources
+} from './meadow-entry-painted-v2-scenery-bake';
 import {
 	validateMeadowEntryGenerationProvenance,
 	type MeadowEntryGenerationProvenance
@@ -117,6 +122,75 @@ async function fixture(): Promise<MeadowEntryPaintedV2PilotAssemblyInput> {
 			return [panel.id, provenance] as const;
 		})
 	);
+	const blockedSceneryRows = await Promise.all(
+		MEADOW_ENTRY_PAINTED_V2_SCENERY_INSERTS.map(async (insert) => {
+			const normalizedPath = join(repositoryRoot, insert.normalizedPath);
+			const provenancePath = join(repositoryRoot, insert.provenancePath);
+			const [bytes, manifestBytes] = await Promise.all([
+				readFile(normalizedPath),
+				readFile(provenancePath)
+			]);
+			const manifest = JSON.parse(manifestBytes.toString('utf8')) as Record<string, unknown>;
+			const generation = manifest.generation as Record<string, unknown>;
+			const raw = manifest.raw as Record<string, unknown>;
+			const normalized = manifest.normalized as Record<string, unknown>;
+			const review = manifest.review as Record<string, unknown>;
+			const rawDimensions = raw.dimensions as Record<string, unknown>;
+			const normalizedDimensions = normalized.dimensions as Record<string, unknown>;
+			const promptUnavailable = generation.promptUnavailable === true;
+			const provenance: MeadowEntryGenerationProvenance = {
+				mode: 'generative',
+				provider: String(generation.provider),
+				model: String(generation.model),
+				modelVersion: String(generation.modelVersion),
+				tool: String(generation.tool),
+				toolVersion: String(generation.modelVersion),
+				settings: {
+					insertId: insert.id,
+					sceneryClass: insert.sceneryClass,
+					owningSourceId: insert.owningSourceId,
+					owningSourcePriority: insert.owningSourcePriority,
+					bounds: insert.bounds,
+					attempt: generation.attempt,
+					attemptHistory: generation.attemptHistory ?? [],
+					result: generation.result ?? null,
+					rejected: generation.rejected ?? false,
+					rawSha256: raw.sha256,
+					rawBytes: raw.bytes,
+					rawDimensions: {
+						width: rawDimensions.width,
+						height: rawDimensions.height
+					},
+					normalizedSha256: normalized.sha256,
+					normalizedBytes: normalized.bytes,
+					normalizedDimensions: {
+						width: normalizedDimensions.width,
+						height: normalizedDimensions.height
+					},
+					provenanceSha256: createHash('sha256').update(manifestBytes).digest('hex'),
+					promptUnavailable,
+					approval: {
+						status: review.approval,
+						answer: review.userAnswer,
+						reviewer: null,
+						approvedAtUtc: review.approvedAtUtc,
+						scope: review.approvalScope,
+						candidateSha256: review.approvalCandidateSha256,
+						evidenceManifestSha256: review.approvalEvidenceManifestSha256,
+						evidenceFileCount: review.approvalEvidenceFileCount ?? null,
+						runtimePermission: review.runtimePermission ?? false
+					}
+				},
+				seed: (generation.seed as number | string | null | undefined) ?? null,
+				seedUnavailable: generation.seedUnavailable === true,
+				prompt: promptUnavailable ? null : String(generation.prompt),
+				promptSha256: promptUnavailable ? null : String(generation.promptSha256),
+				referenceImageSha256: [],
+				byteReproducibleGeneration: false
+			};
+			return [insert.id, { bytes, provenance }] as const;
+		})
+	);
 	return {
 		panels: Object.fromEntries(
 			await Promise.all(
@@ -127,6 +201,13 @@ async function fixture(): Promise<MeadowEntryPaintedV2PilotAssemblyInput> {
 			)
 		),
 		panelProvenance: Object.fromEntries(panelProvenance),
+		blockedScenery: {
+			inserts: Object.fromEntries(blockedSceneryRows.map(([id, row]) => [id, row.bytes])),
+			insertProvenance: Object.fromEntries(
+				blockedSceneryRows.map(([id, row]) => [id, row.provenance])
+			),
+			masks: buildMeadowEntryPaintedV2SceneryMaskSet(repositoryRoot)
+		},
 		controlFingerprint: packageProvenance.controlFingerprint,
 		approvedControlFingerprint: packageProvenance.controlFingerprint
 	};
@@ -139,6 +220,36 @@ async function decodedFixturePanels(input: MeadowEntryPaintedV2PilotAssemblyInpu
 			rgba: await decodeMeadowEntryRgba(input.panels[panel.id]!)
 		}))
 	);
+}
+
+async function enrichedFixturePanels(input: MeadowEntryPaintedV2PilotAssemblyInput) {
+	const decodedPanels = await decodedFixturePanels(input);
+	const decodedInserts = await Promise.all(
+		MEADOW_ENTRY_PAINTED_V2_SCENERY_INSERTS.map(async (insert) =>
+			decodeMeadowEntryRgba(input.blockedScenery.inserts[insert.id]!)
+		)
+	);
+	const enriched = enrichMeadowEntryPaintedV2Sources(
+		decodedPanels.map(({ panel, rgba }) => ({
+			id: panel.id,
+			bounds: panel.bounds,
+			rgba,
+			assemblyPriority: panel.assemblyPriority
+		})),
+		MEADOW_ENTRY_PAINTED_V2_SCENERY_INSERTS.map((insert, index) => ({
+			id: insert.id,
+			sceneryClass: insert.sceneryClass,
+			owningSourceId: insert.owningSourceId,
+			bounds: insert.bounds,
+			rgba: decodedInserts[index]!
+		})),
+		input.blockedScenery.masks
+	);
+	const enrichedById = new Map(enriched.panels.map((panel) => [panel.id, panel]));
+	return decodedPanels.map(({ panel }) => ({
+		panel,
+		rgba: enrichedById.get(panel.id)!.rgba
+	}));
 }
 
 async function assembleFixtureUnderlay(
@@ -174,6 +285,84 @@ async function assembleFixtureUnderlay(
 }
 
 describe('painted-v2 pilot partial master assembler', () => {
+	it('requires the sealed blocked-scenery assembly input', async () => {
+		const input = await fixture();
+		const { blockedScenery: _blockedScenery, ...withoutBlockedScenery } = input;
+		await expect(
+			assembleMeadowEntryPaintedV2Pilot(
+				withoutBlockedScenery as MeadowEntryPaintedV2PilotAssemblyInput
+			)
+		).rejects.toThrow(/blocked scenery/i);
+	});
+
+	it('fails closed for missing, extra, stale, misclassified, cross-owner, and unapproved inserts', async () => {
+		const input = await fixture();
+		const insertId = MEADOW_ENTRY_PAINTED_V2_SCENERY_INSERTS[0]!.id;
+		const insertProvenance = input.blockedScenery.insertProvenance[insertId]!;
+		const withoutInsert = Object.fromEntries(
+			Object.entries(input.blockedScenery.inserts).filter(([id]) => id !== insertId)
+		);
+		await expect(
+			assembleMeadowEntryPaintedV2Pilot({
+				...input,
+				blockedScenery: { ...input.blockedScenery, inserts: withoutInsert }
+			})
+		).rejects.toThrow(/blocked scenery inserts differ/i);
+		await expect(
+			assembleMeadowEntryPaintedV2Pilot({
+				...input,
+				blockedScenery: {
+					...input.blockedScenery,
+					inserts: { ...input.blockedScenery.inserts, 'unexpected-insert': Buffer.from('extra') }
+				}
+			})
+		).rejects.toThrow(/blocked scenery inserts differ/i);
+		const withSettings = (settings: Record<string, unknown>) => ({
+			...input,
+			blockedScenery: {
+				...input.blockedScenery,
+				insertProvenance: {
+					...input.blockedScenery.insertProvenance,
+					[insertId]: { ...insertProvenance, settings }
+				}
+			}
+		});
+		await expect(
+			assembleMeadowEntryPaintedV2Pilot(
+				withSettings({ ...insertProvenance.settings, normalizedSha256: '0'.repeat(64) })
+			)
+		).rejects.toThrow(/normalized hash|stale/i);
+		await expect(
+			assembleMeadowEntryPaintedV2Pilot(
+				withSettings({ ...insertProvenance.settings, sceneryClass: 'woodland' })
+			)
+		).rejects.toThrow(/class drifted/i);
+		await expect(
+			assembleMeadowEntryPaintedV2Pilot(
+				withSettings({
+					...insertProvenance.settings,
+					normalizedDimensions: { width: 1, height: 1 }
+				})
+			)
+		).rejects.toThrow(/dimensions.*bounds/i);
+		await expect(
+			assembleMeadowEntryPaintedV2Pilot(
+				withSettings({ ...insertProvenance.settings, owningSourceId: 'crossroads' })
+			)
+		).rejects.toThrow(/owner drifted/i);
+		await expect(
+			assembleMeadowEntryPaintedV2Pilot(
+				withSettings({
+					...insertProvenance.settings,
+					approval: {
+						...((insertProvenance.settings.approval ?? {}) as Record<string, unknown>),
+						status: 'pending'
+					}
+				})
+			)
+		).rejects.toThrow(/approval is not approved/i);
+	});
+
 	it('ignores force-cast caller rows and keeps the sealed priority contract', async () => {
 		const input = await fixture();
 		const forgedInput: MeadowEntryPaintedV2PilotAssemblyInput = {
@@ -186,28 +375,17 @@ describe('painted-v2 pilot partial master assembler', () => {
 		};
 		const result = await assembleMeadowEntryPaintedV2Pilot(forgedInput);
 		expect(createHash('sha256').update(result.masterPng).digest('hex')).toBe(
-			'd274d41ff947e7f88383bbd9dfde2dace102f5d6bd4b368157d017fea6b902b3'
-		);
-		expect(createHash('sha256').update(result.masterPng).digest('hex')).not.toBe(
-			'8de845c8d06727c199b8dcb0f09c6db9b2d85ed936e8de5db985800032d047ac'
+			'd1dea4230454394e93e660513c5cc4e6af3cd1e62e61a39a162a2e8f48de0c0d'
 		);
 	});
 
 	it('assembles the sealed panel priorities and leaves outside-pilot pixels transparent', async () => {
 		const result = await assembleMeadowEntryPaintedV2Pilot(await fixture());
 		const decoded = await decodeMeadowEntryRgba(result.masterPng);
-		const crossroads = await decodeMeadowEntryRgba(
-			await readFile(
-				join(repositoryRoot, 'artifacts/meadow-entry/painted-v2/source-panels/crossroads.png')
-			)
-		);
 		const masterX = 3000;
 		const masterY = 4300;
 		const overlapOffset = (masterY * decoded.width + masterX) * 4;
-		const crossroadsOffset = ((masterY - 2816) * crossroads.width + (masterX - 2880)) * 4;
-		expect([...decoded.data.subarray(overlapOffset, overlapOffset + 4)]).toEqual([
-			...crossroads.data.subarray(crossroadsOffset, crossroadsOffset + 4)
-		]);
+		expect(decoded.data[overlapOffset + 3]).toBe(255);
 		const outsideOffset = (100 * decoded.width + 100) * 4;
 		expect([...decoded.data.subarray(outsideOffset, outsideOffset + 4)]).toEqual([0, 0, 0, 0]);
 	});
@@ -216,9 +394,9 @@ describe('painted-v2 pilot partial master assembler', () => {
 		const input = await fixture();
 		const result = await assembleMeadowEntryPaintedV2Pilot(input);
 		const actual = await decodeMeadowEntryRgba(result.masterPng);
-		const decodedPanels = await decodedFixturePanels(input);
-		const expected = await assembleFixtureUnderlay(decodedPanels);
-		const detailPanels = decodedPanels
+		const enrichedDecodedPanels = await enrichedFixturePanels(input);
+		const expected = await assembleFixtureUnderlay(enrichedDecodedPanels);
+		const detailPanels = enrichedDecodedPanels
 			.filter(({ panel }) => panel.role === 'detail')
 			.map(({ panel, rgba }) => ({
 				id: panel.id,
@@ -287,20 +465,17 @@ describe('painted-v2 pilot partial master assembler', () => {
 		const second = await assembleMeadowEntryPaintedV2Pilot(input);
 		expect(second.masterPng.equals(first.masterPng)).toBe(true);
 		expect(second.provenanceJson.equals(first.provenanceJson)).toBe(true);
-		const temporaryHash = createHash('sha256').update(first.masterPng).digest('hex');
-		expect(temporaryHash).toBe('d274d41ff947e7f88383bbd9dfde2dace102f5d6bd4b368157d017fea6b902b3');
-		expect(temporaryHash).not.toBe(
-			'8de845c8d06727c199b8dcb0f09c6db9b2d85ed936e8de5db985800032d047ac'
-		);
+		const masterHash = createHash('sha256').update(first.masterPng).digest('hex');
+		expect(masterHash).toBe('d1dea4230454394e93e660513c5cc4e6af3cd1e62e61a39a162a2e8f48de0c0d');
 	});
 
 	it('keeps every visible registered detail perimeter equal to the pre-detail composite', async () => {
 		const input = await fixture();
 		const result = await assembleMeadowEntryPaintedV2Pilot(input);
 		const decodedMaster = await decodeMeadowEntryRgba(result.masterPng);
-		const decodedPanels = await decodedFixturePanels(input);
-		const underlay = await assembleFixtureUnderlay(decodedPanels);
-		const details = decodedPanels
+		const enrichedPanels = await enrichedFixturePanels(input);
+		const underlay = await assembleFixtureUnderlay(enrichedPanels);
+		const details = enrichedPanels
 			.filter(({ panel }) => panel.role === 'detail')
 			.sort((a, b) => a.panel.assemblyPriority - b.panel.assemblyPriority);
 		for (const { panel, rgba } of details) {
@@ -336,9 +511,9 @@ describe('painted-v2 pilot partial master assembler', () => {
 		const input = await fixture();
 		const result = await assembleMeadowEntryPaintedV2Pilot(input);
 		const corrected = await decodeMeadowEntryRgba(result.masterPng);
-		const decodedPanels = await decodedFixturePanels(input);
-		const baseline = await assembleFixtureUnderlay(decodedPanels);
-		const details = decodedPanels
+		const enrichedPanels = await enrichedFixturePanels(input);
+		const baseline = await assembleFixtureUnderlay(enrichedPanels);
+		const details = enrichedPanels
 			.filter(({ panel }) => panel.role === 'detail')
 			.sort((first, second) => first.panel.assemblyPriority - second.panel.assemblyPriority);
 		for (const { panel, rgba } of details) {
@@ -354,7 +529,7 @@ describe('painted-v2 pilot partial master assembler', () => {
 			baseline.height
 		);
 		expect(createHash('sha256').update(baselinePng).digest('hex')).toBe(
-			'24b6a4b1310f6c671145cccab2b6a3dda046980c9bb13ae0340940466ea9fcd9'
+			'8eba8b58e92bcf21870c06e0d27f52fe3dec6793c1ed489011023b544cf02578'
 		);
 
 		const metricPanels = details.map(({ panel }) => ({
