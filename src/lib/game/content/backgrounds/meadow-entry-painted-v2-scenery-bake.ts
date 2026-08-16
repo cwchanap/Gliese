@@ -163,8 +163,8 @@ export interface MeadowEntryPaintedV2SceneryBakeResult {
 	readonly classChangedPixelCounts: Readonly<Record<MeadowEntryPaintedV2SceneryClass, number>>;
 	readonly intersections: readonly MeadowEntryPaintedV2SceneryIntersectionMetric[];
 	readonly rows: readonly MeadowEntryPaintedV2SceneryRowMetric[];
-	readonly topologyRequests?: readonly MeadowEntryPaintedV2SceneryTopologyRequest[];
-	readonly topologyRequestSha256?: string;
+	readonly topologyRequests: readonly MeadowEntryPaintedV2SceneryTopologyRequest[];
+	readonly topologyRequestSha256: string;
 	readonly formulas: Readonly<Record<string, string>>;
 }
 
@@ -762,14 +762,11 @@ function intersectionBounds(
 	const top = Math.max(contractBounds.top, insert.bounds.top, 0);
 	const right = Math.min(contractBounds.right, insert.bounds.right, width);
 	const bottom = Math.min(contractBounds.bottom, insert.bounds.bottom, height);
-	return left < right && top < bottom
-		? { left, top, right, bottom }
-		: {
-				left: insert.bounds.left,
-				top: insert.bounds.top,
-				right: insert.bounds.right,
-				bottom: insert.bounds.bottom
-			};
+	assert(
+		left < right && top < bottom,
+		`Scenery intersection ${insert.id} is outside the decoded topology dimensions`
+	);
+	return { left, top, right, bottom };
 }
 
 interface Sample {
@@ -865,6 +862,9 @@ const compareTopologyContribution = (
 	left.insertId.localeCompare(right.insertId) ||
 	left.worldIndex - right.worldIndex;
 
+const TOPOLOGY_LANGUAGES = new Set<string>(['hedge', 'tree-wall', 'forest-bank']);
+const TOPOLOGY_SCENERY_CLASSES = new Set<string>(['hedge', 'woodland']);
+
 function topologyRequestHash(
 	requests: readonly MeadowEntryPaintedV2SceneryTopologyRequest[]
 ): string {
@@ -877,11 +877,26 @@ function assertTopologyInputs(
 	width: number,
 	height: number
 ): ReadonlyMap<string, MeadowEntryPaintedV2SceneryBlocker> {
-	assert(Number.isInteger(width) && width > 0, 'Meadow Entry topology width is invalid');
-	assert(Number.isInteger(height) && height > 0, 'Meadow Entry topology height is invalid');
+	assert(Number.isSafeInteger(width) && width > 0, 'Meadow Entry topology width is invalid');
+	assert(Number.isSafeInteger(height) && height > 0, 'Meadow Entry topology height is invalid');
+	assert(Number.isSafeInteger(width * height), 'Meadow Entry topology dimensions are too large');
+	assert(blockers.length > 0, 'Meadow Entry topology requires at least one blocker');
+	assert(contributions.length > 0, 'Meadow Entry topology requires at least one contribution');
 	const blockerById = new Map<string, MeadowEntryPaintedV2SceneryBlocker>();
 	for (const blocker of blockers) {
+		assert(
+			typeof blocker.sourceId === 'string' && blocker.sourceId.length > 0,
+			'Topology blocker source IDs must be non-empty strings'
+		);
 		assert(!blockerById.has(blocker.sourceId), `Duplicate topology blocker: ${blocker.sourceId}`);
+		assert(
+			TOPOLOGY_LANGUAGES.has(blocker.language),
+			`Topology blocker ${blocker.sourceId} has an invalid language`
+		);
+		assert(
+			TOPOLOGY_SCENERY_CLASSES.has(blocker.sceneryClass),
+			`Topology blocker ${blocker.sourceId} has an invalid scenery class`
+		);
 		assert(
 			Number.isInteger(blocker.bounds.left) &&
 				Number.isInteger(blocker.bounds.top) &&
@@ -891,11 +906,30 @@ function assertTopologyInputs(
 				blocker.bounds.bottom > blocker.bounds.top,
 			`Topology blocker ${blocker.sourceId} bounds are invalid`
 		);
+		assert(
+			blocker.bounds.left >= 0 &&
+				blocker.bounds.top >= 0 &&
+				blocker.bounds.right <= width &&
+				blocker.bounds.bottom <= height,
+			`Topology blocker ${blocker.sourceId} bounds are outside the topology dimensions`
+		);
 		blockerById.set(blocker.sourceId, blocker);
 	}
 	for (const [index, contribution] of contributions.entries()) {
 		assert(
-			Number.isInteger(contribution.worldIndex) &&
+			typeof contribution.blockerId === 'string' && contribution.blockerId.length > 0,
+			`Topology contribution ${index} blocker ID is invalid`
+		);
+		assert(
+			typeof contribution.insertId === 'string' && contribution.insertId.length > 0,
+			`Topology contribution ${index} insert ID is invalid`
+		);
+		assert(
+			typeof contribution.owningSourceId === 'string' && contribution.owningSourceId.length > 0,
+			`Topology contribution ${index} owning source ID is invalid`
+		);
+		assert(
+			Number.isSafeInteger(contribution.worldIndex) &&
 				contribution.worldIndex >= 0 &&
 				contribution.worldIndex < width * height,
 			`Topology contribution ${index} world index is invalid`
@@ -914,7 +948,8 @@ function assertTopologyInputs(
 			`Topology contribution ${index} priority is invalid`
 		);
 		assert(
-			contribution.ownerRelativeTone.length === 3 &&
+			Array.isArray(contribution.ownerRelativeTone) &&
+				contribution.ownerRelativeTone.length === 3 &&
 				contribution.ownerRelativeTone.every(
 					(value) => Number.isInteger(value) && value >= 0 && value <= 255
 				),
@@ -922,6 +957,19 @@ function assertTopologyInputs(
 		);
 		const blocker = blockerById.get(contribution.blockerId);
 		assert(blocker !== undefined, `Topology contribution ${index} has an unknown blocker`);
+		const worldX = contribution.worldIndex % width;
+		const worldY = Math.floor(contribution.worldIndex / width);
+		assert(
+			worldX >= blocker.bounds.left &&
+				worldX < blocker.bounds.right &&
+				worldY >= blocker.bounds.top &&
+				worldY < blocker.bounds.bottom,
+			`Topology contribution ${index} is outside blocker ${blocker.sourceId} bounds`
+		);
+		assert(
+			TOPOLOGY_SCENERY_CLASSES.has(contribution.sceneryClass),
+			`Topology contribution ${index} has an invalid scenery class`
+		);
 		assert(
 			contribution.sceneryClass === blocker.sceneryClass,
 			`Topology contribution ${index} class does not match blocker ${blocker.sourceId}`
@@ -944,38 +992,8 @@ function topologySliceIndex(
 	return longAxisX ? x - rowBounds.left : y - rowBounds.top;
 }
 
-function topologyRowBounds(
-	blocker: MeadowEntryPaintedV2SceneryBlocker,
-	contributionIndexes: readonly number[],
-	contributions: readonly MeadowEntryPaintedV2SceneryContribution[],
-	width: number,
-	height: number
-): PixelBounds {
-	if (
-		blocker.bounds.left >= 0 &&
-		blocker.bounds.top >= 0 &&
-		blocker.bounds.right <= width &&
-		blocker.bounds.bottom <= height
-	)
-		return blocker.bounds;
-	let left = width;
-	let top = height;
-	let right = 0;
-	let bottom = 0;
-	for (const contributionIndex of contributionIndexes) {
-		const worldIndex = contributions[contributionIndex]!.worldIndex;
-		const x = worldIndex % width;
-		const y = Math.floor(worldIndex / width);
-		left = Math.min(left, x);
-		top = Math.min(top, y);
-		right = Math.max(right, x + 1);
-		bottom = Math.max(bottom, y + 1);
-	}
-	assert(
-		left < right && top < bottom,
-		`Topology row has no measurable bounds: ${blocker.sourceId}`
-	);
-	return { left, top, right, bottom };
+function topologyRowBounds(blocker: MeadowEntryPaintedV2SceneryBlocker): PixelBounds {
+	return blocker.bounds;
 }
 
 function sparseTopologyMetric(
@@ -1163,16 +1181,11 @@ export function shapeMeadowEntryPaintedV2SceneryContributions(
 		const target = blocker.language === 'tree-wall' ? treePixels : sparsePixels;
 		for (const worldIndex of pixels) target.add(worldIndex);
 	}
-	const canonicalBounds = blockers.every(
-		({ bounds }) =>
-			bounds.left >= 0 && bounds.top >= 0 && bounds.right <= width && bounds.bottom <= height
-	);
-	if (canonicalBounds)
-		for (const worldIndex of sparsePixels)
-			assert(
-				!treePixels.has(worldIndex),
-				`Sparse and tree topology rows overlap at pixel ${worldIndex}`
-			);
+	for (const worldIndex of sparsePixels)
+		assert(
+			!treePixels.has(worldIndex),
+			`Sparse and tree topology rows overlap at pixel ${worldIndex}`
+		);
 
 	const pending = new Map<number, PendingTopologyRequest>();
 	const rowRequestIndexes = new Map<string, Set<number>>();
@@ -1199,7 +1212,7 @@ export function shapeMeadowEntryPaintedV2SceneryContributions(
 			contributionIndexes.length > 0,
 			`Topology blocker has no contributions: ${blocker.sourceId}`
 		);
-		const rowBounds = topologyRowBounds(blocker, contributionIndexes, contributions, width, height);
+		const rowBounds = topologyRowBounds(blocker);
 		const rawWeights = rawWeightsByBlocker.get(blocker.sourceId) ?? new Map<number, number>();
 		if (blocker.language !== 'tree-wall') {
 			const originalCore = new Uint8Array(width * height);
@@ -1403,7 +1416,7 @@ export function shapeMeadowEntryPaintedV2SceneryContributions(
 
 	for (const blocker of blockers) {
 		const contributionIndexes = contributionsByBlocker.get(blocker.sourceId)!;
-		const rowBounds = topologyRowBounds(blocker, contributionIndexes, contributions, width, height);
+		const rowBounds = topologyRowBounds(blocker);
 		const shapedByPixel = new Map<number, number>();
 		for (const contributionIndex of contributionIndexes) {
 			const contribution = contributions[contributionIndex]!;
@@ -1415,12 +1428,11 @@ export function shapeMeadowEntryPaintedV2SceneryContributions(
 		const eligiblePixelCount = eligibleByBlocker.get(blocker.sourceId)!.size;
 		const weightedPixelCount = [...shapedByPixel.values()].filter((value) => value >= 32).length;
 		const coverage = eligiblePixelCount === 0 ? 0 : weightedPixelCount / eligiblePixelCount;
-		if (canonicalBounds)
-			assert(
-				coverage >= 0.25 && coverage <= 0.7,
-				`Topology row coverage is outside 25%-70%: ${blocker.sourceId}`
-			);
-		if (blocker.language === 'tree-wall' && canonicalBounds) {
+		assert(
+			coverage >= 0.25 && coverage <= 0.7,
+			`Topology row coverage is outside 25%-70%: ${blocker.sourceId}`
+		);
+		if (blocker.language === 'tree-wall') {
 			const metric = treeTopologyMetric(
 				blocker,
 				contributionIndexes,
@@ -1460,39 +1472,8 @@ function rangeRunRatio(values: readonly number[], predicate: (value: number) => 
 	return longest / values.length;
 }
 
-function metricBounds(
-	blocker: (typeof MEADOW_ENTRY_PAINTED_V2_SCENERY_BLOCKERS)[number],
-	eligible: ReadonlySet<number>,
-	width: number,
-	height: number
-): PixelBounds {
-	if (
-		blocker.bounds.left >= 0 &&
-		blocker.bounds.top >= 0 &&
-		blocker.bounds.right <= width &&
-		blocker.bounds.bottom <= height
-	)
-		return blocker.bounds;
-	let left = width;
-	let top = height;
-	let right = 0;
-	let bottom = 0;
-	for (const index of eligible) {
-		const x = index % width;
-		const y = Math.floor(index / width);
-		left = Math.min(left, x);
-		top = Math.min(top, y);
-		right = Math.max(right, x + 1);
-		bottom = Math.max(bottom, y + 1);
-	}
-	return left < right && top < bottom
-		? { left, top, right, bottom }
-		: {
-				left: Math.max(0, Math.min(width, blocker.bounds.left)),
-				top: Math.max(0, Math.min(height, blocker.bounds.top)),
-				right: Math.max(0, Math.min(width, blocker.bounds.right)),
-				bottom: Math.max(0, Math.min(height, blocker.bounds.bottom))
-			};
+function metricBounds(blocker: MeadowEntryPaintedV2SceneryBlocker): PixelBounds {
+	return blocker.bounds;
 }
 
 type MeadowEntryPaintedV2SceneryComputedRowMetric =
@@ -1500,15 +1481,14 @@ type MeadowEntryPaintedV2SceneryComputedRowMetric =
 	| Omit<MeadowEntryPaintedV2SceneryContinuousContourMetric, 'rawWeightSha256' | 'topology'>;
 
 function buildRowMetric(
-	blocker: (typeof MEADOW_ENTRY_PAINTED_V2_SCENERY_BLOCKERS)[number],
+	blocker: MeadowEntryPaintedV2SceneryBlocker,
 	weights: ReadonlyMap<number, number>,
 	eligible: ReadonlySet<number>,
 	weightAt: (index: number) => number,
 	edgeAt: (index: number) => number,
-	width: number,
-	height: number
+	width: number
 ): MeadowEntryPaintedV2SceneryComputedRowMetric {
-	const bounds = metricBounds(blocker, eligible, width, height);
+	const bounds = metricBounds(blocker);
 	const eligiblePixelCount = eligible.size;
 	const weightedPixelCount = [...weights.values()].filter((value) => value >= 32).length;
 	const coverage = eligiblePixelCount === 0 ? 0 : weightedPixelCount / eligiblePixelCount;
@@ -1630,11 +1610,37 @@ function buildRowMetric(
 export function enrichMeadowEntryPaintedV2Sources(
 	panels: readonly MeadowEntryDetailDecodedPanel[],
 	inserts: readonly DecodedMeadowEntryPaintedV2SceneryInsert[],
-	masks: MeadowEntryPaintedV2SceneryMaskSet
+	masks: MeadowEntryPaintedV2SceneryMaskSet,
+	topologyBlockers: readonly MeadowEntryPaintedV2SceneryBlocker[] = MEADOW_ENTRY_PAINTED_V2_SCENERY_BLOCKERS
 ): MeadowEntryPaintedV2SceneryBakeResult {
 	const { width, height } = assertMaskSet(masks);
 	const panelById = validateDecodedCoverage(panels, inserts, width, height);
-	const contractIntersections = validateMeadowEntryPaintedV2SceneryContract();
+	const canonicalIntersections = validateMeadowEntryPaintedV2SceneryContract();
+	assert(
+		topologyBlockers.length === MEADOW_ENTRY_PAINTED_V2_SCENERY_BLOCKERS.length,
+		'Meadow Entry topology blocker override length drifted'
+	);
+	const canonicalBlockersById = new Map(
+		MEADOW_ENTRY_PAINTED_V2_SCENERY_BLOCKERS.map((blocker) => [blocker.sourceId, blocker])
+	);
+	for (const blocker of topologyBlockers) {
+		const canonical = canonicalBlockersById.get(blocker.sourceId);
+		assert(canonical !== undefined, `Unknown Meadow Entry topology blocker: ${blocker.sourceId}`);
+		assert(
+			blocker.language === canonical.language && blocker.sceneryClass === canonical.sceneryClass,
+			`Meadow Entry topology blocker classification drifted: ${blocker.sourceId}`
+		);
+	}
+	const contractIntersections = canonicalIntersections.map((intersection) => {
+		const blocker = topologyBlockers.find(({ sourceId }) => sourceId === intersection.blockerId);
+		assert(
+			blocker !== undefined,
+			`Missing Meadow Entry topology blocker: ${intersection.blockerId}`
+		);
+		return blocker === canonicalBlockersById.get(intersection.blockerId)
+			? intersection
+			: { ...intersection, bounds: { ...blocker.bounds } };
+	});
 	const distances = {
 		hedge: meadowEntrySceneryInsetDistances(masks.hedgeAllowed, width, height),
 		woodland: meadowEntrySceneryInsetDistances(masks.woodlandAllowed, width, height)
@@ -1786,12 +1792,12 @@ export function enrichMeadowEntryPaintedV2Sources(
 	}
 	const topology = shapeMeadowEntryPaintedV2SceneryContributions(
 		contributions,
-		MEADOW_ENTRY_PAINTED_V2_SCENERY_BLOCKERS,
+		topologyBlockers,
 		width,
 		height
 	);
 	const rawRowWeightHashes = new Map<string, string>();
-	for (const blocker of MEADOW_ENTRY_PAINTED_V2_SCENERY_BLOCKERS)
+	for (const blocker of topologyBlockers)
 		rawRowWeightHashes.set(
 			blocker.sourceId,
 			rowWeightHash(rowWeights.get(blocker.sourceId) ?? new Map())
@@ -1811,7 +1817,7 @@ export function enrichMeadowEntryPaintedV2Sources(
 		}
 		return { insert, weights, tones };
 	});
-	for (const blocker of MEADOW_ENTRY_PAINTED_V2_SCENERY_BLOCKERS) {
+	for (const blocker of topologyBlockers) {
 		const shaped = new Map<number, number>();
 		for (const [contributionIndex, contribution] of contributions.entries()) {
 			if (contribution.blockerId !== blocker.sourceId) continue;
@@ -1914,7 +1920,7 @@ export function enrichMeadowEntryPaintedV2Sources(
 	}
 	const weightByBlocker = (blockerId: string): Map<number, number> =>
 		rowWeights.get(blockerId) ?? new Map();
-	const rows = MEADOW_ENTRY_PAINTED_V2_SCENERY_BLOCKERS.map((blocker) => {
+	const rows = topologyBlockers.map((blocker) => {
 		const weights = weightByBlocker(blocker.sourceId);
 		const eligible = rowEligible.get(blocker.sourceId) ?? new Set<number>();
 		const distance = distances[blocker.sceneryClass];
@@ -1930,8 +1936,7 @@ export function enrichMeadowEntryPaintedV2Sources(
 							MAX_SCENERY_DISTANCE
 						)
 					: 0,
-			width,
-			height
+			width
 		);
 		return {
 			...metric,

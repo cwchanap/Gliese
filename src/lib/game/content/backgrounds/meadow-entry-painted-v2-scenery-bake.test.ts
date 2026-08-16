@@ -39,6 +39,19 @@ function offset(width: number, x: number, y: number): number {
 	return y * width + x;
 }
 
+function stableJson(value: unknown): string {
+	if (value === null || typeof value !== 'object') return JSON.stringify(value) ?? '';
+	if (Array.isArray(value)) return `[${value.map(stableJson).join(',')}]`;
+	return `{${Object.entries(value as Record<string, unknown>)
+		.sort(([left], [right]) => left.localeCompare(right))
+		.map(([key, item]) => `${JSON.stringify(key)}:${stableJson(item)}`)
+		.join(',')}}`;
+}
+
+function stableHash(value: unknown): string {
+	return createHash('sha256').update(stableJson(value)).digest('hex');
+}
+
 function topologyBlocker(
 	sourceId: string,
 	blockerBounds: PixelBounds,
@@ -99,6 +112,19 @@ function sparseTopologyFixture(): {
 					'hedge'
 				)
 			);
+			if (x === 4 && y === 5)
+				contributions.push(
+					topologyContribution(
+						blockerId,
+						'sparse-insert-saturated-overlap',
+						worldIndex,
+						255,
+						192,
+						255,
+						1,
+						'hedge'
+					)
+				);
 			if (x === 4 && y === 5)
 				contributions.push(
 					topologyContribution(
@@ -236,13 +262,27 @@ function syntheticMasks(width: number, height: number): MeadowEntryPaintedV2Scen
 			woodlandAllowed[index] = 1;
 		}
 	}
+	if (width < 64) {
+		hedgeAllowed.fill(0);
+		woodlandAllowed.fill(0);
+		const splitX = Math.floor(width * 0.375);
+		paintBounds(hedgeAllowed, width, bounds(1, 1, splitX, height - 1));
+		paintBounds(woodlandAllowed, width, bounds(splitX, 1, width - 1, height - 1));
+	}
+	const woodlandStart = Math.max(4, height - 64);
+	const contourStart = Math.floor((woodlandStart + height - 1) / 2);
+	for (let x = Math.max(4, width - 64); x < width - 2; x += 1) {
+		const notch = width < 64 ? (x * 7) % 7 : (x * 7) % 17;
+		for (let y = contourStart; y < contourStart + notch && y < height - 2; y += 1)
+			woodlandAllowed[offset(width, x, y)] = 0;
+	}
 	const protectedOffset = offset(width, 1, 1);
 	otherProtected[protectedOffset] = 1;
 	sceneryAllowed[protectedOffset] = 0;
 	hedgeAllowed[protectedOffset] = 1;
 	const outsideOffset = offset(width, width - 2, 2);
 	sceneryAllowed[outsideOffset] = 0;
-	hedgeAllowed[outsideOffset] = 1;
+	hedgeAllowed[outsideOffset] = width < 64 ? 0 : 1;
 	return {
 		width: width as 6400,
 		height: height as 6400,
@@ -253,6 +293,58 @@ function syntheticMasks(width: number, height: number): MeadowEntryPaintedV2Scen
 		woodlandAllowed,
 		sourceHashes: { synthetic: createHash('sha256').update('synthetic').digest('hex') }
 	} as MeadowEntryPaintedV2SceneryMaskSet;
+}
+
+function syntheticTopologyBlockers(
+	width: number,
+	height: number
+): MeadowEntryPaintedV2SceneryBlocker[] {
+	if (width >= 512 && height >= 512) {
+		const hedgeBounds = bounds(208, 208, 304, 304);
+		const forestBounds = bounds(320, 212, 416, 239);
+		const treeBounds = bounds(320, 239, 416, 304);
+		return MEADOW_ENTRY_PAINTED_V2_SCENERY_BLOCKERS.map((blocker) => ({
+			...blocker,
+			bounds:
+				blocker.language === 'tree-wall'
+					? treeBounds
+					: blocker.language === 'forest-bank'
+						? forestBounds
+						: hedgeBounds
+		}));
+	}
+	const woodlandTop =
+		width < 64 ? 4 : Math.max(8, height === 320 ? Math.floor(height / 2) : height - 64);
+	const woodlandLeft =
+		width < 64
+			? Math.floor(width * 0.375)
+			: width >= 320
+				? 5
+				: Math.max(4, Math.floor(width * 0.6));
+	const right = Math.max(woodlandLeft + 1, width - 1);
+	const split = Math.max(woodlandTop + 2, Math.floor((woodlandTop + height - 1) / 2));
+	const hedgeBounds =
+		width < 64
+			? bounds(4, 4, woodlandLeft, Math.max(5, height - 4))
+			: bounds(1, 1, Math.max(2, width - 1), woodlandTop);
+	const forestBounds = bounds(woodlandLeft, woodlandTop, right, split);
+	const treeBounds = bounds(
+		woodlandLeft,
+		split,
+		right,
+		width < 64 ? Math.max(split + 1, height - 2) : Math.max(split + 1, height - 1)
+	);
+	return MEADOW_ENTRY_PAINTED_V2_SCENERY_BLOCKERS.map((blocker) => ({
+		...blocker,
+		bounds:
+			blocker.language === 'tree-wall'
+				? treeBounds
+				: blocker.language === 'forest-bank'
+					? width < 64 && blocker.sourceId === 'wildwood-north-climb-west-bank'
+						? bounds(woodlandLeft + 4, woodlandTop + 2, woodlandLeft + 12, woodlandTop + 10)
+						: forestBounds
+					: hedgeBounds
+	}));
 }
 
 function decodedInserts(width: number, height: number): DecodedMeadowEntryPaintedV2SceneryInsert[] {
@@ -337,6 +429,10 @@ function assemblyMasks(width: number, height: number): MeadowEntryPaintedV2Scene
 	paintBounds(result.hedgeAllowed, width, bounds(208, 208, 304, 304));
 	paintBounds(result.sceneryAllowed, width, bounds(320, 208, 416, 304));
 	paintBounds(result.woodlandAllowed, width, bounds(320, 208, 416, 304));
+	for (let x = 320; x < 416; x += 1) {
+		const notch = x % 2 === 0 ? 0 : 20;
+		for (let y = 239; y < 239 + notch; y += 1) result.woodlandAllowed[offset(width, x, y)] = 0;
+	}
 	return result;
 }
 
@@ -378,6 +474,23 @@ function assemblyFixture(): AssemblyFixture {
 		if (!owner) throw new Error(`Missing synthetic scenery owner ${insert.owningSourceId}`);
 		const width = owner.bounds.right - owner.bounds.left;
 		const height = owner.bounds.bottom - owner.bounds.top;
+		const data = variedRgba(
+			width,
+			height,
+			insert.sceneryClass === 'hedge' ? [30, 60, 20] : [20, 40, 40],
+			index
+		);
+		if (insert.sceneryClass === 'woodland') {
+			for (let y = 0; y < height; y += 1) {
+				for (let x = 0; x < width; x += 1) {
+					const at = rgbaOffset(width, x, y);
+					const value = (Math.floor(x / 32) + Math.floor(y / 32) + index) % 2 === 0 ? 220 : 30;
+					data[at] = value;
+					data[at + 1] = Math.min(255, value + 8);
+					data[at + 2] = Math.min(255, value + 16);
+				}
+			}
+		}
 		return {
 			id: insert.id,
 			sceneryClass: insert.sceneryClass,
@@ -386,12 +499,7 @@ function assemblyFixture(): AssemblyFixture {
 			rgba: {
 				width,
 				height,
-				data: variedRgba(
-					width,
-					height,
-					insert.sceneryClass === 'hedge' ? [30, 60, 20] : [20, 40, 40],
-					index
-				)
+				data
 			}
 		};
 	});
@@ -523,7 +631,7 @@ describe('Meadow Entry painted-v2 scenery bake primitives', () => {
 			erosionCount: 3,
 			originalSaturatedPixelCount: 128,
 			retainedSaturatedPixelCount: 20,
-			demotedContributionCount: 108
+			demotedContributionCount: 109
 		});
 		const rawWeights = fixture.contributions.map(({ rawFinalWeight }) => rawFinalWeight);
 		const shapedWeights = [...result.shapedWeights];
@@ -535,7 +643,10 @@ describe('Meadow Entry painted-v2 scenery bake primitives', () => {
 		expect(rawWeights.filter((value) => value >= 32).length).toBe(
 			shapedWeights.filter((value) => value >= 32).length
 		);
-		expect(shapedWeights.filter((value) => value === 191).length).toBe(108);
+		expect(shapedWeights.filter((value) => value === 191).length).toBe(109);
+		const saturatedRequests = result.requests.filter(({ rawWeight }) => rawWeight >= 254);
+		expect(saturatedRequests).toHaveLength(109);
+		expect(saturatedRequests.every(({ shapedWeight }) => shapedWeight === 191)).toBe(true);
 		for (const request of result.requests) {
 			expect(request.reasons).toEqual(['sparse-core-cap']);
 			expect(request.shapedWeight).toBe(191);
@@ -543,12 +654,28 @@ describe('Meadow Entry painted-v2 scenery bake primitives', () => {
 		expect(result.requests.map(({ contributionIndex }) => contributionIndex)).toEqual(
 			[...result.requests.map(({ contributionIndex }) => contributionIndex)].sort((a, b) => a - b)
 		);
+		expect(result.requestSha256).toBe(stableHash(result.requests));
+		expect(topology?.requestSha256).toBe(stableHash(result.requests));
 	});
 
 	it('repairs tree slices and fills only distinct edge-capable world pixels', () => {
 		const fixture = treeTopologyFixture();
+		const lowEdgeSource = fixture.contributions.find(({ rawFinalWeight }) => rawFinalWeight < 32)!;
+		const lowEdgeIndex = fixture.contributions.length;
+		const contributions = [
+			...fixture.contributions,
+			topologyContribution(
+				'synthetic-tree-wall',
+				'tree-low-edge',
+				lowEdgeSource.worldIndex,
+				31,
+				255,
+				16,
+				9
+			)
+		];
 		const result = shapeMeadowEntryPaintedV2SceneryContributions(
-			fixture.contributions,
+			contributions,
 			fixture.blockers,
 			fixture.width,
 			fixture.height
@@ -567,10 +694,111 @@ describe('Meadow Entry painted-v2 scenery bake primitives', () => {
 			true
 		);
 		expect(result.requests.every(({ shapedWeight }) => shapedWeight >= 32)).toBe(true);
+		expect(
+			result.requests.some(({ contributionIndex }) => contributionIndex === lowEdgeIndex)
+		).toBe(false);
+		expect(
+			result.requests.every(
+				({ contributionIndex }) => contributions[contributionIndex]!.edgeWeight >= 32
+			)
+		).toBe(true);
 		const requestedPixels = result.requests.map(({ worldIndex }) => worldIndex);
 		expect(new Set(requestedPixels).size).toBe(requestedPixels.length);
+		for (const { worldIndex } of result.requests) {
+			const x = worldIndex % fixture.width;
+			const y = Math.floor(worldIndex / fixture.width);
+			expect(x).toBeGreaterThanOrEqual(fixture.blockers[0]!.bounds.left);
+			expect(x).toBeLessThan(fixture.blockers[0]!.bounds.right);
+			expect(y).toBeGreaterThanOrEqual(fixture.blockers[0]!.bounds.top);
+			expect(y).toBeLessThan(fixture.blockers[0]!.bounds.bottom);
+		}
 		expect(topology.requestSha256).toMatch(/^[a-f0-9]{64}$/);
 		expect(result.requestSha256).toMatch(/^[a-f0-9]{64}$/);
+		expect(result.requestSha256).toBe(stableHash(result.requests));
+		expect(topology.requestSha256).toBe(stableHash(result.requests));
+	});
+
+	it('uses every comparator tie-breaker and rejects candidates outside the literal row', () => {
+		const fixture = treeTopologyFixture();
+		const baseIndex = fixture.contributions.length;
+		const candidate = (
+			insertId: string,
+			y: number,
+			rawFinalWeight: number,
+			organicSignal: number,
+			edgeWeight: number,
+			ownerPriority: number
+		) =>
+			topologyContribution(
+				'synthetic-tree-wall',
+				insertId,
+				offset(fixture.width, 3, y),
+				rawFinalWeight,
+				organicSignal,
+				edgeWeight,
+				ownerPriority
+			);
+		const winner = (candidates: readonly MeadowEntryPaintedV2SceneryContribution[]) => {
+			const result = shapeMeadowEntryPaintedV2SceneryContributions(
+				[...fixture.contributions, ...candidates],
+				fixture.blockers,
+				fixture.width,
+				fixture.height
+			);
+			const request = result.requests.find(
+				({ contributionIndex, reasons }) =>
+					contributionIndex >= baseIndex && reasons.includes('tree-missing-slice')
+			);
+			expect(request).toBeDefined();
+			return { insertId: request!.insertId, worldIndex: request!.worldIndex };
+		};
+
+		expect(
+			winner([candidate('cmp-raw', 20, 31, 80, 64, 1), candidate('cmp-other', 21, 30, 255, 255, 9)])
+		).toEqual({ insertId: 'cmp-raw', worldIndex: offset(fixture.width, 3, 20) });
+		expect(
+			winner([
+				candidate('cmp-organic', 20, 31, 120, 64, 1),
+				candidate('cmp-other', 21, 31, 100, 255, 9)
+			])
+		).toEqual({ insertId: 'cmp-organic', worldIndex: offset(fixture.width, 3, 20) });
+		expect(
+			winner([
+				candidate('cmp-edge', 20, 31, 120, 80, 1),
+				candidate('cmp-other', 21, 31, 120, 64, 9)
+			])
+		).toEqual({ insertId: 'cmp-edge', worldIndex: offset(fixture.width, 3, 20) });
+		expect(
+			winner([
+				candidate('cmp-priority', 20, 31, 120, 80, 2),
+				candidate('cmp-other', 21, 31, 120, 80, 1)
+			])
+		).toEqual({ insertId: 'cmp-priority', worldIndex: offset(fixture.width, 3, 20) });
+		expect(
+			winner([candidate('cmp-a', 20, 31, 120, 80, 2), candidate('cmp-z', 21, 31, 120, 80, 2)])
+		).toEqual({ insertId: 'cmp-a', worldIndex: offset(fixture.width, 3, 20) });
+		const worldTie = winner([
+			candidate('cmp-same', 21, 31, 120, 80, 2),
+			candidate('cmp-same', 20, 31, 120, 80, 2)
+		]);
+		expect(worldTie).toEqual({ insertId: 'cmp-same', worldIndex: offset(fixture.width, 3, 20) });
+
+		const outsideRow = topologyContribution(
+			'synthetic-tree-wall',
+			'outside-literal-row',
+			offset(fixture.width, 3, fixture.blockers[0]!.bounds.top - 1),
+			8,
+			128,
+			64
+		);
+		expect(() =>
+			shapeMeadowEntryPaintedV2SceneryContributions(
+				[...fixture.contributions, outsideRow],
+				fixture.blockers,
+				fixture.width,
+				fixture.height
+			)
+		).toThrow(/outside blocker|outside.*row/i);
 	});
 
 	it('derives overlapping tree requests from immutable raw input independent of row order', () => {
@@ -612,6 +840,12 @@ describe('Meadow Entry painted-v2 scenery bake primitives', () => {
 		expect([...forward.shapedWeights]).toEqual([...reversed.shapedWeights]);
 		expect(forward.requests).toEqual(reversed.requests);
 		expect(forward.requestSha256).toBe(reversed.requestSha256);
+		for (const blocker of blockers)
+			expect(forward.rowTopology[blocker.sourceId]!.requestSha256).toBe(
+				stableHash(
+					forward.requests.filter(({ blockerIds }) => blockerIds.includes(blocker.sourceId))
+				)
+			);
 		expect(contributions).toEqual(contributionSnapshot);
 		expect(blockers).toEqual(blockerSnapshot);
 	});
@@ -649,6 +883,9 @@ describe('Meadow Entry painted-v2 scenery bake primitives', () => {
 	});
 
 	it('rejects topology inputs that cannot satisfy the bounded language contracts', () => {
+		expect(() => shapeMeadowEntryPaintedV2SceneryContributions([], [], 4, 4)).toThrow(
+			/requires at least one blocker/i
+		);
 		const sparseBlocker = topologyBlocker('sparse', bounds(0, 0, 80, 80), 'hedge', 'hedge');
 		const wideSparse: MeadowEntryPaintedV2SceneryContribution[] = [];
 		for (let y = 0; y < 80; y += 1)
@@ -670,6 +907,15 @@ describe('Meadow Entry painted-v2 scenery bake primitives', () => {
 		).toThrow(/bounded erosion/i);
 
 		const treeBlocker = topologyBlocker('tree', bounds(0, 0, 4, 4), 'tree-wall', 'woodland');
+		const malformedLanguage = { ...treeBlocker, language: 'not-a-language' as 'tree-wall' };
+		expect(() =>
+			shapeMeadowEntryPaintedV2SceneryContributions(
+				[topologyContribution('tree', 'tree-insert', 0, 8, 128, 16)],
+				[malformedLanguage],
+				4,
+				4
+			)
+		).toThrow(/invalid language/i);
 		const incapableTree = Array.from({ length: 16 }, (_, index) =>
 			topologyContribution('tree', 'tree-insert', index, 8, 128, 16)
 		);
@@ -712,6 +958,26 @@ describe('Meadow Entry painted-v2 scenery bake primitives', () => {
 		).toThrow(/overlap/i);
 	});
 
+	it('rejects out-of-world blocker bounds instead of deriving substitute topology bounds', () => {
+		const blocker = topologyBlocker('out-of-world', bounds(0, 0, 4, 5), 'hedge', 'hedge');
+		const contributions = Array.from({ length: 16 }, (_, worldIndex) =>
+			topologyContribution(
+				'out-of-world',
+				'out-of-world-insert',
+				worldIndex,
+				8,
+				128,
+				255,
+				1,
+				'hedge'
+			)
+		);
+
+		expect(() =>
+			shapeMeadowEntryPaintedV2SceneryContributions(contributions, [blocker], 4, 4)
+		).toThrow(/bounds.*outside|outside.*bounds/i);
+	});
+
 	it('returns exactly the five catalog-backed retained masks', () => {
 		const controls = buildMeadowEntryControlInputs(process.cwd());
 		const masks = buildMeadowEntryPaintedV2SceneryMaskSetFromControls(controls, {
@@ -748,9 +1014,14 @@ describe('Meadow Entry painted-v2 scenery bake primitives', () => {
 		const masks = syntheticMasks(width, height);
 		const before = clonePanels(panels);
 
-		expect(() => enrichMeadowEntryPaintedV2Sources(panels, inserts, masks)).toThrow(
-			/q40|q80|organic|degenerate/i
-		);
+		expect(() =>
+			enrichMeadowEntryPaintedV2Sources(
+				panels,
+				inserts,
+				masks,
+				syntheticTopologyBlockers(width, height)
+			)
+		).toThrow(/q40|q80|organic|degenerate/i);
 		for (const [index, panel] of panels.entries())
 			expect(panel.rgba.data).toEqual(before[index]!.rgba.data);
 	});
@@ -771,22 +1042,45 @@ describe('Meadow Entry painted-v2 scenery bake primitives', () => {
 				)
 			}
 		}));
-		const result = enrichMeadowEntryPaintedV2Sources(panels, inserts, masks);
+		const result = enrichMeadowEntryPaintedV2Sources(
+			panels,
+			inserts,
+			masks,
+			syntheticTopologyBlockers(width, height)
+		);
 
 		expect(result.rows).toHaveLength(10);
 		expect(result.intersections.length).toBe(16);
 		expect(result.formulas.luma).toContain('54*r');
 		expect(result.formulas.organicWeight).toContain('meadowEntryDetailFeatherWeight');
 		expect(result.formulas.weightedCoverageThreshold).toBe('finalWeight>=32');
+		expect(result.topologyRequests.length).toBeGreaterThan(0);
+		expect(result.topologyRequestSha256).toMatch(/^[a-f0-9]{64}$/);
+		expect(result.topologyRequestSha256).toBe(stableHash(result.topologyRequests));
 		for (const intersection of result.intersections) {
 			expect(intersection.sampleCount).toBeGreaterThanOrEqual(64);
 			expect(intersection.q40).toBeLessThan(intersection.q80);
+			expect(intersection.rawWeightSha256).toMatch(/^[a-f0-9]{64}$/);
 			expect(intersection.weightSha256).toMatch(/^[a-f0-9]{64}$/);
 		}
+		expect(
+			result.intersections.some(
+				({ rawWeightSha256, weightSha256 }) => rawWeightSha256 !== weightSha256
+			)
+		).toBe(true);
 		for (const row of result.rows) {
 			expect(row.coverage, row.blockerId).toBeGreaterThanOrEqual(0.25);
 			expect(row.coverage, row.blockerId).toBeLessThanOrEqual(0.7);
+			expect(row.rawWeightSha256).toMatch(/^[a-f0-9]{64}$/);
 			expect(row.weightSha256).toMatch(/^[a-f0-9]{64}$/);
+			expect(row.topology.requestSha256).toMatch(/^[a-f0-9]{64}$/);
+			expect(row.topology.requestSha256).toBe(
+				stableHash(
+					result.topologyRequests.filter(({ blockerIds }) => blockerIds.includes(row.blockerId))
+				)
+			);
+			if (row.topology.kind === 'sparse-core-cap' && row.topology.demotedContributionCount > 0)
+				expect(row.rawWeightSha256).not.toBe(row.weightSha256);
 			if (row.metricKind === 'clump-runs') {
 				expect(row.longestRunP95Ratio, row.blockerId).toBeLessThanOrEqual(0.3);
 				expect(row.longestRunMaximumRatio, row.blockerId).toBeLessThanOrEqual(0.5);
@@ -868,7 +1162,12 @@ describe('Meadow Entry painted-v2 scenery bake primitives', () => {
 			}
 			return { ...insert, rgba: { ...insert.rgba, data } };
 		});
-		const result = enrichMeadowEntryPaintedV2Sources(panels, inserts, masks);
+		const result = enrichMeadowEntryPaintedV2Sources(
+			panels,
+			inserts,
+			masks,
+			syntheticTopologyBlockers(width, height)
+		);
 		const treeRows = result.rows.filter((row) => row.language === 'tree-wall');
 		expect(treeRows).toHaveLength(6);
 		expect(treeRows[0]!.evaluableSliceCount).toBe(310);
@@ -965,7 +1264,12 @@ describe('Meadow Entry painted-v2 scenery bake primitives', () => {
 		const before = clonePanels(panels);
 		const masks = syntheticMasks(width, height);
 		const inserts = decodedInserts(width, height);
-		const result = enrichMeadowEntryPaintedV2Sources(panels, inserts, masks);
+		const result = enrichMeadowEntryPaintedV2Sources(
+			panels,
+			inserts,
+			masks,
+			syntheticTopologyBlockers(width, height)
+		);
 
 		expect(result.panels).toHaveLength(panels.length);
 		expect(result.panels[4]).toBe(panels[4]);
@@ -1014,8 +1318,18 @@ describe('Meadow Entry painted-v2 scenery bake primitives', () => {
 		const panels = affectedPanels(width, height);
 		const masks = syntheticMasks(width, height);
 		const inserts = decodedInserts(width, height);
-		const first = enrichMeadowEntryPaintedV2Sources(panels, inserts, masks);
-		const second = enrichMeadowEntryPaintedV2Sources(panels, [...inserts].reverse(), masks);
+		const first = enrichMeadowEntryPaintedV2Sources(
+			panels,
+			inserts,
+			masks,
+			syntheticTopologyBlockers(width, height)
+		);
+		const second = enrichMeadowEntryPaintedV2Sources(
+			panels,
+			[...inserts].reverse(),
+			masks,
+			syntheticTopologyBlockers(width, height)
+		);
 		expect(first.changedPixelCount).toBe(second.changedPixelCount);
 		expect(first.classChangedPixelCounts).toEqual(second.classChangedPixelCounts);
 		expect(first.enrichedSourceSha256).toEqual(second.enrichedSourceSha256);
@@ -1043,7 +1357,12 @@ describe('Meadow Entry painted-v2 scenery bake primitives', () => {
 			maskKeys.map((key) => [key, masks[key].slice()])
 		) as Record<(typeof maskKeys)[number], Uint8Array>;
 
-		enrichMeadowEntryPaintedV2Sources(panels, inserts, masks);
+		enrichMeadowEntryPaintedV2Sources(
+			panels,
+			inserts,
+			masks,
+			syntheticTopologyBlockers(width, height)
+		);
 		for (const [index, item] of panels.entries()) expect(item.rgba.data).toEqual(panelBytes[index]);
 		for (const [index, item] of inserts.entries())
 			expect(item.rgba.data).toEqual(insertBytes[index]);
@@ -1056,7 +1375,8 @@ describe('Meadow Entry painted-v2 scenery bake primitives', () => {
 		const enriched = enrichMeadowEntryPaintedV2Sources(
 			fixture.panels,
 			fixture.inserts,
-			fixture.masks
+			fixture.masks,
+			syntheticTopologyBlockers(512, 512)
 		);
 		const plain = await composeAssembly(fixture, before);
 		const baked = await composeAssembly(fixture, enriched.panels);

@@ -43,6 +43,7 @@ import {
 	buildMeadowEntryPaintedV2SceneryMaskSetFromControls,
 	enrichMeadowEntryPaintedV2Sources,
 	type DecodedMeadowEntryPaintedV2SceneryInsert,
+	type MeadowEntryPaintedV2SceneryBakeResult,
 	type MeadowEntryPaintedV2SceneryMaskSet
 } from '$lib/game/content/backgrounds/meadow-entry-painted-v2-scenery-bake';
 import {
@@ -107,7 +108,10 @@ interface AssemblyResult {
 	readonly enrichedPanels: readonly MeadowEntryDetailDecodedPanel[];
 	readonly masks?: MeadowEntryPaintedV2SceneryMaskSet;
 	readonly inserts?: readonly DecodedMeadowEntryPaintedV2SceneryInsert[];
+	readonly blockedSceneryBake?: ReviewBlockedSceneryBake;
 }
+
+type ReviewBlockedSceneryBake = Omit<MeadowEntryPaintedV2SceneryBakeResult, 'panels'>;
 
 interface EvidenceDescriptor {
 	readonly sha256: string;
@@ -140,6 +144,7 @@ interface ReviewPayload {
 	};
 	readonly energy: MeadowEntryPaintedV2DecorationEnergy;
 	readonly tiles: readonly MeadowEntryPaintedV2DecorationTile[];
+	readonly blockedSceneryBake?: ReviewBlockedSceneryBake;
 	readonly sourcePanels?: readonly {
 		readonly id: string;
 		readonly path: string;
@@ -272,7 +277,8 @@ function payload(
 	decoded: DecodedMeadowEntryRgba,
 	controls: ControlContext,
 	energy: MeadowEntryPaintedV2DecorationEnergy,
-	evidence: Readonly<Record<string, EvidenceDescriptor>> = {}
+	evidence: Readonly<Record<string, EvidenceDescriptor>> = {},
+	blockedSceneryBake?: ReviewBlockedSceneryBake
 ): ReviewPayload {
 	const sourcePanels =
 		mode === 'candidate' && sourceReview
@@ -311,6 +317,7 @@ function payload(
 		},
 		energy,
 		tiles: controls.tiles,
+		...(blockedSceneryBake ? { blockedSceneryBake } : {}),
 		...(sourcePanels ? { sourcePanels } : {}),
 		...(mode === 'candidate' && sourceReview ? { fullPanelOriginalDetailInspection: true } : {}),
 		evidence
@@ -930,11 +937,22 @@ async function assembleSources(
 	let enrichedPanels: readonly MeadowEntryDetailDecodedPanel[] = sourcePanels;
 	let masks: MeadowEntryPaintedV2SceneryMaskSet | undefined;
 	let inserts: readonly DecodedMeadowEntryPaintedV2SceneryInsert[] | undefined;
+	let blockedSceneryBake: ReviewBlockedSceneryBake | undefined;
 	if (includeScenery) {
 		masks = buildMeadowEntryPaintedV2SceneryMaskSet(repositoryRoot);
 		inserts = await readSceneryInserts(repositoryRoot, sourcePanels);
 		const beforeById = new Map(sourcePanels.map((panel) => [panel.id, panel]));
 		const baked = enrichMeadowEntryPaintedV2Sources(sourcePanels, inserts, masks);
+		blockedSceneryBake = {
+			enrichedSourceSha256: baked.enrichedSourceSha256,
+			changedPixelCount: baked.changedPixelCount,
+			classChangedPixelCounts: baked.classChangedPixelCounts,
+			intersections: baked.intersections,
+			rows: baked.rows,
+			topologyRequests: baked.topologyRequests,
+			topologyRequestSha256: baked.topologyRequestSha256,
+			formulas: baked.formulas
+		};
 		enrichedPanels = baked.panels;
 		for (const panel of enrichedPanels) {
 			const before = beforeById.get(panel.id);
@@ -1013,7 +1031,8 @@ async function assembleSources(
 		master: underlay,
 		enrichedPanels,
 		masks,
-		inserts
+		inserts,
+		blockedSceneryBake
 	};
 }
 
@@ -1106,6 +1125,11 @@ async function main(): Promise<void> {
 	const master = assembledMaster?.bytes ?? (await readFile(masterPath));
 	const decoded = await decodeMeadowEntryRgba(master);
 	const controls = await readRenderedControls(repositoryRoot, assembly?.masks);
+	if (options.mode === 'candidate' && options.sourceReview)
+		assert(
+			assembly?.blockedSceneryBake !== undefined,
+			'Candidate source review requires returned scenery bake metrics'
+		);
 	const energy = measureMeadowEntryPaintedV2DecorationEnergy(
 		decoded,
 		controls.eligibility,
@@ -1145,7 +1169,8 @@ async function main(): Promise<void> {
 		decoded,
 		controls,
 		measured,
-		evidence
+		evidence,
+		assembly?.blockedSceneryBake
 	);
 	result = await patchCandidateSourceHashes(result, repositoryRoot);
 	const jsonName =

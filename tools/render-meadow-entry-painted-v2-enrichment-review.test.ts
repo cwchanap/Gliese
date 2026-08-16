@@ -78,6 +78,19 @@ const EXPECTED_CANDIDATE_INVENTORY = [
 	)
 ] as const;
 
+function stableJson(value: unknown): string {
+	if (value === null || typeof value !== 'object') return JSON.stringify(value) ?? '';
+	if (Array.isArray(value)) return `[${value.map(stableJson).join(',')}]`;
+	return `{${Object.entries(value as Record<string, unknown>)
+		.sort(([left], [right]) => left.localeCompare(right))
+		.map(([key, item]) => `${JSON.stringify(key)}:${stableJson(item)}`)
+		.join(',')}}`;
+}
+
+function stableHash(value: unknown): string {
+	return createHash('sha256').update(stableJson(value)).digest('hex');
+}
+
 function recursiveFiles(root: string): string[] {
 	const entries = readdirSync(root, { withFileTypes: true });
 	return entries.flatMap((entry) => {
@@ -164,7 +177,145 @@ test(
 				energy: { qualifyingTileCount: number; sheetTileCounts: number[] };
 				tiles: { index: number; id: string }[];
 				evidence: Record<string, { sha256: string; bytes: number; width: number; height: number }>;
+				blockedSceneryBake: {
+					changedPixelCount: number;
+					classChangedPixelCounts: Record<string, number>;
+					enrichedSourceSha256: Record<string, string>;
+					topologyRequests: {
+						contributionIndex: number;
+						blockerIds: string[];
+						reasons: string[];
+						insertId: string;
+						worldIndex: number;
+						rawWeight: number;
+						shapedWeight: number;
+					}[];
+					topologyRequestSha256: string;
+					intersections: {
+						blockerId: string;
+						insertId: string;
+						q40: number;
+						q80: number;
+						sampleCount: number;
+						rawWeightSha256: string;
+						weightSha256: string;
+					}[];
+					rows: {
+						blockerId: string;
+						coverage: number;
+						rawWeightSha256: string;
+						weightSha256: string;
+						metricKind: string;
+						longestRunP95Ratio?: number;
+						longestRunMaximumRatio?: number;
+						longestConstantContourRunRatio?: number;
+						contourProfileSha256?: string;
+						topology: {
+							kind: string;
+							requestSha256: string;
+							erosionCount?: number;
+							missingSlicePromotionCount?: number;
+							coveragePromotionCount?: number;
+							promotedWorldPixelCount?: number;
+						};
+					}[];
+					formulas: Record<string, string>;
+				};
 			};
+			assert.equal(payload.blockedSceneryBake.intersections.length, 16);
+			assert.equal(payload.blockedSceneryBake.rows.length, 10);
+			assert.equal(payload.blockedSceneryBake.changedPixelCount > 0, true);
+			assert.deepEqual(Object.keys(payload.blockedSceneryBake.classChangedPixelCounts).sort(), [
+				'hedge',
+				'woodland'
+			]);
+			assert.deepEqual(Object.keys(payload.blockedSceneryBake.enrichedSourceSha256).sort(), [
+				'camera-underlay-crossroads-north',
+				'camera-underlay-crossroads-south',
+				'camera-underlay-sundrop-south',
+				'crossroads'
+			]);
+			assert.equal(payload.blockedSceneryBake.topologyRequests.length > 0, true);
+			assert.match(payload.blockedSceneryBake.topologyRequestSha256, /^[a-f0-9]{64}$/);
+			assert.equal(
+				payload.blockedSceneryBake.topologyRequestSha256,
+				stableHash(payload.blockedSceneryBake.topologyRequests)
+			);
+			const requestIndexes = payload.blockedSceneryBake.topologyRequests.map(
+				({ contributionIndex }) => contributionIndex
+			);
+			assert.deepEqual(
+				requestIndexes,
+				[...requestIndexes].sort((left, right) => left - right)
+			);
+			for (const request of payload.blockedSceneryBake.topologyRequests) {
+				assert.equal(Number.isInteger(request.contributionIndex), true);
+				assert.equal(request.blockerIds.length > 0, true);
+				assert.equal(request.reasons.length > 0, true);
+				assert.deepEqual(request.blockerIds, [...new Set(request.blockerIds)].sort());
+				assert.deepEqual(request.reasons, [...new Set(request.reasons)].sort());
+				assert.equal(Number.isInteger(request.worldIndex), true);
+				assert.equal(
+					request.shapedWeight >= request.rawWeight || request.shapedWeight === 191,
+					true
+				);
+			}
+			for (const intersection of payload.blockedSceneryBake.intersections) {
+				assert.equal(intersection.sampleCount >= 64, true);
+				assert.equal(intersection.q40 < intersection.q80, true);
+				assert.match(intersection.rawWeightSha256, /^[a-f0-9]{64}$/);
+				assert.match(intersection.weightSha256, /^[a-f0-9]{64}$/);
+			}
+			for (const row of payload.blockedSceneryBake.rows) {
+				assert.equal(Number.isFinite(row.coverage), true);
+				assert.equal(row.coverage >= 0 && row.coverage <= 1, true);
+				assert.match(row.rawWeightSha256, /^[a-f0-9]{64}$/);
+				assert.match(row.weightSha256, /^[a-f0-9]{64}$/);
+				assert.match(row.topology.requestSha256, /^[a-f0-9]{64}$/);
+				assert.equal(
+					row.topology.requestSha256,
+					stableHash(
+						payload.blockedSceneryBake.topologyRequests.filter(({ blockerIds }) =>
+							blockerIds.includes(row.blockerId)
+						)
+					)
+				);
+				if (row.metricKind === 'clump-runs') {
+					assert.equal(Number.isFinite(row.longestRunP95Ratio), true);
+					assert.equal(Number.isFinite(row.longestRunMaximumRatio), true);
+					assert.equal((row.longestRunP95Ratio ?? -1) >= 0, true);
+					assert.equal((row.longestRunMaximumRatio ?? -1) >= 0, true);
+				} else {
+					assert.equal(Number.isFinite(row.longestConstantContourRunRatio), true);
+					assert.equal((row.longestConstantContourRunRatio ?? -1) >= 0, true);
+					assert.match(row.contourProfileSha256 ?? '', /^[a-f0-9]{64}$/);
+				}
+			}
+			const bSouth = payload.blockedSceneryBake.rows.find(
+				(row) => row.blockerId === 'silverpine-wall-B-south'
+			);
+			assert.ok(bSouth);
+			assert.equal(bSouth.rawWeightSha256, bSouth.weightSha256);
+			assert.equal(bSouth.topology.kind, 'tree-continuity-floor');
+			assert.equal(bSouth.topology.missingSlicePromotionCount, 0);
+			assert.equal(bSouth.topology.coveragePromotionCount, 0);
+			assert.equal(bSouth.topology.promotedWorldPixelCount, 0);
+			assert.equal(
+				payload.blockedSceneryBake.topologyRequests.some(({ blockerIds }) =>
+					blockerIds.includes('silverpine-wall-B-south')
+				),
+				false
+			);
+			const bSouthIntersections = payload.blockedSceneryBake.intersections.filter(
+				({ blockerId }) => blockerId === 'silverpine-wall-B-south'
+			);
+			assert.ok(bSouthIntersections.length > 0);
+			for (const intersection of bSouthIntersections)
+				assert.equal(intersection.rawWeightSha256, intersection.weightSha256);
+			assert.equal(
+				payload.blockedSceneryBake.formulas.weightedCoverageThreshold,
+				'finalWeight>=32'
+			);
 			const maskInventory = JSON.parse(
 				readFileSync(join(outputRoot, 'mask-inventory.json'), 'utf8')
 			) as {
