@@ -9,15 +9,16 @@ natural forest depth baked only into ten already-blocked scenery belts, while pr
 approved two-texture runtime, camera envelope, gameplay geometry, pinned Hero House source, and
 all existing boundary-compositor contracts.
 
-**Architecture:** Keep the completed pair compositor and exact 67-tile `groundAllowed` eligibility
-contract as prerequisites. Before any image gate, Task 2 wires the production finalizer to the same
-sealed pair-corrected priority stack already used by review assembly and proves parity in a
-temporary root. One catalog-backed mask builder retains only five ground/scenery output masks plus
-intermediate hashes. A pure preassembly bake tone-matches each package-owned hedge/woodland insert
-to its owning source, derives organic clumps from insert luma, and multiplies that clump field by
-the existing 15px edge envelope. Task 5 adds only this bake to the already-correct finalizer and
-publishes the approved master. Publication continues to emit the same two opaque 3200×3200 runtime
-textures.
+**Architecture:** Keep the completed pair compositor, five-mask authority, organic scenery bake,
+and exact 67-tile `groundAllowed` eligibility contract as prerequisites. Task 2 corrects the
+rejected bake by retaining an immutable raw contribution matrix and applying two bounded,
+language-aware weight shapers before the existing owner-priority tone composition: sparse saturated
+cores are deterministically eroded/capped, while tree walls receive an edge-envelope-constrained
+continuity and minimum-coverage floor. Task 3 evaluates the preserved bytes through that corrected
+path, regenerates the two inputs that already violate the `<=2x` transform contract, and regenerates
+any other source only when objective or native review still fails. Task 5 publishes the approved
+master through the already-sealed finalizer. Publication continues to emit the same two opaque
+3200×3200 runtime textures.
 
 **Tech Stack:** TypeScript, Vitest, Bun, Sharp, canonical RGBA/PNG helpers, built-in image
 generation, Git LFS, Phaser 4, Playwright.
@@ -33,12 +34,22 @@ generation, Git LFS, Phaser 4, Playwright.
 - The sealed ten-blocker/seven-insert table at `782f9aa` remains the row/bounds/priority authority,
   but its three insert paths are corrected in revised Task 2 to the approved `source-inserts/`
   locations.
-- The scenery-bake commits `599d052` and `e16f408` are now the explicit RED baseline: they implement
-  the rejected 15px-only overwrite and duplicate mask derivation. They are not a GREEN prerequisite
-  for generation.
-- The approved source checkpoint at `0caefd1` and the current unstaged source-only correction are
+- The organic-bake correction at `50e0a07` and its review-contract fix at `41925cd` are the current
+  code baseline. They preserve the five-raster mask authority, pair-corrected production/review
+  parity, owner-relative tones, organic signals, and the 15px edge envelope, but they do not satisfy
+  the rejected row-topology gate.
+- Design amendment `8df10b9` is the authority for the language-aware topology correction. It does
+  not reopen masks, geometry, thresholds, runtime ownership, pair formulas, or the pinned Hero House
+  source.
+- The approved source checkpoint at `0caefd1` and the current unstaged five-insert correction are
   superseded visual evidence. Preserve their hashes, histories, and review images, but do not stage,
-  approve, or publish either assembled result.
+  approve, or publish either assembled result. The corrected candidate fails nine of ten blocker
+  rows; only `silverpine-wall-B-south` passes every row gate.
+- The same rejected checkpoint contains two independently invalid normalization transforms:
+  `camera-underlay-crossroads-north-blocked-hedge` at `2.064516129032258x` and
+  `camera-underlay-crossroads-south-blocked-woodland` at `2.04211869814933x`. Their next accepted
+  versions must come from new bounded attempts even if topology shaping makes the old pixels look
+  acceptable.
 - Tasks 3 through 9 in
   `docs/superpowers/plans/2026-08-13-meadow-entry-painted-pilot-enrichment-handoff.md` are
   superseded by this plan.
@@ -65,8 +76,9 @@ generation, Git LFS, Phaser 4, Playwright.
 - Freeze camera geometry at the approved `1920×1080`, DPR-1, zoom-1 envelope. Freeze collision,
   ownership, routes, transitions, actors, pickups, discoveries, encounters, saves, fallbacks, and
   all source-catalog geometry.
-- Regenerate exactly these eight presentation IDs at their existing registry paths, bounds, roles,
-  dimensions, and assembly priorities:
+- Across the complete branch, keep the independently regenerated histories for exactly these eight
+  presentation IDs at their existing registry paths, bounds, roles, dimensions, and assembly
+  priorities; revised Task 3 reuses a current passing attempt instead of spending another call:
   `camera-underlay-sundrop-north`, `camera-underlay-sundrop-south`,
   `camera-underlay-crossroads-north`, `camera-underlay-crossroads-south`, `sundrop-north`,
   `sundrop-south`, `village-crossroads-connector`, and `crossroads`.
@@ -105,6 +117,18 @@ generation, Git LFS, Phaser 4, Playwright.
   runtime contracts to accept an image.
 - Use uniform scale plus deterministic center crop, no stretch, canonical opaque RGBA, and reject
   any input needing more than `2×` uniform upscaling.
+- Keep the row thresholds exact: common weighted coverage is `25%`–`70%` at final weight `>=32`;
+  sparse clump runs use final weight `>=254`, p95 `<=0.30`, and maximum `<=0.50`; tree-wall contour
+  and slice coverage use final weight `>=32` only where the existing edge envelope is already
+  `>=32`.
+- Sparse shaping may cap only raw weights `>=254` to `191` after the smallest passing 8-neighbour
+  erosion count from `0` through `15`. Tree shaping may only apply `max(rawWeight, 32)` to existing
+  source contributions with `edgeWeight>=32`; it may not invent a tone or promote a low-envelope
+  boundary pixel.
+- Derive every shaping request from one immutable raw contribution matrix, union requests once, and
+  recompute all final row metrics without row-to-row feedback. Coverage fill counts distinct world
+  pixels rather than contribution records. Keep higher numeric owner priority as the later assembly
+  priority.
 - Do not stage unrelated dirty/rejected evidence. Before every commit, inspect
   `rtk git diff --cached --name-status` and compare it with the task inventory.
 
@@ -114,21 +138,26 @@ generation, Git LFS, Phaser 4, Playwright.
   including approximately `107 MB` of source panels and `84 MB` of source inserts. Its PNGs are
   Git LFS objects, so every raw/normalized replacement and retained rejected attempt permanently
   grows repository history even when the working-tree path is overwritten.
-- Do not make any image-generation call until the corrected compositor, class-specific structural
-  metrics, five-mask memory contract, and production/review parity gate are independently GREEN.
-  Re-evaluate preserved bytes first and regenerate only failing inputs.
+- Do not make any image-generation call until the language-aware topology compositor, exact
+  rejected-row regression, five-mask memory contract, and production/review parity gate are
+  independently GREEN and independently reviewed. Re-evaluate preserved bytes first; regenerate
+  the two invalid-scale inputs unconditionally and regenerate every other source only when the
+  corrected objective/native gate still fails.
 - Preserve the maximum of five attempts per input. Do not add an attempt to compensate for a code,
   mask, metric, or assembly-path defect.
 - Never prune or rewrite Git LFS history in this plan. Task 9 records starting and ending
   working-tree bytes plus the exact added/replaced LFS OIDs and sizes so a later revision decision
   sees its real storage cost.
-- Task 2 intentionally leaves a staged non-publishable source state: the finalizer describes the
-  pair-corrected master while checked-in package bytes remain frozen. Only Task 5 may close that
-  state by publishing the user-approved scenery bake and master.
+- The branch remains intentionally non-publishable: the finalizer describes the pair-corrected
+  future master while checked-in package bytes remain frozen. Revised Task 2 changes only in-memory
+  scenery shaping and its tests; only Task 5 may close the state by publishing the user-approved
+  scenery bake and master.
 
 ---
 
 ### Task 1: Verify the already-sealed blocked-scenery source contract
+
+**Status:** Completed prerequisite. Do not rerun or recommit this task unless the sealed table drifts.
 
 **Files:**
 - Verify unchanged:
@@ -244,7 +273,7 @@ crossroads-blocked-woodland:
   silverpine-wall-B-south
 ```
 
-- [ ] **Step 1: Inventory the rejected checkpoint and the existing sealed contract**
+- [x] **Step 1: Inventory the rejected checkpoint and the existing sealed contract**
 
 Record current `rtk git status --short`, every dirty presentation PNG/JSON SHA-256, the attempt-2
 master hash, the rejected browser/review image hashes, and rejection text in the ignored task report
@@ -265,7 +294,7 @@ Use `0c65e3b5e1a3ec365402b809d4bc36876190e62a` as the immutable LFS range base; 
 amendment adds no LFS object. Also record the actual Task 1 HEAD and retain the exact LFS listing for
 Task 9 comparison.
 
-- [ ] **Step 2: Verify the literal contract already committed at `782f9aa`**
+- [x] **Step 2: Verify the literal contract already committed at `782f9aa`**
 
 Run the existing tests and confirm they pin exact blocker order, IDs, bounds, languages/classes,
 exact seven insert rows, unique IDs, owning bounds/priorities, and the exact sixteen intersections.
@@ -291,7 +320,7 @@ Expected result: GREEN against the shipped module. The known `source-panels/` al
 table remain a verified defect owned by Task 2; Task 1 does not edit them merely to manufacture a
 RED.
 
-- [ ] **Step 3: Prove no tracked file changed**
+- [x] **Step 3: Prove no tracked file changed**
 
 ```bash
 rtk git diff --exit-code -- \
@@ -307,37 +336,25 @@ Task 1 makes no code change, creates no commit, and hands the existing contract 
 
 ---
 
-### Task 2: Replace the rejected scenery overwrite with the organic-clump bake
+### Task 2: Correct the organic bake with language-aware topology shaping
 
 **Files:**
-- Modify:
-  `src/lib/game/content/backgrounds/meadow-entry-detail-boundary-metrics.ts`
-- Modify:
-  `src/lib/game/content/backgrounds/meadow-entry-detail-boundary-metrics.test.ts`
-- Modify:
-  `src/lib/game/content/backgrounds/meadow-entry-painted-v2-scenery.ts`
-- Modify:
-  `src/lib/game/content/backgrounds/meadow-entry-painted-v2-scenery.test.ts`
 - Modify:
   `src/lib/game/content/backgrounds/meadow-entry-painted-v2-scenery-bake.ts`
 - Modify:
   `src/lib/game/content/backgrounds/meadow-entry-painted-v2-scenery-bake.test.ts`
-- Modify:
+- Verify unchanged:
+  `src/lib/game/content/backgrounds/meadow-entry-painted-v2-scenery.ts`
+- Verify unchanged:
   `src/lib/game/content/backgrounds/meadow-entry-painted-v2-enrichment-review.ts`
-- Modify:
-  `src/lib/game/content/backgrounds/meadow-entry-painted-v2-enrichment-review.test.ts`
-- Modify:
+- Verify unchanged:
   `src/lib/game/content/backgrounds/meadow-entry-painted-v2-pilot-finalizer.ts`
-- Modify:
-  `src/lib/game/content/backgrounds/meadow-entry-painted-v2-pilot-finalizer.test.ts`
-- Modify:
-  `tools/render-meadow-entry-painted-v2-enrichment-review.ts`
-- Modify:
-  `tools/render-meadow-entry-painted-v2-enrichment-review.test.ts`
 - Verify unchanged:
   `src/lib/game/content/backgrounds/meadow-entry-painted-v2-underlay-assembly.ts`
 - Verify unchanged:
-  `src/lib/game/content/backgrounds/meadow-entry-painted-v2-underlay-assembly.test.ts`
+  `tools/render-meadow-entry-painted-v2-enrichment-review.ts`
+- Verify unchanged:
+  `tools/render-meadow-entry-painted-v2-enrichment-review.test.ts`
 - Verify unchanged:
   `artifacts/meadow-entry/painted-v2/masters/meadow-entry-painted-v2-pilot-base-master.png`
 - Verify unchanged:
@@ -351,361 +368,535 @@ Task 1 makes no code change, creates no commit, and hands the existing contract 
 - Verify unchanged:
   `public/game/assets/regions/meadow-entry-painted-v2/`
 - Report:
-  `.superpowers/sdd/2026-08-14-meadow-entry-painted-pilot-forest-enrichment/task-2-report.md`
+  `.superpowers/sdd/2026-08-14-meadow-entry-painted-pilot-forest-enrichment/task-2-topology-report.md`
   (ignored)
 
 **Interfaces:**
 
 ```ts
-export function rgbStep(
-  decoded: DecodedMeadowEntryRgba,
-  first: PixelPoint,
-  second: PixelPoint
-): number;
-
-export function meadowEntryNearestRank(
-  values: readonly number[],
-  percentile: number
-): number;
-
-export interface MeadowEntryPaintedV2SceneryMaskSet {
-  readonly width: 6400;
-  readonly height: 6400;
-  readonly otherProtected: Uint8Array;
-  readonly groundAllowed: Uint8Array;
-  readonly sceneryAllowed: Uint8Array;
-  readonly hedgeAllowed: Uint8Array;
-  readonly woodlandAllowed: Uint8Array;
-  readonly sourceHashes: Readonly<Record<string, string>>;
-}
-
-export interface DecodedMeadowEntryPaintedV2SceneryInsert {
-  readonly id: string;
-  readonly sceneryClass: MeadowEntryPaintedV2SceneryClass;
-  readonly owningSourceId: string;
-  readonly bounds: PixelBounds;
-  readonly rgba: DecodedMeadowEntryRgba;
-}
-
-export interface MeadowEntryPaintedV2SceneryIntersectionMetric {
+export interface MeadowEntryPaintedV2SceneryContribution {
   readonly blockerId: string;
   readonly insertId: string;
   readonly owningSourceId: string;
+  readonly ownerPriority: number;
   readonly sceneryClass: MeadowEntryPaintedV2SceneryClass;
-  readonly sampleCount: number;
-  readonly q40: number;
-  readonly q80: number;
-  readonly weightSha256: string;
+  readonly worldIndex: number;
+  readonly rawFinalWeight: number;
+  readonly organicSignal: number;
+  readonly edgeWeight: number;
+  readonly ownerRelativeTone: readonly [number, number, number];
+}
+
+export interface MeadowEntryPaintedV2SparseTopologyProvenance {
+  readonly kind: 'sparse-core-cap';
+  readonly erosionCount: number;
+  readonly originalSaturatedPixelCount: number;
+  readonly retainedSaturatedPixelCount: number;
+  readonly demotedContributionCount: number;
+  readonly requestSha256: string;
+}
+
+export interface MeadowEntryPaintedV2TreeTopologyProvenance {
+  readonly kind: 'tree-continuity-floor';
+  readonly missingSlicePromotionCount: number;
+  readonly coveragePromotionCount: number;
+  readonly promotedWorldPixelCount: number;
+  readonly requestSha256: string;
+}
+
+export type MeadowEntryPaintedV2SceneryTopologyProvenance =
+  | MeadowEntryPaintedV2SparseTopologyProvenance
+  | MeadowEntryPaintedV2TreeTopologyProvenance;
+
+export interface MeadowEntryPaintedV2SceneryTopologyRequest {
+  readonly contributionIndex: number;
+  readonly blockerIds: readonly string[];
+  readonly reasons: readonly (
+    | 'sparse-core-cap'
+    | 'tree-missing-slice'
+    | 'tree-coverage-floor'
+  )[];
+  readonly insertId: string;
+  readonly worldIndex: number;
+  readonly rawWeight: number;
+  readonly shapedWeight: number;
+}
+
+export interface MeadowEntryPaintedV2SceneryTopologyResult {
+  readonly shapedWeights: Uint8Array;
+  readonly rowTopology: Readonly<Record<string, MeadowEntryPaintedV2SceneryTopologyProvenance>>;
+  readonly requests: readonly MeadowEntryPaintedV2SceneryTopologyRequest[];
+  readonly requestSha256: string;
+}
+
+export function shapeMeadowEntryPaintedV2SceneryContributions(
+  contributions: readonly MeadowEntryPaintedV2SceneryContribution[],
+  blockers: readonly MeadowEntryPaintedV2SceneryBlocker[],
+  width: number,
+  height: number
+): MeadowEntryPaintedV2SceneryTopologyResult;
+
+// Add these fields to the existing bake-result interface:
+export interface MeadowEntryPaintedV2SceneryBakeResult {
+  readonly topologyRequests: readonly MeadowEntryPaintedV2SceneryTopologyRequest[];
+  readonly topologyRequestSha256: string;
+}
+
+// Add raw/shaped audit fields to the existing metric interfaces:
+export interface MeadowEntryPaintedV2SceneryIntersectionMetric {
+  readonly rawWeightSha256: string;
 }
 
 export interface MeadowEntryPaintedV2SceneryRowMetricBase {
-  readonly blockerId: string;
-  readonly language: MeadowEntryPaintedV2SceneryLanguage;
-  readonly sceneryClass: MeadowEntryPaintedV2SceneryClass;
-  readonly eligiblePixelCount: number;
-  readonly weightedPixelCount: number;
-  readonly coverage: number;
-  readonly weightSha256: string;
+  readonly rawWeightSha256: string;
+  readonly topology: MeadowEntryPaintedV2SceneryTopologyProvenance;
 }
-
-export interface MeadowEntryPaintedV2SceneryClumpRunMetric
-  extends MeadowEntryPaintedV2SceneryRowMetricBase {
-  readonly metricKind: 'clump-runs';
-  readonly language: 'hedge' | 'forest-bank';
-  readonly transverseSliceCount: number;
-  readonly longestRunP95Ratio: number;
-  readonly longestRunMaximumRatio: number;
-}
-
-export interface MeadowEntryPaintedV2SceneryContinuousContourMetric
-  extends MeadowEntryPaintedV2SceneryRowMetricBase {
-  readonly metricKind: 'continuous-contour';
-  readonly language: 'tree-wall';
-  readonly evaluableSliceCount: number;
-  readonly nonEvaluableSliceCount: number;
-  readonly weightedSliceCount: number;
-  readonly evaluableSegmentCount: number;
-  readonly distinctContourPairCount: number;
-  readonly longestConstantContourRunRatio: number;
-  readonly contourProfileSha256: string;
-}
-
-export type MeadowEntryPaintedV2SceneryRowMetric =
-  | MeadowEntryPaintedV2SceneryClumpRunMetric
-  | MeadowEntryPaintedV2SceneryContinuousContourMetric;
-
-export interface MeadowEntryPaintedV2SceneryBakeResult {
-  readonly panels: readonly MeadowEntryDetailDecodedPanel[];
-  readonly enrichedSourceSha256: Readonly<Record<string, string>>;
-  readonly changedPixelCount: number;
-  readonly classChangedPixelCounts: Readonly<Record<MeadowEntryPaintedV2SceneryClass, number>>;
-  readonly intersections: readonly MeadowEntryPaintedV2SceneryIntersectionMetric[];
-  readonly rows: readonly MeadowEntryPaintedV2SceneryRowMetric[];
-  readonly formulas: Readonly<Record<string, string>>;
-}
-
-export function buildMeadowEntryPaintedV2SceneryMaskSetFromControls(
-  input: MeadowEntryControlInputs,
-  sourceHashes: Readonly<Record<string, string>>
-): MeadowEntryPaintedV2SceneryMaskSet;
-
-export function buildMeadowEntryPaintedV2SceneryMaskSet(
-  repositoryRoot?: string
-): MeadowEntryPaintedV2SceneryMaskSet;
-
-export function erodeMeadowEntryMask8(
-  source: Uint8Array,
-  width: number,
-  height: number
-): Uint8Array;
-
-export function meadowEntrySceneryInsetDistances(
-  classAllowed: Uint8Array,
-  width: number,
-  height: number,
-  maximumDistance?: 15
-): Uint8Array;
-
-export function enrichMeadowEntryPaintedV2Sources(
-  panels: readonly MeadowEntryDetailDecodedPanel[],
-  inserts: readonly DecodedMeadowEntryPaintedV2SceneryInsert[],
-  masks: MeadowEntryPaintedV2SceneryMaskSet
-): MeadowEntryPaintedV2SceneryBakeResult;
 ```
 
-`buildMeadowEntryPaintedV2SceneryMaskSet()` calls `buildMeadowEntryControlInputs()` once and delegates
-to the pure control-input builder. The enrichment-review adapter accepts the resulting mask set and
-sets `eligible = groundAllowed`; it no longer accepts `terrainRects` or derives `routeCore` itself.
-Rendered SVGs are evidence outputs only and are never parsed back into this contract.
+`shapedWeights[index]` is parallel to `contributions[index]`. Contributions retain the sealed
+sixteen-intersection order and row-major sample order. Unioned requests sort by
+`contributionIndex`; each request's `blockerIds` and `reasons` sort ascending and deduplicate before
+the existing stable-JSON SHA-256 helper hashes them. The function never mutates its input.
+The existing `weightSha256` fields become hashes of shaped weights; each intersection and row also
+adds `rawWeightSha256`. Each row adds its discriminated `topology` value above. The bake formula map
+adds these exact IDs:
 
-The compositor formula is exact:
+```ts
+{
+  sparseTopology: 'saturated-core-erode8-smallest-0..15-cap191-v1',
+  treeTopology: 'raw-matrix-edge32-slice-repair-unique-coverage25-v1',
+  topologyRequestUnion: 'immutable-raw-request-union-v1'
+}
+```
+
+All mask derivation, source-local tone math, q40/q80, organic smoothstep, 15px edge envelope,
+priority-stack assembly, and published artifacts remain as implemented at `41925cd`.
+
+- [ ] **Step 1: Record the rejected facts and write topology RED tests**
+
+Append the exact rejected checkpoint to the ignored topology report before editing production code:
 
 ```text
-luma(r, g, b) = floor((54*r + 183*g + 19*b + 128) / 256)
-insertMeanC(p) = clippedHalfUpBoxMean(insertC, p, radius=31)
-insertDetailC(p) = clamp(insertC(p) - insertMeanC(p), -detailLimit(class), detailLimit(class))
-toneMatchedInsertC(p) = clamp(originalSourceC(p) + insertDetailC(p), 0, 255)
-
-nearLuma(p) = clippedHalfUpBoxMean(insertLuma, p, radius=15)
-farLuma(p) = clippedHalfUpBoxMean(insertLuma, p, radius=63)
-organicSignal(p) = abs(nearLuma(p) - farLuma(p))
-t(p) = clamp(halfUp(255 * (organicSignal(p) - q40) / (q80 - q40)), 0, 255)
-organicWeight(p) = meadowEntryDetailFeatherWeight(t(p), 255)
-
-E0 = classAllowed
-E(k+1) = { p in E(k) | every pixel in p's 3x3 neighborhood is in E(k) }
-sceneryInsetDistance(p) = max k such that p is in E(k)
-edgeWeight(p) = meadowEntryDetailFeatherWeight(min(sceneryInsetDistance(p), 15), 15)
-sceneryWeight(p) = halfUp(edgeWeight(p) * organicWeight(p) / 255)
-enrichedSourceC(p) = blendMeadowEntryDetailChannel(
-  originalSourceC(p),
-  toneMatchedInsertC(p),
-  sceneryWeight(p)
-)
+four sparse failures:
+  coast-crossroads-mouth-bank       p95 0.46875, max 0.53125
+  mistfen-entry-bank-east           p95 0.53125, max 0.53125
+  wildwood-forest-lane-west-bank    p95 0.484375, max 0.53125
+  wildwood-north-climb-west-bank    p95 0.4375, max 0.53125
+five tree-slice failures:
+  A-east 280/292, A-west 221/226, B-north 149/158,
+  C-east 39/66 with coverage 0.05550621669626998, C-west 217/232
+passing no-op row:
+  B-south 376/376
 ```
 
-The tone detail cap is `32` for hedge and `48` for woodland. `q40` and `q80` are produced by the
-shared nearest-rank helper over each exact blocker/source/class sample set. Fewer than `64` samples
-or `q40 === q80` fails before any source mutation. Local means are evaluated only for those sample
-pixels; a whole-source prefix-sum cache is permitted, but a whole-panel output/filter pass is not.
+Pin the already-dirty rejected Task 3 adapter bytes so Task 2 can prove it did not absorb them:
 
-- [ ] **Step 1: Capture the rejected compositor as genuine RED**
+```text
+tools/render-meadow-entry-painted-v2-enrichment-review.ts
+  19cfa3ecd7e2e57b5bedfded6b60247807c17f9e39c7b2d67f99fe076003e4d7
+tools/render-meadow-entry-painted-v2-enrichment-review.test.ts
+  e0b50d27672fc6ce17269b08ab6062856092bec22afc34aa7bc71d6c1efd4e8b
+```
 
-Before changing finalizer source, run its ordinary `--check` once and record the current published
-master/provenance hashes as the green comparison baseline. Then capture the RED below without
-writing any production artifact.
+In `meadow-entry-painted-v2-scenery-bake.test.ts`, add a uniform saturated sparse belt fixture and
+a tree fixture with both a missing evaluable slice and sub-25% coverage. The first RED assertion is:
 
-Before production edits, add synthetic art with at least `64` eligible samples, non-tied organic
-signals, an irregular protected hole, a deliberately uniform hedge/bank belt, and a continuous
-tree-wall fixture with an initially constant rectangular contour. Also add finalizer-level
-synthetic assertions that the production path and review path apply both declared pair corrections
-immediately after each pair's second priority. Assert:
+```ts
+expect(() =>
+  shapeMeadowEntryPaintedV2SceneryContributions(contributions, blockers, width, height)
+).not.toThrow();
+```
 
-- the current 15px-only overwrite fails because its final weight stays continuous through the belt;
-- owner-relative tone matching caps hedge detail at `32` and woodland detail at `48`;
-- organic-clump coverage is between `25%` and `70%` for every literal row;
-- `hedge` and `forest-bank` transverse longest-run nearest-rank p95 is at most `0.30` and the
-  absolute maximum is at most `0.50`;
-- every evaluable `tree-wall` long-axis slice contains final weight `>=32`, its contour profile has
-  more than one distinct `(nearDepth, farDepth)` pair, and its longest constant-pair run ratio is at
-  most `0.50`; evaluability requires a slice-local maximum edge-envelope weight `>=32` (first
-  possible depth is `4`, where edge weight is `45`); non-evaluable slices are recorded as nullable
-  mask/envelope facts, identical-pair runs reset across them, and every evaluable slice must be
-  weighted;
-- the class-mask union boundary and every higher-precedence hole have final weight zero;
-- an intersection with fewer than `64` samples and one with `q40 === q80` each fail before any
-  output panel changes;
-- the current production finalizer's singular detail loop disagrees with the pair-corrected review
-  assembly at both midpoints, providing the genuine parity RED;
-- the current review writer fails the five-mask contract because it still reads removed retained
-  intermediates/union masks.
+Before implementation, the import must fail because the function and topology result do not exist.
+The complete RED fixture must additionally pin:
 
-Also make the path contract RED by requiring all seven `rawPath`, `normalizedPath`, and
-`provenancePath` values under `artifacts/meadow-entry/painted-v2/source-inserts/`; explicitly reject
-the current `source-panels/` aliases.
+- smallest passing erosion count in `0..15`;
+- cap `191` only for raw weights `>=254` removed from the retained core;
+- unchanged raw weights below `254` and unchanged `>=32` sparse coverage;
+- cap requests for every saturated overlap contribution at a demoted world pixel;
+- tree candidates restricted to the literal row and `edgeWeight>=32`;
+- descending raw weight, organic signal, edge weight, and numeric owner priority, followed by
+  ascending insert ID and world index;
+- one winner per distinct world pixel, missing-slice repair even when raw coverage is already 25%,
+  and no coverage fill when projected post-repair coverage is already 25%;
+- immutable raw-matrix request derivation, one union/apply pass, and overlapping tree rows whose
+  input order is reversed;
+- hard failures for erosion count above 15, a missing slice with no capable contribution, too few
+  capable distinct pixels for 25%, sparse/tree eligible overlap, and a final uniform contour.
 
-Run RED:
+Run only the focused file and preserve the exact missing-export failure:
 
 ```bash
 rtk bun run test:unit -- --run \
-  src/lib/game/content/backgrounds/meadow-entry-detail-boundary-metrics.test.ts \
-  src/lib/game/content/backgrounds/meadow-entry-painted-v2-scenery.test.ts \
-  src/lib/game/content/backgrounds/meadow-entry-painted-v2-scenery-bake.test.ts \
-  src/lib/game/content/backgrounds/meadow-entry-painted-v2-enrichment-review.test.ts \
-  src/lib/game/content/backgrounds/meadow-entry-painted-v2-underlay-assembly.test.ts \
-  src/lib/game/content/backgrounds/meadow-entry-painted-v2-pilot-finalizer.test.ts \
-  tools/render-meadow-entry-painted-v2-enrichment-review.test.ts
+  src/lib/game/content/backgrounds/meadow-entry-painted-v2-scenery-bake.test.ts
 ```
 
-Expected RED is limited to the missing shared exports, wrong insert paths, duplicate mask authority,
-missing class-specific organic provenance, old continuous-belt result, and production/review pair
-assembly/review-writer mismatch. Existing pair-compositor and 67-tile fixtures remain green.
+- [ ] **Step 2: Retain the immutable raw contribution matrix**
 
-- [ ] **Step 2: Export shared integer helpers and correct the insert paths**
+In the existing per-intersection sample loop, stop discarding fields after direct map aggregation.
+Append one contribution record per eligible sample in the sealed coverage-matrix order and existing
+row-major sample order while preserving the current integer values:
 
-Export the existing `rgbStep` from `meadow-entry-detail-boundary-metrics.ts`. Replace private
-`nearestRankP95` and `nearestRankMedian` with one exported `meadowEntryNearestRank(values,
-percentile)` and call it for p95, median, q40, and q80. Keep the current RGB-step arithmetic and
-nearest-rank indexing byte-for-byte; do not add a second implementation in the bake or enrichment
-review. Use `meadowEntryDetailFeatherWeight(t, 255)` for organic smoothstep and the existing
-`blendMeadowEntryDetailChannel` for channel output.
-
-Change only the three paths in each sealed insert row to its own `source-inserts/raw/<id>.png`,
-`source-inserts/<id>.png`, and `source-inserts/<id>.json`. Keep all seven IDs, classes, owners,
-bounds, priorities, and the sixteen-row coverage matrix unchanged.
-
-- [ ] **Step 3: Establish one catalog-backed mask authority**
-
-Move all mask derivation behind `buildMeadowEntryPaintedV2SceneryMaskSetFromControls()`. It consumes
-one `MeadowEntryControlInputs`, its crop rows, source catalog, bake ownership, control clearances,
-and exported `MEADOW_ENTRY_PROTECTION_MARGINS`. It returns only the five binary `6400×6400` rasters
-in the interface above plus `sourceHashes`. Derive `routeCore` there exactly once from the
-catalog-backed ground patches. Omit only the ten selected blocker IDs from `otherProtected`.
-
-Build `insideCropUnion`, `protectedLive`, `selectedBlockers`, `buildingFootprint`,
-`entranceTransition`, `rewardDiscovery`, `semanticAnchor`, and `routeCore` as builder-local
-intermediates through one reusable scratch raster/accumulator path. Hash each intermediate before
-discarding or reusing its storage. Do not expose or retain these eight additional full-canvas arrays
-for tests. Assert class-mask disjointness and precedence through sealed input/output coordinates:
-every non-selected protected/live, building, transition, reward/discovery, semantic-anchor, and
-route-core pixel still wins. A diagnostic overlay may compute `groundAllowed | sceneryAllowed` at
-its rendering call site; no retained union property or provenance row is permitted.
-
-The eligibility adapter reuses the returned arrays and sets `eligible` to `groundAllowed`
-byte-for-byte. Its exact 67 row-major tiles, `16 + 16 + 16 + 16 + 3` sheet split, minimum `1.5`, and
-median `3.1843126049067515` remain unchanged.
-
-Update the review writer in the same RED/GREEN slice. Its mask inventory counts only the five
-retained rasters and records builder-local hashes from `sourceHashes`; it no longer reads a retained
-selected-blocker or union raster. When an overlay needs all allowed decoration pixels, allocate one
-review-artifact-local buffer, fill each pixel with `groundAllowed | sceneryAllowed`, render it, and
-release it. That ephemeral diagnostic buffer is neither returned by the builder nor written into
-package provenance.
-
-- [ ] **Step 4: Implement owner-relative organic composition and returned provenance**
-
-Validate the sealed coverage matrix before reading pixels. For each exact intersection, collect its
-eligible sample coordinates, compute clipped integer luma/means only at those coordinates, fail
-closed on sample/percentile degeneracy, and combine overlapping same-insert organic weights with
-`max`. Compute the edge envelope from the matching class-mask union, multiply it by organic weight,
-and blend the tone-matched insert only where the final weight is nonzero.
-
-Clone only these four affected decoded sources:
-
-```text
-camera-underlay-sundrop-south
-camera-underlay-crossroads-north
-camera-underlay-crossroads-south
-crossroads
+```ts
+contributions.push({
+  blockerId: intersection.blockerId,
+  insertId: insert.id,
+  owningSourceId: insert.owningSourceId,
+  ownerPriority: insert.owningSourcePriority,
+  sceneryClass: insert.sceneryClass,
+  worldIndex: index,
+  rawFinalWeight: finalWeight,
+  organicSignal: sample.weight,
+  edgeWeight,
+  ownerRelativeTone: detail as [number, number, number]
+});
 ```
 
-Return every other decoded panel with byte-identical RGBA data. Return—not recompute in tests—the
-per-intersection q40/q80/sample count/weight hash; common per-blocker
-language/class/eligible/weighted/coverage/weight hash; `clump-runs` p95/maximum statistics for
-hedge/forest-bank rows; `continuous-contour` evaluable/weighted slice counts, distinct contour-pair
-count, non-evaluable count, evaluable-segment count, longest constant-contour-run ratio, and nullable
-evaluability/contour-profile hash for tree-wall rows;
-formula/helper IDs; changed-pixel totals; class counts; and four enriched decoded-RGBA SHA-256
-values. Do not encode or overwrite normalized presentation PNGs.
+Assert integer ranges (`worldIndex`, `0..255` signals/weights/tones), exact blocker/insert membership,
+and non-overlap between every sparse row's eligible world pixels and every tree-wall row's eligible
+world pixels. Do not alter the source-local prefix sums, sample membership, q40/q80, masks, or tones.
 
-- [ ] **Step 5: Add synthetic full-assembly and non-mutation coverage**
+- [ ] **Step 3: Implement sparse saturated-core shaping**
 
-Feed enriched synthetic sources into the existing underlay/detail assembly and prove:
+For each `hedge` or `forest-bank` row, aggregate raw final weights by world pixel with `max`, create
+the `>=254` core, and call the existing `erodeMeadowEntryMask8` repeatedly. Recompute the existing
+clump-run metric after each erosion and stop at the first p95 `<=0.30` and maximum `<=0.50`:
 
-- source-local clumps survive within matching `sceneryAllowed` pixels without a continuous bar;
-- the edge envelope can reach `255` at inward depth `15`, while final weight reaches `255` only
-  where organic weight also reaches `255`;
-- existing north/south blends, family handoff, ordinary detail perimeter equality, and both pair
-  corrections remain exact;
-- every pixel outside `sceneryAllowed`, inside `otherProtected`, or belonging to the wrong class is
-  byte-exact to assembly of the same sources without inserts;
-- hedge/woodland application order, input arrays, alpha, repeated hashes, and returned metrics are
-  deterministic;
-- tests consume returned thresholds/hashes/class-specific row metrics and do not reimplement the
-  bake's percentile, run-ratio, or contour-profile algorithms.
+```ts
+for (let erosionCount = 0; erosionCount <= 15; erosionCount += 1) {
+  if (p95 <= 0.30 && maximum <= 0.50) break;
+  retainedCore = erodeMeadowEntryMask8(retainedCore, width, height);
+}
+```
 
-Then replace the production finalizer's manual `compositeMeadowEntryDetailPanel` loop with the
-already-sealed `compositeMeadowEntryDetailPanels` priority-stack helper. Add finalizer-level tests
-for both corrected midpoints, all four ordinary-composite edges, and immediate-after-second-member
-ordering. Assemble the current source bytes through the production function and the review adapter
-into a temporary root with scenery disabled; require identical decoded master pixels and identical
-pair-stage formula/configuration rows, and pin the temporary pair-corrected hash in the Task 2
-report.
+Derive every cap request from the frozen raw matrix. For an original core pixel absent from the
+retained core, cap only matching contributions with `rawFinalWeight>=254` to `191`. Union repeated
+requests with `Math.min(rawFinalWeight, 191)`. Do not change sub-254 weights. Return exact erosion,
+core-count, contribution-count, request-hash, raw-hash, and shaped-hash provenance. Throw when no
+count through 15 passes.
 
-Until Task 5, replace any test that assumes source finalization equals the checked-in master with an
-explicit staged-state assertion: pin the current published master hash, pin the temporary
-pair-corrected hash, require them to differ for the known pair-correction reason, and require all
-published bytes to remain unchanged. Task 5 removes this temporary inequality assertion when it
-publishes the approved assembly and restores ordinary finalizer `--check` equality.
+- [ ] **Step 4: Implement tree continuity and unique-pixel coverage shaping**
 
-Do not wire blocked-scenery inputs into the production finalizer and do not run image generation in
-this task. The checked-in published master and every downstream package/runtime artifact must remain
-byte-identical. Because finalizer source now intentionally describes the pair-corrected future
-master, ordinary `finalize ... --check` is expected to fail stale until Task 5 publishes the approved
-assembly. Mark the intermediate branch non-publishable; do not weaken the finalizer or overwrite the
-published master to recover a green `--check`.
+Build missing-slice and coverage requests from the same frozen raw matrix. Use this comparator
+literally; positive numeric priority is later and therefore sorts first:
 
-- [ ] **Step 6: Run focused GREEN and static gates**
+```ts
+const compareContribution = (left, right) =>
+  right.rawFinalWeight - left.rawFinalWeight ||
+  right.organicSignal - left.organicSignal ||
+  right.edgeWeight - left.edgeWeight ||
+  right.ownerPriority - left.ownerPriority ||
+  left.insertId.localeCompare(right.insertId) ||
+  left.worldIndex - right.worldIndex;
+```
+
+For each evaluable slice lacking raw weight `>=32`, choose the first row-local candidate with
+`edgeWeight>=32` and request weight `32`. Then project those requests, choose one winner for each
+remaining unweighted world pixel, and request the minimum number of distinct pixels needed for
+`ceil(0.25 * eligiblePixelCount)`. Never choose a low-envelope contribution or count two
+contributions at one pixel twice.
+
+Derive all six row request sets before applying any. Union requests per contribution with
+`Math.max(rawFinalWeight, 32)`, apply once, then recompute all rows. Throw unless every final row is
+within 25%–70%, every evaluable slice is weighted, the contour has more than one pair, and its
+longest constant ratio is `<=0.50`. `silverpine-wall-B-south` must produce zero requests and identical
+raw/shaped hashes.
+
+- [ ] **Step 5: Integrate shaped weights and exact provenance into the bake result**
+
+Call the shaper exactly once after all sixteen intersections have produced raw contributions and
+before building per-insert/per-owner weight maps. Aggregate only `shapedWeights` into the existing
+composition; continue choosing a tone by shaped weight and insert-ID tie-break exactly as before.
+Add `rawWeightSha256`, shaped `weightSha256`, `topology`, the globally unioned request inventory, and
+stable request hashes to returned intersection/row provenance. Keep the four enriched owner IDs and
+all unchanged panel identities.
+
+Run focused GREEN:
 
 ```bash
 rtk bun run test:unit -- --run \
-  src/lib/game/content/backgrounds/meadow-entry-detail-boundary-metrics.test.ts \
-  src/lib/game/content/backgrounds/meadow-entry-painted-v2-scenery.test.ts \
   src/lib/game/content/backgrounds/meadow-entry-painted-v2-scenery-bake.test.ts \
+  src/lib/game/content/backgrounds/meadow-entry-painted-v2-scenery.test.ts \
+  src/lib/game/content/backgrounds/meadow-entry-painted-v2-underlay-assembly.test.ts
+```
+
+- [ ] **Step 6: Prove the rejected real rows close without generating art**
+
+Render the current preserved bytes into a fresh temporary root with the existing uncommitted review
+adapter, but do not edit or stage that adapter in Task 2:
+
+```bash
+MEADOW_TOPOLOGY_REVIEW_ROOT="$(rtk mktemp -d /private/tmp/gliese-meadow-topology.XXXXXX)"
+rtk bun tools/render-meadow-entry-painted-v2-enrichment-review.ts \
+  --mode candidate \
+  --assemble-sources \
+  --contact-sheets \
+  --source-review \
+  --output-root "$MEADOW_TOPOLOGY_REVIEW_ROOT"
+```
+
+Read the emitted `decoration-candidate.json` and require all ten shaped rows to pass their unchanged
+thresholds. Pin exact raw/shaped hashes and requests in the ignored report; assert all nine former
+failures close and B-south remains a no-op. Inspect the clean overview and ten row crops only to
+catch a topology implementation that passes numbers while creating a visible rectangle. If any row
+or native crop fails, stop and revise Task 2 code; do not generate an image or weaken a metric.
+
+- [ ] **Step 7: Run no-drift gates and commit only topology code**
+
+```bash
+rtk bun run test:unit -- --run \
+  src/lib/game/content/backgrounds/meadow-entry-painted-v2-scenery-bake.test.ts \
+  src/lib/game/content/backgrounds/meadow-entry-painted-v2-scenery.test.ts \
   src/lib/game/content/backgrounds/meadow-entry-painted-v2-enrichment-review.test.ts \
   src/lib/game/content/backgrounds/meadow-entry-painted-v2-underlay-assembly.test.ts \
-  src/lib/game/content/backgrounds/meadow-entry-painted-v2-pilot-finalizer.test.ts \
-  tools/render-meadow-entry-painted-v2-enrichment-review.test.ts
+  src/lib/game/content/backgrounds/meadow-entry-painted-v2-pilot-finalizer.test.ts
 rtk bun run check
 rtk bunx prettier --check \
-  src/lib/game/content/backgrounds/meadow-entry-detail-boundary-metrics.ts \
-  src/lib/game/content/backgrounds/meadow-entry-detail-boundary-metrics.test.ts \
-  src/lib/game/content/backgrounds/meadow-entry-painted-v2-scenery.ts \
-  src/lib/game/content/backgrounds/meadow-entry-painted-v2-scenery.test.ts \
   src/lib/game/content/backgrounds/meadow-entry-painted-v2-scenery-bake.ts \
-  src/lib/game/content/backgrounds/meadow-entry-painted-v2-scenery-bake.test.ts \
+  src/lib/game/content/backgrounds/meadow-entry-painted-v2-scenery-bake.test.ts
+rtk bunx eslint \
+  src/lib/game/content/backgrounds/meadow-entry-painted-v2-scenery-bake.ts \
+  src/lib/game/content/backgrounds/meadow-entry-painted-v2-scenery-bake.test.ts
+rtk git diff --exit-code -- \
+  src/lib/game/content/backgrounds/meadow-entry-painted-v2-scenery.ts \
   src/lib/game/content/backgrounds/meadow-entry-painted-v2-enrichment-review.ts \
-  src/lib/game/content/backgrounds/meadow-entry-painted-v2-enrichment-review.test.ts \
   src/lib/game/content/backgrounds/meadow-entry-painted-v2-pilot-finalizer.ts \
-  src/lib/game/content/backgrounds/meadow-entry-painted-v2-pilot-finalizer.test.ts \
+  src/lib/game/content/backgrounds/meadow-entry-painted-v2-underlay-assembly.ts \
+  artifacts/meadow-entry/painted-v2/masters/meadow-entry-painted-v2-pilot-base-master.png \
+  artifacts/meadow-entry/painted-v2/provenance/meadow-entry-master-provenance.json \
+  artifacts/meadow-entry/painted-v2/exports/ \
+  src/lib/game/content/approvals/meadow-entry-painted-v2-art-package.ts \
+  src/lib/game/content/backgrounds/meadow-entry-painted-v2.generated.ts \
+  public/game/assets/regions/meadow-entry-painted-v2/
+rtk shasum -a 256 \
+  tools/render-meadow-entry-painted-v2-enrichment-review.ts \
+  tools/render-meadow-entry-painted-v2-enrichment-review.test.ts
+rtk git diff --check
+```
+
+The `shasum` output must exact-match the two pinned values above. The tool files already contain
+rejected Task 3 work, so do not expect the overall working tree to be clean. Stage exactly the two
+bake files:
+
+```bash
+rtk git add \
+  src/lib/game/content/backgrounds/meadow-entry-painted-v2-scenery-bake.ts \
+  src/lib/game/content/backgrounds/meadow-entry-painted-v2-scenery-bake.test.ts
+rtk git diff --cached --name-status
+rtk git commit -m "fix(art): shape Meadow forest topology"
+```
+
+- [ ] **Step 8: Obtain independent review before any image call**
+
+Review the exact Task 2 commit for immutable raw-matrix semantics, smallest sparse erosion, sub-254
+preservation, envelope-capable tree candidates, unique-world-pixel coverage, no row feedback,
+request/hash provenance, no-op B-south, all ten real row gates, non-mutation, and exact two-file
+scope. Fix every valid finding in a separate commit and obtain re-review. Task 3 cannot begin until
+this review is GREEN.
+
+---
+
+### Task 3: Re-evaluate preserved sources, replace invalid-scale inserts, and stop at the interim gate
+
+**Files:**
+- Replace unconditionally with new bounded attempts:
+  - `artifacts/meadow-entry/painted-v2/source-inserts/raw/camera-underlay-crossroads-north-blocked-hedge.png`
+  - `artifacts/meadow-entry/painted-v2/source-inserts/camera-underlay-crossroads-north-blocked-hedge.png`
+  - `artifacts/meadow-entry/painted-v2/source-inserts/camera-underlay-crossroads-north-blocked-hedge.json`
+  - `artifacts/meadow-entry/painted-v2/source-inserts/raw/camera-underlay-crossroads-south-blocked-woodland.png`
+  - `artifacts/meadow-entry/painted-v2/source-inserts/camera-underlay-crossroads-south-blocked-woodland.png`
+  - `artifacts/meadow-entry/painted-v2/source-inserts/camera-underlay-crossroads-south-blocked-woodland.json`
+- Replace only when shaped objective/native review still fails:
+  - presentation IDs `camera-underlay-sundrop-north`, `camera-underlay-sundrop-south`,
+    `camera-underlay-crossroads-north`, `camera-underlay-crossroads-south`, `sundrop-north`, and
+    `sundrop-south` at their existing raw/normalized/JSON paths;
+  - insert IDs `camera-underlay-sundrop-south-blocked-hedge`,
+    `camera-underlay-crossroads-south-blocked-hedge`, and
+    `camera-underlay-crossroads-north-blocked-woodland` at their existing paths.
+- Modify:
+  `tools/render-meadow-entry-painted-v2-enrichment-review.ts`
+- Modify:
+  `tools/render-meadow-entry-painted-v2-enrichment-review.test.ts`
+- Modify after approval only:
+  `artifacts/meadow-entry/painted-v2/provenance.json`
+- Replace review evidence under:
+  `docs/superpowers/reports/img/hpa-586-painted-v2-enrichment/forest-interim/`
+- Report:
+  `.superpowers/sdd/2026-08-14-meadow-entry-painted-pilot-forest-enrichment/task-3-report.md`
+  (ignored)
+
+**Restart state:**
+
+- Commit `0caefd1` is a withdrawn source checkpoint; its prior user answer does not approve a new
+  topology-shaped assembly.
+- The current dirty five-insert attempt-3 bytes, manifests, two review-tool files, and rebuilt
+  evidence are rejected audit history. Record exact hashes and diffs before overwriting or extending
+  them. Do not reset, clean, restore, or stage them as approval.
+- Attempt 3 of `camera-underlay-crossroads-north-blocked-hedge` is invalid at
+  `2.064516129032258x`; attempt 3 of
+  `camera-underlay-crossroads-south-blocked-woodland` is invalid at `2.04211869814933x`. Their next
+  calls are attempt 4, not attempt 1.
+- Task 2's topology commit, real ten-row GREEN, unchanged-package proof, and independent GREEN review
+  are prerequisites. No image call is allowed before all four are recorded.
+
+**Interfaces:**
+
+The review payload consumes Task 2's result directly. It must expose, without recomputation:
+
+```ts
+blockedSceneryBake: {
+  intersections: readonly {
+    blockerId: string;
+    insertId: string;
+    rawWeightSha256: string;
+    weightSha256: string;
+  }[];
+  rows: readonly {
+    blockerId: string;
+    rawWeightSha256: string;
+    weightSha256: string;
+    topology: MeadowEntryPaintedV2SceneryTopologyProvenance;
+  }[];
+  formulas: Readonly<Record<string, string>>;
+}
+```
+
+Normalization preflight is exact:
+
+```text
+coverScale = max(3200 / rawWidth, 1664 / rawHeight)
+accept only when coverScale <= 2
+equivalent minimum raw dimensions: width >= 1600 and height >= 832
+```
+
+- [ ] **Step 1: Extend the dirty review adapter with genuine RED coverage**
+
+First record the current two-file diff and hashes in the ignored report. Extend the existing direct
+`node:test` suite to require raw/shaped hashes, sparse/tree topology provenance, request hashes, all
+ten passing final rows, and a normalization preflight failure containing the exact offending ID and
+scale. Construct immutable synthetic manifest copies from the recorded attempt-3 fields so this
+regression remains after the live files are replaced:
+
+```ts
+assert.throws(
+  () => assertReviewSourceTransform(northHedgeManifest),
+  /camera-underlay-crossroads-north-blocked-hedge.*2\.064516129032258/
+);
+assert.throws(
+  () => assertReviewSourceTransform(southWoodlandManifest),
+  /camera-underlay-crossroads-south-blocked-woodland.*2\.04211869814933/
+);
+```
+
+Run the correct direct test command, not the Vitest command that previously skipped this suite:
+
+```bash
+rtk bun test tools/render-meadow-entry-painted-v2-enrichment-review.test.ts
+```
+
+Expected RED is limited to the missing transform guard and missing topology assertions. Do not call
+image generation to make this test green. Wire the guard into normal candidate/source-review mode;
+do not add a bypass flag.
+
+- [ ] **Step 2: Seal the preserved-byte reuse decision from Task 2 evidence**
+
+Use Task 2's temporary-root output as the one permitted preserved-byte evaluation. Verify its input
+hashes still equal the current presentation/insert paths, then copy its per-input verdicts,
+raw/shaped metrics, and original-detail findings into the Task 3 report. Do not rerun candidate mode
+after the transform guard is active: the two known invalid manifests must truthfully stop that path.
+
+Reuse a preserved presentation source or one of the three valid-scale inserts only when Task 2's
+full native review, seams/handoffs, protected/live overlays, q40/q80, raw/shaped topology, unchanged
+row thresholds, and region language passed. Record the exact reuse and correction lists before any
+image call. Rejection of the combined assembly alone is not permission to regenerate a passing
+source. If any input hash drifted since Task 2, stop and repeat Task 2's no-generation evaluation
+against the new bytes before classifying it.
+
+- [ ] **Step 3: Generate the two mandatory scale replacements, then only proven visual failures**
+
+Use `imagegen` once per input, with distinct calls and no masks/atlases/control rasters. Generate
+attempt 4 for the north hedge and south woodland first. Prompts keep the approved regional language:
+
+```text
+north hedge: low organic region-correct brush/reeds; no trunks, canopy mass, path, building,
+             landmark, label, repeated stamp, straight bar, or rectangular frame
+south woodland: irregular Wildwood broadleaf surface with varied undergrowth, roots, ferns,
+                leaf litter and soft canopy depth; no path, prop, label, repeated tree stamp,
+                straight material band, or rectangular frame
+```
+
+Inspect each raw at original resolution before normalization. Reject immediately when width is below
+1600, height is below 832, or native pixels show a forbidden motif. If attempt 4 fails, make at most
+one attempt 5 for that same input; reaching attempt 5 without a passing raw stops Task 3.
+
+Only after both mandatory replacements pass may the reuse audit trigger other calls. Preserve this
+dependency order: underlay north then south, Sundrop detail north then south, then the remaining
+underlay-owned inserts. Feed only accepted adjacent art pixels to a dependent call. The report lists
+every call and why it was necessary.
+
+- [ ] **Step 4: Normalize accepted raws and append truthful histories**
+
+Normalize with uniform cover scale and deterministic center crop. Record native/resized/crop
+dimensions, exact scale, kernel, raw/normalized SHA-256 and bytes, prompt, supplied art-reference
+paths/hashes, model result ID, attempt number, rejection reason, and original-detail verdict. Do not
+overwrite a normalized or manifest path until the raw passes both native and `<=2x` preflight.
+
+Keep insert paths exact:
+
+```text
+artifacts/meadow-entry/painted-v2/source-inserts/raw/<insert-id>.png
+artifacts/meadow-entry/painted-v2/source-inserts/<insert-id>.png
+artifacts/meadow-entry/painted-v2/source-inserts/<insert-id>.json
+```
+
+- [ ] **Step 5: Rebuild and inspect the complete interim evidence inventory**
+
+After every selected replacement has a valid transform, run candidate mode for the first time under
+the new hard guard:
+
+```bash
+rtk bun tools/render-meadow-entry-painted-v2-enrichment-review.ts \
+  --mode candidate \
+  --assemble-sources \
+  --contact-sheets \
+  --source-review \
+  --output-root docs/superpowers/reports/img/hpa-586-painted-v2-enrichment/forest-interim
+```
+
+Require:
+
+- six presentation reviews, five insert reviews, and five native crops per input;
+- four enriched-owner previews, both underlay seams, family handoff, Sundrop pair sides, four Hero
+  House edges, matched Sundrop richness, Wildwood forest lane, and full overview;
+- all five exact 67-tile sheets and unchanged minimum/median energy floors;
+- all sixteen intersections with q40/q80 plus raw/shaped hashes;
+- all ten rows within 25%–70%, all four sparse rows at p95 `<=0.30` and maximum `<=0.50`, all six
+  tree rows with complete evaluable-slice coverage and non-uniform contours;
+- explicit sparse erosion/cap and tree repair/coverage request inventories, with B-south a no-op;
+- zero mutation outside `sceneryAllowed`, no edge-envelope bypass, no insert rectangle, no grid,
+  no straight dark bar, and no tree/trunk on open traversable ground.
+
+Inspect every PNG at original detail. A metric pass does not override a visible rectangle, repeated
+stamp, false collision cue, or abrupt material boundary.
+
+- [ ] **Step 6: Run focused, storage, and no-write gates**
+
+```bash
+rtk bun test tools/render-meadow-entry-painted-v2-enrichment-review.test.ts
+rtk bun run test:unit -- --run \
+  src/lib/game/content/backgrounds/meadow-entry-painted-v2-scenery.test.ts \
+  src/lib/game/content/backgrounds/meadow-entry-painted-v2-scenery-bake.test.ts \
+  src/lib/game/content/backgrounds/meadow-entry-painted-v2-enrichment-review.test.ts
+rtk bun run art:storage:meadow-entry
+rtk git lfs fsck
+rtk bun run check
+rtk bunx prettier --check \
   tools/render-meadow-entry-painted-v2-enrichment-review.ts \
   tools/render-meadow-entry-painted-v2-enrichment-review.test.ts
 rtk bunx eslint \
-  src/lib/game/content/backgrounds/meadow-entry-detail-boundary-metrics.ts \
-  src/lib/game/content/backgrounds/meadow-entry-detail-boundary-metrics.test.ts \
-  src/lib/game/content/backgrounds/meadow-entry-painted-v2-scenery.ts \
-  src/lib/game/content/backgrounds/meadow-entry-painted-v2-scenery.test.ts \
-  src/lib/game/content/backgrounds/meadow-entry-painted-v2-scenery-bake.ts \
-  src/lib/game/content/backgrounds/meadow-entry-painted-v2-scenery-bake.test.ts \
-  src/lib/game/content/backgrounds/meadow-entry-painted-v2-enrichment-review.ts \
-  src/lib/game/content/backgrounds/meadow-entry-painted-v2-enrichment-review.test.ts \
-  src/lib/game/content/backgrounds/meadow-entry-painted-v2-pilot-finalizer.ts \
-  src/lib/game/content/backgrounds/meadow-entry-painted-v2-pilot-finalizer.test.ts \
   tools/render-meadow-entry-painted-v2-enrichment-review.ts \
   tools/render-meadow-entry-painted-v2-enrichment-review.test.ts
 rtk git diff --exit-code -- \
-  src/lib/game/content/backgrounds/meadow-entry-painted-v2-underlay-assembly.ts \
-  src/lib/game/content/backgrounds/meadow-entry-painted-v2-underlay-assembly.test.ts \
   artifacts/meadow-entry/painted-v2/masters/meadow-entry-painted-v2-pilot-base-master.png \
   artifacts/meadow-entry/painted-v2/provenance/meadow-entry-master-provenance.json \
   artifacts/meadow-entry/painted-v2/exports/ \
@@ -715,204 +906,20 @@ rtk git diff --exit-code -- \
 rtk git diff --check
 ```
 
-Do not run the ordinary finalizer `--check` after the pair-path swap: a stale result is the expected
-truthful state until Task 5. Instead, the focused finalizer test must exercise the temporary-root
-assembly twice and prove identical output while the literal diff command proves published bytes did
-not move.
-
-- [ ] **Step 7: Commit and obtain an independent review before generation**
-
-```bash
-rtk git add \
-  src/lib/game/content/backgrounds/meadow-entry-detail-boundary-metrics.ts \
-  src/lib/game/content/backgrounds/meadow-entry-detail-boundary-metrics.test.ts \
-  src/lib/game/content/backgrounds/meadow-entry-painted-v2-scenery.ts \
-  src/lib/game/content/backgrounds/meadow-entry-painted-v2-scenery.test.ts \
-  src/lib/game/content/backgrounds/meadow-entry-painted-v2-scenery-bake.ts \
-  src/lib/game/content/backgrounds/meadow-entry-painted-v2-scenery-bake.test.ts \
-  src/lib/game/content/backgrounds/meadow-entry-painted-v2-enrichment-review.ts \
-  src/lib/game/content/backgrounds/meadow-entry-painted-v2-enrichment-review.test.ts \
-  src/lib/game/content/backgrounds/meadow-entry-painted-v2-pilot-finalizer.ts \
-  src/lib/game/content/backgrounds/meadow-entry-painted-v2-pilot-finalizer.test.ts \
-  tools/render-meadow-entry-painted-v2-enrichment-review.ts \
-  tools/render-meadow-entry-painted-v2-enrichment-review.test.ts
-rtk git commit -m "fix(art): align Meadow forest assembly"
-```
-
-Review the exact Task 2 commit for helper reuse, one five-raster mask authority, unchanged 67-tile
-inventory, source-insert paths, fail-closed percentiles, class-specific row metrics, returned
-provenance, production/review pair parity, non-mutation, and unchanged published package bytes. Do
-not begin Task 3 until the review is GREEN.
-
----
-
-### Task 3: Re-evaluate the interim sources with the corrected bake, regenerate only failures, and stop at the gate
-
-**Files:**
-- Replace raw/normalized PNG and panel JSON only when corrected native review still fails for:
-  - `camera-underlay-sundrop-north`
-  - `camera-underlay-sundrop-south`
-  - `camera-underlay-crossroads-north`
-  - `camera-underlay-crossroads-south`
-  - `sundrop-north`
-  - `sundrop-south`
-- Replace raw/normalized PNG and JSON only when corrected native review still fails for:
-  - `camera-underlay-sundrop-south-blocked-hedge`
-  - `camera-underlay-crossroads-north-blocked-hedge`
-  - `camera-underlay-crossroads-south-blocked-hedge`
-  - `camera-underlay-crossroads-north-blocked-woodland`
-  - `camera-underlay-crossroads-south-blocked-woodland`
-- Modify:
-  `tools/render-meadow-entry-painted-v2-enrichment-review.ts`
-- Modify:
-  `tools/render-meadow-entry-painted-v2-enrichment-review.test.ts`
-- Modify after approval only:
-  `artifacts/meadow-entry/painted-v2/provenance.json`
-- Generate review images under:
-  `docs/superpowers/reports/img/hpa-586-painted-v2-enrichment/forest-interim/`
-- Report:
-  `.superpowers/sdd/2026-08-14-meadow-entry-painted-pilot-forest-enrichment/task-3-report.md`
-  (ignored)
-
-**Restart state:**
-- Commit `0caefd1` is the withdrawn interim source checkpoint. Its user approval does not approve an
-  assembly made by the corrected compositor.
-- The current unstaged five-insert correction and its 76 rebuilt evidence files are rejected audit
-  evidence from the same 15px-only compositor. Record their hashes before touching them.
-- Preserve every prior prompt, reference hash, raw/normalized hash, attempt number, rejection reason,
-  and withdrawn approval. Never reset a history to attempt 1.
-- Task 2's focused GREEN, temporary-root production/review parity hash, published-package no-write
-  proof, commit, and independent review are prerequisites. No image-generation call is permitted
-  before all five exist.
-
-**Interfaces:**
-- First run the latest preserved source bytes through the corrected compositor in a temporary root.
-  A source that clears its own native-detail checks plus all returned organic metrics does not need a
-  cosmetic regeneration merely because its earlier assembly was rejected.
-- Every source that still fails receives one distinct correction call in dependency order. The
-  report states the exact number of calls actually made; it does not assume eleven new calls.
-- Presentation calls receive concept/palette, current panel, adjacent accepted painted pixels, and
-  prose constraints only.
-- Hedge calls receive only art references and the hedge language; woodland calls receive only art
-  references and the regional woodland language. No mask/atlas/control reference is supplied.
-- The temporary assembly uses the five inserts through Task 2's exact masks while retaining pinned
-  Hero House and current connector/Crossroads detail bytes.
-
-- [ ] **Step 1: Write corrected-bake review-tool RED coverage before any image call**
-
-Extend the review tool/test contract to require:
-
-- all six presentation panel reviews and five insert reviews;
-- five native crops per insert;
-- four enriched owning-source previews;
-- both underlay north/south seams and the family handoff;
-- full temporary master and two temporary crop exports;
-- four Sundrop pair sides, four Hero House edges, one matched Sundrop richness comparison, one
-  Wildwood forest-lane view, all five 67-tile sheets, ten blocker-row crops, and mask inventory JSON;
-- exact hashes and dimensions for every evidence file;
-- failure for a missing insert review, wrong class, wrong bounds, grid-like upper-band artifact,
-  visible insert rectangle, protected overlap, or insufficient tile energy;
-- exact use of the bake result's per-intersection q40/q80/weight hashes, common per-row coverage,
-  hedge/forest-bank p95/max clump-run metrics, and tree-wall continuous-contour metrics, with no
-  review-tool recomputation of those values;
-- failure if the exact 67-tile inventory or energy calculation samples anything other than
-  `groundAllowed`.
-
-Run RED before any image call:
-
-```bash
-rtk bun run test:unit -- --run \
-  tools/render-meadow-entry-painted-v2-enrichment-review.test.ts \
-  src/lib/game/content/backgrounds/meadow-entry-painted-v2-scenery.test.ts \
-  src/lib/game/content/backgrounds/meadow-entry-painted-v2-scenery-bake.test.ts
-```
-
-- [ ] **Step 2: Render the preserved candidate once, then correct failing underlays in dependency order**
-
-Build one temporary assembly from the latest preserved bytes and the reviewed Task 2 compositor.
-Inspect its four enriched-owner previews, every blocker row, Wildwood lane, underlay seams, family
-handoff, and returned structural metrics. This is an evaluation run, not a new approval.
-
-Only an underlay that still fails source/native or assembled evidence receives a fresh distinct
-built-in image-generation call, in this order:
-
-1. Sundrop north;
-2. Sundrop south using accepted north overlap pixels;
-3. Crossroads north;
-4. Crossroads south using accepted north overlap pixels.
-
-Inspect raw output at original resolution before normalization. Reject broad grass-only fields,
-trees/trunks on open ground, square pads, source frames, repeated stamp grids, straight material
-bars, buildings, props, labels, and false doors. Normalize only candidates that pass raw review.
-
-- [ ] **Step 3: Correct Sundrop north/south detail only if preserved detail fails**
-
-If either preserved detail source fails, use distinct calls in north-then-south order and feed the
-accepted north overlap to the south correction. Require three visible motif families in the
-representative main-street view while keeping route cores and building approaches quiet. Sundrop
-must contain no baked tree or trunk. Inspect the full `2624×128` pair overlap and west/center/east
-crops before acceptance.
-
-- [ ] **Step 4: Correct only the underlay inserts that still fail organic assembly**
-
-For each of the five preserved inserts, distinguish a compositor failure from a source-art failure.
-Keep an insert only when the corrected bake passes q40/q80, coverage, its language-specific
-clump-run or continuous-contour gate, protected-mask, and native-detail review. A failing insert gets
-one distinct call. Insert canvases may contain their class across the whole image because
-deterministic organic composition owns visibility. Require irregular regional surfaces and reject
-any literal mask shape, straight hedge bar, repeated tree stamp, landmark silhouette, path,
-building, label, or live prop. Hedge excludes trunks/canopy; woodland shows at least two depth cues
-and shifts from Silverpine conifer character northward to Wildwood broadleaf character southward.
-
-- [ ] **Step 5: Normalize and write truthful per-input provenance**
-
-For each accepted input record raw/normalized hashes, bytes, dimensions, exact uniform transform,
-prompt, supplied reference paths/hashes, model availability, attempts and rejection reasons. Keep
-all attempts monotonically numbered from their existing histories, including the withdrawn
-checkpoint and rejected source-only correction. Store inserts only at:
-
-```text
-artifacts/meadow-entry/painted-v2/source-inserts/raw/<insert-id>.png
-artifacts/meadow-entry/painted-v2/source-inserts/<insert-id>.png
-artifacts/meadow-entry/painted-v2/source-inserts/<insert-id>.json
-```
-
-- [ ] **Step 6: Build the temporary interim assembly and inspect all evidence**
-
-Run the review writer in a temporary output root. The production master, exports, approval, runtime
-assets, and public files must remain unchanged. Require all 67 rows to meet the energy floor and
-human richness contract on `groundAllowed` only. Pin the compositor-returned intersection and row
-metrics in the manifest. Inspect every review image at original detail. Confirm the insert bake is
-visible in Wildwood, invisible outside `sceneryAllowed`, and does not create a rectangle edge.
-
-After rendering, run the literal no-write proof:
-
-```bash
-rtk git diff --exit-code -- \
-  artifacts/meadow-entry/painted-v2/masters/meadow-entry-painted-v2-pilot-base-master.png \
-  artifacts/meadow-entry/painted-v2/provenance/meadow-entry-master-provenance.json \
-  artifacts/meadow-entry/painted-v2/exports/ \
-  src/lib/game/content/approvals/meadow-entry-painted-v2-art-package.ts \
-  src/lib/game/content/backgrounds/meadow-entry-painted-v2.generated.ts \
-  public/game/assets/regions/meadow-entry-painted-v2/
-```
-
 - [ ] **Step 7: Stop at `NEEDS_CONTEXT` for explicit interim approval**
 
-Provide absolute paths for the full overview, six panel reviews, five insert reviews, seams,
-Sundrop matched comparison, Wildwood forest-lane crop, blocker inventory, and all five density
-sheets. State the exact evaluation inputs, correction-call count, attempts, returned q40/q80,
-weight hashes, common coverage, clump-run metrics, and continuous-contour metrics. Do not infer
-approval. Do not generate connector, Crossroads detail, or the two Crossroads detail inserts. Do not
-bind root approval, stage, commit, publish, or run the texture probe before the user's explicit
-verdict.
+Provide absolute paths for the overview, six panel reviews, five insert reviews, seams, matched
+Sundrop view, Wildwood crop, ten row crops, topology inventory, and five density sheets. State the
+reuse list, call count, attempt numbers, exact transforms, all raw/shaped hashes, shaping requests,
+and row metrics. Do not infer approval. Do not generate connector/Crossroads detail or its two
+inserts, bind root approval, stage, commit, publish, or run the texture probe before the user's
+explicit verdict.
 
 - [ ] **Step 8: After approval, bind metadata and commit only the interim inventory**
 
-Record the user's answer and UTC-second timestamp in six panel JSONs, five insert JSONs, root
-provenance, report, and ledger. Run focused review/scenery tests, storage, LFS, static, targeted
-format/lint, and diff checks. Repeat the Step 6 protected-package `git diff --exit-code` command
-immediately before staging. Stage only approved Task 3 files and review evidence:
+Record the exact answer and UTC-second timestamp in the six presentation manifests, five insert
+manifests, root provenance, report, and ledger. Repeat Step 6 after metadata binding. Inspect
+`rtk git diff --cached --name-status` and exclude every superseded/rejected-only path. Commit:
 
 ```bash
 rtk git commit -m "art(world): paint Meadow underlay forest inputs"
@@ -953,6 +960,8 @@ accepted connector overlap pixels to the Crossroads call; do not pass masks or o
 Generate `crossroads-blocked-hedge` and `crossroads-blocked-woodland` separately. Hedge remains low
 brush/reeds. Woodland covers the approved Silverpine A-east/A-west/B-south intersections with
 varied trunks, undergrowth, roots, leaf litter, canopy depth, and no recognizable live-prop copy.
+Inspect each raw at original resolution and reject it before normalization unless it is at least
+`1600×832`, needs no more than `2x` cover scale, and contains no literal mask/frame/bar language.
 
 - [ ] **Step 3: Normalize, provenance-bind, and assemble all sixteen package inputs in a temporary root**
 
@@ -971,9 +980,10 @@ Require and inspect:
   side/corner crops;
 - ten clean blocker-row before/after crops plus one labelled overlay;
 - five exact 67-tile sheets and inventory JSON;
-- exact compositor-returned q40/q80 and weight hashes for every intersection, common coverage for
-  every row, hedge/forest-bank p95 and maximum clump-run ratios, and tree-wall
-  continuous-contour metrics/hashes;
+- exact compositor-returned q40/q80 plus raw/shaped weight hashes for every intersection, common
+  coverage for every row, sparse erosion/cap provenance, tree repair/coverage request provenance,
+  hedge/forest-bank p95 and maximum clump-run ratios, and tree-wall continuous-contour
+  metrics/hashes;
 - full master, temporary two-crop exports, Silverpine tree-wall, Wildwood forest-lane, coast hedge,
   Mistfen hedge, Hero House, and matched Sundrop/connector views;
 - no grid, source rectangle, false blocker, duplicate prop, material jump, double darkening, alpha
@@ -1080,9 +1090,11 @@ Root provenance contains:
 - `blockedSceneryBake`: exact sixteen coverage rows, selected/other-protected/ground/scenery/hedge/
   woodland and builder-local intermediate hashes, source-catalog hash, formulas/helper IDs,
   local-mean radii, hedge/woodland detail caps, 15px edge-envelope cap, exact per-intersection sample
-  counts/q40/q80/weight hashes, exact common per-row eligible/weighted counts and coverage,
-  hedge/forest-bank clump-run metrics, tree-wall continuous-contour metrics/profile hashes,
-  changed-pixel counts, and decoded-RGBA hashes for the four enriched owning sources.
+  counts/q40/q80/raw/shaped weight hashes, exact common per-row eligible/weighted counts and
+  coverage, sparse erosion/core/cap request inventories, tree missing-slice/coverage promotion
+  inventories, immutable request-union hashes, hedge/forest-bank clump-run metrics, tree-wall
+  continuous-contour metrics/profile hashes, changed-pixel counts, and decoded-RGBA hashes for the
+  four enriched owning sources.
 
 Pin stable JSON ordering. Preserve all unrelated source-panel, control, crop, overlap, and history
 fields. Add a repeat-run byte-equality test for both master PNG and provenance JSON.
@@ -1130,7 +1142,7 @@ rtk git commit -m "feat(art): assemble forest-enriched Meadow master"
 ### Task 6: Republish exports, proofs, approval inventory, and the same two runtime textures
 
 **Files:**
-- Modify as required by RED:
+- Modify:
   `tools/render-meadow-entry-art-proofs.ts`
 - Modify:
   `src/lib/game/content/backgrounds/meadow-entry-art-proofs.test.ts`
@@ -1511,6 +1523,8 @@ final visual approval timestamp.
 Review the full range from the Task 2 base through Task 8 for:
 
 - exact ten blocker/seven insert/sixteen intersection contracts;
+- immutable raw contribution shaping, exact sparse/tree request inventories, edge-envelope-capable
+  promotions, unique-world-pixel coverage, and no row-order feedback;
 - no scenery mutation outside `sceneryAllowed`;
 - complete provenance, proof, approval, storage, and LFS bindings for all sixteen assembly inputs
   (eight revised presentation sources, pinned Hero House, and seven inserts);
@@ -1540,11 +1554,13 @@ The forest-enrichment revision is complete only when all of the following are tr
    pass their separate objective and native-detail reviews;
 3. the preassembly bake changes only `sceneryAllowed`, has zero class-union/hole boundary weight, an
    edge envelope that can reach `255` at inward depth `15`, final weight conditioned by organic
-   clumps, deterministic percentile/weight/source hashes, and 25–70% row coverage; hedge and
-   forest-bank rows satisfy p95 `<=0.30` and maximum `<=0.50` clump-run ratios; tree-wall rows have
-   complete weighted-slice coverage over every slice whose edge envelope can reach threshold,
-   explicit nullable entries for mask/envelope-caused non-evaluable slices, more than one contour
-   pair, longest constant-contour run `<=0.50`, and no visible source rectangle;
+   clumps, immutable raw-to-shaped request provenance, deterministic percentile/weight/source
+   hashes, and 25–70% row coverage; hedge and forest-bank rows use the exact `>=254` clump threshold,
+   smallest passing erosion, saturated-only cap `191`, p95 `<=0.30`, and maximum `<=0.50`;
+   tree-wall rows promote only existing `edgeWeight>=32` contributions to exactly `32`, count unique
+   world pixels, have complete weighted-slice coverage over every evaluable slice, explicit nullable
+   entries for mask/envelope-caused non-evaluable slices, more than one contour pair, longest
+   constant-contour run `<=0.50`, and no visible source rectangle;
 4. production finalizer and review assembly share the same priority-stack path, and existing
    underlay, family, detail-feather, and pair-correction boundaries remain exact;
 5. Hero House, gameplay controls, nine-panel registry, two runtime crops, ownership, routes,
