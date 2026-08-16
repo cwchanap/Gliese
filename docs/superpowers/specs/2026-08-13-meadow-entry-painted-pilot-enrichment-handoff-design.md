@@ -2,7 +2,7 @@
 
 **Date:** 2026-08-13
 
-**Status:** Corrected execution-order amendment approved on 2026-08-15
+**Status:** Language-aware topology amendment written; awaiting user review
 
 **Amends:** `2026-08-12-meadow-entry-painted-pilot-camera-safe-underlay-design.md`
 
@@ -41,6 +41,16 @@ temporary-root production-equivalent assembly, and every pre-publication task pr
 package stayed byte-identical. The amendment also removes the unused full-canvas decoration union,
 limits the public mask result to five retained rasters, and replaces the unsuitable tree-wall
 clump-gap metric with a continuous but non-uniform contour-profile gate.
+
+**2026-08-15 rejected corrected-bake gate:** The fresh five-insert correction removed the visible
+dark rectangle bars, but it did not satisfy the deterministic bake contract and the user rejected
+it. A full row audit corrected the interim report's understated count: four sparse-clump rows exceed
+their p95/maximum limits, and five of six tree-wall rows have at least one evaluable slice without
+weight `>=32`. Therefore nine of ten blocker rows fail; only `silverpine-wall-B-south` passes every
+row gate. Two normalized inserts also violate the existing `<=2x` limit. The rejected source bytes,
+temporary assembly, evidence, prompts, transforms, and hashes remain audit history. The next
+revision changes the compositor topology rather than weakening a metric or guessing with another
+unbounded art pass.
 
 ## Purpose
 
@@ -623,7 +633,7 @@ at least `32` must cover between `25%` and `70%` of the eligible, non-protected 
 is the longer bounds axis. Structural metrics then depend on the row language:
 
 - `hedge` and `forest-bank` rows use the sparse-clump gate. For every one-pixel transverse slice
-  across the short axis, compute the longest contiguous run at weight `>=32` along the unexcluded
+  across the short axis, compute the longest contiguous run at weight `>=254` along the unexcluded
   long-axis samples, divided by that slice's unexcluded sample count. Slices with fewer than `64`
   unexcluded samples fail. The nearest-rank p95 of those run ratios must be at most `0.30`, and the
   absolute maximum must be at most `0.50`.
@@ -646,6 +656,104 @@ The first gate prevents hedges and forest banks from becoming full-length bars. 
 the visual continuity of a collision wall while rejecting a uniform inserted rectangle. It does not
 ban every straight path-side edge because the sealed blocker geometry is intentionally axis-aligned.
 Native-detail review remains authoritative for natural hedge, bank, and forest-wall readability.
+
+### Language-aware topology shaping
+
+The rejected gate proves that source generation cannot reliably satisfy row topology through the
+existing `edgeWeight * organicWeight` multiplication alone. The input art is organic, but a narrow
+`64px` blocker belt can still contain a long saturated core, while a masked tree-wall intersection
+can contain no thresholded pixel in an otherwise evaluable slice. The revised bake therefore adds
+one deterministic row-topology stage after raw per-intersection contributions are calculated and
+before owner-priority tone composition. The existing integer luma, clipped box means, `q40`/`q80`,
+smoothstep, `15px` edge envelope, class detail caps, masks, bounds, and coverage matrix remain exact.
+
+Each eligible contribution retains its literal blocker-row ID, insert ID, owning source ID, owner
+priority, world index, raw final weight, organic signal, edge weight, and owner-relative tone. The
+complete immutable collection is the raw contribution matrix. Row shaping may adjust only the
+contribution weight. It cannot invent a tone, sample outside an insert intersection, change alpha,
+widen a mask, or touch a protected pixel.
+
+#### Sparse hedge and forest-bank shaping
+
+For a `hedge` or `forest-bank` row, aggregate the raw contribution weights by world pixel using the
+existing `max` rule. Build a saturated-core mask from aggregate weights `>=254`. Repeatedly apply the
+existing 8-neighbour erosion, constrained to the row's eligible pixels, and recompute the exact
+clump-run metrics. Stop at the smallest erosion count from `0` through the existing edge-envelope
+depth `15` for which p95 is `<=0.30` and the maximum is `<=0.50`. For every original saturated-core
+pixel excluded by that retained core, cap each matching sparse contribution whose raw weight is
+`>=254` at `191`; every contribution below `254` remains unchanged. The `191` cap is an observable
+reduction below three-quarter alpha, not a one-step threshold dodge, while preserving medium-weight
+source texture and the unchanged `finalWeight>=32` coverage calculation. Failure to pass within 15
+erosions is a hard source/compositor failure.
+
+If two saturated matching contributions cover a demoted world pixel, both are capped so a
+lower-priority source cannot refill the removed core. Sparse cap requests are derived independently
+from the immutable raw contribution matrix, unioned per contribution with `min(rawWeight, 191)`, and
+applied once. Applying the same cap more than once is idempotent. The row result records the raw and
+shaped weight hashes, erosion count, original/retained core counts, and demoted-pixel count.
+
+#### Tree-wall continuity and coverage shaping
+
+For a `tree-wall` row, first derive evaluable slices exactly as before. A promotion-capable
+contribution must belong to that literal row and already have `edgeWeight>=32`; this preserves the
+existing zero/low-weight edge envelope and guarantees that promotion never exceeds the envelope.
+For each evaluable slice without raw weight `>=32`, select one promotion-capable contribution by the
+following descending tuple: raw final weight, organic signal, edge weight, owner priority; break
+remaining ties by insert ID and then world index in ascending order. A higher numeric owner priority
+is later in the sealed assembly and therefore wins that tuple. Promote only that selected
+contribution to weight `32`.
+
+After accounting for those missing-slice requests, compute the row's projected coverage over unique
+world pixels. If it remains below `25%`, choose one winning promotion-capable contribution for each
+remaining currently-unweighted eligible world pixel using the same tuple, sort those unique-pixel
+winners by that tuple, and promote the minimum number of distinct world pixels needed to reach
+`ceil(0.25 * eligiblePixelCount)`. Rows whose projected post-repair coverage is already at or above
+`25%` receive no coverage-fill requests. A missing-slice repair still runs when raw coverage was
+already above the lower bound. A promotion is exactly `max(rawWeight, 32)` and never changes an
+already-higher weight. If the row lacks enough promotion-capable distinct world pixels to reach the
+lower bound, the bake fails.
+
+This is a subtle continuity floor, not a solid replacement strip: promoted pixels use existing
+source-derived tones, add at most the threshold weight, and are chosen from the strongest available
+organic contributions. The shaped row must still satisfy `weightedSliceCount ===
+evaluableSliceCount`, contain more than one contour pair, keep the longest constant contour ratio at
+`<=0.50`, and stay within the common `25%`–`70%` coverage range. If an evaluable slice has no eligible
+source contribution, or the shaped contour remains uniform, the bake fails instead of fabricating a
+pixel or weakening the gate.
+
+Every tree-wall row derives its requests from the same immutable raw contribution matrix; one row's
+projected or applied result never feeds another row's selection. Requests are unioned per
+contribution with `max(rawWeight, 32)` and applied once, after which all six tree-wall metrics are
+recomputed from the single shaped matrix. This makes overlapping tree-wall rows order-independent
+and idempotent. The sealed sparse and tree-wall blocker rows share no eligible world pixel; contract
+validation asserts that fact before shaping so cap and promotion requests cannot conflict if the
+table drifts. If any final shaped row fails coverage, slice, or contour limits, the bake fails rather
+than iterating or feeding one row's output back into another.
+
+Final shaped contributions enter the existing insert/owner priority-stack composition unchanged.
+Published row metrics are computed from shaped weights, while the raw metrics, request inventories,
+and raw/shaped hashes remain in provenance for audit.
+
+#### Rejected-gate audit and normalization consequence
+
+The rejected candidate's exact row audit is binding regression input:
+
+| Row group | Failure |
+| --- | --- |
+| Coast and Mistfen hedges | p95 `0.46875` / `0.53125`; maxima `0.53125` |
+| Both Wildwood forest banks | p95 `0.484375` / `0.4375`; maxima `0.53125` |
+| Silverpine A-east, A-west, B-north, C-east, C-west | weighted slices below evaluable slices |
+| Silverpine C-east additionally | coverage `0.05550621669626998`, below `0.25` |
+| Silverpine B-south | passes and must remain a no-op topology-shaping example |
+
+The current `camera-underlay-crossroads-north-blocked-hedge` (`2.064516129032258x`) and
+`camera-underlay-crossroads-south-blocked-woodland` (`2.04211869814933x`) normalized candidates are
+rejected independently of their visual quality.
+After the topology stage is GREEN, preserved source bytes are evaluated once. Only those two scale
+failures, plus any source that still fails native review after shaping, may consume another bounded
+generation attempt. A raw insert is normalizable only when both dimensions permit the canonical
+`3200x1664` cover transform at `<=2x`—at least `1600px` wide and `832px` high. Attempts continue from
+their recorded attempt number and still stop at five; no history is reset.
 
 `enrichMeadowEntryPaintedV2Sources` returns those thresholds, intersection weight-raster hashes,
 formula identifiers, changed-pixel counts, class counts, enriched-source hashes, and a discriminated
@@ -790,6 +898,22 @@ Tests must establish genuine RED before production changes and then cover:
   tree-wall envelope-threshold evaluability, explicit mask-caused non-evaluable slices, complete
   weighting of every evaluable slice, and non-uniform nullable contour-profile limits, alpha preservation,
   deterministic repeated output, and byte non-mutation outside `sceneryAllowed`;
+- a sparse-row RED fixture whose raw saturated belt exceeds both run limits, exact smallest-count
+  8-neighbour erosion, cap `191` on removed core contributions, unchanged sub-`254` weights,
+  unchanged `>=32` coverage, overlap refill prevention, immutable-matrix request union,
+  idempotence, and hard failure if 15 erosions cannot pass;
+- a tree-wall RED fixture with both missing evaluable slices and sub-`25%` coverage, exact stable
+  contribution ranking including later numeric owner priority, `edgeWeight>=32` capability,
+  unique-world-pixel counting, minimum promotion counts, promotion weight exactly `32`,
+  immutable-matrix request union across overlapping rows, no-op behavior for passing
+  `silverpine-wall-B-south`, complete shaped-slice coverage, non-uniform contour validation, and hard
+  failure when an evaluable slice has no capable contribution or too few capable pixels remain for
+  the coverage floor;
+- raw and shaped row hashes plus sparse erosion/demotion and tree continuity/coverage-promotion
+  provenance, including an exact regression over the rejected ten-row metric inventory proving all
+  nine failures close without changing masks, bounds, thresholds, tones, or protected pixels;
+- hard pre-normalization rejection when either raw insert dimension would require a cover scale
+  above `2x`, including the rejected `2.064516129032258x` and `2.04211869814933x` transforms;
 - exact reuse of the existing canonical PNG, exported `rgbStep`, shared nearest-rank,
   `blendMeadowEntryAxisPairPixel`, `compositeMeadowEntryDetailPanel`,
   `compositeMeadowEntryDetailPanels`,
@@ -852,8 +976,10 @@ approval is inferred, and no Task 9 or PR3 work begins before that verdict.
 The currently published package remains the comparison baseline until the replacement package and
 runtime evidence pass every gate. Rejected candidates and screenshots are retained as evidence but
 are not published as approvals. The first approved interim candidate and its source-only correction
-are explicitly superseded because both exposed the literal blocker shape. Further source generation
-resumes only after the corrected organic-clump compositor gate is green. The eligibility masks,
+are explicitly superseded because both exposed the literal blocker shape. The five-insert
+corrected-bake candidate is also rejected: its visible bars are gone, but nine blocker rows and two
+normalization transforms remain noncompliant. Further source generation resumes only after the
+language-aware topology compositor gate is green. The eligibility masks,
 gameplay geometry, protected precedence, energy floors, and runtime tolerances are not weakened to
 make it pass.
 
@@ -861,6 +987,9 @@ Each of the eight revised presentation sources and seven blocked-scenery inserts
 bounded generation attempts, recorded independently so one stubborn input cannot consume or conceal
 another input's correction history. A failed ground panel is regenerated without changing its
 geometry. A repeated, flat, or regionally wrong forest surface regenerates only its owning insert.
+The rejected north-hedge and south-woodland scale transforms are regenerated after compositor GREEN
+even if their imagery otherwise passes. All other current insert bytes are reused when their shaped
+metrics and native review pass; rejection of the assembly does not justify cosmetic regeneration.
 If deterministic tests reveal pixels outside `sceneryAllowed`, the bake implementation is corrected
 and retested; art is not used to conceal a mask/compositor defect.
 
@@ -895,8 +1024,8 @@ The revision is ready to replace the current package only when:
    outside `sceneryAllowed`;
 3. the edge-feathered pair correction, production/review assembly parity, scenery bake, exact
    perimeter and boundary metrics, density floors, mask precedence, hedge/forest-bank clump gates,
-   tree-wall continuous-contour gates, and all unchanged assembly contracts pass deterministic
-   tests;
+   tree-wall continuous-contour gates, raw-to-shaped topology provenance, `<=2x` normalization, and
+   all unchanged assembly contracts pass deterministic tests;
 4. package generation, approval, storage, static, build, E2E, and two-texture probe gates pass with
    the runtime and gameplay contracts frozen;
 5. fresh normal and matched before/after browser views are visibly richer, both paired-detail
