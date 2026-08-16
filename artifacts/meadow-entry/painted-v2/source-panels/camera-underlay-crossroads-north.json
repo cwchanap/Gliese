@@ -101,8 +101,10 @@
 		"routeAndClearanceQuiet": true,
 		"humanRichness": true,
 		"approval": "approved-explicit-interim-gate",
-		"userAnswer": "Looks good",
-		"approvedAtUtc": "2026-08-15T04:39:01Z",
-		"approvalScope": "Task 3 interim forest presentation sources and deterministic blocked-scenery inserts only; no production publication or runtime permission"
+		"userAnswer": "yes",
+		"approvedAtUtc": "2026-08-16T09:38:56Z",
+		"approvalScope": "Task 3 interim forest presentation sources and deterministic blocked-scenery inserts only; no production publication or runtime permission",
+		"approvalCandidateSha256": "5fe200dd7da3893133113bd056d4892aac72659d3a182a69bcc3838f53eb43cc",
+		"approvalEvidenceManifestSha256": "90ebf112593b5cd2fcb9bdbde964420654fc58b59c670e5e4f03c5fbdafc2edc"
 	}
 }

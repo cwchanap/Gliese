@@ -20,35 +20,100 @@
 		"seed": null,
 		"seedUnavailable": true,
 		"byteReproducibleGeneration": false,
-		"prompt": "A full-bleed wide top-down painted hedge-underlay texture for a cool northern Crossroads meadow. Organic low hedge language only: layered blue-green leaf clusters, mossy grass banks, small pale flowers, low fern-like leaves and soft soil variation. Keep it low and ground-hugging, with no trunks, canopy, tall trees, buildings, paths, characters, props, symbols, text, straight hedge bars, repeated stamps, landmark silhouettes, or hard rectangular shapes.",
-		"promptSha256": "bc5a6b56e21e8868f3c8ea0d7036e8d9824ebae2c5bbe5b1225559292e7c2090",
-		"outputPath": "/Users/chanwaichan/.codex/generated_images/01a00371-f8b6-7372-bdd6-312a21945886/exec-f021f1ae-9f9f-4078-b8ab-c1118132d65c.png",
-		"outputSha256": "5be56b347924e2059ca6bd9703f87ec53161393e42b849ab6d6b50d1175216fa",
-		"attempt": 1,
-		"callOrder": 11,
-		"result": "accepted-approved-interim-gate",
+		"prompt": "Use case: stylized-concept\nAsset type: Meadow Entry blocked-scenery source insert, later normalized into a 3200x1664 opaque panel\nInput images: Image 1 is the current north Crossroads camera underlay art-only panel and is a palette/brushwork reference only; Image 2 is an accepted Crossroads regional art-only reference for color and hand-painted finish only\nScene/backdrop: full-bleed raster texture with no framing or layout\nSubject: low organic region-correct hedge and reeds/brush bank for a northern Crossroads meadow edge\nStyle/medium: hand-painted top-down JRPG environment texture with irregular natural brushwork, moderate distributed contrast, readable at original detail\nComposition/framing: landscape 2048x1152 or larger; every area is continuous organic surface; no narrow slice or boundary band\nLighting/mood: cool northern Crossroads daylight, calm natural variation\nColor palette: blue-green foliage, mossy greens, pale soil flecks, small restrained flowers\nMaterials/textures: low ground-hugging leaf clusters, short reeds, broken micro-clumps, soft soil variation\nConstraints: generate only the artwork; use references only for palette, brushwork, and regional lighting; no trunks, canopy mass, tall plants, long stems, path, building, landmark, label, text, repeated stamp, grid, straight bar, rectangular frame, hard border, UI, mask, overlay, route mark, or collision cue\nAvoid: any visible path or road, tree/trunk/canopy silhouette, rectangular edge, repeated tile, material band, diagram, text, watermark",
+		"promptSha256": "b73452d0f2a09f4e24a36d94f234c1b9ce54e94cfbd09f74a82f634a1f77c380",
+		"outputPath": "/Users/chanwaichan/.codex/generated_images/01a009a9-cd98-7590-97d0-6cb6fc626f12/exec-70319320-64c2-4917-a24c-bdd3646a62a6.png",
+		"outputSha256": "c065e8151910630c8d5c58e455acb6b8135fa190cf5d802a8596f22bc0dbf72e",
+		"attempt": 4,
+		"callOrder": 25,
+		"result": "raw-passed-native-and-scale-preflight",
+		"resultId": "exec-70319320-64c2-4917-a24c-bdd3646a62a6",
 		"rejected": false,
 		"attemptHistory": [
 			{
 				"attempt": 1,
 				"result": "accepted-approved-interim-gate",
 				"rawInspectedAtOriginalResolution": true
+			},
+			{
+				"attempt": 2,
+				"result": "unreviewed-fix-round-1",
+				"rawInspectedAtOriginalResolution": true,
+				"promptSha256": "9a49454c89e0001e5a4a262f7ed3ff787ba9fee75d0c01f38f53e58c982721c5",
+				"outputPath": "/Users/chanwaichan/.codex/generated_images/01a003e8-dac3-7700-9783-4795464f3c66/exec-a9f1a4ac-fdb4-49e9-b753-1983265ba4a4.png",
+				"outputSha256": "c8a698469ca06dc6da04e2e0953998869b9396cf4261f2575db7dd0114c568dd",
+				"nativeQa": "passed",
+				"references": [
+					{
+						"path": "/private/tmp/gliese-hpa586-task3-art-refs/current-camera-underlay-crossroads-north.png",
+						"role": "current art-only panel",
+						"sha256": "9f1e17e2bda64863797f03d40007a81a04884beab12fde02bf2646fc205c7069",
+						"bytes": 14760929
+					}
+				]
+			},
+			{
+				"attempt": 3,
+				"result": "fresh-corrected-source-candidate",
+				"rawInspectedAtOriginalResolution": true,
+				"promptSha256": "28adf693871a32c3ec3f082f78880d46fb6aba5a49ca86ce6ab907e3517d1e4e",
+				"outputPath": "/Users/chanwaichan/.codex/generated_images/01a0072d-2668-73d2-8211-de23c4cb4d18/exec-9945c9ec-60bb-4f35-bab5-e891f10213e6.png",
+				"outputSha256": "f97f87dd7c63e1a5dd18051a8a73a9f9d05b2e4e1ee47eab2d331f9b2c0f609a",
+				"nativeQa": "passed",
+				"references": [
+					{
+						"path": "/private/tmp/gliese-hpa586-task3-art-refs/current-camera-underlay-crossroads-north.png",
+						"sha256": "9f1e17e2bda64863797f03d40007a81a04884beab12fde02bf2646fc205c7069",
+						"bytes": 14760929,
+						"role": "current art-only panel"
+					},
+					{
+						"path": "/private/tmp/gliese-hpa586-task3-art-refs/accepted-crossroads.png",
+						"sha256": "1534062581775261bfcfd8a26eb5de5a730adf658d9b6ef9abb65413bbe4ae34",
+						"bytes": 9127338,
+						"role": "accepted art-only regional reference"
+					}
+				]
+			},
+			{
+				"attempt": 4,
+				"result": "raw-passed-native-and-scale-preflight",
+				"rawInspectedAtOriginalResolution": true,
+				"nativeQa": "passed",
+				"promptSha256": "b73452d0f2a09f4e24a36d94f234c1b9ce54e94cfbd09f74a82f634a1f77c380",
+				"outputPath": "/Users/chanwaichan/.codex/generated_images/01a009a9-cd98-7590-97d0-6cb6fc626f12/exec-70319320-64c2-4917-a24c-bdd3646a62a6.png",
+				"outputSha256": "c065e8151910630c8d5c58e455acb6b8135fa190cf5d802a8596f22bc0dbf72e",
+				"resultId": "exec-70319320-64c2-4917-a24c-bdd3646a62a6",
+				"references": [
+					{
+						"path": "/private/tmp/gliese-hpa586-task3-art-refs/current-camera-underlay-crossroads-north.png",
+						"sha256": "9f1e17e2bda64863797f03d40007a81a04884beab12fde02bf2646fc205c7069",
+						"bytes": 14760929,
+						"role": "current art-only panel"
+					},
+					{
+						"path": "/private/tmp/gliese-hpa586-task3-art-refs/accepted-crossroads.png",
+						"sha256": "1534062581775261bfcfd8a26eb5de5a730adf658d9b6ef9abb65413bbe4ae34",
+						"bytes": 9127338,
+						"role": "accepted art-only regional reference"
+					}
+				]
 			}
 		]
 	},
 	"raw": {
 		"path": "artifacts/meadow-entry/painted-v2/source-inserts/raw/camera-underlay-crossroads-north-blocked-hedge.png",
-		"sha256": "5be56b347924e2059ca6bd9703f87ec53161393e42b849ab6d6b50d1175216fa",
-		"bytes": 3012731,
+		"sha256": "c065e8151910630c8d5c58e455acb6b8135fa190cf5d802a8596f22bc0dbf72e",
+		"bytes": 2815656,
 		"dimensions": {
-			"width": 1738,
-			"height": 905
+			"width": 1672,
+			"height": 941
 		}
 	},
 	"normalized": {
 		"path": "artifacts/meadow-entry/painted-v2/source-inserts/camera-underlay-crossroads-north-blocked-hedge.png",
-		"sha256": "77b19b1eddc7f9721f27f7a24c0f229f4792cd974d55bb2e9cde58d49c02979d",
-		"bytes": 14154314,
+		"sha256": "db7ea68cd440c6f44318e0b93aa11f531f866056dd0d5722a539ecae405dd67f",
+		"bytes": 13822115,
 		"dimensions": {
 			"width": 3200,
 			"height": 1664
@@ -61,22 +126,22 @@
 	},
 	"normalizationTransform": {
 		"native": {
-			"width": 1738,
-			"height": 905
+			"width": 1672,
+			"height": 941
 		},
 		"resize": {
 			"width": 3200,
-			"height": 1667
+			"height": 1801
 		},
 		"crop": {
 			"left": 0,
-			"top": 1,
+			"top": 68,
 			"width": 3200,
 			"height": 1664
 		},
-		"scale": 1.8411967779056386,
-		"scaleX": 1.8411967779056386,
-		"scaleY": 1.8411967779056386,
+		"scale": 1.9138755980861244,
+		"scaleX": 1.9138755980861244,
+		"scaleY": 1.9138755980861244,
 		"uniform": true,
 		"scaleExceedsTwoX": false,
 		"operation": "cover-scale-crop-to-fixed-panel",
@@ -85,9 +150,15 @@
 	"references": [
 		{
 			"path": "/private/tmp/gliese-hpa586-task3-art-refs/current-camera-underlay-crossroads-north.png",
-			"role": "current art-only panel",
 			"sha256": "9f1e17e2bda64863797f03d40007a81a04884beab12fde02bf2646fc205c7069",
-			"bytes": 14760929
+			"bytes": 14760929,
+			"role": "current art-only panel"
+		},
+		{
+			"path": "/private/tmp/gliese-hpa586-task3-art-refs/accepted-crossroads.png",
+			"sha256": "1534062581775261bfcfd8a26eb5de5a730adf658d9b6ef9abb65413bbe4ae34",
+			"bytes": 9127338,
+			"role": "accepted art-only regional reference"
 		}
 	],
 	"review": {
@@ -97,9 +168,19 @@
 		"protectedOverlapPixels": 0,
 		"organicIrregularSurface": true,
 		"noTrunksOrCanopy": true,
+		"supersededApproval": {
+			"approval": "approved-explicit-interim-gate",
+			"userAnswer": "Looks good",
+			"approvedAtUtc": "2026-08-15T04:39:01Z",
+			"approvalScope": "Task 3 interim forest presentation sources and deterministic blocked-scenery inserts only; no production publication or runtime permission"
+		},
 		"approval": "approved-explicit-interim-gate",
-		"userAnswer": "Looks good",
-		"approvedAtUtc": "2026-08-15T04:39:01Z",
-		"approvalScope": "Task 3 interim forest presentation sources and deterministic blocked-scenery inserts only; no production publication or runtime permission"
+		"reviewedAtUtc": "2026-08-16T08:31:18.001Z",
+		"reviewScope": "Task 3 attempt-4 raw and normalized candidate QA; no user approval or production publication",
+		"userAnswer": "yes",
+		"approvedAtUtc": "2026-08-16T09:38:56Z",
+		"approvalScope": "Task 3 interim forest presentation sources and deterministic blocked-scenery inserts only; no production publication or runtime permission",
+		"approvalCandidateSha256": "5fe200dd7da3893133113bd056d4892aac72659d3a182a69bcc3838f53eb43cc",
+		"approvalEvidenceManifestSha256": "90ebf112593b5cd2fcb9bdbde964420654fc58b59c670e5e4f03c5fbdafc2edc"
 	}
 }

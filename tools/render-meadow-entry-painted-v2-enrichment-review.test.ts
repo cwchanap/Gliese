@@ -33,6 +33,42 @@ const INSERT_IDS = [
 	'camera-underlay-crossroads-south-blocked-woodland'
 ] as const;
 
+type SyntheticSourceManifest = Readonly<{
+	id: string;
+	normalizationTransform: Readonly<{
+		native: Readonly<{ width: number; height: number }>;
+		resize: Readonly<{ width: number; height: number }>;
+		crop: Readonly<{ left: number; top: number; width: number; height: number }>;
+		scale: number;
+		scaleX: number;
+		scaleY: number;
+	}>;
+}>;
+
+const northHedgeManifest: SyntheticSourceManifest = Object.freeze({
+	id: 'camera-underlay-crossroads-north-blocked-hedge',
+	normalizationTransform: Object.freeze({
+		native: Object.freeze({ width: 1550, height: 1014 }),
+		resize: Object.freeze({ width: 3200, height: 2094 }),
+		crop: Object.freeze({ left: 0, top: 215, width: 3200, height: 1664 }),
+		scale: 2.064516129032258,
+		scaleX: 2.064516129032258,
+		scaleY: 2.064516129032258
+	})
+});
+
+const southWoodlandManifest: SyntheticSourceManifest = Object.freeze({
+	id: 'camera-underlay-crossroads-south-blocked-woodland',
+	normalizationTransform: Object.freeze({
+		native: Object.freeze({ width: 1567, height: 1004 }),
+		resize: Object.freeze({ width: 3200, height: 2051 }),
+		crop: Object.freeze({ left: 0, top: 193, width: 3200, height: 1664 }),
+		scale: 2.04211869814933,
+		scaleX: 2.04211869814933,
+		scaleY: 2.04211869814933
+	})
+});
+
 const EXPECTED_CANDIDATE_INVENTORY = [
 	'decoration-candidate.json',
 	'evidence-manifest.json',
@@ -90,6 +126,20 @@ function stableJson(value: unknown): string {
 function stableHash(value: unknown): string {
 	return createHash('sha256').update(stableJson(value)).digest('hex');
 }
+
+test('candidate source review rejects the two recorded invalid-scale attempt-3 manifests', async () => {
+	const review = (await import('./render-meadow-entry-painted-v2-enrichment-review')) as {
+		assertReviewSourceTransform?: (manifest: SyntheticSourceManifest) => void;
+	};
+	assert.throws(
+		() => review.assertReviewSourceTransform?.(northHedgeManifest),
+		/camera-underlay-crossroads-north-blocked-hedge.*2\.064516129032258/
+	);
+	assert.throws(
+		() => review.assertReviewSourceTransform?.(southWoodlandManifest),
+		/camera-underlay-crossroads-south-blocked-woodland.*2\.04211869814933/
+	);
+});
 
 function recursiveFiles(root: string): string[] {
 	const entries = readdirSync(root, { withFileTypes: true });
@@ -224,6 +274,21 @@ test(
 			};
 			assert.equal(payload.blockedSceneryBake.intersections.length, 16);
 			assert.equal(payload.blockedSceneryBake.rows.length, 10);
+			assert.deepEqual(
+				payload.blockedSceneryBake.rows.map(({ blockerId }) => blockerId).sort(),
+				[
+					'coast-crossroads-mouth-bank',
+					'mistfen-entry-bank-east',
+					'silverpine-wall-A-east',
+					'silverpine-wall-A-west',
+					'silverpine-wall-B-north',
+					'silverpine-wall-B-south',
+					'silverpine-wall-C-east',
+					'silverpine-wall-C-west',
+					'wildwood-forest-lane-west-bank',
+					'wildwood-north-climb-west-bank'
+				].sort()
+			);
 			assert.equal(payload.blockedSceneryBake.changedPixelCount > 0, true);
 			assert.deepEqual(Object.keys(payload.blockedSceneryBake.classChangedPixelCounts).sort(), [
 				'hedge',
@@ -281,11 +346,17 @@ test(
 					)
 				);
 				if (row.metricKind === 'clump-runs') {
+					assert.equal(row.topology.kind, 'sparse-core-cap');
+					assert.equal(Number.isInteger(row.topology.erosionCount), true);
 					assert.equal(Number.isFinite(row.longestRunP95Ratio), true);
 					assert.equal(Number.isFinite(row.longestRunMaximumRatio), true);
 					assert.equal((row.longestRunP95Ratio ?? -1) >= 0, true);
 					assert.equal((row.longestRunMaximumRatio ?? -1) >= 0, true);
 				} else {
+					assert.equal(row.topology.kind, 'tree-continuity-floor');
+					assert.equal(Number.isInteger(row.topology.missingSlicePromotionCount), true);
+					assert.equal(Number.isInteger(row.topology.coveragePromotionCount), true);
+					assert.equal(Number.isInteger(row.topology.promotedWorldPixelCount), true);
 					assert.equal(Number.isFinite(row.longestConstantContourRunRatio), true);
 					assert.equal((row.longestConstantContourRunRatio ?? -1) >= 0, true);
 					assert.match(row.contourProfileSha256 ?? '', /^[a-f0-9]{64}$/);

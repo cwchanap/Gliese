@@ -165,6 +165,43 @@ function assert(condition: unknown, message: string): asserts condition {
 	if (!condition) throw new Error(message);
 }
 
+export function assertReviewSourceTransform(manifest: unknown): void {
+	assert(
+		manifest !== null && typeof manifest === 'object',
+		'Scenery insert provenance is not an object'
+	);
+	const source = manifest as {
+		id?: unknown;
+		normalizationTransform?: {
+			native?: { width?: unknown; height?: unknown };
+			scale?: unknown;
+		};
+	};
+	const id = typeof source.id === 'string' ? source.id : 'unknown-scenery-insert';
+	const native = source.normalizationTransform?.native;
+	const rawWidth = native?.width;
+	const rawHeight = native?.height;
+	assert(
+		typeof rawWidth === 'number' &&
+			typeof rawHeight === 'number' &&
+			Number.isInteger(rawWidth) &&
+			Number.isInteger(rawHeight) &&
+			rawWidth > 0 &&
+			rawHeight > 0,
+		`${id} normalization preflight has invalid native dimensions`
+	);
+	const coverScale = Math.max(3200 / rawWidth, 1664 / rawHeight);
+	assert(
+		coverScale <= 2,
+		`${id} normalization preflight coverScale=${coverScale} exceeds the <=2x limit`
+	);
+	const recordedScale = source.normalizationTransform?.scale;
+	assert(
+		recordedScale === coverScale,
+		`${id} normalization preflight recorded scale=${String(recordedScale)} does not equal coverScale=${coverScale}`
+	);
+}
+
 function stableJson(value: unknown): Buffer {
 	return Buffer.from(`${JSON.stringify(value, null, 2)}\n`);
 }
@@ -620,6 +657,7 @@ async function readSceneryInserts(
 			await readFile(provenancePath),
 			`Scenery insert provenance ${expected.id}`
 		);
+		assertReviewSourceTransform(metadata);
 		assert(metadata.id === expected.id, `Scenery insert provenance id drifted: ${expected.id}`);
 		assert(
 			metadata.sceneryClass === expected.sceneryClass,

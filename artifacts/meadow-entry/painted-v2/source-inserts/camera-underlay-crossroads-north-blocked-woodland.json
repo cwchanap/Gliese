@@ -20,35 +20,75 @@
 		"seed": null,
 		"seedUnavailable": true,
 		"byteReproducibleGeneration": false,
-		"prompt": "A full-bleed wide top-down painted woodland-underlay texture for a northern Silverpine forest bank. Show at least two depth cues: layered dark understory pockets plus overlapping blue-green conifer bough tips and needle clusters, with moss, pale ground flecks and irregular leaf litter beneath. Organic forest depth, cool conifer character, no literal mask shape. No buildings, paths, landmarks, characters, props, symbols, text, straight bars, repeated tree stamps, or hard rectangular shapes.",
-		"promptSha256": "e40560ef3c04c2e978fdb288627c7b7dc668c29fda7b049c4749311763227be4",
-		"outputPath": "/Users/chanwaichan/.codex/generated_images/01a00371-f8b6-7372-bdd6-312a21945886/exec-23dcfcf7-c988-494a-a4f5-c2c4e2a5afca.png",
-		"outputSha256": "33183e2bdf04b1f2835844b98b2e47ffa92ccbc8d0e4538b410dcf3973ef523e",
-		"attempt": 1,
-		"callOrder": 13,
-		"result": "accepted-approved-interim-gate",
+		"prompt": "Generate a single clean full-bleed painted raster source for the Meadow Entry Silverpine north camera blocked-woodland enrichment. Use the attached art only as palette, brushwork, and regional lighting reference. Depict a low woodland-floor and forest-bank interior with Silverpine conifer character: short broken needle clusters, small fern and leaf clumps, moss flecks, pale ground detail, cool shadow pockets, and at least two clear depth cues from color variation and cluster scale/soft shadow. Keep every feature irregular and naturally interleaved, with moderate distributed contrast and no narrow boundary band. No visible frame. Do not show trees, trunks, canopy masses, long boughs, long stems, paths, buildings, characters, props, labels, text, symbols, UI, masks, overlays, route marks, repeated stamps, grid, straight bars, or rectangular edge shapes. Output only the artwork.",
+		"promptSha256": "19634ba26f308678e802b2855f30fd06d4221e7fd3b7f0530c4ec13f67744efc",
+		"outputPath": "/Users/chanwaichan/.codex/generated_images/01a0072d-2668-73d2-8211-de23c4cb4d18/exec-c545d554-a8e7-4d4c-a0a9-380e48a5688a.png",
+		"outputSha256": "0868ec84cb7c4adda0df2b2534612655845fd7ae41f7fe4963dc4c40647599bc",
+		"attempt": 3,
+		"callOrder": 23,
+		"result": "fresh-corrected-source-candidate",
 		"rejected": false,
 		"attemptHistory": [
 			{
 				"attempt": 1,
 				"result": "accepted-approved-interim-gate",
 				"rawInspectedAtOriginalResolution": true
+			},
+			{
+				"attempt": 2,
+				"result": "unreviewed-fix-round-1",
+				"rawInspectedAtOriginalResolution": true,
+				"promptSha256": "fd08062b2d1f660b3b9f97bcfc34db377968c076045f74b6f42656f35fae8a8b",
+				"outputPath": "/Users/chanwaichan/.codex/generated_images/01a003e8-dac3-7700-9783-4795464f3c66/exec-f5a68710-bf15-49e8-a718-9eb3ecc08743.png",
+				"outputSha256": "8febcfc6f94e03849095edbfaf6d0de5ff528d9608e5067540009404f5440c74",
+				"nativeQa": "passed",
+				"references": [
+					{
+						"path": "/private/tmp/gliese-hpa586-task3-art-refs/current-camera-underlay-crossroads-north.png",
+						"role": "current art-only panel",
+						"sha256": "9f1e17e2bda64863797f03d40007a81a04884beab12fde02bf2646fc205c7069",
+						"bytes": 14760929
+					}
+				]
+			},
+			{
+				"attempt": 3,
+				"result": "fresh-corrected-source-candidate",
+				"rawInspectedAtOriginalResolution": true,
+				"promptSha256": "19634ba26f308678e802b2855f30fd06d4221e7fd3b7f0530c4ec13f67744efc",
+				"outputPath": "/Users/chanwaichan/.codex/generated_images/01a0072d-2668-73d2-8211-de23c4cb4d18/exec-c545d554-a8e7-4d4c-a0a9-380e48a5688a.png",
+				"outputSha256": "0868ec84cb7c4adda0df2b2534612655845fd7ae41f7fe4963dc4c40647599bc",
+				"nativeQa": "passed",
+				"references": [
+					{
+						"path": "/private/tmp/gliese-hpa586-task3-art-refs/current-camera-underlay-crossroads-north.png",
+						"sha256": "9f1e17e2bda64863797f03d40007a81a04884beab12fde02bf2646fc205c7069",
+						"bytes": 14760929,
+						"role": "current art-only panel"
+					},
+					{
+						"path": "/private/tmp/gliese-hpa586-task3-art-refs/accepted-crossroads.png",
+						"sha256": "1534062581775261bfcfd8a26eb5de5a730adf658d9b6ef9abb65413bbe4ae34",
+						"bytes": 9127338,
+						"role": "accepted art-only regional reference"
+					}
+				]
 			}
 		]
 	},
 	"raw": {
 		"path": "artifacts/meadow-entry/painted-v2/source-inserts/raw/camera-underlay-crossroads-north-blocked-woodland.png",
-		"sha256": "33183e2bdf04b1f2835844b98b2e47ffa92ccbc8d0e4538b410dcf3973ef523e",
-		"bytes": 3025772,
+		"sha256": "0868ec84cb7c4adda0df2b2534612655845fd7ae41f7fe4963dc4c40647599bc",
+		"bytes": 2720127,
 		"dimensions": {
-			"width": 1739,
-			"height": 904
+			"width": 1738,
+			"height": 905
 		}
 	},
 	"normalized": {
 		"path": "artifacts/meadow-entry/painted-v2/source-inserts/camera-underlay-crossroads-north-blocked-woodland.png",
-		"sha256": "1a2d983e7d35b4d5b66439cdb017e1fe8a1254bb95f8350c1a92a31ed0caf5c0",
-		"bytes": 14268474,
+		"sha256": "1eed6fa1f950624f17739e5bb023f7a70321397634796d2019061bcac70dbd63",
+		"bytes": 13698857,
 		"dimensions": {
 			"width": 3200,
 			"height": 1664
@@ -61,22 +101,22 @@
 	},
 	"normalizationTransform": {
 		"native": {
-			"width": 1739,
-			"height": 904
+			"width": 1738,
+			"height": 905
 		},
 		"resize": {
-			"width": 3201,
-			"height": 1664
+			"width": 3200,
+			"height": 1667
 		},
 		"crop": {
 			"left": 0,
-			"top": 0,
+			"top": 1,
 			"width": 3200,
 			"height": 1664
 		},
-		"scale": 1.8407079646017699,
-		"scaleX": 1.8407079646017699,
-		"scaleY": 1.8407079646017699,
+		"scale": 1.8411967779056386,
+		"scaleX": 1.8411967779056386,
+		"scaleY": 1.8411967779056386,
 		"uniform": true,
 		"scaleExceedsTwoX": false,
 		"operation": "cover-scale-crop-to-fixed-panel",
@@ -85,9 +125,15 @@
 	"references": [
 		{
 			"path": "/private/tmp/gliese-hpa586-task3-art-refs/current-camera-underlay-crossroads-north.png",
-			"role": "current art-only panel",
 			"sha256": "9f1e17e2bda64863797f03d40007a81a04884beab12fde02bf2646fc205c7069",
-			"bytes": 14760929
+			"bytes": 14760929,
+			"role": "current art-only panel"
+		},
+		{
+			"path": "/private/tmp/gliese-hpa586-task3-art-refs/accepted-crossroads.png",
+			"sha256": "1534062581775261bfcfd8a26eb5de5a730adf658d9b6ef9abb65413bbe4ae34",
+			"bytes": 9127338,
+			"role": "accepted art-only regional reference"
 		}
 	],
 	"review": {
@@ -95,12 +141,25 @@
 		"gridLikeUpperBand": false,
 		"visibleInsertRectangle": false,
 		"protectedOverlapPixels": 0,
-		"depthCues": ["dark understory pockets", "overlapping blue-green conifer bough tips"],
+		"depthCues": [
+			"short broken conifer needle clusters",
+			"fern and leaf scale variation with cool shadow pockets"
+		],
 		"regionalCharacter": "Silverpine conifer north",
 		"noLiteralMaskShape": true,
+		"supersededApproval": {
+			"approval": "approved-explicit-interim-gate",
+			"userAnswer": "Looks good",
+			"approvedAtUtc": "2026-08-15T04:39:01Z",
+			"approvalScope": "Task 3 interim forest presentation sources and deterministic blocked-scenery inserts only; no production publication or runtime permission"
+		},
 		"approval": "approved-explicit-interim-gate",
-		"userAnswer": "Looks good",
-		"approvedAtUtc": "2026-08-15T04:39:01Z",
-		"approvalScope": "Task 3 interim forest presentation sources and deterministic blocked-scenery inserts only; no production publication or runtime permission"
+		"reviewedAtUtc": "2026-08-15T21:10:34.307Z",
+		"reviewScope": "Task 3 corrected source QA only; no user approval or production publication",
+		"userAnswer": "yes",
+		"approvedAtUtc": "2026-08-16T09:38:56Z",
+		"approvalScope": "Task 3 interim forest presentation sources and deterministic blocked-scenery inserts only; no production publication or runtime permission",
+		"approvalCandidateSha256": "5fe200dd7da3893133113bd056d4892aac72659d3a182a69bcc3838f53eb43cc",
+		"approvalEvidenceManifestSha256": "90ebf112593b5cd2fcb9bdbde964420654fc58b59c670e5e4f03c5fbdafc2edc"
 	}
 }
