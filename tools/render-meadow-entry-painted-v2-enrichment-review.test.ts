@@ -52,6 +52,47 @@ const TASK4_POST_BINDING_CANDIDATE_SHA256 =
 const TASK4_EVIDENCE_MANIFEST_SHA256 =
 	'cd905da7d47c938622df80d7d637ce41078918b37143043b7e9c97bf8df4c6f2';
 const TASK4_APPROVED_AT_UTC = '2026-08-16T16:41:54Z';
+const TASK4_SUPERSEDED_AT_UTC = '2026-08-16T19:14:07Z';
+const TASK4_FRESH_CANDIDATE_SHA256 =
+	'be25559c9095c91b92ef6550973b7ce15824d2161fabb8da91f0f72f374ae8f5';
+const TASK4_FRESH_EVIDENCE_MANIFEST_SHA256 =
+	'23a39e8de5c50669014a6f7954a486acb83ae9b62ccb10bf8b7673f67b785e1a';
+const TASK4_FRESH_EVIDENCE_FILE_COUNT = 104;
+const TASK4_ROUND3_CANDIDATE_SHA256 =
+	'bdae53182c62d696068e4acf499a0ac3d2a34bfb4e9a2c84f9072a7a97099cd5';
+const TASK4_ROUND3_EVIDENCE_MANIFEST_SHA256 =
+	'7731e46389146044381c3b096492bcd1a12ac14705a58d21a6000fda8421ec3a';
+const TASK4_ROUND3_EVIDENCE_FILE_COUNT = 104;
+const TASK4_ROUND3_APPROVED_AT_UTC = '2026-08-16T21:37:44Z';
+const TASK4_ROUND3_POST_BINDING_CANDIDATE_SHA256 =
+	'25a00102257f1bd96ca2d84c514e9e110d905bd0f4685cd9dcc9714b4d67ca87';
+const TASK4_FRESH_PANEL_MANIFEST_SHA256 = {
+	'village-crossroads-connector':
+		'c0abf2f73c8567a75da8f5adcf2e39fb301b2c8498aa94828402c041adf4199c',
+	crossroads: '80b34212d6477739ac60f548164c4156c710aa7b6dae43a82e24e36f8442dc20'
+} as const;
+const TASK4_ROUND3_PANEL_MANIFEST_HASHES = {
+	before: TASK4_FRESH_PANEL_MANIFEST_SHA256,
+	after: {
+		'village-crossroads-connector':
+			'c5ed075b783e7ea7f5defd26139fd45406accef4b25f899cce1dafe7c8c9f89d',
+		crossroads: 'ea1af0a60de861d4cc8430b1578e299f28705bf8dc86d1ad911513094c3a1431'
+	} as const
+} as const;
+const TASK4_ROUND3_PANEL_MANIFEST_HASH_DELTAS = [
+	{
+		id: 'village-crossroads-connector',
+		path: 'artifacts/meadow-entry/painted-v2/source-panels/village-crossroads-connector.json',
+		beforeSha256: TASK4_ROUND3_PANEL_MANIFEST_HASHES.before['village-crossroads-connector'],
+		afterSha256: TASK4_ROUND3_PANEL_MANIFEST_HASHES.after['village-crossroads-connector']
+	},
+	{
+		id: 'crossroads',
+		path: 'artifacts/meadow-entry/painted-v2/source-panels/crossroads.json',
+		beforeSha256: TASK4_ROUND3_PANEL_MANIFEST_HASHES.before.crossroads,
+		afterSha256: TASK4_ROUND3_PANEL_MANIFEST_HASHES.after.crossroads
+	}
+] as const;
 const TASK4_PANEL_MANIFEST_HASH_DELTAS = [
 	{
 		id: 'village-crossroads-connector',
@@ -136,6 +177,23 @@ const EXPECTED_CANDIDATE_INVENTORY = [
 	'detail-sundrop-center.png',
 	'detail-sundrop-east.png',
 	'detail-sundrop-sides-corners.png',
+	'panel-camera-underlay-sundrop-north-quadrants-center.png',
+	'panel-camera-underlay-sundrop-south-quadrants-center.png',
+	'panel-camera-underlay-crossroads-north-quadrants-center.png',
+	'panel-camera-underlay-crossroads-south-quadrants-center.png',
+	'panel-sundrop-north-quadrants-center.png',
+	'panel-sundrop-south-quadrants-center.png',
+	'panel-village-crossroads-connector-quadrants-center.png',
+	'panel-crossroads-quadrants-center.png',
+	'detail-connector-crossroads-intersection.png',
+	'detail-connector-crossroads-west.png',
+	'detail-connector-crossroads-middle.png',
+	'detail-connector-crossroads-east.png',
+	'detail-connector-crossroads-sides-corners.png',
+	'hero-house-edges.png',
+	'protected-live-atlas.png',
+	'region-material-overlay.png',
+	'route-centerline-overlay.png',
 	'hero-house-edge-north.png',
 	'hero-house-edge-east.png',
 	'hero-house-edge-south.png',
@@ -147,6 +205,68 @@ const EXPECTED_CANDIDATE_INVENTORY = [
 		(_, index) => `blocker-row-${(index + 1).toString().padStart(2, '0')}.png`
 	)
 ] as const;
+
+const FRESH_TASK4_EVIDENCE_INVENTORY = [
+	'panel-camera-underlay-sundrop-north-quadrants-center.png',
+	'panel-camera-underlay-sundrop-south-quadrants-center.png',
+	'panel-camera-underlay-crossroads-north-quadrants-center.png',
+	'panel-camera-underlay-crossroads-south-quadrants-center.png',
+	'panel-sundrop-north-quadrants-center.png',
+	'panel-sundrop-south-quadrants-center.png',
+	'panel-village-crossroads-connector-quadrants-center.png',
+	'panel-crossroads-quadrants-center.png',
+	'detail-connector-crossroads-intersection.png',
+	'detail-connector-crossroads-west.png',
+	'detail-connector-crossroads-middle.png',
+	'detail-connector-crossroads-east.png',
+	'detail-connector-crossroads-sides-corners.png',
+	'hero-house-edges.png',
+	'protected-live-atlas.png',
+	'region-material-overlay.png',
+	'route-centerline-overlay.png'
+] as const;
+
+test('fresh Task 4 source gate requires native Crossroads inserts and the complete static evidence inventory', async () => {
+	const repositoryRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
+	const insertFailures: string[] = [];
+	const rendererSource = readFileSync(
+		join(repositoryRoot, 'tools/render-meadow-entry-painted-v2-enrichment-review.ts'),
+		'utf8'
+	);
+	if (rendererSource.includes('.resize(targetWidth, targetHeight'))
+		insertFailures.push('renderer still performs a transient scenery-insert review resize');
+	for (const id of ['crossroads-blocked-hedge', 'crossroads-blocked-woodland']) {
+		const bytes = readFileSync(
+			join(repositoryRoot, `artifacts/meadow-entry/painted-v2/source-inserts/${id}.png`)
+		);
+		const metadata = await sharp(bytes).metadata();
+		if (metadata.width !== 1728 || metadata.height !== 1952)
+			insertFailures.push(
+				`${id} normalized dimensions are ${metadata.width ?? 'unknown'}x${metadata.height ?? 'unknown'}; expected 1728x1952`
+			);
+	}
+	const evidenceRoot = join(
+		repositoryRoot,
+		'docs/superpowers/reports/img/hpa-586-painted-v2-enrichment/forest-final-sources'
+	);
+	const missingEvidence = FRESH_TASK4_EVIDENCE_INVENTORY.filter(
+		(relativePath) => !existsSync(join(evidenceRoot, relativePath))
+	);
+	assert.deepEqual(
+		[...insertFailures, ...missingEvidence.map((path) => `missing evidence ${path}`)],
+		[],
+		'Fresh Task 4 source gate defects:\n' +
+			[...insertFailures, ...missingEvidence.map((path) => `missing evidence ${path}`)].join('\n')
+	);
+	const handoffMetadata = await sharp(
+		readFileSync(join(evidenceRoot, 'detail-connector-crossroads-intersection.png'))
+	).metadata();
+	assert.deepEqual(
+		{ width: handoffMetadata.width, height: handoffMetadata.height },
+		{ width: 512, height: 288 },
+		'Connector/Crossroads handoff must remain an exact native 512x288 crop'
+	);
+});
 
 function stableJson(value: unknown): string {
 	if (value === null || typeof value !== 'object') return JSON.stringify(value) ?? '';
@@ -398,7 +518,45 @@ test('Task 4 records the two-phase source-manifest identity contract', () => {
 				evidenceFileCount: number;
 				scope: string;
 			};
+			supersededApprovals: readonly {
+				status: string;
+				answer: string;
+				approvedAtUtc: string;
+				runtimePermission: boolean;
+				candidateSha256: string;
+				evidenceManifestSha256: string;
+				evidenceFileCount: number;
+				supersededAtUtc: string;
+			}[];
+			currentApproval: {
+				answer: string;
+				approvedAtUtc: string;
+				approvalCandidateSha256: string;
+				approvalEvidenceManifestSha256: string;
+				approvalEvidenceFileCount: number;
+				runtimePermission: boolean;
+			};
 			postBindingIdentity?: {
+				mode: string;
+				version: number;
+				identityMode: string;
+				identityVersion: number;
+				preBindingCandidateSha256: string;
+				postBindingCandidateSha256: string;
+				evidenceManifestSha256: string;
+				evidenceFileCount: number;
+				runtimePermission: boolean;
+				approvedAtUtc: string;
+				panelManifestHashDeltas: readonly (typeof TASK4_ROUND3_PANEL_MANIFEST_HASH_DELTAS)[number][];
+				reconstruction: {
+					method: string;
+					sourceHashKeys: readonly string[];
+					reconstructedCandidateSha256: string;
+					matchesApprovalCandidateSha256: boolean;
+					removedApprovalFields: readonly string[];
+				};
+			};
+			supersededPostBindingIdentity?: {
 				mode: string;
 				version: number;
 				preBindingCandidateSha256: string;
@@ -408,6 +566,42 @@ test('Task 4 records the two-phase source-manifest identity contract', () => {
 				runtimePermission: boolean;
 				panelManifestHashDeltas: readonly (typeof TASK4_PANEL_MANIFEST_HASH_DELTAS)[number][];
 			};
+			freshFixRound: {
+				fixRound: number;
+				startedAtUtc: string;
+				status: string;
+				canonicalCrossroadsInsertDimensions: { width: number; height: number };
+				coverScaleLimit: number;
+				freshImageGenerationCalls: number;
+				candidateSha256: string;
+				evidenceManifestSha256: string;
+				evidenceFileCount: number;
+				evidenceDirectory: string;
+			};
+			freshFixRound3: {
+				fixRound: number;
+				startedAtUtc: string;
+				status: string;
+				freshImageGenerationCalls: number;
+				candidateSha256: string;
+				currentCandidateSha256: string;
+				postBindingCandidateSha256: string;
+				approvedAtUtc: string;
+				approvalCandidateSha256: string;
+				approvalEvidenceManifestSha256: string;
+				approvalEvidenceFileCount: number;
+				currentEvidenceManifestSha256: string;
+				currentEvidenceFileCount: number;
+				evidenceDirectory: string;
+				nextGate: string;
+				callInventory: readonly { id: string; attempt: number; callOrder: number }[];
+				bSouthTopology: {
+					rawEqualsShaped: boolean;
+					missingSlicePromotionCount: number;
+					coveragePromotionCount: number;
+					promotedWorldPixelCount: number;
+				};
+			};
 		};
 	}>(join(repositoryRoot, 'artifacts/meadow-entry/painted-v2/provenance.json'));
 	const gate = provenance.task4PendingSourceGate;
@@ -416,11 +610,36 @@ test('Task 4 records the two-phase source-manifest identity contract', () => {
 	assert.equal(gate.runtimePublication, false);
 	assert.equal(gate.approval.status, 'APPROVED');
 	assert.equal(gate.approval.answer, 'yes');
-	assert.equal(gate.approval.approvedAtUtc, TASK4_APPROVED_AT_UTC);
+	assert.equal(gate.approval.approvedAtUtc, TASK4_ROUND3_APPROVED_AT_UTC);
 	assert.equal(gate.approval.runtimePermission, false);
-	assert.equal(gate.approval.candidateSha256, TASK4_APPROVAL_CANDIDATE_SHA256);
-	assert.equal(gate.approval.evidenceManifestSha256, TASK4_EVIDENCE_MANIFEST_SHA256);
-	assert.equal(gate.approval.evidenceFileCount, 87);
+	assert.equal(gate.approval.candidateSha256, TASK4_ROUND3_CANDIDATE_SHA256);
+	assert.equal(gate.approval.evidenceManifestSha256, TASK4_ROUND3_EVIDENCE_MANIFEST_SHA256);
+	assert.equal(gate.approval.evidenceFileCount, TASK4_ROUND3_EVIDENCE_FILE_COUNT);
+	assert.deepEqual(gate.currentApproval, {
+		answer: 'yes',
+		approvedAtUtc: TASK4_ROUND3_APPROVED_AT_UTC,
+		approvalCandidateSha256: TASK4_ROUND3_CANDIDATE_SHA256,
+		approvalEvidenceManifestSha256: TASK4_ROUND3_EVIDENCE_MANIFEST_SHA256,
+		approvalEvidenceFileCount: TASK4_ROUND3_EVIDENCE_FILE_COUNT,
+		runtimePermission: false
+	});
+	const supersededApproval = gate.supersededApprovals.find(
+		(entry) => entry.approvedAtUtc === TASK4_APPROVED_AT_UTC
+	);
+	assert.deepEqual(supersededApproval, {
+		status: 'SUPERSEDED_BY_REVIEW',
+		answer: 'yes',
+		approvedAtUtc: TASK4_APPROVED_AT_UTC,
+		runtimePermission: false,
+		candidateSha256: TASK4_APPROVAL_CANDIDATE_SHA256,
+		evidenceManifestSha256: TASK4_EVIDENCE_MANIFEST_SHA256,
+		evidenceFileCount: 87,
+		scope:
+			'Task 4 final-source forest enrichment only; no production publication, runtime permission, Task 5, probes, or master replacement',
+		supersededAtUtc: TASK4_SUPERSEDED_AT_UTC,
+		supersededReason:
+			'Independent Task 4 review found P1 defects: Crossroads inserts exceeded the new 1728x1952 cover-scale contract and the final static evidence inventory was incomplete.'
+	});
 
 	assert.deepEqual(gate.presentationSourceIds.slice(-2), [
 		'village-crossroads-connector',
@@ -437,23 +656,61 @@ test('Task 4 records the two-phase source-manifest identity contract', () => {
 			['crossroads', 1, 28, 'raw-passed-native-review'],
 			['crossroads-blocked-hedge', 1, 29, 'rejected-by-native-review'],
 			['crossroads-blocked-hedge', 2, 30, 'raw-passed-native-and-scale-preflight'],
-			['crossroads-blocked-woodland', 1, 31, 'raw-passed-native-and-scale-preflight']
+			['crossroads-blocked-woodland', 1, 31, 'raw-passed-native-and-scale-preflight'],
+			[
+				'crossroads-blocked-hedge',
+				3,
+				32,
+				'fresh-replacement-raw-passed-native-and-scale-preflight'
+			],
+			[
+				'crossroads-blocked-woodland',
+				2,
+				33,
+				'fresh-replacement-raw-passed-native-and-scale-preflight'
+			]
 		]
 	);
 
-	const evidencePath = join(repositoryRoot, gate.evidenceDirectory, 'evidence-manifest.json');
+	const freshFixRound3 = gate.freshFixRound3;
+	assert.equal(freshFixRound3.fixRound, 3);
+	assert.equal(freshFixRound3.startedAtUtc, '2026-08-16T20:28:22Z');
+	assert.equal(freshFixRound3.status, 'pending-fresh-final-source-gate');
+	assert.equal(freshFixRound3.freshImageGenerationCalls, 1);
+	assert.equal(freshFixRound3.currentCandidateSha256, TASK4_ROUND3_CANDIDATE_SHA256);
+	assert.equal(freshFixRound3.currentEvidenceManifestSha256, TASK4_ROUND3_EVIDENCE_MANIFEST_SHA256);
+	assert.equal(freshFixRound3.currentEvidenceFileCount, TASK4_ROUND3_EVIDENCE_FILE_COUNT);
+	assert.equal(freshFixRound3.evidenceDirectory, gate.evidenceDirectory);
+	assert.equal(freshFixRound3.nextGate, 'NEEDS_CONTEXT');
+	assert.deepEqual(
+		freshFixRound3.callInventory.map((call) => [call.id, call.attempt, call.callOrder]),
+		[
+			['crossroads-blocked-hedge', 4, 34],
+			['crossroads-blocked-woodland', 4, 36]
+		]
+	);
+	assert.equal(freshFixRound3.bSouthTopology.rawEqualsShaped, true);
+	assert.equal(freshFixRound3.bSouthTopology.missingSlicePromotionCount, 0);
+	assert.equal(freshFixRound3.bSouthTopology.coveragePromotionCount, 0);
+	assert.equal(freshFixRound3.bSouthTopology.promotedWorldPixelCount, 0);
+
+	const evidencePath = join(
+		repositoryRoot,
+		freshFixRound3.evidenceDirectory,
+		'evidence-manifest.json'
+	);
 	const evidenceBytes = readFileSync(evidencePath);
 	const evidenceManifest = JSON.parse(evidenceBytes.toString('utf8')) as {
 		files: Record<string, unknown>;
 	};
 	assert.equal(
 		createHash('sha256').update(evidenceBytes).digest('hex'),
-		TASK4_EVIDENCE_MANIFEST_SHA256
+		TASK4_ROUND3_EVIDENCE_MANIFEST_SHA256
 	);
-	assert.equal(Object.keys(evidenceManifest.files).length, 87);
+	assert.equal(Object.keys(evidenceManifest.files).length, TASK4_ROUND3_EVIDENCE_FILE_COUNT);
 
-	const identity = gate.postBindingIdentity;
-	assert.ok(identity, 'Task 4 must record post-binding identity metadata');
+	const identity = gate.supersededPostBindingIdentity;
+	assert.ok(identity, 'Task 4 must retain superseded post-binding identity metadata');
 	assert.equal(identity?.mode, 'two-phase-source-manifest-binding');
 	assert.equal(identity?.version, 1);
 	assert.equal(identity?.preBindingCandidateSha256, TASK4_APPROVAL_CANDIDATE_SHA256);
@@ -462,59 +719,158 @@ test('Task 4 records the two-phase source-manifest identity contract', () => {
 	assert.equal(identity?.evidenceFileCount, 87);
 	assert.equal(identity?.runtimePermission, false);
 	assert.deepEqual(identity?.panelManifestHashDeltas, TASK4_PANEL_MANIFEST_HASH_DELTAS);
+	const currentIdentity = gate.postBindingIdentity;
+	assert.ok(currentIdentity, 'Task 4 must record the current post-binding identity');
+	assert.equal(currentIdentity?.mode, 'two-phase-source-manifest-binding');
+	assert.equal(currentIdentity?.version, 1);
+	assert.equal(currentIdentity?.identityMode, 'two-phase-source-manifest-binding');
+	assert.equal(currentIdentity?.identityVersion, 1);
+	assert.equal(currentIdentity?.preBindingCandidateSha256, TASK4_ROUND3_CANDIDATE_SHA256);
+	assert.equal(
+		currentIdentity?.postBindingCandidateSha256,
+		TASK4_ROUND3_POST_BINDING_CANDIDATE_SHA256
+	);
+	assert.equal(currentIdentity?.evidenceManifestSha256, TASK4_ROUND3_EVIDENCE_MANIFEST_SHA256);
+	assert.equal(currentIdentity?.evidenceFileCount, TASK4_ROUND3_EVIDENCE_FILE_COUNT);
+	assert.equal(currentIdentity?.runtimePermission, false);
+	assert.equal(currentIdentity?.approvedAtUtc, TASK4_ROUND3_APPROVED_AT_UTC);
+	assert.deepEqual(
+		currentIdentity?.panelManifestHashDeltas,
+		TASK4_ROUND3_PANEL_MANIFEST_HASH_DELTAS
+	);
+	assert.equal(
+		currentIdentity?.reconstruction.reconstructedCandidateSha256,
+		TASK4_ROUND3_CANDIDATE_SHA256
+	);
+	assert.equal(currentIdentity?.reconstruction.matchesApprovalCandidateSha256, true);
+	assert.deepEqual(currentIdentity?.reconstruction.sourceHashKeys, [
+		'raster:artifacts/meadow-entry/painted-v2/source-panels/village-crossroads-connector.json',
+		'raster:artifacts/meadow-entry/painted-v2/source-panels/crossroads.json'
+	]);
+	assert.deepEqual(currentIdentity?.reconstruction.removedApprovalFields, [
+		'approval',
+		'userAnswer',
+		'approvedAtUtc',
+		'approvalScope',
+		'approvalCandidateSha256',
+		'approvalEvidenceManifestSha256',
+		'approvalEvidenceFileCount',
+		'runtimePermission'
+	]);
+	assert.equal(
+		freshFixRound3.postBindingCandidateSha256,
+		TASK4_ROUND3_POST_BINDING_CANDIDATE_SHA256
+	);
+	assert.equal(freshFixRound3.approvedAtUtc, TASK4_ROUND3_APPROVED_AT_UTC);
+	assert.equal(freshFixRound3.approvalCandidateSha256, TASK4_ROUND3_CANDIDATE_SHA256);
+	assert.equal(
+		freshFixRound3.approvalEvidenceManifestSha256,
+		TASK4_ROUND3_EVIDENCE_MANIFEST_SHA256
+	);
+	assert.equal(freshFixRound3.approvalEvidenceFileCount, TASK4_ROUND3_EVIDENCE_FILE_COUNT);
+	assert.equal(gate.freshFixRound.fixRound, 1);
+	assert.equal(gate.freshFixRound.startedAtUtc, TASK4_SUPERSEDED_AT_UTC);
+	assert.equal(gate.freshFixRound.status, 'pending-fresh-final-source-gate');
+	assert.deepEqual(gate.freshFixRound.canonicalCrossroadsInsertDimensions, {
+		width: 1728,
+		height: 1952
+	});
+	assert.equal(gate.freshFixRound.coverScaleLimit, 2);
+	assert.equal(gate.freshFixRound.freshImageGenerationCalls, 2);
+	assert.equal(gate.freshFixRound.candidateSha256, TASK4_FRESH_CANDIDATE_SHA256);
+	assert.equal(gate.freshFixRound.evidenceManifestSha256, TASK4_FRESH_EVIDENCE_MANIFEST_SHA256);
+	assert.equal(gate.freshFixRound.evidenceFileCount, TASK4_FRESH_EVIDENCE_FILE_COUNT);
+	assert.equal(gate.freshFixRound.evidenceDirectory, gate.evidenceDirectory);
 
-	for (const delta of TASK4_PANEL_MANIFEST_HASH_DELTAS) {
+	for (const delta of TASK4_ROUND3_PANEL_MANIFEST_HASH_DELTAS) {
 		const panelBytes = readFileSync(join(repositoryRoot, delta.path));
 		assert.equal(
 			createHash('sha256').update(panelBytes).digest('hex'),
 			delta.afterSha256,
-			`${delta.id} post-binding panel manifest hash must match its recorded delta`
+			`${delta.id} post-binding panel manifest hash must match current metadata`
 		);
 		const panel = JSON.parse(panelBytes.toString('utf8')) as {
 			nativeDetailReview?: Record<string, unknown>;
+			stage?: unknown;
 		};
+		assert.equal(panel.stage, 'pending-final-source-gate');
 		assert.equal(panel.nativeDetailReview?.approval, 'approved-explicit-final-source-gate');
+		assert.equal(panel.nativeDetailReview?.reviewStatus, 'approved-explicit-final-source-gate');
 		assert.equal(panel.nativeDetailReview?.userAnswer, 'yes');
-		assert.equal(panel.nativeDetailReview?.approvedAtUtc, TASK4_APPROVED_AT_UTC);
-		assert.equal(
-			panel.nativeDetailReview?.approvalCandidateSha256,
-			TASK4_APPROVAL_CANDIDATE_SHA256
-		);
+		assert.equal(panel.nativeDetailReview?.approvedAtUtc, TASK4_ROUND3_APPROVED_AT_UTC);
+		assert.equal(panel.nativeDetailReview?.approvalCandidateSha256, TASK4_ROUND3_CANDIDATE_SHA256);
 		assert.equal(
 			panel.nativeDetailReview?.approvalEvidenceManifestSha256,
+			TASK4_ROUND3_EVIDENCE_MANIFEST_SHA256
+		);
+		assert.equal(
+			panel.nativeDetailReview?.approvalEvidenceFileCount,
+			TASK4_ROUND3_EVIDENCE_FILE_COUNT
+		);
+		assert.equal(panel.nativeDetailReview?.runtimePermission, false);
+		const supersededApproval = panel.nativeDetailReview?.supersededApproval as
+			| Record<string, unknown>
+			| undefined;
+		assert.equal(supersededApproval?.userAnswer, 'yes');
+		assert.equal(supersededApproval?.approvedAtUtc, TASK4_APPROVED_AT_UTC);
+		assert.equal(supersededApproval?.approvalCandidateSha256, TASK4_APPROVAL_CANDIDATE_SHA256);
+		assert.equal(
+			supersededApproval?.approvalEvidenceManifestSha256,
 			TASK4_EVIDENCE_MANIFEST_SHA256
 		);
+		assert.equal(supersededApproval?.supersededAtUtc, TASK4_SUPERSEDED_AT_UTC);
 	}
 
 	for (const id of ['crossroads-blocked-hedge', 'crossroads-blocked-woodland']) {
-		const insert = readJson<{ review?: Record<string, unknown> }>(
+		const insert = readJson<{ review?: Record<string, unknown>; stage?: unknown }>(
 			join(repositoryRoot, `artifacts/meadow-entry/painted-v2/source-inserts/${id}.json`)
 		);
+		assert.equal(insert.stage, 'pending-final-source-gate');
 		assert.equal(insert.review?.approval, 'approved-explicit-final-source-gate');
+		assert.equal(insert.review?.reviewStatus, 'approved-explicit-final-source-gate');
 		assert.equal(insert.review?.userAnswer, 'yes');
-		assert.equal(insert.review?.approvedAtUtc, TASK4_APPROVED_AT_UTC);
-		assert.equal(insert.review?.approvalCandidateSha256, TASK4_APPROVAL_CANDIDATE_SHA256);
-		assert.equal(insert.review?.approvalEvidenceManifestSha256, TASK4_EVIDENCE_MANIFEST_SHA256);
+		assert.equal(insert.review?.approvedAtUtc, TASK4_ROUND3_APPROVED_AT_UTC);
+		assert.equal(insert.review?.approvalCandidateSha256, TASK4_ROUND3_CANDIDATE_SHA256);
+		assert.equal(
+			insert.review?.approvalEvidenceManifestSha256,
+			TASK4_ROUND3_EVIDENCE_MANIFEST_SHA256
+		);
+		assert.equal(insert.review?.approvalEvidenceFileCount, TASK4_ROUND3_EVIDENCE_FILE_COUNT);
+		assert.equal(insert.review?.runtimePermission, false);
+		const supersededApproval = insert.review?.supersededApproval as
+			| Record<string, unknown>
+			| undefined;
+		assert.equal(supersededApproval?.userAnswer, 'yes');
+		assert.equal(supersededApproval?.approvedAtUtc, TASK4_APPROVED_AT_UTC);
+		assert.equal(supersededApproval?.approvalCandidateSha256, TASK4_APPROVAL_CANDIDATE_SHA256);
+		assert.equal(
+			supersededApproval?.approvalEvidenceManifestSha256,
+			TASK4_EVIDENCE_MANIFEST_SHA256
+		);
+		assert.equal(supersededApproval?.supersededAtUtc, TASK4_SUPERSEDED_AT_UTC);
 	}
 
-	const candidatePath = join(repositoryRoot, gate.evidenceDirectory, 'decoration-candidate.json');
+	const candidatePath = join(
+		repositoryRoot,
+		freshFixRound3.evidenceDirectory,
+		'decoration-candidate.json'
+	);
 	const candidateBytes = readFileSync(candidatePath, 'utf8');
 	assert.equal(
 		createHash('sha256').update(candidateBytes).digest('hex'),
-		TASK4_POST_BINDING_CANDIDATE_SHA256
+		TASK4_ROUND3_POST_BINDING_CANDIDATE_SHA256
 	);
-	let reconstructedPreBindingCandidate = candidateBytes;
-	for (const delta of TASK4_PANEL_MANIFEST_HASH_DELTAS) {
-		const sourceHashKey = `raster:${delta.path}`;
-		reconstructedPreBindingCandidate = reconstructedPreBindingCandidate.replace(
-			`"${sourceHashKey}": "${delta.afterSha256}"`,
-			`"${sourceHashKey}": "${delta.beforeSha256}"`
-		);
+	const reconstructedCandidate = JSON.parse(candidateBytes) as {
+		controls: { sourceHashes: Record<string, string> };
+	};
+	for (const delta of TASK4_ROUND3_PANEL_MANIFEST_HASH_DELTAS) {
+		reconstructedCandidate.controls.sourceHashes[`raster:${delta.path}`] = delta.beforeSha256;
 	}
+	const reconstructedBytes = `${JSON.stringify(reconstructedCandidate, null, 2)}\n`;
 	assert.equal(
-		createHash('sha256').update(reconstructedPreBindingCandidate).digest('hex'),
-		gate.approval.candidateSha256,
-		'removing the two approval-bound panel hashes reconstructs the approved pre-binding candidate identity'
+		createHash('sha256').update(reconstructedBytes).digest('hex'),
+		TASK4_ROUND3_CANDIDATE_SHA256,
+		'removing only the current approval-driven panel source-hash deltas must reconstruct the approved pre-binding identity'
 	);
 });
 

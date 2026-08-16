@@ -1,9 +1,17 @@
 {
 	"version": 4,
 	"id": "village-crossroads-connector",
-	"bounds": { "left": 2592, "top": 4480, "right": 3392, "bottom": 4896 },
+	"bounds": {
+		"left": 2592,
+		"top": 4480,
+		"right": 3392,
+		"bottom": 4896
+	},
 	"assemblyPriority": 40,
-	"expectedDimensions": { "width": 800, "height": 416 },
+	"expectedDimensions": {
+		"width": 800,
+		"height": 416
+	},
 	"generation": {
 		"tool": "image_gen (built-in)",
 		"provider": "OpenAI",
@@ -17,7 +25,10 @@
 		"callOrder": 27,
 		"result": "raw-passed-native-review",
 		"rejected": false,
-		"nativeSizeRequested": { "width": 2048, "height": 1152 },
+		"nativeSizeRequested": {
+			"width": 2048,
+			"height": 1152
+		},
 		"nativeSizeRequestHonored": false,
 		"nativeDetailQualityAcceptedAt100Percent": true,
 		"attemptHistory": [
@@ -33,21 +44,41 @@
 		"path": "artifacts/meadow-entry/painted-v2/source-panels/raw/village-crossroads-connector.png",
 		"sha256": "e740964475f6e5a74d8cf3e83c68d645d08558b392d86ba1ddcc4a0b5ca9217c",
 		"bytes": 2684896,
-		"dimensions": { "width": 1740, "height": 904 }
+		"dimensions": {
+			"width": 1740,
+			"height": 904
+		}
 	},
 	"normalized": {
 		"path": "artifacts/meadow-entry/painted-v2/source-panels/village-crossroads-connector.png",
 		"sha256": "a610b473160a6289355bb8f36b8ef07104ec1b24546bc82a015d04d78dbb30b7",
 		"bytes": 942976,
-		"dimensions": { "width": 800, "height": 416 },
+		"dimensions": {
+			"width": 800,
+			"height": 416
+		},
 		"colourspace": "sRGB",
 		"channels": 4
 	},
 	"normalizationTransform": {
-		"native": { "width": 1740, "height": 904 },
-		"scaledRaster": { "width": 801, "height": 416 },
-		"scaledCrop": { "left": 0, "top": 0, "width": 800, "height": 416 },
-		"output": { "width": 800, "height": 416 },
+		"native": {
+			"width": 1740,
+			"height": 904
+		},
+		"scaledRaster": {
+			"width": 801,
+			"height": 416
+		},
+		"scaledCrop": {
+			"left": 0,
+			"top": 0,
+			"width": 800,
+			"height": 416
+		},
+		"output": {
+			"width": 800,
+			"height": 416
+		},
 		"scaleX": 0.46017699115044247,
 		"scaleY": 0.46017699115044247,
 		"scale": 0.46017699115044247,
@@ -64,14 +95,20 @@
 			"role": "accepted connector actual-art overlap reference",
 			"sha256": "6866f90802dfcd73d3828b41b237c8c1239ee130c9d8c8af3ac10d20c193e8b2",
 			"bytes": 888497,
-			"dimensions": { "width": 800, "height": 416 }
+			"dimensions": {
+				"width": 800,
+				"height": 416
+			}
 		},
 		{
 			"path": "/private/tmp/gliese-hpa586-task3-art-refs/accepted-crossroads.png",
 			"role": "accepted Crossroads actual-art overlap reference",
 			"sha256": "1534062581775261bfcfd8a26eb5de5a730adf658d9b6ef9abb65413bbe4ae34",
 			"bytes": 9127338,
-			"dimensions": { "width": 1728, "height": 1952 }
+			"dimensions": {
+				"width": 1728,
+				"height": 1952
+			}
 		}
 	],
 	"cleanup": {
@@ -85,12 +122,27 @@
 		"inspectedNormalizedAt100Percent": true,
 		"accepted": true,
 		"findings": "Continuous warm packed-earth route with low scrub and small ground detail; no structures, tall content, visible frame, hard grid, or false blocker observed at native detail. Crossroads handoff remains open for source-gate review.",
+		"supersededApproval": {
+			"approval": "approved-explicit-final-source-gate",
+			"userAnswer": "yes",
+			"approvedAtUtc": "2026-08-16T16:41:54Z",
+			"approvalScope": "Task 4 final-source forest enrichment only; no production publication, runtime permission, Task 5, probes, or master replacement",
+			"approvalCandidateSha256": "6d419b9f52213b70061588baf63e0ef2316f971981a9e66d30e2892ac119c6a4",
+			"approvalEvidenceManifestSha256": "cd905da7d47c938622df80d7d637ce41078918b37143043b7e9c97bf8df4c6f2",
+			"supersededAtUtc": "2026-08-16T19:14:07Z",
+			"supersededReason": "Independent Task 4 review found P1 defects: Crossroads inserts exceeded the new 1728x1952 cover-scale contract and the final static evidence inventory was incomplete."
+		},
 		"approval": "approved-explicit-final-source-gate",
+		"reviewStatus": "approved-explicit-final-source-gate",
+		"supersededAtUtc": "2026-08-16T19:14:07Z",
+		"supersededReason": "Independent Task 4 review found P1 defects: Crossroads inserts exceeded the new 1728x1952 cover-scale contract and the final static evidence inventory was incomplete.",
 		"userAnswer": "yes",
-		"approvedAtUtc": "2026-08-16T16:41:54Z",
+		"approvedAtUtc": "2026-08-16T21:37:44Z",
 		"approvalScope": "Task 4 final-source forest enrichment only; no production publication, runtime permission, Task 5, probes, or master replacement",
-		"approvalCandidateSha256": "6d419b9f52213b70061588baf63e0ef2316f971981a9e66d30e2892ac119c6a4",
-		"approvalEvidenceManifestSha256": "cd905da7d47c938622df80d7d637ce41078918b37143043b7e9c97bf8df4c6f2"
+		"approvalCandidateSha256": "bdae53182c62d696068e4acf499a0ac3d2a34bfb4e9a2c84f9072a7a97099cd5",
+		"approvalEvidenceManifestSha256": "7731e46389146044381c3b096492bcd1a12ac14705a58d21a6000fda8421ec3a",
+		"approvalEvidenceFileCount": 104,
+		"runtimePermission": false
 	},
 	"supersededTask3Source": {
 		"rawSha256": "b01f14ada4a29cc47af9d31e58545346fb5a9ce93f347c209c72d2f95ea5f2e6",

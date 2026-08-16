@@ -181,9 +181,14 @@ export function assertReviewSourceTransform(manifest: unknown): void {
 		normalizationTransform?: {
 			native?: { width?: unknown; height?: unknown };
 			scale?: unknown;
+			crop?: { width?: unknown; height?: unknown };
 		};
 	};
 	const id = typeof source.id === 'string' ? source.id : 'unknown-scenery-insert';
+	const target =
+		id === 'crossroads-blocked-hedge' || id === 'crossroads-blocked-woodland'
+			? { width: 1728, height: 1952 }
+			: { width: 3200, height: 1664 };
 	const native = source.normalizationTransform?.native;
 	const rawWidth = native?.width;
 	const rawHeight = native?.height;
@@ -196,7 +201,7 @@ export function assertReviewSourceTransform(manifest: unknown): void {
 			rawHeight > 0,
 		`${id} normalization preflight has invalid native dimensions`
 	);
-	const coverScale = Math.max(3200 / rawWidth, 1664 / rawHeight);
+	const coverScale = Math.max(target.width / rawWidth, target.height / rawHeight);
 	assert(
 		coverScale <= 2,
 		`${id} normalization preflight coverScale=${coverScale} exceeds the <=2x limit`
@@ -205,6 +210,11 @@ export function assertReviewSourceTransform(manifest: unknown): void {
 	assert(
 		recordedScale === coverScale,
 		`${id} normalization preflight recorded scale=${String(recordedScale)} does not equal coverScale=${coverScale}`
+	);
+	const crop = source.normalizationTransform?.crop;
+	assert(
+		crop?.width === target.width && crop.height === target.height,
+		`${id} normalization preflight crop dimensions must be ${target.width}x${target.height}`
 	);
 }
 
@@ -691,29 +701,16 @@ async function readSceneryInserts(
 		assertInsertArtQuality(expected, rgba, metadata);
 		const targetWidth = expected.bounds.right - expected.bounds.left;
 		const targetHeight = expected.bounds.bottom - expected.bounds.top;
-		const assemblyRgba =
-			rgba.width === targetWidth && rgba.height === targetHeight
-				? rgba
-				: await (async () => {
-						const { data, info } = await sharp(rgba.data, {
-							raw: { width: rgba.width, height: rgba.height, channels: 4 }
-						})
-							.resize(targetWidth, targetHeight, { fit: 'cover', kernel: 'lanczos3' })
-							.ensureAlpha()
-							.raw()
-							.toBuffer({ resolveWithObject: true });
-						assert(
-							info.channels === 4,
-							`Scenery insert assembly resize is not RGBA: ${expected.id}`
-						);
-						return { data, width: info.width, height: info.height };
-					})();
+		assert(
+			rgba.width === targetWidth && rgba.height === targetHeight,
+			`Canonical scenery insert dimensions must be ${targetWidth}x${targetHeight}: ${expected.id}`
+		);
 		decoded.push({
 			id: expected.id,
 			sceneryClass: expected.sceneryClass,
 			owningSourceId: expected.owningSourceId,
 			bounds: expected.bounds,
-			rgba: assemblyRgba
+			rgba
 		});
 	}
 	return decoded;
@@ -736,6 +733,16 @@ async function nativeReviewArtifacts(
 				nativePanel.data,
 				nativePanel.width,
 				nativePanel.height
+			)
+		});
+		artifacts.push({
+			relativePath: `panel-${panel.id}-quadrants-center.png`,
+			bytes: await composeContactSheet(
+				nativePanel,
+				(['top-left', 'top-right', 'bottom-left', 'bottom-right', 'middle-center'] as const).map(
+					(anchor) => reviewPatchBounds(nativePanel.width, nativePanel.height, anchor)
+				),
+				3
 			)
 		});
 	}
@@ -793,6 +800,36 @@ async function nativeReviewArtifacts(
 		'detail-sundrop-center.png': { left: 1280, top: 4928, right: 1856, bottom: 5056 },
 		'detail-sundrop-east.png': { left: 2368, top: 4928, right: 2880, bottom: 5056 },
 		'detail-sundrop-sides-corners.png': { left: 256, top: 4928, right: 2880, bottom: 5056 },
+		'detail-connector-crossroads-intersection.png': {
+			left: 2880,
+			top: 4480,
+			right: 3392,
+			bottom: 4768
+		},
+		'detail-connector-crossroads-west.png': {
+			left: 2880,
+			top: 4480,
+			right: 3136,
+			bottom: 4768
+		},
+		'detail-connector-crossroads-middle.png': {
+			left: 3008,
+			top: 4480,
+			right: 3264,
+			bottom: 4768
+		},
+		'detail-connector-crossroads-east.png': {
+			left: 3136,
+			top: 4480,
+			right: 3392,
+			bottom: 4768
+		},
+		'detail-connector-crossroads-sides-corners.png': {
+			left: 2880,
+			top: 4480,
+			right: 3392,
+			bottom: 4768
+		},
 		'hero-house-edge-north.png': { left: 384, top: 5312, right: 1280, bottom: 5440 },
 		'hero-house-edge-east.png': { left: 1152, top: 5312, right: 1280, bottom: 6144 },
 		'hero-house-edge-south.png': { left: 384, top: 6016, right: 1280, bottom: 6144 },
@@ -862,6 +899,34 @@ async function nativeReviewArtifacts(
 		relativePath: 'wildwood-forest-lane.png',
 		bytes: await cropPng(decoded, { left: 4608, top: 3200, right: 5568, bottom: 4608 })
 	});
+	artifacts.push({
+		relativePath: 'hero-house-edges.png',
+		bytes: await cropPng(decoded, { left: 384, top: 5312, right: 1280, bottom: 6144 })
+	});
+	const masterPreview = await sharp(
+		await encodeCanonicalMeadowEntryPng(decoded.data, decoded.width, decoded.height)
+	)
+		.resize(1600, 1600, { fit: 'fill' })
+		.ensureAlpha()
+		.png()
+		.toBuffer();
+	for (const [relativePath, controlName] of [
+		['protected-live-atlas.png', 'meadow-entry-protected-live-mask.svg'],
+		['region-material-overlay.png', 'meadow-entry-region-mask.svg'],
+		['route-centerline-overlay.png', 'meadow-entry-terrain-path-mask.svg']
+	] as const) {
+		const controlOverlay = await sharp(Buffer.from(controls.controls[controlName]!))
+			.resize(1600, 1600, { fit: 'fill' })
+			.png()
+			.toBuffer();
+		artifacts.push({
+			relativePath,
+			bytes: await sharp(masterPreview)
+				.composite([{ input: controlOverlay }])
+				.png()
+				.toBuffer()
+		});
+	}
 	for (const [index, blocker] of MEADOW_ENTRY_PAINTED_V2_SCENERY_BLOCKERS.entries()) {
 		const width = blocker.bounds.right - blocker.bounds.left;
 		const height = blocker.bounds.bottom - blocker.bounds.top;
@@ -923,6 +988,15 @@ function forestReviewFilenames(): readonly string[] {
 		'detail-sundrop-center.png',
 		'detail-sundrop-east.png',
 		'detail-sundrop-sides-corners.png',
+		'detail-connector-crossroads-intersection.png',
+		'detail-connector-crossroads-west.png',
+		'detail-connector-crossroads-middle.png',
+		'detail-connector-crossroads-east.png',
+		'detail-connector-crossroads-sides-corners.png',
+		'hero-house-edges.png',
+		'protected-live-atlas.png',
+		'region-material-overlay.png',
+		'route-centerline-overlay.png',
 		'hero-house-edge-north.png',
 		'hero-house-edge-east.png',
 		'hero-house-edge-south.png',

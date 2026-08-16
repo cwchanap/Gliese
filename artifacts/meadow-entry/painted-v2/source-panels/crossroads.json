@@ -1,9 +1,17 @@
 {
 	"version": 3,
 	"id": "crossroads",
-	"bounds": { "left": 2880, "top": 2816, "right": 4608, "bottom": 4768 },
+	"bounds": {
+		"left": 2880,
+		"top": 2816,
+		"right": 4608,
+		"bottom": 4768
+	},
 	"assemblyPriority": 50,
-	"expectedDimensions": { "width": 1728, "height": 1952 },
+	"expectedDimensions": {
+		"width": 1728,
+		"height": 1952
+	},
 	"generation": {
 		"tool": "image_gen (built-in)",
 		"provider": "OpenAI",
@@ -17,7 +25,10 @@
 		"callOrder": 28,
 		"result": "raw-passed-native-review",
 		"rejected": false,
-		"nativeSizeRequested": { "width": 2048, "height": 1152 },
+		"nativeSizeRequested": {
+			"width": 2048,
+			"height": 1152
+		},
 		"nativeSizeRequestHonored": false,
 		"nativeDetailQualityAcceptedAt100Percent": true,
 		"attemptHistory": [
@@ -33,21 +44,41 @@
 		"path": "artifacts/meadow-entry/painted-v2/source-panels/raw/crossroads.png",
 		"sha256": "465c6c74f7a4350d034a7edf23c2148cbcce00acde864186102655240e98609e",
 		"bytes": 2769790,
-		"dimensions": { "width": 1023, "height": 1537 }
+		"dimensions": {
+			"width": 1023,
+			"height": 1537
+		}
 	},
 	"normalized": {
 		"path": "artifacts/meadow-entry/painted-v2/source-panels/crossroads.png",
 		"sha256": "b67f13a410d953909f2400c6689e5dc418bcd4968a4cbe0a1cf81a5d74d82f30",
 		"bytes": 9121902,
-		"dimensions": { "width": 1728, "height": 1952 },
+		"dimensions": {
+			"width": 1728,
+			"height": 1952
+		},
 		"colourspace": "sRGB",
 		"channels": 4
 	},
 	"normalizationTransform": {
-		"native": { "width": 1023, "height": 1537 },
-		"scaledRaster": { "width": 1728, "height": 2596 },
-		"scaledCrop": { "left": 0, "top": 322, "width": 1728, "height": 1952 },
-		"output": { "width": 1728, "height": 1952 },
+		"native": {
+			"width": 1023,
+			"height": 1537
+		},
+		"scaledRaster": {
+			"width": 1728,
+			"height": 2596
+		},
+		"scaledCrop": {
+			"left": 0,
+			"top": 322,
+			"width": 1728,
+			"height": 1952
+		},
+		"output": {
+			"width": 1728,
+			"height": 1952
+		},
 		"scaleX": 1.689149560117302,
 		"scaleY": 1.689149560117302,
 		"scale": 1.689149560117302,
@@ -64,14 +95,20 @@
 			"role": "new connector actual-art overlap reference",
 			"sha256": "e740964475f6e5a74d8cf3e83c68d645d08558b392d86ba1ddcc4a0b5ca9217c",
 			"bytes": 2684896,
-			"dimensions": { "width": 1740, "height": 904 }
+			"dimensions": {
+				"width": 1740,
+				"height": 904
+			}
 		},
 		{
 			"path": "/private/tmp/gliese-hpa586-task3-art-refs/accepted-crossroads.png",
 			"role": "accepted Crossroads actual-art regional reference",
 			"sha256": "1534062581775261bfcfd8a26eb5de5a730adf658d9b6ef9abb65413bbe4ae34",
 			"bytes": 9127338,
-			"dimensions": { "width": 1728, "height": 1952 }
+			"dimensions": {
+				"width": 1728,
+				"height": 1952
+			}
 		}
 	],
 	"cleanup": {
@@ -85,12 +122,27 @@
 		"inspectedNormalizedAt100Percent": true,
 		"accepted": true,
 		"findings": "Ground-only warm cobble and packed-earth surface with a quiet central plaza, low grass margins, open route mouths, and no visible Waystone, structures, tall content, hard frame, or false blocker. Southern connector handoff is retained for paired source review.",
+		"supersededApproval": {
+			"approval": "approved-explicit-final-source-gate",
+			"userAnswer": "yes",
+			"approvedAtUtc": "2026-08-16T16:41:54Z",
+			"approvalScope": "Task 4 final-source forest enrichment only; no production publication, runtime permission, Task 5, probes, or master replacement",
+			"approvalCandidateSha256": "6d419b9f52213b70061588baf63e0ef2316f971981a9e66d30e2892ac119c6a4",
+			"approvalEvidenceManifestSha256": "cd905da7d47c938622df80d7d637ce41078918b37143043b7e9c97bf8df4c6f2",
+			"supersededAtUtc": "2026-08-16T19:14:07Z",
+			"supersededReason": "Independent Task 4 review found P1 defects: Crossroads inserts exceeded the new 1728x1952 cover-scale contract and the final static evidence inventory was incomplete."
+		},
 		"approval": "approved-explicit-final-source-gate",
+		"reviewStatus": "approved-explicit-final-source-gate",
+		"supersededAtUtc": "2026-08-16T19:14:07Z",
+		"supersededReason": "Independent Task 4 review found P1 defects: Crossroads inserts exceeded the new 1728x1952 cover-scale contract and the final static evidence inventory was incomplete.",
 		"userAnswer": "yes",
-		"approvedAtUtc": "2026-08-16T16:41:54Z",
+		"approvedAtUtc": "2026-08-16T21:37:44Z",
 		"approvalScope": "Task 4 final-source forest enrichment only; no production publication, runtime permission, Task 5, probes, or master replacement",
-		"approvalCandidateSha256": "6d419b9f52213b70061588baf63e0ef2316f971981a9e66d30e2892ac119c6a4",
-		"approvalEvidenceManifestSha256": "cd905da7d47c938622df80d7d637ce41078918b37143043b7e9c97bf8df4c6f2"
+		"approvalCandidateSha256": "bdae53182c62d696068e4acf499a0ac3d2a34bfb4e9a2c84f9072a7a97099cd5",
+		"approvalEvidenceManifestSha256": "7731e46389146044381c3b096492bcd1a12ac14705a58d21a6000fda8421ec3a",
+		"approvalEvidenceFileCount": 104,
+		"runtimePermission": false
 	},
 	"supersededTask3Source": {
 		"rawSha256": "a443043caba03ae2d38d4d18e6795f86a4f4cb6636f4b779f653071cfb71328a",

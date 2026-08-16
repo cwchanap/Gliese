@@ -2,7 +2,12 @@
 	"version": 2,
 	"id": "crossroads-blocked-hedge",
 	"sceneryClass": "hedge",
-	"bounds": { "left": 2880, "top": 2816, "right": 4608, "bottom": 4768 },
+	"bounds": {
+		"left": 2880,
+		"top": 2816,
+		"right": 4608,
+		"bottom": 4768
+	},
 	"owningSourceId": "crossroads",
 	"owningSourcePriority": 50,
 	"generation": {
@@ -15,13 +20,13 @@
 		"seed": null,
 		"seedUnavailable": true,
 		"byteReproducibleGeneration": false,
-		"prompt": "Create a wide full-bleed hand-painted JRPG environment texture for a blocked-edge scenery insert in the Meadow Entry Crossroads. Show only low, sparse hedge vegetation: knee-high brush, small reeds, thin weeds, scattered leaf litter, a few tiny wildflowers, and irregular soft ground shadows. Use natural variation across the whole image and a calm woodland-meadow palette that matches the attached Crossroads ground. Keep the entire composition quiet and low so it can sit at a camera edge: no tree trunks, no canopy, no tall bushes, no path, no road, no buildings, no structures, no characters, no signs, no props, no focal landmark, no text, no symbols, and no hard border. Wide landscape output, approximately 2048 by 1152.",
-		"promptSha256": "1547be4884b2fcbd4ab198ef297b6547e3af0bafd39c174799eb7f53bb93ae9a",
-		"outputPath": "/Users/chanwaichan/.codex/generated_images/01a00a4a-dae6-7b43-851d-040dd44bad68/exec-d520d070-8075-433c-904c-1e2770acb3d4.png",
-		"outputSha256": "733a5af0a9b563de582dce83939d9ad84649f649f36984ff499bf2dd817b3f17",
-		"attempt": 2,
-		"callOrder": 30,
-		"result": "raw-passed-native-and-scale-preflight",
+		"prompt": "Use case: stylized-concept.\nAsset type: Meadow Entry Crossroads blocked-edge scenery insert, hedge class, for a hand-painted JRPG environment.\nInput images: Image 1 is an approved Crossroads actual-art reference for palette, painterly finish, and ground language only; do not copy its paths or layout.\nScene/backdrop: full-bleed portrait Coast/Mistfen ground texture with an uninterrupted organic surface.\nSubject: continuous edge-to-edge low irregular knee-high hedge texture made from brush clumps, small reeds, thin weeds, scattered leaf litter, tiny wildflowers, soft mossy ground variation, and quiet low silhouettes across the entire canvas.\nStyle/medium: hand-painted JRPG environment art matching the approved reference's painterly color depth and natural brush detail.\nComposition/framing: portrait native output approximately 1024x1536 or larger/taller, full bleed, evenly usable from edge to edge, no focal center and no directional composition.\nLighting/mood: soft natural woodland daylight, calm and readable, subtle variation without a bright band.\nColor palette: muted Coast/Mistfen greens, olive, moss, restrained warm earth, small cool shadow accents.\nMaterials/textures: dense but low vegetation detail, irregular brush edges, natural leaf and soil variation with no repeated rows.\nConstraints: native dimensions must satisfy coverScale=max(1728/rawWidth,1952/rawHeight)<=2 for exact deterministic 1728x1952 normalization. No landmarks or props.\nAvoid: path, trail, road, track, clearing, central strip, central band, ground seam, bare corridor, light stripe, frame, bar, border, hard edge, rectangular insert shape, tree trunks, canopy, tall bushes, building, structure, character, sign, landmark, text, symbol, grid, tile rows, copied reference layout, watermark.",
+		"promptSha256": "3a0975cc2cf76ae3a33098dfb1015bff2e8a806d8a4e159995ab4c6b18c74bba",
+		"outputPath": "/Users/chanwaichan/.codex/generated_images/01a00a4a-dae6-7b43-851d-040dd44bad68/exec-b60d599e-d289-4782-864b-cd5b80f88510.png",
+		"outputSha256": "bd00660598d0462b94f1efe3dd349e1e90b32b4c7807fb4ea3ea212b8c693187",
+		"attempt": 4,
+		"callOrder": 34,
+		"result": "raw-passed-native-review-round-3-normalized",
 		"rejected": false,
 		"attemptHistory": [
 			{
@@ -38,20 +43,144 @@
 				"callOrder": 30,
 				"result": "raw-passed-native-and-scale-preflight",
 				"rawInspectedAtOriginalResolution": true
+			},
+			{
+				"attempt": 3,
+				"callOrder": 32,
+				"result": "fresh-replacement-raw-passed-native-and-scale-preflight",
+				"rawInspectedAtOriginalResolution": true,
+				"nativeQa": "passed",
+				"promptSha256": "ec309426b238869d11cfda0a4ef9d8ebf2450ea799f7dcb2ccca4c22ae8bbb96",
+				"outputPath": "/Users/chanwaichan/.codex/generated_images/01a00a4a-dae6-7b43-851d-040dd44bad68/exec-26d8b568-d610-4fc5-b355-9542cf2b38cc.png",
+				"outputSha256": "9aa5e63abeca3822689099dc9fbca94c10874822f5c3f7c360f8069e18ddf4f8",
+				"rawDimensions": [1024, 1536],
+				"coverScale": 1.6875,
+				"references": [
+					{
+						"path": "/Users/chanwaichan/.codex/generated_images/01a00a4a-dae6-7b43-851d-040dd44bad68/exec-cb37f1fe-e073-42d4-8b87-0927e6318cc5.png",
+						"role": "Crossroads actual-art palette and painterly reference",
+						"sha256": "465c6c74f7a4350d034a7edf23c2148cbcce00acde864186102655240e98609e",
+						"bytes": 2769790,
+						"dimensions": {
+							"width": 1023,
+							"height": 1537
+						}
+					},
+					{
+						"path": "/Users/chanwaichan/.codex/generated_images/01a00a4a-dae6-7b43-851d-040dd44bad68/exec-d520d070-8075-433c-904c-1e2770acb3d4.png",
+						"role": "prior accepted same-class texture reference; prior raw retained in attempt history",
+						"sha256": "733a5af0a9b563de582dce83939d9ad84649f649f36984ff499bf2dd817b3f17",
+						"bytes": 2738643,
+						"dimensions": {
+							"width": 1672,
+							"height": 941
+						}
+					}
+				]
+			},
+			{
+				"attempt": 4,
+				"callOrder": 34,
+				"result": "raw-passed-native-review-round-3-normalized",
+				"rawInspectedAtOriginalResolution": true,
+				"nativeQa": "passed",
+				"visualQa": "passed-dense-continuous-edge-to-edge-no-path-or-seam",
+				"promptSha256": "3a0975cc2cf76ae3a33098dfb1015bff2e8a806d8a4e159995ab4c6b18c74bba",
+				"prompt": "Use case: stylized-concept.\nAsset type: Meadow Entry Crossroads blocked-edge scenery insert, hedge class, for a hand-painted JRPG environment.\nInput images: Image 1 is an approved Crossroads actual-art reference for palette, painterly finish, and ground language only; do not copy its paths or layout.\nScene/backdrop: full-bleed portrait Coast/Mistfen ground texture with an uninterrupted organic surface.\nSubject: continuous edge-to-edge low irregular knee-high hedge texture made from brush clumps, small reeds, thin weeds, scattered leaf litter, tiny wildflowers, soft mossy ground variation, and quiet low silhouettes across the entire canvas.\nStyle/medium: hand-painted JRPG environment art matching the approved reference's painterly color depth and natural brush detail.\nComposition/framing: portrait native output approximately 1024x1536 or larger/taller, full bleed, evenly usable from edge to edge, no focal center and no directional composition.\nLighting/mood: soft natural woodland daylight, calm and readable, subtle variation without a bright band.\nColor palette: muted Coast/Mistfen greens, olive, moss, restrained warm earth, small cool shadow accents.\nMaterials/textures: dense but low vegetation detail, irregular brush edges, natural leaf and soil variation with no repeated rows.\nConstraints: native dimensions must satisfy coverScale=max(1728/rawWidth,1952/rawHeight)<=2 for exact deterministic 1728x1952 normalization. No landmarks or props.\nAvoid: path, trail, road, track, clearing, central strip, central band, ground seam, bare corridor, light stripe, frame, bar, border, hard edge, rectangular insert shape, tree trunks, canopy, tall bushes, building, structure, character, sign, landmark, text, symbol, grid, tile rows, copied reference layout, watermark.",
+				"outputPath": "/Users/chanwaichan/.codex/generated_images/01a00a4a-dae6-7b43-851d-040dd44bad68/exec-b60d599e-d289-4782-864b-cd5b80f88510.png",
+				"outputSha256": "bd00660598d0462b94f1efe3dd349e1e90b32b4c7807fb4ea3ea212b8c693187",
+				"rawDimensions": [1023, 1537],
+				"coverScale": 1.689149560117302,
+				"references": [
+					{
+						"path": "/Users/chanwaichan/.codex/generated_images/01a00a4a-dae6-7b43-851d-040dd44bad68/exec-cb37f1fe-e073-42d4-8b87-0927e6318cc5.png",
+						"role": "approved Crossroads actual-art palette and painterly reference only",
+						"sha256": "465c6c74f7a4350d034a7edf23c2148cbcce00acde864186102655240e98609e",
+						"bytes": 2769790,
+						"dimensions": {
+							"width": 1023,
+							"height": 1537
+						}
+					}
+				],
+				"normalized": true,
+				"normalization": "not performed because paired woodland call failed native visual review; stopped before deterministic normalization",
+				"finalReviewDisposition": "passed-no-path-or-seam-observed",
+				"normalizedSha256": "80ac5a4c6e0503ed0c42a7a8c5ed4c94d97b57324627f4db7baab3a6ec09ea02",
+				"normalizedDimensions": [1728, 1952],
+				"normalizedBytes": 8506349,
+				"normalizationTransform": {
+					"native": {
+						"width": 1023,
+						"height": 1537
+					},
+					"resize": {
+						"width": 1728,
+						"height": 2596
+					},
+					"crop": {
+						"left": 0,
+						"top": 322,
+						"width": 1728,
+						"height": 1952
+					},
+					"scale": 1.689149560117302,
+					"scaleX": 1.689149560117302,
+					"scaleY": 1.689149560117302,
+					"uniform": true,
+					"scaleExceedsTwoX": false,
+					"operation": "cover-scale-crop-to-fixed-panel",
+					"kernel": "lanczos3"
+				}
 			}
-		]
+		],
+		"nativeSizeRequested": {
+			"width": 1024,
+			"height": 1536
+		},
+		"nativeSizeRequestHonored": true,
+		"nativeDetailQualityAcceptedAt100Percent": true,
+		"targetNormalizedDimensions": {
+			"width": 1728,
+			"height": 1952
+		},
+		"coverScale": 1.689149560117302,
+		"references": [
+			{
+				"path": "/Users/chanwaichan/.codex/generated_images/01a00a4a-dae6-7b43-851d-040dd44bad68/exec-cb37f1fe-e073-42d4-8b87-0927e6318cc5.png",
+				"role": "approved Crossroads actual-art palette and painterly reference only",
+				"sha256": "465c6c74f7a4350d034a7edf23c2148cbcce00acde864186102655240e98609e",
+				"bytes": 2769790,
+				"dimensions": {
+					"width": 1023,
+					"height": 1537
+				}
+			}
+		],
+		"reviewDisposition": {
+			"fixRound": 1,
+			"callOrder": 32,
+			"result": "rejected-as-audit-history-before-round-2",
+			"reason": "Rejected as audit history: order-32 hedge retained a subtle central ground seam in original-resolution review."
+		}
 	},
 	"raw": {
 		"path": "artifacts/meadow-entry/painted-v2/source-inserts/raw/crossroads-blocked-hedge.png",
-		"sha256": "733a5af0a9b563de582dce83939d9ad84649f649f36984ff499bf2dd817b3f17",
-		"bytes": 2738643,
-		"dimensions": { "width": 1672, "height": 941 }
+		"sha256": "bd00660598d0462b94f1efe3dd349e1e90b32b4c7807fb4ea3ea212b8c693187",
+		"bytes": 2751917,
+		"dimensions": {
+			"width": 1023,
+			"height": 1537
+		}
 	},
 	"normalized": {
 		"path": "artifacts/meadow-entry/painted-v2/source-inserts/crossroads-blocked-hedge.png",
-		"sha256": "f27f0f4d4eecfeac93af8b91afaede91431da63202eecda448fef2192ccac205",
-		"bytes": 13761383,
-		"dimensions": { "width": 3200, "height": 1664 },
+		"sha256": "80ac5a4c6e0503ed0c42a7a8c5ed4c94d97b57324627f4db7baab3a6ec09ea02",
+		"bytes": 8506349,
+		"dimensions": {
+			"width": 1728,
+			"height": 1952
+		},
 		"colorSpace": "sRGB",
 		"channels": 4,
 		"alphaMinimum": 255,
@@ -59,12 +188,23 @@
 		"canonicalPngChunks": ["IHDR", "IDAT", "IEND"]
 	},
 	"normalizationTransform": {
-		"native": { "width": 1672, "height": 941 },
-		"resize": { "width": 3200, "height": 1801 },
-		"crop": { "left": 0, "top": 68, "width": 3200, "height": 1664 },
-		"scale": 1.9138755980861244,
-		"scaleX": 1.9138755980861244,
-		"scaleY": 1.9138755980861244,
+		"native": {
+			"width": 1023,
+			"height": 1537
+		},
+		"resize": {
+			"width": 1728,
+			"height": 2596
+		},
+		"crop": {
+			"left": 0,
+			"top": 322,
+			"width": 1728,
+			"height": 1952
+		},
+		"scale": 1.689149560117302,
+		"scaleX": 1.689149560117302,
+		"scaleY": 1.689149560117302,
 		"uniform": true,
 		"scaleExceedsTwoX": false,
 		"operation": "cover-scale-crop-to-fixed-panel",
@@ -73,21 +213,31 @@
 	"references": [
 		{
 			"path": "/Users/chanwaichan/.codex/generated_images/01a00a4a-dae6-7b43-851d-040dd44bad68/exec-cb37f1fe-e073-42d4-8b87-0927e6318cc5.png",
-			"role": "new Crossroads actual-art reference",
+			"role": "Crossroads actual-art palette and painterly reference",
 			"sha256": "465c6c74f7a4350d034a7edf23c2148cbcce00acde864186102655240e98609e",
 			"bytes": 2769790,
-			"dimensions": { "width": 1023, "height": 1537 }
+			"dimensions": {
+				"width": 1023,
+				"height": 1537
+			}
 		},
 		{
 			"path": "/Users/chanwaichan/.codex/generated_images/01a00a4a-dae6-7b43-851d-040dd44bad68/exec-d520d070-8075-433c-904c-1e2770acb3d4.png",
-			"role": "selected hedge texture reference from same bounded call",
+			"role": "prior accepted same-class texture reference; prior raw retained in attempt history",
 			"sha256": "733a5af0a9b563de582dce83939d9ad84649f649f36984ff499bf2dd817b3f17",
 			"bytes": 2738643,
-			"dimensions": { "width": 1672, "height": 941 }
+			"dimensions": {
+				"width": 1672,
+				"height": 941
+			}
 		}
 	],
 	"review": {
 		"rawInspectedAtOriginalResolution": true,
+		"inspectedAtOriginalResolution": true,
+		"inspectedNormalizedAt100Percent": true,
+		"accepted": true,
+		"findings": "Call-34 raw was inspected at original detail and accepted: continuous low irregular hedge texture with no path, exposed-ground corridor, central strip, seam, border, landmark, or prop. Deterministically normalized in fix round 3 for the pending fresh final-source gate.",
 		"gridLikeUpperBand": false,
 		"visibleInsertRectangle": false,
 		"protectedOverlapPixels": 0,
@@ -95,12 +245,116 @@
 		"noTrunksOrCanopy": true,
 		"lowHeightAndNoPath": true,
 		"noLiteralMaskShape": true,
+		"supersededApproval": {
+			"approval": "approved-explicit-final-source-gate",
+			"userAnswer": "yes",
+			"approvedAtUtc": "2026-08-16T16:41:54Z",
+			"approvalScope": "Task 4 final-source forest enrichment only; no production publication, runtime permission, Task 5, probes, or master replacement",
+			"approvalCandidateSha256": "6d419b9f52213b70061588baf63e0ef2316f971981a9e66d30e2892ac119c6a4",
+			"approvalEvidenceManifestSha256": "cd905da7d47c938622df80d7d637ce41078918b37143043b7e9c97bf8df4c6f2",
+			"supersededAtUtc": "2026-08-16T19:14:07Z",
+			"supersededReason": "Independent Task 4 review found P1 defects: Crossroads inserts exceeded the new 1728x1952 cover-scale contract and the final static evidence inventory was incomplete."
+		},
 		"approval": "approved-explicit-final-source-gate",
+		"reviewStatus": "approved-explicit-final-source-gate",
+		"supersededAtUtc": "2026-08-16T19:14:07Z",
+		"supersededReason": "Independent Task 4 review found P1 defects: Crossroads inserts exceeded the new 1728x1952 cover-scale contract and the final static evidence inventory was incomplete.",
+		"rejected": false,
+		"round1Rejection": {
+			"fixRound": 1,
+			"callOrder": 32,
+			"attempt": 3,
+			"rawSha256": "9aa5e63abeca3822689099dc9fbca94c10874822f5c3f7c360f8069e18ddf4f8",
+			"normalizedSha256": "436f0d7b2779bdce86f0aad64f58e431cc73904c835050eb38b8f004c006efb8",
+			"originalFindings": "Portrait raw inspected at original detail; low irregular hedge and ground variation, no tall woodland content, hard border, grid, or rectangular frame observed. A subtle natural ground seam is retained for final human review.",
+			"reason": "Rejected as audit history: order-32 hedge retained a subtle central ground seam in original-resolution review.",
+			"supersededAtUtc": "2026-08-16T19:53:35Z"
+		},
+		"round2Attempt": {
+			"attempt": 4,
+			"callOrder": 34,
+			"rawSha256": "bd00660598d0462b94f1efe3dd349e1e90b32b4c7807fb4ea3ea212b8c693187",
+			"rawDimensions": [1023, 1537],
+			"coverScale": 1.689149560117302,
+			"rawInspectedAtOriginalResolution": true,
+			"nativeQa": "passed",
+			"visualQa": "passed-no-path-or-seam-observed",
+			"normalized": true,
+			"reason": "Native visual review passed; normalization withheld because paired call failed.",
+			"normalizedSha256": "80ac5a4c6e0503ed0c42a7a8c5ed4c94d97b57324627f4db7baab3a6ec09ea02",
+			"normalizedBytes": 8506349,
+			"normalizedDimensions": [1728, 1952],
+			"normalizationTransform": {
+				"native": {
+					"width": 1023,
+					"height": 1537
+				},
+				"resize": {
+					"width": 1728,
+					"height": 2596
+				},
+				"crop": {
+					"left": 0,
+					"top": 322,
+					"width": 1728,
+					"height": 1952
+				},
+				"scale": 1.689149560117302,
+				"scaleX": 1.689149560117302,
+				"scaleY": 1.689149560117302,
+				"uniform": true,
+				"scaleExceedsTwoX": false,
+				"operation": "cover-scale-crop-to-fixed-panel",
+				"kernel": "lanczos3"
+			},
+			"normalizationPerformedInFixRound": 3
+		},
+		"round3Normalization": {
+			"fixRound": 3,
+			"attempt": 4,
+			"callOrder": 34,
+			"rawSha256": "bd00660598d0462b94f1efe3dd349e1e90b32b4c7807fb4ea3ea212b8c693187",
+			"rawDimensions": [1023, 1537],
+			"coverScale": 1.689149560117302,
+			"normalizedSha256": "80ac5a4c6e0503ed0c42a7a8c5ed4c94d97b57324627f4db7baab3a6ec09ea02",
+			"normalizedBytes": 8506349,
+			"normalizedDimensions": [1728, 1952],
+			"normalizationTransform": {
+				"native": {
+					"width": 1023,
+					"height": 1537
+				},
+				"resize": {
+					"width": 1728,
+					"height": 2596
+				},
+				"crop": {
+					"left": 0,
+					"top": 322,
+					"width": 1728,
+					"height": 1952
+				},
+				"scale": 1.689149560117302,
+				"scaleX": 1.689149560117302,
+				"scaleY": 1.689149560117302,
+				"uniform": true,
+				"scaleExceedsTwoX": false,
+				"operation": "cover-scale-crop-to-fixed-panel",
+				"kernel": "lanczos3"
+			},
+			"rawInspectedAtOriginalResolution": true,
+			"normalizedInspectedAtOriginalResolution": true,
+			"approval": "pending-fresh-final-source-gate"
+		},
 		"userAnswer": "yes",
-		"approvedAtUtc": "2026-08-16T16:41:54Z",
+		"approvedAtUtc": "2026-08-16T21:37:44Z",
 		"approvalScope": "Task 4 final-source forest enrichment only; no production publication, runtime permission, Task 5, probes, or master replacement",
-		"approvalCandidateSha256": "6d419b9f52213b70061588baf63e0ef2316f971981a9e66d30e2892ac119c6a4",
-		"approvalEvidenceManifestSha256": "cd905da7d47c938622df80d7d637ce41078918b37143043b7e9c97bf8df4c6f2"
+		"approvalCandidateSha256": "bdae53182c62d696068e4acf499a0ac3d2a34bfb4e9a2c84f9072a7a97099cd5",
+		"approvalEvidenceManifestSha256": "7731e46389146044381c3b096492bcd1a12ac14705a58d21a6000fda8421ec3a",
+		"approvalEvidenceFileCount": 104,
+		"runtimePermission": false
 	},
-	"stage": "pending-final-source-gate"
+	"stage": "pending-final-source-gate",
+	"prompt": "Use case: stylized-concept.\nAsset type: Meadow Entry Crossroads blocked-edge scenery insert, hedge class, for a hand-painted JRPG environment.\nInput images: Image 1 is an approved Crossroads actual-art reference for palette, painterly finish, and ground language only; do not copy its paths or layout.\nScene/backdrop: full-bleed portrait Coast/Mistfen ground texture with an uninterrupted organic surface.\nSubject: continuous edge-to-edge low irregular knee-high hedge texture made from brush clumps, small reeds, thin weeds, scattered leaf litter, tiny wildflowers, soft mossy ground variation, and quiet low silhouettes across the entire canvas.\nStyle/medium: hand-painted JRPG environment art matching the approved reference's painterly color depth and natural brush detail.\nComposition/framing: portrait native output approximately 1024x1536 or larger/taller, full bleed, evenly usable from edge to edge, no focal center and no directional composition.\nLighting/mood: soft natural woodland daylight, calm and readable, subtle variation without a bright band.\nColor palette: muted Coast/Mistfen greens, olive, moss, restrained warm earth, small cool shadow accents.\nMaterials/textures: dense but low vegetation detail, irregular brush edges, natural leaf and soil variation with no repeated rows.\nConstraints: native dimensions must satisfy coverScale=max(1728/rawWidth,1952/rawHeight)<=2 for exact deterministic 1728x1952 normalization. No landmarks or props.\nAvoid: path, trail, road, track, clearing, central strip, central band, ground seam, bare corridor, light stripe, frame, bar, border, hard edge, rectangular insert shape, tree trunks, canopy, tall bushes, building, structure, character, sign, landmark, text, symbol, grid, tile rows, copied reference layout, watermark.",
+	"promptSha256": "3a0975cc2cf76ae3a33098dfb1015bff2e8a806d8a4e159995ab4c6b18c74bba"
 }

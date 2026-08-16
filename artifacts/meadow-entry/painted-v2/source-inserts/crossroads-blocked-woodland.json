@@ -2,7 +2,12 @@
 	"version": 2,
 	"id": "crossroads-blocked-woodland",
 	"sceneryClass": "woodland",
-	"bounds": { "left": 2880, "top": 2816, "right": 4608, "bottom": 4768 },
+	"bounds": {
+		"left": 2880,
+		"top": 2816,
+		"right": 4608,
+		"bottom": 4768
+	},
 	"owningSourceId": "crossroads",
 	"owningSourcePriority": 50,
 	"generation": {
@@ -15,13 +20,13 @@
 		"seed": null,
 		"seedUnavailable": true,
 		"byteReproducibleGeneration": false,
-		"prompt": "Create a wide full-bleed hand-painted JRPG environment texture for a blocked woodland-edge scenery insert in the Meadow Entry Crossroads. Build a layered Silverpine woodland margin with varied slender and medium tree trunks, irregular roots, low ferns, bracken, moss, fallen leaf litter, small stones, and overlapping depth from dark foreground undergrowth into a soft, painterly middle and background canopy. Keep the scene natural and varied, matching the attached Crossroads palette, with no recognizable landmark or copied live prop. No path, road, buildings, structures, characters, signs, props, focal object, text, symbols, or hard border. Wide landscape output, approximately 2048 by 1152.",
-		"promptSha256": "b55a9c039161a038b207f6e8dc4f5f7699247bba3bcb0723608fb4dce14c0e08",
-		"outputPath": "/Users/chanwaichan/.codex/generated_images/01a00a4a-dae6-7b43-851d-040dd44bad68/exec-55fefdbd-42ef-4dd2-a5b4-64699387b1f0.png",
-		"outputSha256": "93ba4d52cd168adeb4300790198be01ba1add083329c4777c431b73081bf2389",
-		"attempt": 1,
-		"callOrder": 31,
-		"result": "raw-passed-native-and-scale-preflight",
+		"prompt": "Use case: stylized-concept.\nAsset type: a portrait native raster source insert for a painted 2D JRPG world-map blocker.\n\nCreate a dense, continuous edge-to-edge woodland wall filling the entire frame. The full frame must be packed with overlapping tree trunks, layered canopy, interlocking undergrowth, roots, ferns, moss, and leaf litter, with visual texture continuing all the way to every edge. Keep the composition non-directional and evenly dense; no focal center and no implied route.\n\nAbsolutely exclude any exposed-ground corridor, path, trail, road, clearing, central strip, rocky seam, ground seam, frame, bar, border, landmark, or prop. Do not create any line or opening that could read as a path or route. Do not copy the layout, route, or openings from either reference. The first reference is the primary approved dense blocked-woodland pixel-art source for vegetation texture and structure; the second is approved Crossroads palette/finish context only, and must not contribute its path/layout.\n\nMatch the approved painted-pixel palette and hand-authored JRPG world-map finish: opaque RGB, natural irregular woodland silhouettes, readable clustered vegetation, no text. Produce a portrait image at native dimensions sufficient for exact 1728x1952 canonical normalization with coverScale <= 2 (at least 864x976; target approximately 1024x1536 or taller).",
+		"promptSha256": "419376591d2378a31da35c43475443ac18f9810acb93763c98cc076741595250",
+		"outputPath": "/Users/chanwaichan/.codex/generated_images/01a00a4a-dae6-7b43-851d-040dd44bad68/exec-7cdcebeb-7ca0-4539-957a-887b50de911b.png",
+		"outputSha256": "04e3925ab272dca2b56c205bd3d625580b61bcd558ee70311eaee03c2d2c9e68",
+		"attempt": 4,
+		"callOrder": 36,
+		"result": "fresh-replacement-raw-passed-native-and-visual-review-round-3",
 		"rejected": false,
 		"attemptHistory": [
 			{
@@ -29,20 +34,193 @@
 				"callOrder": 31,
 				"result": "raw-passed-native-and-scale-preflight",
 				"rawInspectedAtOriginalResolution": true
+			},
+			{
+				"attempt": 2,
+				"callOrder": 33,
+				"result": "fresh-replacement-raw-passed-native-and-scale-preflight",
+				"rawInspectedAtOriginalResolution": true,
+				"nativeQa": "passed",
+				"promptSha256": "a198fed5fe31352858c1c9f40fab154a8222c9829914d358e2050d6a1a1f5c9c",
+				"outputPath": "/Users/chanwaichan/.codex/generated_images/01a00a4a-dae6-7b43-851d-040dd44bad68/exec-ee8adeaf-e21f-4c20-b475-144e8e4a3e80.png",
+				"outputSha256": "50b478875ab1625e0091bb2c869c45489e6dfcdccce254e248dbcca1be07e93d",
+				"rawDimensions": [1024, 1536],
+				"coverScale": 1.6875,
+				"references": [
+					{
+						"path": "/Users/chanwaichan/.codex/generated_images/01a00a4a-dae6-7b43-851d-040dd44bad68/exec-cb37f1fe-e073-42d4-8b87-0927e6318cc5.png",
+						"role": "Crossroads actual-art palette and painterly reference",
+						"sha256": "465c6c74f7a4350d034a7edf23c2148cbcce00acde864186102655240e98609e",
+						"bytes": 2769790,
+						"dimensions": {
+							"width": 1023,
+							"height": 1537
+						}
+					},
+					{
+						"path": "/Users/chanwaichan/.codex/generated_images/01a00a4a-dae6-7b43-851d-040dd44bad68/exec-d520d070-8075-433c-904c-1e2770acb3d4.png",
+						"role": "prior accepted same-class texture reference; prior raw retained in attempt history",
+						"sha256": "733a5af0a9b563de582dce83939d9ad84649f649f36984ff499bf2dd817b3f17",
+						"bytes": 2738643,
+						"dimensions": {
+							"width": 1672,
+							"height": 941
+						}
+					}
+				]
+			},
+			{
+				"attempt": 3,
+				"callOrder": 35,
+				"result": "rejected-by-native-visual-review-round-2",
+				"reason": "Original-resolution inspection showed a continuous lighter rocky and leaf-litter corridor through the center, reading as a path-like central strip/ground seam; this violates the explicit no path/trail/road/clearing/central strip/ground seam contract.",
+				"rawInspectedAtOriginalResolution": true,
+				"nativeQa": "failed",
+				"visualQa": "rejected-path-like-central-rocky-ground-strip",
+				"promptSha256": "93717789e4b341edbd0c09f2a592260c84e9d73177b772c584a1fe9b73f93d88",
+				"prompt": "Use case: stylized-concept.\nAsset type: Meadow Entry Crossroads blocked-edge scenery insert, woodland class, for a hand-painted JRPG environment.\nInput images: Image 1 is an approved Crossroads actual-art reference for palette, painterly finish, and ground language only; do not copy its paths or layout.\nScene/backdrop: full-bleed portrait Silverpine woodland-margin texture with continuous dense forest depth from edge to edge.\nSubject: dense continuous woodland texture made from varied slender and medium trunks, irregular roots, low ferns, bracken, moss, leaf litter, small stones, layered undergrowth, and soft deep foliage; every part of the canvas remains woodland ground and vegetation.\nStyle/medium: hand-painted JRPG environment art matching the approved reference's painterly color depth and natural brush detail.\nComposition/framing: portrait native output approximately 1024x1536 or larger/taller, full bleed, evenly usable from edge to edge, distributed woodland depth with no focal center and no directional composition.\nLighting/mood: soft natural woodland daylight with layered depth, calm readable contrast, no bright central band.\nColor palette: muted Silverpine greens, deep olive, moss, restrained brown bark, cool forest shadows, small natural highlights.\nMaterials/textures: dense irregular trunks and roots, ferns and leaf litter interleaved across the whole image, organic variation without repeated rows.\nConstraints: native dimensions must satisfy coverScale=max(1728/rawWidth,1952/rawHeight)<=2 for exact deterministic 1728x1952 normalization. No landmarks or props.\nAvoid: path, trail, road, track, clearing, central strip, central band, ground seam, bare corridor, light stripe, frame, bar, border, hard edge, rectangular insert shape, copied route, empty foreground, building, structure, character, sign, landmark, text, symbol, grid, tile rows, copied reference layout, watermark.",
+				"outputPath": "/Users/chanwaichan/.codex/generated_images/01a00a4a-dae6-7b43-851d-040dd44bad68/exec-fa8c20b8-551b-46bf-8841-07c2a6e7b346.png",
+				"outputSha256": "dbb27a041189ef2ddc602951462853db3111fe1e934a3302e8c6bae49852b51d",
+				"rawDimensions": [1023, 1537],
+				"coverScale": 1.689149560117302,
+				"references": [
+					{
+						"path": "/Users/chanwaichan/.codex/generated_images/01a00a4a-dae6-7b43-851d-040dd44bad68/exec-cb37f1fe-e073-42d4-8b87-0927e6318cc5.png",
+						"role": "approved Crossroads actual-art palette and painterly reference only",
+						"sha256": "465c6c74f7a4350d034a7edf23c2148cbcce00acde864186102655240e98609e",
+						"bytes": 2769790,
+						"dimensions": {
+							"width": 1023,
+							"height": 1537
+						}
+					}
+				],
+				"normalized": false,
+				"normalization": "not performed after immediate native visual rejection",
+				"finalReviewDisposition": "rejected-path-like-central-rocky-ground-strip",
+				"finalReviewReason": "Original-resolution inspection showed a continuous lighter rocky and leaf-litter corridor through the center, reading as a path-like central strip/ground seam; this violates the explicit no path/trail/road/clearing/central strip/ground seam contract."
+			},
+			{
+				"attempt": 4,
+				"callOrder": 36,
+				"result": "fresh-replacement-raw-passed-native-and-visual-review-round-3",
+				"rawInspectedAtOriginalResolution": true,
+				"nativeQa": "passed",
+				"visualQa": "passed-dense-continuous-edge-to-edge-no-path-or-seam",
+				"promptSha256": "419376591d2378a31da35c43475443ac18f9810acb93763c98cc076741595250",
+				"prompt": "Use case: stylized-concept.\nAsset type: a portrait native raster source insert for a painted 2D JRPG world-map blocker.\n\nCreate a dense, continuous edge-to-edge woodland wall filling the entire frame. The full frame must be packed with overlapping tree trunks, layered canopy, interlocking undergrowth, roots, ferns, moss, and leaf litter, with visual texture continuing all the way to every edge. Keep the composition non-directional and evenly dense; no focal center and no implied route.\n\nAbsolutely exclude any exposed-ground corridor, path, trail, road, clearing, central strip, rocky seam, ground seam, frame, bar, border, landmark, or prop. Do not create any line or opening that could read as a path or route. Do not copy the layout, route, or openings from either reference. The first reference is the primary approved dense blocked-woodland pixel-art source for vegetation texture and structure; the second is approved Crossroads palette/finish context only, and must not contribute its path/layout.\n\nMatch the approved painted-pixel palette and hand-authored JRPG world-map finish: opaque RGB, natural irregular woodland silhouettes, readable clustered vegetation, no text. Produce a portrait image at native dimensions sufficient for exact 1728x1952 canonical normalization with coverScale <= 2 (at least 864x976; target approximately 1024x1536 or taller).",
+				"outputPath": "/Users/chanwaichan/.codex/generated_images/01a00a4a-dae6-7b43-851d-040dd44bad68/exec-7cdcebeb-7ca0-4539-957a-887b50de911b.png",
+				"outputSha256": "04e3925ab272dca2b56c205bd3d625580b61bcd558ee70311eaee03c2d2c9e68",
+				"rawDimensions": [950, 1655],
+				"coverScale": 1.8189473684210526,
+				"references": [
+					{
+						"path": "artifacts/meadow-entry/painted-v2/source-inserts/camera-underlay-crossroads-south-blocked-woodland.png",
+						"role": "approved Task3 dense blocked-woodland source pixels (primary vegetation reference)",
+						"sha256": "a4401a8cbcbd8c1a559c0c1cbba39ac8284a518f8a3f487a785dd2c453a25ae5",
+						"bytes": 13576563,
+						"dimensions": {
+							"width": 3200,
+							"height": 1664
+						}
+					},
+					{
+						"path": "/Users/chanwaichan/.codex/generated_images/01a00a4a-dae6-7b43-851d-040dd44bad68/exec-cb37f1fe-e073-42d4-8b87-0927e6318cc5.png",
+						"role": "approved Crossroads actual-art palette and painterly reference only",
+						"sha256": "465c6c74f7a4350d034a7edf23c2148cbcce00acde864186102655240e98609e",
+						"bytes": 2769790,
+						"dimensions": {
+							"width": 1023,
+							"height": 1537
+						}
+					}
+				],
+				"normalized": true,
+				"normalizedSha256": "45707b5f1f08f498ca628051aa1f59e46c324d8f3e21a0139f9f7274d13188ae",
+				"normalizedDimensions": [1728, 1952],
+				"normalizedBytes": 8469746,
+				"normalizationTransform": {
+					"native": {
+						"width": 950,
+						"height": 1655
+					},
+					"resize": {
+						"width": 1728,
+						"height": 3010
+					},
+					"crop": {
+						"left": 0,
+						"top": 529,
+						"width": 1728,
+						"height": 1952
+					},
+					"scale": 1.8189473684210526,
+					"scaleX": 1.8189473684210526,
+					"scaleY": 1.8189473684210526,
+					"uniform": true,
+					"scaleExceedsTwoX": false,
+					"operation": "cover-scale-crop-to-fixed-panel",
+					"kernel": "lanczos3"
+				}
 			}
-		]
+		],
+		"nativeSizeRequested": {
+			"width": 1024,
+			"height": 1536
+		},
+		"nativeSizeRequestHonored": true,
+		"nativeDetailQualityAcceptedAt100Percent": true,
+		"targetNormalizedDimensions": {
+			"width": 1728,
+			"height": 1952
+		},
+		"coverScale": 1.8189473684210526,
+		"references": [
+			{
+				"path": "artifacts/meadow-entry/painted-v2/source-inserts/camera-underlay-crossroads-south-blocked-woodland.png",
+				"role": "approved Task3 dense blocked-woodland source pixels (primary vegetation reference)",
+				"sha256": "a4401a8cbcbd8c1a559c0c1cbba39ac8284a518f8a3f487a785dd2c453a25ae5",
+				"bytes": 13576563,
+				"dimensions": {
+					"width": 3200,
+					"height": 1664
+				}
+			},
+			{
+				"path": "/Users/chanwaichan/.codex/generated_images/01a00a4a-dae6-7b43-851d-040dd44bad68/exec-cb37f1fe-e073-42d4-8b87-0927e6318cc5.png",
+				"role": "approved Crossroads actual-art palette and painterly reference only",
+				"sha256": "465c6c74f7a4350d034a7edf23c2148cbcce00acde864186102655240e98609e",
+				"bytes": 2769790,
+				"dimensions": {
+					"width": 1023,
+					"height": 1537
+				}
+			}
+		],
+		"reviewDisposition": {
+			"fixRound": 1,
+			"callOrder": 33,
+			"result": "rejected-as-audit-history-before-round-2",
+			"reason": "Rejected as audit history: order-33 woodland retained a path-like central seam and failed the required silverpine-wall-B-south raw==shaped zero-promotion/no-op invariant (4 promoted pixels)."
+		}
 	},
 	"raw": {
 		"path": "artifacts/meadow-entry/painted-v2/source-inserts/raw/crossroads-blocked-woodland.png",
-		"sha256": "93ba4d52cd168adeb4300790198be01ba1add083329c4777c431b73081bf2389",
-		"bytes": 2642840,
-		"dimensions": { "width": 1672, "height": 941 }
+		"sha256": "04e3925ab272dca2b56c205bd3d625580b61bcd558ee70311eaee03c2d2c9e68",
+		"bytes": 2957849,
+		"dimensions": {
+			"width": 950,
+			"height": 1655
+		}
 	},
 	"normalized": {
 		"path": "artifacts/meadow-entry/painted-v2/source-inserts/crossroads-blocked-woodland.png",
-		"sha256": "df3bea60f8dad7abf331f9c7e65b8b6884a52c25c16c46ebd955f617f61dc008",
-		"bytes": 13481662,
-		"dimensions": { "width": 3200, "height": 1664 },
+		"sha256": "45707b5f1f08f498ca628051aa1f59e46c324d8f3e21a0139f9f7274d13188ae",
+		"bytes": 8469746,
+		"dimensions": {
+			"width": 1728,
+			"height": 1952
+		},
 		"colorSpace": "sRGB",
 		"channels": 4,
 		"alphaMinimum": 255,
@@ -50,12 +228,23 @@
 		"canonicalPngChunks": ["IHDR", "IDAT", "IEND"]
 	},
 	"normalizationTransform": {
-		"native": { "width": 1672, "height": 941 },
-		"resize": { "width": 3200, "height": 1801 },
-		"crop": { "left": 0, "top": 68, "width": 3200, "height": 1664 },
-		"scale": 1.9138755980861244,
-		"scaleX": 1.9138755980861244,
-		"scaleY": 1.9138755980861244,
+		"native": {
+			"width": 950,
+			"height": 1655
+		},
+		"resize": {
+			"width": 1728,
+			"height": 3010
+		},
+		"crop": {
+			"left": 0,
+			"top": 529,
+			"width": 1728,
+			"height": 1952
+		},
+		"scale": 1.8189473684210526,
+		"scaleX": 1.8189473684210526,
+		"scaleY": 1.8189473684210526,
 		"uniform": true,
 		"scaleExceedsTwoX": false,
 		"operation": "cover-scale-crop-to-fixed-panel",
@@ -64,39 +253,182 @@
 	"references": [
 		{
 			"path": "/Users/chanwaichan/.codex/generated_images/01a00a4a-dae6-7b43-851d-040dd44bad68/exec-cb37f1fe-e073-42d4-8b87-0927e6318cc5.png",
-			"role": "new Crossroads actual-art reference",
+			"role": "Crossroads actual-art palette and painterly reference",
 			"sha256": "465c6c74f7a4350d034a7edf23c2148cbcce00acde864186102655240e98609e",
 			"bytes": 2769790,
-			"dimensions": { "width": 1023, "height": 1537 }
+			"dimensions": {
+				"width": 1023,
+				"height": 1537
+			}
 		},
 		{
 			"path": "/Users/chanwaichan/.codex/generated_images/01a00a4a-dae6-7b43-851d-040dd44bad68/exec-d520d070-8075-433c-904c-1e2770acb3d4.png",
-			"role": "new hedge texture palette reference",
+			"role": "prior accepted same-class texture reference; prior raw retained in attempt history",
 			"sha256": "733a5af0a9b563de582dce83939d9ad84649f649f36984ff499bf2dd817b3f17",
 			"bytes": 2738643,
-			"dimensions": { "width": 1672, "height": 941 }
+			"dimensions": {
+				"width": 1672,
+				"height": 941
+			}
 		}
 	],
 	"review": {
 		"rawInspectedAtOriginalResolution": true,
+		"inspectedAtOriginalResolution": true,
+		"inspectedNormalizedAt100Percent": true,
+		"accepted": true,
+		"findings": "Call-36 raw was inspected at original detail and accepted: dense continuous edge-to-edge woodland wall with overlapping trunks, canopy, undergrowth, roots, ferns, moss, and leaf litter; no path, exposed-ground corridor, central strip, seam, border, landmark, or prop. Deterministically normalized in fix round 3 for the pending fresh final-source gate.",
 		"gridLikeUpperBand": false,
 		"visibleInsertRectangle": false,
 		"protectedOverlapPixels": 0,
 		"organicIrregularSurface": true,
-		"variedTrunksAndCanopyDepth": true,
 		"noLiteralMaskShape": true,
-		"depthCues": [
-			"varied trunk scale",
-			"layered undergrowth and leaf-litter depth",
-			"soft background canopy"
-		],
-		"regionalCharacter": "Silverpine woodland margin",
+		"supersededApproval": {
+			"approval": "approved-explicit-final-source-gate",
+			"userAnswer": "yes",
+			"approvedAtUtc": "2026-08-16T16:41:54Z",
+			"approvalScope": "Task 4 final-source forest enrichment only; no production publication, runtime permission, Task 5, probes, or master replacement",
+			"approvalCandidateSha256": "6d419b9f52213b70061588baf63e0ef2316f971981a9e66d30e2892ac119c6a4",
+			"approvalEvidenceManifestSha256": "cd905da7d47c938622df80d7d637ce41078918b37143043b7e9c97bf8df4c6f2",
+			"supersededAtUtc": "2026-08-16T19:14:07Z",
+			"supersededReason": "Independent Task 4 review found P1 defects: Crossroads inserts exceeded the new 1728x1952 cover-scale contract and the final static evidence inventory was incomplete."
+		},
 		"approval": "approved-explicit-final-source-gate",
+		"reviewStatus": "approved-explicit-final-source-gate",
+		"supersededAtUtc": "2026-08-16T19:14:07Z",
+		"supersededReason": "Independent Task 4 review found P1 defects: Crossroads inserts exceeded the new 1728x1952 cover-scale contract and the final static evidence inventory was incomplete.",
+		"rejected": false,
+		"round1Rejection": {
+			"fixRound": 1,
+			"callOrder": 33,
+			"attempt": 2,
+			"rawSha256": "50b478875ab1625e0091bb2c869c45489e6dfcdccce254e248dbcca1be07e93d",
+			"normalizedSha256": "6cd489ee862a577d20fe5e3c16c04d176f329264e5a2c9b45cad650fb298e4bc",
+			"originalFindings": "Portrait raw inspected at original detail; varied Silverpine trunks, layered undergrowth, roots, ferns, moss, and leaf-litter depth with no hard border, grid, or rectangular frame observed. A subtle natural ground seam is retained for final human review.",
+			"reason": "Rejected as audit history: order-33 woodland retained a path-like central seam and failed the required silverpine-wall-B-south raw==shaped zero-promotion/no-op invariant (4 promoted pixels).",
+			"supersededAtUtc": "2026-08-16T19:53:35Z"
+		},
+		"round2Attempt": {
+			"attempt": 3,
+			"callOrder": 35,
+			"rawSha256": "dbb27a041189ef2ddc602951462853db3111fe1e934a3302e8c6bae49852b51d",
+			"rawDimensions": [1023, 1537],
+			"coverScale": 1.689149560117302,
+			"rawInspectedAtOriginalResolution": true,
+			"nativeQa": "failed",
+			"visualQa": "rejected-path-like-central-rocky-ground-strip",
+			"normalized": false,
+			"reason": "Original-resolution inspection showed a continuous lighter rocky and leaf-litter corridor through the center, reading as a path-like central strip/ground seam; this violates the explicit no path/trail/road/clearing/central strip/ground seam contract."
+		},
+		"round3Normalization": {
+			"fixRound": 3,
+			"attempt": 4,
+			"callOrder": 36,
+			"rawSha256": "04e3925ab272dca2b56c205bd3d625580b61bcd558ee70311eaee03c2d2c9e68",
+			"rawDimensions": [950, 1655],
+			"coverScale": 1.8189473684210526,
+			"normalizedSha256": "45707b5f1f08f498ca628051aa1f59e46c324d8f3e21a0139f9f7274d13188ae",
+			"normalizedBytes": 8469746,
+			"normalizedDimensions": [1728, 1952],
+			"normalizationTransform": {
+				"native": {
+					"width": 950,
+					"height": 1655
+				},
+				"resize": {
+					"width": 1728,
+					"height": 3010
+				},
+				"crop": {
+					"left": 0,
+					"top": 529,
+					"width": 1728,
+					"height": 1952
+				},
+				"scale": 1.8189473684210526,
+				"scaleX": 1.8189473684210526,
+				"scaleY": 1.8189473684210526,
+				"uniform": true,
+				"scaleExceedsTwoX": false,
+				"operation": "cover-scale-crop-to-fixed-panel",
+				"kernel": "lanczos3"
+			},
+			"rawInspectedAtOriginalResolution": true,
+			"normalizedInspectedAtOriginalResolution": true,
+			"approval": "pending-fresh-final-source-gate"
+		},
+		"round3Attempt": {
+			"attempt": 4,
+			"callOrder": 36,
+			"result": "fresh-replacement-raw-passed-native-and-visual-review-round-3",
+			"rawInspectedAtOriginalResolution": true,
+			"nativeQa": "passed",
+			"visualQa": "passed-dense-continuous-edge-to-edge-no-path-or-seam",
+			"promptSha256": "419376591d2378a31da35c43475443ac18f9810acb93763c98cc076741595250",
+			"prompt": "Use case: stylized-concept.\nAsset type: a portrait native raster source insert for a painted 2D JRPG world-map blocker.\n\nCreate a dense, continuous edge-to-edge woodland wall filling the entire frame. The full frame must be packed with overlapping tree trunks, layered canopy, interlocking undergrowth, roots, ferns, moss, and leaf litter, with visual texture continuing all the way to every edge. Keep the composition non-directional and evenly dense; no focal center and no implied route.\n\nAbsolutely exclude any exposed-ground corridor, path, trail, road, clearing, central strip, rocky seam, ground seam, frame, bar, border, landmark, or prop. Do not create any line or opening that could read as a path or route. Do not copy the layout, route, or openings from either reference. The first reference is the primary approved dense blocked-woodland pixel-art source for vegetation texture and structure; the second is approved Crossroads palette/finish context only, and must not contribute its path/layout.\n\nMatch the approved painted-pixel palette and hand-authored JRPG world-map finish: opaque RGB, natural irregular woodland silhouettes, readable clustered vegetation, no text. Produce a portrait image at native dimensions sufficient for exact 1728x1952 canonical normalization with coverScale <= 2 (at least 864x976; target approximately 1024x1536 or taller).",
+			"outputPath": "/Users/chanwaichan/.codex/generated_images/01a00a4a-dae6-7b43-851d-040dd44bad68/exec-7cdcebeb-7ca0-4539-957a-887b50de911b.png",
+			"outputSha256": "04e3925ab272dca2b56c205bd3d625580b61bcd558ee70311eaee03c2d2c9e68",
+			"rawDimensions": [950, 1655],
+			"coverScale": 1.8189473684210526,
+			"references": [
+				{
+					"path": "artifacts/meadow-entry/painted-v2/source-inserts/camera-underlay-crossroads-south-blocked-woodland.png",
+					"role": "approved Task3 dense blocked-woodland source pixels (primary vegetation reference)",
+					"sha256": "a4401a8cbcbd8c1a559c0c1cbba39ac8284a518f8a3f487a785dd2c453a25ae5",
+					"bytes": 13576563,
+					"dimensions": {
+						"width": 3200,
+						"height": 1664
+					}
+				},
+				{
+					"path": "/Users/chanwaichan/.codex/generated_images/01a00a4a-dae6-7b43-851d-040dd44bad68/exec-cb37f1fe-e073-42d4-8b87-0927e6318cc5.png",
+					"role": "approved Crossroads actual-art palette and painterly reference only",
+					"sha256": "465c6c74f7a4350d034a7edf23c2148cbcce00acde864186102655240e98609e",
+					"bytes": 2769790,
+					"dimensions": {
+						"width": 1023,
+						"height": 1537
+					}
+				}
+			],
+			"normalized": true,
+			"normalizedSha256": "45707b5f1f08f498ca628051aa1f59e46c324d8f3e21a0139f9f7274d13188ae",
+			"normalizedDimensions": [1728, 1952],
+			"normalizedBytes": 8469746,
+			"normalizationTransform": {
+				"native": {
+					"width": 950,
+					"height": 1655
+				},
+				"resize": {
+					"width": 1728,
+					"height": 3010
+				},
+				"crop": {
+					"left": 0,
+					"top": 529,
+					"width": 1728,
+					"height": 1952
+				},
+				"scale": 1.8189473684210526,
+				"scaleX": 1.8189473684210526,
+				"scaleY": 1.8189473684210526,
+				"uniform": true,
+				"scaleExceedsTwoX": false,
+				"operation": "cover-scale-crop-to-fixed-panel",
+				"kernel": "lanczos3"
+			}
+		},
 		"userAnswer": "yes",
-		"approvedAtUtc": "2026-08-16T16:41:54Z",
+		"approvedAtUtc": "2026-08-16T21:37:44Z",
 		"approvalScope": "Task 4 final-source forest enrichment only; no production publication, runtime permission, Task 5, probes, or master replacement",
-		"approvalCandidateSha256": "6d419b9f52213b70061588baf63e0ef2316f971981a9e66d30e2892ac119c6a4",
-		"approvalEvidenceManifestSha256": "cd905da7d47c938622df80d7d637ce41078918b37143043b7e9c97bf8df4c6f2"
+		"approvalCandidateSha256": "bdae53182c62d696068e4acf499a0ac3d2a34bfb4e9a2c84f9072a7a97099cd5",
+		"approvalEvidenceManifestSha256": "7731e46389146044381c3b096492bcd1a12ac14705a58d21a6000fda8421ec3a",
+		"approvalEvidenceFileCount": 104,
+		"runtimePermission": false
 	},
-	"stage": "pending-final-source-gate"
+	"stage": "pending-final-source-gate",
+	"prompt": "Use case: stylized-concept.\nAsset type: a portrait native raster source insert for a painted 2D JRPG world-map blocker.\n\nCreate a dense, continuous edge-to-edge woodland wall filling the entire frame. The full frame must be packed with overlapping tree trunks, layered canopy, interlocking undergrowth, roots, ferns, moss, and leaf litter, with visual texture continuing all the way to every edge. Keep the composition non-directional and evenly dense; no focal center and no implied route.\n\nAbsolutely exclude any exposed-ground corridor, path, trail, road, clearing, central strip, rocky seam, ground seam, frame, bar, border, landmark, or prop. Do not create any line or opening that could read as a path or route. Do not copy the layout, route, or openings from either reference. The first reference is the primary approved dense blocked-woodland pixel-art source for vegetation texture and structure; the second is approved Crossroads palette/finish context only, and must not contribute its path/layout.\n\nMatch the approved painted-pixel palette and hand-authored JRPG world-map finish: opaque RGB, natural irregular woodland silhouettes, readable clustered vegetation, no text. Produce a portrait image at native dimensions sufficient for exact 1728x1952 canonical normalization with coverScale <= 2 (at least 864x976; target approximately 1024x1536 or taller).",
+	"promptSha256": "419376591d2378a31da35c43475443ac18f9810acb93763c98cc076741595250"
 }
