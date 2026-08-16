@@ -141,6 +141,194 @@ test('candidate source review rejects the two recorded invalid-scale attempt-3 m
 	);
 });
 
+type ProvenanceDimensions = Readonly<{ width: number; height: number }>;
+type ProvenanceCrop = Readonly<{
+	left: number;
+	top: number;
+	width: number;
+	height: number;
+}>;
+type ProvenancePng = Readonly<{
+	path: string;
+	sha256: string;
+	bytes: number;
+	dimensions: ProvenanceDimensions;
+}>;
+type ProvenanceTransform = Readonly<{
+	native: ProvenanceDimensions;
+	crop: ProvenanceCrop;
+	scale: number;
+	scaleX: number;
+	scaleY: number;
+}>;
+type ProvenanceGeneration = Readonly<{
+	attempt: number;
+	callOrder?: number;
+	attemptHistory?: readonly unknown[];
+	outputSha256?: string;
+}>;
+type ProvenanceManifest = Readonly<{
+	id: string;
+	raw: ProvenancePng;
+	normalized: ProvenancePng;
+	normalizationTransform: ProvenanceTransform;
+	generation: ProvenanceGeneration;
+}>;
+type ProvenanceCall = Readonly<{
+	id: string;
+	kind: string;
+	attempt: number;
+	callOrder: number;
+	rawPath: string;
+	rawSha256: string;
+	rawDimensions: readonly [number, number];
+	normalizedPath: string;
+	normalizedSha256: string;
+	normalizedDimensions: readonly [number, number];
+	uniformScale: number;
+	crop: ProvenanceCrop;
+}>;
+type ProvenanceDocument = Readonly<{
+	sourceInserts: Readonly<{ inserts: readonly ProvenanceManifest[] }>;
+	sourcePanels: Readonly<{ panels: readonly ProvenanceManifest[] }>;
+	interimForestApproval: Readonly<{ scope: readonly string[] }>;
+	task3CallInventory: Readonly<{ accepted: readonly ProvenanceCall[] }>;
+}>;
+
+function readJson<T>(path: string): T {
+	return JSON.parse(readFileSync(path, 'utf8')) as T;
+}
+
+async function assertProvenancePng(
+	repositoryRoot: string,
+	descriptor: ProvenancePng,
+	label: string
+): Promise<void> {
+	const bytes = readFileSync(join(repositoryRoot, descriptor.path));
+	assert.equal(
+		createHash('sha256').update(bytes).digest('hex'),
+		descriptor.sha256,
+		`${label} sha256 must match its actual bytes`
+	);
+	assert.equal(
+		bytes.byteLength,
+		descriptor.bytes,
+		`${label} byte count must match its actual bytes`
+	);
+	const metadata = await sharp(bytes).metadata();
+	assert.deepEqual(
+		{ width: metadata.width, height: metadata.height },
+		descriptor.dimensions,
+		`${label} dimensions must match its actual bytes`
+	);
+}
+
+test('root provenance binds current accepted inserts, call inventory, bytes, and evidence scope', async () => {
+	const repositoryRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
+	const provenance = readJson<ProvenanceDocument>(
+		join(repositoryRoot, 'artifacts/meadow-entry/painted-v2/provenance.json')
+	);
+	const evidenceManifest = readJson<{ files: Record<string, unknown> }>(
+		join(
+			repositoryRoot,
+			'docs/superpowers/reports/img/hpa-586-painted-v2-enrichment/forest-interim/evidence-manifest.json'
+		)
+	);
+	const insertManifests = new Map<string, ProvenanceManifest>();
+	for (const id of INSERT_IDS) {
+		insertManifests.set(
+			id,
+			readJson<ProvenanceManifest>(
+				join(repositoryRoot, `artifacts/meadow-entry/painted-v2/source-inserts/${id}.json`)
+			)
+		);
+	}
+	const sourcePanelManifests = new Map<string, ProvenanceManifest>();
+	for (const id of PRESENTATION_IDS) {
+		sourcePanelManifests.set(
+			id,
+			readJson<ProvenanceManifest>(
+				join(repositoryRoot, `artifacts/meadow-entry/painted-v2/source-panels/${id}.json`)
+			)
+		);
+	}
+	const rootInsertById = new Map(
+		provenance.sourceInserts.inserts.map((insert) => [insert.id, insert])
+	);
+	for (const [id, manifest] of insertManifests) {
+		const rootInsert = rootInsertById.get(id);
+		assert.ok(rootInsert, `${id} must be present in root sourceInserts`);
+		assert.equal(
+			stableHash(rootInsert),
+			stableHash(manifest),
+			`${id} root sourceInserts entry must equal the current per-insert manifest`
+		);
+		await assertProvenancePng(repositoryRoot, manifest.raw, `${id} raw`);
+		await assertProvenancePng(repositoryRoot, manifest.normalized, `${id} normalized`);
+		assert.deepEqual(
+			rootInsert?.generation.attemptHistory,
+			manifest.generation.attemptHistory,
+			`${id} root sourceInserts call history must match its current manifest`
+		);
+	}
+
+	const acceptedCalls = provenance.task3CallInventory.accepted;
+	assert.equal(
+		acceptedCalls.length,
+		11,
+		'task3CallInventory must retain six presentation and five insert calls'
+	);
+	for (const call of acceptedCalls) {
+		const manifest = insertManifests.get(call.id) ?? sourcePanelManifests.get(call.id);
+		assert.ok(manifest, `${call.id} accepted call must have a current source manifest`);
+		await assertProvenancePng(repositoryRoot, manifest.raw, `${call.id} raw`);
+		await assertProvenancePng(repositoryRoot, manifest.normalized, `${call.id} normalized`);
+		assert.equal(call.rawPath, manifest.raw.path, `${call.id} raw path drifted`);
+		assert.equal(call.rawSha256, manifest.raw.sha256, `${call.id} raw hash drifted`);
+		assert.deepEqual(call.rawDimensions, [
+			manifest.raw.dimensions.width,
+			manifest.raw.dimensions.height
+		]);
+		assert.equal(
+			call.normalizedPath,
+			manifest.normalized.path,
+			`${call.id} normalized path drifted`
+		);
+		assert.equal(
+			call.normalizedSha256,
+			manifest.normalized.sha256,
+			`${call.id} normalized hash drifted`
+		);
+		assert.deepEqual(call.normalizedDimensions, [
+			manifest.normalized.dimensions.width,
+			manifest.normalized.dimensions.height
+		]);
+		assert.equal(
+			call.uniformScale,
+			manifest.normalizationTransform.scale,
+			`${call.id} uniform scale drifted`
+		);
+		assert.deepEqual(call.crop, manifest.normalizationTransform.crop, `${call.id} crop drifted`);
+		const callHistory = insertManifests.has(call.id)
+			? manifest.generation
+			: provenance.sourcePanels.panels.find((panel) => panel.id === call.id)?.generation;
+		assert.ok(callHistory, `${call.id} accepted call must have current call history`);
+		assert.equal(call.attempt, callHistory?.attempt, `${call.id} attempt drifted`);
+		assert.equal(call.callOrder, callHistory?.callOrder, `${call.id} call order drifted`);
+	}
+
+	const evidenceCount = Object.keys(evidenceManifest.files).length;
+	const evidenceScope = provenance.interimForestApproval.scope.find((entry) =>
+		/\d+ review artifacts/.test(entry)
+	);
+	assert.ok(evidenceScope, 'approval scope must state its evidence artifact count');
+	assert.equal(
+		Number(evidenceScope?.match(/\d+/)?.[0]),
+		evidenceCount,
+		'approval scope evidence count must match evidence-manifest entry count'
+	);
+});
+
 function recursiveFiles(root: string): string[] {
 	const entries = readdirSync(root, { withFileTypes: true });
 	return entries.flatMap((entry) => {
