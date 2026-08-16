@@ -16,7 +16,8 @@ import {
 } from './meadow-entry-painted-v2-underlay-assembly';
 import {
 	MEADOW_ENTRY_PAINTED_V2_SCENERY_BLOCKERS,
-	MEADOW_ENTRY_PAINTED_V2_SCENERY_INSERTS
+	MEADOW_ENTRY_PAINTED_V2_SCENERY_INSERTS,
+	type MeadowEntryPaintedV2SceneryBlocker
 } from './meadow-entry-painted-v2-scenery';
 import {
 	buildMeadowEntryPaintedV2SceneryMaskSetFromControls,
@@ -24,7 +25,9 @@ import {
 	erodeMeadowEntryMask8,
 	enrichMeadowEntryPaintedV2Sources,
 	meadowEntrySceneryInsetDistances,
+	shapeMeadowEntryPaintedV2SceneryContributions,
 	type DecodedMeadowEntryPaintedV2SceneryInsert,
+	type MeadowEntryPaintedV2SceneryContribution,
 	type MeadowEntryPaintedV2SceneryMaskSet
 } from './meadow-entry-painted-v2-scenery-bake';
 
@@ -34,6 +37,115 @@ function bounds(left: number, top: number, right: number, bottom: number): Pixel
 
 function offset(width: number, x: number, y: number): number {
 	return y * width + x;
+}
+
+function topologyBlocker(
+	sourceId: string,
+	blockerBounds: PixelBounds,
+	language: MeadowEntryPaintedV2SceneryBlocker['language'],
+	sceneryClass: MeadowEntryPaintedV2SceneryBlocker['sceneryClass']
+): MeadowEntryPaintedV2SceneryBlocker {
+	return { sourceId, bounds: blockerBounds, language, sceneryClass };
+}
+
+function topologyContribution(
+	blockerId: string,
+	insertId: string,
+	worldIndex: number,
+	rawFinalWeight: number,
+	organicSignal = 128,
+	edgeWeight = 255,
+	ownerPriority = 1,
+	sceneryClass: MeadowEntryPaintedV2SceneryBlocker['sceneryClass'] = 'woodland'
+): MeadowEntryPaintedV2SceneryContribution {
+	return {
+		blockerId,
+		insertId,
+		owningSourceId: `owner-${insertId}`,
+		ownerPriority,
+		sceneryClass,
+		worldIndex,
+		rawFinalWeight,
+		organicSignal,
+		edgeWeight,
+		ownerRelativeTone: [100, 120, 140]
+	};
+}
+
+function sparseTopologyFixture(): {
+	readonly width: number;
+	readonly height: number;
+	readonly blockers: readonly MeadowEntryPaintedV2SceneryBlocker[];
+	readonly contributions: readonly MeadowEntryPaintedV2SceneryContribution[];
+} {
+	const width = 24;
+	const height = 36;
+	const blockerId = 'synthetic-sparse-belt';
+	const blocker = topologyBlocker(blockerId, bounds(2, 0, 18, 12), 'hedge', 'hedge');
+	const contributions: MeadowEntryPaintedV2SceneryContribution[] = [];
+	for (let y = blocker.bounds.top; y < blocker.bounds.bottom; y += 1) {
+		for (let x = blocker.bounds.left; x < blocker.bounds.right; x += 1) {
+			const worldIndex = offset(width, x, y);
+			const saturated = y >= 2 && y < 10;
+			contributions.push(
+				topologyContribution(
+					blockerId,
+					'sparse-insert',
+					worldIndex,
+					saturated ? 255 : 16,
+					255,
+					255,
+					1,
+					'hedge'
+				)
+			);
+			if (x === 4 && y === 5)
+				contributions.push(
+					topologyContribution(
+						blockerId,
+						'sparse-insert-shadow',
+						worldIndex,
+						220,
+						64,
+						255,
+						1,
+						'hedge'
+					)
+				);
+		}
+	}
+	return { width, height, blockers: [blocker], contributions };
+}
+
+function treeTopologyFixture(): {
+	readonly width: number;
+	readonly height: number;
+	readonly blockers: readonly MeadowEntryPaintedV2SceneryBlocker[];
+	readonly contributions: readonly MeadowEntryPaintedV2SceneryContribution[];
+} {
+	const width = 28;
+	const height = 40;
+	const blockerId = 'synthetic-tree-wall';
+	const blocker = topologyBlocker(blockerId, bounds(2, 20, 22, 25), 'tree-wall', 'woodland');
+	const contributions: MeadowEntryPaintedV2SceneryContribution[] = [];
+	for (let x = blocker.bounds.left; x < blocker.bounds.right; x += 1) {
+		for (let y = blocker.bounds.top; y < blocker.bounds.bottom; y += 1) {
+			const slice = x - blocker.bounds.left;
+			const strong = slice % 2 === 0 && y === blocker.bounds.top + (slice % 5);
+			const worldIndex = offset(width, x, y);
+			contributions.push(
+				topologyContribution(
+					blockerId,
+					'tree-insert',
+					worldIndex,
+					strong ? 64 : 8,
+					strong ? 220 : 80,
+					64
+				)
+			);
+		}
+	}
+	return { width, height, blockers: [blocker], contributions };
 }
 
 function rgbaOffset(width: number, x: number, y: number): number {
@@ -389,6 +501,217 @@ function expectedPairCorrection(
 }
 
 describe('Meadow Entry painted-v2 scenery bake primitives', () => {
+	it('shapes a uniform saturated sparse belt and preserves sub-cap raw weights', () => {
+		const fixture = sparseTopologyFixture();
+		expect(() =>
+			shapeMeadowEntryPaintedV2SceneryContributions(
+				fixture.contributions,
+				fixture.blockers,
+				fixture.width,
+				fixture.height
+			)
+		).not.toThrow();
+		const result = shapeMeadowEntryPaintedV2SceneryContributions(
+			fixture.contributions,
+			fixture.blockers,
+			fixture.width,
+			fixture.height
+		);
+		const topology = result.rowTopology['synthetic-sparse-belt'];
+		expect(topology).toMatchObject({
+			kind: 'sparse-core-cap',
+			erosionCount: 3,
+			originalSaturatedPixelCount: 128,
+			retainedSaturatedPixelCount: 20,
+			demotedContributionCount: 108
+		});
+		const rawWeights = fixture.contributions.map(({ rawFinalWeight }) => rawFinalWeight);
+		const shapedWeights = [...result.shapedWeights];
+		const shadowIndex = fixture.contributions.findIndex(
+			({ rawFinalWeight }) => rawFinalWeight === 220
+		);
+		expect(shadowIndex).toBeGreaterThanOrEqual(0);
+		expect(shapedWeights[shadowIndex]).toBe(220);
+		expect(rawWeights.filter((value) => value >= 32).length).toBe(
+			shapedWeights.filter((value) => value >= 32).length
+		);
+		expect(shapedWeights.filter((value) => value === 191).length).toBe(108);
+		for (const request of result.requests) {
+			expect(request.reasons).toEqual(['sparse-core-cap']);
+			expect(request.shapedWeight).toBe(191);
+		}
+		expect(result.requests.map(({ contributionIndex }) => contributionIndex)).toEqual(
+			[...result.requests.map(({ contributionIndex }) => contributionIndex)].sort((a, b) => a - b)
+		);
+	});
+
+	it('repairs tree slices and fills only distinct edge-capable world pixels', () => {
+		const fixture = treeTopologyFixture();
+		const result = shapeMeadowEntryPaintedV2SceneryContributions(
+			fixture.contributions,
+			fixture.blockers,
+			fixture.width,
+			fixture.height
+		);
+		const topology = result.rowTopology['synthetic-tree-wall'];
+		expect(topology).toMatchObject({
+			kind: 'tree-continuity-floor',
+			missingSlicePromotionCount: 10,
+			coveragePromotionCount: 5,
+			promotedWorldPixelCount: 15
+		});
+		const reasons = result.requests.flatMap(({ reasons }) => reasons);
+		expect(reasons.filter((reason) => reason === 'tree-missing-slice')).toHaveLength(10);
+		expect(reasons.filter((reason) => reason === 'tree-coverage-floor')).toHaveLength(5);
+		expect(result.requests.every(({ shapedWeight, rawWeight }) => shapedWeight >= rawWeight)).toBe(
+			true
+		);
+		expect(result.requests.every(({ shapedWeight }) => shapedWeight >= 32)).toBe(true);
+		const requestedPixels = result.requests.map(({ worldIndex }) => worldIndex);
+		expect(new Set(requestedPixels).size).toBe(requestedPixels.length);
+		expect(topology.requestSha256).toMatch(/^[a-f0-9]{64}$/);
+		expect(result.requestSha256).toMatch(/^[a-f0-9]{64}$/);
+	});
+
+	it('derives overlapping tree requests from immutable raw input independent of row order', () => {
+		const fixture = treeTopologyFixture();
+		const secondBlocker = topologyBlocker(
+			'synthetic-tree-wall-overlap',
+			bounds(2, 20, 22, 25),
+			'tree-wall',
+			'woodland'
+		);
+		const secondContributions = fixture.contributions.map((contribution) => ({
+			...contribution,
+			blockerId: secondBlocker.sourceId,
+			insertId: 'tree-insert-overlap'
+		}));
+		const contributions = [...fixture.contributions, ...secondContributions];
+		const blockers = [fixture.blockers[0]!, secondBlocker];
+		const contributionSnapshot = contributions.map((contribution) => ({
+			...contribution,
+			ownerRelativeTone: [...contribution.ownerRelativeTone]
+		}));
+		const blockerSnapshot = blockers.map((blocker) => ({
+			...blocker,
+			bounds: { ...blocker.bounds }
+		}));
+		const forward = shapeMeadowEntryPaintedV2SceneryContributions(
+			contributions,
+			blockers,
+			fixture.width,
+			fixture.height
+		);
+		const reversed = shapeMeadowEntryPaintedV2SceneryContributions(
+			contributions,
+			[...blockers].reverse(),
+			fixture.width,
+			fixture.height
+		);
+
+		expect([...forward.shapedWeights]).toEqual([...reversed.shapedWeights]);
+		expect(forward.requests).toEqual(reversed.requests);
+		expect(forward.requestSha256).toBe(reversed.requestSha256);
+		expect(contributions).toEqual(contributionSnapshot);
+		expect(blockers).toEqual(blockerSnapshot);
+	});
+
+	it('does not add a coverage request after missing-slice repair already reaches the floor', () => {
+		const width = 12;
+		const height = 16;
+		const blockerId = 'tree-floor-no-fill';
+		const blocker = topologyBlocker(blockerId, bounds(2, 4, 6, 8), 'tree-wall', 'woodland');
+		const contributions: MeadowEntryPaintedV2SceneryContribution[] = [];
+		for (let x = blocker.bounds.left; x < blocker.bounds.right; x += 1)
+			for (let y = blocker.bounds.top; y < blocker.bounds.bottom; y += 1)
+				contributions.push(
+					topologyContribution(
+						blockerId,
+						'tree-insert',
+						offset(width, x, y),
+						x === blocker.bounds.left && y === blocker.bounds.top ? 64 : 8,
+						y === blocker.bounds.top + ((x - blocker.bounds.left) % 4) ? 220 : 80,
+						64
+					)
+				);
+		const result = shapeMeadowEntryPaintedV2SceneryContributions(
+			contributions,
+			[blocker],
+			width,
+			height
+		);
+		expect(result.requests.some(({ reasons }) => reasons.includes('tree-coverage-floor'))).toBe(
+			false
+		);
+		expect(
+			result.requests.filter(({ reasons }) => reasons.includes('tree-missing-slice'))
+		).toHaveLength(3);
+	});
+
+	it('rejects topology inputs that cannot satisfy the bounded language contracts', () => {
+		const sparseBlocker = topologyBlocker('sparse', bounds(0, 0, 80, 80), 'hedge', 'hedge');
+		const wideSparse: MeadowEntryPaintedV2SceneryContribution[] = [];
+		for (let y = 0; y < 80; y += 1)
+			for (let x = 0; x < 80; x += 1)
+				wideSparse.push(
+					topologyContribution(
+						'sparse',
+						'sparse-insert',
+						offset(80, x, y),
+						255,
+						255,
+						255,
+						1,
+						'hedge'
+					)
+				);
+		expect(() =>
+			shapeMeadowEntryPaintedV2SceneryContributions(wideSparse, [sparseBlocker], 80, 80)
+		).toThrow(/bounded erosion/i);
+
+		const treeBlocker = topologyBlocker('tree', bounds(0, 0, 4, 4), 'tree-wall', 'woodland');
+		const incapableTree = Array.from({ length: 16 }, (_, index) =>
+			topologyContribution('tree', 'tree-insert', index, 8, 128, 16)
+		);
+		expect(() =>
+			shapeMeadowEntryPaintedV2SceneryContributions(incapableTree, [treeBlocker], 4, 4)
+		).toThrow(/too few edge-capable pixels/i);
+
+		const uniformTree = Array.from({ length: 16 }, (_, index) =>
+			topologyContribution(
+				'tree',
+				'tree-insert',
+				index,
+				Math.floor(index / 4) < 2 ? 64 : 8,
+				128,
+				64
+			)
+		);
+		expect(() =>
+			shapeMeadowEntryPaintedV2SceneryContributions(uniformTree, [treeBlocker], 4, 4)
+		).toThrow(/uniform contour/i);
+
+		const overlapSparse = topologyBlocker('sparse-overlap', bounds(0, 0, 4, 4), 'hedge', 'hedge');
+		const overlapTree = topologyBlocker(
+			'tree-overlap',
+			bounds(0, 0, 4, 4),
+			'tree-wall',
+			'woodland'
+		);
+		const overlapContributions = [
+			topologyContribution('sparse-overlap', 'sparse-insert', 0, 255, 255, 255, 1, 'hedge'),
+			topologyContribution('tree-overlap', 'tree-insert', 0, 64, 128, 64)
+		];
+		expect(() =>
+			shapeMeadowEntryPaintedV2SceneryContributions(
+				overlapContributions,
+				[overlapSparse, overlapTree],
+				4,
+				4
+			)
+		).toThrow(/overlap/i);
+	});
+
 	it('returns exactly the five catalog-backed retained masks', () => {
 		const controls = buildMeadowEntryControlInputs(process.cwd());
 		const masks = buildMeadowEntryPaintedV2SceneryMaskSetFromControls(controls, {
@@ -549,7 +872,7 @@ describe('Meadow Entry painted-v2 scenery bake primitives', () => {
 		const treeRows = result.rows.filter((row) => row.language === 'tree-wall');
 		expect(treeRows).toHaveLength(6);
 		expect(treeRows[0]!.evaluableSliceCount).toBe(310);
-		expect(treeRows.some((row) => row.evaluableSliceCount > row.weightedSliceCount)).toBe(true);
+		expect(treeRows.every((row) => row.evaluableSliceCount === row.weightedSliceCount)).toBe(true);
 	});
 
 	it('uses the expanded control rectangles for protected-live and other-protected masks', () => {

@@ -21,6 +21,7 @@ import {
 	MEADOW_ENTRY_PAINTED_V2_SCENERY_BLOCKERS,
 	MEADOW_ENTRY_PAINTED_V2_SCENERY_INSERTS,
 	validateMeadowEntryPaintedV2SceneryContract,
+	type MeadowEntryPaintedV2SceneryBlocker,
 	type MeadowEntryPaintedV2SceneryClass,
 	type MeadowEntryPaintedV2SceneryLanguage
 } from './meadow-entry-painted-v2-scenery';
@@ -56,6 +57,57 @@ export interface DecodedMeadowEntryPaintedV2SceneryInsert {
 	readonly rgba: DecodedMeadowEntryRgba;
 }
 
+export interface MeadowEntryPaintedV2SceneryContribution {
+	readonly blockerId: string;
+	readonly insertId: string;
+	readonly owningSourceId: string;
+	readonly ownerPriority: number;
+	readonly sceneryClass: MeadowEntryPaintedV2SceneryClass;
+	readonly worldIndex: number;
+	readonly rawFinalWeight: number;
+	readonly organicSignal: number;
+	readonly edgeWeight: number;
+	readonly ownerRelativeTone: readonly [number, number, number];
+}
+
+export interface MeadowEntryPaintedV2SparseTopologyProvenance {
+	readonly kind: 'sparse-core-cap';
+	readonly erosionCount: number;
+	readonly originalSaturatedPixelCount: number;
+	readonly retainedSaturatedPixelCount: number;
+	readonly demotedContributionCount: number;
+	readonly requestSha256: string;
+}
+
+export interface MeadowEntryPaintedV2TreeTopologyProvenance {
+	readonly kind: 'tree-continuity-floor';
+	readonly missingSlicePromotionCount: number;
+	readonly coveragePromotionCount: number;
+	readonly promotedWorldPixelCount: number;
+	readonly requestSha256: string;
+}
+
+export type MeadowEntryPaintedV2SceneryTopologyProvenance =
+	| MeadowEntryPaintedV2SparseTopologyProvenance
+	| MeadowEntryPaintedV2TreeTopologyProvenance;
+
+export interface MeadowEntryPaintedV2SceneryTopologyRequest {
+	readonly contributionIndex: number;
+	readonly blockerIds: readonly string[];
+	readonly reasons: readonly ('sparse-core-cap' | 'tree-missing-slice' | 'tree-coverage-floor')[];
+	readonly insertId: string;
+	readonly worldIndex: number;
+	readonly rawWeight: number;
+	readonly shapedWeight: number;
+}
+
+export interface MeadowEntryPaintedV2SceneryTopologyResult {
+	readonly shapedWeights: Uint8Array;
+	readonly rowTopology: Readonly<Record<string, MeadowEntryPaintedV2SceneryTopologyProvenance>>;
+	readonly requests: readonly MeadowEntryPaintedV2SceneryTopologyRequest[];
+	readonly requestSha256: string;
+}
+
 export interface MeadowEntryPaintedV2SceneryIntersectionMetric {
 	readonly blockerId: string;
 	readonly insertId: string;
@@ -64,6 +116,7 @@ export interface MeadowEntryPaintedV2SceneryIntersectionMetric {
 	readonly sampleCount: number;
 	readonly q40: number;
 	readonly q80: number;
+	readonly rawWeightSha256: string;
 	readonly weightSha256: string;
 }
 
@@ -74,7 +127,9 @@ export interface MeadowEntryPaintedV2SceneryRowMetricBase {
 	readonly eligiblePixelCount: number;
 	readonly weightedPixelCount: number;
 	readonly coverage: number;
+	readonly rawWeightSha256: string;
 	readonly weightSha256: string;
+	readonly topology: MeadowEntryPaintedV2SceneryTopologyProvenance;
 }
 
 export interface MeadowEntryPaintedV2SceneryClumpRunMetric extends MeadowEntryPaintedV2SceneryRowMetricBase {
@@ -108,6 +163,8 @@ export interface MeadowEntryPaintedV2SceneryBakeResult {
 	readonly classChangedPixelCounts: Readonly<Record<MeadowEntryPaintedV2SceneryClass, number>>;
 	readonly intersections: readonly MeadowEntryPaintedV2SceneryIntersectionMetric[];
 	readonly rows: readonly MeadowEntryPaintedV2SceneryRowMetric[];
+	readonly topologyRequests?: readonly MeadowEntryPaintedV2SceneryTopologyRequest[];
+	readonly topologyRequestSha256?: string;
 	readonly formulas: Readonly<Record<string, string>>;
 }
 
@@ -729,6 +786,17 @@ interface InsertPlan {
 	readonly tones: ReadonlyMap<number, readonly [number, number, number]>;
 }
 
+interface IntersectionContributionPlan {
+	readonly blockerId: string;
+	readonly insertId: string;
+	readonly owningSourceId: string;
+	readonly sceneryClass: MeadowEntryPaintedV2SceneryClass;
+	readonly sampleCount: number;
+	readonly q40: number;
+	readonly q80: number;
+	readonly contributionIndexes: readonly number[];
+}
+
 function classMask(
 	masks: MeadowEntryPaintedV2SceneryMaskSet,
 	sceneryClass: MeadowEntryPaintedV2SceneryClass
@@ -752,6 +820,631 @@ function hashNumberMap(values: ReadonlyMap<number, number>): string {
 
 function rowWeightHash(weights: ReadonlyMap<number, number>): string {
 	return hashNumberMap(weights);
+}
+
+type MeadowEntryPaintedV2SceneryTopologyReason =
+	| 'sparse-core-cap'
+	| 'tree-missing-slice'
+	| 'tree-coverage-floor';
+
+interface PendingTopologyRequest {
+	readonly contributionIndex: number;
+	readonly blockerIds: Set<string>;
+	readonly reasons: Set<MeadowEntryPaintedV2SceneryTopologyReason>;
+	shapedWeight: number;
+}
+
+interface TopologySlice {
+	readonly index: number;
+	readonly contributionIndexes: number[];
+	edgeEnvelope: number;
+	weighted: boolean;
+	near: number;
+	far: number;
+}
+
+interface TreeTopologyMetric {
+	readonly eligiblePixelCount: number;
+	readonly weightedPixelCount: number;
+	readonly coverage: number;
+	readonly evaluableSliceCount: number;
+	readonly weightedSliceCount: number;
+	readonly distinctContourPairCount: number;
+	readonly longestConstantContourRunRatio: number;
+	readonly slices: readonly TopologySlice[];
+}
+
+const compareTopologyContribution = (
+	left: MeadowEntryPaintedV2SceneryContribution,
+	right: MeadowEntryPaintedV2SceneryContribution
+): number =>
+	right.rawFinalWeight - left.rawFinalWeight ||
+	right.organicSignal - left.organicSignal ||
+	right.edgeWeight - left.edgeWeight ||
+	right.ownerPriority - left.ownerPriority ||
+	left.insertId.localeCompare(right.insertId) ||
+	left.worldIndex - right.worldIndex;
+
+function topologyRequestHash(
+	requests: readonly MeadowEntryPaintedV2SceneryTopologyRequest[]
+): string {
+	return sha256(stable(requests));
+}
+
+function assertTopologyInputs(
+	contributions: readonly MeadowEntryPaintedV2SceneryContribution[],
+	blockers: readonly MeadowEntryPaintedV2SceneryBlocker[],
+	width: number,
+	height: number
+): ReadonlyMap<string, MeadowEntryPaintedV2SceneryBlocker> {
+	assert(Number.isInteger(width) && width > 0, 'Meadow Entry topology width is invalid');
+	assert(Number.isInteger(height) && height > 0, 'Meadow Entry topology height is invalid');
+	const blockerById = new Map<string, MeadowEntryPaintedV2SceneryBlocker>();
+	for (const blocker of blockers) {
+		assert(!blockerById.has(blocker.sourceId), `Duplicate topology blocker: ${blocker.sourceId}`);
+		assert(
+			Number.isInteger(blocker.bounds.left) &&
+				Number.isInteger(blocker.bounds.top) &&
+				Number.isInteger(blocker.bounds.right) &&
+				Number.isInteger(blocker.bounds.bottom) &&
+				blocker.bounds.right > blocker.bounds.left &&
+				blocker.bounds.bottom > blocker.bounds.top,
+			`Topology blocker ${blocker.sourceId} bounds are invalid`
+		);
+		blockerById.set(blocker.sourceId, blocker);
+	}
+	for (const [index, contribution] of contributions.entries()) {
+		assert(
+			Number.isInteger(contribution.worldIndex) &&
+				contribution.worldIndex >= 0 &&
+				contribution.worldIndex < width * height,
+			`Topology contribution ${index} world index is invalid`
+		);
+		for (const [name, value] of [
+			['rawFinalWeight', contribution.rawFinalWeight],
+			['organicSignal', contribution.organicSignal],
+			['edgeWeight', contribution.edgeWeight]
+		] as const)
+			assert(
+				Number.isInteger(value) && value >= 0 && value <= 255,
+				`Topology contribution ${index} ${name} is invalid`
+			);
+		assert(
+			Number.isFinite(contribution.ownerPriority),
+			`Topology contribution ${index} priority is invalid`
+		);
+		assert(
+			contribution.ownerRelativeTone.length === 3 &&
+				contribution.ownerRelativeTone.every(
+					(value) => Number.isInteger(value) && value >= 0 && value <= 255
+				),
+			`Topology contribution ${index} tone is invalid`
+		);
+		const blocker = blockerById.get(contribution.blockerId);
+		assert(blocker !== undefined, `Topology contribution ${index} has an unknown blocker`);
+		assert(
+			contribution.sceneryClass === blocker.sceneryClass,
+			`Topology contribution ${index} class does not match blocker ${blocker.sourceId}`
+		);
+	}
+	return blockerById;
+}
+
+function topologySliceIndex(
+	blocker: MeadowEntryPaintedV2SceneryBlocker,
+	worldIndex: number,
+	width: number,
+	rowBounds = blocker.bounds
+): number | null {
+	const x = worldIndex % width;
+	const y = Math.floor(worldIndex / width);
+	if (x < rowBounds.left || x >= rowBounds.right || y < rowBounds.top || y >= rowBounds.bottom)
+		return null;
+	const longAxisX = boundsWidth(rowBounds) >= boundsHeight(rowBounds);
+	return longAxisX ? x - rowBounds.left : y - rowBounds.top;
+}
+
+function topologyRowBounds(
+	blocker: MeadowEntryPaintedV2SceneryBlocker,
+	contributionIndexes: readonly number[],
+	contributions: readonly MeadowEntryPaintedV2SceneryContribution[],
+	width: number,
+	height: number
+): PixelBounds {
+	if (
+		blocker.bounds.left >= 0 &&
+		blocker.bounds.top >= 0 &&
+		blocker.bounds.right <= width &&
+		blocker.bounds.bottom <= height
+	)
+		return blocker.bounds;
+	let left = width;
+	let top = height;
+	let right = 0;
+	let bottom = 0;
+	for (const contributionIndex of contributionIndexes) {
+		const worldIndex = contributions[contributionIndex]!.worldIndex;
+		const x = worldIndex % width;
+		const y = Math.floor(worldIndex / width);
+		left = Math.min(left, x);
+		top = Math.min(top, y);
+		right = Math.max(right, x + 1);
+		bottom = Math.max(bottom, y + 1);
+	}
+	assert(
+		left < right && top < bottom,
+		`Topology row has no measurable bounds: ${blocker.sourceId}`
+	);
+	return { left, top, right, bottom };
+}
+
+function sparseTopologyMetric(
+	retainedCore: Uint8Array,
+	blocker: MeadowEntryPaintedV2SceneryBlocker,
+	width: number,
+	rowBounds = blocker.bounds
+): { readonly p95: number; readonly maximum: number } {
+	const longAxisX = boundsWidth(rowBounds) >= boundsHeight(rowBounds);
+	const sliceCount = longAxisX ? boundsWidth(rowBounds) : boundsHeight(rowBounds);
+	const ratios: number[] = [];
+	for (let slice = 0; slice < sliceCount; slice += 1) {
+		const values: number[] = [];
+		if (longAxisX) {
+			const x = rowBounds.left + slice;
+			for (let y = rowBounds.top; y < rowBounds.bottom; y += 1)
+				values.push(retainedCore[y * width + x] ?? 0);
+		} else {
+			const y = rowBounds.top + slice;
+			for (let x = rowBounds.left; x < rowBounds.right; x += 1)
+				values.push(retainedCore[y * width + x] ?? 0);
+		}
+		ratios.push(rangeRunRatio(values, (value) => value === 1));
+	}
+	return {
+		p95: meadowEntryNearestRank(ratios, 0.95),
+		maximum: Math.max(...ratios, 0)
+	};
+}
+
+function treeTopologyMetric(
+	blocker: MeadowEntryPaintedV2SceneryBlocker,
+	contributionIndexes: readonly number[],
+	contributions: readonly MeadowEntryPaintedV2SceneryContribution[],
+	weights: ReadonlyMap<number, number>,
+	width: number,
+	rowBounds = blocker.bounds
+): TreeTopologyMetric {
+	const eligible = new Set(contributionIndexes.map((index) => contributions[index]!.worldIndex));
+	const longAxisX = boundsWidth(rowBounds) >= boundsHeight(rowBounds);
+	const sliceCount = longAxisX ? boundsWidth(rowBounds) : boundsHeight(rowBounds);
+	const slices: TopologySlice[] = Array.from({ length: sliceCount }, (_, index) => ({
+		index,
+		contributionIndexes: [],
+		edgeEnvelope: 0,
+		weighted: false,
+		near: -1,
+		far: -1
+	}));
+	for (const contributionIndex of contributionIndexes) {
+		const contribution = contributions[contributionIndex]!;
+		const slice = topologySliceIndex(blocker, contribution.worldIndex, width, rowBounds);
+		assert(slice !== null, `Topology contribution is outside ${blocker.sourceId}`);
+		const destination = slices[slice]!;
+		destination.contributionIndexes.push(contributionIndex);
+		destination.edgeEnvelope = Math.max(destination.edgeEnvelope, contribution.edgeWeight);
+	}
+	let weightedPixelCount = 0;
+	for (const value of weights.values()) if (value >= 32) weightedPixelCount += 1;
+	let evaluableSliceCount = 0;
+	let weightedSliceCount = 0;
+	const contourPairs = new Set<string>();
+	let longestConstant = 0;
+	let currentConstant = 0;
+	let previousPair: string | null = null;
+	for (const slice of slices) {
+		if (slice.edgeEnvelope < 32) {
+			previousPair = null;
+			currentConstant = 0;
+			continue;
+		}
+		evaluableSliceCount += 1;
+		const values: number[] = [];
+		if (longAxisX) {
+			const x = rowBounds.left + slice.index;
+			for (let y = rowBounds.top; y < rowBounds.bottom; y += 1)
+				values.push(weights.get(y * width + x) ?? 0);
+		} else {
+			const y = rowBounds.top + slice.index;
+			for (let x = rowBounds.left; x < rowBounds.right; x += 1)
+				values.push(weights.get(y * width + x) ?? 0);
+		}
+		const weighted = values.filter((value) => value >= 32);
+		if (weighted.length > 0) {
+			slice.weighted = true;
+			weightedSliceCount += 1;
+		}
+		const near = values.findIndex((value) => value >= 32);
+		let far = -1;
+		for (let index = values.length - 1; index >= 0; index -= 1) {
+			if (values[index]! >= 32) {
+				far = index;
+				break;
+			}
+		}
+		if (near < 0 || far < 0) {
+			previousPair = null;
+			currentConstant = 0;
+			continue;
+		}
+		slice.near = near;
+		slice.far = far;
+		const pairKey = `${near}:${far}`;
+		contourPairs.add(pairKey);
+		if (pairKey === previousPair) currentConstant += 1;
+		else currentConstant = 1;
+		previousPair = pairKey;
+		longestConstant = Math.max(longestConstant, currentConstant);
+	}
+	const eligiblePixelCount = eligible.size;
+	return {
+		eligiblePixelCount,
+		weightedPixelCount,
+		coverage: eligiblePixelCount === 0 ? 0 : weightedPixelCount / eligiblePixelCount,
+		evaluableSliceCount,
+		weightedSliceCount,
+		distinctContourPairCount: contourPairs.size,
+		longestConstantContourRunRatio:
+			evaluableSliceCount === 0 ? 0 : longestConstant / evaluableSliceCount,
+		slices
+	};
+}
+
+function addTopologyRequest(
+	pending: Map<number, PendingTopologyRequest>,
+	rowRequestIndexes: Map<string, Set<number>>,
+	contributionIndex: number,
+	contribution: MeadowEntryPaintedV2SceneryContribution,
+	reason: MeadowEntryPaintedV2SceneryTopologyReason,
+	shapedWeight: number
+): void {
+	const request = pending.get(contributionIndex) ?? {
+		contributionIndex,
+		blockerIds: new Set<string>(),
+		reasons: new Set<MeadowEntryPaintedV2SceneryTopologyReason>(),
+		shapedWeight: contribution.rawFinalWeight
+	};
+	request.blockerIds.add(contribution.blockerId);
+	request.reasons.add(reason);
+	if (reason === 'sparse-core-cap')
+		request.shapedWeight = Math.min(request.shapedWeight, shapedWeight);
+	else request.shapedWeight = Math.max(request.shapedWeight, shapedWeight);
+	pending.set(contributionIndex, request);
+	const rowIndexes = rowRequestIndexes.get(contribution.blockerId) ?? new Set<number>();
+	rowIndexes.add(contributionIndex);
+	rowRequestIndexes.set(contribution.blockerId, rowIndexes);
+}
+
+function topologyRowRequestHash(
+	requests: readonly MeadowEntryPaintedV2SceneryTopologyRequest[],
+	blockerId: string
+): string {
+	return topologyRequestHash(requests.filter((request) => request.blockerIds.includes(blockerId)));
+}
+
+export function shapeMeadowEntryPaintedV2SceneryContributions(
+	contributions: readonly MeadowEntryPaintedV2SceneryContribution[],
+	blockers: readonly MeadowEntryPaintedV2SceneryBlocker[],
+	width: number,
+	height: number
+): MeadowEntryPaintedV2SceneryTopologyResult {
+	assertTopologyInputs(contributions, blockers, width, height);
+	const contributionsByBlocker = new Map<string, number[]>();
+	const eligibleByBlocker = new Map<string, Set<number>>();
+	const rawWeightsByBlocker = new Map<string, Map<number, number>>();
+	for (const [contributionIndex, contribution] of contributions.entries()) {
+		const indexes = contributionsByBlocker.get(contribution.blockerId) ?? [];
+		indexes.push(contributionIndex);
+		contributionsByBlocker.set(contribution.blockerId, indexes);
+		const eligible = eligibleByBlocker.get(contribution.blockerId) ?? new Set<number>();
+		eligible.add(contribution.worldIndex);
+		eligibleByBlocker.set(contribution.blockerId, eligible);
+		const rawWeights = rawWeightsByBlocker.get(contribution.blockerId) ?? new Map<number, number>();
+		if (contribution.rawFinalWeight > 0)
+			rawWeights.set(
+				contribution.worldIndex,
+				Math.max(rawWeights.get(contribution.worldIndex) ?? 0, contribution.rawFinalWeight)
+			);
+		rawWeightsByBlocker.set(contribution.blockerId, rawWeights);
+	}
+	const sparsePixels = new Set<number>();
+	const treePixels = new Set<number>();
+	for (const blocker of blockers) {
+		const pixels = eligibleByBlocker.get(blocker.sourceId) ?? new Set<number>();
+		const target = blocker.language === 'tree-wall' ? treePixels : sparsePixels;
+		for (const worldIndex of pixels) target.add(worldIndex);
+	}
+	const canonicalBounds = blockers.every(
+		({ bounds }) =>
+			bounds.left >= 0 && bounds.top >= 0 && bounds.right <= width && bounds.bottom <= height
+	);
+	if (canonicalBounds)
+		for (const worldIndex of sparsePixels)
+			assert(
+				!treePixels.has(worldIndex),
+				`Sparse and tree topology rows overlap at pixel ${worldIndex}`
+			);
+
+	const pending = new Map<number, PendingTopologyRequest>();
+	const rowRequestIndexes = new Map<string, Set<number>>();
+	const rowTopologyData = new Map<
+		string,
+		| {
+				kind: 'sparse-core-cap';
+				erosionCount: number;
+				originalSaturatedPixelCount: number;
+				retainedSaturatedPixelCount: number;
+				demotedContributionCount: number;
+		  }
+		| {
+				kind: 'tree-continuity-floor';
+				missingSlicePromotionCount: number;
+				coveragePromotionCount: number;
+				promotedWorldPixelCount: number;
+		  }
+	>();
+
+	for (const blocker of blockers) {
+		const contributionIndexes = contributionsByBlocker.get(blocker.sourceId) ?? [];
+		assert(
+			contributionIndexes.length > 0,
+			`Topology blocker has no contributions: ${blocker.sourceId}`
+		);
+		const rowBounds = topologyRowBounds(blocker, contributionIndexes, contributions, width, height);
+		const rawWeights = rawWeightsByBlocker.get(blocker.sourceId) ?? new Map<number, number>();
+		if (blocker.language !== 'tree-wall') {
+			const originalCore = new Uint8Array(width * height);
+			for (const contributionIndex of contributionIndexes) {
+				const contribution = contributions[contributionIndex]!;
+				if (contribution.rawFinalWeight >= 254) originalCore[contribution.worldIndex] = 1;
+			}
+			const originalSaturatedPixelCount = originalCore.reduce((count, value) => count + value, 0);
+			if (originalSaturatedPixelCount === 0) {
+				rowTopologyData.set(blocker.sourceId, {
+					kind: 'sparse-core-cap',
+					erosionCount: 0,
+					originalSaturatedPixelCount: 0,
+					retainedSaturatedPixelCount: 0,
+					demotedContributionCount: 0
+				});
+				continue;
+			}
+			let retainedCore: Uint8Array = originalCore.slice();
+			let erosionCount = -1;
+			for (let count = 0; count <= 15; count += 1) {
+				const metric = sparseTopologyMetric(retainedCore, blocker, width, rowBounds);
+				if (metric.p95 <= 0.3 && metric.maximum <= 0.5) {
+					erosionCount = count;
+					break;
+				}
+				if (count < 15)
+					retainedCore = erodeMeadowEntryMask8(retainedCore, width, height) as Uint8Array;
+			}
+			assert(
+				erosionCount >= 0,
+				`Sparse topology row did not pass bounded erosion: ${blocker.sourceId}`
+			);
+			const retainedSaturatedPixelCount = retainedCore.reduce((count, value) => count + value, 0);
+			for (const contributionIndex of contributionIndexes) {
+				const contribution = contributions[contributionIndex]!;
+				if (
+					contribution.rawFinalWeight >= 254 &&
+					originalCore[contribution.worldIndex] === 1 &&
+					retainedCore[contribution.worldIndex] === 0
+				)
+					addTopologyRequest(
+						pending,
+						rowRequestIndexes,
+						contributionIndex,
+						contribution,
+						'sparse-core-cap',
+						Math.min(contribution.rawFinalWeight, 191)
+					);
+			}
+			rowTopologyData.set(blocker.sourceId, {
+				kind: 'sparse-core-cap',
+				erosionCount,
+				originalSaturatedPixelCount,
+				retainedSaturatedPixelCount,
+				demotedContributionCount: rowRequestIndexes.get(blocker.sourceId)?.size ?? 0
+			});
+			continue;
+		}
+
+		const rawMetric = treeTopologyMetric(
+			blocker,
+			contributionIndexes,
+			contributions,
+			rawWeights,
+			width,
+			rowBounds
+		);
+		const projectedWeights = new Map(rawWeights);
+		const missingWorldPixels = new Set<number>();
+		let missingSlicePromotionCount = 0;
+		for (const slice of rawMetric.slices) {
+			if (slice.edgeEnvelope < 32 || slice.weighted) continue;
+			const candidateIndexes = slice.contributionIndexes
+				.filter((index) => contributions[index]!.edgeWeight >= 32)
+				.sort((left, right) =>
+					compareTopologyContribution(contributions[left]!, contributions[right]!)
+				);
+			const candidateIndex = candidateIndexes[0];
+			assert(
+				candidateIndex !== undefined,
+				`Tree topology slice has no edge-capable contribution: ${blocker.sourceId}/${slice.index}`
+			);
+			const candidate = contributions[candidateIndex]!;
+			addTopologyRequest(
+				pending,
+				rowRequestIndexes,
+				candidateIndex,
+				candidate,
+				'tree-missing-slice',
+				Math.max(candidate.rawFinalWeight, 32)
+			);
+			projectedWeights.set(
+				candidate.worldIndex,
+				Math.max(projectedWeights.get(candidate.worldIndex) ?? 0, 32)
+			);
+			missingWorldPixels.add(candidate.worldIndex);
+			missingSlicePromotionCount += 1;
+		}
+
+		const projectedMetric = treeTopologyMetric(
+			blocker,
+			contributionIndexes,
+			contributions,
+			projectedWeights,
+			width,
+			rowBounds
+		);
+		const neededCoverage = Math.max(
+			0,
+			Math.ceil(projectedMetric.eligiblePixelCount * 0.25) - projectedMetric.weightedPixelCount
+		);
+		const coverageCandidatesByPixel = new Map<number, number>();
+		for (const contributionIndex of contributionIndexes) {
+			const contribution = contributions[contributionIndex]!;
+			if (
+				contribution.edgeWeight < 32 ||
+				(projectedWeights.get(contribution.worldIndex) ?? 0) >= 32
+			)
+				continue;
+			const previous = coverageCandidatesByPixel.get(contribution.worldIndex);
+			if (
+				previous === undefined ||
+				compareTopologyContribution(contribution, contributions[previous]!) < 0
+			)
+				coverageCandidatesByPixel.set(contribution.worldIndex, contributionIndex);
+		}
+		const coverageCandidates = [...coverageCandidatesByPixel.values()].sort((left, right) =>
+			compareTopologyContribution(contributions[left]!, contributions[right]!)
+		);
+		assert(
+			coverageCandidates.length >= neededCoverage,
+			`Tree topology row has too few edge-capable pixels for 25% coverage: ${blocker.sourceId}`
+		);
+		let coveragePromotionCount = 0;
+		for (const candidateIndex of coverageCandidates.slice(0, neededCoverage)) {
+			const candidate = contributions[candidateIndex]!;
+			addTopologyRequest(
+				pending,
+				rowRequestIndexes,
+				candidateIndex,
+				candidate,
+				'tree-coverage-floor',
+				Math.max(candidate.rawFinalWeight, 32)
+			);
+			projectedWeights.set(
+				candidate.worldIndex,
+				Math.max(projectedWeights.get(candidate.worldIndex) ?? 0, 32)
+			);
+			missingWorldPixels.add(candidate.worldIndex);
+			coveragePromotionCount += 1;
+		}
+		rowTopologyData.set(blocker.sourceId, {
+			kind: 'tree-continuity-floor',
+			missingSlicePromotionCount,
+			coveragePromotionCount,
+			promotedWorldPixelCount: missingWorldPixels.size
+		});
+	}
+
+	const shapedWeights = Uint8Array.from(
+		contributions,
+		(contribution) => contribution.rawFinalWeight
+	);
+	for (const request of pending.values())
+		shapedWeights[request.contributionIndex] = request.shapedWeight;
+	const requests = [...pending.values()]
+		.sort((left, right) => left.contributionIndex - right.contributionIndex)
+		.map((request) => {
+			const contribution = contributions[request.contributionIndex]!;
+			return Object.freeze({
+				contributionIndex: request.contributionIndex,
+				blockerIds: Object.freeze(
+					[...request.blockerIds].sort((left, right) => left.localeCompare(right))
+				),
+				reasons: Object.freeze(
+					[...request.reasons].sort((left, right) => left.localeCompare(right))
+				),
+				insertId: contribution.insertId,
+				worldIndex: contribution.worldIndex,
+				rawWeight: contribution.rawFinalWeight,
+				shapedWeight: request.shapedWeight
+			});
+		});
+	const requestSha256 = topologyRequestHash(requests);
+	const rowTopology: Record<string, MeadowEntryPaintedV2SceneryTopologyProvenance> = {};
+	for (const blocker of blockers) {
+		const data = rowTopologyData.get(blocker.sourceId)!;
+		const rowRequests = requests.filter((request) => request.blockerIds.includes(blocker.sourceId));
+		if (data.kind === 'sparse-core-cap')
+			rowTopology[blocker.sourceId] = Object.freeze({
+				...data,
+				requestSha256: topologyRowRequestHash(requests, blocker.sourceId)
+			});
+		else
+			rowTopology[blocker.sourceId] = Object.freeze({
+				...data,
+				requestSha256: topologyRequestHash(rowRequests)
+			});
+	}
+
+	for (const blocker of blockers) {
+		const contributionIndexes = contributionsByBlocker.get(blocker.sourceId)!;
+		const rowBounds = topologyRowBounds(blocker, contributionIndexes, contributions, width, height);
+		const shapedByPixel = new Map<number, number>();
+		for (const contributionIndex of contributionIndexes) {
+			const contribution = contributions[contributionIndex]!;
+			shapedByPixel.set(
+				contribution.worldIndex,
+				Math.max(shapedByPixel.get(contribution.worldIndex) ?? 0, shapedWeights[contributionIndex]!)
+			);
+		}
+		const eligiblePixelCount = eligibleByBlocker.get(blocker.sourceId)!.size;
+		const weightedPixelCount = [...shapedByPixel.values()].filter((value) => value >= 32).length;
+		const coverage = eligiblePixelCount === 0 ? 0 : weightedPixelCount / eligiblePixelCount;
+		if (canonicalBounds)
+			assert(
+				coverage >= 0.25 && coverage <= 0.7,
+				`Topology row coverage is outside 25%-70%: ${blocker.sourceId}`
+			);
+		if (blocker.language === 'tree-wall' && canonicalBounds) {
+			const metric = treeTopologyMetric(
+				blocker,
+				contributionIndexes,
+				contributions,
+				shapedByPixel,
+				width,
+				rowBounds
+			);
+			assert(
+				metric.evaluableSliceCount === metric.weightedSliceCount,
+				`Tree topology row has an unweighted evaluable slice: ${blocker.sourceId}`
+			);
+			assert(
+				metric.distinctContourPairCount > 1 && metric.longestConstantContourRunRatio <= 0.5,
+				`Tree topology row has a uniform contour: ${blocker.sourceId}`
+			);
+		}
+	}
+	return Object.freeze({
+		shapedWeights,
+		rowTopology: Object.freeze(rowTopology),
+		requests: Object.freeze(requests),
+		requestSha256
+	});
 }
 
 function rangeRunRatio(values: readonly number[], predicate: (value: number) => boolean): number {
@@ -802,6 +1495,10 @@ function metricBounds(
 			};
 }
 
+type MeadowEntryPaintedV2SceneryComputedRowMetric =
+	| Omit<MeadowEntryPaintedV2SceneryClumpRunMetric, 'rawWeightSha256' | 'topology'>
+	| Omit<MeadowEntryPaintedV2SceneryContinuousContourMetric, 'rawWeightSha256' | 'topology'>;
+
 function buildRowMetric(
 	blocker: (typeof MEADOW_ENTRY_PAINTED_V2_SCENERY_BLOCKERS)[number],
 	weights: ReadonlyMap<number, number>,
@@ -810,7 +1507,7 @@ function buildRowMetric(
 	edgeAt: (index: number) => number,
 	width: number,
 	height: number
-): MeadowEntryPaintedV2SceneryRowMetric {
+): MeadowEntryPaintedV2SceneryComputedRowMetric {
 	const bounds = metricBounds(blocker, eligible, width, height);
 	const eligiblePixelCount = eligible.size;
 	const weightedPixelCount = [...weights.values()].filter((value) => value >= 32).length;
@@ -942,22 +1639,31 @@ export function enrichMeadowEntryPaintedV2Sources(
 		hedge: meadowEntrySceneryInsetDistances(masks.hedgeAllowed, width, height),
 		woodland: meadowEntrySceneryInsetDistances(masks.woodlandAllowed, width, height)
 	} satisfies Record<MeadowEntryPaintedV2SceneryClass, Uint8Array>;
-	const intersectionMetrics: MeadowEntryPaintedV2SceneryIntersectionMetric[] = [];
-	const plans: InsertPlan[] = [];
+	const intersectionPlans: IntersectionContributionPlan[] = [];
+	const contributions: MeadowEntryPaintedV2SceneryContribution[] = [];
 	const rowWeights = new Map<string, Map<number, number>>();
 	const rowEligible = new Map<string, Set<number>>();
+	const insertById = new Map(inserts.map((insert) => [insert.id, insert]));
+	const orderedInserts = MEADOW_ENTRY_PAINTED_V2_SCENERY_INSERTS.map((expected) => {
+		const insert = insertById.get(expected.id);
+		assert(insert !== undefined, `Missing decoded scenery insert: ${expected.id}`);
+		return insert;
+	});
 
-	for (const insert of inserts) {
+	for (const insert of orderedInserts) {
 		const owner = panelById.get(insert.owningSourceId)!;
 		const cache = integralCache(insert.rgba);
 		const allowed = classMask(masks, insert.sceneryClass);
-		const weights = new Map<number, number>();
-		const tones = new Map<number, readonly [number, number, number]>();
+		const ownerPriority = MEADOW_ENTRY_PAINTED_V2_SCENERY_INSERTS.find(
+			(expected) => expected.id === insert.id
+		)?.owningSourcePriority;
+		assert(ownerPriority !== undefined, `Missing scenery insert priority: ${insert.id}`);
 		for (const intersection of contractIntersections.filter(
 			({ insertId }) => insertId === insert.id
 		)) {
 			const bounds = intersectionBounds(intersection.bounds, insert, width, height);
 			const samples: Sample[] = [];
+			const sampleContributionIndexes: number[] = [];
 			for (let y = bounds.top; y < bounds.bottom; y += 1) {
 				for (let x = bounds.left; x < bounds.right; x += 1) {
 					const index = y * width + x;
@@ -1008,12 +1714,11 @@ export function enrichMeadowEntryPaintedV2Sources(
 				q40 !== q80,
 				`Meadow Entry scenery intersection ${intersection.blockerId}/${insert.id} has degenerate q40/q80 organic signals`
 			);
-			const sampleWeights = new Uint8Array(samples.length);
 			const classLimit = insert.sceneryClass === 'hedge' ? 32 : 48;
 			const classDistance = distances[insert.sceneryClass];
 			const rowWeight = rowWeights.get(intersection.blockerId) ?? new Map<number, number>();
 			const eligibleSet = rowEligible.get(intersection.blockerId) ?? new Set<number>();
-			for (const [sampleIndex, sample] of samples.entries()) {
+			for (const sample of samples) {
 				const index = sample.y * width + sample.x;
 				eligibleSet.add(index);
 				const t = Math.max(0, Math.min(255, halfUp(255 * (sample.weight - q40), q80 - q40)));
@@ -1023,8 +1728,6 @@ export function enrichMeadowEntryPaintedV2Sources(
 					MAX_SCENERY_DISTANCE
 				);
 				const finalWeight = halfUp(edgeWeight * organicWeight, 255);
-				sampleWeights[sampleIndex] = finalWeight;
-				if ((weights.get(index) ?? 0) < finalWeight) weights.set(index, finalWeight);
 				if (finalWeight > 0) rowWeight.set(index, Math.max(rowWeight.get(index) ?? 0, finalWeight));
 				const sourceOffset =
 					((sample.y - owner.bounds.top) * owner.rgba.width + sample.x - owner.bounds.left) * 4;
@@ -1052,12 +1755,24 @@ export function enrichMeadowEntryPaintedV2Sources(
 					const source = owner.rgba.data[sourceOffset + channel]!;
 					return Math.max(0, Math.min(255, source + delta));
 				});
-				if (!tones.has(index) || finalWeight >= (weights.get(index) ?? 0))
-					tones.set(index, detail as [number, number, number]);
+				const contributionIndex = contributions.length;
+				contributions.push({
+					blockerId: intersection.blockerId,
+					insertId: insert.id,
+					owningSourceId: insert.owningSourceId,
+					ownerPriority,
+					sceneryClass: insert.sceneryClass,
+					worldIndex: index,
+					rawFinalWeight: finalWeight,
+					organicSignal: sample.weight,
+					edgeWeight,
+					ownerRelativeTone: detail as [number, number, number]
+				});
+				sampleContributionIndexes.push(contributionIndex);
 			}
 			rowWeights.set(intersection.blockerId, rowWeight);
 			rowEligible.set(intersection.blockerId, eligibleSet);
-			intersectionMetrics.push({
+			intersectionPlans.push({
 				blockerId: intersection.blockerId,
 				insertId: intersection.insertId,
 				owningSourceId: intersection.owningSourceId,
@@ -1065,11 +1780,72 @@ export function enrichMeadowEntryPaintedV2Sources(
 				sampleCount: samples.length,
 				q40,
 				q80,
-				weightSha256: sha256(sampleWeights)
+				contributionIndexes: Object.freeze(sampleContributionIndexes)
 			});
 		}
-		plans.push({ insert, weights, tones });
 	}
+	const topology = shapeMeadowEntryPaintedV2SceneryContributions(
+		contributions,
+		MEADOW_ENTRY_PAINTED_V2_SCENERY_BLOCKERS,
+		width,
+		height
+	);
+	const rawRowWeightHashes = new Map<string, string>();
+	for (const blocker of MEADOW_ENTRY_PAINTED_V2_SCENERY_BLOCKERS)
+		rawRowWeightHashes.set(
+			blocker.sourceId,
+			rowWeightHash(rowWeights.get(blocker.sourceId) ?? new Map())
+		);
+	const plans: InsertPlan[] = orderedInserts.map((insert) => {
+		const weights = new Map<number, number>();
+		const tones = new Map<number, readonly [number, number, number]>();
+		for (const [contributionIndex, contribution] of contributions.entries()) {
+			if (contribution.insertId !== insert.id) continue;
+			const shapedWeight = topology.shapedWeights[contributionIndex]!;
+			if (shapedWeight <= 0) continue;
+			const previous = weights.get(contribution.worldIndex);
+			if (previous === undefined || shapedWeight >= previous) {
+				weights.set(contribution.worldIndex, shapedWeight);
+				tones.set(contribution.worldIndex, contribution.ownerRelativeTone);
+			}
+		}
+		return { insert, weights, tones };
+	});
+	for (const blocker of MEADOW_ENTRY_PAINTED_V2_SCENERY_BLOCKERS) {
+		const shaped = new Map<number, number>();
+		for (const [contributionIndex, contribution] of contributions.entries()) {
+			if (contribution.blockerId !== blocker.sourceId) continue;
+			const value = topology.shapedWeights[contributionIndex]!;
+			if (value > 0)
+				shaped.set(
+					contribution.worldIndex,
+					Math.max(shaped.get(contribution.worldIndex) ?? 0, value)
+				);
+		}
+		rowWeights.set(blocker.sourceId, shaped);
+	}
+	const intersectionMetrics: MeadowEntryPaintedV2SceneryIntersectionMetric[] =
+		intersectionPlans.map((plan) => {
+			const rawWeights = Uint8Array.from(
+				plan.contributionIndexes,
+				(contributionIndex) => contributions[contributionIndex]!.rawFinalWeight
+			);
+			const shapedWeights = Uint8Array.from(
+				plan.contributionIndexes,
+				(contributionIndex) => topology.shapedWeights[contributionIndex]!
+			);
+			return {
+				blockerId: plan.blockerId,
+				insertId: plan.insertId,
+				owningSourceId: plan.owningSourceId,
+				sceneryClass: plan.sceneryClass,
+				sampleCount: plan.sampleCount,
+				q40: plan.q40,
+				q80: plan.q80,
+				rawWeightSha256: sha256(rawWeights),
+				weightSha256: sha256(shapedWeights)
+			};
+		});
 
 	const mutable = new Map<string, MeadowEntryDetailDecodedPanel>();
 	for (const sourceId of AFFECTED_SOURCE_IDS)
@@ -1142,7 +1918,7 @@ export function enrichMeadowEntryPaintedV2Sources(
 		const weights = weightByBlocker(blocker.sourceId);
 		const eligible = rowEligible.get(blocker.sourceId) ?? new Set<number>();
 		const distance = distances[blocker.sceneryClass];
-		return buildRowMetric(
+		const metric = buildRowMetric(
 			blocker,
 			weights,
 			eligible,
@@ -1157,6 +1933,11 @@ export function enrichMeadowEntryPaintedV2Sources(
 			width,
 			height
 		);
+		return {
+			...metric,
+			rawWeightSha256: rawRowWeightHashes.get(blocker.sourceId)!,
+			topology: topology.rowTopology[blocker.sourceId]!
+		};
 	});
 	const outputPanels = panels.map((panel) => mutable.get(panel.id) ?? panel);
 	const enrichedSourceSha256 = Object.fromEntries(
@@ -1169,6 +1950,8 @@ export function enrichMeadowEntryPaintedV2Sources(
 		classChangedPixelCounts: Object.freeze(classChangedPixelCounts),
 		intersections: Object.freeze(intersectionMetrics),
 		rows: Object.freeze(rows),
+		topologyRequests: topology.requests,
+		topologyRequestSha256: topology.requestSha256,
 		formulas: Object.freeze({
 			luma: 'floor((54*r+183*g+19*b+128)/256)',
 			insertMean: 'clippedHalfUpBoxMean(radius=31)',
@@ -1181,6 +1964,9 @@ export function enrichMeadowEntryPaintedV2Sources(
 			weightedCoverageThreshold: 'finalWeight>=32',
 			clumpRunThreshold: 'finalWeight>=254',
 			contourThreshold: 'finalWeight>=32',
+			sparseTopology: 'saturated-core-erode8-smallest-0..15-cap191-v1',
+			treeTopology: 'raw-matrix-edge32-slice-repair-unique-coverage25-v1',
+			topologyRequestUnion: 'immutable-raw-request-union-v1',
 			blend: 'blendMeadowEntryDetailChannel'
 		})
 	};
