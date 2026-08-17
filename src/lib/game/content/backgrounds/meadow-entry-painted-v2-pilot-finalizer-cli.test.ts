@@ -2,6 +2,8 @@ import { describe, expect, it, vi } from 'vitest';
 
 import {
 	PAINTED_V2_PILOT_MASTER_PATH,
+	PAINTED_V2_PILOT_MASTER_PROVENANCE_PATH,
+	PAINTED_V2_PILOT_PACKAGE_PROVENANCE_PATH,
 	parseFinalizeMeadowEntryPaintedV2PilotArguments,
 	runFinalizeMeadowEntryPaintedV2Pilot,
 	type MeadowEntryPaintedV2PilotFinalizerFileSystem
@@ -61,6 +63,66 @@ describe('painted-v2 pilot finalizer CLI', () => {
 			})
 		).rejects.toThrow(/stale|drift/i);
 		expect(Object.values(staleMutators).every((spy) => spy.mock.calls.length === 0)).toBe(true);
+	}, 120_000);
+
+	it('keeps production write and repeated --check byte-identical', async () => {
+		const masterPath = resolve(repositoryRoot, PAINTED_V2_PILOT_MASTER_PATH);
+		const masterProvenancePath = resolve(repositoryRoot, PAINTED_V2_PILOT_MASTER_PROVENANCE_PATH);
+		const packageProvenancePath = resolve(repositoryRoot, PAINTED_V2_PILOT_PACKAGE_PROVENANCE_PATH);
+		const expected = new Map([
+			[masterPath, await readFile(masterPath)],
+			[masterProvenancePath, await readFile(masterProvenancePath)],
+			[packageProvenancePath, await readFile(packageProvenancePath)]
+		]);
+		const temporaryWrites = new Map<string, Buffer>();
+		const persistedWrites = new Map<string, Buffer>();
+		const writeFileSystem = {
+			readFile,
+			mkdir: vi.fn(),
+			writeFile: vi.fn(async (path: Parameters<typeof readFile>[0], data: Uint8Array) => {
+				temporaryWrites.set(String(path), Buffer.from(data));
+			}),
+			rename: vi.fn(
+				async (from: Parameters<typeof readFile>[0], to: Parameters<typeof readFile>[0]) => {
+					const bytes = temporaryWrites.get(String(from));
+					if (bytes === undefined) throw new Error(`missing temporary write: ${String(from)}`);
+					persistedWrites.set(String(to), bytes);
+				}
+			),
+			rm: vi.fn(async (path: Parameters<typeof readFile>[0]) => {
+				temporaryWrites.delete(String(path));
+			})
+		} as MeadowEntryPaintedV2PilotFinalizerFileSystem;
+
+		const assemblyResult = {
+			masterPng: expected.get(masterPath)!,
+			provenanceJson: expected.get(masterProvenancePath)!
+		};
+		const generated = await runFinalizeMeadowEntryPaintedV2Pilot(repositoryRoot, {
+			assemblyResult,
+			fileSystem: writeFileSystem
+		});
+		for (const [path, bytes] of expected) {
+			expect(persistedWrites.get(path)?.equals(bytes), path).toBe(true);
+		}
+		expect(generated.masterPng.equals(expected.get(masterPath)!)).toBe(true);
+		expect(generated.provenanceJson.equals(expected.get(masterProvenancePath)!)).toBe(true);
+		expect(generated.packageProvenanceJson.equals(expected.get(packageProvenancePath)!)).toBe(true);
+
+		for (let attempt = 0; attempt < 2; attempt += 1) {
+			const noWriteMutators = { mkdir: vi.fn(), writeFile: vi.fn(), rename: vi.fn(), rm: vi.fn() };
+			await expect(
+				runFinalizeMeadowEntryPaintedV2Pilot(repositoryRoot, {
+					check: true,
+					assemblyResult,
+					fileSystem: { readFile, ...noWriteMutators }
+				})
+			).resolves.toMatchObject({
+				masterSha256: generated.masterSha256,
+				provenanceSha256: generated.provenanceSha256
+			});
+			expect(Object.values(noWriteMutators).every((spy) => spy.mock.calls.length === 0)).toBe(true);
+		}
 	});
 
 	it('keeps --check no-write and rejects a stale merged root fingerprint', async () => {
