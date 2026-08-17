@@ -32,12 +32,15 @@ import {
 	parseProofSidecar,
 	proofExportPath,
 	expectedPaintedV2ProofInventory,
+	expectedPaintedV2HistoricalProofInventory,
+	expectedPaintedV2PublishedProofInventory,
 	parseMeadowEntryArtProofArguments,
 	renderMeadowEntryArtProofs,
 	type MeadowEntryProofPublicationFileSystem,
 	type MeadowEntryProofSidecar
 } from '../../../../../tools/render-meadow-entry-art-proofs';
 import { MEADOW_ENTRY_PAINTED_V2_SOURCE_PANELS } from './meadow-entry-painted-v2-pilot';
+import { MEADOW_ENTRY_PAINTED_V2_SCENERY_INSERTS } from './meadow-entry-painted-v2-scenery';
 
 const BASE_MASTER = 'artifacts/meadow-entry/hpa-399/masters/meadow-entry-base-master.png';
 const FOREGROUND_MASTER =
@@ -47,6 +50,14 @@ const SUNDROP_FOREGROUND = 'public/game/assets/regions/sundrop-village-foregroun
 const EXPORT_ROOT = 'artifacts/meadow-entry/hpa-399/exports';
 const CROP_MANIFEST = 'artifacts/meadow-entry/hpa-399/provenance/meadow-entry-crop-manifest.json';
 const CONTROL_ROOT = 'docs/superpowers/reports/img/hpa-399/controls';
+const PAINTED_V2_BASE_MASTER =
+	'artifacts/meadow-entry/painted-v2/masters/meadow-entry-painted-v2-pilot-base-master.png';
+const PAINTED_V2_MASTER_PROVENANCE =
+	'artifacts/meadow-entry/painted-v2/provenance/meadow-entry-master-provenance.json';
+const PAINTED_V2_CONTROL_MANIFEST =
+	'artifacts/meadow-entry/painted-v2/controls/meadow-entry-control-manifest.json';
+const PAINTED_V2_CROP_MANIFEST =
+	'artifacts/meadow-entry/painted-v2/provenance/meadow-entry-crop-manifest.json';
 const INTERACTION_MASKS = [
 	`${CONTROL_ROOT}/meadow-entry-semantic-anchor-mask.svg`,
 	`${CONTROL_ROOT}/meadow-entry-entrance-transition-mask.svg`,
@@ -73,6 +84,19 @@ function temporaryRoot(): string {
 	const root = mkdtempSync(join(tmpdir(), 'gliese-art-proofs-'));
 	temporaryRoots.push(root);
 	return root;
+}
+
+function writePaintedV2ProofFixture(root: string, files: Readonly<Record<string, Buffer>>): void {
+	for (const [path, bytes] of Object.entries(files)) {
+		const output = join(root, MEADOW_ENTRY_PAINTED_V2_PROOF_ROOT, path);
+		mkdirSync(join(output, '..'), { recursive: true });
+		writeFileSync(output, bytes);
+	}
+	for (const path of expectedPaintedV2HistoricalProofInventory()) {
+		const output = join(root, MEADOW_ENTRY_PAINTED_V2_PROOF_ROOT, path);
+		mkdirSync(join(output, '..'), { recursive: true });
+		writeFileSync(output, readFileSync(join(MEADOW_ENTRY_PAINTED_V2_PROOF_ROOT, path)));
+	}
 }
 
 function sidecarJson(overrides: Record<string, unknown> = {}): Buffer {
@@ -127,13 +151,27 @@ describe('Meadow Entry art proof helpers', () => {
 		);
 	});
 
-	it('binds every painted-v2 proof sidecar to the current master, controls, crop manifest, and source panels', () => {
+	it('binds every painted-v2 proof sidecar to the full approved source and scenery inventory', () => {
 		const universalPaths = [
-			'artifacts/meadow-entry/painted-v2/masters/meadow-entry-painted-v2-pilot-base-master.png',
-			'artifacts/meadow-entry/painted-v2/controls/meadow-entry-control-manifest.json',
-			'artifacts/meadow-entry/painted-v2/provenance/meadow-entry-crop-manifest.json',
-			...MEADOW_ENTRY_PAINTED_V2_SOURCE_PANELS.map(({ normalizedPath }) => normalizedPath)
+			PAINTED_V2_BASE_MASTER,
+			PAINTED_V2_MASTER_PROVENANCE,
+			PAINTED_V2_CONTROL_MANIFEST,
+			PAINTED_V2_CROP_MANIFEST,
+			...MEADOW_ENTRY_PAINTED_V2_SOURCE_PANELS.flatMap(
+				({ rawPath, normalizedPath, provenancePath }) => [rawPath, normalizedPath, provenancePath]
+			),
+			...MEADOW_ENTRY_PAINTED_V2_SCENERY_INSERTS.flatMap(
+				({ rawPath, normalizedPath, provenancePath }) => [rawPath, normalizedPath, provenancePath]
+			)
 		];
+		const masterProvenance = JSON.parse(readFileSync(PAINTED_V2_MASTER_PROVENANCE, 'utf8')) as {
+			blockedSceneryBake?: {
+				intersections?: readonly unknown[];
+				rows?: readonly unknown[];
+			};
+		};
+		expect(masterProvenance.blockedSceneryBake?.intersections).toHaveLength(16);
+		expect(masterProvenance.blockedSceneryBake?.rows).toHaveLength(10);
 		const expectedHashes = new Map(
 			universalPaths.map((path) => [
 				path,
@@ -160,18 +198,14 @@ describe('Meadow Entry art proof helpers', () => {
 		const files = Object.fromEntries(
 			expectedPaintedV2ProofInventory().map((path) => [path, Buffer.from(`fixture:${path}`)])
 		);
-		for (const [path, bytes] of Object.entries(files)) {
-			const output = join(root, MEADOW_ENTRY_PAINTED_V2_PROOF_ROOT, path);
-			mkdirSync(join(output, '..'), { recursive: true });
-			writeFileSync(output, bytes);
-		}
+		writePaintedV2ProofFixture(root, files);
 		const expected = { files, inventorySha256: 'fixture' };
 		const successMutators = { mkdir: vi.fn(), writeFile: vi.fn(), rename: vi.fn(), rm: vi.fn() };
 		let successReads = 0;
 		const checkFileSystem = {
 			...successMutators,
 			pathExists: async (path: string) => existsSync(path),
-			listFiles: async () => expectedPaintedV2ProofInventory(),
+			listFiles: async () => expectedPaintedV2PublishedProofInventory(),
 			readFile: async (path: string) => {
 				successReads += 1;
 				return readFileSync(path);
@@ -200,7 +234,7 @@ describe('Meadow Entry art proof helpers', () => {
 		const staleCheckFileSystem = {
 			...staleMutators,
 			pathExists: async (path: string) => existsSync(path),
-			listFiles: async () => expectedPaintedV2ProofInventory(),
+			listFiles: async () => expectedPaintedV2PublishedProofInventory(),
 			readFile: async (path: string) => {
 				staleReads += 1;
 				return readFileSync(path);
@@ -218,11 +252,7 @@ describe('Meadow Entry art proof helpers', () => {
 		const files = Object.fromEntries(
 			expectedPaintedV2ProofInventory().map((path) => [path, Buffer.from(`fixture:${path}`)])
 		);
-		for (const [path, bytes] of Object.entries(files)) {
-			const output = join(root, MEADOW_ENTRY_PAINTED_V2_PROOF_ROOT, path);
-			mkdirSync(join(output, '..'), { recursive: true });
-			writeFileSync(output, bytes);
-		}
+		writePaintedV2ProofFixture(root, files);
 		const expected = { files, inventorySha256: 'fixture' };
 		const parsed = parseMeadowEntryArtProofArguments(['--check']);
 		expect(parsed.check).toBe(true);
@@ -231,7 +261,7 @@ describe('Meadow Entry art proof helpers', () => {
 		const successFileSystem = {
 			...successMutators,
 			pathExists: async (path: string) => existsSync(path),
-			listFiles: async () => expectedPaintedV2ProofInventory(),
+			listFiles: async () => expectedPaintedV2PublishedProofInventory(),
 			readFile: async (path: string) => {
 				successReads += 1;
 				return readFileSync(path);
@@ -255,7 +285,7 @@ describe('Meadow Entry art proof helpers', () => {
 		const staleFileSystem = {
 			...staleMutators,
 			pathExists: async (path: string) => existsSync(path),
-			listFiles: async () => expectedPaintedV2ProofInventory(),
+			listFiles: async () => expectedPaintedV2PublishedProofInventory(),
 			readFile: async (path: string) => readFileSync(path)
 		};
 		await expect(

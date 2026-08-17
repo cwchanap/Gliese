@@ -60,7 +60,7 @@ const RAW_PILOT_CROPS = [
 		overlapIds: ['painted-v2-overlap-camera-bases'],
 		alphaPolicy: { base: 'opaque', foreground: null },
 		sizeBudgets: {
-			baseReviewBytes: 26_214_400,
+			baseReviewBytes: 27_461_169,
 			baseHardBytes: 32 * MIB,
 			foregroundReviewBytes: null,
 			foregroundHardBytes: null
@@ -94,7 +94,7 @@ const RAW_PILOT_CROPS = [
 		overlapIds: ['painted-v2-overlap-camera-bases'],
 		alphaPolicy: { base: 'opaque', foreground: null },
 		sizeBudgets: {
-			baseReviewBytes: 28_311_552,
+			baseReviewBytes: 29_152_817,
 			baseHardBytes: 32 * MIB,
 			foregroundReviewBytes: null,
 			foregroundHardBytes: null
@@ -188,7 +188,7 @@ export const MEADOW_ENTRY_PAINTED_V2_PILOT_BUDGET_SUMMARY: MeadowEntryCropBudget
 	Object.freeze({
 		exportAreaRatio: 0.5,
 		overlapArea: 1_863_680,
-		aggregateBaseReviewBytes: 54_525_952,
+		aggregateBaseReviewBytes: 56_613_986,
 		aggregateBaseHardBytes: 64 * MIB,
 		aggregateForegroundReviewBytes: 0,
 		aggregateForegroundHardBytes: 0

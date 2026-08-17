@@ -30,6 +30,7 @@ import {
 	collectMeadowEntryPaintedV2CameraEnvelopes
 } from '$lib/game/content/backgrounds/meadow-entry-painted-v2-camera-envelope';
 import { MEADOW_ENTRY_PAINTED_V2_SOURCE_PANELS } from '$lib/game/content/backgrounds/meadow-entry-painted-v2-pilot';
+import { MEADOW_ENTRY_PAINTED_V2_SCENERY_INSERTS } from '$lib/game/content/backgrounds/meadow-entry-painted-v2-scenery';
 import {
 	decodeMeadowEntryRgba,
 	encodeCanonicalMeadowEntryPng,
@@ -61,16 +62,48 @@ const PAINTED_V2_OWNERSHIP =
 const PAINTED_V2_EXPORT_ROOT = 'artifacts/meadow-entry/painted-v2/exports';
 const PAINTED_V2_CONTROL_ROOT = 'artifacts/meadow-entry/painted-v2/controls';
 
-const PAINTED_V2_SOURCE_PANEL_PATHS = MEADOW_ENTRY_PAINTED_V2_SOURCE_PANELS.map(
-	({ normalizedPath }) => normalizedPath
+const PAINTED_V2_SOURCE_PANEL_PATHS = MEADOW_ENTRY_PAINTED_V2_SOURCE_PANELS.flatMap(
+	({ rawPath, normalizedPath, provenancePath }) => [rawPath, normalizedPath, provenancePath]
+);
+const PAINTED_V2_SCENERY_INSERT_PATHS = MEADOW_ENTRY_PAINTED_V2_SCENERY_INSERTS.flatMap(
+	({ rawPath, normalizedPath, provenancePath }) => [rawPath, normalizedPath, provenancePath]
 );
 const PAINTED_V2_COMMON_PROOF_INPUTS = Object.freeze([
 	PAINTED_V2_BASE_MASTER,
 	PAINTED_V2_MASTER_PROVENANCE,
 	PAINTED_V2_CONTROL_MANIFEST,
 	PAINTED_V2_CROP_MANIFEST,
-	...PAINTED_V2_SOURCE_PANEL_PATHS
+	...PAINTED_V2_SOURCE_PANEL_PATHS,
+	...PAINTED_V2_SCENERY_INSERT_PATHS
 ]);
+
+const PAINTED_V2_HISTORICAL_PROOF_FILES = Object.freeze([
+	{
+		path: 'texture-probe/representative-1600.png',
+		bytes: 6_479_247,
+		sha256: '2d6decfe86bf6df706e5fbf2390236a40fab70fe776af73c8e6cfb42531a50f5'
+	},
+	{
+		path: 'texture-probe/representative-3200.png',
+		bytes: 25_311_015,
+		sha256: '6e5cf00e3c1e8eb161faf3e4c44cc762d1934e4a35578188d3f00ae354fffa3c'
+	},
+	{
+		path: 'texture-probe/browser-1600.json',
+		bytes: 6_828,
+		sha256: 'd348a9a9f50021983cd55c09a9c71f23ef965511fdd480e3528baddec07028a9'
+	},
+	{
+		path: 'texture-probe/browser-3200.json',
+		bytes: 2_212,
+		sha256: '78f0ff8d993f92d86b2c745897f557bc40e2ad6b0f00c4b298bda7d5a1a81265'
+	},
+	{
+		path: 'texture-probe/browser-camera-safe-pilot.json',
+		bytes: 1_454,
+		sha256: 'dab37a895d345f7ee440025febc11a0cdbd8bc69e98680a4e05bbac552cb7633'
+	}
+] as const);
 
 const FULL_MASKS = {
 	'full/protected-live-overlay': `${CONTROL_ROOT}/meadow-entry-protected-live-mask.svg`,
@@ -1019,6 +1052,17 @@ export function expectedPaintedV2ProofInventory(): string[] {
 	]).sort();
 }
 
+export function expectedPaintedV2HistoricalProofInventory(): string[] {
+	return PAINTED_V2_HISTORICAL_PROOF_FILES.map(({ path }) => path).sort();
+}
+
+export function expectedPaintedV2PublishedProofInventory(): string[] {
+	return [
+		...expectedPaintedV2ProofInventory(),
+		...expectedPaintedV2HistoricalProofInventory()
+	].sort();
+}
+
 function paintedV2ExportPath(filename: string): string {
 	return `${PAINTED_V2_EXPORT_ROOT}/${filename}`;
 }
@@ -1437,13 +1481,25 @@ export async function checkMeadowEntryPaintedV2Proofs(
 		}
 		throw error;
 	}
-	assertInventoryEquals(expectedPaintedV2ProofInventory(), actual);
+	assertInventoryEquals(expectedPaintedV2PublishedProofInventory(), actual);
 	for (const path of expectedPaintedV2ProofInventory()) {
 		const bytes = await fileSystem.readFile(join(proofRoot, path));
 		assert(
 			bytes.equals(packageBytes.files[path]!),
 			`Meadow Entry painted-v2 proof is stale: ${path}`
 		);
+	}
+	for (const {
+		path,
+		bytes: expectedBytes,
+		sha256: expectedSha256
+	} of PAINTED_V2_HISTORICAL_PROOF_FILES) {
+		const bytes = await fileSystem.readFile(join(proofRoot, path));
+		assert(
+			bytes.byteLength === expectedBytes,
+			`Historical Meadow Entry proof changed size: ${path}`
+		);
+		assert(sha256(bytes) === expectedSha256, `Historical Meadow Entry proof changed: ${path}`);
 	}
 }
 
@@ -1465,9 +1521,30 @@ async function publishPaintedV2ProofPackage(
 			await writeFile(destination, packageBytes.files[path]!, { flag: 'wx' });
 		}
 		const hadTarget = await nodePathExists(target);
+		assert(hadTarget, 'Historical Meadow Entry proof package is missing');
+		for (const {
+			path,
+			bytes: expectedBytes,
+			sha256: expectedSha256
+		} of PAINTED_V2_HISTORICAL_PROOF_FILES) {
+			const historical = await readFile(join(target, path));
+			assert(
+				historical.byteLength === expectedBytes,
+				`Historical Meadow Entry proof changed size: ${path}`
+			);
+			assert(
+				sha256(historical) === expectedSha256,
+				`Historical Meadow Entry proof changed: ${path}`
+			);
+			const destination = join(staging, path);
+			await mkdir(dirname(destination), { recursive: true });
+			await writeFile(destination, historical, { flag: 'wx' });
+		}
 		if (hadTarget) await rename(target, backup);
 		await rename(staging, target);
 		if (hadTarget) await rm(backup, { recursive: true, force: true });
+		const published = await walkFiles(target);
+		assertInventoryEquals(expectedPaintedV2PublishedProofInventory(), published);
 	} finally {
 		await rm(staging, { recursive: true, force: true }).catch(() => undefined);
 		await rm(backup, { recursive: true, force: true }).catch(() => undefined);

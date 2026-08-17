@@ -51,7 +51,7 @@
         "foreground": null
       },
       "sizeBudgets": {
-        "baseReviewBytes": 26214400,
+        "baseReviewBytes": 27461169,
         "baseHardBytes": 33554432,
         "foregroundReviewBytes": null,
         "foregroundHardBytes": null
@@ -112,7 +112,7 @@
         "foreground": null
       },
       "sizeBudgets": {
-        "baseReviewBytes": 28311552,
+        "baseReviewBytes": 29152817,
         "baseHardBytes": 33554432,
         "foregroundReviewBytes": null,
         "foregroundHardBytes": null
@@ -210,7 +210,7 @@
   "budgetSummary": {
     "exportAreaRatio": 0.5,
     "overlapArea": 1863680,
-    "aggregateBaseReviewBytes": 54525952,
+    "aggregateBaseReviewBytes": 56613986,
     "aggregateBaseHardBytes": 67108864,
     "aggregateForegroundReviewBytes": 0,
     "aggregateForegroundHardBytes": 0

@@ -2,8 +2,8 @@
   "version": 1,
   "proofId": "pilot-underlay-sundrop-seam",
   "path": "artifacts/meadow-entry/painted-v2/proofs/pilot-underlay-sundrop-seam.png",
-  "sha256": "78147e18b5b59b4c525c1464c1c23e65ef5d3f0064e02fe27f078acbea910923",
-  "bytes": 983898,
+  "sha256": "4b932d749d50459ea28164b9aba5ba7bbd16807059edfb594a79f5accff8e0e5",
+  "bytes": 1115645,
   "width": 3264,
   "height": 256,
   "masterBounds": {
@@ -15,55 +15,211 @@
   "inputs": [
     {
       "path": "artifacts/meadow-entry/painted-v2/masters/meadow-entry-painted-v2-pilot-base-master.png",
-      "sha256": "8de845c8d06727c199b8dcb0f09c6db9b2d85ed936e8de5db985800032d047ac"
+      "sha256": "d1dea4230454394e93e660513c5cc4e6af3cd1e62e61a39a162a2e8f48de0c0d"
     },
     {
       "path": "artifacts/meadow-entry/painted-v2/provenance/meadow-entry-master-provenance.json",
-      "sha256": "a9ec4b53cacf20221dea987f4b409dc29763d7665cdeafce151c78457130f08b"
+      "sha256": "758dc3e40b679125f86a3cba874abd1b5434f567971fd96133a88d4af2ce3f2d"
     },
     {
       "path": "artifacts/meadow-entry/painted-v2/controls/meadow-entry-control-manifest.json",
-      "sha256": "77bf248610558f47249de79e1cb399bf2f287296d671a2de7ec6db86b988a116"
+      "sha256": "a1ca18c9508d92efeec694c74851b81193d7b15fe577e18fb277afb52a1617ab"
     },
     {
       "path": "artifacts/meadow-entry/painted-v2/provenance/meadow-entry-crop-manifest.json",
-      "sha256": "9e9b299e0000c9f8265031a827a3c8f9e38e783dfbca872be20727027b984e87"
+      "sha256": "91254d72b56827b30ebeaf1eaa4ce93530b5f0732afbd7b2ac3bcf691397052f"
+    },
+    {
+      "path": "artifacts/meadow-entry/painted-v2/source-panels/raw/sundrop-north.png",
+      "sha256": "7c5baf07ffd673eeb2e0a7dff304e06ca5ae339650f6cff4ac1f486f1768c71b"
     },
     {
       "path": "artifacts/meadow-entry/painted-v2/source-panels/sundrop-north.png",
-      "sha256": "3c7fe6063b8043578464ae68e5ec38505ae6a866afcd72fe2ff2293bf912a4e9"
+      "sha256": "48ea9abcb7afe69aa3b35ecae3a46e5cb850ad68527a5c172f7a08ba18153df2"
+    },
+    {
+      "path": "artifacts/meadow-entry/painted-v2/source-panels/sundrop-north.json",
+      "sha256": "83cb484eb42c7e60dd8d14453fc8f069ec990b8af4d43d1437393b33af1fb1cb"
+    },
+    {
+      "path": "artifacts/meadow-entry/painted-v2/source-panels/raw/sundrop-south.png",
+      "sha256": "d79e642c0db15c5e5f864ab38b66dfb5fa672edce88938d3143916eb15eaf428"
     },
     {
       "path": "artifacts/meadow-entry/painted-v2/source-panels/sundrop-south.png",
-      "sha256": "b3bb18292cd23556d58f2ac7720f95037392ef60b26e9f208206e1f270fd672f"
+      "sha256": "711a0794348fb32f11f81b7e567b1baf8c337e259315141edc8f83a4503146cd"
+    },
+    {
+      "path": "artifacts/meadow-entry/painted-v2/source-panels/sundrop-south.json",
+      "sha256": "64b12937377c313717942e137ed37cfb7564cc212601134f702a9c5621f895fe"
+    },
+    {
+      "path": "artifacts/meadow-entry/painted-v2/source-panels/raw/hero-house-frontage.png",
+      "sha256": "50fc866503a2ba03db79aff06720fe9fef305f429ed1ccd737f6403533414178"
     },
     {
       "path": "artifacts/meadow-entry/painted-v2/source-panels/hero-house-frontage.png",
       "sha256": "9809baf80d939eee485ee0876d3e907e60e04a8185b774f1a14a418a9cd8205b"
     },
     {
+      "path": "artifacts/meadow-entry/painted-v2/source-panels/hero-house-frontage.json",
+      "sha256": "b3679ed0c19078896e2e32b1741ce3a0dcc384e93e8d63f49361ae2a38929894"
+    },
+    {
+      "path": "artifacts/meadow-entry/painted-v2/source-panels/raw/village-crossroads-connector.png",
+      "sha256": "e740964475f6e5a74d8cf3e83c68d645d08558b392d86ba1ddcc4a0b5ca9217c"
+    },
+    {
       "path": "artifacts/meadow-entry/painted-v2/source-panels/village-crossroads-connector.png",
-      "sha256": "6866f90802dfcd73d3828b41b237c8c1239ee130c9d8c8af3ac10d20c193e8b2"
+      "sha256": "a610b473160a6289355bb8f36b8ef07104ec1b24546bc82a015d04d78dbb30b7"
+    },
+    {
+      "path": "artifacts/meadow-entry/painted-v2/source-panels/village-crossroads-connector.json",
+      "sha256": "c5ed075b783e7ea7f5defd26139fd45406accef4b25f899cce1dafe7c8c9f89d"
+    },
+    {
+      "path": "artifacts/meadow-entry/painted-v2/source-panels/raw/crossroads.png",
+      "sha256": "465c6c74f7a4350d034a7edf23c2148cbcce00acde864186102655240e98609e"
     },
     {
       "path": "artifacts/meadow-entry/painted-v2/source-panels/crossroads.png",
-      "sha256": "1534062581775261bfcfd8a26eb5de5a730adf658d9b6ef9abb65413bbe4ae34"
+      "sha256": "b67f13a410d953909f2400c6689e5dc418bcd4968a4cbe0a1cf81a5d74d82f30"
+    },
+    {
+      "path": "artifacts/meadow-entry/painted-v2/source-panels/crossroads.json",
+      "sha256": "ea1af0a60de861d4cc8430b1578e299f28705bf8dc86d1ad911513094c3a1431"
+    },
+    {
+      "path": "artifacts/meadow-entry/painted-v2/source-panels/raw/camera-underlay-sundrop-north.png",
+      "sha256": "d90606a8f5e191491517f9b84d0572af50bb1616ba2f18d550ba8687774f0ebf"
     },
     {
       "path": "artifacts/meadow-entry/painted-v2/source-panels/camera-underlay-sundrop-north.png",
-      "sha256": "6c1c08de57b73463cc5b126cb9069bfd8306262e8608fa822e34da49c86a7a89"
+      "sha256": "bec9a64a5ee9563a22227afaa3da12c1778795ddd732f592348eb9f591eb6bdd"
+    },
+    {
+      "path": "artifacts/meadow-entry/painted-v2/source-panels/camera-underlay-sundrop-north.json",
+      "sha256": "1335dfc089380e9d9cdfc54ae349c2dcefc0d0fcb8e550e9b01bd91e6a08e83e"
+    },
+    {
+      "path": "artifacts/meadow-entry/painted-v2/source-panels/raw/camera-underlay-sundrop-south.png",
+      "sha256": "b6c30d06bb43c52ed3560a04c68563429ca6d2424feccad0693a8ee75e88666d"
     },
     {
       "path": "artifacts/meadow-entry/painted-v2/source-panels/camera-underlay-sundrop-south.png",
-      "sha256": "94be6dda1447e24fb769f19bad4e4ef7bf261605a36a2287ae01e589015c29a4"
+      "sha256": "0c50b1481cf7bdf7d6e4a1eb61d6bf54ba26c0407a55218dea38831fa7f9a298"
+    },
+    {
+      "path": "artifacts/meadow-entry/painted-v2/source-panels/camera-underlay-sundrop-south.json",
+      "sha256": "0e62e6a3e1cd7f673eecb951984ba5706d9a64cfa1697665461e7b5c58255faa"
+    },
+    {
+      "path": "artifacts/meadow-entry/painted-v2/source-panels/raw/camera-underlay-crossroads-north.png",
+      "sha256": "269d91fbe8fb7277e122e0df0fd8c2a5ceb0de5139362864d6e006aabf308ec7"
     },
     {
       "path": "artifacts/meadow-entry/painted-v2/source-panels/camera-underlay-crossroads-north.png",
-      "sha256": "4879be0e81e6182132c2233b58b9b8a12b660e2505793eda916377e77509b8c1"
+      "sha256": "ad209bf0c84f47f12adcee89eeb18266a1686299bc38cda65880a7ab81a14848"
+    },
+    {
+      "path": "artifacts/meadow-entry/painted-v2/source-panels/camera-underlay-crossroads-north.json",
+      "sha256": "66186d7c1fb13ae4758edd4e3c969acb344dfa3218c9b53a215511646a715927"
+    },
+    {
+      "path": "artifacts/meadow-entry/painted-v2/source-panels/raw/camera-underlay-crossroads-south.png",
+      "sha256": "8bffb5db49742463df2a6a13f46e3b3e03a34496aea41e60fb40857aa0b9433a"
     },
     {
       "path": "artifacts/meadow-entry/painted-v2/source-panels/camera-underlay-crossroads-south.png",
-      "sha256": "fe28ee5172107f3bdb58f52a7e07832b8fe2d9a483f4be47e012ac9aa556b748"
+      "sha256": "d27ac3e76a3444af5bfcc0add96949513a9afcca787ddb7f4cb9c7754edc069c"
+    },
+    {
+      "path": "artifacts/meadow-entry/painted-v2/source-panels/camera-underlay-crossroads-south.json",
+      "sha256": "3cfb2ffeff038f41cc3fbf5780dd1dab1b1b461a236baf222e17d0c334552347"
+    },
+    {
+      "path": "artifacts/meadow-entry/painted-v2/source-inserts/raw/camera-underlay-sundrop-south-blocked-hedge.png",
+      "sha256": "08269567ad1c45937f38bf5617ba536e910a458f3920ea6ea1f3bff13f3daa85"
+    },
+    {
+      "path": "artifacts/meadow-entry/painted-v2/source-inserts/camera-underlay-sundrop-south-blocked-hedge.png",
+      "sha256": "69b5d2cb3430002d34fd94966c8349d95db4e0718569d4820c3d46a74796114d"
+    },
+    {
+      "path": "artifacts/meadow-entry/painted-v2/source-inserts/camera-underlay-sundrop-south-blocked-hedge.json",
+      "sha256": "f50062dd163f359f3dc6331651417a3cf6cab278e05efcc4e21cc8de95e31d09"
+    },
+    {
+      "path": "artifacts/meadow-entry/painted-v2/source-inserts/raw/camera-underlay-crossroads-north-blocked-hedge.png",
+      "sha256": "c065e8151910630c8d5c58e455acb6b8135fa190cf5d802a8596f22bc0dbf72e"
+    },
+    {
+      "path": "artifacts/meadow-entry/painted-v2/source-inserts/camera-underlay-crossroads-north-blocked-hedge.png",
+      "sha256": "db7ea68cd440c6f44318e0b93aa11f531f866056dd0d5722a539ecae405dd67f"
+    },
+    {
+      "path": "artifacts/meadow-entry/painted-v2/source-inserts/camera-underlay-crossroads-north-blocked-hedge.json",
+      "sha256": "8b1e5a1f7a761b51e7b3331305c11ada58bdae7794594402681ee058f44dc749"
+    },
+    {
+      "path": "artifacts/meadow-entry/painted-v2/source-inserts/raw/camera-underlay-crossroads-south-blocked-hedge.png",
+      "sha256": "3a2b0ff32930b8e61b6aad4b73532ad995502cb2c8514ecda42e6acde90d25fc"
+    },
+    {
+      "path": "artifacts/meadow-entry/painted-v2/source-inserts/camera-underlay-crossroads-south-blocked-hedge.png",
+      "sha256": "4a555f00337ed46a3f17c5ac2dfad4abc1ffff0b855817229f4d1a2f736e2fd4"
+    },
+    {
+      "path": "artifacts/meadow-entry/painted-v2/source-inserts/camera-underlay-crossroads-south-blocked-hedge.json",
+      "sha256": "4c1a6dd9922c9e2cb6c5f52523f0892c850b21cbd4cc598a526b319ee3074d52"
+    },
+    {
+      "path": "artifacts/meadow-entry/painted-v2/source-inserts/raw/camera-underlay-crossroads-north-blocked-woodland.png",
+      "sha256": "0868ec84cb7c4adda0df2b2534612655845fd7ae41f7fe4963dc4c40647599bc"
+    },
+    {
+      "path": "artifacts/meadow-entry/painted-v2/source-inserts/camera-underlay-crossroads-north-blocked-woodland.png",
+      "sha256": "1eed6fa1f950624f17739e5bb023f7a70321397634796d2019061bcac70dbd63"
+    },
+    {
+      "path": "artifacts/meadow-entry/painted-v2/source-inserts/camera-underlay-crossroads-north-blocked-woodland.json",
+      "sha256": "95a199f4b94dcc5ffedb1e149e1742b99363b69a5dac2efc97f6123017665022"
+    },
+    {
+      "path": "artifacts/meadow-entry/painted-v2/source-inserts/raw/camera-underlay-crossroads-south-blocked-woodland.png",
+      "sha256": "9885f4fd50f1efc32074a70741371c42e659f9554fa7305f7d8359774aa975c0"
+    },
+    {
+      "path": "artifacts/meadow-entry/painted-v2/source-inserts/camera-underlay-crossroads-south-blocked-woodland.png",
+      "sha256": "a4401a8cbcbd8c1a559c0c1cbba39ac8284a518f8a3f487a785dd2c453a25ae5"
+    },
+    {
+      "path": "artifacts/meadow-entry/painted-v2/source-inserts/camera-underlay-crossroads-south-blocked-woodland.json",
+      "sha256": "44aad7f16b8bb3d3add2dcf8813b47c5c739a10d131b558c421aed201f654a4d"
+    },
+    {
+      "path": "artifacts/meadow-entry/painted-v2/source-inserts/raw/crossroads-blocked-hedge.png",
+      "sha256": "bd00660598d0462b94f1efe3dd349e1e90b32b4c7807fb4ea3ea212b8c693187"
+    },
+    {
+      "path": "artifacts/meadow-entry/painted-v2/source-inserts/crossroads-blocked-hedge.png",
+      "sha256": "80ac5a4c6e0503ed0c42a7a8c5ed4c94d97b57324627f4db7baab3a6ec09ea02"
+    },
+    {
+      "path": "artifacts/meadow-entry/painted-v2/source-inserts/crossroads-blocked-hedge.json",
+      "sha256": "bc19dbc48fbb00ad72ff0130b5f3713c295b2d734ac104defe7dc42b2f76ae9b"
+    },
+    {
+      "path": "artifacts/meadow-entry/painted-v2/source-inserts/raw/crossroads-blocked-woodland.png",
+      "sha256": "04e3925ab272dca2b56c205bd3d625580b61bcd558ee70311eaee03c2d2c9e68"
+    },
+    {
+      "path": "artifacts/meadow-entry/painted-v2/source-inserts/crossroads-blocked-woodland.png",
+      "sha256": "45707b5f1f08f498ca628051aa1f59e46c324d8f3e21a0139f9f7274d13188ae"
+    },
+    {
+      "path": "artifacts/meadow-entry/painted-v2/source-inserts/crossroads-blocked-woodland.json",
+      "sha256": "02d0ca18626e9f852860f766dd0673bedfa96321c4a1bd1a776a270f24819eca"
     },
     {
       "path": "artifacts/meadow-entry/painted-v2/controls/meadow-entry-terrain-path-mask.svg",
@@ -71,30 +227,69 @@
     },
     {
       "path": "artifacts/meadow-entry/painted-v2/source-panels/camera-underlay-sundrop-north.png",
-      "sha256": "6c1c08de57b73463cc5b126cb9069bfd8306262e8608fa822e34da49c86a7a89"
+      "sha256": "bec9a64a5ee9563a22227afaa3da12c1778795ddd732f592348eb9f591eb6bdd"
     },
     {
       "path": "artifacts/meadow-entry/painted-v2/source-panels/camera-underlay-sundrop-south.png",
-      "sha256": "94be6dda1447e24fb769f19bad4e4ef7bf261605a36a2287ae01e589015c29a4"
+      "sha256": "0c50b1481cf7bdf7d6e4a1eb61d6bf54ba26c0407a55218dea38831fa7f9a298"
     }
   ],
   "inputSha256": [
-    "8de845c8d06727c199b8dcb0f09c6db9b2d85ed936e8de5db985800032d047ac",
-    "a9ec4b53cacf20221dea987f4b409dc29763d7665cdeafce151c78457130f08b",
-    "77bf248610558f47249de79e1cb399bf2f287296d671a2de7ec6db86b988a116",
-    "9e9b299e0000c9f8265031a827a3c8f9e38e783dfbca872be20727027b984e87",
-    "3c7fe6063b8043578464ae68e5ec38505ae6a866afcd72fe2ff2293bf912a4e9",
-    "b3bb18292cd23556d58f2ac7720f95037392ef60b26e9f208206e1f270fd672f",
+    "d1dea4230454394e93e660513c5cc4e6af3cd1e62e61a39a162a2e8f48de0c0d",
+    "758dc3e40b679125f86a3cba874abd1b5434f567971fd96133a88d4af2ce3f2d",
+    "a1ca18c9508d92efeec694c74851b81193d7b15fe577e18fb277afb52a1617ab",
+    "91254d72b56827b30ebeaf1eaa4ce93530b5f0732afbd7b2ac3bcf691397052f",
+    "7c5baf07ffd673eeb2e0a7dff304e06ca5ae339650f6cff4ac1f486f1768c71b",
+    "48ea9abcb7afe69aa3b35ecae3a46e5cb850ad68527a5c172f7a08ba18153df2",
+    "83cb484eb42c7e60dd8d14453fc8f069ec990b8af4d43d1437393b33af1fb1cb",
+    "d79e642c0db15c5e5f864ab38b66dfb5fa672edce88938d3143916eb15eaf428",
+    "711a0794348fb32f11f81b7e567b1baf8c337e259315141edc8f83a4503146cd",
+    "64b12937377c313717942e137ed37cfb7564cc212601134f702a9c5621f895fe",
+    "50fc866503a2ba03db79aff06720fe9fef305f429ed1ccd737f6403533414178",
     "9809baf80d939eee485ee0876d3e907e60e04a8185b774f1a14a418a9cd8205b",
-    "6866f90802dfcd73d3828b41b237c8c1239ee130c9d8c8af3ac10d20c193e8b2",
-    "1534062581775261bfcfd8a26eb5de5a730adf658d9b6ef9abb65413bbe4ae34",
-    "6c1c08de57b73463cc5b126cb9069bfd8306262e8608fa822e34da49c86a7a89",
-    "94be6dda1447e24fb769f19bad4e4ef7bf261605a36a2287ae01e589015c29a4",
-    "4879be0e81e6182132c2233b58b9b8a12b660e2505793eda916377e77509b8c1",
-    "fe28ee5172107f3bdb58f52a7e07832b8fe2d9a483f4be47e012ac9aa556b748",
+    "b3679ed0c19078896e2e32b1741ce3a0dcc384e93e8d63f49361ae2a38929894",
+    "e740964475f6e5a74d8cf3e83c68d645d08558b392d86ba1ddcc4a0b5ca9217c",
+    "a610b473160a6289355bb8f36b8ef07104ec1b24546bc82a015d04d78dbb30b7",
+    "c5ed075b783e7ea7f5defd26139fd45406accef4b25f899cce1dafe7c8c9f89d",
+    "465c6c74f7a4350d034a7edf23c2148cbcce00acde864186102655240e98609e",
+    "b67f13a410d953909f2400c6689e5dc418bcd4968a4cbe0a1cf81a5d74d82f30",
+    "ea1af0a60de861d4cc8430b1578e299f28705bf8dc86d1ad911513094c3a1431",
+    "d90606a8f5e191491517f9b84d0572af50bb1616ba2f18d550ba8687774f0ebf",
+    "bec9a64a5ee9563a22227afaa3da12c1778795ddd732f592348eb9f591eb6bdd",
+    "1335dfc089380e9d9cdfc54ae349c2dcefc0d0fcb8e550e9b01bd91e6a08e83e",
+    "b6c30d06bb43c52ed3560a04c68563429ca6d2424feccad0693a8ee75e88666d",
+    "0c50b1481cf7bdf7d6e4a1eb61d6bf54ba26c0407a55218dea38831fa7f9a298",
+    "0e62e6a3e1cd7f673eecb951984ba5706d9a64cfa1697665461e7b5c58255faa",
+    "269d91fbe8fb7277e122e0df0fd8c2a5ceb0de5139362864d6e006aabf308ec7",
+    "ad209bf0c84f47f12adcee89eeb18266a1686299bc38cda65880a7ab81a14848",
+    "66186d7c1fb13ae4758edd4e3c969acb344dfa3218c9b53a215511646a715927",
+    "8bffb5db49742463df2a6a13f46e3b3e03a34496aea41e60fb40857aa0b9433a",
+    "d27ac3e76a3444af5bfcc0add96949513a9afcca787ddb7f4cb9c7754edc069c",
+    "3cfb2ffeff038f41cc3fbf5780dd1dab1b1b461a236baf222e17d0c334552347",
+    "08269567ad1c45937f38bf5617ba536e910a458f3920ea6ea1f3bff13f3daa85",
+    "69b5d2cb3430002d34fd94966c8349d95db4e0718569d4820c3d46a74796114d",
+    "f50062dd163f359f3dc6331651417a3cf6cab278e05efcc4e21cc8de95e31d09",
+    "c065e8151910630c8d5c58e455acb6b8135fa190cf5d802a8596f22bc0dbf72e",
+    "db7ea68cd440c6f44318e0b93aa11f531f866056dd0d5722a539ecae405dd67f",
+    "8b1e5a1f7a761b51e7b3331305c11ada58bdae7794594402681ee058f44dc749",
+    "3a2b0ff32930b8e61b6aad4b73532ad995502cb2c8514ecda42e6acde90d25fc",
+    "4a555f00337ed46a3f17c5ac2dfad4abc1ffff0b855817229f4d1a2f736e2fd4",
+    "4c1a6dd9922c9e2cb6c5f52523f0892c850b21cbd4cc598a526b319ee3074d52",
+    "0868ec84cb7c4adda0df2b2534612655845fd7ae41f7fe4963dc4c40647599bc",
+    "1eed6fa1f950624f17739e5bb023f7a70321397634796d2019061bcac70dbd63",
+    "95a199f4b94dcc5ffedb1e149e1742b99363b69a5dac2efc97f6123017665022",
+    "9885f4fd50f1efc32074a70741371c42e659f9554fa7305f7d8359774aa975c0",
+    "a4401a8cbcbd8c1a559c0c1cbba39ac8284a518f8a3f487a785dd2c453a25ae5",
+    "44aad7f16b8bb3d3add2dcf8813b47c5c739a10d131b558c421aed201f654a4d",
+    "bd00660598d0462b94f1efe3dd349e1e90b32b4c7807fb4ea3ea212b8c693187",
+    "80ac5a4c6e0503ed0c42a7a8c5ed4c94d97b57324627f4db7baab3a6ec09ea02",
+    "bc19dbc48fbb00ad72ff0130b5f3713c295b2d734ac104defe7dc42b2f76ae9b",
+    "04e3925ab272dca2b56c205bd3d625580b61bcd558ee70311eaee03c2d2c9e68",
+    "45707b5f1f08f498ca628051aa1f59e46c324d8f3e21a0139f9f7274d13188ae",
+    "02d0ca18626e9f852860f766dd0673bedfa96321c4a1bd1a776a270f24819eca",
     "17f5e461469eb1beafb6fe60d140f2515809739c156a7a647ed18c17ceaad176",
-    "6c1c08de57b73463cc5b126cb9069bfd8306262e8608fa822e34da49c86a7a89",
-    "94be6dda1447e24fb769f19bad4e4ef7bf261605a36a2287ae01e589015c29a4"
+    "bec9a64a5ee9563a22227afaa3da12c1778795ddd732f592348eb9f591eb6bdd",
+    "0c50b1481cf7bdf7d6e4a1eb61d6bf54ba26c0407a55218dea38831fa7f9a298"
   ],
   "metrics": {
     "artBounds": {
