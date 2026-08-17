@@ -1164,6 +1164,16 @@ async function compareOrWrite(path: string, bytes: Buffer, check: boolean): Prom
 	await writeFile(path, bytes);
 }
 
+export function assertReviewArtifactPathWithinRoot(outputRoot: string, relativePath: string): void {
+	const resolvedArtifact = resolve(outputRoot, relativePath);
+	const resolvedOutputRoot = resolve(outputRoot);
+	assert(
+		resolvedArtifact === resolvedOutputRoot ||
+			resolvedArtifact.startsWith(`${resolvedOutputRoot}${sep}`),
+		`Review artifact escapes requested output root: ${relativePath}`
+	);
+}
+
 async function compareOrWriteArtifacts(
 	outputRoot: string,
 	artifacts: readonly ReviewArtifact[],
@@ -1171,13 +1181,7 @@ async function compareOrWriteArtifacts(
 ): Promise<void> {
 	const paths = new Set<string>();
 	for (const artifact of artifacts) {
-		const resolvedArtifact = resolve(outputRoot, artifact.relativePath);
-		const resolvedOutputRoot = resolve(outputRoot);
-		assert(
-			resolvedArtifact === resolvedOutputRoot ||
-				resolvedArtifact.startsWith(`${resolvedOutputRoot}${sep}`),
-			`Review artifact escapes requested output root: ${artifact.relativePath}`
-		);
+		assertReviewArtifactPathWithinRoot(outputRoot, artifact.relativePath);
 		assert(
 			!paths.has(artifact.relativePath),
 			`Duplicate Meadow Entry review artifact: ${artifact.relativePath}`

@@ -350,6 +350,41 @@ function syntheticTopologyBlockers(
 	}));
 }
 
+function adjacentClassFixture(
+	width: number,
+	height: number
+): {
+	readonly masks: MeadowEntryPaintedV2SceneryMaskSet;
+	readonly blockers: MeadowEntryPaintedV2SceneryBlocker[];
+	readonly hedgeBounds: PixelBounds;
+	readonly woodlandBounds: PixelBounds;
+} {
+	const masks = syntheticMasks(width, height);
+	const hedgeBounds = bounds(8, 8, 72, 80);
+	const woodlandBounds = bounds(72, 8, 136, 80);
+	const woodlandForestBounds = bounds(72, 8, 136, 44);
+	const woodlandTreeBounds = bounds(72, 44, 136, 80);
+	masks.otherProtected.fill(0);
+	masks.groundAllowed.fill(1);
+	masks.sceneryAllowed.fill(0);
+	masks.hedgeAllowed.fill(0);
+	masks.woodlandAllowed.fill(0);
+	paintBounds(masks.sceneryAllowed, width, hedgeBounds);
+	paintBounds(masks.sceneryAllowed, width, woodlandBounds);
+	paintBounds(masks.hedgeAllowed, width, hedgeBounds);
+	paintBounds(masks.woodlandAllowed, width, woodlandBounds);
+	const blockers = syntheticTopologyBlockers(width, height).map((blocker) => ({
+		...blocker,
+		bounds:
+			blocker.sceneryClass === 'hedge'
+				? hedgeBounds
+				: blocker.language === 'forest-bank'
+					? woodlandForestBounds
+					: woodlandTreeBounds
+	}));
+	return { masks, blockers, hedgeBounds, woodlandBounds };
+}
+
 function decodedInserts(width: number, height: number): DecodedMeadowEntryPaintedV2SceneryInsert[] {
 	return MEADOW_ENTRY_PAINTED_V2_SCENERY_INSERTS.map((insert, index) => ({
 		id: insert.id,
@@ -367,6 +402,25 @@ function decodedInserts(width: number, height: number): DecodedMeadowEntryPainte
 			)
 		}
 	}));
+}
+
+function forcedSignalInserts(
+	width: number,
+	height: number
+): DecodedMeadowEntryPaintedV2SceneryInsert[] {
+	return decodedInserts(width, height).map((insert, insertIndex) => {
+		const data = Buffer.alloc(width * height * 4);
+		for (let y = 0; y < height; y += 1)
+			for (let x = 0; x < width; x += 1) {
+				const at = rgbaOffset(width, x, y);
+				const value = x < width / 2 ? 240 - insertIndex * 3 : 16 + insertIndex * 3;
+				data[at] = value;
+				data[at + 1] = Math.max(0, value - 8);
+				data[at + 2] = Math.min(255, value + 8);
+				data[at + 3] = 255;
+			}
+		return { ...insert, rgba: { width, height, data } };
+	});
 }
 
 function affectedPanels(width: number, height: number): MeadowEntryDetailDecodedPanel[] {
@@ -1404,6 +1458,46 @@ describe('Meadow Entry painted-v2 scenery bake primitives', () => {
 		expect(reversed.apron).toEqual(candidate.apron);
 		for (const [index, panelResult] of candidate.panels.entries())
 			expect(panelResult.rgba.data).toEqual(reversed.panels[index]!.rgba.data);
+	});
+
+	it('keeps forced adjacent-class apron signals off every legacy core byte', () => {
+		const width = 160;
+		const height = 160;
+		const panels = affectedPanels(width, height);
+		const inserts = forcedSignalInserts(width, height);
+		const fixture = adjacentClassFixture(width, height);
+		const legacy = enrichMeadowEntryPaintedV2Sources(
+			panels,
+			inserts,
+			fixture.masks,
+			fixture.blockers
+		);
+		const candidate = enrichMeadowEntryPaintedV2SourcesWithOrganicApron(
+			panels,
+			inserts,
+			fixture.masks,
+			fixture.blockers
+		);
+		const coreAllowed = Uint8Array.from(fixture.masks.sceneryAllowed, (_, index) =>
+			fixture.masks.hedgeAllowed[index] === 1 || fixture.masks.woodlandAllowed[index] === 1 ? 1 : 0
+		);
+		for (const panelResult of candidate.panels) {
+			const legacyPanel = legacy.panels.find(({ id }) => id === panelResult.id)!;
+			for (let y = panelResult.bounds.top; y < panelResult.bounds.bottom; y += 1)
+				for (let x = panelResult.bounds.left; x < panelResult.bounds.right; x += 1) {
+					if (coreAllowed[offset(width, x, y)] !== 1) continue;
+					const at = rgbaOffset(
+						panelResult.rgba.width,
+						x - panelResult.bounds.left,
+						y - panelResult.bounds.top
+					);
+					expect(panelResult.rgba.data.subarray(at, at + 4)).toEqual(
+						legacyPanel.rgba.data.subarray(at, at + 4)
+					);
+				}
+		}
+		expect(candidate.apron.changedPixelCount).toBeGreaterThan(0);
+		expect(fixture.hedgeBounds.right).toBe(fixture.woodlandBounds.left);
 	});
 
 	it('validates all seven insert rows before reading any source pixels', () => {

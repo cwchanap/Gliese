@@ -16,6 +16,8 @@ import { fileURLToPath } from 'node:url';
 import sharp from 'sharp';
 import test from 'node:test';
 
+import { assertReviewArtifactPathWithinRoot } from './render-meadow-entry-painted-v2-enrichment-review';
+
 const TASK3_PRESENTATION_IDS = [
 	'camera-underlay-sundrop-north',
 	'camera-underlay-sundrop-south',
@@ -1674,4 +1676,19 @@ test('review output rejects the public runtime directory', () => {
 		`${result.stdout}\n${result.stderr}`,
 		/must not target the public painted-v2 runtime directory/
 	);
+});
+
+test('review artifact path guard rejects escaping output paths', () => {
+	const outputRoot = mkdtempSync(join(tmpdir(), 'gliese-meadow-enrichment-path-'));
+	try {
+		assert.throws(
+			() => assertReviewArtifactPathWithinRoot(outputRoot, '../outside-review-artifact.png'),
+			/escapes requested output root/
+		);
+		assert.doesNotThrow(() =>
+			assertReviewArtifactPathWithinRoot(outputRoot, 'nested/review-artifact.png')
+		);
+	} finally {
+		rmSync(outputRoot, { recursive: true, force: true });
+	}
 });

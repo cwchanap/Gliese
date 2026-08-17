@@ -2266,6 +2266,8 @@ export function enrichMeadowEntryPaintedV2SourcesWithOrganicApron(
 					const worldIndex = y * width + x;
 					const distanceAt = distance[worldIndex] ?? 0;
 					if (
+						candidateMask[worldIndex] !== 1 ||
+						coreAllowed[worldIndex] === 1 ||
 						distanceAt === 0 ||
 						distanceAt > MEADOW_ENTRY_PAINTED_V2_ORGANIC_APRON_POLICY.maximumDistance
 					)
