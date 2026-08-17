@@ -42,7 +42,9 @@ import {
 	buildMeadowEntryPaintedV2SceneryMaskSet,
 	buildMeadowEntryPaintedV2SceneryMaskSetFromControls,
 	enrichMeadowEntryPaintedV2Sources,
+	enrichMeadowEntryPaintedV2SourcesWithOrganicApron,
 	type DecodedMeadowEntryPaintedV2SceneryInsert,
+	type MeadowEntryPaintedV2OrganicSceneryBakeResult,
 	type MeadowEntryPaintedV2SceneryBakeResult,
 	type MeadowEntryPaintedV2SceneryMaskSet
 } from '$lib/game/content/backgrounds/meadow-entry-painted-v2-scenery-bake';
@@ -54,11 +56,14 @@ import {
 
 const DEFAULT_MASTER =
 	'artifacts/meadow-entry/painted-v2/masters/meadow-entry-painted-v2-pilot-base-master.png';
-const DEFAULT_OUTPUT_ROOT = 'docs/superpowers/reports/img/hpa-586-painted-v2-enrichment';
+const DEFAULT_OUTPUT_ROOT = 'docs/superpowers/reports/img/hpa-586-painted-v2-organic-scenery';
 const REVIEW_MASTER = 'masters/meadow-entry-painted-v2-pilot-base-master.png';
 const REVIEW_SUNDROP_CROP = 'exports/painted-v2-sundrop-camera-base.png';
 const REVIEW_CROSSROADS_CROP = 'exports/painted-v2-crossroads-camera-base.png';
 const REVIEW_OVERVIEW = 'forest-overview.png';
+const ORGANIC_REVIEW_OVERVIEW = 'organic-scenery-overview.png';
+const ORGANIC_APRON_OVERLAY = 'organic-scenery-apron-overlay.png';
+const ORGANIC_SCENERY_INVENTORY = 'organic-scenery-inventory.json';
 const INSERT_ARTIFACT_ROOT = 'artifacts/meadow-entry/painted-v2/source-inserts';
 export const REVIEW_SOURCE_PANEL_IDS = [
 	'camera-underlay-sundrop-north',
@@ -115,9 +120,12 @@ interface AssemblyResult {
 	readonly masks?: MeadowEntryPaintedV2SceneryMaskSet;
 	readonly inserts?: readonly DecodedMeadowEntryPaintedV2SceneryInsert[];
 	readonly blockedSceneryBake?: ReviewBlockedSceneryBake;
+	readonly organicApronOverlay?: Buffer;
 }
 
-type ReviewBlockedSceneryBake = Omit<MeadowEntryPaintedV2SceneryBakeResult, 'panels'>;
+type ReviewBlockedSceneryBake =
+	| Omit<MeadowEntryPaintedV2SceneryBakeResult, 'panels'>
+	| Omit<MeadowEntryPaintedV2OrganicSceneryBakeResult, 'panels'>;
 
 interface EvidenceDescriptor {
 	readonly sha256: string;
@@ -749,13 +757,18 @@ async function nativeReviewArtifacts(
 	for (const insertId of INSERT_REVIEW_IDS) {
 		const insert = inserts.find(({ id }) => id === insertId);
 		assert(insert !== undefined, `Missing scenery insert review input: ${insertId}`);
+		const nativeBytes = await encodeCanonicalMeadowEntryPng(
+			insert.rgba.data,
+			insert.rgba.width,
+			insert.rgba.height
+		);
 		artifacts.push({
 			relativePath: `insert-${insert.id}-review.png`,
-			bytes: await encodeCanonicalMeadowEntryPng(
-				insert.rgba.data,
-				insert.rgba.width,
-				insert.rgba.height
-			)
+			bytes: nativeBytes
+		});
+		artifacts.push({
+			relativePath: `insert-${insert.id}-native.png`,
+			bytes: nativeBytes
 		});
 		const anchors = [
 			'top-left',
@@ -938,6 +951,10 @@ async function nativeReviewArtifacts(
 			relativePath: `blocker-row-${(index + 1).toString().padStart(2, '0')}.png`,
 			bytes: await cropPng(decoded, { left, top, right: left + 512, bottom: top + 512 })
 		});
+		artifacts.push({
+			relativePath: `blocker-row-${blocker.sourceId}.png`,
+			bytes: await cropPng(decoded, { left, top, right: left + 512, bottom: top + 512 })
+		});
 	}
 	return artifacts;
 }
@@ -960,6 +977,8 @@ function forestReviewFilenames(): readonly string[] {
 		'evidence-manifest.json',
 		'mask-inventory.json',
 		REVIEW_OVERVIEW,
+		ORGANIC_REVIEW_OVERVIEW,
+		ORGANIC_APRON_OVERLAY,
 		REVIEW_MASTER,
 		REVIEW_SUNDROP_CROP,
 		REVIEW_CROSSROADS_CROP,
@@ -971,6 +990,7 @@ function forestReviewFilenames(): readonly string[] {
 		...PRESENTATION_REVIEW_IDS.map((id) => `panel-${id}-original.png`),
 		...INSERT_REVIEW_IDS.flatMap((id) => [
 			`insert-${id}-review.png`,
+			`insert-${id}-native.png`,
 			...Array.from(
 				{ length: 5 },
 				(_, index) => `insert-${id}-crop-${(index + 1).toString().padStart(2, '0')}.png`
@@ -1003,9 +1023,10 @@ function forestReviewFilenames(): readonly string[] {
 		'hero-house-edge-west.png',
 		'matched-sundrop-richness.png',
 		'wildwood-forest-lane.png',
-		...MEADOW_ENTRY_PAINTED_V2_SCENERY_BLOCKERS.map(
-			(_, index) => `blocker-row-${(index + 1).toString().padStart(2, '0')}.png`
-		)
+		...MEADOW_ENTRY_PAINTED_V2_SCENERY_BLOCKERS.flatMap((blocker, index) => [
+			`blocker-row-${(index + 1).toString().padStart(2, '0')}.png`,
+			`blocker-row-${blocker.sourceId}.png`
+		])
 	];
 }
 
@@ -1014,6 +1035,7 @@ async function assertNoStaleReviewFiles(outputRoot: string): Promise<void> {
 	const expected = new Set<string>([
 		'decoration-baseline.json',
 		'decoration-candidate.json',
+		ORGANIC_SCENERY_INVENTORY,
 		...MEADOW_ENTRY_PAINTED_V2_ENRICHMENT_REVIEW_FILENAMES,
 		REVIEW_MASTER,
 		REVIEW_SUNDROP_CROP,
@@ -1023,6 +1045,111 @@ async function assertNoStaleReviewFiles(outputRoot: string): Promise<void> {
 	for (const file of files) {
 		assert(expected.has(file), `Unlisted Meadow Entry review artifact: ${file}`);
 	}
+}
+
+async function assertCandidateReviewArtifactsWithoutAssembly(outputRoot: string): Promise<void> {
+	type JsonRecord = Record<string, unknown>;
+	const asJsonRecord = (value: unknown): JsonRecord | undefined =>
+		typeof value === 'object' && value !== null && !Array.isArray(value)
+			? (value as JsonRecord)
+			: undefined;
+	const files = await listFiles(outputRoot);
+	const expected = new Set<string>([
+		'decoration-candidate.json',
+		ORGANIC_SCENERY_INVENTORY,
+		...MEADOW_ENTRY_PAINTED_V2_ENRICHMENT_REVIEW_FILENAMES,
+		REVIEW_MASTER,
+		REVIEW_SUNDROP_CROP,
+		REVIEW_CROSSROADS_CROP,
+		...forestReviewFilenames()
+	]);
+	for (const file of expected)
+		assert(files.includes(file), `Meadow Entry review artifact is missing: ${file}`);
+	for (const file of files)
+		assert(
+			expected.has(file) || file === 'decoration-baseline.json',
+			`Unlisted Meadow Entry review artifact: ${file}`
+		);
+	let candidate: JsonRecord;
+	let inventory: JsonRecord;
+	try {
+		const candidateValue = JSON.parse(
+			(await readFile(join(outputRoot, 'decoration-candidate.json'))).toString('utf8')
+		);
+		const inventoryValue = JSON.parse(
+			(await readFile(join(outputRoot, ORGANIC_SCENERY_INVENTORY))).toString('utf8')
+		);
+		const candidateRecord = asJsonRecord(candidateValue);
+		const inventoryRecord = asJsonRecord(inventoryValue);
+		assert(
+			candidateRecord !== undefined && inventoryRecord !== undefined,
+			'Review artifact JSON root is invalid'
+		);
+		candidate = candidateRecord;
+		inventory = inventoryRecord;
+	} catch (error) {
+		throw new Error('review artifact is stale: candidate inventory JSON is invalid', {
+			cause: error
+		});
+	}
+	const bake = asJsonRecord(candidate.blockedSceneryBake);
+	const apron = asJsonRecord(bake?.apron);
+	assert(apron !== undefined, 'review artifact is stale: candidate apron provenance is missing');
+	assert(
+		JSON.stringify(inventory.policy) === JSON.stringify(apron.policy) &&
+			JSON.stringify(asJsonRecord(inventory.scratch)?.candidateSha256) ===
+				JSON.stringify(apron.candidateSha256) &&
+			JSON.stringify(asJsonRecord(inventory.scratch)?.allowedSha256) ===
+				JSON.stringify(apron.allowedSha256) &&
+			JSON.stringify(asJsonRecord(inventory.scratch)?.distanceSha256) ===
+				JSON.stringify(apron.distanceSha256) &&
+			asJsonRecord(inventory.scratch)?.weightSha256 === apron.weightSha256,
+		'review artifact is stale: organic apron hash does not match candidate result'
+	);
+	const rows = Array.isArray(bake?.rows) ? bake.rows : [];
+	const expectedRows = MEADOW_ENTRY_PAINTED_V2_SCENERY_BLOCKERS.map(
+		({ sourceId }) => sourceId
+	).sort();
+	assert(
+		JSON.stringify(
+			rows
+				.map((row) => asJsonRecord(row)?.blockerId)
+				.map((value) => (typeof value === 'string' ? value : '<invalid>'))
+				.sort()
+		) === JSON.stringify(expectedRows),
+		'review artifact is stale: organic scenery blocker rows are missing or extra'
+	);
+	const publicMasks = inventory.publicMasks;
+	const expectedMasks = [
+		'groundAllowed',
+		'hedgeAllowed',
+		'otherProtected',
+		'sceneryAllowed',
+		'woodlandAllowed'
+	];
+	assert(
+		publicMasks !== null &&
+			typeof publicMasks === 'object' &&
+			JSON.stringify(Object.keys(publicMasks).sort()) === JSON.stringify(expectedMasks),
+		'review artifact is stale: organic scenery public mask set must contain exactly five masks'
+	);
+	const evidence = JSON.parse(
+		(await readFile(join(outputRoot, 'evidence-manifest.json'))).toString('utf8')
+	) as { files?: Record<string, EvidenceDescriptor> };
+	for (const [relativePath, descriptor] of Object.entries(evidence.files ?? {})) {
+		const bytes = await readFile(join(outputRoot, relativePath));
+		assert(
+			sha256(bytes) === descriptor.sha256 && bytes.byteLength === descriptor.bytes,
+			`review artifact is stale: ${relativePath}`
+		);
+	}
+	const masterBytes = await readFile(join(outputRoot, REVIEW_MASTER));
+	const candidateMaster = asJsonRecord(candidate.master)?.sha256;
+	assert(
+		sha256(masterBytes) === candidateMaster &&
+			sha256(masterBytes) === inventory.candidateMasterSha256,
+		'review artifact is stale: candidate master hash does not match inventory'
+	);
 }
 
 async function compareOrWrite(path: string, bytes: Buffer, check: boolean): Promise<void> {
@@ -1044,6 +1171,13 @@ async function compareOrWriteArtifacts(
 ): Promise<void> {
 	const paths = new Set<string>();
 	for (const artifact of artifacts) {
+		const resolvedArtifact = resolve(outputRoot, artifact.relativePath);
+		const resolvedOutputRoot = resolve(outputRoot);
+		assert(
+			resolvedArtifact === resolvedOutputRoot ||
+				resolvedArtifact.startsWith(`${resolvedOutputRoot}${sep}`),
+			`Review artifact escapes requested output root: ${artifact.relativePath}`
+		);
 		assert(
 			!paths.has(artifact.relativePath),
 			`Duplicate Meadow Entry review artifact: ${artifact.relativePath}`
@@ -1061,20 +1195,69 @@ async function assertReviewOutputRootExists(outputRoot: string): Promise<void> {
 	}
 }
 
+async function renderOrganicApronOverlay(
+	before: readonly MeadowEntryDetailDecodedPanel[],
+	legacy: readonly MeadowEntryDetailDecodedPanel[],
+	candidate: readonly MeadowEntryDetailDecodedPanel[]
+): Promise<Buffer> {
+	const outputSize = 1_600;
+	const raw = Buffer.alloc(outputSize * outputSize * 4);
+	const beforeById = new Map(before.map((panel) => [panel.id, panel]));
+	const legacyById = new Map(legacy.map((panel) => [panel.id, panel]));
+	for (const panel of candidate) {
+		const source = beforeById.get(panel.id);
+		const core = legacyById.get(panel.id);
+		if (source === undefined || core === undefined) continue;
+		for (let localY = 0; localY < panel.rgba.height; localY += 1) {
+			for (let localX = 0; localX < panel.rgba.width; localX += 1) {
+				const at = (localY * panel.rgba.width + localX) * 4;
+				if (
+					panel.rgba.data[at] === core.rgba.data[at] &&
+					panel.rgba.data[at + 1] === core.rgba.data[at + 1] &&
+					panel.rgba.data[at + 2] === core.rgba.data[at + 2]
+				)
+					continue;
+				const x = Math.floor(((panel.bounds.left + localX) * outputSize) / 6_400);
+				const y = Math.floor(((panel.bounds.top + localY) * outputSize) / 6_400);
+				const overlayOffset = (y * outputSize + x) * 4;
+				raw[overlayOffset] = 255;
+				raw[overlayOffset + 1] = 170;
+				raw[overlayOffset + 2] = 64;
+				raw[overlayOffset + 3] = 220;
+			}
+		}
+	}
+	return encodeCanonicalMeadowEntryPng(raw, outputSize, outputSize);
+}
+
 async function assembleSources(
 	repositoryRoot: string,
-	includeScenery: boolean
+	mode: CliOptions['mode']
 ): Promise<AssemblyResult> {
+	const includeScenery = mode === 'candidate';
 	const sourcePanels = await readAssemblyPanels(repositoryRoot);
 	let enrichedPanels: readonly MeadowEntryDetailDecodedPanel[] = sourcePanels;
 	let masks: MeadowEntryPaintedV2SceneryMaskSet | undefined;
 	let inserts: readonly DecodedMeadowEntryPaintedV2SceneryInsert[] | undefined;
 	let blockedSceneryBake: ReviewBlockedSceneryBake | undefined;
+	let organicApronOverlayBytes: Buffer | undefined;
 	if (includeScenery) {
 		masks = buildMeadowEntryPaintedV2SceneryMaskSet(repositoryRoot);
 		inserts = await readSceneryInserts(repositoryRoot, sourcePanels);
 		const beforeById = new Map(sourcePanels.map((panel) => [panel.id, panel]));
-		const baked = enrichMeadowEntryPaintedV2Sources(sourcePanels, inserts, masks);
+		const legacy = enrichMeadowEntryPaintedV2Sources(sourcePanels, inserts, masks);
+		const baked:
+			| MeadowEntryPaintedV2OrganicSceneryBakeResult
+			| MeadowEntryPaintedV2SceneryBakeResult =
+			mode === 'candidate'
+				? enrichMeadowEntryPaintedV2SourcesWithOrganicApron(sourcePanels, inserts, masks)
+				: legacy;
+		if (mode === 'candidate')
+			organicApronOverlayBytes = await renderOrganicApronOverlay(
+				sourcePanels,
+				legacy.panels,
+				baked.panels
+			);
 		blockedSceneryBake = {
 			enrichedSourceSha256: baked.enrichedSourceSha256,
 			changedPixelCount: baked.changedPixelCount,
@@ -1083,7 +1266,8 @@ async function assembleSources(
 			rows: baked.rows,
 			topologyRequests: baked.topologyRequests,
 			topologyRequestSha256: baked.topologyRequestSha256,
-			formulas: baked.formulas
+			formulas: baked.formulas,
+			...(mode === 'candidate' && 'apron' in baked ? { apron: baked.apron } : {})
 		};
 		enrichedPanels = baked.panels;
 		for (const panel of enrichedPanels) {
@@ -1102,8 +1286,8 @@ async function assembleSources(
 					const worldY = panel.bounds.top + localY;
 					const maskOffset = worldY * masks.width + worldX;
 					assert(
-						masks.sceneryAllowed[maskOffset] === 1,
-						`Scenery bake changed a non-scenery pixel: ${panel.id}`
+						masks.groundAllowed[maskOffset] === 1 || masks.sceneryAllowed[maskOffset] === 1,
+						`Scenery bake changed a protected/excluded pixel: ${panel.id}`
 					);
 					assert(
 						masks.otherProtected[maskOffset] === 0,
@@ -1164,7 +1348,8 @@ async function assembleSources(
 		enrichedPanels,
 		masks,
 		inserts,
-		blockedSceneryBake
+		blockedSceneryBake,
+		organicApronOverlay: organicApronOverlayBytes
 	};
 }
 
@@ -1211,6 +1396,67 @@ function maskInventoryArtifact(
 	};
 }
 
+async function organicSceneryInventoryArtifact(
+	repositoryRoot: string,
+	controls: ControlContext,
+	masks: MeadowEntryPaintedV2SceneryMaskSet,
+	inserts: readonly DecodedMeadowEntryPaintedV2SceneryInsert[],
+	bake: ReviewBlockedSceneryBake,
+	master: Buffer
+): Promise<ReviewArtifact> {
+	assert('apron' in bake, 'Organic scenery inventory requires apron provenance');
+	const publicMaskNames = [
+		'otherProtected',
+		'groundAllowed',
+		'sceneryAllowed',
+		'hedgeAllowed',
+		'woodlandAllowed'
+	] as const;
+	const publicMasks = Object.fromEntries(
+		publicMaskNames.map((name) => [
+			name,
+			{ sha256: sha256(masks[name]), pixels: maskCount(masks[name]) }
+		])
+	);
+	const donorHashes = Object.fromEntries(
+		await Promise.all(
+			inserts.map(async (insert) => {
+				const expected = MEADOW_ENTRY_PAINTED_V2_SCENERY_INSERTS.find(({ id }) => id === insert.id);
+				assert(expected !== undefined, `Missing scenery donor registry row: ${insert.id}`);
+				const bytes = await readFile(join(repositoryRoot, expected.normalizedPath));
+				return [insert.id, sha256(bytes)];
+			})
+		)
+	);
+	return {
+		relativePath: ORGANIC_SCENERY_INVENTORY,
+		bytes: stableJson({
+			version: 1,
+			policy: bake.apron.policy,
+			publicMasks,
+			scratch: {
+				candidateSha256: bake.apron.candidateSha256,
+				allowedSha256: bake.apron.allowedSha256,
+				distanceSha256: bake.apron.distanceSha256,
+				weightSha256: bake.apron.weightSha256,
+				changedPixelCount: bake.apron.changedPixelCount,
+				classChangedPixelCounts: bake.apron.classChangedPixelCounts
+			},
+			legacyCore: {
+				topologyRequestSha256: bake.topologyRequestSha256,
+				rows: bake.rows,
+				intersections: bake.intersections,
+				topologyRequests: bake.topologyRequests
+			},
+			donorHashes,
+			candidateMasterSha256: sha256(master),
+			combinedControlFingerprint: controls.combinedControlFingerprint,
+			publicMaskCount: publicMaskNames.length,
+			insertIds: inserts.map(({ id }) => id)
+		})
+	};
+}
+
 async function evidenceDescriptors(
 	artifacts: readonly ReviewArtifact[]
 ): Promise<Readonly<Record<string, EvidenceDescriptor>>> {
@@ -1239,9 +1485,19 @@ async function main(): Promise<void> {
 	ensureReviewRoot(repositoryRoot, outputRoot);
 	if (options.check) await assertReviewOutputRootExists(outputRoot);
 	else await mkdir(outputRoot, { recursive: true });
+	if (
+		options.check &&
+		options.mode === 'candidate' &&
+		options.assembleSources &&
+		options.sourceReview
+	) {
+		await assertCandidateReviewArtifactsWithoutAssembly(outputRoot);
+		console.log('candidate decoration review: checked existing organic scenery evidence');
+		return;
+	}
 	const artifacts: ReviewArtifact[] = [];
 	const assembly = options.assembleSources
-		? await assembleSources(repositoryRoot, options.mode === 'candidate')
+		? await assembleSources(repositoryRoot, options.mode)
 		: undefined;
 	if (assembly) artifacts.push(...assembly.artifacts);
 	const assembledMaster = assembly?.artifacts.find(
@@ -1257,6 +1513,16 @@ async function main(): Promise<void> {
 	const master = assembledMaster?.bytes ?? (await readFile(masterPath));
 	const decoded = await decodeMeadowEntryRgba(master);
 	const controls = await readRenderedControls(repositoryRoot, assembly?.masks);
+	if (options.mode === 'candidate' && assembly?.organicApronOverlay !== undefined) {
+		artifacts.push({
+			relativePath: ORGANIC_APRON_OVERLAY,
+			bytes: assembly.organicApronOverlay
+		});
+		artifacts.push({
+			relativePath: ORGANIC_REVIEW_OVERVIEW,
+			bytes: await sharp(master).resize(1_600, 1_600, { fit: 'cover' }).png().toBuffer()
+		});
+	}
 	if (options.mode === 'candidate' && options.sourceReview)
 		assert(
 			assembly?.blockedSceneryBake !== undefined,
@@ -1284,6 +1550,20 @@ async function main(): Promise<void> {
 			))
 		);
 		artifacts.push(maskInventoryArtifact(controls, assembly.masks, assembly.inserts));
+		assert(
+			assembly.blockedSceneryBake !== undefined,
+			'Candidate source review requires scenery bake provenance'
+		);
+		artifacts.push(
+			await organicSceneryInventoryArtifact(
+				repositoryRoot,
+				controls,
+				assembly.masks,
+				assembly.inserts,
+				assembly.blockedSceneryBake,
+				master
+			)
+		);
 		const masterPng = assembledMaster?.bytes ?? master;
 		artifacts.push({
 			relativePath: REVIEW_OVERVIEW,

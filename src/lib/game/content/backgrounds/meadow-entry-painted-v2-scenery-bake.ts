@@ -38,6 +38,14 @@ const AFFECTED_SOURCE_IDS = [
 	'crossroads'
 ] as const;
 
+export const MEADOW_ENTRY_PAINTED_V2_ORGANIC_APRON_POLICY = Object.freeze({
+	maximumDistance: 48,
+	nearRampDistance: 8,
+	maximumWeight: 96,
+	maximumChannelResidual: 12,
+	maximumLumaShift: 16
+} as const);
+
 export interface MeadowEntryPaintedV2SceneryMaskSet {
 	readonly width: 6400;
 	readonly height: 6400;
@@ -166,6 +174,20 @@ export interface MeadowEntryPaintedV2SceneryBakeResult {
 	readonly topologyRequests: readonly MeadowEntryPaintedV2SceneryTopologyRequest[];
 	readonly topologyRequestSha256: string;
 	readonly formulas: Readonly<Record<string, string>>;
+}
+
+export interface MeadowEntryPaintedV2SceneryApronProvenance {
+	readonly policy: typeof MEADOW_ENTRY_PAINTED_V2_ORGANIC_APRON_POLICY;
+	readonly candidateSha256: Readonly<Record<'hedge' | 'woodland', string>>;
+	readonly allowedSha256: Readonly<Record<'hedge' | 'woodland', string>>;
+	readonly distanceSha256: Readonly<Record<'hedge' | 'woodland', string>>;
+	readonly weightSha256: string;
+	readonly changedPixelCount: number;
+	readonly classChangedPixelCounts: Readonly<Record<'hedge' | 'woodland', number>>;
+}
+
+export interface MeadowEntryPaintedV2OrganicSceneryBakeResult extends MeadowEntryPaintedV2SceneryBakeResult {
+	readonly apron: MeadowEntryPaintedV2SceneryApronProvenance;
 }
 
 function assert(condition: unknown, message: string): asserts condition {
@@ -549,7 +571,7 @@ export function meadowEntrySceneryInsetDistances(
 	classAllowed: Uint8Array,
 	width: number,
 	height: number,
-	maximumDistance = MAX_SCENERY_DISTANCE
+	maximumDistance: number = MAX_SCENERY_DISTANCE
 ): Uint8Array {
 	assert(
 		Number.isInteger(maximumDistance) && maximumDistance >= 0,
@@ -600,6 +622,47 @@ export function meadowEntrySceneryInsetDistances(
 	for (let index = 0; index < result.length; index += 1)
 		if (classAllowed[index] === 1)
 			result[index] = Math.min(maximumDistance, Math.max(0, distanceToZero[index]! - 1));
+	return result;
+}
+
+export function meadowEntrySceneryOutwardDistances(
+	coreAllowed: Uint8Array,
+	width: number,
+	height: number,
+	maximumDistance: number = MEADOW_ENTRY_PAINTED_V2_ORGANIC_APRON_POLICY.maximumDistance
+): Uint8Array {
+	assert(
+		Number.isInteger(maximumDistance) && maximumDistance >= 0,
+		'Meadow Entry outward scenery distance cap is invalid'
+	);
+	assert(
+		Number.isInteger(width) && width > 0,
+		'Meadow Entry outward scenery distance width is invalid'
+	);
+	assert(
+		Number.isInteger(height) && height > 0,
+		'Meadow Entry outward scenery distance height is invalid'
+	);
+	assert(
+		coreAllowed.byteLength === width * height,
+		'Meadow Entry outward scenery distance dimensions are invalid'
+	);
+	for (const value of coreAllowed)
+		assert(value === 0 || value === 1, 'Meadow Entry outward scenery mask must be binary');
+
+	const inverted = Uint8Array.from(coreAllowed, (value) => (value === 1 ? 0 : 1));
+	const insetDistances = meadowEntrySceneryInsetDistances(
+		inverted,
+		width,
+		height,
+		maximumDistance + 1
+	);
+	const sentinel = maximumDistance + 1;
+	const result = new Uint8Array(width * height);
+	for (let index = 0; index < result.length; index += 1) {
+		if (coreAllowed[index] === 1) continue;
+		result[index] = Math.min(sentinel, (insetDistances[index] ?? sentinel) + 1);
+	}
 	return result;
 }
 
@@ -693,6 +756,18 @@ function luma(red: number, green: number, blue: number): number {
 
 function halfUp(numerator: number, denominator: number): number {
 	return Math.floor((numerator + Math.floor(denominator / 2)) / denominator);
+}
+
+function ownerRelativeDonorTone(
+	donorPixel: readonly [number, number, number],
+	localMeans: readonly [number, number, number],
+	ownerPixel: readonly [number, number, number],
+	channelCap: number
+): readonly [number, number, number] {
+	return donorPixel.map((value, channel) => {
+		const delta = Math.max(-channelCap, Math.min(channelCap, value - localMeans[channel]!));
+		return Math.max(0, Math.min(255, ownerPixel[channel]! + delta));
+	}) as [number, number, number];
 }
 
 function clippedBoxMean(
@@ -1737,30 +1812,47 @@ export function enrichMeadowEntryPaintedV2Sources(
 				if (finalWeight > 0) rowWeight.set(index, Math.max(rowWeight.get(index) ?? 0, finalWeight));
 				const sourceOffset =
 					((sample.y - owner.bounds.top) * owner.rgba.width + sample.x - owner.bounds.left) * 4;
-				const detail = [
-					[cache.red, insert.rgba.data[sample.localY * insert.rgba.width * 4 + sample.localX * 4]!],
-					[
-						cache.green,
-						insert.rgba.data[sample.localY * insert.rgba.width * 4 + sample.localX * 4 + 1]!
-					],
-					[
-						cache.blue,
-						insert.rgba.data[sample.localY * insert.rgba.width * 4 + sample.localX * 4 + 2]!
-					]
-				].map(([prefix, value], channel) => {
-					const mean = clippedBoxMean(
-						prefix as Uint32Array,
+				const donorOffset = (sample.localY * insert.rgba.width + sample.localX) * 4;
+				const donorPixel: readonly [number, number, number] = [
+					insert.rgba.data[donorOffset]!,
+					insert.rgba.data[donorOffset + 1]!,
+					insert.rgba.data[donorOffset + 2]!
+				];
+				const localMeans: readonly [number, number, number] = [
+					clippedBoxMean(
+						cache.red,
 						cache.width + 1,
 						cache.width,
 						cache.height,
 						sample.localX,
 						sample.localY,
 						31
-					);
-					const delta = Math.max(-classLimit, Math.min(classLimit, (value as number) - mean));
-					const source = owner.rgba.data[sourceOffset + channel]!;
-					return Math.max(0, Math.min(255, source + delta));
-				});
+					),
+					clippedBoxMean(
+						cache.green,
+						cache.width + 1,
+						cache.width,
+						cache.height,
+						sample.localX,
+						sample.localY,
+						31
+					),
+					clippedBoxMean(
+						cache.blue,
+						cache.width + 1,
+						cache.width,
+						cache.height,
+						sample.localX,
+						sample.localY,
+						31
+					)
+				];
+				const ownerPixel: readonly [number, number, number] = [
+					owner.rgba.data[sourceOffset]!,
+					owner.rgba.data[sourceOffset + 1]!,
+					owner.rgba.data[sourceOffset + 2]!
+				];
+				const detail = ownerRelativeDonorTone(donorPixel, localMeans, ownerPixel, classLimit);
 				const contributionIndex = contributions.length;
 				contributions.push({
 					blockerId: intersection.blockerId,
@@ -1974,5 +2066,405 @@ export function enrichMeadowEntryPaintedV2Sources(
 			topologyRequestUnion: 'immutable-raw-request-union-v1',
 			blend: 'blendMeadowEntryDetailChannel'
 		})
+	};
+}
+
+interface OrganicApronCandidate {
+	readonly blockerId: string;
+	readonly insertId: string;
+	readonly owningSourceId: string;
+	readonly ownerPriority: number;
+	readonly sceneryClass: MeadowEntryPaintedV2SceneryClass;
+	readonly worldIndex: number;
+	readonly weight: number;
+	readonly tone: readonly [number, number, number];
+}
+
+type OrganicApronClassRecord = Record<
+	MeadowEntryPaintedV2SceneryClass,
+	{
+		readonly candidate: Uint8Array;
+		readonly allowed: Uint8Array;
+		readonly distance: Uint8Array;
+	}
+>;
+
+function compareOrganicApronCandidates(
+	left: OrganicApronCandidate,
+	right: OrganicApronCandidate
+): number {
+	return (
+		right.weight - left.weight ||
+		right.ownerPriority - left.ownerPriority ||
+		left.insertId.localeCompare(right.insertId) ||
+		left.blockerId.localeCompare(right.blockerId) ||
+		left.worldIndex - right.worldIndex
+	);
+}
+
+function apronWeight(
+	distance: number,
+	organicWeight: number,
+	policy: typeof MEADOW_ENTRY_PAINTED_V2_ORGANIC_APRON_POLICY
+): number {
+	const nearFade = meadowEntryDetailFeatherWeight(
+		Math.min(distance, policy.nearRampDistance),
+		policy.nearRampDistance
+	);
+	const farFade =
+		255 -
+		meadowEntryDetailFeatherWeight(
+			Math.max(distance - policy.nearRampDistance, 0),
+			policy.maximumDistance - policy.nearRampDistance
+		);
+	const edgeWeight = Math.min(policy.maximumWeight, nearFade, farFade);
+	return halfUp(edgeWeight * organicWeight, 255);
+}
+
+function organicApronWeightHash(candidates: readonly OrganicApronCandidate[]): string {
+	return sha256(
+		stable(
+			candidates
+				.map(
+					({
+						blockerId,
+						insertId,
+						owningSourceId,
+						ownerPriority,
+						sceneryClass,
+						worldIndex,
+						weight
+					}) => ({
+						blockerId,
+						insertId,
+						owningSourceId,
+						ownerPriority,
+						sceneryClass,
+						worldIndex,
+						weight
+					})
+				)
+				.sort(
+					(left, right) =>
+						left.sceneryClass.localeCompare(right.sceneryClass) ||
+						left.worldIndex - right.worldIndex ||
+						left.owningSourceId.localeCompare(right.owningSourceId) ||
+						left.insertId.localeCompare(right.insertId) ||
+						left.blockerId.localeCompare(right.blockerId)
+				)
+		)
+	);
+}
+
+export function enrichMeadowEntryPaintedV2SourcesWithOrganicApron(
+	panels: readonly MeadowEntryDetailDecodedPanel[],
+	inserts: readonly DecodedMeadowEntryPaintedV2SceneryInsert[],
+	masks: MeadowEntryPaintedV2SceneryMaskSet,
+	topologyBlockers: readonly MeadowEntryPaintedV2SceneryBlocker[] = MEADOW_ENTRY_PAINTED_V2_SCENERY_BLOCKERS
+): MeadowEntryPaintedV2OrganicSceneryBakeResult {
+	const legacy = enrichMeadowEntryPaintedV2Sources(panels, inserts, masks, topologyBlockers);
+	const { width, height } = assertMaskSet(masks);
+	const panelById = validateDecodedCoverage(panels, inserts, width, height);
+	const canonicalIntersections = validateMeadowEntryPaintedV2SceneryContract();
+	const canonicalBlockersById = new Map(
+		MEADOW_ENTRY_PAINTED_V2_SCENERY_BLOCKERS.map((blocker) => [blocker.sourceId, blocker])
+	);
+	const contractIntersections = canonicalIntersections.map((intersection) => {
+		const blocker = topologyBlockers.find(({ sourceId }) => sourceId === intersection.blockerId);
+		assert(
+			blocker !== undefined,
+			`Missing Meadow Entry topology blocker: ${intersection.blockerId}`
+		);
+		assert(
+			canonicalBlockersById.has(blocker.sourceId),
+			`Unknown Meadow Entry topology blocker: ${blocker.sourceId}`
+		);
+		return blocker === canonicalBlockersById.get(intersection.blockerId)
+			? intersection
+			: { ...intersection, bounds: { ...blocker.bounds } };
+	});
+	const intersectionsByKey = new Map(
+		legacy.intersections.map((intersection) => [
+			`${intersection.blockerId}:${intersection.insertId}`,
+			intersection
+		])
+	);
+	const coreAllowed = Uint8Array.from(masks.sceneryAllowed, (_, index) =>
+		masks.hedgeAllowed[index] === 1 || masks.woodlandAllowed[index] === 1 ? 1 : 0
+	);
+	const classes = ['hedge', 'woodland'] as const;
+	const apronByClass = {} as OrganicApronClassRecord;
+	const byOwner = new Map<string, Map<number, OrganicApronCandidate>>();
+	const orderedInserts = MEADOW_ENTRY_PAINTED_V2_SCENERY_INSERTS.map((expected) => {
+		const insert = inserts.find(({ id }) => id === expected.id);
+		assert(insert !== undefined, `Missing decoded scenery insert: ${expected.id}`);
+		return insert;
+	});
+	const cacheByInsertId = new Map(
+		orderedInserts.map((insert) => [insert.id, integralCache(insert.rgba)])
+	);
+
+	for (const sceneryClass of classes) {
+		const distance = meadowEntrySceneryOutwardDistances(
+			classMask(masks, sceneryClass),
+			width,
+			height,
+			MEADOW_ENTRY_PAINTED_V2_ORGANIC_APRON_POLICY.maximumDistance
+		);
+		const candidateMask = new Uint8Array(width * height);
+		const allowedMask = new Uint8Array(width * height);
+		apronByClass[sceneryClass] = {
+			candidate: candidateMask,
+			allowed: allowedMask,
+			distance
+		};
+		for (let index = 0; index < distance.length; index += 1) {
+			const distanceAt = distance[index] ?? 0;
+			if (
+				coreAllowed[index] === 1 ||
+				distanceAt === 0 ||
+				distanceAt > MEADOW_ENTRY_PAINTED_V2_ORGANIC_APRON_POLICY.maximumDistance
+			)
+				continue;
+			candidateMask[index] = 1;
+			if (masks.groundAllowed[index] === 1 && masks.otherProtected[index] === 0)
+				allowedMask[index] = 1;
+		}
+		for (const intersection of contractIntersections) {
+			if (intersection.sceneryClass !== sceneryClass) continue;
+			const insert = orderedInserts.find(({ id }) => id === intersection.insertId)!;
+			const owner = panelById.get(insert.owningSourceId)!;
+			const metrics = intersectionsByKey.get(`${intersection.blockerId}:${intersection.insertId}`);
+			assert(
+				metrics !== undefined,
+				`Missing core scenery metrics: ${intersection.blockerId}/${intersection.insertId}`
+			);
+			const bounds = intersectionBounds(
+				{
+					left:
+						intersection.bounds.left - MEADOW_ENTRY_PAINTED_V2_ORGANIC_APRON_POLICY.maximumDistance,
+					top:
+						intersection.bounds.top - MEADOW_ENTRY_PAINTED_V2_ORGANIC_APRON_POLICY.maximumDistance,
+					right:
+						intersection.bounds.right +
+						MEADOW_ENTRY_PAINTED_V2_ORGANIC_APRON_POLICY.maximumDistance,
+					bottom:
+						intersection.bounds.bottom +
+						MEADOW_ENTRY_PAINTED_V2_ORGANIC_APRON_POLICY.maximumDistance
+				},
+				insert,
+				width,
+				height
+			);
+			const cache = cacheByInsertId.get(insert.id)!;
+			const ownerPriority = MEADOW_ENTRY_PAINTED_V2_SCENERY_INSERTS.find(
+				({ id }) => id === insert.id
+			)?.owningSourcePriority;
+			assert(ownerPriority !== undefined, `Missing scenery insert priority: ${insert.id}`);
+			for (let y = bounds.top; y < bounds.bottom; y += 1) {
+				for (let x = bounds.left; x < bounds.right; x += 1) {
+					const worldIndex = y * width + x;
+					const distanceAt = distance[worldIndex] ?? 0;
+					if (
+						distanceAt === 0 ||
+						distanceAt > MEADOW_ENTRY_PAINTED_V2_ORGANIC_APRON_POLICY.maximumDistance
+					)
+						continue;
+					if (allowedMask[worldIndex] !== 1) continue;
+					const localX = x - insert.bounds.left;
+					const localY = y - insert.bounds.top;
+					assert(
+						localX >= 0 && localY >= 0 && localX < insert.rgba.width && localY < insert.rgba.height,
+						`Organic scenery apron sample is outside insert: ${insert.id}`
+					);
+					const donorOffset = (localY * insert.rgba.width + localX) * 4;
+					const donorPixel: readonly [number, number, number] = [
+						insert.rgba.data[donorOffset]!,
+						insert.rgba.data[donorOffset + 1]!,
+						insert.rgba.data[donorOffset + 2]!
+					];
+					const localMeans: readonly [number, number, number] = [
+						clippedBoxMean(
+							cache.red,
+							cache.width + 1,
+							cache.width,
+							cache.height,
+							localX,
+							localY,
+							31
+						),
+						clippedBoxMean(
+							cache.green,
+							cache.width + 1,
+							cache.width,
+							cache.height,
+							localX,
+							localY,
+							31
+						),
+						clippedBoxMean(
+							cache.blue,
+							cache.width + 1,
+							cache.width,
+							cache.height,
+							localX,
+							localY,
+							31
+						)
+					];
+					const ownerX = x - owner.bounds.left;
+					const ownerY = y - owner.bounds.top;
+					assert(
+						ownerX >= 0 && ownerY >= 0 && ownerX < owner.rgba.width && ownerY < owner.rgba.height,
+						`Organic scenery apron sample is outside owner: ${insert.owningSourceId}`
+					);
+					const ownerOffset = (ownerY * owner.rgba.width + ownerX) * 4;
+					const ownerPixel: readonly [number, number, number] = [
+						owner.rgba.data[ownerOffset]!,
+						owner.rgba.data[ownerOffset + 1]!,
+						owner.rgba.data[ownerOffset + 2]!
+					];
+					const organicSignal = Math.abs(
+						clippedBoxMean(
+							cache.luminance,
+							cache.width + 1,
+							cache.width,
+							cache.height,
+							localX,
+							localY,
+							15
+						) -
+							clippedBoxMean(
+								cache.luminance,
+								cache.width + 1,
+								cache.width,
+								cache.height,
+								localX,
+								localY,
+								63
+							)
+					);
+					const t = Math.max(
+						0,
+						Math.min(255, halfUp(255 * (organicSignal - metrics.q40), metrics.q80 - metrics.q40))
+					);
+					const organicWeight = meadowEntryDetailFeatherWeight(t, 255);
+					const weight = apronWeight(
+						distanceAt,
+						organicWeight,
+						MEADOW_ENTRY_PAINTED_V2_ORGANIC_APRON_POLICY
+					);
+					if (weight === 0) continue;
+					const candidate: OrganicApronCandidate = {
+						blockerId: intersection.blockerId,
+						insertId: insert.id,
+						owningSourceId: insert.owningSourceId,
+						ownerPriority,
+						sceneryClass,
+						worldIndex,
+						weight,
+						tone: ownerRelativeDonorTone(donorPixel, localMeans, ownerPixel, 12) as [
+							number,
+							number,
+							number
+						]
+					};
+					const pixels = byOwner.get(candidate.owningSourceId) ?? new Map();
+					const previous = pixels.get(candidate.worldIndex);
+					if (previous === undefined || compareOrganicApronCandidates(candidate, previous) < 0)
+						pixels.set(candidate.worldIndex, candidate);
+					byOwner.set(candidate.owningSourceId, pixels);
+				}
+			}
+		}
+	}
+
+	const selectedCandidates = [...byOwner.values()].flatMap((pixels) => [...pixels.values()]);
+	const outputPanels = legacy.panels.map((panel) =>
+		byOwner.has(panel.id) ? clonePanel(panel) : panel
+	);
+	const outputById = new Map(outputPanels.map((panel) => [panel.id, panel]));
+	let changedPixelCount = 0;
+	const classChangedPixelCounts: Record<MeadowEntryPaintedV2SceneryClass, number> = {
+		hedge: 0,
+		woodland: 0
+	};
+	for (const [ownerId, pixels] of byOwner) {
+		const output = outputById.get(ownerId);
+		const owner = panelById.get(ownerId);
+		assert(output !== undefined && owner !== undefined, `Missing organic scenery owner ${ownerId}`);
+		for (const [worldIndex, candidate] of pixels) {
+			const x = worldIndex % width;
+			const y = Math.floor(worldIndex / width);
+			const outputOffset =
+				((y - output.bounds.top) * output.rgba.width + x - output.bounds.left) * 4;
+			const ownerOffset = ((y - owner.bounds.top) * owner.rgba.width + x - owner.bounds.left) * 4;
+			let pixelChanged = false;
+			for (let channel = 0; channel < 3; channel += 1) {
+				const previous = output.rgba.data[outputOffset + channel]!;
+				const blended = blendMeadowEntryDetailChannel(
+					previous,
+					candidate.tone[channel]!,
+					candidate.weight
+				);
+				assert(
+					Math.abs(blended - owner.rgba.data[ownerOffset + channel]!) <=
+						MEADOW_ENTRY_PAINTED_V2_ORGANIC_APRON_POLICY.maximumChannelResidual,
+					`Organic scenery apron channel residual exceeded policy: ${candidate.insertId}`
+				);
+				output.rgba.data[outputOffset + channel] = blended;
+				if (blended !== previous) pixelChanged = true;
+			}
+			const outputLuma = luma(
+				output.rgba.data[outputOffset]!,
+				output.rgba.data[outputOffset + 1]!,
+				output.rgba.data[outputOffset + 2]!
+			);
+			const ownerLuma = luma(
+				owner.rgba.data[ownerOffset]!,
+				owner.rgba.data[ownerOffset + 1]!,
+				owner.rgba.data[ownerOffset + 2]!
+			);
+			assert(
+				Math.abs(outputLuma - ownerLuma) <=
+					MEADOW_ENTRY_PAINTED_V2_ORGANIC_APRON_POLICY.maximumLumaShift,
+				`Organic scenery apron luma shift exceeded policy: ${candidate.insertId}`
+			);
+			if (pixelChanged) {
+				changedPixelCount += 1;
+				classChangedPixelCounts[candidate.sceneryClass] += 1;
+			}
+		}
+	}
+	const enrichedSourceSha256 = Object.fromEntries(
+		AFFECTED_SOURCE_IDS.map((sourceId) => {
+			const output = outputById.get(sourceId) ?? legacy.panels.find(({ id }) => id === sourceId);
+			assert(output !== undefined, `Missing enriched organic scenery source ${sourceId}`);
+			return [sourceId, sha256(output.rgba.data)];
+		})
+	);
+	const apron: MeadowEntryPaintedV2SceneryApronProvenance = Object.freeze({
+		policy: MEADOW_ENTRY_PAINTED_V2_ORGANIC_APRON_POLICY,
+		candidateSha256: Object.freeze({
+			hedge: sha256(apronByClass.hedge.candidate),
+			woodland: sha256(apronByClass.woodland.candidate)
+		}),
+		allowedSha256: Object.freeze({
+			hedge: sha256(apronByClass.hedge.allowed),
+			woodland: sha256(apronByClass.woodland.allowed)
+		}),
+		distanceSha256: Object.freeze({
+			hedge: sha256(apronByClass.hedge.distance),
+			woodland: sha256(apronByClass.woodland.distance)
+		}),
+		weightSha256: organicApronWeightHash(selectedCandidates),
+		changedPixelCount,
+		classChangedPixelCounts: Object.freeze(classChangedPixelCounts)
+	});
+	return {
+		...legacy,
+		panels: outputPanels,
+		enrichedSourceSha256: Object.freeze(enrichedSourceSha256),
+		apron
 	};
 }

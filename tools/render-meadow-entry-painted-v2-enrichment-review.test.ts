@@ -148,7 +148,10 @@ const EXPECTED_CANDIDATE_INVENTORY = [
 	'decoration-candidate.json',
 	'evidence-manifest.json',
 	'mask-inventory.json',
+	'organic-scenery-inventory.json',
 	'forest-overview.png',
+	'organic-scenery-overview.png',
+	'organic-scenery-apron-overlay.png',
 	'masters/meadow-entry-painted-v2-pilot-base-master.png',
 	'exports/painted-v2-sundrop-camera-base.png',
 	'exports/painted-v2-crossroads-camera-base.png',
@@ -160,6 +163,7 @@ const EXPECTED_CANDIDATE_INVENTORY = [
 	...PRESENTATION_IDS.map((id) => `panel-${id}-original.png`),
 	...INSERT_IDS.flatMap((id) => [
 		`insert-${id}-review.png`,
+		`insert-${id}-native.png`,
 		...Array.from(
 			{ length: 5 },
 			(_, index) => `insert-${id}-crop-${(index + 1).toString().padStart(2, '0')}.png`
@@ -203,7 +207,17 @@ const EXPECTED_CANDIDATE_INVENTORY = [
 	...Array.from(
 		{ length: 10 },
 		(_, index) => `blocker-row-${(index + 1).toString().padStart(2, '0')}.png`
-	)
+	),
+	'blocker-row-coast-crossroads-mouth-bank.png',
+	'blocker-row-mistfen-entry-bank-east.png',
+	'blocker-row-silverpine-wall-A-east.png',
+	'blocker-row-silverpine-wall-A-west.png',
+	'blocker-row-silverpine-wall-B-north.png',
+	'blocker-row-silverpine-wall-B-south.png',
+	'blocker-row-silverpine-wall-C-east.png',
+	'blocker-row-silverpine-wall-C-west.png',
+	'blocker-row-wildwood-forest-lane-west-bank.png',
+	'blocker-row-wildwood-north-climb-west-bank.png'
 ] as const;
 
 const FRESH_TASK4_EVIDENCE_INVENTORY = [
@@ -1003,6 +1017,21 @@ test(
 						};
 					}[];
 					formulas: Record<string, string>;
+					apron: {
+						policy: {
+							maximumDistance: number;
+							nearRampDistance: number;
+							maximumWeight: number;
+							maximumChannelResidual: number;
+							maximumLumaShift: number;
+						};
+						candidateSha256: Record<string, string>;
+						allowedSha256: Record<string, string>;
+						distanceSha256: Record<string, string>;
+						weightSha256: string;
+						changedPixelCount: number;
+						classChangedPixelCounts: Record<string, number>;
+					};
 				};
 			};
 			assert.equal(payload.blockedSceneryBake.intersections.length, 16);
@@ -1023,6 +1052,21 @@ test(
 				].sort()
 			);
 			assert.equal(payload.blockedSceneryBake.changedPixelCount > 0, true);
+			assert.deepEqual(payload.blockedSceneryBake.apron.policy, {
+				maximumDistance: 48,
+				nearRampDistance: 8,
+				maximumWeight: 96,
+				maximumChannelResidual: 12,
+				maximumLumaShift: 16
+			});
+			assert.equal(payload.blockedSceneryBake.apron.changedPixelCount > 0, true);
+			for (const hashes of [
+				payload.blockedSceneryBake.apron.candidateSha256,
+				payload.blockedSceneryBake.apron.allowedSha256,
+				payload.blockedSceneryBake.apron.distanceSha256
+			])
+				for (const hash of Object.values(hashes)) assert.match(hash, /^[a-f0-9]{64}$/);
+			assert.match(payload.blockedSceneryBake.apron.weightSha256, /^[a-f0-9]{64}$/);
 			assert.deepEqual(Object.keys(payload.blockedSceneryBake.classChangedPixelCounts).sort(), [
 				'hedge',
 				'woodland'
@@ -1142,6 +1186,51 @@ test(
 				assert.match(maskInventory.sourceHashes[key] ?? '', /^[a-f0-9]{64}$/);
 			assert.equal(payload.energy.qualifyingTileCount, 67);
 			assert.deepEqual(payload.energy.sheetTileCounts, [16, 16, 16, 16, 3]);
+			const organicInventory = JSON.parse(
+				readFileSync(join(outputRoot, 'organic-scenery-inventory.json'), 'utf8')
+			) as {
+				policy: Record<string, number>;
+				publicMasks: Record<string, { sha256: string }>;
+				scratch: {
+					candidateSha256: Record<string, string>;
+					allowedSha256: Record<string, string>;
+					distanceSha256: Record<string, string>;
+					weightSha256: string;
+				};
+				candidateMasterSha256: string;
+			};
+			assert.deepEqual(organicInventory.policy, payload.blockedSceneryBake.apron.policy);
+			assert.deepEqual(Object.keys(organicInventory.publicMasks).sort(), [
+				'groundAllowed',
+				'hedgeAllowed',
+				'otherProtected',
+				'sceneryAllowed',
+				'woodlandAllowed'
+			]);
+			assert.deepEqual(
+				organicInventory.scratch.candidateSha256,
+				payload.blockedSceneryBake.apron.candidateSha256
+			);
+			assert.deepEqual(
+				organicInventory.scratch.allowedSha256,
+				payload.blockedSceneryBake.apron.allowedSha256
+			);
+			assert.deepEqual(
+				organicInventory.scratch.distanceSha256,
+				payload.blockedSceneryBake.apron.distanceSha256
+			);
+			assert.equal(
+				organicInventory.scratch.weightSha256,
+				payload.blockedSceneryBake.apron.weightSha256
+			);
+			assert.equal(
+				organicInventory.candidateMasterSha256,
+				createHash('sha256')
+					.update(
+						readFileSync(join(outputRoot, 'masters/meadow-entry-painted-v2-pilot-base-master.png'))
+					)
+					.digest('hex')
+			);
 			assert.deepEqual(
 				Object.keys(payload.evidence).sort(),
 				[...EXPECTED_CANDIDATE_INVENTORY].filter((path) => path.endsWith('.png')).sort()
@@ -1250,6 +1339,51 @@ test(
 				encoding: 'utf8'
 			});
 			assert.equal(candidateCheck.status, 0, `${candidateCheck.stdout}\n${candidateCheck.stderr}`);
+
+			const candidateEvidenceBytes = readFileSync(candidateJsonPath);
+			const candidateEvidence = JSON.parse(candidateEvidenceBytes.toString('utf8')) as {
+				blockedSceneryBake: {
+					rows: unknown[];
+					apron: { weightSha256: string };
+				};
+			};
+			const inventoryPath = join(outputRoot, 'organic-scenery-inventory.json');
+			const inventoryEvidenceBytes = readFileSync(inventoryPath);
+			const inventoryEvidence = JSON.parse(inventoryEvidenceBytes.toString('utf8')) as {
+				publicMasks: Record<string, unknown>;
+			};
+			const expectCandidateCheckFailure = (pattern: RegExp) => {
+				const check = spawnSync(process.execPath, [...candidateArgs, '--check'], {
+					cwd: repositoryRoot,
+					encoding: 'utf8'
+				});
+				assert.notEqual(check.status, 0);
+				assert.match(`${check.stdout}\n${check.stderr}`, pattern);
+			};
+
+			candidateEvidence.blockedSceneryBake.rows =
+				candidateEvidence.blockedSceneryBake.rows.slice(1);
+			writeFileSync(candidateJsonPath, JSON.stringify(candidateEvidence));
+			expectCandidateCheckFailure(/blocker rows are missing or extra/);
+			writeFileSync(candidateJsonPath, candidateEvidenceBytes);
+
+			candidateEvidence.blockedSceneryBake.rows = [
+				...candidateEvidence.blockedSceneryBake.rows,
+				candidateEvidence.blockedSceneryBake.rows[0]
+			];
+			writeFileSync(candidateJsonPath, JSON.stringify(candidateEvidence));
+			expectCandidateCheckFailure(/blocker rows are missing or extra/);
+			writeFileSync(candidateJsonPath, candidateEvidenceBytes);
+
+			candidateEvidence.blockedSceneryBake.apron.weightSha256 = '0'.repeat(64);
+			writeFileSync(candidateJsonPath, JSON.stringify(candidateEvidence));
+			expectCandidateCheckFailure(/organic apron hash does not match candidate result/);
+			writeFileSync(candidateJsonPath, candidateEvidenceBytes);
+
+			inventoryEvidence.publicMasks.sixthScratchMask = { sha256: '0'.repeat(64), pixels: 0 };
+			writeFileSync(inventoryPath, JSON.stringify(inventoryEvidence));
+			expectCandidateCheckFailure(/public mask set must contain exactly five masks/);
+			writeFileSync(inventoryPath, inventoryEvidenceBytes);
 
 			const densityPath = join(outputRoot, 'decoration-density-05.png');
 			const densityBytes = readFileSync(densityPath);

@@ -24,7 +24,10 @@ import {
 	buildMeadowEntryPaintedV2SceneryMaskSet,
 	erodeMeadowEntryMask8,
 	enrichMeadowEntryPaintedV2Sources,
+	enrichMeadowEntryPaintedV2SourcesWithOrganicApron,
+	MEADOW_ENTRY_PAINTED_V2_ORGANIC_APRON_POLICY,
 	meadowEntrySceneryInsetDistances,
+	meadowEntrySceneryOutwardDistances,
 	shapeMeadowEntryPaintedV2SceneryContributions,
 	type DecodedMeadowEntryPaintedV2SceneryInsert,
 	type MeadowEntryPaintedV2SceneryContribution,
@@ -1218,6 +1221,35 @@ describe('Meadow Entry painted-v2 scenery bake primitives', () => {
 			groundOverlap: 0,
 			sceneryOverlap: 0
 		});
+
+		const publicMasks = {
+			otherProtected: masks.otherProtected,
+			groundAllowed: masks.groundAllowed,
+			sceneryAllowed: masks.sceneryAllowed,
+			hedgeAllowed: masks.hedgeAllowed,
+			woodlandAllowed: masks.woodlandAllowed
+		};
+		const publicMaskHashes = Object.fromEntries(
+			Object.entries(publicMasks).map(([name, value]) => [
+				name,
+				createHash('sha256').update(value).digest('hex')
+			])
+		);
+		expect(publicMaskHashes).toEqual({
+			otherProtected: '3f22afca164436a44c73954b208896b9c227986e018b81ff8cc041da6023f656',
+			groundAllowed: 'c1bc20acc56b98ae586510f4332bc93657627c4c9b435620247e13181b6cc97d',
+			sceneryAllowed: 'ca1c7ec5bbd4b93eb2be7591f074fd458c54aa473944ab7f327c596536d9e156',
+			hedgeAllowed: 'd7b76c254bfd69e36b37b26738e0b8322918dcf602a2c02d2f3de18096af16d7',
+			woodlandAllowed: '07090d49adc2aa982363208f0cd61a98d8b88863d7a3f937575c0ead5605e3e1'
+		});
+		const hedgeOutward = meadowEntrySceneryOutwardDistances(masks.hedgeAllowed, 6400, 6400);
+		const woodlandOutward = meadowEntrySceneryOutwardDistances(masks.woodlandAllowed, 6400, 6400);
+		expect(hedgeOutward).toHaveLength(6400 * 6400);
+		expect(woodlandOutward).toHaveLength(6400 * 6400);
+		expect(hedgeOutward.some((value) => value === 48)).toBe(true);
+		expect(woodlandOutward.some((value) => value === 48)).toBe(true);
+		for (const [name, before] of Object.entries(publicMasks))
+			expect(createHash('sha256').update(before).digest('hex')).toBe(publicMaskHashes[name]);
 	});
 
 	it('reports zero at outer and hole edges, caps at fifteen, and shares the feather formula', () => {
@@ -1238,6 +1270,140 @@ describe('Meadow Entry painted-v2 scenery bake primitives', () => {
 		expect(distances[offset(width, width - 1, height - 2)]).toBe(0);
 		expect(meadowEntryDetailFeatherWeight(distances[offset(width, 20, 20)]!, 15)).toBe(255);
 		expect(meadowEntryDetailFeatherWeight(distances[offset(width, 1, 1)]!, 15)).toBe(0);
+	});
+
+	it('defines the deterministic organic apron policy and outward 8-neighbor distances', () => {
+		expect(MEADOW_ENTRY_PAINTED_V2_ORGANIC_APRON_POLICY).toEqual({
+			maximumDistance: 48,
+			nearRampDistance: 8,
+			maximumWeight: 96,
+			maximumChannelResidual: 12,
+			maximumLumaShift: 16
+		});
+
+		const nine = mask(9, 9);
+		paintBounds(nine, 9, bounds(3, 3, 6, 6));
+		const outwardNine = meadowEntrySceneryOutwardDistances(nine, 9, 9);
+		expect(outwardNine[offset(9, 3, 3)]).toBe(0);
+		expect(outwardNine[offset(9, 2, 3)]).toBe(1);
+		expect(outwardNine[offset(9, 1, 1)]).toBe(2);
+
+		const seventeen = mask(17, 17);
+		seventeen[offset(17, 2, 8)] = 1;
+		const outwardSeventeen = meadowEntrySceneryOutwardDistances(seventeen, 17, 17, 4);
+		expect(outwardSeventeen[offset(17, 2, 8)]).toBe(0);
+		expect(outwardSeventeen[offset(17, 6, 8)]).toBe(4);
+		expect(outwardSeventeen[offset(17, 7, 8)]).toBe(5);
+	});
+
+	it('composes a candidate apron without changing the core topology contract or masks', () => {
+		const width = 160;
+		const height = 160;
+		const panels = affectedPanels(width, height);
+		const inserts = decodedInserts(width, height);
+		const masks = syntheticMasks(width, height);
+		const maskSnapshot = {
+			otherProtected: masks.otherProtected.slice(),
+			groundAllowed: masks.groundAllowed.slice(),
+			sceneryAllowed: masks.sceneryAllowed.slice(),
+			hedgeAllowed: masks.hedgeAllowed.slice(),
+			woodlandAllowed: masks.woodlandAllowed.slice(),
+			sourceHashes: { ...masks.sourceHashes }
+		};
+		const blockers = syntheticTopologyBlockers(width, height);
+		const legacy = enrichMeadowEntryPaintedV2Sources(panels, inserts, masks, blockers);
+		const candidate = enrichMeadowEntryPaintedV2SourcesWithOrganicApron(
+			panels,
+			inserts,
+			masks,
+			blockers
+		);
+
+		expect(candidate.apron.policy).toEqual(MEADOW_ENTRY_PAINTED_V2_ORGANIC_APRON_POLICY);
+		expect(candidate.apron.changedPixelCount).toBeGreaterThan(0);
+		expect(candidate.apron.changedPixelCount).toBe(
+			candidate.apron.classChangedPixelCounts.hedge +
+				candidate.apron.classChangedPixelCounts.woodland
+		);
+		for (const hashes of [
+			candidate.apron.candidateSha256,
+			candidate.apron.allowedSha256,
+			candidate.apron.distanceSha256
+		])
+			for (const hash of Object.values(hashes)) expect(hash).toMatch(/^[a-f0-9]{64}$/);
+		expect(candidate.apron.weightSha256).toMatch(/^[a-f0-9]{64}$/);
+
+		// The apron is candidate-only: every core pixel, row metric, topology request,
+		// and topology hash remains exactly the legacy result.
+		expect(candidate.rows).toEqual(legacy.rows);
+		expect(candidate.intersections).toEqual(legacy.intersections);
+		expect(candidate.topologyRequests).toEqual(legacy.topologyRequests);
+		expect(candidate.topologyRequestSha256).toBe(legacy.topologyRequestSha256);
+		const coreAllowed = Uint8Array.from(masks.sceneryAllowed, (_, index) =>
+			masks.hedgeAllowed[index] === 1 || masks.woodlandAllowed[index] === 1 ? 1 : 0
+		);
+		for (const panelResult of candidate.panels) {
+			const legacyPanel = legacy.panels.find(({ id }) => id === panelResult.id)!;
+			for (let y = panelResult.bounds.top; y < panelResult.bounds.bottom; y += 1)
+				for (let x = panelResult.bounds.left; x < panelResult.bounds.right; x += 1) {
+					const worldIndex = offset(width, x, y);
+					if (coreAllowed[worldIndex] !== 1) continue;
+					const at = rgbaOffset(
+						panelResult.rgba.width,
+						x - panelResult.bounds.left,
+						y - panelResult.bounds.top
+					);
+					expect(panelResult.rgba.data.subarray(at, at + 4)).toEqual(
+						legacyPanel.rgba.data.subarray(at, at + 4)
+					);
+				}
+		}
+		expect(masks.otherProtected).toEqual(maskSnapshot.otherProtected);
+		expect(masks.groundAllowed).toEqual(maskSnapshot.groundAllowed);
+		expect(masks.sceneryAllowed).toEqual(maskSnapshot.sceneryAllowed);
+		expect(masks.hedgeAllowed).toEqual(maskSnapshot.hedgeAllowed);
+		expect(masks.woodlandAllowed).toEqual(maskSnapshot.woodlandAllowed);
+		expect(masks.sourceHashes).toEqual(maskSnapshot.sourceHashes);
+
+		const before = new Map(affectedPanels(width, height).map((item) => [item.id, item]));
+		for (const panelResult of candidate.panels) {
+			const original = before.get(panelResult.id);
+			if (original === undefined) continue;
+			for (let y = panelResult.bounds.top; y < panelResult.bounds.bottom; y += 1)
+				for (let x = panelResult.bounds.left; x < panelResult.bounds.right; x += 1) {
+					const worldIndex = offset(width, x, y);
+					if (coreAllowed[worldIndex] === 1) continue;
+					const at = rgbaOffset(
+						panelResult.rgba.width,
+						x - panelResult.bounds.left,
+						y - panelResult.bounds.top
+					);
+					const beforePixel = original.rgba.data.subarray(at, at + 4);
+					const afterPixel = panelResult.rgba.data.subarray(at, at + 4);
+					for (let channel = 0; channel < 3; channel += 1)
+						expect(Math.abs(afterPixel[channel]! - beforePixel[channel]!)).toBeLessThanOrEqual(12);
+					expect(
+						Math.abs(
+							Math.floor(
+								(54 * afterPixel[0]! + 183 * afterPixel[1]! + 19 * afterPixel[2]! + 128) / 256
+							) -
+								Math.floor(
+									(54 * beforePixel[0]! + 183 * beforePixel[1]! + 19 * beforePixel[2]! + 128) / 256
+								)
+						)
+					).toBeLessThanOrEqual(16);
+				}
+		}
+
+		const reversed = enrichMeadowEntryPaintedV2SourcesWithOrganicApron(
+			panels,
+			[...inserts].reverse(),
+			masks,
+			blockers
+		);
+		expect(reversed.apron).toEqual(candidate.apron);
+		for (const [index, panelResult] of candidate.panels.entries())
+			expect(panelResult.rgba.data).toEqual(reversed.panels[index]!.rgba.data);
 	});
 
 	it('validates all seven insert rows before reading any source pixels', () => {
