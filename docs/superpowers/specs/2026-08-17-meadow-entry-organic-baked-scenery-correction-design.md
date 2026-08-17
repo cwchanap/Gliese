@@ -2,26 +2,40 @@
 
 **Date:** 2026-08-17
 
-**Status:** Written after design approval; awaiting user review
+**Status:** Revised after external review; awaiting user re-review
 
 **Amends:** `2026-08-13-meadow-entry-painted-pilot-enrichment-handoff-design.md`
 
 ## Decision
 
-The rejected Task 8 visual gate is a source-art and composition defect, not a camera or runtime
-defect. The final background will continue to bake hedge, tree-wall, and forest-bank scenery into
-the existing two base textures. It will not add runtime planes or move gameplay geometry.
+The rejected Task 8 visual gate combines source-art, composition, and visual-ownership defects. It
+is not a camera, crop-geometry, collision, route, or gameplay-runtime defect. The final background
+will continue to bake hedge, tree-wall, and forest-bank scenery into the existing two base textures.
+It will not add runtime planes or move gameplay geometry.
 
-Every visible blocker row in the sealed Meadow scenery inventory is corrected, not only the three
-rejected camera views. The two runtime crops, crop geometry, collision, routes, transitions,
-background ownership, save behavior, and fallback behavior remain frozen.
+Every visible blocker row in the sealed ten-row Meadow scenery inventory is corrected, not only the
+Wildwood row that failed most visibly. The two runtime crops, crop geometry, collision, routes,
+transitions, and save behavior remain frozen. Runtime visual ownership changes only by assigning all
+ten already-baked blocker source IDs to their existing owner crops; no runtime plane or descriptor is
+added.
 
 ## Rejected evidence
 
-The current Hero House and connector captures show tile-like obstacle rows at the camera perimeter
-and repeated hedge/fence strips. The Wildwood capture shows the stronger failure: long rectangular
-forest bands, straight material splits, and a hard lower edge. Those captures remain rejection
-evidence and cannot be reused as approval.
+The rejected Task 8 captures contain more than one defect owner. They must not be treated as seven
+equivalent insert failures:
+
+| Capture | Verified cause | This amendment |
+| --- | --- | --- |
+| Hero House frontage | live outer-boundary tree strips; no intersection with any sealed scenery row or insert | out of scope; remains a separate blocking visual issue |
+| Connector village mouth | the sealed `coast-crossroads-mouth-bank` hedge intersects the right edge; unrelated live sources may also be visible | correct and suppress the sealed hedge only |
+| Connector Crossroads mouth | sealed hedge contribution plus unrelated live fence strips | correct and suppress the sealed hedge only; fence issue remains separate |
+| Wildwood forest lane | sealed `wildwood-forest-lane-west-bank` contribution plus unsuppressed live blocker visual | fully in scope |
+| Silverpine tree wall | current visual passed, but only one of six baked wall sources is suppressed | regression gate for the corrected ownership table |
+
+The current Hero House and connector captures therefore remain rejection evidence, but a successful
+seven-insert correction cannot by itself make Hero House pass or remove an unrelated live fence.
+Those out-of-inventory defects require a separate owning-source amendment before the overall branch
+can receive final visual approval.
 
 The correction must remove all of the following from normal painted-mode views:
 
@@ -30,7 +44,7 @@ The correction must remove all of the following from normal painted-mode views:
 - regular stamp cadence;
 - hard forest-to-ground material boundaries;
 - duplicate obstacles caused by a baked image and a visible fallback sprite representing the same
-  source.
+  sealed scenery source.
 
 ## Ownership
 
@@ -40,8 +54,13 @@ Gameplay remains authoritative:
 - live actors, pickups, discoveries, doors, transitions, landmarks, and other stateful content stay
   live;
 - the painted package owns only presentation;
-- existing fallback visuals remain available when a painted crop is unavailable and are suppressed
-  for their exact owner while the painted crop is healthy.
+- existing fallback visuals remain available when a painted crop is unavailable;
+- the generated visual-owner table is extended through the existing runtime generator so all ten
+  sealed scenery source IDs are suppressed for their exact owner crops while those crops are healthy.
+
+This is the only runtime-ownership amendment. Missing-texture and render-fault paths must restore
+each affected live blocker independently. Unrelated blockers, decor, fences, and outer-boundary
+visuals keep their current ownership.
 
 The art may make an existing blocker legible. It may not imply a new blocker, door, pickup,
 interaction, or route. Correct art to geometry; never move geometry to accommodate generated pixels.
@@ -70,34 +89,66 @@ runtime, or acceptance-policy change.
 
 ## Organic two-zone bake
 
-The current exact blocker clipping is what exposes narrow rectangular bands. The replacement bake
-uses two presentation zones while keeping the collision core unchanged.
+The replacement composes an apron around the current bake; it does not replace the current mask or
+topology pipeline. The five retained `6400x6400` rasters remain `otherProtected`, `groundAllowed`,
+`sceneryAllowed`, `hedgeAllowed`, and `woodlandAllowed`. Apron eligibility, distance, weight, and
+hashes are scratch data and are discarded after composition.
 
 ### Collision core
 
-The exact blocker footprint is the only place where the generated donor may contribute solid trunks,
-dense roots, dark canopy interiors, or other high-contrast impassable cues. Core pixels remain
-subject to existing building, transition, route-core, reward/discovery, semantic-anchor, and
-protected-live exclusions.
+`coreAllowed` is the existing exact-blocker `sceneryAllowed` mask, unchanged. Its class masks,
+`15px` inward Chebyshev inset distance, q40/q80 organic weight, class detail caps (`32` for hedge,
+`48` for woodland), sparse-core shaping, tree-continuity shaping, priority stack, row metrics, and
+provenance all remain authoritative and unchanged.
+
+In the parent notation:
+
+```text
+coreAllowed = cropUnion & selectedBlockers & !otherProtected & !building & !transition
+              & !rewardDiscovery & !semanticAnchor & !routeCore
+
+coreEdgeWeight(p) = smoothstep255(min(insetDistance8(coreClass, p), 15), 15)
+coreWeight(p) = halfUp(coreEdgeWeight(p) * organicWeight(p) / 255)
+```
+
+Topology shaping consumes only `coreWeight`. The exact blocker footprint remains the only place
+where the donor may contribute solid trunks, dense roots, dark canopy interiors, or other
+high-contrast impassable cues.
 
 ### Blend apron
 
-A `48px` presentation apron is derived deterministically around each blocker union with a
-Chebyshev-distance dilation. The apron may
-receive only low-profile foliage, leaf litter, soft shadow, grass, reeds, and ground-level branch
-texture. It may not receive trunks, solid hedge faces, walls, or other collision cues.
+A `48px` pre-exclusion presentation apron is derived around each class-specific `coreAllowed` union.
+The existing eight-neighbor distance helper is reused on the inverted core field; no second distance
+library is introduced. The `48px` value is an upper bound before exclusions, not a promise of a
+visible `48px` shoulder toward a route or protected source.
 
-The apron is clipped by crop coverage and subtracts route core, buildings, transitions,
-rewards/discoveries, semantic anchors, and protected-live sources. Apron contribution weight is
-capped at `96/255`; its per-channel donor residual is capped at `12`, and its luma shift from the
-pre-scenery background is capped at `16`. The organic donor weight and distance feather both reach
-zero at the `48px` boundary. These literal limits are global and cannot be tuned per row or
-screenshot. Pixels outside the resulting core-plus-apron mask remain byte-identical to an assembly
-without scenery inserts.
+```text
+apronCandidate = dilate8(coreAllowed, 48) & !coreAllowed
+
+apronAllowed = cropUnion & apronCandidate & !otherProtected & !building & !transition
+               & !rewardDiscovery & !semanticAnchor & !routeCore
+
+nearFade(p) = smoothstep255(min(outwardDistance8(coreAllowed, p), 8), 8)
+farFade(p) = 255 - smoothstep255(max(outwardDistance8(coreAllowed, p) - 8, 0), 40)
+apronEdgeWeight(p) = min(96, nearFade(p), farFade(p))
+apronWeight(p) = halfUp(apronEdgeWeight(p) * organicWeight(p) / 255)
+```
+
+The apron may receive only low-profile foliage, leaf litter, soft shadow, grass, reeds, and
+ground-level branch texture. It may not receive trunks, solid hedge faces, walls, or other collision
+cues. On apron pixels, the donor residual is capped per channel at `12`, and the final luma shift
+from the pre-scenery background is capped at `16`. The apron is composited after the shaped core
+contribution and before the scenery result rejoins ordinary panel assembly; it never enters
+sparse-core or tree-continuity shaping.
+
+`nearFade` is zero at the core boundary, reaches the global `96/255` cap inside the apron, and
+`farFade` reaches zero at the outer `48px` limit. This avoids a discontinuity with the parent's
+zero-weight blocker edge without turning the 64px core into a full-weight bar. Pixels outside
+`coreAllowed | apronAllowed` remain byte-identical to an assembly without scenery inserts.
 
 This gives the obstacle a natural visual shoulder without claiming collision outside its authored
-core. It also removes the requirement that a 64-pixel blocker belt display a full rectangular forest
-face from edge to edge.
+core. Route and protected exclusions may remove part or all of a local apron; no implementation or
+visual test may demand a halo through those exclusions.
 
 ## Class language
 
@@ -114,24 +165,32 @@ across multiple rows fails the gate.
 ## Deterministic composition and guards
 
 The ordinary panel priority stack, pair correction, underlay seams, and two-crop export contract stay
-unchanged. Only the scenery contribution mask and the seven donor images change.
+unchanged. The existing core contribution and topology policy also stay unchanged. This amendment
+adds only the bounded apron scratch field, supersedes the seven donor images, and extends the
+generated visual-owner table to the ten sealed source IDs. It does not add a public mask raster or a
+new generic evaluator.
 
 Tests must prove:
 
 1. the sealed ten-row blocker inventory and exact collision bounds are unchanged;
-2. high-contrast obstacle cues occur only inside the collision core;
-3. apron contributions obey the exact `48px`, `96/255`, per-channel `12`, and luma `16` limits and
+2. high-contrast obstacle cues occur only inside the collision core, while the existing core row,
+   contour, clump, and topology gates remain unchanged and green;
+3. apron contributions obey the exact pre-exclusion `48px`, `96/255`, per-channel `12`, and luma `16` limits and
    never intersect protected or route-core pixels;
 4. contribution weight is zero at the final outer boundary and no scenery pixel changes outside the
    core-plus-apron union;
-5. the result is deterministic and input-order independent;
-6. no exact repeated tile/stamp signature is present along a row or between rows;
-7. healthy painted ownership suppresses the corresponding fallback visual, while missing/faulted
-   painted crops restore it;
-8. the master still exports exactly two opaque 3200x3200 textures with the existing overlap and
+5. the five retained full-resolution rasters remain the only public mask set; apron eligibility,
+   distance, weight, and hashes are deterministic scratch evidence and are discarded after assembly;
+6. the result is deterministic and input-order independent;
+7. the generated visual-owner inventory contains all and only the ten sealed scenery source IDs with
+   their exact owner crop, healthy painted ownership suppresses each corresponding fallback visual,
+   and a missing or faulted owner crop restores only its affected live blocker;
+8. the master still exports exactly two opaque `3200x3200` textures with the existing overlap and
    descriptor structure.
 
-Structural checks do not replace native visual review.
+The existing row metrics plus native-detail inspection remain the cadence and organic-shape gate.
+This amendment does not introduce a second stamp detector or a parallel topology policy. Structural
+checks do not replace native visual review.
 
 ## Review and approval gates
 
@@ -140,8 +199,8 @@ Before publication, review at original detail:
 - every one of the seven normalized donor canvases;
 - every one of the ten blocker rows, including ends, intersections, and the full apron;
 - a clean full-master overview;
-- Hero House frontage, connector village mouth, connector Crossroads mouth, Silverpine tree wall,
-  and Wildwood forest lane;
+- the Coast/Mistfen hedge rows, connector village-mouth hedge, connector Crossroads-mouth hedge,
+  Silverpine tree walls, and Wildwood forest banks at their exact owning-source bounds;
 - collision-only and missing/faulted fallback diagnostics separately from normal captures.
 
 Normal captures fail on any source rectangle, straight bar, repeated stamp, exposed fallback tile or
@@ -152,6 +211,12 @@ unambiguous.
 The workflow stops at a fresh `NEEDS_CONTEXT` gate. Approval must be an explicit user answer captured
 with a UTC-second timestamp after the user sees the final images. No prior approval or rejected image
 may be carried forward.
+
+Hero House frontage and any connector fence or outer-boundary strip must still be recaptured and
+reported, but they are cause-scoped diagnostics rather than pass/fail evidence for a seven-insert
+attempt. If they remain visible, the scenery correction may pass its own gate while the overall
+painted-pilot visual gate remains rejected. A separate owning-source design and approval are required
+before changing those sources or claiming final branch approval.
 
 ## Error handling
 
@@ -168,11 +233,16 @@ may be carried forward.
 - collision, route, transition, map, camera, or save changes;
 - new gameplay decorations or interactions;
 - replacing buildings, NPCs, landmarks, pickups, or doors;
+- correcting Hero House outer-boundary tree strips or unrelated connector fence/decor sources; these
+  remain blocking follow-up findings rather than being silently accepted;
 - a generic scenery authoring framework beyond this sealed Meadow correction.
 
 ## Definition of done
 
-The correction is complete only when all ten blocker rows use approved organic generated scenery,
-the master contains no visible rectangular or repeated obstacle strips, runtime ownership prevents
-duplicates, all deterministic/package/browser gates pass, and the user explicitly approves the fresh
-visual inventory.
+This amendment is complete only when all ten sealed blocker rows use approved organic generated
+scenery, those rows contain no visible rectangular or repeated obstacle strips, runtime ownership
+prevents duplicates for all ten exact source IDs, all deterministic/package/browser gates pass, and
+the user explicitly approves the fresh cause-scoped visual inventory. This completion does not imply
+overall painted-pilot visual approval: Hero House outer-boundary strips and unrelated connector
+fence/decor findings must be resolved under their owning sources before the branch can pass its final
+visual gate.
