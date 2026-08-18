@@ -597,6 +597,19 @@ Require the inventory from Task 1 plus:
 Inspect all images at original detail. A structural pass does not override a visible rectangle,
 uniform stamp cadence, hard material edge, duplicate live sprite, false blocker, or obscured route.
 
+The user rejected world-canonical candidate `afc26cfc240641298d17ac1591e1f9e00777253739e0449508ad19d55d908efb`
+because the first overview still showed the broad rectangular source-family crossfade even though the
+runtime-crop overlap bytes were exact. Before rebuilding Task 2 evidence:
+
+1. add RED tests for the exact content-aware multiband seam contract in the design;
+2. replace only the north/south, family, and detail-pair full-overlap high-frequency crossfades;
+3. keep panel bytes, bounds, priorities, runtime crop geometry, masks, scenery selection, and
+   publication paths frozen;
+4. render the ordinary pre-scenery master first and reject the correction if any broad rectangular
+   handoff remains before spending another scenery assembly;
+5. rerun the complete world-canonical evidence build only after the pre-scenery overview and all
+   source-handoff crops pass native-detail review.
+
 - [ ] **Step 5: Run candidate gates and prove publication paths are frozen**
 
 ```bash

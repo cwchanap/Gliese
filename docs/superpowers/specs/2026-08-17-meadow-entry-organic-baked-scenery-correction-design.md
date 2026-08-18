@@ -182,11 +182,38 @@ across multiple rows fails the gate.
 
 ## Deterministic composition and guards
 
-The ordinary panel priority stack, pair correction, underlay seams, and two-crop export contract stay
-unchanged. They run before the scenery pass. The existing core contribution and topology policy also
-stay unchanged. This amendment adds only the bounded apron scratch field and one world-canonical
-composition pass, supersedes the seven donor images, and extends the generated visual-owner table to
-the ten sealed source IDs. It does not add a public mask raster, runtime plane, or generic evaluator.
+The panel registry, panel priority stack, panel bounds, two-crop export geometry, and source PNG bytes
+stay unchanged. They run before the scenery pass. The user rejected the first world-canonical
+candidate because the ordinary full-overlap axis crossfade still read as a large rectangular image
+overlap. Therefore the handoff math is amended before any scenery contribution is applied.
+
+Every sealed north/south, family, and detail-pair overlap uses one deterministic content-aware
+multiband seam:
+
+1. decode the two competing overlap rasters in canonical world coordinates;
+2. compute an RGB L1 cost at every overlap pixel;
+3. find one continuous minimum-cost seam along the declared axis by dynamic programming, allowing
+   only `-1`, `0`, or `+1` cross-axis movement per step, charging `4` for either non-zero move, and
+   resolving equal costs in `straight`, negative, positive order;
+4. set `seamHalfWidth = min(96, floor(axisLength / 8))` and use the same value as the clamped box
+   low-pass radius;
+5. blend the low-frequency components across the full overlap with the existing endpoint-preserving
+   half-up axis weight;
+6. blend only the high-frequency residuals across the narrow band centered on the chosen seam, then
+   clamp `low + residual` into opaque RGB;
+7. preserve the first raster exactly at the first overlap endpoint and the second raster exactly at
+   the final endpoint.
+
+This replaces a broad transparent-looking content crossfade with a smooth palette transition and a
+single continuous texture owner. It does not blur either source, rewrite a source panel, move a
+landmark, change a gameplay mask, or add a runtime plane. Detail-pair correction still applies its
+existing outer feather after the multiband seam, so every visible detail perimeter stays equal to the
+pre-detail composite.
+
+The existing core contribution and topology policy stay unchanged. This amendment adds only the
+bounded apron scratch field and one world-canonical composition pass, supersedes the seven donor
+images, and extends the generated visual-owner table to the ten sealed source IDs. It does not add a
+public mask raster, runtime plane, or generic evaluator.
 
 Tests must prove:
 
@@ -203,12 +230,15 @@ Tests must prove:
 7. the pre-scenery assembled master is byte-identical whether or not scenery is requested; all raw
    and normalized source panels remain byte-identical; every eligible world pixel has zero or one
    selected scenery contribution, never one per overlapping source owner;
-8. both runtime crops are cut from the same final master and every pixel in their geometric overlap
+8. each sealed panel overlap has one deterministic continuous seam, exact endpoint pixels, no
+   full-overlap high-frequency ghost blend, and identical output when its source array order is
+   permuted back into the sealed IDs;
+9. both runtime crops are cut from the same final master and every pixel in their geometric overlap
    is byte-identical; a mutation that makes any overlap pixel differ must fail closed;
-9. the generated visual-owner inventory contains all and only the ten sealed scenery source IDs with
+10. the generated visual-owner inventory contains all and only the ten sealed scenery source IDs with
    their exact owner crop, healthy painted ownership suppresses each corresponding fallback visual,
    and a missing or faulted owner crop restores only its affected live blocker;
-10. the master still exports exactly two opaque `3200x3200` textures with the existing overlap and
+11. the master still exports exactly two opaque `3200x3200` textures with the existing overlap and
    descriptor structure.
 
 The existing row metrics plus native-detail inspection remain the cadence and organic-shape gate.
