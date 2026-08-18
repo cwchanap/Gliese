@@ -90,6 +90,12 @@ export const REVIEW_INSERT_IDS = [
 const INSERT_REVIEW_IDS = REVIEW_INSERT_IDS;
 const PRESENTATION_REVIEW_IDS = REVIEW_SOURCE_PANEL_IDS;
 const VIRTUAL_INSERT_IDS = new Set<string>();
+const ENRICHED_OWNER_PANEL_IDS = [
+	'camera-underlay-sundrop-south',
+	'camera-underlay-crossroads-north',
+	'camera-underlay-crossroads-south',
+	'crossroads'
+] as const;
 
 interface CliOptions {
 	check: boolean;
@@ -879,12 +885,7 @@ async function nativeReviewArtifacts(
 			});
 		}
 	}
-	for (const panelId of [
-		'camera-underlay-sundrop-south',
-		'camera-underlay-crossroads-north',
-		'camera-underlay-crossroads-south',
-		'crossroads'
-	] as const) {
+	for (const panelId of ENRICHED_OWNER_PANEL_IDS) {
 		const panel = enrichedPanels.find(({ id }) => id === panelId);
 		assert(panel !== undefined, `Missing enriched owning-source preview: ${panelId}`);
 		artifacts.push({
@@ -1208,6 +1209,11 @@ async function assertCandidateReviewArtifactsWithoutAssembly(outputRoot: string)
 	assert(
 		enrichedSourceSha256 !== undefined,
 		'review artifact is stale: enriched owner provenance is missing'
+	);
+	assert(
+		JSON.stringify(Object.keys(enrichedSourceSha256).sort()) ===
+			JSON.stringify([...ENRICHED_OWNER_PANEL_IDS].sort()),
+		'review artifact is stale: enriched owner provenance must contain the exact projected set'
 	);
 	for (const [panelId, expectedHash] of Object.entries(enrichedSourceSha256)) {
 		assert(

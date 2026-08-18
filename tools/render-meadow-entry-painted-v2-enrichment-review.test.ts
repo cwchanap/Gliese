@@ -1421,6 +1421,16 @@ test(
 			expectCandidateCheckFailure(/enriched owner evidence does not match projected panel hash/);
 			writeFileSync(candidateJsonPath, candidateEvidenceBytes);
 
+			const candidateEvidenceWithMissingOwner = JSON.parse(
+				candidateEvidenceBytes.toString('utf8')
+			) as { blockedSceneryBake: { enrichedSourceSha256: Record<string, string> } };
+			delete candidateEvidenceWithMissingOwner.blockedSceneryBake.enrichedSourceSha256[
+				'camera-underlay-sundrop-south'
+			];
+			writeFileSync(candidateJsonPath, JSON.stringify(candidateEvidenceWithMissingOwner));
+			expectCandidateCheckFailure(/enriched owner provenance must contain the exact projected set/);
+			writeFileSync(candidateJsonPath, candidateEvidenceBytes);
+
 			const inventoryEvidenceForMasks = JSON.parse(inventoryEvidenceBytes.toString('utf8')) as {
 				publicMasks: Record<string, unknown>;
 			};
