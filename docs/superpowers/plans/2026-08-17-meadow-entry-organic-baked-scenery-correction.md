@@ -358,7 +358,7 @@ camera-underlay-sundrop-south-blocked-hedge:
 camera-underlay-crossroads-north-blocked-hedge:
   camera-underlay-crossroads-north.png + camera-underlay-crossroads-south.png
 camera-underlay-crossroads-south-blocked-hedge:
-  camera-underlay-crossroads-south.png + crossroads.png
+  camera-underlay-crossroads-south.png + camera-underlay-crossroads-north.png
 camera-underlay-crossroads-north-blocked-woodland:
   camera-underlay-crossroads-north.png + crossroads.png
 camera-underlay-crossroads-south-blocked-woodland:
@@ -413,6 +413,24 @@ This amended family receives at most five fresh attempts. The scale limit, nativ
 gates, masks, geometry, apron constants, compositor policy, and all other insert recipes remain
 unchanged. If the amended family passes, continue the remaining five inserts under their original
 sealed recipes. If it exhausts five failures, stop again at `BLOCKED` without publication.
+
+#### Approved South retry-family amendment — 2026-08-18T02:06:29Z
+
+After the original `camera-underlay-crossroads-south-blocked-hedge` family exhausted five attempts
+on the unchanged `2x` cover-scale gate, the user approved one new attempt family only for that
+insert. Preserve those five rejected attempts and findings. The amended family uses the path-free
+Crossroads North underlay reference shown above and appends the same exact suffix used by the
+successful amended North family:
+
+```text
+Wide landscape donor canvas, at least 1600 pixels wide. No path, road, track, stone corridor, or
+crossing anywhere in the image.
+```
+
+This South-only amended family receives at most five fresh attempts. The scale limit, native-detail
+visual gates, masks, geometry, apron constants, compositor policy, and every remaining insert recipe
+remain unchanged. If it passes, continue the remaining four inserts under their original sealed
+recipes. If it exhausts five failures, stop again at `BLOCKED` without publication.
 
 - [ ] **Step 2: Generate and inspect seven fresh attempt-1 raws**
 
