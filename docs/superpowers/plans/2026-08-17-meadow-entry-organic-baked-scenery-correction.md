@@ -360,9 +360,9 @@ camera-underlay-crossroads-north-blocked-hedge:
 camera-underlay-crossroads-south-blocked-hedge:
   camera-underlay-crossroads-south.png + camera-underlay-crossroads-north.png
 camera-underlay-crossroads-north-blocked-woodland:
-  camera-underlay-crossroads-north.png + crossroads.png
+  camera-underlay-crossroads-north.png + camera-underlay-crossroads-south.png
 camera-underlay-crossroads-south-blocked-woodland:
-  camera-underlay-crossroads-south.png + crossroads.png
+  camera-underlay-crossroads-south.png + camera-underlay-crossroads-north.png
 crossroads-blocked-hedge:
   crossroads.png + village-crossroads-connector.png
 crossroads-blocked-woodland:
@@ -431,6 +431,25 @@ This South-only amended family receives at most five fresh attempts. The scale l
 visual gates, masks, geometry, apron constants, compositor policy, and every remaining insert recipe
 remain unchanged. If it passes, continue the remaining four inserts under their original sealed
 recipes. If it exhausts five failures, stop again at `BLOCKED` without publication.
+
+#### Approved woodland retry-family amendment — 2026-08-18T02:32:37Z
+
+After `camera-underlay-crossroads-north-blocked-woodland` exhausted five original attempts on the
+unchanged `2x` cover-scale gate, the user approved fresh attempt families for both 3200-by-1664
+woodland inserts. Preserve the five rejected North attempts and their findings. Each amended family
+uses the reciprocal path-free Crossroads underlay reference shown above and appends this exact suffix
+to the otherwise unchanged shared prompt and Tree-wall instruction:
+
+```text
+Wide landscape donor canvas, at least 1600 pixels wide. No path, road, track, stone corridor, or
+crossing anywhere in the image.
+```
+
+Each woodland family receives at most five fresh attempts. The `2x` scale limit, Tree-wall class
+language, native-detail visual gates, masks, geometry, apron constants, compositor policy, and the
+two remaining Crossroads insert recipes remain unchanged. If either woodland family exhausts five
+failures, stop at `BLOCKED` without publication. If both pass, continue the remaining two inserts
+under their original sealed recipes.
 
 - [ ] **Step 2: Generate and inspect seven fresh attempt-1 raws**
 
