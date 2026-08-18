@@ -16,7 +16,11 @@ import { fileURLToPath } from 'node:url';
 import sharp from 'sharp';
 import test from 'node:test';
 
-import { assertReviewArtifactPathWithinRoot } from './render-meadow-entry-painted-v2-enrichment-review';
+import {
+	assertReviewArtifactPathWithinRoot,
+	assertReviewCropOverlapBuffersEqual,
+	DEFAULT_OUTPUT_ROOT
+} from './render-meadow-entry-painted-v2-enrichment-review';
 
 const TASK3_PRESENTATION_IDS = [
 	'camera-underlay-sundrop-north',
@@ -841,17 +845,14 @@ test('Task 4 records the two-phase source-manifest identity contract', () => {
 		const insert = readJson<{ review?: Record<string, unknown>; stage?: unknown }>(
 			join(repositoryRoot, `artifacts/meadow-entry/painted-v2/source-inserts/${id}.json`)
 		);
-		assert.equal(insert.stage, 'pending-final-source-gate');
-		assert.equal(insert.review?.approval, 'approved-explicit-final-source-gate');
-		assert.equal(insert.review?.reviewStatus, 'approved-explicit-final-source-gate');
-		assert.equal(insert.review?.userAnswer, 'yes');
-		assert.equal(insert.review?.approvedAtUtc, TASK4_ROUND3_APPROVED_AT_UTC);
-		assert.equal(insert.review?.approvalCandidateSha256, TASK4_ROUND3_CANDIDATE_SHA256);
-		assert.equal(
-			insert.review?.approvalEvidenceManifestSha256,
-			TASK4_ROUND3_EVIDENCE_MANIFEST_SHA256
-		);
-		assert.equal(insert.review?.approvalEvidenceFileCount, TASK4_ROUND3_EVIDENCE_FILE_COUNT);
+		assert.equal(insert.stage, 'pending-fresh-user-gate');
+		assert.equal(insert.review?.approval, 'pending-fresh-user-gate');
+		assert.equal(insert.review?.reviewStatus, 'pending-fresh-user-gate');
+		assert.equal(insert.review?.userAnswer, null);
+		assert.equal(insert.review?.approvedAtUtc, undefined);
+		assert.equal(insert.review?.approvalCandidateSha256, undefined);
+		assert.equal(insert.review?.approvalEvidenceManifestSha256, undefined);
+		assert.equal(insert.review?.approvalEvidenceFileCount, undefined);
 		assert.equal(insert.review?.runtimePermission, false);
 		const supersededApproval = insert.review?.supersededApproval as
 			| Record<string, unknown>
@@ -1491,10 +1492,11 @@ test(
 
 test(
 	'candidate assembly measures the newly assembled master and check never rewrites stale outputs',
-	{ timeout: 240_000 },
+	{ timeout: 420_000 },
 	async () => {
 		const repositoryRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 		const outputRoot = mkdtempSync(join(tmpdir(), 'gliese-meadow-enrichment-candidate-assembly-'));
+		const baselineRoot = `${outputRoot}-baseline`;
 		try {
 			const args = [
 				join(repositoryRoot, 'tools/render-meadow-entry-painted-v2-enrichment-review.ts'),
@@ -1515,6 +1517,7 @@ test(
 			const assembledMaster = readFileSync(masterPath);
 			const payload = JSON.parse(readFileSync(candidateJsonPath, 'utf8')) as {
 				master: { sha256: string; path: string };
+				preSceneryMaster: { sha256: string; bytes: number; width: number; height: number };
 				energy: { qualifyingTileCount: number; sheetTileCounts: number[] };
 			};
 			assert.equal(
@@ -1522,6 +1525,28 @@ test(
 				createHash('sha256').update(assembledMaster).digest('hex')
 			);
 			assert.equal(payload.master.path, relative(repositoryRoot, masterPath));
+			const baseline = spawnSync(
+				process.execPath,
+				[
+					join(repositoryRoot, 'tools/render-meadow-entry-painted-v2-enrichment-review.ts'),
+					'--mode',
+					'baseline',
+					'--assemble-sources',
+					'--output-root',
+					baselineRoot
+				],
+				{ cwd: repositoryRoot, encoding: 'utf8' }
+			);
+			assert.equal(baseline.status, 0, `${baseline.stdout}\n${baseline.stderr}`);
+			const baselineMaster = readFileSync(
+				join(baselineRoot, 'masters/meadow-entry-painted-v2-pilot-base-master.png')
+			);
+			assert.deepEqual(payload.preSceneryMaster, {
+				sha256: createHash('sha256').update(baselineMaster).digest('hex'),
+				bytes: baselineMaster.byteLength,
+				width: 6_400,
+				height: 6_400
+			});
 			assert.equal(payload.energy.qualifyingTileCount, 67);
 			assert.deepEqual(payload.energy.sheetTileCounts, [16, 16, 16, 16, 3]);
 
@@ -1546,6 +1571,7 @@ test(
 			assert.deepEqual(readFileSync(masterPath), staleMaster);
 		} finally {
 			rmSync(outputRoot, { recursive: true, force: true });
+			rmSync(baselineRoot, { recursive: true, force: true });
 		}
 	}
 );
@@ -1691,4 +1717,37 @@ test('review artifact path guard rejects escaping output paths', () => {
 	} finally {
 		rmSync(outputRoot, { recursive: true, force: true });
 	}
+});
+
+test('candidate review defaults to the world-canonical-v2 output root', () => {
+	assert.match(DEFAULT_OUTPUT_ROOT, /(?:^|\/)world-canonical-v2$/);
+});
+
+test('review crop overlap guard compares exported overlap bytes in world coordinates', () => {
+	const firstBounds = { left: 0, top: 0, right: 3, bottom: 2 };
+	const secondBounds = { left: 1, top: 1, right: 4, bottom: 3 };
+	const overlapBounds = { left: 1, top: 1, right: 3, bottom: 2 };
+	const first = Buffer.alloc(3 * 2 * 4);
+	const second = Buffer.alloc(3 * 2 * 4);
+	const write = (buffer: Buffer, bounds: typeof firstBounds, x: number, y: number) => {
+		const offset = ((y - bounds.top) * (bounds.right - bounds.left) + x - bounds.left) * 4;
+		buffer[offset] = x;
+		buffer[offset + 1] = y;
+		buffer[offset + 2] = x + y;
+		buffer[offset + 3] = 255;
+	};
+	for (let y = overlapBounds.top; y < overlapBounds.bottom; y += 1)
+		for (let x = overlapBounds.left; x < overlapBounds.right; x += 1) {
+			write(first, firstBounds, x, y);
+			write(second, secondBounds, x, y);
+		}
+	assert.doesNotThrow(() =>
+		assertReviewCropOverlapBuffersEqual(first, firstBounds, second, secondBounds, overlapBounds)
+	);
+	second[(0 * 3 + 0) * 4] = 99;
+	assert.throws(
+		() =>
+			assertReviewCropOverlapBuffersEqual(first, firstBounds, second, secondBounds, overlapBounds),
+		/overlap bytes differ/
+	);
 });

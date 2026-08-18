@@ -25,6 +25,7 @@ import {
 	erodeMeadowEntryMask8,
 	enrichMeadowEntryPaintedV2Sources,
 	enrichMeadowEntryPaintedV2SourcesWithOrganicApron,
+	enrichMeadowEntryPaintedV2WorldWithOrganicApron,
 	MEADOW_ENTRY_PAINTED_V2_ORGANIC_APRON_POLICY,
 	meadowEntrySceneryInsetDistances,
 	meadowEntrySceneryOutwardDistances,
@@ -441,6 +442,14 @@ function clonePanels(
 		bounds: { ...item.bounds },
 		rgba: { ...item.rgba, data: Buffer.from(item.rgba.data) }
 	}));
+}
+
+function preSceneryMaster(
+	width: number,
+	height: number,
+	value: readonly [number, number, number] = [100, 110, 120]
+): { width: number; height: number; data: Buffer } {
+	return { width, height, data: filledRgba(width, height, value) };
 }
 
 function paintBounds(mask: Uint8Array, width: number, panelBounds: PixelBounds): void {
@@ -1498,6 +1507,115 @@ describe('Meadow Entry painted-v2 scenery bake primitives', () => {
 		}
 		expect(candidate.apron.changedPixelCount).toBeGreaterThan(0);
 		expect(fixture.hedgeBounds.right).toBe(fixture.woodlandBounds.left);
+	});
+
+	it('rejects independent overlap decoration and selects one world-canonical contribution', () => {
+		const width = 160;
+		const height = 160;
+		const panels = affectedPanels(width, height);
+		const inserts = forcedSignalInserts(width, height);
+		const fixture = adjacentClassFixture(width, height);
+		const legacy = enrichMeadowEntryPaintedV2SourcesWithOrganicApron(
+			panels,
+			inserts,
+			fixture.masks,
+			fixture.blockers
+		);
+		const ownerIds = [
+			'camera-underlay-sundrop-south',
+			'camera-underlay-crossroads-north',
+			'camera-underlay-crossroads-south',
+			'crossroads'
+		];
+		let conflictingWorldIndex = -1;
+		for (let index = 0; index < width * height && conflictingWorldIndex < 0; index += 1) {
+			if (fixture.masks.sceneryAllowed[index] !== 1) continue;
+			const pixels = ownerIds.map((id) => {
+				const panelValue = legacy.panels.find(({ id: panelId }) => panelId === id)!;
+				const before = panels.find(({ id: panelId }) => panelId === id)!;
+				const at = index * 4;
+				return {
+					changed: !panelValue.rgba.data
+						.subarray(at, at + 3)
+						.equals(before.rgba.data.subarray(at, at + 3)),
+					pixel: panelValue.rgba.data.subarray(at, at + 3).toString('hex')
+				};
+			});
+			if (
+				pixels.filter(({ changed }) => changed).length >= 2 &&
+				new Set(pixels.map(({ pixel }) => pixel)).size > 1
+			)
+				conflictingWorldIndex = index;
+		}
+		expect(conflictingWorldIndex).toBeGreaterThanOrEqual(0);
+
+		const canonical = enrichMeadowEntryPaintedV2WorldWithOrganicApron(
+			preSceneryMaster(width, height),
+			inserts,
+			fixture.masks,
+			fixture.blockers
+		);
+		expect(canonical.selectedWorldPixelCount).toBeGreaterThan(0);
+		expect(canonical.master.data).toHaveLength(width * height * 4);
+		expect(canonical.master.data[conflictingWorldIndex * 4 + 3]).toBe(255);
+		const worldX = conflictingWorldIndex % width;
+		const worldY = Math.floor(conflictingWorldIndex / width);
+		const masterPixel = canonical.master.data.subarray(
+			conflictingWorldIndex * 4,
+			conflictingWorldIndex * 4 + 4
+		);
+		for (const panel of canonical.panels) {
+			if (
+				worldX < panel.bounds.left ||
+				worldX >= panel.bounds.right ||
+				worldY < panel.bounds.top ||
+				worldY >= panel.bounds.bottom
+			)
+				continue;
+			const localOffset =
+				((worldY - panel.bounds.top) * panel.rgba.width + worldX - panel.bounds.left) * 4;
+			expect(panel.rgba.data.subarray(localOffset, localOffset + 4)).toEqual(masterPixel);
+			expect(canonical.enrichedSourceSha256[panel.id]).toBe(
+				createHash('sha256').update(panel.rgba.data).digest('hex')
+			);
+		}
+
+		const master = preSceneryMaster(width, height);
+		const masterSnapshot = Buffer.from(master.data);
+		const insertSnapshots = inserts.map(({ rgba }) => Buffer.from(rgba.data));
+		const maskSnapshot = {
+			otherProtected: fixture.masks.otherProtected.slice(),
+			groundAllowed: fixture.masks.groundAllowed.slice(),
+			sceneryAllowed: fixture.masks.sceneryAllowed.slice(),
+			hedgeAllowed: fixture.masks.hedgeAllowed.slice(),
+			woodlandAllowed: fixture.masks.woodlandAllowed.slice(),
+			sourceHashes: { ...fixture.masks.sourceHashes }
+		};
+		const ordered = enrichMeadowEntryPaintedV2WorldWithOrganicApron(
+			master,
+			inserts,
+			fixture.masks,
+			fixture.blockers
+		);
+		const reversed = enrichMeadowEntryPaintedV2WorldWithOrganicApron(
+			master,
+			[...inserts].reverse(),
+			fixture.masks,
+			fixture.blockers
+		);
+		expect(master.data).toEqual(masterSnapshot);
+		for (const [index, insert] of inserts.entries())
+			expect(insert.rgba.data).toEqual(insertSnapshots[index]!);
+		expect(fixture.masks.otherProtected).toEqual(maskSnapshot.otherProtected);
+		expect(fixture.masks.groundAllowed).toEqual(maskSnapshot.groundAllowed);
+		expect(fixture.masks.sceneryAllowed).toEqual(maskSnapshot.sceneryAllowed);
+		expect(fixture.masks.hedgeAllowed).toEqual(maskSnapshot.hedgeAllowed);
+		expect(fixture.masks.woodlandAllowed).toEqual(maskSnapshot.woodlandAllowed);
+		expect(fixture.masks.sourceHashes).toEqual(maskSnapshot.sourceHashes);
+		expect(reversed.master.data).toEqual(ordered.master.data);
+		expect(reversed.apron).toEqual(ordered.apron);
+		expect(reversed.selectedWorldPixelCount).toBe(ordered.selectedWorldPixelCount);
+		expect(ordered.selectedWorldPixelCount).toBeLessThan(width * height);
 	});
 
 	it('validates all seven insert rows before reading any source pixels', () => {

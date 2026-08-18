@@ -23,6 +23,7 @@ import {
 	validateMeadowEntryPaintedV2SceneryContract,
 	type MeadowEntryPaintedV2SceneryBlocker,
 	type MeadowEntryPaintedV2SceneryClass,
+	type MeadowEntryPaintedV2SceneryIntersection,
 	type MeadowEntryPaintedV2SceneryLanguage
 } from './meadow-entry-painted-v2-scenery';
 import { meadowEntrySourceKey, type MeadowEntrySourceRecord } from './meadow-entry-source-catalog';
@@ -188,6 +189,12 @@ export interface MeadowEntryPaintedV2SceneryApronProvenance {
 
 export interface MeadowEntryPaintedV2OrganicSceneryBakeResult extends MeadowEntryPaintedV2SceneryBakeResult {
 	readonly apron: MeadowEntryPaintedV2SceneryApronProvenance;
+}
+
+export interface MeadowEntryPaintedV2OrganicWorldSceneryBakeResult extends MeadowEntryPaintedV2SceneryBakeResult {
+	readonly master: DecodedMeadowEntryRgba;
+	readonly apron: MeadowEntryPaintedV2SceneryApronProvenance;
+	readonly selectedWorldPixelCount: number;
 }
 
 function assert(condition: unknown, message: string): asserts condition {
@@ -2468,5 +2475,623 @@ export function enrichMeadowEntryPaintedV2SourcesWithOrganicApron(
 		panels: outputPanels,
 		enrichedSourceSha256: Object.freeze(enrichedSourceSha256),
 		apron
+	};
+}
+
+interface WorldSceneryCandidate {
+	readonly kind: 'core' | 'apron';
+	readonly blockerId: string;
+	readonly insertId: string;
+	readonly owningSourceId: string;
+	readonly ownerPriority: number;
+	readonly sceneryClass: MeadowEntryPaintedV2SceneryClass;
+	readonly worldIndex: number;
+	readonly weight: number;
+	readonly tone: readonly [number, number, number];
+}
+
+interface WorldCoreContributionSet {
+	readonly contributions: readonly MeadowEntryPaintedV2SceneryContribution[];
+	readonly topology: MeadowEntryPaintedV2SceneryTopologyResult;
+	readonly distances: Readonly<Record<MeadowEntryPaintedV2SceneryClass, Uint8Array>>;
+	readonly intersections: ReadonlyMap<string, MeadowEntryPaintedV2SceneryIntersectionMetric>;
+}
+
+function worldOwnerPanels(
+	preSceneryMaster: DecodedMeadowEntryRgba,
+	inserts: readonly DecodedMeadowEntryPaintedV2SceneryInsert[]
+): MeadowEntryDetailDecodedPanel[] {
+	const panels: MeadowEntryDetailDecodedPanel[] = [];
+	for (const sourceId of AFFECTED_SOURCE_IDS) {
+		const spec = MEADOW_ENTRY_PAINTED_V2_SOURCE_PANELS.find(({ id }) => id === sourceId);
+		assert(spec !== undefined, `Missing world scenery owner panel spec: ${sourceId}`);
+		const insert = inserts.find(({ owningSourceId }) => owningSourceId === sourceId);
+		assert(insert !== undefined, `Missing world scenery owner insert: ${sourceId}`);
+		const bounds = insert.bounds;
+		assertBounds(
+			bounds,
+			preSceneryMaster.width,
+			preSceneryMaster.height,
+			`world owner ${sourceId}`
+		);
+		if (preSceneryMaster.width === MASK_WIDTH && preSceneryMaster.height === MASK_HEIGHT)
+			assert(
+				boundsEqual(bounds, spec.bounds),
+				`World scenery owner bounds do not match the sealed source-panel registry: ${sourceId}`
+			);
+		const width = boundsWidth(bounds);
+		const height = boundsHeight(bounds);
+		const data = Buffer.alloc(width * height * 4);
+		for (let y = bounds.top; y < bounds.bottom; y += 1) {
+			const sourceOffset = (y * preSceneryMaster.width + bounds.left) * 4;
+			const targetOffset = (y - bounds.top) * width * 4;
+			preSceneryMaster.data.copy(data, targetOffset, sourceOffset, sourceOffset + width * 4);
+		}
+		panels.push({
+			id: sourceId,
+			bounds: { ...bounds },
+			rgba: { width, height, data },
+			assemblyPriority: spec.assemblyPriority
+		});
+	}
+	return panels;
+}
+
+function worldContractIntersections(
+	topologyBlockers: readonly MeadowEntryPaintedV2SceneryBlocker[]
+): readonly MeadowEntryPaintedV2SceneryIntersection[] {
+	const canonicalBlockersById = new Map(
+		MEADOW_ENTRY_PAINTED_V2_SCENERY_BLOCKERS.map((blocker) => [blocker.sourceId, blocker])
+	);
+	return validateMeadowEntryPaintedV2SceneryContract().map((intersection) => {
+		const blocker = topologyBlockers.find(({ sourceId }) => sourceId === intersection.blockerId);
+		assert(
+			blocker !== undefined,
+			`Missing Meadow Entry topology blocker: ${intersection.blockerId}`
+		);
+		assert(
+			canonicalBlockersById.has(blocker.sourceId),
+			`Unknown Meadow Entry topology blocker: ${blocker.sourceId}`
+		);
+		return blocker === canonicalBlockersById.get(intersection.blockerId)
+			? intersection
+			: { ...intersection, bounds: { ...blocker.bounds } };
+	});
+}
+
+function buildWorldCoreContributions(
+	preSceneryMaster: DecodedMeadowEntryRgba,
+	inserts: readonly DecodedMeadowEntryPaintedV2SceneryInsert[],
+	masks: MeadowEntryPaintedV2SceneryMaskSet,
+	topologyBlockers: readonly MeadowEntryPaintedV2SceneryBlocker[],
+	legacy: MeadowEntryPaintedV2SceneryBakeResult
+): WorldCoreContributionSet {
+	const { width, height } = assertMaskSet(masks);
+	const distances = {
+		hedge: meadowEntrySceneryInsetDistances(masks.hedgeAllowed, width, height),
+		woodland: meadowEntrySceneryInsetDistances(masks.woodlandAllowed, width, height)
+	} satisfies Record<MeadowEntryPaintedV2SceneryClass, Uint8Array>;
+	const intersectionsByKey = new Map(
+		legacy.intersections.map((intersection) => [
+			`${intersection.blockerId}:${intersection.insertId}`,
+			intersection
+		])
+	);
+	const insertById = new Map(inserts.map((insert) => [insert.id, insert]));
+	const orderedInserts = MEADOW_ENTRY_PAINTED_V2_SCENERY_INSERTS.map((expected) => {
+		const insert = insertById.get(expected.id);
+		assert(insert !== undefined, `Missing decoded scenery insert: ${expected.id}`);
+		return insert;
+	});
+	const cacheByInsertId = new Map(
+		orderedInserts.map((insert) => [insert.id, integralCache(insert.rgba)])
+	);
+	const contributions: MeadowEntryPaintedV2SceneryContribution[] = [];
+	for (const insert of orderedInserts) {
+		const cache = cacheByInsertId.get(insert.id)!;
+		const allowed = classMask(masks, insert.sceneryClass);
+		const ownerPriority = MEADOW_ENTRY_PAINTED_V2_SCENERY_INSERTS.find(
+			(expected) => expected.id === insert.id
+		)?.owningSourcePriority;
+		assert(ownerPriority !== undefined, `Missing scenery insert priority: ${insert.id}`);
+		for (const intersection of worldContractIntersections(topologyBlockers).filter(
+			({ insertId }) => insertId === insert.id
+		)) {
+			const bounds = intersectionBounds(intersection.bounds, insert, width, height);
+			const samples: Sample[] = [];
+			for (let y = bounds.top; y < bounds.bottom; y += 1) {
+				for (let x = bounds.left; x < bounds.right; x += 1) {
+					const index = y * width + x;
+					if (
+						masks.sceneryAllowed[index] !== 1 ||
+						masks.otherProtected[index] !== 0 ||
+						allowed[index] !== 1
+					)
+						continue;
+					const localX = x - insert.bounds.left;
+					const localY = y - insert.bounds.top;
+					if (
+						localX < 0 ||
+						localY < 0 ||
+						localX >= insert.rgba.width ||
+						localY >= insert.rgba.height
+					)
+						continue;
+					const near = clippedBoxMean(
+						cache.luminance,
+						cache.width + 1,
+						cache.width,
+						cache.height,
+						localX,
+						localY,
+						15
+					);
+					const far = clippedBoxMean(
+						cache.luminance,
+						cache.width + 1,
+						cache.width,
+						cache.height,
+						localX,
+						localY,
+						63
+					);
+					samples.push({ x, y, localX, localY, weight: Math.abs(near - far) });
+				}
+			}
+			assert(
+				samples.length >= 64,
+				`Meadow Entry scenery intersection ${intersection.blockerId}/${insert.id} has fewer than 64 samples`
+			);
+			const signals = samples.map(({ weight }) => weight);
+			const q40 = meadowEntryNearestRank(signals, 0.4);
+			const q80 = meadowEntryNearestRank(signals, 0.8);
+			assert(
+				q40 !== q80,
+				`Meadow Entry scenery intersection ${intersection.blockerId}/${insert.id} has degenerate q40/q80 organic signals`
+			);
+			const classLimit = insert.sceneryClass === 'hedge' ? 32 : 48;
+			const classDistance = distances[insert.sceneryClass];
+			const metrics = intersectionsByKey.get(`${intersection.blockerId}:${insert.id}`);
+			assert(
+				metrics !== undefined,
+				`Missing core scenery metrics: ${intersection.blockerId}/${insert.id}`
+			);
+			for (const sample of samples) {
+				const index = sample.y * width + sample.x;
+				const t = Math.max(
+					0,
+					Math.min(255, halfUp(255 * (sample.weight - metrics.q40), metrics.q80 - metrics.q40))
+				);
+				const organicWeight = meadowEntryDetailFeatherWeight(t, 255);
+				const edgeWeight = meadowEntryDetailFeatherWeight(
+					Math.min(classDistance[index] ?? 0, MAX_SCENERY_DISTANCE),
+					MAX_SCENERY_DISTANCE
+				);
+				const rawFinalWeight = halfUp(edgeWeight * organicWeight, 255);
+				const donorOffset = (sample.localY * insert.rgba.width + sample.localX) * 4;
+				const donorPixel: readonly [number, number, number] = [
+					insert.rgba.data[donorOffset]!,
+					insert.rgba.data[donorOffset + 1]!,
+					insert.rgba.data[donorOffset + 2]!
+				];
+				const localMeans: readonly [number, number, number] = [
+					clippedBoxMean(
+						cache.red,
+						cache.width + 1,
+						cache.width,
+						cache.height,
+						sample.localX,
+						sample.localY,
+						31
+					),
+					clippedBoxMean(
+						cache.green,
+						cache.width + 1,
+						cache.width,
+						cache.height,
+						sample.localX,
+						sample.localY,
+						31
+					),
+					clippedBoxMean(
+						cache.blue,
+						cache.width + 1,
+						cache.width,
+						cache.height,
+						sample.localX,
+						sample.localY,
+						31
+					)
+				];
+				const masterOffset = index * 4;
+				const ownerPixel: readonly [number, number, number] = [
+					preSceneryMaster.data[masterOffset]!,
+					preSceneryMaster.data[masterOffset + 1]!,
+					preSceneryMaster.data[masterOffset + 2]!
+				];
+				contributions.push({
+					blockerId: intersection.blockerId,
+					insertId: insert.id,
+					owningSourceId: insert.owningSourceId,
+					ownerPriority,
+					sceneryClass: insert.sceneryClass,
+					worldIndex: index,
+					rawFinalWeight,
+					organicSignal: sample.weight,
+					edgeWeight,
+					ownerRelativeTone: ownerRelativeDonorTone(
+						donorPixel,
+						localMeans,
+						ownerPixel,
+						classLimit
+					) as [number, number, number]
+				});
+			}
+		}
+	}
+	return {
+		contributions,
+		topology: shapeMeadowEntryPaintedV2SceneryContributions(
+			contributions,
+			topologyBlockers,
+			width,
+			height
+		),
+		distances,
+		intersections: intersectionsByKey
+	};
+}
+
+function compareWorldSceneryCandidates(
+	left: WorldSceneryCandidate,
+	right: WorldSceneryCandidate
+): number {
+	if (left.kind !== right.kind) return left.kind === 'core' ? -1 : 1;
+	return (
+		right.weight - left.weight ||
+		right.ownerPriority - left.ownerPriority ||
+		left.insertId.localeCompare(right.insertId)
+	);
+}
+
+export function enrichMeadowEntryPaintedV2WorldWithOrganicApron(
+	preSceneryMaster: DecodedMeadowEntryRgba,
+	inserts: readonly DecodedMeadowEntryPaintedV2SceneryInsert[],
+	masks: MeadowEntryPaintedV2SceneryMaskSet,
+	topologyBlockers: readonly MeadowEntryPaintedV2SceneryBlocker[] = MEADOW_ENTRY_PAINTED_V2_SCENERY_BLOCKERS
+): MeadowEntryPaintedV2OrganicWorldSceneryBakeResult {
+	const { width, height } = assertMaskSet(masks);
+	assert(
+		preSceneryMaster.width === width && preSceneryMaster.height === height,
+		'World scenery master dimensions do not match masks'
+	);
+	assert(
+		preSceneryMaster.data.byteLength === width * height * 4,
+		'World scenery master RGBA dimensions are invalid'
+	);
+
+	const ownerPanels = worldOwnerPanels(preSceneryMaster, inserts);
+	const legacy = enrichMeadowEntryPaintedV2Sources(ownerPanels, inserts, masks, topologyBlockers);
+	const core = buildWorldCoreContributions(
+		preSceneryMaster,
+		inserts,
+		masks,
+		topologyBlockers,
+		legacy
+	);
+	const selected = new Map<number, WorldSceneryCandidate>();
+	for (const [contributionIndex, contribution] of core.contributions.entries()) {
+		const weight = core.topology.shapedWeights[contributionIndex]!;
+		if (weight <= 0) continue;
+		const candidate: WorldSceneryCandidate = {
+			kind: 'core',
+			blockerId: contribution.blockerId,
+			insertId: contribution.insertId,
+			owningSourceId: contribution.owningSourceId,
+			ownerPriority: contribution.ownerPriority,
+			sceneryClass: contribution.sceneryClass,
+			worldIndex: contribution.worldIndex,
+			weight,
+			tone: contribution.ownerRelativeTone
+		};
+		const previous = selected.get(candidate.worldIndex);
+		if (previous === undefined || compareWorldSceneryCandidates(candidate, previous) < 0)
+			selected.set(candidate.worldIndex, candidate);
+	}
+
+	const coreAllowed = Uint8Array.from(masks.sceneryAllowed, (_, index) =>
+		masks.hedgeAllowed[index] === 1 || masks.woodlandAllowed[index] === 1 ? 1 : 0
+	);
+	const apronByClass = {} as OrganicApronClassRecord;
+	const orderedInserts = MEADOW_ENTRY_PAINTED_V2_SCENERY_INSERTS.map((expected) => {
+		const insert = inserts.find(({ id }) => id === expected.id);
+		assert(insert !== undefined, `Missing decoded scenery insert: ${expected.id}`);
+		return insert;
+	});
+	const cacheByInsertId = new Map(
+		orderedInserts.map((insert) => [insert.id, integralCache(insert.rgba)])
+	);
+	for (const sceneryClass of ['hedge', 'woodland'] as const) {
+		const distance = meadowEntrySceneryOutwardDistances(
+			classMask(masks, sceneryClass),
+			width,
+			height,
+			MEADOW_ENTRY_PAINTED_V2_ORGANIC_APRON_POLICY.maximumDistance
+		);
+		const candidateMask = new Uint8Array(width * height);
+		const allowedMask = new Uint8Array(width * height);
+		apronByClass[sceneryClass] = { candidate: candidateMask, allowed: allowedMask, distance };
+		for (let index = 0; index < distance.length; index += 1) {
+			const distanceAt = distance[index] ?? 0;
+			if (
+				coreAllowed[index] === 1 ||
+				distanceAt === 0 ||
+				distanceAt > MEADOW_ENTRY_PAINTED_V2_ORGANIC_APRON_POLICY.maximumDistance
+			)
+				continue;
+			candidateMask[index] = 1;
+			if (masks.groundAllowed[index] === 1 && masks.otherProtected[index] === 0)
+				allowedMask[index] = 1;
+		}
+		for (const intersection of worldContractIntersections(topologyBlockers)) {
+			if (intersection.sceneryClass !== sceneryClass) continue;
+			const insert = orderedInserts.find(({ id }) => id === intersection.insertId)!;
+			const metrics = core.intersections.get(`${intersection.blockerId}:${insert.id}`);
+			assert(
+				metrics !== undefined,
+				`Missing core scenery metrics: ${intersection.blockerId}/${insert.id}`
+			);
+			const bounds = intersectionBounds(
+				{
+					left:
+						intersection.bounds.left - MEADOW_ENTRY_PAINTED_V2_ORGANIC_APRON_POLICY.maximumDistance,
+					top:
+						intersection.bounds.top - MEADOW_ENTRY_PAINTED_V2_ORGANIC_APRON_POLICY.maximumDistance,
+					right:
+						intersection.bounds.right +
+						MEADOW_ENTRY_PAINTED_V2_ORGANIC_APRON_POLICY.maximumDistance,
+					bottom:
+						intersection.bounds.bottom +
+						MEADOW_ENTRY_PAINTED_V2_ORGANIC_APRON_POLICY.maximumDistance
+				},
+				insert,
+				width,
+				height
+			);
+			const cache = cacheByInsertId.get(insert.id)!;
+			const ownerPriority = MEADOW_ENTRY_PAINTED_V2_SCENERY_INSERTS.find(
+				({ id }) => id === insert.id
+			)?.owningSourcePriority;
+			assert(ownerPriority !== undefined, `Missing scenery insert priority: ${insert.id}`);
+			for (let y = bounds.top; y < bounds.bottom; y += 1) {
+				for (let x = bounds.left; x < bounds.right; x += 1) {
+					const worldIndex = y * width + x;
+					const distanceAt = distance[worldIndex] ?? 0;
+					if (
+						candidateMask[worldIndex] !== 1 ||
+						coreAllowed[worldIndex] === 1 ||
+						distanceAt === 0 ||
+						distanceAt > MEADOW_ENTRY_PAINTED_V2_ORGANIC_APRON_POLICY.maximumDistance ||
+						allowedMask[worldIndex] !== 1
+					)
+						continue;
+					const localX = x - insert.bounds.left;
+					const localY = y - insert.bounds.top;
+					assert(
+						localX >= 0 && localY >= 0 && localX < insert.rgba.width && localY < insert.rgba.height,
+						`Organic world scenery sample is outside insert: ${insert.id}`
+					);
+					const donorOffset = (localY * insert.rgba.width + localX) * 4;
+					const donorPixel: readonly [number, number, number] = [
+						insert.rgba.data[donorOffset]!,
+						insert.rgba.data[donorOffset + 1]!,
+						insert.rgba.data[donorOffset + 2]!
+					];
+					const localMeans: readonly [number, number, number] = [
+						clippedBoxMean(
+							cache.red,
+							cache.width + 1,
+							cache.width,
+							cache.height,
+							localX,
+							localY,
+							31
+						),
+						clippedBoxMean(
+							cache.green,
+							cache.width + 1,
+							cache.width,
+							cache.height,
+							localX,
+							localY,
+							31
+						),
+						clippedBoxMean(
+							cache.blue,
+							cache.width + 1,
+							cache.width,
+							cache.height,
+							localX,
+							localY,
+							31
+						)
+					];
+					const organicSignal = Math.abs(
+						clippedBoxMean(
+							cache.luminance,
+							cache.width + 1,
+							cache.width,
+							cache.height,
+							localX,
+							localY,
+							15
+						) -
+							clippedBoxMean(
+								cache.luminance,
+								cache.width + 1,
+								cache.width,
+								cache.height,
+								localX,
+								localY,
+								63
+							)
+					);
+					const t = Math.max(
+						0,
+						Math.min(255, halfUp(255 * (organicSignal - metrics.q40), metrics.q80 - metrics.q40))
+					);
+					const organicWeight = meadowEntryDetailFeatherWeight(t, 255);
+					const weight = apronWeight(
+						distanceAt,
+						organicWeight,
+						MEADOW_ENTRY_PAINTED_V2_ORGANIC_APRON_POLICY
+					);
+					if (weight === 0) continue;
+					const masterOffset = worldIndex * 4;
+					const candidate: WorldSceneryCandidate = {
+						kind: 'apron',
+						blockerId: intersection.blockerId,
+						insertId: insert.id,
+						owningSourceId: insert.owningSourceId,
+						ownerPriority,
+						sceneryClass,
+						worldIndex,
+						weight,
+						tone: ownerRelativeDonorTone(
+							donorPixel,
+							localMeans,
+							[
+								preSceneryMaster.data[masterOffset]!,
+								preSceneryMaster.data[masterOffset + 1]!,
+								preSceneryMaster.data[masterOffset + 2]!
+							],
+							12
+						) as [number, number, number]
+					};
+					const previous = selected.get(worldIndex);
+					if (previous === undefined || compareWorldSceneryCandidates(candidate, previous) < 0)
+						selected.set(worldIndex, candidate);
+				}
+			}
+		}
+	}
+
+	const masterData = Buffer.from(preSceneryMaster.data);
+	let changedPixelCount = 0;
+	let apronChangedPixelCount = 0;
+	const classChangedPixelCounts: Record<MeadowEntryPaintedV2SceneryClass, number> = {
+		hedge: 0,
+		woodland: 0
+	};
+	const apronClassChangedPixelCounts: Record<MeadowEntryPaintedV2SceneryClass, number> = {
+		hedge: 0,
+		woodland: 0
+	};
+	const selectedCandidates = [...selected.values()].sort(
+		(left, right) => left.worldIndex - right.worldIndex
+	);
+	for (const candidate of selectedCandidates) {
+		const offset = candidate.worldIndex * 4;
+		assert(
+			preSceneryMaster.data[offset + 3] === 255,
+			`World scenery master selected pixel is not opaque: ${candidate.worldIndex}`
+		);
+		let pixelChanged = false;
+		for (let channel = 0; channel < 3; channel += 1) {
+			const previous = masterData[offset + channel]!;
+			const blended = blendMeadowEntryDetailChannel(
+				previous,
+				candidate.tone[channel]!,
+				candidate.weight
+			);
+			if (candidate.kind === 'apron')
+				assert(
+					Math.abs(blended - preSceneryMaster.data[offset + channel]!) <=
+						MEADOW_ENTRY_PAINTED_V2_ORGANIC_APRON_POLICY.maximumChannelResidual,
+					`Organic world scenery apron channel residual exceeded policy: ${candidate.insertId}`
+				);
+			if (blended !== previous) pixelChanged = true;
+			masterData[offset + channel] = blended;
+		}
+		if (candidate.kind === 'apron') {
+			const outputLuma = luma(
+				masterData[offset]!,
+				masterData[offset + 1]!,
+				masterData[offset + 2]!
+			);
+			const ownerLuma = luma(
+				preSceneryMaster.data[offset]!,
+				preSceneryMaster.data[offset + 1]!,
+				preSceneryMaster.data[offset + 2]!
+			);
+			assert(
+				Math.abs(outputLuma - ownerLuma) <=
+					MEADOW_ENTRY_PAINTED_V2_ORGANIC_APRON_POLICY.maximumLumaShift,
+				`Organic world scenery apron luma shift exceeded policy: ${candidate.insertId}`
+			);
+		}
+		if (!pixelChanged) continue;
+		changedPixelCount += 1;
+		classChangedPixelCounts[candidate.sceneryClass] += 1;
+		if (candidate.kind === 'apron') {
+			apronChangedPixelCount += 1;
+			apronClassChangedPixelCounts[candidate.sceneryClass] += 1;
+		}
+	}
+	const selectedApronCandidates = selectedCandidates
+		.filter(
+			(candidate): candidate is WorldSceneryCandidate & { kind: 'apron' } =>
+				candidate.kind === 'apron'
+		)
+		.map((candidate) => ({
+			blockerId: candidate.blockerId,
+			insertId: candidate.insertId,
+			owningSourceId: candidate.owningSourceId,
+			ownerPriority: candidate.ownerPriority,
+			sceneryClass: candidate.sceneryClass,
+			worldIndex: candidate.worldIndex,
+			weight: candidate.weight,
+			tone: candidate.tone
+		}));
+	const apron: MeadowEntryPaintedV2SceneryApronProvenance = Object.freeze({
+		policy: MEADOW_ENTRY_PAINTED_V2_ORGANIC_APRON_POLICY,
+		candidateSha256: Object.freeze({
+			hedge: sha256(apronByClass.hedge.candidate),
+			woodland: sha256(apronByClass.woodland.candidate)
+		}),
+		allowedSha256: Object.freeze({
+			hedge: sha256(apronByClass.hedge.allowed),
+			woodland: sha256(apronByClass.woodland.allowed)
+		}),
+		distanceSha256: Object.freeze({
+			hedge: sha256(apronByClass.hedge.distance),
+			woodland: sha256(apronByClass.woodland.distance)
+		}),
+		weightSha256: organicApronWeightHash(selectedApronCandidates),
+		changedPixelCount: apronChangedPixelCount,
+		classChangedPixelCounts: Object.freeze(apronClassChangedPixelCounts)
+	});
+	const projectedPanels = worldOwnerPanels({ ...preSceneryMaster, data: masterData }, inserts);
+	const ownerHashes = Object.fromEntries(
+		projectedPanels.map((panel) => [panel.id, sha256(panel.rgba.data)])
+	);
+	return {
+		panels: Object.freeze(projectedPanels),
+		enrichedSourceSha256: Object.freeze(ownerHashes),
+		changedPixelCount,
+		classChangedPixelCounts: Object.freeze(classChangedPixelCounts),
+		intersections: legacy.intersections,
+		rows: legacy.rows,
+		topologyRequests: legacy.topologyRequests,
+		topologyRequestSha256: legacy.topologyRequestSha256,
+		formulas: Object.freeze({
+			...legacy.formulas,
+			worldSelection: 'core-before-apron; weight-desc-ownerPriority-desc-insertId-asc',
+			toneReference: 'canonical-pre-scenery-master-world-pixel',
+			composition: 'one-contribution-per-world-pixel'
+		}),
+		master: { ...preSceneryMaster, data: masterData },
+		apron,
+		selectedWorldPixelCount: selectedCandidates.length
 	};
 }

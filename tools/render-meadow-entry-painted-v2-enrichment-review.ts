@@ -10,7 +10,10 @@ import {
 	renderMeadowEntryControls,
 	MEADOW_ENTRY_CONTROL_FILENAMES
 } from '$lib/game/content/backgrounds/meadow-entry-controls';
-import { MEADOW_ENTRY_PAINTED_V2_PILOT_CROPS } from '$lib/game/content/backgrounds/meadow-entry-painted-v2-crop-manifest';
+import {
+	MEADOW_ENTRY_PAINTED_V2_PILOT_CROPS,
+	MEADOW_ENTRY_PAINTED_V2_PILOT_OVERLAPS
+} from '$lib/game/content/backgrounds/meadow-entry-painted-v2-crop-manifest';
 import {
 	MEADOW_ENTRY_PAINTED_V2_SOURCE_PANELS,
 	MEADOW_ENTRY_PAINTED_V2_DETAIL_PAIRS,
@@ -41,10 +44,9 @@ import {
 import {
 	buildMeadowEntryPaintedV2SceneryMaskSet,
 	buildMeadowEntryPaintedV2SceneryMaskSetFromControls,
-	enrichMeadowEntryPaintedV2Sources,
-	enrichMeadowEntryPaintedV2SourcesWithOrganicApron,
+	enrichMeadowEntryPaintedV2WorldWithOrganicApron,
 	type DecodedMeadowEntryPaintedV2SceneryInsert,
-	type MeadowEntryPaintedV2OrganicSceneryBakeResult,
+	type MeadowEntryPaintedV2OrganicWorldSceneryBakeResult,
 	type MeadowEntryPaintedV2SceneryBakeResult,
 	type MeadowEntryPaintedV2SceneryMaskSet
 } from '$lib/game/content/backgrounds/meadow-entry-painted-v2-scenery-bake';
@@ -56,7 +58,8 @@ import {
 
 const DEFAULT_MASTER =
 	'artifacts/meadow-entry/painted-v2/masters/meadow-entry-painted-v2-pilot-base-master.png';
-const DEFAULT_OUTPUT_ROOT = 'docs/superpowers/reports/img/hpa-586-painted-v2-organic-scenery';
+export const DEFAULT_OUTPUT_ROOT =
+	'docs/superpowers/reports/img/hpa-586-painted-v2-organic-scenery/world-canonical-v2';
 const REVIEW_MASTER = 'masters/meadow-entry-painted-v2-pilot-base-master.png';
 const REVIEW_SUNDROP_CROP = 'exports/painted-v2-sundrop-camera-base.png';
 const REVIEW_CROSSROADS_CROP = 'exports/painted-v2-crossroads-camera-base.png';
@@ -116,6 +119,7 @@ interface ReviewArtifact {
 interface AssemblyResult {
 	readonly artifacts: readonly ReviewArtifact[];
 	readonly master: DecodedMeadowEntryRgba;
+	readonly preSceneryMaster: DecodedMeadowEntryRgba;
 	readonly enrichedPanels: readonly MeadowEntryDetailDecodedPanel[];
 	readonly masks?: MeadowEntryPaintedV2SceneryMaskSet;
 	readonly inserts?: readonly DecodedMeadowEntryPaintedV2SceneryInsert[];
@@ -125,7 +129,7 @@ interface AssemblyResult {
 
 type ReviewBlockedSceneryBake =
 	| Omit<MeadowEntryPaintedV2SceneryBakeResult, 'panels'>
-	| Omit<MeadowEntryPaintedV2OrganicSceneryBakeResult, 'panels'>;
+	| Omit<MeadowEntryPaintedV2OrganicWorldSceneryBakeResult, 'panels' | 'master'>;
 
 interface EvidenceDescriptor {
 	readonly sha256: string;
@@ -139,6 +143,12 @@ interface ReviewPayload {
 	readonly mode: 'baseline' | 'candidate';
 	readonly master: {
 		readonly path: string;
+		readonly sha256: string;
+		readonly bytes: number;
+		readonly width: number;
+		readonly height: number;
+	};
+	readonly preSceneryMaster?: {
 		readonly sha256: string;
 		readonly bytes: number;
 		readonly width: number;
@@ -339,7 +349,9 @@ function payload(
 	controls: ControlContext,
 	energy: MeadowEntryPaintedV2DecorationEnergy,
 	evidence: Readonly<Record<string, EvidenceDescriptor>> = {},
-	blockedSceneryBake?: ReviewBlockedSceneryBake
+	blockedSceneryBake?: ReviewBlockedSceneryBake,
+	preSceneryMasterBytes?: Buffer,
+	preSceneryMaster?: DecodedMeadowEntryRgba
 ): ReviewPayload {
 	const sourcePanels =
 		mode === 'candidate' && sourceReview
@@ -364,6 +376,16 @@ function payload(
 			width: decoded.width,
 			height: decoded.height
 		},
+		...(preSceneryMasterBytes !== undefined && preSceneryMaster !== undefined
+			? {
+					preSceneryMaster: {
+						sha256: sha256(preSceneryMasterBytes),
+						bytes: preSceneryMasterBytes.byteLength,
+						width: preSceneryMaster.width,
+						height: preSceneryMaster.height
+					}
+				}
+			: {}),
 		controls: {
 			combinedControlFingerprint: controls.combinedControlFingerprint,
 			sourceHashes: controls.sourceHashes,
@@ -422,6 +444,34 @@ async function cropPng(decoded: DecodedMeadowEntryRgba, bounds: PixelBounds): Pr
 	return encodeCanonicalMeadowEntryPng(raw, bounds.right - bounds.left, bounds.bottom - bounds.top);
 }
 
+export function assertReviewCropOverlapBuffersEqual(
+	first: Uint8Array,
+	firstBounds: PixelBounds,
+	second: Uint8Array,
+	secondBounds: PixelBounds,
+	overlapBounds: PixelBounds
+): void {
+	const firstWidth = firstBounds.right - firstBounds.left;
+	const secondWidth = secondBounds.right - secondBounds.left;
+	assert(
+		first.byteLength === firstWidth * (firstBounds.bottom - firstBounds.top) * 4 &&
+			second.byteLength === secondWidth * (secondBounds.bottom - secondBounds.top) * 4,
+		'Review crop overlap buffers have invalid dimensions'
+	);
+	for (let y = overlapBounds.top; y < overlapBounds.bottom; y += 1) {
+		for (let x = overlapBounds.left; x < overlapBounds.right; x += 1) {
+			const firstOffset = ((y - firstBounds.top) * firstWidth + x - firstBounds.left) * 4;
+			const secondOffset = ((y - secondBounds.top) * secondWidth + x - secondBounds.left) * 4;
+			assert(
+				first
+					.subarray(firstOffset, firstOffset + 4)
+					.every((value, channel) => value === second[secondOffset + channel]),
+				`Review crop overlap bytes differ at world pixel ${x},${y}`
+			);
+		}
+	}
+}
+
 async function reviewMasterArtifacts(
 	decoded: DecodedMeadowEntryRgba
 ): Promise<readonly ReviewArtifact[]> {
@@ -430,15 +480,48 @@ async function reviewMasterArtifacts(
 		decoded.width,
 		decoded.height
 	);
+	const firstRaw = await cropRaw(decoded, MEADOW_ENTRY_PAINTED_V2_PILOT_CROPS[0]!.bounds);
+	const secondRaw = await cropRaw(decoded, MEADOW_ENTRY_PAINTED_V2_PILOT_CROPS[1]!.bounds);
+	for (const overlap of MEADOW_ENTRY_PAINTED_V2_PILOT_OVERLAPS) {
+		const firstCrop = MEADOW_ENTRY_PAINTED_V2_PILOT_CROPS.find(
+			({ id }) => id === overlap.firstCropId
+		);
+		const secondCrop = MEADOW_ENTRY_PAINTED_V2_PILOT_CROPS.find(
+			({ id }) => id === overlap.secondCropId
+		);
+		assert(
+			firstCrop !== undefined && secondCrop !== undefined,
+			`Review crop overlap is not sealed: ${overlap.id}`
+		);
+		assertReviewCropOverlapBuffersEqual(
+			firstCrop.id === MEADOW_ENTRY_PAINTED_V2_PILOT_CROPS[0]!.id ? firstRaw : secondRaw,
+			firstCrop.bounds,
+			secondCrop.id === MEADOW_ENTRY_PAINTED_V2_PILOT_CROPS[0]!.id ? firstRaw : secondRaw,
+			secondCrop.bounds,
+			overlap.bounds
+		);
+	}
 	return [
 		{ relativePath: REVIEW_MASTER, bytes: masterPng },
 		{
 			relativePath: REVIEW_SUNDROP_CROP,
-			bytes: await cropPng(decoded, MEADOW_ENTRY_PAINTED_V2_PILOT_CROPS[0]!.bounds)
+			bytes: await encodeCanonicalMeadowEntryPng(
+				firstRaw,
+				MEADOW_ENTRY_PAINTED_V2_PILOT_CROPS[0]!.bounds.right -
+					MEADOW_ENTRY_PAINTED_V2_PILOT_CROPS[0]!.bounds.left,
+				MEADOW_ENTRY_PAINTED_V2_PILOT_CROPS[0]!.bounds.bottom -
+					MEADOW_ENTRY_PAINTED_V2_PILOT_CROPS[0]!.bounds.top
+			)
 		},
 		{
 			relativePath: REVIEW_CROSSROADS_CROP,
-			bytes: await cropPng(decoded, MEADOW_ENTRY_PAINTED_V2_PILOT_CROPS[1]!.bounds)
+			bytes: await encodeCanonicalMeadowEntryPng(
+				secondRaw,
+				MEADOW_ENTRY_PAINTED_V2_PILOT_CROPS[1]!.bounds.right -
+					MEADOW_ENTRY_PAINTED_V2_PILOT_CROPS[1]!.bounds.left,
+				MEADOW_ENTRY_PAINTED_V2_PILOT_CROPS[1]!.bounds.bottom -
+					MEADOW_ENTRY_PAINTED_V2_PILOT_CROPS[1]!.bounds.top
+			)
 		}
 	];
 }
@@ -1200,35 +1283,27 @@ async function assertReviewOutputRootExists(outputRoot: string): Promise<void> {
 }
 
 async function renderOrganicApronOverlay(
-	before: readonly MeadowEntryDetailDecodedPanel[],
-	legacy: readonly MeadowEntryDetailDecodedPanel[],
-	candidate: readonly MeadowEntryDetailDecodedPanel[]
+	before: DecodedMeadowEntryRgba,
+	candidate: DecodedMeadowEntryRgba
 ): Promise<Buffer> {
 	const outputSize = 1_600;
 	const raw = Buffer.alloc(outputSize * outputSize * 4);
-	const beforeById = new Map(before.map((panel) => [panel.id, panel]));
-	const legacyById = new Map(legacy.map((panel) => [panel.id, panel]));
-	for (const panel of candidate) {
-		const source = beforeById.get(panel.id);
-		const core = legacyById.get(panel.id);
-		if (source === undefined || core === undefined) continue;
-		for (let localY = 0; localY < panel.rgba.height; localY += 1) {
-			for (let localX = 0; localX < panel.rgba.width; localX += 1) {
-				const at = (localY * panel.rgba.width + localX) * 4;
-				if (
-					panel.rgba.data[at] === core.rgba.data[at] &&
-					panel.rgba.data[at + 1] === core.rgba.data[at + 1] &&
-					panel.rgba.data[at + 2] === core.rgba.data[at + 2]
-				)
-					continue;
-				const x = Math.floor(((panel.bounds.left + localX) * outputSize) / 6_400);
-				const y = Math.floor(((panel.bounds.top + localY) * outputSize) / 6_400);
-				const overlayOffset = (y * outputSize + x) * 4;
-				raw[overlayOffset] = 255;
-				raw[overlayOffset + 1] = 170;
-				raw[overlayOffset + 2] = 64;
-				raw[overlayOffset + 3] = 220;
-			}
+	for (let y = 0; y < candidate.height; y += 1) {
+		for (let x = 0; x < candidate.width; x += 1) {
+			const at = (y * candidate.width + x) * 4;
+			if (
+				candidate.data[at] === before.data[at] &&
+				candidate.data[at + 1] === before.data[at + 1] &&
+				candidate.data[at + 2] === before.data[at + 2]
+			)
+				continue;
+			const overlayX = Math.floor((x * outputSize) / candidate.width);
+			const overlayY = Math.floor((y * outputSize) / candidate.height);
+			const overlayOffset = (overlayY * outputSize + overlayX) * 4;
+			raw[overlayOffset] = 255;
+			raw[overlayOffset + 1] = 170;
+			raw[overlayOffset + 2] = 64;
+			raw[overlayOffset + 3] = 220;
 		}
 	}
 	return encodeCanonicalMeadowEntryPng(raw, outputSize, outputSize);
@@ -1240,7 +1315,6 @@ async function assembleSources(
 ): Promise<AssemblyResult> {
 	const includeScenery = mode === 'candidate';
 	const sourcePanels = await readAssemblyPanels(repositoryRoot);
-	let enrichedPanels: readonly MeadowEntryDetailDecodedPanel[] = sourcePanels;
 	let masks: MeadowEntryPaintedV2SceneryMaskSet | undefined;
 	let inserts: readonly DecodedMeadowEntryPaintedV2SceneryInsert[] | undefined;
 	let blockedSceneryBake: ReviewBlockedSceneryBake | undefined;
@@ -1248,61 +1322,9 @@ async function assembleSources(
 	if (includeScenery) {
 		masks = buildMeadowEntryPaintedV2SceneryMaskSet(repositoryRoot);
 		inserts = await readSceneryInserts(repositoryRoot, sourcePanels);
-		const beforeById = new Map(sourcePanels.map((panel) => [panel.id, panel]));
-		const legacy = enrichMeadowEntryPaintedV2Sources(sourcePanels, inserts, masks);
-		const baked:
-			| MeadowEntryPaintedV2OrganicSceneryBakeResult
-			| MeadowEntryPaintedV2SceneryBakeResult =
-			mode === 'candidate'
-				? enrichMeadowEntryPaintedV2SourcesWithOrganicApron(sourcePanels, inserts, masks)
-				: legacy;
-		if (mode === 'candidate')
-			organicApronOverlayBytes = await renderOrganicApronOverlay(
-				sourcePanels,
-				legacy.panels,
-				baked.panels
-			);
-		blockedSceneryBake = {
-			enrichedSourceSha256: baked.enrichedSourceSha256,
-			changedPixelCount: baked.changedPixelCount,
-			classChangedPixelCounts: baked.classChangedPixelCounts,
-			intersections: baked.intersections,
-			rows: baked.rows,
-			topologyRequests: baked.topologyRequests,
-			topologyRequestSha256: baked.topologyRequestSha256,
-			formulas: baked.formulas,
-			...(mode === 'candidate' && 'apron' in baked ? { apron: baked.apron } : {})
-		};
-		enrichedPanels = baked.panels;
-		for (const panel of enrichedPanels) {
-			const before = beforeById.get(panel.id);
-			if (before === undefined || before.rgba.data.equals(panel.rgba.data)) continue;
-			for (let localY = 0; localY < panel.rgba.height; localY += 1) {
-				for (let localX = 0; localX < panel.rgba.width; localX += 1) {
-					const offset = (localY * panel.rgba.width + localX) * 4;
-					let changed = false;
-					for (let channel = 0; channel < 3; channel += 1) {
-						if (before.rgba.data[offset + channel] !== panel.rgba.data[offset + channel])
-							changed = true;
-					}
-					if (!changed) continue;
-					const worldX = panel.bounds.left + localX;
-					const worldY = panel.bounds.top + localY;
-					const maskOffset = worldY * masks.width + worldX;
-					assert(
-						masks.groundAllowed[maskOffset] === 1 || masks.sceneryAllowed[maskOffset] === 1,
-						`Scenery bake changed a protected/excluded pixel: ${panel.id}`
-					);
-					assert(
-						masks.otherProtected[maskOffset] === 0,
-						`Scenery bake changed a protected pixel: ${panel.id}`
-					);
-				}
-			}
-		}
 	}
 	const specs = new Map(MEADOW_ENTRY_PAINTED_V2_SOURCE_PANELS.map((spec) => [spec.id, spec]));
-	const underlays: MeadowEntryUnderlayDecodedPanel[] = enrichedPanels
+	const underlays: MeadowEntryUnderlayDecodedPanel[] = sourcePanels
 		.filter((panel) => specs.get(panel.id)?.role === 'underlay')
 		.map((panel) => ({ id: panel.id, bounds: panel.bounds, rgba: panel.rgba }));
 	const requiredUnderlayIds = [
@@ -1334,7 +1356,7 @@ async function assembleSources(
 			bounds: { left: 2368, top: 3200, right: 3200, bottom: 5440 }
 		}
 	});
-	const detailPanels = enrichedPanels.filter((panel) => specs.get(panel.id)?.role === 'detail');
+	const detailPanels = sourcePanels.filter((panel) => specs.get(panel.id)?.role === 'detail');
 	compositeMeadowEntryDetailPanels(underlay, detailPanels, MEADOW_ENTRY_PAINTED_V2_DETAIL_PAIRS);
 	for (const crop of MEADOW_ENTRY_PAINTED_V2_PILOT_CROPS) {
 		for (let y = crop.bounds.top; y < crop.bounds.bottom; y += 1) {
@@ -1346,10 +1368,50 @@ async function assembleSources(
 			}
 		}
 	}
+	const preSceneryMaster: DecodedMeadowEntryRgba = {
+		...underlay,
+		data: Buffer.from(underlay.data)
+	};
+	let master = preSceneryMaster;
+	if (includeScenery) {
+		assert(masks !== undefined && inserts !== undefined, 'Candidate scenery inputs are missing');
+		const baked = enrichMeadowEntryPaintedV2WorldWithOrganicApron(preSceneryMaster, inserts, masks);
+		master = baked.master;
+		blockedSceneryBake = {
+			enrichedSourceSha256: baked.enrichedSourceSha256,
+			changedPixelCount: baked.changedPixelCount,
+			classChangedPixelCounts: baked.classChangedPixelCounts,
+			intersections: baked.intersections,
+			rows: baked.rows,
+			topologyRequests: baked.topologyRequests,
+			topologyRequestSha256: baked.topologyRequestSha256,
+			formulas: baked.formulas,
+			apron: baked.apron
+		};
+		organicApronOverlayBytes = await renderOrganicApronOverlay(preSceneryMaster, master);
+		for (let index = 0; index < master.width * master.height; index += 1) {
+			const offset = index * 4;
+			if (
+				master.data[offset] === preSceneryMaster.data[offset] &&
+				master.data[offset + 1] === preSceneryMaster.data[offset + 1] &&
+				master.data[offset + 2] === preSceneryMaster.data[offset + 2]
+			)
+				continue;
+			assert(
+				masks.groundAllowed[index] === 1 || masks.sceneryAllowed[index] === 1,
+				`World scenery bake changed a protected/excluded pixel: ${index}`
+			);
+			assert(
+				masks.otherProtected[index] === 0,
+				`World scenery bake changed a protected pixel: ${index}`
+			);
+		}
+	}
 	return {
-		artifacts: await reviewMasterArtifacts(underlay),
-		master: underlay,
-		enrichedPanels,
+		artifacts: await reviewMasterArtifacts(master),
+		master,
+		preSceneryMaster,
+		enrichedPanels: sourcePanels,
 		masks,
 		inserts,
 		blockedSceneryBake,
@@ -1516,6 +1578,13 @@ async function main(): Promise<void> {
 		: resolve(repositoryRoot, options.master);
 	const master = assembledMaster?.bytes ?? (await readFile(masterPath));
 	const decoded = await decodeMeadowEntryRgba(master);
+	const preSceneryMasterBytes = assembly?.preSceneryMaster
+		? await encodeCanonicalMeadowEntryPng(
+				assembly.preSceneryMaster.data,
+				assembly.preSceneryMaster.width,
+				assembly.preSceneryMaster.height
+			)
+		: undefined;
 	const controls = await readRenderedControls(repositoryRoot, assembly?.masks);
 	if (options.mode === 'candidate' && assembly?.organicApronOverlay !== undefined) {
 		artifacts.push({
@@ -1586,7 +1655,9 @@ async function main(): Promise<void> {
 		controls,
 		measured,
 		evidence,
-		assembly?.blockedSceneryBake
+		assembly?.blockedSceneryBake,
+		preSceneryMasterBytes,
+		assembly?.preSceneryMaster
 	);
 	result = await patchCandidateSourceHashes(result, repositoryRoot);
 	const jsonName =
