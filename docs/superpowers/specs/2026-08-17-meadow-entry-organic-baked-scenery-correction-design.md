@@ -2,7 +2,7 @@
 
 **Date:** 2026-08-17
 
-**Status:** Revised after external review; awaiting user re-review
+**Status:** Approved with world-canonical overlap correction at `2026-08-18T04:34:41Z`
 
 **Amends:** `2026-08-13-meadow-entry-painted-pilot-enrichment-handoff-design.md`
 
@@ -18,6 +18,13 @@ Wildwood row that failed most visibly. The two runtime crops, crop geometry, col
 transitions, and save behavior remain frozen. Runtime visual ownership changes only by assigning all
 ten already-baked blocker source IDs to their existing owner crops; no runtime plane or descriptor is
 added.
+
+The two runtime crops intentionally overlap so a `1920x1080` camera remains covered while crossing
+between Sundrop and Crossroads. That coverage overlap is retained. It is not an art-authoring
+boundary and must never cause two independently decorated versions of the same world coordinate.
+The user rejected the first seven-donor candidate because scenery was baked into overlapping source
+panels before assembly, which made different trees and ground transitions compete in the same world
+area. That candidate and its approval state are superseded.
 
 ## Rejected evidence
 
@@ -94,6 +101,18 @@ topology pipeline. The five retained `6400x6400` rasters remain `otherProtected`
 `sceneryAllowed`, `hedgeAllowed`, and `woodlandAllowed`. Apron eligibility, distance, weight, and
 hashes are scratch data and are discarded after composition.
 
+Source panels are immutable inputs to ordinary panel assembly. The base/detail priority stack,
+pair correction, and feathering first produce one canonical `6400x6400` pre-scenery master. Core and
+apron scenery are then evaluated and composited exactly once in world coordinates onto that master.
+No raw or normalized source panel receives a scenery mutation, and no overlap area is decorated once
+per source owner.
+
+For each eligible world pixel, donor candidates are gathered from every intersecting sealed insert.
+Exactly one candidate wins by `(weight desc, ownerPriority desc, insertId asc)`. The winner samples
+its donor in insert-local coordinates, but its owner-relative tone is computed against the canonical
+pre-scenery master pixel at that world coordinate. A world pixel may receive at most one final
+scenery contribution across core and apron. Core remains higher authority than apron.
+
 ### Collision core
 
 `coreAllowed` is the existing exact-blocker `sceneryAllowed` mask, unchanged. Its class masks,
@@ -138,8 +157,7 @@ The apron may receive only low-profile foliage, leaf litter, soft shadow, grass,
 ground-level branch texture. It may not receive trunks, solid hedge faces, walls, or other collision
 cues. On apron pixels, the donor residual is capped per channel at `12`, and the final luma shift
 from the pre-scenery background is capped at `16`. The apron is composited after the shaped core
-contribution and before the scenery result rejoins ordinary panel assembly; it never enters
-sparse-core or tree-continuity shaping.
+contribution on the canonical world master; it never enters sparse-core or tree-continuity shaping.
 
 `nearFade` is zero at the core boundary, reaches the global `96/255` cap inside the apron, and
 `farFade` reaches zero at the outer `48px` limit. This avoids a discontinuity with the parent's
@@ -165,10 +183,10 @@ across multiple rows fails the gate.
 ## Deterministic composition and guards
 
 The ordinary panel priority stack, pair correction, underlay seams, and two-crop export contract stay
-unchanged. The existing core contribution and topology policy also stay unchanged. This amendment
-adds only the bounded apron scratch field, supersedes the seven donor images, and extends the
-generated visual-owner table to the ten sealed source IDs. It does not add a public mask raster or a
-new generic evaluator.
+unchanged. They run before the scenery pass. The existing core contribution and topology policy also
+stay unchanged. This amendment adds only the bounded apron scratch field and one world-canonical
+composition pass, supersedes the seven donor images, and extends the generated visual-owner table to
+the ten sealed source IDs. It does not add a public mask raster, runtime plane, or generic evaluator.
 
 Tests must prove:
 
@@ -182,10 +200,15 @@ Tests must prove:
 5. the five retained full-resolution rasters remain the only public mask set; apron eligibility,
    distance, weight, and hashes are deterministic scratch evidence and are discarded after assembly;
 6. the result is deterministic and input-order independent;
-7. the generated visual-owner inventory contains all and only the ten sealed scenery source IDs with
+7. the pre-scenery assembled master is byte-identical whether or not scenery is requested; all raw
+   and normalized source panels remain byte-identical; every eligible world pixel has zero or one
+   selected scenery contribution, never one per overlapping source owner;
+8. both runtime crops are cut from the same final master and every pixel in their geometric overlap
+   is byte-identical; a mutation that makes any overlap pixel differ must fail closed;
+9. the generated visual-owner inventory contains all and only the ten sealed scenery source IDs with
    their exact owner crop, healthy painted ownership suppresses each corresponding fallback visual,
    and a missing or faulted owner crop restores only its affected live blocker;
-8. the master still exports exactly two opaque `3200x3200` textures with the existing overlap and
+10. the master still exports exactly two opaque `3200x3200` textures with the existing overlap and
    descriptor structure.
 
 The existing row metrics plus native-detail inspection remain the cadence and organic-shape gate.
@@ -208,6 +231,11 @@ sprite, duplicate obstacle, false blocker, obscured route, material jump, or har
 Silverpine and Wildwood must show at least two natural forest-depth cues while traversal remains
 unambiguous.
 
+The review inventory must include native-detail crops of every source-panel handoff and the full
+runtime-crop overlap. The same tree, hedge, shadow, and ground pixels must continue through those
+regions without doubled motifs, ghosting, or a feathered content conflict. A visually plausible seam
+does not override the exact byte-equality overlap gate.
+
 The workflow stops at a fresh `NEEDS_CONTEXT` gate. Approval must be an explicit user answer captured
 with a UTC-second timestamp after the user sees the final images. No prior approval or rejected image
 may be carried forward.
@@ -223,6 +251,8 @@ before changing those sources or claiming final branch approval.
 - A generation, normalization, topology, boundary, ownership, export, or visual failure rejects only
   the owning attempt and preserves its provenance.
 - A compositor or mask failure is fixed in code before spending another image-generation attempt.
+- An overlap-content failure rejects the assembled candidate, not the seven donor calls. Preserve
+  the donor bytes and rebuild only after the world-canonical compositor passes RED/GREEN tests.
 - No gate is weakened to accept generated art.
 - If the final background cannot look organic while preserving collision and protected-route
   contracts, stop and return `NEEDS_CONTEXT`; do not change gameplay.
