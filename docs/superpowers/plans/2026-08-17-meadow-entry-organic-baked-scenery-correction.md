@@ -364,9 +364,9 @@ camera-underlay-crossroads-north-blocked-woodland:
 camera-underlay-crossroads-south-blocked-woodland:
   camera-underlay-crossroads-south.png + camera-underlay-crossroads-north.png
 crossroads-blocked-hedge:
-  crossroads.png + village-crossroads-connector.png
+  camera-underlay-crossroads-north.png + camera-underlay-crossroads-south.png
 crossroads-blocked-woodland:
-  crossroads.png + village-crossroads-connector.png
+  camera-underlay-crossroads-south.png + camera-underlay-crossroads-north.png
 ```
 
 Use one distinct built-in call per insert. The shared prompt prefix is:
@@ -450,6 +450,26 @@ language, native-detail visual gates, masks, geometry, apron constants, composit
 two remaining Crossroads insert recipes remain unchanged. If either woodland family exhausts five
 failures, stop at `BLOCKED` without publication. If both pass, continue the remaining two inserts
 under their original sealed recipes.
+
+#### Approved portrait Crossroads retry-family amendment — 2026-08-18T03:02:11Z
+
+After `crossroads-blocked-hedge` exhausted five original attempts because its Crossroads and
+connector references repeatedly induced dominant path/corridor material, the user approved fresh
+attempt families for both remaining 1728-by-1952 Crossroads inserts. Preserve those five rejected
+hedge attempts and their findings. Each amended family uses the reciprocal path-free Crossroads
+underlay references shown above and appends this exact suffix to its otherwise unchanged shared and
+class-specific prompt:
+
+```text
+Tall portrait donor canvas, at least 1000 pixels wide and 1200 pixels tall. No path, road, track,
+stone corridor, or crossing anywhere in the image.
+```
+
+Each portrait Crossroads family receives at most five fresh attempts. The `2x` scale limit, Hedge
+and Forest-bank class language, native-detail visual gates, masks, geometry, apron constants, and
+compositor policy remain unchanged. If either family exhausts five failures, stop at `BLOCKED`
+without publication. If both pass, continue normalization and candidate evidence under the original
+Task 2 gate.
 
 - [ ] **Step 2: Generate and inspect seven fresh attempt-1 raws**
 
