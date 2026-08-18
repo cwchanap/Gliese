@@ -20,13 +20,13 @@
 		"seed": null,
 		"seedUnavailable": true,
 		"byteReproducibleGeneration": false,
-		"prompt": "Use case: stylized-concept.\nAsset type: a portrait native raster source insert for a painted 2D JRPG world-map blocker.\n\nCreate a dense, continuous edge-to-edge woodland wall filling the entire frame. The full frame must be packed with overlapping tree trunks, layered canopy, interlocking undergrowth, roots, ferns, moss, and leaf litter, with visual texture continuing all the way to every edge. Keep the composition non-directional and evenly dense; no focal center and no implied route.\n\nAbsolutely exclude any exposed-ground corridor, path, trail, road, clearing, central strip, rocky seam, ground seam, frame, bar, border, landmark, or prop. Do not create any line or opening that could read as a path or route. Do not copy the layout, route, or openings from either reference. The first reference is the primary approved dense blocked-woodland pixel-art source for vegetation texture and structure; the second is approved Crossroads palette/finish context only, and must not contribute its path/layout.\n\nMatch the approved painted-pixel palette and hand-authored JRPG world-map finish: opaque RGB, natural irregular woodland silhouettes, readable clustered vegetation, no text. Produce a portrait image at native dimensions sufficient for exact 1728x1952 canonical normalization with coverScale <= 2 (at least 864x976; target approximately 1024x1536 or taller).",
-		"promptSha256": "419376591d2378a31da35c43475443ac18f9810acb93763c98cc076741595250",
-		"outputPath": "/Users/chanwaichan/.codex/generated_images/01a00a4a-dae6-7b43-851d-040dd44bad68/exec-7cdcebeb-7ca0-4539-957a-887b50de911b.png",
-		"outputSha256": "04e3925ab272dca2b56c205bd3d625580b61bcd558ee70311eaee03c2d2c9e68",
-		"attempt": 4,
-		"callOrder": 36,
-		"result": "fresh-replacement-raw-passed-native-and-visual-review-round-3",
+		"prompt": "Top-down hand-painted JRPG environmental surface matching the supplied Gliese Meadow Entry art.\nCreate one continuous contextual donor canvas with natural regional ground and organically embedded\nobstacle scenery. Vary silhouette, spacing, depth, leaf color, shadow, and ground integration. No\npath, building, door, actor, pickup, sign, landmark, label, sprite row, repeated stamp cadence,\nrectangular frame, straight bar, tile grid, or debug overlay. Do not reproduce a supplied object;\nmatch only palette, brushwork, scale, lighting, and terrain material.\n\nForest bank: layered Wildwood edge with shrubs, ferns, leaf litter, roots, intermittent trunks, and\ndeep canopy shadow; no horizontal or vertical band.\n\nTall portrait donor canvas, at least 1000 pixels wide and 1200 pixels tall. No path, road, track,\nstone corridor, or crossing anywhere in the image.",
+		"promptSha256": "10ce169aa8141e333c7dd8c63058f870bd4d7d0eeee0f8c40b34d48bac0f1ff0",
+		"outputPath": "/Users/chanwaichan/.codex/generated_images/01a01192-7fcf-75e3-8659-f523017691fa/exec-47ccdf87-73e0-4bdb-b668-95cb9f27a78c.png",
+		"outputSha256": "0e97c63c54586ca456af9a7acd97f0562a264b7faf5e17d56e66a1928b63f7f0",
+		"attempt": 1,
+		"callOrder": 28,
+		"result": "task-2-portrait-amended-accepted-native-and-scale-gate",
 		"rejected": false,
 		"attemptHistory": [
 			{
@@ -162,6 +162,54 @@
 					"operation": "cover-scale-crop-to-fixed-panel",
 					"kernel": "lanczos3"
 				}
+			},
+			{
+				"task2BindingId": "crossroads-blocked-woodland",
+				"amendmentCommit": "b2ca40fccf37a0ddc4f06ec4286bc8f260207b85",
+				"approvedAtUtc": "2026-08-18T03:02:11Z",
+				"stage": "pending-fresh-user-gate",
+				"family": "approved-portrait-crossroads-amendment",
+				"attempt": 1,
+				"callOrder": 28,
+				"resultId": "exec-47ccdf87-73e0-4bdb-b668-95cb9f27a78c",
+				"result": "task-2-portrait-amended-accepted-native-and-scale-gate",
+				"outputPath": "/Users/chanwaichan/.codex/generated_images/01a01192-7fcf-75e3-8659-f523017691fa/exec-47ccdf87-73e0-4bdb-b668-95cb9f27a78c.png",
+				"outputSha256": "0e97c63c54586ca456af9a7acd97f0562a264b7faf5e17d56e66a1928b63f7f0",
+				"rawInspectedAtOriginalResolution": true,
+				"nativeQa": "passed",
+				"visualQa": "passed-layered-forest-bank-no-path-or-corridor",
+				"references": [
+					{
+						"path": "/private/tmp/gliese-hpa586-task3-art-refs/current-camera-underlay-crossroads-south.png",
+						"role": "Crossroads South camera underlay art-only palette and ground reference",
+						"sha256": "cff66e641d65ebd37acbae0cb172ed4fcf2d116285cc30674fabf5d494b6ebc1",
+						"bytes": 15130793,
+						"dimensions": {
+							"width": 3200,
+							"height": 1664
+						}
+					},
+					{
+						"path": "/private/tmp/gliese-hpa586-task3-art-refs/current-camera-underlay-crossroads-north.png",
+						"role": "Crossroads North camera underlay art-only palette and ground reference",
+						"sha256": "9f1e17e2bda64863797f03d40007a81a04884beab12fde02bf2646fc205c7069",
+						"bytes": 14760929,
+						"dimensions": {
+							"width": 3200,
+							"height": 1664
+						}
+					}
+				],
+				"promptSha256": "10ce169aa8141e333c7dd8c63058f870bd4d7d0eeee0f8c40b34d48bac0f1ff0",
+				"nativeDimensions": {
+					"width": 1024,
+					"height": 1536
+				},
+				"coverScale": 1.6875,
+				"scaleGate": "<=2x",
+				"normalizedInspectedAt100Percent": true,
+				"prompt": "Top-down hand-painted JRPG environmental surface matching the supplied Gliese Meadow Entry art.\nCreate one continuous contextual donor canvas with natural regional ground and organically embedded\nobstacle scenery. Vary silhouette, spacing, depth, leaf color, shadow, and ground integration. No\npath, building, door, actor, pickup, sign, landmark, label, sprite row, repeated stamp cadence,\nrectangular frame, straight bar, tile grid, or debug overlay. Do not reproduce a supplied object;\nmatch only palette, brushwork, scale, lighting, and terrain material.\n\nForest bank: layered Wildwood edge with shrubs, ferns, leaf litter, roots, intermittent trunks, and\ndeep canopy shadow; no horizontal or vertical band.\n\nTall portrait donor canvas, at least 1000 pixels wide and 1200 pixels tall. No path, road, track,\nstone corridor, or crossing anywhere in the image.",
+				"rawDimensions": [1024, 1536]
 			}
 		],
 		"nativeSizeRequested": {
@@ -174,26 +222,26 @@
 			"width": 1728,
 			"height": 1952
 		},
-		"coverScale": 1.8189473684210526,
+		"coverScale": 1.6875,
 		"references": [
 			{
-				"path": "artifacts/meadow-entry/painted-v2/source-inserts/camera-underlay-crossroads-south-blocked-woodland.png",
-				"role": "approved Task3 dense blocked-woodland source pixels (primary vegetation reference)",
-				"sha256": "a4401a8cbcbd8c1a559c0c1cbba39ac8284a518f8a3f487a785dd2c453a25ae5",
-				"bytes": 13576563,
+				"path": "/private/tmp/gliese-hpa586-task3-art-refs/current-camera-underlay-crossroads-south.png",
+				"role": "Crossroads South camera underlay art-only palette and ground reference",
+				"sha256": "cff66e641d65ebd37acbae0cb172ed4fcf2d116285cc30674fabf5d494b6ebc1",
+				"bytes": 15130793,
 				"dimensions": {
 					"width": 3200,
 					"height": 1664
 				}
 			},
 			{
-				"path": "/Users/chanwaichan/.codex/generated_images/01a00a4a-dae6-7b43-851d-040dd44bad68/exec-cb37f1fe-e073-42d4-8b87-0927e6318cc5.png",
-				"role": "approved Crossroads actual-art palette and painterly reference only",
-				"sha256": "465c6c74f7a4350d034a7edf23c2148cbcce00acde864186102655240e98609e",
-				"bytes": 2769790,
+				"path": "/private/tmp/gliese-hpa586-task3-art-refs/current-camera-underlay-crossroads-north.png",
+				"role": "Crossroads North camera underlay art-only palette and ground reference",
+				"sha256": "9f1e17e2bda64863797f03d40007a81a04884beab12fde02bf2646fc205c7069",
+				"bytes": 14760929,
 				"dimensions": {
-					"width": 1023,
-					"height": 1537
+					"width": 3200,
+					"height": 1664
 				}
 			}
 		],
@@ -202,21 +250,27 @@
 			"callOrder": 33,
 			"result": "rejected-as-audit-history-before-round-2",
 			"reason": "Rejected as audit history: order-33 woodland retained a path-like central seam and failed the required silverpine-wall-B-south raw==shaped zero-promotion/no-op invariant (4 promoted pixels)."
-		}
+		},
+		"resultId": "exec-47ccdf87-73e0-4bdb-b668-95cb9f27a78c",
+		"nativeDimensions": [1024, 1536],
+		"referenceImageSha256": [
+			"cff66e641d65ebd37acbae0cb172ed4fcf2d116285cc30674fabf5d494b6ebc1",
+			"9f1e17e2bda64863797f03d40007a81a04884beab12fde02bf2646fc205c7069"
+		]
 	},
 	"raw": {
 		"path": "artifacts/meadow-entry/painted-v2/source-inserts/raw/crossroads-blocked-woodland.png",
-		"sha256": "04e3925ab272dca2b56c205bd3d625580b61bcd558ee70311eaee03c2d2c9e68",
-		"bytes": 2957849,
+		"sha256": "0e97c63c54586ca456af9a7acd97f0562a264b7faf5e17d56e66a1928b63f7f0",
+		"bytes": 3085551,
 		"dimensions": {
-			"width": 950,
-			"height": 1655
+			"width": 1024,
+			"height": 1536
 		}
 	},
 	"normalized": {
 		"path": "artifacts/meadow-entry/painted-v2/source-inserts/crossroads-blocked-woodland.png",
-		"sha256": "45707b5f1f08f498ca628051aa1f59e46c324d8f3e21a0139f9f7274d13188ae",
-		"bytes": 8469746,
+		"sha256": "f104693fbdc1c9833d4dda913ba70063e50e43f8243914909aa661aba14204be",
+		"bytes": 8261648,
 		"dimensions": {
 			"width": 1728,
 			"height": 1952
@@ -229,22 +283,22 @@
 	},
 	"normalizationTransform": {
 		"native": {
-			"width": 950,
-			"height": 1655
+			"width": 1024,
+			"height": 1536
 		},
 		"resize": {
 			"width": 1728,
-			"height": 3010
+			"height": 2592
 		},
 		"crop": {
 			"left": 0,
-			"top": 529,
+			"top": 320,
 			"width": 1728,
 			"height": 1952
 		},
-		"scale": 1.8189473684210526,
-		"scaleX": 1.8189473684210526,
-		"scaleY": 1.8189473684210526,
+		"scale": 1.6875,
+		"scaleX": 1.6875,
+		"scaleY": 1.6875,
 		"uniform": true,
 		"scaleExceedsTwoX": false,
 		"operation": "cover-scale-crop-to-fixed-panel",
@@ -252,23 +306,23 @@
 	},
 	"references": [
 		{
-			"path": "/Users/chanwaichan/.codex/generated_images/01a00a4a-dae6-7b43-851d-040dd44bad68/exec-cb37f1fe-e073-42d4-8b87-0927e6318cc5.png",
-			"role": "Crossroads actual-art palette and painterly reference",
-			"sha256": "465c6c74f7a4350d034a7edf23c2148cbcce00acde864186102655240e98609e",
-			"bytes": 2769790,
+			"path": "/private/tmp/gliese-hpa586-task3-art-refs/current-camera-underlay-crossroads-south.png",
+			"role": "Crossroads South camera underlay art-only palette and ground reference",
+			"sha256": "cff66e641d65ebd37acbae0cb172ed4fcf2d116285cc30674fabf5d494b6ebc1",
+			"bytes": 15130793,
 			"dimensions": {
-				"width": 1023,
-				"height": 1537
+				"width": 3200,
+				"height": 1664
 			}
 		},
 		{
-			"path": "/Users/chanwaichan/.codex/generated_images/01a00a4a-dae6-7b43-851d-040dd44bad68/exec-d520d070-8075-433c-904c-1e2770acb3d4.png",
-			"role": "prior accepted same-class texture reference; prior raw retained in attempt history",
-			"sha256": "733a5af0a9b563de582dce83939d9ad84649f649f36984ff499bf2dd817b3f17",
-			"bytes": 2738643,
+			"path": "/private/tmp/gliese-hpa586-task3-art-refs/current-camera-underlay-crossroads-north.png",
+			"role": "Crossroads North camera underlay art-only palette and ground reference",
+			"sha256": "9f1e17e2bda64863797f03d40007a81a04884beab12fde02bf2646fc205c7069",
+			"bytes": 14760929,
 			"dimensions": {
-				"width": 1672,
-				"height": 941
+				"width": 3200,
+				"height": 1664
 			}
 		}
 	],
@@ -277,7 +331,7 @@
 		"inspectedAtOriginalResolution": true,
 		"inspectedNormalizedAt100Percent": true,
 		"accepted": true,
-		"findings": "Call-36 raw was inspected at original detail and accepted: dense continuous edge-to-edge woodland wall with overlapping trunks, canopy, undergrowth, roots, ferns, moss, and leaf litter; no path, exposed-ground corridor, central strip, seam, border, landmark, or prop. Deterministically normalized in fix round 3 for the pending fresh final-source gate.",
+		"findings": "Portrait raw was inspected at original detail and accepted: layered dense shrubs, ferns, roots, intermittent trunks, and canopy shadow with organic depth; no path, road, track, stone corridor, crossing, frame, or straight bar.",
 		"gridLikeUpperBand": false,
 		"visibleInsertRectangle": false,
 		"protectedOverlapPixels": 0,
@@ -293,8 +347,8 @@
 			"supersededAtUtc": "2026-08-16T19:14:07Z",
 			"supersededReason": "Independent Task 4 review found P1 defects: Crossroads inserts exceeded the new 1728x1952 cover-scale contract and the final static evidence inventory was incomplete."
 		},
-		"approval": "approved-explicit-final-source-gate",
-		"reviewStatus": "approved-explicit-final-source-gate",
+		"approval": "approved-explicit-organic-candidate-gate",
+		"reviewStatus": "approved-explicit-organic-candidate-gate",
 		"supersededAtUtc": "2026-08-16T19:14:07Z",
 		"supersededReason": "Independent Task 4 review found P1 defects: Crossroads inserts exceeded the new 1728x1952 cover-scale contract and the final static evidence inventory was incomplete.",
 		"rejected": false,
@@ -420,15 +474,243 @@
 				"kernel": "lanczos3"
 			}
 		},
-		"userAnswer": "yes",
-		"approvedAtUtc": "2026-08-16T21:37:44Z",
-		"approvalScope": "Task 4 final-source forest enrichment only; no production publication, runtime permission, Task 5, probes, or master replacement",
-		"approvalCandidateSha256": "bdae53182c62d696068e4acf499a0ac3d2a34bfb4e9a2c84f9072a7a97099cd5",
-		"approvalEvidenceManifestSha256": "7731e46389146044381c3b096492bcd1a12ac14705a58d21a6000fda8421ec3a",
-		"approvalEvidenceFileCount": 104,
+		"userAnswer": "Looks good",
+		"runtimePermission": false,
+		"supersededTask2Review": {
+			"approval": "approved-explicit-final-source-gate",
+			"userAnswer": "yes",
+			"approvedAtUtc": "2026-08-16T21:37:44Z",
+			"approvalScope": "Task 4 final-source forest enrichment only; no production publication, runtime permission, Task 5, probes, or master replacement",
+			"approvalCandidateSha256": "bdae53182c62d696068e4acf499a0ac3d2a34bfb4e9a2c84f9072a7a97099cd5",
+			"approvalEvidenceManifestSha256": "7731e46389146044381c3b096492bcd1a12ac14705a58d21a6000fda8421ec3a",
+			"approvalEvidenceFileCount": 104
+		},
+		"nativeDetailQualityAcceptedAt100Percent": true,
+		"visualQa": "passed-layered-forest-bank-no-path-or-corridor",
+		"noPathOrSeam": true,
+		"forestBankOrganic": true,
+		"approvedAtUtc": "2026-08-18T18:06:55Z",
+		"approvalScope": "Task 2 organic scenery donor bytes and corrected temporary world-canonical candidate only; no production master publication, runtime permission, Task 3, probes, exports, or public asset replacement",
+		"approvalCandidateSha256": "05dc5d3db4e26b69b1e5de79b5b8cb526eeb9709db67cce443522f1b1e3975da",
+		"approvalEvidenceManifestSha256": "c9e80aa03ffe56c99d8375c4e67e4ca84f2daaa75682acb1c3690a3b9f04ea30",
+		"approvalEvidenceFileCount": 123
+	},
+	"stage": "approved-explicit-organic-candidate-gate",
+	"prompt": "Top-down hand-painted JRPG environmental surface matching the supplied Gliese Meadow Entry art.\nCreate one continuous contextual donor canvas with natural regional ground and organically embedded\nobstacle scenery. Vary silhouette, spacing, depth, leaf color, shadow, and ground integration. No\npath, building, door, actor, pickup, sign, landmark, label, sprite row, repeated stamp cadence,\nrectangular frame, straight bar, tile grid, or debug overlay. Do not reproduce a supplied object;\nmatch only palette, brushwork, scale, lighting, and terrain material.\n\nForest bank: layered Wildwood edge with shrubs, ferns, leaf litter, roots, intermittent trunks, and\ndeep canopy shadow; no horizontal or vertical band.\n\nTall portrait donor canvas, at least 1000 pixels wide and 1200 pixels tall. No path, road, track,\nstone corridor, or crossing anywhere in the image.",
+	"promptSha256": "10ce169aa8141e333c7dd8c63058f870bd4d7d0eeee0f8c40b34d48bac0f1ff0",
+	"task2Binding": {
+		"amendmentCommit": "b2ca40fccf37a0ddc4f06ec4286bc8f260207b85",
+		"approvedAtUtc": "2026-08-18T03:02:11Z",
+		"stage": "approved-explicit-organic-candidate-gate",
+		"family": "approved-portrait-crossroads-amendment",
+		"attempt": 1,
+		"callOrder": 28,
+		"resultId": "exec-47ccdf87-73e0-4bdb-b668-95cb9f27a78c",
+		"result": "task-2-portrait-amended-accepted-native-and-scale-gate",
+		"outputPath": "/Users/chanwaichan/.codex/generated_images/01a01192-7fcf-75e3-8659-f523017691fa/exec-47ccdf87-73e0-4bdb-b668-95cb9f27a78c.png",
+		"outputSha256": "0e97c63c54586ca456af9a7acd97f0562a264b7faf5e17d56e66a1928b63f7f0",
+		"rawInspectedAtOriginalResolution": true,
+		"nativeQa": "passed",
+		"visualQa": "passed-layered-forest-bank-no-path-or-corridor",
+		"references": [
+			{
+				"path": "/private/tmp/gliese-hpa586-task3-art-refs/current-camera-underlay-crossroads-south.png",
+				"role": "Crossroads South camera underlay art-only palette and ground reference",
+				"sha256": "cff66e641d65ebd37acbae0cb172ed4fcf2d116285cc30674fabf5d494b6ebc1",
+				"bytes": 15130793,
+				"dimensions": {
+					"width": 3200,
+					"height": 1664
+				}
+			},
+			{
+				"path": "/private/tmp/gliese-hpa586-task3-art-refs/current-camera-underlay-crossroads-north.png",
+				"role": "Crossroads North camera underlay art-only palette and ground reference",
+				"sha256": "9f1e17e2bda64863797f03d40007a81a04884beab12fde02bf2646fc205c7069",
+				"bytes": 14760929,
+				"dimensions": {
+					"width": 3200,
+					"height": 1664
+				}
+			}
+		],
+		"promptSha256": "10ce169aa8141e333c7dd8c63058f870bd4d7d0eeee0f8c40b34d48bac0f1ff0",
+		"nativeDimensions": {
+			"width": 1024,
+			"height": 1536
+		},
+		"coverScale": 1.6875,
+		"scaleGate": "<=2x",
+		"normalizedInspectedAt100Percent": true,
+		"visualApprovalAnswer": "Looks good",
+		"visualApprovalAtUtc": "2026-08-18T18:06:55Z",
+		"approvalCandidateSha256": "05dc5d3db4e26b69b1e5de79b5b8cb526eeb9709db67cce443522f1b1e3975da",
+		"approvalEvidenceManifestSha256": "c9e80aa03ffe56c99d8375c4e67e4ca84f2daaa75682acb1c3690a3b9f04ea30",
+		"approvalEvidenceFileCount": 123
+	},
+	"candidateReview": {
+		"status": "approved-explicit-organic-candidate-gate",
+		"stage": "approved-explicit-organic-candidate-gate",
+		"reviewRoot": "/private/tmp/meadow-organic-candidate-multiband-v4",
+		"candidateMaster": {
+			"path": "../../../../../../private/tmp/meadow-organic-candidate-multiband-v4/masters/meadow-entry-painted-v2-pilot-base-master.png",
+			"sha256": "05dc5d3db4e26b69b1e5de79b5b8cb526eeb9709db67cce443522f1b1e3975da",
+			"bytes": 54011491,
+			"width": 6400,
+			"height": 6400
+		},
+		"candidateJson": {
+			"path": "/private/tmp/meadow-organic-candidate-multiband-v4/decoration-candidate.json",
+			"sha256": "c0ebf1c9ea87a6bc763bdfdae16336c2be88f083b2cdc55d29f804ba5a293e46",
+			"bytes": 5840324
+		},
+		"inventoryJson": {
+			"path": "/private/tmp/meadow-organic-candidate-multiband-v4/organic-scenery-inventory.json",
+			"sha256": "4d7f676a35fbc489513012544220397964b66f69bdcc651ba9b945eed43d810a",
+			"bytes": 5768189
+		},
+		"evidenceManifest": {
+			"path": "/private/tmp/meadow-organic-candidate-multiband-v4/evidence-manifest.json",
+			"sha256": "c9e80aa03ffe56c99d8375c4e67e4ca84f2daaa75682acb1c3690a3b9f04ea30",
+			"bytes": 25816
+		},
+		"evidenceFileCount": 123,
+		"donorNormalizedSha256": "f104693fbdc1c9833d4dda913ba70063e50e43f8243914909aa661aba14204be",
+		"selectedWorldPixelCount": 358016,
+		"combinedControlFingerprint": "1f55d4cda5549aeb082b80cd2e699be7d5f1d3d8acaaf4848704a5787f074e9a",
+		"enrichedSourceSha256": {
+			"camera-underlay-sundrop-south": "48db353da7bc727e218e5fc23bb63907f4823c8a60623c427f2545ca9e0990c7",
+			"camera-underlay-crossroads-north": "058128c3432a918ee0d8af60ad597de8d9473ec0d997172cf8ddeec41ec3f5a3",
+			"camera-underlay-crossroads-south": "bae3f3cda07cdd27a6ea8bff9a343ea196e1231c5159f3272a9e87678c56ab49",
+			"crossroads": "2a39142ae5a3362ae3c8ff0211e74c78ac5761d4074bd916e2db474365be7027"
+		},
+		"changedPixelCount": 288079,
+		"classChangedPixelCounts": {
+			"hedge": 55203,
+			"woodland": 232876
+		},
+		"topologyRequestSha256": "12c4b6af37180a2d87f892d92dfce9bcbbae98a0b3d69ed9d6254b560276310f",
+		"rowCount": 10,
+		"intersectionCount": 16,
+		"apronPolicy": {
+			"maximumDistance": 48,
+			"nearRampDistance": 8,
+			"maximumWeight": 96,
+			"maximumChannelResidual": 12,
+			"maximumLumaShift": 16
+		},
+		"apronCandidateSha256": {
+			"hedge": "dec71bf3d0481b4963c9ee82a6729118ff04122456f084fdf74af06c1a7cb2cf",
+			"woodland": "ff869d390a7bc624d2569ce7b72b3c3d914e8b027d378408e5c3686430313b5f"
+		},
+		"apronAllowedSha256": {
+			"hedge": "89166ba919e9ef4b1422e578b4e9fed1705b9733350035d2c08593ae6ab8c785",
+			"woodland": "b0c8991048e53468d6a631c74cfa8118a631358f6d7aceaa923c3df6ff07616c"
+		},
+		"apronDistanceSha256": {
+			"hedge": "19f2c15b26a41244c6cf8a11563d87a52ebcc6799abef84306d644f7c2ef512d",
+			"woodland": "cae35ebdf6f8e75d360afcdedb127b4b8749a99ddfdc3d081140a00479ba1e5f"
+		},
+		"apronWeightSha256": "40438a810043924023e2507e9786825609ec011d5de6e3271980f6d98f421367",
+		"apronChangedPixelCount": 135726,
+		"apronClassChangedPixelCounts": {
+			"hedge": 25087,
+			"woodland": 110639
+		},
+		"publicMasks": {
+			"otherProtected": {
+				"sha256": "3f22afca164436a44c73954b208896b9c227986e018b81ff8cc041da6023f656",
+				"pixels": 13818312
+			},
+			"groundAllowed": {
+				"sha256": "c1bc20acc56b98ae586510f4332bc93657627c4c9b435620247e13181b6cc97d",
+				"pixels": 13180809
+			},
+			"sceneryAllowed": {
+				"sha256": "ca1c7ec5bbd4b93eb2be7591f074fd458c54aa473944ab7f327c596536d9e156",
+				"pixels": 286524
+			},
+			"hedgeAllowed": {
+				"sha256": "d7b76c254bfd69e36b37b26738e0b8322918dcf602a2c02d2f3de18096af16d7",
+				"pixels": 50608
+			},
+			"woodlandAllowed": {
+				"sha256": "07090d49adc2aa982363208f0cd61a98d8b88863d7a3f937575c0ead5605e3e1",
+				"pixels": 235916
+			}
+		},
+		"maskInventory": {
+			"path": "/private/tmp/meadow-organic-candidate-multiband-v4/mask-inventory.json",
+			"sha256": "57380c1e9bce39b78825dca685762303da8268bd81bb76ff081c8a80844dd6ab",
+			"bytes": 11560
+		},
+		"donorHashes": {
+			"camera-underlay-sundrop-south-blocked-hedge": "e70b1b4d7f34f1a46aae96b3c3bdb2b7a34c0c59c991dfde4ac84d0a15f52d1d",
+			"camera-underlay-crossroads-north-blocked-hedge": "526321e72170051f31c4ab01be6fa8e58d17e3697d2fbf696f55bbca7bda9e21",
+			"camera-underlay-crossroads-south-blocked-hedge": "2211b88fa034d62be98a060ad103008187059f0bb7c3e0d96792b47024a5063e",
+			"camera-underlay-crossroads-north-blocked-woodland": "59c0d0c1cf9bedfb0b7951398786b79f4ec11fee034483c13aa098a0d7f9d128",
+			"camera-underlay-crossroads-south-blocked-woodland": "4f778aa55e536547fd9b9903c3adcf0249d93f5af4f4fb06051a4cbfeb42cb84",
+			"crossroads-blocked-hedge": "888d00f7854e4c16ec6534065cf6328a700c60e6a8875ef6e79c66e92a4a121f",
+			"crossroads-blocked-woodland": "f104693fbdc1c9833d4dda913ba70063e50e43f8243914909aa661aba14204be"
+		},
+		"energy": {
+			"minimumRgbStep": 2.145896207177788,
+			"medianRgbStep": 4.326215996100259,
+			"sheetTileCounts": [16, 16, 16, 16, 3],
+			"qualifyingTileCount": 67
+		},
+		"approval": {
+			"status": "APPROVED",
+			"answer": "Looks good",
+			"approvedAtUtc": "2026-08-18T18:06:55Z",
+			"scope": "Task 2 organic scenery donor bytes and corrected temporary world-canonical candidate only; no production master publication, runtime permission, Task 3, probes, exports, or public asset replacement",
+			"runtimePermission": false,
+			"candidateSha256": "05dc5d3db4e26b69b1e5de79b5b8cb526eeb9709db67cce443522f1b1e3975da",
+			"evidenceManifestSha256": "c9e80aa03ffe56c99d8375c4e67e4ca84f2daaa75682acb1c3690a3b9f04ea30",
+			"evidenceFileCount": 123
+		},
+		"userAnswer": "Looks good",
+		"approvedAtUtc": "2026-08-18T18:06:55Z",
 		"runtimePermission": false
 	},
-	"stage": "pending-final-source-gate",
-	"prompt": "Use case: stylized-concept.\nAsset type: a portrait native raster source insert for a painted 2D JRPG world-map blocker.\n\nCreate a dense, continuous edge-to-edge woodland wall filling the entire frame. The full frame must be packed with overlapping tree trunks, layered canopy, interlocking undergrowth, roots, ferns, moss, and leaf litter, with visual texture continuing all the way to every edge. Keep the composition non-directional and evenly dense; no focal center and no implied route.\n\nAbsolutely exclude any exposed-ground corridor, path, trail, road, clearing, central strip, rocky seam, ground seam, frame, bar, border, landmark, or prop. Do not create any line or opening that could read as a path or route. Do not copy the layout, route, or openings from either reference. The first reference is the primary approved dense blocked-woodland pixel-art source for vegetation texture and structure; the second is approved Crossroads palette/finish context only, and must not contribute its path/layout.\n\nMatch the approved painted-pixel palette and hand-authored JRPG world-map finish: opaque RGB, natural irregular woodland silhouettes, readable clustered vegetation, no text. Produce a portrait image at native dimensions sufficient for exact 1728x1952 canonical normalization with coverScale <= 2 (at least 864x976; target approximately 1024x1536 or taller).",
-	"promptSha256": "419376591d2378a31da35c43475443ac18f9810acb93763c98cc076741595250"
+	"supersededCandidateReviews": [
+		{
+			"status": "SUPERSEDED_BY_CORRECTED_SOURCE_HANDOFF_CANDIDATE",
+			"supersededAtUtc": "2026-08-18T18:06:55Z",
+			"supersededReason": "The earlier candidate was replaced after visual review found broad source-family handoff rectangles or overlap artifacts.",
+			"candidateMaster": {
+				"path": "/Users/chanwaichan/workspace/Gliese/.worktrees/hpa-586-interior-graybox/docs/superpowers/reports/img/hpa-586-painted-v2-organic-scenery/masters/meadow-entry-painted-v2-pilot-base-master.png",
+				"sha256": "2e2ffb13522c5f956194e7213867468a499ffdbf6b02dc83909011fe5b421dd7",
+				"bytes": 53074360,
+				"width": 6400,
+				"height": 6400
+			},
+			"candidateJson": {
+				"path": "/Users/chanwaichan/workspace/Gliese/.worktrees/hpa-586-interior-graybox/docs/superpowers/reports/img/hpa-586-painted-v2-organic-scenery/decoration-candidate.json",
+				"sha256": "1d17e84d7524a2b1ef8391b37947eefc0fb7e431da7335fcfe058a89e0964453",
+				"bytes": 5839899
+			},
+			"inventoryJson": {
+				"path": "/Users/chanwaichan/workspace/Gliese/.worktrees/hpa-586-interior-graybox/docs/superpowers/reports/img/hpa-586-painted-v2-organic-scenery/organic-scenery-inventory.json",
+				"sha256": "ad6345085ca950560b67d9d77e81a588144f4693af223e6556a714f976126c16",
+				"bytes": 5768152
+			},
+			"evidenceManifest": {
+				"path": "/Users/chanwaichan/workspace/Gliese/.worktrees/hpa-586-interior-graybox/docs/superpowers/reports/img/hpa-586-painted-v2-organic-scenery/evidence-manifest.json",
+				"sha256": "db9d000bc587870ac3468ae1901eb2269e8b1adbe3bf16cbe19987aab4cd3c90",
+				"bytes": 25816
+			},
+			"evidenceFileCount": 123
+		},
+		{
+			"status": "REJECTED_BY_USER",
+			"supersededAtUtc": "2026-08-18T18:06:55Z",
+			"supersededReason": "The user rejected the first world-canonical correction because the overview still showed a broad rectangular source-family crossfade.",
+			"candidateMaster": {
+				"sha256": "afc26cfc240641298d17ac1591e1f9e00777253739e0449508ad19d55d908efb",
+				"width": 6400,
+				"height": 6400
+			}
+		}
+	]
 }

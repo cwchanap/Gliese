@@ -1,5 +1,6 @@
 artifacts/meadow-entry/hpa-399/**/*.png filter=lfs diff=lfs merge=lfs -text
 docs/superpowers/reports/img/hpa-399/proofs/**/*.png filter=lfs diff=lfs merge=lfs -text
+docs/superpowers/reports/img/hpa-586-painted-v2-organic-scenery/world-canonical-v2/**/*.png filter=lfs diff=lfs merge=lfs -text
 artifacts/meadow-entry/painted-v2/**/*.png filter=lfs diff=lfs merge=lfs -text
 public/game/assets/regions/meadow-entry-painted-v2/**/*.png filter=lfs diff=lfs merge=lfs -text
 public/game/assets/regions/meadow-entry/**/*.png filter=lfs diff=lfs merge=lfs -text

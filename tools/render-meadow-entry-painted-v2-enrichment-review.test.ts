@@ -51,6 +51,15 @@ const INSERT_IDS = [
 	'crossroads-blocked-woodland'
 ] as const;
 
+const TASK2_ORGANIC_APPROVAL_STAGE = 'approved-explicit-organic-candidate-gate';
+const TASK2_ORGANIC_APPROVAL_ANSWER = 'Looks good';
+const TASK2_ORGANIC_APPROVED_AT_UTC = '2026-08-18T18:06:55Z';
+const TASK2_ORGANIC_CANDIDATE_SHA256 =
+	'05dc5d3db4e26b69b1e5de79b5b8cb526eeb9709db67cce443522f1b1e3975da';
+const TASK2_ORGANIC_EVIDENCE_MANIFEST_SHA256 =
+	'c9e80aa03ffe56c99d8375c4e67e4ca84f2daaa75682acb1c3690a3b9f04ea30';
+const TASK2_ORGANIC_EVIDENCE_FILE_COUNT = 123;
+
 const TASK4_APPROVAL_CANDIDATE_SHA256 =
 	'6d419b9f52213b70061588baf63e0ef2316f971981a9e66d30e2892ac119c6a4';
 const TASK4_POST_BINDING_CANDIDATE_SHA256 =
@@ -356,6 +365,10 @@ type ProvenanceManifest = Readonly<{
 	normalized: ProvenancePng;
 	normalizationTransform: ProvenanceTransform;
 	generation: ProvenanceGeneration;
+	stage: string;
+	review: Readonly<Record<string, unknown>>;
+	task2Binding: Readonly<Record<string, unknown>>;
+	candidateReview: Readonly<Record<string, unknown>>;
 }>;
 type ProvenanceCall = Readonly<{
 	id: string;
@@ -376,6 +389,8 @@ type ProvenanceDocument = Readonly<{
 	sourcePanels: Readonly<{ panels: readonly ProvenanceManifest[] }>;
 	interimForestApproval: Readonly<{ scope: readonly string[] }>;
 	task3CallInventory: Readonly<{ accepted: readonly ProvenanceCall[] }>;
+	stage: string;
+	task2CandidateReview: Readonly<Record<string, unknown>>;
 }>;
 
 function readJson<T>(path: string): T {
@@ -418,7 +433,7 @@ test('root provenance binds current accepted inserts, call inventory, bytes, and
 		)
 	);
 	const insertManifests = new Map<string, ProvenanceManifest>();
-	for (const id of TASK3_INSERT_IDS) {
+	for (const id of INSERT_IDS) {
 		insertManifests.set(
 			id,
 			readJson<ProvenanceManifest>(
@@ -453,7 +468,35 @@ test('root provenance binds current accepted inserts, call inventory, bytes, and
 			manifest.generation.attemptHistory,
 			`${id} root sourceInserts call history must match its current manifest`
 		);
+		assert.equal(manifest.stage, TASK2_ORGANIC_APPROVAL_STAGE);
+		assert.equal(manifest.review.approval, TASK2_ORGANIC_APPROVAL_STAGE);
+		assert.equal(manifest.review.reviewStatus, TASK2_ORGANIC_APPROVAL_STAGE);
+		assert.equal(manifest.review.userAnswer, TASK2_ORGANIC_APPROVAL_ANSWER);
+		assert.equal(manifest.review.approvedAtUtc, TASK2_ORGANIC_APPROVED_AT_UTC);
+		assert.equal(manifest.review.approvalCandidateSha256, TASK2_ORGANIC_CANDIDATE_SHA256);
+		assert.equal(
+			manifest.review.approvalEvidenceManifestSha256,
+			TASK2_ORGANIC_EVIDENCE_MANIFEST_SHA256
+		);
+		assert.equal(manifest.review.approvalEvidenceFileCount, TASK2_ORGANIC_EVIDENCE_FILE_COUNT);
+		assert.equal(manifest.review.runtimePermission, false);
+		assert.equal(manifest.task2Binding.stage, TASK2_ORGANIC_APPROVAL_STAGE);
+		assert.equal(manifest.candidateReview.stage, TASK2_ORGANIC_APPROVAL_STAGE);
+		assert.equal(manifest.candidateReview.status, TASK2_ORGANIC_APPROVAL_STAGE);
+		assert.equal(
+			(manifest.candidateReview.candidateMaster as Record<string, unknown>).sha256,
+			TASK2_ORGANIC_CANDIDATE_SHA256
+		);
 	}
+	assert.equal(provenance.stage, TASK2_ORGANIC_APPROVAL_STAGE);
+	assert.equal(provenance.task2CandidateReview.status, TASK2_ORGANIC_APPROVAL_STAGE);
+	assert.equal(provenance.task2CandidateReview.stage, TASK2_ORGANIC_APPROVAL_STAGE);
+	assert.equal(provenance.task2CandidateReview.userAnswer, TASK2_ORGANIC_APPROVAL_ANSWER);
+	assert.equal(provenance.task2CandidateReview.approvedAtUtc, TASK2_ORGANIC_APPROVED_AT_UTC);
+	assert.equal(
+		(provenance.task2CandidateReview.master as Record<string, unknown>).sha256,
+		TASK2_ORGANIC_CANDIDATE_SHA256
+	);
 
 	const acceptedCalls = provenance.task3CallInventory.accepted;
 	assert.equal(
@@ -845,14 +888,17 @@ test('Task 4 records the two-phase source-manifest identity contract', () => {
 		const insert = readJson<{ review?: Record<string, unknown>; stage?: unknown }>(
 			join(repositoryRoot, `artifacts/meadow-entry/painted-v2/source-inserts/${id}.json`)
 		);
-		assert.equal(insert.stage, 'pending-fresh-user-gate');
-		assert.equal(insert.review?.approval, 'pending-fresh-user-gate');
-		assert.equal(insert.review?.reviewStatus, 'pending-fresh-user-gate');
-		assert.equal(insert.review?.userAnswer, null);
-		assert.equal(insert.review?.approvedAtUtc, undefined);
-		assert.equal(insert.review?.approvalCandidateSha256, undefined);
-		assert.equal(insert.review?.approvalEvidenceManifestSha256, undefined);
-		assert.equal(insert.review?.approvalEvidenceFileCount, undefined);
+		assert.equal(insert.stage, TASK2_ORGANIC_APPROVAL_STAGE);
+		assert.equal(insert.review?.approval, TASK2_ORGANIC_APPROVAL_STAGE);
+		assert.equal(insert.review?.reviewStatus, TASK2_ORGANIC_APPROVAL_STAGE);
+		assert.equal(insert.review?.userAnswer, TASK2_ORGANIC_APPROVAL_ANSWER);
+		assert.equal(insert.review?.approvedAtUtc, TASK2_ORGANIC_APPROVED_AT_UTC);
+		assert.equal(insert.review?.approvalCandidateSha256, TASK2_ORGANIC_CANDIDATE_SHA256);
+		assert.equal(
+			insert.review?.approvalEvidenceManifestSha256,
+			TASK2_ORGANIC_EVIDENCE_MANIFEST_SHA256
+		);
+		assert.equal(insert.review?.approvalEvidenceFileCount, TASK2_ORGANIC_EVIDENCE_FILE_COUNT);
 		assert.equal(insert.review?.runtimePermission, false);
 		const supersededApproval = insert.review?.supersededApproval as
 			| Record<string, unknown>
