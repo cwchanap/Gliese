@@ -978,6 +978,7 @@ test(
 				tiles: { index: number; id: string }[];
 				evidence: Record<string, { sha256: string; bytes: number; width: number; height: number }>;
 				blockedSceneryBake: {
+					selectedWorldPixelCount: number;
 					changedPixelCount: number;
 					classChangedPixelCounts: Record<string, number>;
 					enrichedSourceSha256: Record<string, string>;
@@ -1055,6 +1056,7 @@ test(
 				].sort()
 			);
 			assert.equal(payload.blockedSceneryBake.changedPixelCount > 0, true);
+			assert.equal(payload.blockedSceneryBake.selectedWorldPixelCount > 0, true);
 			assert.deepEqual(payload.blockedSceneryBake.apron.policy, {
 				maximumDistance: 48,
 				nearRampDistance: 8,
@@ -1080,6 +1082,19 @@ test(
 				'camera-underlay-sundrop-south',
 				'crossroads'
 			]);
+			for (const [panelId, expectedHash] of Object.entries(
+				payload.blockedSceneryBake.enrichedSourceSha256
+			)) {
+				const ownerBytes = await sharp(join(outputRoot, `enriched-owner-${panelId}.png`))
+					.ensureAlpha()
+					.raw()
+					.toBuffer();
+				assert.equal(
+					createHash('sha256').update(ownerBytes).digest('hex'),
+					expectedHash,
+					`enriched owner evidence is not the projected world panel: ${panelId}`
+				);
+			}
 			assert.equal(payload.blockedSceneryBake.topologyRequests.length > 0, true);
 			assert.match(payload.blockedSceneryBake.topologyRequestSha256, /^[a-f0-9]{64}$/);
 			assert.equal(
@@ -1192,6 +1207,7 @@ test(
 			const organicInventory = JSON.parse(
 				readFileSync(join(outputRoot, 'organic-scenery-inventory.json'), 'utf8')
 			) as {
+				selectedWorldPixelCount: number;
 				policy: Record<string, number>;
 				publicMasks: Record<string, { sha256: string }>;
 				scratch: {
@@ -1202,6 +1218,10 @@ test(
 				};
 				candidateMasterSha256: string;
 			};
+			assert.equal(
+				organicInventory.selectedWorldPixelCount,
+				payload.blockedSceneryBake.selectedWorldPixelCount
+			);
 			assert.deepEqual(organicInventory.policy, payload.blockedSceneryBake.apron.policy);
 			assert.deepEqual(Object.keys(organicInventory.publicMasks).sort(), [
 				'groundAllowed',
@@ -1346,6 +1366,8 @@ test(
 			const candidateEvidenceBytes = readFileSync(candidateJsonPath);
 			const candidateEvidence = JSON.parse(candidateEvidenceBytes.toString('utf8')) as {
 				blockedSceneryBake: {
+					selectedWorldPixelCount: number;
+					enrichedSourceSha256: Record<string, string>;
 					rows: unknown[];
 					apron: { weightSha256: string };
 				};
@@ -1353,6 +1375,7 @@ test(
 			const inventoryPath = join(outputRoot, 'organic-scenery-inventory.json');
 			const inventoryEvidenceBytes = readFileSync(inventoryPath);
 			const inventoryEvidence = JSON.parse(inventoryEvidenceBytes.toString('utf8')) as {
+				selectedWorldPixelCount: number;
 				publicMasks: Record<string, unknown>;
 			};
 			const expectCandidateCheckFailure = (pattern: RegExp) => {
@@ -1383,8 +1406,29 @@ test(
 			expectCandidateCheckFailure(/organic apron hash does not match candidate result/);
 			writeFileSync(candidateJsonPath, candidateEvidenceBytes);
 
-			inventoryEvidence.publicMasks.sixthScratchMask = { sha256: '0'.repeat(64), pixels: 0 };
+			inventoryEvidence.selectedWorldPixelCount += 1;
 			writeFileSync(inventoryPath, JSON.stringify(inventoryEvidence));
+			expectCandidateCheckFailure(/selected world-pixel count does not match candidate result/);
+			writeFileSync(inventoryPath, inventoryEvidenceBytes);
+
+			const candidateEvidenceForOwner = JSON.parse(candidateEvidenceBytes.toString('utf8')) as {
+				blockedSceneryBake: { enrichedSourceSha256: Record<string, string> };
+			};
+			candidateEvidenceForOwner.blockedSceneryBake.enrichedSourceSha256[
+				'camera-underlay-sundrop-south'
+			] = '0'.repeat(64);
+			writeFileSync(candidateJsonPath, JSON.stringify(candidateEvidenceForOwner));
+			expectCandidateCheckFailure(/enriched owner evidence does not match projected panel hash/);
+			writeFileSync(candidateJsonPath, candidateEvidenceBytes);
+
+			const inventoryEvidenceForMasks = JSON.parse(inventoryEvidenceBytes.toString('utf8')) as {
+				publicMasks: Record<string, unknown>;
+			};
+			inventoryEvidenceForMasks.publicMasks.sixthScratchMask = {
+				sha256: '0'.repeat(64),
+				pixels: 0
+			};
+			writeFileSync(inventoryPath, JSON.stringify(inventoryEvidenceForMasks));
 			expectCandidateCheckFailure(/public mask set must contain exactly five masks/);
 			writeFileSync(inventoryPath, inventoryEvidenceBytes);
 
@@ -1684,24 +1728,32 @@ test(
 	}
 );
 
-test('review output rejects the public runtime directory', () => {
+test('review output rejects every repository path outside the sealed world-canonical-v2 review root', () => {
 	const repositoryRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
-	const result = spawnSync(
-		process.execPath,
-		[
-			join(repositoryRoot, 'tools/render-meadow-entry-painted-v2-enrichment-review.ts'),
-			'--mode',
-			'baseline',
-			'--output-root',
-			'public/game/assets/regions/meadow-entry-painted-v2'
-		],
-		{ cwd: repositoryRoot, encoding: 'utf8' }
-	);
-	assert.notEqual(result.status, 0);
-	assert.match(
-		`${result.stdout}\n${result.stderr}`,
-		/must not target the public painted-v2 runtime directory/
-	);
+	for (const outputRoot of [
+		'.',
+		'artifacts/meadow-entry/painted-v2',
+		'artifacts/meadow-entry/painted-v2/source-inserts',
+		'public/game/assets/regions/meadow-entry-painted-v2',
+		'docs/superpowers/reports/img/hpa-586-painted-v2-organic-scenery'
+	]) {
+		const result = spawnSync(
+			process.execPath,
+			[
+				join(repositoryRoot, 'tools/render-meadow-entry-painted-v2-enrichment-review.ts'),
+				'--mode',
+				'baseline',
+				'--output-root',
+				outputRoot
+			],
+			{ cwd: repositoryRoot, encoding: 'utf8' }
+		);
+		assert.notEqual(result.status, 0, `unsafe repository output root was accepted: ${outputRoot}`);
+		assert.match(
+			`${result.stdout}\n${result.stderr}`,
+			/must be outside the repository or inside the sealed world-canonical-v2 review root/
+		);
+	}
 });
 
 test('review artifact path guard rejects escaping output paths', () => {

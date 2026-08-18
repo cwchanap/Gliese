@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto';
 import { mkdir, readFile, readdir, writeFile } from 'node:fs/promises';
-import { dirname, join, relative, resolve, sep } from 'node:path';
+import { dirname, isAbsolute, join, relative, resolve, sep } from 'node:path';
 
 import sharp from 'sharp';
 
@@ -47,7 +47,6 @@ import {
 	enrichMeadowEntryPaintedV2WorldWithOrganicApron,
 	type DecodedMeadowEntryPaintedV2SceneryInsert,
 	type MeadowEntryPaintedV2OrganicWorldSceneryBakeResult,
-	type MeadowEntryPaintedV2SceneryBakeResult,
 	type MeadowEntryPaintedV2SceneryMaskSet
 } from '$lib/game/content/backgrounds/meadow-entry-painted-v2-scenery-bake';
 import {
@@ -127,9 +126,10 @@ interface AssemblyResult {
 	readonly organicApronOverlay?: Buffer;
 }
 
-type ReviewBlockedSceneryBake =
-	| Omit<MeadowEntryPaintedV2SceneryBakeResult, 'panels'>
-	| Omit<MeadowEntryPaintedV2OrganicWorldSceneryBakeResult, 'panels' | 'master'>;
+type ReviewBlockedSceneryBake = Omit<
+	MeadowEntryPaintedV2OrganicWorldSceneryBakeResult,
+	'panels' | 'master'
+>;
 
 interface EvidenceDescriptor {
 	readonly sha256: string;
@@ -280,11 +280,20 @@ function parseArgs(args: readonly string[]): CliOptions {
 }
 
 function ensureReviewRoot(repositoryRoot: string, outputRoot: string): void {
-	const runtimeRoot = resolve(repositoryRoot, 'public/game/assets/regions/meadow-entry-painted-v2');
 	const resolvedOutput = resolve(repositoryRoot, outputRoot);
+	const approvedReviewRoot = resolve(repositoryRoot, DEFAULT_OUTPUT_ROOT);
+	const repositoryRelative = relative(repositoryRoot, resolvedOutput);
+	const insideRepository =
+		repositoryRelative === '' ||
+		(!repositoryRelative.startsWith(`..${sep}`) &&
+			repositoryRelative !== '..' &&
+			!isAbsolute(repositoryRelative));
+	const insideApprovedReviewRoot =
+		resolvedOutput === approvedReviewRoot ||
+		resolvedOutput.startsWith(`${approvedReviewRoot}${sep}`);
 	assert(
-		resolvedOutput !== runtimeRoot && !resolvedOutput.startsWith(`${runtimeRoot}${sep}`),
-		'Review output must not target the public painted-v2 runtime directory'
+		!insideRepository || insideApprovedReviewRoot,
+		'Review output must be outside the repository or inside the sealed world-canonical-v2 review root'
 	);
 }
 
@@ -1179,6 +1188,12 @@ async function assertCandidateReviewArtifactsWithoutAssembly(outputRoot: string)
 	const apron = asJsonRecord(bake?.apron);
 	assert(apron !== undefined, 'review artifact is stale: candidate apron provenance is missing');
 	assert(
+		Number.isInteger(bake?.selectedWorldPixelCount) &&
+			(bake?.selectedWorldPixelCount as number) > 0 &&
+			inventory.selectedWorldPixelCount === bake?.selectedWorldPixelCount,
+		'review artifact is stale: selected world-pixel count does not match candidate result'
+	);
+	assert(
 		JSON.stringify(inventory.policy) === JSON.stringify(apron.policy) &&
 			JSON.stringify(asJsonRecord(inventory.scratch)?.candidateSha256) ===
 				JSON.stringify(apron.candidateSha256) &&
@@ -1189,6 +1204,25 @@ async function assertCandidateReviewArtifactsWithoutAssembly(outputRoot: string)
 			asJsonRecord(inventory.scratch)?.weightSha256 === apron.weightSha256,
 		'review artifact is stale: organic apron hash does not match candidate result'
 	);
+	const enrichedSourceSha256 = asJsonRecord(bake?.enrichedSourceSha256);
+	assert(
+		enrichedSourceSha256 !== undefined,
+		'review artifact is stale: enriched owner provenance is missing'
+	);
+	for (const [panelId, expectedHash] of Object.entries(enrichedSourceSha256)) {
+		assert(
+			typeof expectedHash === 'string' && /^[a-f0-9]{64}$/.test(expectedHash),
+			`review artifact is stale: enriched owner hash is invalid: ${panelId}`
+		);
+		const ownerRgba = await sharp(join(outputRoot, `enriched-owner-${panelId}.png`))
+			.ensureAlpha()
+			.raw()
+			.toBuffer();
+		assert(
+			sha256(ownerRgba) === expectedHash,
+			`review artifact is stale: enriched owner evidence does not match projected panel hash: ${panelId}`
+		);
+	}
 	const rows = Array.isArray(bake?.rows) ? bake.rows : [];
 	const expectedRows = MEADOW_ENTRY_PAINTED_V2_SCENERY_BLOCKERS.map(
 		({ sourceId }) => sourceId
@@ -1373,11 +1407,14 @@ async function assembleSources(
 		data: Buffer.from(underlay.data)
 	};
 	let master = preSceneryMaster;
+	let enrichedPanels = sourcePanels;
 	if (includeScenery) {
 		assert(masks !== undefined && inserts !== undefined, 'Candidate scenery inputs are missing');
 		const baked = enrichMeadowEntryPaintedV2WorldWithOrganicApron(preSceneryMaster, inserts, masks);
 		master = baked.master;
+		enrichedPanels = baked.panels;
 		blockedSceneryBake = {
+			selectedWorldPixelCount: baked.selectedWorldPixelCount,
 			enrichedSourceSha256: baked.enrichedSourceSha256,
 			changedPixelCount: baked.changedPixelCount,
 			classChangedPixelCounts: baked.classChangedPixelCounts,
@@ -1411,7 +1448,7 @@ async function assembleSources(
 		artifacts: await reviewMasterArtifacts(master),
 		master,
 		preSceneryMaster,
-		enrichedPanels: sourcePanels,
+		enrichedPanels,
 		masks,
 		inserts,
 		blockedSceneryBake,
@@ -1498,6 +1535,7 @@ async function organicSceneryInventoryArtifact(
 		relativePath: ORGANIC_SCENERY_INVENTORY,
 		bytes: stableJson({
 			version: 1,
+			selectedWorldPixelCount: bake.selectedWorldPixelCount,
 			policy: bake.apron.policy,
 			publicMasks,
 			scratch: {
