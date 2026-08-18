@@ -603,6 +603,11 @@ runtime-crop overlap bytes were exact. Before rebuilding Task 2 evidence:
 
 1. add RED tests for the exact content-aware multiband seam contract in the design;
 2. replace only the north/south, family, and detail-pair full-overlap high-frequency crossfades;
+   split ordinary detail placement into a whole-short-dimension detail low-frequency lighting
+   transition against the pointwise current composite, with radius
+   `max(1, min(64, floor(minDimension / 8)))`, and the existing exact `128px` high-frequency outer
+   feather, so opaque detail sources cannot reveal rectangular lighting cores or diffuse an earlier
+   correction into neighboring pixels;
 3. keep panel bytes, bounds, priorities, runtime crop geometry, masks, scenery selection, and
    publication paths frozen;
 4. render the ordinary pre-scenery master first and reject the correction if any broad rectangular

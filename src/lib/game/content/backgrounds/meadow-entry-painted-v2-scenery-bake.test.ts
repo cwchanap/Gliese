@@ -1747,7 +1747,7 @@ describe('Meadow Entry painted-v2 scenery bake primitives', () => {
 		for (const key of maskKeys) expect(masks[key]).toEqual(maskBytes[key]);
 	});
 
-	it('preserves every full underlay/detail boundary through the four-owner assembly', async () => {
+	it('preserves panel boundaries before applying scenery once in world-canonical space', async () => {
 		const fixture = assemblyFixture();
 		const before = clonePanels(fixture.panels);
 		const enriched = enrichMeadowEntryPaintedV2Sources(
@@ -1757,6 +1757,19 @@ describe('Meadow Entry painted-v2 scenery bake primitives', () => {
 			syntheticTopologyBlockers(512, 512)
 		);
 		const plain = await composeAssembly(fixture, before);
+		const canonicalInput = {
+			data: Buffer.from(plain.data),
+			width: plain.width,
+			height: plain.height
+		};
+		const canonicalInputBefore = Buffer.from(canonicalInput.data);
+		const canonical = enrichMeadowEntryPaintedV2WorldWithOrganicApron(
+			canonicalInput,
+			fixture.inserts,
+			fixture.masks,
+			syntheticTopologyBlockers(512, 512)
+		);
+		expect(canonicalInput.data).toEqual(canonicalInputBefore);
 		const baked = await composeAssembly(fixture, enriched.panels);
 		const bakedUnderlay = await assembleMeadowEntryPaintedV2Underlay(
 			underlayInput(fixture, enriched.panels)
@@ -1800,8 +1813,13 @@ describe('Meadow Entry painted-v2 scenery bake primitives', () => {
 		for (let y = 0; y < 512; y += 1) {
 			for (let x = 0; x < 512; x += 1) {
 				const at = rgbaOffset(512, x, y);
-				if (plain.data.subarray(at, at + 4).equals(baked.data.subarray(at, at + 4))) continue;
-				if (fixture.masks.sceneryAllowed[offset(512, x, y)] === 1) insideSceneryDifferences += 1;
+				if (plain.data.subarray(at, at + 4).equals(canonical.master.data.subarray(at, at + 4)))
+					continue;
+				if (
+					fixture.masks.sceneryAllowed[offset(512, x, y)] === 1 ||
+					fixture.masks.groundAllowed[offset(512, x, y)] === 1
+				)
+					insideSceneryDifferences += 1;
 				else outsideSceneryDifferences += 1;
 			}
 		}

@@ -9,10 +9,12 @@ import {
 	blendMeadowEntryAxisPairPixel,
 	blendMeadowEntryOpaqueChannel,
 	blendMeadowEntryDetailChannel,
+	blendMeadowEntryContentAwareHandoff,
 	compositeMeadowEntryDetailPairCorrection,
 	compositeMeadowEntryDetailPanel,
 	compositeMeadowEntryDetailPanels,
 	meadowEntryDetailFeatherWeight,
+	meadowEntryDetailLowFrequencyLastInsetIndex,
 	meadowEntryDetailPairCorrectionLastInsetIndex,
 	type MeadowEntryUnderlayDecodedPanel,
 	type MeadowEntryUnderlayAssemblyInput
@@ -57,6 +59,43 @@ function pixel(decoded: { data: Buffer; width: number }, x: number, y: number): 
 }
 
 describe('Meadow Entry camera-safe underlay assembly', () => {
+	it('uses one deterministic minimum-cost texture seam instead of ghosting the full overlap', () => {
+		const width = 9;
+		const height = 7;
+		const first = rgbPanel(
+			'first',
+			{ left: 0, top: 0, right: width, bottom: height },
+			[20, 30, 40]
+		);
+		const second = rgbPanel(
+			'second',
+			{ left: 0, top: 0, right: width, bottom: height },
+			[220, 210, 200]
+		);
+		const expectedSeam = [3, 3, 4, 4, 5, 5, 5] as const;
+		for (const [y, x] of expectedSeam.entries()) {
+			const offset = (y * width + x) * 4;
+			second.rgba.data[offset] = first.rgba.data[offset]!;
+			second.rgba.data[offset + 1] = first.rgba.data[offset + 1]!;
+			second.rgba.data[offset + 2] = first.rgba.data[offset + 2]!;
+		}
+		const firstBefore = Buffer.from(first.rgba.data);
+		const secondBefore = Buffer.from(second.rgba.data);
+
+		const result = blendMeadowEntryContentAwareHandoff(first.rgba, second.rgba, 'x');
+
+		expect(result.seam).toEqual(expectedSeam);
+		for (let y = 0; y < height; y += 1) {
+			expect(pixel(result.rgba, 0, y), `first endpoint row ${y}`).toEqual(pixel(first.rgba, 0, y));
+			expect(pixel(result.rgba, width - 1, y), `second endpoint row ${y}`).toEqual(
+				pixel(second.rgba, width - 1, y)
+			);
+		}
+		expect(first.rgba.data).toEqual(firstBefore);
+		expect(second.rgba.data).toEqual(secondBefore);
+		expect(blendMeadowEntryContentAwareHandoff(first.rgba, second.rgba, 'x')).toEqual(result);
+	});
+
 	it('pins the decoded RGBA bytes from the four checked-in underlay panels', async () => {
 		const underlays = await Promise.all(
 			MEADOW_ENTRY_PAINTED_V2_SOURCE_PANELS.filter(({ role }) => role === 'underlay').map(
@@ -93,7 +132,7 @@ describe('Meadow Entry camera-safe underlay assembly', () => {
 			}
 		});
 		expect(createHash('sha256').update(result.data).digest('hex')).toBe(
-			'228968c373f8a3bd56ac264ca2b6d228c41d465c67581a0cee6d1073b74a705b'
+			'1ec3b09b4b17c42d35de7d571acb1bf40db183292c7fb364ac188e71423bf114'
 		);
 	});
 
@@ -151,6 +190,42 @@ describe('Meadow Entry camera-safe underlay assembly', () => {
 			255
 		]);
 		expect(detailData).toEqual(sourceBefore);
+	});
+
+	it('transitions detail lighting across the panel instead of revealing a 128px tonal rectangle', () => {
+		expect(
+			meadowEntryDetailLowFrequencyLastInsetIndex({
+				left: 2880,
+				top: 2816,
+				right: 4608,
+				bottom: 4768
+			})
+		).toBe(863);
+		const size = 511;
+		const targetData = Buffer.alloc(size * size * 4);
+		const detailData = Buffer.alloc(size * size * 4);
+		for (let offset = 0; offset < targetData.length; offset += 4) {
+			targetData[offset] = 10;
+			targetData[offset + 1] = 20;
+			targetData[offset + 2] = 30;
+			targetData[offset + 3] = 255;
+			detailData[offset] = 210;
+			detailData[offset + 1] = 220;
+			detailData[offset + 2] = 230;
+			detailData[offset + 3] = 255;
+		}
+		const target = { data: targetData, width: size, height: size };
+		const detail = {
+			id: 'wide-lighting-transition',
+			bounds: { left: 0, top: 0, right: size, bottom: size },
+			rgba: { data: detailData, width: size, height: size }
+		};
+
+		compositeMeadowEntryDetailPanel(target, detail);
+
+		expect(pixel(target, 127, 255)).toEqual([110, 120, 130, 255]);
+		expect(pixel(target, 255, 255)).toEqual([210, 220, 230, 255]);
+		expect(pixel(target, 0, 255)).toEqual([10, 20, 30, 255]);
 	});
 
 	it('feathers a later-priority detail over the already-composed current master', () => {

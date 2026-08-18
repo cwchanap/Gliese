@@ -210,6 +210,16 @@ landmark, change a gameplay mask, or add a runtime plane. Detail-pair correction
 existing outer feather after the multiband seam, so every visible detail perimeter stays equal to the
 pre-detail composite.
 
+Opaque detail panels use the same frequency separation to avoid exposing their source rectangles.
+For a detail panel, use a clamped box low-pass radius of
+`max(1, min(64, floor(min(panelWidth, panelHeight) / 8)))`. Blend that detail low-frequency lighting
+field from the pointwise current composite across the whole short dimension, with the final inset
+`floor((min(panelWidth, panelHeight) - 1) / 2)`. Blend only the high-frequency residual with the
+existing exact `128px` outer feather (`lastInsetIndex = 127`). This keeps every perimeter pixel equal
+to the pre-detail composite, preserves the source detail at the center wherever an exact center
+exists, prevents an earlier correction or scenery delta from diffusing into neighboring pixels, and
+never mutates a source panel.
+
 The existing core contribution and topology policy stay unchanged. This amendment adds only the
 bounded apron scratch field and one world-canonical composition pass, supersedes the seven donor
 images, and extends the generated visual-owner table to the ten sealed source IDs. It does not add a

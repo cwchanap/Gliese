@@ -36,6 +36,14 @@ export interface MeadowEntryUnderlayAssemblyInput {
 
 export const MEADOW_ENTRY_PAINTED_V2_DETAIL_FEATHER_WIDTH_PX = 128;
 export const MEADOW_ENTRY_PAINTED_V2_DETAIL_FEATHER_LAST_INSET_INDEX = 127;
+export const MEADOW_ENTRY_PAINTED_V2_DETAIL_LOW_FREQUENCY_MAX_RADIUS_PX = 64;
+export const MEADOW_ENTRY_PAINTED_V2_HANDOFF_MAX_HALF_WIDTH_PX = 96;
+export const MEADOW_ENTRY_PAINTED_V2_HANDOFF_SMOOTHNESS_PENALTY = 4;
+
+export interface MeadowEntryContentAwareHandoffResult {
+	readonly rgba: DecodedMeadowEntryRgba;
+	readonly seam: readonly number[];
+}
 
 function assert(condition: unknown, message: string): asserts condition {
 	if (!condition) throw new Error(message);
@@ -95,6 +103,260 @@ function writePixel(target: Buffer, width: number, x: number, y: number, pixel: 
 	target[offset + 1] = pixel[1]!;
 	target[offset + 2] = pixel[2]!;
 	target[offset + 3] = pixel[3]!;
+}
+
+function decodedPixel(decoded: DecodedMeadowEntryRgba, x: number, y: number): readonly number[] {
+	const offset = (y * decoded.width + x) * 4;
+	return [
+		decoded.data[offset]!,
+		decoded.data[offset + 1]!,
+		decoded.data[offset + 2]!,
+		decoded.data[offset + 3]!
+	];
+}
+
+function assertOpaqueDecoded(decoded: DecodedMeadowEntryRgba, label: string): void {
+	assert(
+		Number.isInteger(decoded.width) && decoded.width > 0,
+		`Meadow Entry ${label} width is invalid`
+	);
+	assert(
+		Number.isInteger(decoded.height) && decoded.height > 0,
+		`Meadow Entry ${label} height is invalid`
+	);
+	assert(
+		decoded.data.byteLength === decoded.width * decoded.height * 4,
+		`Meadow Entry ${label} RGBA dimensions are invalid`
+	);
+	for (let offset = 3; offset < decoded.data.length; offset += 4) {
+		assert(decoded.data[offset] === 255, `Meadow Entry ${label} is not opaque`);
+	}
+}
+
+function handoffPixelCoordinates(
+	axis: MeadowEntryPaintedV2BlendAxis,
+	step: number,
+	position: number
+): readonly [number, number] {
+	return axis === 'x' ? [position, step] : [step, position];
+}
+
+function handoffPixelCost(
+	first: DecodedMeadowEntryRgba,
+	second: DecodedMeadowEntryRgba,
+	axis: MeadowEntryPaintedV2BlendAxis,
+	step: number,
+	position: number
+): number {
+	const [x, y] = handoffPixelCoordinates(axis, step, position);
+	const firstOffset = (y * first.width + x) * 4;
+	const secondOffset = (y * second.width + x) * 4;
+	return (
+		Math.abs(first.data[firstOffset]! - second.data[secondOffset]!) +
+		Math.abs(first.data[firstOffset + 1]! - second.data[secondOffset + 1]!) +
+		Math.abs(first.data[firstOffset + 2]! - second.data[secondOffset + 2]!)
+	);
+}
+
+function findMeadowEntryContentAwareSeam(
+	first: DecodedMeadowEntryRgba,
+	second: DecodedMeadowEntryRgba,
+	axis: MeadowEntryPaintedV2BlendAxis,
+	halfWidth: number
+): readonly number[] {
+	const axisLength = axis === 'x' ? first.width : first.height;
+	const stepCount = axis === 'x' ? first.height : first.width;
+	const minimumPosition = halfWidth;
+	const maximumPosition = axisLength - 1 - halfWidth;
+	assert(
+		minimumPosition <= maximumPosition,
+		'Meadow Entry content-aware handoff is too narrow for its seam'
+	);
+	let previous = new Float64Array(axisLength);
+	let current = new Float64Array(axisLength);
+	previous.fill(Number.POSITIVE_INFINITY);
+	current.fill(Number.POSITIVE_INFINITY);
+	const directions = new Int8Array(axisLength * stepCount);
+	for (let step = 0; step < stepCount; step += 1) {
+		current.fill(Number.POSITIVE_INFINITY);
+		for (let position = minimumPosition; position <= maximumPosition; position += 1) {
+			const cost = handoffPixelCost(first, second, axis, step, position);
+			if (step === 0) {
+				current[position] = cost;
+				continue;
+			}
+			let best = previous[position]!;
+			let direction = 0;
+			if (
+				position > minimumPosition &&
+				previous[position - 1]! + MEADOW_ENTRY_PAINTED_V2_HANDOFF_SMOOTHNESS_PENALTY < best
+			) {
+				best = previous[position - 1]! + MEADOW_ENTRY_PAINTED_V2_HANDOFF_SMOOTHNESS_PENALTY;
+				direction = -1;
+			}
+			if (
+				position < maximumPosition &&
+				previous[position + 1]! + MEADOW_ENTRY_PAINTED_V2_HANDOFF_SMOOTHNESS_PENALTY < best
+			) {
+				best = previous[position + 1]! + MEADOW_ENTRY_PAINTED_V2_HANDOFF_SMOOTHNESS_PENALTY;
+				direction = 1;
+			}
+			current[position] = cost + best;
+			directions[step * axisLength + position] = direction;
+		}
+		[previous, current] = [current, previous];
+	}
+	let position = minimumPosition;
+	for (let candidate = minimumPosition + 1; candidate <= maximumPosition; candidate += 1) {
+		if (previous[candidate]! < previous[position]!) position = candidate;
+	}
+	const seam = new Array<number>(stepCount);
+	for (let step = stepCount - 1; step >= 0; step -= 1) {
+		seam[step] = position;
+		position += directions[step * axisLength + position]!;
+	}
+	return Object.freeze(seam);
+}
+
+function channelIntegral(decoded: DecodedMeadowEntryRgba, channel: number): Float64Array {
+	const stride = decoded.width + 1;
+	const integral = new Float64Array(stride * (decoded.height + 1));
+	for (let y = 0; y < decoded.height; y += 1) {
+		let rowSum = 0;
+		for (let x = 0; x < decoded.width; x += 1) {
+			rowSum += decoded.data[(y * decoded.width + x) * 4 + channel]!;
+			integral[(y + 1) * stride + x + 1] = integral[y * stride + x + 1]! + rowSum;
+		}
+	}
+	return integral;
+}
+
+function boxAverageChannel(
+	integral: Float64Array,
+	width: number,
+	height: number,
+	x: number,
+	y: number,
+	radius: number
+): number {
+	const left = Math.max(0, x - radius);
+	const top = Math.max(0, y - radius);
+	const right = Math.min(width, x + radius + 1);
+	const bottom = Math.min(height, y + radius + 1);
+	const stride = width + 1;
+	const sum =
+		integral[bottom * stride + right]! -
+		integral[top * stride + right]! -
+		integral[bottom * stride + left]! +
+		integral[top * stride + left]!;
+	return Math.floor(
+		(sum + Math.floor(((right - left) * (bottom - top)) / 2)) / ((right - left) * (bottom - top))
+	);
+}
+
+function blendSignedChannel(
+	first: number,
+	second: number,
+	index: number,
+	lastIndex: number
+): number {
+	const numerator = first * (lastIndex - index) + second * index;
+	const magnitude = Math.floor((Math.abs(numerator) + Math.floor(lastIndex / 2)) / lastIndex);
+	return numerator < 0 ? -magnitude : magnitude;
+}
+
+export function blendMeadowEntryContentAwareHandoff(
+	first: DecodedMeadowEntryRgba,
+	second: DecodedMeadowEntryRgba,
+	axis: MeadowEntryPaintedV2BlendAxis
+): MeadowEntryContentAwareHandoffResult {
+	assertOpaqueDecoded(first, 'content-aware first handoff');
+	assertOpaqueDecoded(second, 'content-aware second handoff');
+	assert(
+		first.width === second.width && first.height === second.height,
+		'Meadow Entry content-aware handoff dimensions do not match'
+	);
+	assert(
+		axis === 'x' || axis === 'y',
+		`Meadow Entry content-aware handoff axis is invalid: ${axis}`
+	);
+	const axisLength = axis === 'x' ? first.width : first.height;
+	const stepCount = axis === 'x' ? first.height : first.width;
+	if (axisLength < 8) {
+		const output = Buffer.alloc(first.data.byteLength);
+		const bounds = { left: 0, top: 0, right: first.width, bottom: first.height };
+		for (let y = 0; y < first.height; y += 1) {
+			for (let x = 0; x < first.width; x += 1) {
+				writePixel(
+					output,
+					first.width,
+					x,
+					y,
+					blendMeadowEntryAxisPairPixel(
+						decodedPixel(first, x, y),
+						decodedPixel(second, x, y),
+						bounds,
+						axis,
+						x,
+						y
+					)
+				);
+			}
+		}
+		return {
+			rgba: { data: output, width: first.width, height: first.height },
+			seam: Object.freeze(new Array<number>(stepCount).fill(Math.floor((axisLength - 1) / 2)))
+		};
+	}
+	const halfWidth = Math.min(
+		MEADOW_ENTRY_PAINTED_V2_HANDOFF_MAX_HALF_WIDTH_PX,
+		Math.floor(axisLength / 8)
+	);
+	assert(halfWidth >= 1, 'Meadow Entry content-aware handoff axis is too short');
+	const seam = findMeadowEntryContentAwareSeam(first, second, axis, halfWidth);
+	const output = Buffer.alloc(first.data.byteLength);
+	const narrowLastIndex = halfWidth * 2 - 1;
+	for (let channel = 0; channel < 3; channel += 1) {
+		const firstIntegral = channelIntegral(first, channel);
+		const secondIntegral = channelIntegral(second, channel);
+		for (let y = 0; y < first.height; y += 1) {
+			for (let x = 0; x < first.width; x += 1) {
+				const position = axis === 'x' ? x : y;
+				const step = axis === 'x' ? y : x;
+				const firstLow = boxAverageChannel(
+					firstIntegral,
+					first.width,
+					first.height,
+					x,
+					y,
+					halfWidth
+				);
+				const secondLow = boxAverageChannel(
+					secondIntegral,
+					second.width,
+					second.height,
+					x,
+					y,
+					halfWidth
+				);
+				const low = blendMeadowEntryOpaqueChannel(firstLow, secondLow, position, axisLength - 1);
+				const narrowIndex = Math.max(
+					0,
+					Math.min(narrowLastIndex, position - (seam[step]! - halfWidth))
+				);
+				const offset = (y * first.width + x) * 4;
+				const residual = blendSignedChannel(
+					first.data[offset + channel]! - firstLow,
+					second.data[offset + channel]! - secondLow,
+					narrowIndex,
+					narrowLastIndex
+				);
+				output[offset + channel] = Math.max(0, Math.min(255, low + residual));
+			}
+		}
+	}
+	for (let offset = 3; offset < output.length; offset += 4) output[offset] = 255;
+	return { rgba: { data: output, width: first.width, height: first.height }, seam };
 }
 
 function copyPanel(
@@ -191,6 +453,19 @@ export function meadowEntryDetailPairCorrectionLastInsetIndex(bounds: PixelBound
 	);
 }
 
+export function meadowEntryDetailLowFrequencyLastInsetIndex(bounds: PixelBounds): number {
+	assert(
+		Number.isInteger(bounds.left) &&
+			Number.isInteger(bounds.top) &&
+			Number.isInteger(bounds.right) &&
+			Number.isInteger(bounds.bottom) &&
+			bounds.right > bounds.left &&
+			bounds.bottom > bounds.top,
+		'Meadow Entry detail low-frequency bounds are invalid'
+	);
+	return Math.floor((Math.min(boundsWidth(bounds), boundsHeight(bounds)) - 1) / 2);
+}
+
 export function blendMeadowEntryDetailChannel(
 	current: number,
 	detail: number,
@@ -235,26 +510,61 @@ export function compositeMeadowEntryDetailPanel(
 	for (let offset = 3; offset < panel.rgba.data.length; offset += 4) {
 		assert(panel.rgba.data[offset] === 255, `Meadow Entry detail panel ${panel.id} is not opaque`);
 	}
-	for (let y = panel.bounds.top; y < panel.bounds.bottom; y += 1) {
-		for (let x = panel.bounds.left; x < panel.bounds.right; x += 1) {
-			const localX = x - panel.bounds.left;
-			const localY = y - panel.bounds.top;
-			const edgeDistance = Math.min(
-				localX,
-				panelWidth - 1 - localX,
-				localY,
-				panelHeight - 1 - localY
-			);
-			const weight = meadowEntryDetailFeatherWeight(edgeDistance, lastInsetIndex);
-			const targetOffset = (y * target.width + x) * 4;
-			const detailPixel = panelPixel(panel, x, y);
-			writePixel(target.data, target.width, x, y, [
-				blendMeadowEntryDetailChannel(target.data[targetOffset]!, detailPixel[0]!, weight),
-				blendMeadowEntryDetailChannel(target.data[targetOffset + 1]!, detailPixel[1]!, weight),
-				blendMeadowEntryDetailChannel(target.data[targetOffset + 2]!, detailPixel[2]!, weight),
-				255
-			]);
+	const current = materializeBounds(panel.bounds, (x, y) => decodedPixel(target, x, y));
+	const lowFrequencyLastInsetIndex =
+		lastInsetIndex === MEADOW_ENTRY_PAINTED_V2_DETAIL_FEATHER_LAST_INSET_INDEX
+			? meadowEntryDetailLowFrequencyLastInsetIndex(panel.bounds)
+			: lastInsetIndex;
+	const lowFrequencyRadius = Math.max(
+		1,
+		Math.min(
+			MEADOW_ENTRY_PAINTED_V2_DETAIL_LOW_FREQUENCY_MAX_RADIUS_PX,
+			Math.floor(Math.min(panelWidth, panelHeight) / 8)
+		)
+	);
+	const output = Buffer.alloc(panel.rgba.data.byteLength);
+	for (let channel = 0; channel < 3; channel += 1) {
+		const detailIntegral = channelIntegral(panel.rgba, channel);
+		for (let localY = 0; localY < panelHeight; localY += 1) {
+			for (let localX = 0; localX < panelWidth; localX += 1) {
+				const edgeDistance = Math.min(
+					localX,
+					panelWidth - 1 - localX,
+					localY,
+					panelHeight - 1 - localY
+				);
+				const offset = (localY * panelWidth + localX) * 4;
+				if (edgeDistance === 0) {
+					output[offset + channel] = current.data[offset + channel]!;
+					continue;
+				}
+				const lowWeight = meadowEntryDetailFeatherWeight(edgeDistance, lowFrequencyLastInsetIndex);
+				const highWeight = meadowEntryDetailFeatherWeight(edgeDistance, lastInsetIndex);
+				const currentLow = current.data[offset + channel]!;
+				const detailLow = boxAverageChannel(
+					detailIntegral,
+					panelWidth,
+					panelHeight,
+					localX,
+					localY,
+					lowFrequencyRadius
+				);
+				const low = blendMeadowEntryDetailChannel(currentLow, detailLow, lowWeight);
+				const residual = blendSignedChannel(
+					current.data[offset + channel]! - currentLow,
+					panel.rgba.data[offset + channel]! - detailLow,
+					highWeight,
+					255
+				);
+				output[offset + channel] = Math.max(0, Math.min(255, low + residual));
+			}
 		}
+	}
+	for (let offset = 3; offset < output.length; offset += 4) output[offset] = 255;
+	for (let localY = 0; localY < panelHeight; localY += 1) {
+		const sourceStart = localY * panelWidth * 4;
+		const targetStart = ((panel.bounds.top + localY) * target.width + panel.bounds.left) * 4;
+		output.copy(target.data, targetStart, sourceStart, sourceStart + panelWidth * 4);
 	}
 }
 
@@ -266,6 +576,21 @@ function intersectBounds(first: PixelBounds, second: PixelBounds): PixelBounds |
 		bottom: Math.min(first.bottom, second.bottom)
 	};
 	return result.left < result.right && result.top < result.bottom ? result : null;
+}
+
+function materializeBounds(
+	bounds: PixelBounds,
+	pixelAt: (x: number, y: number) => readonly number[]
+): DecodedMeadowEntryRgba {
+	const width = boundsWidth(bounds);
+	const height = boundsHeight(bounds);
+	const data = Buffer.alloc(width * height * 4);
+	for (let y = bounds.top; y < bounds.bottom; y += 1) {
+		for (let x = bounds.left; x < bounds.right; x += 1) {
+			writePixel(data, width, x - bounds.left, y - bounds.top, pixelAt(x, y));
+		}
+	}
+	return { data, width, height };
 }
 
 function assertDecodedPanel(panel: MeadowEntryUnderlayDecodedPanel, label: string): void {
@@ -331,19 +656,15 @@ export function compositeMeadowEntryDetailPairCorrection(
 		correctionLastInsetIndex >= 1,
 		'Meadow Entry detail pair correction intersection is too narrow'
 	);
+	const handoff = blendMeadowEntryContentAwareHandoff(
+		materializeBounds(pair.bounds, (x, y) => panelPixel(first, x, y)),
+		materializeBounds(pair.bounds, (x, y) => panelPixel(second, x, y)),
+		pair.axis
+	).rgba;
 	for (let y = pair.bounds.top; y < pair.bounds.bottom; y += 1) {
 		for (let x = pair.bounds.left; x < pair.bounds.right; x += 1) {
 			const targetOffset = (y * target.width + x) * 4;
-			const firstPixel = panelPixel(first, x, y);
-			const secondPixel = panelPixel(second, x, y);
-			const pairPixel = blendMeadowEntryAxisPairPixel(
-				firstPixel,
-				secondPixel,
-				pair.bounds,
-				pair.axis,
-				x,
-				y
-			);
+			const pairPixel = decodedPixel(handoff, x - pair.bounds.left, y - pair.bounds.top);
 			const edgeDistance = Math.min(
 				x - pair.bounds.left,
 				pair.bounds.right - 1 - x,
@@ -441,16 +762,14 @@ function blendNorthSouth(
 	const overlapWidth = boundsWidth(pair.bounds);
 	const overlapHeight = boundsHeight(pair.bounds);
 	assert(overlapWidth > 0 && overlapHeight > 1, 'Meadow Entry north/south overlap is invalid');
+	const handoff = blendMeadowEntryContentAwareHandoff(
+		materializeBounds(pair.bounds, (x, y) => panelPixel(north, x, y)),
+		materializeBounds(pair.bounds, (x, y) => panelPixel(south, x, y)),
+		'y'
+	).rgba;
 	for (let y = pair.bounds.top; y < pair.bounds.bottom; y += 1) {
 		for (let x = pair.bounds.left; x < pair.bounds.right; x += 1) {
-			const pixel = blendMeadowEntryAxisPairPixel(
-				panelPixel(north, x, y),
-				panelPixel(south, x, y),
-				pair.bounds,
-				'y',
-				x,
-				y
-			);
+			const pixel = decodedPixel(handoff, x - pair.bounds.left, y - pair.bounds.top);
 			writePixel(output, input.width, x, y, pixel);
 		}
 	}
@@ -490,21 +809,20 @@ function blendFamilies(input: MeadowEntryUnderlayAssemblyInput, output: Buffer):
 	const overlapWidth = boundsWidth(bounds);
 	const overlapHeight = boundsHeight(bounds);
 	assert(overlapWidth > 1 && overlapHeight > 0, 'Meadow Entry family handoff bounds are invalid');
+	const sundrop = materializeBounds(bounds, (x, y) => {
+		const pixel = familyPixel(input, input.familyHandoff.sundropPanelIds, x, y);
+		assert(pixel !== null, 'Meadow Entry Sundrop family handoff is uncovered');
+		return pixel;
+	});
+	const crossroads = materializeBounds(bounds, (x, y) => {
+		const pixel = familyPixel(input, input.familyHandoff.crossroadsPanelIds, x, y);
+		assert(pixel !== null, 'Meadow Entry Crossroads family handoff is uncovered');
+		return pixel;
+	});
+	const handoff = blendMeadowEntryContentAwareHandoff(sundrop, crossroads, 'x').rgba;
 	for (let y = bounds.top; y < bounds.bottom; y += 1) {
 		for (let x = bounds.left; x < bounds.right; x += 1) {
-			const sundropPixel = familyPixel(input, input.familyHandoff.sundropPanelIds, x, y);
-			const crossroadsPixel = familyPixel(input, input.familyHandoff.crossroadsPanelIds, x, y);
-			assert(
-				sundropPixel !== null && crossroadsPixel !== null,
-				'Meadow Entry family handoff is uncovered'
-			);
-			writePixel(
-				output,
-				input.width,
-				x,
-				y,
-				blendMeadowEntryAxisPairPixel(sundropPixel, crossroadsPixel, bounds, 'x', x, y)
-			);
+			writePixel(output, input.width, x, y, decodedPixel(handoff, x - bounds.left, y - bounds.top));
 		}
 	}
 }
