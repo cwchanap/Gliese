@@ -356,7 +356,7 @@ Use these art-only reference pairs:
 camera-underlay-sundrop-south-blocked-hedge:
   camera-underlay-sundrop-south.png + sundrop-south.png
 camera-underlay-crossroads-north-blocked-hedge:
-  camera-underlay-crossroads-north.png + crossroads.png
+  camera-underlay-crossroads-north.png + camera-underlay-crossroads-south.png
 camera-underlay-crossroads-south-blocked-hedge:
   camera-underlay-crossroads-south.png + crossroads.png
 camera-underlay-crossroads-north-blocked-woodland:
@@ -395,6 +395,24 @@ deep canopy shadow; no horizontal or vertical band.
 
 Record exact prompt, prompt SHA, reference paths/hashes, model result ID, native dimensions, and
 attempt number before normalization.
+
+#### Approved retry-family amendment — 2026-08-18T01:30:58Z
+
+The user approved one new attempt family only for
+`camera-underlay-crossroads-north-blocked-hedge` after its original five attempts were rejected.
+Preserve those five attempt records and findings. The amended family uses the path-free Crossroads
+South underlay reference shown above and appends this exact suffix to the otherwise unchanged shared
+prompt and Hedge instruction:
+
+```text
+Wide landscape donor canvas, at least 1600 pixels wide. No path, road, track, stone corridor, or
+crossing anywhere in the image.
+```
+
+This amended family receives at most five fresh attempts. The scale limit, native-detail visual
+gates, masks, geometry, apron constants, compositor policy, and all other insert recipes remain
+unchanged. If the amended family passes, continue the remaining five inserts under their original
+sealed recipes. If it exhausts five failures, stop again at `BLOCKED` without publication.
 
 - [ ] **Step 2: Generate and inspect seven fresh attempt-1 raws**
 
