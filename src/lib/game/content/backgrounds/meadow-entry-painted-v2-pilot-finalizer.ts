@@ -3,12 +3,14 @@ import { createHash } from 'node:crypto';
 import type { MeadowEntryGenerationProvenance } from './meadow-entry-master-provenance';
 import {
 	validateMeadowEntryGenerationProvenance,
+	validateMeadowEntryPaintedV2OrganicApronProvenance,
 	validateMeadowEntryPaintedV2SceneryInsertGenerationProvenance
 } from './meadow-entry-master-provenance';
 import {
 	decodeMeadowEntryRgba,
 	encodeCanonicalMeadowEntryPng,
-	validateCanonicalPngChunks
+	validateCanonicalPngChunks,
+	type DecodedMeadowEntryRgba
 } from './meadow-entry-png';
 import {
 	MEADOW_ENTRY_PAINTED_V2_PILOT_CROPS,
@@ -26,9 +28,11 @@ import {
 	type MeadowEntryPaintedV2SceneryInsert
 } from './meadow-entry-painted-v2-scenery';
 import {
-	enrichMeadowEntryPaintedV2Sources,
+	enrichMeadowEntryPaintedV2WorldWithOrganicApron,
+	meadowEntrySceneryOutwardDistances,
+	MEADOW_ENTRY_PAINTED_V2_ORGANIC_APRON_POLICY,
 	type DecodedMeadowEntryPaintedV2SceneryInsert,
-	type MeadowEntryPaintedV2SceneryBakeResult,
+	type MeadowEntryPaintedV2OrganicWorldSceneryBakeResult,
 	type MeadowEntryPaintedV2SceneryMaskSet
 } from './meadow-entry-painted-v2-scenery-bake';
 import { MEADOW_ENTRY_MASTER_POLICY } from './meadow-entry-master-finalizer';
@@ -40,6 +44,8 @@ import {
 } from './meadow-entry-painted-v2-underlay-assembly';
 
 const SHA256 = /^[a-f0-9]{64}$/;
+export const MEADOW_ENTRY_PAINTED_V2_APPROVED_ORGANIC_CANDIDATE_MASTER_SHA256 =
+	'05dc5d3db4e26b69b1e5de79b5b8cb526eeb9709db67cce443522f1b1e3975da';
 
 interface MeadowEntryPaintedV2PilotPanelSpec {
 	readonly id: string;
@@ -283,6 +289,21 @@ function assertSceneryMasks(
 	blockedScenery: MeadowEntryPaintedV2BlockedSceneryAssemblyInput;
 } {
 	const masks = input.blockedScenery.masks;
+	const publicMaskKeys = Object.keys(masks).sort();
+	const expectedPublicMaskKeys = [
+		'groundAllowed',
+		'hedgeAllowed',
+		'height',
+		'otherProtected',
+		'sceneryAllowed',
+		'sourceHashes',
+		'width',
+		'woodlandAllowed'
+	];
+	assert(
+		JSON.stringify(publicMaskKeys) === JSON.stringify(expectedPublicMaskKeys),
+		`Meadow Entry public scenery mask set differs: expected=${expectedPublicMaskKeys.join(',')} actual=${publicMaskKeys.join(',')}`
+	);
 	assert(
 		masks.width === MEADOW_ENTRY_MASTER_POLICY.width &&
 			masks.height === MEADOW_ENTRY_MASTER_POLICY.height,
@@ -436,41 +457,53 @@ async function decodeSceneryInserts(
 }
 
 function assertSceneryEnrichmentBounds(
-	before: readonly DecodedPanel[],
-	after: MeadowEntryPaintedV2SceneryBakeResult['panels'],
+	before: DecodedMeadowEntryRgba,
+	after: DecodedMeadowEntryRgba,
 	masks: MeadowEntryPaintedV2SceneryMaskSet
 ): void {
-	const beforeById = new Map(before.map((panel) => [panel.spec.id, panel]));
-	for (const panel of after) {
-		const original = beforeById.get(panel.id);
-		if (original === undefined) continue;
-		assert(
-			original.bytes.length === panel.rgba.data.length,
-			`Meadow Entry enriched panel dimensions drifted: ${panel.id}`
+	assert(
+		before.width === after.width && before.height === after.height,
+		'Meadow Entry organic scenery master dimensions drifted'
+	);
+	assert(
+		before.data.byteLength === after.data.byteLength,
+		'Meadow Entry organic scenery master byte length drifted'
+	);
+	const apronAllowed = new Uint8Array(masks.width * masks.height);
+	for (const classMask of [masks.hedgeAllowed, masks.woodlandAllowed]) {
+		const outward = meadowEntrySceneryOutwardDistances(
+			classMask,
+			masks.width,
+			masks.height,
+			MEADOW_ENTRY_PAINTED_V2_ORGANIC_APRON_POLICY.maximumDistance
 		);
-		for (let localY = 0; localY < panel.rgba.height; localY += 1) {
-			for (let localX = 0; localX < panel.rgba.width; localX += 1) {
-				const offset = (localY * panel.rgba.width + localX) * 4;
-				let changed = false;
-				for (let channel = 0; channel < 3; channel += 1) {
-					if (original.bytes[offset + channel] !== panel.rgba.data[offset + channel]) {
-						changed = true;
-					}
-				}
-				assert(
-					panel.rgba.data[offset + 3] === original.bytes[offset + 3],
-					`Meadow Entry enrichment changed alpha for ${panel.id}`
-				);
-				if (!changed) continue;
-				const worldX = panel.bounds.left + localX;
-				const worldY = panel.bounds.top + localY;
-				const maskOffset = worldY * masks.width + worldX;
-				assert(
-					masks.sceneryAllowed[maskOffset] === 1 && masks.otherProtected[maskOffset] === 0,
-					`Meadow Entry enrichment changed a protected/non-scenery pixel at ${worldX},${worldY}`
-				);
-			}
+		for (let index = 0; index < outward.length; index += 1) {
+			const distance = outward[index]!;
+			if (
+				distance > 0 &&
+				distance <= MEADOW_ENTRY_PAINTED_V2_ORGANIC_APRON_POLICY.maximumDistance &&
+				masks.groundAllowed[index] === 1 &&
+				masks.otherProtected[index] === 0
+			)
+				apronAllowed[index] = 1;
 		}
+	}
+	for (let index = 0; index < masks.width * masks.height; index += 1) {
+		const offset = index * 4;
+		assert(
+			after.data[offset + 3] === before.data[offset + 3],
+			`Meadow Entry organic scenery changed alpha at pixel ${index}`
+		);
+		let changed = false;
+		for (let channel = 0; channel < 3; channel += 1) {
+			if (after.data[offset + channel] !== before.data[offset + channel]) changed = true;
+		}
+		if (!changed) continue;
+		assert(
+			masks.otherProtected[index] === 0 &&
+				(masks.sceneryAllowed[index] === 1 || apronAllowed[index] === 1),
+			`Meadow Entry organic scenery changed a protected/non-scenery pixel at ${index}`
+		);
 	}
 }
 
@@ -631,8 +664,14 @@ function sceneryMaskProvenance(masks: MeadowEntryPaintedV2SceneryMaskSet) {
 function sceneryBakeProvenance(
 	input: MeadowEntryPaintedV2PilotAssemblyInput,
 	masks: MeadowEntryPaintedV2SceneryMaskSet,
-	baked: MeadowEntryPaintedV2SceneryBakeResult
+	baked: MeadowEntryPaintedV2OrganicWorldSceneryBakeResult
 ) {
+	validateMeadowEntryPaintedV2OrganicApronProvenance(
+		baked.apron,
+		MEADOW_ENTRY_PAINTED_V2_ORGANIC_APRON_POLICY
+	);
+	assert(baked.apron.changedPixelCount > 0, 'Meadow Entry organic apron changed no pixels');
+	const { worldSelection, toneReference, composition, ...coreFormulas } = baked.formulas;
 	return {
 		version: 1,
 		sourceCatalogSha256: input.controlFingerprint,
@@ -653,7 +692,8 @@ function sceneryBakeProvenance(
 			)
 		},
 		helperIds: [
-			'enrichMeadowEntryPaintedV2Sources',
+			'enrichMeadowEntryPaintedV2WorldWithOrganicApron',
+			'meadowEntrySceneryOutwardDistances',
 			'meadowEntryNearestRank',
 			'meadowEntryDetailFeatherWeight',
 			'blendMeadowEntryDetailChannel'
@@ -665,9 +705,14 @@ function sceneryBakeProvenance(
 		rows: baked.rows,
 		topologyRequests: baked.topologyRequests,
 		topologyRequestSha256: baked.topologyRequestSha256,
-		formulas: baked.formulas,
+		formulas: {
+			core: coreFormulas,
+			world: { worldSelection, toneReference, composition }
+		},
 		changedPixelCount: baked.changedPixelCount,
 		classChangedPixelCounts: baked.classChangedPixelCounts,
+		selectedWorldPixelCount: baked.selectedWorldPixelCount,
+		apron: baked.apron,
 		enrichedSourceSha256: baked.enrichedSourceSha256,
 		enrichedOwnerDecodedRgbaSha256: baked.enrichedSourceSha256
 	};
@@ -677,7 +722,7 @@ function assemblyProvenance(
 	input: MeadowEntryPaintedV2PilotAssemblyInput,
 	panels: readonly DecodedPanel[],
 	inserts: readonly DecodedInsert[],
-	baked: MeadowEntryPaintedV2SceneryBakeResult,
+	baked: MeadowEntryPaintedV2OrganicWorldSceneryBakeResult,
 	masterPng: Buffer,
 	metrics: { transparentPixels: number; opaquePixels: number }
 ): Buffer {
@@ -783,14 +828,23 @@ export async function assembleMeadowEntryPaintedV2Pilot(
 	validateSceneryProvenance(input);
 	const panels = await decodePanels(input, specs);
 	const inserts = await decodeSceneryInserts(input);
-	const beforeEnrichment = panels.map((panel) => ({ ...panel, bytes: Buffer.from(panel.bytes) }));
-	const enriched = enrichMeadowEntryPaintedV2Sources(
-		panels.map((panel) => ({
+	const underlay = await assembleMeadowEntryPaintedV2Underlay(underlayInput(panels));
+	const detailPanels = panels
+		.filter((value) => value.spec.role === 'detail')
+		.map((panel) => ({
 			id: panel.spec.id,
 			bounds: panel.spec.bounds,
 			rgba: { data: panel.bytes, width: panel.width, height: panel.height },
 			assemblyPriority: panel.spec.assemblyPriority
-		})),
+		}));
+	compositeMeadowEntryDetailPanels(underlay, detailPanels, MEADOW_ENTRY_PAINTED_V2_DETAIL_PAIRS);
+	const preSceneryMaster: DecodedMeadowEntryRgba = {
+		width: underlay.width,
+		height: underlay.height,
+		data: Buffer.from(underlay.data)
+	};
+	const enriched = enrichMeadowEntryPaintedV2WorldWithOrganicApron(
+		preSceneryMaster,
 		inserts.map(({ spec, rgba }) => ({
 			id: spec.id,
 			sceneryClass: spec.sceneryClass,
@@ -800,28 +854,8 @@ export async function assembleMeadowEntryPaintedV2Pilot(
 		})),
 		input.blockedScenery.masks
 	);
-	assertSceneryEnrichmentBounds(beforeEnrichment, enriched.panels, input.blockedScenery.masks);
-	const enrichedById = new Map(enriched.panels.map((panel) => [panel.id, panel]));
-	const enrichedDecodedPanels = panels.map((panel) => {
-		const enrichedPanel = enrichedById.get(panel.spec.id)!;
-		return {
-			...panel,
-			bytes: enrichedPanel.rgba.data,
-			width: enrichedPanel.rgba.width,
-			height: enrichedPanel.rgba.height
-		};
-	});
-	const underlay = await assembleMeadowEntryPaintedV2Underlay(underlayInput(enrichedDecodedPanels));
-	const detailPanels = enrichedDecodedPanels
-		.filter((value) => value.spec.role === 'detail')
-		.map((panel) => ({
-			id: panel.spec.id,
-			bounds: panel.spec.bounds,
-			rgba: { data: panel.bytes, width: panel.width, height: panel.height },
-			assemblyPriority: panel.spec.assemblyPriority
-		}));
-	compositeMeadowEntryDetailPanels(underlay, detailPanels, MEADOW_ENTRY_PAINTED_V2_DETAIL_PAIRS);
-	const master = underlay.data;
+	assertSceneryEnrichmentBounds(preSceneryMaster, enriched.master, input.blockedScenery.masks);
+	const master = enriched.master.data;
 	assertRuntimeCropOpacity(master);
 	assertOutsidePilotTransparent(master);
 	const metrics = alphaMetrics(master);
@@ -833,6 +867,10 @@ export async function assembleMeadowEntryPaintedV2Pilot(
 		master,
 		MEADOW_ENTRY_MASTER_POLICY.width,
 		MEADOW_ENTRY_MASTER_POLICY.height
+	);
+	assert(
+		sha256(masterPng) === MEADOW_ENTRY_PAINTED_V2_APPROVED_ORGANIC_CANDIDATE_MASTER_SHA256,
+		'Meadow Entry production master does not match the approved organic candidate'
 	);
 	validateCanonicalPngChunks(masterPng);
 	return {

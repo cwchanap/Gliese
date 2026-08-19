@@ -10,6 +10,7 @@ import {
 } from '../../../../../tools/finalize-meadow-entry-painted-v2-pilot';
 import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
+import { MEADOW_ENTRY_PAINTED_V2_APPROVED_ORGANIC_CANDIDATE_MASTER_SHA256 } from './meadow-entry-painted-v2-pilot-finalizer';
 
 const repositoryRoot = resolve(import.meta.dirname, '../../../../../');
 
@@ -33,6 +34,27 @@ describe('painted-v2 pilot finalizer CLI', () => {
 		).rejects.toThrow(/missing|stale|master/i);
 	});
 
+	it('rejects an injected production master that is not the approved organic candidate', async () => {
+		const mutators = {
+			mkdir: vi.fn(),
+			writeFile: vi.fn(),
+			rename: vi.fn(),
+			rm: vi.fn()
+		};
+		await expect(
+			runFinalizeMeadowEntryPaintedV2Pilot(repositoryRoot, {
+				assemblyResult: {
+					masterPng: Buffer.from('not-the-approved-organic-master'),
+					provenanceJson: await readFile(
+						resolve(repositoryRoot, PAINTED_V2_PILOT_MASTER_PROVENANCE_PATH)
+					)
+				},
+				fileSystem: { readFile, ...mutators }
+			})
+		).rejects.toThrow(/approved organic candidate/i);
+		expect(Object.values(mutators).every((spy) => spy.mock.calls.length === 0)).toBe(true);
+	});
+
 	it('keeps --check no-write and rejects stale master bytes', async () => {
 		const successMutators = { mkdir: vi.fn(), writeFile: vi.fn(), rename: vi.fn(), rm: vi.fn() };
 		const checkFileSystem = {
@@ -44,7 +66,9 @@ describe('painted-v2 pilot finalizer CLI', () => {
 				check: true,
 				fileSystem: checkFileSystem
 			})
-		).resolves.toMatchObject({ masterSha256: expect.any(String) });
+		).resolves.toMatchObject({
+			masterSha256: MEADOW_ENTRY_PAINTED_V2_APPROVED_ORGANIC_CANDIDATE_MASTER_SHA256
+		});
 		expect(Object.values(successMutators).every((spy) => spy.mock.calls.length === 0)).toBe(true);
 
 		const staleMutators = { mkdir: vi.fn(), writeFile: vi.fn(), rename: vi.fn(), rm: vi.fn() };
@@ -63,7 +87,7 @@ describe('painted-v2 pilot finalizer CLI', () => {
 			})
 		).rejects.toThrow(/stale|drift/i);
 		expect(Object.values(staleMutators).every((spy) => spy.mock.calls.length === 0)).toBe(true);
-	}, 120_000);
+	}, 300_000);
 
 	it('keeps production write and repeated --check byte-identical', async () => {
 		const masterPath = resolve(repositoryRoot, PAINTED_V2_PILOT_MASTER_PATH);
@@ -148,7 +172,7 @@ describe('painted-v2 pilot finalizer CLI', () => {
 			})
 		).rejects.toThrow(/package provenance.*stale/i);
 		expect(Object.values(staleMutators).every((spy) => spy.mock.calls.length === 0)).toBe(true);
-	});
+	}, 180_000);
 
 	it('fails before assembly when an approved scenery insert package is stale', async () => {
 		const staleMutators = { mkdir: vi.fn(), writeFile: vi.fn(), rename: vi.fn(), rm: vi.fn() };

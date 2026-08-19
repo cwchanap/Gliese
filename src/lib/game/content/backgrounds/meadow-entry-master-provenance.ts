@@ -24,6 +24,14 @@ export interface MeadowEntryPaintedV2SceneryInsertGenerationExpectation {
 	readonly bounds: PixelBounds;
 }
 
+export interface MeadowEntryPaintedV2OrganicApronPolicy {
+	readonly maximumDistance: number;
+	readonly nearRampDistance: number;
+	readonly maximumWeight: number;
+	readonly maximumChannelResidual: number;
+	readonly maximumLumaShift: number;
+}
+
 export interface MeadowEntryNormalizationTransform {
 	native: { width: number; height: number };
 	crop: { left: number; top: number; width: number; height: number };
@@ -90,6 +98,65 @@ function assertPositiveInteger(value: unknown, label: string): asserts value is 
 	if (typeof value !== 'number' || !Number.isInteger(value) || value <= 0) {
 		throw new Error(`Meadow Entry scenery insert provenance ${label} must be a positive integer`);
 	}
+}
+
+function assertNonNegativeInteger(value: unknown, label: string): asserts value is number {
+	if (typeof value !== 'number' || !Number.isInteger(value) || value < 0) {
+		throw new Error(
+			`Meadow Entry organic apron provenance ${label} must be a non-negative integer`
+		);
+	}
+}
+
+function assertOrganicApronClassHashes(value: unknown, label: string): void {
+	if (!isPlainObject(value)) {
+		throw new Error(`Meadow Entry organic apron provenance ${label} must be an object`);
+	}
+	const keys = Object.keys(value).sort();
+	if (JSON.stringify(keys) !== JSON.stringify(['hedge', 'woodland'])) {
+		throw new Error(`Meadow Entry organic apron provenance ${label} classes are not sealed`);
+	}
+	assertSha256(value.hedge as string, `${label} hedge`);
+	assertSha256(value.woodland as string, `${label} woodland`);
+}
+
+export function validateMeadowEntryPaintedV2OrganicApronProvenance(
+	value: unknown,
+	expectedPolicy: MeadowEntryPaintedV2OrganicApronPolicy
+): void {
+	if (!isPlainObject(value)) {
+		throw new Error('Meadow Entry organic apron provenance must be an object');
+	}
+	if (!isPlainObject(value.policy)) {
+		throw new Error('Meadow Entry organic apron provenance policy must be an object');
+	}
+	const actualPolicy = value.policy as Record<string, unknown>;
+	const policyKeys = Object.keys(expectedPolicy).sort();
+	if (
+		JSON.stringify(Object.keys(actualPolicy).sort()) !== JSON.stringify(policyKeys) ||
+		policyKeys.some(
+			(key) => actualPolicy[key] !== expectedPolicy[key as keyof typeof expectedPolicy]
+		)
+	) {
+		throw new Error('Meadow Entry organic apron provenance policy drifted');
+	}
+	assertOrganicApronClassHashes(value.candidateSha256, 'candidate hashes');
+	assertOrganicApronClassHashes(value.allowedSha256, 'allowed hashes');
+	assertOrganicApronClassHashes(value.distanceSha256, 'distance hashes');
+	if (typeof value.weightSha256 !== 'string') {
+		throw new Error('Meadow Entry organic apron provenance weight hash is missing');
+	}
+	assertSha256(value.weightSha256, 'organic apron weight hash');
+	assertNonNegativeInteger(value.changedPixelCount, 'changed pixel count');
+	if (!isPlainObject(value.classChangedPixelCounts)) {
+		throw new Error('Meadow Entry organic apron provenance class changed counts must be an object');
+	}
+	const countKeys = Object.keys(value.classChangedPixelCounts).sort();
+	if (JSON.stringify(countKeys) !== JSON.stringify(['hedge', 'woodland'])) {
+		throw new Error('Meadow Entry organic apron provenance changed-count classes are not sealed');
+	}
+	assertNonNegativeInteger(value.classChangedPixelCounts.hedge, 'hedge changed pixel count');
+	assertNonNegativeInteger(value.classChangedPixelCounts.woodland, 'woodland changed pixel count');
 }
 
 function assertSceneryInsertBounds(value: unknown, expected: PixelBounds, label: string): void {
@@ -327,12 +394,16 @@ export function validateMeadowEntryPaintedV2SceneryInsertGenerationProvenance(
 	}
 	if (
 		approval.status !== 'approved-explicit-interim-gate' &&
-		approval.status !== 'approved-explicit-final-source-gate'
+		approval.status !== 'approved-explicit-final-source-gate' &&
+		approval.status !== 'approved-explicit-organic-candidate-gate'
 	) {
 		throw new Error(`Meadow Entry scenery insert ${expected.id} approval is not approved`);
 	}
-	if (approval.answer !== 'yes') {
-		throw new Error(`Meadow Entry scenery insert ${expected.id} approval answer is not yes`);
+	const organicCandidateApproval =
+		approval.status === 'approved-explicit-organic-candidate-gate' &&
+		approval.answer === 'Looks good';
+	if (approval.answer !== 'yes' && !organicCandidateApproval) {
+		throw new Error(`Meadow Entry scenery insert ${expected.id} approval answer is not accepted`);
 	}
 	assertNonEmptyString(approval.approvedAtUtc as string, `${expected.id} approval timestamp`);
 	assertNonEmptyString(approval.scope as string, `${expected.id} approval scope`);

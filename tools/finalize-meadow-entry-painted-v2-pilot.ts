@@ -10,6 +10,7 @@ import {
 import type { MeadowEntryGenerationProvenance } from '$lib/game/content/backgrounds/meadow-entry-master-provenance';
 import {
 	assembleMeadowEntryPaintedV2Pilot,
+	MEADOW_ENTRY_PAINTED_V2_APPROVED_ORGANIC_CANDIDATE_MASTER_SHA256,
 	type MeadowEntryPaintedV2PilotAssemblyInput,
 	type MeadowEntryPaintedV2PilotAssemblyResult
 } from '$lib/game/content/backgrounds/meadow-entry-painted-v2-pilot-finalizer';
@@ -556,6 +557,11 @@ export async function runFinalizeMeadowEntryPaintedV2Pilot(
 	const fileSystem = options.fileSystem ?? NODE_FILE_SYSTEM;
 	const input = options.assemblyResult ? undefined : await loadAssemblyInput(root, fileSystem);
 	const assembled = options.assemblyResult ?? (await assembleMeadowEntryPaintedV2Pilot(input!));
+	assert(
+		sha256(assembled.masterPng) ===
+			MEADOW_ENTRY_PAINTED_V2_APPROVED_ORGANIC_CANDIDATE_MASTER_SHA256,
+		'Meadow Entry pilot master does not match the approved organic candidate'
+	);
 	const packageProvenancePath = join(root, PAINTED_V2_PILOT_PACKAGE_PROVENANCE_PATH);
 	const packageProvenance = await readRequired(
 		fileSystem,

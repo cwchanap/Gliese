@@ -4,12 +4,50 @@ import {
 	assertMeadowEntryRefinementChain,
 	assertMeadowEntryRefinementChainTerminal,
 	validateMeadowEntryGenerationProvenance,
+	validateMeadowEntryPaintedV2OrganicApronProvenance,
 	validateMeadowEntryPaintedV2SceneryInsertGenerationProvenance,
 	validateMeadowEntryRefinementProvenance
 } from './meadow-entry-master-provenance';
+import { MEADOW_ENTRY_PAINTED_V2_ORGANIC_APRON_POLICY } from './meadow-entry-painted-v2-scenery-bake';
 import type { MeadowEntryRefinementProvenance } from './meadow-entry-master-provenance';
 
 describe('meadow-entry generation provenance', () => {
+	it('validates the exact organic apron policy and sealed two-class hashes', () => {
+		const valid = {
+			policy: MEADOW_ENTRY_PAINTED_V2_ORGANIC_APRON_POLICY,
+			candidateSha256: { hedge: 'a'.repeat(64), woodland: 'b'.repeat(64) },
+			allowedSha256: { hedge: 'c'.repeat(64), woodland: 'd'.repeat(64) },
+			distanceSha256: { hedge: 'e'.repeat(64), woodland: 'f'.repeat(64) },
+			weightSha256: '1'.repeat(64),
+			changedPixelCount: 12,
+			classChangedPixelCounts: { hedge: 5, woodland: 7 }
+		};
+		expect(() =>
+			validateMeadowEntryPaintedV2OrganicApronProvenance(
+				valid,
+				MEADOW_ENTRY_PAINTED_V2_ORGANIC_APRON_POLICY
+			)
+		).not.toThrow();
+		expect(() =>
+			validateMeadowEntryPaintedV2OrganicApronProvenance(
+				{ ...valid, policy: { ...valid.policy, maximumDistance: 47 } },
+				MEADOW_ENTRY_PAINTED_V2_ORGANIC_APRON_POLICY
+			)
+		).toThrow(/policy/i);
+		expect(() =>
+			validateMeadowEntryPaintedV2OrganicApronProvenance(
+				{ ...valid, candidateSha256: { hedge: 'a'.repeat(64) } },
+				MEADOW_ENTRY_PAINTED_V2_ORGANIC_APRON_POLICY
+			)
+		).toThrow(/candidate.*classes/i);
+		expect(() =>
+			validateMeadowEntryPaintedV2OrganicApronProvenance(
+				undefined,
+				MEADOW_ENTRY_PAINTED_V2_ORGANIC_APRON_POLICY
+			)
+		).toThrow(/apron provenance/i);
+	});
+
 	it('accepts a generative record when the provider exposes no seed', () => {
 		expect(() =>
 			validateMeadowEntryGenerationProvenance({
@@ -185,6 +223,22 @@ describe('meadow-entry generation provenance', () => {
 		};
 		expect(() =>
 			validateMeadowEntryPaintedV2SceneryInsertGenerationProvenance(valid, expected)
+		).not.toThrow();
+		expect(() =>
+			validateMeadowEntryPaintedV2SceneryInsertGenerationProvenance(
+				{
+					...valid,
+					settings: {
+						...valid.settings,
+						approval: {
+							...valid.settings.approval,
+							status: 'approved-explicit-organic-candidate-gate',
+							answer: 'Looks good'
+						}
+					}
+				},
+				expected
+			)
 		).not.toThrow();
 		expect(() =>
 			validateMeadowEntryPaintedV2SceneryInsertGenerationProvenance(
