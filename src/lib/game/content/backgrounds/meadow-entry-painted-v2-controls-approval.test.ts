@@ -43,7 +43,7 @@ describe('painted-v2 meadow-entry controls approval', () => {
 		expect(meadowEntryControlsApproval.combinedControlFingerprint).toBe(currentFingerprint);
 		expect(meadowEntryControlsApproval.cropManifestSha256).toMatch(SHA256);
 		expect(meadowEntryControlsApproval.bakeOwnershipSha256).toBe(
-			'bd9624b2b761e2071d9d45c1c556e71c05c3298cec8439db3220aa8eb2ed3e8e'
+			'4978e4284862c8ce87c7193dadf23abca2033c36f5878035b01ca5951be85972'
 		);
 		expect(meadowEntryControlsApproval.storageMode).toBe('git-lfs');
 		expect(meadowEntryControlsApproval.evidencePath).toBe(EVIDENCE_PATH);
@@ -58,7 +58,7 @@ describe('painted-v2 meadow-entry controls approval', () => {
 		const runtime = `${MEADOW_ENTRY_PAINTED_V2_ART_STORAGE.runtimePattern} filter=lfs diff=lfs merge=lfs -text`;
 		expect(createHash('sha256').update(`${source}\n${runtime}\n`).digest('hex')).toMatch(SHA256);
 		expect(meadowEntryControlsApproval.storageConfigurationSha256).toBe(
-			'36737b6905cfc7c62fdf1bcdd48850bc574f20d7f4bfb63ab1aa8c727bc51de2'
+			'46eb41c75bcc1d058c820f59098df48abccbaea1e081214d106d9d8ca6dd4f40'
 		);
 	});
 

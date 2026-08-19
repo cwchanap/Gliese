@@ -150,10 +150,17 @@ describe('Meadow Entry painted background transform', () => {
 		const transformed = applyMeadowEntryPaintedBackgrounds(meadowEntryMap, {
 			selection: MEADOW_ENTRY_PAINTED_MODE_PILOT
 		});
-		const blockerOwner = MEADOW_ENTRY_PAINTED_MODE_PILOT.visualOwners.find(
-			({ sourceType, sourceId }) =>
-				sourceType === 'blocker' && sourceId === 'silverpine-wall-B-south'
-		);
+		const expectedOrganicBlockerOwners = [
+			'coast-crossroads-mouth-bank',
+			'mistfen-entry-bank-east',
+			'silverpine-wall-A-east',
+			'silverpine-wall-A-west',
+			'silverpine-wall-B-north',
+			'silverpine-wall-B-south',
+			'silverpine-wall-C-east',
+			'silverpine-wall-C-west',
+			'wildwood-forest-lane-west-bank'
+		] as const;
 
 		expect(transformed.backgroundImages).toEqual(MEADOW_ENTRY_PAINTED_MODE_PILOT.backgrounds);
 		expect(transformed.backgroundImages).toHaveLength(2);
@@ -161,12 +168,16 @@ describe('Meadow Entry painted background transform', () => {
 			{ width: 3_200, height: 3_200 },
 			{ width: 3_200, height: 3_200 }
 		]);
-		expect(
-			transformed.blockers?.find(({ id }) => id === 'silverpine-wall-B-south')?.visual
-		).toEqual({
-			mode: 'fallback-only',
-			ownerCrops: blockerOwner?.ownerCrops
-		});
+		for (const sourceId of expectedOrganicBlockerOwners) {
+			const blockerOwner = MEADOW_ENTRY_PAINTED_MODE_PILOT.visualOwners.find(
+				(owner) => owner.sourceType === 'blocker' && owner.sourceId === sourceId
+			);
+			expect(blockerOwner, sourceId).toBeDefined();
+			expect(transformed.blockers?.find(({ id }) => id === sourceId)?.visual, sourceId).toEqual({
+				mode: 'fallback-only',
+				ownerCrops: blockerOwner?.ownerCrops
+			});
+		}
 
 		for (const ownerRow of MEADOW_ENTRY_PAINTED_MODE_PILOT.visualOwners.filter(
 			({ sourceType }) => sourceType === 'decor'
@@ -182,23 +193,31 @@ describe('Meadow Entry painted background transform', () => {
 		const transformed = applyMeadowEntryPaintedBackgrounds(meadowEntryMap, {
 			selection: MEADOW_ENTRY_PAINTED_MODE_PILOT
 		});
-		const sourceBlocker = meadowEntryMap.blockers?.find(
-			({ id }) => id === 'silverpine-wall-B-south'
-		);
-		const transformedBlocker = transformed.blockers?.find(
-			({ id }) => id === 'silverpine-wall-B-south'
-		);
+		for (const sourceId of [
+			'coast-crossroads-mouth-bank',
+			'mistfen-entry-bank-east',
+			'silverpine-wall-A-east',
+			'silverpine-wall-A-west',
+			'silverpine-wall-B-north',
+			'silverpine-wall-B-south',
+			'silverpine-wall-C-east',
+			'silverpine-wall-C-west',
+			'wildwood-forest-lane-west-bank'
+		] as const) {
+			const sourceBlocker = meadowEntryMap.blockers?.find(({ id }) => id === sourceId);
+			const transformedBlocker = transformed.blockers?.find(({ id }) => id === sourceId);
 
-		expect(sourceBlocker).toBeDefined();
-		expect(transformedBlocker).toMatchObject({
-			id: 'silverpine-wall-B-south',
-			x: sourceBlocker?.x,
-			y: sourceBlocker?.y,
-			width: sourceBlocker?.width,
-			height: sourceBlocker?.height,
-			kind: sourceBlocker?.kind
-		});
-		expect(transformedBlocker?.visual).toMatchObject({ mode: 'fallback-only' });
+			expect(sourceBlocker, sourceId).toBeDefined();
+			expect(transformedBlocker, sourceId).toMatchObject({
+				id: sourceId,
+				x: sourceBlocker?.x,
+				y: sourceBlocker?.y,
+				width: sourceBlocker?.width,
+				height: sourceBlocker?.height,
+				kind: sourceBlocker?.kind
+			});
+			expect(transformedBlocker?.visual, sourceId).toMatchObject({ mode: 'fallback-only' });
+		}
 		expect(transformed.blockers).toHaveLength(meadowEntryMap.blockers?.length ?? 0);
 	});
 

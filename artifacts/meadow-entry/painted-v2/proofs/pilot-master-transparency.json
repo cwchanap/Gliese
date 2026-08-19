@@ -2,8 +2,8 @@
   "version": 1,
   "proofId": "pilot-master-transparency",
   "path": "artifacts/meadow-entry/painted-v2/proofs/pilot-master-transparency.png",
-  "sha256": "d1dea4230454394e93e660513c5cc4e6af3cd1e62e61a39a162a2e8f48de0c0d",
-  "bytes": 53077459,
+  "sha256": "05dc5d3db4e26b69b1e5de79b5b8cb526eeb9709db67cce443522f1b1e3975da",
+  "bytes": 54011491,
   "width": 6400,
   "height": 6400,
   "masterBounds": {
@@ -15,19 +15,19 @@
   "inputs": [
     {
       "path": "artifacts/meadow-entry/painted-v2/masters/meadow-entry-painted-v2-pilot-base-master.png",
-      "sha256": "d1dea4230454394e93e660513c5cc4e6af3cd1e62e61a39a162a2e8f48de0c0d"
+      "sha256": "05dc5d3db4e26b69b1e5de79b5b8cb526eeb9709db67cce443522f1b1e3975da"
     },
     {
       "path": "artifacts/meadow-entry/painted-v2/provenance/meadow-entry-master-provenance.json",
-      "sha256": "758dc3e40b679125f86a3cba874abd1b5434f567971fd96133a88d4af2ce3f2d"
+      "sha256": "0335b9a4ab6d9cd021eb19334e708a44305f183e40ff0a820d34bdba1354614e"
     },
     {
       "path": "artifacts/meadow-entry/painted-v2/controls/meadow-entry-control-manifest.json",
-      "sha256": "a1ca18c9508d92efeec694c74851b81193d7b15fe577e18fb277afb52a1617ab"
+      "sha256": "1cc69efd0e7e2a3b790eede8561ac9ee36840cd5eddbd6595f430a825e4f72ba"
     },
     {
       "path": "artifacts/meadow-entry/painted-v2/provenance/meadow-entry-crop-manifest.json",
-      "sha256": "91254d72b56827b30ebeaf1eaa4ce93530b5f0732afbd7b2ac3bcf691397052f"
+      "sha256": "346a8d972408e5ce25a6bee1baf4c1bc254272efac0b613cb257e8059738d0e7"
     },
     {
       "path": "artifacts/meadow-entry/painted-v2/source-panels/raw/sundrop-north.png",
@@ -139,94 +139,94 @@
     },
     {
       "path": "artifacts/meadow-entry/painted-v2/source-inserts/raw/camera-underlay-sundrop-south-blocked-hedge.png",
-      "sha256": "08269567ad1c45937f38bf5617ba536e910a458f3920ea6ea1f3bff13f3daa85"
+      "sha256": "cce8aa43d00476890be66a59797bc84284703c2da5c78c3e59c330c1c149a26d"
     },
     {
       "path": "artifacts/meadow-entry/painted-v2/source-inserts/camera-underlay-sundrop-south-blocked-hedge.png",
-      "sha256": "69b5d2cb3430002d34fd94966c8349d95db4e0718569d4820c3d46a74796114d"
+      "sha256": "e70b1b4d7f34f1a46aae96b3c3bdb2b7a34c0c59c991dfde4ac84d0a15f52d1d"
     },
     {
       "path": "artifacts/meadow-entry/painted-v2/source-inserts/camera-underlay-sundrop-south-blocked-hedge.json",
-      "sha256": "f50062dd163f359f3dc6331651417a3cf6cab278e05efcc4e21cc8de95e31d09"
+      "sha256": "bd4b15f6234334ff443830d044958e337e5bfb2b44b7591e6ca944e58a071a43"
     },
     {
       "path": "artifacts/meadow-entry/painted-v2/source-inserts/raw/camera-underlay-crossroads-north-blocked-hedge.png",
-      "sha256": "c065e8151910630c8d5c58e455acb6b8135fa190cf5d802a8596f22bc0dbf72e"
+      "sha256": "b66c295b07edf4706ef50ddaeda0135c251162637353f196cb04b43f04b8613b"
     },
     {
       "path": "artifacts/meadow-entry/painted-v2/source-inserts/camera-underlay-crossroads-north-blocked-hedge.png",
-      "sha256": "db7ea68cd440c6f44318e0b93aa11f531f866056dd0d5722a539ecae405dd67f"
+      "sha256": "526321e72170051f31c4ab01be6fa8e58d17e3697d2fbf696f55bbca7bda9e21"
     },
     {
       "path": "artifacts/meadow-entry/painted-v2/source-inserts/camera-underlay-crossroads-north-blocked-hedge.json",
-      "sha256": "8b1e5a1f7a761b51e7b3331305c11ada58bdae7794594402681ee058f44dc749"
+      "sha256": "495d6fde413d8b320cc45c2ecb48ae877a637d603c940838565f247925f4937a"
     },
     {
       "path": "artifacts/meadow-entry/painted-v2/source-inserts/raw/camera-underlay-crossroads-south-blocked-hedge.png",
-      "sha256": "3a2b0ff32930b8e61b6aad4b73532ad995502cb2c8514ecda42e6acde90d25fc"
+      "sha256": "52c95d4988171e24817a0b563bf0c543707dfa2a2e400821ac8c7598b4c7ef14"
     },
     {
       "path": "artifacts/meadow-entry/painted-v2/source-inserts/camera-underlay-crossroads-south-blocked-hedge.png",
-      "sha256": "4a555f00337ed46a3f17c5ac2dfad4abc1ffff0b855817229f4d1a2f736e2fd4"
+      "sha256": "2211b88fa034d62be98a060ad103008187059f0bb7c3e0d96792b47024a5063e"
     },
     {
       "path": "artifacts/meadow-entry/painted-v2/source-inserts/camera-underlay-crossroads-south-blocked-hedge.json",
-      "sha256": "4c1a6dd9922c9e2cb6c5f52523f0892c850b21cbd4cc598a526b319ee3074d52"
+      "sha256": "679abb2f10a4a1842fcf5f94ab37b3c33eec9df163d4b5f8694396f3e0468fb0"
     },
     {
       "path": "artifacts/meadow-entry/painted-v2/source-inserts/raw/camera-underlay-crossroads-north-blocked-woodland.png",
-      "sha256": "0868ec84cb7c4adda0df2b2534612655845fd7ae41f7fe4963dc4c40647599bc"
+      "sha256": "9e99d6520237cef0d0bc7d203c0ce0d4c44e59c5473177dc66e874bca6138029"
     },
     {
       "path": "artifacts/meadow-entry/painted-v2/source-inserts/camera-underlay-crossroads-north-blocked-woodland.png",
-      "sha256": "1eed6fa1f950624f17739e5bb023f7a70321397634796d2019061bcac70dbd63"
+      "sha256": "59c0d0c1cf9bedfb0b7951398786b79f4ec11fee034483c13aa098a0d7f9d128"
     },
     {
       "path": "artifacts/meadow-entry/painted-v2/source-inserts/camera-underlay-crossroads-north-blocked-woodland.json",
-      "sha256": "95a199f4b94dcc5ffedb1e149e1742b99363b69a5dac2efc97f6123017665022"
+      "sha256": "ce5b920abaf8752b167426d47054c58163a18fa46f82f68c6c659131120deb2d"
     },
     {
       "path": "artifacts/meadow-entry/painted-v2/source-inserts/raw/camera-underlay-crossroads-south-blocked-woodland.png",
-      "sha256": "9885f4fd50f1efc32074a70741371c42e659f9554fa7305f7d8359774aa975c0"
+      "sha256": "a394c63b416f46295deb4a315486f69ccd3206c7b55081e9afb3011134f46146"
     },
     {
       "path": "artifacts/meadow-entry/painted-v2/source-inserts/camera-underlay-crossroads-south-blocked-woodland.png",
-      "sha256": "a4401a8cbcbd8c1a559c0c1cbba39ac8284a518f8a3f487a785dd2c453a25ae5"
+      "sha256": "4f778aa55e536547fd9b9903c3adcf0249d93f5af4f4fb06051a4cbfeb42cb84"
     },
     {
       "path": "artifacts/meadow-entry/painted-v2/source-inserts/camera-underlay-crossroads-south-blocked-woodland.json",
-      "sha256": "44aad7f16b8bb3d3add2dcf8813b47c5c739a10d131b558c421aed201f654a4d"
+      "sha256": "e4b7bb09493ee70b02de56042baaf919a8362b9144afcfdfd867491370009863"
     },
     {
       "path": "artifacts/meadow-entry/painted-v2/source-inserts/raw/crossroads-blocked-hedge.png",
-      "sha256": "bd00660598d0462b94f1efe3dd349e1e90b32b4c7807fb4ea3ea212b8c693187"
+      "sha256": "4f8a213bd4e2a36f4ba07f70341448520a49a7b3106494fe0d91be0868db68b1"
     },
     {
       "path": "artifacts/meadow-entry/painted-v2/source-inserts/crossroads-blocked-hedge.png",
-      "sha256": "80ac5a4c6e0503ed0c42a7a8c5ed4c94d97b57324627f4db7baab3a6ec09ea02"
+      "sha256": "888d00f7854e4c16ec6534065cf6328a700c60e6a8875ef6e79c66e92a4a121f"
     },
     {
       "path": "artifacts/meadow-entry/painted-v2/source-inserts/crossroads-blocked-hedge.json",
-      "sha256": "bc19dbc48fbb00ad72ff0130b5f3713c295b2d734ac104defe7dc42b2f76ae9b"
+      "sha256": "ed6f27d2c74f095a661ef0bcd07151b35d46bc7520ccf46e42a8da238d85221b"
     },
     {
       "path": "artifacts/meadow-entry/painted-v2/source-inserts/raw/crossroads-blocked-woodland.png",
-      "sha256": "04e3925ab272dca2b56c205bd3d625580b61bcd558ee70311eaee03c2d2c9e68"
+      "sha256": "0e97c63c54586ca456af9a7acd97f0562a264b7faf5e17d56e66a1928b63f7f0"
     },
     {
       "path": "artifacts/meadow-entry/painted-v2/source-inserts/crossroads-blocked-woodland.png",
-      "sha256": "45707b5f1f08f498ca628051aa1f59e46c324d8f3e21a0139f9f7274d13188ae"
+      "sha256": "f104693fbdc1c9833d4dda913ba70063e50e43f8243914909aa661aba14204be"
     },
     {
       "path": "artifacts/meadow-entry/painted-v2/source-inserts/crossroads-blocked-woodland.json",
-      "sha256": "02d0ca18626e9f852860f766dd0673bedfa96321c4a1bd1a776a270f24819eca"
+      "sha256": "9592f84f700976571799eada517b91c0a17bfc066d9f6cab2035fee20a2db784"
     }
   ],
   "inputSha256": [
-    "d1dea4230454394e93e660513c5cc4e6af3cd1e62e61a39a162a2e8f48de0c0d",
-    "758dc3e40b679125f86a3cba874abd1b5434f567971fd96133a88d4af2ce3f2d",
-    "a1ca18c9508d92efeec694c74851b81193d7b15fe577e18fb277afb52a1617ab",
-    "91254d72b56827b30ebeaf1eaa4ce93530b5f0732afbd7b2ac3bcf691397052f",
+    "05dc5d3db4e26b69b1e5de79b5b8cb526eeb9709db67cce443522f1b1e3975da",
+    "0335b9a4ab6d9cd021eb19334e708a44305f183e40ff0a820d34bdba1354614e",
+    "1cc69efd0e7e2a3b790eede8561ac9ee36840cd5eddbd6595f430a825e4f72ba",
+    "346a8d972408e5ce25a6bee1baf4c1bc254272efac0b613cb257e8059738d0e7",
     "7c5baf07ffd673eeb2e0a7dff304e06ca5ae339650f6cff4ac1f486f1768c71b",
     "48ea9abcb7afe69aa3b35ecae3a46e5cb850ad68527a5c172f7a08ba18153df2",
     "83cb484eb42c7e60dd8d14453fc8f069ec990b8af4d43d1437393b33af1fb1cb",
@@ -254,27 +254,27 @@
     "8bffb5db49742463df2a6a13f46e3b3e03a34496aea41e60fb40857aa0b9433a",
     "d27ac3e76a3444af5bfcc0add96949513a9afcca787ddb7f4cb9c7754edc069c",
     "3cfb2ffeff038f41cc3fbf5780dd1dab1b1b461a236baf222e17d0c334552347",
-    "08269567ad1c45937f38bf5617ba536e910a458f3920ea6ea1f3bff13f3daa85",
-    "69b5d2cb3430002d34fd94966c8349d95db4e0718569d4820c3d46a74796114d",
-    "f50062dd163f359f3dc6331651417a3cf6cab278e05efcc4e21cc8de95e31d09",
-    "c065e8151910630c8d5c58e455acb6b8135fa190cf5d802a8596f22bc0dbf72e",
-    "db7ea68cd440c6f44318e0b93aa11f531f866056dd0d5722a539ecae405dd67f",
-    "8b1e5a1f7a761b51e7b3331305c11ada58bdae7794594402681ee058f44dc749",
-    "3a2b0ff32930b8e61b6aad4b73532ad995502cb2c8514ecda42e6acde90d25fc",
-    "4a555f00337ed46a3f17c5ac2dfad4abc1ffff0b855817229f4d1a2f736e2fd4",
-    "4c1a6dd9922c9e2cb6c5f52523f0892c850b21cbd4cc598a526b319ee3074d52",
-    "0868ec84cb7c4adda0df2b2534612655845fd7ae41f7fe4963dc4c40647599bc",
-    "1eed6fa1f950624f17739e5bb023f7a70321397634796d2019061bcac70dbd63",
-    "95a199f4b94dcc5ffedb1e149e1742b99363b69a5dac2efc97f6123017665022",
-    "9885f4fd50f1efc32074a70741371c42e659f9554fa7305f7d8359774aa975c0",
-    "a4401a8cbcbd8c1a559c0c1cbba39ac8284a518f8a3f487a785dd2c453a25ae5",
-    "44aad7f16b8bb3d3add2dcf8813b47c5c739a10d131b558c421aed201f654a4d",
-    "bd00660598d0462b94f1efe3dd349e1e90b32b4c7807fb4ea3ea212b8c693187",
-    "80ac5a4c6e0503ed0c42a7a8c5ed4c94d97b57324627f4db7baab3a6ec09ea02",
-    "bc19dbc48fbb00ad72ff0130b5f3713c295b2d734ac104defe7dc42b2f76ae9b",
-    "04e3925ab272dca2b56c205bd3d625580b61bcd558ee70311eaee03c2d2c9e68",
-    "45707b5f1f08f498ca628051aa1f59e46c324d8f3e21a0139f9f7274d13188ae",
-    "02d0ca18626e9f852860f766dd0673bedfa96321c4a1bd1a776a270f24819eca"
+    "cce8aa43d00476890be66a59797bc84284703c2da5c78c3e59c330c1c149a26d",
+    "e70b1b4d7f34f1a46aae96b3c3bdb2b7a34c0c59c991dfde4ac84d0a15f52d1d",
+    "bd4b15f6234334ff443830d044958e337e5bfb2b44b7591e6ca944e58a071a43",
+    "b66c295b07edf4706ef50ddaeda0135c251162637353f196cb04b43f04b8613b",
+    "526321e72170051f31c4ab01be6fa8e58d17e3697d2fbf696f55bbca7bda9e21",
+    "495d6fde413d8b320cc45c2ecb48ae877a637d603c940838565f247925f4937a",
+    "52c95d4988171e24817a0b563bf0c543707dfa2a2e400821ac8c7598b4c7ef14",
+    "2211b88fa034d62be98a060ad103008187059f0bb7c3e0d96792b47024a5063e",
+    "679abb2f10a4a1842fcf5f94ab37b3c33eec9df163d4b5f8694396f3e0468fb0",
+    "9e99d6520237cef0d0bc7d203c0ce0d4c44e59c5473177dc66e874bca6138029",
+    "59c0d0c1cf9bedfb0b7951398786b79f4ec11fee034483c13aa098a0d7f9d128",
+    "ce5b920abaf8752b167426d47054c58163a18fa46f82f68c6c659131120deb2d",
+    "a394c63b416f46295deb4a315486f69ccd3206c7b55081e9afb3011134f46146",
+    "4f778aa55e536547fd9b9903c3adcf0249d93f5af4f4fb06051a4cbfeb42cb84",
+    "e4b7bb09493ee70b02de56042baaf919a8362b9144afcfdfd867491370009863",
+    "4f8a213bd4e2a36f4ba07f70341448520a49a7b3106494fe0d91be0868db68b1",
+    "888d00f7854e4c16ec6534065cf6328a700c60e6a8875ef6e79c66e92a4a121f",
+    "ed6f27d2c74f095a661ef0bcd07151b35d46bc7520ccf46e42a8da238d85221b",
+    "0e97c63c54586ca456af9a7acd97f0562a264b7faf5e17d56e66a1928b63f7f0",
+    "f104693fbdc1c9833d4dda913ba70063e50e43f8243914909aa661aba14204be",
+    "9592f84f700976571799eada517b91c0a17bfc066d9f6cab2035fee20a2db784"
   ],
   "metrics": {
     "pixelTransform": "none",

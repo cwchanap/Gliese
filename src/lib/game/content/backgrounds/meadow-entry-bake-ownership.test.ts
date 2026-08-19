@@ -610,6 +610,17 @@ describe('validateMeadowEntryBakeOwnership error paths', () => {
 describe('painted-v2 meadow-entry bake ownership', () => {
 	const PAINTED_V2_GROUND_CANDIDATE_SHA256 =
 		'ab450e19860cf3beb73f4972aefadd830535cff48339761d05bd6fc7237c453e';
+	const expectedOrganicBlockerOwners = [
+		'coast-crossroads-mouth-bank',
+		'mistfen-entry-bank-east',
+		'silverpine-wall-A-east',
+		'silverpine-wall-A-west',
+		'silverpine-wall-B-north',
+		'silverpine-wall-B-south',
+		'silverpine-wall-C-east',
+		'silverpine-wall-C-west',
+		'wildwood-forest-lane-west-bank'
+	] as const;
 
 	function containsBounds(
 		outer: { left: number; top: number; right: number; bottom: number },
@@ -699,10 +710,42 @@ describe('painted-v2 meadow-entry bake ownership', () => {
 		}
 	});
 
-	it('pins exactly the five reviewed base-static pilot visuals and fallback motifs', () => {
+	it('pins exactly the thirteen reviewed base-static pilot visuals and fallback motifs', () => {
 		const expected = {
+			'blocker:coast-crossroads-mouth-bank': {
+				motif: 'painted-low-hedge',
+				runtimeRequirement: 'existing-blocker-fallback'
+			},
+			'blocker:mistfen-entry-bank-east': {
+				motif: 'painted-low-hedge',
+				runtimeRequirement: 'existing-blocker-fallback'
+			},
+			'blocker:silverpine-wall-A-east': {
+				motif: 'painted-tree-wall',
+				runtimeRequirement: 'existing-blocker-fallback'
+			},
+			'blocker:silverpine-wall-A-west': {
+				motif: 'painted-tree-wall',
+				runtimeRequirement: 'existing-blocker-fallback'
+			},
+			'blocker:silverpine-wall-B-north': {
+				motif: 'painted-tree-wall',
+				runtimeRequirement: 'existing-blocker-fallback'
+			},
 			'blocker:silverpine-wall-B-south': {
-				motif: 'painted-stone-wall',
+				motif: 'painted-tree-wall',
+				runtimeRequirement: 'existing-blocker-fallback'
+			},
+			'blocker:silverpine-wall-C-east': {
+				motif: 'painted-tree-wall',
+				runtimeRequirement: 'existing-blocker-fallback'
+			},
+			'blocker:silverpine-wall-C-west': {
+				motif: 'painted-tree-wall',
+				runtimeRequirement: 'existing-blocker-fallback'
+			},
+			'blocker:wildwood-forest-lane-west-bank': {
+				motif: 'painted-forest-bank',
 				runtimeRequirement: 'existing-blocker-fallback'
 			},
 			'decor:village-decor-22-77': {
@@ -748,12 +791,47 @@ describe('painted-v2 meadow-entry bake ownership', () => {
 				);
 			}
 		}
+		expect(
+			baseStatic.filter(({ ref }) => ref.sourceType === 'blocker').map(({ ref }) => ref.sourceId)
+		).toEqual(expectedOrganicBlockerOwners);
 	});
 
 	it('proves each reviewed visual has the complete approved pilot owner crop set', () => {
 		const expected = {
+			'blocker:coast-crossroads-mouth-bank': {
+				bounds: { left: 3160, top: 4892, right: 3240, bottom: 5308 },
+				owners: ['painted-v2-crossroads-camera-base']
+			},
+			'blocker:mistfen-entry-bank-east': {
+				bounds: { left: 3060, top: 2592, right: 3140, bottom: 3108 },
+				owners: ['painted-v2-crossroads-camera-base']
+			},
+			'blocker:silverpine-wall-A-east': {
+				bounds: { left: 3620, top: 2692, right: 3700, bottom: 3008 },
+				owners: ['painted-v2-crossroads-camera-base']
+			},
+			'blocker:silverpine-wall-A-west': {
+				bounds: { left: 3300, top: 2692, right: 3380, bottom: 3008 },
+				owners: ['painted-v2-crossroads-camera-base']
+			},
+			'blocker:silverpine-wall-B-north': {
+				bounds: { left: 3140, top: 2550, right: 3540, bottom: 2630 },
+				owners: ['painted-v2-crossroads-camera-base']
+			},
 			'blocker:silverpine-wall-B-south': {
 				bounds: { left: 3140, top: 2870, right: 3540, bottom: 2950 },
+				owners: ['painted-v2-crossroads-camera-base']
+			},
+			'blocker:silverpine-wall-C-east': {
+				bounds: { left: 3300, top: 2532, right: 3380, bottom: 2788 },
+				owners: ['painted-v2-crossroads-camera-base']
+			},
+			'blocker:silverpine-wall-C-west': {
+				bounds: { left: 2980, top: 2532, right: 3060, bottom: 2788 },
+				owners: ['painted-v2-crossroads-camera-base']
+			},
+			'blocker:wildwood-forest-lane-west-bank': {
+				bounds: { left: 4960, top: 3192, right: 5040, bottom: 5308 },
 				owners: ['painted-v2-crossroads-camera-base']
 			},
 			'decor:village-decor-22-77': {

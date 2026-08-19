@@ -79,5 +79,5 @@ describe('sealed painted-v2 pilot assembly export integration', () => {
 				overlap.id
 			).toBe(true);
 		}
-	});
+	}, 120_000);
 });

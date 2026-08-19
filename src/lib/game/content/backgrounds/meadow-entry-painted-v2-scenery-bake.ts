@@ -30,6 +30,22 @@ import { meadowEntrySourceKey, type MeadowEntrySourceRecord } from './meadow-ent
 import type { DecodedMeadowEntryRgba } from './meadow-entry-png';
 
 const MASK_WIDTH = 6_400 as const;
+
+// Runtime publication can hide a blocker after its organic scenery has been approved,
+// but that must not change the frozen candidate's ground-decoration mask. These are the
+// blockers that were protected-live when the organic candidate was approved. The lone
+// omitted scenery blocker, silverpine-wall-B-south, was already base-static at approval.
+const APPROVED_SCENERY_GROUND_PROTECTED_SOURCE_IDS = Object.freeze([
+	'coast-crossroads-mouth-bank',
+	'mistfen-entry-bank-east',
+	'silverpine-wall-A-east',
+	'silverpine-wall-A-west',
+	'silverpine-wall-B-north',
+	'silverpine-wall-C-east',
+	'silverpine-wall-C-west',
+	'wildwood-forest-lane-west-bank',
+	'wildwood-north-climb-west-bank'
+] as const);
 const MASK_HEIGHT = 6_400 as const;
 const MAX_SCENERY_DISTANCE = 15 as const;
 const AFFECTED_SOURCE_IDS = [
@@ -316,6 +332,19 @@ function insetBounds(bounds: PixelBounds): PixelBounds | null {
 	return result.left < result.right && result.top < result.bottom ? result : null;
 }
 
+function expandByProtectionMargins(
+	bounds: PixelBounds,
+	width: number,
+	height: number
+): PixelBounds {
+	return {
+		left: Math.max(0, bounds.left - MEADOW_ENTRY_PROTECTION_MARGINS.left),
+		top: Math.max(0, bounds.top - MEADOW_ENTRY_PROTECTION_MARGINS.top),
+		right: Math.min(width, bounds.right + MEADOW_ENTRY_PROTECTION_MARGINS.right),
+		bottom: Math.min(height, bounds.bottom + MEADOW_ENTRY_PROTECTION_MARGINS.bottom)
+	};
+}
+
 function sourceBounds(
 	input: MeadowEntryControlInputs,
 	record: MeadowEntrySourceRecord
@@ -409,6 +438,18 @@ function buildGroundAndSceneryMasks(
 	scratch.fill(0);
 	for (const bounds of input.protectedRects) fillBounds(scratch, width, bounds);
 	hashScratch(hashes, 'protected-live', scratch);
+	addScratchTo(groundAllowed, scratch, true, false);
+
+	// Keep the approved assembly mask stable when runtime ownership is promoted from
+	// protected-live to base-static. This mask affects organic ground decoration only;
+	// live protection and runtime visibility continue to follow the current ownership ledger.
+	scratch.fill(0);
+	for (const sourceId of APPROVED_SCENERY_GROUND_PROTECTED_SOURCE_IDS) {
+		const bounds = byKey.get(`blocker:${sourceId}`);
+		assert(bounds !== undefined, `Missing approved scenery ground protection: ${sourceId}`);
+		fillBounds(scratch, width, expandByProtectionMargins(bounds, width, height));
+	}
+	hashScratch(hashes, 'approved-scenery-ground-protection', scratch);
 	addScratchTo(groundAllowed, scratch, true, false);
 
 	scratch.fill(0);

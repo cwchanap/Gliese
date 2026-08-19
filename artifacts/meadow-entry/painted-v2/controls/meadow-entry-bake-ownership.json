@@ -223,16 +223,16 @@
       },
       "primaryRegionId": "tidewatch-coast",
       "disposition": {
-        "mode": "protected-live",
-        "protectionMargins": {
-          "top": 32,
-          "right": 16,
-          "bottom": 16,
-          "left": 16
+        "mode": "base-static",
+        "margins": {
+          "top": 8,
+          "right": 8,
+          "bottom": 8,
+          "left": 8
         },
-        "reason": "Painted-v2 pilot does not own this live visual or stateful source."
+        "motif": "painted-low-hedge"
       },
-      "runtimeRequirement": "remain-live"
+      "runtimeRequirement": "existing-blocker-fallback"
     },
     {
       "ref": {
@@ -325,16 +325,16 @@
       },
       "primaryRegionId": "mistfen",
       "disposition": {
-        "mode": "protected-live",
-        "protectionMargins": {
-          "top": 32,
-          "right": 16,
-          "bottom": 16,
-          "left": 16
+        "mode": "base-static",
+        "margins": {
+          "top": 8,
+          "right": 8,
+          "bottom": 8,
+          "left": 8
         },
-        "reason": "Painted-v2 pilot does not own this live visual or stateful source."
+        "motif": "painted-low-hedge"
       },
-      "runtimeRequirement": "remain-live"
+      "runtimeRequirement": "existing-blocker-fallback"
     },
     {
       "ref": {
@@ -511,16 +511,16 @@
       },
       "primaryRegionId": "silverpine",
       "disposition": {
-        "mode": "protected-live",
-        "protectionMargins": {
-          "top": 32,
-          "right": 16,
-          "bottom": 16,
-          "left": 16
+        "mode": "base-static",
+        "margins": {
+          "top": 8,
+          "right": 8,
+          "bottom": 8,
+          "left": 8
         },
-        "reason": "Painted-v2 pilot does not own this live visual or stateful source."
+        "motif": "painted-tree-wall"
       },
-      "runtimeRequirement": "remain-live"
+      "runtimeRequirement": "existing-blocker-fallback"
     },
     {
       "ref": {
@@ -529,16 +529,16 @@
       },
       "primaryRegionId": "silverpine",
       "disposition": {
-        "mode": "protected-live",
-        "protectionMargins": {
-          "top": 32,
-          "right": 16,
-          "bottom": 16,
-          "left": 16
+        "mode": "base-static",
+        "margins": {
+          "top": 8,
+          "right": 8,
+          "bottom": 8,
+          "left": 8
         },
-        "reason": "Painted-v2 pilot does not own this live visual or stateful source."
+        "motif": "painted-tree-wall"
       },
-      "runtimeRequirement": "remain-live"
+      "runtimeRequirement": "existing-blocker-fallback"
     },
     {
       "ref": {
@@ -547,16 +547,16 @@
       },
       "primaryRegionId": "silverpine",
       "disposition": {
-        "mode": "protected-live",
-        "protectionMargins": {
-          "top": 32,
-          "right": 16,
-          "bottom": 16,
-          "left": 16
+        "mode": "base-static",
+        "margins": {
+          "top": 8,
+          "right": 8,
+          "bottom": 8,
+          "left": 8
         },
-        "reason": "Painted-v2 pilot does not own this live visual or stateful source."
+        "motif": "painted-tree-wall"
       },
-      "runtimeRequirement": "remain-live"
+      "runtimeRequirement": "existing-blocker-fallback"
     },
     {
       "ref": {
@@ -572,7 +572,7 @@
           "bottom": 8,
           "left": 8
         },
-        "motif": "painted-stone-wall"
+        "motif": "painted-tree-wall"
       },
       "runtimeRequirement": "existing-blocker-fallback"
     },
@@ -583,16 +583,16 @@
       },
       "primaryRegionId": "silverpine",
       "disposition": {
-        "mode": "protected-live",
-        "protectionMargins": {
-          "top": 32,
-          "right": 16,
-          "bottom": 16,
-          "left": 16
+        "mode": "base-static",
+        "margins": {
+          "top": 8,
+          "right": 8,
+          "bottom": 8,
+          "left": 8
         },
-        "reason": "Painted-v2 pilot does not own this live visual or stateful source."
+        "motif": "painted-tree-wall"
       },
-      "runtimeRequirement": "remain-live"
+      "runtimeRequirement": "existing-blocker-fallback"
     },
     {
       "ref": {
@@ -601,16 +601,16 @@
       },
       "primaryRegionId": "silverpine",
       "disposition": {
-        "mode": "protected-live",
-        "protectionMargins": {
-          "top": 32,
-          "right": 16,
-          "bottom": 16,
-          "left": 16
+        "mode": "base-static",
+        "margins": {
+          "top": 8,
+          "right": 8,
+          "bottom": 8,
+          "left": 8
         },
-        "reason": "Painted-v2 pilot does not own this live visual or stateful source."
+        "motif": "painted-tree-wall"
       },
-      "runtimeRequirement": "remain-live"
+      "runtimeRequirement": "existing-blocker-fallback"
     },
     {
       "ref": {
@@ -901,16 +901,16 @@
       },
       "primaryRegionId": "wildwood",
       "disposition": {
-        "mode": "protected-live",
-        "protectionMargins": {
-          "top": 32,
-          "right": 16,
-          "bottom": 16,
-          "left": 16
+        "mode": "base-static",
+        "margins": {
+          "top": 8,
+          "right": 8,
+          "bottom": 8,
+          "left": 8
         },
-        "reason": "Painted-v2 pilot does not own this live visual or stateful source."
+        "motif": "painted-forest-bank"
       },
-      "runtimeRequirement": "remain-live"
+      "runtimeRequirement": "existing-blocker-fallback"
     },
     {
       "ref": {

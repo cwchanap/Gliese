@@ -62,11 +62,19 @@ describe('painted-v2 runtime selection', () => {
 			}
 		]);
 		expect(selection.backgrounds).toHaveLength(2);
-		expect(selection.visualOwners).toHaveLength(5);
+		expect(selection.visualOwners).toHaveLength(13);
 		expect(
 			selection.visualOwners.map(({ sourceType, sourceId }) => `${sourceType}:${sourceId}`)
 		).toEqual([
+			'blocker:coast-crossroads-mouth-bank',
+			'blocker:mistfen-entry-bank-east',
+			'blocker:silverpine-wall-A-east',
+			'blocker:silverpine-wall-A-west',
+			'blocker:silverpine-wall-B-north',
 			'blocker:silverpine-wall-B-south',
+			'blocker:silverpine-wall-C-east',
+			'blocker:silverpine-wall-C-west',
+			'blocker:wildwood-forest-lane-west-bank',
 			'decor:village-decor-22-77',
 			'decor:village-decor-28-25',
 			'decor:village-decor-28-53',

@@ -101,7 +101,7 @@ const PAINTED_V2_HISTORICAL_PROOF_FILES = Object.freeze([
 	{
 		path: 'texture-probe/browser-camera-safe-pilot.json',
 		bytes: 1_454,
-		sha256: 'dab37a895d345f7ee440025febc11a0cdbd8bc69e98680a4e05bbac552cb7633'
+		sha256: '6891783721f8596aceede51d286d724c519a14ed2ca16ac92347fca020bac56d'
 	}
 ] as const);
 

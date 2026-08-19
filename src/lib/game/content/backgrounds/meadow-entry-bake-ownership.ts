@@ -1053,8 +1053,40 @@ const PAINTED_V2_CONTROL_SOURCE_KEYS = [
 ] as const;
 
 const PAINTED_V2_BASE_STATIC_POLICIES = {
+	'blocker:coast-crossroads-mouth-bank': {
+		disposition: { mode: 'base-static', margins: BASE_MARGINS, motif: 'painted-low-hedge' },
+		runtimeRequirement: 'existing-blocker-fallback'
+	},
+	'blocker:mistfen-entry-bank-east': {
+		disposition: { mode: 'base-static', margins: BASE_MARGINS, motif: 'painted-low-hedge' },
+		runtimeRequirement: 'existing-blocker-fallback'
+	},
+	'blocker:silverpine-wall-A-east': {
+		disposition: { mode: 'base-static', margins: BASE_MARGINS, motif: 'painted-tree-wall' },
+		runtimeRequirement: 'existing-blocker-fallback'
+	},
+	'blocker:silverpine-wall-A-west': {
+		disposition: { mode: 'base-static', margins: BASE_MARGINS, motif: 'painted-tree-wall' },
+		runtimeRequirement: 'existing-blocker-fallback'
+	},
+	'blocker:silverpine-wall-B-north': {
+		disposition: { mode: 'base-static', margins: BASE_MARGINS, motif: 'painted-tree-wall' },
+		runtimeRequirement: 'existing-blocker-fallback'
+	},
 	'blocker:silverpine-wall-B-south': {
-		disposition: { mode: 'base-static', margins: BASE_MARGINS, motif: 'painted-stone-wall' },
+		disposition: { mode: 'base-static', margins: BASE_MARGINS, motif: 'painted-tree-wall' },
+		runtimeRequirement: 'existing-blocker-fallback'
+	},
+	'blocker:silverpine-wall-C-east': {
+		disposition: { mode: 'base-static', margins: BASE_MARGINS, motif: 'painted-tree-wall' },
+		runtimeRequirement: 'existing-blocker-fallback'
+	},
+	'blocker:silverpine-wall-C-west': {
+		disposition: { mode: 'base-static', margins: BASE_MARGINS, motif: 'painted-tree-wall' },
+		runtimeRequirement: 'existing-blocker-fallback'
+	},
+	'blocker:wildwood-forest-lane-west-bank': {
+		disposition: { mode: 'base-static', margins: BASE_MARGINS, motif: 'painted-forest-bank' },
 		runtimeRequirement: 'existing-blocker-fallback'
 	},
 	'decor:village-decor-22-77': {
@@ -1190,7 +1222,7 @@ function buildMeadowEntryPaintedV2BakeOwnership(): readonly MeadowEntryBakeOwner
 }
 
 export const MEADOW_ENTRY_REVIEWED_PAINTED_V2_BAKE_OWNERSHIP_SHA256 =
-	'ffdf72ea5650624735e0622ecd92620456c278a2ae139daf99cf31514bf6ff71';
+	'a10a10123b9f2759cafaaec2759c967da713cf795868306e23571a844684b632';
 export const MEADOW_ENTRY_PAINTED_V2_BAKE_OWNERSHIP = buildMeadowEntryPaintedV2BakeOwnership();
 
 function assertNonEmpty(value: string, field: string, key: string): void {

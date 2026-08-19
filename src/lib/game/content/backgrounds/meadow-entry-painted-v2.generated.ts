@@ -43,7 +43,87 @@ export const MEADOW_ENTRY_PAINTED_V2_APPROVED_RUNTIME_BACKGROUNDS = [
 export const MEADOW_ENTRY_PAINTED_V2_RUNTIME_VISUAL_OWNERS = [
 	{
 		sourceType: 'blocker',
+		sourceId: 'coast-crossroads-mouth-bank',
+		ownerCrops: [
+			{
+				cropId: 'painted-v2-crossroads-camera-base',
+				requiredBackgroundIds: ['meadow-entry-painted-v2-crossroads-camera-base-image']
+			}
+		]
+	},
+	{
+		sourceType: 'blocker',
+		sourceId: 'mistfen-entry-bank-east',
+		ownerCrops: [
+			{
+				cropId: 'painted-v2-crossroads-camera-base',
+				requiredBackgroundIds: ['meadow-entry-painted-v2-crossroads-camera-base-image']
+			}
+		]
+	},
+	{
+		sourceType: 'blocker',
+		sourceId: 'silverpine-wall-A-east',
+		ownerCrops: [
+			{
+				cropId: 'painted-v2-crossroads-camera-base',
+				requiredBackgroundIds: ['meadow-entry-painted-v2-crossroads-camera-base-image']
+			}
+		]
+	},
+	{
+		sourceType: 'blocker',
+		sourceId: 'silverpine-wall-A-west',
+		ownerCrops: [
+			{
+				cropId: 'painted-v2-crossroads-camera-base',
+				requiredBackgroundIds: ['meadow-entry-painted-v2-crossroads-camera-base-image']
+			}
+		]
+	},
+	{
+		sourceType: 'blocker',
+		sourceId: 'silverpine-wall-B-north',
+		ownerCrops: [
+			{
+				cropId: 'painted-v2-crossroads-camera-base',
+				requiredBackgroundIds: ['meadow-entry-painted-v2-crossroads-camera-base-image']
+			}
+		]
+	},
+	{
+		sourceType: 'blocker',
 		sourceId: 'silverpine-wall-B-south',
+		ownerCrops: [
+			{
+				cropId: 'painted-v2-crossroads-camera-base',
+				requiredBackgroundIds: ['meadow-entry-painted-v2-crossroads-camera-base-image']
+			}
+		]
+	},
+	{
+		sourceType: 'blocker',
+		sourceId: 'silverpine-wall-C-east',
+		ownerCrops: [
+			{
+				cropId: 'painted-v2-crossroads-camera-base',
+				requiredBackgroundIds: ['meadow-entry-painted-v2-crossroads-camera-base-image']
+			}
+		]
+	},
+	{
+		sourceType: 'blocker',
+		sourceId: 'silverpine-wall-C-west',
+		ownerCrops: [
+			{
+				cropId: 'painted-v2-crossroads-camera-base',
+				requiredBackgroundIds: ['meadow-entry-painted-v2-crossroads-camera-base-image']
+			}
+		]
+	},
+	{
+		sourceType: 'blocker',
+		sourceId: 'wildwood-forest-lane-west-bank',
 		ownerCrops: [
 			{
 				cropId: 'painted-v2-crossroads-camera-base',

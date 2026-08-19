@@ -14,7 +14,7 @@ camera-envelope, and two-crop runtime contracts sealed. Assemble immutable sourc
 canonical `6400x6400` pre-scenery master first, then apply the deterministic core-and-apron scenery
 pass exactly once in world coordinates. Use that result to review seven fresh donor images and switch
 production finalization only after the user approves the exact candidate master. Publication then
-extends the existing bake-ownership generator to the ten sealed blocker IDs and cuts the same two
+extends the existing bake-ownership generator to the nine fully crop-covered blocker IDs and cuts the same two
 runtime textures from that one master; no new plane, descriptor, collision, or renderer branch is
 introduced.
 
@@ -61,11 +61,12 @@ generation, Git LFS, Phaser 4, Playwright.
   atlas, route diagram, debug capture, or rejected runtime screenshot.
 - Normalize with uniform cover scale and deterministic center crop, never stretch, output canonical
   opaque RGBA, and reject any raw requiring more than `2x` uniform upscaling.
-- Extend visual ownership to all and only the ten sealed scenery blocker IDs through the existing
-  bake-ownership/runtime generator. Every one is fully owned by
+- Extend visual ownership to all and only the nine fully crop-covered scenery blocker IDs through
+  the existing bake-ownership/runtime generator. Every one is fully owned by
   `painted-v2-crossroads-camera-base`; the existing four decor owners remain unchanged.
-- A healthy Crossroads crop hides each sealed live blocker. A missing or render-faulted Crossroads
-  crop restores each blocker independently. A Sundrop-only fault does not restore those blockers.
+- A healthy Crossroads crop hides each of the nine runtime-owned blockers. A missing or
+  render-faulted Crossroads crop restores each of those blockers independently. A Sundrop-only
+  fault does not restore those blockers.
 - Keep Hero House outer-boundary strips and unrelated connector fence/decor sources out of this
   plan. Preserve and report them as separate blocking visual findings; do not claim overall branch
   visual approval while they remain unresolved.
@@ -787,8 +788,10 @@ rtk git commit -m "feat(art): assemble organic Meadow scenery master"
 
 - Consumes: the Task 3 master, exact ten-row registry, existing bake-ownership generator, controls
   exporter/approval, export/proof writers, package approval, and runtime generator.
-- Produces: the same two runtime descriptors and exactly fourteen visual owners: ten sealed blockers
-  plus the existing four decor rows.
+- Produces: the same two runtime descriptors and exactly thirteen visual owners: nine sealed blockers
+  plus the existing four decor rows. `wildwood-north-climb-west-bank` remains live because its
+  margin-expanded bounds are not fully covered by the frozen two-crop runtime; hiding it would
+  create invisible collision outside the Crossroads crop.
 
 - [ ] **Step 1: Write ownership and generated-inventory RED tests**
 
@@ -804,8 +807,7 @@ const expectedOrganicBlockerOwners = [
   'silverpine-wall-B-south',
   'silverpine-wall-C-east',
   'silverpine-wall-C-west',
-  'wildwood-forest-lane-west-bank',
-  'wildwood-north-climb-west-bank'
+  'wildwood-forest-lane-west-bank'
 ] as const;
 ```
 
@@ -819,18 +821,19 @@ resolve to exactly this owner crop:
 }
 ```
 
-Pin exactly fourteen generated visual owners, unchanged four decor rows, two background descriptors,
+Pin exactly thirteen generated visual owners, unchanged four decor rows, two background descriptors,
 no insert asset, and no foreground descriptor. Reject missing/extra/reordered owner rows, a selected
 blocker left `protected-live`, a nonselected blocker changed from its current policy, or a crop that
 does not completely contain the source plus margins.
 
 Run the focused suite and observe RED because only `silverpine-wall-B-south` is currently owned.
 
-- [ ] **Step 2: Extend only the ten explicit painted-v2 policies**
+- [ ] **Step 2: Extend only the nine fully covered painted-v2 policies**
 
-Replace the single selected blocker entry in `PAINTED_V2_BASE_STATIC_POLICIES` with ten literal
+Replace the single selected blocker entry in `PAINTED_V2_BASE_STATIC_POLICIES` with nine literal
 entries. Use `painted-low-hedge` for the two hedge rows, `painted-tree-wall` for six tree-wall rows,
-and `painted-forest-bank` for two forest-bank rows. Keep `BASE_MARGINS`,
+and `painted-forest-bank` for one forest-bank row. Keep `wildwood-north-climb-west-bank`
+`protected-live`; its expanded bounds cross outside the frozen crop union. Keep `BASE_MARGINS`,
 `existing-blocker-fallback`, all unrelated policies, source order, and geometry unchanged. Update the
 independent reviewed ownership SHA only after the literal test computes the new expected seal.
 
@@ -917,14 +920,14 @@ rtk git commit -m "feat(art): publish organic Meadow scenery package"
 
 **Interfaces:**
 
-- Consumes: the exact fourteen Task 4 visual owners and existing generic
+- Consumes: the exact thirteen Task 4 visual owners and existing generic
   `shouldRenderOwnedVisual`/WorldScene background-success diagnostics.
-- Produces: automated proof that healthy art hides all ten duplicate blockers, Crossroads failure
+- Produces: automated proof that healthy art hides all nine runtime-owned duplicate blockers, Crossroads failure
   restores them, Sundrop-only failure does not, and gameplay/collision remain unchanged.
 
 - [ ] **Step 1: Add runtime ownership RED assertions**
 
-In `scenes.test.ts`, assert normal pilot creation renders zero live obstacle visuals for the ten exact
+In `scenes.test.ts`, assert normal pilot creation renders zero live obstacle visuals for the nine exact
 IDs while collision rectangles remain registered. Add separate cases:
 
 ```ts
@@ -948,8 +951,8 @@ Keep the exact two titles and existing journey waypoints/tolerances. Update asse
 and add diagnostics that prove:
 
 - exactly two approved `3200x3200` textures load;
-- healthy mode reports all ten blocker owners suppressed;
-- Crossroads missing-texture and render-fault modes restore all ten blocker visuals and retain
+- healthy mode reports all nine runtime-owned blocker owners suppressed;
+- Crossroads missing-texture and render-fault modes restore all nine runtime-owned blocker visuals and retain
   collision;
 - Sundrop-only fault does not restore the Crossroads-owned blockers;
 - every sampled `1920x1080` exterior camera rectangle remains inside the same crop union;

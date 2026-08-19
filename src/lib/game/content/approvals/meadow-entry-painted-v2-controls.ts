@@ -10,14 +10,14 @@ export interface MeadowEntryControlsApproval {
 
 export const meadowEntryControlsApprovalReview = {
 	reviewedBy: 'chanwaichan',
-	reviewedAt: '2026-08-17T00:19:53Z'
+	reviewedAt: '2026-08-18T18:06:55Z'
 } as const;
 
 export const meadowEntryControlsApproval: MeadowEntryControlsApproval = {
-	combinedControlFingerprint: '1f55d4cda5549aeb082b80cd2e699be7d5f1d3d8acaaf4848704a5787f074e9a',
+	combinedControlFingerprint: 'a9de4332a3c5537f25d80eaeb2fcf1476ee97d76636f084bd9841da8055c96c7',
 	cropManifestSha256: '639e5dc8862b6aa68ca115f6831454c884eb4b60965485274cbf12fadc49cade',
-	bakeOwnershipSha256: 'bd9624b2b761e2071d9d45c1c556e71c05c3298cec8439db3220aa8eb2ed3e8e',
+	bakeOwnershipSha256: '4978e4284862c8ce87c7193dadf23abca2033c36f5878035b01ca5951be85972',
 	storageMode: 'git-lfs',
-	storageConfigurationSha256: '36737b6905cfc7c62fdf1bcdd48850bc574f20d7f4bfb63ab1aa8c727bc51de2',
+	storageConfigurationSha256: '46eb41c75bcc1d058c820f59098df48abccbaea1e081214d106d9d8ca6dd4f40',
 	evidencePath: 'docs/superpowers/reports/2026-08-12-meadow-entry-painted-camera-safe-controls.md'
 };
