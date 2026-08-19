@@ -1,6 +1,9 @@
 import { expect, test, type Page } from '@playwright/test';
 import { assertMeadowEntryPaintedV2CameraBoundsCovered } from '../../src/lib/game/content/backgrounds/meadow-entry-painted-v2-camera-envelope';
-import { MEADOW_ENTRY_PAINTED_V2_APPROVED_RUNTIME_BACKGROUNDS } from '../../src/lib/game/content/backgrounds/meadow-entry-painted-v2.generated';
+import {
+	MEADOW_ENTRY_PAINTED_V2_APPROVED_RUNTIME_BACKGROUNDS,
+	MEADOW_ENTRY_PAINTED_V2_RUNTIME_VISUAL_OWNERS
+} from '../../src/lib/game/content/backgrounds/meadow-entry-painted-v2.generated';
 
 type HudStateSnapshot = {
 	ready?: boolean;
@@ -1459,6 +1462,18 @@ const PAINTED_PILOT_BACKGROUND_DIMENSIONS = {
 const PAINTED_PILOT_CROSSROADS_TEXTURE = 'meadow-entry-painted-v2-crossroads-camera-base-image';
 const PAINTED_PILOT_SUNDROP_TEXTURE = 'meadow-entry-painted-v2-sundrop-camera-base-image';
 
+const PAINTED_PILOT_CROSSROADS_BLOCKER_OWNERS = [
+	'coast-crossroads-mouth-bank',
+	'mistfen-entry-bank-east',
+	'silverpine-wall-A-east',
+	'silverpine-wall-A-west',
+	'silverpine-wall-B-north',
+	'silverpine-wall-B-south',
+	'silverpine-wall-C-east',
+	'silverpine-wall-C-west',
+	'wildwood-forest-lane-west-bank'
+] as const;
+
 const PAINTED_PILOT_RUNTIME_CROP_BOUNDS = MEADOW_ENTRY_PAINTED_V2_APPROVED_RUNTIME_BACKGROUNDS.map(
 	({ x, y, width, height }) => ({
 		left: x - width / 2,
@@ -1572,6 +1587,15 @@ function assertPaintedPilotPlaneDiagnostic(
 	}
 }
 
+function assertExactCrossroadsBlockerFallback(diagnostic: RegionalBackgroundPlaneRenderDiagnostic) {
+	expect(diagnostic.selectedFallbackBlockerIds).toHaveLength(
+		PAINTED_PILOT_CROSSROADS_BLOCKER_OWNERS.length
+	);
+	expect(diagnostic.selectedFallbackBlockerIds).toEqual(
+		expect.arrayContaining([...PAINTED_PILOT_CROSSROADS_BLOCKER_OWNERS])
+	);
+}
+
 function assertCollisionDiagnosticsAreFaithful(diagnostics: readonly PlayerMovementDiagnostic[]) {
 	expect(diagnostics.length).toBeGreaterThan(0);
 	for (const diagnostic of diagnostics) {
@@ -1618,6 +1642,13 @@ test('Meadow painted pilot selects only approved planes and preserves live fallb
 		PAINTED_PILOT_BACKGROUND_IDS
 	);
 	assertPaintedPilotPlaneDiagnostic(pilotPlaneDiagnostic, PAINTED_PILOT_BACKGROUND_IDS);
+	const approvedBlockerOwners = MEADOW_ENTRY_PAINTED_V2_RUNTIME_VISUAL_OWNERS.filter(
+		(owner) => owner.sourceType === 'blocker'
+	).map((owner) => owner.sourceId);
+	expect(approvedBlockerOwners).toHaveLength(PAINTED_PILOT_CROSSROADS_BLOCKER_OWNERS.length);
+	expect(approvedBlockerOwners).toEqual(
+		expect.arrayContaining([...PAINTED_PILOT_CROSSROADS_BLOCKER_OWNERS])
+	);
 	expect(pilotPlaneDiagnostic.selectedFallbackBlockerIds).toEqual([]);
 	expect(pilotPlaneDiagnostic.selectedFallbackDecorIds).toEqual([]);
 	expect(pilotPlaneDiagnostic.selectedFallbackFenceIds).toEqual([]);
@@ -1685,9 +1716,7 @@ test('Meadow painted pilot selects only approved planes and preserves live fallb
 			observedDimensions: null
 		})
 	);
-	expect(missingCrossroadsPlaneDiagnostic.selectedFallbackBlockerIds).toContain(
-		'silverpine-wall-B-south'
-	);
+	assertExactCrossroadsBlockerFallback(missingCrossroadsPlaneDiagnostic);
 	expect(missingCrossroadsPlaneDiagnostic.selectedFallbackDecorIds).not.toContain(
 		'village-decor-22-77'
 	);
@@ -1743,6 +1772,32 @@ test('Meadow painted pilot selects only approved planes and preserves live fallb
 		'**/game/assets/regions/meadow-entry-painted-v2/painted-v2-crossroads-camera-base.png'
 	);
 	await page.goto(
+		`/?meadowPaintedPilot=on&movementDiagnostics=on&mapDebug=collision&regionalBackgroundFault=${PAINTED_PILOT_CROSSROADS_TEXTURE}:render`
+	);
+	await expect(page.locator('canvas')).toBeVisible();
+	const crossroadsFaultPlaneDiagnostic = await waitForMeadowPlaneDiagnostic(page);
+	const crossroadsFaultRendererDiagnostic = await waitForMeadowRendererDiagnostic(page);
+	expect(crossroadsFaultRendererDiagnostic).toMatchObject({
+		paintedMode: 'pilot',
+		regionalBackgroundLoadCompletions: 2
+	});
+	expect(crossroadsFaultPlaneDiagnostic.successfulBackgroundIds).toEqual(
+		[PAINTED_PILOT_BACKGROUND_IDS[0]].sort()
+	);
+	expect(
+		crossroadsFaultPlaneDiagnostic.entries.find(
+			(entry) => entry.id === PAINTED_PILOT_CROSSROADS_TEXTURE
+		)
+	).toEqual(
+		expect.objectContaining({
+			status: 'render-failed',
+			expectedDimensions: PAINTED_PILOT_BACKGROUND_DIMENSIONS[PAINTED_PILOT_CROSSROADS_TEXTURE],
+			observedDimensions: PAINTED_PILOT_BACKGROUND_DIMENSIONS[PAINTED_PILOT_CROSSROADS_TEXTURE]
+		})
+	);
+	assertExactCrossroadsBlockerFallback(crossroadsFaultPlaneDiagnostic);
+
+	await page.goto(
 		`/?meadowPaintedPilot=on&movementDiagnostics=on&regionalBackgroundFault=${PAINTED_PILOT_SUNDROP_TEXTURE}:render`
 	);
 	await expect(page.locator('canvas')).toBeVisible();
@@ -1769,6 +1824,7 @@ test('Meadow painted pilot selects only approved planes and preserves live fallb
 		'village-decor-28-53',
 		'village-decor-53-22'
 	]);
+	expect(sundropFaultPlaneDiagnostic.selectedFallbackBlockerIds).toEqual([]);
 	// The boundary decor owns both Sundrop and connector crops; the complete
 	// connector crop keeps it suppressed even while Sundrop is faulted.
 	expect(sundropFaultPlaneDiagnostic.selectedFallbackDecorIds).not.toContain('village-decor-22-77');

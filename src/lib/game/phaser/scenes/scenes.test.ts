@@ -27,6 +27,35 @@ import { HUD_COMMAND_EVENT, type HudCommand } from '$lib/game/ui-bridge/events';
 const guildMasterApproach = { x: 800, y: 184 };
 const quartermasterApproach = { x: 816, y: 568 };
 
+const expectedOrganicBlockerOwners = [
+	'coast-crossroads-mouth-bank',
+	'mistfen-entry-bank-east',
+	'silverpine-wall-A-east',
+	'silverpine-wall-A-west',
+	'silverpine-wall-B-north',
+	'silverpine-wall-B-south',
+	'silverpine-wall-C-east',
+	'silverpine-wall-C-west',
+	'wildwood-forest-lane-west-bank'
+] as const;
+
+const expectedOrganicBlockerBounds = {
+	'coast-crossroads-mouth-bank': { x: 3_200, y: 5_100, width: 64, height: 400 },
+	'mistfen-entry-bank-east': { x: 3_100, y: 2_850, width: 64, height: 500 },
+	'silverpine-wall-A-east': { x: 3_660, y: 2_850, width: 64, height: 300 },
+	'silverpine-wall-A-west': { x: 3_340, y: 2_850, width: 64, height: 300 },
+	'silverpine-wall-B-north': { x: 3_340, y: 2_590, width: 384, height: 64 },
+	'silverpine-wall-B-south': { x: 3_340, y: 2_910, width: 384, height: 64 },
+	'silverpine-wall-C-east': { x: 3_340, y: 2_660, width: 64, height: 240 },
+	'silverpine-wall-C-west': { x: 3_020, y: 2_660, width: 64, height: 240 },
+	'wildwood-forest-lane-west-bank': { x: 5_000, y: 4_250, width: 64, height: 2_100 }
+} as const;
+
+function expectedOrganicBlockerMarkerCount(id: keyof typeof expectedOrganicBlockerBounds) {
+	const bounds = expectedOrganicBlockerBounds[id];
+	return Math.ceil(Math.max(bounds.width, bounds.height) / 48);
+}
+
 const localeState = vi.hoisted(() => ({
 	activeLocale: 'en' as 'en' | 'ja' | 'zh-Hant'
 }));
@@ -2928,13 +2957,30 @@ describe('WorldScene', () => {
 	}
 
 	function findPaintedFallbackMarkers(id: string) {
+		if (id in expectedOrganicBlockerBounds) {
+			const bounds = expectedOrganicBlockerBounds[id as keyof typeof expectedOrganicBlockerBounds];
+			const isHorizontal = bounds.width >= bounds.height;
+			const tileCount = expectedOrganicBlockerMarkerCount(
+				id as keyof typeof expectedOrganicBlockerBounds
+			);
+			const firstOffset = -((tileCount - 1) * 48) / 2;
+			const expectedCenters = Array.from({ length: tileCount }, (_, index) => {
+				const offset = firstOffset + index * 48;
+				return {
+					x: bounds.x + (isHorizontal ? offset : 0),
+					y: bounds.y + (isHorizontal ? 0 : offset)
+				};
+			});
+
+			return phaserState.imageMarkers.filter(
+				(marker) =>
+					marker.texture === forestDressingAsset.key &&
+					marker.frame === 'treeCluster' &&
+					expectedCenters.some(({ x, y }) => marker.x === x && marker.y === y)
+			);
+		}
+
 		const markerBounds: Record<string, { x: number; y: number; texture: string; frame: string }> = {
-			'silverpine-wall-B-south': {
-				x: 3_340,
-				y: 2_910,
-				texture: forestDressingAsset.key,
-				frame: 'treeCluster'
-			},
 			'village-decor-28-25': {
 				x: 1_072,
 				y: 4_880,
@@ -2955,9 +3001,7 @@ describe('WorldScene', () => {
 				marker.texture === bounds.texture &&
 				marker.frame === bounds.frame &&
 				marker.y === bounds.y &&
-				(id !== 'silverpine-wall-B-south'
-					? marker.x === bounds.x
-					: Math.abs(marker.x - bounds.x) <= 200)
+				marker.x === bounds.x
 		);
 	}
 
@@ -3584,9 +3628,39 @@ describe('WorldScene', () => {
 			expect(target.diagnostics[0]?.successfulBackgroundIds).toEqual(
 				selection.backgrounds.map(({ id }) => id).sort()
 			);
-			expect(findPaintedFallbackMarkers('silverpine-wall-B-south')).toHaveLength(0);
+			for (const sourceId of expectedOrganicBlockerOwners) {
+				expect(findPaintedFallbackMarkers(sourceId)).toHaveLength(0);
+			}
+			expect(target.diagnostics[0]?.selectedFallbackBlockerIds).toEqual([]);
 			expect(findPaintedFallbackMarkers('village-decor-28-25')).toHaveLength(0);
 			expect(findPaintedFallbackMarkers('village-decor-22-77')).toHaveLength(0);
+			expect(phaserState.imageMarkers).toEqual(
+				expect.arrayContaining([
+					expect.objectContaining({
+						x: 704,
+						y: 5_712,
+						texture: 'village-buildings',
+						frame: 'heroHouse'
+					}),
+					expect.objectContaining({
+						x: 4_020,
+						texture: fenceDressingAsset.key,
+						frame: 'verticalFence'
+					}),
+					expect.objectContaining({
+						x: 3_040,
+						y: 4_544,
+						texture: 'village-dressing',
+						frame: 'poleLantern'
+					})
+				])
+			);
+			const strictCollisionRects = collectStrictCollisionRects(meadowEntryMap);
+			for (const sourceId of expectedOrganicBlockerOwners) {
+				expect(strictCollisionRects).toEqual(
+					expect.arrayContaining([expect.objectContaining(expectedOrganicBlockerBounds[sourceId])])
+				);
+			}
 		} finally {
 			target.restore();
 			restoreLocation();
@@ -3654,7 +3728,11 @@ describe('WorldScene', () => {
 			try {
 				scene.create({ mapId: meadowEntryMap.id });
 
-				expect(findPaintedFallbackMarkers('silverpine-wall-B-south')).toHaveLength(8);
+				for (const sourceId of expectedOrganicBlockerOwners) {
+					expect(findPaintedFallbackMarkers(sourceId), sourceId).toHaveLength(
+						expectedOrganicBlockerMarkerCount(sourceId)
+					);
+				}
 				expect(target.diagnostics[0]?.paintedMode).toBe('pilot');
 				expect(target.diagnostics[0]?.entries.find(({ id }) => id === crossroads.id)?.status).toBe(
 					status
@@ -3666,8 +3744,11 @@ describe('WorldScene', () => {
 				expect(target.diagnostics[0]?.successfulBackgroundIds).toEqual([
 					selection.backgrounds[0]!.id
 				]);
-				expect(target.diagnostics[0]?.selectedFallbackBlockerIds).toContain(
-					'silverpine-wall-B-south'
+				expect(target.diagnostics[0]?.selectedFallbackBlockerIds).toHaveLength(
+					expectedOrganicBlockerOwners.length
+				);
+				expect(target.diagnostics[0]?.selectedFallbackBlockerIds).toEqual(
+					expect.arrayContaining([...expectedOrganicBlockerOwners])
 				);
 				expect(phaserState.graphicsMarkers[0]?.commands).toContainEqual({
 					kind: 'fillRect',
@@ -3738,6 +3819,10 @@ describe('WorldScene', () => {
 				scene.create({ mapId: meadowEntryMap.id });
 
 				expect(findPaintedFallbackMarkers('village-decor-28-25')).toHaveLength(1);
+				for (const sourceId of expectedOrganicBlockerOwners) {
+					expect(findPaintedFallbackMarkers(sourceId)).toHaveLength(0);
+				}
+				expect(target.diagnostics[0]?.selectedFallbackBlockerIds).toEqual([]);
 				expect(target.diagnostics[0]?.paintedMode).toBe('pilot');
 				expect(target.diagnostics[0]?.entries.find(({ id }) => id === sundrop.id)?.status).toBe(
 					status
