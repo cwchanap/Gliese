@@ -14,9 +14,9 @@
       "path": "artifacts/meadow-entry/painted-v2/exports/painted-v2-sundrop-camera-base.png",
       "width": 3200,
       "height": 3200,
-      "encodedBytes": 27461169,
-      "encodedSha256": "c2b64cc909403c9b069f02e8928bdb6c028f96d14de1933f6f57254c2772c398",
-      "durationMs": 191,
+      "encodedBytes": 28222237,
+      "encodedSha256": "0b85449a2c9ee83b86848aadf0d1ace8004601dbdf48317d95f9696809aed870",
+      "durationMs": 181,
       "success": true,
       "failure": null
     },
@@ -25,14 +25,14 @@
       "path": "artifacts/meadow-entry/painted-v2/exports/painted-v2-crossroads-camera-base.png",
       "width": 3200,
       "height": 3200,
-      "encodedBytes": 29152817,
-      "encodedSha256": "79510b4fe760c32c19ae23567b405a79bad78b011bc1bc4b231974a99636d134",
-      "durationMs": 169,
+      "encodedBytes": 29695252,
+      "encodedSha256": "5c5f3966895daf623a04ee093f2c3c227f7cdf9030eab8d7d239f955d9a41db3",
+      "durationMs": 167,
       "success": true,
       "failure": null
     }
   ],
-  "totalDurationMs": 860,
+  "totalDurationMs": 835,
   "browser": {
     "engine": "chromium",
     "version": "147.0.7727.15",
@@ -42,6 +42,6 @@
   "platform": "darwin",
   "probeFailure": null,
   "failureScope": null,
-  "encodedBytesTotal": 56613986,
+  "encodedBytesTotal": 57917489,
   "decision": "proceed"
 }

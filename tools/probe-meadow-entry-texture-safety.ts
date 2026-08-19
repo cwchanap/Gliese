@@ -179,16 +179,16 @@ export const PAINTED_V2_TEXTURE_PROBE_INPUTS: Readonly<
 				path: 'artifacts/meadow-entry/painted-v2/exports/painted-v2-sundrop-camera-base.png',
 				width: 3200,
 				height: 3200,
-				encodedBytes: 27_461_169,
-				encodedSha256: 'c2b64cc909403c9b069f02e8928bdb6c028f96d14de1933f6f57254c2772c398'
+				encodedBytes: 28_222_237,
+				encodedSha256: '0b85449a2c9ee83b86848aadf0d1ace8004601dbdf48317d95f9696809aed870'
 			}),
 			Object.freeze({
 				id: 'crossroads-camera-base',
 				path: 'artifacts/meadow-entry/painted-v2/exports/painted-v2-crossroads-camera-base.png',
 				width: 3200,
 				height: 3200,
-				encodedBytes: 29_152_817,
-				encodedSha256: '79510b4fe760c32c19ae23567b405a79bad78b011bc1bc4b231974a99636d134'
+				encodedBytes: 29_695_252,
+				encodedSha256: '5c5f3966895daf623a04ee093f2c3c227f7cdf9030eab8d7d239f955d9a41db3'
 			})
 		]),
 		expectedRetainedTextures: 2

@@ -142,16 +142,16 @@ test('defines the exact two-texture camera-safe pilot candidate from Task 4 appr
 			path: 'artifacts/meadow-entry/painted-v2/exports/painted-v2-sundrop-camera-base.png',
 			width: 3200,
 			height: 3200,
-			encodedBytes: 27_461_169,
-			encodedSha256: 'c2b64cc909403c9b069f02e8928bdb6c028f96d14de1933f6f57254c2772c398'
+			encodedBytes: 28_222_237,
+			encodedSha256: '0b85449a2c9ee83b86848aadf0d1ace8004601dbdf48317d95f9696809aed870'
 		},
 		{
 			id: 'crossroads-camera-base',
 			path: 'artifacts/meadow-entry/painted-v2/exports/painted-v2-crossroads-camera-base.png',
 			width: 3200,
 			height: 3200,
-			encodedBytes: 29_152_817,
-			encodedSha256: '79510b4fe760c32c19ae23567b405a79bad78b011bc1bc4b231974a99636d134'
+			encodedBytes: 29_695_252,
+			encodedSha256: '5c5f3966895daf623a04ee093f2c3c227f7cdf9030eab8d7d239f955d9a41db3'
 		}
 	] as const;
 
@@ -179,6 +179,62 @@ test('defines the exact two-texture camera-safe pilot candidate from Task 4 appr
 			{ width: asset.width, height: asset.height }
 		);
 	}
+});
+
+test('binds the frozen camera-safe browser report to the current approved candidate', () => {
+	const candidate = PAINTED_V2_TEXTURE_PROBE_INPUTS['painted-v2-camera-safe-pilot'];
+	const report = JSON.parse(
+		readFileSync(
+			'artifacts/meadow-entry/painted-v2/proofs/texture-probe/browser-camera-safe-pilot.json',
+			'utf8'
+		)
+	) as {
+		label: string;
+		assetCount: number;
+		successfulUploads: number;
+		retainedTextures: number;
+		maxTextureSize: number | null;
+		contextLost: boolean | null;
+		webglAvailable: boolean;
+		assets: Array<{
+			id: string;
+			path: string;
+			width: number;
+			height: number;
+			encodedBytes: number;
+			encodedSha256: string;
+			durationMs: number;
+			success: boolean;
+			failure: string | null;
+		}>;
+		encodedBytesTotal: number;
+		probeFailure: string | null;
+		failureScope: string | null;
+		decision: string;
+	};
+
+	assert.equal(report.label, candidate.label);
+	assert.equal(report.assetCount, candidate.assets.length);
+	assert.equal(report.successfulUploads, candidate.assets.length);
+	assert.equal(report.retainedTextures, candidate.expectedRetainedTextures);
+	assert.equal(report.webglAvailable, true);
+	assert.ok(report.maxTextureSize !== null && report.maxTextureSize >= 3200);
+	assert.equal(report.contextLost, false);
+	assert.equal(report.probeFailure, null);
+	assert.equal(report.failureScope, null);
+	assert.equal(report.decision, 'proceed');
+	assert.deepEqual(
+		report.assets.map(({ durationMs: _durationMs, success, failure, ...asset }) => ({
+			...asset,
+			success,
+			failure
+		})),
+		candidate.assets.map((asset) => ({ ...asset, success: true, failure: null }))
+	);
+	assert.equal(
+		report.encodedBytesTotal,
+		candidate.assets.reduce((total, { encodedBytes }) => total + (encodedBytes ?? 0), 0)
+	);
 });
 
 test('exposes both fixed candidate sets through the named input helper', () => {
