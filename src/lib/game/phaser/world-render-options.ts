@@ -1,6 +1,7 @@
 export interface WorldRenderOptions {
 	regionalBackgrounds: boolean;
 	meadowPaintedPilot: boolean;
+	meadowPaintedPilotOff: boolean;
 	collisionDebug: boolean;
 	movementDiagnostics: boolean;
 	regionalBackgroundFault: {
@@ -17,6 +18,7 @@ export function parseWorldRenderOptions(search: string): WorldRenderOptions {
 	return {
 		regionalBackgrounds: parameters.get('regionalBackground') !== 'off',
 		meadowPaintedPilot: parameters.get('meadowPaintedPilot') === 'on',
+		meadowPaintedPilotOff: parameters.get('meadowPaintedPilot') === 'off',
 		collisionDebug: parameters.get('mapDebug') === 'collision',
 		movementDiagnostics: parameters.get('movementDiagnostics') === 'on',
 		regionalBackgroundFault: faultMatch ? { backgroundId: faultMatch[1]!, mode: 'render' } : null

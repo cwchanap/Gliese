@@ -1066,26 +1066,27 @@ describe('BootScene', () => {
 		for (const asset of Object.values(battleBackgroundAssets)) {
 			expect(scene.load.image).toHaveBeenCalledWith(asset.key, asset.path);
 		}
-		expect(scene.load.image).not.toHaveBeenCalledWith(
-			expect.anything(),
-			expect.stringContaining('/game/assets/regions/')
-		);
 	});
 
-	it('does not preload regional backgrounds by default', async () => {
+	it('does not preload regional backgrounds when the painted default is explicitly off', async () => {
+		const restoreLocation = installLocationSearch('?meadowPaintedPilot=off');
 		const { BootScene } = await import('./BootScene');
 		const scene = new BootScene();
 
-		scene.preload();
+		try {
+			scene.preload();
 
-		expect(scene.load.image).not.toHaveBeenCalledWith(
-			expect.anything(),
-			expect.stringContaining('/game/assets/regions/')
-		);
+			expect(scene.load.image).not.toHaveBeenCalledWith(
+				expect.anything(),
+				expect.stringContaining('/game/assets/regions/')
+			);
+		} finally {
+			restoreLocation();
+		}
 	});
 
-	it('preloads exactly the selected painted pilot assets and counts only those completions', async () => {
-		const restoreLocation = installLocationSearch('?meadowPaintedPilot=on');
+	it('preloads exactly the default painted assets and counts only those completions', async () => {
+		const restoreLocation = installLocationSearch('');
 		const target = installHudCommandTarget();
 		const diagnostics: RegionalBackgroundRendererDiagnostic[] = [];
 		const { REGIONAL_BACKGROUND_RENDERER_DIAGNOSTIC_EVENT } =
@@ -1163,6 +1164,7 @@ describe('BootScene', () => {
 	});
 
 	it('emits WebGL renderer evidence with one maximum-texture-size query', async () => {
+		const restoreLocation = installLocationSearch('?meadowPaintedPilot=off');
 		const { REGIONAL_BACKGROUND_RENDERER_DIAGNOSTIC_EVENT } =
 			await import('$lib/game/phaser/renderer-diagnostics');
 		const { BootScene } = await import('./BootScene');
@@ -1191,12 +1193,14 @@ describe('BootScene', () => {
 				}
 			]);
 		} finally {
+			restoreLocation();
 			now.mockRestore();
 			target.restore();
 		}
 	});
 
 	it('reports null maxTextureSize when the WebGL query throws', async () => {
+		const restoreLocation = installLocationSearch('?meadowPaintedPilot=off');
 		const { REGIONAL_BACKGROUND_RENDERER_DIAGNOSTIC_EVENT } =
 			await import('$lib/game/phaser/renderer-diagnostics');
 		const { BootScene } = await import('./BootScene');
@@ -1226,6 +1230,7 @@ describe('BootScene', () => {
 				}
 			]);
 		} finally {
+			restoreLocation();
 			phaserState.gl.getParameter = vi.fn(() => 4096);
 			now.mockRestore();
 			target.restore();
@@ -1233,6 +1238,7 @@ describe('BootScene', () => {
 	});
 
 	it('reports Canvas with no texture limit without touching WebGL', async () => {
+		const restoreLocation = installLocationSearch('?meadowPaintedPilot=off');
 		const { REGIONAL_BACKGROUND_RENDERER_DIAGNOSTIC_EVENT } =
 			await import('$lib/game/phaser/renderer-diagnostics');
 		const { BootScene } = await import('./BootScene');
@@ -1261,6 +1267,7 @@ describe('BootScene', () => {
 				}
 			]);
 		} finally {
+			restoreLocation();
 			phaserState.renderer.type = 2;
 			now.mockRestore();
 			target.restore();
@@ -1268,6 +1275,7 @@ describe('BootScene', () => {
 	});
 
 	it('reports zero regional completions when the catalog is empty', async () => {
+		const restoreLocation = installLocationSearch('?meadowPaintedPilot=off');
 		const { REGIONAL_BACKGROUND_RENDERER_DIAGNOSTIC_EVENT } =
 			await import('$lib/game/phaser/renderer-diagnostics');
 		const { BootScene } = await import('./BootScene');
@@ -1295,6 +1303,7 @@ describe('BootScene', () => {
 				}
 			]);
 		} finally {
+			restoreLocation();
 			now.mockRestore();
 			target.restore();
 		}
@@ -1328,6 +1337,7 @@ describe('BootScene', () => {
 	});
 
 	it('keeps regional timing null when no active background fails', async () => {
+		const restoreLocation = installLocationSearch('?meadowPaintedPilot=off');
 		const { REGIONAL_BACKGROUND_RENDERER_DIAGNOSTIC_EVENT } =
 			await import('$lib/game/phaser/renderer-diagnostics');
 		const { BootScene } = await import('./BootScene');
@@ -1348,6 +1358,7 @@ describe('BootScene', () => {
 			expect(diagnostics[0]?.regionalBackgroundLoadMs).toBeNull();
 			expect(diagnostics[0]?.regionalBackgroundLoadCompletions).toBe(0);
 		} finally {
+			restoreLocation();
 			error.mockRestore();
 			now.mockRestore();
 			target.restore();
@@ -1355,6 +1366,7 @@ describe('BootScene', () => {
 	});
 
 	it('reports null timing and zero completions when no regional background is registered', async () => {
+		const restoreLocation = installLocationSearch('?meadowPaintedPilot=off');
 		const assetsModule = await import('$lib/game/content/assets');
 		const { REGIONAL_BACKGROUND_RENDERER_DIAGNOSTIC_EVENT } =
 			await import('$lib/game/phaser/renderer-diagnostics');
@@ -1381,6 +1393,7 @@ describe('BootScene', () => {
 			expect(diagnostics[0]?.regionalBackgroundLoadMs).toBeNull();
 			expect(diagnostics[0]?.regionalBackgroundLoadCompletions).toBe(0);
 		} finally {
+			restoreLocation();
 			mutableAssets.push(...savedAssets);
 			now.mockRestore();
 			target.restore();
@@ -3582,6 +3595,7 @@ describe('WorldScene', () => {
 	});
 
 	it('emits no regional background entries or fallback visuals for the active Meadow Entry map', async () => {
+		const restoreLocation = installLocationSearch('?meadowPaintedPilot=off');
 		const target = installPlaneDiagnosticListener();
 		const { meadowEntryMap } = await import('$lib/game/content/maps');
 		const { WorldScene } = await import('./WorldScene');
@@ -3598,12 +3612,13 @@ describe('WorldScene', () => {
 			expect(target.diagnostics[0]?.selectedFallbackDecorIds).toEqual([]);
 			expect(target.diagnostics[0]?.selectedFallbackFenceIds).toEqual([]);
 		} finally {
+			restoreLocation();
 			target.restore();
 		}
 	});
 
-	it('resolves the pilot descriptors through the generic renderer and suppresses complete live owners', async () => {
-		const restoreLocation = installLocationSearch('?meadowPaintedPilot=on');
+	it('resolves the default painted descriptors through the generic renderer and suppresses complete live owners', async () => {
+		const restoreLocation = installLocationSearch('');
 		const target = installPlaneDiagnosticListener();
 		const selection = await registerPaintedPilotBackgroundMocks();
 		const { meadowEntryMap } = await import('$lib/game/content/maps');
@@ -3632,6 +3647,8 @@ describe('WorldScene', () => {
 				expect(findPaintedFallbackMarkers(sourceId)).toHaveLength(0);
 			}
 			expect(target.diagnostics[0]?.selectedFallbackBlockerIds).toEqual([]);
+			expect(target.diagnostics[0]?.selectedFallbackDecorIds).toEqual([]);
+			expect(target.diagnostics[0]?.selectedFallbackFenceIds).toEqual([]);
 			expect(findPaintedFallbackMarkers('village-decor-28-25')).toHaveLength(0);
 			expect(findPaintedFallbackMarkers('village-decor-22-77')).toHaveLength(0);
 			expect(phaserState.imageMarkers).toEqual(
@@ -3641,20 +3658,35 @@ describe('WorldScene', () => {
 						y: 5_712,
 						texture: 'village-buildings',
 						frame: 'heroHouse'
-					}),
-					expect.objectContaining({
-						x: 4_020,
-						texture: fenceDressingAsset.key,
-						frame: 'verticalFence'
-					}),
-					expect.objectContaining({
-						x: 3_040,
-						y: 4_544,
-						texture: 'village-dressing',
-						frame: 'poleLantern'
 					})
 				])
 			);
+			expect(
+				phaserState.imageMarkers.filter(
+					({ x, y, texture, frame }) =>
+						x === 3_040 && y === 4_544 && texture === 'village-dressing' && frame === 'poleLantern'
+				)
+			).toHaveLength(0);
+			expect(
+				phaserState.imageMarkers.filter(
+					({ x, y, texture, frame }) =>
+						x === 5_280 &&
+						y === 4_420 &&
+						texture === forestDressingAsset.key &&
+						frame === 'treeCluster'
+				)
+			).toHaveLength(0);
+			expect(
+				phaserState.tileSpriteMarkers.filter(
+					({ x, y, width, height, frame }) =>
+						x === 5_520 && y === 4_420 && width === 520 && height === 360 && frame === 'forestFloor'
+				)
+			).toHaveLength(0);
+			expect(
+				phaserState.imageMarkers.filter(
+					({ texture, frame }) => texture === fenceDressingAsset.key && frame === 'verticalFence'
+				)
+			).toHaveLength(0);
 			const strictCollisionRects = collectStrictCollisionRects(meadowEntryMap);
 			for (const sourceId of expectedOrganicBlockerOwners) {
 				expect(strictCollisionRects).toEqual(
@@ -3709,7 +3741,7 @@ describe('WorldScene', () => {
 		],
 		['injected render failure', () => {}, 'render-failed', true]
 	] as const)(
-		'restores the Crossroads blocker for a pilot %s',
+		'restores the complete static overlay when the Crossroads plane has a pilot %s',
 		async (_label, arrange, status, fault) => {
 			const selection = await registerPaintedPilotBackgroundMocks();
 			const crossroads = selection.backgrounds.find((background) =>
@@ -3744,11 +3776,49 @@ describe('WorldScene', () => {
 				expect(target.diagnostics[0]?.successfulBackgroundIds).toEqual([
 					selection.backgrounds[0]!.id
 				]);
-				expect(target.diagnostics[0]?.selectedFallbackBlockerIds).toHaveLength(
-					expectedOrganicBlockerOwners.length
-				);
 				expect(target.diagnostics[0]?.selectedFallbackBlockerIds).toEqual(
 					expect.arrayContaining([...expectedOrganicBlockerOwners])
+				);
+				expect(target.diagnostics[0]?.selectedFallbackDecorIds).toEqual(
+					expect.arrayContaining([
+						'village-decor-28-25',
+						'wildwood-threshold-floor',
+						'wildwood-threshold-tree-wall-west'
+					])
+				);
+				expect(target.diagnostics[0]?.selectedFallbackFenceIds).toEqual(
+					expect.arrayContaining([
+						'coast-approach-west-fence',
+						'coast-approach-east-fence',
+						'coast-fork-east-field-fence'
+					])
+				);
+				expect(phaserState.imageMarkers).toEqual(
+					expect.arrayContaining([
+						expect.objectContaining({
+							x: 3_040,
+							y: 4_544,
+							texture: 'village-dressing',
+							frame: 'poleLantern'
+						}),
+						expect.objectContaining({
+							x: 5_280,
+							y: 4_420,
+							texture: forestDressingAsset.key,
+							frame: 'treeCluster'
+						})
+					])
+				);
+				expect(phaserState.tileSpriteMarkers).toEqual(
+					expect.arrayContaining([
+						expect.objectContaining({
+							x: 5_520,
+							y: 4_420,
+							width: 520,
+							height: 360,
+							frame: 'forestFloor'
+						})
+					])
 				);
 				expect(phaserState.graphicsMarkers[0]?.commands).toContainEqual({
 					kind: 'fillRect',
@@ -3799,7 +3869,7 @@ describe('WorldScene', () => {
 		],
 		['injected render failure', () => {}, 'render-failed', true]
 	] as const)(
-		'restores the Sundrop decor for a pilot %s',
+		'restores the complete static overlay when the Sundrop plane has a pilot %s',
 		async (_label, arrange, status, fault) => {
 			const selection = await registerPaintedPilotBackgroundMocks();
 			const sundrop = selection.backgrounds.find((background) =>
@@ -3820,9 +3890,13 @@ describe('WorldScene', () => {
 
 				expect(findPaintedFallbackMarkers('village-decor-28-25')).toHaveLength(1);
 				for (const sourceId of expectedOrganicBlockerOwners) {
-					expect(findPaintedFallbackMarkers(sourceId)).toHaveLength(0);
+					expect(findPaintedFallbackMarkers(sourceId), sourceId).toHaveLength(
+						expectedOrganicBlockerMarkerCount(sourceId)
+					);
 				}
-				expect(target.diagnostics[0]?.selectedFallbackBlockerIds).toEqual([]);
+				expect(target.diagnostics[0]?.selectedFallbackBlockerIds).toEqual(
+					expect.arrayContaining([...expectedOrganicBlockerOwners])
+				);
 				expect(target.diagnostics[0]?.paintedMode).toBe('pilot');
 				expect(target.diagnostics[0]?.entries.find(({ id }) => id === sundrop.id)?.status).toBe(
 					status
@@ -3835,6 +3909,16 @@ describe('WorldScene', () => {
 					selection.backgrounds[1]!.id
 				]);
 				expect(target.diagnostics[0]?.selectedFallbackDecorIds).toContain('village-decor-28-25');
+				expect(target.diagnostics[0]?.selectedFallbackDecorIds).toEqual(
+					expect.arrayContaining(['wildwood-threshold-floor', 'wildwood-threshold-tree-wall-west'])
+				);
+				expect(target.diagnostics[0]?.selectedFallbackFenceIds).toEqual(
+					expect.arrayContaining([
+						'coast-approach-west-fence',
+						'coast-approach-east-fence',
+						'coast-fork-east-field-fence'
+					])
+				);
 			} finally {
 				target.restore();
 				restoreLocation();
@@ -3843,8 +3927,8 @@ describe('WorldScene', () => {
 	);
 
 	it.each([
-		['Crossroads crop succeeds', ['meadow-entry-painted-v2-sundrop-camera-base'], 0],
-		['Sundrop crop succeeds', ['meadow-entry-painted-v2-crossroads-camera-base'], 0],
+		['Crossroads crop succeeds', ['meadow-entry-painted-v2-sundrop-camera-base'], 1],
+		['Sundrop crop succeeds', ['meadow-entry-painted-v2-crossroads-camera-base'], 1],
 		[
 			'both overlap crops fail',
 			[
@@ -3854,7 +3938,7 @@ describe('WorldScene', () => {
 			1
 		]
 	] as const)(
-		'uses any complete overlap crop for the two-crop village decor owner: %s',
+		'restores all static overlays when any pilot crop is unavailable: %s',
 		async (_label, missingKeys, expectedCount) => {
 			await registerPaintedPilotBackgroundMocks();
 			for (const key of missingKeys) phaserState.missingTextureKeys.add(key);

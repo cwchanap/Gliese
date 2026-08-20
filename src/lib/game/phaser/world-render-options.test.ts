@@ -7,6 +7,7 @@ describe('world render URL options', () => {
 		expect(parseWorldRenderOptions('')).toEqual({
 			regionalBackgrounds: true,
 			meadowPaintedPilot: false,
+			meadowPaintedPilotOff: false,
 			collisionDebug: false,
 			movementDiagnostics: false,
 			regionalBackgroundFault: null
@@ -17,6 +18,7 @@ describe('world render URL options', () => {
 		expect(parseWorldRenderOptions('?regionalBackground=off')).toEqual({
 			regionalBackgrounds: false,
 			meadowPaintedPilot: false,
+			meadowPaintedPilotOff: false,
 			collisionDebug: false,
 			movementDiagnostics: false,
 			regionalBackgroundFault: null
@@ -27,6 +29,7 @@ describe('world render URL options', () => {
 		expect(parseWorldRenderOptions('?mapDebug=collision')).toEqual({
 			regionalBackgrounds: true,
 			meadowPaintedPilot: false,
+			meadowPaintedPilotOff: false,
 			collisionDebug: true,
 			movementDiagnostics: false,
 			regionalBackgroundFault: null
@@ -37,6 +40,7 @@ describe('world render URL options', () => {
 		expect(parseWorldRenderOptions('?regionalBackground=off&mapDebug=collision')).toEqual({
 			regionalBackgrounds: false,
 			meadowPaintedPilot: false,
+			meadowPaintedPilotOff: false,
 			collisionDebug: true,
 			movementDiagnostics: false,
 			regionalBackgroundFault: null
@@ -47,21 +51,28 @@ describe('world render URL options', () => {
 		expect(parseWorldRenderOptions('?regionalBackground=OFF&mapDebug=collisions')).toEqual({
 			regionalBackgrounds: true,
 			meadowPaintedPilot: false,
+			meadowPaintedPilotOff: false,
 			collisionDebug: false,
 			movementDiagnostics: false,
 			regionalBackgroundFault: null
 		});
 	});
 
-	it('enables the painted Meadow pilot only for the exact on value', () => {
+	it('parses exact painted Meadow on and off overrides separately', () => {
 		expect(parseWorldRenderOptions('?meadowPaintedPilot=on')).toMatchObject({
-			meadowPaintedPilot: true
+			meadowPaintedPilot: true,
+			meadowPaintedPilotOff: false
+		});
+		expect(parseWorldRenderOptions('?meadowPaintedPilot=off')).toMatchObject({
+			meadowPaintedPilot: false,
+			meadowPaintedPilotOff: true
 		});
 
-		for (const value of ['', 'off', 'ON', 'true', '1']) {
-			expect(parseWorldRenderOptions(`?meadowPaintedPilot=${value}`).meadowPaintedPilot).toBe(
-				false
-			);
+		for (const value of ['', 'ON', 'OFF', 'true', '1']) {
+			expect(parseWorldRenderOptions(`?meadowPaintedPilot=${value}`)).toMatchObject({
+				meadowPaintedPilot: false,
+				meadowPaintedPilotOff: false
+			});
 		}
 	});
 
@@ -80,6 +91,7 @@ describe('world render URL options', () => {
 		).toEqual({
 			regionalBackgrounds: true,
 			meadowPaintedPilot: false,
+			meadowPaintedPilotOff: false,
 			collisionDebug: false,
 			movementDiagnostics: false,
 			regionalBackgroundFault: null
@@ -91,6 +103,7 @@ describe('world render URL options', () => {
 		).toEqual({
 			regionalBackgrounds: false,
 			meadowPaintedPilot: false,
+			meadowPaintedPilotOff: false,
 			collisionDebug: true,
 			movementDiagnostics: false,
 			regionalBackgroundFault: null
@@ -107,6 +120,7 @@ describe('world render URL options', () => {
 		expect(parseWorldRenderOptions('?movementDiagnostics=on')).toEqual({
 			regionalBackgrounds: true,
 			meadowPaintedPilot: false,
+			meadowPaintedPilotOff: false,
 			collisionDebug: false,
 			movementDiagnostics: true,
 			regionalBackgroundFault: null
@@ -114,6 +128,7 @@ describe('world render URL options', () => {
 		expect(parseWorldRenderOptions('?movementDiagnostics=off')).toEqual({
 			regionalBackgrounds: true,
 			meadowPaintedPilot: false,
+			meadowPaintedPilotOff: false,
 			collisionDebug: false,
 			movementDiagnostics: false,
 			regionalBackgroundFault: null
@@ -121,6 +136,7 @@ describe('world render URL options', () => {
 		expect(parseWorldRenderOptions('?movementDiagnostics=ON')).toEqual({
 			regionalBackgrounds: true,
 			meadowPaintedPilot: false,
+			meadowPaintedPilotOff: false,
 			collisionDebug: false,
 			movementDiagnostics: false,
 			regionalBackgroundFault: null
@@ -133,6 +149,7 @@ describe('world render URL options', () => {
 		expect(resolveWorldRenderOptions(readSearch)).toEqual({
 			regionalBackgrounds: false,
 			meadowPaintedPilot: false,
+			meadowPaintedPilotOff: false,
 			collisionDebug: true,
 			movementDiagnostics: false,
 			regionalBackgroundFault: null
@@ -145,6 +162,7 @@ describe('world render URL options', () => {
 		).toEqual({
 			regionalBackgrounds: true,
 			meadowPaintedPilot: false,
+			meadowPaintedPilotOff: false,
 			collisionDebug: false,
 			movementDiagnostics: false,
 			regionalBackgroundFault: {

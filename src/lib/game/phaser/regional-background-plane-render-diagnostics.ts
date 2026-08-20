@@ -35,9 +35,9 @@ export interface RegionalBackgroundPlaneRenderDiagnostic {
 	paintedMode: MeadowEntryPaintedMode;
 	entries: readonly RegionalBackgroundPlaneRenderDiagnosticEntry[];
 	successfulBackgroundIds: readonly string[];
-	/** Fallback-only blocker IDs drawn live after applying this exact plane-success set. */
+	/** Blocker IDs drawn live after applying this exact plane-success set and pilot policy. */
 	selectedFallbackBlockerIds?: readonly string[];
-	/** Sum of Math.ceil(max(blocker.width, blocker.height) / 48) for selected fallbacks. */
+	/** Sum of Math.ceil(max(blocker.width, blocker.height) / 48) for selected blockers. */
 	selectedFallbackBlockerSegmentCount?: number;
 	selectedFallbackDecorIds: string[];
 	selectedFallbackFenceIds: string[];

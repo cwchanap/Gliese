@@ -17,11 +17,12 @@ export interface MeadowEntryPaintedSelection {
 	readonly visualOwners: readonly GeneratedMeadowEntryVisualOwner[];
 }
 
-export const MEADOW_ENTRY_DEFAULT_PAINTED_MODE: MeadowEntryPaintedMode = 'fallback';
+export const MEADOW_ENTRY_DEFAULT_PAINTED_MODE: MeadowEntryPaintedMode = 'pilot';
 
 export interface MeadowEntryPaintedSelectionOptions {
 	readonly regionalBackgrounds: boolean;
 	readonly meadowPaintedPilot: boolean;
+	readonly meadowPaintedPilotOff?: boolean;
 }
 
 function freezeBackground(background: GeneratedMeadowEntryBackground): MapBackgroundImage {
@@ -95,7 +96,8 @@ function defaultPaintedSelection(): MeadowEntryPaintedSelection {
 export function resolveMeadowEntryPaintedSelection(
 	options: MeadowEntryPaintedSelectionOptions
 ): MeadowEntryPaintedSelection {
-	if (!options.regionalBackgrounds) return MEADOW_ENTRY_PAINTED_MODE_FALLBACK;
+	if (!options.regionalBackgrounds || options.meadowPaintedPilotOff)
+		return MEADOW_ENTRY_PAINTED_MODE_FALLBACK;
 	if (options.meadowPaintedPilot) return MEADOW_ENTRY_PAINTED_MODE_PILOT;
 	return defaultPaintedSelection();
 }

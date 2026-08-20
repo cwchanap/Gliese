@@ -11,16 +11,27 @@ import {
 } from './meadow-entry-painted-v2-runtime';
 
 describe('painted-v2 runtime selection', () => {
-	it('defaults to an empty fallback selection', () => {
-		expect(MEADOW_ENTRY_DEFAULT_PAINTED_MODE).toBe('fallback');
-		expect(
-			resolveMeadowEntryPaintedSelection({ regionalBackgrounds: true, meadowPaintedPilot: false })
-		).toEqual({
-			mode: 'fallback',
-			assets: [],
-			backgrounds: [],
-			visualOwners: []
+	it('defaults to the approved two-crop painted selection', () => {
+		expect(MEADOW_ENTRY_DEFAULT_PAINTED_MODE).toBe('pilot');
+		const selection = resolveMeadowEntryPaintedSelection({
+			regionalBackgrounds: true,
+			meadowPaintedPilot: false,
+			meadowPaintedPilotOff: false
 		});
+		expect(selection.mode).toBe('pilot');
+		expect(selection.assets).toHaveLength(2);
+		expect(selection.backgrounds).toHaveLength(2);
+		expect(selection.visualOwners).toHaveLength(13);
+	});
+
+	it('gives the explicit pilot-off switch priority over the painted default', () => {
+		expect(
+			resolveMeadowEntryPaintedSelection({
+				regionalBackgrounds: true,
+				meadowPaintedPilot: false,
+				meadowPaintedPilotOff: true
+			})
+		).toEqual({ mode: 'fallback', assets: [], backgrounds: [], visualOwners: [] });
 	});
 
 	it('selects exactly the two camera-safe pilot assets when the pilot flag is enabled', () => {
