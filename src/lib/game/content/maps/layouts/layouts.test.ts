@@ -73,6 +73,23 @@ const EXPECTED_INTERIOR_PROGRAMS = {
 	}
 } as const;
 
+const ROOM_CENTER_COLLISION_REPLACEMENTS = {
+	'guild-hall:guildMasterOffice': {
+		roomCenter: { x: 784, y: 160 },
+		collisionId: 'guildMasterDesk',
+		collision: { x: 728, y: 160, width: 144, height: 8 },
+		replacementApproachId: 'guildMaster',
+		replacementApproach: { x: 800, y: 184 }
+	},
+	'guild-hall:quartermasterRoom': {
+		roomCenter: { x: 784, y: 560 },
+		collisionId: 'quartermasterCounter',
+		collision: { x: 696, y: 544, width: 176, height: 8 },
+		replacementApproachId: 'quartermaster',
+		replacementApproach: { x: 816, y: 568 }
+	}
+} as const;
+
 function expectStructuralGrid(value: { x: number; y: number; width: number; height: number }) {
 	for (const [name, number] of Object.entries({
 		x: value.x,
@@ -482,6 +499,35 @@ describe('village interior layout coordinate contracts', () => {
 		}
 	});
 
+	it('documents the two Guild Hall room centers replaced by named reachable approaches', () => {
+		const layout = VILLAGE_INTERIOR_LAYOUTS['guild-hall'];
+		const reachable = reachableInteriorSamples(layout);
+
+		for (const [roomKey, replacement] of Object.entries(ROOM_CENTER_COLLISION_REPLACEMENTS)) {
+			const [, roomId] = roomKey.split(':') as ['guild-hall', keyof typeof layout.rooms];
+			const room = layout.rooms[roomId];
+			const roomCenter = { x: room.x + room.width / 2, y: room.y + room.height / 2 };
+			const collision = layout.propCollisions[replacement.collisionId];
+			const npcApproach = layout.npcApproaches[replacement.replacementApproachId];
+
+			expect(roomCenter, `${roomKey}:room center`).toEqual(replacement.roomCenter);
+			expect(collision, `${roomKey}:prop collision`).toEqual(replacement.collision);
+			expect(
+				expandedLayoutRectContainsPoint(collision, roomCenter, PLAYER_COLLISION_RADIUS),
+				`${roomKey}:room center must remain documented as colliding`
+			).toBe(true);
+			expect(npcApproach.approach, `${roomKey}:replacement approach`).toEqual(
+				replacement.replacementApproach
+			);
+			expect(isInteriorWalkable(layout, replacement.replacementApproach)).toBe(true);
+			expect(
+				reachableInteriorPoint(reachable, replacement.replacementApproach),
+				`${roomKey}:${replacement.replacementApproachId} approach is disconnected`
+			).toBe(true);
+			expect(reachableInteriorPoint(reachable, roomCenter)).toBe(false);
+		}
+	});
+
 	it('freezes the seven current room programs and their composed-collision routes', () => {
 		for (const [mapId, expected] of Object.entries(EXPECTED_INTERIOR_PROGRAMS)) {
 			const layout = VILLAGE_INTERIOR_LAYOUTS[mapId as keyof typeof VILLAGE_INTERIOR_LAYOUTS];
@@ -493,31 +539,39 @@ describe('village interior layout coordinate contracts', () => {
 			);
 
 			const reachable = reachableInteriorSamples(layout);
+			const roomSamples = Object.entries(layout.rooms).map(([roomId, room]) => {
+				const replacement =
+					ROOM_CENTER_COLLISION_REPLACEMENTS[
+						`${mapId}:${roomId}` as keyof typeof ROOM_CENTER_COLLISION_REPLACEMENTS
+					];
+				if (replacement) {
+					return {
+						label: `room:${roomId}:${replacement.replacementApproachId}-approach`,
+						point: replacement.replacementApproach
+					};
+				}
+				return {
+					label: `room:${roomId}:center`,
+					point: { x: room.x + room.width / 2, y: room.y + room.height / 2 }
+				};
+			});
 			const samples = [
-				{ label: 'spawn', point: layout.spawn, maxDistance: 8 },
-				{ label: 'exit', point: layout.exit, maxDistance: 8 },
-				...Object.entries(layout.rooms).map(([roomId, room]) => ({
-					label: `room:${roomId}`,
-					point: { x: room.x + room.width / 2, y: room.y + room.height / 2 },
-					// Furniture may intentionally occupy a semantic room center; prove
-					// the authored center is adjacent to the connected walkable room.
-					maxDistance: 32
-				})),
+				{ label: 'spawn', point: layout.spawn },
+				{ label: 'exit', point: layout.exit },
+				...roomSamples,
 				...Object.entries(layout.doors).map(([doorId, door]) => ({
 					label: `door:${doorId}`,
-					point: { x: door.x + door.width / 2, y: door.y + door.height / 2 },
-					maxDistance: 8
+					point: { x: door.x + door.width / 2, y: door.y + door.height / 2 }
 				})),
 				...Object.entries(layout.npcApproaches).map(([npcId, approach]) => ({
 					label: `npc:${npcId}`,
-					point: approach.approach,
-					maxDistance: 8
+					point: approach.approach
 				}))
 			];
 
-			for (const { label, point, maxDistance } of samples) {
+			for (const { label, point } of samples) {
 				expect(
-					reachableInteriorPoint(reachable, point, maxDistance),
+					reachableInteriorPoint(reachable, point),
 					`${mapId}:${label} is disconnected under authored walls and prop collision`
 				).toBe(true);
 			}
