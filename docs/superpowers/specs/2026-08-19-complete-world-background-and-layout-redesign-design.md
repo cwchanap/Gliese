@@ -2,7 +2,7 @@
 
 **Date:** 2026-08-19
 
-**Status:** Approved in chat; awaiting written-spec review
+**Status:** Approved in chat; external-review changes incorporated
 
 **Classification:** Architectural world revision
 
@@ -10,7 +10,7 @@
 
 ## Player-facing outcome
 
-Every playable map receives an intentional spatial layout and a complete painterly background. The Meadow overworld becomes a coherent landscape shaped by a river, forests, foothills, wetlands, coast, settlements, and optional exploration loops. All seven building interiors become larger, readable, single-floor spaces with distinct functions and baked environmental storytelling. The Ruins Threshold and Ruins Core become visually and spatially distinct dungeon stages.
+Every playable map receives a proved spatial layout and a complete painterly background. The Meadow overworld becomes a coherent landscape shaped by a river, forests, foothills, wetlands, coast, settlements, and optional exploration loops. The seven building interiors retain their already-authored room programs and receive targeted geometry changes only where route, scale, clearance, or visual-composition proof shows a miss. The Ruins Threshold and Ruins Core become visually and spatially distinct dungeon stages.
 
 Static scenery is baked into complete map backgrounds. Gameplay objects and collision remain live. The result must not expose crop overlap, duplicated scenery, obstacle overlays, hard region boundaries, or a mixture of painted and legacy presentation within one map.
 
@@ -29,7 +29,7 @@ All ten current maps are in scope:
 9. `ruins-threshold`
 10. `ruins-core`
 
-`meadow-entry` remains exactly 6400×6400 pixels, or 200×200 cells at 32 pixels per cell. Interior and ruins dimensions may change when the approved layout requires it. Each interior remains one connected floor on one existing map ID.
+`meadow-entry` remains exactly 6400×6400 pixels, or 200×200 cells at 32 pixels per cell. Existing interior layouts are the baseline rather than disposable scaffolding. Interior and ruins dimensions may change only when a documented layout proof shows that the current geometry cannot satisfy an approved route, clearance, encounter, scale, or composition requirement. Each interior remains one connected floor on one existing map ID.
 
 ## Preserved gameplay contracts
 
@@ -43,9 +43,9 @@ The redesign preserves:
 - save compatibility for durable progression state;
 - current movement, camera, combat, interaction, and transition mechanics.
 
-Coordinates, map dimensions other than Meadow, room layouts, routes, collision rectangles, encounter placements, interaction approaches, and non-durable spawn positions may change through the coordinate-first redesign.
+Coordinates, map dimensions other than Meadow, room layouts, routes, collision rectangles, encounter placements, interaction approaches, and non-durable spawn positions may change through the coordinate-first redesign, but compliant current geometry is preserved. A package may not move geometry merely to make generated art fit.
 
-If a saved coordinate becomes invalid after the redesign, map entry and resume logic must resolve it to a documented safe arrival for the same map rather than changing the save schema or progression identity.
+If a saved coordinate becomes invalid after the redesign, the existing `normalizePlayerPosition` policy remains authoritative: clamp to map bounds, resolve to the nearest walkable tile when possible, and use that map's existing `spawn` as the terminal fallback. Every map's `spawn` must be proved walkable. No parallel safe-arrival registry, save-schema change, or new progression identity is introduced.
 
 ## Story and content boundary
 
@@ -73,17 +73,19 @@ Every critical destination remains reachable. Optional routes may reward explora
 
 ### Building interiors
 
+`VILLAGE_INTERIOR_LAYOUTS` is the starting contract. Its current room programs, doors, NPC approaches, and occupant themes are retained unless a focused proof demonstrates a specific failure. The functional names below are acceptance outcomes; they do not require renaming an existing room or splitting it into a new authored node when the current space already satisfies the outcome.
+
 Each interior has a readable outer silhouette, clear entrance axis, quiet interaction approaches, connected rooms, and a distinct functional identity.
 
-- **Hero House:** foyer, living room, kitchen and dining area, bedroom, study corner, storage, personal clutter, and warm domestic lighting.
-- **Guild Hall:** public reception, quest-board and trophy area, gathering hall, Guild Master office, equipment storage, and training or briefing area.
-- **Item Shop:** retail floor, readable counter approach, display shelving, packing or workbench area, stockroom, and merchant living details.
-- **Villager House 1:** garden and family-oriented home.
-- **Villager House 2:** craft-oriented home with visible work identity.
-- **Villager House 3:** older or traveler-oriented household with a different room rhythm and possessions.
+- **Hero House:** the existing bedroom, study, hall, and living/kitchen program must read as foyer, living room, kitchen and dining area, bedroom, study corner, storage, personal clutter, and warm domestic lighting.
+- **Guild Hall:** the existing records hall, common hall, Guild Master office, training hall, quartermaster room, and lobby must read as public reception, quest-board and trophy area, gathering hall, office, equipment storage, and training or briefing area.
+- **Item Shop:** the existing sales floor, counter approach, displays, stockroom, office, and service corridor must read as retail, packing/work, storage, and merchant space.
+- **Villager House 1:** the existing Lynn/family program remains the family-oriented home.
+- **Villager House 2:** the existing Toma/workshop program remains the craft-oriented home.
+- **Villager House 3:** the existing Io/archive-study program remains the older or traveler-oriented household.
 - **Aurora Shrine:** processional entrance, central worship space, side alcoves, reflective or luminous focal element, altar approach, and service or storage space.
 
-The three villager-house themes are visual and functional archetypes. They must be reconciled with the existing occupants and dialogue before coordinates or final art are approved.
+The three villager-house themes are already reconciled by the current occupant bindings and `VILLAGE_INTERIOR_LAYOUTS`. Reopen a theme only if a story-source audit finds a concrete contradiction; prose changes still route separately through `gliese-story-writer`.
 
 No building uses a second floor, separate room-loading map, interior compiler, room graph, or new scene framework.
 
@@ -106,6 +108,16 @@ Layout remains authored by the current repository sources:
 No generalized map editor, procedural generator, new layered-interior model, or replacement authoring framework is part of this program.
 
 ## Visual ownership
+
+The current ownership machinery is extended rather than replaced:
+
+- `MapInteriorProp` and `MapGroundPatch` gain the same optional `visual?: MapVisualOwnership` hook already used by blockers, outdoor decor, and fences;
+- `validateMapBackgroundOwnership` validates ownership for blockers, decor, fences, interior props, and ground patches;
+- base-tile-layer visibility is selected at map-package level because the default terrain grid is not an individually owned record;
+- background selection resolves the complete required texture set for one map before committing presentation;
+- if any required base or foreground descriptor is unavailable, invalid, or render-failed, already-created images from that package are destroyed and the whole map uses legacy tiles and static visuals.
+
+This is a small generic extension of the existing background-selection seam. It is not a new map authoring framework, and it must not be implemented as ten copied map-specific selectors.
 
 ### Baked presentation
 
@@ -174,8 +186,8 @@ Final image generation does not begin until the corresponding layout package is 
 
 For each map or map package:
 
-1. Inventory immutable gameplay IDs and semantic requirements.
-2. Author the spatial layout in the owning source.
+1. Inventory immutable gameplay IDs, current geometry, room/route programs, and semantic requirements.
+2. Diff the current layout against the approved requirements, preserve compliant geometry, and author only the changes needed to close documented failures in the owning source.
 3. Render layout, collision, route, transition, interaction-clearance, and stateful-object controls.
 4. Prove critical and optional navigation using composed runtime collision.
 5. Obtain explicit layout approval.
@@ -184,8 +196,8 @@ For each map or map package:
 8. Assemble one canonical continuous master for the map.
 9. Inspect the master at overview, gameplay-camera, seam, interaction, and native-detail scales.
 10. Obtain explicit art approval.
-11. Publish runtime exports and bind exact hashes, dimensions, controls, and source provenance.
-12. Verify runtime, fallback, browser, save, and native behavior before enabling by default.
+11. Publish runtime exports and bind exact hashes, dimensions, controls, and source provenance in review mode for that map package.
+12. Verify runtime, map-local fallback, browser, save, and native behavior while the package remains non-default.
 
 Generated art never becomes authoritative geometry. If art conflicts with approved geometry, correct or regenerate the art.
 
@@ -202,13 +214,17 @@ Meadow Entry has one canonical continuous 6400×6400 master. Runtime publication
 
 These exports are literal slices of the same decoded master. Runtime rectangles do not overlap. Adjacent source edge pixels must remain continuous because no blend zone exists.
 
+The replacement package retires the current overlapping camera-safe pilot crop contract. `validateMeadowEntryCropContract` and `tools/generate-meadow-entry-runtime.ts` are retargeted to the four exact bounds above, and the replacement manifest has no `MeadowEntryOverlap` rows. Existing 1920×1080 camera-envelope tests remain, but assert coverage by the union of the four slices rather than shared pixels. The historical two-crop pilot and its evidence remain available for comparison until replacement acceptance; they are not reused as the new package contract.
+
+The existing `painted-v2-2x2` texture-probe candidate is the mandatory pre-generation budget gate: exactly four retained 3200×3200 textures, WebGL available, `MAX_TEXTURE_SIZE >= 3200`, and no context loss. A new master is not generated until that probe passes in the target browser/runtime environment.
+
 ### Interiors
 
-Each interior uses one complete base background at its exact redesigned pixel dimensions. A map may add one sparse transparent foreground occlusion export only when its approved layout proves the need.
+Each interior uses one complete base background at its exact approved pixel dimensions. The texture's width and height must each be at most 3200 pixels unless a new explicit texture probe approves a larger bound. A map may add one sparse transparent foreground occlusion export only when its approved layout proves the need. Interiors use the generic map package and ownership contract; they do not inherit `MeadowEntryOverlap`, Meadow authoring regions, or the Meadow crop-manifest model.
 
 ### Ruins
 
-Each ruins map has one canonical master. If a master exceeds the approved safe runtime texture budget, it is sliced into a non-overlapping regular grid. Runtime overlap is forbidden.
+Each ruins map has one canonical master. A single runtime texture may be no larger than 3200×3200 under the currently approved probe. If either master dimension exceeds 3200 pixels, publication uses the same literal, non-overlapping regular-grid slice rule as Meadow, with edge slices cropped to the remaining master bounds. Runtime overlap is forbidden; a different bound requires a new named probe and explicit approval before generation.
 
 ## Runtime selection and fallback
 
@@ -220,34 +236,43 @@ Background selection is per map and all-or-nothing.
 - Fallback does not change collision, transitions, actors, encounters, pickups, quests, or save state.
 - Diagnostics identify the selected map package, required texture IDs, successful IDs, failure status, and final presentation mode.
 
-The current painted Meadow package remains available until its replacement has passed publication and runtime acceptance. No intermediate package becomes the default merely because some maps are finished.
+The implementation generalizes the current review-mode selection seam to a registry keyed by `mapId`. Each entry declares its required base and optional foreground descriptors as one package. The renderer evaluates the package conjunction before suppressing the base tile layer, ground patches, blockers, decor, fences, or interior props. Per-crop success remains diagnostic evidence only; it cannot select a mixed presentation.
+
+The current painted Meadow package remains available until its replacement has passed publication and runtime acceptance. It is an explicit historical partial-coverage comparison, not a conforming complete-map package: its two required textures still succeed or fail as one transaction, but it retains the legacy base layer outside their union. Once Meadow geometry changes, it is opt-in only. No intermediate package becomes the default merely because some maps are finished.
 
 ## Program decomposition
 
 This program is too large for one implementation batch. It is delivered as five approval-gated packages:
 
-1. **Layout foundation**
-   - Redesign all ten layouts.
-   - Produce Meadow overview and per-map graybox/control renders.
-   - Prove routes, collision, transitions, encounters, interaction approaches, and save-safe arrivals.
+1. **Layout and runtime foundation**
+   - Inventory all ten maps and diff their current room, route, ID, transition, encounter, and interaction contracts against this design.
+   - Preserve layouts that already pass; change only geometry with a documented failing proof. Meadow's missing continuous watershed and crossings are the known geometry gap. The existing expanded Ruins shells remain unless composed-collision navigation proof exposes a specific miss.
+   - Treat the current Lynn/family, Toma/workshop, and Io/archive-study themes as closed unless story sources prove a contradiction.
+   - Extend visual ownership to interior props and ground patches, add package-level base-tile suppression, and establish generic map-local all-or-nothing fallback before any new art is generated.
+   - Produce Meadow overview and per-map graybox/control renders and prove routes, collision, transitions, encounters, interaction approaches, and existing save recovery through `normalizePlayerPosition` and walkable `map.spawn` values.
    - This is the first implementation plan. It performs no final image generation.
 
 2. **Meadow art package**
    - Establish the final shared art reference.
+   - Re-run and pass the named `painted-v2-2x2` texture probe before master generation.
    - Produce and approve the continuous Meadow master.
    - Review all regions, handoffs, routes, river crossings, building approaches, and four runtime edges.
+   - Retarget the crop/runtime generator to four exact non-overlapping slices and bind the package in review mode under the existing opt-in flag; do not make it default.
 
 3. **Interior art package**
    - Produce seven complete interior masters in reviewable batches.
    - Review functional readability, room identity, baked decoration, door approaches, and NPC approaches.
+   - Bind each completed interior through the generic per-map review-mode selector with ownership validation, diagnostics, and one required-texture fault proof; do not make it default.
 
 4. **Ruins art package**
    - Produce Threshold and Core independently.
    - Review route clarity, encounter arenas, progression, atmosphere, and distinction.
+   - Bind each completed ruins map in review mode using one texture when both dimensions are at most 3200, otherwise the shared non-overlapping grid rules; include ownership, diagnostics, and one required-texture fault proof.
 
 5. **Runtime publication and acceptance**
-   - Publish non-overlapping exports and provenance.
-   - Extend selection, diagnostics, preload, fallback, and suppression to all maps.
+   - Verify all already-published review-mode exports and provenance as one release candidate.
+   - Confirm the generic selection, diagnostics, preload, fallback, and suppression contract covers all ten maps without copied Meadow-specific selectors.
+   - Enable the production default only after every required map package is complete and approved.
    - Complete automated, browser, save/reload, failure, and native acceptance.
 
 Each package receives its own narrow implementation plan and report. Art packages may refine their own generation prompts and review inventories, but may not change the shared ownership, no-overlap, fallback, or gameplay-contract rules without revising this design.
@@ -263,6 +288,7 @@ Each package receives its own narrow implementation plan and report. Art package
 - Bridges, fords, passes, doors, counters, and corridors meet explicit player-clearance requirements.
 - No required route proof uses an all-open collision grid.
 - Saved positions outside new valid space recover to the documented safe arrival for that map.
+- Layout-review reports classify each map as `preserved` or `changed` and record the exact failing proof that justified every geometry change.
 
 ### Art validation
 
@@ -280,6 +306,7 @@ Each package receives its own narrow implementation plan and report. Art package
 - Required assets preload exactly once and dimensions match descriptors.
 - Healthy selection suppresses legacy static presentation for that map.
 - Each individual required-texture fault restores the complete legacy presentation for that map.
+- A failed multi-texture package renders zero images from that package and never suppresses the legacy base tile layer, ground patches, or static visual collections.
 - Collision and gameplay objects remain unchanged between healthy and fallback presentation.
 - Browser walkthrough uses a 1920×1080 viewport and samples every exterior camera route and every interior.
 - The walkthrough covers all map transitions, representative NPC/shop/quest interactions, encounters, pickups, save, reload, and resumed navigation.
@@ -319,7 +346,7 @@ The user approved these decisions in chat:
 - interiors use one expanded connected floor;
 - Meadow remains 6400×6400;
 - natural features shape navigation without new movement mechanics;
-- coordinate-first complete rebuild rather than art-first repaint or modular overlapping planes;
+- coordinate-first inventory, proof, and targeted redesign rather than art-first repaint, blind geometry replacement, or modular overlapping planes;
 - staged package delivery with explicit layout and visual approval gates;
 - non-overlapping runtime exports and complete map-local fallback;
 - the visual-language and decoration rules in this document.
