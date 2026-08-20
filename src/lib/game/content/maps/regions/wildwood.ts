@@ -509,7 +509,9 @@ export const wildwoodRegion: RegionFragment = {
 		// centerline (x 5600).
 		{
 			id: 'wildwood-forest-lane-west-bank',
-			x: 5_000,
+			// Leave the authored Wildwood mouth anchor at (4992,3904) outside the
+			// padded bank while preserving this blocker’s identity and dimensions.
+			x: 5_040,
 			y: 4_250,
 			width: 64,
 			height: 2_100,

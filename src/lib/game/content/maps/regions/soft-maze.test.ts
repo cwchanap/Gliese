@@ -129,33 +129,20 @@ describe('Meadow watershed route network', () => {
 		return `${point.x},${point.y}`;
 	}
 
-	function nearestWalkableGridPoint(anchor: Pt): Pt | null {
-		let nearestPoint: Pt | null = null;
-		let nearestDistance = Number.POSITIVE_INFINITY;
-		for (let radius = 0; radius <= 192; radius += navigationStep) {
-			for (let dx = -radius; dx <= radius; dx += navigationStep) {
-				for (let dy = -radius; dy <= radius; dy += navigationStep) {
-					const point = {
-						x: Math.round((anchor.x + dx) / navigationStep) * navigationStep,
-						y: Math.round((anchor.y + dy) / navigationStep) * navigationStep
-					};
-					if (!isWalkable(point)) continue;
-					const distance = Math.hypot(point.x - anchor.x, point.y - anchor.y);
-					if (nearestPoint === null || distance < nearestDistance) {
-						nearestPoint = point;
-						nearestDistance = distance;
-					}
-				}
-			}
-			if (nearestPoint !== null) return nearestPoint;
-		}
-		return null;
+	function alignToNavigationGrid(point: Pt): Pt {
+		return {
+			x: Math.round(point.x / navigationStep) * navigationStep,
+			y: Math.round(point.y / navigationStep) * navigationStep
+		};
 	}
 
-	function findRoute(from: Pt, to: Pt): Pt[] | null {
-		const start = nearestWalkableGridPoint(from);
-		const goal = nearestWalkableGridPoint(to);
-		if (!start || !goal) return null;
+	function findRoute(label: string, from: Pt, to: Pt): Pt[] | null {
+		expect(isWalkable(from), `${label} start anchor is not walkable`).toBe(true);
+		expect(isWalkable(to), `${label} goal anchor is not walkable`).toBe(true);
+		const start = alignToNavigationGrid(from);
+		const goal = alignToNavigationGrid(to);
+		expect(isWalkable(start), `${label} aligned start is not walkable`).toBe(true);
+		expect(isWalkable(goal), `${label} aligned goal is not walkable`).toBe(true);
 
 		const queue: Pt[] = [start];
 		const parents = new Map<string, string | null>([[gridKey(start), null]]);
@@ -188,6 +175,12 @@ describe('Meadow watershed route network', () => {
 		return null;
 	}
 
+	it('keeps every specified Meadow route anchor itself walkable', () => {
+		for (const [id, anchor] of Object.entries(MEADOW_LAYOUT_ROUTE_ANCHORS)) {
+			expect(isWalkable(anchor), `${id} anchor is not walkable`).toBe(true);
+		}
+	});
+
 	it('connects the critical route anchors through composed collision', () => {
 		const routes = [
 			['Hero House → village bridge west', 'heroHouse', 'villageBridgeWest'],
@@ -202,7 +195,11 @@ describe('Meadow watershed route network', () => {
 		] as const;
 
 		for (const [label, from, to] of routes) {
-			const path = findRoute(MEADOW_LAYOUT_ROUTE_ANCHORS[from], MEADOW_LAYOUT_ROUTE_ANCHORS[to]);
+			const path = findRoute(
+				label,
+				MEADOW_LAYOUT_ROUTE_ANCHORS[from],
+				MEADOW_LAYOUT_ROUTE_ANCHORS[to]
+			);
 			expect(path, `${label} has no walkable route`).not.toBeNull();
 			expect(path?.length ?? 0, `${label} must contain more than its endpoint`).toBeGreaterThan(1);
 		}
@@ -217,8 +214,8 @@ describe('Meadow watershed route network', () => {
 
 		for (const [label, main, rejoin] of loops) {
 			const detour = OPTIONAL_ROUTE_POINTS[main];
-			const outbound = findRoute(MEADOW_LAYOUT_ROUTE_ANCHORS[main], detour);
-			const inbound = findRoute(detour, MEADOW_LAYOUT_ROUTE_ANCHORS[rejoin]);
+			const outbound = findRoute(`${label} outbound`, MEADOW_LAYOUT_ROUTE_ANCHORS[main], detour);
+			const inbound = findRoute(`${label} inbound`, detour, MEADOW_LAYOUT_ROUTE_ANCHORS[rejoin]);
 			expect(outbound, `${label} optional loop cannot leave the main route`).not.toBeNull();
 			expect(inbound, `${label} optional loop cannot rejoin the main route`).not.toBeNull();
 			expect(outbound?.length ?? 0, `${label} loop has no detour`).toBeGreaterThan(2);
