@@ -24,6 +24,29 @@ export interface VillageInteriorExterior {
 
 export const MEADOW_ENTRY_V2_WORLD = rect(0, 0, 6400, 6400);
 
+export interface MeadowEntryV2LandscapeRect {
+	readonly id: string;
+	readonly rect: LayoutRect;
+}
+
+export const MEADOW_ENTRY_V2_RIVER_SEGMENTS = [
+	{ id: 'silverpine-headwater', rect: rect(3456, 256, 256, 1088) },
+	{ id: 'silverpine-falls', rect: rect(3264, 1344, 448, 512) },
+	{ id: 'north-river', rect: rect(3040, 1856, 320, 480) },
+	{ id: 'central-river', rect: rect(2880, 2496, 480, 1056) },
+	{ id: 'lower-river', rect: rect(2784, 3744, 480, 768) },
+	{ id: 'river-delta', rect: rect(2816, 4736, 672, 512) },
+	{ id: 'estuary-west', rect: rect(3008, 5248, 496, 896) },
+	{ id: 'estuary-east', rect: rect(3712, 5248, 384, 896) }
+] as const;
+
+export const MEADOW_ENTRY_V2_CROSSINGS = {
+	silverpineBridge: rect(2880, 2336, 1024, 160),
+	mistfenBridge: rect(2368, 3552, 1536, 192),
+	sundropBridge: rect(2496, 4512, 1248, 224),
+	ferryApproach: rect(3504, 5248, 208, 896)
+} as const;
+
 export const MEADOW_ENTRY_V2_REGION_ENVELOPES = {
 	mistfen: rect(384, 384, 2816, 3712),
 	silverpine: rect(2432, 384, 2048, 2432),
@@ -48,22 +71,22 @@ export interface MeadowEntryV2RoutePatch {
  * from the authored map geometry.
  */
 export const MEADOW_ENTRY_V2_ROUTE_PATCHES = [
-	{ id: 'village-to-crossroads', owner: 'paths', rect: rect(2_816, 4_608, 448, 160) },
-	{ id: 'crossroads-to-mistfen', owner: 'paths', rect: rect(3_072, 3_072, 608, 160) },
-	{ id: 'crossroads-to-silverpine', owner: 'paths', rect: rect(3_680, 2_432, 192, 384) },
-	{ id: 'crossroads-to-wildwood', owner: 'paths', rect: rect(4_288, 4_144, 704, 160) },
-	{ id: 'crossroads-to-coast', owner: 'paths', rect: rect(4_128, 4_768, 192, 800) },
+	{ id: 'village-west-main-street', owner: 'paths', rect: rect(256, 4608, 2240, 160) },
+	{ id: 'village-river-crossing', owner: 'paths', rect: MEADOW_ENTRY_V2_CROSSINGS.sundropBridge },
+	{ id: 'crossroads-south-approach', owner: 'paths', rect: rect(3360, 4448, 384, 320) },
+	{ id: 'crossroads-to-mistfen', owner: 'paths', rect: MEADOW_ENTRY_V2_CROSSINGS.mistfenBridge },
 	{
-		id: 'mistfen-seam-horizontal',
-		owner: 'mistfen',
-		rect: rect(2_400, 3_072, 672, 160)
+		id: 'crossroads-to-silverpine',
+		owner: 'paths',
+		rect: MEADOW_ENTRY_V2_CROSSINGS.silverpineBridge
 	},
-	{ id: 'mistfen-seam-vertical', owner: 'mistfen', rect: rect(2_240, 2_752, 160, 480) },
-	{ id: 'silverpine-seam', owner: 'silverpine', rect: rect(3_424, 2_336, 352, 192) },
-	{ id: 'wildwood-seam', owner: 'wildwood', rect: rect(4_704, 3_776, 192, 384) }
+	{ id: 'silverpine-south-approach', owner: 'paths', rect: rect(3808, 2496, 192, 320) },
+	{ id: 'crossroads-to-wildwood', owner: 'paths', rect: rect(4544, 3824, 448, 160) },
+	{ id: 'crossroads-to-coast', owner: 'paths', rect: rect(4128, 4768, 192, 800) },
+	{ id: 'mistfen-west-approach', owner: 'mistfen', rect: rect(2240, 3552, 128, 192) },
+	{ id: 'silverpine-north-approach', owner: 'silverpine', rect: rect(2816, 2176, 192, 160) },
+	{ id: 'wildwood-mouth', owner: 'wildwood', rect: rect(4896, 3776, 192, 384) }
 ] as const satisfies readonly MeadowEntryV2RoutePatch[];
-
-export type MeadowEntryV2RoutePatchId = (typeof MEADOW_ENTRY_V2_ROUTE_PATCHES)[number]['id'];
 
 export function meadowEntryV2RoutePatchesFor(
 	owner: MeadowEntryV2RoutePatchOwner
@@ -71,21 +94,15 @@ export function meadowEntryV2RoutePatchesFor(
 	return MEADOW_ENTRY_V2_ROUTE_PATCHES.filter((patch) => patch.owner === owner);
 }
 
-function meadowEntryV2RoutePatchRect(id: MeadowEntryV2RoutePatchId): LayoutRect {
-	const patch = MEADOW_ENTRY_V2_ROUTE_PATCHES.find((candidate) => candidate.id === id);
-	if (!patch) throw new Error(`Unknown Meadow Entry V2 route patch: ${id}`);
-	return patch.rect;
-}
-
 export const MEADOW_ENTRY_V2_ROUTES = {
 	villageMainStreet: rect(256, 4608, 2560, 160),
-	villageToCrossroads: meadowEntryV2RoutePatchRect('village-to-crossroads'),
-	crossroadsPlaza: rect(3264, 3680, 1024, 1088),
-	crossroadsNorthTrunk: rect(3680, 2816, 192, 864),
-	crossroadsToMistfen: meadowEntryV2RoutePatchRect('crossroads-to-mistfen'),
-	crossroadsToSilverpine: meadowEntryV2RoutePatchRect('crossroads-to-silverpine'),
-	crossroadsToWildwood: meadowEntryV2RoutePatchRect('crossroads-to-wildwood'),
-	crossroadsToCoast: meadowEntryV2RoutePatchRect('crossroads-to-coast')
+	villageToCrossroads: MEADOW_ENTRY_V2_CROSSINGS.sundropBridge,
+	crossroadsPlaza: rect(3360, 3456, 1184, 1312),
+	crossroadsNorthTrunk: rect(3808, 2816, 192, 640),
+	crossroadsToMistfen: MEADOW_ENTRY_V2_CROSSINGS.mistfenBridge,
+	crossroadsToSilverpine: MEADOW_ENTRY_V2_CROSSINGS.silverpineBridge,
+	crossroadsToWildwood: rect(4544, 3824, 448, 160),
+	crossroadsToCoast: rect(4128, 4768, 192, 800)
 } as const;
 
 export const SUNDROP_VILLAGE_V2 = {

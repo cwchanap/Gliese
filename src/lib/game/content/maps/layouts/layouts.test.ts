@@ -8,6 +8,8 @@ import {
 } from '$lib/game/core/collision';
 import { NORMALIZE_TRANSITION_RADIUS } from '$lib/game/save/save-state';
 import {
+	MEADOW_ENTRY_V2_CROSSINGS,
+	MEADOW_ENTRY_V2_RIVER_SEGMENTS,
 	MEADOW_ENTRY_V2_ROUTE_PATCHES,
 	MEADOW_ENTRY_V2_ROUTES,
 	MEADOW_ENTRY_V2_WORLD,
@@ -253,6 +255,42 @@ describe('outdoor layout coordinate contracts', () => {
 		expect((2560 * 2176) / (1792 * 1536)).toBeGreaterThanOrEqual(2);
 	});
 
+	it('pins the exact Meadow watershed and crossing rectangles', () => {
+		expect(MEADOW_ENTRY_V2_RIVER_SEGMENTS).toEqual([
+			{ id: 'silverpine-headwater', rect: rect(3456, 256, 256, 1088) },
+			{ id: 'silverpine-falls', rect: rect(3264, 1344, 448, 512) },
+			{ id: 'north-river', rect: rect(3040, 1856, 320, 480) },
+			{ id: 'central-river', rect: rect(2880, 2496, 480, 1056) },
+			{ id: 'lower-river', rect: rect(2784, 3744, 480, 768) },
+			{ id: 'river-delta', rect: rect(2816, 4736, 672, 512) },
+			{ id: 'estuary-west', rect: rect(3008, 5248, 496, 896) },
+			{ id: 'estuary-east', rect: rect(3712, 5248, 384, 896) }
+		]);
+		expect(MEADOW_ENTRY_V2_CROSSINGS).toEqual({
+			silverpineBridge: rect(2880, 2336, 1024, 160),
+			mistfenBridge: rect(2368, 3552, 1536, 192),
+			sundropBridge: rect(2496, 4512, 1248, 224),
+			ferryApproach: rect(3504, 5248, 208, 896)
+		});
+
+		for (const { rect: bounds } of MEADOW_ENTRY_V2_RIVER_SEGMENTS) {
+			expect(rectContains(MEADOW_ENTRY_V2_WORLD, bounds)).toBe(true);
+		}
+		for (const bounds of Object.values(MEADOW_ENTRY_V2_CROSSINGS)) {
+			expect(rectContains(MEADOW_ENTRY_V2_WORLD, bounds)).toBe(true);
+		}
+
+		expect(MEADOW_ENTRY_V2_CROSSINGS.silverpineBridge.height).toBe(160);
+		expect(MEADOW_ENTRY_V2_CROSSINGS.mistfenBridge.height).toBe(192);
+		expect(MEADOW_ENTRY_V2_CROSSINGS.sundropBridge.height).toBe(224);
+		expect(MEADOW_ENTRY_V2_CROSSINGS.ferryApproach.width).toBe(208);
+		expect(
+			3600 >= MEADOW_ENTRY_V2_CROSSINGS.ferryApproach.x &&
+				3600 <=
+					MEADOW_ENTRY_V2_CROSSINGS.ferryApproach.x + MEADOW_ENTRY_V2_CROSSINGS.ferryApproach.width
+		).toBe(true);
+	});
+
 	it('keeps footprints inside non-overlapping lots with 96 px clearance', () => {
 		const buildings = Object.values(SUNDROP_VILLAGE_V2_BUILDINGS);
 		for (const building of buildings) {
@@ -312,10 +350,15 @@ describe('outdoor layout coordinate contracts', () => {
 	it('connects the village, Crossroads, and all four destination mouths', () => {
 		const routes = MEADOW_ENTRY_V2_ROUTES;
 		expect(rectsConnect(routes.villageMainStreet, routes.villageToCrossroads)).toBe(true);
-		expect(rectsConnect(routes.villageToCrossroads, routes.crossroadsPlaza)).toBe(true);
 		expect(rectsConnect(routes.crossroadsPlaza, routes.crossroadsNorthTrunk)).toBe(true);
-		expect(rectsConnect(routes.crossroadsNorthTrunk, routes.crossroadsToMistfen)).toBe(true);
-		expect(rectsConnect(routes.crossroadsNorthTrunk, routes.crossroadsToSilverpine)).toBe(true);
+		expect(rectsConnect(routes.villageToCrossroads, routes.crossroadsPlaza)).toBe(true);
+		expect(rectsConnect(routes.crossroadsPlaza, routes.crossroadsToMistfen)).toBe(true);
+		const silverpineSouthApproach = MEADOW_ENTRY_V2_ROUTE_PATCHES.find(
+			(patch) => patch.id === 'silverpine-south-approach'
+		)?.rect;
+		expect(silverpineSouthApproach).toBeDefined();
+		expect(rectsConnect(routes.crossroadsNorthTrunk, silverpineSouthApproach!)).toBe(true);
+		expect(rectsConnect(silverpineSouthApproach!, routes.crossroadsToSilverpine)).toBe(true);
 		expect(rectsConnect(routes.crossroadsPlaza, routes.crossroadsToWildwood)).toBe(true);
 		expect(rectsConnect(routes.crossroadsPlaza, routes.crossroadsToCoast)).toBe(true);
 	});
@@ -323,49 +366,59 @@ describe('outdoor layout coordinate contracts', () => {
 	it('keeps the ordered semantic route/seam source registry exact', () => {
 		expect(MEADOW_ENTRY_V2_ROUTE_PATCHES).toEqual([
 			{
-				id: 'village-to-crossroads',
+				id: 'village-west-main-street',
 				owner: 'paths',
-				rect: { x: 2_816, y: 4_608, width: 448, height: 160 }
+				rect: { x: 256, y: 4608, width: 2240, height: 160 }
+			},
+			{
+				id: 'village-river-crossing',
+				owner: 'paths',
+				rect: { x: 2496, y: 4512, width: 1248, height: 224 }
+			},
+			{
+				id: 'crossroads-south-approach',
+				owner: 'paths',
+				rect: { x: 3360, y: 4448, width: 384, height: 320 }
 			},
 			{
 				id: 'crossroads-to-mistfen',
 				owner: 'paths',
-				rect: { x: 3_072, y: 3_072, width: 608, height: 160 }
+				rect: { x: 2368, y: 3552, width: 1536, height: 192 }
 			},
 			{
 				id: 'crossroads-to-silverpine',
 				owner: 'paths',
-				rect: { x: 3_680, y: 2_432, width: 192, height: 384 }
+				rect: { x: 2880, y: 2336, width: 1024, height: 160 }
+			},
+			{
+				id: 'silverpine-south-approach',
+				owner: 'paths',
+				rect: { x: 3808, y: 2496, width: 192, height: 320 }
 			},
 			{
 				id: 'crossroads-to-wildwood',
 				owner: 'paths',
-				rect: { x: 4_288, y: 4_144, width: 704, height: 160 }
+				rect: { x: 4544, y: 3824, width: 448, height: 160 }
 			},
 			{
 				id: 'crossroads-to-coast',
 				owner: 'paths',
-				rect: { x: 4_128, y: 4_768, width: 192, height: 800 }
+				rect: { x: 4128, y: 4768, width: 192, height: 800 }
 			},
 			{
-				id: 'mistfen-seam-horizontal',
+				id: 'mistfen-west-approach',
 				owner: 'mistfen',
-				rect: { x: 2_400, y: 3_072, width: 672, height: 160 }
+				rect: { x: 2240, y: 3552, width: 128, height: 192 }
 			},
 			{
-				id: 'mistfen-seam-vertical',
-				owner: 'mistfen',
-				rect: { x: 2_240, y: 2_752, width: 160, height: 480 }
-			},
-			{
-				id: 'silverpine-seam',
+				id: 'silverpine-north-approach',
 				owner: 'silverpine',
-				rect: { x: 3_424, y: 2_336, width: 352, height: 192 }
+				rect: { x: 2816, y: 2176, width: 192, height: 160 }
 			},
 			{
-				id: 'wildwood-seam',
+				id: 'wildwood-mouth',
 				owner: 'wildwood',
-				rect: { x: 4_704, y: 3_776, width: 192, height: 384 }
+				rect: { x: 4896, y: 3776, width: 192, height: 384 }
 			}
 		]);
 	});

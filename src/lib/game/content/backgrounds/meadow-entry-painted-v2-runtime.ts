@@ -23,7 +23,7 @@ export interface MeadowEntryPaintedSelection {
 	readonly visualOwners: readonly GeneratedMeadowEntryVisualOwner[];
 }
 
-export const MEADOW_ENTRY_DEFAULT_PAINTED_MODE: MeadowEntryPaintedMode = 'pilot';
+export const MEADOW_ENTRY_DEFAULT_PAINTED_MODE: MeadowEntryPaintedMode = 'fallback';
 
 export interface MeadowEntryPaintedSelectionOptions {
 	readonly regionalBackgrounds: boolean;

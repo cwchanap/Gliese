@@ -21,6 +21,7 @@ import {
 	shrineDressingAsset,
 	terrainTilesAsset
 } from '$lib/game/content/assets';
+import { MEADOW_ENTRY_V2_RIVER_SEGMENTS } from '$lib/game/content/maps/layouts/meadow-entry-v2';
 import { getItem } from '$lib/game/content/items';
 import { getShop } from '$lib/game/content/shops';
 import {
@@ -2773,21 +2774,23 @@ describe('meadow-entry region integrity', () => {
 
 	it('preserves the semantic V2 connector and destination-seam rectangles', () => {
 		const expected = {
-			'village-to-crossroads': { x: 3_040, y: 4_688, width: 448, height: 160 },
-			'crossroads-to-mistfen': { x: 3_376, y: 3_152, width: 608, height: 160 },
-			'crossroads-to-silverpine': { x: 3_776, y: 2_624, width: 192, height: 384 },
-			'crossroads-to-wildwood': { x: 4_640, y: 4_224, width: 704, height: 160 },
-			'crossroads-to-coast': { x: 4_224, y: 5_168, width: 192, height: 800 },
-			'mistfen-seam-horizontal': { x: 2_736, y: 3_152, width: 672, height: 160 },
-			'mistfen-seam-vertical': { x: 2_320, y: 2_992, width: 160, height: 480 },
-			'silverpine-seam': { x: 3_600, y: 2_432, width: 352, height: 192 },
-			'wildwood-seam': { x: 4_800, y: 3_968, width: 192, height: 384 }
+			'village-west-main-street': { x: 1376, y: 4688, width: 2240, height: 160 },
+			'village-river-crossing': { x: 3120, y: 4624, width: 1248, height: 224 },
+			'crossroads-south-approach': { x: 3552, y: 4608, width: 384, height: 320 },
+			'crossroads-to-mistfen': { x: 3136, y: 3648, width: 1536, height: 192 },
+			'crossroads-to-silverpine': { x: 3392, y: 2416, width: 1024, height: 160 },
+			'silverpine-south-approach': { x: 3904, y: 2656, width: 192, height: 320 },
+			'crossroads-to-wildwood': { x: 4768, y: 3904, width: 448, height: 160 },
+			'crossroads-to-coast': { x: 4224, y: 5168, width: 192, height: 800 },
+			'mistfen-west-approach': { x: 2304, y: 3648, width: 128, height: 192 },
+			'silverpine-north-approach': { x: 2912, y: 2256, width: 192, height: 160 },
+			'wildwood-mouth': { x: 4992, y: 3968, width: 192, height: 384 }
 		} as const;
 		const groundPatchesById = new Map(
 			(meadowEntryMap.groundPatches ?? []).map((patch) => [patch.id, patch])
 		);
 
-		expect([...groundPatchesById.keys()].filter((id) => id in expected)).toHaveLength(9);
+		expect([...groundPatchesById.keys()].filter((id) => id in expected)).toHaveLength(11);
 		for (const [id, rectangle] of Object.entries(expected)) {
 			expect(groundPatchesById.get(id), id).toMatchObject({
 				...rectangle,
@@ -2812,6 +2815,101 @@ describe('meadow-entry region integrity', () => {
 			expect(npc.y).toBeGreaterThanOrEqual(0);
 			expect(npc.x).toBeLessThan(meadowEntryMap.width * 32);
 			expect(npc.y).toBeLessThan(meadowEntryMap.height * 32);
+		}
+	});
+
+	it('keeps every stateful Meadow approach outside the new river blockers', () => {
+		const expectedIds = {
+			transitions: [
+				'meadow-to-villager-house-1',
+				'meadow-to-villager-house-2',
+				'meadow-to-guild-hall',
+				'meadow-to-item-shop',
+				'meadow-to-hero-house',
+				'meadow-to-villager-house-3',
+				'meadow-to-shrine-of-aurora',
+				'meadow-to-whispering-cave-ruins-threshold'
+			],
+			ambientNpcs: [
+				'village-wanderer',
+				'village-woodcutter',
+				'village-pilgrim',
+				'village-crier',
+				'wildwood-woodcutter',
+				'mistfen-forager',
+				'silverpine-pilgrim',
+				'coast-fisher',
+				'crossroads-crier',
+				'crossroads-traveler'
+			],
+			pickups: [
+				'village-market-cache',
+				'village-shrine-cache',
+				'wildwood-grove-cache',
+				'mistfen-salve',
+				'mistfen-cache',
+				'silverpine-tonic',
+				'silverpine-offering-cache',
+				'coast-salve',
+				'coast-jetty-catch',
+				'crossroads-cache'
+			],
+			discoveries: [
+				'wildwood-cave-danger',
+				'witchwood-poison-warning',
+				'silverpine-amulet-foreshadow',
+				'ferry-shrine-lore',
+				'coast-jetty-foreshadow',
+				'crossroads-waystone-sign',
+				'castle-gate-warning'
+			],
+			encounters: ['meadow-slime-west', 'meadow-slime-center', 'meadow-slime-east'],
+			landmarkApproaches: [
+				'villager-house-1-exterior',
+				'villager-house-2-exterior',
+				'guild-hall-exterior',
+				'item-shop-exterior',
+				'blacksmith',
+				'hero-house-exterior',
+				'villager-house-3-exterior',
+				'shrine-of-aurora',
+				'whispering-cave',
+				'witchwood-gate',
+				'silver-shrine-gate',
+				'ferry-crossing',
+				'castle-gate',
+				'crossroads-waystone'
+			]
+		} as const;
+		const riverBlockers = MEADOW_ENTRY_V2_RIVER_SEGMENTS.map(({ id, rect }) =>
+			toMapRect(`${id}-collision`, rect)
+		);
+		const statefulPoints = [
+			...meadowEntryMap.transitions.map((item) => ({ kind: 'transition', ...item })),
+			...(meadowEntryMap.ambientNpcs ?? []).map((item) => ({ kind: 'ambientNpc', ...item })),
+			...(meadowEntryMap.pickups ?? []).map((item) => ({ kind: 'pickup', ...item })),
+			...(meadowEntryMap.discoveries ?? []).map((item) => ({ kind: 'discovery', ...item })),
+			...(meadowEntryMap.encounters ?? []).map((item) => ({ kind: 'encounter', ...item })),
+			...(meadowEntryMap.landmarks ?? []).map((item) => ({ kind: 'landmarkApproach', ...item }))
+		];
+
+		const actualIds = {
+			transitions: meadowEntryMap.transitions.map(({ id }) => id),
+			ambientNpcs: (meadowEntryMap.ambientNpcs ?? []).map(({ id }) => id),
+			pickups: (meadowEntryMap.pickups ?? []).map(({ id }) => id),
+			discoveries: (meadowEntryMap.discoveries ?? []).map(({ id }) => id),
+			encounters: (meadowEntryMap.encounters ?? []).map(({ id }) => id),
+			landmarkApproaches: (meadowEntryMap.landmarks ?? []).map(({ id }) => id)
+		};
+		for (const [field, ids] of Object.entries(expectedIds)) {
+			expect(actualIds[field as keyof typeof actualIds], field).toEqual(ids);
+		}
+
+		for (const point of statefulPoints) {
+			expect(
+				isInsideAnyCollisionRect(point.x, point.y, riverBlockers, PLAYER_COLLISION_RADIUS),
+				`${point.kind} ${point.id} is inside a river blocker`
+			).toBe(false);
 		}
 	});
 
@@ -3063,41 +3161,31 @@ const V2_ROUTE_POINTS = {
 		{ x: 704, y: 5_920 },
 		{ x: 704, y: 6_080 },
 		{ x: 320, y: 6_080 },
-		{ x: 320, y: 5_920 },
-		{ x: 320, y: 4_688 },
-		{ x: 3_264, y: 4_688 },
-		{ x: 3_776, y: 4_688 },
-		{ x: 3_776, y: 4_480 }
+		{ x: 320, y: 4_624 },
+		{ x: 2_496, y: 4_624 },
+		{ x: 3_744, y: 4_624 },
+		{ x: 3_904, y: 4_624 },
+		{ x: 3_904, y: 4_224 }
 	],
 	crossroadsToMistfen: [
-		{ x: 3_776, y: 4_480 },
-		{ x: 3_648, y: 4_480 },
-		{ x: 3_648, y: 4_064 },
-		{ x: 3_776, y: 4_064 },
-		{ x: 3_776, y: 3_136 },
-		{ x: 3_072, y: 3_136 },
-		{ x: 2_320, y: 3_136 },
-		{ x: 2_320, y: 2_784 }
+		{ x: 3_904, y: 4_224 },
+		{ x: 3_904, y: 3_648 },
+		{ x: 2_240, y: 3_648 }
 	],
 	crossroadsToSilverpine: [
-		{ x: 3_776, y: 4_480 },
-		{ x: 3_648, y: 4_480 },
-		{ x: 3_648, y: 4_064 },
-		{ x: 3_776, y: 4_064 },
-		{ x: 3_776, y: 2_432 },
-		{ x: 3_440, y: 2_432 }
+		{ x: 3_904, y: 4_224 },
+		{ x: 3_904, y: 2_416 }
 	],
 	crossroadsToWildwood: [
-		{ x: 3_776, y: 4_480 },
-		{ x: 4_288, y: 4_480 },
-		{ x: 4_288, y: 4_224 },
-		{ x: 4_800, y: 4_224 },
-		{ x: 4_800, y: 3_808 }
+		{ x: 3_904, y: 4_224 },
+		{ x: 3_904, y: 3_168 },
+		{ x: 4_944, y: 3_168 },
+		{ x: 4_944, y: 3_904 }
 	],
 	crossroadsToCoast: [
-		{ x: 3_776, y: 4_480 },
-		{ x: 4_224, y: 4_480 },
-		{ x: 4_224, y: 5_520 }
+		{ x: 3_904, y: 4_224 },
+		{ x: 4_224, y: 4_224 },
+		{ x: 4_224, y: 5_120 }
 	]
 } as const satisfies Readonly<Record<string, readonly Pt[]>>;
 
@@ -3105,7 +3193,9 @@ const V2_FULL_ROUTE_POINTS = {
 	heroHouseToCrossroads: V2_ROUTE_POINTS.heroHouseToCrossroads,
 	crossroadsToMistfen: [
 		...V2_ROUTE_POINTS.crossroadsToMistfen,
-		{ x: 2_320, y: 2_750 },
+		{ x: 2_280, y: 3_648 },
+		{ x: 2_280, y: 2_750 },
+		{ x: 2_240, y: 2_750 },
 		{ x: 2_150, y: 2_750 },
 		{ x: 2_260, y: 2_750 },
 		{ x: 2_260, y: 2_540 },
@@ -3116,32 +3206,19 @@ const V2_FULL_ROUTE_POINTS = {
 		{ x: 1_380, y: 820 },
 		{ x: 1_060, y: 820 }
 	],
-	crossroadsToSilverpine: [
-		...V2_ROUTE_POINTS.crossroadsToSilverpine,
-		{ x: 3_440, y: 2_360 },
-		{ x: 3_180, y: 2_360 },
-		{ x: 2_900, y: 2_360 },
-		{ x: 2_900, y: 1_820 },
-		{ x: 2_900, y: 2_200 },
-		{ x: 4_000, y: 2_200 },
-		{ x: 4_000, y: 520 },
-		{ x: 4_000, y: 680 },
-		{ x: 3_000, y: 680 }
-	],
+	crossroadsToSilverpine: V2_ROUTE_POINTS.crossroadsToSilverpine,
 	crossroadsToWildwood: [
 		...V2_ROUTE_POINTS.crossroadsToWildwood,
-		{ x: 4_420, y: 3_808 },
-		{ x: 4_420, y: 5_347 },
-		{ x: 5_600, y: 5_347 },
-		{ x: 5_600, y: 3_200 },
-		{ x: 5_600, y: 2_100 },
-		{ x: 5_960, y: 2_100 }
+		{ x: 4_944, y: 3_168 },
+		{ x: 5_600, y: 3_168 },
+		{ x: 5_600, y: 1_868 },
+		{ x: 5_760, y: 1_868 }
 	],
 	crossroadsToCoast: [
 		...V2_ROUTE_POINTS.crossroadsToCoast,
-		{ x: 4_184, y: 5_520 },
-		{ x: 4_184, y: 5_840 },
-		{ x: 4_600, y: 5_840 }
+		{ x: 4_224, y: 4_960 },
+		{ x: 3_600, y: 4_960 },
+		{ x: 3_600, y: 5_500 }
 	]
 } as const satisfies Readonly<Record<string, readonly Pt[]>>;
 

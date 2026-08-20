@@ -195,7 +195,7 @@ export const coastRegion: RegionFragment = {
 			descriptionKey: 'content.maps.discoveries.coast-jetty-foreshadow.description'
 		}
 	],
-	ambientNpcs: [{ id: 'coast-fisher', x: 3_840, y: 5_570, frameName: 'fisherNpc' }],
+	ambientNpcs: [{ id: 'coast-fisher', x: 4_224, y: 5_570, frameName: 'fisherNpc' }],
 	pickups: [
 		{ id: 'coast-salve', x: 5_440, y: 5_930, itemId: 'sunleaf-salve', quantity: 1 },
 		{ id: 'coast-jetty-catch', x: 4_760, y: 6_060, itemId: 'field-potion', quantity: 1 }

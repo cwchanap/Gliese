@@ -15,12 +15,21 @@ import {
 import { resolveMapBackgroundPackageSelection } from './map-background-package';
 
 describe('painted-v2 runtime selection', () => {
-	it('defaults to the approved two-crop painted selection', () => {
-		expect(MEADOW_ENTRY_DEFAULT_PAINTED_MODE).toBe('pilot');
+	it('defaults to the fallback selection without an explicit review request', () => {
+		expect(MEADOW_ENTRY_DEFAULT_PAINTED_MODE).toBe('fallback');
 		const selection = resolveMeadowEntryPaintedSelection({
 			regionalBackgrounds: true,
 			meadowPaintedPilot: false,
 			meadowPaintedPilotOff: false
+		});
+		expect(selection).toEqual(MEADOW_ENTRY_PAINTED_MODE_FALLBACK);
+	});
+
+	it('allows the generic background review id to select the immutable package', () => {
+		const selection = resolveMeadowEntryPaintedSelection({
+			regionalBackgrounds: true,
+			meadowPaintedPilot: false,
+			mapBackgroundReviewIds: [MEADOW_ENTRY_PAINTED_V2_LEGACY_PACKAGE_ID]
 		});
 		expect(selection.mode).toBe('pilot');
 		expect(selection.assets).toHaveLength(2);

@@ -8,6 +8,7 @@ import { silverpineRegion } from '$lib/game/content/maps/regions/silverpine';
 import { coastRegion } from '$lib/game/content/maps/regions/coast';
 import { crossroadsRegion } from '$lib/game/content/maps/regions/crossroads';
 import { pathsRegion } from '$lib/game/content/maps/regions/paths';
+import { riverSystemRegion } from '$lib/game/content/maps/regions/river-system';
 
 export const openingMapId = 'meadow-entry';
 
@@ -132,6 +133,7 @@ const merged = mergeRegions([
 	coastRegion,
 	crossroadsRegion,
 	pathsRegion,
+	riverSystemRegion,
 	meadowBoundsRegion
 ]);
 

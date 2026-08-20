@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import { guildHallMap, maps, meadowEntryMap } from '$lib/game/content/maps';
 import { COMPLETE_WORLD_MAP_IDS } from '$lib/game/content/maps/layouts/complete-world-layout-foundation';
+import { MEADOW_ENTRY_V2_RIVER_SEGMENTS } from '$lib/game/content/maps/layouts/meadow-entry-v2';
 import { startingPlayer } from '$lib/game/content/player';
 import { mainQuestId } from '$lib/game/content/quests';
 import { PLAYER_COLLISION_RADIUS } from '$lib/game/core/collision';
@@ -297,6 +298,30 @@ describe('save state', () => {
 		);
 		expect(Math.abs(parsed!.player.x - blockedPosition.x)).toBeLessThanOrEqual(96);
 		expect(Math.abs(parsed!.player.y - blockedPosition.y)).toBeLessThanOrEqual(96);
+	});
+
+	it('nudges a saved position inside the new watershed to the nearest walkable tile', () => {
+		const river = MEADOW_ENTRY_V2_RIVER_SEGMENTS.find(({ id }) => id === 'north-river');
+		expect(river).toBeDefined();
+		const blockedPosition = {
+			x: river!.rect.x + river!.rect.width / 2,
+			y: river!.rect.y + river!.rect.height / 2
+		};
+		const blockedSave = {
+			...createNewSaveState(),
+			player: {
+				...createNewSaveState().player,
+				x: blockedPosition.x,
+				y: blockedPosition.y
+			}
+		};
+
+		const parsed = parseSaveState(JSON.stringify(blockedSave));
+		expect(parsed).not.toBeNull();
+		expect(isPositionWalkable(parsed!.player.x, parsed!.player.y)).toBe(true);
+		expect(parsed!.player.x !== blockedPosition.x || parsed!.player.y !== blockedPosition.y).toBe(
+			true
+		);
 	});
 
 	it('does not rescue a saved position into a landmark building', () => {
