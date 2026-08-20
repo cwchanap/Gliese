@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
-import { guildHallMap, meadowEntryMap } from '$lib/game/content/maps';
+import { guildHallMap, maps, meadowEntryMap } from '$lib/game/content/maps';
+import { COMPLETE_WORLD_MAP_IDS } from '$lib/game/content/maps/layouts/complete-world-layout-foundation';
 import { startingPlayer } from '$lib/game/content/player';
 import { mainQuestId } from '$lib/game/content/quests';
 import { PLAYER_COLLISION_RADIUS } from '$lib/game/core/collision';
@@ -455,6 +456,43 @@ describe('save state', () => {
 		expect(parsed).not.toBeNull();
 		expect(parsed!.player.x).toBe(meadowEntryMap.spawn.x);
 		expect(parsed!.player.y).toBe(meadowEntryMap.spawn.y);
+	});
+
+	it('round-trips every complete-world map spawn without collision recovery', () => {
+		for (const mapId of COMPLETE_WORLD_MAP_IDS) {
+			const map = maps[mapId];
+			const save = createNewSaveState();
+			save.mapId = mapId;
+			save.player = {
+				...save.player,
+				x: map.spawn.x,
+				y: map.spawn.y,
+				facing: map.spawnDirection
+			};
+
+			const parsed = parseSaveState(serializeSaveState(save));
+			expect(parsed, `${mapId}:parsed`).not.toBeNull();
+			expect(parsed!.mapId).toBe(mapId);
+			expect(parsed!.player.x, `${mapId}:spawn.x`).toBe(map.spawn.x);
+			expect(parsed!.player.y, `${mapId}:spawn.y`).toBe(map.spawn.y);
+
+			const interiorPropCollisions = (map.interiorProps ?? []).flatMap((prop) =>
+				prop.collision ? [prop.collision] : []
+			);
+			expect(
+				isInsideAnyCollisionRect(
+					parsed!.player.x,
+					parsed!.player.y,
+					[
+						...collectStrictCollisionRects(map),
+						...collectLandmarkRects(map),
+						...interiorPropCollisions
+					],
+					PLAYER_COLLISION_RADIUS
+				),
+				`${mapId}:spawn is inside composed collision`
+			).toBe(false);
+		}
 	});
 
 	it('rejects invalid payloads', () => {

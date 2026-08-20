@@ -28,6 +28,51 @@ import {
 } from './layout-rects';
 import { VILLAGE_INTERIOR_LAYOUTS, type VillageInteriorLayout } from './village-interiors-v2';
 
+const EXPECTED_INTERIOR_PROGRAMS = {
+	'guild-hall': {
+		size: [32, 26],
+		rooms: ['recordsHall', 'commonHall', 'guildMasterOffice', 'trainingHall', 'quartermasterRoom'],
+		corridors: ['mainSpine', 'entranceLobby'],
+		npcApproaches: ['guildMaster', 'quartermaster']
+	},
+	'hero-house': {
+		size: [22, 18],
+		rooms: ['bedroom', 'study', 'livingKitchen'],
+		corridors: ['hall'],
+		npcApproaches: []
+	},
+	'item-shop': {
+		size: [26, 20],
+		rooms: ['stockroom', 'office', 'salesFloor'],
+		corridors: ['serviceCorridor'],
+		npcApproaches: ['mira']
+	},
+	'shrine-of-aurora-interior': {
+		size: [24, 22],
+		rooms: ['innerSanctum', 'westPreparation', 'eastArchive'],
+		corridors: ['nave', 'entranceHall'],
+		npcApproaches: []
+	},
+	'villager-house-1': {
+		size: [20, 18],
+		rooms: ['bedroom', 'storage', 'livingKitchen'],
+		corridors: ['hall'],
+		npcApproaches: ['lynn']
+	},
+	'villager-house-2': {
+		size: [22, 18],
+		rooms: ['workshop', 'bedroom', 'livingArea'],
+		corridors: ['hall'],
+		npcApproaches: ['toma']
+	},
+	'villager-house-3': {
+		size: [20, 20],
+		rooms: ['archiveStudy', 'bedroomStorage', 'sittingRoom'],
+		corridors: ['hall'],
+		npcApproaches: ['io']
+	}
+} as const;
+
 function expectStructuralGrid(value: { x: number; y: number; width: number; height: number }) {
 	for (const [name, number] of Object.entries({
 		x: value.x,
@@ -434,6 +479,48 @@ describe('village interior layout coordinate contracts', () => {
 				return Math.hypot(x - layout.exit.x, y - layout.exit.y) <= 8;
 			});
 			expect(exitReachable, `${mapId} exit is disconnected from the entrance`).toBe(true);
+		}
+	});
+
+	it('freezes the seven current room programs and their composed-collision routes', () => {
+		for (const [mapId, expected] of Object.entries(EXPECTED_INTERIOR_PROGRAMS)) {
+			const layout = VILLAGE_INTERIOR_LAYOUTS[mapId as keyof typeof VILLAGE_INTERIOR_LAYOUTS];
+			expect([layout.widthTiles, layout.heightTiles], `${mapId}:size`).toEqual(expected.size);
+			expect(Object.keys(layout.rooms), `${mapId}:rooms`).toEqual(expected.rooms);
+			expect(Object.keys(layout.corridors), `${mapId}:corridors`).toEqual(expected.corridors);
+			expect(Object.keys(layout.npcApproaches), `${mapId}:npcApproaches`).toEqual(
+				expected.npcApproaches
+			);
+
+			const reachable = reachableInteriorSamples(layout);
+			const samples = [
+				{ label: 'spawn', point: layout.spawn, maxDistance: 8 },
+				{ label: 'exit', point: layout.exit, maxDistance: 8 },
+				...Object.entries(layout.rooms).map(([roomId, room]) => ({
+					label: `room:${roomId}`,
+					point: { x: room.x + room.width / 2, y: room.y + room.height / 2 },
+					// Furniture may intentionally occupy a semantic room center; prove
+					// the authored center is adjacent to the connected walkable room.
+					maxDistance: 32
+				})),
+				...Object.entries(layout.doors).map(([doorId, door]) => ({
+					label: `door:${doorId}`,
+					point: { x: door.x + door.width / 2, y: door.y + door.height / 2 },
+					maxDistance: 8
+				})),
+				...Object.entries(layout.npcApproaches).map(([npcId, approach]) => ({
+					label: `npc:${npcId}`,
+					point: approach.approach,
+					maxDistance: 8
+				}))
+			];
+
+			for (const { label, point, maxDistance } of samples) {
+				expect(
+					reachableInteriorPoint(reachable, point, maxDistance),
+					`${mapId}:${label} is disconnected under authored walls and prop collision`
+				).toBe(true);
+			}
 		}
 	});
 

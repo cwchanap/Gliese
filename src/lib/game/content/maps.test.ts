@@ -877,6 +877,149 @@ describe('opening map content', () => {
 		]);
 	});
 
+	it('proves the authored Threshold and Core routes with composed collision', () => {
+		const thresholdWestEncounter = ruinsThresholdMap.encounters!.find(
+			(encounter) => encounter.id === 'threshold-slime-west'
+		)!;
+		const thresholdEastEncounter = ruinsThresholdMap.encounters!.find(
+			(encounter) => encounter.id === 'threshold-slime-east'
+		)!;
+		const thresholdNorthPickup = ruinsThresholdMap.pickups!.find(
+			(pickup) => pickup.id === 'ruins-threshold-cap'
+		)!;
+		const thresholdSouthPickup = ruinsThresholdMap.pickups!.find(
+			(pickup) => pickup.id === 'ruins-threshold-salve'
+		)!;
+		const thresholdCoreStair = ruinsThresholdMap.transitions.find(
+			(transition) => transition.id === 'threshold-to-core'
+		)!;
+		const thresholdMeadowStair = ruinsThresholdMap.transitions.find(
+			(transition) => transition.id === 'threshold-to-meadow'
+		)!;
+
+		expect([ruinsThresholdMap.width, ruinsThresholdMap.height]).toEqual([200, 200]);
+		expect(ruinsThresholdMap.pickups?.map((pickup) => pickup.id)).toEqual([
+			'ruins-threshold-cap',
+			'ruins-threshold-rune',
+			'ruins-threshold-salve'
+		]);
+		expect(ruinsThresholdMap.encounters?.map((encounter) => encounter.id)).toEqual([
+			'threshold-slime-west',
+			'threshold-slime-east'
+		]);
+
+		expectRouteClear(
+			ruinsThresholdMap,
+			[
+				ruinsThresholdMap.spawn,
+				thresholdWestEncounter,
+				{ x: 2_400, y: 3_200 },
+				{ x: 2_400, y: 2_112 },
+				thresholdNorthPickup,
+				{ x: 1_728, y: 4_800 },
+				thresholdSouthPickup,
+				{ x: 2_048, y: 3_200 },
+				{ x: thresholdEastEncounter.x, y: 3_200 },
+				thresholdEastEncounter,
+				{ x: thresholdEastEncounter.x, y: 3_200 },
+				thresholdCoreStair
+			],
+			'threshold-critical-route'
+		);
+		expectRouteClear(
+			ruinsThresholdMap,
+			[
+				ruinsThresholdMap.spawn,
+				{ x: 2_400, y: 3_200 },
+				{ x: 2_400, y: 2_112 },
+				thresholdNorthPickup,
+				{ x: 2_400, y: 2_112 },
+				{ x: 2_400, y: 3_200 },
+				thresholdCoreStair
+			],
+			'threshold-north-optional-loop'
+		);
+		expectRouteClear(
+			ruinsThresholdMap,
+			[
+				ruinsThresholdMap.spawn,
+				{ x: 2_048, y: 3_200 },
+				thresholdSouthPickup,
+				{ x: 2_048, y: 3_200 },
+				thresholdCoreStair
+			],
+			'threshold-south-optional-loop'
+		);
+		expectRouteClear(
+			ruinsThresholdMap,
+			[ruinsThresholdMap.spawn, thresholdMeadowStair],
+			'threshold-spawn-to-meadow-stair'
+		);
+
+		const coreNorthPickup = ruinsCoreMap.pickups!.find(
+			(pickup) => pickup.id === 'ruins-core-mail'
+		)!;
+		const coreSouthPickup = ruinsCoreMap.pickups!.find(
+			(pickup) => pickup.id === 'ruins-core-draught'
+		)!;
+		const coreBoss = ruinsCoreMap.encounters!.find((encounter) => encounter.id === 'ruins-warden')!;
+		const coreThresholdStair = ruinsCoreMap.transitions.find(
+			(transition) => transition.id === 'core-to-threshold'
+		)!;
+
+		expect([ruinsCoreMap.width, ruinsCoreMap.height]).toEqual([200, 200]);
+		expect(ruinsCoreMap.pickups?.map((pickup) => pickup.id)).toEqual([
+			'ruins-core-mail',
+			'ruins-core-draught'
+		]);
+		expect(ruinsCoreMap.encounters?.map((encounter) => encounter.id)).toEqual(['ruins-warden']);
+		expectRouteClear(
+			ruinsCoreMap,
+			[
+				ruinsCoreMap.spawn,
+				{ x: 2_240, y: 3_200 },
+				coreNorthPickup,
+				{ x: 2_240, y: 3_200 },
+				{ x: 3_744, y: 3_200 },
+				{ x: 3_744, y: 4_544 },
+				coreSouthPickup,
+				{ x: 3_744, y: 4_544 },
+				{ x: 3_744, y: 3_200 },
+				{ x: 4_600, y: 3_200 },
+				coreBoss
+			],
+			'core-critical-route'
+		);
+		expectRouteClear(
+			ruinsCoreMap,
+			[ruinsCoreMap.spawn, coreThresholdStair],
+			'core-spawn-to-threshold-stair'
+		);
+	});
+
+	it('keeps every future gate blocked while preserving its authored opening', () => {
+		for (const map of [ruinsThresholdMap, ruinsCoreMap]) {
+			const collisionRects = collectStrictCollisionRects(map);
+			const gates = (map.blockers ?? []).filter((blocker) => blocker.kind === 'future-gate');
+			expect(gates, `${map.id}:future gates`).toHaveLength(2);
+
+			for (const gate of gates) {
+				const from = {
+					x: gate.x - gate.width / 2 - 64,
+					y: gate.y
+				};
+				const to = {
+					x: gate.x + gate.width / 2 + 64,
+					y: gate.y
+				};
+				const blocked = segmentSamples(from, to, 16).some((point) =>
+					isInsideAnyCollisionRect(point.x, point.y, collisionRects, PLAYER_COLLISION_RADIUS)
+				);
+				expect(blocked, `${map.id}:${gate.id} must block a movement segment`).toBe(true);
+			}
+		}
+	});
+
 	it('keeps every transition arrival inside its current target map', () => {
 		for (const map of Object.values(maps)) {
 			for (const transition of map.transitions) {
