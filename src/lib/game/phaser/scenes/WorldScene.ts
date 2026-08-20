@@ -32,8 +32,13 @@ import {
 	getMapBackgroundDepth,
 	shouldRenderOwnedVisual
 } from '$lib/game/content/maps/background-ownership';
+import {
+	applyMapBackgroundPackage,
+	resolveMapBackgroundPackageSelection,
+	type MapBackgroundPackagePresentation,
+	type MapBackgroundPackageSelection
+} from '$lib/game/content/backgrounds/map-background-package';
 import { getBlockerRuntimeRenderMode } from '$lib/game/content/maps/blocker-rendering';
-import { applyMeadowEntryPaintedBackgrounds } from '$lib/game/content/maps/meadow-entry-painted-backgrounds';
 import {
 	maps,
 	openingMapId,
@@ -140,44 +145,32 @@ import {
 	resolveWorldRenderOptions,
 	type WorldRenderOptions
 } from '$lib/game/phaser/world-render-options';
-import { resolveMeadowEntryPaintedSelection } from '$lib/game/content/backgrounds/meadow-entry-painted-v2-runtime';
+import {
+	MEADOW_ENTRY_DEFAULT_PAINTED_MODE,
+	MEADOW_ENTRY_PAINTED_V2_LEGACY_PACKAGE_ID,
+	MAP_BACKGROUND_PACKAGE_REGISTRY
+} from '$lib/game/content/backgrounds/meadow-entry-painted-v2-runtime';
 import { BattleScene } from './BattleScene';
 
-type StaticOverlayMode = 'ownership' | 'suppressed' | 'fallback';
-
-function resolveStaticOverlayMode(
-	map: WorldMapDefinition,
-	paintedSelection: ReturnType<typeof resolveMeadowEntryPaintedSelection>,
-	successfulBackgroundIds: ReadonlySet<string>
-): StaticOverlayMode {
-	if (map.id !== openingMapId || paintedSelection.mode !== 'pilot') return 'ownership';
-
-	return paintedSelection.backgrounds.length > 0 &&
-		paintedSelection.backgrounds.every(({ id }) => successfulBackgroundIds.has(id))
-		? 'suppressed'
-		: 'fallback';
+interface RegionalBackgroundPackageRender extends MapBackgroundPackagePresentation {
+	readonly successfulBackgroundIdSet: ReadonlySet<string>;
+	readonly useOwnership: boolean;
 }
 
 function shouldRenderStaticOverlay(
 	visual: MapBlocker['visual'],
-	mode: StaticOverlayMode,
-	successfulBackgroundIds: ReadonlySet<string>
+	packageRender: RegionalBackgroundPackageRender
 ): boolean {
-	if (mode === 'suppressed') return false;
-	if (mode === 'fallback') return true;
-	return shouldRenderOwnedVisual(visual, successfulBackgroundIds);
+	if (!packageRender.useOwnership) return packageRender.presentationMode === 'fallback';
+	return shouldRenderOwnedVisual(visual, packageRender.successfulBackgroundIdSet);
 }
 
 function shouldReportSelectedStaticOverlay(
 	visual: MapBlocker['visual'],
-	mode: StaticOverlayMode,
-	successfulBackgroundIds: ReadonlySet<string>
+	packageRender: RegionalBackgroundPackageRender
 ): boolean {
-	if (mode === 'fallback') return true;
-	return (
-		visual?.mode === 'fallback-only' &&
-		shouldRenderStaticOverlay(visual, mode, successfulBackgroundIds)
-	);
+	if (!packageRender.useOwnership) return packageRender.presentationMode === 'fallback';
+	return visual?.mode === 'fallback-only' && shouldRenderStaticOverlay(visual, packageRender);
 }
 
 interface WorldSceneData {
@@ -532,13 +525,22 @@ export class WorldScene extends Phaser.Scene {
 		this.registerAssetFrames(animationPackAsset);
 		this.ensureActorAnimations();
 		this.ensureTerrainTilesetTexture();
-		this.renderGround(map);
-		const { successfulBackgroundIds, staticOverlayMode } = this.renderRegionalBackgrounds(map);
-		this.renderMapDecor(map, ['floor', 'furniture'], successfulBackgroundIds, staticOverlayMode);
-		this.renderFences(map, successfulBackgroundIds, staticOverlayMode);
-		this.renderBlockers(map, successfulBackgroundIds, staticOverlayMode);
+		const packageRender = this.renderRegionalBackgroundPackage(
+			map,
+			this.resolveMapBackgroundPackageSelection(map.id)
+		);
+		if (
+			packageRender.presentationMode === 'fallback' ||
+			packageRender.coverage === 'historical-partial' ||
+			packageRender.coverage === null
+		) {
+			this.renderGround(map);
+		}
+		this.renderMapDecor(map, ['floor', 'furniture'], packageRender);
+		this.renderFences(map, packageRender);
+		this.renderBlockers(map, packageRender);
 		this.renderLandmarks(map);
-		this.renderInteriorProps(map, ['floor', 'furniture']);
+		this.renderInteriorProps(map, ['floor', 'furniture'], packageRender);
 		const heroAnimation = getActorAnimationAsset('hero');
 		this.player = this.add.sprite(
 			activeSave?.player.x ?? map.spawn.x,
@@ -559,8 +561,8 @@ export class WorldScene extends Phaser.Scene {
 		this.renderDiscoveries(map);
 		this.renderNpcs(map);
 		this.renderAmbientNpcs(map);
-		this.renderInteriorProps(map, ['foreground']);
-		this.renderMapDecor(map, ['foreground'], successfulBackgroundIds, staticOverlayMode);
+		this.renderInteriorProps(map, ['foreground'], packageRender);
+		this.renderMapDecor(map, ['foreground'], packageRender);
 		this.renderCollisionDebugOverlay(map);
 
 		this.cameras.main.setBackgroundColor('#1a1f2b');
@@ -1661,28 +1663,25 @@ export class WorldScene extends Phaser.Scene {
 	}
 
 	/**
-	 * Renders the regional background planes for a map and emits a
-	 * `gliese:regional-background-plane-render-diagnostic` event describing
-	 * each plane's render status (disabled / missing-texture /
-	 * invalid-dimensions / rendered / render-failed).
-	 *
-	 * @param map - The WorldMapDefinition whose `backgroundImages` are rendered.
-	 * @returns The successful background IDs and the static-overlay policy
-	 * derived from the complete pilot plane set. Emits a plane-render
-	 * diagnostic as a side effect.
+	 * Renders one map package as a transaction. A selected package commits no
+	 * images or suppression policy until every required descriptor succeeds.
 	 */
-	private renderRegionalBackgrounds(map: WorldMapDefinition): {
-		successfulBackgroundIds: ReadonlySet<string>;
-		staticOverlayMode: StaticOverlayMode;
-	} {
+	private renderRegionalBackgroundPackage(
+		map: WorldMapDefinition,
+		selection: MapBackgroundPackageSelection
+	): RegionalBackgroundPackageRender {
+		const definition = selection.definition;
+		const backgrounds = definition?.backgrounds ?? map.backgroundImages ?? [];
+		const transactional = definition !== null;
 		const successfulBackgroundIds = new Set<string>();
-		const paintedSelection = resolveMeadowEntryPaintedSelection(this.renderOptions);
 		const entries: RegionalBackgroundPlaneRenderDiagnosticEntry[] = [];
+		const createdImages: Phaser.GameObjects.Image[] = [];
 		const textureManager = this.textures as typeof this.textures & {
 			exists?: (key: string) => boolean;
 		};
+		let packageFailed = false;
 
-		for (const background of map.backgroundImages ?? []) {
+		for (const background of backgrounds) {
 			const expectedDimensions = { width: background.width, height: background.height };
 
 			if (!this.renderOptions.regionalBackgrounds) {
@@ -1695,6 +1694,7 @@ export class WorldScene extends Phaser.Scene {
 					map.id,
 					null
 				);
+				packageFailed = true;
 				continue;
 			}
 
@@ -1708,6 +1708,7 @@ export class WorldScene extends Phaser.Scene {
 					map.id,
 					'unavailable'
 				);
+				packageFailed = true;
 				continue;
 			}
 
@@ -1722,11 +1723,11 @@ export class WorldScene extends Phaser.Scene {
 					map.id,
 					'unavailable'
 				);
+				packageFailed = true;
 				continue;
 			}
 
 			const dimensions = this.getTextureSourceDimensions(background.textureKey);
-
 			if (!dimensions) {
 				this.pushRegionalBackgroundDiagnosticEntry(
 					entries,
@@ -1737,6 +1738,7 @@ export class WorldScene extends Phaser.Scene {
 					map.id,
 					'source dimensions unavailable'
 				);
+				packageFailed = true;
 				continue;
 			}
 
@@ -1751,6 +1753,7 @@ export class WorldScene extends Phaser.Scene {
 					'dimensions mismatch',
 					` expected=${background.width}x${background.height} actual=${dimensions.width}x${dimensions.height}`
 				);
+				packageFailed = true;
 				continue;
 			}
 
@@ -1764,6 +1767,7 @@ export class WorldScene extends Phaser.Scene {
 					.setOrigin(0.5, 0.5)
 					.setDisplaySize(background.width, background.height)
 					.setDepth(getMapBackgroundDepth(background));
+				createdImages.push(image);
 				successfulBackgroundIds.add(background.id);
 				entries.push({
 					id: background.id,
@@ -1793,35 +1797,64 @@ export class WorldScene extends Phaser.Scene {
 					map.id,
 					'render failed'
 				);
+				packageFailed = true;
 			}
 		}
 
-		const staticOverlayMode = resolveStaticOverlayMode(
-			map,
-			paintedSelection,
-			successfulBackgroundIds
-		);
+		const packageSucceeded =
+			transactional && !packageFailed && successfulBackgroundIds.size === backgrounds.length;
+		if (transactional && !packageSucceeded) {
+			for (const image of createdImages) image.destroy();
+			successfulBackgroundIds.clear();
+		}
+
+		const presentationMode: MapBackgroundPackagePresentation['presentationMode'] = transactional
+			? packageSucceeded
+				? 'painted'
+				: 'fallback'
+			: this.renderOptions.regionalBackgrounds && successfulBackgroundIds.size > 0
+				? 'painted'
+				: 'fallback';
+		const presentation: RegionalBackgroundPackageRender = {
+			packageId: packageSucceeded ? (definition?.id ?? null) : null,
+			presentationMode,
+			coverage: packageSucceeded ? (definition?.coverage ?? null) : null,
+			requiredBackgroundIds: backgrounds.map(({ id }) => id),
+			successfulBackgroundIds: [...successfulBackgroundIds],
+			selectedBackgroundIds: packageSucceeded
+				? backgrounds.map(({ id }) => id)
+				: transactional
+					? []
+					: [...successfulBackgroundIds],
+			successfulBackgroundIdSet: successfulBackgroundIds,
+			useOwnership:
+				!transactional || (packageSucceeded && definition?.coverage === 'historical-partial')
+		};
 		const selectedFallbackBlockers = (map.blockers ?? []).filter(
 			(blocker) =>
 				getBlockerRuntimeRenderMode(blocker.kind) !== 'collision-only' &&
-				shouldReportSelectedStaticOverlay(
-					blocker.visual,
-					staticOverlayMode,
-					successfulBackgroundIds
-				)
+				shouldReportSelectedStaticOverlay(blocker.visual, presentation)
 		);
 		const selectedFallbackDecor = (map.mapDecor ?? []).filter((decor) =>
-			shouldReportSelectedStaticOverlay(decor.visual, staticOverlayMode, successfulBackgroundIds)
+			shouldReportSelectedStaticOverlay(decor.visual, presentation)
 		);
 		const selectedFallbackFences = (map.fences ?? []).filter((fence) =>
-			shouldReportSelectedStaticOverlay(fence.visual, staticOverlayMode, successfulBackgroundIds)
+			shouldReportSelectedStaticOverlay(fence.visual, presentation)
 		);
 		emitRegionalBackgroundPlaneRenderDiagnostic({
 			mapId: map.id,
 			regionalBackgroundsEnabled: this.renderOptions.regionalBackgrounds,
-			paintedMode: paintedSelection.mode,
+			paintedMode:
+				definition?.id === MEADOW_ENTRY_PAINTED_V2_LEGACY_PACKAGE_ID ||
+				this.renderOptions.meadowPaintedPilot
+					? 'pilot'
+					: 'fallback',
+			packageId: presentation.packageId,
+			requiredBackgroundIds: presentation.requiredBackgroundIds,
+			selectedBackgroundIds: presentation.selectedBackgroundIds,
+			presentationMode: presentation.presentationMode,
 			entries,
-			successfulBackgroundIds: [...successfulBackgroundIds],
+			successfulBackgroundIds: presentation.successfulBackgroundIds,
 			selectedFallbackBlockerIds: selectedFallbackBlockers.map((blocker) => blocker.id),
 			selectedFallbackBlockerSegmentCount: selectedFallbackBlockers.reduce(
 				(total, blocker) => total + Math.ceil(Math.max(blocker.width, blocker.height) / 48),
@@ -1830,7 +1863,7 @@ export class WorldScene extends Phaser.Scene {
 			selectedFallbackDecorIds: selectedFallbackDecor.map((decor) => decor.id),
 			selectedFallbackFenceIds: selectedFallbackFences.map((fence) => fence.id)
 		});
-		return { successfulBackgroundIds, staticOverlayMode };
+		return presentation;
 	}
 
 	/**
@@ -2239,8 +2272,7 @@ export class WorldScene extends Phaser.Scene {
 	private renderMapDecor(
 		map: WorldMapDefinition,
 		depths: Array<MapDecorDepth>,
-		successfulBackgroundIds: ReadonlySet<string>,
-		staticOverlayMode: StaticOverlayMode
+		packageRender: RegionalBackgroundPackageRender
 	) {
 		for (const decor of map.mapDecor ?? []) {
 			const depth = decor.depth ?? 'furniture';
@@ -2248,7 +2280,7 @@ export class WorldScene extends Phaser.Scene {
 			if (!depths.includes(depth)) {
 				continue;
 			}
-			if (!shouldRenderStaticOverlay(decor.visual, staticOverlayMode, successfulBackgroundIds)) {
+			if (!shouldRenderStaticOverlay(decor.visual, packageRender)) {
 				continue;
 			}
 
@@ -2272,26 +2304,18 @@ export class WorldScene extends Phaser.Scene {
 		}
 	}
 
-	private renderFences(
-		map: WorldMapDefinition,
-		successfulBackgroundIds: ReadonlySet<string>,
-		staticOverlayMode: StaticOverlayMode
-	) {
+	private renderFences(map: WorldMapDefinition, packageRender: RegionalBackgroundPackageRender) {
 		const fences: MapFenceSegment[] = map.fences ?? [];
 
 		for (const fence of fences) {
-			if (!shouldRenderStaticOverlay(fence.visual, staticOverlayMode, successfulBackgroundIds)) {
+			if (!shouldRenderStaticOverlay(fence.visual, packageRender)) {
 				continue;
 			}
 			this.renderFenceSegment(fence);
 		}
 	}
 
-	private renderBlockers(
-		map: WorldMapDefinition,
-		successfulBackgroundIds: ReadonlySet<string>,
-		staticOverlayMode: StaticOverlayMode
-	) {
+	private renderBlockers(map: WorldMapDefinition, packageRender: RegionalBackgroundPackageRender) {
 		const blockers: MapBlocker[] = map.blockers ?? [];
 
 		for (const blocker of blockers) {
@@ -2300,7 +2324,7 @@ export class WorldScene extends Phaser.Scene {
 				continue;
 			}
 
-			if (!shouldRenderStaticOverlay(blocker.visual, staticOverlayMode, successfulBackgroundIds)) {
+			if (!shouldRenderStaticOverlay(blocker.visual, packageRender)) {
 				continue;
 			}
 
@@ -2457,11 +2481,18 @@ export class WorldScene extends Phaser.Scene {
 		}
 	}
 
-	private renderInteriorProps(map: WorldMapDefinition, depths: Array<MapInteriorProp['depth']>) {
+	private renderInteriorProps(
+		map: WorldMapDefinition,
+		depths: Array<MapInteriorProp['depth']>,
+		packageRender: RegionalBackgroundPackageRender
+	) {
 		for (const prop of map.interiorProps ?? []) {
 			const depth = prop.depth ?? 'furniture';
 
 			if (!depths.includes(depth)) {
+				continue;
+			}
+			if (!shouldRenderStaticOverlay(prop.visual, packageRender)) {
 				continue;
 			}
 
@@ -2962,11 +2993,28 @@ export class WorldScene extends Phaser.Scene {
 		return entry <= exit && exit >= 0 && entry <= 1;
 	}
 
+	private resolveMapBackgroundPackageSelection(mapId: string): MapBackgroundPackageSelection {
+		const reviewPackageIds = this.renderOptions.meadowPaintedPilot
+			? [MEADOW_ENTRY_PAINTED_V2_LEGACY_PACKAGE_ID, ...this.renderOptions.mapBackgroundReviewIds]
+			: this.renderOptions.mapBackgroundReviewIds;
+		return resolveMapBackgroundPackageSelection(MAP_BACKGROUND_PACKAGE_REGISTRY, {
+			mapId,
+			regionalBackgrounds: this.renderOptions.regionalBackgrounds,
+			reviewPackageIds,
+			defaultSelection:
+				mapId === openingMapId && MEADOW_ENTRY_DEFAULT_PAINTED_MODE === 'pilot'
+					? {
+							packageId: MEADOW_ENTRY_PAINTED_V2_LEGACY_PACKAGE_ID,
+							mode: 'review' as const
+						}
+					: null,
+			forcedFallback: this.renderOptions.meadowPaintedPilotOff
+		});
+	}
+
 	private resolveMap(mapId?: string): WorldMapDefinition {
 		const source = maps[mapId ?? openingMapId] ?? maps[openingMapId];
-		return applyMeadowEntryPaintedBackgrounds(source, {
-			selection: resolveMeadowEntryPaintedSelection(this.renderOptions)
-		});
+		return applyMapBackgroundPackage(source, this.resolveMapBackgroundPackageSelection(source.id));
 	}
 
 	private revealCurrentMapArea(): boolean {

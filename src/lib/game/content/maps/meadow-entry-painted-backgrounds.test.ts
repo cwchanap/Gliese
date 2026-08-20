@@ -129,7 +129,7 @@ describe('Meadow Entry painted background transform', () => {
 		expect(transformed.transitions).toBe(map.transitions);
 	});
 
-	it('assigns reviewed blocker, decor, and fence owners by source type', () => {
+	it('assigns reviewed ownership across all five source types', () => {
 		const transformed = applyMeadowEntryPaintedBackgrounds(syntheticMap(), {
 			selection: syntheticSelection()
 		});

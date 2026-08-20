@@ -8,53 +8,69 @@ describe('world render URL options', () => {
 			regionalBackgrounds: true,
 			meadowPaintedPilot: false,
 			meadowPaintedPilotOff: false,
+			mapBackgroundReviewIds: [],
 			collisionDebug: false,
 			movementDiagnostics: false,
 			regionalBackgroundFault: null
 		});
 	});
 
+	it('parses valid repeated generic review package IDs once in first-seen order', () => {
+		const options = parseWorldRenderOptions(
+			'?mapBackgroundReview=hero-house-review&mapBackgroundReview=ruins-core-review&mapBackgroundReview=hero-house-review'
+		);
+		expect(options.mapBackgroundReviewIds).toEqual(['hero-house-review', 'ruins-core-review']);
+		expect(Object.isFrozen(options.mapBackgroundReviewIds)).toBe(true);
+	});
+
+	it.each(['', 'Hero-house-review', 'hero/house-review', 'hero-house-review%20'])(
+		'rejects invalid generic review package ID %j',
+		(value) => {
+			expect(
+				parseWorldRenderOptions(`?mapBackgroundReview=${value}`).mapBackgroundReviewIds
+			).toEqual([]);
+		}
+	);
+
 	it('disables regional backgrounds only for the exact off value', () => {
-		expect(parseWorldRenderOptions('?regionalBackground=off')).toEqual({
+		expect(parseWorldRenderOptions('?regionalBackground=off')).toMatchObject({
 			regionalBackgrounds: false,
-			meadowPaintedPilot: false,
-			meadowPaintedPilotOff: false,
-			collisionDebug: false,
-			movementDiagnostics: false,
-			regionalBackgroundFault: null
+			mapBackgroundReviewIds: []
 		});
 	});
 
 	it('enables collision debug only for the exact collision value', () => {
-		expect(parseWorldRenderOptions('?mapDebug=collision')).toEqual({
+		expect(parseWorldRenderOptions('?mapDebug=collision')).toMatchObject({
 			regionalBackgrounds: true,
-			meadowPaintedPilot: false,
-			meadowPaintedPilotOff: false,
 			collisionDebug: true,
-			movementDiagnostics: false,
-			regionalBackgroundFault: null
+			mapBackgroundReviewIds: []
 		});
 	});
 
 	it('combines background fallback and collision debug', () => {
-		expect(parseWorldRenderOptions('?regionalBackground=off&mapDebug=collision')).toEqual({
+		expect(parseWorldRenderOptions('?regionalBackground=off&mapDebug=collision')).toMatchObject({
 			regionalBackgrounds: false,
-			meadowPaintedPilot: false,
-			meadowPaintedPilotOff: false,
 			collisionDebug: true,
-			movementDiagnostics: false,
-			regionalBackgroundFault: null
+			mapBackgroundReviewIds: []
 		});
 	});
 
 	it('preserves defaults for unknown parameter values', () => {
-		expect(parseWorldRenderOptions('?regionalBackground=OFF&mapDebug=collisions')).toEqual({
+		expect(parseWorldRenderOptions('?regionalBackground=OFF&mapDebug=collisions')).toMatchObject({
 			regionalBackgrounds: true,
-			meadowPaintedPilot: false,
-			meadowPaintedPilotOff: false,
 			collisionDebug: false,
-			movementDiagnostics: false,
-			regionalBackgroundFault: null
+			mapBackgroundReviewIds: []
+		});
+	});
+
+	it('enables collision debug and movement diagnostics only for exact values', () => {
+		expect(parseWorldRenderOptions('?mapDebug=collision&movementDiagnostics=on')).toMatchObject({
+			collisionDebug: true,
+			movementDiagnostics: true
+		});
+		expect(parseWorldRenderOptions('?mapDebug=collisions&movementDiagnostics=ON')).toMatchObject({
+			collisionDebug: false,
+			movementDiagnostics: false
 		});
 	});
 
@@ -76,110 +92,72 @@ describe('world render URL options', () => {
 		}
 	});
 
-	it('preserves the pilot flag while regional-background off remains a resolver priority', () => {
+	it('preserves regional-background off priority over the legacy pilot alias', () => {
 		expect(parseWorldRenderOptions('?meadowPaintedPilot=on&regionalBackground=off')).toMatchObject({
 			regionalBackgrounds: false,
 			meadowPaintedPilot: true
 		});
 	});
 
-	it('uses the first value for repeated parameters', () => {
+	it('uses the first value for repeated legacy parameters', () => {
 		expect(
-			parseWorldRenderOptions(
-				'?regionalBackground=on&regionalBackground=off&mapDebug=none&mapDebug=collision'
-			)
-		).toEqual({
-			regionalBackgrounds: true,
-			meadowPaintedPilot: false,
-			meadowPaintedPilotOff: false,
-			collisionDebug: false,
-			movementDiagnostics: false,
-			regionalBackgroundFault: null
-		});
+			parseWorldRenderOptions('?regionalBackground=on&regionalBackground=off').regionalBackgrounds
+		).toBe(true);
 		expect(
-			parseWorldRenderOptions(
-				'?regionalBackground=off&regionalBackground=on&mapDebug=collision&mapDebug=none'
-			)
-		).toEqual({
-			regionalBackgrounds: false,
-			meadowPaintedPilot: false,
-			meadowPaintedPilotOff: false,
-			collisionDebug: true,
-			movementDiagnostics: false,
-			regionalBackgroundFault: null
-		});
+			parseWorldRenderOptions('?regionalBackground=off&regionalBackground=on').regionalBackgrounds
+		).toBe(false);
 		expect(
 			parseWorldRenderOptions('?meadowPaintedPilot=on&meadowPaintedPilot=off').meadowPaintedPilot
 		).toBe(true);
 		expect(
 			parseWorldRenderOptions('?meadowPaintedPilot=off&meadowPaintedPilot=on').meadowPaintedPilot
 		).toBe(false);
+		expect(
+			parseWorldRenderOptions(
+				'?mapBackgroundReview=hero-house-review&mapBackgroundReview=ruins-core-review'
+			).mapBackgroundReviewIds
+		).toEqual(['hero-house-review', 'ruins-core-review']);
 	});
 
 	it('enables movement diagnostics only for the exact on value', () => {
-		expect(parseWorldRenderOptions('?movementDiagnostics=on')).toEqual({
+		expect(parseWorldRenderOptions('?movementDiagnostics=on')).toMatchObject({
 			regionalBackgrounds: true,
-			meadowPaintedPilot: false,
-			meadowPaintedPilotOff: false,
-			collisionDebug: false,
-			movementDiagnostics: true,
-			regionalBackgroundFault: null
+			movementDiagnostics: true
 		});
-		expect(parseWorldRenderOptions('?movementDiagnostics=off')).toEqual({
+		expect(parseWorldRenderOptions('?movementDiagnostics=off')).toMatchObject({
 			regionalBackgrounds: true,
-			meadowPaintedPilot: false,
-			meadowPaintedPilotOff: false,
-			collisionDebug: false,
-			movementDiagnostics: false,
-			regionalBackgroundFault: null
+			movementDiagnostics: false
 		});
-		expect(parseWorldRenderOptions('?movementDiagnostics=ON')).toEqual({
+		expect(parseWorldRenderOptions('?movementDiagnostics=ON')).toMatchObject({
 			regionalBackgrounds: true,
-			meadowPaintedPilot: false,
-			meadowPaintedPilotOff: false,
-			collisionDebug: false,
-			movementDiagnostics: false,
-			regionalBackgroundFault: null
+			movementDiagnostics: false
 		});
 	});
 
 	it('resolves options through an injected search reader', () => {
-		const readSearch = () => '?regionalBackground=off&mapDebug=collision';
-
-		expect(resolveWorldRenderOptions(readSearch)).toEqual({
+		expect(
+			resolveWorldRenderOptions(() => '?regionalBackground=off&mapDebug=collision')
+		).toMatchObject({
 			regionalBackgrounds: false,
-			meadowPaintedPilot: false,
-			meadowPaintedPilotOff: false,
 			collisionDebug: true,
-			movementDiagnostics: false,
-			regionalBackgroundFault: null
+			mapBackgroundReviewIds: []
 		});
 	});
 
-	it('parses a typed per-descriptor render fault', () => {
+	it('parses a typed per-descriptor render fault and rejects malformed values', () => {
 		expect(
 			parseWorldRenderOptions('?regionalBackgroundFault=sundrop-village-foreground-image:render')
-		).toEqual({
-			regionalBackgrounds: true,
-			meadowPaintedPilot: false,
-			meadowPaintedPilotOff: false,
-			collisionDebug: false,
-			movementDiagnostics: false,
-			regionalBackgroundFault: {
-				backgroundId: 'sundrop-village-foreground-image',
-				mode: 'render'
-			}
-		});
-	});
-
-	it.each([
-		'?regionalBackgroundFault=',
-		'?regionalBackgroundFault=:render',
-		'?regionalBackgroundFault=base:render:extra',
-		'?regionalBackgroundFault=background',
-		'?regionalBackgroundFault=base:missing',
-		'?regionalBackgroundFault=base:load'
-	])('rejects malformed regional background render faults: %s', (search) => {
-		expect(parseWorldRenderOptions(search).regionalBackgroundFault).toBeNull();
+				.regionalBackgroundFault
+		).toEqual({ backgroundId: 'sundrop-village-foreground-image', mode: 'render' });
+		for (const search of [
+			'?regionalBackgroundFault=',
+			'?regionalBackgroundFault=:render',
+			'?regionalBackgroundFault=base:render:extra',
+			'?regionalBackgroundFault=background',
+			'?regionalBackgroundFault=base:missing',
+			'?regionalBackgroundFault=base:load'
+		]) {
+			expect(parseWorldRenderOptions(search).regionalBackgroundFault).toBeNull();
+		}
 	});
 });

@@ -17,12 +17,17 @@ import {
 	villageDressingAsset,
 	villageHedgeAsset
 } from '$lib/game/content/assets';
-import { openingMapId } from '$lib/game/content/maps';
+import { maps, openingMapId } from '$lib/game/content/maps';
+import {
+	MEADOW_ENTRY_DEFAULT_PAINTED_MODE,
+	MEADOW_ENTRY_PAINTED_V2_LEGACY_PACKAGE_ID,
+	MAP_BACKGROUND_PACKAGE_REGISTRY
+} from '$lib/game/content/backgrounds/meadow-entry-painted-v2-runtime';
+import { selectedMapBackgroundPackagesForPreload } from '$lib/game/content/backgrounds/map-background-package';
 import {
 	buildRegionalBackgroundRendererDiagnostic,
 	emitRegionalBackgroundRendererDiagnostic
 } from '$lib/game/phaser/renderer-diagnostics';
-import { resolveMeadowEntryPaintedSelection } from '$lib/game/content/backgrounds/meadow-entry-painted-v2-runtime';
 import { resolveWorldRenderOptions } from '$lib/game/phaser/world-render-options';
 import { WorldScene } from './WorldScene';
 
@@ -43,22 +48,44 @@ export class BootScene extends Phaser.Scene {
 			);
 		});
 		// Regional-background diagnostic tracking: collects timing and
-		// completion data for regional background image loads during preload.
+		// completion data for selected package image loads during preload.
 		// The timing window is bounded by `regionalBackgroundLoadStartedAtMs`
 		// (intended to mark when loading began) and the Phaser loader's
 		// `complete` event, which records `regionalBackgroundLoadCompletedAtMs`
 		// via `performance.now()`. When the start timestamp is unavailable
 		// (null), the load duration is reported as null.
-		// `completedRegionalBackgroundKeys` counts how many regional background
+		// `completedRegionalBackgroundKeys` records which selected package
 		// images finished loading. The assembled diagnostic is emitted via
 		// `emitRegionalBackgroundRendererDiagnostic` and consumed by the
 		// Playwright e2e suite (`installRegionalBackgroundDiagnosticListener`
 		// in `tests/e2e/game.e2e.ts`).
 		const renderOptions = resolveWorldRenderOptions();
-		const paintedSelection = resolveMeadowEntryPaintedSelection(renderOptions);
-		const regionalBackgroundKeys = new Set(
-			paintedSelection.assets.map((asset) => asset.key as string)
+		const reviewPackageIds = renderOptions.meadowPaintedPilot
+			? [MEADOW_ENTRY_PAINTED_V2_LEGACY_PACKAGE_ID, ...renderOptions.mapBackgroundReviewIds]
+			: renderOptions.mapBackgroundReviewIds;
+		const selectedPackages = selectedMapBackgroundPackagesForPreload(
+			MAP_BACKGROUND_PACKAGE_REGISTRY,
+			Object.values(maps).map((map) => ({
+				mapId: map.id,
+				regionalBackgrounds: renderOptions.regionalBackgrounds,
+				reviewPackageIds,
+				defaultSelection:
+					map.id === 'meadow-entry' && MEADOW_ENTRY_DEFAULT_PAINTED_MODE === 'pilot'
+						? {
+								packageId: MEADOW_ENTRY_PAINTED_V2_LEGACY_PACKAGE_ID,
+								mode: 'review' as const
+							}
+						: null,
+				forcedFallback: renderOptions.meadowPaintedPilotOff
+			}))
 		);
+		const selectedPackageIds = selectedPackages.map(({ id }) => id);
+		const regionalBackgroundAssets = [
+			...new Map(
+				selectedPackages.flatMap(({ assets }) => assets.map((asset) => [asset.key, asset]))
+			).values()
+		];
+		const regionalBackgroundKeys = new Set(regionalBackgroundAssets.map(({ key }) => key));
 		const completedRegionalBackgroundKeys = new Set<string>();
 		let regionalBackgroundLoadStartedAtMs: number | null = null;
 		const onFileComplete = (key: string, type: string) => {
@@ -91,11 +118,12 @@ export class BootScene extends Phaser.Scene {
 			emitRegionalBackgroundRendererDiagnostic(
 				buildRegionalBackgroundRendererDiagnostic({
 					renderer,
-					paintedMode: paintedSelection.mode,
+					packageIds: selectedPackageIds,
+					requiredAssetKeys: regionalBackgroundAssets.map(({ key }) => key),
+					completedAssetKeys: [...completedRegionalBackgroundKeys],
 					maxTextureSize,
 					loadStartedAtMs: regionalBackgroundLoadStartedAtMs,
-					loadCompletedAtMs: regionalBackgroundLoadCompletedAtMs,
-					regionalBackgroundLoadCompletions: completedRegionalBackgroundKeys.size
+					loadCompletedAtMs: regionalBackgroundLoadCompletedAtMs
 				})
 			);
 		});
@@ -117,8 +145,8 @@ export class BootScene extends Phaser.Scene {
 		for (const asset of Object.values(battleBackgroundAssets)) {
 			this.load.image(asset.key, asset.path);
 		}
-		if (paintedSelection.assets.length > 0) {
-			for (const asset of paintedSelection.assets) {
+		if (regionalBackgroundAssets.length > 0) {
+			for (const asset of regionalBackgroundAssets) {
 				if (regionalBackgroundLoadStartedAtMs === null) {
 					// This duration spans from the first regional queue operation through the
 					// loader's overall completion callback. It is not isolated network latency

@@ -32,10 +32,15 @@ export interface RegionalBackgroundPlaneRenderDiagnosticEntry {
 export interface RegionalBackgroundPlaneRenderDiagnostic {
 	mapId: string;
 	regionalBackgroundsEnabled: boolean;
-	paintedMode: MeadowEntryPaintedMode;
+	/** @deprecated Compatibility evidence for existing Meadow probes. */
+	paintedMode?: MeadowEntryPaintedMode;
+	packageId: string | null;
+	requiredBackgroundIds: readonly string[];
+	selectedBackgroundIds: readonly string[];
+	presentationMode: 'painted' | 'fallback';
 	entries: readonly RegionalBackgroundPlaneRenderDiagnosticEntry[];
 	successfulBackgroundIds: readonly string[];
-	/** Blocker IDs drawn live after applying this exact plane-success set and pilot policy. */
+	/** Blocker IDs drawn live after applying this exact package-success set and ownership policy. */
 	selectedFallbackBlockerIds?: readonly string[];
 	/** Sum of Math.ceil(max(blocker.width, blocker.height) / 48) for selected blockers. */
 	selectedFallbackBlockerSegmentCount?: number;
@@ -56,6 +61,8 @@ export function emitRegionalBackgroundPlaneRenderDiagnostic(
 			{
 				detail: {
 					...detail,
+					requiredBackgroundIds: [...detail.requiredBackgroundIds],
+					selectedBackgroundIds: [...detail.selectedBackgroundIds],
 					successfulBackgroundIds: [...detail.successfulBackgroundIds].sort()
 				}
 			}

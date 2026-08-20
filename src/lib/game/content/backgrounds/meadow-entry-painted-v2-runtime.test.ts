@@ -4,11 +4,15 @@ import { describe, expect, it } from 'vitest';
 
 import {
 	MEADOW_ENTRY_DEFAULT_PAINTED_MODE,
+	MEADOW_ENTRY_PAINTED_V2_LEGACY_PACKAGE,
+	MEADOW_ENTRY_PAINTED_V2_LEGACY_PACKAGE_ID,
 	MEADOW_ENTRY_PAINTED_MODE_PRODUCTION,
 	MEADOW_ENTRY_PAINTED_MODE_PILOT,
 	MEADOW_ENTRY_PAINTED_MODE_FALLBACK,
+	MAP_BACKGROUND_PACKAGE_REGISTRY,
 	resolveMeadowEntryPaintedSelection
 } from './meadow-entry-painted-v2-runtime';
+import { resolveMapBackgroundPackageSelection } from './map-background-package';
 
 describe('painted-v2 runtime selection', () => {
 	it('defaults to the approved two-crop painted selection', () => {
@@ -22,6 +26,29 @@ describe('painted-v2 runtime selection', () => {
 		expect(selection.assets).toHaveLength(2);
 		expect(selection.backgrounds).toHaveLength(2);
 		expect(selection.visualOwners).toHaveLength(13);
+	});
+
+	it('keeps generic and legacy resolution byte-equivalent for the historical package', () => {
+		const legacySelection = resolveMeadowEntryPaintedSelection({
+			regionalBackgrounds: true,
+			meadowPaintedPilot: true,
+			meadowPaintedPilotOff: false
+		});
+		const genericSelection = resolveMapBackgroundPackageSelection(MAP_BACKGROUND_PACKAGE_REGISTRY, {
+			mapId: 'meadow-entry',
+			regionalBackgrounds: true,
+			reviewPackageIds: [MEADOW_ENTRY_PAINTED_V2_LEGACY_PACKAGE_ID],
+			defaultSelection: null,
+			forcedFallback: false
+		});
+
+		expect(genericSelection).toEqual({
+			mode: 'review',
+			definition: MEADOW_ENTRY_PAINTED_V2_LEGACY_PACKAGE
+		});
+		expect(genericSelection.definition?.assets).toEqual(legacySelection.assets);
+		expect(genericSelection.definition?.backgrounds).toEqual(legacySelection.backgrounds);
+		expect(genericSelection.definition?.visualOwners).toEqual(legacySelection.visualOwners);
 	});
 
 	it('gives the explicit pilot-off switch priority over the painted default', () => {
@@ -116,6 +143,8 @@ describe('painted-v2 runtime selection', () => {
 		});
 		expect(MEADOW_ENTRY_PAINTED_MODE_PILOT.mode).toBe('pilot');
 		expect(Object.isFrozen(MEADOW_ENTRY_PAINTED_MODE_PILOT)).toBe(true);
+		expect(Object.isFrozen(MEADOW_ENTRY_PAINTED_V2_LEGACY_PACKAGE)).toBe(true);
+		expect(Object.isFrozen(MAP_BACKGROUND_PACKAGE_REGISTRY)).toBe(true);
 		expect(Object.isFrozen(MEADOW_ENTRY_PAINTED_MODE_PILOT.assets)).toBe(true);
 		expect(Object.isFrozen(MEADOW_ENTRY_PAINTED_MODE_PILOT.backgrounds)).toBe(true);
 		expect(Object.isFrozen(MEADOW_ENTRY_PAINTED_MODE_PILOT.visualOwners)).toBe(true);

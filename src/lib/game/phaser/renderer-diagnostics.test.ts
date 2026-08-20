@@ -7,46 +7,42 @@ import {
 	type RegionalBackgroundRendererDiagnostic
 } from './renderer-diagnostics';
 
+const rendererInput = {
+	packageIds: ['ruins-review', 'hero-house-review', 'ruins-review'],
+	requiredAssetKeys: ['ruins-base', 'hero-house-base', 'ruins-base'],
+	completedAssetKeys: ['hero-house-base']
+} as const;
+
 describe('regional background renderer diagnostics', () => {
-	it('measures a finite non-negative regional preload-window duration', () => {
+	it('sorts and deduplicates package and asset inventories', () => {
 		expect(
 			buildRegionalBackgroundRendererDiagnostic({
 				renderer: 'webgl',
-				paintedMode: 'pilot',
-				maxTextureSize: 4096,
-				loadStartedAtMs: 120.25,
-				loadCompletedAtMs: 145.75,
-				regionalBackgroundLoadCompletions: 1
-			}).regionalBackgroundLoadMs
-		).toBe(25.5);
-
-		expect(
-			buildRegionalBackgroundRendererDiagnostic({
-				renderer: 'webgl',
-				paintedMode: 'pilot',
-				maxTextureSize: 4096,
-				loadStartedAtMs: 145.75,
-				loadCompletedAtMs: 120.25,
-				regionalBackgroundLoadCompletions: 1
-			}).regionalBackgroundLoadMs
-		).toBe(0);
-	});
-
-	it('records both camera-safe pilot texture completions', () => {
-		expect(
-			buildRegionalBackgroundRendererDiagnostic({
-				renderer: 'webgl',
-				paintedMode: 'pilot',
+				...rendererInput,
 				maxTextureSize: 4096,
 				loadStartedAtMs: 10,
-				loadCompletedAtMs: 25,
-				regionalBackgroundLoadCompletions: 2
+				loadCompletedAtMs: 25
 			})
-		).toMatchObject({
-			paintedMode: 'pilot',
-			regionalBackgroundLoadMs: 15,
-			regionalBackgroundLoadCompletions: 2
+		).toEqual({
+			renderer: 'webgl',
+			packageIds: ['hero-house-review', 'ruins-review'],
+			requiredAssetKeys: ['hero-house-base', 'ruins-base'],
+			completedAssetKeys: ['hero-house-base'],
+			maxTextureSize: 4096,
+			regionalBackgroundLoadMs: 15
 		});
+	});
+
+	it('clamps a reversed finite preload window to zero', () => {
+		expect(
+			buildRegionalBackgroundRendererDiagnostic({
+				renderer: 'webgl',
+				...rendererInput,
+				maxTextureSize: 4096,
+				loadStartedAtMs: 25,
+				loadCompletedAtMs: 10
+			}).regionalBackgroundLoadMs
+		).toBe(0);
 	});
 
 	it.each([
@@ -58,23 +54,21 @@ describe('regional background renderer diagnostics', () => {
 		expect(
 			buildRegionalBackgroundRendererDiagnostic({
 				renderer: 'webgl',
-				paintedMode: 'fallback',
+				...rendererInput,
 				maxTextureSize: 4096,
-				...timestamps,
-				regionalBackgroundLoadCompletions: 1
+				...timestamps
 			}).regionalBackgroundLoadMs
 		).toBeNull();
 	});
 
-	it('never reports a texture limit for the Canvas renderer', () => {
+	it('never reports a texture limit for Canvas', () => {
 		expect(
 			buildRegionalBackgroundRendererDiagnostic({
 				renderer: 'canvas',
-				paintedMode: 'fallback',
+				...rendererInput,
 				maxTextureSize: 8192,
 				loadStartedAtMs: 1,
-				loadCompletedAtMs: 2,
-				regionalBackgroundLoadCompletions: 1
+				loadCompletedAtMs: 2
 			}).maxTextureSize
 		).toBeNull();
 	});
@@ -90,41 +84,23 @@ describe('regional background renderer diagnostics', () => {
 		expect(
 			buildRegionalBackgroundRendererDiagnostic({
 				renderer: 'webgl',
-				paintedMode: 'fallback',
+				...rendererInput,
 				maxTextureSize: input,
 				loadStartedAtMs: 1,
-				loadCompletedAtMs: 2,
-				regionalBackgroundLoadCompletions: 1
+				loadCompletedAtMs: 2
 			}).maxTextureSize
 		).toBe(expected);
 	});
 
-	it.each([
-		{ input: 3.9, expected: 3 },
-		{ input: -4, expected: 0 },
-		{ input: Number.NaN, expected: 0 },
-		{ input: Number.POSITIVE_INFINITY, expected: 0 }
-	])('normalizes the completion count to a non-negative integer', ({ input, expected }) => {
-		expect(
-			buildRegionalBackgroundRendererDiagnostic({
-				renderer: 'canvas',
-				paintedMode: 'fallback',
-				maxTextureSize: null,
-				loadStartedAtMs: 1,
-				loadCompletedAtMs: 2,
-				regionalBackgroundLoadCompletions: input
-			}).regionalBackgroundLoadCompletions
-		).toBe(expected);
-	});
-
-	it('dispatches the exact typed event name with the diagnostic as detail', () => {
+	it('dispatches the typed event with the normalized diagnostic', () => {
 		const target = new EventTarget();
 		const detail: RegionalBackgroundRendererDiagnostic = {
 			renderer: 'webgl',
-			paintedMode: 'pilot',
+			packageIds: ['hero-house-review'],
+			requiredAssetKeys: ['hero-house-base'],
+			completedAssetKeys: ['hero-house-base'],
 			maxTextureSize: 4096,
-			regionalBackgroundLoadMs: 12.5,
-			regionalBackgroundLoadCompletions: 1
+			regionalBackgroundLoadMs: 12.5
 		};
 		let received: RegionalBackgroundRendererDiagnostic | undefined;
 
@@ -134,10 +110,10 @@ describe('regional background renderer diagnostics', () => {
 
 		emitRegionalBackgroundRendererDiagnostic(detail, target as Window);
 
+		expect(received).toBe(detail);
 		expect(REGIONAL_BACKGROUND_RENDERER_DIAGNOSTIC_EVENT).toBe(
 			'gliese:regional-background-renderer-diagnostic'
 		);
-		expect(received).toBe(detail);
 	});
 
 	it('is an SSR-safe no-op when no browser target exists', () => {
@@ -148,16 +124,15 @@ describe('regional background renderer diagnostics', () => {
 			expect(() =>
 				emitRegionalBackgroundRendererDiagnostic({
 					renderer: 'canvas',
-					paintedMode: 'fallback',
+					packageIds: [],
+					requiredAssetKeys: [],
+					completedAssetKeys: [],
 					maxTextureSize: null,
-					regionalBackgroundLoadMs: null,
-					regionalBackgroundLoadCompletions: 0
+					regionalBackgroundLoadMs: null
 				})
 			).not.toThrow();
 		} finally {
-			if (previousWindow) {
-				Object.defineProperty(globalThis, 'window', previousWindow);
-			}
+			if (previousWindow) Object.defineProperty(globalThis, 'window', previousWindow);
 		}
 	});
 });

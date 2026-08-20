@@ -1,9 +1,12 @@
-import type { MeadowEntryPaintedSelection } from '$lib/game/content/backgrounds/meadow-entry-painted-v2-runtime';
 import {
-	applyVisualOwnership,
-	type VisualOwnershipAssignment,
-	validateMapBackgroundOwnership
-} from '$lib/game/content/maps/background-ownership';
+	MEADOW_ENTRY_PAINTED_V2_LEGACY_PACKAGE,
+	MEADOW_ENTRY_PAINTED_MODE_PILOT,
+	type MeadowEntryPaintedSelection
+} from '$lib/game/content/backgrounds/meadow-entry-painted-v2-runtime';
+import {
+	applyMapBackgroundPackage,
+	type MapBackgroundPackageDefinition
+} from '$lib/game/content/backgrounds/map-background-package';
 import type { WorldMapDefinition } from '$lib/game/content/maps/types';
 
 const MEADOW_ENTRY_MAP_ID = 'meadow-entry';
@@ -12,19 +15,21 @@ export interface ApplyMeadowEntryPaintedBackgroundOptions {
 	readonly selection: MeadowEntryPaintedSelection;
 }
 
-function assignmentsFor(
-	selection: MeadowEntryPaintedSelection,
-	sourceType: 'blocker' | 'decor' | 'fence'
-): VisualOwnershipAssignment[] {
-	return selection.visualOwners
-		.filter((owner) => owner.sourceType === sourceType)
-		.map(({ sourceId, ownerCrops }) => ({
-			sourceId,
-			visual: {
-				mode: 'fallback-only' as const,
-				ownerCrops
-			}
-		}));
+function packageForSelection(
+	selection: MeadowEntryPaintedSelection
+): MapBackgroundPackageDefinition {
+	if (selection === MEADOW_ENTRY_PAINTED_MODE_PILOT) return MEADOW_ENTRY_PAINTED_V2_LEGACY_PACKAGE;
+	return {
+		id:
+			selection.mode === 'pilot'
+				? 'meadow-entry-painted-compatibility'
+				: 'meadow-entry-painted-production',
+		mapId: MEADOW_ENTRY_MAP_ID,
+		coverage: 'historical-partial',
+		assets: selection.assets,
+		backgrounds: selection.backgrounds,
+		visualOwners: selection.visualOwners
+	};
 }
 
 /**
@@ -41,28 +46,8 @@ export function applyMeadowEntryPaintedBackgrounds(
 ): WorldMapDefinition {
 	if (map.id !== MEADOW_ENTRY_MAP_ID || options.selection.mode === 'fallback') return map;
 
-	const blockerAssignments = assignmentsFor(options.selection, 'blocker');
-	const decorAssignments = assignmentsFor(options.selection, 'decor');
-	const fenceAssignments = assignmentsFor(options.selection, 'fence');
-
-	const blockers = applyVisualOwnership(map.blockers ?? [], blockerAssignments, {
-		rejectExisting: true
+	return applyMapBackgroundPackage(map, {
+		mode: options.selection.mode === 'production' ? 'production' : 'review',
+		definition: packageForSelection(options.selection)
 	});
-	const mapDecor = applyVisualOwnership(map.mapDecor ?? [], decorAssignments, {
-		rejectExisting: true
-	});
-	const fences = applyVisualOwnership(map.fences ?? [], fenceAssignments, {
-		rejectExisting: true
-	});
-
-	const transformed: WorldMapDefinition = {
-		...map,
-		backgroundImages: [...options.selection.backgrounds]
-	};
-	if (map.blockers !== undefined) transformed.blockers = blockers;
-	if (map.mapDecor !== undefined) transformed.mapDecor = mapDecor;
-	if (map.fences !== undefined) transformed.fences = fences;
-
-	validateMapBackgroundOwnership(transformed);
-	return transformed;
 }

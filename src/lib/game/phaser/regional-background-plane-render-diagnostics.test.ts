@@ -13,6 +13,10 @@ describe('regional background plane render diagnostics', () => {
 			mapId: 'two-plane-test',
 			regionalBackgroundsEnabled: true,
 			paintedMode: 'pilot',
+			packageId: 'two-plane-review',
+			requiredBackgroundIds: ['foreground-image', 'base-image'],
+			selectedBackgroundIds: ['foreground-image', 'base-image'],
+			presentationMode: 'painted',
 			entries: [
 				{
 					id: 'foreground-image',
@@ -48,6 +52,10 @@ describe('regional background plane render diagnostics', () => {
 		expect(received?.entries.map((entry) => entry.id)).toEqual(['foreground-image', 'base-image']);
 		expect(received?.successfulBackgroundIds).toEqual(['base-image', 'foreground-image']);
 		expect(received?.paintedMode).toBe('pilot');
+		expect(received?.packageId).toBe('two-plane-review');
+		expect(received?.requiredBackgroundIds).toEqual(['foreground-image', 'base-image']);
+		expect(received?.selectedBackgroundIds).toEqual(['foreground-image', 'base-image']);
+		expect(received?.presentationMode).toBe('painted');
 		expect(received?.selectedFallbackBlockerIds).toEqual(['blocker-a']);
 		expect(received?.selectedFallbackBlockerSegmentCount).toBe(2);
 		expect(received?.selectedFallbackDecorIds).toEqual(['decor-b', 'decor-a']);

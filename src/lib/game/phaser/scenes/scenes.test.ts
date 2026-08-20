@@ -1116,9 +1116,10 @@ describe('BootScene', () => {
 			scene.load.emit('complete');
 
 			expect(diagnostics[0]).toMatchObject({
-				paintedMode: 'pilot',
-				regionalBackgroundLoadMs: 15,
-				regionalBackgroundLoadCompletions: 2
+				packageIds: ['meadow-entry-painted-v2-legacy'],
+				requiredAssetKeys: MEADOW_ENTRY_PAINTED_MODE_PILOT.assets.map(({ key }) => key).sort(),
+				completedAssetKeys: MEADOW_ENTRY_PAINTED_MODE_PILOT.assets.map(({ key }) => key).sort(),
+				regionalBackgroundLoadMs: 15
 			});
 		} finally {
 			now.mockRestore();
@@ -1153,9 +1154,10 @@ describe('BootScene', () => {
 				expect.stringContaining('/game/assets/regions/')
 			);
 			expect(diagnostics[0]).toMatchObject({
-				paintedMode: 'fallback',
-				regionalBackgroundLoadMs: null,
-				regionalBackgroundLoadCompletions: 0
+				packageIds: [],
+				requiredAssetKeys: [],
+				completedAssetKeys: [],
+				regionalBackgroundLoadMs: null
 			});
 		} finally {
 			target.restore();
@@ -1186,10 +1188,11 @@ describe('BootScene', () => {
 			expect(diagnostics).toEqual([
 				{
 					renderer: 'webgl',
-					paintedMode: 'fallback',
+					packageIds: [],
+					requiredAssetKeys: [],
+					completedAssetKeys: [],
 					maxTextureSize: 4096,
-					regionalBackgroundLoadMs: null,
-					regionalBackgroundLoadCompletions: 0
+					regionalBackgroundLoadMs: null
 				}
 			]);
 		} finally {
@@ -1223,10 +1226,11 @@ describe('BootScene', () => {
 			expect(diagnostics).toEqual([
 				{
 					renderer: 'webgl',
-					paintedMode: 'fallback',
+					packageIds: [],
+					requiredAssetKeys: [],
+					completedAssetKeys: [],
 					maxTextureSize: null,
-					regionalBackgroundLoadMs: null,
-					regionalBackgroundLoadCompletions: 0
+					regionalBackgroundLoadMs: null
 				}
 			]);
 		} finally {
@@ -1260,10 +1264,11 @@ describe('BootScene', () => {
 			expect(diagnostics).toEqual([
 				{
 					renderer: 'canvas',
-					paintedMode: 'fallback',
+					packageIds: [],
+					requiredAssetKeys: [],
+					completedAssetKeys: [],
 					maxTextureSize: null,
-					regionalBackgroundLoadMs: null,
-					regionalBackgroundLoadCompletions: 0
+					regionalBackgroundLoadMs: null
 				}
 			]);
 		} finally {
@@ -1296,10 +1301,11 @@ describe('BootScene', () => {
 			expect(diagnostics).toEqual([
 				{
 					renderer: 'webgl',
-					paintedMode: 'fallback',
+					packageIds: [],
+					requiredAssetKeys: [],
+					completedAssetKeys: [],
 					maxTextureSize: 4096,
-					regionalBackgroundLoadMs: null,
-					regionalBackgroundLoadCompletions: 0
+					regionalBackgroundLoadMs: null
 				}
 			]);
 		} finally {
@@ -1356,7 +1362,7 @@ describe('BootScene', () => {
 			scene.load.emit('complete');
 
 			expect(diagnostics[0]?.regionalBackgroundLoadMs).toBeNull();
-			expect(diagnostics[0]?.regionalBackgroundLoadCompletions).toBe(0);
+			expect(diagnostics[0]?.completedAssetKeys).toEqual([]);
 		} finally {
 			restoreLocation();
 			error.mockRestore();
@@ -1391,7 +1397,7 @@ describe('BootScene', () => {
 
 			expect(now).not.toHaveBeenCalled();
 			expect(diagnostics[0]?.regionalBackgroundLoadMs).toBeNull();
-			expect(diagnostics[0]?.regionalBackgroundLoadCompletions).toBe(0);
+			expect(diagnostics[0]?.completedAssetKeys).toEqual([]);
 		} finally {
 			restoreLocation();
 			mutableAssets.push(...savedAssets);
@@ -3208,6 +3214,11 @@ describe('WorldScene', () => {
 				'two-plane-base-image',
 				'two-plane-foreground-image'
 			]);
+			expect(target.diagnostics[0]).toMatchObject({
+				packageId: null,
+				selectedBackgroundIds: ['two-plane-base-image', 'two-plane-foreground-image'],
+				presentationMode: 'painted'
+			});
 		} finally {
 			target.restore();
 		}
@@ -3258,6 +3269,11 @@ describe('WorldScene', () => {
 				'disabled'
 			]);
 			expect(target.diagnostics[0]?.successfulBackgroundIds).toEqual([]);
+			expect(target.diagnostics[0]).toMatchObject({
+				packageId: null,
+				selectedBackgroundIds: [],
+				presentationMode: 'fallback'
+			});
 			expect(target.diagnostics[0]?.selectedFallbackBlockerIds).toEqual([
 				'two-plane-base-only',
 				'two-plane-multi-owner'
@@ -3617,7 +3633,7 @@ describe('WorldScene', () => {
 		}
 	});
 
-	it('resolves the default painted descriptors through the generic renderer and suppresses complete live owners', async () => {
+	it('resolves the default painted descriptors while preserving historical partial ownership', async () => {
 		const restoreLocation = installLocationSearch('');
 		const target = installPlaneDiagnosticListener();
 		const selection = await registerPaintedPilotBackgroundMocks();
@@ -3643,6 +3659,12 @@ describe('WorldScene', () => {
 			expect(target.diagnostics[0]?.successfulBackgroundIds).toEqual(
 				selection.backgrounds.map(({ id }) => id).sort()
 			);
+			expect(target.diagnostics[0]).toMatchObject({
+				packageId: 'meadow-entry-painted-v2-legacy',
+				requiredBackgroundIds: selection.backgrounds.map(({ id }) => id),
+				selectedBackgroundIds: selection.backgrounds.map(({ id }) => id),
+				presentationMode: 'painted'
+			});
 			for (const sourceId of expectedOrganicBlockerOwners) {
 				expect(findPaintedFallbackMarkers(sourceId)).toHaveLength(0);
 			}
@@ -3666,7 +3688,7 @@ describe('WorldScene', () => {
 					({ x, y, texture, frame }) =>
 						x === 3_040 && y === 4_544 && texture === 'village-dressing' && frame === 'poleLantern'
 				)
-			).toHaveLength(0);
+			).toHaveLength(1);
 			expect(
 				phaserState.imageMarkers.filter(
 					({ x, y, texture, frame }) =>
@@ -3675,18 +3697,18 @@ describe('WorldScene', () => {
 						texture === forestDressingAsset.key &&
 						frame === 'treeCluster'
 				)
-			).toHaveLength(0);
+			).toHaveLength(1);
 			expect(
 				phaserState.tileSpriteMarkers.filter(
 					({ x, y, width, height, frame }) =>
 						x === 5_520 && y === 4_420 && width === 520 && height === 360 && frame === 'forestFloor'
 				)
-			).toHaveLength(0);
+			).toHaveLength(1);
 			expect(
 				phaserState.imageMarkers.filter(
 					({ texture, frame }) => texture === fenceDressingAsset.key && frame === 'verticalFence'
 				)
-			).toHaveLength(0);
+			).not.toHaveLength(0);
 			const strictCollisionRects = collectStrictCollisionRects(meadowEntryMap);
 			for (const sourceId of expectedOrganicBlockerOwners) {
 				expect(strictCollisionRects).toEqual(
@@ -3773,9 +3795,17 @@ describe('WorldScene', () => {
 					'rendered',
 					status
 				]);
-				expect(target.diagnostics[0]?.successfulBackgroundIds).toEqual([
-					selection.backgrounds[0]!.id
-				]);
+				expect(target.diagnostics[0]).toMatchObject({
+					packageId: null,
+					selectedBackgroundIds: [],
+					presentationMode: 'fallback',
+					successfulBackgroundIds: []
+				});
+				const packageMarkers = phaserState.imageMarkers.filter((marker) =>
+					selection.backgrounds.some(({ textureKey }) => textureKey === marker.texture)
+				);
+				expect(packageMarkers.length).toBeGreaterThan(0);
+				expect(packageMarkers.every((marker) => marker.destroy.mock.calls.length > 0)).toBe(true);
 				expect(target.diagnostics[0]?.selectedFallbackBlockerIds).toEqual(
 					expect.arrayContaining([...expectedOrganicBlockerOwners])
 				);
@@ -3905,9 +3935,17 @@ describe('WorldScene', () => {
 					status,
 					'rendered'
 				]);
-				expect(target.diagnostics[0]?.successfulBackgroundIds).toEqual([
-					selection.backgrounds[1]!.id
-				]);
+				expect(target.diagnostics[0]).toMatchObject({
+					packageId: null,
+					selectedBackgroundIds: [],
+					presentationMode: 'fallback',
+					successfulBackgroundIds: []
+				});
+				const packageMarkers = phaserState.imageMarkers.filter((marker) =>
+					selection.backgrounds.some(({ textureKey }) => textureKey === marker.texture)
+				);
+				expect(packageMarkers.length).toBeGreaterThan(0);
+				expect(packageMarkers.every((marker) => marker.destroy.mock.calls.length > 0)).toBe(true);
 				expect(target.diagnostics[0]?.selectedFallbackDecorIds).toContain('village-decor-28-25');
 				expect(target.diagnostics[0]?.selectedFallbackDecorIds).toEqual(
 					expect.arrayContaining(['wildwood-threshold-floor', 'wildwood-threshold-tree-wall-west'])
@@ -3967,7 +4005,7 @@ describe('WorldScene', () => {
 		}
 	);
 
-	it('renders regional backgrounds after fallback ground and before floor decor', async () => {
+	it('renders generic regional backgrounds before legacy ground and floor decor', async () => {
 		registerSceneSupportTestMap();
 		const backgroundTextureKey = 'scene-support-background-texture';
 		phaserState.regionalBackgroundTextureMocks.set(backgroundTextureKey, {
@@ -4018,7 +4056,7 @@ describe('WorldScene', () => {
 		const floorDecorOrder = vi.mocked(scene.add.image).mock.invocationCallOrder[
 			floorDecorCallIndex
 		]!;
-		expect(groundOrder).toBeLessThan(backgroundOrder);
+		expect(backgroundOrder).toBeLessThan(groundOrder);
 		expect(backgroundOrder).toBeLessThan(floorDecorOrder);
 	});
 

@@ -1,23 +1,27 @@
-import type { MeadowEntryPaintedMode } from '$lib/game/content/backgrounds/meadow-entry-painted-v2-runtime';
-
 export const REGIONAL_BACKGROUND_RENDERER_DIAGNOSTIC_EVENT =
 	'gliese:regional-background-renderer-diagnostic';
 
 export interface RegionalBackgroundRendererDiagnostic {
 	renderer: 'webgl' | 'canvas';
-	paintedMode: MeadowEntryPaintedMode;
+	packageIds: readonly string[];
+	requiredAssetKeys: readonly string[];
+	completedAssetKeys: readonly string[];
 	maxTextureSize: number | null;
 	regionalBackgroundLoadMs: number | null;
-	regionalBackgroundLoadCompletions: number;
 }
 
 export interface RegionalBackgroundRendererDiagnosticInput {
 	renderer: 'webgl' | 'canvas';
-	paintedMode: MeadowEntryPaintedMode;
+	packageIds: readonly string[];
+	requiredAssetKeys: readonly string[];
+	completedAssetKeys: readonly string[];
 	maxTextureSize: number | null;
 	loadStartedAtMs: number | null;
 	loadCompletedAtMs: number | null;
-	regionalBackgroundLoadCompletions: number;
+}
+
+function sortedUnique(values: readonly string[]): readonly string[] {
+	return Object.freeze([...new Set(values)].sort());
 }
 
 /**
@@ -27,13 +31,12 @@ export interface RegionalBackgroundRendererDiagnosticInput {
  *     completed and started timestamps, or `null` when either is non-finite.
  *   - `maxTextureSize` is preserved only for the `webgl` renderer when finite
  *     and positive; otherwise it is coerced to `null` (canvas has no limit).
- *   - `regionalBackgroundLoadCompletions` is coerced to a non-negative integer
- *     (non-finite inputs become 0).
+ *   - Package and asset inventories are copied, deduplicated, and sorted so
+ *     one preload can describe packages for several maps deterministically.
  *   - `renderer` is passed through unchanged.
  *
  * @param input - Raw diagnostic inputs: renderer type, optional max texture
- *   size, load start/completed timestamps (ms), and regional background load
- *   completion count.
+ *   size, load start/completed timestamps (ms), and package asset inventories.
  * @returns The normalized, emit-ready diagnostic record.
  */
 export function buildRegionalBackgroundRendererDiagnostic(
@@ -45,18 +48,15 @@ export function buildRegionalBackgroundRendererDiagnostic(
 		input.renderer === 'webgl' && Number.isFinite(input.maxTextureSize) && input.maxTextureSize! > 0
 			? input.maxTextureSize
 			: null;
-	const regionalBackgroundLoadCompletions = Number.isFinite(input.regionalBackgroundLoadCompletions)
-		? Math.max(0, Math.floor(input.regionalBackgroundLoadCompletions))
-		: 0;
-
 	return {
 		renderer: input.renderer,
-		paintedMode: input.paintedMode,
+		packageIds: sortedUnique(input.packageIds),
+		requiredAssetKeys: sortedUnique(input.requiredAssetKeys),
+		completedAssetKeys: sortedUnique(input.completedAssetKeys),
 		maxTextureSize,
 		regionalBackgroundLoadMs: hasFiniteTimestamps
 			? Math.max(0, input.loadCompletedAtMs! - input.loadStartedAtMs!)
-			: null,
-		regionalBackgroundLoadCompletions
+			: null
 	};
 }
 
