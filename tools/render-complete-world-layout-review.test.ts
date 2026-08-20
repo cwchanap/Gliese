@@ -8,6 +8,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 
 import { COMPLETE_WORLD_MAP_IDS } from '$lib/game/content/maps/layouts/complete-world-layout-foundation';
 import { validateCanonicalPngChunks } from '$lib/game/content/backgrounds/meadow-entry-png';
+import { maps } from '$lib/game/content/maps';
 import {
 	renderCompleteWorldLayoutReview,
 	type CompleteWorldLayoutReviewEntry
@@ -30,6 +31,31 @@ const expectedPngNames = [
 	...COMPLETE_WORLD_MAP_IDS.map((mapId) => `${mapId}.png`),
 	'meadow-river-crossings.png'
 ].sort();
+
+const expectedRouteProofSegments = [
+	{ id: 'hero-house-to-village-bridge-west', from: 'heroHouse', to: 'villageBridgeWest' },
+	{ id: 'village-bridge-west-to-east', from: 'villageBridgeWest', to: 'villageBridgeEast' },
+	{ id: 'village-bridge-east-to-crossroads', from: 'villageBridgeEast', to: 'crossroads' },
+	{ id: 'crossroads-to-mistfen', from: 'crossroads', to: 'mistfen' },
+	{ id: 'crossroads-to-silverpine', from: 'crossroads', to: 'silverpine' },
+	{ id: 'crossroads-to-wildwood', from: 'crossroads', to: 'wildwood' },
+	{ id: 'wildwood-to-cave', from: 'wildwood', to: 'cave' },
+	{ id: 'crossroads-to-coast', from: 'crossroads', to: 'coast' },
+	{ id: 'coast-to-ferry', from: 'coast', to: 'ferry' }
+] as const;
+
+const expectedRouteProofAnchors = {
+	heroHouse: { x: 704, y: 5920 },
+	villageBridgeWest: { x: 2496, y: 4624 },
+	villageBridgeEast: { x: 3744, y: 4624 },
+	crossroads: { x: 3904, y: 4224 },
+	mistfen: { x: 2240, y: 3648 },
+	silverpine: { x: 3904, y: 2416 },
+	wildwood: { x: 4992, y: 3904 },
+	coast: { x: 4224, y: 5120 },
+	cave: { x: 5760, y: 1868 },
+	ferry: { x: 3600, y: 5500 }
+} as const;
 
 const temporaryRoots: string[] = [];
 
@@ -79,8 +105,29 @@ describe('complete world layout review renderer', () => {
 
 		const inventory = JSON.parse(await readFile(join(outputRoot, 'inventory.json'), 'utf8')) as {
 			entries: readonly CompleteWorldLayoutReviewEntry[];
+			crossingReview: {
+				imagePath: string;
+				worldDimensions: { width: number; height: number };
+				reviewDimensions: { width: number; height: number };
+				crop: { left: number; top: number; right: number; bottom: number };
+				imageSha256: string;
+				routeProofSegments: readonly { id: string; from: string; to: string }[];
+			};
 		};
 		expect(inventory.entries).toEqual(first);
+		const crossingReview = inventory.crossingReview;
+		expect(crossingReview.imagePath).toBe('meadow-river-crossings.png');
+		expect(crossingReview.worldDimensions).toEqual({ width: 2304, height: 4096 });
+		expect(crossingReview.reviewDimensions).toEqual({ width: 648, height: 1152 });
+		expect(crossingReview.crop).toEqual({ left: 2048, top: 2048, right: 4352, bottom: 6144 });
+		expect(crossingReview.routeProofSegments).toEqual(expectedRouteProofSegments);
+		const crossingBytes = await readFile(join(outputRoot, crossingReview.imagePath));
+		validateCanonicalPngChunks(crossingBytes);
+		expect(sha256(crossingBytes)).toBe(crossingReview.imageSha256);
+		const crossingMetadata = await sharp(crossingBytes).metadata();
+		expect(crossingMetadata.format).toBe('png');
+		expect(crossingMetadata.width).toBe(648);
+		expect(crossingMetadata.height).toBe(1152);
 
 		const firstBytes = await Promise.all(
 			[...expectedPngNames, 'inventory.json'].map(
@@ -110,12 +157,44 @@ describe('complete world layout review renderer', () => {
 
 		await writeFile(imagePath, originalImage);
 		const inventoryPath = join(outputRoot, 'inventory.json');
-		const staleInventory = await readFile(inventoryPath);
+		const originalInventory = await readFile(inventoryPath);
+		const staleInventory = Buffer.from(originalInventory);
 		staleInventory[staleInventory.length - 2] ^= 1;
 		await writeFile(inventoryPath, staleInventory);
 		await expect(renderCompleteWorldLayoutReview({ outputRoot, check: true })).rejects.toThrow(
 			/inventory\.json.*stale|stale.*inventory\.json/i
 		);
 		expect(await readFile(inventoryPath)).toEqual(staleInventory);
+
+		await writeFile(inventoryPath, originalInventory);
+		await writeFile(imagePath, originalImage);
+		const crossingPath = join(outputRoot, 'meadow-river-crossings.png');
+		const originalCrossing = await readFile(crossingPath);
+		await rm(crossingPath);
+		await expect(renderCompleteWorldLayoutReview({ outputRoot, check: true })).rejects.toThrow(
+			/meadow-river-crossings\.png.*missing|missing.*meadow-river-crossings\.png|inventory files differ/i
+		);
+		expect(await readdir(outputRoot)).not.toContain('meadow-river-crossings.png');
+
+		await writeFile(crossingPath, originalCrossing);
+		const extraPath = join(outputRoot, 'unexpected.txt');
+		const extraBytes = Buffer.from('unrelated output');
+		await writeFile(extraPath, extraBytes);
+		await expect(renderCompleteWorldLayoutReview({ outputRoot, check: true })).rejects.toThrow(
+			/inventory files differ|unexpected\.txt/i
+		);
+		expect(await readFile(extraPath)).toEqual(extraBytes);
+	});
+
+	it('derives every route proof centerline from active composed collision', async () => {
+		const renderer = await import('./render-complete-world-layout-review');
+		const paths = renderer.deriveMeadowRouteProofPaths(maps['meadow-entry']);
+
+		expect(paths.map(({ id, from, to }) => ({ id, from, to }))).toEqual(expectedRouteProofSegments);
+		for (const path of paths) {
+			expect(path.points[0]).toEqual(expectedRouteProofAnchors[path.from]);
+			expect(path.points.at(-1)).toEqual(expectedRouteProofAnchors[path.to]);
+			expect(path.points.length).toBeGreaterThan(1);
+		}
 	});
 });

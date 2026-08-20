@@ -4,6 +4,7 @@ import { dirname, join, resolve } from 'node:path';
 
 import sharp from 'sharp';
 
+import { PLAYER_COLLISION_RADIUS } from '$lib/game/core/collision';
 import {
 	encodeCanonicalMeadowEntryPng,
 	validateCanonicalPngChunks
@@ -15,11 +16,14 @@ import {
 } from '$lib/game/content/maps/layouts/complete-world-layout-foundation';
 import {
 	MEADOW_ENTRY_V2_CROSSINGS,
-	MEADOW_ENTRY_V2_RIVER_SEGMENTS,
-	MEADOW_ENTRY_V2_ROUTES,
-	MEADOW_ENTRY_V2_ROUTE_PATCHES
+	MEADOW_ENTRY_V2_RIVER_SEGMENTS
 } from '$lib/game/content/maps/layouts/meadow-entry-v2';
 import { maps, type MapRect, type WorldMapDefinition } from '$lib/game/content/maps';
+import {
+	collectLandmarkRects,
+	collectStrictCollisionRects,
+	isInsideAnyCollisionRect
+} from '$lib/game/save/save-state';
 
 const TILE_SIZE = 32;
 const MAX_REVIEW_EDGE = 1600;
@@ -54,6 +58,51 @@ type View = Readonly<{
 	outputHeight: number;
 }>;
 
+const ROUTE_NAVIGATION_STEP = 16;
+
+/**
+ * Exact Task 4 route-proof anchors. These are proof targets, not a second map
+ * geometry source; the solver below consumes all collision geometry from the
+ * active Meadow map and only uses these reviewed endpoints.
+ */
+const MEADOW_ROUTE_PROOF_ANCHORS = {
+	heroHouse: { x: 704, y: 5920 },
+	villageBridgeWest: { x: 2496, y: 4624 },
+	villageBridgeEast: { x: 3744, y: 4624 },
+	crossroads: { x: 3904, y: 4224 },
+	mistfen: { x: 2240, y: 3648 },
+	silverpine: { x: 3904, y: 2416 },
+	wildwood: { x: 4992, y: 3904 },
+	coast: { x: 4224, y: 5120 },
+	cave: { x: 5760, y: 1868 },
+	ferry: { x: 3600, y: 5500 }
+} as const;
+
+type MeadowRouteProofAnchorId = keyof typeof MEADOW_ROUTE_PROOF_ANCHORS;
+
+const MEADOW_ROUTE_PROOF_SEGMENTS = [
+	{ id: 'hero-house-to-village-bridge-west', from: 'heroHouse', to: 'villageBridgeWest' },
+	{ id: 'village-bridge-west-to-east', from: 'villageBridgeWest', to: 'villageBridgeEast' },
+	{ id: 'village-bridge-east-to-crossroads', from: 'villageBridgeEast', to: 'crossroads' },
+	{ id: 'crossroads-to-mistfen', from: 'crossroads', to: 'mistfen' },
+	{ id: 'crossroads-to-silverpine', from: 'crossroads', to: 'silverpine' },
+	{ id: 'crossroads-to-wildwood', from: 'crossroads', to: 'wildwood' },
+	{ id: 'wildwood-to-cave', from: 'wildwood', to: 'cave' },
+	{ id: 'crossroads-to-coast', from: 'crossroads', to: 'coast' },
+	{ id: 'coast-to-ferry', from: 'coast', to: 'ferry' }
+] as const satisfies readonly {
+	id: string;
+	from: MeadowRouteProofAnchorId;
+	to: MeadowRouteProofAnchorId;
+}[];
+
+export interface MeadowRouteProofPath {
+	readonly id: string;
+	readonly from: MeadowRouteProofAnchorId;
+	readonly to: MeadowRouteProofAnchorId;
+	readonly points: readonly Point[];
+}
+
 export interface CompleteWorldLayoutReviewEntry {
 	readonly mapId: CompleteWorldMapId;
 	readonly disposition: 'preserved' | 'changed';
@@ -72,6 +121,11 @@ interface CompleteWorldLayoutCrossingReview {
 	readonly crop: typeof CROSSING_CROP;
 	readonly imageSha256: string;
 	readonly counts: Readonly<Record<string, number>>;
+	readonly routeProofSegments: readonly {
+		readonly id: string;
+		readonly from: MeadowRouteProofAnchorId;
+		readonly to: MeadowRouteProofAnchorId;
+	}[];
 }
 
 interface CompleteWorldLayoutReviewInventory {
@@ -249,6 +303,191 @@ function markerLabelSvg(id: string, point: Point, context: SvgContext): string {
 	return labelSvg(id, point, context);
 }
 
+function routeGridKey(point: Point): string {
+	return `${point.x},${point.y}`;
+}
+
+function routePointIsWalkable(
+	map: WorldMapDefinition,
+	collisionRects: ReturnType<typeof collectStrictCollisionRects>,
+	point: Point
+): boolean {
+	const mapWidth = map.width * TILE_SIZE;
+	const mapHeight = map.height * TILE_SIZE;
+	return (
+		point.x >= PLAYER_COLLISION_RADIUS &&
+		point.y >= PLAYER_COLLISION_RADIUS &&
+		point.x <= mapWidth - PLAYER_COLLISION_RADIUS &&
+		point.y <= mapHeight - PLAYER_COLLISION_RADIUS &&
+		!isInsideAnyCollisionRect(point.x, point.y, collisionRects, PLAYER_COLLISION_RADIUS)
+	);
+}
+
+function routeSegmentIsWalkable(
+	map: WorldMapDefinition,
+	collisionRects: ReturnType<typeof collectStrictCollisionRects>,
+	from: Point,
+	to: Point
+): boolean {
+	const distance = Math.hypot(to.x - from.x, to.y - from.y);
+	const steps = Math.max(1, Math.ceil(distance / 4));
+	for (let index = 0; index <= steps; index += 1) {
+		const progress = index / steps;
+		const point = {
+			x: from.x + (to.x - from.x) * progress,
+			y: from.y + (to.y - from.y) * progress
+		};
+		if (!routePointIsWalkable(map, collisionRects, point)) return false;
+	}
+	return true;
+}
+
+function alignRoutePoint(point: Point): Point {
+	return {
+		x: Math.round(point.x / ROUTE_NAVIGATION_STEP) * ROUTE_NAVIGATION_STEP,
+		y: Math.round(point.y / ROUTE_NAVIGATION_STEP) * ROUTE_NAVIGATION_STEP
+	};
+}
+
+function nearestWalkableRouteGridPoint(
+	map: WorldMapDefinition,
+	collisionRects: ReturnType<typeof collectStrictCollisionRects>,
+	anchor: Point
+): Point {
+	const aligned = alignRoutePoint(anchor);
+	for (let radius = 0; radius <= 4; radius += 1) {
+		for (let yOffset = -radius; yOffset <= radius; yOffset += 1) {
+			for (let xOffset = -radius; xOffset <= radius; xOffset += 1) {
+				if (Math.max(Math.abs(xOffset), Math.abs(yOffset)) !== radius) continue;
+				const candidate = {
+					x: aligned.x + xOffset * ROUTE_NAVIGATION_STEP,
+					y: aligned.y + yOffset * ROUTE_NAVIGATION_STEP
+				};
+				if (
+					routePointIsWalkable(map, collisionRects, candidate) &&
+					routeSegmentIsWalkable(map, collisionRects, anchor, candidate)
+				) {
+					return candidate;
+				}
+			}
+		}
+	}
+	throw new Error(`Route proof anchor is not reachable on the ${ROUTE_NAVIGATION_STEP}px grid`);
+}
+
+function compressRoutePoints(points: readonly Point[]): readonly Point[] {
+	if (points.length <= 2) return points;
+	const compressed: Point[] = [points[0]!];
+	for (let index = 1; index < points.length - 1; index += 1) {
+		const previous = compressed.at(-1)!;
+		const current = points[index]!;
+		const next = points[index + 1]!;
+		const firstX = current.x - previous.x;
+		const firstY = current.y - previous.y;
+		const secondX = next.x - current.x;
+		const secondY = next.y - current.y;
+		const collinear = firstX * secondY - firstY * secondX === 0;
+		const continuing = firstX * secondX + firstY * secondY >= 0;
+		if (!collinear || !continuing) compressed.push(current);
+	}
+	compressed.push(points.at(-1)!);
+	return compressed;
+}
+
+function findRouteProofPath(
+	map: WorldMapDefinition,
+	collisionRects: ReturnType<typeof collectStrictCollisionRects>,
+	segment: (typeof MEADOW_ROUTE_PROOF_SEGMENTS)[number]
+): MeadowRouteProofPath {
+	const from = MEADOW_ROUTE_PROOF_ANCHORS[segment.from];
+	const to = MEADOW_ROUTE_PROOF_ANCHORS[segment.to];
+	if (!routePointIsWalkable(map, collisionRects, from)) {
+		throw new Error(
+			`Meadow route proof blocked: ${segment.id} (${segment.from} -> ${segment.to}); start anchor is colliding`
+		);
+	}
+	if (!routePointIsWalkable(map, collisionRects, to)) {
+		throw new Error(
+			`Meadow route proof blocked: ${segment.id} (${segment.from} -> ${segment.to}); goal anchor is colliding`
+		);
+	}
+
+	let start: Point;
+	let goal: Point;
+	try {
+		start = nearestWalkableRouteGridPoint(map, collisionRects, from);
+		goal = nearestWalkableRouteGridPoint(map, collisionRects, to);
+	} catch (error) {
+		throw new Error(
+			`Meadow route proof blocked: ${segment.id} (${segment.from} -> ${segment.to}); no clear grid anchor`,
+			{ cause: error }
+		);
+	}
+	const queue: Point[] = [start];
+	const parents = new Map<string, string | null>([[routeGridKey(start), null]]);
+	let goalKey: string | null = null;
+	for (let cursor = 0; cursor < queue.length; cursor += 1) {
+		const current = queue[cursor]!;
+		const currentKey = routeGridKey(current);
+		if (currentKey === routeGridKey(goal)) {
+			goalKey = currentKey;
+			break;
+		}
+		for (const [xDelta, yDelta] of [
+			[ROUTE_NAVIGATION_STEP, 0],
+			[-ROUTE_NAVIGATION_STEP, 0],
+			[0, ROUTE_NAVIGATION_STEP],
+			[0, -ROUTE_NAVIGATION_STEP]
+		]) {
+			const next = { x: current.x + xDelta, y: current.y + yDelta };
+			const nextKey = routeGridKey(next);
+			if (
+				parents.has(nextKey) ||
+				!routePointIsWalkable(map, collisionRects, next) ||
+				!routeSegmentIsWalkable(map, collisionRects, current, next)
+			) {
+				continue;
+			}
+			parents.set(nextKey, currentKey);
+			queue.push(next);
+		}
+	}
+
+	if (goalKey === null) {
+		throw new Error(`Meadow route proof blocked: ${segment.id} (${segment.from} -> ${segment.to})`);
+	}
+
+	const gridPath: Point[] = [];
+	let currentKey: string | null = goalKey;
+	while (currentKey !== null) {
+		const [x, y] = currentKey.split(',').map(Number);
+		gridPath.push({ x, y });
+		currentKey = parents.get(currentKey) ?? null;
+	}
+	gridPath.reverse();
+
+	const points: Point[] = [from];
+	for (const point of gridPath) {
+		if (routeGridKey(points.at(-1)!) !== routeGridKey(point)) points.push(point);
+	}
+	if (routeGridKey(points.at(-1)!) !== routeGridKey(to)) points.push(to);
+	return {
+		id: segment.id,
+		from: segment.from,
+		to: segment.to,
+		points: compressRoutePoints(points)
+	};
+}
+
+export function deriveMeadowRouteProofPaths(
+	map: WorldMapDefinition
+): readonly MeadowRouteProofPath[] {
+	const collisionRects = [...collectStrictCollisionRects(map), ...collectLandmarkRects(map)];
+	return MEADOW_ROUTE_PROOF_SEGMENTS.map((segment) =>
+		findRouteProofPath(map, collisionRects, segment)
+	);
+}
+
 function renderGroundPatches(map: WorldMapDefinition): string {
 	return (map.groundPatches ?? [])
 		.map((patch) =>
@@ -373,34 +612,17 @@ function renderPickupsAndDiscoveries(map: WorldMapDefinition, context: SvgContex
 	return parts.join('');
 }
 
-function renderRouteProof(context: SvgContext): string {
+function renderRouteProof(paths: readonly MeadowRouteProofPath[], context: SvgContext): string {
 	const parts: string[] = [];
-	for (const [id, route] of Object.entries(MEADOW_ENTRY_V2_ROUTES)) {
-		const bounds = rectBounds(route);
-		const point = { x: route.x + route.width / 2, y: route.y + route.height / 2 };
+	for (const path of paths) {
+		const pointList = path.points.map(({ x, y }) => `${x},${y}`).join(' ');
 		parts.push(
-			svgRect(bounds, 'none', {
-				stroke: COLORS.route,
-				strokeWidth: 14,
-				dash: '36 24'
-			})
+			`<polyline points="${pointList}" fill="none" stroke="${COLORS.route}" stroke-width="18" stroke-linecap="round" stroke-linejoin="round"/>`
 		);
-		parts.push(labelSvg(id, point, context));
-	}
-	for (const patch of MEADOW_ENTRY_V2_ROUTE_PATCHES) {
-		const bounds = rectBounds(patch.rect);
-		const point = {
-			x: patch.rect.x + patch.rect.width / 2,
-			y: patch.rect.y + patch.rect.height / 2
-		};
-		parts.push(
-			svgRect(bounds, 'none', {
-				stroke: COLORS.route,
-				strokeWidth: 8,
-				dash: '16 16'
-			})
-		);
-		parts.push(labelSvg(patch.id, point, context));
+		const midpoint = path.points[Math.floor(path.points.length / 2)]!;
+		parts.push(labelSvg(path.id, midpoint, context));
+		parts.push(svgCircle(MEADOW_ROUTE_PROOF_ANCHORS[path.from], 30, COLORS.route, 0.95));
+		parts.push(svgCircle(MEADOW_ROUTE_PROOF_ANCHORS[path.to], 30, COLORS.route, 0.95));
 	}
 	return parts.join('');
 }
@@ -421,7 +643,11 @@ function renderMeadowLandscapeLabels(context: SvgContext): string {
 	return parts.join('');
 }
 
-function renderMapSvg(map: WorldMapDefinition, view: View, includeRouteProof: boolean): string {
+function renderMapSvg(
+	map: WorldMapDefinition,
+	view: View,
+	routeProofPaths: readonly MeadowRouteProofPath[] = []
+): string {
 	const context = contextFor(view);
 	const parts = [
 		`<svg xmlns="http://www.w3.org/2000/svg" width="${view.outputWidth}" height="${view.outputHeight}" viewBox="${view.left} ${view.top} ${view.width} ${view.height}" preserveAspectRatio="none">`,
@@ -438,19 +664,23 @@ function renderMapSvg(map: WorldMapDefinition, view: View, includeRouteProof: bo
 		renderActors(map, context),
 		renderPickupsAndDiscoveries(map, context)
 	];
-	if (includeRouteProof)
-		parts.push(renderRouteProof(context), renderMeadowLandscapeLabels(context));
+	if (routeProofPaths.length > 0)
+		parts.push(renderRouteProof(routeProofPaths, context), renderMeadowLandscapeLabels(context));
 	parts.push('</svg>');
 	return parts.join('');
 }
 
-function renderCrossingSvg(map: WorldMapDefinition, view: View): string {
+function renderCrossingSvg(
+	map: WorldMapDefinition,
+	view: View,
+	routeProofPaths: readonly MeadowRouteProofPath[]
+): string {
 	const context = contextFor(view);
 	const parts = [
-		renderMapSvg(map, view, false)
+		renderMapSvg(map, view)
 			.replace(/^<svg[^>]*>/, '')
 			.replace(/<\/svg>$/, ''),
-		renderRouteProof(context)
+		renderRouteProof(routeProofPaths, context)
 	];
 	for (const segment of MEADOW_ENTRY_V2_RIVER_SEGMENTS) {
 		const bounds = rectBounds(segment.rect);
@@ -526,21 +756,28 @@ function crossingView(): View {
 	};
 }
 
-function crossingCounts(map: WorldMapDefinition): Readonly<Record<string, number>> {
+function crossingCounts(
+	map: WorldMapDefinition,
+	routeProofPaths: readonly MeadowRouteProofPath[]
+): Readonly<Record<string, number>> {
 	return layerCountEntries(map, {
-		anchors: Object.keys(MEADOW_ENTRY_V2_ROUTES).length,
-		segments: MEADOW_ENTRY_V2_ROUTE_PATCHES.length
+		anchors: Object.keys(MEADOW_ROUTE_PROOF_ANCHORS).length,
+		segments: routeProofPaths.length
 	});
 }
 
 async function renderReview(): Promise<RenderedReview> {
 	const artifacts: RenderedArtifact[] = [];
 	const entries: CompleteWorldLayoutReviewEntry[] = [];
+	const meadow = maps['meadow-entry'];
+	const routeProofPaths = deriveMeadowRouteProofPaths(meadow);
 	for (const mapId of COMPLETE_WORLD_MAP_IDS) {
 		const map = maps[mapId];
 		assert(map !== undefined, `Complete-world map is not registered: ${mapId}`);
 		const view = mapView(map);
-		const png = await encodeSvg(renderMapSvg(map, view, mapId === 'meadow-entry'));
+		const png = await encodeSvg(
+			renderMapSvg(map, view, mapId === 'meadow-entry' ? routeProofPaths : undefined)
+		);
 		const imagePath = `${mapId}.png`;
 		artifacts.push({ path: imagePath, bytes: png });
 		const worldDimensions = { width: view.width, height: view.height };
@@ -557,24 +794,24 @@ async function renderReview(): Promise<RenderedReview> {
 				map,
 				mapId === 'meadow-entry'
 					? {
-							anchors: Object.keys(MEADOW_ENTRY_V2_ROUTES).length,
-							segments: MEADOW_ENTRY_V2_ROUTE_PATCHES.length
+							anchors: Object.keys(MEADOW_ROUTE_PROOF_ANCHORS).length,
+							segments: routeProofPaths.length
 						}
 					: undefined
 			)
 		});
 	}
 
-	const meadow = maps['meadow-entry'];
 	const view = crossingView();
-	const crossingPng = await encodeSvg(renderCrossingSvg(meadow, view));
+	const crossingPng = await encodeSvg(renderCrossingSvg(meadow, view, routeProofPaths));
 	const crossingReview: CompleteWorldLayoutCrossingReview = {
 		imagePath: 'meadow-river-crossings.png',
 		worldDimensions: { width: view.width, height: view.height },
 		reviewDimensions: { width: view.outputWidth, height: view.outputHeight },
 		crop: CROSSING_CROP,
 		imageSha256: sha256(crossingPng),
-		counts: crossingCounts(meadow)
+		counts: crossingCounts(meadow, routeProofPaths),
+		routeProofSegments: routeProofPaths.map(({ id, from, to }) => ({ id, from, to }))
 	};
 	artifacts.push({ path: crossingReview.imagePath, bytes: crossingPng });
 	const inventory: CompleteWorldLayoutReviewInventory = {
