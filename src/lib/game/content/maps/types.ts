@@ -101,6 +101,7 @@ export type MapGroundTile = TerrainTileFrameName;
 
 export interface MapGroundPatch extends MapRect {
 	tile: MapGroundTile;
+	visual?: MapVisualOwnership;
 }
 
 export type MapBlockerKind =
@@ -119,6 +120,8 @@ export interface MapVisualOwnerCrop {
 export type MapVisualOwnership =
 	| { mode: 'always' }
 	| { mode: 'fallback-only'; ownerCrops: readonly MapVisualOwnerCrop[] };
+
+export type MapVisualSourceType = 'blocker' | 'decor' | 'fence' | 'ground-patch' | 'interior-prop';
 
 export interface MapBlocker extends MapRect {
 	kind: MapBlockerKind;
@@ -185,6 +188,7 @@ export interface MapInteriorProp extends MapRect {
 	frameName: InteriorPropFrameName;
 	depth?: MapInteriorPropDepth;
 	collision?: MapRect;
+	visual?: MapVisualOwnership;
 }
 
 export type MapAmbientNpcRole = 'guild-member' | 'shopper' | 'family' | 'neighbor';

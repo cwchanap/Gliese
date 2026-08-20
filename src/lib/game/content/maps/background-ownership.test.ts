@@ -302,6 +302,55 @@ describe('map background ownership', () => {
 		}
 	);
 
+	it.each([
+		[
+			'Ground patch',
+			'path',
+			(visual: MapVisualOwnership) => ({
+				groundPatches: [
+					{ id: 'path', x: 16, y: 16, width: 32, height: 32, tile: 'pathTile' as const, visual }
+				]
+			})
+		],
+		[
+			'Interior prop',
+			'table',
+			(visual: MapVisualOwnership) => ({
+				interiorProps: [
+					{ id: 'table', x: 32, y: 32, width: 64, height: 32, frameName: 'table' as const, visual }
+				]
+			})
+		]
+	] as const)('validates %s fallback ownership', (label, sourceId, buildSource) => {
+		const visual = {
+			mode: 'fallback-only' as const,
+			ownerCrops: [{ cropId: 'map-base', requiredBackgroundIds: ['map-base-image'] }]
+		};
+		const map = {
+			backgroundImages: [
+				{
+					id: 'map-base-image',
+					textureKey: 'map-base',
+					x: 32,
+					y: 32,
+					width: 64,
+					height: 64,
+					plane: 'base' as const,
+					drawOrder: 0
+				}
+			],
+			...buildSource(visual)
+		};
+
+		expect(() => validateMapBackgroundOwnership(map)).not.toThrow();
+		expect(() =>
+			validateMapBackgroundOwnership({
+				...map,
+				backgroundImages: []
+			})
+		).toThrow(`${label} ${sourceId} references missing fallback-only owner ID`);
+	});
+
 	it('rejects duplicate visual ownership assignment IDs', () => {
 		const items = [{ id: 'owned', label: 'Hedge' }];
 		const assignment = {
