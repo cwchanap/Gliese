@@ -151,6 +151,21 @@ describe('map background package registry', () => {
 			definition: null
 		});
 	});
+
+	it('rejects an empty full-map package instead of selecting a blank presentation', () => {
+		const emptyPackage = {
+			...reviewPackage,
+			assets: [],
+			backgrounds: []
+		};
+
+		expect(
+			resolveMapBackgroundPackageSelection([emptyPackage], {
+				...heroHouseInput,
+				reviewPackageIds: [emptyPackage.id]
+			})
+		).toEqual({ mode: 'fallback', definition: null });
+	});
 });
 
 describe('map background package application', () => {

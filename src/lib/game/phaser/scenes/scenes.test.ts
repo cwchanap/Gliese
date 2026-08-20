@@ -14,9 +14,14 @@ import {
 	villagerHouse2Map,
 	villagerHouse3Map
 } from '$lib/game/content/maps';
+import type { MapBackgroundImage } from '$lib/game/content/maps/types';
 import { PLAYER_COLLISION_RADIUS } from '$lib/game/core/collision';
 import type { RegionalBackgroundRendererDiagnostic } from '$lib/game/phaser/renderer-diagnostics';
 import type { RegionalBackgroundPlaneRenderDiagnostic } from '$lib/game/phaser/regional-background-plane-render-diagnostics';
+import type {
+	MapBackgroundPackageDefinition,
+	MapBackgroundPackageSelection
+} from '$lib/game/content/backgrounds/map-background-package';
 import {
 	collectLandmarkRects,
 	collectStrictCollisionRects,
@@ -2566,6 +2571,28 @@ describe('BattleScene', () => {
 describe('WorldScene', () => {
 	const twoPlaneBaseTextureKey = 'two-plane-base';
 	const twoPlaneForegroundTextureKey = 'two-plane-foreground';
+	const twoPlaneBackgrounds = [
+		{
+			id: 'two-plane-base-image',
+			x: 320,
+			y: 160,
+			width: 640,
+			height: 320,
+			textureKey: twoPlaneBaseTextureKey,
+			plane: 'base' as const,
+			drawOrder: 10
+		},
+		{
+			id: 'two-plane-foreground-image',
+			x: 352,
+			y: 192,
+			width: 640,
+			height: 320,
+			textureKey: twoPlaneForegroundTextureKey,
+			plane: 'foreground' as const,
+			drawOrder: 20
+		}
+	] satisfies readonly MapBackgroundImage[];
 
 	async function flushStoryDialogue() {
 		await Promise.resolve();
@@ -2637,28 +2664,6 @@ describe('WorldScene', () => {
 			spawnDirection: 'right',
 			spawn: { x: 96, y: 96 },
 			transitions: [],
-			backgroundImages: [
-				{
-					id: 'two-plane-base-image',
-					x: 320,
-					y: 160,
-					width: 640,
-					height: 320,
-					textureKey: twoPlaneBaseTextureKey,
-					plane: 'base',
-					drawOrder: 10
-				},
-				{
-					id: 'two-plane-foreground-image',
-					x: 352,
-					y: 192,
-					width: 640,
-					height: 320,
-					textureKey: twoPlaneForegroundTextureKey,
-					plane: 'foreground',
-					drawOrder: 20
-				}
-			],
 			blockers: [
 				{
 					id: 'two-plane-base-only',
@@ -2794,6 +2799,35 @@ describe('WorldScene', () => {
 		}
 	}
 
+	function selectedSceneSupportPackage(
+		id: string,
+		backgrounds: readonly MapBackgroundImage[]
+	): MapBackgroundPackageSelection {
+		const definition: MapBackgroundPackageDefinition = {
+			id,
+			mapId: 'scene-support-test',
+			coverage: 'full-map',
+			assets: backgrounds.map(({ textureKey }) => ({
+				key: textureKey,
+				path: `/game/assets/${textureKey}.png`
+			})),
+			backgrounds,
+			visualOwners: []
+		};
+		return { mode: 'review', definition };
+	}
+
+	function selectedTwoPlanePackage(): MapBackgroundPackageSelection {
+		return selectedSceneSupportPackage('scene-support-two-plane-review', twoPlaneBackgrounds);
+	}
+
+	function createSelectedTwoPlaneScene(scene: { create(data: unknown): void }) {
+		scene.create({
+			mapId: 'scene-support-test',
+			mapBackgroundPackageSelection: selectedTwoPlanePackage()
+		});
+	}
+
 	const twoPlaneBackgroundMarkers = () =>
 		phaserState.imageMarkers.filter(
 			(marker) =>
@@ -2819,6 +2853,38 @@ describe('WorldScene', () => {
 	const alternativeEastBoundaryTextureKey = 'alternative-east-boundary';
 	const alternativeWildwoodBaseTextureKey = 'alternative-wildwood-base';
 	const alternativeWildwoodForegroundTextureKey = 'alternative-wildwood-foreground';
+	const alternativeBackgrounds = [
+		{
+			id: 'alternative-east-boundary-base-image',
+			x: 320,
+			y: 160,
+			width: 640,
+			height: 320,
+			textureKey: alternativeEastBoundaryTextureKey,
+			plane: 'base' as const,
+			drawOrder: 10
+		},
+		{
+			id: 'alternative-wildwood-base-image',
+			x: 352,
+			y: 192,
+			width: 640,
+			height: 320,
+			textureKey: alternativeWildwoodBaseTextureKey,
+			plane: 'base' as const,
+			drawOrder: 20
+		},
+		{
+			id: 'alternative-wildwood-foreground-image',
+			x: 384,
+			y: 224,
+			width: 640,
+			height: 320,
+			textureKey: alternativeWildwoodForegroundTextureKey,
+			plane: 'foreground' as const,
+			drawOrder: 20
+		}
+	] satisfies readonly MapBackgroundImage[];
 
 	function registerAlternativeOwnerBackgroundTestMap() {
 		const eastBoundaryBackgroundId = 'alternative-east-boundary-base-image';
@@ -2845,38 +2911,6 @@ describe('WorldScene', () => {
 			spawnDirection: 'right',
 			spawn: { x: 96, y: 96 },
 			transitions: [],
-			backgroundImages: [
-				{
-					id: eastBoundaryBackgroundId,
-					x: 320,
-					y: 160,
-					width: 640,
-					height: 320,
-					textureKey: alternativeEastBoundaryTextureKey,
-					plane: 'base',
-					drawOrder: 10
-				},
-				{
-					id: wildwoodBaseBackgroundId,
-					x: 352,
-					y: 192,
-					width: 640,
-					height: 320,
-					textureKey: alternativeWildwoodBaseTextureKey,
-					plane: 'base',
-					drawOrder: 20
-				},
-				{
-					id: wildwoodForegroundBackgroundId,
-					x: 384,
-					y: 224,
-					width: 640,
-					height: 320,
-					textureKey: alternativeWildwoodForegroundTextureKey,
-					plane: 'foreground',
-					drawOrder: 20
-				}
-			],
 			blockers: [
 				{
 					id: 'alternative-owner-blocker',
@@ -2923,6 +2957,17 @@ describe('WorldScene', () => {
 				get: vi.fn(() => ({ cutWidth: 640, cutHeight: 320 }))
 			});
 		}
+	}
+
+	function selectedAlternativePackage(): MapBackgroundPackageSelection {
+		return selectedSceneSupportPackage('scene-support-alternative-review', alternativeBackgrounds);
+	}
+
+	function createSelectedAlternativeScene(scene: { create(data: unknown): void }) {
+		scene.create({
+			mapId: 'scene-support-test',
+			mapBackgroundPackageSelection: selectedAlternativePackage()
+		});
 	}
 
 	const alternativeOwnedBlockerMarkers = () =>
@@ -3187,7 +3232,7 @@ describe('WorldScene', () => {
 		const scene = new WorldScene();
 
 		try {
-			scene.create({ mapId: 'scene-support-test' });
+			createSelectedTwoPlaneScene(scene);
 
 			expect(twoPlaneBackgroundMarkers()).toHaveLength(2);
 			expect(twoPlaneBackgroundMarkers()[0]).toMatchObject({
@@ -3205,6 +3250,8 @@ describe('WorldScene', () => {
 			expect(twoPlaneBackgroundMarkers()[1]?.setDisplaySize).toHaveBeenCalledWith(640, 320);
 			expect(twoPlaneBackgroundMarkers()[1]?.setDepth).toHaveBeenCalledWith(100.002);
 			expect(twoPlaneBlockerMarkers()).toHaveLength(4);
+			expect(twoPlaneOwnedDecorMarkers()).toHaveLength(0);
+			expect(twoPlaneOwnedFenceMarkers()).toHaveLength(0);
 			expect(target.diagnostics).toHaveLength(1);
 			expect(target.diagnostics[0]?.entries.map((entry) => entry.status)).toEqual([
 				'rendered',
@@ -3215,7 +3262,7 @@ describe('WorldScene', () => {
 				'two-plane-foreground-image'
 			]);
 			expect(target.diagnostics[0]).toMatchObject({
-				packageId: null,
+				packageId: 'scene-support-two-plane-review',
 				selectedBackgroundIds: ['two-plane-base-image', 'two-plane-foreground-image'],
 				presentationMode: 'painted'
 			});
@@ -3224,14 +3271,36 @@ describe('WorldScene', () => {
 		}
 	});
 
-	it('uses draw order and complete owner crops to suppress blockers, decor, and fences', async () => {
+	it('renders a selected full-map package instead of bypassing through raw map backgrounds', async () => {
 		registerTwoPlaneBackgroundTestMap();
 		const target = installPlaneDiagnosticListener();
 		const { WorldScene } = await import('./WorldScene');
 		const scene = new WorldScene();
 
 		try {
-			scene.create({ mapId: 'scene-support-test' });
+			createSelectedTwoPlaneScene(scene);
+
+			expect(target.diagnostics[0]).toMatchObject({
+				mapId: 'scene-support-test',
+				packageId: 'scene-support-two-plane-review',
+				presentationMode: 'painted',
+				selectedBackgroundIds: ['two-plane-base-image', 'two-plane-foreground-image']
+			});
+			expect(twoPlaneBackgroundMarkers()).toHaveLength(2);
+			expect(scene.make.tilemap).not.toHaveBeenCalled();
+		} finally {
+			target.restore();
+		}
+	});
+
+	it('uses package draw order and suppresses owned blockers, decor, and fences', async () => {
+		registerTwoPlaneBackgroundTestMap();
+		const target = installPlaneDiagnosticListener();
+		const { WorldScene } = await import('./WorldScene');
+		const scene = new WorldScene();
+
+		try {
+			createSelectedTwoPlaneScene(scene);
 
 			expect(twoPlaneBackgroundMarkers()[0]?.setDepth).toHaveBeenCalledWith(-8.999);
 			expect(twoPlaneBackgroundMarkers()[1]?.setDepth).toHaveBeenCalledWith(100.002);
@@ -3258,7 +3327,7 @@ describe('WorldScene', () => {
 		const scene = new WorldScene();
 
 		try {
-			scene.create({ mapId: 'scene-support-test' });
+			createSelectedTwoPlaneScene(scene);
 
 			expect(twoPlaneBackgroundMarkers()).toHaveLength(0);
 			expect(twoPlaneBlockerMarkers()).toHaveLength(8);
@@ -3276,7 +3345,9 @@ describe('WorldScene', () => {
 			});
 			expect(target.diagnostics[0]?.selectedFallbackBlockerIds).toEqual([
 				'two-plane-base-only',
-				'two-plane-multi-owner'
+				'two-plane-multi-owner',
+				'two-plane-implicit-always',
+				'two-plane-explicit-always'
 			]);
 			expect(target.diagnostics[0]?.selectedFallbackDecorIds).toEqual([
 				'two-plane-base-only-decor',
@@ -3331,37 +3402,47 @@ describe('WorldScene', () => {
 			},
 			'render-failed'
 		]
-	] as const)('isolates a %s to its foreground descriptor', async (_label, arrange, status) => {
-		registerTwoPlaneBackgroundTestMap();
-		const target = installPlaneDiagnosticListener();
-		arrange(twoPlaneForegroundTextureKey);
-		const { WorldScene } = await import('./WorldScene');
-		const scene = new WorldScene();
+	] as const)(
+		'falls back atomically for a %s in any package descriptor',
+		async (_label, arrange, status) => {
+			registerTwoPlaneBackgroundTestMap();
+			const target = installPlaneDiagnosticListener();
+			arrange(twoPlaneForegroundTextureKey);
+			const { WorldScene } = await import('./WorldScene');
+			const scene = new WorldScene();
 
-		try {
-			scene.create({ mapId: 'scene-support-test' });
+			try {
+				createSelectedTwoPlaneScene(scene);
 
-			expect(twoPlaneBackgroundMarkers().map((marker) => marker.texture)).toEqual([
-				twoPlaneBaseTextureKey
-			]);
-			expect(twoPlaneBlockerMarkers()).toHaveLength(6);
-			expect(target.diagnostics[0]?.entries.map((entry) => entry.status)).toEqual([
-				'rendered',
-				status
-			]);
-			expect(target.diagnostics[0]?.successfulBackgroundIds).toEqual(['two-plane-base-image']);
-			if (status === 'render-failed' && _label === 'post-creation exception') {
-				expect(
-					phaserState.imageMarkers.find((marker) => marker.texture === twoPlaneForegroundTextureKey)
-						?.destroy
-				).toHaveBeenCalledOnce();
+				expect(twoPlaneBackgroundMarkers()).toHaveLength(0);
+				expect(twoPlaneBlockerMarkers()).toHaveLength(8);
+				expect(twoPlaneOwnedDecorMarkers()).toHaveLength(2);
+				expect(twoPlaneOwnedFenceMarkers()).toHaveLength(2);
+				expect(scene.make.tilemap).toHaveBeenCalledOnce();
+				expect(target.diagnostics[0]?.entries.map((entry) => entry.status)).toEqual([
+					'rendered',
+					status
+				]);
+				expect(target.diagnostics[0]?.successfulBackgroundIds).toEqual([]);
+				expect(target.diagnostics[0]).toMatchObject({
+					packageId: null,
+					selectedBackgroundIds: [],
+					presentationMode: 'fallback'
+				});
+				if (status === 'render-failed' && _label === 'post-creation exception') {
+					expect(
+						phaserState.imageMarkers.find(
+							(marker) => marker.texture === twoPlaneForegroundTextureKey
+						)?.destroy
+					).toHaveBeenCalledOnce();
+				}
+			} finally {
+				target.restore();
 			}
-		} finally {
-			target.restore();
 		}
-	});
+	);
 
-	it('keeps a rendered base successful while base-and-foreground owners remain live', async () => {
+	it('rolls back a rendered base when the full-map package later fails', async () => {
 		registerTwoPlaneBackgroundTestMap();
 		const target = installPlaneDiagnosticListener();
 		phaserState.missingTextureKeys.add(twoPlaneForegroundTextureKey);
@@ -3369,28 +3450,29 @@ describe('WorldScene', () => {
 		const scene = new WorldScene();
 
 		try {
-			scene.create({ mapId: 'scene-support-test' });
+			createSelectedTwoPlaneScene(scene);
 
-			expect(twoPlaneBackgroundMarkers().map((marker) => marker.texture)).toEqual([
-				twoPlaneBaseTextureKey
-			]);
-			expect(twoPlaneBlockerMarkers()).toHaveLength(6);
-			expect(twoPlaneOwnedDecorMarkers().map((marker) => marker.x)).toEqual([256]);
-			expect(twoPlaneOwnedFenceMarkers().map((marker) => marker.x)).toEqual([320]);
+			expect(twoPlaneBackgroundMarkers()).toHaveLength(0);
+			expect(twoPlaneBlockerMarkers()).toHaveLength(8);
+			expect(twoPlaneOwnedDecorMarkers()).toHaveLength(2);
+			expect(twoPlaneOwnedFenceMarkers()).toHaveLength(2);
+			expect(scene.make.tilemap).toHaveBeenCalledOnce();
 			expect(target.diagnostics[0]?.entries.map((entry) => entry.status)).toEqual([
 				'rendered',
 				'missing-texture'
 			]);
-			expect(target.diagnostics[0]?.successfulBackgroundIds).toEqual(['two-plane-base-image']);
-			expect(target.diagnostics[0]?.selectedFallbackBlockerIds).toEqual(['two-plane-multi-owner']);
-			expect(target.diagnostics[0]?.selectedFallbackDecorIds).toEqual(['two-plane-complete-decor']);
-			expect(target.diagnostics[0]?.selectedFallbackFenceIds).toEqual(['two-plane-complete-fence']);
+			expect(target.diagnostics[0]?.successfulBackgroundIds).toEqual([]);
+			expect(target.diagnostics[0]).toMatchObject({
+				packageId: null,
+				selectedBackgroundIds: [],
+				presentationMode: 'fallback'
+			});
 		} finally {
 			target.restore();
 		}
 	});
 
-	it('returns every two-plane live fallback only when no owner crop is complete', async () => {
+	it('rolls back every two-plane image when the base descriptor fails', async () => {
 		registerTwoPlaneBackgroundTestMap();
 		const target = installPlaneDiagnosticListener();
 		phaserState.missingTextureKeys.add(twoPlaneBaseTextureKey);
@@ -3398,20 +3480,24 @@ describe('WorldScene', () => {
 		const scene = new WorldScene();
 
 		try {
-			scene.create({ mapId: 'scene-support-test' });
+			createSelectedTwoPlaneScene(scene);
 
-			expect(twoPlaneBackgroundMarkers().map((marker) => marker.texture)).toEqual([
-				twoPlaneForegroundTextureKey
-			]);
+			expect(twoPlaneBackgroundMarkers()).toHaveLength(0);
 			expect(twoPlaneBlockerMarkers()).toHaveLength(8);
-			expect(twoPlaneOwnedDecorMarkers().map((marker) => marker.x)).toEqual([224, 256]);
-			expect(twoPlaneOwnedFenceMarkers().map((marker) => marker.x)).toEqual([288, 320]);
-			expect(target.diagnostics[0]?.successfulBackgroundIds).toEqual([
-				'two-plane-foreground-image'
-			]);
+			expect(twoPlaneOwnedDecorMarkers()).toHaveLength(2);
+			expect(twoPlaneOwnedFenceMarkers()).toHaveLength(2);
+			expect(scene.make.tilemap).toHaveBeenCalledOnce();
+			expect(target.diagnostics[0]?.successfulBackgroundIds).toEqual([]);
+			expect(target.diagnostics[0]).toMatchObject({
+				packageId: null,
+				selectedBackgroundIds: [],
+				presentationMode: 'fallback'
+			});
 			expect(target.diagnostics[0]?.selectedFallbackBlockerIds).toEqual([
 				'two-plane-base-only',
-				'two-plane-multi-owner'
+				'two-plane-multi-owner',
+				'two-plane-implicit-always',
+				'two-plane-explicit-always'
 			]);
 			expect(target.diagnostics[0]?.selectedFallbackDecorIds).toEqual([
 				'two-plane-base-only-decor',
@@ -3426,7 +3512,7 @@ describe('WorldScene', () => {
 		}
 	});
 
-	it('suppresses a multi-crop owned visual when Wildwood alone is complete', async () => {
+	it('rolls back the whole full-map package when its first alternative plane fails', async () => {
 		registerAlternativeOwnerBackgroundTestMap();
 		const target = installPlaneDiagnosticListener();
 		phaserState.missingTextureKeys.add(alternativeEastBoundaryTextureKey);
@@ -3434,28 +3520,27 @@ describe('WorldScene', () => {
 		const scene = new WorldScene();
 
 		try {
-			scene.create({ mapId: 'scene-support-test' });
+			createSelectedAlternativeScene(scene);
 
-			expect(alternativeBackgroundMarkers().map((marker) => marker.texture)).toEqual([
-				alternativeWildwoodBaseTextureKey,
-				alternativeWildwoodForegroundTextureKey
-			]);
-			expect(alternativeOwnedBlockerMarkers()).toHaveLength(0);
-			expect(alternativeOwnedDecorMarkers()).toHaveLength(0);
-			expect(alternativeOwnedFenceMarkers()).toHaveLength(0);
-			expect(target.diagnostics[0]?.successfulBackgroundIds).toEqual([
-				'alternative-wildwood-base-image',
-				'alternative-wildwood-foreground-image'
-			]);
-			expect(target.diagnostics[0]?.selectedFallbackBlockerIds).toEqual([]);
-			expect(target.diagnostics[0]?.selectedFallbackDecorIds).toEqual([]);
-			expect(target.diagnostics[0]?.selectedFallbackFenceIds).toEqual([]);
+			expect(
+				alternativeBackgroundMarkers().filter((marker) => marker.destroy.mock.calls.length === 0)
+			).toHaveLength(0);
+			expect(alternativeOwnedBlockerMarkers()).toHaveLength(2);
+			expect(alternativeOwnedDecorMarkers()).toHaveLength(1);
+			expect(alternativeOwnedFenceMarkers()).toHaveLength(1);
+			expect(scene.make.tilemap).toHaveBeenCalledOnce();
+			expect(target.diagnostics[0]?.successfulBackgroundIds).toEqual([]);
+			expect(target.diagnostics[0]).toMatchObject({
+				packageId: null,
+				selectedBackgroundIds: [],
+				presentationMode: 'fallback'
+			});
 		} finally {
 			target.restore();
 		}
 	});
 
-	it('suppresses the same multi-crop owned visual when the east-boundary crop alone is complete', async () => {
+	it('rolls back the whole full-map package when its last two alternative planes fail', async () => {
 		registerAlternativeOwnerBackgroundTestMap();
 		const target = installPlaneDiagnosticListener();
 		phaserState.missingTextureKeys.add(alternativeWildwoodBaseTextureKey);
@@ -3464,26 +3549,27 @@ describe('WorldScene', () => {
 		const scene = new WorldScene();
 
 		try {
-			scene.create({ mapId: 'scene-support-test' });
+			createSelectedAlternativeScene(scene);
 
-			expect(alternativeBackgroundMarkers().map((marker) => marker.texture)).toEqual([
-				alternativeEastBoundaryTextureKey
-			]);
-			expect(alternativeOwnedBlockerMarkers()).toHaveLength(0);
-			expect(alternativeOwnedDecorMarkers()).toHaveLength(0);
-			expect(alternativeOwnedFenceMarkers()).toHaveLength(0);
-			expect(target.diagnostics[0]?.successfulBackgroundIds).toEqual([
-				'alternative-east-boundary-base-image'
-			]);
-			expect(target.diagnostics[0]?.selectedFallbackBlockerIds).toEqual([]);
-			expect(target.diagnostics[0]?.selectedFallbackDecorIds).toEqual([]);
-			expect(target.diagnostics[0]?.selectedFallbackFenceIds).toEqual([]);
+			expect(
+				alternativeBackgroundMarkers().filter((marker) => marker.destroy.mock.calls.length === 0)
+			).toHaveLength(0);
+			expect(alternativeOwnedBlockerMarkers()).toHaveLength(2);
+			expect(alternativeOwnedDecorMarkers()).toHaveLength(1);
+			expect(alternativeOwnedFenceMarkers()).toHaveLength(1);
+			expect(scene.make.tilemap).toHaveBeenCalledOnce();
+			expect(target.diagnostics[0]?.successfulBackgroundIds).toEqual([]);
+			expect(target.diagnostics[0]).toMatchObject({
+				packageId: null,
+				selectedBackgroundIds: [],
+				presentationMode: 'fallback'
+			});
 		} finally {
 			target.restore();
 		}
 	});
 
-	it('draws a multi-crop fallback only when no owner crop is complete', async () => {
+	it('falls back atomically when an alternative package has a middle-plane failure', async () => {
 		registerAlternativeOwnerBackgroundTestMap();
 		const target = installPlaneDiagnosticListener();
 		phaserState.missingTextureKeys.add(alternativeEastBoundaryTextureKey);
@@ -3492,17 +3578,21 @@ describe('WorldScene', () => {
 		const scene = new WorldScene();
 
 		try {
-			scene.create({ mapId: 'scene-support-test' });
+			createSelectedAlternativeScene(scene);
 
-			expect(alternativeBackgroundMarkers().map((marker) => marker.texture)).toEqual([
-				alternativeWildwoodBaseTextureKey
-			]);
+			expect(
+				alternativeBackgroundMarkers().filter((marker) => marker.destroy.mock.calls.length === 0)
+			).toHaveLength(0);
 			expect(alternativeOwnedBlockerMarkers()).toHaveLength(2);
 			expect(alternativeOwnedDecorMarkers()).toHaveLength(1);
 			expect(alternativeOwnedFenceMarkers()).toHaveLength(1);
-			expect(target.diagnostics[0]?.successfulBackgroundIds).toEqual([
-				'alternative-wildwood-base-image'
-			]);
+			expect(scene.make.tilemap).toHaveBeenCalledOnce();
+			expect(target.diagnostics[0]?.successfulBackgroundIds).toEqual([]);
+			expect(target.diagnostics[0]).toMatchObject({
+				packageId: null,
+				selectedBackgroundIds: [],
+				presentationMode: 'fallback'
+			});
 			expect(target.diagnostics[0]?.selectedFallbackBlockerIds).toEqual([
 				'alternative-owner-blocker'
 			]);
@@ -3513,7 +3603,7 @@ describe('WorldScene', () => {
 		}
 	});
 
-	it('uses the exact successful plane set for base-only and multi-owner live fallbacks', async () => {
+	it('does not retain a partial package after a foreground render fault', async () => {
 		registerTwoPlaneBackgroundTestMap();
 		const restoreLocation = installLocationSearch(
 			'?regionalBackgroundFault=two-plane-foreground-image:render'
@@ -3522,18 +3612,18 @@ describe('WorldScene', () => {
 		const scene = new WorldScene();
 
 		try {
-			scene.create({ mapId: 'scene-support-test' });
+			createSelectedTwoPlaneScene(scene);
 
-			expect(twoPlaneBackgroundMarkers().map((marker) => marker.texture)).toEqual([
-				twoPlaneBaseTextureKey
-			]);
-			expect(twoPlaneBlockerMarkers()).toHaveLength(6);
+			expect(twoPlaneBackgroundMarkers()).toHaveLength(0);
+			expect(twoPlaneBlockerMarkers()).toHaveLength(8);
+			expect(twoPlaneOwnedDecorMarkers()).toHaveLength(2);
+			expect(twoPlaneOwnedFenceMarkers()).toHaveLength(2);
 		} finally {
 			restoreLocation();
 		}
 	});
 
-	it('restores both base-only and multi-owner live fallbacks when the base plane fails', async () => {
+	it('does not retain a partial package after a base render fault', async () => {
 		registerTwoPlaneBackgroundTestMap();
 		const restoreLocation = installLocationSearch(
 			'?regionalBackgroundFault=two-plane-base-image:render'
@@ -3542,12 +3632,12 @@ describe('WorldScene', () => {
 		const scene = new WorldScene();
 
 		try {
-			scene.create({ mapId: 'scene-support-test' });
+			createSelectedTwoPlaneScene(scene);
 
-			expect(twoPlaneBackgroundMarkers().map((marker) => marker.texture)).toEqual([
-				twoPlaneForegroundTextureKey
-			]);
+			expect(twoPlaneBackgroundMarkers()).toHaveLength(0);
 			expect(twoPlaneBlockerMarkers()).toHaveLength(8);
+			expect(twoPlaneOwnedDecorMarkers()).toHaveLength(2);
+			expect(twoPlaneOwnedFenceMarkers()).toHaveLength(2);
 		} finally {
 			restoreLocation();
 		}
@@ -3560,9 +3650,9 @@ describe('WorldScene', () => {
 		const scene = new WorldScene();
 
 		try {
-			scene.create({ mapId: 'scene-support-test' });
+			createSelectedTwoPlaneScene(scene);
 
-			// The base-only and multi-owner blockers have no live sprites because both owners rendered.
+			// A full-map package suppresses owned fallback visuals while preserving always-visible visuals and collision geometry.
 			expect(twoPlaneBlockerMarkers()).toHaveLength(4);
 			expect(phaserState.graphicsMarkers[0]?.commands).toContainEqual({
 				kind: 'fillRect',
@@ -3591,9 +3681,9 @@ describe('WorldScene', () => {
 		const scene = new WorldScene();
 
 		try {
-			scene.create({ mapId: 'scene-support-test' });
+			createSelectedTwoPlaneScene(scene);
 			phaserState.missingTextureKeys.add(twoPlaneForegroundTextureKey);
-			scene.create({ mapId: 'scene-support-test' });
+			createSelectedTwoPlaneScene(scene);
 
 			expect(target.diagnostics).toHaveLength(2);
 			expect(target.diagnostics[0]?.successfulBackgroundIds).toEqual([
@@ -3604,7 +3694,12 @@ describe('WorldScene', () => {
 				'rendered',
 				'missing-texture'
 			]);
-			expect(target.diagnostics[1]?.successfulBackgroundIds).toEqual(['two-plane-base-image']);
+			expect(target.diagnostics[1]?.successfulBackgroundIds).toEqual([]);
+			expect(target.diagnostics[1]).toMatchObject({
+				packageId: null,
+				selectedBackgroundIds: [],
+				presentationMode: 'fallback'
+			});
 		} finally {
 			target.restore();
 		}
@@ -4005,7 +4100,7 @@ describe('WorldScene', () => {
 		}
 	);
 
-	it('renders generic regional backgrounds before legacy ground and floor decor', async () => {
+	it('renders a selected full-map package before its foreground decor', async () => {
 		registerSceneSupportTestMap();
 		const backgroundTextureKey = 'scene-support-background-texture';
 		phaserState.regionalBackgroundTextureMocks.set(backgroundTextureKey, {
@@ -4013,18 +4108,16 @@ describe('WorldScene', () => {
 			source: [{ width: 1_792, height: 1_536 }],
 			get: vi.fn(() => ({ cutWidth: 1_792, cutHeight: 1_536 }))
 		});
-		maps['scene-support-test']!.backgroundImages = [
-			{
-				id: 'scene-support-background',
-				x: 320,
-				y: 320,
-				width: 1792,
-				height: 1536,
-				textureKey: backgroundTextureKey,
-				plane: 'base',
-				drawOrder: 1_000
-			}
-		];
+		const background = {
+			id: 'scene-support-background',
+			x: 320,
+			y: 320,
+			width: 1792,
+			height: 1536,
+			textureKey: backgroundTextureKey,
+			plane: 'base' as const,
+			drawOrder: 1_000
+		} satisfies MapBackgroundImage;
 		maps['scene-support-test']!.mapDecor = [
 			{
 				id: 'scene-support-floor-decor',
@@ -4034,13 +4127,20 @@ describe('WorldScene', () => {
 				height: 64,
 				textureKey: 'forest-dressing',
 				frameName: 'brush',
-				depth: 'floor'
+				depth: 'floor',
+				visual: { mode: 'always' }
 			}
 		];
 		const { WorldScene } = await import('./WorldScene');
 		const scene = new WorldScene();
 
-		scene.create({ mapId: 'scene-support-test' });
+		scene.create({
+			mapId: 'scene-support-test',
+			mapBackgroundPackageSelection: selectedSceneSupportPackage(
+				'scene-support-background-review',
+				[background]
+			)
+		});
 
 		const imageCalls = vi.mocked(scene.add.image).mock.calls;
 		const backgroundCallIndex = imageCalls.findIndex(
@@ -4049,15 +4149,14 @@ describe('WorldScene', () => {
 		const floorDecorCallIndex = imageCalls.findIndex(
 			([, , texture, frame]) => texture === 'forest-dressing' && frame === 'brush'
 		);
-		const groundOrder = vi.mocked(scene.make.tilemap).mock.invocationCallOrder[0]!;
 		const backgroundOrder = vi.mocked(scene.add.image).mock.invocationCallOrder[
 			backgroundCallIndex
 		]!;
 		const floorDecorOrder = vi.mocked(scene.add.image).mock.invocationCallOrder[
 			floorDecorCallIndex
 		]!;
-		expect(backgroundOrder).toBeLessThan(groundOrder);
 		expect(backgroundOrder).toBeLessThan(floorDecorOrder);
+		expect(scene.make.tilemap).not.toHaveBeenCalled();
 	});
 
 	it('creates no collision-debug Graphics object by default', async () => {

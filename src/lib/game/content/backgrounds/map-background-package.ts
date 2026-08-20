@@ -93,6 +93,7 @@ function validBackgrounds(
 		return false;
 	}
 	if (!Array.isArray(definition.assets) || !Array.isArray(definition.backgrounds)) return false;
+	if (definition.backgrounds.length === 0) return false;
 	if (!Array.isArray(definition.visualOwners)) return false;
 
 	const assetKeys = new Set<string>();

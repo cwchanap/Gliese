@@ -161,7 +161,9 @@ function shouldRenderStaticOverlay(
 	visual: MapBlocker['visual'],
 	packageRender: RegionalBackgroundPackageRender
 ): boolean {
-	if (!packageRender.useOwnership) return packageRender.presentationMode === 'fallback';
+	if (!packageRender.useOwnership) {
+		return !visual || visual.mode === 'always' || packageRender.presentationMode === 'fallback';
+	}
 	return shouldRenderOwnedVisual(visual, packageRender.successfulBackgroundIdSet);
 }
 
@@ -169,13 +171,19 @@ function shouldReportSelectedStaticOverlay(
 	visual: MapBlocker['visual'],
 	packageRender: RegionalBackgroundPackageRender
 ): boolean {
-	if (!packageRender.useOwnership) return packageRender.presentationMode === 'fallback';
+	if (!packageRender.useOwnership) {
+		return (
+			packageRender.presentationMode === 'fallback' &&
+			packageRender.requiredBackgroundIds.length > 0
+		);
+	}
 	return visual?.mode === 'fallback-only' && shouldRenderStaticOverlay(visual, packageRender);
 }
 
 interface WorldSceneData {
 	battleResult?: BattleResult;
 	mapId?: string;
+	mapBackgroundPackageSelection?: MapBackgroundPackageSelection;
 	persistExplorationChanges?: boolean;
 	reason?: 'battle-result' | 'invalid-save' | 'new' | 'resume' | 'transition';
 	saveState?: SaveState | null;
@@ -449,7 +457,12 @@ export class WorldScene extends Phaser.Scene {
 				? applyBattleResultToSaveState(data.saveState, data.battleResult)
 				: null;
 		const activeSave = battleApplication?.saveState ?? data.saveState;
-		const map = this.resolveMap(activeSave?.mapId ?? data.mapId);
+		const requestedPackageSelection = data.mapBackgroundPackageSelection;
+		const map = this.resolveMap(activeSave?.mapId ?? data.mapId, requestedPackageSelection);
+		const packageSelection: MapBackgroundPackageSelection =
+			requestedPackageSelection?.definition && requestedPackageSelection.definition.mapId !== map.id
+				? { mode: 'fallback', definition: null }
+				: (requestedPackageSelection ?? this.resolveMapBackgroundPackageSelection(map.id));
 		const width = map.width * WorldScene.tileSize;
 		const height = map.height * WorldScene.tileSize;
 		const reason = data.reason ?? (activeSave ? 'resume' : 'new');
@@ -527,7 +540,7 @@ export class WorldScene extends Phaser.Scene {
 		this.ensureTerrainTilesetTexture();
 		const packageRender = this.renderRegionalBackgroundPackage(
 			map,
-			this.resolveMapBackgroundPackageSelection(map.id)
+			packageSelection ?? this.resolveMapBackgroundPackageSelection(map.id)
 		);
 		if (
 			packageRender.presentationMode === 'fallback' ||
@@ -1671,7 +1684,7 @@ export class WorldScene extends Phaser.Scene {
 		selection: MapBackgroundPackageSelection
 	): RegionalBackgroundPackageRender {
 		const definition = selection.definition;
-		const backgrounds = definition?.backgrounds ?? map.backgroundImages ?? [];
+		const backgrounds = definition?.backgrounds ?? [];
 		const transactional = definition !== null;
 		const successfulBackgroundIds = new Set<string>();
 		const entries: RegionalBackgroundPlaneRenderDiagnosticEntry[] = [];
@@ -1812,23 +1825,16 @@ export class WorldScene extends Phaser.Scene {
 			? packageSucceeded
 				? 'painted'
 				: 'fallback'
-			: this.renderOptions.regionalBackgrounds && successfulBackgroundIds.size > 0
-				? 'painted'
-				: 'fallback';
+			: 'fallback';
 		const presentation: RegionalBackgroundPackageRender = {
 			packageId: packageSucceeded ? (definition?.id ?? null) : null,
 			presentationMode,
 			coverage: packageSucceeded ? (definition?.coverage ?? null) : null,
 			requiredBackgroundIds: backgrounds.map(({ id }) => id),
 			successfulBackgroundIds: [...successfulBackgroundIds],
-			selectedBackgroundIds: packageSucceeded
-				? backgrounds.map(({ id }) => id)
-				: transactional
-					? []
-					: [...successfulBackgroundIds],
+			selectedBackgroundIds: packageSucceeded ? backgrounds.map(({ id }) => id) : [],
 			successfulBackgroundIdSet: successfulBackgroundIds,
-			useOwnership:
-				!transactional || (packageSucceeded && definition?.coverage === 'historical-partial')
+			useOwnership: packageSucceeded && definition?.coverage === 'historical-partial'
 		};
 		const selectedFallbackBlockers = (map.blockers ?? []).filter(
 			(blocker) =>
@@ -3012,9 +3018,15 @@ export class WorldScene extends Phaser.Scene {
 		});
 	}
 
-	private resolveMap(mapId?: string): WorldMapDefinition {
+	private resolveMap(
+		mapId?: string,
+		packageSelection?: MapBackgroundPackageSelection
+	): WorldMapDefinition {
 		const source = maps[mapId ?? openingMapId] ?? maps[openingMapId];
-		return applyMapBackgroundPackage(source, this.resolveMapBackgroundPackageSelection(source.id));
+		return applyMapBackgroundPackage(
+			source,
+			packageSelection ?? this.resolveMapBackgroundPackageSelection(source.id)
+		);
 	}
 
 	private revealCurrentMapArea(): boolean {
