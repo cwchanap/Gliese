@@ -53,7 +53,7 @@ const expectedOrganicBlockerBounds = {
 	'silverpine-wall-B-south': { x: 3_340, y: 2_910, width: 384, height: 64 },
 	'silverpine-wall-C-east': { x: 3_340, y: 2_660, width: 64, height: 240 },
 	'silverpine-wall-C-west': { x: 3_020, y: 2_660, width: 64, height: 240 },
-	'wildwood-forest-lane-west-bank': { x: 5_000, y: 4_250, width: 64, height: 2_100 }
+	'wildwood-forest-lane-west-bank': { x: 5_040, y: 4_250, width: 64, height: 2_100 }
 } as const;
 
 function expectedOrganicBlockerMarkerCount(id: keyof typeof expectedOrganicBlockerBounds) {
@@ -1090,19 +1090,15 @@ describe('BootScene', () => {
 		}
 	});
 
-	it('preloads exactly the default painted assets and counts only those completions', async () => {
+	it('preloads no regional assets by default and emits exact fallback renderer evidence', async () => {
 		const restoreLocation = installLocationSearch('');
 		const target = installHudCommandTarget();
 		const diagnostics: RegionalBackgroundRendererDiagnostic[] = [];
 		const { REGIONAL_BACKGROUND_RENDERER_DIAGNOSTIC_EVENT } =
 			await import('$lib/game/phaser/renderer-diagnostics');
-		const { MEADOW_ENTRY_PAINTED_MODE_PILOT } =
-			await import('$lib/game/content/backgrounds/meadow-entry-painted-v2-runtime');
 		target.target.addEventListener(REGIONAL_BACKGROUND_RENDERER_DIAGNOSTIC_EVENT, (event) => {
 			diagnostics.push((event as CustomEvent<RegionalBackgroundRendererDiagnostic>).detail);
 		});
-		const now = vi.spyOn(performance, 'now');
-		now.mockReturnValueOnce(10).mockReturnValueOnce(25);
 		const scene = new (await import('./BootScene')).BootScene();
 
 		try {
@@ -1112,22 +1108,21 @@ describe('BootScene', () => {
 				vi
 					.mocked(scene.load.image)
 					.mock.calls.filter(([, path]) => String(path).includes('/game/assets/regions/'))
-			).toEqual(MEADOW_ENTRY_PAINTED_MODE_PILOT.assets.map(({ key, path }) => [key, path]));
-
-			for (const asset of MEADOW_ENTRY_PAINTED_MODE_PILOT.assets) {
-				scene.load.emit('filecomplete', asset.key, 'image', {});
-			}
+			).toEqual([]);
 			scene.load.emit('filecomplete', 'unselected-regional-background', 'image', {});
 			scene.load.emit('complete');
 
-			expect(diagnostics[0]).toMatchObject({
-				packageIds: ['meadow-entry-painted-v2-legacy'],
-				requiredAssetKeys: MEADOW_ENTRY_PAINTED_MODE_PILOT.assets.map(({ key }) => key).sort(),
-				completedAssetKeys: MEADOW_ENTRY_PAINTED_MODE_PILOT.assets.map(({ key }) => key).sort(),
-				regionalBackgroundLoadMs: 15
-			});
+			expect(diagnostics).toEqual([
+				{
+					renderer: 'webgl',
+					packageIds: [],
+					requiredAssetKeys: [],
+					completedAssetKeys: [],
+					maxTextureSize: 4096,
+					regionalBackgroundLoadMs: null
+				}
+			]);
 		} finally {
-			now.mockRestore();
 			target.restore();
 			restoreLocation();
 		}
@@ -3705,8 +3700,8 @@ describe('WorldScene', () => {
 		}
 	});
 
-	it('emits no regional background entries or fallback visuals for the active Meadow Entry map', async () => {
-		const restoreLocation = installLocationSearch('?meadowPaintedPilot=off');
+	it('uses fallback by default for the active Meadow Entry map with exact empty package evidence', async () => {
+		const restoreLocation = installLocationSearch('');
 		const target = installPlaneDiagnosticListener();
 		const { meadowEntryMap } = await import('$lib/game/content/maps');
 		const { WorldScene } = await import('./WorldScene');
@@ -3719,6 +3714,11 @@ describe('WorldScene', () => {
 			expect(target.diagnostics).toHaveLength(1);
 			expect(target.diagnostics[0]?.entries).toEqual([]);
 			expect(target.diagnostics[0]?.successfulBackgroundIds).toEqual([]);
+			expect(target.diagnostics[0]).toMatchObject({
+				packageId: null,
+				selectedBackgroundIds: [],
+				presentationMode: 'fallback'
+			});
 			expect(target.diagnostics[0]?.selectedFallbackBlockerIds).toEqual([]);
 			expect(target.diagnostics[0]?.selectedFallbackDecorIds).toEqual([]);
 			expect(target.diagnostics[0]?.selectedFallbackFenceIds).toEqual([]);
@@ -3728,8 +3728,8 @@ describe('WorldScene', () => {
 		}
 	});
 
-	it('resolves the default painted descriptors while preserving historical partial ownership', async () => {
-		const restoreLocation = installLocationSearch('');
+	it('resolves explicit painted opt-in descriptors while preserving historical partial ownership', async () => {
+		const restoreLocation = installLocationSearch('?meadowPaintedPilot=on');
 		const target = installPlaneDiagnosticListener();
 		const selection = await registerPaintedPilotBackgroundMocks();
 		const { meadowEntryMap } = await import('$lib/game/content/maps');

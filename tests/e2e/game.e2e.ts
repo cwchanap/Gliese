@@ -378,6 +378,7 @@ async function installRuntimeProbes(page: Page, options: { captureFacing?: boole
 			settledAxes: { x: boolean; y: boolean };
 			axisHistory: Axis[];
 			diagnostics: PlayerMovementDiagnostic[];
+			invalidDiagnostics: PlayerMovementDiagnostic[];
 			diagnosticAxes: Axis[];
 		};
 		let routeState: InternalRouteState | null = null;
@@ -406,6 +407,9 @@ async function installRuntimeProbes(page: Page, options: { captureFacing?: boole
 				lastDiagnostic: cloneDiagnostic(routeState.lastDiagnostic),
 				axisHistory: [...routeState.axisHistory],
 				diagnostics: routeState.diagnostics.map((diagnostic) => cloneDiagnostic(diagnostic)!),
+				invalidDiagnostics: routeState.invalidDiagnostics.map(
+					(diagnostic) => cloneDiagnostic(diagnostic)!
+				),
 				diagnosticAxes: [...routeState.diagnosticAxes],
 				activeKey: routeState.activeKey,
 				startedAt: routeState.startedAt,
@@ -545,8 +549,14 @@ async function installRuntimeProbes(page: Page, options: { captureFacing?: boole
 			routeState.axis = null;
 			routeState.target = null;
 			releaseKey();
-			routeState.status = 'done';
 			cancelKeyLease();
+			if (routeState.invalidDiagnostics.length > 0) {
+				const firstInvalidDiagnostic = routeState.invalidDiagnostics[0]!;
+				routeState.status = 'error';
+				routeState.error = `invalid movement diagnostic for map ${routeState.mapId}: expected blocked=false and mapId=${routeState.mapId}; received ${JSON.stringify(firstInvalidDiagnostic)}`;
+				return contractAdvanced;
+			}
+			routeState.status = 'done';
 			return contractAdvanced;
 		};
 		const onMovementDiagnostic = (event: Event) => {
@@ -557,15 +567,25 @@ async function installRuntimeProbes(page: Page, options: { captureFacing?: boole
 			routeState.lastMovementAt = movementAt;
 			const axis = routeState.axis;
 			const target = routeState.target;
-			if (!axis || !target || !routeState.position) return;
-			routeState.lastDiagnostic = diagnostic;
-			routeState.diagnostics.push({
+			const clonedDiagnostic = {
 				mapId: diagnostic.mapId,
 				previousPosition: { ...diagnostic.previousPosition },
 				requestedPosition: { ...diagnostic.requestedPosition },
 				resolvedPosition: { ...diagnostic.resolvedPosition },
 				blocked: diagnostic.blocked
-			});
+			};
+			if (
+				diagnostic.mapId !== routeState.mapId ||
+				diagnostic.blocked ||
+				!axis ||
+				!target ||
+				!routeState.position
+			) {
+				routeState.invalidDiagnostics.push(clonedDiagnostic);
+				return;
+			}
+			routeState.lastDiagnostic = clonedDiagnostic;
+			routeState.diagnostics.push(clonedDiagnostic);
 			routeState.diagnosticAxes.push(axis);
 			routeState.position = { ...diagnostic.resolvedPosition };
 			const value = diagnostic.resolvedPosition[axis];
@@ -708,6 +728,7 @@ async function installRuntimeProbes(page: Page, options: { captureFacing?: boole
 					settledAxes: { x: false, y: false },
 					axisHistory: [],
 					diagnostics: [],
+					invalidDiagnostics: [],
 					diagnosticAxes: []
 				};
 				if (routeState.mapId === 'meadow-entry') {
@@ -778,6 +799,7 @@ type BrowserRouteResult = {
 	lastDiagnostic: PlayerMovementDiagnostic | null;
 	axisHistory?: Axis[];
 	diagnostics?: PlayerMovementDiagnostic[];
+	invalidDiagnostics?: PlayerMovementDiagnostic[];
 	diagnosticAxes?: Axis[];
 	activeKey?: 'ArrowDown' | 'ArrowLeft' | 'ArrowRight' | 'ArrowUp' | null;
 	startedAt?: number;
@@ -823,6 +845,8 @@ function describeBrowserRouteResult(result: BrowserRouteResult | null, token: st
 		`diagnostic=${JSON.stringify(result.lastDiagnostic)}`,
 		`axisHistory=${JSON.stringify(result.axisHistory ?? [])}`,
 		`diagnosticAxes=${JSON.stringify(result.diagnosticAxes ?? [])}`,
+		`diagnostics=${JSON.stringify(result.diagnostics ?? [])}`,
+		`invalidDiagnostics=${JSON.stringify(result.invalidDiagnostics ?? [])}`,
 		`telemetry=${JSON.stringify({
 			startedAt: result.startedAt,
 			lastProgressAt: result.lastProgressAt,
@@ -840,6 +864,15 @@ function describeBrowserRouteResult(result: BrowserRouteResult | null, token: st
 	]
 		.filter((part): part is string => part !== null)
 		.join('; ');
+}
+
+function assertRouteDiagnosticsAreFaithful(result: BrowserRouteResult, label: string): void {
+	const invalidDiagnostics = result.invalidDiagnostics ?? [];
+	expect(invalidDiagnostics, `${label} invalid movement diagnostics`).toEqual([]);
+	for (const [index, diagnostic] of (result.diagnostics ?? []).entries()) {
+		expect(diagnostic.mapId, `${label} diagnostic ${index} map`).toBe(result.mapId);
+		expect(diagnostic.blocked, `${label} diagnostic ${index} blocked`).toBe(false);
+	}
 }
 
 async function runBrowserRoute(
@@ -919,6 +952,7 @@ async function runBrowserRoute(
 	if (!result || result.status !== 'done') {
 		throw new Error(describeBrowserRouteResult(result, token));
 	}
+	assertRouteDiagnosticsAreFaithful(result, token);
 	const finalPoint = points.at(-1);
 	if (result.position && finalPoint) {
 		previousRouteSettleTolerance = Math.max(
@@ -7783,6 +7817,64 @@ test('browser-local route steering acknowledges a plan and continues through Pha
 		const blockedCancel = runner.cancel(blockedToken, 'synthetic blocked-axis cleanup');
 
 		resetMovementProbe();
+		const invalidBlockedToken = `characterization-invalid-blocked-${Date.now()}`;
+		const invalidBlockedTarget = { x: initialPoint.x + 64, y: initialPoint.y };
+		const invalidBlockedStart = runner.start({
+			token: invalidBlockedToken,
+			points: [{ ...initialPoint }, invalidBlockedTarget],
+			settleTolerance: 12,
+			reachTolerance: 18,
+			maxCorrectionTaps: 8,
+			blockedTolerance: 12
+		});
+		dispatchDiagnostic({
+			mapId: 'meadow-entry',
+			previousPosition: { ...initialPoint },
+			requestedPosition: { x: initialPoint.x + 256, y: initialPoint.y },
+			resolvedPosition: { x: initialPoint.x + 256, y: initialPoint.y },
+			blocked: true
+		});
+		// A later clean event must not erase the earlier blocked evidence or make
+		// the route authoritative again.
+		dispatchDiagnostic({
+			mapId: 'meadow-entry',
+			previousPosition: { ...initialPoint },
+			requestedPosition: { ...invalidBlockedTarget },
+			resolvedPosition: { ...invalidBlockedTarget },
+			blocked: false
+		});
+		const invalidBlockedAfter = runner.get(invalidBlockedToken);
+
+		resetMovementProbe();
+		const invalidMapToken = `characterization-invalid-map-${Date.now()}`;
+		const invalidMapTarget = { x: initialPoint.x + 64, y: initialPoint.y };
+		const invalidMapStart = runner.start({
+			token: invalidMapToken,
+			points: [{ ...initialPoint }, invalidMapTarget],
+			settleTolerance: 12,
+			reachTolerance: 18,
+			maxCorrectionTaps: 8,
+			blockedTolerance: 12
+		});
+		dispatchDiagnostic({
+			mapId: 'item-shop',
+			previousPosition: { ...initialPoint },
+			requestedPosition: { x: initialPoint.x + 256, y: initialPoint.y },
+			resolvedPosition: { x: initialPoint.x + 256, y: initialPoint.y },
+			blocked: false
+		});
+		// A clean current-map event after the stale event must still leave the
+		// route rejected, with the stale point excluded from authoritative state.
+		dispatchDiagnostic({
+			mapId: 'meadow-entry',
+			previousPosition: { ...initialPoint },
+			requestedPosition: { ...invalidMapTarget },
+			resolvedPosition: { ...invalidMapTarget },
+			blocked: false
+		});
+		const invalidMapAfter = runner.get(invalidMapToken);
+
+		resetMovementProbe();
 		const wrongDirectionToken = `characterization-wrong-direction-${Date.now()}`;
 		const wrongDirectionStart = runner.start({
 			token: wrongDirectionToken,
@@ -7914,6 +8006,13 @@ test('browser-local route steering acknowledges a plan and continues through Pha
 			resolvedPosition: { ...blockedExhaustedPosition },
 			blocked: true
 		});
+		dispatchDiagnostic({
+			mapId: 'meadow-entry',
+			previousPosition: { ...initialPoint },
+			requestedPosition: { ...correctionTarget },
+			resolvedPosition: { ...correctionTarget },
+			blocked: false
+		});
 		const blockedExhaustedAfter = runner.get(blockedExhaustedToken);
 		const blockedExhaustedCancel = runner.cancel(
 			blockedExhaustedToken,
@@ -7923,6 +8022,10 @@ test('browser-local route steering acknowledges a plan and continues through Pha
 		probeWindow.__glieseCharacterizationSyntheticPhase = false;
 		resetMovementProbe();
 		return {
+			invalidBlockedStart,
+			invalidBlockedAfter,
+			invalidMapStart,
+			invalidMapAfter,
 			staleDiagnosticStart,
 			staleDiagnosticCancel,
 			blockedStart,
@@ -7954,6 +8057,10 @@ test('browser-local route steering acknowledges a plan and continues through Pha
 	const blockedCancel = evidence.blockedCancel!;
 	const staleDiagnosticStart = evidence.staleDiagnosticStart!;
 	const staleDiagnosticCancel = evidence.staleDiagnosticCancel!;
+	const invalidBlockedStart = evidence.invalidBlockedStart!;
+	const invalidBlockedAfter = evidence.invalidBlockedAfter!;
+	const invalidMapStart = evidence.invalidMapStart!;
+	const invalidMapAfter = evidence.invalidMapAfter!;
 	const correctionStart = evidence.correctionStart!;
 	const correctionBeforeCorrection = evidence.correctionBeforeCorrection!;
 	const correctionAfterX = evidence.correctionAfterX!;
@@ -7971,14 +8078,30 @@ test('browser-local route steering acknowledges a plan and continues through Pha
 	expect(staleDiagnosticStart.status).toBe('running');
 	expect(staleDiagnosticStart.position).toEqual(initial);
 	expect(staleDiagnosticCancel.status).toBe('error');
+	expect(invalidBlockedStart.status).toBe('running');
+	expect(invalidBlockedAfter.status).toBe('error');
+	expect(invalidBlockedAfter.position).toEqual({ x: initial!.x + 64, y: initial!.y });
+	expect(invalidBlockedAfter.diagnostics).toHaveLength(1);
+	expect(invalidBlockedAfter.invalidDiagnostics).toHaveLength(1);
+	expect(invalidBlockedAfter.invalidDiagnostics?.[0]?.blocked).toBe(true);
+	expect(invalidMapStart.status).toBe('running');
+	expect(invalidMapAfter.status).toBe('error');
+	expect(invalidMapAfter.position).toEqual({ x: initial!.x + 64, y: initial!.y });
+	expect(invalidMapAfter.diagnostics).toHaveLength(1);
+	expect(invalidMapAfter.invalidDiagnostics).toHaveLength(1);
+	expect(invalidMapAfter.invalidDiagnostics?.[0]?.mapId).toBe('item-shop');
 	expect(blockedStart.status).toBe('running');
 	expect(blockedAfter.status).toBe('running');
 	expect(blockedAfter.pointIndex).toBe(1);
-	expect(blockedAfter.axis).toBe('y');
+	expect(blockedAfter.axis).toBe('x');
 	expect(blockedAfter.target).toEqual({
 		x: initial!.x + 16,
 		y: initial!.y + 64
 	});
+	expect(blockedAfter.position).toEqual(initial);
+	expect(blockedAfter.diagnostics).toEqual([]);
+	expect(blockedAfter.invalidDiagnostics).toHaveLength(1);
+	expect(blockedAfter.invalidDiagnostics?.[0]?.blocked).toBe(true);
 	expect(blockedCancel.status).toBe('error');
 	expect(correctionStart.status).toBe('running');
 	expect(correctionBeforeCorrection.status).toBe('running');
@@ -8594,10 +8717,14 @@ test('Complete world layout foundation traverses every map in fallback mode', as
 		mapId: string;
 		position: Point | null;
 		lastDiagnostic: PlayerMovementDiagnostic | null;
+		diagnosticCount: number;
+		diagnosticMapIds: string[];
+		invalidDiagnostics: PlayerMovementDiagnostic[];
 	};
 	const routeEvidence: JourneyRouteEvidence[] = [];
 	const routeResults = new Map<string, BrowserRouteResult>();
 	const recordRoute = (label: string, result: BrowserRouteResult) => {
+		assertRouteDiagnosticsAreFaithful(result, label);
 		routeResults.set(label, result);
 		routeEvidence.push({
 			label,
@@ -8605,7 +8732,10 @@ test('Complete world layout foundation traverses every map in fallback mode', as
 			status: result.status,
 			mapId: result.mapId,
 			position: result.position,
-			lastDiagnostic: result.lastDiagnostic
+			lastDiagnostic: result.lastDiagnostic,
+			diagnosticCount: result.diagnostics?.length ?? 0,
+			diagnosticMapIds: [...new Set((result.diagnostics ?? []).map(({ mapId }) => mapId))],
+			invalidDiagnostics: result.invalidDiagnostics ?? []
 		});
 		if (result.lastDiagnostic) {
 			expect(result.lastDiagnostic.blocked, `${label} last movement`).toBe(false);
@@ -9110,15 +9240,30 @@ test('Complete world layout foundation traverses every map in fallback mode', as
 
 	console.log(
 		`TASK6_ROUTE_EVIDENCE ${JSON.stringify(
-			routeEvidence.map(({ label, token, status, mapId, position, lastDiagnostic }) => ({
-				label,
-				token,
-				status,
-				mapId,
-				position,
-				blocked: lastDiagnostic?.blocked ?? null,
-				resolvedPosition: lastDiagnostic?.resolvedPosition ?? null
-			}))
+			routeEvidence.map(
+				({
+					label,
+					token,
+					status,
+					mapId,
+					position,
+					lastDiagnostic,
+					diagnosticCount,
+					diagnosticMapIds,
+					invalidDiagnostics
+				}) => ({
+					label,
+					token,
+					status,
+					mapId,
+					position,
+					blocked: lastDiagnostic?.blocked ?? null,
+					resolvedPosition: lastDiagnostic?.resolvedPosition ?? null,
+					diagnosticCount,
+					diagnosticMapIds,
+					invalidDiagnostics
+				})
+			)
 		)}`
 	);
 });
