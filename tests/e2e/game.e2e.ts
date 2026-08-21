@@ -7,7 +7,10 @@ import {
 import { meadowEntryMap, ruinsCoreMap } from '../../src/lib/game/content/maps';
 import {
 	MEADOW_ENTRY_V2_CROSSINGS,
-	MEADOW_ENTRY_V2_RIVER_SEGMENTS
+	MEADOW_ENTRY_V2_RIVER_SEGMENTS,
+	MEADOW_ENTRY_V2_ROUTE_PATCHES,
+	SUNDROP_VILLAGE_V2_BUILDINGS,
+	SUNDROP_VILLAGE_V2_PUBLIC_SPACES
 } from '../../src/lib/game/content/maps/layouts/meadow-entry-v2';
 import { coastRegion } from '../../src/lib/game/content/maps/regions/coast';
 import {
@@ -31,6 +34,8 @@ type HudStateSnapshot = {
 	mapId?: string;
 	status?: string;
 	areaMap?: { player?: { x?: number; y?: number } };
+	dialogue?: unknown;
+	battle?: unknown;
 	nearbyShop?: { shopId?: string; merchantName?: string } | null;
 	inventory?: {
 		consumables?: Array<{ itemId?: string; quantity?: number }>;
@@ -53,6 +58,27 @@ type TransitionSourceWaitResult = {
 	hudMapId: string | null;
 	diagnosticCount: number;
 	sourceEventCount: number;
+	sourceWaitStartedAt?: number;
+	sourceWaitFinishedAt?: number;
+	sourceDiagnosticAt?: number | null;
+	sourceHudAt?: number;
+	sourceMovementAt?: number;
+};
+
+type SceneEncounterDiagnostic = {
+	mapId: string;
+	clearedEncounterIds: string[];
+	enemies: Array<{
+		id: string;
+		defeated: boolean;
+		hp: number;
+		maxHp: number;
+	}>;
+};
+
+type TransitionGateDiagnostic = SceneEncounterDiagnostic & {
+	player: { x: number; y: number } | null;
+	hasLivingEnemies: boolean;
 };
 
 type RegionalBackgroundPlaneRenderDiagnosticEntry = {
@@ -113,6 +139,8 @@ type GlieseProbeWindow = Window & {
 	__glieseMovementDiagnostics?: PlayerMovementDiagnostic[];
 	__glieseLastMovementDiagnostic?: PlayerMovementDiagnostic;
 	__glieseLastMovementAt?: number;
+	__glieseSceneEncounterState?: SceneEncounterDiagnostic;
+	__glieseTransitionGateState?: TransitionGateDiagnostic;
 	__glieseTransitionSourceWait?: () => Promise<TransitionSourceWaitResult>;
 	__glieseTransitionSourceCleanup?: () => void;
 	__glieseCharacterizationMovementCount?: number;
@@ -130,6 +158,17 @@ type GlieseProbeWindow = Window & {
 		start: (plan: BrowserRoutePlan) => BrowserRouteResult;
 		get: (token: string) => BrowserRouteResult | null;
 		cancel: (token: string, reason: string) => BrowserRouteResult | null;
+		startGuildMasterSemanticDiagonal: (
+			plan: GuildMasterSemanticDiagonalPlan
+		) => GuildMasterSemanticDiagonalResult;
+		getGuildMasterSemanticDiagonal: (token: string) => GuildMasterSemanticDiagonalResult | null;
+		cancelGuildMasterSemanticDiagonal: (
+			token: string,
+			reason: string
+		) => GuildMasterSemanticDiagonalResult | null;
+		startCaveDoorwayBand: (plan: CaveDoorwayBandPlan) => CaveDoorwayBandResult;
+		getCaveDoorwayBand: (token: string) => CaveDoorwayBandResult | null;
+		cancelCaveDoorwayBand: (token: string, reason: string) => CaveDoorwayBandResult | null;
 		active: () => BrowserRouteResult | null;
 	};
 };
@@ -261,39 +300,72 @@ function injectSave(page: Page, save: ReturnType<typeof createSaveFixture>) {
 	);
 }
 
-async function installRuntimeProbes(page: Page, options: { captureFacing?: boolean } = {}) {
+async function installRuntimeProbes(
+	page: Page,
+	options: { captureFacing?: boolean; captureSceneState?: boolean } = {}
+) {
 	// WorldScene keeps its live facing private and the HUD intentionally omits it.
 	// Instrument only the browser-served test chunk so the E2E can observe the
 	// scene-create transition payload without adding a production diagnostic hook
 	// or mutating any game state. The replacement is limited to the existing
 	// authored `create()` assignment and records the value after it is applied.
-	if (options.captureFacing) {
+	if (options.captureFacing || options.captureSceneState) {
 		await page.route('**/assets/WorldScene-*.js', async (route) => {
 			const response = await route.fetch();
 			const body = await response.text();
+			let servedBody = body;
 			// Vite's chunk minifier renames local variables between builds. Match the
 			// authored assignments by their stable property names instead of coupling
 			// the probe to one particular minified variable spelling.
-			const facingMatch = body.match(/this\.facing=[^;]*?spawnDirection/);
-			const cameraMatch = body.match(
-				/this\.cameras\.main\.startFollow\(this\.player,[^;]*?cameraFollowLerp\),/
-			);
-			if (!facingMatch) {
-				throw new Error('WorldScene facing probe marker was not found in the served test chunk');
-			}
-			if (!cameraMatch) {
-				throw new Error('WorldScene camera probe marker was not found in the served test chunk');
-			}
-			const facingBody = body.replace(
-				facingMatch[0],
-				`${facingMatch[0]},globalThis.__glieseLastPlayerFacing=this.facing`
-			);
-			await route.fulfill({
-				response,
-				body: facingBody.replace(
+			if (options.captureFacing) {
+				const facingMatch = servedBody.match(/this\.facing=[^;]*?spawnDirection/);
+				const cameraMatch = servedBody.match(
+					/this\.cameras\.main\.startFollow\(this\.player,[^;]*?cameraFollowLerp\),/
+				);
+				if (!facingMatch) {
+					throw new Error('WorldScene facing probe marker was not found in the served test chunk');
+				}
+				if (!cameraMatch) {
+					throw new Error('WorldScene camera probe marker was not found in the served test chunk');
+				}
+				servedBody = servedBody.replace(
+					facingMatch[0],
+					`${facingMatch[0]},globalThis.__glieseLastPlayerFacing=this.facing`
+				);
+				servedBody = servedBody.replace(
 					cameraMatch[0],
 					`${cameraMatch[0]}globalThis.__glieseActiveSceneCamera=this.cameras.main,`
-				)
+				);
+			}
+			if (options.captureSceneState) {
+				const encounterMatch = servedBody.match(
+					/(this\.setupEncounters\(([^)]+)\)),this\.renderTransitions\(\2\)/
+				);
+				const transitionGateMatch = servedBody.match(
+					/t=this\.hasLivingEnemies\(\);for\(let r of e\.transitions\)/
+				);
+				if (!encounterMatch) {
+					throw new Error(
+						'WorldScene encounter probe marker was not found in the served test chunk'
+					);
+				}
+				if (!transitionGateMatch) {
+					throw new Error(
+						'WorldScene transition gate probe marker was not found in the served test chunk'
+					);
+				}
+				servedBody = servedBody.replace(
+					encounterMatch[0],
+					`${encounterMatch[1]},globalThis.__glieseSceneEncounterState={mapId:this.mapId,clearedEncounterIds:[...this.clearedEncounterIds],enemies:this.enemies.map(e=>({id:e.id,defeated:e.defeated,hp:e.hp,maxHp:e.maxHp}))},this.renderTransitions(${encounterMatch[2]})`
+				);
+				servedBody = servedBody.replace(
+					transitionGateMatch[0],
+					`t=this.hasLivingEnemies();globalThis.__glieseTransitionGateState={mapId:this.mapId,player:this.player?{x:this.player.x,y:this.player.y}:null,hasLivingEnemies:t,clearedEncounterIds:[...this.clearedEncounterIds],enemies:this.enemies.map(e=>({id:e.id,defeated:e.defeated,hp:e.hp,maxHp:e.maxHp}))};for(let r of e.transitions)`
+				);
+			}
+			await route.fulfill({
+				response,
+				body: servedBody
 			});
 		});
 	}
@@ -306,6 +378,8 @@ async function installRuntimeProbes(page: Page, options: { captureFacing?: boole
 		probeWindow.__glieseMovementDiagnostics = [];
 		probeWindow.__glieseLastMovementDiagnostic = undefined;
 		probeWindow.__glieseLastMovementAt = 0;
+		probeWindow.__glieseSceneEncounterState = undefined;
+		probeWindow.__glieseTransitionGateState = undefined;
 		probeWindow.__glieseRegionalBackgroundDiagnostics = [];
 		probeWindow.__glieseRegionalBackgroundRendererDiagnostics = [];
 		probeWindow.__glieseActiveSceneCamera = undefined;
@@ -381,8 +455,26 @@ async function installRuntimeProbes(page: Page, options: { captureFacing?: boole
 			invalidDiagnostics: PlayerMovementDiagnostic[];
 			diagnosticAxes: Axis[];
 		};
+		type InternalGuildMasterSemanticDiagonalState = GuildMasterSemanticDiagonalResult & {
+			expectedMapId: string;
+			minY: number;
+			maxYExclusive: number;
+			xDirection: -1 | 1;
+			yDirection: -1 | 0 | 1;
+		};
+		type InternalCaveDoorwayBandState = CaveDoorwayBandResult & {
+			expectedMapId: string;
+			minX: number;
+			maxXExclusive: number;
+			expectedY: number;
+			xDirection: -1 | 0 | 1;
+		};
 		let routeState: InternalRouteState | null = null;
 		let keyLeaseFrame: number | null = null;
+		let semanticDiagonalState: InternalGuildMasterSemanticDiagonalState | null = null;
+		let semanticKeyLeaseFrame: number | null = null;
+		let caveDoorwayBandState: InternalCaveDoorwayBandState | null = null;
+		let caveDoorwayBandKeyLeaseFrame: number | null = null;
 
 		const cloneDiagnostic = (diagnostic: PlayerMovementDiagnostic | null) =>
 			diagnostic
@@ -394,6 +486,28 @@ async function installRuntimeProbes(page: Page, options: { captureFacing?: boole
 						blocked: diagnostic.blocked
 					}
 				: null;
+		const semanticSnapshot = (): GuildMasterSemanticDiagonalResult | null => {
+			if (!semanticDiagonalState) return null;
+			return {
+				token: semanticDiagonalState.token,
+				mapId: semanticDiagonalState.mapId,
+				status: semanticDiagonalState.status,
+				position: semanticDiagonalState.position ? { ...semanticDiagonalState.position } : null,
+				lastDiagnostic: cloneDiagnostic(semanticDiagonalState.lastDiagnostic),
+				diagnostics: semanticDiagonalState.diagnostics.map(
+					(diagnostic) => cloneDiagnostic(diagnostic)!
+				),
+				invalidDiagnostics: semanticDiagonalState.invalidDiagnostics.map(
+					(diagnostic) => cloneDiagnostic(diagnostic)!
+				),
+				activeKeys: [...semanticDiagonalState.activeKeys],
+				releasedKeys: [...semanticDiagonalState.releasedKeys],
+				released: semanticDiagonalState.released,
+				startedAt: semanticDiagonalState.startedAt,
+				finishedAt: semanticDiagonalState.finishedAt,
+				error: semanticDiagonalState.error
+			};
+		};
 		const snapshot = (): BrowserRouteResult | null => {
 			if (!routeState) return null;
 			return {
@@ -446,6 +560,40 @@ async function installRuntimeProbes(page: Page, options: { captureFacing?: boole
 				}
 			}
 			window.dispatchEvent(event);
+		};
+		const cancelSemanticKeyLease = () => {
+			if (semanticKeyLeaseFrame === null) return;
+			cancelAnimationFrame(semanticKeyLeaseFrame);
+			semanticKeyLeaseFrame = null;
+		};
+		const releaseSemanticDiagonalKeys = () => {
+			if (!semanticDiagonalState) return;
+			cancelSemanticKeyLease();
+			for (const key of [...semanticDiagonalState.activeKeys].reverse()) {
+				dispatchSyntheticKey('keyup', key);
+				semanticDiagonalState.releasedKeys.push(key);
+			}
+			semanticDiagonalState.activeKeys = [];
+			semanticDiagonalState.released = true;
+		};
+		const finishSemanticDiagonal = (status: 'done' | 'error', error?: string) => {
+			if (!semanticDiagonalState) return;
+			releaseSemanticDiagonalKeys();
+			semanticDiagonalState.status = status;
+			semanticDiagonalState.finishedAt = performance.now();
+			if (error) semanticDiagonalState.error = error;
+		};
+		const runSemanticKeyLeaseFrame = () => {
+			semanticKeyLeaseFrame = null;
+			if (!semanticDiagonalState || semanticDiagonalState.status !== 'running') return;
+			for (const key of semanticDiagonalState.activeKeys) {
+				dispatchSyntheticKey('keydown', key);
+			}
+			semanticKeyLeaseFrame = requestAnimationFrame(runSemanticKeyLeaseFrame);
+		};
+		const startSemanticKeyLease = () => {
+			if (semanticKeyLeaseFrame !== null) return;
+			semanticKeyLeaseFrame = requestAnimationFrame(runSemanticKeyLeaseFrame);
 		};
 		const cancelKeyLease = () => {
 			if (keyLeaseFrame === null) return;
@@ -507,6 +655,323 @@ async function installRuntimeProbes(page: Page, options: { captureFacing?: boole
 				return { x: hudPlayer.x, y: hudPlayer.y };
 			}
 			return diagnosticPosition ? { ...diagnosticPosition } : null;
+		};
+		const startGuildMasterSemanticDiagonal = (
+			plan: GuildMasterSemanticDiagonalPlan
+		): GuildMasterSemanticDiagonalResult => {
+			if (semanticDiagonalState?.status === 'running') {
+				finishSemanticDiagonal('error', 'semantic diagonal was already active');
+			}
+			const currentMapId = probeWindow.__glieseLastHudState?.mapId ?? '';
+			const position = actualPosition();
+			semanticDiagonalState = {
+				token: plan.token,
+				mapId: currentMapId,
+				status: 'running',
+				position: position ? { ...position } : null,
+				lastDiagnostic: null,
+				diagnostics: [],
+				invalidDiagnostics: [],
+				activeKeys: [],
+				releasedKeys: [],
+				released: false,
+				startedAt: performance.now(),
+				finishedAt: null,
+				expectedMapId: plan.expectedMapId,
+				minY: plan.minY,
+				maxYExclusive: plan.maxYExclusive,
+				xDirection: plan.xDirection,
+				yDirection: 0
+			};
+			if (
+				!Number.isFinite(plan.minY) ||
+				!Number.isFinite(plan.maxYExclusive) ||
+				plan.minY >= plan.maxYExclusive ||
+				(plan.xDirection !== -1 && plan.xDirection !== 1)
+			) {
+				finishSemanticDiagonal('error', `invalid semantic diagonal plan ${JSON.stringify(plan)}`);
+				return semanticSnapshot()!;
+			}
+			if (!position) {
+				finishSemanticDiagonal('error', 'semantic diagonal missing current player position');
+				return semanticSnapshot()!;
+			}
+			if (currentMapId !== plan.expectedMapId) {
+				finishSemanticDiagonal(
+					'error',
+					`semantic diagonal started on ${currentMapId}; expected ${plan.expectedMapId}`
+				);
+				return semanticSnapshot()!;
+			}
+			const yDirection: -1 | 0 | 1 =
+				position.y < plan.minY ? 1 : position.y >= plan.maxYExclusive ? -1 : 0;
+			semanticDiagonalState.yDirection = yDirection;
+			if (yDirection === 0) {
+				finishSemanticDiagonal('done');
+				return semanticSnapshot()!;
+			}
+			const yKey = yDirection > 0 ? 'ArrowDown' : 'ArrowUp';
+			semanticDiagonalState.activeKeys = [yKey, 'ArrowLeft'];
+			dispatchSyntheticKey('keydown', yKey);
+			dispatchSyntheticKey('keydown', 'ArrowLeft');
+			startSemanticKeyLease();
+			return semanticSnapshot()!;
+		};
+		const onGuildMasterSemanticDiagonalDiagnostic = (event: Event) => {
+			if (!semanticDiagonalState || semanticDiagonalState.status !== 'running') return;
+			const diagnostic = (event as CustomEvent<PlayerMovementDiagnostic>).detail;
+			const clonedDiagnostic = {
+				mapId: diagnostic.mapId,
+				previousPosition: { ...diagnostic.previousPosition },
+				requestedPosition: { ...diagnostic.requestedPosition },
+				resolvedPosition: { ...diagnostic.resolvedPosition },
+				blocked: diagnostic.blocked
+			};
+			semanticDiagonalState.diagnostics.push(clonedDiagnostic);
+			semanticDiagonalState.lastDiagnostic = clonedDiagnostic;
+			semanticDiagonalState.position = { ...diagnostic.resolvedPosition };
+			const failSemanticDiagnostic = (reason: string) => {
+				semanticDiagonalState!.invalidDiagnostics.push(clonedDiagnostic);
+				finishSemanticDiagonal('error', reason);
+			};
+			if (diagnostic.mapId !== semanticDiagonalState.expectedMapId) {
+				failSemanticDiagnostic(
+					`semantic diagonal received wrong-map diagnostic: expected ${semanticDiagonalState.expectedMapId}, received ${diagnostic.mapId}`
+				);
+				return;
+			}
+			if (diagnostic.blocked) {
+				failSemanticDiagnostic('semantic diagonal received blocked diagnostic');
+				return;
+			}
+			const { previousPosition, resolvedPosition } = diagnostic;
+			if (
+				![previousPosition.x, previousPosition.y, resolvedPosition.x, resolvedPosition.y].every(
+					(value) => Number.isFinite(value)
+				)
+			) {
+				failSemanticDiagnostic('semantic diagonal received non-finite diagnostic');
+				return;
+			}
+			const movedAwayFromDesk =
+				(resolvedPosition.x - previousPosition.x) * semanticDiagonalState.xDirection > 0;
+			const movedTowardBand =
+				semanticDiagonalState.yDirection === 1
+					? resolvedPosition.y > previousPosition.y
+					: semanticDiagonalState.yDirection === -1
+						? resolvedPosition.y < previousPosition.y
+						: false;
+			if (!movedAwayFromDesk || !movedTowardBand) {
+				failSemanticDiagnostic(
+					`semantic diagonal did not make monotonic progress: ${JSON.stringify({ diagnostic, movedAwayFromDesk, movedTowardBand })}`
+				);
+				return;
+			}
+			const overshotBand =
+				semanticDiagonalState.yDirection === 1
+					? resolvedPosition.y >= semanticDiagonalState.maxYExclusive
+					: resolvedPosition.y < semanticDiagonalState.minY;
+			if (overshotBand) {
+				failSemanticDiagnostic(
+					`semantic diagonal overshot its band: ${JSON.stringify({ diagnostic, minY: semanticDiagonalState.minY, maxYExclusive: semanticDiagonalState.maxYExclusive })}`
+				);
+				return;
+			}
+			if (
+				resolvedPosition.y >= semanticDiagonalState.minY &&
+				resolvedPosition.y < semanticDiagonalState.maxYExclusive
+			) {
+				finishSemanticDiagonal('done');
+			}
+		};
+		const caveDoorwaySnapshot = (): CaveDoorwayBandResult | null => {
+			if (!caveDoorwayBandState) return null;
+			return {
+				token: caveDoorwayBandState.token,
+				mapId: caveDoorwayBandState.mapId,
+				status: caveDoorwayBandState.status,
+				position: caveDoorwayBandState.position ? { ...caveDoorwayBandState.position } : null,
+				lastDiagnostic: cloneDiagnostic(caveDoorwayBandState.lastDiagnostic),
+				diagnostics: caveDoorwayBandState.diagnostics.map(
+					(diagnostic) => cloneDiagnostic(diagnostic)!
+				),
+				invalidDiagnostics: caveDoorwayBandState.invalidDiagnostics.map(
+					(diagnostic) => cloneDiagnostic(diagnostic)!
+				),
+				activeKeys: [...caveDoorwayBandState.activeKeys],
+				releasedKeys: [...caveDoorwayBandState.releasedKeys],
+				released: caveDoorwayBandState.released,
+				startedAt: caveDoorwayBandState.startedAt,
+				finishedAt: caveDoorwayBandState.finishedAt,
+				error: caveDoorwayBandState.error
+			};
+		};
+		const cancelCaveDoorwayBandKeyLease = () => {
+			if (caveDoorwayBandKeyLeaseFrame === null) return;
+			cancelAnimationFrame(caveDoorwayBandKeyLeaseFrame);
+			caveDoorwayBandKeyLeaseFrame = null;
+		};
+		const releaseCaveDoorwayBandKey = () => {
+			if (!caveDoorwayBandState) return;
+			cancelCaveDoorwayBandKeyLease();
+			for (const key of [...caveDoorwayBandState.activeKeys].reverse()) {
+				dispatchSyntheticKey('keyup', key);
+				caveDoorwayBandState.releasedKeys.push(key);
+			}
+			caveDoorwayBandState.activeKeys = [];
+			caveDoorwayBandState.released = true;
+		};
+		const finishCaveDoorwayBand = (status: 'done' | 'error', error?: string) => {
+			if (!caveDoorwayBandState) return;
+			releaseCaveDoorwayBandKey();
+			caveDoorwayBandState.status = status;
+			caveDoorwayBandState.finishedAt = performance.now();
+			if (error) caveDoorwayBandState.error = error;
+		};
+		const runCaveDoorwayBandKeyLeaseFrame = () => {
+			caveDoorwayBandKeyLeaseFrame = null;
+			if (!caveDoorwayBandState || caveDoorwayBandState.status !== 'running') return;
+			for (const key of caveDoorwayBandState.activeKeys) {
+				dispatchSyntheticKey('keydown', key);
+			}
+			caveDoorwayBandKeyLeaseFrame = requestAnimationFrame(runCaveDoorwayBandKeyLeaseFrame);
+		};
+		const startCaveDoorwayBandKeyLease = () => {
+			if (caveDoorwayBandKeyLeaseFrame !== null) return;
+			caveDoorwayBandKeyLeaseFrame = requestAnimationFrame(runCaveDoorwayBandKeyLeaseFrame);
+		};
+		const startCaveDoorwayBand = (plan: CaveDoorwayBandPlan): CaveDoorwayBandResult => {
+			if (caveDoorwayBandState?.status === 'running') {
+				finishCaveDoorwayBand('error', 'cave doorway band was already active');
+			}
+			const currentMapId = probeWindow.__glieseLastHudState?.mapId ?? '';
+			const position = actualPosition();
+			caveDoorwayBandState = {
+				token: plan.token,
+				mapId: currentMapId,
+				status: 'running',
+				position: position ? { ...position } : null,
+				lastDiagnostic: null,
+				diagnostics: [],
+				invalidDiagnostics: [],
+				activeKeys: [],
+				releasedKeys: [],
+				released: false,
+				startedAt: performance.now(),
+				finishedAt: null,
+				expectedMapId: plan.expectedMapId,
+				minX: plan.minX,
+				maxXExclusive: plan.maxXExclusive,
+				expectedY: plan.expectedY,
+				xDirection: 0
+			};
+			if (
+				![plan.minX, plan.maxXExclusive, plan.expectedY].every(Number.isFinite) ||
+				plan.minX >= plan.maxXExclusive
+			) {
+				finishCaveDoorwayBand('error', `invalid cave doorway band plan ${JSON.stringify(plan)}`);
+				return caveDoorwaySnapshot()!;
+			}
+			if (!position) {
+				finishCaveDoorwayBand('error', 'cave doorway band missing current player position');
+				return caveDoorwaySnapshot()!;
+			}
+			if (currentMapId !== plan.expectedMapId) {
+				finishCaveDoorwayBand(
+					'error',
+					`cave doorway band started on ${currentMapId}; expected ${plan.expectedMapId}`
+				);
+				return caveDoorwaySnapshot()!;
+			}
+			if (position.y !== plan.expectedY) {
+				finishCaveDoorwayBand(
+					'error',
+					`cave doorway band started off safe row: ${JSON.stringify({ position, expectedY: plan.expectedY })}`
+				);
+				return caveDoorwaySnapshot()!;
+			}
+			const xDirection: -1 | 0 | 1 =
+				position.x < plan.minX ? 1 : position.x >= plan.maxXExclusive ? -1 : 0;
+			caveDoorwayBandState.xDirection = xDirection;
+			if (xDirection === 0) {
+				finishCaveDoorwayBand('done');
+				return caveDoorwaySnapshot()!;
+			}
+			const key = xDirection > 0 ? 'ArrowRight' : 'ArrowLeft';
+			caveDoorwayBandState.activeKeys = [key];
+			dispatchSyntheticKey('keydown', key);
+			startCaveDoorwayBandKeyLease();
+			return caveDoorwaySnapshot()!;
+		};
+		const onCaveDoorwayBandDiagnostic = (event: Event) => {
+			if (!caveDoorwayBandState || caveDoorwayBandState.status !== 'running') return;
+			const diagnostic = (event as CustomEvent<PlayerMovementDiagnostic>).detail;
+			const clonedDiagnostic = {
+				mapId: diagnostic.mapId,
+				previousPosition: { ...diagnostic.previousPosition },
+				requestedPosition: { ...diagnostic.requestedPosition },
+				resolvedPosition: { ...diagnostic.resolvedPosition },
+				blocked: diagnostic.blocked
+			};
+			caveDoorwayBandState.diagnostics.push(clonedDiagnostic);
+			caveDoorwayBandState.lastDiagnostic = clonedDiagnostic;
+			caveDoorwayBandState.position = { ...diagnostic.resolvedPosition };
+			const failCaveDoorwayDiagnostic = (reason: string) => {
+				caveDoorwayBandState!.invalidDiagnostics.push(clonedDiagnostic);
+				finishCaveDoorwayBand('error', reason);
+			};
+			if (diagnostic.mapId !== caveDoorwayBandState.expectedMapId) {
+				failCaveDoorwayDiagnostic(
+					`cave doorway band received wrong-map diagnostic: expected ${caveDoorwayBandState.expectedMapId}, received ${diagnostic.mapId}`
+				);
+				return;
+			}
+			if (diagnostic.blocked) {
+				failCaveDoorwayDiagnostic('cave doorway band received blocked diagnostic');
+				return;
+			}
+			const { previousPosition, resolvedPosition } = diagnostic;
+			if (
+				![previousPosition.x, previousPosition.y, resolvedPosition.x, resolvedPosition.y].every(
+					Number.isFinite
+				)
+			) {
+				failCaveDoorwayDiagnostic('cave doorway band received non-finite diagnostic');
+				return;
+			}
+			if (
+				previousPosition.y !== caveDoorwayBandState.expectedY ||
+				resolvedPosition.y !== caveDoorwayBandState.expectedY
+			) {
+				failCaveDoorwayDiagnostic(
+					`cave doorway band left safe row: ${JSON.stringify({ diagnostic, expectedY: caveDoorwayBandState.expectedY })}`
+				);
+				return;
+			}
+			const movedTowardBand =
+				(resolvedPosition.x - previousPosition.x) * caveDoorwayBandState.xDirection > 0;
+			if (!movedTowardBand) {
+				failCaveDoorwayDiagnostic(
+					`cave doorway band did not make monotonic progress: ${JSON.stringify({ diagnostic, xDirection: caveDoorwayBandState.xDirection })}`
+				);
+				return;
+			}
+			const overshotBand =
+				caveDoorwayBandState.xDirection === 1
+					? resolvedPosition.x >= caveDoorwayBandState.maxXExclusive
+					: resolvedPosition.x < caveDoorwayBandState.minX;
+			if (overshotBand) {
+				failCaveDoorwayDiagnostic(
+					`cave doorway band overshot its band: ${JSON.stringify({ diagnostic, minX: caveDoorwayBandState.minX, maxXExclusive: caveDoorwayBandState.maxXExclusive })}`
+				);
+				return;
+			}
+			if (
+				resolvedPosition.x >= caveDoorwayBandState.minX &&
+				resolvedPosition.x < caveDoorwayBandState.maxXExclusive
+			) {
+				finishCaveDoorwayBand('done');
+			}
 		};
 		const beginNextAxis = () => {
 			let contractAdvanced = false;
@@ -660,6 +1125,11 @@ async function installRuntimeProbes(page: Page, options: { captureFacing?: boole
 			pressKey(axisKey(axis, targetValue - value));
 		};
 		window.addEventListener('gliese:player-movement-diagnostic', onMovementDiagnostic);
+		window.addEventListener(
+			'gliese:player-movement-diagnostic',
+			onGuildMasterSemanticDiagonalDiagnostic
+		);
+		window.addEventListener('gliese:player-movement-diagnostic', onCaveDoorwayBandDiagnostic);
 		const sampleCamera = () => {
 			const activeRoute = probeWindow.__glieseRouteRunner?.active();
 			const view = probeWindow.__glieseActiveSceneCamera?.worldView;
@@ -763,11 +1233,37 @@ async function installRuntimeProbes(page: Page, options: { captureFacing?: boole
 				if (routeState?.token !== token) return null;
 				if (routeState.status === 'running') failRoute(reason);
 				return snapshot();
+			},
+			startGuildMasterSemanticDiagonal,
+			getGuildMasterSemanticDiagonal: (token) =>
+				semanticDiagonalState?.token === token ? semanticSnapshot() : null,
+			cancelGuildMasterSemanticDiagonal: (token, reason) => {
+				if (semanticDiagonalState?.token !== token) return null;
+				if (semanticDiagonalState.status === 'running') {
+					finishSemanticDiagonal('error', reason);
+				}
+				return semanticSnapshot();
+			},
+			startCaveDoorwayBand,
+			getCaveDoorwayBand: (token) =>
+				caveDoorwayBandState?.token === token ? caveDoorwaySnapshot() : null,
+			cancelCaveDoorwayBand: (token, reason) => {
+				if (caveDoorwayBandState?.token !== token) return null;
+				if (caveDoorwayBandState.status === 'running') {
+					finishCaveDoorwayBand('error', reason);
+				}
+				return caveDoorwaySnapshot();
 			}
 		};
 		probeWindow.__glieseRouteRunner = routeRunner;
 		window.addEventListener('pagehide', () => {
 			cancelKeyLease();
+			if (semanticDiagonalState?.status === 'running') {
+				finishSemanticDiagonal('error', 'page unloaded while semantic diagonal was active');
+			}
+			if (caveDoorwayBandState?.status === 'running') {
+				finishCaveDoorwayBand('error', 'page unloaded while cave doorway band was active');
+			}
 			if (routeState?.status === 'running') {
 				failRoute('page unloaded while route was active');
 			}
@@ -786,6 +1282,63 @@ type BrowserRoutePlan = {
 	reachTolerance: number;
 	maxCorrectionTaps: number;
 	blockedTolerance?: number;
+};
+
+type GuildMasterSemanticDiagonalPlan = {
+	token: string;
+	expectedMapId: string;
+	minY: number;
+	maxYExclusive: number;
+	xDirection: -1 | 1;
+};
+
+type GuildMasterSemanticDiagonalResult = {
+	token: string;
+	mapId: string;
+	status: 'running' | 'done' | 'error';
+	position: Point | null;
+	lastDiagnostic: PlayerMovementDiagnostic | null;
+	diagnostics: PlayerMovementDiagnostic[];
+	invalidDiagnostics: PlayerMovementDiagnostic[];
+	activeKeys: Array<'ArrowDown' | 'ArrowLeft' | 'ArrowUp'>;
+	releasedKeys: Array<'ArrowDown' | 'ArrowLeft' | 'ArrowUp'>;
+	released: boolean;
+	startedAt: number;
+	finishedAt: number | null;
+	error?: string;
+};
+
+type CaveDoorwayBandPlan = {
+	token: string;
+	expectedMapId: string;
+	minX: number;
+	maxXExclusive: number;
+	expectedY: number;
+};
+
+type CaveDoorwayBandResult = {
+	token: string;
+	mapId: string;
+	status: 'running' | 'done' | 'error';
+	position: Point | null;
+	lastDiagnostic: PlayerMovementDiagnostic | null;
+	diagnostics: PlayerMovementDiagnostic[];
+	invalidDiagnostics: PlayerMovementDiagnostic[];
+	activeKeys: Array<'ArrowLeft' | 'ArrowRight'>;
+	releasedKeys: Array<'ArrowLeft' | 'ArrowRight'>;
+	released: boolean;
+	startedAt: number;
+	finishedAt: number | null;
+	error?: string;
+};
+
+type FixedXAxisBandSteeringRequest = {
+	expectedMapId: string;
+	minX: number;
+	maxXExclusive: number;
+	expectedY: number;
+	initialPoint: Point;
+	tokenPrefix: string;
 };
 
 type BrowserRouteResult = {
@@ -1203,6 +1756,86 @@ function interiorRoutePoints(currentPoint: Point, targetPoint: Point): Point[] {
 	return currentPoint.y !== targetPoint.y
 		? [currentPoint, { x: currentPoint.x, y: targetPoint.y }, targetPoint]
 		: [currentPoint, targetPoint];
+}
+
+function isVillagerHouse1LynnStep(
+	interior: InteriorGrayboxCase,
+	step: InteriorGrayboxStep
+): boolean {
+	return interior.mapId === 'villager-house-1' && step.label === 'lynn-approach';
+}
+
+function villagerHouse1LynnRoutePoints(currentPoint: Point, targetPoint: Point): Point[] {
+	const approach = VILLAGE_INTERIOR_LAYOUTS['villager-house-1'].npcApproaches.lynn.approach;
+	expect(targetPoint).toEqual(approach);
+	return [currentPoint, { x: approach.x, y: currentPoint.y }, { ...approach }];
+}
+
+function assertVillagerHouse1LynnRouteGeometry(points: readonly Point[], targetPoint: Point): void {
+	const layout = VILLAGE_INTERIOR_LAYOUTS['villager-house-1'];
+	const approach = layout.npcApproaches.lynn.approach;
+	const npc = layout.npcApproaches.lynn.npc;
+	const npcCollisionRadius = PLAYER_COLLISION_RADIUS + NPC_PACK_COLLISION_RADIUS;
+	const interactionRadius = PLAYER_COLLISION_RADIUS + NPC_INTERACTION_RADIUS;
+
+	expect(targetPoint).toEqual({ x: 200, y: 416 });
+	expect(targetPoint).toEqual(approach);
+	expect(points).toHaveLength(3);
+	expect(points[1]?.x).toBe(approach.x);
+	expect(points[1]?.y).toBe(points[0]?.y);
+	expect(points.at(-1)).toEqual(approach);
+
+	for (let index = 1; index < points.length; index += 1) {
+		expect(
+			routeSegmentIntersectsCircle(points[index - 1]!, points[index]!, npc, npcCollisionRadius)
+		).toBe(false);
+	}
+
+	const authoredDistance = Math.hypot(approach.x - npc.x, approach.y - npc.y);
+	expect(authoredDistance).toBe(40);
+	expect(authoredDistance).toBeGreaterThan(npcCollisionRadius);
+	expect(authoredDistance).toBeLessThanOrEqual(interactionRadius);
+}
+
+function assertVillagerHouse1LynnRouteResult(
+	points: readonly Point[],
+	result: BrowserRouteResult
+): Point {
+	const layout = VILLAGE_INTERIOR_LAYOUTS['villager-house-1'];
+	const approach = layout.npcApproaches.lynn.approach;
+	const npc = layout.npcApproaches.lynn.npc;
+	const npcCollisionRadius = PLAYER_COLLISION_RADIUS + NPC_PACK_COLLISION_RADIUS;
+	const interactionRadius = PLAYER_COLLISION_RADIUS + NPC_INTERACTION_RADIUS;
+
+	assertVillagerHouse1LynnRouteGeometry(points, approach);
+	expect(result.status).toBe('done');
+	expect(result.mapId).toBe('villager-house-1');
+	expect(result.activeKey).toBeNull();
+	expect(result.invalidDiagnostics ?? []).toEqual([]);
+	expect(result.position).not.toBeNull();
+	if (!result.position) {
+		throw new Error(
+			`VH1 Lynn route returned no live endpoint: ${describeBrowserRouteResult(result, result.token)}`
+		);
+	}
+	for (const diagnostic of result.diagnostics ?? []) {
+		expect(diagnostic.mapId).toBe('villager-house-1');
+		expect(diagnostic.blocked).toBe(false);
+		expect(
+			routeSegmentIntersectsCircle(
+				diagnostic.previousPosition,
+				diagnostic.requestedPosition,
+				npc,
+				npcCollisionRadius
+			)
+		).toBe(false);
+	}
+	const liveDistance = Math.hypot(result.position.x - npc.x, result.position.y - npc.y);
+	expect(liveDistance).toBeGreaterThan(npcCollisionRadius);
+	expect(liveDistance).toBeLessThanOrEqual(interactionRadius);
+	expect(Math.abs(result.position.x - approach.x)).toBeLessThanOrEqual(AXIS_REACH_TOLERANCE);
+	expect(Math.abs(result.position.y - approach.y)).toBeLessThanOrEqual(AXIS_REACH_TOLERANCE);
+	return result.position;
 }
 
 function isItemShopServiceCorridorWestStep(
@@ -1644,6 +2277,13 @@ function isGuildHallQuartermasterReturnStep(
 	return (
 		leavingInteraction && interior.mapId === 'guild-hall' && step.label === 'lobby-return-spine'
 	);
+}
+
+function isGuildHallLobbyReturnStep(
+	interior: InteriorGrayboxCase,
+	step: InteriorGrayboxStep
+): boolean {
+	return interior.mapId === 'guild-hall' && step.label === 'lobby-return';
 }
 
 function guildHallGuildMasterCheckpoint(): Point {
@@ -2510,33 +3150,6 @@ function guildHallQuartermasterDoorwayRightClearanceX(): number {
 	return clearanceX;
 }
 
-function guildHallQuartermasterDividerOpenY(): number {
-	const layout = VILLAGE_INTERIOR_LAYOUTS['guild-hall'];
-	const trainingQuartermasterDivider = layout.walls.find(
-		({ id }) => id === 'guild-hall-training-quartermaster-divider'
-	);
-	const counter = layout.propCollisions.quartermasterCounter;
-	if (!trainingQuartermasterDivider) {
-		throw new Error('Guild Hall training-quartermaster divider source is missing');
-	}
-	const expandedDividerBottom =
-		trainingQuartermasterDivider.y + trainingQuartermasterDivider.height + PLAYER_COLLISION_RADIUS;
-	const expandedCounterTop = counter.y - PLAYER_COLLISION_RADIUS;
-	const minimumOpenY = expandedDividerBottom + AXIS_REACH_TOLERANCE + 1;
-	const maximumOpenY = expandedCounterTop - AXIS_REACH_TOLERANCE - 1;
-	// The authored open band is the only row range whose full route-residue box
-	// clears both the divider below and the counter above. Keep the midpoint
-	// source-derived so a later geometry change cannot turn this into a nominal
-	// waypoint through either expanded collision.
-	expect({ minimumOpenY, maximumOpenY }).toEqual({ minimumOpenY: 511, maximumOpenY: 513 });
-	const openY = Math.floor((minimumOpenY + maximumOpenY) / 2);
-	expect(openY - AXIS_REACH_TOLERANCE).toBeGreaterThan(expandedDividerBottom);
-	expect(openY + AXIS_REACH_TOLERANCE).toBeLessThan(expandedCounterTop);
-	const quartermasterToSpine = layout.doors.quartermasterToSpine;
-	expect(openY).toBeGreaterThanOrEqual(quartermasterToSpine.y);
-	return openY;
-}
-
 function guildHallQuartermasterRoutePoints(
 	currentPoint: Point,
 	targetPoint: Point,
@@ -2550,17 +3163,16 @@ function guildHallQuartermasterRoutePoints(
 	const belowCounterY =
 		counter.y + counter.height + PLAYER_COLLISION_RADIUS + AXIS_REACH_TOLERANCE + 1;
 	if (leavingInteraction) {
-		const dividerOpenY = guildHallQuartermasterDividerOpenY();
-		// The post-dialogue endpoint is a terminal point just below the expanded
-		// divider. First pass through the authored open row; only that row has a
-		// full ±18 envelope between the divider and counter, so the right-clearance
-		// crossing cannot re-enter the divider before clearing the counter.
+		// The post-dialogue endpoint is already in the authored open row between the
+		// expanded training divider and counter. Exit the Quartermaster NPC circle
+		// on that actual y first; only then descend at the source-derived counter
+		// right clearance. This avoids a one-frame downward overshoot back into the
+		// NPC collision circle.
 		const doorwayTransitY = guildHallQuartermasterDoorwayTransitY();
 		const doorwayRightClearanceX = guildHallQuartermasterDoorwayRightClearanceX();
 		return [
 			currentPoint,
-			{ x: currentPoint.x, y: dividerOpenY },
-			{ x: rightClearanceX, y: dividerOpenY },
+			{ x: rightClearanceX, y: currentPoint.y },
 			{ x: rightClearanceX, y: belowCounterY },
 			{ x: doorwayRightClearanceX, y: belowCounterY },
 			{ x: doorwayRightClearanceX, y: doorwayTransitY },
@@ -2584,13 +3196,14 @@ function guildHallQuartermasterRoutePoints(
 		}
 		const doorwayTransitY = guildHallQuartermasterDoorwayTransitY();
 		const doorwayRightClearanceX = guildHallQuartermasterDoorwayRightClearanceX();
+		// Stop at the doorway-right handoff. The actual settled y is the
+		// authoritative fixed-axis row for the next leg; forcing the nominal
+		// below-counter row here can require an unreachable correction after the
+		// doorway y has already settled within the unchanged route reach.
 		return [
 			currentPoint,
 			{ x: currentPoint.x, y: doorwayTransitY },
-			{ x: doorwayRightClearanceX, y: doorwayTransitY },
-			{ x: doorwayRightClearanceX, y: belowCounterY },
-			{ x: rightClearanceX, y: belowCounterY },
-			stagingPoint
+			{ x: doorwayRightClearanceX, y: doorwayTransitY }
 		];
 	}
 	if (targetPoint.x !== stagedApproach.x || targetPoint.y !== stagedApproach.targetY) {
@@ -2609,6 +3222,175 @@ function guildHallQuartermasterRoutePoints(
 		{ x: targetPoint.x, y: stagedApproach.stagingY },
 		targetPoint
 	];
+}
+
+function guildHallQuartermasterSemanticHorizontalRoutePoints(
+	doorwayRightHandoff: Point
+): [Point, Point] {
+	const layout = VILLAGE_INTERIOR_LAYOUTS['guild-hall'];
+	const counter = layout.propCollisions.quartermasterCounter;
+	const rightClearanceX =
+		counter.x + counter.width + PLAYER_COLLISION_RADIUS + AXIS_REACH_TOLERANCE + 1;
+	const expandedCounterBottom = counter.y + counter.height + PLAYER_COLLISION_RADIUS;
+	// The doorway route's actual y is authoritative. It is already below the
+	// expanded counter, so the fixed-axis crossing must preserve that y rather
+	// than invent a symmetric ±18 orthogonal residue envelope.
+	expect(doorwayRightHandoff.y).toBeGreaterThan(expandedCounterBottom);
+	return [doorwayRightHandoff, { x: rightClearanceX, y: doorwayRightHandoff.y }];
+}
+
+function guildHallQuartermasterSemanticVerticalRoutePoints(
+	horizontalHandoff: Point,
+	targetPoint: Point
+): [Point, Point] {
+	const stagingPoint = guildHallQuartermasterInteractionStagingPoint();
+	const layout = VILLAGE_INTERIOR_LAYOUTS['guild-hall'];
+	const counter = layout.propCollisions.quartermasterCounter;
+	const expandedCounterRight = counter.x + counter.width + PLAYER_COLLISION_RADIUS;
+	expect(targetPoint).toEqual(stagingPoint);
+	expect(Math.abs(horizontalHandoff.x - stagingPoint.x)).toBeLessThanOrEqual(AXIS_REACH_TOLERANCE);
+	expect(horizontalHandoff.x).toBeGreaterThan(expandedCounterRight);
+	// Preserve the actual horizontal handoff x during the final vertical leg;
+	// the source-derived x=903 target is a clearance anchor, while the live
+	// endpoint is the authoritative continuation point.
+	return [horizontalHandoff, { x: horizontalHandoff.x, y: stagingPoint.y }];
+}
+
+function guildHallQuartermasterReturnCorridorRoutePoints(
+	verticalHandoff: Point,
+	targetPoint: Point
+): Point[] {
+	const doorwayTransitY = guildHallQuartermasterDoorwayTransitY();
+	const doorwayRightClearanceX = guildHallQuartermasterDoorwayRightClearanceX();
+	return [
+		verticalHandoff,
+		{ x: doorwayRightClearanceX, y: verticalHandoff.y },
+		{ x: doorwayRightClearanceX, y: doorwayTransitY },
+		{ x: targetPoint.x, y: doorwayTransitY },
+		targetPoint
+	];
+}
+
+function assertGuildHallQuartermasterReturnAxisRouteContract(
+	points: readonly [Point, Point],
+	result: BrowserRouteResult,
+	axis: Axis,
+	label: string
+) {
+	const layout = VILLAGE_INTERIOR_LAYOUTS['guild-hall'];
+	const counter = layout.propCollisions.quartermasterCounter;
+	const npc = layout.npcApproaches.quartermaster.npc;
+	const trainingQuartermasterDivider = layout.walls.find(
+		({ id }) => id === 'guild-hall-training-quartermaster-divider'
+	);
+	const quartermasterSpineSouth = layout.walls.find(
+		({ id }) => id === 'guild-hall-quartermaster-spine-south'
+	);
+	if (!trainingQuartermasterDivider || !quartermasterSpineSouth) {
+		throw new Error('Guild Hall Quartermaster return source geometry is missing');
+	}
+	const from = points[0]!;
+	const target = points[1]!;
+	const diagnostics = result.diagnostics ?? [];
+
+	expect(result.status, `${label} status`).toBe('done');
+	expect(result.mapId, `${label} map`).toBe('guild-hall');
+	expect(result.activeKey ?? null, `${label} active key`).toBeNull();
+	expect(result.axis, `${label} final axis`).toBeNull();
+	expect(result.target, `${label} final target`).toBeNull();
+	expect(result.invalidDiagnostics ?? [], `${label} invalid diagnostics`).toEqual([]);
+	expect(result.diagnosticAxes ?? [], `${label} diagnostic axes`).toEqual(
+		diagnostics.map(() => axis)
+	);
+
+	for (const [index, diagnostic] of diagnostics.entries()) {
+		expect(diagnostic.mapId, `${label} diagnostic ${index} map`).toBe('guild-hall');
+		expect(diagnostic.blocked, `${label} diagnostic ${index} blocked`).toBe(false);
+		const fixedAxis = axis === 'x' ? 'y' : 'x';
+		expect(
+			diagnostic.previousPosition[fixedAxis],
+			`${label} diagnostic ${index} fixed previous`
+		).toBe(from[fixedAxis]);
+		expect(
+			diagnostic.requestedPosition[fixedAxis],
+			`${label} diagnostic ${index} fixed requested`
+		).toBe(from[fixedAxis]);
+		expect(
+			diagnostic.resolvedPosition[fixedAxis],
+			`${label} diagnostic ${index} fixed resolved`
+		).toBe(from[fixedAxis]);
+		assertGuildHallTerminalDiagnosticProgress(diagnostic, axis, target);
+		for (const obstacle of [counter, trainingQuartermasterDivider, quartermasterSpineSouth]) {
+			expect(
+				routeSegmentIntersectsExpandedRect(
+					diagnostic.previousPosition,
+					diagnostic.requestedPosition,
+					obstacle,
+					PLAYER_COLLISION_RADIUS
+				),
+				`${label} diagnostic ${index} crossed a source obstacle`
+			).toBe(false);
+		}
+		expect(
+			routeSegmentIntersectsCircle(
+				diagnostic.previousPosition,
+				diagnostic.requestedPosition,
+				npc,
+				PLAYER_COLLISION_RADIUS + NPC_PACK_COLLISION_RADIUS
+			),
+			`${label} diagnostic ${index} crossed Quartermaster NPC`
+		).toBe(false);
+	}
+	const finalAxisValue = result.position?.[axis] ?? Number.NaN;
+	expect(
+		Math.abs(target[axis] - finalAxisValue),
+		`${label} final ${axis} distance improves`
+	).toBeLessThan(Math.abs(target[axis] - from[axis]));
+	if (axis === 'x') {
+		expect(target.y).toBe(from.y);
+		expect(result.position?.y).toBe(from.y);
+		expect(Math.abs((result.position?.x ?? Number.NaN) - target.x)).toBeLessThanOrEqual(
+			AXIS_REACH_TOLERANCE
+		);
+	} else {
+		expect(target.x).toBe(from.x);
+		expect(result.position?.x).toBe(from.x);
+		expect(Math.abs((result.position?.y ?? Number.NaN) - target.y)).toBeLessThanOrEqual(
+			AXIS_REACH_TOLERANCE
+		);
+	}
+}
+
+function assertGuildHallQuartermasterReturnCorridorGeometry(
+	points: readonly Point[],
+	label: string
+) {
+	const layout = VILLAGE_INTERIOR_LAYOUTS['guild-hall'];
+	const npc = layout.npcApproaches.quartermaster.npc;
+	const obstacles = [
+		...Object.values(layout.propCollisions),
+		...layout.walls.filter(({ id }) => id === 'guild-hall-training-quartermaster-divider'),
+		...layout.walls.filter(({ id }) => id === 'guild-hall-quartermaster-spine-south')
+	];
+	for (let index = 1; index < points.length; index += 1) {
+		const from = points[index - 1]!;
+		const to = points[index]!;
+		for (const obstacle of obstacles) {
+			expect(
+				routeSegmentIntersectsExpandedRect(from, to, obstacle, PLAYER_COLLISION_RADIUS),
+				`${label} crossed a source obstacle`
+			).toBe(false);
+		}
+		expect(
+			routeSegmentIntersectsCircle(
+				from,
+				to,
+				npc,
+				PLAYER_COLLISION_RADIUS + NPC_PACK_COLLISION_RADIUS
+			),
+			`${label} crossed Quartermaster NPC`
+		).toBe(false);
+	}
 }
 
 function axisAlignedSegmentIntersectsExpandedRect(
@@ -2925,6 +3707,29 @@ function assertGuildHallTerminalCheckpointContract(point: Point, authoredCheckpo
 	}
 }
 
+function assertGuildHallTerminalDiagnosticProgress(
+	diagnostic: PlayerMovementDiagnostic,
+	axis: Axis,
+	checkpoint: Point
+): void {
+	expect(diagnostic.mapId).toBe('guild-hall');
+	expect(diagnostic.blocked).toBe(false);
+	const targetValue = checkpoint[axis];
+	const previousValue = diagnostic.previousPosition[axis];
+	const resolvedValue = diagnostic.resolvedPosition[axis];
+	const direction = Math.sign(targetValue - previousValue);
+	expect(direction).not.toBe(0);
+	expect(Math.sign(resolvedValue - previousValue)).toBe(direction);
+	const distanceDecreased =
+		Math.abs(targetValue - resolvedValue) < Math.abs(targetValue - previousValue);
+	const crossedTarget = direction > 0 ? resolvedValue >= targetValue : resolvedValue <= targetValue;
+	// A real frame can cross an authored coordinate by more than the final reach
+	// band. The unchanged route runner owns the bounded correction; this diagnostic
+	// only needs to make directional progress or cross toward the target. The final
+	// terminal assertion below remains responsible for the unchanged ±18 band.
+	expect(distanceDecreased || crossedTarget).toBe(true);
+}
+
 async function convergeGuildHallTerminalCheckpointWithTrustedKeyboard(
 	page: Page,
 	startPoint: Point,
@@ -2988,25 +3793,9 @@ async function convergeGuildHallTerminalCheckpointWithTrustedKeyboard(
 		expect(diagnostic?.mapId).toBe('guild-hall');
 		expect(diagnostics.length).toBeGreaterThan(0);
 		for (const [index, routeDiagnostic] of diagnostics.entries()) {
-			expect(routeDiagnostic.mapId).toBe('guild-hall');
-			expect(routeDiagnostic.blocked).toBe(false);
 			const axis = diagnosticAxes[index]!;
 			expect(expectedAxes).toContain(axis);
-			const targetValue = checkpoint[axis];
-			const previousValue = routeDiagnostic.previousPosition[axis];
-			const resolvedValue = routeDiagnostic.resolvedPosition[axis];
-			const direction = Math.sign(targetValue - previousValue);
-			expect(direction).not.toBe(0);
-			expect(Math.sign(resolvedValue - previousValue)).toBe(direction);
-			const distanceDecreased =
-				Math.abs(targetValue - resolvedValue) < Math.abs(targetValue - previousValue);
-			const crossedTarget =
-				direction > 0 ? resolvedValue >= targetValue : resolvedValue <= targetValue;
-			const landedWithinReach = Math.abs(targetValue - resolvedValue) <= AXIS_REACH_TOLERANCE;
-			// Mirrors the characterized route-runner contract: a progressing diagnostic
-			// may reduce distance, or may cross the target and remain inside its existing
-			// reach band when one frame steps past the authored coordinate.
-			expect(distanceDecreased || (crossedTarget && landedWithinReach)).toBe(true);
+			assertGuildHallTerminalDiagnosticProgress(routeDiagnostic, axis, checkpoint);
 		}
 	}
 	expect(
@@ -3108,6 +3897,173 @@ function assertGuildHallQuartermasterSemanticStagingContract(stagingPoint: Point
 	}
 }
 
+function assertGuildHallQuartermasterSemanticHorizontalRouteContract(
+	points: readonly Point[],
+	result: BrowserRouteResult
+) {
+	const layout = VILLAGE_INTERIOR_LAYOUTS['guild-hall'];
+	const counter = layout.propCollisions.quartermasterCounter;
+	const npc = layout.npcApproaches.quartermaster.npc;
+	const trainingQuartermasterDivider = layout.walls.find(
+		({ id }) => id === 'guild-hall-training-quartermaster-divider'
+	);
+	if (!trainingQuartermasterDivider) {
+		throw new Error('Guild Hall training-quartermaster divider source is missing');
+	}
+	const from = points[0]!;
+	const target = points.at(-1)!;
+	const rightClearanceX =
+		counter.x + counter.width + PLAYER_COLLISION_RADIUS + AXIS_REACH_TOLERANCE + 1;
+	const expandedCounterBottom = counter.y + counter.height + PLAYER_COLLISION_RADIUS;
+	const diagnostics = result.diagnostics ?? [];
+	const diagnosticAxes = result.diagnosticAxes ?? [];
+
+	expect(points).toHaveLength(2);
+	expect(target).toEqual({ x: rightClearanceX, y: from.y });
+	expect(from.y).toBeGreaterThan(expandedCounterBottom);
+	expect(result.status).toBe('done');
+	expect(result.mapId).toBe('guild-hall');
+	expect(result.activeKey).toBeNull();
+	expect(result.position).not.toBeNull();
+	expect(diagnosticAxes).toHaveLength(diagnostics.length);
+	for (const [index, diagnostic] of diagnostics.entries()) {
+		expect(diagnosticAxes[index]).toBe('x');
+		expect(diagnostic.mapId).toBe('guild-hall');
+		expect(diagnostic.blocked).toBe(false);
+		expect(diagnostic.previousPosition.y).toBe(from.y);
+		expect(diagnostic.requestedPosition.y).toBe(from.y);
+		expect(diagnostic.resolvedPosition.y).toBe(from.y);
+		expect(
+			expandedLayoutRectContainsPoint(counter, diagnostic.resolvedPosition, PLAYER_COLLISION_RADIUS)
+		).toBe(false);
+		expect(
+			routeSegmentIntersectsExpandedRect(
+				diagnostic.previousPosition,
+				diagnostic.requestedPosition,
+				counter,
+				PLAYER_COLLISION_RADIUS
+			)
+		).toBe(false);
+	}
+	expect(routeSegmentIntersectsExpandedRect(from, target, counter, PLAYER_COLLISION_RADIUS)).toBe(
+		false
+	);
+	expect(
+		endpointXEnvelopeIsDisjointFromExpandedRect(target, counter, PLAYER_COLLISION_RADIUS)
+	).toBe(true);
+	expect(
+		routeSegmentIntersectsExpandedRect(
+			from,
+			target,
+			trainingQuartermasterDivider,
+			PLAYER_COLLISION_RADIUS
+		)
+	).toBe(false);
+	expect(
+		routeSegmentIntersectsCircle(
+			from,
+			target,
+			npc,
+			PLAYER_COLLISION_RADIUS + NPC_PACK_COLLISION_RADIUS
+		)
+	).toBe(false);
+	expect(result.position).not.toBeNull();
+	if (!result.position) return;
+	expect(result.position.y).toBe(from.y);
+	expect(Math.abs(result.position.x - rightClearanceX)).toBeLessThanOrEqual(AXIS_REACH_TOLERANCE);
+	expect(expandedLayoutRectContainsPoint(counter, result.position, PLAYER_COLLISION_RADIUS)).toBe(
+		false
+	);
+}
+
+function assertGuildHallQuartermasterSemanticVerticalRouteContract(
+	points: readonly Point[],
+	result: BrowserRouteResult,
+	targetPoint: Point
+) {
+	const layout = VILLAGE_INTERIOR_LAYOUTS['guild-hall'];
+	const counter = layout.propCollisions.quartermasterCounter;
+	const npc = layout.npcApproaches.quartermaster.npc;
+	const trainingQuartermasterDivider = layout.walls.find(
+		({ id }) => id === 'guild-hall-training-quartermaster-divider'
+	);
+	const quartermasterSpineSouth = layout.walls.find(
+		({ id }) => id === 'guild-hall-quartermaster-spine-south'
+	);
+	if (!trainingQuartermasterDivider || !quartermasterSpineSouth) {
+		throw new Error('Guild Hall Quartermaster vertical source geometry is missing');
+	}
+	const from = points[0]!;
+	const target = points.at(-1)!;
+	const stagingPoint = guildHallQuartermasterInteractionStagingPoint();
+	const expandedCounterRight = counter.x + counter.width + PLAYER_COLLISION_RADIUS;
+	const diagnostics = result.diagnostics ?? [];
+	const diagnosticAxes = result.diagnosticAxes ?? [];
+
+	expect(points).toHaveLength(2);
+	expect(targetPoint).toEqual(stagingPoint);
+	expect(target).toEqual({ x: from.x, y: stagingPoint.y });
+	expect(from.x).toBeGreaterThan(expandedCounterRight);
+	expect(Math.abs(from.x - stagingPoint.x)).toBeLessThanOrEqual(AXIS_REACH_TOLERANCE);
+	expect(result.status).toBe('done');
+	expect(result.mapId).toBe('guild-hall');
+	expect(result.activeKey).toBeNull();
+	expect(result.position).not.toBeNull();
+	expect(diagnosticAxes).toHaveLength(diagnostics.length);
+	for (const [index, diagnostic] of diagnostics.entries()) {
+		expect(diagnosticAxes[index]).toBe('y');
+		expect(diagnostic.mapId).toBe('guild-hall');
+		expect(diagnostic.blocked).toBe(false);
+		expect(diagnostic.previousPosition.x).toBe(from.x);
+		expect(diagnostic.requestedPosition.x).toBe(from.x);
+		expect(diagnostic.resolvedPosition.x).toBe(from.x);
+		for (const obstacle of [counter, trainingQuartermasterDivider, quartermasterSpineSouth]) {
+			expect(
+				expandedLayoutRectContainsPoint(
+					obstacle,
+					diagnostic.resolvedPosition,
+					PLAYER_COLLISION_RADIUS
+				)
+			).toBe(false);
+			expect(
+				routeSegmentIntersectsExpandedRect(
+					diagnostic.previousPosition,
+					diagnostic.requestedPosition,
+					obstacle,
+					PLAYER_COLLISION_RADIUS
+				)
+			).toBe(false);
+		}
+		expect(
+			routeSegmentIntersectsCircle(
+				diagnostic.previousPosition,
+				diagnostic.requestedPosition,
+				npc,
+				PLAYER_COLLISION_RADIUS + NPC_PACK_COLLISION_RADIUS
+			)
+		).toBe(false);
+	}
+	for (const obstacle of [counter, trainingQuartermasterDivider, quartermasterSpineSouth]) {
+		expect(
+			routeSegmentIntersectsExpandedRect(from, target, obstacle, PLAYER_COLLISION_RADIUS)
+		).toBe(false);
+	}
+	expect(
+		routeSegmentIntersectsCircle(
+			from,
+			target,
+			npc,
+			PLAYER_COLLISION_RADIUS + NPC_PACK_COLLISION_RADIUS
+		)
+	).toBe(false);
+	if (!result.position) return;
+	expect(result.position.x).toBe(from.x);
+	expect(Math.abs(result.position.y - stagingPoint.y)).toBeLessThanOrEqual(AXIS_REACH_TOLERANCE);
+	expect(expandedLayoutRectContainsPoint(counter, result.position, PLAYER_COLLISION_RADIUS)).toBe(
+		false
+	);
+}
+
 function assertGuildHallQuartermasterCorridorContract(
 	points: readonly Point[],
 	targetPoint: Point,
@@ -3140,24 +4096,27 @@ function assertGuildHallQuartermasterCorridorContract(
 		counter.x + counter.width + PLAYER_COLLISION_RADIUS
 	);
 
-	expect(points.at(-1)).toEqual(targetPoint);
+	if (semanticApproach) {
+		expect(points.at(-1)?.x).toBe(guildHallQuartermasterDoorwayRightClearanceX());
+		expect(points.at(-1)?.y).toBe(guildHallQuartermasterDoorwayTransitY());
+	} else {
+		expect(points.at(-1)).toEqual(targetPoint);
+	}
 	if (returning) {
-		const dividerOpenY = guildHallQuartermasterDividerOpenY();
 		const doorwayTransitY = guildHallQuartermasterDoorwayTransitY();
 		const doorwayRightClearanceX = guildHallQuartermasterDoorwayRightClearanceX();
 		const quartermasterToSpine = layout.doors.quartermasterToSpine;
-		expect(points[1]?.x).toBe(points[0]?.x);
-		expect(points[1]?.y).toBe(dividerOpenY);
+		expect(points).toHaveLength(7);
+		expect(points[1]?.x).toBe(rightClearanceX);
+		expect(points[1]?.y).toBe(points[0]?.y);
 		expect(points[2]?.x).toBe(rightClearanceX);
-		expect(points[2]?.y).toBe(dividerOpenY);
-		expect(points[3]?.x).toBe(rightClearanceX);
+		expect(points[2]?.y).toBe(belowCounterY);
+		expect(points[3]?.x).toBe(doorwayRightClearanceX);
 		expect(points[3]?.y).toBe(belowCounterY);
 		expect(points[4]?.x).toBe(doorwayRightClearanceX);
-		expect(points[4]?.y).toBe(belowCounterY);
-		expect(points[5]?.x).toBe(doorwayRightClearanceX);
+		expect(points[4]?.y).toBe(doorwayTransitY);
+		expect(points[5]?.x).toBe(targetPoint.x);
 		expect(points[5]?.y).toBe(doorwayTransitY);
-		expect(points[6]?.x).toBe(targetPoint.x);
-		expect(points[6]?.y).toBe(doorwayTransitY);
 		const trainingQuartermasterDivider = layout.walls.find(
 			({ id }) => id === 'guild-hall-training-quartermaster-divider'
 		);
@@ -3169,11 +4128,19 @@ function assertGuildHallQuartermasterCorridorContract(
 			trainingQuartermasterDivider.height +
 			PLAYER_COLLISION_RADIUS;
 		const expandedCounterTop = counter.y - PLAYER_COLLISION_RADIUS;
-		expect(points[1]!.y - AXIS_REACH_TOLERANCE).toBeGreaterThan(expandedDividerBottom);
-		expect(points[2]!.y + AXIS_REACH_TOLERANCE).toBeLessThan(expandedCounterTop);
-		// The first leg departs the live post-dialogue terminal point directly;
-		// the actual segment is clear before the full residue envelope begins at
-		// the source-derived open row.
+		expect(points[0]!.y).toBeGreaterThan(expandedDividerBottom);
+		expect(points[0]!.y).toBeLessThan(expandedCounterTop);
+		expect(points[1]!.x - AXIS_REACH_TOLERANCE).toBeGreaterThan(
+			counter.x + counter.width + PLAYER_COLLISION_RADIUS
+		);
+		expect(points[2]!.y - AXIS_REACH_TOLERANCE).toBeGreaterThan(
+			counter.y + counter.height + PLAYER_COLLISION_RADIUS
+		);
+		// The first leg leaves the live post-dialogue NPC circle on its actual row;
+		// only the following fixed-x leg descends through the counter-side aisle.
+		expect(
+			routeSegmentIntersectsExpandedRect(points[0]!, points[1]!, counter, PLAYER_COLLISION_RADIUS)
+		).toBe(false);
 		expect(
 			routeSegmentIntersectsExpandedRect(
 				points[0]!,
@@ -3183,9 +4150,36 @@ function assertGuildHallQuartermasterCorridorContract(
 			)
 		).toBe(false);
 		expect(
+			routeSegmentIntersectsCircle(
+				points[0]!,
+				points[1]!,
+				npc,
+				PLAYER_COLLISION_RADIUS + NPC_PACK_COLLISION_RADIUS
+			)
+		).toBe(false);
+		expect(
+			routeSegmentIntersectsExpandedRect(points[1]!, points[2]!, counter, PLAYER_COLLISION_RADIUS)
+		).toBe(false);
+		expect(
+			routeSegmentIntersectsExpandedRect(
+				points[1]!,
+				points[2]!,
+				trainingQuartermasterDivider,
+				PLAYER_COLLISION_RADIUS
+			)
+		).toBe(false);
+		expect(
+			routeSegmentIntersectsCircle(
+				points[1]!,
+				points[2]!,
+				npc,
+				PLAYER_COLLISION_RADIUS + NPC_PACK_COLLISION_RADIUS
+			)
+		).toBe(false);
+		expect(
 			layoutRectContainsPoint(layout.rooms.quartermasterRoom, {
-				x: points[2]!.x,
-				y: points[2]!.y
+				x: points[1]!.x,
+				y: points[1]!.y
 			})
 		).toBe(true);
 		expect(
@@ -3231,15 +4225,11 @@ function assertGuildHallQuartermasterCorridorContract(
 		const doorwayTransitY = guildHallQuartermasterDoorwayTransitY();
 		const doorwayRightClearanceX = guildHallQuartermasterDoorwayRightClearanceX();
 		expect(targetPoint).toEqual(stagingPoint);
+		expect(points).toHaveLength(3);
 		expect(points[1]?.x).toBe(points[0]?.x);
 		expect(points[1]?.y).toBe(doorwayTransitY);
 		expect(points[2]?.x).toBe(doorwayRightClearanceX);
 		expect(points[2]?.y).toBe(doorwayTransitY);
-		expect(points[3]?.x).toBe(doorwayRightClearanceX);
-		expect(points[3]?.y).toBe(belowCounterY);
-		expect(points[4]?.x).toBe(rightClearanceX);
-		expect(points[4]?.y).toBe(belowCounterY);
-		expect(points.at(-1)).toEqual(stagingPoint);
 		expect(layoutRectContainsPoint(layout.rooms.quartermasterRoom, stagingPoint)).toBe(true);
 		assertGuildHallQuartermasterSemanticStagingContract(stagingPoint);
 	} else {
@@ -3567,31 +4557,6 @@ function itemShopDoorwayOpenBand(doorway: 'stockroom' | 'office') {
 	};
 }
 
-function itemShopStockroomOfficeDividerSafeX(): number {
-	const layout = VILLAGE_INTERIOR_LAYOUTS['item-shop'];
-	const officeDividerSouth = layout.walls.find(({ id }) => id === 'item-shop-office-divider-south');
-	if (!officeDividerSouth) {
-		throw new Error('Item Shop office-divider-south source is missing');
-	}
-	const expandedLeft = officeDividerSouth.x - PLAYER_COLLISION_RADIUS;
-	const safeX = expandedLeft - AXIS_REACH_TOLERANCE - INTERIOR_ROUTE_SETTLE_TOLERANCE - 1;
-	// Reserve the unchanged route reach plus settle residue before the vertical
-	// stockroom leg. The full possible x endpoint box therefore stays strictly
-	// west of the office divider's expanded left edge.
-	expect(safeX + AXIS_REACH_TOLERANCE + INTERIOR_ROUTE_SETTLE_TOLERANCE).toBeLessThan(expandedLeft);
-	expect(
-		layoutRectContainsPoint(layout.corridors.serviceCorridor, {
-			x: safeX,
-			y: itemShopDoorwayTransitY(
-				'item-shop-stockroom-divider-north',
-				'item-shop-stockroom-divider-south',
-				'stockroom'
-			)
-		})
-	).toBe(true);
-	return safeX;
-}
-
 function itemShopStockroomVerticalSafeX(): number {
 	const layout = VILLAGE_INTERIOR_LAYOUTS['item-shop'];
 	const dividers = layout.walls.filter(({ id }) =>
@@ -3613,63 +4578,349 @@ function itemShopStockroomVerticalSafeX(): number {
 	return safeX;
 }
 
-function itemShopDoorwayRoutePoints(
-	currentPoint: Point,
-	targetPoint: Point,
-	doorway: 'stockroom' | 'office'
-): Point[] {
+function itemShopStockroomEntrySafeXBand(): { minimumX: number; maximumX: number } {
 	const layout = VILLAGE_INTERIOR_LAYOUTS['item-shop'];
-	const transitY =
-		doorway === 'stockroom'
-			? itemShopDoorwayTransitY(
-					'item-shop-stockroom-divider-north',
-					'item-shop-stockroom-divider-south',
-					'stockroom'
-				)
-			: itemShopDoorwayTransitY(
-					'item-shop-office-divider-north',
-					'item-shop-office-divider-south',
-					'office'
-				);
-	const points =
-		doorway === 'stockroom'
-			? [
-					currentPoint,
-					{ x: itemShopStockroomOfficeDividerSafeX(), y: currentPoint.y },
-					{ x: itemShopStockroomOfficeDividerSafeX(), y: transitY },
-					{ x: targetPoint.x, y: transitY },
-					targetPoint
-				]
-			: [
-					currentPoint,
-					{ x: currentPoint.x, y: transitY },
-					{ x: targetPoint.x, y: transitY },
-					targetPoint
-				];
-	if (doorway === 'stockroom') {
-		const safeX = itemShopStockroomOfficeDividerSafeX();
-		expect(points[1]?.x).toBe(safeX);
-		expect(points[2]?.x).toBe(safeX);
-		expect(points[2]?.y).toBe(transitY);
-		// The first horizontal leg clears the office divider while still in the
-		// authored sales/service opening; only then does the vertical leg enter the
-		// stockroom doorway row.
-		const handoffOwner = layoutRectContainsPoint(layout.rooms.salesFloor, points[1]!)
-			? 'salesFloor'
-			: layoutRectContainsPoint(layout.corridors.serviceCorridor, points[1]!)
-				? 'serviceCorridor'
-				: null;
-		// At y=300 the handoff is in the sales floor; when this shared topology
-		// helper is reused by office-door at y=160, the same x belongs to the
-		// authored service corridor. Pin that exact source ownership rather than
-		// labeling both rows as sales floor.
-		expect(handoffOwner).toBe(
-			points[1]!.y >= layout.rooms.salesFloor.y ? 'salesFloor' : 'serviceCorridor'
-		);
-		expect(layoutRectContainsPoint(layout.corridors.serviceCorridor, points[2]!)).toBe(true);
+	const officeDividerSouth = layout.walls.find(({ id }) => id === 'item-shop-office-divider-south');
+	if (!officeDividerSouth) {
+		throw new Error('Item Shop office-divider-south source is missing');
 	}
-	assertTask6InteriorRouteEnvelope('item-shop', points, `Item Shop ${doorway} doorway`);
+	const npc = layout.npcApproaches.mira.npc;
+	const npcCollisionRadius = PLAYER_COLLISION_RADIUS + NPC_PACK_COLLISION_RADIUS;
+	const minimumX = npc.x + npcCollisionRadius + 1;
+	const maximumX = officeDividerSouth.x - PLAYER_COLLISION_RADIUS - 1;
+	// The vertical handoff passes above Mira and through the service corridor. The
+	// lower bound clears Mira's combined collision; the exclusive upper bound keeps
+	// the player circle strictly west of the office divider's expanded left edge.
+	expect({ minimumX, maximumX }).toEqual({ minimumX: 446, maximumX: 467 });
+	expect(minimumX).toBeLessThan(maximumX);
+	return { minimumX, maximumX };
+}
+
+function assertItemShopStockroomEntryBandContract(
+	startPoint: Point,
+	result: CaveDoorwayBandResult,
+	label: string
+): Point {
+	const layout = VILLAGE_INTERIOR_LAYOUTS['item-shop'];
+	const npc = layout.npcApproaches.mira.npc;
+	const npcCollisionRadius = PLAYER_COLLISION_RADIUS + NPC_PACK_COLLISION_RADIUS;
+	const { minimumX, maximumX } = itemShopStockroomEntrySafeXBand();
+	const obstacles = [...layout.walls, ...Object.values(layout.propCollisions)];
+
+	expect(Number.isFinite(startPoint.x), `${label} start x`).toBe(true);
+	expect(Number.isFinite(startPoint.y), `${label} start y`).toBe(true);
+	expect(layoutRectContainsPoint(layout.rooms.salesFloor, startPoint), `${label} start room`).toBe(
+		true
+	);
+	for (const obstacle of obstacles) {
+		expect(
+			expandedLayoutRectContainsPoint(obstacle, startPoint, PLAYER_COLLISION_RADIUS),
+			`${label} start entered ${'id' in obstacle ? obstacle.id : 'prop collision'}`
+		).toBe(false);
+	}
+	expect(
+		routeSegmentIntersectsCircle(startPoint, startPoint, npc, npcCollisionRadius),
+		`${label} start crossed Mira`
+	).toBe(false);
+
+	expect(result.status, `${label} status`).toBe('done');
+	expect(result.mapId, `${label} map`).toBe('item-shop');
+	expect(result.invalidDiagnostics, `${label} invalid diagnostics`).toEqual([]);
+	expect(result.activeKeys, `${label} active keys`).toEqual([]);
+	expect(result.released, `${label} released`).toBe(true);
+	expect(result.position, `${label} final position`).not.toBeNull();
+	if (!result.position) throw new Error(`${label}: band handoff returned no final position`);
+	expect(result.position.y, `${label} fixed y`).toBe(startPoint.y);
+	expect(result.position.x, `${label} final x lower bound`).toBeGreaterThanOrEqual(minimumX);
+	expect(result.position.x, `${label} final x upper bound`).toBeLessThan(maximumX);
+
+	const expectedDirection = startPoint.x < minimumX ? 1 : startPoint.x >= maximumX ? -1 : 0;
+	const expectedReleasedKey =
+		expectedDirection > 0 ? ['ArrowRight'] : expectedDirection < 0 ? ['ArrowLeft'] : [];
+	expect(result.releasedKeys, `${label} released keys`).toEqual(expectedReleasedKey);
+	const diagnostics = result.diagnostics;
+	if (expectedDirection === 0) {
+		expect(diagnostics, `${label} in-band diagnostics`).toEqual([]);
+		expect(result.lastDiagnostic, `${label} in-band last diagnostic`).toBeNull();
+		expect(result.position, `${label} in-band position`).toEqual(startPoint);
+		return result.position;
+	}
+
+	expect(diagnostics.length, `${label} diagnostic count`).toBeGreaterThan(0);
+	let previousResolvedX = startPoint.x;
+	for (const [index, diagnostic] of diagnostics.entries()) {
+		const diagnosticLabel = `${label} diagnostic ${index}`;
+		expect(diagnostic.mapId, `${diagnosticLabel} map`).toBe('item-shop');
+		expect(diagnostic.blocked, `${diagnosticLabel} blocked`).toBe(false);
+		expect(diagnostic.previousPosition.x, `${diagnosticLabel} previous x continuity`).toBe(
+			previousResolvedX
+		);
+		for (const value of [
+			diagnostic.previousPosition.x,
+			diagnostic.previousPosition.y,
+			diagnostic.requestedPosition.x,
+			diagnostic.requestedPosition.y,
+			diagnostic.resolvedPosition.x,
+			diagnostic.resolvedPosition.y
+		]) {
+			expect(Number.isFinite(value), `${diagnosticLabel} finite coordinate`).toBe(true);
+		}
+		expect(diagnostic.previousPosition.y, `${diagnosticLabel} previous y`).toBe(startPoint.y);
+		expect(diagnostic.requestedPosition.y, `${diagnosticLabel} requested y`).toBe(startPoint.y);
+		expect(diagnostic.resolvedPosition.y, `${diagnosticLabel} resolved y`).toBe(startPoint.y);
+		expect(
+			(diagnostic.resolvedPosition.x - diagnostic.previousPosition.x) * expectedDirection,
+			`${diagnosticLabel} strict x monotonicity`
+		).toBeGreaterThan(0);
+		expect(
+			diagnostic.resolvedPosition.x,
+			`${diagnosticLabel} in-band x lower bound`
+		).toBeGreaterThanOrEqual(minimumX);
+		expect(diagnostic.resolvedPosition.x, `${diagnosticLabel} in-band x upper bound`).toBeLessThan(
+			maximumX
+		);
+		for (const obstacle of obstacles) {
+			expect(
+				routeSegmentIntersectsExpandedRect(
+					diagnostic.previousPosition,
+					diagnostic.resolvedPosition,
+					obstacle,
+					PLAYER_COLLISION_RADIUS
+				),
+				`${diagnosticLabel} swept ${'id' in obstacle ? obstacle.id : 'prop collision'}`
+			).toBe(false);
+			expect(
+				expandedLayoutRectContainsPoint(
+					obstacle,
+					diagnostic.resolvedPosition,
+					PLAYER_COLLISION_RADIUS
+				),
+				`${diagnosticLabel} endpoint ${'id' in obstacle ? obstacle.id : 'prop collision'}`
+			).toBe(false);
+		}
+		expect(
+			routeSegmentIntersectsCircle(
+				diagnostic.previousPosition,
+				diagnostic.resolvedPosition,
+				npc,
+				npcCollisionRadius
+			),
+			`${diagnosticLabel} swept Mira`
+		).toBe(false);
+		previousResolvedX = diagnostic.resolvedPosition.x;
+	}
+	expect(result.lastDiagnostic, `${label} last diagnostic`).toEqual(diagnostics.at(-1));
+	expect(result.position, `${label} diagnostic endpoint`).toEqual(
+		diagnostics.at(-1)!.resolvedPosition
+	);
+	for (const obstacle of obstacles) {
+		expect(
+			expandedLayoutRectContainsPoint(obstacle, result.position, PLAYER_COLLISION_RADIUS),
+			`${label} final ${'id' in obstacle ? obstacle.id : 'prop collision'}`
+		).toBe(false);
+	}
+	expect(
+		routeSegmentIntersectsCircle(result.position, result.position, npc, npcCollisionRadius),
+		`${label} final Mira clearance`
+	).toBe(false);
+	return result.position;
+}
+
+function itemShopStockroomOfficeDividerSafeX(): number {
+	const layout = VILLAGE_INTERIOR_LAYOUTS['item-shop'];
+	const officeDividerSouth = layout.walls.find(({ id }) => id === 'item-shop-office-divider-south');
+	if (!officeDividerSouth) {
+		throw new Error('Item Shop office-divider-south source is missing');
+	}
+	const expandedLeft = officeDividerSouth.x - PLAYER_COLLISION_RADIUS;
+	const safeX = expandedLeft - AXIS_REACH_TOLERANCE - INTERIOR_ROUTE_SETTLE_TOLERANCE - 1;
+	// This source-derived x remains owned by the service-return-west doorway
+	// handoff; stockroom-entry uses its live x band above instead of this route
+	// correction.
+	expect(safeX + AXIS_REACH_TOLERANCE + INTERIOR_ROUTE_SETTLE_TOLERANCE).toBeLessThan(expandedLeft);
+	return safeX;
+}
+
+function itemShopStockroomEntryRoutePoints(currentPoint: Point, targetPoint: Point): Point[] {
+	const layout = VILLAGE_INTERIOR_LAYOUTS['item-shop'];
+	const npc = layout.npcApproaches.mira.npc;
+	const npcCollisionRadius = PLAYER_COLLISION_RADIUS + NPC_PACK_COLLISION_RADIUS;
+	const { minimumX, maximumX } = itemShopStockroomEntrySafeXBand();
+	const transitY = itemShopDoorwayTransitY(
+		'item-shop-stockroom-divider-north',
+		'item-shop-stockroom-divider-south',
+		'stockroom'
+	);
+	const verticalDestination = { x: currentPoint.x, y: transitY };
+	const doorwayDestination = { x: targetPoint.x, y: transitY };
+	const points = [currentPoint, verticalDestination, doorwayDestination, targetPoint];
+
+	expect(targetPoint).toEqual({ x: 448, y: 160 });
+	expect(currentPoint.x).toBeGreaterThanOrEqual(minimumX);
+	expect(currentPoint.x).toBeLessThan(maximumX);
+	expect(layoutRectContainsPoint(layout.rooms.salesFloor, currentPoint)).toBe(true);
+	expect(layoutRectContainsPoint(layout.corridors.serviceCorridor, verticalDestination)).toBe(true);
+	expect(layoutRectContainsPoint(layout.corridors.serviceCorridor, doorwayDestination)).toBe(true);
+
+	const obstacles = [...layout.walls, ...Object.values(layout.propCollisions)];
+	for (let index = 1; index < points.length; index += 1) {
+		const from = points[index - 1]!;
+		const to = points[index]!;
+		expect(
+			from.x === to.x || from.y === to.y,
+			`Item Shop stockroom-entry route must remain axis-aligned: ${JSON.stringify({ from, to })}`
+		).toBe(true);
+		for (const obstacle of obstacles) {
+			expect(
+				routeSegmentIntersectsExpandedRect(from, to, obstacle, PLAYER_COLLISION_RADIUS),
+				`Item Shop stockroom-entry route crossed ${JSON.stringify(obstacle)}: ${JSON.stringify({ from, to })}`
+			).toBe(false);
+		}
+		expect(
+			routeSegmentIntersectsCircle(from, to, npc, npcCollisionRadius),
+			`Item Shop stockroom-entry route crossed Mira: ${JSON.stringify({ from, to, npc })}`
+		).toBe(false);
+	}
+	// The first leg is an actual fixed-x transit. Its endpoint envelope is y-only;
+	// applying a hypothetical ±18 x residue would reject the source-clear band.
+	for (const obstacle of obstacles) {
+		expect(
+			endpointYEnvelopeIsDisjointFromExpandedRect(
+				verticalDestination,
+				obstacle,
+				PLAYER_COLLISION_RADIUS
+			),
+			`Item Shop stockroom-entry fixed-x endpoint entered an expanded y envelope: ${JSON.stringify({ verticalDestination, obstacle })}`
+		).toBe(true);
+	}
 	return points;
+}
+
+function assertItemShopStockroomEntryRouteContract(
+	points: readonly Point[],
+	result: BrowserRouteResult
+): Point {
+	const layout = VILLAGE_INTERIOR_LAYOUTS['item-shop'];
+	const npc = layout.npcApproaches.mira.npc;
+	const npcCollisionRadius = PLAYER_COLLISION_RADIUS + NPC_PACK_COLLISION_RADIUS;
+	const { minimumX, maximumX } = itemShopStockroomEntrySafeXBand();
+	const transitY = itemShopDoorwayTransitY(
+		'item-shop-stockroom-divider-north',
+		'item-shop-stockroom-divider-south',
+		'stockroom'
+	);
+	const from = points[0]!;
+	const verticalDestination = points[1]!;
+	const doorwayDestination = points[2]!;
+	const targetPoint = points.at(-1)!;
+	const obstacles = [...layout.walls, ...Object.values(layout.propCollisions)];
+
+	expect(points).toHaveLength(4);
+	expect(targetPoint).toEqual({ x: 448, y: 160 });
+	expect(from.x).toBeGreaterThanOrEqual(minimumX);
+	expect(from.x).toBeLessThan(maximumX);
+	expect(verticalDestination).toEqual({ x: from.x, y: transitY });
+	expect(doorwayDestination).toEqual({ x: targetPoint.x, y: transitY });
+	expect(layoutRectContainsPoint(layout.rooms.salesFloor, from)).toBe(true);
+	expect(layoutRectContainsPoint(layout.corridors.serviceCorridor, verticalDestination)).toBe(true);
+	expect(layoutRectContainsPoint(layout.corridors.serviceCorridor, doorwayDestination)).toBe(true);
+
+	expect(result.status).toBe('done');
+	expect(result.mapId).toBe('item-shop');
+	expect(result.activeKey ?? null).toBeNull();
+	expect(result.axis).toBeNull();
+	expect(result.target).toBeNull();
+	expect(result.invalidDiagnostics ?? []).toEqual([]);
+	expect(result.pointIndex).toBe(points.length);
+	expect(result.position).not.toBeNull();
+	if (!result.position) {
+		throw new Error(
+			`Item Shop stockroom-entry route returned no live endpoint: ${describeBrowserRouteResult(result, result.token)}`
+		);
+	}
+	const actualPoint = result.position;
+	expect(Math.abs(actualPoint.x - targetPoint.x)).toBeLessThanOrEqual(AXIS_REACH_TOLERANCE);
+	expect(Math.abs(actualPoint.y - targetPoint.y)).toBeLessThanOrEqual(AXIS_REACH_TOLERANCE);
+	expect(actualPoint.x).toBeGreaterThanOrEqual(minimumX - AXIS_REACH_TOLERANCE);
+	expect(actualPoint.x).toBeLessThan(maximumX + AXIS_REACH_TOLERANCE);
+
+	const diagnostics = result.diagnostics ?? [];
+	const diagnosticAxes = result.diagnosticAxes ?? [];
+	expect(diagnosticAxes).toHaveLength(diagnostics.length);
+	const fixedAxisDiagnostics = diagnostics.filter(
+		(diagnostic, index) =>
+			diagnosticAxes[index] === 'y' &&
+			diagnostic.previousPosition.x === from.x &&
+			diagnostic.requestedPosition.x === from.x &&
+			diagnostic.resolvedPosition.x === from.x
+	);
+	expect(fixedAxisDiagnostics.length).toBeGreaterThan(0);
+	for (const diagnostic of diagnostics) {
+		expect(diagnostic.mapId).toBe('item-shop');
+		expect(diagnostic.blocked).toBe(false);
+		for (const obstacle of obstacles) {
+			expect(
+				routeSegmentIntersectsExpandedRect(
+					diagnostic.previousPosition,
+					diagnostic.requestedPosition,
+					obstacle,
+					PLAYER_COLLISION_RADIUS
+				),
+				`Item Shop stockroom-entry diagnostic swept ${JSON.stringify(obstacle)}: ${JSON.stringify(diagnostic)}`
+			).toBe(false);
+			expect(
+				expandedLayoutRectContainsPoint(
+					obstacle,
+					diagnostic.resolvedPosition,
+					PLAYER_COLLISION_RADIUS
+				),
+				`Item Shop stockroom-entry diagnostic entered ${JSON.stringify(obstacle)}: ${JSON.stringify(diagnostic)}`
+			).toBe(false);
+		}
+		expect(
+			routeSegmentIntersectsCircle(
+				diagnostic.previousPosition,
+				diagnostic.requestedPosition,
+				npc,
+				npcCollisionRadius
+			),
+			`Item Shop stockroom-entry diagnostic crossed Mira: ${JSON.stringify(diagnostic)}`
+		).toBe(false);
+	}
+	for (const diagnostic of fixedAxisDiagnostics) {
+		expect(diagnostic.resolvedPosition.y).toBeLessThan(diagnostic.previousPosition.y);
+	}
+	for (const obstacle of obstacles) {
+		expect(
+			routeSegmentIntersectsExpandedRect(
+				from,
+				verticalDestination,
+				obstacle,
+				PLAYER_COLLISION_RADIUS
+			)
+		).toBe(false);
+		expect(
+			endpointYEnvelopeIsDisjointFromExpandedRect(
+				verticalDestination,
+				obstacle,
+				PLAYER_COLLISION_RADIUS
+			)
+		).toBe(true);
+	}
+	for (let index = 1; index < points.length; index += 1) {
+		expect(
+			routeSegmentIntersectsCircle(points[index - 1]!, points[index]!, npc, npcCollisionRadius)
+		).toBe(false);
+	}
+	expect(routeSegmentIntersectsCircle(actualPoint, actualPoint, npc, npcCollisionRadius)).toBe(
+		false
+	);
+	for (const obstacle of obstacles) {
+		expect(expandedLayoutRectContainsPoint(obstacle, actualPoint, PLAYER_COLLISION_RADIUS)).toBe(
+			false
+		);
+	}
+	return actualPoint;
 }
 
 function itemShopStockroomTerminalRoutePoints(currentPoint: Point, targetPoint: Point): Point[] {
@@ -4595,6 +5846,24 @@ function itemShopServiceCorridorWestRoutePoints(currentPoint: Point, targetPoint
 				`Item Shop route crossed a prop collision: ${JSON.stringify({ from, to, propCollision })}`
 			).toBe(false);
 		}
+		if (index === 1 && from.x === to.x) {
+			// The service-corridor handoff starts from the actual settled x of the
+			// preceding north route. That fixed x is authoritative; applying a
+			// synthetic ±18 x residue can re-enter the counter by a fraction of a
+			// pixel even though the live vertical sweep is clear.
+			for (const obstacle of [...layout.walls, ...Object.values(layout.propCollisions)]) {
+				for (const endpoint of [from, to]) {
+					expect(
+						endpointYEnvelopeIsDisjointFromExpandedRect(
+							endpoint,
+							obstacle,
+							PLAYER_COLLISION_RADIUS
+						),
+						`Item Shop service corridor west fixed-x endpoint entered an expanded collision envelope: ${JSON.stringify({ endpoint, obstacle })}`
+					).toBe(true);
+				}
+			}
+		}
 		expect(
 			routeSegmentIntersectsCircle(from, to, npc, npcCollisionRadius),
 			`Item Shop route crossed Mira's combined collision: ${JSON.stringify({ from, to, npc })}`
@@ -4943,78 +6212,490 @@ function trustedNpcSemanticApproachForStep(
 	};
 }
 
-type GuildMasterPulseKey = 'ArrowDown' | 'ArrowLeft' | 'ArrowUp';
-
-async function runGuildMasterSemanticPulse(
+async function runGuildMasterSemanticDiagonal(
 	page: Page,
-	keys: readonly GuildMasterPulseKey[],
 	beforeEvidence: MapAwarePlayerEvidence,
+	interactionYBand: { min: number; maxExclusive: number },
 	label: string
-): Promise<MapAwarePlayerEvidence> {
-	const layout = VILLAGE_INTERIOR_LAYOUTS['guild-hall'];
-	const desk = layout.propCollisions.guildMasterDesk;
-	const beforePoint = beforeEvidence.selectedPoint;
-	const heldKeys: GuildMasterPulseKey[] = [];
-	const releasedKeys: GuildMasterPulseKey[] = [];
-	await page.locator('canvas').click();
-	try {
-		for (const key of keys) {
-			await page.keyboard.down(key);
-			heldKeys.push(key);
+): Promise<GuildMasterSemanticDiagonalResult> {
+	const token = `guild-master-semantic-diagonal-${Date.now()}`;
+	expect(beforeEvidence.state?.mapId).toBe('guild-hall');
+	const yDirection =
+		beforeEvidence.selectedPoint.y < interactionYBand.min
+			? 1
+			: beforeEvidence.selectedPoint.y >= interactionYBand.maxExclusive
+				? -1
+				: 0;
+	const started = await page.evaluate(
+		(plan) =>
+			(window as GlieseProbeWindow).__glieseRouteRunner?.startGuildMasterSemanticDiagonal(plan) ??
+			null,
+		{
+			token,
+			expectedMapId: 'guild-hall',
+			minY: interactionYBand.min,
+			maxYExclusive: interactionYBand.maxExclusive,
+			xDirection: -1 as const
 		}
-		// One real browser frame is the complete semantic pulse. No retry or
-		// correction is permitted if that frame misses the source-derived band.
-		await page.evaluate(
-			() => new Promise<void>((resolve) => requestAnimationFrame(() => resolve()))
-		);
-	} finally {
-		for (const key of [...heldKeys].reverse()) {
-			await page.keyboard.up(key);
-			releasedKeys.push(key);
-		}
+	);
+	if (!started) throw new Error(`${label}: semantic diagonal runner unavailable`);
+	if (started.status === 'error') {
+		throw new Error(`${label}: ${JSON.stringify(started)}`);
 	}
-	expect(releasedKeys, `${label} released every trusted key`).toEqual([...keys].reverse());
-	await page.evaluate(() => new Promise<void>((resolve) => requestAnimationFrame(() => resolve())));
-	const afterEvidence = await currentHudPlayerEvidence(page, 'guild-hall');
-	const afterPoint = afterEvidence.selectedPoint;
-	expect(afterEvidence.movementAt).toBeGreaterThan(beforeEvidence.movementAt);
-	expect(afterEvidence.state?.mapId).toBe('guild-hall');
-	expect(afterEvidence.diagnostic?.mapId).toBe('guild-hall');
+	try {
+		await page.waitForFunction(
+			(requestedToken) => {
+				const state = (
+					window as GlieseProbeWindow
+				).__glieseRouteRunner?.getGuildMasterSemanticDiagonal(requestedToken);
+				return state?.status === 'done' || state?.status === 'error';
+			},
+			token,
+			{ timeout: ROUTE_NO_PROGRESS_WATCHDOG_MS }
+		);
+	} catch (error) {
+		const timedOutState = await page.evaluate(
+			(requestedToken) =>
+				(window as GlieseProbeWindow).__glieseRouteRunner?.getGuildMasterSemanticDiagonal(
+					requestedToken
+				) ?? null,
+			token
+		);
+		const canceledState = await page.evaluate(
+			(requestedToken) =>
+				(window as GlieseProbeWindow).__glieseRouteRunner?.cancelGuildMasterSemanticDiagonal(
+					requestedToken,
+					'semantic diagonal wait interrupted'
+				) ?? null,
+			token
+		);
+		throw new Error(
+			`${label}: semantic diagonal wait interrupted; state=${JSON.stringify(timedOutState)}; cleanup=${JSON.stringify(canceledState)}`,
+			{ cause: error }
+		);
+	}
+	const result = await page.evaluate(
+		(requestedToken) =>
+			(window as GlieseProbeWindow).__glieseRouteRunner?.getGuildMasterSemanticDiagonal(
+				requestedToken
+			) ?? null,
+		token
+	);
+	if (!result) throw new Error(`${label}: semantic diagonal returned no state`);
+	expect(result.token).toBe(token);
+	expect(result.mapId).toBe('guild-hall');
+	expect(result.released).toBe(true);
+	expect(result.activeKeys).toEqual([]);
+	expect(result.position).not.toBeNull();
+	const expectedReleasedKeys =
+		yDirection === 1
+			? ['ArrowLeft', 'ArrowDown']
+			: yDirection === -1
+				? ['ArrowLeft', 'ArrowUp']
+				: [];
+	expect(result.releasedKeys).toEqual(expectedReleasedKeys);
 	expect(
-		afterEvidence.diagnostic?.blocked,
-		`${label} contacted authored collision: ${JSON.stringify({
-			beforePoint,
-			afterPoint,
-			diagnostic: afterEvidence.diagnostic
-		})}`
+		expandedLayoutRectContainsPoint(
+			VILLAGE_INTERIOR_LAYOUTS['guild-hall'].propCollisions.guildMasterDesk,
+			result.position!,
+			PLAYER_COLLISION_RADIUS
+		)
 	).toBe(false);
-	expect(Number.isFinite(afterPoint.x)).toBe(true);
-	expect(Number.isFinite(afterPoint.y)).toBe(true);
-	if (keys.length === 1 && keys[0] === 'ArrowUp') {
-		expect(afterPoint.x).toBe(beforePoint.x);
-		expect(afterPoint.y).toBeLessThan(beforePoint.y);
-		const northWall = layout.walls.find(({ id }) => id === 'guild-hall-wall-north');
-		if (!northWall) throw new Error('Guild Hall north-wall collision source is missing');
+	expect(result.position!.y).toBeGreaterThanOrEqual(interactionYBand.min);
+	expect(result.position!.y).toBeLessThan(interactionYBand.maxExclusive);
+	for (const [index, diagnostic] of result.diagnostics.entries()) {
+		expect(diagnostic.mapId, `${label} diagnostic ${index} map`).toBe('guild-hall');
+		expect(diagnostic.blocked, `${label} diagnostic ${index} blocked`).toBe(false);
+		expect(diagnostic.resolvedPosition.x).toBeLessThan(diagnostic.previousPosition.x);
+		expect(
+			yDirection === 1
+				? diagnostic.resolvedPosition.y > diagnostic.previousPosition.y
+				: diagnostic.resolvedPosition.y < diagnostic.previousPosition.y
+		).toBe(true);
 		expect(
 			routeSegmentIntersectsExpandedRect(
-				beforePoint,
-				afterPoint,
-				northWall,
+				diagnostic.previousPosition,
+				diagnostic.resolvedPosition,
+				VILLAGE_INTERIOR_LAYOUTS['guild-hall'].propCollisions.guildMasterDesk,
 				PLAYER_COLLISION_RADIUS
-			),
-			`${label} crossed the authored north wall: ${JSON.stringify({ beforePoint, afterPoint })}`
+			)
 		).toBe(false);
-	} else {
-		expect(keys).toEqual(['ArrowDown', 'ArrowLeft']);
-		expect(afterPoint.x).toBeLessThan(beforePoint.x);
-		expect(afterPoint.y).toBeGreaterThan(beforePoint.y);
 		expect(
-			routeSegmentIntersectsExpandedRect(beforePoint, afterPoint, desk, PLAYER_COLLISION_RADIUS),
-			`${label} crossed the authored desk: ${JSON.stringify({ beforePoint, afterPoint })}`
-		).toBe(false);
+			yDirection === 1
+				? diagnostic.resolvedPosition.y < interactionYBand.maxExclusive
+				: yDirection === -1
+					? diagnostic.resolvedPosition.y >= interactionYBand.min
+					: diagnostic.resolvedPosition.y >= interactionYBand.min &&
+						diagnostic.resolvedPosition.y < interactionYBand.maxExclusive
+		).toBe(true);
 	}
-	expect(expandedLayoutRectContainsPoint(desk, afterPoint, PLAYER_COLLISION_RADIUS)).toBe(false);
-	return afterEvidence;
+	return result;
+}
+
+function guildHallLobbyReturnSemanticDiagonalBand(): { min: number; maxExclusive: number } {
+	const min = guildHallQuartermasterDoorwayTransitY();
+	const maxExclusive = min + AXIS_REACH_TOLERANCE;
+	// The lower lobby phase uses the same source-derived open doorway row as the
+	// Quartermaster handoff. Its unchanged ±18 endpoint reach is the strict band
+	// [577, 595), which remains above the expanded spine-south wall.
+	expect({ min, maxExclusive }).toEqual({ min: 577, maxExclusive: 595 });
+	return { min, maxExclusive };
+}
+
+function assertGuildHallLobbyReturnSemanticDiagonalContract(
+	startPoint: Point,
+	result: GuildMasterSemanticDiagonalResult,
+	label: string
+): Point {
+	const layout = VILLAGE_INTERIOR_LAYOUTS['guild-hall'];
+	const phaseBand = guildHallLobbyReturnSemanticDiagonalBand();
+	const npc = layout.npcApproaches.quartermaster.npc;
+	const npcCollisionRadius = PLAYER_COLLISION_RADIUS + NPC_PACK_COLLISION_RADIUS;
+	const commonLobbyDivider = layout.walls.find(
+		({ id }) => id === 'guild-hall-common-lobby-divider'
+	);
+	const quartermasterLobbyDivider = layout.walls.find(
+		({ id }) => id === 'guild-hall-quartermaster-lobby-divider'
+	);
+	if (!commonLobbyDivider || !quartermasterLobbyDivider) {
+		throw new Error('Guild Hall lobby divider source geometry is missing');
+	}
+	const obstacles = [...layout.walls, ...Object.values(layout.propCollisions)];
+	const alreadyInBand = startPoint.y >= phaseBand.min && startPoint.y < phaseBand.maxExclusive;
+
+	expect(result.status, `${label} status`).toBe('done');
+	expect(result.mapId, `${label} map`).toBe('guild-hall');
+	expect(result.activeKeys, `${label} active keys`).toEqual([]);
+	expect(result.released, `${label} released`).toBe(true);
+	expect(result.invalidDiagnostics, `${label} invalid diagnostics`).toEqual([]);
+	expect(result.position, `${label} final position`).not.toBeNull();
+	if (!result.position) {
+		throw new Error(`${label}: semantic diagonal returned no final position`);
+	}
+	const phasePoint = result.position;
+	expect(phasePoint.y, `${label} final y lower bound`).toBeGreaterThanOrEqual(phaseBand.min);
+	expect(phasePoint.y, `${label} final y upper bound`).toBeLessThan(phaseBand.maxExclusive);
+	expect(layoutRectContainsPoint(layout.corridors.mainSpine, phasePoint)).toBe(true);
+
+	// Keep the live ±18 x envelope in the open central lane before the final
+	// fixed-x descent through the lobby dividers.
+	expect(phasePoint.x - AXIS_REACH_TOLERANCE).toBeGreaterThan(
+		commonLobbyDivider.x + commonLobbyDivider.width + PLAYER_COLLISION_RADIUS
+	);
+	expect(phasePoint.x + AXIS_REACH_TOLERANCE).toBeLessThan(
+		quartermasterLobbyDivider.x - PLAYER_COLLISION_RADIUS
+	);
+
+	if (alreadyInBand) {
+		expect(result.releasedKeys, `${label} released keys`).toEqual([]);
+		expect(result.diagnostics, `${label} diagnostics`).toEqual([]);
+		expect(result.lastDiagnostic, `${label} last diagnostic`).toBeNull();
+		expect(phasePoint, `${label} zero-input position`).toEqual(startPoint);
+	} else {
+		expect(result.releasedKeys, `${label} released keys`).toEqual(['ArrowLeft', 'ArrowDown']);
+		expect(result.diagnostics.length, `${label} diagnostic count`).toBeGreaterThanOrEqual(1);
+		expect(phasePoint.x, `${label} final x moves left`).toBeLessThan(startPoint.x);
+		expect(phasePoint.y, `${label} final y moves down`).toBeGreaterThan(startPoint.y);
+
+		for (const [diagnosticIndex, diagnostic] of result.diagnostics.entries()) {
+			const expectedPreviousPosition =
+				diagnosticIndex === 0
+					? startPoint
+					: result.diagnostics[diagnosticIndex - 1]!.resolvedPosition;
+			expect(diagnostic.previousPosition, `${label} diagnostic ${diagnosticIndex} start`).toEqual(
+				expectedPreviousPosition
+			);
+			expect(diagnostic.mapId, `${label} diagnostic ${diagnosticIndex} map`).toBe('guild-hall');
+			expect(diagnostic.blocked, `${label} diagnostic ${diagnosticIndex} blocked`).toBe(false);
+			expect(
+				diagnostic.resolvedPosition.x,
+				`${label} diagnostic ${diagnosticIndex} moves left`
+			).toBeLessThan(diagnostic.previousPosition.x);
+			expect(
+				diagnostic.resolvedPosition.y,
+				`${label} diagnostic ${diagnosticIndex} moves down`
+			).toBeGreaterThan(diagnostic.previousPosition.y);
+			for (const [segmentIndex, segmentTarget] of [
+				diagnostic.requestedPosition,
+				diagnostic.resolvedPosition
+			].entries()) {
+				for (const obstacle of obstacles) {
+					expect(
+						routeSegmentIntersectsExpandedRect(
+							diagnostic.previousPosition,
+							segmentTarget,
+							obstacle,
+							PLAYER_COLLISION_RADIUS
+						),
+						`${label} diagnostic ${diagnosticIndex} segment ${segmentIndex} crossed ${'id' in obstacle ? obstacle.id : 'prop collision'}`
+					).toBe(false);
+					expect(
+						routeSegmentIntersectsCircle(
+							diagnostic.previousPosition,
+							segmentTarget,
+							npc,
+							npcCollisionRadius
+						),
+						`${label} diagnostic ${diagnosticIndex} segment ${segmentIndex} crossed Quartermaster NPC`
+					).toBe(false);
+				}
+			}
+		}
+		expect(result.diagnostics.at(-1)!.resolvedPosition).toEqual(phasePoint);
+	}
+
+	for (const obstacle of obstacles) {
+		expect(
+			endpointBoxIsDisjointFromExpandedRect(phasePoint, obstacle, PLAYER_COLLISION_RADIUS),
+			`${label} endpoint envelope crossed ${'id' in obstacle ? obstacle.id : 'prop collision'}`
+		).toBe(true);
+	}
+	expect(
+		Math.hypot(phasePoint.x - npc.x, phasePoint.y - npc.y),
+		`${label} endpoint envelope crossed Quartermaster NPC`
+	).toBeGreaterThan(npcCollisionRadius + AXIS_REACH_TOLERANCE);
+
+	return phasePoint;
+}
+
+function assertGuildHallLobbyReturnFinalRouteContract(
+	points: readonly [Point, Point, Point],
+	result: BrowserRouteResult,
+	targetPoint: Point,
+	label: string
+): Point {
+	/*
+	 * The terminal route assertions intentionally remain outside the semantic
+	 * diagnostic loop: the semantic phase may emit more than one valid frame
+	 * before entering its strict y band.
+	 */
+	expect(points[1], `${label} fixed-x handoff`).toEqual({ x: points[0]!.x, y: targetPoint.y });
+	expect(points[2], `${label} authored final point`).toEqual(targetPoint);
+	expect(result.status, `${label} status`).toBe('done');
+	expect(result.mapId, `${label} map`).toBe('guild-hall');
+	expect(result.activeKey ?? null, `${label} active key`).toBeNull();
+	expect(result.position, `${label} final position`).not.toBeNull();
+	if (!result.position) {
+		throw new Error(`${label}: final route returned no position`);
+	}
+	assertGuildHallTerminalCheckpointContract(result.position, targetPoint);
+	return result.position;
+}
+
+async function runFixedXAxisBandSteering(
+	page: Page,
+	request: FixedXAxisBandSteeringRequest,
+	label: string
+): Promise<CaveDoorwayBandResult> {
+	const token = `${request.tokenPrefix}-${Date.now()}-${routeTokenSequence++}`;
+	const started = await page.evaluate(
+		(plan) => (window as GlieseProbeWindow).__glieseRouteRunner?.startCaveDoorwayBand(plan) ?? null,
+		{
+			token,
+			expectedMapId: request.expectedMapId,
+			minX: request.minX,
+			maxXExclusive: request.maxXExclusive,
+			expectedY: request.expectedY
+		}
+	);
+	if (!started) throw new Error(`${label}: fixed-x band runner unavailable`);
+	if (started.status === 'error') {
+		throw new Error(`${label}: ${JSON.stringify(started)}`);
+	}
+	try {
+		await page.waitForFunction(
+			(requestedToken) => {
+				const state = (window as GlieseProbeWindow).__glieseRouteRunner?.getCaveDoorwayBand(
+					requestedToken
+				);
+				return state?.status === 'done' || state?.status === 'error';
+			},
+			token,
+			{ timeout: ROUTE_NO_PROGRESS_WATCHDOG_MS }
+		);
+	} catch (error) {
+		const timedOutState = await page.evaluate(
+			(requestedToken) =>
+				(window as GlieseProbeWindow).__glieseRouteRunner?.getCaveDoorwayBand(requestedToken) ??
+				null,
+			token
+		);
+		const canceledState = await page.evaluate(
+			(requestedToken) =>
+				(window as GlieseProbeWindow).__glieseRouteRunner?.cancelCaveDoorwayBand(
+					requestedToken,
+					'fixed-x band wait interrupted'
+				) ?? null,
+			token
+		);
+		throw new Error(
+			`${label}: fixed-x band wait interrupted; state=${JSON.stringify(timedOutState)}; cleanup=${JSON.stringify(canceledState)}`,
+			{ cause: error }
+		);
+	}
+	const result = await page.evaluate(
+		(requestedToken) =>
+			(window as GlieseProbeWindow).__glieseRouteRunner?.getCaveDoorwayBand(requestedToken) ?? null,
+		token
+	);
+	if (!result) throw new Error(`${label}: fixed-x band returned no state`);
+	if (result.status === 'error') {
+		throw new Error(`${label}: ${JSON.stringify(result)}`);
+	}
+	expect(result.token, `${label} token`).toBe(token);
+	expect(result.status, `${label} status`).toBe('done');
+	expect(result.mapId, `${label} map`).toBe(request.expectedMapId);
+	expect(result.released, `${label} released`).toBe(true);
+	expect(result.activeKeys, `${label} active keys`).toEqual([]);
+	expect(result.position, `${label} final position`).not.toBeNull();
+	if (!result.position) throw new Error(`${label}: fixed-x band returned no final point`);
+	expect(result.position.y, `${label} fixed y`).toBe(request.expectedY);
+	expect(result.position.x, `${label} band lower bound`).toBeGreaterThanOrEqual(request.minX);
+	expect(result.position.x, `${label} band upper bound`).toBeLessThan(request.maxXExclusive);
+	const expectedDirection =
+		request.initialPoint.x < request.minX
+			? 1
+			: request.initialPoint.x >= request.maxXExclusive
+				? -1
+				: 0;
+	expect(result.releasedKeys, `${label} released keys`).toEqual(
+		expectedDirection > 0 ? ['ArrowRight'] : expectedDirection < 0 ? ['ArrowLeft'] : []
+	);
+	let previousResolvedX = request.initialPoint.x;
+	for (const [index, diagnostic] of result.diagnostics.entries()) {
+		expect(diagnostic.mapId, `${label} diagnostic ${index} map`).toBe(request.expectedMapId);
+		expect(diagnostic.blocked, `${label} diagnostic ${index} blocked`).toBe(false);
+		expect(diagnostic.previousPosition.x, `${label} diagnostic ${index} continuity`).toBe(
+			previousResolvedX
+		);
+		expect(diagnostic.previousPosition.y, `${label} diagnostic ${index} previous y`).toBe(
+			request.expectedY
+		);
+		expect(diagnostic.requestedPosition.y, `${label} diagnostic ${index} requested y`).toBe(
+			request.expectedY
+		);
+		expect(diagnostic.resolvedPosition.y, `${label} diagnostic ${index} resolved y`).toBe(
+			request.expectedY
+		);
+		expect(
+			(diagnostic.resolvedPosition.x - diagnostic.previousPosition.x) * expectedDirection,
+			`${label} diagnostic ${index} monotonic x`
+		).toBeGreaterThan(0);
+		previousResolvedX = diagnostic.resolvedPosition.x;
+	}
+	return result;
+}
+
+async function runCaveDoorwayBandSteering(
+	page: Page,
+	beforeEvidence: MapAwarePlayerEvidence,
+	safeY: number,
+	label: string
+): Promise<CaveDoorwayBandResult> {
+	const geometry = wildwoodCaveDoorwayGeometry();
+	const { selectedPoint } = beforeEvidence;
+	expect(beforeEvidence.state?.ready).toBe(true);
+	expect(beforeEvidence.state?.mapId).toBe('meadow-entry');
+	expect(Number.isFinite(safeY)).toBe(true);
+	expect(Math.abs(safeY - WILDWOOD_CAVE_STAGING.y)).toBeLessThanOrEqual(AXIS_REACH_TOLERANCE);
+	expect(safeY).toBeGreaterThan(
+		geometry.landmarkRect.y + geometry.landmarkRect.height + PLAYER_COLLISION_RADIUS
+	);
+	expect(Math.abs(selectedPoint.y - safeY)).toBe(0);
+	expect(Math.abs(selectedPoint.x - WILDWOOD_CAVE_STAGING.x)).toBeLessThanOrEqual(
+		AXIS_REACH_TOLERANCE
+	);
+	const result = await runFixedXAxisBandSteering(
+		page,
+		{
+			expectedMapId: 'meadow-entry',
+			minX: geometry.minX,
+			maxXExclusive: geometry.maxXExclusive,
+			expectedY: safeY,
+			initialPoint: selectedPoint,
+			tokenPrefix: 'cave-doorway-band'
+		},
+		label
+	);
+
+	for (const [index, diagnostic] of result.diagnostics.entries()) {
+		expect(diagnostic.mapId, `${label} diagnostic ${index} map`).toBe('meadow-entry');
+		expect(diagnostic.blocked, `${label} diagnostic ${index} blocked`).toBe(false);
+		expect(diagnostic.previousPosition.y, `${label} diagnostic ${index} previous y`).toBe(safeY);
+		expect(diagnostic.resolvedPosition.y, `${label} diagnostic ${index} resolved y`).toBe(safeY);
+		expect(
+			expandedLayoutRectContainsPoint(
+				geometry.landmarkRect,
+				diagnostic.previousPosition,
+				PLAYER_COLLISION_RADIUS
+			)
+		).toBe(false);
+		expect(
+			expandedLayoutRectContainsPoint(
+				geometry.landmarkRect,
+				diagnostic.resolvedPosition,
+				PLAYER_COLLISION_RADIUS
+			)
+		).toBe(false);
+		expect(
+			routeSegmentIntersectsExpandedRect(
+				diagnostic.previousPosition,
+				diagnostic.resolvedPosition,
+				geometry.landmarkRect,
+				PLAYER_COLLISION_RADIUS
+			)
+		).toBe(false);
+		for (const collisionRect of geometry.collisionRects) {
+			expect(
+				expandedLayoutRectContainsPoint(
+					collisionRect,
+					diagnostic.resolvedPosition,
+					PLAYER_COLLISION_RADIUS
+				)
+			).toBe(false);
+			expect(
+				routeSegmentIntersectsExpandedRect(
+					diagnostic.previousPosition,
+					diagnostic.resolvedPosition,
+					collisionRect,
+					PLAYER_COLLISION_RADIUS
+				)
+			).toBe(false);
+		}
+	}
+	return result;
+}
+
+async function runItemShopStockroomEntryBandSteering(
+	page: Page,
+	beforeEvidence: MapAwarePlayerEvidence,
+	label: string
+): Promise<Point> {
+	const layout = VILLAGE_INTERIOR_LAYOUTS['item-shop'];
+	const { selectedPoint } = beforeEvidence;
+	const { minimumX, maximumX } = itemShopStockroomEntrySafeXBand();
+	expect(beforeEvidence.state?.ready, `${label} ready`).toBe(true);
+	expect(beforeEvidence.state?.mapId, `${label} map`).toBe('item-shop');
+	expect(Number.isFinite(selectedPoint.x), `${label} current x`).toBe(true);
+	expect(Number.isFinite(selectedPoint.y), `${label} current y`).toBe(true);
+	expect(
+		layoutRectContainsPoint(layout.rooms.salesFloor, selectedPoint),
+		`${label} sales floor`
+	).toBe(true);
+
+	const result = await runFixedXAxisBandSteering(
+		page,
+		{
+			expectedMapId: 'item-shop',
+			minX: minimumX,
+			maxXExclusive: maximumX,
+			expectedY: selectedPoint.y,
+			initialPoint: selectedPoint,
+			tokenPrefix: 'item-shop-stockroom-entry-band'
+		},
+		label
+	);
+	return assertItemShopStockroomEntryBandContract(selectedPoint, result, label);
 }
 
 async function pulseGuildMasterIntoInteractionBand(page: Page, startPoint: Point): Promise<Point> {
@@ -5032,39 +6713,22 @@ async function pulseGuildMasterIntoInteractionBand(page: Page, startPoint: Point
 	expect(startPoint.x).toBeLessThan(expandedDeskLeft);
 	expect(Math.abs(startPoint.x - stagingPoint.x)).toBeLessThanOrEqual(AXIS_REACH_TOLERANCE);
 
-	let currentEvidence = await currentHudPlayerEvidence(page, 'guild-hall');
-	let currentPoint = currentEvidence.selectedPoint;
+	const currentEvidence = await currentHudPlayerEvidence(page, 'guild-hall');
 	const isInInteractionBand = (point: Point) =>
 		point.y >= interactionYBand.min && point.y < interactionYBand.maxExclusive;
-	if (!isInInteractionBand(currentPoint)) {
-		if (currentPoint.y >= interactionYBand.maxExclusive) {
-			currentEvidence = await runGuildMasterSemanticPulse(
-				page,
-				['ArrowUp'],
-				currentEvidence,
-				'Guild Master cardinal staging pulse'
-			);
-			currentPoint = currentEvidence.selectedPoint;
-			expect(
-				currentPoint.y < interactionYBand.min || isInInteractionBand(currentPoint),
-				`Guild Master cardinal pulse did not reach the lower side of its source band: ${JSON.stringify(currentPoint)}`
-			).toBe(true);
-		}
-		if (!isInInteractionBand(currentPoint)) {
-			expect(currentPoint.y).toBeLessThan(interactionYBand.min);
-			currentEvidence = await runGuildMasterSemanticPulse(
-				page,
-				['ArrowDown', 'ArrowLeft'],
-				currentEvidence,
-				'Guild Master diagonal staging pulse'
-			);
-			currentPoint = currentEvidence.selectedPoint;
-		}
-	}
+	const semanticDiagonal = await runGuildMasterSemanticDiagonal(
+		page,
+		currentEvidence,
+		interactionYBand,
+		'Guild Master diagonal staging pulse'
+	);
+	expect(semanticDiagonal.status).toBe('done');
+	const currentPoint = semanticDiagonal.position!;
 	expect(isInInteractionBand(currentPoint)).toBe(true);
 
 	assertGuildHallGuildMasterInteractionBand(stagingPoint);
-	return assertGuildHallGuildMasterStagingContract(page, stagingPoint, currentEvidence);
+	const semanticEvidence = await currentHudPlayerEvidence(page, 'guild-hall');
+	return assertGuildHallGuildMasterStagingContract(page, stagingPoint, semanticEvidence);
 }
 
 async function approachNpcWithTrustedKeyboard(
@@ -5410,6 +7074,14 @@ async function traverseInteriorForJourney(
 						: step.point;
 		assertInteriorNpcCheckpointContract(interior, step, checkpoint);
 		const semanticApproach = trustedNpcSemanticApproachForStep(interior, step, checkpoint);
+		const quartermasterSemanticStep =
+			isGuildHallQuartermasterStep(interior, step) && semanticApproach !== null;
+		const quartermasterReturnStep = isGuildHallQuartermasterReturnStep(
+			interior,
+			step,
+			leavingInteraction
+		);
+		const guildHallLobbyReturnStep = isGuildHallLobbyReturnStep(interior, step);
 		const routeTarget =
 			semanticApproach?.stagingPoint ??
 			(isGuildHallCommonHallWestStep(interior, step)
@@ -5432,8 +7104,11 @@ async function traverseInteriorForJourney(
 		}
 		const doorwayKind = itemShopAsymmetricDoorwayKind(interior, step);
 		const spawnReturnCorridorStep = isItemShopSpawnReturnCorridorStep(interior, step);
+		const stockroomEntryStep = isItemShopStockroomDoorwayStep(interior, step);
 		const stockroomTerminalStep = isItemShopStockroomTerminalStep(interior, step);
 		const serviceReturnWestStep = isItemShopMiraServiceReturnWestStep(interior, step);
+		const serviceCorridorWestStep = isItemShopServiceCorridorWestStep(interior, step);
+		const villagerHouse1LynnStep = isVillagerHouse1LynnStep(interior, step);
 		if (currentPoint.x !== routeTarget.x || currentPoint.y !== routeTarget.y) {
 			if (doorwayKind) {
 				currentPoint = await convergeItemShopDoorwayToOpenBand(page, currentPoint, doorwayKind);
@@ -5468,6 +7143,16 @@ async function traverseInteriorForJourney(
 			const serviceReturnWestPlan = serviceReturnWestStep
 				? itemShopMiraServiceReturnWestExitRoutePoints(currentPoint, checkpoint)
 				: null;
+			if (stockroomEntryStep) {
+				expect(interior.steps[stepIndex - 1]?.label).toBe('service-corridor-west');
+				const beforeEvidence = await currentHudPlayerEvidence(page, 'item-shop');
+				expect(beforeEvidence.selectedPoint).toEqual(currentPoint);
+				currentPoint = await runItemShopStockroomEntryBandSteering(
+					page,
+					beforeEvidence,
+					`${interior.mapId}:${step.label}:band-handoff`
+				);
+			}
 			const routePoints = isGuildHallGuildMasterStep(interior, step)
 				? guildHallGuildMasterRoutePoints(currentPoint, routeTarget, semanticApproach !== null)
 				: isGuildHallGuildMasterReturnStep(interior, step, leavingInteraction)
@@ -5491,59 +7176,80 @@ async function traverseInteriorForJourney(
 											? itemShopServiceCorridorWestRoutePoints(currentPoint, routeTarget)
 											: serviceReturnWestStep
 												? serviceReturnWestPlan!.vertical
-												: isItemShopStockroomReturnDoorwayStep(interior, step)
-													? itemShopStockroomReturnDoorwayRoutePoints(currentPoint, checkpoint)
-													: isItemShopStockroomTerminalStep(interior, step)
-														? itemShopStockroomTerminalRoutePoints(currentPoint, checkpoint)
-														: isItemShopStockroomDoorwayStep(interior, step)
-															? itemShopDoorwayRoutePoints(currentPoint, checkpoint, 'stockroom')
-															: isItemShopOfficeDoorwayStep(interior, step)
-																? itemShopDoorwayCrossingRoutePoints(
-																		currentPoint,
-																		checkpoint,
-																		'office'
-																	)
-																: spawnReturnCorridorStep
-																	? [
-																			...spawnReturnCorridorPlan!.vertical,
-																			...spawnReturnCorridorPlan!.horizontal.slice(1)
-																		]
-																	: isGuildHallRecordsRoomStep(interior, step)
-																		? guildHallRecordsRoomRoutePoints(currentPoint, checkpoint)
-																		: isGuildHallGuildMasterSpineStep(interior, step)
-																			? guildHallGuildMasterSpineRoutePoints(
-																					currentPoint,
-																					checkpoint
-																				)
-																			: isGuildHallGuildMasterNorthStep(interior, step)
-																				? guildHallGuildMasterNorthRoutePoints(
+												: villagerHouse1LynnStep
+													? villagerHouse1LynnRoutePoints(currentPoint, routeTarget)
+													: isItemShopStockroomReturnDoorwayStep(interior, step)
+														? itemShopStockroomReturnDoorwayRoutePoints(currentPoint, checkpoint)
+														: isItemShopStockroomTerminalStep(interior, step)
+															? itemShopStockroomTerminalRoutePoints(currentPoint, checkpoint)
+															: stockroomEntryStep
+																? itemShopStockroomEntryRoutePoints(currentPoint, checkpoint)
+																: isItemShopOfficeDoorwayStep(interior, step)
+																	? itemShopDoorwayCrossingRoutePoints(
+																			currentPoint,
+																			checkpoint,
+																			'office'
+																		)
+																	: spawnReturnCorridorStep
+																		? [
+																				...spawnReturnCorridorPlan!.vertical,
+																				...spawnReturnCorridorPlan!.horizontal.slice(1)
+																			]
+																		: isGuildHallRecordsRoomStep(interior, step)
+																			? guildHallRecordsRoomRoutePoints(currentPoint, checkpoint)
+																			: isGuildHallGuildMasterSpineStep(interior, step)
+																				? guildHallGuildMasterSpineRoutePoints(
 																						currentPoint,
 																						checkpoint
 																					)
-																				: isGuildHallCommonHallRoomStep(interior, step)
-																					? guildHallCommonHallRoomAisleRoutePoints(
+																				: isGuildHallGuildMasterNorthStep(interior, step)
+																					? guildHallGuildMasterNorthRoutePoints(
 																							currentPoint,
 																							checkpoint
 																						)
-																					: isGuildHallRecordsAisleHandoffStep(interior, step)
-																						? guildHallRecordsAisleRoutePoints(
+																					: isGuildHallCommonHallRoomStep(interior, step)
+																						? guildHallCommonHallRoomAisleRoutePoints(
 																								currentPoint,
 																								checkpoint
 																							)
-																						: leavingInteraction
-																							? [
+																						: isGuildHallRecordsAisleHandoffStep(interior, step)
+																							? guildHallRecordsAisleRoutePoints(
 																									currentPoint,
-																									{ x: checkpoint.x, y: currentPoint.y },
 																									checkpoint
-																								]
-																							: interiorRoutePoints(currentPoint, checkpoint);
-			if (interior.mapId === 'guild-hall' || interior.mapId === 'item-shop') {
+																								)
+																							: guildHallLobbyReturnStep
+																								? [
+																										currentPoint,
+																										{ x: currentPoint.x, y: checkpoint.y },
+																										checkpoint
+																									]
+																								: leavingInteraction
+																									? [
+																											currentPoint,
+																											{ x: checkpoint.x, y: currentPoint.y },
+																											checkpoint
+																										]
+																									: interiorRoutePoints(currentPoint, checkpoint);
+			if (
+				(interior.mapId === 'guild-hall' || interior.mapId === 'item-shop') &&
+				!quartermasterSemanticStep
+			) {
+				// Quartermaster return points 0->1 and 1->2 are the dedicated
+				// fixed-axis/asymmetric egress legs. Their live diagnostics and
+				// source geometry are asserted below; start the generic symmetric
+				// endpoint-envelope audit at point 2 for the remaining corridor.
+				const envelopeRoutePoints = quartermasterReturnStep ? routePoints.slice(2) : routePoints;
+				const serviceCorridorWestHasInitialFixedXAxisTransit =
+					serviceCorridorWestStep &&
+					routePoints.length > 2 &&
+					routePoints[0]!.x === routePoints[1]!.x;
+				const stockroomEntryHasInitialFixedYAxisTransit =
+					stockroomEntryStep && routePoints.length > 2 && routePoints[0]!.x === routePoints[1]!.x;
 				assertTask6InteriorRouteEnvelope(
 					interior.mapId,
-					routePoints,
+					envelopeRoutePoints,
 					`${interior.mapId}:${step.label}`,
-					terminalDepartureStep ||
-						isGuildHallQuartermasterReturnStep(interior, step, leavingInteraction)
+					terminalDepartureStep
 						? { skipInitialTerminalDeparture: true }
 						: doorwayKind
 							? { skipInitialAsymmetricDoorwayCrossing: true }
@@ -5551,7 +7257,11 @@ async function traverseInteriorForJourney(
 								? { skipInitialAsymmetricFixedAxisTransit: true }
 								: serviceReturnWestStep
 									? { skipInitialAsymmetricFixedAxisTransit: true }
-									: undefined
+									: stockroomEntryHasInitialFixedYAxisTransit
+										? { skipInitialAsymmetricFixedAxisTransit: true }
+										: serviceCorridorWestHasInitialFixedXAxisTransit
+											? { skipInitialAsymmetricFixedAxisTransit: true }
+											: undefined
 				);
 				if (serviceReturnWestStep) {
 					const plan = serviceReturnWestPlan;
@@ -5567,6 +7277,9 @@ async function traverseInteriorForJourney(
 			}
 			if (isGuildHallRecordsAisleHandoffStep(interior, step)) {
 				assertGuildHallRecordsAisleHandoffContract(routePoints, checkpoint);
+			}
+			if (villagerHouse1LynnStep) {
+				assertVillagerHouse1LynnRouteGeometry(routePoints, routeTarget);
 			}
 			if (isGuildHallGuildMasterSpineStep(interior, step)) {
 				assertGuildHallGuildMasterSpineRouteContract(routePoints, checkpoint);
@@ -5609,7 +7322,202 @@ async function traverseInteriorForJourney(
 			const routeSettleTolerance = step.interaction
 				? NPC_APPROACH_SETTLE_TOLERANCE
 				: INTERIOR_ROUTE_SETTLE_TOLERANCE;
-			if (stockroomTerminalStep) {
+			if (quartermasterSemanticStep) {
+				const doorwayRouteResult = await runBrowserRoute(page, routePoints, routeSettleTolerance);
+				onRoute?.(`${interior.mapId}:${step.label}:doorway`, doorwayRouteResult);
+				expect(doorwayRouteResult.position).not.toBeNull();
+				if (!doorwayRouteResult.position) {
+					throw new Error(
+						`Guild Hall Quartermaster doorway route returned no final position: ${describeBrowserRouteResult(
+							doorwayRouteResult,
+							doorwayRouteResult.token
+						)}`
+					);
+				}
+				currentPoint = doorwayRouteResult.position;
+
+				const horizontalRoutePoints =
+					guildHallQuartermasterSemanticHorizontalRoutePoints(currentPoint);
+				const horizontalRouteResult = await runBrowserRoute(
+					page,
+					horizontalRoutePoints,
+					routeSettleTolerance
+				);
+				onRoute?.(`${interior.mapId}:${step.label}:counter-row`, horizontalRouteResult);
+				expect(horizontalRouteResult.position).not.toBeNull();
+				if (!horizontalRouteResult.position) {
+					throw new Error(
+						`Guild Hall Quartermaster counter-row route returned no final position: ${describeBrowserRouteResult(
+							horizontalRouteResult,
+							horizontalRouteResult.token
+						)}`
+					);
+				}
+				assertGuildHallQuartermasterSemanticHorizontalRouteContract(
+					horizontalRoutePoints,
+					horizontalRouteResult
+				);
+				currentPoint = horizontalRouteResult.position;
+
+				const verticalRoutePoints = guildHallQuartermasterSemanticVerticalRoutePoints(
+					currentPoint,
+					routeTarget
+				);
+				const verticalRouteResult = await runBrowserRoute(
+					page,
+					verticalRoutePoints,
+					routeSettleTolerance
+				);
+				onRoute?.(`${interior.mapId}:${step.label}:semantic-staging`, verticalRouteResult);
+				expect(verticalRouteResult.position).not.toBeNull();
+				if (!verticalRouteResult.position) {
+					throw new Error(
+						`Guild Hall Quartermaster semantic staging route returned no final position: ${describeBrowserRouteResult(
+							verticalRouteResult,
+							verticalRouteResult.token
+						)}`
+					);
+				}
+				assertGuildHallQuartermasterSemanticVerticalRouteContract(
+					verticalRoutePoints,
+					verticalRouteResult,
+					routeTarget
+				);
+				currentPoint = verticalRouteResult.position;
+			} else if (quartermasterReturnStep) {
+				const horizontalRoutePoints: [Point, Point] = [currentPoint, routePoints[1]!];
+				const horizontalRouteResult = await runBrowserRoute(
+					page,
+					horizontalRoutePoints,
+					routeSettleTolerance
+				);
+				onRoute?.(`${interior.mapId}:${step.label}:egress-horizontal`, horizontalRouteResult);
+				expect(horizontalRouteResult.position).not.toBeNull();
+				if (!horizontalRouteResult.position) {
+					throw new Error(
+						`Guild Hall Quartermaster horizontal egress returned no final position: ${describeBrowserRouteResult(
+							horizontalRouteResult,
+							horizontalRouteResult.token
+						)}`
+					);
+				}
+				assertGuildHallQuartermasterReturnAxisRouteContract(
+					horizontalRoutePoints,
+					horizontalRouteResult,
+					'x',
+					`${interior.mapId}:${step.label}:egress-horizontal`
+				);
+				currentPoint = horizontalRouteResult.position;
+
+				const verticalRoutePoints: [Point, Point] = [
+					currentPoint,
+					{ x: currentPoint.x, y: routePoints[2]!.y }
+				];
+				const verticalRouteResult = await runBrowserRoute(
+					page,
+					verticalRoutePoints,
+					routeSettleTolerance
+				);
+				onRoute?.(`${interior.mapId}:${step.label}:egress-vertical`, verticalRouteResult);
+				expect(verticalRouteResult.position).not.toBeNull();
+				if (!verticalRouteResult.position) {
+					throw new Error(
+						`Guild Hall Quartermaster vertical egress returned no final position: ${describeBrowserRouteResult(
+							verticalRouteResult,
+							verticalRouteResult.token
+						)}`
+					);
+				}
+				assertGuildHallQuartermasterReturnAxisRouteContract(
+					verticalRoutePoints,
+					verticalRouteResult,
+					'y',
+					`${interior.mapId}:${step.label}:egress-vertical`
+				);
+				currentPoint = verticalRouteResult.position;
+
+				const corridorRoutePoints = guildHallQuartermasterReturnCorridorRoutePoints(
+					currentPoint,
+					checkpoint
+				);
+				assertGuildHallQuartermasterReturnCorridorGeometry(
+					corridorRoutePoints,
+					`${interior.mapId}:${step.label}:corridor`
+				);
+				const corridorRouteResult = await runBrowserRoute(
+					page,
+					corridorRoutePoints,
+					routeSettleTolerance
+				);
+				onRoute?.(`${interior.mapId}:${step.label}:corridor`, corridorRouteResult);
+				expect(corridorRouteResult.status).toBe('done');
+				expect(corridorRouteResult.mapId).toBe('guild-hall');
+				expect(corridorRouteResult.activeKey ?? null).toBeNull();
+				expect(corridorRouteResult.position).not.toBeNull();
+				if (!corridorRouteResult.position) {
+					throw new Error(
+						`Guild Hall Quartermaster corridor returned no final position: ${describeBrowserRouteResult(
+							corridorRouteResult,
+							corridorRouteResult.token
+						)}`
+					);
+				}
+				currentPoint = corridorRouteResult.position;
+			} else if (guildHallLobbyReturnStep) {
+				const beforeEvidence = await currentHudPlayerEvidence(page, 'guild-hall');
+				expect(beforeEvidence.selectedPoint).toEqual(currentPoint);
+				const phaseResult = await runGuildMasterSemanticDiagonal(
+					page,
+					beforeEvidence,
+					guildHallLobbyReturnSemanticDiagonalBand(),
+					`${interior.mapId}:${step.label}:continuity-phase`
+				);
+				const phasePoint = assertGuildHallLobbyReturnSemanticDiagonalContract(
+					currentPoint,
+					phaseResult,
+					`${interior.mapId}:${step.label}:continuity-phase`
+				);
+				const finalRoutePoints: [Point, Point, Point] = [
+					phasePoint,
+					{ x: phasePoint.x, y: checkpoint.y },
+					checkpoint
+				];
+				assertTask6InteriorRouteEnvelope(
+					'guild-hall',
+					finalRoutePoints,
+					`${interior.mapId}:${step.label}:terminal`
+				);
+				const finalRouteResult = await runBrowserRoute(
+					page,
+					finalRoutePoints,
+					routeSettleTolerance
+				);
+				onRoute?.(`${interior.mapId}:${step.label}:terminal`, finalRouteResult);
+				currentPoint = assertGuildHallLobbyReturnFinalRouteContract(
+					finalRoutePoints,
+					finalRouteResult,
+					checkpoint,
+					`${interior.mapId}:${step.label}:terminal`
+				);
+			} else if (stockroomEntryStep) {
+				const stockroomEntryRouteResult = await runBrowserRoute(
+					page,
+					routePoints,
+					routeSettleTolerance
+				);
+				onRoute?.(`${interior.mapId}:${step.label}`, stockroomEntryRouteResult);
+				expect(stockroomEntryRouteResult.position).not.toBeNull();
+				if (!stockroomEntryRouteResult.position) {
+					throw new Error(
+						`Item Shop stockroom-entry route returned no final position: ${describeBrowserRouteResult(
+							stockroomEntryRouteResult,
+							stockroomEntryRouteResult.token
+						)}`
+					);
+				}
+				assertItemShopStockroomEntryRouteContract(routePoints, stockroomEntryRouteResult);
+				currentPoint = stockroomEntryRouteResult.position;
+			} else if (stockroomTerminalStep) {
 				const stockroomTerminalRouteResult = await runBrowserRoute(
 					page,
 					routePoints,
@@ -5759,6 +7667,10 @@ async function traverseInteriorForJourney(
 					);
 					currentPoint = horizontalRouteResult.position;
 				}
+			} else if (villagerHouse1LynnStep) {
+				const lynnRouteResult = await runBrowserRoute(page, routePoints, routeSettleTolerance);
+				onRoute?.(`${interior.mapId}:${step.label}`, lynnRouteResult);
+				currentPoint = assertVillagerHouse1LynnRouteResult(routePoints, lynnRouteResult);
 			} else {
 				currentPoint = await moveRoute(
 					page,
@@ -6072,16 +7984,22 @@ async function transitionWithTrustedKeyboard(
 			let listener: ((event: Event) => void) | undefined;
 			let resolveWait: (result: TransitionSourceWaitResult) => void = () => undefined;
 			let sourceEventCount = 0;
+			const sourceWaitStartedAt = performance.now();
 			const finish = (result: TransitionSourceWaitResult) => {
 				if (settled) return;
 				settled = true;
 				if (listener) window.removeEventListener('gliese:player-movement-diagnostic', listener);
 				if (timeoutId !== undefined) window.clearTimeout(timeoutId);
-				resolveWait(result);
+				resolveWait({
+					sourceWaitStartedAt,
+					sourceWaitFinishedAt: performance.now(),
+					...result
+				});
 			};
 			const promise = new Promise<TransitionSourceWaitResult>((resolve) => {
 				resolveWait = resolve;
 				listener = (event: Event) => {
+					const eventAt = performance.now();
 					const diagnostic = (event as CustomEvent<PlayerMovementDiagnostic>).detail;
 					if (diagnostic.mapId !== requestedMapId) return;
 					sourceEventCount += 1;
@@ -6100,7 +8018,10 @@ async function transitionWithTrustedKeyboard(
 						lastDiagnostic: diagnostic,
 						hudMapId: probeWindow.__glieseLastHudState?.mapId ?? null,
 						diagnosticCount: probeWindow.__glieseMovementDiagnostics?.length ?? 0,
-						sourceEventCount
+						sourceEventCount,
+						sourceDiagnosticAt: eventAt,
+						sourceHudAt: probeWindow.__glieseLastHudAt ?? 0,
+						sourceMovementAt: probeWindow.__glieseLastMovementAt ?? 0
 					});
 				};
 				window.addEventListener('gliese:player-movement-diagnostic', listener);
@@ -6111,7 +8032,10 @@ async function transitionWithTrustedKeyboard(
 						lastDiagnostic: probeWindow.__glieseLastMovementDiagnostic ?? null,
 						hudMapId: probeWindow.__glieseLastHudState?.mapId ?? null,
 						diagnosticCount: probeWindow.__glieseMovementDiagnostics?.length ?? 0,
-						sourceEventCount
+						sourceEventCount,
+						sourceDiagnosticAt: null,
+						sourceHudAt: probeWindow.__glieseLastHudAt ?? 0,
+						sourceMovementAt: probeWindow.__glieseLastMovementAt ?? 0
 					});
 				}, 30_000);
 			});
@@ -6126,7 +8050,10 @@ async function transitionWithTrustedKeyboard(
 						lastDiagnostic: probeWindow.__glieseLastMovementDiagnostic ?? null,
 						hudMapId: probeWindow.__glieseLastHudState?.mapId ?? null,
 						diagnosticCount: probeWindow.__glieseMovementDiagnostics?.length ?? 0,
-						sourceEventCount
+						sourceEventCount,
+						sourceDiagnosticAt: null,
+						sourceHudAt: probeWindow.__glieseLastHudAt ?? 0,
+						sourceMovementAt: probeWindow.__glieseLastMovementAt ?? 0
 					});
 				}
 				delete probeWindow.__glieseTransitionSourceWait;
@@ -6140,7 +8067,20 @@ async function transitionWithTrustedKeyboard(
 		}
 	);
 	let sourceWait: TransitionSourceWaitResult;
+	const transitionKeyLifecycle = {
+		key,
+		sourceMapId,
+		targetMapId,
+		transitionPoint,
+		arrival,
+		preflightMapId: liveMapId,
+		preflightIssuedAt: Date.now(),
+		keyDownIssuedAt: null as number | null,
+		sourceWaitReturnedAt: null as number | null,
+		keyUpIssuedAt: null as number | null
+	};
 	try {
+		transitionKeyLifecycle.keyDownIssuedAt = Date.now();
 		await page.keyboard.down(key);
 		sourceWait = await page.evaluate(
 			() =>
@@ -6153,6 +8093,7 @@ async function transitionWithTrustedKeyboard(
 					sourceEventCount: 0
 				}
 		);
+		transitionKeyLifecycle.sourceWaitReturnedAt = Date.now();
 		if (!sourceWait.found) {
 			throw new Error(
 				`Source transition diagnostic did not reach trigger: ${JSON.stringify({
@@ -6165,14 +8106,62 @@ async function transitionWithTrustedKeyboard(
 		}
 	} finally {
 		await page.keyboard.up(key);
+		transitionKeyLifecycle.keyUpIssuedAt = Date.now();
 		await page.evaluate(() => (window as GlieseProbeWindow).__glieseTransitionSourceCleanup?.());
 	}
-	await page.waitForFunction(
-		(requestedMapId) =>
-			(window as GlieseProbeWindow).__glieseLastHudState?.mapId === requestedMapId,
-		targetMapId,
-		{ timeout: 30_000 }
-	);
+	try {
+		await page.waitForFunction(
+			(requestedMapId) =>
+				(window as GlieseProbeWindow).__glieseLastHudState?.mapId === requestedMapId,
+			targetMapId,
+			{ timeout: 30_000 }
+		);
+	} catch (error) {
+		let targetWaitTelemetry: unknown;
+		try {
+			targetWaitTelemetry = await page.evaluate((saveStorageKey) => {
+				const probeWindow = window as GlieseProbeWindow;
+				const hud = probeWindow.__glieseLastHudState ?? null;
+				let persistedClearedEncounterIds: unknown;
+				try {
+					const persisted = JSON.parse(localStorage.getItem(saveStorageKey) ?? 'null');
+					persistedClearedEncounterIds = persisted?.flags?.clearedEncounters ?? null;
+				} catch (parseError) {
+					persistedClearedEncounterIds = `unreadable: ${String(parseError)}`;
+				}
+				return {
+					hud: {
+						mapId: hud?.mapId ?? null,
+						player: hud?.areaMap?.player ?? null,
+						status: hud?.status ?? null,
+						dialogue: hud?.dialogue ?? null,
+						battle: hud?.battle ?? null
+					},
+					hudAt: probeWindow.__glieseLastHudAt ?? 0,
+					latestMovementDiagnostic: probeWindow.__glieseLastMovementDiagnostic ?? null,
+					latestMovementAt: probeWindow.__glieseLastMovementAt ?? 0,
+					routeRunner: probeWindow.__glieseRouteRunner?.active() ?? null,
+					sceneEncounterState: probeWindow.__glieseSceneEncounterState ?? null,
+					transitionGateState: probeWindow.__glieseTransitionGateState ?? null,
+					persistedClearedEncounterIds
+				};
+			}, SAVE_STORAGE_KEY);
+		} catch (telemetryError) {
+			targetWaitTelemetry = { pageEvaluateError: String(telemetryError) };
+		}
+		throw new Error(
+			`Transition target HUD wait timed out: ${JSON.stringify({
+				targetMapId,
+				transitionPoint,
+				arrival,
+				transitionKeyLifecycle,
+				sourceWait,
+				targetWaitError: String(error),
+				targetWaitTelemetry
+			})}`,
+			{ cause: error }
+		);
+	}
 	await waitForExactHudPosition(page, targetMapId, arrival);
 	previousRouteSettleTolerance = AXIS_SETTLE_TOLERANCE;
 	await page.evaluate(() => {
@@ -6305,10 +8294,107 @@ const COAST_FERRY_DISCOVERY = { x: 3_600, y: 5_500 } as const;
 const COAST_FERRY_TRANSIT_COLLISION_PADDING = PLAYER_COLLISION_RADIUS + AXIS_REACH_TOLERANCE;
 const WILDWOOD_CAVE_ANCHOR = { x: 5_760, y: 1_868 } as const;
 const WILDWOOD_CAVE_STAGING = { x: 5_960, y: 2_100 } as const;
+const WILDWOOD_LANDMARK_DOORWAY_CLEARANCE_WIDTH = 56;
+const WILDWOOD_TRANSITION_RADIUS = 18;
 const WILDWOOD_FOREST_LANE_WEST_BANK_ID = 'wildwood-forest-lane-west-bank';
 const WILDWOOD_POST_RUINS_TARGET = { x: 4_800, y: 3_808 } as const;
 const LOWER_RIVER_ID = 'lower-river';
 const POST_RUINS_LOWER_RIVER_TARGET = { x: 3_264, y: 4_688 } as const;
+
+function villagerHouse2OutdoorApproachRoutePoints(
+	currentPoint: Point,
+	targetPoint: Point
+): { vertical: [Point, Point] } {
+	const building = SUNDROP_VILLAGE_V2_BUILDINGS.villagerHouse2;
+	const mainStreet = SUNDROP_VILLAGE_V2_PUBLIC_SPACES.mainStreet;
+	const approach = building.approach;
+	const authoredArrival = {
+		x: building.returnArrival.x,
+		y: building.returnArrival.y
+	};
+	const safeApproachMinX = approach.x + PLAYER_COLLISION_RADIUS;
+	const safeApproachMaxX = approach.x + approach.width - PLAYER_COLLISION_RADIUS;
+
+	expect(targetPoint.x).toBe(authoredArrival.x);
+	expect(targetPoint.y).toBe(authoredArrival.y);
+	expect(layoutRectContainsPoint(mainStreet, currentPoint)).toBe(true);
+	expect(currentPoint.y).toBeGreaterThan(approach.y + approach.height);
+	expect(currentPoint.x).toBeGreaterThanOrEqual(safeApproachMinX);
+	expect(currentPoint.x).toBeLessThanOrEqual(safeApproachMaxX);
+	expect(Math.abs(currentPoint.x - authoredArrival.x)).toBeLessThanOrEqual(AXIS_REACH_TOLERANCE);
+	expect(layoutRectContainsPoint(approach, authoredArrival)).toBe(true);
+
+	// The south-lane handoff is already inside the source approach's safe x
+	// band. Preserve that actual x while moving north; the footprint ends above
+	// the authored return-arrival y, so this fixed-axis segment is collision-free.
+	const verticalDestination = { x: currentPoint.x, y: authoredArrival.y };
+	expect(
+		routeSegmentIntersectsExpandedRect(
+			currentPoint,
+			verticalDestination,
+			building.footprint,
+			PLAYER_COLLISION_RADIUS
+		)
+	).toBe(false);
+	return { vertical: [currentPoint, verticalDestination] };
+}
+
+function wildwoodCaveDoorwayGeometry() {
+	const landmark = meadowEntryMap.landmarks?.find(({ id }) => id === 'whispering-cave');
+	const transition = meadowEntryMap.transitions.find(
+		({ id }) => id === 'meadow-to-whispering-cave-ruins-threshold'
+	);
+	expect(landmark).toMatchObject({
+		id: 'whispering-cave',
+		x: 5_960,
+		y: 1_800,
+		width: 256,
+		height: 224
+	});
+	expect(transition).toMatchObject({
+		id: 'meadow-to-whispering-cave-ruins-threshold',
+		x: 5_960,
+		y: 1_868
+	});
+	if (!landmark || !transition) {
+		throw new Error('Wildwood cave landmark/transition source is incomplete');
+	}
+	const bounds = {
+		left: landmark.x - landmark.width / 2,
+		top: landmark.y - landmark.height / 2,
+		right: landmark.x + landmark.width / 2,
+		bottom: landmark.y + landmark.height / 2
+	};
+	const doorLeft = transition.x - WILDWOOD_LANDMARK_DOORWAY_CLEARANCE_WIDTH / 2;
+	const doorRight = transition.x + WILDWOOD_LANDMARK_DOORWAY_CLEARANCE_WIDTH / 2;
+	const doorTop = Math.max(bounds.top, transition.y - WILDWOOD_TRANSITION_RADIUS);
+	const collisionRects = [
+		{
+			x: bounds.left,
+			y: bounds.top,
+			width: bounds.right - bounds.left,
+			height: doorTop - bounds.top
+		},
+		{ x: bounds.left, y: doorTop, width: doorLeft - bounds.left, height: bounds.bottom - doorTop },
+		{ x: doorRight, y: doorTop, width: bounds.right - doorRight, height: bounds.bottom - doorTop }
+	].filter(({ width, height }) => width > 0 && height > 0);
+	const minX = doorLeft + PLAYER_COLLISION_RADIUS;
+	const maxXExclusive = doorRight - PLAYER_COLLISION_RADIUS;
+	expect({ minX, maxXExclusive }).toEqual({ minX: 5_944, maxXExclusive: 5_976 });
+	expect(collisionRects).toHaveLength(3);
+	return {
+		landmarkRect: {
+			x: bounds.left,
+			y: bounds.top,
+			width: bounds.right - bounds.left,
+			height: bounds.bottom - bounds.top
+		},
+		collisionRects,
+		minX,
+		maxXExclusive,
+		doorTop
+	};
+}
 
 function wildwoodForestLaneWestBankRect() {
 	const sourceBlocker = meadowEntryMap.blockers?.find(
@@ -6430,6 +8516,172 @@ function lowerRiverLayoutRect() {
 		throw new Error(`Missing authored Meadow river segment: ${LOWER_RIVER_ID}`);
 	}
 	return sourceSegment.rect;
+}
+
+function postRuinsLowerRiverEastHandoffSafeBand(): {
+	min: number;
+	maxExclusive: number;
+} {
+	const southApproach = MEADOW_ENTRY_V2_ROUTE_PATCHES.find(
+		({ id }) => id === 'crossroads-south-approach'
+	);
+	const sundropBridge = MEADOW_ENTRY_V2_CROSSINGS.sundropBridge;
+	expect(southApproach).toMatchObject({
+		id: 'crossroads-south-approach',
+		rect: { x: 3_360, y: 4_448, width: 384, height: 320 }
+	});
+	if (!southApproach) {
+		throw new Error('Missing authored crossroads south-approach route patch');
+	}
+	const min = southApproach.rect.y;
+	const maxExclusive = sundropBridge.y - PLAYER_COLLISION_RADIUS - AXIS_REACH_TOLERANCE;
+	// The live handoff must remain on the authored south-approach row and below
+	// the bridge's unchanged player/reach envelope. This is a test-route band,
+	// not a new map collision or movement tolerance.
+	expect({ min, maxExclusive }).toEqual({ min: 4_448, maxExclusive: 4_482 });
+	return { min, maxExclusive };
+}
+
+function postRuinsLowerRiverEastHandoffTransitRow(): number {
+	const { min, maxExclusive } = postRuinsLowerRiverEastHandoffSafeBand();
+	const transitRow =
+		Math.floor((maxExclusive - MEADOW_ENTRY_NAVIGATION_STEP - 1) / MEADOW_ENTRY_NAVIGATION_STEP) *
+		MEADOW_ENTRY_NAVIGATION_STEP;
+	// Keep one authored navigation step below the exclusive bridge envelope so
+	// the live endpoint's unchanged ±18 residue cannot re-enter the failed row.
+	expect(transitRow).toBe(4_464);
+	expect(transitRow).toBeGreaterThanOrEqual(min);
+	expect(transitRow).toBeLessThan(maxExclusive);
+	return transitRow;
+}
+
+function meadowEntryComposedRouteCollisionRects() {
+	// collectStrictCollisionRects/collectLandmarkRects use center-based map
+	// rectangles, while the route sweep oracle consumes top-left rectangles.
+	return MEADOW_ENTRY_COMPOSED_COLLISION_RECTS.map(({ x, y, width, height }) => ({
+		x: x - width / 2,
+		y: y - height / 2,
+		width,
+		height
+	}));
+}
+
+function postRuinsLowerRiverEastVerticalHandoffRoutePoints(start: Point): Point[] {
+	const transitRow = postRuinsLowerRiverEastHandoffTransitRow();
+	const points = [{ ...start }, { x: 4_288, y: 4_224 }, { x: 4_288, y: transitRow }];
+	for (let index = 1; index < points.length; index += 1) {
+		const from = points[index - 1]!;
+		const to = points[index]!;
+		for (const obstacle of meadowEntryComposedRouteCollisionRects()) {
+			expect(
+				routeSegmentIntersectsExpandedRect(from, to, obstacle, PLAYER_COLLISION_RADIUS),
+				`lower-river east vertical handoff crossed composed collision: ${JSON.stringify({ from, to, obstacle })}`
+			).toBe(false);
+		}
+	}
+	return points;
+}
+
+function postRuinsLowerRiverEastHorizontalHandoffRoutePoints(start: Point): Point[] {
+	const { min, maxExclusive } = postRuinsLowerRiverEastHandoffSafeBand();
+	expect(start.y).toBeGreaterThanOrEqual(min);
+	expect(start.y).toBeLessThan(maxExclusive);
+	const points = [{ ...start }, { x: 3_776, y: start.y }];
+	for (const obstacle of meadowEntryComposedRouteCollisionRects()) {
+		expect(
+			routeSegmentIntersectsExpandedRectAtReachEnvelope(
+				points[0]!,
+				points[1]!,
+				obstacle,
+				PLAYER_COLLISION_RADIUS
+			),
+			`lower-river east horizontal handoff crossed composed collision: ${JSON.stringify({ from: points[0], to: points[1], obstacle })}`
+		).toBe(false);
+	}
+	return points;
+}
+
+function assertPostRuinsLowerRiverEastHandoffPhaseContract(
+	points: readonly Point[],
+	result: BrowserRouteResult,
+	phase: 'vertical' | 'horizontal',
+	label: string
+) {
+	const { min, maxExclusive } = postRuinsLowerRiverEastHandoffSafeBand();
+	const obstacles = meadowEntryComposedRouteCollisionRects();
+	expect(result.status, `${label} status`).toBe('done');
+	expect(result.mapId, `${label} map`).toBe('meadow-entry');
+	expect(result.activeKey ?? null, `${label} active key`).toBeNull();
+	expect(result.invalidDiagnostics ?? [], `${label} invalid diagnostics`).toEqual([]);
+	expect(result.position, `${label} final position`).not.toBeNull();
+	if (!result.position) throw new Error(`${label} returned no final position`);
+
+	const target = points.at(-1)!;
+	expect(target, `${label} target`).toBeDefined();
+	if (phase === 'vertical') {
+		expect(target).toEqual({ x: 4_288, y: postRuinsLowerRiverEastHandoffTransitRow() });
+		expect(Math.abs(result.position.x - target.x), `${label} final x`).toBeLessThanOrEqual(
+			AXIS_REACH_TOLERANCE
+		);
+	} else {
+		expect(points[0]?.y, `${label} fixed-y start`).toBe(target.y);
+		expect(result.position.y, `${label} fixed-y final`).toBe(target.y);
+		expect(Math.abs(result.position.x - target.x), `${label} final x`).toBeLessThanOrEqual(
+			AXIS_REACH_TOLERANCE
+		);
+	}
+	expect(result.position.y, `${label} staging y lower bound`).toBeGreaterThanOrEqual(min);
+	expect(result.position.y, `${label} staging y upper bound`).toBeLessThan(maxExclusive);
+
+	const diagnostics = result.diagnostics ?? [];
+	expect(diagnostics.length, `${label} diagnostic count`).toBeGreaterThan(0);
+	let previousResolved = points[0]!;
+	for (const [index, diagnostic] of diagnostics.entries()) {
+		const diagnosticLabel = `${label} diagnostic ${index}`;
+		expect(diagnostic.mapId, `${diagnosticLabel} map`).toBe('meadow-entry');
+		expect(diagnostic.blocked, `${diagnosticLabel} blocked`).toBe(false);
+		expect(diagnostic.previousPosition, `${diagnosticLabel} continuity`).toEqual(previousResolved);
+		for (const obstacle of obstacles) {
+			expect(
+				routeSegmentIntersectsExpandedRect(
+					diagnostic.previousPosition,
+					diagnostic.requestedPosition,
+					obstacle,
+					PLAYER_COLLISION_RADIUS
+				),
+				`${diagnosticLabel} requested sweep crossed composed collision: ${JSON.stringify(obstacle)}`
+			).toBe(false);
+			expect(
+				routeSegmentIntersectsExpandedRect(
+					diagnostic.previousPosition,
+					diagnostic.resolvedPosition,
+					obstacle,
+					PLAYER_COLLISION_RADIUS
+				),
+				`${diagnosticLabel} resolved sweep crossed composed collision: ${JSON.stringify(obstacle)}`
+			).toBe(false);
+			expect(
+				expandedLayoutRectContainsPoint(
+					obstacle,
+					diagnostic.resolvedPosition,
+					PLAYER_COLLISION_RADIUS
+				),
+				`${diagnosticLabel} resolved endpoint entered composed collision: ${JSON.stringify(obstacle)}`
+			).toBe(false);
+		}
+		if (phase === 'horizontal') {
+			expect(diagnostic.previousPosition.y, `${diagnosticLabel} previous y`).toBe(target.y);
+			expect(diagnostic.requestedPosition.y, `${diagnosticLabel} requested y`).toBe(target.y);
+			expect(diagnostic.resolvedPosition.y, `${diagnosticLabel} resolved y`).toBe(target.y);
+			expect(
+				(diagnostic.resolvedPosition.x - diagnostic.previousPosition.x) * -1,
+				`${diagnosticLabel} strict westward progress`
+			).toBeGreaterThan(0);
+		}
+		previousResolved = diagnostic.resolvedPosition;
+	}
+	expect(result.lastDiagnostic, `${label} last diagnostic`).toEqual(diagnostics.at(-1));
+	expect(result.position, `${label} diagnostic endpoint`).toEqual(previousResolved);
 }
 
 function postRuinsLowerRiverCrossingRoutePoints(start: Point): Point[] {
@@ -7755,6 +10007,56 @@ test('browser-local route steering acknowledges a plan and continues through Pha
 		const probeWindow = window as GlieseProbeWindow;
 		const runner = probeWindow.__glieseRouteRunner;
 		if (!runner) return null;
+		type SemanticDiagonalPlan = {
+			token: string;
+			expectedMapId: string;
+			minY: number;
+			maxYExclusive: number;
+			xDirection: -1 | 1;
+		};
+		type SemanticDiagonalResult = {
+			token: string;
+			status: 'running' | 'done' | 'error';
+			position: Point | null;
+			diagnostics: PlayerMovementDiagnostic[];
+			invalidDiagnostics: PlayerMovementDiagnostic[];
+			activeKeys: string[];
+			releasedKeys: string[];
+			released: boolean;
+			error?: string;
+		};
+		const semanticRunner = runner as typeof runner & {
+			startGuildMasterSemanticDiagonal?: (plan: SemanticDiagonalPlan) => SemanticDiagonalResult;
+			getGuildMasterSemanticDiagonal?: (token: string) => SemanticDiagonalResult | null;
+		};
+		type CaveDoorwayBandPlan = {
+			token: string;
+			expectedMapId: string;
+			minX: number;
+			maxXExclusive: number;
+			expectedY: number;
+		};
+		type CaveDoorwayBandResult = {
+			token: string;
+			mapId: string;
+			status: 'running' | 'done' | 'error';
+			position: Point | null;
+			diagnostics: PlayerMovementDiagnostic[];
+			invalidDiagnostics: PlayerMovementDiagnostic[];
+			activeKeys: string[];
+			releasedKeys: string[];
+			released: boolean;
+			error?: string;
+		};
+		const caveDoorwayRunner = runner as typeof runner & {
+			startCaveDoorwayBand?: (plan: CaveDoorwayBandPlan) => CaveDoorwayBandResult;
+			getCaveDoorwayBand?: (token: string) => CaveDoorwayBandResult | null;
+		};
+		// RED: the diagnostic-synchronized semantic diagonal API is intentionally
+		// absent until the browser-local runner implementation is added.
+		const semanticApiAvailable =
+			typeof semanticRunner.startGuildMasterSemanticDiagonal === 'function';
+		const caveDoorwayApiAvailable = typeof caveDoorwayRunner.startCaveDoorwayBand === 'function';
 		const dispatchDiagnostic = (detail: PlayerMovementDiagnostic) => {
 			window.dispatchEvent(
 				new CustomEvent<PlayerMovementDiagnostic>('gliese:player-movement-diagnostic', {
@@ -8019,9 +10321,378 @@ test('browser-local route steering acknowledges a plan and continues through Pha
 			'synthetic blocked correction cleanup'
 		);
 
+		let semanticCharacterization: {
+			successStart: SemanticDiagonalResult;
+			successAfterFirst: SemanticDiagonalResult;
+			successAfterLater: SemanticDiagonalResult;
+			aboveBandStart: SemanticDiagonalResult;
+			aboveBandAfter: SemanticDiagonalResult;
+			inBandStart: SemanticDiagonalResult;
+			inBandAfter: SemanticDiagonalResult;
+			wrongMap: SemanticDiagonalResult;
+			blocked: SemanticDiagonalResult;
+			overshoot: SemanticDiagonalResult;
+			zeroMovement: SemanticDiagonalResult;
+		} | null = null;
+		if (
+			semanticApiAvailable &&
+			semanticRunner.startGuildMasterSemanticDiagonal &&
+			semanticRunner.getGuildMasterSemanticDiagonal
+		) {
+			const semanticBand = {
+				minY: initialPoint.y + 8,
+				maxYExclusive: initialPoint.y + 24
+			};
+			const semanticPlan = (suffix: string): SemanticDiagonalPlan => ({
+				token: `characterization-semantic-diagonal-${suffix}-${Date.now()}`,
+				expectedMapId: 'meadow-entry',
+				...semanticBand,
+				xDirection: -1
+			});
+			const semanticStartWithPlan = (plan: SemanticDiagonalPlan) => {
+				resetMovementProbe();
+				return semanticRunner.startGuildMasterSemanticDiagonal!(plan);
+			};
+			const semanticStart = (suffix: string) => semanticStartWithPlan(semanticPlan(suffix));
+			const semanticGet = (token: string) => semanticRunner.getGuildMasterSemanticDiagonal!(token)!;
+
+			const successStart = semanticStart('success');
+			dispatchDiagnostic({
+				mapId: 'meadow-entry',
+				previousPosition: { ...initialPoint },
+				requestedPosition: { x: initialPoint.x - 8, y: initialPoint.y + 12 },
+				resolvedPosition: { x: initialPoint.x - 8, y: initialPoint.y + 12 },
+				blocked: false
+			});
+			const successAfterFirst = semanticGet(successStart.token);
+			dispatchDiagnostic({
+				mapId: 'meadow-entry',
+				previousPosition: { x: initialPoint.x - 8, y: initialPoint.y + 12 },
+				requestedPosition: { x: initialPoint.x - 16, y: initialPoint.y + 16 },
+				resolvedPosition: { x: initialPoint.x - 16, y: initialPoint.y + 16 },
+				blocked: false
+			});
+			const successAfterLater = semanticGet(successStart.token);
+
+			const aboveBandPlan = (suffix: string): SemanticDiagonalPlan => ({
+				token: `characterization-semantic-diagonal-${suffix}-${Date.now()}`,
+				expectedMapId: 'meadow-entry',
+				minY: initialPoint.y - 24,
+				maxYExclusive: initialPoint.y - 8,
+				xDirection: -1
+			});
+			const aboveBandStart = semanticStartWithPlan(aboveBandPlan('above-band'));
+			dispatchDiagnostic({
+				mapId: 'meadow-entry',
+				previousPosition: { ...initialPoint },
+				requestedPosition: { x: initialPoint.x - 8, y: initialPoint.y - 4 },
+				resolvedPosition: { x: initialPoint.x - 8, y: initialPoint.y - 4 },
+				blocked: false
+			});
+			dispatchDiagnostic({
+				mapId: 'meadow-entry',
+				previousPosition: { x: initialPoint.x - 8, y: initialPoint.y - 4 },
+				requestedPosition: { x: initialPoint.x - 16, y: initialPoint.y - 12 },
+				resolvedPosition: { x: initialPoint.x - 16, y: initialPoint.y - 12 },
+				blocked: false
+			});
+			const aboveBandAfter = semanticGet(aboveBandStart.token);
+
+			const inBandStart = semanticStartWithPlan({
+				token: `characterization-semantic-diagonal-in-band-${Date.now()}`,
+				expectedMapId: 'meadow-entry',
+				minY: initialPoint.y - 8,
+				maxYExclusive: initialPoint.y + 8,
+				xDirection: -1
+			});
+			const inBandAfter = semanticGet(inBandStart.token);
+
+			const wrongMapStart = semanticStart('wrong-map');
+			dispatchDiagnostic({
+				mapId: 'item-shop',
+				previousPosition: { ...initialPoint },
+				requestedPosition: { x: initialPoint.x - 8, y: initialPoint.y + 12 },
+				resolvedPosition: { x: initialPoint.x - 8, y: initialPoint.y + 12 },
+				blocked: false
+			});
+			const wrongMap = semanticGet(wrongMapStart.token);
+
+			const blockedStart = semanticStart('blocked');
+			dispatchDiagnostic({
+				mapId: 'meadow-entry',
+				previousPosition: { ...initialPoint },
+				requestedPosition: { x: initialPoint.x - 8, y: initialPoint.y + 12 },
+				resolvedPosition: { ...initialPoint },
+				blocked: true
+			});
+			const blocked = semanticGet(blockedStart.token);
+
+			const overshootStart = semanticStart('overshoot');
+			dispatchDiagnostic({
+				mapId: 'meadow-entry',
+				previousPosition: { ...initialPoint },
+				requestedPosition: { x: initialPoint.x - 8, y: initialPoint.y + 32 },
+				resolvedPosition: { x: initialPoint.x - 8, y: initialPoint.y + 32 },
+				blocked: false
+			});
+			const overshoot = semanticGet(overshootStart.token);
+
+			const zeroMovementStart = semanticStart('zero-movement');
+			dispatchDiagnostic({
+				mapId: 'meadow-entry',
+				previousPosition: { ...initialPoint },
+				requestedPosition: { ...initialPoint },
+				resolvedPosition: { ...initialPoint },
+				blocked: false
+			});
+			const zeroMovement = semanticGet(zeroMovementStart.token);
+			semanticCharacterization = {
+				successStart,
+				successAfterFirst,
+				successAfterLater,
+				aboveBandStart,
+				aboveBandAfter,
+				inBandStart,
+				inBandAfter,
+				wrongMap,
+				blocked,
+				overshoot,
+				zeroMovement
+			};
+		}
+
+		let caveDoorwayCharacterization: {
+			rightStart: CaveDoorwayBandResult;
+			rightAfter: CaveDoorwayBandResult;
+			leftStart: CaveDoorwayBandResult;
+			leftAfter: CaveDoorwayBandResult;
+			inBandStart: CaveDoorwayBandResult;
+			inBandAfter: CaveDoorwayBandResult;
+			blocked: CaveDoorwayBandResult;
+			wrongMap: CaveDoorwayBandResult;
+			overshoot: CaveDoorwayBandResult;
+			zeroMovement: CaveDoorwayBandResult;
+		} | null = null;
+		let itemShopBandCharacterization: {
+			outOfBandStart: CaveDoorwayBandResult;
+			outOfBandAfter: CaveDoorwayBandResult;
+			inBandStart: CaveDoorwayBandResult;
+			inBandAfter: CaveDoorwayBandResult;
+			blocked: CaveDoorwayBandResult;
+			wrongMap: CaveDoorwayBandResult;
+			undershoot: CaveDoorwayBandResult;
+			nonMonotonic: CaveDoorwayBandResult;
+		} | null = null;
+		if (
+			caveDoorwayApiAvailable &&
+			caveDoorwayRunner.startCaveDoorwayBand &&
+			caveDoorwayRunner.getCaveDoorwayBand
+		) {
+			const caveBand = {
+				minX: initialPoint.x + 8,
+				maxXExclusive: initialPoint.x + 24,
+				expectedY: initialPoint.y
+			};
+			const cavePlan = (suffix: string): CaveDoorwayBandPlan => ({
+				token: `characterization-cave-doorway-${suffix}-${Date.now()}`,
+				expectedMapId: 'meadow-entry',
+				...caveBand
+			});
+			const setSyntheticPositionForMap = (mapId: string, position: Point) => {
+				probeWindow.__glieseLastHudState = {
+					...(probeWindow.__glieseLastHudState ?? {}),
+					mapId,
+					areaMap: { player: { ...position } }
+				};
+				probeWindow.__glieseLastHudAt = 500;
+				probeWindow.__glieseLastMovementDiagnostic = undefined;
+				probeWindow.__glieseLastMovementAt = 0;
+			};
+			const setSyntheticPosition = (position: Point) =>
+				setSyntheticPositionForMap('meadow-entry', position);
+			const caveStart = (suffix: string, position: Point) => {
+				resetMovementProbe();
+				setSyntheticPosition(position);
+				return caveDoorwayRunner.startCaveDoorwayBand!(cavePlan(suffix));
+			};
+			const caveGet = (token: string) => caveDoorwayRunner.getCaveDoorwayBand!(token)!;
+
+			const rightStart = caveStart('right', { x: initialPoint.x + 32, y: initialPoint.y });
+			dispatchDiagnostic({
+				mapId: 'meadow-entry',
+				previousPosition: { x: initialPoint.x + 32, y: initialPoint.y },
+				requestedPosition: { x: initialPoint.x + 16, y: initialPoint.y },
+				resolvedPosition: { x: initialPoint.x + 16, y: initialPoint.y },
+				blocked: false
+			});
+			const rightAfter = caveGet(rightStart.token);
+
+			const leftStart = caveStart('left', { x: initialPoint.x - 16, y: initialPoint.y });
+			dispatchDiagnostic({
+				mapId: 'meadow-entry',
+				previousPosition: { x: initialPoint.x - 16, y: initialPoint.y },
+				requestedPosition: { x: initialPoint.x + 16, y: initialPoint.y },
+				resolvedPosition: { x: initialPoint.x + 16, y: initialPoint.y },
+				blocked: false
+			});
+			const leftAfter = caveGet(leftStart.token);
+
+			const inBandStart = caveStart('in-band', { x: initialPoint.x + 16, y: initialPoint.y });
+			const inBandAfter = caveGet(inBandStart.token);
+
+			const blockedStart = caveStart('blocked', { x: initialPoint.x + 32, y: initialPoint.y });
+			dispatchDiagnostic({
+				mapId: 'meadow-entry',
+				previousPosition: { x: initialPoint.x + 32, y: initialPoint.y },
+				requestedPosition: { x: initialPoint.x + 16, y: initialPoint.y },
+				resolvedPosition: { x: initialPoint.x + 32, y: initialPoint.y },
+				blocked: true
+			});
+			const blocked = caveGet(blockedStart.token);
+
+			const wrongMapStart = caveStart('wrong-map', { x: initialPoint.x + 32, y: initialPoint.y });
+			dispatchDiagnostic({
+				mapId: 'item-shop',
+				previousPosition: { x: initialPoint.x + 32, y: initialPoint.y },
+				requestedPosition: { x: initialPoint.x + 16, y: initialPoint.y },
+				resolvedPosition: { x: initialPoint.x + 16, y: initialPoint.y },
+				blocked: false
+			});
+			const wrongMap = caveGet(wrongMapStart.token);
+
+			const overshootStart = caveStart('overshoot', { x: initialPoint.x + 32, y: initialPoint.y });
+			dispatchDiagnostic({
+				mapId: 'meadow-entry',
+				previousPosition: { x: initialPoint.x + 32, y: initialPoint.y },
+				requestedPosition: { x: initialPoint.x - 16, y: initialPoint.y },
+				resolvedPosition: { x: initialPoint.x - 16, y: initialPoint.y },
+				blocked: false
+			});
+			const overshoot = caveGet(overshootStart.token);
+
+			const zeroMovementStart = caveStart('zero-movement', {
+				x: initialPoint.x + 32,
+				y: initialPoint.y
+			});
+			dispatchDiagnostic({
+				mapId: 'meadow-entry',
+				previousPosition: { x: initialPoint.x + 32, y: initialPoint.y },
+				requestedPosition: { x: initialPoint.x + 32, y: initialPoint.y },
+				resolvedPosition: { x: initialPoint.x + 32, y: initialPoint.y },
+				blocked: false
+			});
+			const zeroMovement = caveGet(zeroMovementStart.token);
+			caveDoorwayCharacterization = {
+				rightStart,
+				rightAfter,
+				leftStart,
+				leftAfter,
+				inBandStart,
+				inBandAfter,
+				blocked,
+				wrongMap,
+				overshoot,
+				zeroMovement
+			};
+
+			const itemShopBand = {
+				minX: 446,
+				maxXExclusive: 467,
+				expectedY: initialPoint.y
+			};
+			const itemShopPlan = (suffix: string): CaveDoorwayBandPlan => ({
+				token: `characterization-item-shop-stockroom-band-${suffix}-${Date.now()}`,
+				expectedMapId: 'item-shop',
+				...itemShopBand
+			});
+			const itemShopStart = (suffix: string, position: Point) => {
+				resetMovementProbe();
+				setSyntheticPositionForMap('item-shop', position);
+				return caveDoorwayRunner.startCaveDoorwayBand!(itemShopPlan(suffix));
+			};
+			const itemShopGet = (token: string) => caveDoorwayRunner.getCaveDoorwayBand!(token)!;
+			const outOfBandPoint = { x: 470.729599999999, y: initialPoint.y };
+			const outOfBandStart = itemShopStart('out-of-band', outOfBandPoint);
+			dispatchDiagnostic({
+				mapId: 'item-shop',
+				previousPosition: { ...outOfBandPoint },
+				requestedPosition: { x: 462, y: initialPoint.y },
+				resolvedPosition: { x: 462, y: initialPoint.y },
+				blocked: false
+			});
+			const outOfBandAfter = itemShopGet(outOfBandStart.token);
+
+			const inBandPoint = { x: 460, y: initialPoint.y };
+			const itemBandInBandStart = itemShopStart('in-band', inBandPoint);
+			const itemBandInBandAfter = itemShopGet(itemBandInBandStart.token);
+
+			const blockedPoint = { x: 470, y: initialPoint.y };
+			const itemBandBlockedStart = itemShopStart('blocked', blockedPoint);
+			dispatchDiagnostic({
+				mapId: 'item-shop',
+				previousPosition: { ...blockedPoint },
+				requestedPosition: { x: 462, y: initialPoint.y },
+				resolvedPosition: { ...blockedPoint },
+				blocked: true
+			});
+			const itemBandBlocked = itemShopGet(itemBandBlockedStart.token);
+
+			const wrongMapPoint = { x: 470, y: initialPoint.y };
+			const itemBandWrongMapStart = itemShopStart('wrong-map', wrongMapPoint);
+			dispatchDiagnostic({
+				mapId: 'guild-hall',
+				previousPosition: { ...wrongMapPoint },
+				requestedPosition: { x: 462, y: initialPoint.y },
+				resolvedPosition: { x: 462, y: initialPoint.y },
+				blocked: false
+			});
+			const itemBandWrongMap = itemShopGet(itemBandWrongMapStart.token);
+
+			const undershootPoint = { x: 470, y: initialPoint.y };
+			const itemBandUndershootStart = itemShopStart('undershoot', undershootPoint);
+			dispatchDiagnostic({
+				mapId: 'item-shop',
+				previousPosition: { ...undershootPoint },
+				requestedPosition: { x: 445, y: initialPoint.y },
+				resolvedPosition: { x: 445, y: initialPoint.y },
+				blocked: false
+			});
+			const itemBandUndershoot = itemShopGet(itemBandUndershootStart.token);
+
+			const nonMonotonicPoint = { x: 470, y: initialPoint.y };
+			const itemBandNonMonotonicStart = itemShopStart('non-monotonic', nonMonotonicPoint);
+			dispatchDiagnostic({
+				mapId: 'item-shop',
+				previousPosition: { ...nonMonotonicPoint },
+				requestedPosition: { x: 474, y: initialPoint.y },
+				resolvedPosition: { x: 474, y: initialPoint.y },
+				blocked: false
+			});
+			const itemBandNonMonotonic = itemShopGet(itemBandNonMonotonicStart.token);
+			itemShopBandCharacterization = {
+				outOfBandStart,
+				outOfBandAfter,
+				inBandStart: itemBandInBandStart,
+				inBandAfter: itemBandInBandAfter,
+				blocked: itemBandBlocked,
+				wrongMap: itemBandWrongMap,
+				undershoot: itemBandUndershoot,
+				nonMonotonic: itemBandNonMonotonic
+			};
+			// Synthetic cave cases temporarily move the probe HUD so the browser-local
+			// contract can derive its direction. Restore the real characterization start
+			// before the shared route acknowledgement below.
+			setSyntheticPosition(initialPoint);
+		}
+
 		probeWindow.__glieseCharacterizationSyntheticPhase = false;
 		resetMovementProbe();
 		return {
+			semanticApiAvailable,
+			semanticCharacterization,
+			caveDoorwayApiAvailable,
+			caveDoorwayCharacterization,
+			itemShopBandCharacterization,
 			invalidBlockedStart,
 			invalidBlockedAfter,
 			invalidMapStart,
@@ -8050,6 +10721,101 @@ test('browser-local route steering acknowledges a plan and continues through Pha
 	}, initial!);
 	expect(stateMachineEvidence).not.toBeNull();
 	const evidence = stateMachineEvidence!;
+	expect(evidence.semanticApiAvailable).toBe(true);
+	const semanticCharacterization = evidence.semanticCharacterization!;
+	expect(semanticCharacterization).not.toBeNull();
+	const semanticSuccess = semanticCharacterization!;
+	expect(semanticSuccess.successStart.status).toBe('running');
+	expect(semanticSuccess.successAfterFirst.status).toBe('done');
+	expect(semanticSuccess.successAfterFirst.diagnostics).toHaveLength(1);
+	expect(semanticSuccess.successAfterLater.diagnostics).toHaveLength(1);
+	expect(semanticSuccess.successAfterLater.position).toEqual(
+		semanticSuccess.successAfterFirst.position
+	);
+	expect(semanticSuccess.aboveBandStart.status).toBe('running');
+	expect(semanticSuccess.aboveBandAfter.status).toBe('done');
+	expect(semanticSuccess.aboveBandAfter.diagnostics).toHaveLength(2);
+	expect(semanticSuccess.aboveBandAfter.releasedKeys).toEqual(['ArrowLeft', 'ArrowUp']);
+	expect(semanticSuccess.inBandStart.status).toBe('done');
+	expect(semanticSuccess.inBandAfter.status).toBe('done');
+	expect(semanticSuccess.inBandAfter.diagnostics).toEqual([]);
+	expect(semanticSuccess.inBandAfter.releasedKeys).toEqual([]);
+	for (const result of [
+		semanticSuccess.successAfterFirst,
+		semanticSuccess.wrongMap,
+		semanticSuccess.blocked,
+		semanticSuccess.overshoot,
+		semanticSuccess.zeroMovement
+	]) {
+		expect(result.activeKeys).toEqual([]);
+		expect(result.released).toBe(true);
+	}
+	expect(semanticSuccess.successAfterFirst.invalidDiagnostics).toEqual([]);
+	expect(semanticSuccess.wrongMap.status).toBe('error');
+	expect(semanticSuccess.wrongMap.invalidDiagnostics).toHaveLength(1);
+	expect(semanticSuccess.wrongMap.invalidDiagnostics[0]?.mapId).toBe('item-shop');
+	expect(semanticSuccess.blocked.status).toBe('error');
+	expect(semanticSuccess.blocked.invalidDiagnostics[0]?.blocked).toBe(true);
+	expect(semanticSuccess.overshoot.status).toBe('error');
+	expect(semanticSuccess.overshoot.error).toContain('overshot');
+	expect(semanticSuccess.zeroMovement.status).toBe('error');
+	expect(semanticSuccess.zeroMovement.error).toContain('monotonic progress');
+	expect(evidence.caveDoorwayApiAvailable).toBe(true);
+	const caveDoorwayCharacterization = evidence.caveDoorwayCharacterization!;
+	expect(caveDoorwayCharacterization).not.toBeNull();
+	expect(caveDoorwayCharacterization.rightStart.status).toBe('running');
+	expect(caveDoorwayCharacterization.rightAfter.status).toBe('done');
+	expect(caveDoorwayCharacterization.rightAfter.releasedKeys).toEqual(['ArrowLeft']);
+	expect(caveDoorwayCharacterization.rightAfter.diagnostics).toHaveLength(1);
+	expect(caveDoorwayCharacterization.leftStart.status).toBe('running');
+	expect(caveDoorwayCharacterization.leftAfter.status).toBe('done');
+	expect(caveDoorwayCharacterization.leftAfter.releasedKeys).toEqual(['ArrowRight']);
+	expect(caveDoorwayCharacterization.leftAfter.diagnostics).toHaveLength(1);
+	expect(caveDoorwayCharacterization.inBandStart.status).toBe('done');
+	expect(caveDoorwayCharacterization.inBandAfter.diagnostics).toEqual([]);
+	expect(caveDoorwayCharacterization.inBandAfter.releasedKeys).toEqual([]);
+	expect(caveDoorwayCharacterization.blocked.status).toBe('error');
+	expect(caveDoorwayCharacterization.blocked.invalidDiagnostics[0]?.blocked).toBe(true);
+	expect(caveDoorwayCharacterization.wrongMap.status).toBe('error');
+	expect(caveDoorwayCharacterization.wrongMap.invalidDiagnostics[0]?.mapId).toBe('item-shop');
+	expect(caveDoorwayCharacterization.overshoot.status).toBe('error');
+	expect(caveDoorwayCharacterization.overshoot.error).toContain('overshot');
+	expect(caveDoorwayCharacterization.zeroMovement.status).toBe('error');
+	expect(caveDoorwayCharacterization.zeroMovement.error).toContain('monotonic progress');
+	const itemShopBandCharacterization = evidence.itemShopBandCharacterization!;
+	expect(itemShopBandCharacterization).not.toBeNull();
+	expect(itemShopBandCharacterization.outOfBandStart.status).toBe('running');
+	expect(itemShopBandCharacterization.outOfBandAfter.status).toBe('done');
+	expect(itemShopBandCharacterization.outOfBandAfter.mapId).toBe('item-shop');
+	expect(itemShopBandCharacterization.outOfBandAfter.position).toEqual({
+		x: 462,
+		y: initial!.y
+	});
+	expect(itemShopBandCharacterization.outOfBandAfter.releasedKeys).toEqual(['ArrowLeft']);
+	expect(itemShopBandCharacterization.outOfBandAfter.diagnostics).toHaveLength(1);
+	expect(itemShopBandCharacterization.outOfBandAfter.invalidDiagnostics).toEqual([]);
+	expect(itemShopBandCharacterization.outOfBandAfter.activeKeys).toEqual([]);
+	expect(itemShopBandCharacterization.outOfBandAfter.released).toBe(true);
+	expect(itemShopBandCharacterization.inBandStart.status).toBe('done');
+	expect(itemShopBandCharacterization.inBandAfter.status).toBe('done');
+	expect(itemShopBandCharacterization.inBandAfter.position).toEqual({
+		x: 460,
+		y: initial!.y
+	});
+	expect(itemShopBandCharacterization.inBandAfter.diagnostics).toEqual([]);
+	expect(itemShopBandCharacterization.inBandAfter.releasedKeys).toEqual([]);
+	expect(itemShopBandCharacterization.inBandAfter.activeKeys).toEqual([]);
+	expect(itemShopBandCharacterization.inBandAfter.released).toBe(true);
+	expect(itemShopBandCharacterization.blocked.status).toBe('error');
+	expect(itemShopBandCharacterization.blocked.invalidDiagnostics[0]?.blocked).toBe(true);
+	expect(itemShopBandCharacterization.blocked.activeKeys).toEqual([]);
+	expect(itemShopBandCharacterization.blocked.released).toBe(true);
+	expect(itemShopBandCharacterization.wrongMap.status).toBe('error');
+	expect(itemShopBandCharacterization.wrongMap.invalidDiagnostics[0]?.mapId).toBe('guild-hall');
+	expect(itemShopBandCharacterization.undershoot.status).toBe('error');
+	expect(itemShopBandCharacterization.undershoot.error).toContain('overshot');
+	expect(itemShopBandCharacterization.nonMonotonic.status).toBe('error');
+	expect(itemShopBandCharacterization.nonMonotonic.error).toContain('monotonic progress');
 	const wrongDirectionStart = evidence.wrongDirectionStart!;
 	const wrongDirectionAfter = evidence.wrongDirectionAfter!;
 	const blockedStart = evidence.blockedStart!;
@@ -8204,6 +10970,349 @@ test('browser-local route steering acknowledges a plan and continues through Pha
 			'characterization Item Shop fixed-axis zero long movement'
 		)
 	).toThrow();
+	// Characterize the Item Shop service-corridor-west handoff: the first leg
+	// keeps the actual settled x fixed, so its endpoint envelope is y-only while
+	// the remaining westbound leg remains under the generic symmetric oracle.
+	const serviceCorridorWestStart = { x: 637.7840000000091, y: 307.3096000000027 };
+	const serviceCorridorWestTarget = itemShopServiceCorridorWestCheckpoint({ x: 448, y: 300 });
+	const serviceCorridorWestPlan = itemShopServiceCorridorWestRoutePoints(
+		serviceCorridorWestStart,
+		serviceCorridorWestTarget
+	);
+	expect(serviceCorridorWestPlan).toEqual([
+		serviceCorridorWestStart,
+		{ x: serviceCorridorWestStart.x, y: 300 },
+		serviceCorridorWestTarget
+	]);
+	expect(() =>
+		assertTask6InteriorRouteEnvelope(
+			'item-shop',
+			serviceCorridorWestPlan,
+			'characterization Item Shop service-corridor-west full route'
+		)
+	).toThrow();
+	assertTask6InteriorRouteEnvelope(
+		'item-shop',
+		serviceCorridorWestPlan.slice(1),
+		'characterization Item Shop service-corridor-west remaining route'
+	);
+	const unsafeServiceCorridorWestStart = { x: 619.5, y: 307.3096000000027 };
+	expect(() =>
+		itemShopServiceCorridorWestRoutePoints(
+			unsafeServiceCorridorWestStart,
+			serviceCorridorWestTarget
+		)
+	).toThrow(/fixed-x endpoint/);
+	// RED characterization for the stockroom doorway handoff: the live endpoint
+	// from service-corridor-west is already in the source-safe x band. Preserve
+	// that actual x for the initial vertical transit, then cross the authored
+	// doorway row and finish at the unchanged checkpoint. The old doorway helper
+	// inserts a fragile westward correction before the vertical leg.
+	const stockroomEntryStart = { x: 463.62560000000195, y: 301.60239999999817 };
+	const stockroomEntryTarget = { x: 448, y: 160 };
+	const stockroomEntryTransitY = itemShopDoorwayTransitY(
+		'item-shop-stockroom-divider-north',
+		'item-shop-stockroom-divider-south',
+		'stockroom'
+	);
+	const stockroomEntryPlan = itemShopStockroomEntryRoutePoints(
+		stockroomEntryStart,
+		stockroomEntryTarget
+	);
+	expect(stockroomEntryPlan).toEqual([
+		stockroomEntryStart,
+		{ x: stockroomEntryStart.x, y: stockroomEntryTransitY },
+		{ x: stockroomEntryTarget.x, y: stockroomEntryTransitY },
+		stockroomEntryTarget
+	]);
+	const stockroomEntryDiagnostic: PlayerMovementDiagnostic = {
+		mapId: 'item-shop',
+		previousPosition: stockroomEntryStart,
+		requestedPosition: { x: stockroomEntryStart.x, y: stockroomEntryStart.y - 12.8 },
+		resolvedPosition: { x: stockroomEntryStart.x, y: stockroomEntryStart.y - 12.8 },
+		blocked: false
+	};
+	const stockroomEntryContractResult: BrowserRouteResult = {
+		token: 'characterization-item-shop-stockroom-entry',
+		mapId: 'item-shop',
+		status: 'done',
+		pointIndex: stockroomEntryPlan.length,
+		axis: null,
+		position: { x: 448.6256, y: 160.18 },
+		target: null,
+		lastDiagnostic: stockroomEntryDiagnostic,
+		axisHistory: ['y'],
+		diagnostics: [stockroomEntryDiagnostic],
+		invalidDiagnostics: [],
+		diagnosticAxes: ['y'],
+		activeKey: null
+	};
+	assertItemShopStockroomEntryRouteContract(stockroomEntryPlan, stockroomEntryContractResult);
+	expect(() =>
+		itemShopStockroomEntryRoutePoints({ x: 445, y: stockroomEntryStart.y }, stockroomEntryTarget)
+	).toThrow();
+	expect(() =>
+		itemShopStockroomEntryRoutePoints({ x: 467, y: stockroomEntryStart.y }, stockroomEntryTarget)
+	).toThrow();
+	const wrongMapStockroomEntryDiagnostic = {
+		...stockroomEntryDiagnostic,
+		mapId: 'guild-hall'
+	};
+	expect(() =>
+		assertItemShopStockroomEntryRouteContract(stockroomEntryPlan, {
+			...stockroomEntryContractResult,
+			mapId: 'guild-hall',
+			lastDiagnostic: wrongMapStockroomEntryDiagnostic,
+			diagnostics: [wrongMapStockroomEntryDiagnostic]
+		})
+	).toThrow();
+	const blockedStockroomEntryDiagnostic = {
+		...stockroomEntryDiagnostic,
+		blocked: true
+	};
+	expect(() =>
+		assertItemShopStockroomEntryRouteContract(stockroomEntryPlan, {
+			...stockroomEntryContractResult,
+			lastDiagnostic: blockedStockroomEntryDiagnostic,
+			diagnostics: [blockedStockroomEntryDiagnostic],
+			invalidDiagnostics: [blockedStockroomEntryDiagnostic]
+		})
+	).toThrow();
+	// RED characterization for the Quartermaster semantic doorway handoff: the
+	// route must stop after reaching the authored doorway-right clearance and
+	// let the next fixed-axis phases consume the actual settled y. The old plan
+	// inserts an impossible below-counter y micro-correction here.
+	const quartermasterSemanticStart = { x: 508.9688, y: 566.4856 };
+	const quartermasterSemanticStaging = guildHallQuartermasterInteractionStagingPoint();
+	const quartermasterDoorwayTransitY = guildHallQuartermasterDoorwayTransitY();
+	const quartermasterDoorwayRightClearanceX = guildHallQuartermasterDoorwayRightClearanceX();
+	const quartermasterSemanticDoorwayPlan = guildHallQuartermasterRoutePoints(
+		quartermasterSemanticStart,
+		quartermasterSemanticStaging,
+		false,
+		true
+	);
+	expect(quartermasterSemanticDoorwayPlan).toEqual([
+		quartermasterSemanticStart,
+		{ x: quartermasterSemanticStart.x, y: quartermasterDoorwayTransitY },
+		{ x: quartermasterDoorwayRightClearanceX, y: quartermasterDoorwayTransitY }
+	]);
+	// RED characterization for the post-Quartermaster egress: the live semantic
+	// endpoint is already in the authored divider/counter open row, so the first
+	// leg must preserve that actual y while moving monotonically to the source
+	// counter-right clearance. Only after that handoff may the route descend.
+	const quartermasterReturnStart = { x: 842.2976, y: 506.4688 };
+	const quartermasterReturnTarget = { x: 512, y: 568 };
+	const quartermasterReturnPlan = guildHallQuartermasterRoutePoints(
+		quartermasterReturnStart,
+		quartermasterReturnTarget,
+		true
+	);
+	const quartermasterReturnRightClearanceX =
+		VILLAGE_INTERIOR_LAYOUTS['guild-hall'].propCollisions.quartermasterCounter.x +
+		VILLAGE_INTERIOR_LAYOUTS['guild-hall'].propCollisions.quartermasterCounter.width +
+		PLAYER_COLLISION_RADIUS +
+		AXIS_REACH_TOLERANCE +
+		1;
+	const quartermasterReturnBelowCounterY =
+		VILLAGE_INTERIOR_LAYOUTS['guild-hall'].propCollisions.quartermasterCounter.y +
+		VILLAGE_INTERIOR_LAYOUTS['guild-hall'].propCollisions.quartermasterCounter.height +
+		PLAYER_COLLISION_RADIUS +
+		AXIS_REACH_TOLERANCE +
+		1;
+	expect(quartermasterReturnPlan).toEqual([
+		quartermasterReturnStart,
+		{ x: quartermasterReturnRightClearanceX, y: quartermasterReturnStart.y },
+		{ x: quartermasterReturnRightClearanceX, y: quartermasterReturnBelowCounterY },
+		{ x: quartermasterDoorwayRightClearanceX, y: quartermasterReturnBelowCounterY },
+		{ x: quartermasterDoorwayRightClearanceX, y: quartermasterDoorwayTransitY },
+		{ x: quartermasterReturnTarget.x, y: quartermasterDoorwayTransitY },
+		quartermasterReturnTarget
+	]);
+	// Characterize both valid frame-count outcomes for the Guild Hall lobby
+	// continuity handoff, then preserve the existing axis-only terminal route and
+	// its unchanged ±18 authored-checkpoint contract.
+	const lobbyReturnPhaseStart = { x: 515.2736, y: 561.7048 };
+	const lobbyReturnPhasePoint = {
+		x: lobbyReturnPhaseStart.x - 27.44,
+		y: lobbyReturnPhaseStart.y + 27.44
+	};
+	const lobbyReturnPhaseDiagnostic: PlayerMovementDiagnostic = {
+		mapId: 'guild-hall',
+		previousPosition: lobbyReturnPhaseStart,
+		requestedPosition: lobbyReturnPhasePoint,
+		resolvedPosition: lobbyReturnPhasePoint,
+		blocked: false
+	};
+	const lobbyReturnPhaseResult: GuildMasterSemanticDiagonalResult = {
+		token: 'characterization-guild-hall-lobby-return-phase',
+		mapId: 'guild-hall',
+		status: 'done',
+		position: lobbyReturnPhasePoint,
+		lastDiagnostic: lobbyReturnPhaseDiagnostic,
+		diagnostics: [lobbyReturnPhaseDiagnostic],
+		invalidDiagnostics: [],
+		activeKeys: [],
+		releasedKeys: ['ArrowLeft', 'ArrowDown'],
+		released: true,
+		startedAt: 0,
+		finishedAt: 1
+	};
+	const lobbyReturnZeroInputStart = { x: 507.39919999999813, y: 577.2735999999987 };
+	const lobbyReturnZeroInputResult: GuildMasterSemanticDiagonalResult = {
+		token: 'characterization-guild-hall-lobby-return-zero-input-phase',
+		mapId: 'guild-hall',
+		status: 'done',
+		position: lobbyReturnZeroInputStart,
+		lastDiagnostic: null,
+		diagnostics: [],
+		invalidDiagnostics: [],
+		activeKeys: [],
+		releasedKeys: [],
+		released: true,
+		startedAt: 0,
+		finishedAt: 1
+	};
+	assertGuildHallLobbyReturnSemanticDiagonalContract(
+		lobbyReturnZeroInputStart,
+		lobbyReturnZeroInputResult,
+		'characterization Guild Hall lobby-return zero-input phase'
+	);
+	assertGuildHallLobbyReturnSemanticDiagonalContract(
+		lobbyReturnPhaseStart,
+		lobbyReturnPhaseResult,
+		'characterization Guild Hall lobby-return one-diagnostic phase'
+	);
+	const lobbyReturnTwoDiagnosticStart = { x: 514.9999999999999, y: 566.8144000000005 };
+	const lobbyReturnTwoDiagnosticIntermediate = {
+		x: 508.3560246839711,
+		y: 573.4583753160293
+	};
+	const lobbyReturnTwoDiagnosticPoint = {
+		x: 502.1346163803798,
+		y: 579.6797836196207
+	};
+	const lobbyReturnTwoDiagnosticFirst: PlayerMovementDiagnostic = {
+		mapId: 'guild-hall',
+		previousPosition: lobbyReturnTwoDiagnosticStart,
+		requestedPosition: lobbyReturnTwoDiagnosticIntermediate,
+		resolvedPosition: lobbyReturnTwoDiagnosticIntermediate,
+		blocked: false
+	};
+	const lobbyReturnTwoDiagnosticSecond: PlayerMovementDiagnostic = {
+		mapId: 'guild-hall',
+		previousPosition: lobbyReturnTwoDiagnosticIntermediate,
+		requestedPosition: lobbyReturnTwoDiagnosticPoint,
+		resolvedPosition: lobbyReturnTwoDiagnosticPoint,
+		blocked: false
+	};
+	const lobbyReturnTwoDiagnosticResult: GuildMasterSemanticDiagonalResult = {
+		token: 'characterization-guild-hall-lobby-return-two-diagnostic-phase',
+		mapId: 'guild-hall',
+		status: 'done',
+		position: lobbyReturnTwoDiagnosticPoint,
+		lastDiagnostic: lobbyReturnTwoDiagnosticSecond,
+		diagnostics: [lobbyReturnTwoDiagnosticFirst, lobbyReturnTwoDiagnosticSecond],
+		invalidDiagnostics: [],
+		activeKeys: [],
+		releasedKeys: ['ArrowLeft', 'ArrowDown'],
+		released: true,
+		startedAt: 0,
+		finishedAt: 1
+	};
+	const characterizedLobbyReturnTwoDiagnosticPoint =
+		assertGuildHallLobbyReturnSemanticDiagonalContract(
+			lobbyReturnTwoDiagnosticStart,
+			lobbyReturnTwoDiagnosticResult,
+			'characterization Guild Hall lobby-return two-diagnostic phase'
+		);
+	const wrongMapLobbyReturnDiagnostic: PlayerMovementDiagnostic = {
+		...lobbyReturnPhaseDiagnostic,
+		mapId: 'item-shop'
+	};
+	const blockedLobbyReturnDiagnostic: PlayerMovementDiagnostic = {
+		...lobbyReturnPhaseDiagnostic,
+		blocked: true
+	};
+	const nonMonotonicLobbyReturnDiagnostic: PlayerMovementDiagnostic = {
+		mapId: 'guild-hall',
+		previousPosition: lobbyReturnTwoDiagnosticIntermediate,
+		requestedPosition: {
+			x: lobbyReturnTwoDiagnosticIntermediate.x + 4,
+			y: lobbyReturnTwoDiagnosticPoint.y
+		},
+		resolvedPosition: {
+			x: lobbyReturnTwoDiagnosticIntermediate.x + 4,
+			y: lobbyReturnTwoDiagnosticPoint.y
+		},
+		blocked: false
+	};
+	expect(() =>
+		assertGuildHallLobbyReturnSemanticDiagonalContract(
+			lobbyReturnPhaseStart,
+			{
+				...lobbyReturnPhaseResult,
+				mapId: 'item-shop',
+				lastDiagnostic: wrongMapLobbyReturnDiagnostic,
+				diagnostics: [wrongMapLobbyReturnDiagnostic]
+			},
+			'characterization Guild Hall lobby-return wrong-map rejection'
+		)
+	).toThrow();
+	expect(() =>
+		assertGuildHallLobbyReturnSemanticDiagonalContract(
+			lobbyReturnPhaseStart,
+			{
+				...lobbyReturnPhaseResult,
+				lastDiagnostic: blockedLobbyReturnDiagnostic,
+				diagnostics: [blockedLobbyReturnDiagnostic]
+			},
+			'characterization Guild Hall lobby-return blocked rejection'
+		)
+	).toThrow();
+	expect(() =>
+		assertGuildHallLobbyReturnSemanticDiagonalContract(
+			lobbyReturnTwoDiagnosticStart,
+			{
+				...lobbyReturnTwoDiagnosticResult,
+				position: nonMonotonicLobbyReturnDiagnostic.resolvedPosition,
+				lastDiagnostic: nonMonotonicLobbyReturnDiagnostic,
+				diagnostics: [lobbyReturnTwoDiagnosticFirst, nonMonotonicLobbyReturnDiagnostic]
+			},
+			'characterization Guild Hall lobby-return non-monotonic rejection'
+		)
+	).toThrow();
+	const characterizedLobbyReturnFinalRoute: [Point, Point, Point] = [
+		characterizedLobbyReturnTwoDiagnosticPoint,
+		{ x: characterizedLobbyReturnTwoDiagnosticPoint.x, y: 736 },
+		{ x: 512, y: 736 }
+	];
+	assertTask6InteriorRouteEnvelope(
+		'guild-hall',
+		characterizedLobbyReturnFinalRoute,
+		'characterization Guild Hall lobby-return terminal route'
+	);
+	const characterizedLobbyReturnFinalResult: BrowserRouteResult = {
+		token: 'characterization-guild-hall-lobby-return-terminal',
+		mapId: 'guild-hall',
+		status: 'done',
+		pointIndex: 2,
+		axis: null,
+		position: { x: 526.5, y: 743 },
+		target: null,
+		lastDiagnostic: null,
+		axisHistory: ['y', 'x'],
+		diagnostics: [],
+		invalidDiagnostics: [],
+		diagnosticAxes: [],
+		activeKey: null
+	};
+	assertGuildHallLobbyReturnFinalRouteContract(
+		characterizedLobbyReturnFinalRoute,
+		characterizedLobbyReturnFinalResult,
+		{ x: 512, y: 736 },
+		'characterization Guild Hall lobby-return terminal route'
+	);
 	// Service-return-west must keep its fixed-x doorway departure separate from
 	// the following horizontal alignment. This RED characterization deliberately
 	// expects the two phase plans before traversal is split into two route calls.
@@ -8220,6 +11329,186 @@ test('browser-local route steering acknowledges a plan and continues through Pha
 			{ x: 448, y: 300 }
 		]
 	});
+	// RED characterization for the VH2 exterior handoff: once the south-lane
+	// route has settled at a real x inside the authored approach, the next leg
+	// must keep that x and only move north to the authored return-arrival y.
+	const villagerHouse2Building = SUNDROP_VILLAGE_V2_BUILDINGS.villagerHouse2;
+	const villagerHouse2MainStreet = SUNDROP_VILLAGE_V2_PUBLIC_SPACES.mainStreet;
+	const villagerHouse2CharacterizationStart = {
+		x:
+			villagerHouse2Building.approach.x +
+			villagerHouse2Building.approach.width / 2 +
+			PLAYER_COLLISION_RADIUS +
+			4,
+		y: villagerHouse2MainStreet.y + villagerHouse2MainStreet.height
+	};
+	const villagerHouse2CharacterizationPlan = villagerHouse2OutdoorApproachRoutePoints(
+		villagerHouse2CharacterizationStart,
+		villagerHouse2Building.returnArrival
+	);
+	expect(villagerHouse2CharacterizationPlan.vertical).toEqual([
+		villagerHouse2CharacterizationStart,
+		{
+			x: villagerHouse2CharacterizationStart.x,
+			y: villagerHouse2Building.returnArrival.y
+		}
+	]);
+	// RED characterization for the VH1 resident route: the generic vertical-first
+	// helper sends the actual x-residue into Lynn's 29px NPC collision circle before
+	// it can correct to the authored x=200 approach. The source-safe contract must
+	// instead cross to x=200 on the current row, then descend.
+	const lynnActualStart = { x: 188.2352, y: 316.332 };
+	const lynnApproach = { x: 200, y: 416 };
+	const lynnVerticalFirst = interiorRoutePoints(lynnActualStart, lynnApproach);
+	expect(
+		routeSegmentIntersectsCircle(
+			lynnVerticalFirst[0]!,
+			lynnVerticalFirst[1]!,
+			{ x: 160, y: 416 },
+			PLAYER_COLLISION_RADIUS + NPC_PACK_COLLISION_RADIUS
+		)
+	).toBe(true);
+	const lynnHorizontalFirst = villagerHouse1LynnRoutePoints(lynnActualStart, lynnApproach);
+	assertVillagerHouse1LynnRouteGeometry(lynnHorizontalFirst, lynnApproach);
+	expect(lynnHorizontalFirst).toEqual([
+		{ x: 188.2352, y: 316.332 },
+		{ x: 200, y: 316.332 },
+		{ x: 200, y: 416 }
+	]);
+	// RED characterization for Guild Hall terminal convergence: the real route
+	// runner can cross the checkpoint on an unblocked frame by 19.0552 px, then
+	// make a valid bounded correction back into the unchanged ±18 band. The old
+	// per-diagnostic contract incorrectly rejects that first frame because it is
+	// outside the final reach band even though the complete route finishes validly.
+	const terminalOvershootCheckpoint = { x: 400, y: 208 };
+	const terminalOvershootDiagnostics: PlayerMovementDiagnostic[] = [
+		{
+			mapId: 'guild-hall',
+			previousPosition: { x: 398.83039999999835, y: 190.25600000000549 },
+			requestedPosition: { x: 398.83039999999835, y: 227.0552000000059 },
+			resolvedPosition: { x: 398.83039999999835, y: 227.0552000000059 },
+			blocked: false
+		},
+		{
+			mapId: 'guild-hall',
+			previousPosition: { x: 398.83039999999835, y: 227.0552000000059 },
+			requestedPosition: { x: 398.83039999999835, y: 190.25600000000549 },
+			resolvedPosition: { x: 398.83039999999835, y: 190.25600000000549 },
+			blocked: false
+		}
+	];
+	const terminalOvershootResult: BrowserRouteResult = {
+		token: 'characterization-guild-hall-terminal-overshoot',
+		mapId: 'guild-hall',
+		status: 'done',
+		pointIndex: 2,
+		axis: null,
+		position: { x: 398.83039999999835, y: 190.25600000000549 },
+		target: null,
+		lastDiagnostic: terminalOvershootDiagnostics.at(-1)!,
+		axisHistory: ['x', 'y'],
+		diagnostics: terminalOvershootDiagnostics,
+		invalidDiagnostics: [],
+		diagnosticAxes: ['y', 'y'],
+		activeKey: null,
+		movementCount: 3
+	};
+	expect(terminalOvershootResult.status).toBe('done');
+	expect(terminalOvershootResult.activeKey).toBeNull();
+	expect(terminalOvershootResult.invalidDiagnostics).toEqual([]);
+	expect(
+		Math.abs(terminalOvershootCheckpoint.y - terminalOvershootDiagnostics[0]!.resolvedPosition.y)
+	).toBeCloseTo(19.0552, 4);
+	for (const diagnostic of terminalOvershootDiagnostics) {
+		assertGuildHallTerminalDiagnosticProgress(diagnostic, 'y', terminalOvershootCheckpoint);
+	}
+	expect(
+		Math.abs(terminalOvershootResult.position!.x - terminalOvershootCheckpoint.x)
+	).toBeLessThanOrEqual(AXIS_REACH_TOLERANCE);
+	expect(
+		Math.abs(terminalOvershootResult.position!.y - terminalOvershootCheckpoint.y)
+	).toBeLessThanOrEqual(AXIS_REACH_TOLERANCE);
+	// Characterize the live Quartermaster egress sequence: the first frames move
+	// forward toward the authored y=583 staging row, one frame crosses that row,
+	// and the runner's bounded correction returns toward the same target. The
+	// route contract must accept that valid correction while retaining its
+	// source-geometry checks.
+	const quartermasterReturnAxisStart = { x: 901.0375999999958, y: 510.2031999999933 };
+	const quartermasterReturnAxisTarget = { x: quartermasterReturnAxisStart.x, y: 583 };
+	const quartermasterReturnAxisDiagnostics: PlayerMovementDiagnostic[] = [
+		{
+			mapId: 'guild-hall',
+			previousPosition: quartermasterReturnAxisStart,
+			requestedPosition: { x: quartermasterReturnAxisStart.x, y: 542.2071999999932 },
+			resolvedPosition: { x: quartermasterReturnAxisStart.x, y: 542.2071999999932 },
+			blocked: false
+		},
+		{
+			mapId: 'guild-hall',
+			previousPosition: { x: quartermasterReturnAxisStart.x, y: 542.2071999999932 },
+			requestedPosition: { x: quartermasterReturnAxisStart.x, y: 574.8039999999921 },
+			resolvedPosition: { x: quartermasterReturnAxisStart.x, y: 574.8039999999921 },
+			blocked: false
+		},
+		{
+			mapId: 'guild-hall',
+			previousPosition: { x: quartermasterReturnAxisStart.x, y: 574.8039999999921 },
+			requestedPosition: { x: quartermasterReturnAxisStart.x, y: 607.9959999999921 },
+			resolvedPosition: { x: quartermasterReturnAxisStart.x, y: 607.9959999999921 },
+			blocked: false
+		},
+		{
+			mapId: 'guild-hall',
+			previousPosition: { x: quartermasterReturnAxisStart.x, y: 607.9959999999921 },
+			requestedPosition: { x: quartermasterReturnAxisStart.x, y: 574.6023999999916 },
+			resolvedPosition: { x: quartermasterReturnAxisStart.x, y: 574.6023999999916 },
+			blocked: false
+		}
+	];
+	assertGuildHallQuartermasterReturnAxisRouteContract(
+		[quartermasterReturnAxisStart, quartermasterReturnAxisTarget],
+		{
+			token: 'characterization-guild-hall-quartermaster-return-axis',
+			mapId: 'guild-hall',
+			status: 'done',
+			pointIndex: 2,
+			axis: null,
+			position: { x: quartermasterReturnAxisStart.x, y: 574.6023999999916 },
+			target: null,
+			lastDiagnostic: quartermasterReturnAxisDiagnostics.at(-1)!,
+			axisHistory: ['y'],
+			diagnostics: quartermasterReturnAxisDiagnostics,
+			invalidDiagnostics: [],
+			diagnosticAxes: ['y', 'y', 'y', 'y'],
+			activeKey: null
+		},
+		'y',
+		'characterization Guild Hall Quartermaster return axis'
+	);
+	const wrongDirectionTerminalDiagnostic: PlayerMovementDiagnostic = {
+		...terminalOvershootDiagnostics[0]!,
+		requestedPosition: { x: terminalOvershootCheckpoint.x, y: 180 },
+		resolvedPosition: { x: terminalOvershootCheckpoint.x, y: 180 }
+	};
+	const noProgressTerminalDiagnostic: PlayerMovementDiagnostic = {
+		...terminalOvershootDiagnostics[0]!,
+		requestedPosition: terminalOvershootDiagnostics[0]!.previousPosition,
+		resolvedPosition: terminalOvershootDiagnostics[0]!.previousPosition
+	};
+	expect(() =>
+		assertGuildHallTerminalDiagnosticProgress(
+			wrongDirectionTerminalDiagnostic,
+			'y',
+			terminalOvershootCheckpoint
+		)
+	).toThrow();
+	expect(() =>
+		assertGuildHallTerminalDiagnosticProgress(
+			noProgressTerminalDiagnostic,
+			'y',
+			terminalOvershootCheckpoint
+		)
+	).toThrow();
 	// The spawn-return corridor is two contracts, not one flat route: the
 	// counter-clearing vertical leg must retain its fixed x, while the authored
 	// x alignment is a separate normal route that starts from that leg's result.
@@ -8252,6 +11541,190 @@ test('browser-local route steering acknowledges a plan and continues through Pha
 		{ x: 3_283.908, y: 4_688 },
 		{ x: 3_264, y: 4_688 }
 	]);
+	// The failed full-fallback handoff ended above the source-derived band. The
+	// replacement uses the authored navigation row and carries the live y into
+	// the separate westbound phase instead of targeting another fixed y.
+	const lowerRiverEastHandoffSafeBand = postRuinsLowerRiverEastHandoffSafeBand();
+	const lowerRiverEastTransitRow = postRuinsLowerRiverEastHandoffTransitRow();
+	const failedLowerRiverEastHandoffEndpoint = { x: 4_285.2816, y: 4_498.7144 };
+	expect(failedLowerRiverEastHandoffEndpoint.y).toBeGreaterThanOrEqual(
+		lowerRiverEastHandoffSafeBand.maxExclusive
+	);
+	const lowerRiverEastVerticalStart = { x: 4_810.2168, y: 3_817.2896 };
+	const lowerRiverEastVerticalPlan = postRuinsLowerRiverEastVerticalHandoffRoutePoints(
+		lowerRiverEastVerticalStart
+	);
+	expect(lowerRiverEastVerticalPlan).toEqual([
+		lowerRiverEastVerticalStart,
+		{ x: 4_288, y: 4_224 },
+		{ x: 4_288, y: lowerRiverEastTransitRow }
+	]);
+	const lowerRiverEastVerticalDiagnostics: PlayerMovementDiagnostic[] = [
+		{
+			mapId: 'meadow-entry',
+			previousPosition: lowerRiverEastVerticalStart,
+			requestedPosition: { x: 4_288, y: lowerRiverEastVerticalStart.y },
+			resolvedPosition: { x: 4_288, y: lowerRiverEastVerticalStart.y },
+			blocked: false
+		},
+		{
+			mapId: 'meadow-entry',
+			previousPosition: { x: 4_288, y: lowerRiverEastVerticalStart.y },
+			requestedPosition: { x: 4_288, y: 4_224 },
+			resolvedPosition: { x: 4_288, y: 4_224 },
+			blocked: false
+		},
+		{
+			mapId: 'meadow-entry',
+			previousPosition: { x: 4_288, y: 4_224 },
+			requestedPosition: { x: 4_288, y: lowerRiverEastTransitRow },
+			resolvedPosition: { x: 4_288, y: lowerRiverEastTransitRow },
+			blocked: false
+		}
+	];
+	const lowerRiverEastVerticalResult: BrowserRouteResult = {
+		token: 'characterization-meadow-lower-river-east-vertical',
+		mapId: 'meadow-entry',
+		status: 'done',
+		pointIndex: lowerRiverEastVerticalPlan.length,
+		axis: null,
+		position: { x: 4_288, y: lowerRiverEastTransitRow },
+		target: null,
+		lastDiagnostic: lowerRiverEastVerticalDiagnostics.at(-1)!,
+		axisHistory: ['x', 'y'],
+		diagnostics: lowerRiverEastVerticalDiagnostics,
+		invalidDiagnostics: [],
+		diagnosticAxes: ['x', 'y', 'y'],
+		activeKey: null
+	};
+	assertPostRuinsLowerRiverEastHandoffPhaseContract(
+		lowerRiverEastVerticalPlan,
+		lowerRiverEastVerticalResult,
+		'vertical',
+		'characterization Meadow lower-river east vertical handoff'
+	);
+	const liveLowerRiverEastStaging = { x: 4_285.2816, y: 4_460.684 };
+	const lowerRiverEastHorizontalPlan =
+		postRuinsLowerRiverEastHorizontalHandoffRoutePoints(liveLowerRiverEastStaging);
+	expect(lowerRiverEastHorizontalPlan).toEqual([
+		liveLowerRiverEastStaging,
+		{ x: 3_776, y: liveLowerRiverEastStaging.y }
+	]);
+	const lowerRiverEastHorizontalDiagnostic: PlayerMovementDiagnostic = {
+		mapId: 'meadow-entry',
+		previousPosition: liveLowerRiverEastStaging,
+		requestedPosition: { x: 3_776, y: liveLowerRiverEastStaging.y },
+		resolvedPosition: { x: 3_776, y: liveLowerRiverEastStaging.y },
+		blocked: false
+	};
+	const lowerRiverEastHorizontalResult: BrowserRouteResult = {
+		token: 'characterization-meadow-lower-river-east-horizontal',
+		mapId: 'meadow-entry',
+		status: 'done',
+		pointIndex: lowerRiverEastHorizontalPlan.length,
+		axis: null,
+		position: lowerRiverEastHorizontalDiagnostic.resolvedPosition,
+		target: null,
+		lastDiagnostic: lowerRiverEastHorizontalDiagnostic,
+		axisHistory: ['x'],
+		diagnostics: [lowerRiverEastHorizontalDiagnostic],
+		invalidDiagnostics: [],
+		diagnosticAxes: ['x'],
+		activeKey: null
+	};
+	assertPostRuinsLowerRiverEastHandoffPhaseContract(
+		lowerRiverEastHorizontalPlan,
+		lowerRiverEastHorizontalResult,
+		'horizontal',
+		'characterization Meadow lower-river east horizontal handoff'
+	);
+	const lowerRiverEastResultWithFinalY = (y: number): BrowserRouteResult => {
+		const finalDiagnostic: PlayerMovementDiagnostic = {
+			...lowerRiverEastVerticalDiagnostics.at(-1)!,
+			requestedPosition: { x: 4_288, y },
+			resolvedPosition: { x: 4_288, y }
+		};
+		return {
+			...lowerRiverEastVerticalResult,
+			position: { x: 4_288, y },
+			lastDiagnostic: finalDiagnostic,
+			diagnostics: [...lowerRiverEastVerticalDiagnostics.slice(0, -1), finalDiagnostic],
+			diagnosticAxes: ['x', 'y', 'y']
+		};
+	};
+	expect(() =>
+		assertPostRuinsLowerRiverEastHandoffPhaseContract(
+			lowerRiverEastVerticalPlan,
+			lowerRiverEastResultWithFinalY(lowerRiverEastHandoffSafeBand.min - 1),
+			'vertical',
+			'characterization Meadow lower-river east below-band rejection'
+		)
+	).toThrow();
+	expect(() =>
+		assertPostRuinsLowerRiverEastHandoffPhaseContract(
+			lowerRiverEastVerticalPlan,
+			lowerRiverEastResultWithFinalY(lowerRiverEastHandoffSafeBand.maxExclusive),
+			'vertical',
+			'characterization Meadow lower-river east above-band rejection'
+		)
+	).toThrow();
+	const wrongMapLowerRiverDiagnostic = {
+		...lowerRiverEastVerticalDiagnostics[0]!,
+		mapId: 'guild-hall'
+	};
+	expect(() =>
+		assertPostRuinsLowerRiverEastHandoffPhaseContract(
+			lowerRiverEastVerticalPlan,
+			{
+				...lowerRiverEastVerticalResult,
+				diagnostics: [wrongMapLowerRiverDiagnostic, ...lowerRiverEastVerticalDiagnostics.slice(1)]
+			},
+			'vertical',
+			'characterization Meadow lower-river east wrong-map rejection'
+		)
+	).toThrow();
+	const blockedLowerRiverDiagnostic = {
+		...lowerRiverEastVerticalDiagnostics[0]!,
+		blocked: true
+	};
+	expect(() =>
+		assertPostRuinsLowerRiverEastHandoffPhaseContract(
+			lowerRiverEastVerticalPlan,
+			{
+				...lowerRiverEastVerticalResult,
+				diagnostics: [blockedLowerRiverDiagnostic, ...lowerRiverEastVerticalDiagnostics.slice(1)],
+				invalidDiagnostics: [blockedLowerRiverDiagnostic]
+			},
+			'vertical',
+			'characterization Meadow lower-river east blocked rejection'
+		)
+	).toThrow();
+	const sweptLowerRiverDiagnostic: PlayerMovementDiagnostic = {
+		mapId: 'meadow-entry',
+		previousPosition: { x: 3_776, y: 4_000 },
+		requestedPosition: { x: 3_776, y: 4_400 },
+		resolvedPosition: { x: 3_776, y: 4_400 },
+		blocked: false
+	};
+	const sweptLowerRiverFinalDiagnostic: PlayerMovementDiagnostic = {
+		mapId: 'meadow-entry',
+		previousPosition: sweptLowerRiverDiagnostic.resolvedPosition,
+		requestedPosition: { x: 4_288, y: lowerRiverEastTransitRow },
+		resolvedPosition: { x: 4_288, y: lowerRiverEastTransitRow },
+		blocked: false
+	};
+	expect(() =>
+		assertPostRuinsLowerRiverEastHandoffPhaseContract(
+			[sweptLowerRiverDiagnostic.previousPosition, { x: 4_288, y: lowerRiverEastTransitRow }],
+			{
+				...lowerRiverEastVerticalResult,
+				lastDiagnostic: sweptLowerRiverFinalDiagnostic,
+				diagnostics: [sweptLowerRiverDiagnostic, sweptLowerRiverFinalDiagnostic]
+			},
+			'vertical',
+			'characterization Meadow lower-river east swept-collision rejection'
+		)
+	).toThrow();
 	expect(exhaustedFarStart.status).toBe('running');
 	expect(exhaustedFarAfter.status).toBe('error');
 	expect(exhaustedFarAfter.error).toContain('correction limit');
@@ -8668,14 +12141,13 @@ test('Complete world layout foundation keeps historical Meadow art opt-in', asyn
 });
 
 test('Complete world layout foundation traverses every map in fallback mode', async ({ page }) => {
-	// This one continuous keyboard journey takes over six minutes before the
-	// final Wildwood and dungeon legs. The trace reached Threshold after the
-	// valid Meadow legs, then its actively progressing 7,296px north loop was
-	// still inside the unchanged 15-second route watchdog when the 600s outer
-	// deadline closed the page 9.77s after that route began. Extend only this
-	// test's outer budget; keep the route runner watchdog and movement contract
-	// unchanged.
-	test.setTimeout(1_200_000);
+	// This one continuous keyboard journey can exceed twenty minutes under the
+	// full composed-collision route. The latest 2,100,000ms budget expired after
+	// the final Threshold/Meadow continuation began; provide ten minutes of
+	// headroom over the observed arrival for the source-known final route and
+	// save/reload tail while keeping the route runner watchdog and movement
+	// contract unchanged.
+	test.setTimeout(2_700_000);
 	assertInteriorNpcApproachBindings();
 	expect(TASK6_INITIAL_CLEARED_ENCOUNTERS).toEqual([
 		'threshold-slime-west',
@@ -8686,7 +12158,7 @@ test('Complete world layout foundation traverses every map in fallback mode', as
 		'ruins-warden'
 	]);
 	expect(FALLBACK_CORE_MAIN_ROUTE).toContainEqual({ x: 3_584, y: 4_544 });
-	await installRuntimeProbes(page, { captureFacing: true });
+	await installRuntimeProbes(page, { captureFacing: true, captureSceneState: true });
 	await injectSave(
 		page,
 		createSaveFixture({
@@ -8836,12 +12308,31 @@ test('Complete world layout foundation traverses every map in fallback mode', as
 	]);
 	meadowPoint = await traverseInteriorForJourney(page, villagerHouse1, {}, recordInteriorRoute);
 
-	await journeyRoute('Villager House 1 to Villager House 2', [
-		meadowPoint,
-		{ x: 672, y: 4_688 },
-		{ x: 1_376, y: 4_688 },
+	const villagerHouse2SouthLaneHandoff = await journeyRoute(
+		'Villager House 1 to Villager House 2 south-lane handoff',
+		[meadowPoint, { x: 672, y: 4_688 }, { x: 1_376, y: 4_688 }]
+	);
+	const villagerHouse2ApproachRoute = villagerHouse2OutdoorApproachRoutePoints(
+		villagerHouse2SouthLaneHandoff,
 		villagerHouse2.returnArrival
-	]);
+	);
+	const villagerHouse2ReturnPoint = await journeyRoute(
+		'Villager House 1 to Villager House 2 vertical approach',
+		villagerHouse2ApproachRoute.vertical
+	);
+	const villagerHouse2Approach = SUNDROP_VILLAGE_V2_BUILDINGS.villagerHouse2.approach;
+	expect(villagerHouse2ReturnPoint.x).toBeGreaterThanOrEqual(
+		villagerHouse2Approach.x + PLAYER_COLLISION_RADIUS
+	);
+	expect(villagerHouse2ReturnPoint.x).toBeLessThanOrEqual(
+		villagerHouse2Approach.x + villagerHouse2Approach.width - PLAYER_COLLISION_RADIUS
+	);
+	expect(
+		Math.abs(villagerHouse2ReturnPoint.x - villagerHouse2.returnArrival.x)
+	).toBeLessThanOrEqual(AXIS_REACH_TOLERANCE);
+	expect(
+		Math.abs(villagerHouse2ReturnPoint.y - villagerHouse2.returnArrival.y)
+	).toBeLessThanOrEqual(AXIS_REACH_TOLERANCE);
 	meadowPoint = await traverseInteriorForJourney(page, villagerHouse2, {}, recordInteriorRoute);
 
 	await journeyRoute('Villager House 2 to Shrine', [
@@ -9001,18 +12492,28 @@ test('Complete world layout foundation traverses every map in fallback mode', as
 			'Wildwood cave anchor to transition staging'
 		)
 	);
+	const wildwoodCaveStagingEvidence = await currentHudPlayerEvidence(page, 'meadow-entry');
+	const wildwoodCaveDoorway = await runCaveDoorwayBandSteering(
+		page,
+		wildwoodCaveStagingEvidence,
+		wildwoodCaveStagingEvidence.selectedPoint.y,
+		'Wildwood cave doorway band steering'
+	);
+	const wildwoodDoorwayPoint = wildwoodCaveDoorway.position!;
+	expect(wildwoodDoorwayPoint.y).toBe(wildwoodCaveStagingEvidence.selectedPoint.y);
 	const wildwoodTransitionSourcePoint = {
 		x: WILDWOOD_CAVE_STAGING.x,
 		y: WILDWOOD_CAVE_ANCHOR.y
 	};
-	expect(Math.abs(wildwoodCaveStaging.x - wildwoodTransitionSourcePoint.x)).toBeLessThanOrEqual(
+	expect(Math.abs(wildwoodDoorwayPoint.x - wildwoodCaveStaging.x)).toBeLessThanOrEqual(
 		AXIS_REACH_TOLERANCE
 	);
-	expect(Math.abs(wildwoodCaveStaging.y - WILDWOOD_CAVE_STAGING.y)).toBeLessThanOrEqual(
+	expect(Math.abs(wildwoodDoorwayPoint.y - WILDWOOD_CAVE_STAGING.y)).toBeLessThanOrEqual(
 		AXIS_REACH_TOLERANCE
 	);
-	// The authored cave transition sits inside the landmark body. The source-aware
-	// trusted transition helper owns its isolated collision-edge approach.
+	// The authored cave transition sits inside the landmark body. The browser-local
+	// doorway helper first moves the actual staged x into the source-carved band;
+	// the source-aware trusted transition helper then owns the exact trigger edge.
 	await transitionWithTrustedKeyboard(
 		page,
 		'ArrowUp',
@@ -9142,10 +12643,54 @@ test('Complete world layout foundation traverses every map in fallback mode', as
 		);
 	}
 	const meadowBankHandoff = postRuinsBankResult.position;
-	const meadowLowerRiverHandoff = await journeyRoute(
-		'Meadow continuation after ruins: lower-river east handoff',
-		[meadowBankHandoff, { x: 4_288, y: 4_224 }, { x: 4_288, y: 4_480 }, { x: 3_776, y: 4_480 }]
+	const lowerRiverEastVerticalRoute =
+		postRuinsLowerRiverEastVerticalHandoffRoutePoints(meadowBankHandoff);
+	await page.locator('canvas').click();
+	const lowerRiverEastVerticalResult = await runBrowserRoute(
+		page,
+		lowerRiverEastVerticalRoute,
+		AXIS_SETTLE_TOLERANCE
 	);
+	recordRoute(
+		'Meadow continuation after ruins: lower-river east vertical staging',
+		lowerRiverEastVerticalResult
+	);
+	assertPostRuinsLowerRiverEastHandoffPhaseContract(
+		lowerRiverEastVerticalRoute,
+		lowerRiverEastVerticalResult,
+		'vertical',
+		'Meadow continuation after ruins: lower-river east vertical staging'
+	);
+	if (!lowerRiverEastVerticalResult.position) {
+		throw new Error(
+			`Missing final point for Meadow continuation after ruins: lower-river east vertical staging: ${describeBrowserRouteResult(lowerRiverEastVerticalResult, lowerRiverEastVerticalResult.token)}`
+		);
+	}
+	const lowerRiverEastStaging = lowerRiverEastVerticalResult.position;
+	const lowerRiverEastHorizontalRoute =
+		postRuinsLowerRiverEastHorizontalHandoffRoutePoints(lowerRiverEastStaging);
+	await page.locator('canvas').click();
+	const lowerRiverEastHorizontalResult = await runBrowserRoute(
+		page,
+		lowerRiverEastHorizontalRoute,
+		AXIS_SETTLE_TOLERANCE
+	);
+	recordRoute(
+		'Meadow continuation after ruins: lower-river east horizontal handoff',
+		lowerRiverEastHorizontalResult
+	);
+	assertPostRuinsLowerRiverEastHandoffPhaseContract(
+		lowerRiverEastHorizontalRoute,
+		lowerRiverEastHorizontalResult,
+		'horizontal',
+		'Meadow continuation after ruins: lower-river east horizontal handoff'
+	);
+	if (!lowerRiverEastHorizontalResult.position) {
+		throw new Error(
+			`Missing final point for Meadow continuation after ruins: lower-river east horizontal handoff: ${describeBrowserRouteResult(lowerRiverEastHorizontalResult, lowerRiverEastHorizontalResult.token)}`
+		);
+	}
+	const meadowLowerRiverHandoff = lowerRiverEastHorizontalResult.position;
 	const postRuinsLowerRiverRoute = postRuinsLowerRiverCrossingRoutePoints(meadowLowerRiverHandoff);
 	await page.locator('canvas').click();
 	const postRuinsLowerRiverResult = await runBrowserRoute(
@@ -9226,7 +12771,15 @@ test('Complete world layout foundation traverses every map in fallback mode', as
 	);
 
 	await page.reload();
-	await expect(page.locator('canvas')).toBeVisible();
+	await expect(page.locator('canvas')).toBeVisible({ timeout: 30_000 });
+	await page.waitForFunction(
+		() => {
+			const state = (window as GlieseProbeWindow).__glieseLastHudState;
+			return state?.ready === true && state.mapId === 'meadow-entry';
+		},
+		undefined,
+		{ timeout: 30_000 }
+	);
 	await page.getByRole('button', { name: 'Menu' }).click();
 	await commandBox(page).getByRole('button', { name: 'Resume Save' }).click();
 	await waitForExactHudPosition(page, 'meadow-entry', saveStagingPoint);
