@@ -1,4 +1,0 @@
-$ bun run lint
-$ prettier --check . && eslint .
-Checking formatting...
-All matched files use Prettier code style!

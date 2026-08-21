@@ -27,6 +27,9 @@ test-results
 # Local brainstorming companion artifacts
 .superpowers/
 
+# Local generated previews and validation output
+.artifacts/
+
 # Local playtest screenshots
 docs/superpowers/reports/entry-map-playtest/
 

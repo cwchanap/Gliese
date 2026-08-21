@@ -8,7 +8,7 @@ import {
 import { pathsRegion } from '$lib/game/content/maps/regions/paths';
 import { sundropVillageLayered } from '$lib/game/content/maps/regions/village-layered';
 
-const outDir = join(process.cwd(), 'docs/superpowers/reports/img/hpa-238');
+const outDir = join(process.cwd(), '.artifacts/previews/sundrop-village');
 mkdirSync(outDir, { recursive: true });
 
 const files = new Map(renderLayeredPreviews(sundropVillageLayered));
