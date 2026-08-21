@@ -8264,8 +8264,8 @@ const FALLBACK_V2_CROSSROADS_TO_SILVERPINE = [
 const FALLBACK_V2_CROSSROADS_TO_WILDWOOD = [
 	{ x: 3_904, y: 4_224 },
 	{ x: 3_904, y: 3_168 },
-	{ x: 4_944, y: 3_168 },
-	{ x: 4_944, y: 3_904 }
+	{ x: 4_992, y: 3_168 },
+	{ x: 4_992, y: 3_904 }
 ] as const;
 
 const FALLBACK_V2_CROSSROADS_TO_COAST = [
@@ -8425,7 +8425,7 @@ function postRuinsWildwoodBankRoutePoints(start: Point): Point[] {
 	const safeRow = bank.y - PLAYER_COLLISION_RADIUS - AXIS_REACH_TOLERANCE - 2;
 	const wildwoodMouth = FALLBACK_V2_CROSSROADS_TO_WILDWOOD.at(-1)!;
 	expect(safeRow).toBe(3_168);
-	expect(wildwoodMouth).toEqual({ x: 4_944, y: 3_904 });
+	expect(wildwoodMouth).toEqual({ x: 4_992, y: 3_904 });
 	expect(start.x - PLAYER_COLLISION_RADIUS).toBeGreaterThan(bank.x + bank.width);
 
 	const points = [
@@ -11524,8 +11524,8 @@ test('browser-local route steering acknowledges a plan and continues through Pha
 	expect(postRuinsPlan).toEqual([
 		{ x: 5_600, y: 3_808 },
 		{ x: 5_600, y: 3_168 },
-		{ x: 4_944, y: 3_168 },
-		{ x: 4_944, y: 3_904 },
+		{ x: 4_992, y: 3_168 },
+		{ x: 4_992, y: 3_904 },
 		{ x: 4_800, y: 3_904 },
 		{ x: 4_800, y: 3_808 }
 	]);
@@ -12460,7 +12460,7 @@ test('Complete world layout foundation traverses every map in fallback mode', as
 	// point before the trusted transition key enters the gated dungeon.
 	const wildwoodAnchor = await journeyToOutdoorAnchor(
 		'Crossroads to Wildwood bridge',
-		{ x: 4_944, y: 3_904 },
+		{ x: 4_992, y: 3_904 },
 		[coastBridgeReturn, ...FALLBACK_V2_CROSSROADS_TO_WILDWOOD.slice(1)]
 	);
 	const wildwoodLoop = await journeyRoute('Wildwood optional loop outbound', [

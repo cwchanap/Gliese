@@ -436,12 +436,12 @@ describe('meadow-entry deterministic authoring controls', () => {
 			right: Math.min(6_400, Math.ceil(rect.x + rect.width / 2 + TEST_PLAYER_COLLISION_RADIUS_PX)),
 			bottom: Math.min(6_400, Math.ceil(rect.y + rect.height / 2 + TEST_PLAYER_COLLISION_RADIUS_PX))
 		}));
-		const seamTile = { left: 3_040, top: 2_592, right: 3_072, bottom: 2_624 };
+		const seamTile = { left: 3_360, top: 2_656, right: 3_392, bottom: 2_688 };
 		expect(collisionPixelsCoverTile(seamTile, expandedCollisionRects)).toBe(true);
 		expect(expandedCollisionRects.some((rect) => containsBounds(rect, seamTile))).toBe(false);
 		expect(
 			walkableSpaceRects.some((bounds) => containsBounds(bounds, seamTile)),
-			'union-covered seam tile 95,81'
+			'union-covered seam tile 105,83'
 		).toBe(false);
 
 		const unionOnlyCollisionTileIds: string[] = [];
@@ -503,14 +503,16 @@ describe('meadow-entry deterministic authoring controls', () => {
 		]!;
 		const connector = terrain
 			.split('\n')
-			.find((line) => line.includes('data-id="ground-patch:village-to-crossroads"'));
+			.find((line) => line.includes('data-id="ground-patch:crossroads-south-approach"'));
 
 		expect(connector).toContain('data-tile="pathTile"');
 		expect(connector).toContain('data-material-profile="village-crossroads-handoff"');
 		expect(connector).toContain('data-primary-region="connector-village-crossroads"');
 		expect(connector).toContain('data-connector-membership="connector-village-crossroads"');
-		expect(connector).toContain('data-disposition="base-underlay"');
-		expect(connector).toContain('data-contributing-sources="ground-patch:village-to-crossroads"');
+		expect(connector).toContain('data-disposition="runtime-fallback-only"');
+		expect(connector).toContain(
+			'data-contributing-sources="ground-patch:crossroads-south-approach"'
+		);
 	});
 
 	it('does not invent a foreground plane for the base-only painted-v2 pilot', () => {

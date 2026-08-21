@@ -28,9 +28,9 @@
     "meadow-entry-crop-manifest.json"
   ],
   "fingerprints": {
-    "gameplaySource": "0e9a3a361e8013de2df298b7fe239ed2cf45457789d55df3ac6a11e86c9f61be",
-    "authoringContract": "b301c6734ea41e5f6edcb0eef8c7acf087d60074304d97fe7ca38d9890cd2b48",
-    "combinedControl": "a9de4332a3c5537f25d80eaeb2fcf1476ee97d76636f084bd9841da8055c96c7"
+    "gameplaySource": "bf9bf20ebaf69c8817de429a7e5c6b0421cc4ec6ed60a0d5cc8ac7656d5d4938",
+    "authoringContract": "0779c4e1293d00351150aeb7776c25e92288812e53a38e4a6255bc24146e8b4b",
+    "combinedControl": "bb577082a43c08f8621dd13d4792e36accebea7ab3ad64bb6d37fdefa5146fd2"
   },
   "predecessor": {
     "hpa307ArtifactHashes": {
@@ -55,21 +55,22 @@
     "canaryPath": "artifacts/meadow-entry/painted-v2/lfs-canary.png"
   },
   "sourceFileHashes": {
-    "src/lib/game/content/maps/meadow-entry.ts": "7c94d3aa9d0f07d7dba71601188aa815c88d07541882537f641c6d7c5dd80d06",
+    "src/lib/game/content/maps/meadow-entry.ts": "66fbac8492861a0a77d147a7eff0f6ae00cd61a36c8030858a7bbeb8f0096dcb",
     "src/lib/game/content/maps/regions/village.ts": "6ab333c46e091c10ef8da62cb6e889fc8963add4def39fa0f74c0dc03d06fa1b",
-    "src/lib/game/content/maps/regions/wildwood.ts": "e12743ca3927eb96d9530298c6d0d84854175024edcd85d8f1081873be43892a",
+    "src/lib/game/content/maps/regions/wildwood.ts": "f59ba6f6d6eda59e84a1682baa9c4667b84ae7d502f757cc20c873dc8a64fb67",
     "src/lib/game/content/maps/regions/mistfen.ts": "57d5f442379df97b2f1ced4953aa93f4e44fc918d47a53450d15c190960a677c",
     "src/lib/game/content/maps/regions/silverpine.ts": "09c2129a0a5cfbf412f53c30bc6cd690058683a6de98cb4d91f180346c1b17cc",
-    "src/lib/game/content/maps/regions/coast.ts": "487ec93d7a3985702d84b97f587d0fd5452ebe696d13848ad089a398bffac009",
+    "src/lib/game/content/maps/regions/coast.ts": "d16ac1f57db1dfcd5b66800fe7218417d6d4ea5bd57bea5b669c89954f0616f4",
     "src/lib/game/content/maps/regions/crossroads.ts": "f409235a9b1c579479080e622898c4efbea0d86010971ff6292f2d61b33c7170",
     "src/lib/game/content/maps/regions/paths.ts": "164ddb49941d4a5312aacf4fc5f39553015eff02678c884a474b2e6c8d598856",
+    "src/lib/game/content/maps/regions/river-system.ts": "9d73f8b474e24795092eb9713f859d9ca187d2ef30120803204238eeb43c4a0e",
     "src/lib/game/content/maps/blocker-rendering.ts": "d954110dc507d59656a21ee58bd5a1095304ed0d5b2c9db98fd09f4fc2e38223",
     "src/lib/game/save/save-state.ts": "0208c30db08f620cd92eda454af4fe04be84e5525221eb9e50144fa621caffc0",
     "src/lib/game/core/collision.ts": "5f487c10b01a6b10f4a1ad676d04f2a8c1c1f48e84d02d9ef270b98745a09e24"
   },
   "rendererMaskMaterialContract": {
     "version": 1,
-    "implementationSha256": "5c4bb89e23d14142c4169fe47c1066d426067a736ddbb63c58b3725abbb9405f",
+    "implementationSha256": "c215fc6eb1b42976b7b33710ca1e0ea676e4e56454570f090e64d877ee76456f",
     "maskDimensionsPx": {
       "width": 6400,
       "height": 6400
@@ -128,6 +129,18 @@
       "left": 64,
       "top": 64,
       "right": 6336,
+      "bottom": 256
+    },
+    {
+      "left": 64,
+      "top": 256,
+      "right": 3456,
+      "bottom": 288
+    },
+    {
+      "left": 3712,
+      "top": 256,
+      "right": 6336,
       "bottom": 288
     },
     {
@@ -138,6 +151,12 @@
     },
     {
       "left": 3200,
+      "top": 288,
+      "right": 3456,
+      "bottom": 640
+    },
+    {
+      "left": 3712,
       "top": 288,
       "right": 4896,
       "bottom": 448
@@ -161,16 +180,16 @@
       "bottom": 640
     },
     {
-      "left": 3200,
+      "left": 3712,
       "top": 448,
       "right": 6336,
       "bottom": 576
     },
     {
-      "left": 3200,
+      "left": 3712,
       "top": 576,
       "right": 6048,
-      "bottom": 640
+      "bottom": 1344
     },
     {
       "left": 6208,
@@ -181,7 +200,7 @@
     {
       "left": 1376,
       "top": 640,
-      "right": 6048,
+      "right": 3456,
       "bottom": 704
     },
     {
@@ -193,7 +212,7 @@
     {
       "left": 1536,
       "top": 704,
-      "right": 6048,
+      "right": 3456,
       "bottom": 800
     },
     {
@@ -235,13 +254,13 @@
     {
       "left": 3328,
       "top": 800,
-      "right": 6048,
+      "right": 3456,
       "bottom": 864
     },
     {
       "left": 1536,
       "top": 864,
-      "right": 6048,
+      "right": 3456,
       "bottom": 896
     },
     {
@@ -253,7 +272,7 @@
     {
       "left": 2656,
       "top": 896,
-      "right": 6048,
+      "right": 3456,
       "bottom": 928
     },
     {
@@ -271,7 +290,7 @@
     {
       "left": 3200,
       "top": 928,
-      "right": 6048,
+      "right": 3456,
       "bottom": 960
     },
     {
@@ -295,8 +314,8 @@
     {
       "left": 3296,
       "top": 960,
-      "right": 6048,
-      "bottom": 1088
+      "right": 3456,
+      "bottom": 1152
     },
     {
       "left": 1536,
@@ -315,18 +334,6 @@
       "top": 1056,
       "right": 3232,
       "bottom": 1120
-    },
-    {
-      "left": 3296,
-      "top": 1088,
-      "right": 3552,
-      "bottom": 1152
-    },
-    {
-      "left": 3616,
-      "top": 1088,
-      "right": 6048,
-      "bottom": 1344
     },
     {
       "left": 64,
@@ -355,7 +362,7 @@
     {
       "left": 3296,
       "top": 1216,
-      "right": 3552,
+      "right": 3456,
       "bottom": 1280
     },
     {
@@ -391,8 +398,8 @@
     {
       "left": 3424,
       "top": 1280,
-      "right": 3552,
-      "bottom": 1408
+      "right": 3456,
+      "bottom": 1344
     },
     {
       "left": 2400,
@@ -403,11 +410,11 @@
     {
       "left": 3104,
       "top": 1344,
-      "right": 3360,
+      "right": 3264,
       "bottom": 1376
     },
     {
-      "left": 3616,
+      "left": 3712,
       "top": 1344,
       "right": 4992,
       "bottom": 1440
@@ -437,22 +444,10 @@
       "bottom": 1408
     },
     {
-      "left": 3264,
-      "top": 1376,
-      "right": 3360,
-      "bottom": 1408
-    },
-    {
       "left": 2592,
       "top": 1408,
       "right": 2784,
       "bottom": 1440
-    },
-    {
-      "left": 3264,
-      "top": 1408,
-      "right": 3296,
-      "bottom": 1472
     },
     {
       "left": 1024,
@@ -479,7 +474,7 @@
       "bottom": 1504
     },
     {
-      "left": 3616,
+      "left": 3712,
       "top": 1440,
       "right": 6048,
       "bottom": 1472
@@ -491,22 +486,10 @@
       "bottom": 1536
     },
     {
-      "left": 3264,
-      "top": 1472,
-      "right": 3360,
-      "bottom": 1504
-    },
-    {
-      "left": 3424,
-      "top": 1472,
-      "right": 3584,
-      "bottom": 1536
-    },
-    {
-      "left": 3680,
+      "left": 3712,
       "top": 1472,
       "right": 6336,
-      "bottom": 1536
+      "bottom": 1696
     },
     {
       "left": 2400,
@@ -517,7 +500,7 @@
     {
       "left": 3104,
       "top": 1504,
-      "right": 3360,
+      "right": 3264,
       "bottom": 1600
     },
     {
@@ -539,12 +522,6 @@
       "bottom": 1600
     },
     {
-      "left": 3424,
-      "top": 1536,
-      "right": 6336,
-      "bottom": 1568
-    },
-    {
       "left": 64,
       "top": 1568,
       "right": 1056,
@@ -557,18 +534,6 @@
       "bottom": 1600
     },
     {
-      "left": 3424,
-      "top": 1568,
-      "right": 3488,
-      "bottom": 1600
-    },
-    {
-      "left": 3552,
-      "top": 1568,
-      "right": 6336,
-      "bottom": 1664
-    },
-    {
       "left": 1120,
       "top": 1600,
       "right": 2336,
@@ -577,7 +542,7 @@
     {
       "left": 2464,
       "top": 1600,
-      "right": 3488,
+      "right": 3264,
       "bottom": 1664
     },
     {
@@ -589,7 +554,7 @@
     {
       "left": 2400,
       "top": 1664,
-      "right": 6336,
+      "right": 3264,
       "bottom": 1696
     },
     {
@@ -611,10 +576,10 @@
       "bottom": 1760
     },
     {
-      "left": 3264,
+      "left": 3712,
       "top": 1696,
       "right": 5824,
-      "bottom": 1760
+      "bottom": 1856
     },
     {
       "left": 6080,
@@ -631,7 +596,7 @@
     {
       "left": 2400,
       "top": 1760,
-      "right": 5824,
+      "right": 3264,
       "bottom": 1792
     },
     {
@@ -643,8 +608,8 @@
     {
       "left": 3104,
       "top": 1792,
-      "right": 5824,
-      "bottom": 1920
+      "right": 3264,
+      "bottom": 1856
     },
     {
       "left": 1120,
@@ -671,6 +636,12 @@
       "bottom": 2176
     },
     {
+      "left": 3360,
+      "top": 1856,
+      "right": 5824,
+      "bottom": 1920
+    },
+    {
       "left": 5920,
       "top": 1856,
       "right": 5984,
@@ -683,7 +654,7 @@
       "bottom": 1952
     },
     {
-      "left": 3104,
+      "left": 3360,
       "top": 1920,
       "right": 6336,
       "bottom": 1952
@@ -701,10 +672,10 @@
       "bottom": 2048
     },
     {
-      "left": 3104,
+      "left": 3360,
       "top": 1952,
       "right": 5376,
-      "bottom": 2176
+      "bottom": 2336
     },
     {
       "left": 5440,
@@ -769,8 +740,8 @@
     {
       "left": 1888,
       "top": 2176,
-      "right": 5376,
-      "bottom": 2400
+      "right": 3040,
+      "bottom": 2336
     },
     {
       "left": 64,
@@ -821,6 +792,12 @@
       "bottom": 3040
     },
     {
+      "left": 1888,
+      "top": 2336,
+      "right": 5376,
+      "bottom": 2400
+    },
+    {
       "left": 64,
       "top": 2368,
       "right": 1792,
@@ -830,7 +807,7 @@
       "left": 64,
       "top": 2400,
       "right": 2880,
-      "bottom": 2496
+      "bottom": 2592
     },
     {
       "left": 2976,
@@ -839,34 +816,10 @@
       "bottom": 2496
     },
     {
-      "left": 64,
+      "left": 3360,
       "top": 2496,
       "right": 5376,
-      "bottom": 2528
-    },
-    {
-      "left": 64,
-      "top": 2528,
-      "right": 2976,
-      "bottom": 2592
-    },
-    {
-      "left": 3040,
-      "top": 2528,
-      "right": 3296,
       "bottom": 2560
-    },
-    {
-      "left": 3360,
-      "top": 2528,
-      "right": 5376,
-      "bottom": 2560
-    },
-    {
-      "left": 3040,
-      "top": 2560,
-      "right": 3136,
-      "bottom": 2592
     },
     {
       "left": 3520,
@@ -883,14 +836,8 @@
     {
       "left": 2240,
       "top": 2592,
-      "right": 2976,
+      "right": 2880,
       "bottom": 2688
-    },
-    {
-      "left": 3136,
-      "top": 2624,
-      "right": 3296,
-      "bottom": 2880
     },
     {
       "left": 3360,
@@ -907,8 +854,8 @@
     {
       "left": 64,
       "top": 2688,
-      "right": 2976,
-      "bottom": 2784
+      "right": 2880,
+      "bottom": 2848
     },
     {
       "left": 3488,
@@ -927,12 +874,6 @@
       "top": 2752,
       "right": 3616,
       "bottom": 2880
-    },
-    {
-      "left": 64,
-      "top": 2784,
-      "right": 3072,
-      "bottom": 2848
     },
     {
       "left": 3680,
@@ -955,7 +896,7 @@
     {
       "left": 2240,
       "top": 2848,
-      "right": 3072,
+      "right": 2880,
       "bottom": 2944
     },
     {
@@ -967,14 +908,8 @@
     {
       "left": 64,
       "top": 2944,
-      "right": 3072,
-      "bottom": 3104
-    },
-    {
-      "left": 3136,
-      "top": 2944,
-      "right": 3296,
-      "bottom": 3008
+      "right": 2880,
+      "bottom": 3552
     },
     {
       "left": 3360,
@@ -983,10 +918,10 @@
       "bottom": 3008
     },
     {
-      "left": 3136,
+      "left": 3360,
       "top": 3008,
       "right": 3936,
-      "bottom": 3104
+      "bottom": 3136
     },
     {
       "left": 4416,
@@ -1001,25 +936,19 @@
       "bottom": 3136
     },
     {
-      "left": 64,
-      "top": 3104,
-      "right": 3936,
-      "bottom": 3136
-    },
-    {
-      "left": 64,
+      "left": 3360,
       "top": 3136,
       "right": 6176,
       "bottom": 3200
     },
     {
-      "left": 64,
+      "left": 3360,
       "top": 3200,
-      "right": 4960,
+      "right": 5024,
       "bottom": 3488
     },
     {
-      "left": 5024,
+      "left": 5056,
       "top": 3200,
       "right": 6080,
       "bottom": 4480
@@ -1037,7 +966,7 @@
       "bottom": 5312
     },
     {
-      "left": 64,
+      "left": 3360,
       "top": 3488,
       "right": 4448,
       "bottom": 3552
@@ -1045,14 +974,26 @@
     {
       "left": 4512,
       "top": 3488,
-      "right": 4960,
+      "right": 5024,
       "bottom": 3552
     },
     {
       "left": 64,
       "top": 3552,
-      "right": 4960,
+      "right": 5024,
+      "bottom": 3744
+    },
+    {
+      "left": 64,
+      "top": 3744,
+      "right": 2784,
       "bottom": 4032
+    },
+    {
+      "left": 3264,
+      "top": 3744,
+      "right": 5024,
+      "bottom": 4160
     },
     {
       "left": 64,
@@ -1063,8 +1004,8 @@
     {
       "left": 2496,
       "top": 4032,
-      "right": 4960,
-      "bottom": 4160
+      "right": 2784,
+      "bottom": 4416
     },
     {
       "left": 64,
@@ -1085,7 +1026,7 @@
       "bottom": 4384
     },
     {
-      "left": 2496,
+      "left": 3264,
       "top": 4160,
       "right": 3712,
       "bottom": 4288
@@ -1093,13 +1034,13 @@
     {
       "left": 3840,
       "top": 4160,
-      "right": 4960,
+      "right": 5024,
       "bottom": 4288
     },
     {
-      "left": 2496,
+      "left": 3264,
       "top": 4288,
-      "right": 4960,
+      "right": 5024,
       "bottom": 4352
     },
     {
@@ -1115,7 +1056,7 @@
       "bottom": 4384
     },
     {
-      "left": 2496,
+      "left": 3264,
       "top": 4352,
       "right": 4864,
       "bottom": 4416
@@ -1123,7 +1064,7 @@
     {
       "left": 4928,
       "top": 4352,
-      "right": 4960,
+      "right": 5024,
       "bottom": 4416
     },
     {
@@ -1141,11 +1082,17 @@
     {
       "left": 64,
       "top": 4416,
-      "right": 4960,
-      "bottom": 4800
+      "right": 2784,
+      "bottom": 4512
     },
     {
-      "left": 5024,
+      "left": 3264,
+      "top": 4416,
+      "right": 5024,
+      "bottom": 4512
+    },
+    {
+      "left": 5056,
       "top": 4480,
       "right": 5248,
       "bottom": 4576
@@ -1163,21 +1110,39 @@
       "bottom": 4576
     },
     {
-      "left": 5024,
+      "left": 64,
+      "top": 4512,
+      "right": 5024,
+      "bottom": 4736
+    },
+    {
+      "left": 5056,
       "top": 4576,
       "right": 6080,
       "bottom": 5152
     },
     {
       "left": 64,
+      "top": 4736,
+      "right": 2816,
+      "bottom": 4864
+    },
+    {
+      "left": 3488,
+      "top": 4736,
+      "right": 5024,
+      "bottom": 4800
+    },
+    {
+      "left": 3488,
       "top": 4800,
       "right": 4448,
-      "bottom": 4864
+      "bottom": 4896
     },
     {
       "left": 4544,
       "top": 4800,
-      "right": 4960,
+      "right": 5024,
       "bottom": 4896
     },
     {
@@ -1195,19 +1160,13 @@
     {
       "left": 2432,
       "top": 4864,
-      "right": 4448,
-      "bottom": 4896
-    },
-    {
-      "left": 2432,
-      "top": 4896,
-      "right": 3168,
+      "right": 2816,
       "bottom": 5184
     },
     {
-      "left": 3232,
+      "left": 3488,
       "top": 4896,
-      "right": 4960,
+      "right": 5024,
       "bottom": 4992
     },
     {
@@ -1235,21 +1194,21 @@
       "bottom": 5184
     },
     {
-      "left": 3232,
+      "left": 3488,
       "top": 4992,
       "right": 4000,
-      "bottom": 5312
+      "bottom": 5248
     },
     {
       "left": 4032,
       "top": 4992,
       "right": 4352,
-      "bottom": 5504
+      "bottom": 5248
     },
     {
       "left": 4384,
       "top": 4992,
-      "right": 4960,
+      "right": 5024,
       "bottom": 5152
     },
     {
@@ -1273,50 +1232,44 @@
     {
       "left": 64,
       "top": 5184,
-      "right": 3168,
-      "bottom": 5312
+      "right": 2816,
+      "bottom": 5248
+    },
+    {
+      "left": 64,
+      "top": 5248,
+      "right": 3008,
+      "bottom": 5536
+    },
+    {
+      "left": 3488,
+      "top": 5248,
+      "right": 3712,
+      "bottom": 5568
+    },
+    {
+      "left": 4096,
+      "top": 5248,
+      "right": 4352,
+      "bottom": 5504
     },
     {
       "left": 4384,
       "top": 5248,
-      "right": 4960,
+      "right": 5024,
       "bottom": 5312
     },
     {
-      "left": 5024,
+      "left": 5056,
       "top": 5248,
       "right": 6080,
       "bottom": 5312
-    },
-    {
-      "left": 64,
-      "top": 5312,
-      "right": 4000,
-      "bottom": 5376
     },
     {
       "left": 4384,
       "top": 5312,
       "right": 6336,
       "bottom": 5440
-    },
-    {
-      "left": 64,
-      "top": 5376,
-      "right": 3712,
-      "bottom": 5440
-    },
-    {
-      "left": 3968,
-      "top": 5376,
-      "right": 4000,
-      "bottom": 5440
-    },
-    {
-      "left": 64,
-      "top": 5440,
-      "right": 4000,
-      "bottom": 5504
     },
     {
       "left": 4384,
@@ -1331,7 +1284,7 @@
       "bottom": 5536
     },
     {
-      "left": 64,
+      "left": 4096,
       "top": 5504,
       "right": 4448,
       "bottom": 5536
@@ -1345,8 +1298,14 @@
     {
       "left": 2432,
       "top": 5536,
+      "right": 3008,
+      "bottom": 5856
+    },
+    {
+      "left": 4096,
+      "top": 5536,
       "right": 6336,
-      "bottom": 5568
+      "bottom": 5632
     },
     {
       "left": 64,
@@ -1367,25 +1326,7 @@
       "bottom": 5856
     },
     {
-      "left": 2432,
-      "top": 5568,
-      "right": 3424,
-      "bottom": 5600
-    },
-    {
-      "left": 3776,
-      "top": 5568,
-      "right": 6336,
-      "bottom": 5632
-    },
-    {
-      "left": 2432,
-      "top": 5600,
-      "right": 3328,
-      "bottom": 5696
-    },
-    {
-      "left": 3776,
+      "left": 4096,
       "top": 5632,
       "right": 4224,
       "bottom": 5664
@@ -1397,26 +1338,8 @@
       "bottom": 5664
     },
     {
-      "left": 3776,
-      "top": 5664,
-      "right": 6336,
-      "bottom": 5728
-    },
-    {
-      "left": 2432,
-      "top": 5696,
-      "right": 3424,
-      "bottom": 5856
-    },
-    {
-      "left": 3776,
-      "top": 5728,
-      "right": 4064,
-      "bottom": 5888
-    },
-    {
       "left": 4096,
-      "top": 5728,
+      "top": 5664,
       "right": 6336,
       "bottom": 5792
     },
@@ -1465,8 +1388,8 @@
     {
       "left": 64,
       "top": 5856,
-      "right": 3424,
-      "bottom": 5888
+      "right": 3008,
+      "bottom": 6144
     },
     {
       "left": 5248,
@@ -1475,10 +1398,10 @@
       "bottom": 5952
     },
     {
-      "left": 64,
+      "left": 3488,
       "top": 5888,
-      "right": 4064,
-      "bottom": 6176
+      "right": 3712,
+      "bottom": 6144
     },
     {
       "left": 4096,
@@ -1496,6 +1419,12 @@
       "left": 4096,
       "top": 6048,
       "right": 6336,
+      "bottom": 6176
+    },
+    {
+      "left": 64,
+      "top": 6144,
+      "right": 4064,
       "bottom": 6176
     },
     {
@@ -1528,9 +1457,9 @@
       "id": "ambient-npc:coast-fisher",
       "kind": "ambient-npc",
       "bounds": {
-        "left": 3792,
+        "left": 4176,
         "top": 5526,
-        "right": 3888,
+        "right": 4272,
         "bottom": 5614
       }
     },

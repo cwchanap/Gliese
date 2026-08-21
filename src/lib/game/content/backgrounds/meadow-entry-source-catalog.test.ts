@@ -8,6 +8,32 @@ import {
 
 const meadowEntryModuleId = '$lib/game/content/maps/meadow-entry';
 
+const EXPECTED_RIVER_GROUND_PATCH_IDS = [
+	'silverpine-headwater-water',
+	'silverpine-falls-water',
+	'north-river-water',
+	'central-river-water',
+	'lower-river-water',
+	'river-delta-water',
+	'estuary-west-water',
+	'estuary-east-water',
+	'silverpineBridge-path',
+	'mistfenBridge-path',
+	'sundropBridge-path',
+	'ferryApproach-path'
+] as const;
+
+const EXPECTED_RIVER_BLOCKER_IDS = [
+	'silverpine-headwater-collision',
+	'silverpine-falls-collision',
+	'north-river-collision',
+	'central-river-collision',
+	'lower-river-collision',
+	'river-delta-collision',
+	'estuary-west-collision',
+	'estuary-east-collision'
+] as const;
+
 async function expectFreshCatalogToRejectMapMutation(
 	mutateMap: (
 		map: typeof import('$lib/game/content/maps/meadow-entry').meadowEntryMap
@@ -67,6 +93,28 @@ describe('meadow-entry source catalog', () => {
 		expect(keys).toEqual(
 			[...keys].sort((left, right) => (left < right ? -1 : left > right ? 1 : 0))
 		);
+	});
+
+	it('covers the river fragment with exactly its authored water, crossing, and blocker records', () => {
+		const catalog = collectMeadowEntrySourceCatalog();
+		const riverRecords = catalog.filter(({ fragmentId }) => fragmentId === 'river-system');
+		const riverGroundPatchIds = riverRecords
+			.filter(({ ref }) => ref.sourceType === 'ground-patch')
+			.map(({ ref }) => ref.sourceId)
+			.sort();
+		const riverBlockerIds = riverRecords
+			.filter(({ ref }) => ref.sourceType === 'blocker')
+			.map(({ ref }) => ref.sourceId)
+			.sort();
+
+		expect(riverGroundPatchIds).toEqual([...EXPECTED_RIVER_GROUND_PATCH_IDS].sort());
+		expect(riverBlockerIds).toEqual([...EXPECTED_RIVER_BLOCKER_IDS].sort());
+		expect(riverRecords).toHaveLength(
+			EXPECTED_RIVER_GROUND_PATCH_IDS.length + EXPECTED_RIVER_BLOCKER_IDS.length
+		);
+		expect(
+			riverRecords.every(({ bounds, visualCapable }) => bounds !== null && visualCapable)
+		).toBe(true);
 	});
 
 	it('classifies every populated source kind with its visual and bounds contract', () => {

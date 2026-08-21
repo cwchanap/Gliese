@@ -5,10 +5,10 @@
   <rect data-id="mistfen" x="384" y="384" width="2816" height="3712" fill="hsl(141 45% 55%)" opacity="0.35" stroke="#202020"/>
   <rect data-id="silverpine" x="2432" y="384" width="2048" height="2432" fill="hsl(188 45% 55%)" opacity="0.35" stroke="#202020"/>
   <rect data-id="wildwood" x="4320" y="256" width="1824" height="5312" fill="hsl(235 45% 55%)" opacity="0.35" stroke="#202020"/>
-  <rect data-id="connector-village-crossroads" x="2688" y="4480" width="704" height="416" fill="hsl(282 45% 55%)" opacity="0.35" stroke="#202020"/>
+  <rect data-id="connector-village-crossroads" x="2368" y="4384" width="1504" height="480" fill="hsl(282 45% 55%)" opacity="0.35" stroke="#202020"/>
   <rect data-id="connector-crossroads-coast" x="4000" y="4640" width="448" height="1056" fill="hsl(329 45% 55%)" opacity="0.35" stroke="#202020"/>
-  <rect data-id="connector-crossroads-mistfen" x="2112" y="2624" width="1696" height="736" fill="hsl(16 45% 55%)" opacity="0.35" stroke="#202020"/>
-  <rect data-id="connector-crossroads-silverpine" x="3296" y="2208" width="704" height="736" fill="hsl(63 45% 55%)" opacity="0.35" stroke="#202020"/>
-  <rect data-id="connector-crossroads-wildwood" x="4160" y="3648" width="960" height="784" fill="hsl(110 45% 55%)" opacity="0.35" stroke="#202020"/>
+  <rect data-id="connector-crossroads-mistfen" x="2112" y="3424" width="1920" height="448" fill="hsl(16 45% 55%)" opacity="0.35" stroke="#202020"/>
+  <rect data-id="connector-crossroads-silverpine" x="2688" y="2048" width="1440" height="896" fill="hsl(63 45% 55%)" opacity="0.35" stroke="#202020"/>
+  <rect data-id="connector-crossroads-wildwood" x="4416" y="3648" width="800" height="640" fill="hsl(110 45% 55%)" opacity="0.35" stroke="#202020"/>
   <rect data-id="outer-boundary" x="0" y="0" width="6400" height="6400" fill="hsl(157 45% 55%)" opacity="0.08" stroke="#202020"/>
 </svg>

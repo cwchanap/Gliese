@@ -3179,8 +3179,8 @@ const V2_ROUTE_POINTS = {
 	crossroadsToWildwood: [
 		{ x: 3_904, y: 4_224 },
 		{ x: 3_904, y: 3_168 },
-		{ x: 4_944, y: 3_168 },
-		{ x: 4_944, y: 3_904 }
+		{ x: 4_992, y: 3_168 },
+		{ x: 4_992, y: 3_904 }
 	],
 	crossroadsToCoast: [
 		{ x: 3_904, y: 4_224 },
@@ -3209,7 +3209,7 @@ const V2_FULL_ROUTE_POINTS = {
 	crossroadsToSilverpine: V2_ROUTE_POINTS.crossroadsToSilverpine,
 	crossroadsToWildwood: [
 		...V2_ROUTE_POINTS.crossroadsToWildwood,
-		{ x: 4_944, y: 3_168 },
+		{ x: 4_992, y: 3_168 },
 		{ x: 5_600, y: 3_168 },
 		{ x: 5_600, y: 1_868 },
 		{ x: 5_760, y: 1_868 }

@@ -201,6 +201,18 @@
     {
       "ref": {
         "sourceType": "blocker",
+        "sourceId": "central-river-collision"
+      },
+      "primaryRegionId": "outer-boundary",
+      "disposition": {
+        "mode": "runtime-fallback-only",
+        "reason": "Collision-only water edge remains visible through its paired tile fallback."
+      },
+      "runtimeRequirement": "fallback-tile"
+    },
+    {
+      "ref": {
+        "sourceType": "blocker",
         "sourceId": "coast-approach-west-bank"
       },
       "primaryRegionId": "tidewatch-coast",
@@ -240,6 +252,42 @@
         "sourceId": "coast-sea-wall"
       },
       "primaryRegionId": "tidewatch-coast",
+      "disposition": {
+        "mode": "runtime-fallback-only",
+        "reason": "Collision-only water edge remains visible through its paired tile fallback."
+      },
+      "runtimeRequirement": "fallback-tile"
+    },
+    {
+      "ref": {
+        "sourceType": "blocker",
+        "sourceId": "estuary-east-collision"
+      },
+      "primaryRegionId": "outer-boundary",
+      "disposition": {
+        "mode": "runtime-fallback-only",
+        "reason": "Collision-only water edge remains visible through its paired tile fallback."
+      },
+      "runtimeRequirement": "fallback-tile"
+    },
+    {
+      "ref": {
+        "sourceType": "blocker",
+        "sourceId": "estuary-west-collision"
+      },
+      "primaryRegionId": "outer-boundary",
+      "disposition": {
+        "mode": "runtime-fallback-only",
+        "reason": "Collision-only water edge remains visible through its paired tile fallback."
+      },
+      "runtimeRequirement": "fallback-tile"
+    },
+    {
+      "ref": {
+        "sourceType": "blocker",
+        "sourceId": "lower-river-collision"
+      },
+      "primaryRegionId": "outer-boundary",
       "disposition": {
         "mode": "runtime-fallback-only",
         "reason": "Collision-only water edge remains visible through its paired tile fallback."
@@ -381,6 +429,30 @@
     {
       "ref": {
         "sourceType": "blocker",
+        "sourceId": "north-river-collision"
+      },
+      "primaryRegionId": "outer-boundary",
+      "disposition": {
+        "mode": "runtime-fallback-only",
+        "reason": "Collision-only water edge remains visible through its paired tile fallback."
+      },
+      "runtimeRequirement": "fallback-tile"
+    },
+    {
+      "ref": {
+        "sourceType": "blocker",
+        "sourceId": "river-delta-collision"
+      },
+      "primaryRegionId": "outer-boundary",
+      "disposition": {
+        "mode": "runtime-fallback-only",
+        "reason": "Collision-only water edge remains visible through its paired tile fallback."
+      },
+      "runtimeRequirement": "fallback-tile"
+    },
+    {
+      "ref": {
+        "sourceType": "blocker",
         "sourceId": "silver-shrine-gate-block"
       },
       "primaryRegionId": "silverpine",
@@ -395,6 +467,18 @@
         "reason": "Painted-v2 pilot does not own this live visual or stateful source."
       },
       "runtimeRequirement": "remain-live"
+    },
+    {
+      "ref": {
+        "sourceType": "blocker",
+        "sourceId": "silverpine-falls-collision"
+      },
+      "primaryRegionId": "outer-boundary",
+      "disposition": {
+        "mode": "runtime-fallback-only",
+        "reason": "Collision-only water edge remains visible through its paired tile fallback."
+      },
+      "runtimeRequirement": "fallback-tile"
     },
     {
       "ref": {
@@ -449,6 +533,18 @@
         "reason": "Painted-v2 pilot does not own this live visual or stateful source."
       },
       "runtimeRequirement": "remain-live"
+    },
+    {
+      "ref": {
+        "sourceType": "blocker",
+        "sourceId": "silverpine-headwater-collision"
+      },
+      "primaryRegionId": "outer-boundary",
+      "disposition": {
+        "mode": "runtime-fallback-only",
+        "reason": "Collision-only water edge remains visible through its paired tile fallback."
+      },
+      "runtimeRequirement": "fallback-tile"
     },
     {
       "ref": {
@@ -2637,6 +2733,18 @@
     {
       "ref": {
         "sourceType": "ground-patch",
+        "sourceId": "central-river-water"
+      },
+      "primaryRegionId": "outer-boundary",
+      "disposition": {
+        "mode": "runtime-fallback-only",
+        "reason": "The pilot crop does not own this source; the existing tile layer remains fallback."
+      },
+      "runtimeRequirement": "fallback-tile"
+    },
+    {
+      "ref": {
+        "sourceType": "ground-patch",
         "sourceId": "coast-approach-path"
       },
       "primaryRegionId": "tidewatch-coast",
@@ -2731,6 +2839,18 @@
     {
       "ref": {
         "sourceType": "ground-patch",
+        "sourceId": "crossroads-south-approach"
+      },
+      "primaryRegionId": "connector-village-crossroads",
+      "disposition": {
+        "mode": "runtime-fallback-only",
+        "reason": "The pilot crop does not own this source; the existing tile layer remains fallback."
+      },
+      "runtimeRequirement": "fallback-tile"
+    },
+    {
+      "ref": {
+        "sourceType": "ground-patch",
         "sourceId": "crossroads-to-coast"
       },
       "primaryRegionId": "connector-crossroads-coast",
@@ -2769,6 +2889,54 @@
         "sourceId": "crossroads-to-wildwood"
       },
       "primaryRegionId": "connector-crossroads-wildwood",
+      "disposition": {
+        "mode": "runtime-fallback-only",
+        "reason": "The pilot crop does not own this source; the existing tile layer remains fallback."
+      },
+      "runtimeRequirement": "fallback-tile"
+    },
+    {
+      "ref": {
+        "sourceType": "ground-patch",
+        "sourceId": "estuary-east-water"
+      },
+      "primaryRegionId": "outer-boundary",
+      "disposition": {
+        "mode": "runtime-fallback-only",
+        "reason": "The pilot crop does not own this source; the existing tile layer remains fallback."
+      },
+      "runtimeRequirement": "fallback-tile"
+    },
+    {
+      "ref": {
+        "sourceType": "ground-patch",
+        "sourceId": "estuary-west-water"
+      },
+      "primaryRegionId": "outer-boundary",
+      "disposition": {
+        "mode": "runtime-fallback-only",
+        "reason": "The pilot crop does not own this source; the existing tile layer remains fallback."
+      },
+      "runtimeRequirement": "fallback-tile"
+    },
+    {
+      "ref": {
+        "sourceType": "ground-patch",
+        "sourceId": "ferryApproach-path"
+      },
+      "primaryRegionId": "outer-boundary",
+      "disposition": {
+        "mode": "runtime-fallback-only",
+        "reason": "The pilot crop does not own this source; the existing tile layer remains fallback."
+      },
+      "runtimeRequirement": "fallback-tile"
+    },
+    {
+      "ref": {
+        "sourceType": "ground-patch",
+        "sourceId": "lower-river-water"
+      },
+      "primaryRegionId": "outer-boundary",
       "disposition": {
         "mode": "runtime-fallback-only",
         "reason": "The pilot crop does not own this source; the existing tile layer remains fallback."
@@ -2862,7 +3030,7 @@
     {
       "ref": {
         "sourceType": "ground-patch",
-        "sourceId": "mistfen-seam-horizontal"
+        "sourceId": "mistfen-west-approach"
       },
       "primaryRegionId": "connector-crossroads-mistfen",
       "disposition": {
@@ -2874,9 +3042,33 @@
     {
       "ref": {
         "sourceType": "ground-patch",
-        "sourceId": "mistfen-seam-vertical"
+        "sourceId": "mistfenBridge-path"
       },
-      "primaryRegionId": "connector-crossroads-mistfen",
+      "primaryRegionId": "outer-boundary",
+      "disposition": {
+        "mode": "runtime-fallback-only",
+        "reason": "The pilot crop does not own this source; the existing tile layer remains fallback."
+      },
+      "runtimeRequirement": "fallback-tile"
+    },
+    {
+      "ref": {
+        "sourceType": "ground-patch",
+        "sourceId": "north-river-water"
+      },
+      "primaryRegionId": "outer-boundary",
+      "disposition": {
+        "mode": "runtime-fallback-only",
+        "reason": "The pilot crop does not own this source; the existing tile layer remains fallback."
+      },
+      "runtimeRequirement": "fallback-tile"
+    },
+    {
+      "ref": {
+        "sourceType": "ground-patch",
+        "sourceId": "river-delta-water"
+      },
+      "primaryRegionId": "outer-boundary",
       "disposition": {
         "mode": "runtime-fallback-only",
         "reason": "The pilot crop does not own this source; the existing tile layer remains fallback."
@@ -2910,9 +3102,33 @@
     {
       "ref": {
         "sourceType": "ground-patch",
+        "sourceId": "silverpine-falls-water"
+      },
+      "primaryRegionId": "outer-boundary",
+      "disposition": {
+        "mode": "runtime-fallback-only",
+        "reason": "The pilot crop does not own this source; the existing tile layer remains fallback."
+      },
+      "runtimeRequirement": "fallback-tile"
+    },
+    {
+      "ref": {
+        "sourceType": "ground-patch",
         "sourceId": "silverpine-grove-floor"
       },
       "primaryRegionId": "silverpine",
+      "disposition": {
+        "mode": "runtime-fallback-only",
+        "reason": "The pilot crop does not own this source; the existing tile layer remains fallback."
+      },
+      "runtimeRequirement": "fallback-tile"
+    },
+    {
+      "ref": {
+        "sourceType": "ground-patch",
+        "sourceId": "silverpine-headwater-water"
+      },
+      "primaryRegionId": "outer-boundary",
       "disposition": {
         "mode": "runtime-fallback-only",
         "reason": "The pilot crop does not own this source; the existing tile layer remains fallback."
@@ -2934,7 +3150,7 @@
     {
       "ref": {
         "sourceType": "ground-patch",
-        "sourceId": "silverpine-seam"
+        "sourceId": "silverpine-north-approach"
       },
       "primaryRegionId": "connector-crossroads-silverpine",
       "disposition": {
@@ -2970,6 +3186,18 @@
     {
       "ref": {
         "sourceType": "ground-patch",
+        "sourceId": "silverpine-south-approach"
+      },
+      "primaryRegionId": "connector-crossroads-silverpine",
+      "disposition": {
+        "mode": "runtime-fallback-only",
+        "reason": "The pilot crop does not own this source; the existing tile layer remains fallback."
+      },
+      "runtimeRequirement": "fallback-tile"
+    },
+    {
+      "ref": {
+        "sourceType": "ground-patch",
         "sourceId": "silverpine-stair-path"
       },
       "primaryRegionId": "silverpine",
@@ -2985,6 +3213,18 @@
         "sourceId": "silverpine-terrace-landing"
       },
       "primaryRegionId": "silverpine",
+      "disposition": {
+        "mode": "runtime-fallback-only",
+        "reason": "The pilot crop does not own this source; the existing tile layer remains fallback."
+      },
+      "runtimeRequirement": "fallback-tile"
+    },
+    {
+      "ref": {
+        "sourceType": "ground-patch",
+        "sourceId": "silverpineBridge-path"
+      },
+      "primaryRegionId": "outer-boundary",
       "disposition": {
         "mode": "runtime-fallback-only",
         "reason": "The pilot crop does not own this source; the existing tile layer remains fallback."
@@ -3031,6 +3271,18 @@
       "ref": {
         "sourceType": "ground-patch",
         "sourceId": "sundrop-southwest-ocean-patch"
+      },
+      "primaryRegionId": "outer-boundary",
+      "disposition": {
+        "mode": "runtime-fallback-only",
+        "reason": "The pilot crop does not own this source; the existing tile layer remains fallback."
+      },
+      "runtimeRequirement": "fallback-tile"
+    },
+    {
+      "ref": {
+        "sourceType": "ground-patch",
+        "sourceId": "sundropBridge-path"
       },
       "primaryRegionId": "outer-boundary",
       "disposition": {
@@ -4681,11 +4933,24 @@
     {
       "ref": {
         "sourceType": "ground-patch",
-        "sourceId": "village-to-crossroads"
+        "sourceId": "village-river-crossing"
       },
       "primaryRegionId": "connector-village-crossroads",
       "disposition": {
-        "mode": "base-underlay"
+        "mode": "runtime-fallback-only",
+        "reason": "The pilot crop does not own this source; the existing tile layer remains fallback."
+      },
+      "runtimeRequirement": "fallback-tile"
+    },
+    {
+      "ref": {
+        "sourceType": "ground-patch",
+        "sourceId": "village-west-main-street"
+      },
+      "primaryRegionId": "sundrop-village",
+      "disposition": {
+        "mode": "runtime-fallback-only",
+        "reason": "The pilot crop does not own this source; the existing tile layer remains fallback."
       },
       "runtimeRequirement": "fallback-tile"
     },
@@ -4728,9 +4993,9 @@
     {
       "ref": {
         "sourceType": "ground-patch",
-        "sourceId": "wildwood-north-combat-pocket"
+        "sourceId": "wildwood-mouth"
       },
-      "primaryRegionId": "wildwood",
+      "primaryRegionId": "connector-crossroads-wildwood",
       "disposition": {
         "mode": "runtime-fallback-only",
         "reason": "The pilot crop does not own this source; the existing tile layer remains fallback."
@@ -4740,9 +5005,9 @@
     {
       "ref": {
         "sourceType": "ground-patch",
-        "sourceId": "wildwood-seam"
+        "sourceId": "wildwood-north-combat-pocket"
       },
-      "primaryRegionId": "connector-crossroads-wildwood",
+      "primaryRegionId": "wildwood",
       "disposition": {
         "mode": "runtime-fallback-only",
         "reason": "The pilot crop does not own this source; the existing tile layer remains fallback."

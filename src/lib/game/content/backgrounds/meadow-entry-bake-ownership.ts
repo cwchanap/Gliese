@@ -273,6 +273,29 @@ addPolicy(
 	},
 	'fallback-tile'
 );
+addPolicies(
+	'ground-patch',
+	[
+		'silverpine-headwater-water',
+		'silverpine-falls-water',
+		'north-river-water',
+		'central-river-water',
+		'lower-river-water',
+		'river-delta-water',
+		'estuary-west-water',
+		'estuary-east-water',
+		'silverpineBridge-path',
+		'mistfenBridge-path',
+		'sundropBridge-path',
+		'ferryApproach-path'
+	],
+	{
+		mode: 'runtime-fallback-only',
+		reason:
+			'River ground remains owned by the runtime tile layer until the river fragment receives a baked regional crop.'
+	},
+	'fallback-tile'
+);
 
 for (const entry of SUNDROP_VILLAGE_OBSTACLE_OWNERSHIP) addPredecessorBlockerPolicy(entry);
 
@@ -424,6 +447,25 @@ addPolicy(
 		mode: 'runtime-fallback-only',
 		reason:
 			'The ocean blocker is collision-only; its paired sea ground patch remains visual fallback outside every regional runtime crop.'
+	},
+	'fallback-tile'
+);
+addPolicies(
+	'blocker',
+	[
+		'silverpine-headwater-collision',
+		'silverpine-falls-collision',
+		'north-river-collision',
+		'central-river-collision',
+		'lower-river-collision',
+		'river-delta-collision',
+		'estuary-west-collision',
+		'estuary-east-collision'
+	],
+	{
+		mode: 'runtime-fallback-only',
+		reason:
+			'River collision blockers are collision-only; their paired sea ground patches remain visual fallback outside every regional runtime crop.'
 	},
 	'fallback-tile'
 );
@@ -831,7 +873,7 @@ export const MEADOW_ENTRY_BAKE_OWNERSHIP = buildMeadowEntryBakeOwnership();
  * removals fail closed before a control package can be built.
  */
 const PAINTED_V2_REVIEWED_SOURCE_CATALOG_KEYS_SHA256 =
-	'ef04f4c2cb46ced2aad35f81dd8912fd5309a59f8e9a6793cfcf1be0d4b8c17f';
+	'b0fb5ebab3a5aef6e8fe15fa32b67b6d08fe83ad019f624844ec61270de569cc';
 
 const PAINTED_V2_BASE_UNDERLAY_SOURCE_KEYS = [
 	'ground-patch:crossroads-north-trunk',
@@ -985,11 +1027,30 @@ const PAINTED_V2_BASE_UNDERLAY_SOURCE_KEYS = [
 	'ground-patch:village-ground-64-0',
 	'ground-patch:village-ground-65-0',
 	'ground-patch:village-ground-66-0',
-	'ground-patch:village-ground-67-0',
-	'ground-patch:village-to-crossroads'
+	'ground-patch:village-ground-67-0'
 ] as const;
 
 const PAINTED_V2_RUNTIME_FALLBACK_SOURCE_KEYS = [
+	'ground-patch:village-west-main-street',
+	'ground-patch:village-river-crossing',
+	'ground-patch:crossroads-south-approach',
+	'ground-patch:mistfen-west-approach',
+	'ground-patch:silverpine-north-approach',
+	'ground-patch:silverpine-south-approach',
+	'ground-patch:wildwood-mouth',
+	'ground-patch:crossroads-to-wildwood',
+	'ground-patch:silverpine-headwater-water',
+	'ground-patch:silverpine-falls-water',
+	'ground-patch:north-river-water',
+	'ground-patch:central-river-water',
+	'ground-patch:lower-river-water',
+	'ground-patch:river-delta-water',
+	'ground-patch:estuary-west-water',
+	'ground-patch:estuary-east-water',
+	'ground-patch:silverpineBridge-path',
+	'ground-patch:mistfenBridge-path',
+	'ground-patch:sundropBridge-path',
+	'ground-patch:ferryApproach-path',
 	'ground-patch:coast-approach-path',
 	'ground-patch:coast-ferry-fork',
 	'ground-patch:coast-sand',
@@ -998,7 +1059,6 @@ const PAINTED_V2_RUNTIME_FALLBACK_SOURCE_KEYS = [
 	'ground-patch:coast-tidepool-pocket',
 	'ground-patch:crossroads-to-coast',
 	'ground-patch:crossroads-to-silverpine',
-	'ground-patch:crossroads-to-wildwood',
 	'ground-patch:mistfen-approach-path',
 	'ground-patch:mistfen-basin',
 	'ground-patch:mistfen-hidden-pool-pocket',
@@ -1006,13 +1066,10 @@ const PAINTED_V2_RUNTIME_FALLBACK_SOURCE_KEYS = [
 	'ground-patch:mistfen-pool-west',
 	'ground-patch:mistfen-safe-curve-a',
 	'ground-patch:mistfen-safe-curve-b',
-	'ground-patch:mistfen-seam-horizontal',
-	'ground-patch:mistfen-seam-vertical',
 	'ground-patch:silverpine-bend-east',
 	'ground-patch:silverpine-bend-west',
 	'ground-patch:silverpine-grove-floor',
 	'ground-patch:silverpine-lower-approach',
-	'ground-patch:silverpine-seam',
 	'ground-patch:silverpine-shrine-terrace',
 	'ground-patch:silverpine-side-grove-floor',
 	'ground-patch:silverpine-stair-path',
@@ -1025,11 +1082,18 @@ const PAINTED_V2_RUNTIME_FALLBACK_SOURCE_KEYS = [
 	'ground-patch:wildwood-cave-branch',
 	'ground-patch:wildwood-crossing-combat-pocket',
 	'ground-patch:wildwood-north-combat-pocket',
-	'ground-patch:wildwood-seam',
 	'ground-patch:wildwood-side-clearing'
 ] as const;
 
 const PAINTED_V2_COLLISION_FALLBACK_SOURCE_KEYS = [
+	'blocker:silverpine-headwater-collision',
+	'blocker:silverpine-falls-collision',
+	'blocker:north-river-collision',
+	'blocker:central-river-collision',
+	'blocker:lower-river-collision',
+	'blocker:river-delta-collision',
+	'blocker:estuary-west-collision',
+	'blocker:estuary-east-collision',
 	'blocker:coast-sea-wall',
 	'blocker:mistfen-pool-east-blocker',
 	'blocker:mistfen-pool-west-blocker',
@@ -1222,7 +1286,7 @@ function buildMeadowEntryPaintedV2BakeOwnership(): readonly MeadowEntryBakeOwner
 }
 
 export const MEADOW_ENTRY_REVIEWED_PAINTED_V2_BAKE_OWNERSHIP_SHA256 =
-	'a10a10123b9f2759cafaaec2759c967da713cf795868306e23571a844684b632';
+	'b1dd376b41c70037c9043103f26eced7d43e7c6c16f8423e7517e40db8d30e1a';
 export const MEADOW_ENTRY_PAINTED_V2_BAKE_OWNERSHIP = buildMeadowEntryPaintedV2BakeOwnership();
 
 function assertNonEmpty(value: string, field: string, key: string): void {

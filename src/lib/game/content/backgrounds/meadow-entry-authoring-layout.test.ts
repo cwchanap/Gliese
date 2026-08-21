@@ -27,19 +27,21 @@ import {
 } from '$lib/game/content/maps/layouts/meadow-entry-v2';
 
 const expectedPathOwners = {
+	'ground-patch:crossroads-south-approach': 'connector-village-crossroads',
 	'decor:village-corridor-waymarker': 'connector-village-crossroads',
 	'ground-patch:crossroads-to-coast': 'connector-crossroads-coast',
 	'ground-patch:crossroads-to-mistfen': 'connector-crossroads-mistfen',
 	'ground-patch:crossroads-to-silverpine': 'connector-crossroads-silverpine',
 	'ground-patch:crossroads-to-wildwood': 'connector-crossroads-wildwood',
-	'ground-patch:village-to-crossroads': 'connector-village-crossroads'
+	'ground-patch:silverpine-south-approach': 'connector-crossroads-silverpine',
+	'ground-patch:village-river-crossing': 'connector-village-crossroads',
+	'ground-patch:village-west-main-street': 'sundrop-village'
 } as const satisfies Readonly<Record<string, MeadowEntryAuthoringRegionId>>;
 
 const expectedDestinationSeamOwners = {
-	'ground-patch:mistfen-seam-horizontal': 'connector-crossroads-mistfen',
-	'ground-patch:mistfen-seam-vertical': 'connector-crossroads-mistfen',
-	'ground-patch:silverpine-seam': 'connector-crossroads-silverpine',
-	'ground-patch:wildwood-seam': 'connector-crossroads-wildwood'
+	'ground-patch:mistfen-west-approach': 'connector-crossroads-mistfen',
+	'ground-patch:silverpine-north-approach': 'connector-crossroads-silverpine',
+	'ground-patch:wildwood-mouth': 'connector-crossroads-wildwood'
 } as const satisfies Readonly<Record<string, MeadowEntryAuthoringRegionId>>;
 
 const defaultFragmentOwners = {
@@ -49,6 +51,7 @@ const defaultFragmentOwners = {
 	mistfen: 'mistfen',
 	silverpine: 'silverpine',
 	wildwood: 'wildwood',
+	'river-system': 'outer-boundary',
 	'outer-boundary': 'outer-boundary'
 } as const satisfies Readonly<Record<string, MeadowEntryAuthoringRegionId>>;
 
@@ -74,25 +77,25 @@ const expectedV2PrincipalBounds = {
 >;
 
 const expectedV2ConnectorBounds = {
-	'connector-village-crossroads': { left: 2_688, top: 4_480, right: 3_392, bottom: 4_896 },
+	'connector-village-crossroads': { left: 2_368, top: 4_384, right: 3_872, bottom: 4_864 },
 	'connector-crossroads-coast': { left: 4_000, top: 4_640, right: 4_448, bottom: 5_696 },
-	'connector-crossroads-mistfen': { left: 2_112, top: 2_624, right: 3_808, bottom: 3_360 },
-	'connector-crossroads-silverpine': { left: 3_296, top: 2_208, right: 4_000, bottom: 2_944 },
-	'connector-crossroads-wildwood': { left: 4_160, top: 3_648, right: 5_120, bottom: 4_432 }
+	'connector-crossroads-mistfen': { left: 2_112, top: 3_424, right: 4_032, bottom: 3_872 },
+	'connector-crossroads-silverpine': { left: 2_688, top: 2_048, right: 4_128, bottom: 2_944 },
+	'connector-crossroads-wildwood': { left: 4_416, top: 3_648, right: 5_216, bottom: 4_288 }
 } as const satisfies Readonly<
 	Record<string, { left: number; top: number; right: number; bottom: number }>
 >;
 
 const connectorPatchIds = {
-	'connector-village-crossroads': ['village-to-crossroads'],
+	'connector-village-crossroads': ['village-river-crossing'],
 	'connector-crossroads-coast': ['crossroads-to-coast'],
-	'connector-crossroads-mistfen': [
-		'crossroads-to-mistfen',
-		'mistfen-seam-horizontal',
-		'mistfen-seam-vertical'
+	'connector-crossroads-mistfen': ['crossroads-to-mistfen', 'mistfen-west-approach'],
+	'connector-crossroads-silverpine': [
+		'crossroads-to-silverpine',
+		'silverpine-south-approach',
+		'silverpine-north-approach'
 	],
-	'connector-crossroads-silverpine': ['crossroads-to-silverpine', 'silverpine-seam'],
-	'connector-crossroads-wildwood': ['crossroads-to-wildwood', 'wildwood-seam']
+	'connector-crossroads-wildwood': ['crossroads-to-wildwood', 'wildwood-mouth']
 } as const satisfies Readonly<Record<keyof typeof expectedV2ConnectorBounds, readonly string[]>>;
 
 function boundsFromV2Rect(rect: { x: number; y: number; width: number; height: number }) {
@@ -187,14 +190,14 @@ describe('meadow-entry authoring layout', () => {
 			.join('');
 
 		expect(MEADOW_ENTRY_REVIEWED_PRIMARY_SOURCE_OWNERS_SHA256).toBe(
-			'a2db7151d8f73d0afaf978e5b7dc0d65b20a11eb70b6fd7bbaecf06365fb8fe5'
+			'd3e977d09f99f3c9ea25a45cb20238a1574cce43b53b838c9d4f7e91fa9231c5'
 		);
 		expect(sha256(canonicalOwners)).toBe(MEADOW_ENTRY_REVIEWED_PRIMARY_SOURCE_OWNERS_SHA256);
 	});
 
 	it('locks the exact ordered region metadata to its independent reviewed snapshot', () => {
 		expect(MEADOW_ENTRY_REVIEWED_AUTHORING_REGIONS_SHA256).toBe(
-			'6e4f185f2d2725263e6129a556f23e9f960035c2bc1d056573afd6799868f022'
+			'd8cd46ec202554dd65b86e29b3fcdae7668bd224f334d18f981039d8e981cd43'
 		);
 		expect(sha256(JSON.stringify(MEADOW_ENTRY_AUTHORING_REGIONS))).toBe(
 			MEADOW_ENTRY_REVIEWED_AUTHORING_REGIONS_SHA256

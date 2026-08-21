@@ -54,15 +54,15 @@ export interface MeadowEntryCrossRegionCoverage {
 }
 
 const V2_CONNECTOR_ROUTE_PATCH_IDS = {
-	'connector-village-crossroads': ['village-to-crossroads'],
+	'connector-village-crossroads': ['village-river-crossing'],
 	'connector-crossroads-coast': ['crossroads-to-coast'],
-	'connector-crossroads-mistfen': [
-		'crossroads-to-mistfen',
-		'mistfen-seam-horizontal',
-		'mistfen-seam-vertical'
+	'connector-crossroads-mistfen': ['crossroads-to-mistfen', 'mistfen-west-approach'],
+	'connector-crossroads-silverpine': [
+		'crossroads-to-silverpine',
+		'silverpine-south-approach',
+		'silverpine-north-approach'
 	],
-	'connector-crossroads-silverpine': ['crossroads-to-silverpine', 'silverpine-seam'],
-	'connector-crossroads-wildwood': ['crossroads-to-wildwood', 'wildwood-seam']
+	'connector-crossroads-wildwood': ['crossroads-to-wildwood', 'wildwood-mouth']
 } as const;
 
 function pixelBoundsFromLayoutRect(rect: {
@@ -195,7 +195,7 @@ export const MEADOW_ENTRY_AUTHORING_REGIONS: readonly MeadowEntryAuthoringRegion
 // Independent review seal for the ordered JSON registry above. The test owns
 // the SHA-256 computation so coordinated metadata drift cannot update itself.
 export const MEADOW_ENTRY_REVIEWED_AUTHORING_REGIONS_SHA256 =
-	'6e4f185f2d2725263e6129a556f23e9f960035c2bc1d056573afd6799868f022';
+	'd8cd46ec202554dd65b86e29b3fcdae7668bd224f334d18f981039d8e981cd43';
 
 const DEFAULT_FRAGMENT_OWNERS = {
 	village: 'sundrop-village',
@@ -204,20 +204,23 @@ const DEFAULT_FRAGMENT_OWNERS = {
 	mistfen: 'mistfen',
 	silverpine: 'silverpine',
 	wildwood: 'wildwood',
+	'river-system': 'outer-boundary',
 	'outer-boundary': 'outer-boundary'
 } as const satisfies Readonly<Record<string, MeadowEntryAuthoringRegionId>>;
 
 const EXACT_PATH_OWNERS = {
-	'ground-patch:village-to-crossroads': 'connector-village-crossroads',
+	'ground-patch:village-west-main-street': 'sundrop-village',
+	'ground-patch:village-river-crossing': 'connector-village-crossroads',
+	'ground-patch:crossroads-south-approach': 'connector-village-crossroads',
 	'decor:village-corridor-waymarker': 'connector-village-crossroads',
 	'ground-patch:crossroads-to-coast': 'connector-crossroads-coast',
 	'ground-patch:crossroads-to-mistfen': 'connector-crossroads-mistfen',
 	'ground-patch:crossroads-to-silverpine': 'connector-crossroads-silverpine',
+	'ground-patch:silverpine-south-approach': 'connector-crossroads-silverpine',
 	'ground-patch:crossroads-to-wildwood': 'connector-crossroads-wildwood',
-	'ground-patch:mistfen-seam-horizontal': 'connector-crossroads-mistfen',
-	'ground-patch:mistfen-seam-vertical': 'connector-crossroads-mistfen',
-	'ground-patch:silverpine-seam': 'connector-crossroads-silverpine',
-	'ground-patch:wildwood-seam': 'connector-crossroads-wildwood'
+	'ground-patch:mistfen-west-approach': 'connector-crossroads-mistfen',
+	'ground-patch:silverpine-north-approach': 'connector-crossroads-silverpine',
+	'ground-patch:wildwood-mouth': 'connector-crossroads-wildwood'
 } as const satisfies Readonly<Record<string, MeadowEntryAuthoringRegionId>>;
 
 export function primaryOwnerFor(record: MeadowEntrySourceRecord): MeadowEntryAuthoringRegionId {
@@ -249,7 +252,7 @@ export const MEADOW_ENTRY_PRIMARY_SOURCE_OWNERS: Readonly<
 // future catalog addition fail review even though default fragment assignment
 // can still build a useful diagnostic owner in memory.
 export const MEADOW_ENTRY_REVIEWED_PRIMARY_SOURCE_OWNERS_SHA256 =
-	'a2db7151d8f73d0afaf978e5b7dc0d65b20a11eb70b6fd7bbaecf06365fb8fe5';
+	'd3e977d09f99f3c9ea25a45cb20238a1574cce43b53b838c9d4f7e91fa9231c5';
 
 export const MEADOW_ENTRY_CROSS_REGION_COVERAGE: readonly MeadowEntryCrossRegionCoverage[] = [
 	{
@@ -301,11 +304,6 @@ export const MEADOW_ENTRY_CROSS_REGION_COVERAGE: readonly MeadowEntryCrossRegion
 		sourceKey: 'decor:silverpine-tree-1',
 		bounds: [{ left: 2_430, top: 1_150, right: 2_650, bottom: 1_450 }],
 		secondaryRegions: ['mistfen']
-	},
-	{
-		sourceKey: 'decor:village-corridor-waymarker',
-		bounds: [{ left: 2_990, top: 4_444, right: 3_090, bottom: 4_644 }],
-		secondaryRegions: ['crossroads']
 	},
 	{
 		sourceKey: 'decor:village-decor-22-77',
@@ -381,29 +379,24 @@ export const MEADOW_ENTRY_OUTLIER_RESOLUTIONS: readonly MeadowEntryOutlierResolu
 		coverageIndex: 9
 	},
 	{
-		sourceKey: 'decor:village-corridor-waymarker',
+		sourceKey: 'decor:village-decor-22-77',
 		mode: 'cross-region',
 		coverageIndex: 10
 	},
 	{
-		sourceKey: 'decor:village-decor-22-77',
+		sourceKey: 'decor:wildwood-grove-tree-1',
 		mode: 'cross-region',
 		coverageIndex: 11
 	},
 	{
-		sourceKey: 'decor:wildwood-grove-tree-1',
+		sourceKey: 'ground-patch:silverpine-grove-floor',
 		mode: 'cross-region',
 		coverageIndex: 12
 	},
 	{
-		sourceKey: 'ground-patch:silverpine-grove-floor',
-		mode: 'cross-region',
-		coverageIndex: 13
-	},
-	{
 		sourceKey: 'ground-patch:silverpine-side-grove-floor',
 		mode: 'cross-region',
-		coverageIndex: 14
+		coverageIndex: 13
 	},
 	{
 		sourceKey: 'blocker:coast-approach-west-bank',

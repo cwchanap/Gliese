@@ -177,6 +177,54 @@ describe('meadow-entry bake ownership', () => {
 		}
 	});
 
+	it('classifies the river fragment records exactly as tile-backed fallback ownership', () => {
+		const expectedRiverKeys = [
+			...[
+				'silverpine-headwater-water',
+				'silverpine-falls-water',
+				'north-river-water',
+				'central-river-water',
+				'lower-river-water',
+				'river-delta-water',
+				'estuary-west-water',
+				'estuary-east-water',
+				'silverpineBridge-path',
+				'mistfenBridge-path',
+				'sundropBridge-path',
+				'ferryApproach-path'
+			].map((sourceId) => `ground-patch:${sourceId}`),
+			...[
+				'silverpine-headwater-collision',
+				'silverpine-falls-collision',
+				'north-river-collision',
+				'central-river-collision',
+				'lower-river-collision',
+				'river-delta-collision',
+				'estuary-west-collision',
+				'estuary-east-collision'
+			].map((sourceId) => `blocker:${sourceId}`)
+		].sort();
+		const riverCatalogKeys = collectMeadowEntrySourceCatalog()
+			.filter(({ fragmentId }) => fragmentId === 'river-system')
+			.map(({ ref }) => meadowEntrySourceKey(ref))
+			.sort();
+		const riverOwnership = MEADOW_ENTRY_BAKE_OWNERSHIP.filter((entry) =>
+			expectedRiverKeys.includes(meadowEntrySourceKey(entry.ref))
+		);
+
+		expect(riverCatalogKeys).toEqual(expectedRiverKeys);
+		expect(riverOwnership.map(({ ref }) => meadowEntrySourceKey(ref)).sort()).toEqual(
+			expectedRiverKeys
+		);
+		for (const entry of riverOwnership) {
+			expect(entry.disposition, meadowEntrySourceKey(entry.ref)).toMatchObject({
+				mode: 'runtime-fallback-only',
+				reason: expect.stringMatching(/river|collision-only/i)
+			});
+			expect(entry.runtimeRequirement, meadowEntrySourceKey(entry.ref)).toBe('fallback-tile');
+		}
+	});
+
 	it('resolves both deferred southwest-ocean records deliberately', () => {
 		const byKey = ownershipByKey();
 		const deferredKeys = MEADOW_ENTRY_OUTLIER_RESOLUTIONS.filter(
@@ -609,7 +657,7 @@ describe('validateMeadowEntryBakeOwnership error paths', () => {
 
 describe('painted-v2 meadow-entry bake ownership', () => {
 	const PAINTED_V2_GROUND_CANDIDATE_SHA256 =
-		'ab450e19860cf3beb73f4972aefadd830535cff48339761d05bd6fc7237c453e';
+		'34945c53b029d0d6430714fafb12c5f9a6b5d9ceff239ef137ac822244837c81';
 	const expectedOrganicBlockerOwners = [
 		'coast-crossroads-mouth-bank',
 		'mistfen-entry-bank-east',
@@ -676,8 +724,7 @@ describe('painted-v2 meadow-entry bake ownership', () => {
 			({ ref, disposition }) =>
 				ref.sourceType === 'ground-patch' && disposition.mode === 'base-underlay'
 		).map(({ ref }) => meadowEntrySourceKey(ref));
-
-		expect(candidates).toHaveLength(153);
+		expect(candidates).toHaveLength(152);
 		expect(
 			createHash('sha256')
 				.update(candidates.map((key) => `${key}\n`).join(''))
@@ -686,7 +733,7 @@ describe('painted-v2 meadow-entry bake ownership', () => {
 		expect(reviewed).toEqual(candidates);
 		expect(
 			MEADOW_ENTRY_PAINTED_V2_BAKE_OWNERSHIP.filter(({ ref }) => ref.sourceType === 'ground-patch')
-		).toHaveLength(190);
+		).toHaveLength(204);
 		const canonical = MEADOW_ENTRY_PAINTED_V2_BAKE_OWNERSHIP.map(
 			(entry) =>
 				`${meadowEntrySourceKey(entry.ref)}=${entry.primaryRegionId}|${JSON.stringify(entry.disposition)}|${entry.runtimeRequirement}\n`
@@ -831,7 +878,7 @@ describe('painted-v2 meadow-entry bake ownership', () => {
 				owners: ['painted-v2-crossroads-camera-base']
 			},
 			'blocker:wildwood-forest-lane-west-bank': {
-				bounds: { left: 4960, top: 3192, right: 5040, bottom: 5308 },
+				bounds: { left: 5000, top: 3192, right: 5080, bottom: 5308 },
 				owners: ['painted-v2-crossroads-camera-base']
 			},
 			'decor:village-decor-22-77': {

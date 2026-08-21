@@ -162,6 +162,7 @@ export const MEADOW_ENTRY_CONTROL_SOURCE_FILE_PATHS = [
 	'src/lib/game/content/maps/regions/coast.ts',
 	'src/lib/game/content/maps/regions/crossroads.ts',
 	'src/lib/game/content/maps/regions/paths.ts',
+	'src/lib/game/content/maps/regions/river-system.ts',
 	'src/lib/game/content/maps/blocker-rendering.ts',
 	'src/lib/game/save/save-state.ts',
 	'src/lib/game/core/collision.ts'
