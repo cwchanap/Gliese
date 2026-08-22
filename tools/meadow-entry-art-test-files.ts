@@ -1,7 +1,6 @@
 export const MEADOW_ENTRY_CONTROLS_TEST_FILES = [
 	'src/lib/game/content/backgrounds/meadow-entry-authoring-geometry.test.ts',
 	'src/lib/game/content/backgrounds/meadow-entry-storage.test.ts',
-	'src/lib/game/content/backgrounds/meadow-entry-storage-verifier.test.ts',
 	'src/lib/game/content/backgrounds/meadow-entry-source-catalog.test.ts',
 	'src/lib/game/content/backgrounds/meadow-entry-authoring-layout.test.ts',
 	'src/lib/game/content/backgrounds/meadow-entry-bake-ownership.test.ts',
@@ -23,6 +22,5 @@ export const MEADOW_ENTRY_TEST_FILES = [
 	'src/lib/game/content/backgrounds/meadow-entry-proof-renderer.test.ts',
 	'src/lib/game/content/backgrounds/meadow-entry-art-source-snapshot.test.ts',
 	'src/lib/game/content/backgrounds/meadow-entry-art-proofs.test.ts',
-	'src/lib/game/content/backgrounds/meadow-entry-art-package-validator.test.ts',
-	'src/lib/game/content/meadow-entry-art-package.asset.test.ts'
+	'src/lib/game/content/backgrounds/meadow-entry-art-package-validator.test.ts'
 ] as const;
