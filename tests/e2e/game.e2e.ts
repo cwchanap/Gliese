@@ -4676,9 +4676,6 @@ function assertItemShopStockroomEntryBandContract(
 			diagnostic.resolvedPosition.x,
 			`${diagnosticLabel} in-band x lower bound`
 		).toBeGreaterThanOrEqual(minimumX);
-		expect(diagnostic.resolvedPosition.x, `${diagnosticLabel} in-band x upper bound`).toBeLessThan(
-			maximumX
-		);
 		for (const obstacle of obstacles) {
 			expect(
 				routeSegmentIntersectsExpandedRect(
@@ -11054,6 +11051,64 @@ test('browser-local route steering acknowledges a plan and continues through Pha
 	expect(() =>
 		itemShopStockroomEntryRoutePoints({ x: 467, y: stockroomEntryStart.y }, stockroomEntryTarget)
 	).toThrow();
+	// Characterize the live band handoff's frame residue: a first westward
+	// diagnostic may remain at or beyond the exclusive upper edge, but the
+	// runner must keep steering until its released final endpoint is in-band
+	// before this x becomes the vertical-leg anchor.
+	const stockroomBand = itemShopStockroomEntrySafeXBand();
+	const stockroomBandStart = { x: 474.6152000000029, y: 301.3816000000049 };
+	const stockroomBandTransientDiagnostic: PlayerMovementDiagnostic = {
+		mapId: 'item-shop',
+		previousPosition: stockroomBandStart,
+		requestedPosition: { x: 468.2144000000026, y: stockroomBandStart.y },
+		resolvedPosition: { x: 468.2144000000026, y: stockroomBandStart.y },
+		blocked: false
+	};
+	const stockroomBandFinalDiagnostic: PlayerMovementDiagnostic = {
+		mapId: 'item-shop',
+		previousPosition: stockroomBandTransientDiagnostic.resolvedPosition,
+		requestedPosition: { x: 461.2136000000024, y: stockroomBandStart.y },
+		resolvedPosition: { x: 461.2136000000024, y: stockroomBandStart.y },
+		blocked: false
+	};
+	const stockroomBandInBandResult: CaveDoorwayBandResult = {
+		token: 'characterization-item-shop-stockroom-band-transient',
+		mapId: 'item-shop',
+		status: 'done',
+		position: stockroomBandFinalDiagnostic.resolvedPosition,
+		lastDiagnostic: stockroomBandFinalDiagnostic,
+		diagnostics: [stockroomBandTransientDiagnostic, stockroomBandFinalDiagnostic],
+		invalidDiagnostics: [],
+		activeKeys: [],
+		releasedKeys: ['ArrowLeft'],
+		released: true,
+		startedAt: 0,
+		finishedAt: 1
+	};
+	expect(stockroomBandTransientDiagnostic.resolvedPosition.x).toBeGreaterThanOrEqual(
+		stockroomBand.maximumX
+	);
+	expect(stockroomBandInBandResult.position?.x).toBeGreaterThanOrEqual(stockroomBand.minimumX);
+	expect(stockroomBandInBandResult.position?.x).toBeLessThan(stockroomBand.maximumX);
+	assertItemShopStockroomEntryBandContract(
+		stockroomBandStart,
+		stockroomBandInBandResult,
+		'characterization Item Shop stockroom band transient then in-band final'
+	);
+	const stockroomBandOutOfBandResult: CaveDoorwayBandResult = {
+		...stockroomBandInBandResult,
+		token: 'characterization-item-shop-stockroom-band-final-out-of-band',
+		position: stockroomBandTransientDiagnostic.resolvedPosition,
+		lastDiagnostic: stockroomBandTransientDiagnostic,
+		diagnostics: [stockroomBandTransientDiagnostic]
+	};
+	expect(() =>
+		assertItemShopStockroomEntryBandContract(
+			stockroomBandStart,
+			stockroomBandOutOfBandResult,
+			'characterization Item Shop stockroom band final out-of-band rejection'
+		)
+	).toThrow(/final x upper bound/);
 	const wrongMapStockroomEntryDiagnostic = {
 		...stockroomEntryDiagnostic,
 		mapId: 'guild-hall'
