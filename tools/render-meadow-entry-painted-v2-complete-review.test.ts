@@ -11,34 +11,62 @@ import {
 } from '$lib/game/content/backgrounds/meadow-entry-painted-v2-complete';
 import { encodeCanonicalMeadowEntryPng } from '$lib/game/content/backgrounds/meadow-entry-png';
 import {
-	COMPLETE_REVIEW_EVIDENCE,
 	renderMeadowEntryPaintedV2CompleteReviewArtifactsFromDecoded,
 	renderMeadowEntryPaintedV2CompleteReview
 } from './render-meadow-entry-painted-v2-complete-review';
 
-describe('complete Meadow Entry review renderer', () => {
-	it('declares the full approval evidence inventory, including native and seam proofs', () => {
-		expect(COMPLETE_REVIEW_EVIDENCE).toEqual(
-			expect.arrayContaining([
-				'full-overview.png',
-				'representative-native-detail.png',
-				'river-crossing.png',
-				'forest-boundary.png',
-				'village-approach.png',
-				'seam-evidence.png',
-				'route-collision-protected-live-overlay.png',
-				'master-edge-north.png',
-				'master-edge-east.png',
-				'master-edge-south.png',
-				'master-edge-west.png',
-				'runtime-quadrant-edge-northwest.png',
-				'runtime-quadrant-edge-northeast.png',
-				'runtime-quadrant-edge-southwest.png',
-				'runtime-quadrant-edge-southeast.png'
-			])
-		);
-	}, 120_000);
+const EXPECTED_REVIEW_PNG_INVENTORY = [
+	'full-overview.png',
+	'representative-native-detail.png',
+	'river-crossing.png',
+	'forest-boundary.png',
+	'village-approach.png',
+	'seam-evidence.png',
+	'region-sundrop-village.png',
+	'region-crossroads.png',
+	'region-wildwood.png',
+	'region-silverpine.png',
+	'region-mistfen.png',
+	'region-coast.png',
+	'region-river.png',
+	'route-collision-protected-live-overlay.png',
+	'collision-overlay.png',
+	'protected-live-overlay.png',
+	'route-overlay.png',
+	'source-handoff-band-01.png',
+	'source-handoff-band-02.png',
+	'source-handoff-band-03.png',
+	'source-handoff-band-04.png',
+	'source-handoff-band-05.png',
+	'source-handoff-band-06.png',
+	'master-edge-north.png',
+	'master-edge-east.png',
+	'master-edge-south.png',
+	'master-edge-west.png',
+	'runtime-quadrant-edge-northwest.png',
+	'runtime-quadrant-edge-northeast.png',
+	'runtime-quadrant-edge-southwest.png',
+	'runtime-quadrant-edge-southeast.png',
+	'hero-house-approach.png',
+	'building-approach-villager-house-1.png',
+	'building-approach-villager-house-2.png',
+	'building-approach-guild-hall.png',
+	'building-approach-item-shop.png',
+	'building-approach-blacksmith.png',
+	'building-approach-villager-house-3.png',
+	'building-approach-shrine.png',
+	'bridge-silverpine.png',
+	'bridge-mistfen.png',
+	'bridge-sundrop.png',
+	'ford-ferry-approach.png',
+	'native-decoration-density-01.png',
+	'native-decoration-density-02.png',
+	'native-decoration-density-03.png',
+	'native-decoration-density-04.png',
+	'native-decoration-density-05.png'
+] as const;
 
+describe('complete Meadow Entry review renderer', () => {
 	it('renders asymmetric crops and edges from the decoded master and checks stale output', async () => {
 		const repositoryRoot = await mkdtemp(join(tmpdir(), 'gliese-complete-review-'));
 		await copyControls(repositoryRoot);
@@ -60,9 +88,7 @@ describe('complete Meadow Entry review renderer', () => {
 				'utf8'
 			)
 		) as { inventory: string[] };
-		expect(manifest.inventory).toEqual(
-			COMPLETE_REVIEW_EVIDENCE.filter((name) => !name.endsWith('.json'))
-		);
+		expect(manifest.inventory).toEqual(EXPECTED_REVIEW_PNG_INVENTORY);
 		const overview = await decodePng(
 			await readFile(join(repositoryRoot, 'review', 'full-overview.png'))
 		);

@@ -265,6 +265,10 @@ export function validateCompleteRejectionHistory(
 		Array.isArray(value),
 		`Meadow Entry complete panel ${spec.id} rejection history is required`
 	);
+	assert(
+		value.length === acceptedAttempt - 1,
+		`Meadow Entry complete panel ${spec.id} rejection history must contain exactly attempts 1 through ${acceptedAttempt - 1}`
+	);
 	const attempts = new Set<number>();
 	return value.map((entry, index) => {
 		assert(
@@ -282,6 +286,10 @@ export function validateCompleteRejectionHistory(
 				attempt < acceptedAttempt &&
 				attempt <= MEADOW_ENTRY_PAINTED_V2_COMPLETE_MAX_ATTEMPTS,
 			`Meadow Entry complete panel ${spec.id} rejection ${index} attempt is inconsistent`
+		);
+		assert(
+			attempt === index + 1,
+			`Meadow Entry complete panel ${spec.id} rejection history must be contiguous and ordered`
 		);
 		assert(
 			!attempts.has(attempt),

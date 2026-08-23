@@ -414,6 +414,41 @@ describe('complete Meadow Entry painted-v2 master assembly', () => {
 			})
 		).rejects.toThrow(/reference|adjacent|approved/i);
 	});
+
+	it('requires contiguous rejection history before an accepted attempt', async () => {
+		const input = await integrityInput();
+		const provenance = JSON.parse(input.provenance['north-mid-center']!.toString('utf8')) as Record<
+			string,
+			unknown
+		>;
+		provenance.generation = {
+			...(provenance.generation as Record<string, unknown>),
+			attempt: 3
+		};
+
+		await expect(
+			assembleMeadowEntryPaintedV2CompleteMaster({
+				...input,
+				provenance: {
+					...input.provenance,
+					'north-mid-center': Buffer.from(JSON.stringify(provenance))
+				}
+			})
+		).rejects.toThrow(/rejection|attempt|contiguous/i);
+
+		provenance.rejectionHistory = [
+			{ attempt: 2, reason: 'synthetic missing first rejection', status: 'rejected' }
+		];
+		await expect(
+			assembleMeadowEntryPaintedV2CompleteMaster({
+				...input,
+				provenance: {
+					...input.provenance,
+					'north-mid-center': Buffer.from(JSON.stringify(provenance))
+				}
+			})
+		).rejects.toThrow(/rejection|attempt|contiguous/i);
+	});
 });
 
 async function integrityInput(): Promise<
