@@ -2,8 +2,11 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import { readFileSync } from 'node:fs';
+import * as path from 'node:path';
 
 import { createHash } from 'node:crypto';
+// @ts-expect-error Bun provides this module to the Bun test runner; the app TypeScript config does not declare it.
+import { mock } from 'bun:test';
 
 import {
 	PAINTED_V2_TEXTURE_PROBE_INPUTS,
@@ -375,4 +378,33 @@ test('preserves the legacy destination when no report-root override is supplied'
 		candidate: 'painted-v2-2x2',
 		reportRoot: 'artifacts/meadow-entry/painted-v2/proofs/texture-probe'
 	});
+});
+
+test('accepts the documented forward-slash root under simulated Windows normalization', async () => {
+	const reportRoot = 'artifacts/meadow-entry/painted-v2/complete/proofs/texture-probe';
+	assert.equal(
+		path.win32.normalize(reportRoot),
+		'artifacts\\meadow-entry\\painted-v2\\complete\\proofs\\texture-probe'
+	);
+
+	mock.module('node:path', () => ({ ...path, normalize: path.win32.normalize }));
+	try {
+		const windowsNormalizedModule =
+			// @ts-expect-error Bun resolves query-suffixed imports for an isolated mocked module instance.
+			await import('./probe-meadow-entry-texture-safety.ts?simulated-windows-normalize');
+		assert.deepEqual(
+			windowsNormalizedModule.parseMeadowEntryTextureProbeArguments([
+				'--candidate',
+				'painted-v2-2x2',
+				'--report-root',
+				reportRoot
+			]),
+			{
+				candidate: 'painted-v2-2x2',
+				reportRoot
+			}
+		);
+	} finally {
+		mock.restore();
+	}
 });

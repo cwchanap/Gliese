@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto';
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
-import { dirname, isAbsolute, normalize, resolve, win32 } from 'node:path';
+import { dirname, isAbsolute, posix, resolve, win32 } from 'node:path';
 
 import { chromium } from 'playwright';
 
@@ -594,7 +594,7 @@ function validateReportRoot(value: string): string {
 	if (value.split('/').includes('..')) {
 		throw new Error('--report-root must not contain path traversal segments');
 	}
-	const reportRoot = normalize(value).replace(/\/+$/, '');
+	const reportRoot = posix.normalize(value).replace(/\/+$/, '');
 	if (
 		reportRoot === TEXTURE_PROBE_NAMESPACE ||
 		!reportRoot.startsWith(`${TEXTURE_PROBE_NAMESPACE}/`)
