@@ -27,6 +27,20 @@ function sha256(value: Buffer): string {
 	return createHash('sha256').update(value).digest('hex');
 }
 
+function testGeneration(panelId: MeadowEntryPaintedV2CompletePanelId): Record<string, unknown> {
+	const prompt = `test prompt ${panelId}`;
+	return {
+		attempt: 1,
+		model: 'test-model',
+		modelVersion: '1',
+		provider: 'test-provider',
+		tool: 'test-tool',
+		prompt,
+		promptSha256: sha256(Buffer.from(prompt)),
+		referenceIds: ['meadow-entry-painted-v2-complete-art-direction-reference']
+	};
+}
+
 function pixel(data: Buffer, width: number, x: number, y: number): readonly number[] {
 	const offset = (y * width + x) * 4;
 	return [...data.subarray(offset, offset + 4)];
@@ -79,6 +93,14 @@ async function validInput(): Promise<MeadowEntryPaintedV2CompleteAssemblyInput> 
 						panelId: panel.id,
 						bounds: panel.bounds,
 						controlFingerprint: MEADOW_ENTRY_PAINTED_V2_COMPLETE_CONTROL_FINGERPRINT,
+						raw: {
+							path: panel.rawPath,
+							sha256: sha256(png),
+							bytes: png.byteLength,
+							dimensions: panel.expectedDimensions
+						},
+						generation: testGeneration(panel.id),
+						rejectionHistory: [],
 						normalized: {
 							path: panel.normalizedPath,
 							sha256: sha256(png),
@@ -92,6 +114,9 @@ async function validInput(): Promise<MeadowEntryPaintedV2CompleteAssemblyInput> 
 	);
 	return {
 		controlFingerprint: MEADOW_ENTRY_PAINTED_V2_COMPLETE_CONTROL_FINGERPRINT,
+		raw: Object.fromEntries(entries.map(([id, png]) => [id, png])) as unknown as Readonly<
+			Record<MeadowEntryPaintedV2CompletePanelId, Buffer>
+		>,
 		panels: Object.fromEntries(entries.map(([id, png]) => [id, png])) as unknown as Readonly<
 			Record<MeadowEntryPaintedV2CompletePanelId, Buffer>
 		>,
@@ -114,6 +139,14 @@ async function coordinateEncodedInput(): Promise<MeadowEntryPaintedV2CompleteAss
 						panelId: panel.id,
 						bounds: panel.bounds,
 						controlFingerprint: MEADOW_ENTRY_PAINTED_V2_COMPLETE_CONTROL_FINGERPRINT,
+						raw: {
+							path: panel.rawPath,
+							sha256: sha256(png),
+							bytes: png.byteLength,
+							dimensions: panel.expectedDimensions
+						},
+						generation: testGeneration(panel.id),
+						rejectionHistory: [],
 						normalized: {
 							path: panel.normalizedPath,
 							sha256: sha256(png),
@@ -127,6 +160,9 @@ async function coordinateEncodedInput(): Promise<MeadowEntryPaintedV2CompleteAss
 	);
 	return {
 		controlFingerprint: MEADOW_ENTRY_PAINTED_V2_COMPLETE_CONTROL_FINGERPRINT,
+		raw: Object.fromEntries(entries.map(([id, png]) => [id, png])) as unknown as Readonly<
+			Record<MeadowEntryPaintedV2CompletePanelId, Buffer>
+		>,
 		panels: Object.fromEntries(entries.map(([id, png]) => [id, png])) as unknown as Readonly<
 			Record<MeadowEntryPaintedV2CompletePanelId, Buffer>
 		>,
@@ -327,4 +363,98 @@ describe('complete Meadow Entry painted-v2 master assembly', () => {
 			})
 		).rejects.toThrow(/control fingerprint|stale/i);
 	});
+
+	it('fails closed for missing or tampered raw records and incomplete provenance history', async () => {
+		const input = await integrityInput();
+		const missingRaw: Partial<Record<MeadowEntryPaintedV2CompletePanelId, Buffer>> = {
+			...input.raw
+		};
+		delete missingRaw['north-west'];
+		await expect(
+			assembleMeadowEntryPaintedV2CompleteMaster({
+				...input,
+				raw: missingRaw as Readonly<Record<MeadowEntryPaintedV2CompletePanelId, Buffer>>
+			})
+		).rejects.toThrow(/raw|missing/i);
+
+		const tamperedRaw = Buffer.from(input.raw['north-west']!);
+		tamperedRaw[tamperedRaw.length - 1] ^= 1;
+		await expect(
+			assembleMeadowEntryPaintedV2CompleteMaster({
+				...input,
+				raw: { ...input.raw, 'north-west': tamperedRaw }
+			})
+		).rejects.toThrow(/raw|hash|canonical/i);
+
+		const missingGeneration = JSON.parse(
+			input.provenance['north-west']!.toString('utf8')
+		) as Record<string, unknown>;
+		delete missingGeneration.generation;
+		await expect(
+			assembleMeadowEntryPaintedV2CompleteMaster({
+				...input,
+				provenance: {
+					...input.provenance,
+					'north-west': Buffer.from(JSON.stringify(missingGeneration))
+				}
+			})
+		).rejects.toThrow(/generation|required/i);
+
+		const unapprovedReference = JSON.parse(input.provenance['north-center']!.toString('utf8')) as {
+			generation: { referenceIds: string[] };
+		};
+		unapprovedReference.generation.referenceIds.push('south-east');
+		await expect(
+			assembleMeadowEntryPaintedV2CompleteMaster({
+				...input,
+				provenance: {
+					...input.provenance,
+					'north-center': Buffer.from(JSON.stringify(unapprovedReference))
+				}
+			})
+		).rejects.toThrow(/reference|adjacent|approved/i);
+	});
 });
+
+async function integrityInput(): Promise<
+	MeadowEntryPaintedV2CompleteAssemblyInput & {
+		readonly raw: Readonly<Record<MeadowEntryPaintedV2CompletePanelId, Buffer>>;
+	}
+> {
+	const input = await validInput();
+	const entries = MEADOW_ENTRY_PAINTED_V2_COMPLETE_SOURCE_PANELS.map((panel) => {
+		const normalized = input.panels[panel.id]!;
+		const provenance = JSON.parse(input.provenance[panel.id]!.toString('utf8')) as Record<
+			string,
+			unknown
+		>;
+		provenance.raw = {
+			path: panel.rawPath,
+			sha256: sha256(normalized),
+			bytes: normalized.byteLength,
+			dimensions: panel.expectedDimensions
+		};
+		const prompt = `test prompt ${panel.id}`;
+		provenance.generation = {
+			attempt: 1,
+			model: 'test-model',
+			modelVersion: '1',
+			provider: 'test-provider',
+			tool: 'test-tool',
+			prompt,
+			promptSha256: sha256(Buffer.from(prompt)),
+			referenceIds: ['meadow-entry-painted-v2-complete-art-direction-reference']
+		};
+		provenance.rejectionHistory = [];
+		return [panel.id, normalized, Buffer.from(JSON.stringify(provenance))] as const;
+	});
+	return {
+		...input,
+		raw: Object.fromEntries(entries.map(([id, png]) => [id, png])) as Readonly<
+			Record<MeadowEntryPaintedV2CompletePanelId, Buffer>
+		>,
+		provenance: Object.fromEntries(
+			entries.map(([id, , provenance]) => [id, provenance])
+		) as Readonly<Record<MeadowEntryPaintedV2CompletePanelId, Buffer>>
+	};
+}

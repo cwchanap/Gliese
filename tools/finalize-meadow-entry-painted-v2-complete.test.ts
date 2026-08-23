@@ -2,6 +2,7 @@ import { readFile, writeFile } from 'node:fs/promises';
 import { mkdtemp } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { createHash } from 'node:crypto';
 
 import sharp from 'sharp';
 import { describe, expect, it } from 'vitest';
@@ -56,6 +57,13 @@ async function validAssemblyResult(): Promise<{
 		provenancePath: panel.provenancePath,
 		provenanceSha256: 'd'.repeat(64),
 		rejectionHistory: [],
+		raw: {
+			path: panel.rawPath,
+			sha256: 'b'.repeat(64),
+			bytes: 1,
+			dimensions: { width: 1, height: 1 }
+		},
+		generation: testGeneration(panel.id),
 		normalized: {
 			path: panel.normalizedPath,
 			sha256: 'a'.repeat(64),
@@ -91,6 +99,20 @@ async function validAssemblyResult(): Promise<{
 				2
 			) + '\n'
 		)
+	};
+}
+
+function testGeneration(panelId: string): Record<string, unknown> {
+	const prompt = `test prompt ${panelId}`;
+	return {
+		attempt: 1,
+		model: 'test-model',
+		modelVersion: '1',
+		provider: 'test-provider',
+		tool: 'test-tool',
+		prompt,
+		promptSha256: createHash('sha256').update(prompt).digest('hex'),
+		referenceIds: ['meadow-entry-painted-v2-complete-art-direction-reference']
 	};
 }
 
@@ -194,6 +216,23 @@ describe('complete Meadow Entry finalizer', () => {
 				}
 			})
 		).rejects.toThrow(/fingerprint|control/i);
+	});
+
+	it('fails closed when assembled panel provenance omits raw and generation integrity records', async () => {
+		const repositoryRoot = await mkdtemp(join(tmpdir(), 'gliese-complete-finalizer-integrity-'));
+		const assemblyResult = await validAssemblyResult();
+		const provenance = JSON.parse(assemblyResult.provenanceJson.toString('utf8')) as {
+			panels: Array<Record<string, unknown>>;
+		};
+		delete provenance.panels[0]!.raw;
+		await expect(
+			runFinalizeMeadowEntryPaintedV2Complete(repositoryRoot, {
+				assemblyResult: {
+					...assemblyResult,
+					provenanceJson: Buffer.from(`${JSON.stringify(provenance)}\n`)
+				}
+			})
+		).rejects.toThrow(/raw|generation|provenance/i);
 	});
 
 	it('keeps the canonical encoder contract explicit in the finalizer test fixture', async () => {

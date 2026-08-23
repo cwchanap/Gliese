@@ -4,7 +4,10 @@ import { dirname, join, resolve } from 'node:path';
 
 import {
 	MEADOW_ENTRY_PAINTED_V2_COMPLETE_CONTROL_FINGERPRINT,
-	MEADOW_ENTRY_PAINTED_V2_COMPLETE_HANDOFF_MAX_HALF_WIDTH_PX
+	MEADOW_ENTRY_PAINTED_V2_COMPLETE_HANDOFF_MAX_HALF_WIDTH_PX,
+	validateCompleteGenerationProvenance,
+	validateCompleteRawProvenance,
+	validateCompleteRejectionHistory
 } from '$lib/game/content/backgrounds/meadow-entry-painted-v2-complete-assembly';
 import {
 	MEADOW_ENTRY_PAINTED_V2_COMPLETE_MASTER_HEIGHT,
@@ -317,6 +320,10 @@ async function validateMasterProvenance(
 					spec.expectedDimensions.height,
 			`Complete Meadow Entry panel ${spec.id} dimensions are stale`
 		);
+		validateCompleteRawProvenance(panel.raw, spec);
+		const generation = validateCompleteGenerationProvenance(panel.generation, spec);
+		const acceptedAttempt = integerProperty(generation, 'attempt', `panel ${spec.id} generation`);
+		validateCompleteRejectionHistory(panel.rejectionHistory, spec, acceptedAttempt);
 		const provenanceHash = stringProperty(panel, 'provenanceSha256', `panel ${spec.id} provenance`);
 		assertHash(provenanceHash, `panel ${spec.id} provenance hash`);
 		const rejectionHistory = panel.rejectionHistory;
@@ -328,6 +335,19 @@ async function validateMasterProvenance(
 	assert(
 		Array.isArray(record.rejectionHistory),
 		'Complete Meadow Entry rejection history must be an array'
+	);
+	const expectedRejectionHistory = panels.flatMap((panelValue, index) => {
+		const panel = panelValue as Record<string, unknown>;
+		const spec = MEADOW_ENTRY_PAINTED_V2_COMPLETE_SOURCE_PANELS[index]!;
+		return (panel.rejectionHistory as readonly Record<string, unknown>[]).map((entry) => ({
+			panelId: spec.id,
+			...entry
+		}));
+	});
+	assert(
+		JSON.stringify(stableValue(record.rejectionHistory)) ===
+			JSON.stringify(stableValue(expectedRejectionHistory)),
+		'Complete Meadow Entry rejection history aggregate is stale'
 	);
 	return record;
 }
@@ -386,15 +406,19 @@ async function loadAssemblyInput(
 ): Promise<MeadowEntryPaintedV2CompleteAssemblyInput> {
 	const entries = await Promise.all(
 		MEADOW_ENTRY_PAINTED_V2_COMPLETE_SOURCE_PANELS.map(async (panel) => {
-			const [png, provenance] = await Promise.all([
+			const [raw, png, provenance] = await Promise.all([
+				readRequired(fileSystem, join(root, panel.rawPath), `${panel.id} raw source`),
 				readRequired(fileSystem, join(root, panel.normalizedPath), `${panel.id} normalized source`),
 				readRequired(fileSystem, join(root, panel.provenancePath), `${panel.id} provenance`)
 			]);
-			return { id: panel.id, png, provenance };
+			return { id: panel.id, raw, png, provenance };
 		})
 	);
 	return {
 		controlFingerprint: MEADOW_ENTRY_PAINTED_V2_COMPLETE_CONTROL_FINGERPRINT,
+		raw: Object.fromEntries(entries.map(({ id, raw }) => [id, raw])) as Readonly<
+			Record<MeadowEntryPaintedV2CompletePanelId, Buffer>
+		>,
 		panels: Object.fromEntries(entries.map(({ id, png }) => [id, png])) as Readonly<
 			Record<MeadowEntryPaintedV2CompletePanelId, Buffer>
 		>,

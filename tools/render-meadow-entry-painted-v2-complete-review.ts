@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto';
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
-import { join, resolve } from 'node:path';
+import { join, relative, resolve } from 'node:path';
 
 import sharp from 'sharp';
 
@@ -83,6 +83,15 @@ const MASKS = {
 	protectedLive: 'meadow-entry-protected-live-mask.svg'
 } as const;
 
+// Preserve the existing review PNG bytes: Sharp's PNG input path writes its
+// 72-DPI default as 2834 pixels/metre, while a raw input defaults to 1000.
+const SHARP_DEFAULT_DENSITY_PPM = 2834;
+const PNG_CRC32_TABLE = Uint32Array.from({ length: 256 }, (_, value) => {
+	let crc = value;
+	for (let bit = 0; bit < 8; bit += 1) crc = (crc >>> 1) ^ (crc & 1 ? 0xedb88320 : 0);
+	return crc >>> 0;
+});
+
 interface CompleteReviewOptions {
 	readonly masterPath?: string;
 	readonly outputRoot?: string;
@@ -112,6 +121,15 @@ function toBounds(rect: {
 
 function assert(condition: unknown, message: string): asserts condition {
 	if (!condition) throw new Error(message);
+}
+
+function repositoryRelativePath(repositoryRoot: string, path: string): string {
+	const value = relative(repositoryRoot, path).replaceAll('\\', '/');
+	assert(
+		value.length > 0 && value !== '..' && !value.startsWith('../'),
+		`Complete Meadow Entry review master must be inside the repository root: ${path}`
+	);
+	return value;
 }
 
 function sha256(value: Uint8Array): string {
@@ -153,8 +171,43 @@ async function crop(decoded: DecodedMeadowEntryRgba, requested: Bounds): Promise
 	return encodeCanonicalMeadowEntryPng(raw, width, height);
 }
 
-async function resizedOverview(masterPng: Buffer): Promise<Buffer> {
-	return sharp(masterPng).resize(1600, 1600, { fit: 'fill' }).png().toBuffer();
+function pngCrc32(bytes: Uint8Array): number {
+	let crc = 0xffffffff;
+	for (const byte of bytes) crc = (PNG_CRC32_TABLE[(crc ^ byte) & 0xff] ?? 0) ^ (crc >>> 8);
+	return (crc ^ 0xffffffff) >>> 0;
+}
+
+function patchPngDensity(png: Buffer, densityPpm: number): Buffer {
+	const output = Buffer.from(png);
+	let offset = 8;
+	while (offset < output.length) {
+		const length = output.readUInt32BE(offset);
+		const typeOffset = offset + 4;
+		const type = output.toString('ascii', typeOffset, typeOffset + 4);
+		if (type === 'pHYs' && length === 9) {
+			const dataOffset = offset + 8;
+			output.writeUInt32BE(densityPpm, dataOffset);
+			output.writeUInt32BE(densityPpm, dataOffset + 4);
+			output.writeUInt8(1, dataOffset + 8);
+			output.writeUInt32BE(
+				pngCrc32(output.subarray(typeOffset, dataOffset + length)),
+				offset + 8 + length
+			);
+			return output;
+		}
+		offset += length + 12;
+	}
+	throw new Error('Complete Meadow Entry overview PNG is missing a pHYs chunk');
+}
+
+async function resizedOverview(decoded: DecodedMeadowEntryRgba): Promise<Buffer> {
+	const resized = await sharp(decoded.data, {
+		raw: { width: decoded.width, height: decoded.height, channels: 4 }
+	})
+		.resize(1600, 1600, { fit: 'fill' })
+		.png()
+		.toBuffer();
+	return patchPngDensity(resized, SHARP_DEFAULT_DENSITY_PPM);
 }
 
 async function maskPng(repositoryRoot: string, filename: string): Promise<Buffer> {
@@ -168,8 +221,8 @@ async function maskPng(repositoryRoot: string, filename: string): Promise<Buffer
 		.toBuffer();
 }
 
-async function overlay(masterPng: Buffer, masks: readonly Buffer[]): Promise<Buffer> {
-	const base = await resizedOverview(masterPng);
+async function overlay(decoded: DecodedMeadowEntryRgba, masks: readonly Buffer[]): Promise<Buffer> {
+	const base = await resizedOverview(decoded);
 	return sharp(base)
 		.composite(masks.map((input) => ({ input })))
 		.png()
@@ -242,11 +295,10 @@ function densityBounds(): readonly Bounds[] {
 
 async function makeArtifacts(
 	repositoryRoot: string,
-	decoded: DecodedMeadowEntryRgba,
-	masterPng: Buffer
+	decoded: DecodedMeadowEntryRgba
 ): Promise<Readonly<Record<string, Buffer>>> {
 	const artifacts: Record<string, Buffer> = {};
-	artifacts['full-overview.png'] = await resizedOverview(masterPng);
+	artifacts['full-overview.png'] = await resizedOverview(decoded);
 	artifacts['representative-native-detail.png'] = await crop(decoded, {
 		left: 1152,
 		top: 4800,
@@ -286,14 +338,14 @@ async function makeArtifacts(
 	const routeMask = await maskPng(repositoryRoot, MASKS.route);
 	const collisionMask = await maskPng(repositoryRoot, MASKS.collision);
 	const protectedMask = await maskPng(repositoryRoot, MASKS.protectedLive);
-	artifacts['route-collision-protected-live-overlay.png'] = await overlay(masterPng, [
+	artifacts['route-collision-protected-live-overlay.png'] = await overlay(decoded, [
 		routeMask,
 		collisionMask,
 		protectedMask
 	]);
-	artifacts['collision-overlay.png'] = await overlay(masterPng, [collisionMask]);
-	artifacts['protected-live-overlay.png'] = await overlay(masterPng, [protectedMask]);
-	artifacts['route-overlay.png'] = await overlay(masterPng, [routeMask]);
+	artifacts['collision-overlay.png'] = await overlay(decoded, [collisionMask]);
+	artifacts['protected-live-overlay.png'] = await overlay(decoded, [protectedMask]);
+	artifacts['route-overlay.png'] = await overlay(decoded, [routeMask]);
 
 	for (const [index, bounds] of handoffBounds().entries()) {
 		artifacts[`source-handoff-band-${(index + 1).toString().padStart(2, '0')}.png`] = await crop(
@@ -335,6 +387,18 @@ async function makeArtifacts(
 	return artifacts;
 }
 
+export async function renderMeadowEntryPaintedV2CompleteReviewArtifactsFromDecoded(
+	repositoryRoot: string,
+	decoded: DecodedMeadowEntryRgba
+): Promise<Readonly<Record<string, Buffer>>> {
+	assert(
+		decoded.width === MEADOW_ENTRY_PAINTED_V2_COMPLETE_MASTER_WIDTH &&
+			decoded.height === MEADOW_ENTRY_PAINTED_V2_COMPLETE_MASTER_HEIGHT,
+		'Complete Meadow Entry review decoded source dimensions are stale'
+	);
+	return makeArtifacts(resolve(repositoryRoot), decoded);
+}
+
 function stableJson(value: unknown): Buffer {
 	const stable = (input: unknown): unknown => {
 		if (Array.isArray(input)) return input.map(stable);
@@ -364,7 +428,7 @@ export async function renderMeadowEntryPaintedV2CompleteReview(
 	);
 	for (let offset = 3; offset < decoded.data.length; offset += 4)
 		assert(decoded.data[offset] === 255, 'Complete Meadow Entry review master is not opaque');
-	const artifacts = await makeArtifacts(root, decoded, masterPng);
+	const artifacts = await makeArtifacts(root, decoded);
 	const descriptors: Record<
 		string,
 		{
@@ -390,7 +454,7 @@ export async function renderMeadowEntryPaintedV2CompleteReview(
 		version: 1,
 		packageId: 'meadow-entry-painted-v2-complete',
 		master: {
-			path: masterPath,
+			path: repositoryRelativePath(root, masterPath),
 			sha256: sha256(masterPng),
 			bytes: masterPng.byteLength,
 			width: decoded.width,

@@ -25,6 +25,9 @@ import { MEADOW_ENTRY_COMBINED_CONTROL_FINGERPRINT } from '../generated/meadow-e
 
 const SHA256 = /^[a-f0-9]{64}$/;
 const COMPLETE_PACKAGE_ID = 'meadow-entry-painted-v2-complete';
+export const MEADOW_ENTRY_PAINTED_V2_COMPLETE_SHARED_REFERENCE_ID =
+	'meadow-entry-painted-v2-complete-art-direction-reference';
+export const MEADOW_ENTRY_PAINTED_V2_COMPLETE_MAX_ATTEMPTS = 5;
 
 export const MEADOW_ENTRY_PAINTED_V2_COMPLETE_CONTROL_FINGERPRINT =
 	MEADOW_ENTRY_COMBINED_CONTROL_FINGERPRINT;
@@ -33,8 +36,16 @@ export const MEADOW_ENTRY_PAINTED_V2_COMPLETE_HANDOFF_MAX_HALF_WIDTH_PX =
 
 export interface MeadowEntryPaintedV2CompleteAssemblyInput {
 	readonly controlFingerprint: string;
+	readonly raw: Readonly<Record<MeadowEntryPaintedV2CompletePanelId, Buffer>>;
 	readonly panels: Readonly<Record<MeadowEntryPaintedV2CompletePanelId, Buffer>>;
 	readonly provenance: Readonly<Record<MeadowEntryPaintedV2CompletePanelId, Buffer>>;
+}
+
+export interface MeadowEntryPaintedV2CompleteRawProvenance {
+	readonly path: string;
+	readonly sha256: string;
+	readonly bytes: number;
+	readonly dimensions: { readonly width: number; readonly height: number };
 }
 
 interface DecodedCompletePanel {
@@ -50,14 +61,15 @@ interface CompletePanelProvenance {
 	readonly panelId: string;
 	readonly bounds: PixelBounds;
 	readonly controlFingerprint: string;
+	readonly raw: MeadowEntryPaintedV2CompleteRawProvenance;
 	readonly normalized: {
 		readonly path: string;
 		readonly sha256: string;
 		readonly bytes: number;
 		readonly dimensions: { readonly width: number; readonly height: number };
 	};
-	readonly generation?: Record<string, unknown>;
-	readonly rejectionHistory: readonly unknown[];
+	readonly generation: Record<string, unknown>;
+	readonly rejectionHistory: readonly Record<string, unknown>[];
 }
 
 function assert(condition: unknown, message: string): asserts condition {
@@ -135,6 +147,157 @@ function integerProperty(value: Record<string, unknown>, property: string, label
 	return result as number;
 }
 
+function arrayProperty(
+	value: Record<string, unknown>,
+	property: string,
+	label: string
+): readonly unknown[] {
+	const result = value[property];
+	assert(Array.isArray(result), `Meadow Entry complete ${label}.${property} must be an array`);
+	return result;
+}
+
+function assertNonEmptyString(value: string, label: string): void {
+	assert(value.trim().length > 0, `Meadow Entry complete ${label} must not be empty`);
+}
+
+function overlapping(first: PixelBounds, second: PixelBounds): boolean {
+	return (
+		Math.min(first.right, second.right) > Math.max(first.left, second.left) &&
+		Math.min(first.bottom, second.bottom) > Math.max(first.top, second.top)
+	);
+}
+
+function allowedAdjacentReferenceIds(
+	spec: MeadowEntryPaintedV2CompleteSourcePanel
+): readonly string[] {
+	return MEADOW_ENTRY_PAINTED_V2_COMPLETE_SOURCE_PANELS.filter(
+		(candidate) => candidate.id !== spec.id && overlapping(candidate.bounds, spec.bounds)
+	).map((candidate) => candidate.id);
+}
+
+export function validateCompleteRawProvenance(
+	value: unknown,
+	spec: MeadowEntryPaintedV2CompleteSourcePanel
+): MeadowEntryPaintedV2CompleteRawProvenance {
+	assert(isPlainObject(value), `Meadow Entry complete panel ${spec.id} raw metadata is required`);
+	const path = stringProperty(value, 'path', `panel ${spec.id} raw`);
+	assert(path === spec.rawPath, `Meadow Entry complete panel ${spec.id} raw path is stale`);
+	const hash = stringProperty(value, 'sha256', `panel ${spec.id} raw`);
+	assert(SHA256.test(hash), `Meadow Entry complete panel ${spec.id} raw hash is invalid`);
+	const bytes = integerProperty(value, 'bytes', `panel ${spec.id} raw`);
+	assert(bytes > 0, `Meadow Entry complete panel ${spec.id} raw byte count is invalid`);
+	const dimensions = objectProperty(value, 'dimensions', `panel ${spec.id} raw`);
+	const parsedDimensions = {
+		width: integerProperty(dimensions, 'width', `panel ${spec.id} raw dimensions`),
+		height: integerProperty(dimensions, 'height', `panel ${spec.id} raw dimensions`)
+	};
+	assert(
+		parsedDimensions.width > 0 && parsedDimensions.height > 0,
+		`Meadow Entry complete panel ${spec.id} raw dimensions are invalid`
+	);
+	return { path, sha256: hash, bytes, dimensions: parsedDimensions };
+}
+
+export function validateCompleteGenerationProvenance(
+	value: unknown,
+	spec: MeadowEntryPaintedV2CompleteSourcePanel
+): Record<string, unknown> {
+	assert(
+		isPlainObject(value),
+		`Meadow Entry complete panel ${spec.id} generation metadata is required`
+	);
+	const attempt = integerProperty(value, 'attempt', `panel ${spec.id} generation`);
+	assert(
+		attempt >= 1 && attempt <= MEADOW_ENTRY_PAINTED_V2_COMPLETE_MAX_ATTEMPTS,
+		`Meadow Entry complete panel ${spec.id} generation attempt exceeds the cap`
+	);
+	for (const property of ['model', 'modelVersion', 'provider', 'tool', 'prompt'] as const) {
+		const string = stringProperty(value, property, `panel ${spec.id} generation`);
+		assertNonEmptyString(string, `panel ${spec.id} generation ${property}`);
+	}
+	const prompt = stringProperty(value, 'prompt', `panel ${spec.id} generation`);
+	const promptSha256 = stringProperty(value, 'promptSha256', `panel ${spec.id} generation`);
+	assert(
+		SHA256.test(promptSha256),
+		`Meadow Entry complete panel ${spec.id} prompt hash is invalid`
+	);
+	assert(
+		promptSha256 === sha256(Buffer.from(prompt)),
+		`Meadow Entry complete panel ${spec.id} prompt hash is stale`
+	);
+	const referenceIds = arrayProperty(value, 'referenceIds', `panel ${spec.id} generation`);
+	assert(
+		referenceIds.length > 0 &&
+			referenceIds.every(
+				(referenceId) => typeof referenceId === 'string' && referenceId.trim().length > 0
+			),
+		`Meadow Entry complete panel ${spec.id} generation references are invalid`
+	);
+	const references = referenceIds as readonly string[];
+	assert(
+		new Set(references).size === references.length,
+		`Meadow Entry complete panel ${spec.id} generation references contain duplicates`
+	);
+	assert(
+		references.filter(
+			(referenceId) => referenceId === MEADOW_ENTRY_PAINTED_V2_COMPLETE_SHARED_REFERENCE_ID
+		).length === 1,
+		`Meadow Entry complete panel ${spec.id} generation must include the approved shared reference`
+	);
+	const allowed = new Set(allowedAdjacentReferenceIds(spec));
+	for (const referenceId of references) {
+		if (referenceId === MEADOW_ENTRY_PAINTED_V2_COMPLETE_SHARED_REFERENCE_ID) continue;
+		assert(
+			allowed.has(referenceId),
+			`Meadow Entry complete panel ${spec.id} generation reference is not an adjacent accepted raster: ${referenceId}`
+		);
+	}
+	return value;
+}
+
+export function validateCompleteRejectionHistory(
+	value: unknown,
+	spec: MeadowEntryPaintedV2CompleteSourcePanel,
+	acceptedAttempt: number
+): readonly Record<string, unknown>[] {
+	assert(
+		Array.isArray(value),
+		`Meadow Entry complete panel ${spec.id} rejection history is required`
+	);
+	const attempts = new Set<number>();
+	return value.map((entry, index) => {
+		assert(
+			isPlainObject(entry),
+			`Meadow Entry complete panel ${spec.id} rejection ${index} must be an object`
+		);
+		const keys = Object.keys(entry).sort();
+		assert(
+			JSON.stringify(keys) === JSON.stringify(['attempt', 'reason', 'status']),
+			`Meadow Entry complete panel ${spec.id} rejection ${index} schema is invalid`
+		);
+		const attempt = integerProperty(entry, 'attempt', `panel ${spec.id} rejection ${index}`);
+		assert(
+			attempt >= 1 &&
+				attempt < acceptedAttempt &&
+				attempt <= MEADOW_ENTRY_PAINTED_V2_COMPLETE_MAX_ATTEMPTS,
+			`Meadow Entry complete panel ${spec.id} rejection ${index} attempt is inconsistent`
+		);
+		assert(
+			!attempts.has(attempt),
+			`Meadow Entry complete panel ${spec.id} rejection attempts are duplicated`
+		);
+		attempts.add(attempt);
+		assert(
+			stringProperty(entry, 'status', `panel ${spec.id} rejection ${index}`) === 'rejected',
+			`Meadow Entry complete panel ${spec.id} rejection ${index} status is invalid`
+		);
+		const reason = stringProperty(entry, 'reason', `panel ${spec.id} rejection ${index}`);
+		assertNonEmptyString(reason, `panel ${spec.id} rejection ${index} reason`);
+		return entry;
+	});
+}
+
 function parsePanelProvenance(
 	bytes: Buffer,
 	spec: MeadowEntryPaintedV2CompleteSourcePanel
@@ -195,31 +358,28 @@ function parsePanelProvenance(
 		normalizedBytes > 0,
 		`Meadow Entry complete panel ${spec.id} normalized byte count is invalid`
 	);
-	const generationValue = record.generation;
-	if (generationValue !== undefined) {
-		assert(
-			isPlainObject(generationValue),
-			`Meadow Entry complete panel ${spec.id} generation metadata is invalid`
-		);
-	}
-	const rejectionHistoryValue = record.rejectionHistory;
-	assert(
-		rejectionHistoryValue === undefined || Array.isArray(rejectionHistoryValue),
-		`Meadow Entry complete panel ${spec.id} rejection history is invalid`
+	const raw = validateCompleteRawProvenance(record.raw, spec);
+	const generation = validateCompleteGenerationProvenance(record.generation, spec);
+	const acceptedAttempt = integerProperty(generation, 'attempt', `panel ${spec.id} generation`);
+	const rejectionHistory = validateCompleteRejectionHistory(
+		record.rejectionHistory,
+		spec,
+		acceptedAttempt
 	);
 	return {
 		packageId: COMPLETE_PACKAGE_ID,
 		panelId,
 		bounds: parsedBounds,
 		controlFingerprint,
+		raw,
 		normalized: {
 			path: normalizedPath,
 			sha256: normalizedSha256,
 			bytes: normalizedBytes,
 			dimensions: normalizedDimensions
 		},
-		generation: generationValue as Record<string, unknown> | undefined,
-		rejectionHistory: (rejectionHistoryValue as readonly unknown[] | undefined) ?? []
+		generation,
+		rejectionHistory
 	};
 }
 
@@ -372,6 +532,7 @@ async function decodeAndValidatePanels(
 	input: MeadowEntryPaintedV2CompleteAssemblyInput
 ): Promise<DecodedCompletePanel[]> {
 	const expectedIds = MEADOW_ENTRY_PAINTED_V2_COMPLETE_SOURCE_PANELS.map(({ id }) => id);
+	assertExactRecordKeys(input.raw, 'raw source panel', expectedIds);
 	assertExactRecordKeys(input.panels, 'source panel', expectedIds);
 	assertExactRecordKeys(input.provenance, 'source provenance', expectedIds);
 	assert(
@@ -380,14 +541,30 @@ async function decodeAndValidatePanels(
 	);
 	const decoded: DecodedCompletePanel[] = [];
 	for (const spec of MEADOW_ENTRY_PAINTED_V2_COMPLETE_SOURCE_PANELS) {
+		const raw = input.raw[spec.id];
 		const png = input.panels[spec.id];
 		const provenanceBytes = input.provenance[spec.id];
+		assert(Buffer.isBuffer(raw), `Meadow Entry complete panel ${spec.id} raw bytes are missing`);
 		assert(Buffer.isBuffer(png), `Meadow Entry complete panel ${spec.id} bytes are missing`);
 		assert(
 			Buffer.isBuffer(provenanceBytes),
 			`Meadow Entry complete panel ${spec.id} provenance bytes are missing`
 		);
 		const provenance = parsePanelProvenance(provenanceBytes, spec);
+		assert(
+			raw.byteLength === provenance.raw.bytes,
+			`Meadow Entry complete panel ${spec.id} raw byte count is stale`
+		);
+		assert(
+			sha256(raw) === provenance.raw.sha256,
+			`Meadow Entry complete panel ${spec.id} raw source hash is stale`
+		);
+		const rawDecoded = await decodeMeadowEntryRgba(raw);
+		assert(
+			rawDecoded.width === provenance.raw.dimensions.width &&
+				rawDecoded.height === provenance.raw.dimensions.height,
+			`Meadow Entry complete panel ${spec.id} raw dimensions are stale`
+		);
 		validateCanonicalPngChunks(png);
 		const rgba = await decodeMeadowEntryRgba(png);
 		assert(
@@ -453,6 +630,7 @@ export async function assembleMeadowEntryPaintedV2CompleteMaster(
 			assemblyPriority: spec.assemblyPriority,
 			provenancePath: spec.provenancePath,
 			provenanceSha256,
+			raw: provenance.raw,
 			generation: provenance.generation,
 			rejectionHistory: provenance.rejectionHistory,
 			normalized: provenance.normalized
