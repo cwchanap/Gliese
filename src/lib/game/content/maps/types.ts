@@ -17,6 +17,7 @@ import type {
 } from '$lib/game/content/assets';
 import type { NpcDialogueId } from '$lib/game/content/dialogue';
 import type { MapDefinition } from '$lib/game/core/types';
+import type { NavigationGrid } from '$lib/game/core/navigation';
 import type { MessageKey } from '$lib/game/i18n/translate';
 
 export interface MapTransition {
@@ -215,6 +216,8 @@ export interface MapDiscovery {
 	revealMarker?: boolean;
 }
 
+export type NavigationGridOwnedSource = 'blocker' | 'fence' | 'map-decor' | 'interior-prop';
+
 export interface WorldMapDefinition extends MapDefinition {
 	spawn: {
 		x: number;
@@ -234,4 +237,6 @@ export interface WorldMapDefinition extends MapDefinition {
 	ambientNpcs?: MapAmbientNpc[];
 	discoveries?: MapDiscovery[];
 	backgroundImages?: MapBackgroundImage[];
+	readonly navigationGrid?: NavigationGrid;
+	readonly navigationGridOwnedSources?: readonly NavigationGridOwnedSource[];
 }

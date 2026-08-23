@@ -266,6 +266,8 @@ describe('save state', () => {
 				PLAYER_COLLISION_RADIUS
 			)
 		).toBe(false);
+		expect(parsed!.player.x).toBe(784);
+		expect(parsed!.player.y).toBe(144);
 	});
 
 	it('nudges a saved position inside a wall blocker to the nearest walkable tile', () => {
@@ -296,6 +298,8 @@ describe('save state', () => {
 		expect(parsed!.player.x !== blockedPosition.x || parsed!.player.y !== blockedPosition.y).toBe(
 			true
 		);
+		expect(parsed!.player.x).toBe(4112);
+		expect(parsed!.player.y).toBe(2768);
 		expect(Math.abs(parsed!.player.x - blockedPosition.x)).toBeLessThanOrEqual(96);
 		expect(Math.abs(parsed!.player.y - blockedPosition.y)).toBeLessThanOrEqual(96);
 	});
@@ -322,6 +326,8 @@ describe('save state', () => {
 		expect(parsed!.player.x !== blockedPosition.x || parsed!.player.y !== blockedPosition.y).toBe(
 			true
 		);
+		expect(parsed!.player.x).toBe(3376);
+		expect(parsed!.player.y).toBe(1936);
 	});
 
 	it('does not rescue a saved position into a landmark building', () => {
