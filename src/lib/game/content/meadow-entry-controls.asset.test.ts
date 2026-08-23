@@ -27,7 +27,8 @@ import {
 const SHA256 = /^[0-9a-f]{64}$/;
 const HISTORICAL_EVIDENCE_PATH =
 	'docs/superpowers/reports/2026-07-30-hpa-399-controls-crops-storage-validation.md';
-const EVIDENCE_PATH = 'docs/superpowers/reports/2026-08-11-painted-v2-controls.md';
+const EVIDENCE_PATH =
+	'docs/superpowers/reports/2026-08-12-meadow-entry-painted-camera-safe-controls.md';
 const HISTORICAL_STORAGE_CONFIGURATION_SHA256 =
 	'60610b0c2e41561bd3bbbab75d86429859e43c25477628d976a3e3a357a59412';
 const testDirectory = dirname(fileURLToPath(import.meta.url));

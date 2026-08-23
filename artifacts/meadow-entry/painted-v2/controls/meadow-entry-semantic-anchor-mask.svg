@@ -94,7 +94,7 @@
   <rect data-id="landmark:villager-house-3-exterior" x="1344" y="5568" width="256" height="288" fill="#ffffff"/>
   <rect data-id="landmark:whispering-cave" x="5832" y="1688" width="256" height="224" fill="#ffffff"/>
   <rect data-id="landmark:witchwood-gate" x="1020" y="470" width="360" height="300" fill="#ffffff"/>
-  <rect data-id="ambient-npc:coast-fisher" x="4176" y="5526" width="96" height="88" fill="#ffffff" data-kind="ambient-npc"/>
+  <rect data-id="ambient-npc:coast-fisher" x="3792" y="5526" width="96" height="88" fill="#ffffff" data-kind="ambient-npc"/>
   <rect data-id="ambient-npc:crossroads-crier" x="3536" y="4340" width="96" height="88" fill="#ffffff" data-kind="ambient-npc"/>
   <rect data-id="ambient-npc:crossroads-traveler" x="3984" y="4340" width="96" height="88" fill="#ffffff" data-kind="ambient-npc"/>
   <rect data-id="ambient-npc:mistfen-forager" x="2352" y="2656" width="96" height="88" fill="#ffffff" data-kind="ambient-npc"/>

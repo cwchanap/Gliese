@@ -56,7 +56,7 @@ describe('painted-v2 meadow-entry controls approval', () => {
 		const runtime = `${MEADOW_ENTRY_PAINTED_V2_ART_STORAGE.runtimePattern} filter=lfs diff=lfs merge=lfs -text`;
 		expect(createHash('sha256').update(`${source}\n${runtime}\n`).digest('hex')).toMatch(SHA256);
 		expect(meadowEntryControlsApproval.storageConfigurationSha256).toBe(
-			'46eb41c75bcc1d058c820f59098df48abccbaea1e081214d106d9d8ca6dd4f40'
+			'42455c6bab7889dd99cc194683ccaa6f2a19b0a067aede17fe34faf6282fd1ab'
 		);
 	});
 

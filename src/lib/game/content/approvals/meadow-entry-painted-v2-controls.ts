@@ -18,6 +18,6 @@ export const meadowEntryControlsApproval: MeadowEntryControlsApproval = {
 	cropManifestSha256: '639e5dc8862b6aa68ca115f6831454c884eb4b60965485274cbf12fadc49cade',
 	bakeOwnershipSha256: '4978e4284862c8ce87c7193dadf23abca2033c36f5878035b01ca5951be85972',
 	storageMode: 'git-lfs',
-	storageConfigurationSha256: '46eb41c75bcc1d058c820f59098df48abccbaea1e081214d106d9d8ca6dd4f40',
+	storageConfigurationSha256: '42455c6bab7889dd99cc194683ccaa6f2a19b0a067aede17fe34faf6282fd1ab',
 	evidencePath: 'docs/superpowers/reports/2026-08-12-meadow-entry-painted-camera-safe-controls.md'
 };
