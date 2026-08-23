@@ -464,7 +464,8 @@ function hashFiles(
 
 function buildRendererMaskMaterialContract(
 	repositoryRoot: string,
-	implementationSha256?: string
+	implementationSha256?: string,
+	authoringRegions: readonly MeadowEntryAuthoringRegion[] = MEADOW_ENTRY_AUTHORING_REGIONS
 ): MeadowEntryRendererMaskMaterialContract {
 	return {
 		version: 1,
@@ -485,7 +486,7 @@ function buildRendererMaskMaterialContract(
 		rasterizationRule: 'raw-center-edges-floor-left-top-ceil-right-bottom',
 		clippingRule: 'half-open-clamp-to-0-6400',
 		materialProfiles: Object.fromEntries(
-			MEADOW_ENTRY_AUTHORING_REGIONS.map(({ id, materialProfile }) => [id, materialProfile])
+			authoringRegions.map(({ id, materialProfile }) => [id, materialProfile])
 		) as Record<MeadowEntryAuthoringRegionId, string>
 	};
 }
@@ -596,7 +597,8 @@ export function buildMeadowEntryControlInputs(
 	});
 	const rendererMaskMaterialContract = buildRendererMaskMaterialContract(
 		repositoryRoot,
-		useLegacySnapshot ? MEADOW_ENTRY_PAINTED_V2_LEGACY_RENDERER_IMPLEMENTATION_SHA256 : undefined
+		useLegacySnapshot ? MEADOW_ENTRY_PAINTED_V2_LEGACY_RENDERER_IMPLEMENTATION_SHA256 : undefined,
+		authoringRegions
 	);
 	const strictCollisionRects = collectStrictCollisionRects(map).map(collisionBounds);
 	const landmarkCollisionRects = collectLandmarkRects(map).map(collisionBounds);

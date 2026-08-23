@@ -10,12 +10,12 @@ export interface MeadowEntryPaintedV2CompleteControlsApproval {
 
 export const meadowEntryPaintedV2CompleteControlsApprovalReview = {
 	reviewedBy: 'chanwaichan',
-	reviewedAt: '2026-08-23T02:04:32Z'
+	reviewedAt: '2026-08-23T02:36:02Z'
 } as const;
 
 export const meadowEntryPaintedV2CompleteControlsApproval: MeadowEntryPaintedV2CompleteControlsApproval =
 	{
-		combinedControlFingerprint: '00ddeaf2952cd4a5277769fd9fc8e374908293ad4c37139abdcbb93f32dfde3f',
+		combinedControlFingerprint: '59ded996de5f7a468a7ef2d57219c851bf3d77488cfe8f3c9dedcbb3ea5c33b9',
 		cropManifestSha256: '5e1cfc1957a72028b8f9e912892159b30517a1fa683ae82c0da02bc9a37c2870',
 		bakeOwnershipSha256: '216922ba339a4290c7e6c12f7ce59f1ff1787a0c37dfcb44e9a4263dddb6c954',
 		storageMode: 'git-lfs',

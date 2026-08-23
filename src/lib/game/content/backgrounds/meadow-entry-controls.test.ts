@@ -3,6 +3,7 @@ import { meadowEntryMap } from '$lib/game/content/maps/meadow-entry';
 import { collectLandmarkRects, collectStrictCollisionRects } from '$lib/game/save/save-state';
 import { describe, expect, it } from 'vitest';
 
+import { MEADOW_ENTRY_AUTHORING_REGIONS } from './meadow-entry-authoring-layout';
 import {
 	buildMeadowEntryControlInputs,
 	buildMeadowEntryForegroundEligibleRasterMask,
@@ -14,7 +15,10 @@ import {
 	renderMeadowEntryControls,
 	type MeadowEntryControlInputs
 } from './meadow-entry-controls';
-import { MEADOW_ENTRY_PAINTED_V2_LEGACY_BAKE_OWNERSHIP } from './meadow-entry-painted-v2-legacy-snapshot';
+import {
+	MEADOW_ENTRY_PAINTED_V2_LEGACY_AUTHORING_REGIONS,
+	MEADOW_ENTRY_PAINTED_V2_LEGACY_BAKE_OWNERSHIP
+} from './meadow-entry-painted-v2-legacy-snapshot';
 import {
 	MEADOW_ENTRY_PAINTED_V2_PILOT_CROPS,
 	MEADOW_ENTRY_PAINTED_V2_PILOT_OVERLAPS,
@@ -294,6 +298,24 @@ describe('meadow-entry deterministic authoring controls', () => {
 		expect(input.overlaps).toBe(MEADOW_ENTRY_PAINTED_V2_PILOT_OVERLAPS);
 		expect(input.runtimeCoverage).toBe(MEADOW_ENTRY_PAINTED_V2_PILOT_RUNTIME_COVERAGE);
 		expect(input.storage).toBe(MEADOW_ENTRY_PAINTED_V2_ART_STORAGE);
+	});
+
+	it('keeps legacy material profiles isolated from live authoring-region drift', () => {
+		const legacyRegion = MEADOW_ENTRY_PAINTED_V2_LEGACY_AUTHORING_REGIONS.find(
+			({ id }) => id === 'crossroads'
+		)!;
+		const liveRegion = MEADOW_ENTRY_AUTHORING_REGIONS.find(({ id }) => id === 'crossroads')!;
+		const originalLiveProfile = liveRegion.materialProfile;
+		liveRegion.materialProfile = 'synthetic-live-profile-drift';
+		try {
+			const input = buildMeadowEntryControlInputs();
+			expect(input.authoringRegions).toContain(legacyRegion);
+			expect(input.rendererMaskMaterialContract.materialProfiles.crossroads).toBe(
+				legacyRegion.materialProfile
+			);
+		} finally {
+			liveRegion.materialProfile = originalLiveProfile;
+		}
 	});
 
 	it('orders canonical source IDs by Unicode code point instead of host locale collation', () => {
