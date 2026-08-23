@@ -10,8 +10,11 @@ import { MEADOW_ENTRY_PAINTED_V2_PILOT_CROPS } from '$lib/game/content/backgroun
 
 import {
 	collectMeadowEntryRuntimeData,
+	collectMeadowEntryCompleteRuntimeData,
 	MEADOW_ENTRY_PAINTED_V2_RUNTIME_GENERATION_INPUT,
+	MEADOW_ENTRY_PAINTED_V2_COMPLETE_RUNTIME_GENERATION_INPUT,
 	parseCheckMode,
+	parseMeadowEntryRuntimeArguments,
 	renderMeadowEntryRuntimeData,
 	runMeadowEntryRuntimeGenerator
 } from '../../../../../tools/generate-meadow-entry-runtime';
@@ -242,5 +245,98 @@ describe('painted-v2 runtime generator CLI', () => {
 		expect(parseCheckMode([])).toBe(false);
 		expect(parseCheckMode(['--check'])).toBe(true);
 		expect(() => parseCheckMode(['--package', 'painted-v2'])).toThrow(/Usage/);
+	});
+
+	it('selects complete mode explicitly and leaves legacy mode unchanged', () => {
+		expect(parseMeadowEntryRuntimeArguments([])).toEqual({ packageName: 'legacy', check: false });
+		expect(parseMeadowEntryRuntimeArguments(['--check'])).toEqual({
+			packageName: 'legacy',
+			check: true
+		});
+		expect(parseMeadowEntryRuntimeArguments(['--package', 'complete'])).toEqual({
+			packageName: 'complete',
+			check: false
+		});
+		expect(parseMeadowEntryRuntimeArguments(['--package', 'complete', '--check'])).toEqual({
+			packageName: 'complete',
+			check: true
+		});
+	});
+
+	it('emits the four literal complete base descriptors with no visual owners', () => {
+		const data = collectMeadowEntryCompleteRuntimeData(
+			MEADOW_ENTRY_PAINTED_V2_COMPLETE_RUNTIME_GENERATION_INPUT
+		);
+		expect(data.backgrounds).toEqual([
+			{
+				cropId: 'painted-v2-complete-northwest',
+				id: 'meadow-entry-painted-v2-complete-northwest-base-image',
+				textureKey: 'meadow-entry-painted-v2-complete-northwest-base',
+				path: '/game/assets/regions/meadow-entry-painted-v2/painted-v2-complete-northwest-base.png',
+				x: 1600,
+				y: 1600,
+				width: 3200,
+				height: 3200,
+				plane: 'base',
+				drawOrder: 0
+			},
+			{
+				cropId: 'painted-v2-complete-northeast',
+				id: 'meadow-entry-painted-v2-complete-northeast-base-image',
+				textureKey: 'meadow-entry-painted-v2-complete-northeast-base',
+				path: '/game/assets/regions/meadow-entry-painted-v2/painted-v2-complete-northeast-base.png',
+				x: 4800,
+				y: 1600,
+				width: 3200,
+				height: 3200,
+				plane: 'base',
+				drawOrder: 10
+			},
+			{
+				cropId: 'painted-v2-complete-southwest',
+				id: 'meadow-entry-painted-v2-complete-southwest-base-image',
+				textureKey: 'meadow-entry-painted-v2-complete-southwest-base',
+				path: '/game/assets/regions/meadow-entry-painted-v2/painted-v2-complete-southwest-base.png',
+				x: 1600,
+				y: 4800,
+				width: 3200,
+				height: 3200,
+				plane: 'base',
+				drawOrder: 20
+			},
+			{
+				cropId: 'painted-v2-complete-southeast',
+				id: 'meadow-entry-painted-v2-complete-southeast-base-image',
+				textureKey: 'meadow-entry-painted-v2-complete-southeast-base',
+				path: '/game/assets/regions/meadow-entry-painted-v2/painted-v2-complete-southeast-base.png',
+				x: 4800,
+				y: 4800,
+				width: 3200,
+				height: 3200,
+				plane: 'base',
+				drawOrder: 30
+			}
+		]);
+		expect(data.visualOwners).toEqual([]);
+	});
+
+	it('writes and checks the complete generated destination without touching legacy output', () => {
+		const root = mkdtempSync(join(tmpdir(), 'gliese-complete-runtime-generator-'));
+		temporaryRoots.push(root);
+
+		runMeadowEntryRuntimeGenerator(['--package', 'complete'], root);
+		const destination = join(
+			root,
+			'src/lib/game/content/backgrounds/meadow-entry-painted-v2-complete.generated.ts'
+		);
+		const legacy = join(
+			root,
+			'src/lib/game/content/backgrounds/meadow-entry-painted-v2.generated.ts'
+		);
+		expect(existsSync(destination)).toBe(true);
+		expect(existsSync(legacy)).toBe(false);
+		expect(() =>
+			runMeadowEntryRuntimeGenerator(['--package', 'complete', '--check'], root)
+		).not.toThrow();
 	});
 });
