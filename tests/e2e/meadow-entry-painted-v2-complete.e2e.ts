@@ -171,14 +171,14 @@ function assertRuntimeIdentity(
 	expect(diagnostic.statefulObjectIds).toEqual(expected.statefulObjectIds);
 }
 
-test('complete Meadow review mode selects four backgrounds and keeps the default fallback', async ({
+test('complete Meadow package is the production default and explicit off restores fallback', async ({
 	page
 }) => {
 	test.setTimeout(120_000);
 	await page.setViewportSize({ width: 1_920, height: 1_080 });
 	await installCompleteProbes(page);
 
-	await page.goto('/');
+	await page.goto('/?meadowPaintedPilot=off');
 	await expect(page.locator('canvas')).toBeVisible();
 	const fallbackDiagnostic = await waitForMeadowDiagnostic(page);
 	expect(fallbackDiagnostic).toMatchObject({
@@ -194,9 +194,8 @@ test('complete Meadow review mode selects four backgrounds and keeps the default
 	expect(fallbackDiagnostic.selectedFallbackBlockerIds).toEqual([]);
 	expect(fallbackDiagnostic.selectedFallbackDecorIds).toEqual([]);
 	expect(fallbackDiagnostic.selectedFallbackFenceIds).toEqual([]);
-	await saveCanvas(page, 'fallback-default-1920x1080.png');
 
-	await page.goto(completeUrl());
+	await page.goto('/?movementDiagnostics=on');
 	await expect(page.locator('canvas')).toBeVisible();
 	const completeDiagnostic = await waitForMeadowDiagnostic(page);
 	assertCompletePaintedDiagnostic(completeDiagnostic);
@@ -204,7 +203,6 @@ test('complete Meadow review mode selects four backgrounds and keeps the default
 	expect(completeRuntimeIdentity.collisionIds.length).toBeGreaterThan(0);
 	expect(completeRuntimeIdentity.statefulObjectIds.length).toBeGreaterThan(0);
 	assertRuntimeIdentity(fallbackDiagnostic, completeRuntimeIdentity);
-	await saveCanvas(page, 'complete-review-overview-1920x1080.png');
 
 	// The full-map package owns presentation only. The authored Meadow still has
 	// collision, transitions, NPCs, discoveries, and encounters in its live map.

@@ -146,7 +146,7 @@ import {
 	type WorldRenderOptions
 } from '$lib/game/phaser/world-render-options';
 import {
-	MEADOW_ENTRY_DEFAULT_PAINTED_MODE,
+	MEADOW_ENTRY_DEFAULT_PACKAGE_SELECTION,
 	MEADOW_ENTRY_PAINTED_V2_COMPLETE_PACKAGE_ID,
 	MEADOW_ENTRY_PAINTED_V2_LEGACY_PACKAGE_ID,
 	MAP_BACKGROUND_PACKAGE_REGISTRY
@@ -3038,13 +3038,7 @@ export class WorldScene extends Phaser.Scene {
 			mapId,
 			regionalBackgrounds: this.renderOptions.regionalBackgrounds,
 			reviewPackageIds,
-			defaultSelection:
-				mapId === openingMapId && MEADOW_ENTRY_DEFAULT_PAINTED_MODE === 'pilot'
-					? {
-							packageId: MEADOW_ENTRY_PAINTED_V2_LEGACY_PACKAGE_ID,
-							mode: 'review' as const
-						}
-					: null,
+			defaultSelection: mapId === openingMapId ? MEADOW_ENTRY_DEFAULT_PACKAGE_SELECTION : null,
 			forcedFallback: this.renderOptions.meadowPaintedPilotOff
 		});
 	}

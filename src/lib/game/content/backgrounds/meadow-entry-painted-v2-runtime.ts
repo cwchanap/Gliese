@@ -24,7 +24,7 @@ export interface MeadowEntryPaintedSelection {
 	readonly visualOwners: readonly GeneratedMeadowEntryVisualOwner[];
 }
 
-export const MEADOW_ENTRY_DEFAULT_PAINTED_MODE: MeadowEntryPaintedMode = 'fallback';
+export const MEADOW_ENTRY_DEFAULT_PAINTED_MODE: MeadowEntryPaintedMode = 'complete';
 
 export interface MeadowEntryPaintedSelectionOptions {
 	readonly regionalBackgrounds: boolean;
@@ -108,6 +108,12 @@ export const MEADOW_ENTRY_PAINTED_V2_LEGACY_PACKAGE_ID = 'meadow-entry-painted-v
 export const MEADOW_ENTRY_PAINTED_V2_COMPLETE_PACKAGE_ID =
 	'meadow-entry-painted-v2-complete' as const;
 
+export const MEADOW_ENTRY_DEFAULT_PACKAGE_SELECTION: ResolveMapBackgroundPackageInput['defaultSelection'] =
+	Object.freeze({
+		packageId: MEADOW_ENTRY_PAINTED_V2_COMPLETE_PACKAGE_ID,
+		mode: 'production' as const
+	});
+
 export const MEADOW_ENTRY_PAINTED_V2_LEGACY_PACKAGE = Object.freeze({
 	id: MEADOW_ENTRY_PAINTED_V2_LEGACY_PACKAGE_ID,
 	mapId: 'meadow-entry',
@@ -145,18 +151,11 @@ export function resolveMeadowEntryPaintedSelection(
 	const reviewPackageIds = options.meadowPaintedPilot
 		? [MEADOW_ENTRY_PAINTED_V2_LEGACY_PACKAGE_ID, ...(options.mapBackgroundReviewIds ?? [])]
 		: (options.mapBackgroundReviewIds ?? []);
-	const defaultSelection =
-		MEADOW_ENTRY_DEFAULT_PAINTED_MODE === 'pilot'
-			? {
-					packageId: MEADOW_ENTRY_PAINTED_V2_LEGACY_PACKAGE_ID,
-					mode: 'review' as const
-				}
-			: null;
 	const packageSelection = resolveMapBackgroundPackageSelection(MAP_BACKGROUND_PACKAGE_REGISTRY, {
 		mapId: 'meadow-entry',
 		regionalBackgrounds: options.regionalBackgrounds,
 		reviewPackageIds,
-		defaultSelection,
+		defaultSelection: MEADOW_ENTRY_DEFAULT_PACKAGE_SELECTION,
 		forcedFallback: options.meadowPaintedPilotOff === true
 	} satisfies ResolveMapBackgroundPackageInput);
 

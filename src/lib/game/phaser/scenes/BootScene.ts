@@ -19,7 +19,7 @@ import {
 } from '$lib/game/content/assets';
 import { maps, openingMapId } from '$lib/game/content/maps';
 import {
-	MEADOW_ENTRY_DEFAULT_PAINTED_MODE,
+	MEADOW_ENTRY_DEFAULT_PACKAGE_SELECTION,
 	MEADOW_ENTRY_PAINTED_V2_LEGACY_PACKAGE_ID,
 	MAP_BACKGROUND_PACKAGE_REGISTRY
 } from '$lib/game/content/backgrounds/meadow-entry-painted-v2-runtime';
@@ -69,13 +69,7 @@ export class BootScene extends Phaser.Scene {
 				mapId: map.id,
 				regionalBackgrounds: renderOptions.regionalBackgrounds,
 				reviewPackageIds,
-				defaultSelection:
-					map.id === 'meadow-entry' && MEADOW_ENTRY_DEFAULT_PAINTED_MODE === 'pilot'
-						? {
-								packageId: MEADOW_ENTRY_PAINTED_V2_LEGACY_PACKAGE_ID,
-								mode: 'review' as const
-							}
-						: null,
+				defaultSelection: map.id === 'meadow-entry' ? MEADOW_ENTRY_DEFAULT_PACKAGE_SELECTION : null,
 				forcedFallback: renderOptions.meadowPaintedPilotOff
 			}))
 		);

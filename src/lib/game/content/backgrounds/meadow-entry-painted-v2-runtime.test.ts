@@ -18,14 +18,14 @@ import {
 import { resolveMapBackgroundPackageSelection } from './map-background-package';
 
 describe('painted-v2 runtime selection', () => {
-	it('defaults to the fallback selection without an explicit review request', () => {
-		expect(MEADOW_ENTRY_DEFAULT_PAINTED_MODE).toBe('fallback');
+	it('defaults to the approved complete package without an explicit review request', () => {
+		expect(MEADOW_ENTRY_DEFAULT_PAINTED_MODE).toBe('complete');
 		const selection = resolveMeadowEntryPaintedSelection({
 			regionalBackgrounds: true,
 			meadowPaintedPilot: false,
 			meadowPaintedPilotOff: false
 		});
-		expect(selection).toEqual(MEADOW_ENTRY_PAINTED_MODE_FALLBACK);
+		expect(selection).toEqual(MEADOW_ENTRY_PAINTED_MODE_COMPLETE);
 	});
 
 	it('allows the generic background review id to select the immutable package', () => {

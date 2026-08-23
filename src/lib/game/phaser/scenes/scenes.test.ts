@@ -1126,10 +1126,12 @@ describe('BootScene', () => {
 		}
 	});
 
-	it('preloads no regional assets by default and emits exact fallback renderer evidence', async () => {
+	it('preloads the complete Meadow package by default and emits exact renderer evidence', async () => {
 		const restoreLocation = installLocationSearch('');
 		const target = installHudCommandTarget();
 		const diagnostics: RegionalBackgroundRendererDiagnostic[] = [];
+		const { MEADOW_ENTRY_PAINTED_MODE_COMPLETE } =
+			await import('$lib/game/content/backgrounds/meadow-entry-painted-v2-runtime');
 		const { REGIONAL_BACKGROUND_RENDERER_DIAGNOSTIC_EVENT } =
 			await import('$lib/game/phaser/renderer-diagnostics');
 		target.target.addEventListener(REGIONAL_BACKGROUND_RENDERER_DIAGNOSTIC_EVENT, (event) => {
@@ -1140,22 +1142,27 @@ describe('BootScene', () => {
 		try {
 			scene.preload();
 
-			expect(
-				vi
-					.mocked(scene.load.image)
-					.mock.calls.filter(([, path]) => String(path).includes('/game/assets/regions/'))
-			).toEqual([]);
-			scene.load.emit('filecomplete', 'unselected-regional-background', 'image', {});
+			const regionalCalls = vi
+				.mocked(scene.load.image)
+				.mock.calls.filter(([, path]) => String(path).includes('/game/assets/regions/'));
+			expect(regionalCalls).toEqual(
+				MEADOW_ENTRY_PAINTED_MODE_COMPLETE.assets.map(({ key, path }) => [key, path])
+			);
+			for (const asset of MEADOW_ENTRY_PAINTED_MODE_COMPLETE.assets) {
+				scene.load.emit('filecomplete', asset.key, 'image', {});
+			}
 			scene.load.emit('complete');
 
 			expect(diagnostics).toEqual([
 				{
 					renderer: 'webgl',
-					packageIds: [],
-					requiredAssetKeys: [],
-					completedAssetKeys: [],
+					packageIds: ['meadow-entry-painted-v2-complete'],
+					requiredAssetKeys: MEADOW_ENTRY_PAINTED_MODE_COMPLETE.assets.map(({ key }) => key).sort(),
+					completedAssetKeys: MEADOW_ENTRY_PAINTED_MODE_COMPLETE.assets
+						.map(({ key }) => key)
+						.sort(),
 					maxTextureSize: 4096,
-					regionalBackgroundLoadMs: null
+					regionalBackgroundLoadMs: expect.any(Number)
 				}
 			]);
 		} finally {
@@ -3792,9 +3799,10 @@ describe('WorldScene', () => {
 		}
 	});
 
-	it('uses fallback by default for the active Meadow Entry map with exact empty package evidence', async () => {
+	it('uses the complete package by default for the active Meadow Entry map', async () => {
 		const restoreLocation = installLocationSearch('');
 		const target = installPlaneDiagnosticListener();
+		const selection = await registerCompletePaintedBackgroundMocks();
 		const { meadowEntryMap } = await import('$lib/game/content/maps');
 		const { WorldScene } = await import('./WorldScene');
 		const scene = new WorldScene();
@@ -3804,12 +3812,19 @@ describe('WorldScene', () => {
 
 			expect(meadowEntryMap.backgroundImages ?? []).toEqual([]);
 			expect(target.diagnostics).toHaveLength(1);
-			expect(target.diagnostics[0]?.entries).toEqual([]);
-			expect(target.diagnostics[0]?.successfulBackgroundIds).toEqual([]);
+			expect(target.diagnostics[0]?.entries.map((entry) => entry.status)).toEqual([
+				'rendered',
+				'rendered',
+				'rendered',
+				'rendered'
+			]);
 			expect(target.diagnostics[0]).toMatchObject({
-				packageId: null,
-				selectedBackgroundIds: [],
-				presentationMode: 'fallback'
+				paintedMode: 'complete',
+				packageId: 'meadow-entry-painted-v2-complete',
+				requiredBackgroundIds: selection.backgrounds.map(({ id }) => id),
+				selectedBackgroundIds: selection.backgrounds.map(({ id }) => id),
+				successfulBackgroundIds: selection.backgrounds.map(({ id }) => id).sort(),
+				presentationMode: 'painted'
 			});
 			expect(target.diagnostics[0]?.selectedFallbackBlockerIds).toEqual([]);
 			expect(target.diagnostics[0]?.selectedFallbackDecorIds).toEqual([]);
