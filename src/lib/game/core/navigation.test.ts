@@ -200,6 +200,21 @@ describe('navigation movement and obstacle policies', () => {
 		});
 	});
 
+	it('allows movement to exact width and height maximum endpoints on an open grid', () => {
+		const grid = openGrid(2, 2);
+
+		expect(isWalkable(grid, 32, 8)).toBe(true);
+		expect(isWalkable(grid, 8, 32)).toBe(true);
+		expect(resolveMovementSegment(grid, [], { x: 24, y: 8 }, { x: 32, y: 8 }, 0)).toEqual({
+			x: 32,
+			y: 8
+		});
+		expect(resolveMovementSegment(grid, [], { x: 8, y: 24 }, { x: 8, y: 32 }, 0)).toEqual({
+			x: 8,
+			y: 32
+		});
+	});
+
 	it('strict rectangles block entry and inside-to-inside movement but permit one-step escape', () => {
 		const grid = openGrid();
 		const obstacle: NavigationObstacle = {

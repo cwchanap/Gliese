@@ -211,18 +211,25 @@ function isGridSegmentBlocked(
 	while (nextBoundaryT <= 1 || nextBoundaryY <= 1) {
 		if (Math.abs(nextBoundaryT - nextBoundaryY) <= 1e-12) {
 			if (nextBoundaryT > 1) break;
-			if (isGridCellBlocked(grid, row, column + stepX)) return true;
-			if (isGridCellBlocked(grid, row + stepY, column)) return true;
-			column += stepX;
-			row += stepY;
+			const crossesX = !isWorldEdgeEndpoint(to.x, grid.widthPx, stepX, nextBoundaryT);
+			const crossesY = !isWorldEdgeEndpoint(to.y, grid.heightPx, stepY, nextBoundaryY);
+			if (!crossesX && !crossesY) break;
+			if (crossesX && isGridCellBlocked(grid, row, column + stepX)) return true;
+			if (crossesY && isGridCellBlocked(grid, row + stepY, column)) return true;
+			if (crossesX) column += stepX;
+			if (crossesY) row += stepY;
 			if (isGridCellBlocked(grid, row, column)) return true;
-			nextBoundaryT += deltaTByX;
-			nextBoundaryY += deltaTByY;
+			nextBoundaryT = crossesX ? nextBoundaryT + deltaTByX : Number.POSITIVE_INFINITY;
+			nextBoundaryY = crossesY ? nextBoundaryY + deltaTByY : Number.POSITIVE_INFINITY;
 			continue;
 		}
 
 		if (nextBoundaryT < nextBoundaryY) {
 			if (nextBoundaryT > 1) break;
+			if (isWorldEdgeEndpoint(to.x, grid.widthPx, stepX, nextBoundaryT)) {
+				nextBoundaryT = Number.POSITIVE_INFINITY;
+				continue;
+			}
 			column += stepX;
 			if (isGridCellBlocked(grid, row, column)) return true;
 			nextBoundaryT += deltaTByX;
@@ -230,6 +237,10 @@ function isGridSegmentBlocked(
 		}
 
 		if (nextBoundaryY > 1) break;
+		if (isWorldEdgeEndpoint(to.y, grid.heightPx, stepY, nextBoundaryY)) {
+			nextBoundaryY = Number.POSITIVE_INFINITY;
+			continue;
+		}
 		row += stepY;
 		if (isGridCellBlocked(grid, row, column)) return true;
 		nextBoundaryY += deltaTByY;
@@ -246,6 +257,18 @@ function isInsideWorld(grid: NavigationGrid, point: NavigationPoint): boolean {
 		point.x <= grid.widthPx &&
 		point.y >= 0 &&
 		point.y <= grid.heightPx
+	);
+}
+
+function isWorldEdgeEndpoint(
+	coordinate: number,
+	maximum: number,
+	step: number,
+	boundaryT: number
+): boolean {
+	return (
+		Math.abs(boundaryT - 1) <= 1e-12 &&
+		((step > 0 && coordinate === maximum) || (step < 0 && coordinate === 0))
 	);
 }
 
