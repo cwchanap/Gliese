@@ -8,6 +8,7 @@ import {
 } from '$lib/game/content/assets';
 import {
 	heroHouseMap,
+	guildHallMap,
 	maps,
 	shrineOfAuroraInteriorMap,
 	villagerHouse1Map,
@@ -16,6 +17,11 @@ import {
 } from '$lib/game/content/maps';
 import type { MapBackgroundImage } from '$lib/game/content/maps/types';
 import { PLAYER_COLLISION_RADIUS } from '$lib/game/core/collision';
+import { compileNavigationGrid } from '$lib/game/core/navigation';
+import {
+	PLAYER_MOVEMENT_DIAGNOSTIC_EVENT,
+	type PlayerMovementDiagnostic
+} from '$lib/game/phaser/player-movement-diagnostics';
 import type { RegionalBackgroundRendererDiagnostic } from '$lib/game/phaser/renderer-diagnostics';
 import type { RegionalBackgroundPlaneRenderDiagnostic } from '$lib/game/phaser/regional-background-plane-render-diagnostics';
 import type {
@@ -2737,6 +2743,43 @@ describe('WorldScene', () => {
 		};
 	}
 
+	function registerSceneCollisionTestMap() {
+		maps['scene-collision-test'] = {
+			id: 'scene-collision-test',
+			width: 20,
+			height: 20,
+			spawnDirection: 'right',
+			spawn: { x: 64, y: 64 },
+			transitions: [],
+			blockers: [],
+			fences: [],
+			mapDecor: [],
+			interiorProps: [],
+			npcs: [],
+			landmarks: []
+		};
+	}
+
+	function registerSceneNavigationGridTestMap() {
+		maps['scene-navigation-grid-test'] = {
+			id: 'scene-navigation-grid-test',
+			width: 8,
+			height: 4,
+			spawnDirection: 'right',
+			spawn: { x: 80, y: 48 },
+			transitions: [],
+			navigationGrid: compileNavigationGrid({
+				id: 'scene-navigation-grid-test-authored',
+				mapId: 'scene-navigation-grid-test',
+				cellSizePx: 32,
+				widthCells: 8,
+				heightCells: 4,
+				clearancePx: 0,
+				rows: ['........', '...#....', '........', '........']
+			})
+		};
+	}
+
 	function registerTwoPlaneBackgroundTestMap() {
 		maps['scene-support-test'] = {
 			id: 'scene-support-test',
@@ -3176,6 +3219,8 @@ describe('WorldScene', () => {
 
 	afterEach(() => {
 		delete maps['scene-support-test'];
+		delete maps['scene-collision-test'];
+		delete maps['scene-navigation-grid-test'];
 		delete maps['area-map-reveal-test'];
 	});
 
@@ -5471,6 +5516,235 @@ describe('WorldScene', () => {
 
 		expect(phaserState.playerMarker.x).toBe(12);
 		expect(phaserState.playerMarker.y).toBe(12);
+	});
+
+	it('blocks movement through a map blocker in the scene harness', async () => {
+		const { WorldScene } = await import('./WorldScene');
+		registerSceneCollisionTestMap();
+		maps['scene-collision-test']!.blockers = [
+			{ id: 'scene-collision-blocker', x: 160, y: 64, width: 32, height: 32, kind: 'city-wall' }
+		];
+		const scene = new WorldScene();
+
+		scene.create({ mapId: 'scene-collision-test' });
+		Object.assign(phaserState.playerMarker, { x: 128, y: 64 });
+		phaserState.cursorKeys.right.isDown = true;
+
+		scene.update(0, 250);
+
+		expect(phaserState.playerMarker).toMatchObject({ x: 128, y: 64 });
+	});
+
+	it('blocks movement through a fence in the scene harness', async () => {
+		const { WorldScene } = await import('./WorldScene');
+		registerSceneCollisionTestMap();
+		maps['scene-collision-test']!.fences = [
+			{ id: 'scene-collision-fence', x: 160, y: 64, width: 32, height: 32 }
+		];
+		const scene = new WorldScene();
+
+		scene.create({ mapId: 'scene-collision-test' });
+		Object.assign(phaserState.playerMarker, { x: 128, y: 64 });
+		phaserState.cursorKeys.right.isDown = true;
+
+		scene.update(0, 250);
+
+		expect(phaserState.playerMarker).toMatchObject({ x: 128, y: 64 });
+	});
+
+	it('blocks movement through collidable map decor in the scene harness', async () => {
+		const { WorldScene } = await import('./WorldScene');
+		registerSceneCollisionTestMap();
+		maps['scene-collision-test']!.mapDecor = [
+			{
+				id: 'scene-collision-decor',
+				x: 160,
+				y: 64,
+				width: 32,
+				height: 32,
+				textureKey: forestDressingAsset.key,
+				frameName: 'brush',
+				collision: {
+					id: 'scene-collision-decor-bounds',
+					x: 160,
+					y: 64,
+					width: 32,
+					height: 32
+				}
+			}
+		];
+		const scene = new WorldScene();
+
+		scene.create({ mapId: 'scene-collision-test' });
+		Object.assign(phaserState.playerMarker, { x: 128, y: 64 });
+		phaserState.cursorKeys.right.isDown = true;
+
+		scene.update(0, 250);
+
+		expect(phaserState.playerMarker).toMatchObject({ x: 128, y: 64 });
+	});
+
+	it('allows an embedded player to escape an interior prop', async () => {
+		const { WorldScene } = await import('./WorldScene');
+		registerSceneCollisionTestMap();
+		maps['scene-collision-test']!.interiorProps = [
+			{
+				id: 'scene-collision-prop',
+				x: 160,
+				y: 64,
+				width: 64,
+				height: 64,
+				frameName: 'table',
+				collision: {
+					id: 'scene-collision-prop-bounds',
+					x: 160,
+					y: 64,
+					width: 64,
+					height: 64
+				}
+			}
+		];
+		const scene = new WorldScene();
+
+		scene.create({ mapId: 'scene-collision-test' });
+		Object.assign(phaserState.playerMarker, { x: 160, y: 64 });
+		phaserState.cursorKeys.left.isDown = true;
+
+		scene.update(0, 250);
+
+		expect(phaserState.playerMarker).toMatchObject({ x: 100, y: 64 });
+	});
+
+	it('blocks entry into an interactable NPC in the scene harness', async () => {
+		const { WorldScene } = await import('./WorldScene');
+		registerSceneCollisionTestMap();
+		maps['scene-collision-test']!.npcs = [{ ...guildHallMap.npcs![0]!, x: 160, y: 64 }];
+		const scene = new WorldScene();
+
+		scene.create({ mapId: 'scene-collision-test' });
+		Object.assign(phaserState.playerMarker, { x: 128, y: 64 });
+		phaserState.cursorKeys.right.isDown = true;
+
+		scene.update(0, 250);
+
+		expect(phaserState.playerMarker).toMatchObject({ x: 128, y: 64 });
+	});
+
+	it('keeps landmark doorway movement open while blocking its body', async () => {
+		const { WorldScene } = await import('./WorldScene');
+		registerSceneCollisionTestMap();
+		maps['scene-collision-test']!.landmarks = [
+			{
+				id: 'scene-house-exterior',
+				x: 320,
+				y: 320,
+				width: 96,
+				height: 96,
+				labelKey: 'content.maps.landmarks.hero-house-exterior.label',
+				label: 'Test house'
+			}
+		];
+		maps['scene-collision-test']!.transitions = [
+			{ id: 'scene-house-exterior-door', x: 320, y: 350, toMapId: 'hero-house' }
+		];
+		const doorScene = new WorldScene();
+
+		doorScene.create({ mapId: 'scene-collision-test' });
+		Object.assign(phaserState.playerMarker, { x: 320, y: 410 });
+		phaserState.cursorKeys.up.isDown = true;
+		doorScene.update(0, 250);
+
+		expect(phaserState.playerMarker).toMatchObject({ x: 320, y: 350 });
+		expect(doorScene.scene.restart).toHaveBeenCalled();
+
+		const bodyScene = new WorldScene();
+		bodyScene.create({ mapId: 'scene-collision-test' });
+		Object.assign(phaserState.playerMarker, { x: 280, y: 410 });
+		phaserState.cursorKeys.up.isDown = true;
+		vi.mocked(bodyScene.scene.restart).mockClear();
+
+		bodyScene.update(0, 250);
+
+		expect(phaserState.playerMarker).toMatchObject({ x: 280, y: 410 });
+		expect(bodyScene.scene.restart).not.toHaveBeenCalled();
+	});
+
+	it('resolves diagonal movement X-then-Y around a scene obstacle', async () => {
+		const { WorldScene } = await import('./WorldScene');
+		registerSceneCollisionTestMap();
+		maps['scene-collision-test']!.blockers = [
+			{ id: 'scene-diagonal-blocker', x: 160, y: 96, width: 32, height: 32, kind: 'city-wall' }
+		];
+		const scene = new WorldScene();
+
+		scene.create({ mapId: 'scene-collision-test' });
+		Object.assign(phaserState.playerMarker, { x: 128, y: 100 });
+		phaserState.cursorKeys.right.isDown = true;
+		phaserState.cursorKeys.up.isDown = true;
+
+		scene.update(0, 250);
+
+		expect(phaserState.playerMarker.x).toBe(128);
+		expect(phaserState.playerMarker.y).toBeCloseTo(57.573593128807154);
+	});
+
+	it('consumes an authored map grid and prevents a large step through one blocked cell', async () => {
+		const { WorldScene } = await import('./WorldScene');
+		registerSceneNavigationGridTestMap();
+		const scene = new WorldScene();
+
+		scene.create({ mapId: 'scene-navigation-grid-test' });
+		Object.assign(phaserState.playerMarker, { x: 80, y: 48 });
+		phaserState.cursorKeys.right.isDown = true;
+
+		scene.update(0, 250);
+
+		expect(phaserState.playerMarker).toMatchObject({ x: 80, y: 48 });
+	});
+
+	it('emits exact movement diagnostic coordinates and blocked state', async () => {
+		const restoreLocation = installLocationSearch('?movementDiagnostics=on');
+		const target = installHudCommandTarget();
+		const diagnostics: PlayerMovementDiagnostic[] = [];
+		target.target.addEventListener(PLAYER_MOVEMENT_DIAGNOSTIC_EVENT, (event) => {
+			diagnostics.push((event as CustomEvent<PlayerMovementDiagnostic>).detail);
+		});
+		try {
+			const { WorldScene } = await import('./WorldScene');
+			registerSceneCollisionTestMap();
+			maps['scene-collision-test']!.blockers = [
+				{ id: 'scene-diagnostic-blocker', x: 160, y: 64, width: 32, height: 32, kind: 'city-wall' }
+			];
+			const scene = new WorldScene();
+
+			scene.create({ mapId: 'scene-collision-test' });
+			Object.assign(phaserState.playerMarker, { x: 128, y: 64 });
+			phaserState.cursorKeys.right.isDown = true;
+			scene.update(0, 250);
+
+			Object.assign(phaserState.playerMarker, { x: 128, y: 200 });
+			scene.update(250, 250);
+
+			expect(diagnostics).toEqual([
+				{
+					mapId: 'scene-collision-test',
+					previousPosition: { x: 128, y: 64 },
+					requestedPosition: { x: 188, y: 64 },
+					resolvedPosition: { x: 128, y: 64 },
+					blocked: true
+				},
+				{
+					mapId: 'scene-collision-test',
+					previousPosition: { x: 128, y: 200 },
+					requestedPosition: { x: 188, y: 200 },
+					resolvedPosition: { x: 188, y: 200 },
+					blocked: false
+				}
+			]);
+		} finally {
+			target.restore();
+			restoreLocation();
+		}
 	});
 
 	it('blocks player movement through NPC bodies', async () => {

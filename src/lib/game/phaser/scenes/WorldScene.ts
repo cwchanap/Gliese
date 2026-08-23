@@ -57,6 +57,10 @@ import {
 	type MapTransition,
 	type WorldMapDefinition
 } from '$lib/game/content/maps';
+import {
+	buildMapNavigationObstacles,
+	resolveMapNavigationGrid
+} from '$lib/game/content/maps/navigation';
 import { getItem, type EquipmentSlot } from '$lib/game/content/items';
 import { startingPlayer } from '$lib/game/content/player';
 import { isQuestId, mainQuestId } from '$lib/game/content/quests';
@@ -85,6 +89,11 @@ import { equipItem, unequipSlot } from '$lib/game/core/equipment';
 import { resolveMovementVector } from '$lib/game/core/input';
 import { addItem, consumeStackItem } from '$lib/game/core/inventory';
 import { resolveLootDrops } from '$lib/game/core/loot';
+import {
+	resolveMovementSegment,
+	type NavigationGrid,
+	type NavigationObstacle
+} from '$lib/game/core/navigation';
 import {
 	cloneMapExploration,
 	createEmptyMapExploration,
@@ -415,6 +424,8 @@ export class WorldScene extends Phaser.Scene {
 	private victoryAchieved = false;
 	private wasdKeys?: Partial<Record<'left' | 'right' | 'up' | 'down', DirectionKey>>;
 	private worldSize = { width: 0, height: 0 };
+	private navigationGrid!: NavigationGrid;
+	private navigationObstacles: readonly NavigationObstacle[] = [];
 
 	constructor() {
 		super(WorldScene.key);
@@ -463,6 +474,10 @@ export class WorldScene extends Phaser.Scene {
 		const activeSave = battleApplication?.saveState ?? data.saveState;
 		const requestedPackageSelection = data.mapBackgroundPackageSelection;
 		const map = this.resolveMap(activeSave?.mapId ?? data.mapId, requestedPackageSelection);
+		this.navigationGrid = resolveMapNavigationGrid(map);
+		this.navigationObstacles = buildMapNavigationObstacles(map, {
+			includeInteractableNpcs: true
+		});
 		const packageSelection: MapBackgroundPackageSelection =
 			requestedPackageSelection?.definition && requestedPackageSelection.definition.mapId !== map.id
 				? { mode: 'fallback', definition: null }
@@ -2608,209 +2623,19 @@ export class WorldScene extends Phaser.Scene {
 		targetX: number,
 		targetY: number
 	) {
-		let x = targetX;
-		let y = targetY;
-
-		if (this.isPlayerMovementBlocked(currentX, currentY, x, currentY)) {
-			x = currentX;
-		}
-
-		if (this.isPlayerMovementBlocked(x, currentY, x, y)) {
-			y = currentY;
-		}
-
-		return { x, y };
-	}
-
-	private isPlayerMovementBlocked(
-		currentX: number,
-		currentY: number,
-		targetX: number,
-		targetY: number
-	): boolean {
-		return (
-			this.isPlayerMovementBlockedByNpc(currentX, currentY, targetX, targetY) ||
-			this.isPlayerMovementBlockedByInteriorProp(currentX, currentY, targetX, targetY) ||
-			this.isPlayerMovementBlockedByLandmark(currentX, currentY, targetX, targetY) ||
-			this.isPlayerMovementBlockedByFence(currentX, currentY, targetX, targetY) ||
-			this.isPlayerMovementBlockedByBlocker(currentX, currentY, targetX, targetY) ||
-			this.isPlayerMovementBlockedByMapDecor(currentX, currentY, targetX, targetY)
+		return resolveMovementSegment(
+			this.navigationGrid,
+			this.navigationObstacles,
+			{ x: currentX, y: currentY },
+			{ x: targetX, y: targetY },
+			WorldScene.playerRadius
 		);
-	}
-
-	private isPlayerMovementBlockedByNpc(
-		currentX: number,
-		currentY: number,
-		targetX: number,
-		targetY: number
-	): boolean {
-		const map = this.resolveMap(this.mapId);
-
-		return (map.npcs ?? []).some((npc) => {
-			const currentDistance = Phaser.Math.Distance.Between(currentX, currentY, npc.x, npc.y);
-			const targetDistance = Phaser.Math.Distance.Between(targetX, targetY, npc.x, npc.y);
-			const collisionRadius = WorldScene.playerRadius + this.getNpcCollisionRadius(npc);
-
-			if (currentDistance < collisionRadius) {
-				return targetDistance <= currentDistance;
-			}
-
-			return this.doesMovementSegmentIntersectNpc(
-				currentX,
-				currentY,
-				targetX,
-				targetY,
-				npc,
-				collisionRadius
-			);
-		});
-	}
-
-	private doesMovementSegmentIntersectNpc(
-		currentX: number,
-		currentY: number,
-		targetX: number,
-		targetY: number,
-		npc: MapNpc,
-		collisionRadius: number
-	): boolean {
-		const segmentX = targetX - currentX;
-		const segmentY = targetY - currentY;
-		const segmentLengthSquared = segmentX * segmentX + segmentY * segmentY;
-
-		if (segmentLengthSquared === 0) {
-			return Phaser.Math.Distance.Between(currentX, currentY, npc.x, npc.y) < collisionRadius;
-		}
-
-		const npcOffsetX = npc.x - currentX;
-		const npcOffsetY = npc.y - currentY;
-		const closestPointRatio = Math.min(
-			Math.max((npcOffsetX * segmentX + npcOffsetY * segmentY) / segmentLengthSquared, 0),
-			1
-		);
-		const closestX = currentX + segmentX * closestPointRatio;
-		const closestY = currentY + segmentY * closestPointRatio;
-
-		return Phaser.Math.Distance.Between(closestX, closestY, npc.x, npc.y) < collisionRadius;
 	}
 
 	private getNpcCollisionRadius(npc: MapNpc): number {
 		return isNpcPackFrameName(npc.frameName)
 			? NPC_PACK_COLLISION_RADIUS
 			: STARTER_NPC_COLLISION_RADIUS;
-	}
-
-	private isPlayerMovementBlockedByInteriorProp(
-		currentX: number,
-		currentY: number,
-		targetX: number,
-		targetY: number
-	): boolean {
-		const map = this.resolveMap(this.mapId);
-
-		return (map.interiorProps ?? []).some((prop) => {
-			if (!prop.collision) {
-				return false;
-			}
-
-			const bounds = this.getMapRectBounds(prop.collision);
-
-			return this.isMovementBlockedByEscapeAwareRect(
-				currentX,
-				currentY,
-				targetX,
-				targetY,
-				bounds,
-				WorldScene.playerRadius
-			);
-		});
-	}
-
-	private isPlayerMovementBlockedByLandmark(
-		currentX: number,
-		currentY: number,
-		targetX: number,
-		targetY: number
-	): boolean {
-		const map = this.resolveMap(this.mapId);
-
-		return (map.landmarks ?? []).some((landmark) => {
-			const bounds = this.getLandmarkCollisionBounds(landmark);
-
-			return this.getLandmarkCollisionRects(landmark, bounds).some((rect) =>
-				this.isPlayerMovementBlockedByRect(currentX, currentY, targetX, targetY, rect, bounds)
-			);
-		});
-	}
-
-	private isPlayerMovementBlockedByFence(
-		currentX: number,
-		currentY: number,
-		targetX: number,
-		targetY: number
-	): boolean {
-		const map = this.resolveMap(this.mapId);
-
-		return (map.fences ?? []).some((fence) => {
-			const bounds = this.getMapRectBounds(fence);
-
-			return this.isMovementBlockedByStrictRect(
-				currentX,
-				currentY,
-				targetX,
-				targetY,
-				bounds,
-				WorldScene.playerRadius
-			);
-		});
-	}
-
-	private isPlayerMovementBlockedByBlocker(
-		currentX: number,
-		currentY: number,
-		targetX: number,
-		targetY: number
-	): boolean {
-		const map = this.resolveMap(this.mapId);
-
-		return (map.blockers ?? []).some((blocker) => {
-			const bounds = this.getMapRectBounds(blocker);
-
-			return this.isMovementBlockedByStrictRect(
-				currentX,
-				currentY,
-				targetX,
-				targetY,
-				bounds,
-				WorldScene.playerRadius
-			);
-		});
-	}
-
-	private isPlayerMovementBlockedByMapDecor(
-		currentX: number,
-		currentY: number,
-		targetX: number,
-		targetY: number
-	): boolean {
-		const map = this.resolveMap(this.mapId);
-
-		return (map.mapDecor ?? []).some((decor) => {
-			if (!decor.collision) {
-				return false;
-			}
-
-			const bounds = this.getMapRectBounds(decor.collision);
-
-			return this.isMovementBlockedByStrictRect(
-				currentX,
-				currentY,
-				targetX,
-				targetY,
-				bounds,
-				WorldScene.playerRadius
-			);
-		});
 	}
 
 	private getLandmarkCollisionBounds(landmark: MapLandmark): LandmarkCollisionBounds {
@@ -2883,151 +2708,6 @@ export class WorldScene extends Phaser.Scene {
 				transition.y <= bounds.bottom &&
 				transition.id.includes(landmark.id.replace('-exterior', ''))
 		);
-	}
-
-	private isPlayerMovementBlockedByRect(
-		currentX: number,
-		currentY: number,
-		targetX: number,
-		targetY: number,
-		rect: CollisionRect,
-		bounds: LandmarkCollisionBounds
-	) {
-		if (currentY >= bounds.bottom && targetY >= bounds.bottom) {
-			return false;
-		}
-
-		const currentInside = this.isPointInsideRect(currentX, currentY, rect, WorldScene.playerRadius);
-		const targetInside = this.isPointInsideRect(targetX, targetY, rect, WorldScene.playerRadius);
-
-		if (currentInside) {
-			return (
-				targetInside &&
-				this.getPointDistanceFromBoundsCenter(targetX, targetY, bounds) <=
-					this.getPointDistanceFromBoundsCenter(currentX, currentY, bounds)
-			);
-		}
-
-		return this.doesMovementSegmentIntersectRect(
-			currentX,
-			currentY,
-			targetX,
-			targetY,
-			rect,
-			WorldScene.playerRadius
-		);
-	}
-
-	private isMovementBlockedByStrictRect(
-		currentX: number,
-		currentY: number,
-		targetX: number,
-		targetY: number,
-		rect: CollisionRect,
-		padding: number
-	) {
-		const currentInside = this.isPointInsideRect(currentX, currentY, rect, padding);
-		const targetInside = this.isPointInsideRect(targetX, targetY, rect, padding);
-
-		if (currentInside) {
-			return targetInside;
-		}
-
-		return this.doesMovementSegmentIntersectRect(
-			currentX,
-			currentY,
-			targetX,
-			targetY,
-			rect,
-			padding
-		);
-	}
-
-	private isMovementBlockedByEscapeAwareRect(
-		currentX: number,
-		currentY: number,
-		targetX: number,
-		targetY: number,
-		bounds: LandmarkCollisionBounds,
-		padding: number
-	) {
-		const currentInside = this.isPointInsideRect(currentX, currentY, bounds, padding);
-		const targetInside = this.isPointInsideRect(targetX, targetY, bounds, padding);
-
-		if (currentInside) {
-			return (
-				targetInside &&
-				this.getPointDistanceFromBoundsCenter(targetX, targetY, bounds) <=
-					this.getPointDistanceFromBoundsCenter(currentX, currentY, bounds)
-			);
-		}
-
-		return this.doesMovementSegmentIntersectRect(
-			currentX,
-			currentY,
-			targetX,
-			targetY,
-			bounds,
-			padding
-		);
-	}
-
-	private isPointInsideRect(x: number, y: number, rect: CollisionRect, padding: number) {
-		return (
-			x >= rect.left - padding &&
-			x <= rect.right + padding &&
-			y >= rect.top - padding &&
-			y <= rect.bottom + padding
-		);
-	}
-
-	private getPointDistanceFromBoundsCenter(x: number, y: number, bounds: LandmarkCollisionBounds) {
-		const offsetX = x - bounds.centerX;
-		const offsetY = y - bounds.centerY;
-
-		return offsetX * offsetX + offsetY * offsetY;
-	}
-
-	private doesMovementSegmentIntersectRect(
-		currentX: number,
-		currentY: number,
-		targetX: number,
-		targetY: number,
-		rect: CollisionRect,
-		padding: number
-	): boolean {
-		const left = rect.left - padding;
-		const right = rect.right + padding;
-		const top = rect.top - padding;
-		const bottom = rect.bottom + padding;
-		const deltaX = targetX - currentX;
-		const deltaY = targetY - currentY;
-		let entry = 0;
-		let exit = 1;
-
-		if (deltaX === 0) {
-			if (currentX < left || currentX > right) {
-				return false;
-			}
-		} else {
-			const axisEntry = Math.min((left - currentX) / deltaX, (right - currentX) / deltaX);
-			const axisExit = Math.max((left - currentX) / deltaX, (right - currentX) / deltaX);
-			entry = Math.max(entry, axisEntry);
-			exit = Math.min(exit, axisExit);
-		}
-
-		if (deltaY === 0) {
-			if (currentY < top || currentY > bottom) {
-				return false;
-			}
-		} else {
-			const axisEntry = Math.min((top - currentY) / deltaY, (bottom - currentY) / deltaY);
-			const axisExit = Math.max((top - currentY) / deltaY, (bottom - currentY) / deltaY);
-			entry = Math.max(entry, axisEntry);
-			exit = Math.min(exit, axisExit);
-		}
-
-		return entry <= exit && exit >= 0 && entry <= 1;
 	}
 
 	private resolveMapBackgroundPackageSelection(mapId: string): MapBackgroundPackageSelection {
