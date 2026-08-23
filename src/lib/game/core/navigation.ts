@@ -165,6 +165,48 @@ export function isPositionWalkable(
 	});
 }
 
+export function findNearestWalkablePosition(
+	grid: NavigationGrid,
+	obstacles: readonly NavigationObstacle[],
+	point: NavigationPoint,
+	radius: number
+): NavigationPoint | null {
+	const startColumn = worldCoordinateToCell(
+		point.x,
+		grid.widthPx,
+		grid.cellSizePx,
+		grid.widthCells
+	);
+	const startRow = worldCoordinateToCell(point.y, grid.heightPx, grid.cellSizePx, grid.heightCells);
+	if (startColumn < 0 || startRow < 0) return null;
+
+	const maxRadius = Math.max(grid.widthCells, grid.heightCells);
+	for (let ring = 0; ring <= maxRadius; ring += 1) {
+		const minColumn = Math.max(0, startColumn - ring);
+		const maxColumn = Math.min(grid.widthCells - 1, startColumn + ring);
+		const minRow = Math.max(0, startRow - ring);
+		const maxRow = Math.min(grid.heightCells - 1, startRow + ring);
+
+		for (let row = minRow; row <= maxRow; row += 1) {
+			for (let column = minColumn; column <= maxColumn; column += 1) {
+				if (Math.max(Math.abs(column - startColumn), Math.abs(row - startRow)) !== ring) {
+					continue;
+				}
+
+				const candidate = {
+					x: (column + 0.5) * grid.cellSizePx,
+					y: (row + 0.5) * grid.cellSizePx
+				};
+				if (isPositionWalkable(grid, obstacles, candidate, radius, 'resting-position')) {
+					return candidate;
+				}
+			}
+		}
+	}
+
+	return null;
+}
+
 function isSegmentBlocked(
 	grid: NavigationGrid,
 	obstacles: readonly NavigationObstacle[],

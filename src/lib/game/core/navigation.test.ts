@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import {
 	compileNavigationGrid,
 	createOpenNavigationGrid,
+	findNearestWalkablePosition,
 	isWalkable,
 	isPositionWalkable,
 	resolveMovementSegment,
@@ -162,6 +163,106 @@ function openGrid(widthCells = 8, heightCells = 8, cellSizePx = 16) {
 }
 
 describe('navigation movement and obstacle policies', () => {
+	it('returns the containing cell center when it is walkable at rest', () => {
+		const grid = openGrid(3, 3, 16);
+
+		expect(findNearestWalkablePosition(grid, [], { x: 25, y: 23 }, 12)).toEqual({
+			x: 24,
+			y: 24
+		});
+	});
+
+	it('searches the first row-major candidate in the next Chebyshev ring', () => {
+		const grid = compileNavigationGrid(source({ rows: ['...', '.#.', '...'], cellSizePx: 16 }));
+
+		expect(findNearestWalkablePosition(grid, [], { x: 24, y: 24 }, 0)).toEqual({
+			x: 8,
+			y: 8
+		});
+	});
+
+	it.each([
+		{
+			label: 'strict rectangle',
+			obstacle: {
+				id: 'wall',
+				shape: 'rect',
+				bounds: { left: 20, right: 28, top: 20, bottom: 28 },
+				movement: 'strict',
+				invalidAtRest: true
+			} satisfies NavigationObstacle
+		},
+		{
+			label: 'escape-aware rectangle',
+			obstacle: {
+				id: 'crate',
+				shape: 'rect',
+				bounds: { left: 20, right: 28, top: 20, bottom: 28 },
+				movement: 'escape-aware',
+				invalidAtRest: true,
+				escapeOrigin: { x: 24, y: 24 }
+			} satisfies NavigationObstacle
+		},
+		{
+			label: 'landmark',
+			obstacle: {
+				id: 'house',
+				shape: 'landmark',
+				landmarkId: 'house-exterior',
+				bounds: { left: 20, right: 28, top: 20, bottom: 28 },
+				doorCandidates: [],
+				doorwayWidthPx: 56,
+				transitionRadiusPx: 18,
+				invalidAtRest: true
+			} satisfies NavigationObstacle
+		}
+	])('$label positions are invalid at rest', ({ obstacle }) => {
+		const grid = openGrid(3, 3, 16);
+
+		expect(findNearestWalkablePosition(grid, [obstacle], { x: 24, y: 24 }, 0)).toEqual({
+			x: 8,
+			y: 8
+		});
+	});
+
+	it('does not displace a save for an NPC obstacle that is valid at rest', () => {
+		const grid = openGrid(3, 3, 16);
+		const npc: NavigationObstacle = {
+			id: 'villager',
+			shape: 'circle',
+			center: { x: 24, y: 24 },
+			radius: 12,
+			movement: 'escape-aware',
+			invalidAtRest: false
+		};
+
+		expect(findNearestWalkablePosition(grid, [npc], { x: 24, y: 24 }, 12)).toEqual({
+			x: 24,
+			y: 24
+		});
+	});
+
+	it('returns null when every grid cell is blocked', () => {
+		const grid = compileNavigationGrid(source({ rows: ['###', '###', '###'], cellSizePx: 16 }));
+
+		expect(findNearestWalkablePosition(grid, [], { x: 24, y: 24 }, 0)).toBeNull();
+	});
+
+	it.each([
+		[16, { x: 8, y: 8 }],
+		[32, { x: 16, y: 16 }]
+	] as const)('uses %dpx grid cell centers for recovery', (cellSizePx, expected) => {
+		const grid = createOpenNavigationGrid({
+			id: `open-${cellSizePx}`,
+			mapId: 'open-map',
+			cellSizePx,
+			widthCells: 2,
+			heightCells: 2
+		});
+
+		expect(findNearestWalkablePosition(grid, [], { x: 1, y: 1 }, 0)).toEqual(expected);
+	});
+
 	it('blocks a large step when its segment crosses a blocked cell despite open endpoints', () => {
 		const grid = compileNavigationGrid(source({ widthCells: 4, heightCells: 1, rows: ['..#.'] }));
 

@@ -5,6 +5,11 @@ import { startingPlayer } from '$lib/game/content/player';
 import { getShop } from '$lib/game/content/shops';
 import { createEmptyEquipment, type EquipmentState } from '$lib/game/core/equipment';
 import { PLAYER_COLLISION_RADIUS } from '$lib/game/core/collision';
+import {
+	buildMapNavigationObstacles,
+	resolveMapNavigationGrid
+} from '$lib/game/content/maps/navigation';
+import { findNearestWalkablePosition, isPositionWalkable } from '$lib/game/core/navigation';
 import type { InventoryState } from '$lib/game/core/inventory';
 import type { ItemDrop } from '$lib/game/core/loot';
 import {
@@ -57,7 +62,6 @@ export type SaveState = {
 };
 
 const DIRECTIONS: Direction[] = ['up', 'down', 'left', 'right'];
-const NORMALIZE_TILE_SIZE = 32;
 // Shared strict-rect collision radius (blockers, fences,
 // decor) expands every rect by this radius before testing containment, so a
 // tile center outside the raw rect but inside the padded rect still traps the
@@ -381,31 +385,27 @@ function normalizePlayerPosition(mapId: string, player: SaveState['player']): Sa
 	const x = clamp(player.x, 0, map.width * 32);
 	const y = clamp(player.y, 0, map.height * 32);
 
-	// After bounds clamping, check whether the position is inside strict movement
-	// collision (blockers, fences, and collidable map decor), or escape-aware
-	// runtime collision (landmarks and collidable interior props). Strict-rect
-	// collision uses isMovementBlockedByStrictRect in WorldScene, which traps the
-	// player because every small step keeps the target inside the padded rect.
-	// Landmarks and collidable interior props allow moving outward at runtime, but
-	// are still invalid loaded positions because they visually embed the player in
-	// opaque geometry. Nudge to the nearest walkable tile center outside all of
-	// these collision rects to prevent soft-locks and visual embedding after map
-	// layout changes.
-	const collisionRects = [
-		...collectStrictCollisionRects(map),
-		...collectInteriorPropCollisionRects(map),
-		...collectLandmarkRects(map)
-	];
-	if (!isInsideAnyCollisionRect(x, y, collisionRects, PLAYER_COLLISION_RADIUS)) {
+	const navigationGrid = resolveMapNavigationGrid(map);
+	const navigationObstacles = buildMapNavigationObstacles(map, {
+		includeInteractableNpcs: false
+	});
+	const clampedPoint = { x, y };
+	if (
+		isPositionWalkable(
+			navigationGrid,
+			navigationObstacles,
+			clampedPoint,
+			PLAYER_COLLISION_RADIUS,
+			'resting-position'
+		)
+	) {
 		return { ...player, x, y };
 	}
 
-	const nearest = findNearestWalkableTile(
-		x,
-		y,
-		map.width,
-		map.height,
-		collisionRects,
+	const nearest = findNearestWalkablePosition(
+		navigationGrid,
+		navigationObstacles,
+		clampedPoint,
 		PLAYER_COLLISION_RADIUS
 	);
 	if (nearest) {
@@ -416,16 +416,16 @@ function normalizePlayerPosition(mapId: string, player: SaveState['player']): Sa
 	return { ...player, x: map.spawn.x, y: map.spawn.y };
 }
 
-interface CollisionRect {
+interface MapCollisionRect {
 	x: number;
 	y: number;
 	width: number;
 	height: number;
 }
 
-export function collectStrictCollisionRects(map: WorldMapDefinition): CollisionRect[] {
+export function collectStrictCollisionRects(map: WorldMapDefinition): MapCollisionRect[] {
 	// Blockers, fences, and collidable map decor use strict movement collision at runtime.
-	const rects: CollisionRect[] = [];
+	const rects: MapCollisionRect[] = [];
 	for (const blocker of map.blockers ?? []) {
 		rects.push(blocker);
 	}
@@ -440,16 +440,10 @@ export function collectStrictCollisionRects(map: WorldMapDefinition): CollisionR
 	return rects;
 }
 
-function collectInteriorPropCollisionRects(map: WorldMapDefinition): CollisionRect[] {
-	// Collidable interior props use escape-aware runtime collision, but saved positions inside
-	// their opaque geometry must still be rescued to a visibly walkable tile.
-	return (map.interiorProps ?? []).flatMap((prop) => (prop.collision ? [prop.collision] : []));
-}
-
-export function collectLandmarkRects(map: WorldMapDefinition): CollisionRect[] {
+export function collectLandmarkRects(map: WorldMapDefinition): MapCollisionRect[] {
 	// Landmarks use escape-aware runtime collision, but remain invalid loaded positions when
 	// they would visually embed the player in opaque geometry.
-	const rects: CollisionRect[] = [];
+	const rects: MapCollisionRect[] = [];
 	for (const landmark of map.landmarks ?? []) {
 		const bounds = {
 			left: landmark.x - landmark.width / 2,
@@ -468,7 +462,7 @@ export function collectLandmarkRects(map: WorldMapDefinition): CollisionRect[] {
 		// the transition x, from the top of the landmark down to transition y -
 		// transitionRadius. The three resulting rects (above the door, left of
 		// the door, right of the door) are converted from edge-based to
-		// center-based CollisionRect format.
+		// center-based map collision rectangles.
 		const doorLeft = Math.max(bounds.left, doorway.x - NORMALIZE_DOORWAY_CLEARANCE_WIDTH / 2);
 		const doorRight = Math.min(bounds.right, doorway.x + NORMALIZE_DOORWAY_CLEARANCE_WIDTH / 2);
 		const doorTop = Math.max(bounds.top, doorway.y - NORMALIZE_TRANSITION_RADIUS);
@@ -514,7 +508,7 @@ export function findLandmarkDoorway(
 export function isInsideAnyCollisionRect(
 	x: number,
 	y: number,
-	rects: CollisionRect[],
+	rects: MapCollisionRect[],
 	padding: number
 ): boolean {
 	return rects.some((rect) => isInsideCollisionRect(x, y, rect, padding));
@@ -523,7 +517,7 @@ export function isInsideAnyCollisionRect(
 export function isInsideCollisionRect(
 	x: number,
 	y: number,
-	rect: CollisionRect,
+	rect: MapCollisionRect,
 	padding: number
 ): boolean {
 	return (
@@ -532,57 +526,6 @@ export function isInsideCollisionRect(
 		y >= rect.y - rect.height / 2 - padding &&
 		y <= rect.y + rect.height / 2 + padding
 	);
-}
-
-/**
- * Searches outward from the tile containing (x, y) for the nearest tile
- * whose center is not inside any padded collision rect. Used by
- * {@link normalizePlayerPosition} to rescue saves that land inside a
- * wall, fence, collidable map decor, landmark, or collidable interior prop.
- *
- * @param x - World-space x coordinate of the position to search from.
- * @param y - World-space y coordinate of the position to search from.
- * @param mapWidth - Map width in tiles; bounds the search horizontally.
- * @param mapHeight - Map height in tiles; bounds the search vertically.
- * @param rects - Collision rects to avoid while rescuing the loaded position.
- * @param padding - Pixels to expand each rect by when testing containment
- *   (matches the player radius so padded-trapped positions are rejected).
- * @returns The world-space center of the nearest walkable tile, or `null`
- *   if every tile on the map is inside a padded collision rect.
- */
-function findNearestWalkableTile(
-	x: number,
-	y: number,
-	mapWidth: number,
-	mapHeight: number,
-	rects: CollisionRect[],
-	padding: number
-): { x: number; y: number } | null {
-	const startCol = Math.floor(x / NORMALIZE_TILE_SIZE);
-	const startRow = Math.floor(y / NORMALIZE_TILE_SIZE);
-	const maxRadius = Math.max(mapWidth, mapHeight);
-
-	for (let radius = 0; radius <= maxRadius; radius++) {
-		const minCol = Math.max(0, startCol - radius);
-		const maxCol = Math.min(mapWidth - 1, startCol + radius);
-		const minRow = Math.max(0, startRow - radius);
-		const maxRow = Math.min(mapHeight - 1, startRow + radius);
-
-		for (let row = minRow; row <= maxRow; row++) {
-			for (let col = minCol; col <= maxCol; col++) {
-				if (Math.max(Math.abs(col - startCol), Math.abs(row - startRow)) !== radius) {
-					continue;
-				}
-				const tileCenterX = col * NORMALIZE_TILE_SIZE + NORMALIZE_TILE_SIZE / 2;
-				const tileCenterY = row * NORMALIZE_TILE_SIZE + NORMALIZE_TILE_SIZE / 2;
-				if (!isInsideAnyCollisionRect(tileCenterX, tileCenterY, rects, padding)) {
-					return { x: tileCenterX, y: tileCenterY };
-				}
-			}
-		}
-	}
-
-	return null;
 }
 
 function clamp(value: number, min: number, max: number): number {

@@ -9,6 +9,11 @@ import { PLAYER_COLLISION_RADIUS } from '$lib/game/core/collision';
 import { getXpForLevel } from '$lib/game/core/progression';
 import { createInitialQuestState } from '$lib/game/core/quests';
 import {
+	buildMapNavigationObstacles,
+	resolveMapNavigationGrid
+} from '$lib/game/content/maps/navigation';
+import { isPositionWalkable as isNavigationPositionWalkable } from '$lib/game/core/navigation';
+import {
 	collectLandmarkRects,
 	collectStrictCollisionRects,
 	createNewSaveState,
@@ -230,11 +235,12 @@ describe('save state', () => {
 	 * rect still traps the player, so walkability is tested with padding.
 	 */
 	function isPositionWalkable(px: number, py: number): boolean {
-		return !isInsideAnyCollisionRect(
-			px,
-			py,
-			[...collectStrictCollisionRects(meadowEntryMap), ...collectLandmarkRects(meadowEntryMap)],
-			PLAYER_COLLISION_RADIUS
+		return isNavigationPositionWalkable(
+			resolveMapNavigationGrid(meadowEntryMap),
+			buildMapNavigationObstacles(meadowEntryMap, { includeInteractableNpcs: false }),
+			{ x: px, y: py },
+			PLAYER_COLLISION_RADIUS,
+			'resting-position'
 		);
 	}
 
