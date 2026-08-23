@@ -591,7 +591,10 @@ function validateReportRoot(value: string): string {
 			`--report-root must be a repository-relative path under ${TEXTURE_PROBE_NAMESPACE}`
 		);
 	}
-	const reportRoot = normalize(value);
+	if (value.split('/').includes('..')) {
+		throw new Error('--report-root must not contain path traversal segments');
+	}
+	const reportRoot = normalize(value).replace(/\/+$/, '');
 	if (
 		reportRoot === TEXTURE_PROBE_NAMESPACE ||
 		!reportRoot.startsWith(`${TEXTURE_PROBE_NAMESPACE}/`)

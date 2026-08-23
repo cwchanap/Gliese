@@ -330,6 +330,32 @@ test('rejects an explicit legacy report root so browser-3200 cannot be overwritt
 	);
 });
 
+test('rejects a trailing-slash legacy report root so browser-3200 cannot be overwritten', () => {
+	assert.throws(
+		() =>
+			parseMeadowEntryTextureProbeArguments([
+				'--candidate',
+				'painted-v2-2x2',
+				'--report-root',
+				'artifacts/meadow-entry/painted-v2/proofs/texture-probe/'
+			]),
+		/legacy.*browser-3200/i
+	);
+});
+
+test('rejects raw traversal segments even when normalization stays inside painted-v2', () => {
+	assert.throws(
+		() =>
+			parseMeadowEntryTextureProbeArguments([
+				'--candidate',
+				'painted-v2-2x2',
+				'--report-root',
+				'artifacts/meadow-entry/painted-v2/complete/../alternate'
+			]),
+		/traversal|report-root/i
+	);
+});
+
 test('does not select the legacy browser-3200 report when a complete report root is supplied', () => {
 	const parsed = parseMeadowEntryTextureProbeArguments([
 		'--candidate',
