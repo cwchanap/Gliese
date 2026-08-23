@@ -1,4 +1,5 @@
-import { dirname, join } from 'node:path';
+import { readFileSync } from 'node:fs';
+import { dirname, join, resolve } from 'node:path';
 import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 
@@ -22,6 +23,28 @@ afterEach(async () => {
 });
 
 describe('painted-v2 approval CLI', () => {
+	it('keeps historical and painted-v2 builders on their distinct storage seals', () => {
+		const source = readFileSync(
+			resolve(process.cwd(), 'tools/approve-meadow-entry-art-package.ts'),
+			'utf8'
+		);
+		const historicalBuilder = source.slice(
+			source.indexOf('async function buildApproval('),
+			source.indexOf('async function buildPaintedV2Approval(')
+		);
+		const paintedV2Builder = source.slice(source.indexOf('async function buildPaintedV2Approval('));
+
+		expect(historicalBuilder).toMatch(
+			/return \{[\s\S]*?storageConfigurationSha256:\s*sha256\(storageConfiguration\),/
+		);
+		expect(historicalBuilder).not.toMatch(
+			/storageConfigurationSha256:\s*getMeadowEntryControlsStorageConfigurationSha256/
+		);
+		expect(paintedV2Builder).toMatch(
+			/storageConfigurationSha256:\s*getMeadowEntryControlsStorageConfigurationSha256\(\s*storageConfiguration,\s*'legacy'\s*\),/
+		);
+	});
+
 	it('parses --check without publication metadata', () => {
 		expect(parseMeadowEntryArtPackageArguments(['--check'])).toEqual({
 			check: true,

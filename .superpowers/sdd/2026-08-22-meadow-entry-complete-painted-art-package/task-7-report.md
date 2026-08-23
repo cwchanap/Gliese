@@ -203,3 +203,39 @@ bun run test:e2e -- --grep "complete Meadow review mode|restores fallback"
 
 The complete art-package approval was resealed after the validation report update using the existing
 reviewer/timestamp; only the validation-report SHA-256 changed.
+
+## Scoped builder-wiring re-review after f791829
+
+The scoped review found one valid regression in the prior correction commit: the immutable legacy
+seal helper had been placed in the retired HPA-399 builder, while the active painted-v2 builder still
+returned the current full-file `.gitattributes` SHA-256. This follow-up corrected only those two
+assignments. The HPA-399 builder again returns `sha256(storageConfiguration)` exactly as it did before
+f791829. The painted-v2 builder now calls
+`getMeadowEntryControlsStorageConfigurationSha256(storageConfiguration, 'legacy')`; that helper
+independently requires exactly one source and runtime painted-v2 LFS row, LF bytes, and a final
+newline, then preserves the immutable `46eb41c75bcc1d058c820f59098df48abccbaea1e081214d106d9d8ca6dd4f40`
+seal. The complete builder remains bound to the current
+`42455c6bab7889dd99cc194683ccaa6f2a19b0a067aede17fe34faf6282fd1ab` configuration SHA-256.
+
+TDD evidence:
+
+- RED: the new owning regression failed 1/5 tests because the two builder assignments were reversed.
+- GREEN: `bun run test:unit -- --run src/lib/game/content/backgrounds/meadow-entry-painted-v2-approval-cli.test.ts --maxWorkers=1` passed 1 file / 5 tests.
+- Narrow approval suite: `bun run test:unit -- --run src/lib/game/content/backgrounds/meadow-entry-painted-v2-approval-cli.test.ts src/lib/game/content/meadow-entry-controls-approval-tool.test.ts src/lib/game/content/backgrounds/meadow-entry-painted-v2-approval-artifact.test.ts src/lib/game/content/meadow-entry-art-package.asset.test.ts --maxWorkers=1` passed 4 files / 42 tests.
+
+Owning gates after the correction:
+
+- `bun run art:validate:meadow-entry` passed: 22 files / 559 tests.
+- `bun run art:validate:meadow-entry-controls` passed: 11 files / 211 tests.
+- `bun run art:check:meadow-entry-complete-approval` passed: complete approval current.
+- `bun run lint` passed; `bun run check` passed with 0 errors and 0 warnings; `bun run build` passed
+  with only the existing large Phaser chunk warning; `git diff --check` and `git lfs fsck --objects`
+  passed.
+
+The active painted-v2 command `bun run art:check:meadow-entry-approval` was also rerun. It stops at
+the pre-existing stale `artifacts/meadow-entry/painted-v2/proofs/pilot-ownership.json` sidecar before
+approval comparison: the regenerated PNG and all input hashes match, while only the checked-in
+ownership metric differs (`a10a10123b9f2759cafaaec2759c967da713cf795868306e23571a844684b632` versus
+current `b1dd376b41c70037c9043103f26eced7d43e7c6c16f8423e7517e40db8d30e1a`). That unrelated proof
+evidence was preserved; no proof, art pixel, geometry, approval decision, reviewer, or timestamp was
+rewritten in this correction. The injected no-write CLI check and the four-file approval suite pass.

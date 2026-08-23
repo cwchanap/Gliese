@@ -578,10 +578,7 @@ async function buildApproval(repositoryRoot: string): Promise<MeadowEntryArtPack
 	return {
 		combinedControlFingerprint: currentFingerprint,
 		storageMode: 'git-lfs',
-		storageConfigurationSha256: getMeadowEntryControlsStorageConfigurationSha256(
-			storageConfiguration,
-			'legacy'
-		),
+		storageConfigurationSha256: sha256(storageConfiguration),
 		baseMaster,
 		foregroundMaster,
 		cropManifestSha256: sha256(sourceSnapshot.exports.cropManifestJson),
@@ -1014,7 +1011,10 @@ async function buildPaintedV2Approval(
 		version: 1,
 		combinedControlFingerprint: meadowEntryPaintedV2ControlsApproval.combinedControlFingerprint,
 		storageMode: 'git-lfs',
-		storageConfigurationSha256: sha256(storageConfiguration),
+		storageConfigurationSha256: getMeadowEntryControlsStorageConfigurationSha256(
+			storageConfiguration,
+			'legacy'
+		),
 		provenanceSha256: sourceInventory.provenanceSha256,
 		concept: sourceInventory.concept,
 		sourcePanels: sourceInventory.sourcePanels,
