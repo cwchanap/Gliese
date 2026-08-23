@@ -4,7 +4,11 @@ import {
 	compileNavigationGrid,
 	createOpenNavigationGrid,
 	findNearestWalkablePosition,
+	findLandmarkDoorway,
+	getLandmarkCollisionRects,
 	isWalkable,
+	isPointInsideAnyRect,
+	isPointInsideRect,
 	isPositionWalkable,
 	resolveMovementSegment,
 	type NavigationObstacle,
@@ -453,6 +457,30 @@ describe('navigation movement and obstacle policies', () => {
 			x: 64,
 			y: 128
 		});
+	});
+
+	it('exposes shared doorway decomposition and containment for compatibility adapters', () => {
+		const landmark: NavigationObstacle = {
+			id: 'house',
+			shape: 'landmark',
+			landmarkId: 'hero-house-exterior',
+			bounds: { left: 32, right: 96, top: 32, bottom: 96 },
+			doorCandidates: [{ id: 'hero-house-entry', point: { x: 64, y: 52 } }],
+			doorwayWidthPx: 24,
+			transitionRadiusPx: 10,
+			invalidAtRest: true
+		};
+
+		expect(
+			findLandmarkDoorway(landmark.landmarkId, landmark.bounds, landmark.doorCandidates)
+		).toEqual({ id: 'hero-house-entry', point: { x: 64, y: 52 } });
+		expect(getLandmarkCollisionRects(landmark)).toEqual([
+			{ left: 32, right: 96, top: 32, bottom: 42 },
+			{ left: 32, right: 52, top: 42, bottom: 96 },
+			{ left: 76, right: 96, top: 42, bottom: 96 }
+		]);
+		expect(isPointInsideRect({ x: 48, y: 48 }, landmark.bounds, 0)).toBe(true);
+		expect(isPointInsideAnyRect({ x: 110, y: 48 }, [landmark.bounds], 0)).toBe(false);
 	});
 
 	it('expands rectangle and circle obstacles by player radius without expanding the authored grid again', () => {

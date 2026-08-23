@@ -9,7 +9,16 @@ import {
 	buildMapNavigationObstacles,
 	resolveMapNavigationGrid
 } from '$lib/game/content/maps/navigation';
-import { findNearestWalkablePosition, isPositionWalkable } from '$lib/game/core/navigation';
+import {
+	findLandmarkDoorway as findNavigationLandmarkDoorway,
+	findNearestWalkablePosition,
+	getLandmarkCollisionRects,
+	isPointInsideAnyRect,
+	isPointInsideRect,
+	isPositionWalkable,
+	type NavigationObstacle,
+	type NavigationRect
+} from '$lib/game/core/navigation';
 import type { InventoryState } from '$lib/game/core/inventory';
 import type { ItemDrop } from '$lib/game/core/loot';
 import {
@@ -417,6 +426,7 @@ function normalizePlayerPosition(mapId: string, player: SaveState['player']): Sa
 }
 
 interface MapCollisionRect {
+	id?: string;
 	x: number;
 	y: number;
 	width: number;
@@ -424,65 +434,37 @@ interface MapCollisionRect {
 }
 
 export function collectStrictCollisionRects(map: WorldMapDefinition): MapCollisionRect[] {
-	// Blockers, fences, and collidable map decor use strict movement collision at runtime.
-	const rects: MapCollisionRect[] = [];
-	for (const blocker of map.blockers ?? []) {
-		rects.push(blocker);
-	}
-	for (const fence of map.fences ?? []) {
-		rects.push(fence);
-	}
-	for (const decor of map.mapDecor ?? []) {
-		if (decor.collision) {
-			rects.push(decor.collision);
+	const sourceById = new Map<string, MapCollisionRect>([
+		...(map.blockers ?? []).map((rect) => [rect.id, rect] as const),
+		...(map.fences ?? []).map((rect) => [rect.id, rect] as const),
+		...(map.mapDecor ?? [])
+			.filter(
+				(decor): decor is typeof decor & { collision: MapCollisionRect } =>
+					decor.collision !== undefined
+			)
+			.map((decor) => [decor.collision.id, decor.collision] as const)
+	]);
+
+	return buildCompatibilityNavigationObstacles(map).flatMap((obstacle) => {
+		if (obstacle.shape !== 'rect' || obstacle.movement !== 'strict') {
+			return [];
 		}
-	}
-	return rects;
+		return [
+			{
+				...(sourceById.get(obstacle.id) ?? { id: obstacle.id }),
+				...toMapCollisionRect(obstacle.bounds)
+			}
+		];
+	});
 }
 
 export function collectLandmarkRects(map: WorldMapDefinition): MapCollisionRect[] {
-	// Landmarks use escape-aware runtime collision, but remain invalid loaded positions when
-	// they would visually embed the player in opaque geometry.
-	const rects: MapCollisionRect[] = [];
-	for (const landmark of map.landmarks ?? []) {
-		const bounds = {
-			left: landmark.x - landmark.width / 2,
-			right: landmark.x + landmark.width / 2,
-			top: landmark.y - landmark.height / 2,
-			bottom: landmark.y + landmark.height / 2
-		};
-		const doorway = findLandmarkDoorway(landmark, bounds, map.transitions);
-		if (!doorway) {
-			rects.push({ x: landmark.x, y: landmark.y, width: landmark.width, height: landmark.height });
-			continue;
+	return buildCompatibilityNavigationObstacles(map).flatMap((obstacle) => {
+		if (obstacle.shape !== 'landmark') {
+			return [];
 		}
-
-		// Carve the same doorway opening that WorldScene.getLandmarkCollisionRects
-		// carves at runtime: a horizontal gap of doorwayClearanceWidth centered on
-		// the transition x, from the top of the landmark down to transition y -
-		// transitionRadius. The three resulting rects (above the door, left of
-		// the door, right of the door) are converted from edge-based to
-		// center-based map collision rectangles.
-		const doorLeft = Math.max(bounds.left, doorway.x - NORMALIZE_DOORWAY_CLEARANCE_WIDTH / 2);
-		const doorRight = Math.min(bounds.right, doorway.x + NORMALIZE_DOORWAY_CLEARANCE_WIDTH / 2);
-		const doorTop = Math.max(bounds.top, doorway.y - NORMALIZE_TRANSITION_RADIUS);
-
-		const carved = [
-			{ left: bounds.left, right: bounds.right, top: bounds.top, bottom: doorTop },
-			{ left: bounds.left, right: doorLeft, top: doorTop, bottom: bounds.bottom },
-			{ left: doorRight, right: bounds.right, top: doorTop, bottom: bounds.bottom }
-		].filter((rect) => rect.right > rect.left && rect.bottom > rect.top);
-
-		for (const rect of carved) {
-			rects.push({
-				x: (rect.left + rect.right) / 2,
-				y: (rect.top + rect.bottom) / 2,
-				width: rect.right - rect.left,
-				height: rect.bottom - rect.top
-			});
-		}
-	}
-	return rects;
+		return getLandmarkCollisionRects(obstacle).map(toMapCollisionRect);
+	});
 }
 
 /**
@@ -495,14 +477,15 @@ export function findLandmarkDoorway(
 	bounds: { left: number; right: number; top: number; bottom: number },
 	transitions: MapTransition[]
 ): MapTransition | undefined {
-	return transitions.find(
-		(transition) =>
-			transition.x >= bounds.left &&
-			transition.x <= bounds.right &&
-			transition.y >= bounds.top &&
-			transition.y <= bounds.bottom &&
-			transition.id.includes(landmark.id.replace('-exterior', ''))
-	);
+	return findNavigationLandmarkDoorway(
+		landmark.id,
+		bounds,
+		transitions.map((transition) => ({
+			id: transition.id,
+			point: { x: transition.x, y: transition.y },
+			value: transition
+		}))
+	)?.value;
 }
 
 export function isInsideAnyCollisionRect(
@@ -511,7 +494,7 @@ export function isInsideAnyCollisionRect(
 	rects: MapCollisionRect[],
 	padding: number
 ): boolean {
-	return rects.some((rect) => isInsideCollisionRect(x, y, rect, padding));
+	return isPointInsideAnyRect({ x, y }, rects.map(toNavigationRect), padding);
 }
 
 export function isInsideCollisionRect(
@@ -520,12 +503,34 @@ export function isInsideCollisionRect(
 	rect: MapCollisionRect,
 	padding: number
 ): boolean {
-	return (
-		x >= rect.x - rect.width / 2 - padding &&
-		x <= rect.x + rect.width / 2 + padding &&
-		y >= rect.y - rect.height / 2 - padding &&
-		y <= rect.y + rect.height / 2 + padding
+	return isPointInsideRect({ x, y }, toNavigationRect(rect), padding);
+}
+
+function buildCompatibilityNavigationObstacles(
+	map: WorldMapDefinition
+): readonly NavigationObstacle[] {
+	return buildMapNavigationObstacles(
+		map.navigationGridOwnedSources ? { ...map, navigationGridOwnedSources: undefined } : map,
+		{ includeInteractableNpcs: false }
 	);
+}
+
+function toNavigationRect(rect: MapCollisionRect): NavigationRect {
+	return {
+		left: rect.x - rect.width / 2,
+		right: rect.x + rect.width / 2,
+		top: rect.y - rect.height / 2,
+		bottom: rect.y + rect.height / 2
+	};
+}
+
+function toMapCollisionRect(rect: NavigationRect): MapCollisionRect {
+	return {
+		x: (rect.left + rect.right) / 2,
+		y: (rect.top + rect.bottom) / 2,
+		width: rect.right - rect.left,
+		height: rect.bottom - rect.top
+	};
 }
 
 function clamp(value: number, min: number, max: number): number {

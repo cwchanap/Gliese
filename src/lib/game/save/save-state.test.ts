@@ -17,6 +17,7 @@ import {
 	collectLandmarkRects,
 	collectStrictCollisionRects,
 	createNewSaveState,
+	findLandmarkDoorway,
 	isInsideAnyCollisionRect,
 	parseSaveState,
 	serializeSaveState
@@ -106,6 +107,35 @@ describe('save state', () => {
 	it('round-trips a valid save payload', () => {
 		const encoded = serializeSaveState(createNewSaveState());
 		expect(parseSaveState(encoded)?.mapId).toBe('meadow-entry');
+	});
+
+	it('keeps legacy collision geometry aligned with shared map navigation', () => {
+		const blocker = meadowEntryMap.blockers?.find(({ id }) => id === 'castle-gate-block');
+		const landmark = meadowEntryMap.landmarks?.find(({ id }) => id === 'hero-house-exterior');
+		const doorway = meadowEntryMap.transitions.find(({ id }) => id.includes('hero-house'));
+
+		expect(blocker).toBeDefined();
+		expect(landmark).toBeDefined();
+		expect(doorway).toBeDefined();
+		expect(collectStrictCollisionRects(meadowEntryMap)).toContainEqual(blocker);
+		expect(collectLandmarkRects(meadowEntryMap)).toContainEqual({
+			x: 3_776,
+			y: 4_224,
+			width: 120,
+			height: 150
+		});
+		expect(
+			findLandmarkDoorway(
+				landmark!,
+				{
+					left: landmark!.x - landmark!.width / 2,
+					right: landmark!.x + landmark!.width / 2,
+					top: landmark!.y - landmark!.height / 2,
+					bottom: landmark!.y + landmark!.height / 2
+				},
+				meadowEntryMap.transitions
+			)
+		).toEqual(doorway);
 	});
 
 	it('round-trips map exploration cells with cloned arrays', () => {
