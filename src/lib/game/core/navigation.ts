@@ -3,6 +3,44 @@ export interface NavigationPoint {
 	readonly y: number;
 }
 
+export interface NavigationRect {
+	readonly left: number;
+	readonly right: number;
+	readonly top: number;
+	readonly bottom: number;
+}
+
+export type NavigationObstacle =
+	| {
+			readonly id: string;
+			readonly shape: 'rect';
+			readonly bounds: NavigationRect;
+			readonly movement: 'strict' | 'escape-aware';
+			readonly invalidAtRest: boolean;
+			readonly escapeOrigin?: NavigationPoint;
+	  }
+	| {
+			readonly id: string;
+			readonly shape: 'circle';
+			readonly center: NavigationPoint;
+			readonly radius: number;
+			readonly movement: 'escape-aware';
+			readonly invalidAtRest: boolean;
+	  }
+	| {
+			readonly id: string;
+			readonly shape: 'landmark';
+			readonly landmarkId: string;
+			readonly bounds: NavigationRect;
+			readonly doorCandidates: readonly {
+				readonly id: string;
+				readonly point: NavigationPoint;
+			}[];
+			readonly doorwayWidthPx: number;
+			readonly transitionRadiusPx: number;
+			readonly invalidAtRest: true;
+	  };
+
 export interface NavigationMaskSource {
 	readonly id: string;
 	readonly mapId: string;
@@ -90,6 +128,371 @@ export function isWalkable(grid: NavigationGrid, x: number, y: number): boolean 
 	if (column < 0 || row < 0) return false;
 
 	return !isBlocked(grid.blockedBits, row * grid.widthCells + column);
+}
+
+export function resolveMovementSegment(
+	grid: NavigationGrid,
+	obstacles: readonly NavigationObstacle[],
+	from: NavigationPoint,
+	to: NavigationPoint,
+	radius: number
+): NavigationPoint {
+	let x = to.x;
+	let y = to.y;
+
+	if (isSegmentBlocked(grid, obstacles, from, { x, y: from.y }, radius)) {
+		x = from.x;
+	}
+	if (isSegmentBlocked(grid, obstacles, { x, y: from.y }, { x, y }, radius)) {
+		y = from.y;
+	}
+
+	return { x, y };
+}
+
+export function isPositionWalkable(
+	grid: NavigationGrid,
+	obstacles: readonly NavigationObstacle[],
+	point: NavigationPoint,
+	radius: number,
+	mode: 'movement-target' | 'resting-position' = 'movement-target'
+): boolean {
+	if (!isWalkable(grid, point.x, point.y)) return false;
+
+	return !obstacles.some((obstacle) => {
+		if (mode === 'resting-position' && !obstacle.invalidAtRest) return false;
+		return isPointBlockedByObstacle(obstacle, point, radius);
+	});
+}
+
+function isSegmentBlocked(
+	grid: NavigationGrid,
+	obstacles: readonly NavigationObstacle[],
+	from: NavigationPoint,
+	to: NavigationPoint,
+	radius: number
+): boolean {
+	return (
+		isGridSegmentBlocked(grid, from, to) ||
+		obstacles.some((obstacle) => {
+			return isSegmentBlockedByObstacle(obstacle, from, to, radius);
+		})
+	);
+}
+
+/**
+ * Traverses only the cells touched by the segment. Equal-time boundary
+ * crossings visit both side cells as well as the diagonal cell (supercover),
+ * so a diagonal step cannot slip through a blocked corner.
+ */
+function isGridSegmentBlocked(
+	grid: NavigationGrid,
+	from: NavigationPoint,
+	to: NavigationPoint
+): boolean {
+	if (!isInsideWorld(grid, from) || !isInsideWorld(grid, to)) return true;
+
+	const deltaX = to.x - from.x;
+	const deltaY = to.y - from.y;
+	let column = worldCoordinateToCell(from.x, grid.widthPx, grid.cellSizePx, grid.widthCells);
+	let row = worldCoordinateToCell(from.y, grid.heightPx, grid.cellSizePx, grid.heightCells);
+	if (column < 0 || row < 0) return true;
+
+	const stepX = deltaX > 0 ? 1 : deltaX < 0 ? -1 : 0;
+	const stepY = deltaY > 0 ? 1 : deltaY < 0 ? -1 : 0;
+	const deltaTByX = stepX === 0 ? Number.POSITIVE_INFINITY : grid.cellSizePx / Math.abs(deltaX);
+	const deltaTByY = stepY === 0 ? Number.POSITIVE_INFINITY : grid.cellSizePx / Math.abs(deltaY);
+	let nextBoundaryT = nextGridBoundaryT(from.x, column, stepX, grid.cellSizePx, deltaX);
+	let nextBoundaryY = nextGridBoundaryT(from.y, row, stepY, grid.cellSizePx, deltaY);
+
+	if (isGridCellBlocked(grid, row, column)) return true;
+	if (isStartBoundaryCellBlocked(grid, from, column, row)) return true;
+
+	while (nextBoundaryT <= 1 || nextBoundaryY <= 1) {
+		if (Math.abs(nextBoundaryT - nextBoundaryY) <= 1e-12) {
+			if (nextBoundaryT > 1) break;
+			if (isGridCellBlocked(grid, row, column + stepX)) return true;
+			if (isGridCellBlocked(grid, row + stepY, column)) return true;
+			column += stepX;
+			row += stepY;
+			if (isGridCellBlocked(grid, row, column)) return true;
+			nextBoundaryT += deltaTByX;
+			nextBoundaryY += deltaTByY;
+			continue;
+		}
+
+		if (nextBoundaryT < nextBoundaryY) {
+			if (nextBoundaryT > 1) break;
+			column += stepX;
+			if (isGridCellBlocked(grid, row, column)) return true;
+			nextBoundaryT += deltaTByX;
+			continue;
+		}
+
+		if (nextBoundaryY > 1) break;
+		row += stepY;
+		if (isGridCellBlocked(grid, row, column)) return true;
+		nextBoundaryY += deltaTByY;
+	}
+
+	return false;
+}
+
+function isInsideWorld(grid: NavigationGrid, point: NavigationPoint): boolean {
+	return (
+		Number.isFinite(point.x) &&
+		Number.isFinite(point.y) &&
+		point.x >= 0 &&
+		point.x <= grid.widthPx &&
+		point.y >= 0 &&
+		point.y <= grid.heightPx
+	);
+}
+
+function nextGridBoundaryT(
+	coordinate: number,
+	cell: number,
+	step: number,
+	cellSizePx: number,
+	delta: number
+): number {
+	if (step === 0) return Number.POSITIVE_INFINITY;
+	const boundary = (step > 0 ? cell + 1 : cell) * cellSizePx;
+	return (boundary - coordinate) / delta;
+}
+
+function isGridCellBlocked(grid: NavigationGrid, row: number, column: number): boolean {
+	if (column < 0 || row < 0 || column >= grid.widthCells || row >= grid.heightCells) return true;
+	return isBlocked(grid.blockedBits, row * grid.widthCells + column);
+}
+
+function isStartBoundaryCellBlocked(
+	grid: NavigationGrid,
+	point: NavigationPoint,
+	column: number,
+	row: number
+): boolean {
+	if (isInteriorGridBoundary(point.x, grid.cellSizePx, grid.widthPx)) {
+		const adjacentColumn = column - 1;
+		if (isGridCellBlocked(grid, row, adjacentColumn)) return true;
+	}
+	if (isInteriorGridBoundary(point.y, grid.cellSizePx, grid.heightPx)) {
+		const adjacentRow = row - 1;
+		if (isGridCellBlocked(grid, adjacentRow, column)) return true;
+	}
+	return false;
+}
+
+function isInteriorGridBoundary(coordinate: number, cellSizePx: number, maximum: number): boolean {
+	if (coordinate <= 0 || coordinate >= maximum) return false;
+	const cellCoordinate = coordinate / cellSizePx;
+	return Math.abs(cellCoordinate - Math.round(cellCoordinate)) <= 1e-12;
+}
+
+function isSegmentBlockedByObstacle(
+	obstacle: NavigationObstacle,
+	from: NavigationPoint,
+	to: NavigationPoint,
+	radius: number
+): boolean {
+	if (obstacle.shape === 'circle') {
+		return isMovementBlockedByCircle(from, to, obstacle.center, obstacle.radius + radius);
+	}
+
+	const rects =
+		obstacle.shape === 'landmark' ? getLandmarkCollisionRects(obstacle) : [obstacle.bounds];
+	return rects.some((rect) => {
+		if (
+			obstacle.shape === 'landmark' &&
+			from.y >= obstacle.bounds.bottom &&
+			to.y >= obstacle.bounds.bottom
+		) {
+			return false;
+		}
+		const escapeOrigin =
+			obstacle.shape === 'rect' && obstacle.escapeOrigin
+				? obstacle.escapeOrigin
+				: getRectCenter(obstacle.bounds);
+		return obstacle.shape === 'rect' && obstacle.movement === 'strict'
+			? isMovementBlockedByStrictRect(from, to, rect, radius)
+			: isMovementBlockedByEscapeAwareRect(from, to, rect, radius, escapeOrigin);
+	});
+}
+
+function isPointBlockedByObstacle(
+	obstacle: NavigationObstacle,
+	point: NavigationPoint,
+	radius: number
+): boolean {
+	if (obstacle.shape === 'circle') {
+		const effectiveRadius = obstacle.radius + radius;
+		return distanceSquared(point, obstacle.center) < effectiveRadius * effectiveRadius;
+	}
+
+	const rects =
+		obstacle.shape === 'landmark' ? getLandmarkCollisionRects(obstacle) : [obstacle.bounds];
+	return rects.some((rect) => isPointInsideRect(point, rect, radius));
+}
+
+function getLandmarkCollisionRects(
+	obstacle: Extract<NavigationObstacle, { shape: 'landmark' }>
+): NavigationRect[] {
+	const doorway = obstacle.doorCandidates.find(
+		(candidate) =>
+			candidate.point.x >= obstacle.bounds.left &&
+			candidate.point.x <= obstacle.bounds.right &&
+			candidate.point.y >= obstacle.bounds.top &&
+			candidate.point.y <= obstacle.bounds.bottom &&
+			candidate.id.includes(obstacle.landmarkId.replace('-exterior', ''))
+	);
+	if (!doorway) return [obstacle.bounds];
+
+	const doorLeft = Math.max(obstacle.bounds.left, doorway.point.x - obstacle.doorwayWidthPx / 2);
+	const doorRight = Math.min(obstacle.bounds.right, doorway.point.x + obstacle.doorwayWidthPx / 2);
+	const doorTop = Math.max(obstacle.bounds.top, doorway.point.y - obstacle.transitionRadiusPx);
+
+	return [
+		{
+			left: obstacle.bounds.left,
+			right: obstacle.bounds.right,
+			top: obstacle.bounds.top,
+			bottom: doorTop
+		},
+		{
+			left: obstacle.bounds.left,
+			right: doorLeft,
+			top: doorTop,
+			bottom: obstacle.bounds.bottom
+		},
+		{
+			left: doorRight,
+			right: obstacle.bounds.right,
+			top: doorTop,
+			bottom: obstacle.bounds.bottom
+		}
+	].filter((rect) => rect.right > rect.left && rect.bottom > rect.top);
+}
+
+function isMovementBlockedByStrictRect(
+	from: NavigationPoint,
+	to: NavigationPoint,
+	rect: NavigationRect,
+	radius: number
+): boolean {
+	const currentInside = isPointInsideRect(from, rect, radius);
+	const targetInside = isPointInsideRect(to, rect, radius);
+	if (currentInside) return targetInside;
+	return doesSegmentIntersectRect(from, to, rect, radius);
+}
+
+function isMovementBlockedByEscapeAwareRect(
+	from: NavigationPoint,
+	to: NavigationPoint,
+	rect: NavigationRect,
+	radius: number,
+	escapeOrigin: NavigationPoint
+): boolean {
+	const currentInside = isPointInsideRect(from, rect, radius);
+	const targetInside = isPointInsideRect(to, rect, radius);
+	if (currentInside) {
+		return targetInside && distanceSquared(to, escapeOrigin) <= distanceSquared(from, escapeOrigin);
+	}
+	return doesSegmentIntersectRect(from, to, rect, radius);
+}
+
+function isMovementBlockedByCircle(
+	from: NavigationPoint,
+	to: NavigationPoint,
+	center: NavigationPoint,
+	radius: number
+): boolean {
+	const currentDistance = distanceSquared(from, center);
+	if (currentDistance < radius * radius) {
+		return distanceSquared(to, center) <= currentDistance;
+	}
+	return doesSegmentIntersectCircle(from, to, center, radius);
+}
+
+function isPointInsideRect(point: NavigationPoint, rect: NavigationRect, padding: number): boolean {
+	return (
+		point.x >= rect.left - padding &&
+		point.x <= rect.right + padding &&
+		point.y >= rect.top - padding &&
+		point.y <= rect.bottom + padding
+	);
+}
+
+function doesSegmentIntersectRect(
+	from: NavigationPoint,
+	to: NavigationPoint,
+	rect: NavigationRect,
+	padding: number
+): boolean {
+	const left = rect.left - padding;
+	const right = rect.right + padding;
+	const top = rect.top - padding;
+	const bottom = rect.bottom + padding;
+	const deltaX = to.x - from.x;
+	const deltaY = to.y - from.y;
+	let entry = 0;
+	let exit = 1;
+
+	if (deltaX === 0) {
+		if (from.x < left || from.x > right) return false;
+	} else {
+		const axisEntry = Math.min((left - from.x) / deltaX, (right - from.x) / deltaX);
+		const axisExit = Math.max((left - from.x) / deltaX, (right - from.x) / deltaX);
+		entry = Math.max(entry, axisEntry);
+		exit = Math.min(exit, axisExit);
+	}
+
+	if (deltaY === 0) {
+		if (from.y < top || from.y > bottom) return false;
+	} else {
+		const axisEntry = Math.min((top - from.y) / deltaY, (bottom - from.y) / deltaY);
+		const axisExit = Math.max((top - from.y) / deltaY, (bottom - from.y) / deltaY);
+		entry = Math.max(entry, axisEntry);
+		exit = Math.min(exit, axisExit);
+	}
+
+	return entry <= exit && exit >= 0 && entry <= 1;
+}
+
+function doesSegmentIntersectCircle(
+	from: NavigationPoint,
+	to: NavigationPoint,
+	center: NavigationPoint,
+	radius: number
+): boolean {
+	const segmentX = to.x - from.x;
+	const segmentY = to.y - from.y;
+	const segmentLengthSquared = segmentX * segmentX + segmentY * segmentY;
+	if (segmentLengthSquared === 0) return distanceSquared(from, center) < radius * radius;
+
+	const centerOffsetX = center.x - from.x;
+	const centerOffsetY = center.y - from.y;
+	const closestPointRatio = Math.min(
+		Math.max((centerOffsetX * segmentX + centerOffsetY * segmentY) / segmentLengthSquared, 0),
+		1
+	);
+	const closestPoint = {
+		x: from.x + segmentX * closestPointRatio,
+		y: from.y + segmentY * closestPointRatio
+	};
+	return distanceSquared(closestPoint, center) < radius * radius;
+}
+
+function distanceSquared(first: NavigationPoint, second: NavigationPoint): number {
+	const deltaX = first.x - second.x;
+	const deltaY = first.y - second.y;
+	return deltaX * deltaX + deltaY * deltaY;
+}
+
+function getRectCenter(rect: NavigationRect): NavigationPoint {
+	return {
+		x: (rect.left + rect.right) / 2,
+		y: (rect.top + rect.bottom) / 2
+	};
 }
 
 function validateDimensions(source: NavigationMaskSource): void {
