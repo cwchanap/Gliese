@@ -1872,10 +1872,35 @@ export class WorldScene extends Phaser.Scene {
 				(total, blocker) => total + Math.ceil(Math.max(blocker.width, blocker.height) / 48),
 				0
 			),
+			collisionIds: this.getRuntimeCollisionIds(map),
+			statefulObjectIds: this.getRuntimeStatefulObjectIds(map),
 			selectedFallbackDecorIds: selectedFallbackDecor.map((decor) => decor.id),
 			selectedFallbackFenceIds: selectedFallbackFences.map((fence) => fence.id)
 		});
 		return presentation;
+	}
+
+	private getRuntimeCollisionIds(map: WorldMapDefinition): string[] {
+		return [
+			...(map.blockers ?? []).map(({ id }) => id),
+			...(map.fences ?? []).map(({ id }) => id),
+			...(map.mapDecor ?? []).flatMap(({ collision }) => (collision ? [collision.id] : [])),
+			...(map.interiorProps ?? []).flatMap(({ collision }) => (collision ? [collision.id] : [])),
+			...(map.landmarks ?? []).map(({ id }) => id)
+		].sort();
+	}
+
+	private getRuntimeStatefulObjectIds(map: WorldMapDefinition): string[] {
+		return [
+			...map.transitions.map(({ id }) => id),
+			...(map.pickups ?? []).map(({ id }) => id),
+			...(map.encounters ?? []).map(({ id }) => id),
+			...(map.npcs ?? []).map(({ id }) => id),
+			...(map.landmarks ?? []).map(({ id }) => id),
+			...(map.ambientNpcs ?? []).map(({ id }) => id),
+			...(map.discoveries ?? []).map(({ id }) => id),
+			...(map.combatBounds ?? []).map(({ id }) => id)
+		].sort();
 	}
 
 	/**

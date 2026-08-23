@@ -23,6 +23,8 @@ type BackgroundDiagnostic = {
 	presentationMode: 'painted' | 'fallback';
 	entries: BackgroundDiagnosticEntry[];
 	successfulBackgroundIds: string[];
+	collisionIds: string[];
+	statefulObjectIds: string[];
 	selectedFallbackBlockerIds?: string[];
 	selectedFallbackDecorIds: string[];
 	selectedFallbackFenceIds: string[];
@@ -154,6 +156,21 @@ function assertFallbackDiagnostic(
 	expect(diagnostic.selectedFallbackFenceIds).toEqual(expectedFallback.selectedFallbackFenceIds);
 }
 
+function runtimeIdentity(diagnostic: BackgroundDiagnostic) {
+	return {
+		collisionIds: diagnostic.collisionIds,
+		statefulObjectIds: diagnostic.statefulObjectIds
+	};
+}
+
+function assertRuntimeIdentity(
+	diagnostic: BackgroundDiagnostic,
+	expected: ReturnType<typeof runtimeIdentity>
+) {
+	expect(diagnostic.collisionIds).toEqual(expected.collisionIds);
+	expect(diagnostic.statefulObjectIds).toEqual(expected.statefulObjectIds);
+}
+
 test('complete Meadow review mode selects four backgrounds and keeps the default fallback', async ({
 	page
 }) => {
@@ -183,6 +200,10 @@ test('complete Meadow review mode selects four backgrounds and keeps the default
 	await expect(page.locator('canvas')).toBeVisible();
 	const completeDiagnostic = await waitForMeadowDiagnostic(page);
 	assertCompletePaintedDiagnostic(completeDiagnostic);
+	const completeRuntimeIdentity = runtimeIdentity(completeDiagnostic);
+	expect(completeRuntimeIdentity.collisionIds.length).toBeGreaterThan(0);
+	expect(completeRuntimeIdentity.statefulObjectIds.length).toBeGreaterThan(0);
+	assertRuntimeIdentity(fallbackDiagnostic, completeRuntimeIdentity);
 	await saveCanvas(page, 'complete-review-overview-1920x1080.png');
 
 	// The full-map package owns presentation only. The authored Meadow still has
@@ -218,6 +239,7 @@ test('complete Meadow review mode selects four backgrounds and keeps the default
 	await expect(page.locator('canvas')).toBeVisible();
 	const firstFaultDiagnostic = await waitForMeadowDiagnostic(page);
 	assertFallbackDiagnostic(firstFaultDiagnostic, EXPECTED_FALLBACK_COLLECTIONS);
+	assertRuntimeIdentity(firstFaultDiagnostic, completeRuntimeIdentity);
 	expect(firstFaultDiagnostic.entries).toEqual(
 		expect.arrayContaining([
 			expect.objectContaining({ id: COMPLETE_TEXTURE_IDS[0], status: 'render-failed' })
@@ -233,17 +255,17 @@ test.describe('complete Meadow atomic texture-fault rollback', () => {
 			await page.setViewportSize({ width: 1_920, height: 1_080 });
 			await installCompleteProbes(page);
 
-			await page.goto('/');
+			await page.goto(completeUrl());
 			await expect(page.locator('canvas')).toBeVisible();
-			const baseline = await waitForMeadowDiagnostic(page);
-			expect(baseline.selectedFallbackBlockerIds).toEqual([]);
-			expect(baseline.selectedFallbackDecorIds).toEqual([]);
-			expect(baseline.selectedFallbackFenceIds).toEqual([]);
+			const healthy = await waitForMeadowDiagnostic(page);
+			assertCompletePaintedDiagnostic(healthy);
+			const healthyRuntimeIdentity = runtimeIdentity(healthy);
 
 			await page.goto(completeUrl(`&regionalBackgroundFault=${textureId}:render`));
 			await expect(page.locator('canvas')).toBeVisible();
 			const fault = await waitForMeadowDiagnostic(page);
 			assertFallbackDiagnostic(fault, EXPECTED_FALLBACK_COLLECTIONS);
+			assertRuntimeIdentity(fault, healthyRuntimeIdentity);
 			expect(fault.entries).toEqual(
 				expect.arrayContaining([
 					expect.objectContaining({

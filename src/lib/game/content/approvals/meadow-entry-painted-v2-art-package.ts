@@ -8,7 +8,7 @@ export const meadowEntryPaintedV2ArtPackageApproval = {
 	version: 1,
 	combinedControlFingerprint: 'a9de4332a3c5537f25d80eaeb2fcf1476ee97d76636f084bd9841da8055c96c7',
 	storageMode: 'git-lfs',
-	storageConfigurationSha256: '42455c6bab7889dd99cc194683ccaa6f2a19b0a067aede17fe34faf6282fd1ab',
+	storageConfigurationSha256: '46eb41c75bcc1d058c820f59098df48abccbaea1e081214d106d9d8ca6dd4f40',
 	provenanceSha256: '994dc6eb1643cf346a61933c2c564cfc05e4cb20c91cc818d9903d47c1e6f494',
 	concept: {
 		path: 'artifacts/meadow-entry/painted-v2/concept/meadow-entry-painted-v2-concept.png',

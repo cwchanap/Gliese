@@ -1,6 +1,6 @@
 # Task 7 report: complete Meadow visual, fallback, and repository acceptance
 
-Status: DONE
+Status: DONE — follow-up whole-branch correction complete
 
 ## Scope
 
@@ -128,3 +128,78 @@ Commit message: `test(world): validate complete Meadow art package`
 
 The final commit hash is reported in the coordinator handoff because this report is part of that
 commit and therefore cannot contain its own immutable hash.
+
+## Follow-up whole-branch correction
+
+The final whole-branch review identified four valid blockers. Each was corrected narrowly without
+changing art pixels, geometry, defaults, legacy reviewer/timestamp metadata, or approval decisions.
+
+### Historical approval seal
+
+- Restored the immutable legacy painted-v2 storage seal to
+  `46eb41c75bcc1d058c820f59098df48abccbaea1e081214d106d9d8ca6dd4f40` in both legacy approval
+  records.
+- `tools/approve-meadow-entry-controls.ts` now preserves that value for the legacy package while
+  still validating every required legacy LFS row. The complete package continues to bind the current
+  `.gitattributes` SHA-256 `42455c6bab7889dd99cc194683ccaa6f2a19b0a067aede17fe34faf6282fd1ab`.
+- RED focused regression: 4 files failed / 43 tests when the production checker had no runtime ID
+  fields and the historical finalizer still compared the current full-file digest. GREEN after the
+  correction: 4 files / 264 tests focused ownership suite, including additive-rule preservation and
+  required-row removal/change rejection; historical finalizer: 1 file / 32 tests.
+
+### Route and visual evidence
+
+`bunx playwright test --grep "complete world layout journey"` passed 1/1 in 5.1 minutes. The
+journey now captures these distinct coordinates and filenames:
+
+```text
+band01 {x:2208,y:960}   runtime-source-handoff-band-01-x2208-y960-1920x1080.png
+band02 {x:4192,y:960}   runtime-source-handoff-band-02-x4192-y960-1920x1080.png
+band03 {x:2208,y:1680}  runtime-source-handoff-band-03-x2208-y1680-1920x1080.png
+band04 {x:4192,y:1680}  runtime-source-handoff-band-04-x4192-y1680-1920x1080.png
+band05 {x:1216,y:1536}  runtime-source-handoff-band-05-x1216-y1536-1920x1080.png
+band06 {x:1216,y:3072}  runtime-source-handoff-band-06-x1216-y3072-1920x1080.png
+east   {x:3520,y:3200}  runtime-horizontal-boundary-east-x3520-y3200-1920x1080.png
+```
+
+All seven screenshots were visually inspected at 1920×1080. No overlap, seam, crop boundary,
+false terrain/path/water cue, missing background, or overlay obstacle was found. The seven files
+add 21,981,353 working-tree bytes; all 23 current complete runtime captures total 65,054,466 bytes
+and use the repository Git LFS rule.
+
+### Runtime identity fault matrix
+
+`tests/e2e/meadow-entry-painted-v2-complete.e2e.ts` now captures exact runtime
+`collisionIds` and `statefulObjectIds` from the healthy complete diagnostic through the existing
+diagnostic event seam. Each of the four independent texture faults asserts exact equality for both
+sets, then asserts fallback package/presentation, zero selected/successful complete IDs, the exact
+`render-failed` texture entry, and HUD map restoration.
+
+```text
+bun run test:e2e -- --grep "complete Meadow review mode|restores fallback"
+5 passed (42.7s): review/default fallback plus four independent texture faults
+```
+
+### Formatting and final gates
+
+- Added only the canonical generated complete artifact paths and `.playwright-cli/` to
+  `.prettierignore`; local evidence remains preserved.
+- The complete approval generator now emits Prettier-conformant TypeScript and the complete controls
+  approval was regenerated with reviewer `chanwaichan` at `2026-08-23T08:22:38Z`; its payload values
+  remain unchanged.
+- `bun run lint`: pass.
+- `bun run check`: pass, 0 errors / 0 warnings.
+- `bun run build`: pass; existing large Phaser chunk warning only.
+- Four art validators: pass — legacy package 22 files / 559 tests; legacy controls 11 files /
+  211 tests; complete controls 4 tests; complete package check current (13 tests across the two
+  complete artifact modules).
+- Unit coverage: server project 107 files / 1,673 tests passed; client project 3 files / 71 tests
+  passed. The two image-heavy server cases also pass isolated: pilot export 1/1 in 70.65s and
+  complete assembly 5/5 in 205.87s. The initial all-project aggregate overlapped those cases and
+  hit the existing 120s/300s test timeouts plus a Vitest browser-port collision; no timeout or test
+  was weakened.
+- No native/Tauri, packaged desktop, or physical-device gate was run; that external gate remains
+  pending. The complete package remains review-only and is not production-default.
+
+The complete art-package approval was resealed after the validation report update using the existing
+reviewer/timestamp; only the validation-report SHA-256 changed.

@@ -1,4 +1,3 @@
-import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -33,10 +32,6 @@ const HISTORICAL_STORAGE_CONFIGURATION_SHA256 =
 	'60610b0c2e41561bd3bbbab75d86429859e43c25477628d976a3e3a357a59412';
 const testDirectory = dirname(fileURLToPath(import.meta.url));
 const repositoryRoot = resolve(testDirectory, '../../../..');
-
-function sha256(value: string | Uint8Array): string {
-	return createHash('sha256').update(value).digest('hex');
-}
 
 describe('meadow-entry reviewed control approval', () => {
 	it('keeps the retired V1 approvals separate from current V2 controls', () => {
@@ -78,7 +73,7 @@ describe('meadow-entry reviewed control approval', () => {
 			HISTORICAL_STORAGE_CONFIGURATION_SHA256
 		);
 		expect(meadowEntryPaintedV2ControlsApproval.storageConfigurationSha256).toBe(
-			sha256(storageConfiguration)
+			'46eb41c75bcc1d058c820f59098df48abccbaea1e081214d106d9d8ca6dd4f40'
 		);
 		expect(storageText).toContain(
 			`${MEADOW_ENTRY_PAINTED_V2_ART_STORAGE.sourcePattern} filter=lfs diff=lfs merge=lfs -text`

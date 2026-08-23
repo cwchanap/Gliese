@@ -4,6 +4,7 @@ import { basename, dirname, join, resolve } from 'node:path';
 
 import sharp from 'sharp';
 
+import { getMeadowEntryControlsStorageConfigurationSha256 } from './approve-meadow-entry-controls';
 import { meadowEntryControlsApproval } from '$lib/game/content/approvals/meadow-entry-painted-v2-controls';
 import {
 	MEADOW_ENTRY_MASTER_POLICY,
@@ -243,7 +244,8 @@ async function currentContext(
 		policy: MEADOW_ENTRY_MASTER_POLICY,
 		controlFingerprint: computeMeadowEntryCombinedControlFingerprint(inputs),
 		approvedControlFingerprint: meadowEntryControlsApproval.combinedControlFingerprint,
-		storageConfigurationSha256: sha256(storageConfiguration),
+		storageConfigurationSha256:
+			getMeadowEntryControlsStorageConfigurationSha256(storageConfiguration),
 		approvedStorageConfigurationSha256: meadowEntryControlsApproval.storageConfigurationSha256,
 		predecessor: {
 			basePng,

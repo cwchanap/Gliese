@@ -12,6 +12,14 @@ export const MEADOW_ENTRY_PAINTED_V2_ART_STORAGE = {
 	canaryPath: 'artifacts/meadow-entry/painted-v2/lfs-canary.png'
 } as const;
 
+/**
+ * Immutable seal carried by the reviewed painted-v2 pilot approvals. The
+ * complete package may add LFS rules, but that additive configuration must not
+ * rewrite this historical approval record.
+ */
+export const MEADOW_ENTRY_PAINTED_V2_LEGACY_STORAGE_CONFIGURATION_SHA256 =
+	'46eb41c75bcc1d058c820f59098df48abccbaea1e081214d106d9d8ca6dd4f40' as const;
+
 export function validateMeadowEntryStorageContract(value: typeof MEADOW_ENTRY_ART_STORAGE): void {
 	if (
 		value.mode !== 'git-lfs' ||

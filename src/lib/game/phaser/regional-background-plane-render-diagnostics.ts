@@ -44,6 +44,10 @@ export interface RegionalBackgroundPlaneRenderDiagnostic {
 	selectedFallbackBlockerIds?: readonly string[];
 	/** Sum of Math.ceil(max(blocker.width, blocker.height) / 48) for selected blockers. */
 	selectedFallbackBlockerSegmentCount?: number;
+	/** Exact live collision-source IDs for this map render. */
+	collisionIds?: readonly string[];
+	/** Exact IDs of the authored stateful collections for this map render. */
+	statefulObjectIds?: readonly string[];
 	selectedFallbackDecorIds: string[];
 	selectedFallbackFenceIds: string[];
 }
@@ -63,7 +67,11 @@ export function emitRegionalBackgroundPlaneRenderDiagnostic(
 					...detail,
 					requiredBackgroundIds: [...detail.requiredBackgroundIds],
 					selectedBackgroundIds: [...detail.selectedBackgroundIds],
-					successfulBackgroundIds: [...detail.successfulBackgroundIds].sort()
+					successfulBackgroundIds: [...detail.successfulBackgroundIds].sort(),
+					...(detail.collisionIds ? { collisionIds: [...detail.collisionIds].sort() } : {}),
+					...(detail.statefulObjectIds
+						? { statefulObjectIds: [...detail.statefulObjectIds].sort() }
+						: {})
 				}
 			}
 		)

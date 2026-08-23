@@ -35,6 +35,10 @@ interface ApprovalValues {
 
 interface ApprovalToolApi {
 	validateMeadowEntryApprovalArtifacts?: (snapshot: ApprovalArtifactSnapshot) => void;
+	getMeadowEntryControlsStorageConfigurationSha256?: (
+		storageConfiguration: Uint8Array,
+		packageName?: 'legacy' | 'complete'
+	) => string;
 	publishMeadowEntryControlsApproval?: (
 		contents: string,
 		approvalPath: string,
@@ -58,6 +62,8 @@ ${MEADOW_ENTRY_PAINTED_V2_ART_STORAGE.runtimePattern} filter=lfs diff=lfs merge=
 `;
 const EVIDENCE_PATH =
 	'docs/superpowers/reports/2026-08-12-meadow-entry-painted-camera-safe-controls.md';
+const LEGACY_SEALED_STORAGE_CONFIGURATION_SHA256 =
+	'46eb41c75bcc1d058c820f59098df48abccbaea1e081214d106d9d8ca6dd4f40';
 
 function artifactSnapshot(
 	overrides: Partial<ApprovalArtifactSnapshot> = {}
@@ -158,6 +164,39 @@ describe('meadow-entry approval artifact validation', () => {
 				})
 			)
 		).toThrow(/LF bytes with a final newline/i);
+	});
+
+	it('preserves the legacy storage seal for additive rules while rejecting required-rule drift', async () => {
+		const api = await approvalApi();
+		const getStorageConfigurationSha256 = api.getMeadowEntryControlsStorageConfigurationSha256;
+		expect(getStorageConfigurationSha256).toBeTypeOf('function');
+		if (!getStorageConfigurationSha256) {
+			throw new Error('legacy storage seal helper is missing');
+		}
+
+		const additive = Buffer.from(`${ATTRIBUTES}unrelated/**/*.txt text\n`);
+		expect(getStorageConfigurationSha256(additive, 'legacy')).toBe(
+			LEGACY_SEALED_STORAGE_CONFIGURATION_SHA256
+		);
+		expect(() =>
+			getStorageConfigurationSha256(
+				Buffer.from(
+					`${MEADOW_ENTRY_PAINTED_V2_ART_STORAGE.runtimePattern} filter=lfs diff=lfs merge=lfs -text\n`
+				),
+				'legacy'
+			)
+		).toThrow(/source.*Git LFS configuration/i);
+		expect(() =>
+			getStorageConfigurationSha256(
+				Buffer.from(
+					`${MEADOW_ENTRY_PAINTED_V2_ART_STORAGE.sourcePattern} filter=lfs diff=lfs merge=lfs -text\n${MEADOW_ENTRY_PAINTED_V2_ART_STORAGE.runtimePattern} filter=lfs diff=lfs merge=lfs -text\n`.replace(
+						'filter=lfs',
+						'filter=git-lfs'
+					)
+				),
+				'legacy'
+			)
+		).toThrow(/source.*Git LFS configuration/i);
 	});
 });
 

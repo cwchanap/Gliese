@@ -38,6 +38,7 @@ const COMPLETE_PACKAGE_ID = 'meadow-entry-painted-v2-complete';
 const COMPLETE_BACKGROUND_IDS = MEADOW_ENTRY_PAINTED_V2_COMPLETE_APPROVED_RUNTIME_BACKGROUNDS.map(
 	({ id }) => id
 );
+const ROUTE_POINT_TOLERANCE = 24;
 const RUNTIME_EVIDENCE_ROOT = resolve(
 	'docs/superpowers/reports/img/hpa-586-painted-v2-complete/runtime'
 );
@@ -61,6 +62,118 @@ const CROSSROADS_TO_MISTFEN = [
 	{ x: 2_240, y: 3_648 }
 ] as const;
 const CROSSROADS_TO_SILVERPINE = [{ x: 3_904, y: 2_416 }] as const;
+const NORTHERN_SOURCE_HANDOFF_ROUTES = [
+	{
+		id: 'source-handoff-band-01',
+		northern: true,
+		point: { x: 2_208, y: 960 },
+		bounds: { left: 1_888, top: 0, right: 2_528, bottom: 1_792 },
+		filename: 'runtime-source-handoff-band-01-x2208-y960-1920x1080.png',
+		route: [
+			{ x: 3_904, y: 2_464 },
+			{ x: 2_992, y: 2_464 },
+			{ x: 2_992, y: 2_320 },
+			{ x: 2_208, y: 2_320 },
+			{ x: 2_208, y: 960 }
+		]
+	},
+	{
+		id: 'source-handoff-band-02',
+		northern: true,
+		point: { x: 4_192, y: 960 },
+		bounds: { left: 3_872, top: 0, right: 4_512, bottom: 1_792 },
+		filename: 'runtime-source-handoff-band-02-x4192-y960-1920x1080.png',
+		route: [
+			{ x: 2_368, y: 960 },
+			{ x: 2_368, y: 752 },
+			{ x: 2_752, y: 752 },
+			{ x: 2_752, y: 224 },
+			{ x: 4_192, y: 240 },
+			{ x: 4_192, y: 960 }
+		]
+	},
+	{
+		id: 'source-handoff-band-03',
+		northern: true,
+		point: { x: 2_208, y: 1_680 },
+		bounds: { left: 1_888, top: 1_536, right: 2_528, bottom: 3_328 },
+		filename: 'runtime-source-handoff-band-03-x2208-y1680-1920x1080.png',
+		route: [
+			{ x: 3_728, y: 960 },
+			{ x: 3_728, y: 1_920 },
+			{ x: 3_408, y: 1_920 },
+			{ x: 3_408, y: 2_368 },
+			{ x: 2_208, y: 2_368 },
+			{ x: 2_208, y: 1_680 }
+		]
+	},
+	{
+		id: 'source-handoff-band-04',
+		northern: true,
+		point: { x: 4_192, y: 1_680 },
+		bounds: { left: 3_872, top: 1_536, right: 4_512, bottom: 3_328 },
+		filename: 'runtime-source-handoff-band-04-x4192-y1680-1920x1080.png',
+		route: [
+			{ x: 2_240, y: 1_680 },
+			{ x: 2_240, y: 1_848 },
+			{ x: 2_304, y: 1_848 },
+			{ x: 2_304, y: 1_920 },
+			{ x: 2_560, y: 1_920 },
+			{ x: 2_560, y: 2_080 },
+			{ x: 2_640, y: 2_080 },
+			{ x: 2_688, y: 2_080 },
+			{ x: 2_688, y: 2_224 },
+			{ x: 3_024, y: 2_224 },
+			{ x: 3_024, y: 2_384 },
+			{ x: 4_192, y: 2_384 },
+			{ x: 4_192, y: 1_680 }
+		]
+	},
+	{
+		id: 'source-handoff-band-05',
+		northern: true,
+		point: { x: 1_216, y: 1_536 },
+		bounds: { left: 0, top: 1_408, right: 2_432, bottom: 1_664 },
+		filename: 'runtime-source-handoff-band-05-x1216-y1536-1920x1080.png',
+		route: [
+			{ x: 3_728, y: 1_680 },
+			{ x: 3_728, y: 1_888 },
+			{ x: 3_424, y: 1_888 },
+			{ x: 3_424, y: 2_368 },
+			{ x: 2_800, y: 2_368 },
+			{ x: 2_800, y: 2_848 },
+			{ x: 2_304, y: 2_848 },
+			{ x: 2_304, y: 2_176 },
+			{ x: 1_920, y: 2_176 },
+			{ x: 1_920, y: 2_176 },
+			{ x: 1_904, y: 2_176 },
+			{ x: 1_904, y: 1_936 },
+			{ x: 1_216, y: 1_936 },
+			{ x: 1_216, y: 1_536 }
+		]
+	}
+] as const;
+const SOUTHERN_SOURCE_HANDOFF_ROUTE = {
+	id: 'source-handoff-band-06',
+	point: { x: 1_216, y: 3_072 },
+	bounds: { left: 0, top: 2_944, right: 2_432, bottom: 3_200 },
+	filename: 'runtime-source-handoff-band-06-x1216-y3072-1920x1080.png',
+	route: [
+		{ x: 2_240, y: 3_648 },
+		{ x: 2_240, y: 3_072 },
+		{ x: 1_216, y: 3_072 }
+	]
+} as const;
+const EASTERN_HORIZONTAL_RUNTIME_BOUNDARY = {
+	point: { x: 3_520, y: 3_200 },
+	filename: 'runtime-horizontal-boundary-east-x3520-y3200-1920x1080.png',
+	route: [
+		{ x: 3_888, y: 4_224 },
+		{ x: 3_888, y: 4_096 },
+		{ x: 3_520, y: 4_096 },
+		{ x: 3_520, y: 3_200 }
+	]
+} as const;
 const CROSSROADS_TO_COAST = [
 	{ x: 4_224, y: 4_224 },
 	{ x: 4_224, y: 5_120 }
@@ -204,12 +317,16 @@ async function moveAxis(page: Page, target: Point) {
 	if (!from || current.mapId !== 'meadow-entry') {
 		throw new Error(`Cannot move from an unexpected state: ${JSON.stringify(current)}`);
 	}
-	const horizontal = Math.abs(from.y - target.y) <= 24 && from.x !== target.x;
-	const vertical = Math.abs(from.x - target.x) <= 24 && from.y !== target.y;
+	const horizontal = Math.abs(from.y - target.y) <= ROUTE_POINT_TOLERANCE && from.x !== target.x;
+	const vertical = Math.abs(from.x - target.x) <= ROUTE_POINT_TOLERANCE && from.y !== target.y;
 	if (!horizontal && !vertical) {
 		throw new Error(`Route segment is not axis-aligned: ${JSON.stringify({ from, target })}`);
 	}
-	if (Math.abs(from.x - target.x) <= 24 && Math.abs(from.y - target.y) <= 24) return from;
+	if (
+		Math.abs(from.x - target.x) <= ROUTE_POINT_TOLERANCE &&
+		Math.abs(from.y - target.y) <= ROUTE_POINT_TOLERANCE
+	)
+		return from;
 	const key = horizontal
 		? target.x > from.x
 			? 'ArrowRight'
@@ -224,18 +341,18 @@ async function moveAxis(page: Page, target: Point) {
 	await page.keyboard.down(key);
 	try {
 		await page.waitForFunction(
-			({ expectedPoint, startCount }) => {
+			({ expectedPoint, startCount, tolerance }) => {
 				const diagnostics = (window as JourneyProbeWindow).__completeJourneyMovement ?? [];
 				return diagnostics
 					.slice(startCount)
 					.some(
 						({ mapId, resolvedPosition }) =>
 							mapId === 'meadow-entry' &&
-							Math.abs(resolvedPosition.x - expectedPoint.x) <= 24 &&
-							Math.abs(resolvedPosition.y - expectedPoint.y) <= 24
+							Math.abs(resolvedPosition.x - expectedPoint.x) <= tolerance &&
+							Math.abs(resolvedPosition.y - expectedPoint.y) <= tolerance
 					);
 			},
-			{ expectedPoint: target, startCount: movementStartCount },
+			{ expectedPoint: target, startCount: movementStartCount, tolerance: ROUTE_POINT_TOLERANCE },
 			{ timeout: 30_000 }
 		);
 	} catch (error) {
@@ -250,7 +367,7 @@ async function moveAxis(page: Page, target: Point) {
 		await page.keyboard.up(key);
 	}
 	const settled = await page.evaluate(
-		({ expectedPoint, startCount }) => {
+		({ expectedPoint, startCount, tolerance }) => {
 			const diagnostics = (window as JourneyProbeWindow).__completeJourneyMovement ?? [];
 			return (
 				[...diagnostics.slice(startCount)]
@@ -258,12 +375,12 @@ async function moveAxis(page: Page, target: Point) {
 					.find(
 						({ mapId, resolvedPosition }) =>
 							mapId === 'meadow-entry' &&
-							Math.abs(resolvedPosition.x - expectedPoint.x) <= 24 &&
-							Math.abs(resolvedPosition.y - expectedPoint.y) <= 24
+							Math.abs(resolvedPosition.x - expectedPoint.x) <= tolerance &&
+							Math.abs(resolvedPosition.y - expectedPoint.y) <= tolerance
 					)?.resolvedPosition ?? expectedPoint
 			);
 		},
-		{ expectedPoint: target, startCount: movementStartCount }
+		{ expectedPoint: target, startCount: movementStartCount, tolerance: ROUTE_POINT_TOLERANCE }
 	);
 	return settled;
 }
@@ -282,7 +399,10 @@ async function followPath(page: Page, points: readonly Point[]) {
 		// authored as axis-aligned can carry a tiny residue on the other axis.
 		// Resolve that residue with an existing route axis before taking the
 		// requested segment; never inject a player coordinate.
-		if (Math.abs(position.x - target.x) > 24 && Math.abs(position.y - target.y) > 24) {
+		if (
+			Math.abs(position.x - target.x) > ROUTE_POINT_TOLERANCE &&
+			Math.abs(position.y - target.y) > ROUTE_POINT_TOLERANCE
+		) {
 			await moveAxis(page, { x: position.x, y: target.y });
 		}
 		position = await moveAxis(page, target);
@@ -293,6 +413,27 @@ async function followPath(page: Page, points: readonly Point[]) {
 async function saveCanvas(page: Page, name: string) {
 	mkdirSync(RUNTIME_EVIDENCE_ROOT, { recursive: true });
 	await page.locator('canvas').screenshot({ path: resolve(RUNTIME_EVIDENCE_ROOT, name) });
+}
+
+function assertEvidencePoint(
+	actual: Point,
+	evidence: {
+		point: Point;
+		bounds?: { left: number; top: number; right: number; bottom: number };
+		filename: string;
+		northern?: boolean;
+	}
+) {
+	expect(Math.abs(actual.x - evidence.point.x)).toBeLessThanOrEqual(24);
+	expect(Math.abs(actual.y - evidence.point.y)).toBeLessThanOrEqual(24);
+	if (evidence.bounds) {
+		expect(evidence.point.x).toBeGreaterThanOrEqual(evidence.bounds.left);
+		expect(evidence.point.x).toBeLessThanOrEqual(evidence.bounds.right);
+		expect(evidence.point.y).toBeGreaterThanOrEqual(evidence.bounds.top);
+		expect(evidence.point.y).toBeLessThanOrEqual(evidence.bounds.bottom);
+		if (evidence.northern) expect(evidence.point.y).toBeLessThan(1_792);
+	}
+	expect(evidence.filename).toContain(`x${evidence.point.x}-y${evidence.point.y}`);
 }
 
 async function assertCompletePackage(page: Page) {
@@ -368,6 +509,72 @@ test('complete world layout journey renders approved Meadow art and survives sav
 	]);
 	await saveCanvas(page, 'route-silverpine-1920x1080.png');
 	await saveCanvas(page, 'runtime-quadrant-edge-northeast-1920x1080.png');
+
+	const northernSourceHandoffPoints: Point[] = [];
+	for (const evidence of NORTHERN_SOURCE_HANDOFF_ROUTES) {
+		const capturedPoint = await followPath(page, evidence.route);
+		assertEvidencePoint(capturedPoint, evidence);
+		northernSourceHandoffPoints.push(capturedPoint);
+		await saveCanvas(page, evidence.filename);
+	}
+	expect(new Set(northernSourceHandoffPoints.map(({ x, y }) => `${x},${y}`)).size).toBe(
+		NORTHERN_SOURCE_HANDOFF_ROUTES.length
+	);
+
+	await followPath(page, [
+		{ x: 1_840, y: 1_536 },
+		{ x: 1_840, y: 1_648 },
+		{ x: 2_240, y: 1_648 },
+		{ x: 2_240, y: 1_848 },
+		{ x: 2_304, y: 1_848 },
+		{ x: 2_304, y: 1_920 },
+		{ x: 2_560, y: 1_920 },
+		{ x: 2_560, y: 2_080 },
+		{ x: 2_640, y: 2_080 },
+		{ x: 2_688, y: 2_080 },
+		{ x: 2_688, y: 2_224 },
+		{ x: 3_024, y: 2_224 },
+		{ x: 3_024, y: 2_400 },
+		{ x: 3_904, y: 2_400 },
+		{ x: 3_904, y: 4_224 }
+	]);
+
+	await followPath(page, CROSSROADS_TO_MISTFEN);
+	const southernSourceHandoffPoint = await followPath(page, SOUTHERN_SOURCE_HANDOFF_ROUTE.route);
+	assertEvidencePoint(southernSourceHandoffPoint, SOUTHERN_SOURCE_HANDOFF_ROUTE);
+	await saveCanvas(page, SOUTHERN_SOURCE_HANDOFF_ROUTE.filename);
+	await followPath(page, [
+		{ x: 2_240, y: 3_648 },
+		{ x: 3_888, y: 3_648 },
+		{ x: 3_888, y: 4_096 },
+		{ x: 3_888, y: 4_224 }
+	]);
+	await page.waitForFunction(
+		({ expectedPoint }) => {
+			const movement = [
+				...((window as JourneyProbeWindow).__completeJourneyMovement ?? [])
+			].reverse();
+			const position = movement.find(({ mapId }) => mapId === 'meadow-entry')?.resolvedPosition;
+			return (
+				position !== undefined &&
+				Math.abs(position.x - expectedPoint.x) <= 32 &&
+				Math.abs(position.y - expectedPoint.y) <= 32
+			);
+		},
+		{ expectedPoint: { x: 3_888, y: 4_224 } },
+		{ timeout: 30_000 }
+	);
+
+	const easternBoundaryPoint = await followPath(page, EASTERN_HORIZONTAL_RUNTIME_BOUNDARY.route);
+	assertEvidencePoint(easternBoundaryPoint, EASTERN_HORIZONTAL_RUNTIME_BOUNDARY);
+	expect(easternBoundaryPoint.x).toBeGreaterThan(3_200);
+	await saveCanvas(page, EASTERN_HORIZONTAL_RUNTIME_BOUNDARY.filename);
+	await followPath(page, [
+		{ x: 3_520, y: 4_096 },
+		{ x: 3_888, y: 4_096 },
+		{ x: 3_888, y: 4_224 },
+		{ x: 3_904, y: 4_224 }
+	]);
 
 	await followPath(page, [{ x: 3_904, y: 4_224 }, ...CROSSROADS_TO_COAST]);
 	await saveCanvas(page, 'route-tidewatch-coast-1920x1080.png');

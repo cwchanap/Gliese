@@ -43,6 +43,7 @@ import {
 import { readPublishedMeadowEntryExportSnapshot } from './export-meadow-entry-regions';
 import { readCoherentMeadowEntryArtSourceSnapshot } from './read-meadow-entry-art-source-snapshot';
 import { verifyMeadowEntryArtStorage } from './verify-meadow-entry-art-storage';
+import { getMeadowEntryControlsStorageConfigurationSha256 } from './approve-meadow-entry-controls';
 
 const PACKAGE_ROOT = 'artifacts/meadow-entry/hpa-399';
 const PROOF_ROOT = 'docs/superpowers/reports/img/hpa-399/proofs';
@@ -577,7 +578,10 @@ async function buildApproval(repositoryRoot: string): Promise<MeadowEntryArtPack
 	return {
 		combinedControlFingerprint: currentFingerprint,
 		storageMode: 'git-lfs',
-		storageConfigurationSha256: sha256(storageConfiguration),
+		storageConfigurationSha256: getMeadowEntryControlsStorageConfigurationSha256(
+			storageConfiguration,
+			'legacy'
+		),
 		baseMaster,
 		foregroundMaster,
 		cropManifestSha256: sha256(sourceSnapshot.exports.cropManifestJson),
