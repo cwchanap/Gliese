@@ -61,4 +61,32 @@ describe('regional background plane render diagnostics', () => {
 		expect(received?.selectedFallbackDecorIds).toEqual(['decor-b', 'decor-a']);
 		expect(received?.selectedFallbackFenceIds).toEqual(['fence-a']);
 	});
+
+	it('preserves the complete Meadow painted-mode classification', () => {
+		const target = new EventTarget();
+		let received: RegionalBackgroundPlaneRenderDiagnostic | undefined;
+		target.addEventListener(REGIONAL_BACKGROUND_PLANE_RENDER_DIAGNOSTIC_EVENT, (event) => {
+			received = (event as CustomEvent<RegionalBackgroundPlaneRenderDiagnostic>).detail;
+		});
+
+		emitRegionalBackgroundPlaneRenderDiagnostic(
+			{
+				mapId: 'meadow-entry',
+				regionalBackgroundsEnabled: true,
+				paintedMode: 'complete',
+				packageId: 'meadow-entry-painted-v2-complete',
+				requiredBackgroundIds: ['complete-northwest'],
+				selectedBackgroundIds: ['complete-northwest'],
+				presentationMode: 'painted',
+				entries: [],
+				successfulBackgroundIds: ['complete-northwest'],
+				selectedFallbackBlockerIds: [],
+				selectedFallbackDecorIds: [],
+				selectedFallbackFenceIds: []
+			},
+			target
+		);
+
+		expect(received?.paintedMode).toBe('complete');
+	});
 });

@@ -147,6 +147,7 @@ import {
 } from '$lib/game/phaser/world-render-options';
 import {
 	MEADOW_ENTRY_DEFAULT_PAINTED_MODE,
+	MEADOW_ENTRY_PAINTED_V2_COMPLETE_PACKAGE_ID,
 	MEADOW_ENTRY_PAINTED_V2_LEGACY_PACKAGE_ID,
 	MAP_BACKGROUND_PACKAGE_REGISTRY
 } from '$lib/game/content/backgrounds/meadow-entry-painted-v2-runtime';
@@ -161,6 +162,9 @@ function shouldRenderStaticOverlay(
 	visual: MapBlocker['visual'],
 	packageRender: RegionalBackgroundPackageRender
 ): boolean {
+	if (packageRender.presentationMode === 'painted' && packageRender.coverage === 'full-map') {
+		return false;
+	}
 	if (!packageRender.useOwnership) {
 		return !visual || visual.mode === 'always' || packageRender.presentationMode === 'fallback';
 	}
@@ -1851,10 +1855,12 @@ export class WorldScene extends Phaser.Scene {
 			mapId: map.id,
 			regionalBackgroundsEnabled: this.renderOptions.regionalBackgrounds,
 			paintedMode:
-				definition?.id === MEADOW_ENTRY_PAINTED_V2_LEGACY_PACKAGE_ID ||
-				this.renderOptions.meadowPaintedPilot
-					? 'pilot'
-					: 'fallback',
+				definition?.id === MEADOW_ENTRY_PAINTED_V2_COMPLETE_PACKAGE_ID
+					? 'complete'
+					: definition?.id === MEADOW_ENTRY_PAINTED_V2_LEGACY_PACKAGE_ID ||
+						  this.renderOptions.meadowPaintedPilot
+						? 'pilot'
+						: 'fallback',
 			packageId: presentation.packageId,
 			requiredBackgroundIds: presentation.requiredBackgroundIds,
 			selectedBackgroundIds: presentation.selectedBackgroundIds,

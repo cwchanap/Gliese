@@ -4,8 +4,11 @@ import { describe, expect, it } from 'vitest';
 
 import {
 	MEADOW_ENTRY_DEFAULT_PAINTED_MODE,
+	MEADOW_ENTRY_PAINTED_MODE_COMPLETE,
 	MEADOW_ENTRY_PAINTED_V2_LEGACY_PACKAGE,
 	MEADOW_ENTRY_PAINTED_V2_LEGACY_PACKAGE_ID,
+	MEADOW_ENTRY_PAINTED_V2_COMPLETE_PACKAGE,
+	MEADOW_ENTRY_PAINTED_V2_COMPLETE_PACKAGE_ID,
 	MEADOW_ENTRY_PAINTED_MODE_PRODUCTION,
 	MEADOW_ENTRY_PAINTED_MODE_PILOT,
 	MEADOW_ENTRY_PAINTED_MODE_FALLBACK,
@@ -35,6 +38,45 @@ describe('painted-v2 runtime selection', () => {
 		expect(selection.assets).toHaveLength(2);
 		expect(selection.backgrounds).toHaveLength(2);
 		expect(selection.visualOwners).toHaveLength(13);
+	});
+
+	it('selects the complete package only for its exact generic review id', () => {
+		const selection = resolveMeadowEntryPaintedSelection({
+			regionalBackgrounds: true,
+			meadowPaintedPilot: false,
+			mapBackgroundReviewIds: [MEADOW_ENTRY_PAINTED_V2_COMPLETE_PACKAGE_ID]
+		});
+
+		expect(selection).toEqual(MEADOW_ENTRY_PAINTED_MODE_COMPLETE);
+		expect(selection.mode).toBe('complete');
+		expect(selection.assets).toEqual(MEADOW_ENTRY_PAINTED_V2_COMPLETE_PACKAGE.assets);
+		expect(selection.backgrounds.map(({ id }) => id)).toEqual([
+			'meadow-entry-painted-v2-complete-northwest-base-image',
+			'meadow-entry-painted-v2-complete-northeast-base-image',
+			'meadow-entry-painted-v2-complete-southwest-base-image',
+			'meadow-entry-painted-v2-complete-southeast-base-image'
+		]);
+		expect(selection.visualOwners).toEqual([]);
+	});
+
+	it('does not select the complete package for a near-match review id', () => {
+		expect(
+			resolveMeadowEntryPaintedSelection({
+				regionalBackgrounds: true,
+				meadowPaintedPilot: false,
+				mapBackgroundReviewIds: ['meadow-entry-painted-v2-complete-preview']
+			})
+		).toEqual(MEADOW_ENTRY_PAINTED_MODE_FALLBACK);
+	});
+
+	it('rejects a request that selects both Meadow packages', () => {
+		expect(
+			resolveMeadowEntryPaintedSelection({
+				regionalBackgrounds: true,
+				meadowPaintedPilot: true,
+				mapBackgroundReviewIds: [MEADOW_ENTRY_PAINTED_V2_COMPLETE_PACKAGE_ID]
+			})
+		).toEqual(MEADOW_ENTRY_PAINTED_MODE_FALLBACK);
 	});
 
 	it('keeps generic and legacy resolution byte-equivalent for the historical package', () => {
@@ -150,14 +192,30 @@ describe('painted-v2 runtime selection', () => {
 			backgrounds: [],
 			visualOwners: []
 		});
+		expect(MEADOW_ENTRY_PAINTED_MODE_COMPLETE).toEqual({
+			mode: 'complete',
+			assets: MEADOW_ENTRY_PAINTED_V2_COMPLETE_PACKAGE.assets,
+			backgrounds: MEADOW_ENTRY_PAINTED_V2_COMPLETE_PACKAGE.backgrounds,
+			visualOwners: []
+		});
 		expect(MEADOW_ENTRY_PAINTED_MODE_PILOT.mode).toBe('pilot');
+		expect(MEADOW_ENTRY_PAINTED_MODE_COMPLETE.mode).toBe('complete');
 		expect(Object.isFrozen(MEADOW_ENTRY_PAINTED_MODE_PILOT)).toBe(true);
+		expect(Object.isFrozen(MEADOW_ENTRY_PAINTED_MODE_COMPLETE)).toBe(true);
 		expect(Object.isFrozen(MEADOW_ENTRY_PAINTED_V2_LEGACY_PACKAGE)).toBe(true);
+		expect(Object.isFrozen(MEADOW_ENTRY_PAINTED_V2_COMPLETE_PACKAGE)).toBe(true);
 		expect(Object.isFrozen(MAP_BACKGROUND_PACKAGE_REGISTRY)).toBe(true);
 		expect(Object.isFrozen(MEADOW_ENTRY_PAINTED_MODE_PILOT.assets)).toBe(true);
 		expect(Object.isFrozen(MEADOW_ENTRY_PAINTED_MODE_PILOT.backgrounds)).toBe(true);
 		expect(Object.isFrozen(MEADOW_ENTRY_PAINTED_MODE_PILOT.visualOwners)).toBe(true);
 		expect(Object.isFrozen(MEADOW_ENTRY_PAINTED_MODE_PILOT.backgrounds[0])).toBe(true);
+		expect(Object.isFrozen(MEADOW_ENTRY_PAINTED_MODE_COMPLETE.assets)).toBe(true);
+		expect(Object.isFrozen(MEADOW_ENTRY_PAINTED_MODE_COMPLETE.backgrounds)).toBe(true);
+		expect(Object.isFrozen(MEADOW_ENTRY_PAINTED_MODE_COMPLETE.visualOwners)).toBe(true);
+		expect(MAP_BACKGROUND_PACKAGE_REGISTRY).toEqual([
+			MEADOW_ENTRY_PAINTED_V2_LEGACY_PACKAGE,
+			MEADOW_ENTRY_PAINTED_V2_COMPLETE_PACKAGE
+		]);
 		expect(Object.isFrozen(MEADOW_ENTRY_PAINTED_MODE_PILOT.visualOwners[0])).toBe(true);
 		expect(Object.isFrozen(MEADOW_ENTRY_PAINTED_MODE_PILOT.visualOwners[0]?.ownerCrops)).toBe(true);
 		expect(Object.isFrozen(MEADOW_ENTRY_PAINTED_MODE_PILOT.visualOwners[0]?.ownerCrops[0])).toBe(

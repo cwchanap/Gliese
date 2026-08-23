@@ -1,5 +1,7 @@
 import {
+	MEADOW_ENTRY_PAINTED_V2_COMPLETE_PACKAGE,
 	MEADOW_ENTRY_PAINTED_V2_LEGACY_PACKAGE,
+	MEADOW_ENTRY_PAINTED_MODE_COMPLETE,
 	MEADOW_ENTRY_PAINTED_MODE_PILOT,
 	type MeadowEntryPaintedSelection
 } from '$lib/game/content/backgrounds/meadow-entry-painted-v2-runtime';
@@ -18,6 +20,8 @@ export interface ApplyMeadowEntryPaintedBackgroundOptions {
 function packageForSelection(
 	selection: MeadowEntryPaintedSelection
 ): MapBackgroundPackageDefinition {
+	if (selection === MEADOW_ENTRY_PAINTED_MODE_COMPLETE)
+		return MEADOW_ENTRY_PAINTED_V2_COMPLETE_PACKAGE;
 	if (selection === MEADOW_ENTRY_PAINTED_MODE_PILOT) return MEADOW_ENTRY_PAINTED_V2_LEGACY_PACKAGE;
 	return {
 		id:
@@ -25,7 +29,7 @@ function packageForSelection(
 				? 'meadow-entry-painted-compatibility'
 				: 'meadow-entry-painted-production',
 		mapId: MEADOW_ENTRY_MAP_ID,
-		coverage: 'historical-partial',
+		coverage: selection.mode === 'complete' ? 'full-map' : 'historical-partial',
 		assets: selection.assets,
 		backgrounds: selection.backgrounds,
 		visualOwners: selection.visualOwners

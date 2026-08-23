@@ -13,8 +13,9 @@ import {
 	type GeneratedMeadowEntryBackground,
 	type GeneratedMeadowEntryVisualOwner
 } from './meadow-entry-painted-v2.generated';
+import { MEADOW_ENTRY_PAINTED_V2_COMPLETE_APPROVED_RUNTIME_BACKGROUNDS } from './meadow-entry-painted-v2-complete.generated';
 
-export type MeadowEntryPaintedMode = 'fallback' | 'pilot' | 'production';
+export type MeadowEntryPaintedMode = 'fallback' | 'pilot' | 'complete' | 'production';
 
 export interface MeadowEntryPaintedSelection {
 	readonly mode: MeadowEntryPaintedMode;
@@ -77,6 +78,20 @@ function buildPilotSelection(): MeadowEntryPaintedSelection {
 	});
 }
 
+function buildCompleteSelection(): MeadowEntryPaintedSelection {
+	const backgrounds =
+		MEADOW_ENTRY_PAINTED_V2_COMPLETE_APPROVED_RUNTIME_BACKGROUNDS.map(freezeBackground);
+	const assets = MEADOW_ENTRY_PAINTED_V2_COMPLETE_APPROVED_RUNTIME_BACKGROUNDS.map(
+		({ textureKey: key, path }) => Object.freeze({ key, path })
+	);
+	return Object.freeze({
+		mode: 'complete' as const,
+		assets: Object.freeze(assets),
+		backgrounds: Object.freeze(backgrounds),
+		visualOwners: Object.freeze([])
+	});
+}
+
 export const MEADOW_ENTRY_PAINTED_MODE_FALLBACK: MeadowEntryPaintedSelection = Object.freeze({
 	mode: 'fallback',
 	assets: Object.freeze([]),
@@ -86,7 +101,12 @@ export const MEADOW_ENTRY_PAINTED_MODE_FALLBACK: MeadowEntryPaintedSelection = O
 
 export const MEADOW_ENTRY_PAINTED_MODE_PILOT = buildPilotSelection();
 
+export const MEADOW_ENTRY_PAINTED_MODE_COMPLETE = buildCompleteSelection();
+
 export const MEADOW_ENTRY_PAINTED_V2_LEGACY_PACKAGE_ID = 'meadow-entry-painted-v2-legacy' as const;
+
+export const MEADOW_ENTRY_PAINTED_V2_COMPLETE_PACKAGE_ID =
+	'meadow-entry-painted-v2-complete' as const;
 
 export const MEADOW_ENTRY_PAINTED_V2_LEGACY_PACKAGE = Object.freeze({
 	id: MEADOW_ENTRY_PAINTED_V2_LEGACY_PACKAGE_ID,
@@ -97,9 +117,19 @@ export const MEADOW_ENTRY_PAINTED_V2_LEGACY_PACKAGE = Object.freeze({
 	visualOwners: MEADOW_ENTRY_PAINTED_MODE_PILOT.visualOwners
 }) satisfies MapBackgroundPackageDefinition;
 
-/** The generic registry is intentionally map-keyed even while Meadow is its only entry. */
+export const MEADOW_ENTRY_PAINTED_V2_COMPLETE_PACKAGE = Object.freeze({
+	id: MEADOW_ENTRY_PAINTED_V2_COMPLETE_PACKAGE_ID,
+	mapId: 'meadow-entry',
+	coverage: 'full-map' as const,
+	assets: MEADOW_ENTRY_PAINTED_MODE_COMPLETE.assets,
+	backgrounds: MEADOW_ENTRY_PAINTED_MODE_COMPLETE.backgrounds,
+	visualOwners: MEADOW_ENTRY_PAINTED_MODE_COMPLETE.visualOwners
+}) satisfies MapBackgroundPackageDefinition;
+
+/** The generic registry is intentionally map-keyed while Meadow is its only map entry. */
 export const MAP_BACKGROUND_PACKAGE_REGISTRY = Object.freeze([
-	MEADOW_ENTRY_PAINTED_V2_LEGACY_PACKAGE
+	MEADOW_ENTRY_PAINTED_V2_LEGACY_PACKAGE,
+	MEADOW_ENTRY_PAINTED_V2_COMPLETE_PACKAGE
 ]);
 
 export const MEADOW_ENTRY_PAINTED_MODE_PRODUCTION: MeadowEntryPaintedSelection = Object.freeze({
@@ -113,7 +143,7 @@ export function resolveMeadowEntryPaintedSelection(
 	options: MeadowEntryPaintedSelectionOptions
 ): MeadowEntryPaintedSelection {
 	const reviewPackageIds = options.meadowPaintedPilot
-		? [MEADOW_ENTRY_PAINTED_V2_LEGACY_PACKAGE_ID]
+		? [MEADOW_ENTRY_PAINTED_V2_LEGACY_PACKAGE_ID, ...(options.mapBackgroundReviewIds ?? [])]
 		: (options.mapBackgroundReviewIds ?? []);
 	const defaultSelection =
 		MEADOW_ENTRY_DEFAULT_PAINTED_MODE === 'pilot'
@@ -131,6 +161,9 @@ export function resolveMeadowEntryPaintedSelection(
 	} satisfies ResolveMapBackgroundPackageInput);
 
 	if (!packageSelection.definition) return MEADOW_ENTRY_PAINTED_MODE_FALLBACK;
+	if (packageSelection.definition.id === MEADOW_ENTRY_PAINTED_V2_COMPLETE_PACKAGE_ID) {
+		return MEADOW_ENTRY_PAINTED_MODE_COMPLETE;
+	}
 	if (packageSelection.mode === 'production') return MEADOW_ENTRY_PAINTED_MODE_PRODUCTION;
 	return MEADOW_ENTRY_PAINTED_MODE_PILOT;
 }

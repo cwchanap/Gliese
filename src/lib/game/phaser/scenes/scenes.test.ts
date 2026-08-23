@@ -994,6 +994,42 @@ function installLocationSearch(search: string) {
 	};
 }
 
+const COMPLETE_PAINTED_BACKGROUND_TARGETS = [
+	['northwest', 'meadow-entry-painted-v2-complete-northwest-base-image'] as const,
+	['northeast', 'meadow-entry-painted-v2-complete-northeast-base-image'] as const,
+	['southwest', 'meadow-entry-painted-v2-complete-southwest-base-image'] as const,
+	['southeast', 'meadow-entry-painted-v2-complete-southeast-base-image'] as const
+];
+
+const COMPLETE_PAINTED_FAULT_CASES = [
+	[
+		'missing texture',
+		(key: string) => phaserState.missingTextureKeys.add(key),
+		'missing-texture',
+		false
+	] as const,
+	[
+		'wrong dimensions',
+		(key: string) => {
+			phaserState.regionalBackgroundTextureMocks.get(key)!.source[0] = {
+				width: 1,
+				height: 1
+			};
+		},
+		'invalid-dimensions',
+		false
+	] as const,
+	['injected render failure', () => {}, 'render-failed', true] as const
+];
+
+const COMPLETE_PAINTED_FAULT_MATRIX = COMPLETE_PAINTED_BACKGROUND_TARGETS.flatMap(
+	([targetLabel, targetId]) =>
+		COMPLETE_PAINTED_FAULT_CASES.map(
+			([faultLabel, arrange, status, fault]) =>
+				[targetLabel, targetId, faultLabel, arrange, status, fault] as const
+		)
+);
+
 describe('BootScene', () => {
 	beforeEach(() => {
 		vi.clearAllMocks();
@@ -1122,6 +1158,49 @@ describe('BootScene', () => {
 					regionalBackgroundLoadMs: null
 				}
 			]);
+		} finally {
+			target.restore();
+			restoreLocation();
+		}
+	});
+
+	it('preloads each complete Meadow texture exactly once for the exact review query', async () => {
+		const restoreLocation = installLocationSearch(
+			'?mapBackgroundReview=meadow-entry-painted-v2-complete'
+		);
+		const { MEADOW_ENTRY_PAINTED_MODE_COMPLETE } =
+			await import('$lib/game/content/backgrounds/meadow-entry-painted-v2-runtime');
+		const { REGIONAL_BACKGROUND_RENDERER_DIAGNOSTIC_EVENT } =
+			await import('$lib/game/phaser/renderer-diagnostics');
+		const target = installHudCommandTarget();
+		const diagnostics: RegionalBackgroundRendererDiagnostic[] = [];
+		target.target.addEventListener(REGIONAL_BACKGROUND_RENDERER_DIAGNOSTIC_EVENT, (event) => {
+			diagnostics.push((event as CustomEvent<RegionalBackgroundRendererDiagnostic>).detail);
+		});
+		const { BootScene } = await import('./BootScene');
+		const scene = new BootScene();
+
+		try {
+			scene.preload();
+
+			const regionalCalls = vi
+				.mocked(scene.load.image)
+				.mock.calls.filter(([, path]) => String(path).includes('/game/assets/regions/'));
+			expect(regionalCalls).toEqual(
+				MEADOW_ENTRY_PAINTED_MODE_COMPLETE.assets.map(({ key, path }) => [key, path])
+			);
+			expect(new Set(regionalCalls.map(([key]) => key)).size).toBe(4);
+
+			for (const asset of MEADOW_ENTRY_PAINTED_MODE_COMPLETE.assets) {
+				scene.load.emit('filecomplete', asset.key, 'image', {});
+			}
+			scene.load.emit('complete');
+
+			expect(diagnostics[0]).toMatchObject({
+				packageIds: ['meadow-entry-painted-v2-complete'],
+				requiredAssetKeys: MEADOW_ENTRY_PAINTED_MODE_COMPLETE.assets.map(({ key }) => key).sort(),
+				completedAssetKeys: MEADOW_ENTRY_PAINTED_MODE_COMPLETE.assets.map(({ key }) => key).sort()
+			});
 		} finally {
 			target.restore();
 			restoreLocation();
@@ -3015,6 +3094,19 @@ describe('WorldScene', () => {
 		return MEADOW_ENTRY_PAINTED_MODE_PILOT;
 	}
 
+	async function registerCompletePaintedBackgroundMocks() {
+		const { MEADOW_ENTRY_PAINTED_MODE_COMPLETE } =
+			await import('$lib/game/content/backgrounds/meadow-entry-painted-v2-runtime');
+		for (const background of MEADOW_ENTRY_PAINTED_MODE_COMPLETE.backgrounds) {
+			phaserState.regionalBackgroundTextureMocks.set(background.textureKey, {
+				key: background.textureKey,
+				source: [{ width: background.width, height: background.height }],
+				get: vi.fn(() => ({ cutWidth: background.width, cutHeight: background.height }))
+			});
+		}
+		return MEADOW_ENTRY_PAINTED_MODE_COMPLETE;
+	}
+
 	function findPaintedFallbackMarkers(id: string) {
 		if (id in expectedOrganicBlockerBounds) {
 			const bounds = expectedOrganicBlockerBounds[id as keyof typeof expectedOrganicBlockerBounds];
@@ -3244,7 +3336,7 @@ describe('WorldScene', () => {
 			});
 			expect(twoPlaneBackgroundMarkers()[1]?.setDisplaySize).toHaveBeenCalledWith(640, 320);
 			expect(twoPlaneBackgroundMarkers()[1]?.setDepth).toHaveBeenCalledWith(100.002);
-			expect(twoPlaneBlockerMarkers()).toHaveLength(4);
+			expect(twoPlaneBlockerMarkers()).toHaveLength(0);
 			expect(twoPlaneOwnedDecorMarkers()).toHaveLength(0);
 			expect(twoPlaneOwnedFenceMarkers()).toHaveLength(0);
 			expect(target.diagnostics).toHaveLength(1);
@@ -3299,7 +3391,7 @@ describe('WorldScene', () => {
 
 			expect(twoPlaneBackgroundMarkers()[0]?.setDepth).toHaveBeenCalledWith(-8.999);
 			expect(twoPlaneBackgroundMarkers()[1]?.setDepth).toHaveBeenCalledWith(100.002);
-			expect(twoPlaneBlockerMarkers()).toHaveLength(4);
+			expect(twoPlaneBlockerMarkers()).toHaveLength(0);
 			expect(twoPlaneOwnedDecorMarkers()).toHaveLength(0);
 			expect(twoPlaneOwnedFenceMarkers()).toHaveLength(0);
 			expect(target.diagnostics[0]?.successfulBackgroundIds).toEqual([
@@ -3647,8 +3739,8 @@ describe('WorldScene', () => {
 		try {
 			createSelectedTwoPlaneScene(scene);
 
-			// A full-map package suppresses owned fallback visuals while preserving always-visible visuals and collision geometry.
-			expect(twoPlaneBlockerMarkers()).toHaveLength(4);
+			// A full-map package suppresses every static blocker visual while preserving collision geometry.
+			expect(twoPlaneBlockerMarkers()).toHaveLength(0);
 			expect(phaserState.graphicsMarkers[0]?.commands).toContainEqual({
 				kind: 'fillRect',
 				x: 68,
@@ -3815,6 +3907,122 @@ describe('WorldScene', () => {
 			restoreLocation();
 		}
 	});
+
+	it('renders the complete package with no legacy static presentation overlays', async () => {
+		const restoreLocation = installLocationSearch(
+			'?mapBackgroundReview=meadow-entry-painted-v2-complete'
+		);
+		const target = installPlaneDiagnosticListener();
+		const selection = await registerCompletePaintedBackgroundMocks();
+		const { meadowEntryMap } = await import('$lib/game/content/maps');
+		const { WorldScene } = await import('./WorldScene');
+		const scene = new WorldScene();
+
+		try {
+			scene.create({ mapId: meadowEntryMap.id });
+
+			expect(
+				phaserState.imageMarkers.filter(
+					(marker) =>
+						selection.backgrounds.some(({ textureKey }) => textureKey === marker.texture) &&
+						marker.destroy.mock.calls.length === 0
+				)
+			).toHaveLength(4);
+			expect(scene.make.tilemap).not.toHaveBeenCalled();
+			expect(
+				phaserState.imageMarkers.filter((marker) =>
+					[
+						forestDressingAsset.key,
+						fenceDressingAsset.key,
+						'interior-props',
+						'village-dressing',
+						'village-hedge'
+					].includes(marker.texture)
+				)
+			).toEqual([]);
+			expect(phaserState.tileSpriteMarkers).toEqual([]);
+			expect(phaserState.playerMarker).toMatchObject({
+				x: meadowEntryMap.spawn.x,
+				y: meadowEntryMap.spawn.y
+			});
+			expect(phaserState.enemyMarkers).toHaveLength(3);
+			expect(target.diagnostics[0]).toMatchObject({
+				paintedMode: 'complete',
+				packageId: 'meadow-entry-painted-v2-complete',
+				presentationMode: 'painted',
+				requiredBackgroundIds: selection.backgrounds.map(({ id }) => id),
+				selectedBackgroundIds: selection.backgrounds.map(({ id }) => id),
+				successfulBackgroundIds: selection.backgrounds.map(({ id }) => id).sort(),
+				selectedFallbackBlockerIds: [],
+				selectedFallbackDecorIds: [],
+				selectedFallbackFenceIds: []
+			});
+		} finally {
+			target.restore();
+			restoreLocation();
+		}
+	});
+
+	it.each(COMPLETE_PAINTED_FAULT_MATRIX)(
+		'restores every complete static collection when the %s texture has a %s',
+		async (_targetLabel, targetId, _faultLabel, arrange, status, fault) => {
+			const restoreLocation = installLocationSearch(
+				fault
+					? `?mapBackgroundReview=meadow-entry-painted-v2-complete&regionalBackgroundFault=${targetId}:render`
+					: '?mapBackgroundReview=meadow-entry-painted-v2-complete'
+			);
+			const selection = await registerCompletePaintedBackgroundMocks();
+			const targetTexture = selection.backgrounds.find(({ id }) => id === targetId)!.textureKey;
+			arrange(targetTexture);
+			const target = installPlaneDiagnosticListener();
+			const { meadowEntryMap } = await import('$lib/game/content/maps');
+			const { WorldScene } = await import('./WorldScene');
+			const scene = new WorldScene();
+
+			try {
+				scene.create({ mapId: meadowEntryMap.id });
+
+				expect(
+					phaserState.imageMarkers.filter(
+						(marker) =>
+							selection.backgrounds.some(({ textureKey }) => textureKey === marker.texture) &&
+							marker.destroy.mock.calls.length === 0
+					)
+				).toHaveLength(0);
+				expect(scene.make.tilemap).toHaveBeenCalledOnce();
+				expect(findPaintedFallbackMarkers('village-decor-28-25')).toHaveLength(1);
+				for (const sourceId of expectedOrganicBlockerOwners) {
+					expect(findPaintedFallbackMarkers(sourceId), sourceId).toHaveLength(
+						expectedOrganicBlockerMarkerCount(sourceId)
+					);
+				}
+				expect(phaserState.enemyMarkers).toHaveLength(3);
+				expect(target.diagnostics[0]?.paintedMode).toBe('complete');
+				expect(target.diagnostics[0]?.entries.find(({ id }) => id === targetId)?.status).toBe(
+					status
+				);
+				expect(
+					target.diagnostics[0]?.entries.filter(({ status: entryStatus }) => entryStatus === status)
+				).toHaveLength(1);
+				expect(target.diagnostics[0]).toMatchObject({
+					packageId: null,
+					selectedBackgroundIds: [],
+					presentationMode: 'fallback',
+					successfulBackgroundIds: []
+				});
+				expect(target.diagnostics[0]?.selectedFallbackBlockerIds).toEqual(
+					expect.arrayContaining([...expectedOrganicBlockerOwners])
+				);
+				expect(target.diagnostics[0]?.selectedFallbackDecorIds).toEqual(
+					expect.arrayContaining(['village-decor-28-25'])
+				);
+				expect(target.diagnostics[0]?.selectedFallbackFenceIds.length).toBeGreaterThan(0);
+			} finally {
+				target.restore();
+				restoreLocation();
+			}
+		}
+	);
 
 	it('keeps non-Meadow maps on the registry source while pilot mode is enabled', async () => {
 		registerSceneSupportTestMap();
@@ -4100,7 +4308,7 @@ describe('WorldScene', () => {
 		}
 	);
 
-	it('renders a selected full-map package before its foreground decor', async () => {
+	it('suppresses static foreground decor for a selected full-map package', async () => {
 		registerSceneSupportTestMap();
 		const backgroundTextureKey = 'scene-support-background-texture';
 		phaserState.regionalBackgroundTextureMocks.set(backgroundTextureKey, {
@@ -4149,13 +4357,8 @@ describe('WorldScene', () => {
 		const floorDecorCallIndex = imageCalls.findIndex(
 			([, , texture, frame]) => texture === 'forest-dressing' && frame === 'brush'
 		);
-		const backgroundOrder = vi.mocked(scene.add.image).mock.invocationCallOrder[
-			backgroundCallIndex
-		]!;
-		const floorDecorOrder = vi.mocked(scene.add.image).mock.invocationCallOrder[
-			floorDecorCallIndex
-		]!;
-		expect(backgroundOrder).toBeLessThan(floorDecorOrder);
+		expect(backgroundCallIndex).toBeGreaterThanOrEqual(0);
+		expect(floorDecorCallIndex).toBe(-1);
 		expect(scene.make.tilemap).not.toHaveBeenCalled();
 	});
 

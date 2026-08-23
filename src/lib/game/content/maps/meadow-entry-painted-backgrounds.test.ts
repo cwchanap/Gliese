@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import type { MapVisualOwnership, WorldMapDefinition } from '$lib/game/content/maps/types';
 import {
 	MEADOW_ENTRY_PAINTED_MODE_FALLBACK,
+	MEADOW_ENTRY_PAINTED_MODE_COMPLETE,
 	MEADOW_ENTRY_PAINTED_MODE_PILOT,
 	type MeadowEntryPaintedSelection
 } from '$lib/game/content/backgrounds/meadow-entry-painted-v2-runtime';
@@ -187,6 +188,28 @@ describe('Meadow Entry painted background transform', () => {
 				ownerCrops: ownerRow.ownerCrops
 			});
 		}
+	});
+
+	it('applies the complete full-map descriptors without adding legacy visual ownership', () => {
+		const transformed = applyMeadowEntryPaintedBackgrounds(meadowEntryMap, {
+			selection: MEADOW_ENTRY_PAINTED_MODE_COMPLETE
+		});
+
+		expect(transformed).not.toBe(meadowEntryMap);
+		expect(transformed.backgroundImages).toEqual(MEADOW_ENTRY_PAINTED_MODE_COMPLETE.backgrounds);
+		expect(transformed.backgroundImages).toHaveLength(4);
+		expect(transformed.blockers).toHaveLength(meadowEntryMap.blockers?.length ?? 0);
+		expect(transformed.mapDecor).toHaveLength(meadowEntryMap.mapDecor?.length ?? 0);
+		expect(transformed.fences).toHaveLength(meadowEntryMap.fences?.length ?? 0);
+		expect(transformed.interiorProps ?? []).toHaveLength(meadowEntryMap.interiorProps?.length ?? 0);
+		expect(transformed.blockers?.every(({ visual }) => visual === undefined)).toBe(true);
+		expect(transformed.mapDecor?.every(({ visual }) => visual === undefined)).toBe(true);
+		expect(transformed.fences?.every(({ visual }) => visual === undefined)).toBe(true);
+		expect(transformed.interiorProps?.every(({ visual }) => visual === undefined) ?? true).toBe(
+			true
+		);
+		expect(transformed.spawn).toBe(meadowEntryMap.spawn);
+		expect(transformed.transitions).toBe(meadowEntryMap.transitions);
 	});
 
 	it('keeps authored blocker geometry and collision semantics independent of painted ownership', () => {
