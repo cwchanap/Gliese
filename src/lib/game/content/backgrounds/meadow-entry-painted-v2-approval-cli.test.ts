@@ -1,4 +1,4 @@
-import { readFileSync } from 'node:fs';
+import { createHash } from 'node:crypto';
 import { dirname, join, resolve } from 'node:path';
 import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
@@ -12,6 +12,7 @@ import {
 	parseMeadowEntryArtPackageArguments,
 	type MeadowEntryPaintedV2ArtPackageApproval
 } from '../../../../../tools/approve-meadow-entry-art-package';
+import { MEADOW_ENTRY_PAINTED_V2_ART_STORAGE } from '$lib/game/content/backgrounds/meadow-entry-storage';
 
 const temporaryRoots: string[] = [];
 
@@ -23,26 +24,40 @@ afterEach(async () => {
 });
 
 describe('painted-v2 approval CLI', () => {
-	it('keeps historical and painted-v2 builders on their distinct storage seals', () => {
-		const source = readFileSync(
-			resolve(process.cwd(), 'tools/approve-meadow-entry-art-package.ts'),
-			'utf8'
-		);
-		const historicalBuilder = source.slice(
-			source.indexOf('async function buildApproval('),
-			source.indexOf('async function buildPaintedV2Approval(')
-		);
-		const paintedV2Builder = source.slice(source.indexOf('async function buildPaintedV2Approval('));
+	it('builds distinct historical and painted-v2 storage seals and rejects painted-v2 row drift', async () => {
+		const api = await import('../../../../../tools/approve-meadow-entry-art-package');
+		const getStorageConfigurationSha256 = api.getMeadowEntryArtPackageStorageConfigurationSha256;
+		const getControlsStorageConfigurationSha256 = (
+			await import('../../../../../tools/approve-meadow-entry-controls')
+		).getMeadowEntryControlsStorageConfigurationSha256;
+		expect(getStorageConfigurationSha256).toBeTypeOf('function');
+		if (!getStorageConfigurationSha256) return;
 
-		expect(historicalBuilder).toMatch(
-			/return \{[\s\S]*?storageConfigurationSha256:\s*sha256\(storageConfiguration\),/
+		const currentStorageConfiguration = Buffer.from(
+			await readFile(resolve(process.cwd(), '.gitattributes'))
 		);
-		expect(historicalBuilder).not.toMatch(
-			/storageConfigurationSha256:\s*getMeadowEntryControlsStorageConfigurationSha256/
+		const currentSha256 = createHash('sha256').update(currentStorageConfiguration).digest('hex');
+		expect(getStorageConfigurationSha256(currentStorageConfiguration, 'hpa-399')).toBe(
+			currentSha256
 		);
-		expect(paintedV2Builder).toMatch(
-			/storageConfigurationSha256:\s*getMeadowEntryControlsStorageConfigurationSha256\(\s*storageConfiguration,\s*'legacy'\s*\),/
+		expect(getStorageConfigurationSha256(currentStorageConfiguration, 'painted-v2')).toBe(
+			'46eb41c75bcc1d058c820f59098df48abccbaea1e081214d106d9d8ca6dd4f40'
 		);
+		expect(getControlsStorageConfigurationSha256(currentStorageConfiguration, 'complete')).toBe(
+			currentSha256
+		);
+
+		const runtimeRow = `${MEADOW_ENTRY_PAINTED_V2_ART_STORAGE.runtimePattern} filter=lfs diff=lfs merge=lfs -text`;
+		const sourceRow = `${MEADOW_ENTRY_PAINTED_V2_ART_STORAGE.sourcePattern} filter=lfs diff=lfs merge=lfs -text`;
+		expect(() =>
+			getStorageConfigurationSha256(Buffer.from(`${runtimeRow}\n`), 'painted-v2')
+		).toThrow(/source.*Git LFS configuration/i);
+		expect(() =>
+			getStorageConfigurationSha256(
+				Buffer.from(`${sourceRow.replace('filter=lfs', 'filter=git-lfs')}\n${runtimeRow}\n`),
+				'painted-v2'
+			)
+		).toThrow(/source.*Git LFS configuration/i);
 	});
 
 	it('parses --check without publication metadata', () => {

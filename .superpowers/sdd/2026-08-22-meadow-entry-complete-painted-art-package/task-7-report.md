@@ -4,6 +4,28 @@ Status: DONE — follow-up whole-branch correction complete
 
 ## Scope
 
+## Builder-test quality follow-up
+
+The final review rejected the prior source-regex regression as insufficiently behavioral. It was
+replaced with a real exported pure seam,
+`getMeadowEntryArtPackageStorageConfigurationSha256`, which both HPA-399 and painted-v2 approval
+builders call. The test exercises the seam against the current `.gitattributes`: HPA-399 returns its
+actual full-file SHA-256, painted-v2 returns the immutable
+`46eb41c75bcc1d058c820f59098df48abccbaea1e081214d106d9d8ca6dd4f40` seal, and the complete controls
+helper still returns the current full-file SHA-256. It also passes missing-source and changed-source
+painted-v2 LFS rows through the active helper and asserts both fail closed. No complete builder,
+approval decision, art pixel, geometry, default, reviewer, timestamp, or inherited pilot file was
+changed.
+
+TDD and owning gates for this follow-up:
+
+- RED: 1 test failed because the behavioral seam was not yet exported; 4 existing CLI tests passed.
+- GREEN: focused approval CLI 1 file / 5 tests; four-file approval suite 4 files / 42 tests.
+- `bun run art:validate:meadow-entry-controls`: 11 files / 211 tests passed.
+- `bun run art:validate:meadow-entry`: 22 files / 559 tests passed.
+- Complete approval check, `bun run lint`, `bun run check` (0 errors / 0 warnings), `bun run build`
+  (existing large Phaser chunk warning only), `git diff --check`, and `git lfs fsck --objects` passed.
+
 Task 7 adds review-only browser acceptance for the complete Meadow package, four independent
 texture-fault cases, a complete-world route/save/reload journey, and fresh 1920×1080 runtime
 evidence. It does not change production selection, geometry, authored map data, the approved master,
@@ -210,8 +232,9 @@ The scoped review found one valid regression in the prior correction commit: the
 seal helper had been placed in the retired HPA-399 builder, while the active painted-v2 builder still
 returned the current full-file `.gitattributes` SHA-256. This follow-up corrected only those two
 assignments. The HPA-399 builder again returns `sha256(storageConfiguration)` exactly as it did before
-f791829. The painted-v2 builder now calls
-`getMeadowEntryControlsStorageConfigurationSha256(storageConfiguration, 'legacy')`; that helper
+f791829. The painted-v2 builder now uses
+`getMeadowEntryArtPackageStorageConfigurationSha256(storageConfiguration, 'painted-v2')`, which
+delegates to `getMeadowEntryControlsStorageConfigurationSha256(storageConfiguration, 'legacy')`; that helper
 independently requires exactly one source and runtime painted-v2 LFS row, LF bytes, and a final
 newline, then preserves the immutable `46eb41c75bcc1d058c820f59098df48abccbaea1e081214d106d9d8ca6dd4f40`
 seal. The complete builder remains bound to the current

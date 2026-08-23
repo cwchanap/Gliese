@@ -162,6 +162,15 @@ function sha256(value: Buffer): string {
 	return createHash('sha256').update(value).digest('hex');
 }
 
+export function getMeadowEntryArtPackageStorageConfigurationSha256(
+	storageConfiguration: Uint8Array,
+	packageName: 'hpa-399' | 'painted-v2'
+): string {
+	return packageName === 'painted-v2'
+		? getMeadowEntryControlsStorageConfigurationSha256(storageConfiguration, 'legacy')
+		: sha256(Buffer.from(storageConfiguration));
+}
+
 function assert(condition: unknown, message: string): asserts condition {
 	if (!condition) throw new Error(message);
 }
@@ -578,7 +587,10 @@ async function buildApproval(repositoryRoot: string): Promise<MeadowEntryArtPack
 	return {
 		combinedControlFingerprint: currentFingerprint,
 		storageMode: 'git-lfs',
-		storageConfigurationSha256: sha256(storageConfiguration),
+		storageConfigurationSha256: getMeadowEntryArtPackageStorageConfigurationSha256(
+			storageConfiguration,
+			'hpa-399'
+		),
 		baseMaster,
 		foregroundMaster,
 		cropManifestSha256: sha256(sourceSnapshot.exports.cropManifestJson),
@@ -1011,9 +1023,9 @@ async function buildPaintedV2Approval(
 		version: 1,
 		combinedControlFingerprint: meadowEntryPaintedV2ControlsApproval.combinedControlFingerprint,
 		storageMode: 'git-lfs',
-		storageConfigurationSha256: getMeadowEntryControlsStorageConfigurationSha256(
+		storageConfigurationSha256: getMeadowEntryArtPackageStorageConfigurationSha256(
 			storageConfiguration,
-			'legacy'
+			'painted-v2'
 		),
 		provenanceSha256: sourceInventory.provenanceSha256,
 		concept: sourceInventory.concept,

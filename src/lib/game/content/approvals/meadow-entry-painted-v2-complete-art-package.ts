@@ -30,7 +30,7 @@ export const meadowEntryPaintedV2CompleteArtPackageApproval = {
 	},
 	validationReport: {
 		path: 'docs/superpowers/reports/2026-08-22-meadow-entry-painted-v2-complete-validation.md',
-		sha256: '6c05a3e71d119a82f696f8a660bfd77d979e1592c76d46d3a2b0ef946b25d806'
+		sha256: '489d315df4bf9397e2e0200ed3204dc9b4cd9feab135f9c4048190b25ce946de'
 	},
 	exports: [
 		{
