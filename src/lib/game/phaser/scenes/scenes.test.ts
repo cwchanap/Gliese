@@ -5584,7 +5584,7 @@ describe('WorldScene', () => {
 		expect(phaserState.playerMarker).toMatchObject({ x: 128, y: 64 });
 	});
 
-	it('allows an embedded player to escape an interior prop', async () => {
+	it('blocks entry into and allows an embedded player to escape an interior prop', async () => {
 		const { WorldScene } = await import('./WorldScene');
 		registerSceneCollisionTestMap();
 		maps['scene-collision-test']!.interiorProps = [
@@ -5607,10 +5607,18 @@ describe('WorldScene', () => {
 		const scene = new WorldScene();
 
 		scene.create({ mapId: 'scene-collision-test' });
-		Object.assign(phaserState.playerMarker, { x: 160, y: 64 });
-		phaserState.cursorKeys.left.isDown = true;
+		Object.assign(phaserState.playerMarker, { x: 100, y: 64 });
+		phaserState.cursorKeys.right.isDown = true;
 
 		scene.update(0, 250);
+
+		expect(phaserState.playerMarker).toMatchObject({ x: 100, y: 64 });
+
+		Object.assign(phaserState.playerMarker, { x: 160, y: 64 });
+		phaserState.cursorKeys.right.isDown = false;
+		phaserState.cursorKeys.left.isDown = true;
+
+		scene.update(250, 250);
 
 		expect(phaserState.playerMarker).toMatchObject({ x: 100, y: 64 });
 	});
