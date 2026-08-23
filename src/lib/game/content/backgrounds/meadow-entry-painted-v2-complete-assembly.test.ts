@@ -18,6 +18,7 @@ import {
 	encodeCanonicalMeadowEntryPng,
 	validateCanonicalPngChunks
 } from './meadow-entry-png';
+import { blendMeadowEntryContentAwareHandoff } from './meadow-entry-painted-v2-underlay-assembly';
 
 const PANEL_WIDTH = 2432;
 const PANEL_HEIGHT = 1792;
@@ -46,6 +47,20 @@ async function syntheticPanelPng(index: number): Promise<Buffer> {
 				data[offset + 1] = 226;
 				data[offset + 2] = 112;
 			}
+		}
+	}
+	return encodeCanonicalMeadowEntryPng(data, PANEL_WIDTH, PANEL_HEIGHT);
+}
+
+async function coordinateEncodedPanelPng(row: number): Promise<Buffer> {
+	const data = Buffer.alloc(PANEL_WIDTH * PANEL_HEIGHT * 4);
+	for (let y = 0; y < PANEL_HEIGHT; y += 1) {
+		for (let x = 0; x < PANEL_WIDTH; x += 1) {
+			const offset = (y * PANEL_WIDTH + x) * 4;
+			data[offset] = 32 + row * 41;
+			data[offset + 1] = y & 0xff;
+			data[offset + 2] = 20 + Math.floor(y / 256) * 35;
+			data[offset + 3] = 255;
 		}
 	}
 	return encodeCanonicalMeadowEntryPng(data, PANEL_WIDTH, PANEL_HEIGHT);
@@ -84,6 +99,64 @@ async function validInput(): Promise<MeadowEntryPaintedV2CompleteAssemblyInput> 
 			entries.map(([id, , provenance]) => [id, provenance])
 		) as unknown as Readonly<Record<MeadowEntryPaintedV2CompletePanelId, Buffer>>
 	};
+}
+
+async function coordinateEncodedInput(): Promise<MeadowEntryPaintedV2CompleteAssemblyInput> {
+	const entries = await Promise.all(
+		MEADOW_ENTRY_PAINTED_V2_COMPLETE_SOURCE_PANELS.map(async (panel, index) => {
+			const png = await coordinateEncodedPanelPng(Math.floor(index / 3));
+			return [
+				panel.id,
+				png,
+				Buffer.from(
+					JSON.stringify({
+						packageId: 'meadow-entry-painted-v2-complete',
+						panelId: panel.id,
+						bounds: panel.bounds,
+						controlFingerprint: MEADOW_ENTRY_PAINTED_V2_COMPLETE_CONTROL_FINGERPRINT,
+						normalized: {
+							path: panel.normalizedPath,
+							sha256: sha256(png),
+							bytes: png.byteLength,
+							dimensions: panel.expectedDimensions
+						}
+					})
+				)
+			] as const;
+		})
+	);
+	return {
+		controlFingerprint: MEADOW_ENTRY_PAINTED_V2_COMPLETE_CONTROL_FINGERPRINT,
+		panels: Object.fromEntries(entries.map(([id, png]) => [id, png])) as unknown as Readonly<
+			Record<MeadowEntryPaintedV2CompletePanelId, Buffer>
+		>,
+		provenance: Object.fromEntries(
+			entries.map(([id, , provenance]) => [id, provenance])
+		) as unknown as Readonly<Record<MeadowEntryPaintedV2CompletePanelId, Buffer>>
+	};
+}
+
+function coordinateRegion(
+	row: number,
+	localTop: number
+): {
+	readonly data: Buffer;
+	readonly width: number;
+	readonly height: number;
+} {
+	const height = 256;
+	const data = Buffer.alloc(MEADOW_ENTRY_PAINTED_V2_COMPLETE_MASTER_WIDTH * height * 4);
+	for (let y = 0; y < height; y += 1) {
+		const localY = localTop + y;
+		for (let x = 0; x < MEADOW_ENTRY_PAINTED_V2_COMPLETE_MASTER_WIDTH; x += 1) {
+			const offset = (y * MEADOW_ENTRY_PAINTED_V2_COMPLETE_MASTER_WIDTH + x) * 4;
+			data[offset] = 32 + row * 41;
+			data[offset + 1] = localY & 0xff;
+			data[offset + 2] = 20 + Math.floor(localY / 256) * 35;
+			data[offset + 3] = 255;
+		}
+	}
+	return { data, width: MEADOW_ENTRY_PAINTED_V2_COMPLETE_MASTER_WIDTH, height };
 }
 
 describe('complete Meadow Entry painted-v2 master assembly', () => {
@@ -153,6 +226,30 @@ describe('complete Meadow Entry painted-v2 master assembly', () => {
 			controlFingerprint: MEADOW_ENTRY_PAINTED_V2_COMPLETE_CONTROL_FINGERPRINT,
 			dimensions: { width: 6400, height: 6400 }
 		});
+	}, 300_000);
+
+	it('uses each incoming row local top strip for vertical joins', async () => {
+		const input = await coordinateEncodedInput();
+		const assembled = await assembleMeadowEntryPaintedV2CompleteMaster(input);
+		const decoded = await decodeMeadowEntryRgba(assembled.masterPng);
+		const previousRowOverlap = coordinateRegion(0, 1536);
+		const incomingTopOverlap = coordinateRegion(1, 0);
+		const incomingBottomOverlap = coordinateRegion(1, 1536);
+		const expectedTop = blendMeadowEntryContentAwareHandoff(
+			previousRowOverlap,
+			incomingTopOverlap,
+			'y'
+		).rgba;
+		const expectedBottom = blendMeadowEntryContentAwareHandoff(
+			previousRowOverlap,
+			incomingBottomOverlap,
+			'y'
+		).rgba;
+		const actual = pixel(decoded.data, decoded.width, 100, 1536 + 128);
+		expect(actual).toEqual(pixel(expectedTop.data, expectedTop.width, 100, 128));
+		expect(pixel(expectedTop.data, expectedTop.width, 100, 128)).not.toEqual(
+			pixel(expectedBottom.data, expectedBottom.width, 100, 128)
+		);
 	}, 300_000);
 
 	it('fails closed for missing panels, malformed pixels, stale hashes, and stale controls', async () => {

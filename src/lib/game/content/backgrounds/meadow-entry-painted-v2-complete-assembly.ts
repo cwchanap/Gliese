@@ -333,9 +333,9 @@ function buildMaster(rows: readonly DecodedMeadowEntryRgba[]): DecodedMeadowEntr
 			current,
 			{
 				left: 0,
-				top: current.height - MEADOW_ENTRY_PAINTED_V2_COMPLETE_VERTICAL_OVERLAP_PX,
+				top: 0,
 				right: current.width,
-				bottom: current.height
+				bottom: MEADOW_ENTRY_PAINTED_V2_COMPLETE_VERTICAL_OVERLAP_PX
 			},
 			{ left: 0, top: 0 }
 		);

@@ -94,6 +94,51 @@ describe('complete Meadow Entry source normalization', () => {
 		);
 	});
 
+	it('preserves aspect-sensitive marker geometry with one uniform cover scale', async () => {
+		const repositoryRoot = mkdtempSync(join(tmpdir(), 'gliese-complete-normalize-aspect-'));
+		const inputPath = join(repositoryRoot, 'marker.png');
+		const nativeWidth = 3000;
+		const nativeHeight = 2200;
+		const raw = Buffer.alloc(nativeWidth * nativeHeight * 4, 255);
+		for (let y = 500; y < 900; y += 1) {
+			for (let x = 800; x < 1200; x += 1) {
+				const offset = (y * nativeWidth + x) * 4;
+				raw[offset] = 20;
+				raw[offset + 1] = 40;
+				raw[offset + 2] = 60;
+			}
+		}
+		await sharp(raw, { raw: { width: nativeWidth, height: nativeHeight, channels: 4 } })
+			.png()
+			.toFile(inputPath);
+
+		const result = await normalizeMeadowEntryPaintedV2CompleteSource({
+			panelId: 'north-west',
+			inputPath,
+			repositoryRoot
+		});
+		const normalized = await decodeMeadowEntryRgba(readFileSync(result.normalizedPath));
+		const expected = await sharp(readFileSync(inputPath))
+			.toColourspace('srgb')
+			.ensureAlpha()
+			.resize(2432, 1792, {
+				fit: 'cover',
+				position: 'centre',
+				kernel: sharp.kernel.lanczos3
+			})
+			.raw()
+			.toBuffer();
+
+		expect(normalized.data).toEqual(expected);
+		expect(result.transform.scale).toBe(1792 / nativeHeight);
+		expect(result.transform.crop).toEqual({
+			left: 6,
+			top: 0,
+			width: 2432,
+			height: 1792
+		});
+	});
+
 	it('rejects transparency and any cover scale above 2 before writing outputs', async () => {
 		const repositoryRoot = mkdtempSync(join(tmpdir(), 'gliese-complete-normalize-reject-'));
 		const transparentPath = join(repositoryRoot, 'transparent.png');

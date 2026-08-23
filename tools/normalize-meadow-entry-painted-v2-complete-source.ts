@@ -172,8 +172,11 @@ export async function normalizeMeadowEntryPaintedV2CompleteSource(
 	const { data, info } = await sharp(nativeBytes)
 		.toColourspace('srgb')
 		.ensureAlpha()
-		.resize(scaledWidth, scaledHeight, { fit: 'fill', kernel: sharp.kernel.lanczos3 })
-		.extract(crop)
+		.resize(targetWidth, targetHeight, {
+			fit: 'cover',
+			position: 'centre',
+			kernel: sharp.kernel.lanczos3
+		})
 		.raw()
 		.toBuffer({ resolveWithObject: true });
 	assert(
