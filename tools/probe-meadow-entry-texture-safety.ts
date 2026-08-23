@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto';
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
-import { dirname, resolve } from 'node:path';
+import { dirname, isAbsolute, normalize, resolve, win32 } from 'node:path';
 
 import { chromium } from 'playwright';
 
@@ -11,6 +11,7 @@ import {
 } from '$lib/game/content/backgrounds/meadow-entry-png';
 
 const TEXTURE_PROBE_ROOT = 'artifacts/meadow-entry/painted-v2/proofs/texture-probe';
+const TEXTURE_PROBE_NAMESPACE = 'artifacts/meadow-entry/painted-v2';
 const TEXTURE_PROBE_SOURCE_PATH =
 	'artifacts/meadow-entry/painted-v2/exports/painted-v2-sundrop-village-base.png';
 
@@ -104,7 +105,15 @@ export interface MeadowEntryTextureProbeRepresentative {
 	readonly tiling: 'mirrored';
 }
 
-type TextureProbeCandidate = 'painted-v2-2x2' | 'painted-v2-4x4' | 'painted-v2-camera-safe-pilot';
+export type TextureProbeCandidate =
+	| 'painted-v2-2x2'
+	| 'painted-v2-4x4'
+	| 'painted-v2-camera-safe-pilot';
+
+export interface MeadowEntryTextureProbeArguments {
+	readonly candidate: TextureProbeCandidate | null;
+	readonly reportRoot: string;
+}
 
 const REPRESENTATIVE_METADATA: Readonly<
 	Record<1600 | 3200, MeadowEntryTextureProbeRepresentative>
@@ -565,22 +574,73 @@ export async function runMeadowEntryTextureSafetyProbe(
 	}
 }
 
-function parseCandidateArgument(args: readonly string[]): TextureProbeCandidate | null {
-	if (args.length === 0) return null;
-	if (args.length !== 2 || args[0] !== '--candidate') {
+function parseCandidate(value: string): TextureProbeCandidate {
+	if (
+		value !== 'painted-v2-2x2' &&
+		value !== 'painted-v2-4x4' &&
+		value !== 'painted-v2-camera-safe-pilot'
+	) {
+		throw new Error(`Unknown Meadow Entry texture probe candidate: ${value}`);
+	}
+	return value;
+}
+
+function validateReportRoot(value: string): string {
+	if (value.length === 0 || isAbsolute(value) || win32.isAbsolute(value) || value.includes('\\')) {
 		throw new Error(
-			'Usage: bun tools/probe-meadow-entry-texture-safety.ts [--candidate painted-v2-2x2|painted-v2-4x4|painted-v2-camera-safe-pilot]'
+			`--report-root must be a repository-relative path under ${TEXTURE_PROBE_NAMESPACE}`
 		);
 	}
-	const candidate = args[1];
+	const reportRoot = normalize(value);
 	if (
-		candidate !== 'painted-v2-2x2' &&
-		candidate !== 'painted-v2-4x4' &&
-		candidate !== 'painted-v2-camera-safe-pilot'
+		reportRoot === TEXTURE_PROBE_NAMESPACE ||
+		!reportRoot.startsWith(`${TEXTURE_PROBE_NAMESPACE}/`)
 	) {
-		throw new Error(`Unknown Meadow Entry texture probe candidate: ${candidate}`);
+		throw new Error(
+			`--report-root must be a repository-relative path under ${TEXTURE_PROBE_NAMESPACE}`
+		);
 	}
-	return candidate;
+	return reportRoot;
+}
+
+export function parseMeadowEntryTextureProbeArguments(
+	args: readonly string[]
+): MeadowEntryTextureProbeArguments {
+	let candidate: TextureProbeCandidate | null = null;
+	let reportRoot = TEXTURE_PROBE_ROOT;
+	let reportRootWasProvided = false;
+	for (let index = 0; index < args.length; index += 1) {
+		const argument = args[index];
+		if (argument === '--candidate') {
+			if (candidate !== null || index + 1 >= args.length) {
+				throw new Error(
+					'Usage: bun tools/probe-meadow-entry-texture-safety.ts [--candidate painted-v2-2x2|painted-v2-4x4|painted-v2-camera-safe-pilot] [--report-root path]'
+				);
+			}
+			candidate = parseCandidate(args[++index]);
+			continue;
+		}
+		if (argument === '--report-root') {
+			if (reportRootWasProvided || index + 1 >= args.length) {
+				throw new Error(
+					'Usage: bun tools/probe-meadow-entry-texture-safety.ts [--candidate painted-v2-2x2|painted-v2-4x4|painted-v2-camera-safe-pilot] [--report-root path]'
+				);
+			}
+			reportRootWasProvided = true;
+			reportRoot = validateReportRoot(args[++index]);
+			continue;
+		}
+		throw new Error(
+			'Usage: bun tools/probe-meadow-entry-texture-safety.ts [--candidate painted-v2-2x2|painted-v2-4x4|painted-v2-camera-safe-pilot] [--report-root path]'
+		);
+	}
+
+	if (reportRootWasProvided && reportRoot === TEXTURE_PROBE_ROOT) {
+		throw new Error(
+			'--report-root cannot target the legacy browser-3200 texture probe report directory'
+		);
+	}
+	return { candidate, reportRoot };
 }
 
 function reportFilename(candidate: TextureProbeCandidate): string {
@@ -591,13 +651,13 @@ function reportFilename(candidate: TextureProbeCandidate): string {
 
 if (import.meta.main) {
 	try {
-		const candidate = parseCandidateArgument(process.argv.slice(2));
+		const { candidate, reportRoot } = parseMeadowEntryTextureProbeArguments(process.argv.slice(2));
 		const input = candidate
 			? paintedV2TextureProbeInput(candidate)
 			: paintedV2CleanBaselineTextureSafetyInput;
 		const report = await runMeadowEntryTextureSafetyProbe(input);
 		if (candidate) {
-			const outputPath = resolve(TEXTURE_PROBE_ROOT, reportFilename(candidate));
+			const outputPath = resolve(reportRoot, reportFilename(candidate));
 			await mkdir(dirname(outputPath), { recursive: true });
 			await writeFile(outputPath, `${JSON.stringify(report, null, 2)}\n`);
 		}

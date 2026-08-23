@@ -7,6 +7,7 @@ import { createHash } from 'node:crypto';
 
 import {
 	PAINTED_V2_TEXTURE_PROBE_INPUTS,
+	parseMeadowEntryTextureProbeArguments,
 	paintedV2TextureProbeInput,
 	paintedV2TextureProbeRepresentativePaths,
 	runMeadowEntryTextureSafetyProbe
@@ -278,4 +279,74 @@ test('pins deterministic representative dimensions, hashes, canonical chunks, an
 			assert.equal(decoded.data[offset], 255);
 		}
 	}
+});
+
+test('parses the complete report root as a repository-relative path under painted-v2', () => {
+	assert.deepEqual(
+		parseMeadowEntryTextureProbeArguments([
+			'--candidate',
+			'painted-v2-2x2',
+			'--report-root',
+			'artifacts/meadow-entry/painted-v2/complete/proofs/texture-probe'
+		]),
+		{
+			candidate: 'painted-v2-2x2',
+			reportRoot: 'artifacts/meadow-entry/painted-v2/complete/proofs/texture-probe'
+		}
+	);
+});
+
+test('rejects report roots that are absolute or escape the painted-v2 namespace', () => {
+	for (const reportRoot of [
+		'/tmp/meadow-entry-texture-probe',
+		'artifacts/meadow-entry/painted-v2/../../outside',
+		'artifacts/meadow-entry/other-package/proofs/texture-probe',
+		'artifacts/meadow-entry/painted-v2-complete/proofs/texture-probe'
+	]) {
+		assert.throws(
+			() =>
+				parseMeadowEntryTextureProbeArguments([
+					'--candidate',
+					'painted-v2-2x2',
+					'--report-root',
+					reportRoot
+				]),
+			/--report-root|painted-v2|repository-relative/i,
+			reportRoot
+		);
+	}
+});
+
+test('rejects an explicit legacy report root so browser-3200 cannot be overwritten by an override', () => {
+	assert.throws(
+		() =>
+			parseMeadowEntryTextureProbeArguments([
+				'--candidate',
+				'painted-v2-2x2',
+				'--report-root',
+				'artifacts/meadow-entry/painted-v2/proofs/texture-probe'
+			]),
+		/legacy.*browser-3200/i
+	);
+});
+
+test('does not select the legacy browser-3200 report when a complete report root is supplied', () => {
+	const parsed = parseMeadowEntryTextureProbeArguments([
+		'--candidate',
+		'painted-v2-2x2',
+		'--report-root',
+		'artifacts/meadow-entry/painted-v2/complete/proofs/texture-probe'
+	]);
+	assert.notEqual(parsed.reportRoot, 'artifacts/meadow-entry/painted-v2/proofs/texture-probe');
+	assert.notEqual(
+		`${parsed.reportRoot}/browser-3200.json`,
+		'artifacts/meadow-entry/painted-v2/proofs/texture-probe/browser-3200.json'
+	);
+});
+
+test('preserves the legacy destination when no report-root override is supplied', () => {
+	assert.deepEqual(parseMeadowEntryTextureProbeArguments(['--candidate', 'painted-v2-2x2']), {
+		candidate: 'painted-v2-2x2',
+		reportRoot: 'artifacts/meadow-entry/painted-v2/proofs/texture-probe'
+	});
 });
