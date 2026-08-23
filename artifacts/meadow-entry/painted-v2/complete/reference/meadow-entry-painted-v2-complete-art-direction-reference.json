@@ -1,0 +1,185 @@
+{
+	"packageId": "meadow-entry-painted-v2-complete",
+	"referenceId": "meadow-entry-painted-v2-complete-art-direction-reference",
+	"status": "approved",
+	"approval": {
+		"reviewer": "chanwaichan",
+		"approvedAtUtc": "2026-08-23T04:34:50Z",
+		"decision": "approved",
+		"scope": "shared art-direction reference only; production panels remain Task 4"
+	},
+	"prompt": "Top-down 2D JRPG environment painting, cohesive SNES-era shapes with modern painterly detail.\nLush asymmetric forest clusters, varied tree silhouettes, soft mountain and cliff landforms,\ncontinuous clear river water and natural banks, flower and grass clusters, warm Sundrop meadow,\ncooler Wildwood and Silverpine vegetation, damp Mistfen atmosphere, coastal stone and sand.\nReadable roads and crossings through value separation and negative space. Natural composition,\nno rectangular obstacle strips, no repeated stamps, no tile grid, no text, no UI, no characters,\nno buildings, no doors, no signs, no chests, no pickups, no checkerboard, no matte border.",
+	"referenceInventory": [
+		{
+			"id": "accepted-organic-master",
+			"role": "accepted organic Meadow master",
+			"path": "/Users/chanwaichan/workspace/Gliese/.worktrees/hpa-586-interior-graybox/docs/superpowers/reports/img/hpa-586-painted-v2-organic-scenery/world-canonical-v2/masters/meadow-entry-painted-v2-pilot-base-master.png",
+			"provenancePath": "/Users/chanwaichan/workspace/Gliese/.worktrees/hpa-586-interior-graybox/docs/superpowers/reports/img/hpa-586-painted-v2-organic-scenery/world-canonical-v2/evidence-manifest.json",
+			"provenanceKey": "masters/meadow-entry-painted-v2-pilot-base-master.png",
+			"sha256": "05dc5d3db4e26b69b1e5de79b5b8cb526eeb9709db67cce443522f1b1e3975da",
+			"bytes": 54011491,
+			"dimensions": {
+				"width": 6400,
+				"height": 6400
+			}
+		},
+		{
+			"id": "organic-scenery-overview",
+			"role": "clean organic scenery overview reference",
+			"path": "/Users/chanwaichan/workspace/Gliese/.worktrees/hpa-586-interior-graybox/docs/superpowers/reports/img/hpa-586-painted-v2-organic-scenery/world-canonical-v2/organic-scenery-overview.png",
+			"provenancePath": "/Users/chanwaichan/workspace/Gliese/.worktrees/hpa-586-painted-v2-organic-scenery/world-canonical-v2/evidence-manifest.json",
+			"provenanceKey": "organic-scenery-overview.png",
+			"sha256": "524e8ee00899a52f74583a79d789cf7100927ad1e11f3e436155ba7c8b629c07",
+			"bytes": 3599785,
+			"dimensions": {
+				"width": 1600,
+				"height": 1600
+			}
+		},
+		{
+			"id": "forest-overview",
+			"role": "clean forest overview reference",
+			"path": "/Users/chanwaichan/workspace/Gliese/.worktrees/hpa-586-interior-graybox/docs/superpowers/reports/img/hpa-586-painted-v2-organic-scenery/world-canonical-v2/forest-overview.png",
+			"provenancePath": "/Users/chanwaichan/workspace/Gliese/.worktrees/hpa-586-painted-v2-organic-scenery/world-canonical-v2/evidence-manifest.json",
+			"provenanceKey": "forest-overview.png",
+			"sha256": "524e8ee00899a52f74583a79d789cf7100927ad1e11f3e436155ba7c8b629c07",
+			"bytes": 3599785,
+			"dimensions": {
+				"width": 1600,
+				"height": 1600
+			}
+		},
+		{
+			"id": "detail-sundrop-center",
+			"role": "clean native Sundrop detail crop",
+			"path": "/Users/chanwaichan/workspace/Gliese/.worktrees/hpa-586-interior-graybox/docs/superpowers/reports/img/hpa-586-painted-v2-organic-scenery/world-canonical-v2/detail-sundrop-center.png",
+			"provenancePath": "/Users/chanwaichan/workspace/Gliese/.worktrees/hpa-586-painted-v2-organic-scenery/world-canonical-v2/evidence-manifest.json",
+			"provenanceKey": "detail-sundrop-center.png",
+			"sha256": "569174016fd7ec08ee17e872e182fc46bcadc4bd3c2acc108522fba813b344ba",
+			"bytes": 212296,
+			"dimensions": {
+				"width": 576,
+				"height": 128
+			}
+		},
+		{
+			"id": "detail-connector-crossroads-middle",
+			"role": "clean native crossroads connector detail crop",
+			"path": "/Users/chanwaichan/workspace/Gliese/.worktrees/hpa-586-interior-graybox/docs/superpowers/reports/img/hpa-586-painted-v2-organic-scenery/world-canonical-v2/detail-connector-crossroads-middle.png",
+			"provenancePath": "/Users/chanwaichan/workspace/Gliese/.worktrees/hpa-586-painted-v2-organic-scenery/world-canonical-v2/evidence-manifest.json",
+			"provenanceKey": "detail-connector-crossroads-middle.png",
+			"sha256": "0b862a3d12e1bfa3ef830133beb85ca960fb34e4bb13540ffd3b0b6d0cbfd028",
+			"bytes": 209158,
+			"dimensions": {
+				"width": 256,
+				"height": 288
+			}
+		},
+		{
+			"id": "native-panel-sundrop-north",
+			"role": "clean native panel used by the first blocked request",
+			"path": "/Users/chanwaichan/workspace/Gliese/.worktrees/hpa-586-interior-graybox/docs/superpowers/reports/img/hpa-586-painted-v2-organic-scenery/world-canonical-v2/panel-sundrop-north-original.png",
+			"provenancePath": "/Users/chanwaichan/workspace/Gliese/.worktrees/hpa-586-painted-v2-organic-scenery/world-canonical-v2/evidence-manifest.json",
+			"provenanceKey": "panel-sundrop-north-original.png",
+			"sha256": "48ea9abcb7afe69aa3b35ecae3a46e5cb850ad68527a5c172f7a08ba18153df2",
+			"bytes": 7869681,
+			"dimensions": {
+				"width": 2624,
+				"height": 1088
+			}
+		},
+		{
+			"id": "native-panel-sundrop-south",
+			"role": "clean native panel used by the first blocked request",
+			"path": "/Users/chanwaichan/workspace/Gliese/.worktrees/hpa-586-interior-graybox/docs/superpowers/reports/img/hpa-586-painted-v2-organic-scenery/world-canonical-v2/panel-sundrop-south-original.png",
+			"provenancePath": "/Users/chanwaichan/workspace/Gliese/.worktrees/hpa-586-painted-v2-organic-scenery/world-canonical-v2/evidence-manifest.json",
+			"provenanceKey": "panel-sundrop-south-original.png",
+			"sha256": "711a0794348fb32f11f81b7e567b1baf8c337e259315141edc8f83a4503146cd",
+			"bytes": 8121531,
+			"dimensions": {
+				"width": 2624,
+				"height": 1216
+			}
+		},
+		{
+			"id": "native-panel-crossroads",
+			"role": "clean native panel used by the first blocked request",
+			"path": "/Users/chanwaichan/workspace/Gliese/.worktrees/hpa-586-interior-graybox/docs/superpowers/reports/img/hpa-586-painted-v2-organic-scenery/world-canonical-v2/panel-crossroads-original.png",
+			"provenancePath": "/Users/chanwaichan/workspace/Gliese/.worktrees/hpa-586-painted-v2-organic-scenery/world-canonical-v2/evidence-manifest.json",
+			"provenanceKey": "panel-crossroads-original.png",
+			"sha256": "b67f13a410d953909f2400c6689e5dc418bcd4968a4cbe0a1cf81a5d74d82f30",
+			"bytes": 9121902,
+			"dimensions": {
+				"width": 1728,
+				"height": 1952
+			}
+		},
+		{
+			"id": "native-panel-village-crossroads-connector",
+			"role": "clean native panel used by the first blocked request",
+			"path": "/Users/chanwaichan/workspace/Gliese/.worktrees/hpa-586-interior-graybox/docs/superpowers/reports/img/hpa-586-painted-v2-organic-scenery/world-canonical-v2/panel-village-crossroads-connector-original.png",
+			"provenancePath": "/Users/chanwaichan/workspace/Gliese/.worktrees/hpa-586-painted-v2-organic-scenery/world-canonical-v2/evidence-manifest.json",
+			"provenanceKey": "panel-village-crossroads-connector-original.png",
+			"sha256": "a610b473160a6289355bb8f36b8ef07104ec1b24546bc82a015d04d78dbb30b7",
+			"bytes": 942976,
+			"dimensions": {
+				"width": 800,
+				"height": 416
+			}
+		}
+	],
+	"attempts": [
+		{
+			"number": 1,
+			"status": "moderation_blocked",
+			"referenceIds": [
+				"accepted-organic-master",
+				"native-panel-sundrop-north",
+				"native-panel-sundrop-south",
+				"native-panel-crossroads",
+				"native-panel-village-crossroads-connector"
+			],
+			"artifact": null
+		},
+		{
+			"number": 2,
+			"status": "not_generated",
+			"reason": "One supplied reference path was invalid before an image artifact was produced.",
+			"referenceIds": [],
+			"artifact": null
+		},
+		{
+			"number": 3,
+			"status": "moderation_blocked",
+			"referenceIds": [
+				"accepted-organic-master",
+				"native-panel-sundrop-north",
+				"native-panel-sundrop-south"
+			],
+			"artifact": null
+		},
+		{
+			"number": 4,
+			"status": "generated",
+			"referenceIds": [
+				"organic-scenery-overview",
+				"forest-overview",
+				"detail-sundrop-center",
+				"detail-connector-crossroads-middle"
+			],
+			"artifact": "meadow-entry-painted-v2-complete-art-direction-reference.png"
+		}
+	],
+	"generated": {
+		"packagePath": "artifacts/meadow-entry/painted-v2/complete/reference/meadow-entry-painted-v2-complete-art-direction-reference.png",
+		"absolutePreviewPath": "/Users/chanwaichan/.codex/generated_images/01a02ca0-03c1-7743-aa8a-584edaa0281e/exec-696f122c-3e94-421d-9e7e-ec737cddbc52.png",
+		"sha256": "86993942eed3fdf9c43a740126dbef1c1ed248d46aa46a43b189a0a1c1360a42",
+		"bytes": 3058598,
+		"dimensions": {
+			"width": 1183,
+			"height": 1330
+		},
+		"format": "PNG RGB",
+		"imagegenAttempt": 4
+	}
+}

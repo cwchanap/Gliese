@@ -1,0 +1,437 @@
+import { createHash } from 'node:crypto';
+
+import type { PixelBounds } from './meadow-entry-authoring-types';
+import {
+	MEADOW_ENTRY_PAINTED_V2_COMPLETE_HORIZONTAL_OVERLAP_PX,
+	MEADOW_ENTRY_PAINTED_V2_COMPLETE_MASTER_HEIGHT,
+	MEADOW_ENTRY_PAINTED_V2_COMPLETE_MASTER_WIDTH,
+	MEADOW_ENTRY_PAINTED_V2_COMPLETE_PANEL_HEIGHT,
+	MEADOW_ENTRY_PAINTED_V2_COMPLETE_VERTICAL_OVERLAP_PX,
+	MEADOW_ENTRY_PAINTED_V2_COMPLETE_SOURCE_PANELS,
+	type MeadowEntryPaintedV2CompletePanelId,
+	type MeadowEntryPaintedV2CompleteSourcePanel
+} from './meadow-entry-painted-v2-complete';
+import {
+	blendMeadowEntryContentAwareHandoff,
+	MEADOW_ENTRY_PAINTED_V2_HANDOFF_MAX_HALF_WIDTH_PX
+} from './meadow-entry-painted-v2-underlay-assembly';
+import {
+	decodeMeadowEntryRgba,
+	encodeCanonicalMeadowEntryPng,
+	validateCanonicalPngChunks,
+	type DecodedMeadowEntryRgba
+} from './meadow-entry-png';
+import { MEADOW_ENTRY_COMBINED_CONTROL_FINGERPRINT } from '../generated/meadow-entry-painted-v2-complete-art-control';
+
+const SHA256 = /^[a-f0-9]{64}$/;
+const COMPLETE_PACKAGE_ID = 'meadow-entry-painted-v2-complete';
+
+export const MEADOW_ENTRY_PAINTED_V2_COMPLETE_CONTROL_FINGERPRINT =
+	MEADOW_ENTRY_COMBINED_CONTROL_FINGERPRINT;
+export const MEADOW_ENTRY_PAINTED_V2_COMPLETE_HANDOFF_MAX_HALF_WIDTH_PX =
+	MEADOW_ENTRY_PAINTED_V2_HANDOFF_MAX_HALF_WIDTH_PX;
+
+export interface MeadowEntryPaintedV2CompleteAssemblyInput {
+	readonly controlFingerprint: string;
+	readonly panels: Readonly<Record<MeadowEntryPaintedV2CompletePanelId, Buffer>>;
+	readonly provenance: Readonly<Record<MeadowEntryPaintedV2CompletePanelId, Buffer>>;
+}
+
+interface DecodedCompletePanel {
+	readonly spec: MeadowEntryPaintedV2CompleteSourcePanel;
+	readonly png: Buffer;
+	readonly rgba: DecodedMeadowEntryRgba;
+	readonly provenance: CompletePanelProvenance;
+}
+
+interface CompletePanelProvenance {
+	readonly packageId: string;
+	readonly panelId: string;
+	readonly bounds: PixelBounds;
+	readonly controlFingerprint: string;
+	readonly normalized: {
+		readonly path: string;
+		readonly sha256: string;
+		readonly bytes: number;
+		readonly dimensions: { readonly width: number; readonly height: number };
+	};
+}
+
+function assert(condition: unknown, message: string): asserts condition {
+	if (!condition) throw new Error(message);
+}
+
+function sha256(value: Buffer): string {
+	return createHash('sha256').update(value).digest('hex');
+}
+
+function isPlainObject(value: unknown): value is Record<string, unknown> {
+	return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function stableValue(value: unknown): unknown {
+	if (Array.isArray(value)) return value.map(stableValue);
+	if (!isPlainObject(value)) return value;
+	return Object.fromEntries(
+		Object.keys(value)
+			.sort()
+			.map((key) => [key, stableValue(value[key])])
+	);
+}
+
+function stableJson(value: unknown): Buffer {
+	return Buffer.from(`${JSON.stringify(stableValue(value), null, '\t')}\n`);
+}
+
+function boundsEqual(first: PixelBounds, second: PixelBounds): boolean {
+	return (
+		first.left === second.left &&
+		first.top === second.top &&
+		first.right === second.right &&
+		first.bottom === second.bottom
+	);
+}
+
+function boundsWidth(bounds: PixelBounds): number {
+	return bounds.right - bounds.left;
+}
+
+function boundsHeight(bounds: PixelBounds): number {
+	return bounds.bottom - bounds.top;
+}
+
+function assertExactRecordKeys(
+	actual: Readonly<Record<string, unknown>>,
+	label: string,
+	expectedIds: readonly string[]
+): void {
+	const expected = [...expectedIds].sort();
+	const received = Object.keys(actual).sort();
+	assert(
+		JSON.stringify(received) === JSON.stringify(expected),
+		`Meadow Entry complete ${label} keys do not match the declared panel catalog`
+	);
+}
+
+function objectProperty(value: unknown, property: string, label: string): Record<string, unknown> {
+	assert(isPlainObject(value), `Meadow Entry complete ${label} must be an object`);
+	const result = value[property];
+	assert(isPlainObject(result), `Meadow Entry complete ${label}.${property} must be an object`);
+	return result;
+}
+
+function stringProperty(value: Record<string, unknown>, property: string, label: string): string {
+	const result = value[property];
+	assert(typeof result === 'string', `Meadow Entry complete ${label}.${property} is required`);
+	return result;
+}
+
+function integerProperty(value: Record<string, unknown>, property: string, label: string): number {
+	const result = value[property];
+	assert(Number.isInteger(result), `Meadow Entry complete ${label}.${property} must be an integer`);
+	return result as number;
+}
+
+function parsePanelProvenance(
+	bytes: Buffer,
+	spec: MeadowEntryPaintedV2CompleteSourcePanel
+): CompletePanelProvenance {
+	let parsed: unknown;
+	try {
+		parsed = JSON.parse(bytes.toString('utf8')) as unknown;
+	} catch {
+		throw new Error(`Meadow Entry complete panel ${spec.id} provenance is not valid JSON`);
+	}
+	assert(isPlainObject(parsed), `Meadow Entry complete panel ${spec.id} provenance is invalid`);
+	const record = parsed;
+	assert(
+		stringProperty(record, 'packageId', `panel ${spec.id}`) === COMPLETE_PACKAGE_ID,
+		`Meadow Entry complete panel ${spec.id} provenance package is stale`
+	);
+	const panelId = stringProperty(record, 'panelId', `panel ${spec.id}`);
+	assert(panelId === spec.id, `Meadow Entry complete panel ${spec.id} provenance id is stale`);
+	const bounds = objectProperty(record, 'bounds', `panel ${spec.id}`);
+	const parsedBounds = {
+		left: integerProperty(bounds, 'left', `panel ${spec.id} bounds`),
+		top: integerProperty(bounds, 'top', `panel ${spec.id} bounds`),
+		right: integerProperty(bounds, 'right', `panel ${spec.id} bounds`),
+		bottom: integerProperty(bounds, 'bottom', `panel ${spec.id} bounds`)
+	};
+	assert(
+		boundsEqual(parsedBounds, spec.bounds),
+		`Meadow Entry complete panel ${spec.id} provenance bounds are stale`
+	);
+	const controlFingerprint = stringProperty(record, 'controlFingerprint', `panel ${spec.id}`);
+	assert(
+		controlFingerprint === MEADOW_ENTRY_PAINTED_V2_COMPLETE_CONTROL_FINGERPRINT,
+		`Meadow Entry complete panel ${spec.id} control fingerprint is stale`
+	);
+	const normalized = objectProperty(record, 'normalized', `panel ${spec.id}`);
+	const normalizedPath = stringProperty(normalized, 'path', `panel ${spec.id} normalized`);
+	assert(
+		normalizedPath === spec.normalizedPath,
+		`Meadow Entry complete panel ${spec.id} normalized path is stale`
+	);
+	const normalizedSha256 = stringProperty(normalized, 'sha256', `panel ${spec.id} normalized`);
+	assert(
+		SHA256.test(normalizedSha256),
+		`Meadow Entry complete panel ${spec.id} normalized hash is invalid`
+	);
+	const dimensions = objectProperty(normalized, 'dimensions', `panel ${spec.id} normalized`);
+	const normalizedDimensions = {
+		width: integerProperty(dimensions, 'width', `panel ${spec.id} normalized dimensions`),
+		height: integerProperty(dimensions, 'height', `panel ${spec.id} normalized dimensions`)
+	};
+	assert(
+		normalizedDimensions.width === spec.expectedDimensions.width &&
+			normalizedDimensions.height === spec.expectedDimensions.height,
+		`Meadow Entry complete panel ${spec.id} normalized dimensions are stale`
+	);
+	const normalizedBytes = integerProperty(normalized, 'bytes', `panel ${spec.id} normalized`);
+	assert(
+		normalizedBytes > 0,
+		`Meadow Entry complete panel ${spec.id} normalized byte count is invalid`
+	);
+	return {
+		packageId: COMPLETE_PACKAGE_ID,
+		panelId,
+		bounds: parsedBounds,
+		controlFingerprint,
+		normalized: {
+			path: normalizedPath,
+			sha256: normalizedSha256,
+			bytes: normalizedBytes,
+			dimensions: normalizedDimensions
+		}
+	};
+}
+
+function assertOpaque(decoded: DecodedMeadowEntryRgba, label: string): void {
+	assert(
+		decoded.data.byteLength === decoded.width * decoded.height * 4,
+		`Meadow Entry complete ${label} RGBA dimensions are invalid`
+	);
+	for (let offset = 3; offset < decoded.data.length; offset += 4) {
+		assert(decoded.data[offset] === 255, `Meadow Entry complete ${label} is not opaque`);
+	}
+}
+
+function extractRegion(
+	decoded: DecodedMeadowEntryRgba,
+	bounds: PixelBounds,
+	origin: { readonly left: number; readonly top: number }
+): DecodedMeadowEntryRgba {
+	const width = boundsWidth(bounds);
+	const height = boundsHeight(bounds);
+	const data = Buffer.alloc(width * height * 4);
+	for (let y = 0; y < height; y += 1) {
+		const sourceStart =
+			((bounds.top - origin.top + y) * decoded.width + bounds.left - origin.left) * 4;
+		data.set(decoded.data.subarray(sourceStart, sourceStart + width * 4), y * width * 4);
+	}
+	return { data, width, height };
+}
+
+function copyRegion(
+	target: Buffer,
+	targetWidth: number,
+	source: DecodedMeadowEntryRgba,
+	left: number,
+	top: number
+): void {
+	for (let y = 0; y < source.height; y += 1) {
+		const targetStart = ((top + y) * targetWidth + left) * 4;
+		const sourceStart = y * source.width * 4;
+		target.set(source.data.subarray(sourceStart, sourceStart + source.width * 4), targetStart);
+	}
+}
+
+function buildRow(panels: readonly DecodedCompletePanel[]): DecodedMeadowEntryRgba {
+	assert(panels.length === 3, 'Meadow Entry complete rows must contain three panels');
+	const top = panels[0]!.spec.bounds.top;
+	const bottom = panels[0]!.spec.bounds.bottom;
+	const rowHeight = bottom - top;
+	const data = Buffer.alloc(MEADOW_ENTRY_PAINTED_V2_COMPLETE_MASTER_WIDTH * rowHeight * 4);
+	const first = panels[0]!;
+	copyRegion(
+		data,
+		MEADOW_ENTRY_PAINTED_V2_COMPLETE_MASTER_WIDTH,
+		first.rgba,
+		first.spec.bounds.left,
+		0
+	);
+	for (let index = 1; index < panels.length; index += 1) {
+		const current = panels[index]!;
+		const previous = panels[index - 1]!;
+		const overlap: PixelBounds = {
+			left: current.spec.bounds.left,
+			top,
+			right: previous.spec.bounds.right,
+			bottom
+		};
+		const firstOverlap = extractRegion(
+			{ data, width: MEADOW_ENTRY_PAINTED_V2_COMPLETE_MASTER_WIDTH, height: rowHeight },
+			overlap,
+			{ left: 0, top }
+		);
+		const secondOverlap = extractRegion(current.rgba, overlap, {
+			left: current.spec.bounds.left,
+			top: current.spec.bounds.top
+		});
+		copyRegion(
+			data,
+			MEADOW_ENTRY_PAINTED_V2_COMPLETE_MASTER_WIDTH,
+			current.rgba,
+			current.spec.bounds.left,
+			0
+		);
+		const handoff = blendMeadowEntryContentAwareHandoff(firstOverlap, secondOverlap, 'x').rgba;
+		copyRegion(
+			data,
+			MEADOW_ENTRY_PAINTED_V2_COMPLETE_MASTER_WIDTH,
+			handoff,
+			overlap.left,
+			overlap.top - top
+		);
+	}
+	return {
+		data,
+		width: MEADOW_ENTRY_PAINTED_V2_COMPLETE_MASTER_WIDTH,
+		height: rowHeight
+	};
+}
+
+function buildMaster(rows: readonly DecodedMeadowEntryRgba[]): DecodedMeadowEntryRgba {
+	assert(rows.length === 4, 'Meadow Entry complete assembly must contain four rows');
+	const data = Buffer.alloc(
+		MEADOW_ENTRY_PAINTED_V2_COMPLETE_MASTER_WIDTH *
+			MEADOW_ENTRY_PAINTED_V2_COMPLETE_MASTER_HEIGHT *
+			4
+	);
+	const first = rows[0]!;
+	copyRegion(data, MEADOW_ENTRY_PAINTED_V2_COMPLETE_MASTER_WIDTH, first, 0, 0);
+	let previousTop = 0;
+	for (let index = 1; index < rows.length; index += 1) {
+		const current = rows[index]!;
+		const top =
+			index *
+			(MEADOW_ENTRY_PAINTED_V2_COMPLETE_PANEL_HEIGHT -
+				MEADOW_ENTRY_PAINTED_V2_COMPLETE_VERTICAL_OVERLAP_PX);
+		const overlap: PixelBounds = {
+			left: 0,
+			top,
+			right: MEADOW_ENTRY_PAINTED_V2_COMPLETE_MASTER_WIDTH,
+			bottom: previousTop + current.height
+		};
+		const masterDecoded = {
+			data,
+			width: MEADOW_ENTRY_PAINTED_V2_COMPLETE_MASTER_WIDTH,
+			height: MEADOW_ENTRY_PAINTED_V2_COMPLETE_MASTER_HEIGHT
+		};
+		const firstOverlap = extractRegion(masterDecoded, overlap, { left: 0, top: 0 });
+		const secondOverlap = extractRegion(
+			current,
+			{
+				left: 0,
+				top: current.height - MEADOW_ENTRY_PAINTED_V2_COMPLETE_VERTICAL_OVERLAP_PX,
+				right: current.width,
+				bottom: current.height
+			},
+			{ left: 0, top: 0 }
+		);
+		copyRegion(data, MEADOW_ENTRY_PAINTED_V2_COMPLETE_MASTER_WIDTH, current, 0, top);
+		const handoff = blendMeadowEntryContentAwareHandoff(firstOverlap, secondOverlap, 'y').rgba;
+		copyRegion(data, MEADOW_ENTRY_PAINTED_V2_COMPLETE_MASTER_WIDTH, handoff, 0, top);
+		previousTop = top;
+	}
+	return {
+		data,
+		width: MEADOW_ENTRY_PAINTED_V2_COMPLETE_MASTER_WIDTH,
+		height: MEADOW_ENTRY_PAINTED_V2_COMPLETE_MASTER_HEIGHT
+	};
+}
+
+async function decodeAndValidatePanels(
+	input: MeadowEntryPaintedV2CompleteAssemblyInput
+): Promise<DecodedCompletePanel[]> {
+	const expectedIds = MEADOW_ENTRY_PAINTED_V2_COMPLETE_SOURCE_PANELS.map(({ id }) => id);
+	assertExactRecordKeys(input.panels, 'source panel', expectedIds);
+	assertExactRecordKeys(input.provenance, 'source provenance', expectedIds);
+	assert(
+		input.controlFingerprint === MEADOW_ENTRY_PAINTED_V2_COMPLETE_CONTROL_FINGERPRINT,
+		'Meadow Entry complete control fingerprint is stale'
+	);
+	const decoded: DecodedCompletePanel[] = [];
+	for (const spec of MEADOW_ENTRY_PAINTED_V2_COMPLETE_SOURCE_PANELS) {
+		const png = input.panels[spec.id];
+		const provenanceBytes = input.provenance[spec.id];
+		assert(Buffer.isBuffer(png), `Meadow Entry complete panel ${spec.id} bytes are missing`);
+		assert(
+			Buffer.isBuffer(provenanceBytes),
+			`Meadow Entry complete panel ${spec.id} provenance bytes are missing`
+		);
+		const provenance = parsePanelProvenance(provenanceBytes, spec);
+		validateCanonicalPngChunks(png);
+		const rgba = await decodeMeadowEntryRgba(png);
+		assert(
+			rgba.width === spec.expectedDimensions.width &&
+				rgba.height === spec.expectedDimensions.height,
+			`Meadow Entry complete panel ${spec.id} dimensions do not match the panel contract`
+		);
+		assertOpaque(rgba, `panel ${spec.id}`);
+		assert(
+			png.byteLength === provenance.normalized.bytes,
+			`Meadow Entry complete panel ${spec.id} normalized byte count is stale`
+		);
+		assert(
+			sha256(png) === provenance.normalized.sha256,
+			`Meadow Entry complete panel ${spec.id} normalized source hash is stale`
+		);
+		decoded.push({ spec, png, rgba, provenance });
+	}
+	return decoded;
+}
+
+export async function assembleMeadowEntryPaintedV2CompleteMaster(
+	input: MeadowEntryPaintedV2CompleteAssemblyInput
+): Promise<{ readonly masterPng: Buffer; readonly provenanceJson: Buffer }> {
+	const panels = await decodeAndValidatePanels(input);
+	const rows: DecodedCompletePanel[][] = [];
+	for (let row = 0; row < 4; row += 1) rows.push(panels.slice(row * 3, row * 3 + 3));
+	const rowMasters = rows.map(buildRow);
+	const master = buildMaster(rowMasters);
+	assertOpaque(master, 'master');
+	const masterPng = await encodeCanonicalMeadowEntryPng(
+		master.data,
+		MEADOW_ENTRY_PAINTED_V2_COMPLETE_MASTER_WIDTH,
+		MEADOW_ENTRY_PAINTED_V2_COMPLETE_MASTER_HEIGHT
+	);
+	validateCanonicalPngChunks(masterPng);
+	const provenanceJson = stableJson({
+		packageId: COMPLETE_PACKAGE_ID,
+		controlFingerprint: MEADOW_ENTRY_PAINTED_V2_COMPLETE_CONTROL_FINGERPRINT,
+		dimensions: {
+			width: MEADOW_ENTRY_PAINTED_V2_COMPLETE_MASTER_WIDTH,
+			height: MEADOW_ENTRY_PAINTED_V2_COMPLETE_MASTER_HEIGHT
+		},
+		assembly: {
+			order: 'row-major',
+			horizontalOverlapPx: MEADOW_ENTRY_PAINTED_V2_COMPLETE_HORIZONTAL_OVERLAP_PX,
+			verticalOverlapPx: MEADOW_ENTRY_PAINTED_V2_COMPLETE_VERTICAL_OVERLAP_PX,
+			handoffMaxHalfWidthPx: MEADOW_ENTRY_PAINTED_V2_COMPLETE_HANDOFF_MAX_HALF_WIDTH_PX,
+			canonicalPngChunks: ['IHDR', 'IDAT', 'IEND']
+		},
+		master: {
+			sha256: sha256(masterPng),
+			bytes: masterPng.byteLength
+		},
+		panels: panels.map(({ spec, provenance }) => ({
+			id: spec.id,
+			bounds: spec.bounds,
+			assemblyPriority: spec.assemblyPriority,
+			provenancePath: spec.provenancePath,
+			normalized: provenance.normalized
+		}))
+	});
+	return { masterPng, provenanceJson };
+}
