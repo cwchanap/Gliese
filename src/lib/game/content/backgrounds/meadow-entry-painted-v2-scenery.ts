@@ -3,10 +3,8 @@ import {
 	MEADOW_ENTRY_PAINTED_V2_SOURCE_PANELS,
 	type MeadowEntryPaintedV2SourcePanel
 } from './meadow-entry-painted-v2-pilot';
-import {
-	collectMeadowEntrySourceCatalog,
-	type MeadowEntrySourceRecord
-} from './meadow-entry-source-catalog';
+import type { MeadowEntrySourceRecord } from './meadow-entry-source-catalog';
+import { MEADOW_ENTRY_PAINTED_V2_LEGACY_SOURCE_CATALOG } from './meadow-entry-painted-v2-legacy-snapshot';
 
 export type MeadowEntryPaintedV2SceneryClass = 'hedge' | 'woodland';
 export type MeadowEntryPaintedV2SceneryLanguage = 'hedge' | 'tree-wall' | 'forest-bank';
@@ -384,7 +382,7 @@ export function validateMeadowEntryPaintedV2SceneryContract(
 	blockers: readonly MeadowEntryPaintedV2SceneryBlocker[] = MEADOW_ENTRY_PAINTED_V2_SCENERY_BLOCKERS,
 	inserts: readonly MeadowEntryPaintedV2SceneryInsert[] = MEADOW_ENTRY_PAINTED_V2_SCENERY_INSERTS,
 	panels: readonly MeadowEntryPaintedV2SourcePanel[] = MEADOW_ENTRY_PAINTED_V2_SOURCE_PANELS,
-	sourceCatalog: readonly MeadowEntrySourceRecord[] = collectMeadowEntrySourceCatalog()
+	sourceCatalog: readonly MeadowEntrySourceRecord[] = MEADOW_ENTRY_PAINTED_V2_LEGACY_SOURCE_CATALOG
 ): readonly MeadowEntryPaintedV2SceneryIntersection[] {
 	assertBlockerTable(blockers);
 	assertInsertTable(inserts);

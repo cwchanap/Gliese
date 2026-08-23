@@ -36,7 +36,12 @@ import {
 	MEADOW_ENTRY_PAINTED_V2_PILOT_CROPS,
 	MEADOW_ENTRY_PAINTED_V2_PILOT_OVERLAPS,
 	MEADOW_ENTRY_PAINTED_V2_PILOT_RUNTIME_COVERAGE,
-	MEADOW_ENTRY_PAINTED_V2_PILOT_FALLBACK_REQUIREMENTS
+	MEADOW_ENTRY_PAINTED_V2_PILOT_FALLBACK_REQUIREMENTS,
+	MEADOW_ENTRY_PAINTED_V2_COMPLETE_BUDGET_SUMMARY,
+	MEADOW_ENTRY_PAINTED_V2_COMPLETE_CROPS,
+	MEADOW_ENTRY_PAINTED_V2_COMPLETE_OVERLAPS,
+	MEADOW_ENTRY_PAINTED_V2_COMPLETE_RUNTIME_COVERAGE,
+	MEADOW_ENTRY_PAINTED_V2_COMPLETE_FALLBACK_REQUIREMENTS
 } from './meadow-entry-painted-v2-crop-manifest';
 import { MEADOW_ENTRY_PAINTED_V2_ART_STORAGE } from './meadow-entry-storage';
 import {
@@ -54,6 +59,18 @@ import {
 	type MeadowEntrySourceRecord,
 	type MeadowEntrySourceType
 } from './meadow-entry-source-catalog';
+import {
+	MEADOW_ENTRY_PAINTED_V2_LEGACY_AUTHORING_REGIONS,
+	MEADOW_ENTRY_PAINTED_V2_LEGACY_BAKE_OWNERSHIP,
+	MEADOW_ENTRY_PAINTED_V2_LEGACY_CROSS_REGION_COVERAGE,
+	MEADOW_ENTRY_PAINTED_V2_LEGACY_MAP,
+	MEADOW_ENTRY_PAINTED_V2_LEGACY_OUTLIER_RESOLUTIONS,
+	MEADOW_ENTRY_PAINTED_V2_LEGACY_PRIMARY_SOURCE_OWNERS,
+	MEADOW_ENTRY_PAINTED_V2_LEGACY_RENDERER_IMPLEMENTATION_SHA256,
+	MEADOW_ENTRY_PAINTED_V2_LEGACY_SOURCE_CATALOG,
+	MEADOW_ENTRY_PAINTED_V2_LEGACY_SOURCE_FILE_HASHES,
+	validateMeadowEntryPaintedV2LegacySnapshot
+} from './meadow-entry-painted-v2-legacy-snapshot';
 
 const MASK_WIDTH = 6_400 as const;
 const MASK_HEIGHT = 6_400 as const;
@@ -102,6 +119,7 @@ export interface MeadowEntryRendererMaskMaterialContract {
 }
 
 export interface MeadowEntryControlInputs {
+	map?: WorldMapDefinition;
 	mapId: 'meadow-entry';
 	worldBounds: PixelBounds;
 	tileSizePx: 32;
@@ -109,6 +127,7 @@ export interface MeadowEntryControlInputs {
 	foregroundFrontCutoffPx: 33;
 	sourceCatalog: readonly MeadowEntrySourceRecord[];
 	authoringRegions: readonly MeadowEntryAuthoringRegion[];
+	crossRegionCoverage?: readonly import('./meadow-entry-authoring-layout').MeadowEntryCrossRegionCoverage[];
 	primarySourceOwners: Readonly<Record<string, MeadowEntryAuthoringRegionId>>;
 	outlierResolutions: readonly MeadowEntryOutlierResolution[];
 	bakeOwnership: readonly MeadowEntryBakeOwnershipEntry[];
@@ -131,6 +150,8 @@ export interface MeadowEntryControlInputs {
 	storage: typeof MEADOW_ENTRY_PAINTED_V2_ART_STORAGE;
 	sourceFileHashes: Readonly<Record<string, string>>;
 }
+
+export type MeadowEntryControlPackage = 'legacy' | 'complete';
 
 export const MEADOW_ENTRY_CONTROL_FILENAMES = [
 	'meadow-entry-control-manifest.json',
@@ -442,15 +463,18 @@ function hashFiles(
 }
 
 function buildRendererMaskMaterialContract(
-	repositoryRoot: string
+	repositoryRoot: string,
+	implementationSha256?: string
 ): MeadowEntryRendererMaskMaterialContract {
 	return {
 		version: 1,
-		implementationSha256: sha256(
-			readFileSync(
-				join(repositoryRoot, 'src/lib/game/content/backgrounds/meadow-entry-controls.ts')
-			)
-		),
+		implementationSha256:
+			implementationSha256 ??
+			sha256(
+				readFileSync(
+					join(repositoryRoot, 'src/lib/game/content/backgrounds/meadow-entry-controls.ts')
+				)
+			),
 		maskDimensionsPx: { width: MASK_WIDTH, height: MASK_HEIGHT },
 		pointExtentsPx: POINT_EXTENTS_PX,
 		collisionExpansionPx: PLAYER_COLLISION_RADIUS,
@@ -502,39 +526,102 @@ function buildControlClearanceRects(
 }
 
 export function buildMeadowEntryControlInputs(
-	repositoryRoot = process.cwd()
+	map?: WorldMapDefinition,
+	packageName?: MeadowEntryControlPackage
+): MeadowEntryControlInputs;
+export function buildMeadowEntryControlInputs(
+	repositoryRoot?: string,
+	packageName?: MeadowEntryControlPackage
+): MeadowEntryControlInputs;
+export function buildMeadowEntryControlInputs(
+	mapOrRepositoryRoot?: WorldMapDefinition | string,
+	packageName: MeadowEntryControlPackage = 'legacy'
 ): MeadowEntryControlInputs {
+	if (packageName !== 'legacy' && packageName !== 'complete') {
+		throw new Error(`Unknown meadow-entry control package "${packageName}"`);
+	}
+	const useLegacySnapshot =
+		packageName === 'legacy' &&
+		(mapOrRepositoryRoot === undefined || typeof mapOrRepositoryRoot === 'string');
+	const map =
+		typeof mapOrRepositoryRoot === 'string'
+			? useLegacySnapshot
+				? MEADOW_ENTRY_PAINTED_V2_LEGACY_MAP
+				: meadowEntryMap
+			: (mapOrRepositoryRoot ??
+				(useLegacySnapshot ? MEADOW_ENTRY_PAINTED_V2_LEGACY_MAP : meadowEntryMap));
+	const repositoryRoot =
+		typeof mapOrRepositoryRoot === 'string' ? mapOrRepositoryRoot : process.cwd();
+	const complete = packageName === 'complete';
+	if (useLegacySnapshot) validateMeadowEntryPaintedV2LegacySnapshot();
+	const crops = complete
+		? MEADOW_ENTRY_PAINTED_V2_COMPLETE_CROPS
+		: MEADOW_ENTRY_PAINTED_V2_PILOT_CROPS;
+	const overlaps = complete
+		? MEADOW_ENTRY_PAINTED_V2_COMPLETE_OVERLAPS
+		: MEADOW_ENTRY_PAINTED_V2_PILOT_OVERLAPS;
+	const runtimeCoverage = complete
+		? MEADOW_ENTRY_PAINTED_V2_COMPLETE_RUNTIME_COVERAGE
+		: MEADOW_ENTRY_PAINTED_V2_PILOT_RUNTIME_COVERAGE;
+	const cropBudgetSummary = complete
+		? MEADOW_ENTRY_PAINTED_V2_COMPLETE_BUDGET_SUMMARY
+		: MEADOW_ENTRY_PAINTED_V2_PILOT_BUDGET_SUMMARY;
+	const requiredFallbacks = complete
+		? MEADOW_ENTRY_PAINTED_V2_COMPLETE_FALLBACK_REQUIREMENTS
+		: MEADOW_ENTRY_PAINTED_V2_PILOT_FALLBACK_REQUIREMENTS;
+	const sourceCatalog = useLegacySnapshot
+		? MEADOW_ENTRY_PAINTED_V2_LEGACY_SOURCE_CATALOG
+		: collectMeadowEntrySourceCatalog();
+	const authoringRegions = useLegacySnapshot
+		? MEADOW_ENTRY_PAINTED_V2_LEGACY_AUTHORING_REGIONS
+		: MEADOW_ENTRY_AUTHORING_REGIONS;
+	const primarySourceOwners = useLegacySnapshot
+		? MEADOW_ENTRY_PAINTED_V2_LEGACY_PRIMARY_SOURCE_OWNERS
+		: MEADOW_ENTRY_PRIMARY_SOURCE_OWNERS;
+	const outlierResolutions = useLegacySnapshot
+		? MEADOW_ENTRY_PAINTED_V2_LEGACY_OUTLIER_RESOLUTIONS
+		: MEADOW_ENTRY_OUTLIER_RESOLUTIONS;
+	const bakeOwnership = useLegacySnapshot
+		? MEADOW_ENTRY_PAINTED_V2_LEGACY_BAKE_OWNERSHIP
+		: MEADOW_ENTRY_PAINTED_V2_BAKE_OWNERSHIP;
 	validateMeadowEntryCropContract({
-		crops: MEADOW_ENTRY_PAINTED_V2_PILOT_CROPS,
-		overlaps: MEADOW_ENTRY_PAINTED_V2_PILOT_OVERLAPS,
-		runtimeCoverage: MEADOW_ENTRY_PAINTED_V2_PILOT_RUNTIME_COVERAGE,
-		budgetSummary: MEADOW_ENTRY_PAINTED_V2_PILOT_BUDGET_SUMMARY,
-		bakeOwnership: MEADOW_ENTRY_PAINTED_V2_BAKE_OWNERSHIP,
-		requiredFallbacks: MEADOW_ENTRY_PAINTED_V2_PILOT_FALLBACK_REQUIREMENTS,
-		coverageMode: 'partial'
+		crops,
+		overlaps,
+		runtimeCoverage,
+		budgetSummary: cropBudgetSummary,
+		bakeOwnership,
+		sourceCatalog,
+		requiredFallbacks,
+		coverageMode: complete ? 'full-world' : 'partial'
 	});
-	const sourceCatalog = collectMeadowEntrySourceCatalog();
-	const rendererMaskMaterialContract = buildRendererMaskMaterialContract(repositoryRoot);
-	const strictCollisionRects = collectStrictCollisionRects(meadowEntryMap).map(collisionBounds);
-	const landmarkCollisionRects = collectLandmarkRects(meadowEntryMap).map(collisionBounds);
+	const rendererMaskMaterialContract = buildRendererMaskMaterialContract(
+		repositoryRoot,
+		useLegacySnapshot ? MEADOW_ENTRY_PAINTED_V2_LEGACY_RENDERER_IMPLEMENTATION_SHA256 : undefined
+	);
+	const strictCollisionRects = collectStrictCollisionRects(map).map(collisionBounds);
+	const landmarkCollisionRects = collectLandmarkRects(map).map(collisionBounds);
 	if (MEADOW_ENTRY_FOREGROUND_FRONT_CUTOFF_PX !== 33) {
 		throw new Error('Meadow-entry foreground cutoff has drifted from the reviewed 33px contract');
 	}
 	return {
+		map,
 		mapId: 'meadow-entry',
 		worldBounds: MEADOW_ENTRY_WORLD_BOUNDS,
 		tileSizePx: MEADOW_ENTRY_TILE_SIZE_PX,
 		playerCollisionRadiusPx: PLAYER_COLLISION_RADIUS,
 		foregroundFrontCutoffPx: MEADOW_ENTRY_FOREGROUND_FRONT_CUTOFF_PX as 33,
 		sourceCatalog,
-		authoringRegions: MEADOW_ENTRY_AUTHORING_REGIONS,
-		primarySourceOwners: MEADOW_ENTRY_PRIMARY_SOURCE_OWNERS,
-		outlierResolutions: MEADOW_ENTRY_OUTLIER_RESOLUTIONS,
-		bakeOwnership: MEADOW_ENTRY_PAINTED_V2_BAKE_OWNERSHIP,
-		crops: MEADOW_ENTRY_PAINTED_V2_PILOT_CROPS,
-		overlaps: MEADOW_ENTRY_PAINTED_V2_PILOT_OVERLAPS,
-		runtimeCoverage: MEADOW_ENTRY_PAINTED_V2_PILOT_RUNTIME_COVERAGE,
-		cropBudgetSummary: MEADOW_ENTRY_PAINTED_V2_PILOT_BUDGET_SUMMARY,
+		authoringRegions,
+		crossRegionCoverage: useLegacySnapshot
+			? MEADOW_ENTRY_PAINTED_V2_LEGACY_CROSS_REGION_COVERAGE
+			: MEADOW_ENTRY_CROSS_REGION_COVERAGE,
+		primarySourceOwners,
+		outlierResolutions,
+		bakeOwnership,
+		crops,
+		overlaps,
+		runtimeCoverage,
+		cropBudgetSummary,
 		strictCollisionRects,
 		landmarkCollisionRects,
 		walkableSpaceRects: buildWalkableSpaceRects(
@@ -543,13 +630,13 @@ export function buildMeadowEntryControlInputs(
 			[...strictCollisionRects, ...landmarkCollisionRects]
 		),
 		protectedRects: buildProtectedRects(
-			meadowEntryMap,
+			map,
 			sourceCatalog,
-			MEADOW_ENTRY_PAINTED_V2_BAKE_OWNERSHIP,
+			bakeOwnership,
 			rendererMaskMaterialContract
 		),
 		controlClearanceRects: buildControlClearanceRects(
-			meadowEntryMap,
+			map,
 			sourceCatalog,
 			rendererMaskMaterialContract
 		),
@@ -566,7 +653,9 @@ export function buildMeadowEntryControlInputs(
 			hpa398ForegroundSha256: sundropVillageBackgroundsApproval.foreground.approvedPngSha256
 		},
 		storage: MEADOW_ENTRY_PAINTED_V2_ART_STORAGE,
-		sourceFileHashes: hashFiles(repositoryRoot, MEADOW_ENTRY_CONTROL_SOURCE_FILE_PATHS)
+		sourceFileHashes: useLegacySnapshot
+			? MEADOW_ENTRY_PAINTED_V2_LEGACY_SOURCE_FILE_HASHES
+			: hashFiles(repositoryRoot, MEADOW_ENTRY_CONTROL_SOURCE_FILE_PATHS)
 	};
 }
 
@@ -612,7 +701,7 @@ export function computeMeadowEntryGameplaySourceFingerprint(
 		stable({
 			version: 1,
 			mapId: input.mapId,
-			map: gameplayMapSnapshot(meadowEntryMap),
+			map: gameplayMapSnapshot(input.map ?? meadowEntryMap),
 			worldBounds: input.worldBounds,
 			playerCollisionRadiusPx: input.playerCollisionRadiusPx,
 			foregroundFrontCutoffPx: input.foregroundFrontCutoffPx,
@@ -635,7 +724,7 @@ export function computeMeadowEntryAuthoringContractFingerprint(
 			controlFilenames: MEADOW_ENTRY_CONTROL_FILENAMES,
 			authoringRegions: input.authoringRegions,
 			primarySourceOwners: input.primarySourceOwners,
-			crossRegionCoverage: MEADOW_ENTRY_CROSS_REGION_COVERAGE,
+			crossRegionCoverage: input.crossRegionCoverage ?? MEADOW_ENTRY_CROSS_REGION_COVERAGE,
 			outlierResolutions: input.outlierResolutions,
 			bakeOwnership: input.bakeOwnership,
 			crops: input.crops,
@@ -761,9 +850,10 @@ function sourceSvgRects(
 	types: ReadonlySet<MeadowEntrySourceType>,
 	fill: string
 ): SvgRect[] {
+	const map = input.map ?? meadowEntryMap;
 	return sortedSourceCatalog(input).flatMap((record) => {
 		if (!types.has(record.ref.sourceType)) return [];
-		const bounds = sourceBounds(meadowEntryMap, record, input.rendererMaskMaterialContract);
+		const bounds = sourceBounds(map, record, input.rendererMaskMaterialContract);
 		return bounds
 			? [
 					{
@@ -785,9 +875,8 @@ function indexedRects(prefix: string, bounds: readonly PixelBounds[], fill: stri
 }
 
 function terrainSvgRects(input: MeadowEntryControlInputs): SvgRect[] {
-	const groundPatches = new Map(
-		(meadowEntryMap.groundPatches ?? []).map((patch) => [patch.id, patch])
-	);
+	const map = input.map ?? meadowEntryMap;
+	const groundPatches = new Map((map.groundPatches ?? []).map((patch) => [patch.id, patch]));
 	const ownership = new Map(
 		input.bakeOwnership.map((entry) => [meadowEntrySourceKey(entry.ref), entry])
 	);

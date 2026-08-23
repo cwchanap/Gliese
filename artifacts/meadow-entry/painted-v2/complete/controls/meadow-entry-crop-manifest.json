@@ -1,0 +1,283 @@
+{
+	"crops": [
+		{
+			"id": "painted-v2-complete-northwest",
+			"derivation": {
+				"mode": "exact-bounds"
+			},
+			"reviewBounds": {
+				"left": 0,
+				"top": 0,
+				"right": 3200,
+				"bottom": 3200
+			},
+			"coverageAttachments": [],
+			"preClampBounds": {
+				"left": 0,
+				"top": 0,
+				"right": 3200,
+				"bottom": 3200
+			},
+			"edgeClamp": null,
+			"bounds": {
+				"left": 0,
+				"top": 0,
+				"right": 3200,
+				"bottom": 3200
+			},
+			"expectedDimensions": {
+				"width": 3200,
+				"height": 3200
+			},
+			"baseFilename": "painted-v2-complete-northwest-base.png",
+			"foregroundFilename": null,
+			"textureKeys": {
+				"base": "meadow-entry-painted-v2-complete-northwest-base",
+				"foreground": null
+			},
+			"drawOrder": 0,
+			"sourceRegionIds": [
+				"crossroads",
+				"mistfen",
+				"silverpine",
+				"connector-crossroads-silverpine",
+				"outer-boundary"
+			],
+			"neighborIds": [],
+			"overlapIds": [],
+			"alphaPolicy": {
+				"base": "opaque",
+				"foreground": null
+			},
+			"sizeBudgets": {
+				"baseReviewBytes": 33554432,
+				"baseHardBytes": 33554432,
+				"foregroundReviewBytes": null,
+				"foregroundHardBytes": null
+			}
+		},
+		{
+			"id": "painted-v2-complete-northeast",
+			"derivation": {
+				"mode": "exact-bounds"
+			},
+			"reviewBounds": {
+				"left": 3200,
+				"top": 0,
+				"right": 6400,
+				"bottom": 3200
+			},
+			"coverageAttachments": [],
+			"preClampBounds": {
+				"left": 3200,
+				"top": 0,
+				"right": 6400,
+				"bottom": 3200
+			},
+			"edgeClamp": null,
+			"bounds": {
+				"left": 3200,
+				"top": 0,
+				"right": 6400,
+				"bottom": 3200
+			},
+			"expectedDimensions": {
+				"width": 3200,
+				"height": 3200
+			},
+			"baseFilename": "painted-v2-complete-northeast-base.png",
+			"foregroundFilename": null,
+			"textureKeys": {
+				"base": "meadow-entry-painted-v2-complete-northeast-base",
+				"foreground": null
+			},
+			"drawOrder": 10,
+			"sourceRegionIds": [
+				"crossroads",
+				"silverpine",
+				"wildwood",
+				"connector-crossroads-silverpine",
+				"outer-boundary"
+			],
+			"neighborIds": [],
+			"overlapIds": [],
+			"alphaPolicy": {
+				"base": "opaque",
+				"foreground": null
+			},
+			"sizeBudgets": {
+				"baseReviewBytes": 33554432,
+				"baseHardBytes": 33554432,
+				"foregroundReviewBytes": null,
+				"foregroundHardBytes": null
+			}
+		},
+		{
+			"id": "painted-v2-complete-southwest",
+			"derivation": {
+				"mode": "exact-bounds"
+			},
+			"reviewBounds": {
+				"left": 0,
+				"top": 3200,
+				"right": 3200,
+				"bottom": 6400
+			},
+			"coverageAttachments": [],
+			"preClampBounds": {
+				"left": 0,
+				"top": 3200,
+				"right": 3200,
+				"bottom": 6400
+			},
+			"edgeClamp": null,
+			"bounds": {
+				"left": 0,
+				"top": 3200,
+				"right": 3200,
+				"bottom": 6400
+			},
+			"expectedDimensions": {
+				"width": 3200,
+				"height": 3200
+			},
+			"baseFilename": "painted-v2-complete-southwest-base.png",
+			"foregroundFilename": null,
+			"textureKeys": {
+				"base": "meadow-entry-painted-v2-complete-southwest-base",
+				"foreground": null
+			},
+			"drawOrder": 20,
+			"sourceRegionIds": [
+				"sundrop-village",
+				"crossroads",
+				"mistfen",
+				"connector-village-crossroads",
+				"connector-crossroads-mistfen",
+				"outer-boundary"
+			],
+			"neighborIds": [],
+			"overlapIds": [],
+			"alphaPolicy": {
+				"base": "opaque",
+				"foreground": null
+			},
+			"sizeBudgets": {
+				"baseReviewBytes": 33554432,
+				"baseHardBytes": 33554432,
+				"foregroundReviewBytes": null,
+				"foregroundHardBytes": null
+			}
+		},
+		{
+			"id": "painted-v2-complete-southeast",
+			"derivation": {
+				"mode": "exact-bounds"
+			},
+			"reviewBounds": {
+				"left": 3200,
+				"top": 3200,
+				"right": 6400,
+				"bottom": 6400
+			},
+			"coverageAttachments": [],
+			"preClampBounds": {
+				"left": 3200,
+				"top": 3200,
+				"right": 6400,
+				"bottom": 6400
+			},
+			"edgeClamp": null,
+			"bounds": {
+				"left": 3200,
+				"top": 3200,
+				"right": 6400,
+				"bottom": 6400
+			},
+			"expectedDimensions": {
+				"width": 3200,
+				"height": 3200
+			},
+			"baseFilename": "painted-v2-complete-southeast-base.png",
+			"foregroundFilename": null,
+			"textureKeys": {
+				"base": "meadow-entry-painted-v2-complete-southeast-base",
+				"foreground": null
+			},
+			"drawOrder": 30,
+			"sourceRegionIds": [
+				"crossroads",
+				"tidewatch-coast",
+				"wildwood",
+				"connector-village-crossroads",
+				"connector-crossroads-coast",
+				"connector-crossroads-mistfen",
+				"connector-crossroads-wildwood",
+				"outer-boundary"
+			],
+			"neighborIds": [],
+			"overlapIds": [],
+			"alphaPolicy": {
+				"base": "opaque",
+				"foreground": null
+			},
+			"sizeBudgets": {
+				"baseReviewBytes": 33554432,
+				"baseHardBytes": 33554432,
+				"foregroundReviewBytes": null,
+				"foregroundHardBytes": null
+			}
+		}
+	],
+	"overlaps": [],
+	"runtimeCoverage": [
+		{
+			"mode": "baked",
+			"bounds": {
+				"left": 0,
+				"top": 0,
+				"right": 3200,
+				"bottom": 3200
+			},
+			"cropIds": ["painted-v2-complete-northwest"]
+		},
+		{
+			"mode": "baked",
+			"bounds": {
+				"left": 3200,
+				"top": 0,
+				"right": 6400,
+				"bottom": 3200
+			},
+			"cropIds": ["painted-v2-complete-northeast"]
+		},
+		{
+			"mode": "baked",
+			"bounds": {
+				"left": 0,
+				"top": 3200,
+				"right": 3200,
+				"bottom": 6400
+			},
+			"cropIds": ["painted-v2-complete-southwest"]
+		},
+		{
+			"mode": "baked",
+			"bounds": {
+				"left": 3200,
+				"top": 3200,
+				"right": 6400,
+				"bottom": 6400
+			},
+			"cropIds": ["painted-v2-complete-southeast"]
+		}
+	],
+	"budgetSummary": {
+		"exportAreaRatio": 1,
+		"overlapArea": 0,
+		"aggregateBaseReviewBytes": 134217728,
+		"aggregateBaseHardBytes": 134217728,
+		"aggregateForegroundReviewBytes": 0,
+		"aggregateForegroundHardBytes": 0
+	}
+}

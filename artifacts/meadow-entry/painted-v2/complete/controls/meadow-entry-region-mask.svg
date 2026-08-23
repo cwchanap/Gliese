@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 6400 6400" width="6400" height="6400">
+  <rect data-id="sundrop-village" x="256" y="3968" width="2560" height="2176" fill="hsl(0 45% 55%)" opacity="0.35" stroke="#202020"/>
+  <rect data-id="crossroads" x="2880" y="2816" width="1728" height="1952" fill="hsl(47 45% 55%)" opacity="0.35" stroke="#202020"/>
+  <rect data-id="tidewatch-coast" x="3328" y="4768" width="2816" height="1376" fill="hsl(94 45% 55%)" opacity="0.35" stroke="#202020"/>
+  <rect data-id="mistfen" x="384" y="384" width="2816" height="3712" fill="hsl(141 45% 55%)" opacity="0.35" stroke="#202020"/>
+  <rect data-id="silverpine" x="2432" y="384" width="2048" height="2432" fill="hsl(188 45% 55%)" opacity="0.35" stroke="#202020"/>
+  <rect data-id="wildwood" x="4320" y="256" width="1824" height="5312" fill="hsl(235 45% 55%)" opacity="0.35" stroke="#202020"/>
+  <rect data-id="connector-village-crossroads" x="2368" y="4384" width="1504" height="480" fill="hsl(282 45% 55%)" opacity="0.35" stroke="#202020"/>
+  <rect data-id="connector-crossroads-coast" x="4000" y="4640" width="448" height="1056" fill="hsl(329 45% 55%)" opacity="0.35" stroke="#202020"/>
+  <rect data-id="connector-crossroads-mistfen" x="2112" y="3424" width="1920" height="448" fill="hsl(16 45% 55%)" opacity="0.35" stroke="#202020"/>
+  <rect data-id="connector-crossroads-silverpine" x="2688" y="2048" width="1440" height="896" fill="hsl(63 45% 55%)" opacity="0.35" stroke="#202020"/>
+  <rect data-id="connector-crossroads-wildwood" x="4416" y="3648" width="800" height="640" fill="hsl(110 45% 55%)" opacity="0.35" stroke="#202020"/>
+  <rect data-id="outer-boundary" x="0" y="0" width="6400" height="6400" fill="hsl(157 45% 55%)" opacity="0.08" stroke="#202020"/>
+</svg>

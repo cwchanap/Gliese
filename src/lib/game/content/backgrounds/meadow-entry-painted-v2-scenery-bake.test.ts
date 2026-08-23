@@ -1278,9 +1278,9 @@ describe('Meadow Entry painted-v2 scenery bake primitives', () => {
 			groundOverlap,
 			sceneryOverlap
 		}).toEqual({
-			expectedLivePixels: 13_939_568,
-			expectedOtherPixels: 13_829_360,
-			maskOtherPixels: 13_829_360,
+			expectedLivePixels: 13_928_520,
+			expectedOtherPixels: 13_818_312,
+			maskOtherPixels: 13_818_312,
 			groundOverlap: 0,
 			sceneryOverlap: 0
 		});

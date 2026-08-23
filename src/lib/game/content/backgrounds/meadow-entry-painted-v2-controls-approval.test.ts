@@ -10,10 +10,8 @@ import {
 	buildMeadowEntryControlInputs,
 	computeMeadowEntryCombinedControlFingerprint
 } from './meadow-entry-controls';
-import {
-	MEADOW_ENTRY_PAINTED_V2_BAKE_OWNERSHIP,
-	MEADOW_ENTRY_REVIEWED_PAINTED_V2_BAKE_OWNERSHIP_SHA256
-} from './meadow-entry-bake-ownership';
+import { MEADOW_ENTRY_REVIEWED_PAINTED_V2_BAKE_OWNERSHIP_SHA256 } from './meadow-entry-bake-ownership';
+import { MEADOW_ENTRY_PAINTED_V2_LEGACY_BAKE_OWNERSHIP } from './meadow-entry-painted-v2-legacy-snapshot';
 import {
 	MEADOW_ENTRY_PAINTED_V2_PILOT_CROPS,
 	MEADOW_ENTRY_PAINTED_V2_PILOT_OVERLAPS,
@@ -32,7 +30,7 @@ describe('painted-v2 meadow-entry controls approval', () => {
 		expect(input.crops).toEqual(MEADOW_ENTRY_PAINTED_V2_PILOT_CROPS);
 		expect(input.overlaps).toEqual(MEADOW_ENTRY_PAINTED_V2_PILOT_OVERLAPS);
 		expect(input.runtimeCoverage).toEqual(MEADOW_ENTRY_PAINTED_V2_PILOT_RUNTIME_COVERAGE);
-		expect(input.bakeOwnership).toEqual(MEADOW_ENTRY_PAINTED_V2_BAKE_OWNERSHIP);
+		expect(input.bakeOwnership).toEqual(MEADOW_ENTRY_PAINTED_V2_LEGACY_BAKE_OWNERSHIP);
 		expect(MEADOW_ENTRY_REVIEWED_PAINTED_V2_BAKE_OWNERSHIP_SHA256).toMatch(SHA256);
 	});
 

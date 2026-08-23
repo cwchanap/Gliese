@@ -16,7 +16,8 @@ import {
 	computeMeadowEntryCombinedControlFingerprint,
 	computeMeadowEntryGameplaySourceFingerprint,
 	MEADOW_ENTRY_CONTROL_FILENAMES,
-	renderMeadowEntryControls
+	renderMeadowEntryControls,
+	type MeadowEntryControlPackage
 } from '../src/lib/game/content/backgrounds/meadow-entry-controls';
 
 export interface MeadowEntryExportPackage {
@@ -26,6 +27,7 @@ export interface MeadowEntryExportPackage {
 
 export interface MeadowEntryExportPaths {
 	readonly repositoryRoot: string;
+	readonly packageName?: MeadowEntryControlPackage;
 	readonly controlsDirectory: string;
 	readonly generatedPath: string;
 }
@@ -53,21 +55,59 @@ const NODE_FILE_SYSTEM: MeadowEntryExportFileSystem = {
 };
 const allowedControlFilenames = new Set<string>(MEADOW_ENTRY_CONTROL_FILENAMES);
 
-function parseCheckMode(args: readonly string[]): boolean {
-	if (args.length === 0) return false;
-	if (args.length === 1 && args[0] === '--check') return true;
-	throw new Error(`Usage: bun tools/export-meadow-entry-art-controls.ts [--check]`);
+interface MeadowEntryExportArguments {
+	readonly packageName: MeadowEntryControlPackage;
+	readonly checkMode: boolean;
 }
 
-export function meadowEntryExportPaths(repositoryRoot: string): MeadowEntryExportPaths {
+function parseExportArguments(args: readonly string[]): MeadowEntryExportArguments {
+	let packageName: MeadowEntryControlPackage = 'legacy';
+	let checkMode = false;
+	for (let index = args[0] === '--' ? 1 : 0; index < args.length; index += 1) {
+		const flag = args[index];
+		if (flag === '--check' && !checkMode) {
+			checkMode = true;
+			continue;
+		}
+		if (flag === '--package' && packageName === 'legacy') {
+			const value = args[index + 1];
+			if (value !== 'legacy' && value !== 'complete') {
+				throw new Error(
+					`Usage: bun tools/export-meadow-entry-art-controls.ts [--package legacy|complete] [--check]`
+				);
+			}
+			packageName = value;
+			index += 1;
+			continue;
+		}
+		throw new Error(
+			`Usage: bun tools/export-meadow-entry-art-controls.ts [--package legacy|complete] [--check]`
+		);
+	}
+	return { packageName, checkMode };
+}
+
+export function meadowEntryExportPaths(
+	repositoryRoot: string,
+	packageName: MeadowEntryControlPackage = 'legacy'
+): MeadowEntryExportPaths {
+	if (packageName !== 'legacy' && packageName !== 'complete') {
+		throw new Error(`Unknown meadow-entry control package "${packageName}"`);
+	}
 	const resolvedRoot = resolve(repositoryRoot);
+	const packageRoot =
+		packageName === 'complete'
+			? 'artifacts/meadow-entry/painted-v2/complete'
+			: 'artifacts/meadow-entry/painted-v2';
+	const generatedName =
+		packageName === 'complete'
+			? 'meadow-entry-painted-v2-complete-art-control.ts'
+			: 'meadow-entry-painted-v2-art-control.ts';
 	return {
 		repositoryRoot: resolvedRoot,
-		controlsDirectory: resolve(resolvedRoot, 'artifacts/meadow-entry/painted-v2/controls'),
-		generatedPath: resolve(
-			resolvedRoot,
-			'src/lib/game/content/generated/meadow-entry-painted-v2-art-control.ts'
-		)
+		packageName,
+		controlsDirectory: resolve(resolvedRoot, packageRoot, 'controls'),
+		generatedPath: resolve(resolvedRoot, 'src/lib/game/content/generated', generatedName)
 	};
 }
 
@@ -76,12 +116,18 @@ export function assertAllowedMeadowEntryDestination(
 	path: string
 ): void {
 	const relativePath = relative(paths.repositoryRoot, path).replaceAll('\\', '/');
+	const controlsRelativePath = relative(paths.repositoryRoot, paths.controlsDirectory).replaceAll(
+		'\\',
+		'/'
+	);
+	const generatedRelativePath = relative(paths.repositoryRoot, paths.generatedPath).replaceAll(
+		'\\',
+		'/'
+	);
 	const allowed =
-		relativePath === 'src/lib/game/content/generated/meadow-entry-painted-v2-art-control.ts' ||
-		(relativePath.startsWith('artifacts/meadow-entry/painted-v2/controls/') &&
-			allowedControlFilenames.has(
-				relativePath.slice('artifacts/meadow-entry/painted-v2/controls/'.length)
-			));
+		relativePath === generatedRelativePath ||
+		(relativePath.startsWith(`${controlsRelativePath}/`) &&
+			allowedControlFilenames.has(relativePath.slice(`${controlsRelativePath}/`.length)));
 	if (!allowed || relativePath.includes('/hpa-307/') || relativePath.includes('/hpa-398/')) {
 		throw new Error(`Refusing unexpected meadow-entry control destination: ${relativePath}`);
 	}
@@ -102,11 +148,14 @@ export const MEADOW_ENTRY_COMBINED_CONTROL_FINGERPRINT =
 `;
 }
 
-function buildExportPackage(repositoryRoot: string): {
+function buildExportPackage(
+	repositoryRoot: string,
+	packageName: MeadowEntryControlPackage
+): {
 	packageBytes: MeadowEntryExportPackage;
 	combinedControlFingerprint: string;
 } {
-	const inputs = buildMeadowEntryControlInputs(repositoryRoot);
+	const inputs = buildMeadowEntryControlInputs(repositoryRoot, packageName);
 	const rendered = renderMeadowEntryControls(inputs);
 	const gameplaySourceFingerprint = computeMeadowEntryGameplaySourceFingerprint(inputs);
 	const authoringContractFingerprint = computeMeadowEntryAuthoringContractFingerprint(inputs);
@@ -316,15 +365,20 @@ export function runMeadowEntryArtControlsExporter(
 	args: readonly string[],
 	repositoryRoot = process.cwd()
 ): void {
-	const checkMode = parseCheckMode(args);
-	const paths = meadowEntryExportPaths(repositoryRoot);
-	const { packageBytes, combinedControlFingerprint } = buildExportPackage(repositoryRoot);
+	const { checkMode, packageName } = parseExportArguments(args);
+	const paths = meadowEntryExportPaths(repositoryRoot, packageName);
+	const { packageBytes, combinedControlFingerprint } = buildExportPackage(
+		repositoryRoot,
+		packageName
+	);
 	if (checkMode) {
 		checkMeadowEntryExportPackage(packageBytes, paths);
-		console.log(`meadow-entry controls are current\t${combinedControlFingerprint}`);
+		console.log(`${packageName} meadow-entry controls are current\t${combinedControlFingerprint}`);
 	} else {
 		publishMeadowEntryExportPackage(packageBytes, paths);
-		console.log(`wrote ${MEADOW_ENTRY_CONTROL_FILENAMES.length} meadow-entry controls`);
+		console.log(
+			`wrote ${MEADOW_ENTRY_CONTROL_FILENAMES.length} ${packageName} meadow-entry controls`
+		);
 		console.log(`combinedControlFingerprint\t${combinedControlFingerprint}`);
 	}
 }

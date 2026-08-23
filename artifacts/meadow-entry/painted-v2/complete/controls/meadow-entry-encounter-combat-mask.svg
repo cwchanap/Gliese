@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 6400 6400" width="6400" height="6400">
+  <rect data-id="combat-bounds:whispering-cave-combat-pocket" x="5664" y="1408" width="512" height="384" fill="#ffffff"/>
+  <rect data-id="combat-bounds:wildwood-crossing-combat-pocket" x="5104" y="1120" width="512" height="320" fill="#ffffff"/>
+  <rect data-id="combat-bounds:wildwood-north-combat-pocket" x="4784" y="768" width="672" height="384" fill="#ffffff"/>
+  <rect data-id="encounter:meadow-slime-center" x="5312" y="1232" width="96" height="96" fill="#ffffff"/>
+  <rect data-id="encounter:meadow-slime-east" x="5872" y="1552" width="96" height="96" fill="#ffffff"/>
+  <rect data-id="encounter:meadow-slime-west" x="4880" y="912" width="96" height="96" fill="#ffffff"/>
+</svg>

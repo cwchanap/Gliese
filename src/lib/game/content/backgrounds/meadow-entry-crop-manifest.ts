@@ -17,7 +17,8 @@ import {
 } from './meadow-entry-bake-ownership';
 import {
 	collectMeadowEntrySourceCatalog,
-	meadowEntrySourceKey
+	meadowEntrySourceKey,
+	type MeadowEntrySourceRecord
 } from './meadow-entry-source-catalog';
 
 export type MeadowEntryCropDerivation =
@@ -719,10 +720,12 @@ function validateCropMetadata(crop: MeadowEntryApprovedCrop): void {
 
 function validateBakedSources(
 	crops: readonly MeadowEntryApprovedCrop[],
-	bakeOwnership: readonly MeadowEntryBakeOwnershipEntry[]
+	bakeOwnership: readonly MeadowEntryBakeOwnershipEntry[],
+	coverageMode: MeadowEntryCoverageMode,
+	sourceCatalog: readonly MeadowEntrySourceRecord[]
 ): void {
 	const sources = new Map(
-		collectMeadowEntrySourceCatalog().map((record) => [meadowEntrySourceKey(record.ref), record])
+		sourceCatalog.map((record) => [meadowEntrySourceKey(record.ref), record])
 	);
 	for (const ownership of bakeOwnership) {
 		const baked =
@@ -736,7 +739,16 @@ function validateBakedSources(
 			throw new Error(`Baked source "${sourceKey}" has no coverage bounds`);
 		}
 		const bounds = rasterizeCoverageBounds(source.bounds);
-		if (!crops.some((crop) => containsBounds(crop.bounds, bounds))) {
+		const coveredByRuntime =
+			coverageMode === 'full-world'
+				? unionArea(
+						crops.flatMap((crop) => {
+							const intersection = intersectBounds(crop.bounds, bounds);
+							return intersection ? [intersection] : [];
+						})
+					) === boundsArea(bounds)
+				: crops.some((crop) => containsBounds(crop.bounds, bounds));
+		if (!coveredByRuntime) {
 			throw new Error(`Baked source "${sourceKey}" is not contained by a runtime base crop`);
 		}
 	}
@@ -898,6 +910,7 @@ export interface MeadowEntryCropContractValidationOptions {
 	readonly runtimeCoverage?: readonly MeadowEntryRuntimeCoverage[];
 	readonly budgetSummary?: MeadowEntryCropBudgetSummary;
 	readonly bakeOwnership?: readonly MeadowEntryBakeOwnershipEntry[];
+	readonly sourceCatalog?: readonly MeadowEntrySourceRecord[];
 	readonly requiredFallbacks?: readonly MeadowEntryFallbackRequirement[];
 	readonly coverageMode?: MeadowEntryCoverageMode;
 }
@@ -921,6 +934,7 @@ export function validateMeadowEntryCropContract(
 	const runtimeCoverage = options.runtimeCoverage ?? MEADOW_ENTRY_RUNTIME_COVERAGE;
 	const budgetSummary = options.budgetSummary ?? MEADOW_ENTRY_CROP_BUDGET_SUMMARY;
 	const bakeOwnership = options.bakeOwnership ?? MEADOW_ENTRY_BAKE_OWNERSHIP;
+	const sourceCatalog = options.sourceCatalog ?? collectMeadowEntrySourceCatalog();
 	const coverageMode = options.coverageMode ?? 'full-world';
 	const requiredFallbacks =
 		options.requiredFallbacks ?? (coverageMode === 'partial' ? [] : DEFAULT_FALLBACK_REQUIREMENTS);
@@ -937,7 +951,7 @@ export function validateMeadowEntryCropContract(
 		validateCropMetadata(crop);
 	}
 	validateOverlaps(crops, overlaps);
-	validateBakedSources(crops, bakeOwnership);
+	validateBakedSources(crops, bakeOwnership, coverageMode, sourceCatalog);
 	validateRuntimeCoverage(crops, runtimeCoverage, coverageMode, requiredFallbacks);
 	const expectedSummary = buildBudgetSummary(crops);
 	const expectedKeys = Object.keys(expectedSummary) as (keyof MeadowEntryCropBudgetSummary)[];

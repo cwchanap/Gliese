@@ -105,6 +105,148 @@ const RAW_PILOT_CROPS = [
 export const MEADOW_ENTRY_PAINTED_V2_PILOT_CROPS: readonly MeadowEntryApprovedCrop[] =
 	Object.freeze(RAW_PILOT_CROPS.map(freezeCrop));
 
+const RAW_COMPLETE_CROPS = [
+	{
+		id: 'painted-v2-complete-northwest',
+		derivation: { mode: 'exact-bounds' },
+		reviewBounds: { left: 0, top: 0, right: 3200, bottom: 3200 },
+		coverageAttachments: [],
+		preClampBounds: { left: 0, top: 0, right: 3200, bottom: 3200 },
+		edgeClamp: null,
+		bounds: { left: 0, top: 0, right: 3200, bottom: 3200 },
+		expectedDimensions: { width: 3200, height: 3200 },
+		baseFilename: 'painted-v2-complete-northwest-base.png',
+		foregroundFilename: null,
+		textureKeys: {
+			base: 'meadow-entry-painted-v2-complete-northwest-base',
+			foreground: null
+		},
+		drawOrder: 0,
+		sourceRegionIds: [
+			'crossroads',
+			'mistfen',
+			'silverpine',
+			'connector-crossroads-silverpine',
+			'outer-boundary'
+		],
+		neighborIds: [],
+		overlapIds: [],
+		alphaPolicy: { base: 'opaque', foreground: null },
+		sizeBudgets: {
+			baseReviewBytes: 32 * MIB,
+			baseHardBytes: 32 * MIB,
+			foregroundReviewBytes: null,
+			foregroundHardBytes: null
+		}
+	},
+	{
+		id: 'painted-v2-complete-northeast',
+		derivation: { mode: 'exact-bounds' },
+		reviewBounds: { left: 3200, top: 0, right: 6400, bottom: 3200 },
+		coverageAttachments: [],
+		preClampBounds: { left: 3200, top: 0, right: 6400, bottom: 3200 },
+		edgeClamp: null,
+		bounds: { left: 3200, top: 0, right: 6400, bottom: 3200 },
+		expectedDimensions: { width: 3200, height: 3200 },
+		baseFilename: 'painted-v2-complete-northeast-base.png',
+		foregroundFilename: null,
+		textureKeys: {
+			base: 'meadow-entry-painted-v2-complete-northeast-base',
+			foreground: null
+		},
+		drawOrder: 10,
+		sourceRegionIds: [
+			'crossroads',
+			'silverpine',
+			'wildwood',
+			'connector-crossroads-silverpine',
+			'outer-boundary'
+		],
+		neighborIds: [],
+		overlapIds: [],
+		alphaPolicy: { base: 'opaque', foreground: null },
+		sizeBudgets: {
+			baseReviewBytes: 32 * MIB,
+			baseHardBytes: 32 * MIB,
+			foregroundReviewBytes: null,
+			foregroundHardBytes: null
+		}
+	},
+	{
+		id: 'painted-v2-complete-southwest',
+		derivation: { mode: 'exact-bounds' },
+		reviewBounds: { left: 0, top: 3200, right: 3200, bottom: 6400 },
+		coverageAttachments: [],
+		preClampBounds: { left: 0, top: 3200, right: 3200, bottom: 6400 },
+		edgeClamp: null,
+		bounds: { left: 0, top: 3200, right: 3200, bottom: 6400 },
+		expectedDimensions: { width: 3200, height: 3200 },
+		baseFilename: 'painted-v2-complete-southwest-base.png',
+		foregroundFilename: null,
+		textureKeys: {
+			base: 'meadow-entry-painted-v2-complete-southwest-base',
+			foreground: null
+		},
+		drawOrder: 20,
+		sourceRegionIds: [
+			'sundrop-village',
+			'crossroads',
+			'mistfen',
+			'connector-village-crossroads',
+			'connector-crossroads-mistfen',
+			'outer-boundary'
+		],
+		neighborIds: [],
+		overlapIds: [],
+		alphaPolicy: { base: 'opaque', foreground: null },
+		sizeBudgets: {
+			baseReviewBytes: 32 * MIB,
+			baseHardBytes: 32 * MIB,
+			foregroundReviewBytes: null,
+			foregroundHardBytes: null
+		}
+	},
+	{
+		id: 'painted-v2-complete-southeast',
+		derivation: { mode: 'exact-bounds' },
+		reviewBounds: { left: 3200, top: 3200, right: 6400, bottom: 6400 },
+		coverageAttachments: [],
+		preClampBounds: { left: 3200, top: 3200, right: 6400, bottom: 6400 },
+		edgeClamp: null,
+		bounds: { left: 3200, top: 3200, right: 6400, bottom: 6400 },
+		expectedDimensions: { width: 3200, height: 3200 },
+		baseFilename: 'painted-v2-complete-southeast-base.png',
+		foregroundFilename: null,
+		textureKeys: {
+			base: 'meadow-entry-painted-v2-complete-southeast-base',
+			foreground: null
+		},
+		drawOrder: 30,
+		sourceRegionIds: [
+			'crossroads',
+			'tidewatch-coast',
+			'wildwood',
+			'connector-village-crossroads',
+			'connector-crossroads-coast',
+			'connector-crossroads-mistfen',
+			'connector-crossroads-wildwood',
+			'outer-boundary'
+		],
+		neighborIds: [],
+		overlapIds: [],
+		alphaPolicy: { base: 'opaque', foreground: null },
+		sizeBudgets: {
+			baseReviewBytes: 32 * MIB,
+			baseHardBytes: 32 * MIB,
+			foregroundReviewBytes: null,
+			foregroundHardBytes: null
+		}
+	}
+] satisfies readonly MeadowEntryApprovedCrop[];
+
+export const MEADOW_ENTRY_PAINTED_V2_COMPLETE_CROPS: readonly MeadowEntryApprovedCrop[] =
+	Object.freeze(RAW_COMPLETE_CROPS.map(freezeCrop));
+
 function freezeOverlap(overlap: MeadowEntryOverlap): MeadowEntryOverlap {
 	return Object.freeze({
 		...overlap,
@@ -135,6 +277,9 @@ const RAW_PILOT_OVERLAPS = [
 export const MEADOW_ENTRY_PAINTED_V2_PILOT_OVERLAPS: readonly MeadowEntryOverlap[] = Object.freeze(
 	RAW_PILOT_OVERLAPS.map(freezeOverlap)
 );
+
+export const MEADOW_ENTRY_PAINTED_V2_COMPLETE_OVERLAPS: readonly MeadowEntryOverlap[] =
+	Object.freeze([]);
 
 function freezeRuntimeCoverage(entry: MeadowEntryRuntimeCoverage): MeadowEntryRuntimeCoverage {
 	return entry.mode === 'baked'
@@ -181,7 +326,36 @@ const RAW_PILOT_RUNTIME_COVERAGE = [
 export const MEADOW_ENTRY_PAINTED_V2_PILOT_RUNTIME_COVERAGE: readonly MeadowEntryRuntimeCoverage[] =
 	Object.freeze(RAW_PILOT_RUNTIME_COVERAGE.map(freezeRuntimeCoverage));
 
+const RAW_COMPLETE_RUNTIME_COVERAGE = [
+	{
+		mode: 'baked',
+		bounds: { left: 0, top: 0, right: 3200, bottom: 3200 },
+		cropIds: ['painted-v2-complete-northwest']
+	},
+	{
+		mode: 'baked',
+		bounds: { left: 3200, top: 0, right: 6400, bottom: 3200 },
+		cropIds: ['painted-v2-complete-northeast']
+	},
+	{
+		mode: 'baked',
+		bounds: { left: 0, top: 3200, right: 3200, bottom: 6400 },
+		cropIds: ['painted-v2-complete-southwest']
+	},
+	{
+		mode: 'baked',
+		bounds: { left: 3200, top: 3200, right: 6400, bottom: 6400 },
+		cropIds: ['painted-v2-complete-southeast']
+	}
+] satisfies readonly MeadowEntryRuntimeCoverage[];
+
+export const MEADOW_ENTRY_PAINTED_V2_COMPLETE_RUNTIME_COVERAGE: readonly MeadowEntryRuntimeCoverage[] =
+	Object.freeze(RAW_COMPLETE_RUNTIME_COVERAGE.map(freezeRuntimeCoverage));
+
 export const MEADOW_ENTRY_PAINTED_V2_PILOT_FALLBACK_REQUIREMENTS: readonly MeadowEntryFallbackRequirement[] =
+	Object.freeze([]);
+
+export const MEADOW_ENTRY_PAINTED_V2_COMPLETE_FALLBACK_REQUIREMENTS: readonly MeadowEntryFallbackRequirement[] =
 	Object.freeze([]);
 
 export const MEADOW_ENTRY_PAINTED_V2_PILOT_BUDGET_SUMMARY: MeadowEntryCropBudgetSummary =
@@ -190,6 +364,16 @@ export const MEADOW_ENTRY_PAINTED_V2_PILOT_BUDGET_SUMMARY: MeadowEntryCropBudget
 		overlapArea: 1_863_680,
 		aggregateBaseReviewBytes: 56_613_986,
 		aggregateBaseHardBytes: 64 * MIB,
+		aggregateForegroundReviewBytes: 0,
+		aggregateForegroundHardBytes: 0
+	});
+
+export const MEADOW_ENTRY_PAINTED_V2_COMPLETE_BUDGET_SUMMARY: MeadowEntryCropBudgetSummary =
+	Object.freeze({
+		exportAreaRatio: 1,
+		overlapArea: 0,
+		aggregateBaseReviewBytes: 128 * MIB,
+		aggregateBaseHardBytes: 128 * MIB,
 		aggregateForegroundReviewBytes: 0,
 		aggregateForegroundHardBytes: 0
 	});

@@ -78,8 +78,8 @@ const APPROVED_FOREST_INTERIM_HASHES = {
 const IMMUTABLE_PINNED_DETAIL_HASHES = {
 	'hero-house-frontage': '9809baf80d939eee485ee0876d3e907e60e04a8185b774f1a14a418a9cd8205b',
 	'village-crossroads-connector':
-		'6866f90802dfcd73d3828b41b237c8c1239ee130c9d8c8af3ac10d20c193e8b2',
-	crossroads: '1534062581775261bfcfd8a26eb5de5a730adf658d9b6ef9abb65413bbe4ae34'
+		'a610b473160a6289355bb8f36b8ef07104ec1b24546bc82a015d04d78dbb30b7',
+	crossroads: 'b67f13a410d953909f2400c6689e5dc418bcd4968a4cbe0a1cf81a5d74d82f30'
 } as const;
 
 function readJson<T>(path: string): T {

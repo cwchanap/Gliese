@@ -12,14 +12,22 @@ import {
 	renderMeadowEntryControls
 } from '$lib/game/content/backgrounds/meadow-entry-controls';
 import { MEADOW_ENTRY_COMBINED_CONTROL_FINGERPRINT } from '$lib/game/content/generated/meadow-entry-painted-v2-art-control';
+import { MEADOW_ENTRY_COMBINED_CONTROL_FINGERPRINT as MEADOW_ENTRY_COMPLETE_COMBINED_CONTROL_FINGERPRINT } from '$lib/game/content/generated/meadow-entry-painted-v2-complete-art-control';
 
 import { runMeadowEntryArtControlsExporter } from './export-meadow-entry-art-controls';
 import { verifyMeadowEntryArtStorage } from './verify-meadow-entry-art-storage';
 
-const CONTROLS_DIRECTORY = 'artifacts/meadow-entry/painted-v2/controls';
-const APPROVAL_PATH = 'src/lib/game/content/approvals/meadow-entry-painted-v2-controls.ts';
-const EVIDENCE_PATH =
+export type MeadowEntryControlPackage = 'legacy' | 'complete';
+
+const LEGACY_CONTROLS_DIRECTORY = 'artifacts/meadow-entry/painted-v2/controls';
+const LEGACY_APPROVAL_PATH = 'src/lib/game/content/approvals/meadow-entry-painted-v2-controls.ts';
+const LEGACY_EVIDENCE_PATH =
 	'docs/superpowers/reports/2026-08-12-meadow-entry-painted-camera-safe-controls.md' as const;
+const COMPLETE_CONTROLS_DIRECTORY = 'artifacts/meadow-entry/painted-v2/complete/controls';
+const COMPLETE_APPROVAL_PATH =
+	'src/lib/game/content/approvals/meadow-entry-painted-v2-complete-controls.ts';
+const COMPLETE_EVIDENCE_PATH =
+	'docs/superpowers/reports/2026-08-19-complete-world-layout-foundation.md' as const;
 const UTC_SECONDS = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/;
 const REVIEWER = /^[A-Za-z0-9][A-Za-z0-9._@+ -]{0,99}$/;
 const SHA256 = /^[0-9a-f]{64}$/;
@@ -27,6 +35,7 @@ const SHA256 = /^[0-9a-f]{64}$/;
 export interface MeadowEntryControlsApprovalArguments {
 	reviewedBy: string;
 	reviewedAt: string;
+	packageName?: MeadowEntryControlPackage;
 }
 
 export interface MeadowEntryControlsApprovalValues {
@@ -36,6 +45,39 @@ export interface MeadowEntryControlsApprovalValues {
 	storageMode: 'git-lfs';
 	storageConfigurationSha256: string;
 	evidencePath: string;
+}
+
+interface MeadowEntryControlPackageConfig {
+	readonly controlsDirectory: string;
+	readonly approvalPath: string;
+	readonly evidencePath: string;
+	readonly checkedInCombinedFingerprint: string;
+	readonly moduleInterfaceName: string;
+	readonly reviewExportName: string;
+	readonly approvalExportName: string;
+}
+
+function packageConfig(packageName: MeadowEntryControlPackage): MeadowEntryControlPackageConfig {
+	if (packageName === 'complete') {
+		return {
+			controlsDirectory: COMPLETE_CONTROLS_DIRECTORY,
+			approvalPath: COMPLETE_APPROVAL_PATH,
+			evidencePath: COMPLETE_EVIDENCE_PATH,
+			checkedInCombinedFingerprint: MEADOW_ENTRY_COMPLETE_COMBINED_CONTROL_FINGERPRINT,
+			moduleInterfaceName: 'MeadowEntryPaintedV2CompleteControlsApproval',
+			reviewExportName: 'meadowEntryPaintedV2CompleteControlsApprovalReview',
+			approvalExportName: 'meadowEntryPaintedV2CompleteControlsApproval'
+		};
+	}
+	return {
+		controlsDirectory: LEGACY_CONTROLS_DIRECTORY,
+		approvalPath: LEGACY_APPROVAL_PATH,
+		evidencePath: LEGACY_EVIDENCE_PATH,
+		checkedInCombinedFingerprint: MEADOW_ENTRY_COMBINED_CONTROL_FINGERPRINT,
+		moduleInterfaceName: 'MeadowEntryControlsApproval',
+		reviewExportName: 'meadowEntryControlsApprovalReview',
+		approvalExportName: 'meadowEntryControlsApproval'
+	};
 }
 
 export interface MeadowEntryApprovalArtifactSnapshot {
@@ -89,7 +131,7 @@ export function parseMeadowEntryControlsApprovalArguments(
 	const values = new Map<string, string>();
 	for (let index = args[0] === '--' ? 1 : 0; index < args.length; index += 2) {
 		const flag = args[index];
-		if (flag !== '--reviewed-by' && flag !== '--reviewed-at') {
+		if (flag !== '--reviewed-by' && flag !== '--reviewed-at' && flag !== '--package') {
 			throw new Error(`Unknown meadow-entry approval argument: ${flag ?? '<missing>'}`);
 		}
 		if (values.has(flag)) {
@@ -104,6 +146,10 @@ export function parseMeadowEntryControlsApprovalArguments(
 
 	const reviewedBy = values.get('--reviewed-by');
 	const reviewedAt = values.get('--reviewed-at');
+	const packageValue = values.get('--package');
+	if (packageValue !== undefined && packageValue !== 'legacy' && packageValue !== 'complete') {
+		throw new Error('Unknown meadow-entry control package. Expected legacy or complete.');
+	}
 	if (reviewedBy === undefined) throw new Error('Missing required --reviewed-by argument.');
 	if (!isValidReviewedBy(reviewedBy)) {
 		throw new Error(
@@ -113,7 +159,11 @@ export function parseMeadowEntryControlsApprovalArguments(
 	if (reviewedAt === undefined) throw new Error('Missing required --reviewed-at argument.');
 	assertValidReviewedAt(reviewedAt);
 
-	return { reviewedBy, reviewedAt };
+	return {
+		reviewedBy,
+		reviewedAt,
+		...(packageValue === undefined ? {} : { packageName: packageValue })
+	};
 }
 
 function sha256(value: Uint8Array | string): string {
@@ -178,20 +228,24 @@ export function validateMeadowEntryApprovalArtifacts(
 	assertStorageConfiguration(snapshot.storageConfiguration);
 }
 
-function readApprovalValues(repositoryRoot: string): MeadowEntryControlsApprovalValues {
-	const inputs = buildMeadowEntryControlInputs(repositoryRoot);
+function readApprovalValues(
+	repositoryRoot: string,
+	packageName: MeadowEntryControlPackage = 'legacy'
+): MeadowEntryControlsApprovalValues {
+	const config = packageConfig(packageName);
+	const inputs = buildMeadowEntryControlInputs(repositoryRoot, packageName);
 	const currentCombinedFingerprint = computeMeadowEntryCombinedControlFingerprint(inputs);
 	const rendered = renderMeadowEntryControls(inputs);
 	const cropManifest = readFileSync(
-		join(repositoryRoot, CONTROLS_DIRECTORY, 'meadow-entry-crop-manifest.json')
+		join(repositoryRoot, config.controlsDirectory, 'meadow-entry-crop-manifest.json')
 	);
 	const bakeOwnership = readFileSync(
-		join(repositoryRoot, CONTROLS_DIRECTORY, 'meadow-entry-bake-ownership.json')
+		join(repositoryRoot, config.controlsDirectory, 'meadow-entry-bake-ownership.json')
 	);
 	const storageConfiguration = readFileSync(join(repositoryRoot, '.gitattributes'));
 	validateMeadowEntryApprovalArtifacts({
 		currentCombinedFingerprint,
-		checkedInCombinedFingerprint: MEADOW_ENTRY_COMBINED_CONTROL_FINGERPRINT,
+		checkedInCombinedFingerprint: config.checkedInCombinedFingerprint,
 		renderedCropManifest: rendered['meadow-entry-crop-manifest.json']!,
 		checkedInCropManifest: cropManifest,
 		renderedBakeOwnership: rendered['meadow-entry-bake-ownership.json']!,
@@ -205,7 +259,7 @@ function readApprovalValues(repositoryRoot: string): MeadowEntryControlsApproval
 		bakeOwnershipSha256: sha256(bakeOwnership),
 		storageMode: 'git-lfs',
 		storageConfigurationSha256: sha256(storageConfiguration),
-		evidencePath: EVIDENCE_PATH
+		evidencePath: config.evidencePath
 	};
 }
 
@@ -239,49 +293,57 @@ export function publishMeadowEntryControlsApproval(
 	}
 }
 
-function assertApprovalValues(values: MeadowEntryControlsApprovalValues): void {
+function assertApprovalValues(
+	values: MeadowEntryControlsApprovalValues,
+	packageName: MeadowEntryControlPackage
+): void {
 	for (const [name, value] of Object.entries(values)) {
 		if (name.endsWith('Fingerprint') || name.endsWith('Sha256')) {
 			if (!SHA256.test(value)) throw new Error(`Invalid approval SHA-256 value for ${name}.`);
 		}
 	}
-	if (values.storageMode !== 'git-lfs' || values.evidencePath !== EVIDENCE_PATH) {
+	if (
+		values.storageMode !== 'git-lfs' ||
+		values.evidencePath !== packageConfig(packageName).evidencePath
+	) {
 		throw new Error('Invalid fixed meadow-entry approval contract value.');
 	}
 }
 
 export function renderMeadowEntryControlsApprovalModule(
 	review: MeadowEntryControlsApprovalArguments,
-	values: MeadowEntryControlsApprovalValues
+	values: MeadowEntryControlsApprovalValues,
+	packageName: MeadowEntryControlPackage = 'legacy'
 ): string {
 	if (!isValidReviewedBy(review.reviewedBy)) {
 		throw new Error('Invalid reviewedBy value: surrounding whitespace is not allowed.');
 	}
 	assertValidReviewedAt(review.reviewedAt);
-	assertApprovalValues(values);
+	const config = packageConfig(packageName);
+	assertApprovalValues(values, packageName);
 
 	return `/** Generated by tools/approve-meadow-entry-controls.ts from reviewed checked-in controls. */
-export interface MeadowEntryControlsApproval {
+export interface ${config.moduleInterfaceName} {
 \tcombinedControlFingerprint: string;
 \tcropManifestSha256: string;
 \tbakeOwnershipSha256: string;
 \tstorageMode: 'git-lfs';
 \tstorageConfigurationSha256: string;
-\tevidencePath: '${EVIDENCE_PATH}';
+\tevidencePath: '${config.evidencePath}';
 }
 
-export const meadowEntryControlsApprovalReview = {
+export const ${config.reviewExportName} = {
 \treviewedBy: '${review.reviewedBy}',
 \treviewedAt: '${review.reviewedAt}'
 } as const;
 
-export const meadowEntryControlsApproval: MeadowEntryControlsApproval = {
+export const ${config.approvalExportName}: ${config.moduleInterfaceName} = {
 \tcombinedControlFingerprint: '${values.combinedControlFingerprint}',
 \tcropManifestSha256: '${values.cropManifestSha256}',
 \tbakeOwnershipSha256: '${values.bakeOwnershipSha256}',
 \tstorageMode: 'git-lfs',
 \tstorageConfigurationSha256: '${values.storageConfigurationSha256}',
-\tevidencePath: '${EVIDENCE_PATH}'
+\tevidencePath: '${config.evidencePath}'
 };
 `;
 }
@@ -304,11 +366,13 @@ export async function approveMeadowEntryControls(
 	repositoryRoot = process.cwd()
 ): Promise<MeadowEntryControlsApprovalValues> {
 	const review = parseMeadowEntryControlsApprovalArguments(args);
+	const packageName = review.packageName ?? 'legacy';
+	const config = packageConfig(packageName);
 	await verifyMeadowEntryArtStorage(repositoryRoot);
-	runMeadowEntryArtControlsExporter(['--check'], repositoryRoot);
-	const values = readApprovalValues(repositoryRoot);
-	const output = renderMeadowEntryControlsApprovalModule(review, values);
-	publishMeadowEntryControlsApproval(output, join(repositoryRoot, APPROVAL_PATH));
+	runMeadowEntryArtControlsExporter(['--package', packageName, '--check'], repositoryRoot);
+	const values = readApprovalValues(repositoryRoot, packageName);
+	const output = renderMeadowEntryControlsApprovalModule(review, values, packageName);
+	publishMeadowEntryControlsApproval(output, join(repositoryRoot, config.approvalPath));
 
 	console.log(`approved meadow-entry controls ${values.combinedControlFingerprint}`);
 	console.log(`reviewedBy ${review.reviewedBy}`);
@@ -320,13 +384,18 @@ export async function approveMeadowEntryControls(
 }
 
 export function parseCheckedInMeadowEntryControlsApproval(
-	source: string
+	source: string,
+	packageName: MeadowEntryControlPackage = 'legacy'
 ): MeadowEntryControlsApprovalValues {
+	const config = packageConfig(packageName);
 	const objectMatch = source.match(
-		/export const meadowEntryControlsApproval\s*:\s*MeadowEntryControlsApproval\s*=\s*\{([\s\S]*?)^\};/m
+		new RegExp(
+			`export const ${config.approvalExportName}\\s*:\\s*${config.moduleInterfaceName}\\s*=\\s*\\{([\\s\\S]*?)^\\};`,
+			'm'
+		)
 	);
 	if (!objectMatch) {
-		throw new Error('Checked-in painted-v2 approval object is missing.');
+		throw new Error(`Checked-in ${packageName} painted-v2 approval object is missing.`);
 	}
 	const objectSource = objectMatch[1]!;
 	const value = (field: string): string => {
@@ -338,32 +407,38 @@ export function parseCheckedInMeadowEntryControlsApproval(
 	if (storageMode !== 'git-lfs')
 		throw new Error('Checked-in painted-v2 approval storage mode drifted.');
 	const evidencePath = value('evidencePath');
-	if (evidencePath !== EVIDENCE_PATH)
-		throw new Error('Checked-in painted-v2 approval evidence path drifted.');
+	if (evidencePath !== config.evidencePath)
+		throw new Error(`Checked-in ${packageName} painted-v2 approval evidence path drifted.`);
 	return {
 		combinedControlFingerprint: value('combinedControlFingerprint'),
 		cropManifestSha256: value('cropManifestSha256'),
 		bakeOwnershipSha256: value('bakeOwnershipSha256'),
 		storageMode: 'git-lfs',
 		storageConfigurationSha256: value('storageConfigurationSha256'),
-		evidencePath: EVIDENCE_PATH
+		evidencePath: config.evidencePath
 	};
 }
 
-function readCheckedInApprovalValues(repositoryRoot: string): MeadowEntryControlsApprovalValues {
+function readCheckedInApprovalValues(
+	repositoryRoot: string,
+	packageName: MeadowEntryControlPackage = 'legacy'
+): MeadowEntryControlsApprovalValues {
+	const config = packageConfig(packageName);
 	return parseCheckedInMeadowEntryControlsApproval(
-		readFileSync(join(repositoryRoot, APPROVAL_PATH), 'utf8')
+		readFileSync(join(repositoryRoot, config.approvalPath), 'utf8'),
+		packageName
 	);
 }
 
 /** Recomputes the active payload and compares it without writing any file. */
 export async function checkMeadowEntryControlsApproval(
-	repositoryRoot = process.cwd()
+	repositoryRoot = process.cwd(),
+	packageName: MeadowEntryControlPackage = 'legacy'
 ): Promise<MeadowEntryControlsApprovalValues> {
 	await verifyMeadowEntryArtStorage(repositoryRoot);
-	runMeadowEntryArtControlsExporter(['--check'], repositoryRoot);
-	const current = readApprovalValues(repositoryRoot);
-	const checkedIn = readCheckedInApprovalValues(repositoryRoot);
+	runMeadowEntryArtControlsExporter(['--package', packageName, '--check'], repositoryRoot);
+	const current = readApprovalValues(repositoryRoot, packageName);
+	const checkedIn = readCheckedInApprovalValues(repositoryRoot, packageName);
 	if (
 		current.combinedControlFingerprint !== checkedIn.combinedControlFingerprint ||
 		current.cropManifestSha256 !== checkedIn.cropManifestSha256 ||
@@ -374,15 +449,30 @@ export async function checkMeadowEntryControlsApproval(
 	) {
 		throw new Error('Checked-in painted-v2 controls approval payload is stale.');
 	}
-	console.log(`painted-v2 controls approval is current\t${current.combinedControlFingerprint}`);
+	console.log(
+		`${packageName} painted-v2 controls approval is current\t${current.combinedControlFingerprint}`
+	);
 	return current;
 }
 
 if (import.meta.main) {
 	try {
 		const args = process.argv.slice(2);
-		if (args.length === 1 && args[0] === '--check') {
-			await checkMeadowEntryControlsApproval();
+		const checkIndex = args.indexOf('--check');
+		if (checkIndex >= 0) {
+			const checkArgs = args.filter((_, index) => index !== checkIndex);
+			let packageName: MeadowEntryControlPackage = 'legacy';
+			if (checkArgs.length === 2 && checkArgs[0] === '--package') {
+				if (checkArgs[1] !== 'legacy' && checkArgs[1] !== 'complete') {
+					throw new Error('Unknown meadow-entry control package. Expected legacy or complete.');
+				}
+				packageName = checkArgs[1];
+			} else if (checkArgs.length > 0) {
+				throw new Error(
+					'Usage: bun tools/approve-meadow-entry-controls.ts [--package legacy|complete] --check'
+				);
+			}
+			await checkMeadowEntryControlsApproval(process.cwd(), packageName);
 		} else {
 			await approveMeadowEntryControls(args);
 		}

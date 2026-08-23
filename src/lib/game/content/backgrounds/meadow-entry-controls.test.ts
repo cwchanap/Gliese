@@ -14,11 +14,16 @@ import {
 	renderMeadowEntryControls,
 	type MeadowEntryControlInputs
 } from './meadow-entry-controls';
-import { MEADOW_ENTRY_PAINTED_V2_BAKE_OWNERSHIP } from './meadow-entry-bake-ownership';
+import { MEADOW_ENTRY_PAINTED_V2_LEGACY_BAKE_OWNERSHIP } from './meadow-entry-painted-v2-legacy-snapshot';
 import {
 	MEADOW_ENTRY_PAINTED_V2_PILOT_CROPS,
 	MEADOW_ENTRY_PAINTED_V2_PILOT_OVERLAPS,
 	MEADOW_ENTRY_PAINTED_V2_PILOT_RUNTIME_COVERAGE
+} from './meadow-entry-painted-v2-crop-manifest';
+import {
+	MEADOW_ENTRY_PAINTED_V2_COMPLETE_CROPS,
+	MEADOW_ENTRY_PAINTED_V2_COMPLETE_OVERLAPS,
+	MEADOW_ENTRY_PAINTED_V2_COMPLETE_RUNTIME_COVERAGE
 } from './meadow-entry-painted-v2-crop-manifest';
 import { MEADOW_ENTRY_PAINTED_V2_ART_STORAGE } from './meadow-entry-storage';
 
@@ -252,7 +257,7 @@ function maskPixel(alpha: Buffer, x: number, y: number): number {
 
 describe('meadow-entry deterministic authoring controls', () => {
 	it('renders the reviewed fixed inventory byte-identically on repeated builds', () => {
-		const input = buildMeadowEntryControlInputs();
+		const input = buildMeadowEntryControlInputs(undefined, 'complete');
 		const first = renderMeadowEntryControls(input);
 		const second = renderMeadowEntryControls(input);
 
@@ -264,9 +269,27 @@ describe('meadow-entry deterministic authoring controls', () => {
 		}
 	});
 
+	it('selects the complete crop contract only when the complete package is explicit', () => {
+		const legacy = buildMeadowEntryControlInputs();
+		const complete = buildMeadowEntryControlInputs(undefined, 'complete');
+
+		expect(legacy.crops).toBe(MEADOW_ENTRY_PAINTED_V2_PILOT_CROPS);
+		expect(legacy.overlaps).toBe(MEADOW_ENTRY_PAINTED_V2_PILOT_OVERLAPS);
+		expect(legacy.runtimeCoverage).toBe(MEADOW_ENTRY_PAINTED_V2_PILOT_RUNTIME_COVERAGE);
+		expect(complete.crops).toBe(MEADOW_ENTRY_PAINTED_V2_COMPLETE_CROPS);
+		expect(complete.overlaps).toBe(MEADOW_ENTRY_PAINTED_V2_COMPLETE_OVERLAPS);
+		expect(complete.runtimeCoverage).toBe(MEADOW_ENTRY_PAINTED_V2_COMPLETE_RUNTIME_COVERAGE);
+	});
+
+	it('rejects an unknown crop-control package', () => {
+		expect(() => buildMeadowEntryControlInputs(undefined, 'unsupported' as 'legacy')).toThrow(
+			/unknown meadow-entry control package/i
+		);
+	});
+
 	it('builds controls directly from the reviewed painted-v2 contract', () => {
 		const input = buildMeadowEntryControlInputs();
-		expect(input.bakeOwnership).toBe(MEADOW_ENTRY_PAINTED_V2_BAKE_OWNERSHIP);
+		expect(input.bakeOwnership).toBe(MEADOW_ENTRY_PAINTED_V2_LEGACY_BAKE_OWNERSHIP);
 		expect(input.crops).toBe(MEADOW_ENTRY_PAINTED_V2_PILOT_CROPS);
 		expect(input.overlaps).toBe(MEADOW_ENTRY_PAINTED_V2_PILOT_OVERLAPS);
 		expect(input.runtimeCoverage).toBe(MEADOW_ENTRY_PAINTED_V2_PILOT_RUNTIME_COVERAGE);
@@ -275,7 +298,7 @@ describe('meadow-entry deterministic authoring controls', () => {
 
 	it('orders canonical source IDs by Unicode code point instead of host locale collation', () => {
 		const input: MeadowEntryControlInputs = {
-			...buildMeadowEntryControlInputs(),
+			...buildMeadowEntryControlInputs(undefined, 'complete'),
 			sourceCatalog: [
 				{
 					ref: { sourceType: 'landmark', sourceId: 'a-locale-probe' },
@@ -301,7 +324,7 @@ describe('meadow-entry deterministic authoring controls', () => {
 	});
 
 	it('separates gameplay, authoring, and combined lowercase SHA-256 domains', () => {
-		const input = buildMeadowEntryControlInputs();
+		const input = buildMeadowEntryControlInputs(undefined, 'complete');
 		const gameplay = computeMeadowEntryGameplaySourceFingerprint(input);
 		const authoring = computeMeadowEntryAuthoringContractFingerprint(input);
 		const combined = computeMeadowEntryCombinedControlFingerprint(input);
@@ -326,7 +349,7 @@ describe('meadow-entry deterministic authoring controls', () => {
 	});
 
 	it('builds 6400px masks and removes every protected pixel from foreground eligibility', () => {
-		const input = buildMeadowEntryControlInputs();
+		const input = buildMeadowEntryControlInputs(undefined, 'complete');
 		const protectedMask = buildMeadowEntryProtectedForegroundRasterMask(input);
 		const eligibleMask = buildMeadowEntryForegroundEligibleRasterMask(input);
 
@@ -350,7 +373,7 @@ describe('meadow-entry deterministic authoring controls', () => {
 	});
 
 	it('excludes every exact semantic clearance pixel and publishes its independent authoritative bounds', () => {
-		const input = buildMeadowEntryControlInputs();
+		const input = buildMeadowEntryControlInputs(undefined, 'complete');
 		const expected = expectedSemanticClearances();
 		const rendered = renderMeadowEntryControls(input);
 		const forbidden = parseSvgRects(rendered['meadow-entry-forbidden-tall-mask.svg']!);
@@ -424,7 +447,7 @@ describe('meadow-entry deterministic authoring controls', () => {
 	});
 
 	it('derives complete conservative walkable-space controls from the assembled map collision model', () => {
-		const input = buildMeadowEntryControlInputs();
+		const input = buildMeadowEntryControlInputs(undefined, 'complete');
 		const walkableSpaceRects = input.walkableSpaceRects;
 		const rawCollisionRects = [
 			...collectStrictCollisionRects(meadowEntryMap),
@@ -498,7 +521,7 @@ describe('meadow-entry deterministic authoring controls', () => {
 	});
 
 	it('preserves reviewed terrain material, owner, connector, disposition, and contributor metadata', () => {
-		const terrain = renderMeadowEntryControls(buildMeadowEntryControlInputs())[
+		const terrain = renderMeadowEntryControls(buildMeadowEntryControlInputs(undefined, 'complete'))[
 			'meadow-entry-terrain-path-mask.svg'
 		]!;
 		const connector = terrain
@@ -516,16 +539,16 @@ describe('meadow-entry deterministic authoring controls', () => {
 	});
 
 	it('does not invent a foreground plane for the base-only painted-v2 pilot', () => {
-		const foreground = renderMeadowEntryControls(buildMeadowEntryControlInputs())[
-			'meadow-entry-foreground-eligible-mask.svg'
-		]!;
+		const foreground = renderMeadowEntryControls(
+			buildMeadowEntryControlInputs(undefined, 'complete')
+		)['meadow-entry-foreground-eligible-mask.svg']!;
 		expect(foreground).not.toContain('data-id="foreground:blocker:');
 		expect(foreground).not.toContain('data-id="foreground:decor:');
 		expect(foreground).toContain('data-id="foreground-exclusion:');
 	});
 
 	it('matches every protected-live pixel to an independent expected projection and excludes all of them', () => {
-		const input = buildMeadowEntryControlInputs();
+		const input = buildMeadowEntryControlInputs(undefined, 'complete');
 		const expectedBounds = expectedProtectedBounds(input);
 		const expectedAlpha = Buffer.alloc(6_400 * 6_400);
 		for (const bounds of expectedBounds) fillTestBounds(expectedAlpha, bounds, 255);
@@ -540,7 +563,7 @@ describe('meadow-entry deterministic authoring controls', () => {
 	});
 
 	it('fingerprints gameplay, authoring renderer-mask-material, predecessor, and storage domains independently', () => {
-		const input = buildMeadowEntryControlInputs();
+		const input = buildMeadowEntryControlInputs(undefined, 'complete');
 		const original = {
 			gameplay: computeMeadowEntryGameplaySourceFingerprint(input),
 			authoring: computeMeadowEntryAuthoringContractFingerprint(input),

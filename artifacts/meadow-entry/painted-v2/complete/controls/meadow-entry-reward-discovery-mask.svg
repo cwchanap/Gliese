@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 6400 6400" width="6400" height="6400">
+  <rect data-id="discovery:castle-gate-warning" x="4128" y="3152" width="96" height="96" fill="#ffffff"/>
+  <rect data-id="discovery:coast-jetty-foreshadow" x="4852" y="6132" width="96" height="96" fill="#ffffff"/>
+  <rect data-id="discovery:crossroads-waystone-sign" x="3856" y="4176" width="96" height="96" fill="#ffffff"/>
+  <rect data-id="discovery:ferry-shrine-lore" x="3552" y="5452" width="96" height="96" fill="#ffffff"/>
+  <rect data-id="discovery:silverpine-amulet-foreshadow" x="2792" y="1072" width="96" height="96" fill="#ffffff"/>
+  <rect data-id="discovery:wildwood-cave-danger" x="5912" y="1872" width="96" height="96" fill="#ffffff"/>
+  <rect data-id="discovery:witchwood-poison-warning" x="1152" y="772" width="96" height="96" fill="#ffffff"/>
+  <rect data-id="pickup:coast-jetty-catch" x="4736" y="6036" width="48" height="48" fill="#ffffff"/>
+  <rect data-id="pickup:coast-salve" x="5416" y="5906" width="48" height="48" fill="#ffffff"/>
+  <rect data-id="pickup:crossroads-cache" x="4008" y="4456" width="48" height="48" fill="#ffffff"/>
+  <rect data-id="pickup:mistfen-cache" x="1896" y="2276" width="48" height="48" fill="#ffffff"/>
+  <rect data-id="pickup:mistfen-salve" x="856" y="2476" width="48" height="48" fill="#ffffff"/>
+  <rect data-id="pickup:silverpine-offering-cache" x="3236" y="696" width="48" height="48" fill="#ffffff"/>
+  <rect data-id="pickup:silverpine-tonic" x="2596" y="1536" width="48" height="48" fill="#ffffff"/>
+  <rect data-id="pickup:village-market-cache" x="888" y="5048" width="48" height="48" fill="#ffffff"/>
+  <rect data-id="pickup:village-shrine-cache" x="2488" y="5720" width="48" height="48" fill="#ffffff"/>
+  <rect data-id="pickup:wildwood-grove-cache" x="4676" y="3626" width="48" height="48" fill="#ffffff"/>
+</svg>
