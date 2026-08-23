@@ -1,1877 +1,1877 @@
 {
-	"version": 1,
-	"mapId": "meadow-entry",
-	"viewBox": {
-		"x": 0,
-		"y": 0,
-		"width": 6400,
-		"height": 6400
-	},
-	"artifacts": [
-		"meadow-entry-control-manifest.json",
-		"meadow-entry-composite-control.svg",
-		"meadow-entry-terrain-path-mask.svg",
-		"meadow-entry-region-mask.svg",
-		"meadow-entry-collision-mask.svg",
-		"meadow-entry-building-footprint-mask.svg",
-		"meadow-entry-entrance-transition-mask.svg",
-		"meadow-entry-encounter-combat-mask.svg",
-		"meadow-entry-reward-discovery-mask.svg",
-		"meadow-entry-semantic-anchor-mask.svg",
-		"meadow-entry-protected-live-mask.svg",
-		"meadow-entry-forbidden-tall-mask.svg",
-		"meadow-entry-foreground-eligible-mask.svg",
-		"meadow-entry-handoff-mask.svg",
-		"meadow-entry-runtime-base-coverage-mask.svg",
-		"meadow-entry-runtime-fallback-coverage-mask.svg",
-		"meadow-entry-bake-ownership.json",
-		"meadow-entry-crop-manifest.json"
-	],
-	"fingerprints": {
-		"gameplaySource": "bf9bf20ebaf69c8817de429a7e5c6b0421cc4ec6ed60a0d5cc8ac7656d5d4938",
-		"authoringContract": "fad467a306a8c60f44373d490b54ee9e14e2dc73df627a4fcf5d84ff4e5ecb3f",
-		"combinedControl": "59ded996de5f7a468a7ef2d57219c851bf3d77488cfe8f3c9dedcbb3ea5c33b9"
-	},
-	"predecessor": {
-		"hpa307ArtifactHashes": {
-			"docs/superpowers/reports/img/hpa-307/village-art-control-manifest.json": "8dc8349aa3ac4581ee1e2ce143e5b69f9497ec1a0c2610f72fe1647382ade6e3",
-			"docs/superpowers/reports/img/hpa-307/village-art-control.svg": "d31dfc7421d42f8925ef881edb99c28a0a9daa638b2d3a6f2df0b0be047806f5",
-			"docs/superpowers/reports/img/hpa-307/village-building-entrance-mask.svg": "9df14228c474a811fc2e59a3b412a4269e1605ac4dd57e7797402d19dd28ebaf",
-			"docs/superpowers/reports/img/hpa-307/village-composed-collision-mask.svg": "445923c3cead0dcfbf26f16f1819d761420b830e9e26a838b5a1dc52e77bf4d9",
-			"docs/superpowers/reports/img/hpa-307/village-forbidden-tall-mask.svg": "44f18ff3f85ec017d42ece0bb28102aadadceac53a00bc7d8f6338467bdecd48",
-			"docs/superpowers/reports/img/hpa-307/village-layered-collision-mask.svg": "d5bf78d332700d46e62759997e6f60fcd58724c9f8e51df616f7a160d405fc57",
-			"docs/superpowers/reports/img/hpa-307/village-object-anchors.svg": "0e58af6e9ad55eaed57eb1daad16d31e910ee368bfac0661c4076af68f70dd4f",
-			"docs/superpowers/reports/img/hpa-307/village-region-mask.svg": "ec9c4482b6b7b738b22a430bce5d59a06a9bc3955f4670d400fc6d10a54fb556",
-			"docs/superpowers/reports/img/hpa-307/village-terrain-path-mask.svg": "462391dd7e6a7dddf836d9bd4d9967578d1e9b112a293e942c4b85ac66424181"
-		},
-		"hpa398ControlFingerprint": "8b3f80fdde4591465d90aca558ff747d3825939c5879fdadaf3c55e70cb3b4b2",
-		"hpa398BaseSha256": "f1184b045c27c544ac18937a4f8ccfa12cd386319b1722be5d808aea8048ade6",
-		"hpa398ForegroundSha256": "2d0a6703de1a404e49c0746f092a4c6f9f113ae17cd8bc35de635b5ec084ce45"
-	},
-	"storage": {
-		"mode": "git-lfs",
-		"sourcePattern": "artifacts/meadow-entry/painted-v2/**/*.png",
-		"runtimePattern": "public/game/assets/regions/meadow-entry-painted-v2/**/*.png",
-		"canaryPath": "artifacts/meadow-entry/painted-v2/lfs-canary.png"
-	},
-	"sourceFileHashes": {
-		"src/lib/game/content/maps/meadow-entry.ts": "66fbac8492861a0a77d147a7eff0f6ae00cd61a36c8030858a7bbeb8f0096dcb",
-		"src/lib/game/content/maps/regions/village.ts": "6ab333c46e091c10ef8da62cb6e889fc8963add4def39fa0f74c0dc03d06fa1b",
-		"src/lib/game/content/maps/regions/wildwood.ts": "f59ba6f6d6eda59e84a1682baa9c4667b84ae7d502f757cc20c873dc8a64fb67",
-		"src/lib/game/content/maps/regions/mistfen.ts": "57d5f442379df97b2f1ced4953aa93f4e44fc918d47a53450d15c190960a677c",
-		"src/lib/game/content/maps/regions/silverpine.ts": "09c2129a0a5cfbf412f53c30bc6cd690058683a6de98cb4d91f180346c1b17cc",
-		"src/lib/game/content/maps/regions/coast.ts": "d16ac1f57db1dfcd5b66800fe7218417d6d4ea5bd57bea5b669c89954f0616f4",
-		"src/lib/game/content/maps/regions/crossroads.ts": "f409235a9b1c579479080e622898c4efbea0d86010971ff6292f2d61b33c7170",
-		"src/lib/game/content/maps/regions/paths.ts": "164ddb49941d4a5312aacf4fc5f39553015eff02678c884a474b2e6c8d598856",
-		"src/lib/game/content/maps/regions/river-system.ts": "9d73f8b474e24795092eb9713f859d9ca187d2ef30120803204238eeb43c4a0e",
-		"src/lib/game/content/maps/blocker-rendering.ts": "d954110dc507d59656a21ee58bd5a1095304ed0d5b2c9db98fd09f4fc2e38223",
-		"src/lib/game/save/save-state.ts": "0208c30db08f620cd92eda454af4fe04be84e5525221eb9e50144fa621caffc0",
-		"src/lib/game/core/collision.ts": "5f487c10b01a6b10f4a1ad676d04f2a8c1c1f48e84d02d9ef270b98745a09e24"
-	},
-	"rendererMaskMaterialContract": {
-		"version": 1,
-		"implementationSha256": "0a4028f4bbc13a33df2f79aa832c5be0b39c9dc8bc3ef9f74fec1a8f1dd03a6c",
-		"maskDimensionsPx": {
-			"width": 6400,
-			"height": 6400
-		},
-		"pointExtentsPx": {
-			"spawn": {
-				"width": 96,
-				"height": 96
-			},
-			"transition": {
-				"width": 96,
-				"height": 96
-			},
-			"npc": {
-				"width": 96,
-				"height": 87
-			},
-			"ambientNpcDefault": {
-				"width": 96,
-				"height": 87
-			},
-			"pickup": {
-				"width": 48,
-				"height": 48
-			},
-			"encounter": {
-				"width": 96,
-				"height": 96
-			},
-			"discoveryDefaultDiameter": 96
-		},
-		"collisionExpansionPx": 12,
-		"walkableSpaceTileSizePx": 32,
-		"walkableSpaceRule": "tile-forbidden-unless-player-expanded-collision-union-covers-it",
-		"foregroundRule": "explicit-base-and-foreground-minus-forbidden-and-protected",
-		"protectedRule": "protected-live-source-bounds-plus-reviewed-margins",
-		"rasterizationRule": "raw-center-edges-floor-left-top-ceil-right-bottom",
-		"clippingRule": "half-open-clamp-to-0-6400",
-		"materialProfiles": {
-			"sundrop-village": "sundrop-painted-village",
-			"crossroads": "crossroads-cobblestone-festival",
-			"tidewatch-coast": "tidewatch-sand-and-sea",
-			"mistfen": "mistfen-marsh-and-fog",
-			"silverpine": "silverpine-autumn-shrine",
-			"wildwood": "wildwood-forest-and-ruins",
-			"connector-village-crossroads": "village-crossroads-handoff",
-			"connector-crossroads-coast": "crossroads-coast-handoff",
-			"connector-crossroads-mistfen": "crossroads-mistfen-handoff",
-			"connector-crossroads-silverpine": "crossroads-silverpine-handoff",
-			"connector-crossroads-wildwood": "crossroads-wildwood-handoff",
-			"outer-boundary": "outer-boundary-control"
-		}
-	},
-	"walkableSpaceRects": [
-		{
-			"left": 64,
-			"top": 64,
-			"right": 6336,
-			"bottom": 256
-		},
-		{
-			"left": 64,
-			"top": 256,
-			"right": 3456,
-			"bottom": 288
-		},
-		{
-			"left": 3712,
-			"top": 256,
-			"right": 6336,
-			"bottom": 288
-		},
-		{
-			"left": 64,
-			"top": 288,
-			"right": 2784,
-			"bottom": 416
-		},
-		{
-			"left": 3200,
-			"top": 288,
-			"right": 3456,
-			"bottom": 640
-		},
-		{
-			"left": 3712,
-			"top": 288,
-			"right": 4896,
-			"bottom": 448
-		},
-		{
-			"left": 5824,
-			"top": 288,
-			"right": 6336,
-			"bottom": 448
-		},
-		{
-			"left": 64,
-			"top": 416,
-			"right": 1024,
-			"bottom": 768
-		},
-		{
-			"left": 1376,
-			"top": 416,
-			"right": 2784,
-			"bottom": 640
-		},
-		{
-			"left": 3712,
-			"top": 448,
-			"right": 6336,
-			"bottom": 576
-		},
-		{
-			"left": 3712,
-			"top": 576,
-			"right": 6048,
-			"bottom": 1344
-		},
-		{
-			"left": 6208,
-			"top": 576,
-			"right": 6336,
-			"bottom": 1472
-		},
-		{
-			"left": 1376,
-			"top": 640,
-			"right": 3456,
-			"bottom": 704
-		},
-		{
-			"left": 1376,
-			"top": 704,
-			"right": 1408,
-			"bottom": 768
-		},
-		{
-			"left": 1536,
-			"top": 704,
-			"right": 3456,
-			"bottom": 800
-		},
-		{
-			"left": 64,
-			"top": 768,
-			"right": 1408,
-			"bottom": 800
-		},
-		{
-			"left": 64,
-			"top": 800,
-			"right": 896,
-			"bottom": 1152
-		},
-		{
-			"left": 1024,
-			"top": 800,
-			"right": 1408,
-			"bottom": 1440
-		},
-		{
-			"left": 1536,
-			"top": 800,
-			"right": 2656,
-			"bottom": 864
-		},
-		{
-			"left": 2720,
-			"top": 800,
-			"right": 2976,
-			"bottom": 864
-		},
-		{
-			"left": 3136,
-			"top": 800,
-			"right": 3264,
-			"bottom": 864
-		},
-		{
-			"left": 3328,
-			"top": 800,
-			"right": 3456,
-			"bottom": 864
-		},
-		{
-			"left": 1536,
-			"top": 864,
-			"right": 3456,
-			"bottom": 896
-		},
-		{
-			"left": 1536,
-			"top": 896,
-			"right": 2464,
-			"bottom": 992
-		},
-		{
-			"left": 2656,
-			"top": 896,
-			"right": 3456,
-			"bottom": 928
-		},
-		{
-			"left": 2656,
-			"top": 928,
-			"right": 2816,
-			"bottom": 992
-		},
-		{
-			"left": 2880,
-			"top": 928,
-			"right": 3136,
-			"bottom": 960
-		},
-		{
-			"left": 3200,
-			"top": 928,
-			"right": 3456,
-			"bottom": 960
-		},
-		{
-			"left": 2880,
-			"top": 960,
-			"right": 2912,
-			"bottom": 1056
-		},
-		{
-			"left": 2976,
-			"top": 960,
-			"right": 3136,
-			"bottom": 1056
-		},
-		{
-			"left": 3200,
-			"top": 960,
-			"right": 3232,
-			"bottom": 1056
-		},
-		{
-			"left": 3296,
-			"top": 960,
-			"right": 3456,
-			"bottom": 1152
-		},
-		{
-			"left": 1536,
-			"top": 992,
-			"right": 2816,
-			"bottom": 1056
-		},
-		{
-			"left": 1536,
-			"top": 1056,
-			"right": 2912,
-			"bottom": 1280
-		},
-		{
-			"left": 2976,
-			"top": 1056,
-			"right": 3232,
-			"bottom": 1120
-		},
-		{
-			"left": 64,
-			"top": 1152,
-			"right": 576,
-			"bottom": 1216
-		},
-		{
-			"left": 672,
-			"top": 1152,
-			"right": 896,
-			"bottom": 1216
-		},
-		{
-			"left": 2976,
-			"top": 1184,
-			"right": 3232,
-			"bottom": 1280
-		},
-		{
-			"left": 64,
-			"top": 1216,
-			"right": 896,
-			"bottom": 1248
-		},
-		{
-			"left": 3296,
-			"top": 1216,
-			"right": 3456,
-			"bottom": 1280
-		},
-		{
-			"left": 64,
-			"top": 1248,
-			"right": 608,
-			"bottom": 1536
-		},
-		{
-			"left": 1536,
-			"top": 1280,
-			"right": 2336,
-			"bottom": 1472
-		},
-		{
-			"left": 2976,
-			"top": 1280,
-			"right": 3040,
-			"bottom": 1344
-		},
-		{
-			"left": 3104,
-			"top": 1280,
-			"right": 3232,
-			"bottom": 1344
-		},
-		{
-			"left": 3296,
-			"top": 1280,
-			"right": 3360,
-			"bottom": 1344
-		},
-		{
-			"left": 3424,
-			"top": 1280,
-			"right": 3456,
-			"bottom": 1344
-		},
-		{
-			"left": 2400,
-			"top": 1344,
-			"right": 3040,
-			"bottom": 1376
-		},
-		{
-			"left": 3104,
-			"top": 1344,
-			"right": 3264,
-			"bottom": 1376
-		},
-		{
-			"left": 3712,
-			"top": 1344,
-			"right": 4992,
-			"bottom": 1440
-		},
-		{
-			"left": 5088,
-			"top": 1344,
-			"right": 5632,
-			"bottom": 1440
-		},
-		{
-			"left": 5728,
-			"top": 1344,
-			"right": 6048,
-			"bottom": 1440
-		},
-		{
-			"left": 2400,
-			"top": 1376,
-			"right": 2496,
-			"bottom": 1440
-		},
-		{
-			"left": 2592,
-			"top": 1376,
-			"right": 2848,
-			"bottom": 1408
-		},
-		{
-			"left": 2592,
-			"top": 1408,
-			"right": 2784,
-			"bottom": 1440
-		},
-		{
-			"left": 1024,
-			"top": 1440,
-			"right": 1056,
-			"bottom": 1568
-		},
-		{
-			"left": 1120,
-			"top": 1440,
-			"right": 1408,
-			"bottom": 1472
-		},
-		{
-			"left": 2400,
-			"top": 1440,
-			"right": 2784,
-			"bottom": 1504
-		},
-		{
-			"left": 2848,
-			"top": 1440,
-			"right": 3040,
-			"bottom": 1504
-		},
-		{
-			"left": 3712,
-			"top": 1440,
-			"right": 6048,
-			"bottom": 1472
-		},
-		{
-			"left": 1120,
-			"top": 1472,
-			"right": 2336,
-			"bottom": 1536
-		},
-		{
-			"left": 3712,
-			"top": 1472,
-			"right": 6336,
-			"bottom": 1696
-		},
-		{
-			"left": 2400,
-			"top": 1504,
-			"right": 3040,
-			"bottom": 1568
-		},
-		{
-			"left": 3104,
-			"top": 1504,
-			"right": 3264,
-			"bottom": 1600
-		},
-		{
-			"left": 64,
-			"top": 1536,
-			"right": 896,
-			"bottom": 1568
-		},
-		{
-			"left": 1120,
-			"top": 1536,
-			"right": 1856,
-			"bottom": 1600
-		},
-		{
-			"left": 1952,
-			"top": 1536,
-			"right": 2336,
-			"bottom": 1600
-		},
-		{
-			"left": 64,
-			"top": 1568,
-			"right": 1056,
-			"bottom": 2048
-		},
-		{
-			"left": 2464,
-			"top": 1568,
-			"right": 3040,
-			"bottom": 1600
-		},
-		{
-			"left": 1120,
-			"top": 1600,
-			"right": 2336,
-			"bottom": 1664
-		},
-		{
-			"left": 2464,
-			"top": 1600,
-			"right": 3264,
-			"bottom": 1664
-		},
-		{
-			"left": 1120,
-			"top": 1664,
-			"right": 2272,
-			"bottom": 1696
-		},
-		{
-			"left": 2400,
-			"top": 1664,
-			"right": 3264,
-			"bottom": 1696
-		},
-		{
-			"left": 1120,
-			"top": 1696,
-			"right": 1440,
-			"bottom": 1760
-		},
-		{
-			"left": 1504,
-			"top": 1696,
-			"right": 2272,
-			"bottom": 1760
-		},
-		{
-			"left": 2400,
-			"top": 1696,
-			"right": 2848,
-			"bottom": 1760
-		},
-		{
-			"left": 3712,
-			"top": 1696,
-			"right": 5824,
-			"bottom": 1856
-		},
-		{
-			"left": 6080,
-			"top": 1696,
-			"right": 6336,
-			"bottom": 1920
-		},
-		{
-			"left": 1120,
-			"top": 1760,
-			"right": 2336,
-			"bottom": 1824
-		},
-		{
-			"left": 2400,
-			"top": 1760,
-			"right": 3264,
-			"bottom": 1792
-		},
-		{
-			"left": 2848,
-			"top": 1792,
-			"right": 3040,
-			"bottom": 1856
-		},
-		{
-			"left": 3104,
-			"top": 1792,
-			"right": 3264,
-			"bottom": 1856
-		},
-		{
-			"left": 1120,
-			"top": 1824,
-			"right": 2368,
-			"bottom": 1856
-		},
-		{
-			"left": 1120,
-			"top": 1856,
-			"right": 2592,
-			"bottom": 1920
-		},
-		{
-			"left": 2656,
-			"top": 1856,
-			"right": 2720,
-			"bottom": 1920
-		},
-		{
-			"left": 2784,
-			"top": 1856,
-			"right": 3040,
-			"bottom": 2176
-		},
-		{
-			"left": 3360,
-			"top": 1856,
-			"right": 5824,
-			"bottom": 1920
-		},
-		{
-			"left": 5920,
-			"top": 1856,
-			"right": 5984,
-			"bottom": 1920
-		},
-		{
-			"left": 1120,
-			"top": 1920,
-			"right": 2720,
-			"bottom": 1952
-		},
-		{
-			"left": 3360,
-			"top": 1920,
-			"right": 6336,
-			"bottom": 1952
-		},
-		{
-			"left": 1120,
-			"top": 1952,
-			"right": 1536,
-			"bottom": 2016
-		},
-		{
-			"left": 1888,
-			"top": 1952,
-			"right": 2656,
-			"bottom": 2048
-		},
-		{
-			"left": 3360,
-			"top": 1952,
-			"right": 5376,
-			"bottom": 2336
-		},
-		{
-			"left": 5440,
-			"top": 1952,
-			"right": 6336,
-			"bottom": 1984
-		},
-		{
-			"left": 5440,
-			"top": 1984,
-			"right": 5728,
-			"bottom": 2048
-		},
-		{
-			"left": 5792,
-			"top": 1984,
-			"right": 6336,
-			"bottom": 2048
-		},
-		{
-			"left": 1120,
-			"top": 2016,
-			"right": 1152,
-			"bottom": 2048
-		},
-		{
-			"left": 1280,
-			"top": 2016,
-			"right": 1536,
-			"bottom": 2208
-		},
-		{
-			"left": 64,
-			"top": 2048,
-			"right": 1152,
-			"bottom": 2208
-		},
-		{
-			"left": 1888,
-			"top": 2048,
-			"right": 2720,
-			"bottom": 2176
-		},
-		{
-			"left": 5440,
-			"top": 2048,
-			"right": 6336,
-			"bottom": 2144
-		},
-		{
-			"left": 5440,
-			"top": 2144,
-			"right": 5664,
-			"bottom": 2208
-		},
-		{
-			"left": 5728,
-			"top": 2144,
-			"right": 6336,
-			"bottom": 2208
-		},
-		{
-			"left": 1888,
-			"top": 2176,
-			"right": 3040,
-			"bottom": 2336
-		},
-		{
-			"left": 64,
-			"top": 2208,
-			"right": 1536,
-			"bottom": 2240
-		},
-		{
-			"left": 5440,
-			"top": 2208,
-			"right": 5952,
-			"bottom": 2272
-		},
-		{
-			"left": 6016,
-			"top": 2208,
-			"right": 6176,
-			"bottom": 2272
-		},
-		{
-			"left": 6240,
-			"top": 2208,
-			"right": 6336,
-			"bottom": 3296
-		},
-		{
-			"left": 64,
-			"top": 2240,
-			"right": 1792,
-			"bottom": 2272
-		},
-		{
-			"left": 64,
-			"top": 2272,
-			"right": 672,
-			"bottom": 2368
-		},
-		{
-			"left": 768,
-			"top": 2272,
-			"right": 1792,
-			"bottom": 2368
-		},
-		{
-			"left": 5440,
-			"top": 2272,
-			"right": 6176,
-			"bottom": 3040
-		},
-		{
-			"left": 1888,
-			"top": 2336,
-			"right": 5376,
-			"bottom": 2400
-		},
-		{
-			"left": 64,
-			"top": 2368,
-			"right": 1792,
-			"bottom": 2400
-		},
-		{
-			"left": 64,
-			"top": 2400,
-			"right": 2880,
-			"bottom": 2592
-		},
-		{
-			"left": 2976,
-			"top": 2400,
-			"right": 5376,
-			"bottom": 2496
-		},
-		{
-			"left": 3360,
-			"top": 2496,
-			"right": 5376,
-			"bottom": 2560
-		},
-		{
-			"left": 3520,
-			"top": 2560,
-			"right": 5376,
-			"bottom": 2624
-		},
-		{
-			"left": 64,
-			"top": 2592,
-			"right": 1472,
-			"bottom": 2688
-		},
-		{
-			"left": 2240,
-			"top": 2592,
-			"right": 2880,
-			"bottom": 2688
-		},
-		{
-			"left": 3360,
-			"top": 2624,
-			"right": 5376,
-			"bottom": 2656
-		},
-		{
-			"left": 3488,
-			"top": 2656,
-			"right": 5376,
-			"bottom": 2688
-		},
-		{
-			"left": 64,
-			"top": 2688,
-			"right": 2880,
-			"bottom": 2848
-		},
-		{
-			"left": 3488,
-			"top": 2688,
-			"right": 3616,
-			"bottom": 2752
-		},
-		{
-			"left": 3680,
-			"top": 2688,
-			"right": 5376,
-			"bottom": 2784
-		},
-		{
-			"left": 3360,
-			"top": 2752,
-			"right": 3616,
-			"bottom": 2880
-		},
-		{
-			"left": 3680,
-			"top": 2784,
-			"right": 3936,
-			"bottom": 3008
-		},
-		{
-			"left": 4416,
-			"top": 2784,
-			"right": 5376,
-			"bottom": 3040
-		},
-		{
-			"left": 64,
-			"top": 2848,
-			"right": 1472,
-			"bottom": 2944
-		},
-		{
-			"left": 2240,
-			"top": 2848,
-			"right": 2880,
-			"bottom": 2944
-		},
-		{
-			"left": 3520,
-			"top": 2880,
-			"right": 3616,
-			"bottom": 2944
-		},
-		{
-			"left": 64,
-			"top": 2944,
-			"right": 2880,
-			"bottom": 3552
-		},
-		{
-			"left": 3360,
-			"top": 2944,
-			"right": 3616,
-			"bottom": 3008
-		},
-		{
-			"left": 3360,
-			"top": 3008,
-			"right": 3936,
-			"bottom": 3136
-		},
-		{
-			"left": 4416,
-			"top": 3040,
-			"right": 6176,
-			"bottom": 3072
-		},
-		{
-			"left": 4448,
-			"top": 3072,
-			"right": 6176,
-			"bottom": 3136
-		},
-		{
-			"left": 3360,
-			"top": 3136,
-			"right": 6176,
-			"bottom": 3200
-		},
-		{
-			"left": 3360,
-			"top": 3200,
-			"right": 5024,
-			"bottom": 3488
-		},
-		{
-			"left": 5056,
-			"top": 3200,
-			"right": 6080,
-			"bottom": 4480
-		},
-		{
-			"left": 6144,
-			"top": 3200,
-			"right": 6176,
-			"bottom": 3296
-		},
-		{
-			"left": 6144,
-			"top": 3296,
-			"right": 6336,
-			"bottom": 5312
-		},
-		{
-			"left": 3360,
-			"top": 3488,
-			"right": 4448,
-			"bottom": 3552
-		},
-		{
-			"left": 4512,
-			"top": 3488,
-			"right": 5024,
-			"bottom": 3552
-		},
-		{
-			"left": 64,
-			"top": 3552,
-			"right": 5024,
-			"bottom": 3744
-		},
-		{
-			"left": 64,
-			"top": 3744,
-			"right": 2784,
-			"bottom": 4032
-		},
-		{
-			"left": 3264,
-			"top": 3744,
-			"right": 5024,
-			"bottom": 4160
-		},
-		{
-			"left": 64,
-			"top": 4032,
-			"right": 2048,
-			"bottom": 4096
-		},
-		{
-			"left": 2496,
-			"top": 4032,
-			"right": 2784,
-			"bottom": 4416
-		},
-		{
-			"left": 64,
-			"top": 4096,
-			"right": 544,
-			"bottom": 4384
-		},
-		{
-			"left": 800,
-			"top": 4096,
-			"right": 1248,
-			"bottom": 4384
-		},
-		{
-			"left": 1504,
-			"top": 4096,
-			"right": 2048,
-			"bottom": 4384
-		},
-		{
-			"left": 3264,
-			"top": 4160,
-			"right": 3712,
-			"bottom": 4288
-		},
-		{
-			"left": 3840,
-			"top": 4160,
-			"right": 5024,
-			"bottom": 4288
-		},
-		{
-			"left": 3264,
-			"top": 4288,
-			"right": 5024,
-			"bottom": 4352
-		},
-		{
-			"left": 640,
-			"top": 4352,
-			"right": 704,
-			"bottom": 4384
-		},
-		{
-			"left": 1344,
-			"top": 4352,
-			"right": 1408,
-			"bottom": 4384
-		},
-		{
-			"left": 3264,
-			"top": 4352,
-			"right": 4864,
-			"bottom": 4416
-		},
-		{
-			"left": 4928,
-			"top": 4352,
-			"right": 5024,
-			"bottom": 4416
-		},
-		{
-			"left": 64,
-			"top": 4384,
-			"right": 2048,
-			"bottom": 4416
-		},
-		{
-			"left": 2240,
-			"top": 4384,
-			"right": 2304,
-			"bottom": 4416
-		},
-		{
-			"left": 64,
-			"top": 4416,
-			"right": 2784,
-			"bottom": 4512
-		},
-		{
-			"left": 3264,
-			"top": 4416,
-			"right": 5024,
-			"bottom": 4512
-		},
-		{
-			"left": 5056,
-			"top": 4480,
-			"right": 5248,
-			"bottom": 4576
-		},
-		{
-			"left": 5312,
-			"top": 4480,
-			"right": 5856,
-			"bottom": 4576
-		},
-		{
-			"left": 5952,
-			"top": 4480,
-			"right": 6080,
-			"bottom": 4576
-		},
-		{
-			"left": 64,
-			"top": 4512,
-			"right": 5024,
-			"bottom": 4736
-		},
-		{
-			"left": 5056,
-			"top": 4576,
-			"right": 6080,
-			"bottom": 5152
-		},
-		{
-			"left": 64,
-			"top": 4736,
-			"right": 2816,
-			"bottom": 4864
-		},
-		{
-			"left": 3488,
-			"top": 4736,
-			"right": 5024,
-			"bottom": 4800
-		},
-		{
-			"left": 3488,
-			"top": 4800,
-			"right": 4448,
-			"bottom": 4896
-		},
-		{
-			"left": 4544,
-			"top": 4800,
-			"right": 5024,
-			"bottom": 4896
-		},
-		{
-			"left": 64,
-			"top": 4864,
-			"right": 544,
-			"bottom": 5184
-		},
-		{
-			"left": 864,
-			"top": 4864,
-			"right": 2112,
-			"bottom": 4928
-		},
-		{
-			"left": 2432,
-			"top": 4864,
-			"right": 2816,
-			"bottom": 5184
-		},
-		{
-			"left": 3488,
-			"top": 4896,
-			"right": 5024,
-			"bottom": 4992
-		},
-		{
-			"left": 864,
-			"top": 4928,
-			"right": 1056,
-			"bottom": 4992
-		},
-		{
-			"left": 1088,
-			"top": 4928,
-			"right": 1952,
-			"bottom": 4992
-		},
-		{
-			"left": 1984,
-			"top": 4928,
-			"right": 2112,
-			"bottom": 4992
-		},
-		{
-			"left": 864,
-			"top": 4992,
-			"right": 2112,
-			"bottom": 5184
-		},
-		{
-			"left": 3488,
-			"top": 4992,
-			"right": 4000,
-			"bottom": 5248
-		},
-		{
-			"left": 4032,
-			"top": 4992,
-			"right": 4352,
-			"bottom": 5248
-		},
-		{
-			"left": 4384,
-			"top": 4992,
-			"right": 5024,
-			"bottom": 5152
-		},
-		{
-			"left": 672,
-			"top": 5152,
-			"right": 736,
-			"bottom": 5184
-		},
-		{
-			"left": 4384,
-			"top": 5152,
-			"right": 4448,
-			"bottom": 5248
-		},
-		{
-			"left": 5536,
-			"top": 5152,
-			"right": 6080,
-			"bottom": 5248
-		},
-		{
-			"left": 64,
-			"top": 5184,
-			"right": 2816,
-			"bottom": 5248
-		},
-		{
-			"left": 64,
-			"top": 5248,
-			"right": 3008,
-			"bottom": 5536
-		},
-		{
-			"left": 3488,
-			"top": 5248,
-			"right": 3712,
-			"bottom": 5568
-		},
-		{
-			"left": 4096,
-			"top": 5248,
-			"right": 4352,
-			"bottom": 5504
-		},
-		{
-			"left": 4384,
-			"top": 5248,
-			"right": 5024,
-			"bottom": 5312
-		},
-		{
-			"left": 5056,
-			"top": 5248,
-			"right": 6080,
-			"bottom": 5312
-		},
-		{
-			"left": 4384,
-			"top": 5312,
-			"right": 6336,
-			"bottom": 5440
-		},
-		{
-			"left": 4384,
-			"top": 5440,
-			"right": 4448,
-			"bottom": 5504
-		},
-		{
-			"left": 5536,
-			"top": 5440,
-			"right": 6336,
-			"bottom": 5536
-		},
-		{
-			"left": 4096,
-			"top": 5504,
-			"right": 4448,
-			"bottom": 5536
-		},
-		{
-			"left": 64,
-			"top": 5536,
-			"right": 2112,
-			"bottom": 5568
-		},
-		{
-			"left": 2432,
-			"top": 5536,
-			"right": 3008,
-			"bottom": 5856
-		},
-		{
-			"left": 4096,
-			"top": 5536,
-			"right": 6336,
-			"bottom": 5632
-		},
-		{
-			"left": 64,
-			"top": 5568,
-			"right": 576,
-			"bottom": 5856
-		},
-		{
-			"left": 832,
-			"top": 5568,
-			"right": 1344,
-			"bottom": 5856
-		},
-		{
-			"left": 1600,
-			"top": 5568,
-			"right": 2112,
-			"bottom": 5856
-		},
-		{
-			"left": 4096,
-			"top": 5632,
-			"right": 4224,
-			"bottom": 5664
-		},
-		{
-			"left": 4704,
-			"top": 5632,
-			"right": 6336,
-			"bottom": 5664
-		},
-		{
-			"left": 4096,
-			"top": 5664,
-			"right": 6336,
-			"bottom": 5792
-		},
-		{
-			"left": 4096,
-			"top": 5792,
-			"right": 5536,
-			"bottom": 5824
-		},
-		{
-			"left": 5760,
-			"top": 5792,
-			"right": 6336,
-			"bottom": 5856
-		},
-		{
-			"left": 672,
-			"top": 5824,
-			"right": 736,
-			"bottom": 5856
-		},
-		{
-			"left": 1440,
-			"top": 5824,
-			"right": 1504,
-			"bottom": 5856
-		},
-		{
-			"left": 2240,
-			"top": 5824,
-			"right": 2304,
-			"bottom": 5856
-		},
-		{
-			"left": 4096,
-			"top": 5824,
-			"right": 5056,
-			"bottom": 5952
-		},
-		{
-			"left": 5248,
-			"top": 5824,
-			"right": 5536,
-			"bottom": 5856
-		},
-		{
-			"left": 64,
-			"top": 5856,
-			"right": 3008,
-			"bottom": 6144
-		},
-		{
-			"left": 5248,
-			"top": 5856,
-			"right": 6336,
-			"bottom": 5952
-		},
-		{
-			"left": 3488,
-			"top": 5888,
-			"right": 3712,
-			"bottom": 6144
-		},
-		{
-			"left": 4096,
-			"top": 5952,
-			"right": 4960,
-			"bottom": 6048
-		},
-		{
-			"left": 5152,
-			"top": 5952,
-			"right": 6336,
-			"bottom": 6048
-		},
-		{
-			"left": 4096,
-			"top": 6048,
-			"right": 6336,
-			"bottom": 6176
-		},
-		{
-			"left": 64,
-			"top": 6144,
-			"right": 4064,
-			"bottom": 6176
-		},
-		{
-			"left": 64,
-			"top": 6176,
-			"right": 6336,
-			"bottom": 6272
-		},
-		{
-			"left": 64,
-			"top": 6272,
-			"right": 3104,
-			"bottom": 6304
-		},
-		{
-			"left": 6112,
-			"top": 6272,
-			"right": 6336,
-			"bottom": 6336
-		},
-		{
-			"left": 160,
-			"top": 6304,
-			"right": 3104,
-			"bottom": 6336
-		}
-	],
-	"controlClearanceRects": [
-		{
-			"id": "ambient-npc:coast-fisher",
-			"kind": "ambient-npc",
-			"bounds": {
-				"left": 4176,
-				"top": 5526,
-				"right": 4272,
-				"bottom": 5614
-			}
-		},
-		{
-			"id": "ambient-npc:crossroads-crier",
-			"kind": "ambient-npc",
-			"bounds": {
-				"left": 3536,
-				"top": 4340,
-				"right": 3632,
-				"bottom": 4428
-			}
-		},
-		{
-			"id": "ambient-npc:crossroads-traveler",
-			"kind": "ambient-npc",
-			"bounds": {
-				"left": 3984,
-				"top": 4340,
-				"right": 4080,
-				"bottom": 4428
-			}
-		},
-		{
-			"id": "ambient-npc:mistfen-forager",
-			"kind": "ambient-npc",
-			"bounds": {
-				"left": 2352,
-				"top": 2656,
-				"right": 2448,
-				"bottom": 2744
-			}
-		},
-		{
-			"id": "ambient-npc:silverpine-pilgrim",
-			"kind": "ambient-npc",
-			"bounds": {
-				"left": 3072,
-				"top": 1316,
-				"right": 3168,
-				"bottom": 1404
-			}
-		},
-		{
-			"id": "ambient-npc:village-crier",
-			"kind": "ambient-npc",
-			"bounds": {
-				"left": 1984,
-				"top": 4964,
-				"right": 2080,
-				"bottom": 5052
-			}
-		},
-		{
-			"id": "ambient-npc:village-pilgrim",
-			"kind": "ambient-npc",
-			"bounds": {
-				"left": 1696,
-				"top": 5668,
-				"right": 1792,
-				"bottom": 5756
-			}
-		},
-		{
-			"id": "ambient-npc:village-wanderer",
-			"kind": "ambient-npc",
-			"bounds": {
-				"left": 896,
-				"top": 4836,
-				"right": 992,
-				"bottom": 4924
-			}
-		},
-		{
-			"id": "ambient-npc:village-woodcutter",
-			"kind": "ambient-npc",
-			"bounds": {
-				"left": 1216,
-				"top": 4484,
-				"right": 1312,
-				"bottom": 4572
-			}
-		},
-		{
-			"id": "ambient-npc:wildwood-woodcutter",
-			"kind": "ambient-npc",
-			"bounds": {
-				"left": 5292,
-				"top": 4476,
-				"right": 5388,
-				"bottom": 4564
-			}
-		},
-		{
-			"id": "combat-bounds:whispering-cave-combat-pocket",
-			"kind": "combat-bounds",
-			"bounds": {
-				"left": 5664,
-				"top": 1408,
-				"right": 6176,
-				"bottom": 1792
-			}
-		},
-		{
-			"id": "combat-bounds:wildwood-crossing-combat-pocket",
-			"kind": "combat-bounds",
-			"bounds": {
-				"left": 5104,
-				"top": 1120,
-				"right": 5616,
-				"bottom": 1440
-			}
-		},
-		{
-			"id": "combat-bounds:wildwood-north-combat-pocket",
-			"kind": "combat-bounds",
-			"bounds": {
-				"left": 4784,
-				"top": 768,
-				"right": 5456,
-				"bottom": 1152
-			}
-		},
-		{
-			"id": "discovery:castle-gate-warning",
-			"kind": "discovery",
-			"bounds": {
-				"left": 4128,
-				"top": 3152,
-				"right": 4224,
-				"bottom": 3248
-			}
-		},
-		{
-			"id": "discovery:coast-jetty-foreshadow",
-			"kind": "discovery",
-			"bounds": {
-				"left": 4852,
-				"top": 6132,
-				"right": 4948,
-				"bottom": 6228
-			}
-		},
-		{
-			"id": "discovery:crossroads-waystone-sign",
-			"kind": "discovery",
-			"bounds": {
-				"left": 3856,
-				"top": 4176,
-				"right": 3952,
-				"bottom": 4272
-			}
-		},
-		{
-			"id": "discovery:ferry-shrine-lore",
-			"kind": "discovery",
-			"bounds": {
-				"left": 3552,
-				"top": 5452,
-				"right": 3648,
-				"bottom": 5548
-			}
-		},
-		{
-			"id": "discovery:silverpine-amulet-foreshadow",
-			"kind": "discovery",
-			"bounds": {
-				"left": 2792,
-				"top": 1072,
-				"right": 2888,
-				"bottom": 1168
-			}
-		},
-		{
-			"id": "discovery:wildwood-cave-danger",
-			"kind": "discovery",
-			"bounds": {
-				"left": 5912,
-				"top": 1872,
-				"right": 6008,
-				"bottom": 1968
-			}
-		},
-		{
-			"id": "discovery:witchwood-poison-warning",
-			"kind": "discovery",
-			"bounds": {
-				"left": 1152,
-				"top": 772,
-				"right": 1248,
-				"bottom": 868
-			}
-		},
-		{
-			"id": "encounter:meadow-slime-center",
-			"kind": "encounter",
-			"bounds": {
-				"left": 5312,
-				"top": 1232,
-				"right": 5408,
-				"bottom": 1328
-			}
-		},
-		{
-			"id": "encounter:meadow-slime-east",
-			"kind": "encounter",
-			"bounds": {
-				"left": 5872,
-				"top": 1552,
-				"right": 5968,
-				"bottom": 1648
-			}
-		},
-		{
-			"id": "encounter:meadow-slime-west",
-			"kind": "encounter",
-			"bounds": {
-				"left": 4880,
-				"top": 912,
-				"right": 4976,
-				"bottom": 1008
-			}
-		},
-		{
-			"id": "pickup:coast-jetty-catch",
-			"kind": "pickup",
-			"bounds": {
-				"left": 4736,
-				"top": 6036,
-				"right": 4784,
-				"bottom": 6084
-			}
-		},
-		{
-			"id": "pickup:coast-salve",
-			"kind": "pickup",
-			"bounds": {
-				"left": 5416,
-				"top": 5906,
-				"right": 5464,
-				"bottom": 5954
-			}
-		},
-		{
-			"id": "pickup:crossroads-cache",
-			"kind": "pickup",
-			"bounds": {
-				"left": 4008,
-				"top": 4456,
-				"right": 4056,
-				"bottom": 4504
-			}
-		},
-		{
-			"id": "pickup:mistfen-cache",
-			"kind": "pickup",
-			"bounds": {
-				"left": 1896,
-				"top": 2276,
-				"right": 1944,
-				"bottom": 2324
-			}
-		},
-		{
-			"id": "pickup:mistfen-salve",
-			"kind": "pickup",
-			"bounds": {
-				"left": 856,
-				"top": 2476,
-				"right": 904,
-				"bottom": 2524
-			}
-		},
-		{
-			"id": "pickup:silverpine-offering-cache",
-			"kind": "pickup",
-			"bounds": {
-				"left": 3236,
-				"top": 696,
-				"right": 3284,
-				"bottom": 744
-			}
-		},
-		{
-			"id": "pickup:silverpine-tonic",
-			"kind": "pickup",
-			"bounds": {
-				"left": 2596,
-				"top": 1536,
-				"right": 2644,
-				"bottom": 1584
-			}
-		},
-		{
-			"id": "pickup:village-market-cache",
-			"kind": "pickup",
-			"bounds": {
-				"left": 888,
-				"top": 5048,
-				"right": 936,
-				"bottom": 5096
-			}
-		},
-		{
-			"id": "pickup:village-shrine-cache",
-			"kind": "pickup",
-			"bounds": {
-				"left": 2488,
-				"top": 5720,
-				"right": 2536,
-				"bottom": 5768
-			}
-		},
-		{
-			"id": "pickup:wildwood-grove-cache",
-			"kind": "pickup",
-			"bounds": {
-				"left": 4676,
-				"top": 3626,
-				"right": 4724,
-				"bottom": 3674
-			}
-		},
-		{
-			"id": "spawn:player",
-			"kind": "spawn",
-			"bounds": {
-				"left": 656,
-				"top": 5872,
-				"right": 752,
-				"bottom": 5968
-			}
-		},
-		{
-			"id": "transition:meadow-to-guild-hall",
-			"kind": "transition",
-			"bounds": {
-				"left": 2224,
-				"top": 4368,
-				"right": 2320,
-				"bottom": 4464
-			}
-		},
-		{
-			"id": "transition:meadow-to-hero-house",
-			"kind": "transition",
-			"bounds": {
-				"left": 656,
-				"top": 5808,
-				"right": 752,
-				"bottom": 5904
-			}
-		},
-		{
-			"id": "transition:meadow-to-item-shop",
-			"kind": "transition",
-			"bounds": {
-				"left": 656,
-				"top": 5136,
-				"right": 752,
-				"bottom": 5232
-			}
-		},
-		{
-			"id": "transition:meadow-to-shrine-of-aurora",
-			"kind": "transition",
-			"bounds": {
-				"left": 2224,
-				"top": 5808,
-				"right": 2320,
-				"bottom": 5904
-			}
-		},
-		{
-			"id": "transition:meadow-to-villager-house-1",
-			"kind": "transition",
-			"bounds": {
-				"left": 624,
-				"top": 4336,
-				"right": 720,
-				"bottom": 4432
-			}
-		},
-		{
-			"id": "transition:meadow-to-villager-house-2",
-			"kind": "transition",
-			"bounds": {
-				"left": 1328,
-				"top": 4336,
-				"right": 1424,
-				"bottom": 4432
-			}
-		},
-		{
-			"id": "transition:meadow-to-villager-house-3",
-			"kind": "transition",
-			"bounds": {
-				"left": 1424,
-				"top": 5808,
-				"right": 1520,
-				"bottom": 5904
-			}
-		},
-		{
-			"id": "transition:meadow-to-whispering-cave-ruins-threshold",
-			"kind": "transition",
-			"bounds": {
-				"left": 5912,
-				"top": 1820,
-				"right": 6008,
-				"bottom": 1916
-			}
-		}
-	]
+  "version": 1,
+  "mapId": "meadow-entry",
+  "viewBox": {
+    "x": 0,
+    "y": 0,
+    "width": 6400,
+    "height": 6400
+  },
+  "artifacts": [
+    "meadow-entry-control-manifest.json",
+    "meadow-entry-composite-control.svg",
+    "meadow-entry-terrain-path-mask.svg",
+    "meadow-entry-region-mask.svg",
+    "meadow-entry-collision-mask.svg",
+    "meadow-entry-building-footprint-mask.svg",
+    "meadow-entry-entrance-transition-mask.svg",
+    "meadow-entry-encounter-combat-mask.svg",
+    "meadow-entry-reward-discovery-mask.svg",
+    "meadow-entry-semantic-anchor-mask.svg",
+    "meadow-entry-protected-live-mask.svg",
+    "meadow-entry-forbidden-tall-mask.svg",
+    "meadow-entry-foreground-eligible-mask.svg",
+    "meadow-entry-handoff-mask.svg",
+    "meadow-entry-runtime-base-coverage-mask.svg",
+    "meadow-entry-runtime-fallback-coverage-mask.svg",
+    "meadow-entry-bake-ownership.json",
+    "meadow-entry-crop-manifest.json"
+  ],
+  "fingerprints": {
+    "gameplaySource": "bf9bf20ebaf69c8817de429a7e5c6b0421cc4ec6ed60a0d5cc8ac7656d5d4938",
+    "authoringContract": "fad467a306a8c60f44373d490b54ee9e14e2dc73df627a4fcf5d84ff4e5ecb3f",
+    "combinedControl": "59ded996de5f7a468a7ef2d57219c851bf3d77488cfe8f3c9dedcbb3ea5c33b9"
+  },
+  "predecessor": {
+    "hpa307ArtifactHashes": {
+      "docs/superpowers/reports/img/hpa-307/village-art-control-manifest.json": "8dc8349aa3ac4581ee1e2ce143e5b69f9497ec1a0c2610f72fe1647382ade6e3",
+      "docs/superpowers/reports/img/hpa-307/village-art-control.svg": "d31dfc7421d42f8925ef881edb99c28a0a9daa638b2d3a6f2df0b0be047806f5",
+      "docs/superpowers/reports/img/hpa-307/village-building-entrance-mask.svg": "9df14228c474a811fc2e59a3b412a4269e1605ac4dd57e7797402d19dd28ebaf",
+      "docs/superpowers/reports/img/hpa-307/village-composed-collision-mask.svg": "445923c3cead0dcfbf26f16f1819d761420b830e9e26a838b5a1dc52e77bf4d9",
+      "docs/superpowers/reports/img/hpa-307/village-forbidden-tall-mask.svg": "44f18ff3f85ec017d42ece0bb28102aadadceac53a00bc7d8f6338467bdecd48",
+      "docs/superpowers/reports/img/hpa-307/village-layered-collision-mask.svg": "d5bf78d332700d46e62759997e6f60fcd58724c9f8e51df616f7a160d405fc57",
+      "docs/superpowers/reports/img/hpa-307/village-object-anchors.svg": "0e58af6e9ad55eaed57eb1daad16d31e910ee368bfac0661c4076af68f70dd4f",
+      "docs/superpowers/reports/img/hpa-307/village-region-mask.svg": "ec9c4482b6b7b738b22a430bce5d59a06a9bc3955f4670d400fc6d10a54fb556",
+      "docs/superpowers/reports/img/hpa-307/village-terrain-path-mask.svg": "462391dd7e6a7dddf836d9bd4d9967578d1e9b112a293e942c4b85ac66424181"
+    },
+    "hpa398ControlFingerprint": "8b3f80fdde4591465d90aca558ff747d3825939c5879fdadaf3c55e70cb3b4b2",
+    "hpa398BaseSha256": "f1184b045c27c544ac18937a4f8ccfa12cd386319b1722be5d808aea8048ade6",
+    "hpa398ForegroundSha256": "2d0a6703de1a404e49c0746f092a4c6f9f113ae17cd8bc35de635b5ec084ce45"
+  },
+  "storage": {
+    "mode": "git-lfs",
+    "sourcePattern": "artifacts/meadow-entry/painted-v2/**/*.png",
+    "runtimePattern": "public/game/assets/regions/meadow-entry-painted-v2/**/*.png",
+    "canaryPath": "artifacts/meadow-entry/painted-v2/lfs-canary.png"
+  },
+  "sourceFileHashes": {
+    "src/lib/game/content/maps/meadow-entry.ts": "66fbac8492861a0a77d147a7eff0f6ae00cd61a36c8030858a7bbeb8f0096dcb",
+    "src/lib/game/content/maps/regions/village.ts": "6ab333c46e091c10ef8da62cb6e889fc8963add4def39fa0f74c0dc03d06fa1b",
+    "src/lib/game/content/maps/regions/wildwood.ts": "f59ba6f6d6eda59e84a1682baa9c4667b84ae7d502f757cc20c873dc8a64fb67",
+    "src/lib/game/content/maps/regions/mistfen.ts": "57d5f442379df97b2f1ced4953aa93f4e44fc918d47a53450d15c190960a677c",
+    "src/lib/game/content/maps/regions/silverpine.ts": "09c2129a0a5cfbf412f53c30bc6cd690058683a6de98cb4d91f180346c1b17cc",
+    "src/lib/game/content/maps/regions/coast.ts": "d16ac1f57db1dfcd5b66800fe7218417d6d4ea5bd57bea5b669c89954f0616f4",
+    "src/lib/game/content/maps/regions/crossroads.ts": "f409235a9b1c579479080e622898c4efbea0d86010971ff6292f2d61b33c7170",
+    "src/lib/game/content/maps/regions/paths.ts": "164ddb49941d4a5312aacf4fc5f39553015eff02678c884a474b2e6c8d598856",
+    "src/lib/game/content/maps/regions/river-system.ts": "9d73f8b474e24795092eb9713f859d9ca187d2ef30120803204238eeb43c4a0e",
+    "src/lib/game/content/maps/blocker-rendering.ts": "d954110dc507d59656a21ee58bd5a1095304ed0d5b2c9db98fd09f4fc2e38223",
+    "src/lib/game/save/save-state.ts": "0208c30db08f620cd92eda454af4fe04be84e5525221eb9e50144fa621caffc0",
+    "src/lib/game/core/collision.ts": "5f487c10b01a6b10f4a1ad676d04f2a8c1c1f48e84d02d9ef270b98745a09e24"
+  },
+  "rendererMaskMaterialContract": {
+    "version": 1,
+    "implementationSha256": "0a4028f4bbc13a33df2f79aa832c5be0b39c9dc8bc3ef9f74fec1a8f1dd03a6c",
+    "maskDimensionsPx": {
+      "width": 6400,
+      "height": 6400
+    },
+    "pointExtentsPx": {
+      "spawn": {
+        "width": 96,
+        "height": 96
+      },
+      "transition": {
+        "width": 96,
+        "height": 96
+      },
+      "npc": {
+        "width": 96,
+        "height": 87
+      },
+      "ambientNpcDefault": {
+        "width": 96,
+        "height": 87
+      },
+      "pickup": {
+        "width": 48,
+        "height": 48
+      },
+      "encounter": {
+        "width": 96,
+        "height": 96
+      },
+      "discoveryDefaultDiameter": 96
+    },
+    "collisionExpansionPx": 12,
+    "walkableSpaceTileSizePx": 32,
+    "walkableSpaceRule": "tile-forbidden-unless-player-expanded-collision-union-covers-it",
+    "foregroundRule": "explicit-base-and-foreground-minus-forbidden-and-protected",
+    "protectedRule": "protected-live-source-bounds-plus-reviewed-margins",
+    "rasterizationRule": "raw-center-edges-floor-left-top-ceil-right-bottom",
+    "clippingRule": "half-open-clamp-to-0-6400",
+    "materialProfiles": {
+      "sundrop-village": "sundrop-painted-village",
+      "crossroads": "crossroads-cobblestone-festival",
+      "tidewatch-coast": "tidewatch-sand-and-sea",
+      "mistfen": "mistfen-marsh-and-fog",
+      "silverpine": "silverpine-autumn-shrine",
+      "wildwood": "wildwood-forest-and-ruins",
+      "connector-village-crossroads": "village-crossroads-handoff",
+      "connector-crossroads-coast": "crossroads-coast-handoff",
+      "connector-crossroads-mistfen": "crossroads-mistfen-handoff",
+      "connector-crossroads-silverpine": "crossroads-silverpine-handoff",
+      "connector-crossroads-wildwood": "crossroads-wildwood-handoff",
+      "outer-boundary": "outer-boundary-control"
+    }
+  },
+  "walkableSpaceRects": [
+    {
+      "left": 64,
+      "top": 64,
+      "right": 6336,
+      "bottom": 256
+    },
+    {
+      "left": 64,
+      "top": 256,
+      "right": 3456,
+      "bottom": 288
+    },
+    {
+      "left": 3712,
+      "top": 256,
+      "right": 6336,
+      "bottom": 288
+    },
+    {
+      "left": 64,
+      "top": 288,
+      "right": 2784,
+      "bottom": 416
+    },
+    {
+      "left": 3200,
+      "top": 288,
+      "right": 3456,
+      "bottom": 640
+    },
+    {
+      "left": 3712,
+      "top": 288,
+      "right": 4896,
+      "bottom": 448
+    },
+    {
+      "left": 5824,
+      "top": 288,
+      "right": 6336,
+      "bottom": 448
+    },
+    {
+      "left": 64,
+      "top": 416,
+      "right": 1024,
+      "bottom": 768
+    },
+    {
+      "left": 1376,
+      "top": 416,
+      "right": 2784,
+      "bottom": 640
+    },
+    {
+      "left": 3712,
+      "top": 448,
+      "right": 6336,
+      "bottom": 576
+    },
+    {
+      "left": 3712,
+      "top": 576,
+      "right": 6048,
+      "bottom": 1344
+    },
+    {
+      "left": 6208,
+      "top": 576,
+      "right": 6336,
+      "bottom": 1472
+    },
+    {
+      "left": 1376,
+      "top": 640,
+      "right": 3456,
+      "bottom": 704
+    },
+    {
+      "left": 1376,
+      "top": 704,
+      "right": 1408,
+      "bottom": 768
+    },
+    {
+      "left": 1536,
+      "top": 704,
+      "right": 3456,
+      "bottom": 800
+    },
+    {
+      "left": 64,
+      "top": 768,
+      "right": 1408,
+      "bottom": 800
+    },
+    {
+      "left": 64,
+      "top": 800,
+      "right": 896,
+      "bottom": 1152
+    },
+    {
+      "left": 1024,
+      "top": 800,
+      "right": 1408,
+      "bottom": 1440
+    },
+    {
+      "left": 1536,
+      "top": 800,
+      "right": 2656,
+      "bottom": 864
+    },
+    {
+      "left": 2720,
+      "top": 800,
+      "right": 2976,
+      "bottom": 864
+    },
+    {
+      "left": 3136,
+      "top": 800,
+      "right": 3264,
+      "bottom": 864
+    },
+    {
+      "left": 3328,
+      "top": 800,
+      "right": 3456,
+      "bottom": 864
+    },
+    {
+      "left": 1536,
+      "top": 864,
+      "right": 3456,
+      "bottom": 896
+    },
+    {
+      "left": 1536,
+      "top": 896,
+      "right": 2464,
+      "bottom": 992
+    },
+    {
+      "left": 2656,
+      "top": 896,
+      "right": 3456,
+      "bottom": 928
+    },
+    {
+      "left": 2656,
+      "top": 928,
+      "right": 2816,
+      "bottom": 992
+    },
+    {
+      "left": 2880,
+      "top": 928,
+      "right": 3136,
+      "bottom": 960
+    },
+    {
+      "left": 3200,
+      "top": 928,
+      "right": 3456,
+      "bottom": 960
+    },
+    {
+      "left": 2880,
+      "top": 960,
+      "right": 2912,
+      "bottom": 1056
+    },
+    {
+      "left": 2976,
+      "top": 960,
+      "right": 3136,
+      "bottom": 1056
+    },
+    {
+      "left": 3200,
+      "top": 960,
+      "right": 3232,
+      "bottom": 1056
+    },
+    {
+      "left": 3296,
+      "top": 960,
+      "right": 3456,
+      "bottom": 1152
+    },
+    {
+      "left": 1536,
+      "top": 992,
+      "right": 2816,
+      "bottom": 1056
+    },
+    {
+      "left": 1536,
+      "top": 1056,
+      "right": 2912,
+      "bottom": 1280
+    },
+    {
+      "left": 2976,
+      "top": 1056,
+      "right": 3232,
+      "bottom": 1120
+    },
+    {
+      "left": 64,
+      "top": 1152,
+      "right": 576,
+      "bottom": 1216
+    },
+    {
+      "left": 672,
+      "top": 1152,
+      "right": 896,
+      "bottom": 1216
+    },
+    {
+      "left": 2976,
+      "top": 1184,
+      "right": 3232,
+      "bottom": 1280
+    },
+    {
+      "left": 64,
+      "top": 1216,
+      "right": 896,
+      "bottom": 1248
+    },
+    {
+      "left": 3296,
+      "top": 1216,
+      "right": 3456,
+      "bottom": 1280
+    },
+    {
+      "left": 64,
+      "top": 1248,
+      "right": 608,
+      "bottom": 1536
+    },
+    {
+      "left": 1536,
+      "top": 1280,
+      "right": 2336,
+      "bottom": 1472
+    },
+    {
+      "left": 2976,
+      "top": 1280,
+      "right": 3040,
+      "bottom": 1344
+    },
+    {
+      "left": 3104,
+      "top": 1280,
+      "right": 3232,
+      "bottom": 1344
+    },
+    {
+      "left": 3296,
+      "top": 1280,
+      "right": 3360,
+      "bottom": 1344
+    },
+    {
+      "left": 3424,
+      "top": 1280,
+      "right": 3456,
+      "bottom": 1344
+    },
+    {
+      "left": 2400,
+      "top": 1344,
+      "right": 3040,
+      "bottom": 1376
+    },
+    {
+      "left": 3104,
+      "top": 1344,
+      "right": 3264,
+      "bottom": 1376
+    },
+    {
+      "left": 3712,
+      "top": 1344,
+      "right": 4992,
+      "bottom": 1440
+    },
+    {
+      "left": 5088,
+      "top": 1344,
+      "right": 5632,
+      "bottom": 1440
+    },
+    {
+      "left": 5728,
+      "top": 1344,
+      "right": 6048,
+      "bottom": 1440
+    },
+    {
+      "left": 2400,
+      "top": 1376,
+      "right": 2496,
+      "bottom": 1440
+    },
+    {
+      "left": 2592,
+      "top": 1376,
+      "right": 2848,
+      "bottom": 1408
+    },
+    {
+      "left": 2592,
+      "top": 1408,
+      "right": 2784,
+      "bottom": 1440
+    },
+    {
+      "left": 1024,
+      "top": 1440,
+      "right": 1056,
+      "bottom": 1568
+    },
+    {
+      "left": 1120,
+      "top": 1440,
+      "right": 1408,
+      "bottom": 1472
+    },
+    {
+      "left": 2400,
+      "top": 1440,
+      "right": 2784,
+      "bottom": 1504
+    },
+    {
+      "left": 2848,
+      "top": 1440,
+      "right": 3040,
+      "bottom": 1504
+    },
+    {
+      "left": 3712,
+      "top": 1440,
+      "right": 6048,
+      "bottom": 1472
+    },
+    {
+      "left": 1120,
+      "top": 1472,
+      "right": 2336,
+      "bottom": 1536
+    },
+    {
+      "left": 3712,
+      "top": 1472,
+      "right": 6336,
+      "bottom": 1696
+    },
+    {
+      "left": 2400,
+      "top": 1504,
+      "right": 3040,
+      "bottom": 1568
+    },
+    {
+      "left": 3104,
+      "top": 1504,
+      "right": 3264,
+      "bottom": 1600
+    },
+    {
+      "left": 64,
+      "top": 1536,
+      "right": 896,
+      "bottom": 1568
+    },
+    {
+      "left": 1120,
+      "top": 1536,
+      "right": 1856,
+      "bottom": 1600
+    },
+    {
+      "left": 1952,
+      "top": 1536,
+      "right": 2336,
+      "bottom": 1600
+    },
+    {
+      "left": 64,
+      "top": 1568,
+      "right": 1056,
+      "bottom": 2048
+    },
+    {
+      "left": 2464,
+      "top": 1568,
+      "right": 3040,
+      "bottom": 1600
+    },
+    {
+      "left": 1120,
+      "top": 1600,
+      "right": 2336,
+      "bottom": 1664
+    },
+    {
+      "left": 2464,
+      "top": 1600,
+      "right": 3264,
+      "bottom": 1664
+    },
+    {
+      "left": 1120,
+      "top": 1664,
+      "right": 2272,
+      "bottom": 1696
+    },
+    {
+      "left": 2400,
+      "top": 1664,
+      "right": 3264,
+      "bottom": 1696
+    },
+    {
+      "left": 1120,
+      "top": 1696,
+      "right": 1440,
+      "bottom": 1760
+    },
+    {
+      "left": 1504,
+      "top": 1696,
+      "right": 2272,
+      "bottom": 1760
+    },
+    {
+      "left": 2400,
+      "top": 1696,
+      "right": 2848,
+      "bottom": 1760
+    },
+    {
+      "left": 3712,
+      "top": 1696,
+      "right": 5824,
+      "bottom": 1856
+    },
+    {
+      "left": 6080,
+      "top": 1696,
+      "right": 6336,
+      "bottom": 1920
+    },
+    {
+      "left": 1120,
+      "top": 1760,
+      "right": 2336,
+      "bottom": 1824
+    },
+    {
+      "left": 2400,
+      "top": 1760,
+      "right": 3264,
+      "bottom": 1792
+    },
+    {
+      "left": 2848,
+      "top": 1792,
+      "right": 3040,
+      "bottom": 1856
+    },
+    {
+      "left": 3104,
+      "top": 1792,
+      "right": 3264,
+      "bottom": 1856
+    },
+    {
+      "left": 1120,
+      "top": 1824,
+      "right": 2368,
+      "bottom": 1856
+    },
+    {
+      "left": 1120,
+      "top": 1856,
+      "right": 2592,
+      "bottom": 1920
+    },
+    {
+      "left": 2656,
+      "top": 1856,
+      "right": 2720,
+      "bottom": 1920
+    },
+    {
+      "left": 2784,
+      "top": 1856,
+      "right": 3040,
+      "bottom": 2176
+    },
+    {
+      "left": 3360,
+      "top": 1856,
+      "right": 5824,
+      "bottom": 1920
+    },
+    {
+      "left": 5920,
+      "top": 1856,
+      "right": 5984,
+      "bottom": 1920
+    },
+    {
+      "left": 1120,
+      "top": 1920,
+      "right": 2720,
+      "bottom": 1952
+    },
+    {
+      "left": 3360,
+      "top": 1920,
+      "right": 6336,
+      "bottom": 1952
+    },
+    {
+      "left": 1120,
+      "top": 1952,
+      "right": 1536,
+      "bottom": 2016
+    },
+    {
+      "left": 1888,
+      "top": 1952,
+      "right": 2656,
+      "bottom": 2048
+    },
+    {
+      "left": 3360,
+      "top": 1952,
+      "right": 5376,
+      "bottom": 2336
+    },
+    {
+      "left": 5440,
+      "top": 1952,
+      "right": 6336,
+      "bottom": 1984
+    },
+    {
+      "left": 5440,
+      "top": 1984,
+      "right": 5728,
+      "bottom": 2048
+    },
+    {
+      "left": 5792,
+      "top": 1984,
+      "right": 6336,
+      "bottom": 2048
+    },
+    {
+      "left": 1120,
+      "top": 2016,
+      "right": 1152,
+      "bottom": 2048
+    },
+    {
+      "left": 1280,
+      "top": 2016,
+      "right": 1536,
+      "bottom": 2208
+    },
+    {
+      "left": 64,
+      "top": 2048,
+      "right": 1152,
+      "bottom": 2208
+    },
+    {
+      "left": 1888,
+      "top": 2048,
+      "right": 2720,
+      "bottom": 2176
+    },
+    {
+      "left": 5440,
+      "top": 2048,
+      "right": 6336,
+      "bottom": 2144
+    },
+    {
+      "left": 5440,
+      "top": 2144,
+      "right": 5664,
+      "bottom": 2208
+    },
+    {
+      "left": 5728,
+      "top": 2144,
+      "right": 6336,
+      "bottom": 2208
+    },
+    {
+      "left": 1888,
+      "top": 2176,
+      "right": 3040,
+      "bottom": 2336
+    },
+    {
+      "left": 64,
+      "top": 2208,
+      "right": 1536,
+      "bottom": 2240
+    },
+    {
+      "left": 5440,
+      "top": 2208,
+      "right": 5952,
+      "bottom": 2272
+    },
+    {
+      "left": 6016,
+      "top": 2208,
+      "right": 6176,
+      "bottom": 2272
+    },
+    {
+      "left": 6240,
+      "top": 2208,
+      "right": 6336,
+      "bottom": 3296
+    },
+    {
+      "left": 64,
+      "top": 2240,
+      "right": 1792,
+      "bottom": 2272
+    },
+    {
+      "left": 64,
+      "top": 2272,
+      "right": 672,
+      "bottom": 2368
+    },
+    {
+      "left": 768,
+      "top": 2272,
+      "right": 1792,
+      "bottom": 2368
+    },
+    {
+      "left": 5440,
+      "top": 2272,
+      "right": 6176,
+      "bottom": 3040
+    },
+    {
+      "left": 1888,
+      "top": 2336,
+      "right": 5376,
+      "bottom": 2400
+    },
+    {
+      "left": 64,
+      "top": 2368,
+      "right": 1792,
+      "bottom": 2400
+    },
+    {
+      "left": 64,
+      "top": 2400,
+      "right": 2880,
+      "bottom": 2592
+    },
+    {
+      "left": 2976,
+      "top": 2400,
+      "right": 5376,
+      "bottom": 2496
+    },
+    {
+      "left": 3360,
+      "top": 2496,
+      "right": 5376,
+      "bottom": 2560
+    },
+    {
+      "left": 3520,
+      "top": 2560,
+      "right": 5376,
+      "bottom": 2624
+    },
+    {
+      "left": 64,
+      "top": 2592,
+      "right": 1472,
+      "bottom": 2688
+    },
+    {
+      "left": 2240,
+      "top": 2592,
+      "right": 2880,
+      "bottom": 2688
+    },
+    {
+      "left": 3360,
+      "top": 2624,
+      "right": 5376,
+      "bottom": 2656
+    },
+    {
+      "left": 3488,
+      "top": 2656,
+      "right": 5376,
+      "bottom": 2688
+    },
+    {
+      "left": 64,
+      "top": 2688,
+      "right": 2880,
+      "bottom": 2848
+    },
+    {
+      "left": 3488,
+      "top": 2688,
+      "right": 3616,
+      "bottom": 2752
+    },
+    {
+      "left": 3680,
+      "top": 2688,
+      "right": 5376,
+      "bottom": 2784
+    },
+    {
+      "left": 3360,
+      "top": 2752,
+      "right": 3616,
+      "bottom": 2880
+    },
+    {
+      "left": 3680,
+      "top": 2784,
+      "right": 3936,
+      "bottom": 3008
+    },
+    {
+      "left": 4416,
+      "top": 2784,
+      "right": 5376,
+      "bottom": 3040
+    },
+    {
+      "left": 64,
+      "top": 2848,
+      "right": 1472,
+      "bottom": 2944
+    },
+    {
+      "left": 2240,
+      "top": 2848,
+      "right": 2880,
+      "bottom": 2944
+    },
+    {
+      "left": 3520,
+      "top": 2880,
+      "right": 3616,
+      "bottom": 2944
+    },
+    {
+      "left": 64,
+      "top": 2944,
+      "right": 2880,
+      "bottom": 3552
+    },
+    {
+      "left": 3360,
+      "top": 2944,
+      "right": 3616,
+      "bottom": 3008
+    },
+    {
+      "left": 3360,
+      "top": 3008,
+      "right": 3936,
+      "bottom": 3136
+    },
+    {
+      "left": 4416,
+      "top": 3040,
+      "right": 6176,
+      "bottom": 3072
+    },
+    {
+      "left": 4448,
+      "top": 3072,
+      "right": 6176,
+      "bottom": 3136
+    },
+    {
+      "left": 3360,
+      "top": 3136,
+      "right": 6176,
+      "bottom": 3200
+    },
+    {
+      "left": 3360,
+      "top": 3200,
+      "right": 5024,
+      "bottom": 3488
+    },
+    {
+      "left": 5056,
+      "top": 3200,
+      "right": 6080,
+      "bottom": 4480
+    },
+    {
+      "left": 6144,
+      "top": 3200,
+      "right": 6176,
+      "bottom": 3296
+    },
+    {
+      "left": 6144,
+      "top": 3296,
+      "right": 6336,
+      "bottom": 5312
+    },
+    {
+      "left": 3360,
+      "top": 3488,
+      "right": 4448,
+      "bottom": 3552
+    },
+    {
+      "left": 4512,
+      "top": 3488,
+      "right": 5024,
+      "bottom": 3552
+    },
+    {
+      "left": 64,
+      "top": 3552,
+      "right": 5024,
+      "bottom": 3744
+    },
+    {
+      "left": 64,
+      "top": 3744,
+      "right": 2784,
+      "bottom": 4032
+    },
+    {
+      "left": 3264,
+      "top": 3744,
+      "right": 5024,
+      "bottom": 4160
+    },
+    {
+      "left": 64,
+      "top": 4032,
+      "right": 2048,
+      "bottom": 4096
+    },
+    {
+      "left": 2496,
+      "top": 4032,
+      "right": 2784,
+      "bottom": 4416
+    },
+    {
+      "left": 64,
+      "top": 4096,
+      "right": 544,
+      "bottom": 4384
+    },
+    {
+      "left": 800,
+      "top": 4096,
+      "right": 1248,
+      "bottom": 4384
+    },
+    {
+      "left": 1504,
+      "top": 4096,
+      "right": 2048,
+      "bottom": 4384
+    },
+    {
+      "left": 3264,
+      "top": 4160,
+      "right": 3712,
+      "bottom": 4288
+    },
+    {
+      "left": 3840,
+      "top": 4160,
+      "right": 5024,
+      "bottom": 4288
+    },
+    {
+      "left": 3264,
+      "top": 4288,
+      "right": 5024,
+      "bottom": 4352
+    },
+    {
+      "left": 640,
+      "top": 4352,
+      "right": 704,
+      "bottom": 4384
+    },
+    {
+      "left": 1344,
+      "top": 4352,
+      "right": 1408,
+      "bottom": 4384
+    },
+    {
+      "left": 3264,
+      "top": 4352,
+      "right": 4864,
+      "bottom": 4416
+    },
+    {
+      "left": 4928,
+      "top": 4352,
+      "right": 5024,
+      "bottom": 4416
+    },
+    {
+      "left": 64,
+      "top": 4384,
+      "right": 2048,
+      "bottom": 4416
+    },
+    {
+      "left": 2240,
+      "top": 4384,
+      "right": 2304,
+      "bottom": 4416
+    },
+    {
+      "left": 64,
+      "top": 4416,
+      "right": 2784,
+      "bottom": 4512
+    },
+    {
+      "left": 3264,
+      "top": 4416,
+      "right": 5024,
+      "bottom": 4512
+    },
+    {
+      "left": 5056,
+      "top": 4480,
+      "right": 5248,
+      "bottom": 4576
+    },
+    {
+      "left": 5312,
+      "top": 4480,
+      "right": 5856,
+      "bottom": 4576
+    },
+    {
+      "left": 5952,
+      "top": 4480,
+      "right": 6080,
+      "bottom": 4576
+    },
+    {
+      "left": 64,
+      "top": 4512,
+      "right": 5024,
+      "bottom": 4736
+    },
+    {
+      "left": 5056,
+      "top": 4576,
+      "right": 6080,
+      "bottom": 5152
+    },
+    {
+      "left": 64,
+      "top": 4736,
+      "right": 2816,
+      "bottom": 4864
+    },
+    {
+      "left": 3488,
+      "top": 4736,
+      "right": 5024,
+      "bottom": 4800
+    },
+    {
+      "left": 3488,
+      "top": 4800,
+      "right": 4448,
+      "bottom": 4896
+    },
+    {
+      "left": 4544,
+      "top": 4800,
+      "right": 5024,
+      "bottom": 4896
+    },
+    {
+      "left": 64,
+      "top": 4864,
+      "right": 544,
+      "bottom": 5184
+    },
+    {
+      "left": 864,
+      "top": 4864,
+      "right": 2112,
+      "bottom": 4928
+    },
+    {
+      "left": 2432,
+      "top": 4864,
+      "right": 2816,
+      "bottom": 5184
+    },
+    {
+      "left": 3488,
+      "top": 4896,
+      "right": 5024,
+      "bottom": 4992
+    },
+    {
+      "left": 864,
+      "top": 4928,
+      "right": 1056,
+      "bottom": 4992
+    },
+    {
+      "left": 1088,
+      "top": 4928,
+      "right": 1952,
+      "bottom": 4992
+    },
+    {
+      "left": 1984,
+      "top": 4928,
+      "right": 2112,
+      "bottom": 4992
+    },
+    {
+      "left": 864,
+      "top": 4992,
+      "right": 2112,
+      "bottom": 5184
+    },
+    {
+      "left": 3488,
+      "top": 4992,
+      "right": 4000,
+      "bottom": 5248
+    },
+    {
+      "left": 4032,
+      "top": 4992,
+      "right": 4352,
+      "bottom": 5248
+    },
+    {
+      "left": 4384,
+      "top": 4992,
+      "right": 5024,
+      "bottom": 5152
+    },
+    {
+      "left": 672,
+      "top": 5152,
+      "right": 736,
+      "bottom": 5184
+    },
+    {
+      "left": 4384,
+      "top": 5152,
+      "right": 4448,
+      "bottom": 5248
+    },
+    {
+      "left": 5536,
+      "top": 5152,
+      "right": 6080,
+      "bottom": 5248
+    },
+    {
+      "left": 64,
+      "top": 5184,
+      "right": 2816,
+      "bottom": 5248
+    },
+    {
+      "left": 64,
+      "top": 5248,
+      "right": 3008,
+      "bottom": 5536
+    },
+    {
+      "left": 3488,
+      "top": 5248,
+      "right": 3712,
+      "bottom": 5568
+    },
+    {
+      "left": 4096,
+      "top": 5248,
+      "right": 4352,
+      "bottom": 5504
+    },
+    {
+      "left": 4384,
+      "top": 5248,
+      "right": 5024,
+      "bottom": 5312
+    },
+    {
+      "left": 5056,
+      "top": 5248,
+      "right": 6080,
+      "bottom": 5312
+    },
+    {
+      "left": 4384,
+      "top": 5312,
+      "right": 6336,
+      "bottom": 5440
+    },
+    {
+      "left": 4384,
+      "top": 5440,
+      "right": 4448,
+      "bottom": 5504
+    },
+    {
+      "left": 5536,
+      "top": 5440,
+      "right": 6336,
+      "bottom": 5536
+    },
+    {
+      "left": 4096,
+      "top": 5504,
+      "right": 4448,
+      "bottom": 5536
+    },
+    {
+      "left": 64,
+      "top": 5536,
+      "right": 2112,
+      "bottom": 5568
+    },
+    {
+      "left": 2432,
+      "top": 5536,
+      "right": 3008,
+      "bottom": 5856
+    },
+    {
+      "left": 4096,
+      "top": 5536,
+      "right": 6336,
+      "bottom": 5632
+    },
+    {
+      "left": 64,
+      "top": 5568,
+      "right": 576,
+      "bottom": 5856
+    },
+    {
+      "left": 832,
+      "top": 5568,
+      "right": 1344,
+      "bottom": 5856
+    },
+    {
+      "left": 1600,
+      "top": 5568,
+      "right": 2112,
+      "bottom": 5856
+    },
+    {
+      "left": 4096,
+      "top": 5632,
+      "right": 4224,
+      "bottom": 5664
+    },
+    {
+      "left": 4704,
+      "top": 5632,
+      "right": 6336,
+      "bottom": 5664
+    },
+    {
+      "left": 4096,
+      "top": 5664,
+      "right": 6336,
+      "bottom": 5792
+    },
+    {
+      "left": 4096,
+      "top": 5792,
+      "right": 5536,
+      "bottom": 5824
+    },
+    {
+      "left": 5760,
+      "top": 5792,
+      "right": 6336,
+      "bottom": 5856
+    },
+    {
+      "left": 672,
+      "top": 5824,
+      "right": 736,
+      "bottom": 5856
+    },
+    {
+      "left": 1440,
+      "top": 5824,
+      "right": 1504,
+      "bottom": 5856
+    },
+    {
+      "left": 2240,
+      "top": 5824,
+      "right": 2304,
+      "bottom": 5856
+    },
+    {
+      "left": 4096,
+      "top": 5824,
+      "right": 5056,
+      "bottom": 5952
+    },
+    {
+      "left": 5248,
+      "top": 5824,
+      "right": 5536,
+      "bottom": 5856
+    },
+    {
+      "left": 64,
+      "top": 5856,
+      "right": 3008,
+      "bottom": 6144
+    },
+    {
+      "left": 5248,
+      "top": 5856,
+      "right": 6336,
+      "bottom": 5952
+    },
+    {
+      "left": 3488,
+      "top": 5888,
+      "right": 3712,
+      "bottom": 6144
+    },
+    {
+      "left": 4096,
+      "top": 5952,
+      "right": 4960,
+      "bottom": 6048
+    },
+    {
+      "left": 5152,
+      "top": 5952,
+      "right": 6336,
+      "bottom": 6048
+    },
+    {
+      "left": 4096,
+      "top": 6048,
+      "right": 6336,
+      "bottom": 6176
+    },
+    {
+      "left": 64,
+      "top": 6144,
+      "right": 4064,
+      "bottom": 6176
+    },
+    {
+      "left": 64,
+      "top": 6176,
+      "right": 6336,
+      "bottom": 6272
+    },
+    {
+      "left": 64,
+      "top": 6272,
+      "right": 3104,
+      "bottom": 6304
+    },
+    {
+      "left": 6112,
+      "top": 6272,
+      "right": 6336,
+      "bottom": 6336
+    },
+    {
+      "left": 160,
+      "top": 6304,
+      "right": 3104,
+      "bottom": 6336
+    }
+  ],
+  "controlClearanceRects": [
+    {
+      "id": "ambient-npc:coast-fisher",
+      "kind": "ambient-npc",
+      "bounds": {
+        "left": 4176,
+        "top": 5526,
+        "right": 4272,
+        "bottom": 5614
+      }
+    },
+    {
+      "id": "ambient-npc:crossroads-crier",
+      "kind": "ambient-npc",
+      "bounds": {
+        "left": 3536,
+        "top": 4340,
+        "right": 3632,
+        "bottom": 4428
+      }
+    },
+    {
+      "id": "ambient-npc:crossroads-traveler",
+      "kind": "ambient-npc",
+      "bounds": {
+        "left": 3984,
+        "top": 4340,
+        "right": 4080,
+        "bottom": 4428
+      }
+    },
+    {
+      "id": "ambient-npc:mistfen-forager",
+      "kind": "ambient-npc",
+      "bounds": {
+        "left": 2352,
+        "top": 2656,
+        "right": 2448,
+        "bottom": 2744
+      }
+    },
+    {
+      "id": "ambient-npc:silverpine-pilgrim",
+      "kind": "ambient-npc",
+      "bounds": {
+        "left": 3072,
+        "top": 1316,
+        "right": 3168,
+        "bottom": 1404
+      }
+    },
+    {
+      "id": "ambient-npc:village-crier",
+      "kind": "ambient-npc",
+      "bounds": {
+        "left": 1984,
+        "top": 4964,
+        "right": 2080,
+        "bottom": 5052
+      }
+    },
+    {
+      "id": "ambient-npc:village-pilgrim",
+      "kind": "ambient-npc",
+      "bounds": {
+        "left": 1696,
+        "top": 5668,
+        "right": 1792,
+        "bottom": 5756
+      }
+    },
+    {
+      "id": "ambient-npc:village-wanderer",
+      "kind": "ambient-npc",
+      "bounds": {
+        "left": 896,
+        "top": 4836,
+        "right": 992,
+        "bottom": 4924
+      }
+    },
+    {
+      "id": "ambient-npc:village-woodcutter",
+      "kind": "ambient-npc",
+      "bounds": {
+        "left": 1216,
+        "top": 4484,
+        "right": 1312,
+        "bottom": 4572
+      }
+    },
+    {
+      "id": "ambient-npc:wildwood-woodcutter",
+      "kind": "ambient-npc",
+      "bounds": {
+        "left": 5292,
+        "top": 4476,
+        "right": 5388,
+        "bottom": 4564
+      }
+    },
+    {
+      "id": "combat-bounds:whispering-cave-combat-pocket",
+      "kind": "combat-bounds",
+      "bounds": {
+        "left": 5664,
+        "top": 1408,
+        "right": 6176,
+        "bottom": 1792
+      }
+    },
+    {
+      "id": "combat-bounds:wildwood-crossing-combat-pocket",
+      "kind": "combat-bounds",
+      "bounds": {
+        "left": 5104,
+        "top": 1120,
+        "right": 5616,
+        "bottom": 1440
+      }
+    },
+    {
+      "id": "combat-bounds:wildwood-north-combat-pocket",
+      "kind": "combat-bounds",
+      "bounds": {
+        "left": 4784,
+        "top": 768,
+        "right": 5456,
+        "bottom": 1152
+      }
+    },
+    {
+      "id": "discovery:castle-gate-warning",
+      "kind": "discovery",
+      "bounds": {
+        "left": 4128,
+        "top": 3152,
+        "right": 4224,
+        "bottom": 3248
+      }
+    },
+    {
+      "id": "discovery:coast-jetty-foreshadow",
+      "kind": "discovery",
+      "bounds": {
+        "left": 4852,
+        "top": 6132,
+        "right": 4948,
+        "bottom": 6228
+      }
+    },
+    {
+      "id": "discovery:crossroads-waystone-sign",
+      "kind": "discovery",
+      "bounds": {
+        "left": 3856,
+        "top": 4176,
+        "right": 3952,
+        "bottom": 4272
+      }
+    },
+    {
+      "id": "discovery:ferry-shrine-lore",
+      "kind": "discovery",
+      "bounds": {
+        "left": 3552,
+        "top": 5452,
+        "right": 3648,
+        "bottom": 5548
+      }
+    },
+    {
+      "id": "discovery:silverpine-amulet-foreshadow",
+      "kind": "discovery",
+      "bounds": {
+        "left": 2792,
+        "top": 1072,
+        "right": 2888,
+        "bottom": 1168
+      }
+    },
+    {
+      "id": "discovery:wildwood-cave-danger",
+      "kind": "discovery",
+      "bounds": {
+        "left": 5912,
+        "top": 1872,
+        "right": 6008,
+        "bottom": 1968
+      }
+    },
+    {
+      "id": "discovery:witchwood-poison-warning",
+      "kind": "discovery",
+      "bounds": {
+        "left": 1152,
+        "top": 772,
+        "right": 1248,
+        "bottom": 868
+      }
+    },
+    {
+      "id": "encounter:meadow-slime-center",
+      "kind": "encounter",
+      "bounds": {
+        "left": 5312,
+        "top": 1232,
+        "right": 5408,
+        "bottom": 1328
+      }
+    },
+    {
+      "id": "encounter:meadow-slime-east",
+      "kind": "encounter",
+      "bounds": {
+        "left": 5872,
+        "top": 1552,
+        "right": 5968,
+        "bottom": 1648
+      }
+    },
+    {
+      "id": "encounter:meadow-slime-west",
+      "kind": "encounter",
+      "bounds": {
+        "left": 4880,
+        "top": 912,
+        "right": 4976,
+        "bottom": 1008
+      }
+    },
+    {
+      "id": "pickup:coast-jetty-catch",
+      "kind": "pickup",
+      "bounds": {
+        "left": 4736,
+        "top": 6036,
+        "right": 4784,
+        "bottom": 6084
+      }
+    },
+    {
+      "id": "pickup:coast-salve",
+      "kind": "pickup",
+      "bounds": {
+        "left": 5416,
+        "top": 5906,
+        "right": 5464,
+        "bottom": 5954
+      }
+    },
+    {
+      "id": "pickup:crossroads-cache",
+      "kind": "pickup",
+      "bounds": {
+        "left": 4008,
+        "top": 4456,
+        "right": 4056,
+        "bottom": 4504
+      }
+    },
+    {
+      "id": "pickup:mistfen-cache",
+      "kind": "pickup",
+      "bounds": {
+        "left": 1896,
+        "top": 2276,
+        "right": 1944,
+        "bottom": 2324
+      }
+    },
+    {
+      "id": "pickup:mistfen-salve",
+      "kind": "pickup",
+      "bounds": {
+        "left": 856,
+        "top": 2476,
+        "right": 904,
+        "bottom": 2524
+      }
+    },
+    {
+      "id": "pickup:silverpine-offering-cache",
+      "kind": "pickup",
+      "bounds": {
+        "left": 3236,
+        "top": 696,
+        "right": 3284,
+        "bottom": 744
+      }
+    },
+    {
+      "id": "pickup:silverpine-tonic",
+      "kind": "pickup",
+      "bounds": {
+        "left": 2596,
+        "top": 1536,
+        "right": 2644,
+        "bottom": 1584
+      }
+    },
+    {
+      "id": "pickup:village-market-cache",
+      "kind": "pickup",
+      "bounds": {
+        "left": 888,
+        "top": 5048,
+        "right": 936,
+        "bottom": 5096
+      }
+    },
+    {
+      "id": "pickup:village-shrine-cache",
+      "kind": "pickup",
+      "bounds": {
+        "left": 2488,
+        "top": 5720,
+        "right": 2536,
+        "bottom": 5768
+      }
+    },
+    {
+      "id": "pickup:wildwood-grove-cache",
+      "kind": "pickup",
+      "bounds": {
+        "left": 4676,
+        "top": 3626,
+        "right": 4724,
+        "bottom": 3674
+      }
+    },
+    {
+      "id": "spawn:player",
+      "kind": "spawn",
+      "bounds": {
+        "left": 656,
+        "top": 5872,
+        "right": 752,
+        "bottom": 5968
+      }
+    },
+    {
+      "id": "transition:meadow-to-guild-hall",
+      "kind": "transition",
+      "bounds": {
+        "left": 2224,
+        "top": 4368,
+        "right": 2320,
+        "bottom": 4464
+      }
+    },
+    {
+      "id": "transition:meadow-to-hero-house",
+      "kind": "transition",
+      "bounds": {
+        "left": 656,
+        "top": 5808,
+        "right": 752,
+        "bottom": 5904
+      }
+    },
+    {
+      "id": "transition:meadow-to-item-shop",
+      "kind": "transition",
+      "bounds": {
+        "left": 656,
+        "top": 5136,
+        "right": 752,
+        "bottom": 5232
+      }
+    },
+    {
+      "id": "transition:meadow-to-shrine-of-aurora",
+      "kind": "transition",
+      "bounds": {
+        "left": 2224,
+        "top": 5808,
+        "right": 2320,
+        "bottom": 5904
+      }
+    },
+    {
+      "id": "transition:meadow-to-villager-house-1",
+      "kind": "transition",
+      "bounds": {
+        "left": 624,
+        "top": 4336,
+        "right": 720,
+        "bottom": 4432
+      }
+    },
+    {
+      "id": "transition:meadow-to-villager-house-2",
+      "kind": "transition",
+      "bounds": {
+        "left": 1328,
+        "top": 4336,
+        "right": 1424,
+        "bottom": 4432
+      }
+    },
+    {
+      "id": "transition:meadow-to-villager-house-3",
+      "kind": "transition",
+      "bounds": {
+        "left": 1424,
+        "top": 5808,
+        "right": 1520,
+        "bottom": 5904
+      }
+    },
+    {
+      "id": "transition:meadow-to-whispering-cave-ruins-threshold",
+      "kind": "transition",
+      "bounds": {
+        "left": 5912,
+        "top": 1820,
+        "right": 6008,
+        "bottom": 1916
+      }
+    }
+  ]
 }
