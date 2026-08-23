@@ -41,6 +41,7 @@ interface DecodedCompletePanel {
 	readonly spec: MeadowEntryPaintedV2CompleteSourcePanel;
 	readonly png: Buffer;
 	readonly rgba: DecodedMeadowEntryRgba;
+	readonly provenanceSha256: string;
 	readonly provenance: CompletePanelProvenance;
 }
 
@@ -55,6 +56,8 @@ interface CompletePanelProvenance {
 		readonly bytes: number;
 		readonly dimensions: { readonly width: number; readonly height: number };
 	};
+	readonly generation?: Record<string, unknown>;
+	readonly rejectionHistory: readonly unknown[];
 }
 
 function assert(condition: unknown, message: string): asserts condition {
@@ -192,6 +195,18 @@ function parsePanelProvenance(
 		normalizedBytes > 0,
 		`Meadow Entry complete panel ${spec.id} normalized byte count is invalid`
 	);
+	const generationValue = record.generation;
+	if (generationValue !== undefined) {
+		assert(
+			isPlainObject(generationValue),
+			`Meadow Entry complete panel ${spec.id} generation metadata is invalid`
+		);
+	}
+	const rejectionHistoryValue = record.rejectionHistory;
+	assert(
+		rejectionHistoryValue === undefined || Array.isArray(rejectionHistoryValue),
+		`Meadow Entry complete panel ${spec.id} rejection history is invalid`
+	);
 	return {
 		packageId: COMPLETE_PACKAGE_ID,
 		panelId,
@@ -202,7 +217,9 @@ function parsePanelProvenance(
 			sha256: normalizedSha256,
 			bytes: normalizedBytes,
 			dimensions: normalizedDimensions
-		}
+		},
+		generation: generationValue as Record<string, unknown> | undefined,
+		rejectionHistory: (rejectionHistoryValue as readonly unknown[] | undefined) ?? []
 	};
 }
 
@@ -387,7 +404,7 @@ async function decodeAndValidatePanels(
 			sha256(png) === provenance.normalized.sha256,
 			`Meadow Entry complete panel ${spec.id} normalized source hash is stale`
 		);
-		decoded.push({ spec, png, rgba, provenance });
+		decoded.push({ spec, png, rgba, provenanceSha256: sha256(provenanceBytes), provenance });
 	}
 	return decoded;
 }
@@ -407,6 +424,11 @@ export async function assembleMeadowEntryPaintedV2CompleteMaster(
 		MEADOW_ENTRY_PAINTED_V2_COMPLETE_MASTER_HEIGHT
 	);
 	validateCanonicalPngChunks(masterPng);
+	const rejectionHistory = panels.flatMap(({ spec, provenance }) =>
+		provenance.rejectionHistory.map((entry) =>
+			isPlainObject(entry) ? { panelId: spec.id, ...entry } : { panelId: spec.id, entry }
+		)
+	);
 	const provenanceJson = stableJson({
 		packageId: COMPLETE_PACKAGE_ID,
 		controlFingerprint: MEADOW_ENTRY_PAINTED_V2_COMPLETE_CONTROL_FINGERPRINT,
@@ -425,13 +447,17 @@ export async function assembleMeadowEntryPaintedV2CompleteMaster(
 			sha256: sha256(masterPng),
 			bytes: masterPng.byteLength
 		},
-		panels: panels.map(({ spec, provenance }) => ({
+		panels: panels.map(({ spec, provenance, provenanceSha256 }) => ({
 			id: spec.id,
 			bounds: spec.bounds,
 			assemblyPriority: spec.assemblyPriority,
 			provenancePath: spec.provenancePath,
+			provenanceSha256,
+			generation: provenance.generation,
+			rejectionHistory: provenance.rejectionHistory,
 			normalized: provenance.normalized
-		}))
+		})),
+		rejectionHistory
 	});
 	return { masterPng, provenanceJson };
 }

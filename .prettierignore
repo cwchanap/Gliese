@@ -22,3 +22,7 @@ artifacts/meadow-entry/painted-v2/proofs/
 # Painted-v2 finalizer provenance is generated canonical bytes; validate it through the finalizer.
 artifacts/meadow-entry/painted-v2/provenance.json
 artifacts/meadow-entry/painted-v2/provenance/meadow-entry-master-provenance.json
+
+# Complete Meadow source/master provenance is generated canonical bytes; validate it through the finalizer.
+artifacts/meadow-entry/painted-v2/complete/source-panels/provenance/
+artifacts/meadow-entry/painted-v2/complete/provenance/meadow-entry-painted-v2-complete-master.json

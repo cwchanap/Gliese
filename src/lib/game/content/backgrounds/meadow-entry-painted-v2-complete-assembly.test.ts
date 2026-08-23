@@ -224,8 +224,14 @@ describe('complete Meadow Entry painted-v2 master assembly', () => {
 		expect(provenance).toMatchObject({
 			packageId: 'meadow-entry-painted-v2-complete',
 			controlFingerprint: MEADOW_ENTRY_PAINTED_V2_COMPLETE_CONTROL_FINGERPRINT,
-			dimensions: { width: 6400, height: 6400 }
+			dimensions: { width: 6400, height: 6400 },
+			rejectionHistory: []
 		});
+		expect(provenance.panels).toHaveLength(12);
+		for (const panel of provenance.panels as Array<Record<string, unknown>>) {
+			expect(panel.provenanceSha256).toMatch(/^[a-f0-9]{64}$/);
+			expect(panel.rejectionHistory).toEqual([]);
+		}
 	}, 300_000);
 
 	it('uses each incoming row local top strip for vertical joins', async () => {
