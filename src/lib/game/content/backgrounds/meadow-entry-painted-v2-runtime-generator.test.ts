@@ -203,7 +203,7 @@ describe('painted-v2 runtime data generation', () => {
 				]
 			}
 		]);
-		expect(MEADOW_ENTRY_PAINTED_V2_BAKE_OWNERSHIP).toHaveLength(374);
+		expect(MEADOW_ENTRY_PAINTED_V2_BAKE_OWNERSHIP).toHaveLength(396);
 		expect(MEADOW_ENTRY_PAINTED_V2_PILOT_CROPS).toHaveLength(2);
 	});
 
