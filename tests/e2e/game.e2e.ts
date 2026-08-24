@@ -300,6 +300,32 @@ function injectSave(page: Page, save: ReturnType<typeof createSaveFixture>) {
 	);
 }
 
+function rewriteSceneStateProbeSource(servedBody: string): string {
+	const encounterMatch = servedBody.match(
+		/(this\.setupEncounters\(([^)]+)\)),this\.renderTransitions\(\2\)/
+	);
+	const transitionGateMatch = servedBody.match(
+		/((?<![A-Za-z0-9_$])[A-Za-z_$][\w$]*)=this\.hasLivingEnemies\(\);for\(let ([A-Za-z_$][\w$]*) of ([A-Za-z_$][\w$]*)\.transitions\)/
+	);
+	if (!encounterMatch) {
+		throw new Error('WorldScene encounter probe marker was not found in the served test chunk');
+	}
+	if (!transitionGateMatch) {
+		throw new Error(
+			'WorldScene transition gate probe marker was not found in the served test chunk'
+		);
+	}
+	servedBody = servedBody.replace(
+		encounterMatch[0],
+		`${encounterMatch[1]},globalThis.__glieseSceneEncounterState={mapId:this.mapId,clearedEncounterIds:[...this.clearedEncounterIds],enemies:this.enemies.map(e=>({id:e.id,defeated:e.defeated,hp:e.hp,maxHp:e.maxHp}))},this.renderTransitions(${encounterMatch[2]})`
+	);
+	const [, livingEnemiesVariable, transitionVariable, mapVariable] = transitionGateMatch;
+	return servedBody.replace(
+		transitionGateMatch[0],
+		`${livingEnemiesVariable}=this.hasLivingEnemies();globalThis.__glieseTransitionGateState={mapId:this.mapId,player:this.player?{x:this.player.x,y:this.player.y}:null,hasLivingEnemies:${livingEnemiesVariable},clearedEncounterIds:[...this.clearedEncounterIds],enemies:this.enemies.map(e=>({id:e.id,defeated:e.defeated,hp:e.hp,maxHp:e.maxHp}))};for(let ${transitionVariable} of ${mapVariable}.transitions)`
+	);
+}
+
 async function installRuntimeProbes(
 	page: Page,
 	options: { captureFacing?: boolean; captureSceneState?: boolean } = {}
@@ -338,31 +364,7 @@ async function installRuntimeProbes(
 				);
 			}
 			if (options.captureSceneState) {
-				const encounterMatch = servedBody.match(
-					/(this\.setupEncounters\(([^)]+)\)),this\.renderTransitions\(\2\)/
-				);
-				const transitionGateMatch = servedBody.match(
-					/(\b[A-Za-z_$][\w$]*)=this\.hasLivingEnemies\(\);for\(let ([A-Za-z_$][\w$]*) of ([A-Za-z_$][\w$]*)\.transitions\)/
-				);
-				if (!encounterMatch) {
-					throw new Error(
-						'WorldScene encounter probe marker was not found in the served test chunk'
-					);
-				}
-				if (!transitionGateMatch) {
-					throw new Error(
-						'WorldScene transition gate probe marker was not found in the served test chunk'
-					);
-				}
-				servedBody = servedBody.replace(
-					encounterMatch[0],
-					`${encounterMatch[1]},globalThis.__glieseSceneEncounterState={mapId:this.mapId,clearedEncounterIds:[...this.clearedEncounterIds],enemies:this.enemies.map(e=>({id:e.id,defeated:e.defeated,hp:e.hp,maxHp:e.maxHp}))},this.renderTransitions(${encounterMatch[2]})`
-				);
-				const [, livingEnemiesVariable, transitionVariable, mapVariable] = transitionGateMatch;
-				servedBody = servedBody.replace(
-					transitionGateMatch[0],
-					`${livingEnemiesVariable}=this.hasLivingEnemies();globalThis.__glieseTransitionGateState={mapId:this.mapId,player:this.player?{x:this.player.x,y:this.player.y}:null,hasLivingEnemies:${livingEnemiesVariable},clearedEncounterIds:[...this.clearedEncounterIds],enemies:this.enemies.map(e=>({id:e.id,defeated:e.defeated,hp:e.hp,maxHp:e.maxHp}))};for(let ${transitionVariable} of ${mapVariable}.transitions)`
-				);
+				servedBody = rewriteSceneStateProbeSource(servedBody);
 			}
 			await route.fulfill({
 				response,
@@ -8572,6 +8574,25 @@ test('first composed route collision preserves requested and resolved obstacle o
 	expect(firstIntersectingRouteObstacle({ x: 0, y: 0 }, { x: 10, y: 0 }, obstacles, 0)).toBeNull();
 	expect(requestedCollision).toBe(obstacles[1]);
 	expect(resolvedCollision).toBe(obstacles[2]);
+});
+
+test('scene state probe preserves minified dollar-prefixed identifiers', () => {
+	const rewritten = rewriteSceneStateProbeSource(
+		'this.setupEncounters(e),this.renderTransitions(e);$a=this.hasLivingEnemies();for(let $b of $c.transitions)'
+	);
+
+	expect(rewritten).toContain('this.setupEncounters(e),globalThis.__glieseSceneEncounterState=');
+	expect(rewritten).toContain(',this.renderTransitions(e)');
+	expect(rewritten).toContain('$a=this.hasLivingEnemies();');
+	expect(rewritten).toContain('hasLivingEnemies:$a,');
+	expect(rewritten).toContain('for(let $b of $c.transitions)');
+	expect(rewritten).not.toContain('hasLivingEnemies:a');
+
+	const standardIdentifiers = rewriteSceneStateProbeSource(
+		'this.setupEncounters(e),this.renderTransitions(e);living=this.hasLivingEnemies();for(let transition of map.transitions)'
+	);
+	expect(standardIdentifiers).toContain('hasLivingEnemies:living,');
+	expect(standardIdentifiers).toContain('for(let transition of map.transitions)');
 });
 
 test('Item Shop stockroom entry checks only its initial fixed-x northward phase', () => {
