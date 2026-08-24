@@ -531,6 +531,7 @@ async function installRuntimeProbes(
 				),
 				diagnosticAxes: [...routeState.diagnosticAxes],
 				activeKey: routeState.activeKey,
+				correctionTaps: routeState.correctionTaps,
 				startedAt: routeState.startedAt,
 				lastProgressAt: routeState.lastProgressAt,
 				leaseFrameCount: routeState.leaseFrameCount,
@@ -1410,6 +1411,7 @@ type BrowserRouteResult = {
 	invalidDiagnostics?: PlayerMovementDiagnostic[];
 	diagnosticAxes?: Axis[];
 	activeKey?: 'ArrowDown' | 'ArrowLeft' | 'ArrowRight' | 'ArrowUp' | null;
+	correctionTaps?: number;
 	startedAt?: number;
 	lastProgressAt?: number;
 	leaseFrameCount?: number;
@@ -13187,6 +13189,15 @@ test('browser-local route correction paces an unblocked Guild Hall overshoot bef
 			const route = runner.get(requestedToken);
 			return { status: route?.status ?? null, activeKey: route?.activeKey ?? null };
 		};
+		const detailedSnapshot = (requestedToken: string) => {
+			const route = runner.get(requestedToken);
+			return {
+				...snapshot(requestedToken),
+				position: route?.position ? { ...route.position } : null,
+				correctionTaps: route?.correctionTaps ?? null,
+				diagnosticCount: route?.diagnostics?.length ?? null
+			};
+		};
 		const events = () => keyEvents.join('|');
 
 		const startPoint = { x: 682.6112000000019, y: 168.06640000000007 };
@@ -13216,6 +13227,16 @@ test('browser-local route correction paces an unblocked Guild Hall overshoot bef
 
 		await nextFrame();
 		const released = snapshot(token);
+		const idleBefore = detailedSnapshot(token);
+		const idleEventsBefore = events();
+		const alternatingOvershoots = Array.from({ length: 8 }, (_, index) =>
+			index % 2 === 0 ? [oppositeOvershoot, firstOvershoot] : [firstOvershoot, oppositeOvershoot]
+		);
+		for (const [previous, resolved] of alternatingOvershoots) {
+			dispatchDiagnostic(previous, resolved);
+		}
+		const idleAfter = detailedSnapshot(token);
+		const idleEventsAfter = events();
 		await nextFrame();
 		const paced = snapshot(token);
 		const pacedEvents = events();
@@ -13278,6 +13299,10 @@ test('browser-local route correction paces an unblocked Guild Hall overshoot bef
 			immediate,
 			immediateEvents,
 			released,
+			idleBefore,
+			idleAfter,
+			idleEventsBefore,
+			idleEventsAfter,
 			paced,
 			pacedEvents,
 			secondImmediate,
@@ -13301,6 +13326,22 @@ test('browser-local route correction paces an unblocked Guild Hall overshoot bef
 		immediate: { status: 'running', activeKey: null },
 		immediateEvents: 'keyup:ArrowUp',
 		released: { status: 'running', activeKey: null },
+		idleBefore: {
+			status: 'running',
+			activeKey: null,
+			position: { x: 682.6112000000019, y: 90.81519999999895 },
+			correctionTaps: 1,
+			diagnosticCount: 2
+		},
+		idleAfter: {
+			status: 'running',
+			activeKey: null,
+			position: { x: 682.6112000000019, y: 90.81519999999895 },
+			correctionTaps: 1,
+			diagnosticCount: 2
+		},
+		idleEventsBefore: 'keyup:ArrowUp',
+		idleEventsAfter: 'keyup:ArrowUp',
 		paced: { status: 'running', activeKey: 'ArrowDown' },
 		pacedEvents: 'keyup:ArrowUp|keydown:ArrowDown',
 		secondImmediate: { status: 'running', activeKey: null },
