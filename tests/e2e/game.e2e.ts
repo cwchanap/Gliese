@@ -474,6 +474,8 @@ async function installRuntimeProbes(
 		};
 		let routeState: InternalRouteState | null = null;
 		let keyLeaseFrame: number | null = null;
+		let scheduledCorrectionWaitFrame: number | null = null;
+		let scheduledCorrectionFrame: number | null = null;
 		let semanticDiagonalState: InternalGuildMasterSemanticDiagonalState | null = null;
 		let semanticKeyLeaseFrame: number | null = null;
 		let caveDoorwayBandState: InternalCaveDoorwayBandState | null = null;
@@ -615,6 +617,15 @@ async function installRuntimeProbes(
 			if (keyLeaseFrame !== null) return;
 			keyLeaseFrame = requestAnimationFrame(runKeyLeaseFrame);
 		};
+		const cancelScheduledCorrection = () => {
+			if (scheduledCorrectionWaitFrame !== null) {
+				cancelAnimationFrame(scheduledCorrectionWaitFrame);
+				scheduledCorrectionWaitFrame = null;
+			}
+			if (scheduledCorrectionFrame === null) return;
+			cancelAnimationFrame(scheduledCorrectionFrame);
+			scheduledCorrectionFrame = null;
+		};
 		const releaseKey = () => {
 			if (!routeState?.activeKey) return;
 			const key = routeState.activeKey;
@@ -627,7 +638,41 @@ async function installRuntimeProbes(
 			dispatchSyntheticKey('keydown', key);
 			if (routeState) routeState.activeKey = key;
 		};
+		const scheduleCorrection = (key: ArrowKey) => {
+			if (!routeState || routeState.status !== 'running') return;
+			cancelScheduledCorrection();
+			cancelKeyLease();
+			releaseKey();
+			const { token, pointIndex, axis } = routeState;
+			scheduledCorrectionWaitFrame = requestAnimationFrame(() => {
+				scheduledCorrectionWaitFrame = null;
+				if (
+					!routeState ||
+					routeState.status !== 'running' ||
+					routeState.token !== token ||
+					routeState.pointIndex !== pointIndex ||
+					routeState.axis !== axis
+				) {
+					return;
+				}
+				scheduledCorrectionFrame = requestAnimationFrame(() => {
+					scheduledCorrectionFrame = null;
+					if (
+						!routeState ||
+						routeState.status !== 'running' ||
+						routeState.token !== token ||
+						routeState.pointIndex !== pointIndex ||
+						routeState.axis !== axis
+					) {
+						return;
+					}
+					pressKey(key);
+					startKeyLease();
+				});
+			});
+		};
 		const failRoute = (message: string) => {
+			cancelScheduledCorrection();
 			cancelKeyLease();
 			releaseKey();
 			if (!routeState) return;
@@ -978,6 +1023,7 @@ async function installRuntimeProbes(
 		};
 		const beginNextAxis = () => {
 			let contractAdvanced = false;
+			cancelScheduledCorrection();
 			if (!routeState || routeState.status !== 'running' || !routeState.position) {
 				return contractAdvanced;
 			}
@@ -1029,6 +1075,10 @@ async function installRuntimeProbes(
 		};
 		const onMovementDiagnostic = (event: Event) => {
 			if (!routeState || routeState.status !== 'running') return;
+			// A diagnostic arriving before the first pacing frame is still a valid
+			// movement result from the released key. Once the guaranteed idle frame
+			// is pending, ignore movement until the next correction key is held.
+			if (scheduledCorrectionFrame !== null) return;
 			const diagnostic = (event as CustomEvent<PlayerMovementDiagnostic>).detail;
 			const movementAt = performance.now();
 			routeState.movementCount += 1;
@@ -1125,7 +1175,7 @@ async function installRuntimeProbes(
 				return;
 			}
 			routeState.correctionTaps += 1;
-			pressKey(axisKey(axis, targetValue - value));
+			scheduleCorrection(axisKey(axis, targetValue - value));
 		};
 		window.addEventListener('gliese:player-movement-diagnostic', onMovementDiagnostic);
 		window.addEventListener(
@@ -1173,6 +1223,7 @@ async function installRuntimeProbes(
 				if (routeState?.status === 'running') {
 					failRoute(`route ${routeState.token} was still active`);
 				}
+				cancelScheduledCorrection();
 				const points = plan.points.map((point) => ({ x: point.x, y: point.y }));
 				const startedAt = performance.now();
 				routeState = {
@@ -1260,6 +1311,7 @@ async function installRuntimeProbes(
 		};
 		probeWindow.__glieseRouteRunner = routeRunner;
 		window.addEventListener('pagehide', () => {
+			cancelScheduledCorrection();
 			cancelKeyLease();
 			if (semanticDiagonalState?.status === 'running') {
 				finishSemanticDiagonal('error', 'page unloaded while semantic diagonal was active');
@@ -13075,6 +13127,197 @@ test('browser-local route steering acknowledges a plan and continues through Pha
 	expect(result?.position?.y).toBeGreaterThan(initial!.y);
 	expect(result?.lastDiagnostic?.mapId).toBe('meadow-entry');
 	expect(result?.lastDiagnostic?.blocked).toBe(false);
+});
+
+test('browser-local route correction paces an unblocked Guild Hall overshoot before reversing', async ({
+	page
+}) => {
+	await installRuntimeProbes(page);
+	await page.goto('/?movementDiagnostics=on');
+	await expect(page.locator('canvas')).toBeVisible();
+	await page.waitForFunction(() => {
+		const state = (window as GlieseProbeWindow).__glieseLastHudState;
+		return state?.ready === true && state.mapId === 'meadow-entry';
+	});
+
+	const evidence = await page.evaluate(async () => {
+		const probeWindow = window as GlieseProbeWindow;
+		const runner = probeWindow.__glieseRouteRunner;
+		if (!runner) return null;
+
+		const keyEvents: string[] = [];
+		const onKeyEvent = (event: KeyboardEvent) => {
+			if (event.key.startsWith('Arrow')) {
+				keyEvents.push(`${event.type}:${event.key}`);
+			}
+		};
+		window.addEventListener('keydown', onKeyEvent);
+		window.addEventListener('keyup', onKeyEvent);
+
+		const setSyntheticPosition = (position: Point) => {
+			probeWindow.__glieseLastHudState = {
+				...(probeWindow.__glieseLastHudState ?? {}),
+				ready: true,
+				mapId: 'guild-hall',
+				areaMap: { player: { ...position } }
+			};
+			probeWindow.__glieseLastHudAt = 500;
+			probeWindow.__glieseLastMovementDiagnostic = undefined;
+			probeWindow.__glieseLastMovementAt = 0;
+		};
+		const dispatchDiagnostic = (previous: Point, resolved: Point) => {
+			window.dispatchEvent(
+				new CustomEvent<PlayerMovementDiagnostic>('gliese:player-movement-diagnostic', {
+					detail: {
+						mapId: 'guild-hall',
+						previousPosition: { ...previous },
+						requestedPosition: { ...resolved },
+						resolvedPosition: { ...resolved },
+						blocked: false
+					}
+				})
+			);
+		};
+		const nextFrame = () => new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+		const waitTwoFrames = async () => {
+			await nextFrame();
+			await nextFrame();
+		};
+		const snapshot = (requestedToken: string) => {
+			const route = runner.get(requestedToken);
+			return { status: route?.status ?? null, activeKey: route?.activeKey ?? null };
+		};
+		const events = () => keyEvents.join('|');
+
+		const startPoint = { x: 682.6112000000019, y: 168.06640000000007 };
+		const target = { x: 679, y: 111 };
+		const firstOvershoot = { x: startPoint.x, y: 129.4407999999995 };
+		const oppositeOvershoot = { x: startPoint.x, y: 90.81519999999895 };
+		const routePlan = (requestedToken: string) => ({
+			token: requestedToken,
+			points: [startPoint, target],
+			settleTolerance: 12,
+			reachTolerance: 18,
+			maxCorrectionTaps: 8,
+			blockedTolerance: 12
+		});
+		setSyntheticPosition(startPoint);
+		const token = `characterization-guild-hall-paced-correction-${Date.now()}`;
+		runner.start(routePlan(token));
+		const started = snapshot(token);
+		keyEvents.length = 0;
+
+		// This is the exact unblocked slow-frame pair from Guild Hall: the second
+		// diagnostic used to reverse immediately instead of releasing for a frame.
+		dispatchDiagnostic(startPoint, firstOvershoot);
+		dispatchDiagnostic(firstOvershoot, oppositeOvershoot);
+		const immediate = snapshot(token);
+		const immediateEvents = events();
+
+		await nextFrame();
+		const released = snapshot(token);
+		await nextFrame();
+		const paced = snapshot(token);
+		const pacedEvents = events();
+
+		// This event arrives after the guaranteed idle frame. It may schedule the
+		// next correction, but it must release the held key before reversing.
+		dispatchDiagnostic(oppositeOvershoot, firstOvershoot);
+		const secondImmediate = snapshot(token);
+		const secondImmediateEvents = events();
+		await waitTwoFrames();
+		dispatchDiagnostic(firstOvershoot, { x: firstOvershoot.x, y: target.y + 9 });
+		const done = snapshot(token);
+		const completedEvents = events();
+
+		const startPendingRoute = (suffix: string) => {
+			setSyntheticPosition(startPoint);
+			const requestedToken = `${token}-${suffix}`;
+			runner.start(routePlan(requestedToken));
+			keyEvents.length = 0;
+			dispatchDiagnostic(startPoint, oppositeOvershoot);
+			return requestedToken;
+		};
+
+		// Explicit cancellation must remove both scheduled frames and leave no
+		// correction key for a later route.
+		const cancelToken = startPendingRoute('cancel');
+		runner.cancel(cancelToken, 'paced correction cancellation characterization');
+		const canceled = snapshot(cancelToken);
+		await waitTwoFrames();
+		const cancelAfter = snapshot(cancelToken);
+		const cancelEvents = events();
+
+		// Replacing a running route must cancel the old correction before the new
+		// route acquires its initial key; the stale opposite key must never appear.
+		startPendingRoute('replace');
+		const replacedToken = `${token}-replacement`;
+		setSyntheticPosition(startPoint);
+		runner.start(routePlan(replacedToken));
+		const replacementBeforeCancel = snapshot(replacedToken);
+		runner.cancel(replacedToken, 'paced correction replacement characterization cleanup');
+		const replacementCanceled = snapshot(replacedToken);
+		await waitTwoFrames();
+		const replacementAfter = snapshot(replacedToken);
+		const replacementEvents = events();
+
+		// pagehide follows the same fail path and must also release a pending
+		// correction before the two callbacks can run.
+		const pagehideToken = startPendingRoute('pagehide');
+		window.dispatchEvent(new Event('pagehide'));
+		await waitTwoFrames();
+		const pagehideAfter = snapshot(pagehideToken);
+		const pagehideEvents = events();
+		if (done.status === 'running')
+			runner.cancel(token, 'paced correction characterization cleanup');
+		window.removeEventListener('keydown', onKeyEvent);
+		window.removeEventListener('keyup', onKeyEvent);
+
+		return {
+			started,
+			immediate,
+			immediateEvents,
+			released,
+			paced,
+			pacedEvents,
+			secondImmediate,
+			secondImmediateEvents,
+			done,
+			completedEvents,
+			canceled,
+			cancelAfter,
+			cancelEvents,
+			replacement: replacementBeforeCancel,
+			replacementAfter,
+			replacementCanceled,
+			replacementEvents,
+			pagehideAfter,
+			pagehideEvents
+		};
+	});
+
+	expect(evidence).toEqual({
+		started: { status: 'running', activeKey: 'ArrowUp' },
+		immediate: { status: 'running', activeKey: null },
+		immediateEvents: 'keyup:ArrowUp',
+		released: { status: 'running', activeKey: null },
+		paced: { status: 'running', activeKey: 'ArrowDown' },
+		pacedEvents: 'keyup:ArrowUp|keydown:ArrowDown',
+		secondImmediate: { status: 'running', activeKey: null },
+		secondImmediateEvents: 'keyup:ArrowUp|keydown:ArrowDown|keyup:ArrowDown',
+		done: { status: 'done', activeKey: null },
+		completedEvents:
+			'keyup:ArrowUp|keydown:ArrowDown|keyup:ArrowDown|keydown:ArrowUp|keyup:ArrowUp',
+		canceled: { status: 'error', activeKey: null },
+		cancelAfter: { status: 'error', activeKey: null },
+		cancelEvents: 'keyup:ArrowUp',
+		replacement: { status: 'running', activeKey: 'ArrowUp' },
+		replacementAfter: { status: 'error', activeKey: null },
+		replacementCanceled: { status: 'error', activeKey: null },
+		replacementEvents: 'keyup:ArrowUp|keydown:ArrowUp|keyup:ArrowUp',
+		pagehideAfter: { status: 'error', activeKey: null },
+		pagehideEvents: 'keyup:ArrowUp'
+	});
 });
 
 test('Meadow Entry supports the continuous outdoor route and persists its proof state', async ({
