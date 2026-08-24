@@ -195,12 +195,38 @@ describe('world-map navigation adapter', () => {
 
 	it('suppresses only explicitly grid-owned source families', () => {
 		const obstacles = buildMapNavigationObstacles(
-			{ ...map, navigationGridOwnedSources: ['blocker', 'map-decor'] },
+			{
+				...map,
+				navigationGrid: createOpenNavigationGrid({
+					id: 'owned-grid',
+					mapId: map.id,
+					cellSizePx: 16,
+					widthCells: map.width * 2,
+					heightCells: map.height * 2
+				}),
+				navigationGridOwnedSources: ['blocker', 'map-decor']
+			},
 			{ includeInteractableNpcs: false }
 		);
 
 		expect(obstacles.map(({ id }) => id)).toEqual([
 			'fence',
+			'prop-collision',
+			'house-exterior',
+			'missing-exterior'
+		]);
+	});
+
+	it('keeps fallback obstacles when ownership metadata has no authored grid', () => {
+		const obstacles = buildMapNavigationObstacles(
+			{ ...map, navigationGridOwnedSources: ['blocker', 'map-decor'] },
+			{ includeInteractableNpcs: false }
+		);
+
+		expect(obstacles.map(({ id }) => id)).toEqual([
+			'blocker',
+			'fence',
+			'decor-collision',
 			'prop-collision',
 			'house-exterior',
 			'missing-exterior'

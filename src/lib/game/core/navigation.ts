@@ -75,14 +75,29 @@ export function compileNavigationGrid(source: NavigationMaskSource): NavigationG
 	const blockedBits = new Uint8Array(bitsetByteLength(source.widthCells * source.heightCells));
 	const rawBlockedCells = collectRawBlockedCells(source.rows);
 
-	for (let row = 0; row < source.heightCells; row += 1) {
-		for (let column = 0; column < source.widthCells; column += 1) {
-			const center = {
-				x: (column + 0.5) * source.cellSizePx,
-				y: (row + 0.5) * source.cellSizePx
-			};
-			if (rawBlockedCells.some((blockedCell) => isWithinClearance(center, blockedCell, source))) {
-				setBlocked(blockedBits, row * source.widthCells + column);
+	for (const blockedCell of rawBlockedCells) {
+		const columnRange = getCandidateCellRange(
+			blockedCell.x,
+			source.cellSizePx,
+			source.clearancePx,
+			source.widthCells
+		);
+		const rowRange = getCandidateCellRange(
+			blockedCell.y,
+			source.cellSizePx,
+			source.clearancePx,
+			source.heightCells
+		);
+
+		for (let row = rowRange.min; row <= rowRange.max; row += 1) {
+			for (let column = columnRange.min; column <= columnRange.max; column += 1) {
+				const center = {
+					x: (column + 0.5) * source.cellSizePx,
+					y: (row + 0.5) * source.cellSizePx
+				};
+				if (isWithinClearance(center, blockedCell, source)) {
+					setBlocked(blockedBits, row * source.widthCells + column);
+				}
 			}
 		}
 	}
@@ -126,11 +141,7 @@ export function createOpenNavigationGrid(input: {
 }
 
 export function isWalkable(grid: NavigationGrid, x: number, y: number): boolean {
-	const column = worldCoordinateToCell(x, grid.widthPx, grid.cellSizePx, grid.widthCells);
-	const row = worldCoordinateToCell(y, grid.heightPx, grid.cellSizePx, grid.heightCells);
-	if (column < 0 || row < 0) return false;
-
-	return !isBlocked(grid.blockedBits, row * grid.widthCells + column);
+	return !isGridPositionBlocked(grid, { x, y });
 }
 
 export function resolveMovementSegment(
@@ -287,8 +298,7 @@ function isGridSegmentBlocked(
 	let nextBoundaryT = nextGridBoundaryT(from.x, column, stepX, grid.cellSizePx, deltaX);
 	let nextBoundaryY = nextGridBoundaryT(from.y, row, stepY, grid.cellSizePx, deltaY);
 
-	if (isGridCellBlocked(grid, row, column)) return true;
-	if (isStartBoundaryCellBlocked(grid, from, column, row)) return true;
+	if (isGridPositionBlocked(grid, from)) return true;
 
 	while (nextBoundaryT <= 1 || nextBoundaryY <= 1) {
 		if (Math.abs(nextBoundaryT - nextBoundaryY) <= 1e-12) {
@@ -371,27 +381,11 @@ function isGridCellBlocked(grid: NavigationGrid, row: number, column: number): b
 	return isBlocked(grid.blockedBits, row * grid.widthCells + column);
 }
 
-function isStartBoundaryCellBlocked(
-	grid: NavigationGrid,
-	point: NavigationPoint,
-	column: number,
-	row: number
-): boolean {
-	if (isInteriorGridBoundary(point.x, grid.cellSizePx, grid.widthPx)) {
-		const adjacentColumn = column - 1;
-		if (isGridCellBlocked(grid, row, adjacentColumn)) return true;
-	}
-	if (isInteriorGridBoundary(point.y, grid.cellSizePx, grid.heightPx)) {
-		const adjacentRow = row - 1;
-		if (isGridCellBlocked(grid, adjacentRow, column)) return true;
-	}
-	return false;
-}
-
-function isInteriorGridBoundary(coordinate: number, cellSizePx: number, maximum: number): boolean {
-	if (coordinate <= 0 || coordinate >= maximum) return false;
-	const cellCoordinate = coordinate / cellSizePx;
-	return Math.abs(cellCoordinate - Math.round(cellCoordinate)) <= 1e-12;
+function isGridPositionBlocked(grid: NavigationGrid, point: NavigationPoint): boolean {
+	const column = worldCoordinateToCell(point.x, grid.widthPx, grid.cellSizePx, grid.widthCells);
+	const row = worldCoordinateToCell(point.y, grid.heightPx, grid.cellSizePx, grid.heightCells);
+	if (column < 0 || row < 0) return true;
+	return isGridCellBlocked(grid, row, column);
 }
 
 function isSegmentBlockedByObstacle(
@@ -635,6 +629,21 @@ function collectRawBlockedCells(rows: readonly string[]): NavigationPoint[] {
 		}
 	}
 	return blockedCells;
+}
+
+function getCandidateCellRange(
+	blockedCellIndex: number,
+	cellSizePx: number,
+	clearancePx: number,
+	cellCount: number
+): { min: number; max: number } {
+	const left = blockedCellIndex * cellSizePx;
+	const min = Math.max(0, Math.ceil((left - clearancePx) / cellSizePx - 0.5));
+	const max = Math.min(
+		cellCount - 1,
+		Math.floor((left + cellSizePx + clearancePx) / cellSizePx - 0.5)
+	);
+	return { min, max };
 }
 
 function isWithinClearance(

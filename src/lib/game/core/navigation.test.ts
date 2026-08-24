@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import {
 	compileNavigationGrid,
@@ -117,6 +117,52 @@ describe('navigation grid compilation', () => {
 		expect(isWalkable(grid, 0, 32.01)).toBe(false);
 		expect(isWalkable(grid, Number.NaN, 0)).toBe(false);
 		expect(isWalkable(grid, Number.POSITIVE_INFINITY, 0)).toBe(false);
+	});
+
+	it('uses the same containing-cell convention for exact internal boundaries at rest and during sweeps', () => {
+		const verticalBoundary = compileNavigationGrid(
+			source({ widthCells: 2, heightCells: 1, rows: ['#.'] })
+		);
+		const horizontalBoundary = compileNavigationGrid(
+			source({ widthCells: 1, heightCells: 2, rows: ['#', '.'] })
+		);
+
+		expect(isWalkable(verticalBoundary, 16, 8)).toBe(true);
+		expect(
+			resolveMovementSegment(verticalBoundary, [], { x: 24, y: 8 }, { x: 16, y: 8 }, 0)
+		).toEqual({ x: 24, y: 8 });
+		expect(
+			resolveMovementSegment(verticalBoundary, [], { x: 16, y: 8 }, { x: 24, y: 8 }, 0)
+		).toEqual({ x: 24, y: 8 });
+
+		expect(isWalkable(horizontalBoundary, 8, 16)).toBe(true);
+		expect(
+			resolveMovementSegment(horizontalBoundary, [], { x: 8, y: 24 }, { x: 8, y: 16 }, 0)
+		).toEqual({ x: 8, y: 24 });
+		expect(
+			resolveMovementSegment(horizontalBoundary, [], { x: 8, y: 16 }, { x: 8, y: 24 }, 0)
+		).toEqual({ x: 8, y: 24 });
+	});
+
+	it('compiles clearance from localized blocker neighborhoods instead of candidate-wide raw scans', () => {
+		const rows = Array.from({ length: 32 }, (_unused, row) =>
+			row === 16 ? `${'.'.repeat(16)}#${'.'.repeat(15)}` : '.'.repeat(32)
+		);
+		const someSpy = vi.spyOn(Array.prototype, 'some');
+
+		compileNavigationGrid({
+			id: 'shape',
+			mapId: 'shape-map',
+			cellSizePx: 16,
+			widthCells: 32,
+			heightCells: 32,
+			clearancePx: 8,
+			rows
+		});
+
+		const someCallCount = someSpy.mock.calls.length;
+		someSpy.mockRestore();
+		expect(someCallCount).toBe(0);
 	});
 
 	it('freezes metadata while leaving the bitset as typed-array storage', () => {

@@ -110,7 +110,9 @@ export function buildMapNavigationObstacles(
 }
 
 function hasOwnedSource(map: WorldMapDefinition, source: NavigationGridOwnedSource): boolean {
-	return map.navigationGridOwnedSources?.includes(source) ?? false;
+	return (
+		map.navigationGrid !== undefined && (map.navigationGridOwnedSources?.includes(source) ?? false)
+	);
 }
 
 function buildStrictRectObstacle(id: string, rect: MapRect): NavigationObstacle {
