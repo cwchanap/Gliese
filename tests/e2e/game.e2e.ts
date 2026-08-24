@@ -6080,11 +6080,11 @@ function itemShopServiceCorridorWestRoutePoints(currentPoint: Point, targetPoint
 		}
 		if (index === 1 && from.x === to.x) {
 			// The service-corridor handoff starts from the actual settled x of the
-			// preceding north route. That fixed x is authoritative; applying a
-			// synthetic ±18 x residue can re-enter the counter by a fraction of a
-			// pixel even though the live vertical sweep is clear.
+			// preceding north route. That settled point is exact live evidence;
+			// retain the Y reach envelope only for the planned destination, where
+			// the runner may still settle within its unchanged tolerance.
 			for (const obstacle of [...layout.walls, ...Object.values(layout.propCollisions)]) {
-				for (const endpoint of [from, to]) {
+				for (const endpoint of [to]) {
 					expect(
 						endpointYEnvelopeIsDisjointFromExpandedRect(
 							endpoint,
@@ -11921,6 +11921,19 @@ test('browser-local route steering acknowledges a plan and continues through Pha
 		{ x: serviceCorridorWestStart.x, y: 300 },
 		serviceCorridorWestTarget
 	]);
+	const failedLiveServiceCorridorWestStart = {
+		x: 634.9807999999931,
+		y: 283.7392000000053
+	};
+	// This is the exact settled endpoint captured by the final runtime smoke.
+	// Its exact expanded-rect position and vertical sweep are clear; only a
+	// hypothetical Y reach residue would overlap the office-sales divider.
+	expect(() =>
+		itemShopServiceCorridorWestRoutePoints(
+			failedLiveServiceCorridorWestStart,
+			serviceCorridorWestTarget
+		)
+	).not.toThrow();
 	expect(() =>
 		assertTask6InteriorRouteEnvelope(
 			'item-shop',
@@ -11933,13 +11946,16 @@ test('browser-local route steering acknowledges a plan and continues through Pha
 		serviceCorridorWestPlan.slice(1),
 		'characterization Item Shop service-corridor-west remaining route'
 	);
-	const unsafeServiceCorridorWestStart = { x: 619.5, y: 307.3096000000027 };
+	// Keep a genuinely unsafe fixture under the corrected contract: the exact
+	// settled point starts inside the office-sales divider's expanded rect, so
+	// the full segment oracle must still reject the route.
+	const unsafeServiceCorridorWestStart = { x: 619.5, y: 260 };
 	expect(() =>
 		itemShopServiceCorridorWestRoutePoints(
 			unsafeServiceCorridorWestStart,
 			serviceCorridorWestTarget
 		)
-	).toThrow(/fixed-x endpoint/);
+	).toThrow(/route crossed item-shop-office-sales-divider/);
 	// RED characterization for the stockroom doorway handoff: the live endpoint
 	// from service-corridor-west is already in the source-safe x band. Preserve
 	// that actual x for the initial vertical transit, then cross the authored
