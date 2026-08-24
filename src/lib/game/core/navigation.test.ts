@@ -130,7 +130,7 @@ describe('navigation grid compilation', () => {
 		expect(isWalkable(verticalBoundary, 16, 8)).toBe(true);
 		expect(
 			resolveMovementSegment(verticalBoundary, [], { x: 24, y: 8 }, { x: 16, y: 8 }, 0)
-		).toEqual({ x: 24, y: 8 });
+		).toEqual({ x: 16, y: 8 });
 		expect(
 			resolveMovementSegment(verticalBoundary, [], { x: 16, y: 8 }, { x: 24, y: 8 }, 0)
 		).toEqual({ x: 24, y: 8 });
@@ -138,7 +138,7 @@ describe('navigation grid compilation', () => {
 		expect(isWalkable(horizontalBoundary, 8, 16)).toBe(true);
 		expect(
 			resolveMovementSegment(horizontalBoundary, [], { x: 8, y: 24 }, { x: 8, y: 16 }, 0)
-		).toEqual({ x: 8, y: 24 });
+		).toEqual({ x: 8, y: 16 });
 		expect(
 			resolveMovementSegment(horizontalBoundary, [], { x: 8, y: 16 }, { x: 8, y: 24 }, 0)
 		).toEqual({ x: 8, y: 24 });

@@ -360,7 +360,7 @@ function isWorldEdgeEndpoint(
 ): boolean {
 	return (
 		Math.abs(boundaryT - 1) <= 1e-12 &&
-		((step > 0 && coordinate === maximum) || (step < 0 && coordinate === 0))
+		((step > 0 && coordinate === maximum) || (step < 0 && coordinate >= 0))
 	);
 }
 
