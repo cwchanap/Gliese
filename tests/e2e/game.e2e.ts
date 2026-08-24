@@ -1076,14 +1076,8 @@ async function installRuntimeProbes(
 		};
 		const onMovementDiagnostic = (event: Event) => {
 			if (!routeState || routeState.status !== 'running') return;
-			// A diagnostic arriving before the first pacing frame is still a valid
-			// movement result from the released key. Once the guaranteed idle frame
-			// is pending, ignore movement until the next correction key is held.
-			if (scheduledCorrectionFrame !== null) return;
 			const diagnostic = (event as CustomEvent<PlayerMovementDiagnostic>).detail;
 			const movementAt = performance.now();
-			routeState.movementCount += 1;
-			routeState.lastMovementAt = movementAt;
 			const axis = routeState.axis;
 			const target = routeState.target;
 			const clonedDiagnostic = {
@@ -1100,9 +1094,18 @@ async function installRuntimeProbes(
 				!target ||
 				!routeState.position
 			) {
+				routeState.movementCount += 1;
+				routeState.lastMovementAt = movementAt;
 				routeState.invalidDiagnostics.push(clonedDiagnostic);
 				return;
 			}
+			// A diagnostic arriving before the first pacing frame is still a valid
+			// movement result from the released key. Once the guaranteed idle frame
+			// is pending, ignore only this already-validated replay until the next
+			// correction key is held.
+			if (scheduledCorrectionFrame !== null) return;
+			routeState.movementCount += 1;
+			routeState.lastMovementAt = movementAt;
 			routeState.lastDiagnostic = clonedDiagnostic;
 			routeState.diagnostics.push(clonedDiagnostic);
 			routeState.diagnosticAxes.push(axis);
@@ -13198,6 +13201,14 @@ test('browser-local route correction paces an unblocked Guild Hall overshoot bef
 				diagnosticCount: route?.diagnostics?.length ?? null
 			};
 		};
+		const invalidIdleSnapshot = (requestedToken: string) => {
+			const route = runner.get(requestedToken);
+			return {
+				...detailedSnapshot(requestedToken),
+				invalidDiagnosticCount: route?.invalidDiagnostics?.length ?? null,
+				invalidDiagnosticMapId: route?.invalidDiagnostics?.[0]?.mapId ?? null
+			};
+		};
 		const events = () => keyEvents.join('|');
 
 		const startPoint = { x: 682.6112000000019, y: 168.06640000000007 };
@@ -13260,6 +13271,29 @@ test('browser-local route correction paces an unblocked Guild Hall overshoot bef
 			return requestedToken;
 		};
 
+		// An invalid diagnostic arriving while the second pacing frame is pending
+		// must remain authoritative and prevent a later valid terminal event from
+		// reporting a clean route.
+		const invalidIdleToken = startPendingRoute('invalid-idle');
+		await nextFrame();
+		window.dispatchEvent(
+			new CustomEvent<PlayerMovementDiagnostic>('gliese:player-movement-diagnostic', {
+				detail: {
+					mapId: 'item-shop',
+					previousPosition: { ...oppositeOvershoot },
+					requestedPosition: { ...oppositeOvershoot },
+					resolvedPosition: { ...oppositeOvershoot },
+					blocked: false
+				}
+			})
+		);
+		const invalidIdleBeforeTerminal = invalidIdleSnapshot(invalidIdleToken);
+		await nextFrame();
+		const invalidIdlePaced = snapshot(invalidIdleToken);
+		dispatchDiagnostic(oppositeOvershoot, target);
+		const invalidIdleAfter = invalidIdleSnapshot(invalidIdleToken);
+		const invalidIdleEvents = events();
+
 		// Explicit cancellation must remove both scheduled frames and leave no
 		// correction key for a later route.
 		const cancelToken = startPendingRoute('cancel');
@@ -13309,6 +13343,10 @@ test('browser-local route correction paces an unblocked Guild Hall overshoot bef
 			secondImmediateEvents,
 			done,
 			completedEvents,
+			invalidIdleBeforeTerminal,
+			invalidIdlePaced,
+			invalidIdleAfter,
+			invalidIdleEvents,
 			canceled,
 			cancelAfter,
 			cancelEvents,
@@ -13349,6 +13387,26 @@ test('browser-local route correction paces an unblocked Guild Hall overshoot bef
 		done: { status: 'done', activeKey: null },
 		completedEvents:
 			'keyup:ArrowUp|keydown:ArrowDown|keyup:ArrowDown|keydown:ArrowUp|keyup:ArrowUp',
+		invalidIdleBeforeTerminal: {
+			status: 'running',
+			activeKey: null,
+			position: { x: 682.6112000000019, y: 90.81519999999895 },
+			correctionTaps: 1,
+			diagnosticCount: 1,
+			invalidDiagnosticCount: 1,
+			invalidDiagnosticMapId: 'item-shop'
+		},
+		invalidIdlePaced: { status: 'running', activeKey: 'ArrowDown' },
+		invalidIdleAfter: {
+			status: 'error',
+			activeKey: null,
+			position: { x: 679, y: 111 },
+			correctionTaps: 1,
+			diagnosticCount: 2,
+			invalidDiagnosticCount: 1,
+			invalidDiagnosticMapId: 'item-shop'
+		},
+		invalidIdleEvents: 'keyup:ArrowUp|keydown:ArrowDown|keyup:ArrowDown',
 		canceled: { status: 'error', activeKey: null },
 		cancelAfter: { status: 'error', activeKey: null },
 		cancelEvents: 'keyup:ArrowUp',
