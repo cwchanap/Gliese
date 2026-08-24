@@ -342,7 +342,7 @@ async function installRuntimeProbes(
 					/(this\.setupEncounters\(([^)]+)\)),this\.renderTransitions\(\2\)/
 				);
 				const transitionGateMatch = servedBody.match(
-					/t=this\.hasLivingEnemies\(\);for\(let r of e\.transitions\)/
+					/(\b[A-Za-z_$][\w$]*)=this\.hasLivingEnemies\(\);for\(let ([A-Za-z_$][\w$]*) of ([A-Za-z_$][\w$]*)\.transitions\)/
 				);
 				if (!encounterMatch) {
 					throw new Error(
@@ -358,9 +358,10 @@ async function installRuntimeProbes(
 					encounterMatch[0],
 					`${encounterMatch[1]},globalThis.__glieseSceneEncounterState={mapId:this.mapId,clearedEncounterIds:[...this.clearedEncounterIds],enemies:this.enemies.map(e=>({id:e.id,defeated:e.defeated,hp:e.hp,maxHp:e.maxHp}))},this.renderTransitions(${encounterMatch[2]})`
 				);
+				const [, livingEnemiesVariable, transitionVariable, mapVariable] = transitionGateMatch;
 				servedBody = servedBody.replace(
 					transitionGateMatch[0],
-					`t=this.hasLivingEnemies();globalThis.__glieseTransitionGateState={mapId:this.mapId,player:this.player?{x:this.player.x,y:this.player.y}:null,hasLivingEnemies:t,clearedEncounterIds:[...this.clearedEncounterIds],enemies:this.enemies.map(e=>({id:e.id,defeated:e.defeated,hp:e.hp,maxHp:e.maxHp}))};for(let r of e.transitions)`
+					`${livingEnemiesVariable}=this.hasLivingEnemies();globalThis.__glieseTransitionGateState={mapId:this.mapId,player:this.player?{x:this.player.x,y:this.player.y}:null,hasLivingEnemies:${livingEnemiesVariable},clearedEncounterIds:[...this.clearedEncounterIds],enemies:this.enemies.map(e=>({id:e.id,defeated:e.defeated,hp:e.hp,maxHp:e.maxHp}))};for(let ${transitionVariable} of ${mapVariable}.transitions)`
 				);
 			}
 			await route.fulfill({
@@ -2235,6 +2236,15 @@ function guildHallAisleFinalCheckpointRoutePoints(
 		expect(currentPoint.y + AXIS_REACH_TOLERANCE).toBeLessThan(expandedTop);
 	} else {
 		expect(currentPoint.x + AXIS_REACH_TOLERANCE).toBeLessThan(expandedLeft);
+	}
+	if (
+		Math.abs(currentPoint.x - targetPoint.x) <= AXIS_REACH_TOLERANCE &&
+		Math.abs(currentPoint.y - targetPoint.y) <= AXIS_REACH_TOLERANCE
+	) {
+		// The live endpoint already satisfies the authored checkpoint contract.
+		// Do not synthesize a corner whose skipped first axis would leave the
+		// runner at this unchanged coordinate for an unsafe second-axis tap.
+		return [currentPoint];
 	}
 	const points =
 		currentPoint.x !== targetPoint.x
@@ -4982,6 +4992,27 @@ function itemShopStockroomEntryRoutePoints(currentPoint: Point, targetPoint: Poi
 	return points;
 }
 
+function itemShopStockroomEntryInitialFixedAxisDiagnostics(
+	diagnostics: readonly PlayerMovementDiagnostic[],
+	diagnosticAxes: readonly ('x' | 'y')[],
+	from: Point
+): PlayerMovementDiagnostic[] {
+	const initialPhase: PlayerMovementDiagnostic[] = [];
+	for (const [index, diagnostic] of diagnostics.entries()) {
+		if (
+			diagnosticAxes[index] !== 'y' ||
+			diagnostic.previousPosition.x !== from.x ||
+			diagnostic.requestedPosition.x !== from.x ||
+			diagnostic.resolvedPosition.x !== from.x ||
+			diagnostic.resolvedPosition.y >= diagnostic.previousPosition.y
+		) {
+			break;
+		}
+		initialPhase.push(diagnostic);
+	}
+	return initialPhase;
+}
+
 function assertItemShopStockroomEntryRouteContract(
 	points: readonly Point[],
 	result: BrowserRouteResult
@@ -5033,14 +5064,13 @@ function assertItemShopStockroomEntryRouteContract(
 	const diagnostics = result.diagnostics ?? [];
 	const diagnosticAxes = result.diagnosticAxes ?? [];
 	expect(diagnosticAxes).toHaveLength(diagnostics.length);
-	const fixedAxisDiagnostics = diagnostics.filter(
-		(diagnostic, index) =>
-			diagnosticAxes[index] === 'y' &&
-			diagnostic.previousPosition.x === from.x &&
-			diagnostic.requestedPosition.x === from.x &&
-			diagnostic.resolvedPosition.x === from.x
+	const initialFixedAxisDiagnostics = itemShopStockroomEntryInitialFixedAxisDiagnostics(
+		diagnostics,
+		diagnosticAxes,
+		from
 	);
-	expect(fixedAxisDiagnostics.length).toBeGreaterThan(0);
+	expect(initialFixedAxisDiagnostics.length).toBeGreaterThan(0);
+	expect(initialFixedAxisDiagnostics.at(-1)!.resolvedPosition.y).toBeLessThan(from.y);
 	for (const diagnostic of diagnostics) {
 		expect(diagnostic.mapId).toBe('item-shop');
 		expect(diagnostic.blocked).toBe(false);
@@ -5073,8 +5103,11 @@ function assertItemShopStockroomEntryRouteContract(
 			`Item Shop stockroom-entry diagnostic crossed Mira: ${JSON.stringify(diagnostic)}`
 		).toBe(false);
 	}
-	for (const diagnostic of fixedAxisDiagnostics) {
-		expect(diagnostic.resolvedPosition.y).toBeLessThan(diagnostic.previousPosition.y);
+	for (const [index, diagnostic] of initialFixedAxisDiagnostics.entries()) {
+		expect(
+			diagnostic.resolvedPosition.y,
+			`Item Shop stockroom-entry initial fixed-x northward diagnostic ${index}`
+		).toBeLessThan(diagnostic.previousPosition.y);
 	}
 	for (const obstacle of obstacles) {
 		expect(
@@ -8517,6 +8550,67 @@ test('village bridge browser seam staging stays source-safe', () => {
 	);
 });
 
+test('first composed route collision preserves requested and resolved obstacle order', () => {
+	const obstacles = [
+		{ x: 20, y: 20, width: 4, height: 4 },
+		{ x: 40, y: -2, width: 4, height: 4 },
+		{ x: 70, y: -2, width: 4, height: 4 }
+	] as const;
+	const requestedCollision = firstIntersectingRouteObstacle(
+		{ x: 0, y: 0 },
+		{ x: 100, y: 0 },
+		obstacles,
+		0
+	);
+	const resolvedCollision = firstIntersectingRouteObstacle(
+		{ x: 60, y: 0 },
+		{ x: 100, y: 0 },
+		obstacles,
+		0
+	);
+
+	expect(firstIntersectingRouteObstacle({ x: 0, y: 0 }, { x: 10, y: 0 }, obstacles, 0)).toBeNull();
+	expect(requestedCollision).toBe(obstacles[1]);
+	expect(resolvedCollision).toBe(obstacles[2]);
+});
+
+test('Item Shop stockroom entry checks only its initial fixed-x northward phase', () => {
+	const routeStart = { x: 448, y: 301.60239999999817 };
+	const target = { x: 448, y: 160 };
+	const points = itemShopStockroomEntryRoutePoints(routeStart, target);
+	const initialNorthwardDiagnostic: PlayerMovementDiagnostic = {
+		mapId: 'item-shop',
+		previousPosition: routeStart,
+		requestedPosition: { x: 448, y: 138.83440000000107 },
+		resolvedPosition: { x: 448, y: 138.83440000000107 },
+		blocked: false
+	};
+	const finalSouthwardDiagnostic: PlayerMovementDiagnostic = {
+		mapId: 'item-shop',
+		previousPosition: initialNorthwardDiagnostic.resolvedPosition,
+		requestedPosition: { x: 448, y: 166.62400000000162 },
+		resolvedPosition: { x: 448, y: 166.62400000000162 },
+		blocked: false
+	};
+	const result: BrowserRouteResult = {
+		token: 'characterization-item-shop-stockroom-entry-two-phase',
+		mapId: 'item-shop',
+		status: 'done',
+		pointIndex: points.length,
+		axis: null,
+		position: finalSouthwardDiagnostic.resolvedPosition,
+		target: null,
+		lastDiagnostic: finalSouthwardDiagnostic,
+		axisHistory: ['y'],
+		diagnostics: [initialNorthwardDiagnostic, finalSouthwardDiagnostic],
+		invalidDiagnostics: [],
+		diagnosticAxes: ['y', 'y'],
+		activeKey: null
+	};
+
+	expect(() => assertItemShopStockroomEntryRouteContract(points, result)).not.toThrow();
+});
+
 const FALLBACK_V2_CROSSROADS_TO_MISTFEN = [
 	{ x: 3_904, y: 4_224 },
 	{ x: 3_904, y: 3_648 },
@@ -8930,6 +9024,18 @@ function meadowEntryComposedRouteCollisionRects() {
 	}));
 }
 
+function firstIntersectingRouteObstacle(
+	from: Point,
+	to: Point,
+	obstacles: readonly { x: number; y: number; width: number; height: number }[],
+	padding: number
+): { x: number; y: number; width: number; height: number } | null {
+	for (const obstacle of obstacles) {
+		if (routeSegmentIntersectsExpandedRect(from, to, obstacle, padding)) return obstacle;
+	}
+	return null;
+}
+
 function assertVillageBridgeRoutePhaseContract(
 	points: readonly Point[],
 	result: BrowserRouteResult,
@@ -8948,26 +9054,26 @@ function assertVillageBridgeRoutePhaseContract(
 		expect(diagnostic.mapId, `${diagnosticLabel} map`).toBe('meadow-entry');
 		expect(diagnostic.blocked, `${diagnosticLabel} blocked`).toBe(false);
 		expect(diagnostic.previousPosition, `${diagnosticLabel} continuity`).toEqual(previousResolved);
-		for (const obstacle of obstacles) {
-			expect(
-				routeSegmentIntersectsExpandedRect(
-					diagnostic.previousPosition,
-					diagnostic.requestedPosition,
-					obstacle,
-					PLAYER_COLLISION_RADIUS
-				),
-				`${diagnosticLabel} requested sweep crossed composed collision: ${JSON.stringify(obstacle)}`
-			).toBe(false);
-			expect(
-				routeSegmentIntersectsExpandedRect(
-					diagnostic.previousPosition,
-					diagnostic.resolvedPosition,
-					obstacle,
-					PLAYER_COLLISION_RADIUS
-				),
-				`${diagnosticLabel} resolved sweep crossed composed collision: ${JSON.stringify(obstacle)}`
-			).toBe(false);
-		}
+		const requestedCollision = firstIntersectingRouteObstacle(
+			diagnostic.previousPosition,
+			diagnostic.requestedPosition,
+			obstacles,
+			PLAYER_COLLISION_RADIUS
+		);
+		expect(
+			requestedCollision,
+			`${diagnosticLabel} requested sweep crossed composed collision: ${JSON.stringify(requestedCollision)}`
+		).toBeNull();
+		const resolvedCollision = firstIntersectingRouteObstacle(
+			diagnostic.previousPosition,
+			diagnostic.resolvedPosition,
+			obstacles,
+			PLAYER_COLLISION_RADIUS
+		);
+		expect(
+			resolvedCollision,
+			`${diagnosticLabel} resolved sweep crossed composed collision: ${JSON.stringify(resolvedCollision)}`
+		).toBeNull();
 		previousResolved = diagnostic.resolvedPosition;
 	}
 	expect(result.lastDiagnostic, `${label} last diagnostic`).toEqual(diagnostics.at(-1));
@@ -9049,34 +9155,36 @@ function assertPostRuinsLowerRiverEastHandoffPhaseContract(
 		expect(diagnostic.mapId, `${diagnosticLabel} map`).toBe('meadow-entry');
 		expect(diagnostic.blocked, `${diagnosticLabel} blocked`).toBe(false);
 		expect(diagnostic.previousPosition, `${diagnosticLabel} continuity`).toEqual(previousResolved);
-		for (const obstacle of obstacles) {
-			expect(
-				routeSegmentIntersectsExpandedRect(
-					diagnostic.previousPosition,
-					diagnostic.requestedPosition,
-					obstacle,
-					PLAYER_COLLISION_RADIUS
-				),
-				`${diagnosticLabel} requested sweep crossed composed collision: ${JSON.stringify(obstacle)}`
-			).toBe(false);
-			expect(
-				routeSegmentIntersectsExpandedRect(
-					diagnostic.previousPosition,
-					diagnostic.resolvedPosition,
-					obstacle,
-					PLAYER_COLLISION_RADIUS
-				),
-				`${diagnosticLabel} resolved sweep crossed composed collision: ${JSON.stringify(obstacle)}`
-			).toBe(false);
-			expect(
-				expandedLayoutRectContainsPoint(
-					obstacle,
-					diagnostic.resolvedPosition,
-					PLAYER_COLLISION_RADIUS
-				),
-				`${diagnosticLabel} resolved endpoint entered composed collision: ${JSON.stringify(obstacle)}`
-			).toBe(false);
-		}
+		const requestedCollision = firstIntersectingRouteObstacle(
+			diagnostic.previousPosition,
+			diagnostic.requestedPosition,
+			obstacles,
+			PLAYER_COLLISION_RADIUS
+		);
+		expect(
+			requestedCollision,
+			`${diagnosticLabel} requested sweep crossed composed collision: ${JSON.stringify(requestedCollision)}`
+		).toBeNull();
+		const resolvedCollision = firstIntersectingRouteObstacle(
+			diagnostic.previousPosition,
+			diagnostic.resolvedPosition,
+			obstacles,
+			PLAYER_COLLISION_RADIUS
+		);
+		expect(
+			resolvedCollision,
+			`${diagnosticLabel} resolved sweep crossed composed collision: ${JSON.stringify(resolvedCollision)}`
+		).toBeNull();
+		const resolvedEndpointCollision = firstIntersectingRouteObstacle(
+			diagnostic.resolvedPosition,
+			diagnostic.resolvedPosition,
+			obstacles,
+			PLAYER_COLLISION_RADIUS
+		);
+		expect(
+			resolvedEndpointCollision,
+			`${diagnosticLabel} resolved endpoint entered composed collision: ${JSON.stringify(resolvedEndpointCollision)}`
+		).toBeNull();
 		if (phase === 'horizontal') {
 			expect(diagnostic.previousPosition.y, `${diagnosticLabel} previous y`).toBe(target.y);
 			expect(diagnostic.requestedPosition.y, `${diagnosticLabel} requested y`).toBe(target.y);
@@ -10004,6 +10112,22 @@ test('Wildwood exact anchor staging proves the asymmetric west leg', () => {
 	// the source raw bank edge must still remain strictly east of the player.
 	expect(validFrameResidue.x + PLAYER_COLLISION_RADIUS).toBeLessThan(wildwoodBank.x);
 	expect(meadowEntryPointIsWalkable(validFrameResidue, PLAYER_COLLISION_RADIUS)).toBe(true);
+});
+
+test('Guild Hall terminal checkpoint skips an in-band micro-correction', () => {
+	const liveResidue = { x: 410, y: 193 };
+	const authoredCheckpoint = { x: 400, y: 208 };
+	const finalRoute = guildHallRecordsAisleFinalCheckpointRoutePoints(
+		liveResidue,
+		authoredCheckpoint
+	);
+
+	// Both coordinates already satisfy the unchanged terminal reach contract. A
+	// generated x-then-y corner would skip x at the runner's settle tolerance,
+	// then drive y at x=410 through the records-spine wall.
+	expect(Math.abs(liveResidue.x - authoredCheckpoint.x)).toBeLessThanOrEqual(AXIS_REACH_TOLERANCE);
+	expect(Math.abs(liveResidue.y - authoredCheckpoint.y)).toBeLessThanOrEqual(AXIS_REACH_TOLERANCE);
+	expect(finalRoute).toEqual([liveResidue]);
 });
 
 test('validated route evidence records diagnostics without revalidating them', () => {
