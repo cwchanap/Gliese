@@ -982,7 +982,10 @@ async function renderInteriorPaintedArtifacts(
 	return artifacts;
 }
 
-async function renderVillageInteriorLayoutReview(mapId: VillageInteriorMapId): Promise<{
+async function renderVillageInteriorLayoutReview(
+	mapId: VillageInteriorMapId,
+	repositoryRoot = process.cwd()
+): Promise<{
 	readonly entry: CompleteWorldLayoutReviewEntry;
 	readonly artifacts: readonly RenderedArtifact[];
 }> {
@@ -1008,7 +1011,7 @@ async function renderVillageInteriorLayoutReview(mapId: VillageInteriorMapId): P
 	] as const;
 	for (const [name, svg] of core)
 		artifacts.push({ path: `${mapId}/${name}`, bytes: await encodeSvg(svg) });
-	artifacts.push(...(await renderInteriorPaintedArtifacts(mapId)));
+	artifacts.push(...(await renderInteriorPaintedArtifacts(mapId, repositoryRoot)));
 	const artifactInventory = [];
 	for (const artifact of artifacts) {
 		const metadata = await sharp(artifact.bytes).metadata();
@@ -1269,9 +1272,13 @@ export async function renderCompleteWorldLayoutReview(input: {
 	readonly outputRoot: string;
 	readonly check: boolean;
 	readonly map?: VillageInteriorMapId;
+	readonly repositoryRoot?: string;
 }): Promise<readonly CompleteWorldLayoutReviewEntry[]> {
 	if (input.map) {
-		const rendered = await renderVillageInteriorLayoutReview(input.map);
+		const rendered = await renderVillageInteriorLayoutReview(
+			input.map,
+			input.repositoryRoot ?? process.cwd()
+		);
 		if (input.check) {
 			await checkArtifacts(input.outputRoot, rendered.artifacts);
 			return [rendered.entry];

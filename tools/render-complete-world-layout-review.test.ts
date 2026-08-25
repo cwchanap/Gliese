@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto';
 import { mkdir, mkdtemp, readFile, readdir, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
-import { join, resolve } from 'node:path';
+import { join } from 'node:path';
 
 import sharp from 'sharp';
 import { afterEach, describe, expect, it } from 'vitest';
@@ -59,19 +59,79 @@ const expectedRouteProofAnchors = {
 } as const;
 
 const temporaryRoots: string[] = [];
-const temporaryProofPaths: string[] = [];
 
 afterEach(async () => {
 	await Promise.all(
 		temporaryRoots.splice(0).map((root) => rm(root, { recursive: true, force: true }))
 	);
-	await Promise.all(temporaryProofPaths.splice(0).map((path) => rm(path, { force: true })));
 });
 
 async function createOutputRoot(): Promise<string> {
 	const root = await mkdtemp(join(tmpdir(), 'gliese-complete-world-layout-'));
 	temporaryRoots.push(root);
 	return root;
+}
+
+async function createRepositoryRoot(): Promise<string> {
+	const root = await mkdtemp(join(tmpdir(), 'gliese-render-repository-'));
+	temporaryRoots.push(root);
+	return root;
+}
+
+async function writeHeroHouseManifest(
+	repositoryRoot: string,
+	fileStem: string,
+	background: { readonly r: number; readonly g: number; readonly b: number }
+): Promise<{
+	readonly manifestPath: string;
+	readonly assetPath: string;
+}> {
+	const manifestRoot = join(repositoryRoot, 'src/lib/game/content/backgrounds/manifests');
+	const assetRoot = join(repositoryRoot, 'public/game/assets/interiors/hero-house');
+	const manifestPath = join(manifestRoot, `${fileStem}.json`);
+	const assetPath = join(assetRoot, `${fileStem}.png`);
+	const runtimeAssetPath = `/game/assets/interiors/hero-house/${fileStem}.png`;
+	const assetBytes = await sharp({
+		create: {
+			width: 704,
+			height: 576,
+			channels: 4,
+			background: { ...background, alpha: 1 }
+		}
+	})
+		.png()
+		.toBuffer();
+
+	await mkdir(manifestRoot, { recursive: true });
+	await mkdir(assetRoot, { recursive: true });
+	await writeFile(assetPath, assetBytes);
+	await writeFile(
+		manifestPath,
+		`${JSON.stringify(
+			{
+				version: 1,
+				mapId: 'hero-house',
+				dimensionsPx: { width: 704, height: 576 },
+				base: {
+					id: `${fileStem}-base`,
+					textureKey: `${fileStem}-base`,
+					path: runtimeAssetPath,
+					sha256: sha256(assetBytes)
+				},
+				navigation: {
+					gridId: 'hero-house-navigation',
+					cellSizePx: 16,
+					widthCells: 44,
+					heightCells: 36,
+					clearancePx: 12,
+					source: 'layout'
+				}
+			},
+			null,
+			2
+		)}\n`
+	);
+	return { manifestPath, assetPath };
 }
 
 function sha256(bytes: Buffer): string {
@@ -244,61 +304,29 @@ describe('complete world layout review renderer', () => {
 		expect(second).toEqual(first);
 	});
 
-	it('renders painted proof artifacts from a supported runtime-path manifest', async () => {
-		const repositoryRoot = resolve(process.cwd());
-		const manifestRoot = join(repositoryRoot, 'src/lib/game/content/backgrounds/manifests');
-		const assetRoot = join(repositoryRoot, 'public/game/assets/interiors/hero-house');
-		const suffix = `${process.pid}`;
-		const manifestPath = join(manifestRoot, `hero-house-painted-proof-${suffix}.json`);
-		const assetPath = join(assetRoot, `painted-proof-${suffix}.png`);
-		const runtimeAssetPath = `/game/assets/interiors/hero-house/painted-proof-${suffix}.png`;
-		const baseBytes = await sharp({
-			create: {
-				width: 704,
-				height: 576,
-				channels: 4,
-				background: { r: 64, g: 96, b: 80, alpha: 1 }
-			}
-		})
-			.png()
-			.toBuffer();
+	it('renders painted proof from an isolated root without colliding with a real Hero House manifest', async () => {
+		const existingRepositoryRoot = await createRepositoryRoot();
+		const existing = await writeHeroHouseManifest(existingRepositoryRoot, 'hero-house', {
+			r: 211,
+			g: 37,
+			b: 149
+		});
+		const existingManifestBytes = await readFile(existing.manifestPath);
+		const existingAssetBytes = await readFile(existing.assetPath);
 
-		await mkdir(manifestRoot, { recursive: true });
-		await mkdir(assetRoot, { recursive: true });
-		await writeFile(assetPath, baseBytes);
-		await writeFile(
-			manifestPath,
-			`${JSON.stringify(
-				{
-					version: 1,
-					mapId: 'hero-house',
-					dimensionsPx: { width: 704, height: 576 },
-					base: {
-						id: 'hero-house-painted-proof-base',
-						textureKey: 'hero-house-painted-proof-base',
-						path: runtimeAssetPath,
-						sha256: sha256(baseBytes)
-					},
-					navigation: {
-						gridId: 'hero-house-navigation',
-						cellSizePx: 16,
-						widthCells: 44,
-						heightCells: 36,
-						clearancePx: 12,
-						source: 'layout'
-					}
-				},
-				null,
-				2
-			)}\n`
-		);
-		temporaryProofPaths.push(manifestPath, assetPath);
+		const fixtureRepositoryRoot = await createRepositoryRoot();
+		await writeHeroHouseManifest(fixtureRepositoryRoot, 'painted-proof', {
+			r: 64,
+			g: 96,
+			b: 80
+		});
 
 		const outputRoot = await createOutputRoot();
 		const first = await renderCompleteWorldLayoutReview({
 			outputRoot,
 			check: false,
-			map: 'hero-house'
+			map: 'hero-house',
+			repositoryRoot: fixtureRepositoryRoot
 		});
 		const expected = [
 			'anchors.png',
@@ -316,16 +344,22 @@ describe('complete world layout review renderer', () => {
 		].sort();
 		expect(first).toHaveLength(1);
 		expect((await readdir(join(outputRoot, 'hero-house'))).sort()).toEqual(expected);
-		const paintedMetadata = await sharp(
-			await readFile(join(outputRoot, 'hero-house/painted-base.png'))
-		).metadata();
-		expect(paintedMetadata.width).toBe(704);
-		expect(paintedMetadata.height).toBe(576);
+		const paintedBase = await readFile(join(outputRoot, 'hero-house/painted-base.png'));
+		const { data: paintedPixels, info: paintedInfo } = await sharp(paintedBase)
+			.ensureAlpha()
+			.raw()
+			.toBuffer({ resolveWithObject: true });
+		expect([...paintedPixels.subarray(0, 4)]).toEqual([64, 96, 80, 255]);
+		expect(paintedInfo.width).toBe(704);
+		expect(paintedInfo.height).toBe(576);
+		expect(await readFile(existing.manifestPath)).toEqual(existingManifestBytes);
+		expect(await readFile(existing.assetPath)).toEqual(existingAssetBytes);
 
 		const second = await renderCompleteWorldLayoutReview({
 			outputRoot,
 			check: true,
-			map: 'hero-house'
+			map: 'hero-house',
+			repositoryRoot: fixtureRepositoryRoot
 		});
 		expect(second).toEqual(first);
 	});
