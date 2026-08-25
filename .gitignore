@@ -33,6 +33,15 @@ test-results
 # Local playtest screenshots
 docs/superpowers/reports/entry-map-playtest/
 
+# Local generated reports and evidence images
+docs/superpowers/reports/
+
+# Playwright CLI debug logs
+.playwright-cli/
+
+# Local Playwright screenshot output
+output/
+
 # Local Meadow Entry art working files
 artifacts/meadow-entry/hpa-399/candidates/
 artifacts/meadow-entry/hpa-399/work/
