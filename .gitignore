@@ -46,6 +46,13 @@ output/
 artifacts/meadow-entry/hpa-399/candidates/
 artifacts/meadow-entry/hpa-399/work/
 
+# Regenerable provenance JSON from the art pipeline (finalize/export tools write these)
+# The two large ones (provenance.json ~11 MB, meadow-entry-master-provenance.json ~5 MB)
+# were tracked as raw git blobs and bloated history; all are reproducible by the tools.
+artifacts/meadow-entry/painted-v2/provenance.json
+artifacts/meadow-entry/painted-v2/provenance/
+artifacts/meadow-entry/painted-v2/**/provenance/
+
 # Local git worktrees
 .worktrees/
 
