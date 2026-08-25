@@ -5,3 +5,5 @@ docs/superpowers/reports/img/hpa-586-painted-v2-complete/**/*.png filter=lfs dif
 artifacts/meadow-entry/painted-v2/**/*.png filter=lfs diff=lfs merge=lfs -text
 public/game/assets/regions/meadow-entry-painted-v2/**/*.png filter=lfs diff=lfs merge=lfs -text
 public/game/assets/regions/meadow-entry/**/*.png filter=lfs diff=lfs merge=lfs -text
+public/game/assets/interiors/**/*.png filter=lfs diff=lfs merge=lfs -text
+docs/superpowers/reports/img/hpa-586-interiors/**/*.png filter=lfs diff=lfs merge=lfs -text

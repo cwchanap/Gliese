@@ -97,6 +97,38 @@ function assertNavigationRows(source: NavigationMaskSource): void {
 	}
 }
 
+function rectContainsCellCentre(
+	rect: { readonly x: number; readonly y: number; readonly width: number; readonly height: number },
+	column: number,
+	row: number
+): boolean {
+	const centerX = column * NAVIGATION_CELL_SIZE_PX + NAVIGATION_CELL_SIZE_PX / 2;
+	const centerY = row * NAVIGATION_CELL_SIZE_PX + NAVIGATION_CELL_SIZE_PX / 2;
+	return (
+		centerX >= rect.x &&
+		centerX < rect.x + rect.width &&
+		centerY >= rect.y &&
+		centerY < rect.y + rect.height
+	);
+}
+
+function deriveNavigationRows(
+	layout: VillageInteriorLayout,
+	widthCells: number,
+	heightCells: number
+): readonly string[] {
+	const rows = Array.from({ length: heightCells }, () => Array<string>(widthCells).fill('.'));
+	const blockingRects = [...layout.walls, ...Object.values(layout.propCollisions)];
+	for (const blockingRect of blockingRects) {
+		for (let row = 0; row < heightCells; row += 1) {
+			for (let column = 0; column < widthCells; column += 1) {
+				if (rectContainsCellCentre(blockingRect, column, row)) rows[row]![column] = '#';
+			}
+		}
+	}
+	return rows.map((row) => row.join(''));
+}
+
 function freezeNavigationSource(source: NavigationMaskSource): NavigationMaskSource {
 	return Object.freeze({
 		id: source.id,
@@ -234,7 +266,7 @@ export function buildVillageInteriorNavigationSource(input: {
 		widthCells,
 		heightCells,
 		clearancePx: NAVIGATION_CLEARANCE_PX,
-		rows: Array.from({ length: heightCells }, () => '.'.repeat(widthCells))
+		rows: deriveNavigationRows(input.layout, widthCells, heightCells)
 	});
 }
 

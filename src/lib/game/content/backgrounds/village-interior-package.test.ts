@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
+import { compileNavigationGrid, isWalkable } from '$lib/game/core/navigation';
 import type { MapBackgroundVisualOwner } from './map-background-package';
 import {
 	buildVillageInteriorNavigationSource,
@@ -196,6 +197,82 @@ describe('village interior package builder', () => {
 				navigationOverride: { ...navigationSource, widthCells: 19 }
 			})
 		).toThrow();
+	});
+
+	it('rasterizes wall and prop rectangles by 16px cell-centre inclusion', () => {
+		const rasterized = buildVillageInteriorNavigationSource({
+			mapId: 'hero-house',
+			layout: {
+				...layout,
+				widthTiles: 8,
+				heightTiles: 8,
+				fullFloor: { x: 0, y: 0, width: 128, height: 128 },
+				walls: [{ id: 'wall-96px', x: 16, y: 16, width: 96, height: 16 }],
+				propCollisions: {
+					'prop-64px': { x: 32, y: 48, width: 64, height: 16 }
+				}
+			}
+		});
+
+		expect(rasterized.rows).toEqual([
+			'........',
+			'.######.',
+			'........',
+			'..####..',
+			'........',
+			'........',
+			'........',
+			'........'
+		]);
+	});
+
+	it('keeps the 96px and 64px raw fixtures subject to the shared 12px clearance compiler', () => {
+		const source = buildVillageInteriorNavigationSource({
+			mapId: 'hero-house',
+			layout: {
+				...layout,
+				widthTiles: 8,
+				heightTiles: 8,
+				fullFloor: { x: 0, y: 0, width: 128, height: 128 },
+				walls: [{ id: 'wall-96px', x: 16, y: 16, width: 96, height: 16 }],
+				propCollisions: {
+					'prop-64px': { x: 32, y: 48, width: 64, height: 16 }
+				}
+			}
+		});
+		const grid = compileNavigationGrid(source);
+
+		expect(isWalkable(grid, 120, 128)).toBe(true);
+		expect(isWalkable(grid, 24, 24)).toBe(false);
+		expect(isWalkable(grid, 104, 24)).toBe(false);
+		expect(isWalkable(grid, 40, 56)).toBe(false);
+		expect(isWalkable(grid, 88, 56)).toBe(false);
+		expect(isWalkable(grid, 120, 56)).toBe(true);
+	});
+
+	it('uses a reviewed full-size override as replacement rows rather than patching derived rows', () => {
+		const overrideLayout = {
+			...layout,
+			widthTiles: 8,
+			heightTiles: 8,
+			fullFloor: { x: 0, y: 0, width: 128, height: 128 },
+			walls: [{ id: 'wall-96px', x: 16, y: 16, width: 96, height: 16 }]
+		};
+		const override = buildVillageInteriorNavigationSource({
+			mapId: 'hero-house',
+			layout: overrideLayout,
+			navigationOverride: {
+				id: 'hero-house-reviewed-navigation',
+				mapId: 'hero-house',
+				cellSizePx: 16,
+				widthCells: 8,
+				heightCells: 8,
+				clearancePx: 12,
+				rows: Array.from({ length: 8 }, () => '.'.repeat(8))
+			}
+		});
+
+		expect(override.rows.every((row) => row === '........')).toBe(true);
 	});
 
 	it('freezes the package and navigation result graph', () => {

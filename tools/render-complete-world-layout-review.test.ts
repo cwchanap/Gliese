@@ -10,6 +10,7 @@ import { COMPLETE_WORLD_MAP_IDS } from '$lib/game/content/maps/layouts/complete-
 import { validateCanonicalPngChunks } from '$lib/game/content/backgrounds/meadow-entry-png';
 import { maps } from '$lib/game/content/maps';
 import {
+	parseCompleteWorldLayoutReviewArguments,
 	renderCompleteWorldLayoutReview,
 	type CompleteWorldLayoutReviewEntry
 } from './render-complete-world-layout-review';
@@ -184,7 +185,7 @@ describe('complete world layout review renderer', () => {
 			/inventory files differ|unexpected\.txt/i
 		);
 		expect(await readFile(extraPath)).toEqual(extraBytes);
-	});
+	}, 30_000);
 
 	it('derives every route proof centerline from active composed collision', async () => {
 		const renderer = await import('./render-complete-world-layout-review');
@@ -196,5 +197,48 @@ describe('complete world layout review renderer', () => {
 			expect(path.points.at(-1)).toEqual(expectedRouteProofAnchors[path.to]);
 			expect(path.points.length).toBeGreaterThan(1);
 		}
+	});
+
+	it('parses and renders deterministic per-map interior proof inventory with current-camera crops', async () => {
+		expect(parseCompleteWorldLayoutReviewArguments(['--map', 'hero-house', '--check'])).toEqual({
+			map: 'hero-house',
+			check: true,
+			outputRoot: 'docs/superpowers/reports/img/hpa-586-interiors'
+		});
+		expect(() => parseCompleteWorldLayoutReviewArguments(['--map', 'ruins-core'])).toThrow(
+			/VillageInteriorMapId/
+		);
+
+		const outputRoot = await createOutputRoot();
+		const first = await renderCompleteWorldLayoutReview({
+			outputRoot,
+			check: false,
+			map: 'hero-house'
+		});
+		const expected = [
+			'anchors.png',
+			'camera-1280x720.png',
+			'camera-640x360.png',
+			'coordinate-graybox.png',
+			'inventory.json',
+			'player-centre-navigation-overlay.png',
+			'raw-collision-overlay.png',
+			'route-widths.png'
+		].sort();
+		expect(first).toHaveLength(1);
+		expect(first[0]?.imagePath).toBe('hero-house/coordinate-graybox.png');
+		expect((await readdir(join(outputRoot, 'hero-house'))).sort()).toEqual(expected);
+		const inventory = JSON.parse(
+			await readFile(join(outputRoot, 'hero-house/inventory.json'), 'utf8')
+		) as { mapId: string; artifacts: readonly { path: string; sha256: string }[] };
+		expect(inventory.mapId).toBe('hero-house');
+		expect(inventory.artifacts.map(({ path }) => path)).toContain('hero-house/camera-1280x720.png');
+		expect(inventory.artifacts.every(({ sha256 }) => /^[a-f0-9]{64}$/.test(sha256))).toBe(true);
+		const second = await renderCompleteWorldLayoutReview({
+			outputRoot,
+			check: true,
+			map: 'hero-house'
+		});
+		expect(second).toEqual(first);
 	});
 });

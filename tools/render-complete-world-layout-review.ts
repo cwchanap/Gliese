@@ -15,21 +15,32 @@ import {
 	type CompleteWorldMapId
 } from '$lib/game/content/maps/layouts/complete-world-layout-foundation';
 import {
+	buildVillageInteriorNavigationSource,
+	type VillageInteriorMapId
+} from '$lib/game/content/backgrounds/village-interior-package';
+import { VILLAGE_INTERIOR_LAYOUTS } from '$lib/game/content/maps/layouts/village-interiors-v2';
+import {
 	MEADOW_ENTRY_V2_CROSSINGS,
 	MEADOW_ENTRY_V2_RIVER_SEGMENTS
 } from '$lib/game/content/maps/layouts/meadow-entry-v2';
 import { maps, type MapRect, type WorldMapDefinition } from '$lib/game/content/maps';
+import { compileNavigationGrid, isWalkable } from '$lib/game/core/navigation';
 import {
 	collectLandmarkRects,
 	collectStrictCollisionRects,
 	isInsideAnyCollisionRect
 } from '$lib/game/save/save-state';
+import {
+	collectRegisteredVillageInteriorManifests,
+	validateVillageInteriorManifest
+} from './validate-village-interior-art';
 
 const TILE_SIZE = 32;
 const MAX_REVIEW_EDGE = 1600;
 const CROSSING_CROP = { left: 2048, top: 2048, right: 4352, bottom: 6144 } as const;
 const CROSSING_MAX_REVIEW_EDGE = 1152;
 const DEFAULT_OUTPUT_ROOT = 'docs/superpowers/reports/img/complete-world-layout-foundation';
+const DEFAULT_INTERIOR_OUTPUT_ROOT = 'docs/superpowers/reports/img/hpa-586-interiors';
 
 const COLORS = {
 	legacyTerrain: '#25322a',
@@ -144,6 +155,17 @@ interface RenderedReview {
 	readonly crossingReview: CompleteWorldLayoutCrossingReview;
 	readonly inventory: CompleteWorldLayoutReviewInventory;
 	readonly artifacts: readonly RenderedArtifact[];
+}
+
+export interface VillageInteriorLayoutReviewInventory {
+	readonly version: 1;
+	readonly mapId: VillageInteriorMapId;
+	readonly artifacts: readonly {
+		readonly path: string;
+		readonly width: number;
+		readonly height: number;
+		readonly sha256: string;
+	}[];
 }
 
 interface SvgContext {
@@ -670,6 +692,363 @@ function renderMapSvg(
 	return parts.join('');
 }
 
+function interiorMapView(mapId: VillageInteriorMapId): View {
+	const layout = VILLAGE_INTERIOR_LAYOUTS[mapId];
+	const dimensions = reviewDimensions(layout.fullFloor.width, layout.fullFloor.height);
+	return {
+		left: 0,
+		top: 0,
+		width: layout.fullFloor.width,
+		height: layout.fullFloor.height,
+		outputWidth: dimensions.width,
+		outputHeight: dimensions.height
+	};
+}
+
+function interiorCameraView(mapId: VillageInteriorMapId, width: number, height: number): View {
+	const layout = VILLAGE_INTERIOR_LAYOUTS[mapId];
+	const center = layout.spawn;
+	const left = Math.max(0, Math.min(center.x - width / 2, layout.fullFloor.width - width));
+	const top = Math.max(0, Math.min(center.y - height / 2, layout.fullFloor.height - height));
+	return {
+		left,
+		top,
+		width,
+		height,
+		outputWidth: width,
+		outputHeight: height
+	};
+}
+
+function interiorRectLabel(
+	label: string,
+	value: {
+		readonly x: number;
+		readonly y: number;
+		readonly width: number;
+		readonly height: number;
+	},
+	context: SvgContext
+): string {
+	return labelSvg(label, { x: value.x + value.width / 2, y: value.y + value.height / 2 }, context);
+}
+
+function renderInteriorCoordinateSvg(mapId: VillageInteriorMapId, view: View): string {
+	const layout = VILLAGE_INTERIOR_LAYOUTS[mapId];
+	const context = contextFor(view);
+	const parts = [
+		`<svg xmlns="http://www.w3.org/2000/svg" width="${view.outputWidth}" height="${view.outputHeight}" viewBox="${view.left} ${view.top} ${view.width} ${view.height}" preserveAspectRatio="none">`,
+		svgRect(
+			{ x: view.left, y: view.top, width: view.width, height: view.height },
+			COLORS.legacyTerrain
+		),
+		svgRect(layout.fullFloor, COLORS.ground, {
+			opacity: 0.18,
+			stroke: COLORS.ground,
+			strokeWidth: 8
+		}),
+		...Object.entries(layout.rooms).map(([id, value]) =>
+			[
+				svgRect(value, '#60a5fa', { opacity: 0.22, stroke: '#60a5fa', strokeWidth: 8 }),
+				interiorRectLabel(`room:${id}`, value, context)
+			].join('')
+		),
+		...Object.entries(layout.corridors).map(([id, value]) =>
+			[
+				svgRect(value, '#34d399', { opacity: 0.24, stroke: '#34d399', strokeWidth: 8 }),
+				interiorRectLabel(`corridor:${id}`, value, context)
+			].join('')
+		),
+		...Object.entries(layout.doors).map(([id, value]) =>
+			[
+				svgRect(value, COLORS.transition, {
+					opacity: 0.8,
+					stroke: COLORS.labelBackground,
+					strokeWidth: 6
+				}),
+				interiorRectLabel(`door:${id}`, value, context)
+			].join('')
+		),
+		...layout.walls.map((wall) =>
+			[
+				svgRect(wall, COLORS.blocker, { opacity: 0.72, stroke: COLORS.blocker, strokeWidth: 6 }),
+				interiorRectLabel(`wall:${wall.id}`, wall, context)
+			].join('')
+		),
+		...Object.entries(layout.propZones).map(([id, value]) =>
+			[
+				svgRect(value, COLORS.collidable, {
+					opacity: 0.3,
+					stroke: COLORS.collidable,
+					strokeWidth: 5,
+					dash: '18 12'
+				}),
+				interiorRectLabel(`prop:${id}`, value, context)
+			].join('')
+		),
+		...Object.entries(layout.propCollisions).map(([id, value]) =>
+			[
+				svgRect(value, COLORS.fence, { opacity: 0.76, stroke: COLORS.fence, strokeWidth: 5 }),
+				interiorRectLabel(`collision:${id}`, value, context)
+			].join('')
+		),
+		'</svg>'
+	];
+	return parts.join('');
+}
+
+function renderInteriorNavigationSvg(
+	mapId: VillageInteriorMapId,
+	view: View,
+	mode: 'raw' | 'player-centre' | 'both' = 'both'
+): string {
+	const layout = VILLAGE_INTERIOR_LAYOUTS[mapId];
+	const source = buildVillageInteriorNavigationSource({ mapId, layout });
+	const grid = compileNavigationGrid(source);
+	const parts = [
+		`<svg xmlns="http://www.w3.org/2000/svg" width="${view.outputWidth}" height="${view.outputHeight}" viewBox="${view.left} ${view.top} ${view.width} ${view.height}" preserveAspectRatio="none">`,
+		svgRect(
+			{ x: view.left, y: view.top, width: view.width, height: view.height },
+			COLORS.legacyTerrain
+		),
+		svgRect(layout.fullFloor, COLORS.ground, {
+			opacity: 0.12,
+			stroke: COLORS.ground,
+			strokeWidth: 8
+		})
+	];
+	for (let row = 0; row < source.heightCells; row += 1) {
+		for (let column = 0; column < source.widthCells; column += 1) {
+			const cell = {
+				x: column * source.cellSizePx,
+				y: row * source.cellSizePx,
+				width: source.cellSizePx,
+				height: source.cellSizePx
+			};
+			if (mode !== 'player-centre' && source.rows[row]![column] === '#') {
+				parts.push(
+					svgRect(cell, COLORS.blocker, { opacity: 0.7, stroke: COLORS.blocker, strokeWidth: 1 })
+				);
+			}
+			const center = {
+				x: cell.x + source.cellSizePx / 2,
+				y: cell.y + source.cellSizePx / 2
+			};
+			if (mode !== 'raw' && !isWalkable(grid, center.x, center.y)) {
+				parts.push(svgRect(cell, '#fbbf24', { opacity: 0.32, stroke: '#fbbf24', strokeWidth: 1 }));
+			}
+		}
+	}
+	parts.push('</svg>');
+	return parts.join('');
+}
+
+function renderInteriorAnchorsSvg(mapId: VillageInteriorMapId, view: View): string {
+	const map = maps[mapId];
+	const layout = VILLAGE_INTERIOR_LAYOUTS[mapId];
+	assert(map !== undefined, `Interior map is not registered: ${mapId}`);
+	const context = contextFor(view);
+	const parts = [
+		`<svg xmlns="http://www.w3.org/2000/svg" width="${view.outputWidth}" height="${view.outputHeight}" viewBox="${view.left} ${view.top} ${view.width} ${view.height}" preserveAspectRatio="none">`,
+		svgRect(
+			{ x: view.left, y: view.top, width: view.width, height: view.height },
+			COLORS.legacyTerrain
+		),
+		svgCircle(map.spawn, 28, COLORS.actor, 0.9, COLORS.labelBackground),
+		labelSvg('spawn', map.spawn, context),
+		svgCircle(layout.exit, 28, COLORS.transition, 0.9, COLORS.labelBackground),
+		labelSvg('exit', layout.exit, context)
+	];
+	for (const transition of map.transitions) {
+		const point = { x: transition.x, y: transition.y };
+		parts.push(
+			svgCircle(point, 24, COLORS.transition, 0.86, COLORS.labelBackground),
+			labelSvg(transition.id, point, context)
+		);
+	}
+	for (const npc of map.npcs ?? []) {
+		const point = { x: npc.x, y: npc.y };
+		parts.push(
+			svgCircle(point, 24, COLORS.actor, 0.9, COLORS.labelBackground),
+			labelSvg(npc.id, point, context)
+		);
+	}
+	for (const npc of map.ambientNpcs ?? []) {
+		const point = { x: npc.x, y: npc.y };
+		parts.push(
+			svgCircle(point, 20, COLORS.actor, 0.7, COLORS.labelBackground),
+			labelSvg(npc.id, point, context)
+		);
+	}
+	for (const [id, value] of Object.entries(layout.npcApproaches)) {
+		parts.push(
+			svgCircle(value.approach, 18, COLORS.route, 0.9, COLORS.labelBackground),
+			labelSvg(`${id}: approach`, value.approach, context),
+			svgCircle(value.npc, 14, COLORS.actor, 0.8, COLORS.labelBackground)
+		);
+	}
+	parts.push('</svg>');
+	return parts.join('');
+}
+
+function renderInteriorRouteWidthSvg(mapId: VillageInteriorMapId, view: View): string {
+	const layout = VILLAGE_INTERIOR_LAYOUTS[mapId];
+	const context = contextFor(view);
+	const parts = [
+		`<svg xmlns="http://www.w3.org/2000/svg" width="${view.outputWidth}" height="${view.outputHeight}" viewBox="${view.left} ${view.top} ${view.width} ${view.height}" preserveAspectRatio="none">`,
+		svgRect(
+			{ x: view.left, y: view.top, width: view.width, height: view.height },
+			COLORS.legacyTerrain
+		)
+	];
+	for (const [id, value] of [
+		...Object.entries(layout.corridors),
+		...Object.entries(layout.doors)
+	]) {
+		parts.push(
+			svgRect(value, 'none', { stroke: COLORS.route, strokeWidth: 10, dash: '24 12' }),
+			interiorRectLabel(`${id}: ${value.width}x${value.height}px`, value, context)
+		);
+	}
+	parts.push('</svg>');
+	return parts.join('');
+}
+
+async function composeSvgOverPng(base: Buffer, svg: string): Promise<Buffer> {
+	return sharp(base)
+		.composite([{ input: Buffer.from(svg), blend: 'over' }])
+		.png()
+		.toBuffer();
+}
+
+function interiorImagePath(path: string, repositoryRoot: string): string {
+	const normalized = path.replaceAll('\\', '/');
+	if (normalized.startsWith('/game/'))
+		return resolve(repositoryRoot, 'public', normalized.slice(1));
+	if (normalized.startsWith('public/')) return resolve(repositoryRoot, normalized);
+	return resolve(repositoryRoot, normalized);
+}
+
+async function renderInteriorPaintedArtifacts(
+	mapId: VillageInteriorMapId,
+	repositoryRoot = process.cwd()
+): Promise<readonly RenderedArtifact[]> {
+	const manifest = (await collectRegisteredVillageInteriorManifests(repositoryRoot)).find(
+		(value) => value.mapId === mapId
+	);
+	if (!manifest) return [];
+	await validateVillageInteriorManifest(manifest, repositoryRoot);
+	const layoutView = interiorMapView(mapId);
+	const base = await readFile(interiorImagePath(manifest.base.path, repositoryRoot));
+	const artifacts: RenderedArtifact[] = [
+		{ path: `${mapId}/painted-base.png`, bytes: await sharp(base).png().toBuffer() },
+		{
+			path: `${mapId}/collision-overlay.png`,
+			bytes: await composeSvgOverPng(base, renderInteriorNavigationSvg(mapId, layoutView))
+		},
+		{
+			path: `${mapId}/live-actor-overlay.png`,
+			bytes: await composeSvgOverPng(base, renderInteriorAnchorsSvg(mapId, layoutView))
+		}
+	];
+	if (manifest.foreground) {
+		const foreground = await readFile(interiorImagePath(manifest.foreground.path, repositoryRoot));
+		artifacts.push({
+			path: `${mapId}/foreground-alpha.png`,
+			bytes: await sharp(foreground).ensureAlpha().extractChannel(3).png().toBuffer()
+		});
+	}
+	const fallback = await encodeSvg(renderInteriorCoordinateSvg(mapId, layoutView));
+	const metadata = await sharp(base).metadata();
+	assert(
+		metadata.width !== undefined && metadata.height !== undefined,
+		`${mapId} base dimensions are unavailable`
+	);
+	const comparison = await sharp({
+		create: {
+			width: metadata.width * 2,
+			height: metadata.height,
+			channels: 4,
+			background: { r: 20, g: 30, b: 32, alpha: 1 }
+		}
+	})
+		.composite([
+			{ input: base, left: 0, top: 0 },
+			{ input: fallback, left: metadata.width, top: 0 }
+		])
+		.png()
+		.toBuffer();
+	artifacts.push({ path: `${mapId}/fallback-comparison.png`, bytes: comparison });
+	return artifacts;
+}
+
+async function renderVillageInteriorLayoutReview(mapId: VillageInteriorMapId): Promise<{
+	readonly entry: CompleteWorldLayoutReviewEntry;
+	readonly artifacts: readonly RenderedArtifact[];
+}> {
+	const map = maps[mapId];
+	assert(map !== undefined, `Interior map is not registered: ${mapId}`);
+	const layoutView = interiorMapView(mapId);
+	const layout = VILLAGE_INTERIOR_LAYOUTS[mapId];
+	const artifacts: RenderedArtifact[] = [];
+	const core = [
+		['coordinate-graybox.png', renderInteriorCoordinateSvg(mapId, layoutView)],
+		['raw-collision-overlay.png', renderInteriorNavigationSvg(mapId, layoutView, 'raw')],
+		[
+			'player-centre-navigation-overlay.png',
+			renderInteriorNavigationSvg(mapId, layoutView, 'player-centre')
+		],
+		['anchors.png', renderInteriorAnchorsSvg(mapId, layoutView)],
+		['route-widths.png', renderInteriorRouteWidthSvg(mapId, layoutView)],
+		['camera-640x360.png', renderInteriorCoordinateSvg(mapId, interiorCameraView(mapId, 640, 360))],
+		[
+			'camera-1280x720.png',
+			renderInteriorCoordinateSvg(mapId, interiorCameraView(mapId, 1280, 720))
+		]
+	] as const;
+	for (const [name, svg] of core)
+		artifacts.push({ path: `${mapId}/${name}`, bytes: await encodeSvg(svg) });
+	artifacts.push(...(await renderInteriorPaintedArtifacts(mapId)));
+	const artifactInventory = [];
+	for (const artifact of artifacts) {
+		const metadata = await sharp(artifact.bytes).metadata();
+		assert(
+			metadata.width !== undefined && metadata.height !== undefined,
+			`${artifact.path} dimensions are unavailable`
+		);
+		artifactInventory.push({
+			path: artifact.path,
+			width: metadata.width,
+			height: metadata.height,
+			sha256: sha256(artifact.bytes)
+		});
+	}
+	const inventory: VillageInteriorLayoutReviewInventory = {
+		version: 1,
+		mapId,
+		artifacts: artifactInventory
+	};
+	artifacts.push({
+		path: `${mapId}/inventory.json`,
+		bytes: Buffer.from(`${JSON.stringify(inventory, null, '\t')}\n`)
+	});
+	const imagePath = `${mapId}/coordinate-graybox.png`;
+	const image = artifacts.find((artifact) => artifact.path === imagePath)!;
+	return {
+		entry: {
+			mapId,
+			disposition: 'preserved',
+			reasonIds: ['existing-v2-room-program'],
+			worldDimensions: { width: layout.fullFloor.width, height: layout.fullFloor.height },
+			reviewDimensions: { width: layoutView.outputWidth, height: layoutView.outputHeight },
+			imagePath,
+			imageSha256: sha256(image.bytes),
+			counts: layerCountEntries(map)
+		},
+		artifacts
+	};
+}
+
 function renderCrossingSvg(
 	map: WorldMapDefinition,
 	view: View,
@@ -840,9 +1219,20 @@ async function checkArtifacts(
 	outputRoot: string,
 	artifacts: readonly RenderedArtifact[]
 ): Promise<void> {
+	async function listFiles(root: string, prefix = ''): Promise<string[]> {
+		const entries = await readdir(join(root, prefix), { withFileTypes: true });
+		const files: string[] = [];
+		for (const entry of entries) {
+			const path = prefix ? `${prefix}/${entry.name}` : entry.name;
+			if (entry.isDirectory()) files.push(...(await listFiles(root, path)));
+			else files.push(path);
+		}
+		return files;
+	}
+
 	let names: string[];
 	try {
-		names = (await readdir(outputRoot)).sort();
+		names = (await listFiles(outputRoot)).sort();
 	} catch (error) {
 		if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
 			throw new Error(`Complete-world layout review output root is missing: ${outputRoot}`, {
@@ -878,7 +1268,19 @@ async function checkArtifacts(
 export async function renderCompleteWorldLayoutReview(input: {
 	readonly outputRoot: string;
 	readonly check: boolean;
+	readonly map?: VillageInteriorMapId;
 }): Promise<readonly CompleteWorldLayoutReviewEntry[]> {
+	if (input.map) {
+		const rendered = await renderVillageInteriorLayoutReview(input.map);
+		if (input.check) {
+			await checkArtifacts(input.outputRoot, rendered.artifacts);
+			return [rendered.entry];
+		}
+		for (const artifact of rendered.artifacts) {
+			await writeAtomic(join(input.outputRoot, artifact.path), artifact.bytes);
+		}
+		return [rendered.entry];
+	}
 	const rendered = await renderReview();
 	if (input.check) {
 		await checkArtifacts(input.outputRoot, rendered.artifacts);
@@ -890,9 +1292,15 @@ export async function renderCompleteWorldLayoutReview(input: {
 	return rendered.entries;
 }
 
-function parseArguments(args: readonly string[]): { check: boolean; outputRoot: string } {
+export function parseCompleteWorldLayoutReviewArguments(args: readonly string[]): {
+	readonly check: boolean;
+	readonly outputRoot: string;
+	readonly map?: VillageInteriorMapId;
+} {
 	let check = false;
 	let outputRoot = DEFAULT_OUTPUT_ROOT;
+	let map: VillageInteriorMapId | undefined;
+	let outputRootProvided = false;
 	for (let index = 0; index < args.length; index += 1) {
 		const argument = args[index];
 		if (argument === '--check') {
@@ -904,20 +1312,37 @@ function parseArguments(args: readonly string[]): { check: boolean; outputRoot: 
 			const value = args[index + 1];
 			assert(value !== undefined && !value.startsWith('--'), '--output-root requires a path');
 			outputRoot = value;
+			outputRootProvided = true;
+			index += 1;
+			continue;
+		}
+		if (argument === '--map') {
+			assert(map === undefined, 'Duplicate complete-world layout review argument: --map');
+			const value = args[index + 1];
+			assert(
+				value !== undefined &&
+					Object.prototype.hasOwnProperty.call(VILLAGE_INTERIOR_LAYOUTS, value),
+				'--map requires a VillageInteriorMapId'
+			);
+			map = value as VillageInteriorMapId;
 			index += 1;
 			continue;
 		}
 		throw new Error(`Unknown complete-world layout review argument: ${argument}`);
 	}
-	return { check, outputRoot };
+	return map
+		? { check, outputRoot: outputRootProvided ? outputRoot : DEFAULT_INTERIOR_OUTPUT_ROOT, map }
+		: { check, outputRoot };
 }
 
 async function main(): Promise<void> {
-	const { check, outputRoot } = parseArguments(process.argv.slice(2));
-	const entries = await renderCompleteWorldLayoutReview({ outputRoot, check });
-	const inventoryBytes = await readFile(join(outputRoot, 'inventory.json'));
+	const parsed = parseCompleteWorldLayoutReviewArguments(process.argv.slice(2));
+	const entries = await renderCompleteWorldLayoutReview(parsed);
+	const inventoryBytes = await readFile(
+		join(parsed.outputRoot, parsed.map ? parsed.map : '', 'inventory.json')
+	);
 	console.log(
-		`${check ? 'Checked' : 'Rendered'} ${entries.length} complete-world maps and meadow-river-crossings.png; inventorySha256=${sha256(inventoryBytes)}`
+		`${parsed.check ? 'Checked' : 'Rendered'} ${entries.length} ${parsed.map ? `${parsed.map} interior` : 'complete-world maps and meadow-river-crossings.png'}; inventorySha256=${sha256(inventoryBytes)}`
 	);
 }
 

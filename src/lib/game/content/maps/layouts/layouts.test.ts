@@ -28,6 +28,8 @@ import {
 	rectsConnect,
 	rectsOverlap
 } from './layout-rects';
+import { buildVillageInteriorNavigationSource } from '$lib/game/content/backgrounds/village-interior-package';
+import { compileNavigationGrid, isWalkable } from '$lib/game/core/navigation';
 import { VILLAGE_INTERIOR_LAYOUTS, type VillageInteriorLayout } from './village-interiors-v2';
 
 const EXPECTED_INTERIOR_PROGRAMS = {
@@ -72,23 +74,6 @@ const EXPECTED_INTERIOR_PROGRAMS = {
 		rooms: ['archiveStudy', 'bedroomStorage', 'sittingRoom'],
 		corridors: ['hall'],
 		npcApproaches: ['io']
-	}
-} as const;
-
-const ROOM_CENTER_COLLISION_REPLACEMENTS = {
-	'guild-hall:guildMasterOffice': {
-		roomCenter: { x: 784, y: 160 },
-		collisionId: 'guildMasterDesk',
-		collision: { x: 728, y: 160, width: 144, height: 8 },
-		replacementApproachId: 'guildMaster',
-		replacementApproach: { x: 800, y: 184 }
-	},
-	'guild-hall:quartermasterRoom': {
-		roomCenter: { x: 784, y: 560 },
-		collisionId: 'quartermasterCounter',
-		collision: { x: 696, y: 544, width: 176, height: 8 },
-		replacementApproachId: 'quartermaster',
-		replacementApproach: { x: 816, y: 568 }
 	}
 } as const;
 
@@ -552,32 +537,27 @@ describe('village interior layout coordinate contracts', () => {
 		}
 	});
 
-	it('documents the two Guild Hall room centers replaced by named reachable approaches', () => {
+	it('keeps Guild Hall service counters clear of their named NPC approaches', () => {
 		const layout = VILLAGE_INTERIOR_LAYOUTS['guild-hall'];
 		const reachable = reachableInteriorSamples(layout);
-
-		for (const [roomKey, replacement] of Object.entries(ROOM_CENTER_COLLISION_REPLACEMENTS)) {
-			const [, roomId] = roomKey.split(':') as ['guild-hall', keyof typeof layout.rooms];
-			const room = layout.rooms[roomId];
-			const roomCenter = { x: room.x + room.width / 2, y: room.y + room.height / 2 };
-			const collision = layout.propCollisions[replacement.collisionId];
-			const npcApproach = layout.npcApproaches[replacement.replacementApproachId];
-
-			expect(roomCenter, `${roomKey}:room center`).toEqual(replacement.roomCenter);
-			expect(collision, `${roomKey}:prop collision`).toEqual(replacement.collision);
-			expect(
-				expandedLayoutRectContainsPoint(collision, roomCenter, PLAYER_COLLISION_RADIUS),
-				`${roomKey}:room center must remain documented as colliding`
-			).toBe(true);
-			expect(npcApproach.approach, `${roomKey}:replacement approach`).toEqual(
-				replacement.replacementApproach
+		const serviceSamples = [
+			{
+				collision: layout.propCollisions.guildMasterDesk,
+				center: { x: 784, y: 160 },
+				approach: layout.npcApproaches.guildMaster.approach
+			},
+			{
+				collision: layout.propCollisions.quartermasterCounter,
+				center: { x: 784, y: 560 },
+				approach: layout.npcApproaches.quartermaster.approach
+			}
+		];
+		for (const { collision, center, approach } of serviceSamples) {
+			expect(expandedLayoutRectContainsPoint(collision, center, PLAYER_COLLISION_RADIUS)).toBe(
+				true
 			);
-			expect(isInteriorWalkable(layout, replacement.replacementApproach)).toBe(true);
-			expect(
-				reachableInteriorPoint(reachable, replacement.replacementApproach),
-				`${roomKey}:${replacement.replacementApproachId} approach is disconnected`
-			).toBe(true);
-			expect(reachableInteriorPoint(reachable, roomCenter)).toBe(false);
+			expect(isInteriorWalkable(layout, approach)).toBe(true);
+			expect(reachableInteriorPoint(reachable, approach)).toBe(true);
 		}
 	});
 
@@ -592,21 +572,19 @@ describe('village interior layout coordinate contracts', () => {
 			);
 
 			const reachable = reachableInteriorSamples(layout);
-			const roomSamples = Object.entries(layout.rooms).map(([roomId, room]) => {
-				const replacement =
-					ROOM_CENTER_COLLISION_REPLACEMENTS[
-						`${mapId}:${roomId}` as keyof typeof ROOM_CENTER_COLLISION_REPLACEMENTS
-					];
-				if (replacement) {
-					return {
-						label: `room:${roomId}:${replacement.replacementApproachId}-approach`,
-						point: replacement.replacementApproach
-					};
-				}
-				return {
-					label: `room:${roomId}:center`,
-					point: { x: room.x + room.width / 2, y: room.y + room.height / 2 }
-				};
+			const roomSamples = Object.entries(layout.rooms).flatMap(([roomId, room]) => {
+				const reachablePoints = [...reachable].map((key) => {
+					const [x, y] = key.split(':').map(Number);
+					return { x, y };
+				});
+				const point = reachablePoints
+					.filter((candidate) => layoutRectContainsPoint(room, candidate))
+					.sort(
+						(left, right) =>
+							Math.hypot(left.x - (room.x + room.width / 2), left.y - (room.y + room.height / 2)) -
+							Math.hypot(right.x - (room.x + room.width / 2), right.y - (room.y + room.height / 2))
+					)[0];
+				return point ? [{ label: `room:${roomId}:reachable-sample`, point }] : [];
 			});
 			const samples = [
 				{ label: 'spawn', point: layout.spawn },
@@ -627,6 +605,34 @@ describe('village interior layout coordinate contracts', () => {
 					reachableInteriorPoint(reachable, point),
 					`${mapId}:${label} is disconnected under authored walls and prop collision`
 				).toBe(true);
+			}
+		}
+	});
+
+	it('derives continuous 16px raw and player-centre grids with approved route widths', () => {
+		for (const [mapId, layout] of Object.entries(VILLAGE_INTERIOR_LAYOUTS)) {
+			const source = buildVillageInteriorNavigationSource({
+				mapId: mapId as keyof typeof VILLAGE_INTERIOR_LAYOUTS,
+				layout
+			});
+			const grid = compileNavigationGrid(source);
+			expect(source.rows).toHaveLength(layout.heightTiles * 2);
+			expect(source.rows.every((row) => row.length === layout.widthTiles * 2)).toBe(true);
+			expect(source.rows.some((row) => row.includes('#'))).toBe(true);
+			expect(isWalkable(grid, layout.spawn.x, layout.spawn.y), `${mapId}:spawn`).toBe(true);
+			expect(isWalkable(grid, layout.exit.x, layout.exit.y), `${mapId}:exit`).toBe(true);
+			for (const [doorId, door] of Object.entries(layout.doors)) {
+				expect(Math.max(door.width, door.height), `${mapId}:${doorId}`).toBeGreaterThanOrEqual(64);
+				expect(isWalkable(grid, door.x + door.width / 2, door.y + door.height / 2)).toBe(true);
+			}
+			for (const [corridorId, corridor] of Object.entries(layout.corridors)) {
+				expect(
+					Math.min(corridor.width, corridor.height),
+					`${mapId}:${corridorId}`
+				).toBeGreaterThanOrEqual(96);
+			}
+			for (const { approach } of Object.values(layout.npcApproaches)) {
+				expect(isWalkable(grid, approach.x, approach.y)).toBe(true);
 			}
 		}
 	});
