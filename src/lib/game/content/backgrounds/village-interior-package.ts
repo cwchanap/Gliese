@@ -270,6 +270,10 @@ export function buildVillageInteriorPackage(
 			layout: input.layout
 		});
 		assert(
+			input.navigationSource.id === derived.id,
+			'Layout navigation source ID does not match the derived source'
+		);
+		assert(
 			JSON.stringify(derived.rows) === JSON.stringify(input.navigationSource.rows),
 			'Layout navigation source does not match the derived source'
 		);

@@ -72,6 +72,51 @@ const localeState = vi.hoisted(() => ({
 	activeLocale: 'en' as 'en' | 'ja' | 'zh-Hant'
 }));
 
+const registryDrivenBackgroundRegistryMock = vi.hoisted(() => ({
+	packageDefinition: {
+		id: 'scene-support-registry-default',
+		mapId: 'scene-registry-default-test',
+		coverage: 'full-map' as const,
+		assets: [
+			{
+				key: 'two-plane-base',
+				path: '/game/assets/scene-support-registry/base.png'
+			},
+			{
+				key: 'two-plane-foreground',
+				path: '/game/assets/scene-support-registry/foreground.png'
+			}
+		],
+		backgrounds: [
+			{
+				id: 'two-plane-base-image',
+				x: 320,
+				y: 160,
+				width: 640,
+				height: 320,
+				textureKey: 'two-plane-base',
+				plane: 'base' as const,
+				drawOrder: 10
+			},
+			{
+				id: 'two-plane-foreground-image',
+				x: 352,
+				y: 192,
+				width: 640,
+				height: 320,
+				textureKey: 'two-plane-foreground',
+				plane: 'foreground' as const,
+				drawOrder: 20
+			}
+		],
+		visualOwners: []
+	},
+	defaultSelection: {
+		packageId: 'scene-support-registry-default',
+		mode: 'production' as const
+	}
+}));
+
 const storyClientMock = vi.hoisted(() => {
 	type StoryRequest = {
 		npcId: string;
@@ -952,6 +997,24 @@ vi.mock('phaser', () => {
 	return {
 		...runtime,
 		default: runtime
+	};
+});
+
+vi.mock('$lib/game/content/backgrounds/map-background-registry', async () => {
+	const actual = await vi.importActual<
+		typeof import('$lib/game/content/backgrounds/map-background-registry')
+	>('$lib/game/content/backgrounds/map-background-registry');
+
+	return {
+		...actual,
+		MAP_BACKGROUND_PACKAGE_REGISTRY: Object.freeze([
+			...actual.MAP_BACKGROUND_PACKAGE_REGISTRY,
+			registryDrivenBackgroundRegistryMock.packageDefinition
+		]),
+		MAP_BACKGROUND_DEFAULT_SELECTIONS: Object.freeze({
+			...actual.MAP_BACKGROUND_DEFAULT_SELECTIONS,
+			'scene-registry-default-test': registryDrivenBackgroundRegistryMock.defaultSelection
+		})
 	};
 });
 
@@ -2932,6 +2995,24 @@ describe('WorldScene', () => {
 		}
 	}
 
+	function registerRegistryDrivenDefaultTestMap() {
+		maps['scene-registry-default-test'] = {
+			id: 'scene-registry-default-test',
+			width: 20,
+			height: 20,
+			spawnDirection: 'right',
+			spawn: { x: 96, y: 96 },
+			transitions: []
+		};
+		for (const textureKey of [twoPlaneBaseTextureKey, twoPlaneForegroundTextureKey]) {
+			phaserState.regionalBackgroundTextureMocks.set(textureKey, {
+				key: textureKey,
+				source: [{ width: 640, height: 320 }],
+				get: vi.fn(() => ({ cutWidth: 640, cutHeight: 320 }))
+			});
+		}
+	}
+
 	function selectedSceneSupportPackage(
 		id: string,
 		backgrounds: readonly MapBackgroundImage[]
@@ -3228,6 +3309,7 @@ describe('WorldScene', () => {
 
 	afterEach(() => {
 		delete maps['scene-support-test'];
+		delete maps['scene-registry-default-test'];
 		delete maps['scene-collision-test'];
 		delete maps['scene-navigation-grid-test'];
 		delete maps['area-map-reveal-test'];
@@ -3249,6 +3331,65 @@ describe('WorldScene', () => {
 		Object.assign(phaserState.interactKeys.space, { isDown: false, justDown: false });
 		Object.assign(phaserState.interactKeys.enter, { isDown: false, justDown: false });
 		Object.assign(phaserState.playerMarker, { x: 0, y: 0 });
+	});
+
+	it('preloads a selected non-Meadow package from the map-keyed registry default', async () => {
+		registerRegistryDrivenDefaultTestMap();
+		const restoreLocation = installLocationSearch('');
+		const target = installHudCommandTarget();
+		const diagnostics: RegionalBackgroundRendererDiagnostic[] = [];
+		const { REGIONAL_BACKGROUND_RENDERER_DIAGNOSTIC_EVENT } =
+			await import('$lib/game/phaser/renderer-diagnostics');
+		target.target.addEventListener(REGIONAL_BACKGROUND_RENDERER_DIAGNOSTIC_EVENT, (event) => {
+			diagnostics.push((event as CustomEvent<RegionalBackgroundRendererDiagnostic>).detail);
+		});
+		const { BootScene } = await import('./BootScene');
+		const scene = new BootScene();
+
+		try {
+			scene.preload();
+
+			expect(scene.load.image).toHaveBeenCalledWith(
+				'two-plane-base',
+				'/game/assets/scene-support-registry/base.png'
+			);
+			expect(scene.load.image).toHaveBeenCalledWith(
+				'two-plane-foreground',
+				'/game/assets/scene-support-registry/foreground.png'
+			);
+			scene.load.emit('filecomplete', 'two-plane-base', 'image', {});
+			scene.load.emit('filecomplete', 'two-plane-foreground', 'image', {});
+			scene.load.emit('complete');
+
+			expect(diagnostics[0]?.packageIds).toContain('scene-support-registry-default');
+		} finally {
+			target.restore();
+			restoreLocation();
+		}
+	});
+
+	it('resolves the registry default for a non-Meadow map through transactional rendering', async () => {
+		registerRegistryDrivenDefaultTestMap();
+		const target = installPlaneDiagnosticListener();
+		const restoreLocation = installLocationSearch('');
+		const { WorldScene } = await import('./WorldScene');
+		const scene = new WorldScene();
+
+		try {
+			scene.create({ mapId: 'scene-registry-default-test' });
+
+			expect(target.diagnostics[0]).toMatchObject({
+				mapId: 'scene-registry-default-test',
+				packageId: 'scene-support-registry-default',
+				presentationMode: 'painted',
+				selectedBackgroundIds: ['two-plane-base-image', 'two-plane-foreground-image']
+			});
+			expect(twoPlaneBackgroundMarkers()).toHaveLength(2);
+			expect(scene.make.tilemap).not.toHaveBeenCalled();
+		} finally {
+			target.restore();
+			restoreLocation();
+		}
 	});
 
 	it('renders tilemap ground, a hero sprite, and encounter art for the resolved map', async () => {

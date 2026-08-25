@@ -121,6 +121,39 @@ describe('village interior package builder', () => {
 		});
 	});
 
+	it('rejects a layout source with canonical rows but a stale grid ID', () => {
+		const staleNavigationSource = { ...navigationSource, id: 'stale-hero-house-navigation' };
+
+		expect(() =>
+			buildVillageInteriorPackage({
+				mapId: 'hero-house',
+				layout,
+				manifest: {
+					...manifest,
+					navigation: { ...manifest.navigation, gridId: staleNavigationSource.id }
+				},
+				visualOwners,
+				navigationSource: staleNavigationSource
+			})
+		).toThrow();
+	});
+
+	it('omits foreground assets and descriptors when the manifest has no foreground', () => {
+		const built = buildVillageInteriorPackage({
+			mapId: 'hero-house',
+			layout,
+			manifest: { ...manifest, foreground: undefined },
+			visualOwners,
+			navigationSource
+		});
+
+		expect(built.definition.assets).toEqual([
+			{ key: 'hero-house-base', path: '/game/assets/interiors/hero-house/base.png' }
+		]);
+		expect(built.definition.backgrounds).toHaveLength(1);
+		expect(built.definition.backgrounds[0]?.plane).toBe('base');
+	});
+
 	it('rejects dimensions, grid metadata, and duplicate owner mismatches', () => {
 		expect(() =>
 			buildVillageInteriorPackage({
