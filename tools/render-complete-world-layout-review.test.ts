@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto';
-import { mkdtemp, readFile, readdir, rm, writeFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, readFile, readdir, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { join, resolve } from 'node:path';
 
 import sharp from 'sharp';
 import { afterEach, describe, expect, it } from 'vitest';
@@ -59,11 +59,13 @@ const expectedRouteProofAnchors = {
 } as const;
 
 const temporaryRoots: string[] = [];
+const temporaryProofPaths: string[] = [];
 
 afterEach(async () => {
 	await Promise.all(
 		temporaryRoots.splice(0).map((root) => rm(root, { recursive: true, force: true }))
 	);
+	await Promise.all(temporaryProofPaths.splice(0).map((path) => rm(path, { force: true })));
 });
 
 async function createOutputRoot(): Promise<string> {
@@ -234,6 +236,92 @@ describe('complete world layout review renderer', () => {
 		expect(inventory.mapId).toBe('hero-house');
 		expect(inventory.artifacts.map(({ path }) => path)).toContain('hero-house/camera-1280x720.png');
 		expect(inventory.artifacts.every(({ sha256 }) => /^[a-f0-9]{64}$/.test(sha256))).toBe(true);
+		const second = await renderCompleteWorldLayoutReview({
+			outputRoot,
+			check: true,
+			map: 'hero-house'
+		});
+		expect(second).toEqual(first);
+	});
+
+	it('renders painted proof artifacts from a supported runtime-path manifest', async () => {
+		const repositoryRoot = resolve(process.cwd());
+		const manifestRoot = join(repositoryRoot, 'src/lib/game/content/backgrounds/manifests');
+		const assetRoot = join(repositoryRoot, 'public/game/assets/interiors/hero-house');
+		const suffix = `${process.pid}`;
+		const manifestPath = join(manifestRoot, `hero-house-painted-proof-${suffix}.json`);
+		const assetPath = join(assetRoot, `painted-proof-${suffix}.png`);
+		const runtimeAssetPath = `/game/assets/interiors/hero-house/painted-proof-${suffix}.png`;
+		const baseBytes = await sharp({
+			create: {
+				width: 704,
+				height: 576,
+				channels: 4,
+				background: { r: 64, g: 96, b: 80, alpha: 1 }
+			}
+		})
+			.png()
+			.toBuffer();
+
+		await mkdir(manifestRoot, { recursive: true });
+		await mkdir(assetRoot, { recursive: true });
+		await writeFile(assetPath, baseBytes);
+		await writeFile(
+			manifestPath,
+			`${JSON.stringify(
+				{
+					version: 1,
+					mapId: 'hero-house',
+					dimensionsPx: { width: 704, height: 576 },
+					base: {
+						id: 'hero-house-painted-proof-base',
+						textureKey: 'hero-house-painted-proof-base',
+						path: runtimeAssetPath,
+						sha256: sha256(baseBytes)
+					},
+					navigation: {
+						gridId: 'hero-house-navigation',
+						cellSizePx: 16,
+						widthCells: 44,
+						heightCells: 36,
+						clearancePx: 12,
+						source: 'layout'
+					}
+				},
+				null,
+				2
+			)}\n`
+		);
+		temporaryProofPaths.push(manifestPath, assetPath);
+
+		const outputRoot = await createOutputRoot();
+		const first = await renderCompleteWorldLayoutReview({
+			outputRoot,
+			check: false,
+			map: 'hero-house'
+		});
+		const expected = [
+			'anchors.png',
+			'camera-1280x720.png',
+			'camera-640x360.png',
+			'collision-overlay.png',
+			'coordinate-graybox.png',
+			'fallback-comparison.png',
+			'inventory.json',
+			'live-actor-overlay.png',
+			'painted-base.png',
+			'player-centre-navigation-overlay.png',
+			'raw-collision-overlay.png',
+			'route-widths.png'
+		].sort();
+		expect(first).toHaveLength(1);
+		expect((await readdir(join(outputRoot, 'hero-house'))).sort()).toEqual(expected);
+		const paintedMetadata = await sharp(
+			await readFile(join(outputRoot, 'hero-house/painted-base.png'))
+		).metadata();
+		expect(paintedMetadata.width).toBe(704);
+		expect(paintedMetadata.height).toBe(576);
+
 		const second = await renderCompleteWorldLayoutReview({
 			outputRoot,
 			check: true,

@@ -44,11 +44,7 @@ function imagePathFromManifest(
 	repositoryRoot: string
 ): string {
 	const path = image.path.replaceAll('\\', '/');
-	const prefixes = [
-		'/game/assets/interiors/',
-		'game/assets/interiors/',
-		'public/game/assets/interiors/'
-	];
+	const prefixes = ['/game/assets/interiors/', 'public/game/assets/interiors/'];
 	const prefix = prefixes.find((candidate) => path.startsWith(candidate));
 	assert(
 		prefix,

@@ -164,6 +164,27 @@ describe('village interior art validator', () => {
 		await expect(validateVillageInteriorManifest(value, root)).rejects.toThrow(/outside|interior/i);
 	});
 
+	it('rejects bare game asset paths unsupported by the proof renderer', async () => {
+		const root = await fixtureRoot();
+		const baseBytes = await sharp({
+			create: { width: 2, height: 2, channels: 4, background: '#fff' }
+		})
+			.png()
+			.toBuffer();
+		await writeFile(join(root, 'public/game/assets/interiors/hero-house/base.png'), baseBytes);
+		const value = manifest({
+			base: {
+				...manifest().base,
+				path: 'game/assets/interiors/hero-house/base.png',
+				sha256: sha256(baseBytes)
+			}
+		});
+
+		await expect(validateVillageInteriorManifest(value, root)).rejects.toThrow(
+			/outside.*interior asset root/i
+		);
+	});
+
 	it('parses mutually exclusive per-map and all modes with optional check', () => {
 		expect(parseVillageInteriorArtArguments(['--all'])).toEqual({ all: true, check: false });
 		expect(parseVillageInteriorArtArguments(['--all', '--check'])).toEqual({
