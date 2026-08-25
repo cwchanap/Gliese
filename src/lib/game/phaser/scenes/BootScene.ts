@@ -18,11 +18,11 @@ import {
 	villageHedgeAsset
 } from '$lib/game/content/assets';
 import { maps, openingMapId } from '$lib/game/content/maps';
+import { MEADOW_ENTRY_PAINTED_V2_LEGACY_PACKAGE_ID } from '$lib/game/content/backgrounds/meadow-entry-painted-v2-runtime';
 import {
-	MEADOW_ENTRY_DEFAULT_PACKAGE_SELECTION,
-	MEADOW_ENTRY_PAINTED_V2_LEGACY_PACKAGE_ID,
+	MAP_BACKGROUND_DEFAULT_SELECTIONS,
 	MAP_BACKGROUND_PACKAGE_REGISTRY
-} from '$lib/game/content/backgrounds/meadow-entry-painted-v2-runtime';
+} from '$lib/game/content/backgrounds/map-background-registry';
 import { selectedMapBackgroundPackagesForPreload } from '$lib/game/content/backgrounds/map-background-package';
 import {
 	buildRegionalBackgroundRendererDiagnostic,
@@ -69,7 +69,7 @@ export class BootScene extends Phaser.Scene {
 				mapId: map.id,
 				regionalBackgrounds: renderOptions.regionalBackgrounds,
 				reviewPackageIds,
-				defaultSelection: map.id === 'meadow-entry' ? MEADOW_ENTRY_DEFAULT_PACKAGE_SELECTION : null,
+				defaultSelection: MAP_BACKGROUND_DEFAULT_SELECTIONS[map.id] ?? null,
 				forcedFallback: renderOptions.meadowPaintedPilotOff
 			}))
 		);

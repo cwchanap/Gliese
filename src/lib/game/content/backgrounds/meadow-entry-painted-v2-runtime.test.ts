@@ -12,10 +12,10 @@ import {
 	MEADOW_ENTRY_PAINTED_MODE_PRODUCTION,
 	MEADOW_ENTRY_PAINTED_MODE_PILOT,
 	MEADOW_ENTRY_PAINTED_MODE_FALLBACK,
-	MAP_BACKGROUND_PACKAGE_REGISTRY,
 	resolveMeadowEntryPaintedSelection
 } from './meadow-entry-painted-v2-runtime';
 import { resolveMapBackgroundPackageSelection } from './map-background-package';
+import { MAP_BACKGROUND_PACKAGE_REGISTRY } from './map-background-registry';
 
 describe('painted-v2 runtime selection', () => {
 	it('defaults to the approved complete package without an explicit review request', () => {

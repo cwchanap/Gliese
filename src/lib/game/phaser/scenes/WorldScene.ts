@@ -155,11 +155,13 @@ import {
 	type WorldRenderOptions
 } from '$lib/game/phaser/world-render-options';
 import {
-	MEADOW_ENTRY_DEFAULT_PACKAGE_SELECTION,
 	MEADOW_ENTRY_PAINTED_V2_COMPLETE_PACKAGE_ID,
-	MEADOW_ENTRY_PAINTED_V2_LEGACY_PACKAGE_ID,
-	MAP_BACKGROUND_PACKAGE_REGISTRY
+	MEADOW_ENTRY_PAINTED_V2_LEGACY_PACKAGE_ID
 } from '$lib/game/content/backgrounds/meadow-entry-painted-v2-runtime';
+import {
+	MAP_BACKGROUND_DEFAULT_SELECTIONS,
+	MAP_BACKGROUND_PACKAGE_REGISTRY
+} from '$lib/game/content/backgrounds/map-background-registry';
 import { BattleScene } from './BattleScene';
 
 interface RegionalBackgroundPackageRender extends MapBackgroundPackagePresentation {
@@ -2718,7 +2720,7 @@ export class WorldScene extends Phaser.Scene {
 			mapId,
 			regionalBackgrounds: this.renderOptions.regionalBackgrounds,
 			reviewPackageIds,
-			defaultSelection: mapId === openingMapId ? MEADOW_ENTRY_DEFAULT_PACKAGE_SELECTION : null,
+			defaultSelection: MAP_BACKGROUND_DEFAULT_SELECTIONS[mapId] ?? null,
 			forcedFallback: this.renderOptions.meadowPaintedPilotOff
 		});
 	}

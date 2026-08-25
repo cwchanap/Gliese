@@ -132,8 +132,7 @@ export const MEADOW_ENTRY_PAINTED_V2_COMPLETE_PACKAGE = Object.freeze({
 	visualOwners: MEADOW_ENTRY_PAINTED_MODE_COMPLETE.visualOwners
 }) satisfies MapBackgroundPackageDefinition;
 
-/** The generic registry is intentionally map-keyed while Meadow is its only map entry. */
-export const MAP_BACKGROUND_PACKAGE_REGISTRY = Object.freeze([
+const MEADOW_ENTRY_PACKAGE_REGISTRY = Object.freeze([
 	MEADOW_ENTRY_PAINTED_V2_LEGACY_PACKAGE,
 	MEADOW_ENTRY_PAINTED_V2_COMPLETE_PACKAGE
 ]);
@@ -151,7 +150,7 @@ export function resolveMeadowEntryPaintedSelection(
 	const reviewPackageIds = options.meadowPaintedPilot
 		? [MEADOW_ENTRY_PAINTED_V2_LEGACY_PACKAGE_ID, ...(options.mapBackgroundReviewIds ?? [])]
 		: (options.mapBackgroundReviewIds ?? []);
-	const packageSelection = resolveMapBackgroundPackageSelection(MAP_BACKGROUND_PACKAGE_REGISTRY, {
+	const packageSelection = resolveMapBackgroundPackageSelection(MEADOW_ENTRY_PACKAGE_REGISTRY, {
 		mapId: 'meadow-entry',
 		regionalBackgrounds: options.regionalBackgrounds,
 		reviewPackageIds,

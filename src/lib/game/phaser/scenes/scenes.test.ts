@@ -28,6 +28,7 @@ import type {
 	MapBackgroundPackageDefinition,
 	MapBackgroundPackageSelection
 } from '$lib/game/content/backgrounds/map-background-package';
+import { MAP_BACKGROUND_DEFAULT_SELECTIONS } from '$lib/game/content/backgrounds/map-background-registry';
 import {
 	collectLandmarkRects,
 	collectStrictCollisionRects,
@@ -1039,6 +1040,14 @@ const COMPLETE_PAINTED_FAULT_MATRIX = COMPLETE_PAINTED_BACKGROUND_TARGETS.flatMa
 describe('BootScene', () => {
 	beforeEach(() => {
 		vi.clearAllMocks();
+	});
+
+	it('uses the generic map-keyed default registry for Meadow only while interiors remain pending', () => {
+		expect(MAP_BACKGROUND_DEFAULT_SELECTIONS['meadow-entry']).toEqual({
+			packageId: 'meadow-entry-painted-v2-complete',
+			mode: 'production'
+		});
+		expect(MAP_BACKGROUND_DEFAULT_SELECTIONS['hero-house']).toBeUndefined();
 	});
 
 	it('starts the world scene on the opening map', async () => {
