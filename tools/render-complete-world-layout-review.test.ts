@@ -1,12 +1,20 @@
 import { createHash } from 'node:crypto';
-import { mkdir, mkdtemp, readFile, readdir, rm, writeFile } from 'node:fs/promises';
+import { copyFile, mkdir, mkdtemp, readFile, readdir, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { join, resolve } from 'node:path';
 
 import sharp from 'sharp';
 import { afterEach, describe, expect, it } from 'vitest';
 
+import {
+	actorAnimationAssets,
+	animationPackAsset,
+	environmentDressingAsset,
+	interiorPropAsset,
+	terrainTilesAsset
+} from '$lib/game/content/assets';
 import { COMPLETE_WORLD_MAP_IDS } from '$lib/game/content/maps/layouts/complete-world-layout-foundation';
+import { VILLAGE_INTERIOR_LAYOUTS } from '$lib/game/content/maps/layouts/village-interiors-v2';
 import { validateCanonicalPngChunks } from '$lib/game/content/backgrounds/meadow-entry-png';
 import { maps } from '$lib/game/content/maps';
 import {
@@ -60,6 +68,13 @@ const expectedRouteProofAnchors = {
 
 const temporaryRoots: string[] = [];
 
+const legacyRendererAssetPaths = [
+	terrainTilesAsset.path,
+	environmentDressingAsset.path,
+	interiorPropAsset.path,
+	animationPackAsset.path
+] as const;
+
 afterEach(async () => {
 	await Promise.all(
 		temporaryRoots.splice(0).map((root) => rm(root, { recursive: true, force: true }))
@@ -76,6 +91,19 @@ async function createRepositoryRoot(): Promise<string> {
 	const root = await mkdtemp(join(tmpdir(), 'gliese-render-repository-'));
 	temporaryRoots.push(root);
 	return root;
+}
+
+async function copyLegacyRendererAssets(repositoryRoot: string): Promise<void> {
+	const assetRoot = join(repositoryRoot, 'public/game/assets');
+	await mkdir(assetRoot, { recursive: true });
+	await Promise.all(
+		legacyRendererAssetPaths.map((path) =>
+			copyFile(
+				resolve(process.cwd(), 'public', path.slice(1)),
+				join(assetRoot, path.slice(1).replace('game/assets/', ''))
+			)
+		)
+	);
 }
 
 async function writeHeroHouseManifest(
@@ -136,6 +164,33 @@ async function writeHeroHouseManifest(
 
 function sha256(bytes: Buffer): string {
 	return createHash('sha256').update(bytes).digest('hex');
+}
+
+async function readRgba(bytes: Buffer) {
+	return sharp(bytes).ensureAlpha().raw().toBuffer({ resolveWithObject: true });
+}
+
+function pixel(data: Buffer, width: number, x: number, y: number): number[] {
+	const offset = (y * width + x) * 4;
+	return [...data.subarray(offset, offset + 4)];
+}
+
+function firstOpaquePixel(
+	data: Buffer,
+	width: number,
+	height: number
+): {
+	readonly x: number;
+	readonly y: number;
+	readonly value: number[];
+} {
+	for (let y = 0; y < height; y += 1) {
+		for (let x = 0; x < width; x += 1) {
+			const value = pixel(data, width, x, y);
+			if (value[3] === 255) return { x, y, value };
+		}
+	}
+	throw new Error('fixture image has no opaque pixel');
 }
 
 describe('complete world layout review renderer', () => {
@@ -202,7 +257,7 @@ describe('complete world layout review renderer', () => {
 		for (const [name, bytes] of firstBytes) {
 			expect(await readFile(join(outputRoot, name))).toEqual(bytes);
 		}
-	});
+	}, 30_000);
 
 	it('check mode detects changed bytes without rewriting the stale output', async () => {
 		const outputRoot = await createOutputRoot();
@@ -272,10 +327,12 @@ describe('complete world layout review renderer', () => {
 		);
 
 		const outputRoot = await createOutputRoot();
+		const repositoryRoot = await createRepositoryRoot();
 		const first = await renderCompleteWorldLayoutReview({
 			outputRoot,
 			check: false,
-			map: 'hero-house'
+			map: 'hero-house',
+			repositoryRoot
 		});
 		const expected = [
 			'anchors.png',
@@ -299,7 +356,8 @@ describe('complete world layout review renderer', () => {
 		const second = await renderCompleteWorldLayoutReview({
 			outputRoot,
 			check: true,
-			map: 'hero-house'
+			map: 'hero-house',
+			repositoryRoot
 		});
 		expect(second).toEqual(first);
 	});
@@ -320,6 +378,7 @@ describe('complete world layout review renderer', () => {
 			g: 96,
 			b: 80
 		});
+		await copyLegacyRendererAssets(fixtureRepositoryRoot);
 
 		const outputRoot = await createOutputRoot();
 		const first = await renderCompleteWorldLayoutReview({
@@ -337,6 +396,7 @@ describe('complete world layout review renderer', () => {
 			'fallback-comparison.png',
 			'inventory.json',
 			'live-actor-overlay.png',
+			'live-character-composition.png',
 			'painted-base.png',
 			'player-centre-navigation-overlay.png',
 			'raw-collision-overlay.png',
@@ -352,6 +412,80 @@ describe('complete world layout review renderer', () => {
 		expect([...paintedPixels.subarray(0, 4)]).toEqual([64, 96, 80, 255]);
 		expect(paintedInfo.width).toBe(704);
 		expect(paintedInfo.height).toBe(576);
+		const offset = (100 * 704 + 100) * 4;
+		const collisionPixels = await sharp(
+			await readFile(join(outputRoot, 'hero-house/collision-overlay.png'))
+		)
+			.ensureAlpha()
+			.raw()
+			.toBuffer();
+		expect([...collisionPixels.subarray(offset, offset + 4)]).not.toEqual([64, 96, 80, 255]);
+		expect(collisionPixels[offset + 3]).toBe(255);
+		const actorPixels = await sharp(
+			await readFile(join(outputRoot, 'hero-house/live-actor-overlay.png'))
+		)
+			.ensureAlpha()
+			.raw()
+			.toBuffer();
+		expect([...actorPixels.subarray(offset, offset + 4)]).toEqual([64, 96, 80, 255]);
+		const fallbackBytes = await readFile(join(outputRoot, 'hero-house/fallback-comparison.png'));
+		const { data: fallbackPixels, info: fallbackInfo } = await readRgba(fallbackBytes);
+		expect(fallbackInfo.width).toBe(1408);
+		expect(fallbackInfo.height).toBe(576);
+		const terrainPixels = await readRgba(
+			await sharp(join(fixtureRepositoryRoot, 'public/game/assets/terrain-tiles.png'))
+				.extract({
+					left: terrainTilesAsset.frames.plazaStoneTile.x,
+					top: terrainTilesAsset.frames.plazaStoneTile.y,
+					width: terrainTilesAsset.frames.plazaStoneTile.w,
+					height: terrainTilesAsset.frames.plazaStoneTile.h
+				})
+				.resize({ width: 32, height: 32 })
+				.png()
+				.toBuffer()
+		);
+		expect(pixel(fallbackPixels, fallbackInfo.width, 704 + 352, 480)).toEqual(
+			pixel(terrainPixels.data, terrainPixels.info.width, 0, 0)
+		);
+		const wallPixels = await readRgba(
+			await sharp(join(fixtureRepositoryRoot, 'public/game/assets/environment-dressing.png'))
+				.extract({
+					left: environmentDressingAsset.frames.ruinWall.x,
+					top: environmentDressingAsset.frames.ruinWall.y,
+					width: environmentDressingAsset.frames.ruinWall.w,
+					height: environmentDressingAsset.frames.ruinWall.h
+				})
+				.png()
+				.toBuffer()
+		);
+		const opaqueWallPixel = firstOpaquePixel(
+			wallPixels.data,
+			wallPixels.info.width,
+			wallPixels.info.height
+		);
+		expect(
+			pixel(fallbackPixels, fallbackInfo.width, 704 + opaqueWallPixel.x, opaqueWallPixel.y)
+		).toEqual(opaqueWallPixel.value);
+		const bedPixels = await readRgba(
+			await sharp(join(fixtureRepositoryRoot, 'public/game/assets/interior-props.png'))
+				.extract({
+					left: interiorPropAsset.frames.bed.x,
+					top: interiorPropAsset.frames.bed.y,
+					width: interiorPropAsset.frames.bed.w,
+					height: interiorPropAsset.frames.bed.h
+				})
+				.resize({ width: 128, height: 96 })
+				.png()
+				.toBuffer()
+		);
+		const opaqueBedPixel = firstOpaquePixel(
+			bedPixels.data,
+			bedPixels.info.width,
+			bedPixels.info.height
+		);
+		expect(
+			pixel(fallbackPixels, fallbackInfo.width, 704 + 96 + opaqueBedPixel.x, 96 + opaqueBedPixel.y)
+		).toEqual(opaqueBedPixel.value);
 		expect(await readFile(existing.manifestPath)).toEqual(existingManifestBytes);
 		expect(await readFile(existing.assetPath)).toEqual(existingAssetBytes);
 
@@ -362,5 +496,122 @@ describe('complete world layout review renderer', () => {
 			repositoryRoot: fixtureRepositoryRoot
 		});
 		expect(second).toEqual(first);
+	});
+
+	it('generates live-character composition from the checked-in hero atlas at spawn and room samples', async () => {
+		const repositoryRoot = await createRepositoryRoot();
+		await writeHeroHouseManifest(repositoryRoot, 'painted-proof', {
+			r: 64,
+			g: 96,
+			b: 80
+		});
+		await copyLegacyRendererAssets(repositoryRoot);
+		const outputRoot = await createOutputRoot();
+		const staleProof = await sharp({
+			create: {
+				width: 704,
+				height: 576,
+				channels: 4,
+				background: { r: 211, g: 37, b: 149, alpha: 1 }
+			}
+		})
+			.png()
+			.toBuffer();
+		await mkdir(join(outputRoot, 'hero-house'), { recursive: true });
+		await writeFile(join(outputRoot, 'hero-house/live-character-composition.png'), staleProof);
+
+		const first = await renderCompleteWorldLayoutReview({
+			outputRoot,
+			check: false,
+			map: 'hero-house',
+			repositoryRoot
+		});
+		expect(first).toHaveLength(1);
+		const liveBytes = await readFile(join(outputRoot, 'hero-house/live-character-composition.png'));
+		expect(liveBytes).not.toEqual(staleProof);
+		const { data: livePixels, info: liveInfo } = await readRgba(liveBytes);
+		expect(liveInfo.width).toBe(704);
+		expect(liveInfo.height).toBe(576);
+
+		const heroFrameName = actorAnimationAssets.hero.clips.idle.frames[0]!;
+		const heroFrame = animationPackAsset.frames[heroFrameName];
+		const heroPixels = await readRgba(
+			await sharp(join(repositoryRoot, 'public/game/assets/animation-pack.png'))
+				.extract({
+					left: heroFrame.x,
+					top: heroFrame.y,
+					width: heroFrame.w,
+					height: heroFrame.h
+				})
+				.resize(actorAnimationAssets.hero.displaySize)
+				.png()
+				.toBuffer()
+		);
+		const opaqueHeroPixel = firstOpaquePixel(
+			heroPixels.data,
+			heroPixels.info.width,
+			heroPixels.info.height
+		);
+		expect(
+			pixel(
+				livePixels,
+				liveInfo.width,
+				352 - actorAnimationAssets.hero.displaySize.width / 2 + opaqueHeroPixel.x,
+				480 - actorAnimationAssets.hero.displaySize.height / 2 + opaqueHeroPixel.y
+			)
+		).toEqual(opaqueHeroPixel.value);
+		for (const room of Object.values(VILLAGE_INTERIOR_LAYOUTS['hero-house'].rooms)) {
+			let hasActorPixel = false;
+			for (let y = room.y; y < room.y + room.height && !hasActorPixel; y += 1) {
+				for (let x = room.x; x < room.x + room.width; x += 1) {
+					if (pixel(livePixels, liveInfo.width, x, y).join(',') !== '64,96,80,255') {
+						hasActorPixel = true;
+						break;
+					}
+				}
+			}
+			expect(hasActorPixel).toBe(true);
+		}
+
+		const inventory = JSON.parse(
+			await readFile(join(outputRoot, 'hero-house/inventory.json'), 'utf8')
+		) as { artifacts: readonly { path: string; width: number; height: number; sha256: string }[] };
+		const liveInventory = inventory.artifacts.find(
+			({ path }) => path === 'hero-house/live-character-composition.png'
+		);
+		expect(liveInventory).toEqual({
+			path: 'hero-house/live-character-composition.png',
+			width: 704,
+			height: 576,
+			sha256: sha256(liveBytes)
+		});
+
+		const second = await renderCompleteWorldLayoutReview({
+			outputRoot,
+			check: true,
+			map: 'hero-house',
+			repositoryRoot
+		});
+		expect(second).toEqual(first);
+	});
+
+	it('fails painted proof rendering when the checked-in animation atlas is missing', async () => {
+		const repositoryRoot = await createRepositoryRoot();
+		await writeHeroHouseManifest(repositoryRoot, 'painted-proof', {
+			r: 64,
+			g: 96,
+			b: 80
+		});
+		await copyLegacyRendererAssets(repositoryRoot);
+		await rm(join(repositoryRoot, 'public/game/assets/animation-pack.png'));
+
+		await expect(
+			renderCompleteWorldLayoutReview({
+				outputRoot: await createOutputRoot(),
+				check: false,
+				map: 'hero-house',
+				repositoryRoot
+			})
+		).rejects.toThrow(/animation-pack\.png|animation atlas/i);
 	});
 });

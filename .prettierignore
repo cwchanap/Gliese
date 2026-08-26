@@ -34,3 +34,6 @@ artifacts/meadow-entry/painted-v2/complete/provenance/meadow-entry-painted-v2-co
 artifacts/meadow-entry/painted-v2/complete/controls/*.json
 artifacts/meadow-entry/painted-v2/complete/provenance/meadow-entry-painted-v2-complete-export.json
 src/lib/game/content/approvals/meadow-entry-painted-v2-complete-controls.ts
+
+# Navigation runtime is canonical generated code; validate it through world:check:navigation.
+src/lib/game/content/generated/navigation-grids.generated.ts

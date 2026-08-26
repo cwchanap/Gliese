@@ -682,19 +682,32 @@ export const heroHouseMap: WorldMapDefinition = {
 	interiorProps: [
 		{
 			...toMapRect('hero-house-bed', heroHouseLayout.propZones.bed),
-			frameName: 'bed'
+			frameName: 'bed',
+			collision: toMapRect('hero-house-bed-collision', heroHouseLayout.propCollisions.bed)
 		},
 		{
 			...toMapRect('hero-house-study-storage', heroHouseLayout.propZones.studyStorage),
-			frameName: 'bookshelf'
+			frameName: 'bookshelf',
+			collision: toMapRect(
+				'hero-house-study-storage-collision',
+				heroHouseLayout.propCollisions.studyStorage
+			)
 		},
 		{
 			...toMapRect('hero-house-living-table', heroHouseLayout.propZones.livingTable),
-			frameName: 'table'
+			frameName: 'table',
+			collision: toMapRect(
+				'hero-house-living-table-collision',
+				heroHouseLayout.propCollisions.livingTable
+			)
 		},
 		{
 			...toMapRect('hero-house-kitchen-storage', heroHouseLayout.propZones.kitchenStorage),
-			frameName: 'crateStack'
+			frameName: 'crateStack',
+			collision: toMapRect(
+				'hero-house-kitchen-storage-collision',
+				heroHouseLayout.propCollisions.kitchenStorage
+			)
 		}
 	]
 };

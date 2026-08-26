@@ -39,6 +39,26 @@ import { HUD_COMMAND_EVENT, type HudCommand } from '$lib/game/ui-bridge/events';
 const guildMasterApproach = { x: 800, y: 184 };
 const quartermasterApproach = { x: 816, y: 568 };
 
+const heroHouseCollisionIds = [
+	...(heroHouseMap.blockers ?? []).map(({ id }) => id),
+	...(heroHouseMap.fences ?? []).map(({ id }) => id),
+	...(heroHouseMap.mapDecor ?? []).flatMap(({ collision }) => (collision ? [collision.id] : [])),
+	...(heroHouseMap.interiorProps ?? []).flatMap(({ collision }) =>
+		collision ? [collision.id] : []
+	),
+	...(heroHouseMap.landmarks ?? []).map(({ id }) => id)
+].sort();
+const heroHouseStatefulObjectIds = [
+	...heroHouseMap.transitions.map(({ id }) => id),
+	...(heroHouseMap.pickups ?? []).map(({ id }) => id),
+	...(heroHouseMap.encounters ?? []).map(({ id }) => id),
+	...(heroHouseMap.npcs ?? []).map(({ id }) => id),
+	...(heroHouseMap.landmarks ?? []).map(({ id }) => id),
+	...(heroHouseMap.ambientNpcs ?? []).map(({ id }) => id),
+	...(heroHouseMap.discoveries ?? []).map(({ id }) => id),
+	...(heroHouseMap.combatBounds ?? []).map(({ id }) => id)
+].sort();
+
 const expectedOrganicBlockerOwners = [
 	'coast-crossroads-mouth-bank',
 	'mistfen-entry-bank-east',
@@ -1105,12 +1125,15 @@ describe('BootScene', () => {
 		vi.clearAllMocks();
 	});
 
-	it('uses the generic map-keyed default registry for Meadow only while interiors remain pending', () => {
+	it('uses the generic map-keyed default registry for approved maps', () => {
 		expect(MAP_BACKGROUND_DEFAULT_SELECTIONS['meadow-entry']).toEqual({
 			packageId: 'meadow-entry-painted-v2-complete',
 			mode: 'production'
 		});
-		expect(MAP_BACKGROUND_DEFAULT_SELECTIONS['hero-house']).toBeUndefined();
+		expect(MAP_BACKGROUND_DEFAULT_SELECTIONS['hero-house']).toEqual({
+			packageId: 'hero-house-painted',
+			mode: 'production'
+		});
 	});
 
 	it('starts the world scene on the opening map', async () => {
@@ -1210,6 +1233,11 @@ describe('BootScene', () => {
 		const diagnostics: RegionalBackgroundRendererDiagnostic[] = [];
 		const { MEADOW_ENTRY_PAINTED_MODE_COMPLETE } =
 			await import('$lib/game/content/backgrounds/meadow-entry-painted-v2-runtime');
+		const { VILLAGE_INTERIOR_PACKAGES } =
+			await import('$lib/game/content/backgrounds/village-interior-packages');
+		const heroHousePackage = VILLAGE_INTERIOR_PACKAGES.find(
+			({ id }) => id === 'hero-house-painted'
+		)!;
 		const { REGIONAL_BACKGROUND_RENDERER_DIAGNOSTIC_EVENT } =
 			await import('$lib/game/phaser/renderer-diagnostics');
 		target.target.addEventListener(REGIONAL_BACKGROUND_RENDERER_DIAGNOSTIC_EVENT, (event) => {
@@ -1226,7 +1254,14 @@ describe('BootScene', () => {
 			expect(regionalCalls).toEqual(
 				MEADOW_ENTRY_PAINTED_MODE_COMPLETE.assets.map(({ key, path }) => [key, path])
 			);
+			const interiorCalls = vi
+				.mocked(scene.load.image)
+				.mock.calls.filter(([, path]) => String(path).includes('/game/assets/interiors/'));
+			expect(interiorCalls).toEqual(heroHousePackage.assets.map(({ key, path }) => [key, path]));
 			for (const asset of MEADOW_ENTRY_PAINTED_MODE_COMPLETE.assets) {
+				scene.load.emit('filecomplete', asset.key, 'image', {});
+			}
+			for (const asset of heroHousePackage.assets) {
 				scene.load.emit('filecomplete', asset.key, 'image', {});
 			}
 			scene.load.emit('complete');
@@ -1234,11 +1269,15 @@ describe('BootScene', () => {
 			expect(diagnostics).toEqual([
 				{
 					renderer: 'webgl',
-					packageIds: ['meadow-entry-painted-v2-complete'],
-					requiredAssetKeys: MEADOW_ENTRY_PAINTED_MODE_COMPLETE.assets.map(({ key }) => key).sort(),
-					completedAssetKeys: MEADOW_ENTRY_PAINTED_MODE_COMPLETE.assets
-						.map(({ key }) => key)
-						.sort(),
+					packageIds: ['hero-house-painted', 'meadow-entry-painted-v2-complete'],
+					requiredAssetKeys: [
+						...MEADOW_ENTRY_PAINTED_MODE_COMPLETE.assets.map(({ key }) => key),
+						...heroHousePackage.assets.map(({ key }) => key)
+					].sort(),
+					completedAssetKeys: [
+						...MEADOW_ENTRY_PAINTED_MODE_COMPLETE.assets.map(({ key }) => key),
+						...heroHousePackage.assets.map(({ key }) => key)
+					].sort(),
 					maxTextureSize: 4096,
 					regionalBackgroundLoadMs: expect.any(Number)
 				}
@@ -1255,6 +1294,11 @@ describe('BootScene', () => {
 		);
 		const { MEADOW_ENTRY_PAINTED_MODE_COMPLETE } =
 			await import('$lib/game/content/backgrounds/meadow-entry-painted-v2-runtime');
+		const { VILLAGE_INTERIOR_PACKAGES } =
+			await import('$lib/game/content/backgrounds/village-interior-packages');
+		const heroHousePackage = VILLAGE_INTERIOR_PACKAGES.find(
+			({ id }) => id === 'hero-house-painted'
+		)!;
 		const { REGIONAL_BACKGROUND_RENDERER_DIAGNOSTIC_EVENT } =
 			await import('$lib/game/phaser/renderer-diagnostics');
 		const target = installHudCommandTarget();
@@ -1275,16 +1319,30 @@ describe('BootScene', () => {
 				MEADOW_ENTRY_PAINTED_MODE_COMPLETE.assets.map(({ key, path }) => [key, path])
 			);
 			expect(new Set(regionalCalls.map(([key]) => key)).size).toBe(4);
+			const interiorCalls = vi
+				.mocked(scene.load.image)
+				.mock.calls.filter(([, path]) => String(path).includes('/game/assets/interiors/'));
+			expect(interiorCalls).toEqual(heroHousePackage.assets.map(({ key, path }) => [key, path]));
+			expect(new Set(interiorCalls.map(([key]) => key)).size).toBe(1);
 
 			for (const asset of MEADOW_ENTRY_PAINTED_MODE_COMPLETE.assets) {
+				scene.load.emit('filecomplete', asset.key, 'image', {});
+			}
+			for (const asset of heroHousePackage.assets) {
 				scene.load.emit('filecomplete', asset.key, 'image', {});
 			}
 			scene.load.emit('complete');
 
 			expect(diagnostics[0]).toMatchObject({
-				packageIds: ['meadow-entry-painted-v2-complete'],
-				requiredAssetKeys: MEADOW_ENTRY_PAINTED_MODE_COMPLETE.assets.map(({ key }) => key).sort(),
-				completedAssetKeys: MEADOW_ENTRY_PAINTED_MODE_COMPLETE.assets.map(({ key }) => key).sort()
+				packageIds: ['hero-house-painted', 'meadow-entry-painted-v2-complete'],
+				requiredAssetKeys: [
+					...MEADOW_ENTRY_PAINTED_MODE_COMPLETE.assets.map(({ key }) => key),
+					...heroHousePackage.assets.map(({ key }) => key)
+				].sort(),
+				completedAssetKeys: [
+					...MEADOW_ENTRY_PAINTED_MODE_COMPLETE.assets.map(({ key }) => key),
+					...heroHousePackage.assets.map(({ key }) => key)
+				].sort()
 			});
 		} finally {
 			target.restore();
@@ -3389,6 +3447,120 @@ describe('WorldScene', () => {
 		} finally {
 			target.restore();
 			restoreLocation();
+		}
+	});
+
+	it('renders the painted Hero House package with its exact transform and runtime IDs', async () => {
+		const { VILLAGE_INTERIOR_PACKAGES } =
+			await import('$lib/game/content/backgrounds/village-interior-packages');
+		const heroHousePackage = VILLAGE_INTERIOR_PACKAGES.find(
+			({ id }) => id === 'hero-house-painted'
+		);
+		if (!heroHousePackage) throw new Error('Hero House painted package is not registered');
+		const base = heroHousePackage.backgrounds.find(({ plane }) => plane === 'base');
+		if (!base) throw new Error('Hero House painted base is not registered');
+		phaserState.regionalBackgroundTextureMocks.set(base.textureKey, {
+			key: base.textureKey,
+			source: [{ width: base.width, height: base.height }],
+			get: vi.fn(() => ({ cutWidth: base.width, cutHeight: base.height }))
+		});
+		const target = installPlaneDiagnosticListener();
+		const { WorldScene } = await import('./WorldScene');
+		const scene = new WorldScene();
+
+		try {
+			scene.create({ mapId: 'hero-house' });
+
+			expect(scene.make.tilemap).not.toHaveBeenCalled();
+			expect(phaserState.tileSpriteMarkers).toHaveLength(0);
+			expect(
+				phaserState.imageMarkers.filter((marker) => marker.texture === 'interior-props')
+			).toHaveLength(0);
+			expect(phaserState.imageMarkers).toContainEqual(
+				expect.objectContaining({
+					x: 352,
+					y: 288,
+					texture: base.textureKey
+				})
+			);
+			const backgroundMarker = phaserState.imageMarkers.find(
+				(marker) => marker.texture === base.textureKey
+			);
+			expect(backgroundMarker?.setOrigin).toHaveBeenCalledWith(0.5, 0.5);
+			expect(backgroundMarker?.setDisplaySize).toHaveBeenCalledWith(704, 576);
+			expect(target.diagnostics[0]).toMatchObject({
+				mapId: 'hero-house',
+				packageId: 'hero-house-painted',
+				presentationMode: 'painted',
+				requiredBackgroundIds: ['hero-house-painted-base-image'],
+				selectedBackgroundIds: ['hero-house-painted-base-image'],
+				successfulBackgroundIds: ['hero-house-painted-base-image'],
+				collisionIds: heroHouseCollisionIds,
+				statefulObjectIds: heroHouseStatefulObjectIds
+			});
+			expect(target.diagnostics[0]?.entries[0]).toMatchObject({
+				id: 'hero-house-painted-base-image',
+				textureKey: 'hero-house-painted-base',
+				status: 'rendered',
+				expectedDimensions: { width: 704, height: 576 },
+				observedDimensions: { width: 704, height: 576 },
+				renderTransform: {
+					x: 352,
+					y: 288
+				}
+			});
+		} finally {
+			target.restore();
+		}
+	});
+
+	it('falls back to the complete Hero House legacy package when its base is missing', async () => {
+		const { VILLAGE_INTERIOR_PACKAGES } =
+			await import('$lib/game/content/backgrounds/village-interior-packages');
+		const heroHousePackage = VILLAGE_INTERIOR_PACKAGES.find(
+			({ id }) => id === 'hero-house-painted'
+		);
+		if (!heroHousePackage) throw new Error('Hero House painted package is not registered');
+		const base = heroHousePackage.backgrounds.find(({ plane }) => plane === 'base');
+		if (!base) throw new Error('Hero House painted base is not registered');
+		phaserState.regionalBackgroundTextureMocks.set(base.textureKey, {
+			key: base.textureKey,
+			source: [{ width: base.width, height: base.height }],
+			get: vi.fn(() => ({ cutWidth: base.width, cutHeight: base.height }))
+		});
+		phaserState.missingTextureKeys.add(base.textureKey);
+		const target = installPlaneDiagnosticListener();
+		const { WorldScene } = await import('./WorldScene');
+		const scene = new WorldScene();
+
+		try {
+			scene.create({ mapId: 'hero-house' });
+
+			expect(scene.make.tilemap).toHaveBeenCalledOnce();
+			expect(phaserState.imageMarkers.some(({ texture }) => texture === base.textureKey)).toBe(
+				false
+			);
+			expect(phaserState.tileSpriteMarkers).toHaveLength(heroHouseMap.blockers?.length ?? 0);
+			expect(
+				phaserState.imageMarkers.filter((marker) => marker.texture === 'interior-props')
+			).toHaveLength(heroHouseMap.interiorProps?.length ?? 0);
+			expect(target.diagnostics[0]).toMatchObject({
+				mapId: 'hero-house',
+				packageId: null,
+				presentationMode: 'fallback',
+				requiredBackgroundIds: ['hero-house-painted-base-image'],
+				selectedBackgroundIds: [],
+				successfulBackgroundIds: [],
+				collisionIds: heroHouseCollisionIds,
+				statefulObjectIds: heroHouseStatefulObjectIds
+			});
+			expect(target.diagnostics[0]?.entries[0]).toMatchObject({
+				id: 'hero-house-painted-base-image',
+				status: 'missing-texture',
+				observedDimensions: null
+			});
+		} finally {
+			target.restore();
 		}
 	});
 
@@ -6737,30 +6909,37 @@ describe('WorldScene', () => {
 		);
 	});
 
-	it('allows movement through Hero House props without invented collisions', async () => {
+	it('blocks movement into Hero House furniture cores', async () => {
 		const { WorldScene } = await import('./WorldScene');
 		const scene = new WorldScene();
+		const bedCollision = heroHouseMap.interiorProps?.find(
+			(prop) => prop.id === 'hero-house-bed'
+		)?.collision;
+		expect(bedCollision).toBeDefined();
+		if (!bedCollision) return;
+		const startY = bedCollision.y + bedCollision.height / 2 + PLAYER_COLLISION_RADIUS + 1;
 
 		scene.create({ mapId: 'hero-house' });
-		Object.assign(phaserState.playerMarker, { x: 160, y: 144 });
-		phaserState.cursorKeys.down.isDown = true;
+		Object.assign(phaserState.playerMarker, { x: bedCollision.x, y: startY });
+		phaserState.cursorKeys.up.isDown = true;
 		scene.update(0, 50);
 
-		expect(phaserState.playerMarker.x).toBe(160);
-		expect(phaserState.playerMarker.y).toBeGreaterThan(144);
+		expect(phaserState.playerMarker.x).toBe(bedCollision.x);
+		expect(phaserState.playerMarker.y).toBe(startY);
 	});
 
-	it('allows player movement away from an existing furniture overlap', async () => {
+	it('keeps Hero House furniture collisions attached to the rendered props', async () => {
 		const { WorldScene } = await import('./WorldScene');
 		const scene = new WorldScene();
 
 		scene.create({ mapId: 'hero-house' });
-		Object.assign(phaserState.playerMarker, { x: 160, y: 144 });
-		phaserState.cursorKeys.down.isDown = true;
-		scene.update(0, 50);
-
-		expect(phaserState.playerMarker.x).toBe(160);
-		expect(phaserState.playerMarker.y).toBeGreaterThan(144);
+		const renderedProps = phaserState.imageMarkers.filter(
+			(marker) =>
+				marker.frame !== undefined &&
+				['bed', 'bookshelf', 'table', 'crateStack'].includes(marker.frame)
+		);
+		expect(renderedProps).toHaveLength(4);
+		expect(heroHouseMap.interiorProps?.every((prop) => prop.collision)).toBe(true);
 	});
 
 	it('renders Mira with item shop NPC art', async () => {

@@ -1,0 +1,22 @@
+{
+	"version": 1,
+	"mapId": "hero-house",
+	"dimensionsPx": {
+		"width": 704,
+		"height": 576
+	},
+	"base": {
+		"id": "hero-house-painted-base-image",
+		"textureKey": "hero-house-painted-base",
+		"path": "/game/assets/interiors/hero-house/base.png",
+		"sha256": "ceba64bb3c132969c17dd3021c1d198c50bb4998e21f754ee5d68acf1656f2c0"
+	},
+	"navigation": {
+		"gridId": "hero-house-navigation",
+		"cellSizePx": 16,
+		"widthCells": 44,
+		"heightCells": 36,
+		"clearancePx": 12,
+		"source": "layout"
+	}
+}

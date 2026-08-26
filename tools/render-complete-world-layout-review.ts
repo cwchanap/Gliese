@@ -4,6 +4,14 @@ import { dirname, join, resolve } from 'node:path';
 
 import sharp from 'sharp';
 
+import {
+	actorAnimationAssets,
+	animationPackAsset,
+	environmentDressingAsset,
+	getGroundFrameName,
+	interiorPropAsset,
+	terrainTilesAsset
+} from '$lib/game/content/assets';
 import { PLAYER_COLLISION_RADIUS } from '$lib/game/core/collision';
 import {
 	encodeCanonicalMeadowEntryPng,
@@ -23,7 +31,7 @@ import {
 	MEADOW_ENTRY_V2_CROSSINGS,
 	MEADOW_ENTRY_V2_RIVER_SEGMENTS
 } from '$lib/game/content/maps/layouts/meadow-entry-v2';
-import { maps, type MapRect, type WorldMapDefinition } from '$lib/game/content/maps';
+import { maps, openingMapId, type MapRect, type WorldMapDefinition } from '$lib/game/content/maps';
 import { compileNavigationGrid, isWalkable } from '$lib/game/core/navigation';
 import {
 	collectLandmarkRects,
@@ -800,17 +808,22 @@ function renderInteriorCoordinateSvg(mapId: VillageInteriorMapId, view: View): s
 function renderInteriorNavigationSvg(
 	mapId: VillageInteriorMapId,
 	view: View,
-	mode: 'raw' | 'player-centre' | 'both' = 'both'
+	mode: 'raw' | 'player-centre' | 'both' = 'both',
+	includeBackground = true
 ): string {
 	const layout = VILLAGE_INTERIOR_LAYOUTS[mapId];
 	const source = buildVillageInteriorNavigationSource({ mapId, layout });
 	const grid = compileNavigationGrid(source);
 	const parts = [
 		`<svg xmlns="http://www.w3.org/2000/svg" width="${view.outputWidth}" height="${view.outputHeight}" viewBox="${view.left} ${view.top} ${view.width} ${view.height}" preserveAspectRatio="none">`,
-		svgRect(
-			{ x: view.left, y: view.top, width: view.width, height: view.height },
-			COLORS.legacyTerrain
-		),
+		...(includeBackground
+			? [
+					svgRect(
+						{ x: view.left, y: view.top, width: view.width, height: view.height },
+						COLORS.legacyTerrain
+					)
+				]
+			: []),
 		svgRect(layout.fullFloor, COLORS.ground, {
 			opacity: 0.12,
 			stroke: COLORS.ground,
@@ -843,17 +856,25 @@ function renderInteriorNavigationSvg(
 	return parts.join('');
 }
 
-function renderInteriorAnchorsSvg(mapId: VillageInteriorMapId, view: View): string {
+function renderInteriorAnchorsSvg(
+	mapId: VillageInteriorMapId,
+	view: View,
+	includeBackground = true
+): string {
 	const map = maps[mapId];
 	const layout = VILLAGE_INTERIOR_LAYOUTS[mapId];
 	assert(map !== undefined, `Interior map is not registered: ${mapId}`);
 	const context = contextFor(view);
 	const parts = [
 		`<svg xmlns="http://www.w3.org/2000/svg" width="${view.outputWidth}" height="${view.outputHeight}" viewBox="${view.left} ${view.top} ${view.width} ${view.height}" preserveAspectRatio="none">`,
-		svgRect(
-			{ x: view.left, y: view.top, width: view.width, height: view.height },
-			COLORS.legacyTerrain
-		),
+		...(includeBackground
+			? [
+					svgRect(
+						{ x: view.left, y: view.top, width: view.width, height: view.height },
+						COLORS.legacyTerrain
+					)
+				]
+			: []),
 		svgCircle(map.spawn, 28, COLORS.actor, 0.9, COLORS.labelBackground),
 		labelSvg('spawn', map.spawn, context),
 		svgCircle(layout.exit, 28, COLORS.transition, 0.9, COLORS.labelBackground),
@@ -929,6 +950,232 @@ function interiorImagePath(path: string, repositoryRoot: string): string {
 	return resolve(repositoryRoot, normalized);
 }
 
+async function renderLegacyInteriorPng(
+	mapId: VillageInteriorMapId,
+	repositoryRoot: string
+): Promise<Buffer> {
+	const map = maps[mapId];
+	assert(map !== undefined, `Interior map is not registered: ${mapId}`);
+	const width = map.width * TILE_SIZE;
+	const height = map.height * TILE_SIZE;
+	const terrainSource = await readFile(interiorImagePath(terrainTilesAsset.path, repositoryRoot));
+	const terrainTileCache = new Map<string, Buffer>();
+	const readTerrainTile = async (frameName: keyof typeof terrainTilesAsset.frames) => {
+		const cached = terrainTileCache.get(frameName);
+		if (cached) return cached;
+		const frame = terrainTilesAsset.frames[frameName];
+		const tile = await sharp(terrainSource)
+			.extract({ left: frame.x, top: frame.y, width: frame.w, height: frame.h })
+			.resize({ width: TILE_SIZE, height: TILE_SIZE })
+			.png()
+			.toBuffer();
+		terrainTileCache.set(frameName, tile);
+		return tile;
+	};
+	const groundInputs: { input: Buffer; left: number; top: number }[] = [];
+	for (let row = 0; row < map.height; row += 1) {
+		for (let column = 0; column < map.width; column += 1) {
+			const center = {
+				x: column * TILE_SIZE + TILE_SIZE / 2,
+				y: row * TILE_SIZE + TILE_SIZE / 2
+			};
+			let frameName: keyof typeof terrainTilesAsset.frames | undefined;
+			for (let index = (map.groundPatches?.length ?? 0) - 1; index >= 0; index -= 1) {
+				const patch = map.groundPatches![index]!;
+				const bounds = centeredBounds(patch);
+				if (
+					center.x >= bounds.x &&
+					center.x <= bounds.x + bounds.width &&
+					center.y >= bounds.y &&
+					center.y <= bounds.y + bounds.height
+				) {
+					frameName = patch.tile;
+					break;
+				}
+			}
+			if (
+				frameName === undefined &&
+				map.id !== openingMapId &&
+				(row === 0 || column === 0 || row === map.height - 1 || column === map.width - 1)
+			) {
+				frameName = 'stoneWallTile';
+			}
+			frameName ??= getGroundFrameName(map.id);
+			groundInputs.push({
+				input: await readTerrainTile(frameName),
+				left: column * TILE_SIZE,
+				top: row * TILE_SIZE
+			});
+		}
+	}
+
+	const inputs = [...groundInputs];
+	const blockers = map.blockers ?? [];
+	if (blockers.length > 0) {
+		const environmentSource = await readFile(
+			interiorImagePath(environmentDressingAsset.path, repositoryRoot)
+		);
+		const ruinWallFrame = environmentDressingAsset.frames.ruinWall;
+		const ruinWall = await sharp(environmentSource)
+			.extract({
+				left: ruinWallFrame.x,
+				top: ruinWallFrame.y,
+				width: ruinWallFrame.w,
+				height: ruinWallFrame.h
+			})
+			.png()
+			.toBuffer();
+		const blockerInputs: { input: Buffer; left: number; top: number }[] = [];
+		for (const blocker of blockers) {
+			assert(
+				blocker.kind === 'ruin-wall',
+				`${mapId} fallback blocker kind is not supported by the legacy interior renderer: ${blocker.kind}`
+			);
+			const bounds = centeredBounds(blocker);
+			for (let top = bounds.y; top < bounds.y + bounds.height; top += ruinWallFrame.h) {
+				for (let left = bounds.x; left < bounds.x + bounds.width; left += ruinWallFrame.w) {
+					const tileWidth = Math.min(ruinWallFrame.w, bounds.x + bounds.width - left);
+					const tileHeight = Math.min(ruinWallFrame.h, bounds.y + bounds.height - top);
+					const tile =
+						tileWidth === ruinWallFrame.w && tileHeight === ruinWallFrame.h
+							? ruinWall
+							: await sharp(ruinWall)
+									.extract({ left: 0, top: 0, width: tileWidth, height: tileHeight })
+									.png()
+									.toBuffer();
+					blockerInputs.push({ input: tile, left, top });
+				}
+			}
+		}
+		inputs.push(...blockerInputs);
+	}
+
+	const props = map.interiorProps ?? [];
+	if (props.length > 0) {
+		const propSource = await readFile(interiorImagePath(interiorPropAsset.path, repositoryRoot));
+		const propCache = new Map<string, Buffer>();
+		const propInputs: { input: Buffer; left: number; top: number }[] = [];
+		for (const prop of props) {
+			const cacheKey = `${prop.frameName}:${prop.width}x${prop.height}`;
+			let image = propCache.get(cacheKey);
+			if (!image) {
+				const frame = interiorPropAsset.frames[prop.frameName];
+				image = await sharp(propSource)
+					.extract({ left: frame.x, top: frame.y, width: frame.w, height: frame.h })
+					.resize({ width: prop.width, height: prop.height })
+					.png()
+					.toBuffer();
+				propCache.set(cacheKey, image);
+			}
+			propInputs.push({
+				input: image,
+				left: prop.x - prop.width / 2,
+				top: prop.y - prop.height / 2
+			});
+		}
+		inputs.push(...propInputs);
+	}
+	return sharp({
+		create: {
+			width,
+			height,
+			channels: 4,
+			background: { r: 26, g: 31, b: 43, alpha: 1 }
+		}
+	})
+		.composite(inputs)
+		.png()
+		.toBuffer();
+}
+
+async function renderLiveCharacterComposition(
+	mapId: VillageInteriorMapId,
+	base: Buffer,
+	repositoryRoot: string
+): Promise<Buffer> {
+	const atlasPath = interiorImagePath(animationPackAsset.path, repositoryRoot);
+	let atlas: Buffer;
+	try {
+		atlas = await readFile(atlasPath);
+	} catch (error) {
+		throw new Error(
+			`${mapId} live-character composition requires animation atlas: ${animationPackAsset.path}`,
+			{ cause: error }
+		);
+	}
+	const heroAnimation = actorAnimationAssets.hero;
+	const heroIdleFrameName = heroAnimation.clips.idle.frames[0]!;
+	const heroIdleFrame = animationPackAsset.frames[heroIdleFrameName];
+	const atlasMetadata = await sharp(atlas).metadata();
+	assert(
+		atlasMetadata.width !== undefined &&
+			atlasMetadata.height !== undefined &&
+			heroIdleFrame.x + heroIdleFrame.w <= atlasMetadata.width &&
+			heroIdleFrame.y + heroIdleFrame.h <= atlasMetadata.height,
+		`${mapId} hero idle frame is outside animation atlas: ${heroIdleFrameName}`
+	);
+	const hero = await sharp(atlas)
+		.extract({
+			left: heroIdleFrame.x,
+			top: heroIdleFrame.y,
+			width: heroIdleFrame.w,
+			height: heroIdleFrame.h
+		})
+		.resize(heroAnimation.displaySize)
+		.png()
+		.toBuffer();
+	const map = maps[mapId];
+	const layout = VILLAGE_INTERIOR_LAYOUTS[mapId];
+	assert(map !== undefined, `Interior map is not registered: ${mapId}`);
+	const source = buildVillageInteriorNavigationSource({ mapId, layout });
+	const grid = map.navigationGrid ?? compileNavigationGrid(source);
+	assert(isWalkable(grid, map.spawn.x, map.spawn.y), `${mapId} spawn is not walkable`);
+	const points: Point[] = [{ x: map.spawn.x, y: map.spawn.y }];
+	const interiorDoorCenters = Object.entries(layout.doors)
+		.filter(([id]) => id !== 'exterior')
+		.map(([, door]) => ({ x: door.x + door.width / 2, y: door.y + door.height / 2 }));
+	assert(interiorDoorCenters.length > 0, `${mapId} has no interior door proof anchors`);
+	const distanceToInteriorDoor = (point: Point) =>
+		Math.min(...interiorDoorCenters.map((door) => Math.hypot(point.x - door.x, point.y - door.y)));
+	for (const [roomId, room] of Object.entries(layout.rooms)) {
+		const candidates: Point[] = [];
+		for (let y = room.y + source.cellSizePx / 2; y < room.y + room.height; y += source.cellSizePx) {
+			for (
+				let x = room.x + source.cellSizePx / 2;
+				x < room.x + room.width;
+				x += source.cellSizePx
+			) {
+				if (isWalkable(grid, x, y)) candidates.push({ x, y });
+			}
+		}
+		candidates.sort(
+			(left, right) =>
+				distanceToInteriorDoor(left) - distanceToInteriorDoor(right) ||
+				left.y - right.y ||
+				left.x - right.x
+		);
+		const point = candidates[0];
+		assert(point !== undefined, `${mapId} room has no walkable proof point: ${roomId}`);
+		points.push(point);
+	}
+
+	const baseMetadata = await sharp(base).metadata();
+	assert(
+		baseMetadata.width !== undefined && baseMetadata.height !== undefined,
+		`${mapId} painted base dimensions are unavailable`
+	);
+	return sharp(base)
+		.composite(
+			points.map((point) => ({
+				input: hero,
+				left: Math.round(point.x - heroAnimation.displaySize.width / 2),
+				top: Math.round(point.y - heroAnimation.displaySize.height / 2)
+			}))
+		)
+		.png()
+		.toBuffer();
+}
+
 async function renderInteriorPaintedArtifacts(
 	mapId: VillageInteriorMapId,
 	repositoryRoot = process.cwd()
@@ -943,12 +1190,19 @@ async function renderInteriorPaintedArtifacts(
 	const artifacts: RenderedArtifact[] = [
 		{ path: `${mapId}/painted-base.png`, bytes: await sharp(base).png().toBuffer() },
 		{
+			path: `${mapId}/live-character-composition.png`,
+			bytes: await renderLiveCharacterComposition(mapId, base, repositoryRoot)
+		},
+		{
 			path: `${mapId}/collision-overlay.png`,
-			bytes: await composeSvgOverPng(base, renderInteriorNavigationSvg(mapId, layoutView))
+			bytes: await composeSvgOverPng(
+				base,
+				renderInteriorNavigationSvg(mapId, layoutView, 'both', false)
+			)
 		},
 		{
 			path: `${mapId}/live-actor-overlay.png`,
-			bytes: await composeSvgOverPng(base, renderInteriorAnchorsSvg(mapId, layoutView))
+			bytes: await composeSvgOverPng(base, renderInteriorAnchorsSvg(mapId, layoutView, false))
 		}
 	];
 	if (manifest.foreground) {
@@ -958,7 +1212,7 @@ async function renderInteriorPaintedArtifacts(
 			bytes: await sharp(foreground).ensureAlpha().extractChannel(3).png().toBuffer()
 		});
 	}
-	const fallback = await encodeSvg(renderInteriorCoordinateSvg(mapId, layoutView));
+	const fallback = await renderLegacyInteriorPng(mapId, repositoryRoot);
 	const metadata = await sharp(base).metadata();
 	assert(
 		metadata.width !== undefined && metadata.height !== undefined,
@@ -984,7 +1238,7 @@ async function renderInteriorPaintedArtifacts(
 
 async function renderVillageInteriorLayoutReview(
 	mapId: VillageInteriorMapId,
-	repositoryRoot = process.cwd()
+	repositoryRoot: string
 ): Promise<{
 	readonly entry: CompleteWorldLayoutReviewEntry;
 	readonly artifacts: readonly RenderedArtifact[];

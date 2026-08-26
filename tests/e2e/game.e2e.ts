@@ -1,10 +1,18 @@
 import { expect, test, type Page } from '@playwright/test';
+import { mkdirSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { assertMeadowEntryPaintedV2CameraBoundsCovered } from '../../src/lib/game/content/backgrounds/meadow-entry-painted-v2-camera-envelope';
 import {
 	MEADOW_ENTRY_PAINTED_V2_APPROVED_RUNTIME_BACKGROUNDS,
 	MEADOW_ENTRY_PAINTED_V2_RUNTIME_VISUAL_OWNERS
 } from '../../src/lib/game/content/backgrounds/meadow-entry-painted-v2.generated';
-import { meadowEntryMap, ruinsCoreMap, ruinsThresholdMap } from '../../src/lib/game/content/maps';
+import type { MeadowEntryPaintedMode } from '../../src/lib/game/content/backgrounds/meadow-entry-painted-v2-runtime';
+import {
+	heroHouseMap,
+	meadowEntryMap,
+	ruinsCoreMap,
+	ruinsThresholdMap
+} from '../../src/lib/game/content/maps';
 import {
 	MEADOW_ENTRY_V2_CROSSINGS,
 	MEADOW_ENTRY_V2_RIVER_SEGMENTS,
@@ -83,17 +91,34 @@ type TransitionGateDiagnostic = SceneEncounterDiagnostic & {
 
 type RegionalBackgroundPlaneRenderDiagnosticEntry = {
 	id: string;
+	textureKey: string;
+	plane: 'base' | 'foreground';
 	status: string;
 	expectedDimensions: { width: number; height: number };
 	observedDimensions: { width: number; height: number } | null;
+	renderTransform?: {
+		x: number;
+		y: number;
+		originX: number;
+		originY: number;
+		displayWidth: number;
+		displayHeight: number;
+		depth: number;
+	};
 };
 
 type RegionalBackgroundPlaneRenderDiagnostic = {
 	mapId: string;
 	regionalBackgroundsEnabled: boolean;
-	paintedMode: 'fallback' | 'pilot' | 'production';
+	paintedMode?: MeadowEntryPaintedMode;
+	packageId: string | null;
+	requiredBackgroundIds: string[];
+	selectedBackgroundIds: string[];
+	presentationMode: 'painted' | 'fallback';
 	entries: RegionalBackgroundPlaneRenderDiagnosticEntry[];
 	successfulBackgroundIds: string[];
+	collisionIds: string[];
+	statefulObjectIds: string[];
 	selectedFallbackBlockerIds?: string[];
 	selectedFallbackDecorIds: string[];
 	selectedFallbackFenceIds: string[];
@@ -1692,12 +1717,12 @@ const INTERIOR_GRAYBOX_CASES: readonly InteriorGrayboxCase[] = [
 		spawn: { x: 352, y: 480 },
 		exit: { x: 352, y: 560 },
 		steps: [
-			{ label: 'living-kitchen', point: { x: 544, y: 480 } },
+			{ label: 'living-kitchen', point: { x: 400, y: 480 } },
 			{ label: 'hall-south', point: { x: 352, y: 320 } },
 			{ label: 'hall-north', point: { x: 352, y: 160 } },
-			{ label: 'bedroom', point: { x: 160, y: 160 } },
+			{ label: 'bedroom', point: { x: 232, y: 160 } },
 			{ label: 'study-door', point: { x: 352, y: 160 } },
-			{ label: 'study', point: { x: 544, y: 160 } },
+			{ label: 'study', point: { x: 472, y: 160 } },
 			{ label: 'study-hall-door', point: { x: 352, y: 160 } },
 			{ label: 'spawn-return', point: { x: 352, y: 480 } }
 		]
@@ -1810,6 +1835,30 @@ const INTERIOR_GRAYBOX_CASES: readonly InteriorGrayboxCase[] = [
 		]
 	}
 ];
+
+const HERO_HOUSE_RUNTIME_EVIDENCE_ROOT = resolve(
+	'docs/superpowers/reports/img/hpa-586-interiors-runtime/hero-house'
+);
+const HERO_HOUSE_COLLISION_IDS = [
+	...(heroHouseMap.blockers ?? []).map(({ id }) => id),
+	...(heroHouseMap.fences ?? []).map(({ id }) => id),
+	...(heroHouseMap.mapDecor ?? []).flatMap(({ collision }) => (collision ? [collision.id] : [])),
+	...(heroHouseMap.interiorProps ?? []).flatMap(({ collision }) =>
+		collision ? [collision.id] : []
+	),
+	...(heroHouseMap.landmarks ?? []).map(({ id }) => id)
+].sort();
+const HERO_HOUSE_STATEFUL_OBJECT_IDS = [
+	...heroHouseMap.transitions.map(({ id }) => id),
+	...(heroHouseMap.pickups ?? []).map(({ id }) => id),
+	...(heroHouseMap.encounters ?? []).map(({ id }) => id),
+	...(heroHouseMap.npcs ?? []).map(({ id }) => id),
+	...(heroHouseMap.landmarks ?? []).map(({ id }) => id),
+	...(heroHouseMap.ambientNpcs ?? []).map(({ id }) => id),
+	...(heroHouseMap.discoveries ?? []).map(({ id }) => id),
+	...(heroHouseMap.combatBounds ?? []).map(({ id }) => id)
+].sort();
+const HERO_HOUSE_FALLBACK_BLOCKER_IDS = (heroHouseMap.blockers ?? []).map(({ id }) => id);
 
 type InteriorNpcApproachBinding = {
 	readonly approachKey: string;
@@ -10062,6 +10111,111 @@ async function waitForMeadowRendererDiagnostic(page: Page) {
 	return diagnostic;
 }
 
+async function waitForMapBackgroundDiagnostic(
+	page: Page,
+	mapId: string,
+	previousMapDiagnosticCount = 0
+) {
+	await page.waitForFunction(
+		({ requestedMapId, previousCount }) => {
+			const diagnostics = (window as GlieseProbeWindow).__glieseRegionalBackgroundDiagnostics ?? [];
+			return (
+				diagnostics.filter((diagnostic) => diagnostic.mapId === requestedMapId).length >
+				previousCount
+			);
+		},
+		{ requestedMapId: mapId, previousCount: previousMapDiagnosticCount },
+		{ timeout: 30_000 }
+	);
+	const diagnostics = await page.evaluate(
+		() => (window as GlieseProbeWindow).__glieseRegionalBackgroundDiagnostics ?? []
+	);
+	const diagnostic = [...diagnostics].reverse().find((entry) => entry.mapId === mapId);
+	if (!diagnostic)
+		throw new Error(`Missing ${mapId} plane diagnostic: ${JSON.stringify(diagnostics)}`);
+	return diagnostic;
+}
+
+function assertHeroHousePaintedDiagnostic(diagnostic: RegionalBackgroundPlaneRenderDiagnostic) {
+	expect(diagnostic).toMatchObject({
+		mapId: 'hero-house',
+		regionalBackgroundsEnabled: true,
+		packageId: 'hero-house-painted',
+		presentationMode: 'painted',
+		requiredBackgroundIds: ['hero-house-painted-base-image'],
+		selectedBackgroundIds: ['hero-house-painted-base-image'],
+		successfulBackgroundIds: ['hero-house-painted-base-image'],
+		selectedFallbackBlockerIds: [],
+		selectedFallbackDecorIds: [],
+		selectedFallbackFenceIds: [],
+		collisionIds: [...HERO_HOUSE_COLLISION_IDS],
+		statefulObjectIds: [...HERO_HOUSE_STATEFUL_OBJECT_IDS]
+	});
+	expect(diagnostic.entries).toEqual([
+		expect.objectContaining({
+			id: 'hero-house-painted-base-image',
+			textureKey: 'hero-house-painted-base',
+			status: 'rendered',
+			expectedDimensions: { width: 704, height: 576 },
+			observedDimensions: { width: 704, height: 576 },
+			renderTransform: {
+				x: 352,
+				y: 288,
+				originX: 0.5,
+				originY: 0.5,
+				displayWidth: 704,
+				displayHeight: 576,
+				depth: -9
+			}
+		})
+	]);
+}
+
+function assertHeroHouseFallbackDiagnostic(diagnostic: RegionalBackgroundPlaneRenderDiagnostic) {
+	expect(diagnostic).toMatchObject({
+		mapId: 'hero-house',
+		regionalBackgroundsEnabled: true,
+		packageId: null,
+		presentationMode: 'fallback',
+		requiredBackgroundIds: ['hero-house-painted-base-image'],
+		selectedBackgroundIds: [],
+		successfulBackgroundIds: [],
+		selectedFallbackBlockerIds: [...HERO_HOUSE_FALLBACK_BLOCKER_IDS],
+		selectedFallbackDecorIds: [],
+		selectedFallbackFenceIds: [],
+		collisionIds: [...HERO_HOUSE_COLLISION_IDS],
+		statefulObjectIds: [...HERO_HOUSE_STATEFUL_OBJECT_IDS]
+	});
+	expect(diagnostic.entries).toEqual([
+		expect.objectContaining({
+			id: 'hero-house-painted-base-image',
+			textureKey: 'hero-house-painted-base',
+			status: 'missing-texture',
+			expectedDimensions: { width: 704, height: 576 },
+			observedDimensions: null
+		})
+	]);
+}
+
+async function saveHeroHouseCanvas(page: Page, name: string) {
+	mkdirSync(HERO_HOUSE_RUNTIME_EVIDENCE_ROOT, { recursive: true });
+	await page.evaluate(() => {
+		const style = document.createElement('style');
+		style.id = 'hero-house-runtime-evidence-style';
+		style.textContent = '.game-shell > :not(.game-stage) { visibility: hidden !important; }';
+		document.head.append(style);
+	});
+	try {
+		await page.locator('canvas').screenshot({
+			path: resolve(HERO_HOUSE_RUNTIME_EVIDENCE_ROOT, name)
+		});
+	} finally {
+		await page.evaluate(() =>
+			document.getElementById('hero-house-runtime-evidence-style')?.remove()
+		);
+	}
+}
+
 function assertPaintedPilotPlaneDiagnostic(
 	diagnostic: RegionalBackgroundPlaneRenderDiagnostic,
 	expectedSuccessfulIds: readonly string[]
@@ -14974,6 +15128,200 @@ for (const interiorCase of INTERIOR_GRAYBOX_CASES) {
 		await exitInteriorWithTrustedKeyboard(page, interiorCase);
 	});
 }
+
+test('Hero House painted interior preserves runtime, reload, and fallback contracts', async ({
+	page
+}) => {
+	test.setTimeout(180_000);
+	const heroHouse = INTERIOR_GRAYBOX_CASES.find((interior) => interior.mapId === 'hero-house');
+	if (!heroHouse) throw new Error('Hero House route constants are missing');
+
+	await installRuntimeProbes(page, { captureFacing: true });
+	await injectSave(
+		page,
+		createSaveFixture({
+			mapId: 'meadow-entry',
+			player: {
+				level: 1,
+				xp: 0,
+				hp: 20,
+				attack: 3,
+				x: heroHouse.returnArrival.x,
+				y: heroHouse.returnArrival.y,
+				facing: 'up'
+			}
+		})
+	);
+	await page.setViewportSize({ width: 640, height: 360 });
+	await page.goto('/?movementDiagnostics=on');
+	await expect(page.locator('canvas')).toBeVisible();
+	await page.getByRole('button', { name: 'Menu' }).click();
+	await commandBox(page).getByRole('button', { name: 'Resume Save' }).click();
+	await waitForHudPosition(page, 'meadow-entry', heroHouse.returnArrival);
+
+	await enterInteriorWithTrustedKeyboard(page, heroHouse);
+	assertHeroHousePaintedDiagnostic(await waitForMapBackgroundDiagnostic(page, 'hero-house'));
+	await saveHeroHouseCanvas(page, 'painted-camera-640x360.png');
+
+	const moveHeroHouseAxisWithTrustedKeyboard = async (target: Point): Promise<Point> => {
+		const from = await page.evaluate(() => {
+			const probeWindow = window as GlieseProbeWindow;
+			const movement = [...(probeWindow.__glieseMovementDiagnostics ?? [])]
+				.reverse()
+				.find(({ mapId }) => mapId === 'hero-house');
+			const hudPlayer = probeWindow.__glieseLastHudState?.areaMap?.player;
+			return (
+				movement?.resolvedPosition ??
+				(typeof hudPlayer?.x === 'number' && typeof hudPlayer.y === 'number'
+					? { x: hudPlayer.x, y: hudPlayer.y }
+					: null)
+			);
+		});
+		if (!from) throw new Error(`Missing Hero House position before ${JSON.stringify(target)}`);
+
+		const horizontal =
+			Math.abs(from.y - target.y) <= INTERIOR_ROUTE_SETTLE_TOLERANCE &&
+			Math.abs(from.x - target.x) > INTERIOR_ROUTE_SETTLE_TOLERANCE;
+		const vertical =
+			Math.abs(from.x - target.x) <= INTERIOR_ROUTE_SETTLE_TOLERANCE &&
+			Math.abs(from.y - target.y) > INTERIOR_ROUTE_SETTLE_TOLERANCE;
+		if (!horizontal && !vertical) {
+			if (
+				Math.abs(from.x - target.x) <= INTERIOR_ROUTE_SETTLE_TOLERANCE &&
+				Math.abs(from.y - target.y) <= INTERIOR_ROUTE_SETTLE_TOLERANCE
+			) {
+				return from;
+			}
+			throw new Error(
+				`Hero House route segment is not axis-aligned: ${JSON.stringify({ from, target })}`
+			);
+		}
+
+		const key = horizontal
+			? target.x > from.x
+				? 'ArrowRight'
+				: 'ArrowLeft'
+			: target.y > from.y
+				? 'ArrowDown'
+				: 'ArrowUp';
+		const movementStartCount = await page.evaluate(
+			() => (window as GlieseProbeWindow).__glieseMovementDiagnostics?.length ?? 0
+		);
+		await page.locator('canvas').click();
+		await page.keyboard.down(key);
+		try {
+			await page.waitForFunction(
+				({ expectedPoint, startCount, tolerance }) => {
+					const diagnostics = (window as GlieseProbeWindow).__glieseMovementDiagnostics ?? [];
+					return diagnostics
+						.slice(startCount)
+						.some(
+							({ mapId, resolvedPosition }) =>
+								mapId === 'hero-house' &&
+								Math.abs(resolvedPosition.x - expectedPoint.x) <= tolerance &&
+								Math.abs(resolvedPosition.y - expectedPoint.y) <= tolerance
+						);
+				},
+				{
+					expectedPoint: target,
+					startCount: movementStartCount,
+					tolerance: INTERIOR_ROUTE_SETTLE_TOLERANCE
+				},
+				{ timeout: 30_000 }
+			);
+		} catch (error) {
+			const diagnostics = await page.evaluate(
+				() => (window as GlieseProbeWindow).__glieseMovementDiagnostics ?? []
+			);
+			throw new Error(
+				`Hero House route failed at ${JSON.stringify({ from, target, key, last: diagnostics.at(-1) })}: ${String(error)}`,
+				{ cause: error }
+			);
+		} finally {
+			await page.keyboard.up(key);
+		}
+
+		const settled = await page.evaluate(
+			({ expectedPoint, startCount, tolerance }) => {
+				const diagnostics = (window as GlieseProbeWindow).__glieseMovementDiagnostics ?? [];
+				return (
+					[...diagnostics.slice(startCount)]
+						.reverse()
+						.find(
+							({ mapId, resolvedPosition }) =>
+								mapId === 'hero-house' &&
+								Math.abs(resolvedPosition.x - expectedPoint.x) <= tolerance &&
+								Math.abs(resolvedPosition.y - expectedPoint.y) <= tolerance
+						)?.resolvedPosition ?? null
+				);
+			},
+			{
+				expectedPoint: target,
+				startCount: movementStartCount,
+				tolerance: INTERIOR_ROUTE_SETTLE_TOLERANCE
+			}
+		);
+		if (!settled)
+			throw new Error(`Missing settled Hero House position near ${JSON.stringify(target)}`);
+		return settled;
+	};
+
+	let currentPoint = heroHouse.spawn;
+	for (const step of heroHouse.steps) {
+		for (const segmentTarget of interiorRoutePoints(currentPoint, step.point).slice(1)) {
+			currentPoint = await moveHeroHouseAxisWithTrustedKeyboard(segmentTarget);
+		}
+		await assertInteriorCheckpoint(page, heroHouse, step.point);
+	}
+	expect(Math.abs(currentPoint.x - heroHouse.spawn.x)).toBeLessThanOrEqual(AXIS_REACH_TOLERANCE);
+	expect(Math.abs(currentPoint.y - heroHouse.spawn.y)).toBeLessThanOrEqual(AXIS_REACH_TOLERANCE);
+
+	await page.getByRole('button', { name: 'Menu' }).click();
+	await commandBox(page).getByRole('button', { name: 'Save Game' }).click();
+	await expect(fieldStatus(page)).toContainText('Saved');
+	const persisted = await page.evaluate(
+		(key) => JSON.parse(localStorage.getItem(key) ?? 'null'),
+		SAVE_STORAGE_KEY
+	);
+	expect(persisted?.mapId).toBe('hero-house');
+	expect(Math.abs(persisted?.player?.x - currentPoint.x)).toBeLessThanOrEqual(AXIS_REACH_TOLERANCE);
+	expect(Math.abs(persisted?.player?.y - currentPoint.y)).toBeLessThanOrEqual(AXIS_REACH_TOLERANCE);
+
+	await page.reload();
+	await expect(page.locator('canvas')).toBeVisible();
+	await page.getByRole('button', { name: 'Menu' }).click();
+	await commandBox(page).getByRole('button', { name: 'Resume Save' }).click();
+	await waitForHudPosition(page, 'hero-house', heroHouse.spawn);
+	assertHeroHousePaintedDiagnostic(await waitForMapBackgroundDiagnostic(page, 'hero-house'));
+	await saveHeroHouseCanvas(page, 'painted-reload-camera-640x360.png');
+
+	await exitInteriorWithTrustedKeyboard(page, heroHouse);
+	const heroDiagnosticCountBeforeReentry = await page.evaluate(
+		() =>
+			(window as GlieseProbeWindow).__glieseRegionalBackgroundDiagnostics?.filter(
+				({ mapId }) => mapId === 'hero-house'
+			).length ?? 0
+	);
+	await enterInteriorWithTrustedKeyboard(page, heroHouse);
+	assertHeroHousePaintedDiagnostic(
+		await waitForMapBackgroundDiagnostic(page, 'hero-house', heroDiagnosticCountBeforeReentry)
+	);
+
+	const missingBaseRoute = '**/game/assets/interiors/hero-house/base.png';
+	await page.route(missingBaseRoute, (route) => route.abort());
+	try {
+		await page.goto('/?movementDiagnostics=on');
+		await expect(page.locator('canvas')).toBeVisible();
+		await page.getByRole('button', { name: 'Menu' }).click();
+		await commandBox(page).getByRole('button', { name: 'Resume Save' }).click();
+		await waitForHudPosition(page, 'hero-house', heroHouse.spawn);
+		const fallbackDiagnostic = await waitForMapBackgroundDiagnostic(page, 'hero-house');
+		assertHeroHouseFallbackDiagnostic(fallbackDiagnostic);
+		await saveHeroHouseCanvas(page, 'fallback-camera-640x360.png');
+	} finally {
+		await page.unroute(missingBaseRoute);
+	}
+});
 
 test('quest log shows main quest and accepts Guild side quests', async ({ page }) => {
 	const save = createSaveFixture({

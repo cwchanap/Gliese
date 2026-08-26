@@ -218,7 +218,12 @@ export const VILLAGE_INTERIOR_LAYOUTS = {
 			livingTable: rect(224, 352, 160, 96),
 			kitchenStorage: rect(480, 352, 128, 128)
 		},
-		propCollisions: {}
+		propCollisions: {
+			bed: rect(112, 112, 96, 96),
+			studyStorage: rect(496, 112, 112, 96),
+			livingTable: rect(224, 400, 112, 64),
+			kitchenStorage: rect(464, 320, 160, 144)
+		}
 	},
 	'item-shop': {
 		widthTiles: 26,

@@ -1414,15 +1414,15 @@ describe('opening map content', () => {
 	it('keeps Hero House and Item Shop authored door routes clear', () => {
 		expectRouteClear(
 			heroHouseMap,
-			[heroHouseMap.spawn, { x: 352, y: 320 }, { x: 352, y: 160 }, { x: 160, y: 160 }],
+			[heroHouseMap.spawn, { x: 352, y: 320 }, { x: 352, y: 160 }, { x: 232, y: 160 }],
 			'hero-spawn-to-bedroom'
 		);
 		expectRouteClear(
 			heroHouseMap,
-			[heroHouseMap.spawn, { x: 352, y: 160 }, { x: 544, y: 160 }],
+			[heroHouseMap.spawn, { x: 352, y: 160 }, { x: 472, y: 160 }],
 			'hero-spawn-to-study'
 		);
-		expectRouteClear(heroHouseMap, [heroHouseMap.spawn, { x: 544, y: 480 }], 'hero-living-kitchen');
+		expectRouteClear(heroHouseMap, [heroHouseMap.spawn, { x: 400, y: 480 }], 'hero-living-kitchen');
 		expectRouteClear(
 			heroHouseMap,
 			[heroHouseMap.spawn, heroHouseMap.transitions[0]],
@@ -1811,7 +1811,12 @@ describe('opening map content', () => {
 			'hero-house-living-table',
 			'hero-house-kitchen-storage'
 		]);
-		expect(heroHouseMap.interiorProps?.every((prop) => !prop.collision)).toBe(true);
+		expect(heroHouseMap.interiorProps?.map((prop) => prop.collision)).toEqual([
+			{ id: 'hero-house-bed-collision', x: 160, y: 160, width: 96, height: 96 },
+			{ id: 'hero-house-study-storage-collision', x: 552, y: 160, width: 112, height: 96 },
+			{ id: 'hero-house-living-table-collision', x: 280, y: 432, width: 112, height: 64 },
+			{ id: 'hero-house-kitchen-storage-collision', x: 544, y: 392, width: 160, height: 144 }
+		]);
 		expect(heroHouseMap.backgroundImages).toBeUndefined();
 		expect(itemShopMap.backgroundImages).toBeUndefined();
 	});
@@ -2489,6 +2494,14 @@ describe('Hero House Gate 2 coordinate and navigation contracts', () => {
 			expect(heroHouseMap.blockers).toContainEqual({
 				...toMapRect(wall.id, wall),
 				kind: 'ruin-wall'
+			});
+		}
+		for (const [propId, collision] of Object.entries(layout.propCollisions)) {
+			const suffix = propId.replace(/[A-Z]/g, (letter) => `-${letter.toLowerCase()}`);
+			const prop = heroHouseMap.interiorProps?.find((value) => value.id.endsWith(suffix));
+			expect(prop, `${propId} prop is missing`).toBeDefined();
+			expect(prop?.collision).toEqual({
+				...toMapRect(`${prop?.id}-collision`, collision)
 			});
 		}
 		for (const [id, value] of [

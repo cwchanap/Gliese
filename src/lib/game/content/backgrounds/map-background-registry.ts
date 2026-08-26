@@ -19,5 +19,9 @@ export const MAP_BACKGROUND_PACKAGE_REGISTRY: readonly MapBackgroundPackageDefin
 export const MAP_BACKGROUND_DEFAULT_SELECTIONS: Readonly<
 	Partial<Record<string, ResolveMapBackgroundPackageInput['defaultSelection']>>
 > = Object.freeze({
-	'meadow-entry': MEADOW_ENTRY_DEFAULT_PACKAGE_SELECTION
+	'meadow-entry': MEADOW_ENTRY_DEFAULT_PACKAGE_SELECTION,
+	'hero-house': Object.freeze({
+		packageId: 'hero-house-painted',
+		mode: 'production' as const
+	})
 });

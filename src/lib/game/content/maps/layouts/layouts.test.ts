@@ -436,12 +436,18 @@ describe('village interior layout coordinate contracts', () => {
 
 		const reachable = reachableInteriorSamples(layout);
 		for (const [label, point] of [
-			['bedroom', { x: 160, y: 160 }],
-			['study', { x: 544, y: 160 }],
-			['storage', { x: 544, y: 416 }]
+			['bedroom', { x: 232, y: 160 }],
+			['study', { x: 472, y: 160 }],
+			['living-kitchen', { x: 400, y: 480 }]
 		] as const) {
 			expect(reachableInteriorPoint(reachable, point), `${label} is disconnected`).toBe(true);
 		}
+		expect(layout.propCollisions).toEqual({
+			bed: { x: 112, y: 112, width: 96, height: 96 },
+			studyStorage: { x: 496, y: 112, width: 112, height: 96 },
+			livingTable: { x: 224, y: 400, width: 112, height: 64 },
+			kitchenStorage: { x: 464, y: 320, width: 160, height: 144 }
+		});
 		expect(reachableInteriorPoint(reachable, layout.spawn), 'spawn is disconnected').toBe(true);
 		expect(reachableInteriorPoint(reachable, layout.exit), 'exit is disconnected').toBe(true);
 		expect(layout.fullFloor.width - 640).toBeGreaterThanOrEqual(64);
