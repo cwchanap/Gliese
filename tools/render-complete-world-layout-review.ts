@@ -1474,7 +1474,8 @@ async function writeAtomic(path: string, bytes: Buffer): Promise<void> {
 
 async function checkArtifacts(
 	outputRoot: string,
-	artifacts: readonly RenderedArtifact[]
+	artifacts: readonly RenderedArtifact[],
+	scopePrefix?: string
 ): Promise<void> {
 	async function listFiles(root: string, prefix = ''): Promise<string[]> {
 		const entries = await readdir(join(root, prefix), { withFileTypes: true });
@@ -1489,7 +1490,7 @@ async function checkArtifacts(
 
 	let names: string[];
 	try {
-		names = (await listFiles(outputRoot)).sort();
+		names = (await listFiles(outputRoot, scopePrefix)).sort();
 	} catch (error) {
 		if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
 			throw new Error(`Complete-world layout review output root is missing: ${outputRoot}`, {
@@ -1534,7 +1535,7 @@ export async function renderCompleteWorldLayoutReview(input: {
 			input.repositoryRoot ?? process.cwd()
 		);
 		if (input.check) {
-			await checkArtifacts(input.outputRoot, rendered.artifacts);
+			await checkArtifacts(input.outputRoot, rendered.artifacts, input.map);
 			return [rendered.entry];
 		}
 		for (const artifact of rendered.artifacts) {

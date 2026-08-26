@@ -362,6 +362,28 @@ describe('complete world layout review renderer', () => {
 		expect(second).toEqual(first);
 	});
 
+	it('scopes per-map checks to the selected interior while rejecting selected-map extras', async () => {
+		const outputRoot = await createOutputRoot();
+		const repositoryRoot = await createRepositoryRoot();
+		const renderInput = { outputRoot, map: 'hero-house' as const, repositoryRoot };
+		await renderCompleteWorldLayoutReview({ ...renderInput, check: false });
+
+		const siblingPath = join(outputRoot, 'guild-hall', 'sibling-proof.txt');
+		await mkdir(join(outputRoot, 'guild-hall'), { recursive: true });
+		await writeFile(siblingPath, 'approved sibling evidence');
+		await expect(
+			renderCompleteWorldLayoutReview({ ...renderInput, check: true })
+		).resolves.toHaveLength(1);
+		expect(await readFile(siblingPath, 'utf8')).toBe('approved sibling evidence');
+
+		const selectedExtraPath = join(outputRoot, 'hero-house', 'unexpected-proof.txt');
+		await writeFile(selectedExtraPath, 'unexpected selected-map output');
+		await expect(renderCompleteWorldLayoutReview({ ...renderInput, check: true })).rejects.toThrow(
+			/inventory files differ|unexpected-proof\.txt/
+		);
+		expect(await readFile(selectedExtraPath, 'utf8')).toBe('unexpected selected-map output');
+	});
+
 	it('renders painted proof from an isolated root without colliding with a real Hero House manifest', async () => {
 		const existingRepositoryRoot = await createRepositoryRoot();
 		const existing = await writeHeroHouseManifest(existingRepositoryRoot, 'hero-house', {
