@@ -29,6 +29,7 @@ import {
 	rectsOverlap
 } from './layout-rects';
 import { buildVillageInteriorNavigationSource } from '$lib/game/content/backgrounds/village-interior-package';
+import { VILLAGE_INTERIOR_NAVIGATION_SOURCES } from '$lib/game/content/backgrounds/village-interior-navigation-sources';
 import { compileNavigationGrid, isWalkable } from '$lib/game/core/navigation';
 import { VILLAGE_INTERIOR_LAYOUTS, type VillageInteriorLayout } from './village-interiors-v2';
 
@@ -423,6 +424,45 @@ describe('outdoor layout coordinate contracts', () => {
 });
 
 describe('village interior layout coordinate contracts', () => {
+	it('pins the Hero House Gate 1 program and its layout-derived navigation source', () => {
+		const layout = VILLAGE_INTERIOR_LAYOUTS['hero-house'];
+		expect([layout.widthTiles, layout.heightTiles]).toEqual([22, 18]);
+		expect(Object.keys(layout.rooms)).toEqual(['bedroom', 'study', 'livingKitchen']);
+		expect(Object.keys(layout.corridors)).toEqual(['hall']);
+		expect(layout.corridors.hall.width).toBeGreaterThanOrEqual(96);
+		expect(
+			Object.values(layout.doors).every((door) => Math.max(door.width, door.height) >= 64)
+		).toBe(true);
+
+		const reachable = reachableInteriorSamples(layout);
+		for (const [label, point] of [
+			['bedroom', { x: 160, y: 160 }],
+			['study', { x: 544, y: 160 }],
+			['storage', { x: 544, y: 416 }]
+		] as const) {
+			expect(reachableInteriorPoint(reachable, point), `${label} is disconnected`).toBe(true);
+		}
+		expect(reachableInteriorPoint(reachable, layout.spawn), 'spawn is disconnected').toBe(true);
+		expect(reachableInteriorPoint(reachable, layout.exit), 'exit is disconnected').toBe(true);
+		expect(layout.fullFloor.width - 640).toBeGreaterThanOrEqual(64);
+		expect(layout.fullFloor.height - 360).toBeGreaterThanOrEqual(192);
+
+		const source = VILLAGE_INTERIOR_NAVIGATION_SOURCES.find(
+			(value) => value.mapId === 'hero-house'
+		);
+		expect(source).toBeDefined();
+		expect(source).toMatchObject({
+			id: 'hero-house-navigation',
+			cellSizePx: 16,
+			widthCells: 44,
+			heightCells: 36,
+			clearancePx: 12
+		});
+		expect(source?.rows).toEqual(
+			buildVillageInteriorNavigationSource({ mapId: 'hero-house', layout }).rows
+		);
+	});
+
 	it('seals every Shrine service pocket with an explicit inert wall', () => {
 		const shrine = VILLAGE_INTERIOR_LAYOUTS['shrine-of-aurora-interior'];
 		for (const wall of SHRINE_SERVICE_WALLS) {

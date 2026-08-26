@@ -4,6 +4,8 @@ import { VILLAGE_INTERIOR_EXTERIORS } from '$lib/game/content/maps/layouts/meado
 import { toMapRect } from '$lib/game/content/maps/layouts/layout-rects';
 import { VILLAGE_INTERIOR_LAYOUTS } from '$lib/game/content/maps/layouts/village-interiors-v2';
 import { addEnglishMapText } from '$lib/game/content/maps/text';
+import { VILLAGE_INTERIOR_NAVIGATION_OWNED_SOURCES } from '$lib/game/content/backgrounds/village-interior-package';
+import { GENERATED_NAVIGATION_GRIDS } from '$lib/game/content/generated/navigation-grids.generated';
 
 export type {
 	MapDiscovery,
@@ -665,6 +667,8 @@ export const heroHouseMap: WorldMapDefinition = {
 	height: heroHouseLayout.heightTiles,
 	spawnDirection: 'up',
 	spawn: { ...heroHouseLayout.spawn },
+	navigationGrid: GENERATED_NAVIGATION_GRIDS['hero-house-navigation'],
+	navigationGridOwnedSources: VILLAGE_INTERIOR_NAVIGATION_OWNED_SOURCES,
 	groundPatches: heroHouseGroundPatches,
 	blockers: heroHouseBlockers,
 	transitions: [

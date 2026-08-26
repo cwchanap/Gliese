@@ -24,6 +24,9 @@ import {
 import { MEADOW_ENTRY_V2_RIVER_SEGMENTS } from '$lib/game/content/maps/layouts/meadow-entry-v2';
 import { getItem } from '$lib/game/content/items';
 import { getShop } from '$lib/game/content/shops';
+import { VILLAGE_INTERIOR_NAVIGATION_OWNED_SOURCES } from '$lib/game/content/backgrounds/village-interior-package';
+import { VILLAGE_INTERIOR_NAVIGATION_SOURCES } from '$lib/game/content/backgrounds/village-interior-navigation-sources';
+import { GENERATED_NAVIGATION_GRIDS } from '$lib/game/content/generated/navigation-grids.generated';
 import {
 	NPC_INTERACTION_RADIUS,
 	NPC_PACK_COLLISION_RADIUS,
@@ -45,6 +48,7 @@ import {
 	villagerHouse3Map
 } from '$lib/game/content/maps';
 import type { MapDecor, WorldMapDefinition } from '$lib/game/content/maps';
+import { compileNavigationGrid } from '$lib/game/core/navigation';
 import {
 	collectLandmarkRects,
 	collectStrictCollisionRects,
@@ -2452,6 +2456,57 @@ describe('opening map content', () => {
 				expect(encounter.x).toBeLessThan(map.width * 32);
 				expect(encounter.y).toBeLessThan(map.height * 32);
 			}
+		}
+	});
+});
+
+describe('Hero House Gate 2 coordinate and navigation contracts', () => {
+	it('attaches the generated grid and keeps fallback geometry derived from the layout', () => {
+		const layout = VILLAGE_INTERIOR_LAYOUTS['hero-house'];
+		const source = VILLAGE_INTERIOR_NAVIGATION_SOURCES.find(
+			(value) => value.mapId === 'hero-house'
+		);
+		const grid = GENERATED_NAVIGATION_GRIDS['hero-house-navigation'];
+
+		expect(source).toBeDefined();
+		expect(grid).toBeDefined();
+		if (!source || !grid) return;
+
+		expect(grid).toEqual(compileNavigationGrid(source));
+		expect(heroHouseMap.navigationGrid).toBe(grid);
+		expect(heroHouseMap.navigationGridOwnedSources).toBe(VILLAGE_INTERIOR_NAVIGATION_OWNED_SOURCES);
+		expect(grid).toMatchObject({
+			id: 'hero-house-navigation',
+			mapId: 'hero-house',
+			cellSizePx: 16,
+			widthCells: 44,
+			heightCells: 36,
+			widthPx: 704,
+			heightPx: 576
+		});
+
+		for (const wall of layout.walls) {
+			expect(heroHouseMap.blockers).toContainEqual({
+				...toMapRect(wall.id, wall),
+				kind: 'ruin-wall'
+			});
+		}
+		for (const [id, value] of [
+			['hero-house-full-floor', layout.fullFloor],
+			['hero-house-room-bedroom', layout.rooms.bedroom],
+			['hero-house-room-study', layout.rooms.study],
+			['hero-house-room-living-kitchen', layout.rooms.livingKitchen],
+			['hero-house-corridor-hall', layout.corridors.hall]
+		] as const) {
+			expect(heroHouseMap.groundPatches).toContainEqual({
+				...toMapRect(id, value),
+				tile:
+					id === 'hero-house-corridor-hall'
+						? 'pathTile'
+						: id.endsWith('full-floor')
+							? 'cobblestoneTile'
+							: 'plazaStoneTile'
+			});
 		}
 	});
 });

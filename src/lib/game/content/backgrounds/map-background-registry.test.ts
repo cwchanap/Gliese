@@ -13,8 +13,17 @@ import { VILLAGE_INTERIOR_NAVIGATION_SOURCES } from './village-interior-navigati
 import { VILLAGE_INTERIOR_PACKAGES } from './village-interior-packages';
 
 describe('map background registry', () => {
-	it('starts with empty frozen interior registries', () => {
-		expect(VILLAGE_INTERIOR_NAVIGATION_SOURCES).toEqual([]);
+	it('registers Hero House navigation before painted package approval', () => {
+		expect(VILLAGE_INTERIOR_NAVIGATION_SOURCES).toEqual([
+			expect.objectContaining({
+				id: 'hero-house-navigation',
+				mapId: 'hero-house',
+				cellSizePx: 16,
+				widthCells: 44,
+				heightCells: 36,
+				clearancePx: 12
+			})
+		]);
 		expect(VILLAGE_INTERIOR_PACKAGES).toEqual([]);
 		expect(Object.isFrozen(VILLAGE_INTERIOR_NAVIGATION_SOURCES)).toBe(true);
 		expect(Object.isFrozen(VILLAGE_INTERIOR_PACKAGES)).toBe(true);

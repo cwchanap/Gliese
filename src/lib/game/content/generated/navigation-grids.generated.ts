@@ -2,6 +2,15 @@
 
 import type { NavigationGrid } from '$lib/game/core/navigation';
 
-export const GENERATED_NAVIGATION_GRIDS = Object.freeze({}) satisfies Readonly<
-	Record<string, NavigationGrid>
->;
+export const GENERATED_NAVIGATION_GRIDS = Object.freeze({
+	"hero-house-navigation": {
+		id: "hero-house-navigation",
+		mapId: "hero-house",
+		cellSizePx: 16,
+		widthCells: 44,
+		heightCells: 36,
+		widthPx: 704,
+		heightPx: 576,
+		blockedBits: new Uint8Array([255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 1, 120, 224, 1, 248, 31, 128, 7, 30, 128, 255, 1, 120, 224, 1, 248, 31, 128, 7, 30, 128, 255, 1, 0, 0, 0, 248, 31, 0, 0, 0, 128, 255, 1, 120, 224, 1, 248, 31, 128, 7, 30, 128, 255, 1, 120, 224, 1, 248, 31, 128, 7, 30, 128, 255, 255, 127, 224, 255, 255, 255, 255, 7, 254, 255, 255, 255, 127, 224, 255, 255, 255, 255, 7, 254, 255, 255, 1, 0, 0, 0, 248, 31, 0, 0, 0, 128, 255, 1, 0, 0, 0, 248, 31, 0, 0, 0, 128, 255, 1, 0, 0, 0, 248, 31, 0, 0, 0, 128, 255, 1, 0, 0, 0, 248, 31, 0, 0, 0, 128, 255, 1, 0, 0, 0, 248, 31, 0, 0, 0, 128, 255, 1, 0, 0, 0, 248, 31, 0, 0, 0, 128, 255, 1, 0, 0, 0, 248, 31, 0, 0, 0, 128, 255, 255, 255, 249, 255, 255, 255, 255, 159, 255, 255, 255, 255, 255, 249, 255, 255])
+	}
+}) satisfies Readonly<Record<string, NavigationGrid>>;
