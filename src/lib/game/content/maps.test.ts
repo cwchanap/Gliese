@@ -48,7 +48,7 @@ import {
 	villagerHouse3Map
 } from '$lib/game/content/maps';
 import type { MapDecor, WorldMapDefinition } from '$lib/game/content/maps';
-import { compileNavigationGrid } from '$lib/game/core/navigation';
+import { compileNavigationGrid, isWalkable } from '$lib/game/core/navigation';
 import {
 	collectLandmarkRects,
 	collectStrictCollisionRects,
@@ -2520,6 +2520,138 @@ describe('Hero House Gate 2 coordinate and navigation contracts', () => {
 							? 'cobblestoneTile'
 							: 'plazaStoneTile'
 			});
+		}
+	});
+});
+
+describe('Guild Hall Gates 1/2 coordinate and navigation contracts', () => {
+	it('attaches the generated grid and derives fallback geometry and anchors from the layout', () => {
+		const layout = VILLAGE_INTERIOR_LAYOUTS['guild-hall'];
+		const source = VILLAGE_INTERIOR_NAVIGATION_SOURCES.find(
+			(value) => value.mapId === 'guild-hall'
+		);
+		const grid = GENERATED_NAVIGATION_GRIDS['guild-hall-navigation'];
+
+		expect(source).toBeDefined();
+		expect(grid).toBeDefined();
+		if (!source || !grid) return;
+
+		expect(grid).toEqual(compileNavigationGrid(source));
+		expect(guildHallMap.navigationGrid).toBe(grid);
+		expect(guildHallMap.navigationGridOwnedSources).toBe(VILLAGE_INTERIOR_NAVIGATION_OWNED_SOURCES);
+		expect(grid).toMatchObject({
+			id: 'guild-hall-navigation',
+			mapId: 'guild-hall',
+			cellSizePx: 16,
+			widthCells: 64,
+			heightCells: 52,
+			widthPx: 1024,
+			heightPx: 832
+		});
+
+		expect(guildHallMap.width).toBe(layout.widthTiles);
+		expect(guildHallMap.height).toBe(layout.heightTiles);
+		expect(guildHallMap.spawn).toEqual(layout.spawn);
+		expect(guildHallMap.transitions[0]).toMatchObject({ ...layout.exit });
+		expect(guildHallMap.groundPatches).toContainEqual({
+			...toMapRect('guild-hall-full-floor', layout.fullFloor),
+			tile: 'cobblestoneTile'
+		});
+		for (const [id, value] of [
+			['guild-hall-room-records', layout.rooms.recordsHall],
+			['guild-hall-room-common', layout.rooms.commonHall],
+			['guild-hall-room-master-office', layout.rooms.guildMasterOffice],
+			['guild-hall-room-training', layout.rooms.trainingHall],
+			['guild-hall-room-quartermaster', layout.rooms.quartermasterRoom],
+			['guild-hall-corridor-spine', layout.corridors.mainSpine],
+			['guild-hall-corridor-lobby', layout.corridors.entranceLobby]
+		] as const) {
+			expect(guildHallMap.groundPatches).toContainEqual({
+				...toMapRect(id, value),
+				tile: id.includes('corridor') ? 'pathTile' : 'plazaStoneTile'
+			});
+		}
+		expect(guildHallMap.blockers).toEqual(
+			layout.walls.map((wall) => ({ ...toMapRect(wall.id, wall), kind: 'ruin-wall' }))
+		);
+		for (const [id, value] of [
+			['guild-hall-records-shelves', layout.propZones.recordsShelves],
+			['guild-hall-notice-board', layout.propZones.questBoardRecordsDesk],
+			['guild-hall-common-table', layout.propZones.commonTableSeating],
+			['guild-hall-master-desk', layout.propZones.guildMasterStation],
+			['guild-hall-training-equipment', layout.propZones.trainingEquipment],
+			['guild-hall-quartermaster-counter', layout.propZones.quartermasterStation],
+			['guild-hall-lobby-benches', layout.propZones.lobbyNoticeBenches]
+		] as const) {
+			expect(guildHallMap.interiorProps).toContainEqual(
+				expect.objectContaining(toMapRect(id, value))
+			);
+		}
+
+		for (const [propId, propIdInMap] of [
+			['guildMasterDesk', 'guild-hall-master-desk'],
+			['quartermasterCounter', 'guild-hall-quartermaster-counter']
+		] as const) {
+			const collision = layout.propCollisions[propId];
+			const prop = guildHallMap.interiorProps?.find((value) => value.id === propIdInMap);
+			expect(prop, `${propId} prop is missing`).toBeDefined();
+			expect(prop?.collision).toEqual({ ...toMapRect(`${prop?.id}-collision`, collision) });
+		}
+
+		expect(guildHallMap.npcs).toEqual(
+			expect.arrayContaining([
+				expect.objectContaining({
+					id: 'guild-master',
+					x: layout.npcApproaches.guildMaster.npc.x,
+					y: layout.npcApproaches.guildMaster.npc.y,
+					dialogueId: 'guild-master',
+					role: 'guild'
+				}),
+				expect.objectContaining({
+					id: 'guild-quartermaster',
+					x: layout.npcApproaches.quartermaster.npc.x,
+					y: layout.npcApproaches.quartermaster.npc.y,
+					dialogueId: 'guild-quartermaster',
+					role: 'shopkeeper',
+					shopId: 'guild-quartermaster'
+				})
+			])
+		);
+
+		expect(guildHallMap.ambientNpcs?.map(({ id, x, y }) => ({ id, x, y }))).toEqual(
+			Object.entries(layout.ambientActivity ?? {}).map(([id, point]) => ({ ...point, id }))
+		);
+	});
+
+	it('keeps every Guild Hall function connected through the authored 96/64px routes', () => {
+		const layout = VILLAGE_INTERIOR_LAYOUTS['guild-hall'];
+		const routes = [
+			[guildHallMap.spawn, { x: 512, y: 184 }, layout.npcApproaches.guildMaster.approach],
+			[guildHallMap.spawn, { x: 512, y: 568 }, layout.npcApproaches.quartermaster.approach],
+			[guildHallMap.spawn, { x: 512, y: 208 }, { x: 240, y: 208 }],
+			[guildHallMap.spawn, { x: 512, y: 496 }, { x: 160, y: 496 }, { x: 160, y: 592 }],
+			[guildHallMap.spawn, { x: 512, y: 368 }, { x: 912, y: 368 }],
+			[guildHallMap.spawn, { x: layout.exit.x, y: layout.exit.y }]
+		] as const;
+		for (const [index, route] of routes.entries()) {
+			expectRouteClear(guildHallMap, route, `guild-hall-function-${index}`);
+			for (let segment = 1; segment < route.length; segment += 1) {
+				const from = route[segment - 1]!;
+				const to = route[segment]!;
+				const distance = Math.max(Math.abs(to.x - from.x), Math.abs(to.y - from.y));
+				const steps = Math.max(1, Math.ceil(distance / 16));
+				for (let step = 0; step <= steps; step += 1) {
+					const progress = step / steps;
+					const point = {
+						x: from.x + (to.x - from.x) * progress,
+						y: from.y + (to.y - from.y) * progress
+					};
+					expect(
+						isWalkable(guildHallMap.navigationGrid!, point.x, point.y),
+						`route ${index} is blocked`
+					).toBe(true);
+				}
+			}
 		}
 	});
 });

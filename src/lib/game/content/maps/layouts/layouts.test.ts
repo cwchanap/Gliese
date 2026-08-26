@@ -78,6 +78,11 @@ const EXPECTED_INTERIOR_PROGRAMS = {
 	}
 } as const;
 
+const EXPECTED_GUILD_HALL_AMBIENT_ACTIVITY = {
+	'guild-hall-member-west': { x: 160, y: 592 },
+	'guild-hall-member-east': { x: 912, y: 368 }
+} as const;
+
 function expectStructuralGrid(value: { x: number; y: number; width: number; height: number }) {
 	for (const [name, number] of Object.entries({
 		x: value.x,
@@ -424,6 +429,90 @@ describe('outdoor layout coordinate contracts', () => {
 });
 
 describe('village interior layout coordinate contracts', () => {
+	it('pins the Guild Hall civic program, anchors, circulation, and camera envelope', () => {
+		const layout = VILLAGE_INTERIOR_LAYOUTS['guild-hall'];
+		expect([layout.widthTiles, layout.heightTiles]).toEqual([32, 26]);
+		expect(Object.keys(layout.rooms)).toEqual([
+			'recordsHall',
+			'commonHall',
+			'guildMasterOffice',
+			'trainingHall',
+			'quartermasterRoom'
+		]);
+		expect(Object.keys(layout.corridors)).toEqual(['mainSpine', 'entranceLobby']);
+		expect(Object.keys(layout.doors)).toEqual([
+			'recordsToSpine',
+			'commonToSpine',
+			'masterToSpine',
+			'trainingToSpine',
+			'quartermasterToSpine',
+			'exterior'
+		]);
+		expect(Object.keys(layout.propZones)).toEqual([
+			'recordsShelves',
+			'questBoardRecordsDesk',
+			'commonTableSeating',
+			'guildMasterStation',
+			'trainingEquipment',
+			'quartermasterStation',
+			'lobbyNoticeBenches'
+		]);
+		expect(Object.keys(layout.propCollisions)).toEqual(['guildMasterDesk', 'quartermasterCounter']);
+		expect(layout.corridors.mainSpine.width).toBeGreaterThanOrEqual(96);
+		expect(layout.corridors.entranceLobby.width).toBeGreaterThanOrEqual(96);
+		expect(layout.corridors.entranceLobby.height).toBeGreaterThanOrEqual(96);
+		expect(layout.rooms.trainingHall.width).toBeGreaterThanOrEqual(96);
+		for (const [doorId, door] of Object.entries(layout.doors)) {
+			expect(Math.max(door.width, door.height), doorId).toBeGreaterThanOrEqual(64);
+		}
+
+		expect(layout.spawn).toEqual({ x: 512, y: 736 });
+		expect(layout.exit).toEqual({ x: 512, y: 816 });
+		expect(layout.fullFloor).toEqual({ x: 0, y: 0, width: 1024, height: 832 });
+		expect({
+			horizontalScrollPx: layout.fullFloor.width - 640,
+			verticalScrollPx: layout.fullFloor.height - 360
+		}).toEqual({ horizontalScrollPx: 384, verticalScrollPx: 472 });
+
+		expect(layout.ambientActivity).toEqual(EXPECTED_GUILD_HALL_AMBIENT_ACTIVITY);
+		for (const [id, point] of Object.entries(layout.ambientActivity ?? {})) {
+			expect(
+				layoutRectContainsPoint(layout.rooms.commonHall, point) ||
+					layoutRectContainsPoint(layout.rooms.trainingHall, point),
+				id
+			).toBe(true);
+			expect(isInteriorWalkable(layout, point), `${id} activity position is not walkable`).toBe(
+				true
+			);
+			for (const zone of Object.values(layout.propZones)) {
+				expect(layoutRectContainsPoint(zone, point), `${id} overlaps ${zone}`).toBe(false);
+			}
+		}
+
+		const reachable = reachableInteriorSamples(layout);
+		for (const [label, point] of [
+			['records', { x: 240, y: 240 }],
+			['common', { x: 160, y: 592 }],
+			['guild-master-approach', layout.npcApproaches.guildMaster.approach],
+			['training', { x: 912, y: 368 }],
+			['quartermaster-approach', layout.npcApproaches.quartermaster.approach],
+			['spawn', layout.spawn],
+			['exit', layout.exit]
+		] as const) {
+			expect(reachableInteriorPoint(reachable, point), `${label} is disconnected`).toBe(true);
+		}
+		expect(
+			expandedLayoutRectContainsPoint(layout.propCollisions.guildMasterDesk, { x: 800, y: 164 }, 0)
+		).toBe(true);
+		expect(
+			expandedLayoutRectContainsPoint(
+				layout.propCollisions.quartermasterCounter,
+				{ x: 784, y: 548 },
+				0
+			)
+		).toBe(true);
+	});
+
 	it('pins the Hero House Gate 1 program and its layout-derived navigation source', () => {
 		const layout = VILLAGE_INTERIOR_LAYOUTS['hero-house'];
 		expect([layout.widthTiles, layout.heightTiles]).toEqual([22, 18]);

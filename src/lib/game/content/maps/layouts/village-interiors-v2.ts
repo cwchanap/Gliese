@@ -20,6 +20,7 @@ export interface VillageInteriorLayout {
 	readonly npcApproaches: Readonly<
 		Record<string, { readonly npc: LayoutPoint; readonly approach: LayoutPoint }>
 	>;
+	readonly ambientActivity?: Readonly<Record<string, LayoutPoint>>;
 	readonly propZones: Readonly<Record<string, LayoutRect>>;
 	readonly propCollisions: Readonly<Record<string, LayoutRect>>;
 }
@@ -175,6 +176,10 @@ export const VILLAGE_INTERIOR_LAYOUTS = {
 		npcApproaches: {
 			guildMaster: { npc: point(800, 144), approach: point(800, 184) },
 			quartermaster: { npc: point(816, 528), approach: point(816, 568) }
+		},
+		ambientActivity: {
+			'guild-hall-member-west': point(160, 592),
+			'guild-hall-member-east': point(912, 368)
 		},
 		propZones: {
 			recordsShelves: rect(80, 80, 112, 176),

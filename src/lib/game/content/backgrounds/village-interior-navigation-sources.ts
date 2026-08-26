@@ -6,5 +6,9 @@ export const VILLAGE_INTERIOR_NAVIGATION_SOURCES: readonly NavigationMaskSource[
 	buildVillageInteriorNavigationSource({
 		mapId: 'hero-house',
 		layout: VILLAGE_INTERIOR_LAYOUTS['hero-house']
+	}),
+	buildVillageInteriorNavigationSource({
+		mapId: 'guild-hall',
+		layout: VILLAGE_INTERIOR_LAYOUTS['guild-hall']
 	})
 ]);

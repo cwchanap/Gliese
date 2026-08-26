@@ -718,6 +718,8 @@ export const guildHallMap: WorldMapDefinition = addEnglishMapText({
 	height: guildHallLayout.heightTiles,
 	spawnDirection: 'up',
 	spawn: { ...guildHallLayout.spawn },
+	navigationGrid: GENERATED_NAVIGATION_GRIDS['guild-hall-navigation'],
+	navigationGridOwnedSources: VILLAGE_INTERIOR_NAVIGATION_OWNED_SOURCES,
 	groundPatches: guildHallGroundPatches,
 	blockers: guildHallBlockers,
 	transitions: [
@@ -796,15 +798,13 @@ export const guildHallMap: WorldMapDefinition = addEnglishMapText({
 	ambientNpcs: [
 		{
 			id: 'guild-hall-member-west',
-			x: 160,
-			y: 544,
+			...guildHallLayout.ambientActivity['guild-hall-member-west'],
 			frameName: 'quartermasterNpc',
 			role: 'guild-member'
 		},
 		{
 			id: 'guild-hall-member-east',
-			x: 704,
-			y: 368,
+			...guildHallLayout.ambientActivity['guild-hall-member-east'],
 			frameName: 'miraItemShopNpc',
 			role: 'guild-member'
 		}
