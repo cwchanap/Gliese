@@ -752,16 +752,28 @@ export const guildHallMap: WorldMapDefinition = addEnglishMapText({
 	interiorProps: [
 		{
 			...toMapRect('guild-hall-records-shelves', guildHallLayout.propZones.recordsShelves),
-			frameName: 'bookshelf'
+			frameName: 'bookshelf',
+			collision: toMapRect(
+				'guild-hall-records-shelves-collision',
+				guildHallLayout.propCollisions.recordsShelves
+			)
 		},
 		{
 			...toMapRect('guild-hall-notice-board', guildHallLayout.propZones.questBoardRecordsDesk),
-			frameName: 'noticeBoard'
+			frameName: 'noticeBoard',
+			collision: toMapRect(
+				'guild-hall-notice-board-collision',
+				guildHallLayout.propCollisions.questBoardRecordsDesk
+			)
 		},
 		{
 			...toMapRect('guild-hall-common-table', guildHallLayout.propZones.commonTableSeating),
 			frameName: 'table',
-			depth: 'furniture'
+			depth: 'furniture',
+			collision: toMapRect(
+				'guild-hall-common-table-collision',
+				guildHallLayout.propCollisions.commonTableSeating
+			)
 		},
 		{
 			...toMapRect('guild-hall-master-desk', guildHallLayout.propZones.guildMasterStation),
@@ -775,7 +787,11 @@ export const guildHallMap: WorldMapDefinition = addEnglishMapText({
 		},
 		{
 			...toMapRect('guild-hall-training-equipment', guildHallLayout.propZones.trainingEquipment),
-			frameName: 'weaponRack'
+			frameName: 'weaponRack',
+			collision: toMapRect(
+				'guild-hall-training-equipment-collision',
+				guildHallLayout.propCollisions.trainingEquipment
+			)
 		},
 		{
 			...toMapRect(

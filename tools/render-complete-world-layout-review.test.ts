@@ -11,6 +11,7 @@ import {
 	animationPackAsset,
 	environmentDressingAsset,
 	interiorPropAsset,
+	npcPackAsset,
 	terrainTilesAsset
 } from '$lib/game/content/assets';
 import { COMPLETE_WORLD_MAP_IDS } from '$lib/game/content/maps/layouts/complete-world-layout-foundation';
@@ -93,11 +94,17 @@ async function createRepositoryRoot(): Promise<string> {
 	return root;
 }
 
-async function copyLegacyRendererAssets(repositoryRoot: string): Promise<void> {
+async function copyLegacyRendererAssets(
+	repositoryRoot: string,
+	includeNpcPack = false
+): Promise<void> {
 	const assetRoot = join(repositoryRoot, 'public/game/assets');
 	await mkdir(assetRoot, { recursive: true });
+	const assetPaths = includeNpcPack
+		? [...legacyRendererAssetPaths, npcPackAsset.path]
+		: legacyRendererAssetPaths;
 	await Promise.all(
-		legacyRendererAssetPaths.map((path) =>
+		assetPaths.map((path) =>
 			copyFile(
 				resolve(process.cwd(), 'public', path.slice(1)),
 				join(assetRoot, path.slice(1).replace('game/assets/', ''))
@@ -106,23 +113,34 @@ async function copyLegacyRendererAssets(repositoryRoot: string): Promise<void> {
 	);
 }
 
-async function writeHeroHouseManifest(
+async function writeInteriorManifest(
 	repositoryRoot: string,
 	fileStem: string,
-	background: { readonly r: number; readonly g: number; readonly b: number }
+	background: { readonly r: number; readonly g: number; readonly b: number },
+	options: {
+		readonly mapId?: 'hero-house' | 'guild-hall';
+		readonly width?: number;
+		readonly height?: number;
+		readonly foreground?: Buffer;
+	} = {}
 ): Promise<{
 	readonly manifestPath: string;
 	readonly assetPath: string;
 }> {
+	const mapId = options.mapId ?? 'hero-house';
+	const width = options.width ?? 704;
+	const height = options.height ?? 576;
 	const manifestRoot = join(repositoryRoot, 'src/lib/game/content/backgrounds/manifests');
-	const assetRoot = join(repositoryRoot, 'public/game/assets/interiors/hero-house');
+	const assetRoot = join(repositoryRoot, 'public/game/assets/interiors', mapId);
 	const manifestPath = join(manifestRoot, `${fileStem}.json`);
 	const assetPath = join(assetRoot, `${fileStem}.png`);
-	const runtimeAssetPath = `/game/assets/interiors/hero-house/${fileStem}.png`;
+	const foregroundPath = join(assetRoot, `${fileStem}-foreground.png`);
+	const runtimeAssetPath = `/game/assets/interiors/${mapId}/${fileStem}.png`;
+	const runtimeForegroundPath = `/game/assets/interiors/${mapId}/${fileStem}-foreground.png`;
 	const assetBytes = await sharp({
 		create: {
-			width: 704,
-			height: 576,
+			width,
+			height,
 			channels: 4,
 			background: { ...background, alpha: 1 }
 		}
@@ -133,24 +151,35 @@ async function writeHeroHouseManifest(
 	await mkdir(manifestRoot, { recursive: true });
 	await mkdir(assetRoot, { recursive: true });
 	await writeFile(assetPath, assetBytes);
+	if (options.foreground) await writeFile(foregroundPath, options.foreground);
 	await writeFile(
 		manifestPath,
 		`${JSON.stringify(
 			{
 				version: 1,
-				mapId: 'hero-house',
-				dimensionsPx: { width: 704, height: 576 },
+				mapId,
+				dimensionsPx: { width, height },
 				base: {
 					id: `${fileStem}-base`,
 					textureKey: `${fileStem}-base`,
 					path: runtimeAssetPath,
 					sha256: sha256(assetBytes)
 				},
+				...(options.foreground
+					? {
+							foreground: {
+								id: `${fileStem}-foreground`,
+								textureKey: `${fileStem}-foreground`,
+								path: runtimeForegroundPath,
+								sha256: sha256(options.foreground)
+							}
+						}
+					: {}),
 				navigation: {
-					gridId: 'hero-house-navigation',
+					gridId: `${mapId}-navigation`,
 					cellSizePx: 16,
-					widthCells: 44,
-					heightCells: 36,
+					widthCells: width / 16,
+					heightCells: height / 16,
 					clearancePx: 12,
 					source: 'layout'
 				}
@@ -160,6 +189,20 @@ async function writeHeroHouseManifest(
 		)}\n`
 	);
 	return { manifestPath, assetPath };
+}
+
+async function createSinglePixelForeground(
+	width: number,
+	height: number,
+	x: number,
+	y: number
+): Promise<Buffer> {
+	const data = Buffer.alloc(width * height * 4);
+	const offset = (y * width + x) * 4;
+	data.set([239, 48, 24, 255], offset);
+	return sharp(data, { raw: { width, height, channels: 4 } })
+		.png()
+		.toBuffer();
 }
 
 function sha256(bytes: Buffer): string {
@@ -386,7 +429,7 @@ describe('complete world layout review renderer', () => {
 
 	it('renders painted proof from an isolated root without colliding with a real Hero House manifest', async () => {
 		const existingRepositoryRoot = await createRepositoryRoot();
-		const existing = await writeHeroHouseManifest(existingRepositoryRoot, 'hero-house', {
+		const existing = await writeInteriorManifest(existingRepositoryRoot, 'hero-house', {
 			r: 211,
 			g: 37,
 			b: 149
@@ -395,7 +438,7 @@ describe('complete world layout review renderer', () => {
 		const existingAssetBytes = await readFile(existing.assetPath);
 
 		const fixtureRepositoryRoot = await createRepositoryRoot();
-		await writeHeroHouseManifest(fixtureRepositoryRoot, 'painted-proof', {
+		await writeInteriorManifest(fixtureRepositoryRoot, 'painted-proof', {
 			r: 64,
 			g: 96,
 			b: 80
@@ -522,7 +565,7 @@ describe('complete world layout review renderer', () => {
 
 	it('generates live-character composition from the checked-in hero atlas at spawn and room samples', async () => {
 		const repositoryRoot = await createRepositoryRoot();
-		await writeHeroHouseManifest(repositoryRoot, 'painted-proof', {
+		await writeInteriorManifest(repositoryRoot, 'painted-proof', {
 			r: 64,
 			g: 96,
 			b: 80
@@ -617,9 +660,171 @@ describe('complete world layout review renderer', () => {
 		expect(second).toEqual(first);
 	});
 
+	it('composes every Guild Hall live actor from the checked-in atlases at runtime sizes', async () => {
+		const repositoryRoot = await createRepositoryRoot();
+		await writeInteriorManifest(
+			repositoryRoot,
+			'painted-proof',
+			{ r: 64, g: 96, b: 80 },
+			{ mapId: 'guild-hall', width: 1024, height: 832 }
+		);
+		await copyLegacyRendererAssets(repositoryRoot, true);
+		const outputRoot = await createOutputRoot();
+
+		await renderCompleteWorldLayoutReview({
+			outputRoot,
+			check: false,
+			map: 'guild-hall',
+			repositoryRoot
+		});
+
+		const liveBytes = await readFile(join(outputRoot, 'guild-hall/live-character-composition.png'));
+		const { info: liveInfo } = await readRgba(liveBytes);
+		expect({ width: liveInfo.width, height: liveInfo.height }).toEqual({
+			width: 1024,
+			height: 832
+		});
+
+		const guildHall = maps['guild-hall'];
+		const heroFrameName = actorAnimationAssets.hero.clips.idle.frames[0]!;
+		const actors = [
+			{
+				id: 'hero',
+				x: guildHall.spawn.x,
+				y: guildHall.spawn.y,
+				assetPath: 'animation-pack.png',
+				frame: animationPackAsset.frames[heroFrameName],
+				displaySize: actorAnimationAssets.hero.displaySize
+			},
+			...(guildHall.npcs ?? []).map((npc) => ({
+				id: npc.id,
+				x: npc.x,
+				y: npc.y,
+				assetPath: 'npc-pack.png',
+				frame: npcPackAsset.frames[npc.frameName as keyof typeof npcPackAsset.frames],
+				displaySize: { width: 96, height: 87 }
+			})),
+			...(guildHall.ambientNpcs ?? []).map((npc) => ({
+				id: npc.id,
+				x: npc.x,
+				y: npc.y,
+				assetPath: 'npc-pack.png',
+				frame: npcPackAsset.frames[npc.frameName as keyof typeof npcPackAsset.frames],
+				displaySize: { width: 96, height: 87 }
+			}))
+		];
+		expect(actors.map(({ id }) => id)).toEqual([
+			'hero',
+			'guild-master',
+			'guild-quartermaster',
+			'guild-hall-member-west',
+			'guild-hall-member-east'
+		]);
+
+		for (const actor of actors) {
+			const source = await readFile(join(repositoryRoot, 'public/game/assets', actor.assetPath));
+			const sprite = await sharp(source)
+				.extract({
+					left: actor.frame.x,
+					top: actor.frame.y,
+					width: actor.frame.w,
+					height: actor.frame.h
+				})
+				.resize(actor.displaySize)
+				.png()
+				.toBuffer();
+			const expected = await sharp({
+				create: {
+					width: actor.displaySize.width,
+					height: actor.displaySize.height,
+					channels: 4,
+					background: { r: 64, g: 96, b: 80, alpha: 1 }
+				}
+			})
+				.composite([{ input: sprite, left: 0, top: 0 }])
+				.png()
+				.toBuffer();
+			const actual = await sharp(liveBytes)
+				.extract({
+					left: Math.round(actor.x - actor.displaySize.width / 2),
+					top: Math.round(actor.y - actor.displaySize.height / 2),
+					width: actor.displaySize.width,
+					height: actor.displaySize.height
+				})
+				.png()
+				.toBuffer();
+			expect((await readRgba(actual)).data).toEqual((await readRgba(expected)).data);
+		}
+	});
+
+	it('composes a declared foreground after actors and keeps alpha proof deterministic', async () => {
+		const repositoryRoot = await createRepositoryRoot();
+		const heroFrameName = actorAnimationAssets.hero.clips.idle.frames[0]!;
+		const heroFrame = animationPackAsset.frames[heroFrameName];
+		const heroSource = await readFile(
+			resolve(process.cwd(), 'public/game/assets/animation-pack.png')
+		);
+		const heroPixels = await readRgba(
+			await sharp(heroSource)
+				.extract({
+					left: heroFrame.x,
+					top: heroFrame.y,
+					width: heroFrame.w,
+					height: heroFrame.h
+				})
+				.resize(actorAnimationAssets.hero.displaySize)
+				.png()
+				.toBuffer()
+		);
+		const opaqueHeroPixel = firstOpaquePixel(
+			heroPixels.data,
+			heroPixels.info.width,
+			heroPixels.info.height
+		);
+		expect(opaqueHeroPixel.value).not.toEqual([239, 48, 24, 255]);
+		const guildHall = maps['guild-hall'];
+		const foregroundX = Math.round(
+			guildHall.spawn.x - actorAnimationAssets.hero.displaySize.width / 2 + opaqueHeroPixel.x
+		);
+		const foregroundY = Math.round(
+			guildHall.spawn.y - actorAnimationAssets.hero.displaySize.height / 2 + opaqueHeroPixel.y
+		);
+		const foreground = await createSinglePixelForeground(1024, 832, foregroundX, foregroundY);
+		await writeInteriorManifest(
+			repositoryRoot,
+			'painted-proof',
+			{ r: 64, g: 96, b: 80 },
+			{ mapId: 'guild-hall', width: 1024, height: 832, foreground }
+		);
+		await copyLegacyRendererAssets(repositoryRoot, true);
+		const outputRoot = await createOutputRoot();
+
+		const first = await renderCompleteWorldLayoutReview({
+			outputRoot,
+			check: false,
+			map: 'guild-hall',
+			repositoryRoot
+		});
+		const liveBytes = await readFile(join(outputRoot, 'guild-hall/live-character-composition.png'));
+		const { data: livePixels, info: liveInfo } = await readRgba(liveBytes);
+		expect(pixel(livePixels, liveInfo.width, foregroundX, foregroundY)).toEqual([239, 48, 24, 255]);
+
+		const foregroundAlpha = await readFile(join(outputRoot, 'guild-hall/foreground-alpha.png'));
+		expect(foregroundAlpha).toEqual(
+			await sharp(foreground).ensureAlpha().extractChannel(3).png().toBuffer()
+		);
+		const second = await renderCompleteWorldLayoutReview({
+			outputRoot,
+			check: true,
+			map: 'guild-hall',
+			repositoryRoot
+		});
+		expect(second).toEqual(first);
+	});
+
 	it('fails painted proof rendering when the checked-in animation atlas is missing', async () => {
 		const repositoryRoot = await createRepositoryRoot();
-		await writeHeroHouseManifest(repositoryRoot, 'painted-proof', {
+		await writeInteriorManifest(repositoryRoot, 'painted-proof', {
 			r: 64,
 			g: 96,
 			b: 80

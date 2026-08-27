@@ -1235,9 +1235,9 @@ describe('BootScene', () => {
 			await import('$lib/game/content/backgrounds/meadow-entry-painted-v2-runtime');
 		const { VILLAGE_INTERIOR_PACKAGES } =
 			await import('$lib/game/content/backgrounds/village-interior-packages');
-		const heroHousePackage = VILLAGE_INTERIOR_PACKAGES.find(
-			({ id }) => id === 'hero-house-painted'
-		)!;
+		const interiorPackages = VILLAGE_INTERIOR_PACKAGES;
+		const interiorAssets = interiorPackages.flatMap(({ assets }) => assets);
+		const interiorPackageIds = interiorPackages.map(({ id }) => id);
 		const { REGIONAL_BACKGROUND_RENDERER_DIAGNOSTIC_EVENT } =
 			await import('$lib/game/phaser/renderer-diagnostics');
 		target.target.addEventListener(REGIONAL_BACKGROUND_RENDERER_DIAGNOSTIC_EVENT, (event) => {
@@ -1257,11 +1257,11 @@ describe('BootScene', () => {
 			const interiorCalls = vi
 				.mocked(scene.load.image)
 				.mock.calls.filter(([, path]) => String(path).includes('/game/assets/interiors/'));
-			expect(interiorCalls).toEqual(heroHousePackage.assets.map(({ key, path }) => [key, path]));
+			expect(interiorCalls).toEqual(interiorAssets.map(({ key, path }) => [key, path]));
 			for (const asset of MEADOW_ENTRY_PAINTED_MODE_COMPLETE.assets) {
 				scene.load.emit('filecomplete', asset.key, 'image', {});
 			}
-			for (const asset of heroHousePackage.assets) {
+			for (const asset of interiorAssets) {
 				scene.load.emit('filecomplete', asset.key, 'image', {});
 			}
 			scene.load.emit('complete');
@@ -1269,14 +1269,14 @@ describe('BootScene', () => {
 			expect(diagnostics).toEqual([
 				{
 					renderer: 'webgl',
-					packageIds: ['hero-house-painted', 'meadow-entry-painted-v2-complete'],
+					packageIds: [...interiorPackageIds, 'meadow-entry-painted-v2-complete'].sort(),
 					requiredAssetKeys: [
 						...MEADOW_ENTRY_PAINTED_MODE_COMPLETE.assets.map(({ key }) => key),
-						...heroHousePackage.assets.map(({ key }) => key)
+						...interiorAssets.map(({ key }) => key)
 					].sort(),
 					completedAssetKeys: [
 						...MEADOW_ENTRY_PAINTED_MODE_COMPLETE.assets.map(({ key }) => key),
-						...heroHousePackage.assets.map(({ key }) => key)
+						...interiorAssets.map(({ key }) => key)
 					].sort(),
 					maxTextureSize: 4096,
 					regionalBackgroundLoadMs: expect.any(Number)
@@ -1296,9 +1296,9 @@ describe('BootScene', () => {
 			await import('$lib/game/content/backgrounds/meadow-entry-painted-v2-runtime');
 		const { VILLAGE_INTERIOR_PACKAGES } =
 			await import('$lib/game/content/backgrounds/village-interior-packages');
-		const heroHousePackage = VILLAGE_INTERIOR_PACKAGES.find(
-			({ id }) => id === 'hero-house-painted'
-		)!;
+		const interiorPackages = VILLAGE_INTERIOR_PACKAGES;
+		const interiorAssets = interiorPackages.flatMap(({ assets }) => assets);
+		const interiorPackageIds = interiorPackages.map(({ id }) => id);
 		const { REGIONAL_BACKGROUND_RENDERER_DIAGNOSTIC_EVENT } =
 			await import('$lib/game/phaser/renderer-diagnostics');
 		const target = installHudCommandTarget();
@@ -1322,26 +1322,26 @@ describe('BootScene', () => {
 			const interiorCalls = vi
 				.mocked(scene.load.image)
 				.mock.calls.filter(([, path]) => String(path).includes('/game/assets/interiors/'));
-			expect(interiorCalls).toEqual(heroHousePackage.assets.map(({ key, path }) => [key, path]));
-			expect(new Set(interiorCalls.map(([key]) => key)).size).toBe(1);
+			expect(interiorCalls).toEqual(interiorAssets.map(({ key, path }) => [key, path]));
+			expect(new Set(interiorCalls.map(([key]) => key)).size).toBe(interiorAssets.length);
 
 			for (const asset of MEADOW_ENTRY_PAINTED_MODE_COMPLETE.assets) {
 				scene.load.emit('filecomplete', asset.key, 'image', {});
 			}
-			for (const asset of heroHousePackage.assets) {
+			for (const asset of interiorAssets) {
 				scene.load.emit('filecomplete', asset.key, 'image', {});
 			}
 			scene.load.emit('complete');
 
 			expect(diagnostics[0]).toMatchObject({
-				packageIds: ['hero-house-painted', 'meadow-entry-painted-v2-complete'],
+				packageIds: [...interiorPackageIds, 'meadow-entry-painted-v2-complete'].sort(),
 				requiredAssetKeys: [
 					...MEADOW_ENTRY_PAINTED_MODE_COMPLETE.assets.map(({ key }) => key),
-					...heroHousePackage.assets.map(({ key }) => key)
+					...interiorAssets.map(({ key }) => key)
 				].sort(),
 				completedAssetKeys: [
 					...MEADOW_ENTRY_PAINTED_MODE_COMPLETE.assets.map(({ key }) => key),
-					...heroHousePackage.assets.map(({ key }) => key)
+					...interiorAssets.map(({ key }) => key)
 				].sort()
 			});
 		} finally {
@@ -3559,6 +3559,133 @@ describe('WorldScene', () => {
 				status: 'missing-texture',
 				observedDimensions: null
 			});
+		} finally {
+			target.restore();
+		}
+	});
+
+	it('renders the painted Guild Hall base and foreground at the exact map transform', async () => {
+		const { VILLAGE_INTERIOR_PACKAGES } =
+			await import('$lib/game/content/backgrounds/village-interior-packages');
+		const guildHallPackage = VILLAGE_INTERIOR_PACKAGES.find(
+			({ id }) => id === 'guild-hall-painted'
+		);
+		if (!guildHallPackage) throw new Error('Guild Hall painted package is not registered');
+		for (const background of guildHallPackage.backgrounds) {
+			phaserState.regionalBackgroundTextureMocks.set(background.textureKey, {
+				key: background.textureKey,
+				source: [{ width: background.width, height: background.height }],
+				get: vi.fn(() => ({ cutWidth: background.width, cutHeight: background.height }))
+			});
+		}
+		const target = installPlaneDiagnosticListener();
+		const { WorldScene } = await import('./WorldScene');
+		const scene = new WorldScene();
+
+		try {
+			scene.create({ mapId: 'guild-hall' });
+
+			const backgroundMarkers = phaserState.imageMarkers.filter((marker) =>
+				guildHallPackage.backgrounds.some(({ textureKey }) => textureKey === marker.texture)
+			);
+			expect(backgroundMarkers).toHaveLength(2);
+			for (const background of guildHallPackage.backgrounds) {
+				const marker = backgroundMarkers.find(({ texture }) => texture === background.textureKey);
+				expect(marker).toMatchObject({
+					x: 512,
+					y: 416,
+					texture: background.textureKey
+				});
+				expect(marker?.setOrigin).toHaveBeenCalledWith(0.5, 0.5);
+				expect(marker?.setDisplaySize).toHaveBeenCalledWith(1024, 832);
+			}
+			const baseMarker = backgroundMarkers.find(
+				({ texture }) => texture === 'guild-hall-painted-base'
+			);
+			const foregroundMarker = backgroundMarkers.find(
+				({ texture }) => texture === 'guild-hall-painted-foreground'
+			);
+			expect(baseMarker?.setDepth).toHaveBeenCalledWith(-9);
+			expect(foregroundMarker?.setDepth).toHaveBeenCalledWith(100.0001);
+			expect(phaserState.imageMarkers.indexOf(baseMarker!)).toBeLessThan(
+				phaserState.imageMarkers.indexOf(foregroundMarker!)
+			);
+
+			expect(scene.make.tilemap).not.toHaveBeenCalled();
+			expect(phaserState.tileSpriteMarkers).toHaveLength(0);
+			expect(
+				phaserState.imageMarkers.filter(({ texture }) => texture === 'interior-props')
+			).toHaveLength(0);
+			expect(
+				phaserState.imageMarkers.filter(({ texture }) => texture === 'environment-dressing')
+			).toHaveLength(0);
+			expect(target.diagnostics[0]).toMatchObject({
+				mapId: 'guild-hall',
+				packageId: 'guild-hall-painted',
+				presentationMode: 'painted',
+				requiredBackgroundIds: guildHallPackage.backgrounds.map(({ id }) => id),
+				selectedBackgroundIds: guildHallPackage.backgrounds.map(({ id }) => id),
+				successfulBackgroundIds: guildHallPackage.backgrounds.map(({ id }) => id)
+			});
+		} finally {
+			target.restore();
+		}
+	});
+
+	it('falls back to every Guild Hall legacy overlay when its foreground is missing', async () => {
+		const { VILLAGE_INTERIOR_PACKAGES } =
+			await import('$lib/game/content/backgrounds/village-interior-packages');
+		const guildHallPackage = VILLAGE_INTERIOR_PACKAGES.find(
+			({ id }) => id === 'guild-hall-painted'
+		);
+		if (!guildHallPackage) throw new Error('Guild Hall painted package is not registered');
+		const base = guildHallPackage.backgrounds.find(({ plane }) => plane === 'base');
+		const foreground = guildHallPackage.backgrounds.find(({ plane }) => plane === 'foreground');
+		if (!base || !foreground) throw new Error('Guild Hall painted planes are incomplete');
+		for (const background of [base, foreground]) {
+			phaserState.regionalBackgroundTextureMocks.set(background.textureKey, {
+				key: background.textureKey,
+				source: [{ width: background.width, height: background.height }],
+				get: vi.fn(() => ({ cutWidth: background.width, cutHeight: background.height }))
+			});
+		}
+		phaserState.missingTextureKeys.add(foreground.textureKey);
+		const target = installPlaneDiagnosticListener();
+		const { WorldScene } = await import('./WorldScene');
+		const scene = new WorldScene();
+
+		try {
+			scene.create({ mapId: 'guild-hall' });
+
+			const baseMarker = phaserState.imageMarkers.find(
+				({ texture }) => texture === base.textureKey
+			);
+			expect(baseMarker?.destroy).toHaveBeenCalledOnce();
+			expect(
+				phaserState.imageMarkers.filter(
+					({ texture, destroy }) =>
+						(texture === base.textureKey || texture === foreground.textureKey) &&
+						destroy.mock.calls.length === 0
+				)
+			).toHaveLength(0);
+			expect(scene.make.tilemap).toHaveBeenCalledOnce();
+			expect(phaserState.tileSpriteMarkers).toHaveLength(guildHallMap.blockers?.length ?? 0);
+			expect(
+				phaserState.imageMarkers.filter(({ texture }) => texture === 'interior-props')
+			).toHaveLength(guildHallMap.interiorProps?.length ?? 0);
+			expect(target.diagnostics[0]).toMatchObject({
+				mapId: 'guild-hall',
+				packageId: null,
+				presentationMode: 'fallback',
+				requiredBackgroundIds: guildHallPackage.backgrounds.map(({ id }) => id),
+				selectedBackgroundIds: [],
+				successfulBackgroundIds: [],
+				selectedFallbackBlockerIds: guildHallMap.blockers?.map(({ id }) => id)
+			});
+			expect(target.diagnostics[0]?.entries.map(({ status }) => status)).toEqual([
+				'rendered',
+				'missing-texture'
+			]);
 		} finally {
 			target.restore();
 		}

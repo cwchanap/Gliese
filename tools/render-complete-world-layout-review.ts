@@ -10,6 +10,7 @@ import {
 	environmentDressingAsset,
 	getGroundFrameName,
 	interiorPropAsset,
+	npcPackAsset,
 	terrainTilesAsset
 } from '$lib/game/content/assets';
 import { PLAYER_COLLISION_RADIUS } from '$lib/game/core/collision';
@@ -1091,7 +1092,8 @@ async function renderLegacyInteriorPng(
 async function renderLiveCharacterComposition(
 	mapId: VillageInteriorMapId,
 	base: Buffer,
-	repositoryRoot: string
+	repositoryRoot: string,
+	foreground?: Buffer
 ): Promise<Buffer> {
 	const atlasPath = interiorImagePath(animationPackAsset.path, repositoryRoot);
 	let atlas: Buffer;
@@ -1158,20 +1160,62 @@ async function renderLiveCharacterComposition(
 		assert(point !== undefined, `${mapId} room has no walkable proof point: ${roomId}`);
 		points.push(point);
 	}
+	const heroPoints = mapId === 'guild-hall' ? [points[0]!] : points;
 
 	const baseMetadata = await sharp(base).metadata();
 	assert(
 		baseMetadata.width !== undefined && baseMetadata.height !== undefined,
 		`${mapId} painted base dimensions are unavailable`
 	);
+	const npcComposites: { input: Buffer; left: number; top: number }[] = [];
+	if (mapId === 'guild-hall') {
+		const npcPackPath = interiorImagePath(npcPackAsset.path, repositoryRoot);
+		let npcAtlas: Buffer;
+		try {
+			npcAtlas = await readFile(npcPackPath);
+		} catch (error) {
+			throw new Error(
+				`${mapId} live-character composition requires NPC atlas: ${npcPackAsset.path}`,
+				{ cause: error }
+			);
+		}
+		const npcAtlasMetadata = await sharp(npcAtlas).metadata();
+		const npcDisplaySize = { width: 96, height: 87 } as const;
+		for (const npc of [...(map.npcs ?? []), ...(map.ambientNpcs ?? [])]) {
+			assert(
+				npc.frameName in npcPackAsset.frames,
+				`${mapId} live-character composition requires NPC-pack frame: ${npc.frameName}`
+			);
+			const frame = npcPackAsset.frames[npc.frameName as keyof typeof npcPackAsset.frames];
+			assert(
+				npcAtlasMetadata.width !== undefined &&
+					npcAtlasMetadata.height !== undefined &&
+					frame.x + frame.w <= npcAtlasMetadata.width &&
+					frame.y + frame.h <= npcAtlasMetadata.height,
+				`${mapId} NPC frame is outside NPC atlas: ${npc.frameName}`
+			);
+			const sprite = await sharp(npcAtlas)
+				.extract({ left: frame.x, top: frame.y, width: frame.w, height: frame.h })
+				.resize(npcDisplaySize)
+				.png()
+				.toBuffer();
+			npcComposites.push({
+				input: sprite,
+				left: Math.round(npc.x - npcDisplaySize.width / 2),
+				top: Math.round(npc.y - npcDisplaySize.height / 2)
+			});
+		}
+	}
 	return sharp(base)
-		.composite(
-			points.map((point) => ({
+		.composite([
+			...heroPoints.map((point) => ({
 				input: hero,
 				left: Math.round(point.x - heroAnimation.displaySize.width / 2),
 				top: Math.round(point.y - heroAnimation.displaySize.height / 2)
-			}))
-		)
+			})),
+			...npcComposites,
+			...(foreground ? [{ input: foreground, left: 0, top: 0 }] : [])
+		])
 		.png()
 		.toBuffer();
 }
@@ -1187,11 +1231,14 @@ async function renderInteriorPaintedArtifacts(
 	await validateVillageInteriorManifest(manifest, repositoryRoot);
 	const layoutView = interiorMapView(mapId);
 	const base = await readFile(interiorImagePath(manifest.base.path, repositoryRoot));
+	const foreground = manifest.foreground
+		? await readFile(interiorImagePath(manifest.foreground.path, repositoryRoot))
+		: undefined;
 	const artifacts: RenderedArtifact[] = [
 		{ path: `${mapId}/painted-base.png`, bytes: await sharp(base).png().toBuffer() },
 		{
 			path: `${mapId}/live-character-composition.png`,
-			bytes: await renderLiveCharacterComposition(mapId, base, repositoryRoot)
+			bytes: await renderLiveCharacterComposition(mapId, base, repositoryRoot, foreground)
 		},
 		{
 			path: `${mapId}/collision-overlay.png`,
@@ -1205,8 +1252,7 @@ async function renderInteriorPaintedArtifacts(
 			bytes: await composeSvgOverPng(base, renderInteriorAnchorsSvg(mapId, layoutView, false))
 		}
 	];
-	if (manifest.foreground) {
-		const foreground = await readFile(interiorImagePath(manifest.foreground.path, repositoryRoot));
+	if (foreground) {
 		artifacts.push({
 			path: `${mapId}/foreground-alpha.png`,
 			bytes: await sharp(foreground).ensureAlpha().extractChannel(3).png().toBuffer()

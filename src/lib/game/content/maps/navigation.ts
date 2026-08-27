@@ -72,6 +72,12 @@ export function buildMapNavigationObstacles(
 				obstacles.push(buildEscapeAwareRectObstacle(prop.collision.id, prop.collision));
 			}
 		}
+	} else {
+		for (const prop of map.interiorProps ?? []) {
+			if (prop.collision && !containsNavigationCellCentre(map.navigationGrid!, prop.collision)) {
+				obstacles.push(buildEscapeAwareRectObstacle(prop.collision.id, prop.collision));
+			}
+		}
 	}
 
 	const doorCandidates = map.transitions.map((transition) => ({
@@ -134,6 +140,22 @@ function buildEscapeAwareRectObstacle(id: string, rect: MapRect): NavigationObst
 		invalidAtRest: true,
 		escapeOrigin: { x: rect.x, y: rect.y }
 	};
+}
+
+function containsNavigationCellCentre(grid: NavigationGrid, rect: MapRect): boolean {
+	const halfCell = grid.cellSizePx / 2;
+	const left = rect.x - rect.width / 2;
+	const right = rect.x + rect.width / 2;
+	const top = rect.y - rect.height / 2;
+	const bottom = rect.y + rect.height / 2;
+	const column = Math.max(0, Math.ceil((left - halfCell) / grid.cellSizePx));
+	const row = Math.max(0, Math.ceil((top - halfCell) / grid.cellSizePx));
+	return (
+		column < grid.widthCells &&
+		row < grid.heightCells &&
+		column * grid.cellSizePx + halfCell < right &&
+		row * grid.cellSizePx + halfCell < bottom
+	);
 }
 
 function toNavigationBounds(rect: MapRect): NavigationRect {

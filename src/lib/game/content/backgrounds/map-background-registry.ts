@@ -23,5 +23,9 @@ export const MAP_BACKGROUND_DEFAULT_SELECTIONS: Readonly<
 	'hero-house': Object.freeze({
 		packageId: 'hero-house-painted',
 		mode: 'production' as const
+	}),
+	'guild-hall': Object.freeze({
+		packageId: 'guild-hall-painted',
+		mode: 'production' as const
 	})
 });

@@ -457,7 +457,29 @@ describe('village interior layout coordinate contracts', () => {
 			'quartermasterStation',
 			'lobbyNoticeBenches'
 		]);
-		expect(Object.keys(layout.propCollisions)).toEqual(['guildMasterDesk', 'quartermasterCounter']);
+		expect(Object.keys(layout.propCollisions)).toEqual([
+			'recordsShelves',
+			'questBoardRecordsDesk',
+			'commonTableSeating',
+			'guildMasterDesk',
+			'trainingEquipment',
+			'quartermasterCounter'
+		]);
+		expect(layout.propCollisions).toEqual({
+			recordsShelves: { x: 80, y: 80, width: 112, height: 176 },
+			questBoardRecordsDesk: { x: 240, y: 144, width: 128, height: 32 },
+			commonTableSeating: { x: 176, y: 448, width: 128, height: 64 },
+			guildMasterDesk: { x: 728, y: 160, width: 144, height: 8 },
+			trainingEquipment: { x: 752, y: 368, width: 96, height: 32 },
+			quartermasterCounter: { x: 696, y: 544, width: 176, height: 8 }
+		});
+		for (const [collisionId, collision] of Object.entries(layout.propCollisions)) {
+			const propZone = layout.propZones[collisionId as keyof typeof layout.propZones];
+			if (propZone)
+				expect(rectContains(propZone, collision), `${collisionId} escapes its prop zone`).toBe(
+					true
+				);
+		}
 		expect(layout.corridors.mainSpine.width).toBeGreaterThanOrEqual(96);
 		expect(layout.corridors.entranceLobby.width).toBeGreaterThanOrEqual(96);
 		expect(layout.corridors.entranceLobby.height).toBeGreaterThanOrEqual(96);

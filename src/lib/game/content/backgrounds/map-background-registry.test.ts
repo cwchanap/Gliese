@@ -12,10 +12,10 @@ import {
 import { applyMapBackgroundPackage } from './map-background-package';
 import { VILLAGE_INTERIOR_NAVIGATION_SOURCES } from './village-interior-navigation-sources';
 import { VILLAGE_INTERIOR_PACKAGES } from './village-interior-packages';
-import { heroHouseMap } from '$lib/game/content/maps';
+import { guildHallMap, heroHouseMap } from '$lib/game/content/maps';
 
 describe('map background registry', () => {
-	it('registers Hero House navigation before painted package approval', () => {
+	it('registers approved interior navigation and painted packages', () => {
 		expect(VILLAGE_INTERIOR_NAVIGATION_SOURCES).toEqual([
 			expect.objectContaining({
 				id: 'hero-house-navigation',
@@ -24,9 +24,18 @@ describe('map background registry', () => {
 				widthCells: 44,
 				heightCells: 36,
 				clearancePx: 12
+			}),
+			expect.objectContaining({
+				id: 'guild-hall-navigation',
+				mapId: 'guild-hall',
+				cellSizePx: 16,
+				widthCells: 64,
+				heightCells: 52,
+				clearancePx: 12
 			})
 		]);
-		expect(VILLAGE_INTERIOR_PACKAGES).toEqual([
+		expect(VILLAGE_INTERIOR_PACKAGES).toHaveLength(2);
+		expect(VILLAGE_INTERIOR_PACKAGES[0]).toEqual(
 			expect.objectContaining({
 				id: 'hero-house-painted',
 				mapId: 'hero-house',
@@ -47,9 +56,47 @@ describe('map background registry', () => {
 					})
 				]
 			})
-		]);
+		);
+		expect(VILLAGE_INTERIOR_PACKAGES[1]).toEqual(
+			expect.objectContaining({
+				id: 'guild-hall-painted',
+				mapId: 'guild-hall',
+				coverage: 'full-map',
+				assets: [
+					{
+						key: 'guild-hall-painted-base',
+						path: '/game/assets/interiors/guild-hall/base.png'
+					},
+					{
+						key: 'guild-hall-painted-foreground',
+						path: '/game/assets/interiors/guild-hall/foreground.png'
+					}
+				],
+				backgrounds: [
+					expect.objectContaining({
+						id: 'guild-hall-painted-base-image',
+						textureKey: 'guild-hall-painted-base',
+						width: 1024,
+						height: 832,
+						plane: 'base'
+					}),
+					expect.objectContaining({
+						id: 'guild-hall-painted-foreground-image',
+						textureKey: 'guild-hall-painted-foreground',
+						width: 1024,
+						height: 832,
+						plane: 'foreground',
+						drawOrder: 1
+					})
+				]
+			})
+		);
 		expect(MAP_BACKGROUND_DEFAULT_SELECTIONS['hero-house']).toEqual({
 			packageId: 'hero-house-painted',
+			mode: 'production'
+		});
+		expect(MAP_BACKGROUND_DEFAULT_SELECTIONS['guild-hall']).toEqual({
+			packageId: 'guild-hall-painted',
 			mode: 'production'
 		});
 		expect(Object.isFrozen(VILLAGE_INTERIOR_NAVIGATION_SOURCES)).toBe(true);
@@ -66,6 +113,10 @@ describe('map background registry', () => {
 			'meadow-entry': MEADOW_ENTRY_DEFAULT_PACKAGE_SELECTION,
 			'hero-house': {
 				packageId: 'hero-house-painted',
+				mode: 'production'
+			},
+			'guild-hall': {
+				packageId: 'guild-hall-painted',
 				mode: 'production'
 			}
 		});
@@ -107,6 +158,39 @@ describe('map background registry', () => {
 			(heroHouseMap.groundPatches?.length ?? 0) +
 				(heroHouseMap.blockers?.length ?? 0) +
 				(heroHouseMap.interiorProps?.length ?? 0)
+		);
+	});
+
+	it('owns every Guild Hall legacy static source as one painted package', () => {
+		const definition = VILLAGE_INTERIOR_PACKAGES.find(({ id }) => id === 'guild-hall-painted');
+		expect(definition).toBeDefined();
+		if (!definition) return;
+
+		const transformed = applyMapBackgroundPackage(guildHallMap, {
+			mode: 'production',
+			definition
+		});
+		expect(transformed.backgroundImages).toEqual(definition.backgrounds);
+
+		for (const source of [
+			...(transformed.groundPatches ?? []),
+			...(transformed.blockers ?? []),
+			...(transformed.interiorProps ?? [])
+		]) {
+			expect(source.visual).toEqual({
+				mode: 'fallback-only',
+				ownerCrops: [
+					{
+						cropId: 'guild-hall-full-map',
+						requiredBackgroundIds: ['guild-hall-painted-base-image']
+					}
+				]
+			});
+		}
+		expect(definition.visualOwners).toHaveLength(
+			(guildHallMap.groundPatches?.length ?? 0) +
+				(guildHallMap.blockers?.length ?? 0) +
+				(guildHallMap.interiorProps?.length ?? 0)
 		);
 	});
 });

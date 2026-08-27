@@ -217,6 +217,62 @@ describe('world-map navigation adapter', () => {
 		]);
 	});
 
+	it('keeps exact obstacles for owned interior props without a cell-centre rasterization', () => {
+		const obstacles = buildMapNavigationObstacles(
+			{
+				...map,
+				blockers: [],
+				fences: [],
+				mapDecor: [],
+				landmarks: [],
+				npcs: [],
+				interiorProps: [
+					{
+						id: 'rasterizable-prop',
+						frameName: 'table',
+						x: 80,
+						y: 80,
+						width: 64,
+						height: 32,
+						collision: {
+							id: 'rasterizable-prop-collision',
+							x: 80,
+							y: 80,
+							width: 48,
+							height: 16
+						}
+					},
+					{
+						id: 'thin-prop',
+						frameName: 'table',
+						x: 200,
+						y: 100,
+						width: 64,
+						height: 16,
+						collision: {
+							id: 'thin-prop-collision',
+							x: 200,
+							y: 100,
+							width: 64,
+							height: 8
+						}
+					}
+				],
+				navigationGrid: createOpenNavigationGrid({
+					id: 'owned-grid',
+					mapId: map.id,
+					cellSizePx: 16,
+					widthCells: map.width * 2,
+					heightCells: map.height * 2
+				}),
+				navigationGridOwnedSources: ['interior-prop']
+			},
+			{ includeInteractableNpcs: false }
+		);
+
+		expect(obstacles.map(({ id }) => id)).toEqual(['thin-prop-collision']);
+	});
+
 	it('keeps fallback obstacles when ownership metadata has no authored grid', () => {
 		const obstacles = buildMapNavigationObstacles(
 			{ ...map, navigationGridOwnedSources: ['blocker', 'map-decor'] },

@@ -1,0 +1,28 @@
+{
+	"version": 1,
+	"mapId": "guild-hall",
+	"dimensionsPx": {
+		"width": 1024,
+		"height": 832
+	},
+	"base": {
+		"id": "guild-hall-painted-base-image",
+		"textureKey": "guild-hall-painted-base",
+		"path": "/game/assets/interiors/guild-hall/base.png",
+		"sha256": "320a18c6e6ebd59ec25fce93d89b10ed3e469812befe316e62b068b4c690163d"
+	},
+	"foreground": {
+		"id": "guild-hall-painted-foreground-image",
+		"textureKey": "guild-hall-painted-foreground",
+		"path": "/game/assets/interiors/guild-hall/foreground.png",
+		"sha256": "4ff46a839dc19bcce9a514cc2da5ec195892971a761574b0754d39ffef92e1f9"
+	},
+	"navigation": {
+		"gridId": "guild-hall-navigation",
+		"cellSizePx": 16,
+		"widthCells": 64,
+		"heightCells": 52,
+		"clearancePx": 12,
+		"source": "layout"
+	}
+}

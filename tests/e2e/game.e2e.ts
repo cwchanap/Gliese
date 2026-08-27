@@ -8,6 +8,7 @@ import {
 } from '../../src/lib/game/content/backgrounds/meadow-entry-painted-v2.generated';
 import type { MeadowEntryPaintedMode } from '../../src/lib/game/content/backgrounds/meadow-entry-painted-v2-runtime';
 import {
+	guildHallMap,
 	heroHouseMap,
 	meadowEntryMap,
 	ruinsCoreMap,
@@ -1682,14 +1683,36 @@ const INTERIOR_GRAYBOX_CASES: readonly InteriorGrayboxCase[] = [
 		steps: [
 			{ label: 'entrance-lobby-spine', point: { x: 512, y: 656 } },
 			{ label: 'common-hall-spine', point: { x: 512, y: 512 } },
-			{ label: 'common-hall-west', point: { x: 400, y: 512 } },
-			{ label: 'common-hall-room', point: { x: 192, y: 512 } },
+			{ label: 'common-hall-west', point: { x: 367, y: 512 } },
+			{ label: 'common-hall-south', point: { x: 367, y: 568 } },
+			{ label: 'common-hall-south-west', point: { x: 112, y: 568 } },
+			{ label: 'common-hall-member-west-staging', point: { x: 112, y: 592 } },
+			{
+				label: 'common-hall-member-west',
+				point: VILLAGE_INTERIOR_LAYOUTS['guild-hall'].ambientActivity['guild-hall-member-west']
+			},
+			{ label: 'common-hall-member-west-return', point: { x: 112, y: 592 } },
+			{ label: 'common-hall-south-west-return', point: { x: 112, y: 568 } },
+			{ label: 'common-hall-south-return', point: { x: 367, y: 568 } },
+			{ label: 'common-hall-west-return', point: { x: 367, y: 512 } },
 			{ label: 'records-hall-spine', point: { x: 512, y: 512 } },
 			{ label: 'records-hall-north', point: { x: 512, y: 208 } },
-			{ label: 'records-hall-west', point: { x: 400, y: 208 } },
-			{ label: 'records-hall-room', point: { x: 192, y: 208 } },
-			{ label: 'guild-master-spine', point: { x: 400, y: 208 } },
-			{ label: 'guild-master-north', point: { x: 512, y: 208 } },
+			{
+				label: 'records-hall-west-corridor',
+				point: { x: 400, y: 208 }
+			},
+			{
+				label: 'records-hall-room-corridor',
+				point: { x: 240, y: 208 }
+			},
+			{
+				label: 'records-hall-west-return',
+				point: { x: 400, y: 208 }
+			},
+			{
+				label: 'records-hall-spine-return',
+				point: { x: 512, y: 208 }
+			},
 			{ label: 'guild-master-approach-spine', point: { x: 512, y: 184 } },
 			{
 				label: 'guild-master-approach',
@@ -1697,9 +1720,14 @@ const INTERIOR_GRAYBOX_CASES: readonly InteriorGrayboxCase[] = [
 				interaction: { speaker: 'Guild Master Arlen' }
 			},
 			{ label: 'training-hall-spine', point: { x: 512, y: 184 } },
-			{ label: 'training-hall-south', point: { x: 512, y: 368 } },
-			{ label: 'training-hall-room', point: { x: 800, y: 368 } },
-			{ label: 'quartermaster-spine', point: { x: 512, y: 368 } },
+			{ label: 'training-hall-south', point: { x: 512, y: 336 } },
+			{ label: 'training-hall-room', point: { x: 912, y: 336 } },
+			{
+				label: 'training-hall-member-east',
+				point: VILLAGE_INTERIOR_LAYOUTS['guild-hall'].ambientActivity['guild-hall-member-east']
+			},
+			{ label: 'training-hall-member-east-return', point: { x: 912, y: 336 } },
+			{ label: 'quartermaster-spine', point: { x: 512, y: 336 } },
 			{ label: 'quartermaster-south', point: { x: 512, y: 568 } },
 			{
 				label: 'quartermaster-approach',
@@ -1839,6 +1867,9 @@ const INTERIOR_GRAYBOX_CASES: readonly InteriorGrayboxCase[] = [
 const HERO_HOUSE_RUNTIME_EVIDENCE_ROOT = resolve(
 	'docs/superpowers/reports/img/hpa-586-interiors-runtime/hero-house'
 );
+const GUILD_HALL_RUNTIME_EVIDENCE_ROOT = resolve(
+	'docs/superpowers/reports/img/hpa-586-interiors-runtime/guild-hall'
+);
 const HERO_HOUSE_COLLISION_IDS = [
 	...(heroHouseMap.blockers ?? []).map(({ id }) => id),
 	...(heroHouseMap.fences ?? []).map(({ id }) => id),
@@ -1859,6 +1890,26 @@ const HERO_HOUSE_STATEFUL_OBJECT_IDS = [
 	...(heroHouseMap.combatBounds ?? []).map(({ id }) => id)
 ].sort();
 const HERO_HOUSE_FALLBACK_BLOCKER_IDS = (heroHouseMap.blockers ?? []).map(({ id }) => id);
+const GUILD_HALL_COLLISION_IDS = [
+	...(guildHallMap.blockers ?? []).map(({ id }) => id),
+	...(guildHallMap.fences ?? []).map(({ id }) => id),
+	...(guildHallMap.mapDecor ?? []).flatMap(({ collision }) => (collision ? [collision.id] : [])),
+	...(guildHallMap.interiorProps ?? []).flatMap(({ collision }) =>
+		collision ? [collision.id] : []
+	),
+	...(guildHallMap.landmarks ?? []).map(({ id }) => id)
+].sort();
+const GUILD_HALL_STATEFUL_OBJECT_IDS = [
+	...guildHallMap.transitions.map(({ id }) => id),
+	...(guildHallMap.pickups ?? []).map(({ id }) => id),
+	...(guildHallMap.encounters ?? []).map(({ id }) => id),
+	...(guildHallMap.npcs ?? []).map(({ id }) => id),
+	...(guildHallMap.landmarks ?? []).map(({ id }) => id),
+	...(guildHallMap.ambientNpcs ?? []).map(({ id }) => id),
+	...(guildHallMap.discoveries ?? []).map(({ id }) => id),
+	...(guildHallMap.combatBounds ?? []).map(({ id }) => id)
+].sort();
+const GUILD_HALL_FALLBACK_BLOCKER_IDS = (guildHallMap.blockers ?? []).map(({ id }) => id);
 
 type InteriorNpcApproachBinding = {
 	readonly approachKey: string;
@@ -2212,6 +2263,50 @@ function isGuildHallCommonHallWestStep(
 	step: InteriorGrayboxStep
 ): boolean {
 	return interior.mapId === 'guild-hall' && step.label === 'common-hall-west';
+}
+
+function isGuildHallCommonHallSouthStep(
+	interior: InteriorGrayboxCase,
+	step: InteriorGrayboxStep
+): boolean {
+	return interior.mapId === 'guild-hall' && step.label === 'common-hall-south';
+}
+
+function isGuildHallHorizontalFixedAxisStep(
+	interior: InteriorGrayboxCase,
+	step: InteriorGrayboxStep
+): boolean {
+	return (
+		interior.mapId === 'guild-hall' &&
+		[
+			'records-hall-west-corridor',
+			'records-hall-room-corridor',
+			'records-hall-west-return',
+			'records-hall-spine-return',
+			'training-hall-room',
+			'quartermaster-spine'
+		].includes(step.label)
+	);
+}
+
+function guildHallCommonHallSouthRoutePoints(currentPoint: Point, targetPoint: Point): Point[] {
+	const wall = guildHallAisleWall(GUILD_HALL_COMMON_AISLE_SPEC);
+	const safeX = wall.x - PLAYER_COLLISION_RADIUS - 2 * AXIS_REACH_TOLERANCE - 1;
+	// The preceding {367,512} checkpoint can settle with the unchanged ±18
+	// endpoint residue. Move left to a source-derived x lane before descending
+	// past common-spine-south, then finish at the canonical {367,568} point.
+	const points = [
+		currentPoint,
+		{ x: safeX, y: currentPoint.y },
+		{ x: safeX, y: targetPoint.y },
+		targetPoint
+	];
+	assertTask6InteriorRouteEnvelope(
+		'guild-hall',
+		points,
+		'guild-hall:common-hall-south:canonical-lane'
+	);
+	return points;
 }
 
 function isGuildHallCommonHallRoomStep(
@@ -5485,19 +5580,20 @@ function itemShopDoorwayCrossingRoutePoints(
 	return points;
 }
 
-function assertItemShopFixedAxisRouteContract(
+function assertFixedAxisRouteContract(
 	points: readonly Point[],
 	result: BrowserRouteResult,
 	axis: 'x' | 'y',
 	obstacles: readonly { x: number; y: number; width: number; height: number }[],
-	label: string
+	label: string,
+	expectedMapId = 'item-shop'
 ) {
 	const from = points[0]!;
 	const axisDestination = points[1]!;
 	const fixedCoordinate = axis === 'x' ? 'y' : 'x';
 	expect(from[fixedCoordinate]).toBe(axisDestination[fixedCoordinate]);
 	expect(result.status).toBe('done');
-	expect(result.mapId).toBe('item-shop');
+	expect(result.mapId).toBe(expectedMapId);
 	expect(result.activeKey).toBeNull();
 	const diagnostics = result.diagnostics ?? [];
 	const diagnosticAxes = result.diagnosticAxes ?? [];
@@ -5521,7 +5617,7 @@ function assertItemShopFixedAxisRouteContract(
 		expect(diagnosticAxes).not.toContain(axis);
 		expect(actualPoint[axis]).toBe(from[axis]);
 		for (const diagnostic of diagnostics) {
-			expect(diagnostic.mapId).toBe('item-shop');
+			expect(diagnostic.mapId).toBe(expectedMapId);
 			expect(diagnostic.blocked).toBe(false);
 		}
 		for (const obstacle of obstacles) {
@@ -5537,7 +5633,7 @@ function assertItemShopFixedAxisRouteContract(
 		return;
 	}
 	for (const diagnostic of fixedAxisDiagnostics) {
-		expect(diagnostic.mapId).toBe('item-shop');
+		expect(diagnostic.mapId).toBe(expectedMapId);
 		expect(diagnostic.blocked).toBe(false);
 		// A fixed-axis input preserves its orthogonal coordinate exactly. Do not
 		// invent the route runner's ±18 reach residue on that locked axis.
@@ -5586,6 +5682,96 @@ function assertItemShopFixedAxisRouteContract(
 	}
 }
 
+function guildHallTrainingDoorwayOpenBand() {
+	const layout = VILLAGE_INTERIOR_LAYOUTS['guild-hall'];
+	const trainingSpineNorth = layout.walls.find(
+		({ id }) => id === 'guild-hall-training-spine-north'
+	);
+	const trainingEquipment = layout.propCollisions.trainingEquipment;
+	if (!trainingSpineNorth || !trainingEquipment) {
+		throw new Error('Guild Hall training doorway source geometry is missing');
+	}
+	const expandedWallBottom =
+		trainingSpineNorth.y + trainingSpineNorth.height + PLAYER_COLLISION_RADIUS;
+	const gridCellSizePx = guildHallMap.navigationGrid?.cellSizePx;
+	if (gridCellSizePx === undefined) {
+		throw new Error('Guild Hall navigation grid source is missing');
+	}
+	const minimumOpenY = (Math.floor(expandedWallBottom / gridCellSizePx) + 1) * gridCellSizePx;
+	const maximumOpenY = trainingEquipment.y - PLAYER_COLLISION_RADIUS;
+	expect({ expandedWallBottom, minimumOpenY, maximumOpenY }).toEqual({
+		expandedWallBottom: 332,
+		minimumOpenY: 336,
+		maximumOpenY: 356
+	});
+	expect(minimumOpenY).toBeGreaterThan(expandedWallBottom);
+	expect(minimumOpenY).toBeLessThan(maximumOpenY);
+	return { minimumOpenY, maximumOpenY, trainingSpineNorth, trainingEquipment };
+}
+
+function assertGuildHallTrainingDoorwayBandConvergenceContract(
+	startPoint: Point,
+	result: BrowserRouteResult,
+	label: string
+): Point {
+	const { minimumOpenY, maximumOpenY, trainingSpineNorth, trainingEquipment } =
+		guildHallTrainingDoorwayOpenBand();
+	const obstacles = [
+		...VILLAGE_INTERIOR_LAYOUTS['guild-hall'].walls,
+		...Object.values(VILLAGE_INTERIOR_LAYOUTS['guild-hall'].propCollisions)
+	];
+	const diagnostics = result.diagnostics ?? [];
+	expect(diagnostics.length, `${label} diagnostic count`).toBeGreaterThan(0);
+	expect(result.status, `${label} status`).toBe('done');
+	expect(result.mapId, `${label} map`).toBe('guild-hall');
+	expect(result.activeKey, `${label} active key`).toBeNull();
+	for (const [index, diagnostic] of diagnostics.entries()) {
+		expect(diagnostic.mapId, `${label} diagnostic ${index} map`).toBe('guild-hall');
+		expect(diagnostic.blocked, `${label} diagnostic ${index} blocked`).toBe(false);
+		expect(diagnostic.previousPosition.x, `${label} diagnostic ${index} fixed x`).toBe(
+			startPoint.x
+		);
+		expect(diagnostic.requestedPosition.x, `${label} diagnostic ${index} fixed x`).toBe(
+			startPoint.x
+		);
+		expect(diagnostic.resolvedPosition.x, `${label} diagnostic ${index} fixed x`).toBe(
+			startPoint.x
+		);
+		for (const obstacle of obstacles) {
+			expect(
+				expandedLayoutRectContainsPoint(
+					obstacle,
+					diagnostic.resolvedPosition,
+					PLAYER_COLLISION_RADIUS
+				),
+				`${label} diagnostic ${index} entered ${'id' in obstacle ? obstacle.id : 'prop collision'}`
+			).toBe(false);
+			expect(
+				routeSegmentIntersectsExpandedRect(
+					diagnostic.previousPosition,
+					diagnostic.requestedPosition,
+					obstacle,
+					PLAYER_COLLISION_RADIUS
+				),
+				`${label} diagnostic ${index} swept ${'id' in obstacle ? obstacle.id : 'prop collision'}`
+			).toBe(false);
+		}
+	}
+	const actualPoint = result.position;
+	expect(actualPoint, `${label} final position`).not.toBeNull();
+	if (!actualPoint) throw new Error(`${label} returned no final position`);
+	expect(actualPoint.x, `${label} fixed x`).toBe(startPoint.x);
+	expect(actualPoint.y, `${label} open-band lower bound`).toBeGreaterThan(minimumOpenY);
+	expect(actualPoint.y, `${label} open-band upper bound`).toBeLessThan(maximumOpenY);
+	for (const obstacle of [trainingSpineNorth, trainingEquipment]) {
+		expect(
+			expandedLayoutRectContainsPoint(obstacle, actualPoint, PLAYER_COLLISION_RADIUS),
+			`${label} final point entered ${'id' in obstacle ? obstacle.id : 'training equipment'}`
+		).toBe(false);
+	}
+	return actualPoint;
+}
+
 function assertItemShopDoorwayHorizontalRouteContract(
 	points: readonly Point[],
 	result: BrowserRouteResult,
@@ -5595,7 +5781,7 @@ function assertItemShopDoorwayHorizontalRouteContract(
 	const from = points[0]!;
 	expect(from.y).toBeGreaterThan(minimumOpenY);
 	expect(from.y).toBeLessThan(maximumOpenY);
-	assertItemShopFixedAxisRouteContract(
+	assertFixedAxisRouteContract(
 		points,
 		result,
 		'x',
@@ -5619,13 +5805,7 @@ function assertItemShopSpawnReturnCorridorVerticalRouteContract(
 	expect(verticalFrom.x).toBeGreaterThan(expandedRight);
 	expect(verticalDestination.x).toBe(verticalFrom.x);
 	expect(verticalDestination.y).toBe(544);
-	assertItemShopFixedAxisRouteContract(
-		points,
-		result,
-		'y',
-		[counter],
-		'Item Shop spawn-return-corridor'
-	);
+	assertFixedAxisRouteContract(points, result, 'y', [counter], 'Item Shop spawn-return-corridor');
 }
 
 function assertItemShopSpawnReturnCorridorHorizontalRouteContract(
@@ -5730,7 +5910,7 @@ function assertItemShopServiceReturnWestVerticalRouteContract(
 			PLAYER_COLLISION_RADIUS
 		)
 	).toBe(false);
-	assertItemShopFixedAxisRouteContract(
+	assertFixedAxisRouteContract(
 		points,
 		result,
 		'y',
@@ -7427,10 +7607,15 @@ async function completeGuildMasterQuest(page: Page) {
 async function traverseInteriorForJourney(
 	page: Page,
 	interior: InteriorGrayboxCase,
-	options: { completeGuildMasterQuest?: boolean } = {},
+	options: {
+		completeGuildMasterQuest?: boolean;
+		afterEnter?: () => Promise<void>;
+		afterStep?: (step: InteriorGrayboxStep, point: Point) => Promise<Point | void>;
+	} = {},
 	onRoute?: (label: string, result: BrowserRouteResult) => void
 ): Promise<Point> {
 	await enterInteriorWithTrustedKeyboard(page, interior);
+	await options.afterEnter?.();
 	let currentPoint = interior.spawn;
 	let leavingInteraction = false;
 	for (const [stepIndex, step] of interior.steps.entries()) {
@@ -7484,6 +7669,7 @@ async function traverseInteriorForJourney(
 		const serviceCorridorWestStep = isItemShopServiceCorridorWestStep(interior, step);
 		const villagerHouse1LynnStep = isVillagerHouse1LynnStep(interior, step);
 		const villagerHouse2TomaStep = isVillagerHouse2TomaStep(interior, step);
+		const guildHallHorizontalFixedAxisStep = isGuildHallHorizontalFixedAxisStep(interior, step);
 		if (currentPoint.x !== routeTarget.x || currentPoint.y !== routeTarget.y) {
 			if (doorwayKind) {
 				currentPoint = await convergeItemShopDoorwayToOpenBand(page, currentPoint, doorwayKind);
@@ -7577,50 +7763,64 @@ async function traverseInteriorForJourney(
 																						...spawnReturnCorridorPlan!.vertical,
 																						...spawnReturnCorridorPlan!.horizontal.slice(1)
 																					]
-																				: isGuildHallRecordsRoomStep(interior, step)
-																					? guildHallRecordsRoomRoutePoints(
-																							currentPoint,
-																							checkpoint
-																						)
-																					: isGuildHallGuildMasterSpineStep(interior, step)
-																						? guildHallGuildMasterSpineRoutePoints(
+																				: guildHallHorizontalFixedAxisStep
+																					? [currentPoint, { x: checkpoint.x, y: currentPoint.y }]
+																					: isGuildHallRecordsRoomStep(interior, step)
+																						? guildHallRecordsRoomRoutePoints(
 																								currentPoint,
 																								checkpoint
 																							)
-																						: isGuildHallGuildMasterNorthStep(interior, step)
-																							? guildHallGuildMasterNorthRoutePoints(
+																						: isGuildHallCommonHallSouthStep(interior, step)
+																							? guildHallCommonHallSouthRoutePoints(
 																									currentPoint,
 																									checkpoint
 																								)
-																							: isGuildHallCommonHallRoomStep(interior, step)
-																								? guildHallCommonHallRoomAisleRoutePoints(
+																							: isGuildHallGuildMasterSpineStep(interior, step)
+																								? guildHallGuildMasterSpineRoutePoints(
 																										currentPoint,
 																										checkpoint
 																									)
-																								: isGuildHallRecordsAisleHandoffStep(interior, step)
-																									? guildHallRecordsAisleRoutePoints(
+																								: isGuildHallGuildMasterNorthStep(interior, step)
+																									? guildHallGuildMasterNorthRoutePoints(
 																											currentPoint,
 																											checkpoint
 																										)
-																									: guildHallLobbyReturnStep
-																										? [
+																									: isGuildHallCommonHallRoomStep(interior, step)
+																										? guildHallCommonHallRoomAisleRoutePoints(
 																												currentPoint,
-																												{ x: currentPoint.x, y: checkpoint.y },
 																												checkpoint
-																											]
-																										: leavingInteraction
-																											? [
-																													currentPoint,
-																													{ x: checkpoint.x, y: currentPoint.y },
-																													checkpoint
-																												]
-																											: interiorRoutePoints(
+																											)
+																										: isGuildHallRecordsAisleHandoffStep(
+																													interior,
+																													step
+																											  )
+																											? guildHallRecordsAisleRoutePoints(
 																													currentPoint,
 																													checkpoint
-																												);
+																												)
+																											: guildHallLobbyReturnStep
+																												? [
+																														currentPoint,
+																														{ x: currentPoint.x, y: checkpoint.y },
+																														checkpoint
+																													]
+																												: leavingInteraction
+																													? [
+																															currentPoint,
+																															{
+																																x: checkpoint.x,
+																																y: currentPoint.y
+																															},
+																															checkpoint
+																														]
+																													: interiorRoutePoints(
+																															currentPoint,
+																															checkpoint
+																														);
 			if (
 				(interior.mapId === 'guild-hall' || interior.mapId === 'item-shop') &&
-				!quartermasterSemanticStep
+				!quartermasterSemanticStep &&
+				!guildHallHorizontalFixedAxisStep
 			) {
 				// Quartermaster return points 0->1 and 1->2 are the dedicated
 				// fixed-axis/asymmetric egress legs. Their live diagnostics and
@@ -8064,6 +8264,69 @@ async function traverseInteriorForJourney(
 					);
 					currentPoint = horizontalRouteResult.position;
 				}
+			} else if (guildHallHorizontalFixedAxisStep) {
+				const layout = VILLAGE_INTERIOR_LAYOUTS['guild-hall'];
+				const trainingHallBelowWallStep =
+					step.label === 'training-hall-room' || step.label === 'quartermaster-spine';
+				let fixedAxisStart = currentPoint;
+				if (trainingHallBelowWallStep) {
+					const { minimumOpenY, maximumOpenY } = guildHallTrainingDoorwayOpenBand();
+					if (!(currentPoint.y > minimumOpenY && currentPoint.y < maximumOpenY)) {
+						expect(currentPoint.y).toBeLessThanOrEqual(minimumOpenY);
+						const convergenceTargetY = maximumOpenY - 1;
+						expect(convergenceTargetY).toBeGreaterThan(minimumOpenY);
+						expect(convergenceTargetY).toBeLessThan(maximumOpenY);
+						expect(convergenceTargetY - AXIS_REACH_TOLERANCE).toBeGreaterThan(minimumOpenY);
+						const convergenceRoutePoints: [Point, Point] = [
+							currentPoint,
+							{ x: currentPoint.x, y: convergenceTargetY }
+						];
+						assertTask6InteriorRouteEnvelope(
+							'guild-hall',
+							convergenceRoutePoints,
+							`${interior.mapId}:${step.label}:training-band`
+						);
+						const convergenceResult = await runBrowserRoute(
+							page,
+							convergenceRoutePoints,
+							routeSettleTolerance
+						);
+						onRoute?.(`${interior.mapId}:${step.label}:training-band`, convergenceResult);
+						fixedAxisStart = assertGuildHallTrainingDoorwayBandConvergenceContract(
+							currentPoint,
+							convergenceResult,
+							`Guild Hall ${step.label} training-band`
+						);
+					}
+				}
+				const fixedAxisRoutePoints: [Point, Point] = [
+					fixedAxisStart,
+					{ x: checkpoint.x, y: fixedAxisStart.y }
+				];
+				const fixedAxisRouteResult = await runBrowserRoute(
+					page,
+					fixedAxisRoutePoints,
+					routeSettleTolerance
+				);
+				onRoute?.(`${interior.mapId}:${step.label}`, fixedAxisRouteResult);
+				expect(fixedAxisRouteResult.position).not.toBeNull();
+				if (!fixedAxisRouteResult.position) {
+					throw new Error(
+						`Guild Hall horizontal fixed-axis route returned no final position: ${describeBrowserRouteResult(
+							fixedAxisRouteResult,
+							fixedAxisRouteResult.token
+						)}`
+					);
+				}
+				assertFixedAxisRouteContract(
+					fixedAxisRoutePoints,
+					fixedAxisRouteResult,
+					'x',
+					[...layout.walls, ...Object.values(layout.propCollisions)],
+					`Guild Hall ${step.label}`,
+					'guild-hall'
+				);
+				currentPoint = fixedAxisRouteResult.position;
 			} else if (villagerHouse1LynnStep) {
 				const lynnRouteResult = await runBrowserRoute(page, routePoints, routeSettleTolerance);
 				onRoute?.(`${interior.mapId}:${step.label}`, lynnRouteResult);
@@ -8163,6 +8426,7 @@ async function traverseInteriorForJourney(
 			currentPoint = postInteraction.selectedPoint;
 		}
 		leavingInteraction = Boolean(step.interaction);
+		currentPoint = (await options.afterStep?.(step, currentPoint)) ?? currentPoint;
 	}
 	return exitInteriorWithTrustedKeyboard(page, interior);
 }
@@ -10197,6 +10461,97 @@ function assertHeroHouseFallbackDiagnostic(diagnostic: RegionalBackgroundPlaneRe
 	]);
 }
 
+function assertGuildHallPaintedDiagnostic(diagnostic: RegionalBackgroundPlaneRenderDiagnostic) {
+	expect(diagnostic).toMatchObject({
+		mapId: 'guild-hall',
+		regionalBackgroundsEnabled: true,
+		packageId: 'guild-hall-painted',
+		presentationMode: 'painted',
+		requiredBackgroundIds: ['guild-hall-painted-base-image', 'guild-hall-painted-foreground-image'],
+		selectedBackgroundIds: ['guild-hall-painted-base-image', 'guild-hall-painted-foreground-image'],
+		successfulBackgroundIds: [
+			'guild-hall-painted-base-image',
+			'guild-hall-painted-foreground-image'
+		],
+		selectedFallbackBlockerIds: [],
+		selectedFallbackDecorIds: [],
+		selectedFallbackFenceIds: [],
+		collisionIds: [...GUILD_HALL_COLLISION_IDS],
+		statefulObjectIds: [...GUILD_HALL_STATEFUL_OBJECT_IDS]
+	});
+	expect(diagnostic.entries).toEqual([
+		expect.objectContaining({
+			id: 'guild-hall-painted-base-image',
+			textureKey: 'guild-hall-painted-base',
+			plane: 'base',
+			status: 'rendered',
+			expectedDimensions: { width: 1024, height: 832 },
+			observedDimensions: { width: 1024, height: 832 },
+			renderTransform: {
+				x: 512,
+				y: 416,
+				originX: 0.5,
+				originY: 0.5,
+				displayWidth: 1024,
+				displayHeight: 832,
+				depth: -9
+			}
+		}),
+		expect.objectContaining({
+			id: 'guild-hall-painted-foreground-image',
+			textureKey: 'guild-hall-painted-foreground',
+			plane: 'foreground',
+			status: 'rendered',
+			expectedDimensions: { width: 1024, height: 832 },
+			observedDimensions: { width: 1024, height: 832 },
+			renderTransform: {
+				x: 512,
+				y: 416,
+				originX: 0.5,
+				originY: 0.5,
+				displayWidth: 1024,
+				displayHeight: 832,
+				depth: 100.0001
+			}
+		})
+	]);
+}
+
+function assertGuildHallFallbackDiagnostic(diagnostic: RegionalBackgroundPlaneRenderDiagnostic) {
+	expect(diagnostic).toMatchObject({
+		mapId: 'guild-hall',
+		regionalBackgroundsEnabled: true,
+		packageId: null,
+		presentationMode: 'fallback',
+		requiredBackgroundIds: ['guild-hall-painted-base-image', 'guild-hall-painted-foreground-image'],
+		selectedBackgroundIds: [],
+		successfulBackgroundIds: [],
+		selectedFallbackBlockerIds: [...GUILD_HALL_FALLBACK_BLOCKER_IDS],
+		selectedFallbackDecorIds: [],
+		selectedFallbackFenceIds: [],
+		collisionIds: [...GUILD_HALL_COLLISION_IDS],
+		statefulObjectIds: [...GUILD_HALL_STATEFUL_OBJECT_IDS]
+	});
+	expect(diagnostic.entries).toEqual([
+		expect.objectContaining({
+			id: 'guild-hall-painted-base-image',
+			textureKey: 'guild-hall-painted-base',
+			plane: 'base',
+			status: 'missing-texture',
+			expectedDimensions: { width: 1024, height: 832 },
+			observedDimensions: null
+		}),
+		expect.objectContaining({
+			id: 'guild-hall-painted-foreground-image',
+			textureKey: 'guild-hall-painted-foreground',
+			plane: 'foreground',
+			status: 'rendered',
+			expectedDimensions: { width: 1024, height: 832 },
+			observedDimensions: { width: 1024, height: 832 }
+		})
+	]);
+}
+
 async function saveHeroHouseCanvas(page: Page, name: string) {
 	mkdirSync(HERO_HOUSE_RUNTIME_EVIDENCE_ROOT, { recursive: true });
 	await page.evaluate(() => {
@@ -10212,6 +10567,25 @@ async function saveHeroHouseCanvas(page: Page, name: string) {
 	} finally {
 		await page.evaluate(() =>
 			document.getElementById('hero-house-runtime-evidence-style')?.remove()
+		);
+	}
+}
+
+async function saveGuildHallCanvas(page: Page, name: string) {
+	mkdirSync(GUILD_HALL_RUNTIME_EVIDENCE_ROOT, { recursive: true });
+	await page.evaluate(() => {
+		const style = document.createElement('style');
+		style.id = 'guild-hall-runtime-evidence-style';
+		style.textContent = '.game-shell > :not(.game-stage) { visibility: hidden !important; }';
+		document.head.append(style);
+	});
+	try {
+		await page.locator('canvas').screenshot({
+			path: resolve(GUILD_HALL_RUNTIME_EVIDENCE_ROOT, name)
+		});
+	} finally {
+		await page.evaluate(() =>
+			document.getElementById('guild-hall-runtime-evidence-style')?.remove()
 		);
 	}
 }
@@ -11995,7 +12369,7 @@ test('browser-local route steering acknowledges a plan and continues through Pha
 		diagnosticAxes: [],
 		activeKey: null
 	};
-	assertItemShopFixedAxisRouteContract(
+	assertFixedAxisRouteContract(
 		[fixedAxisContractStart, { x: fixedAxisContractStart.x + 8, y: fixedAxisContractStart.y }],
 		zeroFixedAxisContractResult,
 		'x',
@@ -12030,7 +12404,7 @@ test('browser-local route steering acknowledges a plan and continues through Pha
 		diagnosticAxes: ['x'],
 		activeKey: null
 	};
-	assertItemShopFixedAxisRouteContract(
+	assertFixedAxisRouteContract(
 		[fixedAxisContractStart, { x: fixedAxisContractStart.x + 255, y: fixedAxisContractStart.y }],
 		movedFixedAxisContractResult,
 		'x',
@@ -12042,7 +12416,7 @@ test('browser-local route steering acknowledges a plan and continues through Pha
 		token: 'characterization-item-shop-fixed-axis-zero-long'
 	};
 	expect(() =>
-		assertItemShopFixedAxisRouteContract(
+		assertFixedAxisRouteContract(
 			[fixedAxisContractStart, { x: fixedAxisContractStart.x + 255, y: fixedAxisContractStart.y }],
 			zeroLongFixedAxisContractResult,
 			'x',
@@ -15073,7 +15447,7 @@ test('interact key shop purchase appears in inventory', async ({ page }) => {
 	await expect(fieldPotionSlot.getByText('x2')).toBeVisible();
 });
 
-for (const interiorCase of INTERIOR_GRAYBOX_CASES) {
+for (const interiorCase of INTERIOR_GRAYBOX_CASES.filter(({ mapId }) => mapId !== 'guild-hall')) {
 	test(`HPA-586 interior graybox: ${interiorCase.mapId}`, async ({ page }) => {
 		test.setTimeout(180_000);
 		await installRuntimeProbes(page, { captureFacing: true });
@@ -15128,6 +15502,116 @@ for (const interiorCase of INTERIOR_GRAYBOX_CASES) {
 		await exitInteriorWithTrustedKeyboard(page, interiorCase);
 	});
 }
+
+test('Guild Hall painted interior', async ({ page }) => {
+	test.setTimeout(900_000);
+	const guildHall = INTERIOR_GRAYBOX_CASES.find((interior) => interior.mapId === 'guild-hall');
+	if (!guildHall) throw new Error('Guild Hall route constants are missing');
+
+	await installRuntimeProbes(page, { captureFacing: true });
+	await injectSave(
+		page,
+		createSaveFixture({
+			mapId: 'meadow-entry',
+			player: {
+				level: 1,
+				xp: 0,
+				hp: 20,
+				attack: 3,
+				x: guildHall.returnArrival.x,
+				y: guildHall.returnArrival.y,
+				facing: 'up'
+			}
+		})
+	);
+	await page.setViewportSize({ width: 640, height: 360 });
+	await page.goto('/?movementDiagnostics=on');
+	await expect(page.locator('canvas')).toBeVisible();
+	await expect(page.getByRole('button', { name: 'Menu' })).toBeVisible();
+	await page.getByRole('button', { name: 'Menu' }).click();
+	await commandBox(page).getByRole('button', { name: 'Resume Save' }).click();
+	await waitForHudPosition(page, 'meadow-entry', guildHall.returnArrival);
+
+	let persistedGuildPoint: Point | null = null;
+	await traverseInteriorForJourney(
+		page,
+		guildHall,
+		{
+			afterEnter: async () => {
+				assertGuildHallPaintedDiagnostic(await waitForMapBackgroundDiagnostic(page, 'guild-hall'));
+				await saveGuildHallCanvas(page, 'painted-camera-640x360.png');
+			},
+			afterStep: async (step, point) => {
+				if (step.label !== guildHall.persistAfterStep) return point;
+				await saveGuildHallCanvas(page, 'painted-quartermaster-camera-640x360.png');
+				persistedGuildPoint = await saveGuildCheckpointAndReload(page, point);
+				return persistedGuildPoint;
+			}
+		},
+		(label, result) => {
+			expect(result.mapId, label).toBe('guild-hall');
+		}
+	);
+
+	const cameraSamples = await page.evaluate(
+		() =>
+			(window as GlieseProbeWindow).__glieseCameraSamples?.filter(
+				({ mapId }) => mapId === 'guild-hall'
+			) ?? []
+	);
+	expect(cameraSamples.length).toBeGreaterThan(0);
+	for (const sample of cameraSamples) {
+		expect({ width: sample.width, height: sample.height }).toEqual({
+			width: 640,
+			height: 360
+		});
+		expect(sample.right).toBe(sample.left + sample.width);
+		expect(sample.bottom).toBe(sample.top + sample.height);
+	}
+	expect(new Set(cameraSamples.map(({ left, top }) => `${left}:${top}`)).size).toBeGreaterThan(1);
+
+	const guildDiagnosticCountBeforeReentry = await page.evaluate(
+		() =>
+			(window as GlieseProbeWindow).__glieseRegionalBackgroundDiagnostics?.filter(
+				({ mapId }) => mapId === 'guild-hall'
+			).length ?? 0
+	);
+	await enterInteriorWithTrustedKeyboard(page, guildHall);
+	assertGuildHallPaintedDiagnostic(
+		await waitForMapBackgroundDiagnostic(page, 'guild-hall', guildDiagnosticCountBeforeReentry)
+	);
+	await saveGuildHallCanvas(page, 'painted-reentry-camera-640x360.png');
+	const reentrySavePoint = await currentHudPlayerPoint(page, 'guild-hall');
+	await page.getByRole('button', { name: 'Menu' }).click();
+	await commandBox(page).getByRole('button', { name: 'Save Game' }).click();
+	await expect(fieldStatus(page)).toContainText('Saved');
+	const reentryPersisted = await page.evaluate(
+		(key) => JSON.parse(localStorage.getItem(key) ?? 'null'),
+		SAVE_STORAGE_KEY
+	);
+	expect(reentryPersisted?.mapId).toBe('guild-hall');
+	expect(Math.abs(reentryPersisted?.player?.x - reentrySavePoint.x)).toBeLessThanOrEqual(
+		AXIS_REACH_TOLERANCE
+	);
+	expect(Math.abs(reentryPersisted?.player?.y - reentrySavePoint.y)).toBeLessThanOrEqual(
+		AXIS_REACH_TOLERANCE
+	);
+
+	const missingBaseRoute = '**/game/assets/interiors/guild-hall/base.png';
+	await page.route(missingBaseRoute, (route) => route.abort());
+	try {
+		await page.goto('/?movementDiagnostics=on');
+		await expect(page.locator('canvas')).toBeVisible();
+		await page.getByRole('button', { name: 'Menu' }).click();
+		await commandBox(page).getByRole('button', { name: 'Resume Save' }).click();
+		await waitForHudPosition(page, 'guild-hall', reentrySavePoint);
+		const fallbackDiagnostic = await waitForMapBackgroundDiagnostic(page, 'guild-hall');
+		assertGuildHallFallbackDiagnostic(fallbackDiagnostic);
+		await saveGuildHallCanvas(page, 'fallback-base-missing-camera-640x360.png');
+	} finally {
+		await page.unroute(missingBaseRoute);
+	}
+});
 
 test('Hero House painted interior preserves runtime, reload, and fallback contracts', async ({
 	page

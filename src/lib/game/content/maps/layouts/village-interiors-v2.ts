@@ -191,7 +191,11 @@ export const VILLAGE_INTERIOR_LAYOUTS = {
 			lobbyNoticeBenches: rect(384, 704, 256, 64)
 		},
 		propCollisions: {
+			recordsShelves: rect(80, 80, 112, 176),
+			questBoardRecordsDesk: rect(240, 144, 128, 32),
+			commonTableSeating: rect(176, 448, 128, 64),
 			guildMasterDesk: rect(728, 160, 144, 8),
+			trainingEquipment: rect(752, 368, 96, 32),
 			quartermasterCounter: rect(696, 544, 176, 8)
 		}
 	},

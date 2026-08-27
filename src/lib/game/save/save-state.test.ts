@@ -274,37 +274,41 @@ describe('save state', () => {
 		);
 	}
 
-	it('normalizes loaded guild hall positions out of interior prop collision', () => {
-		const collision = guildHallMap.interiorProps?.find(
-			(prop) => prop.id === 'guild-hall-master-desk'
-		)?.collision;
-		expect(collision).toBeDefined();
+	it.each([
+		['guild-hall-master-desk', { x: 792, y: 184 }],
+		['guild-hall-quartermaster-counter', { x: 776, y: 568 }]
+	] as const)(
+		'normalizes loaded %s positions out of interior prop collision',
+		(propId, expected) => {
+			const collision = guildHallMap.interiorProps?.find((prop) => prop.id === propId)?.collision;
+			expect(collision).toBeDefined();
 
-		const save = createNewSaveState();
-		save.mapId = guildHallMap.id;
-		save.player = {
-			...save.player,
-			x: collision!.x,
-			y: collision!.y
-		};
+			const save = createNewSaveState();
+			save.mapId = guildHallMap.id;
+			save.player = {
+				...save.player,
+				x: collision!.x,
+				y: collision!.y
+			};
 
-		const parsed = parseSaveState(serializeSaveState(save));
-		expect(parsed).not.toBeNull();
+			const parsed = parseSaveState(serializeSaveState(save));
+			expect(parsed).not.toBeNull();
 
-		const interiorCollisions = (guildHallMap.interiorProps ?? []).flatMap((prop) =>
-			prop.collision ? [prop.collision] : []
-		);
-		expect(
-			isInsideAnyCollisionRect(
-				parsed!.player.x,
-				parsed!.player.y,
-				interiorCollisions,
-				PLAYER_COLLISION_RADIUS
-			)
-		).toBe(false);
-		expect(parsed!.player.x).toBe(784);
-		expect(parsed!.player.y).toBe(144);
-	});
+			const interiorCollisions = (guildHallMap.interiorProps ?? []).flatMap((prop) =>
+				prop.collision ? [prop.collision] : []
+			);
+			expect(
+				isInsideAnyCollisionRect(
+					parsed!.player.x,
+					parsed!.player.y,
+					interiorCollisions,
+					PLAYER_COLLISION_RADIUS
+				)
+			).toBe(false);
+			expect(parsed!.player.x).toBe(expected.x);
+			expect(parsed!.player.y).toBe(expected.y);
+		}
+	);
 
 	it('nudges a saved position inside a wall blocker to the nearest walkable tile', () => {
 		// The reauthored Crossroads gate is strict movement collision: its padded

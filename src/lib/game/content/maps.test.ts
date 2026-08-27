@@ -1085,12 +1085,12 @@ describe('opening map content', () => {
 		);
 		expectRouteClear(
 			guildHallMap,
-			[spineLobby, { x: 512, y: 208 }, { x: 192, y: 208 }],
+			[spineLobby, { x: 512, y: 208 }, { x: 240, y: 208 }],
 			'spine-to-records-hall'
 		);
 		expectRouteClear(
 			guildHallMap,
-			[spineLobby, { x: 512, y: 368 }, { x: 800, y: 368 }],
+			[spineLobby, { x: 512, y: 336 }, { x: 912, y: 336 }, { x: 912, y: 368 }],
 			'spine-to-training-hall'
 		);
 		expectRouteClear(
@@ -2589,7 +2589,11 @@ describe('Guild Hall Gates 1/2 coordinate and navigation contracts', () => {
 		}
 
 		for (const [propId, propIdInMap] of [
+			['recordsShelves', 'guild-hall-records-shelves'],
+			['questBoardRecordsDesk', 'guild-hall-notice-board'],
+			['commonTableSeating', 'guild-hall-common-table'],
 			['guildMasterDesk', 'guild-hall-master-desk'],
+			['trainingEquipment', 'guild-hall-training-equipment'],
 			['quartermasterCounter', 'guild-hall-quartermaster-counter']
 		] as const) {
 			const collision = layout.propCollisions[propId];
@@ -2629,8 +2633,16 @@ describe('Guild Hall Gates 1/2 coordinate and navigation contracts', () => {
 			[guildHallMap.spawn, { x: 512, y: 184 }, layout.npcApproaches.guildMaster.approach],
 			[guildHallMap.spawn, { x: 512, y: 568 }, layout.npcApproaches.quartermaster.approach],
 			[guildHallMap.spawn, { x: 512, y: 208 }, { x: 240, y: 208 }],
-			[guildHallMap.spawn, { x: 512, y: 496 }, { x: 160, y: 496 }, { x: 160, y: 592 }],
-			[guildHallMap.spawn, { x: 512, y: 368 }, { x: 912, y: 368 }],
+			[
+				guildHallMap.spawn,
+				{ x: 512, y: 512 },
+				{ x: 384, y: 512 },
+				{ x: 384, y: 568 },
+				{ x: 112, y: 568 },
+				{ x: 112, y: 592 },
+				{ x: 160, y: 592 }
+			],
+			[guildHallMap.spawn, { x: 512, y: 336 }, { x: 912, y: 336 }, { x: 912, y: 368 }],
 			[guildHallMap.spawn, { x: layout.exit.x, y: layout.exit.y }]
 		] as const;
 		for (const [index, route] of routes.entries()) {
