@@ -12,7 +12,7 @@ import {
 import { applyMapBackgroundPackage } from './map-background-package';
 import { VILLAGE_INTERIOR_NAVIGATION_SOURCES } from './village-interior-navigation-sources';
 import { VILLAGE_INTERIOR_PACKAGES } from './village-interior-packages';
-import { guildHallMap, heroHouseMap } from '$lib/game/content/maps';
+import { guildHallMap, heroHouseMap, itemShopMap } from '$lib/game/content/maps';
 
 describe('map background registry', () => {
 	it('registers approved interior navigation and painted packages', () => {
@@ -42,7 +42,7 @@ describe('map background registry', () => {
 				clearancePx: 12
 			})
 		]);
-		expect(VILLAGE_INTERIOR_PACKAGES).toHaveLength(2);
+		expect(VILLAGE_INTERIOR_PACKAGES).toHaveLength(3);
 		expect(VILLAGE_INTERIOR_PACKAGES[0]).toEqual(
 			expect.objectContaining({
 				id: 'hero-house-painted',
@@ -99,12 +99,38 @@ describe('map background registry', () => {
 				]
 			})
 		);
+		expect(VILLAGE_INTERIOR_PACKAGES[2]).toEqual(
+			expect.objectContaining({
+				id: 'item-shop-painted',
+				mapId: 'item-shop',
+				coverage: 'full-map',
+				assets: [
+					{
+						key: 'item-shop-painted-base',
+						path: '/game/assets/interiors/item-shop/base.png'
+					}
+				],
+				backgrounds: [
+					expect.objectContaining({
+						id: 'item-shop-painted-base-image',
+						textureKey: 'item-shop-painted-base',
+						width: 832,
+						height: 640,
+						plane: 'base'
+					})
+				]
+			})
+		);
 		expect(MAP_BACKGROUND_DEFAULT_SELECTIONS['hero-house']).toEqual({
 			packageId: 'hero-house-painted',
 			mode: 'production'
 		});
 		expect(MAP_BACKGROUND_DEFAULT_SELECTIONS['guild-hall']).toEqual({
 			packageId: 'guild-hall-painted',
+			mode: 'production'
+		});
+		expect(MAP_BACKGROUND_DEFAULT_SELECTIONS['item-shop']).toEqual({
+			packageId: 'item-shop-painted',
 			mode: 'production'
 		});
 		expect(Object.isFrozen(VILLAGE_INTERIOR_NAVIGATION_SOURCES)).toBe(true);
@@ -125,6 +151,10 @@ describe('map background registry', () => {
 			},
 			'guild-hall': {
 				packageId: 'guild-hall-painted',
+				mode: 'production'
+			},
+			'item-shop': {
+				packageId: 'item-shop-painted',
 				mode: 'production'
 			}
 		});
@@ -199,6 +229,39 @@ describe('map background registry', () => {
 			(guildHallMap.groundPatches?.length ?? 0) +
 				(guildHallMap.blockers?.length ?? 0) +
 				(guildHallMap.interiorProps?.length ?? 0)
+		);
+	});
+
+	it('owns every Item Shop legacy static source as one painted package', () => {
+		const definition = VILLAGE_INTERIOR_PACKAGES.find(({ id }) => id === 'item-shop-painted');
+		expect(definition).toBeDefined();
+		if (!definition) return;
+
+		const transformed = applyMapBackgroundPackage(itemShopMap, {
+			mode: 'production',
+			definition
+		});
+		expect(transformed.backgroundImages).toEqual(definition.backgrounds);
+
+		for (const source of [
+			...(transformed.groundPatches ?? []),
+			...(transformed.blockers ?? []),
+			...(transformed.interiorProps ?? [])
+		]) {
+			expect(source.visual).toEqual({
+				mode: 'fallback-only',
+				ownerCrops: [
+					{
+						cropId: 'item-shop-full-map',
+						requiredBackgroundIds: ['item-shop-painted-base-image']
+					}
+				]
+			});
+		}
+		expect(definition.visualOwners).toHaveLength(
+			(itemShopMap.groundPatches?.length ?? 0) +
+				(itemShopMap.blockers?.length ?? 0) +
+				(itemShopMap.interiorProps?.length ?? 0)
 		);
 	});
 });

@@ -10,6 +10,7 @@ import type { MeadowEntryPaintedMode } from '../../src/lib/game/content/backgrou
 import {
 	guildHallMap,
 	heroHouseMap,
+	itemShopMap,
 	meadowEntryMap,
 	ruinsCoreMap,
 	ruinsThresholdMap
@@ -1763,7 +1764,8 @@ const INTERIOR_GRAYBOX_CASES: readonly InteriorGrayboxCase[] = [
 		exit: { x: 416, y: 624 },
 		steps: [
 			{ label: 'sales-west-aisle', point: { x: 192, y: 544 } },
-			{ label: 'sales-west-shelf', point: { x: 192, y: 448 } },
+			{ label: 'ambient-customer', point: { x: 256, y: 512 } },
+			{ label: 'sales-west-shelf', point: { x: 240, y: 448 } },
 			{ label: 'mira-cross-aisle', point: { x: 416, y: 448 } },
 			{
 				label: 'mira-approach',
@@ -1771,14 +1773,14 @@ const INTERIOR_GRAYBOX_CASES: readonly InteriorGrayboxCase[] = [
 				interaction: { speaker: 'Mira', shopName: "Mira's Item Shop" }
 			},
 			{ label: 'east-aisle-crossing', point: { x: 416, y: 448 } },
-			{ label: 'east-aisle', point: { x: 640, y: 448 } },
+			{ label: 'east-aisle', point: { x: 592, y: 448 } },
 			{ label: 'service-corridor-south', point: { x: 640, y: 544 } },
 			{ label: 'service-corridor-north', point: { x: 640, y: 300 } },
 			{ label: 'service-corridor-west', point: { x: 448, y: 300 } },
 			{ label: 'stockroom-entry', point: { x: 448, y: 160 } },
-			{ label: 'stockroom', point: { x: 192, y: 160 } },
+			{ label: 'stockroom', point: { x: 288, y: 192 } },
 			{ label: 'office-door', point: { x: 448, y: 160 } },
-			{ label: 'office', point: { x: 608, y: 160 } },
+			{ label: 'office', point: { x: 736, y: 192 } },
 			{ label: 'service-return-east', point: { x: 448, y: 160 } },
 			{ label: 'service-return-west', point: { x: 448, y: 300 } },
 			{ label: 'service-return-south', point: { x: 640, y: 300 } },
@@ -1910,6 +1912,29 @@ const GUILD_HALL_STATEFUL_OBJECT_IDS = [
 	...(guildHallMap.combatBounds ?? []).map(({ id }) => id)
 ].sort();
 const GUILD_HALL_FALLBACK_BLOCKER_IDS = (guildHallMap.blockers ?? []).map(({ id }) => id);
+const ITEM_SHOP_RUNTIME_EVIDENCE_ROOT = resolve(
+	'docs/superpowers/reports/img/hpa-586-interiors-runtime/item-shop'
+);
+const ITEM_SHOP_COLLISION_IDS = [
+	...(itemShopMap.blockers ?? []).map(({ id }) => id),
+	...(itemShopMap.fences ?? []).map(({ id }) => id),
+	...(itemShopMap.mapDecor ?? []).flatMap(({ collision }) => (collision ? [collision.id] : [])),
+	...(itemShopMap.interiorProps ?? []).flatMap(({ collision }) =>
+		collision ? [collision.id] : []
+	),
+	...(itemShopMap.landmarks ?? []).map(({ id }) => id)
+].sort();
+const ITEM_SHOP_STATEFUL_OBJECT_IDS = [
+	...itemShopMap.transitions.map(({ id }) => id),
+	...(itemShopMap.pickups ?? []).map(({ id }) => id),
+	...(itemShopMap.encounters ?? []).map(({ id }) => id),
+	...(itemShopMap.npcs ?? []).map(({ id }) => id),
+	...(itemShopMap.landmarks ?? []).map(({ id }) => id),
+	...(itemShopMap.ambientNpcs ?? []).map(({ id }) => id),
+	...(itemShopMap.discoveries ?? []).map(({ id }) => id),
+	...(itemShopMap.combatBounds ?? []).map(({ id }) => id)
+].sort();
+const ITEM_SHOP_FALLBACK_BLOCKER_IDS = (itemShopMap.blockers ?? []).map(({ id }) => id);
 
 type InteriorNpcApproachBinding = {
 	readonly approachKey: string;
@@ -1944,6 +1969,25 @@ const INTERIOR_ROUTE_SETTLE_TOLERANCE = 4;
 function interiorRoutePoints(currentPoint: Point, targetPoint: Point): Point[] {
 	return currentPoint.y !== targetPoint.y
 		? [currentPoint, { x: currentPoint.x, y: targetPoint.y }, targetPoint]
+		: [currentPoint, targetPoint];
+}
+
+function isItemShopOutwardApproachStep(
+	interior: InteriorGrayboxCase,
+	step: InteriorGrayboxStep
+): boolean {
+	return (
+		interior.mapId === 'item-shop' &&
+		(step.label === 'ambient-customer' ||
+			step.label === 'mira-cross-aisle' ||
+			step.label === 'sales-west-shelf' ||
+			step.label === 'east-aisle')
+	);
+}
+
+function itemShopOutwardRoutePoints(currentPoint: Point, targetPoint: Point): Point[] {
+	return currentPoint.x !== targetPoint.x
+		? [currentPoint, { x: targetPoint.x, y: currentPoint.y }, targetPoint]
 		: [currentPoint, targetPoint];
 }
 
@@ -2235,6 +2279,13 @@ function isItemShopSpawnReturnCorridorStep(
 		expect(step.point).toEqual({ x: 640, y: 544 });
 	}
 	return interior.mapId === 'item-shop' && step.label === 'spawn-return-corridor';
+}
+
+function isItemShopSpawnReturnStep(
+	interior: InteriorGrayboxCase,
+	step: InteriorGrayboxStep
+): boolean {
+	return interior.mapId === 'item-shop' && step.label === 'spawn-return';
 }
 
 function itemShopAsymmetricDoorwayKind(
@@ -5360,7 +5411,7 @@ function itemShopStockroomTerminalRoutePoints(currentPoint: Point, targetPoint: 
 	// into the stockroom, then converge vertically at a source-derived x whose
 	// full unchanged ±18 envelope clears both divider rectangles before the
 	// authored stockroom checkpoint is reached.
-	expect(targetPoint).toEqual({ x: 192, y: 160 });
+	expect(targetPoint).toEqual({ x: 288, y: 192 });
 	expect(currentPoint.y).toBeGreaterThan(minimumOpenY);
 	expect(currentPoint.y).toBeLessThan(maximumOpenY);
 	expect(layoutRectContainsPoint(layout.corridors.serviceCorridor, currentPoint)).toBe(true);
@@ -5534,6 +5585,9 @@ function assertItemShopDoorwayConvergenceContract(
 	const diagnosticAxes = result.diagnosticAxes ?? [];
 	expect(diagnostics.length, `${label} diagnostic count`).toBeGreaterThan(0);
 	expect(diagnosticAxes, `${label} diagnostic axes`).toHaveLength(diagnostics.length);
+	const transitDirection = Math.sign(transitY - startPoint.y);
+	expect(transitDirection, `${label} transit direction`).not.toBe(0);
+	let previousDistanceToTransit = Math.abs(startPoint.y - transitY);
 	for (const [index, diagnostic] of diagnostics.entries()) {
 		expect(diagnosticAxes[index], `${label} diagnostic ${index} axis`).toBe('y');
 		expect(diagnostic.mapId, `${label} diagnostic ${index} map`).toBe('item-shop');
@@ -5548,9 +5602,14 @@ function assertItemShopDoorwayConvergenceContract(
 			startPoint.x
 		);
 		expect(
-			Math.abs(diagnostic.resolvedPosition.y - transitY),
-			`${label} diagnostic ${index} transit row reach`
-		).toBeLessThanOrEqual(AXIS_REACH_TOLERANCE);
+			(diagnostic.resolvedPosition.y - diagnostic.previousPosition.y) * transitDirection,
+			`${label} diagnostic ${index} moves toward transit row`
+		).toBeGreaterThan(0);
+		const distanceToTransit = Math.abs(diagnostic.resolvedPosition.y - transitY);
+		expect(distanceToTransit, `${label} diagnostic ${index} transit progress`).toBeLessThan(
+			previousDistanceToTransit
+		);
+		previousDistanceToTransit = distanceToTransit;
 	}
 	const actualPoint = result.position;
 	expect(actualPoint, `${label} final position`).not.toBeNull();
@@ -5572,7 +5631,67 @@ function itemShopDoorwayCrossingRoutePoints(
 	targetPoint: Point,
 	doorway: 'stockroom' | 'office'
 ): Point[] {
+	const layout = VILLAGE_INTERIOR_LAYOUTS['item-shop'];
 	const { minimumOpenY, maximumOpenY } = itemShopDoorwayOpenBand(doorway);
+	if (doorway === 'office') {
+		const navigationCellSize = itemShopMap.navigationGrid?.cellSizePx;
+		if (!navigationCellSize) throw new Error('Item Shop navigation cell size source is missing');
+		const officeDesk = layout.propCollisions.officeDesk;
+		const officeLaneX = layout.rooms.office.x + navigationCellSize * 2;
+		if (targetPoint.x < currentPoint.x && targetPoint.y === currentPoint.y) {
+			expect(currentPoint.y).toBeGreaterThan(minimumOpenY);
+			expect(currentPoint.y).toBeLessThan(maximumOpenY);
+			return [currentPoint, { x: targetPoint.x, y: currentPoint.y }, targetPoint];
+		}
+		if (targetPoint.x < currentPoint.x) {
+			const safeRoomY = layout.rooms.office.y + layout.rooms.office.height - navigationCellSize * 2;
+			const transitY = itemShopDoorwayTransitY(
+				'item-shop-office-divider-north',
+				'item-shop-office-divider-south',
+				'office'
+			);
+			expect(targetPoint).toEqual({ x: 448, y: 160 });
+			expect({ officeLaneX, safeRoomY, transitY }).toEqual({
+				officeLaneX: 544,
+				safeRoomY: 192,
+				transitY: 144
+			});
+			expect(currentPoint.x).toBeGreaterThan(
+				officeDesk.x + officeDesk.width + PLAYER_COLLISION_RADIUS
+			);
+			return [
+				currentPoint,
+				{ x: currentPoint.x, y: safeRoomY },
+				{ x: officeLaneX, y: safeRoomY },
+				{ x: officeLaneX, y: transitY },
+				{ x: targetPoint.x, y: transitY },
+				targetPoint
+			];
+		}
+		const points = [
+			currentPoint,
+			{ x: officeLaneX, y: currentPoint.y },
+			{ x: officeLaneX, y: targetPoint.y },
+			targetPoint
+		];
+		expect(targetPoint).toEqual({ x: 736, y: 192 });
+		expect(officeLaneX).toBe(544);
+		expect(officeLaneX + AXIS_REACH_TOLERANCE).toBeLessThan(officeDesk.x - PLAYER_COLLISION_RADIUS);
+		expect(layoutRectContainsPoint(layout.rooms.office, points[1]!)).toBe(true);
+		expect(layoutRectContainsPoint(layout.rooms.office, points[2]!)).toBe(true);
+		for (let index = 1; index < points.length; index += 1) {
+			const from = points[index - 1]!;
+			const to = points[index]!;
+			expect(from.x === to.x || from.y === to.y).toBe(true);
+			for (const obstacle of [...layout.walls, ...Object.values(layout.propCollisions)]) {
+				expect(
+					routeSegmentIntersectsExpandedRect(from, to, obstacle, PLAYER_COLLISION_RADIUS),
+					`Item Shop office doorway route crossed ${JSON.stringify({ from, to, obstacle })}`
+				).toBe(false);
+			}
+		}
+		return points;
+	}
 	const points = [currentPoint, { x: targetPoint.x, y: currentPoint.y }, targetPoint];
 	expect(currentPoint.y).toBeGreaterThan(minimumOpenY);
 	expect(currentPoint.y).toBeLessThan(maximumOpenY);
@@ -5781,6 +5900,32 @@ function assertItemShopDoorwayHorizontalRouteContract(
 	const from = points[0]!;
 	expect(from.y).toBeGreaterThan(minimumOpenY);
 	expect(from.y).toBeLessThan(maximumOpenY);
+	if (doorway === 'office' && points.length !== 2) {
+		if (points.length === 4) {
+			expect(points[1]!.y).toBe(from.y);
+			expect(points[2]!.x).toBe(points[1]!.x);
+			expect(points[2]!.y).toBe(points[3]!.y);
+		} else {
+			expect(points).toHaveLength(6);
+		}
+		expect(result.status).toBe('done');
+		expect(result.mapId).toBe('item-shop');
+		expect(result.activeKey).toBeNull();
+		expect(result.invalidDiagnostics ?? []).toEqual([]);
+		expect(result.position).not.toBeNull();
+		if (!result.position) throw new Error('Item Shop office doorway returned no final position');
+		expect(Math.abs(result.position.x - points.at(-1)!.x)).toBeLessThanOrEqual(
+			AXIS_REACH_TOLERANCE
+		);
+		expect(Math.abs(result.position.y - points.at(-1)!.y)).toBeLessThanOrEqual(
+			AXIS_REACH_TOLERANCE
+		);
+		for (const diagnostic of result.diagnostics ?? []) {
+			expect(diagnostic.mapId).toBe('item-shop');
+			expect(diagnostic.blocked).toBe(false);
+		}
+		return;
+	}
 	assertFixedAxisRouteContract(
 		points,
 		result,
@@ -5790,22 +5935,44 @@ function assertItemShopDoorwayHorizontalRouteContract(
 	);
 }
 
-function assertItemShopSpawnReturnCorridorVerticalRouteContract(
+function assertItemShopSpawnReturnCorridorSideAisleRouteContract(
 	points: readonly Point[],
 	result: BrowserRouteResult
 ) {
 	const layout = VILLAGE_INTERIOR_LAYOUTS['item-shop'];
 	const counter = layout.propCollisions.miraCounter;
-	const verticalFrom = points[0]!;
-	const verticalDestination = points[1]!;
+	const eastDisplay = layout.propCollisions.eastDisplay;
+	const from = points[0]!;
+	const sideAisleEntry = points[1]!;
+	const destination = points[2]!;
 	const expandedRight = counter.x + counter.width + PLAYER_COLLISION_RADIUS;
-	// The actual settled x is the source-backed side clearance for this fixed-y
-	// transit. Its vertical segment and y-only endpoint envelope must stay clear
-	// without applying a hypothetical ±18 x residue.
-	expect(verticalFrom.x).toBeGreaterThan(expandedRight);
-	expect(verticalDestination.x).toBe(verticalFrom.x);
-	expect(verticalDestination.y).toBe(544);
-	assertFixedAxisRouteContract(points, result, 'y', [counter], 'Item Shop spawn-return-corridor');
+	expect(points).toHaveLength(3);
+	expect(from.x).toBeGreaterThan(expandedRight);
+	expect(sideAisleEntry).toEqual({ x: itemShopEastDisplaySideAisleX(), y: from.y });
+	expect(destination).toEqual({
+		x: sideAisleEntry.x,
+		y: itemShopSalesFloorHorizontalTransitY()
+	});
+	for (let index = 1; index < points.length; index += 1) {
+		for (const obstacle of [counter, eastDisplay]) {
+			expect(
+				routeSegmentIntersectsExpandedRectAtReachEnvelope(
+					points[index - 1]!,
+					points[index]!,
+					obstacle,
+					PLAYER_COLLISION_RADIUS
+				)
+			).toBe(false);
+		}
+	}
+	expect(result.status).toBe('done');
+	expect(result.mapId).toBe('item-shop');
+	expect(result.activeKey).toBeNull();
+	expect(result.invalidDiagnostics ?? []).toEqual([]);
+	expect(result.position).not.toBeNull();
+	if (!result.position) throw new Error('Item Shop spawn-return side aisle returned no point');
+	expect(Math.abs(result.position.x - destination.x)).toBeLessThanOrEqual(AXIS_REACH_TOLERANCE);
+	expect(Math.abs(result.position.y - destination.y)).toBeLessThanOrEqual(AXIS_REACH_TOLERANCE);
 }
 
 function assertItemShopSpawnReturnCorridorHorizontalRouteContract(
@@ -5814,6 +5981,7 @@ function assertItemShopSpawnReturnCorridorHorizontalRouteContract(
 ) {
 	const layout = VILLAGE_INTERIOR_LAYOUTS['item-shop'];
 	const counter = layout.propCollisions.miraCounter;
+	const eastDisplay = layout.propCollisions.eastDisplay;
 	const from = points[0]!;
 	const horizontalDestination = points[1]!;
 	const targetPoint = points.at(-1)!;
@@ -5833,34 +6001,38 @@ function assertItemShopSpawnReturnCorridorHorizontalRouteContract(
 	for (const [index, diagnostic] of diagnostics.entries()) {
 		expect(diagnostic.mapId).toBe('item-shop');
 		expect(diagnostic.blocked).toBe(false);
-		expect(
-			routeSegmentIntersectsExpandedRect(
-				diagnostic.previousPosition,
-				diagnostic.requestedPosition,
-				counter,
-				PLAYER_COLLISION_RADIUS
-			),
-			`Item Shop spawn-return-corridor horizontal diagnostic swept the counter: ${JSON.stringify({ index, diagnostic })}`
-		).toBe(false);
-		expect(
-			expandedLayoutRectContainsPoint(
-				counter,
-				diagnostic.resolvedPosition,
-				PLAYER_COLLISION_RADIUS
-			),
-			`Item Shop spawn-return-corridor horizontal diagnostic entered the counter: ${JSON.stringify({ index, diagnostic })}`
-		).toBe(false);
+		for (const obstacle of [counter, eastDisplay]) {
+			expect(
+				routeSegmentIntersectsExpandedRect(
+					diagnostic.previousPosition,
+					diagnostic.requestedPosition,
+					obstacle,
+					PLAYER_COLLISION_RADIUS
+				),
+				`Item Shop spawn-return-corridor horizontal diagnostic swept an obstacle: ${JSON.stringify({ index, diagnostic, obstacle })}`
+			).toBe(false);
+			expect(
+				expandedLayoutRectContainsPoint(
+					obstacle,
+					diagnostic.resolvedPosition,
+					PLAYER_COLLISION_RADIUS
+				),
+				`Item Shop spawn-return-corridor horizontal diagnostic entered an obstacle: ${JSON.stringify({ index, diagnostic, obstacle })}`
+			).toBe(false);
+		}
 	}
 	for (let index = 1; index < points.length; index += 1) {
-		expect(
-			routeSegmentIntersectsExpandedRectAtReachEnvelope(
-				points[index - 1]!,
-				points[index]!,
-				counter,
-				PLAYER_COLLISION_RADIUS
-			),
-			`Item Shop spawn-return-corridor horizontal segment crossed the counter envelope: ${JSON.stringify({ from: points[index - 1], to: points[index] })}`
-		).toBe(false);
+		for (const obstacle of [counter, eastDisplay]) {
+			expect(
+				routeSegmentIntersectsExpandedRect(
+					points[index - 1]!,
+					points[index]!,
+					obstacle,
+					PLAYER_COLLISION_RADIUS
+				),
+				`Item Shop spawn-return-corridor horizontal segment crossed an obstacle: ${JSON.stringify({ from: points[index - 1], to: points[index], obstacle })}`
+			).toBe(false);
+		}
 	}
 	const actualPoint = result.position;
 	expect(actualPoint).not.toBeNull();
@@ -5869,10 +6041,12 @@ function assertItemShopSpawnReturnCorridorHorizontalRouteContract(
 	}
 	expect(Math.abs(actualPoint.x - targetPoint.x)).toBeLessThanOrEqual(AXIS_REACH_TOLERANCE);
 	expect(Math.abs(actualPoint.y - targetPoint.y)).toBeLessThanOrEqual(AXIS_REACH_TOLERANCE);
-	expect(
-		expandedLayoutRectContainsPoint(counter, actualPoint, PLAYER_COLLISION_RADIUS),
-		`Item Shop spawn-return-corridor horizontal endpoint entered the counter: ${JSON.stringify({ actualPoint, targetPoint })}`
-	).toBe(false);
+	for (const obstacle of [counter, eastDisplay]) {
+		expect(
+			expandedLayoutRectContainsPoint(obstacle, actualPoint, PLAYER_COLLISION_RADIUS),
+			`Item Shop spawn-return-corridor horizontal endpoint entered an obstacle: ${JSON.stringify({ actualPoint, targetPoint, obstacle })}`
+		).toBe(false);
+	}
 }
 
 function assertItemShopServiceReturnWestVerticalRouteContract(
@@ -6062,38 +6236,29 @@ function itemShopSpawnReturnCorridorRoutePoints(
 	currentPoint: Point,
 	targetPoint: Point
 ): {
-	vertical: [Point, Point];
-	horizontal: [Point, Point];
+	sideAisle: [Point, Point, Point];
+	horizontal: [Point, Point, Point];
 } {
 	const layout = VILLAGE_INTERIOR_LAYOUTS['item-shop'];
 	const counter = layout.propCollisions.miraCounter;
-	const verticalDestination = { x: currentPoint.x, y: targetPoint.y };
-	const vertical: [Point, Point] = [currentPoint, verticalDestination];
-	const horizontal: [Point, Point] = [verticalDestination, targetPoint];
+	const sideAisleEntry = { x: itemShopEastDisplaySideAisleX(), y: currentPoint.y };
+	const sideAisleDestination = {
+		x: sideAisleEntry.x,
+		y: itemShopSalesFloorHorizontalTransitY()
+	};
+	const horizontalDestination = { x: targetPoint.x, y: sideAisleDestination.y };
+	const sideAisle: [Point, Point, Point] = [currentPoint, sideAisleEntry, sideAisleDestination];
+	const horizontal: [Point, Point, Point] = [
+		sideAisleDestination,
+		horizontalDestination,
+		targetPoint
+	];
 	const expandedRight = counter.x + counter.width + PLAYER_COLLISION_RADIUS;
 	expect(targetPoint).toEqual({ x: 640, y: 544 });
-	// This is an actual-position handoff, not a new waypoint: the prior route's
-	// settled x is already east of the expanded counter and remains locked while
-	// the player descends to the authored return corridor.
+	// Leave the east-display column on its source-derived side aisle before
+	// descending to the first navigation row that remains clear after reach residue.
 	expect(currentPoint.x).toBeGreaterThan(expandedRight);
-	expect(verticalDestination.x).toBe(currentPoint.x);
-	expect(verticalDestination.y).toBe(targetPoint.y);
-	expect(
-		routeSegmentIntersectsExpandedRect(
-			currentPoint,
-			verticalDestination,
-			counter,
-			PLAYER_COLLISION_RADIUS
-		)
-	).toBe(false);
-	expect(
-		endpointYEnvelopeIsDisjointFromExpandedRect(
-			verticalDestination,
-			counter,
-			PLAYER_COLLISION_RADIUS
-		)
-	).toBe(true);
-	return { vertical, horizontal };
+	return { sideAisle, horizontal };
 }
 
 function itemShopSpawnReturnCorridorHorizontalRoutePoints(
@@ -6243,22 +6408,65 @@ function itemShopMiraSemanticStagingPoint(): Point {
 	return stagingPoint;
 }
 
+function itemShopSalesFloorHorizontalTransitY(): number {
+	const layout = VILLAGE_INTERIOR_LAYOUTS['item-shop'];
+	const navigationCellSize = itemShopMap.navigationGrid?.cellSizePx;
+	if (!navigationCellSize) throw new Error('Item Shop navigation cell size source is missing');
+	const westDisplay = layout.propCollisions.westDisplay;
+	const eastDisplay = layout.propCollisions.eastDisplay;
+	const expandedDisplayBottom = westDisplay.y + westDisplay.height + PLAYER_COLLISION_RADIUS;
+	expect(eastDisplay.y + eastDisplay.height + PLAYER_COLLISION_RADIUS).toBe(expandedDisplayBottom);
+	const firstClearNavigationRowY =
+		Math.ceil(expandedDisplayBottom / navigationCellSize) * navigationCellSize;
+	const transitY = firstClearNavigationRowY + AXIS_REACH_TOLERANCE + 1;
+	expect({ firstClearNavigationRowY, transitY }).toEqual({
+		firstClearNavigationRowY: 528,
+		transitY: 547
+	});
+	return transitY;
+}
+
+function itemShopEastDisplaySideAisleX(): number {
+	const layout = VILLAGE_INTERIOR_LAYOUTS['item-shop'];
+	const navigationCellSize = itemShopMap.navigationGrid?.cellSizePx;
+	if (!navigationCellSize) throw new Error('Item Shop navigation cell size source is missing');
+	const eastDisplay = layout.propCollisions.eastDisplay;
+	const expandedDisplayRight = eastDisplay.x + eastDisplay.width + PLAYER_COLLISION_RADIUS;
+	const firstClearNavigationColumnX =
+		Math.ceil(expandedDisplayRight / navigationCellSize) * navigationCellSize;
+	const sideAisleX = firstClearNavigationColumnX + AXIS_REACH_TOLERANCE + 1;
+	expect({ firstClearNavigationColumnX, sideAisleX }).toEqual({
+		firstClearNavigationColumnX: 704,
+		sideAisleX: 723
+	});
+	return sideAisleX;
+}
+
 function itemShopMiraRoutePoints(currentPoint: Point, targetPoint: Point): Point[] {
 	const layout = VILLAGE_INTERIOR_LAYOUTS['item-shop'];
 	const counter = layout.propCollisions.miraCounter;
 	const npc = layout.npcApproaches.mira.npc;
 	const npcCollisionRadius = PLAYER_COLLISION_RADIUS + NPC_PACK_COLLISION_RADIUS;
 	const leftClearanceX = counter.x - PLAYER_COLLISION_RADIUS - AXIS_REACH_TOLERANCE - 1;
+	const displayOuterX = 96;
+	const salesFloorBelowDisplaysY = itemShopSalesFloorHorizontalTransitY();
 	const stagingPoint = itemShopMiraSemanticStagingPoint();
 	const points = [
 		currentPoint,
-		{ x: leftClearanceX, y: currentPoint.y },
-		{ x: leftClearanceX, y: stagingPoint.y },
+		{ x: currentPoint.x, y: salesFloorBelowDisplaysY },
+		{ x: displayOuterX, y: salesFloorBelowDisplaysY },
+		{ x: displayOuterX, y: stagingPoint.y },
 		targetPoint
 	];
 	expect(targetPoint).toEqual(stagingPoint);
 	expect(targetPoint.x).toBe(leftClearanceX);
 	expect(targetPoint.y).toBe(stagingPoint.y);
+	expect(displayOuterX + AXIS_REACH_TOLERANCE).toBeLessThan(layout.propCollisions.westDisplay.x);
+	expect(salesFloorBelowDisplaysY - AXIS_REACH_TOLERANCE).toBeGreaterThan(
+		layout.propCollisions.westDisplay.y +
+			layout.propCollisions.westDisplay.height +
+			PLAYER_COLLISION_RADIUS
+	);
 	expect(layoutRectContainsPoint(layout.rooms.salesFloor, targetPoint)).toBe(true);
 	for (let index = 1; index < points.length; index += 1) {
 		const from = points[index - 1]!;
@@ -6293,11 +6501,16 @@ function itemShopMiraReturnRoutePoints(currentPoint: Point, targetPoint: Point):
 	const npc = layout.npcApproaches.mira.npc;
 	const npcCollisionRadius = PLAYER_COLLISION_RADIUS + NPC_PACK_COLLISION_RADIUS;
 	const leftClearanceX = counter.x - PLAYER_COLLISION_RADIUS - AXIS_REACH_TOLERANCE - 1;
+	const displayOuterX = 96;
+	const salesFloorBelowDisplaysY = itemShopSalesFloorHorizontalTransitY();
+	const counterAboveY = 288;
 	const stagingPoint = itemShopMiraSemanticStagingPoint();
 	const points = [
 		currentPoint,
-		{ x: leftClearanceX, y: currentPoint.y },
-		{ x: leftClearanceX, y: targetPoint.y },
+		{ x: currentPoint.x, y: counterAboveY },
+		{ x: displayOuterX, y: counterAboveY },
+		{ x: displayOuterX, y: salesFloorBelowDisplaysY },
+		{ x: targetPoint.x, y: salesFloorBelowDisplaysY },
 		targetPoint
 	];
 
@@ -6305,9 +6518,18 @@ function itemShopMiraReturnRoutePoints(currentPoint: Point, targetPoint: Point):
 	// approach Mira: move away from the NPC above the counter, descend on its west
 	// side, then cross the open sales floor at the next authored checkpoint.
 	expect(Math.abs(currentPoint.y - stagingPoint.y)).toBeLessThanOrEqual(AXIS_REACH_TOLERANCE);
-	expect(points[1]?.x).toBe(leftClearanceX);
-	expect(points[2]?.x).toBe(leftClearanceX);
+	expect(points[2]?.x).toBe(displayOuterX);
+	expect(points[3]?.x).toBe(displayOuterX);
 	expect(layoutRectContainsPoint(layout.rooms.salesFloor, targetPoint)).toBe(true);
+	expect(displayOuterX + AXIS_REACH_TOLERANCE).toBeLessThan(layout.propCollisions.westDisplay.x);
+	expect(salesFloorBelowDisplaysY - AXIS_REACH_TOLERANCE).toBeGreaterThan(
+		layout.propCollisions.westDisplay.y +
+			layout.propCollisions.westDisplay.height +
+			PLAYER_COLLISION_RADIUS
+	);
+	expect(counterAboveY + AXIS_REACH_TOLERANCE).toBeLessThan(
+		layout.propCollisions.miraCounter.y - PLAYER_COLLISION_RADIUS
+	);
 	expect(leftClearanceX + AXIS_REACH_TOLERANCE).toBeLessThan(counter.x - PLAYER_COLLISION_RADIUS);
 	for (let index = 1; index < points.length; index += 1) {
 		const from = points[index - 1]!;
@@ -6393,37 +6615,53 @@ function itemShopServiceCorridorWestRoutePoints(currentPoint: Point, targetPoint
 function itemShopServiceCorridorNorthRoutePoints(currentPoint: Point, targetPoint: Point): Point[] {
 	const layout = VILLAGE_INTERIOR_LAYOUTS['item-shop'];
 	const counter = layout.propCollisions.miraCounter;
+	const eastDisplay = layout.propCollisions.eastDisplay;
 	const npc = layout.npcApproaches.mira.npc;
 	const npcCollisionRadius = PLAYER_COLLISION_RADIUS + NPC_PACK_COLLISION_RADIUS;
 	const expandedRight = counter.x + counter.width + PLAYER_COLLISION_RADIUS;
-	const safeX = expandedRight + AXIS_REACH_TOLERANCE + INTERIOR_ROUTE_SETTLE_TOLERANCE + 1;
+	const safeX = itemShopEastDisplaySideAisleX();
+	const salesFloorBelowDisplaysY = itemShopSalesFloorHorizontalTransitY();
 	// The preceding real endpoint can be inside the authored x=640 checkpoint
-	// band. Move east on the already-open sales-floor row first; the extra
-	// unchanged reach/settle headroom makes the subsequent north leg's entire
-	// endpoint box clear the Mira counter.
-	expect(safeX - AXIS_REACH_TOLERANCE - INTERIOR_ROUTE_SETTLE_TOLERANCE).toBeGreaterThan(
-		expandedRight
+	// band. Move below the east display first, then use its clear side aisle for
+	// the north leg; the route's unchanged endpoint envelope must clear both the
+	// baked rack and Mira's counter.
+	expect(safeX).toBe(723);
+	expect(salesFloorBelowDisplaysY).toBe(547);
+	expect(safeX - AXIS_REACH_TOLERANCE).toBeGreaterThan(
+		eastDisplay.x + eastDisplay.width + PLAYER_COLLISION_RADIUS
 	);
+	expect(safeX - AXIS_REACH_TOLERANCE).toBeGreaterThan(expandedRight);
 	expect(layoutRectContainsPoint(layout.rooms.salesFloor, { x: safeX, y: targetPoint.y })).toBe(
 		true
 	);
 	const points = [
 		currentPoint,
-		{ x: safeX, y: currentPoint.y },
+		{ x: currentPoint.x, y: salesFloorBelowDisplaysY },
+		{ x: safeX, y: salesFloorBelowDisplaysY },
 		{ x: safeX, y: targetPoint.y },
 		targetPoint
 	];
 	for (let index = 1; index < points.length; index += 1) {
 		const from = points[index - 1]!;
 		const to = points[index]!;
+		const initialFixedAxisTransit = index === 1 && from.x === to.x;
 		expect(
 			from.x === to.x || from.y === to.y,
 			`Item Shop service north route must remain axis-aligned: ${JSON.stringify({ from, to })}`
 		).toBe(true);
-		expect(
-			routeSegmentIntersectsExpandedRectAtReachEnvelope(from, to, counter, PLAYER_COLLISION_RADIUS),
-			`Item Shop service north route crossed Mira's counter envelope: ${JSON.stringify({ from, to, counter })}`
-		).toBe(false);
+		for (const obstacle of [counter, eastDisplay]) {
+			expect(
+				initialFixedAxisTransit
+					? routeSegmentIntersectsExpandedRect(from, to, obstacle, PLAYER_COLLISION_RADIUS)
+					: routeSegmentIntersectsExpandedRectAtReachEnvelope(
+							from,
+							to,
+							obstacle,
+							PLAYER_COLLISION_RADIUS
+						),
+				`Item Shop service north route crossed an authored obstacle: ${JSON.stringify({ from, to, obstacle })}`
+			).toBe(false);
+		}
 		expect(
 			routeSegmentIntersectsCircle(from, to, npc, npcCollisionRadius),
 			`Item Shop service north route crossed Mira's collision: ${JSON.stringify({ from, to, npc })}`
@@ -6446,8 +6684,8 @@ function itemShopServiceReturnSouthRoutePoints(currentPoint: Point, targetPoint:
 	const obstacles = [...layout.walls, ...Object.values(layout.propCollisions)];
 
 	// Preserve the live y residue above Mira's counter while moving east. This
-	// fixed-y leg uses only the x endpoint envelope; the symmetric oracle starts
-	// at the vertical leg after this source-derived handoff.
+	// fixed-y and vertical handoffs use their actual locked axes; the symmetric
+	// oracle starts after these source-derived clearance legs.
 	expect(targetPoint).toEqual({ x: 640, y: 300 });
 	expect(safeX - AXIS_REACH_TOLERANCE - INTERIOR_ROUTE_SETTLE_TOLERANCE).toBeGreaterThan(
 		expandedRight
@@ -6462,6 +6700,14 @@ function itemShopServiceReturnSouthRoutePoints(currentPoint: Point, targetPoint:
 		expect(
 			endpointXEnvelopeIsDisjointFromExpandedRect(points[1]!, obstacle, PLAYER_COLLISION_RADIUS),
 			`Item Shop service-return-south east handoff endpoint entered ${JSON.stringify(obstacle)}: ${JSON.stringify({ endpoint: points[1], obstacle })}`
+		).toBe(true);
+		expect(
+			routeSegmentIntersectsExpandedRect(points[1]!, points[2]!, obstacle, PLAYER_COLLISION_RADIUS),
+			`Item Shop service-return-south vertical handoff crossed ${JSON.stringify(obstacle)}: ${JSON.stringify({ from: points[1], to: points[2] })}`
+		).toBe(false);
+		expect(
+			endpointYEnvelopeIsDisjointFromExpandedRect(points[2]!, obstacle, PLAYER_COLLISION_RADIUS),
+			`Item Shop service-return-south vertical endpoint entered ${JSON.stringify(obstacle)}: ${JSON.stringify({ endpoint: points[2], obstacle })}`
 		).toBe(true);
 	}
 	return points;
@@ -7662,11 +7908,13 @@ async function traverseInteriorForJourney(
 		}
 		const doorwayKind = itemShopAsymmetricDoorwayKind(interior, step);
 		const spawnReturnCorridorStep = isItemShopSpawnReturnCorridorStep(interior, step);
+		const spawnReturnStep = isItemShopSpawnReturnStep(interior, step);
 		const stockroomEntryStep = isItemShopStockroomDoorwayStep(interior, step);
 		const stockroomTerminalStep = isItemShopStockroomTerminalStep(interior, step);
 		const serviceReturnWestStep = isItemShopMiraServiceReturnWestStep(interior, step);
 		const serviceReturnSouthStep = isItemShopServiceReturnSouthStep(interior, step);
 		const serviceCorridorWestStep = isItemShopServiceCorridorWestStep(interior, step);
+		const serviceCorridorNorthStep = isItemShopServiceCorridorNorthStep(interior, step);
 		const villagerHouse1LynnStep = isVillagerHouse1LynnStep(interior, step);
 		const villagerHouse2TomaStep = isVillagerHouse2TomaStep(interior, step);
 		const guildHallHorizontalFixedAxisStep = isGuildHallHorizontalFixedAxisStep(interior, step);
@@ -7713,6 +7961,31 @@ async function traverseInteriorForJourney(
 					beforeEvidence,
 					`${interior.mapId}:${step.label}:band-handoff`
 				);
+				// The authored entry band is 446 <= x < 468, but the committed 16px
+				// navigation mask keeps the x=464..480 cell blocked by the east lower
+				// service divider. If live band steering settles on that upper edge,
+				// move through the already-open service row to an interior band point
+				// before starting the fixed-x northward doorway transit.
+				const stockroomEntryBand = itemShopStockroomEntrySafeXBand();
+				const verticalHandoffX = stockroomEntryBand.minimumX + 8;
+				if (currentPoint.x > verticalHandoffX) {
+					const handoffResult = await runBrowserRoute(
+						page,
+						[currentPoint, { x: verticalHandoffX, y: currentPoint.y }],
+						INTERIOR_ROUTE_SETTLE_TOLERANCE
+					);
+					onRoute?.(`${interior.mapId}:${step.label}:vertical-handoff`, handoffResult);
+					expect(handoffResult.position).not.toBeNull();
+					if (!handoffResult.position) {
+						throw new Error(
+							`Item Shop stockroom-entry vertical handoff returned no final position: ${describeBrowserRouteResult(
+								handoffResult,
+								handoffResult.token
+							)}`
+						);
+					}
+					currentPoint = handoffResult.position;
+				}
 			}
 			const routePoints = isGuildHallGuildMasterStep(interior, step)
 				? guildHallGuildMasterRoutePoints(currentPoint, routeTarget, semanticApproach !== null)
@@ -7731,92 +8004,109 @@ async function traverseInteriorForJourney(
 								? itemShopMiraRoutePoints(currentPoint, routeTarget)
 								: isItemShopMiraReturnStep(interior, step, leavingInteraction)
 									? itemShopMiraReturnRoutePoints(currentPoint, checkpoint)
-									: isItemShopServiceCorridorNorthStep(interior, step)
-										? itemShopServiceCorridorNorthRoutePoints(currentPoint, checkpoint)
-										: isItemShopServiceCorridorWestStep(interior, step)
-											? itemShopServiceCorridorWestRoutePoints(currentPoint, routeTarget)
-											: serviceReturnSouthStep
-												? itemShopServiceReturnSouthRoutePoints(currentPoint, checkpoint)
-												: serviceReturnWestStep
-													? serviceReturnWestPlan!.vertical
-													: villagerHouse1LynnStep
-														? villagerHouse1LynnRoutePoints(currentPoint, routeTarget)
-														: villagerHouse2TomaStep
-															? villagerHouse2TomaRoutePoints(currentPoint, routeTarget)
-															: isItemShopStockroomReturnDoorwayStep(interior, step)
-																? itemShopStockroomReturnDoorwayRoutePoints(
-																		currentPoint,
-																		checkpoint
-																	)
-																: isItemShopStockroomTerminalStep(interior, step)
-																	? itemShopStockroomTerminalRoutePoints(currentPoint, checkpoint)
-																	: stockroomEntryStep
-																		? itemShopStockroomEntryRoutePoints(currentPoint, checkpoint)
-																		: isItemShopOfficeDoorwayStep(interior, step)
-																			? itemShopDoorwayCrossingRoutePoints(
-																					currentPoint,
-																					checkpoint,
-																					'office'
-																				)
-																			: spawnReturnCorridorStep
-																				? [
-																						...spawnReturnCorridorPlan!.vertical,
-																						...spawnReturnCorridorPlan!.horizontal.slice(1)
-																					]
-																				: guildHallHorizontalFixedAxisStep
-																					? [currentPoint, { x: checkpoint.x, y: currentPoint.y }]
-																					: isGuildHallRecordsRoomStep(interior, step)
-																						? guildHallRecordsRoomRoutePoints(
-																								currentPoint,
-																								checkpoint
-																							)
-																						: isGuildHallCommonHallSouthStep(interior, step)
-																							? guildHallCommonHallSouthRoutePoints(
+									: isItemShopOutwardApproachStep(interior, step)
+										? itemShopOutwardRoutePoints(currentPoint, checkpoint)
+										: isItemShopServiceCorridorNorthStep(interior, step)
+											? itemShopServiceCorridorNorthRoutePoints(currentPoint, checkpoint)
+											: isItemShopServiceCorridorWestStep(interior, step)
+												? itemShopServiceCorridorWestRoutePoints(currentPoint, routeTarget)
+												: serviceReturnSouthStep
+													? itemShopServiceReturnSouthRoutePoints(currentPoint, checkpoint)
+													: serviceReturnWestStep
+														? serviceReturnWestPlan!.vertical
+														: villagerHouse1LynnStep
+															? villagerHouse1LynnRoutePoints(currentPoint, routeTarget)
+															: villagerHouse2TomaStep
+																? villagerHouse2TomaRoutePoints(currentPoint, routeTarget)
+																: isItemShopStockroomReturnDoorwayStep(interior, step)
+																	? itemShopStockroomReturnDoorwayRoutePoints(
+																			currentPoint,
+																			checkpoint
+																		)
+																	: isItemShopStockroomTerminalStep(interior, step)
+																		? itemShopStockroomTerminalRoutePoints(currentPoint, checkpoint)
+																		: stockroomEntryStep
+																			? itemShopStockroomEntryRoutePoints(currentPoint, checkpoint)
+																			: isItemShopOfficeDoorwayStep(interior, step)
+																				? itemShopDoorwayCrossingRoutePoints(
+																						currentPoint,
+																						checkpoint,
+																						'office'
+																					)
+																				: spawnReturnCorridorStep
+																					? [
+																							...spawnReturnCorridorPlan!.sideAisle,
+																							...spawnReturnCorridorPlan!.horizontal.slice(1)
+																						]
+																					: guildHallHorizontalFixedAxisStep
+																						? [currentPoint, { x: checkpoint.x, y: currentPoint.y }]
+																						: isGuildHallRecordsRoomStep(interior, step)
+																							? guildHallRecordsRoomRoutePoints(
 																									currentPoint,
 																									checkpoint
 																								)
-																							: isGuildHallGuildMasterSpineStep(interior, step)
-																								? guildHallGuildMasterSpineRoutePoints(
+																							: isGuildHallCommonHallSouthStep(interior, step)
+																								? guildHallCommonHallSouthRoutePoints(
 																										currentPoint,
 																										checkpoint
 																									)
-																								: isGuildHallGuildMasterNorthStep(interior, step)
-																									? guildHallGuildMasterNorthRoutePoints(
+																								: isGuildHallGuildMasterSpineStep(interior, step)
+																									? guildHallGuildMasterSpineRoutePoints(
 																											currentPoint,
 																											checkpoint
 																										)
-																									: isGuildHallCommonHallRoomStep(interior, step)
-																										? guildHallCommonHallRoomAisleRoutePoints(
+																									: isGuildHallGuildMasterNorthStep(interior, step)
+																										? guildHallGuildMasterNorthRoutePoints(
 																												currentPoint,
 																												checkpoint
 																											)
-																										: isGuildHallRecordsAisleHandoffStep(
-																													interior,
-																													step
-																											  )
-																											? guildHallRecordsAisleRoutePoints(
+																										: isGuildHallCommonHallRoomStep(interior, step)
+																											? guildHallCommonHallRoomAisleRoutePoints(
 																													currentPoint,
 																													checkpoint
 																												)
-																											: guildHallLobbyReturnStep
-																												? [
+																											: isGuildHallRecordsAisleHandoffStep(
+																														interior,
+																														step
+																												  )
+																												? guildHallRecordsAisleRoutePoints(
 																														currentPoint,
-																														{ x: currentPoint.x, y: checkpoint.y },
 																														checkpoint
-																													]
-																												: leavingInteraction
+																													)
+																												: guildHallLobbyReturnStep
 																													? [
 																															currentPoint,
 																															{
-																																x: checkpoint.x,
-																																y: currentPoint.y
+																																x: currentPoint.x,
+																																y: checkpoint.y
 																															},
 																															checkpoint
 																														]
-																													: interiorRoutePoints(
-																															currentPoint,
-																															checkpoint
-																														);
+																													: leavingInteraction
+																														? [
+																																currentPoint,
+																																{
+																																	x: checkpoint.x,
+																																	y: currentPoint.y
+																																},
+																																checkpoint
+																															]
+																														: interiorRoutePoints(
+																																currentPoint,
+																																checkpoint
+																															);
+			if (spawnReturnStep) {
+				const [from, to] = routePoints;
+				expect(to).toEqual({ x: from!.x, y: checkpoint.y });
+				for (const obstacle of [
+					...VILLAGE_INTERIOR_LAYOUTS['item-shop'].walls,
+					...Object.values(VILLAGE_INTERIOR_LAYOUTS['item-shop'].propCollisions)
+				]) {
+					expect(
+						routeSegmentIntersectsExpandedRect(from!, to!, obstacle, PLAYER_COLLISION_RADIUS)
+					).toBe(false);
+				}
+			}
 			if (
 				(interior.mapId === 'guild-hall' || interior.mapId === 'item-shop') &&
 				!quartermasterSemanticStep &&
@@ -7826,17 +8116,21 @@ async function traverseInteriorForJourney(
 				// fixed-axis/asymmetric egress legs. Their live diagnostics and
 				// source geometry are asserted below; start the generic symmetric
 				// endpoint-envelope audit at point 2 for the remaining corridor.
-				const envelopeRoutePoints = quartermasterReturnStep ? routePoints.slice(2) : routePoints;
+				const envelopeRoutePoints = quartermasterReturnStep
+					? routePoints.slice(2)
+					: serviceReturnSouthStep
+						? routePoints.slice(2)
+						: routePoints;
 				const serviceCorridorWestHasInitialFixedXAxisTransit =
 					serviceCorridorWestStep &&
 					routePoints.length > 2 &&
 					routePoints[0]!.x === routePoints[1]!.x;
+				const serviceCorridorNorthHasInitialFixedYAxisTransit =
+					serviceCorridorNorthStep &&
+					routePoints.length > 2 &&
+					routePoints[0]!.x === routePoints[1]!.x;
 				const stockroomEntryHasInitialFixedYAxisTransit =
 					stockroomEntryStep && routePoints.length > 2 && routePoints[0]!.x === routePoints[1]!.x;
-				const serviceReturnSouthHasInitialFixedYAxisTransit =
-					serviceReturnSouthStep &&
-					routePoints.length > 2 &&
-					routePoints[0]!.y === routePoints[1]!.y;
 				assertTask6InteriorRouteEnvelope(
 					interior.mapId,
 					envelopeRoutePoints,
@@ -7847,15 +8141,19 @@ async function traverseInteriorForJourney(
 							? { skipInitialAsymmetricDoorwayCrossing: true }
 							: spawnReturnCorridorStep
 								? { skipInitialAsymmetricFixedAxisTransit: true }
-								: serviceReturnWestStep
+								: spawnReturnStep
 									? { skipInitialAsymmetricFixedAxisTransit: true }
-									: stockroomEntryHasInitialFixedYAxisTransit
+									: serviceReturnWestStep
 										? { skipInitialAsymmetricFixedAxisTransit: true }
-										: serviceReturnSouthHasInitialFixedYAxisTransit
+										: isItemShopMiraReturnStep(interior, step, leavingInteraction)
 											? { skipInitialAsymmetricFixedAxisTransit: true }
-											: serviceCorridorWestHasInitialFixedXAxisTransit
+											: stockroomEntryHasInitialFixedYAxisTransit
 												? { skipInitialAsymmetricFixedAxisTransit: true }
-												: undefined
+												: serviceCorridorWestHasInitialFixedXAxisTransit
+													? { skipInitialAsymmetricFixedAxisTransit: true }
+													: serviceCorridorNorthHasInitialFixedYAxisTransit
+														? { skipInitialAsymmetricFixedAxisTransit: true }
+														: undefined
 				);
 				if (serviceReturnWestStep) {
 					const plan = serviceReturnWestPlan;
@@ -8141,29 +8439,27 @@ async function traverseInteriorForJourney(
 				if (!plan) {
 					throw new Error('Item Shop spawn-return-corridor route plan was not created');
 				}
-				const verticalRouteResult = await runBrowserRoute(
+				const sideAisleRouteResult = await runBrowserRoute(
 					page,
-					plan.vertical,
+					plan.sideAisle,
 					routeSettleTolerance
 				);
-				onRoute?.(`${interior.mapId}:${step.label}:vertical`, verticalRouteResult);
-				expect(verticalRouteResult.position).not.toBeNull();
-				if (!verticalRouteResult.position) {
+				onRoute?.(`${interior.mapId}:${step.label}:side-aisle`, sideAisleRouteResult);
+				expect(sideAisleRouteResult.position).not.toBeNull();
+				if (!sideAisleRouteResult.position) {
 					throw new Error(
-						`Item Shop spawn-return-corridor vertical route returned no final position: ${describeBrowserRouteResult(verticalRouteResult, verticalRouteResult.token)}`
+						`Item Shop spawn-return-corridor side-aisle route returned no final position: ${describeBrowserRouteResult(sideAisleRouteResult, sideAisleRouteResult.token)}`
 					);
 				}
-				assertItemShopSpawnReturnCorridorVerticalRouteContract(plan.vertical, verticalRouteResult);
-				currentPoint = verticalRouteResult.position;
+				assertItemShopSpawnReturnCorridorSideAisleRouteContract(
+					plan.sideAisle,
+					sideAisleRouteResult
+				);
+				currentPoint = sideAisleRouteResult.position;
 
 				const horizontalRoutePoints = itemShopSpawnReturnCorridorHorizontalRoutePoints(
 					currentPoint,
 					checkpoint
-				);
-				assertTask6InteriorRouteEnvelope(
-					'item-shop',
-					horizontalRoutePoints,
-					`${interior.mapId}:${step.label}:horizontal`
 				);
 				const horizontalRouteResult = await runBrowserRoute(
 					page,
@@ -8431,7 +8727,11 @@ async function traverseInteriorForJourney(
 	return exitInteriorWithTrustedKeyboard(page, interior);
 }
 
-async function saveGuildCheckpointAndReload(page: Page, point: Point): Promise<Point> {
+async function saveInteriorCheckpointAndReload(
+	page: Page,
+	mapId: string,
+	point: Point
+): Promise<Point> {
 	await page.getByRole('button', { name: 'Menu' }).click();
 	await commandBox(page).getByRole('button', { name: 'Save Game' }).click();
 	await expect(fieldStatus(page)).toContainText('Saved');
@@ -8439,7 +8739,7 @@ async function saveGuildCheckpointAndReload(page: Page, point: Point): Promise<P
 		(key) => JSON.parse(localStorage.getItem(key) ?? 'null'),
 		SAVE_STORAGE_KEY
 	);
-	expect(persisted?.mapId).toBe('guild-hall');
+	expect(persisted?.mapId).toBe(mapId);
 	expect(Math.abs(persisted?.player?.x - point.x)).toBeLessThanOrEqual(AXIS_REACH_TOLERANCE);
 	expect(Math.abs(persisted?.player?.y - point.y)).toBeLessThanOrEqual(AXIS_REACH_TOLERANCE);
 
@@ -8448,11 +8748,11 @@ async function saveGuildCheckpointAndReload(page: Page, point: Point): Promise<P
 	await expect(page.getByRole('button', { name: 'Menu' })).toBeVisible();
 	await page.getByRole('button', { name: 'Menu' }).click();
 	await commandBox(page).getByRole('button', { name: 'Resume Save' }).click();
-	await waitForHudPosition(page, 'guild-hall', point);
+	await waitForHudPosition(page, mapId, point);
 	const resumed = await page.evaluate(
 		() => (window as GlieseProbeWindow).__glieseLastHudState ?? null
 	);
-	expect(resumed?.mapId).toBe('guild-hall');
+	expect(resumed?.mapId).toBe(mapId);
 	expect(Math.abs((resumed?.areaMap?.player?.x ?? 0) - point.x)).toBeLessThanOrEqual(
 		AXIS_REACH_TOLERANCE
 	);
@@ -10552,40 +10852,97 @@ function assertGuildHallFallbackDiagnostic(diagnostic: RegionalBackgroundPlaneRe
 	]);
 }
 
-async function saveHeroHouseCanvas(page: Page, name: string) {
-	mkdirSync(HERO_HOUSE_RUNTIME_EVIDENCE_ROOT, { recursive: true });
-	await page.evaluate(() => {
-		const style = document.createElement('style');
-		style.id = 'hero-house-runtime-evidence-style';
-		style.textContent = '.game-shell > :not(.game-stage) { visibility: hidden !important; }';
-		document.head.append(style);
+function assertItemShopPaintedDiagnostic(diagnostic: RegionalBackgroundPlaneRenderDiagnostic) {
+	expect(diagnostic).toMatchObject({
+		mapId: 'item-shop',
+		regionalBackgroundsEnabled: true,
+		packageId: 'item-shop-painted',
+		presentationMode: 'painted',
+		requiredBackgroundIds: ['item-shop-painted-base-image'],
+		selectedBackgroundIds: ['item-shop-painted-base-image'],
+		successfulBackgroundIds: ['item-shop-painted-base-image'],
+		selectedFallbackBlockerIds: [],
+		selectedFallbackDecorIds: [],
+		selectedFallbackFenceIds: [],
+		collisionIds: [...ITEM_SHOP_COLLISION_IDS],
+		statefulObjectIds: [...ITEM_SHOP_STATEFUL_OBJECT_IDS]
 	});
-	try {
-		await page.locator('canvas').screenshot({
-			path: resolve(HERO_HOUSE_RUNTIME_EVIDENCE_ROOT, name)
-		});
-	} finally {
-		await page.evaluate(() =>
-			document.getElementById('hero-house-runtime-evidence-style')?.remove()
-		);
-	}
+	expect(diagnostic.entries).toEqual([
+		expect.objectContaining({
+			id: 'item-shop-painted-base-image',
+			textureKey: 'item-shop-painted-base',
+			plane: 'base',
+			status: 'rendered',
+			expectedDimensions: { width: 832, height: 640 },
+			observedDimensions: { width: 832, height: 640 },
+			renderTransform: {
+				x: 416,
+				y: 320,
+				originX: 0.5,
+				originY: 0.5,
+				displayWidth: 832,
+				displayHeight: 640,
+				depth: -9
+			}
+		})
+	]);
+}
+
+function assertItemShopFallbackDiagnostic(diagnostic: RegionalBackgroundPlaneRenderDiagnostic) {
+	expect(diagnostic).toMatchObject({
+		mapId: 'item-shop',
+		regionalBackgroundsEnabled: true,
+		packageId: null,
+		presentationMode: 'fallback',
+		requiredBackgroundIds: ['item-shop-painted-base-image'],
+		selectedBackgroundIds: [],
+		successfulBackgroundIds: [],
+		selectedFallbackBlockerIds: [...ITEM_SHOP_FALLBACK_BLOCKER_IDS],
+		selectedFallbackDecorIds: [],
+		selectedFallbackFenceIds: [],
+		collisionIds: [...ITEM_SHOP_COLLISION_IDS],
+		statefulObjectIds: [...ITEM_SHOP_STATEFUL_OBJECT_IDS]
+	});
+	expect(diagnostic.entries).toEqual([
+		expect.objectContaining({
+			id: 'item-shop-painted-base-image',
+			textureKey: 'item-shop-painted-base',
+			plane: 'base',
+			status: 'missing-texture',
+			expectedDimensions: { width: 832, height: 640 },
+			observedDimensions: null
+		})
+	]);
+}
+
+async function saveHeroHouseCanvas(page: Page, name: string) {
+	return saveInteriorCanvas(page, HERO_HOUSE_RUNTIME_EVIDENCE_ROOT, 'hero-house', name);
 }
 
 async function saveGuildHallCanvas(page: Page, name: string) {
-	mkdirSync(GUILD_HALL_RUNTIME_EVIDENCE_ROOT, { recursive: true });
-	await page.evaluate(() => {
+	return saveInteriorCanvas(page, GUILD_HALL_RUNTIME_EVIDENCE_ROOT, 'guild-hall', name);
+}
+
+async function saveItemShopCanvas(page: Page, name: string) {
+	return saveInteriorCanvas(page, ITEM_SHOP_RUNTIME_EVIDENCE_ROOT, 'item-shop', name);
+}
+
+async function saveInteriorCanvas(page: Page, evidenceRoot: string, styleId: string, name: string) {
+	mkdirSync(evidenceRoot, { recursive: true });
+	await page.evaluate((id) => {
 		const style = document.createElement('style');
-		style.id = 'guild-hall-runtime-evidence-style';
+		style.id = `${id}-runtime-evidence-style`;
 		style.textContent = '.game-shell > :not(.game-stage) { visibility: hidden !important; }';
 		document.head.append(style);
-	});
+	}, styleId);
 	try {
 		await page.locator('canvas').screenshot({
-			path: resolve(GUILD_HALL_RUNTIME_EVIDENCE_ROOT, name)
+			path: resolve(evidenceRoot, name)
 		});
 	} finally {
-		await page.evaluate(() =>
-			document.getElementById('guild-hall-runtime-evidence-style')?.remove()
+		await page.evaluate(
+			(id) => document.getElementById(`${id}-runtime-evidence-style`)?.remove(),
+			styleId
 		);
 	}
 }
@@ -13282,14 +13639,13 @@ test('browser-local route steering acknowledges a plan and continues through Pha
 			terminalOvershootCheckpoint
 		)
 	).toThrow();
-	// The spawn-return corridor is two contracts, not one flat route: the
-	// counter-clearing vertical leg must retain its fixed x, while the authored
-	// x alignment is a separate normal route that starts from that leg's result.
+	// The spawn return leaves the east-display column on the compiled-grid side
+	// aisle before descending, then aligns with the authored checkpoint below it.
 	const spawnReturnStart = { x: 648, y: 301 };
 	const spawnReturnTarget = { x: 640, y: 544 };
 	expect(itemShopSpawnReturnCorridorRoutePoints(spawnReturnStart, spawnReturnTarget)).toEqual({
-		vertical: [spawnReturnStart, { x: spawnReturnStart.x, y: spawnReturnTarget.y }],
-		horizontal: [{ x: spawnReturnStart.x, y: spawnReturnTarget.y }, spawnReturnTarget]
+		sideAisle: [spawnReturnStart, { x: 723, y: 301 }, { x: 723, y: 547 }],
+		horizontal: [{ x: 723, y: 547 }, { x: 640, y: 547 }, spawnReturnTarget]
 	});
 	// The post-Ruins west-bank crossing uses the authored Wildwood corridor
 	// rather than walking straight through the expanded bank.
@@ -15489,7 +15845,7 @@ for (const interiorCase of INTERIOR_GRAYBOX_CASES.filter(({ mapId }) => mapId !=
 				await interactWithInteriorNpc(page, step.interaction);
 			}
 			if (interiorCase.persistAfterStep === step.label) {
-				currentPoint = await saveGuildCheckpointAndReload(page, step.point);
+				currentPoint = await saveInteriorCheckpointAndReload(page, interiorCase.mapId, step.point);
 			}
 		}
 
@@ -15544,7 +15900,7 @@ test('Guild Hall painted interior', async ({ page }) => {
 			afterStep: async (step, point) => {
 				if (step.label !== guildHall.persistAfterStep) return point;
 				await saveGuildHallCanvas(page, 'painted-quartermaster-camera-640x360.png');
-				persistedGuildPoint = await saveGuildCheckpointAndReload(page, point);
+				persistedGuildPoint = await saveInteriorCheckpointAndReload(page, guildHall.mapId, point);
 				return persistedGuildPoint;
 			}
 		},
@@ -15608,6 +15964,129 @@ test('Guild Hall painted interior', async ({ page }) => {
 		const fallbackDiagnostic = await waitForMapBackgroundDiagnostic(page, 'guild-hall');
 		assertGuildHallFallbackDiagnostic(fallbackDiagnostic);
 		await saveGuildHallCanvas(page, 'fallback-base-missing-camera-640x360.png');
+	} finally {
+		await page.unroute(missingBaseRoute);
+	}
+});
+
+test('Item Shop painted interior', async ({ page }) => {
+	test.setTimeout(600_000);
+	const itemShop = INTERIOR_GRAYBOX_CASES.find((interior) => interior.mapId === 'item-shop');
+	if (!itemShop) throw new Error('Item Shop route constants are missing');
+
+	await installRuntimeProbes(page, { captureFacing: true });
+	await injectSave(
+		page,
+		createSaveFixture({
+			mapId: 'meadow-entry',
+			player: {
+				level: 1,
+				xp: 0,
+				hp: 20,
+				attack: 3,
+				x: itemShop.returnArrival.x,
+				y: itemShop.returnArrival.y,
+				facing: 'up'
+			}
+		})
+	);
+	await page.setViewportSize({ width: 640, height: 360 });
+	await page.goto('/?movementDiagnostics=on');
+	await expect(page.locator('canvas')).toBeVisible();
+	await expect(page.getByRole('button', { name: 'Menu' })).toBeVisible();
+	await page.getByRole('button', { name: 'Menu' }).click();
+	await commandBox(page).getByRole('button', { name: 'Resume Save' }).click();
+	await waitForHudPosition(page, 'meadow-entry', itemShop.returnArrival);
+
+	await traverseInteriorForJourney(
+		page,
+		itemShop,
+		{
+			afterEnter: async () => {
+				assertItemShopPaintedDiagnostic(await waitForMapBackgroundDiagnostic(page, 'item-shop'));
+				await saveItemShopCanvas(page, 'painted-camera-640x360.png');
+			},
+			afterStep: async (step, point) => {
+				if (step.label === 'ambient-customer') {
+					const hud = await page.evaluate(
+						() => (window as GlieseProbeWindow).__glieseLastHudState ?? null
+					);
+					expect(hud?.nearbyShop).toBeNull();
+					expect(hud?.status ?? '').not.toContain('item-shop-customer');
+				}
+				if (step.label === 'mira-approach') {
+					await saveItemShopCanvas(page, 'painted-mira-camera-640x360.png');
+				}
+				if (step.label === 'office') {
+					return saveInteriorCheckpointAndReload(page, itemShop.mapId, point);
+				}
+				return point;
+			}
+		},
+		(label, result) => {
+			expect(result.mapId, label).toBe('item-shop');
+		}
+	);
+
+	const cameraSamples = await page.evaluate(
+		() =>
+			(window as GlieseProbeWindow).__glieseCameraSamples?.filter(
+				({ mapId }) => mapId === 'item-shop'
+			) ?? []
+	);
+	expect(cameraSamples.length).toBeGreaterThan(0);
+	for (const sample of cameraSamples) {
+		expect({ width: sample.width, height: sample.height }).toEqual({
+			width: 640,
+			height: 360
+		});
+		expect(sample.right).toBe(sample.left + sample.width);
+		expect(sample.bottom).toBe(sample.top + sample.height);
+	}
+	expect(new Set(cameraSamples.map(({ left, top }) => `${left}:${top}`)).size).toBeGreaterThan(1);
+	expect(
+		cameraSamples.some(
+			({ left, right, top, bottom }) => left <= 416 && right >= 416 && top <= 320 && bottom >= 320
+		)
+	).toBe(true);
+
+	const itemShopDiagnosticCountBeforeReentry = await page.evaluate(
+		() =>
+			(window as GlieseProbeWindow).__glieseRegionalBackgroundDiagnostics?.filter(
+				({ mapId }) => mapId === 'item-shop'
+			).length ?? 0
+	);
+	await enterInteriorWithTrustedKeyboard(page, itemShop);
+	assertItemShopPaintedDiagnostic(
+		await waitForMapBackgroundDiagnostic(page, 'item-shop', itemShopDiagnosticCountBeforeReentry)
+	);
+	await saveItemShopCanvas(page, 'painted-reentry-camera-640x360.png');
+	const reentrySavePoint = await currentHudPlayerPoint(page, 'item-shop');
+	await page.getByRole('button', { name: 'Menu' }).click();
+	await commandBox(page).getByRole('button', { name: 'Save Game' }).click();
+	await expect(fieldStatus(page)).toContainText('Saved');
+	const reentryPersisted = await page.evaluate(
+		(key) => JSON.parse(localStorage.getItem(key) ?? 'null'),
+		SAVE_STORAGE_KEY
+	);
+	expect(reentryPersisted?.mapId).toBe('item-shop');
+	expect(Math.abs(reentryPersisted?.player?.x - reentrySavePoint.x)).toBeLessThanOrEqual(
+		AXIS_REACH_TOLERANCE
+	);
+	expect(Math.abs(reentryPersisted?.player?.y - reentrySavePoint.y)).toBeLessThanOrEqual(
+		AXIS_REACH_TOLERANCE
+	);
+
+	const missingBaseRoute = '**/game/assets/interiors/item-shop/base.png';
+	await page.route(missingBaseRoute, (route) => route.abort());
+	try {
+		await page.goto('/?movementDiagnostics=on');
+		await expect(page.locator('canvas')).toBeVisible();
+		await page.getByRole('button', { name: 'Menu' }).click();
+		await commandBox(page).getByRole('button', { name: 'Resume Save' }).click();
+		await waitForHudPosition(page, 'item-shop', reentrySavePoint);
+		assertItemShopFallbackDiagnostic(await waitForMapBackgroundDiagnostic(page, 'item-shop'));
+		await saveItemShopCanvas(page, 'fallback-base-missing-camera-640x360.png');
 	} finally {
 		await page.unroute(missingBaseRoute);
 	}

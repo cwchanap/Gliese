@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { guildHallMap, maps, meadowEntryMap } from '$lib/game/content/maps';
+import { guildHallMap, itemShopMap, maps, meadowEntryMap } from '$lib/game/content/maps';
 import { COMPLETE_WORLD_MAP_IDS } from '$lib/game/content/maps/layouts/complete-world-layout-foundation';
 import { MEADOW_ENTRY_V2_RIVER_SEGMENTS } from '$lib/game/content/maps/layouts/meadow-entry-v2';
 import { startingPlayer } from '$lib/game/content/player';
@@ -107,6 +107,34 @@ describe('save state', () => {
 	it('round-trips a valid save payload', () => {
 		const encoded = serializeSaveState(createNewSaveState());
 		expect(parseSaveState(encoded)?.mapId).toBe('meadow-entry');
+	});
+
+	it('round-trips an Item Shop save at Mira approach without moving the player', () => {
+		const save = createNewSaveState();
+		save.mapId = itemShopMap.id;
+		save.player = {
+			...save.player,
+			x: 416,
+			y: 360,
+			facing: 'up'
+		};
+
+		const parsed = parseSaveState(serializeSaveState(save));
+
+		expect(parsed).toMatchObject({
+			mapId: 'item-shop',
+			player: { x: 416, y: 360, facing: 'up' }
+		});
+		expect(
+			isInsideAnyCollisionRect(
+				parsed!.player.x,
+				parsed!.player.y,
+				(itemShopMap.interiorProps ?? []).flatMap((prop) =>
+					prop.collision ? [prop.collision] : []
+				),
+				PLAYER_COLLISION_RADIUS
+			)
+		).toBe(false);
 	});
 
 	it('keeps legacy collision geometry aligned with shared map navigation', () => {

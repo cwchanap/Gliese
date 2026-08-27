@@ -1160,7 +1160,7 @@ async function renderLiveCharacterComposition(
 		assert(point !== undefined, `${mapId} room has no walkable proof point: ${roomId}`);
 		points.push(point);
 	}
-	const heroPoints = mapId === 'guild-hall' ? [points[0]!] : points;
+	const heroPoints = mapId === 'guild-hall' || mapId === 'item-shop' ? [points[0]!] : points;
 
 	const baseMetadata = await sharp(base).metadata();
 	assert(
@@ -1168,7 +1168,7 @@ async function renderLiveCharacterComposition(
 		`${mapId} painted base dimensions are unavailable`
 	);
 	const npcComposites: { input: Buffer; left: number; top: number }[] = [];
-	if (mapId === 'guild-hall') {
+	if (mapId === 'guild-hall' || mapId === 'item-shop') {
 		const npcPackPath = interiorImagePath(npcPackAsset.path, repositoryRoot);
 		let npcAtlas: Buffer;
 		try {

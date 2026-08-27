@@ -1371,8 +1371,8 @@ describe('opening map content', () => {
 			itemShopMap,
 			[
 				itemShopMap.spawn,
-				{ x: 624, y: 544 },
-				{ x: 624, y: 272 },
+				{ x: 720, y: 544 },
+				{ x: 720, y: 272 },
 				{ x: 416, y: 272 },
 				{ x: 416, y: 144 },
 				{ x: 288, y: 144 },
@@ -1384,8 +1384,8 @@ describe('opening map content', () => {
 			itemShopMap,
 			[
 				itemShopMap.spawn,
-				{ x: 624, y: 544 },
-				{ x: 624, y: 272 },
+				{ x: 720, y: 544 },
+				{ x: 720, y: 272 },
 				{ x: 416, y: 272 },
 				{ x: 416, y: 144 },
 				{ x: 528, y: 144 },
@@ -1396,12 +1396,12 @@ describe('opening map content', () => {
 		);
 		expectRouteClear(
 			itemShopMap,
-			[itemShopMap.spawn, { x: 208, y: 544 }, { x: 208, y: 448 }],
+			[itemShopMap.spawn, { x: 240, y: 544 }, { x: 240, y: 448 }],
 			'shop-west-display'
 		);
 		expectRouteClear(
 			itemShopMap,
-			[itemShopMap.spawn, { x: 624, y: 544 }, { x: 624, y: 448 }],
+			[itemShopMap.spawn, { x: 592, y: 544 }, { x: 592, y: 448 }],
 			'shop-east-display'
 		);
 		expectRouteClear(
@@ -2716,8 +2716,8 @@ describe('Item Shop Gates 1/2 coordinate and navigation contracts', () => {
 			[itemShopMap.spawn, layout.npcApproaches.mira.approach],
 			[
 				itemShopMap.spawn,
-				{ x: 624, y: 544 },
-				{ x: 624, y: 272 },
+				{ x: 720, y: 544 },
+				{ x: 720, y: 272 },
 				{ x: 416, y: 272 },
 				{ x: 416, y: 144 },
 				{ x: 288, y: 144 },
@@ -2725,16 +2725,16 @@ describe('Item Shop Gates 1/2 coordinate and navigation contracts', () => {
 			],
 			[
 				itemShopMap.spawn,
-				{ x: 624, y: 544 },
-				{ x: 624, y: 272 },
+				{ x: 720, y: 544 },
+				{ x: 720, y: 272 },
 				{ x: 416, y: 272 },
 				{ x: 416, y: 144 },
 				{ x: 528, y: 144 },
 				{ x: 528, y: 192 },
 				{ x: 736, y: 192 }
 			],
-			[itemShopMap.spawn, { x: 208, y: 544 }, { x: 208, y: 448 }],
-			[itemShopMap.spawn, { x: 624, y: 544 }, { x: 624, y: 448 }],
+			[itemShopMap.spawn, { x: 240, y: 544 }, { x: 240, y: 448 }],
+			[itemShopMap.spawn, { x: 592, y: 544 }, { x: 592, y: 448 }],
 			[itemShopMap.spawn, { x: 256, y: 544 }, { x: 256, y: 512 }],
 			[itemShopMap.spawn, itemShopMap.transitions[0]!]
 		] as const;

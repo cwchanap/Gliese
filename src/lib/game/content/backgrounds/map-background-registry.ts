@@ -27,5 +27,9 @@ export const MAP_BACKGROUND_DEFAULT_SELECTIONS: Readonly<
 	'guild-hall': Object.freeze({
 		packageId: 'guild-hall-painted',
 		mode: 'production' as const
+	}),
+	'item-shop': Object.freeze({
+		packageId: 'item-shop-painted',
+		mode: 'production' as const
 	})
 });

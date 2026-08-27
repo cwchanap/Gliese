@@ -1,8 +1,9 @@
-import { guildHallMap, heroHouseMap } from '$lib/game/content/maps';
+import { guildHallMap, heroHouseMap, itemShopMap } from '$lib/game/content/maps';
 import { VILLAGE_INTERIOR_LAYOUTS } from '$lib/game/content/maps/layouts/village-interiors-v2';
 import type { WorldMapDefinition } from '$lib/game/content/maps/types';
 import guildHallManifestJson from './manifests/guild-hall.json';
 import heroHouseManifestJson from './manifests/hero-house.json';
+import itemShopManifestJson from './manifests/item-shop.json';
 import {
 	buildVillageInteriorPackage,
 	type VillageInteriorPackageManifest
@@ -15,11 +16,15 @@ import type {
 
 const heroHouseManifest = heroHouseManifestJson as VillageInteriorPackageManifest;
 const guildHallManifest = guildHallManifestJson as VillageInteriorPackageManifest;
+const itemShopManifest = itemShopManifestJson as VillageInteriorPackageManifest;
 const heroHouseNavigationSource = VILLAGE_INTERIOR_NAVIGATION_SOURCES.find(
 	(source) => source.mapId === 'hero-house'
 );
 const guildHallNavigationSource = VILLAGE_INTERIOR_NAVIGATION_SOURCES.find(
 	(source) => source.mapId === 'guild-hall'
+);
+const itemShopNavigationSource = VILLAGE_INTERIOR_NAVIGATION_SOURCES.find(
+	(source) => source.mapId === 'item-shop'
 );
 
 if (!heroHouseNavigationSource) {
@@ -27,6 +32,9 @@ if (!heroHouseNavigationSource) {
 }
 if (!guildHallNavigationSource) {
 	throw new Error('Guild Hall navigation source is not registered');
+}
+if (!itemShopNavigationSource) {
+	throw new Error('Item Shop navigation source is not registered');
 }
 
 function interiorVisualOwners(
@@ -78,7 +86,16 @@ const guildHallPackage = buildVillageInteriorPackage({
 	navigationSource: guildHallNavigationSource
 });
 
+const itemShopPackage = buildVillageInteriorPackage({
+	mapId: 'item-shop',
+	layout: VILLAGE_INTERIOR_LAYOUTS['item-shop'],
+	manifest: itemShopManifest,
+	visualOwners: interiorVisualOwners(itemShopMap, 'item-shop-full-map', itemShopManifest.base.id),
+	navigationSource: itemShopNavigationSource
+});
+
 export const VILLAGE_INTERIOR_PACKAGES: readonly MapBackgroundPackageDefinition[] = Object.freeze([
 	heroHousePackage.definition,
-	guildHallPackage.definition
+	guildHallPackage.definition,
+	itemShopPackage.definition
 ]);

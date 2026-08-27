@@ -611,15 +611,15 @@ describe('village interior layout coordinate contracts', () => {
 		]);
 		expect(layout.propZones).toEqual({
 			counter: { x: 224, y: 288, width: 384, height: 64 },
-			westDisplay: { x: 96, y: 384, width: 96, height: 128 },
-			eastDisplay: { x: 640, y: 384, width: 96, height: 128 },
+			westDisplay: { x: 128, y: 384, width: 96, height: 128 },
+			eastDisplay: { x: 608, y: 384, width: 96, height: 128 },
 			stockShelves: { x: 96, y: 96, width: 192, height: 96 },
 			officeDesk: { x: 544, y: 96, width: 192, height: 96 }
 		});
 		expect(layout.propCollisions).toEqual({
 			miraCounter: { x: 224, y: 336, width: 384, height: 8 },
-			westDisplay: { x: 112, y: 384, width: 64, height: 128 },
-			eastDisplay: { x: 656, y: 384, width: 64, height: 128 },
+			westDisplay: { x: 144, y: 384, width: 64, height: 128 },
+			eastDisplay: { x: 624, y: 384, width: 64, height: 128 },
 			stockShelves: { x: 128, y: 112, width: 128, height: 48 },
 			officeDesk: { x: 576, y: 112, width: 128, height: 48 }
 		});
@@ -668,8 +668,8 @@ describe('village interior layout coordinate contracts', () => {
 			['stockroom', { x: 288, y: 192 }],
 			['office', { x: 736, y: 192 }],
 			['sales-floor', { x: 416, y: 480 }],
-			['west-display', { x: 208, y: 448 }],
-			['east-display', { x: 624, y: 448 }],
+			['west-display', { x: 240, y: 448 }],
+			['east-display', { x: 592, y: 448 }],
 			['ambient-customer', EXPECTED_ITEM_SHOP_AMBIENT_ACTIVITY['item-shop-customer']],
 			['mira-approach', layout.npcApproaches.mira.approach],
 			['spawn', layout.spawn],
@@ -681,6 +681,49 @@ describe('village interior layout coordinate contracts', () => {
 			npc: { x: 416, y: 320 },
 			approach: { x: 416, y: 360 }
 		});
+	});
+
+	it('aligns painted display collision with outward approaches and side circulation', () => {
+		const layout = VILLAGE_INTERIOR_LAYOUTS['item-shop'];
+		const source = buildVillageInteriorNavigationSource({ mapId: 'item-shop', layout });
+		const grid = compileNavigationGrid(source);
+		const oldApproaches = [
+			['west-display', { x: 208, y: 448 }, layout.propZones.westDisplay],
+			['east-display', { x: 624, y: 448 }, layout.propZones.eastDisplay]
+		] as const;
+		for (const [label, point, zone] of oldApproaches) {
+			expect(
+				expandedLayoutRectContainsPoint(zone, point, PLAYER_COLLISION_RADIUS),
+				`${label} old approach must be inside the painted display envelope`
+			).toBe(true);
+			expect(isWalkable(grid, point.x, point.y), `${label} old approach must be blocked`).toBe(
+				false
+			);
+		}
+
+		for (const [label, point] of [
+			['west-display-approach', { x: 240, y: 448 }],
+			['east-display-approach', { x: 592, y: 448 }]
+		] as const) {
+			expect(isWalkable(grid, point.x, point.y), `${label} must remain walkable`).toBe(true);
+		}
+		for (const [label, point] of [
+			['west-display-core', { x: 168, y: 448 }],
+			['east-display-core', { x: 648, y: 448 }]
+		] as const) {
+			expect(isWalkable(grid, point.x, point.y), `${label} must be blocked`).toBe(false);
+		}
+
+		expect(
+			layout.propZones.westDisplay.x - layout.rooms.salesFloor.x,
+			'west display side circulation'
+		).toBeGreaterThanOrEqual(64);
+		expect(
+			layout.rooms.salesFloor.x +
+				layout.rooms.salesFloor.width -
+				(layout.propZones.eastDisplay.x + layout.propZones.eastDisplay.width),
+			'east display side circulation'
+		).toBeGreaterThanOrEqual(64);
 	});
 
 	it('keeps both upper service rooms open below their shelving and desk', () => {

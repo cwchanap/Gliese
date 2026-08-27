@@ -10,6 +10,7 @@ import {
 	heroHouseMap,
 	guildHallMap,
 	maps,
+	itemShopMap,
 	shrineOfAuroraInteriorMap,
 	villagerHouse1Map,
 	villagerHouse2Map,
@@ -38,6 +39,26 @@ import { HUD_COMMAND_EVENT, type HudCommand } from '$lib/game/ui-bridge/events';
 
 const guildMasterApproach = { x: 800, y: 184 };
 const quartermasterApproach = { x: 816, y: 568 };
+
+const itemShopCollisionIds = [
+	...(itemShopMap.blockers ?? []).map(({ id }) => id),
+	...(itemShopMap.fences ?? []).map(({ id }) => id),
+	...(itemShopMap.mapDecor ?? []).flatMap(({ collision }) => (collision ? [collision.id] : [])),
+	...(itemShopMap.interiorProps ?? []).flatMap(({ collision }) =>
+		collision ? [collision.id] : []
+	),
+	...(itemShopMap.landmarks ?? []).map(({ id }) => id)
+].sort();
+const itemShopStatefulObjectIds = [
+	...itemShopMap.transitions.map(({ id }) => id),
+	...(itemShopMap.pickups ?? []).map(({ id }) => id),
+	...(itemShopMap.encounters ?? []).map(({ id }) => id),
+	...(itemShopMap.npcs ?? []).map(({ id }) => id),
+	...(itemShopMap.landmarks ?? []).map(({ id }) => id),
+	...(itemShopMap.ambientNpcs ?? []).map(({ id }) => id),
+	...(itemShopMap.discoveries ?? []).map(({ id }) => id),
+	...(itemShopMap.combatBounds ?? []).map(({ id }) => id)
+].sort();
 
 const heroHouseCollisionIds = [
 	...(heroHouseMap.blockers ?? []).map(({ id }) => id),
@@ -3685,6 +3706,154 @@ describe('WorldScene', () => {
 			expect(target.diagnostics[0]?.entries.map(({ status }) => status)).toEqual([
 				'rendered',
 				'missing-texture'
+			]);
+		} finally {
+			target.restore();
+		}
+	});
+
+	it('renders the painted Item Shop base while keeping live actors and collisions', async () => {
+		const { VILLAGE_INTERIOR_PACKAGES } =
+			await import('$lib/game/content/backgrounds/village-interior-packages');
+		const itemShopPackage = VILLAGE_INTERIOR_PACKAGES.find(({ id }) => id === 'item-shop-painted');
+		if (!itemShopPackage) throw new Error('Item Shop painted package is not registered');
+		const base = itemShopPackage.backgrounds.find(({ plane }) => plane === 'base');
+		if (!base) throw new Error('Item Shop painted base is not registered');
+		phaserState.regionalBackgroundTextureMocks.set(base.textureKey, {
+			key: base.textureKey,
+			source: [{ width: base.width, height: base.height }],
+			get: vi.fn(() => ({ cutWidth: base.width, cutHeight: base.height }))
+		});
+		const target = installPlaneDiagnosticListener();
+		const { WorldScene } = await import('./WorldScene');
+		const scene = new WorldScene();
+
+		try {
+			scene.create({ mapId: 'item-shop' });
+
+			expect(itemShopPackage.backgrounds.map(({ plane }) => plane)).toEqual(['base']);
+			expect(scene.make.tilemap).not.toHaveBeenCalled();
+			expect(phaserState.tileSpriteMarkers).toHaveLength(0);
+			expect(
+				phaserState.imageMarkers.filter(({ texture }) => texture === 'interior-props')
+			).toHaveLength(0);
+			expect(
+				phaserState.imageMarkers.filter(({ texture }) => texture === 'environment-dressing')
+			).toHaveLength(0);
+
+			expect(phaserState.playerMarker).toMatchObject({
+				x: itemShopMap.spawn.x,
+				y: itemShopMap.spawn.y,
+				frame: 'heroIdle0'
+			});
+			expect(phaserState.playerMarker.setDisplaySize).toHaveBeenCalledWith(88, 90);
+			expect(phaserState.imageMarkers).toEqual(
+				expect.arrayContaining([
+					expect.objectContaining({
+						x: 416,
+						y: 320,
+						texture: 'npc-pack',
+						frame: 'miraItemShopNpc'
+					}),
+					expect.objectContaining({
+						x: 256,
+						y: 512,
+						texture: 'npc-pack',
+						frame: 'guildMasterNpc'
+					})
+				])
+			);
+
+			const backgroundMarker = phaserState.imageMarkers.find(
+				({ texture }) => texture === base.textureKey
+			);
+			expect(backgroundMarker).toBeDefined();
+			expect(backgroundMarker).toMatchObject({ x: 416, y: 320, texture: base.textureKey });
+			expect(backgroundMarker?.setOrigin).toHaveBeenCalledWith(0.5, 0.5);
+			expect(backgroundMarker?.setDisplaySize).toHaveBeenCalledWith(832, 640);
+			expect(backgroundMarker?.setDepth).toHaveBeenCalledWith(-9);
+			expect(target.diagnostics[0]).toMatchObject({
+				mapId: 'item-shop',
+				packageId: 'item-shop-painted',
+				presentationMode: 'painted',
+				requiredBackgroundIds: ['item-shop-painted-base-image'],
+				selectedBackgroundIds: ['item-shop-painted-base-image'],
+				successfulBackgroundIds: ['item-shop-painted-base-image'],
+				selectedFallbackBlockerIds: [],
+				selectedFallbackDecorIds: [],
+				selectedFallbackFenceIds: [],
+				collisionIds: itemShopCollisionIds,
+				statefulObjectIds: itemShopStatefulObjectIds
+			});
+			expect(target.diagnostics[0]?.entries).toEqual([
+				expect.objectContaining({
+					id: 'item-shop-painted-base-image',
+					textureKey: 'item-shop-painted-base',
+					plane: 'base',
+					status: 'rendered',
+					expectedDimensions: { width: 832, height: 640 },
+					observedDimensions: { width: 832, height: 640 },
+					renderTransform: {
+						x: 416,
+						y: 320
+					}
+				})
+			]);
+		} finally {
+			target.restore();
+		}
+	});
+
+	it('restores all Item Shop legacy visuals when its painted base fails', async () => {
+		const { VILLAGE_INTERIOR_PACKAGES } =
+			await import('$lib/game/content/backgrounds/village-interior-packages');
+		const itemShopPackage = VILLAGE_INTERIOR_PACKAGES.find(({ id }) => id === 'item-shop-painted');
+		if (!itemShopPackage) throw new Error('Item Shop painted package is not registered');
+		const base = itemShopPackage.backgrounds.find(({ plane }) => plane === 'base');
+		if (!base) throw new Error('Item Shop painted base is not registered');
+		phaserState.regionalBackgroundTextureMocks.set(base.textureKey, {
+			key: base.textureKey,
+			source: [{ width: base.width, height: base.height }],
+			get: vi.fn(() => ({ cutWidth: base.width, cutHeight: base.height }))
+		});
+		phaserState.missingTextureKeys.add(base.textureKey);
+		const target = installPlaneDiagnosticListener();
+		const { WorldScene } = await import('./WorldScene');
+		const scene = new WorldScene();
+
+		try {
+			scene.create({ mapId: 'item-shop' });
+
+			expect(scene.make.tilemap).toHaveBeenCalledOnce();
+			expect(phaserState.imageMarkers.some(({ texture }) => texture === base.textureKey)).toBe(
+				false
+			);
+			expect(phaserState.tileSpriteMarkers).toHaveLength(itemShopMap.blockers?.length ?? 0);
+			expect(
+				phaserState.imageMarkers.filter(({ texture }) => texture === 'interior-props')
+			).toHaveLength(itemShopMap.interiorProps?.length ?? 0);
+			expect(target.diagnostics[0]).toMatchObject({
+				mapId: 'item-shop',
+				packageId: null,
+				presentationMode: 'fallback',
+				requiredBackgroundIds: ['item-shop-painted-base-image'],
+				selectedBackgroundIds: [],
+				successfulBackgroundIds: [],
+				selectedFallbackBlockerIds: itemShopMap.blockers?.map(({ id }) => id),
+				selectedFallbackDecorIds: [],
+				selectedFallbackFenceIds: [],
+				collisionIds: itemShopCollisionIds,
+				statefulObjectIds: itemShopStatefulObjectIds
+			});
+			expect(target.diagnostics[0]?.entries).toEqual([
+				expect.objectContaining({
+					id: 'item-shop-painted-base-image',
+					textureKey: 'item-shop-painted-base',
+					plane: 'base',
+					status: 'missing-texture',
+					expectedDimensions: { width: 832, height: 640 },
+					observedDimensions: null
+				})
 			]);
 		} finally {
 			target.restore();

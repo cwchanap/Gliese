@@ -16,6 +16,7 @@ import {
 } from './meadow-entry-painted-v2-runtime';
 import { resolveMapBackgroundPackageSelection } from './map-background-package';
 import { MAP_BACKGROUND_PACKAGE_REGISTRY } from './map-background-registry';
+import { VILLAGE_INTERIOR_PACKAGES } from './village-interior-packages';
 
 describe('painted-v2 runtime selection', () => {
 	it('defaults to the approved complete package without an explicit review request', () => {
@@ -214,7 +215,8 @@ describe('painted-v2 runtime selection', () => {
 		expect(Object.isFrozen(MEADOW_ENTRY_PAINTED_MODE_COMPLETE.visualOwners)).toBe(true);
 		expect(MAP_BACKGROUND_PACKAGE_REGISTRY).toEqual([
 			MEADOW_ENTRY_PAINTED_V2_LEGACY_PACKAGE,
-			MEADOW_ENTRY_PAINTED_V2_COMPLETE_PACKAGE
+			MEADOW_ENTRY_PAINTED_V2_COMPLETE_PACKAGE,
+			...VILLAGE_INTERIOR_PACKAGES
 		]);
 		expect(Object.isFrozen(MEADOW_ENTRY_PAINTED_MODE_PILOT.visualOwners[0])).toBe(true);
 		expect(Object.isFrozen(MEADOW_ENTRY_PAINTED_MODE_PILOT.visualOwners[0]?.ownerCrops)).toBe(true);
