@@ -7025,8 +7025,21 @@ describe('WorldScene', () => {
 
 		scene.create({ mapId: 'item-shop' });
 
-		expect(scene.add.image).toHaveBeenCalledWith(224, 480, 'npc-pack', 'guildMasterNpc');
-		Object.assign(phaserState.playerMarker, { x: 224, y: 480 });
+		const itemShopCustomer = maps['item-shop'].ambientNpcs?.find(
+			({ id }) => id === 'item-shop-customer'
+		);
+		expect(itemShopCustomer).toBeDefined();
+		if (!itemShopCustomer) return;
+		expect(scene.add.image).toHaveBeenCalledWith(
+			itemShopCustomer.x,
+			itemShopCustomer.y,
+			'npc-pack',
+			'guildMasterNpc'
+		);
+		Object.assign(phaserState.playerMarker, {
+			x: itemShopCustomer.x,
+			y: itemShopCustomer.y
+		});
 		scene.update(0, 16);
 		Object.assign(phaserState.interactKeys.e, { justDown: true });
 		scene.update(16, 16);

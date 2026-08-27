@@ -49,7 +49,7 @@ const EXPECTED_INTERIOR_PROGRAMS = {
 	'item-shop': {
 		size: [26, 20],
 		rooms: ['stockroom', 'office', 'salesFloor'],
-		corridors: ['serviceCorridor'],
+		corridors: ['serviceCorridor', 'entranceAisle'],
 		npcApproaches: ['mira']
 	},
 	'shrine-of-aurora-interior': {
@@ -81,6 +81,10 @@ const EXPECTED_INTERIOR_PROGRAMS = {
 const EXPECTED_GUILD_HALL_AMBIENT_ACTIVITY = {
 	'guild-hall-member-west': { x: 160, y: 592 },
 	'guild-hall-member-east': { x: 912, y: 368 }
+} as const;
+
+const EXPECTED_ITEM_SHOP_AMBIENT_ACTIVITY = {
+	'item-shop-customer': { x: 256, y: 512 }
 } as const;
 
 function expectStructuralGrid(value: { x: number; y: number; width: number; height: number }) {
@@ -578,6 +582,152 @@ describe('village interior layout coordinate contracts', () => {
 		expect(source?.rows).toEqual(
 			buildVillageInteriorNavigationSource({ mapId: 'hero-house', layout }).rows
 		);
+	});
+
+	it('pins the Item Shop Gate 1 program, anchors, circulation, and camera envelope', () => {
+		const layout = VILLAGE_INTERIOR_LAYOUTS['item-shop'];
+		expect([layout.widthTiles, layout.heightTiles]).toEqual([26, 20]);
+		expect(Object.keys(layout.rooms)).toEqual(['stockroom', 'office', 'salesFloor']);
+		expect(Object.keys(layout.corridors)).toEqual(['serviceCorridor', 'entranceAisle']);
+		expect(Object.keys(layout.doors)).toEqual([
+			'stockroom',
+			'office',
+			'serviceToSales',
+			'exterior'
+		]);
+		expect(Object.keys(layout.propZones)).toEqual([
+			'counter',
+			'westDisplay',
+			'eastDisplay',
+			'stockShelves',
+			'officeDesk'
+		]);
+		expect(Object.keys(layout.propCollisions)).toEqual([
+			'miraCounter',
+			'westDisplay',
+			'eastDisplay',
+			'stockShelves',
+			'officeDesk'
+		]);
+		expect(layout.propZones).toEqual({
+			counter: { x: 224, y: 288, width: 384, height: 64 },
+			westDisplay: { x: 96, y: 384, width: 96, height: 128 },
+			eastDisplay: { x: 640, y: 384, width: 96, height: 128 },
+			stockShelves: { x: 96, y: 96, width: 192, height: 96 },
+			officeDesk: { x: 544, y: 96, width: 192, height: 96 }
+		});
+		expect(layout.propCollisions).toEqual({
+			miraCounter: { x: 224, y: 336, width: 384, height: 8 },
+			westDisplay: { x: 112, y: 384, width: 64, height: 128 },
+			eastDisplay: { x: 656, y: 384, width: 64, height: 128 },
+			stockShelves: { x: 128, y: 112, width: 128, height: 48 },
+			officeDesk: { x: 576, y: 112, width: 128, height: 48 }
+		});
+		expect(layout.rooms.salesFloor.width).toBeGreaterThanOrEqual(96);
+		expect(layout.corridors.serviceCorridor.width).toBeGreaterThanOrEqual(96);
+		expect(layout.corridors.serviceCorridor.height).toBeGreaterThanOrEqual(96);
+		for (const [doorId, door] of Object.entries(layout.doors)) {
+			expect(Math.max(door.width, door.height), doorId).toBeGreaterThanOrEqual(64);
+		}
+
+		expect(layout.spawn).toEqual({ x: 416, y: 544 });
+		expect(layout.exit).toEqual({ x: 416, y: 624 });
+		expect(layout.fullFloor).toEqual({ x: 0, y: 0, width: 832, height: 640 });
+		expect({
+			horizontalScrollPx: layout.fullFloor.width - 640,
+			verticalScrollPx: layout.fullFloor.height - 360
+		}).toEqual({ horizontalScrollPx: 192, verticalScrollPx: 280 });
+		const camera = {
+			left: Math.max(0, Math.min(layout.spawn.x - 320, layout.fullFloor.width - 640)),
+			top: Math.max(0, Math.min(layout.spawn.y - 180, layout.fullFloor.height - 360)),
+			width: 640,
+			height: 360
+		};
+		expect(camera).toEqual({ left: 96, top: 280, width: 640, height: 360 });
+		for (const [label, point] of [
+			['mira', layout.npcApproaches.mira.npc],
+			['mira-approach', layout.npcApproaches.mira.approach],
+			['counter', { x: 416, y: 320 }],
+			['west-display', { x: 144, y: 448 }],
+			['east-display', { x: 688, y: 448 }],
+			['entrance', { x: 416, y: 560 }],
+			['exit', layout.exit]
+		] as const) {
+			expect(
+				point.x >= camera.left &&
+					point.x <= camera.left + camera.width &&
+					point.y >= camera.top &&
+					point.y <= camera.top + camera.height,
+				`${label} is outside the initial camera envelope`
+			).toBe(true);
+		}
+
+		expect(layout.ambientActivity).toEqual(EXPECTED_ITEM_SHOP_AMBIENT_ACTIVITY);
+		const reachable = reachableInteriorSamples(layout);
+		for (const [label, candidate] of [
+			['stockroom', { x: 288, y: 192 }],
+			['office', { x: 736, y: 192 }],
+			['sales-floor', { x: 416, y: 480 }],
+			['west-display', { x: 208, y: 448 }],
+			['east-display', { x: 624, y: 448 }],
+			['ambient-customer', EXPECTED_ITEM_SHOP_AMBIENT_ACTIVITY['item-shop-customer']],
+			['mira-approach', layout.npcApproaches.mira.approach],
+			['spawn', layout.spawn],
+			['exit', layout.exit]
+		] as const) {
+			expect(reachableInteriorPoint(reachable, candidate), `${label} is disconnected`).toBe(true);
+		}
+		expect(layout.npcApproaches.mira).toEqual({
+			npc: { x: 416, y: 320 },
+			approach: { x: 416, y: 360 }
+		});
+	});
+
+	it('keeps both upper service rooms open below their shelving and desk', () => {
+		const layout = VILLAGE_INTERIOR_LAYOUTS['item-shop'];
+		const source = buildVillageInteriorNavigationSource({ mapId: 'item-shop', layout });
+		const grid = compileNavigationGrid(source);
+		for (const [roomId, collisionId, dividerId, sampleX] of [
+			['stockroom', 'stockShelves', 'item-shop-stockroom-sales-divider', 192],
+			['office', 'officeDesk', 'item-shop-office-sales-divider', 624]
+		] as const) {
+			const collision = layout.propCollisions[collisionId];
+			const divider = layout.walls.find((wall) => wall.id === dividerId);
+			expect(divider, `${roomId} sales divider is missing`).toBeDefined();
+			if (!divider) return;
+			expect(
+				divider.y - (collision.y + collision.height),
+				`${roomId} raw service clearance`
+			).toBeGreaterThanOrEqual(64);
+			expect(
+				[176, 192].every((y) => isWalkable(grid, sampleX, y)),
+				`${roomId} must retain a two-row player-centre service band`
+			).toBe(true);
+		}
+	});
+
+	it('keeps both upper service-room door turns open across a two-column player-centre band', () => {
+		const layout = VILLAGE_INTERIOR_LAYOUTS['item-shop'];
+		const source = buildVillageInteriorNavigationSource({ mapId: 'item-shop', layout });
+		const grid = compileNavigationGrid(source);
+		for (const [roomId, collisionId, dividerId, side, columns] of [
+			['stockroom', 'stockShelves', 'item-shop-stockroom-divider-south', 'right', [272, 288]],
+			['office', 'officeDesk', 'item-shop-office-divider-south', 'left', [528, 544]]
+		] as const) {
+			const collision = layout.propCollisions[collisionId];
+			const divider = layout.walls.find((wall) => wall.id === dividerId);
+			expect(divider, `${roomId} door divider is missing`).toBeDefined();
+			if (!divider) return;
+			const rawDoorSideClearance =
+				side === 'right'
+					? divider.x - (collision.x + collision.width)
+					: collision.x - (divider.x + divider.width);
+			expect(rawDoorSideClearance, `${roomId} raw door-side clearance`).toBeGreaterThanOrEqual(64);
+			expect(
+				[144, 192].every((y) => columns.every((x) => isWalkable(grid, x, y))),
+				`${roomId} must retain two walkable player-centre columns through the turn`
+			).toBe(true);
+		}
 	});
 
 	it('seals every Shrine service pocket with an explicit inert wall', () => {

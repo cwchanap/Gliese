@@ -260,7 +260,11 @@ const itemShopGroundPatches = [
 		tile: 'plazaStoneTile' as const
 	},
 	{
-		...toMapRect('item-shop-corridor-service', itemShopLayout.corridors.serviceCorridor),
+		...toMapRect('item-shop-corridor-service-corridor', itemShopLayout.corridors.serviceCorridor),
+		tile: 'pathTile' as const
+	},
+	{
+		...toMapRect('item-shop-corridor-entrance-aisle', itemShopLayout.corridors.entranceAisle),
 		tile: 'pathTile' as const
 	}
 ];
@@ -833,6 +837,8 @@ export const itemShopMap: WorldMapDefinition = addEnglishMapText({
 	height: itemShopLayout.heightTiles,
 	spawnDirection: 'up',
 	spawn: { ...itemShopLayout.spawn },
+	navigationGrid: GENERATED_NAVIGATION_GRIDS['item-shop-navigation'],
+	navigationGridOwnedSources: VILLAGE_INTERIOR_NAVIGATION_OWNED_SOURCES,
 	groundPatches: itemShopGroundPatches,
 	blockers: itemShopBlockers,
 	transitions: [
@@ -864,23 +870,44 @@ export const itemShopMap: WorldMapDefinition = addEnglishMapText({
 		},
 		{
 			...toMapRect('item-shop-west-display', itemShopLayout.propZones.westDisplay),
-			frameName: 'displayShelf'
+			frameName: 'displayShelf',
+			collision: toMapRect(
+				'item-shop-west-display-collision',
+				itemShopLayout.propCollisions.westDisplay
+			)
 		},
 		{
 			...toMapRect('item-shop-east-display', itemShopLayout.propZones.eastDisplay),
-			frameName: 'displayShelf'
+			frameName: 'displayShelf',
+			collision: toMapRect(
+				'item-shop-east-display-collision',
+				itemShopLayout.propCollisions.eastDisplay
+			)
 		},
 		{
 			...toMapRect('item-shop-stock-shelves', itemShopLayout.propZones.stockShelves),
-			frameName: 'bookshelf'
+			frameName: 'bookshelf',
+			collision: toMapRect(
+				'item-shop-stock-shelves-collision',
+				itemShopLayout.propCollisions.stockShelves
+			)
 		},
 		{
 			...toMapRect('item-shop-office-desk', itemShopLayout.propZones.officeDesk),
-			frameName: 'table'
+			frameName: 'table',
+			collision: toMapRect(
+				'item-shop-office-desk-collision',
+				itemShopLayout.propCollisions.officeDesk
+			)
 		}
 	],
 	ambientNpcs: [
-		{ id: 'item-shop-customer', x: 224, y: 480, frameName: 'guildMasterNpc', role: 'shopper' }
+		{
+			id: 'item-shop-customer',
+			...itemShopLayout.ambientActivity['item-shop-customer'],
+			frameName: 'guildMasterNpc',
+			role: 'shopper'
+		}
 	]
 });
 

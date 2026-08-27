@@ -32,6 +32,14 @@ describe('map background registry', () => {
 				widthCells: 64,
 				heightCells: 52,
 				clearancePx: 12
+			}),
+			expect.objectContaining({
+				id: 'item-shop-navigation',
+				mapId: 'item-shop',
+				cellSizePx: 16,
+				widthCells: 52,
+				heightCells: 40,
+				clearancePx: 12
 			})
 		]);
 		expect(VILLAGE_INTERIOR_PACKAGES).toHaveLength(2);

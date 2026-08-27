@@ -244,7 +244,8 @@ export const VILLAGE_INTERIOR_LAYOUTS = {
 			salesFloor: rect(64, 256, 704, 352)
 		},
 		corridors: {
-			serviceCorridor: rect(352, 64, 128, 192)
+			serviceCorridor: rect(352, 64, 128, 192),
+			entranceAisle: rect(320, 512, 192, 96)
 		},
 		doors: {
 			stockroom: rect(320, 112, 32, 64),
@@ -258,15 +259,22 @@ export const VILLAGE_INTERIOR_LAYOUTS = {
 		npcApproaches: {
 			mira: { npc: point(416, 320), approach: point(416, 360) }
 		},
+		ambientActivity: {
+			'item-shop-customer': point(256, 512)
+		},
 		propZones: {
-			counter: rect(224, 312, 384, 40),
+			counter: rect(224, 288, 384, 64),
 			westDisplay: rect(96, 384, 96, 128),
 			eastDisplay: rect(640, 384, 96, 128),
 			stockShelves: rect(96, 96, 192, 96),
-			officeDesk: rect(560, 96, 160, 96)
+			officeDesk: rect(544, 96, 192, 96)
 		},
 		propCollisions: {
-			miraCounter: rect(224, 336, 384, 8)
+			miraCounter: rect(224, 336, 384, 8),
+			westDisplay: rect(112, 384, 64, 128),
+			eastDisplay: rect(656, 384, 64, 128),
+			stockShelves: rect(128, 112, 128, 48),
+			officeDesk: rect(576, 112, 128, 48)
 		}
 	},
 	'shrine-of-aurora-interior': {

@@ -1340,75 +1340,10 @@ describe('opening map content', () => {
 		);
 
 		expect(itemShopMap.spawnDirection).toBe('up');
-		expect(itemShopMap.spawn).toEqual({ x: 416, y: 544 });
-		expect(itemShopMap.transitions).toEqual([
-			{
-				id: 'item-shop-to-meadow',
-				x: 416,
-				y: 624,
-				toMapId: 'meadow-entry',
-				arrival: { x: 704, y: 5_248, facing: 'down' }
-			}
-		]);
-		expect(itemShopMap.groundPatches).toEqual([
-			{
-				id: 'item-shop-full-floor',
-				x: 416,
-				y: 320,
-				width: 832,
-				height: 640,
-				tile: 'cobblestoneTile'
-			},
-			{
-				id: 'item-shop-room-stockroom',
-				x: 192,
-				y: 144,
-				width: 256,
-				height: 160,
-				tile: 'plazaStoneTile'
-			},
-			{
-				id: 'item-shop-room-office',
-				x: 640,
-				y: 144,
-				width: 256,
-				height: 160,
-				tile: 'plazaStoneTile'
-			},
-			{
-				id: 'item-shop-room-sales-floor',
-				x: 416,
-				y: 432,
-				width: 704,
-				height: 352,
-				tile: 'plazaStoneTile'
-			},
-			{
-				id: 'item-shop-corridor-service',
-				x: 416,
-				y: 160,
-				width: 128,
-				height: 192,
-				tile: 'pathTile'
-			}
-		]);
-		expect(itemShopMap.blockers).toEqual(
-			[
-				['item-shop-wall-north', 416, 32, 832, 64],
-				['item-shop-wall-west', 32, 336, 64, 544],
-				['item-shop-wall-east', 800, 336, 64, 544],
-				['item-shop-wall-south-west', 192, 624, 384, 32],
-				['item-shop-wall-south-east', 640, 624, 384, 32],
-				['item-shop-stockroom-divider-north', 336, 88, 32, 48],
-				['item-shop-stockroom-divider-south', 336, 200, 32, 48],
-				['item-shop-office-divider-north', 496, 88, 32, 48],
-				['item-shop-office-divider-south', 496, 200, 32, 48],
-				['item-shop-stockroom-sales-divider', 192, 240, 256, 32],
-				['item-shop-office-sales-divider', 640, 240, 256, 32],
-				['item-shop-service-west-lower-divider', 336, 240, 32, 32],
-				['item-shop-service-east-lower-divider', 496, 240, 32, 32]
-			].map(([id, x, y, width, height]) => ({ id, x, y, width, height, kind: 'ruin-wall' }))
-		);
+		const itemShopLayout = VILLAGE_INTERIOR_LAYOUTS['item-shop'];
+		expect(itemShopMap.spawn).toEqual(itemShopLayout.spawn);
+		expect(itemShopMap.transitions[0]).toMatchObject({ ...itemShopLayout.exit });
+		expectAcceptedInteriorGeometry(itemShopMap, itemShopLayout, 'item-shop');
 	});
 
 	it('keeps Hero House and Item Shop authored door routes clear', () => {
@@ -1436,11 +1371,12 @@ describe('opening map content', () => {
 			itemShopMap,
 			[
 				itemShopMap.spawn,
-				{ x: 640, y: 544 },
-				{ x: 640, y: 300 },
-				{ x: 448, y: 300 },
-				{ x: 448, y: 160 },
-				{ x: 192, y: 160 }
+				{ x: 624, y: 544 },
+				{ x: 624, y: 272 },
+				{ x: 416, y: 272 },
+				{ x: 416, y: 144 },
+				{ x: 288, y: 144 },
+				{ x: 288, y: 192 }
 			],
 			'shop-stockroom'
 		);
@@ -1448,22 +1384,24 @@ describe('opening map content', () => {
 			itemShopMap,
 			[
 				itemShopMap.spawn,
-				{ x: 640, y: 544 },
-				{ x: 640, y: 300 },
-				{ x: 448, y: 300 },
-				{ x: 448, y: 160 },
-				{ x: 608, y: 160 }
+				{ x: 624, y: 544 },
+				{ x: 624, y: 272 },
+				{ x: 416, y: 272 },
+				{ x: 416, y: 144 },
+				{ x: 528, y: 144 },
+				{ x: 528, y: 192 },
+				{ x: 736, y: 192 }
 			],
 			'shop-office'
 		);
 		expectRouteClear(
 			itemShopMap,
-			[itemShopMap.spawn, { x: 192, y: 544 }, { x: 192, y: 448 }],
+			[itemShopMap.spawn, { x: 208, y: 544 }, { x: 208, y: 448 }],
 			'shop-west-display'
 		);
 		expectRouteClear(
 			itemShopMap,
-			[itemShopMap.spawn, { x: 640, y: 544 }, { x: 640, y: 448 }],
+			[itemShopMap.spawn, { x: 624, y: 544 }, { x: 624, y: 448 }],
 			'shop-east-display'
 		);
 		expectRouteClear(
@@ -1803,7 +1741,7 @@ describe('opening map content', () => {
 			itemShopMap.interiorProps?.find((prop) => prop.id === 'item-shop-counter')?.collision
 		).toEqual({ id: 'item-shop-counter-collision', x: 416, y: 340, width: 384, height: 8 });
 		expect(itemShopMap.ambientNpcs).toEqual([
-			{ id: 'item-shop-customer', x: 224, y: 480, frameName: 'guildMasterNpc', role: 'shopper' }
+			{ id: 'item-shop-customer', x: 256, y: 512, frameName: 'guildMasterNpc', role: 'shopper' }
 		]);
 		expect(heroHouseMap.interiorProps?.map((prop) => prop.id)).toEqual([
 			'hero-house-bed',
@@ -2665,6 +2603,176 @@ describe('Guild Hall Gates 1/2 coordinate and navigation contracts', () => {
 				}
 			}
 		}
+	});
+});
+
+describe('Item Shop Gates 1/2 coordinate and navigation contracts', () => {
+	it('attaches the generated grid and derives fallback geometry and live anchors from the layout', () => {
+		const layout = VILLAGE_INTERIOR_LAYOUTS['item-shop'];
+		const source = VILLAGE_INTERIOR_NAVIGATION_SOURCES.find((value) => value.mapId === 'item-shop');
+		const grid = GENERATED_NAVIGATION_GRIDS['item-shop-navigation'];
+
+		expect(source).toBeDefined();
+		expect(grid).toBeDefined();
+		if (!source || !grid) return;
+
+		expect(grid).toEqual(compileNavigationGrid(source));
+		expect(itemShopMap.navigationGrid).toBe(grid);
+		expect(itemShopMap.navigationGridOwnedSources).toBe(VILLAGE_INTERIOR_NAVIGATION_OWNED_SOURCES);
+		expect(grid).toMatchObject({
+			id: 'item-shop-navigation',
+			mapId: 'item-shop',
+			cellSizePx: 16,
+			widthCells: 52,
+			heightCells: 40,
+			widthPx: 832,
+			heightPx: 640
+		});
+
+		expect(itemShopMap.width).toBe(layout.widthTiles);
+		expect(itemShopMap.height).toBe(layout.heightTiles);
+		expect(itemShopMap.spawn).toEqual(layout.spawn);
+		expect(itemShopMap.transitions[0]).toMatchObject({ ...layout.exit });
+		expect(itemShopMap.blockers).toEqual(
+			layout.walls.map((wall) => ({ ...toMapRect(wall.id, wall), kind: 'ruin-wall' }))
+		);
+		expect(itemShopMap.groundPatches).toEqual([
+			{
+				...toMapRect('item-shop-full-floor', layout.fullFloor),
+				tile: 'cobblestoneTile'
+			},
+			...Object.entries(layout.rooms).map(([id, value]) => ({
+				...toMapRect(
+					`item-shop-room-${id.replace(/[A-Z]/g, (letter) => `-${letter.toLowerCase()}`)}`,
+					value
+				),
+				tile: 'plazaStoneTile'
+			})),
+			...Object.entries(layout.corridors).map(([id, value]) => ({
+				...toMapRect(
+					`item-shop-corridor-${id.replace(/[A-Z]/g, (letter) => `-${letter.toLowerCase()}`)}`,
+					value
+				),
+				tile: 'pathTile'
+			}))
+		]);
+
+		const propsById = new Map((itemShopMap.interiorProps ?? []).map((prop) => [prop.id, prop]));
+		for (const [id, zone] of Object.entries(layout.propZones)) {
+			const propId = `item-shop-${id
+				.replace(/^miraCounter$/, 'counter')
+				.replace(/^westDisplay$/, 'west-display')
+				.replace(/^eastDisplay$/, 'east-display')
+				.replace(/^stockShelves$/, 'stock-shelves')
+				.replace(/^officeDesk$/, 'office-desk')}`;
+			expect(propsById.get(propId), `${propId} prop is missing`).toEqual(
+				expect.objectContaining(toMapRect(propId, zone))
+			);
+		}
+		for (const [id, collision] of Object.entries(layout.propCollisions)) {
+			const propId = `item-shop-${id
+				.replace(/^miraCounter$/, 'counter')
+				.replace(/^westDisplay$/, 'west-display')
+				.replace(/^eastDisplay$/, 'east-display')
+				.replace(/^stockShelves$/, 'stock-shelves')
+				.replace(/^officeDesk$/, 'office-desk')}`;
+			expect(propsById.get(propId)?.collision, `${propId} collision is missing`).toEqual(
+				toMapRect(`${propId}-collision`, collision)
+			);
+		}
+
+		expect(itemShopMap.npcs).toEqual([
+			expect.objectContaining({
+				id: 'shopkeeper-mira',
+				x: layout.npcApproaches.mira.npc.x,
+				y: layout.npcApproaches.mira.npc.y,
+				dialogueId: 'shopkeeper-mira',
+				role: 'shopkeeper',
+				shopId: 'miras-item-shop'
+			})
+		]);
+		expect(getShop('miras-item-shop')).toBeDefined();
+		expect(
+			itemShopMap.ambientNpcs?.map(({ id, x, y, frameName, role }) => ({
+				id,
+				x,
+				y,
+				frameName,
+				role
+			}))
+		).toEqual([
+			{
+				id: 'item-shop-customer',
+				...layout.ambientActivity!['item-shop-customer'],
+				frameName: 'guildMasterNpc',
+				role: 'shopper'
+			}
+		]);
+	});
+
+	it('keeps the entrance, shop counter, displays, stockroom, and office connected', () => {
+		const layout = VILLAGE_INTERIOR_LAYOUTS['item-shop'];
+		const routes = [
+			[itemShopMap.spawn, layout.npcApproaches.mira.approach],
+			[
+				itemShopMap.spawn,
+				{ x: 624, y: 544 },
+				{ x: 624, y: 272 },
+				{ x: 416, y: 272 },
+				{ x: 416, y: 144 },
+				{ x: 288, y: 144 },
+				{ x: 288, y: 192 }
+			],
+			[
+				itemShopMap.spawn,
+				{ x: 624, y: 544 },
+				{ x: 624, y: 272 },
+				{ x: 416, y: 272 },
+				{ x: 416, y: 144 },
+				{ x: 528, y: 144 },
+				{ x: 528, y: 192 },
+				{ x: 736, y: 192 }
+			],
+			[itemShopMap.spawn, { x: 208, y: 544 }, { x: 208, y: 448 }],
+			[itemShopMap.spawn, { x: 624, y: 544 }, { x: 624, y: 448 }],
+			[itemShopMap.spawn, { x: 256, y: 544 }, { x: 256, y: 512 }],
+			[itemShopMap.spawn, itemShopMap.transitions[0]!]
+		] as const;
+		for (const [index, route] of routes.entries()) {
+			expectRouteClear(itemShopMap, route, `item-shop-function-${index}`);
+			for (let segment = 1; segment < route.length; segment += 1) {
+				const from = route[segment - 1]!;
+				const to = route[segment]!;
+				const distance = Math.max(Math.abs(to.x - from.x), Math.abs(to.y - from.y));
+				const steps = Math.max(1, Math.ceil(distance / 16));
+				for (let step = 0; step <= steps; step += 1) {
+					const progress = step / steps;
+					const point = {
+						x: from.x + (to.x - from.x) * progress,
+						y: from.y + (to.y - from.y) * progress
+					};
+					expect(
+						isWalkable(itemShopMap.navigationGrid!, point.x, point.y),
+						`route ${index} is blocked`
+					).toBe(true);
+				}
+			}
+		}
+
+		const mira = itemShopMap.npcs!.find((npc) => npc.id === 'shopkeeper-mira')!;
+		expectPointClearOfInteriorPropCollisions(itemShopMap, mira, 'mira');
+		expectPointClearOfInteriorPropCollisions(
+			itemShopMap,
+			layout.npcApproaches.mira.approach,
+			'mira-approach'
+		);
+		expect(
+			Math.hypot(
+				layout.npcApproaches.mira.approach.x - mira.x,
+				layout.npcApproaches.mira.approach.y - mira.y
+			),
+			'mira approach must be within interaction radius'
+		).toBeLessThanOrEqual(NPC_INTERACTION_RADIUS + PLAYER_COLLISION_RADIUS);
 	});
 });
 
