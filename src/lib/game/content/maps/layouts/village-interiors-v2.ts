@@ -119,17 +119,17 @@ const villagerHouse1Walls: readonly NamedLayoutRect[] = [
 ];
 
 const villagerHouse2Walls: readonly NamedLayoutRect[] = [
-	namedRect('villager-house-2-wall-north', 0, 0, 704, 64),
-	namedRect('villager-house-2-wall-west', 0, 64, 64, 480),
-	namedRect('villager-house-2-wall-east', 640, 64, 64, 480),
-	namedRect('villager-house-2-wall-south-west', 0, 544, 320, 32),
-	namedRect('villager-house-2-wall-south-east', 384, 544, 320, 32),
-	namedRect('villager-house-2-workshop-divider-north', 320, 64, 32, 64),
-	namedRect('villager-house-2-workshop-divider-south', 320, 224, 32, 64),
-	namedRect('villager-house-2-bedroom-divider-north', 448, 64, 32, 64),
-	namedRect('villager-house-2-bedroom-divider-south', 448, 224, 32, 64),
-	namedRect('villager-house-2-hall-living-divider-west', 64, 288, 288, 32),
-	namedRect('villager-house-2-hall-living-divider-east', 448, 288, 192, 32)
+	namedRect('villager-house-2-wall-north', 0, 0, 1280, 64),
+	namedRect('villager-house-2-wall-west', 0, 64, 64, 672),
+	namedRect('villager-house-2-wall-east', 1216, 64, 64, 672),
+	namedRect('villager-house-2-wall-south-west', 0, 736, 576, 32),
+	namedRect('villager-house-2-wall-south-east', 704, 736, 576, 32),
+	namedRect('villager-house-2-workshop-divider-north', 512, 64, 32, 128),
+	namedRect('villager-house-2-workshop-divider-south', 512, 288, 32, 128),
+	namedRect('villager-house-2-bedroom-divider-north', 736, 64, 32, 128),
+	namedRect('villager-house-2-bedroom-divider-south', 736, 256, 32, 160),
+	namedRect('villager-house-2-hall-living-divider-west', 64, 384, 480, 32),
+	namedRect('villager-house-2-hall-living-divider-east', 736, 384, 480, 32)
 ];
 
 const villagerHouse3Walls: readonly NamedLayoutRect[] = [
@@ -351,37 +351,43 @@ export const VILLAGE_INTERIOR_LAYOUTS = {
 		}
 	},
 	'villager-house-2': {
-		widthTiles: 22,
-		heightTiles: 18,
-		fullFloor: rect(0, 0, 704, 576),
+		widthTiles: 40,
+		heightTiles: 24,
+		fullFloor: rect(0, 0, 1280, 768),
 		rooms: {
-			workshop: rect(64, 64, 256, 224),
-			bedroom: rect(480, 64, 160, 224),
-			livingArea: rect(64, 320, 576, 224)
+			workshop: rect(128, 96, 384, 288),
+			bedroom: rect(768, 96, 384, 288),
+			livingArea: rect(128, 416, 1024, 320)
 		},
 		corridors: {
-			hall: rect(352, 64, 96, 256)
+			hall: rect(544, 96, 192, 288)
 		},
 		doors: {
-			workshop: rect(320, 128, 32, 96),
-			bedroom: rect(448, 128, 32, 96),
-			hallToLiving: rect(352, 288, 96, 32),
-			exterior: rect(320, 544, 64, 32)
+			workshop: rect(512, 192, 32, 96),
+			bedroom: rect(736, 192, 32, 64),
+			hallToLiving: rect(544, 384, 192, 32),
+			exterior: rect(576, 736, 128, 32)
 		},
 		walls: villagerHouse2Walls,
-		spawn: point(352, 480),
-		exit: point(352, 560),
+		spawn: point(640, 608),
+		exit: point(640, 752),
 		npcApproaches: {
-			toma: { npc: point(192, 192), approach: point(232, 192) }
+			toma: { npc: point(368, 224), approach: point(408, 224) }
+		},
+		ambientActivity: {
+			'villager-house-2-neighbor': point(960, 544)
 		},
 		propZones: {
-			workbench: rect(96, 96, 192, 64),
-			workshopStorage: rect(96, 224, 192, 48),
-			bedroom: rect(496, 96, 128, 160),
-			livingTable: rect(224, 384, 192, 96)
+			workbench: rect(160, 128, 192, 96),
+			workshopStorage: rect(160, 288, 288, 64),
+			bedroom: rect(832, 128, 224, 192),
+			livingTable: rect(256, 512, 256, 128)
 		},
 		propCollisions: {
-			tomaWorkbench: rect(112, 128, 160, 32)
+			tomaWorkbench: rect(176, 160, 160, 48),
+			workshopStorage: rect(176, 304, 256, 32),
+			bedroom: rect(864, 160, 128, 128),
+			livingTable: rect(288, 544, 192, 64)
 		}
 	},
 	'villager-house-3': {

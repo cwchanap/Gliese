@@ -30,7 +30,7 @@ const expectedReviewDimensions: Readonly<Record<string, { width: number; height:
 	'guild-hall': { width: 1024, height: 832 },
 	'item-shop': { width: 832, height: 640 },
 	'villager-house-1': { width: 1280, height: 832 },
-	'villager-house-2': { width: 704, height: 576 },
+	'villager-house-2': { width: 1280, height: 768 },
 	'villager-house-3': { width: 640, height: 640 },
 	'shrine-of-aurora-interior': { width: 768, height: 704 },
 	'ruins-threshold': { width: 1600, height: 1600 },

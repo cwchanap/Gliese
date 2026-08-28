@@ -421,7 +421,7 @@ describe('opening map content', () => {
 					y: 4_384,
 					toMapId: 'villager-house-2',
 					showMarker: false,
-					arrival: { x: 352, y: 480, facing: 'up' }
+					arrival: { x: 640, y: 608, facing: 'up' }
 				},
 				{
 					id: 'meadow-to-guild-hall',
@@ -1199,8 +1199,8 @@ describe('opening map content', () => {
 
 		expect(villagerHouse1Map.width).toBe(40);
 		expect(villagerHouse1Map.height).toBe(26);
-		expect(villagerHouse2Map.width).toBe(22);
-		expect(villagerHouse2Map.height).toBe(18);
+		expect(villagerHouse2Map.width).toBe(40);
+		expect(villagerHouse2Map.height).toBe(24);
 		expect(villagerHouse3Map.width).toBe(20);
 		expect(villagerHouse3Map.height).toBe(20);
 		expect(shrineOfAuroraInteriorMap.width).toBe(24);
@@ -1542,22 +1542,34 @@ describe('opening map content', () => {
 			},
 			{
 				...toMapRect('villager-house-2-workshop-storage', house2Layout.propZones.workshopStorage),
-				frameName: 'crateStack'
+				frameName: 'crateStack',
+				collision: toMapRect(
+					'villager-house-2-workshop-storage-collision',
+					house2Layout.propCollisions.workshopStorage
+				)
 			},
 			{
 				...toMapRect('villager-house-2-bedroom', house2Layout.propZones.bedroom),
-				frameName: 'bed'
+				frameName: 'bed',
+				collision: toMapRect(
+					'villager-house-2-bedroom-collision',
+					house2Layout.propCollisions.bedroom
+				)
 			},
 			{
 				...toMapRect('villager-house-2-living-table', house2Layout.propZones.livingTable),
-				frameName: 'table'
+				frameName: 'table',
+				collision: toMapRect(
+					'villager-house-2-living-table-collision',
+					house2Layout.propCollisions.livingTable
+				)
 			}
 		]);
 		expect(villagerHouse2Map.npcs).toEqual([
 			expect.objectContaining({
 				id: 'villager-toma',
-				x: 192,
-				y: 192,
+				x: house2Layout.npcApproaches.toma.npc.x,
+				y: house2Layout.npcApproaches.toma.npc.y,
 				nameKey: 'content.maps.npcs.villager-toma.name',
 				dialogueId: 'villager-toma',
 				role: 'villager',
@@ -1567,12 +1579,19 @@ describe('opening map content', () => {
 		expect(villagerHouse2Map.ambientNpcs).toEqual([
 			{
 				id: 'villager-house-2-neighbor',
-				x: 512,
-				y: 416,
+				x: house2Layout.ambientActivity!['villager-house-2-neighbor'].x,
+				y: house2Layout.ambientActivity!['villager-house-2-neighbor'].y,
 				frameName: 'guildMasterNpc',
 				role: 'neighbor'
 			}
 		]);
+		expect(villagerHouse2Map.navigationGrid).toBeDefined();
+		expect(villagerHouse2Map.navigationGrid).toBe(
+			GENERATED_NAVIGATION_GRIDS['villager-house-2-navigation']
+		);
+		expect(villagerHouse2Map.navigationGridOwnedSources).toEqual(
+			VILLAGE_INTERIOR_NAVIGATION_OWNED_SOURCES
+		);
 
 		expect(villagerHouse3Map.interiorProps).toEqual([
 			{
@@ -1629,13 +1648,7 @@ describe('opening map content', () => {
 			[
 				villagerHouse2Map,
 				house2Layout.npcApproaches.toma,
-				[
-					villagerHouse2Map.spawn,
-					{ x: 400, y: 480 },
-					{ x: 400, y: 304 },
-					{ x: 400, y: 192 },
-					{ x: 232, y: 192 }
-				]
+				[villagerHouse2Map.spawn, { x: 640, y: 240 }, { x: 408, y: 240 }, { x: 408, y: 224 }]
 			],
 			[
 				villagerHouse3Map,
@@ -1673,17 +1686,17 @@ describe('opening map content', () => {
 		);
 		expectRouteClear(
 			villagerHouse2Map,
-			[villagerHouse2Map.spawn, { x: 400, y: 480 }, { x: 400, y: 200 }],
+			[villagerHouse2Map.spawn, { x: 640, y: 240 }],
 			'villager-house-2-spawn-to-hall'
 		);
 		expectRouteClear(
 			villagerHouse2Map,
-			[villagerHouse2Map.spawn, { x: 400, y: 480 }, { x: 400, y: 200 }, { x: 512, y: 200 }],
+			[villagerHouse2Map.spawn, { x: 640, y: 240 }, { x: 800, y: 240 }, { x: 800, y: 336 }],
 			'villager-house-2-spawn-to-bedroom'
 		);
 		expectRouteClear(
 			villagerHouse2Map,
-			[villagerHouse2Map.spawn, { x: 560, y: 480 }],
+			[villagerHouse2Map.spawn, { x: 896, y: 608 }, { x: 896, y: 640 }],
 			'villager-house-2-spawn-to-living-area'
 		);
 		expectRouteClear(
@@ -1988,8 +2001,8 @@ describe('opening map content', () => {
 		expect(villagerHouse2Map.npcs).toMatchObject([
 			{
 				id: 'villager-toma',
-				x: 192,
-				y: 192,
+				x: VILLAGE_INTERIOR_LAYOUTS['villager-house-2'].npcApproaches.toma.npc.x,
+				y: VILLAGE_INTERIOR_LAYOUTS['villager-house-2'].npcApproaches.toma.npc.y,
 				nameKey: 'content.maps.npcs.villager-toma.name',
 				dialogueId: 'villager-toma',
 				role: 'villager',

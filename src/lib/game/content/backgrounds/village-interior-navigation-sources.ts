@@ -18,5 +18,9 @@ export const VILLAGE_INTERIOR_NAVIGATION_SOURCES: readonly NavigationMaskSource[
 	buildVillageInteriorNavigationSource({
 		mapId: 'villager-house-1',
 		layout: VILLAGE_INTERIOR_LAYOUTS['villager-house-1']
+	}),
+	buildVillageInteriorNavigationSource({
+		mapId: 'villager-house-2',
+		layout: VILLAGE_INTERIOR_LAYOUTS['villager-house-2']
 	})
 ]);

@@ -989,6 +989,8 @@ export const villagerHouse2Map: WorldMapDefinition = addEnglishMapText({
 	height: villagerHouse2Layout.heightTiles,
 	spawnDirection: 'up',
 	spawn: { ...villagerHouse2Layout.spawn },
+	navigationGrid: GENERATED_NAVIGATION_GRIDS['villager-house-2-navigation'],
+	navigationGridOwnedSources: VILLAGE_INTERIOR_NAVIGATION_OWNED_SOURCES,
 	groundPatches: villagerHouse2GroundPatches,
 	blockers: villagerHouse2Blockers,
 	transitions: [
@@ -1015,15 +1017,27 @@ export const villagerHouse2Map: WorldMapDefinition = addEnglishMapText({
 				'villager-house-2-workshop-storage',
 				villagerHouse2Layout.propZones.workshopStorage
 			),
-			frameName: 'crateStack'
+			frameName: 'crateStack',
+			collision: toMapRect(
+				'villager-house-2-workshop-storage-collision',
+				villagerHouse2Layout.propCollisions.workshopStorage
+			)
 		},
 		{
 			...toMapRect('villager-house-2-bedroom', villagerHouse2Layout.propZones.bedroom),
-			frameName: 'bed'
+			frameName: 'bed',
+			collision: toMapRect(
+				'villager-house-2-bedroom-collision',
+				villagerHouse2Layout.propCollisions.bedroom
+			)
 		},
 		{
 			...toMapRect('villager-house-2-living-table', villagerHouse2Layout.propZones.livingTable),
-			frameName: 'table'
+			frameName: 'table',
+			collision: toMapRect(
+				'villager-house-2-living-table-collision',
+				villagerHouse2Layout.propCollisions.livingTable
+			)
 		}
 	],
 	npcs: [
@@ -1039,8 +1053,7 @@ export const villagerHouse2Map: WorldMapDefinition = addEnglishMapText({
 	ambientNpcs: [
 		{
 			id: 'villager-house-2-neighbor',
-			x: 512,
-			y: 416,
+			...villagerHouse2Layout.ambientActivity!['villager-house-2-neighbor'],
 			frameName: 'guildMasterNpc',
 			role: 'neighbor'
 		}
