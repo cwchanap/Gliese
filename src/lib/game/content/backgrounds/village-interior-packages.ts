@@ -1,9 +1,10 @@
-import { guildHallMap, heroHouseMap, itemShopMap } from '$lib/game/content/maps';
+import { guildHallMap, heroHouseMap, itemShopMap, villagerHouse1Map } from '$lib/game/content/maps';
 import { VILLAGE_INTERIOR_LAYOUTS } from '$lib/game/content/maps/layouts/village-interiors-v2';
 import type { WorldMapDefinition } from '$lib/game/content/maps/types';
 import guildHallManifestJson from './manifests/guild-hall.json';
 import heroHouseManifestJson from './manifests/hero-house.json';
 import itemShopManifestJson from './manifests/item-shop.json';
+import villagerHouse1ManifestJson from './manifests/villager-house-1.json';
 import {
 	buildVillageInteriorPackage,
 	type VillageInteriorPackageManifest
@@ -17,6 +18,7 @@ import type {
 const heroHouseManifest = heroHouseManifestJson as VillageInteriorPackageManifest;
 const guildHallManifest = guildHallManifestJson as VillageInteriorPackageManifest;
 const itemShopManifest = itemShopManifestJson as VillageInteriorPackageManifest;
+const villagerHouse1Manifest = villagerHouse1ManifestJson as VillageInteriorPackageManifest;
 const heroHouseNavigationSource = VILLAGE_INTERIOR_NAVIGATION_SOURCES.find(
 	(source) => source.mapId === 'hero-house'
 );
@@ -25,6 +27,9 @@ const guildHallNavigationSource = VILLAGE_INTERIOR_NAVIGATION_SOURCES.find(
 );
 const itemShopNavigationSource = VILLAGE_INTERIOR_NAVIGATION_SOURCES.find(
 	(source) => source.mapId === 'item-shop'
+);
+const villagerHouse1NavigationSource = VILLAGE_INTERIOR_NAVIGATION_SOURCES.find(
+	(source) => source.mapId === 'villager-house-1'
 );
 
 if (!heroHouseNavigationSource) {
@@ -35,6 +40,9 @@ if (!guildHallNavigationSource) {
 }
 if (!itemShopNavigationSource) {
 	throw new Error('Item Shop navigation source is not registered');
+}
+if (!villagerHouse1NavigationSource) {
+	throw new Error('Villager House 1 navigation source is not registered');
 }
 
 function interiorVisualOwners(
@@ -94,8 +102,21 @@ const itemShopPackage = buildVillageInteriorPackage({
 	navigationSource: itemShopNavigationSource
 });
 
+const villagerHouse1Package = buildVillageInteriorPackage({
+	mapId: 'villager-house-1',
+	layout: VILLAGE_INTERIOR_LAYOUTS['villager-house-1'],
+	manifest: villagerHouse1Manifest,
+	visualOwners: interiorVisualOwners(
+		villagerHouse1Map,
+		'villager-house-1-full-map',
+		villagerHouse1Manifest.base.id
+	),
+	navigationSource: villagerHouse1NavigationSource
+});
+
 export const VILLAGE_INTERIOR_PACKAGES: readonly MapBackgroundPackageDefinition[] = Object.freeze([
 	heroHousePackage.definition,
 	guildHallPackage.definition,
-	itemShopPackage.definition
+	itemShopPackage.definition,
+	villagerHouse1Package.definition
 ]);

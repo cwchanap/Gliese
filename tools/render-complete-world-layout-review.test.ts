@@ -29,7 +29,7 @@ const expectedReviewDimensions: Readonly<Record<string, { width: number; height:
 	'hero-house': { width: 704, height: 576 },
 	'guild-hall': { width: 1024, height: 832 },
 	'item-shop': { width: 832, height: 640 },
-	'villager-house-1': { width: 640, height: 576 },
+	'villager-house-1': { width: 1280, height: 832 },
 	'villager-house-2': { width: 704, height: 576 },
 	'villager-house-3': { width: 640, height: 640 },
 	'shrine-of-aurora-interior': { width: 768, height: 704 },
@@ -118,7 +118,7 @@ async function writeInteriorManifest(
 	fileStem: string,
 	background: { readonly r: number; readonly g: number; readonly b: number },
 	options: {
-		readonly mapId?: 'hero-house' | 'guild-hall' | 'item-shop';
+		readonly mapId?: 'hero-house' | 'guild-hall' | 'item-shop' | 'villager-house-1';
 		readonly width?: number;
 		readonly height?: number;
 		readonly foreground?: Buffer;
@@ -403,6 +403,83 @@ describe('complete world layout review renderer', () => {
 			repositoryRoot
 		});
 		expect(second).toEqual(first);
+	});
+
+	it('renders the complete Villager House 1 painted proof inventory', async () => {
+		const outputRoot = await createOutputRoot();
+		const first = await renderCompleteWorldLayoutReview({
+			outputRoot,
+			check: false,
+			map: 'villager-house-1',
+			repositoryRoot: process.cwd()
+		});
+
+		expect(first).toHaveLength(1);
+		expect(first[0]).toMatchObject({
+			mapId: 'villager-house-1',
+			worldDimensions: { width: 1280, height: 832 },
+			reviewDimensions: { width: 1280, height: 832 }
+		});
+		expect((await readdir(join(outputRoot, 'villager-house-1'))).sort()).toEqual(
+			[
+				'anchors.png',
+				'camera-1280x720.png',
+				'camera-640x360.png',
+				'collision-overlay.png',
+				'coordinate-graybox.png',
+				'fallback-comparison.png',
+				'inventory.json',
+				'live-actor-overlay.png',
+				'live-character-composition.png',
+				'painted-base.png',
+				'player-centre-navigation-overlay.png',
+				'raw-collision-overlay.png',
+				'route-widths.png'
+			].sort()
+		);
+
+		const inventory = JSON.parse(
+			await readFile(join(outputRoot, 'villager-house-1/inventory.json'), 'utf8')
+		) as { mapId: string; artifacts: readonly { path: string; width: number; height: number }[] };
+		expect(inventory.mapId).toBe('villager-house-1');
+		expect(inventory.artifacts).toEqual(
+			expect.arrayContaining([
+				expect.objectContaining({
+					path: 'villager-house-1/painted-base.png',
+					width: 1280,
+					height: 832
+				}),
+				expect.objectContaining({
+					path: 'villager-house-1/live-character-composition.png',
+					width: 1280,
+					height: 832
+				}),
+				expect.objectContaining({
+					path: 'villager-house-1/fallback-comparison.png',
+					width: 2560,
+					height: 832
+				}),
+				expect.objectContaining({
+					path: 'villager-house-1/camera-640x360.png',
+					width: 640,
+					height: 360
+				}),
+				expect.objectContaining({
+					path: 'villager-house-1/camera-1280x720.png',
+					width: 1280,
+					height: 720
+				})
+			])
+		);
+
+		await expect(
+			renderCompleteWorldLayoutReview({
+				outputRoot,
+				check: true,
+				map: 'villager-house-1',
+				repositoryRoot: process.cwd()
+			})
+		).resolves.toEqual(first);
 	});
 
 	it('scopes per-map checks to the selected interior while rejecting selected-map extras', async () => {
@@ -811,6 +888,103 @@ describe('complete world layout review renderer', () => {
 			}))
 		];
 		expect(actors.map(({ id }) => id)).toEqual(['hero', 'shopkeeper-mira', 'item-shop-customer']);
+
+		for (const actor of actors) {
+			const source = await readFile(join(repositoryRoot, 'public/game/assets', actor.assetPath));
+			const sprite = await sharp(source)
+				.extract({
+					left: actor.frame.x,
+					top: actor.frame.y,
+					width: actor.frame.w,
+					height: actor.frame.h
+				})
+				.resize(actor.displaySize)
+				.png()
+				.toBuffer();
+			const expected = await sharp({
+				create: {
+					width: actor.displaySize.width,
+					height: actor.displaySize.height,
+					channels: 4,
+					background: { r: 64, g: 96, b: 80, alpha: 1 }
+				}
+			})
+				.composite([{ input: sprite, left: 0, top: 0 }])
+				.png()
+				.toBuffer();
+			const actual = await sharp(liveBytes)
+				.extract({
+					left: Math.round(actor.x - actor.displaySize.width / 2),
+					top: Math.round(actor.y - actor.displaySize.height / 2),
+					width: actor.displaySize.width,
+					height: actor.displaySize.height
+				})
+				.png()
+				.toBuffer();
+			expect((await readRgba(actual)).data).toEqual((await readRgba(expected)).data);
+		}
+	});
+
+	it('composes every Villager House 1 live actor from the checked-in atlases at runtime sizes', async () => {
+		const repositoryRoot = await createRepositoryRoot();
+		await writeInteriorManifest(
+			repositoryRoot,
+			'painted-proof',
+			{ r: 64, g: 96, b: 80 },
+			{ mapId: 'villager-house-1', width: 1280, height: 832 }
+		);
+		await copyLegacyRendererAssets(repositoryRoot, true);
+		const outputRoot = await createOutputRoot();
+
+		await renderCompleteWorldLayoutReview({
+			outputRoot,
+			check: false,
+			map: 'villager-house-1',
+			repositoryRoot
+		});
+
+		const liveBytes = await readFile(
+			join(outputRoot, 'villager-house-1/live-character-composition.png')
+		);
+		const { info: liveInfo } = await readRgba(liveBytes);
+		expect({ width: liveInfo.width, height: liveInfo.height }).toEqual({
+			width: 1280,
+			height: 832
+		});
+
+		const villagerHouse1 = maps['villager-house-1'];
+		const heroFrameName = actorAnimationAssets.hero.clips.idle.frames[0]!;
+		const actors = [
+			{
+				id: 'hero',
+				x: villagerHouse1.spawn.x,
+				y: villagerHouse1.spawn.y,
+				assetPath: 'animation-pack.png',
+				frame: animationPackAsset.frames[heroFrameName],
+				displaySize: actorAnimationAssets.hero.displaySize
+			},
+			...(villagerHouse1.npcs ?? []).map((npc) => ({
+				id: npc.id,
+				x: npc.x,
+				y: npc.y,
+				assetPath: 'npc-pack.png',
+				frame: npcPackAsset.frames[npc.frameName as keyof typeof npcPackAsset.frames],
+				displaySize: { width: 96, height: 87 }
+			})),
+			...(villagerHouse1.ambientNpcs ?? []).map((npc) => ({
+				id: npc.id,
+				x: npc.x,
+				y: npc.y,
+				assetPath: 'npc-pack.png',
+				frame: npcPackAsset.frames[npc.frameName as keyof typeof npcPackAsset.frames],
+				displaySize: { width: 96, height: 87 }
+			}))
+		];
+		expect(actors.map(({ id }) => id)).toEqual([
+			'hero',
+			'villager-lynn',
+			'villager-house-1-family'
+		]);
 
 		for (const actor of actors) {
 			const source = await readFile(join(repositoryRoot, 'public/game/assets', actor.assetPath));

@@ -13,7 +13,8 @@ import {
 	itemShopMap,
 	meadowEntryMap,
 	ruinsCoreMap,
-	ruinsThresholdMap
+	ruinsThresholdMap,
+	villagerHouse1Map
 } from '../../src/lib/game/content/maps';
 import {
 	MEADOW_ENTRY_V2_CROSSINGS,
@@ -1673,6 +1674,13 @@ type InteriorGrayboxCase = {
 	persistAfterStep?: string;
 };
 
+const villagerHouse1ExteriorTransition = villagerHouse1Map.transitions.find(
+	({ id }) => id === 'villager-house-1-to-meadow'
+);
+if (!villagerHouse1ExteriorTransition?.arrival) {
+	throw new Error('Villager House 1 exterior transition fixture is missing its arrival');
+}
+
 const INTERIOR_GRAYBOX_CASES: readonly InteriorGrayboxCase[] = [
 	{
 		mapId: 'guild-hall',
@@ -1806,25 +1814,150 @@ const INTERIOR_GRAYBOX_CASES: readonly InteriorGrayboxCase[] = [
 	},
 	{
 		mapId: 'villager-house-1',
-		returnArrival: { x: 672, y: 4_448 },
-		exteriorDoor: { x: 672, y: 4_384 },
-		spawn: { x: 320, y: 480 },
-		exit: { x: 320, y: 560 },
+		returnArrival: {
+			x: villagerHouse1ExteriorTransition.arrival.x,
+			y: villagerHouse1ExteriorTransition.arrival.y
+		},
+		exteriorDoor: {
+			x: villagerHouse1ExteriorTransition.arrival.x,
+			y: villagerHouse1ExteriorTransition.arrival.y - 64
+		},
+		spawn: VILLAGE_INTERIOR_LAYOUTS['villager-house-1'].spawn,
+		exit: VILLAGE_INTERIOR_LAYOUTS['villager-house-1'].exit,
+		persistAfterStep: 'family-anchor',
 		steps: [
-			{ label: 'hall-living', point: { x: 320, y: 320 } },
-			{ label: 'living-west', point: { x: 200, y: 320 } },
-			{ label: 'lynn-approach', point: { x: 200, y: 416 }, interaction: { speaker: 'Lynn' } },
-			{ label: 'bedroom-door', point: { x: 200, y: 320 } },
-			{ label: 'hall-return', point: { x: 320, y: 320 } },
-			{ label: 'bedroom-hall', point: { x: 320, y: 160 } },
-			{ label: 'bedroom', point: { x: 200, y: 160 } },
-			{ label: 'storage-door', point: { x: 320, y: 160 } },
-			{ label: 'storage', point: { x: 520, y: 160 } },
-			{ label: 'storage-south', point: { x: 520, y: 208 } },
-			{ label: 'living-kitchen-door', point: { x: 320, y: 160 } },
-			{ label: 'living-kitchen', point: { x: 320, y: 320 } },
-			{ label: 'living-kitchen-room', point: { x: 520, y: 480 } },
-			{ label: 'spawn-return', point: { x: 320, y: 480 } }
+			{
+				label: 'living-center',
+				point: {
+					x:
+						VILLAGE_INTERIOR_LAYOUTS['villager-house-1'].corridors.hall.x +
+						VILLAGE_INTERIOR_LAYOUTS['villager-house-1'].corridors.hall.width / 2,
+					y: VILLAGE_INTERIOR_LAYOUTS['villager-house-1'].rooms.livingKitchen.y + 32
+				}
+			},
+			{
+				label: 'family-table-living',
+				point: {
+					x:
+						VILLAGE_INTERIOR_LAYOUTS['villager-house-1'].propZones.familyTable.x +
+						VILLAGE_INTERIOR_LAYOUTS['villager-house-1'].propZones.familyTable.width +
+						16,
+					y:
+						VILLAGE_INTERIOR_LAYOUTS['villager-house-1'].propZones.familyTable.y +
+						VILLAGE_INTERIOR_LAYOUTS['villager-house-1'].propZones.familyTable.height +
+						32
+				}
+			},
+			{
+				label: 'kitchen',
+				point: {
+					x: VILLAGE_INTERIOR_LAYOUTS['villager-house-1'].propZones.kitchen.x - 16,
+					y:
+						VILLAGE_INTERIOR_LAYOUTS['villager-house-1'].propZones.kitchen.y +
+						VILLAGE_INTERIOR_LAYOUTS['villager-house-1'].propZones.kitchen.height
+				}
+			},
+			{
+				label: 'lynn-staging',
+				point: {
+					x: VILLAGE_INTERIOR_LAYOUTS['villager-house-1'].npcApproaches.lynn.approach.x + 112,
+					y: VILLAGE_INTERIOR_LAYOUTS['villager-house-1'].npcApproaches.lynn.approach.y
+				}
+			},
+			{
+				label: 'lynn-approach',
+				point: VILLAGE_INTERIOR_LAYOUTS['villager-house-1'].npcApproaches.lynn.approach,
+				interaction: { speaker: 'Lynn' }
+			},
+			{
+				label: 'family-anchor',
+				point:
+					VILLAGE_INTERIOR_LAYOUTS['villager-house-1'].ambientActivity!['villager-house-1-family']
+			},
+			{
+				label: 'hall',
+				point: {
+					x:
+						VILLAGE_INTERIOR_LAYOUTS['villager-house-1'].corridors.hall.x +
+						VILLAGE_INTERIOR_LAYOUTS['villager-house-1'].corridors.hall.width / 2,
+					y: VILLAGE_INTERIOR_LAYOUTS['villager-house-1'].doors.bedroom.y + 32
+				}
+			},
+			{
+				label: 'bedroom-door',
+				point: {
+					x: VILLAGE_INTERIOR_LAYOUTS['villager-house-1'].doors.bedroom.x + 16,
+					y: VILLAGE_INTERIOR_LAYOUTS['villager-house-1'].doors.bedroom.y + 32
+				}
+			},
+			{
+				label: 'bedroom',
+				point: {
+					x:
+						VILLAGE_INTERIOR_LAYOUTS['villager-house-1'].rooms.bedroom.x +
+						VILLAGE_INTERIOR_LAYOUTS['villager-house-1'].rooms.bedroom.width / 2,
+					y: VILLAGE_INTERIOR_LAYOUTS['villager-house-1'].rooms.bedroom.y + 128
+				}
+			},
+			{
+				label: 'hall-return',
+				point: {
+					x:
+						VILLAGE_INTERIOR_LAYOUTS['villager-house-1'].corridors.hall.x +
+						VILLAGE_INTERIOR_LAYOUTS['villager-house-1'].corridors.hall.width / 2,
+					y: VILLAGE_INTERIOR_LAYOUTS['villager-house-1'].doors.bedroom.y + 32
+				}
+			},
+			{
+				label: 'storage-door',
+				point: {
+					x: VILLAGE_INTERIOR_LAYOUTS['villager-house-1'].doors.storage.x + 16,
+					y:
+						VILLAGE_INTERIOR_LAYOUTS['villager-house-1'].doors.storage.y +
+						VILLAGE_INTERIOR_LAYOUTS['villager-house-1'].doors.storage.height / 2
+				}
+			},
+			{
+				label: 'storage',
+				point: {
+					x:
+						VILLAGE_INTERIOR_LAYOUTS['villager-house-1'].rooms.storage.x +
+						VILLAGE_INTERIOR_LAYOUTS['villager-house-1'].rooms.storage.width / 2,
+					y: VILLAGE_INTERIOR_LAYOUTS['villager-house-1'].rooms.storage.y + 128
+				}
+			},
+			{
+				label: 'storage-return-door',
+				point: {
+					x:
+						VILLAGE_INTERIOR_LAYOUTS['villager-house-1'].doors.storage.x +
+						VILLAGE_INTERIOR_LAYOUTS['villager-house-1'].doors.storage.width / 2,
+					y:
+						VILLAGE_INTERIOR_LAYOUTS['villager-house-1'].doors.storage.y +
+						VILLAGE_INTERIOR_LAYOUTS['villager-house-1'].doors.storage.height / 2
+				}
+			},
+			{
+				label: 'storage-return-hall',
+				point: {
+					x:
+						VILLAGE_INTERIOR_LAYOUTS['villager-house-1'].corridors.hall.x +
+						VILLAGE_INTERIOR_LAYOUTS['villager-house-1'].corridors.hall.width / 2,
+					y:
+						VILLAGE_INTERIOR_LAYOUTS['villager-house-1'].doors.storage.y +
+						VILLAGE_INTERIOR_LAYOUTS['villager-house-1'].doors.storage.height / 2
+				}
+			},
+			{
+				label: 'living-kitchen-return',
+				point: {
+					x:
+						VILLAGE_INTERIOR_LAYOUTS['villager-house-1'].corridors.hall.x +
+						VILLAGE_INTERIOR_LAYOUTS['villager-house-1'].corridors.hall.width / 2,
+					y: VILLAGE_INTERIOR_LAYOUTS['villager-house-1'].rooms.livingKitchen.y + 32
+				}
+			},
+			{ label: 'spawn-return', point: VILLAGE_INTERIOR_LAYOUTS['villager-house-1'].spawn }
 		]
 	},
 	{
@@ -1935,6 +2068,33 @@ const ITEM_SHOP_STATEFUL_OBJECT_IDS = [
 	...(itemShopMap.combatBounds ?? []).map(({ id }) => id)
 ].sort();
 const ITEM_SHOP_FALLBACK_BLOCKER_IDS = (itemShopMap.blockers ?? []).map(({ id }) => id);
+const VILLAGER_HOUSE_1_RUNTIME_EVIDENCE_ROOT = resolve(
+	'docs/superpowers/reports/img/hpa-586-interiors-runtime/villager-house-1'
+);
+const VILLAGER_HOUSE_1_COLLISION_IDS = [
+	...(villagerHouse1Map.blockers ?? []).map(({ id }) => id),
+	...(villagerHouse1Map.fences ?? []).map(({ id }) => id),
+	...(villagerHouse1Map.mapDecor ?? []).flatMap(({ collision }) =>
+		collision ? [collision.id] : []
+	),
+	...(villagerHouse1Map.interiorProps ?? []).flatMap(({ collision }) =>
+		collision ? [collision.id] : []
+	),
+	...(villagerHouse1Map.landmarks ?? []).map(({ id }) => id)
+].sort();
+const VILLAGER_HOUSE_1_STATEFUL_OBJECT_IDS = [
+	...villagerHouse1Map.transitions.map(({ id }) => id),
+	...(villagerHouse1Map.pickups ?? []).map(({ id }) => id),
+	...(villagerHouse1Map.encounters ?? []).map(({ id }) => id),
+	...(villagerHouse1Map.npcs ?? []).map(({ id }) => id),
+	...(villagerHouse1Map.landmarks ?? []).map(({ id }) => id),
+	...(villagerHouse1Map.ambientNpcs ?? []).map(({ id }) => id),
+	...(villagerHouse1Map.discoveries ?? []).map(({ id }) => id),
+	...(villagerHouse1Map.combatBounds ?? []).map(({ id }) => id)
+].sort();
+const VILLAGER_HOUSE_1_FALLBACK_BLOCKER_IDS = (villagerHouse1Map.blockers ?? []).map(
+	({ id }) => id
+);
 
 type InteriorNpcApproachBinding = {
 	readonly approachKey: string;
@@ -1965,6 +2125,20 @@ const INTERIOR_NPC_APPROACH_BINDINGS = {
 
 const NPC_APPROACH_SETTLE_TOLERANCE = 4;
 const INTERIOR_ROUTE_SETTLE_TOLERANCE = 4;
+
+function villagerHouse1LynnInteractionTarget(): Point {
+	const layout = VILLAGE_INTERIOR_LAYOUTS['villager-house-1'];
+	const { npc, approach } = layout.npcApproaches.lynn;
+	return {
+		x:
+			npc.x +
+			PLAYER_COLLISION_RADIUS +
+			NPC_PACK_COLLISION_RADIUS +
+			NPC_APPROACH_SETTLE_TOLERANCE -
+			1,
+		y: approach.y
+	};
+}
 
 function interiorRoutePoints(currentPoint: Point, targetPoint: Point): Point[] {
 	return currentPoint.y !== targetPoint.y
@@ -1999,9 +2173,11 @@ function isVillagerHouse1LynnStep(
 }
 
 function villagerHouse1LynnRoutePoints(currentPoint: Point, targetPoint: Point): Point[] {
-	const approach = VILLAGE_INTERIOR_LAYOUTS['villager-house-1'].npcApproaches.lynn.approach;
+	const layout = VILLAGE_INTERIOR_LAYOUTS['villager-house-1'];
+	const approach = layout.npcApproaches.lynn.approach;
+	const interactionTarget = villagerHouse1LynnInteractionTarget();
 	expect(targetPoint).toEqual(approach);
-	return [currentPoint, { x: approach.x, y: currentPoint.y }, { ...approach }];
+	return [currentPoint, { x: interactionTarget.x, y: currentPoint.y }, interactionTarget];
 }
 
 function isVillagerHouse2TomaStep(
@@ -2023,15 +2199,15 @@ function assertVillagerHouse1LynnRouteGeometry(points: readonly Point[], targetP
 	const layout = VILLAGE_INTERIOR_LAYOUTS['villager-house-1'];
 	const approach = layout.npcApproaches.lynn.approach;
 	const npc = layout.npcApproaches.lynn.npc;
+	const interactionTarget = villagerHouse1LynnInteractionTarget();
 	const npcCollisionRadius = PLAYER_COLLISION_RADIUS + NPC_PACK_COLLISION_RADIUS;
 	const interactionRadius = PLAYER_COLLISION_RADIUS + NPC_INTERACTION_RADIUS;
 
-	expect(targetPoint).toEqual({ x: 200, y: 416 });
 	expect(targetPoint).toEqual(approach);
 	expect(points).toHaveLength(3);
-	expect(points[1]?.x).toBe(approach.x);
+	expect(points[1]?.x).toBe(interactionTarget.x);
 	expect(points[1]?.y).toBe(points[0]?.y);
-	expect(points.at(-1)).toEqual(approach);
+	expect(points.at(-1)).toEqual(interactionTarget);
 
 	for (let index = 1; index < points.length; index += 1) {
 		expect(
@@ -2040,9 +2216,14 @@ function assertVillagerHouse1LynnRouteGeometry(points: readonly Point[], targetP
 	}
 
 	const authoredDistance = Math.hypot(approach.x - npc.x, approach.y - npc.y);
-	expect(authoredDistance).toBe(40);
+	expect(authoredDistance).toBe(48);
 	expect(authoredDistance).toBeGreaterThan(npcCollisionRadius);
 	expect(authoredDistance).toBeLessThanOrEqual(interactionRadius);
+	const interactionDistance = Math.hypot(interactionTarget.x - npc.x, interactionTarget.y - npc.y);
+	expect(interactionDistance).toBeGreaterThan(npcCollisionRadius);
+	expect(interactionDistance).toBeLessThanOrEqual(
+		interactionRadius - NPC_APPROACH_SETTLE_TOLERANCE
+	);
 }
 
 function assertVillagerHouse1LynnRouteResult(
@@ -2052,6 +2233,7 @@ function assertVillagerHouse1LynnRouteResult(
 	const layout = VILLAGE_INTERIOR_LAYOUTS['villager-house-1'];
 	const approach = layout.npcApproaches.lynn.approach;
 	const npc = layout.npcApproaches.lynn.npc;
+	const interactionTarget = villagerHouse1LynnInteractionTarget();
 	const npcCollisionRadius = PLAYER_COLLISION_RADIUS + NPC_PACK_COLLISION_RADIUS;
 	const interactionRadius = PLAYER_COLLISION_RADIUS + NPC_INTERACTION_RADIUS;
 
@@ -2081,8 +2263,12 @@ function assertVillagerHouse1LynnRouteResult(
 	const liveDistance = Math.hypot(result.position.x - npc.x, result.position.y - npc.y);
 	expect(liveDistance).toBeGreaterThan(npcCollisionRadius);
 	expect(liveDistance).toBeLessThanOrEqual(interactionRadius);
-	expect(Math.abs(result.position.x - approach.x)).toBeLessThanOrEqual(AXIS_REACH_TOLERANCE);
-	expect(Math.abs(result.position.y - approach.y)).toBeLessThanOrEqual(AXIS_REACH_TOLERANCE);
+	expect(Math.abs(result.position.x - interactionTarget.x)).toBeLessThanOrEqual(
+		AXIS_REACH_TOLERANCE
+	);
+	expect(Math.abs(result.position.y - interactionTarget.y)).toBeLessThanOrEqual(
+		AXIS_REACH_TOLERANCE
+	);
 	return result.position;
 }
 
@@ -10915,6 +11101,73 @@ function assertItemShopFallbackDiagnostic(diagnostic: RegionalBackgroundPlaneRen
 	]);
 }
 
+function assertVillagerHouse1PaintedDiagnostic(
+	diagnostic: RegionalBackgroundPlaneRenderDiagnostic
+) {
+	expect(diagnostic).toMatchObject({
+		mapId: 'villager-house-1',
+		regionalBackgroundsEnabled: true,
+		packageId: 'villager-house-1-painted',
+		presentationMode: 'painted',
+		requiredBackgroundIds: ['villager-house-1-painted-base-image'],
+		selectedBackgroundIds: ['villager-house-1-painted-base-image'],
+		successfulBackgroundIds: ['villager-house-1-painted-base-image'],
+		selectedFallbackBlockerIds: [],
+		selectedFallbackDecorIds: [],
+		selectedFallbackFenceIds: [],
+		collisionIds: [...VILLAGER_HOUSE_1_COLLISION_IDS],
+		statefulObjectIds: [...VILLAGER_HOUSE_1_STATEFUL_OBJECT_IDS]
+	});
+	expect(diagnostic.entries).toEqual([
+		expect.objectContaining({
+			id: 'villager-house-1-painted-base-image',
+			textureKey: 'villager-house-1-painted-base',
+			plane: 'base',
+			status: 'rendered',
+			expectedDimensions: { width: 1280, height: 832 },
+			observedDimensions: { width: 1280, height: 832 },
+			renderTransform: {
+				x: 640,
+				y: 416,
+				originX: 0.5,
+				originY: 0.5,
+				displayWidth: 1280,
+				displayHeight: 832,
+				depth: -9
+			}
+		})
+	]);
+}
+
+function assertVillagerHouse1FallbackDiagnostic(
+	diagnostic: RegionalBackgroundPlaneRenderDiagnostic
+) {
+	expect(diagnostic).toMatchObject({
+		mapId: 'villager-house-1',
+		regionalBackgroundsEnabled: true,
+		packageId: null,
+		presentationMode: 'fallback',
+		requiredBackgroundIds: ['villager-house-1-painted-base-image'],
+		selectedBackgroundIds: [],
+		successfulBackgroundIds: [],
+		selectedFallbackBlockerIds: [...VILLAGER_HOUSE_1_FALLBACK_BLOCKER_IDS],
+		selectedFallbackDecorIds: [],
+		selectedFallbackFenceIds: [],
+		collisionIds: [...VILLAGER_HOUSE_1_COLLISION_IDS],
+		statefulObjectIds: [...VILLAGER_HOUSE_1_STATEFUL_OBJECT_IDS]
+	});
+	expect(diagnostic.entries).toEqual([
+		expect.objectContaining({
+			id: 'villager-house-1-painted-base-image',
+			textureKey: 'villager-house-1-painted-base',
+			plane: 'base',
+			status: 'missing-texture',
+			expectedDimensions: { width: 1280, height: 832 },
+			observedDimensions: null
+		})
+	]);
+}
+
 async function saveHeroHouseCanvas(page: Page, name: string) {
 	return saveInteriorCanvas(page, HERO_HOUSE_RUNTIME_EVIDENCE_ROOT, 'hero-house', name);
 }
@@ -10925,6 +11178,10 @@ async function saveGuildHallCanvas(page: Page, name: string) {
 
 async function saveItemShopCanvas(page: Page, name: string) {
 	return saveInteriorCanvas(page, ITEM_SHOP_RUNTIME_EVIDENCE_ROOT, 'item-shop', name);
+}
+
+async function saveVillagerHouse1Canvas(page: Page, name: string) {
+	return saveInteriorCanvas(page, VILLAGER_HOUSE_1_RUNTIME_EVIDENCE_ROOT, 'villager-house-1', name);
 }
 
 async function saveInteriorCanvas(page: Page, evidenceRoot: string, styleId: string, name: string) {
@@ -13380,26 +13637,33 @@ test('browser-local route steering acknowledges a plan and continues through Pha
 		}
 	]);
 	// RED characterization for the VH1 resident route: the generic vertical-first
-	// helper sends the actual x-residue into Lynn's 29px NPC collision circle before
-	// it can correct to the authored x=200 approach. The source-safe contract must
-	// instead cross to x=200 on the current row, then descend.
-	const lynnActualStart = { x: 188.2352, y: 316.332 };
-	const lynnApproach = { x: 200, y: 416 };
+	// helper sends the actual x-residue into Lynn's combined NPC collision circle
+	// before it can correct to the authored approach. The source-safe contract
+	// must instead cross to the approach x on the current row, then descend.
+	const villagerHouse1Layout = VILLAGE_INTERIOR_LAYOUTS['villager-house-1'];
+	const lynnNpc = villagerHouse1Map.npcs?.find(({ id }) => id === 'villager-lynn');
+	if (!lynnNpc) throw new Error('Villager House 1 Lynn fixture is missing');
+	const lynnApproach = villagerHouse1Layout.npcApproaches.lynn.approach;
+	const lynnActualStart = {
+		x: lynnNpc.x + PLAYER_COLLISION_RADIUS + NPC_PACK_COLLISION_RADIUS - 1,
+		y: lynnNpc.y - 100
+	};
+	const lynnInteractionTarget = villagerHouse1LynnInteractionTarget();
 	const lynnVerticalFirst = interiorRoutePoints(lynnActualStart, lynnApproach);
 	expect(
 		routeSegmentIntersectsCircle(
 			lynnVerticalFirst[0]!,
 			lynnVerticalFirst[1]!,
-			{ x: 160, y: 416 },
+			lynnNpc,
 			PLAYER_COLLISION_RADIUS + NPC_PACK_COLLISION_RADIUS
 		)
 	).toBe(true);
 	const lynnHorizontalFirst = villagerHouse1LynnRoutePoints(lynnActualStart, lynnApproach);
 	assertVillagerHouse1LynnRouteGeometry(lynnHorizontalFirst, lynnApproach);
 	expect(lynnHorizontalFirst).toEqual([
-		{ x: 188.2352, y: 316.332 },
-		{ x: 200, y: 316.332 },
-		{ x: 200, y: 416 }
+		lynnActualStart,
+		{ x: lynnInteractionTarget.x, y: lynnActualStart.y },
+		lynnInteractionTarget
 	]);
 	// RED characterization for the VH2 resident route: after the generic
 	// vertical-first route settles with the observed x residue, its next y
@@ -16281,6 +16545,194 @@ test('Hero House painted interior preserves runtime, reload, and fallback contra
 		const fallbackDiagnostic = await waitForMapBackgroundDiagnostic(page, 'hero-house');
 		assertHeroHouseFallbackDiagnostic(fallbackDiagnostic);
 		await saveHeroHouseCanvas(page, 'fallback-camera-640x360.png');
+	} finally {
+		await page.unroute(missingBaseRoute);
+	}
+});
+
+test('Villager House 1 painted interior', async ({ page }) => {
+	test.setTimeout(600_000);
+	const house = INTERIOR_GRAYBOX_CASES.find((interior) => interior.mapId === 'villager-house-1');
+	if (!house) throw new Error('Villager House 1 route constants are missing');
+	const layout = VILLAGE_INTERIOR_LAYOUTS['villager-house-1'];
+	const family = villagerHouse1Map.ambientNpcs?.find(({ id }) => id === 'villager-house-1-family');
+	if (!family) throw new Error('Villager House 1 family fixture is missing');
+	expect(house.steps.map(({ label }) => label)).toEqual(
+		expect.arrayContaining([
+			'living-center',
+			'family-table-living',
+			'kitchen',
+			'lynn-approach',
+			'family-anchor',
+			'bedroom',
+			'storage',
+			'spawn-return'
+		])
+	);
+
+	await installRuntimeProbes(page, { captureFacing: true });
+	await injectSave(
+		page,
+		createSaveFixture({
+			mapId: 'meadow-entry',
+			player: {
+				level: 1,
+				xp: 0,
+				hp: 20,
+				attack: 3,
+				x: house.returnArrival.x,
+				y: house.returnArrival.y,
+				facing: 'up'
+			}
+		})
+	);
+	await page.setViewportSize({ width: 640, height: 360 });
+	await page.goto('/?movementDiagnostics=on');
+	await expect(page.locator('canvas')).toBeVisible();
+	await expect(page.getByRole('button', { name: 'Menu' })).toBeVisible();
+	await page.getByRole('button', { name: 'Menu' }).click();
+	await commandBox(page).getByRole('button', { name: 'Resume Save' }).click();
+	await waitForHudPosition(page, 'meadow-entry', house.returnArrival);
+
+	await traverseInteriorForJourney(
+		page,
+		house,
+		{
+			afterEnter: async () => {
+				assertVillagerHouse1PaintedDiagnostic(
+					await waitForMapBackgroundDiagnostic(page, house.mapId)
+				);
+				await saveVillagerHouse1Canvas(page, 'painted-camera-640x360.png');
+			},
+			afterStep: async (step, point) => {
+				if (step.label === 'storage-return-door') {
+					const storageDoor = layout.doors.storage;
+					const doorwayCenterX = storageDoor.x + storageDoor.width / 2;
+					const doorwayBandMargin = NPC_APPROACH_SETTLE_TOLERANCE / 2;
+					const minimumDoorX = doorwayCenterX - doorwayBandMargin;
+					const maximumDoorXExclusive = doorwayCenterX + doorwayBandMargin;
+					let doorwayRowPoint = point;
+					if (point.x < minimumDoorX || point.x >= maximumDoorXExclusive) {
+						const bandResult = await runFixedXAxisBandSteering(
+							page,
+							{
+								expectedMapId: house.mapId,
+								minX: minimumDoorX,
+								maxXExclusive: maximumDoorXExclusive,
+								expectedY: point.y,
+								initialPoint: point,
+								tokenPrefix: 'villager-house-1-storage-return-door'
+							},
+							'Villager House 1 storage return doorway'
+						);
+						if (!bandResult.position) {
+							throw new Error('Villager House 1 storage return doorway produced no position');
+						}
+						doorwayRowPoint = bandResult.position;
+					}
+					const doorRow = storageDoor.y + storageDoor.height / 2;
+					if (Math.abs(doorwayRowPoint.y - doorRow) <= INTERIOR_ROUTE_SETTLE_TOLERANCE) {
+						return doorwayRowPoint;
+					}
+					return moveRoute(
+						page,
+						[doorwayRowPoint, { x: doorwayRowPoint.x, y: doorRow }],
+						INTERIOR_ROUTE_SETTLE_TOLERANCE
+					);
+				}
+				if (step.label === 'lynn-approach') {
+					await saveVillagerHouse1Canvas(page, 'lynn-interaction-camera-640x360.png');
+				}
+				if (step.label !== house.persistAfterStep) return point;
+
+				expect(step.label).toBe('family-anchor');
+				expect(Math.abs(point.x - family.x)).toBeLessThanOrEqual(AXIS_REACH_TOLERANCE);
+				expect(Math.abs(point.y - family.y)).toBeLessThanOrEqual(AXIS_REACH_TOLERANCE);
+				await page.locator('canvas').click();
+				await page.keyboard.press('e', { delay: 50 });
+				const noOneNearbyDialogue = page.getByRole('dialog', { name: 'Traveler' });
+				await expect(noOneNearbyDialogue).toBeVisible();
+				await expect(noOneNearbyDialogue).toContainText('No one is nearby.');
+				await noOneNearbyDialogue.getByRole('button', { name: 'Close' }).click();
+				await expect(noOneNearbyDialogue).toHaveCount(0);
+				const familyHud = await page.evaluate(
+					() => (window as GlieseProbeWindow).__glieseLastHudState ?? null
+				);
+				expect(familyHud?.mapId).toBe(house.mapId);
+				expect(familyHud?.dialogue ?? null).toBeNull();
+				expect(familyHud?.status ?? '').not.toContain(family.id);
+
+				const resumed = await saveInteriorCheckpointAndReload(page, house.mapId, point);
+				assertVillagerHouse1PaintedDiagnostic(
+					await waitForMapBackgroundDiagnostic(page, house.mapId)
+				);
+				return resumed;
+			}
+		},
+		(label, result) => {
+			expect(result.mapId, label).toBe(house.mapId);
+		}
+	);
+
+	const diagnosticCountBeforeReentry = await page.evaluate(
+		() =>
+			(window as GlieseProbeWindow).__glieseRegionalBackgroundDiagnostics?.filter(
+				({ mapId }) => mapId === 'villager-house-1'
+			).length ?? 0
+	);
+	await enterInteriorWithTrustedKeyboard(page, house);
+	assertVillagerHouse1PaintedDiagnostic(
+		await waitForMapBackgroundDiagnostic(page, house.mapId, diagnosticCountBeforeReentry)
+	);
+	await saveVillagerHouse1Canvas(page, 'reentry-reload-camera-640x360.png');
+
+	const reentrySavePoint = await currentHudPlayerPoint(page, house.mapId);
+	await page.getByRole('button', { name: 'Menu' }).click();
+	await commandBox(page).getByRole('button', { name: 'Save Game' }).click();
+	await expect(fieldStatus(page)).toContainText('Saved');
+	const persisted = await page.evaluate(
+		(key) => JSON.parse(localStorage.getItem(key) ?? 'null'),
+		SAVE_STORAGE_KEY
+	);
+	expect(persisted?.mapId).toBe(house.mapId);
+	expect(Math.abs(persisted?.player?.x - reentrySavePoint.x)).toBeLessThanOrEqual(
+		AXIS_REACH_TOLERANCE
+	);
+	expect(Math.abs(persisted?.player?.y - reentrySavePoint.y)).toBeLessThanOrEqual(
+		AXIS_REACH_TOLERANCE
+	);
+
+	const missingBaseRoute = '**/game/assets/interiors/villager-house-1/base.png';
+	await page.route(missingBaseRoute, (route) => route.abort());
+	try {
+		await page.reload();
+		await expect(page.locator('canvas')).toBeVisible();
+		await expect(page.getByRole('button', { name: 'Menu' })).toBeVisible();
+		await page.getByRole('button', { name: 'Menu' }).click();
+		await commandBox(page).getByRole('button', { name: 'Resume Save' }).click();
+		await waitForHudPosition(page, house.mapId, reentrySavePoint);
+		const fallbackDiagnostic = await waitForMapBackgroundDiagnostic(page, house.mapId);
+		assertVillagerHouse1FallbackDiagnostic(fallbackDiagnostic);
+		await saveVillagerHouse1Canvas(page, 'fallback-base-missing-camera-640x360.png');
+
+		const fallbackProbePoint = {
+			x: layout.corridors.hall.x + layout.corridors.hall.width / 2,
+			y: layout.rooms.livingKitchen.y + 32
+		};
+		const fallbackStart = await currentHudPlayerPoint(page, house.mapId);
+		const fallbackPosition = await moveRoute(
+			page,
+			interiorRoutePoints(fallbackStart, fallbackProbePoint),
+			INTERIOR_ROUTE_SETTLE_TOLERANCE
+		);
+		await assertInteriorCheckpoint(page, house, fallbackProbePoint);
+		expect(Math.abs(fallbackPosition.x - fallbackProbePoint.x)).toBeLessThanOrEqual(
+			AXIS_REACH_TOLERANCE
+		);
+		expect(Math.abs(fallbackPosition.y - fallbackProbePoint.y)).toBeLessThanOrEqual(
+			AXIS_REACH_TOLERANCE
+		);
+		await exitInteriorWithTrustedKeyboard(page, house);
 	} finally {
 		await page.unroute(missingBaseRoute);
 	}

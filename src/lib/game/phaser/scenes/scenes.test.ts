@@ -36,6 +36,7 @@ import {
 	isInsideAnyCollisionRect
 } from '$lib/game/save/save-state';
 import { HUD_COMMAND_EVENT, type HudCommand } from '$lib/game/ui-bridge/events';
+import { VILLAGE_INTERIOR_LAYOUTS } from '$lib/game/content/maps/layouts/village-interiors-v2';
 
 const guildMasterApproach = { x: 800, y: 184 };
 const quartermasterApproach = { x: 816, y: 568 };
@@ -78,6 +79,28 @@ const heroHouseStatefulObjectIds = [
 	...(heroHouseMap.ambientNpcs ?? []).map(({ id }) => id),
 	...(heroHouseMap.discoveries ?? []).map(({ id }) => id),
 	...(heroHouseMap.combatBounds ?? []).map(({ id }) => id)
+].sort();
+
+const villagerHouse1CollisionIds = [
+	...(villagerHouse1Map.blockers ?? []).map(({ id }) => id),
+	...(villagerHouse1Map.fences ?? []).map(({ id }) => id),
+	...(villagerHouse1Map.mapDecor ?? []).flatMap(({ collision }) =>
+		collision ? [collision.id] : []
+	),
+	...(villagerHouse1Map.interiorProps ?? []).flatMap(({ collision }) =>
+		collision ? [collision.id] : []
+	),
+	...(villagerHouse1Map.landmarks ?? []).map(({ id }) => id)
+].sort();
+const villagerHouse1StatefulObjectIds = [
+	...villagerHouse1Map.transitions.map(({ id }) => id),
+	...(villagerHouse1Map.pickups ?? []).map(({ id }) => id),
+	...(villagerHouse1Map.encounters ?? []).map(({ id }) => id),
+	...(villagerHouse1Map.npcs ?? []).map(({ id }) => id),
+	...(villagerHouse1Map.landmarks ?? []).map(({ id }) => id),
+	...(villagerHouse1Map.ambientNpcs ?? []).map(({ id }) => id),
+	...(villagerHouse1Map.discoveries ?? []).map(({ id }) => id),
+	...(villagerHouse1Map.combatBounds ?? []).map(({ id }) => id)
 ].sort();
 
 const expectedOrganicBlockerOwners = [
@@ -3860,6 +3883,168 @@ describe('WorldScene', () => {
 		}
 	});
 
+	it('renders the painted Villager House 1 base while keeping live actors and collisions', async () => {
+		const { VILLAGE_INTERIOR_PACKAGES } =
+			await import('$lib/game/content/backgrounds/village-interior-packages');
+		const villagerHouse1Package = VILLAGE_INTERIOR_PACKAGES.find(
+			({ id }) => id === 'villager-house-1-painted'
+		);
+		if (!villagerHouse1Package)
+			throw new Error('Villager House 1 painted package is not registered');
+		const base = villagerHouse1Package.backgrounds.find(({ plane }) => plane === 'base');
+		if (!base) throw new Error('Villager House 1 painted base is not registered');
+		phaserState.regionalBackgroundTextureMocks.set(base.textureKey, {
+			key: base.textureKey,
+			source: [{ width: base.width, height: base.height }],
+			get: vi.fn(() => ({ cutWidth: base.width, cutHeight: base.height }))
+		});
+		const target = installPlaneDiagnosticListener();
+		const { WorldScene } = await import('./WorldScene');
+		const scene = new WorldScene();
+		const lynn = villagerHouse1Map.npcs?.find(({ id }) => id === 'villager-lynn');
+		const family = villagerHouse1Map.ambientNpcs?.find(
+			({ id }) => id === 'villager-house-1-family'
+		);
+
+		try {
+			scene.create({ mapId: villagerHouse1Map.id });
+
+			expect(villagerHouse1Package.backgrounds.map(({ plane }) => plane)).toEqual(['base']);
+			expect(scene.make.tilemap).not.toHaveBeenCalled();
+			expect(phaserState.tileSpriteMarkers).toHaveLength(0);
+			expect(
+				phaserState.imageMarkers.filter(({ texture }) => texture === base.textureKey)
+			).toHaveLength(1);
+			expect(
+				phaserState.imageMarkers.filter(({ texture }) => texture === 'interior-props')
+			).toHaveLength(0);
+			expect(
+				phaserState.imageMarkers.filter(({ texture }) => texture === 'environment-dressing')
+			).toHaveLength(0);
+			expect(phaserState.playerMarker).toMatchObject({
+				x: villagerHouse1Map.spawn.x,
+				y: villagerHouse1Map.spawn.y,
+				frame: 'heroIdle0'
+			});
+			expect(phaserState.playerMarker.setDisplaySize).toHaveBeenCalledWith(88, 90);
+			expect(lynn).toBeDefined();
+			expect(family).toBeDefined();
+			if (!lynn || !family) return;
+			expect(phaserState.imageMarkers).toEqual(
+				expect.arrayContaining([
+					expect.objectContaining({
+						x: lynn.x,
+						y: lynn.y,
+						texture: 'npc-pack',
+						frame: lynn.frameName
+					}),
+					expect.objectContaining({
+						x: family.x,
+						y: family.y,
+						texture: 'npc-pack',
+						frame: family.frameName
+					}),
+					expect.objectContaining({
+						x: villagerHouse1Map.transitions[0]!.x,
+						y: villagerHouse1Map.transitions[0]!.y,
+						texture: 'starter-pack',
+						frame: 'doorwayTile'
+					})
+				])
+			);
+			expect(target.diagnostics[0]).toMatchObject({
+				mapId: 'villager-house-1',
+				packageId: 'villager-house-1-painted',
+				presentationMode: 'painted',
+				requiredBackgroundIds: ['villager-house-1-painted-base-image'],
+				selectedBackgroundIds: ['villager-house-1-painted-base-image'],
+				successfulBackgroundIds: ['villager-house-1-painted-base-image'],
+				selectedFallbackBlockerIds: [],
+				selectedFallbackDecorIds: [],
+				selectedFallbackFenceIds: [],
+				collisionIds: villagerHouse1CollisionIds,
+				statefulObjectIds: villagerHouse1StatefulObjectIds
+			});
+			expect(target.diagnostics[0]?.entries).toEqual([
+				expect.objectContaining({
+					id: 'villager-house-1-painted-base-image',
+					textureKey: base.textureKey,
+					plane: 'base',
+					status: 'rendered',
+					expectedDimensions: { width: 1280, height: 832 },
+					observedDimensions: { width: 1280, height: 832 },
+					renderTransform: {
+						x: 640,
+						y: 416
+					}
+				})
+			]);
+		} finally {
+			target.restore();
+		}
+	});
+
+	it('restores every Villager House 1 legacy visual when its painted base is missing', async () => {
+		const { VILLAGE_INTERIOR_PACKAGES } =
+			await import('$lib/game/content/backgrounds/village-interior-packages');
+		const villagerHouse1Package = VILLAGE_INTERIOR_PACKAGES.find(
+			({ id }) => id === 'villager-house-1-painted'
+		);
+		if (!villagerHouse1Package)
+			throw new Error('Villager House 1 painted package is not registered');
+		const base = villagerHouse1Package.backgrounds.find(({ plane }) => plane === 'base');
+		if (!base) throw new Error('Villager House 1 painted base is not registered');
+		phaserState.regionalBackgroundTextureMocks.set(base.textureKey, {
+			key: base.textureKey,
+			source: [{ width: base.width, height: base.height }],
+			get: vi.fn(() => ({ cutWidth: base.width, cutHeight: base.height }))
+		});
+		phaserState.missingTextureKeys.add(base.textureKey);
+		const target = installPlaneDiagnosticListener();
+		const { WorldScene } = await import('./WorldScene');
+		const scene = new WorldScene();
+
+		try {
+			scene.create({ mapId: villagerHouse1Map.id });
+
+			expect(scene.make.tilemap).toHaveBeenCalledOnce();
+			expect(
+				phaserState.imageMarkers.some(
+					({ texture, destroy }) => texture === base.textureKey && destroy.mock.calls.length === 0
+				)
+			).toBe(false);
+			expect(phaserState.tileSpriteMarkers).toHaveLength(villagerHouse1Map.blockers?.length ?? 0);
+			expect(
+				phaserState.imageMarkers.filter(({ texture }) => texture === 'interior-props')
+			).toHaveLength(villagerHouse1Map.interiorProps?.length ?? 0);
+			expect(target.diagnostics[0]).toMatchObject({
+				mapId: 'villager-house-1',
+				packageId: null,
+				presentationMode: 'fallback',
+				requiredBackgroundIds: ['villager-house-1-painted-base-image'],
+				selectedBackgroundIds: [],
+				successfulBackgroundIds: [],
+				selectedFallbackBlockerIds: villagerHouse1Map.blockers?.map(({ id }) => id),
+				selectedFallbackDecorIds: [],
+				selectedFallbackFenceIds: [],
+				collisionIds: villagerHouse1CollisionIds,
+				statefulObjectIds: villagerHouse1StatefulObjectIds
+			});
+			expect(target.diagnostics[0]?.entries).toEqual([
+				expect.objectContaining({
+					id: 'villager-house-1-painted-base-image',
+					textureKey: base.textureKey,
+					plane: 'base',
+					status: 'missing-texture',
+					expectedDimensions: { width: 1280, height: 832 },
+					observedDimensions: null
+				})
+			]);
+		} finally {
+			target.restore();
+		}
+	});
+
 	it('renders tilemap ground, a hero sprite, and encounter art for the resolved map', async () => {
 		const { WorldScene } = await import('./WorldScene');
 		const { meadowEntryMap } = await import('$lib/game/content/maps');
@@ -7268,14 +7453,17 @@ describe('WorldScene', () => {
 	it('does not render placeholder NPCs in villager houses', async () => {
 		const { WorldScene } = await import('./WorldScene');
 		const scene = new WorldScene();
+		const lynn = villagerHouse1Map.npcs?.find(({ id }) => id === 'villager-lynn');
+		expect(lynn).toBeDefined();
+		if (!lynn) return;
 
-		scene.create({ mapId: 'villager-house-1' });
+		scene.create({ mapId: villagerHouse1Map.id });
 
-		expect(scene.add.image).not.toHaveBeenCalledWith(160, 416, 'starter-pack', 'titleBadge');
-		expect(scene.add.image).toHaveBeenCalledWith(160, 416, 'npc-pack', 'miraItemShopNpc');
+		expect(scene.add.image).not.toHaveBeenCalledWith(lynn.x, lynn.y, 'starter-pack', 'titleBadge');
+		expect(scene.add.image).toHaveBeenCalledWith(lynn.x, lynn.y, 'npc-pack', lynn.frameName);
 		expect(
 			phaserState.imageMarkers.some(
-				(marker) => marker.x === 160 && marker.y === 416 && marker.frame === 'titleBadge'
+				(marker) => marker.x === lynn.x && marker.y === lynn.y && marker.frame === 'titleBadge'
 			)
 		).toBe(false);
 	});
@@ -8062,9 +8250,10 @@ describe('WorldScene', () => {
 		const emitHudStateSpy = vi.spyOn(events, 'emitHudState');
 		const { WorldScene } = await import('./WorldScene');
 		const scene = new WorldScene();
+		const lynnApproach = VILLAGE_INTERIOR_LAYOUTS['villager-house-1'].npcApproaches.lynn.approach;
 
-		scene.create({ mapId: 'villager-house-1' });
-		Object.assign(phaserState.playerMarker, { x: 200, y: 416 });
+		scene.create({ mapId: villagerHouse1Map.id });
+		Object.assign(phaserState.playerMarker, lynnApproach);
 		scene.update(0, 16);
 		emitHudStateSpy.mockClear();
 		Object.assign(phaserState.interactKeys.e, { justDown: true });

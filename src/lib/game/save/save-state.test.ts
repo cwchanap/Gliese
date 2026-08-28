@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'vitest';
 
-import { guildHallMap, itemShopMap, maps, meadowEntryMap } from '$lib/game/content/maps';
+import {
+	guildHallMap,
+	itemShopMap,
+	maps,
+	meadowEntryMap,
+	villagerHouse1Map
+} from '$lib/game/content/maps';
 import { COMPLETE_WORLD_MAP_IDS } from '$lib/game/content/maps/layouts/complete-world-layout-foundation';
 import { MEADOW_ENTRY_V2_RIVER_SEGMENTS } from '$lib/game/content/maps/layouts/meadow-entry-v2';
 import { startingPlayer } from '$lib/game/content/player';
@@ -303,16 +309,17 @@ describe('save state', () => {
 	}
 
 	it.each([
-		['guild-hall-master-desk', { x: 792, y: 184 }],
-		['guild-hall-quartermaster-counter', { x: 776, y: 568 }]
+		['guild-hall-master-desk', guildHallMap, { x: 792, y: 184 }],
+		['guild-hall-quartermaster-counter', guildHallMap, { x: 776, y: 568 }],
+		['villager-house-1-family-table', villagerHouse1Map, { x: 248, y: 600 }]
 	] as const)(
 		'normalizes loaded %s positions out of interior prop collision',
-		(propId, expected) => {
-			const collision = guildHallMap.interiorProps?.find((prop) => prop.id === propId)?.collision;
+		(propId, map, expected) => {
+			const collision = map.interiorProps?.find((prop) => prop.id === propId)?.collision;
 			expect(collision).toBeDefined();
 
 			const save = createNewSaveState();
-			save.mapId = guildHallMap.id;
+			save.mapId = map.id;
 			save.player = {
 				...save.player,
 				x: collision!.x,
@@ -322,7 +329,7 @@ describe('save state', () => {
 			const parsed = parseSaveState(serializeSaveState(save));
 			expect(parsed).not.toBeNull();
 
-			const interiorCollisions = (guildHallMap.interiorProps ?? []).flatMap((prop) =>
+			const interiorCollisions = (map.interiorProps ?? []).flatMap((prop) =>
 				prop.collision ? [prop.collision] : []
 			);
 			expect(
@@ -333,6 +340,15 @@ describe('save state', () => {
 					PLAYER_COLLISION_RADIUS
 				)
 			).toBe(false);
+			expect(
+				isNavigationPositionWalkable(
+					resolveMapNavigationGrid(map),
+					buildMapNavigationObstacles(map, { includeInteractableNpcs: false }),
+					{ x: parsed!.player.x, y: parsed!.player.y },
+					PLAYER_COLLISION_RADIUS,
+					'resting-position'
+				)
+			).toBe(true);
 			expect(parsed!.player.x).toBe(expected.x);
 			expect(parsed!.player.y).toBe(expected.y);
 		}
@@ -540,21 +556,34 @@ describe('save state', () => {
 		expect(Math.abs(parsed!.player.y - blockedPosition.y)).toBeLessThanOrEqual(128);
 	});
 
-	it('leaves a walkable saved position unchanged', () => {
-		// meadow-entry spawn is walkable
+	it.each([
+		['meadow-entry', meadowEntryMap, meadowEntryMap.spawn],
+		['villager-house-1', villagerHouse1Map, villagerHouse1Map.spawn]
+	] as const)('leaves a walkable %s saved position unchanged', (_mapId, map, point) => {
 		const walkableSave = {
 			...createNewSaveState(),
 			player: {
 				...createNewSaveState().player,
-				x: meadowEntryMap.spawn.x,
-				y: meadowEntryMap.spawn.y
+				x: point.x,
+				y: point.y
 			}
 		};
+		walkableSave.mapId = map.id;
 
 		const parsed = parseSaveState(JSON.stringify(walkableSave));
 		expect(parsed).not.toBeNull();
-		expect(parsed!.player.x).toBe(meadowEntryMap.spawn.x);
-		expect(parsed!.player.y).toBe(meadowEntryMap.spawn.y);
+		expect(parsed!.mapId).toBe(map.id);
+		expect(parsed!.player.x).toBe(point.x);
+		expect(parsed!.player.y).toBe(point.y);
+		expect(
+			isNavigationPositionWalkable(
+				resolveMapNavigationGrid(map),
+				buildMapNavigationObstacles(map, { includeInteractableNpcs: false }),
+				point,
+				PLAYER_COLLISION_RADIUS,
+				'resting-position'
+			)
+		).toBe(true);
 	});
 
 	it('round-trips every complete-world map spawn without collision recovery', () => {

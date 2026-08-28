@@ -10,7 +10,7 @@ describe('registered village interior assets', () => {
 		const manifests = await collectRegisteredVillageInteriorManifests();
 		for (const manifest of manifests) await validateVillageInteriorManifest(manifest);
 
-		expect(manifests).toHaveLength(3);
+		expect(manifests).toHaveLength(4);
 		expect(manifests).toEqual([
 			{
 				version: 1,
@@ -71,6 +71,25 @@ describe('registered village interior assets', () => {
 					cellSizePx: 16,
 					widthCells: 52,
 					heightCells: 40,
+					clearancePx: 12,
+					source: 'layout'
+				}
+			},
+			{
+				version: 1,
+				mapId: 'villager-house-1',
+				dimensionsPx: { width: 1280, height: 832 },
+				base: {
+					id: 'villager-house-1-painted-base-image',
+					textureKey: 'villager-house-1-painted-base',
+					path: '/game/assets/interiors/villager-house-1/base.png',
+					sha256: 'e3041189516d424cb35e3e4153712231dcfc9b3c3a6fd321cd53bc7ec1d4118a'
+				},
+				navigation: {
+					gridId: 'villager-house-1-navigation',
+					cellSizePx: 16,
+					widthCells: 80,
+					heightCells: 52,
 					clearancePx: 12,
 					source: 'layout'
 				}
