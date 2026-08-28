@@ -917,6 +917,8 @@ export const villagerHouse1Map: WorldMapDefinition = addEnglishMapText({
 	height: villagerHouse1Layout.heightTiles,
 	spawnDirection: 'up',
 	spawn: { ...villagerHouse1Layout.spawn },
+	navigationGrid: GENERATED_NAVIGATION_GRIDS['villager-house-1-navigation'],
+	navigationGridOwnedSources: VILLAGE_INTERIOR_NAVIGATION_OWNED_SOURCES,
 	groundPatches: villagerHouse1GroundPatches,
 	blockers: villagerHouse1Blockers,
 	transitions: [
@@ -930,19 +932,35 @@ export const villagerHouse1Map: WorldMapDefinition = addEnglishMapText({
 	interiorProps: [
 		{
 			...toMapRect('villager-house-1-bed', villagerHouse1Layout.propZones.bed),
-			frameName: 'bed'
+			frameName: 'bed',
+			collision: toMapRect(
+				'villager-house-1-bed-collision',
+				villagerHouse1Layout.propCollisions.bed
+			)
 		},
 		{
 			...toMapRect('villager-house-1-family-table', villagerHouse1Layout.propZones.familyTable),
-			frameName: 'table'
+			frameName: 'table',
+			collision: toMapRect(
+				'villager-house-1-family-table-collision',
+				villagerHouse1Layout.propCollisions.familyTable
+			)
 		},
 		{
 			...toMapRect('villager-house-1-kitchen', villagerHouse1Layout.propZones.kitchen),
-			frameName: 'crateStack'
+			frameName: 'crateStack',
+			collision: toMapRect(
+				'villager-house-1-kitchen-collision',
+				villagerHouse1Layout.propCollisions.kitchen
+			)
 		},
 		{
 			...toMapRect('villager-house-1-storage', villagerHouse1Layout.propZones.storage),
-			frameName: 'bookshelf'
+			frameName: 'bookshelf',
+			collision: toMapRect(
+				'villager-house-1-storage-collision',
+				villagerHouse1Layout.propCollisions.storage
+			)
 		}
 	],
 	npcs: [
@@ -956,7 +974,12 @@ export const villagerHouse1Map: WorldMapDefinition = addEnglishMapText({
 		}
 	],
 	ambientNpcs: [
-		{ id: 'villager-house-1-family', x: 480, y: 416, frameName: 'miraItemShopNpc', role: 'family' }
+		{
+			id: 'villager-house-1-family',
+			...villagerHouse1Layout.ambientActivity['villager-house-1-family'],
+			frameName: 'miraItemShopNpc',
+			role: 'family'
+		}
 	]
 });
 

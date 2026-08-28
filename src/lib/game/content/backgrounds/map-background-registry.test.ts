@@ -40,6 +40,14 @@ describe('map background registry', () => {
 				widthCells: 52,
 				heightCells: 40,
 				clearancePx: 12
+			}),
+			expect.objectContaining({
+				id: 'villager-house-1-navigation',
+				mapId: 'villager-house-1',
+				cellSizePx: 16,
+				widthCells: 80,
+				heightCells: 52,
+				clearancePx: 12
 			})
 		]);
 		expect(VILLAGE_INTERIOR_PACKAGES).toHaveLength(3);

@@ -4,7 +4,11 @@ import { getDialogue } from '$lib/game/content/dialogue';
 import { mergeRegions } from '$lib/game/content/maps/meadow-entry';
 import { STEPS } from '$lib/game/content/maps/layered/geometry';
 import { VILLAGE_INTERIOR_EXTERIORS } from '$lib/game/content/maps/layouts/meadow-entry-v2';
-import { layoutRectContainsPoint, toMapRect } from '$lib/game/content/maps/layouts/layout-rects';
+import {
+	layoutRectContainsPoint,
+	rectContains,
+	toMapRect
+} from '$lib/game/content/maps/layouts/layout-rects';
 import { VILLAGE_INTERIOR_LAYOUTS } from '$lib/game/content/maps/layouts/village-interiors-v2';
 import type { RegionFragment } from '$lib/game/content/maps/regions/types';
 import { en } from '$lib/game/i18n/messages/en';
@@ -409,7 +413,7 @@ describe('opening map content', () => {
 					y: 4_384,
 					toMapId: 'villager-house-1',
 					showMarker: false,
-					arrival: { x: 320, y: 480, facing: 'up' }
+					arrival: { x: 640, y: 672, facing: 'up' }
 				},
 				{
 					id: 'meadow-to-villager-house-2',
@@ -1193,8 +1197,8 @@ describe('opening map content', () => {
 		expect(maps['villager-house-3']).toBe(villagerHouse3Map);
 		expect(maps['shrine-of-aurora-interior']).toBe(shrineOfAuroraInteriorMap);
 
-		expect(villagerHouse1Map.width).toBe(20);
-		expect(villagerHouse1Map.height).toBe(18);
+		expect(villagerHouse1Map.width).toBe(40);
+		expect(villagerHouse1Map.height).toBe(26);
 		expect(villagerHouse2Map.width).toBe(22);
 		expect(villagerHouse2Map.height).toBe(18);
 		expect(villagerHouse3Map.width).toBe(20);
@@ -1469,26 +1473,48 @@ describe('opening map content', () => {
 		expect(shrineOfAuroraInteriorMap.npcs ?? []).toEqual([]);
 		expect(shrineOfAuroraInteriorMap.ambientNpcs ?? []).toEqual([]);
 
+		expect(Object.keys(house1Layout.propCollisions)).toEqual([
+			'bed',
+			'familyTable',
+			'kitchen',
+			'storage'
+		]);
 		expect(villagerHouse1Map.interiorProps).toEqual([
-			{ ...toMapRect('villager-house-1-bed', house1Layout.propZones.bed), frameName: 'bed' },
+			{
+				...toMapRect('villager-house-1-bed', house1Layout.propZones.bed),
+				frameName: 'bed',
+				collision: toMapRect('villager-house-1-bed-collision', house1Layout.propCollisions.bed)
+			},
 			{
 				...toMapRect('villager-house-1-family-table', house1Layout.propZones.familyTable),
-				frameName: 'table'
+				frameName: 'table',
+				collision: toMapRect(
+					'villager-house-1-family-table-collision',
+					house1Layout.propCollisions.familyTable
+				)
 			},
 			{
 				...toMapRect('villager-house-1-kitchen', house1Layout.propZones.kitchen),
-				frameName: 'crateStack'
+				frameName: 'crateStack',
+				collision: toMapRect(
+					'villager-house-1-kitchen-collision',
+					house1Layout.propCollisions.kitchen
+				)
 			},
 			{
 				...toMapRect('villager-house-1-storage', house1Layout.propZones.storage),
-				frameName: 'bookshelf'
+				frameName: 'bookshelf',
+				collision: toMapRect(
+					'villager-house-1-storage-collision',
+					house1Layout.propCollisions.storage
+				)
 			}
 		]);
 		expect(villagerHouse1Map.npcs).toEqual([
 			expect.objectContaining({
 				id: 'villager-lynn',
-				x: 160,
-				y: 416,
+				x: house1Layout.npcApproaches.lynn.npc.x,
+				y: house1Layout.npcApproaches.lynn.npc.y,
 				nameKey: 'content.maps.npcs.villager-lynn.name',
 				dialogueId: 'villager-lynn',
 				role: 'villager',
@@ -1498,8 +1524,8 @@ describe('opening map content', () => {
 		expect(villagerHouse1Map.ambientNpcs).toEqual([
 			{
 				id: 'villager-house-1-family',
-				x: 480,
-				y: 416,
+				x: house1Layout.ambientActivity!['villager-house-1-family'].x,
+				y: house1Layout.ambientActivity!['villager-house-1-family'].y,
 				frameName: 'miraItemShopNpc',
 				role: 'family'
 			}
@@ -1598,7 +1624,7 @@ describe('opening map content', () => {
 			[
 				villagerHouse1Map,
 				house1Layout.npcApproaches.lynn,
-				[villagerHouse1Map.spawn, { x: 320, y: 320 }, { x: 200, y: 320 }, { x: 200, y: 416 }]
+				[villagerHouse1Map.spawn, { x: 640, y: 544 }, house1Layout.npcApproaches.lynn.approach]
 			],
 			[
 				villagerHouse2Map,
@@ -1627,28 +1653,22 @@ describe('opening map content', () => {
 		}
 		expectRouteClear(
 			villagerHouse1Map,
-			[villagerHouse1Map.spawn, { x: 320, y: 320 }, { x: 320, y: 160 }],
+			[villagerHouse1Map.spawn, { x: 640, y: 416 }, { x: 640, y: 224 }],
 			'villager-house-1-spawn-to-hall'
 		);
 		expectRouteClear(
 			villagerHouse1Map,
-			[villagerHouse1Map.spawn, { x: 320, y: 320 }, { x: 320, y: 160 }, { x: 200, y: 160 }],
+			[villagerHouse1Map.spawn, { x: 640, y: 416 }, { x: 640, y: 224 }, { x: 256, y: 224 }],
 			'villager-house-1-spawn-to-bedroom'
 		);
 		expectRouteClear(
 			villagerHouse1Map,
-			[
-				villagerHouse1Map.spawn,
-				{ x: 320, y: 320 },
-				{ x: 320, y: 160 },
-				{ x: 520, y: 160 },
-				{ x: 520, y: 208 }
-			],
+			[villagerHouse1Map.spawn, { x: 640, y: 416 }, { x: 640, y: 224 }, { x: 1000, y: 224 }],
 			'villager-house-1-spawn-to-storage'
 		);
 		expectRouteClear(
 			villagerHouse1Map,
-			[villagerHouse1Map.spawn, { x: 520, y: 480 }],
+			[villagerHouse1Map.spawn, { x: 800, y: 672 }, { x: 800, y: 544 }],
 			'villager-house-1-spawn-to-living-kitchen'
 		);
 		expectRouteClear(
@@ -1957,8 +1977,8 @@ describe('opening map content', () => {
 		expect(villagerHouse1Map.npcs).toMatchObject([
 			{
 				id: 'villager-lynn',
-				x: 160,
-				y: 416,
+				x: VILLAGE_INTERIOR_LAYOUTS['villager-house-1'].npcApproaches.lynn.npc.x,
+				y: VILLAGE_INTERIOR_LAYOUTS['villager-house-1'].npcApproaches.lynn.npc.y,
 				nameKey: 'content.maps.npcs.villager-lynn.name',
 				dialogueId: 'villager-lynn',
 				role: 'villager',
@@ -2603,6 +2623,122 @@ describe('Guild Hall Gates 1/2 coordinate and navigation contracts', () => {
 				}
 			}
 		}
+	});
+});
+
+describe('Villager House 1 Gates 1/2 coordinate and navigation contracts', () => {
+	it('attaches the generated grid and derives fallback geometry and live anchors from the layout', () => {
+		const layout = VILLAGE_INTERIOR_LAYOUTS['villager-house-1'];
+		const source = VILLAGE_INTERIOR_NAVIGATION_SOURCES.find(
+			(value) => value.mapId === 'villager-house-1'
+		);
+		const grid = GENERATED_NAVIGATION_GRIDS['villager-house-1-navigation'];
+
+		expect(source).toBeDefined();
+		expect(grid).toBeDefined();
+		if (!source || !grid) return;
+
+		expect(grid).toEqual(compileNavigationGrid(source));
+		expect(villagerHouse1Map.navigationGrid).toBe(grid);
+		expect(villagerHouse1Map.navigationGridOwnedSources).toBe(
+			VILLAGE_INTERIOR_NAVIGATION_OWNED_SOURCES
+		);
+		expect(grid).toMatchObject({
+			id: 'villager-house-1-navigation',
+			mapId: 'villager-house-1',
+			cellSizePx: 16,
+			widthCells: 80,
+			heightCells: 52,
+			widthPx: 1280,
+			heightPx: 832
+		});
+
+		expect(villagerHouse1Map.width).toBe(layout.widthTiles);
+		expect(villagerHouse1Map.height).toBe(layout.heightTiles);
+		expect(villagerHouse1Map.spawn).toEqual(layout.spawn);
+		expect(villagerHouse1Map.transitions[0]).toMatchObject({
+			...layout.exit,
+			toMapId: 'meadow-entry'
+		});
+		expectAcceptedInteriorGeometry(villagerHouse1Map, layout, 'villager-house-1');
+
+		for (const [id, zone] of Object.entries(layout.propZones)) {
+			const propId = `villager-house-1-${id.replace(/^familyTable$/, 'family-table')}`;
+			const collision = layout.propCollisions[id as keyof typeof layout.propCollisions];
+			expect(collision, `${id} collision core is missing`).toBeDefined();
+			if (!collision) return;
+			expect(rectContains(zone, collision), `${id} collision core escapes its prop zone`).toBe(
+				true
+			);
+			expect(villagerHouse1Map.interiorProps).toContainEqual(
+				expect.objectContaining({
+					...toMapRect(propId, zone),
+					collision: toMapRect(`${propId}-collision`, collision)
+				})
+			);
+		}
+		expect(villagerHouse1Map.npcs).toEqual([
+			expect.objectContaining({
+				id: 'villager-lynn',
+				x: layout.npcApproaches.lynn.npc.x,
+				y: layout.npcApproaches.lynn.npc.y,
+				dialogueId: 'villager-lynn',
+				role: 'villager'
+			})
+		]);
+		expect(villagerHouse1Map.ambientNpcs?.map(({ id, x, y }) => ({ id, x, y }))).toEqual(
+			Object.entries(layout.ambientActivity ?? {}).map(([id, point]) => ({ ...point, id }))
+		);
+	});
+
+	it('keeps the family entrance axis, domestic rooms, family activity, and Lynn approach connected', () => {
+		const layout = VILLAGE_INTERIOR_LAYOUTS['villager-house-1'];
+		const routes = [
+			[villagerHouse1Map.spawn, { x: 640, y: 416 }, { x: 640, y: 224 }, { x: 256, y: 224 }],
+			[villagerHouse1Map.spawn, { x: 640, y: 416 }, { x: 640, y: 224 }, { x: 1000, y: 224 }],
+			[villagerHouse1Map.spawn, { x: 800, y: 672 }, { x: 800, y: 544 }],
+			[villagerHouse1Map.spawn, { x: 640, y: 544 }, layout.npcApproaches.lynn.approach],
+			[villagerHouse1Map.spawn, { x: 432, y: 672 }, { x: 432, y: 448 }],
+			[villagerHouse1Map.spawn, { x: 880, y: 672 }, { x: 880, y: 448 }],
+			[villagerHouse1Map.spawn, villagerHouse1Map.transitions[0]!]
+		] as const;
+		for (const [index, route] of routes.entries()) {
+			expectRouteClear(villagerHouse1Map, route, `villager-house-1-function-${index}`);
+			for (let segment = 1; segment < route.length; segment += 1) {
+				const from = route[segment - 1]!;
+				const to = route[segment]!;
+				const distance = Math.max(Math.abs(to.x - from.x), Math.abs(to.y - from.y));
+				const steps = Math.max(1, Math.ceil(distance / 16));
+				for (let step = 0; step <= steps; step += 1) {
+					const progress = step / steps;
+					const point = {
+						x: from.x + (to.x - from.x) * progress,
+						y: from.y + (to.y - from.y) * progress
+					};
+					expect(
+						isWalkable(villagerHouse1Map.navigationGrid!, point.x, point.y),
+						`route ${index} is blocked`
+					).toBe(true);
+				}
+			}
+		}
+
+		const family = layout.ambientActivity!['villager-house-1-family'];
+		const lynn = villagerHouse1Map.npcs!.find((npc) => npc.id === 'villager-lynn')!;
+		expectPointClearOfInteriorPropCollisions(villagerHouse1Map, lynn, 'lynn');
+		expectPointClearOfInteriorPropCollisions(
+			villagerHouse1Map,
+			layout.npcApproaches.lynn.approach,
+			'lynn-approach'
+		);
+		expect(
+			Math.hypot(
+				layout.npcApproaches.lynn.approach.x - lynn.x,
+				layout.npcApproaches.lynn.approach.y - lynn.y
+			),
+			'Lynn approach must be within interaction radius'
+		).toBeLessThanOrEqual(NPC_INTERACTION_RADIUS + PLAYER_COLLISION_RADIUS);
+		expect(isWalkable(villagerHouse1Map.navigationGrid!, family.x, family.y)).toBe(true);
 	});
 });
 

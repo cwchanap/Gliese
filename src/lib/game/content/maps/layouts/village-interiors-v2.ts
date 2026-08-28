@@ -105,17 +105,17 @@ const shrineOfAuroraWalls: readonly NamedLayoutRect[] = [
 ];
 
 const villagerHouse1Walls: readonly NamedLayoutRect[] = [
-	namedRect('villager-house-1-wall-north', 0, 0, 640, 64),
-	namedRect('villager-house-1-wall-west', 0, 64, 64, 480),
-	namedRect('villager-house-1-wall-east', 576, 64, 64, 480),
-	namedRect('villager-house-1-wall-south-west', 0, 544, 288, 32),
-	namedRect('villager-house-1-wall-south-east', 352, 544, 288, 32),
-	namedRect('villager-house-1-bedroom-divider-north', 256, 64, 32, 64),
-	namedRect('villager-house-1-bedroom-divider-south', 256, 192, 32, 64),
-	namedRect('villager-house-1-storage-divider-north', 384, 64, 32, 64),
-	namedRect('villager-house-1-storage-divider-south', 384, 192, 32, 64),
-	namedRect('villager-house-1-hall-living-divider-west', 64, 256, 224, 32),
-	namedRect('villager-house-1-hall-living-divider-east', 384, 256, 192, 32)
+	namedRect('villager-house-1-wall-north', 0, 0, 1280, 64),
+	namedRect('villager-house-1-wall-west', 0, 64, 64, 736),
+	namedRect('villager-house-1-wall-east', 1216, 64, 64, 736),
+	namedRect('villager-house-1-wall-south-west', 0, 800, 576, 32),
+	namedRect('villager-house-1-wall-south-east', 704, 800, 576, 32),
+	namedRect('villager-house-1-bedroom-divider-north', 416, 64, 32, 128),
+	namedRect('villager-house-1-bedroom-divider-south', 416, 256, 32, 128),
+	namedRect('villager-house-1-storage-divider-north', 832, 64, 32, 128),
+	namedRect('villager-house-1-storage-divider-south', 832, 256, 32, 128),
+	namedRect('villager-house-1-hall-living-divider-west', 64, 352, 384, 32),
+	namedRect('villager-house-1-hall-living-divider-east', 832, 352, 384, 32)
 ];
 
 const villagerHouse2Walls: readonly NamedLayoutRect[] = [
@@ -311,36 +311,44 @@ export const VILLAGE_INTERIOR_LAYOUTS = {
 		propCollisions: {}
 	},
 	'villager-house-1': {
-		widthTiles: 20,
-		heightTiles: 18,
-		fullFloor: rect(0, 0, 640, 576),
+		widthTiles: 40,
+		heightTiles: 26,
+		fullFloor: rect(0, 0, 1280, 832),
 		rooms: {
-			bedroom: rect(64, 64, 192, 192),
-			storage: rect(416, 64, 160, 192),
-			livingKitchen: rect(64, 288, 512, 256)
+			bedroom: rect(128, 96, 288, 256),
+			storage: rect(864, 96, 288, 256),
+			livingKitchen: rect(128, 384, 1024, 416)
 		},
 		corridors: {
-			hall: rect(288, 64, 96, 224)
+			hall: rect(448, 96, 384, 288)
 		},
 		doors: {
-			bedroom: rect(256, 128, 32, 64),
-			storage: rect(384, 128, 32, 64),
-			hallToLiving: rect(288, 256, 96, 32),
-			exterior: rect(288, 544, 64, 32)
+			bedroom: rect(416, 192, 32, 64),
+			storage: rect(832, 192, 32, 64),
+			hallToLiving: rect(448, 352, 384, 32),
+			exterior: rect(576, 800, 128, 32)
 		},
 		walls: villagerHouse1Walls,
-		spawn: point(320, 480),
-		exit: point(320, 560),
+		spawn: point(640, 672),
+		exit: point(640, 816),
 		npcApproaches: {
-			lynn: { npc: point(160, 416), approach: point(200, 416) }
+			lynn: { npc: point(480, 544), approach: point(528, 544) }
+		},
+		ambientActivity: {
+			'villager-house-1-family': point(800, 544)
 		},
 		propZones: {
-			bed: rect(80, 96, 144, 96),
-			familyTable: rect(224, 352, 192, 96),
-			kitchen: rect(448, 320, 96, 128),
-			storage: rect(432, 96, 112, 128)
+			bed: rect(160, 128, 192, 128),
+			familyTable: rect(160, 480, 256, 128),
+			kitchen: rect(896, 448, 192, 192),
+			storage: rect(928, 128, 192, 128)
 		},
-		propCollisions: {}
+		propCollisions: {
+			bed: rect(192, 128, 128, 64),
+			familyTable: rect(192, 512, 192, 64),
+			kitchen: rect(928, 480, 128, 128),
+			storage: rect(960, 128, 128, 64)
+		}
 	},
 	'villager-house-2': {
 		widthTiles: 22,

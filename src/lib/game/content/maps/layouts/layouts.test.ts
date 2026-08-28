@@ -59,7 +59,7 @@ const EXPECTED_INTERIOR_PROGRAMS = {
 		npcApproaches: []
 	},
 	'villager-house-1': {
-		size: [20, 18],
+		size: [40, 26],
 		rooms: ['bedroom', 'storage', 'livingKitchen'],
 		corridors: ['hall'],
 		npcApproaches: ['lynn']
@@ -85,6 +85,17 @@ const EXPECTED_GUILD_HALL_AMBIENT_ACTIVITY = {
 
 const EXPECTED_ITEM_SHOP_AMBIENT_ACTIVITY = {
 	'item-shop-customer': { x: 256, y: 512 }
+} as const;
+
+const EXPECTED_VILLAGER_HOUSE_1_AMBIENT_ACTIVITY = {
+	'villager-house-1-family': { x: 800, y: 544 }
+} as const;
+
+const EXPECTED_VILLAGER_HOUSE_1_PROP_COLLISIONS = {
+	bed: { x: 192, y: 128, width: 128, height: 64 },
+	familyTable: { x: 192, y: 512, width: 192, height: 64 },
+	kitchen: { x: 928, y: 480, width: 128, height: 128 },
+	storage: { x: 960, y: 128, width: 128, height: 64 }
 } as const;
 
 function expectStructuralGrid(value: { x: number; y: number; width: number; height: number }) {
@@ -582,6 +593,171 @@ describe('village interior layout coordinate contracts', () => {
 		expect(source?.rows).toEqual(
 			buildVillageInteriorNavigationSource({ mapId: 'hero-house', layout }).rows
 		);
+	});
+
+	it('pins the Villager House 1 family-cottage program, anchors, circulation, and camera envelope', () => {
+		const layout = VILLAGE_INTERIOR_LAYOUTS['villager-house-1'];
+		expect([layout.widthTiles, layout.heightTiles]).toEqual([40, 26]);
+		expect(Object.keys(layout.rooms)).toEqual(['bedroom', 'storage', 'livingKitchen']);
+		expect(Object.keys(layout.corridors)).toEqual(['hall']);
+		expect(Object.keys(layout.doors)).toEqual(['bedroom', 'storage', 'hallToLiving', 'exterior']);
+		expect(Object.keys(layout.propZones)).toEqual(['bed', 'familyTable', 'kitchen', 'storage']);
+		expect(layout.fullFloor).toEqual({ x: 0, y: 0, width: 1280, height: 832 });
+		expect(layout.rooms).toEqual({
+			bedroom: { x: 128, y: 96, width: 288, height: 256 },
+			storage: { x: 864, y: 96, width: 288, height: 256 },
+			livingKitchen: { x: 128, y: 384, width: 1024, height: 416 }
+		});
+		expect(layout.corridors.hall).toEqual({ x: 448, y: 96, width: 384, height: 288 });
+		expect(layout.doors).toEqual({
+			bedroom: { x: 416, y: 192, width: 32, height: 64 },
+			storage: { x: 832, y: 192, width: 32, height: 64 },
+			hallToLiving: { x: 448, y: 352, width: 384, height: 32 },
+			exterior: { x: 576, y: 800, width: 128, height: 32 }
+		});
+		expect(layout.walls).toEqual([
+			{ id: 'villager-house-1-wall-north', x: 0, y: 0, width: 1280, height: 64 },
+			{ id: 'villager-house-1-wall-west', x: 0, y: 64, width: 64, height: 736 },
+			{ id: 'villager-house-1-wall-east', x: 1216, y: 64, width: 64, height: 736 },
+			{ id: 'villager-house-1-wall-south-west', x: 0, y: 800, width: 576, height: 32 },
+			{ id: 'villager-house-1-wall-south-east', x: 704, y: 800, width: 576, height: 32 },
+			{
+				id: 'villager-house-1-bedroom-divider-north',
+				x: 416,
+				y: 64,
+				width: 32,
+				height: 128
+			},
+			{
+				id: 'villager-house-1-bedroom-divider-south',
+				x: 416,
+				y: 256,
+				width: 32,
+				height: 128
+			},
+			{
+				id: 'villager-house-1-storage-divider-north',
+				x: 832,
+				y: 64,
+				width: 32,
+				height: 128
+			},
+			{
+				id: 'villager-house-1-storage-divider-south',
+				x: 832,
+				y: 256,
+				width: 32,
+				height: 128
+			},
+			{
+				id: 'villager-house-1-hall-living-divider-west',
+				x: 64,
+				y: 352,
+				width: 384,
+				height: 32
+			},
+			{
+				id: 'villager-house-1-hall-living-divider-east',
+				x: 832,
+				y: 352,
+				width: 384,
+				height: 32
+			}
+		]);
+		expect(layout.spawn).toEqual({ x: 640, y: 672 });
+		expect(layout.exit).toEqual({ x: 640, y: 816 });
+		expect(layout.npcApproaches.lynn).toEqual({
+			npc: { x: 480, y: 544 },
+			approach: { x: 528, y: 544 }
+		});
+		expect(layout.ambientActivity).toEqual(EXPECTED_VILLAGER_HOUSE_1_AMBIENT_ACTIVITY);
+		expect(layout.propZones).toEqual({
+			bed: { x: 160, y: 128, width: 192, height: 128 },
+			familyTable: { x: 160, y: 480, width: 256, height: 128 },
+			kitchen: { x: 896, y: 448, width: 192, height: 192 },
+			storage: { x: 928, y: 128, width: 192, height: 128 }
+		});
+		expect(layout.propCollisions).toEqual(EXPECTED_VILLAGER_HOUSE_1_PROP_COLLISIONS);
+		for (const [propId, collision] of Object.entries(layout.propCollisions)) {
+			const zone = layout.propZones[propId as keyof typeof layout.propZones];
+			expect(rectContains(zone, collision), `${propId} collision core escapes its prop zone`).toBe(
+				true
+			);
+		}
+		expect(layout.corridors.hall.width).toBeGreaterThanOrEqual(96);
+		expect(layout.corridors.hall.height).toBeGreaterThanOrEqual(96);
+		for (const doorId of ['bedroom', 'storage'] as const) {
+			expect(
+				Math.max(layout.doors[doorId].width, layout.doors[doorId].height),
+				doorId
+			).toBeGreaterThanOrEqual(64);
+		}
+
+		const camera = {
+			left: Math.max(0, Math.min(layout.spawn.x - 320, layout.fullFloor.width - 640)),
+			top: Math.max(0, Math.min(layout.spawn.y - 180, layout.fullFloor.height - 360)),
+			width: 640,
+			height: 360
+		};
+		expect(camera).toEqual({ left: 320, top: 472, width: 640, height: 360 });
+		const wideCamera = {
+			left: Math.max(0, Math.min(layout.spawn.x - 640, layout.fullFloor.width - 1280)),
+			top: Math.max(0, Math.min(layout.spawn.y - 360, layout.fullFloor.height - 720)),
+			width: 1280,
+			height: 720
+		};
+		expect(wideCamera).toEqual({ left: 0, top: 112, width: 1280, height: 720 });
+		expect(layout.fullFloor.width).toBeGreaterThanOrEqual(wideCamera.width);
+		expect(layout.fullFloor.height).toBeGreaterThanOrEqual(wideCamera.height);
+		for (const view of [camera, wideCamera]) {
+			expect(view.left + view.width).toBeLessThanOrEqual(layout.fullFloor.width);
+			expect(view.top + view.height).toBeLessThanOrEqual(layout.fullFloor.height);
+		}
+		for (const [label, point] of [
+			['lynn', layout.npcApproaches.lynn.npc],
+			['lynn-approach', layout.npcApproaches.lynn.approach],
+			['family', EXPECTED_VILLAGER_HOUSE_1_AMBIENT_ACTIVITY['villager-house-1-family']],
+			['entrance', layout.spawn],
+			['exit', layout.exit]
+		] as const) {
+			expect(
+				point.x >= camera.left &&
+					point.x <= camera.left + camera.width &&
+					point.y >= camera.top &&
+					point.y <= camera.top + camera.height,
+				`${label} is outside the initial camera envelope`
+			).toBe(true);
+		}
+
+		const family = EXPECTED_VILLAGER_HOUSE_1_AMBIENT_ACTIVITY['villager-house-1-family'];
+		expect(layoutRectContainsPoint(layout.rooms.livingKitchen, family)).toBe(true);
+		expect(isInteriorWalkable(layout, family), 'family activity is not walkable').toBe(true);
+		const grid = compileNavigationGrid(
+			buildVillageInteriorNavigationSource({ mapId: 'villager-house-1', layout })
+		);
+		for (const [propId, collision] of Object.entries(layout.propCollisions)) {
+			const center = {
+				x: collision.x + collision.width / 2,
+				y: collision.y + collision.height / 2
+			};
+			expect(
+				isWalkable(grid, center.x, center.y),
+				`${propId} collision core must block the player-centre grid`
+			).toBe(false);
+		}
+
+		const reachable = reachableInteriorSamples(layout);
+		for (const [label, point] of [
+			['bedroom', { x: 256, y: 224 }],
+			['storage', { x: 1000, y: 224 }],
+			['living-kitchen', { x: 640, y: 640 }],
+			['lynn-approach', layout.npcApproaches.lynn.approach],
+			['family', family],
+			['spawn', layout.spawn],
+			['exit', layout.exit]
+		] as const) {
+			expect(reachableInteriorPoint(reachable, point), `${label} is disconnected`).toBe(true);
+		}
 	});
 
 	it('pins the Item Shop Gate 1 program, anchors, circulation, and camera envelope', () => {
