@@ -873,7 +873,7 @@ export const MEADOW_ENTRY_BAKE_OWNERSHIP = buildMeadowEntryBakeOwnership();
  * removals fail closed before a control package can be built.
  */
 const PAINTED_V2_REVIEWED_SOURCE_CATALOG_KEYS_SHA256 =
-	'b0fb5ebab3a5aef6e8fe15fa32b67b6d08fe83ad019f624844ec61270de569cc';
+	'424f86a1c82ed378df8adf46d2fba93728f3de888fbb0751a1e8b6f86ee32626';
 
 const PAINTED_V2_BASE_UNDERLAY_SOURCE_KEYS = [
 	'ground-patch:crossroads-north-trunk',
@@ -1286,7 +1286,7 @@ function buildMeadowEntryPaintedV2BakeOwnership(): readonly MeadowEntryBakeOwner
 }
 
 export const MEADOW_ENTRY_REVIEWED_PAINTED_V2_BAKE_OWNERSHIP_SHA256 =
-	'b1dd376b41c70037c9043103f26eced7d43e7c6c16f8423e7517e40db8d30e1a';
+	'8e372c21ba776aff5597ba2b45004e5db99c8632998fac7f9986e3e7289c84a5';
 export const MEADOW_ENTRY_PAINTED_V2_BAKE_OWNERSHIP = buildMeadowEntryPaintedV2BakeOwnership();
 
 function assertNonEmpty(value: string, field: string, key: string): void {

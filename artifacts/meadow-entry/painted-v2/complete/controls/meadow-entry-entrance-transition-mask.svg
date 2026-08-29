@@ -13,6 +13,7 @@
   <rect data-id="landmark:villager-house-3-exterior" x="1344" y="5568" width="256" height="288" fill="#777777"/>
   <rect data-id="landmark:whispering-cave" x="5832" y="1688" width="256" height="224" fill="#777777"/>
   <rect data-id="landmark:witchwood-gate" x="1020" y="470" width="360" height="300" fill="#777777"/>
+  <rect data-id="transition:meadow-to-blacksmith" x="2224" y="5136" width="96" height="96" fill="#777777"/>
   <rect data-id="transition:meadow-to-guild-hall" x="2224" y="4368" width="96" height="96" fill="#777777"/>
   <rect data-id="transition:meadow-to-hero-house" x="656" y="5808" width="96" height="96" fill="#777777"/>
   <rect data-id="transition:meadow-to-item-shop" x="656" y="5136" width="96" height="96" fill="#777777"/>

@@ -252,7 +252,7 @@ export const MEADOW_ENTRY_PRIMARY_SOURCE_OWNERS: Readonly<
 // future catalog addition fail review even though default fragment assignment
 // can still build a useful diagnostic owner in memory.
 export const MEADOW_ENTRY_REVIEWED_PRIMARY_SOURCE_OWNERS_SHA256 =
-	'd3e977d09f99f3c9ea25a45cb20238a1574cce43b53b838c9d4f7e91fa9231c5';
+	'50362deec5a856596a04e97a9b12db0210b72a05de472f0172532aa1c19f30a8';
 
 export const MEADOW_ENTRY_CROSS_REGION_COVERAGE: readonly MeadowEntryCrossRegionCoverage[] = [
 	{

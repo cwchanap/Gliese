@@ -331,24 +331,26 @@
   <rect data-id="landmark-collision-0009" x="532" y="4852" width="344" height="326" fill="#e33" opacity="0.45"/>
   <rect data-id="landmark-collision-0010" x="532" y="5154" width="156" height="42" fill="#e33" opacity="0.45"/>
   <rect data-id="landmark-collision-0011" x="720" y="5154" width="156" height="42" fill="#e33" opacity="0.45"/>
-  <rect data-id="landmark-collision-0012" x="2100" y="4852" width="344" height="344" fill="#e33" opacity="0.45"/>
-  <rect data-id="landmark-collision-0013" x="564" y="5556" width="280" height="294" fill="#e33" opacity="0.45"/>
-  <rect data-id="landmark-collision-0014" x="564" y="5826" width="124" height="42" fill="#e33" opacity="0.45"/>
-  <rect data-id="landmark-collision-0015" x="720" y="5826" width="124" height="42" fill="#e33" opacity="0.45"/>
-  <rect data-id="landmark-collision-0016" x="1332" y="5556" width="280" height="294" fill="#e33" opacity="0.45"/>
-  <rect data-id="landmark-collision-0017" x="1332" y="5826" width="124" height="42" fill="#e33" opacity="0.45"/>
-  <rect data-id="landmark-collision-0018" x="1488" y="5826" width="124" height="42" fill="#e33" opacity="0.45"/>
-  <rect data-id="landmark-collision-0019" x="2100" y="5524" width="344" height="326" fill="#e33" opacity="0.45"/>
-  <rect data-id="landmark-collision-0020" x="2100" y="5826" width="156" height="42" fill="#e33" opacity="0.45"/>
-  <rect data-id="landmark-collision-0021" x="2288" y="5826" width="156" height="42" fill="#e33" opacity="0.45"/>
-  <rect data-id="landmark-collision-0022" x="5820" y="1676" width="280" height="186" fill="#e33" opacity="0.45"/>
-  <rect data-id="landmark-collision-0023" x="5820" y="1838" width="124" height="86" fill="#e33" opacity="0.45"/>
-  <rect data-id="landmark-collision-0024" x="5976" y="1838" width="124" height="86" fill="#e33" opacity="0.45"/>
-  <rect data-id="landmark-collision-0025" x="1008" y="458" width="384" height="324" fill="#e33" opacity="0.45"/>
-  <rect data-id="landmark-collision-0026" x="2778" y="308" width="444" height="344" fill="#e33" opacity="0.45"/>
-  <rect data-id="landmark-collision-0027" x="3408" y="5548" width="384" height="344" fill="#e33" opacity="0.45"/>
-  <rect data-id="landmark-collision-0028" x="3924" y="2804" width="504" height="344" fill="#e33" opacity="0.45"/>
-  <rect data-id="landmark-collision-0029" x="3704" y="4137" width="144" height="174" fill="#e33" opacity="0.45"/>
+  <rect data-id="landmark-collision-0012" x="2100" y="4852" width="344" height="326" fill="#e33" opacity="0.45"/>
+  <rect data-id="landmark-collision-0013" x="2100" y="5154" width="156" height="42" fill="#e33" opacity="0.45"/>
+  <rect data-id="landmark-collision-0014" x="2288" y="5154" width="156" height="42" fill="#e33" opacity="0.45"/>
+  <rect data-id="landmark-collision-0015" x="564" y="5556" width="280" height="294" fill="#e33" opacity="0.45"/>
+  <rect data-id="landmark-collision-0016" x="564" y="5826" width="124" height="42" fill="#e33" opacity="0.45"/>
+  <rect data-id="landmark-collision-0017" x="720" y="5826" width="124" height="42" fill="#e33" opacity="0.45"/>
+  <rect data-id="landmark-collision-0018" x="1332" y="5556" width="280" height="294" fill="#e33" opacity="0.45"/>
+  <rect data-id="landmark-collision-0019" x="1332" y="5826" width="124" height="42" fill="#e33" opacity="0.45"/>
+  <rect data-id="landmark-collision-0020" x="1488" y="5826" width="124" height="42" fill="#e33" opacity="0.45"/>
+  <rect data-id="landmark-collision-0021" x="2100" y="5524" width="344" height="326" fill="#e33" opacity="0.45"/>
+  <rect data-id="landmark-collision-0022" x="2100" y="5826" width="156" height="42" fill="#e33" opacity="0.45"/>
+  <rect data-id="landmark-collision-0023" x="2288" y="5826" width="156" height="42" fill="#e33" opacity="0.45"/>
+  <rect data-id="landmark-collision-0024" x="5820" y="1676" width="280" height="186" fill="#e33" opacity="0.45"/>
+  <rect data-id="landmark-collision-0025" x="5820" y="1838" width="124" height="86" fill="#e33" opacity="0.45"/>
+  <rect data-id="landmark-collision-0026" x="5976" y="1838" width="124" height="86" fill="#e33" opacity="0.45"/>
+  <rect data-id="landmark-collision-0027" x="1008" y="458" width="384" height="324" fill="#e33" opacity="0.45"/>
+  <rect data-id="landmark-collision-0028" x="2778" y="308" width="444" height="344" fill="#e33" opacity="0.45"/>
+  <rect data-id="landmark-collision-0029" x="3408" y="5548" width="384" height="344" fill="#e33" opacity="0.45"/>
+  <rect data-id="landmark-collision-0030" x="3924" y="2804" width="504" height="344" fill="#e33" opacity="0.45"/>
+  <rect data-id="landmark-collision-0031" x="3704" y="4137" width="144" height="174" fill="#e33" opacity="0.45"/>
   <rect data-id="foreground-exclusion:walkable-space-0000" x="64" y="64" width="6272" height="192" fill="#000000" opacity="0.35"/>
   <rect data-id="foreground-exclusion:walkable-space-0001" x="64" y="256" width="3392" height="32" fill="#000000" opacity="0.35"/>
   <rect data-id="foreground-exclusion:walkable-space-0002" x="3712" y="256" width="2624" height="32" fill="#000000" opacity="0.35"/>
@@ -531,45 +533,46 @@
   <rect data-id="foreground-exclusion:walkable-space-0179" x="4032" y="4992" width="320" height="256" fill="#000000" opacity="0.35"/>
   <rect data-id="foreground-exclusion:walkable-space-0180" x="4384" y="4992" width="640" height="160" fill="#000000" opacity="0.35"/>
   <rect data-id="foreground-exclusion:walkable-space-0181" x="672" y="5152" width="64" height="32" fill="#000000" opacity="0.35"/>
-  <rect data-id="foreground-exclusion:walkable-space-0182" x="4384" y="5152" width="64" height="96" fill="#000000" opacity="0.35"/>
-  <rect data-id="foreground-exclusion:walkable-space-0183" x="5536" y="5152" width="544" height="96" fill="#000000" opacity="0.35"/>
-  <rect data-id="foreground-exclusion:walkable-space-0184" x="64" y="5184" width="2752" height="64" fill="#000000" opacity="0.35"/>
-  <rect data-id="foreground-exclusion:walkable-space-0185" x="64" y="5248" width="2944" height="288" fill="#000000" opacity="0.35"/>
-  <rect data-id="foreground-exclusion:walkable-space-0186" x="3488" y="5248" width="224" height="320" fill="#000000" opacity="0.35"/>
-  <rect data-id="foreground-exclusion:walkable-space-0187" x="4096" y="5248" width="256" height="256" fill="#000000" opacity="0.35"/>
-  <rect data-id="foreground-exclusion:walkable-space-0188" x="4384" y="5248" width="640" height="64" fill="#000000" opacity="0.35"/>
-  <rect data-id="foreground-exclusion:walkable-space-0189" x="5056" y="5248" width="1024" height="64" fill="#000000" opacity="0.35"/>
-  <rect data-id="foreground-exclusion:walkable-space-0190" x="4384" y="5312" width="1952" height="128" fill="#000000" opacity="0.35"/>
-  <rect data-id="foreground-exclusion:walkable-space-0191" x="4384" y="5440" width="64" height="64" fill="#000000" opacity="0.35"/>
-  <rect data-id="foreground-exclusion:walkable-space-0192" x="5536" y="5440" width="800" height="96" fill="#000000" opacity="0.35"/>
-  <rect data-id="foreground-exclusion:walkable-space-0193" x="4096" y="5504" width="352" height="32" fill="#000000" opacity="0.35"/>
-  <rect data-id="foreground-exclusion:walkable-space-0194" x="64" y="5536" width="2048" height="32" fill="#000000" opacity="0.35"/>
-  <rect data-id="foreground-exclusion:walkable-space-0195" x="2432" y="5536" width="576" height="320" fill="#000000" opacity="0.35"/>
-  <rect data-id="foreground-exclusion:walkable-space-0196" x="4096" y="5536" width="2240" height="96" fill="#000000" opacity="0.35"/>
-  <rect data-id="foreground-exclusion:walkable-space-0197" x="64" y="5568" width="512" height="288" fill="#000000" opacity="0.35"/>
-  <rect data-id="foreground-exclusion:walkable-space-0198" x="832" y="5568" width="512" height="288" fill="#000000" opacity="0.35"/>
-  <rect data-id="foreground-exclusion:walkable-space-0199" x="1600" y="5568" width="512" height="288" fill="#000000" opacity="0.35"/>
-  <rect data-id="foreground-exclusion:walkable-space-0200" x="4096" y="5632" width="128" height="32" fill="#000000" opacity="0.35"/>
-  <rect data-id="foreground-exclusion:walkable-space-0201" x="4704" y="5632" width="1632" height="32" fill="#000000" opacity="0.35"/>
-  <rect data-id="foreground-exclusion:walkable-space-0202" x="4096" y="5664" width="2240" height="128" fill="#000000" opacity="0.35"/>
-  <rect data-id="foreground-exclusion:walkable-space-0203" x="4096" y="5792" width="1440" height="32" fill="#000000" opacity="0.35"/>
-  <rect data-id="foreground-exclusion:walkable-space-0204" x="5760" y="5792" width="576" height="64" fill="#000000" opacity="0.35"/>
-  <rect data-id="foreground-exclusion:walkable-space-0205" x="672" y="5824" width="64" height="32" fill="#000000" opacity="0.35"/>
-  <rect data-id="foreground-exclusion:walkable-space-0206" x="1440" y="5824" width="64" height="32" fill="#000000" opacity="0.35"/>
-  <rect data-id="foreground-exclusion:walkable-space-0207" x="2240" y="5824" width="64" height="32" fill="#000000" opacity="0.35"/>
-  <rect data-id="foreground-exclusion:walkable-space-0208" x="4096" y="5824" width="960" height="128" fill="#000000" opacity="0.35"/>
-  <rect data-id="foreground-exclusion:walkable-space-0209" x="5248" y="5824" width="288" height="32" fill="#000000" opacity="0.35"/>
-  <rect data-id="foreground-exclusion:walkable-space-0210" x="64" y="5856" width="2944" height="288" fill="#000000" opacity="0.35"/>
-  <rect data-id="foreground-exclusion:walkable-space-0211" x="5248" y="5856" width="1088" height="96" fill="#000000" opacity="0.35"/>
-  <rect data-id="foreground-exclusion:walkable-space-0212" x="3488" y="5888" width="224" height="256" fill="#000000" opacity="0.35"/>
-  <rect data-id="foreground-exclusion:walkable-space-0213" x="4096" y="5952" width="864" height="96" fill="#000000" opacity="0.35"/>
-  <rect data-id="foreground-exclusion:walkable-space-0214" x="5152" y="5952" width="1184" height="96" fill="#000000" opacity="0.35"/>
-  <rect data-id="foreground-exclusion:walkable-space-0215" x="4096" y="6048" width="2240" height="128" fill="#000000" opacity="0.35"/>
-  <rect data-id="foreground-exclusion:walkable-space-0216" x="64" y="6144" width="4000" height="32" fill="#000000" opacity="0.35"/>
-  <rect data-id="foreground-exclusion:walkable-space-0217" x="64" y="6176" width="6272" height="96" fill="#000000" opacity="0.35"/>
-  <rect data-id="foreground-exclusion:walkable-space-0218" x="64" y="6272" width="3040" height="32" fill="#000000" opacity="0.35"/>
-  <rect data-id="foreground-exclusion:walkable-space-0219" x="6112" y="6272" width="224" height="64" fill="#000000" opacity="0.35"/>
-  <rect data-id="foreground-exclusion:walkable-space-0220" x="160" y="6304" width="2944" height="32" fill="#000000" opacity="0.35"/>
+  <rect data-id="foreground-exclusion:walkable-space-0182" x="2240" y="5152" width="64" height="32" fill="#000000" opacity="0.35"/>
+  <rect data-id="foreground-exclusion:walkable-space-0183" x="4384" y="5152" width="64" height="96" fill="#000000" opacity="0.35"/>
+  <rect data-id="foreground-exclusion:walkable-space-0184" x="5536" y="5152" width="544" height="96" fill="#000000" opacity="0.35"/>
+  <rect data-id="foreground-exclusion:walkable-space-0185" x="64" y="5184" width="2752" height="64" fill="#000000" opacity="0.35"/>
+  <rect data-id="foreground-exclusion:walkable-space-0186" x="64" y="5248" width="2944" height="288" fill="#000000" opacity="0.35"/>
+  <rect data-id="foreground-exclusion:walkable-space-0187" x="3488" y="5248" width="224" height="320" fill="#000000" opacity="0.35"/>
+  <rect data-id="foreground-exclusion:walkable-space-0188" x="4096" y="5248" width="256" height="256" fill="#000000" opacity="0.35"/>
+  <rect data-id="foreground-exclusion:walkable-space-0189" x="4384" y="5248" width="640" height="64" fill="#000000" opacity="0.35"/>
+  <rect data-id="foreground-exclusion:walkable-space-0190" x="5056" y="5248" width="1024" height="64" fill="#000000" opacity="0.35"/>
+  <rect data-id="foreground-exclusion:walkable-space-0191" x="4384" y="5312" width="1952" height="128" fill="#000000" opacity="0.35"/>
+  <rect data-id="foreground-exclusion:walkable-space-0192" x="4384" y="5440" width="64" height="64" fill="#000000" opacity="0.35"/>
+  <rect data-id="foreground-exclusion:walkable-space-0193" x="5536" y="5440" width="800" height="96" fill="#000000" opacity="0.35"/>
+  <rect data-id="foreground-exclusion:walkable-space-0194" x="4096" y="5504" width="352" height="32" fill="#000000" opacity="0.35"/>
+  <rect data-id="foreground-exclusion:walkable-space-0195" x="64" y="5536" width="2048" height="32" fill="#000000" opacity="0.35"/>
+  <rect data-id="foreground-exclusion:walkable-space-0196" x="2432" y="5536" width="576" height="320" fill="#000000" opacity="0.35"/>
+  <rect data-id="foreground-exclusion:walkable-space-0197" x="4096" y="5536" width="2240" height="96" fill="#000000" opacity="0.35"/>
+  <rect data-id="foreground-exclusion:walkable-space-0198" x="64" y="5568" width="512" height="288" fill="#000000" opacity="0.35"/>
+  <rect data-id="foreground-exclusion:walkable-space-0199" x="832" y="5568" width="512" height="288" fill="#000000" opacity="0.35"/>
+  <rect data-id="foreground-exclusion:walkable-space-0200" x="1600" y="5568" width="512" height="288" fill="#000000" opacity="0.35"/>
+  <rect data-id="foreground-exclusion:walkable-space-0201" x="4096" y="5632" width="128" height="32" fill="#000000" opacity="0.35"/>
+  <rect data-id="foreground-exclusion:walkable-space-0202" x="4704" y="5632" width="1632" height="32" fill="#000000" opacity="0.35"/>
+  <rect data-id="foreground-exclusion:walkable-space-0203" x="4096" y="5664" width="2240" height="128" fill="#000000" opacity="0.35"/>
+  <rect data-id="foreground-exclusion:walkable-space-0204" x="4096" y="5792" width="1440" height="32" fill="#000000" opacity="0.35"/>
+  <rect data-id="foreground-exclusion:walkable-space-0205" x="5760" y="5792" width="576" height="64" fill="#000000" opacity="0.35"/>
+  <rect data-id="foreground-exclusion:walkable-space-0206" x="672" y="5824" width="64" height="32" fill="#000000" opacity="0.35"/>
+  <rect data-id="foreground-exclusion:walkable-space-0207" x="1440" y="5824" width="64" height="32" fill="#000000" opacity="0.35"/>
+  <rect data-id="foreground-exclusion:walkable-space-0208" x="2240" y="5824" width="64" height="32" fill="#000000" opacity="0.35"/>
+  <rect data-id="foreground-exclusion:walkable-space-0209" x="4096" y="5824" width="960" height="128" fill="#000000" opacity="0.35"/>
+  <rect data-id="foreground-exclusion:walkable-space-0210" x="5248" y="5824" width="288" height="32" fill="#000000" opacity="0.35"/>
+  <rect data-id="foreground-exclusion:walkable-space-0211" x="64" y="5856" width="2944" height="288" fill="#000000" opacity="0.35"/>
+  <rect data-id="foreground-exclusion:walkable-space-0212" x="5248" y="5856" width="1088" height="96" fill="#000000" opacity="0.35"/>
+  <rect data-id="foreground-exclusion:walkable-space-0213" x="3488" y="5888" width="224" height="256" fill="#000000" opacity="0.35"/>
+  <rect data-id="foreground-exclusion:walkable-space-0214" x="4096" y="5952" width="864" height="96" fill="#000000" opacity="0.35"/>
+  <rect data-id="foreground-exclusion:walkable-space-0215" x="5152" y="5952" width="1184" height="96" fill="#000000" opacity="0.35"/>
+  <rect data-id="foreground-exclusion:walkable-space-0216" x="4096" y="6048" width="2240" height="128" fill="#000000" opacity="0.35"/>
+  <rect data-id="foreground-exclusion:walkable-space-0217" x="64" y="6144" width="4000" height="32" fill="#000000" opacity="0.35"/>
+  <rect data-id="foreground-exclusion:walkable-space-0218" x="64" y="6176" width="6272" height="96" fill="#000000" opacity="0.35"/>
+  <rect data-id="foreground-exclusion:walkable-space-0219" x="64" y="6272" width="3040" height="32" fill="#000000" opacity="0.35"/>
+  <rect data-id="foreground-exclusion:walkable-space-0220" x="6112" y="6272" width="224" height="64" fill="#000000" opacity="0.35"/>
+  <rect data-id="foreground-exclusion:walkable-space-0221" x="160" y="6304" width="2944" height="32" fill="#000000" opacity="0.35"/>
   <rect data-id="foreground-exclusion:protected-0000" x="4160" y="5494" width="128" height="136" fill="#000000" opacity="0.35"/>
   <rect data-id="foreground-exclusion:protected-0001" x="3520" y="4308" width="128" height="136" fill="#000000" opacity="0.35"/>
   <rect data-id="foreground-exclusion:protected-0002" x="3968" y="4308" width="128" height="136" fill="#000000" opacity="0.35"/>
@@ -716,14 +719,15 @@
   <rect data-id="foreground-exclusion:protected-0143" x="872" y="5016" width="80" height="96" fill="#000000" opacity="0.35"/>
   <rect data-id="foreground-exclusion:protected-0144" x="2472" y="5688" width="80" height="96" fill="#000000" opacity="0.35"/>
   <rect data-id="foreground-exclusion:protected-0145" x="4660" y="3594" width="80" height="96" fill="#000000" opacity="0.35"/>
-  <rect data-id="foreground-exclusion:protected-0146" x="2208" y="4336" width="128" height="144" fill="#000000" opacity="0.35"/>
-  <rect data-id="foreground-exclusion:protected-0147" x="640" y="5776" width="128" height="144" fill="#000000" opacity="0.35"/>
-  <rect data-id="foreground-exclusion:protected-0148" x="640" y="5104" width="128" height="144" fill="#000000" opacity="0.35"/>
-  <rect data-id="foreground-exclusion:protected-0149" x="2208" y="5776" width="128" height="144" fill="#000000" opacity="0.35"/>
-  <rect data-id="foreground-exclusion:protected-0150" x="608" y="4304" width="128" height="144" fill="#000000" opacity="0.35"/>
-  <rect data-id="foreground-exclusion:protected-0151" x="1312" y="4304" width="128" height="144" fill="#000000" opacity="0.35"/>
-  <rect data-id="foreground-exclusion:protected-0152" x="1408" y="5776" width="128" height="144" fill="#000000" opacity="0.35"/>
-  <rect data-id="foreground-exclusion:protected-0153" x="5896" y="1788" width="128" height="144" fill="#000000" opacity="0.35"/>
+  <rect data-id="foreground-exclusion:protected-0146" x="2208" y="5104" width="128" height="144" fill="#000000" opacity="0.35"/>
+  <rect data-id="foreground-exclusion:protected-0147" x="2208" y="4336" width="128" height="144" fill="#000000" opacity="0.35"/>
+  <rect data-id="foreground-exclusion:protected-0148" x="640" y="5776" width="128" height="144" fill="#000000" opacity="0.35"/>
+  <rect data-id="foreground-exclusion:protected-0149" x="640" y="5104" width="128" height="144" fill="#000000" opacity="0.35"/>
+  <rect data-id="foreground-exclusion:protected-0150" x="2208" y="5776" width="128" height="144" fill="#000000" opacity="0.35"/>
+  <rect data-id="foreground-exclusion:protected-0151" x="608" y="4304" width="128" height="144" fill="#000000" opacity="0.35"/>
+  <rect data-id="foreground-exclusion:protected-0152" x="1312" y="4304" width="128" height="144" fill="#000000" opacity="0.35"/>
+  <rect data-id="foreground-exclusion:protected-0153" x="1408" y="5776" width="128" height="144" fill="#000000" opacity="0.35"/>
+  <rect data-id="foreground-exclusion:protected-0154" x="5896" y="1788" width="128" height="144" fill="#000000" opacity="0.35"/>
   <rect data-id="foreground-exclusion:ambient-npc:coast-fisher" x="4176" y="5526" width="96" height="88" fill="#000000" opacity="0.35" data-kind="ambient-npc"/>
   <rect data-id="foreground-exclusion:ambient-npc:crossroads-crier" x="3536" y="4340" width="96" height="88" fill="#000000" opacity="0.35" data-kind="ambient-npc"/>
   <rect data-id="foreground-exclusion:ambient-npc:crossroads-traveler" x="3984" y="4340" width="96" height="88" fill="#000000" opacity="0.35" data-kind="ambient-npc"/>
@@ -758,6 +762,7 @@
   <rect data-id="foreground-exclusion:pickup:village-shrine-cache" x="2488" y="5720" width="48" height="48" fill="#000000" opacity="0.35" data-kind="pickup"/>
   <rect data-id="foreground-exclusion:pickup:wildwood-grove-cache" x="4676" y="3626" width="48" height="48" fill="#000000" opacity="0.35" data-kind="pickup"/>
   <rect data-id="foreground-exclusion:spawn:player" x="656" y="5872" width="96" height="96" fill="#000000" opacity="0.35" data-kind="spawn"/>
+  <rect data-id="foreground-exclusion:transition:meadow-to-blacksmith" x="2224" y="5136" width="96" height="96" fill="#000000" opacity="0.35" data-kind="transition"/>
   <rect data-id="foreground-exclusion:transition:meadow-to-guild-hall" x="2224" y="4368" width="96" height="96" fill="#000000" opacity="0.35" data-kind="transition"/>
   <rect data-id="foreground-exclusion:transition:meadow-to-hero-house" x="656" y="5808" width="96" height="96" fill="#000000" opacity="0.35" data-kind="transition"/>
   <rect data-id="foreground-exclusion:transition:meadow-to-item-shop" x="656" y="5136" width="96" height="96" fill="#000000" opacity="0.35" data-kind="transition"/>
@@ -912,12 +917,13 @@
   <rect data-id="protected-0143" x="872" y="5016" width="80" height="96" fill="#ff3366"/>
   <rect data-id="protected-0144" x="2472" y="5688" width="80" height="96" fill="#ff3366"/>
   <rect data-id="protected-0145" x="4660" y="3594" width="80" height="96" fill="#ff3366"/>
-  <rect data-id="protected-0146" x="2208" y="4336" width="128" height="144" fill="#ff3366"/>
-  <rect data-id="protected-0147" x="640" y="5776" width="128" height="144" fill="#ff3366"/>
-  <rect data-id="protected-0148" x="640" y="5104" width="128" height="144" fill="#ff3366"/>
-  <rect data-id="protected-0149" x="2208" y="5776" width="128" height="144" fill="#ff3366"/>
-  <rect data-id="protected-0150" x="608" y="4304" width="128" height="144" fill="#ff3366"/>
-  <rect data-id="protected-0151" x="1312" y="4304" width="128" height="144" fill="#ff3366"/>
-  <rect data-id="protected-0152" x="1408" y="5776" width="128" height="144" fill="#ff3366"/>
-  <rect data-id="protected-0153" x="5896" y="1788" width="128" height="144" fill="#ff3366"/>
+  <rect data-id="protected-0146" x="2208" y="5104" width="128" height="144" fill="#ff3366"/>
+  <rect data-id="protected-0147" x="2208" y="4336" width="128" height="144" fill="#ff3366"/>
+  <rect data-id="protected-0148" x="640" y="5776" width="128" height="144" fill="#ff3366"/>
+  <rect data-id="protected-0149" x="640" y="5104" width="128" height="144" fill="#ff3366"/>
+  <rect data-id="protected-0150" x="2208" y="5776" width="128" height="144" fill="#ff3366"/>
+  <rect data-id="protected-0151" x="608" y="4304" width="128" height="144" fill="#ff3366"/>
+  <rect data-id="protected-0152" x="1312" y="4304" width="128" height="144" fill="#ff3366"/>
+  <rect data-id="protected-0153" x="1408" y="5776" width="128" height="144" fill="#ff3366"/>
+  <rect data-id="protected-0154" x="5896" y="1788" width="128" height="144" fill="#ff3366"/>
 </svg>

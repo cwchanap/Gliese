@@ -128,6 +128,7 @@
   <rect data-id="pickup:village-shrine-cache" x="2488" y="5720" width="48" height="48" fill="#ffffff" data-kind="pickup"/>
   <rect data-id="pickup:wildwood-grove-cache" x="4676" y="3626" width="48" height="48" fill="#ffffff" data-kind="pickup"/>
   <rect data-id="spawn:player" x="656" y="5872" width="96" height="96" fill="#ffffff" data-kind="spawn"/>
+  <rect data-id="transition:meadow-to-blacksmith" x="2224" y="5136" width="96" height="96" fill="#ffffff" data-kind="transition"/>
   <rect data-id="transition:meadow-to-guild-hall" x="2224" y="4368" width="96" height="96" fill="#ffffff" data-kind="transition"/>
   <rect data-id="transition:meadow-to-hero-house" x="656" y="5808" width="96" height="96" fill="#ffffff" data-kind="transition"/>
   <rect data-id="transition:meadow-to-item-shop" x="656" y="5136" width="96" height="96" fill="#ffffff" data-kind="transition"/>

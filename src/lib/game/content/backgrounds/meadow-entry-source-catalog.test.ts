@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import { describe, expect, it, vi } from 'vitest';
 import {
 	collectMeadowEntrySourceCatalog,
@@ -32,6 +33,18 @@ const EXPECTED_RIVER_BLOCKER_IDS = [
 	'river-delta-collision',
 	'estuary-west-collision',
 	'estuary-east-collision'
+] as const;
+
+const EXPECTED_TRANSITION_KEYS = [
+	'transition:meadow-to-blacksmith',
+	'transition:meadow-to-guild-hall',
+	'transition:meadow-to-hero-house',
+	'transition:meadow-to-item-shop',
+	'transition:meadow-to-shrine-of-aurora',
+	'transition:meadow-to-villager-house-1',
+	'transition:meadow-to-villager-house-2',
+	'transition:meadow-to-villager-house-3',
+	'transition:meadow-to-whispering-cave-ruins-threshold'
 ] as const;
 
 async function expectFreshCatalogToRejectMapMutation(
@@ -93,6 +106,38 @@ describe('meadow-entry source catalog', () => {
 		expect(keys).toEqual(
 			[...keys].sort((left, right) => (left < right ? -1 : left > right ? 1 : 0))
 		);
+	});
+
+	it('records only the approved Blacksmith transition as the new village live source', () => {
+		const catalog = collectMeadowEntrySourceCatalog();
+		const preBlacksmithCatalog = catalog.filter(
+			({ ref }) => meadowEntrySourceKey(ref) !== 'transition:meadow-to-blacksmith'
+		);
+		const transitionKeys = catalog
+			.filter(({ ref }) => ref.sourceType === 'transition')
+			.map(({ ref }) => meadowEntrySourceKey(ref));
+
+		expect(transitionKeys).toEqual([...EXPECTED_TRANSITION_KEYS].sort());
+		expect(preBlacksmithCatalog).toHaveLength(396);
+		expect(
+			createHash('sha256')
+				.update(
+					preBlacksmithCatalog
+						.map(
+							({ ref, fragmentId, bounds, visualCapable }) =>
+								JSON.stringify({ ref, fragmentId, bounds, visualCapable }) + '\n'
+						)
+						.join('')
+				)
+				.digest('hex')
+		).toBe('41d7dc3a8d584ea91104049a5c3c96f910d8be7c9d57755bda07dc1da5e2c765');
+		expect(catalog).toHaveLength(397);
+		expect(
+			resolveMeadowEntrySource({
+				sourceType: 'transition',
+				sourceId: 'meadow-to-blacksmith'
+			})
+		).toMatchObject({ fragmentId: 'village', bounds: null, visualCapable: true });
 	});
 
 	it('covers the river fragment with exactly its authored water, crossing, and blocker records', () => {

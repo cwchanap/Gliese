@@ -701,6 +701,33 @@ describe('painted-v2 meadow-entry bake ownership', () => {
 		).not.toThrow();
 	});
 
+	it('keeps the Blacksmith transition protected-live under the Sundrop Village owner', () => {
+		const sourceKey = 'transition:meadow-to-blacksmith';
+		const source = collectMeadowEntrySourceCatalog().find(
+			(record) => meadowEntrySourceKey(record.ref) === sourceKey
+		);
+		const ownership = MEADOW_ENTRY_PAINTED_V2_BAKE_OWNERSHIP.find(
+			(entry) => meadowEntrySourceKey(entry.ref) === sourceKey
+		);
+
+		expect(source).toMatchObject({
+			ref: { sourceType: 'transition', sourceId: 'meadow-to-blacksmith' },
+			fragmentId: 'village',
+			bounds: null,
+			visualCapable: true
+		});
+		expect(ownership).toMatchObject({
+			ref: { sourceType: 'transition', sourceId: 'meadow-to-blacksmith' },
+			primaryRegionId: 'sundrop-village',
+			disposition: {
+				mode: 'protected-live',
+				protectionMargins: MEADOW_ENTRY_PROTECTION_MARGINS,
+				reason: 'Painted-v2 pilot does not own this live visual or stateful source.'
+			},
+			runtimeRequirement: 'remain-live'
+		});
+	});
+
 	it('seals the literal ground-patch review independently from crop geometry', () => {
 		const reviewedGroundPatchKeys = new Set(
 			MEADOW_ENTRY_PAINTED_V2_BAKE_OWNERSHIP.filter(

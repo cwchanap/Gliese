@@ -115,22 +115,24 @@
   <rect data-id="landmark-collision-0009" x="532" y="4852" width="344" height="326" fill="#bdbdbd"/>
   <rect data-id="landmark-collision-0010" x="532" y="5154" width="156" height="42" fill="#bdbdbd"/>
   <rect data-id="landmark-collision-0011" x="720" y="5154" width="156" height="42" fill="#bdbdbd"/>
-  <rect data-id="landmark-collision-0012" x="2100" y="4852" width="344" height="344" fill="#bdbdbd"/>
-  <rect data-id="landmark-collision-0013" x="564" y="5556" width="280" height="294" fill="#bdbdbd"/>
-  <rect data-id="landmark-collision-0014" x="564" y="5826" width="124" height="42" fill="#bdbdbd"/>
-  <rect data-id="landmark-collision-0015" x="720" y="5826" width="124" height="42" fill="#bdbdbd"/>
-  <rect data-id="landmark-collision-0016" x="1332" y="5556" width="280" height="294" fill="#bdbdbd"/>
-  <rect data-id="landmark-collision-0017" x="1332" y="5826" width="124" height="42" fill="#bdbdbd"/>
-  <rect data-id="landmark-collision-0018" x="1488" y="5826" width="124" height="42" fill="#bdbdbd"/>
-  <rect data-id="landmark-collision-0019" x="2100" y="5524" width="344" height="326" fill="#bdbdbd"/>
-  <rect data-id="landmark-collision-0020" x="2100" y="5826" width="156" height="42" fill="#bdbdbd"/>
-  <rect data-id="landmark-collision-0021" x="2288" y="5826" width="156" height="42" fill="#bdbdbd"/>
-  <rect data-id="landmark-collision-0022" x="5820" y="1676" width="280" height="186" fill="#bdbdbd"/>
-  <rect data-id="landmark-collision-0023" x="5820" y="1838" width="124" height="86" fill="#bdbdbd"/>
-  <rect data-id="landmark-collision-0024" x="5976" y="1838" width="124" height="86" fill="#bdbdbd"/>
-  <rect data-id="landmark-collision-0025" x="1008" y="458" width="384" height="324" fill="#bdbdbd"/>
-  <rect data-id="landmark-collision-0026" x="2778" y="308" width="444" height="344" fill="#bdbdbd"/>
-  <rect data-id="landmark-collision-0027" x="3408" y="5548" width="384" height="344" fill="#bdbdbd"/>
-  <rect data-id="landmark-collision-0028" x="3924" y="2804" width="504" height="344" fill="#bdbdbd"/>
-  <rect data-id="landmark-collision-0029" x="3704" y="4137" width="144" height="174" fill="#bdbdbd"/>
+  <rect data-id="landmark-collision-0012" x="2100" y="4852" width="344" height="326" fill="#bdbdbd"/>
+  <rect data-id="landmark-collision-0013" x="2100" y="5154" width="156" height="42" fill="#bdbdbd"/>
+  <rect data-id="landmark-collision-0014" x="2288" y="5154" width="156" height="42" fill="#bdbdbd"/>
+  <rect data-id="landmark-collision-0015" x="564" y="5556" width="280" height="294" fill="#bdbdbd"/>
+  <rect data-id="landmark-collision-0016" x="564" y="5826" width="124" height="42" fill="#bdbdbd"/>
+  <rect data-id="landmark-collision-0017" x="720" y="5826" width="124" height="42" fill="#bdbdbd"/>
+  <rect data-id="landmark-collision-0018" x="1332" y="5556" width="280" height="294" fill="#bdbdbd"/>
+  <rect data-id="landmark-collision-0019" x="1332" y="5826" width="124" height="42" fill="#bdbdbd"/>
+  <rect data-id="landmark-collision-0020" x="1488" y="5826" width="124" height="42" fill="#bdbdbd"/>
+  <rect data-id="landmark-collision-0021" x="2100" y="5524" width="344" height="326" fill="#bdbdbd"/>
+  <rect data-id="landmark-collision-0022" x="2100" y="5826" width="156" height="42" fill="#bdbdbd"/>
+  <rect data-id="landmark-collision-0023" x="2288" y="5826" width="156" height="42" fill="#bdbdbd"/>
+  <rect data-id="landmark-collision-0024" x="5820" y="1676" width="280" height="186" fill="#bdbdbd"/>
+  <rect data-id="landmark-collision-0025" x="5820" y="1838" width="124" height="86" fill="#bdbdbd"/>
+  <rect data-id="landmark-collision-0026" x="5976" y="1838" width="124" height="86" fill="#bdbdbd"/>
+  <rect data-id="landmark-collision-0027" x="1008" y="458" width="384" height="324" fill="#bdbdbd"/>
+  <rect data-id="landmark-collision-0028" x="2778" y="308" width="444" height="344" fill="#bdbdbd"/>
+  <rect data-id="landmark-collision-0029" x="3408" y="5548" width="384" height="344" fill="#bdbdbd"/>
+  <rect data-id="landmark-collision-0030" x="3924" y="2804" width="504" height="344" fill="#bdbdbd"/>
+  <rect data-id="landmark-collision-0031" x="3704" y="4137" width="144" height="174" fill="#bdbdbd"/>
 </svg>

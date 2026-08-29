@@ -15,10 +15,10 @@ export const meadowEntryPaintedV2CompleteControlsApprovalReview = {
 
 export const meadowEntryPaintedV2CompleteControlsApproval: MeadowEntryPaintedV2CompleteControlsApproval =
 	{
-	combinedControlFingerprint: '59ded996de5f7a468a7ef2d57219c851bf3d77488cfe8f3c9dedcbb3ea5c33b9',
+	combinedControlFingerprint: '903877bef41cd4bf43e262177063a85d2301c8ec7f6d25d90329f41915ab952a',
 	cropManifestSha256: '5e1cfc1957a72028b8f9e912892159b30517a1fa683ae82c0da02bc9a37c2870',
-	bakeOwnershipSha256: '216922ba339a4290c7e6c12f7ce59f1ff1787a0c37dfcb44e9a4263dddb6c954',
+	bakeOwnershipSha256: 'a150543e3a185faeaf620878b8d6cf095686fa3208bca0d9739e29e4b0f11170',
 	storageMode: 'git-lfs',
-	storageConfigurationSha256: '42455c6bab7889dd99cc194683ccaa6f2a19b0a067aede17fe34faf6282fd1ab',
+	storageConfigurationSha256: 'dacf4628cc52f936c7f10fb3e58c7e560e2094f9c847a8c46d598b94b08874ba',
 	evidencePath: 'docs/superpowers/reports/2026-08-19-complete-world-layout-foundation.md'
 };

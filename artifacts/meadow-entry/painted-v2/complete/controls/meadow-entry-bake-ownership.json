@@ -5461,6 +5461,24 @@
     {
       "ref": {
         "sourceType": "transition",
+        "sourceId": "meadow-to-blacksmith"
+      },
+      "primaryRegionId": "sundrop-village",
+      "disposition": {
+        "mode": "protected-live",
+        "protectionMargins": {
+          "top": 32,
+          "right": 16,
+          "bottom": 16,
+          "left": 16
+        },
+        "reason": "Painted-v2 pilot does not own this live visual or stateful source."
+      },
+      "runtimeRequirement": "remain-live"
+    },
+    {
+      "ref": {
+        "sourceType": "transition",
         "sourceId": "meadow-to-guild-hall"
       },
       "primaryRegionId": "sundrop-village",
