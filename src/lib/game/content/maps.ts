@@ -958,7 +958,7 @@ export const blacksmithInteriorMap: WorldMapDefinition = {
 	blockers: blacksmithBlockers,
 	transitions: [
 		{
-			id: 'blacksmith-interior-to-meadow',
+			id: 'blacksmith-to-meadow',
 			...blacksmithLayout.exit,
 			toMapId: openingMapId,
 			arrival: returnArrival('blacksmith-interior')

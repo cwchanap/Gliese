@@ -1230,7 +1230,7 @@ describe('opening map content', () => {
 		expect(blacksmithInteriorMap.height).toBe(22);
 		expect(blacksmithInteriorMap.spawn).toEqual({ x: 448, y: 576 });
 		expect(blacksmithInteriorMap.transitions[0]).toMatchObject({
-			id: 'blacksmith-interior-to-meadow',
+			id: 'blacksmith-to-meadow',
 			x: 448,
 			y: 688,
 			toMapId: 'meadow-entry',
