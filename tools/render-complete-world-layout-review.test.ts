@@ -33,6 +33,7 @@ const expectedReviewDimensions: Readonly<Record<string, { width: number; height:
 	'villager-house-2': { width: 1280, height: 768 },
 	'villager-house-3': { width: 640, height: 640 },
 	'shrine-of-aurora-interior': { width: 768, height: 704 },
+	'blacksmith-interior': { width: 896, height: 704 },
 	'ruins-threshold': { width: 1600, height: 1600 },
 	'ruins-core': { width: 1600, height: 1600 }
 };
@@ -373,6 +374,11 @@ describe('complete world layout review renderer', () => {
 		expect(() => parseCompleteWorldLayoutReviewArguments(['--map', 'ruins-core'])).toThrow(
 			/VillageInteriorMapId/
 		);
+		expect(parseCompleteWorldLayoutReviewArguments(['--map', 'blacksmith-interior'])).toEqual({
+			map: 'blacksmith-interior',
+			check: false,
+			outputRoot: 'docs/superpowers/reports/img/hpa-586-interiors'
+		});
 
 		const outputRoot = await createOutputRoot();
 		const repositoryRoot = await createRepositoryRoot();
@@ -408,6 +414,38 @@ describe('complete world layout review renderer', () => {
 			repositoryRoot
 		});
 		expect(second).toEqual(first);
+	});
+
+	it('renders the Blacksmith graybox proof inventory without painted artifacts', async () => {
+		const outputRoot = await createOutputRoot();
+		const repositoryRoot = await createRepositoryRoot();
+		const rendered = await renderCompleteWorldLayoutReview({
+			outputRoot,
+			check: false,
+			map: 'blacksmith-interior',
+			repositoryRoot
+		});
+
+		expect(rendered).toHaveLength(1);
+		expect(rendered[0]).toMatchObject({
+			mapId: 'blacksmith-interior',
+			worldDimensions: { width: 896, height: 704 },
+			reviewDimensions: { width: 896, height: 704 },
+			disposition: 'changed',
+			reasonIds: ['new-blacksmith-room-program']
+		});
+		expect((await readdir(join(outputRoot, 'blacksmith-interior'))).sort()).toEqual(
+			[
+				'anchors.png',
+				'camera-1280x720.png',
+				'camera-640x360.png',
+				'coordinate-graybox.png',
+				'inventory.json',
+				'player-centre-navigation-overlay.png',
+				'raw-collision-overlay.png',
+				'route-widths.png'
+			].sort()
+		);
 	});
 
 	it('renders the complete Villager House 1 painted proof inventory', async () => {

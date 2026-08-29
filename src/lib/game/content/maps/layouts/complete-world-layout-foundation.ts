@@ -7,6 +7,7 @@ export const COMPLETE_WORLD_MAP_IDS = [
 	'villager-house-2',
 	'villager-house-3',
 	'shrine-of-aurora-interior',
+	'blacksmith-interior',
 	'ruins-threshold',
 	'ruins-core'
 ] as const;
@@ -50,6 +51,10 @@ export const COMPLETE_WORLD_LAYOUT_DECISIONS: Readonly<
 	'shrine-of-aurora-interior': Object.freeze({
 		action: 'preserve',
 		reasonIds: Object.freeze(['existing-v2-room-program'])
+	}),
+	'blacksmith-interior': Object.freeze({
+		action: 'change',
+		reasonIds: Object.freeze(['new-blacksmith-room-program'])
 	}),
 	'ruins-threshold': Object.freeze({
 		action: 'preserve',

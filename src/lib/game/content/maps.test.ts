@@ -39,6 +39,7 @@ import {
 } from '$lib/game/core/collision';
 import { t } from '$lib/game/i18n/translate';
 import {
+	blacksmithInteriorMap,
 	guildHallMap,
 	heroHouseMap,
 	itemShopMap,
@@ -408,6 +409,14 @@ describe('opening map content', () => {
 					arrival: { x: 416, y: 544, facing: 'up' }
 				},
 				{
+					id: 'meadow-to-blacksmith',
+					x: 2_272,
+					y: 5_184,
+					toMapId: 'blacksmith-interior',
+					showMarker: false,
+					arrival: { x: 448, y: 576, facing: 'up' }
+				},
+				{
 					id: 'meadow-to-villager-house-1',
 					x: 672,
 					y: 4_384,
@@ -462,7 +471,7 @@ describe('opening map content', () => {
 				}
 			])
 		);
-		expect(meadowEntryMap.transitions).toHaveLength(8);
+		expect(meadowEntryMap.transitions).toHaveLength(9);
 		expect(meadowEntryMap.encounters).toEqual([
 			{ id: 'meadow-slime-west', x: 4_928, y: 960, enemyId: 'slime-scout' },
 			{ id: 'meadow-slime-center', x: 5_360, y: 1_280, enemyId: 'slime-scout' },
@@ -533,6 +542,7 @@ describe('opening map content', () => {
 			heroHouseMap,
 			guildHallMap,
 			itemShopMap,
+			blacksmithInteriorMap,
 			villagerHouse1Map,
 			villagerHouse2Map,
 			villagerHouse3Map,
@@ -1184,6 +1194,7 @@ describe('opening map content', () => {
 		const rebuiltInteriors = [
 			heroHouseMap,
 			itemShopMap,
+			blacksmithInteriorMap,
 			villagerHouse1Map,
 			villagerHouse2Map,
 			villagerHouse3Map,
@@ -1192,6 +1203,7 @@ describe('opening map content', () => {
 
 		expect(maps['hero-house']).toBe(heroHouseMap);
 		expect(maps['item-shop']).toBe(itemShopMap);
+		expect(maps['blacksmith-interior']).toBe(blacksmithInteriorMap);
 		expect(maps['villager-house-1']).toBe(villagerHouse1Map);
 		expect(maps['villager-house-2']).toBe(villagerHouse2Map);
 		expect(maps['villager-house-3']).toBe(villagerHouse3Map);
@@ -1214,6 +1226,16 @@ describe('opening map content', () => {
 		expect(heroHouseMap.height).toBe(18);
 		expect(itemShopMap.width).toBe(26);
 		expect(itemShopMap.height).toBe(20);
+		expect(blacksmithInteriorMap.width).toBe(28);
+		expect(blacksmithInteriorMap.height).toBe(22);
+		expect(blacksmithInteriorMap.spawn).toEqual({ x: 448, y: 576 });
+		expect(blacksmithInteriorMap.transitions[0]).toMatchObject({
+			id: 'blacksmith-interior-to-meadow',
+			x: 448,
+			y: 688,
+			toMapId: 'meadow-entry',
+			arrival: { x: 2_272, y: 5_248, facing: 'down' }
+		});
 
 		expect(maps['guild-hall']).toBe(guildHallMap);
 		expect(guildHallMap.width).toBe(32);
@@ -3294,6 +3316,7 @@ describe('meadow-entry region integrity', () => {
 				'meadow-to-villager-house-2',
 				'meadow-to-guild-hall',
 				'meadow-to-item-shop',
+				'meadow-to-blacksmith',
 				'meadow-to-hero-house',
 				'meadow-to-villager-house-3',
 				'meadow-to-shrine-of-aurora',

@@ -16,6 +16,7 @@ const EXPECTED_MAP_IDS = [
 	'villager-house-2',
 	'villager-house-3',
 	'shrine-of-aurora-interior',
+	'blacksmith-interior',
 	'ruins-threshold',
 	'ruins-core'
 ] as const satisfies readonly CompleteWorldMapId[];
@@ -35,6 +36,7 @@ const EXPECTED_DECISIONS = {
 		action: 'preserve',
 		reasonIds: ['existing-v2-room-program']
 	},
+	'blacksmith-interior': { action: 'change', reasonIds: ['new-blacksmith-room-program'] },
 	'ruins-threshold': { action: 'preserve', reasonIds: ['expanded-puzzle-shell'] },
 	'ruins-core': { action: 'preserve', reasonIds: ['expanded-puzzle-shell'] }
 } as const;
@@ -51,7 +53,7 @@ const STATEFUL_COLLECTIONS = [
 ] as const;
 
 describe('complete world layout foundation', () => {
-	it('freezes the exact ten-map decision inventory', () => {
+	it('freezes the exact eleven-map decision inventory', () => {
 		expect(COMPLETE_WORLD_MAP_IDS).toEqual(EXPECTED_MAP_IDS);
 		expect(COMPLETE_WORLD_LAYOUT_DECISIONS).toEqual(EXPECTED_DECISIONS);
 		expect(Object.isFrozen(COMPLETE_WORLD_LAYOUT_DECISIONS)).toBe(true);

@@ -172,10 +172,13 @@ export const SUNDROP_VILLAGE_V2_BUILDINGS = {
 	blacksmith: {
 		landmarkId: 'blacksmith',
 		labelKey: 'content.maps.landmarks.blacksmith.label',
+		mapId: 'blacksmith-interior',
+		transitionId: 'meadow-to-blacksmith',
 		lot: rect(1952, 4832, 736, 448),
 		footprint: rect(2112, 4864, 320, 320),
 		door: point(2272, 5184),
-		approach: rect(2208, 5184, 128, 192)
+		approach: rect(2208, 5184, 128, 192),
+		returnArrival: { x: 2272, y: 5248, facing: 'down' }
 	},
 	heroHouse: {
 		landmarkId: 'hero-house-exterior',
@@ -239,6 +242,7 @@ export const VILLAGE_INTERIOR_EXTERIORS = {
 	'villager-house-2': interiorExterior(SUNDROP_VILLAGE_V2_BUILDINGS.villagerHouse2),
 	'guild-hall': interiorExterior(SUNDROP_VILLAGE_V2_BUILDINGS.guildHall),
 	'item-shop': interiorExterior(SUNDROP_VILLAGE_V2_BUILDINGS.itemShop),
+	'blacksmith-interior': interiorExterior(SUNDROP_VILLAGE_V2_BUILDINGS.blacksmith),
 	'hero-house': interiorExterior(SUNDROP_VILLAGE_V2_BUILDINGS.heroHouse),
 	'villager-house-3': interiorExterior(SUNDROP_VILLAGE_V2_BUILDINGS.villagerHouse3),
 	'shrine-of-aurora-interior': interiorExterior(SUNDROP_VILLAGE_V2_BUILDINGS.shrine)

@@ -194,6 +194,7 @@ const areaNameKeys = {
 	'hero-house': 'content.maps.areas.hero-house',
 	'guild-hall': 'content.maps.areas.guild-hall',
 	'item-shop': 'content.maps.areas.item-shop',
+	'blacksmith-interior': 'content.maps.areas.blacksmith-interior',
 	'villager-house-1': 'content.maps.areas.villager-house-1',
 	'villager-house-2': 'content.maps.areas.villager-house-2',
 	'villager-house-3': 'content.maps.areas.villager-house-3',

@@ -15,6 +15,10 @@ const villageLandmarks = Object.values(SUNDROP_VILLAGE_V2_BUILDINGS).map((buildi
 const compactInteriorArrivals = {
 	'hero-house': { ...VILLAGE_INTERIOR_LAYOUTS['hero-house'].spawn, facing: 'up' },
 	'item-shop': { ...VILLAGE_INTERIOR_LAYOUTS['item-shop'].spawn, facing: 'up' },
+	'blacksmith-interior': {
+		...VILLAGE_INTERIOR_LAYOUTS['blacksmith-interior'].spawn,
+		facing: 'up'
+	},
 	'villager-house-1': { ...VILLAGE_INTERIOR_LAYOUTS['villager-house-1'].spawn, facing: 'up' },
 	'villager-house-2': { ...VILLAGE_INTERIOR_LAYOUTS['villager-house-2'].spawn, facing: 'up' },
 	'guild-hall': { ...VILLAGE_INTERIOR_LAYOUTS['guild-hall'].spawn, facing: 'up' },

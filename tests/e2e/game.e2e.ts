@@ -16357,6 +16357,45 @@ for (const interiorCase of INTERIOR_GRAYBOX_CASES.filter(({ mapId }) => mapId !=
 	});
 }
 
+test('Blacksmith graybox entrance', async ({ page }) => {
+	test.setTimeout(180_000);
+	const blacksmith: InteriorGrayboxCase = {
+		mapId: 'blacksmith-interior',
+		returnArrival: { x: 2_272, y: 5_248 },
+		exteriorDoor: { x: 2_272, y: 5_184 },
+		spawn: { x: 448, y: 576 },
+		exit: { x: 448, y: 688 },
+		steps: []
+	};
+
+	await installRuntimeProbes(page, { captureFacing: true });
+	await injectSave(
+		page,
+		createSaveFixture({
+			mapId: 'meadow-entry',
+			player: {
+				level: 1,
+				xp: 0,
+				hp: 20,
+				attack: 3,
+				x: blacksmith.returnArrival.x,
+				y: blacksmith.returnArrival.y,
+				facing: 'up'
+			}
+		})
+	);
+	await page.goto('/?movementDiagnostics=on');
+	await expect(page.locator('canvas')).toBeVisible();
+	await expect(page.getByRole('button', { name: 'Menu' })).toBeVisible();
+	await page.getByRole('button', { name: 'Menu' }).click();
+	await commandBox(page).getByRole('button', { name: 'Resume Save' }).click();
+	await waitForHudPosition(page, 'meadow-entry', blacksmith.returnArrival);
+
+	await enterInteriorWithTrustedKeyboard(page, blacksmith);
+	await waitForExactHudPosition(page, 'blacksmith-interior', blacksmith.spawn);
+	await exitInteriorWithTrustedKeyboard(page, blacksmith);
+});
+
 test('Guild Hall painted interior', async ({ page }) => {
 	test.setTimeout(900_000);
 	const guildHall = INTERIOR_GRAYBOX_CASES.find((interior) => interior.mapId === 'guild-hall');

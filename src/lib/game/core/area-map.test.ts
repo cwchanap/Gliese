@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest';
 
-import { meadowEntryMap, maps, shrineOfAuroraInteriorMap } from '$lib/game/content/maps';
+import {
+	blacksmithInteriorMap,
+	meadowEntryMap,
+	maps,
+	shrineOfAuroraInteriorMap
+} from '$lib/game/content/maps';
 import { mainQuestId } from '$lib/game/content/quests';
 import {
 	buildAreaMapState,
@@ -53,6 +58,18 @@ describe('area map payload', () => {
 		});
 
 		expect(areaMap.name).toBe('Shrine of Aurora');
+	});
+
+	it('localizes the Blacksmith interior area name', () => {
+		const areaMap = buildAreaMapState({
+			map: blacksmithInteriorMap,
+			player: blacksmithInteriorMap.spawn,
+			revealedCells: [],
+			quests: createInitialQuestState(),
+			locale: 'en'
+		});
+
+		expect(areaMap.name).toBe('Sundrop Forge');
 	});
 
 	it('adds only revealed landmark and exit markers', () => {

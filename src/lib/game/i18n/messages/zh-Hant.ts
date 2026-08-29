@@ -370,6 +370,7 @@ export const zhHant = {
 				'hero-house': '英雄之家',
 				'guild-hall': '公會大廳',
 				'item-shop': '道具店',
+				'blacksmith-interior': '晴滴鍛造坊',
 				'villager-house-1': '村民家',
 				'villager-house-2': '村民家',
 				'villager-house-3': '村民家',

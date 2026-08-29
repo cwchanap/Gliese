@@ -48,6 +48,14 @@ describe('map background registry', () => {
 				clearancePx: 12
 			}),
 			expect.objectContaining({
+				id: 'blacksmith-interior-navigation',
+				mapId: 'blacksmith-interior',
+				cellSizePx: 16,
+				widthCells: 56,
+				heightCells: 44,
+				clearancePx: 12
+			}),
+			expect.objectContaining({
 				id: 'villager-house-1-navigation',
 				mapId: 'villager-house-1',
 				cellSizePx: 16,

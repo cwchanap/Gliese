@@ -10,6 +10,7 @@ export type VillageInteriorMapId =
 	| 'hero-house'
 	| 'guild-hall'
 	| 'item-shop'
+	| 'blacksmith-interior'
 	| 'villager-house-1'
 	| 'villager-house-2'
 	| 'villager-house-3'

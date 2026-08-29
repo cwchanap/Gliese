@@ -369,6 +369,7 @@ export const en = {
 				'hero-house': "Hero's House",
 				'guild-hall': 'Guild Hall',
 				'item-shop': 'Item Shop',
+				'blacksmith-interior': 'Sundrop Forge',
 				'villager-house-1': 'Villager House',
 				'villager-house-2': 'Villager House',
 				'villager-house-3': 'Villager House',

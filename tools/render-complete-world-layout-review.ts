@@ -1345,8 +1345,9 @@ async function renderVillageInteriorLayoutReview(
 	return {
 		entry: {
 			mapId,
-			disposition: 'preserved',
-			reasonIds: ['existing-v2-room-program'],
+			disposition:
+				COMPLETE_WORLD_LAYOUT_DECISIONS[mapId].action === 'preserve' ? 'preserved' : 'changed',
+			reasonIds: [...COMPLETE_WORLD_LAYOUT_DECISIONS[mapId].reasonIds],
 			worldDimensions: { width: layout.fullFloor.width, height: layout.fullFloor.height },
 			reviewDimensions: { width: layoutView.outputWidth, height: layoutView.outputHeight },
 			imagePath,

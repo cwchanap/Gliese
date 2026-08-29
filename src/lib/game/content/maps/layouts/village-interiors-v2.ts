@@ -80,6 +80,20 @@ const itemShopWalls: readonly NamedLayoutRect[] = [
 	namedRect('item-shop-service-east-lower-divider', 480, 224, 32, 32)
 ];
 
+const blacksmithWalls: readonly NamedLayoutRect[] = [
+	namedRect('blacksmith-wall-north', 0, 0, 896, 64),
+	namedRect('blacksmith-wall-west', 0, 64, 64, 608),
+	namedRect('blacksmith-wall-east', 832, 64, 64, 608),
+	namedRect('blacksmith-wall-south-west', 0, 672, 384, 32),
+	namedRect('blacksmith-wall-south-east', 512, 672, 384, 32),
+	namedRect('blacksmith-forge-divider-north', 416, 64, 32, 96),
+	namedRect('blacksmith-forge-divider-south', 416, 256, 32, 128),
+	namedRect('blacksmith-armory-divider-north', 544, 64, 32, 96),
+	namedRect('blacksmith-armory-divider-south', 544, 256, 32, 128),
+	namedRect('blacksmith-showroom-divider-west', 64, 352, 384, 32),
+	namedRect('blacksmith-showroom-divider-east', 544, 352, 288, 32)
+];
+
 const shrineOfAuroraWalls: readonly NamedLayoutRect[] = [
 	namedRect('shrine-of-aurora-wall-north', 0, 0, 768, 64),
 	namedRect('shrine-of-aurora-wall-west', 0, 64, 64, 608),
@@ -275,6 +289,46 @@ export const VILLAGE_INTERIOR_LAYOUTS = {
 			eastDisplay: rect(624, 384, 64, 128),
 			stockShelves: rect(128, 112, 128, 48),
 			officeDesk: rect(576, 112, 128, 48)
+		}
+	},
+	'blacksmith-interior': {
+		widthTiles: 28,
+		heightTiles: 22,
+		fullFloor: rect(0, 0, 896, 704),
+		rooms: {
+			forgeFloor: rect(64, 64, 352, 288),
+			armoryDisplay: rect(576, 64, 256, 288),
+			showroom: rect(64, 384, 768, 288)
+		},
+		corridors: {
+			serviceSpine: rect(448, 64, 96, 320),
+			entranceAisle: rect(384, 480, 128, 192)
+		},
+		doors: {
+			forge: rect(416, 160, 32, 96),
+			armory: rect(544, 160, 32, 96),
+			hallToShowroom: rect(448, 352, 96, 32),
+			exterior: rect(384, 672, 128, 32)
+		},
+		walls: blacksmithWalls,
+		spawn: point(448, 576),
+		exit: point(448, 688),
+		npcApproaches: { oren: { npc: point(448, 416), approach: point(448, 480) } },
+		propZones: {
+			forge: rect(96, 96, 128, 160),
+			anvil: rect(272, 160, 96, 96),
+			serviceCounter: rect(256, 400, 384, 96),
+			weaponRacks: rect(608, 96, 160, 192),
+			coalStorage: rect(96, 288, 224, 64),
+			showroomDisplay: rect(640, 480, 128, 128)
+		},
+		propCollisions: {
+			forge: rect(112, 112, 96, 128),
+			anvil: rect(288, 176, 64, 64),
+			serviceCounter: rect(288, 448, 320, 8),
+			weaponRacks: rect(624, 112, 128, 160),
+			coalStorage: rect(112, 304, 192, 32),
+			showroomDisplay: rect(656, 496, 96, 96)
 		}
 	},
 	'shrine-of-aurora-interior': {

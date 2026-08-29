@@ -75,6 +75,12 @@ const EXPECTED_INTERIOR_PROGRAMS = {
 		rooms: ['archiveStudy', 'bedroomStorage', 'sittingRoom'],
 		corridors: ['hall'],
 		npcApproaches: ['io']
+	},
+	'blacksmith-interior': {
+		size: [28, 22],
+		rooms: ['forgeFloor', 'armoryDisplay', 'showroom'],
+		corridors: ['serviceSpine', 'entranceAisle'],
+		npcApproaches: ['oren']
 	}
 } as const;
 
@@ -452,9 +458,111 @@ describe('outdoor layout coordinate contracts', () => {
 			).toBeGreaterThan(triggerClearance);
 		}
 	});
+
+	it('pins the Blacksmith exterior transition without moving its approved lot or door', () => {
+		expect(SUNDROP_VILLAGE_V2_BUILDINGS.blacksmith).toMatchObject({
+			mapId: 'blacksmith-interior',
+			transitionId: 'meadow-to-blacksmith',
+			lot: { x: 1952, y: 4832, width: 736, height: 448 },
+			footprint: { x: 2112, y: 4864, width: 320, height: 320 },
+			door: { x: 2272, y: 5184 },
+			approach: { x: 2208, y: 5184, width: 128, height: 192 },
+			returnArrival: { x: 2272, y: 5248, facing: 'down' }
+		});
+		expect(VILLAGE_INTERIOR_EXTERIORS['blacksmith-interior']).toEqual({
+			footprint: { x: 2112, y: 4864, width: 320, height: 320 },
+			door: { x: 2272, y: 5184 },
+			returnArrival: { x: 2272, y: 5248, facing: 'down' }
+		});
+	});
 });
 
 describe('village interior layout coordinate contracts', () => {
+	it('pins the Blacksmith graybox program, collision cores, and reachable work zones', () => {
+		const mapId = 'blacksmith-interior' as const;
+		const layout = VILLAGE_INTERIOR_LAYOUTS[mapId];
+		expect(layout).toMatchObject({
+			widthTiles: 28,
+			heightTiles: 22,
+			fullFloor: { x: 0, y: 0, width: 896, height: 704 },
+			spawn: { x: 448, y: 576 },
+			exit: { x: 448, y: 688 },
+			npcApproaches: { oren: { npc: { x: 448, y: 416 }, approach: { x: 448, y: 480 } } },
+			rooms: {
+				forgeFloor: { x: 64, y: 64, width: 352, height: 288 },
+				armoryDisplay: { x: 576, y: 64, width: 256, height: 288 },
+				showroom: { x: 64, y: 384, width: 768, height: 288 }
+			},
+			corridors: {
+				serviceSpine: { x: 448, y: 64, width: 96, height: 320 },
+				entranceAisle: { x: 384, y: 480, width: 128, height: 192 }
+			},
+			doors: {
+				forge: { x: 416, y: 160, width: 32, height: 96 },
+				armory: { x: 544, y: 160, width: 32, height: 96 },
+				hallToShowroom: { x: 448, y: 352, width: 96, height: 32 },
+				exterior: { x: 384, y: 672, width: 128, height: 32 }
+			},
+			propZones: {
+				forge: { x: 96, y: 96, width: 128, height: 160 },
+				anvil: { x: 272, y: 160, width: 96, height: 96 },
+				serviceCounter: { x: 256, y: 400, width: 384, height: 96 },
+				weaponRacks: { x: 608, y: 96, width: 160, height: 192 },
+				coalStorage: { x: 96, y: 288, width: 224, height: 64 },
+				showroomDisplay: { x: 640, y: 480, width: 128, height: 128 }
+			},
+			propCollisions: {
+				forge: { x: 112, y: 112, width: 96, height: 128 },
+				anvil: { x: 288, y: 176, width: 64, height: 64 },
+				serviceCounter: { x: 288, y: 448, width: 320, height: 8 },
+				weaponRacks: { x: 624, y: 112, width: 128, height: 160 },
+				coalStorage: { x: 112, y: 304, width: 192, height: 32 },
+				showroomDisplay: { x: 656, y: 496, width: 96, height: 96 }
+			}
+		});
+
+		const typedMapId = mapId as Parameters<typeof buildVillageInteriorNavigationSource>[0]['mapId'];
+		const source = buildVillageInteriorNavigationSource({ mapId: typedMapId, layout });
+		const grid = compileNavigationGrid(source);
+		expect(source).toMatchObject({
+			id: 'blacksmith-interior-navigation',
+			mapId: 'blacksmith-interior',
+			cellSizePx: 16,
+			widthCells: 56,
+			heightCells: 44,
+			clearancePx: 12
+		});
+		expect(layout.corridors.serviceSpine.width).toBeGreaterThanOrEqual(96);
+		expect(layout.corridors.entranceAisle.width).toBeGreaterThanOrEqual(96);
+		expect(layout.corridors.entranceAisle.height).toBeGreaterThanOrEqual(96);
+		for (const [doorId, door] of Object.entries(layout.doors)) {
+			expect(Math.max(door.width, door.height), doorId).toBeGreaterThanOrEqual(64);
+		}
+
+		const reachable = reachableInteriorSamples(layout);
+		for (const [label, candidate] of [
+			['spawn', layout.spawn],
+			['exit', layout.exit],
+			['oren-approach', layout.npcApproaches.oren.approach],
+			['forge', { x: 240, y: 208 }],
+			['armory', { x: 800, y: 320 }],
+			['coal-storage-side-loop', { x: 336, y: 320 }],
+			['west-showroom-side-loop', { x: 112, y: 560 }],
+			['showroom', { x: 448, y: 560 }],
+			['east-showroom-side-loop', { x: 784, y: 560 }]
+		] as const) {
+			expect(reachableInteriorPoint(reachable, candidate), `${label} is disconnected`).toBe(true);
+			expect(isWalkable(grid, candidate.x, candidate.y), `${label} is not walkable`).toBe(true);
+		}
+		for (const [propId, collision] of Object.entries(layout.propCollisions)) {
+			const center = {
+				x: collision.x + collision.width / 2,
+				y: collision.y + collision.height / 2
+			};
+			expect(isInteriorWalkable(layout, center), `${propId} collision core must block`).toBe(false);
+		}
+	});
+
 	it('pins the Guild Hall civic program, anchors, circulation, and camera envelope', () => {
 		const layout = VILLAGE_INTERIOR_LAYOUTS['guild-hall'];
 		expect([layout.widthTiles, layout.heightTiles]).toEqual([32, 26]);
@@ -1218,9 +1326,13 @@ describe('village interior layout coordinate contracts', () => {
 			for (const { npc, approach } of Object.values(layout.npcApproaches)) {
 				const distance = Math.hypot(npc.x - approach.x, npc.y - approach.y);
 				expect(distance).toBeGreaterThanOrEqual(minimumApproach);
-				expect(distance).toBeLessThanOrEqual(maximumApproach);
-				for (const zone of Object.values(layout.propZones)) {
-					expect(layoutRectContainsPoint(zone, approach)).toBe(false);
+				expect(distance).toBeLessThanOrEqual(
+					mapId === 'blacksmith-interior' ? 64 : maximumApproach
+				);
+				for (const [zoneId, zone] of Object.entries(layout.propZones)) {
+					const isApprovedCounterApproach =
+						mapId === 'blacksmith-interior' && zoneId === 'serviceCounter';
+					expect(layoutRectContainsPoint(zone, approach)).toBe(isApprovedCounterApproach);
 				}
 				for (const collision of Object.values(layout.propCollisions)) {
 					expect(expandedLayoutRectContainsPoint(collision, npc, PLAYER_COLLISION_RADIUS)).toBe(

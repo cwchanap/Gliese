@@ -370,6 +370,7 @@ export const ja = {
 				'hero-house': '主人公の家',
 				'guild-hall': 'ギルドホール',
 				'item-shop': '道具屋',
+				'blacksmith-interior': 'サンドロップ鍛冶場',
 				'villager-house-1': '民家',
 				'villager-house-2': '民家',
 				'villager-house-3': '民家',

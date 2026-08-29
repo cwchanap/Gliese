@@ -1,7 +1,7 @@
 import type { DefinitionRegistry } from '$lib/game/core/types';
 import { meadowEntryMap, openingMapId } from '$lib/game/content/maps/meadow-entry';
 import { VILLAGE_INTERIOR_EXTERIORS } from '$lib/game/content/maps/layouts/meadow-entry-v2';
-import { toMapRect } from '$lib/game/content/maps/layouts/layout-rects';
+import { toMapRect, type NamedLayoutRect } from '$lib/game/content/maps/layouts/layout-rects';
 import { VILLAGE_INTERIOR_LAYOUTS } from '$lib/game/content/maps/layouts/village-interiors-v2';
 import { addEnglishMapText } from '$lib/game/content/maps/text';
 import { VILLAGE_INTERIOR_NAVIGATION_OWNED_SOURCES } from '$lib/game/content/backgrounds/village-interior-package';
@@ -39,6 +39,10 @@ export { meadowEntryMap, openingMapId };
 
 const returnArrival = (mapId: keyof typeof VILLAGE_INTERIOR_EXTERIORS) =>
 	VILLAGE_INTERIOR_EXTERIORS[mapId].returnArrival;
+
+function interiorWallBlockers(walls: readonly NamedLayoutRect[]) {
+	return walls.map((wall) => ({ ...toMapRect(wall.id, wall), kind: 'ruin-wall' as const }));
+}
 
 const guildHallLayout = VILLAGE_INTERIOR_LAYOUTS['guild-hall'];
 
@@ -323,6 +327,37 @@ const itemShopBlockers = [
 		kind: 'ruin-wall' as const
 	}
 ];
+
+const blacksmithLayout = VILLAGE_INTERIOR_LAYOUTS['blacksmith-interior'];
+
+const blacksmithGroundPatches = [
+	{
+		...toMapRect('blacksmith-full-floor', blacksmithLayout.fullFloor),
+		tile: 'cobblestoneTile' as const
+	},
+	{
+		...toMapRect('blacksmith-room-forge-floor', blacksmithLayout.rooms.forgeFloor),
+		tile: 'plazaStoneTile' as const
+	},
+	{
+		...toMapRect('blacksmith-room-armory-display', blacksmithLayout.rooms.armoryDisplay),
+		tile: 'plazaStoneTile' as const
+	},
+	{
+		...toMapRect('blacksmith-room-showroom', blacksmithLayout.rooms.showroom),
+		tile: 'plazaStoneTile' as const
+	},
+	{
+		...toMapRect('blacksmith-corridor-service-spine', blacksmithLayout.corridors.serviceSpine),
+		tile: 'pathTile' as const
+	},
+	{
+		...toMapRect('blacksmith-corridor-entrance-aisle', blacksmithLayout.corridors.entranceAisle),
+		tile: 'pathTile' as const
+	}
+];
+
+const blacksmithBlockers = interiorWallBlockers(blacksmithLayout.walls);
 
 const shrineOfAuroraLayout = VILLAGE_INTERIOR_LAYOUTS['shrine-of-aurora-interior'];
 
@@ -910,6 +945,70 @@ export const itemShopMap: WorldMapDefinition = addEnglishMapText({
 		}
 	]
 });
+
+export const blacksmithInteriorMap: WorldMapDefinition = {
+	id: 'blacksmith-interior',
+	width: blacksmithLayout.widthTiles,
+	height: blacksmithLayout.heightTiles,
+	spawnDirection: 'up',
+	spawn: { ...blacksmithLayout.spawn },
+	navigationGrid: GENERATED_NAVIGATION_GRIDS['blacksmith-interior-navigation'],
+	navigationGridOwnedSources: VILLAGE_INTERIOR_NAVIGATION_OWNED_SOURCES,
+	groundPatches: blacksmithGroundPatches,
+	blockers: blacksmithBlockers,
+	transitions: [
+		{
+			id: 'blacksmith-interior-to-meadow',
+			...blacksmithLayout.exit,
+			toMapId: openingMapId,
+			arrival: returnArrival('blacksmith-interior')
+		}
+	],
+	interiorProps: [
+		{
+			...toMapRect('blacksmith-forge', blacksmithLayout.propZones.forge),
+			frameName: 'hearthLamp',
+			collision: toMapRect('blacksmith-forge-collision', blacksmithLayout.propCollisions.forge)
+		},
+		{
+			...toMapRect('blacksmith-anvil', blacksmithLayout.propZones.anvil),
+			frameName: 'table',
+			collision: toMapRect('blacksmith-anvil-collision', blacksmithLayout.propCollisions.anvil)
+		},
+		{
+			...toMapRect('blacksmith-service-counter', blacksmithLayout.propZones.serviceCounter),
+			frameName: 'shopCounter',
+			collision: toMapRect(
+				'blacksmith-service-counter-collision',
+				blacksmithLayout.propCollisions.serviceCounter
+			)
+		},
+		{
+			...toMapRect('blacksmith-weapon-racks', blacksmithLayout.propZones.weaponRacks),
+			frameName: 'weaponRack',
+			collision: toMapRect(
+				'blacksmith-weapon-racks-collision',
+				blacksmithLayout.propCollisions.weaponRacks
+			)
+		},
+		{
+			...toMapRect('blacksmith-coal-storage', blacksmithLayout.propZones.coalStorage),
+			frameName: 'crateStack',
+			collision: toMapRect(
+				'blacksmith-coal-storage-collision',
+				blacksmithLayout.propCollisions.coalStorage
+			)
+		},
+		{
+			...toMapRect('blacksmith-showroom-display', blacksmithLayout.propZones.showroomDisplay),
+			frameName: 'displayShelf',
+			collision: toMapRect(
+				'blacksmith-showroom-display-collision',
+				blacksmithLayout.propCollisions.showroomDisplay
+			)
+		}
+	]
+};
 
 export const villagerHouse1Map: WorldMapDefinition = addEnglishMapText({
 	id: 'villager-house-1',
@@ -1500,6 +1599,7 @@ export const maps: DefinitionRegistry<WorldMapDefinition> = {
 	[heroHouseMap.id]: heroHouseMap,
 	[guildHallMap.id]: guildHallMap,
 	[itemShopMap.id]: itemShopMap,
+	[blacksmithInteriorMap.id]: blacksmithInteriorMap,
 	[villagerHouse1Map.id]: villagerHouse1Map,
 	[villagerHouse2Map.id]: villagerHouse2Map,
 	[villagerHouse3Map.id]: villagerHouse3Map,
