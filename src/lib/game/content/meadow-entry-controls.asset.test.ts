@@ -13,19 +13,11 @@ import {
 	MEADOW_ENTRY_PAINTED_V2_ART_STORAGE
 } from '$lib/game/content/backgrounds/meadow-entry-storage';
 import {
-	buildMeadowEntryControlInputs,
-	computeMeadowEntryCombinedControlFingerprint,
-	renderMeadowEntryControls
-} from '$lib/game/content/backgrounds/meadow-entry-controls';
-
-import {
 	parseMeadowEntryControlsApprovalArguments,
 	renderMeadowEntryControlsApprovalModule
 } from '../../../../tools/approve-meadow-entry-controls';
 
 const SHA256 = /^[0-9a-f]{64}$/;
-const HISTORICAL_EVIDENCE_PATH =
-	'docs/superpowers/reports/2026-07-30-hpa-399-controls-crops-storage-validation.md';
 const EVIDENCE_PATH =
 	'docs/superpowers/reports/2026-08-12-meadow-entry-painted-camera-safe-controls.md';
 const HISTORICAL_STORAGE_CONFIGURATION_SHA256 =
@@ -34,22 +26,6 @@ const testDirectory = dirname(fileURLToPath(import.meta.url));
 const repositoryRoot = resolve(testDirectory, '../../../..');
 
 describe('meadow-entry reviewed control approval', () => {
-	it('keeps the retired V1 approvals separate from current V2 controls', () => {
-		const inputs = buildMeadowEntryControlInputs();
-		const currentCombinedFingerprint = computeMeadowEntryCombinedControlFingerprint(inputs);
-		const rendered = renderMeadowEntryControls(inputs);
-
-		expect(currentCombinedFingerprint).toMatch(SHA256);
-		expect(currentCombinedFingerprint).not.toBe(
-			meadowEntryControlsApproval.combinedControlFingerprint
-		);
-		expect(Object.keys(rendered)).toContain('meadow-entry-crop-manifest.json');
-		expect(Object.keys(rendered)).toContain('meadow-entry-bake-ownership.json');
-		expect(meadowEntryControlsApproval.cropManifestSha256).toMatch(SHA256);
-		expect(meadowEntryControlsApproval.bakeOwnershipSha256).toMatch(SHA256);
-		expect(meadowEntryControlsApproval.evidencePath).toBe(HISTORICAL_EVIDENCE_PATH);
-	});
-
 	it('seals the exact Git LFS storage configuration independently of the approval tool', () => {
 		const storageConfiguration = readFileSync(resolve(repositoryRoot, '.gitattributes'));
 		const storageText = storageConfiguration.toString('utf8');

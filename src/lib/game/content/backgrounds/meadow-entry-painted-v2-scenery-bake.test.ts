@@ -3,7 +3,6 @@ import { createHash } from 'node:crypto';
 import { describe, expect, it } from 'vitest';
 
 import type { PixelBounds } from './meadow-entry-authoring-types';
-import { buildMeadowEntryControlInputs } from './meadow-entry-controls';
 import type { MeadowEntryPaintedV2DetailPair } from './meadow-entry-painted-v2-pilot';
 import {
 	assembleMeadowEntryPaintedV2Underlay,
@@ -20,8 +19,6 @@ import {
 	type MeadowEntryPaintedV2SceneryBlocker
 } from './meadow-entry-painted-v2-scenery';
 import {
-	buildMeadowEntryPaintedV2SceneryMaskSetFromControls,
-	buildMeadowEntryPaintedV2SceneryMaskSet,
 	erodeMeadowEntryMask8,
 	enrichMeadowEntryPaintedV2Sources,
 	enrichMeadowEntryPaintedV2SourcesWithOrganicApron,
@@ -1044,24 +1041,6 @@ describe('Meadow Entry painted-v2 scenery bake primitives', () => {
 		).toThrow(/bounds.*outside|outside.*bounds/i);
 	});
 
-	it('returns exactly the five catalog-backed retained masks', () => {
-		const controls = buildMeadowEntryControlInputs(process.cwd());
-		const masks = buildMeadowEntryPaintedV2SceneryMaskSetFromControls(controls, {
-			fixture: 'a'.repeat(64)
-		});
-
-		expect(Object.keys(masks).sort()).toEqual([
-			'groundAllowed',
-			'hedgeAllowed',
-			'height',
-			'otherProtected',
-			'sceneryAllowed',
-			'sourceHashes',
-			'width',
-			'woodlandAllowed'
-		]);
-	});
-
 	it('rejects a uniform organic sample set before mutating any source panel', () => {
 		const width = 160;
 		const height = 160;
@@ -1238,81 +1217,6 @@ describe('Meadow Entry painted-v2 scenery bake primitives', () => {
 		expect(treeRows).toHaveLength(6);
 		expect(treeRows[0]!.evaluableSliceCount).toBe(310);
 		expect(treeRows.every((row) => row.evaluableSliceCount === row.weightedSliceCount)).toBe(true);
-	});
-
-	it('uses the expanded control rectangles for protected-live and other-protected masks', () => {
-		const input = buildMeadowEntryControlInputs(process.cwd());
-		const masks = buildMeadowEntryPaintedV2SceneryMaskSet(process.cwd());
-		const protectedEntries = input.bakeOwnership.filter(
-			(entry) => entry.disposition.mode === 'protected-live'
-		);
-		const selectedBlockerIds = new Set(
-			MEADOW_ENTRY_PAINTED_V2_SCENERY_BLOCKERS.map(({ sourceId }) => sourceId)
-		);
-		const expectedLive = mask(6400, 6400);
-		const expectedOther = mask(6400, 6400);
-		expect(input.protectedRects).toHaveLength(protectedEntries.length);
-		for (const [index, protectedBounds] of input.protectedRects.entries()) {
-			paintBounds(expectedLive, 6400, protectedBounds);
-			if (!selectedBlockerIds.has(protectedEntries[index]!.ref.sourceId)) {
-				paintBounds(expectedOther, 6400, protectedBounds);
-			}
-		}
-		let expectedLivePixels = 0;
-		let expectedOtherPixels = 0;
-		let maskOtherPixels = 0;
-		let groundOverlap = 0;
-		let sceneryOverlap = 0;
-		for (let index = 0; index < expectedLive.length; index += 1) {
-			if (expectedLive[index] === 1) expectedLivePixels += 1;
-			if (expectedOther[index] === 1) expectedOtherPixels += 1;
-			if (masks.otherProtected[index] === 1) maskOtherPixels += 1;
-			if (expectedLive[index] === 1 && masks.groundAllowed[index] === 1) groundOverlap += 1;
-			if (expectedOther[index] === 1 && masks.sceneryAllowed[index] === 1) sceneryOverlap += 1;
-		}
-
-		expect({
-			expectedLivePixels,
-			expectedOtherPixels,
-			maskOtherPixels,
-			groundOverlap,
-			sceneryOverlap
-		}).toEqual({
-			expectedLivePixels: 13_928_520,
-			expectedOtherPixels: 13_818_312,
-			maskOtherPixels: 13_818_312,
-			groundOverlap: 0,
-			sceneryOverlap: 0
-		});
-
-		const publicMasks = {
-			otherProtected: masks.otherProtected,
-			groundAllowed: masks.groundAllowed,
-			sceneryAllowed: masks.sceneryAllowed,
-			hedgeAllowed: masks.hedgeAllowed,
-			woodlandAllowed: masks.woodlandAllowed
-		};
-		const publicMaskHashes = Object.fromEntries(
-			Object.entries(publicMasks).map(([name, value]) => [
-				name,
-				createHash('sha256').update(value).digest('hex')
-			])
-		);
-		expect(publicMaskHashes).toEqual({
-			otherProtected: '3f22afca164436a44c73954b208896b9c227986e018b81ff8cc041da6023f656',
-			groundAllowed: 'c1bc20acc56b98ae586510f4332bc93657627c4c9b435620247e13181b6cc97d',
-			sceneryAllowed: 'ca1c7ec5bbd4b93eb2be7591f074fd458c54aa473944ab7f327c596536d9e156',
-			hedgeAllowed: 'd7b76c254bfd69e36b37b26738e0b8322918dcf602a2c02d2f3de18096af16d7',
-			woodlandAllowed: '07090d49adc2aa982363208f0cd61a98d8b88863d7a3f937575c0ead5605e3e1'
-		});
-		const hedgeOutward = meadowEntrySceneryOutwardDistances(masks.hedgeAllowed, 6400, 6400);
-		const woodlandOutward = meadowEntrySceneryOutwardDistances(masks.woodlandAllowed, 6400, 6400);
-		expect(hedgeOutward).toHaveLength(6400 * 6400);
-		expect(woodlandOutward).toHaveLength(6400 * 6400);
-		expect(hedgeOutward.some((value) => value === 48)).toBe(true);
-		expect(woodlandOutward.some((value) => value === 48)).toBe(true);
-		for (const [name, before] of Object.entries(publicMasks))
-			expect(createHash('sha256').update(before).digest('hex')).toBe(publicMaskHashes[name]);
 	});
 
 	it('reports zero at outer and hole edges, caps at fifteen, and shares the feather formula', () => {

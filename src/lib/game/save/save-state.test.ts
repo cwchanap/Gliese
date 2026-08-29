@@ -5,7 +5,8 @@ import {
 	itemShopMap,
 	maps,
 	meadowEntryMap,
-	villagerHouse1Map
+	villagerHouse1Map,
+	villagerHouse2Map
 } from '$lib/game/content/maps';
 import { COMPLETE_WORLD_MAP_IDS } from '$lib/game/content/maps/layouts/complete-world-layout-foundation';
 import { MEADOW_ENTRY_V2_RIVER_SEGMENTS } from '$lib/game/content/maps/layouts/meadow-entry-v2';
@@ -14,6 +15,7 @@ import { mainQuestId } from '$lib/game/content/quests';
 import { PLAYER_COLLISION_RADIUS } from '$lib/game/core/collision';
 import { getXpForLevel } from '$lib/game/core/progression';
 import { createInitialQuestState } from '$lib/game/core/quests';
+import { VILLAGE_INTERIOR_LAYOUTS } from '$lib/game/content/maps/layouts/village-interiors-v2';
 import {
 	buildMapNavigationObstacles,
 	resolveMapNavigationGrid
@@ -354,6 +356,50 @@ describe('save state', () => {
 		}
 	);
 
+	it('normalizes a loaded Villager House 2 Toma workbench position from the current layout', () => {
+		const layout = VILLAGE_INTERIOR_LAYOUTS['villager-house-2'];
+		const prop = villagerHouse2Map.interiorProps?.find(
+			({ id }) => id === 'villager-house-2-workbench'
+		);
+		const collision = prop?.collision;
+		expect(collision).toMatchObject({
+			width: layout.propCollisions.tomaWorkbench.width,
+			height: layout.propCollisions.tomaWorkbench.height,
+			x: layout.propCollisions.tomaWorkbench.x + layout.propCollisions.tomaWorkbench.width / 2,
+			y: layout.propCollisions.tomaWorkbench.y + layout.propCollisions.tomaWorkbench.height / 2
+		});
+		if (!collision) return;
+
+		const save = createNewSaveState();
+		save.mapId = villagerHouse2Map.id;
+		save.player = { ...save.player, x: collision.x, y: collision.y };
+
+		const parsed = parseSaveState(serializeSaveState(save));
+		expect(parsed).not.toBeNull();
+		if (!parsed) return;
+		const interiorCollisions = (villagerHouse2Map.interiorProps ?? []).flatMap((item) =>
+			item.collision ? [item.collision] : []
+		);
+		expect(
+			isInsideAnyCollisionRect(
+				parsed.player.x,
+				parsed.player.y,
+				interiorCollisions,
+				PLAYER_COLLISION_RADIUS
+			)
+		).toBe(false);
+		expect(
+			isNavigationPositionWalkable(
+				resolveMapNavigationGrid(villagerHouse2Map),
+				buildMapNavigationObstacles(villagerHouse2Map, { includeInteractableNpcs: false }),
+				parsed.player,
+				PLAYER_COLLISION_RADIUS,
+				'resting-position'
+			)
+		).toBe(true);
+		expect(parsed.player.x !== collision.x || parsed.player.y !== collision.y).toBe(true);
+	});
+
 	it('nudges a saved position inside a wall blocker to the nearest walkable tile', () => {
 		// The reauthored Crossroads gate is strict movement collision: its padded
 		// bounds trap the player, so a loaded position at the gate center must be
@@ -558,7 +604,8 @@ describe('save state', () => {
 
 	it.each([
 		['meadow-entry', meadowEntryMap, meadowEntryMap.spawn],
-		['villager-house-1', villagerHouse1Map, villagerHouse1Map.spawn]
+		['villager-house-1', villagerHouse1Map, villagerHouse1Map.spawn],
+		['villager-house-2', villagerHouse2Map, villagerHouse2Map.spawn]
 	] as const)('leaves a walkable %s saved position unchanged', (_mapId, map, point) => {
 		const walkableSave = {
 			...createNewSaveState(),

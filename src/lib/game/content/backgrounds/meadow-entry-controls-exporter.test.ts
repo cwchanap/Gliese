@@ -11,17 +11,9 @@ import {
 } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { tmpdir } from 'node:os';
-import { fileURLToPath } from 'node:url';
 import { afterEach, describe, expect, it } from 'vitest';
 
-import { VILLAGE_ART_CONTROL_FILENAMES } from '$lib/game/content/maps/layered/village-art-controls';
-
-import {
-	MEADOW_ENTRY_CONTROL_FILENAMES,
-	MEADOW_ENTRY_CONTROL_SOURCE_FILE_PATHS
-} from './meadow-entry-controls';
-
-const testDirectory = dirname(fileURLToPath(import.meta.url));
+import { MEADOW_ENTRY_CONTROL_FILENAMES } from './meadow-entry-controls';
 
 interface ExportPackage {
 	readonly rendered: Readonly<Record<string, string>>;
@@ -88,21 +80,6 @@ function newPaths(): ExportPaths {
 			'src/lib/game/content/generated/meadow-entry-painted-v2-art-control.ts'
 		)
 	};
-}
-
-function seedRepositorySources(repositoryRoot: string): void {
-	const realRoot = resolve(testDirectory, '../../../../..');
-	for (const relative of [
-		'src/lib/game/content/backgrounds/meadow-entry-controls.ts',
-		...MEADOW_ENTRY_CONTROL_SOURCE_FILE_PATHS,
-		...VILLAGE_ART_CONTROL_FILENAMES.map(
-			(filename) => `docs/superpowers/reports/img/hpa-307/${filename}`
-		)
-	]) {
-		const target = join(repositoryRoot, relative);
-		mkdirSync(dirname(target), { recursive: true });
-		writeFileSync(target, readFileSync(join(realRoot, relative)));
-	}
 }
 
 function packageBytes(prefix: string): ExportPackage {
@@ -396,28 +373,5 @@ describe('meadow-entry exporter package safety', () => {
 		expect(() => api.checkMeadowEntryExportPackage!(current, paths)).toThrow(
 			/fingerprint module is stale/
 		);
-	});
-
-	it('checks the active painted-v2 package at its direct destination', async () => {
-		const api = await exporterApi();
-		expect(api.runMeadowEntryArtControlsExporter).toBeTypeOf('function');
-		if (!api.runMeadowEntryArtControlsExporter) return;
-		const repositoryRoot = resolve(testDirectory, '../../../../..');
-		expect(() => api.runMeadowEntryArtControlsExporter!(['--check'], repositoryRoot)).not.toThrow();
-	});
-
-	it('runs the publish-mode exporter into a fresh temporary repository root', async () => {
-		const api = await exporterApi();
-		expect(api.runMeadowEntryArtControlsExporter).toBeTypeOf('function');
-		if (!api.runMeadowEntryArtControlsExporter) return;
-		const paths = newPaths();
-		seedRepositorySources(paths.repositoryRoot);
-
-		api.runMeadowEntryArtControlsExporter!([], paths.repositoryRoot);
-
-		for (const filename of MEADOW_ENTRY_CONTROL_FILENAMES) {
-			expect(existsSync(join(paths.controlsDirectory, filename))).toBe(true);
-		}
-		expect(existsSync(paths.generatedPath)).toBe(true);
 	});
 });

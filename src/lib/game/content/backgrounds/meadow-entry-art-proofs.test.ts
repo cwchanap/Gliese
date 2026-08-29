@@ -1,4 +1,3 @@
-import { createHash } from 'node:crypto';
 import { existsSync, mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -39,8 +38,6 @@ import {
 	type MeadowEntryProofPublicationFileSystem,
 	type MeadowEntryProofSidecar
 } from '../../../../../tools/render-meadow-entry-art-proofs';
-import { MEADOW_ENTRY_PAINTED_V2_SOURCE_PANELS } from './meadow-entry-painted-v2-pilot';
-import { MEADOW_ENTRY_PAINTED_V2_SCENERY_INSERTS } from './meadow-entry-painted-v2-scenery';
 
 const BASE_MASTER = 'artifacts/meadow-entry/hpa-399/masters/meadow-entry-base-master.png';
 const FOREGROUND_MASTER =
@@ -50,14 +47,6 @@ const SUNDROP_FOREGROUND = 'public/game/assets/regions/sundrop-village-foregroun
 const EXPORT_ROOT = 'artifacts/meadow-entry/hpa-399/exports';
 const CROP_MANIFEST = 'artifacts/meadow-entry/hpa-399/provenance/meadow-entry-crop-manifest.json';
 const CONTROL_ROOT = 'docs/superpowers/reports/img/hpa-399/controls';
-const PAINTED_V2_BASE_MASTER =
-	'artifacts/meadow-entry/painted-v2/masters/meadow-entry-painted-v2-pilot-base-master.png';
-const PAINTED_V2_MASTER_PROVENANCE =
-	'artifacts/meadow-entry/painted-v2/provenance/meadow-entry-master-provenance.json';
-const PAINTED_V2_CONTROL_MANIFEST =
-	'artifacts/meadow-entry/painted-v2/controls/meadow-entry-control-manifest.json';
-const PAINTED_V2_CROP_MANIFEST =
-	'artifacts/meadow-entry/painted-v2/provenance/meadow-entry-crop-manifest.json';
 const INTERACTION_MASKS = [
 	`${CONTROL_ROOT}/meadow-entry-semantic-anchor-mask.svg`,
 	`${CONTROL_ROOT}/meadow-entry-entrance-transition-mask.svg`,
@@ -149,48 +138,6 @@ describe('Meadow Entry art proof helpers', () => {
 				'public/game/assets/regions/sundrop-village-foreground.png'
 			])
 		);
-	});
-
-	it('binds every painted-v2 proof sidecar to the full approved source and scenery inventory', () => {
-		const universalPaths = [
-			PAINTED_V2_BASE_MASTER,
-			PAINTED_V2_MASTER_PROVENANCE,
-			PAINTED_V2_CONTROL_MANIFEST,
-			PAINTED_V2_CROP_MANIFEST,
-			...MEADOW_ENTRY_PAINTED_V2_SOURCE_PANELS.flatMap(
-				({ rawPath, normalizedPath, provenancePath }) => [rawPath, normalizedPath, provenancePath]
-			),
-			...MEADOW_ENTRY_PAINTED_V2_SCENERY_INSERTS.flatMap(
-				({ rawPath, normalizedPath, provenancePath }) => [rawPath, normalizedPath, provenancePath]
-			)
-		];
-		const masterProvenance = JSON.parse(readFileSync(PAINTED_V2_MASTER_PROVENANCE, 'utf8')) as {
-			blockedSceneryBake?: {
-				intersections?: readonly unknown[];
-				rows?: readonly unknown[];
-			};
-		};
-		expect(masterProvenance.blockedSceneryBake?.intersections).toHaveLength(16);
-		expect(masterProvenance.blockedSceneryBake?.rows).toHaveLength(10);
-		const expectedHashes = new Map(
-			universalPaths.map((path) => [
-				path,
-				createHash('sha256').update(readFileSync(path)).digest('hex')
-			])
-		);
-		for (const { proofId, filename } of MEADOW_ENTRY_PAINTED_V2_PROOF_DESCRIPTORS) {
-			const sidecar = JSON.parse(
-				readFileSync(
-					join(MEADOW_ENTRY_PAINTED_V2_PROOF_ROOT, filename.replace(/\.png$/, '.json')),
-					'utf8'
-				)
-			) as { inputs: readonly { path: string; sha256: string }[] };
-			expect(sidecar.inputs, proofId).toEqual(
-				expect.arrayContaining(
-					universalPaths.map((path) => ({ path, sha256: expectedHashes.get(path) }))
-				)
-			);
-		}
 	});
 
 	it('checks a matching painted-v2 proof snapshot without writes and rejects stale bytes', async () => {

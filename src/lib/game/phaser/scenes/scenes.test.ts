@@ -102,6 +102,27 @@ const villagerHouse1StatefulObjectIds = [
 	...(villagerHouse1Map.discoveries ?? []).map(({ id }) => id),
 	...(villagerHouse1Map.combatBounds ?? []).map(({ id }) => id)
 ].sort();
+const villagerHouse2CollisionIds = [
+	...(villagerHouse2Map.blockers ?? []).map(({ id }) => id),
+	...(villagerHouse2Map.fences ?? []).map(({ id }) => id),
+	...(villagerHouse2Map.mapDecor ?? []).flatMap(({ collision }) =>
+		collision ? [collision.id] : []
+	),
+	...(villagerHouse2Map.interiorProps ?? []).flatMap(({ collision }) =>
+		collision ? [collision.id] : []
+	),
+	...(villagerHouse2Map.landmarks ?? []).map(({ id }) => id)
+].sort();
+const villagerHouse2StatefulObjectIds = [
+	...villagerHouse2Map.transitions.map(({ id }) => id),
+	...(villagerHouse2Map.pickups ?? []).map(({ id }) => id),
+	...(villagerHouse2Map.encounters ?? []).map(({ id }) => id),
+	...(villagerHouse2Map.npcs ?? []).map(({ id }) => id),
+	...(villagerHouse2Map.landmarks ?? []).map(({ id }) => id),
+	...(villagerHouse2Map.ambientNpcs ?? []).map(({ id }) => id),
+	...(villagerHouse2Map.discoveries ?? []).map(({ id }) => id),
+	...(villagerHouse2Map.combatBounds ?? []).map(({ id }) => id)
+].sort();
 
 const expectedOrganicBlockerOwners = [
 	'coast-crossroads-mouth-bank',
@@ -4037,6 +4058,218 @@ describe('WorldScene', () => {
 					plane: 'base',
 					status: 'missing-texture',
 					expectedDimensions: { width: 1280, height: 832 },
+					observedDimensions: null
+				})
+			]);
+		} finally {
+			target.restore();
+		}
+	});
+
+	it('renders the painted Villager House 2 base while keeping live actors and collisions', async () => {
+		const { VILLAGE_INTERIOR_PACKAGES } =
+			await import('$lib/game/content/backgrounds/village-interior-packages');
+		const villagerHouse2Package = VILLAGE_INTERIOR_PACKAGES.find(
+			({ id }) => id === 'villager-house-2-painted'
+		);
+		if (!villagerHouse2Package)
+			throw new Error('Villager House 2 painted package is not registered');
+		const base = villagerHouse2Package.backgrounds.find(({ plane }) => plane === 'base');
+		if (!base) throw new Error('Villager House 2 painted base is not registered');
+		phaserState.regionalBackgroundTextureMocks.set(base.textureKey, {
+			key: base.textureKey,
+			source: [{ width: base.width, height: base.height }],
+			get: vi.fn(() => ({ cutWidth: base.width, cutHeight: base.height }))
+		});
+		const target = installPlaneDiagnosticListener();
+		const { WorldScene } = await import('./WorldScene');
+		const scene = new WorldScene();
+		const toma = villagerHouse2Map.npcs?.find(({ id }) => id === 'villager-toma');
+		const neighbor = villagerHouse2Map.ambientNpcs?.find(
+			({ id }) => id === 'villager-house-2-neighbor'
+		);
+
+		try {
+			scene.create({ mapId: villagerHouse2Map.id });
+
+			expect(villagerHouse2Package.backgrounds.map(({ plane }) => plane)).toEqual(['base']);
+			expect(scene.make.tilemap).not.toHaveBeenCalled();
+			expect(phaserState.tileSpriteMarkers).toHaveLength(0);
+			expect(
+				phaserState.imageMarkers.filter(
+					({ texture }) => texture === 'interior-props' || texture === 'environment-dressing'
+				)
+			).toHaveLength(0);
+			expect(phaserState.playerMarker).toMatchObject({
+				x: villagerHouse2Map.spawn.x,
+				y: villagerHouse2Map.spawn.y,
+				frame: 'heroIdle0'
+			});
+			expect(phaserState.playerMarker.setDisplaySize).toHaveBeenCalledWith(88, 90);
+			expect(toma).toBeDefined();
+			expect(neighbor).toBeDefined();
+			if (!toma || !neighbor) return;
+			const liveMarkers = phaserState.imageMarkers.filter(
+				({ texture, frame }) =>
+					texture === 'npc-pack' && (frame === toma.frameName || frame === neighbor.frameName)
+			);
+			expect(liveMarkers).toEqual(
+				expect.arrayContaining([
+					expect.objectContaining({
+						x: toma.x,
+						y: toma.y,
+						texture: 'npc-pack',
+						frame: toma.frameName
+					}),
+					expect.objectContaining({
+						x: neighbor.x,
+						y: neighbor.y,
+						texture: 'npc-pack',
+						frame: neighbor.frameName
+					})
+				])
+			);
+			const transition = villagerHouse2Map.transitions[0];
+			expect(phaserState.imageMarkers).toEqual(
+				expect.arrayContaining([
+					expect.objectContaining({
+						x: transition?.x,
+						y: transition?.y,
+						texture: 'starter-pack',
+						frame: 'doorwayTile'
+					})
+				])
+			);
+
+			const backgroundMarker = phaserState.imageMarkers.find(
+				({ texture }) => texture === base.textureKey
+			);
+			expect(backgroundMarker).toBeDefined();
+			expect(backgroundMarker?.setOrigin).toHaveBeenCalledWith(0.5, 0.5);
+			expect(backgroundMarker?.setDisplaySize).toHaveBeenCalledWith(1280, 768);
+			expect(backgroundMarker?.setDepth).toHaveBeenCalledWith(-9);
+			expect(phaserState.imageMarkers.indexOf(backgroundMarker!)).toBeLessThan(
+				phaserState.imageMarkers.indexOf(liveMarkers[0]!)
+			);
+			expect(target.diagnostics[0]).toMatchObject({
+				mapId: 'villager-house-2',
+				packageId: 'villager-house-2-painted',
+				presentationMode: 'painted',
+				requiredBackgroundIds: ['villager-house-2-painted-base-image'],
+				selectedBackgroundIds: ['villager-house-2-painted-base-image'],
+				successfulBackgroundIds: ['villager-house-2-painted-base-image'],
+				selectedFallbackBlockerIds: [],
+				selectedFallbackDecorIds: [],
+				selectedFallbackFenceIds: [],
+				collisionIds: villagerHouse2CollisionIds,
+				statefulObjectIds: villagerHouse2StatefulObjectIds
+			});
+			expect(target.diagnostics[0]?.entries).toEqual([
+				expect.objectContaining({
+					id: 'villager-house-2-painted-base-image',
+					textureKey: base.textureKey,
+					plane: 'base',
+					status: 'rendered',
+					expectedDimensions: { width: 1280, height: 768 },
+					observedDimensions: { width: 1280, height: 768 },
+					renderTransform: {
+						x: 640,
+						y: 384
+					}
+				})
+			]);
+		} finally {
+			target.restore();
+		}
+	});
+
+	it('restores every Villager House 2 legacy visual when its painted base is missing', async () => {
+		const { VILLAGE_INTERIOR_PACKAGES } =
+			await import('$lib/game/content/backgrounds/village-interior-packages');
+		const villagerHouse2Package = VILLAGE_INTERIOR_PACKAGES.find(
+			({ id }) => id === 'villager-house-2-painted'
+		);
+		if (!villagerHouse2Package)
+			throw new Error('Villager House 2 painted package is not registered');
+		const base = villagerHouse2Package.backgrounds.find(({ plane }) => plane === 'base');
+		if (!base) throw new Error('Villager House 2 painted base is not registered');
+		phaserState.regionalBackgroundTextureMocks.set(base.textureKey, {
+			key: base.textureKey,
+			source: [{ width: base.width, height: base.height }],
+			get: vi.fn(() => ({ cutWidth: base.width, cutHeight: base.height }))
+		});
+		phaserState.missingTextureKeys.add(base.textureKey);
+		const target = installPlaneDiagnosticListener();
+		const { WorldScene } = await import('./WorldScene');
+		const scene = new WorldScene();
+		const toma = villagerHouse2Map.npcs?.find(({ id }) => id === 'villager-toma');
+		const neighbor = villagerHouse2Map.ambientNpcs?.find(
+			({ id }) => id === 'villager-house-2-neighbor'
+		);
+
+		try {
+			scene.create({ mapId: villagerHouse2Map.id });
+
+			expect(scene.make.tilemap).toHaveBeenCalledOnce();
+			expect(
+				phaserState.imageMarkers.some(
+					({ texture, destroy }) => texture === base.textureKey && destroy.mock.calls.length === 0
+				)
+			).toBe(false);
+			expect(phaserState.tileSpriteMarkers).toHaveLength(villagerHouse2Map.blockers?.length ?? 0);
+			expect(
+				phaserState.imageMarkers.filter(({ texture }) => texture === 'interior-props')
+			).toHaveLength(villagerHouse2Map.interiorProps?.length ?? 0);
+			expect(phaserState.playerMarker).toMatchObject({
+				x: villagerHouse2Map.spawn.x,
+				y: villagerHouse2Map.spawn.y,
+				frame: 'heroIdle0'
+			});
+			expect(toma).toBeDefined();
+			expect(neighbor).toBeDefined();
+			if (!toma || !neighbor) return;
+			expect(phaserState.imageMarkers).toEqual(
+				expect.arrayContaining([
+					expect.objectContaining({
+						x: toma.x,
+						y: toma.y,
+						texture: 'npc-pack',
+						frame: toma.frameName
+					}),
+					expect.objectContaining({
+						x: neighbor.x,
+						y: neighbor.y,
+						texture: 'npc-pack',
+						frame: neighbor.frameName
+					}),
+					expect.objectContaining({
+						x: villagerHouse2Map.transitions[0]?.x,
+						y: villagerHouse2Map.transitions[0]?.y,
+						texture: 'starter-pack',
+						frame: 'doorwayTile'
+					})
+				])
+			);
+			expect(target.diagnostics[0]).toMatchObject({
+				mapId: 'villager-house-2',
+				packageId: null,
+				presentationMode: 'fallback',
+				requiredBackgroundIds: ['villager-house-2-painted-base-image'],
+				selectedBackgroundIds: [],
+				successfulBackgroundIds: [],
+				selectedFallbackBlockerIds: villagerHouse2Map.blockers?.map(({ id }) => id),
+				selectedFallbackDecorIds: [],
+				selectedFallbackFenceIds: [],
+				collisionIds: villagerHouse2CollisionIds,
+				statefulObjectIds: villagerHouse2StatefulObjectIds
+			});
+			expect(target.diagnostics[0]?.entries).toEqual([
+				expect.objectContaining({
+					id: 'villager-house-2-painted-base-image',
+					textureKey: base.textureKey,
+					plane: 'base',
+					status: 'missing-texture',
+					expectedDimensions: { width: 1280, height: 768 },
 					observedDimensions: null
 				})
 			]);

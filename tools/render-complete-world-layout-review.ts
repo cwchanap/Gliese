@@ -1168,7 +1168,12 @@ async function renderLiveCharacterComposition(
 		`${mapId} painted base dimensions are unavailable`
 	);
 	const npcComposites: { input: Buffer; left: number; top: number }[] = [];
-	if (mapId === 'guild-hall' || mapId === 'item-shop' || mapId === 'villager-house-1') {
+	if (
+		mapId === 'guild-hall' ||
+		mapId === 'item-shop' ||
+		mapId === 'villager-house-1' ||
+		mapId === 'villager-house-2'
+	) {
 		const npcPackPath = interiorImagePath(npcPackAsset.path, repositoryRoot);
 		let npcAtlas: Buffer;
 		try {

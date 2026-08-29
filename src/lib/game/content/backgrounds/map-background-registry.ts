@@ -35,5 +35,9 @@ export const MAP_BACKGROUND_DEFAULT_SELECTIONS: Readonly<
 	'villager-house-1': Object.freeze({
 		packageId: 'villager-house-1-painted',
 		mode: 'production' as const
+	}),
+	'villager-house-2': Object.freeze({
+		packageId: 'villager-house-2-painted',
+		mode: 'production' as const
 	})
 });

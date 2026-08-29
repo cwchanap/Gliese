@@ -12,7 +12,13 @@ import {
 import { applyMapBackgroundPackage } from './map-background-package';
 import { VILLAGE_INTERIOR_NAVIGATION_SOURCES } from './village-interior-navigation-sources';
 import { VILLAGE_INTERIOR_PACKAGES } from './village-interior-packages';
-import { guildHallMap, heroHouseMap, itemShopMap, villagerHouse1Map } from '$lib/game/content/maps';
+import {
+	guildHallMap,
+	heroHouseMap,
+	itemShopMap,
+	villagerHouse1Map,
+	villagerHouse2Map
+} from '$lib/game/content/maps';
 
 describe('map background registry', () => {
 	it('registers approved interior navigation and painted packages', () => {
@@ -58,7 +64,7 @@ describe('map background registry', () => {
 				clearancePx: 12
 			})
 		]);
-		expect(VILLAGE_INTERIOR_PACKAGES).toHaveLength(4);
+		expect(VILLAGE_INTERIOR_PACKAGES).toHaveLength(5);
 		expect(VILLAGE_INTERIOR_PACKAGES[0]).toEqual(
 			expect.objectContaining({
 				id: 'hero-house-painted',
@@ -159,6 +165,28 @@ describe('map background registry', () => {
 				]
 			})
 		);
+		expect(VILLAGE_INTERIOR_PACKAGES[4]).toEqual(
+			expect.objectContaining({
+				id: 'villager-house-2-painted',
+				mapId: 'villager-house-2',
+				coverage: 'full-map',
+				assets: [
+					{
+						key: 'villager-house-2-painted-base',
+						path: '/game/assets/interiors/villager-house-2/base.png'
+					}
+				],
+				backgrounds: [
+					expect.objectContaining({
+						id: 'villager-house-2-painted-base-image',
+						textureKey: 'villager-house-2-painted-base',
+						width: 1280,
+						height: 768,
+						plane: 'base'
+					})
+				]
+			})
+		);
 		expect(MAP_BACKGROUND_DEFAULT_SELECTIONS['hero-house']).toEqual({
 			packageId: 'hero-house-painted',
 			mode: 'production'
@@ -173,6 +201,10 @@ describe('map background registry', () => {
 		});
 		expect(MAP_BACKGROUND_DEFAULT_SELECTIONS['villager-house-1']).toEqual({
 			packageId: 'villager-house-1-painted',
+			mode: 'production'
+		});
+		expect(MAP_BACKGROUND_DEFAULT_SELECTIONS['villager-house-2']).toEqual({
+			packageId: 'villager-house-2-painted',
 			mode: 'production'
 		});
 		expect(Object.isFrozen(VILLAGE_INTERIOR_NAVIGATION_SOURCES)).toBe(true);
@@ -201,6 +233,10 @@ describe('map background registry', () => {
 			},
 			'villager-house-1': {
 				packageId: 'villager-house-1-painted',
+				mode: 'production'
+			},
+			'villager-house-2': {
+				packageId: 'villager-house-2-painted',
 				mode: 'production'
 			}
 		});
@@ -343,6 +379,41 @@ describe('map background registry', () => {
 			(villagerHouse1Map.groundPatches?.length ?? 0) +
 				(villagerHouse1Map.blockers?.length ?? 0) +
 				(villagerHouse1Map.interiorProps?.length ?? 0)
+		);
+	});
+
+	it('owns every Villager House 2 legacy static source as one painted package', () => {
+		const definition = VILLAGE_INTERIOR_PACKAGES.find(
+			({ id }) => id === 'villager-house-2-painted'
+		);
+		expect(definition).toBeDefined();
+		if (!definition) return;
+
+		const transformed = applyMapBackgroundPackage(villagerHouse2Map, {
+			mode: 'production',
+			definition
+		});
+		expect(transformed.backgroundImages).toEqual(definition.backgrounds);
+
+		for (const source of [
+			...(transformed.groundPatches ?? []),
+			...(transformed.blockers ?? []),
+			...(transformed.interiorProps ?? [])
+		]) {
+			expect(source.visual).toEqual({
+				mode: 'fallback-only',
+				ownerCrops: [
+					{
+						cropId: 'villager-house-2-full-map',
+						requiredBackgroundIds: ['villager-house-2-painted-base-image']
+					}
+				]
+			});
+		}
+		expect(definition.visualOwners).toHaveLength(
+			(villagerHouse2Map.groundPatches?.length ?? 0) +
+				(villagerHouse2Map.blockers?.length ?? 0) +
+				(villagerHouse2Map.interiorProps?.length ?? 0)
 		);
 	});
 });

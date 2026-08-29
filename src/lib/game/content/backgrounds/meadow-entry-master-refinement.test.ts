@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import { meadowEntryControlsApproval } from '$lib/game/content/approvals/meadow-entry-controls';
 
@@ -18,8 +18,25 @@ import {
 	parseRefineMeadowEntryMasterArguments,
 	runRefineMeadowEntryMaster
 } from '../../../../../tools/refine-meadow-entry-master';
+import {
+	createMeadowEntryControlRepositoryFixture,
+	removeMeadowEntryControlRepositoryFixture
+} from './meadow-entry-controls-test-fixture';
 
 const fingerprint = 'a'.repeat(64);
+let testRepositoryRoot = '';
+
+beforeAll(() => {
+	testRepositoryRoot = createMeadowEntryControlRepositoryFixture();
+});
+
+afterAll(() => {
+	removeMeadowEntryControlRepositoryFixture(testRepositoryRoot);
+});
+
+function buildTestControlInputs() {
+	return buildMeadowEntryControlInputs(testRepositoryRoot);
+}
 
 function identityTransform(width: number, height: number): MeadowEntryNormalizationTransform {
 	return {
@@ -351,24 +368,27 @@ describe('Meadow Entry refinement CLI', () => {
 
 	it('rejects outer-boundary before reading inputs or writing a candidate', async () => {
 		await expect(
-			runRefineMeadowEntryMaster([
-				'--plane',
-				'foreground',
-				'--current-master',
-				'/nonexistent/current.png',
-				'--replacement',
-				'/nonexistent/replacement.png',
-				'--edit-mask',
-				'/nonexistent/edit.png',
-				'--protected-mask',
-				'/nonexistent/protected.png',
-				'--non-target-mask',
-				'/nonexistent/non-target.png',
-				'--transform',
-				'/nonexistent/transform.json',
-				'--source-region',
-				'outer-boundary'
-			])
+			runRefineMeadowEntryMaster(
+				[
+					'--plane',
+					'foreground',
+					'--current-master',
+					'/nonexistent/current.png',
+					'--replacement',
+					'/nonexistent/replacement.png',
+					'--edit-mask',
+					'/nonexistent/edit.png',
+					'--protected-mask',
+					'/nonexistent/protected.png',
+					'--non-target-mask',
+					'/nonexistent/non-target.png',
+					'--transform',
+					'/nonexistent/transform.json',
+					'--source-region',
+					'outer-boundary'
+				],
+				testRepositoryRoot
+			)
 		).rejects.toThrow(/production refinement target/i);
 	});
 
@@ -665,7 +685,7 @@ describe('Meadow Entry refinement CLI', () => {
 
 describe('Meadow Entry refinement control boundary', () => {
 	it('does not treat the retired V1 approval fingerprint as current after refinement logic loads', () => {
-		expect(computeMeadowEntryCombinedControlFingerprint(buildMeadowEntryControlInputs())).not.toBe(
+		expect(computeMeadowEntryCombinedControlFingerprint(buildTestControlInputs())).not.toBe(
 			meadowEntryControlsApproval.combinedControlFingerprint
 		);
 	});
@@ -673,21 +693,21 @@ describe('Meadow Entry refinement control boundary', () => {
 
 describe('Meadow Entry refinement non-target raster mask', () => {
 	it('rejects an unknown source region id', () => {
-		const controls = buildMeadowEntryControlInputs();
+		const controls = buildTestControlInputs();
 		expect(() => buildMeadowEntryRefinementNonTargetRasterMask(controls, ['nonexistent'])).toThrow(
 			/Unknown Meadow Entry source region/i
 		);
 	});
 
 	it('rejects a known source region that is not an approved production target', () => {
-		const controls = buildMeadowEntryControlInputs();
+		const controls = buildTestControlInputs();
 		expect(() =>
 			buildMeadowEntryRefinementNonTargetRasterMask(controls, ['outer-boundary'])
 		).toThrow(/not an approved production refinement target/i);
 	});
 
 	it('produces a raster mask that carves out the requested region and leaves the rest opaque', () => {
-		const controls = buildMeadowEntryControlInputs();
+		const controls = buildTestControlInputs();
 		const regionId = controls.authoringRegions.find((region) =>
 			controls.bakeOwnership.some(
 				(entry) =>
@@ -710,7 +730,7 @@ describe('Meadow Entry refinement non-target raster mask', () => {
 	});
 
 	it('produces a fully opaque mask when no regions are requested', () => {
-		const controls = buildMeadowEntryControlInputs();
+		const controls = buildTestControlInputs();
 		const mask = buildMeadowEntryRefinementNonTargetRasterMask(controls, []);
 		expect([...mask.alpha].every((v) => v === 255)).toBe(true);
 	});

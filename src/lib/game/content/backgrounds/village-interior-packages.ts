@@ -1,10 +1,17 @@
-import { guildHallMap, heroHouseMap, itemShopMap, villagerHouse1Map } from '$lib/game/content/maps';
+import {
+	guildHallMap,
+	heroHouseMap,
+	itemShopMap,
+	villagerHouse1Map,
+	villagerHouse2Map
+} from '$lib/game/content/maps';
 import { VILLAGE_INTERIOR_LAYOUTS } from '$lib/game/content/maps/layouts/village-interiors-v2';
 import type { WorldMapDefinition } from '$lib/game/content/maps/types';
 import guildHallManifestJson from './manifests/guild-hall.json';
 import heroHouseManifestJson from './manifests/hero-house.json';
 import itemShopManifestJson from './manifests/item-shop.json';
 import villagerHouse1ManifestJson from './manifests/villager-house-1.json';
+import villagerHouse2ManifestJson from './manifests/villager-house-2.json';
 import {
 	buildVillageInteriorPackage,
 	type VillageInteriorPackageManifest
@@ -19,6 +26,7 @@ const heroHouseManifest = heroHouseManifestJson as VillageInteriorPackageManifes
 const guildHallManifest = guildHallManifestJson as VillageInteriorPackageManifest;
 const itemShopManifest = itemShopManifestJson as VillageInteriorPackageManifest;
 const villagerHouse1Manifest = villagerHouse1ManifestJson as VillageInteriorPackageManifest;
+const villagerHouse2Manifest = villagerHouse2ManifestJson as VillageInteriorPackageManifest;
 const heroHouseNavigationSource = VILLAGE_INTERIOR_NAVIGATION_SOURCES.find(
 	(source) => source.mapId === 'hero-house'
 );
@@ -30,6 +38,9 @@ const itemShopNavigationSource = VILLAGE_INTERIOR_NAVIGATION_SOURCES.find(
 );
 const villagerHouse1NavigationSource = VILLAGE_INTERIOR_NAVIGATION_SOURCES.find(
 	(source) => source.mapId === 'villager-house-1'
+);
+const villagerHouse2NavigationSource = VILLAGE_INTERIOR_NAVIGATION_SOURCES.find(
+	(source) => source.mapId === 'villager-house-2'
 );
 
 if (!heroHouseNavigationSource) {
@@ -43,6 +54,9 @@ if (!itemShopNavigationSource) {
 }
 if (!villagerHouse1NavigationSource) {
 	throw new Error('Villager House 1 navigation source is not registered');
+}
+if (!villagerHouse2NavigationSource) {
+	throw new Error('Villager House 2 navigation source is not registered');
 }
 
 function interiorVisualOwners(
@@ -114,9 +128,22 @@ const villagerHouse1Package = buildVillageInteriorPackage({
 	navigationSource: villagerHouse1NavigationSource
 });
 
+const villagerHouse2Package = buildVillageInteriorPackage({
+	mapId: 'villager-house-2',
+	layout: VILLAGE_INTERIOR_LAYOUTS['villager-house-2'],
+	manifest: villagerHouse2Manifest,
+	visualOwners: interiorVisualOwners(
+		villagerHouse2Map,
+		'villager-house-2-full-map',
+		villagerHouse2Manifest.base.id
+	),
+	navigationSource: villagerHouse2NavigationSource
+});
+
 export const VILLAGE_INTERIOR_PACKAGES: readonly MapBackgroundPackageDefinition[] = Object.freeze([
 	heroHousePackage.definition,
 	guildHallPackage.definition,
 	itemShopPackage.definition,
-	villagerHouse1Package.definition
+	villagerHouse1Package.definition,
+	villagerHouse2Package.definition
 ]);

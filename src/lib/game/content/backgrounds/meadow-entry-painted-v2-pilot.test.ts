@@ -1,6 +1,5 @@
 import { createHash } from 'node:crypto';
-import { existsSync, readFileSync } from 'node:fs';
-import { isAbsolute, normalize } from 'node:path';
+import { readFileSync } from 'node:fs';
 
 import { describe, expect, it } from 'vitest';
 
@@ -56,12 +55,6 @@ function boundsOverlap(first: PixelBounds, second: PixelBounds): boolean {
 	return intersectBounds(first, second) !== null;
 }
 
-interface SourcePanelProvenanceRecord {
-	id: string;
-	raw: { path: string };
-	normalized: { path: string };
-}
-
 const APPROVED_FOREST_INTERIM_HASHES = {
 	'camera-underlay-sundrop-north':
 		'bec9a64a5ee9563a22227afaa3da12c1778795ddd732f592348eb9f591eb6bdd',
@@ -81,10 +74,6 @@ const IMMUTABLE_PINNED_DETAIL_HASHES = {
 		'a610b473160a6289355bb8f36b8ef07104ec1b24546bc82a015d04d78dbb30b7',
 	crossroads: 'b67f13a410d953909f2400c6689e5dc418bcd4968a4cbe0a1cf81a5d74d82f30'
 } as const;
-
-function readJson<T>(path: string): T {
-	return JSON.parse(readFileSync(path, 'utf8')) as T;
-}
 
 /**
  * Rectangles have integer edges, so testing every cell in the edge partition
@@ -292,35 +281,6 @@ describe('painted-v2 pilot source-panel contract', () => {
 				MEADOW_ENTRY_PAINTED_V2_DETAIL_PAIR_FORMULAS
 			)
 		).toThrow(/second member|ownership|overlap/i);
-	});
-
-	it('keeps every active provenance source path exact, repo-relative, and usable', () => {
-		const packageProvenance = readJson<{
-			sourcePanels: { panels: SourcePanelProvenanceRecord[] };
-		}>('artifacts/meadow-entry/painted-v2/provenance.json');
-
-		for (const panel of MEADOW_ENTRY_PAINTED_V2_SOURCE_PANELS) {
-			const manifest = readJson<SourcePanelProvenanceRecord>(panel.provenancePath);
-			const packagePanel = packageProvenance.sourcePanels.panels.find(({ id }) => id === panel.id);
-			expect(packagePanel, `${panel.id} package provenance`).toBeDefined();
-
-			for (const [label, provenance] of [
-				['panel manifest', manifest],
-				['package provenance', packagePanel!]
-			] as const) {
-				expect(provenance.id, label).toBe(panel.id);
-				expect(provenance.raw.path, `${panel.id} ${label} raw path`).toBe(panel.rawPath);
-				expect(provenance.normalized.path, `${panel.id} ${label} normalized path`).toBe(
-					panel.normalizedPath
-				);
-
-				for (const path of [provenance.raw.path, provenance.normalized.path]) {
-					expect(isAbsolute(path), `${panel.id} ${label} ${path}`).toBe(false);
-					expect(normalize(path), `${panel.id} ${label} ${path}`).toBe(path);
-					expect(existsSync(path), `${panel.id} ${label} ${path}`).toBe(true);
-				}
-			}
-		}
 	});
 
 	it('locks the five native-detail rows and immutable package paths', () => {

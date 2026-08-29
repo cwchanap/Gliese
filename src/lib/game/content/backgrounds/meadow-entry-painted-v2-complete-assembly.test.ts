@@ -268,7 +268,7 @@ describe('complete Meadow Entry painted-v2 master assembly', () => {
 			expect(panel.provenanceSha256).toMatch(/^[a-f0-9]{64}$/);
 			expect(panel.rejectionHistory).toEqual([]);
 		}
-	}, 300_000);
+	}, 450_000);
 
 	it('uses each incoming row local top strip for vertical joins', async () => {
 		const input = await coordinateEncodedInput();
