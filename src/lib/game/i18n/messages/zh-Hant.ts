@@ -235,6 +235,11 @@ export const zhHant = {
 				name: '公會補給官',
 				merchantName: '補給官維爾',
 				description: '供新進廢墟委託使用的公會認證裝備。'
+			},
+			'sundrop-forge': {
+				name: '晴滴鍛造坊',
+				merchantName: '鐵匠歐倫',
+				description: '為踏出晴滴村的旅人鍛造的實用裝備。'
 			}
 		},
 		quests: {
@@ -360,6 +365,7 @@ export const zhHant = {
 			npcs: {
 				'guild-master': { name: '公會會長阿倫' },
 				'guild-quartermaster': { name: '補給官維爾' },
+				'blacksmith-oren': { name: '鐵匠歐倫' },
 				'shopkeeper-mira': { name: '米拉' },
 				'villager-lynn': { name: '琳恩' },
 				'villager-toma': { name: '托馬' },

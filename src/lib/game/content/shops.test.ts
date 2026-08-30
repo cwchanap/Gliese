@@ -15,7 +15,7 @@ describe('shop content', () => {
 	it('defines the starter item and equipment shops', () => {
 		expect(getShop('miras-item-shop')).toBe(shops['miras-item-shop']);
 		expect(getShop('guild-quartermaster')).toBe(shops['guild-quartermaster']);
-		expect(shopList).toHaveLength(2);
+		expect(shopList).toHaveLength(3);
 		expect(shops['miras-item-shop']).toMatchObject({
 			nameKey: 'content.shops.miras-item-shop.name',
 			merchantNameKey: 'content.shops.miras-item-shop.merchantName',
@@ -67,6 +67,23 @@ describe('shop content', () => {
 		}
 
 		expect(shops['guild-quartermaster'].stock).toEqual([
+			{ id: 'iron-cap', itemId: 'iron-cap', availability: { mode: 'finite', quantity: 1 } },
+			{ id: 'grip-wraps', itemId: 'grip-wraps', availability: { mode: 'finite', quantity: 1 } },
+			{
+				id: 'traveler-vest',
+				itemId: 'traveler-vest',
+				availability: { mode: 'finite', quantity: 1 }
+			}
+		]);
+	});
+
+	it('defines one finite copy of each equipment item at Sundrop Forge', () => {
+		expect(shops['sundrop-forge']?.stock).toEqual([
+			{
+				id: 'training-sword',
+				itemId: 'training-sword',
+				availability: { mode: 'finite', quantity: 1 }
+			},
 			{ id: 'iron-cap', itemId: 'iron-cap', availability: { mode: 'finite', quantity: 1 } },
 			{ id: 'grip-wraps', itemId: 'grip-wraps', availability: { mode: 'finite', quantity: 1 } },
 			{

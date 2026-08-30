@@ -123,6 +123,17 @@ const npcFixtures: Record<string, StoryFixtureBranch[]> = {
 			completionIntent: null
 		}
 	],
+	'blacksmith-oren': [
+		{
+			condition: 'always',
+			speaker: 'Blacksmith Oren',
+			lines: ['Steel holds when the hand behind it does. Take what fits, and keep it dry.'],
+			actions: [
+				{ id: 'shop', label: 'Shop', intent: { type: 'openShop', shopId: 'sundrop-forge' } }
+			],
+			completionIntent: null
+		}
+	],
 	'shopkeeper-mira': [
 		{
 			condition: 'guildBriefingComplete',

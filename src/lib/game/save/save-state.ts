@@ -42,7 +42,7 @@ import type { Direction } from '$lib/game/core/types';
 import { getQuest, isQuestId, mainQuestId, type QuestDefinition } from '$lib/game/content/quests';
 
 export type SaveState = {
-	version: 8;
+	version: 9;
 	mapId: string;
 	player: {
 		level: number;
@@ -86,7 +86,7 @@ export const NORMALIZE_TRANSITION_RADIUS = 18;
 
 export function createNewSaveState(): SaveState {
 	return {
-		version: 8,
+		version: 9,
 		mapId: meadowEntryMap.id,
 		player: {
 			level: 1,
@@ -148,6 +148,7 @@ function migrateSaveState(value: unknown): unknown {
 	let migrated = migrateV5ToV6(value);
 	migrated = migrateV6ToV7(migrated);
 	migrated = migrateV7ToV8(migrated);
+	migrated = migrateV8ToV9(migrated);
 	return migrated;
 }
 
@@ -210,6 +211,48 @@ function migrateV7ToV8(value: unknown): unknown {
 	};
 }
 
+function migrateV8ToV9(value: unknown): unknown {
+	if (
+		!isRecord(value) ||
+		value.version !== 8 ||
+		!isRecord(value.shops) ||
+		Array.isArray(value.shops) ||
+		!isV8ShopStockState(value.shops.stock)
+	) {
+		return value;
+	}
+
+	return {
+		...value,
+		version: 9,
+		shops: {
+			...value.shops,
+			stock: {
+				...value.shops.stock,
+				'sundrop-forge': { ...createInitialShopStockState()['sundrop-forge'] }
+			}
+		}
+	};
+}
+
+function isV8ShopStockState(value: unknown): value is Record<string, Record<string, number>> {
+	if (!isRecord(value) || Array.isArray(value) || !hasExactKeys(value, ['guild-quartermaster'])) {
+		return false;
+	}
+
+	const guildStock = value['guild-quartermaster'];
+
+	return (
+		isRecord(guildStock) &&
+		!Array.isArray(guildStock) &&
+		hasExactKeys(guildStock, ['iron-cap', 'grip-wraps', 'traveler-vest']) &&
+		Object.values(guildStock).every(
+			(quantity) =>
+				isNumber(quantity) && Number.isInteger(quantity) && quantity >= 0 && quantity <= 1
+		)
+	);
+}
+
 function isSaveState(value: unknown): value is SaveState {
 	if (!isRecord(value)) {
 		return false;
@@ -233,7 +276,7 @@ function isSaveState(value: unknown): value is SaveState {
 	// change. Bumping version without updating isSaveState lets old-shape payloads pass
 	// validation; bumping SAVE_STORAGE_KEY without migration orphans existing saves.
 	if (
-		version !== 8 ||
+		version !== 9 ||
 		typeof mapId !== 'string' ||
 		!isRecord(player) ||
 		!isRecord(flags) ||

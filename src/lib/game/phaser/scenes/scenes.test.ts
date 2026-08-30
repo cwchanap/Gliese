@@ -286,6 +286,22 @@ const storyClientMock = vi.hoisted(() => {
 				});
 			}
 
+			if (request.npcId === 'blacksmith-oren') {
+				return createStorySession({
+					id: 'npc:blacksmith-oren:always',
+					speaker: 'Blacksmith Oren',
+					lines: ['Steel holds when the hand behind it does. Take what fits, and keep it dry.'],
+					choices: [
+						{
+							id: 'shop',
+							label: 'Shop',
+							intent: { type: 'openShop', shopId: 'sundrop-forge' }
+						}
+					],
+					completionIntent: null
+				});
+			}
+
 			if (request.npcId === 'villager-lynn') {
 				return createStorySession({
 					id: 'npc:villager-lynn:always',
@@ -8625,6 +8641,43 @@ describe('WorldScene', () => {
 					speaker: 'Mira',
 					choices: expect.arrayContaining([expect.objectContaining({ id: 'shop' })])
 				})
+			})
+		);
+	});
+
+	it('starts Blacksmith Oren dialogue and opens the Sundrop Forge shop', async () => {
+		const events = await import('$lib/game/ui-bridge/events');
+		const emitHudStateSpy = vi.spyOn(events, 'emitHudState');
+		const { WorldScene } = await import('./WorldScene');
+		const scene = new WorldScene();
+		const sceneState = scene as unknown as { handleHudCommand: (command: HudCommand) => void };
+
+		scene.create({ mapId: 'blacksmith-interior' });
+		expect(scene.add.image).toHaveBeenCalledWith(448, 416, 'npc-pack', 'woodcutterNpc');
+		Object.assign(phaserState.playerMarker, { x: 448, y: 480 });
+		scene.update(0, 16);
+		emitHudStateSpy.mockClear();
+
+		phaserState.interactKeys.e.justDown = true;
+		scene.update(16, 16);
+		await flushStoryDialogue();
+
+		expect(emitHudStateSpy).toHaveBeenLastCalledWith(
+			expect.objectContaining({
+				status: 'Blacksmith Oren nearby',
+				dialogue: expect.objectContaining({
+					speaker: 'Blacksmith Oren',
+					line: 'Steel holds when the hand behind it does. Take what fits, and keep it dry.',
+					choices: [expect.objectContaining({ id: 'shop', label: 'Shop' })]
+				})
+			})
+		);
+
+		sceneState.handleHudCommand({ type: 'dialogue-choose', choiceId: 'shop' });
+
+		expect(emitHudStateSpy).toHaveBeenLastCalledWith(
+			expect.objectContaining({
+				shop: expect.objectContaining({ shopId: 'sundrop-forge' })
 			})
 		);
 	});

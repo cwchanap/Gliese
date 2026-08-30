@@ -4,8 +4,8 @@
 
 - Package: `sundrop-ruins`
 - Default locale: `en`
-- Beats checked: 6
-- Dialogue blocks compiled: 12
+- Beats checked: 7
+- Dialogue blocks compiled: 13
 
 ## Unsupported hooks
 

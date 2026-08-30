@@ -261,8 +261,8 @@ type SaveFixtureOverrides = Partial<{
 // kept local (not imported) so the Playwright Node worker doesn't have to
 // resolve the game's `$lib` alias. addInitScript callbacks run in the browser
 // and cannot close over Node bindings, so the key is passed to them as an arg.
-const SAVE_VERSION = 8;
-const SAVE_STORAGE_KEY = 'gliese.save.v8';
+const SAVE_VERSION = 9;
+const SAVE_STORAGE_KEY = 'gliese.save.v9';
 
 // addInitScript serializes its callback to the browser and accepts only one
 // arg, so the save JSON and storage key are bundled into a single object.
@@ -305,6 +305,12 @@ function createSaveFixture(overrides: SaveFixtureOverrides = {}) {
 		shops: {
 			stock: {
 				'guild-quartermaster': {
+					'iron-cap': 1,
+					'grip-wraps': 1,
+					'traveler-vest': 1
+				},
+				'sundrop-forge': {
+					'training-sword': 1,
 					'iron-cap': 1,
 					'grip-wraps': 1,
 					'traveler-vest': 1
@@ -16394,6 +16400,109 @@ test('Blacksmith graybox entrance', async ({ page }) => {
 	await enterInteriorWithTrustedKeyboard(page, blacksmith);
 	await waitForExactHudPosition(page, 'blacksmith-interior', blacksmith.spawn);
 	await exitInteriorWithTrustedKeyboard(page, blacksmith);
+});
+
+test('Blacksmith Oren equipment shop', async ({ page }) => {
+	test.setTimeout(180_000);
+	const blacksmith: InteriorGrayboxCase = {
+		mapId: 'blacksmith-interior',
+		returnArrival: { x: 2_272, y: 5_248 },
+		exteriorDoor: { x: 2_272, y: 5_184 },
+		spawn: { x: 448, y: 576 },
+		exit: { x: 448, y: 688 },
+		steps: []
+	};
+
+	await installRuntimeProbes(page, { captureFacing: true });
+	await injectSave(
+		page,
+		createSaveFixture({
+			mapId: 'meadow-entry',
+			player: {
+				level: 1,
+				xp: 0,
+				hp: 20,
+				attack: 3,
+				x: blacksmith.returnArrival.x,
+				y: blacksmith.returnArrival.y,
+				facing: 'up'
+			},
+			wallet: { coins: 100 }
+		})
+	);
+	await page.goto('/?movementDiagnostics=on');
+	await expect(page.locator('canvas')).toBeVisible();
+	await page.getByRole('button', { name: 'Menu' }).click();
+	await commandBox(page).getByRole('button', { name: 'Resume Save' }).click();
+	await waitForHudPosition(page, 'meadow-entry', blacksmith.returnArrival);
+
+	await enterInteriorWithTrustedKeyboard(page, blacksmith);
+	await moveRoute(page, [blacksmith.spawn, { x: 448, y: 480 }]);
+	await page.locator('canvas').click();
+	await page.keyboard.down('ArrowUp');
+	try {
+		await page.waitForFunction(
+			() => (window as GlieseProbeWindow).__glieseLastHudState?.status === 'Blacksmith Oren nearby',
+			undefined,
+			{ timeout: 30_000 }
+		);
+	} finally {
+		await page.keyboard.up('ArrowUp');
+	}
+	await page.locator('canvas').click();
+	await page.keyboard.press('e', { delay: 50 });
+
+	const dialogue = page.getByRole('dialog', { name: 'Blacksmith Oren' });
+	await expect(dialogue).toBeVisible();
+	await expect(dialogue).toContainText(
+		'Steel holds when the hand behind it does. Take what fits, and keep it dry.'
+	);
+	await dialogue.getByRole('button', { name: 'Shop' }).click();
+
+	const shop = page.getByRole('dialog', { name: 'Sundrop Forge' });
+	await expect(shop).toBeVisible();
+	await expect(shop.getByText('Coins: 100')).toBeVisible();
+	await shop.getByTestId('shop-buy-grid').getByLabel('Iron Cap', { exact: true }).dblclick();
+	await expect(shop.getByText('Coins: 65')).toBeVisible();
+	await shop.getByRole('button', { name: 'Close' }).click();
+	await expect(shop).toHaveCount(0);
+
+	await page.getByRole('button', { name: 'Menu' }).click();
+	await commandBox(page).getByRole('button', { name: 'Save Game' }).click();
+	await expect(fieldStatus(page)).toContainText('Saved');
+	const persisted = await page.evaluate(
+		(key) => JSON.parse(localStorage.getItem(key) ?? 'null'),
+		SAVE_STORAGE_KEY
+	);
+	expect(persisted?.wallet?.coins).toBe(65);
+	expect(persisted?.shops?.stock?.['sundrop-forge']?.['iron-cap']).toBe(0);
+	expect(persisted?.inventory?.equipment).toContain('iron-cap');
+
+	await page.reload();
+	await expect(page.locator('canvas')).toBeVisible();
+	await page.getByRole('button', { name: 'Menu' }).click();
+	await commandBox(page).getByRole('button', { name: 'Resume Save' }).click();
+	await waitForHudPosition(page, 'blacksmith-interior', { x: 448, y: 480 });
+	await page.waitForFunction(
+		() => (window as GlieseProbeWindow).__glieseLastHudState?.status === 'Blacksmith Oren nearby',
+		undefined,
+		{ timeout: 30_000 }
+	);
+	await page.locator('canvas').click();
+	await page.keyboard.press('e', { delay: 50 });
+	await expect(page.getByRole('dialog', { name: 'Blacksmith Oren' })).toBeVisible();
+	await page
+		.getByRole('dialog', { name: 'Blacksmith Oren' })
+		.getByRole('button', { name: 'Shop' })
+		.click();
+	const resumedShop = page.getByRole('dialog', { name: 'Sundrop Forge' });
+	await expect(resumedShop).toBeVisible();
+	await expect(resumedShop.getByText('Coins: 65')).toBeVisible();
+	const resumedIronCap = resumedShop
+		.getByTestId('shop-buy-grid')
+		.getByLabel('Iron Cap', { exact: true });
+	await resumedIronCap.hover();
+	await expect(page.getByRole('tooltip')).toContainText('0 left');
 });
 
 test('Guild Hall painted interior', async ({ page }) => {

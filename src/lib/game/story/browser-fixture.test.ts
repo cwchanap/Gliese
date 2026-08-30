@@ -18,4 +18,26 @@ describe('browser fixture', () => {
 			})
 		).toThrow('unknown story npc: unknown-npc');
 	});
+
+	it('serves Blacksmith Oren dialogue with the Forge shop intent', () => {
+		const dialogue = getBrowserNpcDialogue({
+			npcId: 'blacksmith-oren',
+			mapId: 'blacksmith-interior',
+			locale: 'en',
+			quest: {
+				mainQuestNeedsGuildBriefing: false,
+				guildBriefingComplete: true,
+				hasActiveSideQuest: false,
+				hasCompletedQuest: false
+			}
+		});
+
+		expect(dialogue).toMatchObject({
+			speaker: 'Blacksmith Oren',
+			lines: ['Steel holds when the hand behind it does. Take what fits, and keep it dry.'],
+			actions: [
+				{ id: 'shop', label: 'Shop', intent: { type: 'openShop', shopId: 'sundrop-forge' } }
+			]
+		});
+	});
 });

@@ -53,6 +53,26 @@ const shopDefinitions = {
 				availability: { mode: 'finite', quantity: 1 }
 			}
 		]
+	},
+	'sundrop-forge': {
+		id: 'sundrop-forge',
+		nameKey: 'content.shops.sundrop-forge.name',
+		merchantNameKey: 'content.shops.sundrop-forge.merchantName',
+		descriptionKey: 'content.shops.sundrop-forge.description',
+		stock: [
+			{
+				id: 'training-sword',
+				itemId: 'training-sword',
+				availability: { mode: 'finite', quantity: 1 }
+			},
+			{ id: 'iron-cap', itemId: 'iron-cap', availability: { mode: 'finite', quantity: 1 } },
+			{ id: 'grip-wraps', itemId: 'grip-wraps', availability: { mode: 'finite', quantity: 1 } },
+			{
+				id: 'traveler-vest',
+				itemId: 'traveler-vest',
+				availability: { mode: 'finite', quantity: 1 }
+			}
+		]
 	}
 } satisfies DefinitionRegistry<ShopDefinitionSource>;
 

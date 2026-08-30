@@ -18,16 +18,20 @@ chapters:
         file: beats/prologue/villager-toma.md
       - id: prologue.villager-io
         file: beats/prologue/villager-io.md
+      - id: prologue.blacksmith-oren
+        file: beats/prologue/blacksmith-oren.md
 requiredContent:
   maps:
     - guild-hall
     - item-shop
+    - blacksmith-interior
     - villager-house-1
     - villager-house-2
     - villager-house-3
   npcs:
     - guild-master
     - guild-quartermaster
+    - blacksmith-oren
     - shopkeeper-mira
     - villager-lynn
     - villager-toma
@@ -40,6 +44,7 @@ requiredContent:
   shops:
     - guild-quartermaster
     - miras-item-shop
+    - sundrop-forge
   enemies:
     - slime-scout
     - ruins-warden

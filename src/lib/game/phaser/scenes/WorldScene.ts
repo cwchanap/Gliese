@@ -773,7 +773,7 @@ export class WorldScene extends Phaser.Scene {
 
 	private buildSaveState(): SaveState {
 		return {
-			version: 8,
+			version: 9,
 			mapId: this.mapId,
 			player: {
 				level: this.playerProgress.level,
@@ -3172,7 +3172,11 @@ export class WorldScene extends Phaser.Scene {
 				npc,
 				distance: Phaser.Math.Distance.Between(this.player!.x, this.player!.y, npc.x, npc.y)
 			}))
-			.filter(({ distance }) => distance <= PLAYER_COLLISION_RADIUS + NPC_INTERACTION_RADIUS)
+			.filter(
+				({ npc, distance }) =>
+					distance <=
+					PLAYER_COLLISION_RADIUS + NPC_INTERACTION_RADIUS + this.getNpcCollisionRadius(npc)
+			)
 			.sort((left, right) => left.distance - right.distance)[0]?.npc;
 	}
 

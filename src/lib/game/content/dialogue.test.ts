@@ -59,4 +59,32 @@ describe('dialogue content', () => {
 			}
 		}
 	});
+
+	it('registers Blacksmith Oren with the Sundrop Forge shop action', () => {
+		expect(maps['blacksmith-interior']?.npcs).toEqual(
+			expect.arrayContaining([
+				expect.objectContaining({
+					id: 'blacksmith-oren',
+					x: 448,
+					y: 416,
+					role: 'shopkeeper',
+					shopId: 'sundrop-forge',
+					frameName: 'woodcutterNpc'
+				})
+			])
+		);
+		expect(getDialogue('blacksmith-oren')).toEqual(
+			expect.objectContaining({
+				id: 'blacksmith-oren',
+				actions: [
+					{
+						id: 'shop',
+						labelKey: 'content.dialogue.actions.shop',
+						label: 'Shop',
+						intent: { type: 'openShop', shopId: 'sundrop-forge' }
+					}
+				]
+			})
+		);
+	});
 });

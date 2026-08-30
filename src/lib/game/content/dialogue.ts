@@ -4,6 +4,7 @@ import { t, type MessageKey } from '$lib/game/i18n/translate';
 export type NpcDialogueId =
 	| 'guild-master'
 	| 'guild-quartermaster'
+	| 'blacksmith-oren'
 	| 'shopkeeper-mira'
 	| 'villager-lynn'
 	| 'villager-toma'
@@ -50,6 +51,16 @@ const npcDialogueDefinitions = {
 				id: 'shop',
 				labelKey: 'content.dialogue.actions.shop',
 				intent: { type: 'openShop', shopId: 'guild-quartermaster' }
+			}
+		]
+	},
+	'blacksmith-oren': {
+		id: 'blacksmith-oren',
+		actions: [
+			{
+				id: 'shop',
+				labelKey: 'content.dialogue.actions.shop',
+				intent: { type: 'openShop', shopId: 'sundrop-forge' }
 			}
 		]
 	},

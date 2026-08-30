@@ -232,6 +232,11 @@ export const en = {
 				name: 'Guild Quartermaster',
 				merchantName: 'Quartermaster Vale',
 				description: 'Guild-approved gear for new ruins assignments.'
+			},
+			'sundrop-forge': {
+				name: 'Sundrop Forge',
+				merchantName: 'Blacksmith Oren',
+				description: 'Village-forged equipment for the road beyond Sundrop.'
 			}
 		},
 		quests: {
@@ -359,6 +364,7 @@ export const en = {
 			npcs: {
 				'guild-master': { name: 'Guild Master Arlen' },
 				'guild-quartermaster': { name: 'Quartermaster Vale' },
+				'blacksmith-oren': { name: 'Blacksmith Oren' },
 				'shopkeeper-mira': { name: 'Mira' },
 				'villager-lynn': { name: 'Lynn' },
 				'villager-toma': { name: 'Toma' },

@@ -68,7 +68,7 @@ class MemoryStorage implements Storage {
 describe('save state', () => {
 	it('creates a level 1 starting save', () => {
 		expect(createNewSaveState()).toEqual({
-			version: 8,
+			version: 9,
 			mapId: meadowEntryMap.id,
 			player: {
 				level: 1,
@@ -100,6 +100,12 @@ describe('save state', () => {
 			shops: {
 				stock: {
 					'guild-quartermaster': {
+						'iron-cap': 1,
+						'grip-wraps': 1,
+						'traveler-vest': 1
+					},
+					'sundrop-forge': {
+						'training-sword': 1,
 						'iron-cap': 1,
 						'grip-wraps': 1,
 						'traveler-vest': 1
@@ -210,10 +216,19 @@ describe('save state', () => {
 		expect(parseSaveState(JSON.stringify(legacySave))).toBeNull();
 	});
 
-	it('migrates v5 saves to v8 by defaulting clearedEncounterUnitCounts and seenDiscoveries', () => {
+	it('migrates v5 saves to v9 by defaulting clearedEncounterUnitCounts and seenDiscoveries', () => {
 		const v5Save = {
 			...createNewSaveState(),
 			version: 5
+		};
+		v5Save.shops = {
+			stock: {
+				'guild-quartermaster': {
+					'iron-cap': 1,
+					'grip-wraps': 1,
+					'traveler-vest': 1
+				}
+			}
 		};
 		delete (v5Save.flags as Record<string, unknown>).clearedEncounterUnitCounts;
 		delete (v5Save as Record<string, unknown>).seenDiscoveries;
@@ -221,12 +236,12 @@ describe('save state', () => {
 		const migrated = parseSaveState(JSON.stringify(v5Save));
 
 		expect(migrated).not.toBeNull();
-		expect(migrated?.version).toBe(8);
+		expect(migrated?.version).toBe(9);
 		expect(migrated?.flags.clearedEncounterUnitCounts).toEqual({});
 		expect(migrated?.seenDiscoveries).toEqual([]);
 	});
 
-	it('migrates v7 saves to v8 by clearing meadow-entry exploration', () => {
+	it('migrates v7 saves to v9 by clearing meadow-entry exploration', () => {
 		// The layered village refactor moved landmarks within meadow-entry,
 		// so coordinate-based exploration cells no longer cover the new
 		// landmark positions. The v7→v8 migration must clear meadow-entry
@@ -239,17 +254,26 @@ describe('save state', () => {
 				'ruins-core': ['0,0', '1,0']
 			}
 		};
+		v7Save.shops = {
+			stock: {
+				'guild-quartermaster': {
+					'iron-cap': 1,
+					'grip-wraps': 1,
+					'traveler-vest': 1
+				}
+			}
+		};
 
 		const migrated = parseSaveState(JSON.stringify(v7Save));
 
 		expect(migrated).not.toBeNull();
-		expect(migrated?.version).toBe(8);
+		expect(migrated?.version).toBe(9);
 		expect(migrated?.mapExploration['meadow-entry']).toBeUndefined();
 		// Other maps' exploration is preserved.
 		expect(migrated?.mapExploration['ruins-core']).toEqual(['0,0', '1,0']);
 	});
 
-	it('migrates v7 saves to v8 preserving exploration when meadow-entry is absent', () => {
+	it('migrates v7 saves to v9 preserving exploration when meadow-entry is absent', () => {
 		const v7Save = {
 			...createNewSaveState(),
 			version: 7,
@@ -257,12 +281,91 @@ describe('save state', () => {
 				'ruins-core': ['0,0', '1,0']
 			}
 		};
+		v7Save.shops = {
+			stock: {
+				'guild-quartermaster': {
+					'iron-cap': 1,
+					'grip-wraps': 1,
+					'traveler-vest': 1
+				}
+			}
+		};
 
 		const migrated = parseSaveState(JSON.stringify(v7Save));
 
 		expect(migrated).not.toBeNull();
-		expect(migrated?.version).toBe(8);
+		expect(migrated?.version).toBe(9);
 		expect(migrated?.mapExploration['ruins-core']).toEqual(['0,0', '1,0']);
+	});
+
+	it('migrates a valid v8 save to v9 without resetting existing state', () => {
+		const v8Save = { ...createNewSaveState(), version: 8 };
+		v8Save.mapId = 'blacksmith-interior';
+		v8Save.player = { ...v8Save.player, x: 448, y: 480, facing: 'up' };
+		v8Save.wallet = { coins: 7 };
+		v8Save.shops = {
+			stock: {
+				'guild-quartermaster': {
+					'iron-cap': 0,
+					'grip-wraps': 1,
+					'traveler-vest': 0
+				}
+			}
+		};
+
+		const migrated = parseSaveState(JSON.stringify(v8Save));
+
+		expect(migrated).toEqual({
+			...v8Save,
+			version: 9,
+			shops: {
+				stock: {
+					'guild-quartermaster': {
+						'iron-cap': 0,
+						'grip-wraps': 1,
+						'traveler-vest': 0
+					},
+					'sundrop-forge': {
+						'training-sword': 1,
+						'iron-cap': 1,
+						'grip-wraps': 1,
+						'traveler-vest': 1
+					}
+				}
+			}
+		});
+	});
+
+	it('rejects malformed v8 shop stock instead of silently resetting it', () => {
+		const v8Save = { ...createNewSaveState(), version: 8 };
+		const validLegacyStock = {
+			'guild-quartermaster': {
+				'iron-cap': 1,
+				'grip-wraps': 1,
+				'traveler-vest': 1
+			}
+		};
+		const invalidStocks = [
+			{ 'not-a-shop': validLegacyStock['guild-quartermaster'] },
+			{
+				'guild-quartermaster': {
+					...validLegacyStock['guild-quartermaster'],
+					'extra-stock': 1
+				}
+			},
+			{
+				'guild-quartermaster': {
+					...validLegacyStock['guild-quartermaster'],
+					'not-a-stock': 1
+				}
+			},
+			{ 'guild-quartermaster': { ...validLegacyStock['guild-quartermaster'], 'iron-cap': -1 } },
+			{ 'guild-quartermaster': { ...validLegacyStock['guild-quartermaster'], 'iron-cap': 2 } }
+		];
+
+		for (const stock of invalidStocks) {
+			expect(parseSaveState(JSON.stringify({ ...v8Save, shops: { stock } }))).toBeNull();
+		}
 	});
 
 	it('clamps saved coordinates to the current map bounds and nudges off collision', () => {
@@ -680,9 +783,9 @@ describe('save state', () => {
 		expect(parseSaveState('[]')).toBeNull();
 	});
 
-	it('rejects version 4 and accepts version 8', () => {
+	it('rejects version 4 and accepts version 9', () => {
 		expect(parseSaveState(JSON.stringify({ ...createNewSaveState(), version: 4 }))).toBeNull();
-		expect(parseSaveState(JSON.stringify(createNewSaveState()))?.version).toBe(8);
+		expect(parseSaveState(JSON.stringify(createNewSaveState()))?.version).toBe(9);
 	});
 
 	it('rejects a payload with wrong player field types', () => {
@@ -1085,9 +1188,18 @@ describe('seenDiscoveries', () => {
 
 	it('migrates a v6 payload by defaulting seenDiscoveries to []', () => {
 		const v6 = { ...createNewSaveState(), version: 6 } as Record<string, unknown>;
+		v6.shops = {
+			stock: {
+				'guild-quartermaster': {
+					'iron-cap': 1,
+					'grip-wraps': 1,
+					'traveler-vest': 1
+				}
+			}
+		};
 		delete v6.seenDiscoveries;
 		const parsed = parseSaveState(JSON.stringify(v6));
-		expect(parsed?.version).toBe(8);
+		expect(parsed?.version).toBe(9);
 		expect(parsed?.seenDiscoveries).toEqual([]);
 	});
 
@@ -1124,41 +1236,61 @@ describe('save storage', () => {
 		clearStoredSaveState(storage);
 
 		expect(storage.getItem(SAVE_STORAGE_KEY)).toBeNull();
-		expect(storage.getItem('gliese.save.v7')).toBeNull();
+		expect(storage.getItem('gliese.save.v8')).toBeNull();
 		expect(loadStoredSaveState(storage)).toBeNull();
 	});
 
-	it('clears legacy v7 saves when clearing storage', () => {
+	it('clears legacy v8 saves when clearing storage', () => {
 		const storage = new MemoryStorage();
-		const v7Key = 'gliese.save.v7';
+		const v8Key = 'gliese.save.v8';
 		const save = {
 			...createNewSaveState(),
+			version: 8,
+			shops: {
+				stock: {
+					'guild-quartermaster': {
+						'iron-cap': 1,
+						'grip-wraps': 1,
+						'traveler-vest': 1
+					}
+				}
+			},
 			inventory: {
 				stacks: [{ itemId: 'field-potion', quantity: 2 }],
 				equipment: ['training-sword']
 			}
 		};
 
-		storage.setItem(v7Key, serializeSaveState(save));
+		storage.setItem(v8Key, JSON.stringify(save));
 		clearStoredSaveState(storage);
 
-		expect(storage.getItem(v7Key)).toBeNull();
+		expect(storage.getItem(v8Key)).toBeNull();
 		expect(storage.getItem(SAVE_STORAGE_KEY)).toBeNull();
 		expect(loadStoredSaveState(storage)).toBeNull();
 	});
 
 	it('falls back to the previous storage key when the current key is empty', () => {
 		const storage = new MemoryStorage();
-		const v7Key = 'gliese.save.v7';
+		const v8Key = 'gliese.save.v8';
 		const save = {
 			...createNewSaveState(),
+			version: 8,
+			shops: {
+				stock: {
+					'guild-quartermaster': {
+						'iron-cap': 1,
+						'grip-wraps': 1,
+						'traveler-vest': 1
+					}
+				}
+			},
 			inventory: {
 				stacks: [{ itemId: 'field-potion', quantity: 2 }],
 				equipment: ['training-sword']
 			}
 		};
 
-		storage.setItem(v7Key, serializeSaveState(save));
+		storage.setItem(v8Key, JSON.stringify(save));
 
 		expect(storage.getItem(SAVE_STORAGE_KEY)).toBeNull();
 		expect(loadStoredSaveState(storage)?.inventory.stacks).toEqual([

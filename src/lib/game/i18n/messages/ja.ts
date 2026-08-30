@@ -235,6 +235,11 @@ export const ja = {
 				name: 'ギルド補給係',
 				merchantName: '補給係ヴェイル',
 				description: '新しい遺跡任務向けの、ギルド公認装備。'
+			},
+			'sundrop-forge': {
+				name: 'サンドロップ鍛冶場',
+				merchantName: '鍛冶師オレン',
+				description: 'サンドロップの外へ向かう旅人のための、村で鍛えた装備。'
 			}
 		},
 		quests: {
@@ -360,6 +365,7 @@ export const ja = {
 			npcs: {
 				'guild-master': { name: 'ギルドマスター・アーレン' },
 				'guild-quartermaster': { name: '補給係ヴェイル' },
+				'blacksmith-oren': { name: '鍛冶師オレン' },
 				'shopkeeper-mira': { name: 'ミラ' },
 				'villager-lynn': { name: 'リン' },
 				'villager-toma': { name: 'トマ' },

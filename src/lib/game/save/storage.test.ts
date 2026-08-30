@@ -32,7 +32,7 @@ describe('save storage', () => {
 		saveGameState(save, storage);
 
 		expect(storage.getItem(SAVE_STORAGE_KEY)).toContain('"mapId":"meadow-entry"');
-		expect(storage.getItem(SAVE_STORAGE_KEY)).toContain('"version":8');
+		expect(storage.getItem(SAVE_STORAGE_KEY)).toContain('"version":9');
 		expect(loadStoredSaveResult(storage)).toEqual({ status: 'loaded', saveState: save });
 		expect(loadStoredSaveResult(storage).saveState?.wallet).toEqual({ coins: 30 });
 		expect(loadStoredSaveResult(storage).saveState?.inventory.stacks).toEqual([
@@ -63,10 +63,50 @@ describe('save storage', () => {
 			const save = createNewSaveState();
 			saveGameState(save);
 
-			expect(storage.getItem(SAVE_STORAGE_KEY)).toContain('"version":8');
+			expect(storage.getItem(SAVE_STORAGE_KEY)).toContain('"version":9');
 			expect(loadStoredSaveResult()).toEqual({ status: 'loaded', saveState: save });
 		} finally {
 			setSaveStorage(globalThis.localStorage);
 		}
+	});
+
+	it('migrates a v8 save from the previous key and writes new saves at v9', () => {
+		const storage = createStorage();
+		const legacySave = {
+			...createNewSaveState(),
+			version: 8,
+			shops: {
+				stock: {
+					'guild-quartermaster': {
+						'iron-cap': 1,
+						'grip-wraps': 1,
+						'traveler-vest': 1
+					}
+				}
+			}
+		};
+		storage.setItem('gliese.save.v8', JSON.stringify(legacySave));
+
+		expect(SAVE_STORAGE_KEY).toBe('gliese.save.v9');
+		expect(loadStoredSaveResult(storage)).toMatchObject({
+			status: 'loaded',
+			saveState: {
+				version: 9,
+				shops: {
+					stock: {
+						'sundrop-forge': {
+							'training-sword': 1,
+							'iron-cap': 1,
+							'grip-wraps': 1,
+							'traveler-vest': 1
+						}
+					}
+				}
+			}
+		});
+
+		const currentSave = createNewSaveState();
+		saveGameState(currentSave, storage);
+		expect(storage.getItem('gliese.save.v9')).toContain('"version":9');
 	});
 });

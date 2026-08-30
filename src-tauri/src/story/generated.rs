@@ -11,6 +11,30 @@ pub fn story_catalog() -> StoryCatalog {
         default_locale: "en".to_string(),
         npc_dialogues: vec![
             NpcStoryDialogue {
+                npc_id: "blacksmith-oren".to_string(),
+                beat_id: "prologue.blacksmith-oren".to_string(),
+                map_id: "blacksmith-interior".to_string(),
+                branches: vec![
+                    StoryDialogueBranch {
+                        condition: StoryBranchCondition::Always,
+                        speaker: "Blacksmith Oren".to_string(),
+                        lines: vec![
+                            "Steel holds when the hand behind it does. Take what fits, and keep it dry.".to_string(),
+                        ],
+                        actions: vec![
+                            StoryDialogueAction {
+                                id: "shop".to_string(),
+                                label: "Shop".to_string(),
+                                intent: StoryIntent::OpenShop {
+                                    shop_id: "sundrop-forge".to_string(),
+                                },
+                            },
+                        ],
+                        completion_intent: None,
+                    },
+                ],
+            },
+            NpcStoryDialogue {
                 npc_id: "guild-master".to_string(),
                 beat_id: "prologue.guild-master".to_string(),
                 map_id: "guild-hall".to_string(),

@@ -946,7 +946,7 @@ export const itemShopMap: WorldMapDefinition = addEnglishMapText({
 	]
 });
 
-export const blacksmithInteriorMap: WorldMapDefinition = {
+export const blacksmithInteriorMap: WorldMapDefinition = addEnglishMapText({
 	id: 'blacksmith-interior',
 	width: blacksmithLayout.widthTiles,
 	height: blacksmithLayout.heightTiles,
@@ -962,6 +962,17 @@ export const blacksmithInteriorMap: WorldMapDefinition = {
 			...blacksmithLayout.exit,
 			toMapId: openingMapId,
 			arrival: returnArrival('blacksmith-interior')
+		}
+	],
+	npcs: [
+		{
+			id: 'blacksmith-oren',
+			...blacksmithLayout.npcApproaches.oren.npc,
+			nameKey: 'content.maps.npcs.blacksmith-oren.name',
+			dialogueId: 'blacksmith-oren',
+			role: 'shopkeeper',
+			shopId: 'sundrop-forge',
+			frameName: 'woodcutterNpc'
 		}
 	],
 	interiorProps: [
@@ -1008,7 +1019,7 @@ export const blacksmithInteriorMap: WorldMapDefinition = {
 			)
 		}
 	]
-};
+});
 
 export const villagerHouse1Map: WorldMapDefinition = addEnglishMapText({
 	id: 'villager-house-1',

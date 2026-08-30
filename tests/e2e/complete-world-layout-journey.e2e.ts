@@ -32,7 +32,7 @@ type JourneyProbeWindow = Window & {
 	__completeJourneyBackgrounds?: BackgroundDiagnostic[];
 };
 
-const SAVE_STORAGE_KEY = 'gliese.save.v8';
+const SAVE_STORAGE_KEY = 'gliese.save.v9';
 const SAVE_SEED_MARKER = '__gliese_complete_journey_seeded_v1';
 const COMPLETE_PACKAGE_ID = 'meadow-entry-painted-v2-complete';
 const COMPLETE_BACKGROUND_IDS = MEADOW_ENTRY_PAINTED_V2_COMPLETE_APPROVED_RUNTIME_BACKGROUNDS.map(
@@ -190,7 +190,7 @@ function completeUrl() {
 
 function createHeroHouseSave() {
 	return {
-		version: 8,
+		version: 9,
 		mapExploration: {},
 		mapId: 'hero-house',
 		player: {
@@ -223,6 +223,12 @@ function createHeroHouseSave() {
 		shops: {
 			stock: {
 				'guild-quartermaster': {
+					'iron-cap': 1,
+					'grip-wraps': 1,
+					'traveler-vest': 1
+				},
+				'sundrop-forge': {
+					'training-sword': 1,
 					'iron-cap': 1,
 					'grip-wraps': 1,
 					'traveler-vest': 1
