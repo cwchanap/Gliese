@@ -613,6 +613,93 @@ describe('complete world layout review renderer', () => {
 		).resolves.toEqual(first);
 	});
 
+	it('renders the complete Villager House 3 painted proof inventory', async () => {
+		const outputRoot = await createOutputRoot();
+		const first = await renderCompleteWorldLayoutReview({
+			outputRoot,
+			check: false,
+			map: 'villager-house-3',
+			repositoryRoot: process.cwd()
+		});
+
+		expect(first).toHaveLength(1);
+		expect(first[0]).toMatchObject({
+			mapId: 'villager-house-3',
+			worldDimensions: { width: 1024, height: 704 },
+			reviewDimensions: { width: 1024, height: 704 }
+		});
+		expect((await readdir(join(outputRoot, 'villager-house-3'))).sort()).toEqual(
+			[
+				'anchors.png',
+				'camera-1280x720.png',
+				'camera-640x360.png',
+				'collision-overlay.png',
+				'coordinate-graybox.png',
+				'fallback-comparison.png',
+				'inventory.json',
+				'live-actor-overlay.png',
+				'live-character-composition.png',
+				'painted-base.png',
+				'player-centre-navigation-overlay.png',
+				'raw-collision-overlay.png',
+				'route-widths.png'
+			].sort()
+		);
+
+		const inventory = JSON.parse(
+			await readFile(join(outputRoot, 'villager-house-3/inventory.json'), 'utf8')
+		) as { mapId: string; artifacts: readonly { path: string; width: number; height: number }[] };
+		expect(inventory.mapId).toBe('villager-house-3');
+		expect(inventory.artifacts).toEqual(
+			expect.arrayContaining([
+				expect.objectContaining({
+					path: 'villager-house-3/painted-base.png',
+					width: 1024,
+					height: 704
+				}),
+				expect.objectContaining({
+					path: 'villager-house-3/collision-overlay.png',
+					width: 1024,
+					height: 704
+				}),
+				expect.objectContaining({
+					path: 'villager-house-3/player-centre-navigation-overlay.png',
+					width: 1024,
+					height: 704
+				}),
+				expect.objectContaining({
+					path: 'villager-house-3/live-character-composition.png',
+					width: 1024,
+					height: 704
+				}),
+				expect.objectContaining({
+					path: 'villager-house-3/fallback-comparison.png',
+					width: 2048,
+					height: 704
+				}),
+				expect.objectContaining({
+					path: 'villager-house-3/camera-640x360.png',
+					width: 640,
+					height: 360
+				}),
+				expect.objectContaining({
+					path: 'villager-house-3/camera-1280x720.png',
+					width: 1280,
+					height: 720
+				})
+			])
+		);
+
+		await expect(
+			renderCompleteWorldLayoutReview({
+				outputRoot,
+				check: true,
+				map: 'villager-house-3',
+				repositoryRoot: process.cwd()
+			})
+		).resolves.toEqual(first);
+	});
+
 	it('scopes per-map checks to the selected interior while rejecting selected-map extras', async () => {
 		const outputRoot = await createOutputRoot();
 		const repositoryRoot = await createRepositoryRoot();

@@ -16,7 +16,8 @@ import {
 	ruinsCoreMap,
 	ruinsThresholdMap,
 	villagerHouse1Map,
-	villagerHouse2Map
+	villagerHouse2Map,
+	villagerHouse3Map
 } from '../../src/lib/game/content/maps';
 import {
 	MEADOW_ENTRY_V2_CROSSINGS,
@@ -2129,18 +2130,128 @@ const INTERIOR_GRAYBOX_CASES: readonly InteriorGrayboxCase[] = [
 		mapId: 'villager-house-3',
 		returnArrival: { x: 1_472, y: 5_920 },
 		exteriorDoor: { x: 1_472, y: 5_856 },
-		spawn: { x: 320, y: 544 },
-		exit: { x: 320, y: 624 },
+		spawn: VILLAGE_INTERIOR_LAYOUTS['villager-house-3'].spawn,
+		exit: VILLAGE_INTERIOR_LAYOUTS['villager-house-3'].exit,
+		persistAfterStep: 'io-approach',
 		steps: [
-			{ label: 'sitting-room', point: { x: 512, y: 544 } },
-			{ label: 'hall-archive', point: { x: 320, y: 544 } },
-			{ label: 'archive-study', point: { x: 320, y: 192 } },
-			{ label: 'io-approach', point: { x: 200, y: 192 }, interaction: { speaker: 'Io' } },
-			{ label: 'bedroom-door', point: { x: 320, y: 192 } },
-			{ label: 'bedroom-storage', point: { x: 512, y: 192 } },
-			{ label: 'hall-return', point: { x: 320, y: 192 } },
-			{ label: 'spawn-return-hall', point: { x: 320, y: 544 } },
-			{ label: 'spawn-return', point: { x: 320, y: 544 } }
+			{
+				label: 'sitting-room',
+				point: { x: 864, y: VILLAGE_INTERIOR_LAYOUTS['villager-house-3'].rooms.sittingRoom.y + 192 }
+			},
+			{
+				label: 'sitting-room-hall-handoff',
+				point: {
+					x:
+						VILLAGE_INTERIOR_LAYOUTS['villager-house-3'].corridors.hall.x +
+						VILLAGE_INTERIOR_LAYOUTS['villager-house-3'].corridors.hall.width / 2,
+					y: VILLAGE_INTERIOR_LAYOUTS['villager-house-3'].rooms.sittingRoom.y + 192
+				}
+			},
+			{
+				label: 'hall-archive',
+				point: {
+					x:
+						VILLAGE_INTERIOR_LAYOUTS['villager-house-3'].corridors.hall.x +
+						VILLAGE_INTERIOR_LAYOUTS['villager-house-3'].corridors.hall.width / 2,
+					y:
+						VILLAGE_INTERIOR_LAYOUTS['villager-house-3'].doors.archive.y +
+						VILLAGE_INTERIOR_LAYOUTS['villager-house-3'].doors.archive.height / 2
+				}
+			},
+			{
+				label: 'archive-study',
+				point: {
+					x: VILLAGE_INTERIOR_LAYOUTS['villager-house-3'].rooms.archiveStudy.x + 240,
+					y:
+						VILLAGE_INTERIOR_LAYOUTS['villager-house-3'].doors.archive.y +
+						VILLAGE_INTERIOR_LAYOUTS['villager-house-3'].doors.archive.height / 2
+				}
+			},
+			{
+				label: 'io-approach',
+				point: VILLAGE_INTERIOR_LAYOUTS['villager-house-3'].npcApproaches.io.approach,
+				interaction: { speaker: 'Io' }
+			},
+			{
+				label: 'bedroom-door',
+				point: {
+					x:
+						VILLAGE_INTERIOR_LAYOUTS['villager-house-3'].doors.bedroom.x +
+						VILLAGE_INTERIOR_LAYOUTS['villager-house-3'].doors.bedroom.width / 2,
+					y:
+						VILLAGE_INTERIOR_LAYOUTS['villager-house-3'].doors.bedroom.y +
+						VILLAGE_INTERIOR_LAYOUTS['villager-house-3'].doors.bedroom.height / 2
+				}
+			},
+			{
+				label: 'bedroom-entry',
+				point: {
+					x: VILLAGE_INTERIOR_LAYOUTS['villager-house-3'].rooms.bedroomStorage.x + 32,
+					y:
+						VILLAGE_INTERIOR_LAYOUTS['villager-house-3'].doors.bedroom.y +
+						VILLAGE_INTERIOR_LAYOUTS['villager-house-3'].doors.bedroom.height / 2
+				}
+			},
+			{
+				label: 'bedroom-storage',
+				point: {
+					x: VILLAGE_INTERIOR_LAYOUTS['villager-house-3'].rooms.bedroomStorage.x + 224,
+					y: VILLAGE_INTERIOR_LAYOUTS['villager-house-3'].rooms.bedroomStorage.y + 256
+				}
+			},
+			{
+				label: 'bedroom-return-lane',
+				point: {
+					x: VILLAGE_INTERIOR_LAYOUTS['villager-house-3'].rooms.bedroomStorage.x + 32,
+					y: VILLAGE_INTERIOR_LAYOUTS['villager-house-3'].rooms.bedroomStorage.y + 256
+				}
+			},
+			{
+				label: 'hall-return',
+				point: {
+					x:
+						VILLAGE_INTERIOR_LAYOUTS['villager-house-3'].corridors.hall.x +
+						VILLAGE_INTERIOR_LAYOUTS['villager-house-3'].corridors.hall.width / 2,
+					y:
+						VILLAGE_INTERIOR_LAYOUTS['villager-house-3'].doors.bedroom.y +
+						VILLAGE_INTERIOR_LAYOUTS['villager-house-3'].doors.bedroom.height / 2
+				}
+			},
+			{
+				label: 'spawn-return-hall',
+				point: {
+					x:
+						VILLAGE_INTERIOR_LAYOUTS['villager-house-3'].corridors.hall.x +
+						VILLAGE_INTERIOR_LAYOUTS['villager-house-3'].corridors.hall.width / 2,
+					y: VILLAGE_INTERIOR_LAYOUTS['villager-house-3'].rooms.sittingRoom.y + 32
+				}
+			},
+			{
+				label: 'neighbor-staging',
+				point: {
+					x:
+						VILLAGE_INTERIOR_LAYOUTS['villager-house-3'].ambientActivity![
+							'villager-house-3-neighbor'
+						].x + 96,
+					y:
+						VILLAGE_INTERIOR_LAYOUTS['villager-house-3'].ambientActivity![
+							'villager-house-3-neighbor'
+						].y + 32
+				}
+			},
+			{
+				label: 'neighbor',
+				point: {
+					x:
+						VILLAGE_INTERIOR_LAYOUTS['villager-house-3'].ambientActivity![
+							'villager-house-3-neighbor'
+						].x + 96,
+					y: VILLAGE_INTERIOR_LAYOUTS['villager-house-3'].ambientActivity![
+						'villager-house-3-neighbor'
+					].y
+				}
+			},
+			{ label: 'spawn-return', point: VILLAGE_INTERIOR_LAYOUTS['villager-house-3'].spawn }
 		]
 	}
 ];
@@ -2266,6 +2377,33 @@ const VILLAGER_HOUSE_2_STATEFUL_OBJECT_IDS = [
 	...(villagerHouse2Map.combatBounds ?? []).map(({ id }) => id)
 ].sort();
 const VILLAGER_HOUSE_2_FALLBACK_BLOCKER_IDS = (villagerHouse2Map.blockers ?? []).map(
+	({ id }) => id
+);
+const VILLAGER_HOUSE_3_RUNTIME_EVIDENCE_ROOT = resolve(
+	'docs/superpowers/reports/img/hpa-586-interiors-runtime/villager-house-3'
+);
+const VILLAGER_HOUSE_3_COLLISION_IDS = [
+	...(villagerHouse3Map.blockers ?? []).map(({ id }) => id),
+	...(villagerHouse3Map.fences ?? []).map(({ id }) => id),
+	...(villagerHouse3Map.mapDecor ?? []).flatMap(({ collision }) =>
+		collision ? [collision.id] : []
+	),
+	...(villagerHouse3Map.interiorProps ?? []).flatMap(({ collision }) =>
+		collision ? [collision.id] : []
+	),
+	...(villagerHouse3Map.landmarks ?? []).map(({ id }) => id)
+].sort();
+const VILLAGER_HOUSE_3_STATEFUL_OBJECT_IDS = [
+	...villagerHouse3Map.transitions.map(({ id }) => id),
+	...(villagerHouse3Map.pickups ?? []).map(({ id }) => id),
+	...(villagerHouse3Map.encounters ?? []).map(({ id }) => id),
+	...(villagerHouse3Map.npcs ?? []).map(({ id }) => id),
+	...(villagerHouse3Map.landmarks ?? []).map(({ id }) => id),
+	...(villagerHouse3Map.ambientNpcs ?? []).map(({ id }) => id),
+	...(villagerHouse3Map.discoveries ?? []).map(({ id }) => id),
+	...(villagerHouse3Map.combatBounds ?? []).map(({ id }) => id)
+].sort();
+const VILLAGER_HOUSE_3_FALLBACK_BLOCKER_IDS = (villagerHouse3Map.blockers ?? []).map(
 	({ id }) => id
 );
 
@@ -11424,6 +11562,73 @@ function assertVillagerHouse2FallbackDiagnostic(
 	]);
 }
 
+function assertVillagerHouse3PaintedDiagnostic(
+	diagnostic: RegionalBackgroundPlaneRenderDiagnostic
+) {
+	expect(diagnostic).toMatchObject({
+		mapId: 'villager-house-3',
+		regionalBackgroundsEnabled: true,
+		packageId: 'villager-house-3-painted',
+		presentationMode: 'painted',
+		requiredBackgroundIds: ['villager-house-3-painted-base-image'],
+		selectedBackgroundIds: ['villager-house-3-painted-base-image'],
+		successfulBackgroundIds: ['villager-house-3-painted-base-image'],
+		selectedFallbackBlockerIds: [],
+		selectedFallbackDecorIds: [],
+		selectedFallbackFenceIds: [],
+		collisionIds: [...VILLAGER_HOUSE_3_COLLISION_IDS],
+		statefulObjectIds: [...VILLAGER_HOUSE_3_STATEFUL_OBJECT_IDS]
+	});
+	expect(diagnostic.entries).toEqual([
+		expect.objectContaining({
+			id: 'villager-house-3-painted-base-image',
+			textureKey: 'villager-house-3-painted-base',
+			plane: 'base',
+			status: 'rendered',
+			expectedDimensions: { width: 1024, height: 704 },
+			observedDimensions: { width: 1024, height: 704 },
+			renderTransform: {
+				x: 512,
+				y: 352,
+				originX: 0.5,
+				originY: 0.5,
+				displayWidth: 1024,
+				displayHeight: 704,
+				depth: -9
+			}
+		})
+	]);
+}
+
+function assertVillagerHouse3FallbackDiagnostic(
+	diagnostic: RegionalBackgroundPlaneRenderDiagnostic
+) {
+	expect(diagnostic).toMatchObject({
+		mapId: 'villager-house-3',
+		regionalBackgroundsEnabled: true,
+		packageId: null,
+		presentationMode: 'fallback',
+		requiredBackgroundIds: ['villager-house-3-painted-base-image'],
+		selectedBackgroundIds: [],
+		successfulBackgroundIds: [],
+		selectedFallbackBlockerIds: [...VILLAGER_HOUSE_3_FALLBACK_BLOCKER_IDS],
+		selectedFallbackDecorIds: [],
+		selectedFallbackFenceIds: [],
+		collisionIds: [...VILLAGER_HOUSE_3_COLLISION_IDS],
+		statefulObjectIds: [...VILLAGER_HOUSE_3_STATEFUL_OBJECT_IDS]
+	});
+	expect(diagnostic.entries).toEqual([
+		expect.objectContaining({
+			id: 'villager-house-3-painted-base-image',
+			textureKey: 'villager-house-3-painted-base',
+			plane: 'base',
+			status: 'missing-texture',
+			expectedDimensions: { width: 1024, height: 704 },
+			observedDimensions: null
+		})
+	]);
+}
+
 async function saveHeroHouseCanvas(page: Page, name: string) {
 	return saveInteriorCanvas(page, HERO_HOUSE_RUNTIME_EVIDENCE_ROOT, 'hero-house', name);
 }
@@ -11442,6 +11647,10 @@ async function saveVillagerHouse1Canvas(page: Page, name: string) {
 
 async function saveVillagerHouse2Canvas(page: Page, name: string) {
 	return saveInteriorCanvas(page, VILLAGER_HOUSE_2_RUNTIME_EVIDENCE_ROOT, 'villager-house-2', name);
+}
+
+async function saveVillagerHouse3Canvas(page: Page, name: string) {
+	return saveInteriorCanvas(page, VILLAGER_HOUSE_3_RUNTIME_EVIDENCE_ROOT, 'villager-house-3', name);
 }
 
 async function saveInteriorCanvas(page: Page, evidenceRoot: string, styleId: string, name: string) {
@@ -17397,6 +17606,161 @@ test('Villager House 2 painted interior', async ({ page }) => {
 		const fallbackProbePoint = {
 			x: layout.corridors.hall.x + layout.corridors.hall.width / 2,
 			y: layout.rooms.livingArea.y + 32
+		};
+		const fallbackStart = await currentHudPlayerPoint(page, house.mapId);
+		const fallbackPosition = await moveRoute(
+			page,
+			interiorRoutePoints(fallbackStart, fallbackProbePoint),
+			INTERIOR_ROUTE_SETTLE_TOLERANCE
+		);
+		await assertInteriorCheckpoint(page, house, fallbackProbePoint);
+		expect(Math.abs(fallbackPosition.x - fallbackProbePoint.x)).toBeLessThanOrEqual(
+			AXIS_REACH_TOLERANCE
+		);
+		expect(Math.abs(fallbackPosition.y - fallbackProbePoint.y)).toBeLessThanOrEqual(
+			AXIS_REACH_TOLERANCE
+		);
+		await exitInteriorWithTrustedKeyboard(page, house);
+	} finally {
+		await page.unroute(missingBaseRoute);
+	}
+});
+
+test('Villager House 3 painted interior', async ({ page }) => {
+	test.setTimeout(600_000);
+	const house = INTERIOR_GRAYBOX_CASES.find((interior) => interior.mapId === 'villager-house-3');
+	if (!house) throw new Error('Villager House 3 route constants are missing');
+	const layout = VILLAGE_INTERIOR_LAYOUTS['villager-house-3'];
+	const io = villagerHouse3Map.npcs?.find(({ id }) => id === 'villager-io');
+	const neighbor = villagerHouse3Map.ambientNpcs?.find(
+		({ id }) => id === 'villager-house-3-neighbor'
+	);
+	if (!io || !neighbor) throw new Error('Villager House 3 actor fixtures are missing');
+	expect(house.returnArrival).toEqual({ x: 1_472, y: 5_920 });
+	expect(house.spawn).toEqual(layout.spawn);
+	expect(house.exit).toEqual(layout.exit);
+	expect(house.steps.map(({ label }) => label)).toEqual(
+		expect.arrayContaining([
+			'sitting-room',
+			'archive-study',
+			'io-approach',
+			'bedroom-storage',
+			'neighbor',
+			'spawn-return'
+		])
+	);
+
+	await installRuntimeProbes(page, { captureFacing: true });
+	await injectSave(
+		page,
+		createSaveFixture({
+			mapId: 'meadow-entry',
+			player: {
+				level: 1,
+				xp: 0,
+				hp: 20,
+				attack: 3,
+				x: house.returnArrival.x,
+				y: house.returnArrival.y,
+				facing: 'up'
+			}
+		})
+	);
+	await page.setViewportSize({ width: 640, height: 360 });
+	await page.goto('/?movementDiagnostics=on');
+	await expect(page.locator('canvas')).toBeVisible();
+	await expect(page.getByRole('button', { name: 'Menu' })).toBeVisible();
+	await page.getByRole('button', { name: 'Menu' }).click();
+	await commandBox(page).getByRole('button', { name: 'Resume Save' }).click();
+	await waitForHudPosition(page, 'meadow-entry', house.returnArrival);
+
+	await traverseInteriorForJourney(
+		page,
+		house,
+		{
+			afterEnter: async () => {
+				assertVillagerHouse3PaintedDiagnostic(
+					await waitForMapBackgroundDiagnostic(page, house.mapId)
+				);
+				await saveVillagerHouse3Canvas(page, 'painted-camera-640x360.png');
+			},
+			afterStep: async (step, point) => {
+				if (step.label === 'io-approach') {
+					await saveVillagerHouse3Canvas(page, 'io-interaction-camera-640x360.png');
+				}
+				if (step.label === 'neighbor') {
+					await page.locator('canvas').click();
+					await page.keyboard.press('e', { delay: 50 });
+					const noOneNearbyDialogue = page.getByRole('dialog', { name: 'Traveler' });
+					await expect(noOneNearbyDialogue).toBeVisible();
+					await expect(noOneNearbyDialogue).toContainText('No one is nearby.');
+					await noOneNearbyDialogue.getByRole('button', { name: 'Close' }).click();
+					await expect(noOneNearbyDialogue).toHaveCount(0);
+					const neighborHud = await page.evaluate(
+						() => (window as GlieseProbeWindow).__glieseLastHudState ?? null
+					);
+					expect(neighborHud?.mapId).toBe(house.mapId);
+					expect(neighborHud?.dialogue ?? null).toBeNull();
+					expect(neighborHud?.status ?? '').not.toContain(neighbor.id);
+				}
+				if (step.label !== house.persistAfterStep) return point;
+				expect(step.label).toBe('io-approach');
+				const resumed = await saveInteriorCheckpointAndReload(page, house.mapId, point);
+				assertVillagerHouse3PaintedDiagnostic(
+					await waitForMapBackgroundDiagnostic(page, house.mapId)
+				);
+				return resumed;
+			}
+		},
+		(label, result) => {
+			expect(result.mapId, label).toBe(house.mapId);
+		}
+	);
+
+	const diagnosticCountBeforeReentry = await page.evaluate(
+		() =>
+			(window as GlieseProbeWindow).__glieseRegionalBackgroundDiagnostics?.filter(
+				({ mapId }) => mapId === 'villager-house-3'
+			).length ?? 0
+	);
+	await enterInteriorWithTrustedKeyboard(page, house);
+	assertVillagerHouse3PaintedDiagnostic(
+		await waitForMapBackgroundDiagnostic(page, house.mapId, diagnosticCountBeforeReentry)
+	);
+	await saveVillagerHouse3Canvas(page, 'reentry-camera-640x360.png');
+
+	const reentrySavePoint = await currentHudPlayerPoint(page, house.mapId);
+	await page.getByRole('button', { name: 'Menu' }).click();
+	await commandBox(page).getByRole('button', { name: 'Save Game' }).click();
+	await expect(fieldStatus(page)).toContainText('Saved');
+	const persisted = await page.evaluate(
+		(key) => JSON.parse(localStorage.getItem(key) ?? 'null'),
+		SAVE_STORAGE_KEY
+	);
+	expect(persisted?.mapId).toBe(house.mapId);
+	expect(Math.abs(persisted?.player?.x - reentrySavePoint.x)).toBeLessThanOrEqual(
+		AXIS_REACH_TOLERANCE
+	);
+	expect(Math.abs(persisted?.player?.y - reentrySavePoint.y)).toBeLessThanOrEqual(
+		AXIS_REACH_TOLERANCE
+	);
+
+	const missingBaseRoute = '**/game/assets/interiors/villager-house-3/base.png';
+	await page.route(missingBaseRoute, (route) => route.abort());
+	try {
+		await page.reload();
+		await expect(page.locator('canvas')).toBeVisible();
+		await expect(page.getByRole('button', { name: 'Menu' })).toBeVisible();
+		await page.getByRole('button', { name: 'Menu' }).click();
+		await commandBox(page).getByRole('button', { name: 'Resume Save' }).click();
+		await waitForHudPosition(page, house.mapId, reentrySavePoint);
+		const fallbackDiagnostic = await waitForMapBackgroundDiagnostic(page, house.mapId);
+		assertVillagerHouse3FallbackDiagnostic(fallbackDiagnostic);
+		await saveVillagerHouse3Canvas(page, 'fallback-base-missing-camera-640x360.png');
+
+		const fallbackProbePoint = {
+			x: layout.corridors.hall.x + layout.corridors.hall.width / 2,
+			y: layout.rooms.sittingRoom.y + 16
 		};
 		const fallbackStart = await currentHudPlayerPoint(page, house.mapId);
 		const fallbackPosition = await moveRoute(

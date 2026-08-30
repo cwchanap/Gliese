@@ -6,7 +6,8 @@ import {
 	maps,
 	meadowEntryMap,
 	villagerHouse1Map,
-	villagerHouse2Map
+	villagerHouse2Map,
+	villagerHouse3Map
 } from '$lib/game/content/maps';
 import { COMPLETE_WORLD_MAP_IDS } from '$lib/game/content/maps/layouts/complete-world-layout-foundation';
 import { MEADOW_ENTRY_V2_RIVER_SEGMENTS } from '$lib/game/content/maps/layouts/meadow-entry-v2';
@@ -708,7 +709,8 @@ describe('save state', () => {
 	it.each([
 		['meadow-entry', meadowEntryMap, meadowEntryMap.spawn],
 		['villager-house-1', villagerHouse1Map, villagerHouse1Map.spawn],
-		['villager-house-2', villagerHouse2Map, villagerHouse2Map.spawn]
+		['villager-house-2', villagerHouse2Map, villagerHouse2Map.spawn],
+		['villager-house-3', villagerHouse3Map, villagerHouse3Map.spawn]
 	] as const)('leaves a walkable %s saved position unchanged', (_mapId, map, point) => {
 		const walkableSave = {
 			...createNewSaveState(),

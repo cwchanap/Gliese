@@ -6,11 +6,41 @@ import {
 } from '../../../../tools/validate-village-interior-art';
 
 describe('registered village interior assets', () => {
+	it('requires the Villager House 3 opaque production base and manifest parity', async () => {
+		const manifest = (await collectRegisteredVillageInteriorManifests()).find(
+			({ mapId }) => mapId === 'villager-house-3'
+		);
+		expect(manifest).toBeDefined();
+		if (!manifest) return;
+
+		expect(manifest).toMatchObject({
+			version: 1,
+			mapId: 'villager-house-3',
+			dimensionsPx: { width: 1024, height: 704 },
+			base: {
+				id: 'villager-house-3-painted-base-image',
+				textureKey: 'villager-house-3-painted-base',
+				path: '/game/assets/interiors/villager-house-3/base.png',
+				sha256: '9b021c433565b0fe68c7699a2b7bd646de3273511b144efb34d9e10aba93567f'
+			},
+			navigation: {
+				gridId: 'villager-house-3-navigation',
+				cellSizePx: 16,
+				widthCells: 64,
+				heightCells: 44,
+				clearancePx: 12,
+				source: 'layout'
+			}
+		});
+		expect(manifest.foreground).toBeUndefined();
+		await expect(validateVillageInteriorManifest(manifest)).resolves.toBeUndefined();
+	});
+
 	it('validates every registered interior manifest and exact opaque base image', async () => {
 		const manifests = await collectRegisteredVillageInteriorManifests();
 		for (const manifest of manifests) await validateVillageInteriorManifest(manifest);
 
-		expect(manifests).toHaveLength(5);
+		expect(manifests).toHaveLength(6);
 		expect(manifests).toEqual([
 			{
 				version: 1,
@@ -109,6 +139,25 @@ describe('registered village interior assets', () => {
 					cellSizePx: 16,
 					widthCells: 80,
 					heightCells: 48,
+					clearancePx: 12,
+					source: 'layout'
+				}
+			},
+			{
+				version: 1,
+				mapId: 'villager-house-3',
+				dimensionsPx: { width: 1024, height: 704 },
+				base: {
+					id: 'villager-house-3-painted-base-image',
+					textureKey: 'villager-house-3-painted-base',
+					path: '/game/assets/interiors/villager-house-3/base.png',
+					sha256: '9b021c433565b0fe68c7699a2b7bd646de3273511b144efb34d9e10aba93567f'
+				},
+				navigation: {
+					gridId: 'villager-house-3-navigation',
+					cellSizePx: 16,
+					widthCells: 64,
+					heightCells: 44,
 					clearancePx: 12,
 					source: 'layout'
 				}

@@ -8,6 +8,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 
 import type { VillageInteriorPackageManifest } from '$lib/game/content/backgrounds/village-interior-package';
 import {
+	collectRegisteredVillageInteriorManifests,
 	parseVillageInteriorArtArguments,
 	validateVillageInteriorManifest
 } from './validate-village-interior-art';
@@ -57,6 +58,36 @@ function manifest(
 }
 
 describe('village interior art validator', () => {
+	it('requires the Villager House 3 opaque base with exact manifest hash and navigation parity', async () => {
+		const manifest = (await collectRegisteredVillageInteriorManifests()).find(
+			({ mapId }) => mapId === 'villager-house-3'
+		);
+		expect(manifest).toBeDefined();
+		if (!manifest) return;
+
+		expect(manifest).toMatchObject({
+			version: 1,
+			mapId: 'villager-house-3',
+			dimensionsPx: { width: 1024, height: 704 },
+			base: {
+				id: 'villager-house-3-painted-base-image',
+				textureKey: 'villager-house-3-painted-base',
+				path: '/game/assets/interiors/villager-house-3/base.png',
+				sha256: '9b021c433565b0fe68c7699a2b7bd646de3273511b144efb34d9e10aba93567f'
+			},
+			navigation: {
+				gridId: 'villager-house-3-navigation',
+				cellSizePx: 16,
+				widthCells: 64,
+				heightCells: 44,
+				clearancePx: 12,
+				source: 'layout'
+			}
+		});
+		expect(manifest.foreground).toBeUndefined();
+		await expect(validateVillageInteriorManifest(manifest)).resolves.toBeUndefined();
+	});
+
 	it('accepts an opaque base and a foreground with mixed alpha', async () => {
 		const root = await fixtureRoot();
 		const baseBytes = await sharp({
