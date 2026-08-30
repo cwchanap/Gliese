@@ -4,11 +4,7 @@ import { getDialogue } from '$lib/game/content/dialogue';
 import { mergeRegions } from '$lib/game/content/maps/meadow-entry';
 import { STEPS } from '$lib/game/content/maps/layered/geometry';
 import { VILLAGE_INTERIOR_EXTERIORS } from '$lib/game/content/maps/layouts/meadow-entry-v2';
-import {
-	layoutRectContainsPoint,
-	rectContains,
-	toMapRect
-} from '$lib/game/content/maps/layouts/layout-rects';
+import { rectContains, toMapRect } from '$lib/game/content/maps/layouts/layout-rects';
 import { VILLAGE_INTERIOR_LAYOUTS } from '$lib/game/content/maps/layouts/village-interiors-v2';
 import type { RegionFragment } from '$lib/game/content/maps/regions/types';
 import { en } from '$lib/game/i18n/messages/en';
@@ -28,7 +24,10 @@ import {
 import { MEADOW_ENTRY_V2_RIVER_SEGMENTS } from '$lib/game/content/maps/layouts/meadow-entry-v2';
 import { getItem } from '$lib/game/content/items';
 import { getShop } from '$lib/game/content/shops';
-import { VILLAGE_INTERIOR_NAVIGATION_OWNED_SOURCES } from '$lib/game/content/backgrounds/village-interior-package';
+import {
+	buildVillageInteriorNavigationSource,
+	VILLAGE_INTERIOR_NAVIGATION_OWNED_SOURCES
+} from '$lib/game/content/backgrounds/village-interior-package';
 import { VILLAGE_INTERIOR_NAVIGATION_SOURCES } from '$lib/game/content/backgrounds/village-interior-navigation-sources';
 import { GENERATED_NAVIGATION_GRIDS } from '$lib/game/content/generated/navigation-grids.generated';
 import {
@@ -446,7 +445,7 @@ describe('opening map content', () => {
 					y: 5_856,
 					toMapId: 'shrine-of-aurora-interior',
 					showMarker: false,
-					arrival: { x: 384, y: 608, facing: 'up' }
+					arrival: { x: 512, y: 784, facing: 'up' }
 				},
 				{
 					id: 'meadow-to-villager-house-3',
@@ -1215,8 +1214,8 @@ describe('opening map content', () => {
 		expect(villagerHouse2Map.height).toBe(24);
 		expect(villagerHouse3Map.width).toBe(32);
 		expect(villagerHouse3Map.height).toBe(22);
-		expect(shrineOfAuroraInteriorMap.width).toBe(24);
-		expect(shrineOfAuroraInteriorMap.height).toBe(22);
+		expect(shrineOfAuroraInteriorMap.width).toBe(32);
+		expect(shrineOfAuroraInteriorMap.height).toBe(28);
 
 		for (const map of rebuiltInteriors.slice(2)) {
 			expect(map.transitions).toHaveLength(1);
@@ -1468,28 +1467,80 @@ describe('opening map content', () => {
 
 		expect(shrineOfAuroraInteriorMap.transitions[0]).toMatchObject({
 			id: 'shrine-of-aurora-to-meadow',
-			x: 384,
-			y: 688,
+			x: 512,
+			y: 880,
 			toMapId: 'meadow-entry',
 			arrival: { x: 2_272, y: 5_920, facing: 'down' }
 		});
-		expect(shrineOfAuroraInteriorMap.interiorProps).toEqual([
-			{ ...toMapRect('shrine-of-aurora-altar', shrineLayout.propZones.altar), frameName: 'table' },
+		expect(
+			shrineOfAuroraInteriorMap.interiorProps?.map(
+				({ x, y, width, height, frameName, collision }) => ({
+					x,
+					y,
+					width,
+					height,
+					frameName,
+					collision: collision
+						? { x: collision.x, y: collision.y, width: collision.width, height: collision.height }
+						: undefined
+				})
+			)
+		).toEqual([
 			{
-				...toMapRect('shrine-of-aurora-nave-benches', shrineLayout.propZones.naveBenches),
-				frameName: 'bench'
+				x: 512,
+				y: 160,
+				width: 256,
+				height: 128,
+				frameName: 'table',
+				collision: { x: 512, y: 160, width: 192, height: 64 }
 			},
 			{
-				...toMapRect('shrine-of-aurora-preparation', shrineLayout.propZones.preparation),
-				frameName: 'crateStack'
+				x: 448,
+				y: 224,
+				width: 128,
+				height: 64,
+				frameName: 'hearthLamp',
+				collision: undefined
 			},
 			{
-				...toMapRect('shrine-of-aurora-archive', shrineLayout.propZones.archive),
-				frameName: 'bookshelf'
+				x: 400,
+				y: 496,
+				width: 96,
+				height: 224,
+				frameName: 'bench',
+				collision: { x: 400, y: 496, width: 64, height: 192 }
 			},
 			{
-				...toMapRect('shrine-of-aurora-entrance-lamps', shrineLayout.propZones.entranceLamps),
-				frameName: 'hearthLamp'
+				x: 624,
+				y: 496,
+				width: 96,
+				height: 224,
+				frameName: 'bench',
+				collision: { x: 624, y: 496, width: 64, height: 192 }
+			},
+			{
+				x: 160,
+				y: 480,
+				width: 128,
+				height: 192,
+				frameName: 'crateStack',
+				collision: { x: 160, y: 480, width: 96, height: 160 }
+			},
+			{
+				x: 864,
+				y: 480,
+				width: 128,
+				height: 256,
+				frameName: 'bookshelf',
+				collision: { x: 864, y: 480, width: 96, height: 224 }
+			},
+			{
+				x: 512,
+				y: 784,
+				width: 256,
+				height: 96,
+				frameName: 'hearthLamp',
+				collision: undefined
 			}
 		]);
 		expect(shrineOfAuroraInteriorMap.npcs ?? []).toEqual([]);
@@ -1781,36 +1832,140 @@ describe('opening map content', () => {
 			[villagerHouse3Map.spawn, { x: 864, y: 576 }, { x: 864, y: 544 }],
 			'villager-house-3-spawn-to-neighbor'
 		);
-		const westPreparationRouteTarget = { x: 160, y: 400 };
-		expect(
-			layoutRectContainsPoint(shrineLayout.rooms.westPreparation, westPreparationRouteTarget)
-		).toBe(true);
-		expectRouteClear(
-			shrineOfAuroraInteriorMap,
-			[shrineOfAuroraInteriorMap.spawn, { x: 384, y: 400 }, westPreparationRouteTarget],
-			'shrine-spawn-to-preparation'
-		);
-		expectRouteClear(
-			shrineOfAuroraInteriorMap,
-			[shrineOfAuroraInteriorMap.spawn, { x: 384, y: 400 }, { x: 640, y: 400 }],
-			'shrine-spawn-to-archive'
-		);
-		expectRouteClear(
-			shrineOfAuroraInteriorMap,
-			[shrineOfAuroraInteriorMap.spawn, { x: 384, y: 200 }],
-			'shrine-spawn-to-sanctum'
-		);
-		expectRouteClear(
-			shrineOfAuroraInteriorMap,
-			[shrineOfAuroraInteriorMap.spawn, shrineOfAuroraInteriorMap.transitions[0]!],
-			'shrine-spawn-to-exit'
-		);
-
 		const houses = [villagerHouse1Map, villagerHouse2Map, villagerHouse3Map];
 		const signatures = houses.map(normalizedHouseSignature);
 		for (let left = 0; left < signatures.length; left += 1) {
 			for (let right = left + 1; right < signatures.length; right += 1) {
 				expect(signatures[left]).not.toBe(signatures[right]);
+			}
+		}
+	});
+
+	it('exposes the Shrine luminous focal as a non-colliding fallback prop', () => {
+		const shrineLayout = VILLAGE_INTERIOR_LAYOUTS['shrine-of-aurora-interior'];
+		const focal = shrineOfAuroraInteriorMap.interiorProps?.find(
+			(prop) => prop.id === 'shrine-of-aurora-luminous-focal'
+		);
+		expect(focal).toEqual({
+			id: 'shrine-of-aurora-luminous-focal',
+			...shrineLayout.propZones.luminousFocal,
+			frameName: 'hearthLamp'
+		});
+		expect(focal?.collision).toBeUndefined();
+	});
+
+	it('attaches the Shrine 64x56 navigation grid and keeps every processional route reachable', () => {
+		const shrineLayout = VILLAGE_INTERIOR_LAYOUTS['shrine-of-aurora-interior'];
+		const shrineSource = VILLAGE_INTERIOR_NAVIGATION_SOURCES.find(
+			(source) => source.mapId === 'shrine-of-aurora-interior'
+		);
+		const shrineGrid = GENERATED_NAVIGATION_GRIDS['shrine-of-aurora-interior-navigation'];
+		expect(shrineSource).toBeDefined();
+		expect(shrineGrid).toBeDefined();
+		if (!shrineSource || !shrineGrid) return;
+
+		expect(shrineSource).toMatchObject({
+			id: 'shrine-of-aurora-interior-navigation',
+			mapId: 'shrine-of-aurora-interior',
+			cellSizePx: 16,
+			widthCells: 64,
+			heightCells: 56,
+			clearancePx: 12
+		});
+		expect(shrineSource.rows).toHaveLength(56);
+		expect(shrineSource.rows.every((row) => row.length === 64)).toBe(true);
+		expect(shrineSource.rows).toEqual(
+			buildVillageInteriorNavigationSource({
+				mapId: 'shrine-of-aurora-interior',
+				layout: shrineLayout
+			}).rows
+		);
+		expect(shrineGrid).toEqual(compileNavigationGrid(shrineSource));
+		expect(shrineGrid).toMatchObject({
+			id: 'shrine-of-aurora-interior-navigation',
+			mapId: 'shrine-of-aurora-interior',
+			cellSizePx: 16,
+			widthCells: 64,
+			heightCells: 56,
+			widthPx: 1024,
+			heightPx: 896
+		});
+		expect(shrineOfAuroraInteriorMap.navigationGrid).toBe(shrineGrid);
+		expect(shrineOfAuroraInteriorMap.navigationGridOwnedSources).toEqual(
+			VILLAGE_INTERIOR_NAVIGATION_OWNED_SOURCES
+		);
+		expect(shrineOfAuroraInteriorMap.npcs ?? []).toEqual([]);
+		expect(shrineOfAuroraInteriorMap.ambientNpcs ?? []).toEqual([]);
+		expect(shrineOfAuroraInteriorMap.width).toBe(32);
+		expect(shrineOfAuroraInteriorMap.height).toBe(28);
+		expect(shrineOfAuroraInteriorMap.spawn).toEqual({ x: 512, y: 784 });
+		expect(shrineOfAuroraInteriorMap.transitions[0]).toMatchObject({
+			id: 'shrine-of-aurora-to-meadow',
+			x: 512,
+			y: 880,
+			toMapId: 'meadow-entry',
+			arrival: { x: 2_272, y: 5_920, facing: 'down' }
+		});
+
+		const routes = [
+			[
+				'procession-to-focal',
+				[shrineOfAuroraInteriorMap.spawn, { x: 512, y: 704 }, { x: 512, y: 256 }]
+			],
+			[
+				'procession-to-altar-sightline',
+				[
+					shrineOfAuroraInteriorMap.spawn,
+					{ x: 512, y: 704 },
+					{ x: 512, y: 256 },
+					{ x: 336, y: 256 },
+					{ x: 336, y: 96 },
+					{ x: 512, y: 96 }
+				]
+			],
+			[
+				'procession-to-preparation',
+				[
+					shrineOfAuroraInteriorMap.spawn,
+					{ x: 512, y: 624 },
+					{ x: 344, y: 624 },
+					{ x: 344, y: 512 },
+					{ x: 232, y: 512 },
+					{ x: 232, y: 368 },
+					{ x: 96, y: 368 }
+				]
+			],
+			[
+				'procession-to-archive',
+				[
+					shrineOfAuroraInteriorMap.spawn,
+					{ x: 512, y: 624 },
+					{ x: 680, y: 624 },
+					{ x: 680, y: 512 },
+					{ x: 784, y: 512 },
+					{ x: 784, y: 336 },
+					{ x: 800, y: 336 }
+				]
+			],
+			[
+				'procession-to-exit',
+				[shrineOfAuroraInteriorMap.spawn, shrineOfAuroraInteriorMap.transitions[0]!]
+			]
+		] as const;
+
+		for (const [label, route] of routes) {
+			expectRouteClear(shrineOfAuroraInteriorMap, route, `shrine-${label}`);
+			for (let index = 1; index < route.length; index += 1) {
+				const from = route[index - 1]!;
+				const to = route[index]!;
+				const distance = Math.max(Math.abs(to.x - from.x), Math.abs(to.y - from.y));
+				const steps = Math.max(1, Math.ceil(distance / 16));
+				for (let step = 0; step <= steps; step += 1) {
+					const ratio = step / steps;
+					const x = from.x + (to.x - from.x) * ratio;
+					const y = from.y + (to.y - from.y) * ratio;
+					expect(isWalkable(shrineGrid, x, y), `${label} blocked at (${x},${y})`).toBe(true);
+				}
 			}
 		}
 	});
@@ -1888,12 +2043,14 @@ describe('opening map content', () => {
 		expect(villagerHouse3Map.interiorProps?.map((prop) => prop.id)).toContain(
 			'villager-house-3-west-archive-shelves'
 		);
-		expect(shrineOfAuroraInteriorMap.interiorProps?.map((prop) => prop.id)).toEqual([
-			'shrine-of-aurora-altar',
-			'shrine-of-aurora-nave-benches',
-			'shrine-of-aurora-preparation',
-			'shrine-of-aurora-archive',
-			'shrine-of-aurora-entrance-lamps'
+		expect(shrineOfAuroraInteriorMap.interiorProps?.map((prop) => prop.frameName)).toEqual([
+			'table',
+			'hearthLamp',
+			'bench',
+			'bench',
+			'crateStack',
+			'bookshelf',
+			'hearthLamp'
 		]);
 		expect(guildHallMap.ambientNpcs?.map((npc) => npc.id)).toEqual([
 			'guild-hall-member-west',

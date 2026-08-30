@@ -394,92 +394,7 @@ const shrineOfAuroraGroundPatches = [
 	}
 ];
 
-const shrineOfAuroraBlockers = [
-	{
-		...toMapRect(shrineOfAuroraLayout.walls[0]!.id, shrineOfAuroraLayout.walls[0]!),
-		kind: 'ruin-wall' as const
-	},
-	{
-		...toMapRect(shrineOfAuroraLayout.walls[1]!.id, shrineOfAuroraLayout.walls[1]!),
-		kind: 'ruin-wall' as const
-	},
-	{
-		...toMapRect(shrineOfAuroraLayout.walls[2]!.id, shrineOfAuroraLayout.walls[2]!),
-		kind: 'ruin-wall' as const
-	},
-	{
-		...toMapRect(shrineOfAuroraLayout.walls[3]!.id, shrineOfAuroraLayout.walls[3]!),
-		kind: 'ruin-wall' as const
-	},
-	{
-		...toMapRect(shrineOfAuroraLayout.walls[4]!.id, shrineOfAuroraLayout.walls[4]!),
-		kind: 'ruin-wall' as const
-	},
-	{
-		...toMapRect(shrineOfAuroraLayout.walls[5]!.id, shrineOfAuroraLayout.walls[5]!),
-		kind: 'ruin-wall' as const
-	},
-	{
-		...toMapRect(shrineOfAuroraLayout.walls[6]!.id, shrineOfAuroraLayout.walls[6]!),
-		kind: 'ruin-wall' as const
-	},
-	{
-		...toMapRect(shrineOfAuroraLayout.walls[7]!.id, shrineOfAuroraLayout.walls[7]!),
-		kind: 'ruin-wall' as const
-	},
-	{
-		...toMapRect(shrineOfAuroraLayout.walls[8]!.id, shrineOfAuroraLayout.walls[8]!),
-		kind: 'ruin-wall' as const
-	},
-	{
-		...toMapRect(shrineOfAuroraLayout.walls[9]!.id, shrineOfAuroraLayout.walls[9]!),
-		kind: 'ruin-wall' as const
-	},
-	{
-		...toMapRect(shrineOfAuroraLayout.walls[10]!.id, shrineOfAuroraLayout.walls[10]!),
-		kind: 'ruin-wall' as const
-	},
-	{
-		...toMapRect(shrineOfAuroraLayout.walls[11]!.id, shrineOfAuroraLayout.walls[11]!),
-		kind: 'ruin-wall' as const
-	},
-	{
-		...toMapRect(shrineOfAuroraLayout.walls[12]!.id, shrineOfAuroraLayout.walls[12]!),
-		kind: 'ruin-wall' as const
-	},
-	{
-		...toMapRect(shrineOfAuroraLayout.walls[13]!.id, shrineOfAuroraLayout.walls[13]!),
-		kind: 'ruin-wall' as const
-	},
-	{
-		...toMapRect(shrineOfAuroraLayout.walls[14]!.id, shrineOfAuroraLayout.walls[14]!),
-		kind: 'ruin-wall' as const
-	},
-	{
-		...toMapRect(shrineOfAuroraLayout.walls[15]!.id, shrineOfAuroraLayout.walls[15]!),
-		kind: 'ruin-wall' as const
-	},
-	{
-		...toMapRect(shrineOfAuroraLayout.walls[16]!.id, shrineOfAuroraLayout.walls[16]!),
-		kind: 'ruin-wall' as const
-	},
-	{
-		...toMapRect(shrineOfAuroraLayout.walls[17]!.id, shrineOfAuroraLayout.walls[17]!),
-		kind: 'ruin-wall' as const
-	},
-	{
-		...toMapRect(shrineOfAuroraLayout.walls[18]!.id, shrineOfAuroraLayout.walls[18]!),
-		kind: 'ruin-wall' as const
-	},
-	{
-		...toMapRect(shrineOfAuroraLayout.walls[19]!.id, shrineOfAuroraLayout.walls[19]!),
-		kind: 'ruin-wall' as const
-	},
-	{
-		...toMapRect(shrineOfAuroraLayout.walls[20]!.id, shrineOfAuroraLayout.walls[20]!),
-		kind: 'ruin-wall' as const
-	}
-];
+const shrineOfAuroraBlockers = interiorWallBlockers(shrineOfAuroraLayout.walls);
 
 const villagerHouse1Layout = VILLAGE_INTERIOR_LAYOUTS['villager-house-1'];
 
@@ -1216,6 +1131,8 @@ export const shrineOfAuroraInteriorMap: WorldMapDefinition = {
 	height: shrineOfAuroraLayout.heightTiles,
 	spawnDirection: 'up',
 	spawn: { ...shrineOfAuroraLayout.spawn },
+	navigationGrid: GENERATED_NAVIGATION_GRIDS['shrine-of-aurora-interior-navigation'],
+	navigationGridOwnedSources: VILLAGE_INTERIOR_NAVIGATION_OWNED_SOURCES,
 	groundPatches: shrineOfAuroraGroundPatches,
 	blockers: shrineOfAuroraBlockers,
 	transitions: [
@@ -1229,19 +1146,48 @@ export const shrineOfAuroraInteriorMap: WorldMapDefinition = {
 	interiorProps: [
 		{
 			...toMapRect('shrine-of-aurora-altar', shrineOfAuroraLayout.propZones.altar),
-			frameName: 'table'
+			frameName: 'table',
+			collision: toMapRect(
+				'shrine-of-aurora-altar-collision',
+				shrineOfAuroraLayout.propCollisions.altar
+			)
 		},
 		{
-			...toMapRect('shrine-of-aurora-nave-benches', shrineOfAuroraLayout.propZones.naveBenches),
-			frameName: 'bench'
+			id: 'shrine-of-aurora-luminous-focal',
+			...shrineOfAuroraLayout.propZones.luminousFocal,
+			frameName: 'hearthLamp'
+		},
+		{
+			...toMapRect('shrine-of-aurora-west-benches', shrineOfAuroraLayout.propZones.westBenches),
+			frameName: 'bench',
+			collision: toMapRect(
+				'shrine-of-aurora-west-benches-collision',
+				shrineOfAuroraLayout.propCollisions.westBenches
+			)
+		},
+		{
+			...toMapRect('shrine-of-aurora-east-benches', shrineOfAuroraLayout.propZones.eastBenches),
+			frameName: 'bench',
+			collision: toMapRect(
+				'shrine-of-aurora-east-benches-collision',
+				shrineOfAuroraLayout.propCollisions.eastBenches
+			)
 		},
 		{
 			...toMapRect('shrine-of-aurora-preparation', shrineOfAuroraLayout.propZones.preparation),
-			frameName: 'crateStack'
+			frameName: 'crateStack',
+			collision: toMapRect(
+				'shrine-of-aurora-preparation-collision',
+				shrineOfAuroraLayout.propCollisions.preparation
+			)
 		},
 		{
 			...toMapRect('shrine-of-aurora-archive', shrineOfAuroraLayout.propZones.archive),
-			frameName: 'bookshelf'
+			frameName: 'bookshelf',
+			collision: toMapRect(
+				'shrine-of-aurora-archive-collision',
+				shrineOfAuroraLayout.propCollisions.archive
+			)
 		},
 		{
 			...toMapRect('shrine-of-aurora-entrance-lamps', shrineOfAuroraLayout.propZones.entranceLamps),

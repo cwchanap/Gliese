@@ -30,5 +30,9 @@ export const VILLAGE_INTERIOR_NAVIGATION_SOURCES: readonly NavigationMaskSource[
 	buildVillageInteriorNavigationSource({
 		mapId: 'villager-house-3',
 		layout: VILLAGE_INTERIOR_LAYOUTS['villager-house-3']
+	}),
+	buildVillageInteriorNavigationSource({
+		mapId: 'shrine-of-aurora-interior',
+		layout: VILLAGE_INTERIOR_LAYOUTS['shrine-of-aurora-interior']
 	})
 ]);

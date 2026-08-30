@@ -53,7 +53,7 @@ const EXPECTED_INTERIOR_PROGRAMS = {
 		npcApproaches: ['mira']
 	},
 	'shrine-of-aurora-interior': {
-		size: [24, 22],
+		size: [32, 28],
 		rooms: ['innerSanctum', 'westPreparation', 'eastArchive'],
 		corridors: ['nave', 'entranceHall'],
 		npcApproaches: []
@@ -156,37 +156,6 @@ const APPROVED_NON_GRID_WALLS = {
 	'item-shop:item-shop-office-divider-north': { x: 480, y: 64, width: 32, height: 48 },
 	'item-shop:item-shop-office-divider-south': { x: 480, y: 176, width: 32, height: 48 }
 } as const;
-
-const SHRINE_SERVICE_WALLS = [
-	{
-		id: 'shrine-of-aurora-west-mid-service-pocket',
-		x: 64,
-		y: 224,
-		width: 160,
-		height: 32
-	},
-	{
-		id: 'shrine-of-aurora-east-mid-service-pocket',
-		x: 544,
-		y: 224,
-		width: 160,
-		height: 32
-	},
-	{
-		id: 'shrine-of-aurora-west-entrance-service-pocket',
-		x: 64,
-		y: 576,
-		width: 192,
-		height: 96
-	},
-	{
-		id: 'shrine-of-aurora-east-entrance-service-pocket',
-		x: 512,
-		y: 576,
-		width: 192,
-		height: 96
-	}
-] as const;
 
 function interiorWalkableRects(layout: VillageInteriorLayout) {
 	return [
@@ -1228,6 +1197,249 @@ describe('village interior layout coordinate contracts', () => {
 		expect(isInteriorWalkable(layout, layout.npcApproaches.io.approach)).toBe(true);
 	});
 
+	it('pins the Shrine of Aurora processional program, anchors, circulation, and navigation', () => {
+		const layout = VILLAGE_INTERIOR_LAYOUTS['shrine-of-aurora-interior'];
+		expect([layout.widthTiles, layout.heightTiles]).toEqual([32, 28]);
+		expect(Object.keys(layout.rooms)).toEqual(['innerSanctum', 'westPreparation', 'eastArchive']);
+		expect(Object.keys(layout.corridors)).toEqual(['nave', 'entranceHall']);
+		expect(Object.keys(layout.doors)).toEqual([
+			'sanctumOpening',
+			'westRoomOpening',
+			'eastRoomOpening',
+			'naveToEntrance',
+			'exterior'
+		]);
+		expect(Object.keys(layout.propZones)).toEqual([
+			'altar',
+			'luminousFocal',
+			'westBenches',
+			'eastBenches',
+			'preparation',
+			'archive',
+			'entranceLamps'
+		]);
+		expect(Object.keys(layout.propCollisions)).toEqual([
+			'altar',
+			'westBenches',
+			'eastBenches',
+			'preparation',
+			'archive'
+		]);
+		expect(layout.fullFloor).toEqual({ x: 0, y: 0, width: 1024, height: 896 });
+		expect(layout.rooms).toEqual({
+			innerSanctum: { x: 256, y: 64, width: 512, height: 224 },
+			westPreparation: { x: 64, y: 320, width: 192, height: 352 },
+			eastArchive: { x: 768, y: 320, width: 192, height: 352 }
+		});
+		expect(layout.corridors).toEqual({
+			nave: { x: 320, y: 320, width: 384, height: 352 },
+			entranceHall: { x: 320, y: 704, width: 384, height: 160 }
+		});
+		expect(layout.doors).toEqual({
+			sanctumOpening: { x: 416, y: 288, width: 192, height: 32 },
+			westRoomOpening: { x: 256, y: 448, width: 64, height: 96 },
+			eastRoomOpening: { x: 704, y: 448, width: 64, height: 96 },
+			naveToEntrance: { x: 416, y: 672, width: 192, height: 32 },
+			exterior: { x: 448, y: 864, width: 128, height: 32 }
+		});
+		expect(layout.walls).toEqual([
+			{ id: 'shrine-of-aurora-wall-north', x: 0, y: 0, width: 1024, height: 64 },
+			{ id: 'shrine-of-aurora-wall-west', x: 0, y: 64, width: 64, height: 800 },
+			{ id: 'shrine-of-aurora-wall-east', x: 960, y: 64, width: 64, height: 800 },
+			{
+				id: 'shrine-of-aurora-wall-south-west',
+				x: 0,
+				y: 864,
+				width: 448,
+				height: 32
+			},
+			{
+				id: 'shrine-of-aurora-wall-south-east',
+				x: 576,
+				y: 864,
+				width: 448,
+				height: 32
+			},
+			{
+				id: 'shrine-of-aurora-sanctum-divider-west',
+				x: 256,
+				y: 288,
+				width: 160,
+				height: 32
+			},
+			{
+				id: 'shrine-of-aurora-sanctum-divider-east',
+				x: 608,
+				y: 288,
+				width: 160,
+				height: 32
+			},
+			{
+				id: 'shrine-of-aurora-west-room-divider-north',
+				x: 256,
+				y: 320,
+				width: 64,
+				height: 128
+			},
+			{
+				id: 'shrine-of-aurora-west-room-divider-south',
+				x: 256,
+				y: 544,
+				width: 64,
+				height: 128
+			},
+			{
+				id: 'shrine-of-aurora-east-room-divider-north',
+				x: 704,
+				y: 320,
+				width: 64,
+				height: 128
+			},
+			{
+				id: 'shrine-of-aurora-east-room-divider-south',
+				x: 704,
+				y: 544,
+				width: 64,
+				height: 128
+			},
+			{
+				id: 'shrine-of-aurora-nave-entrance-divider-west',
+				x: 320,
+				y: 672,
+				width: 96,
+				height: 32
+			},
+			{
+				id: 'shrine-of-aurora-nave-entrance-divider-east',
+				x: 608,
+				y: 672,
+				width: 96,
+				height: 32
+			}
+		]);
+		expect(layout.spawn).toEqual({ x: 512, y: 784 });
+		expect(layout.exit).toEqual({ x: 512, y: 880 });
+		expect(layout.npcApproaches).toEqual({});
+		expect(layout.propZones).toEqual({
+			altar: { x: 384, y: 96, width: 256, height: 128 },
+			luminousFocal: { x: 448, y: 224, width: 128, height: 64 },
+			westBenches: { x: 352, y: 384, width: 96, height: 224 },
+			eastBenches: { x: 576, y: 384, width: 96, height: 224 },
+			preparation: { x: 96, y: 384, width: 128, height: 192 },
+			archive: { x: 800, y: 352, width: 128, height: 256 },
+			entranceLamps: { x: 384, y: 736, width: 256, height: 96 }
+		});
+		expect(layout.propCollisions).toEqual({
+			altar: { x: 416, y: 128, width: 192, height: 64 },
+			westBenches: { x: 368, y: 400, width: 64, height: 192 },
+			eastBenches: { x: 592, y: 400, width: 64, height: 192 },
+			preparation: { x: 112, y: 400, width: 96, height: 160 },
+			archive: { x: 816, y: 368, width: 96, height: 224 }
+		});
+
+		expect(layout.corridors.nave.width).toBeGreaterThanOrEqual(96);
+		expect(layout.corridors.entranceHall.width).toBeGreaterThanOrEqual(96);
+		expect(layout.doors.sanctumOpening.width).toBeGreaterThanOrEqual(96);
+		expect(layout.doors.naveToEntrance.width).toBeGreaterThanOrEqual(96);
+		for (const doorId of ['westRoomOpening', 'eastRoomOpening'] as const) {
+			expect(layout.doors[doorId].width, doorId).toBeGreaterThanOrEqual(64);
+		}
+
+		const camera = {
+			left: Math.max(0, Math.min(layout.spawn.x - 320, layout.fullFloor.width - 640)),
+			top: Math.max(0, Math.min(layout.spawn.y - 180, layout.fullFloor.height - 360)),
+			width: 640,
+			height: 360
+		};
+		expect(camera).toEqual({ left: 192, top: 536, width: 640, height: 360 });
+		const wideCamera = {
+			left: Math.max(0, Math.min(layout.spawn.x - 640, layout.fullFloor.width - 1280)),
+			top: Math.max(0, Math.min(layout.spawn.y - 360, layout.fullFloor.height - 720)),
+			width: 1280,
+			height: 720
+		};
+		expect(wideCamera).toEqual({ left: 0, top: 176, width: 1280, height: 720 });
+		expect(layout.fullFloor.height - wideCamera.height).toBe(176);
+		for (const [label, point] of [
+			['entrance', layout.spawn],
+			['exit', layout.exit],
+			['luminous-focal', { x: 512, y: 256 }]
+		] as const) {
+			expect(
+				point.x >= wideCamera.left &&
+					point.x <= wideCamera.left + wideCamera.width &&
+					point.y >= wideCamera.top &&
+					point.y <= wideCamera.top + wideCamera.height,
+				`${label} is outside the current 1280x720 camera envelope`
+			).toBe(true);
+		}
+
+		const source = VILLAGE_INTERIOR_NAVIGATION_SOURCES.find(
+			(value) => value.mapId === 'shrine-of-aurora-interior'
+		);
+		expect(source).toBeDefined();
+		if (!source) return;
+		expect(source).toMatchObject({
+			id: 'shrine-of-aurora-interior-navigation',
+			mapId: 'shrine-of-aurora-interior',
+			cellSizePx: 16,
+			widthCells: 64,
+			heightCells: 56,
+			clearancePx: 12
+		});
+		expect(source.rows).toHaveLength(56);
+		expect(source.rows.every((row) => row.length === 64)).toBe(true);
+		expect(source.rows).toEqual(
+			buildVillageInteriorNavigationSource({ mapId: 'shrine-of-aurora-interior', layout }).rows
+		);
+
+		const grid = compileNavigationGrid(source);
+		for (const [propId, collision] of Object.entries(layout.propCollisions)) {
+			const center = {
+				x: collision.x + collision.width / 2,
+				y: collision.y + collision.height / 2
+			};
+			expect(isWalkable(grid, center.x, center.y), `${propId} collision core must block`).toBe(
+				false
+			);
+		}
+
+		const reachable = reachableInteriorSamples(layout);
+		for (const [label, point] of [
+			['altar', { x: 512, y: 96 }],
+			['luminous-focal', { x: 512, y: 256 }],
+			['west-benches', { x: 336, y: 496 }],
+			['east-benches', { x: 688, y: 496 }],
+			['preparation', { x: 96, y: 368 }],
+			['archive', { x: 800, y: 336 }],
+			['entrance-lamps', { x: 384, y: 736 }],
+			['spawn', layout.spawn],
+			['exit', layout.exit]
+		] as const) {
+			expect(reachableInteriorPoint(reachable, point), `${label} is disconnected`).toBe(true);
+			expect(isWalkable(grid, point.x, point.y), `${label} is not walkable`).toBe(true);
+		}
+	});
+
+	it('replaces Shrine service pockets with the approved processional wall program', () => {
+		const layout = VILLAGE_INTERIOR_LAYOUTS['shrine-of-aurora-interior'];
+		expect(layout.walls.map(({ id }) => id)).toEqual([
+			'shrine-of-aurora-wall-north',
+			'shrine-of-aurora-wall-west',
+			'shrine-of-aurora-wall-east',
+			'shrine-of-aurora-wall-south-west',
+			'shrine-of-aurora-wall-south-east',
+			'shrine-of-aurora-sanctum-divider-west',
+			'shrine-of-aurora-sanctum-divider-east',
+			'shrine-of-aurora-west-room-divider-north',
+			'shrine-of-aurora-west-room-divider-south',
+			'shrine-of-aurora-east-room-divider-north',
+			'shrine-of-aurora-east-room-divider-south',
+			'shrine-of-aurora-nave-entrance-divider-west',
+			'shrine-of-aurora-nave-entrance-divider-east'
+		]);
+	});
+
 	it('pins the Item Shop Gate 1 program, anchors, circulation, and camera envelope', () => {
 		const layout = VILLAGE_INTERIOR_LAYOUTS['item-shop'];
 		expect([layout.widthTiles, layout.heightTiles]).toEqual([26, 20]);
@@ -1417,13 +1629,6 @@ describe('village interior layout coordinate contracts', () => {
 		}
 	});
 
-	it('seals every Shrine service pocket with an explicit inert wall', () => {
-		const shrine = VILLAGE_INTERIOR_LAYOUTS['shrine-of-aurora-interior'];
-		for (const wall of SHRINE_SERVICE_WALLS) {
-			expect(shrine.walls).toContainEqual(wall);
-		}
-	});
-
 	it('keeps every interior rectangle in bounds and every approach clear', () => {
 		const minimumApproach = PLAYER_COLLISION_RADIUS + NPC_PACK_COLLISION_RADIUS;
 		const maximumApproach = PLAYER_COLLISION_RADIUS + NPC_INTERACTION_RADIUS;
@@ -1559,7 +1764,7 @@ describe('village interior layout coordinate contracts', () => {
 		}
 	});
 
-	it('freezes the seven current room programs and their composed-collision routes', () => {
+	it('freezes the eight current room programs and their composed-collision routes', () => {
 		for (const [mapId, expected] of Object.entries(EXPECTED_INTERIOR_PROGRAMS)) {
 			const layout = VILLAGE_INTERIOR_LAYOUTS[mapId as keyof typeof VILLAGE_INTERIOR_LAYOUTS];
 			expect([layout.widthTiles, layout.heightTiles], `${mapId}:size`).toEqual(expected.size);
@@ -1635,12 +1840,13 @@ describe('village interior layout coordinate contracts', () => {
 		}
 	});
 
-	it('keeps the three villager homes architecturally distinct', () => {
+	it('keeps the three villager homes and Shrine architecturally distinct', () => {
 		const signatures = [
 			VILLAGE_INTERIOR_LAYOUTS['villager-house-1'],
 			VILLAGE_INTERIOR_LAYOUTS['villager-house-2'],
-			VILLAGE_INTERIOR_LAYOUTS['villager-house-3']
+			VILLAGE_INTERIOR_LAYOUTS['villager-house-3'],
+			VILLAGE_INTERIOR_LAYOUTS['shrine-of-aurora-interior']
 		].map(normalizedInteriorSignature);
-		expect(new Set(signatures).size).toBe(3);
+		expect(new Set(signatures).size).toBe(4);
 	});
 });

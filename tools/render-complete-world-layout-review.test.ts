@@ -32,7 +32,7 @@ const expectedReviewDimensions: Readonly<Record<string, { width: number; height:
 	'villager-house-1': { width: 1280, height: 832 },
 	'villager-house-2': { width: 1280, height: 768 },
 	'villager-house-3': { width: 1024, height: 704 },
-	'shrine-of-aurora-interior': { width: 768, height: 704 },
+	'shrine-of-aurora-interior': { width: 1024, height: 896 },
 	'blacksmith-interior': { width: 896, height: 704 },
 	'ruins-threshold': { width: 1600, height: 1600 },
 	'ruins-core': { width: 1600, height: 1600 }
@@ -447,6 +447,93 @@ describe('complete world layout review renderer', () => {
 				'route-widths.png'
 			].sort()
 		);
+	});
+
+	it('renders the Shrine light-scroll graybox proof inventory without painted artifacts', async () => {
+		const outputRoot = await createOutputRoot();
+		const repositoryRoot = await createRepositoryRoot();
+		const rendered = await renderCompleteWorldLayoutReview({
+			outputRoot,
+			check: false,
+			map: 'shrine-of-aurora-interior',
+			repositoryRoot
+		});
+
+		expect(rendered).toHaveLength(1);
+		expect(rendered[0]).toMatchObject({
+			mapId: 'shrine-of-aurora-interior',
+			worldDimensions: { width: 1024, height: 896 },
+			reviewDimensions: { width: 1024, height: 896 }
+		});
+		expect(rendered[0]?.worldDimensions.height).toBeGreaterThan(720);
+		expect(rendered[0]?.worldDimensions.height - 720).toBe(176);
+		expect((await readdir(join(outputRoot, 'shrine-of-aurora-interior'))).sort()).toEqual(
+			[
+				'anchors.png',
+				'camera-1280x720.png',
+				'camera-640x360.png',
+				'coordinate-graybox.png',
+				'inventory.json',
+				'player-centre-navigation-overlay.png',
+				'raw-collision-overlay.png',
+				'route-widths.png'
+			].sort()
+		);
+
+		const inventory = JSON.parse(
+			await readFile(join(outputRoot, 'shrine-of-aurora-interior/inventory.json'), 'utf8')
+		) as {
+			mapId: string;
+			artifacts: readonly { path: string; width: number; height: number; sha256: string }[];
+		};
+		expect(inventory.mapId).toBe('shrine-of-aurora-interior');
+		expect(inventory.artifacts).toEqual([
+			expect.objectContaining({
+				path: 'shrine-of-aurora-interior/coordinate-graybox.png',
+				width: 1024,
+				height: 896
+			}),
+			expect.objectContaining({
+				path: 'shrine-of-aurora-interior/raw-collision-overlay.png',
+				width: 1024,
+				height: 896
+			}),
+			expect.objectContaining({
+				path: 'shrine-of-aurora-interior/player-centre-navigation-overlay.png',
+				width: 1024,
+				height: 896
+			}),
+			expect.objectContaining({
+				path: 'shrine-of-aurora-interior/anchors.png',
+				width: 1024,
+				height: 896
+			}),
+			expect.objectContaining({
+				path: 'shrine-of-aurora-interior/route-widths.png',
+				width: 1024,
+				height: 896
+			}),
+			expect.objectContaining({
+				path: 'shrine-of-aurora-interior/camera-640x360.png',
+				width: 640,
+				height: 360
+			}),
+			expect.objectContaining({
+				path: 'shrine-of-aurora-interior/camera-1280x720.png',
+				width: 1280,
+				height: 720
+			})
+		]);
+		expect(inventory.artifacts.every(({ sha256 }) => /^[a-f0-9]{64}$/.test(sha256))).toBe(true);
+
+		await expect(
+			renderCompleteWorldLayoutReview({
+				outputRoot,
+				check: true,
+				map: 'shrine-of-aurora-interior',
+				repositoryRoot
+			})
+		).resolves.toEqual(rendered);
 	});
 
 	it('renders the complete Villager House 1 painted proof inventory', async () => {

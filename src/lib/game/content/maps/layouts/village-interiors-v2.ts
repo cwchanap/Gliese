@@ -95,27 +95,19 @@ const blacksmithWalls: readonly NamedLayoutRect[] = [
 ];
 
 const shrineOfAuroraWalls: readonly NamedLayoutRect[] = [
-	namedRect('shrine-of-aurora-wall-north', 0, 0, 768, 64),
-	namedRect('shrine-of-aurora-wall-west', 0, 64, 64, 608),
-	namedRect('shrine-of-aurora-wall-east', 704, 64, 64, 608),
-	namedRect('shrine-of-aurora-wall-south-west', 0, 672, 352, 32),
-	namedRect('shrine-of-aurora-wall-south-east', 416, 672, 352, 32),
-	namedRect('shrine-of-aurora-west-upper-service', 64, 64, 160, 160),
-	namedRect('shrine-of-aurora-east-upper-service', 544, 64, 160, 160),
-	namedRect('shrine-of-aurora-west-mid-service-pocket', 64, 224, 160, 32),
-	namedRect('shrine-of-aurora-east-mid-service-pocket', 544, 224, 160, 32),
-	namedRect('shrine-of-aurora-sanctum-opening-west', 224, 224, 96, 32),
-	namedRect('shrine-of-aurora-sanctum-opening-east', 448, 224, 96, 32),
-	namedRect('shrine-of-aurora-west-room-opening-north', 192, 256, 32, 96),
-	namedRect('shrine-of-aurora-west-room-opening-south', 192, 448, 32, 64),
-	namedRect('shrine-of-aurora-east-room-opening-north', 544, 256, 32, 96),
-	namedRect('shrine-of-aurora-east-room-opening-south', 544, 448, 32, 64),
-	namedRect('shrine-of-aurora-west-lower-service', 64, 512, 160, 64),
-	namedRect('shrine-of-aurora-east-lower-service', 544, 512, 160, 64),
-	namedRect('shrine-of-aurora-west-entrance-service-pocket', 64, 576, 192, 96),
-	namedRect('shrine-of-aurora-east-entrance-service-pocket', 512, 576, 192, 96),
-	namedRect('shrine-of-aurora-nave-entrance-divider-west', 224, 544, 96, 32),
-	namedRect('shrine-of-aurora-nave-entrance-divider-east', 448, 544, 96, 32)
+	namedRect('shrine-of-aurora-wall-north', 0, 0, 1024, 64),
+	namedRect('shrine-of-aurora-wall-west', 0, 64, 64, 800),
+	namedRect('shrine-of-aurora-wall-east', 960, 64, 64, 800),
+	namedRect('shrine-of-aurora-wall-south-west', 0, 864, 448, 32),
+	namedRect('shrine-of-aurora-wall-south-east', 576, 864, 448, 32),
+	namedRect('shrine-of-aurora-sanctum-divider-west', 256, 288, 160, 32),
+	namedRect('shrine-of-aurora-sanctum-divider-east', 608, 288, 160, 32),
+	namedRect('shrine-of-aurora-west-room-divider-north', 256, 320, 64, 128),
+	namedRect('shrine-of-aurora-west-room-divider-south', 256, 544, 64, 128),
+	namedRect('shrine-of-aurora-east-room-divider-north', 704, 320, 64, 128),
+	namedRect('shrine-of-aurora-east-room-divider-south', 704, 544, 64, 128),
+	namedRect('shrine-of-aurora-nave-entrance-divider-west', 320, 672, 96, 32),
+	namedRect('shrine-of-aurora-nave-entrance-divider-east', 608, 672, 96, 32)
 ];
 
 const villagerHouse1Walls: readonly NamedLayoutRect[] = [
@@ -332,37 +324,45 @@ export const VILLAGE_INTERIOR_LAYOUTS = {
 		}
 	},
 	'shrine-of-aurora-interior': {
-		widthTiles: 24,
-		heightTiles: 22,
-		fullFloor: rect(0, 0, 768, 704),
+		widthTiles: 32,
+		heightTiles: 28,
+		fullFloor: rect(0, 0, 1024, 896),
 		rooms: {
-			innerSanctum: rect(224, 64, 320, 160),
-			westPreparation: rect(64, 256, 128, 256),
-			eastArchive: rect(576, 256, 128, 256)
+			innerSanctum: rect(256, 64, 512, 224),
+			westPreparation: rect(64, 320, 192, 352),
+			eastArchive: rect(768, 320, 192, 352)
 		},
 		corridors: {
-			nave: rect(224, 256, 320, 288),
-			entranceHall: rect(256, 576, 256, 96)
+			nave: rect(320, 320, 384, 352),
+			entranceHall: rect(320, 704, 384, 160)
 		},
 		doors: {
-			sanctumOpening: rect(320, 224, 128, 32),
-			westRoomOpening: rect(192, 352, 32, 96),
-			eastRoomOpening: rect(544, 352, 32, 96),
-			naveToEntrance: rect(320, 544, 128, 32),
-			exterior: rect(352, 672, 64, 32)
+			sanctumOpening: rect(416, 288, 192, 32),
+			westRoomOpening: rect(256, 448, 64, 96),
+			eastRoomOpening: rect(704, 448, 64, 96),
+			naveToEntrance: rect(416, 672, 192, 32),
+			exterior: rect(448, 864, 128, 32)
 		},
 		walls: shrineOfAuroraWalls,
-		spawn: point(384, 608),
-		exit: point(384, 688),
+		spawn: point(512, 784),
+		exit: point(512, 880),
 		npcApproaches: {},
 		propZones: {
-			altar: rect(288, 96, 192, 96),
-			naveBenches: rect(256, 352, 256, 128),
-			preparation: rect(80, 320, 96, 128),
-			archive: rect(592, 288, 96, 160),
-			entranceLamps: rect(288, 592, 192, 64)
+			altar: rect(384, 96, 256, 128),
+			luminousFocal: rect(448, 224, 128, 64),
+			westBenches: rect(352, 384, 96, 224),
+			eastBenches: rect(576, 384, 96, 224),
+			preparation: rect(96, 384, 128, 192),
+			archive: rect(800, 352, 128, 256),
+			entranceLamps: rect(384, 736, 256, 96)
 		},
-		propCollisions: {}
+		propCollisions: {
+			altar: rect(416, 128, 192, 64),
+			westBenches: rect(368, 400, 64, 192),
+			eastBenches: rect(592, 400, 64, 192),
+			preparation: rect(112, 400, 96, 160),
+			archive: rect(816, 368, 96, 224)
+		}
 	},
 	'villager-house-1': {
 		widthTiles: 40,

@@ -23,6 +23,7 @@ import {
 
 describe('map background registry', () => {
 	it('registers approved interior navigation and painted packages', () => {
+		expect(VILLAGE_INTERIOR_NAVIGATION_SOURCES).toHaveLength(8);
 		expect(VILLAGE_INTERIOR_NAVIGATION_SOURCES).toEqual([
 			expect.objectContaining({
 				id: 'hero-house-navigation',
@@ -78,6 +79,14 @@ describe('map background registry', () => {
 				cellSizePx: 16,
 				widthCells: 64,
 				heightCells: 44,
+				clearancePx: 12
+			}),
+			expect.objectContaining({
+				id: 'shrine-of-aurora-interior-navigation',
+				mapId: 'shrine-of-aurora-interior',
+				cellSizePx: 16,
+				widthCells: 64,
+				heightCells: 56,
 				clearancePx: 12
 			})
 		]);
