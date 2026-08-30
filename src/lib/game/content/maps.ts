@@ -1153,8 +1153,7 @@ export const shrineOfAuroraInteriorMap: WorldMapDefinition = {
 			)
 		},
 		{
-			id: 'shrine-of-aurora-luminous-focal',
-			...shrineOfAuroraLayout.propZones.luminousFocal,
+			...toMapRect('shrine-of-aurora-luminous-focal', shrineOfAuroraLayout.propZones.luminousFocal),
 			frameName: 'hearthLamp'
 		},
 		{

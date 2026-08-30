@@ -1495,8 +1495,8 @@ describe('opening map content', () => {
 				collision: { x: 512, y: 160, width: 192, height: 64 }
 			},
 			{
-				x: 448,
-				y: 224,
+				x: 512,
+				y: 256,
 				width: 128,
 				height: 64,
 				frameName: 'hearthLamp',
@@ -1842,13 +1842,15 @@ describe('opening map content', () => {
 	});
 
 	it('exposes the Shrine luminous focal as a non-colliding fallback prop', () => {
-		const shrineLayout = VILLAGE_INTERIOR_LAYOUTS['shrine-of-aurora-interior'];
 		const focal = shrineOfAuroraInteriorMap.interiorProps?.find(
 			(prop) => prop.id === 'shrine-of-aurora-luminous-focal'
 		);
 		expect(focal).toEqual({
 			id: 'shrine-of-aurora-luminous-focal',
-			...shrineLayout.propZones.luminousFocal,
+			x: 512,
+			y: 256,
+			width: 128,
+			height: 64,
 			frameName: 'hearthLamp'
 		});
 		expect(focal?.collision).toBeUndefined();
