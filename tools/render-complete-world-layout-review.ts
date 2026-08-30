@@ -1172,7 +1172,8 @@ async function renderLiveCharacterComposition(
 		mapId === 'guild-hall' ||
 		mapId === 'item-shop' ||
 		mapId === 'villager-house-1' ||
-		mapId === 'villager-house-2'
+		mapId === 'villager-house-2' ||
+		mapId === 'villager-house-3'
 	) {
 		const npcPackPath = interiorImagePath(npcPackAsset.path, repositoryRoot);
 		let npcAtlas: Buffer;

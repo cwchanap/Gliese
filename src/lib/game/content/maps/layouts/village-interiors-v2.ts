@@ -147,17 +147,17 @@ const villagerHouse2Walls: readonly NamedLayoutRect[] = [
 ];
 
 const villagerHouse3Walls: readonly NamedLayoutRect[] = [
-	namedRect('villager-house-3-wall-north', 0, 0, 640, 64),
-	namedRect('villager-house-3-wall-west', 0, 64, 64, 544),
-	namedRect('villager-house-3-wall-east', 576, 64, 64, 544),
-	namedRect('villager-house-3-wall-south-west', 0, 608, 288, 32),
-	namedRect('villager-house-3-wall-south-east', 352, 608, 288, 32),
-	namedRect('villager-house-3-archive-divider-north', 256, 64, 32, 64),
-	namedRect('villager-house-3-archive-divider-south', 256, 224, 32, 96),
-	namedRect('villager-house-3-bedroom-divider-north', 384, 64, 32, 64),
-	namedRect('villager-house-3-bedroom-divider-south', 384, 224, 32, 96),
-	namedRect('villager-house-3-hall-sitting-divider-west', 64, 320, 224, 32),
-	namedRect('villager-house-3-hall-sitting-divider-east', 384, 320, 192, 32)
+	namedRect('villager-house-3-wall-north', 0, 0, 1024, 64),
+	namedRect('villager-house-3-wall-west', 0, 64, 64, 608),
+	namedRect('villager-house-3-wall-east', 960, 64, 64, 608),
+	namedRect('villager-house-3-wall-south-west', 0, 672, 448, 32),
+	namedRect('villager-house-3-wall-south-east', 576, 672, 448, 32),
+	namedRect('villager-house-3-archive-divider-north', 416, 64, 32, 96),
+	namedRect('villager-house-3-archive-divider-south', 416, 256, 32, 96),
+	namedRect('villager-house-3-bedroom-divider-north', 576, 64, 32, 96),
+	namedRect('villager-house-3-bedroom-divider-south', 576, 256, 32, 96),
+	namedRect('villager-house-3-sitting-divider-west', 64, 352, 384, 32),
+	namedRect('villager-house-3-sitting-divider-east', 576, 352, 384, 32)
 ];
 
 export const VILLAGE_INTERIOR_LAYOUTS = {
@@ -445,37 +445,45 @@ export const VILLAGE_INTERIOR_LAYOUTS = {
 		}
 	},
 	'villager-house-3': {
-		widthTiles: 20,
-		heightTiles: 20,
-		fullFloor: rect(0, 0, 640, 640),
+		widthTiles: 32,
+		heightTiles: 22,
+		fullFloor: rect(0, 0, 1024, 704),
 		rooms: {
-			archiveStudy: rect(64, 64, 192, 256),
-			bedroomStorage: rect(416, 64, 160, 256),
-			sittingRoom: rect(64, 352, 512, 256)
+			archiveStudy: rect(64, 64, 352, 288),
+			bedroomStorage: rect(608, 64, 352, 288),
+			sittingRoom: rect(64, 384, 896, 288)
 		},
 		corridors: {
-			hall: rect(288, 64, 96, 288)
+			hall: rect(448, 64, 128, 320)
 		},
 		doors: {
-			archive: rect(256, 128, 32, 96),
-			bedroom: rect(384, 128, 32, 96),
-			hallToSitting: rect(288, 320, 96, 32),
-			exterior: rect(288, 608, 64, 32)
+			archive: rect(416, 160, 32, 96),
+			bedroom: rect(576, 160, 32, 96),
+			hallToSitting: rect(448, 352, 128, 32),
+			exterior: rect(448, 672, 128, 32)
 		},
 		walls: villagerHouse3Walls,
-		spawn: point(320, 544),
-		exit: point(320, 624),
+		spawn: point(512, 576),
+		exit: point(512, 688),
 		npcApproaches: {
-			io: { npc: point(160, 192), approach: point(200, 192) }
+			io: { npc: point(256, 224), approach: point(304, 224) }
+		},
+		ambientActivity: {
+			'villager-house-3-neighbor': point(768, 544)
 		},
 		propZones: {
-			westArchiveShelves: rect(80, 96, 48, 192),
-			readingTable: rect(96, 384, 160, 96),
-			bedroom: rect(432, 96, 112, 160),
-			sitting: rect(320, 416, 192, 128)
+			westArchiveShelves: rect(96, 96, 128, 192),
+			readingTable: rect(256, 416, 224, 128),
+			bedroom: rect(672, 96, 160, 160),
+			travelStorage: rect(832, 96, 96, 192),
+			sitting: rect(608, 448, 224, 128)
 		},
 		propCollisions: {
-			ioWestArchiveShelves: rect(80, 96, 48, 192)
+			ioWestArchiveShelves: rect(112, 112, 96, 160),
+			readingTable: rect(288, 448, 160, 64),
+			bedroom: rect(688, 112, 128, 128),
+			travelStorage: rect(848, 112, 64, 160),
+			sitting: rect(640, 480, 160, 64)
 		}
 	}
 } as const satisfies Readonly<Record<string, VillageInteriorLayout>>;

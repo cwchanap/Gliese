@@ -653,52 +653,7 @@ const villagerHouse3GroundPatches = [
 	}
 ];
 
-const villagerHouse3Blockers = [
-	{
-		...toMapRect(villagerHouse3Layout.walls[0]!.id, villagerHouse3Layout.walls[0]!),
-		kind: 'ruin-wall' as const
-	},
-	{
-		...toMapRect(villagerHouse3Layout.walls[1]!.id, villagerHouse3Layout.walls[1]!),
-		kind: 'ruin-wall' as const
-	},
-	{
-		...toMapRect(villagerHouse3Layout.walls[2]!.id, villagerHouse3Layout.walls[2]!),
-		kind: 'ruin-wall' as const
-	},
-	{
-		...toMapRect(villagerHouse3Layout.walls[3]!.id, villagerHouse3Layout.walls[3]!),
-		kind: 'ruin-wall' as const
-	},
-	{
-		...toMapRect(villagerHouse3Layout.walls[4]!.id, villagerHouse3Layout.walls[4]!),
-		kind: 'ruin-wall' as const
-	},
-	{
-		...toMapRect(villagerHouse3Layout.walls[5]!.id, villagerHouse3Layout.walls[5]!),
-		kind: 'ruin-wall' as const
-	},
-	{
-		...toMapRect(villagerHouse3Layout.walls[6]!.id, villagerHouse3Layout.walls[6]!),
-		kind: 'ruin-wall' as const
-	},
-	{
-		...toMapRect(villagerHouse3Layout.walls[7]!.id, villagerHouse3Layout.walls[7]!),
-		kind: 'ruin-wall' as const
-	},
-	{
-		...toMapRect(villagerHouse3Layout.walls[8]!.id, villagerHouse3Layout.walls[8]!),
-		kind: 'ruin-wall' as const
-	},
-	{
-		...toMapRect(villagerHouse3Layout.walls[9]!.id, villagerHouse3Layout.walls[9]!),
-		kind: 'ruin-wall' as const
-	},
-	{
-		...toMapRect(villagerHouse3Layout.walls[10]!.id, villagerHouse3Layout.walls[10]!),
-		kind: 'ruin-wall' as const
-	}
-];
+const villagerHouse3Blockers = interiorWallBlockers(villagerHouse3Layout.walls);
 
 export const heroHouseMap: WorldMapDefinition = {
 	id: 'hero-house',
@@ -1176,6 +1131,8 @@ export const villagerHouse3Map: WorldMapDefinition = addEnglishMapText({
 	height: villagerHouse3Layout.heightTiles,
 	spawnDirection: 'up',
 	spawn: { ...villagerHouse3Layout.spawn },
+	navigationGrid: GENERATED_NAVIGATION_GRIDS['villager-house-3-navigation'],
+	navigationGridOwnedSources: VILLAGE_INTERIOR_NAVIGATION_OWNED_SOURCES,
 	groundPatches: villagerHouse3GroundPatches,
 	blockers: villagerHouse3Blockers,
 	transitions: [
@@ -1202,15 +1159,35 @@ export const villagerHouse3Map: WorldMapDefinition = addEnglishMapText({
 		},
 		{
 			...toMapRect('villager-house-3-reading-table', villagerHouse3Layout.propZones.readingTable),
-			frameName: 'table'
+			frameName: 'table',
+			collision: toMapRect(
+				'villager-house-3-reading-table-collision',
+				villagerHouse3Layout.propCollisions.readingTable
+			)
 		},
 		{
 			...toMapRect('villager-house-3-bedroom', villagerHouse3Layout.propZones.bedroom),
-			frameName: 'bed'
+			frameName: 'bed',
+			collision: toMapRect(
+				'villager-house-3-bedroom-collision',
+				villagerHouse3Layout.propCollisions.bedroom
+			)
+		},
+		{
+			...toMapRect('villager-house-3-travel-storage', villagerHouse3Layout.propZones.travelStorage),
+			frameName: 'crateStack',
+			collision: toMapRect(
+				'villager-house-3-travel-storage-collision',
+				villagerHouse3Layout.propCollisions.travelStorage
+			)
 		},
 		{
 			...toMapRect('villager-house-3-sitting', villagerHouse3Layout.propZones.sitting),
-			frameName: 'rug'
+			frameName: 'rug',
+			collision: toMapRect(
+				'villager-house-3-sitting-collision',
+				villagerHouse3Layout.propCollisions.sitting
+			)
 		}
 	],
 	npcs: [
@@ -1226,8 +1203,7 @@ export const villagerHouse3Map: WorldMapDefinition = addEnglishMapText({
 	ambientNpcs: [
 		{
 			id: 'villager-house-3-neighbor',
-			x: 480,
-			y: 480,
+			...villagerHouse3Layout.ambientActivity!['villager-house-3-neighbor'],
 			frameName: 'quartermasterNpc',
 			role: 'neighbor'
 		}

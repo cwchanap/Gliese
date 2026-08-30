@@ -454,7 +454,7 @@ describe('opening map content', () => {
 					y: 5_856,
 					toMapId: 'villager-house-3',
 					showMarker: false,
-					arrival: { x: 320, y: 544, facing: 'up' }
+					arrival: { x: 512, y: 576, facing: 'up' }
 				},
 				{
 					id: 'meadow-to-whispering-cave-ruins-threshold',
@@ -1213,8 +1213,8 @@ describe('opening map content', () => {
 		expect(villagerHouse1Map.height).toBe(26);
 		expect(villagerHouse2Map.width).toBe(40);
 		expect(villagerHouse2Map.height).toBe(24);
-		expect(villagerHouse3Map.width).toBe(20);
-		expect(villagerHouse3Map.height).toBe(20);
+		expect(villagerHouse3Map.width).toBe(32);
+		expect(villagerHouse3Map.height).toBe(22);
 		expect(shrineOfAuroraInteriorMap.width).toBe(24);
 		expect(shrineOfAuroraInteriorMap.height).toBe(22);
 
@@ -1615,6 +1615,14 @@ describe('opening map content', () => {
 			VILLAGE_INTERIOR_NAVIGATION_OWNED_SOURCES
 		);
 
+		expect(villagerHouse3Map.navigationGrid).toBeDefined();
+		expect(villagerHouse3Map.navigationGrid).toBe(
+			GENERATED_NAVIGATION_GRIDS['villager-house-3-navigation']
+		);
+		expect(villagerHouse3Map.navigationGridOwnedSources).toEqual(
+			VILLAGE_INTERIOR_NAVIGATION_OWNED_SOURCES
+		);
+
 		expect(villagerHouse3Map.interiorProps).toEqual([
 			{
 				...toMapRect(
@@ -1629,22 +1637,42 @@ describe('opening map content', () => {
 			},
 			{
 				...toMapRect('villager-house-3-reading-table', house3Layout.propZones.readingTable),
-				frameName: 'table'
+				frameName: 'table',
+				collision: toMapRect(
+					'villager-house-3-reading-table-collision',
+					house3Layout.propCollisions.readingTable
+				)
 			},
 			{
 				...toMapRect('villager-house-3-bedroom', house3Layout.propZones.bedroom),
-				frameName: 'bed'
+				frameName: 'bed',
+				collision: toMapRect(
+					'villager-house-3-bedroom-collision',
+					house3Layout.propCollisions.bedroom
+				)
+			},
+			{
+				...toMapRect('villager-house-3-travel-storage', house3Layout.propZones.travelStorage),
+				frameName: 'crateStack',
+				collision: toMapRect(
+					'villager-house-3-travel-storage-collision',
+					house3Layout.propCollisions.travelStorage
+				)
 			},
 			{
 				...toMapRect('villager-house-3-sitting', house3Layout.propZones.sitting),
-				frameName: 'rug'
+				frameName: 'rug',
+				collision: toMapRect(
+					'villager-house-3-sitting-collision',
+					house3Layout.propCollisions.sitting
+				)
 			}
 		]);
 		expect(villagerHouse3Map.npcs).toEqual([
 			expect.objectContaining({
 				id: 'villager-io',
-				x: 160,
-				y: 192,
+				x: 256,
+				y: 224,
 				nameKey: 'content.maps.npcs.villager-io.name',
 				dialogueId: 'villager-io',
 				role: 'villager',
@@ -1654,8 +1682,8 @@ describe('opening map content', () => {
 		expect(villagerHouse3Map.ambientNpcs).toEqual([
 			{
 				id: 'villager-house-3-neighbor',
-				x: 480,
-				y: 480,
+				x: 768,
+				y: 544,
 				frameName: 'quartermasterNpc',
 				role: 'neighbor'
 			}
@@ -1675,7 +1703,7 @@ describe('opening map content', () => {
 			[
 				villagerHouse3Map,
 				house3Layout.npcApproaches.io,
-				[villagerHouse3Map.spawn, { x: 320, y: 192 }, { x: 200, y: 192 }]
+				[villagerHouse3Map.spawn, { x: 512, y: 400 }, { x: 512, y: 224 }, { x: 304, y: 224 }]
 			]
 		] as const) {
 			expect(map.backgroundImages).toBeUndefined();
@@ -1723,18 +1751,35 @@ describe('opening map content', () => {
 		);
 		expectRouteClear(
 			villagerHouse3Map,
-			[villagerHouse3Map.spawn, { x: 320, y: 192 }],
+			[villagerHouse3Map.spawn, { x: 512, y: 400 }, { x: 512, y: 224 }],
 			'villager-house-3-spawn-to-hall'
 		);
 		expectRouteClear(
 			villagerHouse3Map,
-			[villagerHouse3Map.spawn, { x: 320, y: 192 }, { x: 512, y: 192 }],
+			[
+				villagerHouse3Map.spawn,
+				{ x: 512, y: 400 },
+				{ x: 512, y: 224 },
+				{ x: 640, y: 224 },
+				{ x: 640, y: 320 },
+				{ x: 832, y: 320 }
+			],
 			'villager-house-3-spawn-to-bedroom-storage'
 		);
 		expectRouteClear(
 			villagerHouse3Map,
-			[villagerHouse3Map.spawn, { x: 512, y: 544 }],
+			[villagerHouse3Map.spawn, { x: 864, y: 576 }],
 			'villager-house-3-spawn-to-sitting-room'
+		);
+		expectRouteClear(
+			villagerHouse3Map,
+			[villagerHouse3Map.spawn, { x: 256, y: 576 }, { x: 256, y: 432 }],
+			'villager-house-3-spawn-to-reading-table'
+		);
+		expectRouteClear(
+			villagerHouse3Map,
+			[villagerHouse3Map.spawn, { x: 864, y: 576 }, { x: 864, y: 544 }],
+			'villager-house-3-spawn-to-neighbor'
 		);
 		const westPreparationRouteTarget = { x: 160, y: 400 };
 		expect(
@@ -2034,8 +2079,8 @@ describe('opening map content', () => {
 		expect(villagerHouse3Map.npcs).toMatchObject([
 			{
 				id: 'villager-io',
-				x: 160,
-				y: 192,
+				x: 256,
+				y: 224,
 				nameKey: 'content.maps.npcs.villager-io.name',
 				dialogueId: 'villager-io',
 				role: 'villager',

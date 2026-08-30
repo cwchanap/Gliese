@@ -71,7 +71,7 @@ const EXPECTED_INTERIOR_PROGRAMS = {
 		npcApproaches: ['toma']
 	},
 	'villager-house-3': {
-		size: [20, 20],
+		size: [32, 22],
 		rooms: ['archiveStudy', 'bedroomStorage', 'sittingRoom'],
 		corridors: ['hall'],
 		npcApproaches: ['io']
@@ -113,6 +113,18 @@ const EXPECTED_VILLAGER_HOUSE_2_PROP_COLLISIONS = {
 	workshopStorage: { x: 176, y: 304, width: 256, height: 32 },
 	bedroom: { x: 864, y: 160, width: 128, height: 128 },
 	livingTable: { x: 288, y: 544, width: 192, height: 64 }
+} as const;
+
+const EXPECTED_VILLAGER_HOUSE_3_AMBIENT_ACTIVITY = {
+	'villager-house-3-neighbor': { x: 768, y: 544 }
+} as const;
+
+const EXPECTED_VILLAGER_HOUSE_3_PROP_COLLISIONS = {
+	ioWestArchiveShelves: { x: 112, y: 112, width: 96, height: 160 },
+	readingTable: { x: 288, y: 448, width: 160, height: 64 },
+	bedroom: { x: 688, y: 112, width: 128, height: 128 },
+	travelStorage: { x: 848, y: 112, width: 64, height: 160 },
+	sitting: { x: 640, y: 480, width: 160, height: 64 }
 } as const;
 
 function expectStructuralGrid(value: { x: number; y: number; width: number; height: number }) {
@@ -1062,6 +1074,158 @@ describe('village interior layout coordinate contracts', () => {
 				PLAYER_COLLISION_RADIUS
 			)
 		).toBe(false);
+	});
+
+	it('pins the Villager House 3 scholar-traveler program, anchors, circulation, and navigation', () => {
+		const layout = VILLAGE_INTERIOR_LAYOUTS['villager-house-3'];
+		expect([layout.widthTiles, layout.heightTiles]).toEqual([32, 22]);
+		expect(Object.keys(layout.rooms)).toEqual(['archiveStudy', 'bedroomStorage', 'sittingRoom']);
+		expect(Object.keys(layout.corridors)).toEqual(['hall']);
+		expect(Object.keys(layout.doors)).toEqual(['archive', 'bedroom', 'hallToSitting', 'exterior']);
+		expect(Object.keys(layout.propZones)).toEqual([
+			'westArchiveShelves',
+			'readingTable',
+			'bedroom',
+			'travelStorage',
+			'sitting'
+		]);
+		expect(Object.keys(layout.propCollisions)).toEqual([
+			'ioWestArchiveShelves',
+			'readingTable',
+			'bedroom',
+			'travelStorage',
+			'sitting'
+		]);
+		expect(layout.fullFloor).toEqual({ x: 0, y: 0, width: 1024, height: 704 });
+		expect(layout.rooms).toEqual({
+			archiveStudy: { x: 64, y: 64, width: 352, height: 288 },
+			bedroomStorage: { x: 608, y: 64, width: 352, height: 288 },
+			sittingRoom: { x: 64, y: 384, width: 896, height: 288 }
+		});
+		expect(layout.corridors).toEqual({ hall: { x: 448, y: 64, width: 128, height: 320 } });
+		expect(layout.doors).toEqual({
+			archive: { x: 416, y: 160, width: 32, height: 96 },
+			bedroom: { x: 576, y: 160, width: 32, height: 96 },
+			hallToSitting: { x: 448, y: 352, width: 128, height: 32 },
+			exterior: { x: 448, y: 672, width: 128, height: 32 }
+		});
+		expect(layout.walls).toEqual([
+			{ id: 'villager-house-3-wall-north', x: 0, y: 0, width: 1024, height: 64 },
+			{ id: 'villager-house-3-wall-west', x: 0, y: 64, width: 64, height: 608 },
+			{ id: 'villager-house-3-wall-east', x: 960, y: 64, width: 64, height: 608 },
+			{ id: 'villager-house-3-wall-south-west', x: 0, y: 672, width: 448, height: 32 },
+			{ id: 'villager-house-3-wall-south-east', x: 576, y: 672, width: 448, height: 32 },
+			{
+				id: 'villager-house-3-archive-divider-north',
+				x: 416,
+				y: 64,
+				width: 32,
+				height: 96
+			},
+			{
+				id: 'villager-house-3-archive-divider-south',
+				x: 416,
+				y: 256,
+				width: 32,
+				height: 96
+			},
+			{
+				id: 'villager-house-3-bedroom-divider-north',
+				x: 576,
+				y: 64,
+				width: 32,
+				height: 96
+			},
+			{
+				id: 'villager-house-3-bedroom-divider-south',
+				x: 576,
+				y: 256,
+				width: 32,
+				height: 96
+			},
+			{
+				id: 'villager-house-3-sitting-divider-west',
+				x: 64,
+				y: 352,
+				width: 384,
+				height: 32
+			},
+			{
+				id: 'villager-house-3-sitting-divider-east',
+				x: 576,
+				y: 352,
+				width: 384,
+				height: 32
+			}
+		]);
+		expect(layout.spawn).toEqual({ x: 512, y: 576 });
+		expect(layout.exit).toEqual({ x: 512, y: 688 });
+		expect(layout.npcApproaches.io).toEqual({
+			npc: { x: 256, y: 224 },
+			approach: { x: 304, y: 224 }
+		});
+		expect(layout.ambientActivity).toEqual(EXPECTED_VILLAGER_HOUSE_3_AMBIENT_ACTIVITY);
+		expect(layout.propZones).toEqual({
+			westArchiveShelves: { x: 96, y: 96, width: 128, height: 192 },
+			readingTable: { x: 256, y: 416, width: 224, height: 128 },
+			bedroom: { x: 672, y: 96, width: 160, height: 160 },
+			travelStorage: { x: 832, y: 96, width: 96, height: 192 },
+			sitting: { x: 608, y: 448, width: 224, height: 128 }
+		});
+		expect(layout.propCollisions).toEqual(EXPECTED_VILLAGER_HOUSE_3_PROP_COLLISIONS);
+		expect(layout.corridors.hall.width).toBeGreaterThanOrEqual(96);
+		expect(layout.corridors.hall.height).toBeGreaterThanOrEqual(96);
+		expect(layout.doors.hallToSitting.width).toBeGreaterThanOrEqual(96);
+		for (const doorId of ['archive', 'bedroom'] as const) {
+			expect(
+				Math.max(layout.doors[doorId].width, layout.doors[doorId].height)
+			).toBeGreaterThanOrEqual(64);
+		}
+
+		const source = VILLAGE_INTERIOR_NAVIGATION_SOURCES.find(
+			(value) => value.mapId === 'villager-house-3'
+		);
+		expect(source).toBeDefined();
+		expect(source).toMatchObject({
+			id: 'villager-house-3-navigation',
+			cellSizePx: 16,
+			widthCells: 64,
+			heightCells: 44,
+			clearancePx: 12
+		});
+		expect(source?.rows).toEqual(
+			buildVillageInteriorNavigationSource({ mapId: 'villager-house-3', layout }).rows
+		);
+
+		const grid = compileNavigationGrid(
+			buildVillageInteriorNavigationSource({ mapId: 'villager-house-3', layout })
+		);
+		for (const [propId, collision] of Object.entries(layout.propCollisions)) {
+			const center = {
+				x: collision.x + collision.width / 2,
+				y: collision.y + collision.height / 2
+			};
+			expect(isWalkable(grid, center.x, center.y), `${propId} collision core must block`).toBe(
+				false
+			);
+		}
+
+		const reachable = reachableInteriorSamples(layout);
+		for (const [label, point] of [
+			['archive', { x: 304, y: 320 }],
+			['reading-table', { x: 256, y: 432 }],
+			['bedroom', { x: 832, y: 320 }],
+			['travel-storage', { x: 928, y: 320 }],
+			['sitting', { x: 816, y: 560 }],
+			['io-approach', layout.npcApproaches.io.approach],
+			['neighbor', { x: 864, y: 544 }],
+			['spawn', layout.spawn],
+			['exit', layout.exit]
+		] as const) {
+			expect(reachableInteriorPoint(reachable, point), `${label} is disconnected`).toBe(true);
+		}
+		expect(isInteriorWalkable(layout, layout.npcApproaches.io.npc)).toBe(true);
+		expect(isInteriorWalkable(layout, layout.npcApproaches.io.approach)).toBe(true);
 	});
 
 	it('pins the Item Shop Gate 1 program, anchors, circulation, and camera envelope', () => {

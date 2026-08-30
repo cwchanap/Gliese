@@ -31,7 +31,7 @@ const expectedReviewDimensions: Readonly<Record<string, { width: number; height:
 	'item-shop': { width: 832, height: 640 },
 	'villager-house-1': { width: 1280, height: 832 },
 	'villager-house-2': { width: 1280, height: 768 },
-	'villager-house-3': { width: 640, height: 640 },
+	'villager-house-3': { width: 1024, height: 704 },
 	'shrine-of-aurora-interior': { width: 768, height: 704 },
 	'blacksmith-interior': { width: 896, height: 704 },
 	'ruins-threshold': { width: 1600, height: 1600 },
@@ -124,7 +124,8 @@ async function writeInteriorManifest(
 			| 'guild-hall'
 			| 'item-shop'
 			| 'villager-house-1'
-			| 'villager-house-2';
+			| 'villager-house-2'
+			| 'villager-house-3';
 		readonly width?: number;
 		readonly height?: number;
 		readonly foreground?: Buffer;
@@ -1211,6 +1212,103 @@ describe('complete world layout review renderer', () => {
 			'hero',
 			'villager-toma',
 			'villager-house-2-neighbor'
+		]);
+
+		for (const actor of actors) {
+			const source = await readFile(join(repositoryRoot, 'public/game/assets', actor.assetPath));
+			const sprite = await sharp(source)
+				.extract({
+					left: actor.frame.x,
+					top: actor.frame.y,
+					width: actor.frame.w,
+					height: actor.frame.h
+				})
+				.resize(actor.displaySize)
+				.png()
+				.toBuffer();
+			const expected = await sharp({
+				create: {
+					width: actor.displaySize.width,
+					height: actor.displaySize.height,
+					channels: 4,
+					background: { r: 64, g: 96, b: 80, alpha: 1 }
+				}
+			})
+				.composite([{ input: sprite, left: 0, top: 0 }])
+				.png()
+				.toBuffer();
+			const actual = await sharp(liveBytes)
+				.extract({
+					left: Math.round(actor.x - actor.displaySize.width / 2),
+					top: Math.round(actor.y - actor.displaySize.height / 2),
+					width: actor.displaySize.width,
+					height: actor.displaySize.height
+				})
+				.png()
+				.toBuffer();
+			expect((await readRgba(actual)).data).toEqual((await readRgba(expected)).data);
+		}
+	});
+
+	it('composes every Villager House 3 live actor from the checked-in atlases at runtime sizes', async () => {
+		const repositoryRoot = await createRepositoryRoot();
+		await writeInteriorManifest(
+			repositoryRoot,
+			'painted-proof',
+			{ r: 64, g: 96, b: 80 },
+			{ mapId: 'villager-house-3', width: 1024, height: 704 }
+		);
+		await copyLegacyRendererAssets(repositoryRoot, true);
+		const outputRoot = await createOutputRoot();
+
+		await renderCompleteWorldLayoutReview({
+			outputRoot,
+			check: false,
+			map: 'villager-house-3',
+			repositoryRoot
+		});
+
+		const liveBytes = await readFile(
+			join(outputRoot, 'villager-house-3/live-character-composition.png')
+		);
+		const { info: liveInfo } = await readRgba(liveBytes);
+		expect({ width: liveInfo.width, height: liveInfo.height }).toEqual({
+			width: 1024,
+			height: 704
+		});
+
+		const villagerHouse3 = maps['villager-house-3'];
+		const heroFrameName = actorAnimationAssets.hero.clips.idle.frames[0]!;
+		const actors = [
+			{
+				id: 'hero',
+				x: villagerHouse3.spawn.x,
+				y: villagerHouse3.spawn.y,
+				assetPath: 'animation-pack.png',
+				frame: animationPackAsset.frames[heroFrameName],
+				displaySize: actorAnimationAssets.hero.displaySize
+			},
+			...(villagerHouse3.npcs ?? []).map((npc) => ({
+				id: npc.id,
+				x: npc.x,
+				y: npc.y,
+				assetPath: 'npc-pack.png',
+				frame: npcPackAsset.frames[npc.frameName as keyof typeof npcPackAsset.frames],
+				displaySize: { width: 96, height: 87 }
+			})),
+			...(villagerHouse3.ambientNpcs ?? []).map((npc) => ({
+				id: npc.id,
+				x: npc.x,
+				y: npc.y,
+				assetPath: 'npc-pack.png',
+				frame: npcPackAsset.frames[npc.frameName as keyof typeof npcPackAsset.frames],
+				displaySize: { width: 96, height: 87 }
+			}))
+		];
+		expect(actors.map(({ id, x, y }) => ({ id, x, y }))).toEqual([
+			{ id: 'hero', x: 512, y: 576 },
+			{ id: 'villager-io', x: 256, y: 224 },
+			{ id: 'villager-house-3-neighbor', x: 768, y: 544 }
 		]);
 
 		for (const actor of actors) {
