@@ -6,6 +6,36 @@ import {
 } from '../../../../tools/validate-village-interior-art';
 
 describe('registered village interior assets', () => {
+	it('requires the Shrine of Aurora opaque production base and manifest parity', async () => {
+		const manifest = (await collectRegisteredVillageInteriorManifests()).find(
+			({ mapId }) => mapId === 'shrine-of-aurora-interior'
+		);
+		expect(manifest).toBeDefined();
+		if (!manifest) return;
+
+		expect(manifest).toMatchObject({
+			version: 1,
+			mapId: 'shrine-of-aurora-interior',
+			dimensionsPx: { width: 1024, height: 896 },
+			base: {
+				id: 'shrine-of-aurora-interior-painted-base-image',
+				textureKey: 'shrine-of-aurora-interior-painted-base',
+				path: '/game/assets/interiors/shrine-of-aurora-interior/base.png',
+				sha256: '0bfbdf826d745a80b06a54a57c42089e9f80d00a43800a32d6d332a20a79b914'
+			},
+			navigation: {
+				gridId: 'shrine-of-aurora-interior-navigation',
+				cellSizePx: 16,
+				widthCells: 64,
+				heightCells: 56,
+				clearancePx: 12,
+				source: 'layout'
+			}
+		});
+		expect(manifest.foreground).toBeUndefined();
+		await expect(validateVillageInteriorManifest(manifest)).resolves.toBeUndefined();
+	});
+
 	it('requires the Villager House 3 opaque production base and manifest parity', async () => {
 		const manifest = (await collectRegisteredVillageInteriorManifests()).find(
 			({ mapId }) => mapId === 'villager-house-3'
@@ -40,7 +70,7 @@ describe('registered village interior assets', () => {
 		const manifests = await collectRegisteredVillageInteriorManifests();
 		for (const manifest of manifests) await validateVillageInteriorManifest(manifest);
 
-		expect(manifests).toHaveLength(6);
+		expect(manifests).toHaveLength(7);
 		expect(manifests).toEqual([
 			{
 				version: 1,
@@ -101,6 +131,25 @@ describe('registered village interior assets', () => {
 					cellSizePx: 16,
 					widthCells: 52,
 					heightCells: 40,
+					clearancePx: 12,
+					source: 'layout'
+				}
+			},
+			{
+				version: 1,
+				mapId: 'shrine-of-aurora-interior',
+				dimensionsPx: { width: 1024, height: 896 },
+				base: {
+					id: 'shrine-of-aurora-interior-painted-base-image',
+					textureKey: 'shrine-of-aurora-interior-painted-base',
+					path: '/game/assets/interiors/shrine-of-aurora-interior/base.png',
+					sha256: '0bfbdf826d745a80b06a54a57c42089e9f80d00a43800a32d6d332a20a79b914'
+				},
+				navigation: {
+					gridId: 'shrine-of-aurora-interior-navigation',
+					cellSizePx: 16,
+					widthCells: 64,
+					heightCells: 56,
 					clearancePx: 12,
 					source: 'layout'
 				}

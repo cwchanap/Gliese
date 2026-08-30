@@ -16,6 +16,7 @@ import {
 	guildHallMap,
 	heroHouseMap,
 	itemShopMap,
+	shrineOfAuroraInteriorMap,
 	villagerHouse1Map,
 	villagerHouse2Map,
 	villagerHouse3Map
@@ -90,7 +91,7 @@ describe('map background registry', () => {
 				clearancePx: 12
 			})
 		]);
-		expect(VILLAGE_INTERIOR_PACKAGES).toHaveLength(6);
+		expect(VILLAGE_INTERIOR_PACKAGES).toHaveLength(7);
 		expect(VILLAGE_INTERIOR_PACKAGES[0]).toEqual(
 			expect.objectContaining({
 				id: 'hero-house-painted',
@@ -235,6 +236,28 @@ describe('map background registry', () => {
 				]
 			})
 		);
+		expect(VILLAGE_INTERIOR_PACKAGES[6]).toEqual(
+			expect.objectContaining({
+				id: 'shrine-of-aurora-interior-painted',
+				mapId: 'shrine-of-aurora-interior',
+				coverage: 'full-map',
+				assets: [
+					{
+						key: 'shrine-of-aurora-interior-painted-base',
+						path: '/game/assets/interiors/shrine-of-aurora-interior/base.png'
+					}
+				],
+				backgrounds: [
+					expect.objectContaining({
+						id: 'shrine-of-aurora-interior-painted-base-image',
+						textureKey: 'shrine-of-aurora-interior-painted-base',
+						width: 1024,
+						height: 896,
+						plane: 'base'
+					})
+				]
+			})
+		);
 		expect(MAP_BACKGROUND_DEFAULT_SELECTIONS['hero-house']).toEqual({
 			packageId: 'hero-house-painted',
 			mode: 'production'
@@ -257,6 +280,10 @@ describe('map background registry', () => {
 		});
 		expect(MAP_BACKGROUND_DEFAULT_SELECTIONS['villager-house-3']).toEqual({
 			packageId: 'villager-house-3-painted',
+			mode: 'production'
+		});
+		expect(MAP_BACKGROUND_DEFAULT_SELECTIONS['shrine-of-aurora-interior']).toEqual({
+			packageId: 'shrine-of-aurora-interior-painted',
 			mode: 'production'
 		});
 		expect(Object.isFrozen(VILLAGE_INTERIOR_NAVIGATION_SOURCES)).toBe(true);
@@ -293,6 +320,10 @@ describe('map background registry', () => {
 			},
 			'villager-house-3': {
 				packageId: 'villager-house-3-painted',
+				mode: 'production'
+			},
+			'shrine-of-aurora-interior': {
+				packageId: 'shrine-of-aurora-interior-painted',
 				mode: 'production'
 			}
 		});
@@ -505,6 +536,41 @@ describe('map background registry', () => {
 			(villagerHouse3Map.groundPatches?.length ?? 0) +
 				(villagerHouse3Map.blockers?.length ?? 0) +
 				(villagerHouse3Map.interiorProps?.length ?? 0)
+		);
+	});
+
+	it('owns every Shrine of Aurora legacy static source as one painted package', () => {
+		const definition = VILLAGE_INTERIOR_PACKAGES.find(
+			({ id }) => id === 'shrine-of-aurora-interior-painted'
+		);
+		expect(definition).toBeDefined();
+		if (!definition) return;
+
+		const transformed = applyMapBackgroundPackage(shrineOfAuroraInteriorMap, {
+			mode: 'production',
+			definition
+		});
+		expect(transformed.backgroundImages).toEqual(definition.backgrounds);
+
+		for (const source of [
+			...(transformed.groundPatches ?? []),
+			...(transformed.blockers ?? []),
+			...(transformed.interiorProps ?? [])
+		]) {
+			expect(source.visual).toEqual({
+				mode: 'fallback-only',
+				ownerCrops: [
+					{
+						cropId: 'shrine-of-aurora-interior-full-map',
+						requiredBackgroundIds: ['shrine-of-aurora-interior-painted-base-image']
+					}
+				]
+			});
+		}
+		expect(definition.visualOwners).toHaveLength(
+			(shrineOfAuroraInteriorMap.groundPatches?.length ?? 0) +
+				(shrineOfAuroraInteriorMap.blockers?.length ?? 0) +
+				(shrineOfAuroraInteriorMap.interiorProps?.length ?? 0)
 		);
 	});
 });

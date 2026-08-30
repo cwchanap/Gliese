@@ -449,9 +449,9 @@ describe('complete world layout review renderer', () => {
 		);
 	});
 
-	it('renders the Shrine light-scroll graybox proof inventory without painted artifacts', async () => {
+	it('renders the complete Shrine painted proof inventory', async () => {
 		const outputRoot = await createOutputRoot();
-		const repositoryRoot = await createRepositoryRoot();
+		const repositoryRoot = process.cwd();
 		const rendered = await renderCompleteWorldLayoutReview({
 			outputRoot,
 			check: false,
@@ -472,8 +472,13 @@ describe('complete world layout review renderer', () => {
 				'anchors.png',
 				'camera-1280x720.png',
 				'camera-640x360.png',
+				'collision-overlay.png',
 				'coordinate-graybox.png',
+				'fallback-comparison.png',
 				'inventory.json',
+				'live-actor-overlay.png',
+				'live-character-composition.png',
+				'painted-base.png',
 				'player-centre-navigation-overlay.png',
 				'raw-collision-overlay.png',
 				'route-widths.png'
@@ -487,43 +492,50 @@ describe('complete world layout review renderer', () => {
 			artifacts: readonly { path: string; width: number; height: number; sha256: string }[];
 		};
 		expect(inventory.mapId).toBe('shrine-of-aurora-interior');
-		expect(inventory.artifacts).toEqual([
-			expect.objectContaining({
-				path: 'shrine-of-aurora-interior/coordinate-graybox.png',
-				width: 1024,
-				height: 896
-			}),
-			expect.objectContaining({
-				path: 'shrine-of-aurora-interior/raw-collision-overlay.png',
-				width: 1024,
-				height: 896
-			}),
-			expect.objectContaining({
-				path: 'shrine-of-aurora-interior/player-centre-navigation-overlay.png',
-				width: 1024,
-				height: 896
-			}),
-			expect.objectContaining({
-				path: 'shrine-of-aurora-interior/anchors.png',
-				width: 1024,
-				height: 896
-			}),
-			expect.objectContaining({
-				path: 'shrine-of-aurora-interior/route-widths.png',
-				width: 1024,
-				height: 896
-			}),
-			expect.objectContaining({
-				path: 'shrine-of-aurora-interior/camera-640x360.png',
-				width: 640,
-				height: 360
-			}),
-			expect.objectContaining({
-				path: 'shrine-of-aurora-interior/camera-1280x720.png',
-				width: 1280,
-				height: 720
-			})
-		]);
+		expect(inventory.artifacts).toEqual(
+			expect.arrayContaining([
+				expect.objectContaining({
+					path: 'shrine-of-aurora-interior/painted-base.png',
+					width: 1024,
+					height: 896
+				}),
+				expect.objectContaining({
+					path: 'shrine-of-aurora-interior/collision-overlay.png',
+					width: 1024,
+					height: 896
+				}),
+				expect.objectContaining({
+					path: 'shrine-of-aurora-interior/player-centre-navigation-overlay.png',
+					width: 1024,
+					height: 896
+				}),
+				expect.objectContaining({
+					path: 'shrine-of-aurora-interior/live-character-composition.png',
+					width: 1024,
+					height: 896
+				}),
+				expect.objectContaining({
+					path: 'shrine-of-aurora-interior/live-actor-overlay.png',
+					width: 1024,
+					height: 896
+				}),
+				expect.objectContaining({
+					path: 'shrine-of-aurora-interior/fallback-comparison.png',
+					width: 2048,
+					height: 896
+				}),
+				expect.objectContaining({
+					path: 'shrine-of-aurora-interior/camera-640x360.png',
+					width: 640,
+					height: 360
+				}),
+				expect.objectContaining({
+					path: 'shrine-of-aurora-interior/camera-1280x720.png',
+					width: 1280,
+					height: 720
+				})
+			])
+		);
 		expect(inventory.artifacts.every(({ sha256 }) => /^[a-f0-9]{64}$/.test(sha256))).toBe(true);
 
 		await expect(

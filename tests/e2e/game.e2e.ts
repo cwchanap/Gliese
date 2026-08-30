@@ -15,6 +15,7 @@ import {
 	meadowEntryMap,
 	ruinsCoreMap,
 	ruinsThresholdMap,
+	shrineOfAuroraInteriorMap,
 	villagerHouse1Map,
 	villagerHouse2Map,
 	villagerHouse3Map
@@ -1817,16 +1818,42 @@ const INTERIOR_GRAYBOX_CASES: readonly InteriorGrayboxCase[] = [
 		mapId: 'shrine-of-aurora-interior',
 		returnArrival: { x: 2_272, y: 5_920 },
 		exteriorDoor: { x: 2_272, y: 5_856 },
-		spawn: { x: 384, y: 608 },
-		exit: { x: 384, y: 688 },
+		spawn: VILLAGE_INTERIOR_LAYOUTS['shrine-of-aurora-interior'].spawn,
+		exit: VILLAGE_INTERIOR_LAYOUTS['shrine-of-aurora-interior'].exit,
+		persistAfterStep: 'east-archive',
 		steps: [
-			{ label: 'nave', point: { x: 384, y: 400 } },
-			{ label: 'west-preparation', point: { x: 160, y: 400 } },
-			{ label: 'nave-return', point: { x: 384, y: 400 } },
-			{ label: 'east-archive', point: { x: 640, y: 400 } },
-			{ label: 'nave-east-return', point: { x: 384, y: 400 } },
-			{ label: 'inner-sanctum', point: { x: 384, y: 200 } },
-			{ label: 'spawn-return', point: { x: 384, y: 608 } }
+			{ label: 'entrance-hall', point: { x: 512, y: 736 } },
+			{ label: 'nave', point: { x: 512, y: 624 } },
+			{ label: 'west-door-staging', point: { x: 336, y: 640 } },
+			{ label: 'west-door-lateral', point: { x: 336, y: 496 } },
+			{ label: 'west-room-opening', point: { x: 288, y: 496 } },
+			{ label: 'west-room-aisle', point: { x: 220, y: 496 } },
+			{ label: 'west-preparation', point: { x: 96, y: 624 } },
+			{ label: 'west-preparation-return-aisle', point: { x: 248, y: 624 } },
+			{ label: 'west-room-aisle-return', point: { x: 224, y: 496 } },
+			{ label: 'west-room-opening-return', point: { x: 288, y: 496 } },
+			{ label: 'west-door-lateral-return', point: { x: 352, y: 496 } },
+			{ label: 'west-door-staging-return', point: { x: 336, y: 640 } },
+			{ label: 'nave-west-return', point: { x: 512, y: 624 } },
+			{ label: 'east-door-staging', point: { x: 688, y: 640 } },
+			{ label: 'east-door-lateral', point: { x: 688, y: 496 } },
+			{ label: 'east-room-opening', point: { x: 736, y: 496 } },
+			{ label: 'east-room-aisle', point: { x: 804, y: 496 } },
+			{ label: 'east-archive', point: { x: 928, y: 624 } },
+			{ label: 'east-archive-return-aisle', point: { x: 776, y: 624 } },
+			{ label: 'east-room-aisle-return', point: { x: 788, y: 496 } },
+			{ label: 'east-room-opening-return', point: { x: 736, y: 496 } },
+			{ label: 'east-door-lateral-return', point: { x: 672, y: 496 } },
+			{ label: 'east-door-staging-return', point: { x: 688, y: 640 } },
+			{ label: 'nave-east-return', point: { x: 512, y: 624 } },
+			{ label: 'sanctum-opening', point: { x: 512, y: 304 } },
+			{ label: 'sanctum-focal-approach', point: { x: 512, y: 224 } },
+			{ label: 'sanctum-west-aisle', point: { x: 320, y: 224 } },
+			{ label: 'inner-sanctum', point: { x: 320, y: 96 } },
+			{ label: 'sanctum-focal-return', point: { x: 512, y: 224 } },
+			{ label: 'sanctum-opening-return', point: { x: 512, y: 304 } },
+			{ label: 'procession-return', point: { x: 512, y: 624 } },
+			{ label: 'spawn-return', point: VILLAGE_INTERIOR_LAYOUTS['shrine-of-aurora-interior'].spawn }
 		]
 	},
 	{
@@ -2406,6 +2433,31 @@ const VILLAGER_HOUSE_3_STATEFUL_OBJECT_IDS = [
 const VILLAGER_HOUSE_3_FALLBACK_BLOCKER_IDS = (villagerHouse3Map.blockers ?? []).map(
 	({ id }) => id
 );
+const SHRINE_RUNTIME_EVIDENCE_ROOT = resolve(
+	'docs/superpowers/reports/img/hpa-586-interiors-runtime/shrine-of-aurora-interior'
+);
+const SHRINE_COLLISION_IDS = [
+	...(shrineOfAuroraInteriorMap.blockers ?? []).map(({ id }) => id),
+	...(shrineOfAuroraInteriorMap.fences ?? []).map(({ id }) => id),
+	...(shrineOfAuroraInteriorMap.mapDecor ?? []).flatMap(({ collision }) =>
+		collision ? [collision.id] : []
+	),
+	...(shrineOfAuroraInteriorMap.interiorProps ?? []).flatMap(({ collision }) =>
+		collision ? [collision.id] : []
+	),
+	...(shrineOfAuroraInteriorMap.landmarks ?? []).map(({ id }) => id)
+].sort();
+const SHRINE_STATEFUL_OBJECT_IDS = [
+	...shrineOfAuroraInteriorMap.transitions.map(({ id }) => id),
+	...(shrineOfAuroraInteriorMap.pickups ?? []).map(({ id }) => id),
+	...(shrineOfAuroraInteriorMap.encounters ?? []).map(({ id }) => id),
+	...(shrineOfAuroraInteriorMap.npcs ?? []).map(({ id }) => id),
+	...(shrineOfAuroraInteriorMap.landmarks ?? []).map(({ id }) => id),
+	...(shrineOfAuroraInteriorMap.ambientNpcs ?? []).map(({ id }) => id),
+	...(shrineOfAuroraInteriorMap.discoveries ?? []).map(({ id }) => id),
+	...(shrineOfAuroraInteriorMap.combatBounds ?? []).map(({ id }) => id)
+].sort();
+const SHRINE_FALLBACK_BLOCKER_IDS = (shrineOfAuroraInteriorMap.blockers ?? []).map(({ id }) => id);
 
 type InteriorNpcApproachBinding = {
 	readonly approachKey: string;
@@ -11629,6 +11681,69 @@ function assertVillagerHouse3FallbackDiagnostic(
 	]);
 }
 
+function assertShrinePaintedDiagnostic(diagnostic: RegionalBackgroundPlaneRenderDiagnostic) {
+	expect(diagnostic).toMatchObject({
+		mapId: 'shrine-of-aurora-interior',
+		regionalBackgroundsEnabled: true,
+		packageId: 'shrine-of-aurora-interior-painted',
+		presentationMode: 'painted',
+		requiredBackgroundIds: ['shrine-of-aurora-interior-painted-base-image'],
+		selectedBackgroundIds: ['shrine-of-aurora-interior-painted-base-image'],
+		successfulBackgroundIds: ['shrine-of-aurora-interior-painted-base-image'],
+		selectedFallbackBlockerIds: [],
+		selectedFallbackDecorIds: [],
+		selectedFallbackFenceIds: [],
+		collisionIds: [...SHRINE_COLLISION_IDS],
+		statefulObjectIds: [...SHRINE_STATEFUL_OBJECT_IDS]
+	});
+	expect(diagnostic.entries).toEqual([
+		expect.objectContaining({
+			id: 'shrine-of-aurora-interior-painted-base-image',
+			textureKey: 'shrine-of-aurora-interior-painted-base',
+			plane: 'base',
+			status: 'rendered',
+			expectedDimensions: { width: 1024, height: 896 },
+			observedDimensions: { width: 1024, height: 896 },
+			renderTransform: {
+				x: 512,
+				y: 448,
+				originX: 0.5,
+				originY: 0.5,
+				displayWidth: 1024,
+				displayHeight: 896,
+				depth: -9
+			}
+		})
+	]);
+}
+
+function assertShrineFallbackDiagnostic(diagnostic: RegionalBackgroundPlaneRenderDiagnostic) {
+	expect(diagnostic).toMatchObject({
+		mapId: 'shrine-of-aurora-interior',
+		regionalBackgroundsEnabled: true,
+		packageId: null,
+		presentationMode: 'fallback',
+		requiredBackgroundIds: ['shrine-of-aurora-interior-painted-base-image'],
+		selectedBackgroundIds: [],
+		successfulBackgroundIds: [],
+		selectedFallbackBlockerIds: [...SHRINE_FALLBACK_BLOCKER_IDS],
+		selectedFallbackDecorIds: [],
+		selectedFallbackFenceIds: [],
+		collisionIds: [...SHRINE_COLLISION_IDS],
+		statefulObjectIds: [...SHRINE_STATEFUL_OBJECT_IDS]
+	});
+	expect(diagnostic.entries).toEqual([
+		expect.objectContaining({
+			id: 'shrine-of-aurora-interior-painted-base-image',
+			textureKey: 'shrine-of-aurora-interior-painted-base',
+			plane: 'base',
+			status: 'missing-texture',
+			expectedDimensions: { width: 1024, height: 896 },
+			observedDimensions: null
+		})
+	]);
+}
+
 async function saveHeroHouseCanvas(page: Page, name: string) {
 	return saveInteriorCanvas(page, HERO_HOUSE_RUNTIME_EVIDENCE_ROOT, 'hero-house', name);
 }
@@ -11651,6 +11766,10 @@ async function saveVillagerHouse2Canvas(page: Page, name: string) {
 
 async function saveVillagerHouse3Canvas(page: Page, name: string) {
 	return saveInteriorCanvas(page, VILLAGER_HOUSE_3_RUNTIME_EVIDENCE_ROOT, 'villager-house-3', name);
+}
+
+async function saveShrineCanvas(page: Page, name: string) {
+	return saveInteriorCanvas(page, SHRINE_RUNTIME_EVIDENCE_ROOT, 'shrine-of-aurora-interior', name);
 }
 
 async function saveInteriorCanvas(page: Page, evidenceRoot: string, styleId: string, name: string) {
@@ -17776,6 +17895,132 @@ test('Villager House 3 painted interior', async ({ page }) => {
 			AXIS_REACH_TOLERANCE
 		);
 		await exitInteriorWithTrustedKeyboard(page, house);
+	} finally {
+		await page.unroute(missingBaseRoute);
+	}
+});
+
+test('Shrine of Aurora painted interior', async ({ page }) => {
+	test.setTimeout(600_000);
+	const shrine = INTERIOR_GRAYBOX_CASES.find(
+		(interior) => interior.mapId === 'shrine-of-aurora-interior'
+	);
+	if (!shrine) throw new Error('Shrine of Aurora route constants are missing');
+	const layout = VILLAGE_INTERIOR_LAYOUTS['shrine-of-aurora-interior'];
+	expect(shrine.returnArrival).toEqual({ x: 2_272, y: 5_920 });
+	expect(shrine.spawn).toEqual(layout.spawn);
+	expect(shrine.exit).toEqual(layout.exit);
+	expect(shrine.steps.map(({ label }) => label)).toEqual(
+		expect.arrayContaining([
+			'nave',
+			'west-preparation',
+			'east-archive',
+			'inner-sanctum',
+			'spawn-return'
+		])
+	);
+
+	await installRuntimeProbes(page, { captureFacing: true });
+	await injectSave(
+		page,
+		createSaveFixture({
+			mapId: 'meadow-entry',
+			player: {
+				level: 1,
+				xp: 0,
+				hp: 20,
+				attack: 3,
+				x: shrine.returnArrival.x,
+				y: shrine.returnArrival.y,
+				facing: 'up'
+			}
+		})
+	);
+	await page.setViewportSize({ width: 640, height: 360 });
+	await page.goto('/?movementDiagnostics=on');
+	await expect(page.locator('canvas')).toBeVisible();
+	await expect(page.getByRole('button', { name: 'Menu' })).toBeVisible();
+	await page.getByRole('button', { name: 'Menu' }).click();
+	await commandBox(page).getByRole('button', { name: 'Resume Save' }).click();
+	await waitForHudPosition(page, 'meadow-entry', shrine.returnArrival);
+
+	await traverseInteriorForJourney(
+		page,
+		shrine,
+		{
+			afterEnter: async () => {
+				assertShrinePaintedDiagnostic(await waitForMapBackgroundDiagnostic(page, shrine.mapId));
+				await saveShrineCanvas(page, 'painted-camera-640x360.png');
+			},
+			afterStep: async (step, point) => {
+				if (step.label !== shrine.persistAfterStep) return point;
+				expect(step.label).toBe('east-archive');
+				const resumed = await saveInteriorCheckpointAndReload(page, shrine.mapId, point);
+				assertShrinePaintedDiagnostic(await waitForMapBackgroundDiagnostic(page, shrine.mapId));
+				return resumed;
+			}
+		},
+		(label, result) => {
+			expect(result.mapId, label).toBe(shrine.mapId);
+		}
+	);
+
+	const diagnosticCountBeforeReentry = await page.evaluate(
+		() =>
+			(window as GlieseProbeWindow).__glieseRegionalBackgroundDiagnostics?.filter(
+				({ mapId }) => mapId === 'shrine-of-aurora-interior'
+			).length ?? 0
+	);
+	await enterInteriorWithTrustedKeyboard(page, shrine);
+	assertShrinePaintedDiagnostic(
+		await waitForMapBackgroundDiagnostic(page, shrine.mapId, diagnosticCountBeforeReentry)
+	);
+	await saveShrineCanvas(page, 'reentry-camera-640x360.png');
+
+	const reentrySavePoint = await currentHudPlayerPoint(page, shrine.mapId);
+	await page.getByRole('button', { name: 'Menu' }).click();
+	await commandBox(page).getByRole('button', { name: 'Save Game' }).click();
+	await expect(fieldStatus(page)).toContainText('Saved');
+	const persisted = await page.evaluate(
+		(key) => JSON.parse(localStorage.getItem(key) ?? 'null'),
+		SAVE_STORAGE_KEY
+	);
+	expect(persisted?.mapId).toBe(shrine.mapId);
+	expect(Math.abs(persisted?.player?.x - reentrySavePoint.x)).toBeLessThanOrEqual(
+		AXIS_REACH_TOLERANCE
+	);
+	expect(Math.abs(persisted?.player?.y - reentrySavePoint.y)).toBeLessThanOrEqual(
+		AXIS_REACH_TOLERANCE
+	);
+
+	const missingBaseRoute = '**/game/assets/interiors/shrine-of-aurora-interior/base.png';
+	await page.route(missingBaseRoute, (route) => route.abort());
+	try {
+		await page.reload();
+		await expect(page.locator('canvas')).toBeVisible();
+		await expect(page.getByRole('button', { name: 'Menu' })).toBeVisible();
+		await page.getByRole('button', { name: 'Menu' }).click();
+		await commandBox(page).getByRole('button', { name: 'Resume Save' }).click();
+		await waitForHudPosition(page, shrine.mapId, reentrySavePoint);
+		const fallbackDiagnostic = await waitForMapBackgroundDiagnostic(page, shrine.mapId);
+		assertShrineFallbackDiagnostic(fallbackDiagnostic);
+		await saveShrineCanvas(page, 'fallback-base-missing-camera-640x360.png');
+
+		const fallbackProbePoint = { x: 512, y: 624 };
+		const fallbackStart = await currentHudPlayerPoint(page, shrine.mapId);
+		const fallbackPosition = await moveRoute(
+			page,
+			interiorRoutePoints(fallbackStart, fallbackProbePoint),
+			INTERIOR_ROUTE_SETTLE_TOLERANCE
+		);
+		await assertInteriorCheckpoint(page, shrine, fallbackProbePoint);
+		expect(Math.abs(fallbackPosition.x - fallbackProbePoint.x)).toBeLessThanOrEqual(
+			AXIS_REACH_TOLERANCE
+		);
+		expect(Math.abs(fallbackPosition.y - fallbackProbePoint.y)).toBeLessThanOrEqual(
+			AXIS_REACH_TOLERANCE
+		);
+		await exitInteriorWithTrustedKeyboard(page, shrine);
 	} finally {
 		await page.unroute(missingBaseRoute);
 	}

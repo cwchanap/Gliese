@@ -2,6 +2,7 @@ import {
 	guildHallMap,
 	heroHouseMap,
 	itemShopMap,
+	shrineOfAuroraInteriorMap,
 	villagerHouse1Map,
 	villagerHouse2Map,
 	villagerHouse3Map
@@ -11,6 +12,7 @@ import type { WorldMapDefinition } from '$lib/game/content/maps/types';
 import guildHallManifestJson from './manifests/guild-hall.json';
 import heroHouseManifestJson from './manifests/hero-house.json';
 import itemShopManifestJson from './manifests/item-shop.json';
+import shrineOfAuroraInteriorManifestJson from './manifests/shrine-of-aurora-interior.json';
 import villagerHouse1ManifestJson from './manifests/villager-house-1.json';
 import villagerHouse2ManifestJson from './manifests/villager-house-2.json';
 import villagerHouse3ManifestJson from './manifests/villager-house-3.json';
@@ -27,6 +29,8 @@ import type {
 const heroHouseManifest = heroHouseManifestJson as VillageInteriorPackageManifest;
 const guildHallManifest = guildHallManifestJson as VillageInteriorPackageManifest;
 const itemShopManifest = itemShopManifestJson as VillageInteriorPackageManifest;
+const shrineOfAuroraInteriorManifest =
+	shrineOfAuroraInteriorManifestJson as VillageInteriorPackageManifest;
 const villagerHouse1Manifest = villagerHouse1ManifestJson as VillageInteriorPackageManifest;
 const villagerHouse2Manifest = villagerHouse2ManifestJson as VillageInteriorPackageManifest;
 const villagerHouse3Manifest = villagerHouse3ManifestJson as VillageInteriorPackageManifest;
@@ -48,6 +52,9 @@ const villagerHouse2NavigationSource = VILLAGE_INTERIOR_NAVIGATION_SOURCES.find(
 const villagerHouse3NavigationSource = VILLAGE_INTERIOR_NAVIGATION_SOURCES.find(
 	(source) => source.mapId === 'villager-house-3'
 );
+const shrineOfAuroraInteriorNavigationSource = VILLAGE_INTERIOR_NAVIGATION_SOURCES.find(
+	(source) => source.mapId === 'shrine-of-aurora-interior'
+);
 
 if (!heroHouseNavigationSource) {
 	throw new Error('Hero House navigation source is not registered');
@@ -66,6 +73,9 @@ if (!villagerHouse2NavigationSource) {
 }
 if (!villagerHouse3NavigationSource) {
 	throw new Error('Villager House 3 navigation source is not registered');
+}
+if (!shrineOfAuroraInteriorNavigationSource) {
+	throw new Error('Shrine of Aurora navigation source is not registered');
 }
 
 function interiorVisualOwners(
@@ -161,11 +171,24 @@ const villagerHouse3Package = buildVillageInteriorPackage({
 	navigationSource: villagerHouse3NavigationSource
 });
 
+const shrineOfAuroraInteriorPackage = buildVillageInteriorPackage({
+	mapId: 'shrine-of-aurora-interior',
+	layout: VILLAGE_INTERIOR_LAYOUTS['shrine-of-aurora-interior'],
+	manifest: shrineOfAuroraInteriorManifest,
+	visualOwners: interiorVisualOwners(
+		shrineOfAuroraInteriorMap,
+		'shrine-of-aurora-interior-full-map',
+		shrineOfAuroraInteriorManifest.base.id
+	),
+	navigationSource: shrineOfAuroraInteriorNavigationSource
+});
+
 export const VILLAGE_INTERIOR_PACKAGES: readonly MapBackgroundPackageDefinition[] = Object.freeze([
 	heroHousePackage.definition,
 	guildHallPackage.definition,
 	itemShopPackage.definition,
 	villagerHouse1Package.definition,
 	villagerHouse2Package.definition,
-	villagerHouse3Package.definition
+	villagerHouse3Package.definition,
+	shrineOfAuroraInteriorPackage.definition
 ]);

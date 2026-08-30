@@ -43,5 +43,9 @@ export const MAP_BACKGROUND_DEFAULT_SELECTIONS: Readonly<
 	'villager-house-3': Object.freeze({
 		packageId: 'villager-house-3-painted',
 		mode: 'production' as const
+	}),
+	'shrine-of-aurora-interior': Object.freeze({
+		packageId: 'shrine-of-aurora-interior-painted',
+		mode: 'production' as const
 	})
 });

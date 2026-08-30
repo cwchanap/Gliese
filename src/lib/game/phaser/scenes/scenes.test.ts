@@ -145,6 +145,28 @@ const villagerHouse3StatefulObjectIds = [
 	...(villagerHouse3Map.combatBounds ?? []).map(({ id }) => id)
 ].sort();
 
+const shrineCollisionIds = [
+	...(shrineOfAuroraInteriorMap.blockers ?? []).map(({ id }) => id),
+	...(shrineOfAuroraInteriorMap.fences ?? []).map(({ id }) => id),
+	...(shrineOfAuroraInteriorMap.mapDecor ?? []).flatMap(({ collision }) =>
+		collision ? [collision.id] : []
+	),
+	...(shrineOfAuroraInteriorMap.interiorProps ?? []).flatMap(({ collision }) =>
+		collision ? [collision.id] : []
+	),
+	...(shrineOfAuroraInteriorMap.landmarks ?? []).map(({ id }) => id)
+].sort();
+const shrineStatefulObjectIds = [
+	...shrineOfAuroraInteriorMap.transitions.map(({ id }) => id),
+	...(shrineOfAuroraInteriorMap.pickups ?? []).map(({ id }) => id),
+	...(shrineOfAuroraInteriorMap.encounters ?? []).map(({ id }) => id),
+	...(shrineOfAuroraInteriorMap.npcs ?? []).map(({ id }) => id),
+	...(shrineOfAuroraInteriorMap.landmarks ?? []).map(({ id }) => id),
+	...(shrineOfAuroraInteriorMap.ambientNpcs ?? []).map(({ id }) => id),
+	...(shrineOfAuroraInteriorMap.discoveries ?? []).map(({ id }) => id),
+	...(shrineOfAuroraInteriorMap.combatBounds ?? []).map(({ id }) => id)
+].sort();
+
 const expectedOrganicBlockerOwners = [
 	'coast-crossroads-mouth-bank',
 	'mistfen-entry-bank-east',
@@ -4514,6 +4536,171 @@ describe('WorldScene', () => {
 		}
 	});
 
+	it('renders the painted Shrine base without actors and with legacy collisions', async () => {
+		const { VILLAGE_INTERIOR_PACKAGES } =
+			await import('$lib/game/content/backgrounds/village-interior-packages');
+		const shrinePackage = VILLAGE_INTERIOR_PACKAGES.find(
+			({ id }) => id === 'shrine-of-aurora-interior-painted'
+		);
+		if (!shrinePackage) throw new Error('Shrine of Aurora painted package is not registered');
+		const base = shrinePackage.backgrounds.find(({ plane }) => plane === 'base');
+		if (!base) throw new Error('Shrine of Aurora painted base is not registered');
+		phaserState.regionalBackgroundTextureMocks.set(base.textureKey, {
+			key: base.textureKey,
+			source: [{ width: base.width, height: base.height }],
+			get: vi.fn(() => ({ cutWidth: base.width, cutHeight: base.height }))
+		});
+		const target = installPlaneDiagnosticListener();
+		const { WorldScene } = await import('./WorldScene');
+		const scene = new WorldScene();
+
+		try {
+			scene.create({ mapId: shrineOfAuroraInteriorMap.id });
+
+			expect(shrinePackage.backgrounds.map(({ plane }) => plane)).toEqual(['base']);
+			expect(scene.make.tilemap).not.toHaveBeenCalled();
+			expect(phaserState.tileSpriteMarkers).toHaveLength(0);
+			expect(
+				phaserState.imageMarkers.filter(
+					({ texture }) => texture === 'interior-props' || texture === 'environment-dressing'
+				)
+			).toHaveLength(0);
+			expect(phaserState.imageMarkers.filter(({ texture }) => texture === 'npc-pack')).toHaveLength(
+				0
+			);
+			expect(phaserState.playerMarker).toMatchObject({
+				x: shrineOfAuroraInteriorMap.spawn.x,
+				y: shrineOfAuroraInteriorMap.spawn.y,
+				frame: 'heroIdle0'
+			});
+			expect(phaserState.playerMarker.setDisplaySize).toHaveBeenCalledWith(88, 90);
+			expect(phaserState.imageMarkers).toEqual(
+				expect.arrayContaining([
+					expect.objectContaining({
+						x: shrineOfAuroraInteriorMap.transitions[0]?.x,
+						y: shrineOfAuroraInteriorMap.transitions[0]?.y,
+						texture: 'starter-pack',
+						frame: 'doorwayTile'
+					})
+				])
+			);
+
+			const backgroundMarker = phaserState.imageMarkers.find(
+				({ texture }) => texture === base.textureKey
+			);
+			expect(backgroundMarker).toBeDefined();
+			expect(backgroundMarker?.setOrigin).toHaveBeenCalledWith(0.5, 0.5);
+			expect(backgroundMarker?.setDisplaySize).toHaveBeenCalledWith(1024, 896);
+			expect(backgroundMarker?.setDepth).toHaveBeenCalledWith(-9);
+			expect(target.diagnostics[0]).toMatchObject({
+				mapId: 'shrine-of-aurora-interior',
+				packageId: 'shrine-of-aurora-interior-painted',
+				presentationMode: 'painted',
+				requiredBackgroundIds: ['shrine-of-aurora-interior-painted-base-image'],
+				selectedBackgroundIds: ['shrine-of-aurora-interior-painted-base-image'],
+				successfulBackgroundIds: ['shrine-of-aurora-interior-painted-base-image'],
+				selectedFallbackBlockerIds: [],
+				selectedFallbackDecorIds: [],
+				selectedFallbackFenceIds: [],
+				collisionIds: shrineCollisionIds,
+				statefulObjectIds: shrineStatefulObjectIds
+			});
+			expect(target.diagnostics[0]?.entries).toEqual([
+				expect.objectContaining({
+					id: 'shrine-of-aurora-interior-painted-base-image',
+					textureKey: base.textureKey,
+					plane: 'base',
+					status: 'rendered',
+					expectedDimensions: { width: 1024, height: 896 },
+					observedDimensions: { width: 1024, height: 896 },
+					renderTransform: { x: 512, y: 448 }
+				})
+			]);
+		} finally {
+			target.restore();
+		}
+	});
+
+	it('restores every Shrine legacy visual atomically when its painted base is missing', async () => {
+		const { VILLAGE_INTERIOR_PACKAGES } =
+			await import('$lib/game/content/backgrounds/village-interior-packages');
+		const shrinePackage = VILLAGE_INTERIOR_PACKAGES.find(
+			({ id }) => id === 'shrine-of-aurora-interior-painted'
+		);
+		if (!shrinePackage) throw new Error('Shrine of Aurora painted package is not registered');
+		const base = shrinePackage.backgrounds.find(({ plane }) => plane === 'base');
+		if (!base) throw new Error('Shrine of Aurora painted base is not registered');
+		phaserState.regionalBackgroundTextureMocks.set(base.textureKey, {
+			key: base.textureKey,
+			source: [{ width: base.width, height: base.height }],
+			get: vi.fn(() => ({ cutWidth: base.width, cutHeight: base.height }))
+		});
+		phaserState.missingTextureKeys.add(base.textureKey);
+		const target = installPlaneDiagnosticListener();
+		const { WorldScene } = await import('./WorldScene');
+		const scene = new WorldScene();
+
+		try {
+			scene.create({ mapId: shrineOfAuroraInteriorMap.id });
+
+			expect(scene.make.tilemap).toHaveBeenCalledOnce();
+			expect(
+				phaserState.imageMarkers.some(
+					({ texture, destroy }) => texture === base.textureKey && destroy.mock.calls.length === 0
+				)
+			).toBe(false);
+			expect(phaserState.tileSpriteMarkers).toHaveLength(
+				shrineOfAuroraInteriorMap.blockers?.length ?? 0
+			);
+			expect(
+				phaserState.imageMarkers.filter(({ texture }) => texture === 'interior-props')
+			).toHaveLength(shrineOfAuroraInteriorMap.interiorProps?.length ?? 0);
+			expect(phaserState.imageMarkers.filter(({ texture }) => texture === 'npc-pack')).toHaveLength(
+				0
+			);
+			expect(phaserState.playerMarker).toMatchObject({
+				x: shrineOfAuroraInteriorMap.spawn.x,
+				y: shrineOfAuroraInteriorMap.spawn.y,
+				frame: 'heroIdle0'
+			});
+			expect(phaserState.imageMarkers).toEqual(
+				expect.arrayContaining([
+					expect.objectContaining({
+						x: shrineOfAuroraInteriorMap.transitions[0]?.x,
+						y: shrineOfAuroraInteriorMap.transitions[0]?.y,
+						texture: 'starter-pack',
+						frame: 'doorwayTile'
+					})
+				])
+			);
+			expect(target.diagnostics[0]).toMatchObject({
+				mapId: 'shrine-of-aurora-interior',
+				packageId: null,
+				presentationMode: 'fallback',
+				requiredBackgroundIds: ['shrine-of-aurora-interior-painted-base-image'],
+				selectedBackgroundIds: [],
+				successfulBackgroundIds: [],
+				selectedFallbackBlockerIds: shrineOfAuroraInteriorMap.blockers?.map(({ id }) => id),
+				selectedFallbackDecorIds: [],
+				selectedFallbackFenceIds: [],
+				collisionIds: shrineCollisionIds,
+				statefulObjectIds: shrineStatefulObjectIds
+			});
+			expect(target.diagnostics[0]?.entries).toEqual([
+				expect.objectContaining({
+					id: 'shrine-of-aurora-interior-painted-base-image',
+					textureKey: base.textureKey,
+					plane: 'base',
+					status: 'missing-texture',
+					expectedDimensions: { width: 1024, height: 896 },
+					observedDimensions: null
+				})
+			]);
+		} finally {
+			target.restore();
+		}
+	});
+
 	it('renders tilemap ground, a hero sprite, and encounter art for the resolved map', async () => {
 		const { WorldScene } = await import('./WorldScene');
 		const { meadowEntryMap } = await import('$lib/game/content/maps');
@@ -7500,13 +7687,13 @@ describe('WorldScene', () => {
 				scene as unknown as { buildSaveState: () => ReturnType<typeof createNewSaveState> }
 			).buildSaveState();
 			expect(builtSave.mapId).toBe('shrine-of-aurora-interior');
-			expect(builtSave.player).toMatchObject({ hp: 1, x: 384, y: 608, facing: 'up' });
+			expect(builtSave.player).toMatchObject({ hp: 1, x: 512, y: 784, facing: 'up' });
 			expect(builtSave.wallet.coins).toBe(9);
 			expect(builtSave.flags.clearedEncounters).toEqual([]);
 			expect(parseSaveState(storedSaves.at(-1)!)).toMatchObject({
 				mapId: 'shrine-of-aurora-interior',
 				flags: expect.objectContaining({ clearedEncounters: [] }),
-				player: expect.objectContaining({ hp: 1, x: 384, y: 608, facing: 'up' }),
+				player: expect.objectContaining({ hp: 1, x: 512, y: 784, facing: 'up' }),
 				wallet: { coins: 9 }
 			});
 		} finally {
@@ -9933,7 +10120,7 @@ describe('WorldScene', () => {
 			reason: 'transition',
 			saveState: expect.objectContaining({
 				mapId: 'shrine-of-aurora-interior',
-				player: expect.objectContaining({ x: 384, y: 608, facing: 'up' })
+				player: expect.objectContaining({ x: 512, y: 784, facing: 'up' })
 			})
 		});
 
@@ -9945,7 +10132,7 @@ describe('WorldScene', () => {
 				mapId: 'shrine-of-aurora-interior'
 			}
 		});
-		Object.assign(phaserState.playerMarker, { x: 384, y: 688 });
+		Object.assign(phaserState.playerMarker, { x: 512, y: 880 });
 		shrineScene.update(0, 16);
 
 		expect(shrineScene.scene.restart).toHaveBeenCalledWith({

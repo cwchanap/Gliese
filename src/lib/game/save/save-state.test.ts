@@ -5,6 +5,7 @@ import {
 	itemShopMap,
 	maps,
 	meadowEntryMap,
+	shrineOfAuroraInteriorMap,
 	villagerHouse1Map,
 	villagerHouse2Map,
 	villagerHouse3Map
@@ -708,6 +709,7 @@ describe('save state', () => {
 
 	it.each([
 		['meadow-entry', meadowEntryMap, meadowEntryMap.spawn],
+		['shrine-of-aurora-interior', shrineOfAuroraInteriorMap, shrineOfAuroraInteriorMap.spawn],
 		['villager-house-1', villagerHouse1Map, villagerHouse1Map.spawn],
 		['villager-house-2', villagerHouse2Map, villagerHouse2Map.spawn],
 		['villager-house-3', villagerHouse3Map, villagerHouse3Map.spawn]
