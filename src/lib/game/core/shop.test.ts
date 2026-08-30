@@ -40,6 +40,12 @@ describe('shop core', () => {
 				'iron-cap': 1,
 				'grip-wraps': 1,
 				'traveler-vest': 1
+			},
+			'sundrop-forge': {
+				'training-sword': 1,
+				'iron-cap': 1,
+				'grip-wraps': 1,
+				'traveler-vest': 1
 			}
 		});
 	});
