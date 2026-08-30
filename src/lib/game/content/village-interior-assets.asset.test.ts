@@ -21,7 +21,7 @@ describe('registered village interior assets', () => {
 				id: 'shrine-of-aurora-interior-painted-base-image',
 				textureKey: 'shrine-of-aurora-interior-painted-base',
 				path: '/game/assets/interiors/shrine-of-aurora-interior/base.png',
-				sha256: '0bfbdf826d745a80b06a54a57c42089e9f80d00a43800a32d6d332a20a79b914'
+				sha256: 'ebc043e542718acbeea980e01ff2c8b9c4a172365e8afbb98cda3e09325ce50b'
 			},
 			navigation: {
 				gridId: 'shrine-of-aurora-interior-navigation',
@@ -143,7 +143,7 @@ describe('registered village interior assets', () => {
 					id: 'shrine-of-aurora-interior-painted-base-image',
 					textureKey: 'shrine-of-aurora-interior-painted-base',
 					path: '/game/assets/interiors/shrine-of-aurora-interior/base.png',
-					sha256: '0bfbdf826d745a80b06a54a57c42089e9f80d00a43800a32d6d332a20a79b914'
+					sha256: 'ebc043e542718acbeea980e01ff2c8b9c4a172365e8afbb98cda3e09325ce50b'
 				},
 				navigation: {
 					gridId: 'shrine-of-aurora-interior-navigation',
