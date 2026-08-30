@@ -123,6 +123,7 @@ async function writeInteriorManifest(
 			| 'hero-house'
 			| 'guild-hall'
 			| 'item-shop'
+			| 'blacksmith-interior'
 			| 'villager-house-1'
 			| 'villager-house-2'
 			| 'villager-house-3';
@@ -447,6 +448,98 @@ describe('complete world layout review renderer', () => {
 				'route-widths.png'
 			].sort()
 		);
+	});
+
+	it('renders the complete Blacksmith painted proof inventory', async () => {
+		const outputRoot = await createOutputRoot();
+		const repositoryRoot = process.cwd();
+		const rendered = await renderCompleteWorldLayoutReview({
+			outputRoot,
+			check: false,
+			map: 'blacksmith-interior',
+			repositoryRoot
+		});
+
+		expect(rendered).toHaveLength(1);
+		expect(rendered[0]).toMatchObject({
+			mapId: 'blacksmith-interior',
+			worldDimensions: { width: 896, height: 704 },
+			reviewDimensions: { width: 896, height: 704 }
+		});
+		expect((await readdir(join(outputRoot, 'blacksmith-interior'))).sort()).toEqual(
+			[
+				'anchors.png',
+				'camera-1280x720.png',
+				'camera-640x360.png',
+				'collision-overlay.png',
+				'coordinate-graybox.png',
+				'fallback-comparison.png',
+				'inventory.json',
+				'live-actor-overlay.png',
+				'live-character-composition.png',
+				'painted-base.png',
+				'player-centre-navigation-overlay.png',
+				'raw-collision-overlay.png',
+				'route-widths.png'
+			].sort()
+		);
+
+		const inventory = JSON.parse(
+			await readFile(join(outputRoot, 'blacksmith-interior/inventory.json'), 'utf8')
+		) as {
+			mapId: string;
+			artifacts: readonly { path: string; width: number; height: number; sha256: string }[];
+		};
+		expect(inventory.mapId).toBe('blacksmith-interior');
+		expect(inventory.artifacts).toEqual(
+			expect.arrayContaining([
+				expect.objectContaining({
+					path: 'blacksmith-interior/painted-base.png',
+					width: 896,
+					height: 704
+				}),
+				expect.objectContaining({
+					path: 'blacksmith-interior/collision-overlay.png',
+					width: 896,
+					height: 704
+				}),
+				expect.objectContaining({
+					path: 'blacksmith-interior/live-actor-overlay.png',
+					width: 896,
+					height: 704
+				}),
+				expect.objectContaining({
+					path: 'blacksmith-interior/live-character-composition.png',
+					width: 896,
+					height: 704
+				}),
+				expect.objectContaining({
+					path: 'blacksmith-interior/fallback-comparison.png',
+					width: 1792,
+					height: 704
+				}),
+				expect.objectContaining({
+					path: 'blacksmith-interior/camera-640x360.png',
+					width: 640,
+					height: 360
+				}),
+				expect.objectContaining({
+					path: 'blacksmith-interior/camera-1280x720.png',
+					width: 1280,
+					height: 720
+				})
+			])
+		);
+		expect(inventory.artifacts.every(({ sha256 }) => /^[a-f0-9]{64}$/.test(sha256))).toBe(true);
+
+		await expect(
+			renderCompleteWorldLayoutReview({
+				outputRoot,
+				check: true,
+				map: 'blacksmith-interior',
+				repositoryRoot
+			})
+		).resolves.toEqual(rendered);
 	});
 
 	it('renders the complete Shrine painted proof inventory', async () => {
@@ -1205,6 +1298,102 @@ describe('complete world layout review renderer', () => {
 			}))
 		];
 		expect(actors.map(({ id }) => id)).toEqual(['hero', 'shopkeeper-mira', 'item-shop-customer']);
+
+		for (const actor of actors) {
+			const source = await readFile(join(repositoryRoot, 'public/game/assets', actor.assetPath));
+			const sprite = await sharp(source)
+				.extract({
+					left: actor.frame.x,
+					top: actor.frame.y,
+					width: actor.frame.w,
+					height: actor.frame.h
+				})
+				.resize(actor.displaySize)
+				.png()
+				.toBuffer();
+			const expected = await sharp({
+				create: {
+					width: actor.displaySize.width,
+					height: actor.displaySize.height,
+					channels: 4,
+					background: { r: 64, g: 96, b: 80, alpha: 1 }
+				}
+			})
+				.composite([{ input: sprite, left: 0, top: 0 }])
+				.png()
+				.toBuffer();
+			const actual = await sharp(liveBytes)
+				.extract({
+					left: Math.round(actor.x - actor.displaySize.width / 2),
+					top: Math.round(actor.y - actor.displaySize.height / 2),
+					width: actor.displaySize.width,
+					height: actor.displaySize.height
+				})
+				.png()
+				.toBuffer();
+			expect((await readRgba(actual)).data).toEqual((await readRgba(expected)).data);
+		}
+	});
+
+	it('composes every Blacksmith live actor from the checked-in atlases at runtime sizes', async () => {
+		const repositoryRoot = await createRepositoryRoot();
+		await writeInteriorManifest(
+			repositoryRoot,
+			'painted-proof',
+			{ r: 64, g: 96, b: 80 },
+			{ mapId: 'blacksmith-interior', width: 896, height: 704 }
+		);
+		await copyLegacyRendererAssets(repositoryRoot, true);
+		const outputRoot = await createOutputRoot();
+
+		await renderCompleteWorldLayoutReview({
+			outputRoot,
+			check: false,
+			map: 'blacksmith-interior',
+			repositoryRoot
+		});
+
+		const liveBytes = await readFile(
+			join(outputRoot, 'blacksmith-interior/live-character-composition.png')
+		);
+		const { info: liveInfo } = await readRgba(liveBytes);
+		expect({ width: liveInfo.width, height: liveInfo.height }).toEqual({
+			width: 896,
+			height: 704
+		});
+
+		const blacksmith = maps['blacksmith-interior'];
+		const heroFrameName = actorAnimationAssets.hero.clips.idle.frames[0]!;
+		const actors = [
+			{
+				id: 'hero',
+				x: blacksmith.spawn.x,
+				y: blacksmith.spawn.y,
+				assetPath: 'animation-pack.png',
+				frame: animationPackAsset.frames[heroFrameName],
+				displaySize: actorAnimationAssets.hero.displaySize
+			},
+			...(blacksmith.npcs ?? []).map((npc) => ({
+				id: npc.id,
+				x: npc.x,
+				y: npc.y,
+				assetPath: 'npc-pack.png',
+				frame: npcPackAsset.frames[npc.frameName as keyof typeof npcPackAsset.frames],
+				displaySize: { width: 96, height: 87 }
+			})),
+			...(blacksmith.ambientNpcs ?? []).map((npc) => ({
+				id: npc.id,
+				x: npc.x,
+				y: npc.y,
+				assetPath: 'npc-pack.png',
+				frame: npcPackAsset.frames[npc.frameName as keyof typeof npcPackAsset.frames],
+				displaySize: { width: 96, height: 87 }
+			}))
+		];
+		expect(actors.map(({ id, x, y }) => ({ id, x, y }))).toEqual([
+			{ id: 'hero', x: 448, y: 576 },
+			{ id: 'blacksmith-oren', x: 448, y: 416 }
+		]);
 
 		for (const actor of actors) {
 			const source = await readFile(join(repositoryRoot, 'public/game/assets', actor.assetPath));

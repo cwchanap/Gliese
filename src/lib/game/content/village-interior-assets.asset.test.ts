@@ -6,6 +6,36 @@ import {
 } from '../../../../tools/validate-village-interior-art';
 
 describe('registered village interior assets', () => {
+	it('requires the Blacksmith opaque production base and manifest parity', async () => {
+		const manifest = (await collectRegisteredVillageInteriorManifests()).find(
+			({ mapId }) => mapId === 'blacksmith-interior'
+		);
+		expect(manifest).toBeDefined();
+		if (!manifest) return;
+
+		expect(manifest).toMatchObject({
+			version: 1,
+			mapId: 'blacksmith-interior',
+			dimensionsPx: { width: 896, height: 704 },
+			base: {
+				id: 'blacksmith-interior-painted-base-image',
+				textureKey: 'blacksmith-interior-painted-base',
+				path: '/game/assets/interiors/blacksmith-interior/base.png',
+				sha256: '604efdd3c9c6fe9c5c4186edbc35ee871bd1d1372cac1c8ecaa9a14dd3d76e4d'
+			},
+			navigation: {
+				gridId: 'blacksmith-interior-navigation',
+				cellSizePx: 16,
+				widthCells: 56,
+				heightCells: 44,
+				clearancePx: 12,
+				source: 'layout'
+			}
+		});
+		expect(manifest.foreground).toBeUndefined();
+		await expect(validateVillageInteriorManifest(manifest)).resolves.toBeUndefined();
+	});
+
 	it('requires the Shrine of Aurora opaque production base and manifest parity', async () => {
 		const manifest = (await collectRegisteredVillageInteriorManifests()).find(
 			({ mapId }) => mapId === 'shrine-of-aurora-interior'
@@ -70,8 +100,27 @@ describe('registered village interior assets', () => {
 		const manifests = await collectRegisteredVillageInteriorManifests();
 		for (const manifest of manifests) await validateVillageInteriorManifest(manifest);
 
-		expect(manifests).toHaveLength(7);
+		expect(manifests).toHaveLength(8);
 		expect(manifests).toEqual([
+			{
+				version: 1,
+				mapId: 'blacksmith-interior',
+				dimensionsPx: { width: 896, height: 704 },
+				base: {
+					id: 'blacksmith-interior-painted-base-image',
+					textureKey: 'blacksmith-interior-painted-base',
+					path: '/game/assets/interiors/blacksmith-interior/base.png',
+					sha256: '604efdd3c9c6fe9c5c4186edbc35ee871bd1d1372cac1c8ecaa9a14dd3d76e4d'
+				},
+				navigation: {
+					gridId: 'blacksmith-interior-navigation',
+					cellSizePx: 16,
+					widthCells: 56,
+					heightCells: 44,
+					clearancePx: 12,
+					source: 'layout'
+				}
+			},
 			{
 				version: 1,
 				mapId: 'guild-hall',

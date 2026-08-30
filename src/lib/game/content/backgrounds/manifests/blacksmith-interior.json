@@ -1,0 +1,22 @@
+{
+	"version": 1,
+	"mapId": "blacksmith-interior",
+	"dimensionsPx": {
+		"width": 896,
+		"height": 704
+	},
+	"base": {
+		"id": "blacksmith-interior-painted-base-image",
+		"textureKey": "blacksmith-interior-painted-base",
+		"path": "/game/assets/interiors/blacksmith-interior/base.png",
+		"sha256": "604efdd3c9c6fe9c5c4186edbc35ee871bd1d1372cac1c8ecaa9a14dd3d76e4d"
+	},
+	"navigation": {
+		"gridId": "blacksmith-interior-navigation",
+		"cellSizePx": 16,
+		"widthCells": 56,
+		"heightCells": 44,
+		"clearancePx": 12,
+		"source": "layout"
+	}
+}

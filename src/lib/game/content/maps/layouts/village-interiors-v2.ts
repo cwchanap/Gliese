@@ -317,10 +317,10 @@ export const VILLAGE_INTERIOR_LAYOUTS = {
 		propCollisions: {
 			forge: rect(112, 112, 96, 128),
 			anvil: rect(288, 176, 64, 64),
-			serviceCounter: rect(288, 448, 320, 8),
+			serviceCounter: rect(284, 440, 324, 18),
 			weaponRacks: rect(624, 112, 128, 160),
 			coalStorage: rect(112, 304, 192, 32),
-			showroomDisplay: rect(656, 496, 96, 96)
+			showroomDisplay: rect(656, 496, 112, 96)
 		}
 	},
 	'shrine-of-aurora-interior': {

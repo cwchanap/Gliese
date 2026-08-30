@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+	blacksmithInteriorMap,
 	guildHallMap,
 	itemShopMap,
 	maps,
@@ -146,6 +147,34 @@ describe('save state', () => {
 				parsed!.player.x,
 				parsed!.player.y,
 				(itemShopMap.interiorProps ?? []).flatMap((prop) =>
+					prop.collision ? [prop.collision] : []
+				),
+				PLAYER_COLLISION_RADIUS
+			)
+		).toBe(false);
+	});
+
+	it('round-trips a Blacksmith save at Oren approach without moving the player', () => {
+		const save = createNewSaveState();
+		save.mapId = blacksmithInteriorMap.id;
+		save.player = {
+			...save.player,
+			x: 448,
+			y: 480,
+			facing: 'up'
+		};
+
+		const parsed = parseSaveState(serializeSaveState(save));
+
+		expect(parsed).toMatchObject({
+			mapId: 'blacksmith-interior',
+			player: { x: 448, y: 480, facing: 'up' }
+		});
+		expect(
+			isInsideAnyCollisionRect(
+				parsed!.player.x,
+				parsed!.player.y,
+				(blacksmithInteriorMap.interiorProps ?? []).flatMap((prop) =>
 					prop.collision ? [prop.collision] : []
 				),
 				PLAYER_COLLISION_RADIUS

@@ -32,6 +32,10 @@ export const MAP_BACKGROUND_DEFAULT_SELECTIONS: Readonly<
 		packageId: 'item-shop-painted',
 		mode: 'production' as const
 	}),
+	'blacksmith-interior': Object.freeze({
+		packageId: 'blacksmith-interior-painted',
+		mode: 'production' as const
+	}),
 	'villager-house-1': Object.freeze({
 		packageId: 'villager-house-1-painted',
 		mode: 'production' as const

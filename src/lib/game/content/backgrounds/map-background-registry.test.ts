@@ -13,6 +13,7 @@ import { applyMapBackgroundPackage } from './map-background-package';
 import { VILLAGE_INTERIOR_NAVIGATION_SOURCES } from './village-interior-navigation-sources';
 import { VILLAGE_INTERIOR_PACKAGES } from './village-interior-packages';
 import {
+	blacksmithInteriorMap,
 	guildHallMap,
 	heroHouseMap,
 	itemShopMap,
@@ -91,7 +92,7 @@ describe('map background registry', () => {
 				clearancePx: 12
 			})
 		]);
-		expect(VILLAGE_INTERIOR_PACKAGES).toHaveLength(7);
+		expect(VILLAGE_INTERIOR_PACKAGES).toHaveLength(8);
 		expect(VILLAGE_INTERIOR_PACKAGES[0]).toEqual(
 			expect.objectContaining({
 				id: 'hero-house-painted',
@@ -172,6 +173,28 @@ describe('map background registry', () => {
 		);
 		expect(VILLAGE_INTERIOR_PACKAGES[3]).toEqual(
 			expect.objectContaining({
+				id: 'blacksmith-interior-painted',
+				mapId: 'blacksmith-interior',
+				coverage: 'full-map',
+				assets: [
+					{
+						key: 'blacksmith-interior-painted-base',
+						path: '/game/assets/interiors/blacksmith-interior/base.png'
+					}
+				],
+				backgrounds: [
+					expect.objectContaining({
+						id: 'blacksmith-interior-painted-base-image',
+						textureKey: 'blacksmith-interior-painted-base',
+						width: 896,
+						height: 704,
+						plane: 'base'
+					})
+				]
+			})
+		);
+		expect(VILLAGE_INTERIOR_PACKAGES[4]).toEqual(
+			expect.objectContaining({
 				id: 'villager-house-1-painted',
 				mapId: 'villager-house-1',
 				coverage: 'full-map',
@@ -192,7 +215,7 @@ describe('map background registry', () => {
 				]
 			})
 		);
-		expect(VILLAGE_INTERIOR_PACKAGES[4]).toEqual(
+		expect(VILLAGE_INTERIOR_PACKAGES[5]).toEqual(
 			expect.objectContaining({
 				id: 'villager-house-2-painted',
 				mapId: 'villager-house-2',
@@ -214,7 +237,7 @@ describe('map background registry', () => {
 				]
 			})
 		);
-		expect(VILLAGE_INTERIOR_PACKAGES[5]).toEqual(
+		expect(VILLAGE_INTERIOR_PACKAGES[6]).toEqual(
 			expect.objectContaining({
 				id: 'villager-house-3-painted',
 				mapId: 'villager-house-3',
@@ -236,7 +259,7 @@ describe('map background registry', () => {
 				]
 			})
 		);
-		expect(VILLAGE_INTERIOR_PACKAGES[6]).toEqual(
+		expect(VILLAGE_INTERIOR_PACKAGES[7]).toEqual(
 			expect.objectContaining({
 				id: 'shrine-of-aurora-interior-painted',
 				mapId: 'shrine-of-aurora-interior',
@@ -268,6 +291,10 @@ describe('map background registry', () => {
 		});
 		expect(MAP_BACKGROUND_DEFAULT_SELECTIONS['item-shop']).toEqual({
 			packageId: 'item-shop-painted',
+			mode: 'production'
+		});
+		expect(MAP_BACKGROUND_DEFAULT_SELECTIONS['blacksmith-interior']).toEqual({
+			packageId: 'blacksmith-interior-painted',
 			mode: 'production'
 		});
 		expect(MAP_BACKGROUND_DEFAULT_SELECTIONS['villager-house-1']).toEqual({
@@ -308,6 +335,10 @@ describe('map background registry', () => {
 			},
 			'item-shop': {
 				packageId: 'item-shop-painted',
+				mode: 'production'
+			},
+			'blacksmith-interior': {
+				packageId: 'blacksmith-interior-painted',
 				mode: 'production'
 			},
 			'villager-house-1': {
@@ -431,6 +462,41 @@ describe('map background registry', () => {
 			(itemShopMap.groundPatches?.length ?? 0) +
 				(itemShopMap.blockers?.length ?? 0) +
 				(itemShopMap.interiorProps?.length ?? 0)
+		);
+	});
+
+	it('owns every Blacksmith legacy static source as one painted package', () => {
+		const definition = VILLAGE_INTERIOR_PACKAGES.find(
+			({ id }) => id === 'blacksmith-interior-painted'
+		);
+		expect(definition).toBeDefined();
+		if (!definition) return;
+
+		const transformed = applyMapBackgroundPackage(blacksmithInteriorMap, {
+			mode: 'production',
+			definition
+		});
+		expect(transformed.backgroundImages).toEqual(definition.backgrounds);
+
+		for (const source of [
+			...(transformed.groundPatches ?? []),
+			...(transformed.blockers ?? []),
+			...(transformed.interiorProps ?? [])
+		]) {
+			expect(source.visual).toEqual({
+				mode: 'fallback-only',
+				ownerCrops: [
+					{
+						cropId: 'blacksmith-interior-full-map',
+						requiredBackgroundIds: ['blacksmith-interior-painted-base-image']
+					}
+				]
+			});
+		}
+		expect(definition.visualOwners).toHaveLength(
+			(blacksmithInteriorMap.groundPatches?.length ?? 0) +
+				(blacksmithInteriorMap.blockers?.length ?? 0) +
+				(blacksmithInteriorMap.interiorProps?.length ?? 0)
 		);
 	});
 

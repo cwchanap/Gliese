@@ -1160,7 +1160,10 @@ async function renderLiveCharacterComposition(
 		assert(point !== undefined, `${mapId} room has no walkable proof point: ${roomId}`);
 		points.push(point);
 	}
-	const heroPoints = mapId === 'guild-hall' || mapId === 'item-shop' ? [points[0]!] : points;
+	const heroPoints =
+		mapId === 'guild-hall' || mapId === 'item-shop' || mapId === 'blacksmith-interior'
+			? [points[0]!]
+			: points;
 
 	const baseMetadata = await sharp(base).metadata();
 	assert(
@@ -1171,6 +1174,7 @@ async function renderLiveCharacterComposition(
 	if (
 		mapId === 'guild-hall' ||
 		mapId === 'item-shop' ||
+		mapId === 'blacksmith-interior' ||
 		mapId === 'villager-house-1' ||
 		mapId === 'villager-house-2' ||
 		mapId === 'villager-house-3'

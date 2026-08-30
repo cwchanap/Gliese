@@ -9,6 +9,7 @@ import {
 import { MEADOW_ENTRY_PAINTED_V2_COMPLETE_APPROVED_RUNTIME_BACKGROUNDS } from '../../src/lib/game/content/backgrounds/meadow-entry-painted-v2-complete.generated';
 import type { MeadowEntryPaintedMode } from '../../src/lib/game/content/backgrounds/meadow-entry-painted-v2-runtime';
 import {
+	blacksmithInteriorMap,
 	guildHallMap,
 	heroHouseMap,
 	itemShopMap,
@@ -2433,6 +2434,31 @@ const VILLAGER_HOUSE_3_STATEFUL_OBJECT_IDS = [
 const VILLAGER_HOUSE_3_FALLBACK_BLOCKER_IDS = (villagerHouse3Map.blockers ?? []).map(
 	({ id }) => id
 );
+const BLACKSMITH_RUNTIME_EVIDENCE_ROOT = resolve(
+	'docs/superpowers/reports/img/hpa-586-interiors-runtime/blacksmith-interior'
+);
+const BLACKSMITH_COLLISION_IDS = [
+	...(blacksmithInteriorMap.blockers ?? []).map(({ id }) => id),
+	...(blacksmithInteriorMap.fences ?? []).map(({ id }) => id),
+	...(blacksmithInteriorMap.mapDecor ?? []).flatMap(({ collision }) =>
+		collision ? [collision.id] : []
+	),
+	...(blacksmithInteriorMap.interiorProps ?? []).flatMap(({ collision }) =>
+		collision ? [collision.id] : []
+	),
+	...(blacksmithInteriorMap.landmarks ?? []).map(({ id }) => id)
+].sort();
+const BLACKSMITH_STATEFUL_OBJECT_IDS = [
+	...blacksmithInteriorMap.transitions.map(({ id }) => id),
+	...(blacksmithInteriorMap.pickups ?? []).map(({ id }) => id),
+	...(blacksmithInteriorMap.encounters ?? []).map(({ id }) => id),
+	...(blacksmithInteriorMap.npcs ?? []).map(({ id }) => id),
+	...(blacksmithInteriorMap.landmarks ?? []).map(({ id }) => id),
+	...(blacksmithInteriorMap.ambientNpcs ?? []).map(({ id }) => id),
+	...(blacksmithInteriorMap.discoveries ?? []).map(({ id }) => id),
+	...(blacksmithInteriorMap.combatBounds ?? []).map(({ id }) => id)
+].sort();
+const BLACKSMITH_FALLBACK_BLOCKER_IDS = (blacksmithInteriorMap.blockers ?? []).map(({ id }) => id);
 const SHRINE_RUNTIME_EVIDENCE_ROOT = resolve(
 	'docs/superpowers/reports/img/hpa-586-interiors-runtime/shrine-of-aurora-interior'
 );
@@ -11681,6 +11707,69 @@ function assertVillagerHouse3FallbackDiagnostic(
 	]);
 }
 
+function assertBlacksmithPaintedDiagnostic(diagnostic: RegionalBackgroundPlaneRenderDiagnostic) {
+	expect(diagnostic).toMatchObject({
+		mapId: 'blacksmith-interior',
+		regionalBackgroundsEnabled: true,
+		packageId: 'blacksmith-interior-painted',
+		presentationMode: 'painted',
+		requiredBackgroundIds: ['blacksmith-interior-painted-base-image'],
+		selectedBackgroundIds: ['blacksmith-interior-painted-base-image'],
+		successfulBackgroundIds: ['blacksmith-interior-painted-base-image'],
+		selectedFallbackBlockerIds: [],
+		selectedFallbackDecorIds: [],
+		selectedFallbackFenceIds: [],
+		collisionIds: [...BLACKSMITH_COLLISION_IDS],
+		statefulObjectIds: [...BLACKSMITH_STATEFUL_OBJECT_IDS]
+	});
+	expect(diagnostic.entries).toEqual([
+		expect.objectContaining({
+			id: 'blacksmith-interior-painted-base-image',
+			textureKey: 'blacksmith-interior-painted-base',
+			plane: 'base',
+			status: 'rendered',
+			expectedDimensions: { width: 896, height: 704 },
+			observedDimensions: { width: 896, height: 704 },
+			renderTransform: {
+				x: 448,
+				y: 352,
+				originX: 0.5,
+				originY: 0.5,
+				displayWidth: 896,
+				displayHeight: 704,
+				depth: -9
+			}
+		})
+	]);
+}
+
+function assertBlacksmithFallbackDiagnostic(diagnostic: RegionalBackgroundPlaneRenderDiagnostic) {
+	expect(diagnostic).toMatchObject({
+		mapId: 'blacksmith-interior',
+		regionalBackgroundsEnabled: true,
+		packageId: null,
+		presentationMode: 'fallback',
+		requiredBackgroundIds: ['blacksmith-interior-painted-base-image'],
+		selectedBackgroundIds: [],
+		successfulBackgroundIds: [],
+		selectedFallbackBlockerIds: [...BLACKSMITH_FALLBACK_BLOCKER_IDS],
+		selectedFallbackDecorIds: [],
+		selectedFallbackFenceIds: [],
+		collisionIds: [...BLACKSMITH_COLLISION_IDS],
+		statefulObjectIds: [...BLACKSMITH_STATEFUL_OBJECT_IDS]
+	});
+	expect(diagnostic.entries).toEqual([
+		expect.objectContaining({
+			id: 'blacksmith-interior-painted-base-image',
+			textureKey: 'blacksmith-interior-painted-base',
+			plane: 'base',
+			status: 'missing-texture',
+			expectedDimensions: { width: 896, height: 704 },
+			observedDimensions: null
+		})
+	]);
+}
+
 function assertShrinePaintedDiagnostic(diagnostic: RegionalBackgroundPlaneRenderDiagnostic) {
 	expect(diagnostic).toMatchObject({
 		mapId: 'shrine-of-aurora-interior',
@@ -11766,6 +11855,10 @@ async function saveVillagerHouse2Canvas(page: Page, name: string) {
 
 async function saveVillagerHouse3Canvas(page: Page, name: string) {
 	return saveInteriorCanvas(page, VILLAGER_HOUSE_3_RUNTIME_EVIDENCE_ROOT, 'villager-house-3', name);
+}
+
+async function saveBlacksmithCanvas(page: Page, name: string) {
+	return saveInteriorCanvas(page, BLACKSMITH_RUNTIME_EVIDENCE_ROOT, 'blacksmith-interior', name);
 }
 
 async function saveShrineCanvas(page: Page, name: string) {
@@ -16831,6 +16924,200 @@ test('Blacksmith Oren equipment shop', async ({ page }) => {
 		.getByLabel('Iron Cap', { exact: true });
 	await resumedIronCap.hover();
 	await expect(page.getByRole('tooltip')).toContainText('0 left');
+});
+
+test('Blacksmith painted interior', async ({ page }) => {
+	test.setTimeout(600_000);
+	const blacksmith: InteriorGrayboxCase = {
+		mapId: 'blacksmith-interior',
+		returnArrival: { x: 2_272, y: 5_248 },
+		exteriorDoor: { x: 2_272, y: 5_184 },
+		spawn: { x: 448, y: 576 },
+		exit: { x: 448, y: 688 },
+		steps: []
+	};
+	const layout = VILLAGE_INTERIOR_LAYOUTS['blacksmith-interior'];
+	const oren = blacksmithInteriorMap.npcs?.find(({ id }) => id === 'blacksmith-oren');
+	if (!oren) throw new Error('Blacksmith Oren fixture is missing');
+	expect(blacksmith.returnArrival).toEqual({ x: 2_272, y: 5_248 });
+	expect(blacksmith.spawn).toEqual(layout.spawn);
+	expect(blacksmith.exit).toEqual(layout.exit);
+	expect(oren).toMatchObject({
+		id: 'blacksmith-oren',
+		x: 448,
+		y: 416,
+		shopId: 'sundrop-forge'
+	});
+
+	const forgePoint = { x: 240, y: 144 };
+	const storagePoint = { x: 336, y: 320 };
+	const armoryPoint = { x: 800, y: 304 };
+	const showroomPoint = { x: 800, y: 624 };
+	const orenApproachPoint = layout.npcApproaches.oren.approach;
+	expect(layoutRectContainsPoint(layout.rooms.forgeFloor, forgePoint)).toBe(true);
+	expect(layoutRectContainsPoint(layout.rooms.forgeFloor, storagePoint)).toBe(true);
+	expect(layoutRectContainsPoint(layout.rooms.armoryDisplay, armoryPoint)).toBe(true);
+	expect(layoutRectContainsPoint(layout.rooms.showroom, showroomPoint)).toBe(true);
+	expect(orenApproachPoint).toEqual({ x: 448, y: 480 });
+	expect(
+		expandedLayoutRectContainsPoint(
+			layout.propCollisions.coalStorage,
+			storagePoint,
+			PLAYER_COLLISION_RADIUS
+		)
+	).toBe(false);
+
+	await installRuntimeProbes(page, { captureFacing: true });
+	await injectSave(
+		page,
+		createSaveFixture({
+			mapId: 'meadow-entry',
+			player: {
+				level: 1,
+				xp: 0,
+				hp: 20,
+				attack: 3,
+				x: blacksmith.returnArrival.x,
+				y: blacksmith.returnArrival.y,
+				facing: 'up'
+			},
+			wallet: { coins: 100 }
+		})
+	);
+	await page.setViewportSize({ width: 640, height: 360 });
+	await page.goto('/?movementDiagnostics=on');
+	await expect(page.locator('canvas')).toBeVisible();
+	await expect(page.getByRole('button', { name: 'Menu' })).toBeVisible();
+	await page.getByRole('button', { name: 'Menu' }).click();
+	await commandBox(page).getByRole('button', { name: 'Resume Save' }).click();
+	await waitForHudPosition(page, 'meadow-entry', blacksmith.returnArrival);
+
+	await enterInteriorWithTrustedKeyboard(page, blacksmith);
+	assertBlacksmithPaintedDiagnostic(await waitForMapBackgroundDiagnostic(page, blacksmith.mapId));
+	await saveBlacksmithCanvas(page, 'painted-camera-640x360.png');
+
+	let currentPoint = blacksmith.spawn;
+	currentPoint = await moveRoute(page, [
+		currentPoint,
+		{ x: 448, y: 640 },
+		{ x: 800, y: 640 },
+		{ x: 800, y: 400 },
+		{ x: 520, y: 400 },
+		{ x: 480, y: 208 },
+		{ x: 368, y: 208 },
+		{ x: 368, y: 144 },
+		forgePoint
+	]);
+	await assertInteriorCheckpoint(page, blacksmith, forgePoint);
+
+	currentPoint = await moveRoute(page, [
+		currentPoint,
+		{ x: 240, y: 272 },
+		{ x: 336, y: 272 },
+		storagePoint
+	]);
+	await assertInteriorCheckpoint(page, blacksmith, storagePoint);
+
+	currentPoint = await moveRoute(page, [
+		currentPoint,
+		{ x: 384, y: 320 },
+		{ x: 384, y: 208 },
+		{ x: 592, y: 208 },
+		{ x: 608, y: 304 },
+		armoryPoint
+	]);
+	await assertInteriorCheckpoint(page, blacksmith, armoryPoint);
+
+	currentPoint = await moveRoute(page, [
+		currentPoint,
+		{ x: 592, y: 208 },
+		{ x: 512, y: 208 },
+		{ x: 512, y: 416 },
+		{ x: 640, y: 416 },
+		{ x: 640, y: 624 },
+		showroomPoint
+	]);
+	await assertInteriorCheckpoint(page, blacksmith, showroomPoint);
+
+	currentPoint = await moveRoute(page, [
+		currentPoint,
+		{ x: 240, y: 624 },
+		{ x: 240, y: 480 },
+		orenApproachPoint
+	]);
+	await assertInteriorCheckpoint(page, blacksmith, orenApproachPoint);
+	const orenInteractionStagingPoint = { x: 384, y: 416 };
+	await moveRoute(page, [
+		currentPoint,
+		{ x: 240, y: 480 },
+		{ x: 240, y: 400 },
+		orenInteractionStagingPoint
+	]);
+	await approachNpcWithTrustedKeyboard(page, {
+		mapId: blacksmith.mapId,
+		speaker: 'Blacksmith Oren',
+		stagingPoint: orenInteractionStagingPoint,
+		npc: { x: oren.x, y: oren.y },
+		propCollision: layout.propCollisions.serviceCounter
+	});
+	await interactWithInteriorNpc(page, {
+		speaker: 'Blacksmith Oren',
+		shopName: 'Sundrop Forge'
+	});
+	currentPoint = await currentHudPlayerPoint(page, blacksmith.mapId);
+
+	currentPoint = await saveInteriorCheckpointAndReload(page, blacksmith.mapId, currentPoint);
+	assertBlacksmithPaintedDiagnostic(await waitForMapBackgroundDiagnostic(page, blacksmith.mapId));
+	await saveBlacksmithCanvas(page, 'painted-reentry-camera-640x360.png');
+
+	await moveRoute(page, [currentPoint, { x: 240, y: 416 }, { x: 240, y: 576 }, blacksmith.spawn]);
+	await assertInteriorCheckpoint(page, blacksmith, blacksmith.spawn);
+	await exitInteriorWithTrustedKeyboard(page, blacksmith);
+	const diagnosticCountBeforeReturn = await page.evaluate(
+		() =>
+			(window as GlieseProbeWindow).__glieseRegionalBackgroundDiagnostics?.filter(
+				({ mapId }) => mapId === 'blacksmith-interior'
+			).length ?? 0
+	);
+	await enterInteriorWithTrustedKeyboard(page, blacksmith);
+	assertBlacksmithPaintedDiagnostic(
+		await waitForMapBackgroundDiagnostic(page, blacksmith.mapId, diagnosticCountBeforeReturn)
+	);
+	await saveBlacksmithCanvas(page, 'painted-exit-return-camera-640x360.png');
+
+	const reentrySavePoint = await currentHudPlayerPoint(page, blacksmith.mapId);
+	await page.getByRole('button', { name: 'Menu' }).click();
+	await commandBox(page).getByRole('button', { name: 'Save Game' }).click();
+	await expect(fieldStatus(page)).toContainText('Saved');
+	const reentryPersisted = await page.evaluate(
+		(key) => JSON.parse(localStorage.getItem(key) ?? 'null'),
+		SAVE_STORAGE_KEY
+	);
+	expect(reentryPersisted?.mapId).toBe(blacksmith.mapId);
+	expect(Math.abs(reentryPersisted?.player?.x - reentrySavePoint.x)).toBeLessThanOrEqual(
+		AXIS_REACH_TOLERANCE
+	);
+	expect(Math.abs(reentryPersisted?.player?.y - reentrySavePoint.y)).toBeLessThanOrEqual(
+		AXIS_REACH_TOLERANCE
+	);
+
+	const missingBaseRoute = '**/game/assets/interiors/blacksmith-interior/base.png';
+	await page.route(missingBaseRoute, (route) => route.abort());
+	try {
+		await page.reload();
+		await expect(page.locator('canvas')).toBeVisible();
+		await expect(page.getByRole('button', { name: 'Menu' })).toBeVisible();
+		await page.getByRole('button', { name: 'Menu' }).click();
+		await commandBox(page).getByRole('button', { name: 'Resume Save' }).click();
+		await waitForHudPosition(page, blacksmith.mapId, reentrySavePoint);
+		assertBlacksmithFallbackDiagnostic(
+			await waitForMapBackgroundDiagnostic(page, blacksmith.mapId)
+		);
+		await saveBlacksmithCanvas(page, 'fallback-base-missing-camera-640x360.png');
+		await exitInteriorWithTrustedKeyboard(page, blacksmith);
+	} finally {
+		await page.unroute(missingBaseRoute);
+	}
 });
 
 test('Guild Hall painted interior', async ({ page }) => {

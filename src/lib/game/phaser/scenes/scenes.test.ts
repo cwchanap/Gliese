@@ -7,6 +7,7 @@ import {
 	forestDressingAsset
 } from '$lib/game/content/assets';
 import {
+	blacksmithInteriorMap,
 	heroHouseMap,
 	guildHallMap,
 	maps,
@@ -59,6 +60,28 @@ const itemShopStatefulObjectIds = [
 	...(itemShopMap.ambientNpcs ?? []).map(({ id }) => id),
 	...(itemShopMap.discoveries ?? []).map(({ id }) => id),
 	...(itemShopMap.combatBounds ?? []).map(({ id }) => id)
+].sort();
+
+const blacksmithCollisionIds = [
+	...(blacksmithInteriorMap.blockers ?? []).map(({ id }) => id),
+	...(blacksmithInteriorMap.fences ?? []).map(({ id }) => id),
+	...(blacksmithInteriorMap.mapDecor ?? []).flatMap(({ collision }) =>
+		collision ? [collision.id] : []
+	),
+	...(blacksmithInteriorMap.interiorProps ?? []).flatMap(({ collision }) =>
+		collision ? [collision.id] : []
+	),
+	...(blacksmithInteriorMap.landmarks ?? []).map(({ id }) => id)
+].sort();
+const blacksmithStatefulObjectIds = [
+	...blacksmithInteriorMap.transitions.map(({ id }) => id),
+	...(blacksmithInteriorMap.pickups ?? []).map(({ id }) => id),
+	...(blacksmithInteriorMap.encounters ?? []).map(({ id }) => id),
+	...(blacksmithInteriorMap.npcs ?? []).map(({ id }) => id),
+	...(blacksmithInteriorMap.landmarks ?? []).map(({ id }) => id),
+	...(blacksmithInteriorMap.ambientNpcs ?? []).map(({ id }) => id),
+	...(blacksmithInteriorMap.discoveries ?? []).map(({ id }) => id),
+	...(blacksmithInteriorMap.combatBounds ?? []).map(({ id }) => id)
 ].sort();
 
 const heroHouseCollisionIds = [
@@ -3955,6 +3978,188 @@ describe('WorldScene', () => {
 					plane: 'base',
 					status: 'missing-texture',
 					expectedDimensions: { width: 832, height: 640 },
+					observedDimensions: null
+				})
+			]);
+		} finally {
+			target.restore();
+		}
+	});
+
+	it('renders the painted Blacksmith base while keeping live Oren and collisions', async () => {
+		const { VILLAGE_INTERIOR_PACKAGES } =
+			await import('$lib/game/content/backgrounds/village-interior-packages');
+		const blacksmithPackage = VILLAGE_INTERIOR_PACKAGES.find(
+			({ id }) => id === 'blacksmith-interior-painted'
+		);
+		if (!blacksmithPackage) throw new Error('Blacksmith painted package is not registered');
+		const base = blacksmithPackage.backgrounds.find(({ plane }) => plane === 'base');
+		if (!base) throw new Error('Blacksmith painted base is not registered');
+		phaserState.regionalBackgroundTextureMocks.set(base.textureKey, {
+			key: base.textureKey,
+			source: [{ width: base.width, height: base.height }],
+			get: vi.fn(() => ({ cutWidth: base.width, cutHeight: base.height }))
+		});
+		const target = installPlaneDiagnosticListener();
+		const { WorldScene } = await import('./WorldScene');
+		const scene = new WorldScene();
+		const oren = blacksmithInteriorMap.npcs?.find(({ id }) => id === 'blacksmith-oren');
+
+		try {
+			scene.create({ mapId: blacksmithInteriorMap.id });
+
+			expect(blacksmithPackage.backgrounds.map(({ plane }) => plane)).toEqual(['base']);
+			expect(scene.make.tilemap).not.toHaveBeenCalled();
+			expect(phaserState.tileSpriteMarkers).toHaveLength(0);
+			expect(
+				phaserState.imageMarkers.filter(
+					({ texture }) => texture === 'interior-props' || texture === 'environment-dressing'
+				)
+			).toHaveLength(0);
+			expect(phaserState.playerMarker).toMatchObject({
+				x: blacksmithInteriorMap.spawn.x,
+				y: blacksmithInteriorMap.spawn.y,
+				frame: 'heroIdle0'
+			});
+			expect(phaserState.playerMarker.setDisplaySize).toHaveBeenCalledWith(88, 90);
+			expect(oren).toBeDefined();
+			if (!oren) return;
+			expect(phaserState.imageMarkers).toEqual(
+				expect.arrayContaining([
+					expect.objectContaining({
+						x: oren.x,
+						y: oren.y,
+						texture: 'npc-pack',
+						frame: oren.frameName
+					}),
+					expect.objectContaining({
+						x: blacksmithInteriorMap.transitions[0]!.x,
+						y: blacksmithInteriorMap.transitions[0]!.y,
+						texture: 'starter-pack',
+						frame: 'doorwayTile'
+					})
+				])
+			);
+
+			const backgroundMarker = phaserState.imageMarkers.find(
+				({ texture }) => texture === base.textureKey
+			);
+			expect(backgroundMarker).toBeDefined();
+			expect(backgroundMarker).toMatchObject({
+				x: (blacksmithInteriorMap.width * 32) / 2,
+				y: (blacksmithInteriorMap.height * 32) / 2,
+				texture: base.textureKey
+			});
+			expect(backgroundMarker?.setOrigin).toHaveBeenCalledWith(0.5, 0.5);
+			expect(backgroundMarker?.setDisplaySize).toHaveBeenCalledWith(896, 704);
+			expect(backgroundMarker?.setDepth).toHaveBeenCalledWith(-9);
+			expect(target.diagnostics[0]).toMatchObject({
+				mapId: 'blacksmith-interior',
+				packageId: 'blacksmith-interior-painted',
+				presentationMode: 'painted',
+				requiredBackgroundIds: ['blacksmith-interior-painted-base-image'],
+				selectedBackgroundIds: ['blacksmith-interior-painted-base-image'],
+				successfulBackgroundIds: ['blacksmith-interior-painted-base-image'],
+				selectedFallbackBlockerIds: [],
+				selectedFallbackDecorIds: [],
+				selectedFallbackFenceIds: [],
+				collisionIds: blacksmithCollisionIds,
+				statefulObjectIds: blacksmithStatefulObjectIds
+			});
+			expect(target.diagnostics[0]?.entries).toEqual([
+				expect.objectContaining({
+					id: 'blacksmith-interior-painted-base-image',
+					textureKey: base.textureKey,
+					plane: 'base',
+					status: 'rendered',
+					expectedDimensions: { width: 896, height: 704 },
+					observedDimensions: { width: 896, height: 704 },
+					renderTransform: { x: 448, y: 352 }
+				})
+			]);
+		} finally {
+			target.restore();
+		}
+	});
+
+	it('restores every Blacksmith legacy visual atomically when its painted base is missing', async () => {
+		const { VILLAGE_INTERIOR_PACKAGES } =
+			await import('$lib/game/content/backgrounds/village-interior-packages');
+		const blacksmithPackage = VILLAGE_INTERIOR_PACKAGES.find(
+			({ id }) => id === 'blacksmith-interior-painted'
+		);
+		if (!blacksmithPackage) throw new Error('Blacksmith painted package is not registered');
+		const base = blacksmithPackage.backgrounds.find(({ plane }) => plane === 'base');
+		if (!base) throw new Error('Blacksmith painted base is not registered');
+		phaserState.regionalBackgroundTextureMocks.set(base.textureKey, {
+			key: base.textureKey,
+			source: [{ width: base.width, height: base.height }],
+			get: vi.fn(() => ({ cutWidth: base.width, cutHeight: base.height }))
+		});
+		phaserState.missingTextureKeys.add(base.textureKey);
+		const target = installPlaneDiagnosticListener();
+		const { WorldScene } = await import('./WorldScene');
+		const scene = new WorldScene();
+		const oren = blacksmithInteriorMap.npcs?.find(({ id }) => id === 'blacksmith-oren');
+
+		try {
+			scene.create({ mapId: blacksmithInteriorMap.id });
+
+			expect(scene.make.tilemap).toHaveBeenCalledOnce();
+			expect(
+				phaserState.imageMarkers.some(
+					({ texture, destroy }) => texture === base.textureKey && destroy.mock.calls.length === 0
+				)
+			).toBe(false);
+			expect(phaserState.tileSpriteMarkers).toHaveLength(
+				blacksmithInteriorMap.blockers?.length ?? 0
+			);
+			expect(
+				phaserState.imageMarkers.filter(({ texture }) => texture === 'interior-props')
+			).toHaveLength(blacksmithInteriorMap.interiorProps?.length ?? 0);
+			expect(phaserState.playerMarker).toMatchObject({
+				x: blacksmithInteriorMap.spawn.x,
+				y: blacksmithInteriorMap.spawn.y,
+				frame: 'heroIdle0'
+			});
+			expect(oren).toBeDefined();
+			if (!oren) return;
+			expect(phaserState.imageMarkers).toEqual(
+				expect.arrayContaining([
+					expect.objectContaining({
+						x: oren.x,
+						y: oren.y,
+						texture: 'npc-pack',
+						frame: oren.frameName
+					}),
+					expect.objectContaining({
+						x: blacksmithInteriorMap.transitions[0]!.x,
+						y: blacksmithInteriorMap.transitions[0]!.y,
+						texture: 'starter-pack',
+						frame: 'doorwayTile'
+					})
+				])
+			);
+			expect(target.diagnostics[0]).toMatchObject({
+				mapId: 'blacksmith-interior',
+				packageId: null,
+				presentationMode: 'fallback',
+				requiredBackgroundIds: ['blacksmith-interior-painted-base-image'],
+				selectedBackgroundIds: [],
+				successfulBackgroundIds: [],
+				selectedFallbackBlockerIds: blacksmithInteriorMap.blockers?.map(({ id }) => id),
+				selectedFallbackDecorIds: [],
+				selectedFallbackFenceIds: [],
+				collisionIds: blacksmithCollisionIds,
+				statefulObjectIds: blacksmithStatefulObjectIds
+			});
+			expect(target.diagnostics[0]?.entries).toEqual([
+				expect.objectContaining({
+					id: 'blacksmith-interior-painted-base-image',
+					textureKey: base.textureKey,
+					plane: 'base',
+					status: 'missing-texture',
+					expectedDimensions: { width: 896, height: 704 },
 					observedDimensions: null
 				})
 			]);
