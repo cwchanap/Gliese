@@ -3,6 +3,9 @@ import { mkdirSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { meadowEntryMap } from '../../src/lib/game/content/maps';
 import { MEADOW_ENTRY_PAINTED_V2_COMPLETE_APPROVED_RUNTIME_BACKGROUNDS } from '../../src/lib/game/content/backgrounds/meadow-entry-painted-v2-complete.generated';
+import { PLAYER_COLLISION_RADIUS } from '../../src/lib/game/core/collision';
+
+test.use({ trace: 'off' });
 
 type Point = { x: number; y: number };
 
@@ -38,7 +41,17 @@ const COMPLETE_PACKAGE_ID = 'meadow-entry-painted-v2-complete';
 const COMPLETE_BACKGROUND_IDS = MEADOW_ENTRY_PAINTED_V2_COMPLETE_APPROVED_RUNTIME_BACKGROUNDS.map(
 	({ id }) => id
 );
-const ROUTE_POINT_TOLERANCE = 24;
+const ROUTE_POINT_TOLERANCE = 18;
+const MISTFEN_POOL_EAST_BLOCKER = meadowEntryMap.blockers?.find(
+	({ id }) => id === 'mistfen-pool-east-blocker'
+);
+if (!MISTFEN_POOL_EAST_BLOCKER) throw new Error('Missing Mistfen east pool blocker');
+const MISTFEN_POOL_NORTH_TRANSIT_Y =
+	MISTFEN_POOL_EAST_BLOCKER.y -
+	MISTFEN_POOL_EAST_BLOCKER.height / 2 -
+	PLAYER_COLLISION_RADIUS -
+	ROUTE_POINT_TOLERANCE -
+	1;
 const RUNTIME_EVIDENCE_ROOT = resolve(
 	'docs/superpowers/reports/img/hpa-586-painted-v2-complete/runtime'
 );
@@ -147,8 +160,8 @@ const NORTHERN_SOURCE_HANDOFF_ROUTES = [
 			{ x: 1_920, y: 2_176 },
 			{ x: 1_920, y: 2_176 },
 			{ x: 1_904, y: 2_176 },
-			{ x: 1_904, y: 1_936 },
-			{ x: 1_216, y: 1_936 },
+			{ x: 1_904, y: MISTFEN_POOL_NORTH_TRANSIT_Y },
+			{ x: 1_216, y: MISTFEN_POOL_NORTH_TRANSIT_Y },
 			{ x: 1_216, y: 1_536 }
 		]
 	}
@@ -323,16 +336,18 @@ async function moveAxis(page: Page, target: Point) {
 	if (!from || current.mapId !== 'meadow-entry') {
 		throw new Error(`Cannot move from an unexpected state: ${JSON.stringify(current)}`);
 	}
-	const horizontal = Math.abs(from.y - target.y) <= ROUTE_POINT_TOLERANCE && from.x !== target.x;
-	const vertical = Math.abs(from.x - target.x) <= ROUTE_POINT_TOLERANCE && from.y !== target.y;
-	if (!horizontal && !vertical) {
-		throw new Error(`Route segment is not axis-aligned: ${JSON.stringify({ from, target })}`);
-	}
 	if (
 		Math.abs(from.x - target.x) <= ROUTE_POINT_TOLERANCE &&
 		Math.abs(from.y - target.y) <= ROUTE_POINT_TOLERANCE
 	)
 		return from;
+	const horizontal = Math.abs(from.y - target.y) <= ROUTE_POINT_TOLERANCE && from.x !== target.x;
+	const vertical = Math.abs(from.x - target.x) <= ROUTE_POINT_TOLERANCE && from.y !== target.y;
+	if (!horizontal && !vertical) {
+		const alignX = Math.abs(from.x - target.x) < Math.abs(from.y - target.y);
+		await moveAxis(page, alignX ? { x: target.x, y: from.y } : { x: from.x, y: target.y });
+		return await moveAxis(page, target);
+	}
 	const key = horizontal
 		? target.x > from.x
 			? 'ArrowRight'
@@ -347,18 +362,25 @@ async function moveAxis(page: Page, target: Point) {
 	await page.keyboard.down(key);
 	try {
 		await page.waitForFunction(
-			({ expectedPoint, startCount, tolerance }) => {
+			({ expectedPoint, horizontal, startCount, tolerance }) => {
 				const diagnostics = (window as JourneyProbeWindow).__completeJourneyMovement ?? [];
 				return diagnostics
 					.slice(startCount)
 					.some(
 						({ mapId, resolvedPosition }) =>
 							mapId === 'meadow-entry' &&
-							Math.abs(resolvedPosition.x - expectedPoint.x) <= tolerance &&
-							Math.abs(resolvedPosition.y - expectedPoint.y) <= tolerance
+							Math.abs(
+								(horizontal ? resolvedPosition.x : resolvedPosition.y) -
+									(horizontal ? expectedPoint.x : expectedPoint.y)
+							) <= tolerance
 					);
 			},
-			{ expectedPoint: target, startCount: movementStartCount, tolerance: ROUTE_POINT_TOLERANCE },
+			{
+				expectedPoint: target,
+				horizontal,
+				startCount: movementStartCount,
+				tolerance: ROUTE_POINT_TOLERANCE
+			},
 			{ timeout: 30_000 }
 		);
 	} catch (error) {
@@ -373,20 +395,14 @@ async function moveAxis(page: Page, target: Point) {
 		await page.keyboard.up(key);
 	}
 	const settled = await page.evaluate(
-		({ expectedPoint, startCount, tolerance }) => {
+		({ expectedPoint, startCount }) => {
 			const diagnostics = (window as JourneyProbeWindow).__completeJourneyMovement ?? [];
 			return (
-				[...diagnostics.slice(startCount)]
-					.reverse()
-					.find(
-						({ mapId, resolvedPosition }) =>
-							mapId === 'meadow-entry' &&
-							Math.abs(resolvedPosition.x - expectedPoint.x) <= tolerance &&
-							Math.abs(resolvedPosition.y - expectedPoint.y) <= tolerance
-					)?.resolvedPosition ?? expectedPoint
+				[...diagnostics.slice(startCount)].reverse().find(({ mapId }) => mapId === 'meadow-entry')
+					?.resolvedPosition ?? expectedPoint
 			);
 		},
-		{ expectedPoint: target, startCount: movementStartCount, tolerance: ROUTE_POINT_TOLERANCE }
+		{ expectedPoint: target, startCount: movementStartCount }
 	);
 	return settled;
 }
@@ -401,16 +417,6 @@ async function followPath(page: Page, points: readonly Point[]) {
 	});
 	if (!position) throw new Error('Missing live player position before route');
 	for (const target of points) {
-		// Keyboard movement settles on the simulation frame, so a point that was
-		// authored as axis-aligned can carry a tiny residue on the other axis.
-		// Resolve that residue with an existing route axis before taking the
-		// requested segment; never inject a player coordinate.
-		if (
-			Math.abs(position.x - target.x) > ROUTE_POINT_TOLERANCE &&
-			Math.abs(position.y - target.y) > ROUTE_POINT_TOLERANCE
-		) {
-			await moveAxis(page, { x: position.x, y: target.y });
-		}
 		position = await moveAxis(page, target);
 	}
 	return position;
@@ -530,8 +536,8 @@ test('complete world layout journey renders approved Meadow art and survives sav
 	await followPath(page, [
 		{ x: 1_840, y: 1_536 },
 		{ x: 1_840, y: 1_648 },
-		{ x: 2_240, y: 1_648 },
-		{ x: 2_240, y: 1_848 },
+		{ x: 2_208, y: 1_648 },
+		{ x: 2_208, y: 1_848 },
 		{ x: 2_304, y: 1_848 },
 		{ x: 2_304, y: 1_920 },
 		{ x: 2_560, y: 1_920 },

@@ -12,6 +12,9 @@ import {
 import { applyMapBackgroundPackage } from './map-background-package';
 import { VILLAGE_INTERIOR_NAVIGATION_SOURCES } from './village-interior-navigation-sources';
 import { VILLAGE_INTERIOR_PACKAGES } from './village-interior-packages';
+import { isWalkable } from '$lib/game/core/navigation';
+import { maps } from '$lib/game/content/maps';
+import { VILLAGE_INTERIOR_LAYOUTS } from '$lib/game/content/maps/layouts/village-interiors-v2';
 import {
 	blacksmithInteriorMap,
 	guildHallMap,
@@ -23,7 +26,269 @@ import {
 	villagerHouse3Map
 } from '$lib/game/content/maps';
 
+const ALL_EIGHT_INTERIOR_CONTRACTS = [
+	{
+		mapId: 'hero-house',
+		packageId: 'hero-house-painted',
+		dimensions: { width: 704, height: 576 },
+		grid: { id: 'hero-house-navigation', widthCells: 44, heightCells: 36 },
+		rooms: ['bedroom', 'study', 'livingKitchen'],
+		corridors: ['hall'],
+		npcApproaches: [],
+		ambientActivity: []
+	},
+	{
+		mapId: 'guild-hall',
+		packageId: 'guild-hall-painted',
+		dimensions: { width: 1024, height: 832 },
+		grid: { id: 'guild-hall-navigation', widthCells: 64, heightCells: 52 },
+		rooms: ['recordsHall', 'commonHall', 'guildMasterOffice', 'trainingHall', 'quartermasterRoom'],
+		corridors: ['mainSpine', 'entranceLobby'],
+		npcApproaches: ['guildMaster', 'quartermaster'],
+		ambientActivity: ['guild-hall-member-west', 'guild-hall-member-east']
+	},
+	{
+		mapId: 'item-shop',
+		packageId: 'item-shop-painted',
+		dimensions: { width: 832, height: 640 },
+		grid: { id: 'item-shop-navigation', widthCells: 52, heightCells: 40 },
+		rooms: ['stockroom', 'office', 'salesFloor'],
+		corridors: ['serviceCorridor', 'entranceAisle'],
+		npcApproaches: ['mira'],
+		ambientActivity: ['item-shop-customer']
+	},
+	{
+		mapId: 'blacksmith-interior',
+		packageId: 'blacksmith-interior-painted',
+		dimensions: { width: 896, height: 704 },
+		grid: { id: 'blacksmith-interior-navigation', widthCells: 56, heightCells: 44 },
+		rooms: ['forgeFloor', 'armoryDisplay', 'showroom'],
+		corridors: ['serviceSpine', 'entranceAisle'],
+		npcApproaches: ['oren'],
+		ambientActivity: []
+	},
+	{
+		mapId: 'villager-house-1',
+		packageId: 'villager-house-1-painted',
+		dimensions: { width: 1280, height: 832 },
+		grid: { id: 'villager-house-1-navigation', widthCells: 80, heightCells: 52 },
+		rooms: ['bedroom', 'storage', 'livingKitchen'],
+		corridors: ['hall'],
+		npcApproaches: ['lynn'],
+		ambientActivity: ['villager-house-1-family']
+	},
+	{
+		mapId: 'villager-house-2',
+		packageId: 'villager-house-2-painted',
+		dimensions: { width: 1280, height: 768 },
+		grid: { id: 'villager-house-2-navigation', widthCells: 80, heightCells: 48 },
+		rooms: ['workshop', 'bedroom', 'livingArea'],
+		corridors: ['hall'],
+		npcApproaches: ['toma'],
+		ambientActivity: ['villager-house-2-neighbor']
+	},
+	{
+		mapId: 'villager-house-3',
+		packageId: 'villager-house-3-painted',
+		dimensions: { width: 1024, height: 704 },
+		grid: { id: 'villager-house-3-navigation', widthCells: 64, heightCells: 44 },
+		rooms: ['archiveStudy', 'bedroomStorage', 'sittingRoom'],
+		corridors: ['hall'],
+		npcApproaches: ['io'],
+		ambientActivity: ['villager-house-3-neighbor']
+	},
+	{
+		mapId: 'shrine-of-aurora-interior',
+		packageId: 'shrine-of-aurora-interior-painted',
+		dimensions: { width: 1024, height: 896 },
+		grid: { id: 'shrine-of-aurora-interior-navigation', widthCells: 64, heightCells: 56 },
+		rooms: ['innerSanctum', 'westPreparation', 'eastArchive'],
+		corridors: ['nave', 'entranceHall'],
+		npcApproaches: [],
+		ambientActivity: []
+	}
+] as const;
+
+const STATIC_SOURCE_FIELDS = [
+	'groundPatches',
+	'blockers',
+	'mapDecor',
+	'fences',
+	'interiorProps'
+] as const;
+const LIVE_SOURCE_FIELDS = [
+	'transitions',
+	'pickups',
+	'encounters',
+	'npcs',
+	'landmarks',
+	'ambientNpcs',
+	'discoveries',
+	'combatBounds'
+] as const;
+
+// Ambient actors are rendered live and do not own player collision. VH3's
+// neighbor is intentionally anchored on the sitting-rug edge; the authored
+// player route approaches it from the open east lane instead of requiring the
+// actor's sprite anchor to be a walkable player cell.
+const AMBIENT_REACHABLE_APPROACHES = {
+	'villager-house-3': {
+		'villager-house-3-neighbor': {
+			offset: { x: 96, y: 0 },
+			stagingOffset: { x: 96, y: 32 },
+			ownerProp: 'sitting'
+		}
+	}
+} as const;
+
 describe('map background registry', () => {
+	it('proves the complete eight-interior package, grid, ownership, and live-content matrix', () => {
+		expect(ALL_EIGHT_INTERIOR_CONTRACTS).toHaveLength(8);
+		expect(new Set(ALL_EIGHT_INTERIOR_CONTRACTS.map(({ mapId }) => mapId)).size).toBe(8);
+
+		for (const contract of ALL_EIGHT_INTERIOR_CONTRACTS) {
+			const map = maps[contract.mapId];
+			const layout = VILLAGE_INTERIOR_LAYOUTS[contract.mapId];
+			const source = VILLAGE_INTERIOR_NAVIGATION_SOURCES.find(
+				({ mapId }) => mapId === contract.mapId
+			);
+			const definition = VILLAGE_INTERIOR_PACKAGES.find(({ mapId }) => mapId === contract.mapId);
+
+			expect(map, `${contract.mapId}:map`).toBeDefined();
+			expect(layout, `${contract.mapId}:layout`).toBeDefined();
+			expect(source, `${contract.mapId}:navigation source`).toBeDefined();
+			expect(definition, `${contract.mapId}:package`).toBeDefined();
+			if (!map || !layout || !source || !definition) continue;
+
+			expect({ width: map.width * 32, height: map.height * 32 }).toEqual(contract.dimensions);
+			expect(layout.fullFloor).toMatchObject({ x: 0, y: 0, ...contract.dimensions });
+			expect(Object.keys(layout.rooms)).toEqual(contract.rooms);
+			expect(Object.keys(layout.corridors)).toEqual(contract.corridors);
+			expect(Object.keys(layout.npcApproaches)).toEqual(contract.npcApproaches);
+			const ambientActivity = (
+				'ambientActivity' in layout ? layout.ambientActivity : {}
+			) as Readonly<Record<string, { readonly x: number; readonly y: number }>>;
+			expect(Object.keys(ambientActivity)).toEqual(contract.ambientActivity);
+			for (const [ambientId, anchor] of Object.entries(ambientActivity)) {
+				const ambientNpc = (map.ambientNpcs ?? []).find(({ id }) => id === ambientId);
+				expect(ambientNpc, `${contract.mapId}:ambient:${ambientId}`).toMatchObject(anchor);
+			}
+			for (const zone of Object.values(layout.propZones)) {
+				expect(zone.width).toBeGreaterThan(0);
+				expect(zone.height).toBeGreaterThan(0);
+				expect(zone.x + zone.width).toBeLessThanOrEqual(contract.dimensions.width);
+				expect(zone.y + zone.height).toBeLessThanOrEqual(contract.dimensions.height);
+			}
+
+			expect(source).toMatchObject({
+				id: contract.grid.id,
+				mapId: contract.mapId,
+				cellSizePx: 16,
+				widthCells: contract.grid.widthCells,
+				heightCells: contract.grid.heightCells,
+				clearancePx: 12
+			});
+			expect(source.rows).toHaveLength(contract.grid.heightCells);
+			expect(source.rows.every((row) => row.length === contract.grid.widthCells)).toBe(true);
+			expect(map.navigationGrid).toMatchObject({
+				id: contract.grid.id,
+				mapId: contract.mapId,
+				cellSizePx: 16,
+				widthCells: contract.grid.widthCells,
+				heightCells: contract.grid.heightCells,
+				widthPx: contract.dimensions.width,
+				heightPx: contract.dimensions.height
+			});
+
+			const ambientApproaches =
+				AMBIENT_REACHABLE_APPROACHES[contract.mapId as keyof typeof AMBIENT_REACHABLE_APPROACHES] ??
+				{};
+			for (const [ambientId, approach] of Object.entries(ambientApproaches)) {
+				const anchor = ambientActivity[ambientId];
+				const owner = (
+					layout.propCollisions as Readonly<
+						Record<
+							string,
+							{
+								readonly x: number;
+								readonly y: number;
+								readonly width: number;
+								readonly height: number;
+							}
+						>
+					>
+				)[approach.ownerProp];
+				expect(anchor, `${contract.mapId}:ambient:${ambientId}:anchor`).toBeDefined();
+				expect(owner, `${contract.mapId}:ambient:${ambientId}:owner`).toBeDefined();
+				if (!anchor || !owner || !map.navigationGrid) continue;
+				const reachableApproach = {
+					x: anchor.x + approach.offset.x,
+					y: anchor.y + approach.offset.y
+				};
+				const stagingPoint = {
+					x: anchor.x + approach.stagingOffset.x,
+					y: anchor.y + approach.stagingOffset.y
+				};
+				expect(
+					isWalkable(map.navigationGrid, reachableApproach.x, reachableApproach.y),
+					`${contract.mapId}:ambient:${ambientId}:approach`
+				).toBe(true);
+				expect(
+					isWalkable(map.navigationGrid, stagingPoint.x, stagingPoint.y),
+					`${contract.mapId}:ambient:${ambientId}:staging`
+				).toBe(true);
+				expect(reachableApproach.x).toBe(owner.x + owner.width + 64);
+				expect(reachableApproach.y).toBe(anchor.y);
+				expect(Math.hypot(approach.offset.x, approach.offset.y)).toBeLessThanOrEqual(128);
+			}
+
+			expect(MAP_BACKGROUND_DEFAULT_SELECTIONS[contract.mapId]).toEqual({
+				packageId: contract.packageId,
+				mode: 'production'
+			});
+			expect(definition.id).toBe(contract.packageId);
+			expect(definition.mapId).toBe(contract.mapId);
+			expect(definition.coverage).toBe('full-map');
+			expect(definition.backgrounds).toHaveLength(contract.mapId === 'guild-hall' ? 2 : 1);
+			expect(definition.assets).toHaveLength(definition.backgrounds.length);
+			expect(definition.backgrounds).toEqual(
+				definition.assets.map((asset) =>
+					expect.objectContaining({
+						textureKey: asset.key,
+						width: contract.dimensions.width,
+						height: contract.dimensions.height
+					})
+				)
+			);
+
+			const painted = applyMapBackgroundPackage(map, {
+				mode: 'production',
+				definition
+			});
+			const fallback = applyMapBackgroundPackage(map, { mode: 'fallback', definition: null });
+			expect(fallback).toEqual(map);
+			expect(painted.backgroundImages).toEqual(definition.backgrounds);
+			for (const field of LIVE_SOURCE_FIELDS) {
+				expect(painted[field], `${contract.mapId}:${field}`).toEqual(map[field]);
+			}
+			for (const field of STATIC_SOURCE_FIELDS) {
+				const original = map[field] ?? [];
+				const transformed = painted[field] ?? [];
+				expect(transformed).toHaveLength(original.length);
+				expect(
+					transformed.every((source) => source.visual?.mode === 'fallback-only'),
+					`${contract.mapId}:${field} fallback ownership`
+				).toBe(true);
+			}
+			expect(definition.visualOwners).toHaveLength(
+				(STATIC_SOURCE_FIELDS as readonly string[]).reduce((total, field) => {
+					const source = map[field as keyof typeof map];
+					return total + (Array.isArray(source) ? source.length : 0);
+				}, 0)
+			);
+		}
+	});
+
 	it('registers approved interior navigation and painted packages', () => {
 		expect(VILLAGE_INTERIOR_NAVIGATION_SOURCES).toHaveLength(8);
 		expect(VILLAGE_INTERIOR_NAVIGATION_SOURCES).toEqual([
