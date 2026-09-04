@@ -7,13 +7,18 @@ name: Asset Integrity
 # within GitHub LFS bandwidth quotas.
 #
 # Runs:
-#   - nightly (03:00 UTC)
+#   - weekly (Monday 03:00 UTC)
 #   - on demand (workflow_dispatch)
 #   - on push/PR when asset-relevant paths change
+#
+# The cadence is weekly (not daily) to limit LFS bandwidth: each run fetches
+# the full ~184 MB LFS payload, and GitHub Actions LFS downloads count against
+# the repo owner's bandwidth allowance. Path-triggered and manual runs cover
+# asset PRs between scheduled runs.
 
 on:
   schedule:
-    - cron: '0 3 * * *'
+    - cron: '0 3 * * 1'
   workflow_dispatch:
   push:
     branches: [main]
@@ -22,6 +27,9 @@ on:
       - 'artifacts/**'
       - '.gitattributes'
       - '.github/workflows/asset-integrity.yml'
+      - 'src/lib/game/content/**'
+      - 'tests/e2e/**'
+      - 'vite.config.ts'
   pull_request:
     branches: [main]
     types: [opened, synchronize, reopened, ready_for_review]
@@ -30,6 +38,9 @@ on:
       - 'artifacts/**'
       - '.gitattributes'
       - '.github/workflows/asset-integrity.yml'
+      - 'src/lib/game/content/**'
+      - 'tests/e2e/**'
+      - 'vite.config.ts'
 
 permissions:
   contents: read
@@ -84,14 +95,23 @@ jobs:
             src/lib/game/content/backgrounds/meadow-entry-painted-v2-underlay-assembly.test.ts \
             src/lib/game/content/backgrounds/meadow-entry-painted-v2-complete-assembly.test.ts
 
-      - name: Run Playwright e2e tests (builds first)
-        # continue-on-error: several route-walking e2e tests have pre-existing
+      - name: Build for e2e
+        run: bun run build
+
+      - name: Run Playwright e2e gate (blocking)
+        # The `gate` project (see playwright.config.ts) runs every e2e test
+        # except the retired V1 regional-background proofs and the known-flaky
+        # route-walking tests. A failure here gates the workflow.
+        run: bunx playwright test --project=gate
+
+      - name: Run known-flaky route-walking e2e (non-blocking)
+        # The `flaky` project isolates route-walking tests with pre-existing
         # timing/precision failures on CI runners (hero gets stuck at collision
         # boundaries, route segments not axis-aligned). These are unrelated to
-        # asset integrity and need separate investigation. The asset unit tests
-        # above are the blocking gate; e2e results are uploaded for inspection.
+        # asset integrity and need separate investigation. Results are uploaded
+        # for inspection but do not gate the workflow.
         continue-on-error: true
-        run: bun run test:e2e
+        run: bunx playwright test --project=flaky
 
       - name: Upload Playwright report
         if: ${{ !cancelled() }}
