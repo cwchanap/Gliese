@@ -81,7 +81,8 @@ jobs:
             src/lib/game/content/village-interior-assets.asset.test.ts \
             src/lib/game/content/backgrounds/meadow-entry-art-proofs.test.ts \
             src/lib/game/content/backgrounds/meadow-entry-painted-v2-pilot.test.ts \
-            src/lib/game/content/backgrounds/meadow-entry-painted-v2-underlay-assembly.test.ts
+            src/lib/game/content/backgrounds/meadow-entry-painted-v2-underlay-assembly.test.ts \
+            src/lib/game/content/backgrounds/meadow-entry-painted-v2-complete-assembly.test.ts
 
       - name: Run Playwright e2e tests (builds first)
         run: bun run test:e2e
