@@ -1,0 +1,97 @@
+name: Asset Integrity
+
+# Verifies tests that read real Git LFS image bytes (interior base PNGs,
+# meadow-entry painted-v2 source panels / underlays / proof snapshots) and
+# the e2e suite, which renders those images as Phaser textures. These cannot
+# run in the core CI workflow, which checks out without LFS to stay fast and
+# within GitHub LFS bandwidth quotas.
+#
+# Runs:
+#   - nightly (03:00 UTC)
+#   - on demand (workflow_dispatch)
+#   - on push/PR when asset-relevant paths change
+
+on:
+  schedule:
+    - cron: '0 3 * * *'
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'public/game/assets/**'
+      - 'artifacts/**'
+      - '.gitattributes'
+      - '.github/workflows/asset-integrity.yml'
+  pull_request:
+    branches: [main]
+    types: [opened, synchronize, reopened, ready_for_review]
+    paths:
+      - 'public/game/assets/**'
+      - 'artifacts/**'
+      - '.gitattributes'
+      - '.github/workflows/asset-integrity.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  asset-tests:
+    if: ${{ github.event_name != 'pull_request' || github.event.pull_request.draft == false }}
+    name: Asset Unit & E2E Tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          lfs: true
+
+      - name: Verify LFS objects were fetched (not pointer stubs)
+        run: |
+          set -euo pipefail
+          # An LFS pointer stub begins with this signature line. Real content does not.
+          pointer_sig='version https://git-lfs.github.com/spec/v1'
+          stubs=""
+          while IFS= read -r f; do
+            if head -c 200 "$f" | grep -qF "$pointer_sig"; then
+              stubs="$stubs\n$f"
+            fi
+          done < <(git lfs ls-files --name-only)
+          if [ -n "$stubs" ]; then
+            echo "::error::LFS pointer stubs detected; asset tests require real image bytes:$stubs"
+            exit 1
+          fi
+          echo "All LFS-tracked files contain real content."
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+        env:
+          PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: '1'
+
+      - name: Install Playwright Chromium
+        run: bunx playwright install --with-deps chromium
+
+      - name: Run LFS-dependent asset unit tests
+        run: |
+          bun run test:unit -- --run \
+            src/lib/game/content/village-interior-assets.asset.test.ts \
+            src/lib/game/content/backgrounds/meadow-entry-art-proofs.test.ts \
+            src/lib/game/content/backgrounds/meadow-entry-painted-v2-pilot.test.ts \
+            src/lib/game/content/backgrounds/meadow-entry-painted-v2-underlay-assembly.test.ts
+
+      - name: Run Playwright e2e tests (builds first)
+        run: bun run test:e2e
+
+      - name: Upload Playwright report
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: asset-integrity-playwright-report
+          path: |
+            playwright-report/
+            test-results/
+          retention-days: 7
