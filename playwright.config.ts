@@ -7,6 +7,9 @@ const retiredV1RegionalBackgroundProofs =
 
 export default defineConfig({
 	workers: 1,
+	// Route-walking e2e tests are timing-sensitive on CI runners; allow
+	// retries there but keep zero retries locally for fast feedback.
+	retries: process.env.CI ? 2 : 0,
 	grepInvert: retiredV1RegionalBackgroundProofs,
 	use: {
 		baseURL: 'http://127.0.0.1:4173',
