@@ -106,6 +106,22 @@ jobs:
         # route-walking tests. A failure here gates the workflow.
         run: bunx playwright test --project=gate
 
+      - name: Upload gate Playwright report
+        # Upload the gate run's artifacts BEFORE the flaky run starts. Playwright
+        # cleans `test-results/` and overwrites `playwright-report/` at the start
+        # of each invocation, so a subsequent `--project=flaky` run would wipe
+        # the gate's failure screenshots/traces — the most important artifacts
+        # for debugging a gate failure. This step runs on gate success or
+        # failure (`!cancelled()`), but is skipped on manual cancel.
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: asset-integrity-gate-report
+          path: |
+            playwright-report/
+            test-results/
+          retention-days: 7
+
       - name: Run known-flaky route-walking e2e (non-blocking)
         # The `flaky` project isolates route-walking tests with pre-existing
         # timing/precision failures on CI runners (hero gets stuck at collision
@@ -116,11 +132,11 @@ jobs:
         continue-on-error: true
         run: bunx playwright test --project=flaky
 
-      - name: Upload Playwright report
+      - name: Upload flaky Playwright report
         if: ${{ !cancelled() }}
         uses: actions/upload-artifact@v4
         with:
-          name: asset-integrity-playwright-report
+          name: asset-integrity-flaky-report
           path: |
             playwright-report/
             test-results/
