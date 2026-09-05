@@ -30,6 +30,7 @@ on:
       - 'src/lib/game/content/**'
       - 'tests/e2e/**'
       - 'vite.config.ts'
+      - 'playwright.config.ts'
   pull_request:
     branches: [main]
     types: [opened, synchronize, reopened, ready_for_review]
@@ -41,6 +42,7 @@ on:
       - 'src/lib/game/content/**'
       - 'tests/e2e/**'
       - 'vite.config.ts'
+      - 'playwright.config.ts'
 
 permissions:
   contents: read
@@ -110,6 +112,7 @@ jobs:
         # boundaries, route segments not axis-aligned). These are unrelated to
         # asset integrity and need separate investigation. Results are uploaded
         # for inspection but do not gate the workflow.
+        if: ${{ !cancelled() }}
         continue-on-error: true
         run: bunx playwright test --project=flaky
 
