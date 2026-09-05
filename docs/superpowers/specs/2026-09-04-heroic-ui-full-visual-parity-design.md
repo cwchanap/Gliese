@@ -2,14 +2,9 @@
 
 ## Summary
 
-Replace Gliese's current mixed JRPG HUD/windows with the supplied
-`Gliese UI Heroic(1).html` as the visual authority for the playable UI.
+Replace Gliese's current mixed JRPG HUD/windows with the supplied `Gliese UI Heroic(1).html` as the visual authority for the playable UI.
 
-This is one implementation slice and one PR. It covers the ten supplied surfaces:
-Title, Field HUD, Bag, Shop, Quest Journal, Dialogue, Battle, Victory, Save, and
-System. Existing game systems stay authoritative. When the mockup exposes a control
-Gliese cannot currently represent, add the smallest real mechanic/data contract
-needed instead of faking the control.
+This remains one implementation ticket and draft PR #39. It covers the ten supplied surfaces: Title, Field HUD, Bag, Shop, Quest Journal, Dialogue, Battle, Victory, Save, and System. Existing game systems stay authoritative. When the mockup exposes a control Gliese cannot currently represent, add only the smallest honest behavior required; do not invent progression/content merely to fill a visual hole.
 
 Keep the existing architecture:
 
@@ -17,141 +12,120 @@ Keep the existing architecture:
 - Phaser owns exploration and battle runtime,
 - Svelte owns DOM UI/presentation,
 - `ui-bridge/events.ts` remains the Phaser <-> Svelte boundary,
-- persistent preferences continue through `SaveStorage`.
+- `SaveStorage` remains the persistence adapter.
 
-This supersedes the May 2026 layout spec where that earlier pass explicitly excluded
-portraits, battle UI, typewriter effects, and new save data.
+This supersedes the May 2026 layout spec where portraits, battle UI, typewriter effects, and new save data were explicitly excluded.
 
 ## Visual Authority
 
 The supplied mockup defines ten canonical **1440x900** reference canvases:
 
-1. **Title** — crest, three gilded plates, Continue summary.
-2. **Field HUD** — portrait medallion, command grid, gold-spined quest banner.
-3. **Bag** — category rail, 24-slot grid, paper doll, detail card.
-4. **Shop** — merchant panel, Buy/Sell, pre-purchase stat deltas.
-5. **Quest Journal** — progress rings, objective chain, reward plates.
-6. **Dialogue** — bust frame, gold nameplate, gilded choices.
-7. **Battle** — auto-battle presentation, turn ribbon, enemy plates, interventions.
-8. **Victory** — reward plates, quest tick, one Continue action.
-9. **Save** — three slots, screenshot, stat strip, empty state.
-10. **System** — category rail, segmented values, gilded active state.
+1. Title
+2. Field HUD
+3. Bag
+4. Shop
+5. Quest Journal
+6. Dialogue
+7. Battle
+8. Victory
+9. Save
+10. System
 
-The shared grammar is also authoritative:
-
-- near-black/navy base with deep blue-violet window gradients,
-- warm gold outer border/inlay and etched corner marks,
-- cream-gold selected fill with radiant highlight,
-- emerald = restorative,
-- azure = equipment/utility,
-- gold = progression/advance,
-- violet = skill/learning,
-- rose = danger/back,
-- Zen Maru Gothic-style UI typography plus Spectral-style serif secondary copy,
-- shimmer/pulse/rise motion when Motion is On.
-
-Promote repeated values such as `#070512`, `#ffe08a`, `#8dffbd`, `#a9c8ff`,
-`#d9a9ff`, and `#ff8a9e` into CSS variables. Do not add a general-purpose design
-system package; one Heroic stylesheet plus focused screen components is enough.
+The shared grammar is authoritative: near-black/navy base, deep blue-violet windows, warm-gold border/inlay, cream-gold selection, emerald restorative accents, azure equipment/utility, gold progression, violet learning, rose danger/back, Zen Maru Gothic-style primary UI, Spectral-style secondary prose, and shimmer/pulse/rise motion when Motion is On.
 
 ## Goals
 
-- Full visual parity for all ten supplied reference canvases.
-- One coherent UI language from title through field, battle, and save.
-- Reuse inventory/equipment/shop/quest/map/dialogue/reward logic already in core.
-- Every visible command is real or explicitly unavailable for a source-backed reason.
-- Add only the missing mechanics required to make the mockup honest.
-- Keyboard and generic gamepad prompts/actions agree with actual controls.
-- Deterministic screenshot states make visual acceptance mechanical.
+- Full visual parity for all ten supplied canvases.
+- Reuse existing inventory/equipment/shop/quest/map/dialogue/reward logic.
+- Every visible command is functional or explicitly unavailable for a real reason.
+- Keep keyboard behavior intact.
+- Generic pad glyphs/actions must agree with the UI controls this slice actually supports.
+- Produce deterministic 1440x900 source/runtime review captures plus automated structural/behavior assertions.
+- Human PR comparison, not cross-platform pixel-golden CI, decides visual parity.
 
 ## Non-Goals
 
-- No exploration rewrite.
-- No replacement event/store architecture.
-- No conversion of current realtime auto-attack combat into a new turn-based engine.
-- No skill tree, skill points, crafting, party system, or roster system.
-- No legacy-save migration; prototype saves may reset after the storage change.
-- No speculative mobile redesign. Desktop/Tauri is the parity target.
-- No invented audio system: the mockup shows an Audio rail item but defines no
-  Audio values, and current Gliese has no audio runtime.
+- No exploration rewrite or new event/store architecture.
+- No turn-based combat rewrite.
+- No skill tree, skill registry, skill points, crafting, party/roster system, or invented combat skills.
+- No witness/testimony gauge seam until a witness-boss runtime actually exists.
+- No audio runtime.
+- No legacy-save migration.
+- No controller remapping, rumble, brand-specific glyphs, or full controller movement project.
+- No speculative mobile redesign; desktop/Tauri is the parity target.
 
 ## UI Structure
 
-`GameShell.svelte` remains the composition root but should no longer contain every
-screen body. Prefer explicit, screen-focused files under `src/lib/game/ui/`:
+`GameShell.svelte` remains the composition/pause/focus owner but screen bodies move into focused files under `src/lib/game/ui/`: `TitleScreen`, `FieldHud`, `CommandGrid`, `BagScreen`, `ShopScreen`, `QuestJournal`, `AreaMapScreen`, `SkillScreen`, `BattleHud`, `BattleSummary`, `SaveScreen`, `SystemScreen`, and `PromptGlyph`.
 
-- `TitleScreen.svelte`
-- `FieldHud.svelte`
-- `CommandGrid.svelte`
-- `BagScreen.svelte`
-- `ShopScreen.svelte`
-- `QuestJournal.svelte`
-- `BattleHud.svelte`
-- `BattleSummary.svelte`
-- `SaveScreen.svelte`
-- `SystemScreen.svelte`
-- `SkillScreen.svelte`
-- `PromptGlyph.svelte`
+Keep `DialoguePanel.svelte` and refactor its presentation. Do not introduce a router or generic component framework.
 
-Keep `DialoguePanel.svelte` but refactor its presentation. Reuse CSS classes/tokens
-for frames and plates instead of building generic Svelte component abstractions.
-
-Add only one shell mode:
+Shell mode is only:
 
 ```ts
 type GameShellMode = 'title' | 'playing';
 ```
 
-Title appears before Phaser mounts. Continue/New Run chooses the start state and then
-mounts Phaser. System can open from Title without booting the game. Do not add a
-router.
+Title appears before Phaser mounts. Continue/New Run chooses the start state, then Phaser boots. System is usable from Title without booting Phaser.
 
 ## Heroic Foundation
 
-Add `heroic-ui.css` (or equivalent game UI stylesheet section) containing:
+Use one token source. Replace the current Arcane/Glass language instead of running two palettes/fonts in parallel:
 
-- color/gradient variables,
-- frame/inlay/selection classes,
-- semantic tint classes,
-- focus-visible treatment,
-- shimmer/pulse/rise animations,
-- reduced-motion overrides,
-- typography roles.
+- Heroic color/type tokens live in the existing `src/app.css` `@theme` block.
+- Optional `heroic-ui.css` contains repeated frame/plate/motion classes only; do not duplicate tokens.
+- Remove redesigned-surface `.glass-*` / `.arcane-*` styling as those surfaces switch to Heroic.
+- Remove Cinzel imports in the same typography checkpoint.
+- Keep bundled Spectral and add bundled Zen Maru Gothic.
+- Reuse the repo's existing Sharp-based art validation approach.
 
-Use package-provided/bundled application fonts so Tauri remains offline-safe. Do not
-copy font bytes from the uploaded mockup. Inline/local SVG paths are enough for the
-small icon set; do not add a large icon library.
+## Title + Save Cutover
 
-## Title
+Title matches the key art/crest and three plates:
 
-Match the supplied key-art/crest composition and three selection plates:
+- Continue — newest valid slot location + playtime.
+- New Run — Chapter I.
+- System — settings.
 
-- **Continue** — newest valid slot location + playtime.
-- **New Run** — Chapter I.
-- **System** — settings access.
+The title/lazy-boot change and save-slot cutover are **one atomic checkpoint**. Do not leave Title reading one persistence format while `WorldScene` writes another.
 
-Behavior:
+Use one slot envelope through the existing `SaveStorage` adapter:
 
-- Continue is disabled with no valid slots.
-- Continue loads the valid slot with newest `savedAt`.
-- New Run creates a clean run without touching manual slots.
-- Slot 1 receives its first autosave once the initial `WorldScene` is ready.
-- Later autosaves update Slot 1 only after completed map transitions and applied
-  battle results. Do not autosave movement, every pickup, or every dialogue line.
-- System returns to Title on Back.
-- Phaser is not mounted behind the title screen.
+```ts
+type SaveSlotRecord = {
+  kind: 'autosave' | 'manual';
+  savedAt: string;
+  playtimeSeconds: number;
+  locationLabel: string;
+  thumbnail?: string;
+  state: SaveState;
+};
 
-## Field HUD
+type SaveSlotsState = {
+  version: 1;
+  slots: [SaveSlotRecord | null, SaveSlotRecord | null, SaveSlotRecord | null];
+};
+```
 
-Match the source top-left hero plate:
+Use one new key such as `gliese.saves.v1`; once cut over, runtime no longer reads `gliese.save.v9` or its predecessor.
 
-- hero face medallion,
-- level badge,
-- HP current/max + bar,
-- XP progress + bar.
+Rules:
 
-Reuse existing HUD HP/XP/level state. Render the active/main quest through the
-source gold-spined banner and render wallet/transient feedback with Heroic plates.
+- Slot 1 is autosave-only.
+- Slots 2/3 are manual.
+- Continue chooses newest `savedAt`.
+- New Run does not touch manual slots.
+- Slot 1 saves only on initial new-run WorldScene readiness, completed map transition, and applied battle result.
+- Movement, fog reveal, discoveries, pickups, and dialogue do not write storage by themselves.
+- Existing fog/discovery tests must be rewritten to prove in-memory state still changes while storage remains unchanged.
+- Manual overwrite uses one in-screen confirmation.
+- A small 16:9 thumbnail is metadata; thumbnail failure does not block saving.
+
+When Title lands, remove obsolete `save` / `resume-save` bridge commands, `HudState.canResume`, and the old `loadStoredSaveState` / `saveGameState` runtime path together. The E2E suite gains and adopts a shared real `startNewRunFromTitle(page)` helper in the same checkpoint.
+
+## Field HUD + Commands
+
+Quiet density is the source-backed 1440x900 geometry. It includes portrait medallion, level, HP, XP, main quest banner, wallet, and transient status.
 
 The command grid is exactly:
 
@@ -170,455 +144,183 @@ Behavior:
 - Gear -> Bag/Gear.
 - Quest -> Quest Journal.
 - Map -> existing Area Map with Heroic chrome.
-- Skill -> minimal real Skill surface below.
-- Rest -> existing field heal/charge action; no campsite/time system.
-- Save -> three-slot Save screen.
+- Skill -> honest empty/unavailable Skill surface.
+- Rest -> existing field heal/charge action.
+- Save -> Save screen.
 - System -> System screen.
 
-Shop remains a contextual NPC interaction rather than a ninth command.
+Shop remains contextual NPC interaction.
 
 ## Bag / Gear
 
-Preserve existing inventory and equipment rules.
+Preserve current inventory/equipment rules. Source categories are Potions, Gear, Key, Loot. Current content has only consumable/equipment/key, so Loot is an honest empty grid; do not invent crafting materials.
 
-Source categories:
-
-- Potions -> consumables.
-- Gear -> equipment inventory + equipped slots.
-- Key -> key items.
-- Loot -> non-usable material/drop items when present; otherwise source-style empty
-  state. Do not invent crafting behavior.
-
-Requirements:
-
-- exactly 24 visible desktop slots,
-- stable empty slots,
-- cream-gold selected tile,
-- quantity and semantic tint treatment,
-- item detail panel,
-- five paper-doll slots: Head, Weapon, Body, Hands, Accessory,
-- equip/unequip through existing bridge/core rules.
-
-No drag/drop requirement. Keyboard/gamepad selection + confirm is enough.
+Keep exactly 24 desktop slots, fixed empty slots, selected treatment, quantity badges, detail panel, and the five existing equipment positions: Head, Weapon, Body, Hands, Accessory. Equip/unequip stays in core/bridge rules; no drag/drop requirement.
 
 ## Shop
 
-Preserve existing stock, buy/sell, wallet, and inventory validation.
+Preserve existing buy/sell/stock/wallet logic. Render merchant identity, Buy/Sell, item grid, detail, price, wallet before/after, unaffordable state, and equipment stat delta.
 
-Match the source:
+Add `previewEquipmentSwap(...)` in `core/stats.ts`; it must call `deriveEffectiveStats` before and after the candidate replacement. Svelte does not reimplement stat formulas.
 
-- merchant bust/identity,
-- Buy/Sell tabs,
-- image-first stock/inventory grid,
-- selected item detail,
-- price + owned quantity,
-- wallet before/after,
-- unaffordable state,
-- equipment stat delta before purchase.
+## Quest Journal + Area Map
 
-Stat deltas must use the same effective-stat/equipment logic as actual equip; no
-second stat formula in Svelte.
+Quest Journal renders progress rings, main/side/offer differentiation, selected detail, objective chain, rewards, giver/location, and existing map context. Do not invent route/pathfinding lines.
 
-## Quest Journal
-
-Preserve existing quest definitions/state/acceptance.
-
-Match the source layout:
-
-- quest list with progress rings,
-- main/side/offer differentiation,
-- selected title/metadata,
-- objective chain,
-- rewards,
-- giver/location,
-- local map context when existing area-map data supports it.
-
-Do not invent pathfinding or fake route lines to fill the map preview.
-
-## Dialogue
-
-Refactor `DialoguePanel.svelte` to match:
-
-- large speaker bust,
-- gold nameplate,
-- bottom text plate,
-- right-side gilded choice list,
-- cream-gold selected choice,
-- source advance/progress treatment.
-
-Extend render state with portrait/bust identity keyed by NPC/speaker presentation
-metadata. Story prose remains Rust-owned.
-
-Add persisted Text Speed behavior:
-
-- Slow
-- Normal
-- Instant
-
-Confirm while text is revealing completes the current line; confirm after complete
-advances/selects. Choice input must never select a still-hidden choice.
-
-## Battle
-
-### Preserve the current battle engine
-
-Current `BattleScene` movement, auto-attack, enemy movement/attacks, invulnerability,
-boss phase, drops, and outcomes remain authoritative. The mockup's TURN ribbon is a
-presentation of readiness/cadence, not a new simulation queue.
-
-### HUD telemetry
-
-Extend active `HudBattleState` with render-ready data:
-
-- hero HP/max HP,
-- enemy unit ID/name/HP/max HP/defeated,
-- current target ID,
-- bounded readiness/ribbon entries from actual cooldowns,
-- bounded recent combat feed,
-- heal availability,
-- usable battle-item count,
-- flee channel/cooldown progress,
-- optional secondary enemy gauge.
-
-The optional secondary gauge is the small seam required by the story bible's
-witness-boss **testimony gauge**. Normal enemies omit it; this ticket does not build
-the full testimony/persuasion boss system.
-
-### Targeting
-
-Add one simple explicit target:
-
-- nearest living enemy by default,
-- left/right target cycling,
-- auto-attack prefers selected target when in reach,
-- if it dies, select nearest remaining enemy.
-
-No tactical cursor/free target mode.
-
-### Combat feed
-
-Publish recent meaningful events only:
-
-- hero damage,
-- enemy damage,
-- healing/item recovery,
-- enemy defeat.
-
-Do not persist the feed.
-
-### Interventions
-
-The source shows exactly:
-
-- **Heal** — reuse existing heal/charge behavior in battle.
-- **Item** — compact Heroic battle-consumable picker using existing inventory consume.
-- **Flee** — new deterministic channel action.
-
-Extend battle outcome with `fled`. A fled result applies hero HP, consumed inventory,
-and return position, then returns directly to `WorldScene` with no Victory/Defeat
-summary.
-
-Flee rules:
-
-- fixed short channel shown by source countdown/progress,
-- taking damage cancels the active channel,
-- success returns to encounter `returnPosition`,
-- no XP/coins/drops/quest defeat progress,
-- encounter is not marked cleared and remains in the world.
-
-No random flee percentage.
-
-## Victory
-
-Replace the current summary modal with the source Victory window. Reuse current
-summary data for XP, coins, drops, defeated count, level-up, quest progress and
-rewards. One gilded Continue action uses the existing BattleScene -> WorldScene
-handoff. No separate reward-claim state.
-
-## Save
-
-The source requires:
-
-- Slot 1 — Autosave.
-- Slot 2 — Manual.
-- Slot 3 — Manual/empty.
-
-Replace the anonymous single-save key with one slot envelope, not three independent
-persistence systems:
-
-```ts
-type SaveSlotRecord = {
-  kind: 'autosave' | 'manual';
-  savedAt: string;
-  playtimeSeconds: number;
-  locationLabel: string;
-  thumbnail?: string;
-  state: SaveState;
-};
-
-type SaveSlotsState = {
-  version: 1;
-  slots: [SaveSlotRecord | null, SaveSlotRecord | null, SaveSlotRecord | null];
-};
-```
-
-The envelope is storage metadata; keep `SaveState` focused on canonical game state.
-No migration from `gliese.save.v9` is required.
-
-Behavior:
-
-- Slot 1 only receives autosaves.
-- Slots 2/3 are manual targets.
-- overwriting a populated manual slot uses one in-screen confirmation state.
-- Continue chooses newest `savedAt` across valid slots.
-- invalid slot data disables that slot without crashing Title.
-
-Save cards show chapter/location/playtime/timestamp plus level/coins/HP derived from
-the record's `SaveState`.
-
-Capture a small 16:9 JPEG/WebP data URL from the Phaser canvas. Do not persist a
-full-resolution screenshot. Thumbnail failure must not block saving; use a stable
-fallback image.
-
-## System / Preferences
-
-Extend the existing preference storage with:
-
-```ts
-type TextSpeed = 'slow' | 'normal' | 'instant';
-type HudDensity = 'quiet' | 'full';
-type MotionPreference = 'on' | 'reduced';
-type PromptMode = 'auto' | 'pad' | 'keys';
-```
-
-Language continues to support `en`, `ja`, and `zh-Hant` even though the mockup only
-demonstrates English/Japanese buttons.
-
-The source Display & Text reference contains:
-
-- Language
-- Text speed
-- HUD density
-- Motion
-- Prompts
-
-Source-selected reference values are English / Normal / **Quiet** / On / Auto.
-
-- Quiet must reproduce the supplied Field HUD exactly.
-- Full may add secondary runtime/status detail without altering the source-backed
-  Quiet geometry.
-- Reduced disables decorative continuous motion and reduces entrance motion.
-- OS `prefers-reduced-motion` is a safety floor even when saved Motion = On.
-
-The System rail visibly includes Display, Audio, Input:
-
-- Display is the supplied screen.
-- Input is functional as navigation/focus to the prompt/input control rather than an
-  invented second settings design.
-- Audio remains visible but disabled/unavailable because neither the source nor the
-  game defines audio controls yet.
-
-## Prompt / Gamepad Input
-
-A/B/X/LB/RB-style glyphs must not be decorative-only.
-
-Support one standard gamepad:
-
-- D-pad/left stick menu navigation,
-- confirm/cancel and rail switching,
-- exploration movement,
-- advertised field interaction/menu actions.
-
-Prompt mode:
-
-- Auto -> most recently used keyboard/pad modality,
-- Pad -> generic pad glyphs,
-- Keys -> keyboard glyphs.
-
-No remapping, multi-controller assignment, rumble, or Xbox/PlayStation-specific
-layouts. Existing keyboard behavior remains unchanged.
+Area Map keeps existing fog/marker/navigation/pause behavior; only chrome/focus styling changes. It receives regression review, not source-pixel-parity status, because no dedicated Map reference canvas exists.
 
 ## Skill
 
-The Field source includes a Skill command but no dedicated Skill reference screen.
-The user requested implied missing mechanisms to be included, so the button must be
-real without expanding into a skill-tree project.
+The source shows a Skill command but no Skill screen and current Gliese has no skill model. Do not add `content/skills.ts`, combat-looking IDs, unlock levels, or fake progression.
 
-Add a tiny `SkillDefinition` registry with localized ID/name/description,
-unlock level, icon, and tint. Known skills are derived from player level; no skill
-points and no learned-skill persistence. The screen is read-only and shows known
-plus next level-gated entries. Active combat skill use is out of scope.
+The command is real by opening a localized Heroic empty state such as “No skills learned yet,” with normal Back/focus behavior. Because no source canvas exists, Skill receives regression review only.
 
-Because there is no supplied Skill canvas, it follows Heroic frame/selection grammar
-but is not judged against source pixel geometry.
+## Dialogue
 
-## Area Map
+Use `DialogueSession.npcId` as the stable presentation identity. Do not infer art from speaker strings.
 
-Keep existing pause/fog/marker/navigation behavior. Only replace chrome/focus styling
-with Heroic grammar. The mockup has no dedicated Map canvas, so Map receives a
-regression screenshot, not a source-pixel-parity claim.
+Ship **neutral busts only** for Liam, Mira, Guild Master Arlen, Quartermaster Vale, and Blacksmith Oren. Do not generate unused pleased/concerned variants until story/runtime data can select mood.
+
+Add a pure text-reveal helper driven by Text Speed: Slow / Normal / Instant. Confirm during reveal completes the line; confirm after reveal advances/selects; hidden choices cannot be selected.
+
+Story prose remains Rust-owned.
+
+## Battle
+
+Keep current realtime movement/auto-attack/enemy AI/invulnerability/boss/drop rules. The TURN ribbon is presentation over existing cooldown readiness, not a simulation queue.
+
+Active HUD state contains only current needs:
+
+- hero HP/max HP/stats,
+- enemy unit/name/HP/max HP/defeated,
+- current target,
+- bounded readiness ribbon,
+- bounded recent combat feed,
+- heal availability,
+- usable item count,
+- Flee channel/progress.
+
+No speculative secondary/witness gauge field.
+
+Targeting:
+
+- nearest living enemy by default,
+- left/right cycle living targets,
+- auto-attack prefers selected target when in reach,
+- dead/invalid target falls back to nearest living enemy.
+
+Interventions:
+
+- Heal reuses existing behavior.
+- Item reuses existing consumable inventory behavior.
+- Flee is a deterministic channel in `core/battle.ts` / `BattleScene`, not a Svelte timer.
+
+Extend `BattleOutcome` with `fled`. Incoming damage cancels the channel. Successful Flee returns to encounter `returnPosition` with current HP/inventory, grants no XP/coins/drops/quest defeat progress, does not clear the encounter, and produces no Victory/Defeat summary.
+
+Victory reuses existing reward summary data and one Continue action.
+
+## System / Preferences
+
+Use the preference document that already ships. Replace the current raw locale value at **`gliese.preferences.v1`** with one validated JSON record; do not create `gliese.ui-preferences.v1` or a second preference store.
+
+```ts
+type UiPreferences = {
+  locale: Locale;
+  textSpeed: 'slow' | 'normal' | 'instant';
+  hudDensity: 'quiet' | 'full';
+  motion: 'on' | 'reduced';
+  promptMode: 'auto' | 'pad' | 'keys';
+};
+```
+
+`initializeLocale()`/locale state reads the locale field from this record; System writes through one update path. Malformed/old raw-string data falls back to defaults/detection; no migration framework is needed.
+
+Source-selected state is English / Normal / **Quiet** / On / Auto.
+
+System rail:
+
+- Display — supplied screen.
+- Audio — visible and disabled/unavailable.
+- Input — focuses the prompt/input row rather than inventing another screen.
+
+Reduced motion honors both saved preference and OS `prefers-reduced-motion` floor.
+
+## Prompt / Gamepad Input
+
+A/B/X/LB/RB glyphs must work for the UI controls that show them, but this slice does not claim full controller gameplay.
+
+Use one pure `core/gamepad.ts` snapshot/action normalizer and one `GameShell`-owned poll loop for Svelte UI navigation/modality. Route game actions through existing `HudCommand`; do not add `gliese:menu-request`, another DOM event bus, or synthetic key events.
+
+Supported pad scope:
+
+- Title/command/overlay navigation.
+- confirm/cancel.
+- LB/RB tabs/rails.
+- dialogue advance/choice/close.
+- battle target/intervention commands.
+
+Existing Phaser keyboard movement remains unchanged. Full analog/D-pad exploration movement is deferred.
 
 ## Art
 
-Required production art from the mockup:
+Required UI art:
 
 1. Title key art.
-2. Dialogue busts for Liam, Mira, Guild Master Arlen, Quartermaster Vale, Blacksmith
-   Oren — neutral, pleased, and concerned variants as specified.
-3. Face portraits for medallions.
-4. Liam paper-doll silhouette.
+2. Neutral dialogue busts for Liam, Mira, Guild Master Arlen, Quartermaster Vale, Blacksmith Oren.
+3. Face portraits.
+4. Liam paper doll.
 5. Eight menu icons.
 6. Combat icons.
-7. Slime Scout + Ruins Warden enemy plate art.
+7. Slime Scout + Ruins Warden plate art.
 8. Battle backdrop compatible with source composition.
-9. Runtime save-thumbnail treatment.
+9. Save-thumbnail treatment.
 10. Victory flourish.
 
-Store new art under `public/game/assets/heroic-ui/`; add metadata to the existing
-asset layer only where Phaser must preload it. Do not regenerate world/background
-art solely for this UI change.
+Store under `public/game/assets/heroic-ui/`. No world/background regeneration solely for this UI change.
 
-## Localization
+## Localization / Accessibility
 
-All visible strings stay in the current i18n system. Update `en`, `ja`, and
-`zh-Hant` together for title actions, field commands, Bag categories, battle labels,
-Save text, preferences, Skill text, and accessibility/unavailable labels.
+Update `en`, `ja`, and `zh-Hant` together. Preserve Escape/Back overlay ownership, focus enter/restore, `:focus-visible`, accessible image labels, real segmented controls, disabled Audio explanation, and reduced motion.
 
-## Accessibility / Focus
+## Visual Acceptance
 
-- Escape/B closes according to overlay ownership.
-- opening screens moves focus inside; closing restores invoking control.
-- visual selection and `:focus-visible` agree.
-- image tiles expose names.
-- segmented settings use actual controls.
-- disabled Audio explains why it is unavailable.
-- reduced motion is honored.
-- no focus trap strands the user behind Phaser.
+Export the ten source canvases to `docs/visual-references/heroic-ui/source/` and capture matching **1440x900 runtime PNGs** for Title, Field, Bag, Shop, Quest, Dialogue, Battle, Victory, Save, and System. Map and Skill get regression captures.
 
-## Error Handling
+These PNGs are **human-review evidence**, not Playwright `toHaveScreenshot` goldens. Do not add `maxDiffPixels` or platform-sensitive pixel comparison as a CI merge gate. The PR reviewer compares source/runtime pairs.
 
-Keep failures local:
-
-- missing portrait -> deterministic silhouette,
-- missing thumbnail -> fallback image; save still succeeds,
-- invalid slot -> unavailable card,
-- no slots -> Continue disabled,
-- no battle consumable -> Item disabled,
-- Flee disabled while battle is resolving/summary,
-- no secondary boss gauge -> omit it,
-- unsupported gamepad -> Auto falls back to keyboard.
-
-No global error framework.
-
-## Full Visual Parity Gate
-
-### Source-backed pixel states
-
-At **1440x900**, capture deterministic Playwright screenshots for all ten supplied
-surfaces:
-
-- Title — Continue selected with valid metadata.
-- Field HUD — source-selected Quiet density, command grid open.
-- Bag — Potions selected item; also validate Gear paper-doll state.
-- Shop — Buy equipment selected with stat delta.
-- Quest Journal — active quest selected.
-- Dialogue — bust + multiple choices, first selected.
-- Battle — two enemies, one targeted, populated ribbon/feed, Heal selected, Flee
-  cooling/channeling.
-- Victory — XP/coins/drop/foes + quest update.
-- Save — autosave/manual/empty.
-- System — English/Normal/Quiet/On/Auto active states.
-
-Area Map and Skill get deterministic regression screenshots but are not called
-source-pixel-parity screens because no dedicated reference canvas exists.
-
-Acceptance:
+Full parity still means:
 
 - no intentional geometry/color/gradient/radius/spacing differences,
-- no mockup `image-slot` placeholders,
-- no old glass-panel styling on redesigned surfaces,
-- source-locale wrapping matches at 1440x900,
-- only tiny antialias/subpixel screenshot tolerance is allowed,
-- any intentional source deviation is documented in the PR and approved before merge.
+- no mockup image placeholders,
+- no old glass styling on redesigned surfaces,
+- correct source-locale wrapping at 1440x900,
+- any intentional deviation documented and explicitly approved before merge.
 
-### Functional gate
+Automated tests prove behavior/structure: title flow, all eight field commands through real UI interactions, 24-slot Bag/Gear deep-link, Shop affordability/stat preview, quest behavior, dialogue reveal, battle target/Heal/Item/Flee, Victory Continue, manual overwrite/newest Continue, persisted preferences, and supported pad UI navigation.
 
-The same PR must verify:
-
-- Continue/New Run/System title flow,
-- all eight field commands,
-- use/equip/unequip,
-- Shop buy/sell/unaffordable,
-- quest selection/acceptance,
-- dialogue reveal/advance/choice,
-- battle target cycle/Heal/Item/Flee,
-- Victory Continue,
-- manual overwrite + newest-slot Continue,
-- persisted preferences,
-- keyboard + generic gamepad field/menu use.
-
-## Testing
-
-### Pure TypeScript
-
-Add focused tests for:
-
-- save-slot latest/read/write,
-- flee state/result semantics,
-- target selection/cycling,
-- turn-ribbon derivation,
-- bounded combat feed,
-- preference normalization,
-- prompt modality,
-- level-gated skills.
-
-### Svelte/browser
-
-Cover screen state, keyboard focus/restore, segmented settings, text reveal,
-24-slot Bag, Gear deep-link, Shop delta/affordability, battle intervention states,
-and disabled Continue with empty saves.
-
-### Phaser scenes
-
-Cover active battle telemetry, selected target preference, battle Heal/Item, flee
-cancel/success, and the save-thumbnail capture seam if Phaser owns capture.
-
-### E2E
-
-Boot now starts at Title. Cover one real New Run/Continue path into the field and
-use deterministic fixture/save seeding for screenshot states rather than brittle
-long movement scripts.
-
-## Expected Files
-
-Likely ownership:
-
-- `src/lib/game/GameShell.svelte`
-- `src/lib/game/DialoguePanel.svelte`
-- `src/lib/game/ui/*`
-- `src/lib/game/ui-bridge/{events,store}.ts`
-- `src/lib/game/phaser/scenes/{WorldScene,BattleScene}.ts`
-- `src/lib/game/core/battle.ts`
-- small pure helpers for slots/flee/targeting/input/skills only where useful,
-- `src/lib/game/save/storage.ts` + slot helper,
-- existing preference/i18n modules,
-- `src/lib/game/content/assets.ts` and small presentation metadata,
-- `public/game/assets/heroic-ui/`,
-- existing unit/component/scene/E2E tests + Playwright snapshots.
-
-Do not introduce a second store architecture or state-management library.
+Local Svelte overlays must be opened through real command-grid/keyboard interactions, not by injecting `gliese:hud-state` and assuming that changes local `GameShell` state.
 
 ## Delivery
 
-One PR only. Internal implementation checkpoints may be:
+Keep the already-approved **single PR #39** rule, but every checkpoint must leave the branch runnable and its affected tests green. The plan must not rely on a final cleanup task to repair E2E.
 
-1. Heroic foundation + Title.
-2. Field + Bag/Shop/Quest/Map/Skill/System.
-3. Dialogue portraits + text reveal.
-4. Battle telemetry/interventions + Victory.
-5. Three-slot saves.
-6. Art integration + pixel parity.
-7. Full regression/E2E verification.
+Coherent checkpoints:
 
-The PR is not complete until all ten source-backed surfaces pass the visual gate and
-all visible actions pass the functional gate.
+1. Heroic foundation + screen extraction while preserving current boot.
+2. Unified preferences + System.
+3. Atomic Title + slot envelope + Save + autosave policy + E2E start-helper cutover.
+4. Field/Bag/Gear/Shop/Quest/Map/Skill surfaces.
+5. Dialogue neutral bust + text reveal.
+6. Pure battle/Flee contracts.
+7. Battle runtime + HUD + Victory.
+8. Minimal pad UI navigation through existing bridge only.
+9. Production art + source/runtime review captures.
+10. Full automated regression + explicit human visual-parity approval.
+
+Execution risks:
+
+- **E2E boot risk:** move the New Run helper and field-first tests in the same checkpoint as lazy Title.
+- **Persistence-policy risk:** rewrite fog/discovery persistence assertions in the slot cutover because changed write timing is intentional.
+- **Visual-flake risk:** use deterministic review captures plus structural/behavior tests instead of CI pixel goldens.
+
+The PR is not complete until all ten source-backed surfaces have approved runtime review captures and all visible actions pass the functional gate.
