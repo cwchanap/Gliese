@@ -19,6 +19,9 @@ const retiredV1RegionalBackgroundProofs =
 const flakyRouteWalkTests =
 	/(Crossroads gameplay loop|traverses every map in fallback mode|Hero House painted interior preserves runtime|complete world layout journey renders approved Meadow art|HPA-586 interior graybox)/;
 
+const exhaustivePaintedInteriorTests =
+	/^(?!.*Blacksmith painted interior).*painted (?:village )?interiors?/i;
+
 export default defineConfig({
 	workers: 1,
 	// Route-walking e2e tests are timing-sensitive on CI runners; allow
@@ -40,6 +43,15 @@ export default defineConfig({
 	projects: [
 		{
 			name: 'gate',
+			grepInvert: [
+				retiredV1RegionalBackgroundProofs,
+				flakyRouteWalkTests,
+				exhaustivePaintedInteriorTests
+			]
+		},
+		{
+			name: 'exhaustive',
+			grep: exhaustivePaintedInteriorTests,
 			grepInvert: [retiredV1RegionalBackgroundProofs, flakyRouteWalkTests]
 		},
 		{
