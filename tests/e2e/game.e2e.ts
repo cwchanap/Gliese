@@ -1530,6 +1530,10 @@ async function latestMovement(page: Page): Promise<PlayerMovementDiagnostic | nu
 let routeTokenSequence = 0;
 let previousRouteSettleTolerance = AXIS_SETTLE_TOLERANCE;
 
+test.beforeEach(() => {
+	previousRouteSettleTolerance = AXIS_SETTLE_TOLERANCE;
+});
+
 function describeBrowserRouteResult(result: BrowserRouteResult | null, token: string): string {
 	if (!result) return `route ${token} returned no browser state`;
 	return [
