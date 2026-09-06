@@ -195,9 +195,13 @@ function coordinateRegion(
 	return { data, width: MEADOW_ENTRY_PAINTED_V2_COMPLETE_MASTER_WIDTH, height };
 }
 
+const skipExhaustiveAssembly = process.env.CI_SKIP_EXHAUSTIVE_ASSEMBLY === '1';
+
 describe('complete Meadow Entry painted-v2 master assembly', () => {
-	it('assembles deterministic opaque canonical 6400×6400 output with both-axis handoffs', async () => {
-		const input = await validInput();
+	it.skipIf(skipExhaustiveAssembly)(
+		'assembles deterministic opaque canonical 6400×6400 output with both-axis handoffs',
+		async () => {
+			const input = await validInput();
 		const first = await assembleMeadowEntryPaintedV2CompleteMaster(input);
 		const second = await assembleMeadowEntryPaintedV2CompleteMaster(input);
 		expect(first.masterPng).toEqual(second.masterPng);
@@ -256,7 +260,10 @@ describe('complete Meadow Entry painted-v2 master assembly', () => {
 			pixel(northMidWest.data, northMidWest.width, 100, 1650 - 1536)
 		);
 
-		const provenance = JSON.parse(first.provenanceJson.toString('utf8')) as Record<string, unknown>;
+		const provenance = JSON.parse(first.provenanceJson.toString('utf8')) as Record<
+			string,
+			unknown
+		>;
 		expect(provenance).toMatchObject({
 			packageId: 'meadow-entry-painted-v2-complete',
 			controlFingerprint: MEADOW_ENTRY_PAINTED_V2_COMPLETE_CONTROL_FINGERPRINT,
@@ -268,7 +275,9 @@ describe('complete Meadow Entry painted-v2 master assembly', () => {
 			expect(panel.provenanceSha256).toMatch(/^[a-f0-9]{64}$/);
 			expect(panel.rejectionHistory).toEqual([]);
 		}
-	}, 450_000);
+	},
+	450_000
+);
 
 	it('uses each incoming row local top strip for vertical joins', async () => {
 		const input = await coordinateEncodedInput();

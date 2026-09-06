@@ -34,7 +34,7 @@
 		"art:storage:meadow-entry": "bun tools/verify-meadow-entry-art-storage.ts",
 		"world:generate:meadow-entry-painted-v2-runtime": "bun tools/generate-meadow-entry-runtime.ts",
 		"world:generate:meadow-entry-painted-v2-complete": "bun tools/generate-meadow-entry-runtime.ts --package complete",
-		"prepare": "playwright install || echo '' && husky",
+		"prepare": "playwright install chromium || echo '' && husky",
 		"check": "svelte-check --tsconfig ./tsconfig.json",
 		"check:watch": "svelte-check --tsconfig ./tsconfig.json --watch",
 		"lint": "prettier --check . && eslint .",
