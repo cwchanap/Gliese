@@ -20,6 +20,23 @@ on:
   schedule:
     - cron: '0 3 * * 1'
   workflow_dispatch:
+    inputs:
+      lanes:
+        description: Asset Integrity lanes to run
+        required: true
+        default: full
+        type: choice
+        options:
+          - full
+          - gate-only
+      gate_workers:
+        description: Gate workers for runner-side measurement
+        required: true
+        default: '2'
+        type: choice
+        options:
+          - '2'
+          - '4'
   push:
     branches: [main]
     paths:
@@ -47,11 +64,22 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: asset-integrity-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
   asset-tests:
     if: ${{ github.event_name != 'pull_request' || github.event.pull_request.draft == false }}
     name: Asset Unit & E2E Tests
     runs-on: ubuntu-latest
+    timeout-minutes: 120
+    env:
+      DEFAULT_GATE_WORKERS: '2'
+      CI_SKIP_EXHAUSTIVE_ASSEMBLY: >-
+        ${{ (github.event_name == 'pull_request' ||
+             (github.event_name == 'workflow_dispatch' && inputs.lanes == 'gate-only'))
+            && '1' || '0' }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -80,10 +108,13 @@ jobs:
         with:
           bun-version: latest
 
+      - name: Report runner resources
+        run: |
+          echo "nproc=$(nproc)"
+          free -m
+
       - name: Install dependencies
-        run: bun install --frozen-lockfile
-        env:
-          PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: '1'
+        run: bun install --frozen-lockfile --ignore-scripts
 
       - name: Install Playwright Chromium
         run: bunx playwright install --with-deps chromium
@@ -104,7 +135,18 @@ jobs:
         # The `gate` project (see playwright.config.ts) runs every e2e test
         # except the retired V1 regional-background proofs and the known-flaky
         # route-walking tests. A failure here gates the workflow.
-        run: bunx playwright test --project=gate
+        timeout-minutes: 25
+        env:
+          GATE_WORKERS: >-
+            ${{ github.event_name == 'workflow_dispatch'
+                && inputs.gate_workers
+                || env.DEFAULT_GATE_WORKERS }}
+        run: |
+          bunx playwright test \
+            --project=gate \
+            --workers="$GATE_WORKERS" \
+            --fully-parallel \
+            --reporter=list
 
       - name: Upload gate Playwright report
         # Upload the gate run's artifacts BEFORE the flaky run starts. Playwright
@@ -122,18 +164,44 @@ jobs:
             test-results/
           retention-days: 7
 
+      - name: Run exhaustive painted-interior e2e
+        if: >-
+          ${{ !cancelled() &&
+              github.event_name != 'pull_request' &&
+              (github.event_name != 'workflow_dispatch' || inputs.lanes == 'full') }}
+        run: bunx playwright test --project=exhaustive --workers=1
+
+      - name: Upload exhaustive Playwright report
+        if: >-
+          ${{ !cancelled() &&
+              github.event_name != 'pull_request' &&
+              (github.event_name != 'workflow_dispatch' || inputs.lanes == 'full') }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: asset-integrity-exhaustive-report
+          path: |
+            playwright-report/
+            test-results/
+          retention-days: 7
+
       - name: Run known-flaky route-walking e2e (non-blocking)
         # The `flaky` project isolates route-walking tests with pre-existing
         # timing/precision failures on CI runners (hero gets stuck at collision
         # boundaries, route segments not axis-aligned). These are unrelated to
         # asset integrity and need separate investigation. Results are uploaded
         # for inspection but do not gate the workflow.
-        if: ${{ !cancelled() }}
+        if: >-
+          ${{ !cancelled() &&
+              github.event_name != 'pull_request' &&
+              (github.event_name != 'workflow_dispatch' || inputs.lanes == 'full') }}
         continue-on-error: true
-        run: bunx playwright test --project=flaky
+        run: bunx playwright test --project=flaky --workers=1
 
       - name: Upload flaky Playwright report
-        if: ${{ !cancelled() }}
+        if: >-
+          ${{ !cancelled() &&
+              github.event_name != 'pull_request' &&
+              (github.event_name != 'workflow_dispatch' || inputs.lanes == 'full') }}
         uses: actions/upload-artifact@v4
         with:
           name: asset-integrity-flaky-report
