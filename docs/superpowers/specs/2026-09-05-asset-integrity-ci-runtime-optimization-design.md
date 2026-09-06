@@ -4,13 +4,20 @@
 
 ## Summary
 
-Reduce the asset-sensitive pull-request feedback loop from roughly 66 minutes to a practical fast gate without deleting regression coverage. Keep the existing single Asset Integrity workflow and single Git LFS checkout, but change which expensive checks run on pull requests and allow the representative Playwright gate to use two workers.
+Reduce the asset-sensitive pull-request feedback loop from roughly 66 minutes to a practical fast gate without deleting regression coverage.
 
-The design reuses the repository's existing title-regex Playwright classification model rather than introducing tags or a new orchestrator. Exhaustive painted-interior journeys are classified by a future-facing rule, the single 6400×6400 assembly proof is conditionally skipped inside its existing Vitest file on pull requests, and known-flaky route walking remains isolated in the existing `flaky` project.
+Keep the existing single Asset Integrity workflow, one Git LFS checkout, and the repository's regex-based Playwright project model. The optimization has four primary levers:
+
+1. skip only the single 6400×6400 deterministic assembly proof on the PR/manual-fast path;
+2. keep one representative painted-interior render on the blocking gate while moving the remaining painted-interior journeys to an exhaustive non-PR project;
+3. isolate per-test route helper state before enabling fully-parallel Playwright scheduling;
+4. measure worker count on the actual hosted runner instead of assuming runner CPU capacity in the design.
+
+Known-flaky route walking stays isolated. The workflow gains observable timing, bounded execution, PR-only superseded-run cancellation, and a manual `gate-only` lane for reproducible runner-side tuning.
 
 ## Baseline
 
-Representative PR #38 run `33993795682` took about 66 minutes:
+Representative PR #38 Asset Integrity run `33993795682` took about 66 minutes:
 
 - LFS-dependent asset unit tests: about 6.2 minutes.
   - `meadow-entry-painted-v2-complete-assembly.test.ts`: about 368 seconds.
@@ -18,88 +25,103 @@ Representative PR #38 run `33993795682` took about 66 minutes:
 - Vite build: about 2 seconds.
 - Blocking Playwright gate: 41 tests, one worker, about 28.9 minutes.
 - Known-flaky Playwright project: 10 tests, one worker, about 29.3 minutes.
-- CI retries are globally configured to two retries.
-- Failure/retry artifacts were large: roughly 509 MB for the gate and 1.2 GB for the flaky run.
+- Playwright CI retries are globally configured to two retries.
+- The gate's dot reporter exposes almost no useful per-test timing information.
 
-The problem is therefore cadence and serialization, not build time.
+The bottlenecks are therefore the single master-assembly proof and serialized browser journeys, not build time or LFS checkout.
 
 ## Goals
 
 1. Target a successful PR Asset Integrity run of **15 minutes or less**.
-2. Treat **20 minutes as the hard acceptance ceiling**. If a representative successful PR run remains above 20 minutes, stop and revisit the classification/concurrency design; do not automatically add sharding.
+2. Treat **20 minutes as the hard acceptance ceiling**. If the PR fast path remains above 20 minutes after measured worker tuning, stop and revisit gate scope/concurrency; do not automatically add sharding.
 3. Preserve every current non-retired Playwright test in `gate`, `exhaustive`, or `flaky`.
-4. Preserve the exact 6400×6400 deterministic assembly proof outside the PR fast path.
-5. Keep representative gameplay coverage on the PR gate, including boot/runtime integration, shop, battle, Blacksmith graybox entrance, and the continuous Meadow outdoor-route proof even where an individual test has a long timeout budget.
-6. Keep local `bun run test:e2e` comprehensive when no `--project` is supplied.
-7. Keep one workflow, one runner, and one LFS checkout.
+4. Preserve the exact 6400×6400 deterministic assembly proof outside the fast path.
+5. Keep representative painted rendering on the PR gate, specifically **Blacksmith painted interior preserves baked composition and collision**.
+6. Keep other representative gameplay coverage on the PR gate: boot/runtime integration, shop, battle, graybox/runtime checks, and the continuous Meadow outdoor-route proof unless already classified flaky.
+7. Keep local `bun run test:e2e` comprehensive when no `--project` is supplied.
+8. Keep one workflow, one runner, and one LFS checkout.
+9. Make runner/runtime evidence observable enough to choose Playwright workers from measurement.
+10. Bound runaway jobs while preserving the slower non-PR full lane.
 
 ## Non-goals
 
-- Fix route-walking precision/flakiness.
+- Fix the underlying route-walking precision/flakiness beyond removing the cross-test mutable-state leak required for parallel safety.
 - Rewrite or split `tests/e2e/game.e2e.ts`.
 - Replace Playwright or Vitest.
 - Introduce Playwright tags solely for this task.
-- Add a custom test-duration database, historical balancer, or CI orchestrator.
+- Add a custom duration database, historical balancer, or CI orchestrator.
 - Add GitHub Actions matrix sharding or duplicate LFS downloads.
 - Add build-artifact fan-out between runners.
 - Change `.github/workflows/ci.yml`.
 - Change game runtime behavior or production assets.
 - Move every slow test off the PR gate merely because it has a large timeout.
+- Centralize the duplicated LFS Vitest filename list in `vite.config.ts` in this PR. That duplication is acknowledged as follow-up maintenance, not frozen as permanent architecture.
 
 ## Design Principles
 
-### Classify by purpose, not current title inventory
+### Classify by purpose, with one deliberate representative exception
 
-The repository already classifies E2E tests with title regexes plus `grep`/`grepInvert`. Extend that machinery with a semantic painted-interior rule instead of enumerating today's interior names.
+The repository already classifies E2E tests with title regexes plus `grep`/`grepInvert`. Extend that machinery rather than introducing tags.
 
-This prevents a future `Foo painted interior ...` journey from silently falling back into the PR gate and gradually rebuilding the long feedback loop.
+Future painted-interior journeys should default to `exhaustive`, **except one deliberately named representative render** retained on `gate`. That single carve-out is not a closed list of all interiors.
 
 ### PR gate remains representative
 
-The PR lane answers: **does the changed asset-bearing build still boot and do representative gameplay/asset interactions work?**
+The PR lane answers: **does the changed asset-bearing build still boot and do representative game and asset-render interactions work?**
 
-The non-PR exhaustive lane answers: **do the expensive authored painted-interior journeys and full master-assembly proof still work?**
+The non-PR exhaustive lane answers: **do the remaining expensive authored painted-interior journeys and the full master-assembly proof still work?**
 
-Slow does not automatically mean exhaustive. Representative outdoor routing, shops, battle, and focused graybox/runtime tests stay on the gate unless they are explicitly classified as painted-interior exhaustive coverage or known-flaky coverage.
+Byte-level asset assertions alone are not sufficient; at least one painted interior must render through Phaser on the blocking PR path.
 
-### Use one runner with conservative parallelism
+### Parallelism requires test isolation first
 
-The Asset Integrity workflow continues to perform one LFS checkout. The gate uses two Playwright workers with fully-parallel scheduling because most E2E cases live in one large file and Playwright otherwise parallelizes primarily at file level.
+`tests/e2e/game.e2e.ts` carries module-level mutable `previousRouteSettleTolerance`. `runBrowserRoute` reads it into `startTolerance`, then updates it after each route. Serial file execution makes that deterministic; `--fully-parallel` does not.
 
-Do not start with four workers. If the exact two-worker command proves unstable, the fallback is one worker plus a runtime/design reassessment, not matrix sharding.
+Before enabling fully-parallel scheduling, add:
 
-## Playwright Project Partition
+```ts
+test.beforeEach(() => {
+	previousRouteSettleTolerance = AXIS_SETTLE_TOLERANCE;
+});
+```
 
-`playwright.config.ts` will expose three projects: `gate`, `exhaustive`, and `flaky`.
+This preserves within-test route chaining while preventing one test from inheriting another test's terminal tolerance.
 
-Repository defaults remain:
+### Worker count is a measured output, not a design constant
+
+Repository defaults stay:
 
 ```ts
 workers: 1,
 retries: process.env.CI ? 2 : 0,
 ```
 
-Those defaults continue to govern ordinary local runs and any project invocation that does not override them.
+Asset Integrity may override gate workers, but the final count is chosen from hosted-runner measurement after route-state isolation.
 
-### Existing flaky classifier
+Start with two workers. If two are stable and meet the target/ceiling, keep two. If they miss the target or remain unstable, compare against `min(4, nproc)` through the manual gate-only lane. Choose the smallest stable measured count that meets the hard ceiling.
 
-Keep `flakyRouteWalkTests` unchanged as the source of truth for known route-walking instability.
+Do not reduce retries merely to claim a faster success path; retry cost is paid only on failure.
 
-### Exhaustive classifier
+## Playwright Project Partition
 
-Add:
+`playwright.config.ts` will expose `gate`, `exhaustive`, and `flaky`.
 
-```ts
-const exhaustivePaintedInteriorTests = /painted (village )?interiors?/;
+Keep `flakyRouteWalkTests` unchanged.
+
+Keep this existing painted render on `gate`:
+
+```text
+Blacksmith painted interior preserves baked composition and collision
 ```
 
-This deliberately matches both individual titles such as `Guild Hall painted interior ...` and aggregate titles such as `all eight painted village interiors`.
+Use a broad future-facing exhaustive matcher with that one representative exclusion:
 
-`Hero House painted interior preserves runtime, reload, and fallback contracts` also matches this broad rule, but it is already owned by `flakyRouteWalkTests`. The exhaustive project must therefore invert the flaky classifier.
+```ts
+const exhaustivePaintedInteriorTests =
+	/^(?!.*Blacksmith painted interior).*painted (?:village )?interiors?/i;
+```
 
-### Projects
-
-Use this partition:
+Projects:
 
 ```ts
 projects: [
@@ -124,208 +146,254 @@ projects: [
 ]
 ```
 
-Partition contract for every non-retired E2E test:
+Partition priority:
 
-1. known-flaky route walking -> `flaky`;
-2. otherwise, painted-interior journey -> `exhaustive`;
-3. otherwise -> `gate`.
+1. retired V1 -> excluded;
+2. known flaky -> `flaky`;
+3. Blacksmith painted representative -> `gate`;
+4. other painted-interior journeys -> `exhaustive`;
+5. all other non-retired tests -> `gate`.
 
-`bunx playwright test --list` is the contract check. For the PR #38 baseline the expected partition is 33 gate + 8 exhaustive + 10 flaky = 51 non-retired project selections. If `main` gains tests, exact counts may change, but the selections must remain disjoint and complete.
+For the reviewed 51-test baseline, the expected partition is:
+
+```text
+34 gate
+7 exhaustive
+10 flaky
+51 total
+```
+
+Counts may grow as `main` gains tests, but the partition must remain disjoint and complete.
 
 ## 6400×6400 Assembly Proof
 
-Do not use a Vitest `-t` whitelist in workflow YAML. The existing assembly test file has five cases today; copying four titles into CI would create a second classifier that future tests could silently miss.
-
-Instead, add one explicit environment-controlled skip next to the single expensive case in `meadow-entry-painted-v2-complete-assembly.test.ts`:
+Do not use a Vitest `-t` whitelist in workflow YAML. Add one environment-controlled skip next to the expensive case:
 
 ```ts
 const skipExhaustiveAssembly = process.env.CI_SKIP_EXHAUSTIVE_ASSEMBLY === '1';
-
-it.skipIf(skipExhaustiveAssembly)(
-	'assembles deterministic opaque canonical 6400×6400 output with both-axis handoffs',
-	async () => {
-		// existing test body unchanged
-	},
-	450_000
-);
 ```
 
-Only that test is conditional. The other four cases remain normal `it(...)` tests.
+Apply `it.skipIf(skipExhaustiveAssembly)` only to `assembles deterministic opaque canonical 6400×6400 output with both-axis handoffs`; leave its callback/assertions/timeout unchanged.
 
-The Asset Integrity unit step keeps its existing five-file list. Set `CI_SKIP_EXHAUSTIVE_ASSEMBLY=1` only for pull-request events; leave it false/unset for `push` to `main`, schedule, and manual runs. Therefore:
+Fast paths set `CI_SKIP_EXHAUSTIVE_ASSEMBLY=1`:
 
-- PR: four lightweight complete-assembly cases run; the 6400×6400 proof is reported skipped.
-- non-PR: all five cases run, including the full proof.
-- ordinary local test runs: all five run by default.
+- pull request;
+- manual `workflow_dispatch` with `lanes=gate-only`.
 
-No new test file and no `vite.config.ts` change are needed.
+Full paths keep the proof enabled:
 
-## Workflow Structure
+- push to `main`;
+- weekly schedule;
+- manual `workflow_dispatch` with `lanes=full`.
 
-Keep `.github/workflows/asset-integrity.yml` as the only Asset Integrity workflow.
+The existing five-file workflow selection remains unchanged in this PR. Its duplication with `vite.config.ts` is follow-up maintenance.
 
-### Common setup
+## Dependency Installation
 
-Keep one LFS checkout, LFS pointer verification, Bun setup, explicit Chromium installation, and one Vite build.
+The repository currently runs:
 
-Change dependency installation to:
+```json
+"prepare": "playwright install || echo '' && husky"
+```
+
+Change it to:
+
+```json
+"prepare": "playwright install chromium || echo '' && husky"
+```
+
+Gliese's browser tests use Chromium; normal contributor/core-CI installs should not fetch all Playwright browser families.
+
+Asset Integrity still uses:
 
 ```sh
 bun install --frozen-lockfile --ignore-scripts
+bunx playwright install --with-deps chromium
 ```
 
-The repository `prepare` script explicitly executes `playwright install`, so `PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD` cannot prevent that explicit all-browser download. Asset Integrity does not need Husky lifecycle setup; the workflow installs the required Chromium explicitly afterward.
+`--ignore-scripts` is hygiene, not a primary runtime lever.
 
-### Asset-unit step
+## Workflow Dispatch and Measurement
 
-Keep the current five file arguments exactly as the unit-test selection boundary and add an event-derived environment value:
+Extend `workflow_dispatch`:
 
 ```yaml
-env:
-  CI_SKIP_EXHAUSTIVE_ASSEMBLY: ${{ github.event_name == 'pull_request' && '1' || '0' }}
+workflow_dispatch:
+  inputs:
+    lanes:
+      description: Asset Integrity lanes to run
+      required: true
+      default: full
+      type: choice
+      options: [full, gate-only]
+    gate_workers:
+      description: Gate workers for runner-side measurement
+      required: true
+      default: '2'
+      type: choice
+      options: ['2', '4']
 ```
 
-Do not duplicate the assembly test invocation and do not add test-title matching to YAML.
+`gate-only` reproduces the PR fast path on a hosted runner without requiring a PR push. `gate_workers` allows 2-vs-4 measurement without another code change.
 
-### Gate command on every Asset Integrity event
+## Workflow Structure
 
-Use the same command for PR, `push`, schedule, and manual events:
+Keep one Asset Integrity job and one LFS checkout.
+
+Before expensive tests, print runner resources:
 
 ```sh
-bunx playwright test --project=gate --workers=2 --retries=1 --fully-parallel
+echo "nproc=$(nproc)"
+free -m
 ```
 
-This is an Asset Integrity workflow override, not a repository-wide default. `workers: 1` remains in `playwright.config.ts`.
+Keep the five-file asset-unit command and set:
 
-Using one gate command for every event avoids separate PR/non-PR orchestration and ensures the same blocking gate behavior is exercised before and after merge.
+```yaml
+CI_SKIP_EXHAUSTIVE_ASSEMBLY: >-
+  ${{ (github.event_name == 'pull_request' ||
+       (github.event_name == 'workflow_dispatch' && inputs.lanes == 'gate-only'))
+      && '1' || '0' }}
+```
 
-### Pull-request path
+Gate runs on every event with:
 
-For a non-draft asset-relevant PR:
+```sh
+bunx playwright test \
+  --project=gate \
+  --workers="$GATE_WORKERS" \
+  --fully-parallel \
+  --reporter=list
+```
+
+Do **not** pass `--retries`; use configured CI retries.
+
+For normal events, `GATE_WORKERS` is the committed measured default. Manual dispatch uses `inputs.gate_workers`.
+
+Set gate step `timeout-minutes: 25` as a safety bound; acceptance remains <=20 minutes total for the successful PR path.
+
+PR/manual gate-only path:
 
 1. common setup;
-2. existing five-file asset unit command with the 6400×6400 case conditionally skipped;
+2. asset units with master proof skipped;
 3. build;
-4. two-worker `gate` command;
+4. gate;
 5. gate report upload.
 
-Do not run Playwright `exhaustive` or `flaky`.
-
-### Non-PR path
-
-For `push` to `main`, weekly schedule, and `workflow_dispatch`:
+Full non-PR path:
 
 1. common setup;
-2. existing five-file asset unit command with the full 6400×6400 case enabled;
+2. full asset units;
 3. build;
-4. the same two-worker `gate` command;
+4. gate;
 5. gate report upload;
-6. Playwright `exhaustive` with one worker, blocking;
+6. exhaustive, one worker, blocking;
 7. exhaustive report upload;
-8. Playwright `flaky` with one worker, non-blocking;
+8. flaky, one worker, non-blocking;
 9. flaky report upload.
 
-## Concurrency
+## Concurrency and Timeouts
 
-Add:
+Use:
 
 ```yaml
 concurrency:
   group: asset-integrity-${{ github.event.pull_request.number || github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 ```
 
-The primary benefit is stopping superseded long PR runs from consuming runner/LFS time.
+Only superseded PR runs are cancelled. Push/schedule/manual full runs remain valuable evidence.
 
-## Parallelism Proof Before Runtime Acceptance
+Add job-level:
 
-Do not let the representative GitHub Actions wall-clock run be the first time the new scheduling mode executes.
-
-After the classifier change and build, run the exact gate command once:
-
-```sh
-bun run build
-bunx playwright test --project=gate --workers=2 --retries=1 --fully-parallel
+```yaml
+timeout-minutes: 120
 ```
 
-This run must complete successfully before the task relies on the 2-worker design. Merely confirming that two workers start is useful diagnostics but is not sufficient completion evidence.
-
-If the exact command is unstable under two workers:
-
-1. fall back to one worker;
-2. re-measure;
-3. revisit which truly exhaustive tests belong off the PR critical path if the PR lane then exceeds 20 minutes;
-4. do not introduce matrix sharding automatically.
+A 45-minute whole-job timeout is **not** adopted because the measured full non-PR baseline is already about 66 minutes. The 120-minute cap removes the default six-hour hang window while leaving full-lane headroom; gate has the tighter 25-minute step bound.
 
 ## Reporting
 
-Keep per-project uploads because each Playwright invocation replaces `playwright-report/` and `test-results/`.
+Keep per-project uploads because each Playwright invocation overwrites `playwright-report/` and `test-results/`.
 
-- upload gate artifacts immediately after gate;
-- on non-PR events, upload exhaustive artifacts immediately after exhaustive;
-- upload flaky artifacts immediately after flaky;
-- keep seven-day retention;
-- do not add report merging.
+- upload gate immediately after gate;
+- upload exhaustive immediately after exhaustive;
+- upload flaky immediately after flaky;
+- retain seven days;
+- do not merge reports.
+
+Use `--reporter=list` on gate so Actions logs show completed test names and durations rather than only dots.
+
+## Measurement Protocol
+
+Local parallel execution is only a sanity check.
+
+1. Make route state deterministic.
+2. Verify the partition.
+3. Run a local two-worker gate once for obvious concurrency defects.
+4. Push implementation.
+5. Run `workflow_dispatch` with `lanes=gate-only`, `gate_workers=2`.
+6. Record `nproc`, memory, asset-unit duration, gate duration, retries, upload duration, and total.
+7. If two workers are stable and total <=15m, keep two.
+8. If total is >15m but <=20m, optionally measure four when `nproc >= 4`; keep the smaller stable count unless four materially improves the result.
+9. If two workers exceed 20m, measure four when runner capacity permits.
+10. If no stable measured candidate meets <=20m, stop and revisit gate classification/concurrency. One worker is diagnostic baseline, not a pre-approved fallback.
+11. Commit the measured normal-event default and run the real PR path once for final acceptance.
 
 ## Failure Semantics
 
-### PR
+### PR / manual gate-only
 
-- LFS/unit checks: blocking; full 6400×6400 case skipped.
+- LFS/unit checks: blocking; full 6400×6400 proof skipped.
 - Build: blocking.
-- `gate`: blocking.
-- `exhaustive`: not run.
-- `flaky`: not run.
+- gate: blocking, configured retries retained.
+- exhaustive/flaky: not run.
 
-### Non-PR
+### Full non-PR
 
-- LFS/unit checks including full 6400×6400 proof: blocking.
+- LFS/unit checks including full proof: blocking.
 - Build: blocking.
-- `gate`: blocking with the same two-worker/one-retry command.
-- `exhaustive`: blocking, one worker.
-- `flaky`: non-blocking, one worker.
+- gate: blocking.
+- exhaustive: blocking, one worker.
+- flaky: non-blocking, one worker.
+
+## Follow-up: Centralize LFS Unit Selection
+
+`vite.config.ts` and `asset-integrity.yml` currently duplicate the LFS asset-test filename set. This is a real maintenance hazard, but it is orthogonal to the measured runtime optimization.
+
+After PR #40 lands, centralize the existing list behind the Vite-owned configuration/environment path so the workflow can invoke the selected LFS suite without duplicating filenames. This is not a PR #40 merge prerequisite.
 
 ## Acceptance Criteria
 
-1. `gate`, `exhaustive`, and `flaky` form a complete, intentional partition of all non-retired E2E selections.
-2. `exhaustivePaintedInteriorTests` uses `/painted (village )?interiors?/` rather than a closed interior-name list.
-3. `exhaustive` inverts `flakyRouteWalkTests`, so Hero House remains owned only by `flaky`.
-4. Future painted-interior journey titles following the current naming convention default to `exhaustive`, not `gate`.
-5. Pull requests do not run Playwright `exhaustive` or `flaky`.
-6. Pull requests run the existing five-file asset-unit command but skip only the full 6400×6400 test through `CI_SKIP_EXHAUSTIVE_ASSEMBLY`.
-7. Non-PR events run the full 6400×6400 proof without a separate title whitelist or duplicate test command.
-8. Every Asset Integrity `gate` invocation uses exactly two workers, one retry, and fully-parallel scheduling.
-9. Repository-level `workers: 1` remains unchanged.
-10. The exact two-worker gate command is executed successfully before runtime acceptance is evaluated.
-11. `bun run test:e2e` without `--project` continues to select all three projects locally.
-12. Existing retired-V1 exclusions and the existing flaky matcher remain intact.
-13. Asset Integrity dependency installation uses `bun install --frozen-lockfile --ignore-scripts` and still installs Chromium explicitly.
-14. A newer commit to the same PR cancels an older in-progress Asset Integrity run.
-15. A representative successful PR Asset Integrity run completes in **20 minutes or less**, with **15 minutes or less** as the target.
-16. No game runtime or production asset output changes are included.
+1. `previousRouteSettleTolerance` resets before every Playwright test before fully-parallel scheduling is enabled.
+2. `gate`, `exhaustive`, and `flaky` are disjoint and complete for non-retired E2E tests.
+3. Blacksmith painted-interior render remains on `gate`.
+4. Future painted-interior titles default to `exhaustive` except that representative.
+5. Hero House remains owned by `flaky`.
+6. Reviewed baseline partition is 34 gate + 7 exhaustive + 10 flaky = 51.
+7. PR/manual gate-only skip only the 6400×6400 proof; full events keep it.
+8. PR/manual gate-only omit exhaustive and flaky.
+9. Gate uses `--fully-parallel` and a worker count selected from hosted-runner measurement.
+10. Gate does not override retries.
+11. Gate uses list reporter; workflow logs print `nproc` and memory.
+12. `workflow_dispatch(lanes=gate-only)` reproduces the PR fast lane and supports 2-vs-4 worker measurement.
+13. Superseded runs are cancelled only for pull requests.
+14. Job timeout is 120 minutes; gate timeout is 25 minutes.
+15. Asset Integrity uses `--ignore-scripts` plus explicit Chromium installation.
+16. Package `prepare` installs Chromium only.
+17. Repository-level `workers: 1` remains unchanged.
+18. Local `bun run test:e2e` remains comprehensive.
+19. Existing retired-V1 and flaky classifier semantics remain intact.
+20. Representative successful PR runtime is <=20 minutes; <=15 minutes is target.
+21. If no stable measured worker candidate meets <=20 minutes, stop for design reassessment rather than accepting a known-slow fallback or adding sharding.
+22. No game runtime or production asset output changes are included.
 
-## Rejected Alternatives
+## Rejected / Deferred Alternatives
 
-### Closed exhaustive title list
-
-Rejected because every future painted interior would require another config edit and otherwise fall back into the PR gate.
-
-### Vitest `-t` whitelist in YAML
-
-Rejected because it duplicates test names into CI and silently omits future cases added to the same file.
-
-### Split the assembly test file
-
-Valid, but not chosen. A single `it.skipIf` environment gate changes fewer implementation files than splitting the test and updating file-level test registries, while keeping the existing Asset Integrity file selection intact.
-
-### GitHub Actions matrix sharding / build fan-out
-
-Rejected for this pass because it duplicates setup/LFS cost or requires additional artifact orchestration.
-
-### Four or more Playwright workers
-
-Rejected initially because the Phaser/route tests are timing-sensitive and a 2-vCPU hosted runner can become contention-bound.
-
-### Splitting `game.e2e.ts`
-
-Deferred. Fully-parallel scheduling is sufficient to test whether the current file organization can meet the runtime target without a structural E2E rewrite.
+- **Closed exhaustive title list:** rejected; future painted interiors should default to exhaustive.
+- **Vitest title whitelist in YAML:** rejected; it duplicates test titles into CI.
+- **Matrix sharding/build fan-out:** rejected for this pass.
+- **Fixed two-worker acceptance:** rejected; two is the initial candidate, not the answer.
+- **One-worker fallback:** rejected as a pre-approved fallback because the known one-worker gate is already near 29 minutes before reclassification.
+- **45-minute whole-job timeout:** rejected because the current full lane is already about 66 minutes.
+- **LFS list centralization in this PR:** deferred as a maintenance follow-up.
