@@ -1206,13 +1206,14 @@ async function installRuntimeProbes(
 				return;
 			}
 			routeState.noProgressDiagnostics = 0;
-			// Past the target on this axis: accept the overshoot instead of correcting.
-			// Under --fully-parallel, large overshoots (> reachTolerance) otherwise
-			// oscillate and hit maxCorrectionTaps with blocked=false.
 			const pastTarget = direction > 0 ? value >= targetValue : value <= targetValue;
+			// Keep intentional first overshoot corrections (Guild Hall pacing tests).
+			// Only abandon past-target oscillation after a couple of corrections so
+			// --fully-parallel thrash cannot burn maxCorrectionTaps with blocked=false.
 			if (
 				distance <= routeState.settleTolerance ||
-				(!diagnostic.blocked && (pastTarget || (reached && distance <= routeState.reachTolerance)))
+				(!diagnostic.blocked && reached && distance <= routeState.reachTolerance) ||
+				(!diagnostic.blocked && pastTarget && routeState.correctionTaps >= 2)
 			) {
 				releaseKey();
 				let contractAdvanced = false;
