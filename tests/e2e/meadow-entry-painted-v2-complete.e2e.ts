@@ -40,7 +40,11 @@ type MovementDiagnostic = {
 type CompleteProbeWindow = Window & {
 	__completeBackgroundDiagnostics?: BackgroundDiagnostic[];
 	__completeMovementDiagnostics?: MovementDiagnostic[];
-	__completeHudState?: { mapId?: string; areaMap?: { player?: { x?: number; y?: number } } };
+	__completeHudState?: {
+		mapId?: string;
+		ready?: boolean;
+		areaMap?: { player?: { x?: number; y?: number } };
+	};
 };
 
 const COMPLETE_PACKAGE_ID = 'meadow-entry-painted-v2-complete';
@@ -211,6 +215,24 @@ test('complete Meadow package is the production default and explicit off restore
 	expect(
 		(meadowEntryMap.ambientNpcs?.length ?? 0) + (meadowEntryMap.npcs?.length ?? 0)
 	).toBeGreaterThan(0);
+
+	// Wait for the HUD to be ready and the player to be spawned before attempting
+	// movement. The background diagnostic confirms rendering, but the player sprite
+	// and collision system need additional frames to initialize.
+	await page.waitForFunction(
+		() => {
+			const hudState = (window as CompleteProbeWindow).__completeHudState;
+			return (
+				hudState?.mapId === 'meadow-entry' &&
+				hudState.ready === true &&
+				typeof hudState.areaMap?.player?.x === 'number' &&
+				typeof hudState.areaMap?.player?.y === 'number'
+			);
+		},
+		undefined,
+		{ timeout: 10_000 }
+	);
+
 	await page.locator('canvas').click();
 	await page.keyboard.down('ArrowDown');
 	try {

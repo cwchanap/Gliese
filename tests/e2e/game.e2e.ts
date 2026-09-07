@@ -16839,6 +16839,16 @@ test('Meadow Entry supports the continuous outdoor route and persists its proof 
 	);
 	await expect(fieldStatus(page)).toContainText('Report to the Guild Master first');
 
+	// The cave approach allowed reach tolerance for the collision boundary, so the
+	// player may have settled very close to a blocker. Clear movement diagnostics
+	// before the return route to avoid false blocked-state failures when moving
+	// away from the landmark collision.
+	await page.evaluate(() => {
+		const probeWindow = window as GlieseProbeWindow;
+		probeWindow.__glieseMovementDiagnostics = [];
+		probeWindow.__glieseLastMovementDiagnostic = undefined;
+	});
+
 	// Return to Crossroads, then take the Tidewatch Coast seam and return.
 	await moveRoute(page, [
 		{ x: 5_960, y: 1_868 },
