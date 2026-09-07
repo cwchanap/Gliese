@@ -1208,10 +1208,7 @@ async function installRuntimeProbes(
 			routeState.noProgressDiagnostics = 0;
 			if (
 				distance <= routeState.settleTolerance ||
-				(routeState.correctionTaps > 0 &&
-					!diagnostic.blocked &&
-					reached &&
-					distance <= routeState.reachTolerance)
+				(!diagnostic.blocked && reached && distance <= routeState.reachTolerance)
 			) {
 				releaseKey();
 				let contractAdvanced = false;
@@ -1531,6 +1528,7 @@ let routeTokenSequence = 0;
 let previousRouteSettleTolerance = AXIS_SETTLE_TOLERANCE;
 
 test.beforeEach(() => {
+	routeTokenSequence = 0;
 	previousRouteSettleTolerance = AXIS_SETTLE_TOLERANCE;
 });
 
