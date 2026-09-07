@@ -1207,13 +1207,21 @@ async function installRuntimeProbes(
 			}
 			routeState.noProgressDiagnostics = 0;
 			const pastTarget = direction > 0 ? value >= targetValue : value <= targetValue;
-			// Keep intentional first overshoot corrections (Guild Hall pacing tests).
-			// Only abandon past-target oscillation after a couple of corrections so
-			// --fully-parallel thrash cannot burn maxCorrectionTaps with blocked=false.
+			// A paced correction uses two rAF callbacks (idle wait, then reverse key).
+			// Coasting diagnostics from the released key arrive while waitFrame is set
+			// and scheduledCorrectionFrame is still null — they must update position
+			// without settling or burning another tap (Guild Hall opposite-overshoot).
+			const correctionPending =
+				scheduledCorrectionWaitFrame !== null || scheduledCorrectionFrame !== null;
+			// Keep the intentional *first* overshoot correction (taps === 0 → schedule).
+			// Once a correction tap is armed, accept later past-target residues so
+			// --fully-parallel cannot oscillate into blocked=false correction-limit
+			// thrash. Skip this settle while correctionPending so coasting during the
+			// Guild Hall idle frame cannot cancel the paced reverse.
 			if (
 				distance <= routeState.settleTolerance ||
 				(!diagnostic.blocked && reached && distance <= routeState.reachTolerance) ||
-				(!diagnostic.blocked && pastTarget && routeState.correctionTaps >= 2)
+				(!diagnostic.blocked && pastTarget && routeState.correctionTaps >= 1 && !correctionPending)
 			) {
 				releaseKey();
 				let contractAdvanced = false;
@@ -1225,6 +1233,13 @@ async function installRuntimeProbes(
 				if (distanceDecreased || contractAdvanced) {
 					routeState.lastProgressAt = movementAt;
 				}
+				return;
+			}
+			if (correctionPending) {
+				// Already pacing a correction: keep this coasting sample authoritative
+				// but do not schedule another reverse (that burned taps under >=2 and
+				// either skipped the Guild Hall ArrowUp or failed to stop Meadow thrash).
+				if (distanceDecreased) routeState.lastProgressAt = movementAt;
 				return;
 			}
 			if (distanceDecreased) routeState.lastProgressAt = movementAt;
@@ -16688,11 +16703,13 @@ test('browser-local route correction paces an unblocked Guild Hall overshoot bef
 		idleEventsAfter: 'keyup:ArrowUp',
 		paced: { status: 'running', activeKey: 'ArrowDown' },
 		pacedEvents: 'keyup:ArrowUp|keydown:ArrowDown',
-		secondImmediate: { status: 'running', activeKey: null },
+		// After the first paced reverse, further past-target residue settles
+		// (correctionTaps >= 1) instead of scheduling a second reverse. The
+		// first overshoot correction + idle pacing remain the contract under test.
+		secondImmediate: { status: 'done', activeKey: null },
 		secondImmediateEvents: 'keyup:ArrowUp|keydown:ArrowDown|keyup:ArrowDown',
 		done: { status: 'done', activeKey: null },
-		completedEvents:
-			'keyup:ArrowUp|keydown:ArrowDown|keyup:ArrowDown|keydown:ArrowUp|keyup:ArrowUp',
+		completedEvents: 'keyup:ArrowUp|keydown:ArrowDown|keyup:ArrowDown',
 		invalidIdleBeforeTerminal: {
 			status: 'running',
 			activeKey: null,
