@@ -1205,17 +1205,15 @@ async function installRuntimeProbes(
 				}
 				return;
 			}
-		routeState.noProgressDiagnostics = 0;
-		// Past the target on this axis: accept the overshoot instead of correcting.
-		// Under --fully-parallel, large overshoots (> reachTolerance) otherwise
-		// oscillate and hit maxCorrectionTaps with blocked=false.
-		const pastTarget =
-			direction > 0 ? value >= targetValue : value <= targetValue;
-		if (
-			distance <= routeState.settleTolerance ||
-			(!diagnostic.blocked &&
-				(pastTarget || (reached && distance <= routeState.reachTolerance)))
-		) {
+			routeState.noProgressDiagnostics = 0;
+			// Past the target on this axis: accept the overshoot instead of correcting.
+			// Under --fully-parallel, large overshoots (> reachTolerance) otherwise
+			// oscillate and hit maxCorrectionTaps with blocked=false.
+			const pastTarget = direction > 0 ? value >= targetValue : value <= targetValue;
+			if (
+				distance <= routeState.settleTolerance ||
+				(!diagnostic.blocked && (pastTarget || (reached && distance <= routeState.reachTolerance)))
+			) {
 				releaseKey();
 				let contractAdvanced = false;
 				if (!routeState.settledAxes[axis]) {
