@@ -1,1 +1,1 @@
-@/workspace/repos/Gliese/tests/e2e/game.e2e.ts
+/workspace/repos/Gliese/tests/e2e/game.e2e.ts
