@@ -1214,14 +1214,20 @@ async function installRuntimeProbes(
 			const correctionPending =
 				scheduledCorrectionWaitFrame !== null || scheduledCorrectionFrame !== null;
 			// Keep the intentional *first* overshoot correction (taps === 0 → schedule).
-			// Once a correction tap is armed, accept later past-target residues so
-			// --fully-parallel cannot oscillate into blocked=false correction-limit
-			// thrash. Skip this settle while correctionPending so coasting during the
-			// Guild Hall idle frame cannot cancel the paced reverse.
+			// Do not let reachTolerance settle a past-target sample before a correction
+			// is armed — that skipped the steering contract (axis stayed x, then reverse).
+			// After a correction is armed, settle approach/past residues within reach
+			// (including sync characterization samples while rAF pacing is pending).
+			// Far past-target while pending must wait so Guild Hall idle oscillation
+			// (> reachTolerance) cannot cancel the paced reverse; once pending clears,
+			// past-target settle stops --fully-parallel thrash.
 			if (
 				distance <= routeState.settleTolerance ||
-				(!diagnostic.blocked && reached && distance <= routeState.reachTolerance) ||
-				(!diagnostic.blocked && pastTarget && routeState.correctionTaps >= 1 && !correctionPending)
+				(!diagnostic.blocked && reached && distance <= routeState.reachTolerance && !pastTarget) ||
+				(!diagnostic.blocked &&
+					pastTarget &&
+					routeState.correctionTaps >= 1 &&
+					(!correctionPending || distance <= routeState.reachTolerance))
 			) {
 				releaseKey();
 				let contractAdvanced = false;
