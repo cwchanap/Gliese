@@ -1,6 +1,7 @@
 import { expect, test, type Page } from '@playwright/test';
 import { mkdirSync } from 'node:fs';
 import { resolve } from 'node:path';
+import { startNewRunFromTitle } from './helpers/game';
 import { assertMeadowEntryPaintedV2CameraBoundsCovered } from '../../src/lib/game/content/backgrounds/meadow-entry-painted-v2-camera-envelope';
 import {
 	MEADOW_ENTRY_PAINTED_V2_APPROVED_RUNTIME_BACKGROUNDS,
@@ -17115,8 +17116,7 @@ test('Complete world layout foundation keeps historical Meadow art opt-in alongs
 	test.setTimeout(180_000);
 	await installRuntimeProbes(page);
 
-	await page.goto('/');
-	await expect(page.locator('canvas')).toBeVisible();
+	await startNewRunFromTitle(page);
 	const completeDiagnostic = await waitForMeadowPlaneDiagnostic(page);
 	expect(completeDiagnostic).toMatchObject({
 		mapId: 'meadow-entry',
@@ -18014,8 +18014,7 @@ test('encounter opens battle scene and returns through battle summary', async ({
 	});
 
 	await injectSave(page, save);
-	await page.goto('/');
-	await expect(page.locator('canvas')).toBeVisible();
+	await startNewRunFromTitle(page);
 
 	await page.getByRole('button', { name: 'Menu' }).click();
 	await commandBox(page).getByRole('button', { name: 'Resume Save' }).click();
@@ -18030,8 +18029,7 @@ test('encounter opens battle scene and returns through battle summary', async ({
 
 test('mobile HUD stacks without overlapping controls', async ({ page }) => {
 	await page.setViewportSize({ width: 390, height: 844 });
-	await page.goto('/');
-	await expect(page.locator('canvas')).toBeVisible();
+	await startNewRunFromTitle(page);
 
 	const viewport = page.viewportSize();
 	const menuButton = page.getByRole('button', { name: 'Menu' });
@@ -18074,8 +18072,7 @@ test('mobile HUD stacks without overlapping controls', async ({ page }) => {
 });
 
 test('inventory overlay opens from the menu', async ({ page }) => {
-	await page.goto('/');
-	await expect(page.locator('canvas')).toBeVisible();
+	await startNewRunFromTitle(page);
 	await expect(page.getByRole('button', { name: 'Menu' })).toBeVisible();
 
 	await page.getByRole('button', { name: 'Menu' }).click();
@@ -18115,8 +18112,7 @@ test('inventory overlay opens from the menu', async ({ page }) => {
 });
 
 test('area map opens from the menu and closes back to field HUD', async ({ page }) => {
-	await page.goto('/');
-	await expect(page.locator('canvas')).toBeVisible();
+	await startNewRunFromTitle(page);
 
 	await page.getByRole('button', { name: 'Menu' }).click();
 	await commandBox(page).getByRole('button', { name: 'Map' }).click();
@@ -18133,8 +18129,7 @@ test('area map opens from the menu and closes back to field HUD', async ({ page 
 });
 
 test('language preference shows Japanese chrome and keeps Japanese selected', async ({ page }) => {
-	await page.goto('/');
-	await expect(page.locator('canvas')).toBeVisible();
+	await startNewRunFromTitle(page);
 	await expect(page.getByRole('button', { name: 'Menu' })).toBeVisible();
 
 	await page.getByRole('button', { name: 'Menu' }).click();
@@ -18160,8 +18155,7 @@ test('language preference shows Japanese chrome and keeps Japanese selected', as
 });
 
 test('full hp potions explain why they cannot be consumed', async ({ page }) => {
-	await page.goto('/');
-	await expect(page.locator('canvas')).toBeVisible();
+	await startNewRunFromTitle(page);
 	await expect(page.getByRole('button', { name: 'Menu' })).toBeVisible();
 
 	await page.getByRole('button', { name: 'Menu' }).click();
@@ -18188,8 +18182,7 @@ test('double-clicking unequipped equipment equips it from inventory', async ({ p
 	});
 
 	await injectSave(page, save);
-	await page.goto('/');
-	await expect(page.locator('canvas')).toBeVisible();
+	await startNewRunFromTitle(page);
 
 	await page.getByRole('button', { name: 'Menu' }).click();
 	await commandBox(page).getByRole('button', { name: 'Resume Save' }).click();
@@ -18222,8 +18215,7 @@ test('shop overlay opens near a merchant and supports buying and selling', async
 		},
 		{ encoded: JSON.stringify(save), key: SAVE_STORAGE_KEY }
 	);
-	await page.goto('/');
-	await expect(page.locator('canvas')).toBeVisible();
+	await startNewRunFromTitle(page);
 
 	await page.getByRole('button', { name: 'Menu' }).click();
 	await commandBox(page).getByRole('button', { name: 'Resume Save' }).click();
@@ -18293,8 +18285,7 @@ test('interact key shop purchase appears in inventory', async ({ page }) => {
 		},
 		{ encoded: JSON.stringify(save), key: SAVE_STORAGE_KEY }
 	);
-	await page.goto('/');
-	await expect(page.locator('canvas')).toBeVisible();
+	await startNewRunFromTitle(page);
 
 	await page.getByRole('button', { name: 'Menu' }).click();
 	await commandBox(page).getByRole('button', { name: 'Resume Save' }).click();
@@ -20000,8 +19991,7 @@ test('quest log shows main quest and accepts Guild side quests', async ({ page }
 		},
 		{ encoded: JSON.stringify(save), key: SAVE_STORAGE_KEY }
 	);
-	await page.goto('/');
-	await expect(page.locator('canvas')).toBeVisible();
+	await startNewRunFromTitle(page);
 
 	await page.getByRole('button', { name: 'Menu' }).click();
 	await commandBox(page).getByRole('button', { name: 'Resume Save' }).click();
