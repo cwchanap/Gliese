@@ -202,82 +202,82 @@ describe('complete Meadow Entry painted-v2 master assembly', () => {
 		'assembles deterministic opaque canonical 6400×6400 output with both-axis handoffs',
 		async () => {
 			const input = await validInput();
-		const first = await assembleMeadowEntryPaintedV2CompleteMaster(input);
-		const second = await assembleMeadowEntryPaintedV2CompleteMaster(input);
-		expect(first.masterPng).toEqual(second.masterPng);
-		expect(first.provenanceJson).toEqual(second.provenanceJson);
-		validateCanonicalPngChunks(first.masterPng);
-		const decoded = await decodeMeadowEntryRgba(first.masterPng);
-		expect(decoded.width).toBe(MEADOW_ENTRY_PAINTED_V2_COMPLETE_MASTER_WIDTH);
-		expect(decoded.height).toBe(MEADOW_ENTRY_PAINTED_V2_COMPLETE_MASTER_HEIGHT);
-		for (let offset = 3; offset < decoded.data.length; offset += 4) {
-			expect(decoded.data[offset]).toBe(255);
-		}
+			const first = await assembleMeadowEntryPaintedV2CompleteMaster(input);
+			const second = await assembleMeadowEntryPaintedV2CompleteMaster(input);
+			expect(first.masterPng).toEqual(second.masterPng);
+			expect(first.provenanceJson).toEqual(second.provenanceJson);
+			validateCanonicalPngChunks(first.masterPng);
+			const decoded = await decodeMeadowEntryRgba(first.masterPng);
+			expect(decoded.width).toBe(MEADOW_ENTRY_PAINTED_V2_COMPLETE_MASTER_WIDTH);
+			expect(decoded.height).toBe(MEADOW_ENTRY_PAINTED_V2_COMPLETE_MASTER_HEIGHT);
+			for (let offset = 3; offset < decoded.data.length; offset += 4) {
+				expect(decoded.data[offset]).toBe(255);
+			}
 
-		// Non-overlap interiors remain byte-identical to their owning panel.
-		const panels = input.panels;
-		const northWest = await decodeMeadowEntryRgba(panels['north-west']!);
-		const northCenter = await decodeMeadowEntryRgba(panels['north-center']!);
-		const northMidWest = await decodeMeadowEntryRgba(panels['north-mid-west']!);
-		const southEast = await decodeMeadowEntryRgba(panels['south-east']!);
-		expect(pixel(decoded.data, decoded.width, 100, 100)).toEqual(
-			pixel(northWest.data, northWest.width, 100, 100)
-		);
-		expect(pixel(decoded.data, decoded.width, 3000, 100)).toEqual(
-			pixel(northCenter.data, northCenter.width, 3000 - 1984, 100)
-		);
-		expect(pixel(decoded.data, decoded.width, 6300, 6300)).toEqual(
-			pixel(southEast.data, southEast.width, 6300 - 3968, 6300 - 4608)
-		);
+			// Non-overlap interiors remain byte-identical to their owning panel.
+			const panels = input.panels;
+			const northWest = await decodeMeadowEntryRgba(panels['north-west']!);
+			const northCenter = await decodeMeadowEntryRgba(panels['north-center']!);
+			const northMidWest = await decodeMeadowEntryRgba(panels['north-mid-west']!);
+			const southEast = await decodeMeadowEntryRgba(panels['south-east']!);
+			expect(pixel(decoded.data, decoded.width, 100, 100)).toEqual(
+				pixel(northWest.data, northWest.width, 100, 100)
+			);
+			expect(pixel(decoded.data, decoded.width, 3000, 100)).toEqual(
+				pixel(northCenter.data, northCenter.width, 3000 - 1984, 100)
+			);
+			expect(pixel(decoded.data, decoded.width, 6300, 6300)).toEqual(
+				pixel(southEast.data, southEast.width, 6300 - 3968, 6300 - 4608)
+			);
 
-		// The exact outer endpoints of each seam retain the source panels while the
-		// interior is permitted to choose a content-aware handoff.
-		expect(pixel(decoded.data, decoded.width, 1984, 100)).toEqual(
-			pixel(northWest.data, northWest.width, 1984, 100)
-		);
-		expect(pixel(decoded.data, decoded.width, 2431, 100)).toEqual(
-			pixel(northCenter.data, northCenter.width, 2431 - 1984, 100)
-		);
-		expect(pixel(decoded.data, decoded.width, 100, 1536)).toEqual(
-			pixel(northWest.data, northWest.width, 100, 1536)
-		);
-		expect(pixel(decoded.data, decoded.width, 100, 1791)).toEqual(
-			pixel(northMidWest.data, northMidWest.width, 100, 1791 - 1536)
-		);
+			// The exact outer endpoints of each seam retain the source panels while the
+			// interior is permitted to choose a content-aware handoff.
+			expect(pixel(decoded.data, decoded.width, 1984, 100)).toEqual(
+				pixel(northWest.data, northWest.width, 1984, 100)
+			);
+			expect(pixel(decoded.data, decoded.width, 2431, 100)).toEqual(
+				pixel(northCenter.data, northCenter.width, 2431 - 1984, 100)
+			);
+			expect(pixel(decoded.data, decoded.width, 100, 1536)).toEqual(
+				pixel(northWest.data, northWest.width, 100, 1536)
+			);
+			expect(pixel(decoded.data, decoded.width, 100, 1791)).toEqual(
+				pixel(northMidWest.data, northMidWest.width, 100, 1791 - 1536)
+			);
 
-		// Interior pixels in each overlap are content-aware handoffs rather than
-		// either source's hard edge.
-		expect(pixel(decoded.data, decoded.width, 2200, 100)).not.toEqual(
-			pixel(northWest.data, northWest.width, 2200, 100)
-		);
-		expect(pixel(decoded.data, decoded.width, 2200, 100)).not.toEqual(
-			pixel(northCenter.data, northCenter.width, 2200 - 1984, 100)
-		);
-		expect(pixel(decoded.data, decoded.width, 100, 1650)).not.toEqual(
-			pixel(northWest.data, northWest.width, 100, 1650)
-		);
-		expect(pixel(decoded.data, decoded.width, 100, 1650)).not.toEqual(
-			pixel(northMidWest.data, northMidWest.width, 100, 1650 - 1536)
-		);
+			// Interior pixels in each overlap are content-aware handoffs rather than
+			// either source's hard edge.
+			expect(pixel(decoded.data, decoded.width, 2200, 100)).not.toEqual(
+				pixel(northWest.data, northWest.width, 2200, 100)
+			);
+			expect(pixel(decoded.data, decoded.width, 2200, 100)).not.toEqual(
+				pixel(northCenter.data, northCenter.width, 2200 - 1984, 100)
+			);
+			expect(pixel(decoded.data, decoded.width, 100, 1650)).not.toEqual(
+				pixel(northWest.data, northWest.width, 100, 1650)
+			);
+			expect(pixel(decoded.data, decoded.width, 100, 1650)).not.toEqual(
+				pixel(northMidWest.data, northMidWest.width, 100, 1650 - 1536)
+			);
 
-		const provenance = JSON.parse(first.provenanceJson.toString('utf8')) as Record<
-			string,
-			unknown
-		>;
-		expect(provenance).toMatchObject({
-			packageId: 'meadow-entry-painted-v2-complete',
-			controlFingerprint: MEADOW_ENTRY_PAINTED_V2_COMPLETE_CONTROL_FINGERPRINT,
-			dimensions: { width: 6400, height: 6400 },
-			rejectionHistory: []
-		});
-		expect(provenance.panels).toHaveLength(12);
-		for (const panel of provenance.panels as Array<Record<string, unknown>>) {
-			expect(panel.provenanceSha256).toMatch(/^[a-f0-9]{64}$/);
-			expect(panel.rejectionHistory).toEqual([]);
-		}
-	},
-	450_000
-);
+			const provenance = JSON.parse(first.provenanceJson.toString('utf8')) as Record<
+				string,
+				unknown
+			>;
+			expect(provenance).toMatchObject({
+				packageId: 'meadow-entry-painted-v2-complete',
+				controlFingerprint: MEADOW_ENTRY_PAINTED_V2_COMPLETE_CONTROL_FINGERPRINT,
+				dimensions: { width: 6400, height: 6400 },
+				rejectionHistory: []
+			});
+			expect(provenance.panels).toHaveLength(12);
+			for (const panel of provenance.panels as Array<Record<string, unknown>>) {
+				expect(panel.provenanceSha256).toMatch(/^[a-f0-9]{64}$/);
+				expect(panel.rejectionHistory).toEqual([]);
+			}
+		},
+		450_000
+	);
 
 	it('uses each incoming row local top strip for vertical joins', async () => {
 		const input = await coordinateEncodedInput();
