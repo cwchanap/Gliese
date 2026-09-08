@@ -613,6 +613,22 @@ describe('GameShell inventory', () => {
 		await expect.element(emptySlot).toHaveClass(/border-parchment/);
 		await expect.element(emptySlot).toHaveClass(/text-muted/);
 	});
+
+	it('closes on Escape and restores focus to the menu button', async () => {
+		render(GameShell);
+		emitHudState(baseHudState());
+
+		const menuButton = page.getByRole('button', { name: /menu/i });
+		await menuButton.click();
+		await page.getByRole('button', { name: /inventory/i }).click();
+		const dialog = page.getByRole('dialog', { name: /inventory/i });
+		await expect.element(dialog).toBeVisible();
+
+		await userEvent.keyboard('{Escape}');
+
+		expect(dialog.elements()).toHaveLength(0);
+		await expect.element(menuButton).toHaveFocus();
+	});
 });
 
 describe('GameShell shop', () => {
@@ -687,6 +703,51 @@ describe('GameShell shop', () => {
 		const focused = document.activeElement;
 		expect(focused).toBeTruthy();
 		expect(dialog.element()?.contains(focused)).toBe(true);
+	});
+
+	it('opens from the command menu when a shop is nearby', async () => {
+		await withCommands(async (commands) => {
+			render(GameShell);
+			emitHudState(
+				baseHudState({
+					nearbyShop: {
+						shopId: 'miras-item-shop',
+						name: "Mira's Item Shop",
+						merchantName: 'Mira'
+					}
+				})
+			);
+
+			await page.getByRole('button', { name: /menu/i }).click();
+			await page.getByRole('button', { name: /shop/i }).click();
+
+			await expect.element(page.getByRole('dialog', { name: /Mira's Item Shop/i })).toBeVisible();
+			expect(commands).toContainEqual({ type: 'open-shop', shopId: 'miras-item-shop' });
+		});
+	});
+
+	it('closes on Escape and restores focus to the menu button', async () => {
+		render(GameShell);
+		emitHudState(
+			baseHudState({
+				nearbyShop: {
+					shopId: 'miras-item-shop',
+					name: "Mira's Item Shop",
+					merchantName: 'Mira'
+				}
+			})
+		);
+
+		await page.getByRole('button', { name: /menu/i }).click();
+		await page.getByRole('button', { name: /shop/i }).click();
+
+		const dialog = page.getByRole('dialog', { name: /Mira's Item Shop/i });
+		await expect.element(dialog).toBeVisible();
+
+		await userEvent.keyboard('{Escape}');
+
+		expect(dialog.elements()).toHaveLength(0);
+		await expect.element(page.getByRole('button', { name: /menu/i })).toHaveFocus();
 	});
 });
 
@@ -800,6 +861,21 @@ describe('GameShell area map', () => {
 
 		await page.getByRole('button', { name: /close/i }).click();
 		await expect.element(menuButton).toHaveAttribute('aria-expanded', 'false');
+	});
+
+	it('closes on Escape and restores focus to the menu button', async () => {
+		render(GameShell);
+		emitHudState(baseHudState());
+
+		await page.getByRole('button', { name: /menu/i }).click();
+		await page.getByRole('button', { name: /map/i }).click();
+		const mapSvg = page.getByTestId('area-map-svg');
+		await expect.element(mapSvg).toBeVisible();
+
+		await userEvent.keyboard('{Escape}');
+
+		expect(mapSvg.elements()).toHaveLength(0);
+		await expect.element(page.getByRole('button', { name: /menu/i })).toHaveFocus();
 	});
 });
 
