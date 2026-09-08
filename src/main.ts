@@ -1,10 +1,9 @@
-import '@fontsource/cinzel/500.css';
-import '@fontsource/cinzel/600.css';
-import '@fontsource/cinzel/700.css';
-import '@fontsource/cinzel/900.css';
 import '@fontsource/spectral/400.css';
 import '@fontsource/spectral/500.css';
 import '@fontsource/spectral/600.css';
+import '@fontsource/zen-maru-gothic/500.css';
+import '@fontsource/zen-maru-gothic/700.css';
+import '@fontsource/zen-maru-gothic/900.css';
 import { mount } from 'svelte';
 import App from './App.svelte';
 import './app.css';
@@ -16,8 +15,8 @@ async function bootstrap() {
 	const storage = await hydrateTauriStorage();
 	setSaveStorage(storage);
 
-	const { initializeLocale } = await import('$lib/game/i18n/store');
-	initializeLocale();
+	const { initializePreferences } = await import('$lib/game/i18n/store');
+	initializePreferences();
 
 	if (typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window) {
 		const { getCurrentWindow } = await import('@tauri-apps/api/window');

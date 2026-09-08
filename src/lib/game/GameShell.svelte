@@ -6,6 +6,7 @@
 	import FieldHud from '$lib/game/ui/FieldHud.svelte';
 	import QuestJournal from '$lib/game/ui/QuestJournal.svelte';
 	import ShopScreen from '$lib/game/ui/ShopScreen.svelte';
+	import SystemScreen from '$lib/game/ui/SystemScreen.svelte';
 	import { locale, setActiveLocale } from '$lib/game/i18n/store';
 	import { localeLabels, supportedLocales, type Locale } from '$lib/game/i18n/locales';
 	import { t } from '$lib/game/i18n/translate';
@@ -30,7 +31,7 @@
 	} from '$lib/game/ui-bridge/store';
 	import type { EquipmentSlot } from '$lib/game/content/items';
 
-	type OverlayPauseOwner = 'settings' | 'inventory' | 'shop' | 'questLog' | 'areaMap';
+	type OverlayPauseOwner = 'settings' | 'system' | 'inventory' | 'shop' | 'questLog' | 'areaMap';
 
 	let mountNode: HTMLDivElement | undefined;
 	let menuButton = $state<HTMLButtonElement>();
@@ -42,6 +43,8 @@
 	let questLogCloseButton = $state<HTMLButtonElement>();
 	let areaMapDialog = $state<HTMLDivElement>();
 	let areaMapCloseButton = $state<HTMLButtonElement>();
+	let systemDialog = $state<HTMLDivElement>();
+	let systemCloseButton = $state<HTMLButtonElement>();
 	let battleSummaryDialog = $state<HTMLDivElement>();
 	let battleSummaryContinueButton = $state<HTMLButtonElement>();
 	let inventoryFocusRestoreTarget: HTMLElement | null = null;
@@ -53,6 +56,7 @@
 	let shopOpen = $state(false);
 	let questLogOpen = $state(false);
 	let areaMapOpen = $state(false);
+	let systemOpen = $state(false);
 	let pauseOwner = $state<OverlayPauseOwner | null>(null);
 
 	const battlePhase = $derived($hudState.battle.phase);
@@ -151,6 +155,21 @@
 		void focusAreaMapDialog();
 	}
 
+	function openSystem() {
+		if (systemOpen || battleLocked) return;
+		commandOpen = false;
+		systemOpen = true;
+		pauseForOverlay('system');
+		void focusSystemDialog();
+	}
+
+	function closeSystem() {
+		if (!systemOpen) return;
+		systemOpen = false;
+		resumeForOverlay('system');
+		menuButton?.focus();
+	}
+
 	function closeAreaMap() {
 		if (!areaMapOpen) return;
 		areaMapOpen = false;
@@ -176,7 +195,7 @@
 			return;
 		}
 
-		const otherOverlayOpen = commandOpen || inventoryOpen || shopOpen || questLogOpen;
+		const otherOverlayOpen = commandOpen || inventoryOpen || shopOpen || questLogOpen || systemOpen;
 		if (otherOverlayOpen || battleLocked || !$hudState.ready) return;
 
 		event.preventDefault();
@@ -202,6 +221,7 @@
 		shopOpen = false;
 		questLogOpen = false;
 		areaMapOpen = false;
+		systemOpen = false;
 		pauseOwner = null;
 
 		if (wasShopOpen) requestCloseShop();
@@ -271,6 +291,11 @@
 	async function focusAreaMapDialog() {
 		await tick();
 		(areaMapCloseButton ?? areaMapDialog)?.focus();
+	}
+
+	async function focusSystemDialog() {
+		await tick();
+		(systemCloseButton ?? systemDialog)?.focus();
 	}
 
 	async function focusBattleSummaryDialog() {
@@ -400,6 +425,44 @@
 		if (focusableElements.length === 0) {
 			event.preventDefault();
 			areaMapDialog?.focus();
+			return;
+		}
+
+		const firstElement = focusableElements[0];
+		const lastElement = focusableElements.at(-1);
+
+		if (event.shiftKey && document.activeElement === firstElement) {
+			event.preventDefault();
+			lastElement?.focus();
+		} else if (!event.shiftKey && document.activeElement === lastElement) {
+			event.preventDefault();
+			firstElement.focus();
+		}
+	}
+
+	function getSystemFocusableElements() {
+		if (!systemDialog) return [];
+
+		return Array.from(
+			systemDialog.querySelectorAll<HTMLElement>(
+				'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+			)
+		).filter((element) => element.tabIndex >= 0 && element.getClientRects().length > 0);
+	}
+
+	function handleSystemDialogKeydown(event: KeyboardEvent) {
+		if (event.key === 'Escape') {
+			event.preventDefault();
+			closeSystem();
+			return;
+		}
+
+		if (event.key !== 'Tab') return;
+
+		const focusableElements = getSystemFocusableElements();
+		if (focusableElements.length === 0) {
+			event.preventDefault();
+			systemDialog?.focus();
 			return;
 		}
 
@@ -629,6 +692,14 @@
 				>
 					{t($locale, 'ui.useHeal')}
 				</button>
+				<button
+					type="button"
+					class="glass-button jrpg-command-action"
+					onclick={openSystem}
+					disabled={battleLocked}
+				>
+					{t($locale, 'ui.system')}
+				</button>
 			</div>
 			<div class="jrpg-command-status">
 				{$hudState.status}
@@ -794,6 +865,13 @@
 		onBuy={requestBuyShopItem}
 		onSell={requestSellInventoryItem}
 		onkeydown={handleShopDialogKeydown}
+	/>
+	<SystemScreen
+		open={systemOpen}
+		bind:dialog={systemDialog}
+		bind:closeButton={systemCloseButton}
+		onClose={closeSystem}
+		onkeydown={handleSystemDialogKeydown}
 	/>
 </section>
 

@@ -1,10 +1,19 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import {
-	LANGUAGE_PREFERENCE_STORAGE_KEY,
-	loadLanguagePreference
+	DEFAULT_PREFERENCES,
+	PREFERENCES_STORAGE_KEY,
+	type UiPreferences
 } from '$lib/game/i18n/preferences';
-import { getActiveLocale, initializeLocale, locale, setActiveLocale } from '$lib/game/i18n/store';
+import {
+	getActiveLocale,
+	getActivePreferences,
+	initializePreferences,
+	locale,
+	preferences,
+	setActiveLocale,
+	updatePreferences
+} from '$lib/game/i18n/store';
 import { setSaveStorage, type SaveStorage } from '$lib/game/save/storage';
 
 function createMemoryStorage(initial: Record<string, string> = {}): SaveStorage {
@@ -16,42 +25,91 @@ function createMemoryStorage(initial: Record<string, string> = {}): SaveStorage 
 	};
 }
 
-describe('locale store', () => {
+describe('preferences store', () => {
 	let storage: SaveStorage;
 
 	beforeEach(() => {
 		storage = createMemoryStorage();
 		setSaveStorage(storage);
-		setActiveLocale('en');
+		initializePreferences();
 	});
 
 	afterEach(() => {
-		setActiveLocale('en');
 		setSaveStorage(undefined);
 	});
 
-	it('initializes from saved preference and publishes the locale', () => {
-		storage.setItem(LANGUAGE_PREFERENCE_STORAGE_KEY, 'ja');
-		const published: string[] = [];
-		const unsubscribe = locale.subscribe((value) => published.push(value));
+	it('initializes from the saved JSON record and publishes it', () => {
+		const record: UiPreferences = {
+			locale: 'ja',
+			textSpeed: 'instant',
+			motion: 'reduced',
+			promptMode: 'keys'
+		};
+		storage.setItem(PREFERENCES_STORAGE_KEY, JSON.stringify(record));
 
-		expect(initializeLocale()).toBe('ja');
-		expect(getActiveLocale()).toBe('ja');
-		expect(published.at(-1)).toBe('ja');
+		const published: UiPreferences[] = [];
+		const unsubscribe = preferences.subscribe((value) => published.push(value));
+
+		expect(initializePreferences()).toEqual(record);
+		expect(getActivePreferences()).toEqual(record);
+		expect(published.at(-1)).toEqual(record);
 
 		unsubscribe();
 	});
 
-	it('updates the active locale and saves the preference', () => {
+	it('exposes locale as a view of the same record', () => {
+		storage.setItem(
+			PREFERENCES_STORAGE_KEY,
+			JSON.stringify({ ...DEFAULT_PREFERENCES, locale: 'ja' })
+		);
+
 		const published: string[] = [];
 		const unsubscribe = locale.subscribe((value) => published.push(value));
 
-		setActiveLocale('zh-Hant');
-
-		expect(getActiveLocale()).toBe('zh-Hant');
-		expect(loadLanguagePreference(storage)).toBe('zh-Hant');
-		expect(published).toEqual(['en', 'zh-Hant']);
+		initializePreferences();
+		expect(published.at(-1)).toBe('ja');
+		expect(getActiveLocale()).toBe('ja');
 
 		unsubscribe();
+	});
+
+	it('setActiveLocale delegates to updatePreferences and persists the record', () => {
+		const published: UiPreferences[] = [];
+		const unsubscribe = preferences.subscribe((value) => published.push(value));
+
+		setActiveLocale('zh-Hant');
+
+		const expected: UiPreferences = { ...DEFAULT_PREFERENCES, locale: 'zh-Hant' };
+		expect(getActivePreferences()).toEqual(expected);
+		expect(getActiveLocale()).toBe('zh-Hant');
+		expect(JSON.parse(storage.getItem(PREFERENCES_STORAGE_KEY)!)).toEqual(expected);
+		expect(published.at(-1)).toEqual(expected);
+
+		unsubscribe();
+	});
+
+	it('updatePreferences patches a single field and persists the merged record', () => {
+		updatePreferences({ textSpeed: 'instant' });
+
+		const expected: UiPreferences = { ...DEFAULT_PREFERENCES, textSpeed: 'instant' };
+		expect(getActivePreferences()).toEqual(expected);
+		expect(getActiveLocale()).toBe('en');
+		expect(JSON.parse(storage.getItem(PREFERENCES_STORAGE_KEY)!)).toEqual(expected);
+	});
+
+	it('keeps unspecified fields when updating repeatedly', () => {
+		updatePreferences({ promptMode: 'pad' });
+		updatePreferences({ motion: 'reduced' });
+
+		expect(getActivePreferences()).toEqual({
+			...DEFAULT_PREFERENCES,
+			motion: 'reduced',
+			promptMode: 'pad'
+		});
+		expect(JSON.parse(storage.getItem(PREFERENCES_STORAGE_KEY)!)).toEqual({
+			...DEFAULT_PREFERENCES,
+			motion: 'reduced',
+			promptMode: 'pad'
+		});
 	});
 });

@@ -7,7 +7,7 @@ import {
 	rename
 } from '@tauri-apps/plugin-fs';
 
-import { LANGUAGE_PREFERENCE_STORAGE_KEY } from '$lib/game/i18n/preferences';
+import { PREFERENCES_STORAGE_KEY } from '$lib/game/i18n/preferences';
 import { SAVE_STORAGE_KEY, type SaveStorage } from '$lib/game/save/storage';
 
 export const SAVE_FILE_DIR = 'com.gliese.app';
@@ -45,7 +45,7 @@ export async function hydrateTauriStorage(): Promise<SaveStorage> {
 	const cache = new Map<string, string>();
 
 	await readStorageFile(cache, SAVE_STORAGE_KEY, SAVE_FILE_NAME);
-	await readStorageFile(cache, LANGUAGE_PREFERENCE_STORAGE_KEY, PREFERENCES_FILE_NAME);
+	await readStorageFile(cache, PREFERENCES_STORAGE_KEY, PREFERENCES_FILE_NAME);
 
 	return {
 		getItem(key) {
@@ -56,7 +56,7 @@ export async function hydrateTauriStorage(): Promise<SaveStorage> {
 			if (key === SAVE_STORAGE_KEY) {
 				scheduleWrite(saveWriteQueue, value);
 			}
-			if (key === LANGUAGE_PREFERENCE_STORAGE_KEY) {
+			if (key === PREFERENCES_STORAGE_KEY) {
 				scheduleWrite(preferencesWriteQueue, value);
 			}
 		},
@@ -65,7 +65,7 @@ export async function hydrateTauriStorage(): Promise<SaveStorage> {
 			if (key === SAVE_STORAGE_KEY) {
 				scheduleWrite(saveWriteQueue, '');
 			}
-			if (key === LANGUAGE_PREFERENCE_STORAGE_KEY) {
+			if (key === PREFERENCES_STORAGE_KEY) {
 				scheduleWrite(preferencesWriteQueue, '');
 			}
 		}

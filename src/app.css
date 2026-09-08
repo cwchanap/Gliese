@@ -1,31 +1,31 @@
 @import 'tailwindcss';
+@import './lib/game/ui/heroic-ui.css';
 
 @theme {
-	/* Surfaces */
-	--color-ink: #0a0712;
-	--color-panel-glass: rgba(22, 18, 38, 0.82);
-	--color-panel-glass-strong: rgba(18, 15, 32, 0.94);
+	/* Heroic tokens (Heroic UI visual parity) */
+	--color-ink: #070512;
+	--color-panel: #142a63;
+	--color-panel-deep: #0c1a4a;
+	--color-gold: #ffe08a;
+	--color-emerald: #8dffbd;
+	--color-sapphire: #9ad2ff;
+	--color-violet: #d9a9ff;
+	--color-rose: #ff8a9e;
+	--font-display: 'Zen Maru Gothic', system-ui, sans-serif;
+	--font-body: 'Spectral', Georgia, serif;
 
-	/* Framing + text */
-	--color-frame: rgba(243, 210, 122, 0.34);
-	--color-frame-strong: rgba(243, 210, 122, 0.62);
-	--color-parchment: #f6efe0;
-	--color-muted: #b6a9c8;
-
-	/* Jewel accents */
-	--color-gold: #f3d27a;
-	--color-gold-bright: #ffe6a8;
-	--color-sapphire: #6ab4f5;
-	--color-emerald: #5fd89b;
-	--color-amber: #ffc857;
-	--color-rose: #f0617a;
-
-	/* Type */
-	--font-display: 'Cinzel', 'Trajan Pro', serif;
-	--font-body: 'Spectral', 'Georgia', serif;
-
-	/* Frame radius */
-	--radius-arcane: 0.28rem;
+	/* Legacy Arcane-era names still referenced by surfaces not yet migrated
+	   (Tasks 3+). Aliased to Heroic values so existing classes keep resolving;
+	   remove each alias when its last .glass-* / .arcane-* surface migrates. */
+	--color-parchment: #eef2ff;
+	--color-muted: #93a2d9;
+	--color-frame: rgba(154, 178, 255, 0.26);
+	--color-frame-strong: rgba(154, 178, 255, 0.52);
+	--color-panel-glass: rgba(20, 42, 99, 0.92);
+	--color-panel-glass-strong: rgba(12, 26, 74, 0.96);
+	--color-gold-bright: #fff3c8;
+	--color-amber: #ffd479;
+	--radius-arcane: 0.75rem;
 }
 
 @layer components {
