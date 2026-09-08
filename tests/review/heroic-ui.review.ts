@@ -46,8 +46,9 @@ test('System screen capture through the menu path', async ({ page }) => {
 	);
 	await expect(dialog.getByRole('button', { name: 'Full', exact: true })).toBeDisabled();
 
-	// Let the Heroic entrance animation (280ms) finish before capturing.
-	await page.waitForTimeout(400);
+	// Let the Heroic entrance + stagger settle fully (last row: 300ms delay +
+	// 320ms duration ≈ 620ms) before capturing.
+	await page.waitForTimeout(700);
 
 	await page.screenshot({
 		path: 'docs/visual-references/heroic-ui/runtime/10-system.png'
