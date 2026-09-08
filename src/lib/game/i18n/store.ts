@@ -1,26 +1,40 @@
-import { defaultLocale, type Locale } from '$lib/game/i18n/locales';
-import { resolveInitialLocale, saveLanguagePreference } from '$lib/game/i18n/preferences';
-import { writable } from 'svelte/store';
+import { type Locale } from '$lib/game/i18n/locales';
+import { loadPreferences, savePreferences, type UiPreferences } from '$lib/game/i18n/preferences';
+import { derived, writable } from 'svelte/store';
 
-let activeLocale: Locale = defaultLocale;
-const localeStore = writable<Locale>(activeLocale);
+let activePreferences: UiPreferences = loadPreferences();
+const preferencesStore = writable<UiPreferences>(activePreferences);
 
-export const locale = {
-	subscribe: localeStore.subscribe
+/** Svelte-readable view of the full preferences record. */
+export const preferences = {
+	subscribe: preferencesStore.subscribe
 };
 
-export function initializeLocale(): Locale {
-	activeLocale = resolveInitialLocale();
-	localeStore.set(activeLocale);
-	return activeLocale;
+/** Locale view of the same record (kept for existing `$locale` consumers). */
+export const locale = {
+	subscribe: derived(preferencesStore, ($preferences) => $preferences.locale).subscribe
+};
+
+export function initializePreferences(): UiPreferences {
+	activePreferences = loadPreferences();
+	preferencesStore.set(activePreferences);
+	return activePreferences;
+}
+
+export function getActivePreferences(): UiPreferences {
+	return activePreferences;
 }
 
 export function getActiveLocale(): Locale {
-	return activeLocale;
+	return activePreferences.locale;
 }
 
-export function setActiveLocale(locale: Locale): void {
-	activeLocale = locale;
-	localeStore.set(locale);
-	saveLanguagePreference(locale);
+export function updatePreferences(patch: Partial<UiPreferences>): void {
+	activePreferences = { ...activePreferences, ...patch };
+	preferencesStore.set(activePreferences);
+	savePreferences(activePreferences);
+}
+
+export function setActiveLocale(value: Locale): void {
+	updatePreferences({ locale: value });
 }

@@ -1201,3 +1201,22 @@ describe('GameShell error handling', () => {
 		await expect.element(page.getByText(/unable to start the game shell/i)).toBeVisible();
 	});
 });
+
+describe('GameShell system screen', () => {
+	it('opens from the command menu and closes on Escape restoring focus', async () => {
+		render(GameShell);
+		emitHudState(baseHudState());
+
+		const menuButton = page.getByRole('button', { name: /menu/i });
+		await menuButton.click();
+		await page.getByRole('button', { name: /system/i }).click();
+
+		const dialog = page.getByRole('dialog', { name: /display & text/i });
+		await expect.element(dialog).toBeVisible();
+
+		await userEvent.keyboard('{Escape}');
+
+		expect(dialog.elements()).toHaveLength(0);
+		await expect.element(menuButton).toHaveFocus();
+	});
+});
