@@ -118,7 +118,7 @@
 				<header class="system-header">
 					<div>
 						<p class="heroic-eyebrow">{t($locale, 'ui.system')}</p>
-						<h2 id="system-heading" class="heroic-title font-display">
+						<h2 id="system-heading" class="heroic-title">
 							{t($locale, 'ui.systemTitle')}
 						</h2>
 					</div>
