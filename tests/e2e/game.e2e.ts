@@ -495,6 +495,7 @@ async function installRuntimeProbes(
 			correctionTaps: number;
 			noProgressDiagnostics: number;
 			settledAxes: { x: boolean; y: boolean };
+			blockedAxes: { x: boolean; y: boolean };
 			axisHistory: Axis[];
 			diagnostics: PlayerMovementDiagnostic[];
 			invalidDiagnostics: PlayerMovementDiagnostic[];
@@ -1113,6 +1114,7 @@ async function installRuntimeProbes(
 				}
 				routeState.pointIndex += 1;
 				routeState.settledAxes = { x: false, y: false };
+				routeState.blockedAxes = { x: false, y: false };
 				contractAdvanced = true;
 			}
 			routeState.axis = null;
@@ -1141,13 +1143,7 @@ async function installRuntimeProbes(
 				resolvedPosition: { ...diagnostic.resolvedPosition },
 				blocked: diagnostic.blocked
 			};
-			if (
-				diagnostic.mapId !== routeState.mapId ||
-				diagnostic.blocked ||
-				!axis ||
-				!target ||
-				!routeState.position
-			) {
+			if (diagnostic.mapId !== routeState.mapId || !axis || !target || !routeState.position) {
 				routeState.movementCount += 1;
 				routeState.lastMovementAt = movementAt;
 				routeState.invalidDiagnostics.push(clonedDiagnostic);
@@ -1161,8 +1157,6 @@ async function installRuntimeProbes(
 			routeState.movementCount += 1;
 			routeState.lastMovementAt = movementAt;
 			routeState.lastDiagnostic = clonedDiagnostic;
-			routeState.diagnostics.push(clonedDiagnostic);
-			routeState.diagnosticAxes.push(axis);
 			routeState.position = { ...diagnostic.resolvedPosition };
 			const value = diagnostic.resolvedPosition[axis];
 			const previous = diagnostic.previousPosition[axis];
@@ -1187,15 +1181,42 @@ async function installRuntimeProbes(
 					if (distanceDecreased || contractAdvanced) {
 						routeState.lastProgressAt = movementAt;
 					}
-				} else {
-					failRoute(
-						`blocked at point ${routeState.pointIndex} axis ${axis} target ${JSON.stringify(target)}`
-					);
+					return;
 				}
+				// Blocked far from target on this axis. Mark it and try to route
+				// around via the other axis if it still has distance to this
+				// waypoint — e.g. the hero settled the previous axis a few px off
+				// and landed on a prop collision that does not exist on-axis.
+				routeState.blockedAxes[axis] = true;
+				const otherAxis: Axis = axis === 'x' ? 'y' : 'x';
+				const otherDelta = target[otherAxis] - routeState.position[otherAxis];
+				if (
+					!routeState.blockedAxes[otherAxis] &&
+					Math.abs(otherDelta) > routeState.settleTolerance
+				) {
+					cancelScheduledCorrection();
+					routeState.noProgressDiagnostics = 0;
+					routeState.axis = otherAxis;
+					routeState.axisHistory.push(otherAxis);
+					routeState.target = { ...target };
+					routeState.correctionTaps = 0;
+					pressKey(axisKey(otherAxis, otherDelta));
+					return;
+				}
+				failRoute(
+					`blocked at point ${routeState.pointIndex} axis ${axis} target ${JSON.stringify(target)}`
+				);
 				return;
 			}
+			if (!diagnostic.blocked) {
+				routeState.diagnostics.push(clonedDiagnostic);
+				routeState.diagnosticAxes.push(axis);
+			}
 			if (!reached) {
-				if (distanceDecreased) routeState.lastProgressAt = movementAt;
+				if (distanceDecreased) {
+					routeState.lastProgressAt = movementAt;
+					routeState.blockedAxes[axis] = false;
+				}
 				if (previous === value) routeState.noProgressDiagnostics += 1;
 				else routeState.noProgressDiagnostics = 0;
 				if (routeState.noProgressDiagnostics >= 32) {
@@ -1245,10 +1266,16 @@ async function installRuntimeProbes(
 				// Already pacing a correction: keep this coasting sample authoritative
 				// but do not schedule another reverse (that burned taps under >=2 and
 				// either skipped the Guild Hall ArrowUp or failed to stop Meadow thrash).
-				if (distanceDecreased) routeState.lastProgressAt = movementAt;
+				if (distanceDecreased) {
+					routeState.lastProgressAt = movementAt;
+					routeState.blockedAxes[axis] = false;
+				}
 				return;
 			}
-			if (distanceDecreased) routeState.lastProgressAt = movementAt;
+			if (distanceDecreased) {
+				routeState.lastProgressAt = movementAt;
+				routeState.blockedAxes[axis] = false;
+			}
 			if (routeState.correctionTaps >= routeState.maxCorrectionTaps) {
 				failRoute(
 					`correction limit at point ${routeState.pointIndex} axis ${axis} target ${JSON.stringify(target)}`
@@ -1331,6 +1358,7 @@ async function installRuntimeProbes(
 					correctionTaps: 0,
 					noProgressDiagnostics: 0,
 					settledAxes: { x: false, y: false },
+					blockedAxes: { x: false, y: false },
 					axisHistory: [],
 					diagnostics: [],
 					invalidDiagnostics: [],
