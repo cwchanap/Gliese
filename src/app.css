@@ -179,6 +179,34 @@
 		opacity: 0.42;
 	}
 
+	/* ---- Shared JRPG label + small pill button ---------------------- */
+	/* Global (not scoped to GameShell) because the extracted screen
+	   components in src/lib/game/ui/ use them outside GameShell's scope.
+	   Kept after .glass-button so these overrides win the layer. */
+	.jrpg-label {
+		margin: 0;
+		font-size: 0.62rem;
+		font-weight: 900;
+		letter-spacing: 0;
+		color: var(--color-gold);
+		text-transform: uppercase;
+	}
+
+	.jrpg-small-button {
+		/* border/background/color from glass-button; font-weight intentionally overrides glass-button's 600 */
+		font-weight: 900;
+		border-radius: 999px;
+		padding: 0.42rem 0.65rem;
+		font-size: 0.62rem;
+		letter-spacing: 0.12em;
+		text-transform: uppercase;
+	}
+	.jrpg-small-button:hover,
+	.jrpg-small-button:focus-visible {
+		/* hover/focus handled by glass-button — keep only unique override */
+		transform: translateX(2px);
+	}
+
 	/* ---- Jeweled inventory/shop cell -------------------------------- */
 	.jeweled-cell {
 		position: relative;
@@ -339,6 +367,8 @@
 	}
 
 	.glass-button,
+	.jrpg-small-button:hover,
+	.jrpg-small-button:focus-visible,
 	.arcane-meter > span,
 	.jeweled-cell,
 	.jeweled-cell-action:hover {
