@@ -1143,7 +1143,23 @@ async function installRuntimeProbes(
 				resolvedPosition: { ...diagnostic.resolvedPosition },
 				blocked: diagnostic.blocked
 			};
-			if (diagnostic.mapId !== routeState.mapId || !axis || !target || !routeState.position) {
+			// A blocked diagnostic whose resolved position moved is faithless
+			// evidence — the real engine rejects the whole step, so resolved ===
+			// previous on every axis. Record it as invalid without mutating route
+			// state; a faithful block (resolved === previous) flows on to the
+			// blocked handler below, where near-target blocks settle and hard
+			// blocks fail fast instead of freezing on the no-progress watchdog.
+			const blockedEvidenceMoved =
+				diagnostic.blocked &&
+				(diagnostic.resolvedPosition.x !== diagnostic.previousPosition.x ||
+					diagnostic.resolvedPosition.y !== diagnostic.previousPosition.y);
+			if (
+				diagnostic.mapId !== routeState.mapId ||
+				blockedEvidenceMoved ||
+				!axis ||
+				!target ||
+				!routeState.position
+			) {
 				routeState.movementCount += 1;
 				routeState.lastMovementAt = movementAt;
 				routeState.invalidDiagnostics.push(clonedDiagnostic);
@@ -1157,6 +1173,12 @@ async function installRuntimeProbes(
 			routeState.movementCount += 1;
 			routeState.lastMovementAt = movementAt;
 			routeState.lastDiagnostic = clonedDiagnostic;
+			// Blocked steps carry no position change; keep them out of the
+			// diagnostics the runner cross-checks against the game's records.
+			if (!diagnostic.blocked) {
+				routeState.diagnostics.push(clonedDiagnostic);
+				routeState.diagnosticAxes.push(axis);
+			}
 			routeState.position = { ...diagnostic.resolvedPosition };
 			const value = diagnostic.resolvedPosition[axis];
 			const previous = diagnostic.previousPosition[axis];
@@ -1181,36 +1203,36 @@ async function installRuntimeProbes(
 					if (distanceDecreased || contractAdvanced) {
 						routeState.lastProgressAt = movementAt;
 					}
-					return;
+				} else {
+					// Blocked far from target with correction budget remaining: try
+					// to route around via the other axis if it still has distance to
+					// this waypoint — e.g. the hero settled the previous axis a few
+					// px off and landed on a prop collision that does not exist
+					// on-axis. Without budget the steering contract requires a hard
+					// blocked error (see the characterization's blocked-exhausted
+					// case), so fall through to failRoute instead.
+					routeState.blockedAxes[axis] = true;
+					const otherAxis: Axis = axis === 'x' ? 'y' : 'x';
+					const otherDelta = target[otherAxis] - routeState.position[otherAxis];
+					if (
+						routeState.correctionTaps < routeState.maxCorrectionTaps &&
+						!routeState.blockedAxes[otherAxis] &&
+						Math.abs(otherDelta) > routeState.settleTolerance
+					) {
+						cancelScheduledCorrection();
+						routeState.noProgressDiagnostics = 0;
+						routeState.axis = otherAxis;
+						routeState.axisHistory.push(otherAxis);
+						routeState.target = { ...target };
+						routeState.correctionTaps = 0;
+						pressKey(axisKey(otherAxis, otherDelta));
+						return;
+					}
+					failRoute(
+						`blocked at point ${routeState.pointIndex} axis ${axis} target ${JSON.stringify(target)}`
+					);
 				}
-				// Blocked far from target on this axis. Mark it and try to route
-				// around via the other axis if it still has distance to this
-				// waypoint — e.g. the hero settled the previous axis a few px off
-				// and landed on a prop collision that does not exist on-axis.
-				routeState.blockedAxes[axis] = true;
-				const otherAxis: Axis = axis === 'x' ? 'y' : 'x';
-				const otherDelta = target[otherAxis] - routeState.position[otherAxis];
-				if (
-					!routeState.blockedAxes[otherAxis] &&
-					Math.abs(otherDelta) > routeState.settleTolerance
-				) {
-					cancelScheduledCorrection();
-					routeState.noProgressDiagnostics = 0;
-					routeState.axis = otherAxis;
-					routeState.axisHistory.push(otherAxis);
-					routeState.target = { ...target };
-					routeState.correctionTaps = 0;
-					pressKey(axisKey(otherAxis, otherDelta));
-					return;
-				}
-				failRoute(
-					`blocked at point ${routeState.pointIndex} axis ${axis} target ${JSON.stringify(target)}`
-				);
 				return;
-			}
-			if (!diagnostic.blocked) {
-				routeState.diagnostics.push(clonedDiagnostic);
-				routeState.diagnosticAxes.push(axis);
 			}
 			if (!reached) {
 				if (distanceDecreased) {
@@ -12899,7 +12921,7 @@ async function runAllEightBlacksmithPhase(
 	const armoryPoint = { x: 800, y: 304 };
 	const showroomPoint = { x: 800, y: 624 };
 	const orenApproachPoint = layout.npcApproaches.oren.approach;
-	const orenInteractionStagingPoint = { x: 384, y: 416 };
+	const orenInteractionStagingPoint = { x: 384, y: 412 }; // y=416 is the top edge of the service-counter blocked cell band (x 272-632, y 416-480)
 
 	await enterInteriorWithTrustedKeyboard(page, interior);
 	await assertAllEightPresentation(page, interior, mode, 0, `${mode}-camera-640x360.png`);
@@ -12971,7 +12993,7 @@ async function runAllEightBlacksmithPhase(
 	await moveRoute(page, [
 		currentPoint,
 		{ x: 240, y: 480 },
-		{ x: 240, y: 400 },
+		{ x: 240, y: 396 }, // 396 is inside the divider wall: the north leg blocked-settles at y∈[400,404), always clear row 25 (band starts at 416)
 		orenInteractionStagingPoint
 	]);
 	await approachNpcWithTrustedKeyboard(page, {
@@ -18486,7 +18508,7 @@ test('Blacksmith Oren equipment shop', async ({ page }) => {
 	const oren = blacksmithInteriorMap.npcs?.find(({ id }) => id === 'blacksmith-oren');
 	if (!oren) throw new Error('Blacksmith Oren fixture is missing');
 	const orenApproachPoint = layout.npcApproaches.oren.approach;
-	const orenInteractionStagingPoint = { x: 384, y: 416 };
+	const orenInteractionStagingPoint = { x: 384, y: 412 }; // y=416 is the top edge of the service-counter blocked cell band (x 272-632, y 416-480)
 	await moveRoute(page, [
 		blacksmith.spawn,
 		{ x: 448, y: 640 },
@@ -18498,7 +18520,7 @@ test('Blacksmith Oren equipment shop', async ({ page }) => {
 	await moveRoute(page, [
 		orenApproachPoint,
 		{ x: 240, y: 480 },
-		{ x: 240, y: 400 },
+		{ x: 240, y: 396 }, // 396 is inside the divider wall: the north leg blocked-settles at y∈[400,404), always clear row 25 (band starts at 416)
 		orenInteractionStagingPoint
 	]);
 	await approachNpcWithTrustedKeyboard(page, {
@@ -18686,11 +18708,11 @@ test('Blacksmith painted interior preserves baked composition and collision', as
 		orenApproachPoint
 	]);
 	await assertInteriorCheckpoint(page, blacksmith, orenApproachPoint);
-	const orenInteractionStagingPoint = { x: 384, y: 416 };
+	const orenInteractionStagingPoint = { x: 384, y: 412 }; // y=416 is the top edge of the service-counter blocked cell band (x 272-632, y 416-480)
 	await moveRoute(page, [
 		currentPoint,
 		{ x: 240, y: 480 },
-		{ x: 240, y: 400 },
+		{ x: 240, y: 396 }, // 396 is inside the divider wall: the north leg blocked-settles at y∈[400,404), always clear row 25 (band starts at 416)
 		orenInteractionStagingPoint
 	]);
 	await approachNpcWithTrustedKeyboard(page, {
