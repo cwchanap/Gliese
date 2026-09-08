@@ -185,15 +185,6 @@
 </div>
 
 <style>
-	.jrpg-label {
-		margin: 0;
-		font-size: 0.62rem;
-		font-weight: 900;
-		letter-spacing: 0;
-		color: var(--color-gold);
-		text-transform: uppercase;
-	}
-
 	.jrpg-location-panel,
 	.jrpg-minimap-panel,
 	.jrpg-party-panel {

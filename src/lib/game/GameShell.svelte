@@ -809,15 +809,6 @@
 		display: block;
 	}
 
-	.jrpg-label {
-		margin: 0;
-		font-size: 0.62rem;
-		font-weight: 900;
-		letter-spacing: 0;
-		color: var(--color-gold);
-		text-transform: uppercase;
-	}
-
 	.jrpg-menu-anchor {
 		position: absolute;
 		top: 0.9rem;
@@ -855,8 +846,7 @@
 		margin-top: 0.75rem;
 	}
 
-	.jrpg-command-action,
-	.jrpg-small-button {
+	.jrpg-command-action {
 		/* border/background/color from glass-button; font-weight intentionally overrides glass-button's 600 */
 		font-weight: 900;
 	}
@@ -870,27 +860,15 @@
 		text-transform: uppercase;
 	}
 
-	.jrpg-small-button {
-		border-radius: 999px;
-		padding: 0.42rem 0.65rem;
-		font-size: 0.62rem;
-		letter-spacing: 0.12em;
-		text-transform: uppercase;
-	}
-
 	.jrpg-command-action:hover:not(:disabled),
-	.jrpg-command-action:focus-visible,
-	.jrpg-small-button:hover,
-	.jrpg-small-button:focus-visible {
+	.jrpg-command-action:focus-visible {
 		/* hover/focus handled by glass-button — keep only unique override */
 		transform: translateX(2px);
 	}
 
 	@media (prefers-reduced-motion: reduce) {
 		.jrpg-command-action:hover:not(:disabled),
-		.jrpg-command-action:focus-visible,
-		.jrpg-small-button:hover,
-		.jrpg-small-button:focus-visible {
+		.jrpg-command-action:focus-visible {
 			transform: none;
 		}
 	}
