@@ -18538,7 +18538,7 @@ test('Blacksmith Oren equipment shop', async ({ page }) => {
 	await expect(page.getByRole('tooltip')).toContainText('0 left');
 });
 
-test('Blacksmith painted interior', async ({ page }) => {
+test('Blacksmith painted interior preserves baked composition and collision', async ({ page }) => {
 	test.setTimeout(600_000);
 	const blacksmith: InteriorGrayboxCase = {
 		mapId: 'blacksmith-interior',
