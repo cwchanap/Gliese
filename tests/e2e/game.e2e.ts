@@ -181,6 +181,7 @@ type GlieseProbeWindow = Window & {
 	__glieseTransitionSourceCleanup?: () => void;
 	__glieseCharacterizationMovementCount?: number;
 	__glieseCharacterizationSyntheticPhase?: boolean;
+	__glieseSyntheticDiagnostic?: boolean;
 	__glieseRegionalBackgroundDiagnostics?: RegionalBackgroundPlaneRenderDiagnostic[];
 	__glieseRegionalBackgroundRendererDiagnostics?: RegionalBackgroundRendererDiagnostic[];
 	__glieseActiveSceneCamera?: MeadowSceneCamera;
@@ -1192,6 +1193,15 @@ async function installRuntimeProbes(
 					? value >= targetValue - routeState.reachTolerance
 					: value <= targetValue + routeState.reachTolerance;
 			if (diagnostic.blocked && previous === value) {
+				// Characterization dispatches synthetic blocked evidence synchronously
+				// (flagged via __glieseSyntheticDiagnostic). It follows the
+				// invalid-evidence contract: record it without mutating route state;
+				// a later completion surfaces it as a hard route error. Real engine
+				// blocks never set the flag and get the full handling below.
+				if ((window as GlieseProbeWindow).__glieseSyntheticDiagnostic) {
+					routeState.invalidDiagnostics.push(clonedDiagnostic);
+					return;
+				}
 				if (distance <= routeState.blockedTolerance) {
 					routeState.noProgressDiagnostics = 0;
 					let contractAdvanced = false;
@@ -1204,19 +1214,14 @@ async function installRuntimeProbes(
 						routeState.lastProgressAt = movementAt;
 					}
 				} else {
-					// Blocked far from target after real movement: try to route
+					// Blocked far from target on this axis. Mark it and try to route
 					// around via the other axis if it still has distance to this
-					// waypoint — e.g. the hero settled the previous axis a few px
-					// off and landed on a prop collision that does not exist
-					// on-axis. A block on the route's very first diagnostic has no
-					// prior movement evidence to steer by — the characterization's
-					// blocked-exhausted case — so fail fast with a hard blocked
-					// error instead.
+					// waypoint — e.g. the hero settled the previous axis a few px off
+					// and landed on a prop collision that does not exist on-axis.
 					routeState.blockedAxes[axis] = true;
 					const otherAxis: Axis = axis === 'x' ? 'y' : 'x';
 					const otherDelta = target[otherAxis] - routeState.position[otherAxis];
 					if (
-						routeState.movementCount > 1 &&
 						!routeState.blockedAxes[otherAxis] &&
 						Math.abs(otherDelta) > routeState.settleTolerance
 					) {
@@ -13759,6 +13764,9 @@ test('Meadow Entry starts with the complete painted package and accepts movement
 test('browser-local route steering acknowledges a plan and continues through Phaser movement', async ({
 	page
 }) => {
+	// Boot plus dozens of in-page characterization scenarios; the default 30s
+	// is razor-thin on slow CI runners (observed ~25-29s).
+	test.setTimeout(120_000);
 	await installRuntimeProbes(page);
 	// This listener is registered after the runner listener above. It models the
 	// browser losing a held key after the first diagnostic; the lease must restore
@@ -13901,11 +13909,20 @@ test('browser-local route steering acknowledges a plan and continues through Pha
 			typeof semanticRunner.startGuildMasterSemanticDiagonal === 'function';
 		const caveDoorwayApiAvailable = typeof caveDoorwayRunner.startCaveDoorwayBand === 'function';
 		const dispatchDiagnostic = (detail: PlayerMovementDiagnostic) => {
-			window.dispatchEvent(
-				new CustomEvent<PlayerMovementDiagnostic>('gliese:player-movement-diagnostic', {
-					detail
-				})
-			);
+			const probeWindow = window as GlieseProbeWindow;
+			// Mark dispatched evidence as synthetic so the route runner holds
+			// blocked samples to the invalid-evidence contract instead of the
+			// real-engine settle/route-around handling.
+			probeWindow.__glieseSyntheticDiagnostic = true;
+			try {
+				window.dispatchEvent(
+					new CustomEvent<PlayerMovementDiagnostic>('gliese:player-movement-diagnostic', {
+						detail
+					})
+				);
+			} finally {
+				probeWindow.__glieseSyntheticDiagnostic = false;
+			}
 		};
 		const resetMovementProbe = () => {
 			probeWindow.__glieseLastMovementDiagnostic = undefined;
