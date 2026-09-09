@@ -1171,6 +1171,20 @@ async function installRuntimeProbes(
 			// is pending, ignore only this already-validated replay until the next
 			// correction key is held.
 			if (scheduledCorrectionFrame !== null) return;
+			// A late/coasting diagnostic from a previous axis can arrive after the
+			// runner has switched axes (route-around below, or beginNextAxis). Its
+			// requested axis — derived from requestedPosition - previousPosition —
+			// won't match routeState.axis. Letting it through lets the blocked
+			// handler mark the wrong axis blocked and bounce X/Y until the watchdog,
+			// which is timing-dependent on slow runners. Drop it silently: it carries
+			// no progress on the active axis and must not touch distance, blockedAxes,
+			// or settling state. A diagnostic with no requested movement on either
+			// axis (requestedPosition === previousPosition) cannot be classified and
+			// is allowed through conservatively. axis is non-null here (the !axis
+			// guard above already returned).
+			const requestedOnX = diagnostic.requestedPosition.x !== diagnostic.previousPosition.x;
+			const requestedOnY = diagnostic.requestedPosition.y !== diagnostic.previousPosition.y;
+			if (requestedOnX !== requestedOnY && (requestedOnX ? 'x' : 'y') !== axis) return;
 			routeState.movementCount += 1;
 			routeState.lastMovementAt = movementAt;
 			routeState.lastDiagnostic = clonedDiagnostic;
