@@ -242,7 +242,10 @@ test('complete Meadow package is the production default and explicit off restore
 					(diagnostic) => diagnostic.mapId === 'meadow-entry' && diagnostic.blocked
 				) === true,
 			undefined,
-			{ timeout: 15_000 }
+			// Walk-speed bound: the hero must cross open meadow to the nearest
+			// south fence, which on a slow CI runner (single-digit fps, 40px
+			// steps) can take well over 15s.
+			{ timeout: 45_000 }
 		);
 	} finally {
 		await page.keyboard.up('ArrowDown');
