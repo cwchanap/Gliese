@@ -1204,18 +1204,19 @@ async function installRuntimeProbes(
 						routeState.lastProgressAt = movementAt;
 					}
 				} else {
-					// Blocked far from target with correction budget remaining: try
-					// to route around via the other axis if it still has distance to
-					// this waypoint — e.g. the hero settled the previous axis a few
-					// px off and landed on a prop collision that does not exist
-					// on-axis. Without budget the steering contract requires a hard
-					// blocked error (see the characterization's blocked-exhausted
-					// case), so fall through to failRoute instead.
+					// Blocked far from target after real movement: try to route
+					// around via the other axis if it still has distance to this
+					// waypoint — e.g. the hero settled the previous axis a few px
+					// off and landed on a prop collision that does not exist
+					// on-axis. A block on the route's very first diagnostic has no
+					// prior movement evidence to steer by — the characterization's
+					// blocked-exhausted case — so fail fast with a hard blocked
+					// error instead.
 					routeState.blockedAxes[axis] = true;
 					const otherAxis: Axis = axis === 'x' ? 'y' : 'x';
 					const otherDelta = target[otherAxis] - routeState.position[otherAxis];
 					if (
-						routeState.correctionTaps < routeState.maxCorrectionTaps &&
+						routeState.movementCount > 1 &&
 						!routeState.blockedAxes[otherAxis] &&
 						Math.abs(otherDelta) > routeState.settleTolerance
 					) {
@@ -12921,7 +12922,7 @@ async function runAllEightBlacksmithPhase(
 	const armoryPoint = { x: 800, y: 304 };
 	const showroomPoint = { x: 800, y: 624 };
 	const orenApproachPoint = layout.npcApproaches.oren.approach;
-	const orenInteractionStagingPoint = { x: 384, y: 412 }; // y=416 is the top edge of the service-counter blocked cell band (x 272-632, y 416-480)
+	const orenInteractionStagingPoint = { x: 384, y: 416 };
 
 	await enterInteriorWithTrustedKeyboard(page, interior);
 	await assertAllEightPresentation(page, interior, mode, 0, `${mode}-camera-640x360.png`);
@@ -12993,7 +12994,7 @@ async function runAllEightBlacksmithPhase(
 	await moveRoute(page, [
 		currentPoint,
 		{ x: 240, y: 480 },
-		{ x: 240, y: 396 }, // 396 is inside the divider wall: the north leg blocked-settles at y∈[400,404), always clear row 25 (band starts at 416)
+		{ x: 240, y: 400 },
 		orenInteractionStagingPoint
 	]);
 	await approachNpcWithTrustedKeyboard(page, {
@@ -18508,7 +18509,7 @@ test('Blacksmith Oren equipment shop', async ({ page }) => {
 	const oren = blacksmithInteriorMap.npcs?.find(({ id }) => id === 'blacksmith-oren');
 	if (!oren) throw new Error('Blacksmith Oren fixture is missing');
 	const orenApproachPoint = layout.npcApproaches.oren.approach;
-	const orenInteractionStagingPoint = { x: 384, y: 412 }; // y=416 is the top edge of the service-counter blocked cell band (x 272-632, y 416-480)
+	const orenInteractionStagingPoint = { x: 384, y: 416 };
 	await moveRoute(page, [
 		blacksmith.spawn,
 		{ x: 448, y: 640 },
@@ -18520,7 +18521,7 @@ test('Blacksmith Oren equipment shop', async ({ page }) => {
 	await moveRoute(page, [
 		orenApproachPoint,
 		{ x: 240, y: 480 },
-		{ x: 240, y: 396 }, // 396 is inside the divider wall: the north leg blocked-settles at y∈[400,404), always clear row 25 (band starts at 416)
+		{ x: 240, y: 400 },
 		orenInteractionStagingPoint
 	]);
 	await approachNpcWithTrustedKeyboard(page, {
@@ -18708,11 +18709,11 @@ test('Blacksmith painted interior preserves baked composition and collision', as
 		orenApproachPoint
 	]);
 	await assertInteriorCheckpoint(page, blacksmith, orenApproachPoint);
-	const orenInteractionStagingPoint = { x: 384, y: 412 }; // y=416 is the top edge of the service-counter blocked cell band (x 272-632, y 416-480)
+	const orenInteractionStagingPoint = { x: 384, y: 416 };
 	await moveRoute(page, [
 		currentPoint,
 		{ x: 240, y: 480 },
-		{ x: 240, y: 396 }, // 396 is inside the divider wall: the north leg blocked-settles at y∈[400,404), always clear row 25 (band starts at 416)
+		{ x: 240, y: 400 },
 		orenInteractionStagingPoint
 	]);
 	await approachNpcWithTrustedKeyboard(page, {
