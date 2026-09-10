@@ -298,11 +298,15 @@ Use:
 
 ```yaml
 concurrency:
-  group: asset-integrity-${{ github.event.pull_request.number || github.ref }}
+  # PRs share a per-PR group so a newer push supersedes the older run. Non-PR
+  # runs get a unique group per run; GitHub cancels pending runs in a shared
+  # group when a new run queues, so a shared non-PR group would drop a queued
+  # full run when a newer event arrives.
+  group: asset-integrity-${{ github.event_name == 'pull_request' && github.event.pull_request.number || github.run_id }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 ```
 
-Only superseded PR runs are cancelled. Push/schedule/manual full runs remain valuable evidence.
+Only superseded PR runs are cancelled. Push/schedule/manual full runs are never cancelled or replaced while waiting — each gets its own concurrency group.
 
 Add job-level:
 
