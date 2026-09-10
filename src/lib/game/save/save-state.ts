@@ -272,9 +272,8 @@ function isSaveState(value: unknown): value is SaveState {
 		seenDiscoveries
 	} = value;
 
-	// Version, SAVE_STORAGE_KEY, and isSaveState must all move in lockstep on every schema
-	// change. Bumping version without updating isSaveState lets old-shape payloads pass
-	// validation; bumping SAVE_STORAGE_KEY without migration orphans existing saves.
+	// Version and isSaveState must move in lockstep on every schema change. Bumping
+	// version without updating isSaveState lets old-shape payloads pass validation.
 	if (
 		version !== 9 ||
 		typeof mapId !== 'string' ||

@@ -8,7 +8,8 @@ import {
 } from '@tauri-apps/plugin-fs';
 
 import { PREFERENCES_STORAGE_KEY } from '$lib/game/i18n/preferences';
-import { SAVE_STORAGE_KEY, type SaveStorage } from '$lib/game/save/storage';
+import { SAVE_SLOTS_STORAGE_KEY } from '$lib/game/save/slots';
+import type { SaveStorage } from '$lib/game/save/storage';
 
 export const SAVE_FILE_DIR = 'com.gliese.app';
 export const SAVE_FILE_NAME = 'gliese-save.json';
@@ -29,8 +30,25 @@ type WriteQueue = {
 	tmpName: string;
 };
 
-const saveWriteQueue = createWriteQueue(SAVE_FILE_NAME, SAVE_FILE_TMP_NAME);
-const preferencesWriteQueue = createWriteQueue(PREFERENCES_FILE_NAME, PREFERENCES_FILE_TMP_NAME);
+type PersistedFileSpec = {
+	fileName: string;
+	tmpName: string;
+	queue: WriteQueue;
+};
+
+function createPersistedFileSpec(fileName: string, tmpName: string): PersistedFileSpec {
+	return { fileName, tmpName, queue: createWriteQueue(fileName, tmpName) };
+}
+
+// The authoritative key-to-file routing table: only keys listed here reach
+// disk; every other key stays cache-only inside the adapter.
+const persistedFiles = new Map<string, PersistedFileSpec>([
+	[SAVE_SLOTS_STORAGE_KEY, createPersistedFileSpec(SAVE_FILE_NAME, SAVE_FILE_TMP_NAME)],
+	[
+		PREFERENCES_STORAGE_KEY,
+		createPersistedFileSpec(PREFERENCES_FILE_NAME, PREFERENCES_FILE_TMP_NAME)
+	]
+]);
 
 function isTauriRuntime(): boolean {
 	const win = (globalThis as { window?: { __TAURI_INTERNALS__?: unknown } }).window;
@@ -44,8 +62,9 @@ export async function hydrateTauriStorage(): Promise<SaveStorage> {
 
 	const cache = new Map<string, string>();
 
-	await readStorageFile(cache, SAVE_STORAGE_KEY, SAVE_FILE_NAME);
-	await readStorageFile(cache, PREFERENCES_STORAGE_KEY, PREFERENCES_FILE_NAME);
+	for (const [storageKey, spec] of persistedFiles) {
+		await readStorageFile(cache, storageKey, spec.fileName);
+	}
 
 	return {
 		getItem(key) {
@@ -53,20 +72,16 @@ export async function hydrateTauriStorage(): Promise<SaveStorage> {
 		},
 		setItem(key, value) {
 			cache.set(key, value);
-			if (key === SAVE_STORAGE_KEY) {
-				scheduleWrite(saveWriteQueue, value);
-			}
-			if (key === PREFERENCES_STORAGE_KEY) {
-				scheduleWrite(preferencesWriteQueue, value);
+			const spec = persistedFiles.get(key);
+			if (spec) {
+				scheduleWrite(spec.queue, value);
 			}
 		},
 		removeItem(key) {
 			cache.delete(key);
-			if (key === SAVE_STORAGE_KEY) {
-				scheduleWrite(saveWriteQueue, '');
-			}
-			if (key === PREFERENCES_STORAGE_KEY) {
-				scheduleWrite(preferencesWriteQueue, '');
+			const spec = persistedFiles.get(key);
+			if (spec) {
+				scheduleWrite(spec.queue, '');
 			}
 		}
 	};
@@ -127,7 +142,7 @@ async function performAtomicWrite(queue: WriteQueue, value: string): Promise<voi
 
 export async function flushPendingWrites(timeoutMs = 3000): Promise<void> {
 	await Promise.race([
-		Promise.all([saveWriteQueue.pendingWrite, preferencesWriteQueue.pendingWrite]),
+		Promise.all([...persistedFiles.values()].map((spec) => spec.queue.pendingWrite)),
 		new Promise<void>((resolve) => setTimeout(resolve, timeoutMs))
 	]);
 }
@@ -136,8 +151,9 @@ export async function flushPendingWrites(timeoutMs = 3000): Promise<void> {
  * Reset module-level write state. For tests only.
  */
 export function __resetTauriStorageForTests(): void {
-	resetWriteQueue(saveWriteQueue);
-	resetWriteQueue(preferencesWriteQueue);
+	for (const spec of persistedFiles.values()) {
+		resetWriteQueue(spec.queue);
+	}
 }
 
 function resetWriteQueue(queue: WriteQueue): void {
