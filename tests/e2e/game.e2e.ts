@@ -13703,7 +13703,7 @@ test('Meadow painted pilot preserves the village Crossroads gameplay loop', asyn
 		{ x: 320, y: 4_688 },
 		{ x: 1_152, y: 4_800 }
 	]);
-	await expect(page.getByTestId('hud-location-panel')).toContainText('Sundrop Meadows');
+	await expect(page.getByTestId('hud-minimap')).toContainText('Sundrop Meadows');
 	const movementDiagnosticsBeforeSave = await page.evaluate(
 		() => (window as GlieseProbeWindow).__glieseMovementDiagnostics ?? []
 	);
@@ -13794,7 +13794,7 @@ test('Meadow Entry starts with the complete painted package and accepts movement
 	expect(meadowDiagnostics[0]?.entries).toHaveLength(PAINTED_COMPLETE_BACKGROUND_IDS.length);
 	expect(meadowDiagnostics[0]?.entries.every(({ status }) => status === 'rendered')).toBe(true);
 
-	await expect(page.getByTestId('hud-location-panel')).toBeVisible();
+	await expect(page.getByTestId('hud-minimap')).toBeVisible();
 	await expect(page.getByTestId('hud-party-panel')).toBeVisible();
 	await expect(fieldStatus(page)).toBeVisible();
 	await page.locator('canvas').click();
@@ -17087,7 +17087,7 @@ test('Meadow Entry supports the continuous outdoor route and persists its proof 
 		{ x: 320, y: 4_688 },
 		{ x: 1_152, y: 4_800 }
 	]);
-	await expect(page.getByTestId('hud-location-panel')).toContainText('Sundrop Meadows');
+	await expect(page.getByTestId('hud-minimap')).toContainText('Sundrop Meadows');
 
 	await saveThroughSaveScreen(page, 1);
 	const persisted = await readManualSlotState(page);
@@ -17982,33 +17982,26 @@ test('game route boots', async ({ page }) => {
 	await startNewRunFromTitle(page);
 
 	const viewport = page.viewportSize();
-	const locationPanel = page.getByTestId('hud-location-panel');
 	const minimap = page.getByTestId('hud-minimap');
 	const partyPanel = page.getByTestId('hud-party-panel');
-	const questTracker = page.getByTestId('hud-side-panel');
-	await expect(locationPanel).toBeVisible();
+	const sideHud = page.getByTestId('hud-side-panel');
 	await expect(minimap).toBeVisible();
 	await expect(partyPanel).toBeVisible();
-	await expect(questTracker).toBeVisible();
+	await expect(sideHud).toBeVisible();
+	// Location pill renders the live area name inside the minimap card.
+	await expect(minimap.getByText('Sundrop Meadows')).toBeVisible();
 
-	const locationBox = await locationPanel.boundingBox();
 	const minimapBox = await minimap.boundingBox();
 	const partyBox = await partyPanel.boundingBox();
-	const questBox = await questTracker.boundingBox();
-	expect(locationBox?.x).toBeLessThan(40);
-	expect(locationBox?.y).toBeLessThan(40);
+	const sideBox = await sideHud.boundingBox();
+	// Hero card top-left, minimap medallion + side HUD top-right.
+	expect(partyBox?.x).toBeLessThan(40);
+	expect(partyBox?.y).toBeLessThan(40);
 	expect(minimapBox?.y).toBeLessThan(40);
 	expect((minimapBox?.x ?? 0) + (minimapBox?.width ?? 0)).toBeGreaterThan(
 		(viewport?.width ?? 0) - 40
 	);
-	expect(partyBox?.x).toBeLessThan(40);
-	expect((partyBox?.y ?? 0) + (partyBox?.height ?? 0)).toBeGreaterThan(
-		(viewport?.height ?? 0) - 40
-	);
-	expect((questBox?.x ?? 0) + (questBox?.width ?? 0)).toBeGreaterThan((viewport?.width ?? 0) - 40);
-	expect((questBox?.y ?? 0) + (questBox?.height ?? 0)).toBeGreaterThan(
-		(viewport?.height ?? 0) - 40
-	);
+	expect((sideBox?.x ?? 0) + (sideBox?.width ?? 0)).toBeGreaterThan((viewport?.width ?? 0) - 40);
 
 	await page.getByRole('button', { name: 'Menu' }).click();
 	await expect(commandBox(page)).toBeVisible();
@@ -18048,42 +18041,40 @@ test('mobile HUD stacks without overlapping controls', async ({ page }) => {
 
 	const viewport = page.viewportSize();
 	const menuButton = page.getByRole('button', { name: 'Menu' });
-	const locationPanel = page.getByTestId('hud-location-panel');
 	const minimap = page.getByTestId('hud-minimap');
 	const partyPanel = page.getByTestId('hud-party-panel');
-	const questTracker = page.getByTestId('hud-side-panel');
+	const sideHud = page.getByTestId('hud-side-panel');
 	const fieldStatusMessage = fieldStatus(page);
 	await expect(menuButton).toBeVisible();
-	await expect(locationPanel).toBeVisible();
 	await expect(minimap).toBeVisible();
 	await expect(partyPanel).toBeVisible();
-	await expect(questTracker).toBeVisible();
+	await expect(sideHud).toBeVisible();
 	await expect(fieldStatusMessage).toBeVisible();
 
 	const menuBox = await menuButton.boundingBox();
-	const locationBox = await locationPanel.boundingBox();
 	const minimapBox = await minimap.boundingBox();
 	const partyBox = await partyPanel.boundingBox();
-	const questBox = await questTracker.boundingBox();
+	const sideBox = await sideHud.boundingBox();
 	const fieldStatusBox = await fieldStatusMessage.boundingBox();
 	expect(menuBox).not.toBeNull();
-	expect(locationBox).not.toBeNull();
 	expect(minimapBox).not.toBeNull();
 	expect(partyBox).not.toBeNull();
-	expect(questBox).not.toBeNull();
+	expect(sideBox).not.toBeNull();
 	expect(fieldStatusBox).not.toBeNull();
-	const locationRight = locationBox!.x + locationBox!.width;
-	const minimapBottom = minimapBox!.y + minimapBox!.height;
-	const partyTop = partyBox!.y;
-	const questBottom = questBox!.y + questBox!.height;
-	const questRight = questBox!.x + questBox!.width;
-	const fieldStatusRight = fieldStatusBox!.x + fieldStatusBox!.width;
-	expect(locationRight).toBeLessThan(minimapBox!.x - 8);
-	expect(menuBox!.y).toBeGreaterThan(minimapBottom + 8);
-	expect(questBottom).toBeLessThan(partyTop - 8);
-	expect(questRight).toBeLessThanOrEqual((viewport?.width ?? 0) - 8);
+	const partyRight = partyBox!.x + partyBox!.width;
+	// Hero card top-left with the Menu button clear of it top-right.
+	expect(partyRight).toBeLessThan(menuBox!.x - 8);
+	// Side HUD (minimap / quest / wallet) stacks below the hero card.
+	expect(sideBox!.y).toBeGreaterThan(partyBox!.y + partyBox!.height + 8);
+	expect((sideBox?.x ?? 0) + (sideBox?.width ?? 0)).toBeLessThanOrEqual((viewport?.width ?? 0) - 8);
+
+	// The opened 2-column command grid stays left of the side HUD.
+	await menuButton.click();
+	const gridBox = await commandBox(page).boundingBox();
+	expect(gridBox).not.toBeNull();
+	expect((gridBox?.x ?? 0) + (gridBox?.width ?? 0)).toBeLessThan(sideBox!.x - 8);
+
 	expect(fieldStatusBox!.width).toBeLessThan((viewport?.width ?? 0) * 0.75);
-	expect(fieldStatusRight).toBeLessThanOrEqual((viewport?.width ?? 0) - 8);
 });
 
 test('inventory overlay opens from the menu', async ({ page }) => {
@@ -18091,7 +18082,7 @@ test('inventory overlay opens from the menu', async ({ page }) => {
 	await expect(page.getByRole('button', { name: 'Menu' })).toBeVisible();
 
 	await page.getByRole('button', { name: 'Menu' }).click();
-	await commandBox(page).getByRole('button', { name: 'Inventory' }).click();
+	await commandBox(page).getByRole('button', { name: 'Bag' }).click();
 
 	const inventoryDialog = page.getByRole('dialog', { name: 'Inventory' });
 	const inventorySlotGrid = inventoryDialog.getByTestId('inventory-slot-grid');
@@ -18174,7 +18165,7 @@ test('full hp potions explain why they cannot be consumed', async ({ page }) => 
 	await expect(page.getByRole('button', { name: 'Menu' })).toBeVisible();
 
 	await page.getByRole('button', { name: 'Menu' }).click();
-	await commandBox(page).getByRole('button', { name: 'Inventory' }).click();
+	await commandBox(page).getByRole('button', { name: 'Bag' }).click();
 
 	const inventoryDialog = page.getByRole('dialog', { name: 'Inventory' });
 	const fieldPotionSlot = inventoryDialog.getByLabel('Field Potion');
@@ -18199,7 +18190,7 @@ test('double-clicking unequipped equipment equips it from inventory', async ({ p
 	await injectSave(page, save);
 	await continueFromTitle(page);
 	await page.getByRole('button', { name: 'Menu' }).click();
-	await commandBox(page).getByRole('button', { name: 'Inventory' }).click();
+	await commandBox(page).getByRole('button', { name: 'Bag' }).click();
 
 	const inventoryDialog = page.getByRole('dialog', { name: 'Inventory' });
 	await page.getByRole('tab', { name: 'Equipment' }).click();
@@ -18249,10 +18240,13 @@ test('shop overlay opens near a merchant and supports buying and selling', async
 
 		return state?.nearbyShop?.shopId === 'miras-item-shop' || state?.status?.startsWith('Mira:');
 	});
-	await page.getByRole('button', { name: 'Menu' }).click();
-	const shopButton = commandBox(page).getByRole('button', { name: 'Shop' });
-	await expect(shopButton).toBeEnabled();
-	await shopButton.click();
+	// The Heroic command grid has no Shop tile: talk to Mira and enter the
+	// shop through the dialogue action.
+	await page.locator('canvas').click();
+	await page.keyboard.press('e', { delay: 50 });
+	const miraDialog = page.getByRole('dialog', { name: 'Mira' });
+	await expect(miraDialog).toBeVisible();
+	await miraDialog.getByRole('button', { name: 'Shop' }).click();
 
 	await expect(page.getByRole('heading', { name: "Mira's Item Shop" })).toBeVisible();
 	await expect(page.getByText('Coins: 30')).toBeVisible();
@@ -18351,7 +18345,7 @@ test('interact key shop purchase appears in inventory', async ({ page }) => {
 	await shopDialog.getByRole('button', { name: 'Close' }).click();
 
 	await page.getByRole('button', { name: 'Menu' }).click();
-	await commandBox(page).getByRole('button', { name: 'Inventory' }).click();
+	await commandBox(page).getByRole('button', { name: 'Bag' }).click();
 
 	const inventoryDialog = page.getByRole('dialog', { name: 'Inventory' });
 	const fieldPotionSlot = inventoryDialog.getByLabel('Field Potion');
@@ -19979,7 +19973,7 @@ test('quest log shows main quest and accepts Guild side quests', async ({ page }
 	await page.getByRole('button', { name: 'Menu' }).click();
 	await expect(fieldStatus(page)).toContainText(/^Quest accepted\.?$/);
 	await expect(page.getByRole('button', { name: 'Guild Quests' })).toHaveCount(0);
-	await commandBox(page).getByRole('button', { name: 'Quests', exact: true }).click();
+	await commandBox(page).getByRole('button', { name: 'Quest', exact: true }).click();
 
 	const questDialog = page.getByRole('dialog', { name: 'Quest Log' });
 	await expect(questDialog).toBeVisible();

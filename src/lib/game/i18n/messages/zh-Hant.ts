@@ -50,6 +50,16 @@ export const zhHant = {
 		inventory: '背包',
 		saveGame: '儲存遊戲',
 		useHeal: '使用治療',
+		fieldCmds: {
+			bag: '背包',
+			gear: '裝備',
+			quest: '任務',
+			map: '地圖',
+			skill: '技能',
+			rest: '回復',
+			save: '儲存',
+			system: '系統'
+		},
 		titleChapterPill: '翠綠之地・第一章',
 		chapterLabel: '第一章',
 		titleNewRun: '新的旅程',

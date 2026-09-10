@@ -99,7 +99,7 @@ export function readSlotEnvelope(page: Page) {
 export async function saveThroughSaveScreen(page: Page, slot: 1 | 2 = 1) {
 	await page.getByRole('button', { name: 'Menu' }).click();
 	const commandBox = page.getByLabel('Command');
-	await commandBox.getByRole('button', { name: 'Save Game' }).click();
+	await commandBox.getByRole('button', { name: 'Save' }).click();
 
 	const dialog = page.getByRole('dialog', { name: /^Save$/i });
 	await expect(dialog).toBeVisible();

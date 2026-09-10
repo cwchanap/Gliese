@@ -278,27 +278,19 @@ describe('DialoguePanel.svelte', () => {
 		await expect.element(page.getByRole('button', { name: '次へ' })).toBeVisible();
 	});
 
-	it('renders a Settings language selector and applies Japanese selection', async () => {
+	it('applies a Japanese selection from the System screen language segments', async () => {
 		render(GameShell);
 
 		// Phaser mounts only after committing to a run from the Title screen.
 		await page.getByRole('button', { name: /New Run/i }).click();
 		await page.getByRole('button', { name: 'Menu' }).click();
+		await page.getByRole('button', { name: 'System' }).click();
 
-		const languageSelector = page.getByLabelText('Language');
-		await expect.element(languageSelector).toBeVisible();
+		const languageGroup = page.getByRole('group', { name: 'Language' });
+		await expect.element(languageGroup).toBeVisible();
 
-		const selectElement = languageSelector.element() as HTMLSelectElement;
-		expect([...selectElement.options].map((option) => [option.value, option.label])).toEqual([
-			['en', 'English'],
-			['zh-Hant', 'Traditional Chinese'],
-			['ja', 'Japanese']
-		]);
+		await languageGroup.getByRole('button', { name: '日本語' }).click();
 
-		selectElement.value = 'ja';
-		selectElement.dispatchEvent(new Event('change', { bubbles: true }));
-
-		expect(mockedSetActiveLocale).toHaveBeenCalledWith('ja');
 		expect(getActiveLocale()).toBe('ja');
 	});
 
@@ -310,9 +302,13 @@ describe('DialoguePanel.svelte', () => {
 
 		const commandBox = page.getByRole('region', { name: 'Command' });
 		await expect.element(commandBox).toBeVisible();
-		await expect.element(commandBox.getByRole('button', { name: 'Inventory' })).toBeVisible();
-		await expect.element(commandBox.getByRole('button', { name: 'Quests' })).toBeVisible();
-		await expect.element(commandBox.getByRole('button', { name: 'Save Game' })).toBeVisible();
+		await expect.element(commandBox.getByRole('button', { name: 'Bag' })).toBeVisible();
+		await expect
+			.element(commandBox.getByRole('button', { name: 'Quest', exact: true }))
+			.toBeVisible();
+		await expect
+			.element(commandBox.getByRole('button', { name: 'Save', exact: true }))
+			.toBeVisible();
 		await expect
 			.element(page.getByRole('status', { name: 'Field status' }))
 			.toHaveTextContent('HP already full');
@@ -342,10 +338,7 @@ describe('DialoguePanel.svelte', () => {
 			})
 		);
 
-		await expect
-			.element(page.getByTestId('hud-location-panel'))
-			.toHaveTextContent('Sundrop Meadows');
-		await expect.element(page.getByTestId('hud-minimap')).toHaveTextContent('Area Map');
+		await expect.element(page.getByTestId('hud-minimap')).toHaveTextContent('Sundrop Meadows');
 		await expect.element(page.getByTestId('hud-party-panel')).toHaveTextContent('LIAM');
 		await expect.element(page.getByTestId('hud-side-panel')).toHaveTextContent('30G');
 		await expect
@@ -575,7 +568,7 @@ describe('DialoguePanel.svelte', () => {
 		);
 
 		await page.getByRole('button', { name: 'Menu' }).click();
-		const inventoryButton = page.getByRole('button', { name: 'Inventory' });
+		const inventoryButton = page.getByRole('button', { name: 'Bag' });
 		await expect.element(inventoryButton).toBeEnabled();
 		await inventoryButton.click();
 		await page.getByRole('tab', { name: 'Equipment' }).click();
@@ -613,7 +606,7 @@ describe('DialoguePanel.svelte', () => {
 		);
 
 		await page.getByRole('button', { name: 'Menu' }).click();
-		await page.getByRole('button', { name: 'Inventory' }).click();
+		await page.getByRole('button', { name: 'Bag' }).click();
 
 		const inventoryDialog = page.getByRole('dialog', { name: 'Inventory' }).element();
 		expect(inventoryDialog.classList.contains('jrpg-window')).toBe(true);
@@ -622,7 +615,7 @@ describe('DialoguePanel.svelte', () => {
 
 		await page.getByRole('button', { name: 'Close' }).click();
 		await page.getByRole('button', { name: 'Menu' }).click();
-		await page.getByRole('button', { name: 'Quests' }).click();
+		await page.getByRole('button', { name: 'Quest', exact: true }).click();
 
 		const questDialog = page.getByRole('dialog', { name: 'Quest Log' }).element();
 		expect(questDialog.classList.contains('jrpg-window')).toBe(true);
