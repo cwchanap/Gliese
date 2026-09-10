@@ -50,6 +50,16 @@ export const ja = {
 		inventory: '持ち物',
 		saveGame: 'セーブ',
 		useHeal: '回復を使う',
+		fieldCmds: {
+			bag: 'バッグ',
+			gear: '装備',
+			quest: '依頼',
+			map: '地図',
+			skill: 'スキル',
+			rest: '回復',
+			save: 'セーブ',
+			system: 'システム'
+		},
 		titleChapterPill: '翠緑地方・第一章',
 		chapterLabel: '第一章',
 		titleNewRun: 'ニューゲーム',

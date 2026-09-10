@@ -2,9 +2,18 @@
 	import { locale } from '$lib/game/i18n/store';
 	import { t } from '$lib/game/i18n/translate';
 	import { parseCellKey } from '$lib/game/core/map-exploration';
+	import CommandGrid, { type FieldCommand } from '$lib/game/ui/CommandGrid.svelte';
 	import type { HudState } from '$lib/game/ui-bridge/events';
 
-	let { hudState }: { hudState: HudState } = $props();
+	interface Props {
+		hudState: HudState;
+		/** Overlay-open state stays owned by GameShell; FieldHud only renders. */
+		commandOpen?: boolean;
+		commandEnabled?: Record<FieldCommand, boolean>;
+		onCommand?: (command: FieldCommand) => void;
+	}
+
+	let { hudState, commandOpen = false, commandEnabled, onCommand }: Props = $props();
 
 	const hpPercent = $derived((hudState.hp / Math.max(hudState.maxHp, 1)) * 100);
 	const xpTarget = $derived(hudState.level > 1 ? 24 : 12);
@@ -58,123 +67,143 @@
 </script>
 
 <section
-	data-testid="hud-location-panel"
-	class="glass-panel filigree-frame jrpg-location-panel"
-	aria-label={hudState.areaMap.name}
->
-	<p class="jrpg-location-name font-display">{hudState.areaMap.name}</p>
-	<p class="jrpg-location-sub">{t($locale, 'ui.regionSubline')}</p>
-</section>
-
-<section
-	data-testid="hud-minimap"
-	class="glass-panel filigree-frame jrpg-minimap-panel"
-	aria-label={t($locale, 'ui.areaMap')}
->
-	<div class="jrpg-minimap-heading">
-		<span>{t($locale, 'ui.areaMap')}</span>
-	</div>
-	<svg
-		class="jrpg-minimap-svg"
-		viewBox={`0 0 ${hudState.areaMap.worldWidth} ${hudState.areaMap.worldHeight}`}
-		aria-hidden="true"
-	>
-		<rect
-			class="jrpg-minimap-fog"
-			x="0"
-			y="0"
-			width={hudState.areaMap.worldWidth}
-			height={hudState.areaMap.worldHeight}
-		/>
-		{#each hudState.areaMap.revealedCells as cellKey (cellKey)}
-			{@const cell = parseCellKey(cellKey)}
-			<rect
-				class="jrpg-minimap-cell"
-				x={cell.column * hudState.areaMap.cellSize}
-				y={cell.row * hudState.areaMap.cellSize}
-				width={hudState.areaMap.cellSize}
-				height={hudState.areaMap.cellSize}
-			/>
-		{/each}
-		{#each hudState.areaMap.markers as marker (marker.id)}
-			<circle
-				class={`jrpg-minimap-marker jrpg-minimap-marker-${marker.kind} ${
-					marker.emphasis ? 'jrpg-minimap-marker-emphasis' : ''
-				}`}
-				cx={marker.x}
-				cy={marker.y}
-				r={marker.emphasis ? 76 : 54}
-			/>
-		{/each}
-		<circle
-			class="jrpg-minimap-player-halo arcane-halo"
-			cx={hudState.areaMap.player.x}
-			cy={hudState.areaMap.player.y}
-			r="98"
-		/>
-		<circle
-			class="jrpg-minimap-player"
-			cx={hudState.areaMap.player.x}
-			cy={hudState.areaMap.player.y}
-			r="62"
-		/>
-	</svg>
-</section>
-
-<section
 	data-testid="hud-party-panel"
-	class={`glass-panel filigree-frame jrpg-party-panel${lowHp ? ' arcane-low-hp' : ''}`}
+	class={`heroic-field-card filigree-frame hero-card${lowHp ? ' arcane-low-hp' : ''}`}
 	aria-label={t($locale, 'ui.playerStatus')}
 >
-	<div class="jrpg-portrait" aria-hidden="true">L</div>
-	<div class="jrpg-party-copy">
-		<div class="jrpg-party-header">
-			<p>{t($locale, 'ui.heroName')}</p>
-			<span class={`tabular-nums${levelUpFlash ? ' arcane-level-up' : ''}`}
+	<div class="hero-portrait">
+		<img
+			src="/game/assets/heroic-ui/liam-portrait.png"
+			alt=""
+			aria-hidden="true"
+			draggable="false"
+		/>
+		<span class="hero-level font-display tabular-nums" class:arcane-level-up={levelUpFlash}>
+			<span class="sr-only" class:arcane-level-up={levelUpFlash}
 				>{t($locale, 'ui.levelAbbrev')} {hudState.level}</span
 			>
-		</div>
-		<div class="jrpg-party-meter jrpg-party-meter-hp">
-			<div>
-				<span>{t($locale, 'ui.hp')}</span>
-				<span class="tabular-nums">{hudState.hp}/{hudState.maxHp}</span>
+			<span aria-hidden="true">{hudState.level}</span>
+		</span>
+	</div>
+	<div class="hero-copy">
+		<p class="hero-name font-display">{t($locale, 'ui.heroName')}</p>
+		<div class="hero-meter">
+			<span class="hero-meter-label">{t($locale, 'ui.hp')}</span>
+			<div class="hero-meter-track">
+				<span class="hero-meter-fill hero-meter-fill-hp" style={`width: ${hpPercent}%`}></span>
 			</div>
-			<div class="arcane-meter arcane-meter-hp"><span style={`width: ${hpPercent}%`}></span></div>
+			<span class="hero-meter-value tabular-nums">{hudState.hp}/{hudState.maxHp}</span>
 		</div>
-		<div class="jrpg-party-meter jrpg-party-meter-xp">
-			<div>
-				<span>{t($locale, 'ui.xp')}</span>
-				<span class="tabular-nums">{hudState.xp}/{xpTarget}</span>
+		<div class="hero-meter">
+			<span class="hero-meter-label">{t($locale, 'ui.xp')}</span>
+			<div class="hero-meter-track">
+				<span class="hero-meter-fill hero-meter-fill-xp" style={`width: ${xpPercent}%`}></span>
 			</div>
-			<div class="arcane-meter arcane-meter-xp"><span style={`width: ${xpPercent}%`}></span></div>
+			<span class="hero-meter-value tabular-nums">{hudState.xp}/{xpTarget}</span>
+		</div>
+		<div class="hero-stats">
+			<span>
+				{t($locale, 'ui.attack')}
+				<b class="tabular-nums">{hudState.attack}</b>
+			</span>
+			<span>
+				{t($locale, 'ui.defense')}
+				<b class="tabular-nums">{hudState.defense}</b>
+			</span>
 		</div>
 	</div>
 </section>
 
-<aside
+{#if commandOpen && commandEnabled && onCommand}
+	<CommandGrid enabled={commandEnabled} {onCommand} />
+{/if}
+
+<div
+	class="heroic-side-hud"
 	data-testid="hud-side-panel"
-	class="jrpg-side-hud"
 	aria-label={t($locale, 'ui.questTracker')}
 >
-	<div class="glass-panel jrpg-coin-token">
+	<section
+		data-testid="hud-minimap"
+		class="heroic-field-card minimap-card"
+		aria-label={t($locale, 'ui.areaMap')}
+	>
+		<div class="minimap-medallion">
+			<svg
+				viewBox={`0 0 ${hudState.areaMap.worldWidth} ${hudState.areaMap.worldHeight}`}
+				aria-hidden="true"
+			>
+				<rect
+					class="minimap-fog"
+					x="0"
+					y="0"
+					width={hudState.areaMap.worldWidth}
+					height={hudState.areaMap.worldHeight}
+				/>
+				{#each hudState.areaMap.revealedCells as cellKey (cellKey)}
+					{@const cell = parseCellKey(cellKey)}
+					<rect
+						class="minimap-cell"
+						x={cell.column * hudState.areaMap.cellSize}
+						y={cell.row * hudState.areaMap.cellSize}
+						width={hudState.areaMap.cellSize}
+						height={hudState.areaMap.cellSize}
+					/>
+				{/each}
+				{#each hudState.areaMap.markers as marker (marker.id)}
+					<circle
+						class={`minimap-marker minimap-marker-${marker.kind} ${
+							marker.emphasis ? 'minimap-marker-emphasis' : ''
+						}`}
+						cx={marker.x}
+						cy={marker.y}
+						r={marker.emphasis ? 96 : 64}
+					/>
+				{/each}
+				<circle
+					class="minimap-player-halo arcane-halo"
+					cx={hudState.areaMap.player.x}
+					cy={hudState.areaMap.player.y}
+					r="120"
+				/>
+				<circle
+					class="minimap-player"
+					cx={hudState.areaMap.player.x}
+					cy={hudState.areaMap.player.y}
+					r="72"
+				/>
+			</svg>
+		</div>
+		<p class="minimap-location font-display">{hudState.areaMap.name}</p>
+	</section>
+
+	{#if hudState.quests.main}
+		<aside class="heroic-field-card quest-banner" aria-label={t($locale, 'ui.questTracker')}>
+			<p class="heroic-eyebrow quest-banner-eyebrow">✦ {t($locale, 'ui.mainQuest')}</p>
+			<h2>{hudState.quests.main.title}</h2>
+			<p class="quest-banner-objective">
+				<span class="quest-dot quest-dot-current" aria-hidden="true"></span>
+				{hudState.quests.main.objective}
+			</p>
+			{#if hudState.quests.side.length > 0}
+				<p class="quest-banner-side">
+					<span class="quest-dot" aria-hidden="true"></span>
+					{t($locale, 'ui.sideActive', { count: hudState.quests.side.length })}
+				</p>
+			{/if}
+		</aside>
+	{/if}
+
+	<div class="heroic-field-card wallet-pill">
+		<span class="wallet-coin" aria-hidden="true"></span>
 		<span class={`font-display tabular-nums${coinFlash ? ' arcane-coin-flash' : ''}`}
 			>{hudState.wallet.coins}{t($locale, 'ui.goldSuffix')}</span
 		>
 	</div>
-	{#if hudState.quests.main}
-		<section class="glass-panel filigree-frame jrpg-active-quest-panel">
-			<p class="jrpg-label font-display">{t($locale, 'ui.activeQuest')}</p>
-			<h2>{hudState.quests.main.title}</h2>
-			<p>{hudState.quests.main.objective}</p>
-			{#if hudState.quests.side.length > 0}
-				<span>{t($locale, 'ui.sideActive', { count: hudState.quests.side.length })}</span>
-			{/if}
-		</section>
-	{/if}
-</aside>
+</div>
 
 <div
-	class="glass-panel jrpg-field-status"
+	class="heroic-field-card heroic-field-status"
 	role="status"
 	aria-label={t($locale, 'ui.fieldStatus')}
 	aria-live="polite"
@@ -185,223 +214,334 @@
 </div>
 
 <style>
-	.jrpg-location-panel,
-	.jrpg-minimap-panel,
-	.jrpg-party-panel {
+	.heroic-field-card {
+		border: 1px solid color-mix(in srgb, var(--color-gold) 28%, var(--color-frame));
+		border-radius: 1rem;
+		background: radial-gradient(
+			130% 120% at 78% 0%,
+			var(--color-panel) 0%,
+			var(--color-panel-deep) 52%,
+			var(--color-ink) 100%
+		);
+		box-shadow:
+			0 24px 70px rgba(0, 0, 0, 0.55),
+			inset 0 1px 0 rgba(255, 246, 224, 0.08);
+		color: var(--color-parchment);
+	}
+
+	/* ---- Hero card (portrait / level / HP / XP / stats) --------------- */
+	.hero-card {
 		position: absolute;
+		top: 0.9rem;
+		left: 0.9rem;
 		z-index: 20;
+		display: grid;
+		grid-template-columns: auto minmax(0, 1fr);
+		gap: 0.8rem;
+		width: min(22.5rem, calc(100vw - 2rem));
+		padding: 0.8rem;
 		pointer-events: none;
 	}
 
-	.jrpg-location-panel {
-		top: 0.9rem;
-		left: 0.9rem;
-		width: min(14.5rem, calc(100vw - 12rem));
-		padding: 0.55rem 0.7rem;
+	.hero-portrait {
+		position: relative;
+		align-self: start;
 	}
 
-	.jrpg-location-name {
+	.hero-portrait img {
+		display: block;
+		width: 4.6rem;
+		height: 4.6rem;
+		border: 2px solid color-mix(in srgb, var(--color-gold) 70%, transparent);
+		border-radius: 999px;
+		object-fit: cover;
+		background: var(--color-ink);
+	}
+
+	.hero-level {
+		position: absolute;
+		bottom: -0.35rem;
+		left: 50%;
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		min-width: 1.7rem;
+		border: 1px solid color-mix(in srgb, var(--color-gold) 80%, transparent);
+		border-radius: 999px;
+		padding: 0.08rem 0.42rem;
+		background: linear-gradient(180deg, var(--color-gold-bright), var(--color-gold));
+		color: #3a2c07;
+		font-size: 0.66rem;
+		font-weight: 900;
+		transform: translateX(-50%);
+	}
+
+	.hero-copy {
+		display: grid;
+		min-width: 0;
+		gap: 0.4rem;
+	}
+
+	.hero-name {
 		margin: 0;
 		overflow: hidden;
 		text-overflow: ellipsis;
 		white-space: nowrap;
-		font-size: 0.9rem;
-		font-weight: 700;
-		color: var(--color-parchment);
-		text-transform: uppercase;
-	}
-
-	.jrpg-location-sub {
-		margin: 0.2rem 0 0;
-		overflow: hidden;
-		text-overflow: ellipsis;
-		white-space: nowrap;
-		font-size: 0.58rem;
+		font-size: 1.05rem;
 		font-weight: 900;
+		letter-spacing: 0.04em;
+		color: var(--color-parchment);
+	}
+
+	.hero-meter {
+		display: grid;
+		grid-template-columns: auto minmax(0, 1fr) auto;
+		align-items: center;
+		gap: 0.5rem;
+	}
+
+	.hero-meter-label {
 		color: var(--color-muted);
+		font-family: var(--font-display);
+		font-size: 0.62rem;
+		font-weight: 900;
+		letter-spacing: 0.08em;
+	}
+
+	.hero-meter-track {
+		height: 0.42rem;
+		overflow: hidden;
+		border: 1px solid rgba(255, 246, 224, 0.16);
+		border-radius: 999px;
+		background: color-mix(in srgb, var(--color-ink) 74%, transparent);
+	}
+
+	.hero-meter-fill {
+		display: block;
+		height: 100%;
+		border-radius: 999px;
+		transition: width 260ms cubic-bezier(0.22, 1, 0.36, 1);
+	}
+
+	.hero-meter-fill-hp {
+		background: linear-gradient(90deg, #2f9b6e, var(--color-emerald));
+	}
+
+	.hero-meter-fill-xp {
+		background: linear-gradient(
+			90deg,
+			color-mix(in srgb, var(--color-violet) 55%, var(--color-ink)),
+			var(--color-violet)
+		);
+	}
+
+	.hero-meter-value {
+		color: var(--color-parchment);
+		font-size: 0.72rem;
+		font-weight: 800;
+	}
+
+	.hero-stats {
+		display: flex;
+		gap: 1rem;
+		margin-top: 0.15rem;
+		border-top: 1px solid rgba(255, 246, 224, 0.14);
+		padding-top: 0.45rem;
+		color: var(--color-muted);
+		font-family: var(--font-display);
+		font-size: 0.62rem;
+		font-weight: 900;
+		letter-spacing: 0.08em;
 		text-transform: uppercase;
 	}
 
-	.jrpg-minimap-panel {
+	.hero-stats b {
+		margin-left: 0.22rem;
+		color: var(--color-parchment);
+		font-size: 0.76rem;
+	}
+
+	/* ---- Right column: minimap medallion / quest banner / wallet ------- */
+	.heroic-side-hud {
+		position: absolute;
 		top: 0.9rem;
 		right: 0.9rem;
-		width: 10.25rem;
+		z-index: 20;
+		display: grid;
+		justify-items: stretch;
+		gap: 0.55rem;
+		width: min(13.5rem, calc(100vw - 2rem));
+		pointer-events: none;
+	}
+
+	.minimap-card {
+		display: grid;
+		justify-items: center;
+		gap: 0.45rem;
 		padding: 0.55rem;
 	}
 
-	.jrpg-minimap-heading {
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		margin-bottom: 0.42rem;
-		color: var(--color-gold);
-		font-size: 0.62rem;
-		font-weight: 800;
-		text-transform: uppercase;
+	.minimap-medallion {
+		overflow: hidden;
+		width: 7.6rem;
+		height: 7.6rem;
+		border: 2px solid color-mix(in srgb, var(--color-gold) 70%, transparent);
+		border-radius: 999px;
+		box-shadow:
+			0 0 0 4px color-mix(in srgb, var(--color-panel-deep) 80%, transparent),
+			0 0 22px color-mix(in srgb, var(--color-gold) 24%, transparent);
 	}
 
-	.jrpg-minimap-svg {
+	.minimap-medallion svg {
 		display: block;
 		width: 100%;
-		height: 6.2rem;
-		border: 1px solid rgba(255, 248, 232, 0.16);
-		background: #0d1b26;
+		height: 100%;
 		image-rendering: pixelated;
 	}
 
-	.jrpg-minimap-fog {
+	.minimap-fog {
 		fill: #142333;
 	}
 
-	.jrpg-minimap-cell {
+	.minimap-cell {
 		fill: rgba(75, 133, 88, 0.82);
 		stroke: rgba(255, 248, 232, 0.16);
 		stroke-width: 8;
 	}
 
-	.jrpg-minimap-marker {
+	.minimap-marker {
 		fill: rgba(255, 248, 232, 0.34);
 		stroke: rgba(255, 248, 232, 0.82);
 		stroke-width: 18;
 	}
 
-	.jrpg-minimap-marker-exit,
-	.jrpg-minimap-marker-quest {
+	.minimap-marker-exit,
+	.minimap-marker-quest {
 		fill: rgba(255, 208, 64, 0.42);
 		stroke: var(--color-gold);
 	}
 
-	.jrpg-minimap-marker-building {
+	.minimap-marker-building {
 		fill: rgba(159, 231, 255, 0.34);
 		stroke: rgba(159, 231, 255, 0.82);
 	}
 
-	.jrpg-minimap-marker-discovery {
+	.minimap-marker-discovery {
 		fill: rgba(159, 247, 203, 0.34);
 		stroke: rgba(159, 247, 203, 0.82);
 	}
 
-	.jrpg-minimap-marker-emphasis {
+	.minimap-marker-emphasis {
 		filter: drop-shadow(0 0 32px rgba(255, 208, 64, 0.84));
 	}
 
-	.jrpg-minimap-player {
+	.minimap-player {
 		fill: #f05268;
 		stroke: var(--color-parchment);
 		stroke-width: 18;
 	}
 
-	.jrpg-minimap-player-halo {
+	.minimap-player-halo {
 		fill: rgba(240, 97, 122, 0.5);
 	}
 
-	.jrpg-party-panel {
-		bottom: 0.9rem;
-		left: 0.9rem;
-		display: grid;
-		width: min(17.5rem, calc(100vw - 2rem));
-		grid-template-columns: 3.4rem minmax(0, 1fr);
-		gap: 0.65rem;
-		padding: 0.65rem;
-	}
-
-	.jrpg-portrait {
-		display: grid;
-		place-items: center;
-		border: 1px solid rgba(255, 248, 232, 0.2);
-		border-radius: 0.25rem;
-		background: linear-gradient(180deg, rgba(255, 208, 64, 0.22), rgba(95, 168, 240, 0.14));
+	.minimap-location {
+		justify-self: center;
+		max-width: 100%;
+		overflow: hidden;
+		margin: 0;
+		border: 1px solid color-mix(in srgb, var(--color-gold) 55%, transparent);
+		border-radius: 999px;
+		padding: 0.18rem 0.7rem;
+		background: color-mix(in srgb, var(--color-panel-deep) 85%, transparent);
+		text-overflow: ellipsis;
+		white-space: nowrap;
+		font-size: 0.68rem;
+		font-weight: 700;
 		color: var(--color-gold);
-		font-size: 1.8rem;
+	}
+
+	/* ---- Main quest banner --------------------------------------------- */
+	.quest-banner {
+		border-left: 3px solid var(--color-gold);
+		padding: 0.6rem 0.75rem;
+	}
+
+	.quest-banner-eyebrow {
+		font-size: 0.6rem;
+	}
+
+	.quest-banner h2 {
+		margin: 0.3rem 0 0;
+		overflow-wrap: anywhere;
+		font-family: var(--font-display);
+		font-size: 0.92rem;
 		font-weight: 900;
-		line-height: 1;
+		color: var(--color-parchment);
 	}
 
-	.jrpg-party-copy {
-		display: grid;
-		min-width: 0;
-		gap: 0.42rem;
-	}
-
-	.jrpg-party-header,
-	.jrpg-party-meter div {
+	.quest-banner-objective,
+	.quest-banner-side {
 		display: flex;
 		align-items: center;
-		justify-content: space-between;
-		gap: 0.5rem;
-	}
-
-	.jrpg-party-header p,
-	.jrpg-party-header span,
-	.jrpg-party-meter span {
-		margin: 0;
-		font-size: 0.66rem;
-		font-weight: 900;
-		color: var(--color-muted);
-		text-transform: uppercase;
-	}
-
-	.jrpg-party-header p {
-		color: var(--color-parchment);
-		font-size: 0.8rem;
-	}
-
-	.jrpg-party-meter {
-		display: grid;
-		gap: 0.2rem;
-	}
-
-	.jrpg-side-hud {
-		position: absolute;
-		right: 0.9rem;
-		bottom: 0.9rem;
-		z-index: 20;
-		display: grid;
-		width: min(17rem, calc(100vw - 2rem));
-		gap: 0.55rem;
-		pointer-events: none;
-	}
-
-	.jrpg-coin-token {
-		justify-self: end;
-		padding: 0.4rem 0.78rem;
-		border-radius: var(--radius-arcane);
-		color: var(--color-gold);
-		font-size: 1.1rem;
-		font-weight: 700;
-	}
-
-	.jrpg-active-quest-panel {
-		padding: 0.62rem 0.7rem;
-	}
-
-	.jrpg-active-quest-panel h2 {
-		margin: 0.16rem 0 0;
-		overflow-wrap: anywhere;
-		color: var(--color-parchment);
-		font-size: 0.84rem;
-		font-weight: 900;
-		text-transform: uppercase;
-	}
-
-	.jrpg-active-quest-panel p:not(.jrpg-label) {
-		margin: 0.25rem 0 0;
+		gap: 0.45rem;
+		margin: 0.4rem 0 0;
 		color: var(--color-muted);
 		font-size: 0.72rem;
 		font-weight: 800;
 		line-height: 1.3;
 	}
 
-	.jrpg-active-quest-panel span {
-		display: inline-block;
-		margin-top: 0.35rem;
+	.quest-banner-side {
 		color: var(--color-emerald);
-		font-size: 0.68rem;
+		font-family: var(--font-display);
+		font-size: 0.64rem;
 		font-weight: 900;
 		text-transform: uppercase;
 	}
 
-	.jrpg-field-status {
+	.quest-dot {
+		flex: none;
+		width: 0.5rem;
+		height: 0.5rem;
+		border: 1px solid var(--color-frame-strong);
+		border-radius: 999px;
+		background: color-mix(in srgb, var(--color-ink) 55%, transparent);
+	}
+
+	.quest-dot-current {
+		border-color: color-mix(in srgb, var(--color-gold) 80%, transparent);
+		background: var(--color-gold);
+	}
+
+	/* ---- Wallet pill ---------------------------------------------------- */
+	.wallet-pill {
+		justify-self: end;
+		display: inline-flex;
+		align-items: center;
+		gap: 0.45rem;
+		border-radius: 999px;
+		padding: 0.32rem 0.8rem;
+		color: var(--color-gold);
+		font-size: 1rem;
+		font-weight: 700;
+	}
+
+	.wallet-coin {
+		display: block;
+		width: 0.85rem;
+		height: 0.85rem;
+		border: 1px solid color-mix(in srgb, var(--color-gold) 80%, transparent);
+		border-radius: 999px;
+		background: radial-gradient(
+			circle at 35% 30%,
+			var(--color-gold-bright),
+			color-mix(in srgb, var(--color-gold) 70%, var(--color-ink))
+		);
+	}
+
+	/* ---- Transient status ------------------------------------------------ */
+	.heroic-field-status {
 		position: absolute;
 		left: 0;
 		right: 0;
@@ -411,7 +551,7 @@
 		max-width: min(24rem, calc(100vw - 2rem));
 		margin-inline: auto;
 		border-radius: 999px;
-		padding: 0.52rem 0.75rem;
+		padding: 0.52rem 0.85rem;
 		font-size: 0.8rem;
 		font-weight: 900;
 		color: var(--color-sapphire);
@@ -419,39 +559,20 @@
 	}
 
 	@media (max-width: 720px) {
-		.jrpg-location-panel {
+		.hero-card {
 			top: 0.75rem;
 			left: 0.75rem;
-			width: min(12rem, calc(100vw - 9.75rem));
+			/* Leave room for the Menu button pinned top-right. */
+			width: min(19rem, calc(100vw - 7rem));
 		}
 
-		.jrpg-minimap-panel {
-			top: 0.75rem;
+		.heroic-side-hud {
+			top: 10rem;
 			right: 0.75rem;
-			width: 8.25rem;
-			padding: 0.45rem;
+			width: min(11rem, calc(100vw - 1.5rem));
 		}
 
-		.jrpg-minimap-svg {
-			height: 4.9rem;
-		}
-
-		.jrpg-party-panel,
-		.jrpg-side-hud {
-			left: 0.75rem;
-			right: 0.75rem;
-			width: auto;
-		}
-
-		.jrpg-party-panel {
-			bottom: 0.75rem;
-		}
-
-		.jrpg-side-hud {
-			bottom: 8.4rem;
-		}
-
-		.jrpg-field-status {
+		.heroic-field-status {
 			bottom: 16.5rem;
 			max-width: min(24rem, calc(100vw - 1.5rem));
 		}

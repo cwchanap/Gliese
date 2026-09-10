@@ -18,6 +18,8 @@
 
 	interface Props {
 		open: boolean;
+		/** Tab to show on next open (Gear deep-link from the field command grid). */
+		initialTab?: InventoryTab;
 		ready: boolean;
 		battleLocked: boolean;
 		inventory: HudState['inventory'];
@@ -36,6 +38,7 @@
 
 	let {
 		open,
+		initialTab,
 		ready,
 		battleLocked,
 		inventory,
@@ -61,7 +64,11 @@
 	let hoveredInventoryItem = $state<InventorySlotItem | null>(null);
 
 	$effect(() => {
-		if (!open) hoveredInventoryItem = null;
+		if (!open) {
+			hoveredInventoryItem = null;
+			return;
+		}
+		if (initialTab) activeInventoryTab = initialTab;
 	});
 
 	async function focusInventoryTab(tab: InventoryTab) {

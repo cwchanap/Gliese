@@ -425,7 +425,7 @@ describe('GameShell battle summary', () => {
 		emitHudState(baseHudState());
 
 		await page.getByRole('button', { name: /menu/i }).click();
-		await expect.element(page.getByRole('button', { name: /save game/i })).toBeVisible();
+		await expect.element(page.getByRole('button', { name: 'Save' })).toBeVisible();
 
 		emitHudState(
 			baseHudState({
@@ -472,12 +472,11 @@ describe('GameShell battle summary', () => {
 
 		await page.getByRole('button', { name: /menu/i }).click();
 
-		await expect.element(page.getByRole('button', { name: /quests/i })).toBeDisabled();
+		await expect.element(page.getByRole('button', { name: 'Quest', exact: true })).toBeDisabled();
 		await expect.element(page.getByRole('button', { name: /map/i })).toBeDisabled();
-		await expect.element(page.getByRole('button', { name: /inventory/i })).toBeDisabled();
-		await expect.element(page.getByRole('button', { name: /shop/i })).toBeDisabled();
-		await expect.element(page.getByRole('button', { name: /save game/i })).toBeDisabled();
-		await expect.element(page.getByRole('button', { name: /use heal/i })).toBeEnabled();
+		await expect.element(page.getByRole('button', { name: 'Bag' })).toBeDisabled();
+		await expect.element(page.getByRole('button', { name: 'Save' })).toBeDisabled();
+		await expect.element(page.getByRole('button', { name: 'Rest' })).toBeEnabled();
 	});
 
 	it('disables equipped item removal while battle is locked', async () => {
@@ -486,7 +485,7 @@ describe('GameShell battle summary', () => {
 			emitHudState(hudStateWithEquippedWeapon());
 
 			await page.getByRole('button', { name: /menu/i }).click();
-			await page.getByRole('button', { name: /inventory/i }).click();
+			await page.getByRole('button', { name: 'Bag' }).click();
 			await page.getByRole('tab', { name: /equipment/i }).click();
 
 			const removeButton = page.getByRole('button', { name: /remove/i });
@@ -523,27 +522,46 @@ describe('GameShell field status', () => {
 });
 
 describe('GameShell command menu', () => {
-	it('opens and closes the command menu', async () => {
+	it('toggles the command grid and reports expansion state', async () => {
 		render(GameShell);
 		emitHudState(baseHudState({ heals: 2 }));
 
 		const menuButton = page.getByRole('button', { name: /menu/i });
 		await menuButton.click();
-		await page.getByRole('button', { name: /use heal/i }).click();
+		await expect.element(page.getByRole('button', { name: 'Bag' })).toBeVisible();
+		await expect.element(menuButton).toHaveAttribute('aria-expanded', 'true');
 
-		await page.getByRole('button', { name: /close/i }).click();
+		await menuButton.click();
+		expect(page.getByRole('button', { name: 'Bag' }).elements()).toHaveLength(0);
 		await expect.element(menuButton).toHaveAttribute('aria-expanded', 'false');
 	});
 
-	it('emits heal command when use heal is clicked', async () => {
+	it('emits heal command when Rest is clicked', async () => {
 		await withCommands(async (commands) => {
 			render(GameShell);
 			emitHudState(baseHudState({ heals: 2 }));
 
 			await page.getByRole('button', { name: /menu/i }).click();
-			await page.getByRole('button', { name: /use heal/i }).click();
+			await page.getByRole('button', { name: 'Rest' }).click();
 
 			expect(commands).toContainEqual({ type: 'heal' });
+		});
+	});
+
+	it('keeps the inert Skill command focusable until Task 5 lands its surface', async () => {
+		await withCommands(async (commands) => {
+			render(GameShell);
+			emitHudState(baseHudState());
+
+			await page.getByRole('button', { name: /menu/i }).click();
+			await page.getByRole('button', { name: 'Skill' }).click();
+
+			await expect.element(page.getByRole('button', { name: 'Skill' })).toBeEnabled();
+			// Opening the grid itself pauses the game; Skill adds no further command.
+			const fieldCommands = commands.filter(
+				(command) => (command as { type?: string }).type !== 'pause-game'
+			);
+			expect(fieldCommands).toEqual([]);
 		});
 	});
 });
@@ -581,7 +599,7 @@ describe('GameShell inventory', () => {
 		);
 
 		await page.getByRole('button', { name: /menu/i }).click();
-		await page.getByRole('button', { name: /inventory/i }).click();
+		await page.getByRole('button', { name: 'Bag' }).click();
 
 		await expect.element(page.getByRole('tab', { name: /consumables/i })).toBeVisible();
 		await expect
@@ -599,7 +617,7 @@ describe('GameShell inventory', () => {
 		emitHudState(baseHudState({ hp: 12, maxHp: 20, attack: 4, defense: 0 }));
 
 		await page.getByRole('button', { name: /menu/i }).click();
-		await page.getByRole('button', { name: /inventory/i }).click();
+		await page.getByRole('button', { name: 'Bag' }).click();
 
 		const inventoryDialog = page.getByRole('dialog', { name: /inventory/i });
 
@@ -619,7 +637,7 @@ describe('GameShell inventory', () => {
 
 		const menuButton = page.getByRole('button', { name: /menu/i });
 		await menuButton.click();
-		await page.getByRole('button', { name: /inventory/i }).click();
+		await page.getByRole('button', { name: 'Bag' }).click();
 		const dialog = page.getByRole('dialog', { name: /inventory/i });
 		await expect.element(dialog).toBeVisible();
 
@@ -704,44 +722,33 @@ describe('GameShell shop', () => {
 		expect(dialog.element()?.contains(focused)).toBe(true);
 	});
 
-	it('opens from the command menu when a shop is nearby', async () => {
-		await withCommands(async (commands) => {
-			render(GameShell);
-			emitHudState(
-				baseHudState({
-					nearbyShop: {
-						shopId: 'miras-item-shop',
-						name: "Mira's Item Shop",
-						merchantName: 'Mira'
-					}
-				})
-			);
-
-			await page.getByRole('button', { name: /menu/i }).click();
-			await page.getByRole('button', { name: /shop/i }).click();
-
-			await expect.element(page.getByRole('dialog', { name: /Mira's Item Shop/i })).toBeVisible();
-			expect(commands).toContainEqual({ type: 'open-shop', shopId: 'miras-item-shop' });
-		});
-	});
-
 	it('closes on Escape and restores focus to the menu button', async () => {
 		render(GameShell);
 		emitHudState(
 			baseHudState({
-				nearbyShop: {
+				shop: {
 					shopId: 'miras-item-shop',
 					name: "Mira's Item Shop",
-					merchantName: 'Mira'
+					merchantName: 'Mira',
+					buy: [mockShopBuyEntry()],
+					sell: []
 				}
 			})
 		);
 
-		await page.getByRole('button', { name: /menu/i }).click();
-		await page.getByRole('button', { name: /shop/i }).click();
-
 		const dialog = page.getByRole('dialog', { name: /Mira's Item Shop/i });
 		await expect.element(dialog).toBeVisible();
+
+		// Simulate the WorldScene side of the bridge: a close-shop command clears
+		// the shop HUD state. Without this the auto-open effect would re-open the
+		// dialog immediately after Escape (test env has no game to clear it).
+		const clearShopOnClose = (event: Event) => {
+			if ((event as CustomEvent).detail?.type === 'close-shop') {
+				window.removeEventListener(HUD_COMMAND_EVENT, clearShopOnClose);
+				emitHudState(baseHudState());
+			}
+		};
+		window.addEventListener(HUD_COMMAND_EVENT, clearShopOnClose);
 
 		await userEvent.keyboard('{Escape}');
 
@@ -765,7 +772,7 @@ describe('GameShell quest log', () => {
 		);
 
 		await page.getByRole('button', { name: /menu/i }).click();
-		await page.getByRole('button', { name: /quests/i }).click();
+		await page.getByRole('button', { name: 'Quest', exact: true }).click();
 
 		await expect.element(page.getByText(/Field Journal/)).toBeVisible();
 		await expect.element(page.getByText(/Clues found/)).toBeVisible();
@@ -785,7 +792,7 @@ describe('GameShell quest log', () => {
 		);
 
 		await page.getByRole('button', { name: /menu/i }).click();
-		await page.getByRole('button', { name: /quests/i }).click();
+		await page.getByRole('button', { name: 'Quest', exact: true }).click();
 
 		await expect.element(page.getByText(/no side quests active/i)).toBeVisible();
 	});
@@ -804,7 +811,7 @@ describe('GameShell quest log', () => {
 		);
 
 		await page.getByRole('button', { name: /menu/i }).click();
-		await page.getByRole('button', { name: /quests/i }).click();
+		await page.getByRole('button', { name: 'Quest', exact: true }).click();
 
 		const questDialog = page.getByRole('dialog', { name: /quest log/i });
 		await expect.element(questDialog).toBeVisible();
@@ -833,7 +840,7 @@ describe('GameShell quest log', () => {
 		);
 
 		await page.getByRole('button', { name: /menu/i }).click();
-		await page.getByRole('button', { name: /quests/i }).click();
+		await page.getByRole('button', { name: 'Quest', exact: true }).click();
 
 		const closeButton = page
 			.getByRole('dialog', { name: /quest log/i })
@@ -924,7 +931,7 @@ describe('GameShell save screen', () => {
 			emitHudState(baseHudState());
 
 			await page.getByRole('button', { name: /menu/i }).click();
-			await page.getByRole('button', { name: /save game/i }).click();
+			await page.getByRole('button', { name: 'Save' }).click();
 
 			const saveDialog = page.getByRole('dialog', { name: /save/i });
 			await expect.element(saveDialog).toBeVisible();
@@ -945,7 +952,7 @@ describe('GameShell save screen', () => {
 			emitHudState(baseHudState());
 
 			await page.getByRole('button', { name: /menu/i }).click();
-			await page.getByRole('button', { name: /save game/i }).click();
+			await page.getByRole('button', { name: 'Save' }).click();
 
 			const saveDialog = page.getByRole('dialog', { name: /save/i });
 			await expect.element(saveDialog).toBeVisible();
@@ -963,7 +970,7 @@ describe('GameShell save screen', () => {
 			emitHudState(baseHudState());
 
 			await page.getByRole('button', { name: /menu/i }).click();
-			await page.getByRole('button', { name: /save game/i }).click();
+			await page.getByRole('button', { name: 'Save' }).click();
 
 			const saveDialog = page.getByRole('dialog', { name: /save/i });
 			await expect.element(saveDialog).toBeVisible();
@@ -1038,7 +1045,7 @@ describe('GameShell inventory actions', () => {
 			);
 
 			await page.getByRole('button', { name: /menu/i }).click();
-			await page.getByRole('button', { name: /inventory/i }).click();
+			await page.getByRole('button', { name: 'Bag' }).click();
 
 			await page.getByRole('article', { name: /Field Potion/i }).dblClick();
 
@@ -1077,7 +1084,7 @@ describe('GameShell inventory actions', () => {
 			);
 
 			await page.getByRole('button', { name: /menu/i }).click();
-			await page.getByRole('button', { name: /inventory/i }).click();
+			await page.getByRole('button', { name: 'Bag' }).click();
 			await page.getByRole('tab', { name: /equipment/i }).click();
 
 			await page.getByRole('article', { name: /Practice Sword/i }).dblClick();
@@ -1114,7 +1121,7 @@ describe('GameShell inventory actions', () => {
 		);
 
 		await page.getByRole('button', { name: /menu/i }).click();
-		await page.getByRole('button', { name: /inventory/i }).click();
+		await page.getByRole('button', { name: 'Bag' }).click();
 		await page.getByRole('tab', { name: /key items/i }).click();
 
 		await expect.element(page.getByRole('article', { name: /Ancient Key/i })).toBeVisible();
@@ -1218,16 +1225,52 @@ describe('GameShell keyboard shortcuts', () => {
 		await expect.element(page.getByRole('button', { name: /menu/i })).toHaveFocus();
 	});
 
-	it('does not open area map when another overlay is open', async () => {
+	it('does not open area map when the command grid is open', async () => {
 		render(GameShell);
 		emitHudState(baseHudState());
 
 		await page.getByRole('button', { name: /menu/i }).click();
-		const closeCommand = page.getByRole('button', { name: /close/i });
-		await expect.element(closeCommand).toBeVisible();
+		const bagCommand = page.getByRole('button', { name: 'Bag' });
+		await expect.element(bagCommand).toBeVisible();
 
 		await userEvent.keyboard('m');
-		await expect.element(closeCommand).toBeVisible();
+		await expect.element(bagCommand).toBeVisible();
+		expect(page.getByTestId('area-map-svg').elements()).toHaveLength(0);
+	});
+
+	it('moves grid focus with arrow keys through resolveMenuFocusTarget', async () => {
+		render(GameShell);
+		emitHudState(baseHudState({ heals: 0 }));
+
+		await page.getByRole('button', { name: /menu/i }).click();
+
+		// Null current: arrows land on the first enabled tile.
+		await userEvent.keyboard('{ArrowDown}');
+		await expect.element(page.getByRole('button', { name: 'Bag' })).toHaveFocus();
+
+		await userEvent.keyboard('{ArrowRight}');
+		await expect.element(page.getByRole('button', { name: 'Gear' })).toHaveFocus();
+
+		// Rest is disabled (heals: 0): down the column has no enabled cell, so
+		// focus stays on Gear.
+		await userEvent.keyboard('{ArrowDown}');
+		await expect.element(page.getByRole('button', { name: 'Gear' })).toHaveFocus();
+
+		await userEvent.keyboard('{ArrowLeft}');
+		await expect.element(page.getByRole('button', { name: 'Bag' })).toHaveFocus();
+
+		await userEvent.keyboard('{ArrowDown}');
+		await expect.element(page.getByRole('button', { name: 'Skill' })).toHaveFocus();
+
+		// Right from Skill skips the disabled Rest tile and lands on Save.
+		await userEvent.keyboard('{ArrowRight}');
+		await expect.element(page.getByRole('button', { name: 'Save' })).toHaveFocus();
+
+		// Edge stays on the current tile.
+		await userEvent.keyboard('{ArrowRight}');
+		await expect.element(page.getByRole('button', { name: 'System' })).toHaveFocus();
+		await userEvent.keyboard('{ArrowRight}');
+		await expect.element(page.getByRole('button', { name: 'System' })).toHaveFocus();
 	});
 });
 
@@ -1258,7 +1301,7 @@ describe('GameShell quest log guild offers', () => {
 		);
 
 		await page.getByRole('button', { name: /menu/i }).click();
-		await page.getByRole('button', { name: /quests/i }).click();
+		await page.getByRole('button', { name: 'Quest', exact: true }).click();
 
 		await expect.element(page.getByText(/Thin the Village Slimes/)).toBeVisible();
 		await expect.element(page.getByText(/available from guild master/i)).toBeVisible();

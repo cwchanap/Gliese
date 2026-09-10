@@ -47,6 +47,16 @@ export const en = {
 		inventory: 'Inventory',
 		saveGame: 'Save Game',
 		useHeal: 'Use Heal',
+		fieldCmds: {
+			bag: 'Bag',
+			gear: 'Gear',
+			quest: 'Quest',
+			map: 'Map',
+			skill: 'Skill',
+			rest: 'Rest',
+			save: 'Save',
+			system: 'System'
+		},
 		titleChapterPill: 'Verdant Region · Chapter I',
 		chapterLabel: 'Chapter I',
 		titleNewRun: 'New Run',
