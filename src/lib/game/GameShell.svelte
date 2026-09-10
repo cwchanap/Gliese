@@ -5,11 +5,18 @@
 	import BagScreen from '$lib/game/ui/BagScreen.svelte';
 	import FieldHud from '$lib/game/ui/FieldHud.svelte';
 	import QuestJournal from '$lib/game/ui/QuestJournal.svelte';
+	import SaveScreen from '$lib/game/ui/SaveScreen.svelte';
 	import ShopScreen from '$lib/game/ui/ShopScreen.svelte';
 	import SystemScreen from '$lib/game/ui/SystemScreen.svelte';
+	import TitleScreen from '$lib/game/ui/TitleScreen.svelte';
 	import { locale, setActiveLocale } from '$lib/game/i18n/store';
 	import { localeLabels, supportedLocales, type Locale } from '$lib/game/i18n/locales';
 	import { t } from '$lib/game/i18n/translate';
+	import { resetPlaytime, formatPlaytimeSeconds } from '$lib/game/save/playtime';
+	import { getNewestSaveSlot } from '$lib/game/save/slots';
+	import type { GameStartRequest } from '$lib/game/phaser/createGame';
+	import { hasRenderOptionOverrides } from '$lib/game/phaser/world-render-options';
+	import { onHudState } from '$lib/game/ui-bridge/events';
 	import {
 		hudState,
 		requestBuyShopItem,
@@ -22,18 +29,65 @@
 		requestHeal,
 		requestOpenShop,
 		requestPauseGame,
-		requestResume,
 		requestResumeGame,
-		requestSave,
+		requestSaveSlot,
 		requestSellInventoryItem,
 		requestUnequipSlot,
 		requestUseItem
 	} from '$lib/game/ui-bridge/store';
 	import type { EquipmentSlot } from '$lib/game/content/items';
 
-	type OverlayPauseOwner = 'settings' | 'system' | 'inventory' | 'shop' | 'questLog' | 'areaMap';
+	type GameShellMode = 'title' | 'playing';
+	type OverlayPauseOwner =
+		| 'settings'
+		| 'system'
+		| 'save'
+		| 'inventory'
+		| 'shop'
+		| 'questLog'
+		| 'areaMap';
 
-	let mountNode: HTMLDivElement | undefined;
+	// Direct-boot affordance: game render-option query params boot straight into
+	// the field (review/e2e tooling). A bare '/' shows the Title screen.
+	const directBoot =
+		typeof window !== 'undefined' && hasRenderOptionOverrides(window.location.search);
+	const directBootSlot = directBoot ? getNewestSaveSlot() : null;
+
+	let mode = $state<GameShellMode>(directBoot ? 'playing' : 'title');
+	let startRequest = $state<GameStartRequest>(
+		directBootSlot
+			? { reason: 'resume', saveState: directBootSlot.record.state }
+			: { reason: 'new', saveState: null }
+	);
+	if (directBoot) {
+		resetPlaytime(directBootSlot?.record.playtimeSeconds ?? 0);
+	}
+
+	const titleSlot = getNewestSaveSlot();
+	let titleCanContinue = $state(titleSlot !== null);
+	let titleContinueSubtitle = $state(
+		titleSlot
+			? `${titleSlot.record.locationLabel} · ${formatPlaytimeSeconds(titleSlot.record.playtimeSeconds)}`
+			: ''
+	);
+
+	function beginRun(request: GameStartRequest, playtimeBaseSeconds: number) {
+		resetPlaytime(playtimeBaseSeconds);
+		startRequest = request;
+		mode = 'playing';
+	}
+
+	function startNewRun() {
+		beginRun({ reason: 'new', saveState: null }, 0);
+	}
+
+	function continueNewestRun() {
+		const newest = getNewestSaveSlot();
+		if (!newest) return;
+		beginRun({ reason: 'resume', saveState: newest.record.state }, newest.record.playtimeSeconds);
+	}
+
+	let mountNode = $state<HTMLDivElement>();
 	let menuButton = $state<HTMLButtonElement>();
 	let inventoryDialog = $state<HTMLDivElement>();
 	let inventoryCloseButton = $state<HTMLButtonElement>();
@@ -57,6 +111,7 @@
 	let questLogOpen = $state(false);
 	let areaMapOpen = $state(false);
 	let systemOpen = $state(false);
+	let saveOpen = $state(false);
 	let pauseOwner = $state<OverlayPauseOwner | null>(null);
 
 	const battlePhase = $derived($hudState.battle.phase);
@@ -159,14 +214,33 @@
 		if (systemOpen || battleLocked) return;
 		commandOpen = false;
 		systemOpen = true;
-		pauseForOverlay('system');
+		if (mode === 'playing') {
+			pauseForOverlay('system');
+		}
 		void focusSystemDialog();
 	}
 
 	function closeSystem() {
 		if (!systemOpen) return;
 		systemOpen = false;
-		resumeForOverlay('system');
+		if (mode === 'playing') {
+			resumeForOverlay('system');
+			menuButton?.focus();
+		}
+	}
+
+	function openSave() {
+		if (saveOpen || battleLocked || !$hudState.ready) return;
+		commandOpen = false;
+		saveOpen = true;
+		pauseForOverlay('save');
+		void focusSaveDialog();
+	}
+
+	function closeSave() {
+		if (!saveOpen) return;
+		saveOpen = false;
+		resumeForOverlay('save');
 		menuButton?.focus();
 	}
 
@@ -212,34 +286,6 @@
 		pauseForOverlay('shop');
 		void focusShopDialog();
 	});
-
-	function releaseOverlayPause() {
-		const owner = pauseOwner;
-		const wasShopOpen = shopOpen;
-		commandOpen = false;
-		inventoryOpen = false;
-		shopOpen = false;
-		questLogOpen = false;
-		areaMapOpen = false;
-		systemOpen = false;
-		pauseOwner = null;
-
-		if (wasShopOpen) requestCloseShop();
-
-		if (owner !== null) requestResumeGame();
-	}
-
-	function resumeSaveFromMenu() {
-		if (battleLocked) return;
-		releaseOverlayPause();
-		requestResume();
-	}
-
-	function saveFromMenu() {
-		if (battleLocked) return;
-		releaseOverlayPause();
-		requestSave();
-	}
 
 	function dismissBattleSummary() {
 		requestDismissBattleSummary();
@@ -296,6 +342,14 @@
 	async function focusSystemDialog() {
 		await tick();
 		(systemCloseButton ?? systemDialog)?.focus();
+	}
+
+	let saveDialog = $state<HTMLDivElement>();
+	let saveCloseButton = $state<HTMLButtonElement>();
+
+	async function focusSaveDialog() {
+		await tick();
+		(saveCloseButton ?? saveDialog)?.focus();
 	}
 
 	async function focusBattleSummaryDialog() {
@@ -478,6 +532,38 @@
 		}
 	}
 
+	function handleSaveDialogKeydown(event: KeyboardEvent) {
+		if (event.key === 'Escape') {
+			event.preventDefault();
+			closeSave();
+			return;
+		}
+
+		if (event.key !== 'Tab' || !saveDialog) return;
+
+		const focusableElements = Array.from(
+			saveDialog.querySelectorAll<HTMLElement>(
+				'button:not([disabled]), [tabindex]:not([tabindex="-1"])'
+			)
+		).filter((element) => element.tabIndex >= 0 && element.getClientRects().length > 0);
+		if (focusableElements.length === 0) {
+			event.preventDefault();
+			saveDialog.focus();
+			return;
+		}
+
+		const firstElement = focusableElements[0];
+		const lastElement = focusableElements.at(-1);
+
+		if (event.shiftKey && document.activeElement === firstElement) {
+			event.preventDefault();
+			lastElement?.focus();
+		} else if (!event.shiftKey && document.activeElement === lastElement) {
+			event.preventDefault();
+			firstElement.focus();
+		}
+	}
+
 	function getBattleSummaryFocusableElements() {
 		if (!battleSummaryDialog) return [];
 
@@ -548,16 +634,19 @@
 		}
 	}
 
-	onMount(() => {
+	// Mount Phaser only once the player commits to a run (Continue / New Run /
+	// direct boot). The Title screen runs entirely on Svelte + save slots.
+	$effect(() => {
+		if (mode !== 'playing' || !mountNode) return;
+		const request = $state.snapshot(startRequest) as GameStartRequest;
+		const node = mountNode;
 		let destroyed = false;
 		let cleanup = () => {};
 
 		void (async () => {
 			try {
-				if (!mountNode) return;
-
 				const { createGame } = await import('$lib/game/phaser/createGame');
-				const instance = await createGame(mountNode);
+				const instance = await createGame(node, request);
 
 				if (destroyed) {
 					instance.destroy();
@@ -579,6 +668,16 @@
 		};
 	});
 
+	// A ready HUD state implies a live game: keep the shell in playing mode
+	// (covers direct boot races and embedded test harnesses).
+	$effect(() => {
+		return onHudState((state) => {
+			if (state.ready && mode === 'title') {
+				mode = 'playing';
+			}
+		});
+	});
+
 	onMount(() => {
 		window.addEventListener('keydown', handleGlobalKeydown);
 		return () => window.removeEventListener('keydown', handleGlobalKeydown);
@@ -596,276 +695,291 @@
 		</div>
 	{/if}
 
-	<div bind:this={mountNode} class="game-stage absolute inset-0 overflow-hidden bg-[#090d1f]"></div>
-
-	<div
-		class="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(130,180,255,0.18),transparent_38%),linear-gradient(180deg,rgba(7,10,26,0.1),rgba(4,6,18,0.58)_85%,rgba(3,4,10,0.82))]"
-	></div>
-
-	<div class="jrpg-menu-anchor pointer-events-auto">
-		<button
-			bind:this={menuButton}
-			type="button"
-			class="glass-button jrpg-command-toggle"
-			onclick={() => (commandOpen ? closeCommand() : openCommand())}
-			aria-expanded={commandOpen}
-			aria-controls="game-command-panel"
-		>
-			{t($locale, 'ui.menu')}
-		</button>
-	</div>
-
-	<FieldHud hudState={$hudState} />
-
-	{#if commandOpen}
+	{#if mode === 'title'}
+		<TitleScreen
+			canContinue={titleCanContinue}
+			continueSubtitle={titleContinueSubtitle}
+			onContinue={continueNewestRun}
+			onNewRun={startNewRun}
+			onSystem={openSystem}
+		/>
+	{:else}
 		<div
-			class="absolute inset-0 z-30 bg-black/20 backdrop-blur-[1px]"
-			role="presentation"
-			onclick={closeCommand}
+			bind:this={mountNode}
+			class="game-stage absolute inset-0 overflow-hidden bg-[#090d1f]"
 		></div>
-		<aside
-			id="game-command-panel"
-			class="glass-panel-strong jrpg-command-box"
-			role="region"
-			aria-label={t($locale, 'ui.command')}
-		>
-			<div class="jrpg-command-heading">
-				<p class="jrpg-label">{t($locale, 'ui.command')}</p>
-				<button type="button" class="glass-button jrpg-small-button" onclick={closeCommand}>
-					{t($locale, 'ui.close')}
-				</button>
-			</div>
-			<div class="arcane-stagger jrpg-command-list">
-				<button
-					type="button"
-					class="glass-button jrpg-command-action"
-					onclick={openQuestLog}
-					disabled={!$hudState.ready || battleLocked}
-				>
-					{t($locale, 'ui.quests')}
-				</button>
-				<button
-					type="button"
-					class="glass-button jrpg-command-action"
-					onclick={openAreaMap}
-					disabled={!$hudState.ready || battleLocked}
-				>
-					{t($locale, 'ui.map')}
-				</button>
-				<button
-					type="button"
-					class="glass-button jrpg-command-action"
-					onclick={openInventory}
-					disabled={!$hudState.ready || battleLocked}
-				>
-					{t($locale, 'ui.inventory')}
-				</button>
-				<button
-					type="button"
-					class="glass-button jrpg-command-action"
-					onclick={openShop}
-					disabled={!$hudState.ready || battleLocked || !$hudState.nearbyShop}
-				>
-					{t($locale, 'ui.shop')}
-				</button>
-				<button
-					type="button"
-					class="glass-button jrpg-command-action"
-					onclick={resumeSaveFromMenu}
-					disabled={!$hudState.ready || battleLocked || !$hudState.canResume}
-				>
-					{t($locale, 'ui.resumeSave')}
-				</button>
-				<button
-					type="button"
-					class="glass-button jrpg-command-action"
-					onclick={saveFromMenu}
-					disabled={!$hudState.ready || battleLocked}
-				>
-					{t($locale, 'ui.saveGame')}
-				</button>
-				<button
-					type="button"
-					class="glass-button jrpg-command-action"
-					onclick={requestHeal}
-					disabled={!$hudState.ready || $hudState.heals < 1 || battlePhase === 'summary'}
-				>
-					{t($locale, 'ui.useHeal')}
-				</button>
-				<button
-					type="button"
-					class="glass-button jrpg-command-action"
-					onclick={openSystem}
-					disabled={battleLocked}
-				>
-					{t($locale, 'ui.system')}
-				</button>
-			</div>
-			<div class="jrpg-command-status">
-				{$hudState.status}
-			</div>
-			<label class="jrpg-system-row">
-				<span>{t($locale, 'ui.language')}</span>
-				<select
-					value={$locale}
-					onchange={(event) => setActiveLocale(event.currentTarget.value as Locale)}
-				>
-					{#each supportedLocales as option (option)}
-						<option value={option}>{localeLabels[option]}</option>
-					{/each}
-				</select>
-			</label>
-		</aside>
-	{/if}
 
-	{#if $hudState.dialogue}
-		<DialoguePanel
-			dialogue={$hudState.dialogue}
-			onadvance={requestDialogueAdvance}
-			onclose={requestDialogueClose}
-			onchoose={requestDialogueChoice}
+		<div
+			class="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(130,180,255,0.18),transparent_38%),linear-gradient(180deg,rgba(7,10,26,0.1),rgba(4,6,18,0.58)_85%,rgba(3,4,10,0.82))]"
+		></div>
+
+		<div class="jrpg-menu-anchor pointer-events-auto">
+			<button
+				bind:this={menuButton}
+				type="button"
+				class="glass-button jrpg-command-toggle"
+				onclick={() => (commandOpen ? closeCommand() : openCommand())}
+				aria-expanded={commandOpen}
+				aria-controls="game-command-panel"
+			>
+				{t($locale, 'ui.menu')}
+			</button>
+		</div>
+
+		<FieldHud hudState={$hudState} />
+
+		{#if commandOpen}
+			<div
+				class="absolute inset-0 z-30 bg-black/20 backdrop-blur-[1px]"
+				role="presentation"
+				onclick={closeCommand}
+			></div>
+			<aside
+				id="game-command-panel"
+				class="glass-panel-strong jrpg-command-box"
+				role="region"
+				aria-label={t($locale, 'ui.command')}
+			>
+				<div class="jrpg-command-heading">
+					<p class="jrpg-label">{t($locale, 'ui.command')}</p>
+					<button type="button" class="glass-button jrpg-small-button" onclick={closeCommand}>
+						{t($locale, 'ui.close')}
+					</button>
+				</div>
+				<div class="arcane-stagger jrpg-command-list">
+					<button
+						type="button"
+						class="glass-button jrpg-command-action"
+						onclick={openQuestLog}
+						disabled={!$hudState.ready || battleLocked}
+					>
+						{t($locale, 'ui.quests')}
+					</button>
+					<button
+						type="button"
+						class="glass-button jrpg-command-action"
+						onclick={openAreaMap}
+						disabled={!$hudState.ready || battleLocked}
+					>
+						{t($locale, 'ui.map')}
+					</button>
+					<button
+						type="button"
+						class="glass-button jrpg-command-action"
+						onclick={openInventory}
+						disabled={!$hudState.ready || battleLocked}
+					>
+						{t($locale, 'ui.inventory')}
+					</button>
+					<button
+						type="button"
+						class="glass-button jrpg-command-action"
+						onclick={openShop}
+						disabled={!$hudState.ready || battleLocked || !$hudState.nearbyShop}
+					>
+						{t($locale, 'ui.shop')}
+					</button>
+					<button
+						type="button"
+						class="glass-button jrpg-command-action"
+						onclick={openSave}
+						disabled={!$hudState.ready || battleLocked}
+					>
+						{t($locale, 'ui.saveGame')}
+					</button>
+					<button
+						type="button"
+						class="glass-button jrpg-command-action"
+						onclick={requestHeal}
+						disabled={!$hudState.ready || $hudState.heals < 1 || battlePhase === 'summary'}
+					>
+						{t($locale, 'ui.useHeal')}
+					</button>
+					<button
+						type="button"
+						class="glass-button jrpg-command-action"
+						onclick={openSystem}
+						disabled={battleLocked}
+					>
+						{t($locale, 'ui.system')}
+					</button>
+				</div>
+				<div class="jrpg-command-status">
+					{$hudState.status}
+				</div>
+				<label class="jrpg-system-row">
+					<span>{t($locale, 'ui.language')}</span>
+					<select
+						value={$locale}
+						onchange={(event) => setActiveLocale(event.currentTarget.value as Locale)}
+					>
+						{#each supportedLocales as option (option)}
+							<option value={option}>{localeLabels[option]}</option>
+						{/each}
+					</select>
+				</label>
+			</aside>
+		{/if}
+
+		{#if $hudState.dialogue}
+			<DialoguePanel
+				dialogue={$hudState.dialogue}
+				onadvance={requestDialogueAdvance}
+				onclose={requestDialogueClose}
+				onchoose={requestDialogueChoice}
+			/>
+		{/if}
+
+		{#if battleSummary}
+			<div class="jrpg-modal-backdrop jrpg-battle-summary-backdrop" role="presentation">
+				<div
+					bind:this={battleSummaryDialog}
+					class="glass-panel-strong arcane-window-enter jrpg-window jrpg-window-narrow"
+					aria-label={t($locale, 'ui.battleSummary')}
+					aria-modal="true"
+					role="dialog"
+					tabindex="-1"
+					onkeydown={handleBattleSummaryDialogKeydown}
+				>
+					<div class="jrpg-window-header">
+						<div>
+							<p
+								class="jrpg-label font-display {battleSummary.outcome === 'victory'
+									? 'arcane-victory-flash'
+									: ''}"
+							>
+								{battleSummary.outcome === 'victory'
+									? t($locale, 'ui.battleVictory')
+									: t($locale, 'ui.battleDefeat')}
+							</p>
+							<h2 class="jrpg-window-title font-display">{t($locale, 'ui.battleSummary')}</h2>
+						</div>
+					</div>
+					<div class="jrpg-window-body">
+						<div class="arcane-stagger grid gap-3 text-sm text-parchment/88">
+							<p>
+								{t($locale, 'ui.enemiesDefeated', {
+									count: battleSummary.enemiesDefeated
+								})}
+							</p>
+							<p>{t($locale, 'ui.xpGained', { xp: battleSummary.xpGained })}</p>
+							<p>{t($locale, 'ui.coinsGained', { coins: battleSummary.coinsGained })}</p>
+							{#if battleSummary.leveledUp}
+								<p>{t($locale, 'ui.levelUp')}</p>
+							{/if}
+							{#if battleSummary.drops.length > 0}
+								<ul class="grid gap-1">
+									{#each battleSummary.drops as drop (drop.itemId)}
+										<li>{drop.name} x{drop.quantity}</li>
+									{/each}
+								</ul>
+							{:else}
+								<p>{t($locale, 'ui.noDrops')}</p>
+							{/if}
+							{#if battleSummary.questRewards.length > 0}
+								<ul class="grid gap-1">
+									{#each battleSummary.questRewards as questReward (questReward.title)}
+										<li>
+											{t($locale, 'content.dialogue.system.questCompleteNotice', {
+												questTitle: questReward.title,
+												rewardSummary: questReward.rewardSummary
+											})}
+										</li>
+									{/each}
+								</ul>
+							{/if}
+							{#if battleSummary.questProgress?.length > 0}
+								<ul class="grid gap-1">
+									{#each battleSummary.questProgress as progress (progress.questId)}
+										<li>
+											{t($locale, 'ui.questProgressUpdate', {
+												progressLabel: progress.progressLabel,
+												currentProgress: String(progress.currentProgress),
+												target: String(progress.target)
+											})}
+										</li>
+									{/each}
+								</ul>
+							{/if}
+							{#if battleSummary.outcome === 'defeat'}
+								<p>{t($locale, 'ui.defeatReturnedToVillage')}</p>
+							{/if}
+						</div>
+						<button
+							bind:this={battleSummaryContinueButton}
+							type="button"
+							class="glass-button jrpg-command-action mt-5"
+							onclick={dismissBattleSummary}
+						>
+							{t($locale, 'ui.continue')}
+						</button>
+					</div>
+				</div>
+			</div>
+		{/if}
+
+		<BagScreen
+			open={inventoryOpen}
+			ready={$hudState.ready}
+			{battleLocked}
+			inventory={$hudState.inventory}
+			hp={$hudState.hp}
+			maxHp={$hudState.maxHp}
+			attack={$hudState.attack}
+			defense={$hudState.defense}
+			bind:dialog={inventoryDialog}
+			bind:closeButton={inventoryCloseButton}
+			onClose={closeInventory}
+			onUseItem={requestUseItem}
+			onEquip={requestEquipItem}
+			onUnequip={unequipSlot}
+			onkeydown={handleInventoryDialogKeydown}
+		/>
+
+		<AreaMapScreen
+			open={areaMapOpen}
+			areaMap={$hudState.areaMap}
+			bind:dialog={areaMapDialog}
+			bind:closeButton={areaMapCloseButton}
+			onClose={closeAreaMap}
+			onkeydown={handleAreaMapDialogKeydown}
+		/>
+
+		<QuestJournal
+			open={questLogOpen}
+			quests={$hudState.quests}
+			bind:dialog={questLogDialog}
+			bind:closeButton={questLogCloseButton}
+			onClose={closeQuestLog}
+			onkeydown={handleQuestLogDialogKeydown}
+		/>
+
+		<ShopScreen
+			open={shopOpen}
+			ready={$hudState.ready}
+			{battleLocked}
+			shop={$hudState.shop}
+			nearbyShop={$hudState.nearbyShop}
+			coins={$hudState.wallet.coins}
+			status={$hudState.status}
+			bind:dialog={shopDialog}
+			bind:closeButton={shopCloseButton}
+			onClose={closeShop}
+			onBuy={requestBuyShopItem}
+			onSell={requestSellInventoryItem}
+			onkeydown={handleShopDialogKeydown}
+		/>
+		<SaveScreen
+			open={saveOpen}
+			hudStatus={$hudState.status}
+			bind:dialog={saveDialog}
+			bind:closeButton={saveCloseButton}
+			onClose={closeSave}
+			onConfirmSlot={requestSaveSlot}
+			onkeydown={handleSaveDialogKeydown}
 		/>
 	{/if}
 
-	{#if battleSummary}
-		<div class="jrpg-modal-backdrop jrpg-battle-summary-backdrop" role="presentation">
-			<div
-				bind:this={battleSummaryDialog}
-				class="glass-panel-strong arcane-window-enter jrpg-window jrpg-window-narrow"
-				aria-label={t($locale, 'ui.battleSummary')}
-				aria-modal="true"
-				role="dialog"
-				tabindex="-1"
-				onkeydown={handleBattleSummaryDialogKeydown}
-			>
-				<div class="jrpg-window-header">
-					<div>
-						<p
-							class="jrpg-label font-display {battleSummary.outcome === 'victory'
-								? 'arcane-victory-flash'
-								: ''}"
-						>
-							{battleSummary.outcome === 'victory'
-								? t($locale, 'ui.battleVictory')
-								: t($locale, 'ui.battleDefeat')}
-						</p>
-						<h2 class="jrpg-window-title font-display">{t($locale, 'ui.battleSummary')}</h2>
-					</div>
-				</div>
-				<div class="jrpg-window-body">
-					<div class="arcane-stagger grid gap-3 text-sm text-parchment/88">
-						<p>
-							{t($locale, 'ui.enemiesDefeated', {
-								count: battleSummary.enemiesDefeated
-							})}
-						</p>
-						<p>{t($locale, 'ui.xpGained', { xp: battleSummary.xpGained })}</p>
-						<p>{t($locale, 'ui.coinsGained', { coins: battleSummary.coinsGained })}</p>
-						{#if battleSummary.leveledUp}
-							<p>{t($locale, 'ui.levelUp')}</p>
-						{/if}
-						{#if battleSummary.drops.length > 0}
-							<ul class="grid gap-1">
-								{#each battleSummary.drops as drop (drop.itemId)}
-									<li>{drop.name} x{drop.quantity}</li>
-								{/each}
-							</ul>
-						{:else}
-							<p>{t($locale, 'ui.noDrops')}</p>
-						{/if}
-						{#if battleSummary.questRewards.length > 0}
-							<ul class="grid gap-1">
-								{#each battleSummary.questRewards as questReward (questReward.title)}
-									<li>
-										{t($locale, 'content.dialogue.system.questCompleteNotice', {
-											questTitle: questReward.title,
-											rewardSummary: questReward.rewardSummary
-										})}
-									</li>
-								{/each}
-							</ul>
-						{/if}
-						{#if battleSummary.questProgress?.length > 0}
-							<ul class="grid gap-1">
-								{#each battleSummary.questProgress as progress (progress.questId)}
-									<li>
-										{t($locale, 'ui.questProgressUpdate', {
-											progressLabel: progress.progressLabel,
-											currentProgress: String(progress.currentProgress),
-											target: String(progress.target)
-										})}
-									</li>
-								{/each}
-							</ul>
-						{/if}
-						{#if battleSummary.outcome === 'defeat'}
-							<p>{t($locale, 'ui.defeatReturnedToVillage')}</p>
-						{/if}
-					</div>
-					<button
-						bind:this={battleSummaryContinueButton}
-						type="button"
-						class="glass-button jrpg-command-action mt-5"
-						onclick={dismissBattleSummary}
-					>
-						{t($locale, 'ui.continue')}
-					</button>
-				</div>
-			</div>
-		</div>
-	{/if}
-
-	<BagScreen
-		open={inventoryOpen}
-		ready={$hudState.ready}
-		{battleLocked}
-		inventory={$hudState.inventory}
-		hp={$hudState.hp}
-		maxHp={$hudState.maxHp}
-		attack={$hudState.attack}
-		defense={$hudState.defense}
-		bind:dialog={inventoryDialog}
-		bind:closeButton={inventoryCloseButton}
-		onClose={closeInventory}
-		onUseItem={requestUseItem}
-		onEquip={requestEquipItem}
-		onUnequip={unequipSlot}
-		onkeydown={handleInventoryDialogKeydown}
-	/>
-
-	<AreaMapScreen
-		open={areaMapOpen}
-		areaMap={$hudState.areaMap}
-		bind:dialog={areaMapDialog}
-		bind:closeButton={areaMapCloseButton}
-		onClose={closeAreaMap}
-		onkeydown={handleAreaMapDialogKeydown}
-	/>
-
-	<QuestJournal
-		open={questLogOpen}
-		quests={$hudState.quests}
-		bind:dialog={questLogDialog}
-		bind:closeButton={questLogCloseButton}
-		onClose={closeQuestLog}
-		onkeydown={handleQuestLogDialogKeydown}
-	/>
-
-	<ShopScreen
-		open={shopOpen}
-		ready={$hudState.ready}
-		{battleLocked}
-		shop={$hudState.shop}
-		nearbyShop={$hudState.nearbyShop}
-		coins={$hudState.wallet.coins}
-		status={$hudState.status}
-		bind:dialog={shopDialog}
-		bind:closeButton={shopCloseButton}
-		onClose={closeShop}
-		onBuy={requestBuyShopItem}
-		onSell={requestSellInventoryItem}
-		onkeydown={handleShopDialogKeydown}
-	/>
 	<SystemScreen
 		open={systemOpen}
 		bind:dialog={systemDialog}

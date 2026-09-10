@@ -42,7 +42,6 @@ function baseHudState(overrides: Partial<HudState> = {}): HudState {
 		attack: 4,
 		defense: 0,
 		heals: 1,
-		canResume: false,
 		status: 'Battle victory',
 		wallet: { coins: 30 },
 		nearbyShop: null,
@@ -420,14 +419,13 @@ describe('GameShell battle summary', () => {
 
 	it('traps tab focus inside the battle summary while command controls are behind it', async () => {
 		render(GameShell);
-		emitHudState(baseHudState({ canResume: true }));
+		emitHudState(baseHudState());
 
 		await page.getByRole('button', { name: /menu/i }).click();
 		await expect.element(page.getByRole('button', { name: /save game/i })).toBeVisible();
 
 		emitHudState(
 			baseHudState({
-				canResume: true,
 				battle: {
 					phase: 'summary',
 					summary: {
@@ -460,7 +458,6 @@ describe('GameShell battle summary', () => {
 		render(GameShell);
 		emitHudState(
 			baseHudState({
-				canResume: true,
 				nearbyShop: {
 					shopId: 'miras-item-shop',
 					name: "Mira's Item Shop",
@@ -476,7 +473,6 @@ describe('GameShell battle summary', () => {
 		await expect.element(page.getByRole('button', { name: /map/i })).toBeDisabled();
 		await expect.element(page.getByRole('button', { name: /inventory/i })).toBeDisabled();
 		await expect.element(page.getByRole('button', { name: /shop/i })).toBeDisabled();
-		await expect.element(page.getByRole('button', { name: /resume save/i })).toBeDisabled();
 		await expect.element(page.getByRole('button', { name: /save game/i })).toBeDisabled();
 		await expect.element(page.getByRole('button', { name: /use heal/i })).toBeEnabled();
 	});
@@ -908,8 +904,8 @@ describe('GameShell battle summary defeat', () => {
 	});
 });
 
-describe('GameShell save and resume', () => {
-	it('emits save command when Save Game is clicked', async () => {
+describe('GameShell save screen', () => {
+	it('opens the save screen from the menu and emits save-slot for an empty slot', async () => {
 		await withCommands(async (commands) => {
 			render(GameShell);
 			emitHudState(baseHudState());
@@ -917,19 +913,34 @@ describe('GameShell save and resume', () => {
 			await page.getByRole('button', { name: /menu/i }).click();
 			await page.getByRole('button', { name: /save game/i }).click();
 
-			expect(commands).toContainEqual({ type: 'save' });
+			const saveDialog = page.getByRole('dialog', { name: /save/i });
+			await expect.element(saveDialog).toBeVisible();
+			// Slot 1 is the display-only autosave row; slots 2/3 are manual.
+			await expect.element(saveDialog.getByTestId('save-slot-autosave')).toBeVisible();
+			await expect.element(saveDialog.getByTestId('save-slot-1')).toBeVisible();
+			await expect.element(saveDialog.getByTestId('save-slot-2')).toBeVisible();
+
+			await saveDialog.getByTestId('save-slot-1').click();
+
+			expect(commands).toContainEqual({ type: 'save-slot', slot: 1 });
 		});
 	});
 
-	it('emits resume-save when Resume Save is clicked', async () => {
+	it('asks for confirmation before overwriting an occupied slot', async () => {
 		await withCommands(async (commands) => {
 			render(GameShell);
-			emitHudState(baseHudState({ canResume: true }));
+			emitHudState(baseHudState());
 
 			await page.getByRole('button', { name: /menu/i }).click();
-			await page.getByRole('button', { name: /resume save/i }).click();
+			await page.getByRole('button', { name: /save game/i }).click();
 
-			expect(commands).toContainEqual({ type: 'resume-save' });
+			const saveDialog = page.getByRole('dialog', { name: /save/i });
+			await expect.element(saveDialog).toBeVisible();
+
+			// Overwrite confirmation only fires for an existing record; empty slot saves directly.
+			await saveDialog.getByTestId('save-slot-2').click();
+
+			expect(commands).toContainEqual({ type: 'save-slot', slot: 2 });
 		});
 	});
 });
@@ -1198,6 +1209,9 @@ describe('GameShell error handling', () => {
 
 		render(GameShell);
 
+		// Phaser mounts only after committing to a run from the Title screen.
+		await page.getByRole('button', { name: /new run/i }).click();
+
 		await expect.element(page.getByText(/unable to start the game shell/i)).toBeVisible();
 	});
 });
@@ -1218,5 +1232,39 @@ describe('GameShell system screen', () => {
 
 		expect(dialog.elements()).toHaveLength(0);
 		await expect.element(menuButton).toHaveFocus();
+	});
+});
+
+describe('GameShell title mode', () => {
+	it('lands on Title without mounting Phaser and opens System straight from Title', async () => {
+		render(GameShell);
+
+		// No HUD state has arrived: the shell must stay on Title and Phaser must
+		// not mount until the player commits to Continue / New Run.
+		await expect.element(page.getByRole('heading', { name: 'GLIESE' })).toBeVisible();
+		await expect.element(page.getByRole('button', { name: /new run/i })).toBeVisible();
+		await expect.element(page.getByRole('button', { name: /continue/i })).toBeDisabled();
+		expect(document.querySelector('canvas')).toBeNull();
+
+		// System is usable from Title without booting the game.
+		await page.getByRole('button', { name: /system/i }).click();
+		await expect.element(page.getByRole('dialog', { name: /display & text/i })).toBeVisible();
+		expect(document.querySelector('canvas')).toBeNull();
+		await page.getByRole('button', { name: /close/i }).click();
+
+		// Committing to a run swaps Title for the game shell.
+		await page.getByRole('button', { name: /new run/i }).click();
+		await expect.element(page.getByRole('button', { name: /menu/i })).toBeVisible();
+		expect(page.getByRole('heading', { name: 'GLIESE' }).elements()).toHaveLength(0);
+	});
+
+	it('flips from Title to playing when a ready HUD state arrives (direct boot)', async () => {
+		render(GameShell);
+		await expect.element(page.getByRole('heading', { name: 'GLIESE' })).toBeVisible();
+
+		emitHudState(baseHudState());
+
+		await expect.element(page.getByRole('button', { name: /menu/i })).toBeVisible();
+		expect(page.getByRole('heading', { name: 'GLIESE' }).elements()).toHaveLength(0);
 	});
 });

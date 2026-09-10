@@ -106,7 +106,6 @@ function createReadyHudState(overrides: Partial<HudState> = {}): HudState {
 		attack: 4,
 		defense: 1,
 		heals: 1,
-		canResume: false,
 		status: 'Ready',
 		wallet: { coins: 30 },
 		nearbyShop: null,
@@ -282,6 +281,8 @@ describe('DialoguePanel.svelte', () => {
 	it('renders a Settings language selector and applies Japanese selection', async () => {
 		render(GameShell);
 
+		// Phaser mounts only after committing to a run from the Title screen.
+		await page.getByRole('button', { name: /New Run/i }).click();
 		await page.getByRole('button', { name: 'Menu' }).click();
 
 		const languageSelector = page.getByLabelText('Language');

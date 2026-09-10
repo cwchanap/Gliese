@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 const phaserState = vi.hoisted(() => {
 	const destroyMock = vi.fn();
 	const gameMock = vi.fn();
+	const registrySetMock = vi.fn();
 	class SceneMock {
 		constructor(...args: unknown[]) {
 			void args;
@@ -13,10 +14,11 @@ const phaserState = vi.hoisted(() => {
 			gameMock(config);
 		}
 
+		registry = { set: registrySetMock };
 		destroy = destroyMock;
 	}
 
-	return { destroyMock, gameMock, SceneMock, GameMock };
+	return { destroyMock, gameMock, registrySetMock, SceneMock, GameMock };
 });
 
 vi.mock('phaser', () => {
@@ -42,6 +44,7 @@ describe('createGame', () => {
 	beforeEach(() => {
 		phaserState.destroyMock.mockClear();
 		phaserState.gameMock.mockClear();
+		phaserState.registrySetMock.mockClear();
 		vi.resetModules();
 	});
 
@@ -63,8 +66,9 @@ describe('createGame', () => {
 		const { WorldScene } = await import('$lib/game/phaser/scenes/WorldScene');
 		const { BattleScene } = await import('$lib/game/phaser/scenes/BattleScene');
 		const mountNode = { id: 'mount-node' } as HTMLElement;
+		const startRequest = { reason: 'new', saveState: null } as const;
 
-		const instance = await createGame(mountNode);
+		const instance = await createGame(mountNode, startRequest);
 
 		expect(phaserState.gameMock).toHaveBeenCalledOnce();
 		expect(phaserState.gameMock).toHaveBeenCalledWith(
@@ -77,6 +81,7 @@ describe('createGame', () => {
 				scene: [BootScene, WorldScene, BattleScene]
 			})
 		);
+		expect(phaserState.registrySetMock).toHaveBeenCalledWith('startRequest', startRequest);
 		expect(instance.destroy).toBeTypeOf('function');
 
 		instance.destroy();
@@ -89,7 +94,9 @@ describe('createGame', () => {
 		const { createGame } = await import('./createGame');
 		const mountNode = { id: 'mount-node' } as HTMLElement;
 
-		await expect(createGame(mountNode)).rejects.toThrow('createGame must run in the browser');
+		await expect(createGame(mountNode, { reason: 'new', saveState: null })).rejects.toThrow(
+			'createGame must run in the browser'
+		);
 		expect(phaserState.gameMock).not.toHaveBeenCalled();
 	});
 });

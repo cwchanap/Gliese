@@ -599,8 +599,7 @@ export class BattleScene extends Phaser.Scene {
 			this.scene.start(WorldScene.key, {
 				saveState: this.payload.saveState,
 				reason: 'battle-result',
-				battleResult: this.pendingResult,
-				persistExplorationChanges: this.payload.persistExplorationChanges
+				battleResult: this.pendingResult
 			});
 			return;
 		}
@@ -942,7 +941,6 @@ export class BattleScene extends Phaser.Scene {
 			attack: heroStats.attack,
 			defense: heroStats.defense,
 			heals: this.getConsumableCount(appliedSaveState?.inventory),
-			canResume: false,
 			status,
 			areaMap: buildAreaMapState({
 				map,

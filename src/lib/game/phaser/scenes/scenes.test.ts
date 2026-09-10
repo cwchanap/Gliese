@@ -31,11 +31,7 @@ import type {
 	MapBackgroundPackageSelection
 } from '$lib/game/content/backgrounds/map-background-package';
 import { MAP_BACKGROUND_DEFAULT_SELECTIONS } from '$lib/game/content/backgrounds/map-background-registry';
-import {
-	collectLandmarkRects,
-	collectStrictCollisionRects,
-	isInsideAnyCollisionRect
-} from '$lib/game/save/save-state';
+import { collectStrictCollisionRects } from '$lib/game/save/save-state';
 import { HUD_COMMAND_EVENT, type HudCommand } from '$lib/game/ui-bridge/events';
 import { VILLAGE_INTERIOR_LAYOUTS } from '$lib/game/content/maps/layouts/village-interiors-v2';
 
@@ -1286,12 +1282,27 @@ describe('BootScene', () => {
 	it('starts the world scene on the opening map', async () => {
 		const { BootScene } = await import('./BootScene');
 		const { WorldScene } = await import('./WorldScene');
-		const { openingMapId } = await import('$lib/game/content/maps');
 		const scene = new BootScene();
 
 		scene.create();
 
-		expect(scene.scene.start).toHaveBeenCalledWith(WorldScene.key, { mapId: openingMapId });
+		expect(scene.scene.start).toHaveBeenCalledWith(WorldScene.key, {
+			reason: 'new',
+			saveState: null
+		});
+	});
+
+	it('forwards the createGame start request from the registry to the world scene', async () => {
+		const { BootScene } = await import('./BootScene');
+		const { WorldScene } = await import('./WorldScene');
+		const scene = new BootScene();
+		const resumeRequest = { reason: 'resume', saveState: { marker: 'slot-state' } } as const;
+		Object.assign(scene, { registry: { get: vi.fn(() => resumeRequest) } });
+
+		scene.init();
+		scene.create();
+
+		expect(scene.scene.start).toHaveBeenCalledWith(WorldScene.key, resumeRequest);
 	});
 
 	it('preloads the static and animation sheets', async () => {
@@ -2618,7 +2629,7 @@ describe('BattleScene', () => {
 			});
 			emitHudStateSpy.mockClear();
 
-			hud.dispatch({ type: 'save' });
+			hud.dispatch({ type: 'open-shop', shopId: 'miras-item-shop' });
 
 			expect(scene.scene.start).not.toHaveBeenCalled();
 			expect(emitHudStateSpy).toHaveBeenLastCalledWith(
@@ -2666,51 +2677,7 @@ describe('BattleScene', () => {
 			expect(scene.scene.start).toHaveBeenCalledWith(WorldScene.key, {
 				saveState,
 				reason: 'battle-result',
-				battleResult: state.pendingResult,
-				persistExplorationChanges: undefined
-			});
-		} finally {
-			hud.restore();
-		}
-	});
-
-	it('propagates persistExplorationChanges back to WorldScene on dismiss', async () => {
-		const hud = installHudCommandTarget();
-		const { createNewSaveState } = await import('$lib/game/save/save-state');
-		const { BattleScene } = await import('./BattleScene');
-		const { WorldScene } = await import('./WorldScene');
-		const scene = new BattleScene();
-		const saveState = createNewSaveState();
-
-		try {
-			scene.create({
-				saveState,
-				sourceMapId: 'meadow-entry',
-				sourceEncounterId: 'meadow-slime-west',
-				sourceEnemyId: 'slime-scout',
-				returnPosition: { mapId: 'meadow-entry', x: 4_928, y: 1_024, facing: 'down' },
-				enemyCount: 1,
-				hero: { hp: 20, maxHp: 20, attack: 8, defense: 0 },
-				persistExplorationChanges: false
-			});
-			Object.assign(phaserState.playerMarker, { x: 320, y: 180 });
-			const state = scene as unknown as {
-				enemies: Array<{ x: number; y: number }>;
-				pendingResult: unknown;
-			};
-			state.enemies[0]!.x = 330;
-			state.enemies[0]!.y = 180;
-			scene.update(0, 16);
-
-			expect(state.pendingResult).not.toBeNull();
-
-			hud.dispatch({ type: 'dismiss-battle-summary' });
-
-			expect(scene.scene.start).toHaveBeenCalledWith(WorldScene.key, {
-				saveState,
-				reason: 'battle-result',
-				battleResult: state.pendingResult,
-				persistExplorationChanges: false
+				battleResult: state.pendingResult
 			});
 		} finally {
 			hud.restore();
@@ -2780,46 +2747,6 @@ describe('BattleScene', () => {
 				returnPosition: { mapId: 'meadow-entry', x: 4_928, y: 1_024, facing: 'down' },
 				enemyCount: 1,
 				hero: { hp: 20, maxHp: 20, attack: 8, defense: 0 }
-			});
-			Object.assign(phaserState.playerMarker, { x: 320, y: 180 });
-			const state = scene as unknown as {
-				enemies: Array<{ x: number; y: number }>;
-			};
-			state.enemies[0]!.x = 330;
-			state.enemies[0]!.y = 180;
-
-			scene.update(0, 16);
-
-			expect(setItemSpy).not.toHaveBeenCalled();
-		} finally {
-			storage.setSaveStorage(undefined);
-		}
-	});
-
-	it('does not persist battle results when persistExplorationChanges is false', async () => {
-		const storage = await import('$lib/game/save/storage');
-		const { createNewSaveState } = await import('$lib/game/save/save-state');
-		const { BattleScene } = await import('./BattleScene');
-		const scene = new BattleScene();
-		const saveState = createNewSaveState();
-		const setItemSpy = vi.fn();
-		const memoryStorage = {
-			getItem: vi.fn(() => null),
-			removeItem: vi.fn(),
-			setItem: setItemSpy
-		};
-
-		storage.setSaveStorage(memoryStorage);
-		try {
-			scene.create({
-				saveState,
-				sourceMapId: 'meadow-entry',
-				sourceEncounterId: 'meadow-slime-west',
-				sourceEnemyId: 'slime-scout',
-				returnPosition: { mapId: 'meadow-entry', x: 4_928, y: 1_024, facing: 'down' },
-				enemyCount: 1,
-				hero: { hp: 20, maxHp: 20, attack: 8, defense: 0 },
-				persistExplorationChanges: false
 			});
 			Object.assign(phaserState.playerMarker, { x: 320, y: 180 });
 			const state = scene as unknown as {
@@ -6955,194 +6882,261 @@ describe('WorldScene', () => {
 		expect(phaserState.playerMarker.y).toBe(5_520);
 	});
 
-	it('reveals explored cells, persists changes, and republishes the map without changing status', async () => {
+	it('mutates fog exploration in memory on movement but writes no save', async () => {
 		const events = await import('$lib/game/ui-bridge/events');
-		const storage = await import('$lib/game/save/storage');
-		const { createNewSaveState, parseSaveState } = await import('$lib/game/save/save-state');
-		const emitHudStateSpy = vi.spyOn(events, 'emitHudState');
+		const slots = await import('$lib/game/save/slots');
+		const { createNewSaveState } = await import('$lib/game/save/save-state');
 		const { WorldScene } = await import('./WorldScene');
+		const emitHudStateSpy = vi.spyOn(events, 'emitHudState');
 		const scene = new WorldScene();
-		const save = createNewSaveState();
-		const storedSaves: string[] = [];
+		const sceneState = scene as unknown as {
+			buildSaveState: () => {
+				mapExploration: Record<string, string[]>;
+			};
+		};
 		const memoryStorage = {
 			getItem: vi.fn(() => null),
 			removeItem: vi.fn(),
-			setItem: vi.fn((_key: string, value: string) => {
-				storedSaves.push(value);
-			})
+			setItem: vi.fn()
 		};
 		registerAreaMapRevealTestMap();
 
+		const storage = await import('$lib/game/save/storage');
 		storage.setSaveStorage(memoryStorage);
 		try {
 			scene.create({
 				saveState: {
-					...save,
+					...createNewSaveState(),
 					mapId: 'area-map-reveal-test',
-					player: { ...save.player, x: 340, y: 320 },
+					player: { ...createNewSaveState().player, x: 340, y: 320 },
 					mapExploration: {}
 				}
 			});
-
-			expect(memoryStorage.setItem).toHaveBeenCalledOnce();
-			expect(memoryStorage.setItem).toHaveBeenLastCalledWith(
-				storage.SAVE_STORAGE_KEY,
-				expect.any(String)
-			);
-			expect(parseSaveState(storedSaves.at(-1)!)).toMatchObject({
-				mapExploration: {
-					'area-map-reveal-test': expect.arrayContaining(['2,2'])
-				}
-			});
-			expect(emitHudStateSpy).toHaveBeenLastCalledWith(
-				expect.objectContaining({
-					status: 'Save resumed',
-					areaMap: expect.objectContaining({
-						mapId: 'area-map-reveal-test',
-						player: { x: 340, y: 320 },
-						revealedCells: expect.arrayContaining(['2,2'])
-					})
-				})
-			);
-
 			memoryStorage.setItem.mockClear();
-			storedSaves.splice(0, storedSaves.length);
-			emitHudStateSpy.mockClear();
-			phaserState.cursorKeys.right.isDown = true;
 
+			phaserState.cursorKeys.right.isDown = true;
 			scene.update(0, 1_000);
 
-			expect(memoryStorage.setItem).toHaveBeenCalledOnce();
-			expect(parseSaveState(storedSaves.at(-1)!)).toMatchObject({
-				mapExploration: {
-					'area-map-reveal-test': expect.arrayContaining(['5,2'])
-				}
-			});
-			expect(emitHudStateSpy).toHaveBeenCalledOnce();
+			// Exploration mutated in memory and republished, but no autosave.
+			expect(memoryStorage.setItem).not.toHaveBeenCalled();
+			expect(slots.loadSaveSlots(memoryStorage).slots[0]).toBeNull();
+			expect(sceneState.buildSaveState().mapExploration['area-map-reveal-test']).toContain('5,2');
 			expect(emitHudStateSpy).toHaveBeenLastCalledWith(
 				expect.objectContaining({
-					status: 'Save resumed',
 					areaMap: expect.objectContaining({
-						mapId: 'area-map-reveal-test',
-						player: { x: 400, y: 320 },
 						revealedCells: expect.arrayContaining(['5,2'])
 					})
 				})
 			);
-
-			memoryStorage.setItem.mockClear();
-			emitHudStateSpy.mockClear();
-			phaserState.cursorKeys.right.isDown = false;
-
-			scene.update(1_000, 1_000);
-
-			expect(memoryStorage.setItem).not.toHaveBeenCalled();
-			expect(emitHudStateSpy).not.toHaveBeenCalled();
 		} finally {
 			storage.setSaveStorage(undefined);
 		}
 	});
 
-	it('does not overwrite an existing stored save with initial exploration before resume', async () => {
-		const storage = await import('$lib/game/save/storage');
-		const { createNewSaveState, serializeSaveState } = await import('$lib/game/save/save-state');
+	function createSlotCaptureStorage() {
+		const store = new Map<string, string>();
+		return {
+			getItem: vi.fn((key: string) => store.get(key) ?? null),
+			removeItem: vi.fn((key: string) => {
+				store.delete(key);
+			}),
+			setItem: vi.fn((key: string, value: string) => {
+				store.set(key, value);
+			})
+		};
+	}
+
+	it('autosaves the arrival state after a completed map transition', async () => {
+		const slots = await import('$lib/game/save/slots');
 		const { WorldScene } = await import('./WorldScene');
 		const scene = new WorldScene();
-		const storedSave = createNewSaveState();
-		const memoryStorage = {
-			getItem: vi.fn(() => serializeSaveState(storedSave)),
-			removeItem: vi.fn(),
-			setItem: vi.fn()
-		};
-		registerAreaMapRevealTestMap();
-
-		storage.setSaveStorage(memoryStorage);
-		try {
-			scene.create({ mapId: 'area-map-reveal-test' });
-
-			expect(memoryStorage.setItem).not.toHaveBeenCalled();
-		} finally {
-			storage.setSaveStorage(undefined);
-		}
-	});
-
-	it('does not auto-persist exploration when the stored save is invalid', async () => {
-		const storage = await import('$lib/game/save/storage');
-		const { WorldScene } = await import('./WorldScene');
-		const scene = new WorldScene();
-		const memoryStorage = {
-			getItem: vi.fn(() => '{invalid json that fails parsing'),
-			removeItem: vi.fn(),
-			setItem: vi.fn()
-		};
-		registerAreaMapRevealTestMap();
-
-		storage.setSaveStorage(memoryStorage);
-		try {
-			scene.create({ mapId: 'area-map-reveal-test' });
-
-			expect(memoryStorage.setItem).not.toHaveBeenCalled();
-		} finally {
-			storage.setSaveStorage(undefined);
-		}
-	});
-
-	it('keeps exploration persistence disabled across new-run transitions when a stored save exists', async () => {
-		const storage = await import('$lib/game/save/storage');
-		const { createNewSaveState, serializeSaveState } = await import('$lib/game/save/save-state');
-		const { WorldScene } = await import('./WorldScene');
-		const scene = new WorldScene();
-		const storedSave = createNewSaveState();
-		const memoryStorage = {
-			getItem: vi.fn(() => serializeSaveState(storedSave)),
-			removeItem: vi.fn(),
-			setItem: vi.fn()
-		};
+		const memoryStorage = createSlotCaptureStorage();
 		registerSceneSupportTestMap();
 
+		const storage = await import('$lib/game/save/storage');
 		storage.setSaveStorage(memoryStorage);
 		try {
 			scene.create({ mapId: 'scene-support-test' });
+			// Boot-time autosave lands after the first render (Phaser RENDER event, thumbnail timing).
+			scene.events.emit('render');
 			Object.assign(phaserState.playerMarker, { x: 320, y: 96 });
 			scene.update(0, 16);
 
 			expect(scene.scene.restart).toHaveBeenCalledWith({
 				saveState: expect.objectContaining({ mapId: 'hero-house' }),
-				reason: 'transition',
-				persistExplorationChanges: false
+				reason: 'transition'
 			});
 
 			const restartPayload = vi.mocked(scene.scene.restart).mock.calls.at(-1)?.[0];
 			if (!restartPayload) throw new Error('Expected transition restart payload');
-			const transitionSaveState = (
-				restartPayload as unknown as {
-					saveState: {
-						mapId: string;
-						player: { x: number; y: number; facing: string };
-					};
-				}
-			).saveState;
-			expect(transitionSaveState.mapId).toBe('hero-house');
-			const heroHouseArrival = transitionSaveState.player;
-			expect(heroHouseArrival.x).toBe(352);
-			expect(heroHouseArrival.y).toBe(480);
-			expect(heroHouseArrival.facing).toBe('up');
-			expect(
-				isInsideAnyCollisionRect(
-					heroHouseArrival.x,
-					heroHouseArrival.y,
-					[...collectStrictCollisionRects(heroHouseMap), ...collectLandmarkRects(heroHouseMap)],
-					PLAYER_COLLISION_RADIUS
-				)
-			).toBe(false);
-			memoryStorage.setItem.mockClear();
-			phaserState.reset();
 
+			const autosaveAfterBoot = slots.loadSaveSlots(memoryStorage).slots[0];
+			expect(autosaveAfterBoot?.state.mapId).toBe('scene-support-test');
+
+			// The arrival scene rewrites the autosave slot with the arrival state.
 			const arrivalScene = new WorldScene();
 			arrivalScene.create(restartPayload);
-			expect(phaserState.playerMarker).toMatchObject({ x: 352, y: 480 });
+			arrivalScene.events.emit('render');
 
+			const autosave = slots.loadSaveSlots(memoryStorage).slots[0];
+			expect(autosave?.kind).toBe('autosave');
+			expect(autosave?.state.mapId).toBe('hero-house');
+			expect(memoryStorage.setItem).toHaveBeenCalledTimes(2);
+			expect(memoryStorage.setItem).toHaveBeenCalledWith(
+				slots.SAVE_SLOTS_STORAGE_KEY,
+				expect.any(String)
+			);
+		} finally {
+			storage.setSaveStorage(undefined);
+		}
+	});
+
+	it('writes Slot 0 when a new run becomes ready', async () => {
+		const slots = await import('$lib/game/save/slots');
+		const { WorldScene } = await import('./WorldScene');
+		const scene = new WorldScene();
+		const memoryStorage = createSlotCaptureStorage();
+
+		const storage = await import('$lib/game/save/storage');
+		storage.setSaveStorage(memoryStorage);
+		try {
+			scene.create({ reason: 'new', saveState: null });
+			// Boot-time autosave lands after the first render (Phaser RENDER event, thumbnail timing).
+			scene.events.emit('render');
+
+			expect(memoryStorage.setItem).toHaveBeenCalledTimes(1);
+			expect(memoryStorage.setItem).toHaveBeenCalledWith(
+				slots.SAVE_SLOTS_STORAGE_KEY,
+				expect.any(String)
+			);
+			const autosave = slots.loadSaveSlots(memoryStorage).slots[0];
+			expect(autosave?.kind).toBe('autosave');
+			expect(autosave?.state.mapId).toBe('meadow-entry');
+		} finally {
+			storage.setSaveStorage(undefined);
+		}
+	});
+
+	it('writes Slot 0 when a HUD command mutates inventory or equipment', async () => {
+		const slots = await import('$lib/game/save/slots');
+		const { createNewSaveState } = await import('$lib/game/save/save-state');
+		const { WorldScene } = await import('./WorldScene');
+		const scene = new WorldScene();
+		const sceneState = scene as unknown as {
+			handleHudCommand: (command: HudCommand) => void;
+		};
+		const memoryStorage = createSlotCaptureStorage();
+
+		const storage = await import('$lib/game/save/storage');
+		storage.setSaveStorage(memoryStorage);
+		try {
+			scene.create({
+				saveState: {
+					...createNewSaveState(),
+					player: { ...createNewSaveState().player, hp: 10 },
+					equipment: { weapon: null, head: null, body: null, hands: null, accessory: null }
+				}
+			});
+			memoryStorage.setItem.mockClear();
+
+			// Use-item mutation: writes.
+			sceneState.handleHudCommand({ type: 'use-item', itemId: 'field-potion' });
+			expect(memoryStorage.setItem).toHaveBeenCalledTimes(1);
+			const autosave = slots.loadSaveSlots(memoryStorage).slots[0];
+			expect(autosave?.state.player.hp).toBeGreaterThan(10);
+
+			memoryStorage.setItem.mockClear();
+
+			// Pure dialogue navigation with no SaveState change writes nothing.
+			sceneState.handleHudCommand({ type: 'dialogue-close' });
 			expect(memoryStorage.setItem).not.toHaveBeenCalled();
+		} finally {
+			storage.setSaveStorage(undefined);
+		}
+	});
+
+	it('writes Slot 0 when a pickup is newly collected', async () => {
+		const slots = await import('$lib/game/save/slots');
+		const { WorldScene } = await import('./WorldScene');
+		const scene = new WorldScene();
+		const memoryStorage = createSlotCaptureStorage();
+
+		const storage = await import('$lib/game/save/storage');
+		storage.setSaveStorage(memoryStorage);
+		try {
+			scene.create({ mapId: 'ruins-threshold' });
+			memoryStorage.setItem.mockClear();
+
+			Object.assign(phaserState.playerMarker, { x: 2_048, y: 4_800 });
+			scene.update(0, 16);
+
+			expect(memoryStorage.setItem).toHaveBeenCalledTimes(1);
+			const autosave = slots.loadSaveSlots(memoryStorage).slots[0];
+			expect(autosave?.state.flags.collectedPickups).toContain('ruins-threshold-salve');
+		} finally {
+			storage.setSaveStorage(undefined);
+		}
+	});
+
+	it('writes Slot 0 when a discovery is newly seen', async () => {
+		const slots = await import('$lib/game/save/slots');
+		const { meadowEntryMap } = await import('$lib/game/content/maps');
+		const { WorldScene } = await import('./WorldScene');
+		const scene = new WorldScene();
+		const memoryStorage = createSlotCaptureStorage();
+		const discovery = (meadowEntryMap.discoveries ?? []).find(
+			(candidate) => candidate.id === 'ferry-shrine-lore'
+		);
+		expect(discovery).toBeDefined();
+
+		const storage = await import('$lib/game/save/storage');
+		storage.setSaveStorage(memoryStorage);
+		try {
+			scene.create({ mapId: 'meadow-entry' });
+			memoryStorage.setItem.mockClear();
+
+			Object.assign(phaserState.playerMarker, { x: discovery!.x, y: discovery!.y });
+			phaserState.interactKeys.e.justDown = true;
+			scene.update(0, 16);
+
+			expect(memoryStorage.setItem).toHaveBeenCalledTimes(1);
+			const autosave = slots.loadSaveSlots(memoryStorage).slots[0];
+			expect(autosave?.state.seenDiscoveries).toContain('ferry-shrine-lore');
+		} finally {
+			storage.setSaveStorage(undefined);
+		}
+	});
+
+	it('writes Slot 0 when a dialogue action changes quest state, but not during pure navigation', async () => {
+		const slots = await import('$lib/game/save/slots');
+		const { WorldScene } = await import('./WorldScene');
+		const scene = new WorldScene();
+		const sceneState = scene as unknown as {
+			handleHudCommand: (command: HudCommand) => void;
+		};
+		const memoryStorage = createSlotCaptureStorage();
+
+		const storage = await import('$lib/game/save/storage');
+		storage.setSaveStorage(memoryStorage);
+		try {
+			scene.create({ mapId: 'guild-hall' });
+			Object.assign(phaserState.playerMarker, guildMasterApproach);
+			phaserState.interactKeys.e.justDown = true;
+			scene.update(16, 16);
+			await flushStoryDialogue();
+			memoryStorage.setItem.mockClear();
+
+			// First advance: pure navigation through the briefing lines — no write.
+			sceneState.handleHudCommand({ type: 'dialogue-advance' });
+			expect(memoryStorage.setItem).not.toHaveBeenCalled();
+
+			// Final advance: completes the recordNpcTalk intent — quest state mutates, write.
+			sceneState.handleHudCommand({ type: 'dialogue-advance' });
+			expect(memoryStorage.setItem).toHaveBeenCalledTimes(1);
+			const autosave = slots.loadSaveSlots(memoryStorage).slots[0];
+			expect(autosave?.state.quests.completedObjectives['investigate-the-ruins']).toContain(
+				'talk-to-guild-master'
+			);
 		} finally {
 			storage.setSaveStorage(undefined);
 		}
@@ -7758,7 +7752,7 @@ describe('WorldScene', () => {
 
 	it('applies a returned battle victory before rendering the source encounter', async () => {
 		const storage = await import('$lib/game/save/storage');
-		const { createNewSaveState, parseSaveState } = await import('$lib/game/save/save-state');
+		const { createNewSaveState } = await import('$lib/game/save/save-state');
 		const { WorldScene } = await import('./WorldScene');
 		const storedSaves: string[] = [];
 		const memoryStorage = {
@@ -7804,6 +7798,8 @@ describe('WorldScene', () => {
 					]
 				}
 			});
+			// Battle-result autosave lands after the first render (Phaser RENDER event, thumbnail timing).
+			scene.events.emit('render');
 
 			const builtSave = (
 				scene as unknown as { buildSaveState: () => ReturnType<typeof createNewSaveState> }
@@ -7813,7 +7809,12 @@ describe('WorldScene', () => {
 			expect(builtSave.player.xp).toBe(8);
 			expect(builtSave.wallet.coins).toBe(8);
 			expect(phaserState.enemyMarker.setVisible).toHaveBeenCalledWith(false);
-			expect(parseSaveState(storedSaves.at(-1)!)).toMatchObject({
+			const envelope = JSON.parse(storedSaves.at(-1)!) as {
+				version: number;
+				slots: Array<{ kind: string; state: Record<string, unknown> } | null>;
+			};
+			expect(envelope.slots[0]?.kind).toBe('autosave');
+			expect(envelope.slots[0]?.state).toMatchObject({
 				flags: expect.objectContaining({ clearedEncounters: ['meadow-slime-west'] }),
 				player: expect.objectContaining({ x: 4_928, y: 1_024, hp: 20 }),
 				mapExploration: expect.objectContaining({
@@ -7847,7 +7848,7 @@ describe('WorldScene', () => {
 
 	it('applies a returned battle defeat at the Shrine spawn without clearing the encounter', async () => {
 		const storage = await import('$lib/game/save/storage');
-		const { createNewSaveState, parseSaveState } = await import('$lib/game/save/save-state');
+		const { createNewSaveState } = await import('$lib/game/save/save-state');
 		const { WorldScene } = await import('./WorldScene');
 		const storedSaves: string[] = [];
 		const memoryStorage = {
@@ -7887,6 +7888,8 @@ describe('WorldScene', () => {
 					defeatedUnits: []
 				}
 			});
+			// Battle-result autosave lands after the first render (Phaser RENDER event, thumbnail timing).
+			scene.events.emit('render');
 
 			const builtSave = (
 				scene as unknown as { buildSaveState: () => ReturnType<typeof createNewSaveState> }
@@ -7895,52 +7898,17 @@ describe('WorldScene', () => {
 			expect(builtSave.player).toMatchObject({ hp: 1, x: 512, y: 784, facing: 'up' });
 			expect(builtSave.wallet.coins).toBe(9);
 			expect(builtSave.flags.clearedEncounters).toEqual([]);
-			expect(parseSaveState(storedSaves.at(-1)!)).toMatchObject({
+			const envelope = JSON.parse(storedSaves.at(-1)!) as {
+				version: number;
+				slots: Array<{ kind: string; state: Record<string, unknown> } | null>;
+			};
+			expect(envelope.slots[0]?.kind).toBe('autosave');
+			expect(envelope.slots[0]?.state).toMatchObject({
 				mapId: 'shrine-of-aurora-interior',
 				flags: expect.objectContaining({ clearedEncounters: [] }),
 				player: expect.objectContaining({ hp: 1, x: 512, y: 784, facing: 'up' }),
 				wallet: { coins: 9 }
 			});
-		} finally {
-			storage.setSaveStorage(undefined);
-		}
-	});
-
-	it('does not auto-save after a battle result when persistExplorationChanges is false', async () => {
-		const storage = await import('$lib/game/save/storage');
-		const { createNewSaveState } = await import('$lib/game/save/save-state');
-		const { WorldScene } = await import('./WorldScene');
-		const setItemSpy = vi.fn();
-		const memoryStorage = {
-			getItem: vi.fn(() => null),
-			removeItem: vi.fn(),
-			setItem: setItemSpy
-		};
-		const saveState = {
-			...createNewSaveState(),
-			mapId: 'meadow-entry'
-		};
-
-		storage.setSaveStorage(memoryStorage);
-		try {
-			const scene = new WorldScene();
-			scene.create({
-				saveState,
-				reason: 'battle-result',
-				persistExplorationChanges: false,
-				battleResult: {
-					outcome: 'victory',
-					sourceMapId: 'meadow-entry',
-					sourceEncounterId: 'meadow-slime-west',
-					sourceEnemyId: 'slime-scout',
-					returnPosition: { mapId: 'meadow-entry', x: 4_928, y: 1_024, facing: 'down' },
-					finalHeroHp: 18,
-					inventory: saveState.inventory,
-					defeatedUnits: []
-				}
-			});
-
-			expect(setItemSpy).not.toHaveBeenCalled();
 		} finally {
 			storage.setSaveStorage(undefined);
 		}

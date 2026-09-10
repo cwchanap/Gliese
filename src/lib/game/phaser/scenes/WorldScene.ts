@@ -72,7 +72,7 @@ import {
 } from '$lib/game/phaser/regional-background-plane-render-diagnostics';
 import { emitPlayerMovementDiagnostic } from '$lib/game/phaser/player-movement-diagnostics';
 import { advanceBossPhase } from '$lib/game/core/boss';
-import { buildAreaMapState } from '$lib/game/core/area-map';
+import { buildAreaMapState, getAreaName } from '$lib/game/core/area-map';
 import {
 	applyBattleResultToSaveState,
 	rollBattleEnemyCount,
@@ -141,8 +141,10 @@ import type { Direction } from '$lib/game/core/types';
 import { getItemText, getNpcText, getQuestText, getShopText } from '$lib/game/i18n/content';
 import { getActiveLocale } from '$lib/game/i18n/store';
 import { t, type MessageKey } from '$lib/game/i18n/translate';
-import { createNewSaveState, type SaveState } from '$lib/game/save/save-state';
-import { loadStoredSaveResult, saveGameState } from '$lib/game/save/storage';
+import { createNewSaveState, serializeSaveState, type SaveState } from '$lib/game/save/save-state';
+import { getPlaytimeSeconds } from '$lib/game/save/playtime';
+import { writeSaveSlot, type SaveSlotRecord } from '$lib/game/save/slots';
+import { captureSaveThumbnail } from '$lib/game/save/thumbnail';
 import { getNpcStoryDialogue, type StoryQuestSummary } from '$lib/game/story/client';
 import {
 	emitHudState,
@@ -199,8 +201,7 @@ interface WorldSceneData {
 	battleResult?: BattleResult;
 	mapId?: string;
 	mapBackgroundPackageSelection?: MapBackgroundPackageSelection;
-	persistExplorationChanges?: boolean;
-	reason?: 'battle-result' | 'invalid-save' | 'new' | 'resume' | 'transition';
+	reason?: 'battle-result' | 'new' | 'resume' | 'transition';
 	saveState?: SaveState | null;
 }
 
@@ -399,7 +400,6 @@ export class WorldScene extends Phaser.Scene {
 	private mapExploration: MapExplorationState = createEmptyMapExploration();
 	private mapId = openingMapId;
 	private lastPublishedStatus = '';
-	private shouldPersistExplorationChanges = true;
 	private currentNearbyNpcId: string | null = null;
 	private npcMarkers = new Map<string, NpcMarker>();
 	private pickupMarkers = new Map<string, PickupMarker>();
@@ -487,11 +487,6 @@ export class WorldScene extends Phaser.Scene {
 		const width = map.width * WorldScene.tileSize;
 		const height = map.height * WorldScene.tileSize;
 		const reason = data.reason ?? (activeSave ? 'resume' : 'new');
-		// A probe run can coexist with a stored save before the player chooses Resume. Do not
-		// auto-persist exploration from that run over the stored save until it is resumed.
-		this.shouldPersistExplorationChanges =
-			data.persistExplorationChanges ??
-			(activeSave !== undefined || loadStoredSaveResult().status === 'missing');
 
 		this.clearedEncounterIds = new Set(activeSave?.flags.clearedEncounters ?? []);
 		this.clearedEncounterUnitCounts = {
@@ -633,9 +628,14 @@ export class WorldScene extends Phaser.Scene {
 		this.removeHudCommandListener = onHudCommand((command) => this.handleHudCommand(command));
 		this.events?.once?.('shutdown', () => this.removeHudCommandListener());
 
-		const initialExplorationChanged = this.revealCurrentMapArea();
-		if (this.shouldPersistExplorationChanges && (battleApplication || initialExplorationChanged)) {
-			saveGameState(this.buildSaveState());
+		this.revealCurrentMapArea();
+		// Explicit durable points write the autosave slot: new-run readiness,
+		// map transitions, and applied battle results. Resume and fog reveal do not.
+		// The write waits for this scene's first render (Phaser RENDER event) so the
+		// slot thumbnail captures the arrival map instead of the previous frame (or
+		// a blank canvas).
+		if (reason === 'new' || reason === 'transition' || battleApplication) {
+			this.events?.once?.('render', () => this.writeAutosave(this.buildSaveState()));
 		}
 
 		this.publishHudState(
@@ -712,9 +712,8 @@ export class WorldScene extends Phaser.Scene {
 
 		const explorationChanged = this.revealCurrentMapArea();
 		if (explorationChanged) {
-			if (this.shouldPersistExplorationChanges) {
-				saveGameState(this.buildSaveState());
-			}
+			// Fog reveal mutates exploration in memory only; the next durable
+			// mutation persists it. Movement itself never writes the save.
 			this.publishHudState(this.lastPublishedStatus);
 		}
 
@@ -921,8 +920,7 @@ export class WorldScene extends Phaser.Scene {
 			hero: {
 				hp: this.playerProgress.hp,
 				...effectiveStats
-			},
-			persistExplorationChanges: this.shouldPersistExplorationChanges
+			}
 		});
 	}
 
@@ -1162,6 +1160,18 @@ export class WorldScene extends Phaser.Scene {
 	}
 
 	private handleHudCommand(command: HudCommand) {
+		// Durable-mutation autosave: compare the serialized state before/after the
+		// command and persist slot 0 only when the command changed something.
+		const before = serializeSaveState(this.buildSaveState());
+		this.applyHudCommand(command);
+		const after = this.buildSaveState();
+
+		if (serializeSaveState(after) !== before) {
+			this.writeAutosave(after);
+		}
+	}
+
+	private applyHudCommand(command: HudCommand) {
 		switch (command.type) {
 			case 'dismiss-battle-summary':
 				return;
@@ -1174,11 +1184,8 @@ export class WorldScene extends Phaser.Scene {
 			case 'heal':
 				this.consumeHeal();
 				return;
-			case 'resume-save':
-				this.resumeStoredSave();
-				return;
-			case 'save':
-				this.saveCurrentState();
+			case 'save-slot':
+				this.writeManualSlot(command.slot);
 				return;
 			case 'use-item':
 				this.useItem(command.itemId);
@@ -1312,7 +1319,6 @@ export class WorldScene extends Phaser.Scene {
 	}
 
 	private publishHudState(status: string) {
-		const saveResult = loadStoredSaveResult();
 		const effectiveStats = this.getEffectiveStats();
 		this.lastPublishedStatus = status;
 		const map = this.resolveMap(this.mapId);
@@ -1328,7 +1334,6 @@ export class WorldScene extends Phaser.Scene {
 			attack: effectiveStats.attack,
 			defense: effectiveStats.defense,
 			heals: this.getConsumableCount(),
-			canResume: saveResult.status === 'loaded',
 			status,
 			areaMap: buildAreaMapState({
 				map,
@@ -2751,26 +2756,40 @@ export class WorldScene extends Phaser.Scene {
 		return result.changed;
 	}
 
-	private resumeStoredSave() {
-		const storedSave = loadStoredSaveResult();
-
-		if (storedSave.status === 'missing') {
-			this.publishHudState(this.status('status.noSaveFound'));
-			return;
-		}
-
-		if (storedSave.status === 'invalid') {
-			this.scene.restart({ mapId: openingMapId, reason: 'invalid-save' });
-			return;
-		}
-
-		this.scene.restart({ saveState: storedSave.saveState, reason: 'resume' });
+	/**
+	 * Build a slot record for the current run state. `game.canvas` is undefined
+	 * in mocked/headless environments; captureSaveThumbnail then omits the image.
+	 */
+	private buildSlotRecord(kind: SaveSlotRecord['kind'], state: SaveState): SaveSlotRecord {
+		return {
+			kind,
+			savedAt: new Date().toISOString(),
+			playtimeSeconds: getPlaytimeSeconds(),
+			locationLabel: getAreaName(this.getLocale(), state.mapId),
+			thumbnail: captureSaveThumbnail(this.game?.canvas),
+			state
+		};
 	}
 
-	private saveCurrentState() {
-		this.shouldPersistExplorationChanges = true;
-		saveGameState(this.buildSaveState());
-		this.publishHudState(this.status('status.saved'));
+	private writeAutosave(state: SaveState) {
+		try {
+			writeSaveSlot(0, this.buildSlotRecord('autosave', state));
+		} catch (error) {
+			// The envelope already retried without thumbnails; a remaining failure
+			// means storage is unavailable. Never break gameplay over the autosave.
+			console.error('Failed to persist autosave slot.', error);
+		}
+	}
+
+	private writeManualSlot(slot: 1 | 2) {
+		try {
+			const result = writeSaveSlot(slot, this.buildSlotRecord('manual', this.buildSaveState()));
+			this.publishHudState(
+				this.status(result.thumbnailDropped ? 'status.savedWithoutThumbnail' : 'status.saved')
+			);
+		} catch {
+			this.publishHudState(this.status('status.saveFailed'));
+		}
 	}
 
 	private setupEncounters(map: WorldMapDefinition) {
@@ -2850,7 +2869,6 @@ export class WorldScene extends Phaser.Scene {
 		if (reason === 'battle-result') return this.status('status.battleReturned');
 		if (reason === 'resume') return this.status('status.saveResumed');
 		if (reason === 'transition') return this.status('status.enteredArea');
-		if (reason === 'invalid-save') return this.status('status.invalidSaveReset');
 		return this.status('status.newRun');
 	}
 
@@ -2927,7 +2945,6 @@ export class WorldScene extends Phaser.Scene {
 
 				this.scene.restart({
 					saveState: this.buildTransitionSaveState(transition),
-					...(this.shouldPersistExplorationChanges ? {} : { persistExplorationChanges: false }),
 					reason: 'transition'
 				});
 				return true;
@@ -3062,9 +3079,8 @@ export class WorldScene extends Phaser.Scene {
 
 		if (!this.seenDiscoveryIds.has(discovery.id)) {
 			this.seenDiscoveryIds.add(discovery.id);
-			if (this.shouldPersistExplorationChanges) {
-				saveGameState(this.buildSaveState());
-			}
+			// Discovery is a durable point: persist the new seen id immediately.
+			this.writeAutosave(this.buildSaveState());
 		}
 
 		this.publishHudState(this.status('status.dialogueUpdated'));
@@ -3216,6 +3232,9 @@ export class WorldScene extends Phaser.Scene {
 				},
 				this.status('status.foundItem', { itemName: this.getItemName(pickup.itemId) })
 			);
+			// Pickup is a durable point: persist after the collect-item quest event
+			// so quest progress and rewards land in the same autosave.
+			this.writeAutosave(this.buildSaveState());
 			return;
 		}
 	}

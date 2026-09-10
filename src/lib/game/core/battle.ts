@@ -58,7 +58,6 @@ export type BattleStartPayload = {
 		attack: number;
 		defense: number;
 	};
-	persistExplorationChanges?: boolean;
 };
 
 export type BattleResult = {
