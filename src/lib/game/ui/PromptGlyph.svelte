@@ -7,9 +7,11 @@
 		keys: string;
 		/** Label shown for gamepad prompts. */
 		pad: string;
+		/** Visual treatment: default dark keycap, console face buttons, white Enter cap. */
+		tone?: 'default' | 'a' | 'b' | 'enter';
 	}
 
-	let { mode, keys, pad }: Props = $props();
+	let { mode, keys, pad, tone = 'default' }: Props = $props();
 
 	let gamepadCount = $state(0);
 
@@ -33,6 +35,6 @@
 	const resolved = $derived(mode === 'auto' ? (gamepadCount > 0 ? 'pad' : 'keys') : mode);
 </script>
 
-<kbd class="heroic-prompt-glyph" data-prompt={resolved}>
+<kbd class="heroic-prompt-glyph" data-prompt={resolved} data-tone={tone}>
 	{resolved === 'pad' ? pad : keys}
 </kbd>
