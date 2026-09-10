@@ -20,6 +20,23 @@
 	const xpPercent = $derived((Math.min(hudState.xp, xpTarget) / xpTarget) * 100);
 	const lowHp = $derived(hudState.maxHp > 0 && hudState.hp / hudState.maxHp <= 0.25);
 
+	// Local window around the player (6×6 cells, clamped to the world). A fresh
+	// run only reveals the spawn vicinity; a full-world viewBox would squeeze
+	// those cells into invisible specks inside the medallion.
+	const minimapView = $derived.by(() => {
+		const areaMap = hudState.areaMap;
+		const span = areaMap.cellSize * 6;
+		const x = Math.min(
+			Math.max(areaMap.player.x - span / 2, 0),
+			Math.max(0, areaMap.worldWidth - span)
+		);
+		const y = Math.min(
+			Math.max(areaMap.player.y - span / 2, 0),
+			Math.max(0, areaMap.worldHeight - span)
+		);
+		return `${x} ${y} ${span} ${span}`;
+	});
+
 	let coinFlashTimer: ReturnType<typeof setTimeout> | undefined;
 	let coinFlash = $state(false);
 	// svelte-ignore state_referenced_locally
@@ -88,14 +105,14 @@
 	<div class="hero-copy">
 		<p class="hero-name font-display">{t($locale, 'ui.heroName')}</p>
 		<div class="hero-meter">
-			<span class="hero-meter-label">{t($locale, 'ui.hp')}</span>
+			<span class="hero-meter-label hero-meter-label-hp">{t($locale, 'ui.hp')}</span>
 			<div class="hero-meter-track">
 				<span class="hero-meter-fill hero-meter-fill-hp" style={`width: ${hpPercent}%`}></span>
 			</div>
 			<span class="hero-meter-value tabular-nums">{hudState.hp}/{hudState.maxHp}</span>
 		</div>
 		<div class="hero-meter">
-			<span class="hero-meter-label">{t($locale, 'ui.xp')}</span>
+			<span class="hero-meter-label hero-meter-label-xp">{t($locale, 'ui.xp')}</span>
 			<div class="hero-meter-track">
 				<span class="hero-meter-fill hero-meter-fill-xp" style={`width: ${xpPercent}%`}></span>
 			</div>
@@ -103,10 +120,16 @@
 		</div>
 		<div class="hero-stats">
 			<span>
+				<svg class="hero-stat-glyph hero-stat-glyph-atk" viewBox="0 0 16 16" aria-hidden="true">
+					<path d="M4.5 11.5 11.5 4.5M6 4.5h5.5V10" />
+				</svg>
 				{t($locale, 'ui.attack')}
 				<b class="tabular-nums">{hudState.attack}</b>
 			</span>
 			<span>
+				<svg class="hero-stat-glyph hero-stat-glyph-def" viewBox="0 0 16 16" aria-hidden="true">
+					<path d="M8 2.2 12.8 4v4.1c0 2.9-2 4.6-4.8 5.7-2.8-1.1-4.8-2.8-4.8-5.7V4Z" />
+				</svg>
 				{t($locale, 'ui.defense')}
 				<b class="tabular-nums">{hudState.defense}</b>
 			</span>
@@ -129,10 +152,7 @@
 		aria-label={t($locale, 'ui.areaMap')}
 	>
 		<div class="minimap-medallion">
-			<svg
-				viewBox={`0 0 ${hudState.areaMap.worldWidth} ${hudState.areaMap.worldHeight}`}
-				aria-hidden="true"
-			>
+			<svg viewBox={minimapView} aria-hidden="true">
 				<rect
 					class="minimap-fog"
 					x="0"
@@ -164,13 +184,13 @@
 					class="minimap-player-halo arcane-halo"
 					cx={hudState.areaMap.player.x}
 					cy={hudState.areaMap.player.y}
-					r="120"
+					r="72"
 				/>
 				<circle
 					class="minimap-player"
 					cx={hudState.areaMap.player.x}
 					cy={hudState.areaMap.player.y}
-					r="72"
+					r="40"
 				/>
 			</svg>
 		</div>
@@ -202,16 +222,18 @@
 	</div>
 </div>
 
-<div
-	class="heroic-field-card heroic-field-status"
-	role="status"
-	aria-label={t($locale, 'ui.fieldStatus')}
-	aria-live="polite"
->
-	{#key fieldStatusKey}
-		<span class="arcane-window-enter">{hudState.status}</span>
-	{/key}
-</div>
+{#if !commandOpen}
+	<div
+		class="heroic-field-card heroic-field-status"
+		role="status"
+		aria-label={t($locale, 'ui.fieldStatus')}
+		aria-live="polite"
+	>
+		{#key fieldStatusKey}
+			<span class="arcane-window-enter">{hudState.status}</span>
+		{/key}
+	</div>
+{/if}
 
 <style>
 	.heroic-field-card {
@@ -237,9 +259,9 @@
 		z-index: 20;
 		display: grid;
 		grid-template-columns: auto minmax(0, 1fr);
-		gap: 0.8rem;
-		width: min(22.5rem, calc(100vw - 2rem));
-		padding: 0.8rem;
+		gap: 1rem;
+		width: min(23.5rem, calc(100vw - 2rem));
+		padding: 1.05rem;
 		pointer-events: none;
 	}
 
@@ -250,8 +272,8 @@
 
 	.hero-portrait img {
 		display: block;
-		width: 4.6rem;
-		height: 4.6rem;
+		width: 5.2rem;
+		height: 5.2rem;
 		border: 2px solid color-mix(in srgb, var(--color-gold) 70%, transparent);
 		border-radius: 999px;
 		object-fit: cover;
@@ -279,7 +301,7 @@
 	.hero-copy {
 		display: grid;
 		min-width: 0;
-		gap: 0.4rem;
+		gap: 0.55rem;
 	}
 
 	.hero-name {
@@ -287,29 +309,37 @@
 		overflow: hidden;
 		text-overflow: ellipsis;
 		white-space: nowrap;
-		font-size: 1.05rem;
+		font-size: 1.45rem;
 		font-weight: 900;
-		letter-spacing: 0.04em;
+		letter-spacing: 0.01em;
 		color: var(--color-parchment);
 	}
 
 	.hero-meter {
-		display: grid;
-		grid-template-columns: auto minmax(0, 1fr) auto;
+		display: flex;
 		align-items: center;
 		gap: 0.5rem;
 	}
 
 	.hero-meter-label {
-		color: var(--color-muted);
 		font-family: var(--font-display);
-		font-size: 0.62rem;
+		font-size: 0.68rem;
 		font-weight: 900;
 		letter-spacing: 0.08em;
 	}
 
+	.hero-meter-label-hp {
+		color: var(--color-emerald);
+	}
+
+	.hero-meter-label-xp {
+		color: var(--color-violet);
+	}
+
 	.hero-meter-track {
-		height: 0.42rem;
+		/* Mockup keeps the bar mid-row and pushes the n/max flush right. */
+		flex: 0 1 9.75rem;
+		height: 0.46rem;
 		overflow: hidden;
 		border: 1px solid rgba(255, 246, 224, 0.16);
 		border-radius: 999px;
@@ -336,23 +366,44 @@
 	}
 
 	.hero-meter-value {
+		margin-left: auto;
 		color: var(--color-parchment);
-		font-size: 0.72rem;
+		font-size: 0.95rem;
 		font-weight: 800;
 	}
 
 	.hero-stats {
 		display: flex;
-		gap: 1rem;
-		margin-top: 0.15rem;
+		gap: 1.1rem;
+		margin-top: 0.3rem;
 		border-top: 1px solid rgba(255, 246, 224, 0.14);
-		padding-top: 0.45rem;
+		padding-top: 0.6rem;
 		color: var(--color-muted);
 		font-family: var(--font-display);
 		font-size: 0.62rem;
 		font-weight: 900;
 		letter-spacing: 0.08em;
 		text-transform: uppercase;
+	}
+
+	.hero-stat-glyph {
+		display: inline-block;
+		width: 0.72rem;
+		height: 0.72rem;
+		margin-right: 0.28rem;
+		vertical-align: -0.06em;
+		fill: none;
+		stroke-width: 1.8;
+		stroke-linecap: round;
+		stroke-linejoin: round;
+	}
+
+	.hero-stat-glyph-atk {
+		stroke: #8fb9e8;
+	}
+
+	.hero-stat-glyph-def {
+		stroke: var(--color-emerald);
 	}
 
 	.hero-stats b {
@@ -377,15 +428,14 @@
 	.minimap-card {
 		display: grid;
 		justify-items: center;
-		gap: 0.45rem;
-		padding: 0.55rem;
+		padding: 0.6rem;
 	}
 
 	.minimap-medallion {
 		overflow: hidden;
-		width: 7.6rem;
-		height: 7.6rem;
-		border: 2px solid color-mix(in srgb, var(--color-gold) 70%, transparent);
+		width: 10.25rem;
+		height: 10.25rem;
+		border: 4px solid color-mix(in srgb, var(--color-gold) 82%, transparent);
 		border-radius: 999px;
 		box-shadow:
 			0 0 0 4px color-mix(in srgb, var(--color-panel-deep) 80%, transparent),
@@ -446,17 +496,20 @@
 	}
 
 	.minimap-location {
+		/* Overlaps the medallion's lower edge like the source composition. */
+		z-index: 1;
 		justify-self: center;
 		max-width: 100%;
 		overflow: hidden;
-		margin: 0;
+		margin: -1rem 0 0;
 		border: 1px solid color-mix(in srgb, var(--color-gold) 55%, transparent);
 		border-radius: 999px;
-		padding: 0.18rem 0.7rem;
-		background: color-mix(in srgb, var(--color-panel-deep) 85%, transparent);
+		padding: 0.22rem 0.8rem;
+		background: color-mix(in srgb, var(--color-panel-deep) 90%, transparent);
+		box-shadow: 0 6px 18px rgba(0, 0, 0, 0.5);
 		text-overflow: ellipsis;
 		white-space: nowrap;
-		font-size: 0.68rem;
+		font-size: 0.72rem;
 		font-weight: 700;
 		color: var(--color-gold);
 	}
@@ -567,7 +620,7 @@
 		}
 
 		.heroic-side-hud {
-			top: 10rem;
+			top: 12.75rem;
 			right: 0.75rem;
 			width: min(11rem, calc(100vw - 1.5rem));
 		}

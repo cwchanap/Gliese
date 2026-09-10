@@ -40,7 +40,7 @@ export const en = {
 		unexplored: 'Unexplored',
 		currentPosition: 'Current position',
 		areaMapSelectedMarker: 'Selected: {{name}}',
-		heroName: 'LIAM',
+		heroName: 'Liam',
 		goldSuffix: 'G',
 		activeQuest: 'Active Quest',
 		shop: 'Shop',

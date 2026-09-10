@@ -43,7 +43,7 @@ export const zhHant = {
 		unexplored: '未探索',
 		currentPosition: '目前位置',
 		areaMapSelectedMarker: '已選擇：{{name}}',
-		heroName: 'LIAM',
+		heroName: 'Liam',
 		goldSuffix: 'G',
 		activeQuest: '進行中任務',
 		shop: '商店',

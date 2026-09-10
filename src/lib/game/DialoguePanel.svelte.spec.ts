@@ -309,6 +309,12 @@ describe('DialoguePanel.svelte', () => {
 		await expect
 			.element(commandBox.getByRole('button', { name: 'Save', exact: true }))
 			.toBeVisible();
+		// The mockup's grid-open composition has no status pill: it is gated on
+		// commandOpen and comes back once the grid closes.
+		expect(page.getByRole('status', { name: 'Field status' }).elements()).toHaveLength(0);
+
+		await page.getByRole('button', { name: 'Menu' }).click();
+		expect(page.getByRole('region', { name: 'Command' }).elements()).toHaveLength(0);
 		await expect
 			.element(page.getByRole('status', { name: 'Field status' }))
 			.toHaveTextContent('HP already full');
@@ -339,7 +345,7 @@ describe('DialoguePanel.svelte', () => {
 		);
 
 		await expect.element(page.getByTestId('hud-minimap')).toHaveTextContent('Sundrop Meadows');
-		await expect.element(page.getByTestId('hud-party-panel')).toHaveTextContent('LIAM');
+		await expect.element(page.getByTestId('hud-party-panel')).toHaveTextContent('Liam');
 		await expect.element(page.getByTestId('hud-side-panel')).toHaveTextContent('30G');
 		await expect
 			.element(page.getByTestId('hud-side-panel'))
