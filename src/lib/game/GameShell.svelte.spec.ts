@@ -5,6 +5,8 @@ import { render } from 'vitest-browser-svelte';
 import '../../app.css';
 import GameShell from './GameShell.svelte';
 import { HUD_COMMAND_EVENT, HUD_STATE_EVENT, type HudState } from '$lib/game/ui-bridge/events';
+import { createNewSaveState } from '$lib/game/save/save-state';
+import { SAVE_SLOTS_STORAGE_KEY, writeSaveSlot, type SaveSlotRecord } from '$lib/game/save/slots';
 import type { ConsumableDefinition, EquipmentDefinition } from '$lib/game/content/items';
 import type { HudQuestEntry } from '$lib/game/core/quests';
 import type { HudShopBuyEntry, HudShopSellEntry } from '$lib/game/core/shop';
@@ -15,6 +17,7 @@ vi.mock('$lib/game/phaser/createGame', () => ({
 
 afterEach(() => {
 	emitHudState(baseHudState({ ready: false }));
+	localStorage.removeItem(SAVE_SLOTS_STORAGE_KEY);
 });
 
 function emitHudState(state: HudState) {
@@ -904,6 +907,16 @@ describe('GameShell battle summary defeat', () => {
 	});
 });
 
+function createSlotRecord(): SaveSlotRecord {
+	return {
+		kind: 'manual',
+		savedAt: '2026-09-04T12:00:00.000Z',
+		playtimeSeconds: 42,
+		locationLabel: 'Sundrop Meadows',
+		state: createNewSaveState()
+	};
+}
+
 describe('GameShell save screen', () => {
 	it('opens the save screen from the menu and emits save-slot for an empty slot', async () => {
 		await withCommands(async (commands) => {
@@ -941,6 +954,56 @@ describe('GameShell save screen', () => {
 			await saveDialog.getByTestId('save-slot-2').click();
 
 			expect(commands).toContainEqual({ type: 'save-slot', slot: 2 });
+		});
+	});
+
+	it('shows a just-written record and asks to overwrite when the same slot is clicked again', async () => {
+		await withCommands(async (commands) => {
+			render(GameShell);
+			emitHudState(baseHudState());
+
+			await page.getByRole('button', { name: /menu/i }).click();
+			await page.getByRole('button', { name: /save game/i }).click();
+
+			const saveDialog = page.getByRole('dialog', { name: /save/i });
+			await expect.element(saveDialog).toBeVisible();
+
+			// Emulate WorldScene: it writes the slot synchronously while handling
+			// the save-slot command event, before control returns to the UI.
+			const emulateWorldSceneSave = (event: Event) => {
+				const command = (event as CustomEvent).detail as { type?: string; slot?: 1 | 2 };
+				if (command?.type === 'save-slot' && command.slot) {
+					writeSaveSlot(command.slot, createSlotRecord());
+				}
+			};
+			window.addEventListener(HUD_COMMAND_EVENT, emulateWorldSceneSave);
+			try {
+				// Save to the first manual slot (display slot 2).
+				await saveDialog.getByTestId('save-slot-1').click();
+				expect(commands).toContainEqual({ type: 'save-slot', slot: 1 });
+
+				// Post-save HUD publish, as WorldScene emits after writing.
+				emitHudState(baseHudState({ status: 'Saved.' }));
+
+				// The slot list must reflect the new record immediately.
+				await expect.element(saveDialog.getByText('Sundrop Meadows')).toBeVisible();
+
+				// Clicking the same occupied slot again must ask before overwriting.
+				await saveDialog.getByTestId('save-slot-1').click();
+				await expect.element(saveDialog.getByTestId('confirm-overwrite')).toBeVisible();
+
+				await saveDialog.getByTestId('confirm-overwrite').click();
+			} finally {
+				window.removeEventListener(HUD_COMMAND_EVENT, emulateWorldSceneSave);
+			}
+
+			const saveCommands = commands.filter(
+				(command) => (command as { type?: string }).type === 'save-slot'
+			);
+			expect(saveCommands).toEqual([
+				{ type: 'save-slot', slot: 1 },
+				{ type: 'save-slot', slot: 1 }
+			]);
 		});
 	});
 });
