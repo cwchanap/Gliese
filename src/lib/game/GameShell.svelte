@@ -3,19 +3,20 @@
 	import DialoguePanel from '$lib/game/DialoguePanel.svelte';
 	import AreaMapScreen from '$lib/game/ui/AreaMapScreen.svelte';
 	import BagScreen from '$lib/game/ui/BagScreen.svelte';
+	import type { FieldCommand } from '$lib/game/ui/CommandGrid.svelte';
 	import FieldHud from '$lib/game/ui/FieldHud.svelte';
 	import QuestJournal from '$lib/game/ui/QuestJournal.svelte';
 	import SaveScreen from '$lib/game/ui/SaveScreen.svelte';
 	import ShopScreen from '$lib/game/ui/ShopScreen.svelte';
 	import SystemScreen from '$lib/game/ui/SystemScreen.svelte';
 	import TitleScreen from '$lib/game/ui/TitleScreen.svelte';
-	import { locale, setActiveLocale } from '$lib/game/i18n/store';
-	import { localeLabels, supportedLocales, type Locale } from '$lib/game/i18n/locales';
+	import { locale } from '$lib/game/i18n/store';
 	import { t } from '$lib/game/i18n/translate';
 	import { resetPlaytime, formatPlaytimeSeconds } from '$lib/game/save/playtime';
 	import { getNewestSaveSlot } from '$lib/game/save/slots';
 	import type { GameStartRequest } from '$lib/game/phaser/createGame';
 	import { hasRenderOptionOverrides } from '$lib/game/phaser/world-render-options';
+	import { resolveMenuFocusTarget, type MenuFocusNode } from '$lib/game/core/menu-focus';
 	import { onHudState } from '$lib/game/ui-bridge/events';
 	import {
 		hudState,
@@ -27,7 +28,6 @@
 		requestDismissBattleSummary,
 		requestEquipItem,
 		requestHeal,
-		requestOpenShop,
 		requestPauseGame,
 		requestResumeGame,
 		requestSaveSlot,
@@ -106,6 +106,7 @@
 	let battleSummaryWasVisible = false;
 	let loadError = $state('');
 	let commandOpen = $state(false);
+	let inventoryInitialTab = $state<'consumables' | 'equipment' | 'keyItems'>('consumables');
 	let inventoryOpen = $state(false);
 	let shopOpen = $state(false);
 	let questLogOpen = $state(false);
@@ -117,6 +118,47 @@
 	const battlePhase = $derived($hudState.battle.phase);
 	const battleLocked = $derived(battlePhase === 'active' || battlePhase === 'summary');
 	const battleSummary = $derived($hudState.battle.summary);
+
+	// Availability mirrors the field commands' old menu-button guards.
+	const fieldCommandEnabled = $derived<Record<FieldCommand, boolean>>({
+		bag: $hudState.ready && !battleLocked,
+		gear: $hudState.ready && !battleLocked,
+		quest: $hudState.ready && !battleLocked,
+		map: $hudState.ready && !battleLocked,
+		skill: true,
+		rest: $hudState.ready && $hudState.heals >= 1 && battlePhase !== 'summary',
+		save: $hudState.ready && !battleLocked,
+		system: !battleLocked
+	});
+
+	function handleFieldCommand(command: FieldCommand) {
+		switch (command) {
+			case 'bag':
+				openInventory('consumables');
+				break;
+			case 'gear':
+				openInventory('equipment');
+				break;
+			case 'quest':
+				openQuestLog();
+				break;
+			case 'map':
+				openAreaMap();
+				break;
+			case 'skill':
+				// Task 5 lands the Skill surface; intentionally inert until then.
+				break;
+			case 'rest':
+				requestHeal();
+				break;
+			case 'save':
+				openSave();
+				break;
+			case 'system':
+				openSystem();
+				break;
+		}
+	}
 
 	$effect(() => {
 		const summaryVisible = battleSummary !== null;
@@ -148,8 +190,9 @@
 		resumeForOverlay('settings');
 	}
 
-	function openInventory() {
+	function openInventory(initialTab: 'consumables' | 'equipment' | 'keyItems' = 'consumables') {
 		if (inventoryOpen || battleLocked) return;
+		inventoryInitialTab = initialTab;
 		rememberInventoryFocus();
 		commandOpen = false;
 		inventoryOpen = true;
@@ -165,19 +208,9 @@
 	}
 
 	function rememberShopFocus() {
+		const active = document.activeElement;
 		shopFocusRestoreTarget =
-			document.activeElement instanceof HTMLElement ? document.activeElement : null;
-	}
-
-	function openShop() {
-		if (shopOpen || battleLocked || !$hudState.nearbyShop) return;
-		rememberShopFocus();
-		commandOpen = false;
-		inventoryOpen = false;
-		shopOpen = true;
-		pauseForOverlay('shop');
-		requestOpenShop($hudState.nearbyShop.shopId);
-		void focusShopDialog();
+			active instanceof HTMLElement && active !== document.body ? active : null;
 	}
 
 	function closeShop() {
@@ -257,7 +290,54 @@
 		return tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || target.isContentEditable;
 	}
 
+	/** Visible Heroic controls currently in the DOM, document order. Disabled
+	 *  controls stay in the geometry — resolveMenuFocusTarget skips them. */
+	function collectMenuFocusNodes(): MenuFocusNode[] {
+		return Array.from(document.querySelectorAll<HTMLElement>('[data-focus-id]'))
+			.filter((element) => element.getClientRects().length > 0)
+			.map((element) => ({
+				id: element.dataset.focusId ?? '',
+				row: Number(element.dataset.focusRow ?? 0),
+				column: Number(element.dataset.focusColumn ?? 0),
+				disabled: element.matches(':disabled, [aria-disabled="true"]')
+			}))
+			.filter((node) => node.id !== '');
+	}
+
+	function handleMenuArrowKeys(event: KeyboardEvent): boolean {
+		if (!commandOpen) return false;
+		const direction =
+			event.key === 'ArrowUp'
+				? 'up'
+				: event.key === 'ArrowDown'
+					? 'down'
+					: event.key === 'ArrowLeft'
+						? 'left'
+						: event.key === 'ArrowRight'
+							? 'right'
+							: null;
+		if (!direction) return false;
+		if (event.ctrlKey || event.metaKey || event.altKey || event.shiftKey) return false;
+		if (event.repeat) return false;
+		if (isEditableTarget(event.target)) return false;
+
+		const nodes = collectMenuFocusNodes();
+		if (nodes.length === 0) return false;
+
+		const currentId =
+			document.activeElement instanceof HTMLElement
+				? (document.activeElement.dataset.focusId ?? null)
+				: null;
+		const nextId = resolveMenuFocusTarget(nodes, currentId, direction);
+		event.preventDefault();
+		if (!nextId || nextId === currentId) return true;
+		document.querySelector<HTMLElement>(`[data-focus-id="${CSS.escape(nextId)}"]`)?.focus();
+		return true;
+	}
+
 	function handleGlobalKeydown(event: KeyboardEvent) {
+		if (handleMenuArrowKeys(event)) return;
+
 		if (event.key !== 'm' && event.key !== 'M') return;
 		if (event.ctrlKey || event.metaKey || event.altKey || event.shiftKey) return;
 		if (event.repeat) return;
@@ -726,7 +806,12 @@
 			</button>
 		</div>
 
-		<FieldHud hudState={$hudState} />
+		<FieldHud
+			hudState={$hudState}
+			{commandOpen}
+			commandEnabled={fieldCommandEnabled}
+			onCommand={handleFieldCommand}
+		/>
 
 		{#if commandOpen}
 			<div
@@ -734,91 +819,6 @@
 				role="presentation"
 				onclick={closeCommand}
 			></div>
-			<aside
-				id="game-command-panel"
-				class="glass-panel-strong jrpg-command-box"
-				role="region"
-				aria-label={t($locale, 'ui.command')}
-			>
-				<div class="jrpg-command-heading">
-					<p class="jrpg-label">{t($locale, 'ui.command')}</p>
-					<button type="button" class="glass-button jrpg-small-button" onclick={closeCommand}>
-						{t($locale, 'ui.close')}
-					</button>
-				</div>
-				<div class="arcane-stagger jrpg-command-list">
-					<button
-						type="button"
-						class="glass-button jrpg-command-action"
-						onclick={openQuestLog}
-						disabled={!$hudState.ready || battleLocked}
-					>
-						{t($locale, 'ui.quests')}
-					</button>
-					<button
-						type="button"
-						class="glass-button jrpg-command-action"
-						onclick={openAreaMap}
-						disabled={!$hudState.ready || battleLocked}
-					>
-						{t($locale, 'ui.map')}
-					</button>
-					<button
-						type="button"
-						class="glass-button jrpg-command-action"
-						onclick={openInventory}
-						disabled={!$hudState.ready || battleLocked}
-					>
-						{t($locale, 'ui.inventory')}
-					</button>
-					<button
-						type="button"
-						class="glass-button jrpg-command-action"
-						onclick={openShop}
-						disabled={!$hudState.ready || battleLocked || !$hudState.nearbyShop}
-					>
-						{t($locale, 'ui.shop')}
-					</button>
-					<button
-						type="button"
-						class="glass-button jrpg-command-action"
-						onclick={openSave}
-						disabled={!$hudState.ready || battleLocked}
-					>
-						{t($locale, 'ui.saveGame')}
-					</button>
-					<button
-						type="button"
-						class="glass-button jrpg-command-action"
-						onclick={requestHeal}
-						disabled={!$hudState.ready || $hudState.heals < 1 || battlePhase === 'summary'}
-					>
-						{t($locale, 'ui.useHeal')}
-					</button>
-					<button
-						type="button"
-						class="glass-button jrpg-command-action"
-						onclick={openSystem}
-						disabled={battleLocked}
-					>
-						{t($locale, 'ui.system')}
-					</button>
-				</div>
-				<div class="jrpg-command-status">
-					{$hudState.status}
-				</div>
-				<label class="jrpg-system-row">
-					<span>{t($locale, 'ui.language')}</span>
-					<select
-						value={$locale}
-						onchange={(event) => setActiveLocale(event.currentTarget.value as Locale)}
-					>
-						{#each supportedLocales as option (option)}
-							<option value={option}>{localeLabels[option]}</option>
-						{/each}
-					</select>
-				</label>
-			</aside>
 		{/if}
 
 		{#if $hudState.dialogue}
@@ -920,6 +920,7 @@
 
 		<BagScreen
 			open={inventoryOpen}
+			initialTab={inventoryInitialTab}
 			ready={$hudState.ready}
 			{battleLocked}
 			inventory={$hudState.inventory}
@@ -1004,107 +1005,14 @@
 	.jrpg-menu-anchor {
 		position: absolute;
 		top: 0.9rem;
-		right: 11.4rem;
-		z-index: 30;
+		right: 15rem;
+		/* Above the command-grid backdrop so Menu stays clickable to close. */
+		z-index: 40;
 	}
 
 	.jrpg-command-toggle {
 		padding: 0.7rem 0.9rem;
 		font-size: 0.72rem;
-	}
-
-	.jrpg-command-box {
-		position: absolute;
-		top: 13.2rem;
-		right: 0.9rem;
-		z-index: 40;
-		width: min(19rem, calc(100vw - 2rem));
-		max-height: min(21rem, calc(100vh - 14.1rem));
-		overflow-y: auto;
-		border-radius: var(--radius-arcane);
-		padding: 0.85rem;
-	}
-
-	.jrpg-command-heading {
-		display: flex;
-		align-items: center;
-		justify-content: space-between;
-		gap: 0.75rem;
-	}
-
-	.jrpg-command-list {
-		display: grid;
-		gap: 0.45rem;
-		margin-top: 0.75rem;
-	}
-
-	.jrpg-command-action {
-		/* border/background/color from glass-button; font-weight intentionally overrides glass-button's 600 */
-		font-weight: 900;
-	}
-
-	.jrpg-command-action {
-		border-radius: 0.42rem;
-		padding: 0.68rem 0.75rem;
-		text-align: left;
-		font-size: 0.82rem;
-		letter-spacing: 0.12em;
-		text-transform: uppercase;
-	}
-
-	.jrpg-command-action:hover:not(:disabled),
-	.jrpg-command-action:focus-visible {
-		/* hover/focus handled by glass-button — keep only unique override */
-		transform: translateX(2px);
-	}
-
-	@media (prefers-reduced-motion: reduce) {
-		.jrpg-command-action:hover:not(:disabled),
-		.jrpg-command-action:focus-visible {
-			transform: none;
-		}
-	}
-
-	.jrpg-command-action:disabled {
-		cursor: not-allowed;
-		opacity: 0.45;
-	}
-
-	.jrpg-command-status {
-		margin-top: 0.75rem;
-		border: 1px solid rgba(159, 231, 255, 0.24);
-		border-radius: 0.42rem;
-		background: rgba(159, 231, 255, 0.08);
-		padding: 0.62rem 0.7rem;
-		color: var(--color-sapphire);
-		font-size: 0.78rem;
-		font-weight: 900;
-		line-height: 1.35;
-	}
-
-	.jrpg-system-row {
-		display: grid;
-		gap: 0.45rem;
-		margin-top: 0.85rem;
-		border-top: 1px solid rgba(244, 229, 184, 0.14);
-		padding-top: 0.85rem;
-		color: var(--color-muted);
-		font-size: 0.68rem;
-		font-weight: 900;
-		letter-spacing: 0.12em;
-		text-transform: uppercase;
-	}
-
-	.jrpg-system-row select {
-		border: 1px solid rgba(244, 229, 184, 0.18);
-		border-radius: 0.42rem;
-		background: rgba(0, 0, 0, 0.28);
-		padding: 0.55rem 0.65rem;
-		color: var(--color-parchment);
-		font-size: 0.86rem;
-		font-weight: 800;
-		letter-spacing: 0;
-		text-transform: none;
 	}
 
 	.jrpg-modal-backdrop {
@@ -1165,19 +1073,12 @@
 
 	@media (max-width: 720px) {
 		.jrpg-menu-anchor {
-			top: 8.65rem;
+			top: 0.75rem;
 			right: 0.75rem;
 		}
 
 		.jrpg-command-toggle {
 			padding: 0.6rem 0.72rem;
-		}
-
-		.jrpg-command-box {
-			top: 11.35rem;
-			right: 0.75rem;
-			width: min(16rem, calc(100vw - 1.5rem));
-			max-height: min(36vh, 17rem);
 		}
 	}
 </style>

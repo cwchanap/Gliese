@@ -1,4 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
+import { startNewRunFromTitle } from '../e2e/helpers/game';
 
 // A real serialized SaveState (createNewSaveState()) used to seed slot records
 // so the captures exercise the same filled-card treatments as the mockups.
@@ -92,6 +93,55 @@ test('System screen capture through the menu path', async ({ page }) => {
 	});
 });
 
+// Field capture: reached through a real New Run, then the Menu toggle opens
+// the Heroic 4×2 command grid over the Quiet field HUD (mockup composition:
+// hero card + grid left, minimap medallion + quest banner + wallet right).
+// A fresh New Run has no active main quest, so the quest banner stays hidden;
+// banner rendering is covered structurally by the unit specs.
+test('Field HUD capture through a real New Run', async ({ page }) => {
+	await startNewRunFromTitle(page);
+
+	await page.getByRole('button', { name: 'Menu' }).click();
+	const commandGrid = page.getByRole('region', { name: 'Command' });
+	await expect(commandGrid).toBeVisible();
+
+	// The eight field commands in their exact plan order (Bag, Gear, Quest,
+	// Map, Skill, Rest, Save, System) with button roles.
+	const expectedCommands = ['Bag', 'Gear', 'Quest', 'Map', 'Skill', 'Rest', 'Save', 'System'];
+	const focusIds = await commandGrid
+		.locator('[data-focus-id]')
+		.evaluateAll((elements) => elements.map((element) => element.getAttribute('data-focus-id')));
+	expect(focusIds).toEqual(expectedCommands.map((command) => `field-cmd-${command.toLowerCase()}`));
+	for (const name of expectedCommands) {
+		await expect(commandGrid.getByRole('button', { name, exact: true })).toBeVisible();
+	}
+	await expect(commandGrid.getByRole('button')).toHaveCount(8);
+
+	// Quiet layout: hero card (name/HP), minimap medallion with location pill,
+	// and the wallet pill.
+	const heroCard = page.getByTestId('hud-party-panel');
+	await expect(heroCard).toBeVisible();
+	await expect(heroCard).toContainText('LIAM');
+	await expect(heroCard).toContainText('HP');
+	await expect(heroCard).toContainText('XP');
+	const minimap = page.getByTestId('hud-minimap');
+	await expect(minimap).toBeVisible();
+	await expect(minimap).toContainText('Sundrop Meadows');
+	await expect(page.getByTestId('hud-side-panel').getByText(/\d+G/)).toBeVisible();
+	await expect(page.getByRole('status', { name: 'Field status' })).toBeVisible();
+	// Fresh runs auto-activate the main quest, so the banner renders (mockup).
+	const questBanner = page.getByTestId('hud-side-panel');
+	await expect(questBanner).toContainText('Main Quest');
+	await expect(questBanner).toContainText('Investigate the Ruins');
+
+	// Let the entrance animation settle before capturing.
+	await page.waitForTimeout(700);
+
+	await page.screenshot({
+		path: 'docs/visual-references/heroic-ui/runtime/02-field.png'
+	});
+});
+
 // Title capture: the full Heroic title surface with key art, crest, wordmark,
 // chapter pill, and the three action cards. A newest autosave slot is seeded so
 // Continue renders as the selected cream-gold card (mockup composition:
@@ -136,7 +186,7 @@ test('Save screen capture through the menu path', async ({ page }) => {
 	await expect(page.locator('canvas')).toBeVisible();
 
 	await page.getByRole('button', { name: 'Menu' }).click();
-	await page.getByRole('button', { name: 'Save Game' }).click();
+	await page.getByRole('button', { name: 'Save', exact: true }).click();
 
 	const dialog = page.getByRole('dialog', { name: /^Save$/i });
 	await expect(dialog).toBeVisible();
