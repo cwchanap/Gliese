@@ -324,11 +324,11 @@ workflow_dispatch:
 
 ```yaml
 concurrency:
-  group: asset-integrity-${{ github.event.pull_request.number || github.ref }}
+  group: asset-integrity-${{ github.event_name == 'pull_request' && github.event.pull_request.number || github.run_id }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 ```
 
-Do not use unconditional `true`; push/schedule/manual full evidence must not be cancelled by a newer event.
+PRs share a per-PR group (newer push supersedes the older run). Non-PR runs use a unique group per run (`github.run_id`) so a queued full run is not cancelled/replaced by a newer event — GitHub cancels pending runs in a shared group when a new run queues, so a shared non-PR group would violate the no-cancel contract. Do not use unconditional `true`.
 
 - [ ] **Step 4: Bound the job and report runner resources**
 

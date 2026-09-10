@@ -65,7 +65,12 @@ permissions:
   contents: read
 
 concurrency:
-  group: asset-integrity-${{ github.event.pull_request.number || github.ref }}
+  # PRs share a per-PR group so a newer push supersedes the older run. Non-PR
+  # runs (push/schedule/manual) get a unique group per run so a queued full run
+  # is never cancelled by a newer event — GitHub cancels pending runs in a
+  # shared group when a new run queues, so a shared non-PR group would violate
+  # the contract that full runs are not dropped while waiting.
+  group: asset-integrity-${{ github.event_name == 'pull_request' && github.event.pull_request.number || github.run_id }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
