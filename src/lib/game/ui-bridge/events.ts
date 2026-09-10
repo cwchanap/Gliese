@@ -104,7 +104,6 @@ export type HudState = {
 	attack: number;
 	defense: number;
 	heals: number;
-	canResume: boolean;
 	status: string;
 	wallet: { coins: number };
 	nearbyShop: HudNearbyShop | null;
@@ -126,8 +125,7 @@ export type HudStatePayload = Omit<HudState, 'dialogue'> & {
 
 export type HudCommand =
 	| { type: 'heal' }
-	| { type: 'resume-save' }
-	| { type: 'save' }
+	| { type: 'save-slot'; slot: 1 | 2 }
 	| { type: 'pause-game' }
 	| { type: 'resume-game' }
 	| { type: 'use-item'; itemId: string }

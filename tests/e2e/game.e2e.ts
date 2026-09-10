@@ -1,7 +1,12 @@
 import { expect, test, type Page } from '@playwright/test';
 import { mkdirSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { startNewRunFromTitle } from './helpers/game';
+import {
+	continueFromTitle,
+	readSlotEnvelope,
+	saveThroughSaveScreen,
+	startNewRunFromTitle
+} from './helpers/game';
 import { assertMeadowEntryPaintedV2CameraBoundsCovered } from '../../src/lib/game/content/backgrounds/meadow-entry-painted-v2-camera-envelope';
 import {
 	MEADOW_ENTRY_PAINTED_V2_APPROVED_RUNTIME_BACKGROUNDS,
@@ -262,13 +267,14 @@ type SaveFixtureOverrides = Partial<{
 	seenDiscoveries?: string[];
 };
 
-// Single source of truth for the save schema version/storage key in this e2e
-// suite. Mirrors SAVE_STORAGE_KEY / SaveState.version in src/lib/game/save —
+// Single source of truth for the save schema version/slot-envelope key in
+// this e2e suite. Mirrors SAVE_SLOTS_STORAGE_KEY / SaveState.version in
+// src/lib/game/save —
 // kept local (not imported) so the Playwright Node worker doesn't have to
 // resolve the game's `$lib` alias. addInitScript callbacks run in the browser
 // and cannot close over Node bindings, so the key is passed to them as an arg.
 const SAVE_VERSION = 9;
-const SAVE_STORAGE_KEY = 'gliese.save.v9';
+const SAVES_STORAGE_KEY = 'gliese.saves.v1';
 
 // addInitScript serializes its callback to the browser and accepts only one
 // arg, so the save JSON and storage key are bundled into a single object.
@@ -329,6 +335,23 @@ function createSaveFixture(overrides: SaveFixtureOverrides = {}) {
 }
 
 function injectSave(page: Page, save: ReturnType<typeof createSaveFixture>) {
+	// The runtime reads the slot envelope, so the fixture is seeded as the
+	// newest autosave record.
+	const envelope = {
+		version: 1,
+		slots: [
+			{
+				kind: 'autosave',
+				savedAt: new Date().toISOString(),
+				playtimeSeconds: 0,
+				locationLabel: 'Sundrop Meadows',
+				state: save
+			},
+			null,
+			null
+		]
+	};
+
 	return page.addInitScript(
 		(payload: SaveSeedInitPayload) => {
 			// The fixture is intentionally seeded once per page session. A reload
@@ -339,7 +362,40 @@ function injectSave(page: Page, save: ReturnType<typeof createSaveFixture>) {
 			window.localStorage.setItem(payload.key, payload.encoded);
 			window.sessionStorage.setItem(payload.marker, '1');
 		},
-		{ encoded: JSON.stringify(save), key: SAVE_STORAGE_KEY, marker: SAVE_SEED_MARKER }
+		{ encoded: JSON.stringify(envelope), key: SAVES_STORAGE_KEY, marker: SAVE_SEED_MARKER }
+	);
+}
+
+// The persisted state keeps the SaveFixture shape, but e2e assertions treat it
+// loosely (like the previous raw JSON.parse reads), so it stays a loose record.
+type LooseSaveState = {
+	[x: string]:
+		| undefined
+		| string
+		| number
+		| boolean
+		| null
+		| Record<string, unknown>
+		| Array<unknown>
+		| { x: number; y: number };
+	mapId: string;
+	player: { x: number; y: number };
+	wallet: { coins: number };
+	flags: Record<string, unknown>;
+	quests: { completedObjectives?: Record<string, string[]> };
+	shops: { stock: Record<string, Record<string, number>> };
+	inventory: { equipment: unknown[] };
+};
+
+function readManualSlotState(page: Page): Promise<LooseSaveState> {
+	return readSlotEnvelope(page).then(
+		(envelope) => (envelope?.slots[1]?.state ?? {}) as LooseSaveState
+	);
+}
+
+function readAutosaveState(page: Page): Promise<LooseSaveState> {
+	return readSlotEnvelope(page).then(
+		(envelope) => (envelope?.slots[0]?.state ?? {}) as LooseSaveState
 	);
 }
 
@@ -9978,22 +10034,15 @@ async function saveInteriorCheckpointAndReload(
 	mapId: string,
 	point: Point
 ): Promise<Point> {
-	await page.getByRole('button', { name: 'Menu' }).click();
-	await commandBox(page).getByRole('button', { name: 'Save Game' }).click();
-	await expect(fieldStatus(page)).toContainText('Saved');
-	const persisted = await page.evaluate(
-		(key) => JSON.parse(localStorage.getItem(key) ?? 'null'),
-		SAVE_STORAGE_KEY
-	);
-	expect(persisted?.mapId).toBe(mapId);
-	expect(Math.abs(persisted?.player?.x - point.x)).toBeLessThanOrEqual(AXIS_REACH_TOLERANCE);
-	expect(Math.abs(persisted?.player?.y - point.y)).toBeLessThanOrEqual(AXIS_REACH_TOLERANCE);
+	await saveThroughSaveScreen(page, 1);
+	const persisted = await readManualSlotState(page);
+	expect(persisted.mapId).toBe(mapId);
+	expect(Math.abs(persisted.player?.x - point.x)).toBeLessThanOrEqual(AXIS_REACH_TOLERANCE);
+	expect(Math.abs(persisted.player?.y - point.y)).toBeLessThanOrEqual(AXIS_REACH_TOLERANCE);
 
 	await page.reload();
 	await expect(page.locator('canvas')).toBeVisible();
 	await expect(page.getByRole('button', { name: 'Menu' })).toBeVisible();
-	await page.getByRole('button', { name: 'Menu' }).click();
-	await commandBox(page).getByRole('button', { name: 'Resume Save' }).click();
 	await waitForHudPosition(page, mapId, point);
 	const resumed = await page.evaluate(
 		() => (window as GlieseProbeWindow).__glieseLastHudState ?? null
@@ -10335,8 +10384,9 @@ async function transitionWithTrustedKeyboard(
 				const hud = probeWindow.__glieseLastHudState ?? null;
 				let persistedClearedEncounterIds: unknown;
 				try {
-					const persisted = JSON.parse(localStorage.getItem(saveStorageKey) ?? 'null');
-					persistedClearedEncounterIds = persisted?.flags?.clearedEncounters ?? null;
+					const envelope = JSON.parse(localStorage.getItem(saveStorageKey) ?? 'null');
+					persistedClearedEncounterIds =
+						envelope?.slots?.[0]?.state?.flags?.clearedEncounters ?? null;
 				} catch (parseError) {
 					persistedClearedEncounterIds = `unreadable: ${String(parseError)}`;
 				}
@@ -10356,7 +10406,7 @@ async function transitionWithTrustedKeyboard(
 					transitionGateState: probeWindow.__glieseTransitionGateState ?? null,
 					persistedClearedEncounterIds
 				};
-			}, SAVE_STORAGE_KEY);
+			}, SAVES_STORAGE_KEY);
 		} catch (telemetryError) {
 			targetWaitTelemetry = { pageEvaluateError: String(telemetryError) };
 		}
@@ -12673,10 +12723,28 @@ async function writeAllEightMeadowSave(page: Page, interior: InteriorGrayboxCase
 		},
 		wallet: { coins: wallet }
 	});
-	await page.evaluate(({ encoded, key }) => window.localStorage.setItem(key, encoded), {
-		encoded: JSON.stringify(save),
-		key: SAVE_STORAGE_KEY
-	});
+	await page.evaluate(
+		({ key, save }) => {
+			window.localStorage.setItem(
+				key,
+				JSON.stringify({
+					version: 1,
+					slots: [
+						{
+							kind: 'autosave',
+							savedAt: new Date().toISOString(),
+							playtimeSeconds: 0,
+							locationLabel: 'Sundrop Meadows',
+							state: save
+						},
+						null,
+						null
+					]
+				})
+			);
+		},
+		{ key: SAVES_STORAGE_KEY, save }
+	);
 }
 
 async function writeAllEightMeadowSaveFromCurrentInterior(
@@ -12687,25 +12755,24 @@ async function writeAllEightMeadowSaveFromCurrentInterior(
 		({ key, returnArrival }) => {
 			const encoded = window.localStorage.getItem(key);
 			if (!encoded) throw new Error(`Missing persisted save while returning to Meadow: ${key}`);
-			const save = JSON.parse(encoded) as {
-				mapId?: string;
-				player?: Record<string, unknown>;
+			const envelope = JSON.parse(encoded) as {
+				slots?: Array<null | { kind?: string; state?: Record<string, unknown> }>;
 			};
-			window.localStorage.setItem(
-				key,
-				JSON.stringify({
-					...save,
-					mapId: 'meadow-entry',
-					player: {
-						...save.player,
-						x: returnArrival.x,
-						y: returnArrival.y,
-						facing: 'up'
-					}
-				})
-			);
+			const autosave = envelope.slots?.[0];
+			if (!autosave?.state) throw new Error('Missing autosave slot while returning to Meadow');
+			autosave.state = {
+				...autosave.state,
+				mapId: 'meadow-entry',
+				player: {
+					...(autosave.state.player as Record<string, unknown>),
+					x: returnArrival.x,
+					y: returnArrival.y,
+					facing: 'up'
+				}
+			};
+			window.localStorage.setItem(key, JSON.stringify(envelope));
 		},
-		{ key: SAVE_STORAGE_KEY, returnArrival: interior.returnArrival }
+		{ key: SAVES_STORAGE_KEY, returnArrival: interior.returnArrival }
 	);
 }
 
@@ -12713,8 +12780,6 @@ async function resumeAllEightMeadowSave(page: Page, interior: InteriorGrayboxCas
 	await page.reload();
 	await expect(page.locator('canvas')).toBeVisible();
 	await expect(page.getByRole('button', { name: 'Menu' })).toBeVisible();
-	await page.getByRole('button', { name: 'Menu' }).click();
-	await commandBox(page).getByRole('button', { name: 'Resume Save' }).click();
 	await waitForHudPosition(page, 'meadow-entry', interior.returnArrival);
 }
 
@@ -12931,13 +12996,10 @@ async function runAllEightBlacksmithPhase(
 
 	await saveInteriorCheckpointAndReload(page, interior.mapId, currentPoint);
 	if (mode === 'painted') {
-		const persisted = await page.evaluate(
-			(key) => JSON.parse(localStorage.getItem(key) ?? 'null'),
-			SAVE_STORAGE_KEY
-		);
-		expect(persisted?.wallet?.coins).toBe(65);
-		expect(persisted?.shops?.stock?.['sundrop-forge']?.['iron-cap']).toBe(0);
-		expect(persisted?.inventory?.equipment).toContain('iron-cap');
+		const persisted = await readAutosaveState(page);
+		expect(persisted.wallet?.coins).toBe(65);
+		expect(persisted.shops?.stock?.['sundrop-forge']?.['iron-cap']).toBe(0);
+		expect(persisted.inventory?.equipment).toContain('iron-cap');
 	}
 	await assertAllEightPresentation(page, interior, mode);
 	await openAllEightBlacksmithShop(page, 65, false);
@@ -12958,12 +13020,9 @@ async function runAllEightBlacksmithPhase(
 	currentPoint = await currentHudPlayerPoint(page, interior.mapId);
 	await saveInteriorCheckpointAndReload(page, interior.mapId, currentPoint);
 	await assertAllEightPresentation(page, interior, mode);
-	const persistedAfterReentry = await page.evaluate(
-		(key) => JSON.parse(localStorage.getItem(key) ?? 'null'),
-		SAVE_STORAGE_KEY
-	);
-	expect(persistedAfterReentry?.wallet?.coins).toBe(65);
-	expect(persistedAfterReentry?.shops?.stock?.['sundrop-forge']?.['iron-cap']).toBe(0);
+	const persistedAfterReentry = await readAutosaveState(page);
+	expect(persistedAfterReentry.wallet?.coins).toBe(65);
+	expect(persistedAfterReentry.shops?.stock?.['sundrop-forge']?.['iron-cap']).toBe(0);
 	await exitInteriorWithTrustedKeyboard(page, interior);
 }
 
@@ -13424,21 +13483,20 @@ test('Meadow painted pilot preserves the village Crossroads gameplay loop', asyn
 	await page.goto('/?meadowPaintedPilot=on&movementDiagnostics=on');
 	await expect(page.locator('canvas')).toBeVisible();
 	await expect(page.getByRole('button', { name: 'Menu' })).toBeVisible();
-	await page.getByRole('button', { name: 'Menu' }).click();
-	await commandBox(page).getByRole('button', { name: 'Resume Save' }).click();
 	await waitForExactHudPosition(page, 'meadow-entry', { x: 704, y: 5_920 });
 
 	// The only coordinate seed is the normal Meadow spawn. All subsequent
 	// positions come from real keyboard input through the browser route runner.
 	const initialSeed = await page.evaluate((key) => {
 		const encoded = localStorage.getItem(key);
-		const save = encoded ? JSON.parse(encoded) : null;
+		const envelope = encoded ? JSON.parse(encoded) : null;
+		const save = envelope?.slots?.[0]?.state ?? null;
 		return {
 			marker: sessionStorage.getItem('__gliese_e2e_save_seeded_v1'),
 			mapId: save?.mapId,
 			player: save?.player ? { x: save.player.x, y: save.player.y } : null
 		};
-	}, SAVE_STORAGE_KEY);
+	}, SAVES_STORAGE_KEY);
 	expect(initialSeed).toEqual({
 		marker: '1',
 		mapId: 'meadow-entry',
@@ -13559,22 +13617,17 @@ test('Meadow painted pilot preserves the village Crossroads gameplay loop', asyn
 	const savedPlayer = await currentHudPlayerPoint(page);
 	expect(savedHudState?.mapId).toBe('meadow-entry');
 
-	await page.getByRole('button', { name: 'Menu' }).click();
-	await commandBox(page).getByRole('button', { name: 'Save Game' }).click();
-	await expect(fieldStatus(page)).toContainText('Saved');
-	const persisted = await page.evaluate(
-		(key) => JSON.parse(localStorage.getItem(key) ?? 'null'),
-		SAVE_STORAGE_KEY
-	);
+	await saveThroughSaveScreen(page, 1);
+	const persisted = await readManualSlotState(page);
 	expect({
-		mapId: persisted?.mapId,
-		player: { x: persisted?.player?.x, y: persisted?.player?.y }
+		mapId: persisted.mapId,
+		player: { x: persisted.player?.x, y: persisted.player?.y }
 	}).toEqual({
 		mapId: 'meadow-entry',
 		player: savedPlayer
 	});
-	expect(persisted?.flags?.collectedPickups).toContain('village-market-cache');
-	expect(persisted?.seenDiscoveries).toContain('crossroads-waystone-sign');
+	expect(persisted.flags?.collectedPickups).toContain('village-market-cache');
+	expect(persisted.seenDiscoveries).toContain('crossroads-waystone-sign');
 	const cameraEvidence = await page.evaluate(() => {
 		const probeWindow = window as GlieseProbeWindow;
 		return {
@@ -13585,8 +13638,6 @@ test('Meadow painted pilot preserves the village Crossroads gameplay loop', asyn
 
 	await page.reload();
 	await expect(page.locator('canvas')).toBeVisible();
-	await page.getByRole('button', { name: 'Menu' }).click();
-	await commandBox(page).getByRole('button', { name: 'Resume Save' }).click();
 	await waitForExactHudPosition(page, 'meadow-entry', savedPlayer);
 	const resumedHudState = await page.evaluate(
 		() => (window as GlieseProbeWindow).__glieseLastHudState ?? null
@@ -16744,8 +16795,6 @@ test('Meadow Entry supports the continuous outdoor route and persists its proof 
 	);
 	await page.goto('/?movementDiagnostics=on');
 	await expect(page.locator('canvas')).toBeVisible();
-	await page.getByRole('button', { name: 'Menu' }).click();
-	await commandBox(page).getByRole('button', { name: 'Resume Save' }).click();
 	await expect(fieldStatus(page)).toContainText('Save resumed');
 	await page.locator('canvas').click();
 
@@ -16918,13 +16967,8 @@ test('Meadow Entry supports the continuous outdoor route and persists its proof 
 	]);
 	await expect(page.getByTestId('hud-location-panel')).toContainText('Sundrop Meadows');
 
-	await page.getByRole('button', { name: 'Menu' }).click();
-	await commandBox(page).getByRole('button', { name: 'Save Game' }).click();
-	await expect(fieldStatus(page)).toContainText('Saved');
-	const persisted = await page.evaluate(
-		(key) => JSON.parse(localStorage.getItem(key) ?? 'null'),
-		SAVE_STORAGE_KEY
-	);
+	await saveThroughSaveScreen(page, 1);
+	const persisted = await readManualSlotState(page);
 	expect(persisted.mapId).toBe('meadow-entry');
 	expect(Math.abs(persisted.player.x - 1_152)).toBeLessThanOrEqual(AXIS_REACH_TOLERANCE);
 	expect(Math.abs(persisted.player.y - 4_800)).toBeLessThanOrEqual(AXIS_REACH_TOLERANCE);
@@ -16940,8 +16984,6 @@ test('Meadow Entry supports the continuous outdoor route and persists its proof 
 		const state = (window as GlieseProbeWindow).__glieseLastHudState;
 		return state?.ready === true && state.mapId === 'meadow-entry';
 	});
-	await page.getByRole('button', { name: 'Menu' }).click();
-	await commandBox(page).getByRole('button', { name: 'Resume Save' }).click();
 	try {
 		await page.waitForFunction(
 			({ x, y, tolerance }) => {
@@ -17081,8 +17123,6 @@ test('Complete world layout foundation traverses every map in fallback mode', as
 	await page.setViewportSize({ width: 1_920, height: 1_080 });
 	await page.goto('/?meadowPaintedPilot=off&movementDiagnostics=on');
 	await expect(page.locator('canvas')).toBeVisible();
-	await page.getByRole('button', { name: 'Menu' }).click();
-	await commandBox(page).getByRole('button', { name: 'Resume Save' }).click();
 	await waitForExactHudPosition(page, 'hero-house', { x: 352, y: 480 });
 
 	const routeEvidence: JourneyRouteEvidence[] = [];
@@ -17165,11 +17205,8 @@ test('Complete world layout foundation traverses every map in fallback mode', as
 		{ completeGuildMasterQuest: true },
 		recordInteriorRoute
 	);
-	const questAfterGuild = await page.evaluate(
-		(key) => JSON.parse(localStorage.getItem(key) ?? 'null'),
-		SAVE_STORAGE_KEY
-	);
-	expect(questAfterGuild?.quests?.completedObjectives?.['investigate-the-ruins']).toContain(
+	const questAfterGuild = await readAutosaveState(page);
+	expect(questAfterGuild.quests.completedObjectives?.['investigate-the-ruins']).toContain(
 		'talk-to-guild-master'
 	);
 
@@ -17513,11 +17550,8 @@ test('Complete world layout foundation traverses every map in fallback mode', as
 
 	// Ruins Core north pickup, south pickup, and the safe boss approach.
 	assertRuinsCoreDraughtRouteContract(FALLBACK_CORE_MAIN_ROUTE);
-	const corePickupsBefore = await page.evaluate(
-		(key) => JSON.parse(localStorage.getItem(key) ?? 'null'),
-		SAVE_STORAGE_KEY
-	);
-	expect(corePickupsBefore?.flags?.collectedPickups ?? []).not.toContain('ruins-core-draught');
+	const corePickupsBefore = await readAutosaveState(page);
+	expect(corePickupsBefore.flags?.collectedPickups ?? []).not.toContain('ruins-core-draught');
 	await journeyRoute('Ruins Core pickup and boss approach', FALLBACK_CORE_MAIN_ROUTE);
 	const coreRouteResult = routeResults.get('Ruins Core pickup and boss approach');
 	expect(coreRouteResult).toBeDefined();
@@ -17531,11 +17565,8 @@ test('Complete world layout foundation traverses every map in fallback mode', as
 		() => (window as GlieseProbeWindow).__glieseLastHudState ?? null
 	);
 	expect(coreState?.mapId).toBe('ruins-core');
-	const coreSave = await page.evaluate(
-		(key) => JSON.parse(localStorage.getItem(key) ?? 'null'),
-		SAVE_STORAGE_KEY
-	);
-	expect(coreSave?.flags?.collectedPickups).toEqual(
+	const coreSave = await readAutosaveState(page);
+	expect(coreSave.flags?.collectedPickups).toEqual(
 		expect.arrayContaining(['ruins-core-mail', 'ruins-core-draught'])
 	);
 
@@ -17705,15 +17736,10 @@ test('Complete world layout foundation traverses every map in fallback mode', as
 	]);
 	expect(await currentHudPlayerPoint(page)).toEqual(saveStagingPoint);
 
-	await page.getByRole('button', { name: 'Menu' }).click();
-	await commandBox(page).getByRole('button', { name: 'Save Game' }).click();
-	await expect(fieldStatus(page)).toContainText('Saved');
-	const persisted = await page.evaluate(
-		(key) => JSON.parse(localStorage.getItem(key) ?? 'null'),
-		SAVE_STORAGE_KEY
-	);
-	expect(persisted?.mapId).toBe('meadow-entry');
-	const persistedPlayer = persisted?.player as
+	await saveThroughSaveScreen(page, 1);
+	const persisted = await readManualSlotState(page);
+	expect(persisted.mapId).toBe('meadow-entry');
+	const persistedPlayer = persisted.player as
 		| {
 				level?: unknown;
 				xp?: unknown;
@@ -17741,20 +17767,20 @@ test('Complete world layout foundation traverses every map in fallback mode', as
 	expect(Number.isFinite(persistedPlayer?.attack)).toBe(true);
 	expect((persistedPlayer?.attack as number) > 0).toBe(true);
 	expect(persistedPlayer?.facing).toMatch(/^(up|down|left|right)$/);
-	expect(persisted?.flags?.clearedEncounters).toEqual(
+	expect(persisted.flags?.clearedEncounters).toEqual(
 		expect.arrayContaining(['threshold-slime-west', 'threshold-slime-east'])
 	);
-	expect(persisted?.flags?.collectedPickups).toEqual(
+	expect(persisted.flags?.collectedPickups).toEqual(
 		expect.arrayContaining([
 			'crossroads-cache',
 			'silverpine-offering-cache',
 			'wildwood-grove-cache'
 		])
 	);
-	expect(persisted?.flags?.collectedPickups).toEqual(
+	expect(persisted.flags?.collectedPickups).toEqual(
 		expect.arrayContaining(['ruins-core-mail', 'ruins-core-draught'])
 	);
-	expect(persisted?.seenDiscoveries).toEqual(
+	expect(persisted.seenDiscoveries).toEqual(
 		expect.arrayContaining(['crossroads-waystone-sign', 'ferry-shrine-lore'])
 	);
 
@@ -17768,8 +17794,6 @@ test('Complete world layout foundation traverses every map in fallback mode', as
 		undefined,
 		{ timeout: 30_000 }
 	);
-	await page.getByRole('button', { name: 'Menu' }).click();
-	await commandBox(page).getByRole('button', { name: 'Resume Save' }).click();
 	await waitForExactHudPosition(page, 'meadow-entry', saveStagingPoint);
 	const resumedPoint = await currentHudPlayerPoint(page, 'meadow-entry');
 	expect(resumedPoint).toEqual(saveStagingPoint);
@@ -17818,11 +17842,7 @@ test('entry map boots with no game console errors', async ({ page }) => {
 		if (msg.type() === 'error') errors.push(msg.text());
 	});
 
-	await page.goto('/');
-	// Canvas visible + Menu button visible is the suite's canonical "game ready"
-	// signal: the HUD only renders after Phaser boots WorldScene on the entry map.
-	await expect(page.locator('canvas')).toBeVisible();
-	await expect(page.getByRole('button', { name: 'Menu' })).toBeVisible();
+	await startNewRunFromTitle(page);
 	// Let async asset loads and runtime frame registration settle before asserting.
 	await page.waitForTimeout(1_500);
 
@@ -17837,9 +17857,7 @@ test('entry map boots with no game console errors', async ({ page }) => {
 });
 
 test('game route boots', async ({ page }) => {
-	await page.goto('/');
-	await expect(page.locator('canvas')).toBeVisible();
-	await expect(page.getByRole('button', { name: 'Menu' })).toBeVisible();
+	await startNewRunFromTitle(page);
 
 	const viewport = page.viewportSize();
 	const locationPanel = page.getByTestId('hud-location-panel');
@@ -17892,10 +17910,7 @@ test('encounter opens battle scene and returns through battle summary', async ({
 	});
 
 	await injectSave(page, save);
-	await startNewRunFromTitle(page);
-
-	await page.getByRole('button', { name: 'Menu' }).click();
-	await commandBox(page).getByRole('button', { name: 'Resume Save' }).click();
+	await continueFromTitle(page);
 
 	const battleSummary = page.getByRole('dialog', { name: /battle summary/i });
 	await expect(battleSummary).toBeVisible({ timeout: 30_000 });
@@ -18060,10 +18075,7 @@ test('double-clicking unequipped equipment equips it from inventory', async ({ p
 	});
 
 	await injectSave(page, save);
-	await startNewRunFromTitle(page);
-
-	await page.getByRole('button', { name: 'Menu' }).click();
-	await commandBox(page).getByRole('button', { name: 'Resume Save' }).click();
+	await continueFromTitle(page);
 	await page.getByRole('button', { name: 'Menu' }).click();
 	await commandBox(page).getByRole('button', { name: 'Inventory' }).click();
 
@@ -18089,14 +18101,27 @@ test('shop overlay opens near a merchant and supports buying and selling', async
 			window.addEventListener('gliese:hud-state', (event) => {
 				probeWindow.__glieseLastHudState = (event as CustomEvent<HudStateSnapshot>).detail;
 			});
-			window.localStorage.setItem(payload.key, payload.encoded);
+			window.localStorage.setItem(
+				payload.key,
+				JSON.stringify({
+					version: 1,
+					slots: [
+						{
+							kind: 'autosave',
+							savedAt: new Date().toISOString(),
+							playtimeSeconds: 0,
+							locationLabel: 'Sundrop Meadows',
+							state: JSON.parse(payload.encoded)
+						},
+						null,
+						null
+					]
+				})
+			);
 		},
-		{ encoded: JSON.stringify(save), key: SAVE_STORAGE_KEY }
+		{ encoded: JSON.stringify(save), key: SAVES_STORAGE_KEY }
 	);
-	await startNewRunFromTitle(page);
-
-	await page.getByRole('button', { name: 'Menu' }).click();
-	await commandBox(page).getByRole('button', { name: 'Resume Save' }).click();
+	await continueFromTitle(page);
 	await page.waitForFunction(() => {
 		const state = (window as GlieseProbeWindow).__glieseLastHudState;
 
@@ -18159,14 +18184,27 @@ test('interact key shop purchase appears in inventory', async ({ page }) => {
 			window.addEventListener('gliese:hud-state', (event) => {
 				probeWindow.__glieseLastHudState = (event as CustomEvent<HudStateSnapshot>).detail;
 			});
-			window.localStorage.setItem(payload.key, payload.encoded);
+			window.localStorage.setItem(
+				payload.key,
+				JSON.stringify({
+					version: 1,
+					slots: [
+						{
+							kind: 'autosave',
+							savedAt: new Date().toISOString(),
+							playtimeSeconds: 0,
+							locationLabel: 'Sundrop Meadows',
+							state: JSON.parse(payload.encoded)
+						},
+						null,
+						null
+					]
+				})
+			);
 		},
-		{ encoded: JSON.stringify(save), key: SAVE_STORAGE_KEY }
+		{ encoded: JSON.stringify(save), key: SAVES_STORAGE_KEY }
 	);
-	await startNewRunFromTitle(page);
-
-	await page.getByRole('button', { name: 'Menu' }).click();
-	await commandBox(page).getByRole('button', { name: 'Resume Save' }).click();
+	await continueFromTitle(page);
 	await page.waitForFunction(() => {
 		const state = (window as GlieseProbeWindow).__glieseLastHudState;
 
@@ -18225,8 +18263,6 @@ test('all eight painted village interiors', async ({ page }) => {
 	await page.goto('/?movementDiagnostics=on');
 	await expect(page.locator('canvas')).toBeVisible();
 	await expect(page.getByRole('button', { name: 'Menu' })).toBeVisible();
-	await page.getByRole('button', { name: 'Menu' }).click();
-	await commandBox(page).getByRole('button', { name: 'Resume Save' }).click();
 	await waitForHudPosition(page, 'meadow-entry', firstInterior.returnArrival);
 
 	for (const [index, interior] of ALL_EIGHT_PAINTED_INTERIOR_CASES.entries()) {
@@ -18293,8 +18329,6 @@ for (const interiorCase of INTERIOR_GRAYBOX_CASES.filter(({ mapId }) => mapId !=
 		await page.goto('/?movementDiagnostics=on');
 		await expect(page.locator('canvas')).toBeVisible();
 		await expect(page.getByRole('button', { name: 'Menu' })).toBeVisible();
-		await page.getByRole('button', { name: 'Menu' }).click();
-		await commandBox(page).getByRole('button', { name: 'Resume Save' }).click();
 		await waitForHudPosition(page, 'meadow-entry', interiorCase.returnArrival);
 		if (interiorCase.mapId === 'item-shop' || interiorCase.mapId === 'shrine-of-aurora-interior') {
 			await traverseInteriorForJourney(page, interiorCase);
@@ -18361,8 +18395,6 @@ test('Blacksmith graybox entrance', async ({ page }) => {
 	await page.goto('/?movementDiagnostics=on');
 	await expect(page.locator('canvas')).toBeVisible();
 	await expect(page.getByRole('button', { name: 'Menu' })).toBeVisible();
-	await page.getByRole('button', { name: 'Menu' }).click();
-	await commandBox(page).getByRole('button', { name: 'Resume Save' }).click();
 	await waitForHudPosition(page, 'meadow-entry', blacksmith.returnArrival);
 
 	await enterInteriorWithTrustedKeyboard(page, blacksmith);
@@ -18400,8 +18432,6 @@ test('Blacksmith Oren equipment shop', async ({ page }) => {
 	);
 	await page.goto('/?movementDiagnostics=on');
 	await expect(page.locator('canvas')).toBeVisible();
-	await page.getByRole('button', { name: 'Menu' }).click();
-	await commandBox(page).getByRole('button', { name: 'Resume Save' }).click();
 	await waitForHudPosition(page, 'meadow-entry', blacksmith.returnArrival);
 
 	await enterInteriorWithTrustedKeyboard(page, blacksmith);
@@ -18449,21 +18479,14 @@ test('Blacksmith Oren equipment shop', async ({ page }) => {
 	await shop.getByRole('button', { name: 'Close' }).click();
 	await expect(shop).toHaveCount(0);
 
-	await page.getByRole('button', { name: 'Menu' }).click();
-	await commandBox(page).getByRole('button', { name: 'Save Game' }).click();
-	await expect(fieldStatus(page)).toContainText('Saved');
-	const persisted = await page.evaluate(
-		(key) => JSON.parse(localStorage.getItem(key) ?? 'null'),
-		SAVE_STORAGE_KEY
-	);
-	expect(persisted?.wallet?.coins).toBe(65);
-	expect(persisted?.shops?.stock?.['sundrop-forge']?.['iron-cap']).toBe(0);
-	expect(persisted?.inventory?.equipment).toContain('iron-cap');
+	await saveThroughSaveScreen(page, 1);
+	const persisted = await readManualSlotState(page);
+	expect(persisted.wallet?.coins).toBe(65);
+	expect(persisted.shops?.stock?.['sundrop-forge']?.['iron-cap']).toBe(0);
+	expect(persisted.inventory?.equipment).toContain('iron-cap');
 
 	await page.reload();
 	await expect(page.locator('canvas')).toBeVisible();
-	await page.getByRole('button', { name: 'Menu' }).click();
-	await commandBox(page).getByRole('button', { name: 'Resume Save' }).click();
 	await page.waitForFunction(
 		() => {
 			const state = (window as GlieseProbeWindow).__glieseLastHudState;
@@ -18551,8 +18574,6 @@ test('Blacksmith painted interior', async ({ page }) => {
 	await page.goto('/?movementDiagnostics=on');
 	await expect(page.locator('canvas')).toBeVisible();
 	await expect(page.getByRole('button', { name: 'Menu' })).toBeVisible();
-	await page.getByRole('button', { name: 'Menu' }).click();
-	await commandBox(page).getByRole('button', { name: 'Resume Save' }).click();
 	await waitForHudPosition(page, 'meadow-entry', blacksmith.returnArrival);
 
 	await enterInteriorWithTrustedKeyboard(page, blacksmith);
@@ -18649,18 +18670,13 @@ test('Blacksmith painted interior', async ({ page }) => {
 	await saveBlacksmithCanvas(page, 'painted-exit-return-camera-640x360.png');
 
 	const reentrySavePoint = await currentHudPlayerPoint(page, blacksmith.mapId);
-	await page.getByRole('button', { name: 'Menu' }).click();
-	await commandBox(page).getByRole('button', { name: 'Save Game' }).click();
-	await expect(fieldStatus(page)).toContainText('Saved');
-	const reentryPersisted = await page.evaluate(
-		(key) => JSON.parse(localStorage.getItem(key) ?? 'null'),
-		SAVE_STORAGE_KEY
-	);
-	expect(reentryPersisted?.mapId).toBe(blacksmith.mapId);
-	expect(Math.abs(reentryPersisted?.player?.x - reentrySavePoint.x)).toBeLessThanOrEqual(
+	await saveThroughSaveScreen(page, 1);
+	const reentryPersisted = await readManualSlotState(page);
+	expect(reentryPersisted.mapId).toBe(blacksmith.mapId);
+	expect(Math.abs(reentryPersisted.player?.x - reentrySavePoint.x)).toBeLessThanOrEqual(
 		AXIS_REACH_TOLERANCE
 	);
-	expect(Math.abs(reentryPersisted?.player?.y - reentrySavePoint.y)).toBeLessThanOrEqual(
+	expect(Math.abs(reentryPersisted.player?.y - reentrySavePoint.y)).toBeLessThanOrEqual(
 		AXIS_REACH_TOLERANCE
 	);
 
@@ -18670,8 +18686,6 @@ test('Blacksmith painted interior', async ({ page }) => {
 		await page.reload();
 		await expect(page.locator('canvas')).toBeVisible();
 		await expect(page.getByRole('button', { name: 'Menu' })).toBeVisible();
-		await page.getByRole('button', { name: 'Menu' }).click();
-		await commandBox(page).getByRole('button', { name: 'Resume Save' }).click();
 		await waitForHudPosition(page, blacksmith.mapId, reentrySavePoint);
 		assertBlacksmithFallbackDiagnostic(
 			await waitForMapBackgroundDiagnostic(page, blacksmith.mapId)
@@ -18708,8 +18722,6 @@ test('Guild Hall painted interior', async ({ page }) => {
 	await page.goto('/?movementDiagnostics=on');
 	await expect(page.locator('canvas')).toBeVisible();
 	await expect(page.getByRole('button', { name: 'Menu' })).toBeVisible();
-	await page.getByRole('button', { name: 'Menu' }).click();
-	await commandBox(page).getByRole('button', { name: 'Resume Save' }).click();
 	await waitForHudPosition(page, 'meadow-entry', guildHall.returnArrival);
 
 	let persistedGuildPoint: Point | null = null;
@@ -18762,18 +18774,13 @@ test('Guild Hall painted interior', async ({ page }) => {
 	);
 	await saveGuildHallCanvas(page, 'painted-reentry-camera-640x360.png');
 	const reentrySavePoint = await currentHudPlayerPoint(page, 'guild-hall');
-	await page.getByRole('button', { name: 'Menu' }).click();
-	await commandBox(page).getByRole('button', { name: 'Save Game' }).click();
-	await expect(fieldStatus(page)).toContainText('Saved');
-	const reentryPersisted = await page.evaluate(
-		(key) => JSON.parse(localStorage.getItem(key) ?? 'null'),
-		SAVE_STORAGE_KEY
-	);
-	expect(reentryPersisted?.mapId).toBe('guild-hall');
-	expect(Math.abs(reentryPersisted?.player?.x - reentrySavePoint.x)).toBeLessThanOrEqual(
+	await saveThroughSaveScreen(page, 1);
+	const reentryPersisted = await readManualSlotState(page);
+	expect(reentryPersisted.mapId).toBe('guild-hall');
+	expect(Math.abs(reentryPersisted.player?.x - reentrySavePoint.x)).toBeLessThanOrEqual(
 		AXIS_REACH_TOLERANCE
 	);
-	expect(Math.abs(reentryPersisted?.player?.y - reentrySavePoint.y)).toBeLessThanOrEqual(
+	expect(Math.abs(reentryPersisted.player?.y - reentrySavePoint.y)).toBeLessThanOrEqual(
 		AXIS_REACH_TOLERANCE
 	);
 
@@ -18782,8 +18789,6 @@ test('Guild Hall painted interior', async ({ page }) => {
 	try {
 		await page.goto('/?movementDiagnostics=on');
 		await expect(page.locator('canvas')).toBeVisible();
-		await page.getByRole('button', { name: 'Menu' }).click();
-		await commandBox(page).getByRole('button', { name: 'Resume Save' }).click();
 		await waitForHudPosition(page, 'guild-hall', reentrySavePoint);
 		const fallbackDiagnostic = await waitForMapBackgroundDiagnostic(page, 'guild-hall');
 		assertGuildHallFallbackDiagnostic(fallbackDiagnostic);
@@ -18818,8 +18823,6 @@ test('Item Shop painted interior', async ({ page }) => {
 	await page.goto('/?movementDiagnostics=on');
 	await expect(page.locator('canvas')).toBeVisible();
 	await expect(page.getByRole('button', { name: 'Menu' })).toBeVisible();
-	await page.getByRole('button', { name: 'Menu' }).click();
-	await commandBox(page).getByRole('button', { name: 'Resume Save' }).click();
 	await waitForHudPosition(page, 'meadow-entry', itemShop.returnArrival);
 
 	await traverseInteriorForJourney(
@@ -18886,18 +18889,13 @@ test('Item Shop painted interior', async ({ page }) => {
 	);
 	await saveItemShopCanvas(page, 'painted-reentry-camera-640x360.png');
 	const reentrySavePoint = await currentHudPlayerPoint(page, 'item-shop');
-	await page.getByRole('button', { name: 'Menu' }).click();
-	await commandBox(page).getByRole('button', { name: 'Save Game' }).click();
-	await expect(fieldStatus(page)).toContainText('Saved');
-	const reentryPersisted = await page.evaluate(
-		(key) => JSON.parse(localStorage.getItem(key) ?? 'null'),
-		SAVE_STORAGE_KEY
-	);
-	expect(reentryPersisted?.mapId).toBe('item-shop');
-	expect(Math.abs(reentryPersisted?.player?.x - reentrySavePoint.x)).toBeLessThanOrEqual(
+	await saveThroughSaveScreen(page, 1);
+	const reentryPersisted = await readManualSlotState(page);
+	expect(reentryPersisted.mapId).toBe('item-shop');
+	expect(Math.abs(reentryPersisted.player?.x - reentrySavePoint.x)).toBeLessThanOrEqual(
 		AXIS_REACH_TOLERANCE
 	);
-	expect(Math.abs(reentryPersisted?.player?.y - reentrySavePoint.y)).toBeLessThanOrEqual(
+	expect(Math.abs(reentryPersisted.player?.y - reentrySavePoint.y)).toBeLessThanOrEqual(
 		AXIS_REACH_TOLERANCE
 	);
 
@@ -18906,8 +18904,6 @@ test('Item Shop painted interior', async ({ page }) => {
 	try {
 		await page.goto('/?movementDiagnostics=on');
 		await expect(page.locator('canvas')).toBeVisible();
-		await page.getByRole('button', { name: 'Menu' }).click();
-		await commandBox(page).getByRole('button', { name: 'Resume Save' }).click();
 		await waitForHudPosition(page, 'item-shop', reentrySavePoint);
 		assertItemShopFallbackDiagnostic(await waitForMapBackgroundDiagnostic(page, 'item-shop'));
 		await saveItemShopCanvas(page, 'fallback-base-missing-camera-640x360.png');
@@ -18942,8 +18938,6 @@ test('Hero House painted interior preserves runtime, reload, and fallback contra
 	await page.setViewportSize({ width: 640, height: 360 });
 	await page.goto('/?movementDiagnostics=on');
 	await expect(page.locator('canvas')).toBeVisible();
-	await page.getByRole('button', { name: 'Menu' }).click();
-	await commandBox(page).getByRole('button', { name: 'Resume Save' }).click();
 	await waitForHudPosition(page, 'meadow-entry', heroHouse.returnArrival);
 
 	await enterInteriorWithTrustedKeyboard(page, heroHouse);
@@ -19063,21 +19057,14 @@ test('Hero House painted interior preserves runtime, reload, and fallback contra
 	expect(Math.abs(currentPoint.x - heroHouse.spawn.x)).toBeLessThanOrEqual(AXIS_REACH_TOLERANCE);
 	expect(Math.abs(currentPoint.y - heroHouse.spawn.y)).toBeLessThanOrEqual(AXIS_REACH_TOLERANCE);
 
-	await page.getByRole('button', { name: 'Menu' }).click();
-	await commandBox(page).getByRole('button', { name: 'Save Game' }).click();
-	await expect(fieldStatus(page)).toContainText('Saved');
-	const persisted = await page.evaluate(
-		(key) => JSON.parse(localStorage.getItem(key) ?? 'null'),
-		SAVE_STORAGE_KEY
-	);
-	expect(persisted?.mapId).toBe('hero-house');
-	expect(Math.abs(persisted?.player?.x - currentPoint.x)).toBeLessThanOrEqual(AXIS_REACH_TOLERANCE);
-	expect(Math.abs(persisted?.player?.y - currentPoint.y)).toBeLessThanOrEqual(AXIS_REACH_TOLERANCE);
+	await saveThroughSaveScreen(page, 1);
+	const persisted = await readManualSlotState(page);
+	expect(persisted.mapId).toBe('hero-house');
+	expect(Math.abs(persisted.player?.x - currentPoint.x)).toBeLessThanOrEqual(AXIS_REACH_TOLERANCE);
+	expect(Math.abs(persisted.player?.y - currentPoint.y)).toBeLessThanOrEqual(AXIS_REACH_TOLERANCE);
 
 	await page.reload();
 	await expect(page.locator('canvas')).toBeVisible();
-	await page.getByRole('button', { name: 'Menu' }).click();
-	await commandBox(page).getByRole('button', { name: 'Resume Save' }).click();
 	await waitForHudPosition(page, 'hero-house', heroHouse.spawn);
 	assertHeroHousePaintedDiagnostic(await waitForMapBackgroundDiagnostic(page, 'hero-house'));
 	await saveHeroHouseCanvas(page, 'painted-reload-camera-640x360.png');
@@ -19099,8 +19086,6 @@ test('Hero House painted interior preserves runtime, reload, and fallback contra
 	try {
 		await page.goto('/?movementDiagnostics=on');
 		await expect(page.locator('canvas')).toBeVisible();
-		await page.getByRole('button', { name: 'Menu' }).click();
-		await commandBox(page).getByRole('button', { name: 'Resume Save' }).click();
 		await waitForHudPosition(page, 'hero-house', heroHouse.spawn);
 		const fallbackDiagnostic = await waitForMapBackgroundDiagnostic(page, 'hero-house');
 		assertHeroHouseFallbackDiagnostic(fallbackDiagnostic);
@@ -19150,8 +19135,6 @@ test('Villager House 1 painted interior', async ({ page }) => {
 	await page.goto('/?movementDiagnostics=on');
 	await expect(page.locator('canvas')).toBeVisible();
 	await expect(page.getByRole('button', { name: 'Menu' })).toBeVisible();
-	await page.getByRole('button', { name: 'Menu' }).click();
-	await commandBox(page).getByRole('button', { name: 'Resume Save' }).click();
 	await waitForHudPosition(page, 'meadow-entry', house.returnArrival);
 
 	await traverseInteriorForJourney(
@@ -19247,18 +19230,13 @@ test('Villager House 1 painted interior', async ({ page }) => {
 	await saveVillagerHouse1Canvas(page, 'reentry-reload-camera-640x360.png');
 
 	const reentrySavePoint = await currentHudPlayerPoint(page, house.mapId);
-	await page.getByRole('button', { name: 'Menu' }).click();
-	await commandBox(page).getByRole('button', { name: 'Save Game' }).click();
-	await expect(fieldStatus(page)).toContainText('Saved');
-	const persisted = await page.evaluate(
-		(key) => JSON.parse(localStorage.getItem(key) ?? 'null'),
-		SAVE_STORAGE_KEY
-	);
-	expect(persisted?.mapId).toBe(house.mapId);
-	expect(Math.abs(persisted?.player?.x - reentrySavePoint.x)).toBeLessThanOrEqual(
+	await saveThroughSaveScreen(page, 1);
+	const persisted = await readManualSlotState(page);
+	expect(persisted.mapId).toBe(house.mapId);
+	expect(Math.abs(persisted.player?.x - reentrySavePoint.x)).toBeLessThanOrEqual(
 		AXIS_REACH_TOLERANCE
 	);
-	expect(Math.abs(persisted?.player?.y - reentrySavePoint.y)).toBeLessThanOrEqual(
+	expect(Math.abs(persisted.player?.y - reentrySavePoint.y)).toBeLessThanOrEqual(
 		AXIS_REACH_TOLERANCE
 	);
 
@@ -19268,8 +19246,6 @@ test('Villager House 1 painted interior', async ({ page }) => {
 		await page.reload();
 		await expect(page.locator('canvas')).toBeVisible();
 		await expect(page.getByRole('button', { name: 'Menu' })).toBeVisible();
-		await page.getByRole('button', { name: 'Menu' }).click();
-		await commandBox(page).getByRole('button', { name: 'Resume Save' }).click();
 		await waitForHudPosition(page, house.mapId, reentrySavePoint);
 		const fallbackDiagnostic = await waitForMapBackgroundDiagnostic(page, house.mapId);
 		assertVillagerHouse1FallbackDiagnostic(fallbackDiagnostic);
@@ -19347,8 +19323,6 @@ test('Villager House 2 painted interior', async ({ page }) => {
 	await page.goto('/?movementDiagnostics=on');
 	await expect(page.locator('canvas')).toBeVisible();
 	await expect(page.getByRole('button', { name: 'Menu' })).toBeVisible();
-	await page.getByRole('button', { name: 'Menu' }).click();
-	await commandBox(page).getByRole('button', { name: 'Resume Save' }).click();
 	await waitForHudPosition(page, 'meadow-entry', house.returnArrival);
 
 	await traverseInteriorForJourney(
@@ -19520,18 +19494,13 @@ test('Villager House 2 painted interior', async ({ page }) => {
 	await saveVillagerHouse2Canvas(page, 'reentry-camera-640x360.png');
 
 	const reentrySavePoint = await currentHudPlayerPoint(page, house.mapId);
-	await page.getByRole('button', { name: 'Menu' }).click();
-	await commandBox(page).getByRole('button', { name: 'Save Game' }).click();
-	await expect(fieldStatus(page)).toContainText('Saved');
-	const persisted = await page.evaluate(
-		(key) => JSON.parse(localStorage.getItem(key) ?? 'null'),
-		SAVE_STORAGE_KEY
-	);
-	expect(persisted?.mapId).toBe(house.mapId);
-	expect(Math.abs(persisted?.player?.x - reentrySavePoint.x)).toBeLessThanOrEqual(
+	await saveThroughSaveScreen(page, 1);
+	const persisted = await readManualSlotState(page);
+	expect(persisted.mapId).toBe(house.mapId);
+	expect(Math.abs(persisted.player?.x - reentrySavePoint.x)).toBeLessThanOrEqual(
 		AXIS_REACH_TOLERANCE
 	);
-	expect(Math.abs(persisted?.player?.y - reentrySavePoint.y)).toBeLessThanOrEqual(
+	expect(Math.abs(persisted.player?.y - reentrySavePoint.y)).toBeLessThanOrEqual(
 		AXIS_REACH_TOLERANCE
 	);
 
@@ -19541,8 +19510,6 @@ test('Villager House 2 painted interior', async ({ page }) => {
 		await page.reload();
 		await expect(page.locator('canvas')).toBeVisible();
 		await expect(page.getByRole('button', { name: 'Menu' })).toBeVisible();
-		await page.getByRole('button', { name: 'Menu' }).click();
-		await commandBox(page).getByRole('button', { name: 'Resume Save' }).click();
 		await waitForHudPosition(page, house.mapId, reentrySavePoint);
 		const fallbackDiagnostic = await waitForMapBackgroundDiagnostic(page, house.mapId);
 		assertVillagerHouse2FallbackDiagnostic(fallbackDiagnostic);
@@ -19615,8 +19582,6 @@ test('Villager House 3 painted interior', async ({ page }) => {
 	await page.goto('/?movementDiagnostics=on');
 	await expect(page.locator('canvas')).toBeVisible();
 	await expect(page.getByRole('button', { name: 'Menu' })).toBeVisible();
-	await page.getByRole('button', { name: 'Menu' }).click();
-	await commandBox(page).getByRole('button', { name: 'Resume Save' }).click();
 	await waitForHudPosition(page, 'meadow-entry', house.returnArrival);
 
 	await traverseInteriorForJourney(
@@ -19675,18 +19640,13 @@ test('Villager House 3 painted interior', async ({ page }) => {
 	await saveVillagerHouse3Canvas(page, 'reentry-camera-640x360.png');
 
 	const reentrySavePoint = await currentHudPlayerPoint(page, house.mapId);
-	await page.getByRole('button', { name: 'Menu' }).click();
-	await commandBox(page).getByRole('button', { name: 'Save Game' }).click();
-	await expect(fieldStatus(page)).toContainText('Saved');
-	const persisted = await page.evaluate(
-		(key) => JSON.parse(localStorage.getItem(key) ?? 'null'),
-		SAVE_STORAGE_KEY
-	);
-	expect(persisted?.mapId).toBe(house.mapId);
-	expect(Math.abs(persisted?.player?.x - reentrySavePoint.x)).toBeLessThanOrEqual(
+	await saveThroughSaveScreen(page, 1);
+	const persisted = await readManualSlotState(page);
+	expect(persisted.mapId).toBe(house.mapId);
+	expect(Math.abs(persisted.player?.x - reentrySavePoint.x)).toBeLessThanOrEqual(
 		AXIS_REACH_TOLERANCE
 	);
-	expect(Math.abs(persisted?.player?.y - reentrySavePoint.y)).toBeLessThanOrEqual(
+	expect(Math.abs(persisted.player?.y - reentrySavePoint.y)).toBeLessThanOrEqual(
 		AXIS_REACH_TOLERANCE
 	);
 
@@ -19696,8 +19656,6 @@ test('Villager House 3 painted interior', async ({ page }) => {
 		await page.reload();
 		await expect(page.locator('canvas')).toBeVisible();
 		await expect(page.getByRole('button', { name: 'Menu' })).toBeVisible();
-		await page.getByRole('button', { name: 'Menu' }).click();
-		await commandBox(page).getByRole('button', { name: 'Resume Save' }).click();
 		await waitForHudPosition(page, house.mapId, reentrySavePoint);
 		const fallbackDiagnostic = await waitForMapBackgroundDiagnostic(page, house.mapId);
 		assertVillagerHouse3FallbackDiagnostic(fallbackDiagnostic);
@@ -19766,8 +19724,6 @@ test('Shrine of Aurora painted interior', async ({ page }) => {
 	await page.goto('/?movementDiagnostics=on');
 	await expect(page.locator('canvas')).toBeVisible();
 	await expect(page.getByRole('button', { name: 'Menu' })).toBeVisible();
-	await page.getByRole('button', { name: 'Menu' }).click();
-	await commandBox(page).getByRole('button', { name: 'Resume Save' }).click();
 	await waitForHudPosition(page, 'meadow-entry', shrine.returnArrival);
 
 	await traverseInteriorForJourney(
@@ -19804,18 +19760,13 @@ test('Shrine of Aurora painted interior', async ({ page }) => {
 	await saveShrineCanvas(page, 'reentry-camera-640x360.png');
 
 	const reentrySavePoint = await currentHudPlayerPoint(page, shrine.mapId);
-	await page.getByRole('button', { name: 'Menu' }).click();
-	await commandBox(page).getByRole('button', { name: 'Save Game' }).click();
-	await expect(fieldStatus(page)).toContainText('Saved');
-	const persisted = await page.evaluate(
-		(key) => JSON.parse(localStorage.getItem(key) ?? 'null'),
-		SAVE_STORAGE_KEY
-	);
-	expect(persisted?.mapId).toBe(shrine.mapId);
-	expect(Math.abs(persisted?.player?.x - reentrySavePoint.x)).toBeLessThanOrEqual(
+	await saveThroughSaveScreen(page, 1);
+	const persisted = await readManualSlotState(page);
+	expect(persisted.mapId).toBe(shrine.mapId);
+	expect(Math.abs(persisted.player?.x - reentrySavePoint.x)).toBeLessThanOrEqual(
 		AXIS_REACH_TOLERANCE
 	);
-	expect(Math.abs(persisted?.player?.y - reentrySavePoint.y)).toBeLessThanOrEqual(
+	expect(Math.abs(persisted.player?.y - reentrySavePoint.y)).toBeLessThanOrEqual(
 		AXIS_REACH_TOLERANCE
 	);
 
@@ -19825,8 +19776,6 @@ test('Shrine of Aurora painted interior', async ({ page }) => {
 		await page.reload();
 		await expect(page.locator('canvas')).toBeVisible();
 		await expect(page.getByRole('button', { name: 'Menu' })).toBeVisible();
-		await page.getByRole('button', { name: 'Menu' }).click();
-		await commandBox(page).getByRole('button', { name: 'Resume Save' }).click();
 		await waitForHudPosition(page, shrine.mapId, reentrySavePoint);
 		const fallbackDiagnostic = await waitForMapBackgroundDiagnostic(page, shrine.mapId);
 		assertShrineFallbackDiagnostic(fallbackDiagnostic);
@@ -19865,14 +19814,27 @@ test('quest log shows main quest and accepts Guild side quests', async ({ page }
 			window.addEventListener('gliese:hud-state', (event) => {
 				probeWindow.__glieseLastHudState = (event as CustomEvent<HudStateSnapshot>).detail;
 			});
-			window.localStorage.setItem(payload.key, payload.encoded);
+			window.localStorage.setItem(
+				payload.key,
+				JSON.stringify({
+					version: 1,
+					slots: [
+						{
+							kind: 'autosave',
+							savedAt: new Date().toISOString(),
+							playtimeSeconds: 0,
+							locationLabel: 'Sundrop Meadows',
+							state: JSON.parse(payload.encoded)
+						},
+						null,
+						null
+					]
+				})
+			);
 		},
-		{ encoded: JSON.stringify(save), key: SAVE_STORAGE_KEY }
+		{ encoded: JSON.stringify(save), key: SAVES_STORAGE_KEY }
 	);
-	await startNewRunFromTitle(page);
-
-	await page.getByRole('button', { name: 'Menu' }).click();
-	await commandBox(page).getByRole('button', { name: 'Resume Save' }).click();
+	await continueFromTitle(page);
 	await expect(page.getByText('Talk to the Guild Master')).toBeVisible();
 	await page.waitForFunction(() => {
 		const state = (window as GlieseProbeWindow).__glieseLastHudState;
