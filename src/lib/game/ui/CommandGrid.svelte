@@ -53,17 +53,30 @@
 		system: '/game/assets/heroic-ui/icons/system.svg'
 	};
 
-	// Source mockup tints each glyph: quest/save gold, skill violet,
-	// rest emerald, system sapphire, others parchment.
+	// Source mockup tints each glyph: quest/save gold, map/skill/system
+	// blue/violet, rest emerald; quest/save tiles also carry a warm tint.
 	const iconTints: Record<FieldCommand, string> = {
 		bag: '#dfe8ff',
 		gear: '#dfe8ff',
 		quest: '#e8d27e',
-		map: '#dfe8ff',
+		map: '#8fb9e8',
 		skill: '#cf9dff',
 		rest: '#7ee2a8',
 		save: '#f2d488',
 		system: '#9ad2ff'
+	};
+
+	// Quest/Save tiles read warm in the source; 'transparent' keeps the rest
+	// on the neutral navy tile.
+	const tileTints: Record<FieldCommand, string> = {
+		bag: 'transparent',
+		gear: 'transparent',
+		quest: 'rgba(214, 158, 62, 0.2)',
+		map: 'transparent',
+		skill: 'transparent',
+		rest: 'transparent',
+		save: 'rgba(214, 158, 62, 0.2)',
+		system: 'transparent'
 	};
 </script>
 
@@ -88,7 +101,7 @@
 			<span class="heroic-cmd-num tabular-nums" aria-hidden="true">{index + 1}</span>
 			<span
 				class="heroic-cmd-icon"
-				style={`--cmd-icon: url('${iconPaths[command]}'); --cmd-tint: ${iconTints[command]}`}
+				style={`--cmd-icon: url('${iconPaths[command]}'); --cmd-tint: ${iconTints[command]}; --cmd-tile: ${tileTints[command]}`}
 				aria-hidden="true"
 			></span>
 			<span class="heroic-cmd-label">{t($locale, `ui.fieldCmds.${command}`)}</span>
@@ -135,6 +148,7 @@
 				rgba(255, 246, 224, 0.05),
 				color-mix(in srgb, var(--color-ink) 28%, transparent)
 			),
+			linear-gradient(var(--cmd-tile, transparent), var(--cmd-tile, transparent)),
 			var(--color-panel-deep);
 		color: var(--color-muted);
 		font-size: 0.66rem;
@@ -174,8 +188,11 @@
 		mask-repeat: no-repeat;
 	}
 
+	/* Selected treatment (mockup: tan fill, ink icon, gold border + glow).
+	   Applies to :focus — not just :focus-visible — so the review capture and
+	   programmatic focus show the selected state like a hovered tile. */
 	.heroic-cmd:hover:not(.heroic-cmd-disabled),
-	.heroic-cmd:focus-visible {
+	.heroic-cmd:focus:not(.heroic-cmd-disabled) {
 		border-color: rgba(255, 232, 168, 0.85);
 		background: linear-gradient(180deg, var(--color-gold-bright), var(--color-gold));
 		color: #3a2c07;
@@ -184,11 +201,11 @@
 	}
 
 	.heroic-cmd:hover:not(.heroic-cmd-disabled) .heroic-cmd-icon,
-	.heroic-cmd:focus-visible .heroic-cmd-icon {
+	.heroic-cmd:focus:not(.heroic-cmd-disabled) .heroic-cmd-icon {
 		background: #3a2c07;
 	}
 
-	.heroic-cmd:focus-visible .heroic-cmd-num {
+	.heroic-cmd:focus:not(.heroic-cmd-disabled) .heroic-cmd-num {
 		color: #3a2c07;
 	}
 
@@ -199,7 +216,7 @@
 
 	@media (max-width: 720px) {
 		.heroic-field-menu {
-			top: 10rem;
+			top: 13rem;
 			left: 0.75rem;
 			grid-template-columns: repeat(2, 1fr);
 			width: min(10.5rem, calc(100vw - 13.5rem));

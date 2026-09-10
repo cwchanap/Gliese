@@ -43,7 +43,7 @@ export const ja = {
 		unexplored: '未探索',
 		currentPosition: '現在位置',
 		areaMapSelectedMarker: '選択中: {{name}}',
-		heroName: 'LIAM',
+		heroName: 'Liam',
 		goldSuffix: 'G',
 		activeQuest: '進行中の依頼',
 		shop: '店',
