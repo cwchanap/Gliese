@@ -83,12 +83,16 @@
 			return;
 		}
 		onConfirmSlot(index);
+		// The save-slot command handler writes synchronously; refresh so the new
+		// record shows immediately and a repeat save on this slot asks to overwrite.
+		slots = loadSaveSlots();
 	}
 
 	function confirmOverwrite() {
 		if (confirmSlot === null) return;
 		onConfirmSlot(confirmSlot);
 		confirmSlot = null;
+		slots = loadSaveSlots();
 	}
 
 	function cancelOverwrite() {
