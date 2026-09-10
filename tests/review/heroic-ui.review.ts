@@ -121,18 +121,30 @@ test('Field HUD capture through a real New Run', async ({ page }) => {
 	// and the wallet pill.
 	const heroCard = page.getByTestId('hud-party-panel');
 	await expect(heroCard).toBeVisible();
-	await expect(heroCard).toContainText('LIAM');
+	await expect(heroCard).toContainText('Liam');
 	await expect(heroCard).toContainText('HP');
 	await expect(heroCard).toContainText('XP');
 	const minimap = page.getByTestId('hud-minimap');
 	await expect(minimap).toBeVisible();
 	await expect(minimap).toContainText('Sundrop Meadows');
 	await expect(page.getByTestId('hud-side-panel').getByText(/\d+G/)).toBeVisible();
-	await expect(page.getByRole('status', { name: 'Field status' })).toBeVisible();
+	// The transient status pill stays a playing-HUD surface only; the mockup's
+	// grid-open composition has no bottom-center pill, so it is gated on
+	// commandOpen in FieldHud and must be hidden here.
+	await expect(page.getByRole('status', { name: 'Field status' })).toBeHidden();
 	// Fresh runs auto-activate the main quest, so the banner renders (mockup).
 	const questBanner = page.getByTestId('hud-side-panel');
 	await expect(questBanner).toContainText('Main Quest');
 	await expect(questBanner).toContainText('Investigate the Ruins');
+
+	// Demonstrate the selected-state grammar (mockup shows Bag selected):
+	// focus a command so the tan fill + ink icon + gold border/glow renders.
+	const bagCommand = commandGrid.getByRole('button', { name: 'Bag', exact: true });
+	await bagCommand.focus();
+	await expect(bagCommand).toBeFocused();
+	// Park the pointer off-UI: the Menu toggle reveals on hover, and the click
+	// above leaves the cursor sitting on it.
+	await page.mouse.move(720, 450);
 
 	// Let the entrance animation settle before capturing.
 	await page.waitForTimeout(700);
