@@ -51,6 +51,7 @@ export const ja = {
 		saveGame: 'セーブ',
 		useHeal: '回復を使う',
 		titleChapterPill: '翠緑地方・第一章',
+		chapterLabel: '第一章',
 		titleNewRun: 'ニューゲーム',
 		titleNewRunSub: '第一章',
 		titleSystemSub: '言語・オーディオ',

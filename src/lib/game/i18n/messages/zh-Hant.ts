@@ -51,6 +51,7 @@ export const zhHant = {
 		saveGame: '儲存遊戲',
 		useHeal: '使用治療',
 		titleChapterPill: '翠綠之地・第一章',
+		chapterLabel: '第一章',
 		titleNewRun: '新的旅程',
 		titleNewRunSub: '第一章',
 		titleSystemSub: '語言・音訊',

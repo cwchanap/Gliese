@@ -7,6 +7,7 @@
 	import { formatPlaytimeSeconds } from '$lib/game/save/playtime';
 	import { preferences } from '$lib/game/i18n/store';
 	import { t } from '$lib/game/i18n/translate';
+	import PromptGlyph from '$lib/game/ui/PromptGlyph.svelte';
 
 	interface Props {
 		open: boolean;
@@ -100,152 +101,168 @@
 	}
 </script>
 
-{#if open}
-	<div class="jrpg-modal-backdrop" role="presentation">
-		<div class="absolute inset-0 cursor-default" role="presentation" onclick={onClose}></div>
-		<div
-			bind:this={dialog}
-			class="heroic-window heroic-anim save-window"
-			aria-labelledby="save-heading"
-			aria-modal="true"
-			role="dialog"
-			tabindex="-1"
-			{onkeydown}
-		>
-			<header class="save-header">
-				<div>
-					<p class="heroic-eyebrow">{t(locale, 'ui.waystone')}</p>
-					<h2 id="save-heading" class="heroic-title">{t(locale, 'ui.saveScreen')}</h2>
-				</div>
-				<button bind:this={closeButton} type="button" class="heroic-segment" onclick={onClose}>
-					{t(locale, 'ui.back')}
-				</button>
-			</header>
-
-			<div class="save-slots heroic-stagger">
-				{#each slots.slots as record, index (index)}
-					{#if index === 0}
-						<article
-							class="save-slot"
-							class:save-slot-autosave={record !== null}
-							data-testid="save-slot-autosave"
-						>
-							<span class="save-slot-chip save-slot-chip-gold font-display">1</span>
-							<div class="save-slot-preview">
-								{#if record?.thumbnail}
-									<img src={record.thumbnail} alt="" aria-hidden="true" draggable="false" />
-								{:else}
-									<span class="save-slot-placeholder font-display">{t(locale, 'ui.slotEmpty')}</span
-									>
-								{/if}
-							</div>
-							<footer class="save-slot-footer">
-								<p
-									class="save-slot-kind font-display"
-									class:save-slot-kind-autosave={record !== null}
-								>
-									{t(locale, 'ui.slotAutosave')}
-								</p>
-								{#if record}
-									<p class="save-slot-location font-display">{record.locationLabel}</p>
-									<p class="save-slot-stats font-display">
-										✦ LV {slotStats(record.state).level}
-										· {slotStats(record.state).coins}G · ♥ {slotStats(record.state).hp}/{slotStats(
-											record.state
-										).maxHp}
-									</p>
-									<p class="save-slot-timestamp font-display">
-										{formatPlaytimeSeconds(record.playtimeSeconds)} · {formatSavedAt(
-											record.savedAt
-										)}
-									</p>
-								{:else}
-									<p class="save-slot-location font-display">{t(locale, 'ui.slotEmpty')}</p>
-								{/if}
-							</footer>
-						</article>
-					{:else}
-						<button
-							type="button"
-							class="save-slot save-slot-action"
-							data-testid="save-slot-{index}"
-							aria-label={slotAriaLabel(index, record)}
-							onclick={() => chooseSlot(index as 1 | 2)}
-						>
-							<span class="save-slot-chip font-display">{index + 1}</span>
-							<div class="save-slot-preview">
-								{#if record?.thumbnail}
-									<img src={record.thumbnail} alt="" aria-hidden="true" draggable="false" />
-								{:else}
-									<span class="save-slot-placeholder font-display">{t(locale, 'ui.saveHere')}</span>
-								{/if}
-							</div>
-							<footer class="save-slot-footer">
-								<p class="save-slot-kind font-display">
-									{record ? t(locale, 'ui.slotManual') : t(locale, 'ui.slotEmpty')}
-								</p>
-								{#if record}
-									<p class="save-slot-location font-display">{record.locationLabel}</p>
-									<p class="save-slot-stats font-display">
-										✦ LV {slotStats(record.state).level}
-										· {slotStats(record.state).coins}G · ♥ {slotStats(record.state).hp}/{slotStats(
-											record.state
-										).maxHp}
-									</p>
-									<p class="save-slot-timestamp font-display">
-										{formatPlaytimeSeconds(record.playtimeSeconds)} · {formatSavedAt(
-											record.savedAt
-										)}
-									</p>
-								{:else}
-									<p class="save-slot-location font-display">{t(locale, 'ui.saveHere')}</p>
-								{/if}
-							</footer>
-						</button>
-					{/if}
-				{/each}
+{#snippet slotBody(record: SaveSlotRecord | null, index: number)}
+	<span class="save-slot-chip font-display" class:save-slot-chip-gold={index === 0}>
+		{index + 1}
+	</span>
+	<div class="save-slot-well">
+		{#if record?.thumbnail}
+			<img src={record.thumbnail} alt="" aria-hidden="true" draggable="false" />
+		{:else}
+			<svg
+				class="save-slot-well-icon"
+				viewBox="0 0 24 24"
+				fill="none"
+				stroke="currentColor"
+				stroke-width="1.5"
+				aria-hidden="true"
+			>
+				<rect x="3.5" y="4.5" width="17" height="15" rx="2.5" />
+				<circle cx="9.2" cy="10" r="1.6" />
+				<path
+					d="M4.5 17.5 L10 12.5 L13.5 15.5 L16.5 13 L19.5 15.8"
+					stroke-linecap="round"
+					stroke-linejoin="round"
+				/>
+			</svg>
+			<span class="save-slot-well-hint font-display">
+				{index === 0 ? t(locale, 'ui.slotEmpty') : t(locale, 'ui.saveHere')}
+			</span>
+		{/if}
+	</div>
+	<footer class="save-slot-info">
+		<p class="save-slot-kind font-display">
+			<span class="save-slot-chapter">{t(locale, 'ui.chapterLabel')}</span>
+			<span
+				class:save-slot-kind-autosave={record?.kind === 'autosave'}
+				class:save-slot-kind-empty={!record}
+			>
+				{record
+					? record.kind === 'autosave'
+						? t(locale, 'ui.slotAutosave')
+						: t(locale, 'ui.slotManual')
+					: t(locale, 'ui.slotEmpty')}
+			</span>
+		</p>
+		{#if record}
+			{@const stats = slotStats(record.state)}
+			<p class="save-slot-location font-display">{record.locationLabel}</p>
+			<p class="save-slot-stats font-display">
+				<span class="save-slot-stat">✦ LV {stats.level}</span>
+				<span class="save-slot-stat">
+					<svg class="save-slot-coin" viewBox="0 0 12 12" aria-hidden="true">
+						<circle cx="6" cy="6" r="4.3" fill="none" stroke="currentColor" stroke-width="1.7" />
+					</svg>
+					{stats.coins}
+				</span>
+				<span class="save-slot-stat">♥ {stats.hp}/{stats.maxHp}</span>
+			</p>
+			<div class="save-slot-meta">
+				<p class="save-slot-timestamp font-display">
+					{formatPlaytimeSeconds(record.playtimeSeconds)} · {formatSavedAt(record.savedAt)}
+				</p>
+				<span class="save-slot-prompt" aria-hidden="true">
+					<PromptGlyph mode={$preferences.promptMode} keys="A" pad="A" tone="a" />
+				</span>
 			</div>
+		{:else}
+			<p class="save-slot-location font-display">
+				{index === 0 ? t(locale, 'ui.slotEmpty') : t(locale, 'ui.saveHere')}
+			</p>
+			<div class="save-slot-meta">
+				<span class="save-slot-prompt" aria-hidden="true">
+					<PromptGlyph mode={$preferences.promptMode} keys="A" pad="A" tone="a" />
+				</span>
+			</div>
+		{/if}
+	</footer>
+{/snippet}
 
-			<footer class="save-footer">
-				<p class="save-status font-display" role="status">{hudStatus}</p>
-				{#if confirmSlot !== null}
-					<div class="save-confirm" role="alertdialog" aria-label={t(locale, 'ui.overwriteTitle')}>
-						<p class="font-display">{t(locale, 'ui.overwriteTitle')}</p>
-						<button type="button" class="heroic-segment" onclick={cancelOverwrite}>
-							{t(locale, 'ui.back')}
-						</button>
-						<button
-							type="button"
-							class="heroic-segment heroic-segment-selected"
-							data-testid="confirm-overwrite"
-							onclick={confirmOverwrite}
-						>
-							{t(locale, 'ui.confirmOverwrite')}
-						</button>
-					</div>
+{#if open}
+	<div
+		bind:this={dialog}
+		class="save-screen heroic-anim"
+		role="dialog"
+		aria-modal="true"
+		aria-labelledby="save-heading"
+		tabindex="-1"
+		{onkeydown}
+	>
+		<header class="save-header">
+			<div>
+				<p class="heroic-eyebrow">{t(locale, 'ui.waystone')}</p>
+				<h2 id="save-heading" class="save-heading font-display">{t(locale, 'ui.saveScreen')}</h2>
+			</div>
+			<button bind:this={closeButton} type="button" class="save-back" onclick={onClose}>
+				<span class="save-back-glyph" aria-hidden="true">
+					<PromptGlyph mode={$preferences.promptMode} keys="B" pad="B" tone="b" />
+				</span>
+				{t(locale, 'ui.back')}
+			</button>
+		</header>
+
+		<div class="save-slots heroic-stagger">
+			{#each slots.slots as record, index (index)}
+				{#if index === 0}
+					<article
+						class="save-slot"
+						class:save-slot-autosave={record !== null}
+						data-testid="save-slot-autosave"
+					>
+						{@render slotBody(record, index)}
+					</article>
+				{:else}
+					<button
+						type="button"
+						class="save-slot save-slot-action"
+						data-testid="save-slot-{index}"
+						aria-label={slotAriaLabel(index, record)}
+						onclick={() => chooseSlot(index as 1 | 2)}
+					>
+						{@render slotBody(record, index)}
+					</button>
 				{/if}
-			</footer>
+			{/each}
 		</div>
+
+		<footer class="save-footer">
+			<p class="save-status font-display" role="status">{hudStatus}</p>
+			{#if confirmSlot !== null}
+				<div class="save-confirm" role="alertdialog" aria-label={t(locale, 'ui.overwriteTitle')}>
+					<p class="font-display">{t(locale, 'ui.overwriteTitle')}</p>
+					<button type="button" class="heroic-segment" onclick={cancelOverwrite}>
+						{t(locale, 'ui.back')}
+					</button>
+					<button
+						type="button"
+						class="heroic-segment heroic-segment-selected"
+						data-testid="confirm-overwrite"
+						onclick={confirmOverwrite}
+					>
+						{t(locale, 'ui.confirmOverwrite')}
+					</button>
+				</div>
+			{/if}
+		</footer>
 	</div>
 {/if}
 
 <style>
-	.jrpg-modal-backdrop {
+	/* Full-bleed page surface per the save mockup: opaque backdrop, no modal frame. */
+	.save-screen {
 		position: absolute;
 		inset: 0;
 		z-index: 50;
 		display: flex;
-		align-items: center;
-		justify-content: center;
-		background: rgba(0, 0, 0, 0.52);
-		padding: 1rem;
-		backdrop-filter: blur(3px);
-	}
-
-	.save-window {
 		flex-direction: column;
-		gap: 0;
-		padding: 1.5rem;
+		padding: 2.75rem clamp(1.5rem, 8vw, 7.25rem) 1.9rem;
+		overflow-y: auto;
+		background: radial-gradient(
+			130% 110% at 50% 0%,
+			var(--color-panel) 0%,
+			var(--color-panel-deep) 46%,
+			var(--color-ink) 100%
+		);
 	}
 
 	.save-header {
@@ -254,11 +271,45 @@
 		justify-content: space-between;
 	}
 
+	.save-heading {
+		margin: 0.45rem 0 0;
+		color: var(--color-parchment);
+		font-size: clamp(2rem, 3vw, 2.75rem);
+		font-weight: 900;
+		letter-spacing: 0.01em;
+	}
+
+	.save-back {
+		display: inline-flex;
+		align-items: center;
+		gap: 0.55rem;
+		border: 0;
+		background: transparent;
+		padding: 0.3rem 0.2rem;
+		color: var(--color-sapphire);
+		font-family: var(--font-display);
+		font-size: 0.86rem;
+		font-weight: 800;
+		cursor: pointer;
+		transition: color 160ms ease;
+	}
+
+	.save-back:hover {
+		color: var(--color-parchment);
+	}
+
+	.save-back-glyph {
+		display: inline-flex;
+	}
+
 	.save-slots {
 		display: grid;
+		flex: 1;
+		min-height: 0;
+		gap: clamp(1.1rem, 2.1vw, 1.9rem);
 		grid-template-columns: repeat(3, 1fr);
-		gap: 1.25rem;
-		margin-top: 1.4rem;
+		margin-top: 1.9rem;
+		/* Contain the cards so they can never paint over the status footer. */
 		overflow-y: auto;
 	}
 
@@ -266,10 +317,11 @@
 		position: relative;
 		display: flex;
 		flex-direction: column;
-		min-height: 0;
+		min-height: 15rem;
 		border: 1px dashed var(--color-frame-strong);
-		border-radius: 0.9rem;
-		background: linear-gradient(180deg, rgba(255, 246, 224, 0.04), rgba(4, 6, 18, 0.5));
+		border-radius: 1.15rem;
+		background: linear-gradient(180deg, rgba(126, 156, 235, 0.17), rgba(19, 27, 58, 0.6));
+		overflow: hidden;
 		text-align: left;
 	}
 
@@ -291,8 +343,8 @@
 
 	.save-slot-autosave {
 		border-style: solid;
-		border-color: rgba(255, 232, 168, 0.85);
-		box-shadow: 0 0 26px rgba(242, 212, 136, 0.2);
+		border-color: rgba(255, 232, 168, 0.9);
+		box-shadow: 0 0 30px rgba(242, 212, 136, 0.28);
 	}
 
 	.save-slot-chip {
@@ -302,13 +354,13 @@
 		z-index: 1;
 		display: grid;
 		place-items: center;
-		width: 1.7rem;
-		height: 1.7rem;
+		width: 1.9rem;
+		height: 1.9rem;
 		border: 1px solid var(--color-frame-strong);
-		border-radius: 0.55rem;
+		border-radius: 0.6rem;
 		background: rgba(10, 15, 34, 0.9);
 		color: var(--color-parchment);
-		font-size: 0.82rem;
+		font-size: 0.86rem;
 		font-weight: 900;
 	}
 
@@ -318,34 +370,51 @@
 		color: #3a2c07;
 	}
 
-	.save-slot-preview {
+	/* Large ~square thumbnail well; the 256×144 JPEG renders object-fit: cover. */
+	.save-slot-well {
 		display: grid;
+		flex: 1;
+		min-height: 0;
 		place-items: center;
-		aspect-ratio: 16 / 9;
-		margin: 0.7rem 0.7rem 0;
-		border-radius: 0.55rem;
-		background: rgba(4, 6, 18, 0.55);
+		align-content: center;
+		gap: 0.65rem;
+		padding: 0.5rem;
 		overflow: hidden;
+		position: relative;
 	}
 
-	.save-slot-preview img {
+	.save-slot-well img {
+		position: absolute;
+		inset: 0;
 		width: 100%;
 		height: 100%;
 		object-fit: cover;
 	}
 
-	.save-slot-placeholder {
-		color: var(--color-muted);
-		font-size: 0.76rem;
+	.save-slot-well-icon {
+		width: 1.6rem;
+		height: 1.6rem;
+		color: rgba(159, 178, 230, 0.55);
 	}
 
-	.save-slot-footer {
+	.save-slot-well-hint {
+		color: var(--color-muted);
+		font-size: 0.74rem;
+		text-align: center;
+	}
+
+	/* Separated darker info panel below the well. */
+	.save-slot-info {
 		display: grid;
-		gap: 0.3rem;
-		padding: 0.8rem 0.95rem 0.95rem;
+		gap: 0.42rem;
+		padding: 0.9rem 1rem 0.85rem;
+		background: rgba(7, 11, 28, 0.6);
+		box-shadow: inset 0 1px 0 rgba(255, 246, 224, 0.07);
 	}
 
 	.save-slot-kind {
+		display: flex;
+		gap: 0.55rem;
 		margin: 0;
 		color: var(--color-gold);
 		font-size: 0.62rem;
@@ -358,30 +427,61 @@
 		color: #7fe0a8;
 	}
 
+	.save-slot-kind-empty {
+		color: var(--color-muted);
+	}
+
 	.save-slot-location {
 		margin: 0;
 		color: var(--color-parchment);
-		font-size: 1rem;
+		font-size: 1.05rem;
 		font-weight: 900;
 	}
 
 	.save-slot-stats {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 0.85rem;
 		margin: 0;
-		color: var(--color-muted);
-		font-size: 0.74rem;
+		color: #c7d3f2;
+		font-size: 0.76rem;
+		font-weight: 700;
 		letter-spacing: 0.04em;
 	}
 
+	.save-slot-stat {
+		display: inline-flex;
+		align-items: center;
+		gap: 0.3rem;
+	}
+
+	.save-slot-coin {
+		width: 0.62rem;
+		height: 0.62rem;
+	}
+
+	.save-slot-meta {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		margin-top: 0.25rem;
+	}
+
 	.save-slot-timestamp {
-		margin: 0.15rem 0 0;
+		margin: 0;
 		color: var(--color-muted);
 		font-size: 0.7rem;
+	}
+
+	.save-slot-prompt {
+		display: inline-flex;
+		margin-left: auto;
 	}
 
 	.save-footer {
 		display: grid;
 		gap: 0.6rem;
-		margin-top: 1.2rem;
+		margin-top: 1.1rem;
 	}
 
 	.save-status {

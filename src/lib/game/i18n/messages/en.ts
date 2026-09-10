@@ -48,6 +48,7 @@ export const en = {
 		saveGame: 'Save Game',
 		useHeal: 'Use Heal',
 		titleChapterPill: 'Verdant Region · Chapter I',
+		chapterLabel: 'Chapter I',
 		titleNewRun: 'New Run',
 		titleNewRunSub: 'Chapter I',
 		titleSystemSub: 'Language · Audio',

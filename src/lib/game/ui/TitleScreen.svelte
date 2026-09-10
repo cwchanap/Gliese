@@ -34,7 +34,10 @@
 				<circle cx="48" cy="48" r="38" stroke="rgba(232,200,119,0.35)" stroke-width="1" />
 				<path
 					d="M48 26 L52.6 43.4 L70 48 L52.6 52.6 L48 70 L43.4 52.6 L26 48 L43.4 43.4 Z"
-					fill="#f2d488"
+					fill="none"
+					stroke="#f2d488"
+					stroke-width="3"
+					stroke-linejoin="round"
 				/>
 				<defs>
 					<linearGradient id="title-crest-ring" x1="3" y1="3" x2="93" y2="93">
@@ -111,11 +114,11 @@
 
 	<div class="title-hints font-display" aria-hidden="true">
 		<span class="title-hint">
-			<PromptGlyph mode={$preferences.promptMode} keys="A" pad="A" />
+			<PromptGlyph mode={$preferences.promptMode} keys="A" pad="A" tone="a" />
 			{t(locale, 'ui.titleHintSelect')}
 		</span>
 		<span class="title-hint">
-			<PromptGlyph mode={$preferences.promptMode} keys="&#8629;" pad="&#9135;" />
+			<PromptGlyph mode={$preferences.promptMode} keys="&#8629;" pad="&#9135;" tone="enter" />
 			{t(locale, 'ui.titleHintEnter')}
 		</span>
 	</div>
@@ -236,7 +239,9 @@
 		border-color: rgba(255, 232, 168, 0.9);
 		background: linear-gradient(180deg, #fdf3d3, #ecd9a4);
 		color: #3a2c07;
-		box-shadow: 0 0 34px rgba(242, 212, 136, 0.35);
+		box-shadow:
+			0 0 46px rgba(242, 212, 136, 0.5),
+			0 18px 44px rgba(0, 0, 0, 0.4);
 	}
 
 	.title-card-head {
