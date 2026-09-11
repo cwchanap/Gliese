@@ -164,6 +164,7 @@ export const zhHant = {
 		shopOwned: '持有 x{{quantity}}',
 		shopSelectHint: '選擇商品即可查看詳情。',
 		shopBustAlt: '{{merchant}}的商家立繪',
+		dialogueBustAlt: '{{npc}}的對話立繪',
 		shopSellMeta: '{{price}} 金幣',
 		shopSellMetaWithQuantity: '{{price}} 金幣 / x{{quantity}}',
 		priceBadge: '{{price}}c',
