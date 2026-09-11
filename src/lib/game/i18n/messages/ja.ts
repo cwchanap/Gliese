@@ -117,6 +117,7 @@ export const ja = {
 		questOffered: '受注可能',
 		questRewards: '報酬',
 		questTurnedInBy: '報告先',
+		questChapterProgress: '章の進行状況',
 		questMapContext: 'マップ情報',
 		questJournalEmpty: 'まだ依頼はありません。',
 		rewardCoins: 'コイン',

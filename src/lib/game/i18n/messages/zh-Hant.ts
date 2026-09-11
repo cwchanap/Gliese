@@ -117,6 +117,7 @@ export const zhHant = {
 		questOffered: '可承接',
 		questRewards: '獎勵',
 		questTurnedInBy: '回報對象',
+		questChapterProgress: '章節進度',
 		questMapContext: '地圖資訊',
 		questJournalEmpty: '日誌中尚無任務。',
 		rewardCoins: '金幣',
