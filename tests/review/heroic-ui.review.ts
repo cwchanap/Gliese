@@ -34,6 +34,15 @@ const SHOP_SAVE_STATE = JSON.stringify({
 	player: { level: 1, xp: 0, hp: 20, attack: 3, x: 448, y: 480, facing: 'up' }
 });
 
+// Quest capture seed: the SEED state parked at the Guild Master's counter
+// (canonical tests/e2e quest path) so the journal opens on the live main
+// quest and the offered side quest can be accepted through real dialogue.
+const QUEST_SAVE_STATE = JSON.stringify({
+	...JSON.parse(SEED_SAVE_STATE),
+	mapId: 'guild-hall',
+	player: { level: 1, xp: 0, hp: 20, attack: 3, x: 800, y: 184, facing: 'up' }
+});
+
 function seedRecord(kind: 'autosave' | 'manual', playtimeSeconds: number, locationLabel: string) {
 	// playtimeSeconds is formatted as h:mm; 6120 -> "01:42", 3480 -> "00:58".
 	return {
@@ -329,6 +338,99 @@ test('Skill screen regression capture through the menu path', async ({ page }) =
 
 	await page.screenshot({
 		path: 'docs/visual-references/heroic-ui/runtime/skill-regression.png'
+	});
+});
+
+// Quest journal capture: reached through the real gameplay path (seeded
+// Continue inside the Guild Hall → accept the Thin Village Slimes offer via
+// Arlen's dialogue → Field grid → Quest command). The roster then shows the
+// main quest plus an active side quest, and the detail panel renders the
+// objective chain and reward tiles.
+test('Quest journal capture through the guild side-quest flow', async ({ page }) => {
+	await seedSaveSlots(page, [
+		{
+			kind: 'autosave',
+			savedAt: new Date().toISOString(),
+			playtimeSeconds: 6120,
+			locationLabel: 'Guild Hall',
+			state: JSON.parse(QUEST_SAVE_STATE)
+		},
+		null,
+		null
+	]);
+	await page.goto('/');
+	await page.getByRole('button', { name: /Continue/i }).click();
+	await expect(page.locator('canvas')).toBeVisible();
+
+	// Talk to Arlen and accept the offered Guild side quest.
+	await page.locator('canvas').click();
+	await page.keyboard.press('e', { delay: 50 });
+	const dialogue = page.getByRole('dialog', { name: 'Guild Master Arlen' });
+	await expect(dialogue).toBeVisible({ timeout: 10_000 });
+	await dialogue.getByRole('button', { name: 'Next' }).click();
+	await dialogue.getByRole('button', { name: 'Next' }).click();
+	await dialogue.getByRole('button', { name: 'Quest' }).click();
+	await dialogue.getByRole('button', { name: 'Thin Village Slimes' }).click();
+	await dialogue.getByRole('button', { name: 'Accept' }).click();
+	await expect(dialogue).toHaveCount(0);
+
+	// Field grid → Quest command.
+	await page.getByRole('button', { name: 'Menu' }).click();
+	await page.getByRole('button', { name: 'Quest', exact: true }).click();
+
+	const dialog = page.getByRole('dialog', { name: 'Quest Log' });
+	await expect(dialog).toBeVisible();
+
+	// Roster: main quest preselected (cream-gold treatment), the accepted
+	// side quest below it.
+	const main = dialog.getByTestId('quest-entry-main');
+	await expect(main).toContainText('Investigate the Ruins');
+	await expect(main).toHaveClass(/quest-entry-selected/);
+	await expect(dialog.getByTestId('quest-entry-side')).toContainText('Thin Village Slimes');
+
+	// Detail: objective chain (talk + warden, warden current after accepting)
+	// plus the three structured reward tiles.
+	const detail = dialog.getByTestId('quest-detail');
+	await expect(detail).toBeVisible();
+	await expect(detail.getByText('Ruins Warden', { exact: true })).toBeVisible();
+	await expect(dialog.getByTestId('quest-chain-node')).toHaveCount(2);
+	await expect(dialog.locator('.quest-chain-node-current')).toHaveCount(1);
+	await expect(dialog.getByTestId('quest-reward-xp')).toBeVisible();
+	await expect(dialog.getByTestId('quest-reward-coins')).toBeVisible();
+	await expect(dialog.getByTestId('quest-reward-item')).toBeVisible();
+
+	await page.waitForTimeout(700);
+
+	await page.screenshot({
+		path: 'docs/visual-references/heroic-ui/runtime/05-quest.png'
+	});
+});
+
+// Area map regression capture: the source shows no area-map canvas, so this
+// is a structural regression capture through the real Field grid command.
+// The fog/revealed-cell/player/marker logic is untouched; only the chrome
+// moved to the Heroic window vocabulary.
+test('Area map regression capture through the menu path', async ({ page }) => {
+	await startNewRunFromTitle(page);
+
+	await page.getByRole('button', { name: 'Menu' }).click();
+	await page.getByRole('button', { name: 'Map', exact: true }).click();
+
+	const dialog = page.getByRole('dialog', { name: /Sundrop Meadows map/ });
+	await expect(dialog).toBeVisible();
+
+	// Regression guards: fog, player marker, two-entry legend, and the close
+	// action all survive the chrome swap.
+	await expect(dialog.getByTestId('area-map-svg')).toBeVisible();
+	await expect(dialog.locator('.area-map-fog')).toHaveCount(1);
+	await expect(dialog.getByTestId('area-map-player')).toBeVisible();
+	await expect(dialog.locator('.jrpg-area-map-legend span')).toHaveCount(2);
+	await expect(dialog.getByRole('button', { name: 'Close' })).toBeVisible();
+
+	await page.waitForTimeout(700);
+
+	await page.screenshot({
+		path: 'docs/visual-references/heroic-ui/runtime/map-regression.png'
 	});
 });
 

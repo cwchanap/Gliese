@@ -625,7 +625,10 @@ describe('DialoguePanel.svelte', () => {
 		await page.getByRole('button', { name: 'Quest', exact: true }).click();
 
 		const questDialog = page.getByRole('dialog', { name: 'Quest Log' }).element();
-		expect(questDialog.classList.contains('jrpg-window')).toBe(true);
-		expect(questDialog.querySelector('.jrpg-window-header')).not.toBeNull();
+		// The quest journal migrated to the full-bleed Heroic surface with its
+		// roster rail and detail panel.
+		expect(questDialog.classList.contains('quest-screen')).toBe(true);
+		expect(questDialog.querySelector('.quest-rail')).not.toBeNull();
+		expect(questDialog.querySelector('[data-testid="quest-detail"]')).not.toBeNull();
 	});
 });
