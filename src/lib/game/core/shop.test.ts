@@ -298,6 +298,35 @@ describe('shop core', () => {
 		]);
 	});
 
+	it('attaches canonical previews and owned counts from the caller context', () => {
+		const entries = buildShopBuyEntries(
+			'guild-quartermaster',
+			createInitialShopStockState(),
+			'en',
+			{
+				base: { hp: 20, attack: 3, defense: 0 },
+				equipment: { ...createEmptyEquipment(), weapon: 'training-sword' },
+				inventory: { stacks: [{ itemId: 'iron-cap', quantity: 2 }], equipment: [] }
+			}
+		);
+
+		const vest = entries.find((entry) => entry.itemId === 'traveler-vest');
+		expect(vest?.preview).toEqual({
+			slot: 'body',
+			replacedItemId: null,
+			before: { maxHp: 20, attack: 4, defense: 0 },
+			after: { maxHp: 24, attack: 4, defense: 0 }
+		});
+		const cap = entries.find((entry) => entry.itemId === 'iron-cap');
+		expect(cap?.owned).toBe(2);
+		expect(cap?.preview).toEqual({
+			slot: 'head',
+			replacedItemId: null,
+			before: { maxHp: 20, attack: 4, defense: 0 },
+			after: { maxHp: 20, attack: 4, defense: 1 }
+		});
+	});
+
 	it('localizes shop entry text for Japanese', () => {
 		const buyEntries = buildShopBuyEntries(
 			'guild-quartermaster',

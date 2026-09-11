@@ -23,6 +23,17 @@ const BAG_SAVE_STATE = JSON.stringify({
 	}
 });
 
+// Shop capture seed: parked at Blacksmith Oren's approach point inside the
+// forge (canonical tests/e2e shop path: seeded Continue → interact → dialogue
+// Shop action). The default 30-coin purse cannot afford the 45-coin Traveler
+// Vest, so the mockup composition (dimmed tile, 20 → 24 MAX HP delta,
+// "purse after 30 → -15", disabled action) reproduces exactly.
+const SHOP_SAVE_STATE = JSON.stringify({
+	...JSON.parse(SEED_SAVE_STATE),
+	mapId: 'blacksmith-interior',
+	player: { level: 1, xp: 0, hp: 20, attack: 3, x: 448, y: 480, facing: 'up' }
+});
+
 function seedRecord(kind: 'autosave' | 'manual', playtimeSeconds: number, locationLabel: string) {
 	// playtimeSeconds is formatted as h:mm; 6120 -> "01:42", 3480 -> "00:58".
 	return {
@@ -318,5 +329,73 @@ test('Skill screen regression capture through the menu path', async ({ page }) =
 
 	await page.screenshot({
 		path: 'docs/visual-references/heroic-ui/runtime/skill-regression.png'
+	});
+});
+
+// Shop capture: reached through the real gameplay path (seeded Continue inside
+// the forge → interact with Oren → dialogue Shop action). Selecting the
+// unaffordable Traveler Vest must render the merchant rail, the dimmed stock
+// tile, the canonical stat deltas, the purse-after debt, and a disabled action.
+test('Shop screen capture through the merchant dialogue path', async ({ page }) => {
+	await seedSaveSlots(page, [
+		{
+			kind: 'autosave',
+			savedAt: new Date().toISOString(),
+			playtimeSeconds: 6120,
+			locationLabel: 'Sundrop Forge',
+			state: JSON.parse(SHOP_SAVE_STATE)
+		},
+		null,
+		null
+	]);
+	await page.goto('/');
+	await page.getByRole('button', { name: /Continue/i }).click();
+	await expect(page.locator('canvas')).toBeVisible();
+
+	// Talk to Oren and enter the shop through the dialogue action (the Heroic
+	// command grid has no Shop tile).
+	await page.locator('canvas').click();
+	await page.keyboard.press('e', { delay: 50 });
+	const dialogue = page.getByRole('dialog', { name: 'Blacksmith Oren' });
+	await expect(dialogue).toBeVisible();
+	await dialogue.getByRole('button', { name: 'Shop' }).click();
+
+	const shop = page.getByRole('dialog', { name: 'Sundrop Forge' });
+	await expect(shop).toBeVisible();
+
+	// Merchant identity rail: bust art, name, flavor line, purse (before).
+	await expect(shop.getByRole('img', { name: 'Blacksmith Oren, merchant portrait' })).toBeVisible();
+	await expect(shop.getByText('Blacksmith Oren', { exact: true })).toBeVisible();
+	await expect(
+		shop.getByText('Village-forged equipment for the road beyond Sundrop.')
+	).toBeVisible();
+	await expect(shop.getByLabel('Coins: 30')).toBeVisible();
+
+	// Buy/Sell tabs with Buy active.
+	await expect(shop.getByRole('tab', { name: 'Buy', exact: true })).toHaveAttribute(
+		'aria-selected',
+		'true'
+	);
+
+	// Select the unaffordable Traveler Vest (mockup composition).
+	await shop.getByRole('button', { name: 'Traveler Vest', exact: true }).click();
+	const detail = shop.getByTestId('shop-detail');
+	await expect(detail.getByText('Traveler Vest')).toBeVisible();
+
+	// Canonical stat deltas from previewEquipmentSwap: MAX HP 20 → 24.
+	await expect(detail.getByTestId('shop-delta-maxHp')).toContainText('20');
+	await expect(detail.getByTestId('shop-delta-maxHp')).toContainText('24');
+
+	// Wallet after: 30 coins - 45 price = -15 (mockup rose debt row).
+	await expect(detail.getByTestId('shop-purse-after')).toContainText('30');
+	await expect(detail.getByTestId('shop-purse-after')).toContainText('-15');
+
+	// Unaffordable: the action is a disabled "Not enough" plate.
+	await expect(shop.getByRole('button', { name: 'Not enough' })).toBeDisabled();
+
+	await page.waitForTimeout(700);
+
+	await page.screenshot({
+		path: 'docs/visual-references/heroic-ui/runtime/04-shop.png'
 	});
 });
