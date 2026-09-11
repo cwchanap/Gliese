@@ -36,8 +36,10 @@
 
 	let visibleCharacters = $state(0);
 	// Mockup composition keeps the first choice row in the gilded selected state;
-	// pointer/keyboard focus moves the selection like a menu cursor.
+	// pointer/keyboard focus moves the selection like a menu cursor. A new
+	// session/step (dialogue.id) resets the cursor to the first row.
 	let selectedChoiceIndex = $state(0);
+	let selectedForDialogueId: string | null = null;
 	const totalCharacters = $derived(Array.from(dialogue.line).length);
 	const fullyRevealed = $derived(visibleCharacters >= totalCharacters);
 	const visibleText = $derived(
@@ -47,10 +49,12 @@
 
 	// A new line resets the reveal; instant speed renders the full line with no ticker.
 	$effect(() => {
-		void dialogue.id;
 		void dialogue.lineIndex;
 		void dialogue.line;
-		if (dialogue.mode !== 'choice') selectedChoiceIndex = 0;
+		if (selectedForDialogueId !== dialogue.id) {
+			selectedForDialogueId = dialogue.id;
+			selectedChoiceIndex = 0;
+		}
 		if ($preferences.textSpeed === 'instant') {
 			visibleCharacters = totalCharacters;
 			return;
@@ -110,8 +114,8 @@
 
 		if (dialogue.mode === 'choice') {
 			if (!fullyRevealed) return;
-			const firstChoice = dialogue.choices[0];
-			if (firstChoice) onchoose(firstChoice.id);
+			const selectedChoice = dialogue.choices[selectedChoiceIndex];
+			if (selectedChoice) onchoose(selectedChoice.id);
 			return;
 		}
 
@@ -417,7 +421,7 @@
 		padding: 0.4rem 1.3rem;
 		border: 1px solid rgba(255, 255, 255, 0.85);
 		border-radius: 999px;
-		background: linear-gradient(180deg, var(--color-gold-bright), var(--color-gold));
+		background: linear-gradient(180deg, #ffe9ae, #c8952f);
 		color: #3b2606;
 		font-size: 0.95rem;
 		font-weight: 900;
