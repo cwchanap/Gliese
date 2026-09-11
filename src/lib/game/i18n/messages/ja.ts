@@ -149,7 +149,6 @@ export const ja = {
 		back: '戻る',
 		skillTitle: 'スキル',
 		noSkillsYet: 'まだスキルを覚えていない',
-		reward: '報酬: {{rewardSummary}}',
 		quantity: 'x{{quantity}}',
 		keyQuantity: 'キーx{{quantity}}',
 		statModifier: '{{stat}} +{{value}}',

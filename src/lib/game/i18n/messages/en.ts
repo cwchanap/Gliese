@@ -146,7 +146,6 @@ export const en = {
 		back: 'Back',
 		skillTitle: 'Skill',
 		noSkillsYet: 'No skills learned yet',
-		reward: 'Reward: {{rewardSummary}}',
 		quantity: 'x{{quantity}}',
 		keyQuantity: 'Key x{{quantity}}',
 		statModifier: '{{stat}} +{{value}}',

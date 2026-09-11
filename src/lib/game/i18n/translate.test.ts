@@ -71,9 +71,6 @@ describe('translation lookup', () => {
 		expect(t('en', 'ui.equipmentSlots.weapon')).toBe('Weapon');
 		expect(t('en', 'ui.equipmentSlots.accessory')).toBe('Accessory');
 		expect(t('en', 'ui.loadGameShellError')).toBe('Unable to start the game shell.');
-		expect(t('en', 'ui.reward', { rewardSummary: '15 XP / 35 coins' })).toBe(
-			'Reward: 15 XP / 35 coins'
-		);
 		expect(t('en', 'ui.keyQuantity', { quantity: 2 })).toBe('Key x2');
 		expect(t('en', 'ui.priceBadge', { price: 10 })).toBe('10c');
 		expect(t('en', 'ui.itemKinds.consumable')).toBe('consumable');
