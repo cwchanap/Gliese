@@ -486,7 +486,6 @@ describe('GameShell battle summary', () => {
 
 			await page.getByRole('button', { name: /menu/i }).click();
 			await page.getByRole('button', { name: 'Bag' }).click();
-			await page.getByRole('tab', { name: /equipment/i }).click();
 
 			const removeButton = page.getByRole('button', { name: /remove/i });
 			await expect.element(removeButton).toBeEnabled();
@@ -548,7 +547,7 @@ describe('GameShell command menu', () => {
 		});
 	});
 
-	it('keeps the inert Skill command focusable until Task 5 lands its surface', async () => {
+	it('opens the honest Skill surface with no-skills copy and no game command', async () => {
 		await withCommands(async (commands) => {
 			render(GameShell);
 			emitHudState(baseHudState());
@@ -556,18 +555,27 @@ describe('GameShell command menu', () => {
 			await page.getByRole('button', { name: /menu/i }).click();
 			await page.getByRole('button', { name: 'Skill' }).click();
 
-			await expect.element(page.getByRole('button', { name: 'Skill' })).toBeEnabled();
+			const dialog = page.getByRole('dialog', { name: 'Skill', exact: true });
+			await expect.element(dialog).toBeVisible();
+			await expect
+				.element(dialog.getByTestId('skill-empty'))
+				.toHaveTextContent(/no skills learned yet/i);
+
 			// Opening the grid itself pauses the game; Skill adds no further command.
 			const fieldCommands = commands.filter(
 				(command) => (command as { type?: string }).type !== 'pause-game'
 			);
 			expect(fieldCommands).toEqual([]);
+
+			await userEvent.keyboard('{Escape}');
+			expect(dialog.elements()).toHaveLength(0);
+			await expect.element(page.getByRole('button', { name: /menu/i })).toHaveFocus();
 		});
 	});
 });
 
 describe('GameShell inventory', () => {
-	it('opens from the command menu and switches tabs', async () => {
+	it('opens from the command menu and switches categories', async () => {
 		render(GameShell);
 		emitHudState(
 			baseHudState({
@@ -601,34 +609,124 @@ describe('GameShell inventory', () => {
 		await page.getByRole('button', { name: /menu/i }).click();
 		await page.getByRole('button', { name: 'Bag' }).click();
 
-		await expect.element(page.getByRole('tab', { name: /consumables/i })).toBeVisible();
+		await expect.element(page.getByRole('tab', { name: /potions/i })).toBeVisible();
 		await expect
-			.element(page.getByRole('tab', { name: /consumables/i }))
+			.element(page.getByRole('tab', { name: /potions/i }))
 			.toHaveAttribute('aria-selected', 'true');
 
-		await page.getByRole('tab', { name: /equipment/i }).click();
+		await page.getByRole('tab', { name: /gear/i }).click();
 		await expect
-			.element(page.getByRole('tab', { name: /equipment/i }))
+			.element(page.getByRole('tab', { name: /gear/i }))
 			.toHaveAttribute('aria-selected', 'true');
 	});
 
-	it('uses design tokens for stat values and empty slots', async () => {
+	it('renders exactly 24 bag slots per category, with Loot as an honest empty grid', async () => {
 		render(GameShell);
-		emitHudState(baseHudState({ hp: 12, maxHp: 20, attack: 4, defense: 0 }));
+		emitHudState(
+			baseHudState({
+				inventory: {
+					consumables: [
+						{
+							itemId: 'field-potion',
+							name: 'Field Potion',
+							description: 'Restores HP.',
+							iconPath: '/icon.png',
+							quantity: 3
+						}
+					],
+					equipment: [],
+					keyItems: [
+						{
+							itemId: 'meadow-token',
+							name: 'Meadow Token',
+							description: 'A village keepsake.',
+							iconPath: '/icon.png',
+							quantity: 1
+						}
+					],
+					equipped: { weapon: null, head: null, body: null, hands: null, accessory: null }
+				}
+			})
+		);
 
 		await page.getByRole('button', { name: /menu/i }).click();
 		await page.getByRole('button', { name: 'Bag' }).click();
 
-		const inventoryDialog = page.getByRole('dialog', { name: /inventory/i });
+		const slots = page.getByTestId('inventory-slot');
+		await expect.element(slots).toHaveLength(24);
 
-		// Stat values use text-parchment instead of text-white
-		const hpText = inventoryDialog.getByText('12/20');
-		await expect.element(hpText).toHaveClass(/text-parchment/);
+		await page.getByRole('tab', { name: /key/i }).click();
+		await expect.element(slots).toHaveLength(24);
 
-		// Empty inventory slots use design tokens
-		const emptySlot = page.getByTestId('inventory-slot').first();
-		await expect.element(emptySlot).toHaveClass(/border-parchment/);
-		await expect.element(emptySlot).toHaveClass(/text-muted/);
+		// No material item type exists: Loot is a fixed empty grid.
+		await page.getByRole('tab', { name: /loot/i }).click();
+		await expect.element(slots).toHaveLength(24);
+		expect(page.getByRole('button', { name: /token/i }).elements()).toHaveLength(0);
+	});
+
+	it('deep-links the Gear command to the bag Gear category', async () => {
+		render(GameShell);
+		emitHudState(baseHudState());
+
+		await page.getByRole('button', { name: /menu/i }).click();
+		await page.getByRole('button', { name: 'Gear', exact: true }).click();
+
+		const dialog = page.getByRole('dialog', { name: /inventory/i });
+		await expect.element(dialog).toBeVisible();
+		await expect
+			.element(page.getByRole('tab', { name: /gear/i }))
+			.toHaveAttribute('aria-selected', 'true');
+	});
+
+	it('renders the five equipment positions around the paper doll', async () => {
+		render(GameShell);
+		emitHudState(baseHudState());
+
+		await page.getByRole('button', { name: /menu/i }).click();
+		await page.getByRole('button', { name: 'Bag' }).click();
+
+		const worn = page.getByTestId('inventory-worn');
+		for (const position of ['Head', 'Weapon', 'Body', 'Hands', 'Accessory']) {
+			await expect.element(worn.getByText(position, { exact: true })).toBeVisible();
+		}
+		await expect.element(worn.getByTestId('inventory-paper-doll')).toBeVisible();
+	});
+
+	it('shows a selected slot in the detail panel with its action', async () => {
+		await withCommands(async (commands) => {
+			render(GameShell);
+			emitHudState(
+				baseHudState({
+					inventory: {
+						consumables: [
+							{
+								itemId: 'field-potion',
+								name: 'Field Potion',
+								description: 'Restores HP.',
+								iconPath: '/icon.png',
+								quantity: 3
+							}
+						],
+						equipment: [],
+						keyItems: [],
+						equipped: { weapon: null, head: null, body: null, hands: null, accessory: null }
+					}
+				})
+			);
+
+			await page.getByRole('button', { name: /menu/i }).click();
+			await page.getByRole('button', { name: 'Bag' }).click();
+
+			const dialog = page.getByRole('dialog', { name: /inventory/i });
+			const detail = dialog.getByTestId('inventory-detail');
+			await expect.element(detail).toHaveTextContent(/select an item/i);
+
+			await page.getByRole('button', { name: /Field Potion/i }).click();
+			await expect.element(detail.getByText(/Field Potion/i)).toBeVisible();
+
+			await detail.getByRole('button', { name: /use/i }).click();
+			expect(commands).toContainEqual({ type: 'use-item', itemId: 'field-potion' });
+		});
 	});
 
 	it('closes on Escape and restores focus to the menu button', async () => {
@@ -1047,7 +1145,7 @@ describe('GameShell inventory actions', () => {
 			await page.getByRole('button', { name: /menu/i }).click();
 			await page.getByRole('button', { name: 'Bag' }).click();
 
-			await page.getByRole('article', { name: /Field Potion/i }).dblClick();
+			await page.getByRole('button', { name: /Field Potion/i }).dblClick();
 
 			expect(commands).toContainEqual({ type: 'use-item', itemId: 'field-potion' });
 		});
@@ -1085,9 +1183,9 @@ describe('GameShell inventory actions', () => {
 
 			await page.getByRole('button', { name: /menu/i }).click();
 			await page.getByRole('button', { name: 'Bag' }).click();
-			await page.getByRole('tab', { name: /equipment/i }).click();
+			await page.getByRole('tab', { name: /gear/i }).click();
 
-			await page.getByRole('article', { name: /Practice Sword/i }).dblClick();
+			await page.getByRole('button', { name: /Practice Sword/i }).dblClick();
 
 			expect(commands).toContainEqual({ type: 'equip-item', itemId: 'practice-sword' });
 		});
@@ -1122,9 +1220,9 @@ describe('GameShell inventory actions', () => {
 
 		await page.getByRole('button', { name: /menu/i }).click();
 		await page.getByRole('button', { name: 'Bag' }).click();
-		await page.getByRole('tab', { name: /key items/i }).click();
+		await page.getByRole('tab', { name: /key/i }).click();
 
-		await expect.element(page.getByRole('article', { name: /Ancient Key/i })).toBeVisible();
+		await expect.element(page.getByRole('button', { name: /Ancient Key/i })).toBeVisible();
 	});
 });
 
