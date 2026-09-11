@@ -1378,7 +1378,13 @@ export class WorldScene extends Phaser.Scene {
 			mode: this.dialogueSession.mode,
 			choices: this.dialogueSession.choices.map((choice) => ({
 				id: choice.id,
-				label: choice.label
+				label: choice.label,
+				kind:
+					choice.intent.type === 'openShop'
+						? 'trade'
+						: choice.intent.type === 'close'
+							? 'leave'
+							: 'ask'
 			})),
 			canClose: this.dialogueSession.canClose
 		};

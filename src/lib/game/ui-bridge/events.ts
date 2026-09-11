@@ -47,6 +47,8 @@ export type HudOpenShop = HudNearbyShop & {
 export type HudDialogueChoice = {
 	id: string;
 	label: string;
+	/** Mockup glyph family derived from the choice intent: shop = bag, quest/ask = ?, close = exit. */
+	kind?: 'trade' | 'ask' | 'leave';
 };
 
 export type HudDialogueState = {

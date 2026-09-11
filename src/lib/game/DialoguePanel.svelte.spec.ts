@@ -32,8 +32,8 @@ const dialogue: HudDialogueState = {
 	mode: 'choice',
 	canClose: true,
 	choices: [
-		{ id: 'quest:thin-village-slimes', label: 'Thin Village Slimes' },
-		{ id: 'close', label: 'Close' }
+		{ id: 'quest:thin-village-slimes', label: 'Thin Village Slimes', kind: 'ask' },
+		{ id: 'close', label: 'Close', kind: 'leave' }
 	]
 };
 
@@ -226,10 +226,11 @@ describe('DialoguePanel.svelte', () => {
 		const bustBounds = bust!.getBoundingClientRect();
 		const barBounds = bar!.getBoundingClientRect();
 
-		expect(panelBounds.bottom).toBeGreaterThan(window.innerHeight - 24);
-		expect(bustBounds.left).toBeGreaterThanOrEqual(12);
+		expect(panelBounds.bottom).toBeGreaterThan(window.innerHeight - 48);
+		// Mockup insets: 44px side gutters, bust card flush-left of the bar.
+		expect(bustBounds.left).toBeGreaterThanOrEqual(36);
 		expect(bustBounds.right).toBeLessThan(barBounds.left);
-		expect(barBounds.right).toBeGreaterThan(window.innerWidth - 40);
+		expect(barBounds.right).toBeGreaterThan(window.innerWidth - 56);
 		// Name plate overlaps the bar's top edge like the mockup pill.
 		const plate = dialogPanel.querySelector('.jrpg-dialogue-speaker');
 		expect(plate).not.toBeNull();
@@ -256,6 +257,86 @@ describe('DialoguePanel.svelte', () => {
 				.element()
 				.querySelector('.jrpg-dialogue-bust')
 		).toBeNull();
+	});
+
+	it('renders the gilded choice column above the bar like the mockup', async () => {
+		// Mockup canvas: the composition claims are exact at 1440x900.
+		page.viewport(1440, 900);
+		await vi.waitFor(() => {
+			expect(window.innerWidth).toBe(1440);
+		});
+		try {
+			window.scrollTo(0, 0);
+			renderDialogue();
+
+			const dialogPanel = page.getByRole('dialog', { name: 'Guild Master Arlen' }).element();
+			const bar = dialogPanel.querySelector('.jrpg-dialogue-bar');
+			const choices = dialogPanel.querySelector('.jrpg-dialogue-choices');
+			const firstRow = dialogPanel.querySelector('.jrpg-dialogue-choice');
+			expect(choices).not.toBeNull();
+			expect(firstRow).not.toBeNull();
+
+			const panelBounds = dialogPanel.getBoundingClientRect();
+			const barBounds = bar!.getBoundingClientRect();
+			const choicesBounds = choices!.getBoundingClientRect();
+			const rowBounds = firstRow!.getBoundingClientRect();
+
+			// Mockup: column bottom sits 270px above the viewport floor with the
+			// panel floor at 40px -> 230px above the panel floor; right-aligned at
+			// the panel edge (the 44px gutter); rows are 23rem (368px) wide.
+			expect(panelBounds.bottom - choicesBounds.bottom).toBeCloseTo(230, -1);
+			expect(choicesBounds.right).toBeCloseTo(panelBounds.right, -1);
+			expect(choicesBounds.bottom).toBeLessThan(barBounds.top);
+			// 23rem design width (sub-percent rendering drift tolerated).
+			expect(rowBounds.width).toBeLessThanOrEqual(368.5);
+			expect(rowBounds.width).toBeGreaterThan(356);
+		} finally {
+			page.viewport(414, 730);
+		}
+	});
+
+	it('renders per-kind leading icons like the mockup glyph list', async () => {
+		renderDialogue({
+			choices: [
+				{ id: 'shop', label: 'Trade', kind: 'trade' },
+				{ id: 'ask', label: 'Ask about the road', kind: 'ask' },
+				{ id: 'close', label: 'Leave', kind: 'leave' },
+				{ id: 'mystery', label: 'Mystery' }
+			]
+		});
+
+		const rows = [
+			...page
+				.getByRole('dialog', { name: 'Guild Master Arlen' })
+				.element()
+				.querySelectorAll('.jrpg-dialogue-choice')
+		];
+		expect(rows.map((row) => row.getAttribute('data-kind'))).toEqual([
+			'trade',
+			'ask',
+			'leave',
+			'ask'
+		]);
+		for (const row of rows) {
+			expect(row.querySelector('svg')).not.toBeNull();
+		}
+	});
+
+	it('applies the gilded selected treatment to the first choice row', async () => {
+		renderDialogue();
+		const rows = [
+			...page
+				.getByRole('dialog', { name: 'Guild Master Arlen' })
+				.element()
+				.querySelectorAll('.jrpg-dialogue-choice')
+		];
+
+		// Mockup: the first row renders pre-selected (cream-gold, dark text).
+		expect(rows[0]?.getAttribute('data-selected')).toBe('true');
+		expect(rows[1]?.getAttribute('data-selected')).toBe('false');
+		const style = getComputedStyle(rows[0]!);
+		expect(style.backgroundImage).toContain('rgb(255, 246, 220)');
+		expect(style.color).toBe('rgb(90, 61, 8)');
 	});
 
 	it('uses the JRPG dialogue frame class', async () => {
