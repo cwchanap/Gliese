@@ -161,6 +161,7 @@ export const en = {
 		shopOwned: 'Owned x{{quantity}}',
 		shopSelectHint: 'Select an item to inspect.',
 		shopBustAlt: '{{merchant}}, merchant portrait',
+		dialogueBustAlt: '{{npc}}, dialogue portrait',
 		shopSellMeta: '{{price}} coins',
 		shopSellMetaWithQuantity: '{{price}} coins / x{{quantity}}',
 		priceBadge: '{{price}}c',

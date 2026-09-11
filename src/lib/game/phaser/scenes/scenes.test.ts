@@ -8608,6 +8608,7 @@ describe('WorldScene', () => {
 		expect(emitHudStateSpy).toHaveBeenLastCalledWith(
 			expect.objectContaining({
 				dialogue: expect.objectContaining({
+					npcId: 'guild-master',
 					speaker: 'Guild Master Arlen',
 					line: expect.stringContaining('The eastern ruins are stirring again')
 				})
@@ -8644,6 +8645,7 @@ describe('WorldScene', () => {
 		expect(emitHudStateSpy).toHaveBeenLastCalledWith(
 			expect.objectContaining({
 				dialogue: expect.objectContaining({
+					npcId: null,
 					speaker: 'Traveler',
 					line: 'No dialogue is available.'
 				})

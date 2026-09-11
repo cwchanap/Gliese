@@ -6,7 +6,7 @@ import '../../app.css';
 import DialoguePanel from '$lib/game/DialoguePanel.svelte';
 import GameShell from '$lib/game/GameShell.svelte';
 import { en } from '$lib/game/i18n/messages/en';
-import { getActiveLocale, setActiveLocale } from '$lib/game/i18n/store';
+import { getActiveLocale, setActiveLocale, updatePreferences } from '$lib/game/i18n/store';
 import { emitHudState, type HudDialogueState, type HudState } from '$lib/game/ui-bridge/events';
 
 vi.mock('$lib/game/i18n/store', async (importOriginal) => {
@@ -24,6 +24,7 @@ vi.mock('$lib/game/phaser/createGame', () => ({
 
 const dialogue: HudDialogueState = {
 	id: 'npc:guild-master',
+	npcId: 'guild-master',
 	speaker: 'Guild Master Arlen',
 	line: 'Choose the Guild work you want to review.',
 	lineIndex: 0,
@@ -61,6 +62,7 @@ function renderDialogue(overrides: Partial<HudDialogueState> = {}) {
 
 const originalCloseLabel = en.ui.close;
 const originalNextLabel = en.ui.next;
+const originalTextSpeed = 'normal' as const;
 const mockedSetActiveLocale = vi.mocked(setActiveLocale);
 const mutableUiMessages = en.ui as { close: string; next: string };
 
@@ -141,12 +143,15 @@ describe('DialoguePanel.svelte', () => {
 	beforeEach(() => {
 		setDialogueLabels(originalCloseLabel, originalNextLabel);
 		setActiveLocale('en');
+		// Interaction tests want the full line and enabled choices immediately.
+		updatePreferences({ textSpeed: 'instant' });
 		mockedSetActiveLocale.mockClear();
 	});
 
 	afterEach(() => {
 		setDialogueLabels(originalCloseLabel, originalNextLabel);
 		setActiveLocale('en');
+		updatePreferences({ textSpeed: originalTextSpeed });
 		mockedSetActiveLocale.mockClear();
 	});
 
@@ -162,7 +167,9 @@ describe('DialoguePanel.svelte', () => {
 		const { onchoose, onclose } = renderDialogue();
 
 		await page.getByRole('button', { name: 'Thin Village Slimes' }).click();
-		await page.getByRole('button', { name: 'Close' }).first().click();
+		// Bar prompt order: the close choice renders in the choices column (first),
+		// the B-glyph Close action on the bar (last).
+		await page.getByRole('button', { name: 'Close' }).last().click();
 
 		expect(onchoose).toHaveBeenCalledWith('quest:thin-village-slimes');
 		expect(onclose).toHaveBeenCalledOnce();
@@ -203,17 +210,52 @@ describe('DialoguePanel.svelte', () => {
 		expect(event.defaultPrevented).toBe(true);
 	});
 
-	it('keeps dialogue in a lower plaza message box instead of full-width chrome', async () => {
-		renderDialogue();
+	it('keeps the dialogue composition anchored to the lower plaza like the mockup', async () => {
+		// Earlier focus/click steps can leave the window scrolled; the dialog is
+		// absolutely positioned in the document, so measurements need origin.
+		window.scrollTo(0, 0);
+		renderDialogue({ npcId: 'shopkeeper-mira', speaker: 'Mira' });
 
-		const bounds = page
-			.getByRole('dialog', { name: 'Guild Master Arlen' })
-			.element()
-			.getBoundingClientRect();
+		const dialogPanel = page.getByRole('dialog', { name: 'Mira' }).element();
+		const bust = dialogPanel.querySelector('.jrpg-dialogue-bust');
+		const bar = dialogPanel.querySelector('.jrpg-dialogue-bar');
+		expect(bust).not.toBeNull();
+		expect(bar).not.toBeNull();
 
-		expect(bounds.bottom).toBeGreaterThan(window.innerHeight - 24);
-		expect(bounds.width).toBeLessThan(window.innerWidth * 0.75);
-		expect(bounds.left).toBeGreaterThanOrEqual(12);
+		const panelBounds = dialogPanel.getBoundingClientRect();
+		const bustBounds = bust!.getBoundingClientRect();
+		const barBounds = bar!.getBoundingClientRect();
+
+		expect(panelBounds.bottom).toBeGreaterThan(window.innerHeight - 24);
+		expect(bustBounds.left).toBeGreaterThanOrEqual(12);
+		expect(bustBounds.right).toBeLessThan(barBounds.left);
+		expect(barBounds.right).toBeGreaterThan(window.innerWidth - 40);
+		// Name plate overlaps the bar's top edge like the mockup pill.
+		const plate = dialogPanel.querySelector('.jrpg-dialogue-speaker');
+		expect(plate).not.toBeNull();
+		const plateBounds = plate!.getBoundingClientRect();
+		expect(plateBounds.top).toBeLessThan(barBounds.top);
+		expect(plateBounds.bottom).toBeGreaterThan(barBounds.top);
+	});
+
+	it('renders the neutral bust for the session npc id', async () => {
+		renderDialogue({ npcId: 'shopkeeper-mira', speaker: 'Mira' });
+
+		const bustImage = page.getByRole('img', { name: 'Mira, dialogue portrait' });
+		await expect.element(bustImage).toBeVisible();
+		expect(bustImage.element().getAttribute('src')).toBe('/game/assets/heroic-ui/busts/mira.png');
+	});
+
+	it('renders no bust for NPCs outside the neutral bust map', async () => {
+		renderDialogue({ npcId: 'villager-lynn' });
+
+		// Unsupported NPCs render no bust rather than guessing from the speaker string.
+		expect(
+			page
+				.getByRole('dialog', { name: 'Guild Master Arlen' })
+				.element()
+				.querySelector('.jrpg-dialogue-bust')
+		).toBeNull();
 	});
 
 	it('uses the JRPG dialogue frame class', async () => {
@@ -232,7 +274,7 @@ describe('DialoguePanel.svelte', () => {
 		async (_label, key) => {
 			const { onchoose } = renderDialogue();
 			const onWindowKeydown = vi.fn();
-			const secondChoice = page.getByRole('button', { name: 'Close' }).last();
+			const secondChoice = page.getByRole('button', { name: 'Close' }).first();
 
 			window.addEventListener('keydown', onWindowKeydown);
 			try {
@@ -251,14 +293,15 @@ describe('DialoguePanel.svelte', () => {
 	);
 
 	it('exposes the close choice by visible accessible name and emits its choice id', async () => {
-		const { onchoose } = renderDialogue();
+		const { onchoose, onclose } = renderDialogue();
 		const closeChoices = page.getByRole('button', { name: 'Close' });
 
 		expect(closeChoices.elements()).toHaveLength(2);
-		await closeChoices.last().click();
+		await closeChoices.first().click();
 
 		expect(onchoose).toHaveBeenCalledOnce();
 		expect(onchoose).toHaveBeenCalledWith('close');
+		expect(onclose).not.toHaveBeenCalled();
 	});
 
 	it('renders Close and Next from the active locale messages', async () => {
@@ -267,6 +310,62 @@ describe('DialoguePanel.svelte', () => {
 
 		await expect.element(page.getByRole('button', { name: 'Dismiss' })).toBeVisible();
 		await expect.element(page.getByRole('button', { name: 'Advance' })).toBeVisible();
+	});
+
+	it('renders the full line immediately at instant speed and advances on the first confirm', async () => {
+		const { onadvance } = renderDialogue(conversationDialogue);
+		const panel = page.getByRole('dialog', { name: 'Guild Master Arlen' });
+
+		await expect.element(panel).toHaveFocus();
+		expect(panel.element().querySelector('.jrpg-dialogue-line')?.textContent).toBe(
+			conversationDialogue.line
+		);
+
+		await userEvent.keyboard('{Enter}');
+		expect(onadvance).toHaveBeenCalledOnce();
+	});
+
+	it('reveals the line progressively and completes it on the first confirm at slow speed', async () => {
+		updatePreferences({ textSpeed: 'slow' });
+		const { onadvance } = renderDialogue(conversationDialogue);
+		const panel = page.getByRole('dialog', { name: 'Guild Master Arlen' });
+		const line = panel.element().querySelector('.jrpg-dialogue-line')!;
+
+		await expect.element(panel).toHaveFocus();
+		// Mid-typewriter: partial render, first confirm completes without advancing.
+		expect(line.textContent!.length).toBeLessThan(conversationDialogue.line.length);
+
+		await userEvent.keyboard('{Enter}');
+		expect(line.textContent).toBe(conversationDialogue.line);
+		expect(onadvance).not.toHaveBeenCalled();
+
+		await userEvent.keyboard('{Enter}');
+		expect(onadvance).toHaveBeenCalledOnce();
+	});
+
+	it('keeps choices inert until the line fully reveals', async () => {
+		updatePreferences({ textSpeed: 'slow' });
+		const { onchoose } = renderDialogue();
+		const panel = page.getByRole('dialog', { name: 'Guild Master Arlen' });
+		const firstChoice = page.getByRole('button', { name: 'Thin Village Slimes' });
+
+		await expect.element(panel).toHaveFocus();
+		expect(firstChoice.element()).toBeDisabled();
+
+		// Enter at panel level is also inert mid-reveal...
+		await userEvent.keyboard('{Enter}');
+		expect(onchoose).not.toHaveBeenCalled();
+
+		// ...and the choice unlocks only once the full line has rendered.
+		await vi.waitFor(
+			() => {
+				expect(firstChoice.element()).toBeEnabled();
+			},
+			{ timeout: 4_000 }
+		);
+
+		await firstChoice.click();
+		expect(onchoose).toHaveBeenCalledWith('quest:thin-village-slimes');
 	});
 
 	it('renders Japanese labels when the active locale is Japanese', async () => {

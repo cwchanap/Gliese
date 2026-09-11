@@ -51,6 +51,8 @@ export type HudDialogueChoice = {
 
 export type HudDialogueState = {
 	id: string;
+	/** Stable NPC id of the session owner; presentation identity for busts only. */
+	npcId: string | null;
 	speaker: string;
 	line: string;
 	lineIndex: number;

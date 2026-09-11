@@ -34,6 +34,15 @@ const SHOP_SAVE_STATE = JSON.stringify({
 	player: { level: 1, xp: 0, hp: 20, attack: 3, x: 448, y: 480, facing: 'up' }
 });
 
+// Dialogue capture seed: parked at Mira's approach point inside the item shop
+// (canonical approach from village-interiors-v2: npc 416,320 / approach 416,360)
+// so the capture matches the source mockup's NPC.
+const DIALOGUE_SAVE_STATE = JSON.stringify({
+	...JSON.parse(SEED_SAVE_STATE),
+	mapId: 'item-shop',
+	player: { level: 1, xp: 0, hp: 20, attack: 3, x: 416, y: 360, facing: 'up' }
+});
+
 // Quest capture seed: the SEED state parked at the Guild Master's counter
 // (canonical tests/e2e quest path) so the journal opens on the live main
 // quest and the offered side quest can be accepted through real dialogue.
@@ -499,5 +508,73 @@ test('Shop screen capture through the merchant dialogue path', async ({ page }) 
 
 	await page.screenshot({
 		path: 'docs/visual-references/heroic-ui/runtime/04-shop.png'
+	});
+});
+
+// Dialogue capture: reached through a real NPC interaction (seeded Continue at
+// Mira's approach → interact key → live story dialogue). The session npcId
+// must drive the neutral bust lookup — no speaker-string matching — and the
+// reveal grammar must hold: confirm completes the line first, the next confirm
+// advances into the choice treatment (stacked column above the bar).
+test('Dialogue capture through a real NPC interaction', async ({ page }) => {
+	await seedSaveSlots(page, [
+		{
+			kind: 'autosave',
+			savedAt: new Date().toISOString(),
+			playtimeSeconds: 6120,
+			locationLabel: 'Item Shop',
+			state: JSON.parse(DIALOGUE_SAVE_STATE)
+		},
+		null,
+		null
+	]);
+	await page.goto('/');
+	// Instant reveal keeps the capture deterministic; the reveal grammar itself
+	// (confirm completes, second confirm advances, choices gated) is covered by
+	// the DialoguePanel unit specs.
+	await page.addInitScript(() =>
+		window.localStorage.setItem(
+			'gliese.preferences.v1',
+			JSON.stringify({ locale: 'en', textSpeed: 'instant', motion: 'on', promptMode: 'auto' })
+		)
+	);
+	await page.getByRole('button', { name: /Continue/i }).click();
+	await expect(page.locator('canvas')).toBeVisible();
+
+	// Real NPC interaction: the interact key opens the live story dialogue.
+	await page.locator('canvas').click();
+	await page.keyboard.press('e', { delay: 50 });
+	const dialogue = page.getByRole('dialog', { name: 'Mira' });
+	await expect(dialogue).toBeVisible({ timeout: 10_000 });
+
+	// Presentation identity: npcId 'shopkeeper-mira' resolves the neutral bust.
+	const bust = dialogue.getByRole('img', { name: 'Mira, dialogue portrait' });
+	await expect(bust).toBeVisible();
+	expect(await bust.getAttribute('src')).toBe('/game/assets/heroic-ui/busts/mira.png');
+
+	// Name plate + prompt grammar (mockup: gold pill, A Next / B Close / ▼).
+	await expect(dialogue.locator('.jrpg-dialogue-speaker')).toContainText('Mira');
+	await expect(dialogue.getByRole('button', { name: 'Next' })).toBeVisible();
+	await expect(dialogue.getByRole('button', { name: 'Close' })).toBeVisible();
+
+	const line = dialogue.locator('.jrpg-dialogue-line');
+	const fullLine = 'Fresh tonics are on the shelf. The guild already stocked your field kit today.';
+	await expect(line).toHaveText(fullLine);
+
+	// Line-progress dots mirror the line count; single-line session → one dot on.
+	const dots = dialogue.locator('.jrpg-dialogue-dot');
+	await expect(dots).toHaveCount(1);
+	await expect(dots.first()).toHaveClass(/jrpg-dialogue-dot-on/);
+
+	// Confirm advances the terminal line into the choice treatment.
+	await dialogue.getByRole('button', { name: 'Next' }).click();
+	await expect(dialogue.locator('.jrpg-dialogue-choice')).toHaveCount(1);
+	await expect(dialogue.getByRole('button', { name: 'Shop' })).toBeVisible();
+	await expect(dialogue.getByRole('button', { name: 'Shop' })).toBeEnabled();
+
+	await page.waitForTimeout(700);
+
+	await page.screenshot({
+		path: 'docs/visual-references/heroic-ui/runtime/06-dialogue.png'
 	});
 });

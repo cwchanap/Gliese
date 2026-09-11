@@ -164,6 +164,7 @@ export const ja = {
 		shopOwned: '所持 x{{quantity}}',
 		shopSelectHint: '商品を選ぶと詳しく見られます。',
 		shopBustAlt: '{{merchant}}の商人ポートレート',
+		dialogueBustAlt: '{{npc}}の会話ポートレート',
 		shopSellMeta: '{{price}}コイン',
 		shopSellMetaWithQuantity: '{{price}}コイン / x{{quantity}}',
 		priceBadge: '{{price}}c',

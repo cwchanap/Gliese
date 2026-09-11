@@ -1370,6 +1370,7 @@ export class WorldScene extends Phaser.Scene {
 
 		return {
 			id: this.dialogueSession.id,
+			npcId: this.dialogueSession.npcId,
 			speaker: this.dialogueSession.speaker,
 			line: this.dialogueSession.line,
 			lineIndex: this.dialogueSession.lineIndex,
