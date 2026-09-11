@@ -6,6 +6,23 @@ import { startNewRunFromTitle } from '../e2e/helpers/game';
 const SEED_SAVE_STATE =
 	'{"version":9,"mapId":"meadow-entry","player":{"level":1,"xp":0,"hp":20,"attack":3,"x":704,"y":5920,"facing":"up"},"flags":{"clearedEncounters":[],"clearedEncounterUnitCounts":{},"collectedPickups":[],"resolvedEncounterDrops":{}},"inventory":{"stacks":[{"itemId":"field-potion","quantity":1}],"equipment":["training-sword"]},"equipment":{"weapon":"training-sword","head":null,"body":null,"hands":null,"accessory":null},"wallet":{"coins":30},"shops":{"stock":{"guild-quartermaster":{"iron-cap":1,"grip-wraps":1,"traveler-vest":1},"sundrop-forge":{"training-sword":1,"iron-cap":1,"grip-wraps":1,"traveler-vest":1}}},"quests":{"entries":{"investigate-the-ruins":{"status":"active","currentObjectiveId":"talk-to-guild-master","progress":0,"rewardApplied":false,"countedSourceIds":[]}},"completedObjectives":{}},"mapExploration":{},"seenDiscoveries":[]}';
 
+// Bag capture seed: the same state with a filled field pack (mockup shows a
+// stocked Potions rail plus a worn weapon for the paper-doll panel).
+const BAG_SAVE_STATE = JSON.stringify({
+	...JSON.parse(SEED_SAVE_STATE),
+	inventory: {
+		stacks: [
+			{ itemId: 'field-potion', quantity: 3 },
+			{ itemId: 'greater-field-potion', quantity: 1 },
+			{ itemId: 'ember-tonic', quantity: 2 },
+			{ itemId: 'ruin-draught', quantity: 1 },
+			{ itemId: 'sunleaf-salve', quantity: 1 },
+			{ itemId: 'meadow-token', quantity: 1 }
+		],
+		equipment: ['training-sword']
+	}
+});
+
 function seedRecord(kind: 'autosave' | 'manual', playtimeSeconds: number, locationLabel: string) {
 	// playtimeSeconds is formatted as h:mm; 6120 -> "01:42", 3480 -> "00:58".
 	return {
@@ -215,5 +232,91 @@ test('Save screen capture through the menu path', async ({ page }) => {
 
 	await page.screenshot({
 		path: 'docs/visual-references/heroic-ui/runtime/09-save.png'
+	});
+});
+
+// Bag capture: reached through the real flow (seeded autosave → Continue →
+// Menu → Bag) so the Potions rail renders stocked like the source mockup.
+// Selecting a potion demonstrates the gold selected treatment and the detail
+// panel with its primary action, mirroring the source composition.
+test('Bag screen capture through the menu path', async ({ page }) => {
+	await seedSaveSlots(page, [
+		{
+			kind: 'autosave',
+			savedAt: new Date().toISOString(),
+			playtimeSeconds: 6120,
+			locationLabel: 'Sundrop Meadows',
+			state: JSON.parse(BAG_SAVE_STATE)
+		},
+		null,
+		null
+	]);
+	await page.goto('/');
+	await page.getByRole('button', { name: /Continue/i }).click();
+	await expect(page.locator('canvas')).toBeVisible();
+
+	await page.getByRole('button', { name: 'Menu' }).click();
+	await page.getByRole('button', { name: 'Bag', exact: true }).click();
+
+	const dialog = page.getByRole('dialog', { name: 'Inventory', exact: true });
+	await expect(dialog).toBeVisible();
+
+	// Rail: Potions/Gear/Key/Loot, Potions active; wallet pill from the seed.
+	for (const category of ['Potions', 'Gear', 'Key', 'Loot']) {
+		await expect(dialog.getByRole('tab', { name: category, exact: true })).toBeVisible();
+	}
+	await expect(dialog.getByRole('tab', { name: 'Potions', exact: true })).toHaveAttribute(
+		'aria-selected',
+		'true'
+	);
+	await expect(dialog.getByText('Field Pack')).toBeVisible();
+	await expect(dialog.getByLabel('Coins: 30')).toBeVisible();
+
+	// Exactly 24 fixed slots; five stocked potions + worn gear render as tiles.
+	await expect(dialog.getByTestId('inventory-slot')).toHaveCount(24);
+	await expect(dialog.getByRole('button', { name: 'Field Potion', exact: true })).toBeVisible();
+
+	// WORN panel: paper doll with the five equipment positions around it and
+	// the seeded weapon equipped.
+	const worn = dialog.getByTestId('inventory-worn');
+	await expect(worn).toBeVisible();
+	await expect(worn.getByTestId('inventory-paper-doll')).toBeVisible();
+	for (const position of ['Head', 'Weapon', 'Body', 'Hands', 'Accessory']) {
+		await expect(worn.getByText(position, { exact: true })).toBeVisible();
+	}
+	await expect(worn.getByRole('button', { name: 'Remove Training Sword' })).toBeVisible();
+
+	// Select the Greater Field Potion (source mockup's selected slot): gold
+	// selected treatment + detail panel with the primary action.
+	await dialog.getByRole('button', { name: 'Greater Field Potion', exact: true }).click();
+	const detail = dialog.getByTestId('inventory-detail');
+	await expect(detail.getByText('Greater Field Potion')).toBeVisible();
+	await expect(detail.getByRole('button', { name: 'Use' })).toBeVisible();
+
+	await page.waitForTimeout(700);
+
+	await page.screenshot({
+		path: 'docs/visual-references/heroic-ui/runtime/03-bag.png'
+	});
+});
+
+// Skill regression capture: the source shows no Skill screen, so this is a
+// structural regression capture of the honest empty surface through the real
+// Field command grid.
+test('Skill screen regression capture through the menu path', async ({ page }) => {
+	await startNewRunFromTitle(page);
+
+	await page.getByRole('button', { name: 'Menu' }).click();
+	await page.getByRole('button', { name: 'Skill', exact: true }).click();
+
+	const dialog = page.getByRole('dialog', { name: 'Skill', exact: true });
+	await expect(dialog).toBeVisible();
+	await expect(dialog.getByTestId('skill-empty')).toHaveText('No skills learned yet');
+	await expect(dialog.getByRole('button', { name: 'Back' })).toBeVisible();
+
+	await page.waitForTimeout(700);
+
+	await page.screenshot({
+		path: 'docs/visual-references/heroic-ui/runtime/skill-regression.png'
 	});
 });

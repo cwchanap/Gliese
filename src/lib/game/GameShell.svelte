@@ -8,6 +8,7 @@
 	import QuestJournal from '$lib/game/ui/QuestJournal.svelte';
 	import SaveScreen from '$lib/game/ui/SaveScreen.svelte';
 	import ShopScreen from '$lib/game/ui/ShopScreen.svelte';
+	import SkillScreen from '$lib/game/ui/SkillScreen.svelte';
 	import SystemScreen from '$lib/game/ui/SystemScreen.svelte';
 	import TitleScreen from '$lib/game/ui/TitleScreen.svelte';
 	import { locale } from '$lib/game/i18n/store';
@@ -45,7 +46,8 @@
 		| 'inventory'
 		| 'shop'
 		| 'questLog'
-		| 'areaMap';
+		| 'areaMap'
+		| 'skill';
 
 	// Direct-boot affordance: game render-option query params boot straight into
 	// the field (review/e2e tooling). A bare '/' shows the Title screen.
@@ -91,6 +93,8 @@
 	let menuButton = $state<HTMLButtonElement>();
 	let inventoryDialog = $state<HTMLDivElement>();
 	let inventoryCloseButton = $state<HTMLButtonElement>();
+	let skillDialog = $state<HTMLDivElement>();
+	let skillCloseButton = $state<HTMLButtonElement>();
 	let shopDialog = $state<HTMLDivElement>();
 	let shopCloseButton = $state<HTMLButtonElement>();
 	let questLogDialog = $state<HTMLDivElement>();
@@ -106,8 +110,9 @@
 	let battleSummaryWasVisible = false;
 	let loadError = $state('');
 	let commandOpen = $state(false);
-	let inventoryInitialTab = $state<'consumables' | 'equipment' | 'keyItems'>('consumables');
+	let inventoryInitialTab = $state<'potions' | 'gear'>('potions');
 	let inventoryOpen = $state(false);
+	let skillOpen = $state(false);
 	let shopOpen = $state(false);
 	let questLogOpen = $state(false);
 	let areaMapOpen = $state(false);
@@ -134,10 +139,10 @@
 	function handleFieldCommand(command: FieldCommand) {
 		switch (command) {
 			case 'bag':
-				openInventory('consumables');
+				openInventory('potions');
 				break;
 			case 'gear':
-				openInventory('equipment');
+				openInventory('gear');
 				break;
 			case 'quest':
 				openQuestLog();
@@ -146,7 +151,7 @@
 				openAreaMap();
 				break;
 			case 'skill':
-				// Task 5 lands the Skill surface; intentionally inert until then.
+				openSkill();
 				break;
 			case 'rest':
 				requestHeal();
@@ -190,7 +195,7 @@
 		resumeForOverlay('settings');
 	}
 
-	function openInventory(initialTab: 'consumables' | 'equipment' | 'keyItems' = 'consumables') {
+	function openInventory(initialTab: 'potions' | 'gear' = 'potions') {
 		if (inventoryOpen || battleLocked) return;
 		inventoryInitialTab = initialTab;
 		rememberInventoryFocus();
@@ -241,6 +246,21 @@
 		areaMapOpen = true;
 		pauseForOverlay('areaMap');
 		void focusAreaMapDialog();
+	}
+
+	function openSkill() {
+		if (skillOpen) return;
+		commandOpen = false;
+		skillOpen = true;
+		pauseForOverlay('skill');
+		void focusSkillDialog();
+	}
+
+	function closeSkill() {
+		if (!skillOpen) return;
+		skillOpen = false;
+		resumeForOverlay('skill');
+		menuButton?.focus();
 	}
 
 	function openSystem() {
@@ -349,7 +369,8 @@
 			return;
 		}
 
-		const otherOverlayOpen = commandOpen || inventoryOpen || shopOpen || questLogOpen || systemOpen;
+		const otherOverlayOpen =
+			commandOpen || inventoryOpen || skillOpen || shopOpen || questLogOpen || systemOpen;
 		if (otherOverlayOpen || battleLocked || !$hudState.ready) return;
 
 		event.preventDefault();
@@ -402,6 +423,11 @@
 		}
 
 		menuButton?.focus();
+	}
+
+	async function focusSkillDialog() {
+		await tick();
+		(skillCloseButton ?? skillDialog)?.focus();
 	}
 
 	async function focusShopDialog() {
@@ -597,6 +623,44 @@
 		if (focusableElements.length === 0) {
 			event.preventDefault();
 			systemDialog?.focus();
+			return;
+		}
+
+		const firstElement = focusableElements[0];
+		const lastElement = focusableElements.at(-1);
+
+		if (event.shiftKey && document.activeElement === firstElement) {
+			event.preventDefault();
+			lastElement?.focus();
+		} else if (!event.shiftKey && document.activeElement === lastElement) {
+			event.preventDefault();
+			firstElement.focus();
+		}
+	}
+
+	function getSkillFocusableElements() {
+		if (!skillDialog) return [];
+
+		return Array.from(
+			skillDialog.querySelectorAll<HTMLElement>(
+				'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+			)
+		).filter((element) => element.tabIndex >= 0 && element.getClientRects().length > 0);
+	}
+
+	function handleSkillDialogKeydown(event: KeyboardEvent) {
+		if (event.key === 'Escape') {
+			event.preventDefault();
+			closeSkill();
+			return;
+		}
+
+		if (event.key !== 'Tab') return;
+
+		const focusableElements = getSkillFocusableElements();
+		if (focusableElements.length === 0) {
+			event.preventDefault();
+			skillDialog?.focus();
 			return;
 		}
 
@@ -924,10 +988,7 @@
 			ready={$hudState.ready}
 			{battleLocked}
 			inventory={$hudState.inventory}
-			hp={$hudState.hp}
-			maxHp={$hudState.maxHp}
-			attack={$hudState.attack}
-			defense={$hudState.defense}
+			coins={$hudState.wallet.coins}
 			bind:dialog={inventoryDialog}
 			bind:closeButton={inventoryCloseButton}
 			onClose={closeInventory}
@@ -980,6 +1041,14 @@
 			onkeydown={handleSaveDialogKeydown}
 		/>
 	{/if}
+
+	<SkillScreen
+		open={skillOpen}
+		bind:dialog={skillDialog}
+		bind:closeButton={skillCloseButton}
+		onClose={closeSkill}
+		onkeydown={handleSkillDialogKeydown}
+	/>
 
 	<SystemScreen
 		open={systemOpen}

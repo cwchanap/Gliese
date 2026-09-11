@@ -17964,7 +17964,7 @@ test('inventory overlay opens from the menu', async ({ page }) => {
 
 	const inventoryDialog = page.getByRole('dialog', { name: 'Inventory' });
 	const inventorySlotGrid = inventoryDialog.getByTestId('inventory-slot-grid');
-	await expect(page.getByRole('heading', { name: 'Inventory' })).toBeVisible();
+	await expect(page.getByRole('heading', { name: 'Potions' })).toBeVisible();
 	await expect(inventoryDialog.getByTestId('inventory-slot')).toHaveCount(24);
 	await expect
 		.soft(
@@ -17986,9 +17986,11 @@ test('inventory overlay opens from the menu', async ({ page }) => {
 	await expect(fieldPotionSlot.getByText('Restores 8 HP.')).toHaveCount(0);
 	await expect(fieldPotionSlot.getByRole('button', { name: 'Use' })).toHaveCount(0);
 
-	await page.getByRole('tab', { name: 'Equipment' }).click();
+	await page.getByRole('tab', { name: 'Gear' }).click();
 	await expect(inventoryDialog.getByTestId('inventory-slot')).toHaveCount(24);
-	const trainingSwordSlot = inventoryDialog.getByLabel('Training Sword');
+	const trainingSwordSlot = inventoryDialog
+		.getByTestId('inventory-slot-grid')
+		.getByLabel('Training Sword');
 	await expect(trainingSwordSlot).toBeVisible();
 	await expect(trainingSwordSlot.getByRole('img', { name: 'Training Sword' })).toBeVisible();
 	await expect(trainingSwordSlot.getByRole('button', { name: /Equip|Equipped/ })).toHaveCount(0);
@@ -18016,26 +18018,36 @@ test('language preference shows Japanese chrome and keeps Japanese selected', as
 	await startNewRunFromTitle(page);
 	await expect(page.getByRole('button', { name: 'Menu' })).toBeVisible();
 
+	// Japanese is chosen on the Heroic System surface (segmented control).
 	await page.getByRole('button', { name: 'Menu' }).click();
-	let languageSelect = page.getByLabel('Language');
-	await expect(languageSelect).toBeVisible();
-	await languageSelect.selectOption('ja');
-	languageSelect = page.getByLabel('言語');
-	await expect(languageSelect).toHaveValue('ja');
-	await page.getByRole('button', { name: '閉じる' }).click();
-	await expect(languageSelect).toHaveCount(0);
+	await page.getByRole('button', { name: 'System', exact: true }).click();
+	const systemDialog = page.getByRole('dialog', { name: /display & text/i });
+	await expect(systemDialog).toBeVisible();
+	// Selecting 日本語 re-renders the chrome (and this dialog's name) in Japanese.
+	await systemDialog.getByRole('button', { name: '日本語' }).click();
+	const japaneseDialog = page.getByRole('dialog', { name: '表示とテキスト' });
+	await expect(japaneseDialog.getByRole('button', { name: '日本語' })).toHaveAttribute(
+		'aria-pressed',
+		'true'
+	);
+	await japaneseDialog.getByRole('button', { name: '閉じる' }).click();
+	await expect(japaneseDialog).toHaveCount(0);
 
+	// The command chrome flips to Japanese; the bag opens on the Potions rail.
 	await page.getByRole('button', { name: 'メニュー' }).click();
-	await commandBox(page, 'コマンド').getByRole('button', { name: '持ち物' }).click();
+	await commandBox(page, 'コマンド').getByRole('button', { name: 'バッグ' }).click();
 
 	const inventoryDialog = page.getByRole('dialog', { name: '持ち物' });
 	await expect(inventoryDialog).toBeVisible();
-	await expect(inventoryDialog.getByRole('heading', { name: '持ち物' })).toBeVisible();
-	await expect(inventoryDialog.getByRole('tab', { name: '消耗品' })).toBeVisible();
+	await expect(inventoryDialog.getByRole('heading', { name: 'ポーション' })).toBeVisible();
+	await expect(inventoryDialog.getByRole('tab', { name: 'ポーション', exact: true })).toBeVisible();
 	await inventoryDialog.getByRole('button', { name: '閉じる' }).click();
 
 	await page.getByRole('button', { name: 'メニュー' }).click();
-	await expect(page.getByLabel('言語')).toHaveValue('ja');
+	await commandBox(page, 'コマンド').getByRole('button', { name: 'システム' }).click();
+	await expect(
+		page.getByRole('dialog', { name: '表示とテキスト' }).getByRole('button', { name: '日本語' })
+	).toHaveAttribute('aria-pressed', 'true');
 });
 
 test('full hp potions explain why they cannot be consumed', async ({ page }) => {
@@ -18046,14 +18058,17 @@ test('full hp potions explain why they cannot be consumed', async ({ page }) => 
 	await commandBox(page).getByRole('button', { name: 'Bag' }).click();
 
 	const inventoryDialog = page.getByRole('dialog', { name: 'Inventory' });
-	const fieldPotionSlot = inventoryDialog.getByLabel('Field Potion');
+	const fieldPotionSlot = inventoryDialog
+		.getByTestId('inventory-slot-grid')
+		.getByLabel('Field Potion');
 	await expect(fieldPotionSlot).toBeVisible();
 	await expect(fieldPotionSlot.getByRole('button', { name: 'Use' })).toHaveCount(0);
-	await fieldPotionSlot.hover();
-	await expect(page.getByRole('tooltip')).toContainText('Restores 8 HP.');
+	// Selecting the potion shows its description in the detail panel.
+	await fieldPotionSlot.click();
+	await expect(page.getByTestId('inventory-detail')).toContainText('Restores 8 HP.');
 	await fieldPotionSlot.dblclick();
 	await inventoryDialog.getByRole('button', { name: 'Close' }).click();
-	await page.getByRole('button', { name: 'Menu' }).click();
+	// The status pill only renders while the command grid is closed (Task 4).
 	await expect(fieldStatus(page)).toContainText('HP already full');
 });
 
@@ -18071,8 +18086,8 @@ test('double-clicking unequipped equipment equips it from inventory', async ({ p
 	await commandBox(page).getByRole('button', { name: 'Bag' }).click();
 
 	const inventoryDialog = page.getByRole('dialog', { name: 'Inventory' });
-	await page.getByRole('tab', { name: 'Equipment' }).click();
-	const ironCapSlot = inventoryDialog.getByLabel('Iron Cap');
+	await page.getByRole('tab', { name: 'Gear' }).click();
+	const ironCapSlot = inventoryDialog.getByTestId('inventory-slot-grid').getByLabel('Iron Cap');
 	await expect(ironCapSlot.getByRole('img', { name: 'Iron Cap' })).toBeVisible();
 	await expect(ironCapSlot.getByText('head')).toBeVisible();
 	await ironCapSlot.dblclick();
