@@ -577,7 +577,7 @@ describe('DialoguePanel.svelte', () => {
 		const inventoryButton = page.getByRole('button', { name: 'Bag' });
 		await expect.element(inventoryButton).toBeEnabled();
 		await inventoryButton.click();
-		await page.getByRole('tab', { name: 'Equipment' }).click();
+		await page.getByRole('tab', { name: 'Gear' }).click();
 
 		const equipmentTile = document.querySelector<HTMLElement>('[aria-label="Training Sword"]');
 		expect(equipmentTile).not.toBeNull();
@@ -614,10 +614,11 @@ describe('DialoguePanel.svelte', () => {
 		await page.getByRole('button', { name: 'Menu' }).click();
 		await page.getByRole('button', { name: 'Bag' }).click();
 
+		// The bag migrated to the full-bleed Heroic surface with its category rail.
 		const inventoryDialog = page.getByRole('dialog', { name: 'Inventory' }).element();
-		expect(inventoryDialog.classList.contains('jrpg-window')).toBe(true);
-		expect(inventoryDialog.querySelector('.jrpg-window-header')).not.toBeNull();
-		expect(inventoryDialog.querySelector('.jrpg-side-rail')).not.toBeNull();
+		expect(inventoryDialog.classList.contains('bag-screen')).toBe(true);
+		expect(inventoryDialog.querySelector('.bag-rail')).not.toBeNull();
+		expect(inventoryDialog.querySelector('[data-testid="inventory-worn"]')).not.toBeNull();
 
 		await page.getByRole('button', { name: 'Close' }).click();
 		await page.getByRole('button', { name: 'Menu' }).click();
