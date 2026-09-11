@@ -256,6 +256,7 @@
 							</p>
 							<h3 class="quest-detail-title font-display">{detail.row.entry.title}</h3>
 							<p class="quest-detail-desc">{detail.row.entry.description}</p>
+							<p class="quest-detail-objective">{detail.row.entry.objective}</p>
 						</div>
 					</header>
 
@@ -384,8 +385,6 @@
 						</p>
 					</aside>
 				{/if}
-			{:else}
-				<p class="quest-rail-hint font-display">{t($locale, 'ui.questJournalEmpty')}</p>
 			{/if}
 		</section>
 	</div>
@@ -653,6 +652,13 @@
 		margin: 0.35rem 0 0;
 		font-size: 0.86rem;
 		color: var(--color-muted);
+	}
+
+	.quest-detail-objective {
+		margin: 0.55rem 0 0;
+		font-size: 0.8rem;
+		font-weight: 700;
+		color: var(--color-gold);
 	}
 
 	.quest-detail-progress {

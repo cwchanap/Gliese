@@ -1056,6 +1056,8 @@ describe('GameShell heroic quest journal', () => {
 
 		// Live objective progress from the HUD payload.
 		await expect.element(detail.getByText(/Clues found: 1 \/ 3/)).toBeVisible();
+		// The live objective sentence renders in the detail panel.
+		await expect.element(detail.getByText('Enter the ruins and investigate.')).toBeVisible();
 	});
 });
 

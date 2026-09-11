@@ -149,7 +149,6 @@ export const zhHant = {
 		back: '返回',
 		skillTitle: '技能',
 		noSkillsYet: '尚未學會任何技能',
-		reward: '獎勵：{{rewardSummary}}',
 		quantity: 'x{{quantity}}',
 		keyQuantity: '關鍵道具 x{{quantity}}',
 		statModifier: '{{stat}} +{{value}}',

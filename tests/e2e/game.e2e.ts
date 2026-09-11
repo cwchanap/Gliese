@@ -19986,14 +19986,18 @@ test('quest log shows main quest and accepts Guild side quests', async ({ page }
 	await expect(guildMasterDialog).toHaveCount(0);
 
 	await page.getByRole('button', { name: 'Menu' }).click();
-	await expect(fieldStatus(page)).toContainText(/^Quest accepted\.?$/);
 	await expect(page.getByRole('button', { name: 'Guild Quests' })).toHaveCount(0);
 	await commandBox(page).getByRole('button', { name: 'Quest', exact: true }).click();
 
 	const questDialog = page.getByRole('dialog', { name: 'Quest Log' });
 	await expect(questDialog).toBeVisible();
-	await expect(questDialog.getByText('Investigate the Ruins')).toBeVisible();
+	await expect(questDialog.getByTestId('quest-entry-main')).toContainText('Investigate the Ruins');
 	await expect(questDialog.getByText('Defeat the ruins warden in the ruins core.')).toBeVisible();
 	await expect(questDialog.getByText('Thin Village Slimes')).toBeVisible();
+	// Live progress renders in the detail panel only while the side quest is selected.
+	await questDialog.getByTestId('quest-entry-side').click();
 	await expect(questDialog.getByText('Village slimes defeated: 0 / 3')).toBeVisible();
+	await questDialog.getByRole('button', { name: 'Close' }).click();
+	// The status pill only renders while the command grid is closed (Task 4).
+	await expect(fieldStatus(page)).toContainText(/^Quest accepted\.?$/);
 });
