@@ -339,6 +339,52 @@ describe('DialoguePanel.svelte', () => {
 		expect(style.color).toBe('rgb(90, 61, 8)');
 	});
 
+	it('activates the gilded selection — not hardcoded row 0 — on panel Enter', async () => {
+		const { onchoose } = renderDialogue();
+		const panel = page.getByRole('dialog', { name: 'Guild Master Arlen' });
+		await expect.element(panel).toHaveFocus();
+
+		// Hovering row 2 moves the gild; focus stays on the panel.
+		const secondChoice = page.getByRole('button', { name: 'Close' }).first();
+		await userEvent.hover(secondChoice);
+		expect(secondChoice.element().getAttribute('data-selected')).toBe('true');
+
+		await userEvent.keyboard('{Enter}');
+		expect(onchoose).toHaveBeenCalledOnce();
+		expect(onchoose).toHaveBeenCalledWith('close');
+		expect(onchoose).not.toHaveBeenCalledWith('quest:thin-village-slimes');
+	});
+
+	it('resets the gilded selection to the first row in a new choice session', async () => {
+		const onadvance = vi.fn();
+		const onclose = vi.fn();
+		const onchoose = vi.fn();
+		const { rerender } = render(DialoguePanel, {
+			props: { dialogue: { ...dialogue }, onadvance, onclose, onchoose }
+		});
+
+		// Choosing a non-first row leaves the cursor on it within the session...
+		await userEvent.hover(page.getByRole('button', { name: 'Close' }).first());
+		expect(
+			page
+				.getByRole('dialog', { name: 'Guild Master Arlen' })
+				.element()
+				.querySelectorAll('.jrpg-dialogue-choice')[1]
+				?.getAttribute('data-selected')
+		).toBe('true');
+
+		// ...but the next choice step (new dialogue id, still choice mode)
+		// gilds the first row again like the mockup.
+		await rerender({ dialogue: { ...dialogue, id: 'npc:guild-master:quest-detail' } });
+
+		const rows = page
+			.getByRole('dialog', { name: 'Guild Master Arlen' })
+			.element()
+			.querySelectorAll('.jrpg-dialogue-choice');
+		expect(rows[0]?.getAttribute('data-selected')).toBe('true');
+		expect(rows[1]?.getAttribute('data-selected')).toBe('false');
+	});
+
 	it('uses the JRPG dialogue frame class', async () => {
 		renderDialogue();
 
