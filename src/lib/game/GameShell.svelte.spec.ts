@@ -8,7 +8,7 @@ import { HUD_COMMAND_EVENT, HUD_STATE_EVENT, type HudState } from '$lib/game/ui-
 import { createNewSaveState } from '$lib/game/save/save-state';
 import { SAVE_SLOTS_STORAGE_KEY, writeSaveSlot, type SaveSlotRecord } from '$lib/game/save/slots';
 import type { ConsumableDefinition, EquipmentDefinition } from '$lib/game/content/items';
-import type { HudQuestEntry } from '$lib/game/core/quests';
+import type { HudQuestEntry, HudQuestOffer } from '$lib/game/core/quests';
 import type { HudShopBuyEntry, HudShopSellEntry } from '$lib/game/core/shop';
 
 vi.mock('$lib/game/phaser/createGame', () => ({
@@ -175,6 +175,35 @@ function mockMainQuest(): HudQuestEntry {
 		progress: { current: 1, target: 3, label: 'Clues found' },
 		rewardSummary: '24 XP / 30 coins'
 	};
+}
+
+function mockSideQuest(): HudQuestEntry {
+	return {
+		questId: 'thin-village-slimes',
+		title: 'Thin Village Slimes',
+		type: 'side',
+		status: 'active',
+		description: 'Clear the slimes gathering on the village road.',
+		objective: 'Defeat slimes near the village.',
+		progress: { current: 2, target: 3, label: 'Village slimes defeated' },
+		rewardSummary: '6 XP / 12 coins / 1 item'
+	};
+}
+
+function mockGuildOffer(): HudQuestOffer {
+	return {
+		questId: 'thin-ruins-slimes',
+		title: 'Thin Ruins Slimes',
+		description: 'Reduce the slime presence inside the ruin threshold.',
+		objective: 'Defeat slimes in the ruins.',
+		rewardSummary: '8 XP / 16 coins / 1 item'
+	};
+}
+
+async function openQuestLog() {
+	await page.getByRole('button', { name: /menu/i }).click();
+	await page.getByRole('button', { name: 'Quest', exact: true }).click();
+	return page.getByRole('dialog', { name: /quest log/i });
 }
 
 describe('GameShell motion flourishes', () => {
@@ -914,9 +943,8 @@ describe('GameShell quest log', () => {
 		const questDialog = page.getByRole('dialog', { name: /quest log/i });
 		await expect.element(questDialog).toBeVisible();
 
-		// Click the dialog to ensure focus lands inside it
-		await questDialog.click();
-		await expect.element(questDialog).toHaveFocus();
+		// Opening the journal moves focus to its close button (overlay owns focus).
+		await expect.element(questDialog.getByRole('button', { name: /close/i })).toHaveFocus();
 
 		await userEvent.keyboard('{Escape}');
 
@@ -940,15 +968,94 @@ describe('GameShell quest log', () => {
 		await page.getByRole('button', { name: /menu/i }).click();
 		await page.getByRole('button', { name: 'Quest', exact: true }).click();
 
-		const closeButton = page
-			.getByRole('dialog', { name: /quest log/i })
-			.getByRole('button', { name: /close/i });
+		const questDialog = page.getByRole('dialog', { name: /quest log/i });
+		const closeButton = questDialog.getByRole('button', { name: /close/i });
 		await expect.element(closeButton).toHaveFocus();
 
+		// Tab wraps from the last focusable (close) to the first quest entry.
 		await userEvent.keyboard('{Tab}');
-		await expect.element(closeButton).toHaveFocus();
+		await expect.element(questDialog.getByTestId('quest-entry-main')).toHaveFocus();
 		await userEvent.keyboard('{Shift>}{Tab}{/Shift}');
 		await expect.element(closeButton).toHaveFocus();
+	});
+});
+
+describe('GameShell heroic quest journal', () => {
+	it('differentiates main, side, and offered quests in the roster', async () => {
+		render(GameShell);
+		emitHudState(
+			baseHudState({
+				quests: {
+					main: mockMainQuest(),
+					side: [mockSideQuest()],
+					completed: [],
+					guildOffer: {
+						giverNpcId: 'guild-master',
+						giverName: 'Guild Master',
+						quests: [mockGuildOffer()]
+					}
+				}
+			})
+		);
+
+		const questDialog = await openQuestLog();
+		const main = questDialog.getByTestId('quest-entry-main');
+		const side = questDialog.getByTestId('quest-entry-side');
+		const offer = questDialog.getByTestId('quest-entry-offer');
+
+		await expect.element(main).toBeVisible();
+		await expect.element(side).toBeVisible();
+		await expect.element(offer).toBeVisible();
+
+		// Main quest is selected by default (cream-gold treatment); the offer
+		// row carries the dimmed offered treatment.
+		await expect.element(main).toHaveClass(/quest-entry-selected/);
+		await expect.element(side).not.toHaveClass(/quest-entry-selected/);
+		await expect.element(offer).toHaveClass(/quest-entry-offered/);
+		await expect.element(offer.getByText('Offered')).toBeVisible();
+
+		// Selecting another entry moves the selection.
+		await side.click();
+		await expect.element(side).toHaveClass(/quest-entry-selected/);
+		await expect.element(main).not.toHaveClass(/quest-entry-selected/);
+	});
+
+	it('renders the selected quest detail with objective chain and rewards', async () => {
+		render(GameShell);
+		emitHudState(
+			baseHudState({
+				quests: {
+					main: mockMainQuest(),
+					side: [],
+					completed: [],
+					guildOffer: null
+				}
+			})
+		);
+
+		const questDialog = await openQuestLog();
+		const detail = questDialog.getByTestId('quest-detail');
+		await expect.element(detail).toBeVisible();
+
+		// Objective chain: one node per main-quest objective, current first.
+		const chainNodes = questDialog.getByTestId('quest-chain-node').elements();
+		expect(chainNodes).toHaveLength(2);
+		await expect.element(detail.getByText('Ruins Warden', { exact: true })).toBeVisible();
+		expect(
+			chainNodes.filter((node) => node.classList.contains('quest-chain-node-current'))
+		).toHaveLength(1);
+
+		// Reward cards render structured values from the quest definition.
+		await expect.element(detail.getByTestId('quest-reward-xp')).toHaveTextContent('15');
+		await expect.element(detail.getByTestId('quest-reward-coins')).toHaveTextContent('35');
+		await expect.element(detail.getByTestId('quest-reward-item')).toHaveTextContent('x1');
+
+		// Giver and location come from the static quest content.
+		await expect.element(detail.getByText('Guild Master Arlen')).toBeVisible();
+		await expect.element(detail.getByText('Guild Hall', { exact: true })).toBeVisible();
+
+		// Live objective progress from the HUD payload.
+		await expect.element(detail.getByText(/Clues found: 1 \/ 3/)).toBeVisible();
 	});
 });
 
@@ -980,6 +1087,76 @@ describe('GameShell area map', () => {
 
 		expect(mapSvg.elements()).toHaveLength(0);
 		await expect.element(page.getByRole('button', { name: /menu/i })).toHaveFocus();
+	});
+
+	it('renders markers with kind styling and focus selection', async () => {
+		render(GameShell);
+		emitHudState(
+			baseHudState({
+				areaMap: {
+					...baseHudState().areaMap,
+					revealedCells: ['12,43', '16,45', '20,47'],
+					markers: [
+						{ id: 'guild-hall', kind: 'building', x: 1_536, y: 5_504, label: 'Guild Hall' },
+						{
+							id: 'ruins-gate',
+							kind: 'quest',
+							x: 2_560,
+							y: 6_016,
+							label: 'Ruins Gate',
+							emphasis: true
+						}
+					]
+				}
+			})
+		);
+
+		await page.getByRole('button', { name: /menu/i }).click();
+		await page.getByRole('button', { name: /map/i }).click();
+		const svg = page.getByTestId('area-map-svg');
+		await expect.element(svg).toBeVisible();
+
+		expect(svg.getByTestId('area-map-marker').elements()).toHaveLength(2);
+		const markerClasses = svg
+			.getByTestId('area-map-marker')
+			.elements()
+			.map((marker) => marker.getAttribute('class') ?? '');
+		expect(
+			markerClasses.filter((className) => className.includes('area-map-marker-quest'))
+		).toHaveLength(1);
+		expect(
+			markerClasses.filter((className) => className.includes('area-map-marker-emphasis'))
+		).toHaveLength(1);
+
+		// Focusing a marker announces it in the live selection line.
+		await svg.getByRole('img', { name: 'Ruins Gate' }).click();
+		await expect.element(page.getByTestId('area-map-selected')).toHaveTextContent('Ruins Gate');
+	});
+
+	it('traps focus inside the map dialog while paused', async () => {
+		render(GameShell);
+		emitHudState(
+			baseHudState({
+				areaMap: {
+					...baseHudState().areaMap,
+					markers: [{ id: 'guild-hall', kind: 'building', x: 1_536, y: 5_504, label: 'Guild Hall' }]
+				}
+			})
+		);
+
+		await page.getByRole('button', { name: /menu/i }).click();
+		await page.getByRole('button', { name: /map/i }).click();
+		const mapDialog = page.getByRole('dialog');
+		const closeButton = mapDialog.getByRole('button', { name: /close/i });
+
+		// Opening the paused overlay moves focus to its close button.
+		await expect.element(closeButton).toHaveFocus();
+
+		// Tab wraps from the header close button to the first map marker.
+		await userEvent.keyboard('{Tab}');
+		await expect.element(mapDialog.getByTestId('area-map-marker').first()).toHaveFocus();
+		await userEvent.keyboard('{Shift>}{Tab}{/Shift}');
+		await expect.element(closeButton).toHaveFocus();
 	});
 });
 
@@ -1497,7 +1674,7 @@ describe('GameShell quest log guild offers', () => {
 		await page.getByRole('button', { name: 'Quest', exact: true }).click();
 
 		await expect.element(page.getByText(/Thin the Village Slimes/)).toBeVisible();
-		await expect.element(page.getByText(/available from guild master/i)).toBeVisible();
+		await expect.element(page.getByTestId('quest-entry-offer').getByText('Offered')).toBeVisible();
 	});
 });
 
