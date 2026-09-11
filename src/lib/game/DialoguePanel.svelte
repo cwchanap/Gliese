@@ -21,7 +21,23 @@
 	let { dialogue, onadvance, onclose, onchoose }: Props = $props();
 	let panel = $state<HTMLDialogElement>();
 
+	// Mockup gilded-choice glyphs, derived from the choice intent kind.
+	const CHOICE_GLYPHS: Record<
+		NonNullable<HudDialogueState['choices'][number]['kind']>,
+		{ d: string; d2: string }
+	> = {
+		trade: { d: 'M5 8h14l1 12H4L5 8z', d2: 'M9 8V6a3 3 0 0 1 6 0v2' },
+		ask: {
+			d: 'M12 4a8 8 0 1 0 0 16 8 8 0 0 0 0-16z',
+			d2: 'M9.6 9.6a2.4 2.4 0 1 1 2.4 2.6v1.3M12 16.4v0'
+		},
+		leave: { d: 'M14 4h6v16h-6', d2: 'M10 8l-4 4 4 4M6 12h9' }
+	};
+
 	let visibleCharacters = $state(0);
+	// Mockup composition keeps the first choice row in the gilded selected state;
+	// pointer/keyboard focus moves the selection like a menu cursor.
+	let selectedChoiceIndex = $state(0);
 	const totalCharacters = $derived(Array.from(dialogue.line).length);
 	const fullyRevealed = $derived(visibleCharacters >= totalCharacters);
 	const visibleText = $derived(
@@ -34,6 +50,7 @@
 		void dialogue.id;
 		void dialogue.lineIndex;
 		void dialogue.line;
+		if (dialogue.mode !== 'choice') selectedChoiceIndex = 0;
 		if ($preferences.textSpeed === 'instant') {
 			visibleCharacters = totalCharacters;
 			return;
@@ -103,7 +120,7 @@
 </script>
 
 <dialog
-	class="jrpg-dialogue-panel arcane-window-enter pointer-events-auto absolute right-4 bottom-4 left-4 z-[70] m-0 font-body text-parchment"
+	class="jrpg-dialogue-panel arcane-window-enter pointer-events-auto absolute right-[2.75rem] bottom-[2.5rem] left-[2.75rem] z-[70] m-0 font-display text-parchment"
 	aria-label={dialogue.speaker}
 	bind:this={panel}
 	open
@@ -112,14 +129,32 @@
 >
 	{#if dialogue.mode === 'choice'}
 		<div class="jrpg-dialogue-choices">
-			{#each dialogue.choices as choice (choice.id)}
+			{#each dialogue.choices as choice, index (choice.id)}
+				{@const glyphs = CHOICE_GLYPHS[choice.kind ?? 'ask']}
 				<button
 					type="button"
 					class="jrpg-dialogue-choice"
+					data-kind={choice.kind ?? 'ask'}
+					data-selected={index === selectedChoiceIndex}
 					disabled={!fullyRevealed}
 					onclick={() => onchoose(choice.id)}
+					onfocus={() => (selectedChoiceIndex = index)}
+					onmouseenter={() => (selectedChoiceIndex = index)}
 				>
-					{choice.label}
+					<span class="jrpg-dialogue-choice-shimmer" aria-hidden="true"></span>
+					<svg
+						viewBox="0 0 24 24"
+						fill="none"
+						stroke="currentColor"
+						stroke-width="1.8"
+						stroke-linecap="round"
+						stroke-linejoin="round"
+						aria-hidden="true"
+					>
+						<path d={glyphs.d} />
+						<path d={glyphs.d2} />
+					</svg>
+					<span class="jrpg-dialogue-choice-label">{choice.label}</span>
 				</button>
 			{/each}
 		</div>
@@ -135,14 +170,22 @@
 			</figure>
 		{/if}
 		<div class="jrpg-dialogue-bar">
-			<p class="jrpg-dialogue-speaker font-display">
-				<svg viewBox="0 0 16 16" aria-hidden="true">
-					<circle cx="8" cy="5" r="3" fill="currentColor" />
-					<path d="M2.5 14a5.5 5.5 0 0 1 11 0Z" fill="currentColor" />
+			<p class="jrpg-dialogue-speaker">
+				<svg
+					viewBox="0 0 24 24"
+					fill="none"
+					stroke="currentColor"
+					stroke-width="2"
+					stroke-linecap="round"
+					stroke-linejoin="round"
+					aria-hidden="true"
+				>
+					<path d="M12 4a4 4 0 1 0 0 8 4 4 0 0 0 0-8z" />
+					<path d="M4 21c0-4 3.6-6 8-6s8 2 8 6" />
 				</svg>
 				<span>{dialogue.speaker}</span>
 			</p>
-			<p class="jrpg-dialogue-line font-body">{visibleText}</p>
+			<p class="jrpg-dialogue-line">{visibleText}</p>
 			<div class="jrpg-dialogue-meta">
 				<div class="jrpg-dialogue-dots" aria-hidden="true">
 					{#each Array(dialogue.lineCount) as _, index (index)}
@@ -159,11 +202,7 @@
 						{t($locale, 'ui.next')}
 					</button>
 					{#if dialogue.canClose}
-						<button
-							type="button"
-							class="jrpg-dialogue-action jrpg-dialogue-action-secondary"
-							onclick={onclose}
-						>
+						<button type="button" class="jrpg-dialogue-action" onclick={onclose}>
 							<PromptGlyph mode={$preferences.promptMode} keys="B" pad="B" tone="b" />
 							{t($locale, 'ui.close')}
 						</button>
@@ -177,48 +216,109 @@
 
 <style>
 	.jrpg-dialogue-panel {
-		width: min(calc(100vw - 2rem), 88rem);
+		/* The dialog UA sheet pins width:fit-content; auto lets the left/right
+		   insets stretch the panel across the playfield like the mockup. */
+		width: auto;
 		border: none;
 		background: transparent;
 	}
 
+	/* ---- Gilded choice column (mockup: right 44px, bottom 270px, 23rem) ----
+	   Anchored inside the panel so taller choice lists grow upward. */
 	.jrpg-dialogue-choices {
+		position: absolute;
+		right: 0;
+		bottom: 14.375rem;
 		display: grid;
 		justify-content: end;
-		gap: 0.65rem;
-		margin-bottom: 1.1rem;
+		gap: 0.75rem;
 	}
 
 	.jrpg-dialogue-choice {
-		width: min(22rem, 80vw);
-		padding: 0.6rem 0.95rem;
-		border: 1px solid var(--color-frame);
-		border-radius: 0.75rem;
+		position: relative;
+		display: flex;
+		align-items: center;
+		gap: 0.875rem;
+		overflow: hidden;
+		width: min(23rem, 80vw);
+		padding: 0.9rem 1.1rem;
+		border: 1px solid rgba(160, 200, 255, 0.26);
+		border-radius: 1rem;
 		text-align: left;
-		font-size: 0.84rem;
-		font-weight: 700;
-		color: var(--color-parchment);
-		background:
-			linear-gradient(
-				180deg,
-				rgba(255, 246, 224, 0.05),
-				color-mix(in srgb, var(--color-ink) 28%, transparent)
-			),
-			var(--color-panel-deep);
-		box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
+		color: #e2ecff;
+		font-family: var(--font-display);
+		font-size: 0.95rem;
+		font-weight: 900;
+		letter-spacing: 0.02em;
+		box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12);
 		transition:
 			border-color 160ms ease,
 			background 160ms ease,
 			color 160ms ease;
 	}
 
-	.jrpg-dialogue-choice:hover:enabled,
-	.jrpg-dialogue-choice:focus-visible {
-		border-color: rgba(255, 232, 168, 0.85);
-		background: linear-gradient(180deg, var(--color-gold-bright), var(--color-gold));
-		color: #3a2c07;
-		box-shadow: 0 0 22px color-mix(in srgb, var(--color-gold) 38%, transparent);
-		outline: none;
+	.jrpg-dialogue-choice[data-kind='ask'] {
+		background: linear-gradient(180deg, rgba(38, 96, 180, 0.5), rgba(10, 32, 60, 0.6));
+	}
+
+	.jrpg-dialogue-choice[data-kind='ask'] svg {
+		color: var(--color-sapphire);
+	}
+
+	.jrpg-dialogue-choice[data-kind='trade'] {
+		background: linear-gradient(180deg, rgba(140, 104, 32, 0.5), rgba(10, 32, 60, 0.6));
+	}
+
+	.jrpg-dialogue-choice[data-kind='trade'] svg {
+		color: var(--color-gold);
+	}
+
+	.jrpg-dialogue-choice[data-kind='leave'] {
+		background: linear-gradient(180deg, rgba(58, 70, 104, 0.5), rgba(10, 32, 60, 0.6));
+	}
+
+	.jrpg-dialogue-choice[data-kind='leave'] svg {
+		color: #c2cfe8;
+	}
+
+	.jrpg-dialogue-choice svg {
+		flex: none;
+		width: 1.3125rem;
+		height: 1.3125rem;
+	}
+
+	.jrpg-dialogue-choice-label {
+		position: relative;
+	}
+
+	/* Selected row (mockup gild): cream-gold fill, white ring, shimmer sweep. */
+	.jrpg-dialogue-choice[data-selected='true'] {
+		border-color: rgba(255, 255, 255, 0.95);
+		background: linear-gradient(180deg, #fff6dc, #f2c886);
+		color: #5a3d08;
+		box-shadow:
+			0 10px 26px rgba(255, 206, 110, 0.45),
+			inset 0 1px 0 rgba(255, 255, 255, 0.95);
+	}
+
+	.jrpg-dialogue-choice[data-selected='true'] svg {
+		color: #5a3d08;
+	}
+
+	.jrpg-dialogue-choice-shimmer {
+		position: absolute;
+		top: 0;
+		bottom: 0;
+		left: 0;
+		width: 34%;
+		pointer-events: none;
+		opacity: 0;
+		background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.65), transparent);
+	}
+
+	.jrpg-dialogue-choice[data-selected='true'] .jrpg-dialogue-choice-shimmer {
+		opacity: 1;
+		animation: jrpg-choice-shimmer 2.8s ease-in-out infinite;
 	}
 
 	.jrpg-dialogue-choice:disabled {
@@ -229,30 +329,31 @@
 	.jrpg-dialogue-row {
 		display: flex;
 		align-items: flex-end;
-		gap: 1.75rem;
+		gap: 1.5rem;
 	}
 
+	/* ---- Bust card (mockup: 15rem x 18rem rect, gold border, inset) ---- */
 	.jrpg-dialogue-bust {
 		flex: none;
-		width: 13rem;
-		aspect-ratio: 8 / 9;
+		width: 15rem;
+		height: 18rem;
 		margin: 0;
-		border: 1px solid color-mix(in srgb, var(--color-gold) 42%, var(--color-frame));
-		border-radius: 1.1rem;
-		background: radial-gradient(
-			120% 100% at 50% 12%,
-			color-mix(in srgb, var(--color-panel) 55%, transparent),
-			color-mix(in srgb, var(--color-ink) 82%, transparent)
-		);
-		box-shadow: 0 24px 60px rgba(0, 0, 0, 0.5);
+		overflow: hidden;
+		border: 1px solid rgba(255, 232, 170, 0.85);
+		border-radius: 1.375rem;
+		background: linear-gradient(180deg, rgba(255, 214, 120, 0.2), rgba(20, 50, 120, 0.6));
+		box-shadow:
+			0 22px 52px rgba(0, 0, 0, 0.6),
+			inset 0 0 0 3px rgba(255, 214, 120, 0.16);
 	}
 
 	.jrpg-dialogue-bust img {
 		width: 100%;
 		height: 100%;
-		object-fit: contain;
+		object-fit: cover;
 	}
 
+	/* ---- Text box (mockup window: indigo-blue gradient, gold inlay border) -- */
 	.jrpg-dialogue-bar {
 		position: relative;
 		flex: 1;
@@ -260,113 +361,178 @@
 		display: grid;
 		align-content: space-between;
 		gap: 0.75rem;
-		padding: 1.9rem 1.75rem 0.95rem;
-		border: 1px solid color-mix(in srgb, var(--color-gold) 55%, transparent);
-		border-radius: 1rem;
+		padding: 1.875rem 1.75rem 1.5rem;
+		border: 1px solid rgba(255, 232, 170, 0.85);
+		border-radius: 1.5rem;
 		background:
 			linear-gradient(
-				100deg,
-				color-mix(in srgb, var(--color-panel) 92%, transparent) 0%,
-				color-mix(in srgb, var(--color-panel) 55%, var(--color-violet)) 100%
+				135deg,
+				rgba(34, 74, 164, 0.92),
+				rgba(12, 26, 74, 0.95) 55%,
+				rgba(46, 28, 96, 0.92)
 			),
 			var(--color-ink);
 		box-shadow:
-			0 30px 80px rgba(0, 0, 0, 0.55),
-			inset 0 1px 0 rgba(255, 246, 224, 0.12);
+			0 26px 60px rgba(0, 0, 0, 0.65),
+			inset 0 0 0 4px rgba(255, 214, 120, 0.14),
+			inset 0 2px 0 rgba(255, 255, 255, 0.3);
+	}
+
+	/* Etched corner marks: gold rounded brackets, top-left + bottom-right. */
+	.jrpg-dialogue-bar::before,
+	.jrpg-dialogue-bar::after {
+		content: '';
+		position: absolute;
+		width: 1.6rem;
+		height: 1.6rem;
+		pointer-events: none;
+		border: 2px solid rgba(255, 224, 138, 0.85);
+	}
+
+	.jrpg-dialogue-bar::before {
+		top: 9px;
+		left: 9px;
+		border-top-left-radius: 16px;
+		border-right: 0;
+		border-bottom: 0;
+	}
+
+	.jrpg-dialogue-bar::after {
+		right: 9px;
+		bottom: 9px;
+		border-bottom-right-radius: 16px;
+		border-left: 0;
+		border-top: 0;
 	}
 
 	.jrpg-dialogue-speaker {
 		position: absolute;
-		top: -1.05rem;
-		left: 1.4rem;
+		top: -0.9375rem;
+		left: 1.875rem;
+		z-index: 2;
 		display: inline-flex;
 		align-items: center;
-		gap: 0.4rem;
+		gap: 0.625rem;
 		margin: 0;
-		padding: 0.32rem 0.85rem;
-		border: 1px solid rgba(255, 232, 168, 0.9);
+		padding: 0.4rem 1.3rem;
+		border: 1px solid rgba(255, 255, 255, 0.85);
 		border-radius: 999px;
 		background: linear-gradient(180deg, var(--color-gold-bright), var(--color-gold));
-		color: #3a2c07;
-		font-size: 0.72rem;
-		font-weight: 800;
-		letter-spacing: 0.02em;
-		box-shadow: 0 6px 18px rgba(0, 0, 0, 0.35);
+		color: #3b2606;
+		font-size: 0.95rem;
+		font-weight: 900;
+		box-shadow: 0 8px 20px rgba(0, 0, 0, 0.55);
 	}
 
 	.jrpg-dialogue-speaker svg {
-		width: 0.85rem;
-		height: 0.85rem;
+		width: 0.9375rem;
+		height: 0.9375rem;
 	}
 
+	/* Mockup prose: display face (Zen Maru Gothic), 1.5rem / 500 / 1.5. */
 	.jrpg-dialogue-line {
-		min-height: 2.6rem;
+		min-height: 3.6rem;
 		margin: 0;
-		font-size: 1.02rem;
-		line-height: 1.55;
+		font-family: var(--font-display);
+		font-size: 1.5rem;
+		font-weight: 500;
+		line-height: 1.5;
+		text-wrap: pretty;
+		text-shadow: 0 2px 6px rgba(0, 0, 0, 0.65);
 	}
 
 	.jrpg-dialogue-meta {
 		display: flex;
 		align-items: center;
 		justify-content: space-between;
-		gap: 1rem;
+		gap: 1.25rem;
 	}
 
 	.jrpg-dialogue-dots {
 		display: inline-flex;
-		gap: 0.4rem;
+		gap: 0.4375rem;
 	}
 
 	.jrpg-dialogue-dot {
-		width: 0.5rem;
-		height: 0.5rem;
+		width: 0.55rem;
+		height: 0.55rem;
 		border-radius: 999px;
-		background: color-mix(in srgb, var(--color-parchment) 22%, transparent);
+		background: rgba(169, 200, 255, 0.3);
 	}
 
 	.jrpg-dialogue-dot-on {
 		background: var(--color-gold);
-		box-shadow: 0 0 10px color-mix(in srgb, var(--color-gold) 45%, transparent);
+		box-shadow: 0 0 10px rgba(255, 224, 138, 0.9);
 	}
 
 	.jrpg-dialogue-prompts {
 		display: inline-flex;
 		align-items: center;
-		gap: 1rem;
+		gap: 1.25rem;
 	}
 
+	/* Mockup ▼: gilded isoceles arrow floating at the bar's bottom-right. */
 	.jrpg-dialogue-more {
-		align-self: flex-end;
-		width: 0;
-		height: 0;
-		border-top: 0.55rem solid var(--color-gold);
-		border-right: 0.55rem solid transparent;
+		align-self: center;
+		width: 1.05rem;
+		height: 0.72rem;
+		background: linear-gradient(180deg, #ffe9ae, #c8952f);
+		clip-path: polygon(0 0, 100% 0, 50% 100%);
+		filter: drop-shadow(0 3px 5px rgba(0, 0, 0, 0.55));
+		animation: jrpg-float-y 1.6s ease-in-out infinite;
 	}
 
 	.jrpg-dialogue-action {
 		display: inline-flex;
 		align-items: center;
-		gap: 0.45rem;
+		gap: 0.5625rem;
 		padding: 0;
 		border: none;
 		background: none;
-		color: var(--color-parchment);
+		color: #a9c8ff;
 		font-family: var(--font-display);
-		font-size: 0.72rem;
+		font-size: 0.85rem;
 		font-weight: 700;
 		letter-spacing: 0.03em;
 	}
 
-	.jrpg-dialogue-action-secondary {
-		color: rgba(246, 239, 224, 0.78);
-	}
-
-	.jrpg-dialogue-choice:focus-visible,
 	.jrpg-dialogue-action:focus-visible {
 		outline: 2px solid var(--color-gold);
 		outline-offset: 3px;
 		box-shadow: 0 0 0 4px rgba(243, 210, 122, 0.18);
 		border-radius: 0.4rem;
+	}
+
+	/* Focus stays visible on choices: the white ring doubles as the indicator. */
+	.jrpg-dialogue-choice:focus-visible {
+		outline: 2px solid #5a3d08;
+		outline-offset: 2px;
+	}
+
+	@media (prefers-reduced-motion: reduce) {
+		.jrpg-dialogue-choice-shimmer,
+		.jrpg-dialogue-more {
+			animation: none;
+		}
+	}
+
+	@keyframes jrpg-choice-shimmer {
+		from {
+			transform: translateX(-160%) skewX(-18deg);
+		}
+		55%,
+		100% {
+			transform: translateX(240%) skewX(-18deg);
+		}
+	}
+
+	@keyframes jrpg-float-y {
+		0%,
+		100% {
+			transform: translateY(0);
+		}
+		50% {
+			transform: translateY(-5px);
+		}
 	}
 </style>
