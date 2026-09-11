@@ -1,6 +1,7 @@
 <script lang="ts">
-	import { locale } from '$lib/game/i18n/store';
+	import { locale, preferences } from '$lib/game/i18n/store';
 	import { t } from '$lib/game/i18n/translate';
+	import PromptGlyph from '$lib/game/ui/PromptGlyph.svelte';
 	import { parseCellKey } from '$lib/game/core/map-exploration';
 	import type { HudAreaMapState } from '$lib/game/core/area-map';
 
@@ -30,6 +31,21 @@
 	$effect(() => {
 		if (!open) focusedMarkerId = null;
 	});
+
+	let osReducedMotion = $state(false);
+
+	$effect(() => {
+		const query = window.matchMedia('(prefers-reduced-motion: reduce)');
+		osReducedMotion = query.matches;
+		const onChange = (event: MediaQueryListEvent) => {
+			osReducedMotion = event.matches;
+		};
+		query.addEventListener('change', onChange);
+		return () => query.removeEventListener('change', onChange);
+	});
+
+	// Effective reduced motion obeys BOTH the saved preference and the OS setting.
+	const motionReduced = $derived($preferences.motion === 'reduced' || osReducedMotion);
 </script>
 
 {#if open}
@@ -37,28 +53,32 @@
 		<div class="absolute inset-0 cursor-default" role="presentation" onclick={onClose}></div>
 		<div
 			bind:this={dialog}
-			class="glass-panel-strong arcane-window-enter jrpg-window jrpg-area-map-window"
+			class="jrpg-area-map-window heroic-window heroic-anim"
+			class:heroic-motion-reduced={motionReduced}
 			aria-label={t($locale, 'ui.areaMapDialog', { areaName: areaMap.name })}
 			aria-modal="true"
 			role="dialog"
 			tabindex="-1"
 			{onkeydown}
 		>
-			<div class="jrpg-window-header">
+			<header class="jrpg-area-map-header">
 				<div>
-					<p class="jrpg-label">{t($locale, 'ui.areaMap')}</p>
-					<h2 class="jrpg-window-title font-display">{areaMap.name}</h2>
+					<p class="heroic-eyebrow">{t($locale, 'ui.areaMap')}</p>
+					<h2 class="heroic-title">{areaMap.name}</h2>
 				</div>
 				<button
 					bind:this={closeButton}
 					type="button"
-					class="glass-button jrpg-small-button"
+					class="jrpg-area-map-close font-display"
 					onclick={onClose}
 				>
+					<span class="jrpg-area-map-close-glyph" aria-hidden="true">
+						<PromptGlyph mode={$preferences.promptMode} keys="M" pad="B" tone="b" />
+					</span>
 					{t($locale, 'ui.close')}
 				</button>
-			</div>
-			<div class="jrpg-window-body">
+			</header>
+			<div class="jrpg-area-map-body">
 				<div class="jrpg-area-map-frame">
 					<svg
 						data-testid="area-map-svg"
@@ -93,6 +113,7 @@
 									marker.emphasis ? 'area-map-marker-emphasis' : ''
 								}`}
 								role="img"
+								data-testid="area-map-marker"
 								transform={`translate(${marker.x} ${marker.y})`}
 								tabindex="0"
 								aria-label={marker.label}
@@ -138,61 +159,65 @@
 		display: flex;
 		align-items: center;
 		justify-content: center;
-		background: rgba(0, 0, 0, 0.52);
+		background: rgba(2, 3, 10, 0.72);
 		padding: 1rem;
 		backdrop-filter: blur(3px);
 	}
 
-	.jrpg-window {
-		position: relative;
-		z-index: 10;
-		display: grid;
-		max-height: calc(100vh - 2rem);
-		width: min(76rem, calc(100vw - 2rem));
-		grid-template-rows: auto minmax(0, 1fr);
-		overflow: hidden;
-		/* border/background/shadow now from glass-panel-strong component class */
-		color: var(--color-parchment);
-	}
-
+	/* Regression surface (no source canvas): compact Heroic window over the
+	   untouched fog/marker map logic. */
 	.jrpg-area-map-window {
+		display: flex;
+		flex-direction: column;
 		width: min(58rem, calc(100vw - 2rem));
+		max-height: calc(100vh - 2rem);
 	}
 
-	.jrpg-window-header {
+	.jrpg-area-map-header {
 		display: flex;
 		align-items: flex-start;
 		justify-content: space-between;
 		gap: 1rem;
-		border-bottom: 1px solid rgba(244, 229, 184, 0.14);
-		padding: 1rem;
 	}
 
-	.jrpg-window-title {
-		margin: 0.2rem 0 0;
-		font-size: clamp(1.25rem, 3vw, 1.9rem);
-		font-weight: 700;
+	.jrpg-area-map-close {
+		display: inline-flex;
+		align-items: center;
+		gap: 0.55rem;
+		border: 0;
+		background: transparent;
+		padding: 0.3rem 0.2rem;
+		color: var(--color-sapphire);
+		font-size: 0.86rem;
+		font-weight: 800;
+		cursor: pointer;
+		transition: color 160ms ease;
+	}
+	.jrpg-area-map-close:hover {
 		color: var(--color-parchment);
-		letter-spacing: 0.08em;
-		text-transform: uppercase;
 	}
 
-	.jrpg-window-body {
+	.jrpg-area-map-close-glyph {
+		display: inline-flex;
+	}
+
+	.jrpg-area-map-body {
 		min-height: 0;
 		overflow-y: auto;
-		padding: 1rem;
+		padding-right: 0.25rem;
 	}
 
 	.jrpg-area-map-frame {
 		overflow: hidden;
-		border: 1px solid rgba(244, 229, 184, 0.16);
-		border-radius: var(--radius-arcane);
+		border: 1px solid var(--color-frame);
+		border-radius: 1rem;
 		background:
-			linear-gradient(rgba(159, 231, 255, 0.08) 1px, transparent 1px),
-			linear-gradient(90deg, rgba(159, 231, 255, 0.08) 1px, transparent 1px), #09101f;
+			linear-gradient(rgba(255, 246, 224, 0.04) 1px, transparent 1px),
+			linear-gradient(90deg, rgba(255, 246, 224, 0.04) 1px, transparent 1px),
+			color-mix(in srgb, var(--color-ink) 60%, #060b18);
 		background-size: 2rem 2rem;
 		box-shadow:
-			inset 0 0 0 1px rgba(255, 255, 255, 0.04),
+			inset 0 1px 0 rgba(255, 246, 224, 0.06),
 			inset 0 0 48px rgba(0, 0, 0, 0.42);
 	}
 
@@ -200,11 +225,11 @@
 		display: block;
 		width: 100%;
 		aspect-ratio: 1;
-		max-height: min(62vh, 42rem);
+		max-height: min(58vh, 40rem);
 	}
 
 	.area-map-fog {
-		fill: #08101d;
+		fill: color-mix(in srgb, var(--color-ink) 82%, #04070f);
 	}
 
 	.area-map-revealed-cell {
@@ -219,6 +244,7 @@
 
 	.area-map-marker text {
 		fill: #fff7df;
+		font-family: var(--font-display);
 		font-size: 104px;
 		font-weight: 900;
 		paint-order: stroke;
@@ -272,7 +298,7 @@
 	}
 
 	.area-map-player-marker {
-		fill: #f05268;
+		fill: var(--color-rose);
 		stroke: #fff7df;
 		stroke-width: 18;
 		filter: drop-shadow(0 0 28px rgba(240, 82, 104, 0.78));
@@ -284,6 +310,7 @@
 		gap: 0.75rem;
 		margin-top: 0.75rem;
 		color: var(--color-muted);
+		font-family: var(--font-display);
 		font-size: 0.68rem;
 		font-weight: 900;
 		letter-spacing: 0.12em;
@@ -300,14 +327,15 @@
 		display: inline-block;
 		width: 0.8rem;
 		height: 0.8rem;
-		border: 1px solid rgba(244, 229, 184, 0.24);
+		border: 1px solid var(--color-frame-strong);
 		border-radius: 999px;
 	}
 
 	.jrpg-area-map-selected {
 		min-height: 1.1rem;
-		margin-top: 0.5rem;
-		color: #fff7df;
+		margin: 0.5rem 0 0;
+		color: var(--color-gold);
+		font-family: var(--font-display);
 		font-size: 0.72rem;
 		font-weight: 900;
 		letter-spacing: 0.08em;
@@ -315,11 +343,11 @@
 	}
 
 	.area-map-legend-current {
-		background: #f05268;
+		background: var(--color-rose);
 	}
 
 	.area-map-legend-unexplored {
-		background: #08101d;
+		background: color-mix(in srgb, var(--color-ink) 82%, #04070f);
 	}
 
 	@media (max-width: 720px) {
