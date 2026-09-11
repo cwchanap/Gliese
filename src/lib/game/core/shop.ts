@@ -14,6 +14,7 @@ import {
 } from '$lib/game/core/inventory';
 import { getItemText } from '$lib/game/i18n/content';
 import type { Locale } from '$lib/game/i18n/locales';
+import { previewEquipmentSwap, type BaseStats, type EquipmentSwapPreview } from './stats';
 
 export type WalletState = { coins: number };
 
@@ -70,6 +71,10 @@ export type HudShopBuyEntry = {
 	price: number;
 	availability: { mode: 'unlimited' } | { mode: 'finite'; remaining: number };
 	item: ConsumableDefinition | EquipmentDefinition;
+	/** Canonical stat deltas for equipment, resolved by the caller's context. */
+	preview?: EquipmentSwapPreview | null;
+	/** Copies of this item already owned (stacks + unequipped gear). */
+	owned?: number;
 };
 
 export type HudShopSellEntry = {
@@ -249,7 +254,8 @@ export function sellInventoryItem({
 export function buildShopBuyEntries(
 	shopId: string,
 	stockState: ShopStockState,
-	locale: Locale
+	locale: Locale,
+	context?: { base: BaseStats; equipment: EquipmentState; inventory: InventoryState }
 ): HudShopBuyEntry[] {
 	const shop = getShop(shopId);
 
@@ -282,7 +288,19 @@ export function buildShopBuyEntries(
 								remaining: stockState[shopId]?.[entry.id] ?? entry.availability.quantity
 							}
 						: { mode: 'unlimited' as const },
-				item
+				item,
+				...(context
+					? {
+							preview: previewEquipmentSwap({
+								base: context.base,
+								equipment: context.equipment,
+								itemId: item.id
+							}),
+							owned:
+								(context.inventory.stacks.find((stack) => stack.itemId === item.id)?.quantity ??
+									0) + context.inventory.equipment.filter((id) => id === item.id).length
+						}
+					: {})
 			}
 		];
 	});

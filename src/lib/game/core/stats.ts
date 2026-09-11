@@ -1,4 +1,4 @@
-import { getItem } from '$lib/game/content/items';
+import { getItem, type EquipmentSlot } from '$lib/game/content/items';
 import type { EquipmentState } from '$lib/game/core/equipment';
 
 export type BaseStats = {
@@ -34,4 +34,32 @@ export function deriveEffectiveStats(base: BaseStats, equipment: EquipmentState)
 
 export function clampHpToMax(hp: number, stats: EffectiveStats): number {
 	return Math.min(hp, stats.maxHp);
+}
+
+export type EquipmentSwapPreview = {
+	slot: EquipmentSlot;
+	replacedItemId: string | null;
+	before: EffectiveStats;
+	after: EffectiveStats;
+};
+
+/** Canonical before/after stat comparison for equipping `itemId` into the
+	current equipment loadout. Derived purely via `deriveEffectiveStats`. */
+export function previewEquipmentSwap(input: {
+	base: BaseStats;
+	equipment: EquipmentState;
+	itemId: string;
+}): EquipmentSwapPreview | null {
+	const item = getItem(input.itemId);
+
+	if (!item || item.type !== 'equipment') {
+		return null;
+	}
+
+	return {
+		slot: item.slot,
+		replacedItemId: input.equipment[item.slot],
+		before: deriveEffectiveStats(input.base, input.equipment),
+		after: deriveEffectiveStats(input.base, { ...input.equipment, [item.slot]: item.id })
+	};
 }

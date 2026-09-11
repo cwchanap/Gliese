@@ -33,6 +33,10 @@ export type HudNearbyShop = {
 	shopId: string;
 	name: string;
 	merchantName: string;
+	/** Localized shop flavor line (mockup merchant quote); optional for older payloads. */
+	description?: string;
+	/** Merchant bust art path; optional for older payloads. */
+	bustPath?: string;
 };
 
 export type HudOpenShop = HudNearbyShop & {
