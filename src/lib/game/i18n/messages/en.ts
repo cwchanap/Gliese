@@ -114,6 +114,7 @@ export const en = {
 		questOffered: 'Offered',
 		questRewards: 'Reward',
 		questTurnedInBy: 'Turned in by',
+		questChapterProgress: 'Chapter Progress',
 		questMapContext: 'Map Context',
 		questJournalEmpty: 'No quests in the journal yet.',
 		rewardCoins: 'Coins',
