@@ -367,6 +367,14 @@ test('Quest journal capture through the guild side-quest flow', async ({ page })
 		null,
 		null
 	]);
+	// The multi-confirm dialogue flow assumes instant reveal (click = advance);
+	// at the normal speed the first confirm only completes the reveal.
+	await page.addInitScript(() =>
+		window.localStorage.setItem(
+			'gliese.preferences.v1',
+			JSON.stringify({ locale: 'en', textSpeed: 'instant', motion: 'on', promptMode: 'auto' })
+		)
+	);
 	await page.goto('/');
 	await page.getByRole('button', { name: /Continue/i }).click();
 	await expect(page.locator('canvas')).toBeVisible();
@@ -569,8 +577,14 @@ test('Dialogue capture through a real NPC interaction', async ({ page }) => {
 	// Confirm advances the terminal line into the choice treatment.
 	await dialogue.getByRole('button', { name: 'Next' }).click();
 	await expect(dialogue.locator('.jrpg-dialogue-choice')).toHaveCount(1);
-	await expect(dialogue.getByRole('button', { name: 'Shop' })).toBeVisible();
-	await expect(dialogue.getByRole('button', { name: 'Shop' })).toBeEnabled();
+	const shopChoice = dialogue.getByRole('button', { name: 'Shop' });
+	await expect(shopChoice).toBeVisible();
+	await expect(shopChoice).toBeEnabled();
+	// Mockup gilded list: the openShop choice carries the bag glyph (gold tint)
+	// and the first row is the selected (cream-gold) row.
+	await expect(shopChoice).toHaveAttribute('data-kind', 'trade');
+	await expect(shopChoice.locator('svg')).toBeVisible();
+	await expect(shopChoice).toHaveAttribute('data-selected', 'true');
 
 	await page.waitForTimeout(700);
 
