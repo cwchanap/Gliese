@@ -1050,14 +1050,52 @@ describe('GameShell heroic quest journal', () => {
 		await expect.element(detail.getByTestId('quest-reward-coins')).toHaveTextContent('35');
 		await expect.element(detail.getByTestId('quest-reward-item')).toHaveTextContent('x1');
 
-		// Giver and location come from the static quest content.
+		// Giver comes from the static quest content, with the map location line
+		// under the name; the map-context card pins the same location.
 		await expect.element(detail.getByText('Guild Master Arlen')).toBeVisible();
-		await expect.element(detail.getByText('Guild Hall', { exact: true })).toBeVisible();
+		await expect
+			.element(questDialog.getByTestId('quest-giver-location'))
+			.toHaveTextContent('Guild Hall');
+		await expect.element(questDialog.getByTestId('quest-map-pin')).toHaveTextContent('Guild Hall');
 
 		// Live objective progress from the HUD payload.
 		await expect.element(detail.getByText(/Clues found: 1 \/ 3/)).toBeVisible();
 		// The live objective sentence renders in the detail panel.
 		await expect.element(detail.getByText('Enter the ruins and investigate.')).toBeVisible();
+	});
+
+	it('renders chapter progress from real main-quest objectives', async () => {
+		render(GameShell);
+		emitHudState(
+			baseHudState({
+				quests: {
+					main: mockMainQuest(),
+					side: [],
+					completed: [],
+					guildOffer: null
+				}
+			})
+		);
+
+		const questDialog = await openQuestLog();
+		const panel = questDialog.getByTestId('quest-chapter-progress');
+		await expect.element(panel).toBeVisible();
+
+		// Percentage = completed / total main-quest objectives (the mock's
+		// objective falls back to the first chain node → 0 of 2 done).
+		await expect.element(panel.getByText('0%')).toBeVisible();
+
+		// One row per main-quest objective; exactly one current row.
+		const rows = questDialog.getByTestId('quest-progress-row').elements();
+		expect(rows).toHaveLength(2);
+		expect(rows.filter((row) => row.classList.contains('quest-chapter-row-current'))).toHaveLength(
+			1
+		);
+		await expect.element(panel.getByText('Guild Master')).toBeVisible();
+		await expect.element(panel.getByText('Ruins Warden')).toBeVisible();
+
+		// The current row's count is the real live HUD progress.
+		await expect.element(panel.getByText('1 / 3')).toBeVisible();
 	});
 });
 

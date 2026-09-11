@@ -137,6 +137,47 @@
 		};
 	});
 
+	/**
+	 * Chapter-progress panel (source 05-quest left rail): real main-quest
+	 * objectives only, presented honestly — objectives before the HUD's current
+	 * one are done, the current one carries the live HUD count, the rest are
+	 * pending. No fabricated per-objective counts.
+	 */
+	const chapterProgress = $derived.by(() => {
+		const main = quests.main;
+		if (!main) return null;
+		const objectives = getQuest(main.questId)?.objectives ?? [];
+		if (objectives.length === 0) return null;
+		const doneCount =
+			main.status === 'completed'
+				? objectives.length
+				: Math.max(
+						0,
+						objectives.findIndex(
+							(objective) =>
+								getQuestObjectiveText($locale, main.questId, objective.id)?.description ===
+								main.objective
+						)
+					);
+		return {
+			percent: Math.round((doneCount / objectives.length) * 100),
+			rows: objectives.map((objective, index) => ({
+				id: objective.id,
+				label: objectiveChainLabel(objective),
+				state:
+					index < doneCount
+						? ('done' as const)
+						: index === doneCount
+							? ('current' as const)
+							: ('pending' as const),
+				count:
+					index === doneCount && main.status !== 'completed'
+						? (`${main.progress.current} / ${main.progress.target}` as const)
+						: null
+			}))
+		};
+	});
+
 	function rowKindLabel(kind: QuestRowKind): string {
 		if (kind === 'main') return t($locale, 'ui.main');
 		if (kind === 'side') return t($locale, 'ui.side');
@@ -229,6 +270,38 @@
 					<p class="quest-rail-hint font-display">{t($locale, 'ui.noSideQuestsActive')}</p>
 				{/if}
 			</div>
+
+			{#if chapterProgress}
+				<aside
+					class="quest-chapter"
+					data-testid="quest-chapter-progress"
+					aria-label={t($locale, 'ui.questChapterProgress')}
+				>
+					<header class="quest-chapter-head">
+						<p class="quest-panel-label quest-chapter-label font-display">
+							{t($locale, 'ui.questChapterProgress')}
+						</p>
+						<span class="quest-chapter-percent font-display">{chapterProgress.percent}%</span>
+					</header>
+					<div class="quest-chapter-bar" aria-hidden="true">
+						<div class="quest-chapter-fill" style:width="{chapterProgress.percent}%"></div>
+					</div>
+					<ul class="quest-chapter-rows">
+						{#each chapterProgress.rows as row (row.id)}
+							<li
+								class="quest-chapter-row quest-chapter-row-{row.state}"
+								data-testid="quest-progress-row"
+							>
+								<span class="quest-chapter-dot" aria-hidden="true"></span>
+								<span class="quest-chapter-row-label font-display">{row.label}</span>
+								<span class="quest-chapter-row-count font-display">
+									{#if row.state === 'done'}✓{:else if row.count}{row.count}{/if}
+								</span>
+							</li>
+						{/each}
+					</ul>
+				</aside>
+			{/if}
 
 			<button bind:this={closeButton} type="button" class="quest-rail-close" onclick={onClose}>
 				<span class="font-display">{t($locale, 'ui.close')}</span>
@@ -353,7 +426,14 @@
 									<path d="M2.8 13.8c.6-2.7 2.7-4.2 5.2-4.2s4.6 1.5 5.2 4.2" />
 								</svg>
 							</span>
-							<p class="quest-giver-name font-display">{detail.giverName}</p>
+							<div class="quest-giver-copy">
+								<p class="quest-giver-name font-display">{detail.giverName}</p>
+								{#if detail.locationLabel}
+									<p class="quest-giver-location font-display" data-testid="quest-giver-location">
+										{detail.locationLabel}
+									</p>
+								{/if}
+							</div>
 						</div>
 					{/if}
 				</div>
@@ -368,7 +448,7 @@
 								<circle cx="10.4" cy="5.6" r="1.1" />
 							</svg>
 						</div>
-						<p class="quest-map-pin font-display">
+						<p class="quest-map-pin font-display" data-testid="quest-map-pin">
 							<svg
 								viewBox="0 0 16 16"
 								fill="none"
@@ -581,6 +661,107 @@
 		color: var(--color-muted);
 		font-size: 0.8rem;
 		font-weight: 700;
+	}
+
+	/* ---- Chapter progress (real main-quest objectives) --------------------- */
+	.quest-chapter {
+		flex: none;
+		margin-top: 1.1rem;
+		border: 1px solid var(--color-frame);
+		border-radius: 0.9rem;
+		padding: 0.9rem 1rem;
+		background:
+			linear-gradient(
+				180deg,
+				rgba(255, 246, 224, 0.05),
+				color-mix(in srgb, var(--color-ink) 22%, transparent)
+			),
+			var(--color-panel-deep);
+	}
+
+	.quest-chapter-head {
+		display: flex;
+		align-items: baseline;
+		justify-content: space-between;
+	}
+
+	.quest-chapter-label {
+		margin: 0;
+	}
+
+	.quest-chapter-percent {
+		color: var(--color-gold);
+		font-size: 0.85rem;
+		font-weight: 900;
+	}
+
+	.quest-chapter-bar {
+		overflow: hidden;
+		height: 0.3rem;
+		margin-top: 0.55rem;
+		border-radius: 999px;
+		background: color-mix(in srgb, var(--color-frame-strong) 60%, transparent);
+	}
+
+	.quest-chapter-fill {
+		height: 100%;
+		border-radius: 999px;
+		background: linear-gradient(90deg, var(--color-gold), var(--color-gold-bright));
+	}
+
+	.quest-chapter-rows {
+		display: grid;
+		gap: 0.45rem;
+		margin: 0.7rem 0 0;
+		padding: 0;
+		list-style: none;
+	}
+
+	.quest-chapter-row {
+		display: flex;
+		align-items: center;
+		gap: 0.5rem;
+	}
+
+	.quest-chapter-dot {
+		flex: none;
+		width: 0.45rem;
+		height: 0.45rem;
+		border-radius: 999px;
+		background: var(--color-muted);
+	}
+	.quest-chapter-row-done .quest-chapter-dot {
+		background: var(--color-emerald);
+	}
+	.quest-chapter-row-current .quest-chapter-dot {
+		background: var(--color-gold);
+		box-shadow: 0 0 8px color-mix(in srgb, var(--color-gold) 60%, transparent);
+	}
+
+	.quest-chapter-row-label {
+		flex: 1;
+		min-width: 0;
+		overflow: hidden;
+		color: var(--color-muted);
+		font-size: 0.68rem;
+		font-weight: 700;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+	}
+	.quest-chapter-row-current .quest-chapter-row-label {
+		color: var(--color-parchment);
+	}
+
+	.quest-chapter-row-count {
+		color: var(--color-muted);
+		font-size: 0.62rem;
+		font-weight: 800;
+	}
+	.quest-chapter-row-done .quest-chapter-row-count {
+		color: var(--color-emerald);
+	}
+	.quest-chapter-row-current .quest-chapter-row-count {
+		color: var(--color-gold);
 	}
 
 	.quest-rail-close {
@@ -824,11 +1005,22 @@
 		height: 1.2rem;
 	}
 
+	.quest-giver-copy {
+		min-width: 0;
+	}
+
 	.quest-giver-name {
 		margin: 0;
 		font-size: 0.95rem;
 		font-weight: 900;
 		color: var(--color-parchment);
+	}
+
+	.quest-giver-location {
+		margin: 0.1rem 0 0;
+		color: var(--color-muted);
+		font-size: 0.7rem;
+		font-weight: 700;
 	}
 
 	.quest-map-card {
