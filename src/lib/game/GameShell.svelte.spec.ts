@@ -1243,7 +1243,7 @@ describe('GameShell shop actions', () => {
 				})
 			);
 
-			await page.getByRole('article', { name: /Field Potion/i }).dblClick();
+			await page.getByRole('button', { name: 'Field Potion', exact: true }).dblClick();
 
 			expect(commands).toContainEqual({
 				type: 'buy-shop-item',
@@ -1269,7 +1269,7 @@ describe('GameShell shop actions', () => {
 				})
 			);
 
-			await page.getByRole('article', { name: /Field Potion/i }).dblClick();
+			await page.getByRole('button', { name: 'Field Potion', exact: true }).dblClick();
 
 			expect(commands).not.toContainEqual(expect.objectContaining({ type: 'buy-shop-item' }));
 		});
@@ -1292,11 +1292,106 @@ describe('GameShell shop actions', () => {
 			);
 
 			await page.getByRole('tab', { name: /sell/i }).click();
-			await page.getByRole('article', { name: /Practice Sword/i }).dblClick();
+			await page.getByRole('button', { name: 'Practice Sword', exact: true }).dblClick();
 
 			expect(commands).toContainEqual({
 				type: 'sell-inventory-item',
 				itemId: 'practice-sword'
+			});
+		});
+	});
+});
+
+describe('GameShell heroic shop', () => {
+	function mockVestBuyEntry(): HudShopBuyEntry {
+		return {
+			stockId: 'vest-stock',
+			itemId: 'traveler-vest',
+			name: 'Traveler Vest',
+			description: 'Light armor for long walks.',
+			iconPath: '/game/assets/items/traveler-vest.png',
+			kind: 'equipment',
+			price: 45,
+			availability: { mode: 'finite', remaining: 1 },
+			item: {
+				...mockEquipment(),
+				id: 'traveler-vest',
+				slot: 'body',
+				modifiers: { maxHp: 4 }
+			} as unknown as EquipmentDefinition,
+			preview: {
+				slot: 'body',
+				replacedItemId: null,
+				before: { maxHp: 20, attack: 4, defense: 0 },
+				after: { maxHp: 24, attack: 4, defense: 0 }
+			},
+			owned: 0
+		};
+	}
+
+	function vestShopState(coins: number): Partial<HudState> {
+		return {
+			wallet: { coins },
+			shop: {
+				shopId: 'guild-quartermaster',
+				name: 'Guild Quartermaster',
+				merchantName: 'Quartermaster Vale',
+				description: 'Guild-approved gear for new ruins assignments.',
+				bustPath: '/game/assets/heroic-ui/busts/quartermaster-vale.png',
+				buy: [mockVestBuyEntry()],
+				sell: []
+			}
+		};
+	}
+
+	it('renders the merchant identity, purse, and canonical deltas for an unaffordable pick', async () => {
+		render(GameShell);
+		emitHudState(baseHudState(vestShopState(30)));
+
+		const dialog = page.getByRole('dialog', { name: 'Guild Quartermaster' });
+		await expect
+			.element(dialog.getByRole('heading', { name: 'Guild Quartermaster' }))
+			.toBeVisible();
+		// Merchant art + flavor line + purse (wallet before).
+		await expect
+			.element(dialog.getByRole('img', { name: 'Quartermaster Vale, merchant portrait' }))
+			.toBeVisible();
+		await expect
+			.element(dialog.getByText('Guild-approved gear for new ruins assignments.'))
+			.toBeVisible();
+		await expect.element(dialog.getByTestId('shop-purse')).toBeVisible();
+
+		await dialog.getByRole('button', { name: 'Traveler Vest', exact: true }).click();
+
+		// Canonical stat deltas from previewEquipmentSwap.
+		const maxHpDelta = dialog.getByTestId('shop-delta-maxHp');
+		await expect.element(maxHpDelta).toHaveTextContent('20');
+		await expect.element(maxHpDelta).toHaveTextContent('24');
+		const purseAfter = dialog.getByTestId('shop-purse-after');
+		await expect.element(purseAfter).toHaveTextContent('30');
+		await expect.element(purseAfter).toHaveTextContent('-15');
+
+		// Unaffordable: the action is a disabled "Not enough" plate.
+		const action = dialog.getByRole('button', { name: 'Not enough' });
+		await expect.element(action).toBeDisabled();
+	});
+
+	it('buys an affordable selection from the detail action', async () => {
+		await withCommands(async (commands) => {
+			render(GameShell);
+			emitHudState(baseHudState(vestShopState(45)));
+
+			const dialog = page.getByRole('dialog', { name: 'Guild Quartermaster' });
+			await dialog.getByRole('button', { name: 'Traveler Vest', exact: true }).click();
+
+			const action = dialog.getByRole('button', { name: 'Buy' });
+			await expect.element(action).toBeEnabled();
+			await action.click();
+
+			expect(commands).toContainEqual({
+				type: 'buy-shop-item',
+				shopId: 'guild-quartermaster',
+				stockId: 'vest-stock'
 			});
 		});
 	});

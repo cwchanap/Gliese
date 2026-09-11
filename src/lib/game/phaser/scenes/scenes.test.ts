@@ -8385,7 +8385,9 @@ describe('WorldScene', () => {
 				nearbyShop: {
 					shopId: 'miras-item-shop',
 					name: 'JP Mira Shop',
-					merchantName: 'JP Mira'
+					merchantName: 'JP Mira',
+					description: 'JP reliable field supplies.',
+					bustPath: '/game/assets/heroic-ui/busts/mira.png'
 				}
 			})
 		);
@@ -9320,7 +9322,9 @@ describe('WorldScene', () => {
 			nearbyShop: {
 				shopId: 'miras-item-shop',
 				name: "Mira's Item Shop",
-				merchantName: 'Mira'
+				merchantName: 'Mira',
+				description: 'Reliable field supplies for the road east.',
+				bustPath: '/game/assets/heroic-ui/busts/mira.png'
 			}
 		},
 		{
@@ -9329,7 +9333,9 @@ describe('WorldScene', () => {
 			nearbyShop: {
 				shopId: 'guild-quartermaster',
 				name: 'Guild Quartermaster',
-				merchantName: 'Quartermaster Vale'
+				merchantName: 'Quartermaster Vale',
+				description: 'Guild-approved gear for new ruins assignments.',
+				bustPath: '/game/assets/heroic-ui/busts/quartermaster-vale.png'
 			}
 		}
 	])(

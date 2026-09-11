@@ -12980,11 +12980,11 @@ async function openAllEightBlacksmithShop(page: Page, expectedCoins: number, buy
 	await dialogue.getByRole('button', { name: 'Shop' }).click();
 	const shop = page.getByRole('dialog', { name: 'Sundrop Forge' });
 	await expect(shop).toBeVisible();
-	await expect(shop.getByText(`Coins: ${expectedCoins}`)).toBeVisible();
+	await expect(shop.getByLabel(`Coins: ${expectedCoins}`)).toBeVisible();
 	const ironCap = shop.getByTestId('shop-buy-grid').getByLabel('Iron Cap', { exact: true });
 	if (buyIronCap) {
 		await ironCap.dblclick();
-		await expect(shop.getByText('Coins: 65')).toBeVisible();
+		await expect(shop.getByLabel('Coins: 65')).toBeVisible();
 	} else {
 		await ironCap.hover();
 		await expect(page.getByRole('tooltip')).toContainText('0 left');
@@ -18264,7 +18264,7 @@ test('shop overlay opens near a merchant and supports buying and selling', async
 	await miraDialog.getByRole('button', { name: 'Shop' }).click();
 
 	await expect(page.getByRole('heading', { name: "Mira's Item Shop" })).toBeVisible();
-	await expect(page.getByText('Coins: 30')).toBeVisible();
+	await expect(page.getByLabel('Coins: 30')).toBeVisible();
 	const buyGrid = page.getByTestId('shop-buy-grid');
 	await expect
 		.soft(
@@ -18272,7 +18272,7 @@ test('shop overlay opens near a merchant and supports buying and selling', async
 				(element) => getComputedStyle(element).gridTemplateColumns.split(' ').length
 			)
 		)
-		.toBe(6);
+		.toBe(4);
 	const fieldPotionBuyTile = buyGrid.getByLabel('Field Potion', { exact: true });
 	await expect(fieldPotionBuyTile.getByRole('img', { name: 'Field Potion' })).toBeVisible();
 	await expect(fieldPotionBuyTile.getByText('Restores 8 HP.')).toHaveCount(0);
@@ -18281,7 +18281,7 @@ test('shop overlay opens near a merchant and supports buying and selling', async
 	await expect(page.getByRole('tooltip')).toContainText('Restores 8 HP.');
 
 	await fieldPotionBuyTile.dblclick();
-	await expect(page.getByText('Coins: 20')).toBeVisible();
+	await expect(page.getByLabel('Coins: 20')).toBeVisible();
 
 	await page.getByRole('tab', { name: 'Sell' }).click();
 	const sellGrid = page.getByTestId('shop-sell-grid');
@@ -18291,7 +18291,7 @@ test('shop overlay opens near a merchant and supports buying and selling', async
 				(element) => getComputedStyle(element).gridTemplateColumns.split(' ').length
 			)
 		)
-		.toBe(6);
+		.toBe(4);
 	const fieldPotionSellTile = sellGrid.getByLabel('Field Potion', { exact: true });
 	await expect(fieldPotionSellTile.getByRole('img', { name: 'Field Potion' })).toBeVisible();
 	await expect(fieldPotionSellTile.getByText('Restores 8 HP.')).toHaveCount(0);
@@ -18299,7 +18299,7 @@ test('shop overlay opens near a merchant and supports buying and selling', async
 	await fieldPotionSellTile.hover();
 	await expect(page.getByRole('tooltip')).toContainText('Restores 8 HP.');
 	await fieldPotionSellTile.dblclick();
-	await expect(page.getByText('Coins: 25')).toBeVisible();
+	await expect(page.getByLabel('Coins: 25')).toBeVisible();
 });
 
 test('interact key shop purchase appears in inventory', async ({ page }) => {
@@ -18356,7 +18356,7 @@ test('interact key shop purchase appears in inventory', async ({ page }) => {
 		.getByTestId('shop-buy-grid')
 		.getByLabel('Field Potion', { exact: true })
 		.dblclick();
-	await expect(shopDialog.getByText('Coins: 20')).toBeVisible();
+	await expect(shopDialog.getByLabel('Coins: 20')).toBeVisible();
 	await shopDialog.getByRole('button', { name: 'Close' }).click();
 
 	await page.getByRole('button', { name: 'Menu' }).click();
@@ -18604,9 +18604,9 @@ test('Blacksmith Oren equipment shop', async ({ page }) => {
 
 	const shop = page.getByRole('dialog', { name: 'Sundrop Forge' });
 	await expect(shop).toBeVisible();
-	await expect(shop.getByText('Coins: 100')).toBeVisible();
+	await expect(shop.getByLabel('Coins: 100')).toBeVisible();
 	await shop.getByTestId('shop-buy-grid').getByLabel('Iron Cap', { exact: true }).dblclick();
-	await expect(shop.getByText('Coins: 65')).toBeVisible();
+	await expect(shop.getByLabel('Coins: 65')).toBeVisible();
 	await shop.getByRole('button', { name: 'Close' }).click();
 	await expect(shop).toHaveCount(0);
 
@@ -18635,7 +18635,7 @@ test('Blacksmith Oren equipment shop', async ({ page }) => {
 		.click();
 	const resumedShop = page.getByRole('dialog', { name: 'Sundrop Forge' });
 	await expect(resumedShop).toBeVisible();
-	await expect(resumedShop.getByText('Coins: 65')).toBeVisible();
+	await expect(resumedShop.getByLabel('Coins: 65')).toBeVisible();
 	const resumedIronCap = resumedShop
 		.getByTestId('shop-buy-grid')
 		.getByLabel('Iron Cap', { exact: true });

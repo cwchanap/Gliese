@@ -1023,7 +1023,6 @@
 			shop={$hudState.shop}
 			nearbyShop={$hudState.nearbyShop}
 			coins={$hudState.wallet.coins}
-			status={$hudState.status}
 			bind:dialog={shopDialog}
 			bind:closeButton={shopCloseButton}
 			onClose={closeShop}

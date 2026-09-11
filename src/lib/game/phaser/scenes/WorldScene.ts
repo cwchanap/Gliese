@@ -1398,7 +1398,9 @@ export class WorldScene extends Phaser.Scene {
 		return {
 			shopId: shop.id,
 			name: shopText?.name ?? shop.name,
-			merchantName: shopText?.merchantName ?? shop.merchantName
+			merchantName: shopText?.merchantName ?? shop.merchantName,
+			description: shopText?.description ?? shop.description,
+			bustPath: shop.bustPath
 		};
 	}
 
@@ -1419,7 +1421,13 @@ export class WorldScene extends Phaser.Scene {
 			shopId: shop.id,
 			name: shopText?.name ?? shop.name,
 			merchantName: shopText?.merchantName ?? shop.merchantName,
-			buy: buildShopBuyEntries(shop.id, this.shopStockState, locale),
+			description: shopText?.description ?? shop.description,
+			bustPath: shop.bustPath,
+			buy: buildShopBuyEntries(shop.id, this.shopStockState, locale, {
+				base: { hp: this.getBaseMaxHp(), attack: this.playerProgress.attack, defense: 0 },
+				equipment: this.equipment,
+				inventory: this.inventory
+			}),
 			sell: buildShopSellEntries({ inventory: this.inventory, equipment: this.equipment, locale })
 		};
 	}
