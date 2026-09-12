@@ -7,6 +7,7 @@ import GameShell from './GameShell.svelte';
 import { HUD_COMMAND_EVENT, HUD_STATE_EVENT, type HudState } from '$lib/game/ui-bridge/events';
 import { createNewSaveState } from '$lib/game/save/save-state';
 import { SAVE_SLOTS_STORAGE_KEY, writeSaveSlot, type SaveSlotRecord } from '$lib/game/save/slots';
+import { setLastInputModality } from '$lib/game/core/gamepad';
 import type { ConsumableDefinition, EquipmentDefinition } from '$lib/game/content/items';
 import type { HudQuestEntry, HudQuestOffer } from '$lib/game/core/quests';
 import type { HudShopBuyEntry, HudShopSellEntry } from '$lib/game/core/shop';
@@ -18,6 +19,8 @@ vi.mock('$lib/game/phaser/createGame', () => ({
 afterEach(() => {
 	emitHudState(baseHudState({ ready: false }));
 	localStorage.removeItem(SAVE_SLOTS_STORAGE_KEY);
+	setLastInputModality('keys');
+	vi.unstubAllGlobals();
 });
 
 function emitHudState(state: HudState) {
@@ -1857,5 +1860,243 @@ describe('GameShell title mode', () => {
 
 		await expect.element(page.getByRole('button', { name: /menu/i })).toBeVisible();
 		expect(page.getByRole('heading', { name: 'GLIESE' }).elements()).toHaveLength(0);
+	});
+});
+
+describe('GameShell pad layer', () => {
+	let stubPad: { buttons: Array<{ pressed: boolean }>; axes: number[] };
+
+	function installPadStub() {
+		stubPad = {
+			buttons: Array.from({ length: 17 }, () => ({ pressed: false })),
+			axes: [0, 0]
+		};
+		vi.stubGlobal('navigator', { getGamepads: () => [stubPad] });
+	}
+
+	function padFrames(count = 2): Promise<void> {
+		return new Promise((resolve) => {
+			const step = (remaining: number) =>
+				remaining <= 0 ? resolve() : requestAnimationFrame(() => step(remaining - 1));
+			step(count);
+		});
+	}
+
+	async function press(buttonIndex: number) {
+		stubPad.buttons[buttonIndex].pressed = true;
+		await padFrames();
+		stubPad.buttons[buttonIndex].pressed = false;
+		await padFrames();
+	}
+
+	async function tiltAxis(x: number, y: number) {
+		stubPad.axes = [x, y];
+		await padFrames();
+		stubPad.axes = [0, 0];
+		await padFrames();
+	}
+
+	function focusedFocusId(): string | null {
+		return document.activeElement instanceof HTMLElement
+			? (document.activeElement.dataset.focusId ?? null)
+			: null;
+	}
+
+	it('menu button toggles the command grid', async () => {
+		installPadStub();
+		render(GameShell);
+		emitHudState(baseHudState());
+
+		await press(9);
+		await expect.element(page.getByRole('button', { name: 'Bag' })).toBeVisible();
+
+		await press(9);
+		expect(page.getByRole('button', { name: 'Bag' }).elements()).toHaveLength(0);
+	});
+
+	it('moves focus through the 4×2 command grid with the left stick', async () => {
+		installPadStub();
+		render(GameShell);
+		emitHudState(baseHudState({ heals: 0 }));
+
+		await press(9);
+		// Null current: the first direction lands on the first enabled tile.
+		await tiltAxis(0.8, 0);
+		expect(focusedFocusId()).toBe('field-cmd-bag');
+
+		await tiltAxis(0.8, 0);
+		expect(focusedFocusId()).toBe('field-cmd-gear');
+
+		// Rest below Gear is disabled (heals: 0): focus stays.
+		await tiltAxis(0, 0.8);
+		expect(focusedFocusId()).toBe('field-cmd-gear');
+
+		await tiltAxis(0, -0.8);
+		expect(focusedFocusId()).toBe('field-cmd-gear');
+
+		await tiltAxis(0.8, 0);
+		expect(focusedFocusId()).toBe('field-cmd-quest');
+	});
+
+	it('moves through the 6-column bag grid with the left stick', async () => {
+		installPadStub();
+		render(GameShell);
+		emitHudState(
+			baseHudState({
+				inventory: {
+					consumables: Array.from({ length: 7 }, (_, index) => ({
+						itemId: `potion-${index}`,
+						name: `Potion ${index}`,
+						description: 'Restores HP.',
+						iconPath: '/icon.png',
+						quantity: 1
+					})),
+					equipment: [],
+					keyItems: [],
+					equipped: { weapon: null, head: null, body: null, hands: null, accessory: null }
+				}
+			})
+		);
+
+		await page.getByRole('button', { name: /menu/i }).click();
+		await page.getByRole('button', { name: 'Bag' }).click();
+		await expect.element(page.getByTestId('inventory-slot-grid')).toBeVisible();
+
+		await tiltAxis(0.8, 0);
+		expect(focusedFocusId()).toBe('bag-slot-0');
+		for (let column = 1; column <= 5; column += 1) {
+			await tiltAxis(0.8, 0);
+			expect(focusedFocusId()).toBe(`bag-slot-${column}`);
+		}
+
+		// Right edge stays on the last column; back left to column 0, then down
+		// the column to the second-row item (bag-slot-6).
+		await tiltAxis(0.8, 0);
+		expect(focusedFocusId()).toBe('bag-slot-5');
+		for (let column = 4; column >= 0; column -= 1) {
+			await tiltAxis(-0.8, 0);
+			expect(focusedFocusId()).toBe(`bag-slot-${column}`);
+		}
+		await tiltAxis(0, 0.8);
+		expect(focusedFocusId()).toBe('bag-slot-6');
+	});
+
+	it('LB/RB cycles the bag category tabs', async () => {
+		installPadStub();
+		render(GameShell);
+		emitHudState(baseHudState());
+
+		await page.getByRole('button', { name: /menu/i }).click();
+		await page.getByRole('button', { name: 'Bag' }).click();
+		await expect.element(page.getByTestId('inventory-slot-grid')).toBeVisible();
+
+		await press(5);
+		await expect
+			.element(page.getByRole('tab', { name: /gear/i }))
+			.toHaveAttribute('aria-selected', 'true');
+
+		await press(4);
+		await expect
+			.element(page.getByRole('tab', { name: /potions/i }))
+			.toHaveAttribute('aria-selected', 'true');
+	});
+
+	it('confirm reveals/advances dialogue and cancel closes it', async () => {
+		installPadStub();
+		await withCommands(async (commands) => {
+			render(GameShell);
+			emitHudState(
+				baseHudState({
+					dialogue: {
+						id: 'dialogue-1',
+						npcId: 'npc-mira',
+						speaker: 'Mira',
+						line: 'Welcome to the shop!',
+						lineIndex: 0,
+						lineCount: 1,
+						mode: 'conversation',
+						choices: [],
+						canClose: true
+					}
+				})
+			);
+			const panel = page.getByRole('dialog', { name: 'Mira' });
+			await expect.element(panel).toBeVisible();
+
+			// First confirm reveals the typewriter line; second advances.
+			await press(0);
+			await press(0);
+			expect(commands).toContainEqual({ type: 'dialogue-advance' });
+
+			await press(1);
+			expect(commands).toContainEqual({ type: 'dialogue-close' });
+		});
+	});
+
+	it('left/right D-pad emits battle-cycle-target commands', async () => {
+		installPadStub();
+		await withCommands(async (commands) => {
+			render(GameShell);
+			emitHudState(
+				baseHudState({
+					battle: {
+						phase: 'active',
+						summary: null,
+						active: {
+							targetUnitId: 'encounter:unit:0',
+							enemies: [
+								{
+									unitId: 'encounter:unit:0',
+									enemyId: 'slime-scout',
+									name: 'Slime Scout',
+									hp: 5,
+									maxHp: 8,
+									defeated: false,
+									artPath: '/game/assets/heroic-ui/enemies/slime-scout.png'
+								}
+							],
+							ribbon: [
+								{ unitId: 'hero', readyAt: 0 },
+								{ unitId: 'encounter:unit:0', readyAt: 200 }
+							],
+							feed: [],
+							heals: 1,
+							items: 1,
+							flee: { status: 'idle', progress: 0 },
+							now: 0
+						}
+					}
+				})
+			);
+			await expect.element(page.getByTestId('battle-hud')).toBeVisible();
+
+			await press(14);
+			await press(15);
+
+			expect(commands).toContainEqual({ type: 'battle-cycle-target', direction: -1 });
+			expect(commands).toContainEqual({ type: 'battle-cycle-target', direction: 1 });
+		});
+	});
+
+	it('pad input flips Auto prompt glyphs to pad; a key flips them back', async () => {
+		installPadStub();
+		render(GameShell);
+		emitHudState(baseHudState());
+
+		await page.getByRole('button', { name: /menu/i }).click();
+		await page.getByRole('button', { name: 'Bag' }).click();
+		await expect.element(page.getByTestId('inventory-slot-grid')).toBeVisible();
+		// Blur the auto-focused close button so the confirm press has no click target.
+		(document.activeElement as HTMLElement | null)?.blur();
+
+		const glyph = () =>
+			document.querySelector<HTMLElement>('kbd[data-prompt]')?.getAttribute('data-prompt');
+		expect(glyph()).toBe('keys');
+
+		await press(0);
+		expect(glyph()).toBe('pad');
+
+		await userEvent.keyboard('{Shift}');
+		expect(glyph()).toBe('keys');
 	});
 });

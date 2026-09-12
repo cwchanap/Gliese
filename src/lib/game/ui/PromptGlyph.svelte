@@ -1,5 +1,6 @@
 <script lang="ts">
 	import type { PromptMode } from '$lib/game/i18n/preferences';
+	import { lastInputModality, resolvePromptModality } from '$lib/game/core/gamepad';
 
 	interface Props {
 		mode: PromptMode;
@@ -13,26 +14,9 @@
 
 	let { mode, keys, pad, tone = 'default' }: Props = $props();
 
-	let gamepadCount = $state(0);
-
-	$effect(() => {
-		const readGamepads = () => {
-			gamepadCount =
-				typeof navigator.getGamepads === 'function'
-					? Array.from(navigator.getGamepads()).filter(Boolean).length
-					: 0;
-		};
-		readGamepads();
-		window.addEventListener('gamepadconnected', readGamepads);
-		window.addEventListener('gamepaddisconnected', readGamepads);
-		return () => {
-			window.removeEventListener('gamepadconnected', readGamepads);
-			window.removeEventListener('gamepaddisconnected', readGamepads);
-		};
-	});
-
-	// Auto shows pad glyphs once a gamepad is connected, keyboard glyphs otherwise.
-	const resolved = $derived(mode === 'auto' ? (gamepadCount > 0 ? 'pad' : 'keys') : mode);
+	// Auto follows the last real input modality (pad input flips to pad, any
+	// key flips back) — the glyphs always name the controls that actually work.
+	const resolved = $derived(resolvePromptModality(mode, $lastInputModality));
 </script>
 
 <kbd class="heroic-prompt-glyph" data-prompt={resolved} data-tone={tone}>

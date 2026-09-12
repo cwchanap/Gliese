@@ -76,7 +76,7 @@ describe('SystemScreen', () => {
 	it('disables the Audio rail with the unavailable explanation', async () => {
 		render(SystemScreen, { props: { open: true, onClose: vi.fn(), onkeydown: vi.fn() } });
 
-		const audio = page.getByRole('button', { name: 'Audio' });
+		const audio = page.getByRole('tab', { name: 'Audio' });
 		await expect.element(audio).toBeDisabled();
 		await expect.element(audio).toHaveAttribute('aria-describedby', 'system-audio-unavailable');
 	});
@@ -114,7 +114,7 @@ describe('SystemScreen', () => {
 	it('Input rail focuses the Prompts row', async () => {
 		render(SystemScreen, { props: { open: true, onClose: vi.fn(), onkeydown: vi.fn() } });
 
-		await page.getByRole('button', { name: 'Input' }).click();
+		await page.getByRole('tab', { name: 'Input' }).click();
 
 		await expect.element(page.getByRole('button', { name: 'Auto' })).toHaveFocus();
 	});

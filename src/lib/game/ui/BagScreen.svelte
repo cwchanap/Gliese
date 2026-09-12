@@ -296,6 +296,9 @@
 									class="bag-slot font-display"
 									class:bag-slot-selected={selected}
 									aria-label={slot.item.name}
+									data-focus-id={`bag-slot-${index}`}
+									data-focus-row={Math.floor(index / bagGridColumns)}
+									data-focus-column={index % bagGridColumns}
 									onclick={() => selectSlot(slot)}
 									ondblclick={() => activateSlot(slot)}
 								>
