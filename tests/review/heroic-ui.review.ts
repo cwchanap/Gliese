@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
-import { startNewRunFromTitle } from '../e2e/helpers/game';
+import { startNewRunFromTitle, continueFromTitle } from '../e2e/helpers/game';
 
 // A real serialized SaveState (createNewSaveState()) used to seed slot records
 // so the captures exercise the same filled-card treatments as the mockups.
@@ -424,9 +424,7 @@ test('Quest journal capture through the guild side-quest flow', async ({ page })
 			JSON.stringify({ locale: 'en', textSpeed: 'instant', motion: 'on', promptMode: 'auto' })
 		)
 	);
-	await page.goto('/');
-	await page.getByRole('button', { name: /Continue/i }).click();
-	await expect(page.locator('canvas')).toBeVisible();
+	await continueFromTitle(page);
 
 	// Talk to Arlen and accept the offered Guild side quest.
 	await page.locator('canvas').click();
@@ -516,9 +514,7 @@ test('Shop screen capture through the merchant dialogue path', async ({ page }) 
 		null,
 		null
 	]);
-	await page.goto('/');
-	await page.getByRole('button', { name: /Continue/i }).click();
-	await expect(page.locator('canvas')).toBeVisible();
+	await continueFromTitle(page);
 
 	// Talk to Oren and enter the shop through the dialogue action (the Heroic
 	// command grid has no Shop tile).
@@ -659,8 +655,7 @@ test('Dialogue capture through a real NPC interaction', async ({ page }) => {
 			JSON.stringify({ locale: 'en', textSpeed: 'instant', motion: 'on', promptMode: 'auto' })
 		)
 	);
-	await page.getByRole('button', { name: /Continue/i }).click();
-	await expect(page.locator('canvas')).toBeVisible();
+	await continueFromTitle(page);
 
 	// Real NPC interaction: the interact key opens the live story dialogue.
 	await page.locator('canvas').click();

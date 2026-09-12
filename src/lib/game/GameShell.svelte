@@ -19,10 +19,22 @@
 	import { getNewestSaveSlot } from '$lib/game/save/slots';
 	import type { GameStartRequest } from '$lib/game/phaser/createGame';
 	import { hasRenderOptionOverrides } from '$lib/game/phaser/world-render-options';
-	import { resolveMenuFocusTarget, type MenuFocusNode } from '$lib/game/core/menu-focus';
+	import {
+		resolveMenuFocusTarget,
+		type MenuFocusDirection,
+		type MenuFocusNode
+	} from '$lib/game/core/menu-focus';
+	import {
+		diffGamepadActions,
+		setLastInputModality,
+		snapshotGamepad,
+		type GamepadSnapshot,
+		type GamepadUiAction
+	} from '$lib/game/core/gamepad';
 	import { onHudState } from '$lib/game/ui-bridge/events';
 	import {
 		hudState,
+		requestBattleCycleTarget,
 		requestBuyShopItem,
 		requestCloseShop,
 		requestDialogueAdvance,
@@ -344,6 +356,14 @@
 		if (event.repeat) return false;
 		if (isEditableTarget(event.target)) return false;
 
+		if (!moveMenuFocus(direction)) return false;
+		event.preventDefault();
+		return true;
+	}
+
+	/** Shared by keyboard arrows and the pad layer: move DOM focus along the
+	 *  visible focus-node grid. Returns whether a node grid was present. */
+	function moveMenuFocus(direction: MenuFocusDirection): boolean {
 		const nodes = collectMenuFocusNodes();
 		if (nodes.length === 0) return false;
 
@@ -352,13 +372,14 @@
 				? (document.activeElement.dataset.focusId ?? null)
 				: null;
 		const nextId = resolveMenuFocusTarget(nodes, currentId, direction);
-		event.preventDefault();
 		if (!nextId || nextId === currentId) return true;
 		document.querySelector<HTMLElement>(`[data-focus-id="${CSS.escape(nextId)}"]`)?.focus();
 		return true;
 	}
 
 	function handleGlobalKeydown(event: KeyboardEvent) {
+		setLastInputModality('keys');
+
 		if (handleMenuArrowKeys(event)) return;
 
 		if (event.key !== 'm' && event.key !== 'M') return;
@@ -378,6 +399,127 @@
 
 		event.preventDefault();
 		openAreaMap();
+	}
+
+	// ---- Pad layer: the ONE rAF poll loop (scenes stay pad-free) ----------
+
+	$effect(() => {
+		if (mode !== 'playing') return;
+		let previous: GamepadSnapshot = null;
+		let frame = requestAnimationFrame(function poll() {
+			const pads = typeof navigator.getGamepads === 'function' ? navigator.getGamepads() : [];
+			const current = snapshotGamepad(pads[0] ?? null);
+			for (const action of diffGamepadActions(previous, current)) handlePadUiAction(action);
+			previous = current;
+			frame = requestAnimationFrame(poll);
+		});
+		return () => cancelAnimationFrame(frame);
+	});
+
+	function handlePadUiAction(action: GamepadUiAction) {
+		setLastInputModality('pad');
+		switch (action) {
+			case 'up':
+			case 'down':
+			case 'left':
+			case 'right':
+				handlePadDirection(action);
+				break;
+			case 'confirm':
+				handlePadConfirm();
+				break;
+			case 'cancel':
+				handlePadCancel();
+				break;
+			case 'action':
+				// X mirrors the Item battle tile glyph; unused outside battle.
+				if (battleActive) clickBattleTile('battle-tile-item');
+				break;
+			case 'tab-left':
+				cyclePadTabs(-1);
+				break;
+			case 'tab-right':
+				cyclePadTabs(1);
+				break;
+			case 'menu':
+				if (!battleLocked) {
+					if (commandOpen) closeCommand();
+					else openCommand();
+				}
+				break;
+		}
+	}
+
+	function handlePadDirection(action: MenuFocusDirection) {
+		if (battleActive) {
+			// Mirrors the enemy-plate click: left/right cycle the target.
+			if (action === 'left') requestBattleCycleTarget(-1);
+			else if (action === 'right') requestBattleCycleTarget(1);
+			return;
+		}
+		moveMenuFocus(action);
+	}
+
+	function clickBattleTile(testId: string) {
+		document.querySelector<HTMLButtonElement>(`[data-testid="${testId}"]`)?.click();
+	}
+
+	function handlePadConfirm() {
+		if ($hudState.dialogue) {
+			const choice = document.querySelector<HTMLButtonElement>(
+				'.jrpg-dialogue-choice[data-selected="true"]:not([disabled])'
+			);
+			if (choice) {
+				choice.click();
+				return;
+			}
+			// Next/reveal shares the panel's own confirm path.
+			document.querySelector<HTMLButtonElement>('.jrpg-dialogue-action')?.click();
+			return;
+		}
+		if (battleActive) {
+			clickBattleTile('battle-tile-heal');
+			return;
+		}
+		(document.activeElement as HTMLElement | null)?.click();
+	}
+
+	function handlePadCancel() {
+		const dialogue = $hudState.dialogue;
+		if (dialogue) {
+			if (dialogue.canClose) requestDialogueClose();
+			return;
+		}
+		if (battleActive) {
+			clickBattleTile('battle-tile-flee');
+			return;
+		}
+		if (battleSummary) return;
+		if (commandOpen) return closeCommand();
+		if (inventoryOpen) return closeInventory();
+		if (shopOpen) return closeShop();
+		if (questLogOpen) return closeQuestLog();
+		if (areaMapOpen) return closeAreaMap();
+		if (saveOpen) return closeSave();
+		if (skillOpen) return closeSkill();
+		if (systemOpen) return closeSystem();
+	}
+
+	/** LB/RB: cycle the active surface's tab rail (bag categories, shop
+	 *  buy/sell, system rail) — focus + activate, wrapping at the ends. */
+	function cyclePadTabs(step: -1 | 1) {
+		const tabs = Array.from(document.querySelectorAll<HTMLElement>('[role="tab"]')).filter(
+			(tab) =>
+				tab.getClientRects().length > 0 && !(tab instanceof HTMLButtonElement && tab.disabled)
+		);
+		if (tabs.length === 0) return;
+
+		const selectedIndex = tabs.findIndex((tab) => tab.getAttribute('aria-selected') === 'true');
+		const focusedIndex = tabs.indexOf(document.activeElement as HTMLElement);
+		const from = selectedIndex >= 0 ? selectedIndex : focusedIndex >= 0 ? focusedIndex : 0;
+		const target = tabs[(from + step + tabs.length) % tabs.length];
+		target.focus();
+		if (target instanceof HTMLButtonElement) target.click();
 	}
 
 	$effect(() => {

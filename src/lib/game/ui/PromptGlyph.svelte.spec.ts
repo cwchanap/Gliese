@@ -1,9 +1,10 @@
 import { page } from 'vitest/browser';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 
 import '../../../app.css';
 import PromptGlyph from '$lib/game/ui/PromptGlyph.svelte';
+import { setLastInputModality } from '$lib/game/core/gamepad';
 
 function renderGlyph(mode: 'auto' | 'pad' | 'keys') {
 	return render(PromptGlyph, { props: { mode, keys: 'Enter', pad: 'Ⓐ' } });
@@ -11,7 +12,7 @@ function renderGlyph(mode: 'auto' | 'pad' | 'keys') {
 
 describe('PromptGlyph', () => {
 	afterEach(() => {
-		vi.unstubAllGlobals();
+		setLastInputModality('keys');
 	});
 
 	it('renders the keyboard glyph in keys mode', async () => {
@@ -28,18 +29,16 @@ describe('PromptGlyph', () => {
 		await expect.element(glyph).toHaveAttribute('data-prompt', 'pad');
 	});
 
-	it('auto resolves to the keyboard glyph when no gamepad is connected', async () => {
+	it('auto resolves to the keyboard glyph before any pad input', async () => {
 		renderGlyph('auto');
 
 		const glyph = page.getByText('Enter');
 		await expect.element(glyph).toHaveAttribute('data-prompt', 'keys');
 	});
 
-	it('auto resolves to the gamepad glyph when a gamepad is connected', async () => {
-		const getGamepads = vi.fn(() => [{ id: 'test-pad' }] as unknown as Gamepad[]);
-		vi.stubGlobal('navigator', { getGamepads });
-
+	it('auto switches to the gamepad glyph after pad input', async () => {
 		renderGlyph('auto');
+		setLastInputModality('pad');
 
 		const glyph = page.getByText('Ⓐ');
 		await expect.element(glyph).toHaveAttribute('data-prompt', 'pad');

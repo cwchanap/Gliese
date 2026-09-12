@@ -61,8 +61,13 @@
 			tabindex="-1"
 			{onkeydown}
 		>
-			<aside class="heroic-rail" aria-label={t($locale, 'ui.system')}>
-				<div class="heroic-rail-card heroic-rail-card-selected" aria-current="page">
+			<div class="heroic-rail" role="tablist" aria-label={t($locale, 'ui.system')}>
+				<div
+					class="heroic-rail-card heroic-rail-card-selected"
+					role="tab"
+					aria-selected="true"
+					aria-current="page"
+				>
 					<svg
 						viewBox="0 0 16 16"
 						fill="none"
@@ -77,7 +82,9 @@
 				</div>
 				<button
 					type="button"
+					role="tab"
 					class="heroic-rail-card"
+					aria-selected="false"
 					disabled
 					aria-describedby="system-audio-unavailable"
 					title={t($locale, 'ui.audioUnavailable')}
@@ -97,7 +104,13 @@
 				<span id="system-audio-unavailable" class="sr-only">
 					{t($locale, 'ui.audioUnavailable')}
 				</span>
-				<button type="button" class="heroic-rail-card" onclick={focusPromptsRow}>
+				<button
+					type="button"
+					role="tab"
+					class="heroic-rail-card"
+					aria-selected="false"
+					onclick={focusPromptsRow}
+				>
 					<svg
 						viewBox="0 0 16 16"
 						fill="none"
@@ -112,7 +125,7 @@
 					</svg>
 					<span>{t($locale, 'ui.railInput')}</span>
 				</button>
-			</aside>
+			</div>
 
 			<section class="system-content">
 				<header class="system-header">
