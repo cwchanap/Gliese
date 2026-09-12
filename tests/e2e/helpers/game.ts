@@ -5,6 +5,10 @@ export const SAVES_STORAGE_KEY = 'gliese.saves.v1';
 async function waitForPlaying(page: Page) {
 	await expect(page.locator('canvas')).toBeVisible();
 	await expect(page.getByRole('button', { name: 'Menu' })).toBeVisible();
+	// Menu/canvas exist before Phaser boots; the field HUD's "Loading game"
+	// placeholder is only replaced by WorldScene's first publish, when interact
+	// keys are live. Waiting for it keeps keyboard interactions deterministic.
+	await expect(page.getByText('Loading game')).toHaveCount(0);
 }
 
 /** Boots a fresh run through the Title screen. */
