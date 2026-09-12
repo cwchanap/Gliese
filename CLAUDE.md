@@ -153,7 +153,7 @@ Phaser and Svelte communicate exclusively through custom `window` events (define
 
 - `WorldScene` calls `emitHudState(...)` after every meaningful state change
 - The Svelte HUD reads `$hudState` (a readable store backed by `onHudState`)
-- The Svelte HUD dispatches commands via `emitHudCommand(...)`, which `WorldScene` receives via `onHudCommand`. The `HudCommand` union currently covers: `heal`, `save-slot`, `pause-game`, `resume-game`, `use-item`, `equip-item`, `unequip-slot`, `open-shop`, `close-shop`, `buy-shop-item`, `sell-inventory-item`, `accept-quest`, `dialogue-advance`, `dialogue-close`, `dialogue-choose`, `dismiss-battle-summary`. When adding a new command, update the union in `ui-bridge/events.ts` and handle it in both `WorldScene` and the HUD.
+- The Svelte HUD dispatches commands via `emitHudCommand(...)`, which `WorldScene` receives via `onHudCommand`. The `HudCommand` union currently covers: `heal`, `save-slot`, `pause-game`, `resume-game`, `use-item`, `equip-item`, `unequip-slot`, `open-shop`, `close-shop`, `buy-shop-item`, `sell-inventory-item`, `accept-quest`, `dialogue-advance`, `dialogue-close`, `dialogue-choose`, `battle-cycle-target`, `battle-flee`, `dismiss-battle-summary`. When adding a new command, update the union in `ui-bridge/events.ts` and handle it in both `WorldScene` and the HUD (`battle-cycle-target` / `battle-flee` / `dismiss-battle-summary` are battle-scoped: `BattleScene` handles them and `WorldScene` ignores them).
 
 ### Content / Data Model
 

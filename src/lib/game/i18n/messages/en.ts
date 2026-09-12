@@ -78,6 +78,26 @@ export const en = {
 		battleSummary: 'Battle Summary',
 		battleVictory: 'Victory',
 		battleDefeat: 'Defeat',
+		battleHud: 'Battle',
+		battleTurn: 'Turn',
+		battleAuto: 'Auto',
+		battleTargeted: 'Targeted',
+		battleWaiting: 'Waiting',
+		battleFeed: 'Battle feed',
+		battleFeedHit: '−{{amount}} {{name}} hit',
+		battleFeedHurt: '−{{amount}} {{name}} hurt',
+		battleFeedHeal: '+{{amount}} {{name}}',
+		battleFeedDefeat: '{{name}} defeated',
+		battleHeal: 'Heal',
+		battleItem: 'Item',
+		battleFlee: 'Flee',
+		battleOneCharge: '1 charge',
+		battleCharges: '{{count}} charges',
+		battleItemsInBag: '{{count}} in bag',
+		battleStatXp: 'XP',
+		battleStatCoins: 'Coins',
+		battleStatDrop: 'Drop',
+		battleStatFoes: 'Foes',
 		enemiesDefeated: 'Enemies defeated: {{count}}',
 		xpGained: 'XP gained: {{xp}}',
 		coinsGained: 'Coins gained: {{coins}}',
@@ -234,6 +254,14 @@ export const en = {
 		npcNearby: '{{npcName}} nearby'
 	},
 	content: {
+		enemies: {
+			'slime-scout': {
+				name: 'Slime Scout'
+			},
+			'ruins-warden': {
+				name: 'Ruins Warden'
+			}
+		},
 		items: {
 			'field-potion': {
 				name: 'Field Potion',

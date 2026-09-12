@@ -81,6 +81,26 @@ export const ja = {
 		battleSummary: 'バトル結果',
 		battleVictory: '勝利',
 		battleDefeat: '敗北',
+		battleHud: 'バトル',
+		battleTurn: 'ターン',
+		battleAuto: 'オート',
+		battleTargeted: 'ターゲット',
+		battleWaiting: '待機',
+		battleFeed: 'バトルログ',
+		battleFeedHit: '{{name}} に−{{amount}}',
+		battleFeedHurt: '{{name}} が−{{amount}}',
+		battleFeedHeal: '+{{amount}} {{name}}',
+		battleFeedDefeat: '{{name}} を倒した',
+		battleHeal: '回復',
+		battleItem: '道具',
+		battleFlee: 'にげる',
+		battleOneCharge: '回復1回',
+		battleCharges: '回復{{count}}回',
+		battleItemsInBag: 'バッグに{{count}}個',
+		battleStatXp: 'XP',
+		battleStatCoins: 'コイン',
+		battleStatDrop: 'ドロップ',
+		battleStatFoes: '敵',
 		enemiesDefeated: '倒した敵: {{count}}',
 		xpGained: '獲得XP: {{xp}}',
 		coinsGained: '獲得コイン: {{coins}}',
@@ -237,6 +257,14 @@ export const ja = {
 		npcNearby: '{{npcName}}が近くにいる'
 	},
 	content: {
+		enemies: {
+			'slime-scout': {
+				name: 'スライム'
+			},
+			'ruins-warden': {
+				name: '遺跡の守護者'
+			}
+		},
 		items: {
 			'field-potion': {
 				name: 'フィールドポーション',

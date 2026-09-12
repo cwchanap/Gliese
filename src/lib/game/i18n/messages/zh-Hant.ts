@@ -81,6 +81,26 @@ export const zhHant = {
 		battleSummary: '戰鬥結算',
 		battleVictory: '勝利',
 		battleDefeat: '敗北',
+		battleHud: '戰鬥',
+		battleTurn: '回合',
+		battleAuto: '自動',
+		battleTargeted: '目標',
+		battleWaiting: '待機',
+		battleFeed: '戰鬥記錄',
+		battleFeedHit: '{{name}} −{{amount}}',
+		battleFeedHurt: '{{name}} 受到−{{amount}}',
+		battleFeedHeal: '+{{amount}} {{name}}',
+		battleFeedDefeat: '擊敗{{name}}',
+		battleHeal: '回復',
+		battleItem: '道具',
+		battleFlee: '逃跑',
+		battleOneCharge: '回復1次',
+		battleCharges: '回復{{count}}次',
+		battleItemsInBag: '背包有{{count}}個',
+		battleStatXp: 'XP',
+		battleStatCoins: '金幣',
+		battleStatDrop: '掉落',
+		battleStatFoes: '敵人',
 		enemiesDefeated: '擊敗敵人：{{count}}',
 		xpGained: '獲得 XP：{{xp}}',
 		coinsGained: '獲得金幣：{{coins}}',
@@ -237,6 +257,14 @@ export const zhHant = {
 		npcNearby: '{{npcName}} 在附近'
 	},
 	content: {
+		enemies: {
+			'slime-scout': {
+				name: '史萊姆'
+			},
+			'ruins-warden': {
+				name: '遺跡守衛'
+			}
+		},
 		items: {
 			'field-potion': {
 				name: '野外藥水',

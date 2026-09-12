@@ -52,6 +52,55 @@ const QUEST_SAVE_STATE = JSON.stringify({
 	player: { level: 1, xp: 0, hp: 20, attack: 3, x: 800, y: 184, facing: 'up' }
 });
 
+// Side-quest progress for the victory pill: the mockup's victory shows the
+// "Thin Village Slimes" pill, so the battle seeds carry that quest active.
+const BATTLE_QUESTS = {
+	entries: {
+		'investigate-the-ruins': {
+			status: 'active',
+			currentObjectiveId: 'talk-to-guild-master',
+			progress: 0,
+			rewardApplied: false,
+			countedSourceIds: []
+		},
+		'thin-village-slimes': {
+			status: 'active',
+			currentObjectiveId: 'defeat-village-slimes',
+			progress: 0,
+			rewardApplied: false,
+			countedSourceIds: []
+		}
+	},
+	completedObjectives: {}
+};
+
+// Battle capture seed: parked on the meadow slime encounter (canonical
+// encounter e2e path). Low attack keeps the fight alive for the capture;
+// the large HP pool absorbs the slime counterattacks that feed the feed.
+const BATTLE_SAVE_STATE = JSON.stringify({
+	...JSON.parse(SEED_SAVE_STATE),
+	player: { level: 1, xp: 0, hp: 200, attack: 1, x: 4_960, y: 960, facing: 'down' },
+	quests: BATTLE_QUESTS
+});
+
+// Victory capture seed: same spot, overwhelming attack so the encounter
+// resolves into the victory summary (and advances the side-quest pill).
+const VICTORY_SAVE_STATE = JSON.stringify({
+	...JSON.parse(SEED_SAVE_STATE),
+	player: { level: 1, xp: 0, hp: 200, attack: 50, x: 4_960, y: 960, facing: 'down' },
+	quests: BATTLE_QUESTS
+});
+
+function seedStateRecord(state: string) {
+	return {
+		kind: 'autosave' as const,
+		savedAt: new Date().toISOString(),
+		playtimeSeconds: 6120,
+		locationLabel: 'Sundrop Meadows',
+		state: JSON.parse(state)
+	};
+}
+
 function seedRecord(kind: 'autosave' | 'manual', playtimeSeconds: number, locationLabel: string) {
 	// playtimeSeconds is formatted as h:mm; 6120 -> "01:42", 3480 -> "00:58".
 	return {
@@ -516,6 +565,70 @@ test('Shop screen capture through the merchant dialogue path', async ({ page }) 
 
 	await page.screenshot({
 		path: 'docs/visual-references/heroic-ui/runtime/04-shop.png'
+	});
+});
+
+// Battle capture: reached through the real encounter flow (seeded autosave on
+// the meadow slime encounter → Continue → hero closes into reach → BattleScene).
+// Structural assertions cover the mockup composition: TURN/AUTO ribbon, enemy
+// plates, hero plate, combat feed, and the Heal/Item/Flee tiles.
+test('Battle HUD capture through a real encounter', async ({ page }) => {
+	await seedSaveSlots(page, [seedStateRecord(BATTLE_SAVE_STATE), null, null]);
+	await page.goto('/');
+	await page.getByRole('button', { name: /Continue/i }).click();
+
+	const battleHud = page.getByTestId('battle-hud');
+	await expect(battleHud).toBeVisible({ timeout: 30_000 });
+
+	// Field chrome is replaced by the battle surface.
+	await expect(page.getByTestId('hud-party-panel')).toHaveCount(0);
+
+	await expect(page.getByTestId('battle-ribbon')).toBeVisible();
+	await expect(page.getByTestId('battle-ribbon')).toContainText(/turn/i);
+	await expect(page.getByTestId('battle-ribbon')).toContainText(/auto/i);
+	expect(await page.getByTestId('battle-plate').count()).toBeGreaterThanOrEqual(1);
+	await expect(page.getByTestId('battle-plate').first()).toContainText('Slime Scout');
+	await expect(page.getByTestId('battle-hero-plate')).toBeVisible();
+	await expect(page.getByTestId('battle-hero-plate')).toContainText('Liam');
+	await expect(page.getByTestId('battle-tiles')).toBeVisible();
+	for (const tile of ['heal', 'item', 'flee']) {
+		await expect(page.getByTestId(`battle-tile-${tile}`)).toBeVisible();
+	}
+	// Plate art ships with the plates.
+	await expect(page.getByTestId('battle-plate').first().locator('img')).toBeVisible();
+
+	// Let the entrance animation settle before capturing.
+	await page.waitForTimeout(700);
+
+	await page.screenshot({
+		path: 'docs/visual-references/heroic-ui/runtime/07-battle.png'
+	});
+});
+
+// Victory capture: same encounter path with an overwhelming attack so the
+// battle resolves into the Heroic victory summary through the real flow.
+test('Victory summary capture through a real encounter', async ({ page }) => {
+	await seedSaveSlots(page, [seedStateRecord(VICTORY_SAVE_STATE), null, null]);
+	await page.goto('/');
+	await page.getByRole('button', { name: /Continue/i }).click();
+
+	const summary = page.getByTestId('battle-summary');
+	await expect(summary).toBeVisible({ timeout: 30_000 });
+
+	// Stat cards, quest pill, and the single Continue action (mockup layout).
+	await expect(summary).toContainText(/victory/i);
+	await expect(summary.getByTestId('battle-stat-xp')).toBeVisible();
+	await expect(summary.getByTestId('battle-stat-coins')).toBeVisible();
+	await expect(summary.getByTestId('battle-stat-drop')).toBeVisible();
+	await expect(summary.getByTestId('battle-stat-foes')).toBeVisible();
+	await expect(summary.getByTestId('battle-summary-quest')).toContainText('Thin Village Slimes');
+	await expect(summary.getByTestId('battle-summary-continue')).toContainText('Continue');
+	await expect(summary.getByRole('button', { name: /continue/i })).toHaveCount(1);
+
+	await page.waitForTimeout(700);
+
+	await page.screenshot({
+		path: 'docs/visual-references/heroic-ui/runtime/08-victory.png'
 	});
 });
 

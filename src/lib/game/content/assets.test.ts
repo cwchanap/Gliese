@@ -117,7 +117,7 @@ describe('battle background asset metadata', () => {
 		expect(battleBackgroundAssets).toEqual({
 			meadow: {
 				key: 'battle-background-meadow',
-				path: '/game/assets/battle-meadow.png'
+				path: '/game/assets/heroic-ui/battle-backdrop.png'
 			},
 			ruins: {
 				key: 'battle-background-ruins',

@@ -35,7 +35,8 @@ const initialHudState: HudState = {
 	dialogue: null,
 	battle: {
 		phase: 'none',
-		summary: null
+		summary: null,
+		active: null
 	},
 	quests: buildHudQuestState({
 		state: createInitialQuestState(),
@@ -114,4 +115,12 @@ export function requestDialogueChoice(choiceId: string) {
 
 export function requestDismissBattleSummary() {
 	emitHudCommand({ type: 'dismiss-battle-summary' });
+}
+
+export function requestBattleCycleTarget(direction: -1 | 1) {
+	emitHudCommand({ type: 'battle-cycle-target', direction });
+}
+
+export function requestBattleFlee() {
+	emitHudCommand({ type: 'battle-flee' });
 }
