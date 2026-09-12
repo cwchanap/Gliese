@@ -50,7 +50,7 @@ function baseHudState(overrides: Partial<HudState> = {}): HudState {
 		nearbyShop: null,
 		shop: null,
 		dialogue: null,
-		battle: { phase: 'none', summary: null },
+		battle: { phase: 'none', summary: null, active: null },
 		quests: { main: null, side: [], completed: [], guildOffer: null },
 		inventory: {
 			consumables: [],
@@ -341,7 +341,7 @@ describe('GameShell battle summary', () => {
 							coinsGained: 12,
 							drops: [{ itemId: 'field-potion', name: 'Field Potion', quantity: 2 }],
 							leveledUp: true,
-							completedQuestTitles: ['Thin the Village Slimes'],
+							completedQuestTitles: [],
 							questRewards: [
 								{
 									title: 'Thin the Village Slimes',
@@ -349,33 +349,32 @@ describe('GameShell battle summary', () => {
 								}
 							],
 							questProgress: []
-						}
+						},
+						active: null
 					}
 				})
 			);
 
-			const summary = page.getByRole('dialog', { name: /battle summary/i });
+			const summary = page.getByTestId('battle-summary');
 			await expect.element(summary).toBeVisible();
-			await expect.element(summary.getByText(/Enemies defeated: 3/i)).toBeVisible();
-			await expect.element(summary.getByText(/XP gained: 12/i)).toBeVisible();
-			await expect.element(summary.getByText(/Coins gained: 12/i)).toBeVisible();
-			await expect.element(summary.getByText(/Field Potion x2/i)).toBeVisible();
+			await expect.element(summary).toHaveTextContent(/victory/i);
+			await expect.element(summary.getByTestId('battle-stat-xp')).toHaveTextContent('12');
+			await expect.element(summary.getByTestId('battle-stat-coins')).toHaveTextContent('12');
+			await expect.element(summary.getByTestId('battle-stat-drop')).toHaveTextContent('x2');
+			await expect.element(summary.getByTestId('battle-stat-foes')).toHaveTextContent('3');
+			await expect.element(summary).toHaveTextContent(/Level up/i);
+			// Quest pill falls back to the reward grant title.
 			await expect
-				.element(
-					summary.getByText(
-						/Quest complete: Thin the Village Slimes\. Reward: 6 XP \/ 12 coins \/ 1 item/i
-					)
-				)
-				.toBeVisible();
-			await expect.element(summary.getByText(/Level up/i)).toBeVisible();
+				.element(summary.getByTestId('battle-summary-quest'))
+				.toHaveTextContent('Thin the Village Slimes');
 
-			await summary.getByRole('button', { name: /continue/i }).click();
+			await summary.getByTestId('battle-summary-continue').click();
 
 			expect(commands.at(-1)).toEqual({ type: 'dismiss-battle-summary' });
 		});
 	});
 
-	it('renders every victory section including quest progress rows', async () => {
+	it('renders the quest pill with live progress dots', async () => {
 		render(GameShell);
 		emitHudState(
 			baseHudState({
@@ -387,14 +386,9 @@ describe('GameShell battle summary', () => {
 						xpGained: 8,
 						coinsGained: 6,
 						drops: [{ itemId: 'field-potion', name: 'Field Potion', quantity: 1 }],
-						leveledUp: true,
-						completedQuestTitles: ['Thin the Village Slimes'],
-						questRewards: [
-							{
-								title: 'Thin the Village Slimes',
-								rewardSummary: '6 XP / 6 coins'
-							}
-						],
+						leveledUp: false,
+						completedQuestTitles: [],
+						questRewards: [],
 						questProgress: [
 							{
 								questId: 'thin-the-village-slimes',
@@ -405,22 +399,19 @@ describe('GameShell battle summary', () => {
 								target: 3
 							}
 						]
-					}
+					},
+					active: null
 				}
 			})
 		);
 
-		const summary = page.getByRole('dialog', { name: /battle summary/i });
-		await expect.element(summary).toBeVisible();
-		// Each conditional section renders its own stagger row.
-		await expect.element(summary.getByText(/Field Potion x1/i)).toBeVisible();
-		await expect.element(summary.getByText(/Level up/i)).toBeVisible();
-		await expect
-			.element(
-				summary.getByText(/Quest complete: Thin the Village Slimes\. Reward: 6 XP \/ 6 coins/i)
-			)
-			.toBeVisible();
-		await expect.element(summary.getByText(/Slimes thinned: 2\/3/i)).toBeVisible();
+		const pill = page.getByTestId('battle-summary-quest');
+		await expect.element(pill).toHaveTextContent('Thin the Village Slimes');
+		const dots = pill.element()?.querySelectorAll('i') ?? [];
+		expect(dots).toHaveLength(3);
+		expect(
+			Array.from(dots).filter((dot) => dot.classList.contains('battle-summary-dot-on'))
+		).toHaveLength(2);
 	});
 
 	it('moves keyboard focus to the summary continue action when the summary appears', async () => {
@@ -439,14 +430,15 @@ describe('GameShell battle summary', () => {
 						completedQuestTitles: [],
 						questRewards: [],
 						questProgress: []
-					}
+					},
+					active: null
 				}
 			})
 		);
 
-		const summary = page.getByRole('dialog', { name: /battle summary/i });
+		const summary = page.getByTestId('battle-summary');
 		await expect.element(summary).toBeVisible();
-		await expect.element(summary.getByRole('button', { name: /continue/i })).toHaveFocus();
+		await expect.element(summary.getByTestId('battle-summary-continue')).toHaveFocus();
 	});
 
 	it('traps tab focus inside the battle summary while command controls are behind it', async () => {
@@ -470,14 +462,15 @@ describe('GameShell battle summary', () => {
 						completedQuestTitles: [],
 						questRewards: [],
 						questProgress: []
-					}
+					},
+					active: null
 				}
 			})
 		);
 
 		const continueButton = page
-			.getByRole('dialog', { name: /battle summary/i })
-			.getByRole('button', { name: /continue/i });
+			.getByTestId('battle-summary')
+			.getByTestId('battle-summary-continue');
 		await expect.element(continueButton).toHaveFocus();
 
 		await userEvent.keyboard('{Tab}');
@@ -486,26 +479,106 @@ describe('GameShell battle summary', () => {
 		await expect.element(continueButton).toHaveFocus();
 	});
 
-	it('disables non-battle command buttons while battle is active but keeps quick heal available', async () => {
-		render(GameShell);
-		emitHudState(
-			baseHudState({
-				nearbyShop: {
-					shopId: 'miras-item-shop',
-					name: "Mira's Item Shop",
-					merchantName: 'Mira'
+	describe('GameShell battle HUD', () => {
+		function activeBattle(): Partial<HudState> {
+			return {
+				hp: 12,
+				maxHp: 20,
+				attack: 4,
+				defense: 1,
+				heals: 1,
+				inventory: {
+					consumables: [
+						{
+							itemId: 'field-potion',
+							name: 'Field Potion',
+							description: 'Restores HP.',
+							iconPath: '/icon.png',
+							quantity: 3
+						}
+					],
+					equipment: [],
+					keyItems: [],
+					equipped: { weapon: null, head: null, body: null, hands: null, accessory: null }
 				},
-				battle: { phase: 'active', summary: null }
-			})
-		);
+				battle: {
+					phase: 'active',
+					summary: null,
+					active: {
+						targetUnitId: 'encounter:unit:0',
+						enemies: [
+							{
+								unitId: 'encounter:unit:0',
+								enemyId: 'slime-scout',
+								name: 'Slime Scout',
+								hp: 5,
+								maxHp: 8,
+								defeated: false,
+								artPath: '/game/assets/heroic-ui/enemies/slime-scout.png'
+							}
+						],
+						ribbon: [
+							{ unitId: 'hero', readyAt: 0 },
+							{ unitId: 'encounter:unit:0', readyAt: 200 }
+						],
+						feed: [
+							{ id: 1, kind: 'hit', amount: 4, subject: 'Slime Scout' },
+							{ id: 2, kind: 'hurt', amount: 2, subject: 'Liam' }
+						],
+						heals: 1,
+						items: 3,
+						flee: { status: 'idle', progress: 0 },
+						now: 0
+					}
+				}
+			};
+		}
 
-		await page.getByRole('button', { name: /menu/i }).click();
+		it('replaces the field HUD with the battle HUD while a battle is active', async () => {
+			render(GameShell);
+			emitHudState(baseHudState(activeBattle()));
 
-		await expect.element(page.getByRole('button', { name: 'Quest', exact: true })).toBeDisabled();
-		await expect.element(page.getByRole('button', { name: /map/i })).toBeDisabled();
-		await expect.element(page.getByRole('button', { name: 'Bag' })).toBeDisabled();
-		await expect.element(page.getByRole('button', { name: 'Save' })).toBeDisabled();
-		await expect.element(page.getByRole('button', { name: 'Rest' })).toBeEnabled();
+			await expect.element(page.getByTestId('battle-hud')).toBeVisible();
+			await expect.element(page.getByTestId('battle-ribbon')).toBeVisible();
+			expect(page.getByTestId('battle-plate').elements()).toHaveLength(1);
+			await expect.element(page.getByTestId('battle-hero-plate')).toBeVisible();
+			await expect.element(page.getByTestId('battle-feed')).toBeVisible();
+			await expect.element(page.getByTestId('battle-tile-heal')).toBeVisible();
+			await expect.element(page.getByTestId('battle-tile-item')).toBeVisible();
+			await expect.element(page.getByTestId('battle-tile-flee')).toBeVisible();
+			// Field chrome is hidden during battle (mockup composition).
+			expect(page.getByTestId('hud-party-panel').elements()).toHaveLength(0);
+			expect(page.getByRole('button', { name: /menu/i }).elements()).toHaveLength(0);
+		});
+
+		it('marks the current target and cycles via plate click', async () => {
+			await withCommands(async (commands) => {
+				render(GameShell);
+				emitHudState(baseHudState(activeBattle()));
+
+				const plate = page.getByTestId('battle-plate');
+				await expect.element(plate).toHaveAttribute('aria-pressed', 'true');
+
+				await plate.click();
+
+				expect(commands).toContainEqual({ type: 'battle-cycle-target', direction: 1 });
+			});
+		});
+
+		it('dispatches heal, item, and flee commands from the battle tiles', async () => {
+			await withCommands(async (commands) => {
+				render(GameShell);
+				emitHudState(baseHudState(activeBattle()));
+
+				await page.getByTestId('battle-tile-heal').click();
+				await page.getByTestId('battle-tile-item').click();
+				await page.getByTestId('battle-tile-flee').click();
+
+				expect(commands).toContainEqual({ type: 'heal' });
+				expect(commands).toContainEqual({ type: 'use-item', itemId: 'field-potion' });
+				expect(commands).toContainEqual({ type: 'battle-flee' });
+			});
+		});
 	});
 
 	it('disables equipped item removal while battle is locked', async () => {
@@ -521,7 +594,7 @@ describe('GameShell battle summary', () => {
 
 			emitHudState(
 				hudStateWithEquippedWeapon({
-					battle: { phase: 'active', summary: null }
+					battle: { phase: 'active', summary: null, active: null }
 				})
 			);
 
@@ -1201,7 +1274,7 @@ describe('GameShell area map', () => {
 });
 
 describe('GameShell battle summary defeat', () => {
-	it('renders defeat summary with defeat-specific message and no drops', async () => {
+	it('renders defeat summary with defeat-specific message and no stat cards', async () => {
 		render(GameShell);
 		emitHudState(
 			baseHudState({
@@ -1217,15 +1290,17 @@ describe('GameShell battle summary defeat', () => {
 						completedQuestTitles: [],
 						questRewards: [],
 						questProgress: []
-					}
+					},
+					active: null
 				}
 			})
 		);
 
-		const summary = page.getByRole('dialog', { name: /battle summary/i });
+		const summary = page.getByTestId('battle-summary');
 		await expect.element(summary).toBeVisible();
-		await expect.element(summary.getByText(/no item drops/i)).toBeVisible();
-		await expect.element(summary.getByText(/returned to the shrine/i)).toBeVisible();
+		await expect.element(summary.getByTestId('battle-summary-continue')).toBeVisible();
+		await expect.element(summary).toHaveTextContent(/returned to the shrine/i);
+		expect(summary.getByTestId('battle-stat-xp').elements()).toHaveLength(0);
 	});
 });
 

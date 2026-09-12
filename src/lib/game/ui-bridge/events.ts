@@ -96,9 +96,43 @@ export type HudBattleSummary = {
 	questProgress: HudBattleSummaryQuestProgress[];
 };
 
+export type HudBattleEnemyPlate = {
+	unitId: string;
+	enemyId: string;
+	name: string;
+	hp: number;
+	maxHp: number;
+	defeated: boolean;
+	artPath: string;
+};
+
+export type HudBattleFeedEntry = {
+	id: number;
+	kind: 'hit' | 'hurt' | 'heal' | 'defeat';
+	amount: number;
+	/** Localized name of the affected side (enemy name, hero name, or item name). */
+	subject: string;
+};
+
+export type HudBattleActive = {
+	/** Living target the hero's auto-attack prefers; `null` only with no enemies. */
+	targetUnitId: string | null;
+	enemies: HudBattleEnemyPlate[];
+	/** Hero (unitId 'hero') plus living enemies, ascending by readiness timestamp. */
+	ribbon: Array<{ unitId: string; readyAt: number }>;
+	/** Newest 4 combat events, oldest last. */
+	feed: HudBattleFeedEntry[];
+	heals: number;
+	items: number;
+	flee: { status: 'idle' | 'channeling'; progress: number };
+	/** Scene clock (ms) matching `readyAt` values. */
+	now: number;
+};
+
 export type HudBattleState = {
 	phase: 'none' | 'active' | 'summary';
 	summary: HudBattleSummary | null;
+	active: HudBattleActive | null;
 };
 
 export type HudState = {
@@ -147,6 +181,8 @@ export type HudCommand =
 	| { type: 'dialogue-advance' }
 	| { type: 'dialogue-close' }
 	| { type: 'dialogue-choose'; choiceId: string }
+	| { type: 'battle-cycle-target'; direction: -1 | 1 }
+	| { type: 'battle-flee' }
 	| { type: 'dismiss-battle-summary' };
 
 export const HUD_STATE_EVENT = 'gliese:hud-state';

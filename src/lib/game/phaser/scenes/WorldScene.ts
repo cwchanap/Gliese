@@ -1174,6 +1174,9 @@ export class WorldScene extends Phaser.Scene {
 	private applyHudCommand(command: HudCommand) {
 		switch (command.type) {
 			case 'dismiss-battle-summary':
+			case 'battle-cycle-target':
+			case 'battle-flee':
+				// Battle-scoped commands are handled by BattleScene.
 				return;
 			case 'pause-game':
 				this.simulationPaused = true;
@@ -1352,7 +1355,8 @@ export class WorldScene extends Phaser.Scene {
 			dialogue: this.buildHudDialogue(),
 			battle: {
 				phase: 'none',
-				summary: null
+				summary: null,
+				active: null
 			},
 			quests: buildHudQuestState({
 				state: this.quests,

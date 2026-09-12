@@ -115,7 +115,8 @@ function createReadyHudState(overrides: Partial<HudState> = {}): HudState {
 		dialogue: null,
 		battle: {
 			phase: 'none',
-			summary: null
+			summary: null,
+			active: null
 		},
 		quests: {
 			main: null,
@@ -594,7 +595,7 @@ describe('DialoguePanel.svelte', () => {
 
 	it('ignores the M shortcut during battle', async () => {
 		render(GameShell);
-		emitHudState(createReadyHudState({ battle: { phase: 'active', summary: null } }));
+		emitHudState(createReadyHudState({ battle: { phase: 'active', summary: null, active: null } }));
 
 		await userEvent.keyboard('m');
 
