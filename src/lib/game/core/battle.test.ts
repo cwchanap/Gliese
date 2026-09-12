@@ -407,6 +407,11 @@ describe('battle contracts', () => {
 		expect(application.saveState.flags.clearedEncounterUnitCounts).toEqual({});
 		expect(application.saveState.flags.resolvedEncounterDrops).toEqual({});
 		expect(application.saveState.quests).toEqual(saveState.quests);
+		// Fled grants no XP and never levels the hero, even with defeated units carried.
+		expect(application.saveState.player).toMatchObject({
+			level: saveState.player.level,
+			xp: saveState.player.xp
+		});
 	});
 
 	it('applies a defeat result by sending the hero to the Shrine at 1 HP without rewards', () => {

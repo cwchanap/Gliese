@@ -3,6 +3,8 @@
 	import DialoguePanel from '$lib/game/DialoguePanel.svelte';
 	import AreaMapScreen from '$lib/game/ui/AreaMapScreen.svelte';
 	import BagScreen from '$lib/game/ui/BagScreen.svelte';
+	import BattleHud from '$lib/game/ui/BattleHud.svelte';
+	import BattleSummary from '$lib/game/ui/BattleSummary.svelte';
 	import type { FieldCommand } from '$lib/game/ui/CommandGrid.svelte';
 	import FieldHud from '$lib/game/ui/FieldHud.svelte';
 	import QuestJournal from '$lib/game/ui/QuestJournal.svelte';
@@ -121,6 +123,7 @@
 	let pauseOwner = $state<OverlayPauseOwner | null>(null);
 
 	const battlePhase = $derived($hudState.battle.phase);
+	const battleActive = $derived(battlePhase === 'active');
 	const battleLocked = $derived(battlePhase === 'active' || battlePhase === 'summary');
 	const battleSummary = $derived($hudState.battle.summary);
 
@@ -857,25 +860,31 @@
 			class="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(130,180,255,0.18),transparent_38%),linear-gradient(180deg,rgba(7,10,26,0.1),rgba(4,6,18,0.58)_85%,rgba(3,4,10,0.82))]"
 		></div>
 
-		<div class="jrpg-menu-anchor pointer-events-auto">
-			<button
-				bind:this={menuButton}
-				type="button"
-				class="glass-button jrpg-command-toggle"
-				onclick={() => (commandOpen ? closeCommand() : openCommand())}
-				aria-expanded={commandOpen}
-				aria-controls="game-command-panel"
-			>
-				{t($locale, 'ui.menu')}
-			</button>
-		</div>
+		{#if !battleLocked}
+			<div class="jrpg-menu-anchor pointer-events-auto">
+				<button
+					bind:this={menuButton}
+					type="button"
+					class="glass-button jrpg-command-toggle"
+					onclick={() => (commandOpen ? closeCommand() : openCommand())}
+					aria-expanded={commandOpen}
+					aria-controls="game-command-panel"
+				>
+					{t($locale, 'ui.menu')}
+				</button>
+			</div>
 
-		<FieldHud
-			hudState={$hudState}
-			{commandOpen}
-			commandEnabled={fieldCommandEnabled}
-			onCommand={handleFieldCommand}
-		/>
+			<FieldHud
+				hudState={$hudState}
+				{commandOpen}
+				commandEnabled={fieldCommandEnabled}
+				onCommand={handleFieldCommand}
+			/>
+		{/if}
+
+		{#if battleActive && $hudState.battle.active}
+			<BattleHud hudState={$hudState} active={$hudState.battle.active} />
+		{/if}
 
 		{#if commandOpen}
 			<div
@@ -895,91 +904,13 @@
 		{/if}
 
 		{#if battleSummary}
-			<div class="jrpg-modal-backdrop jrpg-battle-summary-backdrop" role="presentation">
-				<div
-					bind:this={battleSummaryDialog}
-					class="glass-panel-strong arcane-window-enter jrpg-window jrpg-window-narrow"
-					aria-label={t($locale, 'ui.battleSummary')}
-					aria-modal="true"
-					role="dialog"
-					tabindex="-1"
-					onkeydown={handleBattleSummaryDialogKeydown}
-				>
-					<div class="jrpg-window-header">
-						<div>
-							<p
-								class="jrpg-label font-display {battleSummary.outcome === 'victory'
-									? 'arcane-victory-flash'
-									: ''}"
-							>
-								{battleSummary.outcome === 'victory'
-									? t($locale, 'ui.battleVictory')
-									: t($locale, 'ui.battleDefeat')}
-							</p>
-							<h2 class="jrpg-window-title font-display">{t($locale, 'ui.battleSummary')}</h2>
-						</div>
-					</div>
-					<div class="jrpg-window-body">
-						<div class="arcane-stagger grid gap-3 text-sm text-parchment/88">
-							<p>
-								{t($locale, 'ui.enemiesDefeated', {
-									count: battleSummary.enemiesDefeated
-								})}
-							</p>
-							<p>{t($locale, 'ui.xpGained', { xp: battleSummary.xpGained })}</p>
-							<p>{t($locale, 'ui.coinsGained', { coins: battleSummary.coinsGained })}</p>
-							{#if battleSummary.leveledUp}
-								<p>{t($locale, 'ui.levelUp')}</p>
-							{/if}
-							{#if battleSummary.drops.length > 0}
-								<ul class="grid gap-1">
-									{#each battleSummary.drops as drop (drop.itemId)}
-										<li>{drop.name} x{drop.quantity}</li>
-									{/each}
-								</ul>
-							{:else}
-								<p>{t($locale, 'ui.noDrops')}</p>
-							{/if}
-							{#if battleSummary.questRewards.length > 0}
-								<ul class="grid gap-1">
-									{#each battleSummary.questRewards as questReward (questReward.title)}
-										<li>
-											{t($locale, 'content.dialogue.system.questCompleteNotice', {
-												questTitle: questReward.title,
-												rewardSummary: questReward.rewardSummary
-											})}
-										</li>
-									{/each}
-								</ul>
-							{/if}
-							{#if battleSummary.questProgress?.length > 0}
-								<ul class="grid gap-1">
-									{#each battleSummary.questProgress as progress (progress.questId)}
-										<li>
-											{t($locale, 'ui.questProgressUpdate', {
-												progressLabel: progress.progressLabel,
-												currentProgress: String(progress.currentProgress),
-												target: String(progress.target)
-											})}
-										</li>
-									{/each}
-								</ul>
-							{/if}
-							{#if battleSummary.outcome === 'defeat'}
-								<p>{t($locale, 'ui.defeatReturnedToVillage')}</p>
-							{/if}
-						</div>
-						<button
-							bind:this={battleSummaryContinueButton}
-							type="button"
-							class="glass-button jrpg-command-action mt-5"
-							onclick={dismissBattleSummary}
-						>
-							{t($locale, 'ui.continue')}
-						</button>
-					</div>
-				</div>
-			</div>
+			<BattleSummary
+				summary={battleSummary}
+				bind:dialog={battleSummaryDialog}
+				bind:continueButton={battleSummaryContinueButton}
+				oncontinue={dismissBattleSummary}
+				onkeydown={handleBattleSummaryDialogKeydown}
+			/>
 		{/if}
 
 		<BagScreen
@@ -1091,62 +1022,6 @@
 	.jrpg-command-toggle:focus-visible,
 	.jrpg-command-toggle:hover {
 		opacity: 1;
-	}
-
-	.jrpg-modal-backdrop {
-		position: absolute;
-		inset: 0;
-		z-index: 50;
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		background: rgba(0, 0, 0, 0.52);
-		padding: 1rem;
-		backdrop-filter: blur(3px);
-	}
-
-	.jrpg-battle-summary-backdrop {
-		z-index: 70;
-	}
-
-	.jrpg-window {
-		position: relative;
-		z-index: 10;
-		display: grid;
-		max-height: calc(100vh - 2rem);
-		width: min(76rem, calc(100vw - 2rem));
-		grid-template-rows: auto minmax(0, 1fr);
-		overflow: hidden;
-		/* border/background/shadow now from glass-panel-strong component class */
-		color: var(--color-parchment);
-	}
-
-	.jrpg-window-narrow {
-		width: min(64rem, calc(100vw - 2rem));
-	}
-
-	.jrpg-window-header {
-		display: flex;
-		align-items: flex-start;
-		justify-content: space-between;
-		gap: 1rem;
-		border-bottom: 1px solid rgba(244, 229, 184, 0.14);
-		padding: 1rem;
-	}
-
-	.jrpg-window-title {
-		margin: 0.2rem 0 0;
-		font-size: clamp(1.25rem, 3vw, 1.9rem);
-		font-weight: 700;
-		color: var(--color-parchment);
-		letter-spacing: 0.08em;
-		text-transform: uppercase;
-	}
-
-	.jrpg-window-body {
-		min-height: 0;
-		overflow-y: auto;
-		padding: 1rem;
 	}
 
 	@media (max-width: 720px) {

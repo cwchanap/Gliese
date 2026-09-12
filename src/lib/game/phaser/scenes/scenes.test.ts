@@ -1927,7 +1927,8 @@ describe('BattleScene', () => {
 		});
 
 		expect(scene.add.image).toHaveBeenCalledWith(448, 252, battleBackgroundAssets.ruins.key);
-		expect(phaserState.imageMarkers[0]?.setDisplaySize).toHaveBeenCalledWith(896, 504);
+		// The backdrop covers twice the arena so it bleeds into the letterbox.
+		expect(phaserState.imageMarkers[0]?.setDisplaySize).toHaveBeenCalledWith(1_792, 1_008);
 		expect(vi.mocked(scene.add.image).mock.invocationCallOrder[0]).toBeLessThan(
 			vi.mocked(scene.add.sprite).mock.invocationCallOrder[0]!
 		);
@@ -2122,7 +2123,8 @@ describe('BattleScene', () => {
 								expect.objectContaining({ itemId: 'warden-crown', quantity: 1 }),
 								expect.objectContaining({ itemId: 'greater-field-potion', quantity: 1 })
 							])
-						})
+						}),
+						active: null
 					},
 					quests: expect.objectContaining({
 						completed: expect.arrayContaining([
@@ -2600,7 +2602,15 @@ describe('BattleScene', () => {
 					hp: 12,
 					heals: 0,
 					status: 'Recovered HP',
-					battle: { phase: 'active', summary: null },
+					battle: {
+						phase: 'active',
+						summary: null,
+						active: expect.objectContaining({
+							heals: 0,
+							items: 0,
+							feed: [expect.objectContaining({ kind: 'heal', amount: 8 })]
+						})
+					},
 					inventory: expect.objectContaining({ consumables: [] })
 				})
 			);
@@ -2635,7 +2645,7 @@ describe('BattleScene', () => {
 			expect(emitHudStateSpy).toHaveBeenLastCalledWith(
 				expect.objectContaining({
 					status: 'Cannot do that during battle',
-					battle: { phase: 'active', summary: null }
+					battle: { phase: 'active', summary: null, active: expect.anything() }
 				})
 			);
 		} finally {
@@ -2856,6 +2866,332 @@ describe('BattleScene', () => {
 		// Phase-2 tint should be restored, not clearTint
 		expect(phaserState.enemyMarker.setTint).toHaveBeenCalledWith(0xff8a3d);
 		expect(phaserState.enemyMarker.clearTint).not.toHaveBeenCalled();
+	});
+
+	it('selects the nearest enemy as the initial target', async () => {
+		const { createNewSaveState } = await import('$lib/game/save/save-state');
+		const { BattleScene } = await import('./BattleScene');
+		const scene = new BattleScene();
+
+		scene.create({
+			saveState: createNewSaveState(),
+			sourceMapId: 'meadow-entry',
+			sourceEncounterId: 'meadow-slime-west',
+			sourceEnemyId: 'slime-scout',
+			returnPosition: { mapId: 'meadow-entry', x: 4_928, y: 1_024, facing: 'down' },
+			// Spawn ring: unit:0 lands at (448, 74) — distance 178 — and units 1/2
+			// tie at ~309, so unit:0 is nearest to the hero at center.
+			enemyCount: 2,
+			hero: { hp: 20, maxHp: 20, attack: 4, defense: 0 }
+		});
+
+		const state = scene as unknown as { selectedTargetUnitId: string | null };
+
+		expect(state.selectedTargetUnitId).toBe('meadow-slime-west:unit:0');
+	});
+
+	it('cycles targets skipping defeated enemies and falls back to nearest', async () => {
+		const hud = installHudCommandTarget();
+		const { createNewSaveState } = await import('$lib/game/save/save-state');
+		const { BattleScene } = await import('./BattleScene');
+		const scene = new BattleScene();
+
+		try {
+			scene.create({
+				saveState: createNewSaveState(),
+				sourceMapId: 'meadow-entry',
+				sourceEncounterId: 'meadow-slime-west',
+				sourceEnemyId: 'slime-scout',
+				returnPosition: { mapId: 'meadow-entry', x: 4_928, y: 1_024, facing: 'down' },
+				enemyCount: 3,
+				hero: { hp: 20, maxHp: 20, attack: 4, defense: 0 }
+			});
+			const state = scene as unknown as {
+				enemies: Array<{ unitId: string; defeated: boolean }>;
+				selectedTargetUnitId: string | null;
+			};
+
+			expect(state.selectedTargetUnitId).toBe('meadow-slime-west:unit:0');
+			state.enemies[0]!.defeated = true;
+
+			// Invalid (defeated) current target falls back to the nearest living
+			// enemy (units 1/2 tie at ~309; the first, unit:1, wins).
+			hud.dispatch({ type: 'battle-cycle-target', direction: 1 });
+			expect(state.selectedTargetUnitId).toBe('meadow-slime-west:unit:1');
+
+			// Next cycle wraps left-to-right past unit:1 to unit:2.
+			hud.dispatch({ type: 'battle-cycle-target', direction: 1 });
+			expect(state.selectedTargetUnitId).toBe('meadow-slime-west:unit:2');
+		} finally {
+			hud.restore();
+		}
+	});
+
+	it('prefers the selected target for auto-attacks when it is in reach', async () => {
+		const { createNewSaveState } = await import('$lib/game/save/save-state');
+		const { BattleScene } = await import('./BattleScene');
+		const scene = new BattleScene();
+
+		scene.create({
+			saveState: createNewSaveState(),
+			sourceMapId: 'meadow-entry',
+			sourceEncounterId: 'meadow-slime-west',
+			sourceEnemyId: 'slime-scout',
+			returnPosition: { mapId: 'meadow-entry', x: 4_928, y: 1_024, facing: 'down' },
+			enemyCount: 2,
+			hero: { hp: 20, maxHp: 20, attack: 4, defense: 0 }
+		});
+		const state = scene as unknown as {
+			enemies: Array<{ unitId: string; x: number; y: number; hp: number }>;
+			selectedTargetUnitId: string | null;
+		};
+
+		// Selected (nearest-spawned) unit:0 sits in reach; unit:1 is even closer
+		// to the hero, but the selected target must take the hit.
+		state.enemies[0]!.x = 458;
+		state.enemies[0]!.y = 252;
+		state.enemies[1]!.x = 450;
+		state.enemies[1]!.y = 252;
+
+		scene.update(0, 16);
+
+		expect(state.selectedTargetUnitId).toBe('meadow-slime-west:unit:0');
+		expect(state.enemies[0]!.hp).toBe(4);
+		expect(state.enemies[1]!.hp).toBe(8);
+	});
+
+	it('appends bounded combat feed entries at damage, heal, and defeat points', async () => {
+		const hud = installHudCommandTarget();
+		const { createNewSaveState } = await import('$lib/game/save/save-state');
+		const { BattleScene } = await import('./BattleScene');
+		const scene = new BattleScene();
+		const saveState = {
+			...createNewSaveState(),
+			inventory: {
+				stacks: [{ itemId: 'field-potion', quantity: 2 }],
+				equipment: []
+			}
+		};
+
+		try {
+			scene.create({
+				saveState,
+				sourceMapId: 'meadow-entry',
+				sourceEncounterId: 'meadow-slime-west',
+				sourceEnemyId: 'slime-scout',
+				returnPosition: { mapId: 'meadow-entry', x: 4_928, y: 1_024, facing: 'down' },
+				enemyCount: 1,
+				hero: { hp: 20, maxHp: 20, attack: 4, defense: 0 }
+			});
+			const state = scene as unknown as {
+				enemies: Array<{ x: number; y: number; hp: number }>;
+				feed: Array<{ kind: string; amount: number; subject: string }>;
+			};
+			state.enemies[0]!.x = 458;
+			state.enemies[0]!.y = 252;
+
+			scene.update(0, 16);
+			// t=120 sits between hero cooldowns (no hit-stop): the enemy strikes back.
+			scene.update(120, 16);
+			expect(state.feed).toEqual([
+				{ id: 1, kind: 'hit', amount: 4, subject: 'Slime Scout' },
+				{ id: 2, kind: 'hurt', amount: 2, subject: 'Liam' }
+			]);
+
+			hud.dispatch({ type: 'heal' });
+			// Hero is at 18/20 after the enemy hit, so the 8-HP potion only restores 2.
+			expect(state.feed.at(-1)).toEqual({
+				id: 3,
+				kind: 'heal',
+				amount: 2,
+				subject: 'Field Potion'
+			});
+
+			scene.update(500, 16);
+			expect(state.feed).toHaveLength(4);
+			expect(state.feed.map((entry) => entry.kind)).toEqual(['hurt', 'heal', 'hit', 'defeat']);
+		} finally {
+			hud.restore();
+		}
+	});
+
+	it('publishes a readiness ribbon sorted by readyAt', async () => {
+		const hud = installHudCommandTarget();
+		const events = await import('$lib/game/ui-bridge/events');
+		const emitHudStateSpy = vi.spyOn(events, 'emitHudState');
+		const { createNewSaveState } = await import('$lib/game/save/save-state');
+		const { BattleScene } = await import('./BattleScene');
+		const scene = new BattleScene();
+
+		try {
+			scene.create({
+				saveState: createNewSaveState(),
+				sourceMapId: 'meadow-entry',
+				sourceEncounterId: 'meadow-slime-west',
+				sourceEnemyId: 'slime-scout',
+				returnPosition: { mapId: 'meadow-entry', x: 4_928, y: 1_024, facing: 'down' },
+				enemyCount: 3,
+				hero: { hp: 20, maxHp: 20, attack: 4, defense: 0 }
+			});
+			const state = scene as unknown as {
+				enemies: Array<{ attackCooldownUntil: number }>;
+				heroAttackCooldownUntil: number;
+			};
+			state.enemies[0]!.attackCooldownUntil = 500;
+			state.enemies[1]!.attackCooldownUntil = 200;
+			state.enemies[2]!.attackCooldownUntil = 700;
+			state.heroAttackCooldownUntil = 100;
+			emitHudStateSpy.mockClear();
+
+			hud.dispatch({ type: 'battle-cycle-target', direction: 1 });
+
+			const payload = emitHudStateSpy.mock.calls.at(-1)![0] as {
+				battle: {
+					active: {
+						ribbon: Array<{ unitId: string; readyAt: number }>;
+						enemies: Array<{ unitId: string; name: string }>;
+					};
+				};
+			};
+			expect(payload.battle.active.ribbon).toEqual([
+				{ unitId: 'hero', readyAt: 100 },
+				{ unitId: 'meadow-slime-west:unit:1', readyAt: 200 },
+				{ unitId: 'meadow-slime-west:unit:0', readyAt: 500 },
+				{ unitId: 'meadow-slime-west:unit:2', readyAt: 700 }
+			]);
+			expect(payload.battle.active.enemies).toHaveLength(3);
+			expect(payload.battle.active.enemies[0]).toMatchObject({ name: 'Slime Scout' });
+		} finally {
+			emitHudStateSpy.mockRestore();
+			hud.restore();
+		}
+	});
+
+	it('exposes flee channel progress while channeling', async () => {
+		const hud = installHudCommandTarget();
+		const events = await import('$lib/game/ui-bridge/events');
+		const emitHudStateSpy = vi.spyOn(events, 'emitHudState');
+		const { createNewSaveState } = await import('$lib/game/save/save-state');
+		const { BattleScene } = await import('./BattleScene');
+		const scene = new BattleScene();
+
+		try {
+			scene.create({
+				saveState: createNewSaveState(),
+				sourceMapId: 'meadow-entry',
+				sourceEncounterId: 'meadow-slime-west',
+				sourceEnemyId: 'slime-scout',
+				returnPosition: { mapId: 'meadow-entry', x: 4_928, y: 1_024, facing: 'down' },
+				enemyCount: 1,
+				hero: { hp: 20, maxHp: 20, attack: 4, defense: 0 }
+			});
+			const state = scene as unknown as { pendingResult: unknown };
+			scene.update(0, 16);
+			emitHudStateSpy.mockClear();
+
+			hud.dispatch({ type: 'battle-flee' });
+			let payload = emitHudStateSpy.mock.calls.at(-1)![0] as {
+				battle: { active: { flee: { status: string; progress: number } } };
+			};
+			expect(payload.battle.active.flee).toEqual({ status: 'channeling', progress: 0 });
+
+			emitHudStateSpy.mockClear();
+			scene.update(1_200, 16);
+			payload = emitHudStateSpy.mock.calls.at(-1)![0] as typeof payload;
+			expect(payload.battle.active.flee).toEqual({ status: 'channeling', progress: 0.5 });
+			expect(state.pendingResult).toBeNull();
+		} finally {
+			emitHudStateSpy.mockRestore();
+			hud.restore();
+		}
+	});
+
+	it('cancels the flee channel when the hero takes damage', async () => {
+		const hud = installHudCommandTarget();
+		const { createNewSaveState } = await import('$lib/game/save/save-state');
+		const { BattleScene } = await import('./BattleScene');
+		const scene = new BattleScene();
+
+		try {
+			scene.create({
+				saveState: createNewSaveState(),
+				sourceMapId: 'meadow-entry',
+				sourceEncounterId: 'meadow-slime-west',
+				sourceEnemyId: 'slime-scout',
+				returnPosition: { mapId: 'meadow-entry', x: 4_928, y: 1_024, facing: 'down' },
+				enemyCount: 1,
+				hero: { hp: 20, maxHp: 20, attack: 1, defense: 0 }
+			});
+			const state = scene as unknown as {
+				enemies: Array<{ x: number; y: number; attackCooldownUntil: number }>;
+				hero: { hp: number };
+				fleeChannel: { status: string };
+			};
+			state.enemies[0]!.x = 448;
+			state.enemies[0]!.y = 252;
+			state.enemies[0]!.attackCooldownUntil = 0;
+
+			scene.update(0, 16);
+			hud.dispatch({ type: 'battle-flee' });
+			expect(state.fleeChannel.status).toBe('channeling');
+
+			// The enemy's next strike lands at t=120 (between hero cooldowns).
+			scene.update(120, 16);
+
+			expect(state.fleeChannel.status).toBe('idle');
+			expect(scene.scene.start).not.toHaveBeenCalled();
+		} finally {
+			hud.restore();
+		}
+	});
+
+	it('hands a fled result to WorldScene when the channel completes', async () => {
+		const hud = installHudCommandTarget();
+		const { createNewSaveState } = await import('$lib/game/save/save-state');
+		const { BattleScene } = await import('./BattleScene');
+		const { WorldScene } = await import('./WorldScene');
+		const scene = new BattleScene();
+		const saveState = createNewSaveState();
+
+		try {
+			scene.create({
+				saveState,
+				sourceMapId: 'meadow-entry',
+				sourceEncounterId: 'meadow-slime-west',
+				sourceEnemyId: 'slime-scout',
+				returnPosition: { mapId: 'meadow-entry', x: 4_928, y: 1_024, facing: 'down' },
+				enemyCount: 1,
+				hero: { hp: 13, maxHp: 20, attack: 1, defense: 0 }
+			});
+			const state = scene as unknown as {
+				enemies: Array<{ x: number; y: number; attackCooldownUntil: number }>;
+			};
+			state.enemies[0]!.x = 448;
+			state.enemies[0]!.y = 252;
+			state.enemies[0]!.attackCooldownUntil = 0;
+
+			scene.update(0, 16);
+			// Enemy strike first (t=120), THEN the channel: a hit after fleeing starts
+			// would cancel it, so the damage must already be on the books.
+			scene.update(120, 16);
+			hud.dispatch({ type: 'battle-flee' });
+			scene.update(2_600, 16);
+
+			expect(scene.scene.start).toHaveBeenCalledWith(
+				WorldScene.key,
+				expect.objectContaining({
+					reason: 'battle-result',
+					battleResult: expect.objectContaining({
+						outcome: 'fled',
+						finalHeroHp: 11,
+						inventory: saveState.inventory,
+						defeatedUnits: []
+					})
+				})
+			);
+		} finally {
+			hud.restore();
+		}
 	});
 });
 

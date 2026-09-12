@@ -65,7 +65,7 @@ export const terrainFrameOrder: TerrainTileFrameName[] = [
 export const battleBackgroundAssets = {
 	meadow: {
 		key: 'battle-background-meadow',
-		path: '/game/assets/battle-meadow.png'
+		path: '/game/assets/heroic-ui/battle-backdrop.png'
 	},
 	ruins: {
 		key: 'battle-background-ruins',
@@ -98,6 +98,16 @@ export function getBattleEnvironmentId(mapId: string): BattleEnvironmentId {
 
 export function getBattleBackgroundAsset(mapId: string) {
 	return battleBackgroundAssets[getBattleEnvironmentId(mapId)];
+}
+
+/** Circular plate art for the Heroic battle HUD enemy plates. */
+const heroicEnemyPlateAssets: Record<string, string> = {
+	'slime-scout': '/game/assets/heroic-ui/enemies/slime-scout.png',
+	'ruins-warden': '/game/assets/heroic-ui/enemies/ruins-warden.png'
+};
+
+export function getEnemyPlateArtPath(enemyId: string): string {
+	return heroicEnemyPlateAssets[enemyId] ?? '';
 }
 
 export const villageBuildingAsset = {
