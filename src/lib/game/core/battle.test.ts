@@ -274,8 +274,9 @@ describe('battle contracts', () => {
 		};
 
 		const application = applyBattleResultToSaveState(saveState, result);
+		const summary = application.summary!;
 
-		expect(application.summary.questProgress).toEqual([
+		expect(summary.questProgress).toEqual([
 			{
 				questId: 'thin-village-slimes',
 				title: 'Thin Village Slimes',
@@ -286,8 +287,8 @@ describe('battle contracts', () => {
 				target: 3
 			}
 		]);
-		expect(application.summary.questRewards).toEqual([]);
-		expect(application.summary.completedQuestIds).toEqual([]);
+		expect(summary.questRewards).toEqual([]);
+		expect(summary.completedQuestIds).toEqual([]);
 	});
 
 	it('coalesces questProgress to the highest progress per quest when multiple enemies advance the same quest', () => {
@@ -339,8 +340,9 @@ describe('battle contracts', () => {
 		};
 
 		const application = applyBattleResultToSaveState(saveState, result);
+		const summary = application.summary!;
 
-		expect(application.summary.questProgress).toEqual([
+		expect(summary.questProgress).toEqual([
 			{
 				questId: 'thin-village-slimes',
 				title: 'Thin Village Slimes',
@@ -351,8 +353,60 @@ describe('battle contracts', () => {
 				target: 3
 			}
 		]);
-		expect(application.summary.questRewards).toEqual([]);
-		expect(application.summary.completedQuestIds).toEqual([]);
+		expect(summary.questRewards).toEqual([]);
+		expect(summary.completedQuestIds).toEqual([]);
+	});
+
+	it('applies a fled result by restoring the hero at the return position with no rewards', () => {
+		const baseState = createNewSaveState();
+		const saveState = {
+			...baseState,
+			mapId: 'ruins-threshold',
+			player: {
+				...baseState.player,
+				x: 512,
+				y: 3_200,
+				facing: 'right' as const,
+				hp: 6
+			}
+		};
+		const result: BattleResult = {
+			outcome: 'fled',
+			sourceMapId: 'ruins-threshold',
+			sourceEncounterId: 'threshold-slime-west',
+			sourceEnemyId: 'slime-scout',
+			completion: undefined,
+			returnPosition: { mapId: 'ruins-threshold', x: 512, y: 3_200, facing: 'right' },
+			finalHeroHp: 6,
+			inventory: saveState.inventory,
+			defeatedUnits: [
+				{
+					unitId: 'threshold-slime-west:unit:0',
+					unitIndex: 0,
+					enemyId: 'slime-scout',
+					xpReward: 4,
+					coinReward: 4,
+					drops: [{ itemId: 'field-potion', quantity: 1 }]
+				}
+			]
+		};
+
+		const application = applyBattleResultToSaveState(saveState, result);
+
+		expect(application.summary).toBeNull();
+		expect(application.saveState.mapId).toBe('ruins-threshold');
+		expect(application.saveState.player).toMatchObject({
+			hp: 6,
+			x: 512,
+			y: 3_200,
+			facing: 'right'
+		});
+		expect(application.saveState.inventory).toEqual(saveState.inventory);
+		expect(application.saveState.wallet).toEqual(saveState.wallet);
+		expect(application.saveState.flags.clearedEncounters).toEqual([]);
+		expect(application.saveState.flags.clearedEncounterUnitCounts).toEqual({});
+		expect(application.saveState.flags.resolvedEncounterDrops).toEqual({});
+		expect(application.saveState.quests).toEqual(saveState.quests);
 	});
 
 	it('applies a defeat result by sending the hero to the Shrine at 1 HP without rewards', () => {
