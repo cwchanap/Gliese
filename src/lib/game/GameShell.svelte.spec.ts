@@ -841,7 +841,7 @@ describe('GameShell inventory', () => {
 			await page.getByRole('button', { name: /Field Potion/i }).click();
 			await expect.element(detail.getByText(/Field Potion/i)).toBeVisible();
 
-			await detail.getByRole('button', { name: /use/i }).click();
+			await detail.getByRole('button', { name: /drink/i }).click();
 			expect(commands).toContainEqual({ type: 'use-item', itemId: 'field-potion' });
 		});
 	});

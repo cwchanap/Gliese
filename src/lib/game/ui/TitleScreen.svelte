@@ -40,7 +40,6 @@
 			<svg viewBox="0 0 96 96" fill="none">
 				<circle cx="48" cy="48" r="45" fill="#101a3c" />
 				<circle cx="48" cy="48" r="45" stroke="url(#title-crest-ring)" stroke-width="2.5" />
-				<circle cx="48" cy="48" r="38" stroke="rgba(232,200,119,0.35)" stroke-width="1" />
 				<path
 					d="M48 26 L52.6 43.4 L70 48 L52.6 52.6 L48 70 L43.4 52.6 L26 48 L43.4 43.4 Z"
 					fill="none"
@@ -99,13 +98,7 @@
 			onclick={onNewRun}
 		>
 			<span class="title-card-head">
-				<svg
-					viewBox="0 0 16 16"
-					fill="none"
-					stroke="currentColor"
-					stroke-width="1.6"
-					aria-hidden="true"
-				>
+				<svg viewBox="0 0 16 16" fill="none" stroke="#8dffbd" stroke-width="1.6" aria-hidden="true">
 					<path d="M8 2 L9.4 6.6 L14 8 L9.4 9.4 L8 14 L6.6 9.4 L2 8 L6.6 6.6 Z" />
 				</svg>
 				<span class="title-card-title font-display">{t(locale, 'ui.titleNewRun')}</span>
@@ -157,10 +150,6 @@
 		position: absolute;
 		inset: 0;
 		z-index: 20;
-		display: flex;
-		flex-direction: column;
-		align-items: center;
-		justify-content: flex-end;
 		overflow: hidden;
 		background: var(--color-ink);
 	}
@@ -182,14 +171,16 @@
 			linear-gradient(180deg, rgba(3, 4, 12, 0.4), transparent 30%, rgba(2, 3, 8, 0.72) 88%);
 	}
 
+	/* Mockup pins the stack at top:120px of a 900px frame (~13.4vh). */
 	.title-hero {
-		position: relative;
+		position: absolute;
+		top: 13.4vh;
+		left: 0;
+		right: 0;
 		z-index: 1;
 		display: grid;
 		justify-items: center;
-		flex: 1;
-		align-content: center;
-		padding-top: 4.5rem;
+		align-content: start;
 	}
 
 	.title-crest {
@@ -223,21 +214,23 @@
 	}
 
 	.title-actions {
-		position: relative;
+		position: absolute;
+		left: 50%;
+		bottom: 16.7vh; /* Mockup: card row bottom edge at 150px of 900px. */
 		z-index: 1;
 		display: grid;
 		grid-template-columns: repeat(3, minmax(13rem, 1fr));
 		gap: 1.4rem;
 		width: min(62rem, calc(100vw - 4rem));
-		margin-bottom: 1.4rem;
+		transform: translateX(-50%);
 	}
 
 	.title-card {
 		display: grid;
-		gap: 0.45rem;
+		gap: 0.75rem;
 		border: 1px solid var(--color-frame-strong);
-		border-radius: 0.9rem;
-		padding: 1rem 1.2rem;
+		border-radius: 1.25rem;
+		padding: 1.375rem 1.5rem;
 		background: linear-gradient(180deg, rgba(30, 44, 92, 0.85), rgba(14, 21, 46, 0.92));
 		box-shadow: inset 0 1px 0 rgba(255, 246, 224, 0.07);
 		color: var(--color-parchment);
@@ -279,28 +272,31 @@
 	}
 
 	.title-card-head svg {
-		width: 1.15rem;
-		height: 1.15rem;
+		width: 1.35rem;
+		height: 1.35rem;
 	}
 
 	.title-card-title {
-		font-size: 1.12rem;
+		font-size: 1.2rem;
 		font-weight: 900;
 		letter-spacing: 0.02em;
 	}
 
 	.title-card-sub {
 		color: color-mix(in srgb, currentColor 62%, transparent);
-		font-size: 0.76rem;
+		font-size: 0.82rem;
 		letter-spacing: 0.06em;
 	}
 
 	.title-hints {
-		position: relative;
+		position: absolute;
+		left: 0;
+		right: 0;
+		bottom: 8.7vh; /* Mockup: prompt bar at 78px of 900px. */
 		z-index: 1;
 		display: flex;
+		justify-content: center;
 		gap: 1.6rem;
-		margin-bottom: 1.3rem;
 		color: var(--color-muted);
 		font-size: 0.78rem;
 		font-weight: 700;
