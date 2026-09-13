@@ -121,7 +121,7 @@ export const ja = {
 			loot: '戦利品'
 		},
 		bagWorn: '装備中',
-		bagUseItem: '使う',
+		bagUseItem: '飲む',
 		bagEquipItem: '装備',
 		bagSelectHint: 'アイテムを選択して確認。',
 		bagPaperDollAlt: 'リアムの全身',

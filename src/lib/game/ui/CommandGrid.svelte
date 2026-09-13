@@ -57,7 +57,7 @@
 	// blue/violet, rest emerald; quest/save tiles also carry a warm tint.
 	const iconTints: Record<FieldCommand, string> = {
 		bag: '#dfe8ff',
-		gear: '#dfe8ff',
+		gear: '#9ad2ff',
 		quest: '#e8d27e',
 		map: '#8fb9e8',
 		skill: '#cf9dff',

@@ -748,10 +748,11 @@
 	}
 
 	.battle-tile-heal {
-		border-color: rgba(255, 232, 168, 0.85);
-		background: linear-gradient(180deg, var(--color-gold-bright), var(--color-gold));
+		border-color: rgba(255, 255, 255, 0.95);
+		/* Mockup selected intervene tile: bright cream, not yellow-gold. */
+		background: linear-gradient(180deg, #fff6dc, #f2c886);
 		color: #3a2c07;
-		box-shadow: 0 0 26px color-mix(in srgb, var(--color-gold) 35%, transparent);
+		box-shadow: 0 0 26px rgba(255, 206, 110, 0.45);
 	}
 
 	.battle-tile:disabled:not(.battle-tile-heal) {
@@ -761,7 +762,10 @@
 
 	.battle-tile-heal:disabled {
 		cursor: not-allowed;
-		opacity: 0.45;
+		/* Mute by desaturating instead of opacity-blending into the navy
+		   backdrop, so the disabled tile keeps its cream hue (mockup tint). */
+		opacity: 1;
+		filter: saturate(0.45) brightness(0.78);
 	}
 
 	.battle-tile :global(.heroic-prompt-glyph) {

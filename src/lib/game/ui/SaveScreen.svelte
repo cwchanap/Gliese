@@ -357,7 +357,10 @@
 	.save-slot-autosave {
 		border-style: solid;
 		border-color: rgba(255, 232, 168, 0.9);
-		box-shadow: 0 0 30px rgba(242, 212, 136, 0.28);
+		/* Mockup halo: strong warm outer glow on the selected slot. */
+		box-shadow:
+			0 0 30px rgba(255, 206, 110, 0.55),
+			0 0 60px rgba(255, 206, 110, 0.25);
 	}
 
 	.save-slot-chip {

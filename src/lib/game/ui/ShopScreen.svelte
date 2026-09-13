@@ -305,6 +305,25 @@
 							onclick={() => setShopTab(tab)}
 							onkeydown={(event) => handleShopTabKeydown(event, tab)}
 						>
+							<svg
+								viewBox="0 0 24 24"
+								fill="none"
+								stroke="currentColor"
+								stroke-width="1.7"
+								stroke-linecap="round"
+								stroke-linejoin="round"
+								aria-hidden="true"
+							>
+								{#if tab === 'buy'}
+									<!-- Mockup buy-tab bag glyph -->
+									<path d="M5 8h14l1 12H4L5 8z" />
+									<path d="M9 8V6a3 3 0 0 1 6 0v2" />
+								{:else}
+									<!-- Mockup sell-tab coin glyph -->
+									<path d="M12 5a7 7 0 1 0 0 14 7 7 0 0 0 0-14z" />
+									<path d="M12 8.5v7M9.8 10.8h4.4M9.8 13.4h4.4" />
+								{/if}
+							</svg>
 							{getShopTabLabel(tab)}
 						</button>
 					{/each}
@@ -694,9 +713,12 @@
 	}
 
 	.shop-mode {
+		display: grid;
+		justify-items: center;
+		gap: 0.45rem;
 		border: 1px solid var(--color-frame);
 		border-radius: 0.7rem;
-		padding: 0.58rem 0.7rem;
+		padding: 0.85rem 0.7rem 0.7rem;
 		background: color-mix(in srgb, var(--color-parchment) 6%, transparent);
 		color: var(--color-muted);
 		font-size: 0.72rem;
@@ -708,6 +730,10 @@
 			background 160ms ease,
 			color 160ms ease,
 			box-shadow 160ms ease;
+	}
+	.shop-mode svg {
+		width: 1.3rem;
+		height: 1.3rem;
 	}
 	.shop-mode:hover:not(.shop-mode-selected) {
 		border-color: var(--color-frame-strong);
@@ -981,10 +1007,11 @@
 		align-items: center;
 		justify-content: space-between;
 		gap: 0.6rem;
-		border: 1px solid var(--color-frame);
-		border-radius: 0.7rem;
-		padding: 0.5rem 0.8rem;
-		background: color-mix(in srgb, var(--color-parchment) 4%, transparent);
+		/* Mockup stat rows read as open rows: hairline cool border, flat navy. */
+		border: 1px solid rgba(169, 200, 255, 0.2);
+		border-radius: 0.875rem;
+		padding: 0.55rem 0.8rem;
+		background: rgba(20, 44, 104, 0.44);
 	}
 
 	.shop-delta-label {

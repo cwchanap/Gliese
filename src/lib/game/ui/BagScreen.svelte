@@ -552,7 +552,9 @@
 		display: inline-flex;
 		align-items: center;
 		gap: 0.42rem;
-		margin: 0.2rem 0 0;
+		/* Mockup seats the pill mid-header, reserving room after it for the
+		   (omitted) LB/RB hint instead of flush against the WORN panel. */
+		margin: 0.2rem 8rem 0 0;
 		border: 1px solid color-mix(in srgb, var(--color-gold) 55%, transparent);
 		border-radius: 999px;
 		padding: 0.32rem 0.85rem;
@@ -621,12 +623,14 @@
 	}
 
 	.bag-slot-empty {
-		border-color: color-mix(in srgb, var(--color-frame) 55%, transparent);
-		background: color-mix(in srgb, var(--color-ink) 42%, var(--color-panel-deep));
+		/* Mockup empty tile: faint fill, cool stroke, hairline top light. */
+		border-color: rgba(169, 200, 255, 0.14);
+		background: rgba(255, 255, 255, 0.035);
+		box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06);
 		cursor: default;
 	}
 	.bag-slot-empty:hover {
-		border-color: color-mix(in srgb, var(--color-frame) 55%, transparent);
+		border-color: rgba(169, 200, 255, 0.14);
 	}
 
 	.bag-slot-icon {
@@ -940,6 +944,10 @@
 			flex-direction: column;
 			gap: 1rem;
 			overflow-y: auto;
+		}
+
+		.bag-coins {
+			margin-right: 0;
 		}
 
 		.bag-main,

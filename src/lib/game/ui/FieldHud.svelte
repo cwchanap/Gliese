@@ -265,6 +265,33 @@
 		pointer-events: none;
 	}
 
+	/* Gold corner-bracket inlay (same etched treatment as the dialogue bar). */
+	.hero-card::before,
+	.hero-card::after {
+		content: '';
+		position: absolute;
+		width: 1.5rem;
+		height: 1.5rem;
+		border: 2px solid rgba(255, 224, 138, 0.9);
+		pointer-events: none;
+	}
+
+	.hero-card::before {
+		top: 9px;
+		left: 9px;
+		border-top-left-radius: 14px;
+		border-right: 0;
+		border-bottom: 0;
+	}
+
+	.hero-card::after {
+		right: 9px;
+		bottom: 9px;
+		border-bottom-right-radius: 14px;
+		border-left: 0;
+		border-top: 0;
+	}
+
 	.hero-portrait {
 		position: relative;
 		align-self: start;
@@ -323,17 +350,17 @@
 
 	.hero-meter-label {
 		font-family: var(--font-display);
-		font-size: 0.68rem;
+		font-size: 0.72rem;
 		font-weight: 900;
-		letter-spacing: 0.08em;
+		letter-spacing: 0.14em;
 	}
 
 	.hero-meter-label-hp {
-		color: var(--color-emerald);
+		color: #9ef0bd;
 	}
 
 	.hero-meter-label-xp {
-		color: var(--color-violet);
+		color: #f3d9ff;
 	}
 
 	.hero-meter-track {
@@ -368,8 +395,9 @@
 	.hero-meter-value {
 		margin-left: auto;
 		color: var(--color-parchment);
-		font-size: 0.95rem;
-		font-weight: 800;
+		font-size: 1.12rem;
+		font-weight: 900;
+		text-shadow: 0 2px 4px rgba(0, 0, 0, 0.6);
 	}
 
 	.hero-stats {
@@ -516,6 +544,10 @@
 
 	/* ---- Main quest banner --------------------------------------------- */
 	.quest-banner {
+		/* Mockup bleeds the banner off the right viewport edge. */
+		margin-right: -2.2rem;
+		border-top-right-radius: 0;
+		border-bottom-right-radius: 0;
 		border-left: 3px solid var(--color-gold);
 		padding: 0.6rem 0.75rem;
 	}
@@ -570,10 +602,12 @@
 	/* ---- Wallet pill ---------------------------------------------------- */
 	.wallet-pill {
 		justify-self: end;
+		/* Mockup bleeds the coin pill off the right viewport edge. */
+		margin-right: -2.2rem;
+		border-radius: 999px 0 0 999px;
 		display: inline-flex;
 		align-items: center;
 		gap: 0.45rem;
-		border-radius: 999px;
 		padding: 0.32rem 0.8rem;
 		color: var(--color-gold);
 		font-size: 1rem;

@@ -118,7 +118,7 @@ export const en = {
 			loot: 'Loot'
 		},
 		bagWorn: 'Worn',
-		bagUseItem: 'Use',
+		bagUseItem: 'Drink',
 		bagEquipItem: 'Equip',
 		bagSelectHint: 'Select an item to inspect.',
 		bagPaperDollAlt: 'Liam full-body paper doll',
