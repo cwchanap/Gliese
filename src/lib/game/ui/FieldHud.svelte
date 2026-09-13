@@ -85,7 +85,7 @@
 
 <section
 	data-testid="hud-party-panel"
-	class={`heroic-field-card filigree-frame hero-card${lowHp ? ' arcane-low-hp' : ''}`}
+	class={`heroic-field-card filigree-frame hero-card${lowHp ? ' heroic-low-hp' : ''}`}
 	aria-label={t($locale, 'ui.playerStatus')}
 >
 	<div class="hero-portrait">
@@ -95,8 +95,8 @@
 			aria-hidden="true"
 			draggable="false"
 		/>
-		<span class="hero-level font-display tabular-nums" class:arcane-level-up={levelUpFlash}>
-			<span class="sr-only" class:arcane-level-up={levelUpFlash}
+		<span class="hero-level font-display tabular-nums" class:heroic-level-up={levelUpFlash}>
+			<span class="sr-only" class:heroic-level-up={levelUpFlash}
 				>{t($locale, 'ui.levelAbbrev')} {hudState.level}</span
 			>
 			<span aria-hidden="true">{hudState.level}</span>
@@ -181,7 +181,7 @@
 					/>
 				{/each}
 				<circle
-					class="minimap-player-halo arcane-halo"
+					class="minimap-player-halo heroic-halo"
 					cx={hudState.areaMap.player.x}
 					cy={hudState.areaMap.player.y}
 					r="72"
@@ -216,7 +216,7 @@
 
 	<div class="heroic-field-card wallet-pill">
 		<span class="wallet-coin" aria-hidden="true"></span>
-		<span class={`font-display tabular-nums${coinFlash ? ' arcane-coin-flash' : ''}`}
+		<span class={`font-display tabular-nums${coinFlash ? ' heroic-coin-flash' : ''}`}
 			>{hudState.wallet.coins}{t($locale, 'ui.goldSuffix')}</span
 		>
 	</div>
@@ -230,7 +230,7 @@
 		aria-live="polite"
 	>
 		{#key fieldStatusKey}
-			<span class="arcane-window-enter">{hudState.status}</span>
+			<span class="heroic-anim">{hudState.status}</span>
 		{/key}
 	</div>
 {/if}

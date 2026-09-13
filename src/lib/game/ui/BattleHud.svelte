@@ -201,7 +201,7 @@
 			<button
 				type="button"
 				class="battle-tile battle-tile-heal font-display"
-				disabled={active.heals < 1}
+				disabled={active.heals < 1 || hudState.hp >= hudState.maxHp}
 				aria-label={t($locale, 'ui.battleHeal')}
 				data-testid="battle-tile-heal"
 				onclick={requestHeal}

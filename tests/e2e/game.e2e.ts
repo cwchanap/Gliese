@@ -10441,9 +10441,12 @@ async function moveAndResolveBattle(
 	await page.waitForTimeout(2_000);
 	await page.keyboard.up(key);
 
-	const battleSummary = page.getByRole('dialog', { name: /battle summary/i });
+	// The Heroic summary dialog is named by its outcome (Victory / Defeat);
+	// /battle summary/i keeps matching the pre-Heroic Arcane naming.
+	const battleSummary = page.getByRole('dialog', { name: /battle summary|victory|defeat/i });
 	await expect(battleSummary).toBeVisible({ timeout: 30_000 });
-	await expect(battleSummary.getByText(/Enemies defeated: (?:[1-9]|10)/i)).toBeVisible();
+	// Heroic summary renders foes defeated as the structured stat tile.
+	await expect(battleSummary.getByTestId('battle-stat-foes')).toContainText(/[1-9]/);
 	await battleSummary.getByRole('button', { name: /continue/i }).click();
 	await expect(battleSummary).toHaveCount(0);
 }
@@ -17905,9 +17908,12 @@ test('encounter opens battle scene and returns through battle summary', async ({
 	await injectSave(page, save);
 	await continueFromTitle(page);
 
-	const battleSummary = page.getByRole('dialog', { name: /battle summary/i });
+	// The Heroic summary dialog is named by its outcome (Victory / Defeat);
+	// /battle summary/i keeps matching the pre-Heroic Arcane naming.
+	const battleSummary = page.getByRole('dialog', { name: /battle summary|victory|defeat/i });
 	await expect(battleSummary).toBeVisible({ timeout: 30_000 });
-	await expect(battleSummary.getByText(/Enemies defeated: (?:[1-9]|10)/i)).toBeVisible();
+	// Heroic summary renders foes defeated as the structured stat tile.
+	await expect(battleSummary.getByTestId('battle-stat-foes')).toContainText(/[1-9]/);
 	await battleSummary.getByRole('button', { name: /continue/i }).click();
 	await expect(battleSummary).toHaveCount(0);
 	await expect(fieldStatus(page)).toContainText('Returned from battle');
@@ -18213,6 +18219,14 @@ test('interact key shop purchase appears in inventory', async ({ page }) => {
 		},
 		{ encoded: JSON.stringify(save), key: SAVES_STORAGE_KEY }
 	);
+	// Instant reveal keeps the confirm grammar deterministic: the single line
+	// renders complete, so one confirm advances into the choice treatment.
+	await page.addInitScript(() =>
+		window.localStorage.setItem(
+			'gliese.preferences.v1',
+			JSON.stringify({ locale: 'en', textSpeed: 'instant', motion: 'on', promptMode: 'auto' })
+		)
+	);
 	await continueFromTitle(page);
 	await page.waitForFunction(() => {
 		const state = (window as GlieseProbeWindow).__glieseLastHudState;
@@ -18225,7 +18239,7 @@ test('interact key shop purchase appears in inventory', async ({ page }) => {
 
 	const miraDialog = page.getByRole('dialog', { name: 'Mira' });
 	await expect(miraDialog).toBeVisible();
-	await expect(miraDialog.getByRole('button', { name: 'Next' })).toHaveCount(0);
+	await miraDialog.getByRole('button', { name: 'Next' }).click();
 	await miraDialog.getByRole('button', { name: 'Shop' }).click();
 
 	const shopDialog = page.getByRole('dialog', { name: "Mira's Item Shop" });
@@ -19842,6 +19856,14 @@ test('quest log shows main quest and accepts Guild side quests', async ({ page }
 			);
 		},
 		{ encoded: JSON.stringify(save), key: SAVES_STORAGE_KEY }
+	);
+	// Instant reveal keeps the confirm count deterministic (Heroic reveal
+	// grammar: confirm completes the line, the next confirm advances).
+	await page.addInitScript(() =>
+		window.localStorage.setItem(
+			'gliese.preferences.v1',
+			JSON.stringify({ locale: 'en', textSpeed: 'instant', motion: 'on', promptMode: 'auto' })
+		)
 	);
 	await continueFromTitle(page);
 	await expect(page.getByText('Talk to the Guild Master')).toBeVisible();

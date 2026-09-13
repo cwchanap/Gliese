@@ -927,6 +927,8 @@
 	.shop-detail-desc {
 		margin: 0.25rem auto 0;
 		max-width: 17rem;
+		/* Mockup detail prose uses the default display face, not Spectral. */
+		font-family: var(--font-display);
 		font-size: 0.78rem;
 		color: var(--color-muted);
 	}
