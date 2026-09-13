@@ -2133,6 +2133,34 @@ describe('GameShell pad layer', () => {
 		expect(page.getByRole('heading', { name: 'GLIESE' }).elements()).toHaveLength(0);
 	});
 
+	it('title focus columns match the visual card order when save data exists', async () => {
+		installPadStub();
+		writeSaveSlot(1, createSlotRecord());
+		render(GameShell);
+		await expect.element(page.getByRole('heading', { name: 'GLIESE' })).toBeVisible();
+
+		// Visual row is [Continue | New Run | System]; Continue is primary.
+		expect(focusedFocusId()).toBe('title-continue');
+
+		// Right walks the row visually left-to-right: Continue → New Run → System.
+		await tiltAxis(0.8, 0);
+		expect(focusedFocusId()).toBe('title-new-run');
+		await tiltAxis(0.8, 0);
+		expect(focusedFocusId()).toBe('title-system');
+
+		// Left from Continue hits the row edge — it must not reach New Run.
+		document.querySelector<HTMLElement>('[data-focus-id="title-continue"]')?.focus();
+		await tiltAxis(-0.8, 0);
+		expect(focusedFocusId()).toBe('title-continue');
+
+		// Left from System walks back through New Run to Continue.
+		document.querySelector<HTMLElement>('[data-focus-id="title-system"]')?.focus();
+		await tiltAxis(-0.8, 0);
+		expect(focusedFocusId()).toBe('title-new-run');
+		await tiltAxis(-0.8, 0);
+		expect(focusedFocusId()).toBe('title-continue');
+	});
+
 	it('focuses the first Save slot card, navigates the cards, and confirms the slot', async () => {
 		installPadStub();
 		await withCommands(async (commands) => {
