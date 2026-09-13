@@ -234,10 +234,9 @@
 	   Anchored inside the panel so taller choice lists grow upward. */
 	.jrpg-dialogue-choices {
 		position: absolute;
-		/* Mockup: right:44px; bottom:270px viewport-relative — the column's
-		   right edge aligns with the panel's own 2.75rem (44px) gutter, and
-		   230px above the panel floor (2.5rem) lands 270px above the viewport. */
-		right: 0;
+		/* Mockup: rows bleed off the right viewport edge (the panel itself is
+		   inset 2.75rem, so push the menu out past it). */
+		right: -3.5rem;
 		bottom: 14.375rem;
 		display: grid;
 		justify-content: end;
@@ -253,7 +252,7 @@
 		width: min(23rem, 80vw);
 		padding: 0.9rem 1.1rem;
 		border: 1px solid rgba(160, 200, 255, 0.26);
-		border-radius: 1rem;
+		border-radius: 1rem 0 0 1rem;
 		text-align: left;
 		color: #e2ecff;
 		font-family: var(--font-display);
