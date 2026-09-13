@@ -17,8 +17,11 @@
 	// Auto follows the last real input modality (pad input flips to pad, any
 	// key flips back) — the glyphs always name the controls that actually work.
 	const resolved = $derived(resolvePromptModality(mode, $lastInputModality));
+	// A/B circle tones are pad face-button styling; keyboard prompts always
+	// render as keycaps so glyphs never wear the wrong device's clothes.
+	const resolvedTone = $derived(resolved === 'pad' ? tone : 'enter');
 </script>
 
-<kbd class="heroic-prompt-glyph" data-prompt={resolved} data-tone={tone}>
+<kbd class="heroic-prompt-glyph" data-prompt={resolved} data-tone={resolvedTone}>
 	{resolved === 'pad' ? pad : keys}
 </kbd>

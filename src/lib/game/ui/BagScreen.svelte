@@ -252,7 +252,7 @@
 				{/each}
 			</div>
 			<button bind:this={closeButton} type="button" class="bag-rail-close" onclick={onClose}>
-				<PromptGlyph mode={$preferences.promptMode} keys="B" pad="B" tone="b" />
+				<PromptGlyph mode={$preferences.promptMode} keys="Esc" pad="B" tone="b" />
 				<span class="font-display">{t($locale, 'ui.close')}</span>
 			</button>
 		</nav>
@@ -417,7 +417,7 @@
 					{#if getDetailAction(selectedSlot)}
 						<button type="button" class="bag-detail-action font-display" onclick={activateSelected}>
 							<span>{getDetailActionLabel(getDetailAction(selectedSlot)!)}</span>
-							<PromptGlyph mode={$preferences.promptMode} keys="A" pad="A" tone="a" />
+							<PromptGlyph mode={$preferences.promptMode} keys="&#8629;" pad="A" tone="a" />
 						</button>
 					{/if}
 				{:else}

@@ -60,7 +60,7 @@
 					onclick={onClose}
 				>
 					<span class="skill-back-glyph" aria-hidden="true">
-						<PromptGlyph mode={$preferences.promptMode} keys="B" pad="B" tone="b" />
+						<PromptGlyph mode={$preferences.promptMode} keys="Esc" pad="B" tone="b" />
 					</span>
 					{t($locale, 'ui.back')}
 				</button>

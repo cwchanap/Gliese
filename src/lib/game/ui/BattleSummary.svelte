@@ -133,7 +133,7 @@
 			onclick={oncontinue}
 		>
 			{t($locale, 'ui.continue')}
-			<PromptGlyph mode={$preferences.promptMode} keys="A" pad="A" tone="a" />
+			<PromptGlyph mode={$preferences.promptMode} keys="&#8629;" pad="A" tone="a" />
 		</button>
 	</div>
 </div>

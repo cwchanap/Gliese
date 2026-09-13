@@ -43,4 +43,12 @@ describe('PromptGlyph', () => {
 		const glyph = page.getByText('Ⓐ');
 		await expect.element(glyph).toHaveAttribute('data-prompt', 'pad');
 	});
+
+	it('keys mode renders keyboard keycaps even with a pad face-button tone', async () => {
+		render(PromptGlyph, { props: { mode: 'keys', keys: '↵', pad: 'Ⓐ', tone: 'a' } });
+
+		const glyph = page.getByText('↵');
+		await expect.element(glyph).toHaveAttribute('data-prompt', 'keys');
+		await expect.element(glyph).toHaveAttribute('data-tone', 'enter');
+	});
 });

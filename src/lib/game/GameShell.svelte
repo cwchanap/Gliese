@@ -13,7 +13,7 @@
 	import SkillScreen from '$lib/game/ui/SkillScreen.svelte';
 	import SystemScreen from '$lib/game/ui/SystemScreen.svelte';
 	import TitleScreen from '$lib/game/ui/TitleScreen.svelte';
-	import { locale } from '$lib/game/i18n/store';
+	import { locale, preferences } from '$lib/game/i18n/store';
 	import { t } from '$lib/game/i18n/translate';
 	import { resetPlaytime, formatPlaytimeSeconds } from '$lib/game/save/playtime';
 	import { getNewestSaveSlot } from '$lib/game/save/slots';
@@ -326,9 +326,22 @@
 	}
 
 	/** Visible Heroic controls currently in the DOM, document order. Disabled
-	 *  controls stay in the geometry — resolveMenuFocusTarget skips them. */
+	 *  controls stay in the geometry — resolveMenuFocusTarget skips them. The
+	 *  grid scopes to the topmost open surface so pad directions never wander
+	 *  from an overlay onto controls behind it. */
 	function collectMenuFocusNodes(): MenuFocusNode[] {
-		return Array.from(document.querySelectorAll<HTMLElement>('[data-focus-id]'))
+		const scope: ParentNode =
+			document.querySelector<HTMLElement>('.jrpg-dialogue-panel') ??
+			battleSummaryDialog ??
+			systemDialog ??
+			saveDialog ??
+			shopDialog ??
+			questLogDialog ??
+			areaMapDialog ??
+			inventoryDialog ??
+			skillDialog ??
+			document;
+		return Array.from(scope.querySelectorAll<HTMLElement>('[data-focus-id]'))
 			.filter((element) => element.getClientRects().length > 0)
 			.map((element) => ({
 				id: element.dataset.focusId ?? '',
@@ -403,8 +416,9 @@
 
 	// ---- Pad layer: the ONE rAF poll loop (scenes stay pad-free) ----------
 
+	// Polls in both modes: the Title screen and every overlay are pad-first
+	// surfaces too (directional focus + confirm/cancel).
 	$effect(() => {
-		if (mode !== 'playing') return;
 		let previous: GamepadSnapshot = null;
 		let frame = requestAnimationFrame(function poll() {
 			const pads = typeof navigator.getGamepads === 'function' ? navigator.getGamepads() : [];
@@ -442,7 +456,7 @@
 				cyclePadTabs(1);
 				break;
 			case 'menu':
-				if (!battleLocked) {
+				if (mode === 'playing' && !battleLocked) {
 					if (commandOpen) closeCommand();
 					else openCommand();
 				}
@@ -533,6 +547,22 @@
 		void focusShopDialog();
 	});
 
+	// ---- Reduced motion: saved preference OR OS floor, applied shell-wide --
+
+	let osReducedMotion = $state(false);
+
+	$effect(() => {
+		const query = window.matchMedia('(prefers-reduced-motion: reduce)');
+		osReducedMotion = query.matches;
+		const onChange = (event: MediaQueryListEvent) => {
+			osReducedMotion = event.matches;
+		};
+		query.addEventListener('change', onChange);
+		return () => query.removeEventListener('change', onChange);
+	});
+
+	const motionReduced = $derived($preferences.motion === 'reduced' || osReducedMotion);
+
 	function dismissBattleSummary() {
 		requestDismissBattleSummary();
 	}
@@ -600,7 +630,13 @@
 
 	async function focusSaveDialog() {
 		await tick();
-		(saveCloseButton ?? saveDialog)?.focus();
+		// Primary action first: pad confirm must activate the A-labelled slot
+		// card, not the B-labelled Back control.
+		(
+			saveDialog?.querySelector<HTMLElement>('[data-focus-id^="save-slot-"]') ??
+			saveCloseButton ??
+			saveDialog
+		)?.focus();
 	}
 
 	async function focusBattleSummaryDialog() {
@@ -975,6 +1011,7 @@
 
 <section
 	class="game-shell relative h-screen w-screen overflow-hidden bg-ink font-body text-parchment"
+	class:heroic-motion-reduced={motionReduced}
 >
 	{#if loadError}
 		<div

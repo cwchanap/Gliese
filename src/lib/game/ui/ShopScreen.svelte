@@ -41,6 +41,8 @@
 	}: Props = $props();
 
 	const shopTabs: ShopTab[] = ['buy', 'sell'];
+	// Pad focus-grid geometry mirrors the 4-column stock grid.
+	const shopGridColumns = 4;
 
 	let activeShopTab = $state<ShopTab>('buy');
 	let selectedBuyStockId = $state<string | null>(null);
@@ -287,13 +289,16 @@
 			</div>
 			<div>
 				<div class="shop-modes" role="tablist" aria-label={t($locale, 'ui.shopSections')}>
-					{#each shopTabs as tab (tab)}
+					{#each shopTabs as tab, index (tab)}
 						<button
 							id={`shop-${tab}-tab`}
 							type="button"
 							role="tab"
 							class="shop-mode font-display"
 							class:shop-mode-selected={activeShopTab === tab}
+							data-focus-id={`shop-tab-${tab}`}
+							data-focus-row={0}
+							data-focus-column={index}
 							aria-selected={activeShopTab === tab}
 							aria-controls="shop-tab-panel"
 							tabindex={activeShopTab === tab ? 0 : -1}
@@ -305,7 +310,7 @@
 					{/each}
 				</div>
 				<button bind:this={closeButton} type="button" class="shop-rail-close" onclick={onClose}>
-					<PromptGlyph mode={$preferences.promptMode} keys="B" pad="B" tone="b" />
+					<PromptGlyph mode={$preferences.promptMode} keys="Esc" pad="B" tone="b" />
 					<span class="font-display">{t($locale, 'ui.close')}</span>
 				</button>
 			</div>
@@ -333,7 +338,7 @@
 					{#if activeShopTab === 'buy'}
 						{#if shop?.buy.length}
 							<div data-testid="shop-buy-grid" class="shop-grid">
-								{#each shop.buy as item (item.stockId)}
+								{#each shop.buy as item, index (item.stockId)}
 									{@const affordable = canBuyShopItem(item)}
 									{@const selected = selectedBuyStockId === item.stockId}
 									<button
@@ -341,6 +346,9 @@
 										class="shop-tile font-display"
 										class:shop-tile-selected={selected}
 										class:shop-tile-dimmed={!affordable}
+										data-focus-id={`shop-buy-${index}`}
+										data-focus-row={1 + Math.floor(index / shopGridColumns)}
+										data-focus-column={index % shopGridColumns}
 										aria-label={item.name}
 										onclick={() => selectShopBuyItem(item)}
 										ondblclick={() => activateShopBuyItem(item)}
@@ -377,13 +385,16 @@
 						{/if}
 					{:else if shop?.sell.length}
 						<div data-testid="shop-sell-grid" class="shop-grid">
-							{#each shop.sell as item (item.itemId)}
+							{#each shop.sell as item, index (item.itemId)}
 								{@const selected = selectedSellItemId === item.itemId}
 								<button
 									type="button"
 									class="shop-tile font-display"
 									class:shop-tile-selected={selected}
 									class:shop-tile-dimmed={!ready || battleLocked}
+									data-focus-id={`shop-sell-${index}`}
+									data-focus-row={1 + Math.floor(index / shopGridColumns)}
+									data-focus-column={index % shopGridColumns}
 									aria-label={item.name}
 									onclick={() => selectShopSellItem(item)}
 									ondblclick={() => activateShopSellItem(item)}
@@ -487,7 +498,7 @@
 					onclick={activateSelected}
 				>
 					<span>{getActionLabel()}</span>
-					<PromptGlyph mode={$preferences.promptMode} keys="A" pad="A" tone="a" />
+					<PromptGlyph mode={$preferences.promptMode} keys="&#8629;" pad="A" tone="a" />
 				</button>
 			{:else if activeShopTab === 'sell' && selectedSellItem}
 				<div class="shop-detail-head">
@@ -522,7 +533,7 @@
 					onclick={activateSelected}
 				>
 					<span>{getActionLabel()}</span>
-					<PromptGlyph mode={$preferences.promptMode} keys="A" pad="A" tone="a" />
+					<PromptGlyph mode={$preferences.promptMode} keys="&#8629;" pad="A" tone="a" />
 				</button>
 			{:else}
 				<p class="shop-detail-hint font-display">{t($locale, 'ui.shopSelectHint')}</p>

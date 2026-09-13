@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { onMount } from 'svelte';
 	import { preferences } from '$lib/game/i18n/store';
 	import { t } from '$lib/game/i18n/translate';
 	import PromptGlyph from '$lib/game/ui/PromptGlyph.svelte';
@@ -14,6 +15,14 @@
 	let { canContinue, continueSubtitle, onContinue, onNewRun, onSystem }: Props = $props();
 
 	const locale = $derived($preferences.locale);
+
+	let continueCard = $state<HTMLButtonElement>();
+	let newRunCard = $state<HTMLButtonElement>();
+
+	// Pad-first title: the pad-A target is the primary card from the start.
+	onMount(() => {
+		(canContinue ? continueCard : newRunCard)?.focus({ preventScroll: true });
+	});
 </script>
 
 <div class="title-screen" role="region" aria-label="GLIESE">
@@ -56,6 +65,10 @@
 			type="button"
 			class="title-card"
 			class:title-card-primary={canContinue}
+			data-focus-id="title-continue"
+			data-focus-row={0}
+			data-focus-column={1}
+			bind:this={continueCard}
 			onclick={onContinue}
 			disabled={!canContinue}
 		>
@@ -76,7 +89,15 @@
 			</span>
 		</button>
 
-		<button type="button" class="title-card" onclick={onNewRun}>
+		<button
+			type="button"
+			class="title-card"
+			data-focus-id="title-new-run"
+			data-focus-row={0}
+			data-focus-column={0}
+			bind:this={newRunCard}
+			onclick={onNewRun}
+		>
 			<span class="title-card-head">
 				<svg
 					viewBox="0 0 16 16"
@@ -92,7 +113,14 @@
 			<span class="title-card-sub font-display">{t(locale, 'ui.titleNewRunSub')}</span>
 		</button>
 
-		<button type="button" class="title-card" onclick={onSystem}>
+		<button
+			type="button"
+			class="title-card"
+			data-focus-id="title-system"
+			data-focus-row={0}
+			data-focus-column={2}
+			onclick={onSystem}
+		>
 			<span class="title-card-head">
 				<svg
 					viewBox="0 0 16 16"
@@ -114,7 +142,7 @@
 
 	<div class="title-hints font-display" aria-hidden="true">
 		<span class="title-hint">
-			<PromptGlyph mode={$preferences.promptMode} keys="A" pad="A" tone="a" />
+			<PromptGlyph mode={$preferences.promptMode} keys="&#8629;" pad="A" tone="a" />
 			{t(locale, 'ui.titleHintSelect')}
 		</span>
 		<span class="title-hint">

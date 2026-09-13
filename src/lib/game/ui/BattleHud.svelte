@@ -212,7 +212,7 @@
 					/></svg
 				>
 				<span class="battle-tile-label-row">{t($locale, 'ui.battleHeal')}</span>
-				<PromptGlyph mode={$preferences.promptMode} keys="A" pad="A" tone="a" />
+				<PromptGlyph mode={$preferences.promptMode} keys="&#8629;" pad="A" tone="a" />
 			</button>
 			<span class="battle-tile-caption font-display">
 				{active.heals === 1
@@ -233,7 +233,7 @@
 					><path d="M6 2.6h4M6.8 2.6v3L4.4 9.4a3.9 3.9 0 1 0 7.2 0L9.2 5.6v-3" /></svg
 				>
 				<span class="battle-tile-label-row">{t($locale, 'ui.battleItem')}</span>
-				<PromptGlyph mode={$preferences.promptMode} keys="X" pad="X" />
+				<PromptGlyph mode={$preferences.promptMode} keys="&#8629;" pad="X" />
 			</button>
 			<span class="battle-tile-caption font-display">
 				{t($locale, 'ui.battleItemsInBag', { count: active.items })}
@@ -252,7 +252,7 @@
 					><path d="M4.5 14V2.5h7.4L9.6 5.4l2.3 2.9H4.5" /></svg
 				>
 				<span class="battle-tile-label-row">{t($locale, 'ui.battleFlee')}</span>
-				<PromptGlyph mode={$preferences.promptMode} keys="B" pad="B" tone="b" />
+				<PromptGlyph mode={$preferences.promptMode} keys="&#8629;" pad="B" tone="b" />
 			</button>
 			<span class="battle-tile-caption font-display tabular-nums">
 				{#if active.flee.status === 'channeling'}

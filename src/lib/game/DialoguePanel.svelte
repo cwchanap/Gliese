@@ -140,6 +140,9 @@
 					class="jrpg-dialogue-choice"
 					data-kind={choice.kind ?? 'ask'}
 					data-selected={index === selectedChoiceIndex}
+					data-focus-id={`dialogue-choice-${index}`}
+					data-focus-row={index}
+					data-focus-column={0}
 					disabled={!fullyRevealed}
 					onclick={() => onchoose(choice.id)}
 					onfocus={() => (selectedChoiceIndex = index)}
@@ -202,12 +205,12 @@
 				</div>
 				<div class="jrpg-dialogue-prompts">
 					<button type="button" class="jrpg-dialogue-action" onclick={confirmAdvance}>
-						<PromptGlyph mode={$preferences.promptMode} keys="A" pad="A" tone="a" />
+						<PromptGlyph mode={$preferences.promptMode} keys="&#8629;" pad="A" tone="a" />
 						{t($locale, 'ui.next')}
 					</button>
 					{#if dialogue.canClose}
 						<button type="button" class="jrpg-dialogue-action" onclick={onclose}>
-							<PromptGlyph mode={$preferences.promptMode} keys="B" pad="B" tone="b" />
+							<PromptGlyph mode={$preferences.promptMode} keys="Esc" pad="B" tone="b" />
 							{t($locale, 'ui.close')}
 						</button>
 					{/if}
