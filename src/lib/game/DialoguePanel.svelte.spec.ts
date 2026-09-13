@@ -283,12 +283,12 @@ describe('DialoguePanel.svelte', () => {
 			const rowBounds = firstRow!.getBoundingClientRect();
 
 			// Mockup: column bottom sits 270px above the viewport floor with the
-			// panel floor at 40px -> 230px above the panel floor; rows are fully
-			// contained in the viewport, right-aligned to the panel's 44px
-			// gutter; rows are 23rem (368px) wide.
+			// panel floor at 40px -> 230px above the panel floor; rows bleed off
+			// the right viewport edge past the panel's 44px gutter; rows are
+			// 23rem (368px) wide.
 			expect(panelBounds.bottom - choicesBounds.bottom).toBeCloseTo(230, -1);
-			expect(choicesBounds.right).toBeCloseTo(panelBounds.right, 0);
-			expect(choicesBounds.right).toBeLessThan(window.innerWidth);
+			expect(choicesBounds.right).toBeGreaterThan(panelBounds.right);
+			expect(choicesBounds.right).toBeGreaterThan(window.innerWidth);
 			expect(choicesBounds.bottom).toBeLessThan(barBounds.top);
 			// 23rem design width (sub-percent rendering drift tolerated).
 			expect(rowBounds.width).toBeLessThanOrEqual(368.5);
