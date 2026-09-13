@@ -8,6 +8,8 @@ import { HUD_COMMAND_EVENT, HUD_STATE_EVENT, type HudState } from '$lib/game/ui-
 import { createNewSaveState } from '$lib/game/save/save-state';
 import { SAVE_SLOTS_STORAGE_KEY, writeSaveSlot, type SaveSlotRecord } from '$lib/game/save/slots';
 import { setLastInputModality } from '$lib/game/core/gamepad';
+import { PREFERENCES_STORAGE_KEY } from '$lib/game/i18n/preferences';
+import { updatePreferences } from '$lib/game/i18n/store';
 import type { ConsumableDefinition, EquipmentDefinition } from '$lib/game/content/items';
 import type { HudQuestEntry, HudQuestOffer } from '$lib/game/core/quests';
 import type { HudShopBuyEntry, HudShopSellEntry } from '$lib/game/core/shop';
@@ -19,6 +21,8 @@ vi.mock('$lib/game/phaser/createGame', () => ({
 afterEach(() => {
 	emitHudState(baseHudState({ ready: false }));
 	localStorage.removeItem(SAVE_SLOTS_STORAGE_KEY);
+	localStorage.removeItem(PREFERENCES_STORAGE_KEY);
+	updatePreferences({ motion: 'on', textSpeed: 'normal', promptMode: 'auto' });
 	setLastInputModality('keys');
 	vi.unstubAllGlobals();
 });
@@ -2106,5 +2110,207 @@ describe('GameShell pad layer', () => {
 
 		await userEvent.keyboard('{Shift}');
 		expect(glyph()).toBe('keys');
+	});
+
+	it('polls in Title mode: stick moves card focus and confirm starts a run', async () => {
+		installPadStub();
+		render(GameShell);
+		await expect.element(page.getByRole('heading', { name: 'GLIESE' })).toBeVisible();
+
+		// Initial focus lands on the primary card (no save data → New Run).
+		expect(focusedFocusId()).toBe('title-new-run');
+
+		await tiltAxis(0.8, 0);
+		expect(focusedFocusId()).toBe('title-system');
+
+		// Left skips the disabled Continue card back to New Run.
+		await tiltAxis(-0.8, 0);
+		await tiltAxis(-0.8, 0);
+		expect(focusedFocusId()).toBe('title-new-run');
+
+		await press(0);
+		await expect.element(page.getByRole('button', { name: /menu/i })).toBeVisible();
+		expect(page.getByRole('heading', { name: 'GLIESE' }).elements()).toHaveLength(0);
+	});
+
+	it('focuses the first Save slot card, navigates the cards, and confirms the slot', async () => {
+		installPadStub();
+		await withCommands(async (commands) => {
+			render(GameShell);
+			emitHudState(baseHudState());
+
+			await page.getByRole('button', { name: /menu/i }).click();
+			await page.getByRole('button', { name: 'Save', exact: true }).click();
+			const saveDialog = page.getByRole('dialog', { name: /save/i });
+			await expect.element(saveDialog).toBeVisible();
+
+			// Initial focus is the A-labelled slot card, not the Back control.
+			expect(focusedFocusId()).toBe('save-slot-1');
+
+			await tiltAxis(0.8, 0);
+			expect(focusedFocusId()).toBe('save-slot-2');
+
+			await tiltAxis(-0.8, 0);
+			await press(0);
+			expect(commands).toContainEqual({ type: 'save-slot', slot: 1 });
+		});
+	});
+
+	it('moves pad focus across dialogue choice rows and confirms the focused choice', async () => {
+		installPadStub();
+		updatePreferences({ textSpeed: 'instant' });
+		await withCommands(async (commands) => {
+			render(GameShell);
+			emitHudState(
+				baseHudState({
+					dialogue: {
+						id: 'dialogue-choices',
+						npcId: 'npc-mira',
+						speaker: 'Mira',
+						line: 'What will you do?',
+						lineIndex: 0,
+						lineCount: 1,
+						mode: 'choice',
+						choices: [
+							{ id: 'shop', label: 'Shop', kind: 'trade' },
+							{ id: 'leave', label: 'Leave', kind: 'leave' }
+						],
+						canClose: true
+					}
+				})
+			);
+			const panel = page.getByRole('dialog', { name: 'Mira' });
+			await expect.element(panel).toBeVisible();
+
+			await tiltAxis(0, 0.8);
+			expect(focusedFocusId()).toBe('dialogue-choice-0');
+			await tiltAxis(0, 0.8);
+			expect(focusedFocusId()).toBe('dialogue-choice-1');
+			await expect
+				.element(panel.getByRole('button', { name: 'Leave' }))
+				.toHaveAttribute('data-selected', 'true');
+
+			await press(0);
+			expect(commands).toContainEqual({ type: 'dialogue-choose', choiceId: 'leave' });
+		});
+	});
+});
+
+describe('GameShell prompt glyph honesty', () => {
+	function glyphTextIn(root: HTMLElement): string[] {
+		return Array.from(root.querySelectorAll('kbd[data-prompt]')).map(
+			(glyph) => `${glyph.getAttribute('data-prompt')}:${glyph.textContent}`
+		);
+	}
+
+	it('keys mode shows honest keyboard glyphs on the Title hints', async () => {
+		render(GameShell);
+		await expect.element(page.getByRole('heading', { name: 'GLIESE' })).toBeVisible();
+
+		const hints = document.querySelector<HTMLElement>('.title-hints');
+		expect(glyphTextIn(hints!)).toEqual(['keys:↵', 'keys:↵']);
+	});
+
+	it('keys mode shows Enter on slot cards and Esc on Back; pad mode shows A/B', async () => {
+		render(GameShell);
+		emitHudState(baseHudState());
+
+		await page.getByRole('button', { name: /menu/i }).click();
+		await page.getByRole('button', { name: 'Save', exact: true }).click();
+		const saveDialog = page.getByRole('dialog', { name: /save/i });
+		await expect.element(saveDialog).toBeVisible();
+
+		const slotCard = saveDialog.getByTestId('save-slot-1').element() as HTMLElement;
+		expect(glyphTextIn(slotCard)).toContain('keys:↵');
+		const back = document.querySelector<HTMLElement>('.save-back')!;
+		expect(glyphTextIn(back)).toEqual(['keys:Esc']);
+
+		updatePreferences({ promptMode: 'pad' });
+		await new Promise((resolve) => setTimeout(resolve, 0));
+		expect(glyphTextIn(slotCard)).toContain('pad:A');
+		expect(glyphTextIn(back)).toEqual(['pad:B']);
+	});
+
+	it('battle Heal shows the keyboard path that actually heals (Enter, not A)', async () => {
+		render(GameShell);
+		emitHudState(
+			baseHudState({
+				battle: {
+					phase: 'active',
+					summary: null,
+					active: {
+						targetUnitId: 'encounter:unit:0',
+						enemies: [
+							{
+								unitId: 'encounter:unit:0',
+								enemyId: 'slime-scout',
+								name: 'Slime Scout',
+								hp: 5,
+								maxHp: 8,
+								defeated: false,
+								artPath: '/game/assets/heroic-ui/enemies/slime-scout.png'
+							}
+						],
+						ribbon: [
+							{ unitId: 'hero', readyAt: 0 },
+							{ unitId: 'encounter:unit:0', readyAt: 200 }
+						],
+						feed: [],
+						heals: 1,
+						items: 1,
+						flee: { status: 'idle', progress: 0 },
+						now: 0
+					}
+				}
+			})
+		);
+		const healTile = page.getByTestId('battle-tile-heal');
+		await expect.element(healTile).toBeVisible();
+		(healTile.element() as HTMLElement).focus();
+		await expect.element(healTile).toHaveFocus();
+
+		// The glyph names the honest binding — keyboard 'a' is a movement key,
+		// and Enter on the focused tile really does heal.
+		const glyph = document.querySelector<HTMLElement>(
+			'[data-testid="battle-tile-heal"] kbd[data-prompt]'
+		);
+		expect(glyph?.getAttribute('data-prompt')).toBe('keys');
+		expect(glyph?.textContent).toBe('↵');
+		await withCommands(async (commands) => {
+			await userEvent.keyboard('{Enter}');
+			expect(commands).toContainEqual({ type: 'heal' });
+		});
+	});
+});
+
+describe('GameShell reduced motion', () => {
+	it('saved preference=reduced stops field animations with the OS query unreduced', async () => {
+		updatePreferences({ motion: 'reduced' });
+		render(GameShell);
+		emitHudState(baseHudState({ hp: 10, maxHp: 50 }));
+
+		const shell = document.querySelector<HTMLElement>('.game-shell');
+		expect(shell).not.toBeNull();
+		expect(window.matchMedia('(prefers-reduced-motion: reduce)').matches).toBe(false);
+		expect(shell).toHaveClass(/heroic-motion-reduced/);
+
+		// The low-HP pulse lives in app.css on a field surface — the global
+		// class must silence it, not just the screens that used to opt in.
+		const party = page.getByTestId('hud-party-panel');
+		await expect.element(party).toHaveClass(/heroic-low-hp/);
+		expect(getComputedStyle(party.element() as HTMLElement).animationName).toBe('none');
+	});
+
+	it('keeps the low-HP pulse with the preference On and no OS reduction', async () => {
+		render(GameShell);
+		emitHudState(baseHudState({ hp: 10, maxHp: 50 }));
+
+		const shell = document.querySelector<HTMLElement>('.game-shell');
+		expect(shell!.classList.contains('heroic-motion-reduced')).toBe(false);
+		const party = page.getByTestId('hud-party-panel');
+		await expect.element(party).toHaveClass(/heroic-low-hp/);
+		expect(getComputedStyle(party.element() as HTMLElement).animationName).toBe(
+			'heroic-danger-pulse'
+		);
 	});
 });

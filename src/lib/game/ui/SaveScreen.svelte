@@ -162,7 +162,7 @@
 					{formatPlaytimeSeconds(record.playtimeSeconds)} · {formatSavedAt(record.savedAt)}
 				</p>
 				<span class="save-slot-prompt" aria-hidden="true">
-					<PromptGlyph mode={$preferences.promptMode} keys="A" pad="A" tone="a" />
+					<PromptGlyph mode={$preferences.promptMode} keys="&#8629;" pad="A" tone="a" />
 				</span>
 			</div>
 		{:else}
@@ -171,7 +171,7 @@
 			</p>
 			<div class="save-slot-meta">
 				<span class="save-slot-prompt" aria-hidden="true">
-					<PromptGlyph mode={$preferences.promptMode} keys="A" pad="A" tone="a" />
+					<PromptGlyph mode={$preferences.promptMode} keys="&#8629;" pad="A" tone="a" />
 				</span>
 			</div>
 		{/if}
@@ -195,7 +195,7 @@
 			</div>
 			<button bind:this={closeButton} type="button" class="save-back" onclick={onClose}>
 				<span class="save-back-glyph" aria-hidden="true">
-					<PromptGlyph mode={$preferences.promptMode} keys="B" pad="B" tone="b" />
+					<PromptGlyph mode={$preferences.promptMode} keys="Esc" pad="B" tone="b" />
 				</span>
 				{t(locale, 'ui.back')}
 			</button>
@@ -216,6 +216,9 @@
 						type="button"
 						class="save-slot save-slot-action"
 						data-testid="save-slot-{index}"
+						data-focus-id={`save-slot-${index}`}
+						data-focus-row={0}
+						data-focus-column={index - 1}
 						aria-label={slotAriaLabel(index, record)}
 						onclick={() => chooseSlot(index as 1 | 2)}
 					>
@@ -230,13 +233,23 @@
 			{#if confirmSlot !== null}
 				<div class="save-confirm" role="alertdialog" aria-label={t(locale, 'ui.overwriteTitle')}>
 					<p class="font-display">{t(locale, 'ui.overwriteTitle')}</p>
-					<button type="button" class="heroic-segment" onclick={cancelOverwrite}>
+					<button
+						type="button"
+						class="heroic-segment"
+						data-focus-id="save-overwrite-cancel"
+						data-focus-row={1}
+						data-focus-column={0}
+						onclick={cancelOverwrite}
+					>
 						{t(locale, 'ui.back')}
 					</button>
 					<button
 						type="button"
 						class="heroic-segment heroic-segment-selected"
 						data-testid="confirm-overwrite"
+						data-focus-id="save-overwrite-confirm"
+						data-focus-row={1}
+						data-focus-column={1}
 						onclick={confirmOverwrite}
 					>
 						{t(locale, 'ui.confirmOverwrite')}

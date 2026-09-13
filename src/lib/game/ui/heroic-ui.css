@@ -319,11 +319,13 @@
 		animation-delay: 420ms;
 	}
 
-	/* Reduced motion obeys BOTH the saved preference (heroic-motion-reduced
-	   ancestor class) and the OS preference (media query below). */
-	.heroic-motion-reduced .heroic-anim,
-	.heroic-motion-reduced.heroic-anim,
-	.heroic-motion-reduced .heroic-stagger > * {
+	/* Reduced motion obeys BOTH the saved preference (heroic-motion-reduced on
+	   the GameShell root stops every descendant animation — entrances,
+	   shimmer, pulse, halo, flash) and the OS preference (media query below). */
+	.heroic-motion-reduced *,
+	.heroic-motion-reduced *::before,
+	.heroic-motion-reduced *::after,
+	.heroic-motion-reduced.heroic-anim {
 		animation: none !important;
 	}
 }
