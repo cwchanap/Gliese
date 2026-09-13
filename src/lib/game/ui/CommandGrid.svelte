@@ -53,17 +53,17 @@
 		system: '/game/assets/heroic-ui/icons/system.svg'
 	};
 
-	// Source mockup tints each glyph: quest/save gold, map/skill/system
-	// blue/violet, rest emerald; quest/save tiles also carry a warm tint.
+	// Source mockup tintColor map: bag/rest emerald, gear/map azure,
+	// quest/save gold, skill violet, system slate.
 	const iconTints: Record<FieldCommand, string> = {
-		bag: '#dfe8ff',
+		bag: '#8dffbd',
 		gear: '#9ad2ff',
 		quest: '#e8d27e',
 		map: '#8fb9e8',
 		skill: '#cf9dff',
 		rest: '#7ee2a8',
 		save: '#f2d488',
-		system: '#9ad2ff'
+		system: '#c2cfe8'
 	};
 
 	// Quest/Save tiles read warm in the source; 'transparent' keeps the rest
