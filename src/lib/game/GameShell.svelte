@@ -1010,7 +1010,7 @@
 </script>
 
 <section
-	class="game-shell relative h-screen w-screen overflow-clip bg-ink font-body text-parchment"
+	class="game-shell relative h-screen w-screen bg-ink font-body text-parchment"
 	class:heroic-motion-reduced={motionReduced}
 >
 	{#if loadError}
@@ -1169,6 +1169,14 @@
 </section>
 
 <style>
+	.game-shell {
+		/* Hardening: the shell is a backdrop, never a scroll surface. Plain
+		   `hidden` first so engines without `clip` (Safari/WKWebView < 16)
+		   keep a fallback instead of dropping the declaration. */
+		overflow: hidden;
+		overflow: clip;
+	}
+
 	:global(body) {
 		overflow: hidden;
 		background: #050714;

@@ -98,7 +98,13 @@
 			onclick={onNewRun}
 		>
 			<span class="title-card-head">
-				<svg viewBox="0 0 16 16" fill="none" stroke="#8dffbd" stroke-width="1.6" aria-hidden="true">
+				<svg
+					viewBox="0 0 16 16"
+					fill="none"
+					style="stroke: var(--color-emerald)"
+					stroke-width="1.6"
+					aria-hidden="true"
+				>
 					<path d="M8 2 L9.4 6.6 L14 8 L9.4 9.4 L8 14 L6.6 9.4 L2 8 L6.6 6.6 Z" />
 				</svg>
 				<span class="title-card-title font-display">{t(locale, 'ui.titleNewRun')}</span>
