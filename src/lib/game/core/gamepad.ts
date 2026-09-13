@@ -49,7 +49,9 @@ export function snapshotGamepad(pad: Gamepad | null): GamepadSnapshot {
 	};
 }
 
-/** Actions newly engaged since `previous` — edge-triggered; held inputs stay silent. */
+/** Actions newly engaged since `previous` — edge-triggered; held inputs stay silent.
+ *  D-pad and stick mirror each other, so a same-frame duplicate direction is
+ *  emitted once. */
 export function diffGamepadActions(
 	previous: GamepadSnapshot,
 	current: GamepadSnapshot
@@ -73,7 +75,7 @@ export function diffGamepadActions(
 	if (pastDeadZone(y, -1) && !pastDeadZone(previousY ?? 0, -1)) actions.push('up');
 	if (pastDeadZone(y, 1) && !pastDeadZone(previousY ?? 0, 1)) actions.push('down');
 
-	return actions;
+	return [...new Set(actions)];
 }
 
 /** Prompt glyphs follow the preference; 'auto' mirrors the last real input. */

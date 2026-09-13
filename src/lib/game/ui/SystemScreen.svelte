@@ -138,7 +138,7 @@
 					<button
 						bind:this={closeButton}
 						type="button"
-						class="glass-button jrpg-small-button"
+						class="heroic-chip-button"
 						onclick={onClose}
 					>
 						{t($locale, 'ui.close')}
