@@ -67,7 +67,7 @@
 			class:title-card-primary={canContinue}
 			data-focus-id="title-continue"
 			data-focus-row={0}
-			data-focus-column={1}
+			data-focus-column={0}
 			bind:this={continueCard}
 			onclick={onContinue}
 			disabled={!canContinue}
@@ -94,7 +94,7 @@
 			class="title-card"
 			data-focus-id="title-new-run"
 			data-focus-row={0}
-			data-focus-column={0}
+			data-focus-column={1}
 			bind:this={newRunCard}
 			onclick={onNewRun}
 		>
