@@ -1010,7 +1010,7 @@
 </script>
 
 <section
-	class="game-shell relative h-screen w-screen overflow-hidden bg-ink font-body text-parchment"
+	class="game-shell relative h-screen w-screen overflow-clip bg-ink font-body text-parchment"
 	class:heroic-motion-reduced={motionReduced}
 >
 	{#if loadError}

@@ -369,7 +369,7 @@ test('Bag screen capture through the menu path', async ({ page }) => {
 	await dialog.getByRole('button', { name: 'Greater Field Potion', exact: true }).click();
 	const detail = dialog.getByTestId('inventory-detail');
 	await expect(detail.getByText('Greater Field Potion')).toBeVisible();
-	await expect(detail.getByRole('button', { name: 'Use' })).toBeVisible();
+	await expect(detail.getByRole('button', { name: 'Drink' })).toBeVisible();
 
 	await page.waitForTimeout(700);
 

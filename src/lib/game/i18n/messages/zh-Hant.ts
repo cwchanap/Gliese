@@ -121,7 +121,7 @@ export const zhHant = {
 			loot: '戰利品'
 		},
 		bagWorn: '已裝備',
-		bagUseItem: '使用',
+		bagUseItem: '飲用',
 		bagEquipItem: '裝備',
 		bagSelectHint: '選擇物品以查看詳情。',
 		bagPaperDollAlt: '利亞姆全身立繪',

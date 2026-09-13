@@ -183,6 +183,13 @@
 		if (kind === 'side') return t($locale, 'ui.side');
 		return t($locale, 'ui.questOffered');
 	}
+
+	/** Side-quest glyphs follow the mockup vocabulary: slime (defeat) or
+	 	key (collect), picked from the quest's first objective. */
+	function getSideIconKind(questId: string): 'slime' | 'relic' {
+		const objective = getQuest(questId)?.objectives[0];
+		return objective?.kind === 'collect-item' ? 'relic' : 'slime';
+	}
 </script>
 
 {#if open}
@@ -227,8 +234,20 @@
 									/>
 								</svg>
 							{:else if row.kind === 'side'}
-								<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
-									<path d="M8 1.8 13.4 3.8v4.4c0 3-2.3 5.1-5.4 6-3.1-.9-5.4-3-5.4-6V3.8 Z" />
+								<svg
+									viewBox="0 0 24 24"
+									fill="none"
+									stroke="currentColor"
+									stroke-width="1.5"
+									stroke-linejoin="round"
+								>
+									{#if getSideIconKind(row.entry.questId) === 'slime'}
+										<path
+											d="M12 6c4 0 7 3.6 7 7.5A2.5 2.5 0 0 1 16.5 16h-9A2.5 2.5 0 0 1 5 13.5C5 9.6 8 6 12 6z"
+										/>
+									{:else}
+										<path d="M15 4a5 5 0 1 0-3.5 8.5L4 20h4v-3h3v-3l.5-.5A5 5 0 0 0 15 4z" />
+									{/if}
 								</svg>
 							{:else}
 								<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
@@ -794,6 +813,19 @@
 		min-width: 0;
 		min-height: 0;
 		overflow: hidden;
+		/* Mockup encloses the whole detail column in one large bordered card. */
+		border: 1px solid rgba(255, 232, 170, 0.7);
+		border-radius: 1.5rem;
+		padding: 1.75rem 1.875rem;
+		background: linear-gradient(
+			135deg,
+			rgba(34, 74, 164, 0.8),
+			rgba(12, 26, 74, 0.9) 55%,
+			rgba(46, 28, 96, 0.85)
+		);
+		box-shadow:
+			inset 0 0 0 3px rgba(255, 214, 120, 0.12),
+			inset 0 2px 0 rgba(255, 255, 255, 0.24);
 	}
 
 	.quest-detail-main {
