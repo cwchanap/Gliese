@@ -444,10 +444,8 @@
 	/* ---- Right column: minimap medallion / quest banner / wallet ------- */
 	.heroic-side-hud {
 		position: absolute;
-		/* Mockup side column: top:34px; right:34px; align-items:flex-end —
-		   fully inset, nothing bleeds past the viewport. */
-		top: 2.125rem;
-		right: 2.125rem;
+		top: 0.9rem;
+		right: 0.9rem;
 		z-index: 20;
 		display: grid;
 		justify-items: stretch;
@@ -547,8 +545,10 @@
 
 	/* ---- Main quest banner --------------------------------------------- */
 	.quest-banner {
-		/* Mockup card: square LEFT corners (gold tab edge), rounded RIGHT. */
-		border-radius: 0 1.25rem 1.25rem 0;
+		/* Mockup bleeds the banner off the right viewport edge. */
+		margin-right: -2.2rem;
+		border-top-right-radius: 0;
+		border-bottom-right-radius: 0;
 		border-left: 3px solid var(--color-gold);
 		padding: 0.6rem 0.75rem;
 	}
@@ -603,7 +603,9 @@
 	/* ---- Wallet pill ---------------------------------------------------- */
 	.wallet-pill {
 		justify-self: end;
-		border-radius: 999px;
+		/* Mockup bleeds the coin pill off the right viewport edge. */
+		margin-right: -2.2rem;
+		border-radius: 999px 0 0 999px;
 		display: inline-flex;
 		align-items: center;
 		gap: 0.45rem;
