@@ -204,11 +204,14 @@
 			</header>
 
 			<div class="quest-rail-entries">
-				{#each rows as row (row.key)}
+				{#each rows as row, index (row.key)}
 					{@const selected = selectedRow?.key === row.key}
 					<button
 						type="button"
 						data-testid={row.testid}
+						data-focus-id={`quest-row-${row.key}`}
+						data-focus-row={index}
+						data-focus-column={0}
 						class="quest-entry quest-entry-{row.kind} {row.kind === 'offer'
 							? 'quest-entry-offered'
 							: ''}"

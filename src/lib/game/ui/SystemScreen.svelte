@@ -86,6 +86,9 @@
 					class="heroic-rail-card"
 					aria-selected="false"
 					disabled
+					data-focus-id="system-rail-audio"
+					data-focus-row={0}
+					data-focus-column={0}
 					aria-describedby="system-audio-unavailable"
 					title={t($locale, 'ui.audioUnavailable')}
 				>
@@ -109,6 +112,9 @@
 					role="tab"
 					class="heroic-rail-card"
 					aria-selected="false"
+					data-focus-id="system-rail-input"
+					data-focus-row={1}
+					data-focus-column={0}
 					onclick={focusPromptsRow}
 				>
 					<svg
@@ -159,11 +165,14 @@
 							<p class="heroic-row-subtitle">{t($locale, 'ui.systemLanguageHint')}</p>
 						</div>
 						<div class="heroic-segments" role="group" aria-label={t($locale, 'ui.language')}>
-							{#each supportedLocales as option (option)}
+							{#each supportedLocales as option, index (option)}
 								<button
 									type="button"
 									class="heroic-segment"
 									class:heroic-segment-selected={$preferences.locale === option}
+									data-focus-id={`system-locale-${option}`}
+									data-focus-row={0}
+									data-focus-column={1 + index}
 									aria-pressed={$preferences.locale === option}
 									onclick={() => updatePreferences({ locale: option })}
 								>
@@ -188,6 +197,9 @@
 								type="button"
 								class="heroic-segment"
 								class:heroic-segment-selected={$preferences.textSpeed === 'slow'}
+								data-focus-id="system-speed-slow"
+								data-focus-row={1}
+								data-focus-column={1}
 								aria-pressed={$preferences.textSpeed === 'slow'}
 								onclick={() => updatePreferences({ textSpeed: 'slow' })}
 							>
@@ -197,6 +209,9 @@
 								type="button"
 								class="heroic-segment"
 								class:heroic-segment-selected={$preferences.textSpeed === 'normal'}
+								data-focus-id="system-speed-normal"
+								data-focus-row={1}
+								data-focus-column={2}
 								aria-pressed={$preferences.textSpeed === 'normal'}
 								onclick={() => updatePreferences({ textSpeed: 'normal' })}
 							>
@@ -206,6 +221,9 @@
 								type="button"
 								class="heroic-segment"
 								class:heroic-segment-selected={$preferences.textSpeed === 'instant'}
+								data-focus-id="system-speed-instant"
+								data-focus-row={1}
+								data-focus-column={3}
 								aria-pressed={$preferences.textSpeed === 'instant'}
 								onclick={() => updatePreferences({ textSpeed: 'instant' })}
 							>
@@ -231,6 +249,9 @@
 							<button
 								type="button"
 								class="heroic-segment heroic-segment-selected"
+								data-focus-id="system-density-quiet"
+								data-focus-row={2}
+								data-focus-column={1}
 								aria-pressed="true"
 							>
 								{t($locale, 'ui.densityQuiet')}
@@ -239,6 +260,9 @@
 								type="button"
 								class="heroic-segment"
 								disabled
+								data-focus-id="system-density-full"
+								data-focus-row={2}
+								data-focus-column={2}
 								aria-describedby="system-density-full-unavailable"
 								title={t($locale, 'ui.densityFullUnavailable')}
 							>
@@ -265,6 +289,9 @@
 								type="button"
 								class="heroic-segment"
 								class:heroic-segment-selected={$preferences.motion === 'on'}
+								data-focus-id="system-motion-on"
+								data-focus-row={3}
+								data-focus-column={1}
 								aria-pressed={$preferences.motion === 'on'}
 								onclick={() => updatePreferences({ motion: 'on' })}
 							>
@@ -274,6 +301,9 @@
 								type="button"
 								class="heroic-segment"
 								class:heroic-segment-selected={$preferences.motion === 'reduced'}
+								data-focus-id="system-motion-reduced"
+								data-focus-row={3}
+								data-focus-column={2}
 								aria-pressed={$preferences.motion === 'reduced'}
 								onclick={() => updatePreferences({ motion: 'reduced' })}
 							>
@@ -300,6 +330,9 @@
 								type="button"
 								class="heroic-segment"
 								class:heroic-segment-selected={$preferences.promptMode === 'auto'}
+								data-focus-id="system-prompt-auto"
+								data-focus-row={4}
+								data-focus-column={1}
 								aria-pressed={$preferences.promptMode === 'auto'}
 								onclick={() => updatePreferences({ promptMode: 'auto' })}
 							>
@@ -309,6 +342,9 @@
 								type="button"
 								class="heroic-segment"
 								class:heroic-segment-selected={$preferences.promptMode === 'pad'}
+								data-focus-id="system-prompt-pad"
+								data-focus-row={4}
+								data-focus-column={2}
 								aria-pressed={$preferences.promptMode === 'pad'}
 								onclick={() => updatePreferences({ promptMode: 'pad' })}
 							>
@@ -318,6 +354,9 @@
 								type="button"
 								class="heroic-segment"
 								class:heroic-segment-selected={$preferences.promptMode === 'keys'}
+								data-focus-id="system-prompt-keys"
+								data-focus-row={4}
+								data-focus-column={3}
 								aria-pressed={$preferences.promptMode === 'keys'}
 								onclick={() => updatePreferences({ promptMode: 'keys' })}
 							>
