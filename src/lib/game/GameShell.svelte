@@ -1007,7 +1007,7 @@
 				<button
 					bind:this={menuButton}
 					type="button"
-					class="glass-button jrpg-command-toggle"
+					class="heroic-chip-button jrpg-command-toggle"
 					onclick={() => (commandOpen ? closeCommand() : openCommand())}
 					aria-expanded={commandOpen}
 					aria-controls="game-command-panel"

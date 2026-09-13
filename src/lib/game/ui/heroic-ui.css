@@ -207,6 +207,35 @@
 		opacity: 0.42;
 	}
 
+	/* ---- Small chrome button (Menu toggle, window Close) ----------------- */
+	.heroic-chip-button {
+		border: 1px solid var(--color-frame);
+		border-radius: 999px;
+		padding: 0.42rem 0.65rem;
+		background: color-mix(in srgb, var(--color-parchment) 6%, transparent);
+		color: var(--color-parchment);
+		font-family: var(--font-display);
+		font-size: 0.62rem;
+		font-weight: 900;
+		letter-spacing: 0.12em;
+		text-transform: uppercase;
+		transition:
+			border-color 160ms ease,
+			background 160ms ease,
+			color 160ms ease;
+	}
+	.heroic-chip-button:hover:not(:disabled),
+	.heroic-chip-button:focus-visible {
+		border-color: var(--color-frame-strong);
+		background: color-mix(in srgb, var(--color-gold) 12%, transparent);
+		color: var(--color-parchment);
+		outline: none;
+	}
+	.heroic-chip-button:disabled {
+		cursor: not-allowed;
+		opacity: 0.42;
+	}
+
 	/* ---- Prompt glyphs ---------------------------------------------------- */
 	.heroic-prompt-glyph {
 		display: inline-grid;

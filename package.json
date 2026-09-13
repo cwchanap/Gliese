@@ -24,6 +24,7 @@
 		"world:generate:navigation": "bun tools/generate-navigation-runtime.ts",
 		"world:check:navigation": "bun tools/generate-navigation-runtime.ts --check",
 		"art:validate:village-interiors": "bun tools/validate-village-interior-art.ts --all --check",
+		"art:validate:heroic-ui": "bun tools/validate-heroic-ui-art.ts",
 		"art:validate:meadow-entry-controls": "bun run art:storage:meadow-entry && bun tools/export-meadow-entry-art-controls.ts --check && bun tools/run-meadow-entry-controls-tests.ts",
 		"art:validate:meadow-entry-complete-controls": "bun run art:storage:meadow-entry && bun tools/export-meadow-entry-art-controls.ts --package complete --check && bun tools/approve-meadow-entry-controls.ts --package complete --check && bun run test:unit -- --run src/lib/game/content/backgrounds/meadow-entry-painted-v2-complete-controls-approval.test.ts",
 		"art:export:meadow-entry-complete": "bun tools/export-meadow-entry-painted-v2-complete.ts",

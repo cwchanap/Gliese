@@ -124,7 +124,7 @@
 </script>
 
 <dialog
-	class="jrpg-dialogue-panel arcane-window-enter pointer-events-auto absolute right-[2.75rem] bottom-[2.5rem] left-[2.75rem] z-[70] m-0 font-display text-parchment"
+	class="jrpg-dialogue-panel heroic-anim pointer-events-auto absolute right-[2.75rem] bottom-[2.5rem] left-[2.75rem] z-[70] m-0 font-display text-parchment"
 	aria-label={dialogue.speaker}
 	bind:this={panel}
 	open

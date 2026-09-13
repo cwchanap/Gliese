@@ -214,20 +214,20 @@ describe('GameShell motion flourishes', () => {
 		render(GameShell);
 		emitHudState(baseHudState({ hp: 10, maxHp: 50 }));
 		const party = page.getByTestId('hud-party-panel');
-		await expect.element(party).toHaveClass(/arcane-low-hp/);
+		await expect.element(party).toHaveClass(/heroic-low-hp/);
 
 		emitHudState(baseHudState({ hp: 40, maxHp: 50 }));
-		await expect.element(party).not.toHaveClass(/arcane-low-hp/);
+		await expect.element(party).not.toHaveClass(/heroic-low-hp/);
 	});
 
 	it('treats exactly 25% HP as critically low', async () => {
 		render(GameShell);
 		emitHudState(baseHudState({ hp: 5, maxHp: 20 }));
 		const party = page.getByTestId('hud-party-panel');
-		await expect.element(party).toHaveClass(/arcane-low-hp/);
+		await expect.element(party).toHaveClass(/heroic-low-hp/);
 
 		emitHudState(baseHudState({ hp: 6, maxHp: 20 }));
-		await expect.element(party).not.toHaveClass(/arcane-low-hp/);
+		await expect.element(party).not.toHaveClass(/heroic-low-hp/);
 	});
 
 	it('flashes the coin display when wallet coins change', async () => {
@@ -238,7 +238,7 @@ describe('GameShell motion flourishes', () => {
 		emitHudState(baseHudState({ wallet: { coins: 50 } }));
 		const coinSpan = page.getByText(/50G/);
 		await expect.element(coinSpan).toBeVisible();
-		await expect.element(coinSpan).toHaveClass(/arcane-coin-flash/);
+		await expect.element(coinSpan).toHaveClass(/heroic-coin-flash/);
 	});
 
 	it('does not flash coins on unrelated state changes', async () => {
@@ -248,10 +248,10 @@ describe('GameShell motion flourishes', () => {
 		await expect.element(coinSpan).toBeVisible();
 
 		// Wait for the initial flash to clear (600ms timeout in component)
-		await expect.element(coinSpan).not.toHaveClass(/arcane-coin-flash/);
+		await expect.element(coinSpan).not.toHaveClass(/heroic-coin-flash/);
 
 		emitHudState(baseHudState({ hp: 5, maxHp: 20, wallet: { coins: 30 } }));
-		await expect.element(coinSpan).not.toHaveClass(/arcane-coin-flash/);
+		await expect.element(coinSpan).not.toHaveClass(/heroic-coin-flash/);
 	});
 
 	it('keeps coin flash alive across unrelated HUD updates before the timer expires', async () => {
@@ -262,14 +262,14 @@ describe('GameShell motion flourishes', () => {
 		emitHudState(baseHudState({ wallet: { coins: 50 } }));
 		const coinSpan = page.getByText(/50G/);
 		await expect.element(coinSpan).toBeVisible();
-		await expect.element(coinSpan).toHaveClass(/arcane-coin-flash/);
+		await expect.element(coinSpan).toHaveClass(/heroic-coin-flash/);
 
 		// Unrelated HP update arrives while the flash timer is still running
 		emitHudState(baseHudState({ hp: 8, maxHp: 20, wallet: { coins: 50 } }));
-		await expect.element(coinSpan).toHaveClass(/arcane-coin-flash/);
+		await expect.element(coinSpan).toHaveClass(/heroic-coin-flash/);
 
 		// The flash should still clear after the timer fires
-		await expect.element(coinSpan).not.toHaveClass(/arcane-coin-flash/);
+		await expect.element(coinSpan).not.toHaveClass(/heroic-coin-flash/);
 	});
 
 	it('flashes the level display when the level increases', async () => {
@@ -280,7 +280,7 @@ describe('GameShell motion flourishes', () => {
 		emitHudState(baseHudState({ level: 2 }));
 		const levelSpan = page.getByText(/LV 2/);
 		await expect.element(levelSpan).toBeVisible();
-		await expect.element(levelSpan).toHaveClass(/arcane-level-up/);
+		await expect.element(levelSpan).toHaveClass(/heroic-level-up/);
 	});
 
 	it('does not flash level on unrelated state changes', async () => {
@@ -291,7 +291,7 @@ describe('GameShell motion flourishes', () => {
 		emitHudState(baseHudState({ hp: 5, maxHp: 20, level: 1 }));
 		const levelSpan = page.getByText(/LV 1/);
 		await expect.element(levelSpan).toBeVisible();
-		await expect.element(levelSpan).not.toHaveClass(/arcane-level-up/);
+		await expect.element(levelSpan).not.toHaveClass(/heroic-level-up/);
 	});
 
 	it('keeps level-up flash alive across unrelated HUD updates before the timer expires', async () => {
@@ -302,14 +302,14 @@ describe('GameShell motion flourishes', () => {
 		emitHudState(baseHudState({ level: 2 }));
 		const levelSpan = page.getByText(/LV 2/);
 		await expect.element(levelSpan).toBeVisible();
-		await expect.element(levelSpan).toHaveClass(/arcane-level-up/);
+		await expect.element(levelSpan).toHaveClass(/heroic-level-up/);
 
 		// Unrelated HP update arrives while the flash timer is still running
 		emitHudState(baseHudState({ hp: 8, maxHp: 20, level: 2 }));
-		await expect.element(levelSpan).toHaveClass(/arcane-level-up/);
+		await expect.element(levelSpan).toHaveClass(/heroic-level-up/);
 
 		// The flash should still clear after the timer fires
-		await expect.element(levelSpan).not.toHaveClass(/arcane-level-up/);
+		await expect.element(levelSpan).not.toHaveClass(/heroic-level-up/);
 	});
 
 	it('flashes level again after a decrease (e.g. save resume) followed by an increase', async () => {
@@ -325,7 +325,7 @@ describe('GameShell motion flourishes', () => {
 		emitHudState(baseHudState({ level: 2 }));
 		const levelSpan = page.getByText(/LV 2/);
 		await expect.element(levelSpan).toBeVisible();
-		await expect.element(levelSpan).toHaveClass(/arcane-level-up/);
+		await expect.element(levelSpan).toHaveClass(/heroic-level-up/);
 	});
 });
 
@@ -483,7 +483,7 @@ describe('GameShell battle summary', () => {
 	});
 
 	describe('GameShell battle HUD', () => {
-		function activeBattle(): Partial<HudState> {
+		function activeBattle(hpOverrides: { hp?: number; maxHp?: number } = {}): Partial<HudState> {
 			return {
 				hp: 12,
 				maxHp: 20,
@@ -533,7 +533,8 @@ describe('GameShell battle summary', () => {
 						flee: { status: 'idle', progress: 0 },
 						now: 0
 					}
-				}
+				},
+				...hpOverrides
 			};
 		}
 
@@ -566,6 +567,13 @@ describe('GameShell battle summary', () => {
 
 				expect(commands).toContainEqual({ type: 'battle-cycle-target', direction: 1 });
 			});
+		});
+
+		it('disables the Heal tile at full HP even with charges left', async () => {
+			render(GameShell);
+			emitHudState(baseHudState(activeBattle({ hp: 20, maxHp: 20 })));
+
+			await expect.element(page.getByTestId('battle-tile-heal')).toBeDisabled();
 		});
 
 		it('dispatches heal, item, and flee commands from the battle tiles', async () => {

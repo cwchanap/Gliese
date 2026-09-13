@@ -53,6 +53,12 @@ describe('diffGamepadActions', () => {
 		expect(diffGamepadActions(padFrom({ axes: [0, 0.8] }), NONE)).toEqual([]);
 	});
 
+	it('dedupes a same-frame D-pad + stick direction into one emit', () => {
+		expect(diffGamepadActions(NONE, padFrom({ buttons: { 15: true }, axes: [0.8, 0] }))).toEqual([
+			'right'
+		]);
+	});
+
 	it('maps face, shoulder, and menu buttons', () => {
 		expect(diffGamepadActions(NONE, padFrom({ buttons: { 0: true } }))).toEqual(['confirm']);
 		expect(diffGamepadActions(NONE, padFrom({ buttons: { 1: true } }))).toEqual(['cancel']);

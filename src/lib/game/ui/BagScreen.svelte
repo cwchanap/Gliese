@@ -866,6 +866,8 @@
 
 	.bag-detail-desc {
 		margin: 0.25rem 0 0;
+		/* Mockup detail prose uses the default display face, not Spectral. */
+		font-family: var(--font-display);
 		font-size: 0.78rem;
 		color: var(--color-muted);
 	}

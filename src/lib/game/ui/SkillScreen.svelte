@@ -51,7 +51,7 @@
 			<header class="skill-header">
 				<div>
 					<p class="heroic-eyebrow">{t($locale, 'ui.fieldCmds.skill')}</p>
-					<h2 id="skill-heading" class="heroic-title">{t($locale, 'ui.skillTitle')}</h2>
+					<h2 id="skill-heading" class="heroic-title">{t($locale, 'ui.fieldCmds.skill')}</h2>
 				</div>
 				<button
 					bind:this={closeButton}
