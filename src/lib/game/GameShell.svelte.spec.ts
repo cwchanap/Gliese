@@ -18,13 +18,14 @@ vi.mock('$lib/game/phaser/createGame', () => ({
 	createGame: vi.fn(async () => ({ destroy: vi.fn() }))
 }));
 
-afterEach(() => {
+afterEach(async () => {
 	emitHudState(baseHudState({ ready: false }));
 	localStorage.removeItem(SAVE_SLOTS_STORAGE_KEY);
 	localStorage.removeItem(PREFERENCES_STORAGE_KEY);
 	updatePreferences({ motion: 'on', textSpeed: 'normal', promptMode: 'auto' });
 	setLastInputModality('keys');
 	vi.unstubAllGlobals();
+	await page.viewport(1280, 720);
 });
 
 function emitHudState(state: HudState) {
@@ -1012,6 +1013,31 @@ describe('GameShell quest log', () => {
 		await expect.element(page.getByText(/no side quests active/i)).toBeVisible();
 	});
 
+	it('restores field focus after closing the quest journal', async () => {
+		render(GameShell);
+		emitHudState(
+			baseHudState({
+				quests: {
+					main: mockMainQuest(),
+					side: [],
+					completed: [],
+					guildOffer: null
+				}
+			})
+		);
+
+		const menuButton = page.getByRole('button', { name: /menu/i });
+		await menuButton.click();
+		await page.getByRole('button', { name: 'Quest', exact: true }).click();
+		const questDialog = page.getByRole('dialog', { name: /quest log/i });
+		await expect.element(questDialog).toBeVisible();
+
+		await userEvent.keyboard('{Escape}');
+		expect(questDialog.elements()).toHaveLength(0);
+		// Final review: closing the journal used to drop focus to body.
+		await expect.element(menuButton).toHaveFocus();
+	});
+
 	it('closes on Escape key', async () => {
 		render(GameShell);
 		emitHudState(
@@ -1738,6 +1764,68 @@ describe('GameShell keyboard shortcuts', () => {
 		expect(page.getByTestId('area-map-svg').elements()).toHaveLength(0);
 	});
 
+	it('moves bag grid focus with arrow keys while the bag overlay is open', async () => {
+		render(GameShell);
+		emitHudState(
+			baseHudState({
+				inventory: {
+					consumables: [
+						{
+							itemId: 'potion-a',
+							name: 'Potion A',
+							description: 'Restores HP.',
+							iconPath: '/icon.png',
+							quantity: 1
+						},
+						{
+							itemId: 'potion-b',
+							name: 'Potion B',
+							description: 'Restores HP.',
+							iconPath: '/icon.png',
+							quantity: 1
+						},
+						{
+							itemId: 'potion-c',
+							name: 'Potion C',
+							description: 'Restores HP.',
+							iconPath: '/icon.png',
+							quantity: 1
+						}
+					],
+					equipment: [],
+					keyItems: [],
+					equipped: { weapon: null, head: null, body: null, hands: null, accessory: null }
+				}
+			})
+		);
+
+		await page.getByRole('button', { name: /menu/i }).click();
+		await page.getByRole('button', { name: 'Bag' }).click();
+		const dialog = page.getByRole('dialog', { name: /inventory/i });
+		await expect.element(dialog).toBeVisible();
+
+		// Arrows drive the bag lattice (final review: they were command-grid only).
+		await userEvent.keyboard('{ArrowDown}');
+		await expect.element(page.getByRole('button', { name: 'Potion A' })).toHaveFocus();
+		await userEvent.keyboard('{ArrowRight}');
+		await expect.element(page.getByRole('button', { name: 'Potion B' })).toHaveFocus();
+	});
+
+	it('keeps arrow keys on the bag tab rail roving instead of grid-moving', async () => {
+		render(GameShell);
+		emitHudState(baseHudState());
+
+		await page.getByRole('button', { name: /menu/i }).click();
+		await page.getByRole('button', { name: 'Bag' }).click();
+
+		const potionsTab = page.getByRole('tab', { name: /potions/i });
+		await potionsTab.click();
+		await expect.element(potionsTab).toHaveFocus();
+
+		await userEvent.keyboard('{ArrowRight}');
+		await expect.element(page.getByRole('tab', { name: /gear/i })).toHaveFocus();
+	});
+
 	it('moves grid focus with arrow keys through resolveMenuFocusTarget', async () => {
 		render(GameShell);
 		emitHudState(baseHudState({ heals: 0 }));
@@ -1864,6 +1952,65 @@ describe('GameShell title mode', () => {
 		expect(page.getByRole('heading', { name: 'GLIESE' }).elements()).toHaveLength(0);
 	});
 
+	it('restores focus to the System card after closing System from Title', async () => {
+		render(GameShell);
+		await expect.element(page.getByRole('heading', { name: 'GLIESE' })).toBeVisible();
+
+		const systemCard = page.getByRole('button', { name: /system/i });
+		await systemCard.click();
+		const dialog = page.getByRole('dialog', { name: /display & text/i });
+		await expect.element(dialog).toBeVisible();
+
+		await page.getByRole('button', { name: /close/i }).click();
+		expect(dialog.elements()).toHaveLength(0);
+		// Final review: Title-mode System close used to drop focus to body.
+		await expect.element(systemCard).toHaveFocus();
+	});
+
+	it('keeps the three cards and prompts visible and non-overlapping at 640×360', async () => {
+		render(GameShell);
+		await expect.element(page.getByRole('heading', { name: 'GLIESE' })).toBeVisible();
+
+		// The app's configured minimum window (tauri.conf.json).
+		await page.viewport(640, 360);
+
+		const selectors = [
+			'[data-focus-id="title-continue"]',
+			'[data-focus-id="title-new-run"]',
+			'[data-focus-id="title-system"]',
+			'.title-hints'
+		];
+		const rects = selectors.map((selector) => {
+			const element = document.querySelector<HTMLElement>(selector);
+			expect(element).not.toBeNull();
+			return element!.getBoundingClientRect();
+		});
+		// Visible = laid out with a real box at this viewport (display:none or
+		// clipped-away elements collapse to an empty rect).
+		for (const [index, rect] of rects.entries()) {
+			expect(rect.width, selectors[index]).toBeGreaterThan(0);
+			expect(rect.height, selectors[index]).toBeGreaterThan(0);
+		}
+		for (const [_index, rect] of rects.entries()) {
+			expect(rect.top).toBeGreaterThanOrEqual(0);
+			expect(rect.left).toBeGreaterThanOrEqual(0);
+			expect(rect.bottom).toBeLessThanOrEqual(360);
+			expect(rect.right).toBeLessThanOrEqual(640);
+		}
+
+		const overlaps: string[] = [];
+		for (let i = 0; i < rects.length; i += 1) {
+			for (let j = i + 1; j < rects.length; j += 1) {
+				const a = rects[i];
+				const b = rects[j];
+				if (a.left < b.right && b.left < a.right && a.top < b.bottom && b.top < a.bottom) {
+					overlaps.push(`${selectors[i]} overlaps ${selectors[j]}`);
+				}
+			}
+		}
+		expect(overlaps).toEqual([]);
+	});
+
 	it('flips from Title to playing when a ready HUD state arrives (direct boot)', async () => {
 		render(GameShell);
 		await expect.element(page.getByRole('heading', { name: 'GLIESE' })).toBeVisible();
@@ -1909,8 +2056,10 @@ describe('GameShell pad layer', () => {
 	}
 
 	function focusedFocusId(): string | null {
-		return document.activeElement instanceof HTMLElement
-			? (document.activeElement.dataset.focusId ?? null)
+		// Map markers are focusable SVG nodes, so this can't be an HTMLElement
+		// check.
+		return document.activeElement instanceof Element
+			? (document.activeElement.getAttribute('data-focus-id') ?? null)
 			: null;
 	}
 
@@ -1991,6 +2140,117 @@ describe('GameShell pad layer', () => {
 		}
 		await tiltAxis(0, 0.8);
 		expect(focusedFocusId()).toBe('bag-slot-6');
+	});
+
+	it('confirm invokes the bag detail action from the focus lattice', async () => {
+		installPadStub();
+		await withCommands(async (commands) => {
+			render(GameShell);
+			emitHudState(
+				baseHudState({
+					inventory: {
+						consumables: [
+							{
+								itemId: 'field-potion',
+								name: 'Field Potion',
+								description: 'Restores HP.',
+								iconPath: '/icon.png',
+								quantity: 3
+							}
+						],
+						equipment: [],
+						keyItems: [],
+						equipped: { weapon: null, head: null, body: null, hands: null, accessory: null }
+					}
+				})
+			);
+
+			await page.getByRole('button', { name: /menu/i }).click();
+			await page.getByRole('button', { name: 'Bag' }).click();
+			await expect.element(page.getByTestId('inventory-slot-grid')).toBeVisible();
+
+			// Select the item row, then walk down to the A-labelled action.
+			await tiltAxis(0, 0.8);
+			expect(focusedFocusId()).toBe('bag-slot-0');
+			await press(0);
+			await tiltAxis(0, 0.8);
+			expect(focusedFocusId()).toBe('bag-detail-action');
+			await press(0);
+
+			expect(commands).toContainEqual({ type: 'use-item', itemId: 'field-potion' });
+		});
+	});
+
+	it('confirm invokes the shop Buy action from the focus lattice', async () => {
+		installPadStub();
+		await withCommands(async (commands) => {
+			render(GameShell);
+			emitHudState(
+				baseHudState({
+					wallet: { coins: 30 },
+					shop: {
+						shopId: 'miras-item-shop',
+						name: "Mira's Item Shop",
+						merchantName: 'Mira',
+						buy: [mockShopBuyEntry()],
+						sell: []
+					}
+				})
+			);
+			await expect.element(page.getByTestId('shop-buy-grid')).toBeVisible();
+
+			// Tabs → stock tile → (A selects) → detail action (A buys).
+			await tiltAxis(0, 0.8);
+			expect(focusedFocusId()).toBe('shop-tab-buy');
+			await tiltAxis(0, 0.8);
+			expect(focusedFocusId()).toBe('shop-buy-0');
+			await press(0);
+			await tiltAxis(0, 0.8);
+			expect(focusedFocusId()).toBe('shop-detail-action');
+			await press(0);
+
+			expect(commands).toContainEqual({
+				type: 'buy-shop-item',
+				shopId: 'miras-item-shop',
+				stockId: 'potion-stock'
+			});
+		});
+	});
+
+	it('directions move between area map markers laid out by geography', async () => {
+		installPadStub();
+		render(GameShell);
+		emitHudState(
+			baseHudState({
+				areaMap: {
+					...baseHudState().areaMap,
+					markers: [
+						{ id: 'guild-hall', kind: 'building', x: 1_536, y: 5_504, label: 'Guild Hall' },
+						{
+							id: 'ruins-gate',
+							kind: 'quest',
+							x: 2_560,
+							y: 6_016,
+							label: 'Ruins Gate',
+							emphasis: true
+						}
+					]
+				}
+			})
+		);
+
+		await page.getByRole('button', { name: /menu/i }).click();
+		await page.getByRole('button', { name: /map/i }).click();
+		await expect.element(page.getByTestId('area-map-svg')).toBeVisible();
+
+		// Null current lands on the topmost marker (y-order); the two markers
+		// share a height band, so right/left walks them by x-rank.
+		await tiltAxis(0, 0.8);
+		expect(focusedFocusId()).toBe('map-marker-guild-hall');
+		await tiltAxis(0.8, 0);
+		expect(focusedFocusId()).toBe('map-marker-ruins-gate');
+		await tiltAxis(-0.8, 0);
+		expect(focusedFocusId()).toBe('map-marker-guild-hall');
 	});
 
 	it('LB/RB cycles the bag category tabs', async () => {

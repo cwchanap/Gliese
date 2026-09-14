@@ -96,15 +96,19 @@
 
 		if (event.key === 'ArrowRight' || event.key === 'ArrowDown') {
 			event.preventDefault();
+			event.stopPropagation();
 			void focusCategoryTab(bagCategories[currentIndex === lastIndex ? 0 : currentIndex + 1]);
 		} else if (event.key === 'ArrowLeft' || event.key === 'ArrowUp') {
 			event.preventDefault();
+			event.stopPropagation();
 			void focusCategoryTab(bagCategories[currentIndex === 0 ? lastIndex : currentIndex - 1]);
 		} else if (event.key === 'Home') {
 			event.preventDefault();
+			event.stopPropagation();
 			void focusCategoryTab(bagCategories[0]);
 		} else if (event.key === 'End') {
 			event.preventDefault();
+			event.stopPropagation();
 			void focusCategoryTab(bagCategories[lastIndex]);
 		}
 	}
@@ -415,7 +419,15 @@
 						{/if}
 					</div>
 					{#if getDetailAction(selectedSlot)}
-						<button type="button" class="bag-detail-action font-display" onclick={activateSelected}>
+						{@const lastItemIndex = getCategoryItems(activeCategory).length - 1}
+						<button
+							type="button"
+							class="bag-detail-action font-display"
+							data-focus-id="bag-detail-action"
+							data-focus-row={Math.floor(lastItemIndex / bagGridColumns) + 1}
+							data-focus-column={lastItemIndex % bagGridColumns}
+							onclick={activateSelected}
+						>
 							<span>{getDetailActionLabel(getDetailAction(selectedSlot)!)}</span>
 							<PromptGlyph mode={$preferences.promptMode} keys="&#8629;" pad="A" tone="a" />
 						</button>

@@ -97,15 +97,19 @@
 
 		if (event.key === 'ArrowRight' || event.key === 'ArrowDown') {
 			event.preventDefault();
+			event.stopPropagation();
 			void focusShopTab(shopTabs[currentIndex === lastIndex ? 0 : currentIndex + 1]);
 		} else if (event.key === 'ArrowLeft' || event.key === 'ArrowUp') {
 			event.preventDefault();
+			event.stopPropagation();
 			void focusShopTab(shopTabs[currentIndex === 0 ? lastIndex : currentIndex - 1]);
 		} else if (event.key === 'Home') {
 			event.preventDefault();
+			event.stopPropagation();
 			void focusShopTab(shopTabs[0]);
 		} else if (event.key === 'End') {
 			event.preventDefault();
+			event.stopPropagation();
 			void focusShopTab(shopTabs[lastIndex]);
 		}
 	}
@@ -510,9 +514,15 @@
 					<span class="heroic-eyebrow">{t($locale, 'ui.shopPurseAfter')}</span>
 					<span class="font-display">{coins} → {coins - selectedBuyItem.price}</span>
 				</div>
+				{@const lastBuyIndex = (shop?.buy.length ?? 1) - 1}
+				<!-- Pad/arrow lattice cell: directly below the last stock tile in
+				     its column, so the confirm target is always reachable. -->
 				<button
 					type="button"
 					class="shop-detail-action font-display"
+					data-focus-id="shop-detail-action"
+					data-focus-row={2 + Math.floor(lastBuyIndex / shopGridColumns)}
+					data-focus-column={lastBuyIndex % shopGridColumns}
 					disabled={!affordable}
 					onclick={activateSelected}
 				>
@@ -545,9 +555,13 @@
 					<span class="heroic-eyebrow">{t($locale, 'ui.shopPurseAfter')}</span>
 					<span class="font-display">{coins} → {coins + selectedSellItem.price}</span>
 				</div>
+				{@const lastSellIndex = (shop?.sell.length ?? 1) - 1}
 				<button
 					type="button"
 					class="shop-detail-action font-display"
+					data-focus-id="shop-detail-action"
+					data-focus-row={2 + Math.floor(lastSellIndex / shopGridColumns)}
+					data-focus-column={lastSellIndex % shopGridColumns}
 					disabled={!ready || battleLocked}
 					onclick={activateSelected}
 				>

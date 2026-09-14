@@ -230,12 +230,15 @@
 		background: transparent;
 	}
 
-	/* ---- Gilded choice column (mockup: right 44px, bottom 270px, 23rem) ----
-	   Anchored inside the panel so taller choice lists grow upward. */
+	/* ---- Gilded choice column ----
+	   Rendered-artboard ground truth (pixel-diff re-export): the choice rows
+	   deliberately bleed off the right viewport edge — the mockup's raw
+	   right:44px inset is overridden at runtime. Anchored inside the panel so
+	   taller choice lists grow upward. */
 	.jrpg-dialogue-choices {
 		position: absolute;
-		/* Mockup: rows bleed off the right viewport edge (the panel itself is
-		   inset 2.75rem, so push the menu out past it). */
+		/* Edge bleed is intentional (see block comment above) — do NOT "fix"
+		   this back to the mockup's right:44px inset. */
 		right: -3.5rem;
 		bottom: 14.375rem;
 		display: grid;
