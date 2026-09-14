@@ -11,7 +11,12 @@
 		width: min(72rem, calc(100vw - 2rem));
 		max-height: calc(100vh - 2rem);
 		padding: 1.25rem;
-		overflow: hidden;
+		/* Short viewports (e.g. 640×360) can't fit the stacked panels; scroll
+		   them instead of clipping — the shell's overflow: clip makes clipped
+		   content unreachable for clicks. Full-size viewports never overflow, so
+		   this is a no-op on desktop. */
+		overflow-x: hidden;
+		overflow-y: auto;
 		border: 1px solid var(--color-frame);
 		border-radius: 1rem;
 		background: radial-gradient(

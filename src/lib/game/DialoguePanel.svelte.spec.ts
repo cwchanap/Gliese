@@ -284,15 +284,23 @@ describe('DialoguePanel.svelte', () => {
 
 			// Mockup: column bottom sits 270px above the viewport floor with the
 			// panel floor at 40px -> 230px above the panel floor; rows bleed off
-			// the right viewport edge past the panel's 44px gutter; rows are
-			// 23rem (368px) wide.
+			// the right viewport edge past the panel's 44px gutter (the column
+			// carries the decorative bleed); rows are 23rem (368px) wide.
 			expect(panelBounds.bottom - choicesBounds.bottom).toBeCloseTo(230, -1);
 			expect(choicesBounds.right).toBeGreaterThan(panelBounds.right);
 			expect(choicesBounds.right).toBeGreaterThan(window.innerWidth);
 			expect(choicesBounds.bottom).toBeLessThan(barBounds.top);
-			// 23rem design width (sub-percent rendering drift tolerated).
-			expect(rowBounds.width).toBeLessThanOrEqual(368.5);
-			expect(rowBounds.width).toBeGreaterThan(356);
+			// Decorative column carries the full 23rem (368px) visual row
+			// (sub-percent rendering drift tolerated).
+			expect(choicesBounds.width).toBeLessThanOrEqual(368.5);
+			expect(choicesBounds.width).toBeGreaterThan(356);
+			// The button hitbox stops flush inside the viewport so the row stays
+			// clickable under the shell's overflow: clip.
+			expect(rowBounds.right).toBeLessThanOrEqual(window.innerWidth);
+			expect(rowBounds.left).toBeGreaterThanOrEqual(0);
+			// Hitbox = 23rem minus the 0.75rem offscreen bleed (drift tolerated).
+			expect(rowBounds.width).toBeLessThanOrEqual(356.5);
+			expect(rowBounds.width).toBeGreaterThan(344);
 		} finally {
 			page.viewport(414, 730);
 		}

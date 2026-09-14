@@ -214,12 +214,28 @@
 		opacity: 0.42;
 	}
 
-	@media (max-width: 720px) {
+	/* Narrow screens: compact 2×4 menu hugging the left edge. The stack is
+	   ~330px tall below its 13rem anchor, so it needs a tall viewport. */
+	@media (max-width: 720px) and (min-height: 560px) {
 		.heroic-field-menu {
 			top: 13rem;
 			left: 0.75rem;
 			grid-template-columns: repeat(2, 1fr);
 			width: min(10.5rem, calc(100vw - 13.5rem));
+		}
+	}
+
+	/* Short landscape screens (e.g. 640×360): the 2×4 stack would run past the
+	   viewport floor, leaving the lower commands outside the viewport — and
+	   the game shell's overflow: clip forbids scrolling them into view
+	   (infinite Playwright click retries). Use the desktop 4×2 grid anchored
+	   higher so every button stays inside the viewport. */
+	@media (max-width: 720px) and (max-height: 559px) {
+		.heroic-field-menu {
+			top: 8.5rem;
+			left: 0.9rem;
+			grid-template-columns: repeat(4, 1fr);
+			width: min(24.5rem, calc(100vw - 2rem));
 		}
 	}
 </style>

@@ -252,9 +252,19 @@
 		align-items: center;
 		gap: 0.875rem;
 		overflow: hidden;
-		width: min(23rem, 80vw);
+		/* Hitbox split: the column's right: -3.5rem bleed stays decorative, but
+		   the button box itself must stay inside the viewport — an off-viewport
+		   rect is unclickable under the shell's overflow: clip (infinite
+		   Playwright click retries). The 12px that were clipped offscreen anyway
+		   become margin, so the button's right edge lands flush at the viewport
+		   edge and the painted pixels are unchanged. */
+		width: calc(min(23rem, 80vw) - 0.75rem);
+		margin-right: 0.75rem;
 		padding: 0.9rem 1.1rem;
 		border: 1px solid rgba(160, 200, 255, 0.26);
+		/* The captured look has no visible right edge (it sat past the clip);
+		   dropping the right border keeps those pixels identical. */
+		border-right: none;
 		border-radius: 1rem 0 0 1rem;
 		text-align: left;
 		color: #e2ecff;
