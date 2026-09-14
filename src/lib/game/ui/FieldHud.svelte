@@ -655,7 +655,8 @@
 		}
 
 		.heroic-side-hud {
-			top: 12.75rem;
+			/* Stacks below the hero card with a clear ≥8px gap. */
+			top: 13.25rem;
 			right: 0.75rem;
 			width: min(11rem, calc(100vw - 1.5rem));
 		}
