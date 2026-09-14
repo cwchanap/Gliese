@@ -320,4 +320,76 @@
 			width: min(24rem, calc(100vw - 2rem));
 		}
 	}
+
+	/* App minimum window is 640×360 (tauri.conf.json). Below ~500px height
+	   the vh-pinned hero and the card row overlap and overflow:hidden clips
+	   the cards, so reflow to a compact flex column: smaller hero, cards
+	   inline, prompts pinned to the bottom. The 1440×900 mockup composition
+	   above is untouched. */
+	@media (max-height: 500px) {
+		.title-screen {
+			display: flex;
+			flex-direction: column;
+			align-items: center;
+			justify-content: space-between;
+			gap: 1rem;
+			padding: 1rem;
+		}
+
+		.title-hero,
+		.title-actions,
+		.title-hints {
+			position: static;
+			transform: none;
+		}
+
+		.title-crest {
+			width: 2.5rem;
+			height: 2.5rem;
+		}
+
+		.title-wordmark {
+			margin: 0.5rem 0 0;
+			margin-right: -0.42em; /* keep the optically recentered wordmark */
+			font-size: 2rem;
+		}
+
+		.title-chapter-pill {
+			margin: 0.5rem 0 0;
+			padding: 0.2rem 0.9rem;
+			font-size: 0.62rem;
+		}
+
+		.title-actions {
+			display: flex;
+			flex-direction: row;
+			gap: 0.6rem;
+			width: calc(100vw - 2rem);
+		}
+
+		.title-card {
+			flex: 1 1 0;
+			min-width: 0;
+			gap: 0.25rem;
+			padding: 0.6rem 0.75rem;
+		}
+
+		.title-card-head svg {
+			width: 1rem;
+			height: 1rem;
+		}
+
+		.title-card-title {
+			font-size: 0.85rem;
+		}
+
+		.title-card-sub {
+			font-size: 0.6rem;
+		}
+
+		.title-hints {
+			gap: 1rem;
+			font-size: 0.62rem;
+		}
+	}
 </style>

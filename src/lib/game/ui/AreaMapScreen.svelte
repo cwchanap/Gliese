@@ -46,6 +46,29 @@
 
 	// Effective reduced motion obeys BOTH the saved preference and the OS setting.
 	const motionReduced = $derived($preferences.motion === 'reduced' || osReducedMotion);
+
+	// Pad/arrow focus geometry: markers join the resolveMenuFocusTarget
+	// lattice roughly by geography — rows are ~1/8-world-height bands walked
+	// top to bottom, columns are x-rank within a band (left to right).
+	const markerFocusCoords = $derived.by(() => {
+		const coords: Record<string, { row: number; column: number }> = {};
+		const sorted = [...areaMap.markers].sort((a, b) => a.y - b.y || a.x - b.x);
+		const rowBand = areaMap.worldHeight / 8;
+		let row = -1;
+		let column = 0;
+		let previousY = Number.NaN;
+		for (const marker of sorted) {
+			if (Number.isNaN(previousY) || marker.y - previousY > rowBand) {
+				row += 1;
+				column = 0;
+			} else {
+				column += 1;
+			}
+			coords[marker.id] = { row, column };
+			previousY = marker.y;
+		}
+		return coords;
+	});
 </script>
 
 {#if open}
@@ -107,6 +130,7 @@
 							/>
 						{/each}
 						{#each areaMap.markers as marker (marker.id)}
+							{@const focusCoords = markerFocusCoords[marker.id]}
 							<!-- svelte-ignore a11y_no_noninteractive_tabindex -->
 							<g
 								class={`area-map-marker area-map-marker-${marker.kind} ${
@@ -114,6 +138,9 @@
 								}`}
 								role="img"
 								data-testid="area-map-marker"
+								data-focus-id={`map-marker-${marker.id}`}
+								data-focus-row={focusCoords?.row ?? 0}
+								data-focus-column={focusCoords?.column ?? 0}
 								transform={`translate(${marker.x} ${marker.y})`}
 								tabindex="0"
 								aria-label={marker.label}

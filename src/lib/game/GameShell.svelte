@@ -119,8 +119,10 @@
 	let systemCloseButton = $state<HTMLButtonElement>();
 	let battleSummaryDialog = $state<HTMLDivElement>();
 	let battleSummaryContinueButton = $state<HTMLButtonElement>();
-	let inventoryFocusRestoreTarget: HTMLElement | null = null;
-	let shopFocusRestoreTarget: HTMLElement | null = null;
+	// One restore slot: only one overlay opens at a time, and every opener
+	// remembers here (final-review: Quest close + Title-System close dropped
+	// focus to body).
+	let overlayFocusRestoreTarget: HTMLElement | null = null;
 	let battleSummaryWasVisible = false;
 	let loadError = $state('');
 	let commandOpen = $state(false);
@@ -138,6 +140,20 @@
 	const battleActive = $derived(battlePhase === 'active');
 	const battleLocked = $derived(battlePhase === 'active' || battlePhase === 'summary');
 	const battleSummary = $derived($hudState.battle.summary);
+
+	// Arrow keys drive the focus lattice on every open surface, not just the
+	// command grid (final-review: overlay coords were keyboard-unreachable).
+	const overlaySurfaceOpen = $derived(
+		commandOpen ||
+			inventoryOpen ||
+			skillOpen ||
+			shopOpen ||
+			questLogOpen ||
+			systemOpen ||
+			saveOpen ||
+			areaMapOpen ||
+			$hudState.dialogue !== null
+	);
 
 	// Availability mirrors the field commands' old menu-button guards.
 	const fieldCommandEnabled = $derived<Record<FieldCommand, boolean>>({
@@ -213,7 +229,7 @@
 	function openInventory(initialTab: 'potions' | 'gear' = 'potions') {
 		if (inventoryOpen || battleLocked) return;
 		inventoryInitialTab = initialTab;
-		rememberInventoryFocus();
+		rememberOverlayFocus();
 		commandOpen = false;
 		inventoryOpen = true;
 		pauseForOverlay('inventory');
@@ -224,13 +240,31 @@
 		if (!inventoryOpen) return;
 		inventoryOpen = false;
 		resumeForOverlay('inventory');
-		void restoreInventoryFocus();
+		void restoreOverlayFocus();
 	}
 
-	function rememberShopFocus() {
+	function rememberOverlayFocus() {
 		const active = document.activeElement;
-		shopFocusRestoreTarget =
+		overlayFocusRestoreTarget =
 			active instanceof HTMLElement && active !== document.body ? active : null;
+	}
+
+	async function restoreOverlayFocus() {
+		const restoreTarget = overlayFocusRestoreTarget;
+		overlayFocusRestoreTarget = null;
+		await tick();
+
+		if (
+			restoreTarget &&
+			document.contains(restoreTarget) &&
+			!restoreTarget.matches('[disabled], [aria-disabled="true"]') &&
+			!restoreTarget.closest('#game-command-panel')
+		) {
+			restoreTarget.focus();
+			return;
+		}
+
+		menuButton?.focus();
 	}
 
 	function closeShop() {
@@ -238,11 +272,12 @@
 		shopOpen = false;
 		requestCloseShop();
 		resumeForOverlay('shop');
-		void restoreShopFocus();
+		void restoreOverlayFocus();
 	}
 
 	function openQuestLog() {
 		if (questLogOpen || battleLocked) return;
+		rememberOverlayFocus();
 		commandOpen = false;
 		questLogOpen = true;
 		pauseForOverlay('questLog');
@@ -253,6 +288,7 @@
 		if (!questLogOpen) return;
 		questLogOpen = false;
 		resumeForOverlay('questLog');
+		void restoreOverlayFocus();
 	}
 
 	function openAreaMap() {
@@ -280,6 +316,7 @@
 
 	function openSystem() {
 		if (systemOpen || battleLocked) return;
+		rememberOverlayFocus();
 		commandOpen = false;
 		systemOpen = true;
 		if (mode === 'playing') {
@@ -293,8 +330,10 @@
 		systemOpen = false;
 		if (mode === 'playing') {
 			resumeForOverlay('system');
-			menuButton?.focus();
 		}
+		// Title mode restores to the opening Title card; playing mode falls
+		// back to the menu button when the opener sat in the command grid.
+		void restoreOverlayFocus();
 	}
 
 	function openSave() {
@@ -353,7 +392,7 @@
 	}
 
 	function handleMenuArrowKeys(event: KeyboardEvent): boolean {
-		if (!commandOpen) return false;
+		if (!overlaySurfaceOpen) return false;
 		const direction =
 			event.key === 'ArrowUp'
 				? 'up'
@@ -381,8 +420,8 @@
 		if (nodes.length === 0) return false;
 
 		const currentId =
-			document.activeElement instanceof HTMLElement
-				? (document.activeElement.dataset.focusId ?? null)
+			document.activeElement instanceof Element
+				? (document.activeElement.getAttribute('data-focus-id') ?? null)
 				: null;
 		const nextId = resolveMenuFocusTarget(nodes, currentId, direction);
 		if (!nextId || nextId === currentId) return true;
@@ -495,7 +534,10 @@
 			clickBattleTile('battle-tile-heal');
 			return;
 		}
-		(document.activeElement as HTMLElement | null)?.click();
+		// Focusable SVG nodes (map markers) have no click action; only real
+		// HTML controls are confirmable.
+		const target = document.activeElement;
+		if (target instanceof HTMLElement) target.click();
 	}
 
 	function handlePadCancel() {
@@ -539,7 +581,7 @@
 	$effect(() => {
 		if (!$hudState.shop || shopOpen) return;
 
-		rememberShopFocus();
+		rememberOverlayFocus();
 		commandOpen = false;
 		inventoryOpen = false;
 		shopOpen = true;
@@ -572,32 +614,9 @@
 		requestUnequipSlot(slot);
 	}
 
-	function rememberInventoryFocus() {
-		inventoryFocusRestoreTarget =
-			document.activeElement instanceof HTMLElement ? document.activeElement : null;
-	}
-
 	async function focusInventoryDialog() {
 		await tick();
 		(inventoryCloseButton ?? inventoryDialog)?.focus();
-	}
-
-	async function restoreInventoryFocus() {
-		const restoreTarget = inventoryFocusRestoreTarget;
-		inventoryFocusRestoreTarget = null;
-		await tick();
-
-		if (
-			restoreTarget &&
-			document.contains(restoreTarget) &&
-			!restoreTarget.matches('[disabled], [aria-disabled="true"]') &&
-			!restoreTarget.closest('#game-command-panel')
-		) {
-			restoreTarget.focus();
-			return;
-		}
-
-		menuButton?.focus();
 	}
 
 	async function focusSkillDialog() {
@@ -646,24 +665,6 @@
 
 	async function restoreAreaMapFocus() {
 		await tick();
-		menuButton?.focus();
-	}
-
-	async function restoreShopFocus() {
-		const restoreTarget = shopFocusRestoreTarget;
-		shopFocusRestoreTarget = null;
-		await tick();
-
-		if (
-			restoreTarget &&
-			document.contains(restoreTarget) &&
-			!restoreTarget.matches('[disabled], [aria-disabled="true"]') &&
-			!restoreTarget.closest('#game-command-panel')
-		) {
-			restoreTarget.focus();
-			return;
-		}
-
 		menuButton?.focus();
 	}
 
