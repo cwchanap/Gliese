@@ -394,23 +394,6 @@
 		opacity: 0.55;
 	}
 
-	/* Short viewports (e.g. 640×360): the desktop 14.375rem anchor lifts the
-	   third choice row (quest-detail accept flows) past the viewport top —
-	   the shell's overflow: clip makes the clipped row unreachable (same
-	   class as the Playwright actionability hangs). Compact the rows and
-	   anchor the column lower so 1-3 choices all stay on-screen; taller
-	   viewports keep the desktop composition untouched. */
-	@media (max-height: 500px) {
-		.jrpg-dialogue-choices {
-			bottom: 11rem;
-			gap: 0.4rem;
-		}
-
-		.jrpg-dialogue-choice {
-			padding: 0.45rem 1.1rem;
-		}
-	}
-
 	.jrpg-dialogue-row {
 		display: flex;
 		align-items: flex-end;
@@ -592,6 +575,57 @@
 	.jrpg-dialogue-choice:focus-visible {
 		outline: 2px solid #5a3d08;
 		outline-offset: 2px;
+	}
+
+	/* Short viewports (e.g. 640×360): the desktop 14.375rem anchor lifts the
+	   third choice row (quest-detail accept flows) past the viewport top —
+	   the shell's overflow: clip makes the clipped row unreachable (same
+	   class as the Playwright actionability hangs). Compact the rows and
+	   anchor the column lower so 1-3 choices all stay on-screen; taller
+	   viewports keep the desktop composition untouched.
+
+	   The column is anchored 11rem above the panel floor, so it stays clear
+	   of the panel box only while the panel itself stays ≤ 10rem tall —
+	   compact the panel's whole footprint to that budget (bust, bar padding,
+	   prose type) and cap the prose area, because the bottom-anchored bar
+	   otherwise grows UPWARD as lines wrap and ends up under the column,
+	   stealing its pointer events (Playwright: ".jrpg-dialogue-line
+	   intercepts pointer events"). Result: a constant 16px gap between the
+	   column and the panel at any ≤500px height. */
+	@media (max-height: 500px) {
+		.jrpg-dialogue-choices {
+			bottom: 11rem;
+			gap: 0.4rem;
+		}
+
+		.jrpg-dialogue-choice {
+			padding: 0.45rem 1.1rem;
+		}
+
+		.jrpg-dialogue-row {
+			gap: 0.875rem;
+		}
+
+		.jrpg-dialogue-bust {
+			width: 8rem;
+			height: 10rem;
+			border-radius: 1rem;
+		}
+
+		.jrpg-dialogue-bar {
+			min-height: 0;
+			gap: 0.5rem;
+			padding: 0.75rem 1rem 0.625rem;
+		}
+
+		/* Cap ≈ 4 wrapped lines at the compact type size; the worst-case bar
+		   (capped prose + meta row) stays under the 10rem panel budget. */
+		.jrpg-dialogue-line {
+			max-height: 6.25rem;
+			overflow: hidden;
+			font-size: 1.125rem;
+			line-height: 1.4;
+		}
 	}
 
 	@media (prefers-reduced-motion: reduce) {
