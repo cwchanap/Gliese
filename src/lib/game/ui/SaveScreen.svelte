@@ -7,6 +7,7 @@
 	import { formatPlaytimeSeconds } from '$lib/game/save/playtime';
 	import { preferences } from '$lib/game/i18n/store';
 	import { t } from '$lib/game/i18n/translate';
+	import { tick } from 'svelte';
 	import PromptGlyph from '$lib/game/ui/PromptGlyph.svelte';
 
 	interface Props {
@@ -32,12 +33,24 @@
 
 	let slots = $state<SaveSlotsState>(loadSaveSlots());
 	let confirmSlot = $state<1 | 2 | null>(null);
+	let confirmDialog = $state<HTMLDivElement>();
+	let confirmOverwriteButton = $state<HTMLButtonElement>();
 
 	$effect(() => {
 		if (open) {
 			slots = loadSaveSlots();
 			confirmSlot = null;
 		}
+	});
+
+	// Focus entry: the alertdialog must own focus the moment it opens
+	// (final-review finding 9) — primary action first.
+	$effect(() => {
+		if (confirmSlot === null) return;
+		void (async () => {
+			await tick();
+			confirmOverwriteButton?.focus();
+		})();
 	});
 
 	const locale = $derived($preferences.locale);
@@ -92,12 +105,45 @@
 	function confirmOverwrite() {
 		if (confirmSlot === null) return;
 		onConfirmSlot(confirmSlot);
+		const slot = confirmSlot;
 		confirmSlot = null;
 		slots = loadSaveSlots();
+		// Same restore as cancel: the closing alertdialog must not drop focus.
+		focusSlotButton(slot);
 	}
 
 	function cancelOverwrite() {
+		const slot = confirmSlot;
 		confirmSlot = null;
+		if (slot !== null) focusSlotButton(slot);
+	}
+
+	function focusSlotButton(slot: 1 | 2) {
+		void (async () => {
+			await tick();
+			dialog?.querySelector<HTMLElement>(`[data-focus-id="save-slot-${slot}"]`)?.focus();
+		})();
+	}
+
+	/** Tab trap inside the overwrite alertdialog (final-review finding 9). */
+	function handleConfirmKeydown(event: KeyboardEvent) {
+		if (event.key !== 'Tab') return;
+		const focusable = Array.from(
+			confirmDialog?.querySelectorAll<HTMLButtonElement>('button:not([disabled])') ?? []
+		);
+		if (focusable.length === 0) {
+			event.preventDefault();
+			return;
+		}
+		const first = focusable[0]!;
+		const last = focusable.at(-1)!;
+		if (event.shiftKey && document.activeElement === first) {
+			event.preventDefault();
+			last.focus();
+		} else if (!event.shiftKey && document.activeElement === last) {
+			event.preventDefault();
+			first.focus();
+		}
 	}
 </script>
 
@@ -231,7 +277,13 @@
 		<footer class="save-footer">
 			<p class="save-status font-display" role="status">{hudStatus}</p>
 			{#if confirmSlot !== null}
-				<div class="save-confirm" role="alertdialog" aria-label={t(locale, 'ui.overwriteTitle')}>
+				<div
+					class="save-confirm"
+					role="alertdialog"
+					aria-label={t(locale, 'ui.overwriteTitle')}
+					bind:this={confirmDialog}
+					onkeydown={handleConfirmKeydown}
+				>
 					<p class="font-display">{t(locale, 'ui.overwriteTitle')}</p>
 					<button
 						type="button"
@@ -250,6 +302,7 @@
 						data-focus-id="save-overwrite-confirm"
 						data-focus-row={1}
 						data-focus-column={1}
+						bind:this={confirmOverwriteButton}
 						onclick={confirmOverwrite}
 					>
 						{t(locale, 'ui.confirmOverwrite')}

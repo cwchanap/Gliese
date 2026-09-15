@@ -1622,6 +1622,48 @@ describe('GameShell save screen', () => {
 		});
 	});
 
+	it('moves overwrite-dialog focus: entry on the primary, Tab trapped, cancel restores the slot', async () => {
+		render(GameShell);
+		emitHudState(baseHudState());
+
+		await page.getByRole('button', { name: /menu/i }).click();
+		await page.getByRole('button', { name: 'Save' }).click();
+
+		const saveDialog = page.getByRole('dialog', { name: /save/i });
+		await expect.element(saveDialog).toBeVisible();
+
+		// Write slot 1, then click it again to raise the overwrite alertdialog.
+		window.addEventListener(HUD_COMMAND_EVENT, (event) => {
+			const command = (event as CustomEvent).detail as { type?: string; slot?: 1 | 2 };
+			if (command?.type === 'save-slot' && command.slot) {
+				writeSaveSlot(command.slot, createSlotRecord());
+			}
+		});
+
+		await saveDialog.getByTestId('save-slot-1').click();
+		emitHudState(baseHudState({ status: 'Saved.' }));
+		await saveDialog.getByTestId('save-slot-1').click();
+		const confirmButton = saveDialog.getByTestId('confirm-overwrite');
+		await expect.element(confirmButton).toBeVisible();
+
+		// Focus entry: primary action owns focus while the alertdialog is open.
+		await expect.element(confirmButton).toHaveFocus();
+
+		// Tab is trapped within the alertdialog's two buttons.
+		const cancel = saveDialog.getByRole('button', { name: /back/i }).last();
+		await userEvent.keyboard('{Shift>}{Tab}{/Shift}');
+		await expect.element(cancel).toHaveFocus();
+		await userEvent.keyboard('{Tab}');
+		await expect.element(confirmButton).toHaveFocus();
+		await userEvent.keyboard('{Tab}');
+		await expect.element(cancel).toHaveFocus();
+
+		// Cancel restores focus to the slot that opened the dialog.
+		await cancel.click();
+		await expect.element(saveDialog.getByTestId('save-slot-1')).toHaveFocus();
+		expect(saveDialog.getByTestId('confirm-overwrite').elements()).toHaveLength(0);
+	});
+
 	it('shows a just-written record and asks to overwrite when the same slot is clicked again', async () => {
 		await withCommands(async (commands) => {
 			render(GameShell);
