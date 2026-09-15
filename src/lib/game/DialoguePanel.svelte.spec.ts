@@ -211,6 +211,33 @@ describe('DialoguePanel.svelte', () => {
 		expect(event.defaultPrevented).toBe(true);
 	});
 
+	it('traps Tab inside the panel instead of escaping to controls behind it', async () => {
+		renderDialogue(conversationDialogue);
+		const panel = page.getByRole('dialog', { name: 'Guild Master Arlen' });
+		const next = panel.getByRole('button', { name: 'Next' });
+		const close = panel.getByRole('button', { name: 'Close' });
+
+		await expect.element(panel).toHaveFocus();
+
+		// Panel → Next → Close → wraps back to Next; Shift+Tab reverses.
+		await userEvent.keyboard('{Tab}');
+		await expect.element(next).toHaveFocus();
+		await userEvent.keyboard('{Tab}');
+		await expect.element(close).toHaveFocus();
+		await userEvent.keyboard('{Tab}');
+		await expect.element(next).toHaveFocus();
+		await userEvent.keyboard('{Shift>}{Tab}{/Shift}');
+		await expect.element(close).toHaveFocus();
+	});
+
+	it('exposes the aria-modal dialogue contract', async () => {
+		renderDialogue(conversationDialogue);
+
+		await expect
+			.element(page.getByRole('dialog', { name: 'Guild Master Arlen' }))
+			.toHaveAttribute('aria-modal', 'true');
+	});
+
 	it('keeps the dialogue composition anchored to the lower plaza like the mockup', async () => {
 		// Earlier focus/click steps can leave the window scrolled; the dialog is
 		// absolutely positioned in the document, so measurements need origin.

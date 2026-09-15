@@ -408,6 +408,14 @@
 		if (event.repeat) return false;
 		if (isEditableTarget(event.target)) return false;
 
+		// Dialogue owns input: even when it exposes no focusable lattice node
+		// (conversation/system modes, pre-reveal choices), arrows must never
+		// fall through to Phaser movement.
+		if ($hudState.dialogue) {
+			event.preventDefault();
+			return true;
+		}
+
 		if (!moveMenuFocus(direction)) return false;
 		event.preventDefault();
 		return true;
