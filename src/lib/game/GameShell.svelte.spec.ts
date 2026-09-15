@@ -769,6 +769,28 @@ describe('GameShell field status', () => {
 		emitHudState(baseHudState({ status: 'Battle start' }));
 		await expect.element(page.getByText(/Battle start/)).toBeVisible();
 	});
+
+	it('keeps the status live region announcing while the command grid is open', async () => {
+		// Rest at full HP: WorldScene answers with a status change, but the
+		// grid covers the field HUD — the live region must stay mounted and
+		// in the accessibility tree (final-review finding 8).
+		render(GameShell);
+		emitHudState(baseHudState({ status: 'Ready', heals: 2 }));
+
+		await page.getByRole('button', { name: /menu/i }).click();
+		await expect.element(page.getByRole('button', { name: 'Rest' })).toBeVisible();
+
+		const region = document.querySelector<HTMLElement>('[role="status"]')!;
+		emitHudState(baseHudState({ status: 'Already at full HP', heals: 2 }));
+
+		await vi.waitFor(() => {
+			expect(region.textContent).toContain('Already at full HP');
+		});
+		expect(document.querySelector('[role="status"]')).toBe(region);
+		expect(region.getAttribute('aria-live')).toBe('polite');
+		// Offscreen while the grid is open, but rendered — not display:none.
+		expect(region.getClientRects().length).toBeGreaterThan(0);
+	});
 });
 
 describe('GameShell command menu', () => {
