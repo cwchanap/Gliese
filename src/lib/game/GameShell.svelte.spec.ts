@@ -335,6 +335,42 @@ describe('GameShell motion flourishes', () => {
 });
 
 describe('GameShell battle summary', () => {
+	it('restores focus to the field HUD after the summary is dismissed', async () => {
+		render(GameShell);
+		emitHudState(baseHudState());
+		const menuButton = page.getByRole('button', { name: /menu/i });
+		await expect.element(menuButton).toBeVisible();
+		await menuButton.element().focus();
+
+		emitHudState(
+			baseHudState({
+				battle: {
+					phase: 'summary',
+					summary: {
+						outcome: 'victory',
+						enemiesDefeated: 1,
+						xpGained: 4,
+						coinsGained: 2,
+						drops: [],
+						leveledUp: false,
+						completedQuestTitles: [],
+						questRewards: [],
+						questProgress: []
+					},
+					active: null
+				}
+			})
+		);
+		const summary = page.getByTestId('battle-summary');
+		await expect.element(summary).toBeVisible();
+		await expect.element(summary.getByTestId('battle-summary-continue')).toHaveFocus();
+
+		// WorldScene clears the summary; the field HUD remounts and the shell
+		// hands focus back (fallback: the menu button) — never <body>.
+		emitHudState(baseHudState());
+		await expect.element(menuButton).toHaveFocus();
+	});
+
 	it('renders a blocking victory summary and dismisses it through the HUD bridge', async () => {
 		await withCommands(async (commands) => {
 			render(GameShell);
