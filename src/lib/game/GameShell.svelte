@@ -224,6 +224,9 @@
 		if (!commandOpen) return;
 		commandOpen = false;
 		resumeForOverlay('settings');
+		// Escape/pad-cancel unmounts the grid under the user's focus; the menu
+		// button is the grid's anchor (final-review finding 6).
+		menuButton?.focus();
 	}
 
 	function openInventory(initialTab: 'potions' | 'gear' = 'potions') {
@@ -443,6 +446,12 @@
 		setLastInputModality('keys');
 
 		if (handleMenuArrowKeys(event)) return;
+
+		if (event.key === 'Escape' && commandOpen) {
+			event.preventDefault();
+			closeCommand();
+			return;
+		}
 
 		if (event.key !== 'm' && event.key !== 'M') return;
 		if (event.ctrlKey || event.metaKey || event.altKey || event.shiftKey) return;

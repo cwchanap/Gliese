@@ -747,6 +747,21 @@ describe('GameShell command menu', () => {
 		await expect.element(menuButton).toHaveAttribute('aria-expanded', 'false');
 	});
 
+	it('closes the command grid on Escape and returns focus to the menu button', async () => {
+		render(GameShell);
+		emitHudState(baseHudState({ heals: 2 }));
+
+		const menuButton = page.getByRole('button', { name: /menu/i });
+		await menuButton.click();
+		// Rest stays on the grid (Bag/Gear would navigate to an overlay).
+		await page.getByRole('button', { name: 'Rest' }).click();
+		await expect.element(page.getByRole('button', { name: 'Rest' })).toHaveFocus();
+
+		await userEvent.keyboard('{Escape}');
+		expect(page.getByRole('button', { name: 'Rest' }).elements()).toHaveLength(0);
+		await expect.element(menuButton).toHaveFocus();
+	});
+
 	it('emits heal command when Rest is clicked', async () => {
 		await withCommands(async (commands) => {
 			render(GameShell);
