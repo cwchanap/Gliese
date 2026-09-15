@@ -9,7 +9,7 @@ vi.mock('$lib/game/phaser/createGame', () => ({
 	createGame: vi.fn(async () => ({ destroy: vi.fn() }))
 }));
 import { HUD_STATE_EVENT } from '$lib/game/ui-bridge/events';
-import type { HudState } from '$lib/game/core/types';
+import type { HudState } from '$lib/game/ui-bridge/events';
 
 function emitHudState(state: HudState) {
 	window.dispatchEvent(new CustomEvent(HUD_STATE_EVENT, { detail: state }));
