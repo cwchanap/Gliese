@@ -282,6 +282,7 @@
 					role="alertdialog"
 					aria-label={t(locale, 'ui.overwriteTitle')}
 					bind:this={confirmDialog}
+					tabindex="-1"
 					onkeydown={handleConfirmKeydown}
 				>
 					<p class="font-display">{t(locale, 'ui.overwriteTitle')}</p>

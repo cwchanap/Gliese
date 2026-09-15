@@ -83,6 +83,7 @@
 				role="tablist"
 				aria-label={t($locale, 'ui.system')}
 				bind:this={rail}
+				tabindex="-1"
 				onkeydown={handleRailKeydown}
 			>
 				<button
