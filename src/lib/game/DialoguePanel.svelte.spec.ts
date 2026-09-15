@@ -306,6 +306,41 @@ describe('DialoguePanel.svelte', () => {
 		}
 	});
 
+	it('keeps every choice row inside a 640×360 viewport with three choices', async () => {
+		// Quest-detail accept flows render three rows; the short-viewport
+		// fallback must keep them all on-screen — the shell's overflow: clip
+		// makes any off-viewport rect unreachable (Playwright click hangs).
+		await page.viewport(640, 360);
+		try {
+			window.scrollTo(0, 0);
+			renderDialogue({
+				choices: [
+					{ id: 'quest:accept', label: 'Accept the Commission', kind: 'trade' },
+					{ id: 'quest:ask', label: 'Ask About the Ruins', kind: 'ask' },
+					{ id: 'close', label: 'Leave', kind: 'leave' }
+				]
+			});
+
+			const rows = [
+				...page
+					.getByRole('dialog', { name: 'Guild Master Arlen' })
+					.element()
+					.querySelectorAll('.jrpg-dialogue-choice')
+			];
+			expect(rows).toHaveLength(3);
+			for (const [index, row] of rows.entries()) {
+				const rect = row.getBoundingClientRect();
+				expect(rect.height, `row ${index}`).toBeGreaterThan(0);
+				expect(rect.top, `row ${index}`).toBeGreaterThanOrEqual(0);
+				expect(rect.bottom, `row ${index}`).toBeLessThanOrEqual(360);
+				expect(rect.left, `row ${index}`).toBeGreaterThanOrEqual(0);
+				expect(rect.right, `row ${index}`).toBeLessThanOrEqual(640);
+			}
+		} finally {
+			page.viewport(414, 730);
+		}
+	});
+
 	it('renders per-kind leading icons like the mockup glyph list', async () => {
 		renderDialogue({
 			choices: [
@@ -779,6 +814,38 @@ describe('DialoguePanel.svelte', () => {
 			.getBoundingClientRect();
 
 		expect(commandBounds.bottom).toBeLessThan(window.innerHeight * 0.78);
+	});
+
+	it('keeps every command tile inside a wide short viewport (1000×360)', async () => {
+		render(GameShell);
+		emitHudState(createReadyHudState());
+
+		// The Tauri window is resizable; widths above the old ≤720px gate are
+		// equally valid at the 640×360 floor, so the short-height fallback must
+		// be width-independent — the shell's overflow: clip makes any
+		// off-viewport tile unreachable (Playwright click hangs).
+		await page.viewport(1000, 360);
+		try {
+			await page.getByRole('button', { name: 'Menu' }).click();
+
+			const grid = page.getByRole('region', { name: 'Command' }).element();
+			const gridRect = grid.getBoundingClientRect();
+			expect(gridRect.top).toBeGreaterThanOrEqual(0);
+			expect(gridRect.bottom).toBeLessThanOrEqual(360);
+			expect(gridRect.right).toBeLessThanOrEqual(1000);
+
+			const tiles = [...grid.querySelectorAll<HTMLElement>('[data-focus-id^="field-cmd-"]')];
+			expect(tiles).toHaveLength(8);
+			for (const tile of tiles) {
+				const rect = tile.getBoundingClientRect();
+				expect(rect.height, tile.dataset.focusId).toBeGreaterThan(0);
+				expect(rect.top, tile.dataset.focusId).toBeGreaterThanOrEqual(0);
+				expect(rect.bottom, tile.dataset.focusId).toBeLessThanOrEqual(360);
+				expect(rect.right, tile.dataset.focusId).toBeLessThanOrEqual(1000);
+			}
+		} finally {
+			page.viewport(414, 730);
+		}
 	});
 
 	it('renders inventory equipment badges with localized slot labels', async () => {

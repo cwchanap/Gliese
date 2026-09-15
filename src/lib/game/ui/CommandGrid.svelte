@@ -225,12 +225,15 @@
 		}
 	}
 
-	/* Short landscape screens (e.g. 640×360): the 2×4 stack would run past the
-	   viewport floor, leaving the lower commands outside the viewport — and
-	   the game shell's overflow: clip forbids scrolling them into view
-	   (infinite Playwright click retries). Use the desktop 4×2 grid anchored
-	   higher so every button stays inside the viewport. */
-	@media (max-width: 720px) and (max-height: 559px) {
+	/* Short screens (e.g. 640×360 — but the Tauri window is resizable, so
+	   any width below the height threshold: 1000×360 is equally valid): the
+	   desktop 13.4rem anchor runs the 4×2 grid past the viewport floor,
+	   leaving Save/System outside the viewport — and the game shell's
+	   overflow: clip forbids scrolling them into view (infinite Playwright
+	   click retries). Every short viewport uses the 4×2 grid anchored higher
+	   so every button stays inside the viewport; tall narrow screens keep
+	   the compact 2×4 stack above. */
+	@media (max-height: 559px) {
 		.heroic-field-menu {
 			top: 8.5rem;
 			left: 0.9rem;
