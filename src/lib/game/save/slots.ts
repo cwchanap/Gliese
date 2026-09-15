@@ -40,6 +40,10 @@ function isSaveSlotRecord(value: unknown, index: number): value is SaveSlotRecor
 	return (
 		record.kind === SLOT_KINDS[index as SaveSlotIndex] &&
 		typeof record.savedAt === 'string' &&
+		// getNewestSaveSlot orders by Date.parse; an unparseable savedAt yields
+		// NaN and an earlier NaN slot would beat every later valid one (so
+		// Continue could resume a stale slot). Reject the record at the envelope.
+		!Number.isNaN(Date.parse(record.savedAt)) &&
 		typeof record.playtimeSeconds === 'number' &&
 		typeof record.locationLabel === 'string' &&
 		(record.thumbnail === undefined || typeof record.thumbnail === 'string') &&
