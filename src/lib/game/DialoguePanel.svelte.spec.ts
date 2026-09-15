@@ -225,6 +225,11 @@ describe('DialoguePanel.svelte', () => {
 
 		await expect.element(panel).toHaveFocus();
 
+		// Shift+Tab from the initially-focused panel wraps to the LAST control
+		// instead of escaping behind the aria-modal surface.
+		await userEvent.keyboard('{Shift>}{Tab}{/Shift}');
+		await expect.element(close).toHaveFocus();
+
 		// Panel → Next → Close → wraps back to Next; Shift+Tab reverses.
 		await userEvent.keyboard('{Tab}');
 		await expect.element(next).toHaveFocus();

@@ -1649,6 +1649,13 @@ describe('GameShell save screen', () => {
 		// Focus entry: primary action owns focus while the alertdialog is open.
 		await expect.element(confirmButton).toHaveFocus();
 
+		// Shift+Tab from the alertdialog container itself wraps to the LAST
+		// control instead of escaping the aria-modal surface.
+		const confirmDialog = saveDialog.getByRole('alertdialog').element() as HTMLElement;
+		confirmDialog.focus();
+		await userEvent.keyboard('{Shift>}{Tab}{/Shift}');
+		await expect.element(confirmButton).toHaveFocus();
+
 		// Tab is trapped within the alertdialog's two buttons.
 		const cancel = saveDialog.getByRole('button', { name: /back/i }).last();
 		await userEvent.keyboard('{Shift>}{Tab}{/Shift}');
