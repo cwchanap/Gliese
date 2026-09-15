@@ -381,4 +381,73 @@
 			gap: 1rem;
 		}
 	}
+
+	/* Short viewports (≤360px tall — the Tauri minimum): the emblem/stats/
+	   Continue stack runs past the clipped shell, leaving Continue unreachable
+	   by pointer. Compact the composition AND bound the card with internal
+	   scroll so the button is always visible and clickable; desktop is
+	   untouched. */
+	@media (max-height: 500px) {
+		.battle-summary {
+			max-height: calc(100vh - 1.5rem);
+			overflow-y: auto;
+			padding: 1.1rem 1.5rem 1rem;
+		}
+
+		.battle-summary-emblem {
+			width: 2.6rem;
+			height: 2.6rem;
+		}
+
+		.battle-summary-emblem img {
+			width: 1.9rem;
+			height: 1.9rem;
+		}
+
+		.battle-summary-title {
+			margin-top: 0.7rem;
+			font-size: 1.35rem;
+		}
+
+		.battle-summary-levelup {
+			margin-top: 0.55rem;
+		}
+
+		.battle-summary-stats {
+			margin-top: 0.8rem;
+			gap: 1rem;
+		}
+
+		.battle-summary-stat {
+			gap: 0.3rem;
+		}
+
+		.battle-summary-stat-card {
+			width: 2.5rem;
+			height: 2.5rem;
+			border-radius: 0.7rem;
+		}
+
+		.battle-summary-stat-card svg {
+			width: 1.1rem;
+			height: 1.1rem;
+		}
+
+		.battle-summary-stat b {
+			font-size: 0.9rem;
+		}
+
+		.battle-summary-stat > span:last-child {
+			font-size: 0.54rem;
+		}
+
+		.battle-summary-quest {
+			margin-top: 0.8rem;
+		}
+
+		.battle-summary-continue {
+			margin-top: 0.9rem;
+			padding: 0.6rem 1.5rem;
+		}
+	}
 </style>

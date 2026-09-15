@@ -1439,6 +1439,63 @@ describe('GameShell battle summary defeat', () => {
 	});
 });
 
+describe('GameShell battle summary on short viewports', () => {
+	// Fourth review: at the 360px-tall Tauri minimum the emblem/stats/Continue
+	// stack ran past the clipped shell — Continue unreachable by pointer.
+	const summaryState = {
+		battle: {
+			phase: 'summary',
+			summary: {
+				outcome: 'victory',
+				enemiesDefeated: 3,
+				xpGained: 12,
+				coinsGained: 12,
+				drops: [{ itemId: 'field-potion', name: 'Field Potion', quantity: 2 }],
+				leveledUp: true,
+				completedQuestTitles: [],
+				questRewards: [
+					{ title: 'Thin the Village Slimes', rewardSummary: '6 XP / 12 coins / 1 item' }
+				],
+				questProgress: []
+			},
+			active: null
+		}
+	} as const;
+
+	async function expectContinueReachable(width: number, height: number) {
+		await page.viewport(width, height);
+		try {
+			window.scrollTo(0, 0);
+			render(GameShell);
+			emitHudState(baseHudState(summaryState));
+
+			const continueButton = page
+				.getByTestId('battle-summary')
+				.getByTestId('battle-summary-continue');
+			await expect.element(continueButton).toBeVisible();
+
+			const rect = continueButton.element().getBoundingClientRect();
+			expect(rect.top).toBeGreaterThanOrEqual(0);
+			expect(rect.bottom).toBeLessThanOrEqual(height);
+			expect(rect.left).toBeGreaterThanOrEqual(0);
+			expect(rect.right).toBeLessThanOrEqual(width);
+
+			// Reachable means clickable, not merely laid out.
+			await continueButton.click();
+		} finally {
+			await page.viewport(1280, 720);
+		}
+	}
+
+	it('keeps Continue visible and clickable at 640×360', async () => {
+		await expectContinueReachable(640, 360);
+	});
+
+	it('keeps Continue visible and clickable at 1440×360', async () => {
+		await expectContinueReachable(1440, 360);
+	});
+});
+
 function createSlotRecord(): SaveSlotRecord {
 	return {
 		kind: 'manual',
