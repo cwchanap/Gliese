@@ -25,6 +25,17 @@
 	// Newest entry first (mockup order); older rows fade with age.
 	const feedNewestFirst = $derived([...active.feed].reverse());
 
+	let platesBox = $state<HTMLDivElement>();
+
+	// Short viewports scroll the plate stack internally; when the target
+	// cycles, keep the selected plate scrolled into view so the target
+	// state never sits invisible beyond the stack's clip.
+	$effect(() => {
+		platesBox
+			?.querySelector(`[data-unit-id="${active.targetUnitId}"]`)
+			?.scrollIntoView({ block: 'nearest' });
+	});
+
 	function feedTone(kind: HudBattleFeedEntry['kind']) {
 		if (kind === 'hit' || kind === 'defeat') return 'gold';
 		if (kind === 'hurt') return 'rose';
@@ -82,6 +93,7 @@
 	<div
 		class="battle-plates"
 		class:battle-plates-dense={active.enemies.length > 4}
+		bind:this={platesBox}
 		data-testid="battle-plates"
 	>
 		{#each active.enemies as enemy (enemy.unitId)}
@@ -813,6 +825,48 @@
 			bottom: 1.1rem;
 			right: 0.9rem;
 			gap: 0.7rem;
+		}
+	}
+
+	/* Short viewports (e.g. 640×360, but any width — the Tauri window is
+	   resizable): the plate stack has no height bound, so a large encounter
+	   runs past the viewport floor — targets stayed selectable while
+	   invisible under the shell's overflow: clip — and the 4-row feed rises
+	   past the viewport top. Compact the plates and bound the stack above
+	   the command tiles with internal scroll (the selected target is scrolled
+	   back into view); the feed drops lower with a cap. Taller viewports
+	   keep the desktop composition untouched. */
+	@media (max-height: 559px) {
+		.battle-plates {
+			max-height: calc(100vh - 15.5rem);
+			overflow-y: auto;
+			/* Keep the target arrow (left: -0.85rem) inside the scroll box. */
+			padding-left: 1rem;
+			gap: 0.25rem;
+		}
+
+		.battle-plate {
+			width: 16.5rem;
+			padding: 0.25rem 0.7rem 0.25rem 1.4rem;
+		}
+
+		.battle-plate-badge {
+			width: 1.5rem;
+			height: 1.5rem;
+		}
+
+		.battle-plate-name {
+			font-size: 0.8rem;
+		}
+
+		.battle-plate-status {
+			display: none;
+		}
+
+		.battle-feed {
+			bottom: 10rem;
+			max-height: calc(100vh - 12.5rem);
+			overflow-y: auto;
 		}
 	}
 </style>
