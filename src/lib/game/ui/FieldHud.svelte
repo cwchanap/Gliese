@@ -222,18 +222,20 @@
 	</div>
 </div>
 
-{#if !commandOpen}
-	<div
-		class="heroic-field-card heroic-field-status"
-		role="status"
-		aria-label={t($locale, 'ui.fieldStatus')}
-		aria-live="polite"
-	>
-		{#key fieldStatusKey}
-			<span class="heroic-anim">{hudState.status}</span>
-		{/key}
-	</div>
-{/if}
+<!-- The live region must survive grid open/close: unmounting it swallows
+		status changes (Rest at full HP was silent). While the grid is open it's
+		kept in the a11y tree but visually offscreen. -->
+<div
+	class="heroic-field-card heroic-field-status"
+	class:heroic-field-status-offscreen={commandOpen}
+	role="status"
+	aria-label={t($locale, 'ui.fieldStatus')}
+	aria-live="polite"
+>
+	{#key fieldStatusKey}
+		<span class:heroic-anim={!commandOpen}>{hudState.status}</span>
+	{/key}
+</div>
 
 <style>
 	.heroic-field-card {
@@ -644,6 +646,19 @@
 		font-weight: 900;
 		color: var(--color-sapphire);
 		pointer-events: none;
+	}
+
+	/* Same specificity as .heroic-field-status above; source order wins. */
+	.heroic-field-status-offscreen {
+		position: absolute;
+		width: 1px;
+		height: 1px;
+		padding: 0;
+		margin: -1px;
+		overflow: hidden;
+		clip-path: inset(50%);
+		white-space: nowrap;
+		border: 0;
 	}
 
 	@media (max-width: 720px) {
