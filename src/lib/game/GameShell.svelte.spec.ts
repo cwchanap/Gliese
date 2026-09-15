@@ -1518,7 +1518,7 @@ describe('GameShell battle summary defeat', () => {
 describe('GameShell battle summary on short viewports', () => {
 	// Fourth review: at the 360px-tall Tauri minimum the emblem/stats/Continue
 	// stack ran past the clipped shell — Continue unreachable by pointer.
-	const summaryState = {
+	const summaryState: Partial<HudState> = {
 		battle: {
 			phase: 'summary',
 			summary: {
@@ -1536,7 +1536,7 @@ describe('GameShell battle summary on short viewports', () => {
 			},
 			active: null
 		}
-	} as const;
+	};
 
 	async function expectContinueReachable(width: number, height: number) {
 		await page.viewport(width, height);
