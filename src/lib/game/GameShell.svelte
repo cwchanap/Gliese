@@ -392,7 +392,9 @@
 	}
 
 	function handleMenuArrowKeys(event: KeyboardEvent): boolean {
-		if (!overlaySurfaceOpen) return false;
+		// Title cards carry the same lattice; without this the pad roves Title
+		// but keyboard arrows fall dead (final-review finding 5).
+		if (!overlaySurfaceOpen && mode !== 'title') return false;
 		const direction =
 			event.key === 'ArrowUp'
 				? 'up'
