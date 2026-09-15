@@ -480,7 +480,9 @@
 		let previous: GamepadSnapshot = null;
 		let frame = requestAnimationFrame(function poll() {
 			const pads = typeof navigator.getGamepads === 'function' ? navigator.getGamepads() : [];
-			const current = snapshotGamepad(pads[0] ?? null);
+			// Browsers leave holes for disconnected slots; a pad in a sparse slot
+			// must still drive the UI (final-review finding 7).
+			const current = snapshotGamepad(pads.find((pad) => pad !== null) ?? null);
 			for (const action of diffGamepadActions(previous, current)) handlePadUiAction(action);
 			previous = current;
 			frame = requestAnimationFrame(poll);

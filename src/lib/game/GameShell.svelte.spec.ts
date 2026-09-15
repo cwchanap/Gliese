@@ -2304,6 +2304,20 @@ describe('GameShell pad layer', () => {
 		expect(page.getByRole('button', { name: 'Bag' }).elements()).toHaveLength(0);
 	});
 
+	it('drives the UI from a pad in a sparse gamepad slot', async () => {
+		stubPad = {
+			buttons: Array.from({ length: 17 }, () => ({ pressed: false })),
+			axes: [0, 0]
+		};
+		// Browsers pad disconnected slots with null (final-review finding 7).
+		vi.stubGlobal('navigator', { getGamepads: () => [null, null, stubPad] });
+		render(GameShell);
+		emitHudState(baseHudState());
+
+		await press(9);
+		await expect.element(page.getByRole('button', { name: 'Bag' })).toBeVisible();
+	});
+
 	it('moves focus through the 4×2 command grid with the left stick', async () => {
 		installPadStub();
 		render(GameShell);
