@@ -103,6 +103,33 @@
 	function handleKeydown(event: KeyboardEvent) {
 		if (closeFromEscape(event)) return;
 
+		// Tab trap: the dialogue is non-modal <dialog open>, so without an
+		// explicit wrap Tab escapes to the controls behind it. The panel itself
+		// (initial focus) and the edge buttons wrap around the enabled controls.
+		if (event.key === 'Tab') {
+			const focusable = Array.from(
+				panel?.querySelectorAll<HTMLButtonElement>('button:not([disabled])') ?? []
+			).filter((button) => button.getClientRects().length > 0);
+			if (focusable.length === 0) {
+				event.preventDefault();
+				panel?.focus();
+				return;
+			}
+			const first = focusable[0];
+			const last = focusable.at(-1)!;
+			if (event.shiftKey && document.activeElement === first) {
+				event.preventDefault();
+				last.focus();
+			} else if (
+				!event.shiftKey &&
+				(document.activeElement === panel || document.activeElement === last)
+			) {
+				event.preventDefault();
+				first.focus();
+			}
+			return;
+		}
+
 		if (event.key !== 'Enter' && event.key !== ' ') return;
 		if (event.target !== event.currentTarget) {
 			event.stopPropagation();
@@ -126,6 +153,7 @@
 <dialog
 	class="jrpg-dialogue-panel heroic-anim pointer-events-auto absolute right-[2.75rem] bottom-[2.5rem] left-[2.75rem] z-[70] m-0 font-display text-parchment"
 	aria-label={dialogue.speaker}
+	aria-modal="true"
 	bind:this={panel}
 	open
 	tabindex="-1"
@@ -204,12 +232,26 @@
 					{/each}
 				</div>
 				<div class="jrpg-dialogue-prompts">
-					<button type="button" class="jrpg-dialogue-action" onclick={confirmAdvance}>
+					<button
+						type="button"
+						class="jrpg-dialogue-action"
+						data-focus-id="dialogue-next"
+						data-focus-row={dialogue.choices.length}
+						data-focus-column={0}
+						onclick={confirmAdvance}
+					>
 						<PromptGlyph mode={$preferences.promptMode} keys="&#8629;" pad="A" tone="a" />
 						{t($locale, 'ui.next')}
 					</button>
 					{#if dialogue.canClose}
-						<button type="button" class="jrpg-dialogue-action" onclick={onclose}>
+						<button
+							type="button"
+							class="jrpg-dialogue-action"
+							data-focus-id="dialogue-close"
+							data-focus-row={dialogue.choices.length}
+							data-focus-column={1}
+							onclick={onclose}
+						>
 							<PromptGlyph mode={$preferences.promptMode} keys="Esc" pad="B" tone="b" />
 							{t($locale, 'ui.close')}
 						</button>
