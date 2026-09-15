@@ -198,7 +198,14 @@
 
 	$effect(() => {
 		const summaryVisible = battleSummary !== null;
-		if (summaryVisible && !battleSummaryWasVisible) void focusBattleSummaryDialog();
+		if (summaryVisible && !battleSummaryWasVisible) {
+			// Remember what held focus before the summary took over, so Continue
+			// hands it back instead of dropping to <body> (final-review finding 11).
+			rememberOverlayFocus();
+			void focusBattleSummaryDialog();
+		} else if (!summaryVisible && battleSummaryWasVisible) {
+			void restoreOverlayFocus();
+		}
 		battleSummaryWasVisible = summaryVisible;
 	});
 
