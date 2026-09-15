@@ -1,4 +1,4 @@
-import { page } from 'vitest/browser';
+import { page, userEvent } from 'vitest/browser';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 
@@ -79,6 +79,28 @@ describe('SystemScreen', () => {
 		const audio = page.getByRole('tab', { name: 'Audio' });
 		await expect.element(audio).toBeDisabled();
 		await expect.element(audio).toHaveAttribute('aria-describedby', 'system-audio-unavailable');
+	});
+
+	it('exposes the Display rail as a focusable selected tab with roving arrows', async () => {
+		render(SystemScreen, { props: { open: true, onClose: vi.fn(), onkeydown: vi.fn() } });
+
+		const display = page.getByRole('tab', { name: 'Display' });
+		await expect.element(display).toHaveAttribute('aria-selected', 'true');
+		await expect.element(display).toHaveAttribute('tabindex', '0');
+
+		// Roving: arrows move focus among enabled tabs (Audio is disabled), and
+		// the Input shortcut never claims selection — there is no input panel.
+		await display.element().focus();
+		const input = page.getByRole('tab', { name: 'Input' });
+		await input.element().focus();
+		await expect.element(input).toHaveAttribute('tabindex', '-1');
+		await expect.element(input).toHaveAttribute('aria-selected', 'false');
+
+		await display.element().focus();
+		await userEvent.keyboard('{ArrowDown}');
+		await expect.element(input).toHaveFocus();
+		await userEvent.keyboard('{ArrowUp}');
+		await expect.element(display).toHaveFocus();
 	});
 
 	it('selecting a language updates preferences and persists the JSON record', async () => {

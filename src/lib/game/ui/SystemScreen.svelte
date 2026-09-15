@@ -29,6 +29,7 @@
 
 	let osReducedMotion = $state(false);
 	let promptsRow = $state<HTMLDivElement>();
+	let rail = $state<HTMLDivElement>();
 
 	$effect(() => {
 		const query = window.matchMedia('(prefers-reduced-motion: reduce)');
@@ -46,6 +47,22 @@
 	function focusPromptsRow(): void {
 		promptsRow?.querySelector<HTMLButtonElement>('button:not([disabled])')?.focus();
 	}
+
+	/** Vertical rail roving (BagScreen category-rail pattern): arrows move
+	 *  focus among enabled tabs, skipping the disabled Audio tab; swallows the
+	 *  event so the shell's lattice doesn't also move focus. */
+	function handleRailKeydown(event: KeyboardEvent): void {
+		if (event.key !== 'ArrowDown' && event.key !== 'ArrowUp') return;
+		event.preventDefault();
+		event.stopPropagation();
+		const tabs = Array.from(
+			rail?.querySelectorAll<HTMLButtonElement>('[role="tab"]:not([disabled])') ?? []
+		);
+		if (tabs.length === 0) return;
+		const step = event.key === 'ArrowDown' ? 1 : -1;
+		const index = tabs.indexOf(document.activeElement as HTMLButtonElement);
+		tabs[(index + step + tabs.length) % tabs.length]?.focus();
+	}
 </script>
 
 {#if open}
@@ -61,12 +78,23 @@
 			tabindex="-1"
 			{onkeydown}
 		>
-			<div class="heroic-rail" role="tablist" aria-label={t($locale, 'ui.system')}>
-				<div
+			<div
+				class="heroic-rail"
+				role="tablist"
+				aria-label={t($locale, 'ui.system')}
+				bind:this={rail}
+				onkeydown={handleRailKeydown}
+			>
+				<button
+					type="button"
 					class="heroic-rail-card heroic-rail-card-selected"
 					role="tab"
 					aria-selected="true"
 					aria-current="page"
+					tabindex="0"
+					data-focus-id="system-rail-display"
+					data-focus-row={0}
+					data-focus-column={0}
 				>
 					<svg
 						viewBox="0 0 16 16"
@@ -79,7 +107,7 @@
 						<path d="M5.8 13.8h4.4M8 11.2v2.6" />
 					</svg>
 					<span>{t($locale, 'ui.railDisplay')}</span>
-				</div>
+				</button>
 				<button
 					type="button"
 					role="tab"
@@ -87,7 +115,7 @@
 					aria-selected="false"
 					disabled
 					data-focus-id="system-rail-audio"
-					data-focus-row={0}
+					data-focus-row={1}
 					data-focus-column={0}
 					aria-describedby="system-audio-unavailable"
 					title={t($locale, 'ui.audioUnavailable')}
@@ -112,8 +140,9 @@
 					role="tab"
 					class="heroic-rail-card"
 					aria-selected="false"
+					tabindex="-1"
 					data-focus-id="system-rail-input"
-					data-focus-row={1}
+					data-focus-row={2}
 					data-focus-column={0}
 					onclick={focusPromptsRow}
 				>
