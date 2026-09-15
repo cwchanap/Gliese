@@ -2023,6 +2023,23 @@ describe('GameShell keyboard shortcuts', () => {
 		}
 	});
 
+	it('moves keyboard arrows along the Title cards', async () => {
+		render(GameShell);
+		await expect.element(page.getByRole('heading', { name: 'GLIESE' })).toBeVisible();
+
+		// Pad directions already rove Title; keyboard arrows share the reducer.
+		// Initial focus is the primary card (no save data → New Run, column 1).
+		await userEvent.keyboard('{ArrowRight}');
+		await expect.element(page.getByRole('button', { name: /system/i })).toHaveFocus();
+
+		await userEvent.keyboard('{ArrowLeft}');
+		await expect.element(page.getByRole('button', { name: /new run/i })).toHaveFocus();
+
+		// Row edge: left of New Run is the disabled Continue — focus stays.
+		await userEvent.keyboard('{ArrowLeft}');
+		await expect.element(page.getByRole('button', { name: /new run/i })).toHaveFocus();
+	});
+
 	it('moves grid focus with arrow keys through resolveMenuFocusTarget', async () => {
 		render(GameShell);
 		emitHudState(baseHudState({ heals: 0 }));
