@@ -160,7 +160,13 @@ describe('DialoguePanel.svelte', () => {
 		renderDialogue();
 
 		await expect.element(page.getByRole('dialog', { name: 'Guild Master Arlen' })).toBeVisible();
-		await expect.element(page.getByText('Choose the Guild work you want to review.')).toBeVisible();
+		// Scope to the visible line: the sr-only status twin repeats the text.
+		expect(
+			page
+				.getByRole('dialog', { name: 'Guild Master Arlen' })
+				.element()
+				.querySelector('.jrpg-dialogue-line')!.textContent
+		).toBe('Choose the Guild work you want to review.');
 		await expect.element(page.getByRole('button', { name: 'Thin Village Slimes' })).toBeVisible();
 	});
 
@@ -622,9 +628,11 @@ describe('DialoguePanel.svelte', () => {
 		await expect
 			.element(commandBox.getByRole('button', { name: 'Save', exact: true }))
 			.toBeVisible();
-		// The mockup's grid-open composition has no status pill: it is gated on
-		// commandOpen and comes back once the grid closes.
-		expect(page.getByRole('status', { name: 'Field status' }).elements()).toHaveLength(0);
+		// The mockup's grid-open composition shows no status pill; the live
+		// region stays mounted but offscreen so status changes still announce
+		// (Rest at full HP was silent — final-review finding 8).
+		const status = page.getByRole('status', { name: 'Field status' }).element() as HTMLElement;
+		expect(status.className).toContain('heroic-field-status-offscreen');
 
 		await page.getByRole('button', { name: 'Menu' }).click();
 		expect(page.getByRole('region', { name: 'Command' }).elements()).toHaveLength(0);
