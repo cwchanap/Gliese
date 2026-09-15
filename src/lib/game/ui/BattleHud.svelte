@@ -138,7 +138,13 @@
 	</div>
 
 	<!-- Combat feed -->
-	<div class="battle-feed" data-testid="battle-feed" aria-label={t($locale, 'ui.battleFeed')}>
+	<div
+		class="battle-feed"
+		data-testid="battle-feed"
+		role="log"
+		aria-live="polite"
+		aria-label={t($locale, 'ui.battleFeed')}
+	>
 		{#each feedNewestFirst as entry, index (entry.id)}
 			<div
 				class={`battle-feed-row battle-feed-row-${feedTone(entry.kind)}`}
